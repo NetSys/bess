@@ -1,0 +1,8 @@
+dpdk_ports = int($SN_PORTS!'1')
+print 'Using %d DPDK ports... (envvar "SN_PORTS")' % dpdk_ports
+
+for i in range(dpdk_ports):
+	port = Port(driver='PMD', port_id=i, loopback=1)
+
+        Source() -> PortOut(arg=port)
+        PortInc(arg=port) -> Sink()

@@ -1,0 +1,63 @@
+import time
+import pprint
+
+import scapy.all as scapy
+
+source::Source() -> bpf::BPF()
+bpf[0] -> Sink()      # for matched packets
+bpf[1] -> Sink()      # for unmatched packets
+
+def run_testcase(exp, test_pkts):
+    source.query({'templates': map(lambda x: bytearray(str(x)), test_pkts)})
+    bpf.query(exp)
+
+    softnic.resume_all()
+
+    old_stats = softnic.get_module_info(bpf.name)['gates']
+    time.sleep(2)
+    new_stats = softnic.get_module_info(bpf.name)['gates']
+
+    pps_matched = \
+            (new_stats[0]['pkts'] - old_stats[0]['pkts']) / \
+            (new_stats[0]['timestamp'] - old_stats[0]['timestamp'])
+
+    pps_unmatched = \
+            (new_stats[1]['pkts'] - old_stats[1]['pkts']) / \
+            (new_stats[1]['timestamp'] - old_stats[1]['timestamp'])
+
+    pps_total = pps_matched + pps_unmatched
+
+    print 'Total: %8.3fMpps\t\tMatched: %8.3fMpps\t\tUnmatched: %8.3fMpps' %  \
+            (pps_total / 1000000.0, 
+             pps_matched / 1000000.0, 
+             pps_unmatched / 1000000.0)
+
+    softnic.pause_all()
+
+udp_pkt   = scapy.Ether()/scapy.IP()/scapy.UDP()
+tcp_pkt   = scapy.Ether()/scapy.IP()/scapy.TCP()
+http_pkt1 = scapy.Ether()/scapy.IP()/scapy.TCP(sport=8080, dport=80)
+http_pkt2 = scapy.Ether()/scapy.IP()/scapy.TCP(sport=8081, dport=80)
+http_pkt3 = scapy.Ether()/scapy.IP()/scapy.TCP(sport=1234, dport=80)
+ftp_pkt   = scapy.Ether()/scapy.IP()/scapy.TCP(dport=21)
+
+testcases = [
+    ('', [udp_pkt]),
+    ('', [udp_pkt, tcp_pkt]),
+    ('udp', [udp_pkt]),
+    ('udp', [tcp_pkt]),
+    ('udp', [udp_pkt, tcp_pkt]),
+    ('tcp src portrange 8000-9000 && dst port 80', [http_pkt1]),
+    ('tcp src portrange 8000-9000 && dst port 80', [http_pkt1, http_pkt2, http_pkt3]),
+    ('tcp src portrange 8000-9000 && dst port 80', [http_pkt1, http_pkt2, http_pkt3, ftp_pkt]),
+]
+
+for i, case in enumerate(testcases):
+    print
+    print 'Testcase %d: %s' % (i, case[0])
+    pprint.pprint(case[1])
+
+print
+for i, case in enumerate(testcases):
+    print 'Testcase %d:\t\t' % i,
+    run_testcase(*case)

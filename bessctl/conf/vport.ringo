@@ -1,0 +1,10 @@
+import os
+
+p = Port(driver='PMD', port_id = 0)
+v = Port(driver='VPort')
+
+# To test a container vport, uncomment this 
+# v = Port(driver='VPort', name='sn0', docker=<name or CID, ip_addr='192.168.10.1/24')
+
+PortInc(arg=p) -> PortOut(arg=v)
+PortInc(arg=v) -> PortOut(arg=p)

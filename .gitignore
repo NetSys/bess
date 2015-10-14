@@ -1,0 +1,30 @@
+# Temporary/hidden files
+.*
+
+# VM images
+*.img
+
+# Object files
+*.pyc
+*.o
+*.ko
+*.symvers
+*.mod.c
+modules.order
+
+# Libraries
+*.lib
+*.a
+
+# Shared objects
+*.so
+*.so.*
+
+# Executables
+core/bessd
+
+# 3rd-party libraries
+deps/dpdk/*
+
+# OSX
+.DS_Store

@@ -1,0 +1,70 @@
+#ifndef _COMMON_H_
+#define _COMMON_H_
+
+#include <stddef.h>
+#include <stdint.h>
+#include <stdio.h>
+
+/* TODO: no hard limit */
+#define MAX_PORTS			128
+
+typedef uint8_t queue_t;
+
+#define QUEUE_UNKNOWN			255
+#define MAX_QUEUES_PER_DIR		32	/* [0, 31] (for each RX/TX) */
+
+/* The term RX/TX could be very confusing for a virtual switch.
+ * Instead, we use the "incoming/outgoing" convention:
+ * - incoming: outside -> SoftNIC
+ * - outgoing: SoftNIC -> outside */
+typedef enum {
+	PACKET_DIR_INC 	= 0,
+	PACKET_DIR_OUT 	= 1,
+	PACKET_DIRS
+} packet_dir_t;
+
+#define member_type(type, member) typeof(((type *)0)->member)
+
+#define container_of(ptr, type, member) \
+	((type *)((char *)(member_type(type, member) *){ptr} - \
+		offsetof(type, member)))
+
+/* err is defined as -errno,  */
+#define MAX_ERRNO			4095
+static inline int64_t ptr_to_err(const void *ptr)
+{
+	return (int64_t) ptr;
+}
+
+static inline void *err_to_ptr(int64_t err)
+{
+	return (void *) err;
+}
+
+static inline int is_err(const void *ptr)
+{
+	return (uint64_t)ptr >= (uint64_t)-MAX_ERRNO;
+}
+
+static inline int is_err_or_null(const void *ptr)
+{
+	return !ptr || is_err(ptr);
+}
+#undef MAX_ERRNO
+
+#define __cacheline_aligned __attribute__((aligned(64)))
+
+/* For x86_64. DMA operations are not safe with these macros */
+#define INST_BARRIER()		asm volatile("" ::: "memory")
+#define LOAD_BARRIER()		INST_BARRIER()
+#define STORE_BARRIER()		INST_BARRIER()
+#define FULL_BARRIER()		asm volatile("mfence":::"memory")
+
+
+static inline void oom_crash()
+{
+	fprintf(stderr, "Fatal: out of memory for critical operations\n");
+	*((int *)NULL) = 0;
+}
+
+#endif
