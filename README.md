@@ -1,5 +1,4 @@
 ## BESS (Berkeley Extensible Software Switch)
-=======
 
 Detailed documentation will be available soon.
 
