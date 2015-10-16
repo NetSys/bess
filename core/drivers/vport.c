@@ -169,7 +169,7 @@ static int init_driver(struct driver *driver)
 		ret = system("sudo insmod kmod/softnic.ko");
 		if (WEXITSTATUS(ret) != 0)
 			fprintf(stderr, "Warning: cannot load kernel" \
-					"module");
+					"module\n");
 	}
 
 	return 0;
