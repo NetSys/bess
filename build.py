@@ -7,7 +7,9 @@ import time
 import urllib
 import subprocess
 
-DEPS_DIR = '%s/deps' % os.path.dirname(__file__)
+BESS_DIR = os.path.dirname(os.path.abspath(__file__))
+
+DEPS_DIR = '%s/deps' % BESS_DIR 
 
 DPDK_REPO = 'http://dpdk.org/browse/dpdk/snapshot'
 DPDK_VER = 'dpdk-2.0.0'
@@ -71,6 +73,7 @@ def setup_dpdk():
 def build_bess():
     print 'Building BESS daemon...'
     cmd('make -C core')
+    cmd('ln -f -s ../core/bessd bin/bessd')
 
 def build_kmod():
     print 'Building BESS Linux kernel module... (optional)'
@@ -87,6 +90,7 @@ def build_all():
 def do_clean():
     print 'Cleaning up...'
     cmd('make -C core clean')
+    cmd('rm -f bin/bessd')
     cmd('make -C core/kmod clean')
 
 def do_dist_clean():
@@ -101,6 +105,8 @@ def print_usage():
     sys.exit(2)
 
 def main():
+    os.chdir(BESS_DIR)
+
     if len(sys.argv) == 1:
         build_all()
     elif len(sys.argv) == 2:
