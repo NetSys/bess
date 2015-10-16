@@ -1007,7 +1007,7 @@ int main(int argc, char **argv)
 		pid = fork();
 		if (pid < 0) {
 			fprintf(stderr, "Could not fork damon\n");
-			exit(EXIT_FAILURE);
+			goto fail;
 		}
 		if (pid > 0) {
 			exit(EXIT_SUCCESS);
@@ -1015,8 +1015,7 @@ int main(int argc, char **argv)
 		// Reparent
 		sid = setsid();
 		if (sid < 0) {
-			fprintf(stderr, "Could not set SID\n");
-			exit(EXIT_FAILURE);
+			goto fail;
 		}
 
 		close(STDIN_FILENO);
@@ -1033,12 +1032,12 @@ int main(int argc, char **argv)
 
 	run_master(cmdline_opts.port);
 
+	if (daemonize)
+		end_syslog();
+fail:
 	/* never executed */
 	rte_eal_mp_wait_lcore();
 	close_mempool();
-
-	if (daemonize)
-		end_syslog();
 
 	return 0;
 }
