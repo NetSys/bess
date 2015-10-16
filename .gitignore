@@ -21,10 +21,12 @@ modules.order
 *.so.*
 
 # Executables
-core/bessd
+bin/bessd
 
 # 3rd-party libraries
 deps/dpdk/*
+deps/*.tgz
+deps/*.gz
 
 # OSX
 .DS_Store
