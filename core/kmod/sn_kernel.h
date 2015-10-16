@@ -35,6 +35,7 @@
 
 #include <linux/pci.h>
 #include <linux/netdevice.h>
+#include <linux/miscdevice.h>
 
 #include "sn_stack.h"
 
