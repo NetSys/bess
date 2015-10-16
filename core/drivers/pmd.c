@@ -131,7 +131,7 @@ static struct snobj *pmd_init_port(struct port *p, struct snobj *conf)
 			ETH_TXQ_FLAGS_NOXSUMS * (1 - SN_HW_RXCSUM);
 
 	ret = rte_eth_dev_configure(port_id,
-				    num_txq, num_rxq, &eth_conf);
+				    num_rxq, num_txq, &eth_conf);
 	if (ret != 0) 
 		return snobj_errno_details(-ret, conf);
 
