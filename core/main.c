@@ -5,7 +5,11 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <errno.h>
+
 #include <sys/ioctl.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <sys/file.h>
 
 #include <rte_launch.h>
 
@@ -21,7 +25,6 @@ static struct {
 	uint16_t port;			/* TCP port for control channel */
 	int daemonize;			
 } cmdline_opts = {
-	.port = 10154,
 	.daemonize = 1,
 };
 
@@ -64,7 +67,7 @@ static void print_usage(char *exec_name)
 
 /* NOTE: At this point DPDK has not been initilaized, 
  *       so it cannot invoke rte_* functions yet. */
-static void init_config(int argc, char **argv)
+static void parse_args(int argc, char **argv)
 {
 	char c;
 
@@ -111,36 +114,122 @@ static void init_config(int argc, char **argv)
 	}
 }
 
+/* todo: chdir */
+void check_user()
+{
+	uid_t euid;
+	
+	euid = geteuid();
+	if (euid != 0) {
+		fprintf(stderr, "You need root privilege to run BESS daemon\n");
+		exit(EXIT_FAILURE);
+	}
+
+	/* Great power comes with great responsibility */
+	umask(S_IRUSR | S_IWUSR);
+}
+
+void set_pidfile()
+{
+	char buf[1024];
+
+	int fd;
+	int ret;
+
+	pid_t pid;
+
+	fd = open("/var/run/bessd.pid", O_RDWR | O_CREAT);
+	if (fd == -1) {
+		perror("open(\"/ver/run/bessd.pid\")");
+		exit(EXIT_FAILURE);
+	}
+
+	ret = flock(fd, LOCK_EX | LOCK_NB);
+	if (ret) {
+		/* locking failed */
+		if (errno == EWOULDBLOCK) {
+			ret = read(fd, buf, sizeof(buf) - 1);
+			if (ret <= 0) {
+				perror("read(pidfile)");
+				exit(EXIT_FAILURE);
+			}
+
+			buf[ret] = '\0';
+
+			sscanf(buf, "%d", &pid);
+			fprintf(stderr, "ERROR: There is another BESS daemon" \
+				" running (PID=%d).\n", pid);
+			fprintf(stderr, "       You cannot run more than" \
+				" one BESS instance at a time.\n");
+			exit(EXIT_FAILURE);
+		}
+	} else {
+		pid = getpid();
+		ret = sprintf(buf, "%d\n", pid);
+		write(fd, buf, ret);
+	}
+	
+	/* keep the file descriptor open, to maintain the lock */
+}
+
+int daemon_start()
+{
+	pid_t pid;
+	pid_t sid;
+
+	pid = fork();
+	if (pid < 0) {
+		perror("fork()");
+		return -1;
+	}
+
+	if (pid > 0)
+		exit(EXIT_SUCCESS);
+
+	/* Detach from the tty */
+	sid = setsid();
+	if (sid < 0) {
+		perror("setsid()");
+		return -1;
+	}
+
+	printf("BESS daemon is running in the background... (PID=%d)\n",
+			getpid());
+
+	close(STDIN_FILENO);
+	close(STDOUT_FILENO);
+	close(STDERR_FILENO);
+
+	setup_syslog();
+
+	return 0;
+}
+
+void daemon_close()
+{
+	end_syslog();
+}
+
 int main(int argc, char **argv)
 {
-	pid_t pid, sid;
-	init_config(argc, argv);
+	int ret = 0;
+
+	parse_args(argc, argv);
+
+	check_user();
+	set_pidfile();
+
+	if (cmdline_opts.daemonize) {
+		ret = daemon_start();
+		if (ret) {
+			ret = EXIT_FAILURE;
+			goto fail;
+		}
+	}
 
 	init_dpdk(argv[0]);
 	init_mempool();
 	init_drivers();
-
-	if (cmdline_opts.daemonize) {
-		pid = fork();
-		if (pid < 0) {
-			fprintf(stderr, "Could not fork damon\n");
-			goto fail;
-		}
-
-		if (pid > 0)
-			exit(EXIT_SUCCESS);
-
-		/* Reparent */
-		sid = setsid();
-		if (sid < 0)
-			goto fail;
-
-		close(STDIN_FILENO);
-		close(STDERR_FILENO);
-		close(STDOUT_FILENO);
-
-		setup_syslog();
-	}
 
 	for (int i = 0; i < num_workers; i++)
 		launch_worker(i, cmdline_opts.wid_to_core[i]);
@@ -148,11 +237,11 @@ int main(int argc, char **argv)
 	run_master(cmdline_opts.port);
 
 	if (cmdline_opts.daemonize)
-		end_syslog();
+		daemon_close();
 
 fail:
 	rte_eal_mp_wait_lcore();
 	close_mempool();
 
-	return 0;
+	return ret;
 }
