@@ -1,5 +1,6 @@
 #include <assert.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <fcntl.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -13,6 +14,7 @@
 #include "master.h"
 #include "worker.h"
 #include "driver.h"
+#include "syslog.h"
 
 static int core_to_socket_id(int cpu)
 {
@@ -46,6 +48,8 @@ static struct {
 	uint16_t port;
 } cmdline_opts;
 
+static int daemonize = 1;
+
 static void parse_core_list()
 {
 	char *ptr;
@@ -77,6 +81,8 @@ static void print_usage(char *exec_name)
 	fprintf(stderr, "  %-16s Specifies the TCP port on which SoftNIC listens"
 			     "for controller connections\n",
 			"-p <port>");
+	fprintf(stderr, "  %-16s Do not daemonize BESS",
+			"-w");
 
 	exit(2);
 }
@@ -89,7 +95,7 @@ static void init_config(int argc, char **argv)
 
 	num_workers = 0;
 
-	while ((c = getopt(argc, argv, ":tc:p:")) != -1) {
+	while ((c = getopt(argc, argv, ":tc:p:w")) != -1) {
 		switch (c) {
 		case 't':
 			dump_types();
@@ -102,6 +108,9 @@ static void init_config(int argc, char **argv)
 
 		case 'p':
 			sscanf(optarg, "%hu", &cmdline_opts.port);
+			break;
+		case 'w':
+			daemonize = 0;
 			break;
 
 		case ':':
@@ -129,7 +138,29 @@ static void init_config(int argc, char **argv)
 
 int main(int argc, char **argv)
 {
+	pid_t pid, sid;
 	init_config(argc, argv);
+
+	if (daemonize) {
+		pid = fork();
+		if (pid < 0) {
+			fprintf(stderr, "Could not fork damon\n");
+			goto fail;
+		}
+		if (pid > 0) {
+			exit(EXIT_SUCCESS);
+		}
+		// Reparent
+		sid = setsid();
+		if (sid < 0) {
+			goto fail;
+		}
+
+		close(STDIN_FILENO);
+		close(STDERR_FILENO);
+		close(STDOUT_FILENO);
+		setup_syslog();
+	}
 	init_dpdk(argv[0]);
 	init_mempool();
 	init_drivers();
@@ -139,6 +170,9 @@ int main(int argc, char **argv)
 
 	run_master(cmdline_opts.port);
 
+	if (daemonize)
+		end_syslog();
+fail:
 	/* never executed */
 	rte_eal_mp_wait_lcore();
 	close_mempool();

@@ -293,6 +293,35 @@ def reset(cli):
         cli.softnic.reset_all()
         cli.softnic.resume_all()
 
+@cmd('kill', 'Kill bessd instance')
+def kill(cli):
+    if cli.interactive:
+        if cli.rl:
+            cli.rl.set_completer(cli.complete_dummy)
+
+        response = raw_input('WARNING: bessd will be killed. ' \
+                             'Are you sure? (type "yes") ')
+
+        if cli.rl:
+            # don't leave response in the history
+            cli.rl.remove_history_item(cli.rl.get_current_history_length() - 1)
+
+        if response.strip() == 'yes':
+            cli.softnic.pause_all()
+            cli.softnic.kill()
+            cli.softnic.resume_all()
+            cli.fout.write('Reset completed.\n')
+        else:
+            cli.fout.write('Cancelled.\n')
+
+        if cli.rl:
+            cli.rl.set_completer(cli.complete)
+
+    else:
+        cli.softnic.pause_all()
+        cli.softnic.kill()
+        cli.softnic.resume_all()
+
 @staticmethod
 def _choose_arg(arg, kwargs):
     if kwargs:
