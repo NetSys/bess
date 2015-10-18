@@ -1,6 +1,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <sched.h>
+#include <libgen.h>
 
 #include <sys/stat.h>
 #include <sys/ioctl.h>
@@ -160,16 +161,31 @@ static void *alloc_bar(struct port *p, int container_pid)
 static int init_driver(struct driver *driver)
 {
 	struct stat buf;
+	
 	int ret;
 
 	ret = stat("/dev/softnic", &buf);
 	if (ret < 0) {
+		char exec_path[1024];
+		char *exec_dir;
+	
+		char cmd[2048];
+
 		fprintf(stderr, "vport: BESS kernel module is not " \
-				"available. Loading...\n");
-		ret = system("sudo insmod kmod/softnic.ko");
+				"loaded. Loading...\n");
+
+		ret = readlink("/proc/self/exe", exec_path, sizeof(exec_path));
+		if (ret == -1 || ret >= sizeof(exec_path))
+			return -errno;
+
+		exec_path[ret] = '\0';
+		exec_dir = dirname(exec_path);
+
+		sprintf(cmd, "insmod %s/kmod/bess.ko", exec_dir);
+		ret = system(cmd);
 		if (WEXITSTATUS(ret) != 0)
 			fprintf(stderr, "Warning: cannot load kernel" \
-					"module");
+					"module %s/kmod/bess.ko\n", exec_dir);
 	}
 
 	return 0;

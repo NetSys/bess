@@ -21,7 +21,7 @@ modules.order
 *.so.*
 
 # Executables
-bin/bessd
+bessd
 
 # 3rd-party libraries
 deps/dpdk/*

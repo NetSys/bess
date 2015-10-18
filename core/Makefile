@@ -34,7 +34,7 @@ CFLAGS = -std=gnu99 -g3 -ggdb3 -O3 -Wall -Werror -m64 -march=native \
 SRCS = $(wildcard *.c modules/*.c drivers/*.c)
 OBJS = $(SRCS:.c=.o)
 HEADERS = $(wildcard *.h modules/*.h drivers/*.h)
-EXEC = ../bin/bessd
+EXEC = bessd
 
 DEPS = .make.dep
 
