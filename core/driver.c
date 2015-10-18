@@ -52,11 +52,13 @@ int add_driver(const struct driver *driver)
 		return ret;
 	}
 
+	/*
 	printf("Port driver '%s' has been registered", driver->name);
 	if (driver->priv_size)
 		printf(", with %zu bytes of private data", driver->priv_size);
 
 	printf("\n");
+	*/
 
 	return 0;
 }
