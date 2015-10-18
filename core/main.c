@@ -45,10 +45,12 @@ static int core_to_socket_id(int cpu)
 
 static struct {
 	int wid_to_core[MAX_WORKERS];
-	uint16_t port;
-} cmdline_opts;
-
-static int daemonize = 1;
+	uint16_t port;			/* TCP port for control channel */
+	int daemonize;			
+} cmdline_opts = {
+	.port = 10154,
+	.daemonize = 1,
+};
 
 static void parse_core_list()
 {
@@ -110,7 +112,7 @@ static void init_config(int argc, char **argv)
 			sscanf(optarg, "%hu", &cmdline_opts.port);
 			break;
 		case 'w':
-			daemonize = 0;
+			cmdline_opts.daemonize = 0;
 			break;
 
 		case ':':
@@ -141,7 +143,11 @@ int main(int argc, char **argv)
 	pid_t pid, sid;
 	init_config(argc, argv);
 
-	if (daemonize) {
+	init_dpdk(argv[0]);
+	init_mempool();
+	init_drivers();
+
+	if (cmdline_opts.daemonize) {
 		pid = fork();
 		if (pid < 0) {
 			fprintf(stderr, "Could not fork damon\n");
@@ -161,16 +167,13 @@ int main(int argc, char **argv)
 		close(STDOUT_FILENO);
 		setup_syslog();
 	}
-	init_dpdk(argv[0]);
-	init_mempool();
-	init_drivers();
 
 	for (int i = 0; i < num_workers; i++)
 		launch_worker(i, cmdline_opts.wid_to_core[i]);
 
 	run_master(cmdline_opts.port);
 
-	if (daemonize)
+	if (cmdline_opts.daemonize)
 		end_syslog();
 fail:
 	/* never executed */
