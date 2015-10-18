@@ -16,33 +16,6 @@
 #include "driver.h"
 #include "syslog.h"
 
-static int core_to_socket_id(int cpu)
-{
-	char line[256];
-	char *tmp;
-	FILE *fp;
-
-	int ret;
-	int i;
-
-	fp = popen("cat /proc/cpuinfo | grep \"physical id\"", "r");
-	assert(fp);
-
-	for (i = 0; i < cpu; i++) {
-		tmp = fgets(line, sizeof(line), fp);
-		assert(tmp == line);
-	}
-
-	tmp = fgets(line, sizeof(line), fp);
-	assert(tmp == line);
-
-	sscanf(line, "physical id\t: %d", &ret);
-
-	fclose(fp);
-
-	return ret;
-}
-
 static struct {
 	int wid_to_core[MAX_WORKERS];
 	uint16_t port;			/* TCP port for control channel */
@@ -153,18 +126,19 @@ int main(int argc, char **argv)
 			fprintf(stderr, "Could not fork damon\n");
 			goto fail;
 		}
-		if (pid > 0) {
+
+		if (pid > 0)
 			exit(EXIT_SUCCESS);
-		}
-		// Reparent
+
+		/* Reparent */
 		sid = setsid();
-		if (sid < 0) {
+		if (sid < 0)
 			goto fail;
-		}
 
 		close(STDIN_FILENO);
 		close(STDERR_FILENO);
 		close(STDOUT_FILENO);
+
 		setup_syslog();
 	}
 
@@ -175,8 +149,8 @@ int main(int argc, char **argv)
 
 	if (cmdline_opts.daemonize)
 		end_syslog();
+
 fail:
-	/* never executed */
 	rte_eal_mp_wait_lcore();
 	close_mempool();
 
