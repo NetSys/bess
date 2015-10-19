@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <errno.h>
+#include <signal.h>
 
 #include <sys/ioctl.h>
 #include <sys/types.h>
@@ -20,13 +21,8 @@
 #include "driver.h"
 #include "syslog.h"
 
-static struct {
-	int wid_to_core[MAX_WORKERS];
-	uint16_t port;			/* TCP port for control channel */
-	int daemonize;			
-} cmdline_opts = {
-	.daemonize = 1,
-};
+const struct global_opts global_opts;
+static struct global_opts *opts = (struct global_opts *)&global_opts;
 
 static void parse_core_list()
 {
@@ -40,7 +36,7 @@ static void parse_core_list()
 			exit(EXIT_FAILURE);
 		}
 
-		cmdline_opts.wid_to_core[num_workers] = atoi(ptr);
+		opts->wid_to_core[num_workers] = atoi(ptr);
 		num_workers++;
 		ptr = strtok(NULL, ",");
 	}
@@ -48,19 +44,22 @@ static void parse_core_list()
 
 static void print_usage(char *exec_name)
 {
-	fprintf(stderr, "Usage: %s [-t] [-c <core list>] [-p <port>]\n",
+	fprintf(stderr, "Usage: %s" \
+			" [-t] [-c <core list>] [-p <port>] [-f] [-k]\n\n",
 			exec_name);
-	fprintf(stderr, "\n");
 
 	fprintf(stderr, "  %-16s Dump the size of internal data structures\n",
 			"-t");
-	fprintf(stderr, "  %-16s Core ID for each worker (e.g., -c 0, 8)\n",
+	fprintf(stderr, "  %-16s Core ID for each worker (e.g., -c 0,8)\n",
 			"-c <core list>");
-	fprintf(stderr, "  %-16s Specifies the TCP port on which SoftNIC listens"
-			     "for controller connections\n",
+	fprintf(stderr, "  %-16s Specifies the TCP port on which SoftNIC" \
+			" listens for controller connections\n",
 			"-p <port>");
-	fprintf(stderr, "  %-16s Do not daemonize BESS",
-			"-w");
+	fprintf(stderr, "  %-16s Run BESS in foreground mode " \
+			" (for developers)\n",
+			"-f");
+	fprintf(stderr, "  %-16s Kill existing BESS instance, if any\n",
+			"-k");
 
 	exit(2);
 }
@@ -73,7 +72,7 @@ static void parse_args(int argc, char **argv)
 
 	num_workers = 0;
 
-	while ((c = getopt(argc, argv, ":tc:p:w")) != -1) {
+	while ((c = getopt(argc, argv, ":tc:p:fk")) != -1) {
 		switch (c) {
 		case 't':
 			dump_types();
@@ -85,10 +84,15 @@ static void parse_args(int argc, char **argv)
 			break;
 
 		case 'p':
-			sscanf(optarg, "%hu", &cmdline_opts.port);
+			sscanf(optarg, "%hu", &opts->port);
 			break;
-		case 'w':
-			cmdline_opts.daemonize = 0;
+
+		case 'f':
+			opts->foreground = 1;
+			break;
+
+		case 'k':
+			opts->kill_existing = 1;
 			break;
 
 		case ':':
@@ -109,7 +113,7 @@ static void parse_args(int argc, char **argv)
 
 	if (num_workers == 0) {
 		/* By default, launch one worker on core 0 */
-		cmdline_opts.wid_to_core[0] = 0;
+		opts->wid_to_core[0] = 0;
 		num_workers = 1;
 	}
 }
@@ -121,7 +125,8 @@ void check_user()
 	
 	euid = geteuid();
 	if (euid != 0) {
-		fprintf(stderr, "You need root privilege to run BESS daemon\n");
+		fprintf(stderr, "ERROR: You need root privilege to run" \
+				" BESS daemon\n");
 		exit(EXIT_FAILURE);
 	}
 
@@ -129,12 +134,15 @@ void check_user()
 	umask(S_IRUSR | S_IWUSR);
 }
 
-void set_pidfile()
+/* ensure unique instance */
+void check_pidfile()
 {
 	char buf[1024];
 
 	int fd;
 	int ret;
+
+	int trials = 0;
 
 	pid_t pid;
 
@@ -144,87 +152,160 @@ void set_pidfile()
 		exit(EXIT_FAILURE);
 	}
 
+again:
 	ret = flock(fd, LOCK_EX | LOCK_NB);
 	if (ret) {
-		/* locking failed */
-		if (errno == EWOULDBLOCK) {
-			ret = read(fd, buf, sizeof(buf) - 1);
-			if (ret <= 0) {
-				perror("read(pidfile)");
+		if (errno != EWOULDBLOCK) {
+			perror("flock(pidfile)");
+			exit(EXIT_FAILURE);
+		}
+
+		/* lock is already acquired */
+		ret = read(fd, buf, sizeof(buf) - 1);
+		if (ret <= 0) {
+			perror("read(pidfile)");
+			exit(EXIT_FAILURE);
+		}
+
+		buf[ret] = '\0';
+
+		sscanf(buf, "%d", &pid);
+
+		if (trials == 0)
+			printf("There is another BESS daemon" \
+				" running (PID=%d).\n", pid);
+
+		if (!opts->kill_existing) {
+			fprintf(stderr, "ERROR: You cannot run more than" \
+				" one BESS instance at a time. " \
+				"(add -k option?)\n");
+			exit(EXIT_FAILURE);
+		}
+
+		trials++;
+
+		if (trials <= 3) {
+			printf("Sending SIGTERM signal...\n");
+
+			ret = kill(pid, SIGTERM);
+			if (ret < 0) {
+				perror("kill(pid, SIGTERM)");
 				exit(EXIT_FAILURE);
 			}
 
-			buf[ret] = '\0';
+			usleep(trials * 100000);
+			goto again;
 
-			sscanf(buf, "%d", &pid);
-			fprintf(stderr, "ERROR: There is another BESS daemon" \
-				" running (PID=%d).\n", pid);
-			fprintf(stderr, "       You cannot run more than" \
-				" one BESS instance at a time.\n");
-			exit(EXIT_FAILURE);
+		} else if (trials <= 5) {
+			printf("Sending SIGKILL signal...\n");
+
+			ret = kill(pid, SIGKILL);
+			if (ret < 0) {
+				perror("kill(pid, SIGKILL)");
+				exit(EXIT_FAILURE);
+			}
+
+			usleep(trials * 100000);
+			goto again;
 		}
-	} else {
-		pid = getpid();
-		ret = sprintf(buf, "%d\n", pid);
-		write(fd, buf, ret);
+
+		fprintf(stderr, "ERROR: Cannot kill the process\n");
+		exit(EXIT_FAILURE);
 	}
-	
+
+	if (trials > 0)
+		printf("Old BESS instance has been successfully terminated.\n");
+
+	ret = ftruncate(fd, 0);
+	if (ret) {
+		perror("ftruncate(pidfile, 0)");
+		exit(EXIT_FAILURE);
+	}
+
+	ret = lseek(fd, 0, SEEK_SET);
+	if (ret) {
+		perror("lseek(pidfile, 0, SEEK_SET)");
+		exit(EXIT_FAILURE);
+	}
+
+	pid = getpid();
+	ret = sprintf(buf, "%d\n", pid);
+	write(fd, buf, ret);
+
 	/* keep the file descriptor open, to maintain the lock */
 }
 
 int daemon_start()
 {
+	int pipe_fds[2];
+	const int read_end = 0;
+	const int write_end = 1;
+
 	pid_t pid;
 	pid_t sid;
+
+	int ret;
+
+	printf("Launching BESS daemon in background...\n");
+
+	ret = pipe(pipe_fds);
+	if (ret < 0) {
+		perror("pipe()");
+		exit(EXIT_FAILURE);
+	}
 
 	pid = fork();
 	if (pid < 0) {
 		perror("fork()");
-		return -1;
+		exit(EXIT_FAILURE);
+	} else if (pid > 0) {
+		/* parent */
+		uint64_t tmp;
+
+		close(pipe_fds[write_end]);
+
+		ret = read(pipe_fds[read_end], &tmp, sizeof(tmp));
+		if (ret == sizeof(uint64_t)) {
+			printf("Done (PID=%d).\n", pid);
+			exit(EXIT_SUCCESS);
+		} else {
+			fprintf(stderr, "Failed. (syslog may have details)\n");
+			exit(EXIT_FAILURE);
+		}
+	} else {
+		/* child */
+		close(pipe_fds[read_end]);
+		/* fall through */
 	}
 
-	if (pid > 0)
-		exit(EXIT_SUCCESS);
-
-	/* Detach from the tty */
+	/* Start a new session */
 	sid = setsid();
 	if (sid < 0) {
 		perror("setsid()");
-		return -1;
+		exit(EXIT_FAILURE);
 	}
 
-	printf("BESS daemon is running in the background... (PID=%d)\n",
-			getpid());
-
-	close(STDIN_FILENO);
-	close(STDOUT_FILENO);
-	close(STDERR_FILENO);
-
-	setup_syslog();
-
-	return 0;
-}
-
-void daemon_close()
-{
-	end_syslog();
+	return pipe_fds[write_end];
 }
 
 int main(int argc, char **argv)
 {
-	int ret = 0;
+	int signal_fd = -1;
 
 	parse_args(argc, argv);
 
-	check_user();
-	set_pidfile();
+	if (!opts->foreground)
+		signal_fd = daemon_start();
 
-	if (cmdline_opts.daemonize) {
-		ret = daemon_start();
-		if (ret) {
-			ret = EXIT_FAILURE;
-			goto fail;
-		}
+	check_user();
+	check_pidfile();
+
+	if (!opts->foreground) {
+		close(STDIN_FILENO);
+		close(STDOUT_FILENO);
+		close(STDERR_FILENO);
+
+		setup_syslog();
 	}
 
 	init_dpdk(argv[0]);
@@ -232,16 +313,21 @@ int main(int argc, char **argv)
 	init_drivers();
 
 	for (int i = 0; i < num_workers; i++)
-		launch_worker(i, cmdline_opts.wid_to_core[i]);
+		launch_worker(i, opts->wid_to_core[i]);
 
-	run_master(cmdline_opts.port);
+	/* signal the parent that all initialization has been finished */
+	if (!opts->foreground) {
+		write(signal_fd, &(uint64_t){1}, sizeof(uint64_t));
+		close(signal_fd);
+	}
 
-	if (cmdline_opts.daemonize)
-		daemon_close();
+	run_master(opts->port);
 
-fail:
+	if (!opts->foreground)
+		end_syslog();
+
 	rte_eal_mp_wait_lcore();
 	close_mempool();
 
-	return ret;
+	return 0;
 }
