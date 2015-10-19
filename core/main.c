@@ -315,13 +315,15 @@ int main(int argc, char **argv)
 	for (int i = 0; i < num_workers; i++)
 		launch_worker(i, opts->wid_to_core[i]);
 
+	setup_master(opts->port);
+
 	/* signal the parent that all initialization has been finished */
 	if (!opts->foreground) {
 		write(signal_fd, &(uint64_t){1}, sizeof(uint64_t));
 		close(signal_fd);
 	}
 
-	run_master(opts->port);
+	run_master();
 
 	if (!opts->foreground)
 		end_syslog();

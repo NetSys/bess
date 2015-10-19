@@ -26,9 +26,10 @@
 #define DEFAULT_PORT 	0x02912		/* 10514 in decimal */
 
 #define INIT_BUF_SIZE	4096
-#define MAX_BUF_SIZE	1047566
+#define MAX_BUF_SIZE	1048576
 
 static struct {
+	int listen_fd;
 	int epoll_fd;
 
 	struct client *lock_holder;	/* NULL if unlocked */
@@ -381,12 +382,8 @@ static void client_send(struct client *c)
 		response_done(c);
 }
 
-void server_loop(uint16_t port)
+void init_server(uint16_t port)
 {
-	int listen_fd;
-
-	struct client *c;
-
 	struct epoll_event ev;
 
 	int ret;
@@ -397,16 +394,38 @@ void server_loop(uint16_t port)
 		exit(EXIT_FAILURE);
 	}
 
-	listen_fd = init_listen_fd(port ? : DEFAULT_PORT);
+	master.listen_fd = init_listen_fd(port ? : DEFAULT_PORT);
 
 	ev.events = EPOLLIN;
-	ev.data.fd = listen_fd;
+	ev.data.fd = master.listen_fd;
 
-	ret = epoll_ctl(master.epoll_fd, EPOLL_CTL_ADD, listen_fd, &ev);
+	ret = epoll_ctl(master.epoll_fd, EPOLL_CTL_ADD, master.listen_fd, &ev);
 	if (ret < 0) {
 		perror("epoll_ctl(EPOLL_CTL_ADD, listen_fd)");
 		exit(EXIT_FAILURE);
 	}
+}
+
+void setup_master(uint16_t port) 
+{
+	reset_core_affinity();
+	
+	set_non_worker();
+	
+	cdlist_head_init(&master.clients_all);
+	cdlist_head_init(&master.clients_lock_waiting);
+	cdlist_head_init(&master.clients_pause_holding);
+
+	init_server(port);
+}
+
+void run_master() 
+{
+	struct client *c;
+
+	struct epoll_event ev;
+
+	int ret;
 
 again:
 	ret = epoll_wait(master.epoll_fd, &ev, 1, -1);
@@ -415,8 +434,8 @@ again:
 		goto again;
 	}
 
-	if (ev.data.fd == listen_fd) {
-		if ((c = accept_client(listen_fd)) == NULL)
+	if (ev.data.fd == master.listen_fd) {
+		if ((c = accept_client(master.listen_fd)) == NULL)
 			goto again;
 
 		printf("A new client from %s:%hu\n", 
@@ -442,17 +461,4 @@ again:
 
 	/* loop forever */
 	goto again;
-}
-
-void run_master(uint16_t port) 
-{
-	reset_core_affinity();
-	
-	set_non_worker();
-	
-	cdlist_head_init(&master.clients_all);
-	cdlist_head_init(&master.clients_lock_waiting);
-	cdlist_head_init(&master.clients_pause_holding);
-
-	server_loop(port);
 }
