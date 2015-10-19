@@ -172,7 +172,7 @@ again:
 		sscanf(buf, "%d", &pid);
 
 		if (trials == 0)
-			printf("There is another BESS daemon" \
+			printf("  There is another BESS daemon" \
 				" running (PID=%d).\n", pid);
 
 		if (!opts->kill_existing) {
@@ -185,7 +185,7 @@ again:
 		trials++;
 
 		if (trials <= 3) {
-			printf("Sending SIGTERM signal...\n");
+			printf("  Sending SIGTERM signal...\n");
 
 			ret = kill(pid, SIGTERM);
 			if (ret < 0) {
@@ -197,7 +197,7 @@ again:
 			goto again;
 
 		} else if (trials <= 5) {
-			printf("Sending SIGKILL signal...\n");
+			printf("  Sending SIGKILL signal...\n");
 
 			ret = kill(pid, SIGKILL);
 			if (ret < 0) {
@@ -214,7 +214,7 @@ again:
 	}
 
 	if (trials > 0)
-		printf("Old BESS instance has been successfully terminated.\n");
+		printf("  Old instance has been successfully terminated.\n");
 
 	ret = ftruncate(fd, 0);
 	if (ret) {
