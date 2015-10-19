@@ -3,7 +3,7 @@
 
 #include <stdint.h>
 
-#define MAX_WORKERS	4
+#include "common.h"
 
 /* 	TODO: worker threads doesn't necessarily be pinned to 1 core
  *

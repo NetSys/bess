@@ -13,6 +13,15 @@ typedef uint8_t queue_t;
 #define QUEUE_UNKNOWN			255
 #define MAX_QUEUES_PER_DIR		32	/* [0, 31] (for each RX/TX) */
 
+#define MAX_WORKERS	4
+
+extern const struct global_opts {
+	int wid_to_core[MAX_WORKERS];
+	uint16_t port;		/* TCP port for controllwe (0 for default) */
+	int foreground;		/* If 1, not daemonized */
+	int kill_existing;	/* If 1, kill existing BESS instance */
+} global_opts;
+
 /* The term RX/TX could be very confusing for a virtual switch.
  * Instead, we use the "incoming/outgoing" convention:
  * - incoming: outside -> SoftNIC

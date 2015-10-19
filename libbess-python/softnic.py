@@ -118,8 +118,12 @@ class SoftNIC(object):
         else:
             return self._request({'to': 'module', 'name': name, 'cmd': cmd})
 
+    def kill(self):
+        return self._request_softnic('kill_bess')
+
     def reset_all(self):
         return self._request_softnic('reset_all')
+
 
     def pause_all(self):
         return self._request_softnic('pause_all')
