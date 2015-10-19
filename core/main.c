@@ -131,7 +131,7 @@ void check_user()
 	}
 
 	/* Great power comes with great responsibility */
-	umask(S_IRUSR | S_IWUSR);
+	umask(S_IWGRP | S_IWOTH);
 }
 
 /* ensure unique instance */
@@ -146,7 +146,7 @@ void check_pidfile()
 
 	pid_t pid;
 
-	fd = open("/var/run/bessd.pid", O_RDWR | O_CREAT);
+	fd = open("/var/run/bessd.pid", O_RDWR | O_CREAT, 0644);
 	if (fd == -1) {
 		perror("open(\"/ver/run/bessd.pid\")");
 		exit(EXIT_FAILURE);
@@ -230,7 +230,12 @@ again:
 
 	pid = getpid();
 	ret = sprintf(buf, "%d\n", pid);
-	write(fd, buf, ret);
+	
+	ret = write(fd, buf, ret);
+	if (ret < 0) {
+		perror("write(pidfile, pid)");
+		exit(EXIT_FAILURE);
+	}
 
 	/* keep the file descriptor open, to maintain the lock */
 }
@@ -319,7 +324,11 @@ int main(int argc, char **argv)
 
 	/* signal the parent that all initialization has been finished */
 	if (!opts->foreground) {
-		write(signal_fd, &(uint64_t){1}, sizeof(uint64_t));
+		int ret = write(signal_fd, &(uint64_t){1}, sizeof(uint64_t));
+		if (ret < 0) {
+			perror("write(signal_fd)");
+			exit(EXIT_FAILURE);
+		}
 		close(signal_fd);
 	}
 
