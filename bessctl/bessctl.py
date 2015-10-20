@@ -1,6 +1,7 @@
 #!/usr/bin/env python2.7
 import sys
 import os
+import os.path
 import pprint
 import cStringIO
 
@@ -100,8 +101,16 @@ def connect_softnic():
     return s
 
 def run_cli():
+    try:
+        hist_file = os.path.expanduser('~/.bess_history')
+        open(hist_file, 'a+').close()
+    except:
+        print >> sys.stderr, 'Error: Cannot open ~/.bess_history'
+        hist_file = None
+        raise
+
     s = connect_softnic()
-    cli = BESSCLI(s, commands, history_file='~/.bess_history')
+    cli = BESSCLI(s, commands, history_file=hist_file)
     cli.loop()
 
 def run_cmds(instream):
