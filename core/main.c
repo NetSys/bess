@@ -172,7 +172,7 @@ again:
 		sscanf(buf, "%d", &pid);
 
 		if (trials == 0)
-			printf("  There is another BESS daemon" \
+			printf("\n  There is another BESS daemon" \
 				" running (PID=%d).\n", pid);
 
 		if (!opts->kill_existing) {
@@ -251,7 +251,8 @@ int daemon_start()
 
 	int ret;
 
-	printf("Launching BESS daemon in background...\n");
+	printf("Launching BESS daemon in background... ");
+	fflush(stdout);
 
 	ret = pipe(pipe_fds);
 	if (ret < 0) {
