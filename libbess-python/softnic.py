@@ -118,7 +118,10 @@ class SoftNIC(object):
             return self._request({'to': 'module', 'name': name, 'cmd': cmd})
 
     def kill(self):
-        return self._request_softnic('kill_bess')
+        try:
+            return self._request_softnic('kill_bess')
+        except socket.error:
+            self.disconnect()
 
     def reset_all(self):
         return self._request_softnic('reset_all')
