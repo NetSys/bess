@@ -50,15 +50,14 @@ class SoftNIC(object):
         except socket.error:
             self.s = None
             self.peer = None
-            raise self.APIError('Cannot connect to %s:%d (BESS not running?)' \
+            raise self.APIError('Cannot connect to %s:%d ' \
+                    '(BESS daemon not running?)' \
                     % (host, port))
 
     def disconnect(self):
         if self.is_connected():
             self.s.close()
             self.s = None
-        else:
-            raise self.APIError('Not connected to BESS daemon')
 
     def set_debug(self, flag):
         self.debug = flag
