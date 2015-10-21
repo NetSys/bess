@@ -1,6 +1,7 @@
 #!/usr/bin/env python2.7
 import sys
 import os
+import os.path
 import pprint
 import cStringIO
 
@@ -80,9 +81,14 @@ class BESSCLI(cli.CLI):
             super(BESSCLI, self).loop()
         except socket.error as e:
             self.fout.write('\n')
-            if e.errno not in [errno.ECONNRESET, errno.EPIPE]:
-                raise
-            self.err('Disconnected from BESS daemon')
+
+            if e.errno in errno.errorcode:
+                err_code = errno.errorcode[e.errno]
+            else:
+                err_code = '<unknown>'
+
+            self.err('Disconnected from BESS daemon - errno=%d (%s: %s)' % \
+                    (e.errno, err_code, os.strerror(e.errno)))
             self.softnic.disconnect()
 
     def get_prompt(self):
@@ -100,8 +106,16 @@ def connect_softnic():
     return s
 
 def run_cli():
+    try:
+        hist_file = os.path.expanduser('~/.bess_history')
+        open(hist_file, 'a+').close()
+    except:
+        print >> sys.stderr, 'Error: Cannot open ~/.bess_history'
+        hist_file = None
+        raise
+
     s = connect_softnic()
-    cli = BESSCLI(s, commands, history_file='~/.bess_history')
+    cli = BESSCLI(s, commands, history_file=hist_file)
     cli.loop()
 
 def run_cmds(instream):
