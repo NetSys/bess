@@ -81,9 +81,14 @@ class BESSCLI(cli.CLI):
             super(BESSCLI, self).loop()
         except socket.error as e:
             self.fout.write('\n')
-            if e.errno not in [errno.ECONNRESET, errno.EPIPE]:
-                raise
-            self.err('Disconnected from BESS daemon')
+
+            if e.errno in errno.errorcode:
+                err_code = errno.errorcode[e.errno]
+            else:
+                err_code = '<unknown>'
+
+            self.err('Disconnected from BESS daemon - errno=%d (%s: %s)' % \
+                    (e.errno, err_code, os.strerror(e.errno)))
             self.softnic.disconnect()
 
     def get_prompt(self):
