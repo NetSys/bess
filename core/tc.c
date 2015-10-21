@@ -636,7 +636,8 @@ void sched_loop(struct sched *s)
 			if (is_pause_requested()) {
 				block_worker();
 				last_print_tsc = checkpoint = now = rdtsc();
-			} else if (now - last_print_tsc >= tsc_hz) {
+			} else if (global_opts.foreground &&
+					now - last_print_tsc >= tsc_hz) {
 				print_stats(s, &last_stats);
 				last_stats = s->stats;
 				last_print_tsc = checkpoint = now = rdtsc();

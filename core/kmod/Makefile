@@ -1,3 +1,5 @@
+MODNAME := bess
+
 ifeq ($(KERNELRELEASE),)
 
 KERNELDIR ?= /lib/modules/$(shell uname -r)/build
@@ -14,11 +16,8 @@ else
 
 $(info Building with KERNELRELEASE = ${KERNELRELEASE})
 
-obj-m := softnic.o 
-#softnic_ivs_test.o
+obj-m := $(MODNAME).o 
 
-softnic-objs := sndrv.o sn_host.o sn_guest.o sn_netdev.o sn_ethtool.o sn_ivshmem.o
-
-#softnic_ivs_test-objs := sn_ivshmem.o sn_ivs_test.o
+$(MODNAME)-objs := sndrv.o sn_host.o sn_guest.o sn_netdev.o sn_ethtool.o sn_ivshmem.o
 
 endif

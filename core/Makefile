@@ -2,7 +2,7 @@ CC = gcc
 DPDK_LIB = dpdk
 
 ifndef RTE_SDK
-    RTE_SDK = ../deps/dpdk
+    RTE_SDK = $(abspath ../deps/dpdk)
 endif
 
 ifndef RTE_TARGET
@@ -23,8 +23,8 @@ endif
 
 KMOD_INC_DIR = kmod
 
-LDFLAGS += -rdynamic -L$(DPDK_LIB_DIR)
-LIBS += -l$(DPDK_LIB) -lm -lpthread -ldl -lpcap
+LDFLAGS += -rdynamic -L$(DPDK_LIB_DIR) -Wl,-rpath=$(DPDK_LIB_DIR)
+LIBS += -Wl,--whole-archive -l$(DPDK_LIB) -Wl,--no-whole-archive -lm -lpthread -ldl -lpcap
 
 CFLAGS = -std=gnu99 -g3 -ggdb3 -O3 -Wall -Werror -m64 -march=native \
 	 -Wno-unused-function -Wno-unused-but-set-variable \
@@ -34,7 +34,7 @@ CFLAGS = -std=gnu99 -g3 -ggdb3 -O3 -Wall -Werror -m64 -march=native \
 SRCS = $(wildcard *.c modules/*.c drivers/*.c)
 OBJS = $(SRCS:.c=.o)
 HEADERS = $(wildcard *.h modules/*.h drivers/*.h)
-EXEC = ../bin/bessd
+EXEC = bessd
 
 DEPS = .make.dep
 
@@ -59,6 +59,7 @@ $(DEPS): $(SRCS) $(HEADERS)
 	@$(CC) $(CFLAGS) -MM $(SRCS) | sed 's|\(.*\)\.o: \(.*\)\.c|\2.o: \2.c|' > $(DEPS);
 
 $(EXEC): $(OBJS)
+	@echo "Using DPDK from $(DPDK_LIB_DIR)"
 	$(CC) $(OBJS) -o $@ $(LDFLAGS) $(LIBS)
 
 -include $(DEPS)

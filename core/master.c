@@ -26,9 +26,10 @@
 #define DEFAULT_PORT 	0x02912		/* 10514 in decimal */
 
 #define INIT_BUF_SIZE	4096
-#define MAX_BUF_SIZE	1047566
+#define MAX_BUF_SIZE	1048576
 
 static struct {
+	int listen_fd;
 	int epoll_fd;
 
 	struct client *lock_holder;	/* NULL if unlocked */
@@ -216,20 +217,18 @@ static void request_done(struct client *c)
 {
 	struct epoll_event ev;
 
-	struct snobj *q;
-	struct snobj *r;
+	struct snobj *q = NULL;
+	struct snobj *r = NULL;
 
 	int ret;
 
 	q = snobj_decode(c->buf, c->msg_len);
 	if (!q) {
 		fprintf(stderr, "Incorrect message\n");
-		close_client(c);
-		return;
+		goto err;
 	}
 
 	r = handle_request(c, q);
-	snobj_free(q);
 
 	ev.events = EPOLLOUT;
 	ev.data.ptr = c;
@@ -237,7 +236,7 @@ static void request_done(struct client *c)
 	ret = epoll_ctl(master.epoll_fd, EPOLL_CTL_MOD, c->fd, &ev);
 	if (ret < 0) {
 		perror("epoll_ctl(EPOLL_CTL_MOD, listen_fd, OUT)");
-		close_client(c);
+		goto err;
 	}
 
 	{
@@ -247,7 +246,10 @@ static void request_done(struct client *c)
 		c->msg_len_off = 0;
 
 		c->msg_len = snobj_encode(r, &buf, 0);
-		assert(c->msg_len > 0);
+		if (c->msg_len == 0) {
+			fprintf(stderr, "Encoding error\n");
+			goto err;
+		}
 
 		/* XXX: DRY */
 		if (c->msg_len > c->buf_size) {
@@ -255,12 +257,12 @@ static void request_done(struct client *c)
 
 			if (c->msg_len > MAX_BUF_SIZE)  {
 				fprintf(stderr, "too large response was attempted\n");
-				assert(0);	/* XXX */	
+				goto err;
 			}
 
 			new_buf = rte_realloc(c->buf, c->msg_len, 0);
 			if (!new_buf)
-				assert(0);	/* XXX */
+				goto err;
 
 			c->buf = new_buf;
 			c->buf_size = c->msg_len;
@@ -270,9 +272,17 @@ static void request_done(struct client *c)
 
 		if (buf)
 			_FREE(buf);
-
-		snobj_free(r);
 	}
+
+	snobj_free(q);
+	snobj_free(r);
+	return;
+
+err:
+	snobj_free(q);
+	snobj_free(r);
+	close_client(c);
+	return;
 }
 
 static void response_done(struct client *c)
@@ -303,7 +313,8 @@ static void client_recv(struct client *c)
 
 	if (c->msg_len_off < sizeof(c->msg_len)) {
 		received = recv(c->fd, ((char *)&c->msg_len) + c->msg_len_off, 
-				sizeof(c->msg_len) - c->msg_len_off, MSG_NOSIGNAL);
+				sizeof(c->msg_len) - c->msg_len_off, 
+				MSG_NOSIGNAL);
 		if (received <= 0) {
 			close_client(c);
 			return;
@@ -319,12 +330,16 @@ static void client_recv(struct client *c)
 
 		if (c->msg_len > MAX_BUF_SIZE)  {
 			fprintf(stderr, "too large request was attempted\n");
-			assert(0);	/* XXX */	
+			close_client(c);
+			return;
 		}
 
 		new_buf = rte_realloc(c->buf, c->msg_len, 0);
-		if (!new_buf)
-			assert(0);	/* XXX */
+		if (!new_buf) {
+			fprintf(stderr, "Out of memory\n");
+			close_client(c);
+			return;
+		}
 
 		c->buf = new_buf;
 		c->buf_size = c->msg_len;
@@ -381,12 +396,8 @@ static void client_send(struct client *c)
 		response_done(c);
 }
 
-void server_loop(uint16_t port)
+void init_server(uint16_t port)
 {
-	int listen_fd;
-
-	struct client *c;
-
 	struct epoll_event ev;
 
 	int ret;
@@ -397,16 +408,38 @@ void server_loop(uint16_t port)
 		exit(EXIT_FAILURE);
 	}
 
-	listen_fd = init_listen_fd(port ? : DEFAULT_PORT);
+	master.listen_fd = init_listen_fd(port ? : DEFAULT_PORT);
 
 	ev.events = EPOLLIN;
-	ev.data.fd = listen_fd;
+	ev.data.fd = master.listen_fd;
 
-	ret = epoll_ctl(master.epoll_fd, EPOLL_CTL_ADD, listen_fd, &ev);
+	ret = epoll_ctl(master.epoll_fd, EPOLL_CTL_ADD, master.listen_fd, &ev);
 	if (ret < 0) {
 		perror("epoll_ctl(EPOLL_CTL_ADD, listen_fd)");
 		exit(EXIT_FAILURE);
 	}
+}
+
+void setup_master(uint16_t port) 
+{
+	reset_core_affinity();
+	
+	set_non_worker();
+	
+	cdlist_head_init(&master.clients_all);
+	cdlist_head_init(&master.clients_lock_waiting);
+	cdlist_head_init(&master.clients_pause_holding);
+
+	init_server(port);
+}
+
+void run_master() 
+{
+	struct client *c;
+
+	struct epoll_event ev;
+
+	int ret;
 
 again:
 	ret = epoll_wait(master.epoll_fd, &ev, 1, -1);
@@ -415,8 +448,8 @@ again:
 		goto again;
 	}
 
-	if (ev.data.fd == listen_fd) {
-		if ((c = accept_client(listen_fd)) == NULL)
+	if (ev.data.fd == master.listen_fd) {
+		if ((c = accept_client(master.listen_fd)) == NULL)
 			goto again;
 
 		printf("A new client from %s:%hu\n", 
@@ -442,17 +475,4 @@ again:
 
 	/* loop forever */
 	goto again;
-}
-
-void run_master(uint16_t port) 
-{
-	reset_core_affinity();
-	
-	set_non_worker();
-	
-	cdlist_head_init(&master.clients_all);
-	cdlist_head_init(&master.clients_lock_waiting);
-	cdlist_head_init(&master.clients_pause_holding);
-
-	server_loop(port);
 }

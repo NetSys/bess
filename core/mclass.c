@@ -53,11 +53,13 @@ int add_mclass(const struct mclass *mclass)
 		return -1;
 	}
 
+	/*
 	printf("Module class '%s' has been registered", mclass->name);
 	if (mclass->priv_size)
 		printf(", with %u bytes of private data", mclass->priv_size);
 
 	printf("\n");
+	*/
 
 	return 0;
 }

@@ -1,6 +1,8 @@
 import os
+import os.path
 import sys
 import socket
+import fcntl
 import errno
 import glob
 import re
@@ -256,42 +258,99 @@ def history(cli):
     else:
         cli.err('"readline" not available')
 
-@cmd('connect', 'Connect to BESS daemon')
-def connect(cli):
-    cli.softnic.connect()
+@cmd('daemon connect [HOST] [PORT]', 'Connect to BESS daemon')
+def daemon_connect(cli, host, port):
+    kwargs = {}
 
-@cmd('disconnect', 'Disconnect from BESS daemon')
-def disconnect(cli):
+    if host:
+        kwargs['host'] = host
+
+    if port:
+        kwargs['port'] = int(port)
+
+    cli.softnic.connect(**kwargs)
+
+@cmd('daemon disconnect', 'Disconnect from BESS daemon')
+def daemon_disconnect(cli):
     cli.softnic.disconnect()
 
-@cmd('reset', 'Remove all ports and modules in the pipeline')
-def reset(cli):
+def warn(cli, msg, func):
     if cli.interactive:
         if cli.rl:
             cli.rl.set_completer(cli.complete_dummy)
 
-        response = raw_input('WARNING: The entire pipeline will be cleared. ' \
-                             'Are you sure? (type "yes") ')
+        try:
+            resp = raw_input('WARNING: %s Are you sure? (type "yes") ' % msg)
 
-        if cli.rl:
-            # don't leave response in the history
-            cli.rl.remove_history_item(cli.rl.get_current_history_length() - 1)
+            if resp.strip() == 'yes':
+                func()
+            else:
+                cli.fout.write('Cancelled.\n')
+        finally:
+            if cli.rl:
+                cli.rl.set_completer(cli.complete)
 
-        if response.strip() == 'yes':
-            cli.softnic.pause_all()
-            cli.softnic.reset_all()
-            cli.softnic.resume_all()
-            cli.fout.write('Reset completed.\n')
-        else:
-            cli.fout.write('Cancelled.\n')
-
-        if cli.rl:
-            cli.rl.set_completer(cli.complete)
+                # don't leave response in the history
+                hist_len = cli.rl.get_current_history_length()
+                cli.rl.remove_history_item(hist_len - 1)
 
     else:
+        func()
+
+@cmd('daemon start', 'Start BESS daemon in the local machine')
+def daemon_start(cli):
+    def do_start():
+        cmd = 'sudo %s/core/bessd -k' % os.path.dirname(cli.this_dir)
+
+        cli.softnic.disconnect()
+
+        try:
+            subprocess.check_call(cmd, shell='True')
+        except subprocess.CalledProcessError:
+            raise cli.CommandError('Cannot start BESS daemon')
+        else:
+            cli.softnic.connect()
+
+    daemon_exists = False
+
+    try:
+        with open('/var/run/bessd.pid', 'r') as f:
+            try:
+                fcntl.flock(f.fileno(), fcntl.LOCK_SH | fcntl.LOCK_NB)
+            except IOError as e:
+                if e.errno in [errno.EAGAIN, errno.EACCES]:
+                    daemon_exists = True
+                else:
+                    raise
+    except IOError as e:
+        if e.errno != errno.ENOENT:
+            raise
+
+    if daemon_exists:
+        warn(cli, 'Existing BESS daemon will be killed.', do_start)
+    else:
+        do_start()
+
+@cmd('daemon reset', 'Remove all ports and modules in the pipeline')
+def daemon_reset(cli):
+    def do_reset():
         cli.softnic.pause_all()
         cli.softnic.reset_all()
         cli.softnic.resume_all()
+        if cli.interactive:
+            cli.fout.write('Done.\n')
+
+    warn(cli, 'The entire pipeline will be cleared.', do_reset)
+
+@cmd('daemon stop', 'Stop BESS daemon')
+def daemon_stop(cli):
+    def do_stop():
+        cli.softnic.pause_all()
+        cli.softnic.kill()
+        if cli.interactive:
+            cli.fout.write('Done.\n')
+
+    warn(cli, 'BESS daemon will be killed.', do_stop)
 
 @staticmethod
 def _choose_arg(arg, kwargs):

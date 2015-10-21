@@ -5,6 +5,7 @@
 #include <unistd.h>
 #include <assert.h>
 #include <errno.h>
+#include <stdlib.h>
 
 #include <pthread.h>
 
@@ -512,6 +513,16 @@ static struct snobj *handle_disconnect_modules(struct snobj *arg)
 	return NULL;
 }
 
+/* Adding this mostly to provide a reasonable way to exit when daemonized */
+static struct snobj *handle_kill_bess(struct snobj *arg)
+{
+	printf("bessd kill called\n");
+	exit(EXIT_SUCCESS);
+
+	/* Never called */
+	return NULL;
+}
+
 static struct snobj *handle_not_implemented(struct snobj *q)
 {
 	return snobj_err(ENOTSUP, "Not implemented yet");
@@ -548,6 +559,7 @@ static struct handler_map sn_handlers[] = {
 	{ "enable_tcpdump",	1, handle_enable_tcpdump },
 	{ "disable_tcpdump",	1, handle_disable_tcpdump },
 
+	{ "kill_bess",		1, handle_kill_bess },
 	{ NULL, 		0, NULL }
 };
 
