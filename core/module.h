@@ -18,7 +18,9 @@
 #include "utils/pcap.h"
 
 #define MODULE_NAME_LEN		128
+
 #define MAX_OUTPUT_GATES	8192
+#define INVALID_GATE		0xffff
 
 #define TRACK_GATES		1
 #define TCPDUMP_GATES		1

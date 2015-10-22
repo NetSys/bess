@@ -261,7 +261,7 @@ static void trap_handler(int sig_num, siginfo_t *info, void *ucontext)
 	cnt = backtrace(addrs, STACK_DEPTH);
 	if (cnt < 3) {
 		fprintf(stderr, "ERROR: backtrace() failed\n");
-		return;
+		exit(EXIT_FAILURE);
 	}
 
 	/* addrs[0]: this function
