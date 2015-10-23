@@ -13,6 +13,8 @@
 #include "task.h"
 #include "worker.h"
 
+#include "utils/random.h"
+
 /* this library is not thread safe */
 
 #define MAX_LIMIT_POW		36
@@ -678,12 +680,6 @@ static uint64_t get_usec(void)
 
 	gettimeofday(&tv, NULL);
 	return tv.tv_sec * 1000000 + tv.tv_usec;
-}
-
-static uint32_t rand_fast(uint64_t *seed)
-{
-	*seed = *seed * 1103515245 + 12345;
-	return (uint32_t)(*seed >> 32);
 }
 
 void sched_test_alloc()
