@@ -192,6 +192,77 @@ static inline void run_next_module(struct module *m, struct pkt_batch *batch)
 	run_choose_module(m, 0, batch);
 }
 
+/*
+ * Split a batch into several, one for each ogate
+ * NOTE:
+ *   1. Order is preserved for packets with the same gate.
+ *   2. No ordering guarantee for packets with different gates.
+ *   3. Array ogates may be altered.
+ *
+ * TODO: optimize this function. currently O(n^2) in the worst case
+ */
+#if 0
+/* readability version */
+static void run_split(struct module *m, uint16_t *ogates,
+		struct pkt_batch *org)
+{
+	const int total = org->cnt;
+
+	for (int i = 0; i < total; i++) {
+		uint16_t h = ogates[i];
+
+		if (h != INVALID_GATE) {
+			struct pkt_batch batch;
+
+			batch_clear(&batch);
+			batch_add(&batch, org->pkts[i]);
+
+			for (int j = i + 1; j < total; j++) {
+				uint16_t t = ogates[j];
+
+				if (h == t) {
+					batch_add(&batch, org->pkts[j]);
+					ogates[j] = INVALID_GATE;
+				}
+			}
+			run_choose_module(m, h, &batch);
+		}
+	}
+}
+#else
+/* performance version */
+static void run_split(struct module *m, uint16_t *ogates,
+		struct pkt_batch *org)
+{
+	const int total = org->cnt;
+	int i = 0;
+
+	while (i < total) {
+		uint16_t h = ogates[i];
+
+		if (h != INVALID_GATE) {
+			struct pkt_batch batch;
+			int cnt = 1;
+			batch.pkts[0] = org->pkts[i++];
+
+			for (int j = i; j < total; j++) {
+				uint16_t t = ogates[j];
+				int equal = (h == t);
+
+				batch.pkts[cnt] = org->pkts[j];
+				ogates[j] |= INVALID_GATE * equal;
+				cnt += equal;
+				i += (i == j) * equal;
+			}
+
+			batch.cnt = cnt;
+			run_choose_module(m, h, &batch);
+		} else
+			i++;
+	}
+#endif
+}
+
 #if 0
 #define SN_TRACE_MODULES	0
 #define SN_CPU_USAGE		1
