@@ -315,12 +315,7 @@ class CLI(object):
         return func, args
 
     def call_func(self, func, args):
-        try:
-            func(*args)
-        except:
-            if not self.interactive:
-                self.should_stop = True
-            raise
+        func(*args)
 
     def print_banner(self):
         pass
@@ -337,9 +332,14 @@ class CLI(object):
             
         if line.strip():
             try:
-                cmd = self.find_cmd(line + ' ')
-                func, args = self.bind_args(cmd, line)
-                self.call_func(func, args)
+                try:
+                    cmd = self.find_cmd(line + ' ')
+                    func, args = self.bind_args(cmd, line)
+                    self.call_func(func, args)
+                except:
+                    if not self.interactive:
+                        self.stop_loop = True
+                    raise
 
             except self.InvalidCommandError:
                 pass
@@ -386,10 +386,10 @@ class CLI(object):
         self.disable_echoctl()
 
         try:
-            self.should_stop = False
+            self.stop_loop = False
 
             # the main command loop
-            while not self.should_stop:
+            while not self.stop_loop:
                 self.process_one_line()
         except EOFError:
             if self.interactive:
