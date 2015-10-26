@@ -21,6 +21,10 @@ from module import *
 
 CONF_EXT = '.ringo'
 
+# errors in configuration file
+class ConfError(Exception):
+    pass
+
 def __bess_env__(key, default=None):
     try:
         key = os.environ[key]
@@ -380,7 +384,7 @@ def _do_run_file(cli, conf_file):
     new_globals = {
             '__builtins__': __builtins__,
             'softnic': cli.softnic,
-            'ConfError': cli.ConfError,
+            'ConfError': ConfError,
             '__bess_env__': __bess_env__,
             '__bess_module__': __bess_module__,
         }
@@ -411,7 +415,7 @@ def _do_run_file(cli, conf_file):
     except cli.softnic.APIError:
         raise
 
-    except cli.ConfError as e:
+    except ConfError as e:
         cli.err(e.message)
 
     except:
