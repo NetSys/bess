@@ -122,19 +122,19 @@ def get_var_attrs(cli, var_token, partial_word):
             var_type = 'confname'
             var_desc = 'configuration name in "conf/" directory'
 
-            root = '%s/conf' % cli.this_dir
-            sub_dir, partial_basename = os.path.split(partial_word)
-            search_dir = os.path.join(root, sub_dir)
-            pattern = '%s*.%s' % (partial_basename, CONF_EXT)
-
             try:
+                root = '%s/conf' % cli.this_dir
+                sub_dir, partial_basename = os.path.split(partial_word)
+                target_dir = os.path.join(root, os.path.expanduser(sub_dir))
+                pattern = '%s*.%s' % (partial_basename, CONF_EXT)
+
                 candidates = []
 
-                for basename in os.listdir(search_dir):
+                for basename in os.listdir(target_dir):
                     if not is_allowed_filename(basename):
                         continue
 
-                    if os.path.isdir(os.path.join(search_dir, basename)):
+                    if os.path.isdir(os.path.join(target_dir, basename)):
                         candidates.append(basename + '/')
                     else:
                         if fnmatch.fnmatch(basename, pattern):
@@ -484,13 +484,16 @@ def _run_file(cli, conf_file, env_map):
     else:
             _do_run_file(cli, conf_file)
 
-@cmd('run CONF [ENV_VARS...]', 'Run a configuration in "conf/"')
+@cmd('run CONF [ENV_VARS...]', 'Run a configuration in "conf/*.bess"')
 def run_conf(cli, conf, env_map):
-    _run_file(cli, '%s/conf/%s.%s' % (cli.this_dir, conf, CONF_EXT), env_map)
+    target_dir = '%s/conf' % cli.this_dir
+    basename = os.path.expanduser('%s.%s' % (conf, CONF_EXT))
+    conf_file = os.path.join(target_dir, basename)
+    _run_file(cli, conf_file, env_map)
 
 @cmd('run file CONF_FILE [ENV_VARS]', 'Run a configuration file')
 def run_file(cli, conf_file, env_map):
-    _run_file(cli, conf_file, env_map)
+    _run_file(cli, os.path.expanduser(conf_file), env_map)
 
 @cmd('add port DRIVER [NEW_PORT] [PORT_ARGS...]', 'Add a new port')
 def add_port(cli, driver, port, args):
