@@ -60,7 +60,7 @@ class CLI(object):
     # Otherwise, return (var_type, desc, candidates): 
     #    var_type can be: 'int', 'str', 'list'(list of strings), 'map'
     #    candidates is a list of string values.
-    def get_var_attrs(self, var_token):
+    def get_var_attrs(self, var_token, partial_word):
         return None
 
     # Return (head, tail)
@@ -87,23 +87,30 @@ class CLI(object):
         raise self.InternalError('type "%s" is undefined' % var_type)
 
     # Compare a command with a user-typed line. 
-    # It returns (match_type, candidates, syntax_token).
+    # It returns (match_type, candidates, syntax_token, score).
     # match_type can be:
     #  - 'full': all tokens in syntax was consumed
     #  - 'partial': prefix matched
     #  - 'nonmatch': not a match
     # candidates is a list of suggested strings to be added as the last token.
     # syntax_token is where the user input is currently on, if any.
+    # score is the number of matched keywords
     def match(self, syntax, line):
         candidates = []
         remainder = line
+        score = 0
 
         new_token = (line != '' and line[-1] == ' ')
 
         syntax_tokens = syntax.split()
 
         for i, syntax_token in enumerate(syntax_tokens):
-            attrs = self.get_var_attrs(syntax_token)
+            if remainder.split():
+                line_word = remainder.split()[0]
+            else:
+                line_word = ''
+
+            attrs = self.get_var_attrs(syntax_token, line_word)
             if attrs:
                 var_type, var_desc, var_candidates = attrs
             else:
@@ -120,10 +127,11 @@ class CLI(object):
                         candidates.append(syntax_token)
 
                     if syntax_token[0] == '[':  # skippable?
-                        return 'full', candidates, syntax_token
-                    return 'partial', candidates, syntax_token
+                        return 'full', candidates, syntax_token, score
+                    return 'partial', candidates, syntax_token, score
 
-                return 'partial', candidates, syntax_tokens[max(0, i - 1)]
+                return 'partial', candidates, syntax_tokens[max(0, i - 1)], \
+                        score
 
             token, remainder = self.split_var(var_type, remainder)
             remainder = remainder.lstrip()
@@ -136,8 +144,9 @@ class CLI(object):
                         candidates = [syntax_token]
                 else:
                     if not syntax_token.startswith(token):
-                        return 'nonmatch', [], ''
+                        return 'nonmatch', [], '', score
                     candidates = [syntax_token]
+                score += 1
             else:
                 if new_token:
                     candidates = var_candidates
@@ -149,30 +158,53 @@ class CLI(object):
  
         if remainder.strip() == '':
             if '...' in syntax_token:
-                return 'full', candidates, syntax_token
+                return 'full', candidates, syntax_token, score
             if new_token:
-                return 'full', [], ''
-            return 'full', candidates, ''
-        return 'nonmatch', [], ''
+                return 'full', [], '', score
+            return 'full', candidates, '', score
+        return 'nonmatch', [], '', score
 
     # filters is a list of 'full', 'partial', 'nonmatch'
     def list_matched(self, line, filters):
+        matched_list = []
+
+        for cmd in self.cmdlist:
+            syntax = cmd[0]
+            match_type, _, _, score = self.match(syntax, line)
+            
+            if match_type in filters:
+                matched_list.append((cmd, score))
+
+        if len(matched_list) == 0:
+            return [], []
+
+        max_score = max(map(lambda x: x[1], matched_list))
+
         ret = []
+        ret_low = []
+        for cmd, score in matched_list:
+            if score == max_score:
+                ret.append(cmd)
+            else:
+                ret_low.append(cmd)
 
-        for syntax, desc, func in self.cmdlist:
-            if self.match(syntax, line)[0] in filters:
-                ret.append((syntax, desc, func))
-
-        return ret
+        return ret, ret_low
 
     def _do_complete(self, line, partial_word):
         possible_cmds = []
         candidates = []
         num_full_matches = 0
 
+        # ignore partial_word set by readline
+        if len(line) > 0 and line[-1] != ' ':
+            partial_word = line.split()[-1]
+        else:
+            partial_word = ''
+
         for cmd in self.cmdlist:
             syntax = cmd[0]
-            match_type, sub_candidates, syntax_token = self.match(syntax, line)
+            match_type, sub_candidates, syntax_token, score = \
+                    self.match(syntax, line)
 
             if match_type in ['full', 'partial']:
                 possible_cmds.append((cmd, match_type, syntax_token))
@@ -182,7 +214,9 @@ class CLI(object):
 
                 for candidate in sub_candidates:
                     if candidate.startswith(partial_word):
-                        candidates.append(candidate + ' ')
+                        if not candidate.endswith('/'):
+                            candidate += ' '
+                        candidates.append(candidate)
 
         candidates = sorted(list(set(candidates)))
 
@@ -198,9 +232,15 @@ class CLI(object):
             else:
                 common_prefix = s_min
 
-            if len(partial_word) < len(common_prefix):
+            if common_prefix and len(partial_word) < len(common_prefix):
                 if partial_word == common_prefix[:len(partial_word)]:
-                    return candidates
+                    ret = []
+                    skip = partial_word.rfind('/') + 1
+                    for candidate in candidates:
+                        candidate = candidate[skip:]
+                        ret.append(candidate)
+
+                    return ret
 
         buf = []
 
@@ -213,7 +253,7 @@ class CLI(object):
                 buf.append('  %-50s%s\n' % (syntax, desc))
 
             if syntax_token:
-                attrs = self.get_var_attrs(syntax_token)
+                attrs = self.get_var_attrs(syntax_token, partial_word)
                 if attrs:
                     var_type, var_desc, var_candidates = attrs
                     buf.append('    %s (%s): %s\n' % \
@@ -260,21 +300,21 @@ class CLI(object):
         return '> '
 
     def find_cmd(self, line):
-        matched = self.list_matched(line, ['full'])
+        matched, matched_low = self.list_matched(line, ['full'])
 
         if len(matched) == 1:
             return matched[0]
 
         elif len(matched) >= 2:
             self.err('Ambiguos command "%s". Candidates:' % line.strip())
-            for cmd, desc, _ in matched:
+            for cmd, desc, _ in matched + matched_low:
                 self.fout.write('  %-50s%s\n' % (cmd, desc))
 
-        else:
-            matched = self.list_matched(line, ['partial'])
+        elif len(matched) == 0:
+            matched, matched_low = self.list_matched(line, ['partial'])
             if len(matched) > 0:
                 self.err('Incomplete command "%s". Candidates:' % line.strip())
-                for cmd, desc, _ in matched:
+                for cmd, desc, _ in matched + matched_low:
                     self.fout.write('  %-50s%s\n' % (cmd, desc))
             else:
                 self.err('Unknown command "%s".' % line.strip())
@@ -298,7 +338,7 @@ class CLI(object):
                 raise self.InternalError('Partial match on "%s"? line: "%s"' % \
                         (syntax, line))
 
-            attrs = self.get_var_attrs(syntax_token)
+            attrs = self.get_var_attrs(syntax_token, remainder.split()[0])
             if attrs:
                 var_type = attrs[0]
             else:
@@ -315,19 +355,18 @@ class CLI(object):
         return func, args
 
     def call_func(self, func, args):
-        try:
-            func(*args)
-        except:
-            if not self.interactive:
-                self.should_stop = True
-            raise
+        func(*args)
 
     def print_banner(self):
         pass
 
     def process_one_line(self):
         if self.interactive:
-            line = raw_input(self.get_prompt())
+            try:
+                line = raw_input(self.get_prompt())
+            except KeyboardInterrupt:
+                self.fout.write('\n')
+                return
         else:
             line = self.fin.readline()
             if len(line) == 0:
@@ -337,9 +376,14 @@ class CLI(object):
             
         if line.strip():
             try:
-                cmd = self.find_cmd(line + ' ')
-                func, args = self.bind_args(cmd, line)
-                self.call_func(func, args)
+                try:
+                    cmd = self.find_cmd(line + ' ')
+                    func, args = self.bind_args(cmd, line)
+                    self.call_func(func, args)
+                except:
+                    if not self.interactive:
+                        self.stop_loop = True
+                    raise
 
             except self.InvalidCommandError:
                 pass
@@ -386,10 +430,10 @@ class CLI(object):
         self.disable_echoctl()
 
         try:
-            self.should_stop = False
+            self.stop_loop = False
 
             # the main command loop
-            while not self.should_stop:
+            while not self.stop_loop:
                 self.process_one_line()
         except EOFError:
             if self.interactive:

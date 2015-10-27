@@ -38,8 +38,21 @@ typedef enum {
 	((type *)((char *)(member_type(type, member) *){ptr} - \
 		offsetof(type, member)))
 
+#define MIN(a, b) \
+	({ \
+		__typeof__ (a) _a = (a); \
+		__typeof__ (b) _b = (b); \
+	 	_a <= _b ? _a : _b; \
+	 })
+
+#define MAX(a, b) \
+	({ \
+		__typeof__ (a) _a = (a); \
+		__typeof__ (b) _b = (b); \
+	 	_a >= _b ? _a : _b; \
+	 })
+
 /* err is defined as -errno,  */
-#define MAX_ERRNO			4095
 static inline int64_t ptr_to_err(const void *ptr)
 {
 	return (int64_t) ptr;
@@ -52,7 +65,8 @@ static inline void *err_to_ptr(int64_t err)
 
 static inline int is_err(const void *ptr)
 {
-	return (uint64_t)ptr >= (uint64_t)-MAX_ERRNO;
+	const int max_errno = 4095;
+	return (uint64_t)ptr >= (uint64_t)-max_errno;
 }
 
 static inline int is_err_or_null(const void *ptr)

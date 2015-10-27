@@ -1,6 +1,7 @@
 import os
 import os.path
 import sys
+import fnmatch
 import socket
 import fcntl
 import errno
@@ -19,7 +20,12 @@ import sugar
 from port import *
 from module import *
 
-CONF_EXT = '.ringo'
+# extention for configuration files.
+CONF_EXT = 'bess'
+
+# errors in configuration file
+class ConfError(Exception):
+    pass
 
 def __bess_env__(key, default=None):
     try:
@@ -57,7 +63,53 @@ def __bess_module__(module_names, mclass_name, *args, **kwargs):
         assert False, 'Invalid argument %s' % type(module_names)
 
 
-def get_var_attrs(cli, var_token):
+def is_allowed_filename(basename):
+    # do not allow whitespaces
+    for c in basename:
+        if c.isspace():
+            return False
+
+    return True
+
+def complete_filename(partial_word, start_dir='', suffix=''):
+    try:
+        sub_dir, partial_basename = os.path.split(partial_word)
+        pattern = '%s*%s' % (partial_basename, suffix)
+
+        target_dir = os.path.join(start_dir, os.path.expanduser(sub_dir))
+        if target_dir:
+            basenames = os.listdir(target_dir)
+        else:
+            basenames = os.listdir(os.curdir)
+
+        candidates = []
+        for basename in basenames + ['.', '..']:
+            if basename.startswith('.'):
+                if not partial_basename.startswith('.'):
+                    continue
+
+            if not is_allowed_filename(basename):
+                continue
+
+            #print '%s-%s-%s' % (target_dir, basename, os.path.join(target_dir, basename))
+            if os.path.isdir(os.path.join(target_dir, basename)):
+                candidates.append(basename + '/')
+            else:
+                if fnmatch.fnmatch(basename, pattern):
+                    if suffix:
+                        basename = basename[:-len(suffix)]
+                    candidates.append(basename)
+      
+        ret = []
+        for candidate in candidates:
+            ret.append(os.path.join(sub_dir, candidate))
+        return ret
+    
+    except OSError:
+        # ignore failure of os.listdir()
+        return []
+
+def get_var_attrs(cli, var_token, partial_word):
     var_type = None
     var_desc = ''
     var_candidates = []
@@ -102,16 +154,15 @@ def get_var_attrs(cli, var_token):
             var_candidates = [p['name'] for p in cli.softnic.list_ports()]
 
         elif var_token == 'CONF':
-            conf_files = glob.glob('%s/conf/*%s' % (cli.this_dir, CONF_EXT))
-            confs = map(lambda x: x[x.rfind('/')+1:-len(CONF_EXT)], conf_files)
-
             var_type = 'confname'
             var_desc = 'configuration name in "conf/" directory'
-            var_candidates = confs
+            var_candidates = complete_filename(partial_word,
+                    '%s/conf' % cli.this_dir, '.' + CONF_EXT)
 
         elif var_token == 'CONF_FILE':
             var_type = 'filename'
             var_desc = 'configuration filename'
+            var_candidates = complete_filename(partial_word)
 
         elif var_token == '[OGATE]':
             var_type = 'gate'
@@ -203,7 +254,7 @@ def bind_var(cli, var_type, line):
                 raise cli.BindError('"name" must be [_a-zA-Z][_a-zA-Z0-9]*')
    
     elif var_type == 'confname':
-        if re.match(r'^\w[- \w]*\w$', val) is None:
+        if val.find('\0') >= 0:
             raise cli.BindError('Invalid configuration name')
 
     elif var_type == 'filename':
@@ -380,7 +431,7 @@ def _do_run_file(cli, conf_file):
     new_globals = {
             '__builtins__': __builtins__,
             'softnic': cli.softnic,
-            'ConfError': cli.ConfError,
+            'ConfError': ConfError,
             '__bess_env__': __bess_env__,
             '__bess_module__': __bess_module__,
         }
@@ -411,7 +462,7 @@ def _do_run_file(cli, conf_file):
     except cli.softnic.APIError:
         raise
 
-    except cli.ConfError as e:
+    except ConfError as e:
         cli.err(e.message)
 
     except:
@@ -446,13 +497,16 @@ def _run_file(cli, conf_file, env_map):
     else:
             _do_run_file(cli, conf_file)
 
-@cmd('run CONF [ENV_VARS...]', 'Run a configuration in "conf/"')
+@cmd('run CONF [ENV_VARS...]', 'Run a *.bess configuration in "conf/"')
 def run_conf(cli, conf, env_map):
-    _run_file(cli, '%s/conf/%s%s' % (cli.this_dir, conf, CONF_EXT), env_map)
+    target_dir = '%s/conf' % cli.this_dir
+    basename = os.path.expanduser('%s.%s' % (conf, CONF_EXT))
+    conf_file = os.path.join(target_dir, basename)
+    _run_file(cli, conf_file, env_map)
 
 @cmd('run file CONF_FILE [ENV_VARS]', 'Run a configuration file')
 def run_file(cli, conf_file, env_map):
-    _run_file(cli, conf_file, env_map)
+    _run_file(cli, os.path.expanduser(conf_file), env_map)
 
 @cmd('add port DRIVER [NEW_PORT] [PORT_ARGS...]', 'Add a new port')
 def add_port(cli, driver, port, args):

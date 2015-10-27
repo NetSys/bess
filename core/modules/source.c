@@ -1,15 +1,7 @@
 #include "../module.h"
 
-#define TEMPLATE_SLOTS		(MAX_PKT_BURST * 2 - 1)
-#define MAX_TEMPLATE_SIZE	1536
-
 struct source_priv {
-	int pkt_size;	/* default packet size if num_templates == 0 */
-
-	int next_turn;	/* [0, num_templates - 1] for fair round robin */
-	int num_templates;
-	uint16_t template_size[TEMPLATE_SLOTS];
-	unsigned char templates[TEMPLATE_SLOTS][MAX_TEMPLATE_SIZE] __ymm_aligned;
+	int pkt_size;
 };
 
 static struct snobj *source_query(struct module *, struct snobj *);
@@ -18,7 +10,7 @@ static struct snobj *source_init(struct module *m, struct snobj *arg)
 {
 	struct source_priv *priv = get_priv(m);
 
-	priv->pkt_size = 60;	/* min-sized Ethernet frames */
+	priv->pkt_size = 60;	/* default: min-sized Ethernet frames */
 
 	task_create(m, NULL);
 
@@ -28,50 +20,36 @@ static struct snobj *source_init(struct module *m, struct snobj *arg)
 	return NULL;
 }
 
+static struct snobj *handle_pkt_size(struct source_priv *priv, 
+		struct snobj *pkt_size)
+{
+	uint64_t val;
+	
+	if (snobj_type(pkt_size) != TYPE_INT)
+		return snobj_err(EINVAL, 
+				"'pkt_size' must be an integer");
+
+	val = snobj_uint_get(pkt_size);
+
+	if (val == 0 || val > MAX_PFRAME)
+		return snobj_err(EINVAL, "Invalid packet size");
+
+	priv->pkt_size = val;
+
+	return NULL;
+}
+
 static struct snobj *source_query(struct module *m, struct snobj *q)
 {
 	struct source_priv *priv = get_priv(m);
 
-	struct snobj *templates = snobj_eval(q, "templates");
+	struct snobj *pkt_size = snobj_eval(q, "pkt_size");
+	struct snobj *err;
 
-	if (templates) {
-		int i;
-
-		if (snobj_type(templates) != TYPE_LIST)
-			return snobj_err(EINVAL, "'templates' must be a list");
-
-		if (templates->size > MAX_PKT_BURST)
-			return snobj_err(EINVAL, "Max %d packet templates " \
-					"can be specified", MAX_PKT_BURST);
-
-		priv->next_turn = 0;
-		priv->num_templates = 0;
-
-		for (i = 0; i < templates->size; i++) {
-			struct snobj *template = snobj_list_get(templates, i);
-
-			if (template->type != TYPE_BLOB)
-				return snobj_err(EINVAL, "Packet template " \
-						"should be BLOB type");
-
-			if (template->size > MAX_TEMPLATE_SIZE)
-				return snobj_err(EINVAL, "Template is too big");
-
-			memset(priv->templates[i], 0, MAX_TEMPLATE_SIZE);
-			memcpy(priv->templates[i], snobj_blob_get(template), 
-					template->size);
-			priv->template_size[i] = template->size;
-		}
-
-		for (i = templates->size; i < TEMPLATE_SLOTS; i++) {
-			int j = i % templates->size;
-			memcpy(priv->templates[i], priv->templates[j], 
-					priv->template_size[j]);
-			priv->template_size[i] = priv->template_size[j];
-		}
-
-		/* apply this at last */
-		priv->num_templates = templates->size;
+	if (pkt_size) {
+		err = handle_pkt_size(priv, pkt_size);
+		if (err)
+			return err;
 	}
 
 	return NULL;
@@ -86,30 +64,12 @@ source_run_task(struct module *m, void *arg)
 	struct task_result ret;
 
 	const int pkt_overhead = 24;
-	const int num_templates = priv->num_templates;
 
-	unsigned long total_bytes = 0;
+	uint64_t total_bytes = 0;
 
 	const int cnt = snb_alloc_bulk(SNBUF_PFRAME, batch.pkts, MAX_PKT_BURST, 
 			priv->pkt_size);
 	batch.cnt = cnt;
-
-	if (num_templates > 0) {
-		int start = priv->next_turn;
-		int i;
-
-		for (i = 0; i < cnt; i++) {
-			struct snbuf *snb = batch.pkts[i];
-			char *ptr = snb_head_data(snb);
-			uint16_t size = priv->template_size[start + i];
-
-			snb->mbuf.pkt_len = snb->mbuf.data_len = size;
-			rte_memcpy(ptr, priv->templates[start + i], size);
-			total_bytes += size;
-		}
-
-		priv->next_turn = (start + cnt) % priv->num_templates;
-	}
 
 	run_next_module(m, &batch);
 
