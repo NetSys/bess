@@ -19,7 +19,7 @@ import sugar
 from port import *
 from module import *
 
-CONF_EXT = '.ringo'
+CONF_EXT = '.bess'
 
 # errors in configuration file
 class ConfError(Exception):
