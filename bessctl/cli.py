@@ -60,7 +60,7 @@ class CLI(object):
     # Otherwise, return (var_type, desc, candidates): 
     #    var_type can be: 'int', 'str', 'list'(list of strings), 'map'
     #    candidates is a list of string values.
-    def get_var_attrs(self, var_token):
+    def get_var_attrs(self, var_token, partial_word):
         return None
 
     # Return (head, tail)
@@ -105,7 +105,12 @@ class CLI(object):
         syntax_tokens = syntax.split()
 
         for i, syntax_token in enumerate(syntax_tokens):
-            attrs = self.get_var_attrs(syntax_token)
+            if remainder.split():
+                line_word = remainder.split()[0]
+            else:
+                line_word = ''
+
+            attrs = self.get_var_attrs(syntax_token, line_word)
             if attrs:
                 var_type, var_desc, var_candidates = attrs
             else:
@@ -190,6 +195,12 @@ class CLI(object):
         candidates = []
         num_full_matches = 0
 
+        # ignore partial_word set by readline
+        if len(line) > 0 and line[-1] != ' ':
+            partial_word = line.split()[-1]
+        else:
+            partial_word = ''
+
         for cmd in self.cmdlist:
             syntax = cmd[0]
             match_type, sub_candidates, syntax_token, score = \
@@ -203,7 +214,9 @@ class CLI(object):
 
                 for candidate in sub_candidates:
                     if candidate.startswith(partial_word):
-                        candidates.append(candidate + ' ')
+                        if not candidate.endswith('/'):
+                            candidate += ' '
+                        candidates.append(candidate)
 
         candidates = sorted(list(set(candidates)))
 
@@ -219,9 +232,15 @@ class CLI(object):
             else:
                 common_prefix = s_min
 
-            if len(partial_word) < len(common_prefix):
+            if common_prefix and len(partial_word) < len(common_prefix):
                 if partial_word == common_prefix[:len(partial_word)]:
-                    return candidates
+                    ret = []
+                    skip = partial_word.rfind('/') + 1
+                    for candidate in candidates:
+                        candidate = candidate[skip:]
+                        ret.append(candidate)
+
+                    return ret
 
         buf = []
 
@@ -234,7 +253,7 @@ class CLI(object):
                 buf.append('  %-50s%s\n' % (syntax, desc))
 
             if syntax_token:
-                attrs = self.get_var_attrs(syntax_token)
+                attrs = self.get_var_attrs(syntax_token, partial_word)
                 if attrs:
                     var_type, var_desc, var_candidates = attrs
                     buf.append('    %s (%s): %s\n' % \
@@ -319,7 +338,7 @@ class CLI(object):
                 raise self.InternalError('Partial match on "%s"? line: "%s"' % \
                         (syntax, line))
 
-            attrs = self.get_var_attrs(syntax_token)
+            attrs = self.get_var_attrs(syntax_token, remainder.split()[0])
             if attrs:
                 var_type = attrs[0]
             else:
@@ -343,7 +362,11 @@ class CLI(object):
 
     def process_one_line(self):
         if self.interactive:
-            line = raw_input(self.get_prompt())
+            try:
+                line = raw_input(self.get_prompt())
+            except KeyboardInterrupt:
+                self.fout.write('\n')
+                return
         else:
             line = self.fin.readline()
             if len(line) == 0:

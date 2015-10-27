@@ -1,6 +1,7 @@
 import os
 import os.path
 import sys
+import fnmatch
 import socket
 import fcntl
 import errno
@@ -19,7 +20,8 @@ import sugar
 from port import *
 from module import *
 
-CONF_EXT = '.bess'
+# extention for configuration files.
+CONF_EXT = 'bess'
 
 # errors in configuration file
 class ConfError(Exception):
@@ -61,7 +63,18 @@ def __bess_module__(module_names, mclass_name, *args, **kwargs):
         assert False, 'Invalid argument %s' % type(module_names)
 
 
-def get_var_attrs(cli, var_token):
+def is_allowed_filename(basename):
+    if basename.startswith('.'):
+        return False
+
+    # do not allow whitespaces
+    for c in basename:
+        if c.isspace():
+            return False
+
+    return True
+
+def get_var_attrs(cli, var_token, partial_word):
     var_type = None
     var_desc = ''
     var_candidates = []
@@ -106,12 +119,33 @@ def get_var_attrs(cli, var_token):
             var_candidates = [p['name'] for p in cli.softnic.list_ports()]
 
         elif var_token == 'CONF':
-            conf_files = glob.glob('%s/conf/*%s' % (cli.this_dir, CONF_EXT))
-            confs = map(lambda x: x[x.rfind('/')+1:-len(CONF_EXT)], conf_files)
-
             var_type = 'confname'
             var_desc = 'configuration name in "conf/" directory'
-            var_candidates = confs
+
+            root = '%s/conf' % cli.this_dir
+            sub_dir, partial_basename = os.path.split(partial_word)
+            search_dir = os.path.join(root, sub_dir)
+            pattern = '%s*.%s' % (partial_basename, CONF_EXT)
+
+            try:
+                candidates = []
+
+                for basename in os.listdir(search_dir):
+                    if not is_allowed_filename(basename):
+                        continue
+
+                    if os.path.isdir(os.path.join(search_dir, basename)):
+                        candidates.append(basename + '/')
+                    else:
+                        if fnmatch.fnmatch(basename, pattern):
+                            candidates.append(basename[:-(len(CONF_EXT)+1)])
+               
+                for candidate in candidates:
+                    var_candidates.append(os.path.join(sub_dir, candidate))
+            
+            except OSError:
+                # ignore failure of os.listdir()
+                pass
 
         elif var_token == 'CONF_FILE':
             var_type = 'filename'
@@ -207,7 +241,7 @@ def bind_var(cli, var_type, line):
                 raise cli.BindError('"name" must be [_a-zA-Z][_a-zA-Z0-9]*')
    
     elif var_type == 'confname':
-        if re.match(r'^\w[- \w]*\w$', val) is None:
+        if val.find('\0') >= 0:
             raise cli.BindError('Invalid configuration name')
 
     elif var_type == 'filename':
@@ -452,7 +486,7 @@ def _run_file(cli, conf_file, env_map):
 
 @cmd('run CONF [ENV_VARS...]', 'Run a configuration in "conf/"')
 def run_conf(cli, conf, env_map):
-    _run_file(cli, '%s/conf/%s%s' % (cli.this_dir, conf, CONF_EXT), env_map)
+    _run_file(cli, '%s/conf/%s.%s' % (cli.this_dir, conf, CONF_EXT), env_map)
 
 @cmd('run file CONF_FILE [ENV_VARS]', 'Run a configuration file')
 def run_file(cli, conf_file, env_map):
