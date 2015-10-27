@@ -170,6 +170,9 @@ class CLI(object):
             if match_type in filters:
                 matched_list.append((cmd, score))
 
+        if len(matched_list) == 0:
+            return [], []
+
         max_score = max(map(lambda x: x[1], matched_list))
 
         ret = []
@@ -289,7 +292,7 @@ class CLI(object):
                 self.fout.write('  %-50s%s\n' % (cmd, desc))
 
         elif len(matched) == 0:
-            matched = self.list_matched(line, ['partial'])
+            matched, matched_low = self.list_matched(line, ['partial'])
             if len(matched) > 0:
                 self.err('Incomplete command "%s". Candidates:' % line.strip())
                 for cmd, desc, _ in matched + matched_low:
