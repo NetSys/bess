@@ -64,15 +64,50 @@ def __bess_module__(module_names, mclass_name, *args, **kwargs):
 
 
 def is_allowed_filename(basename):
-    if basename.startswith('.'):
-        return False
-
     # do not allow whitespaces
     for c in basename:
         if c.isspace():
             return False
 
     return True
+
+def complete_filename(partial_word, start_dir='', suffix=''):
+    try:
+        sub_dir, partial_basename = os.path.split(partial_word)
+        pattern = '%s*%s' % (partial_basename, suffix)
+
+        target_dir = os.path.join(start_dir, os.path.expanduser(sub_dir))
+        if target_dir:
+            basenames = os.listdir(target_dir)
+        else:
+            basenames = os.listdir(os.curdir)
+
+        candidates = []
+        for basename in basenames + ['.', '..']:
+            if basename.startswith('.'):
+                if not partial_basename.startswith('.'):
+                    continue
+
+            if not is_allowed_filename(basename):
+                continue
+
+            #print '%s-%s-%s' % (target_dir, basename, os.path.join(target_dir, basename))
+            if os.path.isdir(os.path.join(target_dir, basename)):
+                candidates.append(basename + '/')
+            else:
+                if fnmatch.fnmatch(basename, pattern):
+                    if suffix:
+                        basename = basename[:-len(suffix)]
+                    candidates.append(basename)
+      
+        ret = []
+        for candidate in candidates:
+            ret.append(os.path.join(sub_dir, candidate))
+        return ret
+    
+    except OSError:
+        # ignore failure of os.listdir()
+        return []
 
 def get_var_attrs(cli, var_token, partial_word):
     var_type = None
@@ -121,35 +156,13 @@ def get_var_attrs(cli, var_token, partial_word):
         elif var_token == 'CONF':
             var_type = 'confname'
             var_desc = 'configuration name in "conf/" directory'
-
-            try:
-                root = '%s/conf' % cli.this_dir
-                sub_dir, partial_basename = os.path.split(partial_word)
-                target_dir = os.path.join(root, os.path.expanduser(sub_dir))
-                pattern = '%s*.%s' % (partial_basename, CONF_EXT)
-
-                candidates = []
-
-                for basename in os.listdir(target_dir):
-                    if not is_allowed_filename(basename):
-                        continue
-
-                    if os.path.isdir(os.path.join(target_dir, basename)):
-                        candidates.append(basename + '/')
-                    else:
-                        if fnmatch.fnmatch(basename, pattern):
-                            candidates.append(basename[:-(len(CONF_EXT)+1)])
-               
-                for candidate in candidates:
-                    var_candidates.append(os.path.join(sub_dir, candidate))
-            
-            except OSError:
-                # ignore failure of os.listdir()
-                pass
+            var_candidates = complete_filename(partial_word,
+                    '%s/conf' % cli.this_dir, '.' + CONF_EXT)
 
         elif var_token == 'CONF_FILE':
             var_type = 'filename'
             var_desc = 'configuration filename'
+            var_candidates = complete_filename(partial_word)
 
         elif var_token == '[OGATE]':
             var_type = 'gate'
@@ -484,7 +497,7 @@ def _run_file(cli, conf_file, env_map):
     else:
             _do_run_file(cli, conf_file)
 
-@cmd('run CONF [ENV_VARS...]', 'Run a configuration in "conf/*.bess"')
+@cmd('run CONF [ENV_VARS...]', 'Run a *.bess configuration in "conf/"')
 def run_conf(cli, conf, env_map):
     target_dir = '%s/conf' % cli.this_dir
     basename = os.path.expanduser('%s.%s' % (conf, CONF_EXT))
