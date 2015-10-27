@@ -25,8 +25,8 @@ class BESSCLI(cli.CLI):
         super(BESSCLI, self).__init__(self.cmd_db.cmdlist, \
                 fin=fin, fout=fout, history_file=history_file)
     
-    def get_var_attrs(self, var_token):
-        return self.cmd_db.get_var_attrs(self, var_token)
+    def get_var_attrs(self, var_token, partial_word):
+        return self.cmd_db.get_var_attrs(self, var_token, partial_word)
 
     def split_var(self, var_type, line):
         try:
