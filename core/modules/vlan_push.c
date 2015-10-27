@@ -5,7 +5,9 @@
 #include "../module.h"
 
 struct vlan_push_priv {
-	uint32_t vlan_tag;	/* network order */
+	/* network order */
+	uint32_t vlan_tag;	
+	uint32_t qinq_tag;
 };
 
 static struct snobj *query(struct module *m, struct snobj *q);
@@ -26,6 +28,7 @@ static struct snobj *query(struct module *m, struct snobj *q)
 	tci = snobj_uint_get(q);
 
 	priv->vlan_tag = htonl((0x8100 << 16) | tci);
+	priv->qinq_tag = htonl((0x88a8 << 16) | tci);
 
 	return NULL;
 }
@@ -48,9 +51,20 @@ static void process_batch(struct module *m, struct pkt_batch *batch)
 	for (int i = 0; i < batch->cnt; i++) {
 		struct snbuf *pkt = batch->pkts[i];
 		char *ptr = snb_head_data(pkt);
+		uint16_t tpid = *((uint16_t *)(ptr + 12));
+
+		/* already QinQ? */
+		if (tpid == rte_cpu_to_be_16(0x88a8))
+			continue;
 
 		memmove(ptr - 4, ptr, 12);
-		*(uint32_t *)(ptr + 8) = priv->vlan_tag;
+
+		/* already tagged? */
+		if (tpid == rte_cpu_to_be_16(0x8100))
+			*(uint32_t *)(ptr + 8) = priv->qinq_tag;
+		else
+			*(uint32_t *)(ptr + 8) = priv->vlan_tag;
+
 		snb_prepend(pkt, 4);
 	}
 		

@@ -1,5 +1,6 @@
 # Temporary/hidden files
 .*
+*.dump
 
 # VM images
 *.img

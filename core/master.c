@@ -217,20 +217,18 @@ static void request_done(struct client *c)
 {
 	struct epoll_event ev;
 
-	struct snobj *q;
-	struct snobj *r;
+	struct snobj *q = NULL;
+	struct snobj *r = NULL;
 
 	int ret;
 
 	q = snobj_decode(c->buf, c->msg_len);
 	if (!q) {
 		fprintf(stderr, "Incorrect message\n");
-		close_client(c);
-		return;
+		goto err;
 	}
 
 	r = handle_request(c, q);
-	snobj_free(q);
 
 	ev.events = EPOLLOUT;
 	ev.data.ptr = c;
@@ -238,7 +236,7 @@ static void request_done(struct client *c)
 	ret = epoll_ctl(master.epoll_fd, EPOLL_CTL_MOD, c->fd, &ev);
 	if (ret < 0) {
 		perror("epoll_ctl(EPOLL_CTL_MOD, listen_fd, OUT)");
-		close_client(c);
+		goto err;
 	}
 
 	{
@@ -248,7 +246,10 @@ static void request_done(struct client *c)
 		c->msg_len_off = 0;
 
 		c->msg_len = snobj_encode(r, &buf, 0);
-		assert(c->msg_len > 0);
+		if (c->msg_len == 0) {
+			fprintf(stderr, "Encoding error\n");
+			goto err;
+		}
 
 		/* XXX: DRY */
 		if (c->msg_len > c->buf_size) {
@@ -256,12 +257,12 @@ static void request_done(struct client *c)
 
 			if (c->msg_len > MAX_BUF_SIZE)  {
 				fprintf(stderr, "too large response was attempted\n");
-				assert(0);	/* XXX */	
+				goto err;
 			}
 
 			new_buf = rte_realloc(c->buf, c->msg_len, 0);
 			if (!new_buf)
-				assert(0);	/* XXX */
+				goto err;
 
 			c->buf = new_buf;
 			c->buf_size = c->msg_len;
@@ -271,9 +272,17 @@ static void request_done(struct client *c)
 
 		if (buf)
 			_FREE(buf);
-
-		snobj_free(r);
 	}
+
+	snobj_free(q);
+	snobj_free(r);
+	return;
+
+err:
+	snobj_free(q);
+	snobj_free(r);
+	close_client(c);
+	return;
 }
 
 static void response_done(struct client *c)
@@ -304,7 +313,8 @@ static void client_recv(struct client *c)
 
 	if (c->msg_len_off < sizeof(c->msg_len)) {
 		received = recv(c->fd, ((char *)&c->msg_len) + c->msg_len_off, 
-				sizeof(c->msg_len) - c->msg_len_off, MSG_NOSIGNAL);
+				sizeof(c->msg_len) - c->msg_len_off, 
+				MSG_NOSIGNAL);
 		if (received <= 0) {
 			close_client(c);
 			return;
@@ -320,12 +330,16 @@ static void client_recv(struct client *c)
 
 		if (c->msg_len > MAX_BUF_SIZE)  {
 			fprintf(stderr, "too large request was attempted\n");
-			assert(0);	/* XXX */	
+			close_client(c);
+			return;
 		}
 
 		new_buf = rte_realloc(c->buf, c->msg_len, 0);
-		if (!new_buf)
-			assert(0);	/* XXX */
+		if (!new_buf) {
+			fprintf(stderr, "Out of memory\n");
+			close_client(c);
+			return;
+		}
 
 		c->buf = new_buf;
 		c->buf_size = c->msg_len;

@@ -16,9 +16,6 @@ except ImportError:
     print >> sys.stderr, 'Cannot import the API module (libsn-python)'
 
 class BESSCLI(cli.CLI):
-    class ConfError(Exception):
-        pass
-
     def __init__(self, softnic, cmd_db, fin=sys.stdin, 
                  fout=sys.stdout, history_file=None):
         self.softnic = softnic
