@@ -87,16 +87,18 @@ class CLI(object):
         raise self.InternalError('type "%s" is undefined' % var_type)
 
     # Compare a command with a user-typed line. 
-    # It returns (match_type, candidates, syntax_token).
+    # It returns (match_type, candidates, syntax_token, score).
     # match_type can be:
     #  - 'full': all tokens in syntax was consumed
     #  - 'partial': prefix matched
     #  - 'nonmatch': not a match
     # candidates is a list of suggested strings to be added as the last token.
     # syntax_token is where the user input is currently on, if any.
+    # score is the number of matched keywords
     def match(self, syntax, line):
         candidates = []
         remainder = line
+        score = 0
 
         new_token = (line != '' and line[-1] == ' ')
 
@@ -120,10 +122,11 @@ class CLI(object):
                         candidates.append(syntax_token)
 
                     if syntax_token[0] == '[':  # skippable?
-                        return 'full', candidates, syntax_token
-                    return 'partial', candidates, syntax_token
+                        return 'full', candidates, syntax_token, score
+                    return 'partial', candidates, syntax_token, score
 
-                return 'partial', candidates, syntax_tokens[max(0, i - 1)]
+                return 'partial', candidates, syntax_tokens[max(0, i - 1)], \
+                        score
 
             token, remainder = self.split_var(var_type, remainder)
             remainder = remainder.lstrip()
@@ -136,8 +139,9 @@ class CLI(object):
                         candidates = [syntax_token]
                 else:
                     if not syntax_token.startswith(token):
-                        return 'nonmatch', [], ''
+                        return 'nonmatch', [], '', score
                     candidates = [syntax_token]
+                score += 1
             else:
                 if new_token:
                     candidates = var_candidates
@@ -149,21 +153,34 @@ class CLI(object):
  
         if remainder.strip() == '':
             if '...' in syntax_token:
-                return 'full', candidates, syntax_token
+                return 'full', candidates, syntax_token, score
             if new_token:
-                return 'full', [], ''
-            return 'full', candidates, ''
-        return 'nonmatch', [], ''
+                return 'full', [], '', score
+            return 'full', candidates, '', score
+        return 'nonmatch', [], '', score
 
     # filters is a list of 'full', 'partial', 'nonmatch'
     def list_matched(self, line, filters):
+        matched_list = []
+
+        for cmd in self.cmdlist:
+            syntax = cmd[0]
+            match_type, _, _, score = self.match(syntax, line)
+            
+            if match_type in filters:
+                matched_list.append((cmd, score))
+
+        max_score = max(map(lambda x: x[1], matched_list))
+
         ret = []
+        ret_low = []
+        for cmd, score in matched_list:
+            if score == max_score:
+                ret.append(cmd)
+            else:
+                ret_low.append(cmd)
 
-        for syntax, desc, func in self.cmdlist:
-            if self.match(syntax, line)[0] in filters:
-                ret.append((syntax, desc, func))
-
-        return ret
+        return ret, ret_low
 
     def _do_complete(self, line, partial_word):
         possible_cmds = []
@@ -172,7 +189,8 @@ class CLI(object):
 
         for cmd in self.cmdlist:
             syntax = cmd[0]
-            match_type, sub_candidates, syntax_token = self.match(syntax, line)
+            match_type, sub_candidates, syntax_token, score = \
+                    self.match(syntax, line)
 
             if match_type in ['full', 'partial']:
                 possible_cmds.append((cmd, match_type, syntax_token))
@@ -260,21 +278,21 @@ class CLI(object):
         return '> '
 
     def find_cmd(self, line):
-        matched = self.list_matched(line, ['full'])
+        matched, matched_low = self.list_matched(line, ['full'])
 
         if len(matched) == 1:
             return matched[0]
 
         elif len(matched) >= 2:
             self.err('Ambiguos command "%s". Candidates:' % line.strip())
-            for cmd, desc, _ in matched:
+            for cmd, desc, _ in matched + matched_low:
                 self.fout.write('  %-50s%s\n' % (cmd, desc))
 
-        else:
+        elif len(matched) == 0:
             matched = self.list_matched(line, ['partial'])
             if len(matched) > 0:
                 self.err('Incomplete command "%s". Candidates:' % line.strip())
-                for cmd, desc, _ in matched:
+                for cmd, desc, _ in matched + matched_low:
                     self.fout.write('  %-50s%s\n' % (cmd, desc))
             else:
                 self.err('Unknown command "%s".' % line.strip())
