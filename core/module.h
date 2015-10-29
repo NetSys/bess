@@ -96,6 +96,8 @@ void destroy_module(struct module *m);
 int connect_modules(struct module *m1, gate_t gate, struct module *m2);
 int disconnect_modules(struct module *m, gate_t gate);
 		
+void deadend(struct module *m, struct pkt_batch *batch);
+
 /* run all per-thread initializers */
 void init_module_worker(void);
 
@@ -163,7 +165,14 @@ inline int disable_tcpdump(struct module *, int) {
 static inline void run_choose_module(struct module *m, gate_t ogate,
 				     struct pkt_batch *batch)
 {
-	struct output_gate *gate = &m->gates[ogate];
+	struct output_gate *gate;
+
+	if (unlikely(ogate >= m->allocated_gates)) {
+		deadend(NULL, batch);
+		return;
+	}
+
+	gate = &m->gates[ogate];
 
 #if SN_TRACE_MODULES
 	_trace_before_call(m, next, batch);

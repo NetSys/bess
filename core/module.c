@@ -83,17 +83,14 @@ static int register_module(struct module *m)
 	int ret;
 
 	ret = ns_insert(NS_TYPE_MODULE, m->name, (void *) m);
-	if (ret < 0) {
+	if (ret < 0)
 		return ret;
-	}
 
 	return 0;
 }
 
-static void deadend(struct module *m, struct pkt_batch *batch)
+void deadend(struct module *m, struct pkt_batch *batch)
 {
-	assert(m == NULL);
-
 	ctx.silent_drops += batch->cnt;
 	snb_free_bulk(batch->pkts, batch->cnt);
 }
