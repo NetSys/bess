@@ -122,19 +122,15 @@ struct module *create_module(const char *name,
 	}
 
 	m->mclass = mclass;
-	m->allocated_gates = 8;
-
 	m->name = rte_zmalloc("name", MODULE_NAME_LEN, 0);
-	m->gates = rte_zmalloc("gates", 
-			sizeof(struct output_gate) * m->allocated_gates, 0);
 
-	if (!m->name || !m->gates) {
+	m->allocated_gates = 0;
+	m->gates = NULL;
+
+	if (!m->name) {
 		*perr = snobj_errno(ENOMEM);
 		goto fail;
 	}
-
-	for (gate_t i = 0; i < m->allocated_gates; i++)
-		disconnect_modules(m, i);
 
 	if (!name)
 		set_default_name(m);
@@ -222,14 +218,18 @@ void destroy_module(struct module *m)
 static int grow_gates(struct module *m, gate_t gate)
 {
 	struct output_gate *new_gates;
+	gate_t old_size;
 	gate_t new_size;
 
 	if (gate > MAX_OUTPUT_GATES)
 		return -EINVAL;
 
-	new_size = m->allocated_gates;
-	while (new_size <= gate)
-		new_size *= 2;
+	new_size = m->allocated_gates ? : 1;
+	
+	while (new_size <= gate) {
+		if (new_size)
+			new_size *= 2;
+	}
 
 	new_gates = rte_realloc(m->gates, 
 			sizeof(struct output_gate) * new_size, 0);
@@ -238,10 +238,12 @@ static int grow_gates(struct module *m, gate_t gate)
 
 	m->gates = new_gates;
 
-	for (gate_t i = m->allocated_gates; i < new_size; i++)
-		disconnect_modules(m, i);
-
+	old_size = m->allocated_gates;
 	m->allocated_gates = new_size;
+
+	/* initialize the newly created gates */
+	for (gate_t i = old_size; i < new_size; i++)
+		disconnect_modules(m, i);
 
 	return 0;
 }

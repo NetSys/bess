@@ -1,22 +1,24 @@
 #ifndef _MODULE_H_
 #define _MODULE_H_
 
-#include <rte_timer.h>
-#include <rte_cycles.h>
+#include <assert.h>
 #include <sys/time.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 
+#include <rte_timer.h>
+#include <rte_cycles.h>
+
 #include "utils/cdlist.h"
+#include "utils/pcap.h"
 
 #include "debug.h"
 #include "mclass.h"
 #include "snbuf.h"
 #include "worker.h"
 #include "snobj.h"
-#include "utils/pcap.h"
 
 #define MODULE_NAME_LEN		128
 
@@ -24,6 +26,8 @@ typedef uint16_t gate_t;
 
 #define MAX_OUTPUT_GATES	8192
 #define INVALID_GATE		UINT16_MAX
+
+ct_assert(MAX_OUTPUT_GATES < INVALID_GATE);
 
 #define TRACK_GATES		1
 #define TCPDUMP_GATES		1
@@ -49,9 +53,9 @@ struct module {
 	const struct mclass *mclass;
 
 	struct cdlist_head tasks;
-	gate_t allocated_gates;
 
 	/* frequently access fields should be below */
+	gate_t allocated_gates;
 	struct output_gate *gates;
 
 	/* Some private data for this module instance begins at this marker. 
