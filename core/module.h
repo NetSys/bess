@@ -11,6 +11,7 @@
 
 #include "utils/cdlist.h"
 
+#include "debug.h"
 #include "mclass.h"
 #include "snbuf.h"
 #include "worker.h"
@@ -19,8 +20,10 @@
 
 #define MODULE_NAME_LEN		128
 
+typedef uint16_t gate_t;
+
 #define MAX_OUTPUT_GATES	8192
-#define INVALID_GATE		0xffff
+#define INVALID_GATE		UINT16_MAX
 
 #define TRACK_GATES		1
 #define TCPDUMP_GATES		1
@@ -46,7 +49,7 @@ struct module {
 	const struct mclass *mclass;
 
 	struct cdlist_head tasks;
-	uint16_t allocated_gates;
+	gate_t allocated_gates;
 
 	/* frequently access fields should be below */
 	struct output_gate *gates;
@@ -86,8 +89,8 @@ struct module *create_module(const char *name,
 
 void destroy_module(struct module *m);
 
-int connect_modules(struct module *m1, uint16_t gate, struct module *m2);
-int disconnect_modules(struct module *m, uint16_t gate);
+int connect_modules(struct module *m1, gate_t gate, struct module *m2);
+int disconnect_modules(struct module *m, gate_t gate);
 		
 /* run all per-thread initializers */
 void init_module_worker(void);
@@ -100,9 +103,9 @@ void _trace_after_call(void);
 #endif
 
 #if TCPDUMP_GATES
-int enable_tcpdump(const char* fifo, struct module *m, uint16_t gate);
+int enable_tcpdump(const char* fifo, struct module *m, gate_t gate);
 
-int disable_tcpdump(struct module *m, uint16_t gate);
+int disable_tcpdump(struct module *m, gate_t gate);
 
 static inline int dump_pcap_pkts(int fd, struct pkt_batch *batch)
 {
@@ -139,12 +142,12 @@ static inline int dump_pcap_pkts(int fd, struct pkt_batch *batch)
 	return packets;
 }
 #else
-inline int enable_tcpdump(const char*, struct module*, int) {
+inline int enable_tcpdump(const char *, struct module *, gate_t) {
 	/* Cannot enable tcpdump */
 	return -EINVAL;
 }
 
-inline int disable_tcpdump(struct module*, int) {
+inline int disable_tcpdump(struct module *, int) {
 	/* Cannot disable tcpdump */
 	return -EINVAL;
 }
@@ -153,10 +156,10 @@ inline int disable_tcpdump(struct module*, int) {
 
 /* Pass packets to the next module.
  * Packet deallocation is callee's responsibility. */
-static inline void run_choose_module(struct module *m, int index,
+static inline void run_choose_module(struct module *m, gate_t ogate,
 				     struct pkt_batch *batch)
 {
-	struct output_gate *gate = &m->gates[index];
+	struct output_gate *gate = &m->gates[ogate];
 
 #if SN_TRACE_MODULES
 	_trace_before_call(m, next, batch);
@@ -201,44 +204,14 @@ static inline void run_next_module(struct module *m, struct pkt_batch *batch)
  *
  * TODO: optimize this function. currently O(n^2) in the worst case
  */
-#if 0
-/* readability version */
-static void run_split(struct module *m, uint16_t *ogates,
-		struct pkt_batch *org)
-{
-	const int total = org->cnt;
-
-	for (int i = 0; i < total; i++) {
-		uint16_t h = ogates[i];
-
-		if (h != INVALID_GATE) {
-			struct pkt_batch batch;
-
-			batch_clear(&batch);
-			batch_add(&batch, org->pkts[i]);
-
-			for (int j = i + 1; j < total; j++) {
-				uint16_t t = ogates[j];
-
-				if (h == t) {
-					batch_add(&batch, org->pkts[j]);
-					ogates[j] = INVALID_GATE;
-				}
-			}
-			run_choose_module(m, h, &batch);
-		}
-	}
-}
-#else
-/* performance version */
-static void run_split(struct module *m, uint16_t *ogates,
+static void run_split(struct module *m, gate_t *ogates,
 		struct pkt_batch *org)
 {
 	const int total = org->cnt;
 	int i = 0;
 
 	while (i < total) {
-		uint16_t h = ogates[i];
+		gate_t h = ogates[i];
 
 		if (h != INVALID_GATE) {
 			struct pkt_batch batch;
@@ -246,7 +219,7 @@ static void run_split(struct module *m, uint16_t *ogates,
 			batch.pkts[0] = org->pkts[i++];
 
 			for (int j = i; j < total; j++) {
-				uint16_t t = ogates[j];
+				gate_t t = ogates[j];
 				int equal = (h == t);
 
 				batch.pkts[cnt] = org->pkts[j];
@@ -260,7 +233,6 @@ static void run_split(struct module *m, uint16_t *ogates,
 		} else
 			i++;
 	}
-#endif
 }
 
 #if 0
