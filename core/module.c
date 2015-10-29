@@ -83,17 +83,14 @@ static int register_module(struct module *m)
 	int ret;
 
 	ret = ns_insert(NS_TYPE_MODULE, m->name, (void *) m);
-	if (ret < 0) {
+	if (ret < 0)
 		return ret;
-	}
 
 	return 0;
 }
 
-static void deadend(struct module *m, struct pkt_batch *batch)
+void deadend(struct module *m, struct pkt_batch *batch)
 {
-	assert(m == NULL);
-
 	ctx.silent_drops += batch->cnt;
 	snb_free_bulk(batch->pkts, batch->cnt);
 }
@@ -122,19 +119,15 @@ struct module *create_module(const char *name,
 	}
 
 	m->mclass = mclass;
-	m->allocated_gates = 8;
-
 	m->name = rte_zmalloc("name", MODULE_NAME_LEN, 0);
-	m->gates = rte_zmalloc("gates", 
-			sizeof(struct output_gate) * m->allocated_gates, 0);
 
-	if (!m->name || !m->gates) {
+	m->allocated_gates = 0;
+	m->gates = NULL;
+
+	if (!m->name) {
 		*perr = snobj_errno(ENOMEM);
 		goto fail;
 	}
-
-	for (int i = 0; i < m->allocated_gates; i++)
-		disconnect_modules(m, i);
 
 	if (!name)
 		set_default_name(m);
@@ -185,9 +178,6 @@ void destroy_module(struct module *m)
 	struct task *t;
 	struct task *next;
 
-	int i;
-	int j;
-
 	struct ns_iter iter;
 
 	if (m->mclass->deinit)
@@ -200,14 +190,14 @@ void destroy_module(struct module *m)
 		if (!another)
 			break;
 		
-		for (j = 0; j < another->allocated_gates; j++)
-			if (another->gates[j].m == m)
-				disconnect_modules(another, j);
+		for (gate_t i = 0; i < another->allocated_gates; i++)
+			if (another->gates[i].m == m)
+				disconnect_modules(another, i);
 	}
 	ns_release_iterator(&iter);
 
 	/* disconnect downstream modules */
-	for (i = 0; i < m->allocated_gates; i++)
+	for (gate_t i = 0; i < m->allocated_gates; i++)
 		disconnect_modules(m, i);
 
 	cdlist_for_each_entry_safe(t, next, &m->tasks, module)
@@ -222,17 +212,21 @@ void destroy_module(struct module *m)
 }
 
 
-static int grow_gates(struct module *m, uint16_t gate)
+static int grow_gates(struct module *m, gate_t gate)
 {
 	struct output_gate *new_gates;
-	uint16_t new_size;
+	gate_t old_size;
+	gate_t new_size;
 
 	if (gate > MAX_OUTPUT_GATES)
 		return -EINVAL;
 
-	new_size = m->allocated_gates;
-	while (new_size <= gate)
-		new_size *= 2;
+	new_size = m->allocated_gates ? : 1;
+	
+	while (new_size <= gate) {
+		if (new_size)
+			new_size *= 2;
+	}
 
 	new_gates = rte_realloc(m->gates, 
 			sizeof(struct output_gate) * new_size, 0);
@@ -241,16 +235,18 @@ static int grow_gates(struct module *m, uint16_t gate)
 
 	m->gates = new_gates;
 
-	for (int i = m->allocated_gates; i < new_size; i++)
-		disconnect_modules(m, i);
-
+	old_size = m->allocated_gates;
 	m->allocated_gates = new_size;
+
+	/* initialize the newly created gates */
+	for (gate_t i = old_size; i < new_size; i++)
+		disconnect_modules(m, i);
 
 	return 0;
 }
 
 /* returns -errno if fails */
-int connect_modules(struct module *m1, uint16_t gate, struct module *m2)
+int connect_modules(struct module *m1, gate_t gate, struct module *m2)
 {
 	if (!m2->mclass->process_batch)
 		return -EINVAL;
@@ -270,7 +266,7 @@ int connect_modules(struct module *m1, uint16_t gate, struct module *m2)
 	return 0;
 }
 
-int disconnect_modules(struct module *m, uint16_t gate)
+int disconnect_modules(struct module *m, gate_t gate)
 {
 	if (gate >= m->allocated_gates)
 		return -EINVAL;
@@ -418,7 +414,7 @@ struct module *find_module(const char *name)
 }
 
 #if TCPDUMP_GATES
-int enable_tcpdump(const char* fifo, struct module *m, uint16_t gate)
+int enable_tcpdump(const char* fifo, struct module *m, gate_t gate)
 {
 	static const struct pcap_hdr PCAP_FILE_HDR = {
 		.magic_number = PCAP_MAGIC_NUMBER,
@@ -457,7 +453,7 @@ int enable_tcpdump(const char* fifo, struct module *m, uint16_t gate)
 	return 0;
 }
 
-int disable_tcpdump(struct module *m, uint16_t gate)
+int disable_tcpdump(struct module *m, gate_t gate)
 {
 	if (!m->gates[gate].tcpdump)
 		return -EINVAL;
