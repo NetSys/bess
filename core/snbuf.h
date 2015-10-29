@@ -1,8 +1,6 @@
 #ifndef _SNBUF_H_
 #define _SNBUF_H_
 
-//#define RTE_LIBRTE_MBUF_DEBUG
-
 #include <assert.h>
 
 #include <rte_config.h>
@@ -12,6 +10,7 @@
 
 #include <sn.h>
 
+#include "debug.h"
 #include "worker.h"
 #include "dpdk.h"
 
@@ -20,6 +19,8 @@
 #define OLD_METADATA			0
 
 #define MAX_SNBUF_BYTES			128
+ct_assert(MAX_SNBUF_BYTES <= RTE_PKTMBUF_HEADROOM);
+
 #define MAX_PKT_BURST			32
 
 typedef enum {
@@ -127,8 +128,7 @@ static inline struct snbuf *snb_init_template(struct rte_mbuf *mbuf,
 {
 	struct snbuf *snb = (struct snbuf *)mbuf;
 
-	RTE_BUILD_BUG_ON(SNBUF_SIZE > MAX_SNBUF_BYTES);
-	RTE_BUILD_BUG_ON(MAX_SNBUF_BYTES > RTE_PKTMBUF_HEADROOM);
+	ct_assert(SNBUF_SIZE <= MAX_SNBUF_BYTES);
 
 	if (SNBUF_SIZE == 16) {
 		*((__m128 *)&snb->_snbuf_start) = 

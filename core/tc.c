@@ -8,6 +8,7 @@
 #include <rte_cycles.h>
 
 #include "tc.h"
+#include "debug.h"
 #include "common.h"
 #include "time.h"
 #include "task.h"
@@ -467,7 +468,7 @@ static char *print_tc_stats_detail(struct sched *s, char *p, int max_cnt)
 
 	struct tc *c;
 
-	RTE_BUILD_BUG_ON(sizeof(struct tc_stats) < sizeof(fields));
+	ct_assert(sizeof(struct tc_stats) >= sizeof(fields));
 
 	p += sprintf(p, "\n");
 
