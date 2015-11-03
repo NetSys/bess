@@ -17,9 +17,10 @@ typedef uint8_t queue_t;
 
 extern const struct global_opts {
 	int wid_to_core[MAX_WORKERS];
-	uint16_t port;		/* TCP port for controllwe (0 for default) */
+	uint16_t port;		/* TCP port for controller (0 for default) */
 	int foreground;		/* If 1, not daemonized */
 	int kill_existing;	/* If 1, kill existing BESS instance */
+	int print_tc_stats;	/* If 1, print TC stats every second */
 } global_opts;
 
 /* The term RX/TX could be very confusing for a virtual switch.

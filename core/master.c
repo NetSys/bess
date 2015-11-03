@@ -109,7 +109,7 @@ static int init_listen_fd(uint16_t port)
 		exit(EXIT_FAILURE);
 	}
 
-	printf("Listening on %s:%hu\n", inet_ntoa(s_addr.sin_addr), port);
+	printf("Master: listening on %s:%hu\n", inet_ntoa(s_addr.sin_addr), port);
 
 	return listen_fd;
 }
@@ -144,7 +144,7 @@ static struct client *init_client(int fd, struct sockaddr_in c_addr)
 
 static void close_client(struct client *c)
 {
-	printf("Client %s:%hu disconnected\n", 
+	printf("Master: client %s:%hu disconnected\n", 
 			inet_ntoa(c->addr.sin_addr), c->addr.sin_port);
 
 	close(c->fd);
@@ -452,7 +452,7 @@ again:
 		if ((c = accept_client(master.listen_fd)) == NULL)
 			goto again;
 
-		printf("A new client from %s:%hu\n", 
+		printf("Master: a new client from %s:%hu\n", 
 				inet_ntoa(c->addr.sin_addr), 
 				c->addr.sin_port);
 	} else {

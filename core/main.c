@@ -72,7 +72,7 @@ static void parse_args(int argc, char **argv)
 
 	num_workers = 0;
 
-	while ((c = getopt(argc, argv, ":tc:p:fk")) != -1) {
+	while ((c = getopt(argc, argv, ":tc:p:fks")) != -1) {
 		switch (c) {
 		case 't':
 			dump_types();
@@ -93,6 +93,10 @@ static void parse_args(int argc, char **argv)
 
 		case 'k':
 			opts->kill_existing = 1;
+			break;
+
+		case 's':
+			opts->print_tc_stats = 1;
 			break;
 
 		case ':':
@@ -116,6 +120,9 @@ static void parse_args(int argc, char **argv)
 		opts->wid_to_core[0] = 0;
 		num_workers = 1;
 	}
+
+	if (opts->foreground && !opts->print_tc_stats)
+		printf("TC statistics output is disabled (add -s option?)"\n);
 }
 
 /* todo: chdir */
@@ -300,7 +307,9 @@ int main(int argc, char **argv)
 
 	parse_args(argc, argv);
 
-	if (!opts->foreground)
+	if (opts->foreground)
+		printf("Launching BESS daemon in process mode... ");
+	else
 		signal_fd = daemon_start();
 
 	check_user();
