@@ -122,7 +122,7 @@ static void parse_args(int argc, char **argv)
 	}
 
 	if (opts->foreground && !opts->print_tc_stats)
-		printf("TC statistics output is disabled (add -s option?)"\n);
+		printf("TC statistics output is disabled (add -s option?)\n");
 }
 
 /* todo: chdir */
