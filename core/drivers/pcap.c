@@ -30,7 +30,7 @@ static struct snobj *pcap_init_port(struct port *p, struct snobj *conf)
         return snobj_err(EINVAL, "PCAP need to set dev option");
 
     //non-blocking pcap
-    priv->pcap_handle = pcap_open_live(priv->dev, PCAP_SNAPLEN, 1, -1, errbuf);
+    priv->pcap_handle = pcap_open_live(priv->dev, 40, 1, -1, errbuf);
     if(priv->pcap_handle == NULL) {
         return snobj_err(ENODEV, "PCAP Open dev error: %s", errbuf);
     }
@@ -69,6 +69,7 @@ pcap_rx_jumbo(struct rte_mempool *mb_pool,
         const u_char *data,
         uint16_t data_len)
 {
+    assert(0);
     struct rte_mbuf *m = mbuf;
 
     /* Copy the first segment. */
@@ -87,8 +88,8 @@ pcap_rx_jumbo(struct rte_mempool *mb_pool,
 
         m = m->next;
 
-        /* Headroom is not needed in chained mbufs. */
-        rte_pktmbuf_prepend(m, rte_pktmbuf_headroom(m));
+        /* Headroom is needed for VPort TX */
+
         m->pkt_len = 0;
         m->data_len = 0;
 
@@ -133,18 +134,20 @@ static int pcap_recv_pkts(struct port *p, queue_t qid, snb_array_t pkts, int cnt
         buf_size = (uint16_t)(rte_pktmbuf_data_room_size(sbuf->mbuf.pool) -
                 RTE_PKTMBUF_HEADROOM);
 
-        if (header.len <= buf_size) {
+        if (header.caplen <= buf_size) {
             /* pcap packet will fit in the mbuf, go ahead and copy */
-            rte_memcpy(snb_head_data(sbuf), packet,
-                    header.len);
-            sbuf->mbuf.data_len = (uint16_t)header.len;
+            rte_memcpy(rte_pktmbuf_append(&sbuf->mbuf, header.caplen), packet,
+                    header.caplen);
         } else {
             /* Try read jumbo frame into multi mbufs. */
             if (unlikely(pcap_rx_jumbo(sbuf->mbuf.pool,
                             &sbuf->mbuf,
                             packet,
-                            header.len) == -1))
+                            header.caplen) == -1)) {
+                //drop all the mbufs.
+                snb_free(sbuf);
                 break;
+            }
         }
 
 
@@ -182,7 +185,6 @@ static int pcap_send_pkts(struct port *p, queue_t qid, snb_array_t pkts, int cnt
 
 
     while(send_cnt < cnt) {
-        //TODO: for seg mbuf, we need do some merge here. 
         struct snbuf *sbuf = pkts[send_cnt];
 
         if (likely(sbuf->mbuf.nb_segs == 1)) {
@@ -202,7 +204,6 @@ static int pcap_send_pkts(struct port *p, queue_t qid, snb_array_t pkts, int cnt
                         sbuf->mbuf.pkt_len,
                         ETHER_MAX_JUMBO_FRAME_LEN);
 
-                snb_free(sbuf);
                 break;
             }
         }
