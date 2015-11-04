@@ -26,7 +26,7 @@ KMOD_INC_DIR = kmod
 LDFLAGS += -rdynamic -L$(DPDK_LIB_DIR) -Wl,-rpath=$(DPDK_LIB_DIR)
 LIBS += -Wl,--whole-archive -l$(DPDK_LIB) -Wl,--no-whole-archive -lm -lpthread -ldl -lpcap
 
-CFLAGS = -std=gnu99 -g3 -ggdb3 -O3 -Wall -Werror -m64 -march=native \
+CFLAGS = -std=gnu99 -g3 -ggdb3 -O0 -Wall -Werror -m64 -march=native \
 	 -Wno-unused-function -Wno-unused-but-set-variable \
 	 -I $(KMOD_INC_DIR) -I$(DPDK_INC_DIR) \
 	 -D_GNU_SOURCE
