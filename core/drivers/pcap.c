@@ -30,7 +30,11 @@ static struct snobj *pcap_init_port(struct port *p, struct snobj *conf)
         return snobj_err(EINVAL, "PCAP need to set dev option");
 
     //non-blocking pcap
+<<<<<<< HEAD
     priv->pcap_handle = pcap_open_live(priv->dev, 40, 1, -1, errbuf);
+=======
+    priv->pcap_handle = pcap_open_live(priv->dev, PCAP_SNAPLEN, 1, -1, errbuf);
+>>>>>>> 2d80c5af3e409d5bc447b1cb856f5c16016d8a34
     if(priv->pcap_handle == NULL) {
         return snobj_err(ENODEV, "PCAP Open dev error: %s", errbuf);
     }
