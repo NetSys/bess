@@ -191,7 +191,7 @@ static int run_worker(void *arg)
 	assert(ctx.lframe_pool);
 	assert(ctx.pframe_pool);
 
-	ctx.status = WORKER_RUNNING;
+	ctx.status = WORKER_PAUSING;
 
 #if 0
 	/* FIXME: when should this be called, avoiding latency */
