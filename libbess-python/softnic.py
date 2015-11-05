@@ -197,3 +197,7 @@ class SoftNIC(object):
     def disable_tcpdump(self, m, gate = 0):
         args = {'name': m, 'gate': gate}
         return self._request_softnic('disable_tcpdump', args)
+
+    def add_worker(self, wid, core):
+        args = {'wid': wid, 'core': core}
+        return self._request_softnic('add_worker', args)
