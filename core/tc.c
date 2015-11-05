@@ -628,14 +628,14 @@ void sched_loop(struct sched *s)
 	last_print_tsc = checkpoint = now = rdtsc();
 
 	/* the main scheduling - running - accounting loop */
-	for (uint64_t round = 1; ; round++) {
+	for (uint64_t round = 0; ; round++) {
 		struct tc *c;
 		struct task_result ret;
 		resource_arr_t usage;
 
 		/* periodic check for every 2^8 rounds,
 		 * to mitigate expensive operations */
-		if ((uint8_t)round == 0) {
+		if ((round & 0xff) == 0) {
 			if (is_pause_requested()) {
 				block_worker();
 				last_print_tsc = checkpoint = now = rdtsc();
