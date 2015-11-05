@@ -24,24 +24,6 @@
 const struct global_opts global_opts;
 static struct global_opts *opts = (struct global_opts *)&global_opts;
 
-static void parse_core_list()
-{
-	char *ptr;
-
-	ptr = strtok(optarg, ",");
-	while (ptr != NULL) {
-		if (num_workers >= MAX_WORKERS) {
-			fprintf(stderr, "Cannot have more than %d workers\n",
-					MAX_WORKERS);
-			exit(EXIT_FAILURE);
-		}
-
-		opts->wid_to_core[num_workers] = atoi(ptr);
-		num_workers++;
-		ptr = strtok(NULL, ",");
-	}
-}
-
 static void print_usage(char *exec_name)
 {
 	fprintf(stderr, "Usage: %s" \
@@ -79,10 +61,6 @@ static void parse_args(int argc, char **argv)
 			exit(EXIT_SUCCESS);
 			break;
 
-		case 'c':
-			parse_core_list();
-			break;
-
 		case 'p':
 			sscanf(optarg, "%hu", &opts->port);
 			break;
@@ -113,12 +91,6 @@ static void parse_args(int argc, char **argv)
 		default:
 			assert(0);
 		}
-	}
-
-	if (num_workers == 0) {
-		/* By default, launch one worker on core 0 */
-		opts->wid_to_core[0] = 0;
-		num_workers = 1;
 	}
 
 	if (opts->foreground && !opts->print_tc_stats)
@@ -326,9 +298,6 @@ int main(int argc, char **argv)
 	init_dpdk(argv[0]);
 	init_mempool();
 	init_drivers();
-
-	for (int i = 0; i < num_workers; i++)
-		launch_worker(i, opts->wid_to_core[i]);
 
 	setup_master(opts->port);
 
