@@ -7,7 +7,7 @@
 
 /* 	TODO: worker threads doesn't necessarily be pinned to 1 core
  *
- *  	n: initial num_workers
+ *  	n: MAX_WORKERS
  *
  *  	Role		DPDK lcore ID		Hardware core(s)
  *  	--------------------------------------------------------
@@ -15,11 +15,7 @@
  *	worker 1	1			1 specified core
  *	...
  *	worker n-1	n-1			1 specified core
- *	idle threads	[n, RTE_MAX_LCORE-2]	all other cores
  *	master		RTE_MAX_LCORE-1		all other cores
- *
- *	Idle threads will be used for dynamic worker allocation.
- *	(not supported yet)
  */
 
 typedef volatile enum {
