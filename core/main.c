@@ -287,7 +287,9 @@ int main(int argc, char **argv)
 	check_user();
 	check_pidfile();
 
-	if (!opts->foreground) {
+	if (opts->foreground) {
+		printf("OK\n");
+	} else {
 		close(STDIN_FILENO);
 		close(STDOUT_FILENO);
 		close(STDERR_FILENO);
