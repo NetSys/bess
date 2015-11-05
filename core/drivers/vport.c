@@ -74,7 +74,7 @@ static void refill_tx_bufs(struct llring *r, int cnt)
 	assert(ret == 0 || ret == -LLRING_ERR_QUOT);
 }
 
-static void *alloc_bar(struct port *p, int container_pid)
+static void *alloc_bar(struct port *p, int container_pid, int loopback)
 {
 	struct vport_priv *priv = get_port_priv(p);
 
@@ -113,6 +113,7 @@ static void *alloc_bar(struct port *p, int container_pid)
 	conf->num_rxq = p->num_queues[PACKET_DIR_OUT];
 	conf->link_on = 1;
 	conf->promisc_on = 1;
+	conf->loopback = loopback;
 
 	ptr = (char *)(conf + 1);
 
@@ -424,7 +425,7 @@ static struct snobj *init_port(struct port *p, struct snobj *conf)
 	if (priv->fd == -1)
 		return snobj_err(ENODEV, "the kernel module is not loaded");
 
-	priv->bar = alloc_bar(p, container_pid);
+	priv->bar = alloc_bar(p, container_pid, snobj_eval_int(conf, "loopback"));
 	ret = ioctl(priv->fd, SN_IOC_CREATE_HOSTNIC, 
 			rte_malloc_virt2phy(priv->bar));
 	if (ret < 0) {

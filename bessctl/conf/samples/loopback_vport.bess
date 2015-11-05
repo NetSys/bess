@@ -1,0 +1,6 @@
+import os
+
+
+v = Port(driver='VPort', loopback=1)
+Source() -> PortOut(arg=v)
+PortInc(arg=v) -> Sink()

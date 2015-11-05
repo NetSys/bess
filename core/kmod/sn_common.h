@@ -87,6 +87,9 @@ struct sn_conf_space {
 	/* currently not used */
 	uint8_t link_on;
 	uint8_t promisc_on;
+
+	/* Indicate whether device is in loopback mode */
+	uint8_t loopback;
 } __attribute__((__aligned__(64)));
 
 struct sn_rxq_registers {
