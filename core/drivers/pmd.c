@@ -12,10 +12,6 @@ struct pmd_priv {
 	int stats;
 };
 
-/* TODO: runtime changeable */
-#define NUM_RXD 128
-#define NUM_TXD 512
-
 #define SN_TSO_SG		0
 #define SN_HW_RXCSUM		0
 #define SN_HW_TXCSUM		0
@@ -222,11 +218,14 @@ static struct snobj *pmd_init_port(struct port *p, struct snobj *conf)
 
 	rte_eth_promiscuous_enable(port_id);
 
+printf("rx %d tx %d\n", p->queue_size[PACKET_DIR_INC], p->queue_size[PACKET_DIR_OUT]);
+
 	for (i = 0; i < num_rxq; i++) {
 		int sid = 0;		/* XXX */
 
-		ret = rte_eth_rx_queue_setup(port_id, i,
-					     NUM_RXD, sid, &eth_rxconf,
+		ret = rte_eth_rx_queue_setup(port_id, i, 
+					     p->queue_size[PACKET_DIR_INC],
+					     sid, &eth_rxconf,
 					     get_pframe_pool_socket(sid));
 		if (ret != 0) 
 			return snobj_err(-ret, 
@@ -237,7 +236,8 @@ static struct snobj *pmd_init_port(struct port *p, struct snobj *conf)
 		int sid = 0;		/* XXX */
 
 		ret = rte_eth_tx_queue_setup(port_id, i,
-					     NUM_TXD, sid, &eth_txconf);
+					     p->queue_size[PACKET_DIR_OUT],
+					     sid, &eth_txconf);
 		if (ret != 0) 
 			return snobj_err(-ret,
 					"rte_eth_tx_queue_setup() failed");
@@ -278,6 +278,8 @@ static int pmd_send_pkts(struct port *p, queue_t qid, snb_array_t pkts, int cnt)
 static const struct driver pmd = {
 	.name 		= "PMD",
 	.priv_size	= sizeof(struct pmd_priv),
+	.def_size_inc_q = 128,
+	.def_size_out_q = 512,
 	.init_driver	= pmd_init_driver,
 	.init_port 	= pmd_init_port,
 	.deinit_port	= pmd_deinit_port,
