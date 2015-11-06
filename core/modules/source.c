@@ -9,10 +9,13 @@ static struct snobj *source_query(struct module *, struct snobj *);
 static struct snobj *source_init(struct module *m, struct snobj *arg)
 {
 	struct source_priv *priv = get_priv(m);
+	task_id_t tid;
 
 	priv->pkt_size = 60;	/* default: min-sized Ethernet frames */
 
-	task_create(m, NULL);
+	tid = register_task(m, NULL);
+	if (tid == INVALID_TASK_ID)
+		return snobj_err(ENOMEM, "Task creation failed");
 
 	if (arg)
 		return source_query(m, arg);
