@@ -1,6 +1,6 @@
 import os
 
-
-v = Port(driver='VPort', loopback=1)
-Source() -> PortOut(arg=v)
-PortInc(arg=v) -> Sink()
+for i in xrange(4):
+	v = Port(driver='VPort', loopback=1)
+	Source() -> PortOut(arg=v)
+	PortInc(arg=v) -> Sink()
