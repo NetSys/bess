@@ -20,6 +20,10 @@
 #include "worker.h"
 #include "snobj.h"
 
+#define MAX_TASKS_PER_MODULE	32
+
+ct_assert(MAX_TASKS_PER_MODULE < INVALID_TASK_ID);
+
 #define MODULE_NAME_LEN		128
 
 typedef uint16_t gate_t;
@@ -52,7 +56,7 @@ struct module {
 
 	const struct mclass *mclass;
 
-	struct cdlist_head tasks;
+	struct task *tasks[MAX_TASKS_PER_MODULE];
 
 	/* frequently access fields should be below */
 	gate_t allocated_gates;
@@ -80,7 +84,8 @@ static inline const void *get_priv_const(const struct module *m)
 	return (const void *)(m + 1);
 }
 
-void register_task(struct module *mod, void *arg);
+task_id_t register_task(struct module *m, void *arg);
+void unregister_task(struct module *m, task_id_t tid);
 
 size_t list_modules(const struct module **p_arr, size_t arr_size, size_t offset);
 
