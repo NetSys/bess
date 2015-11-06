@@ -21,7 +21,7 @@
 
 struct handler_map {
 	const char *cmd;
-	int pause_needed;	/* should all workers be paused? */
+	int pause_needed;	/* should all workers have been paused? */
 	struct snobj *(*func)(struct snobj *);
 };
 
@@ -59,8 +59,8 @@ static struct snobj *handle_resume_all(struct snobj *q)
 
 static struct snobj *handle_add_worker(struct snobj *q)
 {
-	int wid;
-	int core;
+	unsigned int wid;
+	unsigned int core;
 
 	struct snobj *t;
 
@@ -68,22 +68,22 @@ static struct snobj *handle_add_worker(struct snobj *q)
 	if (!t)
 		return snobj_err(EINVAL, "Missing 'wid' field");
 
-	wid = snobj_int_get(t);
-	if (wid < 0 || wid >= MAX_WORKERS)
-		return snobj_err(EINVAL, "'wid' should be between 0 and %d",
+	wid = snobj_uint_get(t);
+	if (wid >= MAX_WORKERS)
+		return snobj_err(EINVAL, "'wid' must be between 0 and %d",
 				MAX_WORKERS - 1);
 
 	t = snobj_eval(q, "core");
 	if (!t)
 		return snobj_err(EINVAL, "Missing 'core' field");
 
-	core = snobj_int_get(t);
-	if (core < 0 || core >= rte_lcore_count())
-		return snobj_err(EINVAL, "'core' should be between 0 and %d",
+	core = snobj_uint_get(t);
+	if (core >= rte_lcore_count())
+		return snobj_err(EINVAL, "'core' must be between 0 and %d",
 				rte_lcore_count() - 1);
 
 	if (is_worker_active(wid))
-		return snobj_err(EEXIST, "worker:%d is already active");
+		return snobj_err(EEXIST, "worker:%d is already active", wid);
 
 	launch_worker(wid, core);
 
@@ -426,7 +426,7 @@ static struct snobj *handle_connect_modules(struct snobj *q)
 {
 	const char *m1_name;
 	const char *m2_name;
-	uint16_t gate;
+	gate_t gate;
 
 	struct module *m1;
 	struct module *m2;
@@ -459,7 +459,7 @@ static struct snobj *handle_connect_modules(struct snobj *q)
 static struct snobj *handle_disconnect_modules(struct snobj *q)
 {
 	const char *m_name;
-	uint16_t gate;
+	gate_t gate;
 
 	struct module *m;
 
@@ -484,11 +484,54 @@ static struct snobj *handle_disconnect_modules(struct snobj *q)
 	return NULL;
 }
 
+static struct snobj *handle_attach_task(struct snobj *q)
+{
+	const char *m_name;
+	task_id_t tid;
+	int wid;		/* TODO: worker_id_t */
+
+	struct module *m;
+	struct task *t;
+
+	m_name = snobj_eval_str(q, "name");
+
+	if (!m_name)
+		return snobj_err(EINVAL, "Missing 'name' field");
+
+	if ((m = find_module(m_name)) == NULL)
+		return snobj_err(ENOENT, "No module '%s' found", m_name);
+
+	tid = snobj_eval_uint(q, "taskid");
+	if (tid >= MAX_TASKS_PER_MODULE)
+		return snobj_err(EINVAL, "'taskid' must be between 0 and %d",
+				MAX_TASKS_PER_MODULE - 1);
+
+	if ((t = m->tasks[tid]) == NULL)
+		return snobj_err(ENOENT, "Task %s:%hu does not exist", 
+				m_name, tid);
+
+	if (task_is_attached(t))
+		return snobj_err(EBUSY, "Task %s:%hu is already attached to "
+				"a TC", m_name, tid);
+
+	wid = snobj_eval_uint(q, "wid");
+	if (wid >= MAX_WORKERS)
+		return snobj_err(EINVAL, "'wid' must be between 0 and %d",
+				MAX_WORKERS - 1);
+
+	if (!is_worker_active(wid))
+		return snobj_err(EINVAL, "Worker %d does not exist", wid);
+
+	assign_default_tc(workers[wid]->s, t);
+
+	return NULL;
+}
+
 static struct snobj *handle_enable_tcpdump(struct snobj *q)
 {
 	const char *m_name;
 	const char *fifo;
-	uint16_t gate;
+	gate_t gate;
 
 	struct module *m;
 
@@ -519,7 +562,7 @@ static struct snobj *handle_enable_tcpdump(struct snobj *q)
 static struct snobj *handle_disable_tcpdump(struct snobj *q)
 {
 	const char *m_name;
-	uint16_t gate;
+	gate_t gate;
 
 	struct module *m;
 
@@ -592,6 +635,8 @@ static struct handler_map sn_handlers[] = {
 	{ "get_module_info",	0, handle_get_module_info },
 	{ "connect_modules", 	1, handle_connect_modules },
 	{ "disconnect_modules",	1, handle_disconnect_modules },
+
+	{ "attach_task",	1, handle_attach_task },
 
 	{ "enable_tcpdump",	1, handle_enable_tcpdump },
 	{ "disable_tcpdump",	1, handle_disable_tcpdump },
