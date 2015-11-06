@@ -437,7 +437,11 @@ static struct snobj *init_port(struct port *p, struct snobj *conf)
 	if ((cpu_list = snobj_eval(conf, "rxq_cpus")) != NULL &&
 	    cpu_list->size != p->num_queues[PACKET_DIR_OUT]) {
 		return snobj_err(EINVAL, "Must specify as many cores as rxqs");
+	}
 
+	if (snobj_eval_exists(conf, "rxq_cpu") &&
+	    p->num_queues[PACKET_DIR_OUT] > 1) {
+	    return snobj_err(EINVAL, "Must specify as many cores as rxqs");
 	}
 
 	priv->fd = open("/dev/softnic", O_RDONLY);
@@ -472,9 +476,10 @@ static struct snobj *init_port(struct port *p, struct snobj *conf)
 			priv->map.rxq_to_cpu[rxq] = 
 				snobj_int_get(snobj_list_get(cpu_list, rxq));
 		}
+	} else if (snobj_eval_exists(conf, "rxq_cpu")) {
+		priv->map.rxq_to_cpu[0] = snobj_eval_int(conf, "rxq_cpu");
 	} else {
 		for (rxq = 0; rxq < p->num_queues[PACKET_DIR_OUT]; rxq++) {
-			/* FIXME: HAZARD, this is not thread safe */
 			next_cpu = find_next_nonworker_cpu(next_cpu);
 			priv->map.rxq_to_cpu[rxq] = next_cpu;
 		}

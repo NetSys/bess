@@ -1,6 +1,7 @@
 import os
+ports = int($NPORTS!'1')
 
-for i in xrange(4):
+for i in xrange(ports):
 	v = Port(driver='VPort', loopback=1)
 	Source() -> PortOut(arg=v)
 	PortInc(arg=v) -> Sink()

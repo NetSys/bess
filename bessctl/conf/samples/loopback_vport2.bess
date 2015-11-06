@@ -2,6 +2,6 @@ import os
 import multiprocessing
 
 for i in xrange(1, multiprocessing.cpu_count()/ 2):
-	v = Port(driver='VPort', loopback=1, rxq_cpus=[i * 2])
+	v = Port(driver='VPort', loopback=1, rxq_cpu=i * 2)
 	Source() -> PortOut(arg=v)
 	PortInc(arg=v) -> Sink()
