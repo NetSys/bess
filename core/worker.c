@@ -114,23 +114,9 @@ static void setup_default_tc(struct sched *s)
 
 void resume_all_workers() 
 {
-	/* send all orphan tasks to the first worker's scheduler 
-	 * TODO: load balancing in some way */
-	struct sched *s = NULL;
+	process_orphan_tasks();
 
-	int wid;
-
-	for (wid = 0; wid < MAX_WORKERS; wid++) {
-		if (is_worker_active(wid))
-			s = workers[wid]->s;
-	}
-
-	if (s) 
-		setup_default_tc(s);
-	else
-		fprintf(stderr, "No worker is active\n");
-
-	for (wid = 0; wid < MAX_WORKERS; wid++) {
+	for (int wid = 0; wid < MAX_WORKERS; wid++) {
 		if (is_worker_active(wid))
 			resume_worker(wid);
 	}
@@ -191,7 +177,7 @@ static int run_worker(void *arg)
 	assert(ctx.lframe_pool);
 	assert(ctx.pframe_pool);
 
-	ctx.status = WORKER_RUNNING;
+	ctx.status = WORKER_PAUSING;
 
 #if 0
 	/* FIXME: when should this be called, avoiding latency */
@@ -220,5 +206,7 @@ void launch_worker(int wid, int core)
 	INST_BARRIER();
 
 	while (!is_worker_active(wid))
-		;	/* spin */
+		;	/* spin until it becomes ready */
+
+	num_workers++;
 }

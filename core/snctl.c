@@ -21,7 +21,7 @@
 
 struct handler_map {
 	const char *cmd;
-	int pause_needed;	/* should all workers be paused? */
+	int pause_needed;	/* should all workers have been paused? */
 	struct snobj *(*func)(struct snobj *);
 };
 
@@ -54,6 +54,39 @@ static struct snobj *handle_resume_all(struct snobj *q)
 {
 	resume_all_workers();
 	printf("*** Resumed ***\n");
+	return NULL;
+}
+
+static struct snobj *handle_add_worker(struct snobj *q)
+{
+	unsigned int wid;
+	unsigned int core;
+
+	struct snobj *t;
+
+	t = snobj_eval(q, "wid");
+	if (!t)
+		return snobj_err(EINVAL, "Missing 'wid' field");
+
+	wid = snobj_uint_get(t);
+	if (wid >= MAX_WORKERS)
+		return snobj_err(EINVAL, "'wid' must be between 0 and %d",
+				MAX_WORKERS - 1);
+
+	t = snobj_eval(q, "core");
+	if (!t)
+		return snobj_err(EINVAL, "Missing 'core' field");
+
+	core = snobj_uint_get(t);
+	if (core >= rte_lcore_count())
+		return snobj_err(EINVAL, "'core' must be between 0 and %d",
+				rte_lcore_count() - 1);
+
+	if (is_worker_active(wid))
+		return snobj_err(EEXIST, "worker:%d is already active", wid);
+
+	launch_worker(wid, core);
+
 	return NULL;
 }
 
@@ -124,7 +157,7 @@ static struct snobj *handle_list_ports(struct snobj *q)
 	return r;
 }
 
-static struct snobj *handle_create_port(struct snobj *arg)
+static struct snobj *handle_create_port(struct snobj *q)
 {
 	const char *driver_name;
 	const struct driver *driver;
@@ -133,17 +166,17 @@ static struct snobj *handle_create_port(struct snobj *arg)
 	struct snobj *r;
 	struct snobj *err;
 
-	driver_name = snobj_eval_str(arg, "driver");
+	driver_name = snobj_eval_str(q, "driver");
 	if (!driver_name)
-		return snobj_err(EINVAL, "Missing 'driver' field in arg");
+		return snobj_err(EINVAL, "Missing 'driver' field");
 
 	driver = find_driver(driver_name);
 	if (!driver)
 		return snobj_err(ENOENT, "No port driver '%s' found",
 				driver_name);
 
-	port = create_port(snobj_eval_str(arg, "name"), driver, 
-			snobj_eval(arg, "arg"), &err);
+	port = create_port(snobj_eval_str(q, "name"), driver, 
+			snobj_eval(q, "arg"), &err);
 	if (!port)
 		return err;
 
@@ -155,7 +188,7 @@ static struct snobj *handle_create_port(struct snobj *arg)
 	return r;
 }
 
-static struct snobj *handle_destroy_port(struct snobj *arg)
+static struct snobj *handle_destroy_port(struct snobj *q)
 {
 	const char *port_name;
 
@@ -163,7 +196,7 @@ static struct snobj *handle_destroy_port(struct snobj *arg)
 
 	int ret;
 
-	port_name = snobj_str_get(arg);
+	port_name = snobj_str_get(q);
 	if (!port_name)
 		return snobj_err(EINVAL, "Argument must be a name in str");
 	
@@ -178,7 +211,7 @@ static struct snobj *handle_destroy_port(struct snobj *arg)
 	return NULL;
 }
 
-static struct snobj *handle_get_port_stats(struct snobj *arg)
+static struct snobj *handle_get_port_stats(struct snobj *q)
 {
 	const char *port_name;
 
@@ -190,7 +223,7 @@ static struct snobj *handle_get_port_stats(struct snobj *arg)
 	struct snobj *inc;
 	struct snobj *out;
 
-	port_name = snobj_str_get(arg);
+	port_name = snobj_str_get(q);
 	if (!port_name)
 		return snobj_err(EINVAL, "Argument must be a name in str");
 	
@@ -292,7 +325,7 @@ static struct snobj *handle_list_modules(struct snobj *q)
 	return r;
 }
 
-static struct snobj *handle_create_module(struct snobj *arg)
+static struct snobj *handle_create_module(struct snobj *q)
 {
 	const char *mclass_name;
 	const struct mclass *mclass;
@@ -300,16 +333,16 @@ static struct snobj *handle_create_module(struct snobj *arg)
 
 	struct snobj *r;
 
-	mclass_name = snobj_eval_str(arg, "mclass");
+	mclass_name = snobj_eval_str(q, "mclass");
 	if (!mclass_name)
-		return snobj_err(EINVAL, "Missing 'mclass' field in arg");
+		return snobj_err(EINVAL, "Missing 'mclass' field");
 
 	mclass = find_mclass(mclass_name);
 	if (!mclass)
 		return snobj_err(ENOENT, "No mclass '%s' found", mclass_name);
 
-	module = create_module(snobj_eval_str(arg, "name"), mclass, 
-			snobj_eval(arg, "arg"), &r);
+	module = create_module(snobj_eval_str(q, "name"), mclass, 
+			snobj_eval(q, "arg"), &r);
 	if (!module)
 		return r;
 
@@ -321,12 +354,12 @@ static struct snobj *handle_create_module(struct snobj *arg)
 	return r;
 }
 
-static struct snobj *handle_destroy_module(struct snobj *arg)
+static struct snobj *handle_destroy_module(struct snobj *q)
 {
 	const char *m_name;
 	struct module *m;
 
-	m_name = snobj_str_get(arg);
+	m_name = snobj_str_get(q);
 
 	if (!m_name)
 		return snobj_err(EINVAL, "Argument must be a name in str");
@@ -339,7 +372,7 @@ static struct snobj *handle_destroy_module(struct snobj *arg)
 	return NULL;
 }
 
-static struct snobj *handle_get_module_info(struct snobj *arg)
+static struct snobj *handle_get_module_info(struct snobj *q)
 {
 	const char *m_name;
 	struct module *m;
@@ -347,7 +380,7 @@ static struct snobj *handle_get_module_info(struct snobj *arg)
 	struct snobj *r;
 	struct snobj *gates;
 
-	m_name = snobj_str_get(arg);
+	m_name = snobj_str_get(q);
 
 	if (!m_name)
 		return snobj_err(EINVAL, "Argument must be a name in str");
@@ -389,23 +422,23 @@ static struct snobj *handle_get_module_info(struct snobj *arg)
 	return r;
 }
 
-static struct snobj *handle_connect_modules(struct snobj *arg)
+static struct snobj *handle_connect_modules(struct snobj *q)
 {
 	const char *m1_name;
 	const char *m2_name;
-	uint16_t gate;
+	gate_t gate;
 
 	struct module *m1;
 	struct module *m2;
 
 	int ret;
 
-	m1_name = snobj_eval_str(arg, "m1");
-	m2_name = snobj_eval_str(arg, "m2");
-	gate = snobj_eval_uint(arg, "gate");
+	m1_name = snobj_eval_str(q, "m1");
+	m2_name = snobj_eval_str(q, "m2");
+	gate = snobj_eval_uint(q, "gate");
 
 	if (!m1_name || !m2_name)
-		return snobj_err(EINVAL, "Missing 'm1' or 'm2' field in arg");
+		return snobj_err(EINVAL, "Missing 'm1' or 'm2' field");
 
 	if ((m1 = find_module(m1_name)) == NULL)
 		return snobj_err(ENOENT, "No module '%s' found", m1_name);
@@ -423,22 +456,93 @@ static struct snobj *handle_connect_modules(struct snobj *arg)
 	return NULL;
 }
 
-static struct snobj *handle_enable_tcpdump(struct snobj *arg)
+static struct snobj *handle_disconnect_modules(struct snobj *q)
 {
 	const char *m_name;
-	const char *fifo;
-	uint16_t gate;
+	gate_t gate;
 
 	struct module *m;
 
 	int ret;
 
-	m_name = snobj_eval_str(arg, "name");
-	gate = snobj_eval_uint(arg, "gate");
-	fifo = snobj_eval_str(arg, "fifo");
+	m_name = snobj_eval_str(q, "name");
+	gate = snobj_eval_uint(q, "gate");
 
 	if (!m_name)
-		return snobj_err(EINVAL, "Missing 'name' field in arg");
+		return snobj_err(EINVAL, "Missing 'name' field");
+
+	if ((m = find_module(m_name)) == NULL)
+		return snobj_err(ENOENT, "No module '%s' found", m_name);
+
+	ret = disconnect_modules(m, gate);
+	if (ret < 0)
+		return snobj_err(-ret, "Disconnection '%s'[%d] failed", 
+			m_name, gate);
+
+	printf("%s[%d] -> <dead end>\n", m_name, gate);
+
+	return NULL;
+}
+
+static struct snobj *handle_attach_task(struct snobj *q)
+{
+	const char *m_name;
+	task_id_t tid;
+	int wid;		/* TODO: worker_id_t */
+
+	struct module *m;
+	struct task *t;
+
+	m_name = snobj_eval_str(q, "name");
+
+	if (!m_name)
+		return snobj_err(EINVAL, "Missing 'name' field");
+
+	if ((m = find_module(m_name)) == NULL)
+		return snobj_err(ENOENT, "No module '%s' found", m_name);
+
+	tid = snobj_eval_uint(q, "taskid");
+	if (tid >= MAX_TASKS_PER_MODULE)
+		return snobj_err(EINVAL, "'taskid' must be between 0 and %d",
+				MAX_TASKS_PER_MODULE - 1);
+
+	if ((t = m->tasks[tid]) == NULL)
+		return snobj_err(ENOENT, "Task %s:%hu does not exist", 
+				m_name, tid);
+
+	if (task_is_attached(t))
+		return snobj_err(EBUSY, "Task %s:%hu is already attached to "
+				"a TC", m_name, tid);
+
+	wid = snobj_eval_uint(q, "wid");
+	if (wid >= MAX_WORKERS)
+		return snobj_err(EINVAL, "'wid' must be between 0 and %d",
+				MAX_WORKERS - 1);
+
+	if (!is_worker_active(wid))
+		return snobj_err(EINVAL, "Worker %d does not exist", wid);
+
+	assign_default_tc(workers[wid]->s, t);
+
+	return NULL;
+}
+
+static struct snobj *handle_enable_tcpdump(struct snobj *q)
+{
+	const char *m_name;
+	const char *fifo;
+	gate_t gate;
+
+	struct module *m;
+
+	int ret;
+
+	m_name = snobj_eval_str(q, "name");
+	gate = snobj_eval_uint(q, "gate");
+	fifo = snobj_eval_str(q, "fifo");
+
+	if (!m_name)
+		return snobj_err(EINVAL, "Missing 'name' field");
 
 	if ((m = find_module(m_name)) == NULL)
 		return snobj_err(ENOENT, "No module '%s' found", m_name);
@@ -455,20 +559,20 @@ static struct snobj *handle_enable_tcpdump(struct snobj *arg)
 	return NULL;
 }
 
-static struct snobj *handle_disable_tcpdump(struct snobj *arg)
+static struct snobj *handle_disable_tcpdump(struct snobj *q)
 {
 	const char *m_name;
-	uint16_t gate;
+	gate_t gate;
 
 	struct module *m;
 
 	int ret;
 
-	m_name = snobj_eval_str(arg, "name");
-	gate = snobj_eval_uint(arg, "gate");
+	m_name = snobj_eval_str(q, "name");
+	gate = snobj_eval_uint(q, "gate");
 
 	if (!m_name)
-		return snobj_err(EINVAL, "Missing 'name' field in arg");
+		return snobj_err(EINVAL, "Missing 'name' field");
 
 	if ((m = find_module(m_name)) == NULL)
 		return snobj_err(ENOENT, "No module '%s' found", m_name);
@@ -485,36 +589,8 @@ static struct snobj *handle_disable_tcpdump(struct snobj *arg)
 	return NULL;
 }
 
-static struct snobj *handle_disconnect_modules(struct snobj *arg)
-{
-	const char *m_name;
-	uint16_t gate;
-
-	struct module *m;
-
-	int ret;
-
-	m_name = snobj_eval_str(arg, "name");
-	gate = snobj_eval_uint(arg, "gate");
-
-	if (!m_name)
-		return snobj_err(EINVAL, "Missing 'name' field in arg");
-
-	if ((m = find_module(m_name)) == NULL)
-		return snobj_err(ENOENT, "No module '%s' found", m_name);
-
-	ret = disconnect_modules(m, gate);
-	if (ret < 0)
-		return snobj_err(-ret, "Disconnection '%s'[%d] failed", 
-			m_name, gate);
-
-	printf("%s[%d] -> <dead end>\n", m_name, gate);
-
-	return NULL;
-}
-
 /* Adding this mostly to provide a reasonable way to exit when daemonized */
-static struct snobj *handle_kill_bess(struct snobj *arg)
+static struct snobj *handle_kill_bess(struct snobj *q)
 {
 	printf("bessd kill called\n");
 	exit(EXIT_SUCCESS);
@@ -529,12 +605,16 @@ static struct snobj *handle_not_implemented(struct snobj *q)
 }
 
 static struct handler_map sn_handlers[] = {
-	/* remove all ports and modules */
+	/* remove all ports/modules/TCs/workers */
 	{ "reset_all",		1, handle_reset_all },
 
 	/* pause and resume all workers */
 	{ "pause_all", 		0, handle_pause_all },
 	{ "resume_all", 	0, handle_resume_all },
+
+	{ "list_workers",	0, handle_not_implemented },
+	{ "add_worker",		1, handle_add_worker },
+	{ "delete_worker",	1, handle_not_implemented },
 
 	{ "list_drivers",	0, handle_list_drivers },
 	{ "import_driver",	0, handle_not_implemented },	/* TODO */
@@ -556,10 +636,13 @@ static struct handler_map sn_handlers[] = {
 	{ "connect_modules", 	1, handle_connect_modules },
 	{ "disconnect_modules",	1, handle_disconnect_modules },
 
+	{ "attach_task",	1, handle_attach_task },
+
 	{ "enable_tcpdump",	1, handle_enable_tcpdump },
 	{ "disable_tcpdump",	1, handle_disable_tcpdump },
 
 	{ "kill_bess",		1, handle_kill_bess },
+
 	{ NULL, 		0, NULL }
 };
 

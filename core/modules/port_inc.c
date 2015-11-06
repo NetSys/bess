@@ -10,6 +10,7 @@ static struct snobj *port_inc_init(struct module *m, struct snobj *arg)
 	struct port_inc_priv *priv = get_priv(m);
 
 	const char *port_name;
+	task_id_t ret;
 
 	if (!arg || !(port_name = snobj_str_get(arg)))
 		return snobj_err(EINVAL, "Argument must be a port name " \
@@ -19,9 +20,11 @@ static struct snobj *port_inc_init(struct module *m, struct snobj *arg)
 	if (!priv->port)
 		return snobj_err(ENODEV, "Port %s not found", port_name);
 
-	acquire_queue(priv->port, PACKET_DIR_INC, 0 /* XXX */, m);
+	ret = register_task(m, NULL);
+	if (ret == INVALID_TASK_ID)
+		return snobj_err(ENOMEM, "Task creation failed");
 
-	task_create(m, NULL);
+	acquire_queue(priv->port, PACKET_DIR_INC, 0 /* XXX */, m);
 
 	return NULL;
 }

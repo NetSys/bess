@@ -337,6 +337,8 @@ def warn(cli, msg, func):
                 func()
             else:
                 cli.fout.write('Cancelled.\n')
+        except KeyboardInterrupt:
+            cli.fout.write('Cancelled.\n')
         finally:
             if cli.rl:
                 cli.rl.set_completer(cli.complete)

@@ -9,6 +9,32 @@
 #include "tc.h"
 #include "namespace.h"
 
+task_id_t register_task(struct module *m, void *arg)
+{
+	task_id_t id;
+	struct task *t;
+
+	/* Module class must define run_task() to register a task */
+	if (!m->mclass->run_task)
+		return INVALID_TASK_ID;
+
+	for (id = 0; id <= MAX_TASKS_PER_MODULE; id++)
+		if (m->tasks[id] == NULL)
+			goto found;
+
+	/* cannot find an empty slot */
+	return INVALID_TASK_ID;		
+
+found:
+	t = task_create(m, arg);
+	if (!t)
+		return INVALID_TASK_ID;
+
+	m->tasks[id] = t;
+
+	return id;
+}
+
 size_t list_modules(const struct module **p_arr, size_t arr_size, size_t offset)
 {
 	int ret = 0;
@@ -95,6 +121,16 @@ void deadend(struct module *m, struct pkt_batch *batch)
 	snb_free_bulk(batch->pkts, batch->cnt);
 }
 
+static void destroy_all_tasks(struct module *m)
+{
+	for (task_id_t i = 0; i < MAX_TASKS_PER_MODULE; i++) {
+		if (m->tasks[i]) {
+			task_destroy(m->tasks[i]);
+			m->tasks[i] = NULL;	/* just in case */
+		}
+	}
+}
+
 /* returns a pointer to the created module.
  * if error, returns NULL and *perr is set */
 struct module *create_module(const char *name, 
@@ -146,7 +182,6 @@ struct module *create_module(const char *name,
 		}
 	}
 #endif
-	cdlist_head_init(&m->tasks);
 
 	if (mclass->init) {
 		*perr = mclass->init(m, arg);
@@ -157,6 +192,7 @@ struct module *create_module(const char *name,
 	ret = register_module(m);
 	if (ret != 0) {
 		*perr = snobj_errno(-ret);
+		destroy_all_tasks(m);
 		goto fail;
 	}
 
@@ -175,9 +211,6 @@ fail:
 
 void destroy_module(struct module *m)
 {
-	struct task *t;
-	struct task *next;
-
 	struct ns_iter iter;
 
 	if (m->mclass->deinit)
@@ -200,11 +233,9 @@ void destroy_module(struct module *m)
 	for (gate_t i = 0; i < m->allocated_gates; i++)
 		disconnect_modules(m, i);
 
-	cdlist_for_each_entry_safe(t, next, &m->tasks, module)
-		task_destroy(t);
+	destroy_all_tasks(m);
 
-	int ret = ns_remove(m->name);
-	assert (!ret);
+	ns_remove(m->name);
 
 	rte_free(m->name);
 	rte_free(m->gates);
