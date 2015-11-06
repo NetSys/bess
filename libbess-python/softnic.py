@@ -145,8 +145,8 @@ class SoftNIC(object):
     def create_port(self, driver = 'PMD', name = None, arg = None):
         kv = {'driver': driver}
 
-        if name != None:    kv['name'] = name
-        if arg != None:     kv['arg'] = arg
+        if name is not None:    kv['name'] = name
+        if arg is not None:     kv['arg'] = arg
 
         return self._request_softnic('create_port', kv)
 
@@ -168,8 +168,8 @@ class SoftNIC(object):
     def create_module(self, mclass, name = None, arg = None):
         kv = {'mclass': mclass}
 
-        if name != None:    kv['name'] = name
-        if arg != None:     kv['arg'] = arg
+        if name is not None:    kv['name'] = name
+        if arg is not None:     kv['arg'] = arg
 
         return self._request_softnic('create_module', kv)
 
@@ -201,3 +201,16 @@ class SoftNIC(object):
     def add_worker(self, wid, core):
         args = {'wid': wid, 'core': core}
         return self._request_softnic('add_worker', args)
+
+    def attach_task(self, m, tid, tcid=None, wid=None):
+        if (tcid is None) == (wid is None):
+            raise self.APIError('You should specify either "tcid" or "wid"' \
+                    ', but not both')
+
+        if tcid is not None:
+            assert False    # TODO: implement
+            args = {'name': m, 'taskid': tid, 'tcid': tcid}
+        else:
+            args = {'name': m, 'taskid': tid, 'wid': wid}
+
+        return self._request_softnic('attach_task', args)
