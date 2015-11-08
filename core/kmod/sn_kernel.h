@@ -80,6 +80,7 @@ struct sn_queue {
 	struct sn_device *dev;
 	int queue_id;
 	bool is_rx;
+	bool loopback;
 
 	struct llring *drv_to_sn;
 	struct llring *sn_to_drv;
@@ -136,6 +137,8 @@ struct sn_device {
 	enum sn_dev_type type;
 	struct sn_ops *ops;
 	struct pci_dev *pdev;	/* NULL in host mode */
+
+	bool loopback; /* Is this device looping back */ 
 };
 
 /* function prototypes defined in sn_netdev.c */

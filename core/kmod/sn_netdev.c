@@ -105,6 +105,7 @@ static int sn_alloc_queues(struct sn_device *dev, void *rings, u64 rings_size)
 		queue->dev = dev;
 		queue->queue_id = i;
 		queue->is_rx = false;
+		queue->loopback = dev->loopback;
 		
 		queue->drv_to_sn = (struct llring *)p;
 		p += llring_bytes(queue->drv_to_sn);
@@ -121,6 +122,7 @@ static int sn_alloc_queues(struct sn_device *dev, void *rings, u64 rings_size)
 		queue->dev = dev;
 		queue->queue_id = i;
 		queue->is_rx = true;
+		queue->loopback = dev->loopback;
 		sn_stack_init(&queue->ready_tx_meta);
 
 		queue->rx_regs = (struct sn_rxq_registers *)p;
@@ -313,7 +315,7 @@ static void sn_disable_interrupt(struct sn_queue *rx_queue)
 
 /* if non-zero, the caller should drop the packet */
 static int sn_process_rx_metadata(struct sk_buff *skb, 
-			           struct sn_rx_metadata *rx_meta)
+				   struct sn_rx_metadata *rx_meta)
 {
 	int ret = 0;
 
@@ -345,6 +347,9 @@ static int sn_process_rx_metadata(struct sk_buff *skb,
 
 	return ret;
 }
+
+static inline int sn_send_tx_queue(struct sn_queue *queue, 
+			            struct sn_device* dev, struct sk_buff* skb);
 
 static int sn_poll_action_batch(struct sn_queue *rx_queue, int budget)
 {
@@ -383,10 +388,22 @@ static int sn_poll_action_batch(struct sn_queue *rx_queue, int budget)
 			skb_mark_napi_id(skb, napi);
 		}
 
-		
-		for (i = 0; i < cnt; i++) {
-			if (skbs[i])
-				netif_receive_skb(skbs[i]);
+		if (!rx_queue->loopback) {
+			for (i = 0; i < cnt; i++) {
+				if (skbs[i])
+					netif_receive_skb(skbs[i]);
+			}
+		} else {
+			struct sn_device *dev = rx_queue->dev;
+			int tx_qid = rx_queue->queue_id % dev->num_txq;
+			struct sn_queue *tx_queue = dev->tx_queues[tx_qid];
+			for (i = 0; i < cnt; i++) {
+				if (skbs[i]) {
+					/* Ignoring return value here */
+					sn_send_tx_queue(tx_queue, dev, 
+							skbs[i]); 
+				}
+			}
 		}
 
 		poll_cnt += cnt;
@@ -525,16 +542,34 @@ static void sn_set_tx_metadata(struct sk_buff *skb,
 	}
 }
 
+static inline int sn_send_tx_queue(struct sn_queue *queue, 
+			            struct sn_device* dev, struct sk_buff* skb)
+{
+	struct sn_tx_metadata tx_meta;
+	int ret;
+	sn_set_tx_metadata(skb, &tx_meta);
+	ret = dev->ops->do_tx(queue, skb, &tx_meta);
+
+	if (unlikely(ret == NET_XMIT_DROP)) {
+		queue->tx_stats.dropped++;
+	} else {
+		queue->tx_stats.packets++;
+		queue->tx_stats.bytes += skb->len;
+
+		if (unlikely(ret == NET_XMIT_CN))
+			queue->tx_stats.throttled++;
+	}
+
+	dev_kfree_skb(skb);
+	return ret;
+}
+
 /* As a soft device without qdisc, 
  * this function returns NET_XMIT_* instead of NETDEV_TX_* */
 static int sn_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 {
 	struct sn_device *dev = netdev_priv(netdev);
 	struct sn_queue *queue;
-
-	struct sn_tx_metadata tx_meta;
-
-	int ret;
 
 	u16 txq = skb->queue_mapping;
 
@@ -559,22 +594,7 @@ static int sn_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 	}
 
 	queue = dev->tx_queues[txq];
-
-	sn_set_tx_metadata(skb, &tx_meta);
-	ret = dev->ops->do_tx(queue, skb, &tx_meta);
-
-	if (unlikely(ret == NET_XMIT_DROP)) {
-		queue->tx_stats.dropped++;
-	} else {
-		queue->tx_stats.packets++;
-		queue->tx_stats.bytes += skb->len;
-
-		if (unlikely(ret == NET_XMIT_CN))
-			queue->tx_stats.throttled++;
-	}
-
-	dev_kfree_skb(skb);
-	return ret;
+	return sn_send_tx_queue(queue, dev, skb);
 }
 
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(3,13,0))
@@ -748,6 +768,7 @@ int sn_create_netdev(void *bar, struct sn_device **dev_ret)
 	dev->netdev = netdev;
 	dev->num_txq = conf->num_txq;
 	dev->num_rxq = conf->num_rxq;
+	dev->loopback = conf->loopback;
 	sn_set_default_queue_mapping(dev);
 
 	/* This will disable the default qdisc (mq or pfifo_fast) on the 

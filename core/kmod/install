@@ -2,10 +2,10 @@
 
 killall -q softnic
 sleep 1
-if lsmod | grep -q softnic; then
-	sudo rmmod softnic || exit 0
+if lsmod | grep -q bess; then
+	sudo rmmod bess || exit 0
 fi
 
-make && sudo insmod softnic.ko && echo "Module successfully installed!"
+make && sudo insmod bess.ko && echo "Module successfully installed!"
 sudo chmod 0444 /dev/softnic
-sudo perf buildid-cache -a softnic.ko
+sudo perf buildid-cache -a bess.ko
