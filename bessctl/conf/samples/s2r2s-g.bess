@@ -1,0 +1,5 @@
+
+Source() -> rr::Roundrobin(gates=3)
+rr[0] -> Sink()      # for matched packets
+rr[1] -> Sink()      # for unmatched packets
+rr[2] -> Sink()      # for unmatched packets
