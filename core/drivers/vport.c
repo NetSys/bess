@@ -46,6 +46,16 @@ struct vport_priv {
 	struct sn_ioc_queue_mapping map;
 };
 
+static int next_cpu; 
+
+static inline int find_next_nonworker_cpu(int cpu) 
+{
+	do {
+		cpu = (cpu + 1) % sysconf(_SC_NPROCESSORS_ONLN);
+	} while (is_worker_core(cpu));
+	return cpu;
+}
+
 static void refill_tx_bufs(struct llring *r, int cnt)
 {
 	struct snbuf *snb;
@@ -74,7 +84,7 @@ static void refill_tx_bufs(struct llring *r, int cnt)
 	assert(ret == 0 || ret == -LLRING_ERR_QUOT);
 }
 
-static void *alloc_bar(struct port *p, int container_pid)
+static void *alloc_bar(struct port *p, int container_pid, int loopback)
 {
 	struct vport_priv *priv = get_port_priv(p);
 
@@ -113,6 +123,7 @@ static void *alloc_bar(struct port *p, int container_pid)
 	conf->num_rxq = p->num_queues[PACKET_DIR_OUT];
 	conf->link_on = 1;
 	conf->promisc_on = 1;
+	conf->loopback = loopback;
 
 	ptr = (char *)(conf + 1);
 
@@ -163,6 +174,8 @@ static int init_driver(struct driver *driver)
 	struct stat buf;
 	
 	int ret;
+	
+	next_cpu = 0;
 
 	ret = stat("/dev/softnic", &buf);
 	if (ret < 0) {
@@ -406,6 +419,7 @@ static struct snobj *init_port(struct port *p, struct snobj *conf)
 	int rxq;
 
 	int ret;
+	struct snobj *cpu_list = NULL;
 
 	if (strlen(p->name) >= IFNAMSIZ)
 		return snobj_err(EINVAL, "Linux interface name should be " \
@@ -420,11 +434,21 @@ static struct snobj *init_port(struct port *p, struct snobj *conf)
 			return err;
 	}
 
+	if ((cpu_list = snobj_eval(conf, "rxq_cpus")) != NULL &&
+	    cpu_list->size != p->num_queues[PACKET_DIR_OUT]) {
+		return snobj_err(EINVAL, "Must specify as many cores as rxqs");
+	}
+
+	if (snobj_eval_exists(conf, "rxq_cpu") &&
+	    p->num_queues[PACKET_DIR_OUT] > 1) {
+	    return snobj_err(EINVAL, "Must specify as many cores as rxqs");
+	}
+
 	priv->fd = open("/dev/softnic", O_RDONLY);
 	if (priv->fd == -1)
 		return snobj_err(ENODEV, "the kernel module is not loaded");
 
-	priv->bar = alloc_bar(p, container_pid);
+	priv->bar = alloc_bar(p, container_pid, snobj_eval_int(conf, "loopback"));
 	ret = ioctl(priv->fd, SN_IOC_CREATE_HOSTNIC, 
 			rte_malloc_virt2phy(priv->bar));
 	if (ret < 0) {
@@ -444,15 +468,21 @@ static struct snobj *init_port(struct port *p, struct snobj *conf)
 	}
 
 	for (cpu = 0; cpu < SN_MAX_CPU; cpu++)
-		priv->map.cpu_to_txq[cpu] = cpu % p->num_queues[PACKET_DIR_INC];
+		priv->map.cpu_to_txq[cpu] = 
+			cpu % p->num_queues[PACKET_DIR_INC];
 
-	cpu = 0;
-	for (rxq = 0; rxq < p->num_queues[PACKET_DIR_OUT]; rxq++) {
-		while (is_worker_core(cpu))
-			cpu = (cpu + 1) % sysconf(_SC_NPROCESSORS_ONLN);
-
-		priv->map.rxq_to_cpu[rxq] = cpu;
-		cpu = (cpu + 1) % sysconf(_SC_NPROCESSORS_ONLN);
+	if (cpu_list) {
+		for (rxq = 0; rxq < p->num_queues[PACKET_DIR_OUT]; rxq++) {
+			priv->map.rxq_to_cpu[rxq] = 
+				snobj_int_get(snobj_list_get(cpu_list, rxq));
+		}
+	} else if (snobj_eval_exists(conf, "rxq_cpu")) {
+		priv->map.rxq_to_cpu[0] = snobj_eval_int(conf, "rxq_cpu");
+	} else {
+		for (rxq = 0; rxq < p->num_queues[PACKET_DIR_OUT]; rxq++) {
+			next_cpu = find_next_nonworker_cpu(next_cpu);
+			priv->map.rxq_to_cpu[rxq] = next_cpu;
+		}
 	}
 
 	ret = ioctl(priv->fd, SN_IOC_SET_QUEUE_MAPPING, &priv->map);
