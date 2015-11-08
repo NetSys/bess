@@ -460,6 +460,10 @@ int enable_tcpdump(const char* fifo, struct module *m, gate_t gate)
 	int fd;
 	int ret;
 
+	/* Don't allow tcpdump to be attached to gates that are not active */
+	if (m->gates[gate].m == NULL)
+		return -EINVAL;
+
 	fd = open(fifo, O_WRONLY | O_NONBLOCK);
 	if (fd < 0)
 		return -errno;
