@@ -1,5 +1,0 @@
-Source() -> rr::Roundrobin(gates=[0, 2], packet_mode=1)
-
-rr[0] -> Sink()
-rr[1] -> Sink()
-rr[2] -> Sink()
