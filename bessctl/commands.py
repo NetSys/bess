@@ -457,7 +457,7 @@ def _do_run_file(cli, conf_file):
     cli.softnic.pause_all()
     try:
         exec(code, new_globals)
-
+        cli.fout.write('Done.\n')
     except cli.softnic.Error:
         raise
 

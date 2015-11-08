@@ -8,7 +8,7 @@ class Module(object):
                 self.choose_arg(arg, kwargs))
 
         self.name = ret['name']
-        print 'Module %s created' % self
+        #print 'Module %s created' % self
 
     def __str__(self):
         return '%s::%s' % (self.name, str(self.__class__.__name__))
@@ -45,7 +45,7 @@ class Module(object):
         if not isinstance(next_mod, Module):
             assert False, '%s is not a module' % next_mod
 
-        print 'Connecting %s[%d] -> %s' % (self.name, gate, next_mod.name)
+        #print 'Connecting %s[%d] -> %s' % (self.name, gate, next_mod.name)
         self.softnic.connect_modules(self.name, next_mod.name, gate)
         return next_mod     # for a->b->c syntax
 
