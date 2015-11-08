@@ -1,7 +1,8 @@
-import os
-ports = int($NPORTS!'1')
+num_ports = int($SN_PORTS!'1')
 
-for i in xrange(ports):
+print 'Using %d DPDK ports... (envvar "SN_PORTS")' % dpdk_ports
+
+for i in range(num_ports):
 	v = Port(driver='VPort', loopback=1)
 	Source() -> PortOut(arg=v)
 	PortInc(arg=v) -> Sink()
