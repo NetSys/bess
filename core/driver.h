@@ -32,6 +32,10 @@ struct driver {
 	size_t priv_size;
 
 	/* Optional */
+	int def_size_inc_q;
+	int def_size_out_q;
+
+	/* Optional */
 	int (*init_driver)(struct driver *driver);
 
 	/* Required */

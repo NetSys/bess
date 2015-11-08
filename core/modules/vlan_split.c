@@ -4,7 +4,7 @@
 
 static void vsplit_process_batch(struct module *m, struct pkt_batch *batch)
 {
-	uint16_t vid[MAX_PKT_BURST];
+	gate_t vid[MAX_PKT_BURST];
 
 	for (int i = 0; i < batch->cnt; i++) {
 		struct snbuf *pkt = batch->pkts[i];

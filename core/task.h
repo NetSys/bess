@@ -9,6 +9,10 @@
 
 extern struct cdlist_head all_tasks;
 
+typedef uint16_t task_id_t;
+
+#define INVALID_TASK_ID		((task_id_t)-1)
+
 struct task_result {
 	uint64_t packets;
 	uint64_t bits;
@@ -26,7 +30,6 @@ struct task {
 	void *arg;
 
 	struct cdlist_item tc;
-	struct cdlist_item module;
 	struct cdlist_item all_tasks;
 };
 
@@ -45,5 +48,8 @@ static inline struct task_result task_scheduled(struct task *t)
 {
 	return t->f(t->m, t->arg);
 }
+
+void assign_default_tc(struct sched *s, struct task *t);
+void process_orphan_tasks();
 
 #endif

@@ -1,6 +1,7 @@
 # Temporary/hidden files
 .*
 *.dump
+cscope.*
 
 # VM images
 *.img

@@ -337,6 +337,8 @@ def warn(cli, msg, func):
                 func()
             else:
                 cli.fout.write('Cancelled.\n')
+        except KeyboardInterrupt:
+            cli.fout.write('Cancelled.\n')
         finally:
             if cli.rl:
                 cli.rl.set_completer(cli.complete)
@@ -455,7 +457,7 @@ def _do_run_file(cli, conf_file):
     cli.softnic.pause_all()
     try:
         exec(code, new_globals)
-
+        cli.fout.write('Done.\n')
     except cli.softnic.Error:
         raise
 

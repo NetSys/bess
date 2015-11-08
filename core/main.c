@@ -24,24 +24,6 @@
 const struct global_opts global_opts;
 static struct global_opts *opts = (struct global_opts *)&global_opts;
 
-static void parse_core_list()
-{
-	char *ptr;
-
-	ptr = strtok(optarg, ",");
-	while (ptr != NULL) {
-		if (num_workers >= MAX_WORKERS) {
-			fprintf(stderr, "Cannot have more than %d workers\n",
-					MAX_WORKERS);
-			exit(EXIT_FAILURE);
-		}
-
-		opts->wid_to_core[num_workers] = atoi(ptr);
-		num_workers++;
-		ptr = strtok(NULL, ",");
-	}
-}
-
 static void print_usage(char *exec_name)
 {
 	fprintf(stderr, "Usage: %s" \
@@ -72,15 +54,11 @@ static void parse_args(int argc, char **argv)
 
 	num_workers = 0;
 
-	while ((c = getopt(argc, argv, ":tc:p:fk")) != -1) {
+	while ((c = getopt(argc, argv, ":tc:p:fks")) != -1) {
 		switch (c) {
 		case 't':
 			dump_types();
 			exit(EXIT_SUCCESS);
-			break;
-
-		case 'c':
-			parse_core_list();
 			break;
 
 		case 'p':
@@ -93,6 +71,10 @@ static void parse_args(int argc, char **argv)
 
 		case 'k':
 			opts->kill_existing = 1;
+			break;
+
+		case 's':
+			opts->print_tc_stats = 1;
 			break;
 
 		case ':':
@@ -111,11 +93,8 @@ static void parse_args(int argc, char **argv)
 		}
 	}
 
-	if (num_workers == 0) {
-		/* By default, launch one worker on core 0 */
-		opts->wid_to_core[0] = 0;
-		num_workers = 1;
-	}
+	if (opts->foreground && !opts->print_tc_stats)
+		printf("TC statistics output is disabled (add -s option?)\n");
 }
 
 /* todo: chdir */
@@ -300,13 +279,17 @@ int main(int argc, char **argv)
 
 	parse_args(argc, argv);
 
-	if (!opts->foreground)
+	if (opts->foreground)
+		printf("Launching BESS daemon in process mode... ");
+	else
 		signal_fd = daemon_start();
 
 	check_user();
 	check_pidfile();
 
-	if (!opts->foreground) {
+	if (opts->foreground) {
+		printf("OK\n");
+	} else {
 		close(STDIN_FILENO);
 		close(STDOUT_FILENO);
 		close(STDERR_FILENO);
@@ -317,9 +300,6 @@ int main(int argc, char **argv)
 	init_dpdk(argv[0]);
 	init_mempool();
 	init_drivers();
-
-	for (int i = 0; i < num_workers; i++)
-		launch_worker(i, opts->wid_to_core[i]);
 
 	setup_master(opts->port);
 

@@ -8,6 +8,7 @@
 #include <rte_cycles.h>
 
 #include "tc.h"
+#include "debug.h"
 #include "common.h"
 #include "time.h"
 #include "task.h"
@@ -467,7 +468,7 @@ static char *print_tc_stats_detail(struct sched *s, char *p, int max_cnt)
 
 	struct tc *c;
 
-	RTE_BUILD_BUG_ON(sizeof(struct tc_stats) < sizeof(fields));
+	ct_assert(sizeof(struct tc_stats) >= sizeof(fields));
 
 	p += sprintf(p, "\n");
 
@@ -627,18 +628,18 @@ void sched_loop(struct sched *s)
 	last_print_tsc = checkpoint = now = rdtsc();
 
 	/* the main scheduling - running - accounting loop */
-	for (uint64_t round = 1; ; round++) {
+	for (uint64_t round = 0; ; round++) {
 		struct tc *c;
 		struct task_result ret;
 		resource_arr_t usage;
 
 		/* periodic check for every 2^8 rounds,
 		 * to mitigate expensive operations */
-		if ((uint8_t)round == 0) {
+		if ((round & 0xff) == 0) {
 			if (is_pause_requested()) {
 				block_worker();
 				last_print_tsc = checkpoint = now = rdtsc();
-			} else if (global_opts.foreground &&
+			} else if (global_opts.print_tc_stats &&
 					now - last_print_tsc >= tsc_hz) {
 				print_stats(s, &last_stats);
 				last_stats = s->stats;

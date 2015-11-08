@@ -22,7 +22,7 @@ static void set_lcore_bitmap(char *buf)
 	int i;
 
 	/* launch everything on core 0 for now */
-	for (i = 0; i < num_workers; i++)
+	for (i = 0; i < MAX_WORKERS; i++)
 		off += sprintf(buf + off, "%d@0,", i);
 
 	off += sprintf(buf + off, "%d@%d", RTE_MAX_LCORE - 1, 0);

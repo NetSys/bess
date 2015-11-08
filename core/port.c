@@ -105,6 +105,9 @@ struct port *create_port(const char *name,
 
 	int num_inc_q = 1;
 	int num_out_q = 1;
+	int size_inc_q = driver->def_size_inc_q ? : DEFAULT_QUEUE_SIZE;
+	int size_out_q = driver->def_size_out_q ? : DEFAULT_QUEUE_SIZE;
+
 	uint8_t mac_addr[ETH_ALEN];
 
 	*perr = NULL;
@@ -114,6 +117,12 @@ struct port *create_port(const char *name,
 
 	if (snobj_eval_exists(arg, "num_out_q"))
 		num_out_q = snobj_eval_int(arg, "num_out_q");
+
+	if (snobj_eval_exists(arg, "size_inc_q"))
+		size_inc_q = snobj_eval_int(arg, "size_inc_q");
+
+	if (snobj_eval_exists(arg, "size_out_q"))
+		size_out_q = snobj_eval_int(arg, "size_out_q");
 
 	if (snobj_eval_exists(arg, "mac_addr")) {
 		char *v = snobj_eval_str(arg, "mac_addr");
@@ -142,6 +151,12 @@ struct port *create_port(const char *name,
 		goto fail;
 	}
 
+	if (size_inc_q < 0 || size_inc_q > MAX_QUEUE_SIZE ||
+	    size_out_q < 0 || size_out_q > MAX_QUEUE_SIZE) {
+		*perr = snobj_err(EINVAL, "Invalid queue size");
+		goto fail;
+	}
+
 	if (name && find_port(name)) {
 		*perr = snobj_err(EEXIST, "Port '%s' already exists");
 		goto fail;
@@ -164,6 +179,9 @@ struct port *create_port(const char *name,
 	memcpy(p->mac_addr, mac_addr, ETH_ALEN);
 	p->num_queues[PACKET_DIR_INC] = num_inc_q;
 	p->num_queues[PACKET_DIR_OUT] = num_out_q;
+
+	p->queue_size[PACKET_DIR_INC] = size_inc_q;
+	p->queue_size[PACKET_DIR_OUT] = size_out_q;
 
 	if (!name)
 		set_default_name(p);

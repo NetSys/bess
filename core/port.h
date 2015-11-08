@@ -7,11 +7,10 @@
 #include "snobj.h"
 #include "driver.h"
 
-#if MAX_QUEUES_PER_PORT_DIR >= QUEUE_UNKNOWN ||  MAX_QUEUES > 255
-	#error Invalid macro constants
-#endif
-
 #define PORT_NAME_LEN		128
+
+#define DEFAULT_QUEUE_SIZE	256
+#define MAX_QUEUE_SIZE		4096
 
 struct module;
 
@@ -35,6 +34,7 @@ struct port {
 	char mac_addr[ETH_ALEN];
 
 	int num_queues[PACKET_DIRS];
+	int queue_size[PACKET_DIRS];
 
 	struct packet_stats queue_stats[PACKET_DIRS][MAX_QUEUES_PER_DIR];
 	

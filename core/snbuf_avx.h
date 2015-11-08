@@ -11,7 +11,7 @@ snb_alloc_bulk(snbuf_type_t type, snb_array_t snbs, int cnt, uint16_t len)
 	__m128i rxdesc_fields;
 
 #if OLD_METADATA
-	RTE_BUILD_BUG_ON(SNBUF_SIZE != 16);
+	ct_assert(SNBUF_SIZE == 16);
 
 	__m128i snb_template;
 	snb_template= *((__m128i *)&snbuf_template._snbuf_start);

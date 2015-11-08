@@ -3,12 +3,12 @@ import pprint
 
 import scapy.all as scapy
 
-source::Source() -> bpf::BPF()
+Source() -> rewrite::Rewrite() -> bpf::BPF()
 bpf[0] -> Sink()      # for matched packets
 bpf[1] -> Sink()      # for unmatched packets
 
 def run_testcase(exp, test_pkts):
-    source.query({'templates': map(lambda x: bytearray(str(x)), test_pkts)})
+    rewrite.query({'templates': map(lambda x: bytearray(str(x)), test_pkts)})
     bpf.query(exp)
 
     softnic.resume_all()
@@ -27,7 +27,7 @@ def run_testcase(exp, test_pkts):
 
     pps_total = pps_matched + pps_unmatched
 
-    print 'Total: %8.3fMpps\t\tMatched: %8.3fMpps\t\tUnmatched: %8.3fMpps' %  \
+    print 'Total: %8.3fMpps   Matched: %8.3fMpps   Unmatched: %8.3fMpps' %  \
             (pps_total / 1000000.0, 
              pps_matched / 1000000.0, 
              pps_unmatched / 1000000.0)

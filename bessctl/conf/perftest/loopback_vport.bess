@@ -1,0 +1,78 @@
+import time
+import multiprocessing
+
+# Use 2 for the following two variables, 
+# if you avoid using two logical threads simultaneously on a SMT system
+START_CPU = 1
+STEP = 1		
+
+cpu_set = []
+ports = []
+
+def measure():
+    assert len(cpu_set) == len(ports)
+
+    old_stats = []
+    new_stats = []
+
+    for port in ports:
+        old_stats.append(softnic.get_port_stats(port.name))
+
+    time.sleep(2)
+
+    for port in ports:
+        new_stats.append(softnic.get_port_stats(port.name))
+
+    out_mpps = []
+    inc_mpps = []
+
+    for i in range(len(ports)):
+        time_diff = new_stats[i]['timestamp'] - old_stats[i]['timestamp']
+
+        pkts_diff = new_stats[i]['out']['packets'] - \
+                    old_stats[i]['out']['packets']
+        out_mpps.append(pkts_diff / time_diff / 1000000.0)
+        
+        pkts_diff = new_stats[i]['inc']['packets'] - \
+                    old_stats[i]['inc']['packets']
+        inc_mpps.append(pkts_diff / time_diff / 1000000.0)
+
+    print '%-15s' % 'CPU',
+    print '%7s' % '',
+    for i in range(len(ports)):
+        print '%7d' % cpu_set[i],
+    print
+
+    print '%-15s' % 'Ports',
+    print '%7s' % '(total)',
+    for i in range(len(ports)):
+        print '%7s' % ports[i].name,
+    print
+
+    print '-' * (8 * (len(ports) + 3))
+
+    print '%-15s' % 'Outgoing (Mpps)',
+    print '%7.3f' % sum(out_mpps),
+    for i in range(len(ports)):
+        print '%7.3f' % out_mpps[i],
+    print
+
+    print '%-15s' % 'Incoming (Mpps)',
+    print '%7.3f' % sum(inc_mpps),
+    for i in range(len(ports)):
+        print '%7.3f' % inc_mpps[i],
+    print
+    print
+
+for cpu in range(START_CPU, multiprocessing.cpu_count(), STEP):
+    vport = Port(driver='VPort', loopback=1, rxq_cpu=cpu)
+
+    cpu_set.append(cpu)
+    ports.append(vport)
+
+    Source() -> PortOut(arg=vport)
+    PortInc(arg=vport) -> Sink()
+
+    softnic.resume_all()
+    measure()
+    softnic.pause_all()

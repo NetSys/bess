@@ -11,15 +11,11 @@ struct task *task_create(struct module *m, void *arg)
 {
 	struct task *t;
 
-	if (!m->mclass->run_task)
-		return NULL;
-
 	t = rte_zmalloc("task", sizeof(*t), 0);
 	if (!t)
 		oom_crash();
 	
 	cdlist_item_init(&t->tc);
-	cdlist_add_tail(&m->tasks, &t->module);
 	cdlist_add_tail(&all_tasks, &t->all_tasks);
 	
 	t->m = m;
@@ -35,7 +31,6 @@ void task_destroy(struct task *t)
 		task_detach(t);
 
 	cdlist_del(&t->all_tasks);
-	cdlist_del(&t->module);
 	rte_free(t);
 }
 
@@ -68,5 +63,61 @@ void task_detach(struct task *t)
 	if (cdlist_is_empty(&c->tasks) && c->auto_free) {
 		tc_leave(c);		/* stop scheduling this TC */
 		tc_dec_refcnt(c);	/* release my reference */
+	}
+}
+
+void assign_default_tc(struct sched *s, struct task *t)
+{
+	struct tc_params params = {
+		.parent = NULL,
+		.auto_free = 1,	/* when no task is left, this TC is freed */
+		.priority = 0,
+		.share = 1,
+		.share_resource = RESOURCE_CNT,
+	};
+
+	struct tc *c_def = tc_init(s, &params);
+
+	task_attach(t, c_def);
+	printf("Task %p has been registered to "
+	       "a default traffic class %p\n", t, c_def);
+
+	tc_join(c_def);
+}
+
+static int get_next_wid(int *wid)
+{
+	static int rr_next = 0;
+
+	if (num_workers == 0)
+		return -1;
+
+	while (!is_worker_active(rr_next))
+		rr_next = (rr_next + 1) % MAX_WORKERS;
+
+	*wid = rr_next;
+	rr_next = (rr_next + 1) % MAX_WORKERS;
+
+	return 0;
+}
+
+/* Spread all orphan tasks across workers with round robin */
+void process_orphan_tasks()
+{
+	struct task *t;
+
+	cdlist_for_each_entry(t, &all_tasks, all_tasks) {
+		int wid;
+
+		if (task_is_attached(t))
+			continue;
+
+		if (get_next_wid(&wid) < 0) {
+			wid = 0;
+			/* There is no active worker. Create one. */
+			launch_worker(wid, 0);
+		}
+
+		assign_default_tc(workers[wid]->s, t);
 	}
 }
