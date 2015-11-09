@@ -181,9 +181,8 @@ static struct snobj *pmd_init_port(struct port *p, struct snobj *conf)
 	struct rte_eth_rxconf eth_rxconf;
 	struct rte_eth_txconf eth_txconf;
 
-	/* XXX */
-	int num_txq = 1;
-	int num_rxq = 1;
+	int num_txq = p->num_queues[PACKET_DIR_OUT];
+	int num_rxq = p->num_queues[PACKET_DIR_INC];
 
 	struct snobj *err;
 	
@@ -217,8 +216,6 @@ static struct snobj *pmd_init_port(struct port *p, struct snobj *conf)
 		return snobj_err(-ret, "rte_eth_dev_configure() failed");
 
 	rte_eth_promiscuous_enable(port_id);
-
-printf("rx %d tx %d\n", p->queue_size[PACKET_DIR_INC], p->queue_size[PACKET_DIR_OUT]);
 
 	for (i = 0; i < num_rxq; i++) {
 		int sid = 0;		/* XXX */

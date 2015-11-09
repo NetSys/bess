@@ -103,26 +103,26 @@ struct port *create_port(const char *name,
 	struct port *p = NULL;
 	int ret;
 
-	int num_inc_q = 1;
-	int num_out_q = 1;
-	int size_inc_q = driver->def_size_inc_q ? : DEFAULT_QUEUE_SIZE;
-	int size_out_q = driver->def_size_out_q ? : DEFAULT_QUEUE_SIZE;
+	queue_t num_inc_q = 1;
+	queue_t num_out_q = 1;
+	size_t size_inc_q = driver->def_size_inc_q ? : DEFAULT_QUEUE_SIZE;
+	size_t size_out_q = driver->def_size_out_q ? : DEFAULT_QUEUE_SIZE;
 
 	uint8_t mac_addr[ETH_ALEN];
 
 	*perr = NULL;
 
 	if (snobj_eval_exists(arg, "num_inc_q"))
-		num_inc_q = snobj_eval_int(arg, "num_inc_q");
+		num_inc_q = snobj_eval_uint(arg, "num_inc_q");
 
 	if (snobj_eval_exists(arg, "num_out_q"))
-		num_out_q = snobj_eval_int(arg, "num_out_q");
+		num_out_q = snobj_eval_uint(arg, "num_out_q");
 
 	if (snobj_eval_exists(arg, "size_inc_q"))
-		size_inc_q = snobj_eval_int(arg, "size_inc_q");
+		size_inc_q = snobj_eval_uint(arg, "size_inc_q");
 
 	if (snobj_eval_exists(arg, "size_out_q"))
-		size_out_q = snobj_eval_int(arg, "size_out_q");
+		size_out_q = snobj_eval_uint(arg, "size_out_q");
 
 	if (snobj_eval_exists(arg, "mac_addr")) {
 		char *v = snobj_eval_str(arg, "mac_addr");
@@ -145,9 +145,20 @@ struct port *create_port(const char *name,
 	} else
 		eth_random_addr(mac_addr);
 
-	if (num_inc_q < 0 || num_inc_q > MAX_QUEUES_PER_DIR ||
-	    num_out_q < 0 || num_out_q > MAX_QUEUES_PER_DIR) {
+	if (num_inc_q > MAX_QUEUES_PER_DIR || num_out_q > MAX_QUEUES_PER_DIR) {
 		*perr = snobj_err(EINVAL, "Invalid number of queues");
+		goto fail;
+	}
+
+	if (num_inc_q > 0 && !driver->recv_pkts) {
+		*perr = snobj_err(EINVAL, "Driver '%s' does not support "
+				"packet reception", driver->name);
+		goto fail;
+	}
+
+	if (num_out_q > 0 && !driver->send_pkts) {
+		*perr = snobj_err(EINVAL, "Driver '%s' does not support "
+				"packet transmission", driver->name);
 		goto fail;
 	}
 
@@ -214,13 +225,15 @@ int destroy_port(struct port *p)
 {
 	int ret;
 
-	if (p->users)
-		return -EBUSY;
+	for (packet_dir_t dir = 0; dir < PACKET_DIRS; dir++) {
+		for (int i = 0; i < p->num_queues[dir]; i++) 
+			if (p->users[dir][i])
+				return -EBUSY;
+	}
 	
 	ret = ns_remove(p->name);
-	if (ret < 0) {
+	if (ret < 0)
 		return ret; 
-	}
 
 	if (p->driver->deinit_port)
 		p->driver->deinit_port(p);
@@ -252,15 +265,81 @@ void get_queue_stats(struct port *p, packet_dir_t dir, queue_t qid,
 	memcpy(stats, &p->queue_stats[dir][qid], sizeof(*stats));
 }
 
-/* TODO: you can do better than this */
-void acquire_queue(struct port *p, packet_dir_t dir, queue_t qid, 
-		struct module *m)
+int acquire_queues(struct port *p, const struct module *m, packet_dir_t dir, 
+		const queue_t *queues, int num_queues)
 {
-	p->users++;
+	queue_t qid;
+	int i;
+
+	if (dir != PACKET_DIR_INC && dir != PACKET_DIR_OUT) {
+		fprintf(stderr, "Incorrect packet dir %d\n", dir);
+		return -EINVAL;
+	}
+
+	if (queues == NULL) {
+		for (qid = 0; qid < p->num_queues[dir]; qid++) {
+			const struct module *user;
+
+			/* the queue is already being used by someone else? */
+			if (user && user != m)
+				return -EBUSY;
+		}
+
+		for (qid = 0; qid < p->num_queues[dir]; qid++)
+			p->users[dir][qid] = m;
+
+		return 0;
+	}
+
+	for (i = 0; i < num_queues; i++) {
+		const struct module *user;
+		
+		qid = queues[i];
+	
+		if (qid >= p->num_queues[dir])
+			return -EINVAL;
+
+		user = p->users[dir][qid];
+
+		/* the queue is already being used by someone else? */
+		if (user && user != m)
+			return -EBUSY;
+	}
+
+	for (i = 0; i < num_queues; i++) {
+		qid = queues[i];
+		p->users[dir][qid] = m;
+	}
+
+	return 0;
 }
 
-void release_queue(struct port *p, packet_dir_t dir, queue_t qid, 
-		struct module *m)
+void release_queues(struct port *p, const struct module *m, packet_dir_t dir, 
+		const queue_t *queues, int num_queues)
 {
-	p->users--;
+	queue_t qid;
+	int i;
+
+	if (dir != PACKET_DIR_INC && dir != PACKET_DIR_OUT) {
+		fprintf(stderr, "Incorrect packet dir %d\n", dir);
+		return;
+	}
+
+	if (queues == NULL) {
+		for (qid = 0; qid < p->num_queues[dir]; qid++) {
+			if (p->users[dir][qid] == m)
+				p->users[dir][qid] = NULL;
+		}
+
+		return;
+	}
+
+	for (i = 0; i < num_queues; i++) {
+		qid = queues[i];
+		if (qid >= p->num_queues[dir])
+			continue;
+
+		if (p->users[dir][qid] == m)
+			p->users[dir][qid] = NULL;
+	}
 }

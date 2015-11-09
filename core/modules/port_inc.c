@@ -10,7 +10,9 @@ static struct snobj *port_inc_init(struct module *m, struct snobj *arg)
 	struct port_inc_priv *priv = get_priv(m);
 
 	const char *port_name;
-	task_id_t ret;
+	queue_t num_inc_q;
+
+	int ret;
 
 	if (!arg || !(port_name = snobj_str_get(arg)))
 		return snobj_err(EINVAL, "Argument must be a port name " \
@@ -20,11 +22,21 @@ static struct snobj *port_inc_init(struct module *m, struct snobj *arg)
 	if (!priv->port)
 		return snobj_err(ENODEV, "Port %s not found", port_name);
 
-	ret = register_task(m, NULL);
-	if (ret == INVALID_TASK_ID)
-		return snobj_err(ENOMEM, "Task creation failed");
+	num_inc_q = priv->port->num_queues[PACKET_DIR_INC];
+	if (num_inc_q == 0)
+		return snobj_err(ENODEV, "Port %s has no incoming queue",
+				port_name);
 
-	acquire_queue(priv->port, PACKET_DIR_INC, 0 /* XXX */, m);
+	for (queue_t qid = 0; qid < num_inc_q; qid++) { 
+		task_id_t tid = register_task(m, (void *)(uint64_t)qid);
+
+		if (tid == INVALID_TASK_ID)
+			return snobj_err(ENOMEM, "Task creation failed");
+	}
+
+	ret = acquire_queues(priv->port, m, PACKET_DIR_INC, NULL, 0);
+	if (ret < 0)
+		return snobj_errno(-ret);
 
 	return NULL;
 }
@@ -33,7 +45,7 @@ static void port_inc_deinit(struct module *m)
 {
 	struct port_inc_priv *priv = get_priv(m);
 
-	release_queue(priv->port, PACKET_DIR_INC, 0 /* XXX */, m);
+	release_queues(priv->port, m, PACKET_DIR_INC, NULL, 0);
 }
 
 static struct snobj *port_inc_get_desc(const struct module *m)
@@ -49,7 +61,7 @@ port_inc_run_task(struct module *m, void *arg)
 	struct port_inc_priv *priv = get_priv(m);
 	struct port *p = priv->port;
 
-	const queue_t qid = 0;	/* XXX */
+	const queue_t qid = (queue_t)(uint64_t)arg;
 
 	struct pkt_batch batch;
 	struct task_result ret;
