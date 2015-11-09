@@ -152,7 +152,7 @@ static int sn_alloc_queues(struct sn_device *dev, void *rings, u64 rings_size)
 		napi_hash_add(&dev->rx_queues[i]->napi);
 		spin_lock_init(&dev->rx_queues[i]->lock);
 	}
-
+	
 	sn_test_cache_alignment(dev);
 
 	return 0;
@@ -405,11 +405,8 @@ static int sn_poll_action_batch(struct sn_queue *rx_queue, int budget)
 				}
 			}
 		}
-
 		poll_cnt += cnt;
-
 	}
-
 	return poll_cnt;
 }
 

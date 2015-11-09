@@ -71,8 +71,10 @@ static int sn_host_do_tx(struct sn_queue *queue, struct sk_buff *skb,
 	int i;
 
 	ret = llring_dequeue_bulk(queue->sn_to_drv, objs, 2);
-	if (unlikely(ret == -LLRING_ERR_NOENT))
+	if (unlikely(ret == -LLRING_ERR_NOENT)) {
+		queue->tx_stats.descriptor++;
 		return NET_XMIT_DROP;
+	}
 
 	cookie = objs[0];
 	dst_addr = phys_to_virt((phys_addr_t) objs[1]);
