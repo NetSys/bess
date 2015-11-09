@@ -118,8 +118,11 @@ static struct snobj *handle_reset_ports(struct snobj *q)
 {
 	struct port *p;
 
-	while (list_ports((const struct port **)&p, 1, 0))
-		destroy_port(p);
+	while (list_ports((const struct port **)&p, 1, 0)) {
+		int ret = destroy_port(p);
+		if (ret)
+			return snobj_errno(-ret);
+	}
 
 	printf("*** All ports have been destroyed ***\n");
 	return NULL;

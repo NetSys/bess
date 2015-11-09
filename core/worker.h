@@ -55,9 +55,7 @@ void set_non_worker();
 
 int is_worker_core(int cpu);
 
-void pause_worker(int wid);
 void pause_all_workers();
-void resume_worker(int wid);
 void resume_all_workers();
 
 int is_any_worker_running();

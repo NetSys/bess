@@ -1,0 +1,26 @@
+import scapy.all as scapy
+
+pkt_size = int($PKT_SIZE!'60')
+assert(60 <= pkt_size <= 1522)
+
+eth = scapy.Ether(src='02:1e:67:9f:4d:ae', dst='06:16:3e:1b:72:32')
+ip = scapy.IP(src='192.168.0.1', dst='10.0.0.1')
+udp = scapy.UDP(sport=10001, dport=10002)
+payload = ('hello' + '0123456789' * 200)[:pkt_size-len(eth/ip/udp)]
+
+pkt = eth/ip/udp/payload
+print 'Packet template:'
+pkt.show()
+
+pkt_bytes = bytearray(str(pkt))
+assert(len(pkt_bytes) == pkt_size)
+
+for i in range(int($SN_PORTS!'1')):
+    softnic.add_worker(wid=i, core=i)
+
+    port = Port(driver='PMD', port_id=i)
+    p_out = PortOut(arg=port)
+    p_in = PortInc(arg=port)
+
+    Source() -> Rewrite(templates=[pkt_bytes]) -> p_out
+    p_in -> Sink()

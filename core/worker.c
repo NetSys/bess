@@ -53,12 +53,12 @@ int is_worker_core(int cpu)
 	return 0;
 }
 
-void pause_worker(int wid)
+static void pause_worker(int wid)
 {
 	if (workers[wid] && workers[wid]->status == WORKER_RUNNING) {
 		workers[wid]->status = WORKER_PAUSING;
 
-		INST_BARRIER();
+		FULL_BARRIER();
 
 		while (workers[wid]->status == WORKER_PAUSING)
 			; 	/* spin */
@@ -73,7 +73,7 @@ void pause_all_workers()
 		pause_worker(i);
 }
 
-void resume_worker(int wid)
+static void resume_worker(int wid)
 {
 	if (workers[wid]->status == WORKER_PAUSED) {
 		uint64_t t = 1;
@@ -84,31 +84,6 @@ void resume_worker(int wid)
 
 		while (workers[wid]->status == WORKER_PAUSED)
 			; 	/* spin */
-	}
-}
-
-static void setup_default_tc(struct sched *s)
-{
-	struct task *t;
-
-	struct tc_params params = {
-		.parent = NULL,
-		.auto_free = 1,	/* when no task is left, this TC is freed */
-		.priority = 0,
-		.share = 1,
-		.share_resource = RESOURCE_CNT,
-	};
-
-	cdlist_for_each_entry(t, &all_tasks, all_tasks) {
-		if (!t->c) {
-			struct tc *c_def = tc_init(s, &params);
-
-			task_attach(t, c_def);
-			printf("Task %p has been registered to "
-			       "a default traffic class %p\n", t, c_def);
-
-			tc_join(c_def);
-		}
 	}
 }
 
@@ -205,8 +180,8 @@ void launch_worker(int wid, int core)
 
 	INST_BARRIER();
 
-	while (!is_worker_active(wid))
-		;	/* spin until it becomes ready */
+	while (!is_worker_active(wid) || workers[wid]->status != WORKER_PAUSED)
+		;	/* spin until it becomes ready and fully paused */
 
 	num_workers++;
 }

@@ -27,13 +27,13 @@ struct port {
 
 	const struct driver *driver;
 
-	/* how many modules are using this port?
+	/* which modules are using this port?
 	 * TODO: more robust gate keeping */
-	int users;
+	const struct module *users[PACKET_DIRS][MAX_QUEUES_PER_DIR];
 
 	char mac_addr[ETH_ALEN];
 
-	int num_queues[PACKET_DIRS];
+	queue_t num_queues[PACKET_DIRS];
 	int queue_size[PACKET_DIRS];
 
 	struct packet_stats queue_stats[PACKET_DIRS][MAX_QUEUES_PER_DIR];
@@ -41,7 +41,8 @@ struct port {
 	void *priv[0];	
 };
 
-static inline void *get_port_priv(struct port *p) {
+static inline void *get_port_priv(struct port *p) 
+{
 	return (void *)(p + 1);
 }
 
@@ -60,9 +61,10 @@ void get_port_stats(struct port *p, port_stats_t *stats);
 void get_queue_stats(struct port *p, packet_dir_t dir, queue_t qid, 
 		struct packet_stats *stats);
 
-void acquire_queue(struct port *p, packet_dir_t dir, queue_t qid, 
-		struct module *m);
-void release_queue(struct port *p, packet_dir_t dir, queue_t qid, 
-		struct module *m);
+/* quques == NULL if _all_ queues are being acquired/released */
+int acquire_queues(struct port *p, const struct module *m, packet_dir_t dir, 
+		const queue_t *queues, int num_queues);
+void release_queues(struct port *p, const struct module *m, packet_dir_t dir, 
+		const queue_t *queues, int num_queues);
 
 #endif

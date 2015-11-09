@@ -270,6 +270,9 @@ static int grow_gates(struct module *m, gate_t gate)
 	m->allocated_gates = new_size;
 
 	/* initialize the newly created gates */
+	memset(&m->gates[old_size], 0, 
+			sizeof(struct output_gate) * (new_size - old_size));
+
 	for (gate_t i = old_size; i < new_size; i++)
 		disconnect_modules(m, i);
 

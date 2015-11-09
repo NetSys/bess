@@ -3,6 +3,7 @@
 
 struct port_out_priv {
 	struct port *port;
+	pkt_io_func_t send_pkts;
 };
 
 static struct snobj *port_out_init(struct module *m, struct snobj *arg)
@@ -10,6 +11,8 @@ static struct snobj *port_out_init(struct module *m, struct snobj *arg)
 	struct port_out_priv *priv = get_priv(m);
 
 	const char *port_name;
+
+	int ret;
 
 	if (!arg || !(port_name = snobj_str_get(arg)))
 		return snobj_err(EINVAL, "Argument must be a port name " \
@@ -19,7 +22,13 @@ static struct snobj *port_out_init(struct module *m, struct snobj *arg)
 	if (!priv->port)
 		return snobj_err(ENODEV, "Port %s not found", port_name);
 
-	acquire_queue(priv->port, PACKET_DIR_OUT, 0 /* XXX */, m);
+	if (priv->port->num_queues[PACKET_DIR_OUT] == 0)
+		return snobj_err(ENODEV, "Port %s has no outgoing queue",
+				port_name);
+
+	ret = acquire_queues(priv->port, m, PACKET_DIR_OUT, NULL, 0);
+	if (ret < 0)
+		return snobj_errno(-ret);
 
 	return NULL;
 }
@@ -28,7 +37,7 @@ static void port_out_deinit(struct module *m)
 {
 	struct port_out_priv *priv = get_priv(m);
 
-	release_queue(priv->port, PACKET_DIR_OUT, 0 /* XXX */, m);
+	release_queues(priv->port, m, PACKET_DIR_OUT, NULL, 0);
 }
 
 static struct snobj *port_out_get_desc(const struct module *m)
@@ -45,7 +54,8 @@ static void port_out_process_batch(struct module *m,
 	struct port_out_priv *priv = get_priv(m);
 	struct port *p = priv->port;
 
-	const queue_t qid = 0;	/* XXX */
+	/* TODO: choose appropriate out queue */
+	const queue_t qid = 0;
 
 	uint64_t sent_bytes = 0;
 	int sent_pkts;
