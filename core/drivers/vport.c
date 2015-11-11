@@ -79,9 +79,57 @@ static void refill_tx_bufs(struct llring *r, int cnt)
 		objs[i * 2    ] = (void *) snb;
 		objs[i * 2 + 1] = (void *) snb_dma_addr(snb);
 	}
-
+	
 	ret = llring_enqueue_bulk(r, objs, cnt * 2);
 	assert(ret == 0 || ret == -LLRING_ERR_QUOT);
+}
+
+static void drain_drv_to_sn_q(struct llring *q)
+{
+	/* drv_to_sn queues just contain allocated buffers, so just dequeue bufs
+	 * and free */
+	const int MAX_BURST = 64;
+	void *objs[MAX_BURST];
+	int ret;
+	while ((ret = llring_dequeue_burst(q, objs, MAX_BURST)) > 0) {
+		snb_free_bulk((snb_array_t) objs, ret);
+	}
+	
+}
+
+static void drain_sn_to_drv_q(struct llring *q)
+{
+	/* sn_to_drv queues have alternate cells containing allocated buffers
+	 * and their physical address */
+	const int MAX_BURST = 64;
+	void *objs[MAX_BURST * 2];
+	void *clean_objs[MAX_BURST];
+	int ret;
+	while ((ret = llring_dequeue_burst(q, objs, 2 * MAX_BURST)) > 0) {
+		int j = 0;
+		for (int i = 0; i < ret; i += 2) {
+			clean_objs[j++] = objs[i];
+		}
+		snb_free_bulk((snb_array_t)clean_objs, j);
+	}
+}
+
+/* Free an allocated bar, freeing resources in the queues */
+static void free_bar(struct vport_priv *priv)
+{
+	int i;
+	struct sn_conf_space *conf = priv->bar;
+	for (i = 0; i < conf->num_txq; i++) {
+		drain_drv_to_sn_q(priv->inc_qs[i].drv_to_sn);
+		drain_sn_to_drv_q(priv->inc_qs[i].sn_to_drv);
+	}
+
+	for (i = 0; i < conf->num_rxq; i++) {
+		drain_drv_to_sn_q(priv->inc_qs[i].drv_to_sn);
+		drain_sn_to_drv_q(priv->inc_qs[i].sn_to_drv);
+	}
+
+	rte_free(priv->bar);
 }
 
 static void *alloc_bar(struct port *p, int container_pid, int loopback)
@@ -408,6 +456,7 @@ static void deinit_port(struct port *p)
 		perror("SN_IOC_RELEASE_HOSTNIC");	
 
 	close(priv->fd);
+	free_bar(priv);
 }
 
 static struct snobj *init_port(struct port *p, struct snobj *conf)

@@ -65,6 +65,7 @@ struct sn_queue {
 			u64 bytes;
 			u64 dropped;
 			u64 throttled;
+			u64 descriptor;
 		} tx_stats;
 
 		struct sn_queue_rx_stats {
