@@ -321,15 +321,16 @@ again:
 	return c;
 }
 
+/* TODO: the vector version is hella slow. fix it. */
 /* acc += x */
 static inline void accumulate(resource_arr_t acc, resource_arr_t x)
 {
 	uint64_t * restrict p1 = acc;
 	uint64_t * restrict p2 = x;
 
-#if __AVX2__
+#if 0 && __AVX2__
 	*((__m256i *)p1) = _mm256_add_epi64(*((__m256i *)p1), *((__m256i *)p2));
-#elif __AVX__
+#elif 0 && __AVX__
 	*((__m128i *)p1+0) = _mm_add_epi64(*((__m128i *)p1+0), *((__m128i *)p2+0));
 	*((__m128i *)p1+1) = _mm_add_epi64(*((__m128i *)p1+1), *((__m128i *)p2+1));
 #else
