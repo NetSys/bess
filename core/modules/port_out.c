@@ -30,6 +30,8 @@ static struct snobj *port_out_init(struct module *m, struct snobj *arg)
 	if (ret < 0)
 		return snobj_errno(-ret);
 
+	priv->send_pkts = priv->port->driver->send_pkts;
+
 	return NULL;
 }
 
@@ -60,14 +62,18 @@ static void port_out_process_batch(struct module *m,
 	uint64_t sent_bytes = 0;
 	int sent_pkts;
 
-	sent_pkts = p->driver->send_pkts(p, qid, batch->pkts, batch->cnt);
+	sent_pkts = priv->send_pkts(p, qid, batch->pkts, batch->cnt);
 
-	for (int i = 0; i < sent_pkts; i++)
-		sent_bytes += snb_total_len(batch->pkts[i]);
+	if (!(p->driver->flags & DRIVER_FLAG_SELF_OUT_STATS)) {
+		const packet_dir_t dir = PACKET_DIR_OUT;
 
-	p->queue_stats[PACKET_DIR_OUT][qid].packets += sent_pkts;
-	p->queue_stats[PACKET_DIR_OUT][qid].dropped += (batch->cnt - sent_pkts);
-	p->queue_stats[PACKET_DIR_OUT][qid].bytes += sent_bytes;
+		for (int i = 0; i < sent_pkts; i++)
+			sent_bytes += snb_total_len(batch->pkts[i]);
+
+		p->queue_stats[dir][qid].packets += sent_pkts;
+		p->queue_stats[dir][qid].dropped += (batch->cnt - sent_pkts);
+		p->queue_stats[dir][qid].bytes += sent_bytes;
+	}
 
 	if (sent_pkts < batch->cnt)
 		snb_free_bulk(batch->pkts + sent_pkts, batch->cnt - sent_pkts);

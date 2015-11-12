@@ -3,6 +3,7 @@
 
 struct port_inc_priv {
 	struct port *port;
+	pkt_io_func_t recv_pkts;
 };
 
 static struct snobj *port_inc_init(struct module *m, struct snobj *arg)
@@ -38,6 +39,8 @@ static struct snobj *port_inc_init(struct module *m, struct snobj *arg)
 	if (ret < 0)
 		return snobj_errno(-ret);
 
+	priv->recv_pkts = priv->port->driver->recv_pkts;
+
 	return NULL;
 }
 
@@ -71,7 +74,7 @@ port_inc_run_task(struct module *m, void *arg)
 	const int pkt_burst = MAX_PKT_BURST;
 	const int pkt_overhead = 24;
 
-	batch.cnt = p->driver->recv_pkts(p, qid, batch.pkts, pkt_burst);
+	batch.cnt = priv->recv_pkts(p, qid, batch.pkts, pkt_burst);
 
 	if (batch.cnt == 0) {
 		ret.packets = 0;
@@ -79,14 +82,17 @@ port_inc_run_task(struct module *m, void *arg)
 		return ret;
 	}
 
+	/* NOTE: we cannot skip this step since it might be used by scheduler */
 	for (int i = 0; i < batch.cnt; i++)
 		received_bytes += snb_total_len(batch.pkts[i]);
 
 	ret.packets = batch.cnt;
 	ret.bits = (received_bytes + pkt_overhead * batch.cnt) * 8;
 
-	p->queue_stats[PACKET_DIR_INC][qid].packets += batch.cnt;
-	p->queue_stats[PACKET_DIR_INC][qid].bytes += received_bytes;
+	if (!(p->driver->flags & DRIVER_FLAG_SELF_INC_STATS)) {
+		p->queue_stats[PACKET_DIR_INC][qid].packets += batch.cnt;
+		p->queue_stats[PACKET_DIR_INC][qid].bytes += received_bytes;
+	}
 
 	run_next_module(m, &batch);
 

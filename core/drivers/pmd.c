@@ -1,5 +1,6 @@
 #include <rte_config.h>
 #include <rte_ethdev.h>
+#include <rte_errno.h>
 
 #include "../port.h"
 
@@ -256,6 +257,42 @@ static void pmd_deinit_port(struct port *p)
 	rte_eth_dev_stop(priv->dpdk_port_id);
 }
 
+static void pmd_collect_stats(struct port *p, int reset)
+{
+	struct pmd_priv *priv = get_port_priv(p);
+
+	struct rte_eth_stats stats;
+	int ret;
+
+	packet_dir_t dir;
+	queue_t qid;
+
+	if (reset) {
+		rte_eth_stats_reset(priv->dpdk_port_id);
+		return;
+	}
+
+	ret = rte_eth_stats_get(priv->dpdk_port_id, &stats);
+	if (ret < 0) {
+		fprintf(stderr, "rte_eth_stats_get() failed: %s\n",
+				rte_strerror(rte_errno));
+		return;
+	}
+
+	dir = PACKET_DIR_INC;
+	for (qid = 0; qid < p->num_queues[dir]; qid++) {
+		p->queue_stats[dir][qid].packets = stats.q_ipackets[qid]; 
+		p->queue_stats[dir][qid].bytes   = stats.q_ibytes[qid]; 
+		p->queue_stats[dir][qid].dropped = stats.q_errors[qid]; 
+	}
+
+	dir = PACKET_DIR_OUT;
+	for (qid = 0; qid < p->num_queues[dir]; qid++) {
+		p->queue_stats[dir][qid].packets = stats.q_opackets[qid]; 
+		p->queue_stats[dir][qid].bytes   = stats.q_obytes[qid]; 
+	}
+}
+
 static int pmd_recv_pkts(struct port *p, queue_t qid, snb_array_t pkts, int cnt)
 {
 	struct pmd_priv *priv = get_port_priv(p);
@@ -277,9 +314,12 @@ static const struct driver pmd = {
 	.priv_size	= sizeof(struct pmd_priv),
 	.def_size_inc_q = 128,
 	.def_size_out_q = 512,
+	.flags		= DRIVER_FLAG_SELF_INC_STATS |
+			  DRIVER_FLAG_SELF_OUT_STATS,
 	.init_driver	= pmd_init_driver,
 	.init_port 	= pmd_init_port,
 	.deinit_port	= pmd_deinit_port,
+	.collect_stats	= pmd_collect_stats,
 	.recv_pkts 	= pmd_recv_pkts,
 	.send_pkts 	= pmd_send_pkts,
 };

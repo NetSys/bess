@@ -19,6 +19,9 @@ struct snobj;
 
 typedef int (*pkt_io_func_t)(struct port *, queue_t, snb_array_t, int);
 
+#define DRIVER_FLAG_SELF_INC_STATS	0x0001
+#define DRIVER_FLAG_SELF_OUT_STATS	0x0002
+
 struct driver {
 	/* Required: should be like "CamelCase" */
 	const char *name;
@@ -37,6 +40,9 @@ struct driver {
 	size_t def_size_inc_q;
 	size_t def_size_out_q;
 
+	/* Optional. 0 is good for most drivers */
+	uint32_t flags;
+
 	/* Optional */
 	int (*init_driver)(struct driver *driver);
 
@@ -45,6 +51,9 @@ struct driver {
 
 	/* Optional: cleanup internal state */
 	void (*deinit_port)(struct port *p);
+
+	/* Optional: collect internal (HW) stats, if available */
+	void (*collect_stats)(struct port *p, int reset);
 
 	/* Optional: port-specific query interface */
 	struct snobj *(*query)(struct port *p, struct snobj *q);
