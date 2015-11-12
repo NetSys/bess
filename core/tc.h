@@ -27,7 +27,7 @@ enum {
 /* this doesn't mean anything, other than avoiding int64 overflow */
 #define QUANTUM		(1 << 10)
 
-typedef uint64_t resource_arr_t[NUM_RESOURCES] __xmm_aligned;
+typedef uint64_t resource_arr_t[NUM_RESOURCES] __ymm_aligned;
 
 /* pgroup is a collection of sibling classes with the same priority */
 struct pgroup {

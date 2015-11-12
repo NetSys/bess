@@ -246,11 +246,16 @@ int destroy_port(struct port *p)
 
 void get_port_stats(struct port *p, port_stats_t *stats)
 {
+	if (p->driver->collect_stats)
+		p->driver->collect_stats(p, 0);
+
 	for (packet_dir_t dir = 0; dir < PACKET_DIRS; dir++) {
 		memset(&((*stats)[dir]), 0, sizeof(struct packet_stats));
 
 		for (queue_t qid = 0; qid < p->num_queues[dir]; qid++) {
-			const struct packet_stats *queue_stats = &p->queue_stats[dir][qid];
+			const struct packet_stats *queue_stats;
+			
+			queue_stats = &p->queue_stats[dir][qid];
 
 			(*stats)[dir].packets	+= queue_stats->packets;
 			(*stats)[dir].dropped	+= queue_stats->dropped;
@@ -259,6 +264,7 @@ void get_port_stats(struct port *p, port_stats_t *stats)
 	}
 }
 
+/* XXX: Do we need this? Currently not being used anywhere */
 void get_queue_stats(struct port *p, packet_dir_t dir, queue_t qid, 
 		struct packet_stats *stats)
 {
