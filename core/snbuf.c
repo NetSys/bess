@@ -35,11 +35,12 @@ static void init_mempool_socket(int sid)
 			  RTE_PKTMBUF_HEADROOM + MAX_PFRAME,
 			NUM_MEMPOOL_CACHE, 
 			sizeof(struct rte_pktmbuf_pool_private),
-			rte_pktmbuf_pool_init, (void*)MAX_PFRAME, rte_pktmbuf_init, NULL,
-			sid, 0);
+			rte_pktmbuf_pool_init, (void*)MAX_PFRAME, 
+			rte_pktmbuf_init, NULL, sid, 0);
 	if (!pframe_pool[sid]) {
-		printf("%s\n",rte_strerror(rte_errno));
-		assert(0);
+		fprintf(stderr, "pframe allocation failure on socket %d: %s\n",
+				sid, rte_strerror(rte_errno));
+		exit(EXIT_FAILURE);
 	}
 
 	sprintf(name, "lframe%d", sid);
@@ -49,12 +50,13 @@ static void init_mempool_socket(int sid)
 			  RTE_PKTMBUF_HEADROOM + MAX_LFRAME,
 			NUM_MEMPOOL_CACHE, 
 			sizeof(struct rte_pktmbuf_pool_private),
-			rte_pktmbuf_pool_init, (void*)MAX_LFRAME, rte_pktmbuf_init, NULL,
-			sid, 0);
+			rte_pktmbuf_pool_init, (void*)MAX_LFRAME, 
+			rte_pktmbuf_init, NULL, sid, 0);
 
 	if (!lframe_pool[sid]) {
-		printf("%s\n",rte_strerror(rte_errno));
-		assert(0);
+		fprintf(stderr, "lframe allocation failure on socket %d: %s\n",
+				sid, rte_strerror(rte_errno));
+		exit(EXIT_FAILURE);
 	}
 }
 
