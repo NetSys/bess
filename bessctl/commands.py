@@ -325,6 +325,7 @@ def daemon_connect(cli, host, port):
 def daemon_disconnect(cli):
     cli.softnic.disconnect()
 
+# return False iff canceled.
 def warn(cli, msg, func):
     if cli.interactive:
         if cli.rl:
@@ -336,9 +337,12 @@ def warn(cli, msg, func):
             if resp.strip() == 'yes':
                 func()
             else:
-                cli.fout.write('Cancelled.\n')
+                cli.fout.write('Canceled.\n')
+                return False
+
         except KeyboardInterrupt:
-            cli.fout.write('Cancelled.\n')
+            cli.fout.write('Canceled.\n')
+            return False
         finally:
             if cli.rl:
                 cli.rl.set_completer(cli.complete)
@@ -349,6 +353,8 @@ def warn(cli, msg, func):
 
     else:
         func()
+
+    return True
 
 @cmd('daemon start', 'Start BESS daemon in the local machine')
 def daemon_start(cli):
@@ -384,6 +390,10 @@ def daemon_start(cli):
     else:
         do_start()
 
+def is_pipeline_empty(cli):
+    workers = cli.softnic.list_workers()
+    return len(workers) == 0
+
 @cmd('daemon reset', 'Remove all ports and modules in the pipeline')
 def daemon_reset(cli):
     def do_reset():
@@ -393,7 +403,10 @@ def daemon_reset(cli):
         if cli.interactive:
             cli.fout.write('Done.\n')
 
-    warn(cli, 'The entire pipeline will be cleared.', do_reset)
+    if is_pipeline_empty(cli):
+        do_reset()
+    else:
+        warn(cli, 'The entire pipeline will be cleared.', do_reset)
 
 @cmd('daemon stop', 'Stop BESS daemon')
 def daemon_stop(cli):
@@ -403,7 +416,10 @@ def daemon_stop(cli):
         if cli.interactive:
             cli.fout.write('Done.\n')
 
-    warn(cli, 'BESS daemon will be killed.', do_stop)
+    if is_pipeline_empty(cli):
+        do_stop()
+    else:
+        warn(cli, 'BESS daemon will be killed.', do_stop)
 
 @staticmethod
 def _choose_arg(arg, kwargs):
@@ -424,6 +440,10 @@ def _choose_arg(arg, kwargs):
 
 # NOTE: the name of this function is used below
 def _do_run_file(cli, conf_file):
+    def clear_pipeline():
+        cli.softnic.pause_all()
+        cli.softnic.reset_all()
+
     if not os.path.exists(conf_file):
         cli.err('Cannot open file "%s"' % conf_file)
         return
@@ -454,7 +474,13 @@ def _do_run_file(cli, conf_file):
 
     code = compile(xformed, conf_file, 'exec')
 
-    cli.softnic.pause_all()
+    if is_pipeline_empty(cli):
+        cli.softnic.pause_all()
+    else:
+        ret = warn(cli, 'The current pipeline will be reset.', clear_pipeline)
+        if ret is False:
+            return
+
     try:
         exec(code, new_globals)
         if cli.interactive:
