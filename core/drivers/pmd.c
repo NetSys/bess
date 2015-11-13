@@ -180,7 +180,9 @@ static struct snobj *pmd_init_port(struct port *p, struct snobj *conf)
 	struct rte_eth_conf eth_conf;
 	struct rte_eth_rxconf eth_rxconf;
 	struct rte_eth_txconf eth_txconf;
+#if 0
 	struct rte_eth_fc_conf fc_conf;
+#endif
 
 	int num_txq = p->num_queues[PACKET_DIR_OUT];
 	int num_rxq = p->num_queues[PACKET_DIR_INC];
