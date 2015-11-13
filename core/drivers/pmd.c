@@ -37,12 +37,11 @@ static const struct rte_eth_conf default_eth_conf = {
 		.mq_mode = ETH_MQ_TX_NONE,
 	},
 	.rx_adv_conf.rss_conf = {
-		.rss_hf = ETH_RSS_IPV4 |
-			  ETH_RSS_IPV6 |
-			  ETH_RSS_IPV6_EX |
-			  ETH_RSS_IPV6_TCP_EX |
-			  ETH_RSS_IPV6_EX |
-			  ETH_RSS_IPV6_UDP_EX,
+		/* TODO: query rte_eth_dev_info_get() to set this*/
+		.rss_hf = ETH_RSS_IP |
+			  ETH_RSS_UDP |
+			  ETH_RSS_TCP |
+			  ETH_RSS_SCTP,
 		.rss_key = NULL,
 	},
 	.fdir_conf = {
@@ -209,7 +208,7 @@ static struct snobj *pmd_init_port(struct port *p, struct snobj *conf)
 	eth_txconf = dev_info.default_txconf;
 	eth_txconf.txq_flags = ETH_TXQ_FLAGS_NOVLANOFFL |
 			ETH_TXQ_FLAGS_NOMULTSEGS * (1 - SN_TSO_SG) | 
-			ETH_TXQ_FLAGS_NOXSUMS * (1 - SN_HW_RXCSUM);
+			ETH_TXQ_FLAGS_NOXSUMS * (1 - SN_HW_TXCSUM);
 
 	ret = rte_eth_dev_configure(port_id,
 				    num_rxq, num_txq, &eth_conf);
