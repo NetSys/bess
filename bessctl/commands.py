@@ -571,10 +571,18 @@ def delete_connection(cli, module, ogate):
 
 @cmd('show status', 'Show the overall status')
 def show_status(cli):
+    workers = sorted(cli.softnic.list_workers())
     drivers = sorted(cli.softnic.list_drivers())
     mclasses = sorted(cli.softnic.list_mclasses())
     modules = sorted(cli.softnic.list_modules())
     ports = sorted(cli.softnic.list_ports())
+
+    cli.fout.write('  Active worker threads: ')
+    if workers:
+        worker_list = ['%d' % worker['wid'] for worker in workers]
+        cli.fout.write('%s\n' % ', '.join(worker_list))
+    else:
+        cli.fout.write('(none)\n')
 
     cli.fout.write('  Available drivers: ')
     if drivers:
