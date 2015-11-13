@@ -66,7 +66,7 @@ void task_detach(struct task *t)
 	}
 }
 
-void assign_default_tc(struct sched *s, struct task *t)
+void assign_default_tc(int wid, struct task *t)
 {
 	struct tc_params params = {
 		.parent = NULL,
@@ -76,11 +76,12 @@ void assign_default_tc(struct sched *s, struct task *t)
 		.share_resource = RESOURCE_CNT,
 	};
 
+	struct sched *s = workers[wid]->s;
 	struct tc *c_def = tc_init(s, &params);
 
 	task_attach(t, c_def);
 	printf("Task %p has been registered to "
-	       "a default traffic class %p\n", t, c_def);
+	       "a default traffic class on worker:%d\n", t, wid);
 
 	tc_join(c_def);
 }
@@ -118,6 +119,6 @@ void process_orphan_tasks()
 			launch_worker(wid, 0);
 		}
 
-		assign_default_tc(workers[wid]->s, t);
+		assign_default_tc(wid, t);
 	}
 }

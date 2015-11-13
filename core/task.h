@@ -49,7 +49,7 @@ static inline struct task_result task_scheduled(struct task *t)
 	return t->f(t->m, t->arg);
 }
 
-void assign_default_tc(struct sched *s, struct task *t);
+void assign_default_tc(int wid, struct task *t);
 void process_orphan_tasks();
 
 #endif
