@@ -18,6 +18,7 @@
 #include "vhost_driver.h"
 
 #define CHECK_BEFORE_ACCEPT
+#define ENABLE_VHOST_RETRIES
 
 #ifdef ENABLE_VHOST_RETRIES
 #define BURST_RX_WAIT_US 15	/* Defines how long we wait between retries on RX */
@@ -176,8 +177,6 @@ static struct snobj *vhost_init_port(struct port *p, struct snobj *conf)
             return snobj_err(EMFILE, "[vhost_drv]: Couldn't init port %s\n"
                     "Driver register failed",p->name);
 
-        rte_spinlock_init(&vdev->tx_lock);
-        
         /* Add vdev to main ll */
         ll_dev->vdev = vdev;
         add_data_ll_entry(&ll_devlist_listening, ll_dev);
@@ -238,7 +237,7 @@ static int vhost_recv_pkts(struct port *p, queue_t qid, snb_array_t pkts, int cn
         
         /*TODO: Use qid when multi-queue is available in DPDK 2.2 */
         if(vdev->dev != NULL && (vdev->dev->flags & VIRTIO_DEV_RUNNING))
-                count = rte_vhost_dequeue_burst(vdev->dev, VIRTIO_TXQ, get_lframe_pool(),
+                count = rte_vhost_dequeue_burst(vdev->dev, VIRTIO_TXQ, ctx.pframe_pool,
                         (struct rte_mbuf **)pkts, cnt);
         
         return count;
@@ -252,8 +251,6 @@ static int vhost_send_pkts(struct port *p, queue_t qid, snb_array_t pkts, int cn
         /*TODO: Use qid when multi-queue is available in DPDK 2.2 */        
         if(cnt && (vdev->dev != NULL) && (vdev->dev->flags & VIRTIO_DEV_RUNNING)){
                 
-                rte_spinlock_lock(&vdev->tx_lock);
-
 #ifdef ENABLE_VHOST_RETRIES                
                 if (enable_retry && unlikely(cnt > rte_vring_available_entries(vdev->dev, VIRTIO_RXQ))) {
                         int retry;
@@ -266,7 +263,6 @@ static int vhost_send_pkts(struct port *p, queue_t qid, snb_array_t pkts, int cn
 #endif
                 count = rte_vhost_enqueue_burst(vdev->dev, VIRTIO_RXQ,
                         (struct rte_mbuf **)pkts, cnt);
-                rte_spinlock_unlock(&vdev->tx_lock);
 
 		/*Free only the packets that were successfully sent*/
                 snb_free_bulk(pkts, count);

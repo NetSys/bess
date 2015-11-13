@@ -5,7 +5,6 @@
 extern "C" {
 #endif
 #include <rte_ether.h>
-#include <rte_spinlock.h>    
 #include "rte_virtio_net.h"
 
 #define VHOST_DIR_PREFIX "/tmp/sn_vhost_"
@@ -27,8 +26,6 @@ struct vhost_dev {
         char name[4096];
 	/**< Pointer to device created by vhost lib. */
 	struct virtio_net      *dev;
-	/**< Spinlock to do TX until multi-q is implemented. */
-        rte_spinlock_t tx_lock;
         /**< Device MAC address (Obtained on first TX packet). */
 	struct ether_addr mac_address;
 	/**< Data core that the device is added to. */
