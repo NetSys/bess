@@ -221,7 +221,11 @@ static struct snobj *pmd_init_port(struct port *p, struct snobj *conf)
 	rte_eth_promiscuous_enable(port_id);
 
 	for (i = 0; i < num_rxq; i++) {
-		int sid = 0;		/* XXX */
+		int sid = rte_eth_dev_socket_id(port_id);
+
+		/* if socket_id is invalid, set to 0 */
+		if (sid < 0 || sid > RTE_MAX_NUMA_NODES)
+			sid = 0;
 
 		ret = rte_eth_rx_queue_setup(port_id, i, 
 					     p->queue_size[PACKET_DIR_INC],
