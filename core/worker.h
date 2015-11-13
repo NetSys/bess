@@ -19,10 +19,9 @@
  */
 
 typedef volatile enum {
-	WORKER_INACTIVE = 0,
-	WORKER_RUNNING,
-	WORKER_PAUSING,		/* transient state */
+	WORKER_PAUSING = 0,	/* transient state for blocking or quitting */
 	WORKER_PAUSED,
+	WORKER_RUNNING,
 } worker_status_t;
 
 struct worker_context {
@@ -57,6 +56,7 @@ int is_worker_core(int cpu);
 
 void pause_all_workers();
 void resume_all_workers();
+void destroy_all_workers();
 
 int is_any_worker_running();
 
@@ -65,7 +65,12 @@ void launch_worker(int wid, int core);
 
 static inline int is_worker_active(int wid)
 {
-	return (workers[wid] && workers[wid]->status != WORKER_INACTIVE);
+	return (workers[wid] != NULL);
+}
+
+static inline int is_worker_running(int wid)
+{
+	return (workers[wid] && workers[wid]->status == WORKER_RUNNING);
 }
 
 /* ------------------------------------------------------------------------
@@ -75,6 +80,7 @@ static inline int is_pause_requested() {
 	return (ctx.status == WORKER_PAUSING);
 }
 
-void block_worker(void);	/* block myself */
+/* Block myself. Return nonzero if the worker needs to die */
+int block_worker(void);	
 
 #endif

@@ -67,20 +67,21 @@ static void pause_worker(int wid)
 
 void pause_all_workers() 
 {
-	int i;
-
-	for (i = 0; i < MAX_WORKERS; i++)
-		pause_worker(i);
+	for (int wid = 0; wid < MAX_WORKERS; wid++)
+		pause_worker(wid);
 }
+
+#define SIGNAL_UNBLOCK	1
+#define SIGNAL_QUIT	2
 
 static void resume_worker(int wid)
 {
-	if (workers[wid]->status == WORKER_PAUSED) {
-		uint64_t t = 1;
+	if (workers[wid] && workers[wid]->status == WORKER_PAUSED) {
 		int ret;
 
-		ret = write(workers[wid]->fd_event, &t, sizeof(t));
-		assert(ret == sizeof(t));
+		ret = write(workers[wid]->fd_event, &(uint64_t){SIGNAL_UNBLOCK}, 
+				sizeof(uint64_t));
+		assert(ret == sizeof(uint64_t));
 
 		while (workers[wid]->status == WORKER_PAUSED)
 			; 	/* spin */
@@ -91,10 +92,32 @@ void resume_all_workers()
 {
 	process_orphan_tasks();
 
-	for (int wid = 0; wid < MAX_WORKERS; wid++) {
-		if (is_worker_active(wid))
-			resume_worker(wid);
+	for (int wid = 0; wid < MAX_WORKERS; wid++)
+		resume_worker(wid);
+}
+
+static void destroy_worker(int wid)
+{
+	pause_worker(wid);
+
+	if (workers[wid] && workers[wid]->status == WORKER_PAUSED) {
+		int ret;
+
+		ret = write(workers[wid]->fd_event, &(uint64_t){SIGNAL_QUIT}, 
+				sizeof(uint64_t));
+		assert(ret == sizeof(uint64_t));
+
+		while (workers[wid])
+			; 	/* spin */
 	}
+
+	rte_eal_wait_lcore(wid);
+}
+
+void destroy_all_workers()
+{
+	for (int wid = 0; wid < MAX_WORKERS; wid++)
+		destroy_worker(wid);
 }
 
 int is_any_worker_running()
@@ -109,15 +132,24 @@ int is_any_worker_running()
 	return 0;
 }
 
-void block_worker()
+int block_worker()
 {
 	uint64_t t;
 	int ret;
 
 	ctx.status = WORKER_PAUSED;
+
 	ret = read(ctx.fd_event, &t, sizeof(t));
-	ctx.status = WORKER_RUNNING;
 	assert(ret == sizeof(t));
+
+	if (t == SIGNAL_UNBLOCK)
+		ctx.status = WORKER_RUNNING;
+	else if (t == SIGNAL_QUIT)
+		return 1;
+	else
+		assert(0);
+
+	return 0;
 }
 
 /* arg is the core ID it should run on */
@@ -125,14 +157,16 @@ static int run_worker(void *arg)
 {
 	cpu_set_t set;
 	int core;
-	
-	assert(ctx.status == WORKER_INACTIVE);
 
 	core = (int)(int64_t)arg;
+printf("hello? %d\n", core);
 
 	CPU_ZERO(&set);
 	CPU_SET(core, &set);
 	rte_thread_set_affinity(&set);
+
+	/* just in case */
+	memset(&ctx, 0, sizeof(ctx));
 
 	/* for workers, wid == rte_lcore_id() */
 	ctx.wid = rte_lcore_id();
@@ -165,18 +199,26 @@ static int run_worker(void *arg)
 	printf("Worker %d(%p) is running on core %d (socket %d)\n", 
 			ctx.wid, &ctx, ctx.core, ctx.socket);
 
+	CPU_ZERO(&set);
 	sched_loop(ctx.s);
 
-	ctx.status = WORKER_INACTIVE;
-	workers[ctx.wid] = NULL;
+	printf("Worker %d(%p) is quitting... (core %d, socket %d)\n", 
+			ctx.wid, &ctx, ctx.core, ctx.socket);
+
+	sched_free(ctx.s);
+
 	STORE_BARRIER();
+	workers[ctx.wid] = NULL;
 
 	return 0;
 }
 
 void launch_worker(int wid, int core)
 {
-	rte_eal_remote_launch(run_worker, (void *)(int64_t)core, wid);
+	int ret;
+
+	ret = rte_eal_remote_launch(run_worker, (void *)(int64_t)core, wid);
+	assert(ret == 0);
 
 	INST_BARRIER();
 
