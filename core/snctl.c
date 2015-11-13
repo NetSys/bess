@@ -525,7 +525,7 @@ static struct snobj *handle_attach_task(struct snobj *q)
 	if (!is_worker_active(wid))
 		return snobj_err(EINVAL, "Worker %d does not exist", wid);
 
-	assign_default_tc(workers[wid]->s, t);
+	assign_default_tc(wid, t);
 
 	return NULL;
 }

@@ -286,6 +286,8 @@ int acquire_queues(struct port *p, const struct module *m, packet_dir_t dir,
 		for (qid = 0; qid < p->num_queues[dir]; qid++) {
 			const struct module *user;
 
+			user = p->users[dir][qid];
+
 			/* the queue is already being used by someone else? */
 			if (user && user != m)
 				return -EBUSY;
