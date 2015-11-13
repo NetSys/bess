@@ -3,6 +3,7 @@ num_cores = int($SN_CORES!'1')
 mq_mode = int($SN_MQ!'0')
 fwd_mode = $SN_FWD!'pair'
 start_core = int($SN_START_CORE!'0')
+q_size = int($SN_QSIZE!'0')
 
 # parameter sanity check
 assert(num_cores in [1, 2, 4])
@@ -14,12 +15,19 @@ if mq_mode:
 else:
     num_q = 1
 
+kwargs = {'num_inc_q': num_q,
+          'num_out_q': num_q}
+
+if q_size:
+    kwargs['size_inc_q'] = q_size
+    kwargs['size_out_q'] = q_size
+
 for i in range(num_cores):
     softnic.add_worker(i, start_core + i)
 
 ports = []
 for i in range(num_ports):
-    ports.append(Port(driver='PMD', port_id=i, num_inc_q=num_q, num_out_q=num_q))
+    ports.append(Port(driver='PMD', port_id=i, **kwargs))
 
 next_wid = 0
 
