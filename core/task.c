@@ -80,10 +80,10 @@ void assign_default_tc(int wid, struct task *t)
 	struct tc *c_def = tc_init(s, &params);
 
 	task_attach(t, c_def);
-	printf("Task %p has been registered to "
-	       "a default traffic class on worker:%d\n", t, wid);
-
 	tc_join(c_def);
+
+	printf("Task %p has been registered to "
+	       "a default TC %u on worker:%d\n", t, c_def->id, wid);
 }
 
 static int get_next_wid(int *wid)

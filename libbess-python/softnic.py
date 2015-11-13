@@ -126,7 +126,6 @@ class SoftNIC(object):
     def reset_all(self):
         return self._request_softnic('reset_all')
 
-
     def pause_all(self):
         return self._request_softnic('pause_all')
 
@@ -197,6 +196,9 @@ class SoftNIC(object):
     def disable_tcpdump(self, m, gate = 0):
         args = {'name': m, 'gate': gate}
         return self._request_softnic('disable_tcpdump', args)
+
+    def list_workers(self):
+        return self._request_softnic('list_workers')
 
     def add_worker(self, wid, core):
         args = {'wid': wid, 'core': core}

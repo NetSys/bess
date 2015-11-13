@@ -27,6 +27,7 @@ struct handler_map {
 
 static struct snobj *handle_reset_modules(struct snobj *);
 static struct snobj *handle_reset_ports(struct snobj *);
+static struct snobj *handle_reset_workers(struct snobj *);
 
 static struct snobj *handle_reset_all(struct snobj *q)
 {
@@ -35,10 +36,16 @@ static struct snobj *handle_reset_all(struct snobj *q)
 	printf("*** reset_all requested ***\n");
 
 	r = handle_reset_modules(NULL);
-	assert(r == NULL);
+	if (r)
+		return r;
 
 	r = handle_reset_ports(NULL);
-	assert(r == NULL);
+	if (r)
+		return r;
+
+	r = handle_reset_workers(NULL);
+	if (r)
+		return r;
 
 	return NULL;
 }
@@ -55,6 +62,40 @@ static struct snobj *handle_resume_all(struct snobj *q)
 	resume_all_workers();
 	printf("*** Resumed ***\n");
 	return NULL;
+}
+
+static struct snobj *handle_reset_workers(struct snobj *q)
+{
+	destroy_all_workers();
+	printf("*** All workers have been destroyed ***\n");
+	return NULL;
+}
+
+static struct snobj *handle_list_workers(struct snobj *q)
+{
+	struct snobj *r;
+
+	r = snobj_list();
+
+	for (int wid = 0; wid < MAX_WORKERS; wid++) {
+		struct snobj *worker;
+
+		if (!is_worker_active(wid))
+			continue;
+
+		worker = snobj_map();
+		snobj_map_set(worker, "wid", snobj_int(wid));
+		snobj_map_set(worker, "running", 
+				snobj_int(is_worker_running(wid)));
+		snobj_map_set(worker, "core",
+				snobj_int(workers[wid]->core));
+		snobj_map_set(worker, "num_tcs",
+				snobj_int(workers[wid]->s->num_classes));
+
+		snobj_list_add(r, worker);
+	}
+
+	return r;
 }
 
 static struct snobj *handle_add_worker(struct snobj *q)
@@ -615,8 +656,9 @@ static struct handler_map sn_handlers[] = {
 	{ "pause_all", 		0, handle_pause_all },
 	{ "resume_all", 	0, handle_resume_all },
 
-	{ "list_workers",	0, handle_not_implemented },
-	{ "add_worker",		1, handle_add_worker },
+	{ "reset_workers",	1, handle_reset_workers },
+	{ "list_workers",	0, handle_list_workers },
+	{ "add_worker",		0, handle_add_worker },
 	{ "delete_worker",	1, handle_not_implemented },
 
 	{ "list_drivers",	0, handle_list_drivers },

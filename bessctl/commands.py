@@ -115,7 +115,12 @@ def get_var_attrs(cli, var_token, partial_word):
     var_candidates = []
 
     try:
-        if var_token == 'DRIVER':
+        if var_token == 'WORKER_ID...':
+            var_type = 'wid+'
+            var_desc = 'one or more worker IDs'
+            var_candidates = [m['wid'] for m in cli.softnic.list_workers()]
+
+        elif var_token == 'DRIVER':
             var_type = 'name'
             var_desc = 'name of a port driver'
             var_candidates = cli.softnic.list_drivers()
@@ -216,7 +221,7 @@ def split_var(cli, var_type, line):
             head = line[:pos]
             tail = line[pos:]
 
-    elif var_type in ['name+', 'map', 'pyobj', 'opts']:
+    elif var_type in ['wid+', 'name+', 'map', 'pyobj', 'opts']:
         head = line
         tail = ''
 
@@ -237,7 +242,16 @@ def bind_var(cli, var_type, line):
     # default behavior
     val = head
 
-    if var_type == 'name':
+    if var_type == 'wid+':
+        val = []
+        for wid_str in head.split():
+            if wid_str.isdigit():
+                val.append(int(wid_str))
+            else:
+                raise cli.BindError('"wid" must be a positive number')
+        val = sorted(list(set(val)))
+
+    elif var_type == 'name':
         if re.match(r'^[_a-zA-Z][\w]*$', val) is None:
             raise cli.BindError('"name" must be [_a-zA-Z][_a-zA-Z0-9]*')
 
@@ -325,6 +339,7 @@ def daemon_connect(cli, host, port):
 def daemon_disconnect(cli):
     cli.softnic.disconnect()
 
+# return False iff canceled.
 def warn(cli, msg, func):
     if cli.interactive:
         if cli.rl:
@@ -336,9 +351,12 @@ def warn(cli, msg, func):
             if resp.strip() == 'yes':
                 func()
             else:
-                cli.fout.write('Cancelled.\n')
+                cli.fout.write('Canceled.\n')
+                return False
+
         except KeyboardInterrupt:
-            cli.fout.write('Cancelled.\n')
+            cli.fout.write('Canceled.\n')
+            return False
         finally:
             if cli.rl:
                 cli.rl.set_completer(cli.complete)
@@ -349,6 +367,8 @@ def warn(cli, msg, func):
 
     else:
         func()
+
+    return True
 
 @cmd('daemon start', 'Start BESS daemon in the local machine')
 def daemon_start(cli):
@@ -384,6 +404,10 @@ def daemon_start(cli):
     else:
         do_start()
 
+def is_pipeline_empty(cli):
+    workers = cli.softnic.list_workers()
+    return len(workers) == 0
+
 @cmd('daemon reset', 'Remove all ports and modules in the pipeline')
 def daemon_reset(cli):
     def do_reset():
@@ -393,7 +417,10 @@ def daemon_reset(cli):
         if cli.interactive:
             cli.fout.write('Done.\n')
 
-    warn(cli, 'The entire pipeline will be cleared.', do_reset)
+    if is_pipeline_empty(cli):
+        do_reset()
+    else:
+        warn(cli, 'The entire pipeline will be cleared.', do_reset)
 
 @cmd('daemon stop', 'Stop BESS daemon')
 def daemon_stop(cli):
@@ -403,7 +430,10 @@ def daemon_stop(cli):
         if cli.interactive:
             cli.fout.write('Done.\n')
 
-    warn(cli, 'BESS daemon will be killed.', do_stop)
+    if is_pipeline_empty(cli):
+        do_stop()
+    else:
+        warn(cli, 'BESS daemon will be killed.', do_stop)
 
 @staticmethod
 def _choose_arg(arg, kwargs):
@@ -424,6 +454,10 @@ def _choose_arg(arg, kwargs):
 
 # NOTE: the name of this function is used below
 def _do_run_file(cli, conf_file):
+    def clear_pipeline():
+        cli.softnic.pause_all()
+        cli.softnic.reset_all()
+
     if not os.path.exists(conf_file):
         cli.err('Cannot open file "%s"' % conf_file)
         return
@@ -454,7 +488,13 @@ def _do_run_file(cli, conf_file):
 
     code = compile(xformed, conf_file, 'exec')
 
-    cli.softnic.pause_all()
+    if is_pipeline_empty(cli):
+        cli.softnic.pause_all()
+    else:
+        ret = warn(cli, 'The current pipeline will be reset.', clear_pipeline)
+        if ret is False:
+            return
+
     try:
         exec(code, new_globals)
         if cli.interactive:
@@ -569,12 +609,61 @@ def delete_connection(cli, module, ogate):
     finally:
         cli.softnic.resume_all()
 
+def _show_worker_header(cli):
+    cli.fout.write('  %10s%10s%10s%10s\n' % \
+            ('Worker ID', 
+             'Status', 
+             'CPU core', 
+             '# of TCs'))
+
+def _show_worker(cli, w):
+    cli.fout.write('  %10d%10s%10d%10d\n' % \
+            (w['wid'], 
+             'RUNNING' if w['running'] else 'PAUSED', 
+             w['core'], 
+             w['num_tcs']))
+
+@cmd('show worker', 'Show the status of all worker threads')
+def show_worker_all(cli):
+    workers = cli.softnic.list_workers()
+
+    if not workers:
+        raise cli.CommandError('There is no active worker thread to show.')
+       
+    _show_worker_header(cli)
+    for worker in workers:
+        _show_worker(cli, worker)
+
+@cmd('show worker WORKER_ID...', 'Show the status of specified worker threads')
+def show_worker_list(cli, worker_ids):
+    workers = cli.softnic.list_workers()
+
+    for wid in worker_ids:
+        for worker in workers:
+            if worker['wid'] == wid:
+                break;
+        else:
+            raise cli.CommandError('Worker ID %d does not exist' % wid)
+
+    _show_worker_header(cli)
+    for worker in workers:
+        if worker['wid'] in worker_ids:
+            _show_worker(cli, worker)
+
 @cmd('show status', 'Show the overall status')
 def show_status(cli):
+    workers = sorted(cli.softnic.list_workers())
     drivers = sorted(cli.softnic.list_drivers())
     mclasses = sorted(cli.softnic.list_mclasses())
     modules = sorted(cli.softnic.list_modules())
     ports = sorted(cli.softnic.list_ports())
+
+    cli.fout.write('  Active worker threads: ')
+    if workers:
+        worker_list = ['%d' % worker['wid'] for worker in workers]
+        cli.fout.write('%s\n' % ', '.join(worker_list))
+    else:
+        cli.fout.write('(none)\n')
 
     cli.fout.write('  Available drivers: ')
     if drivers:
@@ -743,16 +832,14 @@ def show_module_all(cli):
 
     if not modules:
         raise cli.CommandError('There is no active module to show.')
-    else:
-        for module in modules:
-            _show_module(cli, module)
 
+    for module in modules:
+        _show_module(cli, module)
 
 @cmd('show module MODULE...', 'Show the status of specified modules')
 def show_module_list(cli, module_names):
     modules = cli.softnic.list_modules()
 
-    module_names = list(set(module_names))
     for module_name in module_names:
         for module in modules:
             if module_name == module['name']:

@@ -60,6 +60,7 @@ pgroup_add:
 	c->ss.my_pgroup = g;
 }
 
+/* TODO: separate tc creation and association with scheduler */
 struct tc *tc_init(struct sched *s, const struct tc_params *params)
 {
 	struct tc *c;
@@ -202,6 +203,7 @@ struct sched *sched_init()
 
 	s->root.refcnt = 1;
 	s->root.id = 0;
+	cdlist_head_init(&s->root.tasks);	/* this will be always empty */
 	cdlist_head_init(&s->root.pgroups);
 
 	s->next_tc_id = 1;
@@ -221,18 +223,22 @@ void sched_free(struct sched *s)
 	struct tc *next;
 
 	cdlist_for_each_entry_safe(c, next, &s->tcs_all, sched_all) {
-		if (c->state.queued)
+		if (c->state.queued) {
+			c->state.queued = 0;
 			tc_dec_refcnt(c);
+		}
 
-		if (c->state.throttled)
+		if (c->state.throttled) {
+			c->state.throttled = 0;
 			tc_dec_refcnt(c);
+		}
 	}
 
 	heap_close(&s->pq);
-	tc_dec_refcnt(&s->root);
 
 	/* the actual memory block of s will be freed by the root TC
 	 * since it shares the address with this scheduler */
+	tc_dec_refcnt(&s->root);
 }
 
 static void resume_throttled(struct sched *s, uint64_t tsc)
@@ -410,8 +416,6 @@ static void sched_done(struct sched *s, struct tc *c,
 		resource_arr_t usage, int reschedule, uint64_t tsc)
 {
 	accumulate(s->stats.usage, usage);
-//	for (int i = 0; i < NUM_RESOURCES; i++)
-//		s->stats.usage[i] += usage[i];
 
 	assert(s->current);
 	s->current = NULL;
@@ -469,6 +473,8 @@ static char *print_tc_stats_detail(struct sched *s, char *p, int max_cnt)
 
 	struct tc *c;
 
+	int num_printed;
+
 	ct_assert(sizeof(struct tc_stats) >= sizeof(fields));
 
 	p += sprintf(p, "\n");
@@ -477,14 +483,22 @@ static char *print_tc_stats_detail(struct sched *s, char *p, int max_cnt)
 		return p;
 
 	p += sprintf(p, "%-10s ", "TC");
-	cdlist_for_each_entry(c, &s->tcs_all, sched_all)
-		p += sprintf(p, "%12u", c->id);
+	num_printed = 0;
+
+	cdlist_for_each_entry(c, &s->tcs_all, sched_all) {
+		if (num_printed < max_cnt) {
+			p += sprintf(p, "%12u", c->id);
+		} else {
+			p += sprintf(p, " ...");
+			break;
+		}
+		num_printed++;
+	}
 	p += sprintf(p, "\n");
 
 	for (int i = 0; i < num_fields; i++) {
-		int num_printed = 0;
-
 		p += sprintf(p, "%-10s ", fields[i]);
+		num_printed = 0;
 
 		cdlist_for_each_entry(c, &s->tcs_all, sched_all) {
 			uint64_t value;
@@ -506,9 +520,9 @@ static char *print_tc_stats_detail(struct sched *s, char *p, int max_cnt)
 			}
 			num_printed++;
 		}
-
 		p += sprintf(p, "\n");
 	}
+
 	p += sprintf(p, "\n");
 
 	return p;
@@ -638,7 +652,8 @@ void sched_loop(struct sched *s)
 		 * to mitigate expensive operations */
 		if ((round & 0xff) == 0) {
 			if (unlikely(is_pause_requested())) {
-				block_worker();
+				if (unlikely(block_worker()))
+					break;
 				last_stats = s->stats;
 				last_print_tsc = checkpoint = now = rdtsc();
 			} else if (unlikely(global_opts.print_tc_stats &&
