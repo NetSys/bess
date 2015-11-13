@@ -38,6 +38,9 @@ struct port {
 
 	struct packet_stats queue_stats[PACKET_DIRS][MAX_QUEUES_PER_DIR];
 	
+	/* for stats that do NOT belong to any queues */
+	port_stats_t port_stats;	
+
 	void *priv[0];	
 };
 

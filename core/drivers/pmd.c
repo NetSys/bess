@@ -180,6 +180,7 @@ static struct snobj *pmd_init_port(struct port *p, struct snobj *conf)
 	struct rte_eth_conf eth_conf;
 	struct rte_eth_rxconf eth_rxconf;
 	struct rte_eth_txconf eth_txconf;
+	struct rte_eth_fc_conf fc_conf;
 
 	int num_txq = p->num_queues[PACKET_DIR_OUT];
 	int num_rxq = p->num_queues[PACKET_DIR_INC];
@@ -240,6 +241,18 @@ static struct snobj *pmd_init_port(struct port *p, struct snobj *conf)
 					"rte_eth_tx_queue_setup() failed");
 	}
 
+#if 0
+	ret = rte_eth_dev_flow_ctrl_get(port_id, &fc_conf);
+	if (ret != 0) 
+		return snobj_err(-ret, "rte_eth_dev_flow_ctrl_get() failed");
+
+	printf("port %d high %u low %u ptime %hu send_xon %hu mode %u cfwd %hhu autoneg %hhu\n",
+			port_id,
+			fc_conf.high_water, fc_conf.low_water,
+			fc_conf.pause_time, fc_conf.send_xon, fc_conf.mode,
+			fc_conf.mac_ctrl_frame_fwd, fc_conf.autoneg);
+#endif
+
 	ret = rte_eth_dev_start(port_id);
 	if (ret != 0) 
 		return snobj_err(-ret, "rte_eth_dev_start() failed");
@@ -278,6 +291,25 @@ static void pmd_collect_stats(struct port *p, int reset)
 		return;
 	}
 
+#if 0
+	printf("PMD port %d: "
+	       "ipackets %lu opackets %lu ibytes %lu obytes %lu "
+	       "imissed %lu ibadcrc %lu ibadlen %lu ierrors %lu oerrors %lu "
+	       "imcasts %lu rx_nombuf %lu fdirmatch %lu fdirmiss %lu "
+	       "tx_pause_xon %lu rx_pause_xon %lu "
+	       "tx_pause_xoff %lu rx_pause_xoff %lu\n",
+			priv->dpdk_port_id,
+			stats.ipackets, stats.opackets, 
+			stats.ibytes, stats.obytes,
+			stats.imissed, stats.ibadcrc, stats.ibadlen, 
+			stats.ierrors, stats.oerrors, stats.imcasts,
+			stats.rx_nombuf, stats.fdirmatch, stats.fdirmiss,
+			stats.tx_pause_xon, stats.rx_pause_xon,
+			stats.tx_pause_xoff, stats.rx_pause_xoff);
+#endif
+
+	p->port_stats[PACKET_DIR_INC].dropped = stats.imissed;
+
 	dir = PACKET_DIR_INC;
 	for (qid = 0; qid < p->num_queues[dir]; qid++) {
 		p->queue_stats[dir][qid].packets = stats.q_ipackets[qid]; 
@@ -304,8 +336,12 @@ static int pmd_send_pkts(struct port *p, queue_t qid, snb_array_t pkts, int cnt)
 {
 	struct pmd_priv *priv = get_port_priv(p);
 
-	return rte_eth_tx_burst(priv->dpdk_port_id, qid, 
+	int sent = rte_eth_tx_burst(priv->dpdk_port_id, qid, 
 			(struct rte_mbuf **)pkts, cnt);
+
+	p->port_stats[PACKET_DIR_OUT].dropped += (cnt - sent);
+
+	return sent;
 }
 
 static const struct driver pmd = {
