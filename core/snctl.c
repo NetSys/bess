@@ -87,6 +87,8 @@ static struct snobj *handle_list_workers(struct snobj *q)
 		snobj_map_set(worker, "wid", snobj_int(wid));
 		snobj_map_set(worker, "running", 
 				snobj_int(is_worker_running(wid)));
+		snobj_map_set(worker, "core",
+				snobj_int(workers[wid]->core));
 		snobj_map_set(worker, "num_tcs",
 				snobj_int(workers[wid]->s->num_classes));
 

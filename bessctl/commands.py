@@ -115,7 +115,12 @@ def get_var_attrs(cli, var_token, partial_word):
     var_candidates = []
 
     try:
-        if var_token == 'DRIVER':
+        if var_token == 'WORKER_ID...':
+            var_type = 'wid+'
+            var_desc = 'one or more worker IDs'
+            var_candidates = [m['wid'] for m in cli.softnic.list_workers()]
+
+        elif var_token == 'DRIVER':
             var_type = 'name'
             var_desc = 'name of a port driver'
             var_candidates = cli.softnic.list_drivers()
@@ -216,7 +221,7 @@ def split_var(cli, var_type, line):
             head = line[:pos]
             tail = line[pos:]
 
-    elif var_type in ['name+', 'map', 'pyobj', 'opts']:
+    elif var_type in ['wid+', 'name+', 'map', 'pyobj', 'opts']:
         head = line
         tail = ''
 
@@ -237,7 +242,16 @@ def bind_var(cli, var_type, line):
     # default behavior
     val = head
 
-    if var_type == 'name':
+    if var_type == 'wid+':
+        val = []
+        for wid_str in head.split():
+            if wid_str.isdigit():
+                val.append(int(wid_str))
+            else:
+                raise cli.BindError('"wid" must be a positive number')
+        val = sorted(list(set(val)))
+
+    elif var_type == 'name':
         if re.match(r'^[_a-zA-Z][\w]*$', val) is None:
             raise cli.BindError('"name" must be [_a-zA-Z][_a-zA-Z0-9]*')
 
@@ -595,6 +609,47 @@ def delete_connection(cli, module, ogate):
     finally:
         cli.softnic.resume_all()
 
+def _show_worker_header(cli):
+    cli.fout.write('  %10s%10s%10s%10s\n' % \
+            ('Worker ID', 
+             'Status', 
+             'CPU core', 
+             '# of TCs'))
+
+def _show_worker(cli, w):
+    cli.fout.write('  %10d%10s%10d%10d\n' % \
+            (w['wid'], 
+             'RUNNING' if w['running'] else 'PAUSED', 
+             w['core'], 
+             w['num_tcs']))
+
+@cmd('show worker', 'Show the status of all worker threads')
+def show_worker_all(cli):
+    workers = cli.softnic.list_workers()
+
+    if not workers:
+        raise cli.CommandError('There is no active worker thread to show.')
+       
+    _show_worker_header(cli)
+    for worker in workers:
+        _show_worker(cli, worker)
+
+@cmd('show worker WORKER_ID...', 'Show the status of specified worker threads')
+def show_worker_list(cli, worker_ids):
+    workers = cli.softnic.list_workers()
+
+    for wid in worker_ids:
+        for worker in workers:
+            if worker['wid'] == wid:
+                break;
+        else:
+            raise cli.CommandError('Worker ID %d does not exist' % wid)
+
+    _show_worker_header(cli)
+    for worker in workers:
+        if worker['wid'] in worker_ids:
+            _show_worker(cli, worker)
+
 @cmd('show status', 'Show the overall status')
 def show_status(cli):
     workers = sorted(cli.softnic.list_workers())
@@ -777,16 +832,14 @@ def show_module_all(cli):
 
     if not modules:
         raise cli.CommandError('There is no active module to show.')
-    else:
-        for module in modules:
-            _show_module(cli, module)
 
+    for module in modules:
+        _show_module(cli, module)
 
 @cmd('show module MODULE...', 'Show the status of specified modules')
 def show_module_list(cli, module_names):
     modules = cli.softnic.list_modules()
 
-    module_names = list(set(module_names))
     for module_name in module_names:
         for module in modules:
             if module_name == module['name']:

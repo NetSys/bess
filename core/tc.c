@@ -416,8 +416,6 @@ static void sched_done(struct sched *s, struct tc *c,
 		resource_arr_t usage, int reschedule, uint64_t tsc)
 {
 	accumulate(s->stats.usage, usage);
-//	for (int i = 0; i < NUM_RESOURCES; i++)
-//		s->stats.usage[i] += usage[i];
 
 	assert(s->current);
 	s->current = NULL;
