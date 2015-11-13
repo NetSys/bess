@@ -159,7 +159,6 @@ static int run_worker(void *arg)
 	int core;
 
 	core = (int)(int64_t)arg;
-printf("hello? %d\n", core);
 
 	CPU_ZERO(&set);
 	CPU_SET(core, &set);
