@@ -10,7 +10,7 @@
 #include "snbuf.h"
 
 /* 2^n - 1 is optimal according to the DPDK manual */
-#define NUM_PFRAMES	(16384 - 1)
+#define NUM_PFRAMES	(65536 - 1)
 #define NUM_LFRAMES	(8192 - 1)
 
 #define NUM_SNBUFS	(NUM_PFRAMES + NUM_LFRAMES)
