@@ -7,6 +7,9 @@ class CLI(object):
     class CommandError(Exception):
         pass
 
+    class HandledError(Exception):
+        pass
+
     class InvalidCommandError(Exception):
         pass
 
@@ -384,6 +387,9 @@ class CLI(object):
                     if not self.interactive:
                         self.stop_loop = True
                     raise
+
+            except self.HandledError:
+                pass
 
             except self.InvalidCommandError:
                 pass
