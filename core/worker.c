@@ -109,6 +109,8 @@ static void destroy_worker(int wid)
 
 		while (workers[wid])
 			; 	/* spin */
+
+		num_workers--;
 	}
 
 	rte_eal_wait_lcore(wid);
