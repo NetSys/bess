@@ -39,7 +39,7 @@
 
 #include "sn_stack.h"
 
-#define MODULE_NAME	"softnic"
+#define MODULE_NAME	"bess"
 
 #define log_info(fmt, ...) \
 	printk(KERN_INFO "%s - %s():%d " pr_fmt(fmt), \

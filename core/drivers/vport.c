@@ -225,7 +225,7 @@ static int init_driver(struct driver *driver)
 	
 	next_cpu = 0;
 
-	ret = stat("/dev/softnic", &buf);
+	ret = stat("/dev/bess", &buf);
 	if (ret < 0) {
 		char exec_path[1024];
 		char *exec_dir;
@@ -493,7 +493,7 @@ static struct snobj *init_port(struct port *p, struct snobj *conf)
 	    return snobj_err(EINVAL, "Must specify as many cores as rxqs");
 	}
 
-	priv->fd = open("/dev/softnic", O_RDONLY);
+	priv->fd = open("/dev/bess", O_RDONLY);
 	if (priv->fd == -1)
 		return snobj_err(ENODEV, "the kernel module is not loaded");
 
