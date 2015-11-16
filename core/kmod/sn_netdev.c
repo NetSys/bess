@@ -572,7 +572,7 @@ static int sn_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 
 	/* log_info("txq=%d cpu=%d\n", txq, raw_smp_processor_id()); */
 
-	if (unlikely(skb->len > MAX_LFRAME)) {
+	if (unlikely(skb->len > SNBUF_DATA)) {
 		log_err("too large skb! (%d)\n", skb->len);
 		dev_kfree_skb(skb);
 		return NET_XMIT_DROP;
@@ -660,8 +660,7 @@ extern const struct ethtool_ops sn_ethtool_ops;
 
 static void sn_set_offloads(struct net_device *netdev)
 {
-	netif_set_gso_max_size(netdev, 
-			MAX_LFRAME - sizeof(struct sn_tx_metadata));
+	netif_set_gso_max_size(netdev, SNBUF_DATA);
 
 #if 0
 	netdev->hw_features = NETIF_F_SG |

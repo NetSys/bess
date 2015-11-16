@@ -32,8 +32,9 @@
 #ifndef _SN_COMMON_H_
 #define _SN_COMMON_H_
 
-#define MAX_LFRAME 	65000	/* SoftNIC <-> driver */
-#define MAX_PFRAME	1518	/* SoftNIC <-> physical */
+#define SNBUF_HEADROOM			128
+#define SNBUF_DATA			1536
+#define SNBUF_TAIL_RESERVE		128
 
 #include <linux/if_ether.h>
 
@@ -176,7 +177,7 @@ struct sn_rx_metadata {
  * TX:
  * SoftNIC feeds buffers to the driver via the sn_to_drv llring, in this order:
  *   1. Cookie  2. Address of the buffer (host physical)
- * The buffer must be at least as big as sizeof(sn_tx_metadata) + MAX_LFRAME.
+ * The buffer must be at least as big as sizeof(sn_tx_metadata) + SNBUF_DATA.
  *
  * Then the driver will copy (metedata + packet data) _into_ those buffers
  * as packets are transmitted, and writeback the cookie via the drv_to_sn.

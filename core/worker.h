@@ -40,7 +40,6 @@ struct worker_context {
 	uint64_t current_us;
 
 	struct rte_mempool *pframe_pool;
-	struct rte_mempool *lframe_pool;
 };
 
 extern int num_workers;

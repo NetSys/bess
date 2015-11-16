@@ -14,7 +14,7 @@
 
 /* TODO: Unify vport and vport_native */
 
-#define SLOTS_PER_LLRING	1024
+#define SLOTS_PER_LLRING	256
 
 /* This watermark is to detect congestion and cache bouncing due to
  * head-eating-tail (needs at least 8 slots less then the total ring slots).
@@ -70,7 +70,7 @@ static void refill_tx_bufs(struct llring *r, int cnt)
 		cnt = deficit;
 
 	for (i = 0; i < cnt; i++) {
-		snb = snb_alloc(SNBUF_LFRAME);
+		snb = snb_alloc();
 		if (snb == NULL) {
 			cnt = i;
 			break;

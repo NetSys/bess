@@ -29,12 +29,6 @@ void set_non_worker()
 
 	/* Packet pools should be available to non-worker threads */
 	for (socket = 0; socket < RTE_MAX_NUMA_NODES; socket++) {
-		struct rte_mempool *pool = get_lframe_pool_socket(socket);
-		if (pool)
-			ctx.lframe_pool = pool;
-	}
-
-	for (socket = 0; socket < RTE_MAX_NUMA_NODES; socket++) {
 		struct rte_mempool *pool = get_pframe_pool_socket(socket);
 		if (pool)
 			ctx.pframe_pool = pool;
@@ -181,10 +175,7 @@ static int run_worker(void *arg)
 
 	ctx.current_tsc = rdtsc();
 
-	ctx.lframe_pool = get_lframe_pool();
 	ctx.pframe_pool = get_pframe_pool();
-
-	assert(ctx.lframe_pool);
 	assert(ctx.pframe_pool);
 
 	ctx.status = WORKER_PAUSING;

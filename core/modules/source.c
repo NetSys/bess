@@ -34,7 +34,7 @@ static struct snobj *handle_pkt_size(struct source_priv *priv,
 
 	val = snobj_uint_get(pkt_size);
 
-	if (val == 0 || val > MAX_PFRAME)
+	if (val == 0 || val > SNBUF_DATA)
 		return snobj_err(EINVAL, "Invalid packet size");
 
 	priv->pkt_size = val;
@@ -70,7 +70,7 @@ source_run_task(struct module *m, void *arg)
 
 	uint64_t total_bytes = 0;
 
-	const int cnt = snb_alloc_bulk(SNBUF_PFRAME, batch.pkts, MAX_PKT_BURST, 
+	const int cnt = snb_alloc_bulk(batch.pkts, MAX_PKT_BURST, 
 			priv->pkt_size);
 	batch.cnt = cnt;
 
