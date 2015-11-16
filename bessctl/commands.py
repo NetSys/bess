@@ -29,11 +29,14 @@ class ConfError(Exception):
 
 def __bess_env__(key, default=None):
     try:
-        key = os.environ[key]
+        return os.environ[key]
     except KeyError:
-        key = default
+        if default is None:
+            raise ConfError('Environment variable "%s" must be set.')
 
-    return key
+        print 'Environment variable "%s" is not set. Using default value "%s"' \
+                % (key, default)
+        return default
 
 def __bess_module__(module_names, mclass_name, *args, **kwargs):
     caller_globals = inspect.stack()[1][0].f_globals 
@@ -660,7 +663,7 @@ def show_status(cli):
 
     cli.fout.write('  Active worker threads: ')
     if workers:
-        worker_list = ['%d' % worker['wid'] for worker in workers]
+        worker_list = ['worker%d (cpu %d)' % (worker['wid'], worker['core']) for worker in workers]
         cli.fout.write('%s\n' % ', '.join(worker_list))
     else:
         cli.fout.write('(none)\n')
