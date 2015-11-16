@@ -1,0 +1,21 @@
+import sys
+import time
+
+NUM_PORTS = int($SN_PORTS!'100')
+
+for i in xrange(1, NUM_PORTS + 1):
+    try:
+        vport = Port(driver='VPort', loopback=1)
+    except:
+        print 'FAILURE: %d vports has been initialized' % (i - 1)
+        raise
+
+    sys.stdout.write('.')
+    if i % 50:
+        sys.stdout.flush()
+    else:
+        sys.stdout.write(' %d\n' % i)
+
+    time.sleep(1.0 / i)
+else:
+    print 'SUCCESS: %d vports has been successfully initialized' % NUM_PORTS
