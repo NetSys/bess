@@ -5,10 +5,7 @@
 #include <stdint.h>
 #include <stdio.h>
 
-#include "debug.h"
-
-/* TODO: no hard limit */
-#define MAX_PORTS			128
+#define ct_assert(p)	_Static_assert(p, "Compile-time assertion failure")
 
 /* XXX: add queue.h? */
 typedef uint8_t queue_t;

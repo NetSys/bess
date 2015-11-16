@@ -113,8 +113,6 @@ pcap_recv_pkts(struct port *p, queue_t qid, snb_array_t pkts, int cnt)
 
 	int recv_cnt = 0;
 	struct snbuf *sbuf; 
-	uint16_t buf_size;
-
 
 	while(recv_cnt < cnt) {
 		packet = pcap_next(priv->pcap_handle, &header);
@@ -123,21 +121,21 @@ pcap_recv_pkts(struct port *p, queue_t qid, snb_array_t pkts, int cnt)
 			break;
 		}
 
-		sbuf = snb_alloc(SNBUF_PFRAME);
+		sbuf = snb_alloc();
 		if(!sbuf) {
 			//no sbuf, break;
 			break;
 		}
 
-		/* Now get the space available for data in the mbuf */
-		buf_size = (uint16_t)(rte_pktmbuf_data_room_size(sbuf->mbuf.pool) -
-				RTE_PKTMBUF_HEADROOM);
-
-		if (header.caplen <= buf_size) {
+		if (header.caplen <= SNBUF_DATA) {
 			/* pcap packet will fit in the mbuf, go ahead and copy */
 			rte_memcpy(rte_pktmbuf_append(&sbuf->mbuf, header.caplen), packet,
 					header.caplen);
 		} else {
+			/* FIXME: no support for chained mbuf for now */
+			snb_free(sbuf);
+			break;
+			
 			/* Try read jumbo frame into multi mbufs. */
 			if (unlikely(pcap_rx_jumbo(sbuf->mbuf.pool,
 							&sbuf->mbuf,
@@ -148,7 +146,6 @@ pcap_recv_pkts(struct port *p, queue_t qid, snb_array_t pkts, int cnt)
 				break;
 			}
 		}
-
 
 		pkts[recv_cnt] = sbuf;
 		recv_cnt ++;

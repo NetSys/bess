@@ -19,7 +19,7 @@ BESS runs on top of [DPDK](http://dpdk.org). The installation script will automa
 Launch the BESS daemon as root, then you can control the dataplane with the controller, bessctl:
 ```
 $ sudo bess/bin/bessd
-$ bess/bin/bessctl.py
+$ bess/bin/bessctl
 Type "help" for more information.
 localhost:10514 $ _
 ```

@@ -23,11 +23,6 @@ ct_assert(MAX_SNBUF_BYTES <= RTE_PKTMBUF_HEADROOM);
 
 #define MAX_PKT_BURST			32
 
-typedef enum {
-	SNBUF_PFRAME = 0,
-	SNBUF_LFRAME = 1
-} snbuf_type_t;
-
 /* snbuf and mbuf share the same start address, so that we can avoid conversion.
  * The actual content (SNBUF_SIZE) of snbuf resides right after mbuf (128B), 
  * at the beginning of the buffer headroom (RTE_PKTMBUF_HEADROOM) */
@@ -118,7 +113,6 @@ static inline int snb_is_simple(struct snbuf *snb)
 }
 
 extern struct rte_mbuf pframe_template;
-extern struct rte_mbuf lframe_template;
 
 #if OLD_METADATA
 extern struct snbuf snbuf_template;		/* global template */
@@ -147,14 +141,9 @@ static inline struct snbuf *snb_init(struct rte_mbuf *mbuf)
 }
 #endif
 
-static inline struct snbuf *__snb_alloc(snbuf_type_t type)
+static inline struct snbuf *__snb_alloc()
 {
-	struct rte_mbuf *mbuf;
-
-	mbuf = rte_pktmbuf_alloc(type == SNBUF_PFRAME ? 
-			ctx.pframe_pool : ctx.lframe_pool);
-
-	return (struct snbuf *)mbuf;
+	return (struct snbuf *)rte_pktmbuf_alloc(ctx.pframe_pool);
 }
 
 static inline struct snbuf *__snb_alloc_pool(struct rte_mempool *pool)
@@ -166,11 +155,10 @@ static inline struct snbuf *__snb_alloc_pool(struct rte_mempool *pool)
 	return (struct snbuf *)mbuf;
 }
 
-static inline struct snbuf *snb_alloc(snbuf_type_t type)
+static inline struct snbuf *snb_alloc()
 {
-	struct snbuf *snb;
+	struct snbuf *snb = __snb_alloc();
 
-	snb = __snb_alloc(type);
 #if OLD_METADATA
 	snb_init((struct rte_mbuf *)snb);
 #endif
@@ -186,19 +174,12 @@ static inline void snb_free(struct snbuf *snb)
 #if __AVX__
 #  include "snbuf_avx.h"
 #else
-static inline int snb_alloc_bulk(snbuf_type_t type, 
-		snb_array_t snbs, int cnt, uint16_t len)
+static inline int snb_alloc_bulk(snb_array_t snbs, int cnt, uint16_t len)
 {
 	int ret;
 	int i;
 
-	if (type == SNBUF_PFRAME)
-		ret = rte_mempool_get_bulk(ctx.pframe_pool,
-				(void **)snbs, cnt);
-	else
-		ret = rte_mempool_get_bulk(ctx.lframe_pool,
-				(void **)snbs, cnt);
-
+	ret = rte_mempool_get_bulk(ctx.pframe_pool, (void **)snbs, cnt);
 	if (ret != 0)
 		return 0;
 
@@ -244,12 +225,11 @@ slow_path:
 }
 #endif
 
-static inline struct snbuf *snb_alloc_with_metadata(snbuf_type_t type, 
-		struct snbuf *src)
+static inline struct snbuf *snb_alloc_with_metadata(struct snbuf *src)
 {
 	struct snbuf *dst;
 
-	dst = __snb_alloc(type);
+	dst = __snb_alloc();
 	rte_memcpy(dst->_snbuf_start, src->_snbuf_start, SNBUF_SIZE);
 
 	return dst;
@@ -347,10 +327,7 @@ static inline struct udp_hdr *snb_udptcp(struct snbuf *snb)
 }
 #endif
 
-struct rte_mempool *get_lframe_pool();
 struct rte_mempool *get_pframe_pool();
-
-struct rte_mempool *get_lframe_pool_socket(int socket);
 struct rte_mempool *get_pframe_pool_socket(int socket);
 
 void snb_dump(FILE *file, struct snbuf *pkt);

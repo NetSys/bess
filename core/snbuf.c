@@ -10,19 +10,16 @@
 #include "snbuf.h"
 
 /* 2^n - 1 is optimal according to the DPDK manual */
-#define NUM_PFRAMES	(65536 - 1)
-#define NUM_LFRAMES	(8192 - 1)
-
-#define NUM_SNBUFS	(NUM_PFRAMES + NUM_LFRAMES)
+#define NUM_PFRAMES	(262144 - 1)
 
 #define NUM_MEMPOOL_CACHE	512
 
 struct snbuf snbuf_template __cacheline_aligned;
 struct rte_mbuf pframe_template;
-struct rte_mbuf lframe_template;
 
-static struct rte_mempool *lframe_pool[RTE_MAX_NUMA_NODES];
 static struct rte_mempool *pframe_pool[RTE_MAX_NUMA_NODES];
+
+ct_assert(SNBUF_HEADROOM == RTE_PKTMBUF_HEADROOM);
 
 static void init_mempool_socket(int sid)
 {
@@ -32,29 +29,16 @@ static void init_mempool_socket(int sid)
 	pframe_pool[sid] = rte_mempool_create(name, 
 			NUM_PFRAMES, 
 			sizeof(struct rte_mbuf) + \
-			  RTE_PKTMBUF_HEADROOM + MAX_PFRAME,
+			  SNBUF_HEADROOM + SNBUF_DATA + SNBUF_TAIL_RESERVE,
 			NUM_MEMPOOL_CACHE, 
 			sizeof(struct rte_pktmbuf_pool_private),
-			rte_pktmbuf_pool_init, (void*)MAX_PFRAME, 
-			rte_pktmbuf_init, NULL, sid, 0);
+			rte_pktmbuf_pool_init, 
+			(void *)(SNBUF_HEADROOM + SNBUF_DATA), 
+			rte_pktmbuf_init, NULL, 
+			sid, 0);
+
 	if (!pframe_pool[sid]) {
 		fprintf(stderr, "pframe allocation failure on socket %d: %s\n",
-				sid, rte_strerror(rte_errno));
-		exit(EXIT_FAILURE);
-	}
-
-	sprintf(name, "lframe%d", sid);
-	lframe_pool[sid] = rte_mempool_create(name, 
-			NUM_LFRAMES, 
-			sizeof(struct rte_mbuf) + \
-			  RTE_PKTMBUF_HEADROOM + MAX_LFRAME,
-			NUM_MEMPOOL_CACHE, 
-			sizeof(struct rte_pktmbuf_pool_private),
-			rte_pktmbuf_pool_init, (void*)MAX_LFRAME, 
-			rte_pktmbuf_init, NULL, sid, 0);
-
-	if (!lframe_pool[sid]) {
-		fprintf(stderr, "lframe allocation failure on socket %d: %s\n",
 				sid, rte_strerror(rte_errno));
 		exit(EXIT_FAILURE);
 	}
@@ -80,10 +64,6 @@ static void init_templates(void)
 
 		mbuf = rte_pktmbuf_alloc(pframe_pool[i]);
 		pframe_template = *mbuf;
-		rte_pktmbuf_free(mbuf);
-
-		mbuf = rte_pktmbuf_alloc(lframe_pool[i]);
-		lframe_template = *mbuf;
 		rte_pktmbuf_free(mbuf);
 	}
 }
@@ -114,19 +94,9 @@ void close_mempool(void)
 	/* Do nothing. Surprisingly, there is no destructor for mempools */
 }
 
-struct rte_mempool *get_lframe_pool()
-{
-	return lframe_pool[ctx.socket];
-}
-
 struct rte_mempool *get_pframe_pool()
 {
 	return pframe_pool[ctx.socket];
-}
-
-struct rte_mempool *get_lframe_pool_socket(int socket)
-{
-	return lframe_pool[socket];
 }
 
 struct rte_mempool *get_pframe_pool_socket(int socket)
@@ -161,8 +131,6 @@ void snb_dump(FILE *file, struct snbuf *pkt)
 		for (i = 0; i < RTE_MAX_NUMA_NODES; i++) {
 			if (pframe_pool[i] == mbuf->pool)
 				fprintf(file, "P%d", i);
-			if (lframe_pool[i] == mbuf->pool)
-				fprintf(file, "L%d", i);
 		}
 		fprintf(file, ") ");
 	}
@@ -170,27 +138,4 @@ void snb_dump(FILE *file, struct snbuf *pkt)
 
 	mbuf = (struct rte_mbuf *)pkt;
 	rte_pktmbuf_dump(file, mbuf, snb_total_len(pkt));
-}
-
-void snb_perf_test()
-{
-	uint64_t start = rdtsc();
-
-	struct pkt_batch batch;
-	int i;
-
-	const int millions = 30;
-
-	batch.cnt = MAX_PKT_BURST;
-
-	printf("running packet alloc/dealloc test...\n");
-
-	for (i = 0; i < 1000000 * millions; i++) {
-		snb_alloc_bulk(SNBUF_PFRAME, batch.pkts, batch.cnt, 60);
-		snb_free_bulk(batch.pkts, batch.cnt);
-	}
-
-	printf("%.1f packets/s\n", 
-			(millions * 1000000) * batch.cnt / 
-			((double)(rdtsc() - start) / tsc_hz));
 }
