@@ -59,6 +59,8 @@ void destroy_all_workers();
 
 int is_any_worker_running();
 
+int is_cpu_present(unsigned int core_id);
+
 /* arg (int) is the core id the worker should run on */
 void launch_worker(int wid, int core);	
 

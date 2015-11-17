@@ -119,9 +119,8 @@ static struct snobj *handle_add_worker(struct snobj *q)
 		return snobj_err(EINVAL, "Missing 'core' field");
 
 	core = snobj_uint_get(t);
-	if (core >= rte_lcore_count())
-		return snobj_err(EINVAL, "'core' must be between 0 and %d",
-				rte_lcore_count() - 1);
+	if (!is_cpu_present(core))
+		return snobj_err(EINVAL, "Invalid core %d", core);
 
 	if (is_worker_active(wid))
 		return snobj_err(EEXIST, "worker:%d is already active", wid);

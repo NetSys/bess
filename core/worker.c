@@ -1,10 +1,11 @@
+#include <sched.h>
+#include <unistd.h>
+#include <limits.h>
+#include <sys/eventfd.h>
+
 #include <rte_config.h>
 #include <rte_cycles.h>
 #include <rte_lcore.h>
-
-#include <sched.h>
-#include <unistd.h>
-#include <sys/eventfd.h>
 
 #include "common.h"
 #include "worker.h"
@@ -14,6 +15,23 @@
 int num_workers;
 struct worker_context * volatile workers[MAX_WORKERS];
 __thread struct worker_context ctx;
+
+#define SYS_CPU_DIR "/sys/devices/system/cpu/cpu%u"
+#define CORE_ID_FILE "topology/core_id"
+
+/* Check if a cpu is present by the presence of the cpu information for it */
+int is_cpu_present(unsigned int core_id)
+{
+       char path[PATH_MAX];
+       int len = snprintf(path, sizeof(path), SYS_CPU_DIR
+               "/"CORE_ID_FILE, core_id);
+       if (len <= 0 || (unsigned)len >= sizeof(path))
+               return 0;
+       if (access(path, F_OK) != 0)
+               return 0;
+
+       return 1;
+}
 
 void set_non_worker()
 {
