@@ -169,7 +169,7 @@ struct port *create_port(const char *name,
 	}
 
 	if (name && find_port(name)) {
-		*perr = snobj_err(EEXIST, "Port '%s' already exists");
+		*perr = snobj_err(EEXIST, "Port '%s' already exists", name);
 		goto fail;
 	}
 
