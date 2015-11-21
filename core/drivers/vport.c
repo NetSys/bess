@@ -23,8 +23,8 @@
 
 /* Disable (0) single producer/consumer mode for now.
  * This is slower, but just to be on the safe side. :) */
-#define SINGLE_P		0
-#define SINGLE_C		0
+#define SINGLE_P		1
+#define SINGLE_C		1
 
 struct queue {
 	union {
@@ -604,8 +604,6 @@ static int put_rx_q(struct port *p, queue_t qid,
 	struct queue *rx_queue = &priv->out_qs[qid];
 	void *objs[SLOTS_PER_LLRING * 2];
 
-	uint64_t bytes = 0;
-
 	int ret;
 	int i;
 
@@ -649,8 +647,6 @@ static int put_rx_q(struct port *p, queue_t qid,
 
 		objs[i * 2 + 0] = (void *) pkt;
 		objs[i * 2 + 1] = (void *) snb_dma_addr(pkt) - sizeof(struct sn_rx_metadata);
-
-		bytes += total_len;
 	}
 
 	ret = llring_enqueue_bulk(rx_queue->sn_to_drv, 

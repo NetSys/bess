@@ -550,7 +550,7 @@ def run_conf(cli, conf, env_map):
     conf_file = os.path.join(target_dir, basename)
     _run_file(cli, conf_file, env_map)
 
-@cmd('run file CONF_FILE [ENV_VARS]', 'Run a configuration file')
+@cmd('run file CONF_FILE [ENV_VARS...]', 'Run a configuration file')
 def run_file(cli, conf_file, env_map):
     _run_file(cli, os.path.expanduser(conf_file), env_map)
 
