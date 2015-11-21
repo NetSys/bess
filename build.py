@@ -17,7 +17,7 @@ DPDK_VER = 'dpdk-2.0.0'
 DPDK_DIR = '%s/dpdk' % DEPS_DIR
 DPDK_URL = '%s/%s.tar.gz' % (DPDK_REPO, DPDK_VER)
 DPDK_FILE = '%s/%s.tar.gz' % (DEPS_DIR, DPDK_VER)
-DPDK_CFLAGS = '"-g -Wno-error=all"'
+DPDK_CFLAGS = '"-g -w"'
 
 def download_hook(count, block_size, total_size):
     sys.stdout.write('\x08' + ['-', '\\', '|', '/'][int(time.time() * 3) % 4])
