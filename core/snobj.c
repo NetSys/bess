@@ -467,14 +467,18 @@ struct encode_state {
 static void reserve_more(struct encode_state *s, size_t bytes)
 {
 	char *new_buf;
+	int new_buf_size = s->buf_size;
 
 	if (s->offset + bytes <= s->buf_size)
 		return;
 
-	new_buf = _REALLOC(s->buf, s->buf_size * 2);
+	while (new_buf_size < s->offset + bytes)
+		new_buf_size = new_buf_size * 2;
+
+	new_buf = _REALLOC(s->buf, new_buf_size);
 
 	s->buf = new_buf;
-	s->buf_size *= 2;
+	s->buf_size = new_buf_size;
 }
 
 /* return non-zero if fails */
