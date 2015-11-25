@@ -732,21 +732,16 @@ def _draw_pipeline(cli, last_stats = None):
             gates = cli.softnic.get_module_info(name)['gates']
 
             for gate in gates:
-                edge_attr = ''
-                if last_stats != None:
-                    if 'pkts' in gate:
-                        last_time, last_pkts = last_stats[(name, gate['gate'])]
-                        new_time, new_pkts = gate['timestamp'], gate['pkts']
-                        last_stats[(name, gate['gate'])] = (new_time, new_pkts)
+                if last_stats is not None:
+                    last_time, last_pkts = last_stats[(name, gate['gate'])]
+                    new_time, new_pkts = gate['timestamp'], gate['pkts']
+                    last_stats[(name, gate['gate'])] = (new_time, new_pkts)
 
-                        pps = (new_pkts - last_pkts) / (new_time - last_time)
-                        edge_attr = 'label:%d;' % int(pps)
+                    pkts = int((new_pkts - last_pkts) / (new_time - last_time))
                 else:
-                    if len(gates) > 1:
-                        edge_attr = 'label:%d;' % gate['gate']
+                    pkts = gate['pkts']
 
-                if edge_attr != '':
-                    edge_attr = '{%s}' % edge_attr
+                edge_attr = '{label:%d:%d;}' % (gate['gate'], pkts)
 
                 print >> f.stdin, '[%s] ->%s [%s]' % (
                         node_labels[name],
