@@ -38,6 +38,7 @@ struct queue {
 struct vport_priv {
 	int fd;
 
+	char ifname[IFNAMSIZ];		/* could be different from p->name */
 	void *bar;
 
 	struct queue inc_qs[MAX_QUEUES_PER_DIR];
@@ -162,8 +163,7 @@ static void *alloc_bar(struct port *p, int container_pid, int loopback)
 	conf->bar_size = total_bytes;
 	conf->container_pid = container_pid;
 
-	strncpy(conf->ifname, p->name, IFNAMSIZ);
-	conf->ifname[IFNAMSIZ - 1] = '\0';
+	strcpy(conf->ifname, priv->ifname);
 
 	memcpy(conf->mac_addr, p->mac_addr, ETH_ALEN);
 	
@@ -305,6 +305,8 @@ static struct snobj *docker_container_pid(char *cid, int *container_pid)
 
 static int set_ip_addr_single(struct port *p, char *ip_addr)
 {
+	struct vport_priv *priv = get_port_priv(p);
+
 	FILE *fp;
 
 	char buf[1024];
@@ -313,7 +315,7 @@ static int set_ip_addr_single(struct port *p, char *ip_addr)
 	int exit_code;
 
 	ret = snprintf(buf, sizeof(buf), "ip addr add %s dev %s 2>&1",
-			ip_addr, p->name);
+			ip_addr, priv->ifname);
 	if (ret >= sizeof(buf))
 		return -EINVAL;
 
@@ -435,8 +437,7 @@ wait_child:
 	}
 
 	if (ret < 0)
-		return snobj_err_details(-ret, arg, 
-				"Failed to set IP addresses " \
+		return snobj_err(-ret, "Failed to set IP addresses " \
 				"(incorrect IP address format?)");
 
 	return NULL;
@@ -470,9 +471,17 @@ static struct snobj *init_port(struct port *p, struct snobj *conf)
 	int ret;
 	struct snobj *cpu_list = NULL;
 
-	if (strlen(p->name) >= IFNAMSIZ)
+	const char *ifname;
+
+	ifname = snobj_eval_str(conf, "ifname");
+	if (!ifname)
+		ifname = p->name;
+
+	if (strlen(ifname) >= IFNAMSIZ)
 		return snobj_err(EINVAL, "Linux interface name should be " \
 				"shorter than %d characters", IFNAMSIZ);
+
+	strcpy(priv->ifname, ifname);
 
 	if (snobj_eval_exists(conf, "docker")) {
 		struct snobj *err = docker_container_pid(
