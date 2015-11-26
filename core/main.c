@@ -296,6 +296,8 @@ int main(int argc, char **argv)
 {
 	int signal_fd = -1;
 
+	check_user();
+	
 	parse_args(argc, argv);
 
 	if (opts->foreground)
@@ -303,7 +305,6 @@ int main(int argc, char **argv)
 	else
 		signal_fd = daemon_start();
 
-	check_user();
 	check_pidfile();
 	set_resource_limit();
 
