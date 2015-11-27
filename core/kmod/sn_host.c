@@ -70,7 +70,7 @@ static int sn_host_do_tx(struct sn_queue *queue, struct sk_buff *skb,
 	int ret;
 	int i;
 
-	ret = llring_dequeue_bulk(queue->sn_to_drv, objs, 2);
+	ret = llring_mc_dequeue_bulk(queue->sn_to_drv, objs, 2);
 	if (unlikely(ret == -LLRING_ERR_NOENT)) {
 		queue->tx_stats.descriptor++;
 		return NET_XMIT_DROP;
@@ -92,7 +92,7 @@ static int sn_host_do_tx(struct sn_queue *queue, struct sk_buff *skb,
 		dst_addr += skb_frag_size(frag);
 	}
 
-	ret = llring_enqueue(queue->drv_to_sn, objs[0]);
+	ret = llring_mp_enqueue(queue->drv_to_sn, objs[0]);
 	if (likely(ret == 0 || ret == -LLRING_ERR_QUOT))
 		return (ret == 0) ? NET_XMIT_SUCCESS : NET_XMIT_CN;
 	else {
@@ -115,7 +115,7 @@ static int sn_host_do_rx_batch(struct sn_queue *queue,
 	int cnt = 0;
 	int i;
 
-	ret = llring_dequeue_burst(queue->sn_to_drv, objs, max_cnt * 2);
+	ret = llring_sc_dequeue_burst(queue->sn_to_drv, objs, max_cnt * 2);
 	if (ret == 0)
 		return 0;
 
@@ -164,7 +164,7 @@ static int sn_host_do_rx_batch(struct sn_queue *queue,
 		} while (copied < total_len);
 	}
 
-	ret = llring_enqueue_bulk(queue->drv_to_sn, cookies, cnt);
+	ret = llring_sp_enqueue_bulk(queue->drv_to_sn, cookies, cnt);
 	if (unlikely(ret == -LLRING_ERR_NOBUF)) {
 		/* It should never happen! :( */
 		log_err("BAD THING HAPPENED: free buffer queue overflow!\n");
@@ -173,6 +173,7 @@ static int sn_host_do_rx_batch(struct sn_queue *queue,
 	return cnt;
 }
 
+#if 0
 static struct sk_buff *sn_host_do_rx(struct sn_queue *queue,
 				     struct sn_rx_metadata *rx_meta)
 {
@@ -184,7 +185,7 @@ static struct sk_buff *sn_host_do_rx(struct sn_queue *queue,
 
 	int ret;
 
-	ret = llring_dequeue_bulk(queue->sn_to_drv, objs, 2);
+	ret = llring_sc_dequeue_bulk(queue->sn_to_drv, objs, 2);
 	if (ret == -LLRING_ERR_NOENT)
 		return NULL;
 
@@ -211,7 +212,7 @@ static struct sk_buff *sn_host_do_rx(struct sn_queue *queue,
 	} else
 		log_err("netdev_alloc_skb() failed\n");
 
-	ret = llring_enqueue(queue->drv_to_sn, cookie);
+	ret = llring_sp_enqueue(queue->drv_to_sn, cookie);
 	if (unlikely(ret == -LLRING_ERR_NOBUF)) {
 		/* It should never happen! :( */
 		log_err("BAD THING HAPPENED: free buffer queue overflow!\n");
@@ -219,6 +220,7 @@ static struct sk_buff *sn_host_do_rx(struct sn_queue *queue,
 
 	return skb;
 }
+#endif
 
 static bool sn_host_pending_rx(struct sn_queue *queue)
 {
@@ -227,7 +229,9 @@ static bool sn_host_pending_rx(struct sn_queue *queue)
 
 static struct sn_ops sn_host_ops = {
 	.do_tx 		= sn_host_do_tx,
+#if 0
 	.do_rx 		= sn_host_do_rx,
+#endif
 	.do_rx_batch	= sn_host_do_rx_batch,
 	.pending_rx 	= sn_host_pending_rx,
 };

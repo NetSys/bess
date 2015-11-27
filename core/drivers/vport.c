@@ -21,10 +21,9 @@
  * Not sure how to tune this... */
 #define SLOTS_WATERMARK		((SLOTS_PER_LLRING >> 3) * 7)	/* 87.5% */
 
-/* Disable (0) single producer/consumer mode for now.
- * This is slower, but just to be on the safe side. :) */
-#define SINGLE_P		1
-#define SINGLE_C		1
+/* Disable (0) single producer/consumer mode for default */
+#define SINGLE_P		0
+#define SINGLE_C		0
 
 struct queue {
 	union {
@@ -81,7 +80,7 @@ static void refill_tx_bufs(struct llring *r, int cnt)
 		objs[i * 2 + 1] = (void *) snb_dma_addr(snb);
 	}
 	
-	ret = llring_enqueue_bulk(r, objs, cnt * 2);
+	ret = llring_sp_enqueue_bulk(r, objs, cnt * 2);
 	assert(ret == 0 || ret == -LLRING_ERR_QUOT);
 }
 
@@ -560,7 +559,7 @@ static int get_tx_q(struct port *p, queue_t qid,
 	int cnt;
 	int i;
 
-	cnt = llring_dequeue_burst(tx_queue->drv_to_sn, 
+	cnt = llring_sc_dequeue_burst(tx_queue->drv_to_sn, 
 			objs, max_cnt);
 	if (cnt == 0)
 		return 0;
@@ -658,7 +657,7 @@ static int put_rx_q(struct port *p, queue_t qid,
 		objs[i * 2 + 1] = (void *) snb_dma_addr(pkt) - sizeof(struct sn_rx_metadata);
 	}
 
-	ret = llring_enqueue_bulk(rx_queue->sn_to_drv, 
+	ret = llring_sp_enqueue_bulk(rx_queue->sn_to_drv, 
 			objs, cnt * 2);
 
 	if (ret == -LLRING_ERR_NOBUF)
@@ -676,7 +675,7 @@ static int put_rx_q(struct port *p, queue_t qid,
 
 	/* TODO: defer this */
 	/* Lazy deallocation of packet buffers */
-	ret = llring_dequeue_burst(rx_queue->drv_to_sn, objs, 
+	ret = llring_sc_dequeue_burst(rx_queue->drv_to_sn, objs, 
 			SLOTS_PER_LLRING);	
 	if (ret > 0)
 		snb_free_bulk((snb_array_t) objs, ret);
