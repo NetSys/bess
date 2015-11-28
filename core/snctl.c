@@ -130,6 +130,70 @@ static struct snobj *handle_add_worker(struct snobj *q)
 	return NULL;
 }
 
+static struct snobj *handle_list_tcs(struct snobj *q)
+{
+	struct snobj *r;
+	struct snobj *t;
+
+	unsigned int wid_filter = MAX_WORKERS;
+
+	struct ns_iter iter;
+
+	struct tc *c;
+
+	t = snobj_eval(q, "wid");
+	if (t) {
+		wid_filter = snobj_uint_get(t);
+
+		if (wid_filter >= MAX_WORKERS)
+			return snobj_err(EINVAL, 
+					"'wid' must be between 0 and %d",
+					MAX_WORKERS - 1);
+
+		if (!is_worker_active(wid_filter))
+			return snobj_err(EINVAL, "worker:%d does not exist", 
+					wid_filter);
+	}
+
+	r = snobj_list();
+
+	ns_init_iterator(&iter, NS_TYPE_TC);
+
+	while ((c = (struct tc *)ns_next(&iter)) != NULL) {
+		int wid;
+
+		if (wid_filter < MAX_WORKERS) {
+			if (workers[wid_filter]->s != c->s)
+				continue;
+			wid = wid_filter;
+		} else {
+			for (wid = 0; wid < MAX_WORKERS; wid++)
+				if (is_worker_active(wid) && 
+						workers[wid]->s == c->s)
+					break;
+		}
+
+		struct snobj *elem = snobj_map();
+
+		snobj_map_set(elem, "name", snobj_str(c->name));
+		snobj_map_set(elem, "tasks", snobj_int(c->num_tasks));
+		snobj_map_set(elem, "parent", snobj_str(c->parent->name));
+		snobj_map_set(elem, "priority", snobj_int(c->priority));
+
+		if (wid < MAX_WORKERS)
+			snobj_map_set(elem, "wid", snobj_uint(wid));
+		else
+			snobj_map_set(elem, "wid", snobj_int(-1));
+
+
+		snobj_list_add(r, elem);
+	}
+
+	ns_release_iterator(&iter);
+
+	return r;
+}
+
 static struct snobj *handle_list_drivers(struct snobj *q)
 {
 	struct snobj *r;
@@ -659,6 +723,8 @@ static struct handler_map sn_handlers[] = {
 	{ "list_workers",	0, handle_list_workers },
 	{ "add_worker",		0, handle_add_worker },
 	{ "delete_worker",	1, handle_not_implemented },
+
+	{ "list_tcs",		0, handle_list_tcs },
 
 	{ "list_drivers",	0, handle_list_drivers },
 	{ "import_driver",	0, handle_not_implemented },	/* TODO */

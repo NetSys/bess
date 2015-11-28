@@ -248,7 +248,7 @@ int ns_insert(ns_type_t type, const char *name, void *object)
 		return -EINVAL; 
 
 	if (ns_name_exists(name))
-		return -EINVAL; 
+		return -EEXIST; 
 	
 	hash = ns_get_hash(name);
 	assert(hash < ht.bucket_size);

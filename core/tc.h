@@ -4,6 +4,8 @@
 #include <string.h>
 
 #include "common.h"
+#include "namespace.h"
+
 #include "utils/minheap.h"
 #include "utils/cdlist.h"
 #include "utils/simd.h"
@@ -42,6 +44,8 @@ struct pgroup {
 };
 
 struct tc_params {
+	char name[SN_NAME_LEN];
+
 	struct tc *parent;
 
 	/* Used for auto-generated TCs.
@@ -126,9 +130,13 @@ struct tc {
 	/****************************************************************
 	 * Not used in the "datapath" (sched_next or sched_done)
 	 ****************************************************************/
-	struct sched *s;		/* who is scheduling me? */
+	/* who is scheduling me? (NULL iff not attached) */
+	struct sched *s;		
 
-	uint32_t id;			/* unique within its scheduler */
+	char name[SN_NAME_LEN];
+
+	int num_tasks;
+
 	int32_t priority;		/* the higher, the more important */
 	int auto_free;			/* is this TC ephemeral? */
 
@@ -147,7 +155,6 @@ struct sched_stats {
 struct sched {
 	struct tc root;			/* Must be the first field */
 	struct tc *current;		/* currently running */
-	uint64_t next_tc_id;
 
 	/* priority queue of inactive (throttled) token buckets */
 	struct heap pq;
@@ -160,7 +167,6 @@ struct sched {
 };
 
 struct tc *tc_init(struct sched *s, const struct tc_params *prof);
-void tc_free(struct tc *c);
 void _tc_do_free(struct tc *c);
 
 void tc_join(struct tc *c);

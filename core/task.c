@@ -46,6 +46,7 @@ void task_attach(struct task *t, struct tc *c)
 	t->c = c;
 	cdlist_add_tail(&c->tasks, &t->tc);
 	tc_inc_refcnt(c);
+	c->num_tasks++;
 }
 
 void task_detach(struct task *t)
@@ -58,6 +59,7 @@ void task_detach(struct task *t)
 	t->c = NULL;
 	cdlist_del(&t->tc);
 	tc_dec_refcnt(c);
+	c->num_tasks--;
 
 	/* c is up for autofree, and the task t was the last one standing? */
 	if (cdlist_is_empty(&c->tasks) && c->auto_free) {
@@ -68,6 +70,11 @@ void task_detach(struct task *t)
 
 void assign_default_tc(int wid, struct task *t)
 {
+	static int next_default_tc_id;
+
+	struct sched *s;
+	struct tc *c_def;
+
 	struct tc_params params = {
 		.parent = NULL,
 		.auto_free = 1,	/* when no task is left, this TC is freed */
@@ -76,14 +83,20 @@ void assign_default_tc(int wid, struct task *t)
 		.share_resource = RESOURCE_CNT,
 	};
 
-	struct sched *s = workers[wid]->s;
-	struct tc *c_def = tc_init(s, &params);
+	s = workers[wid]->s;
+
+	do {
+		sprintf(params.name, "tc_orphan%d", next_default_tc_id++);
+		c_def = tc_init(s, &params);
+	} while (ptr_to_err(c_def) == -EEXIST);
+	
+	assert(!is_err(c_def));
 
 	task_attach(t, c_def);
 	tc_join(c_def);
 
 	printf("Task %p has been registered to "
-	       "a default TC %u on worker:%d\n", t, c_def->id, wid);
+	       "a default TC %s on worker:%d\n", t, c_def->name, wid);
 }
 
 static int get_next_wid(int *wid)
