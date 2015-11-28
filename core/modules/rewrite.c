@@ -13,12 +13,12 @@ struct rewrite_priv {
 	unsigned char templates[TEMPLATE_SLOTS][MAX_TEMPLATE_SIZE] __ymm_aligned;
 };
 
-static struct snobj *query(struct module *, struct snobj *);
+static struct snobj *rewrite_query(struct module *, struct snobj *);
 
-static struct snobj *init(struct module *m, struct snobj *arg)
+static struct snobj *rewrite_init(struct module *m, struct snobj *arg)
 {
 	if (arg)
-		return query(m, arg);
+		return rewrite_query(m, arg);
 	
 	return NULL;
 }
@@ -68,7 +68,7 @@ static struct snobj *handle_templates(struct rewrite_priv *priv,
 	return NULL;
 }
 
-static struct snobj *query(struct module *m, struct snobj *q)
+static struct snobj *rewrite_query(struct module *m, struct snobj *q)
 {
 	struct rewrite_priv *priv = get_priv(m);
 
@@ -85,7 +85,7 @@ static struct snobj *query(struct module *m, struct snobj *q)
 	return NULL;
 }
 
-static void process_batch(struct module *m, struct pkt_batch *batch)
+static void rewrite_process_batch(struct module *m, struct pkt_batch *batch)
 {
 	struct rewrite_priv *priv = get_priv(m);
 
@@ -111,9 +111,9 @@ static void process_batch(struct module *m, struct pkt_batch *batch)
 static const struct mclass rewrite = {
 	.name 			= "Rewrite",
 	.priv_size		= sizeof(struct rewrite_priv),
-	.init 			= init,
-	.query			= query,
-	.process_batch 		= process_batch,
+	.init 			= rewrite_init,
+	.query			= rewrite_query,
+	.process_batch 		= rewrite_process_batch,
 };
 
 ADD_MCLASS(rewrite)
