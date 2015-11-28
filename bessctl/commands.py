@@ -701,8 +701,8 @@ def show_status(cli):
     else:
         cli.fout.write('(none)\n')
 
-# last_stats: a map of (node name, gateid) -> (timestamp, # of packets)
-def _draw_pipeline(cli, last_stats = None):
+# last_stats: a map of (node name, gateid) -> (timestamp, counter value)
+def _draw_pipeline(cli, field, last_stats = None):
     modules = sorted(cli.softnic.list_modules())
     names = []
     node_labels = {}
@@ -733,15 +733,15 @@ def _draw_pipeline(cli, last_stats = None):
 
             for gate in gates:
                 if last_stats is not None:
-                    last_time, last_pkts = last_stats[(name, gate['gate'])]
-                    new_time, new_pkts = gate['timestamp'], gate['pkts']
-                    last_stats[(name, gate['gate'])] = (new_time, new_pkts)
+                    last_time, last_val = last_stats[(name, gate['gate'])]
+                    new_time, new_val = gate['timestamp'], gate[field]
+                    last_stats[(name, gate['gate'])] = (new_time, new_val)
 
-                    pkts = int((new_pkts - last_pkts) / (new_time - last_time))
+                    val = int((new_val - last_val) / (new_time - last_time))
                 else:
-                    pkts = gate['pkts']
+                    val = gate[field]
 
-                edge_attr = '{label:%d:%d;}' % (gate['gate'], pkts)
+                edge_attr = '{label:%d:%d;}' % (gate['gate'], val)
 
                 print >> f.stdin, '[%s] ->%s [%s]' % (
                         node_labels[name],
@@ -757,7 +757,12 @@ def _draw_pipeline(cli, last_stats = None):
 
 @cmd('show pipeline', 'Show the current datapath pipeline')
 def show_pipeline(cli):
-    cli.fout.write(_draw_pipeline(cli))
+    cli.fout.write(_draw_pipeline(cli, 'pkts'))
+
+@cmd('show pipeline batch', 
+        'Show the current datapath pipeline with batch counters')
+def show_pipeline_batch(cli):
+    cli.fout.write(_draw_pipeline(cli, 'cnt'))
 
 def _group(number):
     s = str(number)
@@ -846,8 +851,7 @@ def show_module_list(cli, module_names):
         else:
             raise cli.CommandError('Module "%s" doest not exist' % module_name)
 
-@cmd('monitor pipeline', 'Monitor the datapath pipeline')
-def monitor_pipeline(cli):
+def _monitor_pipeline(cli, field):
     modules = sorted(cli.softnic.list_modules())
    
     last_stats = {}
@@ -856,15 +860,23 @@ def monitor_pipeline(cli):
 
         for gate in gates:
             last_stats[(module['name'], gate['gate'])] = \
-                    (gate['timestamp'], gate['pkts'])
+                    (gate['timestamp'], gate[field])
 
     try:
         while True:
             time.sleep(1)
-            cli.fout.write(_draw_pipeline(cli, last_stats))
+            cli.fout.write(_draw_pipeline(cli, field, last_stats))
             cli.fout.write('\n')
     except KeyboardInterrupt:
         pass
+
+@cmd('monitor pipeline', 'Monitor packet counters in the datapath pipeline')
+def monitor_pipeline(cli):
+    _monitor_pipeline(cli, 'pkts')
+
+@cmd('monitor pipeline batch', 'Monitor batch counters in the datapath pipeline')
+def monitor_pipeline_batch(cli):
+    _monitor_pipeline(cli, 'cnt')
 
 def _monitor_ports(cli, *ports):
 
