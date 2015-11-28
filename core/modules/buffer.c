@@ -1,5 +1,7 @@
 #include "../module.h"
 
+/* TODO: timer-triggered flush */
+/* TODO: use per-task stroage */
 struct buffer_priv {
 	struct pkt_batch buf;
 };

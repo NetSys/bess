@@ -491,6 +491,14 @@ static struct snobj *init_port(struct port *p, struct snobj *conf)
 			return err;
 	}
 
+	if (snobj_eval_exists(conf, "container_pid")) {
+		if (container_pid)
+			return snobj_err(EINVAL, "You cannot specify both " \
+					"'docker' and 'container_pid'");
+
+		container_pid = snobj_eval_int(conf, "container_pid");
+	}
+
 	if ((cpu_list = snobj_eval(conf, "rxq_cpus")) != NULL &&
 	    cpu_list->size != p->num_queues[PACKET_DIR_OUT]) {
 		return snobj_err(EINVAL, "Must specify as many cores as rxqs");
