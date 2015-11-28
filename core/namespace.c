@@ -176,7 +176,7 @@ static inline int ns_is_valid_name(const char *name)
 	char c;
 
 	int name_len = strlen(name);
-	if (name_len >= SN_NAME_LEN - 1)
+	if (name_len >= SN_NAME_LEN)
 		return 0;
 	
 	// characters should be looks like
