@@ -104,13 +104,13 @@ class SoftNIC(object):
 
         return obj
 
-    def _request_softnic(self, cmd, arg = None):
+    def _request_softnic(self, cmd, arg=None):
         if arg is not None:
             return self._request({'to': 'softnic', 'cmd': cmd, 'arg': arg})
         else:
             return self._request({'to': 'softnic', 'cmd': cmd})
 
-    def _request_module(self, name, cmd, arg = None):
+    def _request_module(self, name, cmd, arg=None):
         if arg is not None:
             return self._request({'to': 'module', 'name': name, 'cmd': cmd, 
                     'arg': arg}) 
@@ -216,3 +216,10 @@ class SoftNIC(object):
             args = {'name': m, 'taskid': tid, 'wid': wid}
 
         return self._request_softnic('attach_task', args)
+
+    def list_tcs(self, wid = None):
+        args = None
+        if wid is not None:
+            args = {'wid': wid}
+
+        return self._request_softnic('list_tcs', args)

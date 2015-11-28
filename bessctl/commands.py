@@ -121,7 +121,7 @@ def get_var_attrs(cli, var_token, partial_word):
         if var_token == 'WORKER_ID...':
             var_type = 'wid+'
             var_desc = 'one or more worker IDs'
-            var_candidates = [m['wid'] for m in cli.softnic.list_workers()]
+            var_candidates = [str(m['wid']) for m in cli.softnic.list_workers()]
 
         elif var_token == 'DRIVER':
             var_type = 'name'
@@ -653,6 +653,35 @@ def show_worker_list(cli, worker_ids):
         if worker['wid'] in worker_ids:
             _show_worker(cli, worker)
 
+def _show_tc_list(cli, tcs):
+    wids = sorted(list(set(map(lambda tc: tc['wid'], tcs))))
+
+    for wid in wids:
+        matched= filter(lambda tc: tc['wid'] == wid, tcs)
+
+        if wid == -1:
+            cli.fout.write('  Unattached (%d classes)\n' % len(matched))
+        else:
+            cli.fout.write('  worker:%d (%d classes)\n' % (wid, len(matched)))
+
+        for tc in matched:
+            cli.fout.write('    %-16s  ' \
+                    'parent %-12s  priority %-3d  tasks %-4d\n' % \
+                    (tc['name'], 
+                     tc['parent'] if tc['parent'] else 'none', 
+                     tc['priority'],
+                     tc['tasks']))
+
+@cmd('show tc', 'Show the list of traffic classes')
+def show_tc_all(cli):
+    _show_tc_list(cli, cli.softnic.list_tcs())
+
+@cmd('show tc worker WORKER_ID...', 'Show the list of traffic classes')
+def show_tc_workers(cli, wids):
+    wids = sorted(list(set(wids)))
+    for wid in wids:
+        _show_tc_list(cli, cli.softnic.list_tcs(wid))
+
 @cmd('show status', 'Show the overall status')
 def show_status(cli):
     workers = sorted(cli.softnic.list_workers())
@@ -663,7 +692,8 @@ def show_status(cli):
 
     cli.fout.write('  Active worker threads: ')
     if workers:
-        worker_list = ['worker%d (cpu %d)' % (worker['wid'], worker['core']) for worker in workers]
+        worker_list = ['worker%d (cpu %d)' % \
+                (worker['wid'], worker['core']) for worker in workers]
         cli.fout.write('%s\n' % ', '.join(worker_list))
     else:
         cli.fout.write('(none)\n')
