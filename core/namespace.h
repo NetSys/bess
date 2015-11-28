@@ -2,20 +2,21 @@
 #define _NAMESPACE_H
 
 /* namespace lookup/delete/iteration by hashtable
- * for types: mclass, module, driver, port 
+ * for types: mclass, module, driver, port, TC
  * 
  * Naming rule
  * [_a-zA-Z][_a-zA-Z0-9]*
  * 1-32 characters (including trailing null char)
  * */
 
-#define SN_NAME_LEN 32 // including trailing null char
+#define SN_NAME_LEN 32 /* including trailing null char */
 
 typedef enum {
 	NS_TYPE_MCLASS,
 	NS_TYPE_MODULE,
 	NS_TYPE_DRIVER,
 	NS_TYPE_PORT,
+	NS_TYPE_TC,
 	NS_TYPE_ALL,
 	NS_TYPE_MAX
 } ns_type_t;
