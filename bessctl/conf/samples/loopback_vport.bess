@@ -1,6 +1,6 @@
 num_ports = int($SN_PORTS!'1')
 
-print 'Using %d DPDK ports... (envvar "SN_PORTS")' % dpdk_ports
+print 'Using %d virtual ports... (envvar "SN_PORTS")' % num_ports
 
 for i in range(num_ports):
 	v = Port(driver='VPort', loopback=1)
