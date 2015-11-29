@@ -194,6 +194,37 @@ static struct snobj *handle_list_tcs(struct snobj *q)
 	return r;
 }
 
+static struct snobj *handle_get_tc_stats(struct snobj *q)
+{
+	const char *tc_name;
+
+	struct tc *c;
+	
+	struct snobj *r;
+
+	tc_name = snobj_str_get(q);
+	if (!tc_name)
+		return snobj_err(EINVAL, "Argument must be a name in str");
+
+	c = ns_lookup(NS_TYPE_TC, tc_name);
+	if (!c)
+		return snobj_err(ENOENT, "No TC '%s' found", tc_name);
+
+	r = snobj_map();
+
+	snobj_map_set(r, "timestamp", snobj_double(get_epoch_time()));
+	snobj_map_set(r, "count", 
+			snobj_uint(c->stats.usage[RESOURCE_CNT]));
+	snobj_map_set(r, "cycles", 
+			snobj_uint(c->stats.usage[RESOURCE_CYCLE]));
+	snobj_map_set(r, "packets", 
+			snobj_uint(c->stats.usage[RESOURCE_PACKET]));
+	snobj_map_set(r, "bits", 
+			snobj_uint(c->stats.usage[RESOURCE_BIT]));
+
+	return r;
+}
+
 static struct snobj *handle_list_drivers(struct snobj *q)
 {
 	struct snobj *r;
@@ -336,7 +367,7 @@ static struct snobj *handle_get_port_stats(struct snobj *q)
 	
 	port = find_port(port_name);
 	if (!port)
-		return snobj_err(ENOENT, "No port `%s' found", port_name);
+		return snobj_err(ENOENT, "No port '%s' found", port_name);
 
 	get_port_stats(port, &stats);
 
@@ -725,6 +756,7 @@ static struct handler_map sn_handlers[] = {
 	{ "delete_worker",	1, handle_not_implemented },
 
 	{ "list_tcs",		0, handle_list_tcs },
+	{ "get_tc_stats",	0, handle_get_tc_stats },
 
 	{ "list_drivers",	0, handle_list_drivers },
 	{ "import_driver",	0, handle_not_implemented },	/* TODO */

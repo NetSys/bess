@@ -223,3 +223,6 @@ class SoftNIC(object):
             args = {'wid': wid}
 
         return self._request_softnic('list_tcs', args)
+
+    def get_tc_stats(self, name):
+        return self._request_softnic('get_tc_stats', name)
