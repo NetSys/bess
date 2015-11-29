@@ -78,6 +78,8 @@ struct tc {
 	 * m by its tasks, and n by children */
 	uint32_t refcnt;
 
+	int num_tasks;
+
 	/* TODO: queued is somewhat redundant with runnable.
 	 *       The status runnable==0 and queued==1 is basically
 	 *       	an artifact of our minheap implementation that does not
@@ -134,8 +136,6 @@ struct tc {
 	struct sched *s;		
 
 	char name[SN_NAME_LEN];
-
-	int num_tasks;
 
 	int32_t priority;		/* the higher, the more important */
 	int auto_free;			/* is this TC ephemeral? */
