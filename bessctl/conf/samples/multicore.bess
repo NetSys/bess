@@ -34,7 +34,7 @@ softnic.attach_task("src1", 0, wid=1)
 # Future work
 #
 # 1. creating a traffic class
-#    Syntax: tc <traffic class ID> [parent <traffic class ID>] ...
+#    Syntax: tc <TC name> [parent <TC name>] ...
 #
 # 2. attaching task to a traffic class
 #    Syntax: attach <task name> => tc:<traffic class ID>
