@@ -12,7 +12,7 @@
 
 #define SCHED_DEBUG		0
 
-#define DEFAULT_PRIORITY	0
+#define DEFAULT_PRIORITY	-1
 
 enum {
 	RESOURCE_CNT = 0,	/* how many times scheduled */

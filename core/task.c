@@ -72,25 +72,25 @@ void assign_default_tc(int wid, struct task *t)
 {
 	static int next_default_tc_id;
 
-	struct sched *s;
 	struct tc *c_def;
 
 	struct tc_params params = {
 		.parent = NULL,
 		.auto_free = 1,	/* when no task is left, this TC is freed */
-		.priority = 0,
+		.priority = DEFAULT_PRIORITY,
 		.share = 1,
 		.share_resource = RESOURCE_CNT,
 	};
 
-	s = workers[wid]->s;
-
 	do {
 		sprintf(params.name, "tc_orphan%d", next_default_tc_id++);
-		c_def = tc_init(s, &params);
+		c_def = tc_init(workers[wid]->s, &params);
 	} while (ptr_to_err(c_def) == -EEXIST);
 	
-	assert(!is_err(c_def));
+	if (is_err(c_def)) {
+		fprintf(stderr, "tc_init() failed\n");
+		return;
+	}
 
 	task_attach(t, c_def);
 	tc_join(c_def);
