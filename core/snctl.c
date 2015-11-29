@@ -194,6 +194,55 @@ static struct snobj *handle_list_tcs(struct snobj *q)
 	return r;
 }
 
+static struct snobj *handle_add_tc(struct snobj *q)
+{
+	const char *tc_name;
+	int wid;
+
+	struct tc_params params;
+	struct tc *c;
+
+	tc_name = snobj_eval_str(q, "name");
+	if (!tc_name)
+		return snobj_err(EINVAL, "Missing 'name' field");
+
+	if (!ns_is_valid_name(tc_name))
+		return snobj_err(EINVAL, "'%s' is an invalid name", tc_name);
+
+	if (ns_name_exists(tc_name))
+		return snobj_err(EINVAL, "Name '%s' already exists", tc_name);
+
+	wid = snobj_eval_uint(q, "wid");
+	if (wid >= MAX_WORKERS)
+		return snobj_err(EINVAL, 
+				"'wid' must be between 0 and %d",
+				MAX_WORKERS - 1);
+
+	if (!is_worker_active(wid))
+		return snobj_err(EINVAL, "worker:%d does not exist", wid);
+
+	memset(&params, 0, sizeof(params));
+
+	strcpy(params.name, tc_name);
+
+	params.priority = snobj_eval_int(q, "priority");
+	if (params.priority == DEFAULT_PRIORITY)
+		return snobj_err(EINVAL, "Priority %d is reserved",
+				DEFAULT_PRIORITY);
+
+	/* TODO */
+	params.share = 1;
+	params.share_resource = RESOURCE_CNT;
+
+	c = tc_init(workers[wid]->s, &params);
+	if (is_err(c))
+		return snobj_err(-ptr_to_err(c), "tc_init() failed");
+
+	tc_join(c);
+
+	return NULL;
+}
+
 static struct snobj *handle_get_tc_stats(struct snobj *q)
 {
 	const char *tc_name;
@@ -756,6 +805,7 @@ static struct handler_map sn_handlers[] = {
 	{ "delete_worker",	1, handle_not_implemented },
 
 	{ "list_tcs",		0, handle_list_tcs },
+	{ "add_tc",		1, handle_add_tc },
 	{ "get_tc_stats",	0, handle_get_tc_stats },
 
 	{ "list_drivers",	0, handle_list_drivers },
