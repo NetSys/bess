@@ -75,7 +75,6 @@ static void set_default_name(struct port *p)
 	}
 }
 
-/* currently very slow with linear search */
 struct port *find_port(const char *name)
 {
 	return (struct port *) ns_lookup(NS_TYPE_PORT, name);
