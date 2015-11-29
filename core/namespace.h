@@ -28,6 +28,7 @@ struct ns_iter {
 };
 
 void *ns_lookup(ns_type_t type, const char *name);
+int ns_is_valid_name(const char *name);
 int ns_name_exists(const char *name);
 int ns_insert(ns_type_t type, const char *name, void *object);
 int ns_remove(const char *name);

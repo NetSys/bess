@@ -171,7 +171,7 @@ static inline struct ns_elem *ns_lookup_elem_by_name(const char *name)
 	return find_i;
 }
 
-static inline int ns_is_valid_name(const char *name)
+int ns_is_valid_name(const char *name)
 {
 	char c;
 
