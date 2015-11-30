@@ -204,14 +204,13 @@ class SoftNIC(object):
         args = {'wid': wid, 'core': core}
         return self._request_softnic('add_worker', args)
 
-    def attach_task(self, m, tid, tcid=None, wid=None):
-        if (tcid is None) == (wid is None):
-            raise self.APIError('You should specify either "tcid" or "wid"' \
+    def attach_task(self, m, tid, tc=None, wid=None):
+        if (tc is None) == (wid is None):
+            raise self.APIError('You should specify either "tc" or "wid"' \
                     ', but not both')
 
-        if tcid is not None:
-            assert False    # TODO: implement
-            args = {'name': m, 'taskid': tid, 'tcid': tcid}
+        if tc is not None:
+            args = {'name': m, 'taskid': tid, 'tc': tc}
         else:
             args = {'name': m, 'taskid': tid, 'wid': wid}
 
