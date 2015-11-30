@@ -292,7 +292,7 @@ int ns_remove(const char *name)
 	
 	elem = ns_lookup_elem_by_name(name);
 	if (!elem)
-		return -EINVAL;
+		return -ENOENT;
 	
 	if (ht.iterator_cnt[elem->type] || ht.iterator_cnt[NS_TYPE_ALL])
 		return -EINVAL; 
