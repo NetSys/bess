@@ -27,6 +27,7 @@ struct handler_map {
 
 static struct snobj *handle_reset_modules(struct snobj *);
 static struct snobj *handle_reset_ports(struct snobj *);
+static struct snobj *handle_reset_tcs(struct snobj *);
 static struct snobj *handle_reset_workers(struct snobj *);
 
 static struct snobj *handle_reset_all(struct snobj *q)
@@ -40,6 +41,10 @@ static struct snobj *handle_reset_all(struct snobj *q)
 		return r;
 
 	r = handle_reset_ports(NULL);
+	if (r)
+		return r;
+
+	r = handle_reset_tcs(NULL);
 	if (r)
 		return r;
 
@@ -126,6 +131,48 @@ static struct snobj *handle_add_worker(struct snobj *q)
 		return snobj_err(EEXIST, "worker:%d is already active", wid);
 
 	launch_worker(wid, core);
+
+	return NULL;
+}
+
+static struct snobj *handle_reset_tcs(struct snobj *q)
+{
+	struct ns_iter iter;
+	struct tc *c;
+
+	struct tc **c_arr;
+	size_t arr_slots = 1024;
+	int n = 0;
+
+	c_arr = malloc(arr_slots * sizeof(struct tc *));
+
+	ns_init_iterator(&iter, NS_TYPE_TC);
+
+	while ((c = (struct tc *)ns_next(&iter)) != NULL) {
+		if (n >= arr_slots) {
+			arr_slots *= 2;
+			c_arr = realloc(c_arr, arr_slots * sizeof(struct tc *));
+		}
+
+		c_arr[n] = c;
+		n++;
+	}
+
+	ns_release_iterator(&iter);	
+
+	for (int i = 0; i < n; i++) {
+		c = c_arr[i];
+
+		if (c->num_tasks)
+			return snobj_err(EBUSY, "TC %s still has %d tasks",
+					c->name, c->num_tasks);
+
+		if (c->auto_free)
+			continue;
+
+		tc_leave(c);
+		tc_dec_refcnt(c);
+	}
 
 	return NULL;
 }
@@ -674,8 +721,9 @@ static struct snobj *handle_disconnect_modules(struct snobj *q)
 static struct snobj *handle_attach_task(struct snobj *q)
 {
 	const char *m_name;
+	const char *tc_name;
+
 	task_id_t tid;
-	int wid;		/* TODO: worker_id_t */
 
 	struct module *m;
 	struct task *t;
@@ -697,19 +745,33 @@ static struct snobj *handle_attach_task(struct snobj *q)
 		return snobj_err(ENOENT, "Task %s:%hu does not exist", 
 				m_name, tid);
 
-	if (task_is_attached(t))
-		return snobj_err(EBUSY, "Task %s:%hu is already attached to "
-				"a TC", m_name, tid);
+	tc_name = snobj_eval_str(q, "tc");
 
-	wid = snobj_eval_uint(q, "wid");
-	if (wid >= MAX_WORKERS)
-		return snobj_err(EINVAL, "'wid' must be between 0 and %d",
-				MAX_WORKERS - 1);
+	if (tc_name) {
+		struct tc *c;
 
-	if (!is_worker_active(wid))
-		return snobj_err(EINVAL, "Worker %d does not exist", wid);
+		c = ns_lookup(NS_TYPE_TC, tc_name);
+		if (!c)
+			return snobj_err(ENOENT, "No TC '%s' found", tc_name);
 
-	assign_default_tc(wid, t);
+		task_attach(t, c);
+	} else {
+		int wid;		/* TODO: worker_id_t */
+
+		if (task_is_attached(t))
+			return snobj_err(EBUSY, "Task %s:%hu is already "
+					"attached to a TC", m_name, tid);
+
+		wid = snobj_eval_uint(q, "wid");
+		if (wid >= MAX_WORKERS)
+			return snobj_err(EINVAL, "'wid' must be between 0 and %d",
+					MAX_WORKERS - 1);
+
+		if (!is_worker_active(wid))
+			return snobj_err(EINVAL, "Worker %d does not exist", wid);
+
+		assign_default_tc(wid, t);
+	}
 
 	return NULL;
 }
@@ -804,6 +866,7 @@ static struct handler_map sn_handlers[] = {
 	{ "add_worker",		0, handle_add_worker },
 	{ "delete_worker",	1, handle_not_implemented },
 
+	{ "reset_tcs",		1, handle_reset_tcs },
 	{ "list_tcs",		0, handle_list_tcs },
 	{ "add_tc",		1, handle_add_tc },
 	{ "get_tc_stats",	0, handle_get_tc_stats },
