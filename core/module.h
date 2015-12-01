@@ -233,6 +233,7 @@ static void run_split(struct module *m, const gate_t *ogates,
 		ogate = ogates[i];
 		batch = &ctx.splits[ogate];
 
+		/* branchless version didn't help */
 		if (batch->cnt == 0)
 			pending[num_pending++] = ogate;
 
