@@ -31,14 +31,13 @@
 
 #include "sn.h"
 
+static void 
+sn_dump_queue_mapping(struct sn_device *dev) __attribute__((unused));
+
 /* User applications are expected to open /dev/softnic every time
  * they create a network device */
 static int sn_host_open(struct inode *inode, struct file *filp)
 {
-	log_info("/dev/%s opened (pid = %i, CPU=%d, node=%d)\n",
-			MODULE_NAME,
-			current->pid, smp_processor_id(), numa_node_id());
-
 	filp->f_flags |= O_CLOEXEC;
 	filp->private_data = NULL;
 
@@ -47,10 +46,6 @@ static int sn_host_open(struct inode *inode, struct file *filp)
 
 static int sn_host_release(struct inode *inode, struct file *filp)
 {
-	log_info("/dev/%s released (pid = %i, CPU=%d, node=%d)\n", 
-			MODULE_NAME,
-			current->pid, smp_processor_id(), numa_node_id());
-
 	if (filp->private_data) {
 		sn_release_netdev((struct sn_device *) filp->private_data);
 		filp->private_data = NULL;
@@ -108,39 +103,36 @@ static int sn_host_do_rx_batch(struct sn_queue *queue,
 			       struct sk_buff **skbs,
 			       int max_cnt)
 {
-	void *objs[max_cnt * 2];
-	void *cookies[max_cnt];
+	void *objs[MAX_RX_BATCH];
+	void *cookies[MAX_RX_BATCH];
 
+	int cnt;
 	int ret;
-	int cnt = 0;
 	int i;
 
-	ret = llring_sc_dequeue_burst(queue->sn_to_drv, objs, max_cnt * 2);
-	if (ret == 0)
+	if (unlikely(max_cnt > MAX_RX_BATCH))
+		max_cnt = MAX_RX_BATCH;
+
+	cnt = llring_sc_dequeue_burst(queue->sn_to_drv, objs, max_cnt);
+	if (cnt == 0)
 		return 0;
-
-	if (ret % 2) {
-		/* should never happen */
-		log_err("BAD THING HAPPENED: even ret %d\n", ret);
-		ret--;
-	}
-
-	cnt = ret / 2;
 
 	for (i = 0; i < cnt; i++) {
 		struct sk_buff *skb;
-		void *src_addr;
-		
+		struct sn_rx_desc *rx_desc;
+
 		int total_len;
 		int copied;
 		char *ptr;
 
-		cookies[i] = objs[i * 2];
-		src_addr = phys_to_virt((phys_addr_t) objs[i * 2 + 1]);
+		rx_desc = phys_to_virt((phys_addr_t) objs[i]);
+		
+		cookies[i] = rx_desc->cookie;
 
-		memcpy(&rx_meta[i], src_addr, sizeof(struct sn_rx_metadata));
+		memcpy(&rx_meta[i], &rx_desc->meta, 
+				sizeof(struct sn_rx_metadata));
 
-		total_len = rx_meta[i].length;
+		total_len = rx_desc->total_len;
 
 		skb = skbs[i] = netdev_alloc_skb(queue->dev->netdev, total_len);
 		if (unlikely(!skb)) {
@@ -152,15 +144,17 @@ static int sn_host_do_rx_batch(struct sn_queue *queue,
 		ptr = skb_put(skb, total_len);
 
 		do {
-			struct sn_rx_metadata *rx_meta_seg;
+			char *seg;
+			uint16_t seg_len;
+			
+			seg = phys_to_virt(rx_desc->seg);
+			seg_len = rx_desc->seg_len;
 
-			rx_meta_seg = (struct sn_rx_metadata *)src_addr;
-			memcpy(ptr + copied, 
-					src_addr + sizeof(struct sn_rx_metadata),
-					rx_meta_seg->host.seg_len);
+			memcpy(ptr + copied, phys_to_virt(rx_desc->seg),
+					seg_len);
 
-			copied += rx_meta_seg->host.seg_len;
-			src_addr = phys_to_virt(rx_meta_seg->host.seg_next);
+			copied += seg_len;
+			rx_desc = phys_to_virt(rx_desc->next_desc);
 		} while (copied < total_len);
 	}
 
@@ -236,7 +230,7 @@ static struct sn_ops sn_host_ops = {
 	.pending_rx 	= sn_host_pending_rx,
 };
 
-static void sn_dump_queue_mapping(struct sn_device *dev)
+static void sn_dump_queue_mapping(struct sn_device *dev) 
 {
 	char buf[512];
 	int buflen;
@@ -290,7 +284,7 @@ static int sn_host_ioctl_create_netdev(phys_addr_t bar_phys,
 
 	bar = phys_to_virt(bar_phys);
 
-	log_info("BAR: phys=%p virt=%p\n", (void *)bar_phys, bar);
+	/* log_info("BAR: phys=%p virt=%p\n", (void *)bar_phys, bar); */
 
 	ret = sn_create_netdev(bar, dev_ret);
 	if (ret)
@@ -299,8 +293,6 @@ static int sn_host_ioctl_create_netdev(phys_addr_t bar_phys,
 	(*dev_ret)->type = sn_dev_type_host;
 	(*dev_ret)->ops = &sn_host_ops;
 	(*dev_ret)->pdev = NULL;
-
-	sn_dump_queue_mapping(*dev_ret);
 
 	ret = sn_register_netdev(bar, *dev_ret);
 	if (ret)
@@ -376,8 +368,6 @@ static int sn_host_ioctl_set_queue_mapping(
 		}
 	}
 
-	log_info("Changing queue mapping for %s\n", dev->netdev->name);
-	
 	for_each_possible_cpu(cpu) {
 		dev->cpu_to_txq[cpu] = 0;
 		dev->cpu_to_rxqs[cpu][0] = -1;
@@ -398,7 +388,7 @@ static int sn_host_ioctl_set_queue_mapping(
 		dev->cpu_to_rxqs[cpu][cnt + 1] = -1;
 	}
 
-	sn_dump_queue_mapping(dev);
+	/* sn_dump_queue_mapping(dev); */
 
 	return 0;
 }

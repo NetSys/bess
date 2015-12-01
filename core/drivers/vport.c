@@ -64,9 +64,9 @@ static void refill_tx_bufs(struct llring *r, int cnt)
 	int ret;
 	int i;
 	
-	int deficit = r->common.watermark / 2 - llring_count(r) / 2;
+	int deficit = (r->common.slots - llring_count(r)) / 4;
 
-	if (0 <= deficit && deficit < cnt)
+	if (cnt > deficit)
 		cnt = deficit;
 
 	for (i = 0; i < cnt; i++) {
@@ -81,7 +81,7 @@ static void refill_tx_bufs(struct llring *r, int cnt)
 	}
 	
 	ret = llring_sp_enqueue_bulk(r, objs, cnt * 2);
-	assert(ret == 0 || ret == -LLRING_ERR_QUOT);
+	assert(ret == 0);
 }
 
 static void drain_drv_to_sn_q(struct llring *q)
@@ -155,7 +155,7 @@ static void *alloc_bar(struct port *p, int container_pid, int loopback)
 	bar = rte_zmalloc(NULL, total_bytes, 0);
 	assert(bar);
 
-	printf("vport_host_sndrv: allocated %d-byte BAR\n", total_bytes);
+	/* printf("vport_host_sndrv: allocated %d-byte BAR\n", total_bytes); */
 
 	conf = bar;
 
@@ -180,15 +180,13 @@ static void *alloc_bar(struct port *p, int container_pid, int loopback)
 		/* Driver -> SoftNIC */
 		llring_init((struct llring *)ptr, SLOTS_PER_LLRING,
 				SINGLE_P, SINGLE_C);
-		llring_set_water_mark((struct llring *)ptr, SLOTS_WATERMARK);
 		priv->inc_qs[i].drv_to_sn = (struct llring *)ptr;
 		ptr += bytes_per_llring;
 
 		/* SoftNIC -> Driver */
 		llring_init((struct llring *)ptr, SLOTS_PER_LLRING, 
 				SINGLE_P, SINGLE_C);
-		llring_set_water_mark((struct llring *)ptr, SLOTS_WATERMARK); 
-		refill_tx_bufs((struct llring *)ptr, SLOTS_WATERMARK / 2);
+		refill_tx_bufs((struct llring *)ptr, SLOTS_PER_LLRING / 2);
 		priv->inc_qs[i].sn_to_drv = (struct llring *)ptr;
 		ptr += bytes_per_llring;
 	}
@@ -199,16 +197,15 @@ static void *alloc_bar(struct port *p, int container_pid, int loopback)
 		ptr += sizeof(struct sn_rxq_registers);
 
 		/* Driver -> SoftNIC */
-		llring_init((struct llring *)ptr, SLOTS_PER_LLRING, 
+		llring_init((struct llring *)ptr, 
+				SLOTS_PER_LLRING, 
 				SINGLE_P, SINGLE_C);
-		llring_set_water_mark((struct llring *)ptr, SLOTS_WATERMARK);
 		priv->out_qs[i].drv_to_sn = (struct llring *)ptr;
 		ptr += bytes_per_llring;
 
 		/* SoftNIC -> Driver */
 		llring_init((struct llring *)ptr, SLOTS_PER_LLRING, 
 				SINGLE_P, SINGLE_C);
-		llring_set_water_mark((struct llring *)ptr, SLOTS_WATERMARK);
 		priv->out_qs[i].sn_to_drv = (struct llring *)ptr;
 		ptr += bytes_per_llring;
 	}
@@ -604,7 +601,7 @@ static int get_tx_q(struct port *p, queue_t qid,
 	return cnt;
 }
 
-static int recv_pkts(struct port *p, queue_t qid, 
+static int vport_recv_pkts(struct port *p, queue_t qid, 
 		snb_array_t pkts, int cnt)
 {
 	int ret = get_tx_q(p, qid, pkts, cnt);
@@ -612,61 +609,94 @@ static int recv_pkts(struct port *p, queue_t qid,
 	return ret;
 }
 
-/* returns nonzero if RX interrupt is needed */
-static int put_rx_q(struct port *p, queue_t qid,
-		    snb_array_t pkts, int cnt)
+static void reclaim_packets(struct llring *ring)
+{
+	void *objs[SLOTS_PER_LLRING];
+	int ret;
+
+	ret = llring_sc_dequeue_burst(ring, objs, 
+			SLOTS_PER_LLRING);	
+	if (ret > 0)
+		snb_free_bulk((snb_array_t) objs, ret);
+}
+
+static int vport_send_pkts(struct port *p, queue_t qid, 
+		snb_array_t pkts, int cnt)
 {
 	struct vport_priv *priv = get_port_priv(p);
 	struct queue *rx_queue = &priv->out_qs[qid];
-	void *objs[SLOTS_PER_LLRING * 2];
+
+	void *objs[MAX_PKT_BURST];
 
 	int ret;
-	int i;
 
-	for (i = 0; i < cnt; i++) {
-		struct sn_rx_metadata *rx_meta;
+	reclaim_packets(rx_queue->drv_to_sn);
 
+	for (int i = 0; i < cnt; i++) {
 		struct snbuf *pkt = pkts[i];
-		struct rte_mbuf *mbuf;
+		struct rte_mbuf *mbuf = &pkt->mbuf;
 
-		int total_len;
+		struct sn_rx_desc *rx_desc;
+		
+		rx_desc = (struct sn_rx_desc *)(
+				(uint64_t)mbuf + 
+				sizeof(struct rte_mbuf) + 
+				SNBUF_HEADROOM + SNBUF_DATA);
 
-		total_len = snb_total_len(pkt);
+		rte_prefetch0(rx_desc);
 
-		rx_meta = (struct sn_rx_metadata *)snb_head_data(pkt) - 1;
-
-		rx_meta->length = total_len;
-
-#if OLD_METADATA
-		rx_meta->gso_mss = pkt->rx.gso_mss;
-		rx_meta->csum_state = pkt->rx.csum_state;
-#else
-		rx_meta->gso_mss = 0;
-		rx_meta->csum_state = SN_RX_CSUM_UNEXAMINED;
-#endif
-		rx_meta->host.seg_len = snb_head_len(pkt);
-		rx_meta->host.seg_next = 0;
-
-		for (mbuf = pkt->mbuf.next; mbuf; mbuf = mbuf->next) {
-			struct sn_rx_metadata *next_rx_meta;
-
-			next_rx_meta = rte_pktmbuf_mtod(mbuf, 
-					struct sn_rx_metadata *) - 1;
-
-			next_rx_meta->host.seg_len = rte_pktmbuf_data_len(mbuf);
-			next_rx_meta->host.seg_next = 0;
-
-			rx_meta->host.seg_next = snb_seg_dma_addr(mbuf) - 
-				sizeof(struct sn_rx_metadata);
-			rx_meta = next_rx_meta;
-		}
-
-		objs[i * 2 + 0] = (void *) pkt;
-		objs[i * 2 + 1] = (void *) snb_dma_addr(pkt) - sizeof(struct sn_rx_metadata);
+		/* FIXME: we should not use buf_physaddr, 
+		 *    since it may point to other mbuf's storage */
+		objs[i] = (void *)(mbuf->buf_physaddr + 
+				SNBUF_HEADROOM + SNBUF_DATA);
 	}
 
-	ret = llring_sp_enqueue_bulk(rx_queue->sn_to_drv, 
-			objs, cnt * 2);
+	for (int i = 0; i < cnt; i++) {
+		struct snbuf *pkt = pkts[i];
+		struct rte_mbuf *mbuf = &pkt->mbuf;
+
+		struct sn_rx_desc *rx_desc;
+		
+		rx_desc = (struct sn_rx_desc *)(
+				(uint64_t)mbuf + 
+				sizeof(struct rte_mbuf) + 
+				SNBUF_HEADROOM + SNBUF_DATA);
+
+		rx_desc->cookie = pkt;
+		rx_desc->total_len = snb_total_len(pkt);
+
+		rx_desc->seg_len = snb_head_len(pkt);
+		rx_desc->seg = snb_dma_addr(pkt);
+		rx_desc->next_desc = 0;
+
+#if OLD_METADATA
+		rx_desc->meta.gso_mss = pkt->rx.gso_mss;
+		rx_desc->meta.csum_state = pkt->rx.csum_state;
+#else
+		rx_desc->meta = (struct sn_rx_metadata){};
+#endif
+
+		for (struct rte_mbuf *seg = mbuf->next; seg; seg = seg->next) {
+			struct sn_rx_desc *next_rx_desc;
+
+			next_rx_desc = (struct sn_rx_desc *)(
+					(uint64_t)seg + 
+					sizeof(struct rte_mbuf) + 
+					SNBUF_HEADROOM + SNBUF_DATA);
+
+			next_rx_desc->seg_len = rte_pktmbuf_data_len(seg);
+			next_rx_desc->seg = snb_seg_dma_addr(seg);
+			next_rx_desc->next_desc = 0;
+
+			/* FIXME: we should not use buf_physaddr, 
+			 *    since it may point to other mbuf's storage */
+			rx_desc->next_desc = seg->buf_physaddr + 
+				SNBUF_HEADROOM + SNBUF_DATA;
+			rx_desc = next_rx_desc;
+		}
+	}
+
+	ret = llring_sp_enqueue_bulk(rx_queue->sn_to_drv, objs, cnt);
 
 	if (ret == -LLRING_ERR_NOBUF)
 		return 0;
@@ -681,22 +711,7 @@ static int put_rx_q(struct port *p, queue_t qid,
 			perror("ioctl_kick_rx");
 	}
 
-	/* TODO: defer this */
-	/* Lazy deallocation of packet buffers */
-	ret = llring_sc_dequeue_burst(rx_queue->drv_to_sn, objs, 
-			SLOTS_PER_LLRING);	
-	if (ret > 0)
-		snb_free_bulk((snb_array_t) objs, ret);
-
 	return cnt;
-}
-
-static int send_pkts(struct port *p, queue_t qid, 
-		snb_array_t pkts, int cnt)
-{
-	int ret = put_rx_q(p, qid, pkts, cnt);
-
-	return ret;
 }
 
 static const struct driver vport_host = {
@@ -706,8 +721,8 @@ static const struct driver vport_host = {
 	.init_driver	= init_driver,
 	.init_port 	= init_port,
 	.deinit_port	= deinit_port,
-	.recv_pkts 	= recv_pkts,
-	.send_pkts 	= send_pkts,
+	.recv_pkts 	= vport_recv_pkts,
+	.send_pkts 	= vport_send_pkts,
 };
 
 ADD_DRIVER(vport_host)

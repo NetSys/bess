@@ -51,6 +51,8 @@
 
 #define MAX_QUEUES	128
 
+#define MAX_RX_BATCH	32
+
 struct sn_device;
 
 enum sn_dev_type {

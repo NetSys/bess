@@ -130,23 +130,26 @@ struct sn_tx_metadata {
 #define SN_RX_CSUM_CORRECT		3
 #define SN_RX_CSUM_CORRECT_ENCAP	4
 
-/* SoftNIC -> Driver metadata for RX packets */
 struct sn_rx_metadata {
-	uint16_t length;
-	
 	/* Maximum TCP "payload" size among coalesced packets.
 	 * 0 for non-coalesed packets */
 	uint16_t gso_mss;	
 
 	uint8_t	csum_state;	/* SN_RX_CSUM_* */
+};
 
-	/* mode-specific attributes */
-	union {
-		struct {
-			uint16_t seg_len;
-			phys_addr_t seg_next;
-		} host;
-	};
+/* BESS -> Driver descriptor for RX packets */
+struct sn_rx_desc {
+	void *cookie;
+
+	uint32_t total_len;
+
+	/* Only the following three fields are valid for non-head segments */
+	uint16_t seg_len;
+	phys_addr_t seg;
+	phys_addr_t next_desc;		/* NULL-terminating linked list */
+
+	struct sn_rx_metadata meta;
 };
 
 /* BAR layout

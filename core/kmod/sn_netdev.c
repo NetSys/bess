@@ -34,8 +34,6 @@
 #include <net/busy_poll.h>
 #include "sn.h"
 
-#define MAX_RX_BATCH	16
-
 static int sn_poll(struct napi_struct *napi, int budget);
 static void sn_enable_interrupt(struct sn_queue *rx_queue);
 
@@ -162,8 +160,6 @@ static void sn_free_queues(struct sn_device *dev)
 {
 	int i;
 
-	log_info("%s: releasing queues\n", dev->netdev->name);
-
 	for (i = 0; i < dev->num_rxq; i++) {
 		napi_hash_del(&dev->rx_queues[i]->napi);
 		netif_napi_del(&dev->rx_queues[i]->napi);
@@ -180,8 +176,6 @@ static int sn_open(struct net_device *netdev)
 	struct sn_device *dev = netdev_priv(netdev);
 	int i;
 
-	log_info("%s: interface UP\n", netdev->name);
-
 	for (i = 0; i < dev->num_rxq; i++)
 		napi_enable(&dev->rx_queues[i]->napi);
 	for (i = 0; i < dev->num_rxq; i++) 
@@ -195,8 +189,6 @@ static int sn_close(struct net_device *netdev)
 {
 	struct sn_device *dev = netdev_priv(netdev);
 	int i;
-
-	log_info("%s: interface DOWN\n", netdev->name);
 
 	for (i = 0; i < dev->num_rxq; i++)
 		napi_disable(&dev->rx_queues[i]->napi);
@@ -729,9 +721,6 @@ int sn_create_netdev(void *bar, struct sn_device **dev_ret)
 		return -EINVAL;
 	}
 
-	log_info("ioctl arguments: num_txq=%d, num_rxq=%d\n",
-			conf->num_txq, conf->num_rxq);
-
 	if (conf->num_txq < 1 || conf->num_rxq < 1 ||
 			conf->num_txq > MAX_QUEUES || 
 			conf->num_rxq > MAX_QUEUES) 
@@ -799,33 +788,26 @@ int sn_register_netdev(void *bar, struct sn_device *dev)
 
 	rtnl_lock();
 	
-	ret = register_netdevice(dev->netdev);
-	if (ret) {
-		log_err("%s: register_netdev() failed (ret = %d)\n", 
-				dev->netdev->name, ret);
-		goto fail_free;
-	}
-
 	if (conf->container_pid) {
 		struct net *net = NULL;		/* network namespace */
 
 		net = get_net_ns_by_pid(conf->container_pid);
 		if (IS_ERR(net)) {
-			log_err("%s: cannot find namespace of pid %d\n",
-					dev->netdev->name, 
+			log_err("cannot find namespace of pid %d\n",
 					conf->container_pid);
 
 			ret = PTR_ERR(net);
-			goto fail_unregister;
+			goto fail_free;
 		}
 
-		ret = dev_change_net_namespace(dev->netdev, net, NULL);
-		put_net(net);
-		if (ret) {
-			log_err("%s: fail to change namespace\n",
-					dev->netdev->name);
-			goto fail_unregister;
-		}
+		dev_net_set(dev->netdev, net);
+	}
+
+	ret = register_netdevice(dev->netdev);
+	if (ret) {
+		log_err("%s: register_netdev() failed (ret = %d)\n", 
+				dev->netdev->name, ret);
+		goto fail_free;
 	}
 
 	/* interface "UP" by default */
@@ -842,9 +824,6 @@ int sn_register_netdev(void *bar, struct sn_device *dev)
 	rtnl_unlock();
 
 	return ret;
-
-fail_unregister:
-	unregister_netdevice(dev->netdev);
 
 fail_free:
 	rtnl_unlock();
@@ -919,6 +898,7 @@ void sn_trigger_softirq_with_qid(void *info, int rxq)
 
 	if (rxq < 0 || rxq >= dev->num_rxq) {
 		log_err("invalid rxq %d\n", rxq);
+		return;
 	}
 
 	rx_queue = dev->rx_queues[rxq];
