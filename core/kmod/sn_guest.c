@@ -29,6 +29,8 @@
  */
 /* Dual BSD/GPL */
 
+#if 0
+
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
@@ -448,3 +450,5 @@ void sn_guest_cleanup(void)
 	}
 	sn_ivsm_cleanup();
 }
+
+#endif
