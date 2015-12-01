@@ -1,6 +1,6 @@
 #include "../module.h"
 
-#define TEMPLATE_SLOTS		(MAX_PKT_BURST * 2 - 1)
+#define SLOTS			(MAX_PKT_BURST * 2 - 1)
 #define MAX_TEMPLATE_SIZE	1536
 
 struct rewrite_priv {
@@ -9,8 +9,8 @@ struct rewrite_priv {
 	int next_turn;
 
 	int num_templates;
-	uint16_t template_size[TEMPLATE_SLOTS];
-	unsigned char templates[TEMPLATE_SLOTS][MAX_TEMPLATE_SIZE] __ymm_aligned;
+	uint16_t template_size[SLOTS];
+	unsigned char templates[SLOTS][MAX_TEMPLATE_SIZE] __ymm_aligned;
 };
 
 static struct snobj *rewrite_query(struct module *, struct snobj *);
@@ -56,7 +56,7 @@ static struct snobj *handle_templates(struct rewrite_priv *priv,
 		priv->template_size[i] = template->size;
 	}
 
-	for (i = templates->size; i < TEMPLATE_SLOTS; i++) {
+	for (i = templates->size; i < SLOTS; i++) {
 		int j = i % templates->size;
 		memcpy(priv->templates[i], priv->templates[j], 
 				priv->template_size[j]);
