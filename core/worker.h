@@ -4,6 +4,9 @@
 #include <stdint.h>
 
 #include "common.h"
+#include "pktbatch.h"
+
+#define MAX_OUTPUT_GATES	8192
 
 /* 	TODO: worker threads doesn't necessarily be pinned to 1 core
  *
@@ -40,6 +43,9 @@ struct worker_context {
 	uint64_t current_us;
 
 	struct rte_mempool *pframe_pool;
+
+	/* better be the last field. it's huge */
+	struct pkt_batch splits[MAX_OUTPUT_GATES];
 };
 
 extern int num_workers;

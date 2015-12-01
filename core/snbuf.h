@@ -21,8 +21,6 @@
 #define MAX_SNBUF_BYTES			128
 ct_assert(MAX_SNBUF_BYTES <= RTE_PKTMBUF_HEADROOM);
 
-#define MAX_PKT_BURST			32
-
 /* snbuf and mbuf share the same start address, so that we can avoid conversion.
  * The actual content (SNBUF_SIZE) of snbuf resides right after mbuf (128B), 
  * at the beginning of the buffer headroom (RTE_PKTMBUF_HEADROOM) */
@@ -64,26 +62,6 @@ struct snbuf {
 		offsetof(struct snbuf, _snbuf_start))
 
 typedef struct snbuf * restrict * restrict snb_array_t;
-
-struct pkt_batch {
-	struct snbuf * restrict pkts[MAX_PKT_BURST];
-	int cnt;
-};
-
-static inline void batch_clear(struct pkt_batch *batch)
-{
-	batch->cnt = 0;
-}
-
-static inline void batch_add(struct pkt_batch *batch, struct snbuf *snb)
-{
-	batch->pkts[batch->cnt++] = snb;
-}
-
-static inline int batch_full(struct pkt_batch *batch)
-{
-	return (batch->cnt == MAX_PKT_BURST);
-}
 
 static inline char *snb_head_data(struct snbuf *snb)
 {

@@ -218,38 +218,37 @@ static inline void run_next_module(struct module *m, struct pkt_batch *batch)
  * NOTE:
  *   1. Order is preserved for packets with the same gate.
  *   2. No ordering guarantee for packets with different gates.
- *   3. Array ogates may be altered.
- *
- * TODO: optimize this function. currently O(n^2) in the worst case
  */
-static void run_split(struct module *m, gate_t *ogates,
-		struct pkt_batch *org)
+static void run_split(struct module *m, const gate_t *ogates,
+		const struct pkt_batch *mixed_batch)
 {
-	const int total = org->cnt;
-	int i = 0;
+	gate_t pending[MAX_PKT_BURST];
+	int num_pending = 0;
 
-	while (i < total) {
-		gate_t h = ogates[i];
+	/* collect */
+	for (int i = 0; i < mixed_batch->cnt; i++) {
+		struct pkt_batch *batch;
+		gate_t ogate;
+		
+		ogate = ogates[i];
+		batch = &ctx.splits[ogate];
 
-		if (h != INVALID_GATE) {
-			struct pkt_batch batch;
-			int cnt = 1;
-			batch.pkts[0] = org->pkts[i++];
+		if (batch->cnt == 0)
+			pending[num_pending++] = ogate;
 
-			for (int j = i; j < total; j++) {
-				gate_t t = ogates[j];
-				int equal = (h == t);
+		batch_add(batch, mixed_batch->pkts[i]);
+	}
 
-				batch.pkts[cnt] = org->pkts[j];
-				ogates[j] |= INVALID_GATE * equal;
-				cnt += equal;
-				i += (i == j) * equal;
-			}
+	/* fire */
+	for (int i = 0; i < num_pending; i++) {
+		struct pkt_batch *batch;
+		gate_t ogate;
 
-			batch.cnt = cnt;
-			run_choose_module(m, h, &batch);
-		} else
-			i++;
+		ogate = pending[i];
+		batch = &ctx.splits[ogate];
+
+		run_choose_module(m, ogate, batch);
+		batch_clear(batch);
 	}
 }
 
