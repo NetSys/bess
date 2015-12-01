@@ -414,8 +414,6 @@ static struct snobj *handle_create_port(struct snobj *q)
 	if (!port)
 		return err;
 
-	printf("Port %s created at %p\n", port->name, port);
-
 	r = snobj_map();
 	snobj_map_set(r, "name", snobj_str(port->name));
 
@@ -580,8 +578,6 @@ static struct snobj *handle_create_module(struct snobj *q)
 	if (!module)
 		return r;
 
-	printf("Module %s created at %p\n", module->name, module);
-
 	r = snobj_map();
 	snobj_map_set(r, "name", snobj_str(module->name));
 
@@ -685,8 +681,6 @@ static struct snobj *handle_connect_modules(struct snobj *q)
 		return snobj_err(-ret, "Connection '%s'[%d]->'%s' failed", 
 			m1_name, gate, m2_name);
 
-	printf("%s[%d] -> %s\n", m1_name, gate, m2_name);
-
 	return NULL;
 }
 
@@ -712,8 +706,6 @@ static struct snobj *handle_disconnect_modules(struct snobj *q)
 	if (ret < 0)
 		return snobj_err(-ret, "Disconnection '%s'[%d] failed", 
 			m_name, gate);
-
-	printf("%s[%d] -> <dead end>\n", m_name, gate);
 
 	return NULL;
 }

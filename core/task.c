@@ -94,9 +94,6 @@ void assign_default_tc(int wid, struct task *t)
 
 	task_attach(t, c_def);
 	tc_join(c_def);
-
-	printf("Task %p has been registered to "
-	       "a default TC %s on worker:%d\n", t, c_def->name, wid);
 }
 
 static int get_next_wid(int *wid)
