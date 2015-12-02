@@ -16,6 +16,9 @@
 
 #define SLOTS_PER_LLRING	256
 
+#define REFILL_LOW		32
+#define REFILL_HIGH		64
+
 /* This watermark is to detect congestion and cache bouncing due to
  * head-eating-tail (needs at least 8 slots less then the total ring slots).
  * Not sure how to tune this... */
@@ -56,31 +59,29 @@ static inline int find_next_nonworker_cpu(int cpu)
 	return cpu;
 }
 
-static void refill_tx_bufs(struct llring *r, int cnt)
+static void refill_tx_bufs(struct llring *r)
 {
-	struct snbuf *snb;
-	void *objs[cnt * 2];
+	struct snbuf *pkts[REFILL_HIGH];
+	void *objs[REFILL_LOW];
 
+	int deficit;
 	int ret;
-	int i;
+
+	int curr_cnt = llring_count(r);
+
+	if (curr_cnt >= REFILL_LOW)
+		return;
+
+	deficit = REFILL_HIGH - curr_cnt;
+
+	ret = snb_alloc_bulk((snb_array_t)pkts, deficit, 0);
+	if (ret == 0)
+		return;
+
+	for (int i = 0; i < ret; i++)
+		objs[i] = (void *)pkts[i]->immutable.paddr;
 	
-	int deficit = (r->common.slots - llring_count(r)) / 4;
-
-	if (cnt > deficit)
-		cnt = deficit;
-
-	for (i = 0; i < cnt; i++) {
-		snb = snb_alloc();
-		if (snb == NULL) {
-			cnt = i;
-			break;
-		}
-
-		objs[i * 2    ] = (void *) snb;
-		objs[i * 2 + 1] = (void *) snb_dma_addr(snb);
-	}
-	
-	ret = llring_sp_enqueue_bulk(r, objs, cnt * 2);
+	ret = llring_mp_enqueue_bulk(r, objs, ret);
 	assert(ret == 0);
 }
 
@@ -186,7 +187,7 @@ static void *alloc_bar(struct port *p, int container_pid, int loopback)
 		/* SoftNIC -> Driver */
 		llring_init((struct llring *)ptr, SLOTS_PER_LLRING, 
 				SINGLE_P, SINGLE_C);
-		refill_tx_bufs((struct llring *)ptr, SLOTS_PER_LLRING / 2);
+		refill_tx_bufs((struct llring *)ptr);
 		priv->inc_qs[i].sn_to_drv = (struct llring *)ptr;
 		ptr += bytes_per_llring;
 	}
@@ -554,59 +555,36 @@ static struct snobj *init_port(struct port *p, struct snobj *conf)
 	return NULL;
 }
 
-static int get_tx_q(struct port *p, queue_t qid,
-		    snb_array_t pkts, int max_cnt)
+static int vport_recv_pkts(struct port *p, queue_t qid, 
+		snb_array_t pkts, int max_cnt)
 {
 	struct vport_priv *priv = get_port_priv(p);
 	struct queue *tx_queue = &priv->inc_qs[qid];
-	void *objs[max_cnt];
 
 	int cnt;
 	int i;
 
 	cnt = llring_sc_dequeue_burst(tx_queue->drv_to_sn, 
-			objs, max_cnt);
-	if (cnt == 0)
-		return 0;
+			(void **)pkts, max_cnt);
+
+	refill_tx_bufs(tx_queue->sn_to_drv);
 
 	for (i = 0; i < cnt; i++) {
-		pkts[i] = (struct snbuf *) objs[i];
-		rte_prefetch0(snb_head_data(pkts[i]));
-	}
+		struct snbuf *pkt = pkts[i];
+		struct sn_tx_desc *tx_desc;
+		uint16_t len;
 
-	refill_tx_bufs(tx_queue->sn_to_drv, max_cnt);
+		tx_desc = (struct sn_tx_desc *)pkt->_scratchpad;
+		len = tx_desc->total_len;
 
-	for (i = 0; i < cnt; i++) {
-		struct sn_tx_metadata *tx_meta;
-		int legit_size;
+		pkt->mbuf.data_off = SNBUF_HEADROOM;
+		pkt->mbuf.pkt_len = len;
+		pkt->mbuf.data_len = len;
 
-		tx_meta = (struct sn_tx_metadata *)snb_head_data(pkts[i]);
-
-#if OLD_METADATA
-		pkts[i]->in_port = vport->port.port_id;
-		pkts[i]->in_queue = txq;
-
-		/* TODO: sanity check for the metadata */
-		pkts[i]->tx.csum_start = tx_meta->csum_start;
-		pkts[i]->tx.csum_dest = tx_meta->csum_dest;
-#endif
-
-		legit_size = (snb_append(pkts[i], sizeof(struct sn_tx_metadata) + 
-				tx_meta->length) != NULL);
-		assert(legit_size);
-		
-		snb_adj(pkts[i], sizeof(struct sn_tx_metadata));
+		/* TODO: process sn_tx_metadata */
 	}
 
 	return cnt;
-}
-
-static int vport_recv_pkts(struct port *p, queue_t qid, 
-		snb_array_t pkts, int cnt)
-{
-	int ret = get_tx_q(p, qid, pkts, cnt);
-
-	return ret;
 }
 
 static void reclaim_packets(struct llring *ring)
@@ -614,7 +592,7 @@ static void reclaim_packets(struct llring *ring)
 	void *objs[SLOTS_PER_LLRING];
 	int ret;
 
-	ret = llring_sc_dequeue_burst(ring, objs, 
+	ret = llring_mc_dequeue_burst(ring, objs, 
 			SLOTS_PER_LLRING);	
 	if (ret > 0)
 		snb_free_bulk((snb_array_t) objs, ret);
@@ -630,73 +608,52 @@ static int vport_send_pkts(struct port *p, queue_t qid,
 
 	int ret;
 
-	reclaim_packets(rx_queue->drv_to_sn);
-
 	for (int i = 0; i < cnt; i++) {
-		struct snbuf *pkt = pkts[i];
-		struct rte_mbuf *mbuf = &pkt->mbuf;
+		struct snbuf *snb = pkts[i];
 
 		struct sn_rx_desc *rx_desc;
 		
-		rx_desc = (struct sn_rx_desc *)(
-				(uint64_t)mbuf + 
-				sizeof(struct rte_mbuf) + 
-				SNBUF_HEADROOM + SNBUF_DATA);
+		rx_desc = (struct sn_rx_desc *)snb->_scratchpad;
 
 		rte_prefetch0(rx_desc);
 
-		/* FIXME: we should not use buf_physaddr, 
-		 *    since it may point to other mbuf's storage */
-		objs[i] = (void *)(mbuf->buf_physaddr + 
-				SNBUF_HEADROOM + SNBUF_DATA);
+		objs[i] = (void *)snb->immutable.paddr;
 	}
 
 	for (int i = 0; i < cnt; i++) {
-		struct snbuf *pkt = pkts[i];
-		struct rte_mbuf *mbuf = &pkt->mbuf;
+		struct snbuf *snb = pkts[i];
+		struct rte_mbuf *mbuf = &snb->mbuf;
 
 		struct sn_rx_desc *rx_desc;
 		
-		rx_desc = (struct sn_rx_desc *)(
-				(uint64_t)mbuf + 
-				sizeof(struct rte_mbuf) + 
-				SNBUF_HEADROOM + SNBUF_DATA);
+		rx_desc = (struct sn_rx_desc *)snb->_scratchpad;
 
-		rx_desc->cookie = pkt;
-		rx_desc->total_len = snb_total_len(pkt);
+		rx_desc->total_len = snb_total_len(snb);
+		rx_desc->seg_len = snb_head_len(snb);
+		rx_desc->seg = snb_dma_addr(snb);
+		rx_desc->next = 0;
 
-		rx_desc->seg_len = snb_head_len(pkt);
-		rx_desc->seg = snb_dma_addr(pkt);
-		rx_desc->next_desc = 0;
-
-#if OLD_METADATA
-		rx_desc->meta.gso_mss = pkt->rx.gso_mss;
-		rx_desc->meta.csum_state = pkt->rx.csum_state;
-#else
 		rx_desc->meta = (struct sn_rx_metadata){};
-#endif
 
 		for (struct rte_mbuf *seg = mbuf->next; seg; seg = seg->next) {
-			struct sn_rx_desc *next_rx_desc;
+			struct sn_rx_desc *next_desc;
+			struct snbuf *seg_snb;
+			
+			seg_snb = (struct snbuf *)seg;
+			next_desc = (struct sn_rx_desc *)seg_snb->_scratchpad;
 
-			next_rx_desc = (struct sn_rx_desc *)(
-					(uint64_t)seg + 
-					sizeof(struct rte_mbuf) + 
-					SNBUF_HEADROOM + SNBUF_DATA);
+			next_desc->seg_len = rte_pktmbuf_data_len(seg);
+			next_desc->seg = snb_seg_dma_addr(seg);
+			next_desc->next = 0;
 
-			next_rx_desc->seg_len = rte_pktmbuf_data_len(seg);
-			next_rx_desc->seg = snb_seg_dma_addr(seg);
-			next_rx_desc->next_desc = 0;
-
-			/* FIXME: we should not use buf_physaddr, 
-			 *    since it may point to other mbuf's storage */
-			rx_desc->next_desc = seg->buf_physaddr + 
-				SNBUF_HEADROOM + SNBUF_DATA;
-			rx_desc = next_rx_desc;
+			rx_desc->next = seg_snb->immutable.paddr;
+			rx_desc = next_desc;
 		}
 	}
 
-	ret = llring_sp_enqueue_bulk(rx_queue->sn_to_drv, objs, cnt);
+	ret = llring_mp_enqueue_bulk(rx_queue->sn_to_drv, objs, cnt);
+
+	reclaim_packets(rx_queue->drv_to_sn);
 
 	if (ret == -LLRING_ERR_NOBUF)
 		return 0;

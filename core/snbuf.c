@@ -10,16 +10,39 @@
 #include "snbuf.h"
 
 /* 2^n - 1 is optimal according to the DPDK manual */
-#define NUM_PFRAMES	(262144 - 1)
+#define NUM_PFRAMES	(131072 - 1)
 
 #define NUM_MEMPOOL_CACHE	512
 
-struct snbuf snbuf_template __cacheline_aligned;
 struct rte_mbuf pframe_template;
 
 static struct rte_mempool *pframe_pool[RTE_MAX_NUMA_NODES];
 
-ct_assert(SNBUF_HEADROOM == RTE_PKTMBUF_HEADROOM);
+static void snbuf_pool_init(struct rte_mempool *mp, void *opaque_arg,
+		void *_m, unsigned i)
+{
+	struct snbuf *snb;
+	struct snbuf_immutable *immutable;
+
+	snb = _m;
+	immutable = (struct snbuf_immutable *)&snb->immutable;
+
+	rte_pktmbuf_init(mp, NULL, _m, i);
+
+	memset(snb->_reserve, 0, SNBUF_TAIL_RESERVE);
+
+	/* Exclude tail area, which is not for packet payload.
+	 * NOTE: Do not rte_pktmbuf_detach(), since it resets the field. */
+	snb->mbuf.buf_len = SNBUF_HEADROOM + SNBUF_DATA;
+
+	immutable->vaddr = snb;
+	immutable->paddr = rte_mempool_virt2phy(mp, snb);
+
+	immutable->sid = (uint32_t)(uint64_t)opaque_arg;
+	immutable->index = i;
+
+	snb->simple = 1;
+}
 
 static void init_mempool_socket(int sid)
 {
@@ -34,7 +57,7 @@ static void init_mempool_socket(int sid)
 			sizeof(struct rte_pktmbuf_pool_private),
 			rte_pktmbuf_pool_init, 
 			(void *)(SNBUF_HEADROOM + SNBUF_DATA), 
-			rte_pktmbuf_init, NULL, 
+			snbuf_pool_init, (void *)(int64_t)sid, 
 			sid, 0);
 
 	if (!pframe_pool[sid]) {
@@ -42,20 +65,14 @@ static void init_mempool_socket(int sid)
 				sid, rte_strerror(rte_errno));
 		exit(EXIT_FAILURE);
 	}
+
+	/* rte_mempool_dump(stdout, pframe_pool[sid]); */
 }
 
 static void init_templates(void)
 {
 	int i;
 
-#if OLD_METADATA
-	memset(&snbuf_template, 0, sizeof(struct snbuf));
-
-	snbuf_template.in_port = PORT_UNSET;
-	snbuf_template.in_queue = QUEUE_UNSET;
-	snbuf_template.out_port = PORT_UNSET;
-	snbuf_template.out_queue = QUEUE_UNSET;
-#endif
 	for (i = 0; i < RTE_MAX_NUMA_NODES; i++) {
 		struct rte_mbuf *mbuf;
 
@@ -73,6 +90,10 @@ void init_mempool(void)
 	int initialized[RTE_MAX_NUMA_NODES];
 
 	int i;
+
+	assert(SNBUF_IMMUTABLE_OFF == 1792);
+	assert(SNBUF_METADATA_OFF == 1856);
+	assert(SNBUF_SCRATCHPAD_OFF == 1984);
 
 	for (i = 0; i < RTE_MAX_NUMA_NODES; i++)
 		initialized[i] = 0;
@@ -109,13 +130,6 @@ void snb_dump(FILE *file, struct snbuf *pkt)
 	struct rte_mbuf *mbuf;
 
 	fprintf(file, "----------------------------------------\n");
-
-#if OLD_METADATA
-	fprintf(file, "in_port   = %hhu\n", pkt->in_port);
-	fprintf(file, "in_queue  = %hhu\n", pkt->in_queue);
-	fprintf(file, "out_port  = %hhu\n", pkt->out_port);
-	fprintf(file, "out_queue = %hhu\n", pkt->out_queue);
-#endif
 
 	fprintf(file, "refcnt chain: ");
 	for (mbuf = (struct rte_mbuf *)pkt; mbuf; mbuf = mbuf->next)

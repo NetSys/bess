@@ -10,13 +10,6 @@ snb_alloc_bulk(snb_array_t snbs, int cnt, uint16_t len)
 	__m128i mbuf_template;	/* 256-bit write was worse... */
 	__m128i rxdesc_fields;
 
-#if OLD_METADATA
-	ct_assert(SNBUF_SIZE == 16);
-
-	__m128i snb_template;
-	snb_template = *((__m128i *)&snbuf_template._snbuf_start);
-#endif
-
 #if DPDK >= DPDK_VER(2, 1, 0)
 	/* DPDK 2.1
 	 * packet_type		0 	(32 bits)
@@ -49,17 +42,11 @@ snb_alloc_bulk(snb_array_t snbs, int cnt, uint16_t len)
 		struct snbuf *snb0 = snbs[i];
 		struct snbuf *snb1 = snbs[i + 1];
 
-#if OLD_METADATA
-		*((__m128i *)&snb0->_snbuf_start) = snb_template;
-#endif
 		_mm_store_si128((__m128i *)&snb0->mbuf.buf_len, 
 				mbuf_template);
 		_mm_store_si128((__m128i *)&snb0->mbuf.packet_type, 
 				rxdesc_fields);
 
-#if OLD_METADATA
-		*((__m128i *)&snb1->_snbuf_start) = snb_template;
-#endif
 		_mm_store_si128((__m128i *)&snb1->mbuf.buf_len, 
 				mbuf_template);
 		_mm_store_si128((__m128i *)&snb1->mbuf.packet_type, 
@@ -69,9 +56,6 @@ snb_alloc_bulk(snb_array_t snbs, int cnt, uint16_t len)
 	if (cnt & 0x1){
 		struct snbuf *snb = snbs[i];
 
-#if OLD_METADATA
-		*((__m128i *)&snb->_snbuf_start) = snb_template;
-#endif
 		_mm_store_si128((__m128i *)&snb->mbuf.buf_len, 
 				mbuf_template);
 		_mm_store_si128((__m128i *)&snb->mbuf.packet_type, 

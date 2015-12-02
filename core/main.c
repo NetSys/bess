@@ -296,10 +296,10 @@ int main(int argc, char **argv)
 {
 	int signal_fd = -1;
 
-	check_user();
-	
 	parse_args(argc, argv);
 
+	check_user();
+	
 	if (opts->foreground)
 		printf("Launching BESS daemon in process mode... ");
 	else

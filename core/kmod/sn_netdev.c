@@ -520,8 +520,6 @@ static int sn_poll(struct napi_struct *napi, int budget)
 static void sn_set_tx_metadata(struct sk_buff *skb, 
 			       struct sn_tx_metadata *tx_meta)
 {
-	tx_meta->length = skb->len;
-
 	if (skb->ip_summed == CHECKSUM_PARTIAL) {
 		tx_meta->csum_start = skb_checksum_start_offset(skb);
 		tx_meta->csum_dest = tx_meta->csum_start + skb->csum_offset;

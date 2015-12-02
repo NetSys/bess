@@ -13,6 +13,7 @@ static void buffer_deinit(struct module *m)
 
 	if (buf->cnt)
 		snb_free_bulk(buf->pkts, buf->cnt);
+	assert(0);
 }
 
 static void buffer_process_batch(struct module *m, struct pkt_batch *batch)

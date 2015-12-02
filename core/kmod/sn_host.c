@@ -34,7 +34,7 @@
 static void 
 sn_dump_queue_mapping(struct sn_device *dev) __attribute__((unused));
 
-/* User applications are expected to open /dev/softnic every time
+/* User applications are expected to open /dev/bess every time
  * they create a network device */
 static int sn_host_open(struct inode *inode, struct file *filp)
 {
@@ -57,25 +57,29 @@ static int sn_host_release(struct inode *inode, struct file *filp)
 static int sn_host_do_tx(struct sn_queue *queue, struct sk_buff *skb,
 			 struct sn_tx_metadata *tx_meta)
 {
-	void *objs[2];
-	void *cookie;
+	phys_addr_t paddr;
+	uint64_t vaddr_user;
+
+	struct sn_tx_desc *tx_desc;
+
 	char *dst_addr;
 
 	int nr_frags = skb_shinfo(skb)->nr_frags;
 	int ret;
 	int i;
 
-	ret = llring_mc_dequeue_bulk(queue->sn_to_drv, objs, 2);
+	ret = llring_mc_dequeue(queue->sn_to_drv, (void *)&paddr);
 	if (unlikely(ret == -LLRING_ERR_NOENT)) {
 		queue->tx_stats.descriptor++;
 		return NET_XMIT_DROP;
 	}
 
-	cookie = objs[0];
-	dst_addr = phys_to_virt((phys_addr_t) objs[1]);
+	vaddr_user = *((uint64_t *)phys_to_virt(paddr + SNBUF_IMMUTABLE_OFF));
+	dst_addr = phys_to_virt(paddr + SNBUF_DATA_OFF);
+	tx_desc = phys_to_virt(paddr + SNBUF_SCRATCHPAD_OFF);
 
-	memcpy(dst_addr, tx_meta, sizeof(struct sn_tx_metadata));
-	dst_addr += sizeof(struct sn_tx_metadata);
+	tx_desc->total_len = skb->len;
+	tx_desc->meta = *tx_meta;
 
 	memcpy(dst_addr, skb->data, skb_headlen(skb));
 	dst_addr += skb_headlen(skb);
@@ -87,13 +91,13 @@ static int sn_host_do_tx(struct sn_queue *queue, struct sk_buff *skb,
 		dst_addr += skb_frag_size(frag);
 	}
 
-	ret = llring_mp_enqueue(queue->drv_to_sn, objs[0]);
+	ret = llring_mp_enqueue(queue->drv_to_sn, (void *)vaddr_user);
 	if (likely(ret == 0 || ret == -LLRING_ERR_QUOT))
 		return (ret == 0) ? NET_XMIT_SUCCESS : NET_XMIT_CN;
 	else {
 		/* Now it should never happen since refill is throttled.
 		 * If it does, the mbuf(objs[0]) leaks. Ouch. */
-		pr_err("queue %d is overflowing!\n", queue->queue_id);
+		log_err("queue %d is overflowing!\n", queue->queue_id);
 		return NET_XMIT_DROP;
 	}
 }
@@ -125,12 +129,14 @@ static int sn_host_do_rx_batch(struct sn_queue *queue,
 		int copied;
 		char *ptr;
 
-		rx_desc = phys_to_virt((phys_addr_t) objs[i]);
+		rx_desc = phys_to_virt((phys_addr_t)objs[i] + 
+				SNBUF_SCRATCHPAD_OFF);
 		
-		cookies[i] = rx_desc->cookie;
+		cookies[i] = (void *)(*((uint64_t *)rx_desc +
+				(SNBUF_IMMUTABLE_OFF - SNBUF_SCRATCHPAD_OFF) / 
+				sizeof(uint64_t)));
 
-		memcpy(&rx_meta[i], &rx_desc->meta, 
-				sizeof(struct sn_rx_metadata));
+		rx_meta[i] = rx_desc->meta;
 
 		total_len = rx_desc->total_len;
 
@@ -154,7 +160,8 @@ static int sn_host_do_rx_batch(struct sn_queue *queue,
 					seg_len);
 
 			copied += seg_len;
-			rx_desc = phys_to_virt(rx_desc->next_desc);
+			rx_desc = phys_to_virt(rx_desc->next +
+					SNBUF_SCRATCHPAD_OFF);
 		} while (copied < total_len);
 	}
 
@@ -413,9 +420,7 @@ sn_host_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 
 	case SN_IOC_RELEASE_HOSTNIC:
 		if (dev) {
-			sn_release_netdev((struct sn_device *)
-					filp->private_data);
-			filp->private_data = NULL;
+			sn_host_release(NULL, filp);
 		} else
 			ret = -ENODEV;
 		break;

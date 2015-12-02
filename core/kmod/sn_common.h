@@ -32,9 +32,25 @@
 #ifndef _SN_COMMON_H_
 #define _SN_COMMON_H_
 
+#define SNBUF_MBUF			128
 #define SNBUF_HEADROOM			128
 #define SNBUF_DATA			1536
-#define SNBUF_TAIL_RESERVE		128
+#define SNBUF_IMMUTABLE			64
+#define SNBUF_METADATA			128
+#define SNBUF_SCRATCHPAD		64
+#define SNBUF_TAIL_RESERVE		(SNBUF_IMMUTABLE + \
+					 SNBUF_METADATA + \
+					 SNBUF_SCRATCHPAD)
+
+#define SNBUF_DATA_OFF			(SNBUF_MBUF + SNBUF_HEADROOM)
+
+#define SNBUF_IMMUTABLE_OFF		(SNBUF_DATA_OFF + SNBUF_DATA)
+
+#define SNBUF_METADATA_OFF		(SNBUF_IMMUTABLE_OFF + \
+					 SNBUF_IMMUTABLE)
+
+#define SNBUF_SCRATCHPAD_OFF		(SNBUF_METADATA_OFF + \
+					 SNBUF_METADATA)
 
 #include <linux/if_ether.h>
 
@@ -108,20 +124,17 @@ struct sn_rxq_registers {
 
 /* Driver -> SoftNIC metadata for TX packets */
 struct sn_tx_metadata {
-	uint16_t length;
-
 	/* Both are relative offsets from the beginning of the packet.
 	 * The sender should set csum_start to CSUM_DONT
 	 * if no checksumming is wanted (csum_dest is undefined).*/
 	uint16_t csum_start;
 	uint16_t csum_dest;
+};
 
-	uint16_t nr_frags;
+struct sn_tx_desc {
+	uint16_t total_len;
 
-	uint64_t frag_addr[SN_TX_FRAG_MAX_NUM];
-	uint16_t frag_len[SN_TX_FRAG_MAX_NUM];
-
-	void *skb;
+	struct sn_tx_metadata meta;
 };
 
 #define SN_RX_CSUM_UNEXAMINED		0
@@ -140,14 +153,15 @@ struct sn_rx_metadata {
 
 /* BESS -> Driver descriptor for RX packets */
 struct sn_rx_desc {
-	void *cookie;
-
 	uint32_t total_len;
 
 	/* Only the following three fields are valid for non-head segments */
 	uint16_t seg_len;
-	phys_addr_t seg;
-	phys_addr_t next_desc;		/* NULL-terminating linked list */
+	phys_addr_t seg; 	/* where's the actual data? */
+
+	/* The physical address of next snbuf
+	 * (forms a NULL-terminating linked list) */
+	phys_addr_t next;		
 
 	struct sn_rx_metadata meta;
 };
