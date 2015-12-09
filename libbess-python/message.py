@@ -77,6 +77,7 @@ def _decode_recur(buf, offset):
         offset += l
     elif t == TYPE_BLOB:
         v = bytearray(buf[offset:offset + l])
+        offset += l
     elif t == TYPE_LIST:
         v  = list()
         for i in xrange(l):
