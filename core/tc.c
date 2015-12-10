@@ -65,6 +65,7 @@ struct tc *tc_init(struct sched *s, const struct tc_params *params)
 {
 	struct tc *c;
 
+	int ret;
 	int i;
 
 	assert(!s->current);
@@ -79,9 +80,15 @@ struct tc *tc_init(struct sched *s, const struct tc_params *params)
 	if (!c)
 		oom_crash();
 
-	tc_inc_refcnt(c);	/* held by user (the owner) */
+	ret = ns_insert(NS_TYPE_TC, params->name, c);
+	if (ret < 0) {
+		rte_free(c);
+		return err_to_ptr(ret);
+	}
 
-	c->id = s->next_tc_id++;
+	strcpy(c->name, params->name);
+
+	tc_inc_refcnt(c);	/* held by user (the owner) */
 
 	c->s = s;
 	s->num_classes++;
@@ -148,6 +155,8 @@ void _tc_do_free(struct tc *c)
 		c->s->num_classes--;
 	}
 
+	ns_remove(c->name);
+
 	memset(c, 0, sizeof(*c));	/* zero out to detect potential bugs */
 	rte_free(c);			/* Note: c is struct sched, if root */
 	
@@ -202,11 +211,8 @@ struct sched *sched_init()
 		oom_crash();
 
 	s->root.refcnt = 1;
-	s->root.id = 0;
 	cdlist_head_init(&s->root.tasks);	/* this will be always empty */
 	cdlist_head_init(&s->root.pgroups);
-
-	s->next_tc_id = 1;
 
 	heap_init(&s->pq);
 
@@ -487,7 +493,7 @@ static char *print_tc_stats_detail(struct sched *s, char *p, int max_cnt)
 
 	cdlist_for_each_entry(c, &s->tcs_all, sched_all) {
 		if (num_printed < max_cnt) {
-			p += sprintf(p, "%12u", c->id);
+			p += sprintf(p, "%12s", c->name);
 		} else {
 			p += sprintf(p, " ...");
 			break;
@@ -554,8 +560,8 @@ static char *print_tc_stats_simple(struct sched *s, char *p, int max_cnt)
 
 		c->last_stats = c->stats;
 
-		p += sprintf(p, "\tC%u %.1f%%(%.2fM) %.3fMpps %.1fMbps", 
-				c->id, 
+		p += sprintf(p, "\tC%s %.1f%%(%.2fM) %.3fMpps %.1fMbps", 
+				c->name, 
 				cycles * 100.0 / tsc_hz, 
 				cnt / 1000000.0,
 				pkts / 1000000.0, 

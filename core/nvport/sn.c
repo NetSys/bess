@@ -25,7 +25,6 @@ struct rte_mempool *mempool;
 
 /*const int ATTRSZ = VALUESZ;*/
 
-struct snbuf snbuf_template __rte_cache_aligned;
 struct rte_mbuf rte_mbuf_template;
 
 static void init_template(void)
@@ -35,8 +34,6 @@ static void init_template(void)
 	mbuf = rte_pktmbuf_alloc(mempool);
 	rte_mbuf_template = *mbuf;
 	rte_pktmbuf_free(mbuf);
-	
-	memset(&snbuf_template, 0, sizeof(struct snbuf));
 }
 
 

@@ -76,7 +76,6 @@ struct sn_port {
 //// Maximum size of a metadata attribute or value
 //extern const int ATTRSZ;
 
-extern struct snbuf snbuf_template;
 extern struct rte_mbuf rte_mbuf_template;
 
 void eal_thread_init_master(unsigned lcore_id);
@@ -162,14 +161,6 @@ static inline struct snbuf *__sn_snb_alloc()
 {
 	struct snbuf *pkt = (struct snbuf *)rte_pktmbuf_alloc(mempool);
 
-	if (SNBUF_SIZE == 16) {
-		*((__m128 *)&pkt->_snbuf_start) = 
-			*((__m128 *)&snbuf_template._snbuf_start);
-	} else {
-		rte_memcpy(&pkt->_snbuf_start, &snbuf_template._snbuf_start,
-				SNBUF_SIZE);
-	}
-       
 	return pkt;
 }
 
@@ -213,7 +204,6 @@ static inline void __sn_snb_alloc_bulk(snb_array_t snbs, int cnt)
 #if PARANOIAC_OPTIMIZATION
 	__m128 mbuf_template;
 
-	const __m128 snb_template = *((__m128 *)&snbuf_template._snbuf_start);
 	mbuf_template = *((__m128 *)&rte_mbuf_template.buf_len);	
 #endif
 	ret = rte_mempool_get_bulk(mempool, (void**)snbs, cnt);
@@ -224,12 +214,9 @@ static inline void __sn_snb_alloc_bulk(snb_array_t snbs, int cnt)
 #if PARANOIAC_OPTIMIZATION
 		*((__m128 *)&snb->mbuf.buf_len) = mbuf_template;
 		*((__m128 *)&snb->mbuf.packet_type) = _mm_setzero_ps();
-		*((__m128 *)&snb->_snbuf_start) = snb_template;
 #else
 		rte_mbuf_refcnt_set(&snb->mbuf, 1);
 		rte_pktmbuf_reset(&snbs->mbuf);
-		rte_memcpy(&pkt->_snbuf_start, &snbuf_template._snbuf_start,
-				SNBUF_SIZE);
 #endif
 	}
 }

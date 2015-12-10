@@ -19,5 +19,6 @@ $(info Building with KERNELRELEASE = ${KERNELRELEASE})
 obj-m := $(MODNAME).o 
 
 $(MODNAME)-objs := sndrv.o sn_host.o sn_guest.o sn_netdev.o sn_ethtool.o sn_ivshmem.o
+ccflags-y := -g
 
 endif

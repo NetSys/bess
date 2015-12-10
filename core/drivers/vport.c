@@ -16,15 +16,17 @@
 
 #define SLOTS_PER_LLRING	256
 
+#define REFILL_LOW		16
+#define REFILL_HIGH		32
+
 /* This watermark is to detect congestion and cache bouncing due to
  * head-eating-tail (needs at least 8 slots less then the total ring slots).
  * Not sure how to tune this... */
 #define SLOTS_WATERMARK		((SLOTS_PER_LLRING >> 3) * 7)	/* 87.5% */
 
-/* Disable (0) single producer/consumer mode for now.
- * This is slower, but just to be on the safe side. :) */
-#define SINGLE_P		1
-#define SINGLE_C		1
+/* Disable (0) single producer/consumer mode for default */
+#define SINGLE_P		0
+#define SINGLE_C		0
 
 struct queue {
 	union {
@@ -38,6 +40,7 @@ struct queue {
 struct vport_priv {
 	int fd;
 
+	char ifname[IFNAMSIZ];		/* could be different from p->name */
 	void *bar;
 
 	struct queue inc_qs[MAX_QUEUES_PER_DIR];
@@ -56,61 +59,59 @@ static inline int find_next_nonworker_cpu(int cpu)
 	return cpu;
 }
 
-static void refill_tx_bufs(struct llring *r, int cnt)
+static void refill_tx_bufs(struct llring *r)
 {
-	struct snbuf *snb;
-	void *objs[cnt * 2];
+	struct snbuf *pkts[REFILL_HIGH];
+	void *objs[REFILL_LOW];
 
+	int deficit;
 	int ret;
-	int i;
+
+	int curr_cnt = llring_count(r);
+
+	if (curr_cnt >= REFILL_LOW)
+		return;
+
+	deficit = REFILL_HIGH - curr_cnt;
+
+	ret = snb_alloc_bulk((snb_array_t)pkts, deficit, 0);
+	if (ret == 0)
+		return;
+
+	for (int i = 0; i < ret; i++)
+		objs[i] = (void *)pkts[i]->immutable.paddr;
 	
-	int deficit = r->common.watermark / 2 - llring_count(r) / 2;
-
-	if (0 <= deficit && deficit < cnt)
-		cnt = deficit;
-
-	for (i = 0; i < cnt; i++) {
-		snb = snb_alloc();
-		if (snb == NULL) {
-			cnt = i;
-			break;
-		}
-
-		objs[i * 2    ] = (void *) snb;
-		objs[i * 2 + 1] = (void *) snb_dma_addr(snb);
-	}
-	
-	ret = llring_enqueue_bulk(r, objs, cnt * 2);
-	assert(ret == 0 || ret == -LLRING_ERR_QUOT);
-}
-
-static void drain_drv_to_sn_q(struct llring *q)
-{
-	/* drv_to_sn queues just contain allocated buffers, so just dequeue bufs
-	 * and free */
-	const int MAX_BURST = 64;
-	void *objs[MAX_BURST];
-	int ret;
-	while ((ret = llring_dequeue_burst(q, objs, MAX_BURST)) > 0) {
-		snb_free_bulk((snb_array_t) objs, ret);
-	}
-	
+	ret = llring_mp_enqueue_bulk(r, objs, ret);
+	assert(ret == 0);
 }
 
 static void drain_sn_to_drv_q(struct llring *q)
 {
-	/* sn_to_drv queues have alternate cells containing allocated buffers
-	 * and their physical address */
-	const int MAX_BURST = 64;
-	void *objs[MAX_BURST * 2];
-	void *clean_objs[MAX_BURST];
-	int ret;
-	while ((ret = llring_dequeue_burst(q, objs, 2 * MAX_BURST)) > 0) {
-		int j = 0;
-		for (int i = 0; i < ret; i += 2) {
-			clean_objs[j++] = objs[i];
-		}
-		snb_free_bulk((snb_array_t)clean_objs, j);
+	/* sn_to_drv queues contain physical address of packet buffers*/
+	for (;;) {
+		phys_addr_t paddr;
+		int ret;
+		
+		ret = llring_mc_dequeue(q, (void **)&paddr);
+		if (ret)
+			break;
+
+		snb_free(paddr_to_snb(paddr));
+	}
+}
+
+static void drain_drv_to_sn_q(struct llring *q)
+{
+	/* sn_to_drv queues contain virtual address of packet buffers*/
+	for (;;) {
+		struct snbuf *snb;
+		int ret;
+		
+		ret = llring_mc_dequeue(q, (void **)&snb);
+		if (ret)
+			break;
+
+		snb_free(snb);
 	}
 }
 
@@ -119,6 +120,7 @@ static void free_bar(struct vport_priv *priv)
 {
 	int i;
 	struct sn_conf_space *conf = priv->bar;
+
 	for (i = 0; i < conf->num_txq; i++) {
 		drain_drv_to_sn_q(priv->inc_qs[i].drv_to_sn);
 		drain_sn_to_drv_q(priv->inc_qs[i].sn_to_drv);
@@ -155,15 +157,14 @@ static void *alloc_bar(struct port *p, int container_pid, int loopback)
 	bar = rte_zmalloc(NULL, total_bytes, 0);
 	assert(bar);
 
-	printf("vport_host_sndrv: allocated %d-byte BAR\n", total_bytes);
+	/* printf("vport_host_sndrv: allocated %d-byte BAR\n", total_bytes); */
 
 	conf = bar;
 
 	conf->bar_size = total_bytes;
 	conf->container_pid = container_pid;
 
-	strncpy(conf->ifname, p->name, IFNAMSIZ);
-	conf->ifname[IFNAMSIZ - 1] = '\0';
+	strcpy(conf->ifname, priv->ifname);
 
 	memcpy(conf->mac_addr, p->mac_addr, ETH_ALEN);
 	
@@ -181,15 +182,13 @@ static void *alloc_bar(struct port *p, int container_pid, int loopback)
 		/* Driver -> SoftNIC */
 		llring_init((struct llring *)ptr, SLOTS_PER_LLRING,
 				SINGLE_P, SINGLE_C);
-		llring_set_water_mark((struct llring *)ptr, SLOTS_WATERMARK);
 		priv->inc_qs[i].drv_to_sn = (struct llring *)ptr;
 		ptr += bytes_per_llring;
 
 		/* SoftNIC -> Driver */
 		llring_init((struct llring *)ptr, SLOTS_PER_LLRING, 
 				SINGLE_P, SINGLE_C);
-		llring_set_water_mark((struct llring *)ptr, SLOTS_WATERMARK); 
-		refill_tx_bufs((struct llring *)ptr, SLOTS_WATERMARK / 2);
+		refill_tx_bufs((struct llring *)ptr);
 		priv->inc_qs[i].sn_to_drv = (struct llring *)ptr;
 		ptr += bytes_per_llring;
 	}
@@ -200,16 +199,15 @@ static void *alloc_bar(struct port *p, int container_pid, int loopback)
 		ptr += sizeof(struct sn_rxq_registers);
 
 		/* Driver -> SoftNIC */
-		llring_init((struct llring *)ptr, SLOTS_PER_LLRING, 
+		llring_init((struct llring *)ptr, 
+				SLOTS_PER_LLRING, 
 				SINGLE_P, SINGLE_C);
-		llring_set_water_mark((struct llring *)ptr, SLOTS_WATERMARK);
 		priv->out_qs[i].drv_to_sn = (struct llring *)ptr;
 		ptr += bytes_per_llring;
 
 		/* SoftNIC -> Driver */
 		llring_init((struct llring *)ptr, SLOTS_PER_LLRING, 
 				SINGLE_P, SINGLE_C);
-		llring_set_water_mark((struct llring *)ptr, SLOTS_WATERMARK);
 		priv->out_qs[i].sn_to_drv = (struct llring *)ptr;
 		ptr += bytes_per_llring;
 	}
@@ -305,6 +303,8 @@ static struct snobj *docker_container_pid(char *cid, int *container_pid)
 
 static int set_ip_addr_single(struct port *p, char *ip_addr)
 {
+	struct vport_priv *priv = get_port_priv(p);
+
 	FILE *fp;
 
 	char buf[1024];
@@ -313,7 +313,7 @@ static int set_ip_addr_single(struct port *p, char *ip_addr)
 	int exit_code;
 
 	ret = snprintf(buf, sizeof(buf), "ip addr add %s dev %s 2>&1",
-			ip_addr, p->name);
+			ip_addr, priv->ifname);
 	if (ret >= sizeof(buf))
 		return -EINVAL;
 
@@ -435,8 +435,7 @@ wait_child:
 	}
 
 	if (ret < 0)
-		return snobj_err_details(-ret, arg, 
-				"Failed to set IP addresses " \
+		return snobj_err(-ret, "Failed to set IP addresses " \
 				"(incorrect IP address format?)");
 
 	return NULL;
@@ -470,9 +469,17 @@ static struct snobj *init_port(struct port *p, struct snobj *conf)
 	int ret;
 	struct snobj *cpu_list = NULL;
 
-	if (strlen(p->name) >= IFNAMSIZ)
+	const char *ifname;
+
+	ifname = snobj_eval_str(conf, "ifname");
+	if (!ifname)
+		ifname = p->name;
+
+	if (strlen(ifname) >= IFNAMSIZ)
 		return snobj_err(EINVAL, "Linux interface name should be " \
 				"shorter than %d characters", IFNAMSIZ);
+
+	strcpy(priv->ifname, ifname);
 
 	if (snobj_eval_exists(conf, "docker")) {
 		struct snobj *err = docker_container_pid(
@@ -481,6 +488,14 @@ static struct snobj *init_port(struct port *p, struct snobj *conf)
 
 		if (err)
 			return err;
+	}
+
+	if (snobj_eval_exists(conf, "container_pid")) {
+		if (container_pid)
+			return snobj_err(EINVAL, "You cannot specify both " \
+					"'docker' and 'container_pid'");
+
+		container_pid = snobj_eval_int(conf, "container_pid");
 	}
 
 	if ((cpu_list = snobj_eval(conf, "rxq_cpus")) != NULL &&
@@ -541,116 +556,108 @@ static struct snobj *init_port(struct port *p, struct snobj *conf)
 	return NULL;
 }
 
-static int get_tx_q(struct port *p, queue_t qid,
-		    snb_array_t pkts, int max_cnt)
+static int vport_recv_pkts(struct port *p, queue_t qid, 
+		snb_array_t pkts, int max_cnt)
 {
 	struct vport_priv *priv = get_port_priv(p);
 	struct queue *tx_queue = &priv->inc_qs[qid];
-	void *objs[max_cnt];
 
 	int cnt;
 	int i;
 
-	cnt = llring_dequeue_burst(tx_queue->drv_to_sn, 
-			objs, max_cnt);
-	if (cnt == 0)
-		return 0;
+	cnt = llring_sc_dequeue_burst(tx_queue->drv_to_sn, 
+			(void **)pkts, max_cnt);
+
+	refill_tx_bufs(tx_queue->sn_to_drv);
 
 	for (i = 0; i < cnt; i++) {
-		pkts[i] = (struct snbuf *) objs[i];
-		rte_prefetch0(snb_head_data(pkts[i]));
-	}
+		struct snbuf *pkt = pkts[i];
+		struct sn_tx_desc *tx_desc;
+		uint16_t len;
 
-	refill_tx_bufs(tx_queue->sn_to_drv, max_cnt);
+		tx_desc = (struct sn_tx_desc *)pkt->_scratchpad;
+		len = tx_desc->total_len;
 
-	for (i = 0; i < cnt; i++) {
-		struct sn_tx_metadata *tx_meta;
-		int legit_size;
+		pkt->mbuf.data_off = SNBUF_HEADROOM;
+		pkt->mbuf.pkt_len = len;
+		pkt->mbuf.data_len = len;
 
-		tx_meta = (struct sn_tx_metadata *)snb_head_data(pkts[i]);
-
-#if OLD_METADATA
-		pkts[i]->in_port = vport->port.port_id;
-		pkts[i]->in_queue = txq;
-
-		/* TODO: sanity check for the metadata */
-		pkts[i]->tx.csum_start = tx_meta->csum_start;
-		pkts[i]->tx.csum_dest = tx_meta->csum_dest;
-#endif
-
-		legit_size = (snb_append(pkts[i], sizeof(struct sn_tx_metadata) + 
-				tx_meta->length) != NULL);
-		assert(legit_size);
-		
-		snb_adj(pkts[i], sizeof(struct sn_tx_metadata));
+		/* TODO: process sn_tx_metadata */
 	}
 
 	return cnt;
 }
 
-static int recv_pkts(struct port *p, queue_t qid, 
-		snb_array_t pkts, int cnt)
+static void reclaim_packets(struct llring *ring)
 {
-	int ret = get_tx_q(p, qid, pkts, cnt);
+	void *objs[MAX_PKT_BURST];
+	int ret;
 
-	return ret;
+	for (;;) {
+		ret = llring_mc_dequeue_burst(ring, objs, MAX_PKT_BURST);	
+		if (ret == 0)
+			break;
+
+		snb_free_bulk((snb_array_t) objs, ret);
+	}
 }
 
-/* returns nonzero if RX interrupt is needed */
-static int put_rx_q(struct port *p, queue_t qid,
-		    snb_array_t pkts, int cnt)
+static int vport_send_pkts(struct port *p, queue_t qid, 
+		snb_array_t pkts, int cnt)
 {
 	struct vport_priv *priv = get_port_priv(p);
 	struct queue *rx_queue = &priv->out_qs[qid];
-	void *objs[SLOTS_PER_LLRING * 2];
+
+	phys_addr_t paddr[MAX_PKT_BURST];
 
 	int ret;
-	int i;
 
-	for (i = 0; i < cnt; i++) {
-		struct sn_rx_metadata *rx_meta;
+	reclaim_packets(rx_queue->drv_to_sn);
 
-		struct snbuf *pkt = pkts[i];
-		struct rte_mbuf *mbuf;
+	for (int i = 0; i < cnt; i++) {
+		struct snbuf *snb = pkts[i];
 
-		int total_len;
+		struct sn_rx_desc *rx_desc;
+		
+		rx_desc = (struct sn_rx_desc *)snb->_scratchpad;
 
-		total_len = snb_total_len(pkt);
+		rte_prefetch0(rx_desc);
 
-		rx_meta = (struct sn_rx_metadata *)snb_head_data(pkt) - 1;
-
-		rx_meta->length = total_len;
-
-#if OLD_METADATA
-		rx_meta->gso_mss = pkt->rx.gso_mss;
-		rx_meta->csum_state = pkt->rx.csum_state;
-#else
-		rx_meta->gso_mss = 0;
-		rx_meta->csum_state = SN_RX_CSUM_UNEXAMINED;
-#endif
-		rx_meta->host.seg_len = snb_head_len(pkt);
-		rx_meta->host.seg_next = 0;
-
-		for (mbuf = pkt->mbuf.next; mbuf; mbuf = mbuf->next) {
-			struct sn_rx_metadata *next_rx_meta;
-
-			next_rx_meta = rte_pktmbuf_mtod(mbuf, 
-					struct sn_rx_metadata *) - 1;
-
-			next_rx_meta->host.seg_len = rte_pktmbuf_data_len(mbuf);
-			next_rx_meta->host.seg_next = 0;
-
-			rx_meta->host.seg_next = snb_seg_dma_addr(mbuf) - 
-				sizeof(struct sn_rx_metadata);
-			rx_meta = next_rx_meta;
-		}
-
-		objs[i * 2 + 0] = (void *) pkt;
-		objs[i * 2 + 1] = (void *) snb_dma_addr(pkt) - sizeof(struct sn_rx_metadata);
+		paddr[i] = snb_to_paddr(snb);
 	}
 
-	ret = llring_enqueue_bulk(rx_queue->sn_to_drv, 
-			objs, cnt * 2);
+	for (int i = 0; i < cnt; i++) {
+		struct snbuf *snb = pkts[i];
+		struct rte_mbuf *mbuf = &snb->mbuf;
+
+		struct sn_rx_desc *rx_desc;
+		
+		rx_desc = (struct sn_rx_desc *)snb->_scratchpad;
+
+		rx_desc->total_len = snb_total_len(snb);
+		rx_desc->seg_len = snb_head_len(snb);
+		rx_desc->seg = snb_dma_addr(snb);
+		rx_desc->next = 0;
+
+		rx_desc->meta = (struct sn_rx_metadata){};
+
+		for (struct rte_mbuf *seg = mbuf->next; seg; seg = seg->next) {
+			struct sn_rx_desc *next_desc;
+			struct snbuf *seg_snb;
+			
+			seg_snb = (struct snbuf *)seg;
+			next_desc = (struct sn_rx_desc *)seg_snb->_scratchpad;
+
+			next_desc->seg_len = rte_pktmbuf_data_len(seg);
+			next_desc->seg = snb_seg_dma_addr(seg);
+			next_desc->next = 0;
+
+			rx_desc->next = snb_to_paddr(seg_snb);
+			rx_desc = next_desc;
+		}
+	}
+
+	ret = llring_mp_enqueue_bulk(rx_queue->sn_to_drv, (void **)paddr, cnt);
 
 	if (ret == -LLRING_ERR_NOBUF)
 		return 0;
@@ -665,22 +672,7 @@ static int put_rx_q(struct port *p, queue_t qid,
 			perror("ioctl_kick_rx");
 	}
 
-	/* TODO: defer this */
-	/* Lazy deallocation of packet buffers */
-	ret = llring_dequeue_burst(rx_queue->drv_to_sn, objs, 
-			SLOTS_PER_LLRING);	
-	if (ret > 0)
-		snb_free_bulk((snb_array_t) objs, ret);
-
 	return cnt;
-}
-
-static int send_pkts(struct port *p, queue_t qid, 
-		snb_array_t pkts, int cnt)
-{
-	int ret = put_rx_q(p, qid, pkts, cnt);
-
-	return ret;
 }
 
 static const struct driver vport_host = {
@@ -690,8 +682,8 @@ static const struct driver vport_host = {
 	.init_driver	= init_driver,
 	.init_port 	= init_port,
 	.deinit_port	= deinit_port,
-	.recv_pkts 	= recv_pkts,
-	.send_pkts 	= send_pkts,
+	.recv_pkts 	= vport_recv_pkts,
+	.send_pkts 	= vport_send_pkts,
 };
 
 ADD_DRIVER(vport_host)

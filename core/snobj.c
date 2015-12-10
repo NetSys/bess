@@ -467,7 +467,7 @@ struct encode_state {
 static void reserve_more(struct encode_state *s, size_t bytes)
 {
 	char *new_buf;
-	int new_buf_size = s->buf_size;
+	size_t new_buf_size = s->buf_size;
 
 	if (s->offset + bytes <= s->buf_size)
 		return;

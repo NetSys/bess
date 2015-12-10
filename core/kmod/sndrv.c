@@ -51,11 +51,14 @@ static int __init sndrv_init(void)
 	 * full virtualization or paravirtualization.
 	 * Anyway, this should be good enough for Xen and KVM */
 	if (paravirt_enabled()) {
+		log_err("guest mode support is not enabled\n");
+#if 0
 		log_info("kernel module loaded in guest mode\n");
 
 		ret = sn_guest_init();
 		if (ret < 0) 
 			return ret;
+#endif
 	} else {
 		log_info("kernel module loaded in host/container mode\n");
 
@@ -72,7 +75,9 @@ static int __init sndrv_init(void)
 static void __exit sndrv_exit(void)
 {
 	if (paravirt_enabled()) {
+#if 0
 		sn_guest_cleanup();
+#endif
 	} else {
 		misc_deregister(&sn_host_device);
 	}
@@ -85,4 +90,4 @@ module_exit(sndrv_exit);
 
 MODULE_AUTHOR("Sangjin Han");
 MODULE_LICENSE("Dual BSD/GPL");
-MODULE_DESCRIPTION("Paravirtualized device driver for SoftNIC");
+MODULE_DESCRIPTION("Paravirtualized device driver for BESS vport");

@@ -43,7 +43,6 @@ static int sn_ethtool_get_sset_count(struct net_device *netdev, int sset)
 		return NUM_STATS_PER_TX_QUEUE * dev->num_txq + 
 			NUM_STATS_PER_RX_QUEUE * dev->num_rxq;
 	default:
-		log_err("unknown sset value: %d\n", sset);
 		return -EOPNOTSUPP;
 	};
 }
@@ -128,7 +127,7 @@ static void sn_ethtool_get_ethtool_stats(struct net_device *netdev,
 static void sn_ethtool_get_drvinfo(struct net_device *netdev,
                               struct ethtool_drvinfo *drvinfo)
 {
-	strcpy(drvinfo->driver, "SoftNIC");
+	strcpy(drvinfo->driver, "BESS");
 	strcpy(drvinfo->version, "99.9.9");
 	strcpy(drvinfo->bus_info, "PCIe Gen 7");
 
