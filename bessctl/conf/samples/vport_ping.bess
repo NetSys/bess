@@ -1,0 +1,19 @@
+import os
+
+os.system('docker pull ubuntu > /dev/null')
+os.system('docker run -i -d --net=none --name=vport_test ubuntu /bin/bash > /dev/null')
+
+# Alice lives outside the container, wanting to talk to Bob in the container
+v_bob = Port(driver='VPort', ifname='eth_bob', docker='vport_test', ip_addr='10.255.99.2/24')
+v_alice = Port(driver='VPort', ifname='eth_alice', ip_addr='10.255.99.1/24')
+
+PortInc(arg=v_alice) -> PortOut(arg=v_bob)
+PortInc(arg=v_bob) -> PortOut(arg=v_alice)
+
+softnic.resume_all()
+os.system('ping -W 1.0 -c 64 -i 0.2 10.255.99.2')
+os.system('docker kill vport_test > /dev/null')
+os.system('docker rm vport_test > /dev/null')
+softnic.pause_all()
+
+softnic.reset_all()
