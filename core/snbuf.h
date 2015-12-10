@@ -258,6 +258,14 @@ static inline phys_addr_t snb_dma_addr(struct snbuf *snb)
 struct rte_mempool *get_pframe_pool();
 struct rte_mempool *get_pframe_pool_socket(int socket);
 
+static inline phys_addr_t snb_to_paddr(struct snbuf *snb)
+{
+	return snb->immutable.paddr;
+}
+
+/* Slow. Do not use in the datapath */
+struct snbuf *paddr_to_snb(phys_addr_t paddr);
+
 void snb_dump(FILE *file, struct snbuf *pkt);
 
 void init_mempool(void);

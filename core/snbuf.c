@@ -125,6 +125,44 @@ struct rte_mempool *get_pframe_pool_socket(int socket)
 	return pframe_pool[socket];
 }
 
+struct snbuf *paddr_to_snb(phys_addr_t paddr)
+{
+	struct snbuf *ret = NULL;
+
+	for (int i = 0; i < RTE_MAX_NUMA_NODES; i++) {
+		struct rte_mempool *pool;
+
+		phys_addr_t pg_start;
+		phys_addr_t pg_end;
+		uintptr_t size;
+
+		pool = pframe_pool[i];
+		if (!pool)
+			continue;
+
+		assert(pool->pg_num == 1);
+
+		pg_start = pool->elt_pa[0];
+		size = pool->elt_va_end - pool->elt_va_start;
+		pg_end = pg_start + size;
+
+		if (pg_start <= paddr && paddr < pg_end) {
+			uintptr_t offset;
+			
+			offset = paddr - pg_start;
+			ret = (struct snbuf *)(pool->elt_va_start + offset);
+
+			if (snb_to_paddr(ret) != paddr)
+				fprintf(stderr, "snb->immutable.paddr "
+						"corruption detected\n");
+
+			break;
+		}
+	}
+
+	return ret;
+}
+
 void snb_dump(FILE *file, struct snbuf *pkt)
 {
 	struct rte_mbuf *mbuf;
