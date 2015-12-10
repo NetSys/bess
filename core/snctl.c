@@ -163,9 +163,11 @@ static struct snobj *handle_reset_tcs(struct snobj *q)
 	for (int i = 0; i < n; i++) {
 		c = c_arr[i];
 
-		if (c->num_tasks)
+		if (c->num_tasks) {
+			free(c_arr);
 			return snobj_err(EBUSY, "TC %s still has %d tasks",
 					c->name, c->num_tasks);
+		}
 
 		if (c->auto_free)
 			continue;
@@ -174,6 +176,7 @@ static struct snobj *handle_reset_tcs(struct snobj *q)
 		tc_dec_refcnt(c);
 	}
 
+	free(c_arr);
 	return NULL;
 }
 
