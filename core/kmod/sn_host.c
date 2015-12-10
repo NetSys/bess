@@ -34,6 +34,30 @@
 static void 
 sn_dump_queue_mapping(struct sn_device *dev) __attribute__((unused));
 
+#define BUFS_PER_CPU 32
+
+struct snb_cache {
+	phys_addr_t paddr[BUFS_PER_CPU];
+	int cnt;
+};
+
+DEFINE_PER_CPU(struct snb_cache, snb_cache);
+
+#define MAX_TX_BUFFER_QUEUE_CNT	4
+
+struct sn_tx_buffer {
+	int tx_queue_cnt;
+
+	struct sn_tx_buffer_queue {
+		struct sn_queue *queue;
+		struct sk_buff *skb_arr[MAX_BATCH];
+		struct sn_tx_metadata meta_arr[MAX_BATCH];
+		int cnt;
+	} queue_arr[MAX_TX_BUFFER_QUEUE_CNT];
+};
+
+DEFINE_PER_CPU(struct sn_tx_buffer, tx_buffer);
+
 /* User applications are expected to open /dev/bess every time
  * they create a network device */
 static int sn_host_open(struct inode *inode, struct file *filp)
@@ -54,6 +78,228 @@ static int sn_host_release(struct inode *inode, struct file *filp)
 	return 0;
 }
 
+static int load_from_cache(phys_addr_t paddr[], int cnt)
+{
+	struct snb_cache *cache;
+	int loaded;
+
+	cache = this_cpu_ptr(&snb_cache);
+
+	loaded = min(cnt, cache->cnt);
+
+	memcpy(paddr, &cache->paddr[cache->cnt - loaded],
+			loaded * sizeof(phys_addr_t));
+	cache->cnt -= loaded;
+
+	return loaded;
+}
+
+static int store_to_cache(phys_addr_t paddr[], int cnt)
+{
+	struct snb_cache *cache;
+	int free_slots;
+	int stored;
+
+	cache = this_cpu_ptr(&snb_cache);
+
+	free_slots = BUFS_PER_CPU - cache->cnt;
+	stored = min(cnt, free_slots);
+
+	memcpy(&cache->paddr[cache->cnt], paddr, 
+			stored * sizeof(phys_addr_t));
+	cache->cnt += stored;
+
+	return stored;
+}
+
+static int alloc_snb_burst(struct sn_queue *queue, phys_addr_t paddr[], int cnt)
+{
+	int loaded;
+
+	loaded = load_from_cache(paddr, cnt);
+	if (loaded == cnt)
+		return cnt;
+
+	cnt = llring_mc_dequeue_burst(queue->sn_to_drv, (void *)&paddr[loaded],
+			cnt - loaded);
+	return loaded + cnt;
+}
+
+static void free_snb_bulk(struct sn_queue *queue, phys_addr_t paddr[], int cnt)
+{
+	uint64_t vaddr_user[MAX_BATCH];
+
+	int stored;
+	int ret;
+	int i;
+
+	stored = store_to_cache(paddr, cnt);
+	if (stored == cnt)
+		return;
+
+	for (i = stored; i < cnt; i++)
+		vaddr_user[i] = *(uint64_t *)phys_to_virt(paddr[i] + 
+				SNBUF_IMMUTABLE_OFF);
+
+	ret = llring_mp_enqueue_bulk(queue->drv_to_sn,
+			(void **)&vaddr_user[stored],
+			cnt - stored);
+
+	if (ret == -LLRING_ERR_NOBUF && net_ratelimit()) {
+		log_err("%s: RX free queue overflow!\n", 
+				queue->dev->netdev->name);
+	}
+}
+
+static int sn_host_do_tx_batch(struct sn_queue *queue,
+		struct sk_buff *skb_arr[], 
+		struct sn_tx_metadata meta_arr[],
+		int cnt_requested)
+{
+	phys_addr_t paddr_arr[MAX_BATCH];
+	uint64_t vaddr_user[MAX_BATCH];
+
+	int cnt_to_send;
+	int cnt;
+	int ret;
+	int i;
+
+	cnt_to_send = min(cnt_requested, 
+			(int)llring_free_count(queue->drv_to_sn));
+
+	cnt = alloc_snb_burst(queue, paddr_arr, cnt_to_send);
+	queue->tx_stats.descriptor += cnt_requested - cnt;
+
+	if (cnt == 0)
+		return 0;
+
+	for (i = 0; i < cnt; i++) {
+		struct sk_buff *skb = skb_arr[i];
+		phys_addr_t paddr = paddr_arr[i];
+		struct sn_tx_desc *tx_desc;
+		char *dst_addr;
+
+		int j;
+		
+		vaddr_user[i] = *((uint64_t *)phys_to_virt(paddr + 
+					SNBUF_IMMUTABLE_OFF));
+		dst_addr = phys_to_virt(paddr + SNBUF_DATA_OFF);
+		tx_desc = phys_to_virt(paddr + SNBUF_SCRATCHPAD_OFF);
+
+		tx_desc->total_len = skb->len;
+		tx_desc->meta = meta_arr[i];
+
+		memcpy(dst_addr, skb->data, skb_headlen(skb));
+		dst_addr += skb_headlen(skb);
+
+		for (j = 0; j < skb_shinfo(skb)->nr_frags; j++) {
+			skb_frag_t *frag = &skb_shinfo(skb)->frags[j];
+
+			memcpy(dst_addr, skb_frag_address(frag), 
+					skb_frag_size(frag));
+			dst_addr += skb_frag_size(frag);
+		}
+	}
+
+	ret = llring_mp_enqueue_burst(queue->drv_to_sn, 
+			(void **)vaddr_user, cnt);
+	if (ret < cnt && net_ratelimit()) {
+		/* It should never happen since we cap cnt with llring_count().
+		 * If it does, snbufs leak. Ouch. */
+		log_err("%s: queue %d is overflowing!\n", 
+				queue->dev->netdev->name, queue->queue_id);
+	}
+
+	return ret;
+}
+
+static void sn_host_flush_tx(void)
+{
+	struct sn_tx_buffer *buf;
+	int i;
+	int cpu = raw_smp_processor_id();
+
+	buf = this_cpu_ptr(&tx_buffer);
+
+	for (i = 0; i < buf->tx_queue_cnt; i++) {
+		struct sn_tx_buffer_queue *buf_queue;
+		struct sn_queue *queue;
+		struct netdev_queue *netdev_txq;
+
+		int lock_required;
+
+		int sent;
+		int j;
+
+		buf_queue = &buf->queue_arr[i];
+		queue = buf_queue->queue;
+		netdev_txq = queue->netdev_txq;
+
+		lock_required = (netdev_txq->xmit_lock_owner != cpu);
+
+//		if (lock_required) XXX
+//			HARD_TX_LOCK(queue->dev->netdev, netdev_txq, cpu);
+
+		sent = sn_host_do_tx_batch(queue, 
+				buf_queue->skb_arr, 
+				buf_queue->meta_arr, 
+				buf_queue->cnt);
+
+//		if (lock_required) XXX
+//			HARD_TX_UNLOCK(queue->dev->netdev, netdev_txq);
+
+		queue->tx_stats.packets += sent;
+		queue->tx_stats.dropped += buf_queue->cnt - sent;
+
+		for (j = 0; j < buf_queue->cnt; j++) {
+			struct sk_buff *skb = buf_queue->skb_arr[j];
+
+			if (j < sent)
+				queue->tx_stats.bytes += skb->len;
+
+			dev_kfree_skb(skb);
+		}
+	}
+
+	buf->tx_queue_cnt = 0;
+}
+
+static void sn_host_buffer_tx(struct sn_queue *queue, struct sk_buff *skb,
+			 struct sn_tx_metadata *tx_meta)
+{
+	struct sn_tx_buffer *buf;
+	struct sn_tx_buffer_queue *buf_queue;
+	int i;
+
+	buf = this_cpu_ptr(&tx_buffer);
+
+again:
+	buf_queue = NULL;
+
+	for (i = 0; i < buf->tx_queue_cnt; i++)
+		if (buf->queue_arr[i].queue == queue)
+			buf_queue = &buf->queue_arr[i];
+
+	if (!buf_queue) {
+		if (buf->tx_queue_cnt == MAX_TX_BUFFER_QUEUE_CNT) {
+			sn_host_flush_tx();
+			goto again;
+		}
+
+		buf_queue = &buf->queue_arr[buf->tx_queue_cnt++];
+		
+		buf_queue->cnt = 0;
+		buf_queue->queue = queue;
+	}
+
+	buf_queue->skb_arr[buf_queue->cnt] = skb;
+	buf_queue->meta_arr[buf_queue->cnt] = *tx_meta;
+	buf_queue->cnt++;
+
+	if (buf_queue->cnt == MAX_BATCH)
+		sn_host_flush_tx();
+}
+
 static int sn_host_do_tx(struct sn_queue *queue, struct sk_buff *skb,
 			 struct sn_tx_metadata *tx_meta)
 {
@@ -64,15 +310,23 @@ static int sn_host_do_tx(struct sn_queue *queue, struct sk_buff *skb,
 
 	char *dst_addr;
 
-	int nr_frags = skb_shinfo(skb)->nr_frags;
 	int ret;
 	int i;
 
-	ret = llring_mc_dequeue(queue->sn_to_drv, (void *)&paddr);
-	if (unlikely(ret == -LLRING_ERR_NOENT)) {
+	int *polling;
+
+	polling = this_cpu_ptr(&in_batched_polling);
+
+	if (*polling) {
+		sn_host_buffer_tx(queue, skb, tx_meta);
+		return SN_NET_XMIT_BUFFERED;
+	}
+
+	ret = alloc_snb_burst(queue, &paddr, 1);
+	if (ret == 0) {
 		queue->tx_stats.descriptor++;
 		return NET_XMIT_DROP;
-	}
+	} 
 
 	vaddr_user = *((uint64_t *)phys_to_virt(paddr + SNBUF_IMMUTABLE_OFF));
 	dst_addr = phys_to_virt(paddr + SNBUF_DATA_OFF);
@@ -84,7 +338,7 @@ static int sn_host_do_tx(struct sn_queue *queue, struct sk_buff *skb,
 	memcpy(dst_addr, skb->data, skb_headlen(skb));
 	dst_addr += skb_headlen(skb);
 
-	for (i = 0; i < nr_frags; i++) {
+	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
 		skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
 
 		memcpy(dst_addr, skb_frag_address(frag), skb_frag_size(frag));
@@ -92,12 +346,12 @@ static int sn_host_do_tx(struct sn_queue *queue, struct sk_buff *skb,
 	}
 
 	ret = llring_mp_enqueue(queue->drv_to_sn, (void *)vaddr_user);
-	if (likely(ret == 0 || ret == -LLRING_ERR_QUOT))
-		return (ret == 0) ? NET_XMIT_SUCCESS : NET_XMIT_CN;
+	if (ret == 0)
+		return NET_XMIT_SUCCESS;
+	else if (ret == -LLRING_ERR_QUOT)
+		return NET_XMIT_CN;
 	else {
-		/* Now it should never happen since refill is throttled.
-		 * If it does, the mbuf(objs[0]) leaks. Ouch. */
-		log_err("queue %d is overflowing!\n", queue->queue_id);
+		free_snb_bulk(queue, &paddr, 1);
 		return NET_XMIT_DROP;
 	}
 }
@@ -107,17 +361,15 @@ static int sn_host_do_rx_batch(struct sn_queue *queue,
 			       struct sk_buff **skbs,
 			       int max_cnt)
 {
-	void *objs[MAX_RX_BATCH];
-	void *cookies[MAX_RX_BATCH];
+	phys_addr_t paddr[MAX_BATCH];
 
 	int cnt;
-	int ret;
 	int i;
 
-	if (unlikely(max_cnt > MAX_RX_BATCH))
-		max_cnt = MAX_RX_BATCH;
+	max_cnt = min(max_cnt, MAX_BATCH);
 
-	cnt = llring_sc_dequeue_burst(queue->sn_to_drv, objs, max_cnt);
+	cnt = llring_sc_dequeue_burst(queue->sn_to_drv, 
+			(void **)paddr, max_cnt);
 	if (cnt == 0)
 		return 0;
 
@@ -129,20 +381,15 @@ static int sn_host_do_rx_batch(struct sn_queue *queue,
 		int copied;
 		char *ptr;
 
-		rx_desc = phys_to_virt((phys_addr_t)objs[i] + 
-				SNBUF_SCRATCHPAD_OFF);
+		rx_desc = phys_to_virt(paddr[i] + SNBUF_SCRATCHPAD_OFF);
 		
-		cookies[i] = (void *)(*((uint64_t *)rx_desc +
-				(SNBUF_IMMUTABLE_OFF - SNBUF_SCRATCHPAD_OFF) / 
-				sizeof(uint64_t)));
-
 		rx_meta[i] = rx_desc->meta;
-
 		total_len = rx_desc->total_len;
 
-		skb = skbs[i] = netdev_alloc_skb(queue->dev->netdev, total_len);
-		if (unlikely(!skb)) {
-			log_err("netdev_alloc_skb() failed\n");
+		skb = skbs[i] = napi_alloc_skb(&queue->napi, total_len);
+		if (!skb) {
+			if (net_ratelimit())
+				log_err("netdev_alloc_skb() failed\n");
 			continue;
 		}
 
@@ -165,63 +412,10 @@ static int sn_host_do_rx_batch(struct sn_queue *queue,
 		} while (copied < total_len);
 	}
 
-	ret = llring_sp_enqueue_bulk(queue->drv_to_sn, cookies, cnt);
-	if (unlikely(ret == -LLRING_ERR_NOBUF)) {
-		/* It should never happen! :( */
-		log_err("BAD THING HAPPENED: free buffer queue overflow!\n");
-	}
+	free_snb_bulk(queue, paddr, cnt);
 
 	return cnt;
 }
-
-#if 0
-static struct sk_buff *sn_host_do_rx(struct sn_queue *queue,
-				     struct sn_rx_metadata *rx_meta)
-{
-	struct sk_buff *skb;
-
-	void *objs[2];
-	void *cookie;
-	void *src_addr;
-
-	int ret;
-
-	ret = llring_sc_dequeue_bulk(queue->sn_to_drv, objs, 2);
-	if (ret == -LLRING_ERR_NOENT)
-		return NULL;
-
-	cookie = objs[0];
-	src_addr = phys_to_virt((phys_addr_t) objs[1]);
-
-	memcpy(rx_meta, src_addr, sizeof(struct sn_rx_metadata));
-
-	skb = netdev_alloc_skb(queue->dev->netdev, rx_meta->length);
-	if (likely(skb)) {
-		int total_len = rx_meta->length;
-		int copied = 0;
-		char *ptr = skb_put(skb, total_len);
-
-		do {
-			rx_meta = (struct sn_rx_metadata *)src_addr;
-			memcpy(ptr + copied, 
-					src_addr + sizeof(struct sn_rx_metadata),
-					rx_meta->host.seg_len);
-
-			copied += rx_meta->host.seg_len;
-			src_addr = phys_to_virt(rx_meta->host.seg_next);
-		} while (copied < total_len);
-	} else
-		log_err("netdev_alloc_skb() failed\n");
-
-	ret = llring_sp_enqueue(queue->drv_to_sn, cookie);
-	if (unlikely(ret == -LLRING_ERR_NOBUF)) {
-		/* It should never happen! :( */
-		log_err("BAD THING HAPPENED: free buffer queue overflow!\n");
-	}
-
-	return skb;
-}
-#endif
 
 static bool sn_host_pending_rx(struct sn_queue *queue)
 {
@@ -235,6 +429,7 @@ static struct sn_ops sn_host_ops = {
 #endif
 	.do_rx_batch	= sn_host_do_rx_batch,
 	.pending_rx 	= sn_host_pending_rx,
+	.flush_tx	= sn_host_flush_tx,
 };
 
 static void sn_dump_queue_mapping(struct sn_device *dev) 

@@ -16,8 +16,8 @@
 
 #define SLOTS_PER_LLRING	256
 
-#define REFILL_LOW		32
-#define REFILL_HIGH		64
+#define REFILL_LOW		16
+#define REFILL_HIGH		32
 
 /* This watermark is to detect congestion and cache bouncing due to
  * head-eating-tail (needs at least 8 slots less then the total ring slots).
@@ -85,33 +85,33 @@ static void refill_tx_bufs(struct llring *r)
 	assert(ret == 0);
 }
 
-static void drain_drv_to_sn_q(struct llring *q)
-{
-	/* drv_to_sn queues just contain allocated buffers, so just dequeue bufs
-	 * and free */
-	const int MAX_BURST = 64;
-	void *objs[MAX_BURST];
-	int ret;
-	while ((ret = llring_dequeue_burst(q, objs, MAX_BURST)) > 0) {
-		snb_free_bulk((snb_array_t) objs, ret);
-	}
-	
-}
-
 static void drain_sn_to_drv_q(struct llring *q)
 {
-	/* sn_to_drv queues have alternate cells containing allocated buffers
-	 * and their physical address */
-	const int MAX_BURST = 64;
-	void *objs[MAX_BURST * 2];
-	void *clean_objs[MAX_BURST];
-	int ret;
-	while ((ret = llring_dequeue_burst(q, objs, 2 * MAX_BURST)) > 0) {
-		int j = 0;
-		for (int i = 0; i < ret; i += 2) {
-			clean_objs[j++] = objs[i];
-		}
-		snb_free_bulk((snb_array_t)clean_objs, j);
+	/* sn_to_drv queues contain physical address of packet buffers*/
+	for (;;) {
+		phys_addr_t paddr;
+		int ret;
+		
+		ret = llring_mc_dequeue(q, (void **)&paddr);
+		if (ret)
+			break;
+
+		snb_free(paddr_to_snb(paddr));
+	}
+}
+
+static void drain_drv_to_sn_q(struct llring *q)
+{
+	/* sn_to_drv queues contain virtual address of packet buffers*/
+	for (;;) {
+		struct snbuf *snb;
+		int ret;
+		
+		ret = llring_mc_dequeue(q, (void **)&snb);
+		if (ret)
+			break;
+
+		snb_free(snb);
 	}
 }
 
@@ -120,6 +120,7 @@ static void free_bar(struct vport_priv *priv)
 {
 	int i;
 	struct sn_conf_space *conf = priv->bar;
+
 	for (i = 0; i < conf->num_txq; i++) {
 		drain_drv_to_sn_q(priv->inc_qs[i].drv_to_sn);
 		drain_sn_to_drv_q(priv->inc_qs[i].sn_to_drv);
@@ -589,13 +590,16 @@ static int vport_recv_pkts(struct port *p, queue_t qid,
 
 static void reclaim_packets(struct llring *ring)
 {
-	void *objs[SLOTS_PER_LLRING];
+	void *objs[MAX_PKT_BURST];
 	int ret;
 
-	ret = llring_mc_dequeue_burst(ring, objs, 
-			SLOTS_PER_LLRING);	
-	if (ret > 0)
+	for (;;) {
+		ret = llring_mc_dequeue_burst(ring, objs, MAX_PKT_BURST);	
+		if (ret == 0)
+			break;
+
 		snb_free_bulk((snb_array_t) objs, ret);
+	}
 }
 
 static int vport_send_pkts(struct port *p, queue_t qid, 
@@ -604,9 +608,11 @@ static int vport_send_pkts(struct port *p, queue_t qid,
 	struct vport_priv *priv = get_port_priv(p);
 	struct queue *rx_queue = &priv->out_qs[qid];
 
-	void *objs[MAX_PKT_BURST];
+	phys_addr_t paddr[MAX_PKT_BURST];
 
 	int ret;
+
+	reclaim_packets(rx_queue->drv_to_sn);
 
 	for (int i = 0; i < cnt; i++) {
 		struct snbuf *snb = pkts[i];
@@ -617,7 +623,7 @@ static int vport_send_pkts(struct port *p, queue_t qid,
 
 		rte_prefetch0(rx_desc);
 
-		objs[i] = (void *)snb->immutable.paddr;
+		paddr[i] = snb_to_paddr(snb);
 	}
 
 	for (int i = 0; i < cnt; i++) {
@@ -646,14 +652,12 @@ static int vport_send_pkts(struct port *p, queue_t qid,
 			next_desc->seg = snb_seg_dma_addr(seg);
 			next_desc->next = 0;
 
-			rx_desc->next = seg_snb->immutable.paddr;
+			rx_desc->next = snb_to_paddr(seg_snb);
 			rx_desc = next_desc;
 		}
 	}
 
-	ret = llring_mp_enqueue_bulk(rx_queue->sn_to_drv, objs, cnt);
-
-	reclaim_packets(rx_queue->drv_to_sn);
+	ret = llring_mp_enqueue_bulk(rx_queue->sn_to_drv, (void **)paddr, cnt);
 
 	if (ret == -LLRING_ERR_NOBUF)
 		return 0;

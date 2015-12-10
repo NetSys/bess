@@ -104,6 +104,7 @@ static int sn_alloc_queues(struct sn_device *dev, void *rings, u64 rings_size)
 		queue->queue_id = i;
 		queue->is_rx = false;
 		queue->loopback = dev->loopback;
+		queue->netdev_txq = netdev_get_tx_queue(dev->netdev, i);
 		
 		queue->drv_to_sn = (struct llring *)p;
 		p += llring_bytes(queue->drv_to_sn);
@@ -343,24 +344,66 @@ static int sn_process_rx_metadata(struct sk_buff *skb,
 static inline int sn_send_tx_queue(struct sn_queue *queue, 
 			            struct sn_device* dev, struct sk_buff* skb);
 
+DEFINE_PER_CPU(int, in_batched_polling);
+
+static void sn_process_loopback(struct sn_device *dev, 
+		struct sk_buff *skbs[], int cnt)
+{
+	struct sn_queue *tx_queue;
+
+	int qid;
+	int cpu;
+	int i;
+
+	int lock_required;
+	
+	cpu = raw_smp_processor_id();
+	qid = dev->cpu_to_txq[cpu];
+	tx_queue = dev->tx_queues[qid];
+
+	lock_required = (tx_queue->netdev_txq->xmit_lock_owner != cpu);
+
+	if (lock_required)
+		HARD_TX_LOCK(dev->netdev, tx_queue->netdev_txq, cpu);
+
+	for (i = 0; i < cnt; i++) {
+		if (!skbs[i])
+			continue;
+
+		/* Ignoring return value here */
+		sn_send_tx_queue(tx_queue, dev, skbs[i]); 
+	}
+
+	if (lock_required)
+		HARD_TX_UNLOCK(dev->netdev, tx_queue->netdev_txq);
+}
+
 static int sn_poll_action_batch(struct sn_queue *rx_queue, int budget)
 {
 	struct napi_struct *napi = &rx_queue->napi;
+	struct sn_device *dev = rx_queue->dev;
+
 	int poll_cnt = 0;
 
+	int *polling;
+
+	polling = this_cpu_ptr(&in_batched_polling);
+	*polling = 1;
+
 	while (poll_cnt < budget) {
-		struct sk_buff *skbs[MAX_RX_BATCH];
-		struct sn_rx_metadata rx_meta[MAX_RX_BATCH];
+		struct sk_buff *skbs[MAX_BATCH];
+		struct sn_rx_metadata rx_meta[MAX_BATCH];
 
 		int cnt;
 		int i;
 
-		cnt = rx_queue->dev->ops->do_rx_batch(rx_queue, rx_meta, skbs, 
-				min(MAX_RX_BATCH, budget - poll_cnt));
+		cnt = dev->ops->do_rx_batch(rx_queue, rx_meta, skbs, 
+				min(MAX_BATCH, budget - poll_cnt));
 		if (cnt == 0)
 			break;
 
 		rx_queue->rx_stats.packets += cnt;
+		poll_cnt += cnt;
 
 		for (i = 0; i < cnt; i++) {
 			struct sk_buff *skb = skbs[i];
@@ -369,36 +412,32 @@ static int sn_poll_action_batch(struct sn_queue *rx_queue, int budget)
 			rx_queue->rx_stats.bytes += skb->len;
 
 			ret = sn_process_rx_metadata(skb, &rx_meta[i]);
-			if (unlikely(ret)) {
+			if (ret == 0) {
+				skb_record_rx_queue(skb, rx_queue->queue_id);
+				skb->protocol = eth_type_trans(skb, napi->dev);
+				skb_mark_napi_id(skb, napi);
+			} else {
 				dev_kfree_skb(skb);
 				skbs[i] = NULL;
-				continue;
 			}
-
-			skb_record_rx_queue(skb, rx_queue->queue_id);
-			skb->protocol = eth_type_trans(skb, napi->dev);
-			skb_mark_napi_id(skb, napi);
 		}
 
 		if (!rx_queue->loopback) {
 			for (i = 0; i < cnt; i++) {
-				if (skbs[i])
-					netif_receive_skb(skbs[i]);
+				if (!skbs[i])
+					continue;
+
+				netif_receive_skb(skbs[i]);
 			}
-		} else {
-			struct sn_device *dev = rx_queue->dev;
-			int tx_qid = rx_queue->queue_id % dev->num_txq;
-			struct sn_queue *tx_queue = dev->tx_queues[tx_qid];
-			for (i = 0; i < cnt; i++) {
-				if (skbs[i]) {
-					/* Ignoring return value here */
-					sn_send_tx_queue(tx_queue, dev, 
-							skbs[i]); 
-				}
-			}
-		}
-		poll_cnt += cnt;
+		} else
+			sn_process_loopback(dev, skbs, cnt);
 	}
+
+	if (dev->ops->flush_tx)
+		dev->ops->flush_tx();
+
+	*polling = 0;
+
 	return poll_cnt;
 }
 
@@ -534,17 +573,28 @@ static inline int sn_send_tx_queue(struct sn_queue *queue,
 {
 	struct sn_tx_metadata tx_meta;
 	int ret;
+
 	sn_set_tx_metadata(skb, &tx_meta);
 	ret = dev->ops->do_tx(queue, skb, &tx_meta);
 
-	if (unlikely(ret == NET_XMIT_DROP)) {
-		queue->tx_stats.dropped++;
-	} else {
+	switch (ret) {
+	case NET_XMIT_CN:
+		queue->tx_stats.throttled++;
+		/* fall through */
+
+	case NET_XMIT_SUCCESS:
 		queue->tx_stats.packets++;
 		queue->tx_stats.bytes += skb->len;
+		break;
 
-		if (unlikely(ret == NET_XMIT_CN))
-			queue->tx_stats.throttled++;
+	case NET_XMIT_DROP:
+		queue->tx_stats.dropped++;
+		break;
+
+	default:
+		if (ret != SN_NET_XMIT_BUFFERED && net_ratelimit())
+			log_err("unknown return value %d\n", ret);
+		return NET_XMIT_SUCCESS;
 	}
 
 	dev_kfree_skb(skb);
@@ -638,7 +688,7 @@ static const struct net_device_ops sn_netdev_ops = {
 	.ndo_open		= sn_open,
 	.ndo_stop		= sn_close,
 #ifdef CONFIG_NET_RX_BUSY_POLL
-	.ndo_busy_poll		= sn_poll_ll,
+//	.ndo_busy_poll		= sn_poll_ll,
 #endif
 	.ndo_start_xmit		= sn_start_xmit,
 	.ndo_select_queue	= sn_select_queue,
@@ -799,6 +849,7 @@ int sn_register_netdev(void *bar, struct sn_device *dev)
 		}
 
 		dev_net_set(dev->netdev, net);
+		put_net(net);
 	}
 
 	ret = register_netdevice(dev->netdev);
