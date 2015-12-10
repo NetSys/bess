@@ -104,13 +104,13 @@ class SoftNIC(object):
 
         return obj
 
-    def _request_softnic(self, cmd, arg = None):
+    def _request_softnic(self, cmd, arg=None):
         if arg is not None:
             return self._request({'to': 'softnic', 'cmd': cmd, 'arg': arg})
         else:
             return self._request({'to': 'softnic', 'cmd': cmd})
 
-    def _request_module(self, name, cmd, arg = None):
+    def _request_module(self, name, cmd, arg=None):
         if arg is not None:
             return self._request({'to': 'module', 'name': name, 'cmd': cmd, 
                     'arg': arg}) 
@@ -125,7 +125,6 @@ class SoftNIC(object):
 
     def reset_all(self):
         return self._request_softnic('reset_all')
-
 
     def pause_all(self):
         return self._request_softnic('pause_all')
@@ -198,19 +197,35 @@ class SoftNIC(object):
         args = {'name': m, 'gate': gate}
         return self._request_softnic('disable_tcpdump', args)
 
+    def list_workers(self):
+        return self._request_softnic('list_workers')
+
     def add_worker(self, wid, core):
         args = {'wid': wid, 'core': core}
         return self._request_softnic('add_worker', args)
 
-    def attach_task(self, m, tid, tcid=None, wid=None):
-        if (tcid is None) == (wid is None):
-            raise self.APIError('You should specify either "tcid" or "wid"' \
+    def attach_task(self, m, tid, tc=None, wid=None):
+        if (tc is None) == (wid is None):
+            raise self.APIError('You should specify either "tc" or "wid"' \
                     ', but not both')
 
-        if tcid is not None:
-            assert False    # TODO: implement
-            args = {'name': m, 'taskid': tid, 'tcid': tcid}
+        if tc is not None:
+            args = {'name': m, 'taskid': tid, 'tc': tc}
         else:
             args = {'name': m, 'taskid': tid, 'wid': wid}
 
         return self._request_softnic('attach_task', args)
+
+    def list_tcs(self, wid = None):
+        args = None
+        if wid is not None:
+            args = {'wid': wid}
+
+        return self._request_softnic('list_tcs', args)
+
+    def add_tc(self, c, wid=0, priority=0):
+        args = {'name': c, 'wid': wid, 'priority': priority}
+        return self._request_softnic('add_tc', args)
+
+    def get_tc_stats(self, name):
+        return self._request_softnic('get_tc_stats', name)

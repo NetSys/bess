@@ -192,7 +192,6 @@ struct module *create_module(const char *name,
 	ret = register_module(m);
 	if (ret != 0) {
 		*perr = snobj_errno(-ret);
-		destroy_all_tasks(m);
 		goto fail;
 	}
 
@@ -200,6 +199,7 @@ struct module *create_module(const char *name,
 
 fail:
 	if (m) {
+		destroy_all_tasks(m);
 		rte_free(m->name);
 		rte_free(m->gates);
 	}
@@ -270,6 +270,9 @@ static int grow_gates(struct module *m, gate_t gate)
 	m->allocated_gates = new_size;
 
 	/* initialize the newly created gates */
+	memset(&m->gates[old_size], 0, 
+			sizeof(struct output_gate) * (new_size - old_size));
+
 	for (gate_t i = old_size; i < new_size; i++)
 		disconnect_modules(m, i);
 

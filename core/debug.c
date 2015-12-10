@@ -346,15 +346,15 @@ void dump_types(void)
 			sizeof(struct cdlist_item));
 
 	printf("sizeof(rte_mbuf)=%lu\n", sizeof(struct rte_mbuf));
-	printf("sizeof(snbuf)=%lu SNBUF_SIZE=%lu\n",
-			sizeof(struct snbuf), SNBUF_SIZE);
+	printf("sizeof(snbuf)=%lu\n", sizeof(struct snbuf));
 
 	printf("sizeof(pkt_batch)=%lu\n",
 			sizeof(struct pkt_batch));
 	printf("sizeof(sn_rx_metadata)=%lu sizeof(sn_tx_metadata)=%lu\n",
 			sizeof(struct sn_rx_metadata),
 			sizeof(struct sn_tx_metadata));
-
+	printf("sizeof(sn_rx_desc)=%lu sizeof(sn_tx_desc)=%lu\n",
+			sizeof(struct sn_rx_desc), sizeof(struct sn_tx_desc));
 	printf("sizeof(sched)=%lu sizeof(sched_stats)=%lu\n",
 			sizeof(struct sched),
 			sizeof(struct sched_stats));

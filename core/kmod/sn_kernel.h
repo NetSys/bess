@@ -39,7 +39,7 @@
 
 #include "sn_stack.h"
 
-#define MODULE_NAME	"softnic"
+#define MODULE_NAME	"bess"
 
 #define log_info(fmt, ...) \
 	printk(KERN_INFO "%s - %s():%d " pr_fmt(fmt), \
@@ -51,12 +51,18 @@
 
 #define MAX_QUEUES	128
 
+#define MAX_BATCH	32
+
+DECLARE_PER_CPU(int, in_batched_polling);
+
 struct sn_device;
 
 enum sn_dev_type {
 	sn_dev_type_host,
 	sn_dev_type_pci,	
 };
+
+#define SN_NET_XMIT_BUFFERED	-1
 
 struct sn_queue {
 	union {
@@ -65,6 +71,7 @@ struct sn_queue {
 			u64 bytes;
 			u64 dropped;
 			u64 throttled;
+			u64 descriptor;
 		} tx_stats;
 
 		struct sn_queue_rx_stats {
@@ -90,6 +97,7 @@ struct sn_queue {
 	struct napi_struct napi;
 
 	/* only valid for TX queues */
+	struct netdev_queue *netdev_txq;
 	sn_stack_t ready_tx_meta;
 
 	spinlock_t lock;
@@ -117,6 +125,8 @@ struct sn_ops {
 
 	/* Returns true if there are pending RX packets */
 	bool (*pending_rx) (struct sn_queue *rx_queue);
+
+	void (*flush_tx)(void);
 };
 
 struct sn_device {

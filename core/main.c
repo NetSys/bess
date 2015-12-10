@@ -11,8 +11,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/file.h>
-
-#include <rte_launch.h>
+#include <sys/resource.h>
 
 #include "debug.h"
 #include "dpdk.h"
@@ -273,19 +272,41 @@ int daemon_start()
 	return pipe_fds[write_end];
 }
 
+static void set_resource_limit()
+{
+	struct rlimit limit = {.rlim_cur = 65536, .rlim_max = 262144};
+
+	for (;;) {
+		int ret = setrlimit(RLIMIT_NOFILE, &limit);
+		if (ret == 0)
+			return;
+
+		if (errno == EPERM && limit.rlim_cur >= 1024) {
+			limit.rlim_max /= 2;
+			limit.rlim_cur = MIN(limit.rlim_cur, limit.rlim_max);
+			continue;
+		}
+
+		fprintf(stderr, "WARNING: setrlimit() failed\n");
+		return;
+	}
+}
+
 int main(int argc, char **argv)
 {
 	int signal_fd = -1;
 
 	parse_args(argc, argv);
 
+	check_user();
+	
 	if (opts->foreground)
 		printf("Launching BESS daemon in process mode... ");
 	else
 		signal_fd = daemon_start();
 
-	check_user();
 	check_pidfile();
+	set_resource_limit();
 
 	if (opts->foreground) {
 		printf("OK\n");

@@ -51,6 +51,7 @@ class BESSCLI(cli.CLI):
             super(BESSCLI, self).call_func(func, args)
         except self.softnic.APIError as e:
             self.err(e)
+            raise self.HandledError()
         except self.softnic.Error as e:
             self.err(e.errmsg)
 
@@ -72,6 +73,8 @@ class BESSCLI(cli.CLI):
                         self.fout.write('%s%s\n' % (initial_indent, line))
                     else:
                         self.fout.write('%s%s\n' % (subsequent_indent, line))
+
+            raise self.HandledError()
 
     def loop(self):
         try:

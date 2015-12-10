@@ -29,6 +29,8 @@
  */
 /* Dual BSD/GPL */
 
+#if 0
+
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
@@ -41,55 +43,6 @@
 #include "sn_ivshmem.h"
 
 static void *shbar = NULL;
-
-#if 0
-//not used anylonger
-static int sn_guest_do_tx_copy(struct sn_queue *queue, struct sk_buff *skb, 
-			  struct sn_tx_metadata *tx_meta)
-{
-	void *objs[3];
-	int ret = 0;
-	void *paddr;
-	void *paddr_meta;
-	void *vaddr_meta;
-	struct sk_buff *skb_tmp = netdev_alloc_skb(queue->dev->netdev, MAX_LFRAME);
-	skb_linearize(skb);
-	skb_put(skb_tmp, skb->len);
-	memcpy(skb_tmp->data, skb->data, skb->len);
-	skb = skb_tmp;
-
-	if (skb_headroom(skb) < sizeof(struct sn_tx_metadata)){
-		log_err("head room not enough %d\n", skb_headroom(skb));
-		return NET_XMIT_DROP;
-	}
-
-	//skb_get(skb);
-	paddr = (void*)virt_to_phys(skb->data); 
-	vaddr_meta = skb_push(skb, sizeof(struct sn_tx_metadata));
-	memcpy(vaddr_meta, tx_meta, sizeof(struct sn_tx_metadata));
-
-	paddr_meta = (void*)virt_to_phys(vaddr_meta);
-	objs[0] = (void*)skb; //cookie
-	objs[1] = paddr;
-	objs[2] = paddr_meta;
-
-	//log_info("sent skb %p \n", skb);
-	ret = llring_enqueue_bulk(queue->drv_to_sn, objs, 3);	
-
-	//bring back used skb's and free them
-	while (llring_dequeue_bulk(queue->sn_to_drv, objs, 1) != -LLRING_ERR_NOENT) {
-		skb = (struct sk_buff*)objs[0];
-		//log_info("returned skb %p \n", skb);
-		dev_kfree_skb(skb);
-	}
-
-	if (likely(ret == 0 || ret == -LLRING_ERR_QUOT))
-		return (ret == 0) ? NET_XMIT_SUCCESS : NET_XMIT_CN;
-	else
-		return NET_XMIT_DROP;
-}
-
-#endif 
 
 static void sn_reclaim_tx_pkts(struct sn_queue *queue)
 {
@@ -281,7 +234,6 @@ static void populate_tx_ring(struct sn_queue *queue)
 			break;
 
 		tx_meta->skb = NULL;
-		//tx_meta->skb = netdev_alloc_skb(queue->dev->netdev, MAX_LFRAME);;
 		objs[0] = (void*)tx_meta;
 
 		ret = sn_stack_push(&queue->ready_tx_meta, objs, 1);
@@ -316,7 +268,7 @@ static void populate_rx_ring(struct sn_queue *queue)
 
 	log_info("fill %d skbs\n", deficit);
 	for (i = 0; i < deficit; i++) {
-		skb = netdev_alloc_skb(queue->dev->netdev, MAX_LFRAME);
+		skb = netdev_alloc_skb(queue->dev->netdev, SNBUF_DATA);
 		if (!skb)
 			break;
 
@@ -358,7 +310,7 @@ static struct sk_buff *sn_guest_do_rx(struct sn_queue *queue,
 	skb->len += rx_meta->length;
 
 	//refill
-	skb2 = netdev_alloc_skb(queue->dev->netdev, MAX_LFRAME);
+	skb2 = netdev_alloc_skb(queue->dev->netdev, SNBUF_DATA);
 	if (!skb2)
 		return skb;
 	//log_info("refill skb %p\n", skb2);
@@ -498,3 +450,5 @@ void sn_guest_cleanup(void)
 	}
 	sn_ivsm_cleanup();
 }
+
+#endif

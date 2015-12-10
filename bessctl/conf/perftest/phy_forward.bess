@@ -1,0 +1,56 @@
+num_ports = int($SN_PORTS!'1')
+num_cores = int($SN_CORES!'1')
+mq_mode = int($SN_MQ!'0')
+fwd_mode = $SN_FWD!'pair'
+start_core = int($SN_START_CORE!'0')
+q_size = int($SN_QSIZE!'0')
+
+# parameter sanity check
+assert(num_cores in [1, 2, 4])
+assert(fwd_mode in ['pair', 'next', 'echo'])
+assert(1 <= num_ports <= 8)
+
+if mq_mode:
+    num_q = num_cores
+else:
+    num_q = 1
+
+kwargs = {'num_inc_q': num_q,
+          'num_out_q': num_q}
+
+if q_size:
+    kwargs['size_inc_q'] = q_size
+    kwargs['size_out_q'] = q_size
+
+for i in range(num_cores):
+    softnic.add_worker(i, start_core + i)
+
+ports = []
+for i in range(num_ports):
+    ports.append(Port(driver='PMD', port_id=i, **kwargs))
+
+next_wid = 0
+
+for i in range(num_ports):
+    inc_port_id = i
+
+    if fwd_mode == 'pair':
+        out_port_id = i - 1 if i % 2 else i + 1
+        # we cannot pair the last one if there are an odd number of ports
+        if out_port_id == num_ports:
+            out_port_id = i
+    elif fwd_mode == 'next':
+        out_port_id = (i + 1) % num_ports
+    else:
+        out_port_id = i
+
+    for j in range(num_q):
+        # more meaningful name for easy debugging
+        qinc_name = 'qinc_p%d_q%d' % (inc_port_id, j)
+        qout_name = 'qout_p%d_q%d' % (out_port_id, j)
+
+        QueueInc(name=qinc_name, port=ports[inc_port_id], qid=j) \
+        -> QueueOut(name=qout_name, port=ports[out_port_id], qid=j)
+
+        softnic.attach_task(qinc_name, 0, wid=next_wid)
+        next_wid = (next_wid + 1) % num_cores

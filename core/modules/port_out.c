@@ -3,6 +3,7 @@
 
 struct port_out_priv {
 	struct port *port;
+	pkt_io_func_t send_pkts;
 };
 
 static struct snobj *port_out_init(struct module *m, struct snobj *arg)
@@ -10,6 +11,8 @@ static struct snobj *port_out_init(struct module *m, struct snobj *arg)
 	struct port_out_priv *priv = get_priv(m);
 
 	const char *port_name;
+
+	int ret;
 
 	if (!arg || !(port_name = snobj_str_get(arg)))
 		return snobj_err(EINVAL, "Argument must be a port name " \
@@ -19,7 +22,15 @@ static struct snobj *port_out_init(struct module *m, struct snobj *arg)
 	if (!priv->port)
 		return snobj_err(ENODEV, "Port %s not found", port_name);
 
-	acquire_queue(priv->port, PACKET_DIR_OUT, 0 /* XXX */, m);
+	if (priv->port->num_queues[PACKET_DIR_OUT] == 0)
+		return snobj_err(ENODEV, "Port %s has no outgoing queue",
+				port_name);
+
+	ret = acquire_queues(priv->port, m, PACKET_DIR_OUT, NULL, 0);
+	if (ret < 0)
+		return snobj_errno(-ret);
+
+	priv->send_pkts = priv->port->driver->send_pkts;
 
 	return NULL;
 }
@@ -28,7 +39,7 @@ static void port_out_deinit(struct module *m)
 {
 	struct port_out_priv *priv = get_priv(m);
 
-	release_queue(priv->port, PACKET_DIR_OUT, 0 /* XXX */, m);
+	release_queues(priv->port, m, PACKET_DIR_OUT, NULL, 0);
 }
 
 static struct snobj *port_out_get_desc(const struct module *m)
@@ -45,19 +56,24 @@ static void port_out_process_batch(struct module *m,
 	struct port_out_priv *priv = get_priv(m);
 	struct port *p = priv->port;
 
-	const queue_t qid = 0;	/* XXX */
+	/* TODO: choose appropriate out queue */
+	const queue_t qid = 0;
 
 	uint64_t sent_bytes = 0;
 	int sent_pkts;
 
-	sent_pkts = p->driver->send_pkts(p, qid, batch->pkts, batch->cnt);
+	sent_pkts = priv->send_pkts(p, qid, batch->pkts, batch->cnt);
 
-	for (int i = 0; i < sent_pkts; i++)
-		sent_bytes += snb_total_len(batch->pkts[i]);
+	if (!(p->driver->flags & DRIVER_FLAG_SELF_OUT_STATS)) {
+		const packet_dir_t dir = PACKET_DIR_OUT;
 
-	p->queue_stats[PACKET_DIR_OUT][qid].packets += sent_pkts;
-	p->queue_stats[PACKET_DIR_OUT][qid].dropped += (batch->cnt - sent_pkts);
-	p->queue_stats[PACKET_DIR_OUT][qid].bytes += sent_bytes;
+		for (int i = 0; i < sent_pkts; i++)
+			sent_bytes += snb_total_len(batch->pkts[i]);
+
+		p->queue_stats[dir][qid].packets += sent_pkts;
+		p->queue_stats[dir][qid].dropped += (batch->cnt - sent_pkts);
+		p->queue_stats[dir][qid].bytes += sent_bytes;
+	}
 
 	if (sent_pkts < batch->cnt)
 		snb_free_bulk(batch->pkts + sent_pkts, batch->cnt - sent_pkts);

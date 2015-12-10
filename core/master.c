@@ -444,7 +444,8 @@ void run_master()
 again:
 	ret = epoll_wait(master.epoll_fd, &ev, 1, -1);
 	if (ret <= 0) {
-		perror("epoll_wait()");
+		if (errno != EINTR)
+			perror("epoll_wait()");
 		goto again;
 	}
 

@@ -1,10 +1,11 @@
+#include <sched.h>
+#include <unistd.h>
+#include <limits.h>
+#include <sys/eventfd.h>
+
 #include <rte_config.h>
 #include <rte_cycles.h>
 #include <rte_lcore.h>
-
-#include <sched.h>
-#include <unistd.h>
-#include <sys/eventfd.h>
 
 #include "common.h"
 #include "worker.h"
@@ -14,6 +15,23 @@
 int num_workers;
 struct worker_context * volatile workers[MAX_WORKERS];
 __thread struct worker_context ctx;
+
+#define SYS_CPU_DIR "/sys/devices/system/cpu/cpu%u"
+#define CORE_ID_FILE "topology/core_id"
+
+/* Check if a cpu is present by the presence of the cpu information for it */
+int is_cpu_present(unsigned int core_id)
+{
+       char path[PATH_MAX];
+       int len = snprintf(path, sizeof(path), SYS_CPU_DIR
+               "/"CORE_ID_FILE, core_id);
+       if (len <= 0 || (unsigned)len >= sizeof(path))
+               return 0;
+       if (access(path, F_OK) != 0)
+               return 0;
+
+       return 1;
+}
 
 void set_non_worker()
 {
@@ -28,12 +46,6 @@ void set_non_worker()
 	ctx.fd_event = INT_MIN;
 
 	/* Packet pools should be available to non-worker threads */
-	for (socket = 0; socket < RTE_MAX_NUMA_NODES; socket++) {
-		struct rte_mempool *pool = get_lframe_pool_socket(socket);
-		if (pool)
-			ctx.lframe_pool = pool;
-	}
-
 	for (socket = 0; socket < RTE_MAX_NUMA_NODES; socket++) {
 		struct rte_mempool *pool = get_pframe_pool_socket(socket);
 		if (pool)
@@ -53,12 +65,12 @@ int is_worker_core(int cpu)
 	return 0;
 }
 
-void pause_worker(int wid)
+static void pause_worker(int wid)
 {
 	if (workers[wid] && workers[wid]->status == WORKER_RUNNING) {
 		workers[wid]->status = WORKER_PAUSING;
 
-		INST_BARRIER();
+		FULL_BARRIER();
 
 		while (workers[wid]->status == WORKER_PAUSING)
 			; 	/* spin */
@@ -67,48 +79,24 @@ void pause_worker(int wid)
 
 void pause_all_workers() 
 {
-	int i;
-
-	for (i = 0; i < MAX_WORKERS; i++)
-		pause_worker(i);
+	for (int wid = 0; wid < MAX_WORKERS; wid++)
+		pause_worker(wid);
 }
 
-void resume_worker(int wid)
+#define SIGNAL_UNBLOCK	1
+#define SIGNAL_QUIT	2
+
+static void resume_worker(int wid)
 {
-	if (workers[wid]->status == WORKER_PAUSED) {
-		uint64_t t = 1;
+	if (workers[wid] && workers[wid]->status == WORKER_PAUSED) {
 		int ret;
 
-		ret = write(workers[wid]->fd_event, &t, sizeof(t));
-		assert(ret == sizeof(t));
+		ret = write(workers[wid]->fd_event, &(uint64_t){SIGNAL_UNBLOCK}, 
+				sizeof(uint64_t));
+		assert(ret == sizeof(uint64_t));
 
 		while (workers[wid]->status == WORKER_PAUSED)
 			; 	/* spin */
-	}
-}
-
-static void setup_default_tc(struct sched *s)
-{
-	struct task *t;
-
-	struct tc_params params = {
-		.parent = NULL,
-		.auto_free = 1,	/* when no task is left, this TC is freed */
-		.priority = 0,
-		.share = 1,
-		.share_resource = RESOURCE_CNT,
-	};
-
-	cdlist_for_each_entry(t, &all_tasks, all_tasks) {
-		if (!t->c) {
-			struct tc *c_def = tc_init(s, &params);
-
-			task_attach(t, c_def);
-			printf("Task %p has been registered to "
-			       "a default traffic class %p\n", t, c_def);
-
-			tc_join(c_def);
-		}
 	}
 }
 
@@ -116,10 +104,34 @@ void resume_all_workers()
 {
 	process_orphan_tasks();
 
-	for (int wid = 0; wid < MAX_WORKERS; wid++) {
-		if (is_worker_active(wid))
-			resume_worker(wid);
+	for (int wid = 0; wid < MAX_WORKERS; wid++)
+		resume_worker(wid);
+}
+
+static void destroy_worker(int wid)
+{
+	pause_worker(wid);
+
+	if (workers[wid] && workers[wid]->status == WORKER_PAUSED) {
+		int ret;
+
+		ret = write(workers[wid]->fd_event, &(uint64_t){SIGNAL_QUIT}, 
+				sizeof(uint64_t));
+		assert(ret == sizeof(uint64_t));
+
+		while (workers[wid])
+			; 	/* spin */
+
+		num_workers--;
 	}
+
+	rte_eal_wait_lcore(wid);
+}
+
+void destroy_all_workers()
+{
+	for (int wid = 0; wid < MAX_WORKERS; wid++)
+		destroy_worker(wid);
 }
 
 int is_any_worker_running()
@@ -134,15 +146,24 @@ int is_any_worker_running()
 	return 0;
 }
 
-void block_worker()
+int block_worker()
 {
 	uint64_t t;
 	int ret;
 
 	ctx.status = WORKER_PAUSED;
+
 	ret = read(ctx.fd_event, &t, sizeof(t));
-	ctx.status = WORKER_RUNNING;
 	assert(ret == sizeof(t));
+
+	if (t == SIGNAL_UNBLOCK)
+		ctx.status = WORKER_RUNNING;
+	else if (t == SIGNAL_QUIT)
+		return 1;
+	else
+		assert(0);
+
+	return 0;
 }
 
 /* arg is the core ID it should run on */
@@ -150,14 +171,15 @@ static int run_worker(void *arg)
 {
 	cpu_set_t set;
 	int core;
-	
-	assert(ctx.status == WORKER_INACTIVE);
 
 	core = (int)(int64_t)arg;
 
 	CPU_ZERO(&set);
 	CPU_SET(core, &set);
 	rte_thread_set_affinity(&set);
+
+	/* just in case */
+	memset(&ctx, 0, sizeof(ctx));
 
 	/* for workers, wid == rte_lcore_id() */
 	ctx.wid = rte_lcore_id();
@@ -171,10 +193,7 @@ static int run_worker(void *arg)
 
 	ctx.current_tsc = rdtsc();
 
-	ctx.lframe_pool = get_lframe_pool();
 	ctx.pframe_pool = get_pframe_pool();
-
-	assert(ctx.lframe_pool);
 	assert(ctx.pframe_pool);
 
 	ctx.status = WORKER_PAUSING;
@@ -190,23 +209,31 @@ static int run_worker(void *arg)
 	printf("Worker %d(%p) is running on core %d (socket %d)\n", 
 			ctx.wid, &ctx, ctx.core, ctx.socket);
 
+	CPU_ZERO(&set);
 	sched_loop(ctx.s);
 
-	ctx.status = WORKER_INACTIVE;
-	workers[ctx.wid] = NULL;
+	printf("Worker %d(%p) is quitting... (core %d, socket %d)\n", 
+			ctx.wid, &ctx, ctx.core, ctx.socket);
+
+	sched_free(ctx.s);
+
 	STORE_BARRIER();
+	workers[ctx.wid] = NULL;
 
 	return 0;
 }
 
 void launch_worker(int wid, int core)
 {
-	rte_eal_remote_launch(run_worker, (void *)(int64_t)core, wid);
+	int ret;
+
+	ret = rte_eal_remote_launch(run_worker, (void *)(int64_t)core, wid);
+	assert(ret == 0);
 
 	INST_BARRIER();
 
-	while (!is_worker_active(wid))
-		;	/* spin until it becomes ready */
+	while (!is_worker_active(wid) || workers[wid]->status != WORKER_PAUSED)
+		;	/* spin until it becomes ready and fully paused */
 
 	num_workers++;
 }

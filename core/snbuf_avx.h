@@ -2,20 +2,13 @@
 #define _SNBUF_AVX_H_
 
 static inline int
-snb_alloc_bulk(snbuf_type_t type, snb_array_t snbs, int cnt, uint16_t len)
+snb_alloc_bulk(snb_array_t snbs, int cnt, uint16_t len)
 {
 	int ret;
 	int i;
 
 	__m128i mbuf_template;	/* 256-bit write was worse... */
 	__m128i rxdesc_fields;
-
-#if OLD_METADATA
-	ct_assert(SNBUF_SIZE == 16);
-
-	__m128i snb_template;
-	snb_template= *((__m128i *)&snbuf_template._snbuf_start);
-#endif
 
 #if DPDK >= DPDK_VER(2, 1, 0)
 	/* DPDK 2.1
@@ -35,17 +28,13 @@ snb_alloc_bulk(snbuf_type_t type, snb_array_t snbs, int cnt, uint16_t len)
 	 * rss			0	(32 bits) */
 	rxdesc_fields = _mm_setr_epi32(len << 16, len, 0, 0);
 #endif
-	if (type == SNBUF_PFRAME) {
-		ret = rte_mempool_get_bulk(ctx.pframe_pool, (void **)snbs, cnt);
-		mbuf_template = *((__m128i *)&pframe_template.buf_len);
-	} else {
-		ret = rte_mempool_get_bulk(ctx.lframe_pool, (void **)snbs, cnt);
-		mbuf_template = *((__m128i *)&lframe_template.buf_len);
-	}
-	
+
+	ret = rte_mempool_get_bulk(ctx.pframe_pool, (void **)snbs, cnt);
 	if (ret != 0)
 		return 0;
 
+	mbuf_template = *((__m128i *)&pframe_template.buf_len);
+	
 	/* 4 at a time didn't help */
 	for (i = 0; i < (cnt & (~0x1)); i+=2) {
 		/* since the data is likely to be in the store buffer 
@@ -53,17 +42,11 @@ snb_alloc_bulk(snbuf_type_t type, snb_array_t snbs, int cnt, uint16_t len)
 		struct snbuf *snb0 = snbs[i];
 		struct snbuf *snb1 = snbs[i + 1];
 
-#if OLD_METADATA
-		*((__m128i *)&snb0->_snbuf_start) = snb_template;
-#endif
 		_mm_store_si128((__m128i *)&snb0->mbuf.buf_len, 
 				mbuf_template);
 		_mm_store_si128((__m128i *)&snb0->mbuf.packet_type, 
 				rxdesc_fields);
 
-#if OLD_METADATA
-		*((__m128i *)&snb1->_snbuf_start) = snb_template;
-#endif
 		_mm_store_si128((__m128i *)&snb1->mbuf.buf_len, 
 				mbuf_template);
 		_mm_store_si128((__m128i *)&snb1->mbuf.packet_type, 
@@ -73,9 +56,6 @@ snb_alloc_bulk(snbuf_type_t type, snb_array_t snbs, int cnt, uint16_t len)
 	if (cnt & 0x1){
 		struct snbuf *snb = snbs[i];
 
-#if OLD_METADATA
-		*((__m128i *)&snb->_snbuf_start) = snb_template;
-#endif
 		_mm_store_si128((__m128i *)&snb->mbuf.buf_len, 
 				mbuf_template);
 		_mm_store_si128((__m128i *)&snb->mbuf.packet_type, 

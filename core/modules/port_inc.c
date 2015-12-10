@@ -3,6 +3,7 @@
 
 struct port_inc_priv {
 	struct port *port;
+	pkt_io_func_t recv_pkts;
 };
 
 static struct snobj *port_inc_init(struct module *m, struct snobj *arg)
@@ -10,7 +11,9 @@ static struct snobj *port_inc_init(struct module *m, struct snobj *arg)
 	struct port_inc_priv *priv = get_priv(m);
 
 	const char *port_name;
-	task_id_t ret;
+	queue_t num_inc_q;
+
+	int ret;
 
 	if (!arg || !(port_name = snobj_str_get(arg)))
 		return snobj_err(EINVAL, "Argument must be a port name " \
@@ -20,11 +23,23 @@ static struct snobj *port_inc_init(struct module *m, struct snobj *arg)
 	if (!priv->port)
 		return snobj_err(ENODEV, "Port %s not found", port_name);
 
-	ret = register_task(m, NULL);
-	if (ret == INVALID_TASK_ID)
-		return snobj_err(ENOMEM, "Task creation failed");
+	num_inc_q = priv->port->num_queues[PACKET_DIR_INC];
+	if (num_inc_q == 0)
+		return snobj_err(ENODEV, "Port %s has no incoming queue",
+				port_name);
 
-	acquire_queue(priv->port, PACKET_DIR_INC, 0 /* XXX */, m);
+	for (queue_t qid = 0; qid < num_inc_q; qid++) { 
+		task_id_t tid = register_task(m, (void *)(uint64_t)qid);
+
+		if (tid == INVALID_TASK_ID)
+			return snobj_err(ENOMEM, "Task creation failed");
+	}
+
+	ret = acquire_queues(priv->port, m, PACKET_DIR_INC, NULL, 0);
+	if (ret < 0)
+		return snobj_errno(-ret);
+
+	priv->recv_pkts = priv->port->driver->recv_pkts;
 
 	return NULL;
 }
@@ -33,7 +48,7 @@ static void port_inc_deinit(struct module *m)
 {
 	struct port_inc_priv *priv = get_priv(m);
 
-	release_queue(priv->port, PACKET_DIR_INC, 0 /* XXX */, m);
+	release_queues(priv->port, m, PACKET_DIR_INC, NULL, 0);
 }
 
 static struct snobj *port_inc_get_desc(const struct module *m)
@@ -49,7 +64,7 @@ port_inc_run_task(struct module *m, void *arg)
 	struct port_inc_priv *priv = get_priv(m);
 	struct port *p = priv->port;
 
-	const queue_t qid = 0;	/* XXX */
+	const queue_t qid = (queue_t)(uint64_t)arg;
 
 	struct pkt_batch batch;
 	struct task_result ret;
@@ -59,7 +74,7 @@ port_inc_run_task(struct module *m, void *arg)
 	const int pkt_burst = MAX_PKT_BURST;
 	const int pkt_overhead = 24;
 
-	batch.cnt = p->driver->recv_pkts(p, qid, batch.pkts, pkt_burst);
+	batch.cnt = priv->recv_pkts(p, qid, batch.pkts, pkt_burst);
 
 	if (batch.cnt == 0) {
 		ret.packets = 0;
@@ -67,14 +82,17 @@ port_inc_run_task(struct module *m, void *arg)
 		return ret;
 	}
 
+	/* NOTE: we cannot skip this step since it might be used by scheduler */
 	for (int i = 0; i < batch.cnt; i++)
 		received_bytes += snb_total_len(batch.pkts[i]);
 
 	ret.packets = batch.cnt;
 	ret.bits = (received_bytes + pkt_overhead * batch.cnt) * 8;
 
-	p->queue_stats[PACKET_DIR_INC][qid].packets += batch.cnt;
-	p->queue_stats[PACKET_DIR_INC][qid].bytes += received_bytes;
+	if (!(p->driver->flags & DRIVER_FLAG_SELF_INC_STATS)) {
+		p->queue_stats[PACKET_DIR_INC][qid].packets += batch.cnt;
+		p->queue_stats[PACKET_DIR_INC][qid].bytes += received_bytes;
+	}
 
 	run_next_module(m, &batch);
 

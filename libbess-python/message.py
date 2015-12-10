@@ -31,7 +31,7 @@ def encode(obj):
     elif isinstance(obj, int):
         t = TYPE_INT
         l = 8
-        v = struct.pack('<Q', obj)
+        v = struct.pack('<q', obj)
     elif isinstance(obj, float):
         t = TYPE_DOUBLE
         l = 8
@@ -67,7 +67,7 @@ def _decode_recur(buf, offset):
     if t == TYPE_NIL:
         v = None
     elif t == TYPE_INT:
-        v, = struct.unpack_from('<Q', buf, offset)
+        v, = struct.unpack_from('<q', buf, offset)
         offset += 8
     elif t == TYPE_DOUBLE:
         v, = struct.unpack_from('<d', buf, offset)
@@ -77,6 +77,7 @@ def _decode_recur(buf, offset):
         offset += l
     elif t == TYPE_BLOB:
         v = bytearray(buf[offset:offset + l])
+        offset += l
     elif t == TYPE_LIST:
         v  = list()
         for i in xrange(l):

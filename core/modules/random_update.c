@@ -87,7 +87,7 @@ static struct snobj *handle_vars(struct rupdate_priv *priv,
 			return snobj_err(EINVAL, "'size' must be 1, 2, or 4");
 		}
 
-		if (offset + 4 > MAX_PFRAME)
+		if (offset + 4 > SNBUF_DATA)
 			return snobj_err(EINVAL, "Too large 'offset'");
 
 		if (min > max)

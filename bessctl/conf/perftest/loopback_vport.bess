@@ -1,10 +1,12 @@
 import time
 import multiprocessing
 
-# Use 2 for the following two variables, 
-# if you avoid using two logical threads simultaneously on a SMT system
-START_CPU = 1
-STEP = 1		
+num_cpus = multiprocessing.cpu_count()
+
+CORE_START = int($SN_CORE_START!'1')
+CORE_END = int($SN_CORE_END!num_cpus)   # not inclusive
+CORE_STEP = int($SN_CORE_STEP!'1')      # for SMT servers
+INTERVAL = int($SN_INTERVAL!'2')
 
 cpu_set = []
 ports = []
@@ -18,7 +20,7 @@ def measure():
     for port in ports:
         old_stats.append(softnic.get_port_stats(port.name))
 
-    time.sleep(2)
+    time.sleep(INTERVAL)
 
     for port in ports:
         new_stats.append(softnic.get_port_stats(port.name))
@@ -64,7 +66,7 @@ def measure():
     print
     print
 
-for cpu in range(START_CPU, multiprocessing.cpu_count(), STEP):
+for cpu in range(CORE_START, CORE_END, CORE_STEP):
     vport = Port(driver='VPort', loopback=1, rxq_cpu=cpu)
 
     cpu_set.append(cpu)

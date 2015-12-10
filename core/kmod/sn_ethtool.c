@@ -43,7 +43,6 @@ static int sn_ethtool_get_sset_count(struct net_device *netdev, int sset)
 		return NUM_STATS_PER_TX_QUEUE * dev->num_txq + 
 			NUM_STATS_PER_RX_QUEUE * dev->num_rxq;
 	default:
-		log_err("unknown sset value: %d\n", sset);
 		return -EOPNOTSUPP;
 	};
 }
@@ -54,7 +53,7 @@ static void sn_ethtool_get_strings(struct net_device *netdev,
 	struct sn_device *dev = netdev_priv(netdev);
 	int i;
 
-	BUILD_BUG_ON(NUM_STATS_PER_TX_QUEUE != 4);
+	BUILD_BUG_ON(NUM_STATS_PER_TX_QUEUE != 5);
 	BUILD_BUG_ON(NUM_STATS_PER_RX_QUEUE != 6);
 
 	if (sset != ETH_SS_STATS)
@@ -71,6 +70,8 @@ static void sn_ethtool_get_strings(struct net_device *netdev,
 		sprintf(p, "tx_queue_%u_drops", i);
 		p += ETH_GSTRING_LEN;
 		sprintf(p, "tx_queue_%u_throttled", i);
+		p += ETH_GSTRING_LEN;
+		sprintf(p, "tx_queue_%u_descdropped", i);
 		p += ETH_GSTRING_LEN;
 	}
 
@@ -97,7 +98,7 @@ static void sn_ethtool_get_ethtool_stats(struct net_device *netdev,
 	struct sn_device *dev = netdev_priv(netdev);
 	int i;
 
-	BUILD_BUG_ON(NUM_STATS_PER_TX_QUEUE != 4);
+	BUILD_BUG_ON(NUM_STATS_PER_TX_QUEUE != 5);
 	BUILD_BUG_ON(NUM_STATS_PER_RX_QUEUE != 6);
 
 	for (i = 0; i < dev->num_txq; i++) {
@@ -105,6 +106,7 @@ static void sn_ethtool_get_ethtool_stats(struct net_device *netdev,
 		data[1] = dev->tx_queues[i]->tx_stats.bytes;
 		data[2] = dev->tx_queues[i]->tx_stats.dropped;
 		data[3] = dev->tx_queues[i]->tx_stats.throttled;
+		data[4] = dev->tx_queues[i]->tx_stats.descriptor;
 		data += NUM_STATS_PER_TX_QUEUE;
 	}
 
@@ -125,7 +127,7 @@ static void sn_ethtool_get_ethtool_stats(struct net_device *netdev,
 static void sn_ethtool_get_drvinfo(struct net_device *netdev,
                               struct ethtool_drvinfo *drvinfo)
 {
-	strcpy(drvinfo->driver, "SoftNIC");
+	strcpy(drvinfo->driver, "BESS");
 	strcpy(drvinfo->version, "99.9.9");
 	strcpy(drvinfo->bus_info, "PCIe Gen 7");
 

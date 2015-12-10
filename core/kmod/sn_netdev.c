@@ -34,8 +34,6 @@
 #include <net/busy_poll.h>
 #include "sn.h"
 
-#define MAX_RX_BATCH	16
-
 static int sn_poll(struct napi_struct *napi, int budget);
 static void sn_enable_interrupt(struct sn_queue *rx_queue);
 
@@ -106,6 +104,7 @@ static int sn_alloc_queues(struct sn_device *dev, void *rings, u64 rings_size)
 		queue->queue_id = i;
 		queue->is_rx = false;
 		queue->loopback = dev->loopback;
+		queue->netdev_txq = netdev_get_tx_queue(dev->netdev, i);
 		
 		queue->drv_to_sn = (struct llring *)p;
 		p += llring_bytes(queue->drv_to_sn);
@@ -152,7 +151,7 @@ static int sn_alloc_queues(struct sn_device *dev, void *rings, u64 rings_size)
 		napi_hash_add(&dev->rx_queues[i]->napi);
 		spin_lock_init(&dev->rx_queues[i]->lock);
 	}
-
+	
 	sn_test_cache_alignment(dev);
 
 	return 0;
@@ -161,8 +160,6 @@ static int sn_alloc_queues(struct sn_device *dev, void *rings, u64 rings_size)
 static void sn_free_queues(struct sn_device *dev)
 {
 	int i;
-
-	log_info("%s: releasing queues\n", dev->netdev->name);
 
 	for (i = 0; i < dev->num_rxq; i++) {
 		napi_hash_del(&dev->rx_queues[i]->napi);
@@ -180,8 +177,6 @@ static int sn_open(struct net_device *netdev)
 	struct sn_device *dev = netdev_priv(netdev);
 	int i;
 
-	log_info("%s: interface UP\n", netdev->name);
-
 	for (i = 0; i < dev->num_rxq; i++)
 		napi_enable(&dev->rx_queues[i]->napi);
 	for (i = 0; i < dev->num_rxq; i++) 
@@ -195,8 +190,6 @@ static int sn_close(struct net_device *netdev)
 {
 	struct sn_device *dev = netdev_priv(netdev);
 	int i;
-
-	log_info("%s: interface DOWN\n", netdev->name);
 
 	for (i = 0; i < dev->num_rxq; i++)
 		napi_disable(&dev->rx_queues[i]->napi);
@@ -351,24 +344,66 @@ static int sn_process_rx_metadata(struct sk_buff *skb,
 static inline int sn_send_tx_queue(struct sn_queue *queue, 
 			            struct sn_device* dev, struct sk_buff* skb);
 
+DEFINE_PER_CPU(int, in_batched_polling);
+
+static void sn_process_loopback(struct sn_device *dev, 
+		struct sk_buff *skbs[], int cnt)
+{
+	struct sn_queue *tx_queue;
+
+	int qid;
+	int cpu;
+	int i;
+
+	int lock_required;
+	
+	cpu = raw_smp_processor_id();
+	qid = dev->cpu_to_txq[cpu];
+	tx_queue = dev->tx_queues[qid];
+
+	lock_required = (tx_queue->netdev_txq->xmit_lock_owner != cpu);
+
+	if (lock_required)
+		HARD_TX_LOCK(dev->netdev, tx_queue->netdev_txq, cpu);
+
+	for (i = 0; i < cnt; i++) {
+		if (!skbs[i])
+			continue;
+
+		/* Ignoring return value here */
+		sn_send_tx_queue(tx_queue, dev, skbs[i]); 
+	}
+
+	if (lock_required)
+		HARD_TX_UNLOCK(dev->netdev, tx_queue->netdev_txq);
+}
+
 static int sn_poll_action_batch(struct sn_queue *rx_queue, int budget)
 {
 	struct napi_struct *napi = &rx_queue->napi;
+	struct sn_device *dev = rx_queue->dev;
+
 	int poll_cnt = 0;
 
+	int *polling;
+
+	polling = this_cpu_ptr(&in_batched_polling);
+	*polling = 1;
+
 	while (poll_cnt < budget) {
-		struct sk_buff *skbs[MAX_RX_BATCH];
-		struct sn_rx_metadata rx_meta[MAX_RX_BATCH];
+		struct sk_buff *skbs[MAX_BATCH];
+		struct sn_rx_metadata rx_meta[MAX_BATCH];
 
 		int cnt;
 		int i;
 
-		cnt = rx_queue->dev->ops->do_rx_batch(rx_queue, rx_meta, skbs, 
-				min(MAX_RX_BATCH, budget - poll_cnt));
+		cnt = dev->ops->do_rx_batch(rx_queue, rx_meta, skbs, 
+				min(MAX_BATCH, budget - poll_cnt));
 		if (cnt == 0)
 			break;
 
 		rx_queue->rx_stats.packets += cnt;
+		poll_cnt += cnt;
 
 		for (i = 0; i < cnt; i++) {
 			struct sk_buff *skb = skbs[i];
@@ -377,38 +412,31 @@ static int sn_poll_action_batch(struct sn_queue *rx_queue, int budget)
 			rx_queue->rx_stats.bytes += skb->len;
 
 			ret = sn_process_rx_metadata(skb, &rx_meta[i]);
-			if (unlikely(ret)) {
+			if (ret == 0) {
+				skb_record_rx_queue(skb, rx_queue->queue_id);
+				skb->protocol = eth_type_trans(skb, napi->dev);
+				skb_mark_napi_id(skb, napi);
+			} else {
 				dev_kfree_skb(skb);
 				skbs[i] = NULL;
-				continue;
 			}
-
-			skb_record_rx_queue(skb, rx_queue->queue_id);
-			skb->protocol = eth_type_trans(skb, napi->dev);
-			skb_mark_napi_id(skb, napi);
 		}
 
 		if (!rx_queue->loopback) {
 			for (i = 0; i < cnt; i++) {
-				if (skbs[i])
-					netif_receive_skb(skbs[i]);
-			}
-		} else {
-			struct sn_device *dev = rx_queue->dev;
-			int tx_qid = rx_queue->queue_id % dev->num_txq;
-			struct sn_queue *tx_queue = dev->tx_queues[tx_qid];
-			for (i = 0; i < cnt; i++) {
-				if (skbs[i]) {
-					/* Ignoring return value here */
-					sn_send_tx_queue(tx_queue, dev, 
-							skbs[i]); 
-				}
-			}
-		}
+				if (!skbs[i])
+					continue;
 
-		poll_cnt += cnt;
-
+				netif_receive_skb(skbs[i]);
+			}
+		} else
+			sn_process_loopback(dev, skbs, cnt);
 	}
+
+	if (dev->ops->flush_tx)
+		dev->ops->flush_tx();
+
+	*polling = 0;
 
 	return poll_cnt;
 }
@@ -531,8 +559,6 @@ static int sn_poll(struct napi_struct *napi, int budget)
 static void sn_set_tx_metadata(struct sk_buff *skb, 
 			       struct sn_tx_metadata *tx_meta)
 {
-	tx_meta->length = skb->len;
-
 	if (skb->ip_summed == CHECKSUM_PARTIAL) {
 		tx_meta->csum_start = skb_checksum_start_offset(skb);
 		tx_meta->csum_dest = tx_meta->csum_start + skb->csum_offset;
@@ -547,17 +573,28 @@ static inline int sn_send_tx_queue(struct sn_queue *queue,
 {
 	struct sn_tx_metadata tx_meta;
 	int ret;
+
 	sn_set_tx_metadata(skb, &tx_meta);
 	ret = dev->ops->do_tx(queue, skb, &tx_meta);
 
-	if (unlikely(ret == NET_XMIT_DROP)) {
-		queue->tx_stats.dropped++;
-	} else {
+	switch (ret) {
+	case NET_XMIT_CN:
+		queue->tx_stats.throttled++;
+		/* fall through */
+
+	case NET_XMIT_SUCCESS:
 		queue->tx_stats.packets++;
 		queue->tx_stats.bytes += skb->len;
+		break;
 
-		if (unlikely(ret == NET_XMIT_CN))
-			queue->tx_stats.throttled++;
+	case NET_XMIT_DROP:
+		queue->tx_stats.dropped++;
+		break;
+
+	default:
+		if (ret != SN_NET_XMIT_BUFFERED && net_ratelimit())
+			log_err("unknown return value %d\n", ret);
+		return NET_XMIT_SUCCESS;
 	}
 
 	dev_kfree_skb(skb);
@@ -575,7 +612,7 @@ static int sn_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 
 	/* log_info("txq=%d cpu=%d\n", txq, raw_smp_processor_id()); */
 
-	if (unlikely(skb->len > MAX_LFRAME)) {
+	if (unlikely(skb->len > SNBUF_DATA)) {
 		log_err("too large skb! (%d)\n", skb->len);
 		dev_kfree_skb(skb);
 		return NET_XMIT_DROP;
@@ -651,7 +688,7 @@ static const struct net_device_ops sn_netdev_ops = {
 	.ndo_open		= sn_open,
 	.ndo_stop		= sn_close,
 #ifdef CONFIG_NET_RX_BUSY_POLL
-	.ndo_busy_poll		= sn_poll_ll,
+//	.ndo_busy_poll		= sn_poll_ll,
 #endif
 	.ndo_start_xmit		= sn_start_xmit,
 	.ndo_select_queue	= sn_select_queue,
@@ -663,8 +700,7 @@ extern const struct ethtool_ops sn_ethtool_ops;
 
 static void sn_set_offloads(struct net_device *netdev)
 {
-	netif_set_gso_max_size(netdev, 
-			MAX_LFRAME - sizeof(struct sn_tx_metadata));
+	netif_set_gso_max_size(netdev, SNBUF_DATA);
 
 #if 0
 	netdev->hw_features = NETIF_F_SG |
@@ -733,9 +769,6 @@ int sn_create_netdev(void *bar, struct sn_device **dev_ret)
 		return -EINVAL;
 	}
 
-	log_info("ioctl arguments: num_txq=%d, num_rxq=%d\n",
-			conf->num_txq, conf->num_rxq);
-
 	if (conf->num_txq < 1 || conf->num_rxq < 1 ||
 			conf->num_txq > MAX_QUEUES || 
 			conf->num_rxq > MAX_QUEUES) 
@@ -803,33 +836,27 @@ int sn_register_netdev(void *bar, struct sn_device *dev)
 
 	rtnl_lock();
 	
-	ret = register_netdevice(dev->netdev);
-	if (ret) {
-		log_err("%s: register_netdev() failed (ret = %d)\n", 
-				dev->netdev->name, ret);
-		goto fail_free;
-	}
-
 	if (conf->container_pid) {
 		struct net *net = NULL;		/* network namespace */
 
 		net = get_net_ns_by_pid(conf->container_pid);
 		if (IS_ERR(net)) {
-			log_err("%s: cannot find namespace of pid %d\n",
-					dev->netdev->name, 
+			log_err("cannot find namespace of pid %d\n",
 					conf->container_pid);
 
 			ret = PTR_ERR(net);
-			goto fail_unregister;
+			goto fail_free;
 		}
 
-		ret = dev_change_net_namespace(dev->netdev, net, NULL);
+		dev_net_set(dev->netdev, net);
 		put_net(net);
-		if (ret) {
-			log_err("%s: fail to change namespace\n",
-					dev->netdev->name);
-			goto fail_unregister;
-		}
+	}
+
+	ret = register_netdevice(dev->netdev);
+	if (ret) {
+		log_err("%s: register_netdev() failed (ret = %d)\n", 
+				dev->netdev->name, ret);
+		goto fail_free;
 	}
 
 	/* interface "UP" by default */
@@ -846,9 +873,6 @@ int sn_register_netdev(void *bar, struct sn_device *dev)
 	rtnl_unlock();
 
 	return ret;
-
-fail_unregister:
-	unregister_netdevice(dev->netdev);
 
 fail_free:
 	rtnl_unlock();
@@ -923,6 +947,7 @@ void sn_trigger_softirq_with_qid(void *info, int rxq)
 
 	if (rxq < 0 || rxq >= dev->num_rxq) {
 		log_err("invalid rxq %d\n", rxq);
+		return;
 	}
 
 	rx_queue = dev->rx_queues[rxq];

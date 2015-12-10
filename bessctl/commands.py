@@ -29,11 +29,14 @@ class ConfError(Exception):
 
 def __bess_env__(key, default=None):
     try:
-        key = os.environ[key]
+        return os.environ[key]
     except KeyError:
-        key = default
+        if default is None:
+            raise ConfError('Environment variable "%s" must be set.')
 
-    return key
+        print 'Environment variable "%s" is not set. Using default value "%s"' \
+                % (key, default)
+        return default
 
 def __bess_module__(module_names, mclass_name, *args, **kwargs):
     caller_globals = inspect.stack()[1][0].f_globals 
@@ -115,7 +118,12 @@ def get_var_attrs(cli, var_token, partial_word):
     var_candidates = []
 
     try:
-        if var_token == 'DRIVER':
+        if var_token == 'WORKER_ID...':
+            var_type = 'wid+'
+            var_desc = 'one or more worker IDs'
+            var_candidates = [str(m['wid']) for m in cli.softnic.list_workers()]
+
+        elif var_token == 'DRIVER':
             var_type = 'name'
             var_desc = 'name of a port driver'
             var_candidates = cli.softnic.list_drivers()
@@ -152,6 +160,11 @@ def get_var_attrs(cli, var_token, partial_word):
             var_type = 'name+'
             var_desc = 'one or more port names'
             var_candidates = [p['name'] for p in cli.softnic.list_ports()]
+
+        elif var_token == 'TC...':
+            var_type = 'name+'
+            var_desc = 'one or more traffic class names'
+            var_candidates = [c['name'] for c in cli.softnic.list_tcs()]
 
         elif var_token == 'CONF':
             var_type = 'confname'
@@ -216,7 +229,7 @@ def split_var(cli, var_type, line):
             head = line[:pos]
             tail = line[pos:]
 
-    elif var_type in ['name+', 'map', 'pyobj', 'opts']:
+    elif var_type in ['wid+', 'name+', 'map', 'pyobj', 'opts']:
         head = line
         tail = ''
 
@@ -237,7 +250,16 @@ def bind_var(cli, var_type, line):
     # default behavior
     val = head
 
-    if var_type == 'name':
+    if var_type == 'wid+':
+        val = []
+        for wid_str in head.split():
+            if wid_str.isdigit():
+                val.append(int(wid_str))
+            else:
+                raise cli.BindError('"wid" must be a positive number')
+        val = sorted(list(set(val)))
+
+    elif var_type == 'name':
         if re.match(r'^[_a-zA-Z][\w]*$', val) is None:
             raise cli.BindError('"name" must be [_a-zA-Z][_a-zA-Z0-9]*')
 
@@ -325,6 +347,7 @@ def daemon_connect(cli, host, port):
 def daemon_disconnect(cli):
     cli.softnic.disconnect()
 
+# return False iff canceled.
 def warn(cli, msg, func):
     if cli.interactive:
         if cli.rl:
@@ -336,9 +359,12 @@ def warn(cli, msg, func):
             if resp.strip() == 'yes':
                 func()
             else:
-                cli.fout.write('Cancelled.\n')
+                cli.fout.write('Canceled.\n')
+                return False
+
         except KeyboardInterrupt:
-            cli.fout.write('Cancelled.\n')
+            cli.fout.write('Canceled.\n')
+            return False
         finally:
             if cli.rl:
                 cli.rl.set_completer(cli.complete)
@@ -349,6 +375,8 @@ def warn(cli, msg, func):
 
     else:
         func()
+
+    return True
 
 @cmd('daemon start', 'Start BESS daemon in the local machine')
 def daemon_start(cli):
@@ -384,6 +412,10 @@ def daemon_start(cli):
     else:
         do_start()
 
+def is_pipeline_empty(cli):
+    workers = cli.softnic.list_workers()
+    return len(workers) == 0
+
 @cmd('daemon reset', 'Remove all ports and modules in the pipeline')
 def daemon_reset(cli):
     def do_reset():
@@ -393,7 +425,10 @@ def daemon_reset(cli):
         if cli.interactive:
             cli.fout.write('Done.\n')
 
-    warn(cli, 'The entire pipeline will be cleared.', do_reset)
+    if is_pipeline_empty(cli):
+        do_reset()
+    else:
+        warn(cli, 'The entire pipeline will be cleared.', do_reset)
 
 @cmd('daemon stop', 'Stop BESS daemon')
 def daemon_stop(cli):
@@ -403,7 +438,10 @@ def daemon_stop(cli):
         if cli.interactive:
             cli.fout.write('Done.\n')
 
-    warn(cli, 'BESS daemon will be killed.', do_stop)
+    if is_pipeline_empty(cli):
+        do_stop()
+    else:
+        warn(cli, 'BESS daemon will be killed.', do_stop)
 
 @staticmethod
 def _choose_arg(arg, kwargs):
@@ -424,6 +462,10 @@ def _choose_arg(arg, kwargs):
 
 # NOTE: the name of this function is used below
 def _do_run_file(cli, conf_file):
+    def clear_pipeline():
+        cli.softnic.pause_all()
+        cli.softnic.reset_all()
+
     if not os.path.exists(conf_file):
         cli.err('Cannot open file "%s"' % conf_file)
         return
@@ -454,10 +496,17 @@ def _do_run_file(cli, conf_file):
 
     code = compile(xformed, conf_file, 'exec')
 
-    cli.softnic.pause_all()
+    if is_pipeline_empty(cli):
+        cli.softnic.pause_all()
+    else:
+        ret = warn(cli, 'The current pipeline will be reset.', clear_pipeline)
+        if ret is False:
+            return
+
     try:
         exec(code, new_globals)
-        cli.fout.write('Done.\n')
+        if cli.interactive:
+            cli.fout.write('Done.\n')
     except cli.softnic.Error:
         raise
 
@@ -506,7 +555,7 @@ def run_conf(cli, conf, env_map):
     conf_file = os.path.join(target_dir, basename)
     _run_file(cli, conf_file, env_map)
 
-@cmd('run file CONF_FILE [ENV_VARS]', 'Run a configuration file')
+@cmd('run file CONF_FILE [ENV_VARS...]', 'Run a configuration file')
 def run_file(cli, conf_file, env_map):
     _run_file(cli, os.path.expanduser(conf_file), env_map)
 
@@ -568,12 +617,91 @@ def delete_connection(cli, module, ogate):
     finally:
         cli.softnic.resume_all()
 
+def _show_worker_header(cli):
+    cli.fout.write('  %10s%10s%10s%10s\n' % \
+            ('Worker ID', 
+             'Status', 
+             'CPU core', 
+             '# of TCs'))
+
+def _show_worker(cli, w):
+    cli.fout.write('  %10d%10s%10d%10d\n' % \
+            (w['wid'], 
+             'RUNNING' if w['running'] else 'PAUSED', 
+             w['core'], 
+             w['num_tcs']))
+
+@cmd('show worker', 'Show the status of all worker threads')
+def show_worker_all(cli):
+    workers = cli.softnic.list_workers()
+
+    if not workers:
+        raise cli.CommandError('There is no active worker thread to show.')
+       
+    _show_worker_header(cli)
+    for worker in workers:
+        _show_worker(cli, worker)
+
+@cmd('show worker WORKER_ID...', 'Show the status of specified worker threads')
+def show_worker_list(cli, worker_ids):
+    workers = cli.softnic.list_workers()
+
+    for wid in worker_ids:
+        for worker in workers:
+            if worker['wid'] == wid:
+                break;
+        else:
+            raise cli.CommandError('Worker ID %d does not exist' % wid)
+
+    _show_worker_header(cli)
+    for worker in workers:
+        if worker['wid'] in worker_ids:
+            _show_worker(cli, worker)
+
+def _show_tc_list(cli, tcs):
+    wids = sorted(list(set(map(lambda tc: tc['wid'], tcs))))
+
+    for wid in wids:
+        matched= filter(lambda tc: tc['wid'] == wid, tcs)
+
+        if wid == -1:
+            cli.fout.write('  Unattached (%d classes)\n' % len(matched))
+        else:
+            cli.fout.write('  worker %d (%d classes)\n' % (wid, len(matched)))
+
+        for tc in matched:
+            cli.fout.write('    %-16s  ' \
+                    'parent %-12s  priority %-3d  tasks %-4d\n' % \
+                    (tc['name'], 
+                     tc['parent'] if tc['parent'] else 'none', 
+                     tc['priority'],
+                     tc['tasks']))
+
+@cmd('show tc', 'Show the list of traffic classes')
+def show_tc_all(cli):
+    _show_tc_list(cli, cli.softnic.list_tcs())
+
+@cmd('show tc worker WORKER_ID...', 'Show the list of traffic classes')
+def show_tc_workers(cli, wids):
+    wids = sorted(list(set(wids)))
+    for wid in wids:
+        _show_tc_list(cli, cli.softnic.list_tcs(wid))
+
 @cmd('show status', 'Show the overall status')
 def show_status(cli):
+    workers = sorted(cli.softnic.list_workers())
     drivers = sorted(cli.softnic.list_drivers())
     mclasses = sorted(cli.softnic.list_mclasses())
     modules = sorted(cli.softnic.list_modules())
     ports = sorted(cli.softnic.list_ports())
+
+    cli.fout.write('  Active worker threads: ')
+    if workers:
+        worker_list = ['worker%d (cpu %d)' % \
+                (worker['wid'], worker['core']) for worker in workers]
+        cli.fout.write('%s\n' % ', '.join(worker_list))
+    else:
+        cli.fout.write('(none)\n')
 
     cli.fout.write('  Available drivers: ')
     if drivers:
@@ -608,8 +736,8 @@ def show_status(cli):
     else:
         cli.fout.write('(none)\n')
 
-# last_stats: a map of (node name, gateid) -> (timestamp, # of packets)
-def _draw_pipeline(cli, last_stats = None):
+# last_stats: a map of (node name, gateid) -> (timestamp, counter value)
+def _draw_pipeline(cli, field, last_stats = None):
     modules = sorted(cli.softnic.list_modules())
     names = []
     node_labels = {}
@@ -639,21 +767,16 @@ def _draw_pipeline(cli, last_stats = None):
             gates = cli.softnic.get_module_info(name)['gates']
 
             for gate in gates:
-                edge_attr = ''
-                if last_stats != None:
-                    if 'pkts' in gate:
-                        last_time, last_pkts = last_stats[(name, gate['gate'])]
-                        new_time, new_pkts = gate['timestamp'], gate['pkts']
-                        last_stats[(name, gate['gate'])] = (new_time, new_pkts)
+                if last_stats is not None:
+                    last_time, last_val = last_stats[(name, gate['gate'])]
+                    new_time, new_val = gate['timestamp'], gate[field]
+                    last_stats[(name, gate['gate'])] = (new_time, new_val)
 
-                        pps = (new_pkts - last_pkts) / (new_time - last_time)
-                        edge_attr = 'label:%d;' % int(pps)
+                    val = int((new_val - last_val) / (new_time - last_time))
                 else:
-                    if len(gates) > 1:
-                        edge_attr = 'label:%d;' % gate['gate']
+                    val = gate[field]
 
-                if edge_attr != '':
-                    edge_attr = '{%s}' % edge_attr
+                edge_attr = '{label:%d:%d;}' % (gate['gate'], val)
 
                 print >> f.stdin, '[%s] ->%s [%s]' % (
                         node_labels[name],
@@ -669,7 +792,12 @@ def _draw_pipeline(cli, last_stats = None):
 
 @cmd('show pipeline', 'Show the current datapath pipeline')
 def show_pipeline(cli):
-    cli.fout.write(_draw_pipeline(cli))
+    cli.fout.write(_draw_pipeline(cli, 'pkts'))
+
+@cmd('show pipeline batch', 
+        'Show the current datapath pipeline with batch counters')
+def show_pipeline_batch(cli):
+    cli.fout.write(_draw_pipeline(cli, 'cnt'))
 
 def _group(number):
     s = str(number)
@@ -742,16 +870,14 @@ def show_module_all(cli):
 
     if not modules:
         raise cli.CommandError('There is no active module to show.')
-    else:
-        for module in modules:
-            _show_module(cli, module)
 
+    for module in modules:
+        _show_module(cli, module)
 
 @cmd('show module MODULE...', 'Show the status of specified modules')
 def show_module_list(cli, module_names):
     modules = cli.softnic.list_modules()
 
-    module_names = list(set(module_names))
     for module_name in module_names:
         for module in modules:
             if module_name == module['name']:
@@ -760,8 +886,7 @@ def show_module_list(cli, module_names):
         else:
             raise cli.CommandError('Module "%s" doest not exist' % module_name)
 
-@cmd('monitor pipeline', 'Monitor the datapath pipeline')
-def monitor_pipeline(cli):
+def _monitor_pipeline(cli, field):
     modules = sorted(cli.softnic.list_modules())
    
     last_stats = {}
@@ -770,15 +895,23 @@ def monitor_pipeline(cli):
 
         for gate in gates:
             last_stats[(module['name'], gate['gate'])] = \
-                    (gate['timestamp'], gate['pkts'])
+                    (gate['timestamp'], gate[field])
 
     try:
         while True:
             time.sleep(1)
-            cli.fout.write(_draw_pipeline(cli, last_stats))
+            cli.fout.write(_draw_pipeline(cli, field, last_stats))
             cli.fout.write('\n')
     except KeyboardInterrupt:
         pass
+
+@cmd('monitor pipeline', 'Monitor packet counters in the datapath pipeline')
+def monitor_pipeline(cli):
+    _monitor_pipeline(cli, 'pkts')
+
+@cmd('monitor pipeline batch', 'Monitor batch counters in the datapath pipeline')
+def monitor_pipeline_batch(cli):
+    _monitor_pipeline(cli, 'cnt')
 
 def _monitor_ports(cli, *ports):
 
@@ -838,10 +971,9 @@ def _monitor_ports(cli, *ports):
         drivers[port['name']] = port['driver']
 
     if not ports:
-        ports = [port['name'] for port in cli.softnic.list_ports()]
+        ports = [port['name'] for port in all_ports]
         if not ports:
             raise cli.CommandError('No port to monitor')
-
 
     cli.fout.write('Monitoring ports: %s\n' % ', '.join(ports))
 
@@ -876,7 +1008,6 @@ def _monitor_ports(cli, *ports):
     except KeyboardInterrupt:
         pass
 
-
 @cmd('monitor port', 'Monitor the current traffic of all ports')
 def monitor_port_all(cli):
     _monitor_ports(cli)
@@ -884,6 +1015,112 @@ def monitor_port_all(cli):
 @cmd('monitor port PORT...', 'Monitor the current traffic of specified ports')
 def monitor_port_all(cli, ports):
     _monitor_ports(cli, *ports)
+
+def _monitor_tcs(cli, *tcs):
+    def get_delta(old, new):
+        assert(old.keys() == new.keys())
+
+        sec_diff = new['timestamp'] - old['timestamp']
+
+        delta = {}
+
+        for key in old.keys():
+            delta[key] = (new[key] - old[key]) / sec_diff
+
+        return delta
+
+    def print_header(timestamp):
+        print
+        print '%-20s%12s%12s%12s%12s%12s%12s' % \
+                (time.strftime('%X') + str(timestamp % 1)[1:8], \
+                 'CPU MHz', 'scheduled', 'Mpps', 'Mbps', 
+                 'pkts/batch', 'cycles/p')
+
+        print '-' * 92
+
+    def print_footer():
+        print '-' * 92
+
+    def print_delta(tc, delta):
+        if delta['count'] >= 1:
+            ppb = delta['packets'] / delta['count']
+        else:
+            ppb = 0
+
+        if delta['packets'] >= 1:
+            cpp = delta['cycles'] / delta['packets']
+        else:
+            cpp = 0
+
+        print '%-20s%12.3f%12d%12.3f%12.3f%12.3f%12.3f' % (tc, 
+                delta['cycles'] / 1e6, 
+                delta['count'], 
+                delta['packets'] / 1e6, 
+                delta['bits'] / 1e6,
+                ppb,
+                cpp)
+
+
+    def get_total(arr):
+        total = copy.deepcopy(arr[0])
+
+        for stat in arr[1:]:
+            for key in total.keys():
+                if key != 'timestamp':
+                    total[key] += stat[key]
+
+        return total
+
+    all_tcs = cli.softnic.list_tcs()
+    wids = {}
+    for tc in all_tcs:
+        wids[tc['name']] = tc['wid']
+
+    if not tcs:
+        tcs = [tc['name'] for tc in all_tcs]
+        if not tcs:
+            raise cli.CommandError('No traffic class to monitor')
+
+    cli.fout.write('Monitoring traffic classes: %s\n' % ', '.join(tcs))
+
+    last = {}
+    now = {}
+
+    for tc in tcs:
+        last[tc] = cli.softnic.get_tc_stats(tc)
+
+    try:
+        while True:
+            time.sleep(1)
+
+            for tc in tcs:
+                now[tc] = cli.softnic.get_tc_stats(tc)
+
+            print_header(now[tc]['timestamp'])
+
+            for tc in tcs:
+                print_delta('W%d %s' % (wids[tc], tc), 
+                        get_delta(last[tc], now[tc]))
+
+            print_footer()
+
+            if len(tcs) > 1:
+                print_delta('Total', get_delta(
+                        get_total(last.values()),
+                        get_total(now.values())))
+
+            for tc in tcs:
+                last[tc] = now[tc]
+    except KeyboardInterrupt:
+        pass
+
+@cmd('monitor tc', 'Monitor the statistics of all traffic classes')
+def monitor_tc_all(cli):
+    _monitor_tcs(cli)
+
+@cmd('monitor tc TC...', 'Monitor the statistics of specified traffic classes')
+def monitor_tc_all(cli, tcs):
+    _monitor_tcs(cli, *tcs)
 
 # tcpdump can write pcap files, so we don't need to support it separately
 @cmd('tcpdump MODULE [OGATE] [TCPDUMP_OPTS...]', 'Capture packets on a gate')

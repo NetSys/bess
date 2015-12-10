@@ -171,12 +171,12 @@ static inline struct ns_elem *ns_lookup_elem_by_name(const char *name)
 	return find_i;
 }
 
-static inline int ns_is_valid_name(const char *name)
+int ns_is_valid_name(const char *name)
 {
 	char c;
 
 	int name_len = strlen(name);
-	if (name_len >= SN_NAME_LEN - 1)
+	if (name_len >= SN_NAME_LEN)
 		return 0;
 	
 	// characters should be looks like
@@ -248,7 +248,7 @@ int ns_insert(ns_type_t type, const char *name, void *object)
 		return -EINVAL; 
 
 	if (ns_name_exists(name))
-		return -EINVAL; 
+		return -EEXIST; 
 	
 	hash = ns_get_hash(name);
 	assert(hash < ht.bucket_size);
@@ -292,7 +292,7 @@ int ns_remove(const char *name)
 	
 	elem = ns_lookup_elem_by_name(name);
 	if (!elem)
-		return -EINVAL;
+		return -ENOENT;
 	
 	if (ht.iterator_cnt[elem->type] || ht.iterator_cnt[NS_TYPE_ALL])
 		return -EINVAL; 

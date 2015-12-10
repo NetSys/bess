@@ -17,6 +17,11 @@ struct port;
 struct port_stats;
 struct snobj;
 
+typedef int (*pkt_io_func_t)(struct port *, queue_t, snb_array_t, int);
+
+#define DRIVER_FLAG_SELF_INC_STATS	0x0001
+#define DRIVER_FLAG_SELF_OUT_STATS	0x0002
+
 struct driver {
 	/* Required: should be like "CamelCase" */
 	const char *name;
@@ -31,9 +36,12 @@ struct driver {
 	/* Optional: the size of per-port private data, if any. 0 by default */
 	size_t priv_size;
 
-	/* Optional */
-	int def_size_inc_q;
-	int def_size_out_q;
+	/* Optional. In number of packets */
+	size_t def_size_inc_q;
+	size_t def_size_out_q;
+
+	/* Optional. 0 is good for most drivers */
+	uint32_t flags;
 
 	/* Optional */
 	int (*init_driver)(struct driver *driver);
@@ -44,14 +52,17 @@ struct driver {
 	/* Optional: cleanup internal state */
 	void (*deinit_port)(struct port *p);
 
+	/* Optional: collect internal (HW) stats, if available */
+	void (*collect_stats)(struct port *p, int reset);
+
 	/* Optional: port-specific query interface */
 	struct snobj *(*query)(struct port *p, struct snobj *q);
 	
 	/* Optional */
-	int (*recv_pkts)(struct port *p, queue_t qid, snb_array_t pkts, int cnt);
+	pkt_io_func_t recv_pkts;
 
 	/* Optional */
-	int (*send_pkts)(struct port *p, queue_t qid, snb_array_t pkts, int cnt);
+	pkt_io_func_t send_pkts;
 };
 
 size_t list_drivers(const struct driver **p_arr, size_t arr_size, size_t offset);

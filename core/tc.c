@@ -60,10 +60,12 @@ pgroup_add:
 	c->ss.my_pgroup = g;
 }
 
+/* TODO: separate tc creation and association with scheduler */
 struct tc *tc_init(struct sched *s, const struct tc_params *params)
 {
 	struct tc *c;
 
+	int ret;
 	int i;
 
 	assert(!s->current);
@@ -78,9 +80,15 @@ struct tc *tc_init(struct sched *s, const struct tc_params *params)
 	if (!c)
 		oom_crash();
 
-	tc_inc_refcnt(c);	/* held by user (the owner) */
+	ret = ns_insert(NS_TYPE_TC, params->name, c);
+	if (ret < 0) {
+		rte_free(c);
+		return err_to_ptr(ret);
+	}
 
-	c->id = s->next_tc_id++;
+	strcpy(c->name, params->name);
+
+	tc_inc_refcnt(c);	/* held by user (the owner) */
 
 	c->s = s;
 	s->num_classes++;
@@ -147,6 +155,8 @@ void _tc_do_free(struct tc *c)
 		c->s->num_classes--;
 	}
 
+	ns_remove(c->name);
+
 	memset(c, 0, sizeof(*c));	/* zero out to detect potential bugs */
 	rte_free(c);			/* Note: c is struct sched, if root */
 	
@@ -201,10 +211,8 @@ struct sched *sched_init()
 		oom_crash();
 
 	s->root.refcnt = 1;
-	s->root.id = 0;
+	cdlist_head_init(&s->root.tasks);	/* this will be always empty */
 	cdlist_head_init(&s->root.pgroups);
-
-	s->next_tc_id = 1;
 
 	heap_init(&s->pq);
 
@@ -221,18 +229,22 @@ void sched_free(struct sched *s)
 	struct tc *next;
 
 	cdlist_for_each_entry_safe(c, next, &s->tcs_all, sched_all) {
-		if (c->state.queued)
+		if (c->state.queued) {
+			c->state.queued = 0;
 			tc_dec_refcnt(c);
+		}
 
-		if (c->state.throttled)
+		if (c->state.throttled) {
+			c->state.throttled = 0;
 			tc_dec_refcnt(c);
+		}
 	}
 
 	heap_close(&s->pq);
-	tc_dec_refcnt(&s->root);
 
 	/* the actual memory block of s will be freed by the root TC
 	 * since it shares the address with this scheduler */
+	tc_dec_refcnt(&s->root);
 }
 
 static void resume_throttled(struct sched *s, uint64_t tsc)
@@ -321,15 +333,16 @@ again:
 	return c;
 }
 
+/* TODO: the vector version is hella slow. fix it. */
 /* acc += x */
 static inline void accumulate(resource_arr_t acc, resource_arr_t x)
 {
 	uint64_t * restrict p1 = acc;
 	uint64_t * restrict p2 = x;
 
-#if __AVX2__
+#if 0 && __AVX2__
 	*((__m256i *)p1) = _mm256_add_epi64(*((__m256i *)p1), *((__m256i *)p2));
-#elif __AVX__
+#elif 0 && __AVX__
 	*((__m128i *)p1+0) = _mm_add_epi64(*((__m128i *)p1+0), *((__m128i *)p2+0));
 	*((__m128i *)p1+1) = _mm_add_epi64(*((__m128i *)p1+1), *((__m128i *)p2+1));
 #else
@@ -409,8 +422,6 @@ static void sched_done(struct sched *s, struct tc *c,
 		resource_arr_t usage, int reschedule, uint64_t tsc)
 {
 	accumulate(s->stats.usage, usage);
-//	for (int i = 0; i < NUM_RESOURCES; i++)
-//		s->stats.usage[i] += usage[i];
 
 	assert(s->current);
 	s->current = NULL;
@@ -468,6 +479,8 @@ static char *print_tc_stats_detail(struct sched *s, char *p, int max_cnt)
 
 	struct tc *c;
 
+	int num_printed;
+
 	ct_assert(sizeof(struct tc_stats) >= sizeof(fields));
 
 	p += sprintf(p, "\n");
@@ -476,14 +489,22 @@ static char *print_tc_stats_detail(struct sched *s, char *p, int max_cnt)
 		return p;
 
 	p += sprintf(p, "%-10s ", "TC");
-	cdlist_for_each_entry(c, &s->tcs_all, sched_all)
-		p += sprintf(p, "%12u", c->id);
+	num_printed = 0;
+
+	cdlist_for_each_entry(c, &s->tcs_all, sched_all) {
+		if (num_printed < max_cnt) {
+			p += sprintf(p, "%12s", c->name);
+		} else {
+			p += sprintf(p, " ...");
+			break;
+		}
+		num_printed++;
+	}
 	p += sprintf(p, "\n");
 
 	for (int i = 0; i < num_fields; i++) {
-		int num_printed = 0;
-
 		p += sprintf(p, "%-10s ", fields[i]);
+		num_printed = 0;
 
 		cdlist_for_each_entry(c, &s->tcs_all, sched_all) {
 			uint64_t value;
@@ -505,9 +526,9 @@ static char *print_tc_stats_detail(struct sched *s, char *p, int max_cnt)
 			}
 			num_printed++;
 		}
-
 		p += sprintf(p, "\n");
 	}
+
 	p += sprintf(p, "\n");
 
 	return p;
@@ -539,8 +560,8 @@ static char *print_tc_stats_simple(struct sched *s, char *p, int max_cnt)
 
 		c->last_stats = c->stats;
 
-		p += sprintf(p, "\tC%u %.1f%%(%.2fM) %.3fMpps %.1fMbps", 
-				c->id, 
+		p += sprintf(p, "\tC%s %.1f%%(%.2fM) %.3fMpps %.1fMbps", 
+				c->name, 
 				cycles * 100.0 / tsc_hz, 
 				cnt / 1000000.0,
 				pkts / 1000000.0, 
@@ -636,11 +657,13 @@ void sched_loop(struct sched *s)
 		/* periodic check for every 2^8 rounds,
 		 * to mitigate expensive operations */
 		if ((round & 0xff) == 0) {
-			if (is_pause_requested()) {
-				block_worker();
+			if (unlikely(is_pause_requested())) {
+				if (unlikely(block_worker()))
+					break;
+				last_stats = s->stats;
 				last_print_tsc = checkpoint = now = rdtsc();
-			} else if (global_opts.print_tc_stats &&
-					now - last_print_tsc >= tsc_hz) {
+			} else if (unlikely(global_opts.print_tc_stats &&
+					now - last_print_tsc >= tsc_hz)) {
 				print_stats(s, &last_stats);
 				last_stats = s->stats;
 				last_print_tsc = checkpoint = now = rdtsc();

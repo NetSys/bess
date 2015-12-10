@@ -4,6 +4,9 @@
 #include <stdint.h>
 
 #include "common.h"
+#include "pktbatch.h"
+
+#define MAX_OUTPUT_GATES	8192
 
 /* 	TODO: worker threads doesn't necessarily be pinned to 1 core
  *
@@ -19,10 +22,9 @@
  */
 
 typedef volatile enum {
-	WORKER_INACTIVE = 0,
-	WORKER_RUNNING,
-	WORKER_PAUSING,		/* transient state */
+	WORKER_PAUSING = 0,	/* transient state for blocking or quitting */
 	WORKER_PAUSED,
+	WORKER_RUNNING,
 } worker_status_t;
 
 struct worker_context {
@@ -41,7 +43,9 @@ struct worker_context {
 	uint64_t current_us;
 
 	struct rte_mempool *pframe_pool;
-	struct rte_mempool *lframe_pool;
+
+	/* better be the last field. it's huge */
+	struct pkt_batch splits[MAX_OUTPUT_GATES];
 };
 
 extern int num_workers;
@@ -55,19 +59,25 @@ void set_non_worker();
 
 int is_worker_core(int cpu);
 
-void pause_worker(int wid);
 void pause_all_workers();
-void resume_worker(int wid);
 void resume_all_workers();
+void destroy_all_workers();
 
 int is_any_worker_running();
+
+int is_cpu_present(unsigned int core_id);
 
 /* arg (int) is the core id the worker should run on */
 void launch_worker(int wid, int core);	
 
 static inline int is_worker_active(int wid)
 {
-	return (workers[wid] && workers[wid]->status != WORKER_INACTIVE);
+	return (workers[wid] != NULL);
+}
+
+static inline int is_worker_running(int wid)
+{
+	return (workers[wid] && workers[wid]->status == WORKER_RUNNING);
 }
 
 /* ------------------------------------------------------------------------
@@ -77,6 +87,7 @@ static inline int is_pause_requested() {
 	return (ctx.status == WORKER_PAUSING);
 }
 
-void block_worker(void);	/* block myself */
+/* Block myself. Return nonzero if the worker needs to die */
+int block_worker(void);	
 
 #endif
