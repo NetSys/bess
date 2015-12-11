@@ -1,0 +1,115 @@
+import scapy.all as scapy
+import time
+
+
+def test_internal():
+    sw = L2Forward()
+
+    sw.query(cmd='test')
+    
+    softnic.destroy_module(sw.name)
+
+def test_lookup():
+    sw = L2Forward()
+
+    #sw.query(cmd='add',addr='00:01:02:03:04:05',gate=1)
+    #print sw.query(cmd='lookup',addr='00:01:02:03:04:05')
+    #sw.query(cmd='del',addr='00:01:02:03:04:05')
+    #try: 
+    #    print sw.query(cmd='lookup',addr='00:01:02:03:04:05')
+    #except Exception as e:
+    #    pass
+
+    sw.query(add=[{'addr':'00:01:02:03:04:05','gate':0}])
+    try:
+        sw.query(add=[{'addr':'00:01:02:03:04:05','gate':0}])
+    except Exception as e:
+        print e
+        pass
+
+    print sw.query(lookup=['00:01:02:03:04:05', '00:01:02:03:04:05'])
+
+    print sw.query({'del':['00:01:02:03:04:05']})
+
+    try:
+        print sw.query({'del':['00:01:02:03:04:05']})
+    except Exception as e:
+        print e
+        pass
+    
+    softnic.destroy_module(sw.name)
+
+
+def test_packetgen2(ngate, nentry):
+    src = Source()
+    sink = Sink()
+    
+    if nentry > 1048576 :
+        sw = L2Forward(size=nentry/2)
+    else:
+        sw = L2Forward()
+    
+    rand = RandomUpdate()
+    
+    ip = scapy.IP()
+    udp = scapy.UDP()
+    eth = scapy.Ether(dst = '01:02:03:04:05:06', src = '00:01:02:03:04:05')
+    pkt = bytearray(str(eth/ip/udp))
+
+    rw = Rewrite(templates=[pkt])
+
+
+    add_query = []
+    for i in range(nentry):
+    	addr = '01:02:%02x:%02x:%02x:%02x' % \
+	 ((i / 16777216) % 256,(i/65536) % 256, (i / 256) % 256, i % 256)
+        
+    	add_query.append({'addr':addr, 'gate':i % ngate})
+        
+        if (len(add_query) >= 512) :
+            sw.query(add = add_query)
+            add_query = []
+
+    arg = {'vars' :
+           [ 
+               {'offset' : 2,
+    	        'size' : 4,
+	        'min' : 0,
+	        'max' : nentry - 1}
+           ]
+    }
+
+    rand.query(arg)
+
+    src -> rw -> rand -> sw
+    for i in range(ngate):
+        sw[i] -> sink
+    
+    softnic.resume_all()
+    #warmup
+    time.sleep(5)
+
+    before = softnic.get_module_info(rand.name)
+    time.sleep(10)
+    after = softnic.get_module_info(rand.name)
+
+    tot = 0
+    for i in range(ngate):
+        tot += after['gates'][i]['pkts'] - before['gates'][i]['pkts']
+
+    print 'Entries: %d\tGates: %d\tThruput: %f Mpps' % (nentry, ngate, tot / 10 / 1000000.0)
+    softnic.pause_all()
+
+    softnic.destroy_module(sw.name)
+    softnic.destroy_module(rw.name)
+    softnic.destroy_module(rand.name)
+    softnic.destroy_module(src.name)
+    softnic.destroy_module(sink.name)
+    
+
+
+#test_internal()
+#test_lookup()
+
+for i in [1,32,1024,32*1024,1048576,32*1048576]:
+    test_packetgen2(1, i)
