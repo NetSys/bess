@@ -223,10 +223,11 @@ static void run_split(struct module *m, const gate_t *ogates,
 		const struct pkt_batch *mixed_batch)
 {
 	gate_t pending[MAX_PKT_BURST];
+	int cnt = mixed_batch->cnt;
 	int num_pending = 0;
 
 	/* collect */
-	for (int i = 0; i < mixed_batch->cnt; i++) {
+	for (int i = 0; i < cnt; i++) {
 		struct pkt_batch *batch;
 		gate_t ogate;
 		
