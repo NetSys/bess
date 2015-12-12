@@ -965,10 +965,10 @@ struct snobj *handle_request(struct client *c, struct snobj *q)
 	struct snobj *r = NULL;
 	const char *s;
 
-#if 0
-	printf("Request:\n");
-	snobj_dump(q);
-#endif
+	if (global_opts.debug_mode) {
+		printf("Request:\n");
+		snobj_dump(q);
+	}
 
 	if (q->type != TYPE_MAP) {
 		r = snobj_err(EINVAL, "The message must be a map");
@@ -993,10 +993,10 @@ reply:
 	if (!r)
 		r = snobj_nil();
 
-#if 0
-	printf("Response:\n");
-	snobj_dump(r);
-#endif
+	if (global_opts.debug_mode) {
+		printf("Response:\n");
+		snobj_dump(r);
+	}
 
 	return r;
 }
