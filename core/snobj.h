@@ -140,7 +140,8 @@ struct snobj *snobj_uint(uint64_t v);
 struct snobj *snobj_double(double v);
 struct snobj *snobj_blob(const void *data, size_t size);	/* data is copied */
 struct snobj *snobj_str(const char *str);		/* str is copied */
-struct snobj *snobj_str_fmt(const char *fmt, ...);
+struct snobj *snobj_str_fmt(const char *fmt, ...) \
+		     __attribute__((format(printf, 1, 2)));
 struct snobj *snobj_list(void);
 struct snobj *snobj_map(void);
 
@@ -256,7 +257,7 @@ size_t snobj_encode(const struct snobj *m, char **pbuf, size_t hint);
 struct snobj *snobj_decode(char *buf, size_t buf_size);
 
 /* helper function for the common error message format */
-struct snobj *
+struct snobj * __attribute__((format(printf, 3, 4)))
 snobj_err_details(int err, struct snobj *details, const char *fmt, ...);
 
 #define snobj_err(err, fmt, ...) \
