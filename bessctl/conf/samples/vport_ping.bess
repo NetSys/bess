@@ -12,8 +12,8 @@ PortInc(arg=v_bob) -> PortOut(arg=v_alice)
 
 softnic.resume_all()
 os.system('ping -W 1.0 -c 64 -i 0.2 10.255.99.2')
+softnic.pause_all()
 os.system('docker kill vport_test > /dev/null')
 os.system('docker rm vport_test > /dev/null')
-softnic.pause_all()
 
 softnic.reset_all()
