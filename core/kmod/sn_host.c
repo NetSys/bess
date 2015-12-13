@@ -237,16 +237,16 @@ static void sn_host_flush_tx(void)
 
 		lock_required = (netdev_txq->xmit_lock_owner != cpu);
 
-//		if (lock_required) XXX
-//			HARD_TX_LOCK(queue->dev->netdev, netdev_txq, cpu);
+		if (lock_required)
+			HARD_TX_LOCK(queue->dev->netdev, netdev_txq, cpu);
 
 		sent = sn_host_do_tx_batch(queue, 
 				buf_queue->skb_arr, 
 				buf_queue->meta_arr, 
 				buf_queue->cnt);
 
-//		if (lock_required) XXX
-//			HARD_TX_UNLOCK(queue->dev->netdev, netdev_txq);
+		if (lock_required)
+			HARD_TX_UNLOCK(queue->dev->netdev, netdev_txq);
 
 		queue->tx_stats.packets += sent;
 		queue->tx_stats.dropped += buf_queue->cnt - sent;
@@ -389,7 +389,7 @@ static int sn_host_do_rx_batch(struct sn_queue *queue,
 		skb = skbs[i] = napi_alloc_skb(&queue->napi, total_len);
 		if (!skb) {
 			if (net_ratelimit())
-				log_err("netdev_alloc_skb() failed\n");
+				log_err("napi_alloc_skb() failed\n");
 			continue;
 		}
 

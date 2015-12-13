@@ -574,6 +574,8 @@ static inline int sn_send_tx_queue(struct sn_queue *queue,
 	struct sn_tx_metadata tx_meta;
 	int ret;
 
+	skb_orphan(skb);
+
 	sn_set_tx_metadata(skb, &tx_meta);
 	ret = dev->ops->do_tx(queue, skb, &tx_meta);
 
@@ -591,9 +593,8 @@ static inline int sn_send_tx_queue(struct sn_queue *queue,
 		queue->tx_stats.dropped++;
 		break;
 
-	default:
-		if (ret != SN_NET_XMIT_BUFFERED && net_ratelimit())
-			log_err("unknown return value %d\n", ret);
+	case SN_NET_XMIT_BUFFERED:
+		/* should not free skb */
 		return NET_XMIT_SUCCESS;
 	}
 
@@ -717,7 +718,10 @@ static void sn_set_offloads(struct net_device *netdev)
 
 	netdev->hw_enc_features = netdev->hw_features;
 
-	netdev->features = netdev->hw_features;
+	/* We prevent this interface from moving around namespaces.
+	 * This is to work around race between device unregister and namespace
+	 * cleanup. Revise this after adopting rtnl link based design */
+	netdev->features = netdev->hw_features | NETIF_F_NETNS_LOCAL;
 }
 
 static void sn_set_default_queue_mapping(struct sn_device *dev)
@@ -888,7 +892,17 @@ void sn_release_netdev(struct sn_device *dev)
 
 	log_info("%s: releasing netdev...\n", dev->netdev->name);
 
-	unregister_netdev(dev->netdev);
+	if (dev->netdev->reg_state == NETREG_REGISTERED) {
+		unregister_netdev(dev->netdev);
+	} else {
+		/* The netdev may have been unregistered already,
+		 * if NETIF_F_NETNS_LOCAL is set and namespace freed */
+		if (dev->netdev->reg_state != NETREG_UNREGISTERED) {
+			log_err("%s: invalid netdev reg state: %s\n",
+					dev->netdev->name,
+					netdev_reg_state(dev->netdev));
+		}
+	}
 
 	sn_free_queues(dev);
 
