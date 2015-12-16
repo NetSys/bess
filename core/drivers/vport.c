@@ -62,7 +62,7 @@ static inline int find_next_nonworker_cpu(int cpu)
 static void refill_tx_bufs(struct llring *r)
 {
 	struct snbuf *pkts[REFILL_HIGH];
-	void *objs[REFILL_LOW];
+	void *objs[REFILL_HIGH];
 
 	int deficit;
 	int ret;
