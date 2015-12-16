@@ -409,6 +409,9 @@ static int sn_poll_action_batch(struct sn_queue *rx_queue, int budget)
 			struct sk_buff *skb = skbs[i];
 			int ret;
 
+			if (unlikely(!skb))
+				continue;
+
 			rx_queue->rx_stats.bytes += skb->len;
 
 			ret = sn_process_rx_metadata(skb, &rx_meta[i]);
@@ -483,6 +486,9 @@ static int sn_poll_action(struct sn_queue *rx_queue, int budget)
 	else
 		return sn_poll_action_single(rx_queue, budget);
 }
+
+/* disable for now, since it is not tested with new vport implementation */
+#undef CONFIG_NET_RX_BUSY_POLL
 
 #ifdef CONFIG_NET_RX_BUSY_POLL
 #define SN_BUSY_POLL_BUDGET	4
@@ -689,7 +695,7 @@ static const struct net_device_ops sn_netdev_ops = {
 	.ndo_open		= sn_open,
 	.ndo_stop		= sn_close,
 #ifdef CONFIG_NET_RX_BUSY_POLL
-//	.ndo_busy_poll		= sn_poll_ll,
+	.ndo_busy_poll		= sn_poll_ll,
 #endif
 	.ndo_start_xmit		= sn_start_xmit,
 	.ndo_select_queue	= sn_select_queue,
@@ -754,6 +760,29 @@ static void sn_set_default_queue_mapping(struct sn_device *dev)
 	}
 }
 
+/* unregister_netdev(ice) will eventually trigger this function */
+static void sn_netdev_destructor(struct net_device *netdev)
+{
+	struct sn_device *dev = netdev_priv(netdev);
+
+	sn_free_queues(dev);
+
+	switch (dev->type) {
+	case sn_dev_type_host:
+		/* TODO: do something */
+		break;
+
+	case sn_dev_type_pci:
+		/* TODO: do something with dev->pdev */
+		break;
+
+	default:
+		log_err("unknown device type %d\n", dev->type);
+	}
+
+	free_netdev(netdev);
+}
+
 /* bar must be a virtual address (whether it's host or guest),
  * where the kernel can directly access to */
 int sn_create_netdev(void *bar, struct sn_device **dev_ret)
@@ -812,6 +841,8 @@ int sn_create_netdev(void *bar, struct sn_device **dev_ret)
 	 * interface. We don't need qdisc since SoftNIC already has its own.
 	 * Also see attach_default_qdiscs() in sch_generic.c */
 	netdev->tx_queue_len = 0;
+
+	netdev->destructor = sn_netdev_destructor;
 
 	sn_set_offloads(netdev);
 
@@ -892,34 +923,12 @@ void sn_release_netdev(struct sn_device *dev)
 
 	log_info("%s: releasing netdev...\n", dev->netdev->name);
 
-	if (dev->netdev->reg_state == NETREG_REGISTERED) {
-		unregister_netdev(dev->netdev);
-	} else {
-		/* The netdev may have been unregistered already,
-		 * if NETIF_F_NETNS_LOCAL is set and namespace freed */
-		if (dev->netdev->reg_state != NETREG_UNREGISTERED) {
-			log_err("%s: invalid netdev reg state: %s\n",
-					dev->netdev->name,
-					netdev_reg_state(dev->netdev));
-		}
-	}
+	rtnl_lock();
 
-	sn_free_queues(dev);
+	if (dev->netdev->reg_state == NETREG_REGISTERED)
+		unregister_netdevice(dev->netdev);
 
-	free_netdev(dev->netdev);
-	
-	switch (dev->type) {
-	case sn_dev_type_host:
-		/* TODO: do something */
-		break;
-
-	case sn_dev_type_pci:
-		/* TODO: do something with dev->pdev */
-		break;
-
-	default:
-		log_err("unknown device type %d\n", dev->type);
-	}
+	rtnl_unlock();
 }
 
 /* This function is called in IRQ context on a remote core.
