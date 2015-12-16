@@ -220,13 +220,18 @@ static inline void run_next_module(struct module *m, struct pkt_batch *batch)
  *   2. No ordering guarantee for packets with different gates.
  */
 static void run_split(struct module *m, const gate_t *ogates,
-		const struct pkt_batch *mixed_batch)
+		struct pkt_batch *mixed_batch)
 {
-	gate_t pending[MAX_PKT_BURST];
 	int cnt = mixed_batch->cnt;
 	int num_pending = 0;
 
-	/* collect */
+	struct snbuf * restrict *p_pkt = &mixed_batch->pkts[0];
+
+	gate_t pending[MAX_PKT_BURST];
+	struct pkt_batch batches[MAX_PKT_BURST];
+
+
+	/* phase 1: collect unique ogates into pending[] */
 	for (int i = 0; i < cnt; i++) {
 		struct pkt_batch *batch;
 		gate_t ogate;
@@ -238,20 +243,21 @@ static void run_split(struct module *m, const gate_t *ogates,
 		if (batch->cnt == 0)
 			pending[num_pending++] = ogate;
 
-		batch_add(batch, mixed_batch->pkts[i]);
+		batch_add(batch, *(p_pkt++));
 	}
 
-	/* fire */
+	/* phase 2: move batches to local stack, since it may be reentrant */
 	for (int i = 0; i < num_pending; i++) {
 		struct pkt_batch *batch;
-		gate_t ogate;
 
-		ogate = pending[i];
-		batch = &ctx.splits[ogate];
-
-		run_choose_module(m, ogate, batch);
+		batch = &ctx.splits[pending[i]];
+		batch_copy(&batches[i], batch);
 		batch_clear(batch);
 	}
+
+	/* phase 3: fire */
+	for (int i = 0; i < num_pending; i++)
+		run_choose_module(m, pending[i], &batches[i]);
 }
 
 #if 0
