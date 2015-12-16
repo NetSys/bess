@@ -96,6 +96,8 @@ static struct snobj *handle_list_workers(struct snobj *q)
 				snobj_int(workers[wid]->core));
 		snobj_map_set(worker, "num_tcs",
 				snobj_int(workers[wid]->s->num_classes));
+		snobj_map_set(worker, "silent_drops",
+				snobj_int(workers[wid]->silent_drops));
 
 		snobj_list_add(r, worker);
 	}

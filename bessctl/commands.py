@@ -618,18 +618,20 @@ def delete_connection(cli, module, ogate):
         cli.softnic.resume_all()
 
 def _show_worker_header(cli):
-    cli.fout.write('  %10s%10s%10s%10s\n' % \
+    cli.fout.write('  %10s%10s%10s%10s%16s\n' % \
             ('Worker ID', 
              'Status', 
              'CPU core', 
-             '# of TCs'))
+             '# of TCs',
+             'Deadend pkts'))
 
 def _show_worker(cli, w):
-    cli.fout.write('  %10d%10s%10d%10d\n' % \
+    cli.fout.write('  %10d%10s%10d%10d%16d\n' % \
             (w['wid'], 
              'RUNNING' if w['running'] else 'PAUSED', 
              w['core'], 
-             w['num_tcs']))
+             w['num_tcs'],
+             w['silent_drops']))
 
 @cmd('show worker', 'Show the status of all worker threads')
 def show_worker_all(cli):
