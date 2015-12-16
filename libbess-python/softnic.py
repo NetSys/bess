@@ -76,8 +76,7 @@ class SoftNIC(object):
             print >> sys.stderr, 'Encoding error, object: %s' % repr(obj)
             raise
 
-        self.s.sendall(struct.pack('<L', len(q)))
-        self.s.sendall(q)
+        self.s.sendall(struct.pack('<L', len(q)) + q)
 
         total, = struct.unpack('<L', self.s.recv(4))
         buf = []

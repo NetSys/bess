@@ -220,7 +220,12 @@ static void request_done(struct client *c)
 	struct snobj *q = NULL;
 	struct snobj *r = NULL;
 
+	char *buf;
+
 	int ret;
+
+	c->buf_off = 0;
+	c->msg_len_off = 0;
 
 	q = snobj_decode(c->buf, c->msg_len);
 	if (!q) {
@@ -239,40 +244,33 @@ static void request_done(struct client *c)
 		goto err;
 	}
 
-	{
-		char *buf;
+	c->msg_len = snobj_encode(r, &buf, 0);
+	if (c->msg_len == 0) {
+		fprintf(stderr, "Encoding error\n");
+		goto err;
+	}
 
-		c->buf_off = 0;
-		c->msg_len_off = 0;
+	/* XXX: DRY */
+	if (c->msg_len > c->buf_size) {
+		char *new_buf;
 
-		c->msg_len = snobj_encode(r, &buf, 0);
-		if (c->msg_len == 0) {
-			fprintf(stderr, "Encoding error\n");
+		if (c->msg_len > MAX_BUF_SIZE)  {
+			fprintf(stderr, "too large response was attempted\n");
 			goto err;
 		}
 
-		/* XXX: DRY */
-		if (c->msg_len > c->buf_size) {
-			char *new_buf;
+		new_buf = rte_realloc(c->buf, c->msg_len, 0);
+		if (!new_buf)
+			goto err;
 
-			if (c->msg_len > MAX_BUF_SIZE)  {
-				fprintf(stderr, "too large response was attempted\n");
-				goto err;
-			}
-
-			new_buf = rte_realloc(c->buf, c->msg_len, 0);
-			if (!new_buf)
-				goto err;
-
-			c->buf = new_buf;
-			c->buf_size = c->msg_len;
-		}
-
-		memcpy(c->buf, buf, c->msg_len);
-
-		if (buf)
-			_FREE(buf);
+		c->buf = new_buf;
+		c->buf_size = c->msg_len;
 	}
+
+	memcpy(c->buf, buf, c->msg_len);
+
+	if (buf)
+		_FREE(buf);
 
 	snobj_free(q);
 	snobj_free(r);

@@ -630,13 +630,20 @@ static void print_stats(struct sched *s, struct sched_stats *last_stats)
 
 static inline struct task_result tc_scheduled(struct tc *c)
 {
+	struct task_result ret;
 	struct task *t;
 
-	if (cdlist_is_empty(&c->tasks))
-		return (struct task_result){.packets = 0, .bits = 0};
+	int num_tasks = c->num_tasks;
 
-	t = container_of(cdlist_rotate_left(&c->tasks), struct task, tc);
-	return task_scheduled(t);
+	while (num_tasks--) {
+		t = container_of(cdlist_rotate_left(&c->tasks), struct task, tc);
+
+		ret = task_scheduled(t);
+		if (ret.packets)
+			return ret;
+	}
+
+	return (struct task_result){.packets = 0, .bits = 0};
 }
 
 void sched_loop(struct sched *s)

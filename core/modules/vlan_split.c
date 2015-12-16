@@ -5,8 +5,9 @@
 static void vsplit_process_batch(struct module *m, struct pkt_batch *batch)
 {
 	gate_t vid[MAX_PKT_BURST];
+	int cnt = batch->cnt;
 
-	for (int i = 0; i < batch->cnt; i++) {
+	for (int i = 0; i < cnt; i++) {
 		struct snbuf *pkt = batch->pkts[i];
 		char *ptr = snb_head_data(pkt);
 		uint32_t tag = rte_be_to_cpu_32(*((uint32_t *)(ptr + 12)));

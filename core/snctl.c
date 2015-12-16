@@ -96,6 +96,8 @@ static struct snobj *handle_list_workers(struct snobj *q)
 				snobj_int(workers[wid]->core));
 		snobj_map_set(worker, "num_tcs",
 				snobj_int(workers[wid]->s->num_classes));
+		snobj_map_set(worker, "silent_drops",
+				snobj_int(workers[wid]->silent_drops));
 
 		snobj_list_add(r, worker);
 	}
@@ -965,10 +967,10 @@ struct snobj *handle_request(struct client *c, struct snobj *q)
 	struct snobj *r = NULL;
 	const char *s;
 
-#if 0
-	printf("Request:\n");
-	snobj_dump(q);
-#endif
+	if (global_opts.debug_mode) {
+		printf("Request:\n");
+		snobj_dump(q);
+	}
 
 	if (q->type != TYPE_MAP) {
 		r = snobj_err(EINVAL, "The message must be a map");
@@ -993,10 +995,10 @@ reply:
 	if (!r)
 		r = snobj_nil();
 
-#if 0
-	printf("Response:\n");
-	snobj_dump(r);
-#endif
+	if (global_opts.debug_mode) {
+		printf("Response:\n");
+		snobj_dump(r);
+	}
 
 	return r;
 }

@@ -353,8 +353,8 @@ static int pmd_send_pkts(struct port *p, queue_t qid, snb_array_t pkts, int cnt)
 static const struct driver pmd = {
 	.name 		= "PMD",
 	.priv_size	= sizeof(struct pmd_priv),
-	.def_size_inc_q = 128,
-	.def_size_out_q = 512,
+	.def_size_inc_q = 256,
+	.def_size_out_q = 256,
 	.flags		= DRIVER_FLAG_SELF_INC_STATS |
 			  DRIVER_FLAG_SELF_OUT_STATS,
 	.init_driver	= pmd_init_driver,
