@@ -120,7 +120,7 @@ static int alloc_snb_burst(struct sn_queue *queue, phys_addr_t paddr[], int cnt)
 	if (loaded == cnt)
 		return cnt;
 
-	cnt = llring_mc_dequeue_burst(queue->sn_to_drv, (void *)&paddr[loaded],
+	cnt = llring_sc_dequeue_burst(queue->sn_to_drv, (void *)&paddr[loaded],
 			cnt - loaded);
 	return loaded + cnt;
 }
@@ -141,7 +141,7 @@ static void free_snb_bulk(struct sn_queue *queue, phys_addr_t paddr[], int cnt)
 		vaddr_user[i] = *(uint64_t *)phys_to_virt(paddr[i] + 
 				SNBUF_IMMUTABLE_OFF);
 
-	ret = llring_mp_enqueue_bulk(queue->drv_to_sn,
+	ret = llring_sp_enqueue_bulk(queue->drv_to_sn,
 			(void **)&vaddr_user[stored],
 			cnt - stored);
 
@@ -156,13 +156,13 @@ static int sn_host_do_tx_batch(struct sn_queue *queue,
 		struct sn_tx_metadata meta_arr[],
 		int cnt_requested)
 {
-	phys_addr_t paddr_arr[MAX_BATCH];
-	uint64_t vaddr_user[MAX_BATCH];
-
 	int cnt_to_send;
 	int cnt;
 	int ret;
 	int i;
+
+	phys_addr_t paddr_arr[MAX_BATCH];
+	uint64_t vaddr_user[MAX_BATCH];
 
 	cnt_to_send = min(cnt_requested, 
 			(int)llring_free_count(queue->drv_to_sn));
@@ -201,7 +201,7 @@ static int sn_host_do_tx_batch(struct sn_queue *queue,
 		}
 	}
 
-	ret = llring_mp_enqueue_burst(queue->drv_to_sn, 
+	ret = llring_sp_enqueue_burst(queue->drv_to_sn, 
 			(void **)vaddr_user, cnt);
 	if (ret < cnt && net_ratelimit()) {
 		/* It should never happen since we cap cnt with llring_count().
@@ -303,17 +303,9 @@ again:
 static int sn_host_do_tx(struct sn_queue *queue, struct sk_buff *skb,
 			 struct sn_tx_metadata *tx_meta)
 {
-	phys_addr_t paddr;
-	uint64_t vaddr_user;
-
-	struct sn_tx_desc *tx_desc;
-
-	char *dst_addr;
+	int *polling;
 
 	int ret;
-	int i;
-
-	int *polling;
 
 	polling = this_cpu_ptr(&in_batched_polling);
 
@@ -322,38 +314,8 @@ static int sn_host_do_tx(struct sn_queue *queue, struct sk_buff *skb,
 		return SN_NET_XMIT_BUFFERED;
 	}
 
-	ret = alloc_snb_burst(queue, &paddr, 1);
-	if (ret == 0) {
-		queue->tx_stats.descriptor++;
-		return NET_XMIT_DROP;
-	} 
-
-	vaddr_user = *((uint64_t *)phys_to_virt(paddr + SNBUF_IMMUTABLE_OFF));
-	dst_addr = phys_to_virt(paddr + SNBUF_DATA_OFF);
-	tx_desc = phys_to_virt(paddr + SNBUF_SCRATCHPAD_OFF);
-
-	tx_desc->total_len = skb->len;
-	tx_desc->meta = *tx_meta;
-
-	memcpy(dst_addr, skb->data, skb_headlen(skb));
-	dst_addr += skb_headlen(skb);
-
-	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
-		skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
-
-		memcpy(dst_addr, skb_frag_address(frag), skb_frag_size(frag));
-		dst_addr += skb_frag_size(frag);
-	}
-
-	ret = llring_mp_enqueue(queue->drv_to_sn, (void *)vaddr_user);
-	if (ret == 0)
-		return NET_XMIT_SUCCESS;
-	else if (ret == -LLRING_ERR_QUOT)
-		return NET_XMIT_CN;
-	else {
-		free_snb_bulk(queue, &paddr, 1);
-		return NET_XMIT_DROP;
-	}
+	ret = sn_host_do_tx_batch(queue, &skb, tx_meta, 1);
+	return (ret == 1) ? NET_XMIT_SUCCESS : NET_XMIT_DROP;
 }
 
 static int sn_host_do_rx_batch(struct sn_queue *queue,
