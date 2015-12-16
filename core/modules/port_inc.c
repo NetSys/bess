@@ -74,7 +74,9 @@ port_inc_run_task(struct module *m, void *arg)
 	const int pkt_burst = MAX_PKT_BURST;
 	const int pkt_overhead = 24;
 
-	batch.cnt = priv->recv_pkts(p, qid, batch.pkts, pkt_burst);
+	int cnt;
+
+	cnt = batch.cnt = priv->recv_pkts(p, qid, batch.pkts, pkt_burst);
 
 	if (batch.cnt == 0) {
 		ret.packets = 0;
@@ -83,14 +85,18 @@ port_inc_run_task(struct module *m, void *arg)
 	}
 
 	/* NOTE: we cannot skip this step since it might be used by scheduler */
-	for (int i = 0; i < batch.cnt; i++)
+	for (int i = 0; i < cnt; i++) {
 		received_bytes += snb_total_len(batch.pkts[i]);
 
-	ret.packets = batch.cnt;
-	ret.bits = (received_bytes + pkt_overhead * batch.cnt) * 8;
+		/* prefetch for received packet payload */
+		rte_prefetch0(snb_head_data(batch.pkts[i]));
+	}
+
+	ret.packets = cnt;
+	ret.bits = (received_bytes + pkt_overhead * cnt) * 8;
 
 	if (!(p->driver->flags & DRIVER_FLAG_SELF_INC_STATS)) {
-		p->queue_stats[PACKET_DIR_INC][qid].packets += batch.cnt;
+		p->queue_stats[PACKET_DIR_INC][qid].packets += cnt;
 		p->queue_stats[PACKET_DIR_INC][qid].bytes += received_bytes;
 	}
 
