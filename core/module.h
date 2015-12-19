@@ -118,40 +118,8 @@ int enable_tcpdump(const char* fifo, struct module *m, gate_t gate);
 
 int disable_tcpdump(struct module *m, gate_t gate);
 
-static inline int dump_pcap_pkts(int fd, struct pkt_batch *batch)
-{
-	struct timeval tv;
-	gettimeofday(&tv, NULL);
-	int ret = 0;
-	int packets = 0;
-	int error_out = 0;
-	for (int i = 0; i < batch->cnt && (!error_out); i++) {
-		struct snbuf* pkt = batch->pkts[i];
-		int len = pkt->mbuf.data_len;
-		struct pcap_rec_hdr *pkthdr = 
-			(struct pcap_rec_hdr*) snb_prepend(pkt, 
-				sizeof(struct pcap_rec_hdr));
-		pkthdr->ts_sec = tv.tv_sec;
-		pkthdr->ts_usec = tv.tv_usec;
-		pkthdr->orig_len = pkthdr->incl_len = len;
-		assert(len < PCAP_SNAPLEN);
-		ret = write(fd, snb_head_data(pkt), pkt->mbuf.data_len);
-		assert(pkt->mbuf.data_len < PIPE_BUF);
-		if (ret < 0) {
-			if (errno == EPIPE) {
-				printf("Stopping dump\n");
-				close(fd);
-				packets = -1;
-			}
-			error_out = 1;
-		} else {
-			assert(ret == pkt->mbuf.data_len);
-			packets++;
-		}
-		snb_adj(pkt, sizeof(struct pcap_rec_hdr));
-	}
-	return packets;
-}
+void dump_pcap_pkts(struct output_gate *gate, struct pkt_batch *batch);
+
 #else
 inline int enable_tcpdump(const char *, struct module *, gate_t) {
 	/* Cannot enable tcpdump */
@@ -189,15 +157,8 @@ static inline void run_choose_module(struct module *m, gate_t ogate,
 #endif
 
 #if TCPDUMP_GATES
-	if (gate->tcpdump) {
-		int ret = dump_pcap_pkts(gate->fifo_fd, batch);
-		/* Not only did the previous operation fail, 
-		 * but fd was closed */
-		if (ret < 0) {
-			gate->tcpdump = 0;
-			gate->fifo_fd = 0;
-		}
-	}
+	if (unlikely(gate->tcpdump))
+		dump_pcap_pkts(gate, batch);
 #endif
 
 	gate->f(gate->m, batch);

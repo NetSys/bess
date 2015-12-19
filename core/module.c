@@ -500,6 +500,47 @@ int disable_tcpdump(struct module *m, gate_t gate)
 	close(m->gates[gate].fifo_fd);
 	return 0;
 }
+
+void dump_pcap_pkts(struct output_gate *gate, struct pkt_batch *batch)
+{
+	struct timeval tv;
+
+	int ret = 0;
+	int fd = gate->fifo_fd;
+	int packets = 0;
+
+	gettimeofday(&tv, NULL);
+
+	for (int i = 0; i < batch->cnt; i++) {
+		struct snbuf* pkt = batch->pkts[i];
+		int len = pkt->mbuf.data_len;
+		struct pcap_rec_hdr *pkthdr = 
+			(struct pcap_rec_hdr*) snb_prepend(pkt, 
+				sizeof(struct pcap_rec_hdr));
+
+		pkthdr->ts_sec = tv.tv_sec;
+		pkthdr->ts_usec = tv.tv_usec;
+		pkthdr->orig_len = pkthdr->incl_len = len;
+		assert(len < PCAP_SNAPLEN);
+		ret = write(fd, snb_head_data(pkt), pkt->mbuf.data_len);
+		assert(pkt->mbuf.data_len < PIPE_BUF);
+
+		if (ret < 0) {
+			if (errno == EPIPE) {
+				printf("Stopping dump\n");
+				gate->tcpdump = 0;
+				gate->fifo_fd = 0;
+				close(fd);
+			}
+			return;
+		} else {
+			assert(ret == pkt->mbuf.data_len);
+			packets++;
+		}
+
+		snb_adj(pkt, sizeof(struct pcap_rec_hdr));
+	}
+}
 #endif
 
 #if 0
