@@ -30,8 +30,10 @@
 /* Dual BSD/GPL */
 
 #include <linux/version.h>
-#include <linux/etherdevice.h>		/* for eth_type_trans */
+#include <linux/etherdevice.h>
+#include <linux/if_vlan.h>
 #include <net/busy_poll.h>
+
 #include "sn.h"
 
 static int sn_poll(struct napi_struct *napi, int budget);
@@ -44,8 +46,8 @@ static void sn_test_cache_alignment(struct sn_device *dev)
 	for (i = 0; i < dev->num_txq; i++) {
 		struct sn_queue *q = dev->tx_queues[i];
 
-		if ((((uint64_t) q->drv_to_sn) % L1_CACHE_BYTES) ||
-		    (((uint64_t) q->sn_to_drv) % L1_CACHE_BYTES))
+		if ((((uintptr_t) q->drv_to_sn) % L1_CACHE_BYTES) ||
+		    (((uintptr_t) q->sn_to_drv) % L1_CACHE_BYTES))
 		{
 			pr_err("invalid cache alignment: %p %p\n",
 					q->drv_to_sn, q->sn_to_drv);
@@ -55,17 +57,22 @@ static void sn_test_cache_alignment(struct sn_device *dev)
 	for (i = 0; i < dev->num_rxq; i++) {
 		struct sn_queue *q = dev->rx_queues[i];
 
-		if ((((uint64_t) q->drv_to_sn) % L1_CACHE_BYTES) ||
-		    (((uint64_t) q->sn_to_drv) % L1_CACHE_BYTES) ||
-		    (((uint64_t) q->rx_regs) % L1_CACHE_BYTES))
+		if ((((uintptr_t) q->drv_to_sn) % L1_CACHE_BYTES) ||
+		    (((uintptr_t) q->sn_to_drv) % L1_CACHE_BYTES) ||
+		    (((uintptr_t) q->rx.rx_regs) % L1_CACHE_BYTES))
 		{
 			pr_err("invalid cache alignment: %p %p %p\n",
-					q->drv_to_sn, q->sn_to_drv, q->rx_regs);
+					q->drv_to_sn, 
+					q->sn_to_drv, 
+					q->rx.rx_regs);
 		}
 	}
 }
 
-static int sn_alloc_queues(struct sn_device *dev, void *rings, u64 rings_size)
+static int sn_alloc_queues(struct sn_device *dev, 
+		void *rings, u64 rings_size,
+		struct tx_queue_opts *txq_opts,
+		struct rx_queue_opts *rxq_opts)
 {
 	struct sn_queue *queue;
 	char *p = rings;
@@ -102,9 +109,9 @@ static int sn_alloc_queues(struct sn_device *dev, void *rings, u64 rings_size)
 
 		queue->dev = dev;
 		queue->queue_id = i;
-		queue->is_rx = false;
-		queue->loopback = dev->loopback;
-		queue->netdev_txq = netdev_get_tx_queue(dev->netdev, i);
+		queue->tx.opts = *txq_opts;
+
+		queue->tx.netdev_txq = netdev_get_tx_queue(dev->netdev, i);
 		
 		queue->drv_to_sn = (struct llring *)p;
 		p += llring_bytes(queue->drv_to_sn);
@@ -120,11 +127,9 @@ static int sn_alloc_queues(struct sn_device *dev, void *rings, u64 rings_size)
 
 		queue->dev = dev;
 		queue->queue_id = i;
-		queue->is_rx = true;
-		queue->loopback = dev->loopback;
-		sn_stack_init(&queue->ready_tx_meta);
+		queue->rx.opts = *rxq_opts;
 
-		queue->rx_regs = (struct sn_rxq_registers *)p;
+		queue->rx.rx_regs = (struct sn_rxq_registers *)p;
 		p += sizeof(struct sn_rxq_registers);
 
 		queue->drv_to_sn = (struct llring *)p;
@@ -146,10 +151,10 @@ static int sn_alloc_queues(struct sn_device *dev, void *rings, u64 rings_size)
 	}
 
 	for (i = 0; i < dev->num_rxq; i++) {
-		netif_napi_add(dev->netdev, &dev->rx_queues[i]->napi,
+		netif_napi_add(dev->netdev, &dev->rx_queues[i]->rx.napi,
 				sn_poll, NAPI_POLL_WEIGHT);
-		napi_hash_add(&dev->rx_queues[i]->napi);
-		spin_lock_init(&dev->rx_queues[i]->lock);
+		napi_hash_add(&dev->rx_queues[i]->rx.napi);
+		spin_lock_init(&dev->rx_queues[i]->rx.lock);
 	}
 	
 	sn_test_cache_alignment(dev);
@@ -162,8 +167,8 @@ static void sn_free_queues(struct sn_device *dev)
 	int i;
 
 	for (i = 0; i < dev->num_rxq; i++) {
-		napi_hash_del(&dev->rx_queues[i]->napi);
-		netif_napi_del(&dev->rx_queues[i]->napi);
+		napi_hash_del(&dev->rx_queues[i]->rx.napi);
+		netif_napi_del(&dev->rx_queues[i]->rx.napi);
 	}
 
 	/* Queues are allocated in batch,
@@ -178,7 +183,7 @@ static int sn_open(struct net_device *netdev)
 	int i;
 
 	for (i = 0; i < dev->num_rxq; i++)
-		napi_enable(&dev->rx_queues[i]->napi);
+		napi_enable(&dev->rx_queues[i]->rx.napi);
 	for (i = 0; i < dev->num_rxq; i++) 
 		sn_enable_interrupt(dev->rx_queues[i]);
 
@@ -192,91 +197,15 @@ static int sn_close(struct net_device *netdev)
 	int i;
 
 	for (i = 0; i < dev->num_rxq; i++)
-		napi_disable(&dev->rx_queues[i]->napi);
+		napi_disable(&dev->rx_queues[i]->rx.napi);
 
 	return 0;
 }
 
-#if 0
-/* This code is for batched host mode */
-static int sn_poll(struct napi_struct *napi, int budget)
-{
-	struct sn_queue *rx_queue = container_of(napi, struct sn_queue, napi);
-
-	int poll_cnt = 0;
-	int ret;
-	int cnt;
-	int i;
-
-	void *objs[MAX_RX_BATCH * 3];
-
-do_more:
-	ret = llring_dequeue_burst(rx_queue->sn_to_drv, objs, 
-			max(budget - poll_cnt, MAX_RX_BATCH) * 3);
-	if (unlikely(ret % 3)) {
-		log_err("not a multiple of 3 (%d)!!!\n", ret);
-		return poll_cnt;
-	}
-
-	cnt = ret / 3;
-
-	if (cnt == 0) {
-		napi_complete(napi);
-		return poll_cnt;
-	}
-
-	for (i = 0; i < cnt; i++) {
-		struct sk_buff *skb;
-
-		void *cookie;
-		void *vaddr;
-		int packet_len;
-
-		cookie = objs[i * 3];
-		vaddr = phys_to_virt((phys_addr_t) objs[i * 3 + 1]);
-		packet_len = (uint64_t) objs[i * 3 + 2];
-
-		objs[i] = cookie;
-
-		skb = netdev_alloc_skb(napi->dev, packet_len);
-		if (unlikely(!skb)) {
-			log_err("netdev_alloc_skb() failed\n");
-			continue;
-		}
-
-		memcpy(skb_put(skb, packet_len), vaddr, packet_len);
-
-		skb_record_rx_queue(skb, rx_queue->queue_id);
-		skb->protocol = eth_type_trans(skb, napi->dev);
-		skb->ip_summed = CHECKSUM_NONE;
-
-		rx_queue->stats.packets++;
-		rx_queue->stats.bytes += skb->len;
-
-		netif_receive_skb(skb);
-	}
-
-
-	ret = llring_enqueue_burst(rx_queue->drv_to_sn, objs, cnt);
-	if (unlikely(ret != cnt)) {
-		/* It should never happen but if it does, I am fucked up */
-		log_err("free buffer queue overflow!\n");
-	}
-
-	poll_cnt += cnt;
-
-	if (poll_cnt >= budget)
-		return poll_cnt;
-
-	goto do_more;
-	/* goto fail; */
-}
-#endif
-
 static void sn_enable_interrupt(struct sn_queue *rx_queue)
 {
 	__sync_synchronize();
-	rx_queue->rx_regs->irq_disabled = 0;
+	rx_queue->rx.rx_regs->irq_disabled = 0;
 	__sync_synchronize();
 
 	/* NOTE: make sure check again if the queue is really empty,
@@ -303,7 +232,7 @@ static void sn_disable_interrupt(struct sn_queue *rx_queue)
 	 * but in some cases the driver itself may also want to disable IRQ
 	 * (e.g., for low latency socket polling) */
 
-	rx_queue->rx_regs->irq_disabled = 1;
+	rx_queue->rx.rx_regs->irq_disabled = 1;
 }
 
 /* if non-zero, the caller should drop the packet */
@@ -361,10 +290,10 @@ static void sn_process_loopback(struct sn_device *dev,
 	qid = dev->cpu_to_txq[cpu];
 	tx_queue = dev->tx_queues[qid];
 
-	lock_required = (tx_queue->netdev_txq->xmit_lock_owner != cpu);
+	lock_required = (tx_queue->tx.netdev_txq->xmit_lock_owner != cpu);
 
 	if (lock_required)
-		HARD_TX_LOCK(dev->netdev, tx_queue->netdev_txq, cpu);
+		HARD_TX_LOCK(dev->netdev, tx_queue->tx.netdev_txq, cpu);
 
 	for (i = 0; i < cnt; i++) {
 		if (!skbs[i])
@@ -375,12 +304,12 @@ static void sn_process_loopback(struct sn_device *dev,
 	}
 
 	if (lock_required)
-		HARD_TX_UNLOCK(dev->netdev, tx_queue->netdev_txq);
+		HARD_TX_UNLOCK(dev->netdev, tx_queue->tx.netdev_txq);
 }
 
 static int sn_poll_action_batch(struct sn_queue *rx_queue, int budget)
 {
-	struct napi_struct *napi = &rx_queue->napi;
+	struct napi_struct *napi = &rx_queue->rx.napi;
 	struct sn_device *dev = rx_queue->dev;
 
 	int poll_cnt = 0;
@@ -402,7 +331,7 @@ static int sn_poll_action_batch(struct sn_queue *rx_queue, int budget)
 		if (cnt == 0)
 			break;
 
-		rx_queue->rx_stats.packets += cnt;
+		rx_queue->rx.stats.packets += cnt;
 		poll_cnt += cnt;
 
 		for (i = 0; i < cnt; i++) {
@@ -412,7 +341,7 @@ static int sn_poll_action_batch(struct sn_queue *rx_queue, int budget)
 			if (unlikely(!skb))
 				continue;
 
-			rx_queue->rx_stats.bytes += skb->len;
+			rx_queue->rx.stats.bytes += skb->len;
 
 			ret = sn_process_rx_metadata(skb, &rx_meta[i]);
 			if (ret == 0) {
@@ -425,7 +354,7 @@ static int sn_poll_action_batch(struct sn_queue *rx_queue, int budget)
 			}
 		}
 
-		if (!rx_queue->loopback) {
+		if (!rx_queue->rx.opts.loopback) {
 			for (i = 0; i < cnt; i++) {
 				if (!skbs[i])
 					continue;
@@ -446,7 +375,7 @@ static int sn_poll_action_batch(struct sn_queue *rx_queue, int budget)
 
 static int sn_poll_action_single(struct sn_queue *rx_queue, int budget)
 {
-	struct napi_struct *napi = &rx_queue->napi;
+	struct napi_struct *napi = &rx_queue->rx.napi;
 	int poll_cnt = 0;
 
 	while (poll_cnt < budget) {
@@ -458,8 +387,8 @@ static int sn_poll_action_single(struct sn_queue *rx_queue, int budget)
 		if (!skb)
 			return poll_cnt;
 
-		rx_queue->rx_stats.packets++;
-		rx_queue->rx_stats.bytes += skb->len;
+		rx_queue->rx.stats.packets++;
+		rx_queue->rx.stats.bytes += skb->len;
 
 		ret = sn_process_rx_metadata(skb, &rx_meta);
 		if (unlikely(ret)) {
@@ -495,15 +424,17 @@ static int sn_poll_action(struct sn_queue *rx_queue, int budget)
 /* Low latency socket callback. Called with bh disabled */
 static int sn_poll_ll(struct napi_struct *napi)
 {
-	struct sn_queue *rx_queue = container_of(napi, struct sn_queue, napi);
+	struct sn_queue *rx_queue;
 
 	int idle_cnt = 0;
 	int ret;
 
+	rx_queue = container_of(napi, struct sn_queue, rx.napi);
+
 	if (!spin_trylock(&rx_queue->lock))
 		return LL_FLUSH_BUSY;
 
-	rx_queue->rx_stats.ll_polls++;
+	rx_queue->rx.stats.ll_polls++;
 
 	sn_disable_interrupt(rx_queue);
 
@@ -534,14 +465,16 @@ static int sn_poll_ll(struct napi_struct *napi)
 /* The return value says how many packets are actually received */
 static int sn_poll(struct napi_struct *napi, int budget)
 {
-	struct sn_queue *rx_queue = container_of(napi, struct sn_queue, napi);
+	struct sn_queue *rx_queue;
 
 	int ret;
 
-	if (!spin_trylock(&rx_queue->lock))
+	rx_queue = container_of(napi, struct sn_queue, rx.napi);
+
+	if (!spin_trylock(&rx_queue->rx.lock))
 		return 0;
 
-	rx_queue->rx_stats.polls++;
+	rx_queue->rx.stats.polls++;
 	
 	ret = sn_poll_action(rx_queue, budget);
 
@@ -557,7 +490,7 @@ static int sn_poll(struct napi_struct *napi, int budget)
 		}
 	}
 
-	spin_unlock(&rx_queue->lock);
+	spin_unlock(&rx_queue->rx.lock);
 
 	return ret;
 }
@@ -578,25 +511,40 @@ static inline int sn_send_tx_queue(struct sn_queue *queue,
 			            struct sn_device* dev, struct sk_buff* skb)
 {
 	struct sn_tx_metadata tx_meta;
-	int ret;
+	int ret = NET_XMIT_DROP;
+
+	if (queue->tx.opts.tci) {
+		skb = vlan_insert_tag(skb, htons(ETH_P_8021Q), 
+				queue->tx.opts.tci);
+		if (unlikely(!skb))
+			goto skip_send;
+	}
+
+	if (queue->tx.opts.outer_tci) {
+		skb = vlan_insert_tag(skb, htons(ETH_P_8021AD), 
+				queue->tx.opts.outer_tci);
+		if (unlikely(!skb))
+			goto skip_send;
+	}
 
 	skb_orphan(skb);
 
 	sn_set_tx_metadata(skb, &tx_meta);
 	ret = dev->ops->do_tx(queue, skb, &tx_meta);
 
+skip_send:
 	switch (ret) {
 	case NET_XMIT_CN:
-		queue->tx_stats.throttled++;
+		queue->tx.stats.throttled++;
 		/* fall through */
 
 	case NET_XMIT_SUCCESS:
-		queue->tx_stats.packets++;
-		queue->tx_stats.bytes += skb->len;
+		queue->tx.stats.packets++;
+		queue->tx.stats.bytes += skb->len;
 		break;
 
 	case NET_XMIT_DROP:
-		queue->tx_stats.dropped++;
+		queue->tx.stats.dropped++;
 		break;
 
 	case SN_NET_XMIT_BUFFERED:
@@ -668,18 +616,18 @@ rtnl_link_stats64 *sn_get_stats64(struct net_device *netdev,
 	int i;
 
 	for (i = 0; i < dev->num_txq; i++) {
-		storage->tx_packets 	+= dev->tx_queues[i]->tx_stats.packets;
-		storage->tx_bytes 	+= dev->tx_queues[i]->tx_stats.bytes;
-		storage->tx_dropped 	+= dev->tx_queues[i]->tx_stats.dropped;
+		storage->tx_packets 	+= dev->tx_queues[i]->tx.stats.packets;
+		storage->tx_bytes 	+= dev->tx_queues[i]->tx.stats.bytes;
+		storage->tx_dropped 	+= dev->tx_queues[i]->tx.stats.dropped;
 	}
 
 	for (i = 0; i < dev->num_rxq; i++) {
-		dev->rx_queues[i]->rx_stats.dropped =
-				dev->rx_queues[i]->rx_regs->dropped;
+		dev->rx_queues[i]->rx.stats.dropped =
+				dev->rx_queues[i]->rx.rx_regs->dropped;
 
-		storage->rx_packets 	+= dev->rx_queues[i]->rx_stats.packets;
-		storage->rx_bytes 	+= dev->rx_queues[i]->rx_stats.bytes;
-		storage->rx_dropped 	+= dev->rx_queues[i]->rx_stats.dropped;
+		storage->rx_packets 	+= dev->rx_queues[i]->rx.stats.packets;
+		storage->rx_bytes 	+= dev->rx_queues[i]->rx.stats.bytes;
+		storage->rx_dropped 	+= dev->rx_queues[i]->rx.stats.dropped;
 	}
 	
 	return storage;
@@ -834,7 +782,7 @@ int sn_create_netdev(void *bar, struct sn_device **dev_ret)
 	dev->netdev = netdev;
 	dev->num_txq = conf->num_txq;
 	dev->num_rxq = conf->num_rxq;
-	dev->loopback = conf->loopback;
+
 	sn_set_default_queue_mapping(dev);
 
 	/* This will disable the default qdisc (mq or pfifo_fast) on the 
@@ -852,7 +800,8 @@ int sn_create_netdev(void *bar, struct sn_device **dev_ret)
 	memcpy(netdev->dev_addr, conf->mac_addr, ETH_ALEN);
 
 	ret = sn_alloc_queues(dev, conf + 1, 
-			conf->bar_size - sizeof(struct sn_conf_space));
+			conf->bar_size - sizeof(struct sn_conf_space),
+			&conf->txq_opts, &conf->rxq_opts);
 	if (ret) {
 		log_err("sn_alloc_queues() failed\n");
 		free_netdev(netdev);
@@ -945,8 +894,8 @@ void sn_trigger_softirq(void *info)
 	if (unlikely(dev->cpu_to_rxqs[cpu][0] == -1)) {
 		struct sn_queue *rx_queue = dev->rx_queues[0];
 
-		rx_queue->rx_stats.interrupts++;
-		napi_schedule(&rx_queue->napi);
+		rx_queue->rx.stats.interrupts++;
+		napi_schedule(&rx_queue->rx.napi);
 	} else {
 		/* One core can be mapped to multiple RX queues. Awake them all. */
 		int i = 0;
@@ -955,8 +904,8 @@ void sn_trigger_softirq(void *info)
 		while ((rxq = dev->cpu_to_rxqs[cpu][i]) != -1) {
 			struct sn_queue *rx_queue = dev->rx_queues[rxq];
 
-			rx_queue->rx_stats.interrupts++;
-			napi_schedule(&rx_queue->napi);
+			rx_queue->rx.stats.interrupts++;
+			napi_schedule(&rx_queue->rx.napi);
 
 			i++;
 		}
@@ -975,6 +924,6 @@ void sn_trigger_softirq_with_qid(void *info, int rxq)
 
 	rx_queue = dev->rx_queues[rxq];
 
-	rx_queue->rx_stats.interrupts++;
-	napi_schedule(&rx_queue->napi);
+	rx_queue->rx.stats.interrupts++;
+	napi_schedule(&rx_queue->rx.napi);
 }

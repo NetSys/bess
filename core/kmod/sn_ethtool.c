@@ -102,24 +102,24 @@ static void sn_ethtool_get_ethtool_stats(struct net_device *netdev,
 	BUILD_BUG_ON(NUM_STATS_PER_RX_QUEUE != 6);
 
 	for (i = 0; i < dev->num_txq; i++) {
-		data[0] = dev->tx_queues[i]->tx_stats.packets;
-		data[1] = dev->tx_queues[i]->tx_stats.bytes;
-		data[2] = dev->tx_queues[i]->tx_stats.dropped;
-		data[3] = dev->tx_queues[i]->tx_stats.throttled;
-		data[4] = dev->tx_queues[i]->tx_stats.descriptor;
+		data[0] = dev->tx_queues[i]->tx.stats.packets;
+		data[1] = dev->tx_queues[i]->tx.stats.bytes;
+		data[2] = dev->tx_queues[i]->tx.stats.dropped;
+		data[3] = dev->tx_queues[i]->tx.stats.throttled;
+		data[4] = dev->tx_queues[i]->tx.stats.descriptor;
 		data += NUM_STATS_PER_TX_QUEUE;
 	}
 
 	for (i = 0; i < dev->num_rxq; i++) {
-		dev->rx_queues[i]->rx_stats.dropped =
-				dev->rx_queues[i]->rx_regs->dropped;
+		dev->rx_queues[i]->rx.stats.dropped =
+				dev->rx_queues[i]->rx.rx_regs->dropped;
 
-		data[0] = dev->rx_queues[i]->rx_stats.packets;
-		data[1] = dev->rx_queues[i]->rx_stats.bytes;
-		data[2] = dev->rx_queues[i]->rx_stats.dropped;
-		data[3] = dev->rx_queues[i]->rx_stats.polls;
-		data[4] = dev->rx_queues[i]->rx_stats.interrupts;
-		data[5] = dev->rx_queues[i]->rx_stats.ll_polls;
+		data[0] = dev->rx_queues[i]->rx.stats.packets;
+		data[1] = dev->rx_queues[i]->rx.stats.bytes;
+		data[2] = dev->rx_queues[i]->rx.stats.dropped;
+		data[3] = dev->rx_queues[i]->rx.stats.polls;
+		data[4] = dev->rx_queues[i]->rx.stats.interrupts;
+		data[5] = dev->rx_queues[i]->rx.stats.ll_polls;
 		data += NUM_STATS_PER_RX_QUEUE;
 	}
 }

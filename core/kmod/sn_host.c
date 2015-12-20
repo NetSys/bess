@@ -168,7 +168,7 @@ static int sn_host_do_tx_batch(struct sn_queue *queue,
 			(int)llring_free_count(queue->drv_to_sn));
 
 	cnt = alloc_snb_burst(queue, paddr_arr, cnt_to_send);
-	queue->tx_stats.descriptor += cnt_requested - cnt;
+	queue->tx.stats.descriptor += cnt_requested - cnt;
 
 	if (cnt == 0)
 		return 0;
@@ -233,7 +233,7 @@ static void sn_host_flush_tx(void)
 
 		buf_queue = &buf->queue_arr[i];
 		queue = buf_queue->queue;
-		netdev_txq = queue->netdev_txq;
+		netdev_txq = queue->tx.netdev_txq;
 
 		lock_required = (netdev_txq->xmit_lock_owner != cpu);
 
@@ -248,14 +248,14 @@ static void sn_host_flush_tx(void)
 		if (lock_required)
 			HARD_TX_UNLOCK(queue->dev->netdev, netdev_txq);
 
-		queue->tx_stats.packets += sent;
-		queue->tx_stats.dropped += buf_queue->cnt - sent;
+		queue->tx.stats.packets += sent;
+		queue->tx.stats.dropped += buf_queue->cnt - sent;
 
 		for (j = 0; j < buf_queue->cnt; j++) {
 			struct sk_buff *skb = buf_queue->skb_arr[j];
 
 			if (j < sent)
-				queue->tx_stats.bytes += skb->len;
+				queue->tx.stats.bytes += skb->len;
 
 			dev_kfree_skb(skb);
 		}
@@ -348,7 +348,7 @@ static int sn_host_do_rx_batch(struct sn_queue *queue,
 		rx_meta[i] = rx_desc->meta;
 		total_len = rx_desc->total_len;
 
-		skb = skbs[i] = napi_alloc_skb(&queue->napi, total_len);
+		skb = skbs[i] = napi_alloc_skb(&queue->rx.napi, total_len);
 		if (!skb) {
 			if (net_ratelimit())
 				log_err("napi_alloc_skb() failed\n");

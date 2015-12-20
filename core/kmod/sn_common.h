@@ -105,8 +105,19 @@ struct sn_conf_space {
 	uint8_t link_on;
 	uint8_t promisc_on;
 
-	/* Indicate whether device is in loopback mode */
-	uint8_t loopback;
+	struct tx_queue_opts
+	{
+		/* If set, the driver will push tags for all xmitted packets.
+		 * Both are in host order. */
+		uint16_t tci;
+		uint16_t outer_tci;
+	} txq_opts;
+
+	struct rx_queue_opts
+	{
+		uint8_t loopback;
+	} rxq_opts;
+
 } __attribute__((__aligned__(64)));
 
 struct sn_rxq_registers {
