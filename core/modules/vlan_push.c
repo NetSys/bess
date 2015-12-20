@@ -46,6 +46,38 @@ static struct snobj *vpush_get_desc(const struct module *m)
 }
 
 /* the behavior is undefined if a packet is already double tagged */
+#if __SSE2__
+static void vpush_process_batch(struct module *m, struct pkt_batch *batch)
+{
+	struct vlan_push_priv *priv = get_priv(m);
+	int cnt = batch->cnt;
+
+	uint32_t tag[2] = {priv->qinq_tag, priv->vlan_tag};
+
+	for (int i = 0; i < cnt; i++) {
+		struct snbuf *pkt = batch->pkts[i];
+		char *ptr = snb_head_data(pkt);
+		__m128i mac_addr;
+		uint16_t tpid;
+
+		pkt->mbuf.data_off -= 4;
+		pkt->mbuf.data_len += 4;
+		pkt->mbuf.pkt_len += 4;
+
+		/* shift 12 bytes to the left by 4 bytes */
+		mac_addr = _mm_loadu_si128((__m128i *)ptr);
+		tpid = _mm_extract_epi16(mac_addr, 6);
+
+		mac_addr = _mm_insert_epi32(mac_addr, 
+				tag[tpid == rte_cpu_to_be_16(0x8100)], 
+				3);
+
+		_mm_storeu_si128((__m128i *)(ptr - 4), mac_addr);
+	}
+		
+	run_next_module(m, batch);
+}
+#else
 static void vpush_process_batch(struct module *m, struct pkt_batch *batch)
 {
 	struct vlan_push_priv *priv = get_priv(m);
@@ -57,24 +89,13 @@ static void vpush_process_batch(struct module *m, struct pkt_batch *batch)
 	for (int i = 0; i < cnt; i++) {
 		struct snbuf *pkt = batch->pkts[i];
 		char *ptr = snb_head_data(pkt);
-		uint16_t tpid = *((uint16_t *)(ptr + 12));
+		uint16_t tpid = *((uint16_t *)(ptr + 12);
 
 		pkt->mbuf.data_off -= 4;
 		pkt->mbuf.data_len += 4;
 		pkt->mbuf.pkt_len += 4;
 
-		/* shift 12 bytes to the left by 4 bytes */
-#if 1
-		__m128i mac_addr = _mm_loadu_si128((__m128i *)ptr);
-
-		/* already tagged? */
-		if (tpid == rte_cpu_to_be_16(0x8100))
-			mac_addr = _mm_insert_epi32(mac_addr, qinq_tag, 3);
-		else
-			mac_addr = _mm_insert_epi32(mac_addr, vlan_tag, 3);
-
-		_mm_storeu_si128((__m128i *)(ptr - 4), mac_addr);
-#else
+		tpid = *((uint16_t *)(ptr + 12));
 		memmove(ptr - 4, ptr, 12);
 
 		/* already tagged? */
@@ -82,11 +103,11 @@ static void vpush_process_batch(struct module *m, struct pkt_batch *batch)
 			*(uint32_t *)(ptr + 8) = qinq_tag;
 		else
 			*(uint32_t *)(ptr + 8) = vlan_tag;
-#endif
 	}
 		
 	run_next_module(m, batch);
 }
+#endif
 
 static const struct mclass vlan_push = {
 	.name 			= "VLANPush",
