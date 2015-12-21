@@ -222,8 +222,8 @@ class SoftNIC(object):
 
         return self._request_softnic('list_tcs', args)
 
-    def add_tc(self, c, wid=0, priority=0):
-        args = {'name': c, 'wid': wid, 'priority': priority}
+    def add_tc(self, c, wid=0, priority=0, limit=0):
+        args = {'name': c, 'wid': wid, 'priority': priority, 'limit': limit}
         return self._request_softnic('add_tc', args)
 
     def get_tc_stats(self, name):

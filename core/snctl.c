@@ -282,6 +282,8 @@ static struct snobj *handle_add_tc(struct snobj *q)
 		return snobj_err(EINVAL, "Priority %d is reserved",
 				DEFAULT_PRIORITY);
 
+	params.limit[RESOURCE_BIT] = snobj_eval_int(q, "limit");
+       
 	/* TODO */
 	params.share = 1;
 	params.share_resource = RESOURCE_CNT;
