@@ -3,6 +3,8 @@
 
 #include <string.h>
 
+#include <rte_memcpy.h>
+
 #define MAX_PKT_BURST			32
 
 struct snbuf;
@@ -30,11 +32,11 @@ static inline int batch_full(struct pkt_batch *batch)
 static inline void batch_copy(struct pkt_batch *dst, 
 		const struct pkt_batch *src)
 {
-	int src_cnt = src->cnt;
+	int cnt = src->cnt;
 
-	dst->cnt = src_cnt;;
-	memcpy((void *)dst->pkts, (void *)src->pkts, 
-			sizeof(struct snbuf *) * src_cnt);
+	dst->cnt = cnt;
+	rte_memcpy((void *)dst->pkts, (void *)src->pkts, 
+			cnt * sizeof(struct snbuf *));
 }
 
 #endif

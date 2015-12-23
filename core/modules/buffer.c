@@ -20,14 +20,28 @@ static void buffer_process_batch(struct module *m, struct pkt_batch *batch)
 	struct buffer_priv *priv = get_priv(m);
 	struct pkt_batch *buf = &priv->buf;
 
-	for (int i = 0; i < batch->cnt; i++) {
-		batch_add(buf, batch->pkts[i]);
+	int free_slots = MAX_PKT_BURST - buf->cnt;
+	int left = batch->cnt;
 
-		if (batch_full(buf)) {
-			run_next_module(m, buf);
-			batch_clear(buf);
-		}
+	snb_array_t p_buf = &buf->pkts[buf->cnt];
+	snb_array_t p_batch = &batch->pkts[0];
+
+	if (left >= free_slots) {
+		buf->cnt = MAX_PKT_BURST;
+		rte_memcpy((void *)p_buf, (void *)p_batch, 
+				free_slots * sizeof(struct snbuf *));
+
+		p_buf = &buf->pkts[0];
+		p_batch += free_slots;
+		left -= free_slots;
+
+		run_next_module(m, buf);
+		batch_clear(buf);
 	}
+
+	buf->cnt += left;
+	rte_memcpy((void *)p_buf, (void *)p_batch, 
+			left * sizeof(struct snbuf *));
 }
 
 static const struct mclass buffer = {

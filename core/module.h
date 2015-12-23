@@ -186,11 +186,12 @@ static void run_split(struct module *m, const gate_t *ogates,
 	int cnt = mixed_batch->cnt;
 	int num_pending = 0;
 
-	struct snbuf * restrict *p_pkt = &mixed_batch->pkts[0];
+	snb_array_t p_pkt = &mixed_batch->pkts[0];
 
 	gate_t pending[MAX_PKT_BURST];
 	struct pkt_batch batches[MAX_PKT_BURST];
 
+	struct pkt_batch *splits = ctx.splits;
 
 	/* phase 1: collect unique ogates into pending[] */
 	for (int i = 0; i < cnt; i++) {
@@ -198,20 +199,19 @@ static void run_split(struct module *m, const gate_t *ogates,
 		gate_t ogate;
 		
 		ogate = ogates[i];
-		batch = &ctx.splits[ogate];
-
-		/* branchless version didn't help */
-		if (batch->cnt == 0)
-			pending[num_pending++] = ogate;
+		batch = &splits[ogate];
 
 		batch_add(batch, *(p_pkt++));
+
+		pending[num_pending] = ogate;
+		num_pending += (batch->cnt == 1);
 	}
 
 	/* phase 2: move batches to local stack, since it may be reentrant */
 	for (int i = 0; i < num_pending; i++) {
 		struct pkt_batch *batch;
 
-		batch = &ctx.splits[pending[i]];
+		batch = &splits[pending[i]];
 		batch_copy(&batches[i], batch);
 		batch_clear(batch);
 	}
@@ -220,76 +220,5 @@ static void run_split(struct module *m, const gate_t *ogates,
 	for (int i = 0; i < num_pending; i++)
 		run_choose_module(m, pending[i], &batches[i]);
 }
-
-#if 0
-#define SN_TRACE_MODULES	0
-#define SN_CPU_USAGE		1
-
-struct module {
-	char name[MODULE_NAME_LEN];
-
-	const struct mclass *mclass;
-
-	int num_next_modules;
-	struct module *next_modules[MAX_NEXT_MODULES];
-
-	struct rte_timer *timers[MAX_WORKERS];
-
-	void *priv_shared; 	/* Note: this is shared across SoftNIC workers */
-	void *priv_worker[MAX_WORKERS];
-};
-
-#define set_priv_worker(mod, data) \
-	do { mod->priv_worker[ctx.wid] = data; } while (0)
-
-#define get_priv_worker(mod, type) \
-	((type)mod->priv_worker[ctx.wid])
-/* for single-output modules */
-void set_next_module(struct module *prev, struct module *next);
-
-/* for multi-output modules */
-void add_next_module(struct module *prev, struct module *next, void *arg);
-
-static inline int do_poll(struct module *mod)
-{
-	int ret;
-
-#if SN_TRACE_MODULES
-	_trace_start(mod, "POLL");
-#endif
-
-	ret = mod->ops->scheduled(mod);
-
-#if SN_TRACE_MODULES
-	_trace_end(ret != 0);
-#endif
-
-	return ret;
-}
-
-void dpdk_timer_cb(struct rte_timer *timer, void *arg);
-
-static inline void _reset_timer(struct module *mod, uint64_t us,
-				enum rte_timer_type type)
-{
-	rte_timer_reset_sync(mod->timers[current_wid],
-			us * (rte_get_timer_hz() / 1000000), type,
-			wid_to_lcore_map[current_wid], dpdk_timer_cb, mod);
-}
-
-/* It triggers a call to ops->timer() on the current core,
- * us microseconds later (one shot). */
-static inline void reset_timer_single(struct module *mod, uint64_t us)
-{
-	_reset_timer(mod, us, SINGLE);
-}
-
-/* It triggers a call to ops->timer() on the current core,
- * for every us microseconds. */
-static inline void reset_timer_periodic(struct module *mod, uint64_t us)
-{
-	_reset_timer(mod, us, PERIODICAL);
-}
-#endif
 
 #endif
