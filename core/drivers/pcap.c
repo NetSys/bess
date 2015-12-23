@@ -55,14 +55,6 @@ static void pcap_deinit_port(struct port *p)
 	}
 }
 
-static inline uint16_t rte_pktmbuf_data_room_size(struct rte_mempool *mp)
-{
-	struct rte_pktmbuf_pool_private *mbp_priv;
-
-	mbp_priv = (struct rte_pktmbuf_pool_private *)rte_mempool_get_priv(mp);
-	return mbp_priv->mbuf_data_room_size;
-}
-
 static int pcap_rx_jumbo(struct rte_mempool *mb_pool,
 	struct rte_mbuf *mbuf,
 	const u_char *data,
