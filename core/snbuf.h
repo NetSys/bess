@@ -206,13 +206,27 @@ slow_path:
 /* add bytes to the beginning */
 static inline char *snb_prepend(struct snbuf *snb, uint16_t len)
 {
-	return rte_pktmbuf_prepend(&snb->mbuf, len);
+	if (unlikely(snb->mbuf.data_off < len))
+		return NULL;
+
+	snb->mbuf.data_off -= len;
+	snb->mbuf.data_len += len;
+	snb->mbuf.pkt_len += len;
+
+	return snb_head_data(snb);
 }
 
 /* remove bytes from the beginning */
 static inline char *snb_adj(struct snbuf *snb, uint16_t len)
 {
-	return rte_pktmbuf_adj(&snb->mbuf, len);
+	if (unlikely(snb->mbuf.data_len < len))
+		return NULL;
+
+	snb->mbuf.data_off += len;
+	snb->mbuf.data_len -= len;
+	snb->mbuf.pkt_len -= len;
+
+	return snb_head_data(snb);
 }
 
 /* add bytes to the end */
