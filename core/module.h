@@ -118,40 +118,8 @@ int enable_tcpdump(const char* fifo, struct module *m, gate_t gate);
 
 int disable_tcpdump(struct module *m, gate_t gate);
 
-static inline int dump_pcap_pkts(int fd, struct pkt_batch *batch)
-{
-	struct timeval tv;
-	gettimeofday(&tv, NULL);
-	int ret = 0;
-	int packets = 0;
-	int error_out = 0;
-	for (int i = 0; i < batch->cnt && (!error_out); i++) {
-		struct snbuf* pkt = batch->pkts[i];
-		int len = pkt->mbuf.data_len;
-		struct pcap_rec_hdr *pkthdr = 
-			(struct pcap_rec_hdr*) snb_prepend(pkt, 
-				sizeof(struct pcap_rec_hdr));
-		pkthdr->ts_sec = tv.tv_sec;
-		pkthdr->ts_usec = tv.tv_usec;
-		pkthdr->orig_len = pkthdr->incl_len = len;
-		assert(len < PCAP_SNAPLEN);
-		ret = write(fd, snb_head_data(pkt), pkt->mbuf.data_len);
-		assert(pkt->mbuf.data_len < PIPE_BUF);
-		if (ret < 0) {
-			if (errno == EPIPE) {
-				printf("Stopping dump\n");
-				close(fd);
-				packets = -1;
-			}
-			error_out = 1;
-		} else {
-			assert(ret == pkt->mbuf.data_len);
-			packets++;
-		}
-		snb_adj(pkt, sizeof(struct pcap_rec_hdr));
-	}
-	return packets;
-}
+void dump_pcap_pkts(struct output_gate *gate, struct pkt_batch *batch);
+
 #else
 inline int enable_tcpdump(const char *, struct module *, gate_t) {
 	/* Cannot enable tcpdump */
@@ -189,15 +157,8 @@ static inline void run_choose_module(struct module *m, gate_t ogate,
 #endif
 
 #if TCPDUMP_GATES
-	if (gate->tcpdump) {
-		int ret = dump_pcap_pkts(gate->fifo_fd, batch);
-		/* Not only did the previous operation fail, 
-		 * but fd was closed */
-		if (ret < 0) {
-			gate->tcpdump = 0;
-			gate->fifo_fd = 0;
-		}
-	}
+	if (unlikely(gate->tcpdump))
+		dump_pcap_pkts(gate, batch);
 #endif
 
 	gate->f(gate->m, batch);
@@ -220,13 +181,19 @@ static inline void run_next_module(struct module *m, struct pkt_batch *batch)
  *   2. No ordering guarantee for packets with different gates.
  */
 static void run_split(struct module *m, const gate_t *ogates,
-		const struct pkt_batch *mixed_batch)
+		struct pkt_batch *mixed_batch)
 {
-	gate_t pending[MAX_PKT_BURST];
+	int cnt = mixed_batch->cnt;
 	int num_pending = 0;
 
-	/* collect */
-	for (int i = 0; i < mixed_batch->cnt; i++) {
+	struct snbuf * restrict *p_pkt = &mixed_batch->pkts[0];
+
+	gate_t pending[MAX_PKT_BURST];
+	struct pkt_batch batches[MAX_PKT_BURST];
+
+
+	/* phase 1: collect unique ogates into pending[] */
+	for (int i = 0; i < cnt; i++) {
 		struct pkt_batch *batch;
 		gate_t ogate;
 		
@@ -237,20 +204,21 @@ static void run_split(struct module *m, const gate_t *ogates,
 		if (batch->cnt == 0)
 			pending[num_pending++] = ogate;
 
-		batch_add(batch, mixed_batch->pkts[i]);
+		batch_add(batch, *(p_pkt++));
 	}
 
-	/* fire */
+	/* phase 2: move batches to local stack, since it may be reentrant */
 	for (int i = 0; i < num_pending; i++) {
 		struct pkt_batch *batch;
-		gate_t ogate;
 
-		ogate = pending[i];
-		batch = &ctx.splits[ogate];
-
-		run_choose_module(m, ogate, batch);
+		batch = &ctx.splits[pending[i]];
+		batch_copy(&batches[i], batch);
 		batch_clear(batch);
 	}
+
+	/* phase 3: fire */
+	for (int i = 0; i < num_pending; i++)
+		run_choose_module(m, pending[i], &batches[i]);
 }
 
 #if 0

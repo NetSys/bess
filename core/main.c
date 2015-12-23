@@ -26,7 +26,7 @@ static struct global_opts *opts = (struct global_opts *)&global_opts;
 static void print_usage(char *exec_name)
 {
 	fprintf(stderr, "Usage: %s" \
-			" [-t] [-c <core list>] [-p <port>] [-f] [-k]\n\n",
+			" [-t] [-c <core list>] [-p <port>] [-f] [-k] [-d]\n\n",
 			exec_name);
 
 	fprintf(stderr, "  %-16s Dump the size of internal data structures\n",
@@ -41,6 +41,10 @@ static void print_usage(char *exec_name)
 			"-f");
 	fprintf(stderr, "  %-16s Kill existing BESS instance, if any\n",
 			"-k");
+	fprintf(stderr, "  %-16s Show TC statistics every second\n",
+			"-s");
+	fprintf(stderr, "  %-16s Run BESS in debug mode\n",
+			"-d");
 
 	exit(2);
 }
@@ -53,7 +57,7 @@ static void parse_args(int argc, char **argv)
 
 	num_workers = 0;
 
-	while ((c = getopt(argc, argv, ":tc:p:fks")) != -1) {
+	while ((c = getopt(argc, argv, ":tc:p:fksd")) != -1) {
 		switch (c) {
 		case 't':
 			dump_types();
@@ -74,6 +78,10 @@ static void parse_args(int argc, char **argv)
 
 		case 's':
 			opts->print_tc_stats = 1;
+			break;
+
+		case 'd':
+			opts->debug_mode = 1;
 			break;
 
 		case ':':

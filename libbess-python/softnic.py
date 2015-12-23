@@ -76,8 +76,7 @@ class SoftNIC(object):
             print >> sys.stderr, 'Encoding error, object: %s' % repr(obj)
             raise
 
-        self.s.sendall(struct.pack('<L', len(q)))
-        self.s.sendall(q)
+        self.s.sendall(struct.pack('<L', len(q)) + q)
 
         total, = struct.unpack('<L', self.s.recv(4))
         buf = []
@@ -223,8 +222,8 @@ class SoftNIC(object):
 
         return self._request_softnic('list_tcs', args)
 
-    def add_tc(self, c, wid=0, priority=0):
-        args = {'name': c, 'wid': wid, 'priority': priority}
+    def add_tc(self, c, wid=0, priority=0, limit_sps=0, limit_cps=0, limit_pps=0, limit_bps=0):
+        args = {'name': c, 'wid': wid, 'priority': priority, 'limit_sps': limit_sps, 'limit_cps': limit_cps, 'limit_pps': limit_pps, 'limit_bps': limit_bps}
         return self._request_softnic('add_tc', args)
 
     def get_tc_stats(self, name):

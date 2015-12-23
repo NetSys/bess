@@ -62,7 +62,7 @@ static inline int find_next_nonworker_cpu(int cpu)
 static void refill_tx_bufs(struct llring *r)
 {
 	struct snbuf *pkts[REFILL_HIGH];
-	void *objs[REFILL_LOW];
+	void *objs[REFILL_HIGH];
 
 	int deficit;
 	int ret;
@@ -134,7 +134,9 @@ static void free_bar(struct vport_priv *priv)
 	rte_free(priv->bar);
 }
 
-static void *alloc_bar(struct port *p, int container_pid, int loopback)
+static void *alloc_bar(struct port *p, int container_pid, 
+		struct tx_queue_opts *txq_opts,
+		struct rx_queue_opts *rxq_opts)
 {
 	struct vport_priv *priv = get_port_priv(p);
 
@@ -172,7 +174,9 @@ static void *alloc_bar(struct port *p, int container_pid, int loopback)
 	conf->num_rxq = p->num_queues[PACKET_DIR_OUT];
 	conf->link_on = 1;
 	conf->promisc_on = 1;
-	conf->loopback = loopback;
+
+	conf->txq_opts = *txq_opts;
+	conf->rxq_opts = *rxq_opts;
 
 	ptr = (char *)(conf + 1);
 
@@ -471,6 +475,9 @@ static struct snobj *init_port(struct port *p, struct snobj *conf)
 
 	const char *ifname;
 
+	struct tx_queue_opts txq_opts = {};
+	struct rx_queue_opts rxq_opts = {};
+
 	ifname = snobj_eval_str(conf, "ifname");
 	if (!ifname)
 		ifname = p->name;
@@ -512,7 +519,12 @@ static struct snobj *init_port(struct port *p, struct snobj *conf)
 	if (priv->fd == -1)
 		return snobj_err(ENODEV, "the kernel module is not loaded");
 
-	priv->bar = alloc_bar(p, container_pid, snobj_eval_int(conf, "loopback"));
+	txq_opts.tci = snobj_eval_uint(conf, "tx_tci");
+	txq_opts.outer_tci = snobj_eval_uint(conf, "tx_outer_tci");
+	rxq_opts.loopback = snobj_eval_uint(conf, "loopback");
+
+	priv->bar = alloc_bar(p, container_pid, &txq_opts, &rxq_opts);
+
 	ret = ioctl(priv->fd, SN_IOC_CREATE_HOSTNIC, 
 			rte_malloc_virt2phy(priv->bar));
 	if (ret < 0) {

@@ -65,42 +65,45 @@ enum sn_dev_type {
 #define SN_NET_XMIT_BUFFERED	-1
 
 struct sn_queue {
-	union {
-		struct sn_queue_tx_stats {
-			u64 packets;
-			u64 bytes;
-			u64 dropped;
-			u64 throttled;
-			u64 descriptor;
-		} tx_stats;
-
-		struct sn_queue_rx_stats {
-			u64 packets;
-			u64 bytes;
-			u64 dropped;
-			u64 polls;
-			u64 interrupts;
-			u64 ll_polls;
-		} rx_stats;
-	};
-
 	struct sn_device *dev;
 	int queue_id;
-	bool is_rx;
-	bool loopback;
 
 	struct llring *drv_to_sn;
 	struct llring *sn_to_drv;
 
-	/* only valid for RX queues */
-	struct sn_rxq_registers *rx_regs;
-	struct napi_struct napi;
+	union {
+		struct {
+			struct sn_queue_tx_stats {
+				u64 packets;
+				u64 bytes;
+				u64 dropped;
+				u64 throttled;
+				u64 descriptor;
+			} stats;
 
-	/* only valid for TX queues */
-	struct netdev_queue *netdev_txq;
-	sn_stack_t ready_tx_meta;
+			struct netdev_queue *netdev_txq;
 
-	spinlock_t lock;
+			struct tx_queue_opts opts;
+		} tx;
+
+		struct {
+			struct sn_queue_rx_stats {
+				u64 packets;
+				u64 bytes;
+				u64 dropped;
+				u64 polls;
+				u64 interrupts;
+				u64 ll_polls;
+			} stats;
+
+			struct sn_rxq_registers *rx_regs;
+			struct napi_struct napi;
+
+			spinlock_t lock; /* kernel has its own locks for TX */
+
+			struct rx_queue_opts opts;
+		} rx;
+	};
 } ____cacheline_aligned_in_smp;
 
 /* host/guest-specific packet TX/RX operations */
@@ -147,8 +150,6 @@ struct sn_device {
 	enum sn_dev_type type;
 	struct sn_ops *ops;
 	struct pci_dev *pdev;	/* NULL in host mode */
-
-	bool loopback; /* Is this device looping back */ 
 };
 
 /* function prototypes defined in sn_netdev.c */

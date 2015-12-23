@@ -96,6 +96,8 @@ static struct snobj *handle_list_workers(struct snobj *q)
 				snobj_int(workers[wid]->core));
 		snobj_map_set(worker, "num_tcs",
 				snobj_int(workers[wid]->s->num_classes));
+		snobj_map_set(worker, "silent_drops",
+				snobj_int(workers[wid]->silent_drops));
 
 		snobj_list_add(r, worker);
 	}
@@ -252,6 +254,10 @@ static struct snobj *handle_add_tc(struct snobj *q)
 	struct tc_params params;
 	struct tc *c;
 
+	int i;
+	int64_t limit;
+	char *limit_str[NUM_RESOURCES] = {"limit_sps", "limit_cps","limit_pps", "limit_bps"};
+	
 	tc_name = snobj_eval_str(q, "name");
 	if (!tc_name)
 		return snobj_err(EINVAL, "Missing 'name' field");
@@ -280,6 +286,15 @@ static struct snobj *handle_add_tc(struct snobj *q)
 		return snobj_err(EINVAL, "Priority %d is reserved",
 				DEFAULT_PRIORITY);
 
+	for (i = 0; i < NUM_RESOURCES; i++) {
+	  limit = snobj_eval_int(q, limit_str[i]);
+	  if (limit < 0)
+		return snobj_err(EINVAL, 
+				 "'%s' must be 0 or greater",
+				 limit_str[i]);
+	  params.limit[i] = limit; 
+	}
+	  
 	/* TODO */
 	params.share = 1;
 	params.share_resource = RESOURCE_CNT;
@@ -965,10 +980,10 @@ struct snobj *handle_request(struct client *c, struct snobj *q)
 	struct snobj *r = NULL;
 	const char *s;
 
-#if 0
-	printf("Request:\n");
-	snobj_dump(q);
-#endif
+	if (global_opts.debug_mode) {
+		printf("Request:\n");
+		snobj_dump(q);
+	}
 
 	if (q->type != TYPE_MAP) {
 		r = snobj_err(EINVAL, "The message must be a map");
@@ -993,10 +1008,10 @@ reply:
 	if (!r)
 		r = snobj_nil();
 
-#if 0
-	printf("Response:\n");
-	snobj_dump(r);
-#endif
+	if (global_opts.debug_mode) {
+		printf("Response:\n");
+		snobj_dump(r);
+	}
 
 	return r;
 }

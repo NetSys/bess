@@ -23,6 +23,7 @@ extern const struct global_opts {
 	int foreground;		/* If 1, not daemonized */
 	int kill_existing;	/* If 1, kill existing BESS instance */
 	int print_tc_stats;	/* If 1, print TC stats every second */
+	int debug_mode;		/* If 1, print control messages */
 } global_opts;
 
 /* The term RX/TX could be very confusing for a virtual switch.
