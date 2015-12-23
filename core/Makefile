@@ -63,6 +63,7 @@ $(DEPS): $(SRCS) $(HEADERS)
 $(EXEC): $(OBJS)
 	@echo "Using DPDK from $(DPDK_LIB_DIR)"
 	$(CC) $(OBJS) -o $@ $(LDFLAGS) $(LIBS)
+	@sync
 
 -include $(DEPS)
 
