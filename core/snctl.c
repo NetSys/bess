@@ -256,7 +256,8 @@ static struct snobj *handle_add_tc(struct snobj *q)
 
 	int i;
 	int64_t limit;
-	char *limit_str[NUM_RESOURCES] = {"limit_sps", "limit_cps","limit_pps", "limit_bps"};
+	const char *limit_str[NUM_RESOURCES] = 
+			{"limit_sps", "limit_cps","limit_pps", "limit_bps"};
 	
 	tc_name = snobj_eval_str(q, "name");
 	if (!tc_name)
@@ -286,18 +287,18 @@ static struct snobj *handle_add_tc(struct snobj *q)
 		return snobj_err(EINVAL, "Priority %d is reserved",
 				DEFAULT_PRIORITY);
 
-	for (i = 0; i < NUM_RESOURCES; i++) {
-	  limit = snobj_eval_int(q, limit_str[i]);
-	  if (limit < 0)
-		return snobj_err(EINVAL, 
-				 "'%s' must be 0 or greater",
-				 limit_str[i]);
-	  params.limit[i] = limit; 
-	}
-	  
-	/* TODO */
+	/* TODO: add support for other parameters */
 	params.share = 1;
 	params.share_resource = RESOURCE_CNT;
+
+	for (i = 0; i < NUM_RESOURCES; i++) {
+		limit = snobj_eval_int(q, limit_str[i]);
+		if (limit < 0)
+			return snobj_err(EINVAL, 
+					"'%s' must be 0 or greater",
+					limit_str[i]);
+		params.limit[i] = limit; 
+	}
 
 	c = tc_init(workers[wid]->s, &params);
 	if (is_err(c))
