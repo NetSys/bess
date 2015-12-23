@@ -2,6 +2,7 @@
 .*
 *.dump
 cscope.*
+core/extra.mk
 
 # VM images
 *.img
@@ -26,7 +27,7 @@ modules.order
 bessd
 
 # 3rd-party libraries
-deps/dpdk/*
+deps/dpdk*/*
 deps/*.tgz
 deps/*.gz
 
