@@ -2,7 +2,7 @@ CC = gcc
 DPDK_LIB = dpdk
 
 ifndef RTE_SDK
-    RTE_SDK = $(abspath ../deps/dpdk)
+    RTE_SDK = $(abspath ../deps/dpdk-2.2.0)
 endif
 
 ifndef RTE_TARGET
@@ -26,10 +26,12 @@ KMOD_INC_DIR = kmod
 LDFLAGS += -rdynamic -L$(DPDK_LIB_DIR) -Wl,-rpath=$(DPDK_LIB_DIR)
 LIBS += -Wl,--whole-archive -l$(DPDK_LIB) -Wl,--no-whole-archive -lm -lpthread -ldl -lpcap
 
-CFLAGS = -std=gnu99 -g3 -ggdb3 -O3 -Wall -Werror -m64 -march=native \
-	 -Wno-unused-function -Wno-unused-but-set-variable \
-	 -I $(KMOD_INC_DIR) -I$(DPDK_INC_DIR) \
-	 -D_GNU_SOURCE
+CFLAGS += -std=gnu99 -g3 -ggdb3 -Ofast -Wall -Werror -m64 -march=native \
+	  -Wno-unused-function -Wno-unused-but-set-variable \
+	  -I $(KMOD_INC_DIR) -I$(DPDK_INC_DIR) \
+	  -D_GNU_SOURCE
+
+-include extra.mk
 
 SRCS = $(wildcard *.c modules/*.c drivers/*.c)
 OBJS = $(SRCS:.c=.o)

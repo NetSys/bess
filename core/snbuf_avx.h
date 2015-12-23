@@ -1,6 +1,10 @@
 #ifndef _SNBUF_AVX_H_
 #define _SNBUF_AVX_H_
 
+#ifndef _SNBUF_H_
+	#error "Do not directly include this file. Include snbuf.h instead."
+#endif
+
 static inline int
 snb_alloc_bulk(snb_array_t snbs, int cnt, uint16_t len)
 {
@@ -65,10 +69,6 @@ snb_alloc_bulk(snb_array_t snbs, int cnt, uint16_t len)
         return cnt;
 }
 
-/* RTE_MBUF_FROM_BADDR is not defined in DPDK 2.1 */
-#ifndef RTE_MBUF_FROM_BADDR
-#define RTE_MBUF_FROM_BADDR(ba)     (((struct rte_mbuf *)(ba)) - 1)
-#endif
 /* for packets to be processed in the fast path, all packets must:
  * 1. share the same mempool
  * 2. single segment 
@@ -81,7 +81,7 @@ static inline void snb_free_bulk(snb_array_t snbs, int cnt)
 	struct rte_mempool *_pool = snbs[0]->mbuf.pool;
 	
 	/* broadcast */
-	__m128i offset = _mm_set1_epi64x(sizeof(struct rte_mbuf));
+	__m128i offset = _mm_set1_epi64x(SNBUF_HEADROOM_OFF);
 	__m128i info_mask = _mm_set1_epi64x(0x00ffffff00000000UL);
 	__m128i info_simple = _mm_set1_epi64x(0x0001000100000000UL);
 	__m128i pool = _mm_set1_epi64x((uint64_t) _pool);
@@ -121,12 +121,12 @@ static inline void snb_free_bulk(snb_array_t snbs, int cnt)
 	}
 
 	if (i < cnt) {
-		struct rte_mbuf *mbuf = &snbs[i]->mbuf;
+		struct snbuf *snb = snbs[i];
 
-		if (unlikely(mbuf->pool != _pool || 
-				mbuf->next != NULL || 
-				rte_mbuf_refcnt_read(mbuf) != 1 ||
-				RTE_MBUF_FROM_BADDR(mbuf->buf_addr) != mbuf))
+		if (unlikely(snb->mbuf.pool != _pool || 
+				snb->mbuf.next != NULL || 
+				rte_mbuf_refcnt_read(&snb->mbuf) != 1 ||
+				snb->mbuf.buf_addr != snb->_headroom))
 		{
 			goto slow_path;
 		}
