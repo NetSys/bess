@@ -46,11 +46,8 @@ struct snbuf {
 		char _mbuf[SNBUF_MBUF];
 	};
 
-	char _headroom[SNBUF_HEADROOM];
-	char _data[SNBUF_DATA];
-
 	union {
-		char _reserve[SNBUF_TAIL_RESERVE];
+		char _reserve[SNBUF_RESERVE];
 
 		struct {
 			union {
@@ -92,6 +89,9 @@ struct snbuf {
 			char _scratchpad[SNBUF_SCRATCHPAD];
 		};
 	};
+
+	char _headroom[SNBUF_HEADROOM];
+	char _data[SNBUF_DATA];
 };
 
 typedef struct snbuf * restrict * restrict snb_array_t;

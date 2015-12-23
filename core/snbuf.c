@@ -18,7 +18,8 @@ struct rte_mbuf pframe_template;
 
 static struct rte_mempool *pframe_pool[RTE_MAX_NUMA_NODES];
 
-static void snbuf_pool_init(struct rte_mempool *mp, void *opaque_arg,
+/* per-packet initializer for mempool */
+static void snbuf_pkt_init(struct rte_mempool *mp, void *opaque_arg,
 		void *_m, unsigned i)
 {
 	struct snbuf *snb;
@@ -29,15 +30,10 @@ static void snbuf_pool_init(struct rte_mempool *mp, void *opaque_arg,
 
 	rte_pktmbuf_init(mp, NULL, _m, i);
 
-	memset(snb->_reserve, 0, SNBUF_TAIL_RESERVE);
-
-	/* Exclude tail area, which is not for packet payload.
-	 * NOTE: Do not rte_pktmbuf_detach(), since it resets the field. */
-	snb->mbuf.buf_len = SNBUF_HEADROOM + SNBUF_DATA;
+	memset(snb->_reserve, 0, SNBUF_RESERVE);
 
 	immutable->vaddr = snb;
 	immutable->paddr = rte_mempool_virt2phy(mp, snb);
-
 	immutable->sid = (uint32_t)(uint64_t)opaque_arg;
 	immutable->index = i;
 
@@ -46,18 +42,21 @@ static void snbuf_pool_init(struct rte_mempool *mp, void *opaque_arg,
 
 static void init_mempool_socket(int sid)
 {
+	struct rte_pktmbuf_pool_private pool_priv;
 	char name[256];
 	
 	sprintf(name, "pframe%d", sid);
+
+	pool_priv.mbuf_data_room_size = SNBUF_HEADROOM + SNBUF_DATA;
+	pool_priv.mbuf_priv_size = SNBUF_RESERVE;
+
 	pframe_pool[sid] = rte_mempool_create(name, 
 			NUM_PFRAMES, 
-			sizeof(struct rte_mbuf) + \
-			  SNBUF_HEADROOM + SNBUF_DATA + SNBUF_TAIL_RESERVE,
+			sizeof(struct snbuf),
 			NUM_MEMPOOL_CACHE, 
 			sizeof(struct rte_pktmbuf_pool_private),
-			rte_pktmbuf_pool_init, 
-			(void *)(SNBUF_HEADROOM + SNBUF_DATA), 
-			snbuf_pool_init, (void *)(int64_t)sid, 
+			rte_pktmbuf_pool_init, &pool_priv,
+			snbuf_pkt_init, (void *)(int64_t)sid, 
 			sid, 0);
 
 	if (!pframe_pool[sid]) {
@@ -66,7 +65,7 @@ static void init_mempool_socket(int sid)
 		exit(EXIT_FAILURE);
 	}
 
-	/* rte_mempool_dump(stdout, pframe_pool[sid]); */
+	rte_mempool_dump(stdout, pframe_pool[sid]);
 }
 
 static void init_templates(void)
@@ -91,9 +90,9 @@ void init_mempool(void)
 
 	int i;
 
-	assert(SNBUF_IMMUTABLE_OFF == 1792);
-	assert(SNBUF_METADATA_OFF == 1856);
-	assert(SNBUF_SCRATCHPAD_OFF == 1984);
+	assert(SNBUF_IMMUTABLE_OFF == 128);
+	assert(SNBUF_METADATA_OFF == 192);
+	assert(SNBUF_SCRATCHPAD_OFF == 320);
 
 	for (i = 0; i < RTE_MAX_NUMA_NODES; i++)
 		initialized[i] = 0;
