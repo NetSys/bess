@@ -121,15 +121,6 @@ def set_config(filename, config, new_value):
                 line = '%s=%s\n' % (config, new_value)
             fp.write(line)
 
-def download_dpdk():
-    try:
-        print 'Downloading %s ...  ' % DPDK_URL,
-        urllib.urlretrieve(DPDK_URL, DPDK_FILE, reporthook=download_hook) 
-        print
-    except:
-        cmd('rm -f %s' % (DPDK_FILE))
-        raise
-
 def check_bnx():
     if check_c_header('zlib.h') and check_c_lib('z'):
         global extra_libs
@@ -161,6 +152,15 @@ def generate_extra_mk():
         fp.write('LIBS += %s ' % \
                 ' '.join(map(lambda lib: '-l' + lib, extra_libs)))
 
+def download_dpdk():
+    try:
+        print 'Downloading %s ...  ' % DPDK_URL,
+        urllib.urlretrieve(DPDK_URL, DPDK_FILE, reporthook=download_hook) 
+        print
+    except:
+        cmd('rm -f %s' % (DPDK_FILE))
+        raise
+
 def configure_dpdk():
     try:
         print 'Configuring DPDK...'
@@ -189,6 +189,9 @@ def setup_dpdk():
             cmd('tar zxf %s -C %s --strip-components 1' % (DPDK_FILE, DPDK_DIR))
         except:
             cmd('rm -rf %s' % (DPDK_DIR))
+            raise
+        finally:
+            cmd('rm -f %s' % (DPDK_FILE))
 
     # not configured yet?
     if not os.path.exists('%s/build' % DPDK_DIR):
