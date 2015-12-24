@@ -1,9 +1,12 @@
 #include "../module.h"
 
+#include "../utils/simd.h"
+
 #include <rte_hash_crc.h>
 #include <rte_prefetch.h>
 
-#define MAX_TABLE_SIZE (1048576 * 32)
+#define MAX_TABLE_SIZE (1048576*64)
+#define DEFAULT_TABLE_SIZE (1048576)
 #define MAX_BUCKET_SIZE (4)
 
 #define RESERVED_OCCUPIED_BIT (0x1ul)
@@ -13,15 +16,18 @@
 #define L2_BROADCAST_GATE (UINT16_MAX - 1)
 #define L2_INVALID_GATE (INVALID_GATE)
 
-#define MAX_LOOKUP_BATCH (4)
-
-#define PREFETCH (1)
+#define USE_RTEMALLOC (1)
 
 struct l2_entry
 {
-	uint64_t addr;
-	uint32_t gate;
-	uint32_t reserved;
+	union {
+		struct {
+			uint64_t addr:48;
+			uint64_t gate:15;
+			uint64_t occupied:1;
+		};
+		uint64_t entry;
+	};
 };
 
 struct l2_table
@@ -30,6 +36,7 @@ struct l2_table
 	uint64_t size;
 	uint64_t size_power;
 	uint64_t bucket;
+	uint64_t count;
 };
 
 typedef uint64_t mac_addr_t;
@@ -41,11 +48,11 @@ static int is_power_of_2(uint64_t n)
 }
 
 /*
- * l2_init: 
- *  Initilizes the l2_table. 
+ * l2_init:
+ *  Initilizes the l2_table.
  *  It creates the slots of MAX_TABLE_SIZE multiplied by MAX_BUCKET_SIZE.
- * 
- * @l2tbl: pointer to 
+ *
+ * @l2tbl: pointer to
  * @size: number of hash value entries. must be power of 2, greater than 0, and
  *        less than equal to MAX_TABLE_SIZE (2^30)
  * @bucket: number of slots per hash value. must be power of 2, greater than 0,
@@ -56,7 +63,7 @@ static int l2_init(struct l2_table *l2tbl, int size, int bucket)
 	if (size <= 0 || size > MAX_TABLE_SIZE ||
 	    !is_power_of_2(size))
 		return -EINVAL;
-	
+
 	if (bucket <= 0 || bucket > MAX_BUCKET_SIZE ||
 	    !is_power_of_2(bucket))
 		return -EINVAL;
@@ -64,7 +71,7 @@ static int l2_init(struct l2_table *l2tbl, int size, int bucket)
 	if (l2tbl == NULL)
 		return -EINVAL;
 
-#if 0
+#if USE_RTEMALLOC
 	l2tbl->table =
 		rte_zmalloc("l2tbl",
 			    sizeof(struct l2_entry) * size * bucket, 0);
@@ -72,7 +79,7 @@ static int l2_init(struct l2_table *l2tbl, int size, int bucket)
 	l2tbl->table =
 		malloc(sizeof(struct l2_entry) * size * bucket);
 #endif
-	
+
 	if (l2tbl->table == NULL)
 		return -ENOMEM;
 
@@ -80,8 +87,8 @@ static int l2_init(struct l2_table *l2tbl, int size, int bucket)
 	l2tbl->bucket = bucket;
 
 	printf("size: %d\n", size);
-	
-	/* calculates the log_2 (size) */	
+
+	/* calculates the log_2 (size) */
 	l2tbl->size_power = 0;
 	while (size > 1) {
 		size = size >> 1;
@@ -106,7 +113,7 @@ static int l2_deinit(struct l2_table *l2tbl)
 	if (l2tbl->bucket == 0)
 		return -EINVAL;
 
-#if 0
+#if USE_RTEMALLOC
 	rte_free(l2tbl->table);
 #else
 	free(l2tbl->table);
@@ -139,8 +146,108 @@ static uint32_t l2_alt_index(uint32_t hash, uint32_t size_power, uint32_t index)
 	return (index ^ tag) & ((0x1lu << (size_power - 1)) - 1);
 }
 
-static int l2_find(struct l2_table *l2tbl,
-		   uint64_t addr, gate_t *gate, uint32_t *offset_out)
+
+static inline int find_index_basic(uint64_t addr, uint64_t *table)
+{
+	for (int i = 0; i < 4; i++) {
+		if ((addr | (1ul<<63)) ==
+		    (table[i] & 0x8000ffffFFFFffffUL)) {
+			return i + 1;
+		}
+	}
+
+	return 0;
+}
+
+const union {
+	uint64_t val[4];
+	__m256d _mask;
+} _mask = { .val = {0x8000ffffFFFFfffflu,
+		    0x8000ffffFFFFfffflu,
+		    0x8000ffffFFFFfffflu,
+		    0x8000ffffFFFFfffflu}};
+
+static inline int find_index_avx(uint64_t addr, uint64_t *table)
+{
+	__m256d _addr = (__m256d)_mm256_set1_epi64x(addr | (1lu << 63));
+	__m256d _table = _mm256_load_pd((double *)table);
+	_table = _mm256_and_pd(_table, _mask._mask);
+	__m256d cmp = _mm256_cmp_pd(_addr, _table, _CMP_EQ_OQ);
+
+	return __builtin_ffs(_mm256_movemask_pd(cmp));
+}
+
+
+static inline int find_index(uint64_t addr, uint64_t *table, const uint64_t count) {
+#if __AVX__
+	return find_index_avx(addr, table);
+#else
+	return find_index_basic(addr, table);
+#endif
+}
+
+
+static inline int l2_find(struct l2_table *l2tbl,
+			  uint64_t addr, gate_t *gate)
+{
+	int i;
+	int ret = -ENOENT;
+	uint32_t hash, idx1, offset;
+	struct l2_entry *tbl = l2tbl->table;
+
+	hash = l2_hash(addr);
+	idx1 = l2_hash_to_index(hash, l2tbl->size);
+
+	offset = l2_ib_to_offset(l2tbl, idx1, 0);
+
+	if (l2tbl->bucket == 4) {
+		int tmp1 = find_index(addr, &tbl[offset].entry, l2tbl->count);
+		if (tmp1) {
+			*gate  = tbl[offset + tmp1 - 1].gate;
+			return 0;
+		}
+
+		idx1 = l2_alt_index(hash, l2tbl->size_power, idx1);
+		offset = l2_ib_to_offset(l2tbl, idx1, 0);
+
+		int tmp2 = find_index(addr, &tbl[offset].entry, l2tbl->count);
+
+		if (tmp2) {
+			*gate  = tbl[offset + tmp2 - 1].gate;
+			return 0;
+		}
+
+	} else {
+		/* search buckets for first index */
+		for (i = 0; i < l2tbl->bucket; i++) {
+			if (tbl[offset].occupied &&
+			    addr == tbl[offset].addr) {
+				*gate = tbl[offset].gate;
+				return 0;
+			}
+
+			offset++;
+		}
+
+		idx1 = l2_alt_index(hash, l2tbl->size_power, idx1);
+		offset = l2_ib_to_offset(l2tbl, idx1, 0);
+		/* search buckets for alternate index */
+		for (i = 0; i < l2tbl->bucket; i++) {
+			if (tbl[offset].occupied &&
+			    addr == tbl[offset].addr) {
+				*gate = tbl[offset].gate;
+				return 0;
+			}
+
+			offset++;
+		}
+	}
+	//printf("return %d\n",ret);
+	return ret;
+}
+
+static int l2_find_offset(struct l2_table *l2tbl,
+		   uint64_t addr, uint32_t *offset_out)
 {
 	int i;
 	uint32_t hash, idx1, offset;
@@ -154,9 +261,8 @@ static int l2_find(struct l2_table *l2tbl,
 	/* search buckets for first index */
 	for (i = 0; i < l2tbl->bucket; i++) {
 
-		if ((tbl[offset].reserved & RESERVED_OCCUPIED_BIT) &&
+		if (tbl[offset].occupied &&
 		    addr == tbl[offset].addr) {
-			*gate = tbl[offset].gate;
 			*offset_out = offset;
 			return 0;
 		}
@@ -164,17 +270,16 @@ static int l2_find(struct l2_table *l2tbl,
 		offset++;
 	}
 
-	idx1 = l2_alt_index(hash, l2tbl->size_power, idx1);	
-	offset = l2_ib_to_offset(l2tbl, idx1, 0);	
+	idx1 = l2_alt_index(hash, l2tbl->size_power, idx1);
+	offset = l2_ib_to_offset(l2tbl, idx1, 0);
 	/* search buckets for alternate index */
 	for (i = 0; i < l2tbl->bucket; i++) {
-		if ((tbl[offset].reserved & RESERVED_OCCUPIED_BIT) &&
+		if (tbl[offset].occupied &&
 		    addr == tbl[offset].addr) {
-			*gate = tbl[offset].gate;
 			*offset_out = offset;
 			return 0;
 		}
-		
+
 		offset++;
 	}
 
@@ -192,11 +297,11 @@ static int l2_find_slot(struct l2_table *l2tbl, mac_addr_t addr,
 
 	hash = l2_hash(addr);
 	idx1 = l2_hash_to_index(hash, l2tbl->size);
-	
+
 	/* if there is available slot */
 	for (i = 0; i < l2tbl->bucket; i++) {
 		offset1 = l2_ib_to_offset(l2tbl, idx1, i);
-		if (!(tbl[offset1].reserved & RESERVED_OCCUPIED_BIT)) {
+		if (!tbl[offset1].occupied) {
 			*idx = idx1;
 			*bucket = i;
 			return 0;
@@ -215,15 +320,15 @@ static int l2_find_slot(struct l2_table *l2tbl, mac_addr_t addr,
 		/* if the alternate bucket is same as original skip it */
 		if (idx_v1 == idx_v2 || idx1 == idx_v2)
 			break;
-		
+
 		for (j = 0; j < l2tbl->bucket; j++) {
 			offset2 = l2_ib_to_offset(l2tbl, idx_v2, j);
-			if (!(tbl[offset2].reserved & RESERVED_OCCUPIED_BIT)) {
+			if (!tbl[offset2].occupied) {
 				/* move offset1 to offset2 */
 				tbl[offset2] = tbl[offset1];
 				/* clear offset1 */
-				tbl[offset1].reserved = 0;
-			
+				tbl[offset1].occupied = 0;
+
 				*idx = idx1;
 				*bucket = 0;
 				return 0;
@@ -243,7 +348,7 @@ static int l2_add_entry(struct l2_table *l2tbl, mac_addr_t addr, gate_t gate)
 	gate_t gate_tmp;
 
 	/* if addr already exist then fail */
-	if (l2_find(l2tbl, addr, &gate_tmp, &offset) == 0) {
+	if (l2_find(l2tbl, addr, &gate_tmp) == 0) {
 		return -EEXIST;
 	}
 
@@ -257,79 +362,24 @@ static int l2_add_entry(struct l2_table *l2tbl, mac_addr_t addr, gate_t gate)
 
 	l2tbl->table[offset].addr = addr;
 	l2tbl->table[offset].gate = gate;
-	l2tbl->table[offset].reserved |= RESERVED_OCCUPIED_BIT;
+	l2tbl->table[offset].occupied = 1;
+	l2tbl->count++;
 	return 0;
 }
 
 static int l2_del_entry(struct l2_table *l2tbl, uint64_t addr)
 {
 	uint32_t offset = 0xFFFFFFFF;
-	gate_t gate;
 
-	if (l2_find(l2tbl, addr, &gate, &offset)) {
+	if (l2_find_offset(l2tbl, addr, &offset)) {
 		return -ENOENT;
 	}
 
 	l2tbl->table[offset].addr = 0;
 	l2tbl->table[offset].gate = 0;
-	l2tbl->table[offset].reserved = 0;
-
+	l2tbl->table[offset].occupied = 0;
+	l2tbl->count--;
 	return 0;
-}
-
-
-
-__attribute__((optimize("unroll-loops")))
-static void l2_find_batch(struct l2_table *l2tbl, uint64_t *addr,
-			  gate_t *result, int count)
-{
-	int i, j;
-	uint32_t hash[MAX_LOOKUP_BATCH], idx1[MAX_LOOKUP_BATCH];
-	uint32_t idx2[MAX_LOOKUP_BATCH], offset;
-	struct l2_entry *tbl = l2tbl->table;	
-
-	assert(count == MAX_LOOKUP_BATCH);
-	
-	for (i = 0; i < MAX_LOOKUP_BATCH; i++) {
-		hash[i] = l2_hash(addr[i]);
-		idx1[i] = l2_hash_to_index(hash[i], l2tbl->size);
-		idx2[i] = l2_alt_index(hash[i], l2tbl->size_power, idx1[i]);
-		result[i] = INVALID_GATE;
-#if PREFETCH
-		offset = l2_ib_to_offset(l2tbl, idx1[i], 0);
-		rte_prefetch0(&tbl[offset]);
-		offset = l2_ib_to_offset(l2tbl, idx2[i], 0);		
-		rte_prefetch0(&tbl[offset]);
-#endif
-	}
-
-	for (i = 0; i < MAX_LOOKUP_BATCH; i++) {
-		offset = l2_ib_to_offset(l2tbl, idx1[i], 0);
-		
-		for (j = 0; j < l2tbl->bucket; j++) {
-			if ((tbl[offset].reserved & RESERVED_OCCUPIED_BIT) &&
-			    addr[i] == tbl[offset].addr) {
-				result[i] = tbl[offset].gate;
-				break;
-			}
-
-			offset++;
-		}
-		
-		if (result[i] != INVALID_GATE)
-			continue;
-
-		offset = l2_ib_to_offset(l2tbl, idx2[i], 0);
-		for (j = 0; j < l2tbl->bucket; j++) {
-			if ((tbl[offset].reserved & RESERVED_OCCUPIED_BIT) &&
-			    addr[i] == tbl[offset].addr) {
-				result[i] = tbl[offset].gate;
-				break;
-			}
-
-			offset++;
-		}
-	}
 }
 
 static int l2_flush(struct l2_table *l2tbl)
@@ -338,7 +388,7 @@ static int l2_flush(struct l2_table *l2tbl)
 		return -EINVAL;
 	if (NULL == l2tbl->table)
 		return -EINVAL;
-	
+
 	memset(l2tbl->table,
 	       0,
 	       sizeof(struct l2_entry) * l2tbl->size * l2tbl->bucket);
@@ -391,7 +441,7 @@ static void l2_forward_init_test()
 
 	ret = l2_init(&l2tbl, 6, 4);
 	assert(ret < 0);
-	
+
 	ret = l2_init(&l2tbl, 2<<10, 2);
 	assert(!ret);
 	ret = l2_deinit(&l2tbl);
@@ -408,9 +458,8 @@ static void l2_forward_entry_test()
 
 	uint64_t addr1 = 0x0123456701234567;
 	uint64_t addr2 = 0x9876543210987654;
-	uint32_t offset;
 	uint16_t index1 = 0x0123;
-	uint16_t gate_index;
+	uint16_t gate_index = -1;
 
 	ret = l2_init(&l2tbl, 4, 4);
 	assert(!ret);
@@ -419,12 +468,12 @@ static void l2_forward_entry_test()
 	printf("add entry: %lu, index: %hu\n", addr1, index1);
 	assert(!ret);
 
-	ret = l2_find(&l2tbl, addr1, &gate_index, &offset);
-	printf("find entry: %lu, index: %hu\n", addr1, gate_index);	
+	ret = l2_find(&l2tbl, addr1, &gate_index);
+	printf("find entry: %lu, index: %hu\n", addr1, gate_index);
 	assert(!ret);
 	assert(index1==gate_index);
 
-	ret = l2_find(&l2tbl, addr2, &gate_index, &offset);
+	ret = l2_find(&l2tbl, addr2, &gate_index);
 	assert(ret < 0);
 
 	ret = l2_del_entry(&l2tbl, addr1);
@@ -433,11 +482,11 @@ static void l2_forward_entry_test()
 	ret = l2_del_entry(&l2tbl, addr2);
 	assert(ret < 0);
 
-	ret = l2_find(&l2tbl, addr1, &gate_index, &offset);
+	ret = l2_find(&l2tbl, addr1, &gate_index);
 	assert(ret < 0);
-	
+
 	ret = l2_deinit(&l2tbl);
-	assert(!ret);	
+	assert(!ret);
 }
 
 void l2_forward_flush_test()
@@ -448,7 +497,6 @@ void l2_forward_flush_test()
 	uint64_t addr1 = 0x0123456701234567;
 	uint16_t index1 = 0x0123;
 	uint16_t gate_index;
-	uint32_t offset;
 
 	ret = l2_init(&l2tbl, 4, 4);
 	assert(!ret);
@@ -459,11 +507,11 @@ void l2_forward_flush_test()
 	ret = l2_flush(&l2tbl);
 	assert(!ret);
 
-	ret = l2_find(&l2tbl, addr1, &gate_index, &offset);
+	ret = l2_find(&l2tbl, addr1, &gate_index);
 	assert(ret < 0);
 
 	ret = l2_deinit(&l2tbl);
-	assert(!ret);	
+	assert(!ret);
 }
 
 void l2_forward_collision_test()
@@ -502,12 +550,12 @@ void l2_forward_collision_test()
 		uint16_t gate_index;
 		gate_index = 0;
 		offset = 0;
-		
-		ret = l2_find(&l2tbl, addr[i], &gate_index, &offset);
-		
+
+		ret = l2_find(&l2tbl, addr[i], &gate_index);
+
 		printf("find result: %ld, %d, %d\n",
 		       addr[i], gate_index, offset);
-		
+
 		if (success[i]) {
 			assert(!ret);
 			assert(idx[i] == gate_index);
@@ -517,7 +565,7 @@ void l2_forward_collision_test()
 	}
 
 	ret = l2_deinit(&l2tbl);
-	assert(!ret);	
+	assert(!ret);
 #undef H_SIZE
 #undef B_SIZE
 #undef MAX_HB_CNT
@@ -541,7 +589,7 @@ struct l2_forward_priv {
 	gate_t default_gate;
 };
 
-static struct snobj *init(struct module *m, struct snobj *arg)
+static struct snobj *l2_forward_init(struct module *m, struct snobj *arg)
 {
 	struct l2_forward_priv *priv = get_priv(m);
 	int ret = 0;
@@ -551,13 +599,13 @@ static struct snobj *init(struct module *m, struct snobj *arg)
 	priv->init = 0;
 
 	priv->default_gate = INVALID_GATE;
-	
+
 	if (size == 0)
-		size = MAX_TABLE_SIZE;
+		size = DEFAULT_TABLE_SIZE;
 	if (bucket == 0)
 		bucket = MAX_BUCKET_SIZE;
 
-	assert(priv != NULL);	
+	assert(priv != NULL);
 	ret = l2_init(&priv->l2_table, size, bucket);
 
 	if (ret != 0) {
@@ -568,10 +616,11 @@ static struct snobj *init(struct module *m, struct snobj *arg)
 	}
 
 	priv->init = 1;
+
 	return NULL;
 }
 
-static void deinit(struct module *m)
+static void l2_forward_deinit(struct module *m)
 {
 	struct l2_forward_priv *priv = get_priv(m);
 
@@ -600,11 +649,12 @@ static int parse_mac_addr(const char *str, char *addr)
 	return 0;
 }
 
+
 static struct snobj *handle_add(struct l2_forward_priv *priv,
 				struct snobj *add)
 {
 	int i;
-	
+
 	if (snobj_type(add) != TYPE_LIST) {
 		return snobj_err(EINVAL, "add must be given as a list of map");
 	}
@@ -628,7 +678,7 @@ static struct snobj *handle_add(struct l2_forward_priv *priv,
 			return snobj_err(EINVAL,
 					 "add list item map must contain gate"
 					 " as an integer");
-		
+
 		char *str_addr = snobj_str_get(_addr);
 		int gate = snobj_int_get(_gate);
 		char addr[6];
@@ -637,7 +687,7 @@ static struct snobj *handle_add(struct l2_forward_priv *priv,
 			return snobj_err(EINVAL,
 					 "%s is not a proper mac address",
 					 str_addr);
-		
+
 		int r = l2_add_entry(&priv->l2_table,
 				   l2_addr_to_u64(addr), gate);
 
@@ -654,14 +704,83 @@ static struct snobj *handle_add(struct l2_forward_priv *priv,
 		}
 	}
 
-	return NULL;			
+	return NULL;
 }
+
+static struct snobj *handle_gen(struct l2_forward_priv *priv,
+				struct snobj *gen)
+{
+	int i;
+	struct snobj *m;
+	char *base;
+	char base_str[6];
+	uint64_t base_u64;
+
+	if (snobj_type(gen) != TYPE_MAP) {
+		return snobj_err(EINVAL, "gen must be given as a map");
+	}
+
+	//parse base addr
+	base = snobj_eval_str(gen, "base");
+	if (base == NULL) {
+		return snobj_err(EINVAL, "base must exist in gen, and must be string");
+	}
+
+	if (parse_mac_addr(base, base_str) != 0) {
+		return snobj_err(EINVAL,
+				 "%s is not a proper mac address",
+				 base_str);
+	}
+
+	base_u64 = l2_addr_to_u64(base_str);
+
+	//parse entry count
+	m = snobj_eval(gen, "count");
+
+	if (m == NULL)
+		return snobj_err(EINVAL,
+				 "count must exist in gen, and must be int");
+
+	if (snobj_type(m) != TYPE_INT)
+		return snobj_err(EINVAL,
+				 "count must be int");
+
+	//parse gate count
+	m = snobj_eval(gen, "gate_count");
+
+	if (m == NULL)
+		return snobj_err(EINVAL,
+				 "gate_count must exist in gen, and must be int");
+
+	if (snobj_type(m) != TYPE_INT)
+		return snobj_err(EINVAL,
+				 "gate_count must be int");
+
+
+	int cnt = snobj_eval_int(gen, "count");
+	int gate_cnt = snobj_eval_int(gen, "gate_count");
+
+	base_u64 = rte_be_to_cpu_64(base_u64);
+	base_u64 = base_u64 >> 16;
+
+	for (i = 0; i < cnt; i++) {
+		l2_add_entry(&priv->l2_table,
+			     rte_cpu_to_be_64(base_u64 << 16),
+			     i % gate_cnt);
+
+		base_u64++;
+	}
+
+
+	return NULL;
+}
+
 
 static struct snobj *handle_lookup(struct l2_forward_priv *priv,
 				struct snobj *lookup)
 {
 	int i;
-	
+
 	if (snobj_type(lookup) != TYPE_LIST) {
 		return snobj_err(EINVAL, "lookup must be given as a list");
 	}
@@ -685,23 +804,21 @@ static struct snobj *handle_lookup(struct l2_forward_priv *priv,
 		}
 
 		gate_t gate;
-		uint32_t offset;
 		int r = l2_find(&priv->l2_table,
 				l2_addr_to_u64(addr),
-				&gate,
-				&offset);
+				&gate);
 
 		if (r == -ENOENT) {
 			snobj_free(ret);
 			return snobj_err(ENOENT,
 					 "MAC address '%s' does not exist",
-					 str_addr);			
+					 str_addr);
 		} else if ( r != 0) {
 			snobj_free(ret);
 			return snobj_err(EINVAL,
 					 "Unknown Error: %d\n", r);
-		} 
-		
+		}
+
 		snobj_list_add(ret, snobj_int(gate));
 	}
 
@@ -712,7 +829,7 @@ static struct snobj *handle_del(struct l2_forward_priv *priv,
 				struct snobj *del)
 {
 	int i;
-	
+
 	if (snobj_type(del) != TYPE_LIST) {
 		return snobj_err(EINVAL, "lookup must be given as a list");
 	}
@@ -760,23 +877,31 @@ static struct snobj *handle_def_gate(struct l2_forward_priv *priv,
 	return NULL;
 }
 
-static struct snobj *query(struct module *m, struct snobj *q)
+static struct snobj *l2_forward_query(struct module *m, struct snobj *q)
 {
 	struct l2_forward_priv *priv = get_priv(m);
 
 	struct snobj *ret = NULL;
 
-
 	struct snobj *add = snobj_eval(q, "add");
 	struct snobj *lookup = snobj_eval(q, "lookup");
 	struct snobj *del = snobj_eval(q, "del");
 	struct snobj *def_gate = snobj_eval(q, "default");
+	struct snobj *gen = snobj_eval(q, "gen");
 
 	if (add) {
 		ret = handle_add(priv, add);
 		if (ret)
 			return ret;
 	}
+
+	if (gen){
+		ret = handle_gen(priv, gen);
+		if (ret)
+			return ret;
+	}
+
+
 
 	if (lookup) {
 		ret = handle_lookup(priv, lookup);
@@ -799,44 +924,27 @@ static struct snobj *query(struct module *m, struct snobj *q)
 	return NULL;
 }
 
-static struct snobj *get_desc(const struct module *m)
+static struct snobj *l2_forward_get_desc(const struct module *m)
 {
 	return NULL;
 }
 
 __attribute__((optimize("unroll-loops")))
-static void process_batch(struct module *m, struct pkt_batch *batch)
+static void l2_forward_process_batch(struct module *m, struct pkt_batch *batch)
 {
 	gate_t ogates[MAX_PKT_BURST];
-	int r, i = 0;
+	int r, i;
 
-	uint32_t offset;
 	struct l2_forward_priv *priv = get_priv(m);
 
-#if 1
-	while (batch->cnt - i >= MAX_LOOKUP_BATCH) {
-		uint64_t addrs[MAX_LOOKUP_BATCH];
-
-		for (int j = 0; j < MAX_LOOKUP_BATCH; j++)
-			addrs[j] = l2_addr_to_u64(snb_head_data(batch->pkts[i + j]));
-
-		l2_find_batch(&priv->l2_table,
-			      addrs,
-			      ogates + i,
-			      MAX_LOOKUP_BATCH);
-
-		i += MAX_LOOKUP_BATCH;
-	}
-#endif
-	for (; i < batch->cnt; i++) {
+	for (i = 0; i < batch->cnt; i++) {
 		struct snbuf *snb = batch->pkts[i];
 
 		ogates[i] = priv->default_gate;
 
 		r = l2_find(&priv->l2_table,
 			    l2_addr_to_u64(snb_head_data(snb)),
-			    &ogates[i],
-			    &offset);
+			    &ogates[i]);
 	}
 
 	run_split(m, ogates, batch);
@@ -847,11 +955,12 @@ static const struct mclass l2_forward = {
 	.name            = "L2Forward",
 	.def_module_name = "l2_forward",
 	.priv_size       = sizeof(struct l2_forward_priv),
-	.init            = init,
-	.deinit          = deinit,
-	.query           = query,
-	.get_desc        = get_desc,
-	.process_batch   = process_batch,
+	.init            = l2_forward_init,
+	.deinit          = l2_forward_deinit,
+	.query           = l2_forward_query,
+	.get_desc        = l2_forward_get_desc,
+	.process_batch   = l2_forward_process_batch,
 };
+
 
 ADD_MCLASS(l2_forward)
