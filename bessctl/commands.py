@@ -386,6 +386,10 @@ def daemon_start(cli):
         cli.softnic.disconnect()
 
         try:
+            ret = os.system('sudo -n echo -n 2> /dev/null')
+            if os.WEXITSTATUS(ret) != 0:
+                cli.fout.write('You need root privilege to launch BESS daemon, '
+                        'but "sudo" requires a password for this account.\n')
             subprocess.check_call(cmd, shell='True')
         except subprocess.CalledProcessError:
             raise cli.CommandError('Cannot start BESS daemon')
