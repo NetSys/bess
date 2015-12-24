@@ -357,7 +357,7 @@ def warn(cli, msg, func):
             resp = raw_input('WARNING: %s Are you sure? (type "yes") ' % msg)
 
             if resp.strip() == 'yes':
-                func()
+                func(cli)
             else:
                 cli.fout.write('Canceled.\n')
                 return False
@@ -374,28 +374,28 @@ def warn(cli, msg, func):
                 cli.rl.remove_history_item(hist_len - 1)
 
     else:
-        func()
+        func(cli)
 
     return True
 
+def _do_start(cli):
+    cmd = 'sudo %s/core/bessd -k' % os.path.dirname(cli.this_dir)
+
+    cli.softnic.disconnect()
+
+    try:
+        ret = os.system('sudo -n echo -n 2> /dev/null')
+        if os.WEXITSTATUS(ret) != 0:
+            cli.fout.write('You need root privilege to launch BESS daemon, '
+                    'but "sudo" requires a password for this account.\n')
+        subprocess.check_call(cmd, shell='True')
+    except subprocess.CalledProcessError:
+        raise cli.CommandError('Cannot start BESS daemon')
+    else:
+        cli.softnic.connect()
+
 @cmd('daemon start', 'Start BESS daemon in the local machine')
 def daemon_start(cli):
-    def do_start():
-        cmd = 'sudo %s/core/bessd -k' % os.path.dirname(cli.this_dir)
-
-        cli.softnic.disconnect()
-
-        try:
-            ret = os.system('sudo -n echo -n 2> /dev/null')
-            if os.WEXITSTATUS(ret) != 0:
-                cli.fout.write('You need root privilege to launch BESS daemon, '
-                        'but "sudo" requires a password for this account.\n')
-            subprocess.check_call(cmd, shell='True')
-        except subprocess.CalledProcessError:
-            raise cli.CommandError('Cannot start BESS daemon')
-        else:
-            cli.softnic.connect()
-
     daemon_exists = False
 
     try:
@@ -412,40 +412,40 @@ def daemon_start(cli):
             raise
 
     if daemon_exists:
-        warn(cli, 'Existing BESS daemon will be killed.', do_start)
+        warn(cli, 'Existing BESS daemon will be killed.', _do_start)
     else:
-        do_start()
+        _do_start(cli)
 
 def is_pipeline_empty(cli):
     workers = cli.softnic.list_workers()
     return len(workers) == 0
 
+def _do_reset(cli):
+    cli.softnic.pause_all()
+    cli.softnic.reset_all()
+    cli.softnic.resume_all()
+    if cli.interactive:
+        cli.fout.write('Done.\n')
+
 @cmd('daemon reset', 'Remove all ports and modules in the pipeline')
 def daemon_reset(cli):
-    def do_reset():
-        cli.softnic.pause_all()
-        cli.softnic.reset_all()
-        cli.softnic.resume_all()
-        if cli.interactive:
-            cli.fout.write('Done.\n')
-
     if is_pipeline_empty(cli):
-        do_reset()
+        _do_reset(cli)
     else:
-        warn(cli, 'The entire pipeline will be cleared.', do_reset)
+        warn(cli, 'The entire pipeline will be cleared.', _do_reset)
+
+def _do_stop(cli):
+    cli.softnic.pause_all()
+    cli.softnic.kill()
+    if cli.interactive:
+        cli.fout.write('Done.\n')
 
 @cmd('daemon stop', 'Stop BESS daemon')
 def daemon_stop(cli):
-    def do_stop():
-        cli.softnic.pause_all()
-        cli.softnic.kill()
-        if cli.interactive:
-            cli.fout.write('Done.\n')
-
     if is_pipeline_empty(cli):
-        do_stop()
+        _do_stop(cli)
     else:
-        warn(cli, 'BESS daemon will be killed.', do_stop)
+        warn(cli, 'BESS daemon will be killed.', _do_stop)
 
 @staticmethod
 def _choose_arg(arg, kwargs):
@@ -464,12 +464,12 @@ def _choose_arg(arg, kwargs):
     else:
         return arg
 
+def _clear_pipeline(cli):
+    cli.softnic.pause_all()
+    cli.softnic.reset_all()
+
 # NOTE: the name of this function is used below
 def _do_run_file(cli, conf_file):
-    def clear_pipeline():
-        cli.softnic.pause_all()
-        cli.softnic.reset_all()
-
     if not os.path.exists(conf_file):
         cli.err('Cannot open file "%s"' % conf_file)
         return
@@ -503,7 +503,7 @@ def _do_run_file(cli, conf_file):
     if is_pipeline_empty(cli):
         cli.softnic.pause_all()
     else:
-        ret = warn(cli, 'The current pipeline will be reset.', clear_pipeline)
+        ret = warn(cli, 'The current pipeline will be reset.', _clear_pipeline)
         if ret is False:
             return
 
