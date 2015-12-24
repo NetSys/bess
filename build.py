@@ -206,6 +206,7 @@ def build_bess():
     check_essential()
 
     print 'Building BESS daemon...'
+    cmd('bin/bessctl daemon stop 2> /dev/null || true')
     cmd('make -C core')
     cmd('ln -f -s ../core/bessd bin/bessd')
 
@@ -213,6 +214,7 @@ def build_kmod():
     check_essential()
 
     print 'Building BESS Linux kernel module... (optional)'
+    cmd('sudo -n rmmod bess 2> /dev/null || true')
     try:
         cmd('make -C core/kmod')
     except SystemExit:
