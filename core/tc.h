@@ -14,6 +14,9 @@
 
 #define DEFAULT_PRIORITY	-1
 
+#define MAX_LIMIT_POW		36
+#define USAGE_AMPLIFIER_POW	32
+
 enum {
 	RESOURCE_CNT = 0,	/* how many times scheduled */
 	RESOURCE_CYCLE,

@@ -224,13 +224,17 @@ static struct snobj *handle_list_tcs(struct snobj *q)
 						workers[wid]->s == c->s)
 					break;
 		}
-
+		
+		const char *limit_str[NUM_RESOURCES] = 
+		  {"limit_sps", "limit_cps","limit_pps", "limit_bps"};
 		struct snobj *elem = snobj_map();
 
 		snobj_map_set(elem, "name", snobj_str(c->name));
 		snobj_map_set(elem, "tasks", snobj_int(c->num_tasks));
 		snobj_map_set(elem, "parent", snobj_str(c->parent->name));
 		snobj_map_set(elem, "priority", snobj_int(c->priority));
+		for (int i = 0; i < NUM_RESOURCES; i++)
+		  snobj_map_set(elem, limit_str[i], snobj_int((c->tb[i].limit * (tsc_hz >> 4)) >> (USAGE_AMPLIFIER_POW - 4)));
 
 		if (wid < MAX_WORKERS)
 			snobj_map_set(elem, "wid", snobj_uint(wid));

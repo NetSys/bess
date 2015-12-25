@@ -677,12 +677,18 @@ def _show_tc_list(cli, tcs):
 
         for tc in matched:
             cli.fout.write('    %-16s  ' \
-                    'parent %-12s  priority %-3d  tasks %-4d\n' % \
+                           'parent %-10s  priority %-3d  tasks %-4d ' \
+                           'limits: sps %.1e  cps %.1e  pps %.1e  bps %.1e\n' % \
                     (tc['name'], 
                      tc['parent'] if tc['parent'] else 'none', 
                      tc['priority'],
-                     tc['tasks']))
+                     tc['tasks'],
+                     tc['limit_sps'],
+                     tc['limit_cps'],
+                     tc['limit_pps'],
+                     tc['limit_bps']))
 
+            
 @cmd('show tc', 'Show the list of traffic classes')
 def show_tc_all(cli):
     _show_tc_list(cli, cli.softnic.list_tcs())
