@@ -11,7 +11,26 @@ $ git clone https://github.com/NetSys/bess.git
 $ bess/build.py
 ```
 
-BESS runs on top of [DPDK](http://dpdk.org). The installation script will automatically download and build DPDK 2.2 in `deps/dpdk-2.2.0` directory. Like any other DPDK applications, you need to [set up hugepages](http://dpdk.org/doc/guides/linux_gsg/sys_reqs.html#reserving-hugepages-for-dpdk-use). If you want to use physical NIC ports, you also need to [bind ports to DPDK](http://dpdk.org/doc/guides/linux_gsg/build_dpdk.html#binding-and-unbinding-network-ports-to-from-the-kernel-modules).
+BESS runs on top of [DPDK](http://dpdk.org). The installation script will automatically download and build DPDK 2.2 in `deps/dpdk-2.2.0` directory. Like any other DPDK applications, you need to [set up hugepages](http://dpdk.org/doc/guides/linux_gsg/sys_reqs.html#reserving-hugepages-for-dpdk-use).
+
+If you want to use physical NIC ports, you also need to [bind ports to DPDK](http://dpdk.org/doc/guides/linux_gsg/build_dpdk.html#binding-and-unbinding-network-ports-to-from-the-kernel-modules).
+
+```
+$ sudo modprobe uio_pci_generic
+$ sudo bess/deps/dpdk/tools/dpdk_nic_bind.py -b uio_pci_generic PCI_DEV1 [PCI_DEV2 ...]
+```
+
+You can search for the PCI device IDs corresponding to the physical ports you wish to bind by running
+
+```
+$ lspci
+```
+
+Finally, you can see a list of currently enabled DPDK ports by running
+
+```
+$ sudo bess/deps/dpdk/tools/dpdk_nic_bind.py --status
+```
 
 ### Running BESS
 
