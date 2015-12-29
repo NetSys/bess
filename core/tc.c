@@ -18,9 +18,6 @@
 
 /* this library is not thread safe */
 
-#define MAX_LIMIT_POW		36
-#define USAGE_AMPLIFIER_POW	32
-
 static void tc_add_to_parent_pgroup(struct tc *c, int share_resource)
 {
 	struct tc *parent = c->parent;

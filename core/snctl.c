@@ -25,6 +25,9 @@ struct handler_map {
 	struct snobj *(*func)(struct snobj *);
 };
 
+static const char *tc_limit_str[NUM_RESOURCES] = 
+  {"limit_sps", "limit_cps","limit_pps", "limit_bps"};
+
 static struct snobj *handle_reset_modules(struct snobj *);
 static struct snobj *handle_reset_ports(struct snobj *);
 static struct snobj *handle_reset_tcs(struct snobj *);
@@ -224,13 +227,17 @@ static struct snobj *handle_list_tcs(struct snobj *q)
 						workers[wid]->s == c->s)
 					break;
 		}
-
 		struct snobj *elem = snobj_map();
 
 		snobj_map_set(elem, "name", snobj_str(c->name));
 		snobj_map_set(elem, "tasks", snobj_int(c->num_tasks));
 		snobj_map_set(elem, "parent", snobj_str(c->parent->name));
 		snobj_map_set(elem, "priority", snobj_int(c->priority));
+		// we list limit for each resource, reversing calculation from tc.c:tc_init()
+		for (int i = 0; i < NUM_RESOURCES; i++)
+		  snobj_map_set(elem, tc_limit_str[i],
+				snobj_int((c->tb[i].limit * (tsc_hz >> 4)) \
+					  >> (USAGE_AMPLIFIER_POW - 4)));
 
 		if (wid < MAX_WORKERS)
 			snobj_map_set(elem, "wid", snobj_uint(wid));
@@ -254,10 +261,7 @@ static struct snobj *handle_add_tc(struct snobj *q)
 	struct tc_params params;
 	struct tc *c;
 
-	int i;
 	int64_t limit;
-	const char *limit_str[NUM_RESOURCES] = 
-			{"limit_sps", "limit_cps","limit_pps", "limit_bps"};
 	
 	tc_name = snobj_eval_str(q, "name");
 	if (!tc_name)
@@ -291,12 +295,12 @@ static struct snobj *handle_add_tc(struct snobj *q)
 	params.share = 1;
 	params.share_resource = RESOURCE_CNT;
 
-	for (i = 0; i < NUM_RESOURCES; i++) {
-		limit = snobj_eval_int(q, limit_str[i]);
+	for (int i = 0; i < NUM_RESOURCES; i++) {
+		limit = snobj_eval_int(q, tc_limit_str[i]);
 		if (limit < 0)
 			return snobj_err(EINVAL, 
 					"'%s' must be 0 or greater",
-					limit_str[i]);
+					tc_limit_str[i]);
 		params.limit[i] = limit; 
 	}
 
