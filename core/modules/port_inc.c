@@ -35,6 +35,9 @@ static struct snobj *port_inc_init(struct module *m, struct snobj *arg)
 			return snobj_err(ENOMEM, "Task creation failed");
 	}
 
+	if (snobj_eval_int(arg, "prefetch"))
+		priv->prefetch = 1;
+
 	ret = acquire_queues(priv->port, m, PACKET_DIR_INC, NULL, 0);
 	if (ret < 0)
 		return snobj_errno(-ret);
@@ -78,7 +81,7 @@ port_inc_run_task(struct module *m, void *arg)
 
 	cnt = batch.cnt = priv->recv_pkts(p, qid, batch.pkts, pkt_burst);
 
-	if (batch.cnt == 0) {
+	if (cnt == 0) {
 		ret.packets = 0;
 		ret.bits = 0;
 		return ret;
