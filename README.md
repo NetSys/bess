@@ -17,7 +17,7 @@ If you want to use physical NIC ports, you also need to [bind ports to DPDK](htt
 
 ```
 $ sudo modprobe uio_pci_generic
-$ sudo bess/deps/dpdk-2-2.0/tools/dpdk_nic_bind.py -b uio_pci_generic PCI_DEV1 [PCI_DEV2 ...]
+$ sudo bess/deps/dpdk-2.2.0/tools/dpdk_nic_bind.py -b uio_pci_generic PCI_DEV1 [PCI_DEV2 ...]
 ```
 
 You can search for the PCI device IDs (in xx:yy.z form) corresponding to the physical ports you wish to bind by running
