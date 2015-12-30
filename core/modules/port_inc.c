@@ -4,6 +4,7 @@
 struct port_inc_priv {
 	struct port *port;
 	pkt_io_func_t recv_pkts;
+	int prefetch;
 };
 
 static struct snobj *port_inc_init(struct module *m, struct snobj *arg)
@@ -15,9 +16,8 @@ static struct snobj *port_inc_init(struct module *m, struct snobj *arg)
 
 	int ret;
 
-	if (!arg || !(port_name = snobj_str_get(arg)))
-		return snobj_err(EINVAL, "Argument must be a port name " \
-				"(string)");
+	if (!arg || !(port_name = snobj_eval_str(arg, "port")))
+		return snobj_err(EINVAL, "'port' must be given as a string");
 
 	priv->port = find_port(port_name);
 	if (!priv->port)
@@ -85,11 +85,14 @@ port_inc_run_task(struct module *m, void *arg)
 	}
 
 	/* NOTE: we cannot skip this step since it might be used by scheduler */
-	for (int i = 0; i < cnt; i++) {
-		received_bytes += snb_total_len(batch.pkts[i]);
-
-		/* prefetch for received packet payload */
-		rte_prefetch0(snb_head_data(batch.pkts[i]));
+	if (priv->prefetch) {
+		for (int i = 0; i < cnt; i++) {
+			received_bytes += snb_total_len(batch.pkts[i]);
+			rte_prefetch0(snb_head_data(batch.pkts[i]));
+		}
+	} else {
+		for (int i = 0; i < cnt; i++)
+			received_bytes += snb_total_len(batch.pkts[i]);
 	}
 
 	ret.packets = cnt;

@@ -14,9 +14,8 @@ static struct snobj *port_out_init(struct module *m, struct snobj *arg)
 
 	int ret;
 
-	if (!arg || !(port_name = snobj_str_get(arg)))
-		return snobj_err(EINVAL, "Argument must be a port name " \
-				"(string)");
+	if (!arg || !(port_name = snobj_eval_str(arg, "port")))
+		return snobj_err(EINVAL, "'port' must be given as a string");
 
 	priv->port = find_port(port_name);
 	if (!priv->port)
