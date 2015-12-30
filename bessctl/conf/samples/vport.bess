@@ -4,5 +4,5 @@ v = Port(driver='VPort')
 
 p = Port(driver='PMD', port_id = 0)
 
-PortInc(arg=p) -> PortOut(arg=v)
-PortInc(arg=v) -> PortOut(arg=p)
+PortInc(port=p) -> PortOut(port=v)
+PortInc(port=v) -> PortOut(port=p)

@@ -5,6 +5,7 @@ struct queue_inc_priv {
 	struct port *port;
 	pkt_io_func_t recv_pkts;
 	queue_t qid;
+	int prefetch;
 };
 
 static struct snobj *queue_inc_init(struct module *m, struct snobj *arg)
@@ -33,6 +34,9 @@ static struct snobj *queue_inc_init(struct module *m, struct snobj *arg)
 	priv->port = find_port(port_name);
 	if (!priv->port)
 		return snobj_err(ENODEV, "Port %s not found", port_name);
+
+	if (snobj_eval_int(arg, "prefetch"))
+		priv->prefetch = 1;
 
 	tid = register_task(m, (void *)(uint64_t)priv->qid);
 	if (tid == INVALID_TASK_ID)
@@ -79,24 +83,33 @@ queue_inc_run_task(struct module *m, void *arg)
 
 	const int pkt_burst = MAX_PKT_BURST;
 	const int pkt_overhead = 24;
+	
+	int cnt;
 
-	batch.cnt = priv->recv_pkts(p, qid, batch.pkts, pkt_burst);
+	cnt = batch.cnt = priv->recv_pkts(p, qid, batch.pkts, pkt_burst);
 
-	if (batch.cnt == 0) {
+	if (cnt == 0) {
 		ret.packets = 0;
 		ret.bits = 0;
 		return ret;
 	}
 
 	/* NOTE: we cannot skip this step since it might be used by scheduler */
-	for (int i = 0; i < batch.cnt; i++)
-		received_bytes += snb_total_len(batch.pkts[i]);
+	if (priv->prefetch) {
+		for (int i = 0; i < cnt; i++) {
+			received_bytes += snb_total_len(batch.pkts[i]);
+			rte_prefetch0(snb_head_data(batch.pkts[i]));
+		}
+	} else {
+		for (int i = 0; i < cnt; i++)
+			received_bytes += snb_total_len(batch.pkts[i]);
+	}
 
-	ret.packets = batch.cnt;
-	ret.bits = (received_bytes + pkt_overhead * batch.cnt) * 8;
+	ret.packets = cnt;
+	ret.bits = (received_bytes + pkt_overhead * cnt) * 8;
 
 	if (!(p->driver->flags & DRIVER_FLAG_SELF_INC_STATS)) {
-		p->queue_stats[PACKET_DIR_INC][qid].packets += batch.cnt;
+		p->queue_stats[PACKET_DIR_INC][qid].packets += cnt;
 		p->queue_stats[PACKET_DIR_INC][qid].bytes += received_bytes;
 	}
 

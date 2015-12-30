@@ -4,6 +4,7 @@
 struct port_inc_priv {
 	struct port *port;
 	pkt_io_func_t recv_pkts;
+	int prefetch;
 };
 
 static struct snobj *port_inc_init(struct module *m, struct snobj *arg)
@@ -15,9 +16,8 @@ static struct snobj *port_inc_init(struct module *m, struct snobj *arg)
 
 	int ret;
 
-	if (!arg || !(port_name = snobj_str_get(arg)))
-		return snobj_err(EINVAL, "Argument must be a port name " \
-				"(string)");
+	if (!arg || !(port_name = snobj_eval_str(arg, "port")))
+		return snobj_err(EINVAL, "'port' must be given as a string");
 
 	priv->port = find_port(port_name);
 	if (!priv->port)
@@ -34,6 +34,9 @@ static struct snobj *port_inc_init(struct module *m, struct snobj *arg)
 		if (tid == INVALID_TASK_ID)
 			return snobj_err(ENOMEM, "Task creation failed");
 	}
+
+	if (snobj_eval_int(arg, "prefetch"))
+		priv->prefetch = 1;
 
 	ret = acquire_queues(priv->port, m, PACKET_DIR_INC, NULL, 0);
 	if (ret < 0)
@@ -78,18 +81,21 @@ port_inc_run_task(struct module *m, void *arg)
 
 	cnt = batch.cnt = priv->recv_pkts(p, qid, batch.pkts, pkt_burst);
 
-	if (batch.cnt == 0) {
+	if (cnt == 0) {
 		ret.packets = 0;
 		ret.bits = 0;
 		return ret;
 	}
 
 	/* NOTE: we cannot skip this step since it might be used by scheduler */
-	for (int i = 0; i < cnt; i++) {
-		received_bytes += snb_total_len(batch.pkts[i]);
-
-		/* prefetch for received packet payload */
-		rte_prefetch0(snb_head_data(batch.pkts[i]));
+	if (priv->prefetch) {
+		for (int i = 0; i < cnt; i++) {
+			received_bytes += snb_total_len(batch.pkts[i]);
+			rte_prefetch0(snb_head_data(batch.pkts[i]));
+		}
+	} else {
+		for (int i = 0; i < cnt; i++)
+			received_bytes += snb_total_len(batch.pkts[i]);
 	}
 
 	ret.packets = cnt;
