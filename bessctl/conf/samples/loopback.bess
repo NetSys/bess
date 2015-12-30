@@ -5,7 +5,7 @@ print 'Using %d DPDK ports... (envvar "SN_PORTS")' % dpdk_ports
 print 'RX/TX queue size: %d packets per queue' % qsize
 
 for i in range(dpdk_ports):
-	port = Port(driver='PMD', port_id=i, loopback=1, size_inc_q=qsize, size_out_q=qsize)
+	p = Port(driver='PMD', port_id=i, loopback=1, size_inc_q=qsize, size_out_q=qsize)
 
-        Source() -> PortOut(arg=port)
-        PortInc(arg=port) -> Sink()
+        Source() -> PortOut(port=p)
+        PortInc(port=p) -> Sink()

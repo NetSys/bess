@@ -4,5 +4,5 @@ print 'Using %d DPDK ports... (envvar "SN_PORTS")' % dpdk_ports
 for i in range(dpdk_ports):
     p = Port(driver='PMD', port_id=i)
 
-    Source() -> PortOut(arg=p)
-    PortInc(arg=p) -> Sink()
+    Source() -> PortOut(port=p)
+    PortInc(port=p) -> Sink()
