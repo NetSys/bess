@@ -6,14 +6,18 @@ Detailed documentation will be available **soon**.
 
 ### Installation
 
+First, make sure that your Linux machine has all [required packages](docs/dependency.md) installed. After that you can simply clone the repository and run the build script. If there is any missing package, the script will tell you so.
+
 ```
 $ git clone https://github.com/NetSys/bess.git
 $ bess/build.py
 ```
 
-BESS runs on top of [DPDK](http://dpdk.org). The installation script will automatically download and build DPDK 2.2 in `deps/dpdk-2.2.0` directory. Like any other DPDK applications, you need to [set up hugepages](http://dpdk.org/doc/guides/linux_gsg/sys_reqs.html#reserving-hugepages-for-dpdk-use).
+BESS runs on top of [DPDK](http://dpdk.org). The installation script will automatically download and build DPDK 2.2 in `deps/dpdk-2.2.0` directory. 
 
-If you want to use physical NIC ports, you also need to [bind ports to DPDK](http://dpdk.org/doc/guides/linux_gsg/build_dpdk.html#binding-and-unbinding-network-ports-to-from-the-kernel-modules):
+### Running BESS
+
+Like any other DPDK applications, you need to [set up hugepages](http://dpdk.org/doc/guides/linux_gsg/sys_reqs.html#reserving-hugepages-for-dpdk-use). Using 2MB hugepages are just fine. If you want to use physical NIC ports, you also need to [bind ports to DPDK](http://dpdk.org/doc/guides/linux_gsg/build_dpdk.html#binding-and-unbinding-network-ports-to-from-the-kernel-modules):
 
 ```
 $ sudo modprobe uio_pci_generic
@@ -26,9 +30,8 @@ You can search for the PCI device IDs (in xx:yy.z form) corresponding to the phy
 $ bess/deps/dpdk-2.2.0/tools/dpdk_nic_bind.py --status
 ```
 
-### Running BESS
+Launch the BESS daemon as root, then you can control the dataplane with the controller, `bessctl`:
 
-Launch the BESS daemon as root, then you can control the dataplane with the controller, bessctl:
 ```
 $ sudo bess/bin/bessd
 $ bess/bin/bessctl
