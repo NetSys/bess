@@ -17,7 +17,9 @@ BESS runs on top of [DPDK](http://dpdk.org). The installation script will automa
 
 ### Running BESS
 
-Like any other DPDK applications, you need to [set up hugepages](http://dpdk.org/doc/guides/linux_gsg/sys_reqs.html#reserving-hugepages-for-dpdk-use). Using 2MB hugepages are just fine. If you want to use physical NIC ports, you also need to [bind ports to DPDK](http://dpdk.org/doc/guides/linux_gsg/build_dpdk.html#binding-and-unbinding-network-ports-to-from-the-kernel-modules):
+Like any other DPDK applications, you need to [set up hugepages](http://dpdk.org/doc/guides/linux_gsg/sys_reqs.html#reserving-hugepages-for-dpdk-use) at least 1GB for each CPU socket. Using 2MB hugepages is recommended since it can be configured without system reboot and the performance difference is negligible. 
+
+If you want to use physical NIC ports (as an exception, you can skip this step for Mellanox NICs), you also need to [bind ports to DPDK](http://dpdk.org/doc/guides/linux_gsg/build_dpdk.html#binding-and-unbinding-network-ports-to-from-the-kernel-modules):
 
 ```
 $ sudo modprobe uio_pci_generic
@@ -30,7 +32,7 @@ You can search for the PCI device IDs (in xx:yy.z form) corresponding to the phy
 $ bess/deps/dpdk-2.2.0/tools/dpdk_nic_bind.py --status
 ```
 
-Launch the BESS daemon as root, then you can control the dataplane with the controller, `bessctl`:
+Once ready to roll, launch the BESS daemon as root, then you can control the dataplane with the controller, `bessctl`:
 
 ```
 $ sudo bess/bin/bessd
