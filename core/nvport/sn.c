@@ -15,7 +15,7 @@
 #include <rte_ether.h>
 #include <rte_byteorder.h>
 
-#include "../sndrv/sn_common.h"
+#include "../kmod/sn_common.h"
 
 #include "sn.h"
 

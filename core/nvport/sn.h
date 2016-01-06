@@ -6,9 +6,9 @@
 #include <rte_config.h>
 #include <rte_mbuf.h>
 
-#include "../sndrv/sn_common.h"
-#include "../sndrv/llring.h"
-#include "../softnic/snbuf.h"
+#include "../kmod/sn_common.h"
+#include "../kmod/llring.h"
+#include "../snbuf.h"
 
 #define IFNAMSIZ	16
 #define ETH_ALEN	6
@@ -216,7 +216,7 @@ static inline void __sn_snb_alloc_bulk(snb_array_t snbs, int cnt)
 		*((__m128 *)&snb->mbuf.packet_type) = _mm_setzero_ps();
 #else
 		rte_mbuf_refcnt_set(&snb->mbuf, 1);
-		rte_pktmbuf_reset(&snbs->mbuf);
+		rte_pktmbuf_reset(&snb->mbuf);
 #endif
 	}
 }
