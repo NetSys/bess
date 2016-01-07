@@ -64,15 +64,12 @@ static struct snobj *bpf_get_desc(const struct module *m)
 	return snobj_str_fmt("%s", priv->filter_exp);
 }
 
-static void bpf_process_batch(struct module *this,
+static void bpf_process_batch(struct module *m,
 		struct pkt_batch *batch)
 {
-	struct pkt_batch out_batches[2];
+	gate_t ogates[MAX_PKT_BURST];
 	int i;
-	struct bpf_priv *priv = get_priv(this);
-
-	batch_clear(&out_batches[0]);
-	batch_clear(&out_batches[1]);
+	struct bpf_priv *priv = get_priv(m);
 
 	for (i = 0; i < batch->cnt; i++) {
 		struct snbuf* pkt = batch->pkts[i];
@@ -84,16 +81,10 @@ static void bpf_process_batch(struct module *this,
 				snb_total_len(pkt), 
 				snb_head_len(pkt));
 
-		out_gate = (ret == 0);
-
-		batch_add(&out_batches[out_gate], pkt);
+		ogates[i] = (ret == 0);
 	}
 
-	if (out_batches[0].cnt)
-		run_choose_module(this, 0, &out_batches[0]);
-
-	if (out_batches[1].cnt)
-		run_choose_module(this, 1, &out_batches[1]);
+	run_split(m, ogates, batch); 
 }
 
 static const struct mclass bpf = {
