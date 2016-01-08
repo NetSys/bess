@@ -1,20 +1,34 @@
-ifneq ($(wildcard $(RTE_SDK)/$(RTE_TARGET)*),)
-	DPDK_INC_DIR = $(RTE_SDK)/$(RTE_TARGET)/include
-	DPDK_LIB_DIR = $(RTE_SDK)/$(RTE_TARGET)/lib
-else
-	DPDK_INC_DIR = $(RTE_SDK)/build/include
-	DPDK_LIB_DIR = $(RTE_SDK)/build/lib
+DPDK_LIB = dpdk
+
+ifndef RTE_SDK
+    RTE_SDK = $(abspath ../../../deps/dpdk-2.2.0)
 endif
 
-DPDK_LIBS = -L$(DPDK_LIB_DIR)
-DPDK_LIBS += -lintel_dpdk
+ifndef RTE_TARGET
+    RTE_TARGET = x86_64-native-linuxapp-gcc
+endif
+
+ifneq ($(wildcard $(RTE_SDK)/$(RTE_TARGET)/*),)
+    DPDK_INC_DIR = $(RTE_SDK)/$(RTE_TARGET)/include
+    DPDK_LIB_DIR = $(RTE_SDK)/$(RTE_TARGET)/lib
+else ifneq ($(wildcard $(RTE_SDK)/build/*),)
+    # if the user didn't do "make install" for DPDK
+    DPDK_INC_DIR = $(RTE_SDK)/build/include
+    DPDK_LIB_DIR = $(RTE_SDK)/build/lib
+else
+    $(error DPDK is not available. \
+            Make sure $(abspath $(RTE_SDK)) is available and built)
+endif
 
 LIBS = -ldl -lpthread -lm
+LIBS += -L$(DPDK_LIB_DIR) -Wl,--whole-archive -l$(DPDK_LIB) \
+	-Wl,--no-whole-archive -lz -lm -lpthread -ldl -lpcap
 
-SN_LIBS = -L../ -lsn
+SN_LIBS = -L../ -lsn -Wl,-rpath ../
 
 CC = gcc
-CFLAGS = -std=gnu99 -Wall -Werror -march=native -Wno-unused-function -Wno-unused-but-set-variable -I../sndrv -I../ -fPIC -g3 -O3 
+CFLAGS = -std=gnu99 -Wall -Werror -march=native -Wno-unused-function \
+	 -Wno-unused-but-set-variable -I../sndrv -I../ -fPIC -g3 -O3 
 
 all: sample sink source fastforward sourcesink alloc_test iso_test 
 clean:
@@ -24,40 +38,40 @@ sample.o: sample.c
 	$(CC) $(CFLAGS) -c $< -o $@ $(CFLAGS) -I$(DPDK_INC_DIR) 
 
 sample: sample.o 
-	$(CC) $< -o $@ -L. -Wl,--whole-archive $(SN_LIBS) $(DPDK_LIBS) -Wl,--no-whole-archive $(LIBS)
+	$(CC) $< -o $@ -L. -Wl,--whole-archive $(SN_LIBS) -Wl,--no-whole-archive $(LIBS)
 
 sourcesink.o: sourcesink.c
 	$(CC) $(CFLAGS) -c $< -o $@ $(CFLAGS) -I$(DPDK_INC_DIR)
 
 sourcesink: sourcesink.o 
-	$(CC) $< -o $@ -L. -Wl,--whole-archive $(SN_LIBS) $(DPDK_LIBS) -Wl,--no-whole-archive $(LIBS)
+	$(CC) $< -o $@ -L. -Wl,--whole-archive $(SN_LIBS) -Wl,--no-whole-archive $(LIBS)
 
 sink.o: sink.c 
 	$(CC) $(CFLAGS) -c $< -o $@ -I$(DPDK_INC_DIR)
 
 sink: sink.o 
-	$(CC) $< -o $@ -L. -Wl,--whole-archive $(SN_LIBS) $(DPDK_LIBS) -Wl,--no-whole-archive $(LIBS)
+	$(CC) $< -o $@ -L. -Wl,--whole-archive $(SN_LIBS) -Wl,--no-whole-archive $(LIBS)
 
 source.o: source.c 
 	$(CC) $(CFLAGS) -c $< -o $@ -I$(DPDK_INC_DIR)
 
 source: source.o 
-	$(CC) $< -o $@ -L. -Wl,--whole-archive $(SN_LIBS) $(DPDK_LIBS) -Wl,--no-whole-archive $(LIBS)
+	$(CC) $< -o $@ -L. -Wl,--whole-archive $(SN_LIBS) -Wl,--no-whole-archive $(LIBS)
 
 fastforward.o: fastforward.c 
 	$(CC) $(CFLAGS) -c $< -o $@ -I$(DPDK_INC_DIR)
 
 fastforward: fastforward.o 
-	$(CC) $< -o $@ -L. -Wl,--whole-archive $(SN_LIBS) $(DPDK_LIBS) -Wl,--no-whole-archive $(LIBS)
+	$(CC) $< -o $@ -L. -Wl,--whole-archive $(SN_LIBS) -Wl,--no-whole-archive $(LIBS)
 
 alloc_test.o: alloc_test.c 
 	$(CC) $(CFLAGS) -c $< -o $@ -I$(DPDK_INC_DIR)
 
 alloc_test: alloc_test.o 
-	$(CC) $< -o $@ -L. -Wl,--whole-archive $(SN_LIBS) $(DPDK_LIBS) -Wl,--no-whole-archive $(LIBS)
+	$(CC) $< -o $@ -L. -Wl,--whole-archive $(SN_LIBS) -Wl,--no-whole-archive $(LIBS)
 
 iso_test.o: iso_test.c 
 	$(CC) $(CFLAGS) -c $< -o $@ -I$(DPDK_INC_DIR)
 
 iso_test: iso_test.o 
-	$(CC) $< -o $@ -L. -Wl,--whole-archive $(SN_LIBS) $(DPDK_LIBS) -Wl,--no-whole-archive $(LIBS)
+	$(CC) $< -o $@ -L. -Wl,--whole-archive $(SN_LIBS) -Wl,--no-whole-archive $(LIBS)
