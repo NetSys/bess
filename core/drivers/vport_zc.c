@@ -212,7 +212,8 @@ vport_recv_pkts(struct port *p, queue_t qid, snb_array_t pkts, int cnt)
 }
 
 static const struct driver vport = {
-	.name 		= "NativeVport",
+	.name 		= "ZeroCopyVPort",
+	.def_port_name	= "zcvport",
 	.priv_size	= sizeof(struct vport_priv),
 	.init_port 	= vport_init_port,
 	.recv_pkts 	= vport_recv_pkts,

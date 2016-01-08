@@ -1,4 +1,4 @@
-p = Port(driver = 'NativeVport')
+p = Port(driver = 'ZeroCopyVPort')
 
 Source() -> Timestamp() -> PortOut(port=p)
 PortInc(port=p) -> Measure() -> Sink()
