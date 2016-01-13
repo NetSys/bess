@@ -26,10 +26,10 @@ KMOD_INC_DIR = kmod
 LDFLAGS += -rdynamic -L$(DPDK_LIB_DIR) -Wl,-rpath=$(DPDK_LIB_DIR)
 LIBS += -Wl,--whole-archive -l$(DPDK_LIB) -Wl,--no-whole-archive -lm -lpthread -ldl -lpcap
 
-CFLAGS += -std=gnu99 -g3 -ggdb3 -Ofast -Wall -Werror -m64 -march=native \
-	  -Wno-unused-function -Wno-unused-but-set-variable \
+CFLAGS += -std=gnu99 -g3 -ggdb3 -Ofast -m64 -march=native \
+	  -Wall -Werror -Wno-unused-function -Wno-unused-but-set-variable \
 	  -I $(KMOD_INC_DIR) -I$(DPDK_INC_DIR) \
-	  -D_GNU_SOURCE
+	  -D_GNU_SOURCE -fno-builtin-printf -fno-builtin-fprintf
 
 -include extra.mk
 
@@ -52,17 +52,41 @@ else
 # parallel build by default
 CORES ?= $(shell nproc || echo 1)
 MAKEFLAGS += -j $(CORES)
+VERBOSE = 0
 
 .PHONY: all clean tags cscope
 
 all: $(DEPS) $(EXEC)
 	
 $(DEPS): $(SRCS) $(HEADERS)
-	@$(CC) $(CFLAGS) -MM $(SRCS) | sed 's|\(.*\)\.o: \(.*\)\.c|\2.o: \2.c|' > $(DEPS);
+	@$(CC) $(CFLAGS) -MM $(SRCS) | sed 's|\(.*\)\.o: \(.*\)\.c|\2.o: \2.c|' > $(DEPS)
+
+%.o: %.c
+	$(eval COMMAND = $(CC) $(CFLAGS) -c -o $@ $<)
+	@if $(COMMAND); then \
+		if [ $(VERBOSE) -eq 0 ]; then \
+			echo "[CC] $<"; \
+		else \
+			echo "[CC] $(COMMAND)"; \
+		fi \
+	else \
+		echo "Compile error: \033[0;31m$<\033[0;33m\n$(COMMAND)\033[0m"; \
+		false; \
+	fi
 
 $(EXEC): $(OBJS)
-	@echo "Using DPDK from $(DPDK_LIB_DIR)"
-	$(CC) $(OBJS) -o $@ $(LDFLAGS) $(LIBS)
+	$(eval COMMAND = $(CC) $(OBJS) -o $@ $(LDFLAGS) $(LIBS))
+	@if $(COMMAND); then \
+		if [ $(VERBOSE) -eq 0 ]; then \
+			echo "[LD] $@"; \
+		else \
+			echo "[LD] $(COMMAND)"; \
+		fi \
+	else \
+		echo "Link error: \033[0;31m$@\033[0;33m\n$(COMMAND) \033[0m"; \
+		false; \
+	fi
+	@echo Done.
 	@sync
 
 -include $(DEPS)
