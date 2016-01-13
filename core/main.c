@@ -316,15 +316,10 @@ int main(int argc, char **argv)
 	check_pidfile();
 	set_resource_limit();
 
-	if (opts->foreground) {
+	if (opts->foreground)
 		printf("OK\n");
-	} else {
-		close(STDIN_FILENO);
-		close(STDOUT_FILENO);
-		close(STDERR_FILENO);
-
+	else
 		setup_syslog();
-	}
 
 	init_dpdk(argv[0]);
 	init_mempool();
