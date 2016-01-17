@@ -1,7 +1,6 @@
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <fcntl.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <errno.h>
@@ -18,7 +17,7 @@
 #include "master.h"
 #include "worker.h"
 #include "driver.h"
-#include "syslog.h"
+#include "log.h"
 
 const struct global_opts global_opts;
 static struct global_opts *opts = (struct global_opts *)&global_opts;
@@ -158,8 +157,8 @@ again:
 		sscanf(buf, "%d", &pid);
 
 		if (trials == 0)
-			printf("\n  There is another BESS daemon" \
-				" running (PID=%d).\n", pid);
+			printf("  There is another BESS daemon " \
+				"running (PID=%d).\n", pid);
 
 		if (!opts->kill_existing) {
 			fprintf(stderr, "ERROR: You cannot run more than" \
@@ -237,8 +236,7 @@ int daemon_start()
 
 	int ret;
 
-	printf("Launching BESS daemon in background... ");
-	fflush(stdout);
+	printf("Launching BESS daemon in background...\n");
 
 	ret = pipe(pipe_fds);
 	if (ret < 0) {
@@ -309,17 +307,14 @@ int main(int argc, char **argv)
 	check_user();
 	
 	if (opts->foreground)
-		printf("Launching BESS daemon in process mode... ");
+		printf("Launching BESS daemon in process mode...\n");
 	else
 		signal_fd = daemon_start();
 
 	check_pidfile();
 	set_resource_limit();
 
-	if (opts->foreground)
-		printf("OK\n");
-	else
-		setup_syslog();
+	start_logger();
 
 	init_dpdk(argv[0]);
 	init_mempool();
@@ -339,11 +334,10 @@ int main(int argc, char **argv)
 
 	run_master();
 
-	if (!opts->foreground)
-		end_syslog();
-
 	rte_eal_mp_wait_lcore();
 	close_mempool();
+
+	end_logger();
 
 	return 0;
 }
