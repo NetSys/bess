@@ -24,24 +24,23 @@ static struct snobj *pcap_init_port(struct port *p, struct snobj *conf)
 	char errbuf[PCAP_ERRBUF_SIZE];
 	struct pcap_priv *priv = get_port_priv(p);
 
-	if(snobj_eval_str(conf, "dev")) {
+	if (snobj_eval_str(conf, "dev"))
 		strncpy(priv->dev, snobj_eval_str(conf, "dev"), PCAP_IFNAME);
-	}
 	else 
 		return snobj_err(EINVAL, "PCAP need to set dev option");
 
 	//non-blocking pcap
-	priv->pcap_handle = pcap_open_live(priv->dev, PCAP_SNAPLEN, 1, -1, errbuf);
-	if(priv->pcap_handle == NULL) {
+	priv->pcap_handle = pcap_open_live(priv->dev, PCAP_SNAPLEN, 1, -1, 
+			errbuf);
+	if(priv->pcap_handle == NULL)
 		return snobj_err(ENODEV, "PCAP Open dev error: %s", errbuf);
-	}
 
 	int ret = pcap_setnonblock(priv->pcap_handle, 1, errbuf);
-	if(ret != 0) {
-		return snobj_err(ENODEV, "PCAP set to nonblock error: %s", errbuf);
-	}
+	if (ret != 0)
+		return snobj_err(ENODEV, "PCAP set to nonblock error: %s", 
+				errbuf);
 
-	printf("PCAP: open dev %s\n", priv->dev);
+	log_info("PCAP: open dev %s\n", priv->dev);
 
 	return NULL;
 }
@@ -49,16 +48,17 @@ static struct snobj *pcap_init_port(struct port *p, struct snobj *conf)
 static void pcap_deinit_port(struct port *p)
 {
 	struct pcap_priv *priv = get_port_priv(p);
-	if(priv->pcap_handle) {
+
+	if (priv->pcap_handle) {
 		pcap_close(priv->pcap_handle);
 		priv->pcap_handle = NULL;
 	}
 }
 
 static int pcap_rx_jumbo(struct rte_mempool *mb_pool,
-	struct rte_mbuf *mbuf,
-	const u_char *data,
-	uint16_t data_len)
+		struct rte_mbuf *mbuf,
+		const u_char *data,
+		uint16_t data_len)
 {
 	struct rte_mbuf *m = mbuf;
 
@@ -108,16 +108,12 @@ pcap_recv_pkts(struct port *p, queue_t qid, snb_array_t pkts, int cnt)
 
 	while(recv_cnt < cnt) {
 		packet = pcap_next(priv->pcap_handle, &header);
-		if(!packet) {
-			//no packets, break;
+		if (!packet)
 			break;
-		}
 
 		sbuf = snb_alloc();
-		if(!sbuf) {
-			//no sbuf, break;
+		if (!sbuf)
 			break;
-		}
 
 		if (header.caplen <= SNBUF_DATA) {
 			/* pcap packet will fit in the mbuf, go ahead and copy */

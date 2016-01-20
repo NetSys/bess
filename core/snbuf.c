@@ -5,6 +5,7 @@
 #include <sn.h>
 
 #include "common.h"
+#include "log.h"
 #include "time.h"
 #include "dpdk.h"
 #include "snbuf.h"
@@ -60,7 +61,7 @@ static void init_mempool_socket(int sid)
 			sid, 0);
 
 	if (!pframe_pool[sid]) {
-		fprintf(stderr, "pframe allocation failure on socket %d: %s\n",
+		log_crit("pframe allocation failure on socket %d: %s\n",
 				sid, rte_strerror(rte_errno));
 		exit(EXIT_FAILURE);
 	}
@@ -156,7 +157,7 @@ struct snbuf *paddr_to_snb(phys_addr_t paddr)
 			ret = (struct snbuf *)(pool->elt_va_start + offset);
 
 			if (snb_to_paddr(ret) != paddr)
-				fprintf(stderr, "snb->immutable.paddr "
+				log_crit("snb->immutable.paddr "
 						"corruption detected\n");
 
 			break;

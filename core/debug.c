@@ -18,6 +18,12 @@
 
 #define STACK_DEPTH 64
 
+void oom_crash(void)
+{
+	log_crit("Fatal: out of memory for critical operations\n");
+	*((int *)NULL) = 0;
+}
+
 static const char *si_code_to_str(int sig_num, int si_code)
 {
 	/* See the manpage of sigaction() */
@@ -164,7 +170,7 @@ static void print_code(char *symbol, int context)
 
 		line[strlen(line) - 1] = '\0';
 
-		fprintf(stderr, "\t%s\n", line);
+		log_crit("\t%s\n", line);
 
 		if (line[strlen(line) - 1] == ')')
 			*(strstr(line, " (discriminator")) = '\0';
@@ -188,7 +194,7 @@ static void print_code(char *symbol, int context)
 
 		fp = fopen(filename, "r");
 		if (!fp) {
-			fprintf(stderr, "\t\t(file/line not available)\n");
+			log_crit("\t\t(file/line not available)\n");
 			continue;
 		}
 
@@ -196,7 +202,7 @@ static void print_code(char *symbol, int context)
 			int discard;
 
 			if (abs(curr - lineno) <= context) {
-				fprintf(stderr, "\t  %s %d: ",
+				log_crit("\t  %s %d: ",
 						(curr == lineno) ? "->" : "  ",
 						curr);
 				discard = 0;
@@ -211,13 +217,12 @@ static void print_code(char *symbol, int context)
 				if (!ret)
 					break;
 
-				if (!discard) {
-					fprintf(stderr, "%s", line);
-				}
+				if (!discard)
+					log_crit("%s", line);
 
 				if (line[strlen(line) - 1] != '\n') {
 					if (feof(fp))
-						fprintf(stderr, "\n");
+						log_crit("\n");
 				} else
 					break;
 			}
@@ -252,7 +257,8 @@ static void trap_handler(int sig_num, siginfo_t *info, void *ucontext)
 	#error neither x86 or x86-64
 #endif
 
-	fprintf(stderr, "signal: %d (%s), si_code: %d (%s), address: %p, IP: %p\n",
+	log_crit("A critical error has occured. Aborting...\n");
+	log_crit("Signal: %d (%s), si_code: %d (%s), address: %p, IP: %p\n",
 			sig_num, strsignal(sig_num),
 			info->si_code, si_code_to_str(sig_num, info->si_code),
 			info->si_addr, ip);
@@ -260,7 +266,7 @@ static void trap_handler(int sig_num, siginfo_t *info, void *ucontext)
 	/* the linker requires -rdynamic for non-exported symbols */
 	cnt = backtrace(addrs, STACK_DEPTH);
 	if (cnt < 3) {
-		fprintf(stderr, "ERROR: backtrace() failed\n");
+		log_crit("ERROR: backtrace() failed\n");
 		exit(EXIT_FAILURE);
 	}
 
@@ -283,16 +289,16 @@ static void trap_handler(int sig_num, siginfo_t *info, void *ucontext)
 	symbols = backtrace_symbols(addrs, cnt);
 
 	if (symbols) {
-		fprintf(stderr, "Backtrace (recent calls first) ---\n");
+		log_crit("Backtrace (recent calls first) ---\n");
 
 		for (i = skips; i < cnt; ++i) {
-			fprintf(stderr, "(%d): %s\n", i - skips, symbols[i]);
+			log_crit("(%d): %s\n", i - skips, symbols[i]);
 			print_code(symbols[i], (i == skips) ? 3 : 0);
 		}
 
 		free(symbols);	/* required by backtrace_symbols() */
 	} else
-		fprintf(stderr, "ERROR: backtrace_symbols() failed\n");
+		log_crit("ERROR: backtrace_symbols() failed\n");
 
 	exit(EXIT_FAILURE);
 }

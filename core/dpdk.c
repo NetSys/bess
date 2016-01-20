@@ -11,10 +11,11 @@
 
 #include <sn.h>
 
-#include "dpdk.h"
+#include "log.h"
 #include "time.h"
 #include "worker.h"
 #include "snstore.h"
+#include "dpdk.h"
 
 static void set_lcore_bitmap(char *buf)
 {
@@ -47,8 +48,7 @@ fail:
 	if (fp)
 		fclose(fp);
 
-	fprintf(stderr, "Failed to detect # of NUMA nodes from: "
-			"/sys/devices/system/node/possible. "
+	log_notice("/sys/devices/system/node/possible not available. "
 			"Assuming a single-node system...\n");
 	return 1;
 }

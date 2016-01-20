@@ -1,5 +1,6 @@
-#include "mclass.h"
+#include "log.h"
 #include "namespace.h"
+#include "mclass.h"
 
 size_t list_mclasses(const struct mclass **p_arr, size_t arr_size, 
 		size_t offset)
@@ -39,7 +40,7 @@ int add_mclass(const struct mclass *mclass)
 	int ret;
 
 	if (!mclass->name) {
-		fprintf(stderr, "Incomplete module class at %p\n", mclass);
+		log_err("Incomplete module class at %p\n", mclass);
 		return -1;
 	}
 
@@ -49,17 +50,15 @@ int add_mclass(const struct mclass *mclass)
 	
 	ret = ns_insert(NS_TYPE_MCLASS, mclass->name, (void *) mclass);
 	if (ret < 0) {
-		fprintf(stderr, "Fail to insert module classes\n");
+		log_err("Failed to add module class '%s'\n", mclass->name);
 		return -1;
 	}
 
-	/*
-	printf("Module class '%s' has been registered", mclass->name);
+	log_debug("Module class '%s' has been registered", mclass->name);
 	if (mclass->priv_size)
-		printf(", with %u bytes of private data", mclass->priv_size);
+		log_debug(", with %u-byte private data", mclass->priv_size);
 
-	printf("\n");
-	*/
+	log_debug("\n");
 
 	return 0;
 }

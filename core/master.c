@@ -16,10 +16,12 @@
 #include <rte_lcore.h>
 #include <rte_malloc.h>
 
-#include "master.h"
+#include "log.h"
 #include "worker.h"
 #include "snobj.h"
 #include "snctl.h"
+
+#include "master.h"
 
 /* Port this SoftNIC instance listens on. 
  * Panda came up with this default number */
@@ -97,8 +99,7 @@ static int init_listen_fd(uint16_t port)
 
 	if (bind(listen_fd, (struct sockaddr *)&s_addr, sizeof(s_addr)) < 0) {
 		if (errno == EADDRINUSE)
-			fprintf(stderr, "Error: port %u is already in use\n", 
-					port);
+			log_crit("Error: port %u is already in use\n", port);
 		else
 			perror("bind()");
 		exit(EXIT_FAILURE);
@@ -109,7 +110,8 @@ static int init_listen_fd(uint16_t port)
 		exit(EXIT_FAILURE);
 	}
 
-	printf("Master: listening on %s:%hu\n", inet_ntoa(s_addr.sin_addr), port);
+	log_info("Master: listening on %s:%hu\n", 
+			inet_ntoa(s_addr.sin_addr), port);
 
 	return listen_fd;
 }
@@ -144,7 +146,7 @@ static struct client *init_client(int fd, struct sockaddr_in c_addr)
 
 static void close_client(struct client *c)
 {
-	printf("Master: client %s:%hu disconnected\n", 
+	log_info("Master: client %s:%hu disconnected\n", 
 			inet_ntoa(c->addr.sin_addr), c->addr.sin_port);
 
 	close(c->fd);
@@ -229,7 +231,7 @@ static void request_done(struct client *c)
 
 	q = snobj_decode(c->buf, c->msg_len);
 	if (!q) {
-		fprintf(stderr, "Incorrect message\n");
+		log_err("Incorrect message\n");
 		goto err;
 	}
 
@@ -246,7 +248,7 @@ static void request_done(struct client *c)
 
 	c->msg_len = snobj_encode(r, &buf, 0);
 	if (c->msg_len == 0) {
-		fprintf(stderr, "Encoding error\n");
+		log_err("Encoding error\n");
 		goto err;
 	}
 
@@ -255,7 +257,7 @@ static void request_done(struct client *c)
 		char *new_buf;
 
 		if (c->msg_len > MAX_BUF_SIZE)  {
-			fprintf(stderr, "too large response was attempted\n");
+			log_err("too large response was attempted\n");
 			goto err;
 		}
 
@@ -327,14 +329,14 @@ static void client_recv(struct client *c)
 		char *new_buf;
 
 		if (c->msg_len > MAX_BUF_SIZE)  {
-			fprintf(stderr, "too large request was attempted\n");
+			log_err("too large request was attempted\n");
 			close_client(c);
 			return;
 		}
 
 		new_buf = rte_realloc(c->buf, c->msg_len, 0);
 		if (!new_buf) {
-			fprintf(stderr, "Out of memory\n");
+			log_err("Out of memory\n");
 			close_client(c);
 			return;
 		}
@@ -451,7 +453,7 @@ again:
 		if ((c = accept_client(master.listen_fd)) == NULL)
 			goto again;
 
-		printf("Master: a new client from %s:%hu\n", 
+		log_info("Master: a new client from %s:%hu\n", 
 				inet_ntoa(c->addr.sin_addr), 
 				c->addr.sin_port);
 	} else {
@@ -467,7 +469,7 @@ again:
 		} else if (ev.events & EPOLLOUT) {
 			client_send(c);
 		} else {
-			fprintf(stderr, "Unknown epoll event %u\n", ev.events);
+			log_err("Unknown epoll event %u\n", ev.events);
 			close_client(c);
 		}
 	}

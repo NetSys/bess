@@ -159,7 +159,7 @@ static void *alloc_bar(struct port *p, int container_pid,
 	bar = rte_zmalloc(NULL, total_bytes, 0);
 	assert(bar);
 
-	/* printf("vport_host_sndrv: allocated %d-byte BAR\n", total_bytes); */
+	/* log_debug("vport_host_sndrv: allocated %dB BAR\n", total_bytes); */
 
 	conf = bar;
 
@@ -234,8 +234,8 @@ static int init_driver(struct driver *driver)
 	
 		char cmd[2048];
 
-		fprintf(stderr, "vport: BESS kernel module is not " \
-				"loaded. Loading...\n");
+		log_notice("vport: BESS kernel module is not loaded. "
+				"Loading...\n");
 
 		ret = readlink("/proc/self/exe", exec_path, sizeof(exec_path));
 		if (ret == -1 || ret >= sizeof(exec_path))
@@ -247,7 +247,7 @@ static int init_driver(struct driver *driver)
 		sprintf(cmd, "insmod %s/kmod/bess.ko", exec_dir);
 		ret = system(cmd);
 		if (WEXITSTATUS(ret) != 0)
-			fprintf(stderr, "Warning: cannot load kernel" \
+			log_err("Warning: cannot load kernel" \
 					"module %s/kmod/bess.ko\n", exec_dir);
 	}
 

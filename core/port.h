@@ -4,6 +4,7 @@
 #include <stdint.h>
 
 #include "common.h"
+#include "log.h"
 #include "snobj.h"
 #include "driver.h"
 

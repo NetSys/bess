@@ -5,10 +5,12 @@
 #include <string.h>
 #include <ctype.h>
 
-#include "rte_hash_crc.h"
+#include <rte_hash_crc.h>
+
+#include "log.h"
+#include "utils/cdlist.h"
 
 #include "namespace.h"
-#include "utils/cdlist.h"
 
 #define NS_BUCKET_SIZE_INIT 64
 #define NS_BUCKET_SIZE_MAX 	1048576
@@ -29,9 +31,10 @@ struct ns_table {
 	int type_count;
 	int item_count;
 
-	struct cdlist_head *ns_elem_bhead; // hashtable
+	struct cdlist_head *ns_elem_bhead;	/* hash table */
 
-	struct cdlist_head ns_elem_type_iter[NS_TYPE_MAX]; // per-type iterator
+	/* per-type iterators */
+	struct cdlist_head ns_elem_type_iter[NS_TYPE_MAX]; 
 	int iterator_cnt[NS_TYPE_MAX];
 } ht;
 
@@ -71,19 +74,22 @@ static inline uint32_t ns_get_hash_with_bsize(const char *name, int new_bsize)
 	return hash % new_bsize;
 }
 
-static void ns_table_print() 
+static void ns_table_dump() 
 {
 	struct ns_elem *entry;
 	struct cdlist_head *bhead;
 			
-	printf("== ns_table_print starts ==\n"); 
+	log_debug("== ns_table_dump starts ==\n");
+
 	for (int i = 0; i < ht.bucket_size; i++) {
 		bhead = &ht.ns_elem_bhead[i];
 		cdlist_for_each_entry(entry, bhead, ns_table_bhead) {
-			printf("entry [%s] is in %d bucket\n", entry->name, i);
+			log_debug("entry '%s' is in bucket %d\n", 
+					entry->name, i);
 		}
 	}
-	printf("== ns_table_print ends ==\n"); 
+
+	log_debug("== ns_table_dump ends ==\n"); 
 }
 
 static int ns_table_resize(int new_bsize) 
@@ -392,7 +398,7 @@ void ns_valid_name_test()
 	ret = ns_is_valid_name(name5);
 	assert(!ret);
 
-	printf("PASS: ns_valid_name_test\n");
+	log_info("PASS: ns_valid_name_test\n");
 }
 
 void ns_hashtable_test() 
@@ -463,7 +469,7 @@ void ns_hashtable_test()
 	ret_obj = ns_lookup(NS_TYPE_PORT, port2_name);
 	assert (!ret_obj);
 	
-	printf("PASS: ns_hastable_test\n");
+	log_info("PASS: ns_hastable_test\n");
 }
 
 void ns_iterator_test() 
@@ -595,7 +601,7 @@ void ns_iterator_test()
 	assert(count == 7); // 4 modules, 1 driver, 3 ports
 	ns_release_iterator(&iter_all);
 
-	printf("PASS: ns_iterator_test\n");
+	log_info("PASS: ns_iterator_test\n");
 }
 
 void ns_table_resize_test() 
@@ -647,7 +653,7 @@ void ns_table_resize_test()
 	// resize table
 	ret = ns_table_resize(64);
 	if (ret) {
-		printf("FAIL: ns_table_resize()\n");
+		log_err("FAIL: ns_table_resize()\n");
 		return;
 	}
 
@@ -673,7 +679,7 @@ void ns_table_resize_test()
 	// resize table
 	ret = ns_table_resize(16);
 	if (ret) {
-		printf("FAIL: ns_table_resize()\n");
+		log_err("FAIL: ns_table_resize()\n");
 		return;
 	}
 	
@@ -696,6 +702,5 @@ void ns_table_resize_test()
 	ret_obj = ns_lookup(NS_TYPE_PORT, port2_name);
 	assert (ret_obj == &port2_obj);
 	
-	printf("PASS: ns_table_resize_test\n");
-
+	log_info("PASS: ns_table_resize_test\n");
 }

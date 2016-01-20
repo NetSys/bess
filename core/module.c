@@ -395,7 +395,7 @@ void _trace_end(int print_out)
 	s->newlined = 0;
 
 	if (print_out)
-		printf("%s", s->buf);
+		log_debug("%s", s->buf);
 }
 
 void _trace_before_call(struct module *mod, struct module *next,
@@ -527,7 +527,7 @@ void dump_pcap_pkts(struct output_gate *gate, struct pkt_batch *batch)
 
 		if (ret < 0) {
 			if (errno == EPIPE) {
-				printf("Stopping dump\n");
+				log_debug("Stopping dump\n");
 				gate->tcpdump = 0;
 				gate->fifo_fd = 0;
 				close(fd);
@@ -647,7 +647,7 @@ again:
 	if (unlikely(current_tsc - last_print > tsc_hz)) {
 		if (unlikely(idle > tsc_hz))
 			idle = tsc_hz;
-		printf("Worker %d: %5.1f%%, "
+		log_debug("Worker %d: %5.1f%%, "
 			"loop %4.2fM/%4.2fM, "
 			"idle %.2fus, " 
 			"busy %.2fus (%.2fus/pkt), "

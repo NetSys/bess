@@ -3,6 +3,8 @@
 #include <errno.h>
 #include <stdarg.h>
 
+#include "log.h"
+
 #include "snobj.h"
 
 #define DEF_LIST_SLOTS	4
@@ -356,10 +358,10 @@ struct snobj *snobj_eval(const struct snobj *m, const char *expr)
 
 static void print_heading(int indent, int list_depth)
 {
-	printf("%*s", indent - list_depth * 2, "");
+	log_debug("%*s", indent - list_depth * 2, "");
 
 	while (list_depth--)
-		printf("- ");
+		log_debug("- ");
 }
 
 static void snobj_dump_recur(const struct snobj *m, int indent, int list_depth)
@@ -374,44 +376,44 @@ static void snobj_dump_recur(const struct snobj *m, int indent, int list_depth)
 		if (list_depth)
 			print_heading(indent, list_depth);
 
-		printf("<nil>\n");
+		log_debug("<nil>\n");
 		break;
 
 	case TYPE_INT:
 		if (list_depth)
 			print_heading(indent, list_depth);
 
-		printf("%ld\n", m->int_value);
+		log_debug("%ld\n", m->int_value);
 		break;
 
 	case TYPE_DOUBLE:
 		if (list_depth)
 			print_heading(indent, list_depth);
 
-		printf("%f\n", m->double_value);
+		log_debug("%f\n", m->double_value);
 		break;
 
 	case TYPE_STR:
 		if (list_depth)
 			print_heading(indent, list_depth);
 
-		printf("'%s'\n", (char *)m->data);
+		log_debug("'%s'\n", (char *)m->data);
 		break;
 
 	case TYPE_BLOB:
 		if (list_depth)
 			print_heading(indent, list_depth);
 
-		printf("ptr=%p, size=%u, data=", m->data, m->size);
+		log_debug("ptr=%p, size=%u, data=", m->data, m->size);
 		for (i = 0; i < m->size; i++) {
 			if (i == blob_byte_limit) {
-				printf("...");
+				log_debug("...");
 				break;
 			}
-			printf("%02hhx ", ((char *)m->data)[i]);
+			log_debug("%02hhx ", ((char *)m->data)[i]);
 		}
 
-		printf("\n");
+		log_debug("\n");
 		break;
 
 	case TYPE_LIST:
@@ -419,7 +421,8 @@ static void snobj_dump_recur(const struct snobj *m, int indent, int list_depth)
 			struct snobj *child = m->list.arr[i];
 
 			if (i == list_item_limit) {
-				printf("(... %d more)\n", (int)m->size - list_item_limit);
+				log_debug("(... %d more)\n", 
+						(int)m->size - list_item_limit);
 				break;
 			}
 
@@ -436,25 +439,25 @@ static void snobj_dump_recur(const struct snobj *m, int indent, int list_depth)
 				print_heading(indent, list_depth);
 				list_depth = 0;
 			} else 
-				printf("%*s", indent, "");
+				log_debug("%*s", indent, "");
 
-			printf("%s: ", m->map.arr_k[i]);
+			log_debug("%s: ", m->map.arr_k[i]);
 
 			if (child->type == TYPE_LIST || child->type == TYPE_MAP)
-				printf("\n");
+				log_debug("\n");
 
 			snobj_dump_recur(child, indent + 4, 0);
 		}
 		break;
 
 	default:
-		printf("INVALID_TYPE\n");
+		log_debug("INVALID_TYPE\n");
 	}
 }
 
 void snobj_dump(const struct snobj *m)
 {
-	printf("--- (%p)\n", m);
+	log_debug("--- (%p)\n", m);
 	snobj_dump_recur(m, 0, 0);
 }
 
