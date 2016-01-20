@@ -9,11 +9,17 @@
 void start_logger();
 void end_logger();
 
+/* Corresponds to perror(). No LF should be given at the end */
+void log_perr(const char *fmt, ...)
+		__attribute__((format(printf, 1, 2)));
+
 void _log(int priority, const char *fmt, ...) 
 		__attribute__((format(printf, 2, 3)));
 
+/* do not use the following two */ 
 #define log_emerg(fmt, ...)	_log(LOG_EMERG, fmt, ##__VA_ARGS__)
 #define log_alert(fmt, ...)	_log(LOG_ALERT, fmt, ##__VA_ARGS__)
+
 #define log_crit(fmt, ...) 	_log(LOG_CRIT, fmt, ##__VA_ARGS__)
 #define log_err(fmt, ...)  	_log(LOG_ERR, fmt, ##__VA_ARGS__)
 #define log_warn(fmt, ...) 	_log(LOG_WARNING, fmt, ##__VA_ARGS__)
