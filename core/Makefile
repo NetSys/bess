@@ -86,7 +86,7 @@ $(EXEC): $(OBJS)
 		echo "Link error: \033[0;31m$@\033[0;33m\n$(COMMAND) \033[0m"; \
 		false; \
 	fi
-	@echo Done.
+	@echo "Build succeeded."
 	@sync
 
 -include $(DEPS)
