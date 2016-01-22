@@ -368,13 +368,13 @@ static struct snobj *set_ip_addr(struct port *p, int container_pid,
 			sprintf(buf, "/proc/%d/ns/net", container_pid);
 			fd = open(buf, O_RDONLY);
 			if (fd < 0) {
-				perror("open(/proc/pid/ns/net)");
+				log_perr("open(/proc/pid/ns/net)");
 				exit(errno <= 255 ? errno: ENOMSG);
 			}
 
 			ret = setns(fd, 0);
 			if (ret < 0) {
-				perror("setns()");
+				log_perr("setns()");
 				exit(errno <= 255 ? errno: ENOMSG);
 			}
 		} else
@@ -434,7 +434,7 @@ wait_child:
 				assert(ret == child_pid);
 				ret = -WEXITSTATUS(exit_status);
 			} else
-				perror("waitpid()");
+				log_perr("waitpid()");
 		}
 	}
 
@@ -456,7 +456,7 @@ static void deinit_port(struct port *p)
 
 	ret = ioctl(priv->fd, SN_IOC_RELEASE_HOSTNIC);
 	if (ret < 0)
-		perror("SN_IOC_RELEASE_HOSTNIC");	
+		log_perr("SN_IOC_RELEASE_HOSTNIC");	
 
 	close(priv->fd);
 	free_bar(priv);
@@ -563,7 +563,7 @@ static struct snobj *init_port(struct port *p, struct snobj *conf)
 
 	ret = ioctl(priv->fd, SN_IOC_SET_QUEUE_MAPPING, &priv->map);
 	if (ret < 0)
-		perror("SN_IOC_SET_QUEUE_MAPPING");	
+		log_perr("ioctl(SN_IOC_SET_QUEUE_MAPPING)");	
 
 	return NULL;
 }
@@ -681,7 +681,7 @@ static int vport_send_pkts(struct port *p, queue_t qid,
 		ret = ioctl(priv->fd, SN_IOC_KICK_RX, 
 				1 << priv->map.rxq_to_cpu[qid]);
 		if (ret)
-			perror("ioctl_kick_rx");
+			log_perr("ioctl(kick_rx)");
 	}
 
 	return cnt;

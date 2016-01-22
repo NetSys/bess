@@ -41,7 +41,7 @@ static void print_usage(char *exec_name)
 			"-k");
 	log_err("  %-16s Show TC statistics every second\n",
 			"-s");
-	log_err("  %-16s Run BESS in debug mode\n",
+	log_err("  %-16s Run BESS in debug mode (with debug log messages)\n",
 			"-d");
 
 	exit(2);
@@ -130,7 +130,7 @@ void check_pidfile()
 
 	fd = open("/var/run/bessd.pid", O_RDWR | O_CREAT, 0644);
 	if (fd == -1) {
-		perror("open(\"/ver/run/bessd.pid\")");
+		log_perr("open(/var/run/bessd.pid)");
 		exit(EXIT_FAILURE);
 	}
 
@@ -138,14 +138,14 @@ again:
 	ret = flock(fd, LOCK_EX | LOCK_NB);
 	if (ret) {
 		if (errno != EWOULDBLOCK) {
-			perror("flock(pidfile)");
+			log_perr("flock(pidfile)");
 			exit(EXIT_FAILURE);
 		}
 
 		/* lock is already acquired */
 		ret = read(fd, buf, sizeof(buf) - 1);
 		if (ret <= 0) {
-			perror("read(pidfile)");
+			log_perr("read(pidfile)");
 			exit(EXIT_FAILURE);
 		}
 
@@ -171,7 +171,7 @@ again:
 
 			ret = kill(pid, SIGTERM);
 			if (ret < 0) {
-				perror("kill(pid, SIGTERM)");
+				log_perr("kill(pid, SIGTERM)");
 				exit(EXIT_FAILURE);
 			}
 
@@ -183,7 +183,7 @@ again:
 
 			ret = kill(pid, SIGKILL);
 			if (ret < 0) {
-				perror("kill(pid, SIGKILL)");
+				log_perr("kill(pid, SIGKILL)");
 				exit(EXIT_FAILURE);
 			}
 
@@ -200,13 +200,13 @@ again:
 
 	ret = ftruncate(fd, 0);
 	if (ret) {
-		perror("ftruncate(pidfile, 0)");
+		log_perr("ftruncate(pidfile, 0)");
 		exit(EXIT_FAILURE);
 	}
 
 	ret = lseek(fd, 0, SEEK_SET);
 	if (ret) {
-		perror("lseek(pidfile, 0, SEEK_SET)");
+		log_perr("lseek(pidfile, 0, SEEK_SET)");
 		exit(EXIT_FAILURE);
 	}
 
@@ -215,7 +215,7 @@ again:
 	
 	ret = write(fd, buf, ret);
 	if (ret < 0) {
-		perror("write(pidfile, pid)");
+		log_perr("write(pidfile, pid)");
 		exit(EXIT_FAILURE);
 	}
 
@@ -237,13 +237,13 @@ int daemon_start()
 
 	ret = pipe(pipe_fds);
 	if (ret < 0) {
-		perror("pipe()");
+		log_perr("pipe()");
 		exit(EXIT_FAILURE);
 	}
 
 	pid = fork();
 	if (pid < 0) {
-		perror("fork()");
+		log_perr("fork()");
 		exit(EXIT_FAILURE);
 	} else if (pid > 0) {
 		/* parent */
@@ -268,7 +268,7 @@ int daemon_start()
 	/* Start a new session */
 	sid = setsid();
 	if (sid < 0) {
-		perror("setsid()");
+		log_perr("setsid()");
 		exit(EXIT_FAILURE);
 	}
 
@@ -323,7 +323,7 @@ int main(int argc, char **argv)
 	if (!opts->foreground) {
 		int ret = write(signal_fd, &(uint64_t){1}, sizeof(uint64_t));
 		if (ret < 0) {
-			perror("write(signal_fd)");
+			log_perr("write(signal_fd)");
 			exit(EXIT_FAILURE);
 		}
 		close(signal_fd);
