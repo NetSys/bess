@@ -1,4 +1,3 @@
-#include <assert.h>
 #include <string.h>
 #include <unistd.h>
 #include <fcntl.h>
@@ -29,34 +28,6 @@ struct logger {
 static __thread struct logger loggers[MAX_LOG_PRIORITY + 1];
 
 static int initialized = 0;
-
-void start_logger()
-{
-	int fd = open("/dev/null", O_RDWR, 0);
-	if (fd >= 0) {   
-		dup2(fd, STDIN_FILENO);
-
-		if (!global_opts.foreground) {
-			dup2(fd, STDOUT_FILENO);
-			dup2(fd, STDERR_FILENO);
-
-			openlog(BESS_ID, LOG_CONS | LOG_NDELAY, LOG_DAEMON);
-		}
-
-		if (fd > 2)
-			close(fd);
-	}
-
-	initialized = 1;
-}
-
-void end_logger()
-{
-	if (!global_opts.foreground)
-		closelog();
-
-	initialized = 0;
-}
 
 static void do_log(int priority, const char *data, size_t len)
 {
@@ -112,7 +83,7 @@ static void log_flush(int priority, struct logger *logger)
 		logger->len -= (lf - p + 1);
 		p = lf + 1;
 	}
-	
+		
 	if (p != logger->buf && logger->len > 0)
 		memmove(logger->buf, p, logger->len);
 }
@@ -125,7 +96,6 @@ static void log_vfmt(int priority, const char *fmt, va_list ap)
 	struct logger *logger = &loggers[priority];
 
 	free_space = sizeof(logger->buf) - logger->len;
-	assert(free_space >= MAX_LOG_LEN);
 
 	to_write = vsnprintf(logger->buf + logger->len, free_space, fmt, ap);
 	if (to_write >= free_space) {
@@ -142,7 +112,41 @@ static void log_vfmt(int priority, const char *fmt, va_list ap)
 
 	logger->len += to_write;
 
-	log_flush(priority, logger);
+	if (initialized)
+		log_flush(priority, logger);
+}
+
+void start_logger()
+{
+	int fd = open("/dev/null", O_RDWR, 0);
+	if (fd >= 0) {   
+		dup2(fd, STDIN_FILENO);
+
+		if (!global_opts.foreground) {
+			dup2(fd, STDOUT_FILENO);
+			dup2(fd, STDERR_FILENO);
+
+			openlog(BESS_ID, LOG_CONS | LOG_NDELAY, LOG_DAEMON);
+		}
+
+		if (fd > 2)
+			close(fd);
+	}
+
+	for (int i = 0; i <= MAX_LOG_PRIORITY; i++) {
+		if (i < LOG_DEBUG || global_opts.debug_mode)
+			log_flush(i, &loggers[i]);
+	}
+
+	initialized = 1;
+}
+
+void end_logger()
+{
+	if (!global_opts.foreground)
+		closelog();
+
+	initialized = 0;
 }
 
 void _log(int priority, const char *fmt, ...)
@@ -151,10 +155,12 @@ void _log(int priority, const char *fmt, ...)
 
 	if (priority < 0 || priority > MAX_LOG_PRIORITY)
 		return;
-	
-	va_start(ap, fmt);
-	log_vfmt(priority, fmt, ap);
-	va_end(ap);
+
+	if (!initialized || global_opts.debug_mode || priority < LOG_DEBUG) {
+		va_start(ap, fmt);
+		log_vfmt(priority, fmt, ap);
+		va_end(ap);
+	}
 }
 
 void log_perr(const char *fmt, ...)
