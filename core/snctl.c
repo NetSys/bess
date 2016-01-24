@@ -26,7 +26,7 @@ struct handler_map {
 };
 
 static const char *tc_limit_str[NUM_RESOURCES] = 
-  {"limit_sps", "limit_cps","limit_pps", "limit_bps"};
+		{"limit_sps", "limit_cps", "limit_pps", "limit_bps"};
 
 static struct snobj *handle_reset_modules(struct snobj *);
 static struct snobj *handle_reset_ports(struct snobj *);
@@ -37,7 +37,7 @@ static struct snobj *handle_reset_all(struct snobj *q)
 {
 	struct snobj *r;
 
-	printf("*** reset_all requested ***\n");
+	log_info("*** reset_all requested ***\n");
 
 	r = handle_reset_modules(NULL);
 	if (r)
@@ -61,21 +61,21 @@ static struct snobj *handle_reset_all(struct snobj *q)
 static struct snobj *handle_pause_all(struct snobj *q)
 {
 	pause_all_workers();
-	printf("*** All workers have been paused ***\n");
+	log_info("*** All workers have been paused ***\n");
 	return NULL;
 }
 
 static struct snobj *handle_resume_all(struct snobj *q)
 {
 	resume_all_workers();
-	printf("*** Resumed ***\n");
+	log_info("*** Resumed ***\n");
 	return NULL;
 }
 
 static struct snobj *handle_reset_workers(struct snobj *q)
 {
 	destroy_all_workers();
-	printf("*** All workers have been destroyed ***\n");
+	log_info("*** All workers have been destroyed ***\n");
 	return NULL;
 }
 
@@ -378,7 +378,7 @@ static struct snobj *handle_reset_ports(struct snobj *q)
 			return snobj_errno(-ret);
 	}
 
-	printf("*** All ports have been destroyed ***\n");
+	log_info("*** All ports have been destroyed ***\n");
 	return NULL;
 }
 
@@ -537,7 +537,7 @@ static struct snobj *handle_reset_modules(struct snobj *q)
 	while (list_modules((const struct module **)&m, 1, 0))
 		destroy_module(m);
 
-	printf("*** All modules have been destroyed ***\n");
+	log_info("*** All modules have been destroyed ***\n");
 	return NULL;
 }
 
@@ -856,7 +856,7 @@ static struct snobj *handle_disable_tcpdump(struct snobj *q)
 /* Adding this mostly to provide a reasonable way to exit when daemonized */
 static struct snobj *handle_kill_bess(struct snobj *q)
 {
-	printf("bessd kill called\n");
+	log_notice("Halt requested by a client\n");
 	exit(EXIT_SUCCESS);
 
 	/* Never called */
@@ -986,7 +986,7 @@ struct snobj *handle_request(struct client *c, struct snobj *q)
 	const char *s;
 
 	if (global_opts.debug_mode) {
-		printf("Request:\n");
+		log_debug("Request:\n");
 		snobj_dump(q);
 	}
 
@@ -1014,7 +1014,7 @@ reply:
 		r = snobj_nil();
 
 	if (global_opts.debug_mode) {
-		printf("Response:\n");
+		log_debug("Response:\n");
 		snobj_dump(r);
 	}
 

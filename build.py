@@ -207,6 +207,7 @@ def build_bess():
 
     print 'Building BESS daemon...'
     cmd('bin/bessctl daemon stop 2> /dev/null || true')
+    cmd('rm -f core/bessd')     # force relink as DPDK might have been rebuilt
     cmd('make -C core')
     cmd('ln -f -s ../core/bessd bin/bessd')
 

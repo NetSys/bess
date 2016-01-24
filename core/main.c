@@ -1,7 +1,6 @@
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <fcntl.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <errno.h>
@@ -18,32 +17,31 @@
 #include "master.h"
 #include "worker.h"
 #include "driver.h"
-#include "syslog.h"
+#include "log.h"
 
 const struct global_opts global_opts;
 static struct global_opts *opts = (struct global_opts *)&global_opts;
 
 static void print_usage(char *exec_name)
 {
-	fprintf(stderr, "Usage: %s" \
-			" [-t] [-c <core list>] [-p <port>] [-f] [-k] [-d]\n\n",
-			exec_name);
+	log_err("Usage: %s" \
+		" [-t] [-c <core list>] [-p <port>] [-f] [-k] [-d]\n\n",
+		exec_name);
 
-	fprintf(stderr, "  %-16s Dump the size of internal data structures\n",
+	log_err("  %-16s Dump the size of internal data structures\n", 
 			"-t");
-	fprintf(stderr, "  %-16s Core ID for each worker (e.g., -c 0,8)\n",
+	log_err("  %-16s Core ID for each worker (e.g., -c 0,8)\n",
 			"-c <core list>");
-	fprintf(stderr, "  %-16s Specifies the TCP port on which SoftNIC" \
+	log_err("  %-16s Specifies the TCP port on which SoftNIC" \
 			" listens for controller connections\n",
 			"-p <port>");
-	fprintf(stderr, "  %-16s Run BESS in foreground mode " \
-			" (for developers)\n",
+	log_err("  %-16s Run BESS in foreground mode (for developers)\n",
 			"-f");
-	fprintf(stderr, "  %-16s Kill existing BESS instance, if any\n",
+	log_err("  %-16s Kill existing BESS instance, if any\n",
 			"-k");
-	fprintf(stderr, "  %-16s Show TC statistics every second\n",
+	log_err("  %-16s Show TC statistics every second\n",
 			"-s");
-	fprintf(stderr, "  %-16s Run BESS in debug mode\n",
+	log_err("  %-16s Run BESS in debug mode (with debug log messages)\n",
 			"-d");
 
 	exit(2);
@@ -85,13 +83,12 @@ static void parse_args(int argc, char **argv)
 			break;
 
 		case ':':
-			fprintf(stderr, "argument is required for -%c\n", 
-					optopt);
+			log_err("argument is required for -%c\n", optopt);
 			print_usage(argv[0]);
 			break;
 
 		case '?':
-			fprintf(stderr, "Invalid option -%c\n", optopt);
+			log_err("Invalid command line option -%c\n", optopt);
 			print_usage(argv[0]);
 			break;
 
@@ -101,7 +98,7 @@ static void parse_args(int argc, char **argv)
 	}
 
 	if (opts->foreground && !opts->print_tc_stats)
-		printf("TC statistics output is disabled (add -s option?)\n");
+		log_info("TC statistics output is disabled (add -s option?)\n");
 }
 
 /* todo: chdir */
@@ -111,8 +108,7 @@ void check_user()
 	
 	euid = geteuid();
 	if (euid != 0) {
-		fprintf(stderr, "ERROR: You need root privilege to run" \
-				" BESS daemon\n");
+		log_err("ERROR: You need root privilege to run BESS daemon\n");
 		exit(EXIT_FAILURE);
 	}
 
@@ -134,7 +130,7 @@ void check_pidfile()
 
 	fd = open("/var/run/bessd.pid", O_RDWR | O_CREAT, 0644);
 	if (fd == -1) {
-		perror("open(\"/ver/run/bessd.pid\")");
+		log_perr("open(/var/run/bessd.pid)");
 		exit(EXIT_FAILURE);
 	}
 
@@ -142,14 +138,14 @@ again:
 	ret = flock(fd, LOCK_EX | LOCK_NB);
 	if (ret) {
 		if (errno != EWOULDBLOCK) {
-			perror("flock(pidfile)");
+			log_perr("flock(pidfile)");
 			exit(EXIT_FAILURE);
 		}
 
 		/* lock is already acquired */
 		ret = read(fd, buf, sizeof(buf) - 1);
 		if (ret <= 0) {
-			perror("read(pidfile)");
+			log_perr("read(pidfile)");
 			exit(EXIT_FAILURE);
 		}
 
@@ -158,11 +154,11 @@ again:
 		sscanf(buf, "%d", &pid);
 
 		if (trials == 0)
-			printf("\n  There is another BESS daemon" \
-				" running (PID=%d).\n", pid);
+			log_notice("  There is another BESS daemon " \
+				"running (PID=%d).\n", pid);
 
 		if (!opts->kill_existing) {
-			fprintf(stderr, "ERROR: You cannot run more than" \
+			log_err("ERROR: You cannot run more than" \
 				" one BESS instance at a time. " \
 				"(add -k option?)\n");
 			exit(EXIT_FAILURE);
@@ -171,11 +167,11 @@ again:
 		trials++;
 
 		if (trials <= 3) {
-			printf("  Sending SIGTERM signal...\n");
+			log_info("  Sending SIGTERM signal...\n");
 
 			ret = kill(pid, SIGTERM);
 			if (ret < 0) {
-				perror("kill(pid, SIGTERM)");
+				log_perr("kill(pid, SIGTERM)");
 				exit(EXIT_FAILURE);
 			}
 
@@ -183,11 +179,11 @@ again:
 			goto again;
 
 		} else if (trials <= 5) {
-			printf("  Sending SIGKILL signal...\n");
+			log_info("  Sending SIGKILL signal...\n");
 
 			ret = kill(pid, SIGKILL);
 			if (ret < 0) {
-				perror("kill(pid, SIGKILL)");
+				log_perr("kill(pid, SIGKILL)");
 				exit(EXIT_FAILURE);
 			}
 
@@ -195,22 +191,22 @@ again:
 			goto again;
 		}
 
-		fprintf(stderr, "ERROR: Cannot kill the process\n");
+		log_err("ERROR: Cannot kill the process\n");
 		exit(EXIT_FAILURE);
 	}
 
 	if (trials > 0)
-		printf("  Old instance has been successfully terminated.\n");
+		log_info("  Old instance has been successfully terminated.\n");
 
 	ret = ftruncate(fd, 0);
 	if (ret) {
-		perror("ftruncate(pidfile, 0)");
+		log_perr("ftruncate(pidfile, 0)");
 		exit(EXIT_FAILURE);
 	}
 
 	ret = lseek(fd, 0, SEEK_SET);
 	if (ret) {
-		perror("lseek(pidfile, 0, SEEK_SET)");
+		log_perr("lseek(pidfile, 0, SEEK_SET)");
 		exit(EXIT_FAILURE);
 	}
 
@@ -219,7 +215,7 @@ again:
 	
 	ret = write(fd, buf, ret);
 	if (ret < 0) {
-		perror("write(pidfile, pid)");
+		log_perr("write(pidfile, pid)");
 		exit(EXIT_FAILURE);
 	}
 
@@ -237,18 +233,17 @@ int daemon_start()
 
 	int ret;
 
-	printf("Launching BESS daemon in background... ");
-	fflush(stdout);
+	log_info("Launching BESS daemon in background...\n");
 
 	ret = pipe(pipe_fds);
 	if (ret < 0) {
-		perror("pipe()");
+		log_perr("pipe()");
 		exit(EXIT_FAILURE);
 	}
 
 	pid = fork();
 	if (pid < 0) {
-		perror("fork()");
+		log_perr("fork()");
 		exit(EXIT_FAILURE);
 	} else if (pid > 0) {
 		/* parent */
@@ -258,10 +253,10 @@ int daemon_start()
 
 		ret = read(pipe_fds[read_end], &tmp, sizeof(tmp));
 		if (ret == sizeof(uint64_t)) {
-			printf("Done (PID=%d).\n", pid);
+			log_info("Done (PID=%d).\n", pid);
 			exit(EXIT_SUCCESS);
 		} else {
-			fprintf(stderr, "Failed. (syslog may have details)\n");
+			log_err("Failed. (syslog may have details)\n");
 			exit(EXIT_FAILURE);
 		}
 	} else {
@@ -273,7 +268,7 @@ int daemon_start()
 	/* Start a new session */
 	sid = setsid();
 	if (sid < 0) {
-		perror("setsid()");
+		log_perr("setsid()");
 		exit(EXIT_FAILURE);
 	}
 
@@ -295,7 +290,7 @@ static void set_resource_limit()
 			continue;
 		}
 
-		fprintf(stderr, "WARNING: setrlimit() failed\n");
+		log_err("WARNING: setrlimit() failed\n");
 		return;
 	}
 }
@@ -309,22 +304,14 @@ int main(int argc, char **argv)
 	check_user();
 	
 	if (opts->foreground)
-		printf("Launching BESS daemon in process mode... ");
+		log_info("Launching BESS daemon in process mode...\n");
 	else
 		signal_fd = daemon_start();
 
 	check_pidfile();
 	set_resource_limit();
 
-	if (opts->foreground) {
-		printf("OK\n");
-	} else {
-		close(STDIN_FILENO);
-		close(STDOUT_FILENO);
-		close(STDERR_FILENO);
-
-		setup_syslog();
-	}
+	start_logger();
 
 	init_dpdk(argv[0]);
 	init_mempool();
@@ -336,7 +323,7 @@ int main(int argc, char **argv)
 	if (!opts->foreground) {
 		int ret = write(signal_fd, &(uint64_t){1}, sizeof(uint64_t));
 		if (ret < 0) {
-			perror("write(signal_fd)");
+			log_perr("write(signal_fd)");
 			exit(EXIT_FAILURE);
 		}
 		close(signal_fd);
@@ -344,11 +331,10 @@ int main(int argc, char **argv)
 
 	run_master();
 
-	if (!opts->foreground)
-		end_syslog();
-
 	rte_eal_mp_wait_lcore();
 	close_mempool();
+
+	end_logger();
 
 	return 0;
 }

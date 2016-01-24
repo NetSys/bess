@@ -14,6 +14,7 @@
 #include "utils/cdlist.h"
 #include "utils/pcap.h"
 
+#include "log.h"
 #include "debug.h"
 #include "mclass.h"
 #include "snbuf.h"

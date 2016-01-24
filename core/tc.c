@@ -7,14 +7,15 @@
 #include <rte_malloc.h>
 #include <rte_cycles.h>
 
-#include "tc.h"
 #include "debug.h"
 #include "common.h"
 #include "time.h"
 #include "task.h"
 #include "worker.h"
-
+#include "log.h"
 #include "utils/random.h"
+
+#include "tc.h"
 
 /* this library is not thread safe */
 
@@ -622,7 +623,7 @@ static void print_stats(struct sched *s, struct sched_stats *last_stats)
 	p = print_tc_stats_detail(s, p, 16);
 #endif
 
-	printf("%s", buf);
+	log_info("%s", buf);
 }
 
 static inline struct task_result tc_scheduled(struct tc *c)
@@ -764,7 +765,7 @@ void sched_test_alloc()
 
 	sched_free(s);
 
-	printf("SCHED: test passed\n");
+	log_debug("SCHED: test passed\n");
 }
 
 void sched_test_perf()

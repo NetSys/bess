@@ -277,7 +277,7 @@ int acquire_queues(struct port *p, const struct module *m, packet_dir_t dir,
 	int i;
 
 	if (dir != PACKET_DIR_INC && dir != PACKET_DIR_OUT) {
-		fprintf(stderr, "Incorrect packet dir %d\n", dir);
+		log_err("Incorrect packet dir %d\n", dir);
 		return -EINVAL;
 	}
 
@@ -328,7 +328,7 @@ void release_queues(struct port *p, const struct module *m, packet_dir_t dir,
 	int i;
 
 	if (dir != PACKET_DIR_INC && dir != PACKET_DIR_OUT) {
-		fprintf(stderr, "Incorrect packet dir %d\n", dir);
+		log_err("Incorrect packet dir %d\n", dir);
 		return;
 	}
 

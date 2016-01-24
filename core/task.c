@@ -2,8 +2,9 @@
 
 #include <rte_malloc.h>
 
-#include "task.h"
+#include "log.h"
 #include "module.h"
+#include "task.h"
 
 struct cdlist_head all_tasks = CDLIST_HEAD_INIT(all_tasks);
 
@@ -88,7 +89,7 @@ void assign_default_tc(int wid, struct task *t)
 	} while (ptr_to_err(c_def) == -EEXIST);
 	
 	if (is_err(c_def)) {
-		fprintf(stderr, "tc_init() failed\n");
+		log_err("tc_init() failed\n");
 		return;
 	}
 

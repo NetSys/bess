@@ -86,8 +86,6 @@ static int l2_init(struct l2_table *l2tbl, int size, int bucket)
 	l2tbl->size = size;
 	l2tbl->bucket = bucket;
 
-	printf("size: %d\n", size);
-
 	/* calculates the log_2 (size) */
 	l2tbl->size_power = 0;
 	while (size > 1) {
@@ -242,7 +240,7 @@ static inline int l2_find(struct l2_table *l2tbl,
 			offset++;
 		}
 	}
-	//printf("return %d\n",ret);
+
 	return ret;
 }
 
@@ -465,11 +463,11 @@ static void l2_forward_entry_test()
 	assert(!ret);
 
 	ret = l2_add_entry(&l2tbl, addr1, index1);
-	printf("add entry: %lu, index: %hu\n", addr1, index1);
+	log_debug("add entry: %lu, index: %hu\n", addr1, index1);
 	assert(!ret);
 
 	ret = l2_find(&l2tbl, addr1, &gate_index);
-	printf("find entry: %lu, index: %hu\n", addr1, gate_index);
+	log_debug("find entry: %lu, index: %hu\n", addr1, gate_index);
 	assert(!ret);
 	assert(index1==gate_index);
 
@@ -516,59 +514,52 @@ void l2_forward_flush_test()
 
 void l2_forward_collision_test()
 {
-#define H_SIZE 4
-#define B_SIZE 4
-#define MAX_HB_CNT ((H_SIZE) * (B_SIZE))
+	const int h_size = 4;
+	const int b_size = 4;
+	const int max_hb_cnt = h_size * b_size;
 
 	int ret;
 	int i;
 	struct l2_table l2tbl;
 
-	uint64_t addr[MAX_HB_CNT];
-	uint16_t idx[MAX_HB_CNT];
-	int success[MAX_HB_CNT];
+	uint64_t addr[max_hb_cnt];
+	uint16_t idx[max_hb_cnt];
+	int success[max_hb_cnt];
 	uint32_t offset;
 
-	ret = l2_init(&l2tbl, H_SIZE, B_SIZE);
+	ret = l2_init(&l2tbl, h_size, b_size);
 	assert(!ret);
 
 	/* collision happens */
-	for (i = 0; i < MAX_HB_CNT; i++) {
+	for (i = 0; i < max_hb_cnt; i++) {
 		addr[i] = random() % ULONG_MAX;
 		idx[i] = random() % USHRT_MAX;
 
 		ret = l2_add_entry(&l2tbl, addr[i], idx[i]);
-		printf("insert result:%ld %d %d\n", addr[i], idx[i], ret);
-		if (ret < 0)
-			success[i] = 0;
-		else
-			success[i] = 1;
+		log_debug("insert result:%ld %d %d\n", addr[i], idx[i], ret);
+		success[i] = (ret >= 0);
 	}
 
 	/* collision happens */
-	for (i = 0; i < MAX_HB_CNT; i++) {
+	for (i = 0; i < max_hb_cnt; i++) {
 		uint16_t gate_index;
 		gate_index = 0;
 		offset = 0;
 
 		ret = l2_find(&l2tbl, addr[i], &gate_index);
 
-		printf("find result: %ld, %d, %d\n",
+		log_debug("find result: %ld, %d, %d\n",
 		       addr[i], gate_index, offset);
 
 		if (success[i]) {
 			assert(!ret);
 			assert(idx[i] == gate_index);
-		} else {
+		} else
 			assert(ret);
-		}
 	}
 
 	ret = l2_deinit(&l2tbl);
 	assert(!ret);
-#undef H_SIZE
-#undef B_SIZE
-#undef MAX_HB_CNT
 }
 
 int test_all()

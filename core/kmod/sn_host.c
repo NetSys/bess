@@ -448,7 +448,11 @@ static int sn_host_ioctl_create_netdev(phys_addr_t bar_phys,
 
 	bar = phys_to_virt(bar_phys);
 
-	/* log_info("BAR: phys=%p virt=%p\n", (void *)bar_phys, bar); */
+	if (!virt_addr_valid(bar)) {
+		log_err("invalid BAR address: phys=%p virt=%p\n", 
+				(void *)bar_phys, bar);
+		return -EFAULT;
+	}
 
 	ret = sn_create_netdev(bar, dev_ret);
 	if (ret)

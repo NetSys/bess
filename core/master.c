@@ -16,10 +16,12 @@
 #include <rte_lcore.h>
 #include <rte_malloc.h>
 
-#include "master.h"
+#include "log.h"
 #include "worker.h"
 #include "snobj.h"
 #include "snctl.h"
+
+#include "master.h"
 
 /* Port this SoftNIC instance listens on. 
  * Panda came up with this default number */
@@ -70,14 +72,14 @@ static int init_listen_fd(uint16_t port)
 	int listen_fd;
 
 	if ((listen_fd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
-		perror("Channel socket() failed");
+		log_perr("socket()");
 		exit(EXIT_FAILURE);
 	}
 
 	if (setsockopt(listen_fd, SOL_SOCKET, SO_REUSEADDR, 
 				&(int){1}, sizeof(int)) < 0) 
 	{
-		perror("Channel setsockopt(SO_REUSEADDR) failed");
+		log_perr("setsockopt(SO_REUSEADDR)");
 		exit(EXIT_FAILURE);
 	}
 
@@ -85,7 +87,7 @@ static int init_listen_fd(uint16_t port)
 				&(struct linger){.l_onoff = 1, .l_linger = 0},
 				sizeof(struct linger)) < 0)
 	{
-		perror("Channel setsockopt(SO_LINGER) failed");
+		log_perr("setsockopt(SO_LINGER)");
 		exit(EXIT_FAILURE);
 	}
 
@@ -97,19 +99,19 @@ static int init_listen_fd(uint16_t port)
 
 	if (bind(listen_fd, (struct sockaddr *)&s_addr, sizeof(s_addr)) < 0) {
 		if (errno == EADDRINUSE)
-			fprintf(stderr, "Error: port %u is already in use\n", 
-					port);
+			log_crit("Error: port %u is already in use\n", port);
 		else
-			perror("bind()");
+			log_perr("bind()");
 		exit(EXIT_FAILURE);
 	}
 
 	if (listen(listen_fd, 0) < 0) {
-		perror("listen()");
+		log_perr("listen()");
 		exit(EXIT_FAILURE);
 	}
 
-	printf("Master: listening on %s:%hu\n", inet_ntoa(s_addr.sin_addr), port);
+	log_info("Master: listening on %s:%hu\n", 
+			inet_ntoa(s_addr.sin_addr), port);
 
 	return listen_fd;
 }
@@ -144,7 +146,7 @@ static struct client *init_client(int fd, struct sockaddr_in c_addr)
 
 static void close_client(struct client *c)
 {
-	printf("Master: client %s:%hu disconnected\n", 
+	log_info("Master: client %s:%hu disconnected\n", 
 			inet_ntoa(c->addr.sin_addr), c->addr.sin_port);
 
 	close(c->fd);
@@ -190,7 +192,7 @@ static struct client *accept_client(int listen_fd)
 	conn_fd = accept(listen_fd, (struct sockaddr *)&c_addr, 
 			&addrlen);
 	if (conn_fd < 0) {
-		perror("accept()");
+		log_perr("accept()");
 		return NULL;
 	}
 
@@ -206,7 +208,7 @@ static struct client *accept_client(int listen_fd)
 	ret = epoll_ctl(master.epoll_fd, EPOLL_CTL_ADD, conn_fd, 
 			&(struct epoll_event){.events=EPOLLIN, .data.ptr = c}); 
 	if (ret < 0) {
-		perror("epoll_ctl(EPOLL_CTL_ADD, conn_fd)");
+		log_perr("epoll_ctl(EPOLL_CTL_ADD, conn_fd)");
 		close_client(c);
 	}
 
@@ -229,7 +231,7 @@ static void request_done(struct client *c)
 
 	q = snobj_decode(c->buf, c->msg_len);
 	if (!q) {
-		fprintf(stderr, "Incorrect message\n");
+		log_err("Incorrect message\n");
 		goto err;
 	}
 
@@ -240,13 +242,13 @@ static void request_done(struct client *c)
 
 	ret = epoll_ctl(master.epoll_fd, EPOLL_CTL_MOD, c->fd, &ev);
 	if (ret < 0) {
-		perror("epoll_ctl(EPOLL_CTL_MOD, listen_fd, OUT)");
+		log_perr("epoll_ctl(EPOLL_CTL_MOD, listen_fd, OUT)");
 		goto err;
 	}
 
 	c->msg_len = snobj_encode(r, &buf, 0);
 	if (c->msg_len == 0) {
-		fprintf(stderr, "Encoding error\n");
+		log_err("Encoding error\n");
 		goto err;
 	}
 
@@ -255,7 +257,7 @@ static void request_done(struct client *c)
 		char *new_buf;
 
 		if (c->msg_len > MAX_BUF_SIZE)  {
-			fprintf(stderr, "too large response was attempted\n");
+			log_err("too large response was attempted\n");
 			goto err;
 		}
 
@@ -293,7 +295,7 @@ static void response_done(struct client *c)
 
 	ret = epoll_ctl(master.epoll_fd, EPOLL_CTL_MOD, c->fd, &ev);
 	if (ret < 0) {
-		perror("epoll_ctl(EPOLL_CTL_MOD, listen_fd, IN)");
+		log_perr("epoll_ctl(EPOLL_CTL_MOD, listen_fd, IN)");
 		close_client(c);
 	}
 
@@ -327,14 +329,14 @@ static void client_recv(struct client *c)
 		char *new_buf;
 
 		if (c->msg_len > MAX_BUF_SIZE)  {
-			fprintf(stderr, "too large request was attempted\n");
+			log_err("too large request was attempted\n");
 			close_client(c);
 			return;
 		}
 
 		new_buf = rte_realloc(c->buf, c->msg_len, 0);
 		if (!new_buf) {
-			fprintf(stderr, "Out of memory\n");
+			log_err("Out of memory\n");
 			close_client(c);
 			return;
 		}
@@ -402,7 +404,7 @@ void init_server(uint16_t port)
 
 	master.epoll_fd = epoll_create(16);
 	if (master.epoll_fd < 0) {
-		perror("epoll_create()");
+		log_perr("epoll_create()");
 		exit(EXIT_FAILURE);
 	}
 
@@ -413,7 +415,7 @@ void init_server(uint16_t port)
 
 	ret = epoll_ctl(master.epoll_fd, EPOLL_CTL_ADD, master.listen_fd, &ev);
 	if (ret < 0) {
-		perror("epoll_ctl(EPOLL_CTL_ADD, listen_fd)");
+		log_perr("epoll_ctl(EPOLL_CTL_ADD, listen_fd)");
 		exit(EXIT_FAILURE);
 	}
 }
@@ -443,7 +445,7 @@ again:
 	ret = epoll_wait(master.epoll_fd, &ev, 1, -1);
 	if (ret <= 0) {
 		if (errno != EINTR)
-			perror("epoll_wait()");
+			log_perr("epoll_wait()");
 		goto again;
 	}
 
@@ -451,7 +453,7 @@ again:
 		if ((c = accept_client(master.listen_fd)) == NULL)
 			goto again;
 
-		printf("Master: a new client from %s:%hu\n", 
+		log_info("Master: a new client from %s:%hu\n", 
 				inet_ntoa(c->addr.sin_addr), 
 				c->addr.sin_port);
 	} else {
@@ -467,7 +469,7 @@ again:
 		} else if (ev.events & EPOLLOUT) {
 			client_send(c);
 		} else {
-			fprintf(stderr, "Unknown epoll event %u\n", ev.events);
+			log_err("Unknown epoll event %u\n", ev.events);
 			close_client(c);
 		}
 	}

@@ -133,8 +133,7 @@ static struct snobj *vport_init_port(struct port *p, struct snobj *arg)
 	if (stat(port_dir, &sb) == 0) {
 		assert((sb.st_mode & S_IFMT) == S_IFDIR);
 	} else {
-		printf("Creating directory %s\n", port_dir);
-		assert(errno == ENOENT);
+		log_info("Creating directory %s\n", port_dir);
 		mkdir(port_dir, S_IRWXU | S_IRWXG | S_IRWXO);
 	}
 
@@ -149,7 +148,7 @@ static struct snobj *vport_init_port(struct port *p, struct snobj *arg)
 
 	snprintf(file_name, PORT_NAME_LEN + 256, "%s/%s/%s",
 			P_tmpdir, VPORT_DIR_PREFIX, p->name);
-	printf("Writing port information to %s\n", file_name);
+	log_info("Writing port information to %s\n", file_name);
 	fp = fopen(file_name, "w");
 	fwrite(&bar_address, 8, 1, fp);
 	fclose(fp);

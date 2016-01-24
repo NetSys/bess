@@ -10,6 +10,7 @@
 #include <math.h>
 
 #include "common.h"
+#include "debug.h"
 
 #define MAX_EXPR_LEN	128	/* including the trailing NULL */
 
