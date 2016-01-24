@@ -20,6 +20,9 @@
 #define ANSI_CYAN	"\x1b[36m"
 #define ANSI_RESET	"\x1b[0m"
 
+static FILE *org_stdout;
+static FILE *org_stderr;
+
 struct logger {
 	char buf[MAX_LOG_LEN * 2];
 	int len;
@@ -36,10 +39,10 @@ static void do_log(int priority, const char *data, size_t len)
 		const char *color = NULL;
 
 		if (priority <= LOG_ERR) {
-			fp = stderr;
+			fp = org_stderr ? : stderr;
 			color = ANSI_RED;
 		} else {
-			fp = stdout;
+			fp = org_stdout ? : stdout;
 			if (priority <= LOG_NOTICE)
 				color = ANSI_YELLOW;
 			else
@@ -56,7 +59,7 @@ static void do_log(int priority, const char *data, size_t len)
 	}
 }
 
-static void log_flush(int priority, struct logger *logger)
+static void log_flush(int priority, struct logger *logger, int forced)
 {
 	char *p;
 
@@ -64,8 +67,8 @@ static void log_flush(int priority, struct logger *logger)
 	for (;;) {
 		char *lf = strchr(p, '\n');
 		if (!lf) {
-			/* flush a long line without LF */
-			if (logger->len >= MAX_LOG_LEN) {
+			/* forced or a long line without LF? */
+			if (forced || logger->len >= MAX_LOG_LEN) {
 				char tmp = p[MAX_LOG_LEN + 1];
 
 				p[MAX_LOG_LEN + 1] = '\n';
@@ -112,41 +115,8 @@ static void log_vfmt(int priority, const char *fmt, va_list ap)
 
 	logger->len += to_write;
 
-	if (initialized)
-		log_flush(priority, logger);
-}
-
-void start_logger()
-{
-	int fd = open("/dev/null", O_RDWR, 0);
-	if (fd >= 0) {   
-		dup2(fd, STDIN_FILENO);
-
-		if (!global_opts.foreground) {
-			dup2(fd, STDOUT_FILENO);
-			dup2(fd, STDERR_FILENO);
-
-			openlog(BESS_ID, LOG_CONS | LOG_NDELAY, LOG_DAEMON);
-		}
-
-		if (fd > 2)
-			close(fd);
-	}
-
-	for (int i = 0; i <= MAX_LOG_PRIORITY; i++) {
-		if (i < LOG_DEBUG || global_opts.debug_mode)
-			log_flush(i, &loggers[i]);
-	}
-
-	initialized = 1;
-}
-
-void end_logger()
-{
-	if (!global_opts.foreground)
-		closelog();
-
-	initialized = 0;
+	if (initialized || priority < LOG_DEBUG)
+		log_flush(priority, logger, 0);
 }
 
 void _log(int priority, const char *fmt, ...)
@@ -173,4 +143,75 @@ void log_perr(const char *fmt, ...)
 	va_end(ap);
 
 	_log(LOG_ERR, "%s: %m\n", buf);
+}
+
+static ssize_t stdout_writer(void *cookie, const char *data, size_t len)
+{
+	_log(LOG_INFO, "%.*s", (int)len, data);
+	return len;
+}
+
+static ssize_t stderr_writer(void *cookie, const char *data, size_t len)
+{
+	_log(LOG_ERR, "%.*s", (int)len, data);
+	return len;
+}
+
+static cookie_io_functions_t stdout_funcs = {
+	.write = &stdout_writer,
+};
+
+static cookie_io_functions_t stderr_funcs = {
+	.write = &stderr_writer,
+};
+
+void start_logger()
+{
+	int fd;
+
+	org_stdout = stdout;
+	org_stderr = stderr;
+
+	fd = open("/dev/null", O_RDWR, 0);
+	if (fd >= 0) {
+		dup2(fd, STDIN_FILENO);
+
+		if (!global_opts.foreground) {
+			//dup2(fd, STDOUT_FILENO);
+			//dup2(fd, STDERR_FILENO);
+
+			openlog(BESS_ID, LOG_PID | LOG_CONS | LOG_NDELAY, 
+					LOG_DAEMON);
+
+			stdout = fopencookie(NULL, "w", stdout_funcs);
+			setvbuf(stdout, NULL, _IOLBF, 0);
+
+			stderr = fopencookie(NULL, "w", stderr_funcs);
+			setvbuf(stderr, NULL, _IOLBF, 0);
+		}
+
+		if (fd > 2)
+			close(fd);
+	}
+
+	initialized = 1;
+}
+
+void end_logger()
+{
+	for (int i = 0; i <= MAX_LOG_PRIORITY; i++) {
+		if (i < LOG_DEBUG || global_opts.debug_mode)
+			log_flush(i, &loggers[i], 1);
+	}
+
+	if (!global_opts.foreground)
+		closelog();
+
+	fclose(stdout);
+	stdout = org_stdout;
+
+	fclose(stderr);
+	stderr = org_stderr;
+
+	initialized = 0;
 }

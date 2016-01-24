@@ -53,6 +53,39 @@ fail:
 	return 1;
 }
 
+static void disable_syslog()
+{
+	setlogmask(0x01);
+}
+
+static void enable_syslog()
+{
+	setlogmask(0xff);
+}
+
+/* for log messages during rte_eal_init() */
+static ssize_t dpdk_log_init_writer(void *cookie, const char *data, size_t len)
+{
+	enable_syslog();
+	_log(LOG_INFO, "%.*s", (int)len, data);
+	disable_syslog();
+	return len;
+}
+
+static cookie_io_functions_t dpdk_log_init_funcs = {
+	.write = &dpdk_log_init_writer,
+};
+
+static ssize_t dpdk_log_writer(void *cookie, const char *data, size_t len)
+{
+	_log(LOG_INFO, "%.*s", (int)len, data);
+	return len;
+}
+
+static cookie_io_functions_t dpdk_log_funcs = {
+	.write = &dpdk_log_writer,
+};
+
 static void init_eal(char *prog_name)
 {
 	int rte_argc = 0;
@@ -68,6 +101,8 @@ static void init_eal(char *prog_name)
 
 	int ret;
 	int i;
+
+	FILE *org_stdout;
 
 	sprintf(opt_master_lcore, "%d", RTE_MAX_LCORE - 1);
 
@@ -95,8 +130,23 @@ static void init_eal(char *prog_name)
 	/* reset getopt() */
 	optind = 0;
 
+	/* DPDK creates duplicated outputs (stdout and syslog). 
+	 * We temporarily disable syslog, then set our log handler */
+	org_stdout = stdout;
+	stdout = fopencookie(NULL, "w", dpdk_log_init_funcs);
+
+	disable_syslog();
 	ret = rte_eal_init(rte_argc, rte_argv);
-	assert(ret >= 0);
+	if (ret < 0) {
+		log_crit("rte_eal_init() failed: ret = %d\n", ret);
+		exit(EXIT_FAILURE);
+	}
+
+	enable_syslog();
+	fclose(stdout);
+	stdout = org_stdout;
+
+	rte_openlog_stream(fopencookie(NULL, "w", dpdk_log_funcs));
 }
 
 static void init_timer()
