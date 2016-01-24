@@ -175,12 +175,20 @@ void start_logger()
 		dup2(fd, STDIN_FILENO);
 
 		if (!global_opts.foreground) {
-			//dup2(fd, STDOUT_FILENO);
-			//dup2(fd, STDERR_FILENO);
+			dup2(fd, STDOUT_FILENO);
+			dup2(fd, STDERR_FILENO);
 
 			openlog(BESS_ID, LOG_PID | LOG_CONS | LOG_NDELAY, 
 					LOG_DAEMON);
 
+			/* NOTE: although we replace stdout with our handler,
+			 *   printf() statements that are transformed to puts()
+			 *   will not be redirected to syslog,
+			 *   since puts() does not use stdout, but _IO_stdout.
+			 *   gcc automatically "optimizes" printf() only with
+			 *   a format string that ends with '\n'.
+			 *   In that case, the message will go to /dev/null
+			 *   (see dup2 above). */
 			stdout = fopencookie(NULL, "w", stdout_funcs);
 			setvbuf(stdout, NULL, _IOLBF, 0);
 
