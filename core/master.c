@@ -236,7 +236,7 @@ static void request_done(struct client *c)
 	}
 
 	r = handle_request(c, q);
-
+assert(0);
 	ev.events = EPOLLOUT;
 	ev.data.ptr = c;
 

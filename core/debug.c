@@ -170,7 +170,7 @@ static void print_code(char *symbol, int context)
 
 		line[strlen(line) - 1] = '\0';
 
-		log_crit("\t%s\n", line);
+		log_crit("    %s\n", line);
 
 		if (line[strlen(line) - 1] == ')')
 			*(strstr(line, " (discriminator")) = '\0';
@@ -194,7 +194,7 @@ static void print_code(char *symbol, int context)
 
 		fp = fopen(filename, "r");
 		if (!fp) {
-			log_crit("\t\t(file/line not available)\n");
+			log_crit("        (file/line not available)\n");
 			continue;
 		}
 
@@ -202,7 +202,7 @@ static void print_code(char *symbol, int context)
 			int discard;
 
 			if (abs(curr - lineno) <= context) {
-				log_crit("\t  %s %d: ",
+				log_crit("      %s %d: ",
 						(curr == lineno) ? "->" : "  ",
 						curr);
 				discard = 0;
