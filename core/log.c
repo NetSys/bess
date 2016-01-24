@@ -45,8 +45,6 @@ static void do_log(int priority, const char *data, size_t len)
 			fp = org_stdout ? : stdout;
 			if (priority <= LOG_NOTICE)
 				color = ANSI_YELLOW;
-			else
-				color = ANSI_GREEN;
 		}
 
 		if (color && isatty(fileno(fp)))
