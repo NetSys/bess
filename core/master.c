@@ -28,7 +28,7 @@
 #define DEFAULT_PORT 	0x02912		/* 10514 in decimal */
 
 #define INIT_BUF_SIZE	4096
-#define MAX_BUF_SIZE	1048576
+#define MAX_BUF_SIZE	(8 * 1048576)
 
 static struct {
 	int listen_fd;

@@ -818,11 +818,20 @@ int sn_register_netdev(void *bar, struct sn_device *dev)
 
 	int ret;
 
-	rtnl_lock();
-	
-	if (conf->container_pid) {
-		struct net *net = NULL;		/* network namespace */
+	struct net *net = NULL;		/* network namespace */
 
+	rtnl_lock();
+
+	if (conf->netns_fd) {
+		net = get_net_ns_by_fd(conf->netns_fd);
+		if (IS_ERR(net)) {
+			log_err("invalid or not a net namespace fd %d\n",
+					conf->netns_fd);
+
+			ret = PTR_ERR(net);
+			goto fail_free;
+		}
+	} else if (conf->container_pid) {
 		net = get_net_ns_by_pid(conf->container_pid);
 		if (IS_ERR(net)) {
 			log_err("cannot find namespace of pid %d\n",
@@ -831,7 +840,9 @@ int sn_register_netdev(void *bar, struct sn_device *dev)
 			ret = PTR_ERR(net);
 			goto fail_free;
 		}
+	}
 
+	if (!IS_ERR_OR_NULL(net)) {
 		dev_net_set(dev->netdev, net);
 		put_net(net);
 	}

@@ -10,8 +10,6 @@
 #include "dpdk.h"
 #include "snbuf.h"
 
-/* 2^n - 1 is optimal according to the DPDK manual */
-#define NUM_PFRAMES	(131072 - 1)
 
 #define NUM_MEMPOOL_CACHE	512
 
@@ -45,14 +43,20 @@ static void init_mempool_socket(int sid)
 {
 	struct rte_pktmbuf_pool_private pool_priv;
 	char name[256];
-	
-	sprintf(name, "pframe%d", sid);
+
+	const int initial_try = 524288;
+	const int minimum_try = 16384;
+	int current_try = initial_try;
 
 	pool_priv.mbuf_data_room_size = SNBUF_HEADROOM + SNBUF_DATA;
 	pool_priv.mbuf_priv_size = SNBUF_RESERVE;
 
+again:
+	sprintf(name, "pframe%d_%dk", sid, (current_try + 1) / 1024);
+
+	/* 2^n - 1 is optimal according to the DPDK manual */
 	pframe_pool[sid] = rte_mempool_create(name, 
-			NUM_PFRAMES, 
+			current_try - 1, 
 			sizeof(struct snbuf),
 			NUM_MEMPOOL_CACHE, 
 			sizeof(struct rte_pktmbuf_pool_private),
@@ -61,10 +65,19 @@ static void init_mempool_socket(int sid)
 			sid, 0);
 
 	if (!pframe_pool[sid]) {
-		log_crit("pframe allocation failure on socket %d: %s\n",
-				sid, rte_strerror(rte_errno));
+		log_warn("pframe allocation (%d pkts) failure on node %d: %s\n",
+				current_try - 1, sid, rte_strerror(rte_errno));
+		if (current_try > minimum_try) {
+			current_try /= 2;
+			goto again;
+		}
+
+		log_crit("Packet buffer allocation failed on socket %d\n", sid);
 		exit(EXIT_FAILURE);
 	}
+
+	log_info("%d packet buffers allocated on socket %d\n", 
+			current_try - 1, sid);
 
 	if (global_opts.debug_mode)
 		rte_mempool_dump(stdout, pframe_pool[sid]);
