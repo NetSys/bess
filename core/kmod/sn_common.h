@@ -97,7 +97,8 @@ struct sn_ioc_queue_mapping {
 struct sn_conf_space {
 	uint64_t bar_size;
 
-	int container_pid;
+	int netns_fd;				/* < 0 if unset */
+	int container_pid;			/* = 0 if unset */
 
 	char ifname[IFNAMSIZ];		/* in/out argument */
 	uint8_t mac_addr[ETH_ALEN];
