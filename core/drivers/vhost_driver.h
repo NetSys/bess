@@ -78,7 +78,7 @@ rm_data_ll_entry(struct virtio_net_data_ll **ll_root_addr,
 		if (likely(ll_dev_last != NULL))
 			ll_dev_last->next = ll_dev->next;
 		else
-			printf("Remove entry from ll failed.\n");
+			log_err("Remove entry from ll failed.\n");
 }
 
 /*

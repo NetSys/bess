@@ -28,8 +28,8 @@ extern const struct global_opts {
 
 /* The term RX/TX could be very confusing for a virtual switch.
  * Instead, we use the "incoming/outgoing" convention:
- * - incoming: outside -> SoftNIC
- * - outgoing: SoftNIC -> outside */
+ * - incoming: outside -> BESS
+ * - outgoing: BESS -> outside */
 typedef enum {
 	PACKET_DIR_INC 	= 0,
 	PACKET_DIR_OUT 	= 1,
@@ -77,7 +77,6 @@ static inline int is_err_or_null(const void *ptr)
 {
 	return !ptr || is_err(ptr);
 }
-#undef MAX_ERRNO
 
 #define __cacheline_aligned __attribute__((aligned(64)))
 
@@ -86,12 +85,5 @@ static inline int is_err_or_null(const void *ptr)
 #define LOAD_BARRIER()		INST_BARRIER()
 #define STORE_BARRIER()		INST_BARRIER()
 #define FULL_BARRIER()		asm volatile("mfence":::"memory")
-
-
-static inline void oom_crash()
-{
-	fprintf(stderr, "Fatal: out of memory for critical operations\n");
-	*((int *)NULL) = 0;
-}
 
 #endif

@@ -5,12 +5,11 @@
 #include <sn.h>
 
 #include "common.h"
+#include "log.h"
 #include "time.h"
 #include "dpdk.h"
 #include "snbuf.h"
 
-/* 2^n - 1 is optimal according to the DPDK manual */
-#define NUM_PFRAMES	(131072 - 1)
 
 #define NUM_MEMPOOL_CACHE	512
 
@@ -44,14 +43,20 @@ static void init_mempool_socket(int sid)
 {
 	struct rte_pktmbuf_pool_private pool_priv;
 	char name[256];
-	
-	sprintf(name, "pframe%d", sid);
+
+	const int initial_try = 524288;
+	const int minimum_try = 16384;
+	int current_try = initial_try;
 
 	pool_priv.mbuf_data_room_size = SNBUF_HEADROOM + SNBUF_DATA;
 	pool_priv.mbuf_priv_size = SNBUF_RESERVE;
 
+again:
+	sprintf(name, "pframe%d_%dk", sid, (current_try + 1) / 1024);
+
+	/* 2^n - 1 is optimal according to the DPDK manual */
 	pframe_pool[sid] = rte_mempool_create(name, 
-			NUM_PFRAMES, 
+			current_try - 1, 
 			sizeof(struct snbuf),
 			NUM_MEMPOOL_CACHE, 
 			sizeof(struct rte_pktmbuf_pool_private),
@@ -60,12 +65,22 @@ static void init_mempool_socket(int sid)
 			sid, 0);
 
 	if (!pframe_pool[sid]) {
-		fprintf(stderr, "pframe allocation failure on socket %d: %s\n",
-				sid, rte_strerror(rte_errno));
+		log_warn("pframe allocation (%d pkts) failure on node %d: %s\n",
+				current_try - 1, sid, rte_strerror(rte_errno));
+		if (current_try > minimum_try) {
+			current_try /= 2;
+			goto again;
+		}
+
+		log_crit("Packet buffer allocation failed on socket %d\n", sid);
 		exit(EXIT_FAILURE);
 	}
 
-	rte_mempool_dump(stdout, pframe_pool[sid]);
+	log_info("%d packet buffers allocated on socket %d\n", 
+			current_try - 1, sid);
+
+	if (global_opts.debug_mode)
+		rte_mempool_dump(stdout, pframe_pool[sid]);
 }
 
 static void init_templates(void)
@@ -93,6 +108,9 @@ void init_mempool(void)
 	assert(SNBUF_IMMUTABLE_OFF == 128);
 	assert(SNBUF_METADATA_OFF == 192);
 	assert(SNBUF_SCRATCHPAD_OFF == 320);
+
+	if (global_opts.debug_mode)
+		rte_dump_physmem_layout(stdout);
 
 	for (i = 0; i < RTE_MAX_NUMA_NODES; i++)
 		initialized[i] = 0;
@@ -152,7 +170,7 @@ struct snbuf *paddr_to_snb(phys_addr_t paddr)
 			ret = (struct snbuf *)(pool->elt_va_start + offset);
 
 			if (snb_to_paddr(ret) != paddr)
-				fprintf(stderr, "snb->immutable.paddr "
+				log_crit("snb->immutable.paddr "
 						"corruption detected\n");
 
 			break;

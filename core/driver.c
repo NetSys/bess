@@ -1,5 +1,6 @@
-#include "driver.h"
+#include "log.h"
 #include "namespace.h"
+#include "driver.h"
 
 size_t list_drivers(const struct driver **p_arr, size_t arr_size, size_t offset)
 {
@@ -37,7 +38,7 @@ int add_driver(const struct driver *driver)
 	int ret;
 
 	if (!driver->name || !driver->init_port) {
-		fprintf(stderr, "Port driver %s is incomplete\n", 
+		log_err("Port driver %s is incomplete\n", 
 				driver->name ?: "<noname>"); 
 		return -1;
 	}
@@ -48,17 +49,14 @@ int add_driver(const struct driver *driver)
 
 	ret = ns_insert(NS_TYPE_DRIVER, driver->name, (void *) driver);
 	if (ret < 0) {
-		fprintf(stderr, "Fail to insert driver\n");
+		log_err("Failed to add driver '%s'\n", driver->name);
 		return ret;
 	}
 
-	/*
-	printf("Port driver '%s' has been registered", driver->name);
+	log_debug("Port driver '%s' has been registered", driver->name);
 	if (driver->priv_size)
-		printf(", with %zu bytes of private data", driver->priv_size);
-
-	printf("\n");
-	*/
+		log_debug(", with %zu-byte private data", driver->priv_size);
+	log_debug("\n");
 
 	return 0;
 }

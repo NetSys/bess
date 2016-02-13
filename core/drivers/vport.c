@@ -47,6 +47,9 @@ struct vport_priv {
 	struct queue out_qs[MAX_QUEUES_PER_DIR];
 
 	struct sn_ioc_queue_mapping map;
+
+	int netns_fd;
+	int container_pid;
 };
 
 static int next_cpu; 
@@ -134,7 +137,7 @@ static void free_bar(struct vport_priv *priv)
 	rte_free(priv->bar);
 }
 
-static void *alloc_bar(struct port *p, int container_pid, 
+static void *alloc_bar(struct port *p, 
 		struct tx_queue_opts *txq_opts,
 		struct rx_queue_opts *rxq_opts)
 {
@@ -159,12 +162,13 @@ static void *alloc_bar(struct port *p, int container_pid,
 	bar = rte_zmalloc(NULL, total_bytes, 0);
 	assert(bar);
 
-	/* printf("vport_host_sndrv: allocated %d-byte BAR\n", total_bytes); */
+	/* log_debug("vport_host_sndrv: allocated %dB BAR\n", total_bytes); */
 
 	conf = bar;
 
 	conf->bar_size = total_bytes;
-	conf->container_pid = container_pid;
+	conf->netns_fd = priv->netns_fd;
+	conf->container_pid = priv->container_pid;
 
 	strcpy(conf->ifname, priv->ifname);
 
@@ -234,8 +238,8 @@ static int init_driver(struct driver *driver)
 	
 		char cmd[2048];
 
-		fprintf(stderr, "vport: BESS kernel module is not " \
-				"loaded. Loading...\n");
+		log_notice("vport: BESS kernel module is not loaded. "
+				"Loading...\n");
 
 		ret = readlink("/proc/self/exe", exec_path, sizeof(exec_path));
 		if (ret == -1 || ret >= sizeof(exec_path))
@@ -247,7 +251,7 @@ static int init_driver(struct driver *driver)
 		sprintf(cmd, "insmod %s/kmod/bess.ko", exec_dir);
 		ret = system(cmd);
 		if (WEXITSTATUS(ret) != 0)
-			fprintf(stderr, "Warning: cannot load kernel" \
+			log_err("Warning: cannot load kernel" \
 					"module %s/kmod/bess.ko\n", exec_dir);
 	}
 
@@ -333,12 +337,14 @@ static int set_ip_addr_single(struct port *p, char *ip_addr)
 	return 0;
 }
 
-static struct snobj *set_ip_addr(struct port *p, int container_pid,
-		struct snobj *arg)
+static struct snobj *set_ip_addr(struct port *p, struct snobj *arg)
 {
+	struct vport_priv *priv = get_port_priv(p);
+
 	int child_pid;
 
 	int ret = 0;
+	int namespace = 0;
 
 	if (snobj_type(arg) == TYPE_STR || snobj_type(arg) == TYPE_LIST) {
 		if (snobj_type(arg) == TYPE_LIST) {
@@ -355,9 +361,10 @@ static struct snobj *set_ip_addr(struct port *p, int container_pid,
 		goto invalid_type;
 
 	/* change network namespace if necessary */
-	if (container_pid) {
-		child_pid = fork();
+	if (priv->container_pid || priv->netns_fd >= 0) {
+		namespace = 1;
 
+		child_pid = fork();
 		if (child_pid < 0)
 			return snobj_errno(-child_pid);
 
@@ -365,16 +372,19 @@ static struct snobj *set_ip_addr(struct port *p, int container_pid,
 			char buf[1024];
 			int fd;
 
-			sprintf(buf, "/proc/%d/ns/net", container_pid);
-			fd = open(buf, O_RDONLY);
-			if (fd < 0) {
-				perror("open(/proc/pid/ns/net)");
-				exit(errno <= 255 ? errno: ENOMSG);
-			}
+			if (priv->container_pid) {
+				sprintf(buf, "/proc/%d/ns/net", priv->container_pid);
+				fd = open(buf, O_RDONLY);
+				if (fd < 0) {
+					log_perr("open(/proc/pid/ns/net)");
+					exit(errno <= 255 ? errno: ENOMSG);
+				}
+			} else
+				fd = priv->netns_fd;
 
 			ret = setns(fd, 0);
 			if (ret < 0) {
-				perror("setns()");
+				log_perr("setns()");
 				exit(errno <= 255 ? errno: ENOMSG);
 			}
 		} else
@@ -385,7 +395,7 @@ static struct snobj *set_ip_addr(struct port *p, int container_pid,
 	case TYPE_STR: 
 		ret = set_ip_addr_single(p, snobj_str_get(arg));
 		if (ret < 0) {
-			if (container_pid) {
+			if (namespace) {
 				/* it must be the child */
 				assert(child_pid == 0);	
 				exit(errno <= 255 ? errno: ENOMSG);
@@ -402,7 +412,7 @@ static struct snobj *set_ip_addr(struct port *p, int container_pid,
 
 			ret = set_ip_addr_single(p, snobj_str_get(addr));
 			if (ret < 0) {
-				if (container_pid) {
+				if (namespace) {
 					/* it must be the child */
 					assert(child_pid == 0);	
 					exit(errno <= 255 ? errno: ENOMSG);
@@ -417,7 +427,7 @@ static struct snobj *set_ip_addr(struct port *p, int container_pid,
 		assert(0);
 	}
 
-	if (container_pid) {
+	if (namespace) {
 		if (child_pid == 0) {
 			if (ret < 0) {
 				ret = -ret;
@@ -434,7 +444,7 @@ wait_child:
 				assert(ret == child_pid);
 				ret = -WEXITSTATUS(exit_status);
 			} else
-				perror("waitpid()");
+				log_perr("waitpid()");
 		}
 	}
 
@@ -456,7 +466,7 @@ static void deinit_port(struct port *p)
 
 	ret = ioctl(priv->fd, SN_IOC_RELEASE_HOSTNIC);
 	if (ret < 0)
-		perror("SN_IOC_RELEASE_HOSTNIC");	
+		log_perr("SN_IOC_RELEASE_HOSTNIC");	
 
 	close(priv->fd);
 	free_bar(priv);
@@ -466,81 +476,116 @@ static struct snobj *init_port(struct port *p, struct snobj *conf)
 {
 	struct vport_priv *priv = get_port_priv(p);
 
-	int container_pid = 0;
 	int cpu;
 	int rxq;
 
 	int ret;
+
 	struct snobj *cpu_list = NULL;
 
+	const char *netns;
 	const char *ifname;
+
+	struct snobj *err = NULL;
 
 	struct tx_queue_opts txq_opts = {};
 	struct rx_queue_opts rxq_opts = {};
+
+	priv->fd = -1;
+	priv->netns_fd = -1;
+	priv->container_pid = 0;
 
 	ifname = snobj_eval_str(conf, "ifname");
 	if (!ifname)
 		ifname = p->name;
 
-	if (strlen(ifname) >= IFNAMSIZ)
-		return snobj_err(EINVAL, "Linux interface name should be " \
+	if (strlen(ifname) >= IFNAMSIZ) {
+		err = snobj_err(EINVAL, "Linux interface name should be " \
 				"shorter than %d characters", IFNAMSIZ);
+		goto fail;
+	}
 
 	strcpy(priv->ifname, ifname);
 
 	if (snobj_eval_exists(conf, "docker")) {
-		struct snobj *err = docker_container_pid(
+		err = docker_container_pid(
 				snobj_eval_str(conf, "docker"), 
-				&container_pid);
+				&priv->container_pid);
 
 		if (err)
-			return err;
+			goto fail;
 	}
 
 	if (snobj_eval_exists(conf, "container_pid")) {
-		if (container_pid)
-			return snobj_err(EINVAL, "You cannot specify both " \
+		if (priv->container_pid) {
+			err = snobj_err(EINVAL, "You cannot specify both " \
 					"'docker' and 'container_pid'");
+			goto fail;
+		}
 
-		container_pid = snobj_eval_int(conf, "container_pid");
+		priv->container_pid = snobj_eval_int(conf, "container_pid");
+	}
+
+	if ((netns = snobj_eval_str(conf, "netns"))) {
+		if (priv->container_pid)
+			return snobj_err(EINVAL, "You should specify only " \
+					"one of 'docker', 'container_pid', " \
+					"or 'netns'");
+
+		priv->netns_fd = open(netns, O_RDONLY);
+		if (priv->netns_fd < 0) {
+			err = snobj_err(EINVAL, "Invalid network namespace %s",
+					netns);
+			goto fail;
+		}
 	}
 
 	if ((cpu_list = snobj_eval(conf, "rxq_cpus")) != NULL &&
-	    cpu_list->size != p->num_queues[PACKET_DIR_OUT]) {
-		return snobj_err(EINVAL, "Must specify as many cores as rxqs");
+			cpu_list->size != p->num_queues[PACKET_DIR_OUT]) 
+	{
+		err = snobj_err(EINVAL, "Must specify as many cores as rxqs");
+		goto fail;
 	}
 
 	if (snobj_eval_exists(conf, "rxq_cpu") &&
-	    p->num_queues[PACKET_DIR_OUT] > 1) {
-	    return snobj_err(EINVAL, "Must specify as many cores as rxqs");
+			p->num_queues[PACKET_DIR_OUT] > 1) 
+	{
+		err = snobj_err(EINVAL, "Must specify as many cores as rxqs");
+		goto fail;
 	}
 
 	priv->fd = open("/dev/bess", O_RDONLY);
-	if (priv->fd == -1)
-		return snobj_err(ENODEV, "the kernel module is not loaded");
+	if (priv->fd == -1) {
+		err = snobj_err(ENODEV, "the kernel module is not loaded");
+		goto fail;
+	}
 
 	txq_opts.tci = snobj_eval_uint(conf, "tx_tci");
 	txq_opts.outer_tci = snobj_eval_uint(conf, "tx_outer_tci");
 	rxq_opts.loopback = snobj_eval_uint(conf, "loopback");
 
-	priv->bar = alloc_bar(p, container_pid, &txq_opts, &rxq_opts);
+	priv->bar = alloc_bar(p, &txq_opts, &rxq_opts);
 
 	ret = ioctl(priv->fd, SN_IOC_CREATE_HOSTNIC, 
 			rte_malloc_virt2phy(priv->bar));
 	if (ret < 0) {
-		close(priv->fd);
-		return snobj_errno_details(-ret, 
+		err = snobj_errno_details(-ret, 
 				snobj_str("SN_IOC_CREATE_HOSTNIC failure"));
+		goto fail;
 	}
 
 	if (snobj_eval_exists(conf, "ip_addr")) {
-		struct snobj *err = set_ip_addr(p, container_pid,
-				snobj_eval(conf, "ip_addr"));
+		err = set_ip_addr(p, snobj_eval(conf, "ip_addr"));
 		
 		if (err) {
 			deinit_port(p);
-			return err;
+			goto fail;
 		}
+	}
+
+	if (priv->netns_fd >= 0) {
+		close(priv->netns_fd);
+		priv->netns_fd = -1;
 	}
 
 	for (cpu = 0; cpu < SN_MAX_CPU; cpu++)
@@ -563,9 +608,18 @@ static struct snobj *init_port(struct port *p, struct snobj *conf)
 
 	ret = ioctl(priv->fd, SN_IOC_SET_QUEUE_MAPPING, &priv->map);
 	if (ret < 0)
-		perror("SN_IOC_SET_QUEUE_MAPPING");	
+		log_perr("ioctl(SN_IOC_SET_QUEUE_MAPPING)");	
 
 	return NULL;
+
+fail:
+	if (priv->fd >= 0)
+		close(priv->fd);
+
+	if (priv->netns_fd >= 0)
+		close(priv->netns_fd);
+
+	return err;
 }
 
 static int vport_recv_pkts(struct port *p, queue_t qid, 
@@ -681,7 +735,7 @@ static int vport_send_pkts(struct port *p, queue_t qid,
 		ret = ioctl(priv->fd, SN_IOC_KICK_RX, 
 				1 << priv->map.rxq_to_cpu[qid]);
 		if (ret)
-			perror("ioctl_kick_rx");
+			log_perr("ioctl(kick_rx)");
 	}
 
 	return cnt;

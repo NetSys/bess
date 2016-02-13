@@ -56,7 +56,7 @@ static int pmd_init_driver(struct driver *driver)
 {
 	dpdk_port_t num_dpdk_ports = rte_eth_dev_count();
 
-	printf("%d DPDK PMD ports have been recognized:\n", num_dpdk_ports);
+	log_info("%d DPDK PMD ports have been recognized:\n", num_dpdk_ports);
 
 	for (dpdk_port_t i = 0; i < num_dpdk_ports; i++) {
 		struct rte_eth_dev_info dev_info;
@@ -64,14 +64,14 @@ static int pmd_init_driver(struct driver *driver)
 		memset(&dev_info, 0, sizeof(dev_info));
 		rte_eth_dev_info_get(i, &dev_info);
 
-		printf("DPDK port_id %d (%s)   RXQ %hu TXQ %hu  ", 
+		log_info("DPDK port_id %d (%s)   RXQ %hu TXQ %hu  ", 
 				i, 
 				dev_info.driver_name,
 				dev_info.max_rx_queues,
 				dev_info.max_tx_queues);
 
 		if (dev_info.pci_dev) {
-			printf("%04hx:%02hhx:%02hhx.%02hhx %04hx:%04hx  ",
+			log_info("%04hx:%02hhx:%02hhx.%02hhx %04hx:%04hx  ",
 				dev_info.pci_dev->addr.domain,
 				dev_info.pci_dev->addr.bus,
 				dev_info.pci_dev->addr.devid,
@@ -80,7 +80,7 @@ static int pmd_init_driver(struct driver *driver)
 				dev_info.pci_dev->id.device_id);
 		}
 
-		printf("\n");
+		log_info("\n");
 	}
 
 	return 0;
@@ -252,7 +252,7 @@ static struct snobj *pmd_init_port(struct port *p, struct snobj *conf)
 	if (ret != 0) 
 		return snobj_err(-ret, "rte_eth_dev_flow_ctrl_get() failed");
 
-	printf("port %d high %u low %u ptime %hu send_xon %hu mode %u cfwd %hhu autoneg %hhu\n",
+	log_info("port %d high %u low %u ptime %hu send_xon %hu mode %u cfwd %hhu autoneg %hhu\n",
 			port_id,
 			fc_conf.high_water, fc_conf.low_water,
 			fc_conf.pause_time, fc_conf.send_xon, fc_conf.mode,
@@ -292,13 +292,13 @@ static void pmd_collect_stats(struct port *p, int reset)
 
 	ret = rte_eth_stats_get(priv->dpdk_port_id, &stats);
 	if (ret < 0) {
-		fprintf(stderr, "rte_eth_stats_get() failed: %s\n",
+		log_err("rte_eth_stats_get() failed: %s\n",
 				rte_strerror(rte_errno));
 		return;
 	}
 
 #if 0
-	printf("PMD port %d: "
+	log_debug("PMD port %d: "
 	       "ipackets %lu opackets %lu ibytes %lu obytes %lu "
 	       "imissed %lu ibadcrc %lu ibadlen %lu ierrors %lu oerrors %lu "
 	       "imcasts %lu rx_nombuf %lu fdirmatch %lu fdirmiss %lu "

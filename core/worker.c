@@ -206,13 +206,13 @@ static int run_worker(void *arg)
 	STORE_BARRIER();
 	workers[ctx.wid] = &ctx;
 
-	printf("Worker %d(%p) is running on core %d (socket %d)\n", 
+	log_info("Worker %d(%p) is running on core %d (socket %d)\n", 
 			ctx.wid, &ctx, ctx.core, ctx.socket);
 
 	CPU_ZERO(&set);
 	sched_loop(ctx.s);
 
-	printf("Worker %d(%p) is quitting... (core %d, socket %d)\n", 
+	log_info("Worker %d(%p) is quitting... (core %d, socket %d)\n", 
 			ctx.wid, &ctx, ctx.core, ctx.socket);
 
 	sched_free(ctx.s);
