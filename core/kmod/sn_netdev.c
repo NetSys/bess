@@ -822,7 +822,7 @@ int sn_register_netdev(void *bar, struct sn_device *dev)
 
 	rtnl_lock();
 
-	if (conf->netns_fd) {
+	if (conf->netns_fd >= 0) {
 		net = get_net_ns_by_fd(conf->netns_fd);
 		if (IS_ERR(net)) {
 			log_err("invalid or not a net namespace fd %d\n",
