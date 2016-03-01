@@ -40,14 +40,22 @@ static void init_template(void)
 static void load_mempool(void)
 {
 	/* Try pframe pool on node 0 first */
-	mempool = rte_mempool_lookup("pframe0");
-	if (mempool)
-		return;
+	const int BEGIN = 16384;
+	const int END = 524288;
+	char name[256];
+	for (int i = BEGIN; i <= END; i *= 2) {
+		sprintf(name, "pframe0_%dk", (i + 1) / 1024);
+		mempool = rte_mempool_lookup(name);
+		if (mempool)
+			return;
+	}
 
-	/* second chance */
-	mempool = rte_mempool_lookup("pframe1");
-	if (mempool)
-		return;
+	for (int i = BEGIN; i <= END; i *= 2) {
+		sprintf(name, "pframe1_%dk", (i + 1) / 1024);
+		mempool = rte_mempool_lookup(name);
+		if (mempool)
+			return;
+	}
 
 	assert(0);
 }
