@@ -157,7 +157,7 @@ struct module *create_module(const char *name,
 	m->mclass = mclass;
 	m->name = rte_zmalloc("name", MODULE_NAME_LEN, 0);
 
-	m->allocated_gates = 0;
+	m->allocated_ogates = 0;
 	m->gates = NULL;
 
 	if (!m->name) {
@@ -223,14 +223,14 @@ void destroy_module(struct module *m)
 		if (!another)
 			break;
 		
-		for (gate_t i = 0; i < another->allocated_gates; i++)
+		for (gate_t i = 0; i < another->allocated_ogates; i++)
 			if (another->gates[i].m == m)
 				disconnect_modules(another, i);
 	}
 	ns_release_iterator(&iter);
 
 	/* disconnect downstream modules */
-	for (gate_t i = 0; i < m->allocated_gates; i++)
+	for (gate_t i = 0; i < m->allocated_ogates; i++)
 		disconnect_modules(m, i);
 
 	destroy_all_tasks(m);
@@ -252,7 +252,7 @@ static int grow_gates(struct module *m, gate_t gate)
 	if (gate > MAX_OUTPUT_GATES)
 		return -EINVAL;
 
-	new_size = m->allocated_gates ? : 1;
+	new_size = m->allocated_ogates ? : 1;
 	
 	while (new_size <= gate) {
 		if (new_size)
@@ -266,8 +266,8 @@ static int grow_gates(struct module *m, gate_t gate)
 
 	m->gates = new_gates;
 
-	old_size = m->allocated_gates;
-	m->allocated_gates = new_size;
+	old_size = m->allocated_ogates;
+	m->allocated_ogates = new_size;
 
 	/* initialize the newly created gates */
 	memset(&m->gates[old_size], 0, 
@@ -285,7 +285,7 @@ int connect_modules(struct module *m1, gate_t gate, struct module *m2)
 	if (!m2->mclass->process_batch)
 		return -EINVAL;
 
-	if (gate >= m1->allocated_gates) {
+	if (gate >= m1->allocated_ogates) {
 		int ret = grow_gates(m1, gate);
 		if (ret)
 			return ret;
@@ -302,7 +302,7 @@ int connect_modules(struct module *m1, gate_t gate, struct module *m2)
 
 int disconnect_modules(struct module *m, gate_t gate)
 {
-	if (gate >= m->allocated_gates)
+	if (gate >= m->allocated_ogates)
 		return -EINVAL;
 
 	/* no error even if the gate is already pointing to a dead end */

@@ -653,7 +653,7 @@ static struct snobj *handle_get_module_info(struct snobj *q)
 	if (m->mclass->get_dump)
 		snobj_map_set(r, "dump", m->mclass->get_dump(m));
 
-	for (int i = 0; i < m->allocated_gates; i++) {
+	for (int i = 0; i < m->allocated_ogates; i++) {
 		if (m->gates[i].m) {
 			struct snobj *gate = snobj_map();
 			snobj_map_set(gate, "gate", snobj_uint(i));
@@ -811,7 +811,7 @@ static struct snobj *handle_enable_tcpdump(struct snobj *q)
 	if ((m = find_module(m_name)) == NULL)
 		return snobj_err(ENOENT, "No module '%s' found", m_name);
 
-	if (gate >= m->allocated_gates)
+	if (gate >= m->allocated_ogates)
 		return snobj_err(EINVAL, "Gate '%hu' does not exist", gate);
 
 	ret = enable_tcpdump(fifo, m, gate);
@@ -841,7 +841,7 @@ static struct snobj *handle_disable_tcpdump(struct snobj *q)
 	if ((m = find_module(m_name)) == NULL)
 		return snobj_err(ENOENT, "No module '%s' found", m_name);
 
-	if (gate >= m->allocated_gates)
+	if (gate >= m->allocated_ogates)
 		return snobj_err(EINVAL, "Gate '%hu' does not exist", gate);
 
 	ret = disable_tcpdump(m, gate);

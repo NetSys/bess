@@ -27,8 +27,6 @@ ct_assert(MAX_TASKS_PER_MODULE < INVALID_TASK_ID);
 
 #define MODULE_NAME_LEN		128
 
-typedef uint16_t gate_t;
-
 #define MAX_OUTPUT_GATES	8192
 #define INVALID_GATE		UINT16_MAX
 
@@ -60,7 +58,7 @@ struct module {
 	struct task *tasks[MAX_TASKS_PER_MODULE];
 
 	/* frequently access fields should be below */
-	gate_t allocated_gates;
+	gate_t allocated_ogates;
 	struct output_gate *gates;
 
 	/* Some private data for this module instance begins at this marker. 
@@ -141,7 +139,7 @@ static inline void run_choose_module(struct module *m, gate_t ogate,
 {
 	struct output_gate *gate;
 
-	if (unlikely(ogate >= m->allocated_gates)) {
+	if (unlikely(ogate >= m->allocated_ogates)) {
 		deadend(NULL, batch);
 		return;
 	}
