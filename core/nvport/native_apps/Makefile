@@ -24,7 +24,9 @@ LIBS = -ldl -lpthread -lm
 LIBS += -L$(DPDK_LIB_DIR) -Wl,--whole-archive -l$(DPDK_LIB) \
 	-Wl,--no-whole-archive -lz -lm -lpthread -ldl -lpcap
 
-SN_LIBS = -L../ -lsn -Wl,-rpath ../
+SN_LIB_PATH = $(abspath ../)
+
+SN_LIBS = -L../ -lsn -Wl,-rpath $(SN_LIB_PATH)
 
 CC = gcc
 CFLAGS = -std=gnu99 -Wall -Werror -march=native -Wno-unused-function \
