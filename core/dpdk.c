@@ -95,7 +95,7 @@ static void init_eal(char *prog_name)
 	char opt_lcore_bitmap[1024];
 	char opt_socket_mem[1024];
 
-	const char *socket_mem = "2048";
+	const char *socket_mem = "1024";
 
 	int numa_count = get_numa_count();
 

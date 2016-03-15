@@ -946,6 +946,7 @@ static void l2_forward_process_batch(struct module *m, struct pkt_batch *batch)
 static const struct mclass l2_forward = {
 	.name            = "L2Forward",
 	.def_module_name = "l2_forward",
+	.num_ogates	 = MAX_OUTPUT_GATES,
 	.priv_size       = sizeof(struct l2_forward_priv),
 	.init            = l2_forward_init,
 	.deinit          = l2_forward_deinit,

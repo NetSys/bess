@@ -87,6 +87,7 @@ static void queue_out_process_batch(struct module *m,
 
 static const struct mclass queue_out = {
 	.name		= "QueueOut",
+	.num_ogates	= 0,
 	.priv_size	= sizeof(struct queue_out_priv),
 	.init		= queue_out_init,
 	.deinit		= queue_out_deinit,

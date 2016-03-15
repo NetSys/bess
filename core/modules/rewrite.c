@@ -110,6 +110,7 @@ static void rewrite_process_batch(struct module *m, struct pkt_batch *batch)
 
 static const struct mclass rewrite = {
 	.name 			= "Rewrite",
+	.num_ogates		= 1,
 	.priv_size		= sizeof(struct rewrite_priv),
 	.init 			= rewrite_init,
 	.query			= rewrite_query,

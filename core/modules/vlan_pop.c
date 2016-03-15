@@ -30,6 +30,7 @@ static void vpop_process_batch(struct module *m, struct pkt_batch *batch)
 
 static const struct mclass vlan_pop = {
 	.name 			= "VLANPop",
+	.num_ogates		= 1,
 	.def_module_name 	= "vlan_pop",
 	.process_batch  	= vpop_process_batch,
 };

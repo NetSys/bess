@@ -243,21 +243,19 @@ void destroy_module(struct module *m)
 }
 
 
-static int grow_gates(struct module *m, gate_t gate)
+static int grow_ogates(struct module *m, gate_t ogate)
 {
 	struct output_gate *new_gates;
 	gate_t old_size;
 	gate_t new_size;
 
-	if (gate > MAX_OUTPUT_GATES)
+	if (ogate >= m->mclass->num_ogates || ogate >= MAX_OUTPUT_GATES)
 		return -EINVAL;
 
 	new_size = m->allocated_ogates ? : 1;
 	
-	while (new_size <= gate) {
-		if (new_size)
-			new_size *= 2;
-	}
+	while (new_size <= ogate)
+		new_size *= 2;
 
 	new_gates = rte_realloc(m->gates, 
 			sizeof(struct output_gate) * new_size, 0);
@@ -280,22 +278,22 @@ static int grow_gates(struct module *m, gate_t gate)
 }
 
 /* returns -errno if fails */
-int connect_modules(struct module *m1, gate_t gate, struct module *m2)
+int connect_modules(struct module *m1, gate_t ogate, struct module *m2)
 {
 	if (!m2->mclass->process_batch)
 		return -EINVAL;
 
-	if (gate >= m1->allocated_ogates) {
-		int ret = grow_gates(m1, gate);
+	if (ogate >= m1->allocated_ogates) {
+		int ret = grow_ogates(m1, ogate);
 		if (ret)
 			return ret;
 	}
 
-	if (m1->gates[gate].m)
+	if (m1->gates[ogate].m)
 		return -EBUSY;
 
-	m1->gates[gate].m = m2;
-	m1->gates[gate].f = m2->mclass->process_batch;
+	m1->gates[ogate].m = m2;
+	m1->gates[ogate].f = m2->mclass->process_batch;
 
 	return 0;
 }

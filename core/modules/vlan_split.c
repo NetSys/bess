@@ -36,6 +36,7 @@ static void vsplit_process_batch(struct module *m, struct pkt_batch *batch)
 static const struct mclass vlan_split = {
 	.name 			= "VLANSplit",
 	.def_module_name 	= "vlan_split",
+	.num_ogates		= MAX_OUTPUT_GATES,
 	.process_batch  	= vsplit_process_batch,
 };
 

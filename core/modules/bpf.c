@@ -149,6 +149,7 @@ static void bpf_process_batch(struct module *m,
 
 static const struct mclass bpf = {
 	.name 		= "BPF",
+	.num_ogates	= MAX_OUTPUT_GATES,
 	.priv_size	= sizeof(struct bpf_priv),
 	.init 		= bpf_init,
 	.deinit 	= bpf_deinit,
