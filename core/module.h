@@ -27,25 +27,35 @@ ct_assert(MAX_TASKS_PER_MODULE < INVALID_TASK_ID);
 
 #define MODULE_NAME_LEN		128
 
-#define MAX_INPUT_GATES		8192 
-#define MAX_OUTPUT_GATES	8192
 #define INVALID_GATE		UINT16_MAX
 
-ct_assert(MAX_INPUT_GATES < INVALID_GATE);
-ct_assert(MAX_OUTPUT_GATES < INVALID_GATE);
+/* A module may have up to MAX_GATES input/output gates (separately). */
+#define MAX_GATES		8192 
+ct_assert(MAX_GATES < INVALID_GATE);
 
 #define TRACK_GATES		1
 #define TCPDUMP_GATES		1
 
-struct input_gate {
-	struct module *m;
-	proc_func_t f;
-	gate_t gate;
-};
+enum {
+	GATE_TYPE_OUT,
+	GATE_TYPE_IN,
+	GATE_TYPES,
+} gate_type_t;
 
-struct output_gate {
-	struct module *m;
-	proc_func_t f;		/* m->mclass->process_batch() or deadend() */
+struct gate {
+	struct module *m_next;
+	proc_func_t f;		/* m_next->mclass->process_batch or deadend */
+
+	union {
+		struct {
+			struct input_gate *igate;
+		} out;
+
+		struct {
+			struct cdlist_head ogates_upstream;
+		} in;
+	};
+
 #if TRACK_GATES
 	uint64_t cnt;
 	uint64_t pkts;
@@ -56,21 +66,21 @@ struct output_gate {
 #endif
 };
 
+struct gates {
+	struct gate *gates;
+	gate_t num_allocated;
+};
+
 /* This struct is shared across workers */
 struct module {
 	/* less frequently accessed fields should be here */
 	char *name;
-
 	const struct mclass *mclass;
-
 	struct task *tasks[MAX_TASKS_PER_MODULE];
 
 	/* frequently access fields should be below */
-	gate_t allocated_ogates;
-	struct output_gate *ogates;
-
-	gate_t allocated_igates;
-	struct input_gate *igates;
+	struct gates ogates;
+	struct gates igates;
 
 	/* Some private data for this module instance begins at this marker. 
 	 * (this is poor person's class inheritance in C language)
@@ -128,7 +138,7 @@ int enable_tcpdump(const char* fifo, struct module *m, gate_t gate);
 
 int disable_tcpdump(struct module *m, gate_t gate);
 
-void dump_pcap_pkts(struct output_gate *gate, struct pkt_batch *batch);
+void dump_pcap_pkts(struct gate *gate, struct pkt_batch *batch);
 
 #else
 inline int enable_tcpdump(const char *, struct module *, gate_t) {
@@ -148,14 +158,14 @@ inline int disable_tcpdump(struct module *, int) {
 static inline void run_choose_module(struct module *m, gate_t ogate,
 				     struct pkt_batch *batch)
 {
-	struct output_gate *gate;
+	struct gate *gate;
 
-	if (unlikely(ogate >= m->allocated_ogates)) {
+	if (unlikely(ogate >= m->ogates.num_allocated)) {
 		deadend(NULL, batch);
 		return;
 	}
 
-	gate = &m->ogates[ogate];
+	gate = &m->ogates.gates[ogate];
 
 #if SN_TRACE_MODULES
 	_trace_before_call(m, next, batch);
@@ -171,7 +181,7 @@ static inline void run_choose_module(struct module *m, gate_t ogate,
 		dump_pcap_pkts(gate, batch);
 #endif
 
-	gate->f(gate->m, batch);
+	gate->f(gate->m_next, batch);
 
 #if SN_TRACE_MODULES
 	_trace_after_call();
