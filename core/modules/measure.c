@@ -107,6 +107,7 @@ measure_process_batch(struct module *m, struct pkt_batch *batch)
 
 static const struct mclass measure = {
 	.name 		= "Measure",
+	.num_igates	= 1,
 	.num_ogates	= 1,
 	.priv_size	= sizeof(struct measure_priv),
 	.init 		= measure_init,

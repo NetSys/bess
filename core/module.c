@@ -157,8 +157,8 @@ struct module *create_module(const char *name,
 	m->mclass = mclass;
 	m->name = rte_zmalloc("name", MODULE_NAME_LEN, 0);
 
-	m->ogates.type = GATE_TYPE_OUT;
 	m->igates.type = GATE_TYPE_IN;
+	m->ogates.type = GATE_TYPE_OUT;
 
 	if (!m->name) {
 		*perr = snobj_errno(ENOMEM);

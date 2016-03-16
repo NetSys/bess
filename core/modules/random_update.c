@@ -161,6 +161,7 @@ static void rupdate_process_batch(struct module *m, struct pkt_batch *batch)
 static const struct mclass rupdate = {
 	.name 			= "RandomUpdate",
 	.def_module_name	= "rupdate",
+	.num_igates		= 1,
 	.num_ogates		= 1,
 	.priv_size		= sizeof(struct rupdate_priv),
 	.init 			= rupdate_init,

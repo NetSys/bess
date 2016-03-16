@@ -106,6 +106,7 @@ roundrobin_process_batch(struct module *m, struct pkt_batch *batch)
 
 static const struct mclass roundrobin = {
 	.name 		= "Roundrobin",
+	.num_igates	= 1,
 	.num_ogates	= MAX_OUTPUT_GATES,
 	.priv_size	= sizeof(struct roundrobin_priv),
 	.init 		= roundrobin_init,
