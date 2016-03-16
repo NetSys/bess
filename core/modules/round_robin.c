@@ -2,7 +2,7 @@
 
 /* XXX: currently doesn't support multiple workers */
 struct roundrobin_priv {
-	gate_t gates[MAX_OUTPUT_GATES];
+	gate_idx_t gates[MAX_OUTPUT_GATES];
 	uint32_t ngates;
 	uint32_t current_gate;
 	uint8_t batch_mode;
@@ -89,9 +89,9 @@ static void
 roundrobin_process_batch(struct module *m, struct pkt_batch *batch)
 {
 	struct roundrobin_priv* priv = get_priv(m);
-	gate_t ogates[MAX_PKT_BURST];
+	gate_idx_t ogates[MAX_PKT_BURST];
 	if (priv->batch_mode) {
-		gate_t gate = priv->gates[priv->current_gate];
+		gate_idx_t gate = priv->gates[priv->current_gate];
 		priv->current_gate = (priv->current_gate + 1) % priv->ngates;
 		run_choose_module(m, gate, batch);
 	} else {

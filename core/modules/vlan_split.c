@@ -4,7 +4,7 @@
 
 static void vsplit_process_batch(struct module *m, struct pkt_batch *batch)
 {
-	gate_t vid[MAX_PKT_BURST];
+	gate_idx_t vid[MAX_PKT_BURST];
 	int cnt = batch->cnt;
 
 	for (int i = 0; i < cnt; i++) {

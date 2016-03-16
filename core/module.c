@@ -157,11 +157,8 @@ struct module *create_module(const char *name,
 	m->mclass = mclass;
 	m->name = rte_zmalloc("name", MODULE_NAME_LEN, 0);
 
-	m->ogates.gates = NULL;
-	m->ogates.num_allocated = 0;
-	
-	m->igates.gates = NULL;
-	m->igates.num_allocated = 0;
+	m->ogates.type = GATE_TYPE_OUT;
+	m->igates.type = GATE_TYPE_IN;
 
 	if (!m->name) {
 		*perr = snobj_errno(ENOMEM);
@@ -204,8 +201,6 @@ fail:
 	if (m) {
 		destroy_all_tasks(m);
 		rte_free(m->name);
-		rte_free(m->ogates.gates);
-		rte_free(m->igates.gates);
 	}
 
 	rte_free(m);
@@ -227,14 +222,14 @@ void destroy_module(struct module *m)
 		if (!another)
 			break;
 		
-		for (gate_t i = 0; i < another->ogates.num_allocated; i++)
-			if (another->ogates.gates[i].m_next == m)
+		for (gate_idx_t i = 0; i < another->ogates.curr_size; i++)
+			if (another->ogates.arr[i].m_next == m)
 				disconnect_modules(another, i);
 	}
 	ns_release_iterator(&iter);
 
 	/* disconnect downstream modules */
-	for (gate_t i = 0; i < m->ogates.num_allocated; i++)
+	for (gate_idx_t i = 0; i < m->ogates.curr_size; i++)
 		disconnect_modules(m, i);
 
 	destroy_all_tasks(m);
@@ -242,78 +237,89 @@ void destroy_module(struct module *m)
 	ns_remove(m->name);
 
 	rte_free(m->name);
-	rte_free(m->ogates.gates);
-	rte_free(m->igates.gates);
+	rte_free(m->ogates.arr);
+	rte_free(m->igates.arr);
 	rte_free(m);
 }
 
 
-static int grow_ogates(struct module *m, gate_t ogate)
+static int grow_gates(struct module *m, struct gates *gates, gate_idx_t gate)
 {
-	struct gate *new_gates;
-	gate_t old_size;
-	gate_t new_size;
+	struct gate *new_arr;
+	gate_idx_t old_size;
+	gate_idx_t new_size;
 
-	if (ogate >= m->mclass->num_ogates || ogate >= MAX_GATES)
-		return -EINVAL;
-
-	new_size = m->ogates.num_allocated ? : 1;
+	new_size = gates->curr_size ? : 1;
 	
-	while (new_size <= ogate)
+	while (new_size <= gate)
 		new_size *= 2;
 
 	if (new_size > MAX_GATES)
 		new_size = MAX_GATES;
 
-	new_gates = rte_realloc(m->ogates.gates, 
+	new_arr= rte_realloc(gates->arr, 
 			sizeof(struct gate) * new_size, 0);
-	if (!new_gates)
+	if (!new_arr)
 		return -ENOMEM;
 
-	m->ogates.gates = new_gates;
+	gates->arr = new_arr;
 
-	old_size = m->ogates.num_allocated;
-	m->ogates.num_allocated = new_size;
+	old_size = gates->curr_size;
+	gates->curr_size = new_size;
 
 	/* initialize the newly created gates */
-	memset(&m->ogates.gates[old_size], 0, 
+	memset(&gates->arr[old_size], 0, 
 			sizeof(struct gate) * (new_size - old_size));
 
-	for (gate_t i = old_size; i < new_size; i++)
+	for (gate_idx_t i = old_size; i < new_size; i++)
 		disconnect_modules(m, i);
 
 	return 0;
 }
 
 /* returns -errno if fails */
-int connect_modules(struct module *m_prev, gate_t ogate, struct module *m_next)
+int connect_modules(struct module *m_prev, gate_idx_t ogate, 
+		    struct module *m_next, gate_idx_t igate)
 {
 	if (!m_next->mclass->process_batch)
 		return -EINVAL;
 
-	if (ogate >= m_prev->ogates.num_allocated) {
-		int ret = grow_ogates(m_prev, ogate);
+	if (ogate >= m_prev->mclass->num_ogates || ogate >= MAX_GATES)
+		return -EINVAL;
+
+	if (ogate >= m_prev->ogates.curr_size) {
+		int ret = grow_gates(m_prev, &m_prev->ogates, ogate);
 		if (ret)
 			return ret;
 	}
 
-	if (m_prev->ogates.gates[ogate].m_next)
+	if (m_prev->ogates.arr[ogate].m_next)
 		return -EBUSY;
 
-	m_prev->ogates.gates[ogate].m_next = m_next;
-	m_prev->ogates.gates[ogate].f = m_next->mclass->process_batch;
+	if (igate >= m_next->mclass->num_igates || igate >= MAX_GATES)
+		return -EINVAL;
+
+	if (igate >= m_next->igates.curr_size) {
+		int ret = grow_gates(m_next, &m_next->igates, igate);
+		if (ret)
+			return ret;
+	}
+
+	m_prev->ogates.arr[ogate].m_next = m_next;
+	m_prev->ogates.arr[ogate].f = m_next->mclass->process_batch;
 
 	return 0;
 }
 
-int disconnect_modules(struct module *m, gate_t ogate)
+int disconnect_modules(struct module *m, gate_idx_t ogate)
 {
-	if (ogate >= m->ogates.num_allocated)
+	if (ogate >= m->ogates.curr_size)
 		return -EINVAL;
 
 	/* no error even if the gate is already pointing to a dead end */
-	m->ogates.gates[ogate].m_next = NULL;
-	m->ogates.gates[ogate].f = deadend;
+	m->ogates.arr[ogate].m_next = NULL;
+	m->ogates.arr[ogate].f = deadend;
+	/* TODO: setup igate */
 
 	return 0;
 }
@@ -454,7 +460,7 @@ struct module *find_module(const char *name)
 }
 
 #if TCPDUMP_GATES
-int enable_tcpdump(const char* fifo, struct module *m, gate_t ogate)
+int enable_tcpdump(const char* fifo, struct module *m, gate_idx_t ogate)
 {
 	static const struct pcap_hdr PCAP_FILE_HDR = {
 		.magic_number = PCAP_MAGIC_NUMBER,
@@ -470,7 +476,7 @@ int enable_tcpdump(const char* fifo, struct module *m, gate_t ogate)
 	int ret;
 
 	/* Don't allow tcpdump to be attached to gates that are not active */
-	if (m->ogates.gates[ogate].m_next == NULL)
+	if (m->ogates.arr[ogate].m_next == NULL)
 		return -EINVAL;
 
 	fd = open(fifo, O_WRONLY | O_NONBLOCK);
@@ -491,19 +497,19 @@ int enable_tcpdump(const char* fifo, struct module *m, gate_t ogate)
 		return -errno;
 	}
 
-	m->ogates.gates[ogate].fifo_fd = fd;
-	m->ogates.gates[ogate].tcpdump = 1;
+	m->ogates.arr[ogate].fifo_fd = fd;
+	m->ogates.arr[ogate].tcpdump = 1;
 
 	return 0;
 }
 
-int disable_tcpdump(struct module *m, gate_t ogate)
+int disable_tcpdump(struct module *m, gate_idx_t ogate)
 {
-	if (!m->ogates.gates[ogate].tcpdump)
+	if (!m->ogates.arr[ogate].tcpdump)
 		return -EINVAL;
 
-	m->ogates.gates[ogate].tcpdump = 0;
-	close(m->ogates.gates[ogate].fifo_fd);
+	m->ogates.arr[ogate].tcpdump = 0;
+	close(m->ogates.arr[ogate].fifo_fd);
 	return 0;
 }
 

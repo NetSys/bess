@@ -12,7 +12,7 @@
 		assert(ret == 0); \
 	}
 
-typedef uint16_t gate_t;
+typedef uint16_t gate_idx_t;
 
 struct module;
 struct pkt_batch;
@@ -33,8 +33,8 @@ struct mclass
 	const char *def_module_name;
 
 	/* Required: the maximum number of input/output gates (can be 0) */
-	gate_t num_igates;
-	gate_t num_ogates;
+	gate_idx_t num_igates;
+	gate_idx_t num_ogates;
 
 	/* Optional: the size of per-module private data. 0 by default.
 	 *   The memory region will be zero initialized. */

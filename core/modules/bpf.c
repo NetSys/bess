@@ -122,7 +122,7 @@ static struct snobj *bpf_get_desc(const struct module *m)
 static void bpf_process_batch(struct module *m,
 		struct pkt_batch *batch)
 {
-	gate_t ogates[MAX_PKT_BURST];
+	gate_idx_t ogates[MAX_PKT_BURST];
 	int i;
 	struct bpf_priv *priv = get_priv(m);
 

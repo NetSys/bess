@@ -653,8 +653,8 @@ static struct snobj *handle_get_module_info(struct snobj *q)
 	if (m->mclass->get_dump)
 		snobj_map_set(r, "dump", m->mclass->get_dump(m));
 
-	for (int i = 0; i < m->ogates.num_allocated; i++) {
-		struct gate *g = &m->ogates.gates[i];
+	for (int i = 0; i < m->ogates.curr_size; i++) {
+		struct gate *g = &m->ogates.arr[i];
 		if (g->m_next) {
 			struct snobj *gate = snobj_map();
 			snobj_map_set(gate, "gate", snobj_uint(i));
@@ -679,7 +679,7 @@ static struct snobj *handle_connect_modules(struct snobj *q)
 {
 	const char *m1_name;
 	const char *m2_name;
-	gate_t gate;
+	gate_idx_t gate;
 
 	struct module *m1;
 	struct module *m2;
@@ -699,7 +699,7 @@ static struct snobj *handle_connect_modules(struct snobj *q)
 	if ((m2 = find_module(m2_name)) == NULL)
 		return snobj_err(ENOENT, "No module '%s' found", m2_name);
 
-	ret = connect_modules(m1, gate, m2);
+	ret = connect_modules(m1, gate, m2, 0);
 	if (ret < 0)
 		return snobj_err(-ret, "Connection '%s'[%d]->'%s' failed", 
 			m1_name, gate, m2_name);
@@ -710,7 +710,7 @@ static struct snobj *handle_connect_modules(struct snobj *q)
 static struct snobj *handle_disconnect_modules(struct snobj *q)
 {
 	const char *m_name;
-	gate_t gate;
+	gate_idx_t gate;
 
 	struct module *m;
 
@@ -795,7 +795,7 @@ static struct snobj *handle_enable_tcpdump(struct snobj *q)
 {
 	const char *m_name;
 	const char *fifo;
-	gate_t gate;
+	gate_idx_t gate;
 
 	struct module *m;
 
@@ -811,7 +811,7 @@ static struct snobj *handle_enable_tcpdump(struct snobj *q)
 	if ((m = find_module(m_name)) == NULL)
 		return snobj_err(ENOENT, "No module '%s' found", m_name);
 
-	if (gate >= m->ogates.num_allocated)
+	if (gate >= m->ogates.curr_size)
 		return snobj_err(EINVAL, "Gate '%hu' does not exist", gate);
 
 	ret = enable_tcpdump(fifo, m, gate);
@@ -827,7 +827,7 @@ static struct snobj *handle_enable_tcpdump(struct snobj *q)
 static struct snobj *handle_disable_tcpdump(struct snobj *q)
 {
 	const char *m_name;
-	gate_t gate;
+	gate_idx_t gate;
 
 	struct module *m;
 
@@ -842,7 +842,7 @@ static struct snobj *handle_disable_tcpdump(struct snobj *q)
 	if ((m = find_module(m_name)) == NULL)
 		return snobj_err(ENOENT, "No module '%s' found", m_name);
 
-	if (gate >= m->ogates.num_allocated)
+	if (gate >= m->ogates.curr_size)
 		return snobj_err(EINVAL, "Gate '%hu' does not exist", gate);
 
 	ret = disable_tcpdump(m, gate);
