@@ -27,13 +27,21 @@ ct_assert(MAX_TASKS_PER_MODULE < INVALID_TASK_ID);
 
 #define MODULE_NAME_LEN		128
 
+#define MAX_INPUT_GATES		8192 
 #define MAX_OUTPUT_GATES	8192
 #define INVALID_GATE		UINT16_MAX
 
+ct_assert(MAX_INPUT_GATES < INVALID_GATE);
 ct_assert(MAX_OUTPUT_GATES < INVALID_GATE);
 
 #define TRACK_GATES		1
 #define TCPDUMP_GATES		1
+
+struct input_gate {
+	struct module *m;
+	proc_func_t f;
+	gate_t gate;
+};
 
 struct output_gate {
 	struct module *m;
@@ -59,7 +67,10 @@ struct module {
 
 	/* frequently access fields should be below */
 	gate_t allocated_ogates;
-	struct output_gate *gates;
+	struct output_gate *ogates;
+
+	gate_t allocated_igates;
+	struct input_gate *igates;
 
 	/* Some private data for this module instance begins at this marker. 
 	 * (this is poor person's class inheritance in C language)
@@ -144,7 +155,7 @@ static inline void run_choose_module(struct module *m, gate_t ogate,
 		return;
 	}
 
-	gate = &m->gates[ogate];
+	gate = &m->ogates[ogate];
 
 #if SN_TRACE_MODULES
 	_trace_before_call(m, next, batch);

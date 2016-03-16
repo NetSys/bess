@@ -654,18 +654,18 @@ static struct snobj *handle_get_module_info(struct snobj *q)
 		snobj_map_set(r, "dump", m->mclass->get_dump(m));
 
 	for (int i = 0; i < m->allocated_ogates; i++) {
-		if (m->gates[i].m) {
+		if (m->ogates[i].m) {
 			struct snobj *gate = snobj_map();
 			snobj_map_set(gate, "gate", snobj_uint(i));
 #if TRACK_GATES
 			snobj_map_set(gate, "cnt", 
-					snobj_uint(m->gates[i].cnt));
+					snobj_uint(m->ogates[i].cnt));
 			snobj_map_set(gate, "pkts", 
-					snobj_uint(m->gates[i].pkts));
+					snobj_uint(m->ogates[i].pkts));
 			snobj_map_set(gate, "timestamp", 
 					snobj_double(get_epoch_time()));
 #endif
-			snobj_map_set(gate, "name", snobj_str(m->gates[i].m->name));
+			snobj_map_set(gate, "name", snobj_str(m->ogates[i].m->name));
 			snobj_list_add(gates, gate);
 		}
 	}

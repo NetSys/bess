@@ -158,7 +158,7 @@ struct module *create_module(const char *name,
 	m->name = rte_zmalloc("name", MODULE_NAME_LEN, 0);
 
 	m->allocated_ogates = 0;
-	m->gates = NULL;
+	m->ogates = NULL;
 
 	if (!m->name) {
 		*perr = snobj_errno(ENOMEM);
@@ -201,7 +201,7 @@ fail:
 	if (m) {
 		destroy_all_tasks(m);
 		rte_free(m->name);
-		rte_free(m->gates);
+		rte_free(m->ogates);
 	}
 
 	rte_free(m);
@@ -224,7 +224,7 @@ void destroy_module(struct module *m)
 			break;
 		
 		for (gate_t i = 0; i < another->allocated_ogates; i++)
-			if (another->gates[i].m == m)
+			if (another->ogates[i].m == m)
 				disconnect_modules(another, i);
 	}
 	ns_release_iterator(&iter);
@@ -238,7 +238,7 @@ void destroy_module(struct module *m)
 	ns_remove(m->name);
 
 	rte_free(m->name);
-	rte_free(m->gates);
+	rte_free(m->ogates);
 	rte_free(m);
 }
 
@@ -257,18 +257,18 @@ static int grow_ogates(struct module *m, gate_t ogate)
 	while (new_size <= ogate)
 		new_size *= 2;
 
-	new_gates = rte_realloc(m->gates, 
+	new_gates = rte_realloc(m->ogates, 
 			sizeof(struct output_gate) * new_size, 0);
 	if (!new_gates)
 		return -ENOMEM;
 
-	m->gates = new_gates;
+	m->ogates = new_gates;
 
 	old_size = m->allocated_ogates;
 	m->allocated_ogates = new_size;
 
 	/* initialize the newly created gates */
-	memset(&m->gates[old_size], 0, 
+	memset(&m->ogates[old_size], 0, 
 			sizeof(struct output_gate) * (new_size - old_size));
 
 	for (gate_t i = old_size; i < new_size; i++)
@@ -289,11 +289,11 @@ int connect_modules(struct module *m1, gate_t ogate, struct module *m2)
 			return ret;
 	}
 
-	if (m1->gates[ogate].m)
+	if (m1->ogates[ogate].m)
 		return -EBUSY;
 
-	m1->gates[ogate].m = m2;
-	m1->gates[ogate].f = m2->mclass->process_batch;
+	m1->ogates[ogate].m = m2;
+	m1->ogates[ogate].f = m2->mclass->process_batch;
 
 	return 0;
 }
@@ -304,8 +304,8 @@ int disconnect_modules(struct module *m, gate_t gate)
 		return -EINVAL;
 
 	/* no error even if the gate is already pointing to a dead end */
-	m->gates[gate].m = NULL;
-	m->gates[gate].f = deadend;
+	m->ogates[gate].m = NULL;
+	m->ogates[gate].f = deadend;
 
 	return 0;
 }
@@ -462,7 +462,7 @@ int enable_tcpdump(const char* fifo, struct module *m, gate_t gate)
 	int ret;
 
 	/* Don't allow tcpdump to be attached to gates that are not active */
-	if (m->gates[gate].m == NULL)
+	if (m->ogates[gate].m == NULL)
 		return -EINVAL;
 
 	fd = open(fifo, O_WRONLY | O_NONBLOCK);
@@ -483,19 +483,19 @@ int enable_tcpdump(const char* fifo, struct module *m, gate_t gate)
 		return -errno;
 	}
 
-	m->gates[gate].fifo_fd = fd;
-	m->gates[gate].tcpdump = 1;
+	m->ogates[gate].fifo_fd = fd;
+	m->ogates[gate].tcpdump = 1;
 
 	return 0;
 }
 
 int disable_tcpdump(struct module *m, gate_t gate)
 {
-	if (!m->gates[gate].tcpdump)
+	if (!m->ogates[gate].tcpdump)
 		return -EINVAL;
 
-	m->gates[gate].tcpdump = 0;
-	close(m->gates[gate].fifo_fd);
+	m->ogates[gate].tcpdump = 0;
+	close(m->ogates[gate].fifo_fd);
 	return 0;
 }
 
