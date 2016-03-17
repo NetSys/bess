@@ -23,10 +23,10 @@ Note that the source code of BESS is under active development, thus many design 
 * [Packet buffer (struct snbuf)](snbuf.md)
 * [Packet batch](pktbatch.md)
 * [Generic data structure for controller interface (snobj)](snobj.md)
-* Tasks and traffic classes
+* TODO: [Tasks and traffic classes](tc.md)
 * Port details
 * Writing new port drivers
-* TODO: [Module details](module_details.md)
+* [Module details](module_details.md)
 * TODO: [Writing new modules](writing_modules.md)
 * Logging and debugging
 * Performance optimization
