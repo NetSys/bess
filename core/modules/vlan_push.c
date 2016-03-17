@@ -59,11 +59,13 @@ static void vpush_process_batch(struct module *m, struct pkt_batch *batch)
 	for (int i = 0; i < cnt; i++) {
 		struct snbuf *pkt = batch->pkts[i];
 		char *new_head;
-		__m128i ethh;
 		uint16_t tpid;
 
 		if ((new_head = snb_prepend(pkt, 4)) != NULL) {
 			/* shift 12 bytes to the left by 4 bytes */
+#if __SSE4_1__
+			__m128i ethh;
+
 			ethh = _mm_loadu_si128((__m128i *)(new_head + 4));
 			tpid = _mm_extract_epi16(ethh, 6);
 
@@ -73,6 +75,14 @@ static void vpush_process_batch(struct module *m, struct pkt_batch *batch)
 					3);
 
 			_mm_storeu_si128((__m128i *)new_head, ethh);
+#else
+			tpid = *(uint16_t *)(new_head + 16);
+			memmove(new_head, new_head + 4, 12);
+
+			*(uint32_t *)(new_head + 12) = 
+					(tpid == rte_cpu_to_be_16(0x8100)) ?
+						qinq_tag : vlan_tag;
+#endif
 		}
 	}
 		

@@ -157,6 +157,7 @@ static inline int find_index_basic(uint64_t addr, uint64_t *table)
 	return 0;
 }
 
+#if __AVX__
 const union {
 	uint64_t val[4];
 	__m256d _mask;
@@ -174,7 +175,7 @@ static inline int find_index_avx(uint64_t addr, uint64_t *table)
 
 	return __builtin_ffs(_mm256_movemask_pd(cmp));
 }
-
+#endif
 
 static inline int find_index(uint64_t addr, uint64_t *table, const uint64_t count) {
 #if __AVX__
