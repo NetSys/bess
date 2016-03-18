@@ -29,6 +29,8 @@
  */
 /* Dual BSD/GPL */
 
+#include <linux/version.h>
+
 #include "sn.h"
 
 static void 
@@ -348,7 +350,11 @@ static int sn_host_do_rx_batch(struct sn_queue *queue,
 		rx_meta[i] = rx_desc->meta;
 		total_len = rx_desc->total_len;
 
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(3,19,0))
+		skb = skbs[i] = netdev_alloc_skb(queue->dev->netdev, total_len);
+#else 
 		skb = skbs[i] = napi_alloc_skb(&queue->rx.napi, total_len);
+#endif
 		if (!skb) {
 			if (net_ratelimit())
 				log_err("napi_alloc_skb() failed\n");

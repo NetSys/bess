@@ -823,6 +823,11 @@ int sn_register_netdev(void *bar, struct sn_device *dev)
 	rtnl_lock();
 
 	if (conf->netns_fd >= 0) {
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(4,0,0))
+		log_err("'netns' option requires Linux kernel 4.0 or higher\n");
+		ret = -EINVAL;
+		goto fail_free;
+#else
 		net = get_net_ns_by_fd(conf->netns_fd);
 		if (IS_ERR(net)) {
 			log_err("invalid or not a net namespace fd %d\n",
@@ -831,6 +836,7 @@ int sn_register_netdev(void *bar, struct sn_device *dev)
 			ret = PTR_ERR(net);
 			goto fail_free;
 		}
+#endif
 	} else if (conf->container_pid) {
 		net = get_net_ns_by_pid(conf->container_pid);
 		if (IS_ERR(net)) {
