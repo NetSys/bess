@@ -80,6 +80,8 @@ timestamp_process_batch(struct module *m, struct pkt_batch *batch)
 
 static const struct mclass timestamp = {
 	.name 		= "Timestamp",
+	.num_igates 	= 1,
+	.num_ogates	= 1,
 	.priv_size	= sizeof(struct timestamp_priv),
 	.init 		= timestamp_init,
 	.process_batch 	= timestamp_process_batch,

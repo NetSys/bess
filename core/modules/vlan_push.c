@@ -92,6 +92,8 @@ static void vpush_process_batch(struct module *m, struct pkt_batch *batch)
 static const struct mclass vlan_push = {
 	.name 			= "VLANPush",
 	.def_module_name 	= "vlan_push",
+	.num_igates 		= 1,
+	.num_ogates		= 1,
 	.priv_size		= sizeof(struct vlan_push_priv),
 	.init 			= vpush_init,
 	.query			= vpush_query,

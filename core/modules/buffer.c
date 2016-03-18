@@ -46,6 +46,8 @@ static void buffer_process_batch(struct module *m, struct pkt_batch *batch)
 
 static const struct mclass buffer = {
 	.name		= "Buffer",
+	.num_igates	= 1,
+	.num_ogates	= 1,
 	.priv_size 	= sizeof(struct buffer_priv),
 	.deinit		= buffer_deinit,
 	.process_batch  = buffer_process_batch,

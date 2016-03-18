@@ -27,19 +27,41 @@ ct_assert(MAX_TASKS_PER_MODULE < INVALID_TASK_ID);
 
 #define MODULE_NAME_LEN		128
 
-typedef uint16_t gate_t;
-
-#define MAX_OUTPUT_GATES	8192
 #define INVALID_GATE		UINT16_MAX
 
-ct_assert(MAX_OUTPUT_GATES < INVALID_GATE);
+/* A module may have up to MAX_GATES input/output gates (separately). */
+#define MAX_GATES		8192 
+ct_assert(MAX_GATES < INVALID_GATE);
 
 #define TRACK_GATES		1
 #define TCPDUMP_GATES		1
 
-struct output_gate {
-	struct module *m;
-	proc_func_t f;		/* m->mclass->process_batch() or deadend() */
+typedef enum {
+	GATE_TYPE_OUT,
+	GATE_TYPE_IN,
+	GATE_TYPES,
+} gate_type_t;
+
+struct gate {
+	/* immutable values */
+	struct module *m;	/* the module this gate belongs to */
+	gate_idx_t gate_idx;	/* input/output gate index of itself */
+
+	/* mutabke vakues below */
+	proc_func_t f;		/* m_next->mclass->process_batch or deadend */
+
+	union {
+		struct {
+			struct cdlist_item igate_upstream; 
+			struct gate *igate;
+		} out;
+
+		struct {
+			struct cdlist_head ogates_upstream;
+		} in;
+	};
+
+	/* TODO: generalize with gate hooks */
 #if TRACK_GATES
 	uint64_t cnt;
 	uint64_t pkts;
@@ -50,18 +72,22 @@ struct output_gate {
 #endif
 };
 
+struct gates {
+	struct gate *arr;
+	gate_type_t type;
+	gate_idx_t curr_size;	/* always <= m->mclass->num_[i|o]gates */
+};
+
 /* This struct is shared across workers */
 struct module {
 	/* less frequently accessed fields should be here */
 	char *name;
-
 	const struct mclass *mclass;
-
 	struct task *tasks[MAX_TASKS_PER_MODULE];
 
 	/* frequently access fields should be below */
-	gate_t allocated_gates;
-	struct output_gate *gates;
+	struct gates igates;
+	struct gates ogates;
 
 	/* Some private data for this module instance begins at this marker. 
 	 * (this is poor person's class inheritance in C language)
@@ -99,8 +125,9 @@ struct module *create_module(const char *name,
 
 void destroy_module(struct module *m);
 
-int connect_modules(struct module *m1, gate_t gate, struct module *m2);
-int disconnect_modules(struct module *m, gate_t gate);
+int connect_modules(struct module *m_prev, gate_idx_t ogate_idx, 
+		    struct module *m_next, gate_idx_t igate_idx);
+int disconnect_modules(struct module *m_prev, gate_idx_t ogate_idx);
 		
 void deadend(struct module *m, struct pkt_batch *batch);
 
@@ -115,14 +142,14 @@ void _trace_after_call(void);
 #endif
 
 #if TCPDUMP_GATES
-int enable_tcpdump(const char* fifo, struct module *m, gate_t gate);
+int enable_tcpdump(const char* fifo, struct module *m, gate_idx_t gate);
 
-int disable_tcpdump(struct module *m, gate_t gate);
+int disable_tcpdump(struct module *m, gate_idx_t gate);
 
-void dump_pcap_pkts(struct output_gate *gate, struct pkt_batch *batch);
+void dump_pcap_pkts(struct gate *gate, struct pkt_batch *batch);
 
 #else
-inline int enable_tcpdump(const char *, struct module *, gate_t) {
+inline int enable_tcpdump(const char *, struct module *, gate_idx_t) {
 	/* Cannot enable tcpdump */
 	return -EINVAL;
 }
@@ -136,33 +163,33 @@ inline int disable_tcpdump(struct module *, int) {
 
 /* Pass packets to the next module.
  * Packet deallocation is callee's responsibility. */
-static inline void run_choose_module(struct module *m, gate_t ogate,
+static inline void run_choose_module(struct module *m, gate_idx_t ogate_idx,
 				     struct pkt_batch *batch)
 {
-	struct output_gate *gate;
+	struct gate *ogate;
 
-	if (unlikely(ogate >= m->allocated_gates)) {
+	if (unlikely(ogate_idx >= m->ogates.curr_size)) {
 		deadend(NULL, batch);
 		return;
 	}
 
-	gate = &m->gates[ogate];
+	ogate = &m->ogates.arr[ogate_idx];
 
 #if SN_TRACE_MODULES
 	_trace_before_call(m, next, batch);
 #endif
 
 #if TRACK_GATES
-	gate->cnt += 1;
-	gate->pkts += batch->cnt;
+	ogate->cnt += 1;
+	ogate->pkts += batch->cnt;
 #endif
 
 #if TCPDUMP_GATES
-	if (unlikely(gate->tcpdump))
-		dump_pcap_pkts(gate, batch);
+	if (unlikely(ogate->tcpdump))
+		dump_pcap_pkts(ogate, batch);
 #endif
 
-	gate->f(gate->m, batch);
+	ogate->f(ogate->out.igate->m, batch);
 
 #if SN_TRACE_MODULES
 	_trace_after_call();
@@ -181,7 +208,7 @@ static inline void run_next_module(struct module *m, struct pkt_batch *batch)
  *   1. Order is preserved for packets with the same gate.
  *   2. No ordering guarantee for packets with different gates.
  */
-static void run_split(struct module *m, const gate_t *ogates,
+static void run_split(struct module *m, const gate_idx_t *ogates,
 		struct pkt_batch *mixed_batch)
 {
 	int cnt = mixed_batch->cnt;
@@ -189,7 +216,7 @@ static void run_split(struct module *m, const gate_t *ogates,
 
 	snb_array_t p_pkt = &mixed_batch->pkts[0];
 
-	gate_t pending[MAX_PKT_BURST];
+	gate_idx_t pending[MAX_PKT_BURST];
 	struct pkt_batch batches[MAX_PKT_BURST];
 
 	struct pkt_batch *splits = ctx.splits;
@@ -197,7 +224,7 @@ static void run_split(struct module *m, const gate_t *ogates,
 	/* phase 1: collect unique ogates into pending[] */
 	for (int i = 0; i < cnt; i++) {
 		struct pkt_batch *batch;
-		gate_t ogate;
+		gate_idx_t ogate;
 		
 		ogate = ogates[i];
 		batch = &splits[ogate];

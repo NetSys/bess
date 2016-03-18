@@ -80,6 +80,8 @@ static void port_out_process_batch(struct module *m,
 
 static const struct mclass port_out = {
 	.name		= "PortOut",
+	.num_igates	= 1,
+	.num_ogates	= 0,
 	.priv_size	= sizeof(struct port_out_priv),
 	.init		= port_out_init,
 	.deinit		= port_out_deinit,

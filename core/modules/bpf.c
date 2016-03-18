@@ -122,7 +122,7 @@ static struct snobj *bpf_get_desc(const struct module *m)
 static void bpf_process_batch(struct module *m,
 		struct pkt_batch *batch)
 {
-	gate_t ogates[MAX_PKT_BURST];
+	gate_idx_t ogates[MAX_PKT_BURST];
 	int i;
 	struct bpf_priv *priv = get_priv(m);
 
@@ -149,6 +149,8 @@ static void bpf_process_batch(struct module *m,
 
 static const struct mclass bpf = {
 	.name 		= "BPF",
+	.num_igates	= 1,
+	.num_ogates	= MAX_OUTPUT_GATES,
 	.priv_size	= sizeof(struct bpf_priv),
 	.init 		= bpf_init,
 	.deinit 	= bpf_deinit,

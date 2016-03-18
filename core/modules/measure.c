@@ -5,10 +5,6 @@
 #include "../utils/histogram.h"
 #include "../time.h"
 
-#ifndef min
-#define min(a, b) (a < b ? a : b)
-#endif
-
 /* XXX: currently doesn't support multiple workers */
 struct measure_priv {
 	struct histogram hist;
@@ -111,6 +107,8 @@ measure_process_batch(struct module *m, struct pkt_batch *batch)
 
 static const struct mclass measure = {
 	.name 		= "Measure",
+	.num_igates	= 1,
+	.num_ogates	= 1,
 	.priv_size	= sizeof(struct measure_priv),
 	.init 		= measure_init,
 	.process_batch 	= measure_process_batch,

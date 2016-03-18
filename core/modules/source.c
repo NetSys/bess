@@ -88,6 +88,8 @@ source_run_task(struct module *m, void *arg)
 
 static const struct mclass source = {
 	.name 		= "Source",
+	.num_igates 	= 0,
+	.num_ogates	= 1,
 	.priv_size	= sizeof(struct source_priv),
 	.init 		= source_init,
 	.query		= source_query,

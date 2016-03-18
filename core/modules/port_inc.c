@@ -113,6 +113,8 @@ port_inc_run_task(struct module *m, void *arg)
 
 static const struct mclass port_inc = {
 	.name 		= "PortInc",
+	.num_igates	= 0,
+	.num_ogates	= 1,
 	.priv_size	= sizeof(struct port_inc_priv),
 	.init 		= port_inc_init,
 	.deinit		= port_inc_deinit,

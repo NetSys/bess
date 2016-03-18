@@ -120,6 +120,8 @@ queue_inc_run_task(struct module *m, void *arg)
 
 static const struct mclass queue_inc = {
 	.name 		= "QueueInc",
+	.num_igates	= 0,
+	.num_ogates	= 1,
 	.priv_size	= sizeof(struct queue_inc_priv),
 	.init 		= queue_inc_init,
 	.deinit		= queue_inc_deinit,

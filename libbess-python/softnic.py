@@ -177,9 +177,9 @@ class SoftNIC(object):
     def get_module_info(self, name):
         return self._request_softnic('get_module_info', name)
 
-    def connect_modules(self, m1, m2, gate = 0):
+    def connect_modules(self, m1, m2, ogate = 0, igate = 0):
         return self._request_softnic('connect_modules', 
-                {'m1': m1, 'm2': m2, 'gate': gate})
+                {'m1': m1, 'm2': m2, 'ogate': ogate, 'igate': igate})
 
     def disconnect_modules(self, name, gate = 0):
         return self._request_softnic('disconnect_modules', 
