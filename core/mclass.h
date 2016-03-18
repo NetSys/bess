@@ -18,7 +18,7 @@ struct module;
 struct pkt_batch;
 struct snobj;
 
-typedef void (*proc_func_t)(struct module *, struct pkt_batch *);
+typedef void (*proc_func_t) (struct module *, struct pkt_batch *);
 
 struct mclass
 {

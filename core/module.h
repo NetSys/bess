@@ -43,12 +43,17 @@ typedef enum {
 } gate_type_t;
 
 struct gate {
-	struct module *m_next;
+	/* immutable values */
+	struct module *m;	/* the module this gate belongs to */
+	gate_idx_t gate_idx;	/* input/output gate index of itself */
+
+	/* mutabke vakues below */
 	proc_func_t f;		/* m_next->mclass->process_batch or deadend */
 
 	union {
 		struct {
-			struct input_gate *igate;
+			struct cdlist_item igate_upstream; 
+			struct gate *igate;
 		} out;
 
 		struct {
@@ -56,6 +61,7 @@ struct gate {
 		} in;
 	};
 
+	/* TODO: generalize with gate hooks */
 #if TRACK_GATES
 	uint64_t cnt;
 	uint64_t pkts;
@@ -69,7 +75,7 @@ struct gate {
 struct gates {
 	struct gate *arr;
 	gate_type_t type;
-	gate_idx_t curr_size;
+	gate_idx_t curr_size;	/* always <= m->mclass->num_[i|o]gates */
 };
 
 /* This struct is shared across workers */
@@ -119,9 +125,9 @@ struct module *create_module(const char *name,
 
 void destroy_module(struct module *m);
 
-int connect_modules(struct module *m_prev, gate_idx_t ogate, 
-		    struct module *m_next, gate_idx_t igate);
-int disconnect_modules(struct module *m_prev, gate_idx_t ogate);
+int connect_modules(struct module *m_prev, gate_idx_t ogate_idx, 
+		    struct module *m_next, gate_idx_t igate_idx);
+int disconnect_modules(struct module *m_prev, gate_idx_t ogate_idx);
 		
 void deadend(struct module *m, struct pkt_batch *batch);
 
@@ -157,33 +163,33 @@ inline int disable_tcpdump(struct module *, int) {
 
 /* Pass packets to the next module.
  * Packet deallocation is callee's responsibility. */
-static inline void run_choose_module(struct module *m, gate_idx_t ogate,
+static inline void run_choose_module(struct module *m, gate_idx_t ogate_idx,
 				     struct pkt_batch *batch)
 {
-	struct gate *gate;
+	struct gate *ogate;
 
-	if (unlikely(ogate >= m->ogates.curr_size)) {
+	if (unlikely(ogate_idx >= m->ogates.curr_size)) {
 		deadend(NULL, batch);
 		return;
 	}
 
-	gate = &m->ogates.arr[ogate];
+	ogate = &m->ogates.arr[ogate_idx];
 
 #if SN_TRACE_MODULES
 	_trace_before_call(m, next, batch);
 #endif
 
 #if TRACK_GATES
-	gate->cnt += 1;
-	gate->pkts += batch->cnt;
+	ogate->cnt += 1;
+	ogate->pkts += batch->cnt;
 #endif
 
 #if TCPDUMP_GATES
-	if (unlikely(gate->tcpdump))
-		dump_pcap_pkts(gate, batch);
+	if (unlikely(ogate->tcpdump))
+		dump_pcap_pkts(ogate, batch);
 #endif
 
-	gate->f(gate->m_next, batch);
+	ogate->f(ogate->out.igate->m, batch);
 
 #if SN_TRACE_MODULES
 	_trace_after_call();
