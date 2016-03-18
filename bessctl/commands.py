@@ -587,13 +587,12 @@ def add_connection(cli, m1, m2, ogate, igate):
     if ogate is None:
         ogate = 0
 
-    # input gate is not supported yet
     if igate is None:
         igate = 0
 
     cli.softnic.pause_all()
     try:
-        cli.softnic.connect_modules(m1, m2, ogate)
+        cli.softnic.connect_modules(m1, m2, ogate, igate)
     finally:
         cli.softnic.resume_all()
 
