@@ -126,7 +126,7 @@ def replace_envvar(s):
     return s
 
 def replace_rarrows(s):
-    target = r'(([^:]):([^: \t]+)[ \t]*)?->([ \t]*([^: \t]+):([^:]))?'
+    target = r'(([^:]):([^:\s]+)[\s]*)?->([\s]*([^:\s]+):([^:]))?'
     # first group: # leading COMMENT -> skip
     # second group: single / double /triple quoted strings -> skip
     # third group: replace target '->' 
