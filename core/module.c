@@ -326,9 +326,11 @@ int connect_modules(struct module *m_prev, gate_idx_t ogate_idx,
 	igate = &m_next->igates.arr[igate_idx];
 
 	ogate->f = m_next->mclass->process_batch;
+	ogate->arg = m_next;
 	ogate->out.igate = igate;
 
 	igate->f = m_next->mclass->process_batch;
+	igate->arg = m_next;
 	cdlist_add_tail(&igate->in.ogates_upstream, &ogate->out.igate_upstream);
 
 	return 0;
@@ -352,41 +354,12 @@ int disconnect_modules(struct module *m_prev, gate_idx_t ogate_idx)
 		return 0;
 
 	ogate->f = deadend;
+	ogate->arg = NULL;
 	ogate->out.igate = NULL;
 	cdlist_del(&ogate->out.igate_upstream);
 
 	return 0;
 }
-
-#if 0
-void set_next_module(struct module *prev, struct module *next)
-{
-	assert(prev);
-	assert(!prev->ops->add_next_module);
-	assert(prev->num_next_modules == 0);
-
-	assert(next);
-	assert(next->ops->process_batch);
-
-	prev->next_modules[0] = next;
-	prev->num_next_modules = 1;
-}
-
-void add_next_module(struct module *prev, struct module *next, void *arg)
-{
-	assert(prev);
-	assert(prev->ops);
-	assert(prev->ops->add_next_module);
-	assert(prev->num_next_modules < MAX_NEXT_MODULES);
-
-	assert(next);
-	assert(next->ops->process_batch);
-
-	prev->next_modules[prev->num_next_modules] = next;
-	prev->ops->add_next_module(prev, prev->num_next_modules, arg);
-	prev->num_next_modules++;
-}
-#endif
 
 #if 0
 void init_module_worker()

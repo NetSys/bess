@@ -47,13 +47,14 @@ struct gate {
 	struct module *m;	/* the module this gate belongs to */
 	gate_idx_t gate_idx;	/* input/output gate index of itself */
 
-	/* mutabke vakues below */
+	/* mutable values below */
 	proc_func_t f;		/* m_next->mclass->process_batch or deadend */
+	void *arg;
 
 	union {
 		struct {
 			struct cdlist_item igate_upstream; 
-			struct gate *igate;
+			struct gate *igate;	/* NULL if not connected */
 		} out;
 
 		struct {
@@ -94,7 +95,7 @@ struct module {
 	 * The 'struct module' object will be allocated with enough tail room
 	 * to accommodate this private data. It is initialized with zeroes.
 	 * We don't do dynamic allocation for private data, 
-	 * to save a few cycles without indirect memory access.
+	 * to save a few cycles by avoiding indirect memory access.
 	 *
 	 * Note: this is shared across all workers. Ensuring thread safety 
 	 * and/or managing per-worker data is each module's responsibility. */
@@ -189,7 +190,7 @@ static inline void run_choose_module(struct module *m, gate_idx_t ogate_idx,
 		dump_pcap_pkts(ogate, batch);
 #endif
 
-	ogate->f(ogate->out.igate->m, batch);
+	ogate->f(ogate->arg, batch);
 
 #if SN_TRACE_MODULES
 	_trace_after_call();
