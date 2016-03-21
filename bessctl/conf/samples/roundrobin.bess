@@ -1,11 +1,11 @@
 Source() -> rr1::Roundrobin(gates=3)
 sink1::Sink()
-rr1[0] -> sink1
-rr1[1] -> sink1
-rr1[2] -> sink1
+rr1:0 -> sink1
+rr1:1 -> sink1
+rr1:2 -> sink1
 
 Source() -> rr2::Roundrobin(gates=[0, 2], packet_mode=1)
 sink2::Sink()
-rr2[0] -> sink2
-rr2[1] -> sink2
-rr2[2] -> sink2
+rr2:0 -> sink2
+rr2:1 -> sink2
+rr2:2 -> sink2

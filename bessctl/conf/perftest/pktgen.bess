@@ -40,5 +40,5 @@ for i in range(num_cores):
     -> rr
     
     for j in range(num_ports):
-        rr[j]->QueueOut(port=ports[j], qid=i)
+        rr:j->QueueOut(port=ports[j], qid=i)
         QueueInc(port=ports[j], qid=i) -> Sink()

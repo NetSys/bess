@@ -4,10 +4,10 @@ import pprint
 import scapy.all as scapy
 
 Source() -> rewrite::Rewrite() -> bpf::BPF()
-bpf[0] -> Sink()      # for unmatched packets
-bpf[1] -> Sink()      # for matched packets
-unmatched_port = 0
-matched_port = 1
+bpf:0 -> Sink()      # for unmatched packets
+bpf:1 -> Sink()      # for matched packets
+unmatched = 0
+matched = 1
 
 def run_testcase(exp, test_pkts):
     rewrite.query({'templates': map(lambda x: bytearray(str(x)), test_pkts)})
@@ -16,21 +16,21 @@ def run_testcase(exp, test_pkts):
 
     softnic.resume_all()
 
-    old_stats = softnic.get_module_info(bpf.name)['gates']
+    old_stats = softnic.get_module_info(bpf.name)['ogates']
     time.sleep(2)
-    new_stats = softnic.get_module_info(bpf.name)['gates']
+    new_stats = softnic.get_module_info(bpf.name)['ogates']
 
     pps_matched = \
-            (new_stats[matched_port]['pkts'] - \
-            old_stats[matched_port]['pkts']) / \
-            (new_stats[matched_port]['timestamp'] - \
-            old_stats[matched_port]['timestamp'])
+            (new_stats[matched]['pkts'] - \
+            old_stats[matched]['pkts']) / \
+            (new_stats[matched]['timestamp'] - \
+            old_stats[matched]['timestamp'])
 
     pps_unmatched = \
-            (new_stats[unmatched_port]['pkts'] - \
-            old_stats[unmatched_port]['pkts']) / \
-            (new_stats[unmatched_port]['timestamp'] - \
-            old_stats[unmatched_port]['timestamp'])
+            (new_stats[unmatched]['pkts'] - \
+            old_stats[unmatched]['pkts']) / \
+            (new_stats[unmatched]['timestamp'] - \
+            old_stats[unmatched]['timestamp'])
 
     pps_total = pps_matched + pps_unmatched
 
