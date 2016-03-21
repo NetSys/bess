@@ -631,7 +631,7 @@ static struct snobj *handle_get_module_info(struct snobj *q)
 	struct module *m;
 
 	struct snobj *r;
-	struct snobj *gates;
+	struct snobj *ogates;
 
 	m_name = snobj_str_get(q);
 
@@ -642,7 +642,7 @@ static struct snobj *handle_get_module_info(struct snobj *q)
 		return snobj_err(ENOENT, "No module '%s' found", m_name);
 
 	r = snobj_map();
-	gates = snobj_list();
+	ogates = snobj_list();
 
 	snobj_map_set(r, "name", snobj_str(m->name));
 	snobj_map_set(r, "mclass", snobj_str(m->mclass->name));
@@ -658,25 +658,25 @@ static struct snobj *handle_get_module_info(struct snobj *q)
 
 		/* connected? */
 		if (g->out.igate) {
-			struct snobj *gate = snobj_map();
+			struct snobj *ogate = snobj_map();
 
-			snobj_map_set(gate, "gate", snobj_uint(i));
+			snobj_map_set(ogate, "ogate", snobj_uint(i));
 #if TRACK_GATES
-			snobj_map_set(gate, "cnt", snobj_uint(g->cnt));
-			snobj_map_set(gate, "pkts", snobj_uint(g->pkts));
-			snobj_map_set(gate, "timestamp", 
+			snobj_map_set(ogate, "cnt", snobj_uint(g->cnt));
+			snobj_map_set(ogate, "pkts", snobj_uint(g->pkts));
+			snobj_map_set(ogate, "timestamp", 
 					snobj_double(get_epoch_time()));
 #endif
-			snobj_map_set(gate, "name", 
+			snobj_map_set(ogate, "name", 
 					snobj_str(g->out.igate->m->name));
-			snobj_map_set(gate, "igate",
+			snobj_map_set(ogate, "igate",
 					snobj_uint(g->out.igate->gate_idx));
 			
-			snobj_list_add(gates, gate);
+			snobj_list_add(ogates, ogate);
 		}
 	}
 
-	snobj_map_set(r, "gates", gates);
+	snobj_map_set(r, "ogates", ogates);
 
 	return r;
 }
@@ -707,9 +707,12 @@ static struct snobj *handle_connect_modules(struct snobj *q)
 	if ((m2 = find_module(m2_name)) == NULL)
 		return snobj_err(ENOENT, "No module '%s' found", m2_name);
 
+	ogate = 0;
+	igate = 0;
+
 	ret = connect_modules(m1, ogate, m2, igate);
 	if (ret < 0)
-		return snobj_err(-ret, "Connection '%s'[%d:%d]->'%s' failed", 
+		return snobj_err(-ret, "Connection %s:%d->%d:%s failed", 
 			m1_name, ogate, igate, m2_name);
 
 	return NULL;
@@ -718,14 +721,14 @@ static struct snobj *handle_connect_modules(struct snobj *q)
 static struct snobj *handle_disconnect_modules(struct snobj *q)
 {
 	const char *m_name;
-	gate_idx_t gate;
+	gate_idx_t ogate;
 
 	struct module *m;
 
 	int ret;
 
 	m_name = snobj_eval_str(q, "name");
-	gate = snobj_eval_uint(q, "gate");
+	ogate = snobj_eval_uint(q, "ogate");
 
 	if (!m_name)
 		return snobj_err(EINVAL, "Missing 'name' field");
@@ -733,10 +736,10 @@ static struct snobj *handle_disconnect_modules(struct snobj *q)
 	if ((m = find_module(m_name)) == NULL)
 		return snobj_err(ENOENT, "No module '%s' found", m_name);
 
-	ret = disconnect_modules(m, gate);
+	ret = disconnect_modules(m, ogate);
 	if (ret < 0)
-		return snobj_err(-ret, "Disconnection '%s'[%d] failed", 
-			m_name, gate);
+		return snobj_err(-ret, "Disconnection %s:%d failed", 
+			m_name, ogate);
 
 	return NULL;
 }
@@ -803,14 +806,14 @@ static struct snobj *handle_enable_tcpdump(struct snobj *q)
 {
 	const char *m_name;
 	const char *fifo;
-	gate_idx_t gate;
+	gate_idx_t ogate;
 
 	struct module *m;
 
 	int ret;
 
 	m_name = snobj_eval_str(q, "name");
-	gate = snobj_eval_uint(q, "gate");
+	ogate = snobj_eval_uint(q, "ogate");
 	fifo = snobj_eval_str(q, "fifo");
 
 	if (!m_name)
@@ -819,14 +822,15 @@ static struct snobj *handle_enable_tcpdump(struct snobj *q)
 	if ((m = find_module(m_name)) == NULL)
 		return snobj_err(ENOENT, "No module '%s' found", m_name);
 
-	if (gate >= m->ogates.curr_size)
-		return snobj_err(EINVAL, "Gate '%hu' does not exist", gate);
+	if (ogate >= m->ogates.curr_size)
+		return snobj_err(EINVAL, "Output gate '%hu' does not exist", 
+				ogate);
 
-	ret = enable_tcpdump(fifo, m, gate);
+	ret = enable_tcpdump(fifo, m, ogate);
 
 	if (ret < 0) {
-		return snobj_err(-ret, "Enabling tcpdump %s[%d] failed",
-				m_name, gate);
+		return snobj_err(-ret, "Enabling tcpdump %s:%d failed",
+				m_name, ogate);
 	}
 
 	return NULL;
@@ -835,14 +839,14 @@ static struct snobj *handle_enable_tcpdump(struct snobj *q)
 static struct snobj *handle_disable_tcpdump(struct snobj *q)
 {
 	const char *m_name;
-	gate_idx_t gate;
+	gate_idx_t ogate;
 
 	struct module *m;
 
 	int ret;
 
 	m_name = snobj_eval_str(q, "name");
-	gate = snobj_eval_uint(q, "gate");
+	ogate = snobj_eval_uint(q, "ogate");
 
 	if (!m_name)
 		return snobj_err(EINVAL, "Missing 'name' field");
@@ -850,14 +854,15 @@ static struct snobj *handle_disable_tcpdump(struct snobj *q)
 	if ((m = find_module(m_name)) == NULL)
 		return snobj_err(ENOENT, "No module '%s' found", m_name);
 
-	if (gate >= m->ogates.curr_size)
-		return snobj_err(EINVAL, "Gate '%hu' does not exist", gate);
+	if (ogate >= m->ogates.curr_size)
+		return snobj_err(EINVAL, "Output gate '%hu' does not exist", 
+				ogate);
 
-	ret = disable_tcpdump(m, gate);
+	ret = disable_tcpdump(m, ogate);
 
 	if (ret < 0) {
-		return snobj_err(-ret, "Disabling tcpdump %s[%d] failed",
-				m_name, gate);
+		return snobj_err(-ret, "Disabling tcpdump %s:%d failed",
+				m_name, ogate);
 	}
 	return NULL;
 }
