@@ -52,15 +52,19 @@ def __bess_module__(module_names, mclass_name, *args, **kwargs):
         caller_globals[module_names] = obj
         return obj
 
+    # a,b,c::SomeMod()
     elif isinstance(module_names, tuple):
-        mtuple = Module_tuple()
+        obj_list = []
+
         for module in module_names:
             if module in caller_globals:
                 raise ConfError("Module name %s already exists" % module)
+
+        for module in module_names:
             obj = mclass_obj(module, *args, **kwargs)
             caller_globals[module] = obj
-            mtuple.add_module(obj)
-        return mtuple
+            obj_list.append(obj)
+        return obj_list
 
     else:
         assert False, 'Invalid argument %s' % type(module_names)
