@@ -779,19 +779,19 @@ def _draw_pipeline(cli, field, last_stats = None):
             print >> f.stdin, '[%s]' % node_labels[m['name']]
 
         for name in names:
-            gates = cli.softnic.get_module_info(name)['gates']
+            gates = cli.softnic.get_module_info(name)['ogates']
 
             for gate in gates:
                 if last_stats is not None:
-                    last_time, last_val = last_stats[(name, gate['gate'])]
+                    last_time, last_val = last_stats[(name, gate['ogate'])]
                     new_time, new_val = gate['timestamp'], gate[field]
-                    last_stats[(name, gate['gate'])] = (new_time, new_val)
+                    last_stats[(name, gate['ogate'])] = (new_time, new_val)
 
                     val = int((new_val - last_val) / (new_time - last_time))
                 else:
                     val = gate[field]
 
-                edge_attr = '{label:%d:%d;}' % (gate['gate'], val)
+                edge_attr = '{label:%d:%d;}' % (gate['ogate'], val)
 
                 print >> f.stdin, '[%s] ->%s [%s]' % (
                         node_labels[name],
@@ -906,10 +906,10 @@ def _monitor_pipeline(cli, field):
    
     last_stats = {}
     for module in modules:
-        gates = cli.softnic.get_module_info(module['name'])['gates']
+        gates = cli.softnic.get_module_info(module['name'])['ogates']
 
         for gate in gates:
-            last_stats[(module['name'], gate['gate'])] = \
+            last_stats[(module['name'], gate['ogate'])] = \
                     (gate['timestamp'], gate[field])
 
     try:
