@@ -707,9 +707,6 @@ static struct snobj *handle_connect_modules(struct snobj *q)
 	if ((m2 = find_module(m2_name)) == NULL)
 		return snobj_err(ENOENT, "No module '%s' found", m2_name);
 
-	ogate = 0;
-	igate = 0;
-
 	ret = connect_modules(m1, ogate, m2, igate);
 	if (ret < 0)
 		return snobj_err(-ret, "Connection %s:%d->%d:%s failed", 
