@@ -37,7 +37,7 @@ static const struct mclass vlan_split = {
 	.name 			= "VLANSplit",
 	.def_module_name 	= "vlan_split",
 	.num_igates		= 1,
-	.num_ogates		= MAX_OUTPUT_GATES,
+	.num_ogates		= 4096,
 	.process_batch  	= vsplit_process_batch,
 };
 

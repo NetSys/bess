@@ -52,15 +52,19 @@ def __bess_module__(module_names, mclass_name, *args, **kwargs):
         caller_globals[module_names] = obj
         return obj
 
+    # a,b,c::SomeMod()
     elif isinstance(module_names, tuple):
-        mtuple = Module_tuple()
+        obj_list = []
+
         for module in module_names:
             if module in caller_globals:
                 raise ConfError("Module name %s already exists" % module)
+
+        for module in module_names:
             obj = mclass_obj(module, *args, **kwargs)
             caller_globals[module] = obj
-            mtuple.add_module(obj)
-        return mtuple
+            obj_list.append(obj)
+        return obj_list
 
     else:
         assert False, 'Invalid argument %s' % type(module_names)
@@ -775,19 +779,19 @@ def _draw_pipeline(cli, field, last_stats = None):
             print >> f.stdin, '[%s]' % node_labels[m['name']]
 
         for name in names:
-            gates = cli.softnic.get_module_info(name)['gates']
+            gates = cli.softnic.get_module_info(name)['ogates']
 
             for gate in gates:
                 if last_stats is not None:
-                    last_time, last_val = last_stats[(name, gate['gate'])]
+                    last_time, last_val = last_stats[(name, gate['ogate'])]
                     new_time, new_val = gate['timestamp'], gate[field]
-                    last_stats[(name, gate['gate'])] = (new_time, new_val)
+                    last_stats[(name, gate['ogate'])] = (new_time, new_val)
 
                     val = int((new_val - last_val) / (new_time - last_time))
                 else:
                     val = gate[field]
 
-                edge_attr = '{label:%d:%d;}' % (gate['gate'], val)
+                edge_attr = '{label:%d:%d;}' % (gate['ogate'], val)
 
                 print >> f.stdin, '[%s] ->%s [%s]' % (
                         node_labels[name],
@@ -797,9 +801,13 @@ def _draw_pipeline(cli, field, last_stats = None):
         output, error = f.communicate()
         f.wait()
         return output
-    except IOError:
-        raise cli.CommandError('"graph-easy" program is not availabe? ' \
-                'Check if the package "libgraph-easy-perl" is installed.')
+
+    except IOError as e:
+        if e.errno == errno.EPIPE:
+            raise cli.CommandError('"graph-easy" program is not availabe? ' \
+                    'Check if the package "libgraph-easy-perl" is installed.')
+        else:
+            raise
 
 @cmd('show pipeline', 'Show the current datapath pipeline')
 def show_pipeline(cli):
@@ -867,9 +875,9 @@ def _show_module(cli, module):
         cli.fout.write('\n')
 
     cli.fout.write('    Output gates:\n')
-    for gate in info['gates']:
-        cli.fout.write('      %5d: batches %-16d packets %-16d -> %s\n' % \
-                (gate['gate'], gate['cnt'], gate['pkts'], gate['name']))
+    for gate in info['ogates']:
+        cli.fout.write('      %5d: batches %-16d packets %-16d -> %d:%s\n' % \
+                (gate['ogate'], gate['cnt'], gate['pkts'], gate['igate'], gate['name']))
 
     if 'dump' in info:
         cli.fout.write('    Dump:\n')
@@ -902,10 +910,10 @@ def _monitor_pipeline(cli, field):
    
     last_stats = {}
     for module in modules:
-        gates = cli.softnic.get_module_info(module['name'])['gates']
+        gates = cli.softnic.get_module_info(module['name'])['ogates']
 
         for gate in gates:
-            last_stats[(module['name'], gate['gate'])] = \
+            last_stats[(module['name'], gate['ogate'])] = \
                     (gate['timestamp'], gate[field])
 
     try:

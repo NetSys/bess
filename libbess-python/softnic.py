@@ -181,19 +181,19 @@ class SoftNIC(object):
         return self._request_softnic('connect_modules', 
                 {'m1': m1, 'm2': m2, 'ogate': ogate, 'igate': igate})
 
-    def disconnect_modules(self, name, gate = 0):
+    def disconnect_modules(self, name, ogate = 0):
         return self._request_softnic('disconnect_modules', 
-                {'name': name, 'gate': gate})
+                {'name': name, 'ogate': ogate})
 
     def query_module(self, name, arg):
         return self._request_module(name, 'query', arg)
 
-    def enable_tcpdump(self, fifo, m, gate = 0):
-        args = {'name': m, 'gate': gate, 'fifo': fifo}
+    def enable_tcpdump(self, fifo, m, ogate = 0):
+        args = {'name': m, 'ogate': ogate, 'fifo': fifo}
         return self._request_softnic('enable_tcpdump', args)
 
-    def disable_tcpdump(self, m, gate = 0):
-        args = {'name': m, 'gate': gate}
+    def disable_tcpdump(self, m, ogate = 0):
+        args = {'name': m, 'ogate': ogate}
         return self._request_softnic('disable_tcpdump', args)
 
     def list_workers(self):

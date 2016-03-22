@@ -27,33 +27,23 @@ ct_assert(MAX_TASKS_PER_MODULE < INVALID_TASK_ID);
 
 #define MODULE_NAME_LEN		128
 
-#define INVALID_GATE		UINT16_MAX
-
-/* A module may have up to MAX_GATES input/output gates (separately). */
-#define MAX_GATES		8192 
-ct_assert(MAX_GATES < INVALID_GATE);
-
 #define TRACK_GATES		1
 #define TCPDUMP_GATES		1
-
-typedef enum {
-	GATE_TYPE_OUT,
-	GATE_TYPE_IN,
-	GATE_TYPES,
-} gate_type_t;
 
 struct gate {
 	/* immutable values */
 	struct module *m;	/* the module this gate belongs to */
 	gate_idx_t gate_idx;	/* input/output gate index of itself */
 
-	/* mutabke vakues below */
+	/* mutable values below */
 	proc_func_t f;		/* m_next->mclass->process_batch or deadend */
+	void *arg;
 
 	union {
 		struct {
 			struct cdlist_item igate_upstream; 
 			struct gate *igate;
+			gate_idx_t igate_idx;
 		} out;
 
 		struct {
@@ -73,10 +63,19 @@ struct gate {
 };
 
 struct gates {
-	struct gate *arr;
-	gate_type_t type;
-	gate_idx_t curr_size;	/* always <= m->mclass->num_[i|o]gates */
+	/* Resizable array of 'struct gate *'. 
+	 * Unconnected elements are filled with NULL */
+	struct gate **arr;	
+
+	/* The current size of the array.
+	 * Always <= m->mclass->num_[i|o]gates */
+	gate_idx_t curr_size;
 };
+
+static inline int is_active_gate(struct gates *gates, gate_idx_t idx)
+{
+	return idx < gates->curr_size && gates->arr[idx] != NULL;
+}
 
 /* This struct is shared across workers */
 struct module {
@@ -86,15 +85,15 @@ struct module {
 	struct task *tasks[MAX_TASKS_PER_MODULE];
 
 	/* frequently access fields should be below */
-	struct gates igates;
 	struct gates ogates;
+	struct gates igates;
 
 	/* Some private data for this module instance begins at this marker. 
 	 * (this is poor person's class inheritance in C language)
 	 * The 'struct module' object will be allocated with enough tail room
 	 * to accommodate this private data. It is initialized with zeroes.
 	 * We don't do dynamic allocation for private data, 
-	 * to save a few cycles without indirect memory access.
+	 * to save a few cycles by avoiding indirect memory access.
 	 *
 	 * Note: this is shared across all workers. Ensuring thread safety 
 	 * and/or managing per-worker data is each module's responsibility. */
@@ -161,6 +160,11 @@ inline int disable_tcpdump(struct module *, int) {
 #endif
 
 
+static inline gate_idx_t get_igate()
+{
+	return ctx.igate_stack[ctx.stack_depth - 1];
+}
+
 /* Pass packets to the next module.
  * Packet deallocation is callee's responsibility. */
 static inline void run_choose_module(struct module *m, gate_idx_t ogate_idx,
@@ -173,7 +177,12 @@ static inline void run_choose_module(struct module *m, gate_idx_t ogate_idx,
 		return;
 	}
 
-	ogate = &m->ogates.arr[ogate_idx];
+	ogate = m->ogates.arr[ogate_idx];
+
+	if (unlikely(!ogate)) {
+		deadend(NULL, batch);
+		return;
+	}
 
 #if SN_TRACE_MODULES
 	_trace_before_call(m, next, batch);
@@ -189,7 +198,12 @@ static inline void run_choose_module(struct module *m, gate_idx_t ogate_idx,
 		dump_pcap_pkts(ogate, batch);
 #endif
 
-	ogate->f(ogate->out.igate->m, batch);
+	ctx.igate_stack[ctx.stack_depth] = ogate->out.igate_idx;
+	ctx.stack_depth++;
+
+	ogate->f(ogate->arg, batch);
+
+	ctx.stack_depth--;
 
 #if SN_TRACE_MODULES
 	_trace_after_call();

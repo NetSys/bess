@@ -4,9 +4,10 @@
 #include <stdint.h>
 
 #include "common.h"
+#include "mclass.h"
 #include "pktbatch.h"
 
-#define MAX_OUTPUT_GATES	8192
+#define MAX_MODULES_PER_PATH	256
 
 /* 	TODO: worker threads doesn't necessarily be pinned to 1 core
  *
@@ -35,6 +36,8 @@ struct worker_context {
 	int socket;
 	int fd_event;
 
+	struct rte_mempool *pframe_pool;
+
 	struct sched *s;
 
 	uint64_t silent_drops;	/* packets that have been sent to a deadend */
@@ -42,10 +45,13 @@ struct worker_context {
 	uint64_t current_tsc;
 	uint64_t current_us;
 
-	struct rte_mempool *pframe_pool;
-
+	/* The current input gate index is not given as a function parameter.
+	 * Modules should use get_igate() for access */
+	gate_idx_t igate_stack[MAX_MODULES_PER_PATH];
+	int stack_depth;
+	
 	/* better be the last field. it's huge */
-	struct pkt_batch splits[MAX_OUTPUT_GATES];
+	struct pkt_batch splits[MAX_GATES + 1];
 };
 
 extern int num_workers;
