@@ -654,26 +654,25 @@ static struct snobj *handle_get_module_info(struct snobj *q)
 		snobj_map_set(r, "dump", m->mclass->get_dump(m));
 
 	for (int i = 0; i < m->ogates.curr_size; i++) {
-		struct gate *g = &m->ogates.arr[i];
+		if (!is_active_gate(&m->ogates, i))
+			continue;
 
-		/* connected? */
-		if (g->out.igate) {
-			struct snobj *ogate = snobj_map();
+		struct snobj *ogate = snobj_map();
+		struct gate *g = m->ogates.arr[i];
 
-			snobj_map_set(ogate, "ogate", snobj_uint(i));
+		snobj_map_set(ogate, "ogate", snobj_uint(i));
 #if TRACK_GATES
-			snobj_map_set(ogate, "cnt", snobj_uint(g->cnt));
-			snobj_map_set(ogate, "pkts", snobj_uint(g->pkts));
-			snobj_map_set(ogate, "timestamp", 
-					snobj_double(get_epoch_time()));
+		snobj_map_set(ogate, "cnt", snobj_uint(g->cnt));
+		snobj_map_set(ogate, "pkts", snobj_uint(g->pkts));
+		snobj_map_set(ogate, "timestamp", 
+				snobj_double(get_epoch_time()));
 #endif
-			snobj_map_set(ogate, "name", 
-					snobj_str(g->out.igate->m->name));
-			snobj_map_set(ogate, "igate",
-					snobj_uint(g->out.igate->gate_idx));
-			
-			snobj_list_add(ogates, ogate);
-		}
+		snobj_map_set(ogate, "name", 
+				snobj_str(g->out.igate->m->name));
+		snobj_map_set(ogate, "igate",
+				snobj_uint(g->out.igate->gate_idx));
+		
+		snobj_list_add(ogates, ogate);
 	}
 
 	snobj_map_set(r, "ogates", ogates);

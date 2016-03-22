@@ -45,6 +45,8 @@ struct worker_context {
 	uint64_t current_tsc;
 	uint64_t current_us;
 
+	/* The current input gate index is not given as a function parameter.
+	 * Modules should use get_igate() for access */
 	gate_idx_t igate_stack[MAX_MODULES_PER_PATH];
 	int stack_depth;
 	
