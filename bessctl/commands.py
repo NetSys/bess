@@ -801,9 +801,13 @@ def _draw_pipeline(cli, field, last_stats = None):
         output, error = f.communicate()
         f.wait()
         return output
-    except IOError:
-        raise cli.CommandError('"graph-easy" program is not availabe? ' \
-                'Check if the package "libgraph-easy-perl" is installed.')
+
+    except IOError as e:
+        if e.errno == errno.EPIPE:
+            raise cli.CommandError('"graph-easy" program is not availabe? ' \
+                    'Check if the package "libgraph-easy-perl" is installed.')
+        else:
+            raise
 
 @cmd('show pipeline', 'Show the current datapath pipeline')
 def show_pipeline(cli):
