@@ -370,6 +370,7 @@ void dump_types(void)
 	printf("sizeof(task)=%lu\n", sizeof(struct task));
 
 	printf("sizeof(module)=%lu\n", sizeof(struct module));
+	printf("sizeof(gate)=%lu\n", sizeof(struct gate));
 
 	printf("sizeof(worker_context)=%lu\n", sizeof(struct worker_context));
 
