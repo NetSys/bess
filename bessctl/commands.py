@@ -875,9 +875,9 @@ def _show_module(cli, module):
         cli.fout.write('\n')
 
     cli.fout.write('    Output gates:\n')
-    for gate in info['gates']:
-        cli.fout.write('      %5d: batches %-16d packets %-16d -> %s\n' % \
-                (gate['gate'], gate['cnt'], gate['pkts'], gate['name']))
+    for gate in info['ogates']:
+        cli.fout.write('      %5d: batches %-16d packets %-16d -> %d:%s\n' % \
+                (gate['ogate'], gate['cnt'], gate['pkts'], gate['igate'], gate['name']))
 
     if 'dump' in info:
         cli.fout.write('    Dump:\n')
