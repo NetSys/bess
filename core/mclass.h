@@ -14,6 +14,14 @@
 
 typedef uint16_t gate_idx_t;
 
+#define INVALID_GATE		UINT16_MAX
+
+/* A module may have up to MAX_GATES input/output gates (separately). */
+#define MAX_GATES		8192 
+#define DROP_GATE		MAX_GATES
+ct_assert(MAX_GATES < INVALID_GATE);
+ct_assert(DROP_GATE <= MAX_GATES);
+
 struct module;
 struct pkt_batch;
 struct snobj;

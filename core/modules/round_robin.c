@@ -2,7 +2,7 @@
 
 /* XXX: currently doesn't support multiple workers */
 struct roundrobin_priv {
-	gate_idx_t gates[MAX_OUTPUT_GATES];
+	gate_idx_t gates[MAX_GATES];
 	uint32_t ngates;
 	uint32_t current_gate;
 	uint8_t batch_mode;
@@ -21,9 +21,9 @@ static struct snobj *roundrobin_init(struct module *m, struct snobj *arg)
 	if (snobj_eval_exists(arg, "gates") &&
 	      snobj_eval(arg, "gates")->type == TYPE_INT) {
 		int gate = snobj_eval_int(arg, "gates");
-		if (gate > MAX_OUTPUT_GATES)
+		if (gate > MAX_GATES)
 			return snobj_err(EINVAL, "No more than %d gates", 
-					MAX_OUTPUT_GATES);
+					MAX_GATES);
 		priv->ngates = gate;
 		for (int i = 0; i < gate; i++) {
 			priv->gates[i] = i;
@@ -31,16 +31,16 @@ static struct snobj *roundrobin_init(struct module *m, struct snobj *arg)
 	} else if (snobj_eval_exists(arg, "gates") &&
 		   snobj_eval(arg, "gates")->type == TYPE_LIST) {
 		struct snobj *gates = snobj_eval(arg, "gates");
-		if (gates->size > MAX_OUTPUT_GATES)
+		if (gates->size > MAX_GATES)
 			return snobj_err(EINVAL, "No more than %d gates", 
-					MAX_OUTPUT_GATES);
+					MAX_GATES);
 
 		priv->ngates = gates->size;
 
 		for (int i = 0; i < gates->size; i++) {
 			priv->gates[i] = 
 				snobj_int_get(snobj_list_get(gates, i));
-			if (priv->gates[i] > MAX_OUTPUT_GATES)
+			if (priv->gates[i] > MAX_GATES)
 				return snobj_err(EINVAL, "Invalid gate %d",
 						priv->gates[i]);
 		}
@@ -60,23 +60,23 @@ static struct snobj *roundrobin_query(struct module *m, struct snobj *arg)
 
 	if (snobj_eval_exists(arg, "gates")) {
 		int gate = snobj_eval_int(arg, "gates");
-		if (gate > MAX_OUTPUT_GATES)
+		if (gate > MAX_GATES)
 			return snobj_err(EINVAL, "No more than %d gates", 
-					MAX_OUTPUT_GATES);
+					MAX_GATES);
 		priv->ngates = gate;
 		for (int i = 0; i < gate; i++) {
 			priv->gates[i] = i;
 		}
 	} else if (snobj_eval_exists(arg, "gate_list")) {
 		struct snobj *gates = snobj_eval(arg, "gate_list");
-		if (gates->size > MAX_OUTPUT_GATES)
+		if (gates->size > MAX_GATES)
 			return snobj_err(EINVAL, "No more than %d gates", 
-					MAX_OUTPUT_GATES);
+					MAX_GATES);
 
 		for (int i = 0; i < gates->size; i++) {
 			priv->gates[i] = 
 				snobj_int_get(snobj_list_get(gates, i));
-			if (priv->gates[i] > MAX_OUTPUT_GATES)
+			if (priv->gates[i] > MAX_GATES)
 				return snobj_err(EINVAL, "Invalid gate %d",
 						priv->gates[i]);
 		}
@@ -107,7 +107,7 @@ roundrobin_process_batch(struct module *m, struct pkt_batch *batch)
 static const struct mclass roundrobin = {
 	.name 		= "Roundrobin",
 	.num_igates	= 1,
-	.num_ogates	= MAX_OUTPUT_GATES,
+	.num_ogates	= MAX_GATES,
 	.priv_size	= sizeof(struct roundrobin_priv),
 	.init 		= roundrobin_init,
 	.process_batch 	= roundrobin_process_batch,

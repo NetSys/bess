@@ -17,7 +17,7 @@ struct filter {
 
 struct bpf_priv {
 	int n_filters;
-	struct filter filters[MAX_OUTPUT_GATES];
+	struct filter filters[MAX_GATES];
 };
 
 static int compare_filter(const void *filter1, const void *filter2) {
@@ -64,7 +64,7 @@ static struct snobj *bpf_query(struct module *m, struct snobj *q)
 	} else if (snobj_type(q) != TYPE_LIST)
 		return snobj_err(EINVAL, "Argument must be a list");
 	
-	if (priv->n_filters + q->size > MAX_OUTPUT_GATES) {
+	if (priv->n_filters + q->size > MAX_GATES) {
 		return snobj_err(EINVAL, "Too many filters");
 	}
 	for (int i = 0; i < q->size; i++) {
@@ -90,7 +90,7 @@ static struct snobj *bpf_query(struct module *m, struct snobj *q)
 					         "ouput gate");
 		}
 		gate = snobj_eval_int(f, "gate");
-		if (gate < 0 || gate > MAX_OUTPUT_GATES) {
+		if (gate < 0 || gate > MAX_GATES) {
 			return snobj_err(EINVAL, "Invalid gate");
 		}
 
@@ -150,7 +150,7 @@ static void bpf_process_batch(struct module *m,
 static const struct mclass bpf = {
 	.name 		= "BPF",
 	.num_igates	= 1,
-	.num_ogates	= MAX_OUTPUT_GATES,
+	.num_ogates	= MAX_GATES,
 	.priv_size	= sizeof(struct bpf_priv),
 	.init 		= bpf_init,
 	.deinit 	= bpf_deinit,

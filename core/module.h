@@ -27,12 +27,6 @@ ct_assert(MAX_TASKS_PER_MODULE < INVALID_TASK_ID);
 
 #define MODULE_NAME_LEN		128
 
-#define INVALID_GATE		UINT16_MAX
-
-/* A module may have up to MAX_GATES input/output gates (separately). */
-#define MAX_GATES		8192 
-ct_assert(MAX_GATES < INVALID_GATE);
-
 #define TRACK_GATES		1
 #define TCPDUMP_GATES		1
 
@@ -55,6 +49,7 @@ struct gate {
 		struct {
 			struct cdlist_item igate_upstream; 
 			struct gate *igate;	/* NULL if not connected */
+			gate_idx_t igate_idx;
 		} out;
 
 		struct {
@@ -162,6 +157,11 @@ inline int disable_tcpdump(struct module *, int) {
 #endif
 
 
+static inline gate_idx_t get_igate()
+{
+	return ctx.igate_stack[ctx.stack_depth - 1];
+}
+
 /* Pass packets to the next module.
  * Packet deallocation is callee's responsibility. */
 static inline void run_choose_module(struct module *m, gate_idx_t ogate_idx,
@@ -190,7 +190,12 @@ static inline void run_choose_module(struct module *m, gate_idx_t ogate_idx,
 		dump_pcap_pkts(ogate, batch);
 #endif
 
+	ctx.igate_stack[ctx.stack_depth] = ogate->out.igate_idx;
+	ctx.stack_depth++;
+
 	ogate->f(ogate->arg, batch);
+
+	ctx.stack_depth--;
 
 #if SN_TRACE_MODULES
 	_trace_after_call();

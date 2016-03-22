@@ -356,6 +356,7 @@ int disconnect_modules(struct module *m_prev, gate_idx_t ogate_idx)
 	ogate->f = deadend;
 	ogate->arg = NULL;
 	ogate->out.igate = NULL;
+	ogate->out.igate_idx = INVALID_GATE;
 	cdlist_del(&ogate->out.igate_upstream);
 
 	return 0;
