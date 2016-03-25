@@ -85,8 +85,8 @@ struct module {
 	struct task *tasks[MAX_TASKS_PER_MODULE];
 
 	/* frequently access fields should be below */
-	struct gates ogates;
 	struct gates igates;
+	struct gates ogates;
 
 	/* Some private data for this module instance begins at this marker. 
 	 * (this is poor person's class inheritance in C language)
