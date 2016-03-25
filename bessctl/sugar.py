@@ -126,7 +126,7 @@ def replace_envvar(s):
     return s
 
 def replace_rarrows(s):
-    target = r'(([^:]):([^:\s]+)[\s]*)?->([\s]*([^:\s]+):([^:]))?'
+    target = r'(:([^:\s]+)[\s]*)?->([\s]*([^:\s]+):)?'
     # first group: # leading COMMENT -> skip
     # second group: single / double /triple quoted strings -> skip
     # third group: replace target '->' 
@@ -145,20 +145,14 @@ def replace_rarrows(s):
             postfix = ''
 
             if match.group(4):
-                prefix = '%s*%s ' % (match.group(5), parenthesize(match.group(6)))
-            if match.group(7):
-                postfix = ' %s*%s' % (parenthesize(match.group(8)), match.group(9))
+                prefix = '*%s ' % parenthesize(match.group(5))
+            if match.group(6):
+                postfix = ' %s*' % parenthesize(match.group(7))
             return prefix + '+' + postfix
         else:
             return match.group()
-
-    # We need to replace one by one, since ".. -> a:X:b -> .." has
-    # two overlapping occurences.
-    keep_going = 1
-    while keep_going:
-        s, keep_going = regex.subn(_replacer, s, count=1)
-
-    return s
+        
+    return regex.sub(_replacer, s)
 
 def create_module_string(s):
 
@@ -200,8 +194,8 @@ def replace_module_assignment(s):
 
 def xform_str(s):
     s = replace_envvar(s)
-    s = replace_rarrows(s)
     s = replace_module_assignment(s)
+    s = replace_rarrows(s)
     return s
 
 def xform_file(filename):
