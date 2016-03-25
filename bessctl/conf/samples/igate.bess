@@ -1,0 +1,13 @@
+Source() -> 0:a::Bypass():0 -> Sink()
+Source() -> 1:a:1 -> Sink()
+
+Source() -> b::Bypass():0 -> Sink()
+b:1 -> Sink()
+
+c::Bypass() -> Sink()
+Source() -> 1:c:1 -> Sink()
+
+src0::Source() -> rr::Roundrobin(gates=2)
+rr:0 -> 0:d::Bypass():0 -> dst::Sink()
+rr:1 -> 1:d:1 -> dst
+src1::Source() -> 0:d

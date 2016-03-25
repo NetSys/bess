@@ -126,12 +126,12 @@ def replace_envvar(s):
     return s
 
 def replace_rarrows(s):
-    target = r'(([^:]):([^:\s]+)[\s]*)?->([\s]*([^:\s]+):([^:]))?'
+    target = r'(:([^:\s]+)[\s]*)?->([\s]*([^:\s]+):)?'
     # first group: # leading COMMENT -> skip
     # second group: single / double /triple quoted strings -> skip
     # third group: replace target '->' 
     pattern = '(' + COMMENT + ')|('+ STRING_ALL + ')|(' + target + ')'
-    regex = re.compile(pattern)
+    regex = re.compile(pattern, re.MULTILINE|re.DOTALL)
     
     def _replacer(match):
         def parenthesize(exp):
@@ -145,14 +145,14 @@ def replace_rarrows(s):
             postfix = ''
 
             if match.group(4):
-                prefix = '%s*%s ' % (match.group(5), parenthesize(match.group(6)))
-            if match.group(7):
-                postfix = ' %s*%s' % (parenthesize(match.group(8)), match.group(9))
+                prefix = '*%s ' % parenthesize(match.group(5))
+            if match.group(6):
+                postfix = ' %s*' % parenthesize(match.group(7))
             return prefix + '+' + postfix
         else:
             return match.group()
-
-    return regex.sub(_replacer,s)
+        
+    return regex.sub(_replacer, s)
 
 def create_module_string(s):
 
@@ -194,8 +194,8 @@ def replace_module_assignment(s):
 
 def xform_str(s):
     s = replace_envvar(s)
-    s = replace_rarrows(s)
     s = replace_module_assignment(s)
+    s = replace_rarrows(s)
     return s
 
 def xform_file(filename):

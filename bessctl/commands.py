@@ -791,7 +791,8 @@ def _draw_pipeline(cli, field, last_stats = None):
                 else:
                     val = gate[field]
 
-                edge_attr = '{label:%d:%d;}' % (gate['ogate'], val)
+                edge_attr = '{label::%d  %d  %d:;}' % \
+                        (gate['ogate'], val, gate['igate'])
 
                 print >> f.stdin, '[%s] ->%s [%s]' % (
                         node_labels[name],
@@ -874,10 +875,25 @@ def _show_module(cli, module):
     else:
         cli.fout.write('\n')
 
-    cli.fout.write('    Output gates:\n')
-    for gate in info['ogates']:
-        cli.fout.write('      %5d: batches %-16d packets %-16d -> %d:%s\n' % \
-                (gate['ogate'], gate['cnt'], gate['pkts'], gate['igate'], gate['name']))
+    if info['igates']:
+        cli.fout.write('    Input gates:\n')
+        for gate in info['igates']:
+            cli.fout.write('      %5d: %s\n' % \
+                    (gate['igate'], 
+                     ', '.join('%s:%d ->' % (g['name'], g['ogate']) \
+                             for g in gate['ogates'])))
+    else:
+        cli.fout.write('    No input gate\n')
+
+    if info['ogates']:
+        cli.fout.write('    Output gates:\n')
+        for gate in info['ogates']:
+            cli.fout.write(
+                    '      %5d: batches %-16d packets %-16d -> %d:%s\n' % \
+                    (gate['ogate'], gate['cnt'], gate['pkts'], 
+                     gate['igate'], gate['name']))
+    else:
+        cli.fout.write('    No output gate\n')
 
     if 'dump' in info:
         cli.fout.write('    Dump:\n')
