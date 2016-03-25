@@ -631,6 +631,7 @@ static struct snobj *handle_get_module_info(struct snobj *q)
 	struct module *m;
 
 	struct snobj *r;
+	struct snobj *igates;
 	struct snobj *ogates;
 
 	m_name = snobj_str_get(q);
@@ -642,7 +643,6 @@ static struct snobj *handle_get_module_info(struct snobj *q)
 		return snobj_err(ENOENT, "No module '%s' found", m_name);
 
 	r = snobj_map();
-	ogates = snobj_list();
 
 	snobj_map_set(r, "name", snobj_str(m->name));
 	snobj_map_set(r, "mclass", snobj_str(m->mclass->name));
@@ -652,6 +652,40 @@ static struct snobj *handle_get_module_info(struct snobj *q)
 
 	if (m->mclass->get_dump)
 		snobj_map_set(r, "dump", m->mclass->get_dump(m));
+
+	/* add input gate list */
+	igates = snobj_list();
+
+	for (int i = 0; i < m->igates.curr_size; i++) {
+		if (!is_active_gate(&m->igates, i))
+			continue;
+
+		struct snobj *igate = snobj_map();
+		struct gate *g = m->igates.arr[i];
+
+		struct snobj *ogates = snobj_list();
+		struct gate *og;
+
+		snobj_map_set(igate, "igate", snobj_uint(i));
+		
+		cdlist_for_each_entry(og, &g->in.ogates_upstream, 
+				out.igate_upstream) 
+		{
+			struct snobj *ogate = snobj_map();
+			snobj_map_set(ogate, "ogate", snobj_uint(og->gate_idx));
+			snobj_map_set(ogate, "name", snobj_str(og->m->name));
+			snobj_list_add(ogates, ogate);
+		}
+
+		snobj_map_set(igate, "ogates", ogates);
+
+		snobj_list_add(igates, igate);
+	}
+
+	snobj_map_set(r, "igates", igates);
+
+	/* add output gate list */
+	ogates = snobj_list();
 
 	for (int i = 0; i < m->ogates.curr_size; i++) {
 		if (!is_active_gate(&m->ogates, i))
