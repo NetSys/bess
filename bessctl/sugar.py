@@ -131,7 +131,7 @@ def replace_rarrows(s):
     # second group: single / double /triple quoted strings -> skip
     # third group: replace target '->' 
     pattern = '(' + COMMENT + ')|('+ STRING_ALL + ')|(' + target + ')'
-    regex = re.compile(pattern)
+    regex = re.compile(pattern, re.MULTILINE|re.DOTALL)
     
     def _replacer(match):
         def parenthesize(exp):
@@ -152,7 +152,13 @@ def replace_rarrows(s):
         else:
             return match.group()
 
-    return regex.sub(_replacer,s)
+    # We need to replace one by one, since ".. -> a:X:b -> .." has
+    # two overlapping occurences.
+    keep_going = 1
+    while keep_going:
+        s, keep_going = regex.subn(_replacer, s, count=1)
+
+    return s
 
 def create_module_string(s):
 
