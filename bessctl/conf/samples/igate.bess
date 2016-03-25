@@ -1,0 +1,8 @@
+Source() -> 0:a::Bypass():0 -> Sink()
+Source() -> 1:a:1 -> Sink()
+
+Source() -> b::Bypass():0 -> Sink()
+b:1 -> Sink()
+
+c::Bypass() -> Sink()
+Source() -> 1:c:1 -> Sink()
