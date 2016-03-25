@@ -57,8 +57,8 @@ class Module(object):
         if not isinstance(next_mod, Module):
             assert False, '%s is not a module' % next_mod
 
-        print 'Connecting %s:%d -> %d:%s' % \
-                (self.name, ogate, igate, next_mod.name)
+        #print 'Connecting %s:%d -> %d:%s' % \
+        #        (self.name, ogate, igate, next_mod.name)
 
         self.softnic.connect_modules(self.name, next_mod.name, ogate, igate)
         
