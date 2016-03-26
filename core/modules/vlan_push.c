@@ -23,10 +23,13 @@ static struct snobj *vpush_query(struct module *m, struct snobj *q)
 	struct vlan_push_priv *priv = get_priv(m);
 	uint16_t tci;
 
-	if (!q || snobj_type(q) != TYPE_INT)
-		return snobj_err(EINVAL, "TCI must be given as an integer");
+	if (!q || !snobj_eval_exists(q, "tci"))
+		return snobj_err(EINVAL, "'tci' must be given as an integer");
 
-	tci = snobj_uint_get(q);
+	tci = snobj_eval_uint(q, "tci");
+
+	if (tci > 0xffff)
+		return snobj_err(EINVAL, "'tci' value should be 0-65535");
 
 	priv->vlan_tag = htonl((0x8100 << 16) | tci);
 	priv->qinq_tag = htonl((0x88a8 << 16) | tci);

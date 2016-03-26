@@ -7,5 +7,5 @@ payload = 'Hello World'
 
 test_packet = bytearray(str(eth/ip/udp/payload))
 
-Source() -> Rewrite(templates=[test_packet]) -> VLANPush(arg=2) -> VLANPop() -> Sink()
-Source() -> Rewrite(templates=[test_packet]) -> VLANPush(arg=2) -> VLANPush(arg=3) -> VLANPop() -> VLANPop() -> Sink()
+Source() -> Rewrite(templates=[test_packet]) -> VLANPush(tci=2) -> VLANPop() -> Sink()
+Source() -> Rewrite(templates=[test_packet]) -> VLANPush(tci=2) -> VLANPush(tci=3) -> VLANPop() -> VLANPop() -> Sink()
