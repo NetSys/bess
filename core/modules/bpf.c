@@ -1133,7 +1133,7 @@ struct filter {
 	struct bpf_program prog;
 	int gate;
 	int priority;
-	char *filter;
+	char *exp;		/* original filter expression string */
 };
 
 struct bpf_priv {
@@ -1167,7 +1167,7 @@ static void bpf_deinit(struct module *m)
 
 	for (int i = 0; i < priv->n_filters; i++) {
 		bpf_destroy_jit_filter(priv->filters[i].native_filter);
-		free(priv->filters[i].filter);
+		free(priv->filters[i].exp);
 		pcap_freecode(&priv->filters[i].prog);
 	}
 
@@ -1215,7 +1215,7 @@ static struct snobj *bpf_query(struct module *m, struct snobj *q)
 
 		priv->filters[priv->n_filters].priority = priority;
 		priv->filters[priv->n_filters].gate = gate;
-		priv->filters[priv->n_filters].filter = strdup(filter_string);
+		priv->filters[priv->n_filters].exp = strdup(filter_string);
 
 		if (pcap_compile_nopcap(SNAPLEN,
 					DLT_EN10MB, 	/* Ethernet */
@@ -1249,7 +1249,7 @@ static struct snobj *bpf_get_desc(const struct module *m)
 	const struct bpf_priv *priv = get_priv_const(m);
 
 	if (priv->n_filters == 1)
-		return snobj_str(priv->filters[0].filter);
+		return snobj_str(priv->filters[0].exp);
 	else
 		return snobj_str_fmt("%d filters", priv->n_filters);
 }
