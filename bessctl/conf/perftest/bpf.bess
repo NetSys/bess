@@ -6,13 +6,18 @@ import scapy.all as scapy
 Source() -> rewrite::Rewrite() -> bpf::BPF()
 bpf:0 -> Sink()      # for unmatched packets
 bpf:1 -> Sink()      # for matched packets
+bpf:2 -> Sink()      # for matched packets (by the second filter)
+
 unmatched = 0
 matched = 1
 
-def run_testcase(exp, test_pkts):
+def run_testcase(exps, test_pkts):
     rewrite.query({'templates': map(lambda x: bytearray(str(x)), test_pkts)})
     bpf.query("reset")
-    bpf.query([{'priority': 1, 'filter': exp, 'gate': 1}])
+
+    # the higher number, the higher priority.
+    bpf.query([{'priority': -i, 'filter': exp, 'gate': i + 1} \
+            for i, exp in enumerate(exps)])
 
     softnic.resume_all()
 
@@ -20,17 +25,18 @@ def run_testcase(exp, test_pkts):
     time.sleep(2)
     new_stats = softnic.get_module_info(bpf.name)['ogates']
 
-    pps_matched = \
-            (new_stats[matched]['pkts'] - \
-            old_stats[matched]['pkts']) / \
-            (new_stats[matched]['timestamp'] - \
-            old_stats[matched]['timestamp'])
-
     pps_unmatched = \
-            (new_stats[unmatched]['pkts'] - \
-            old_stats[unmatched]['pkts']) / \
-            (new_stats[unmatched]['timestamp'] - \
-            old_stats[unmatched]['timestamp'])
+            (new_stats[0]['pkts'] - \
+             old_stats[0]['pkts']) / \
+            (new_stats[0]['timestamp'] - \
+             old_stats[0]['timestamp'])
+
+    pps_matched = sum([
+            (new_stats[i+1]['pkts'] - \
+             old_stats[i+1]['pkts']) / \
+            (new_stats[i+1]['timestamp'] - \
+             old_stats[i+1]['timestamp']) \
+            for i in range(len(exps))])
 
     pps_total = pps_matched + pps_unmatched
 
@@ -49,19 +55,20 @@ http_pkt3 = scapy.Ether()/scapy.IP()/scapy.TCP(sport=1234, dport=80)
 ftp_pkt   = scapy.Ether()/scapy.IP()/scapy.TCP(dport=21)
 
 testcases = [
-    ('', [udp_pkt]),
-    ('', [udp_pkt, tcp_pkt]),
-    ('udp', [udp_pkt]),
-    ('udp', [tcp_pkt]),
-    ('udp', [udp_pkt, tcp_pkt]),
-    ('tcp src portrange 8000-9000 && dst port 80', [http_pkt1]),
-    ('tcp src portrange 8000-9000 && dst port 80', [http_pkt1, http_pkt2, http_pkt3]),
-    ('tcp src portrange 8000-9000 && dst port 80', [http_pkt1, http_pkt2, http_pkt3, ftp_pkt]),
+    ([''], [udp_pkt]),
+    ([''], [udp_pkt, tcp_pkt]),
+    (['udp'], [udp_pkt]),
+    (['udp'], [tcp_pkt]),
+    (['udp'], [udp_pkt, tcp_pkt]),
+    (['tcp src portrange 8000-9000 && dst port 80'], [http_pkt1]),
+    (['tcp src portrange 8000-9000 && dst port 80'], [http_pkt1, http_pkt2, http_pkt3]),
+    (['tcp src portrange 8000-9000 && dst port 80'], [http_pkt1, http_pkt2, http_pkt3, ftp_pkt]),
+    (['tcp src portrange 8000-9000 && dst port 80', 'tcp'], [http_pkt1, http_pkt2, http_pkt3, ftp_pkt, udp_pkt]),
 ]
 
 for i, case in enumerate(testcases):
     print
-    print 'Testcase %d: %s' % (i, case[0])
+    print 'Testcase %d: %s' % (i, ', '.join(case[0]))
     pprint.pprint(case[1])
 
 print
