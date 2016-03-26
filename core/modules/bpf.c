@@ -38,14 +38,7 @@
 
 #include <pcap.h>
 
-typedef u_int (*bpf_filter_func)(u_char *, u_int, u_int);
-
-/* Structure describing a native filtering program created by the jitter. */
-typedef struct bpf_jit_filter {
-	/* The native filtering binary, in the form of a bpf_filter_func. */
-	bpf_filter_func	func;
-	size_t		size;
-} bpf_jit_filter;
+typedef u_int (*bpf_filter_func_t)(u_char *, u_int, u_int);
 
 /*
  * Registers
@@ -583,7 +576,8 @@ static int bpf_jit_optimize(struct bpf_insn *prog, u_int nins)
 /*
  * Function that does the real stuff.
  */
-bpf_filter_func bpf_jit_compile(struct bpf_insn *prog, u_int nins, size_t *size)
+static bpf_filter_func_t
+bpf_jit_compile(struct bpf_insn *prog, u_int nins, size_t *size)
 {
 	bpf_bin_stream stream;
 	struct bpf_insn *ins;
@@ -1054,68 +1048,14 @@ bpf_filter_func bpf_jit_compile(struct bpf_insn *prog, u_int nins, size_t *size)
 		free(stream.refs);
 
 	if (stream.ibuf != NULL &&
-			mprotect(stream.ibuf, *size, PROT_READ | PROT_EXEC) != 0) {
+			mprotect(stream.ibuf, *size, 
+				PROT_READ | PROT_EXEC) != 0) 
+	{
 		munmap(stream.ibuf, *size);
 		stream.ibuf = NULL;
 	}
 
-	return ((bpf_filter_func)stream.ibuf);
-}
-
-static u_int bpf_jit_accept_all(u_char *p, u_int wirelen, u_int buflen)
-{
-	return ((u_int)-1);
-}
-/*
- * BPF jitter, builds a machine function from a BPF program.
- *
- * param fp	The BPF pseudo-assembly filter that will be translated
- *		into native code.
- * param nins	Number of instructions of the input filter.
- * return	The bpf_jit_filter structure containing the native filtering
- *		binary.
- *
- * bpf_jitter allocates the buffers for the new native filter and
- * then translates the program pointed by fp calling bpf_jit_compile().
- */
-static bpf_jit_filter *bpf_jitter(struct bpf_insn *fp, int nins)
-{
-	bpf_jit_filter *filter;
-
-	/* Allocate the filter structure. */
-	filter = (struct bpf_jit_filter *)malloc(sizeof(*filter));
-	if (filter == NULL) {
-		return (NULL);
-	}
-
-	/* No filter means accept all. */
-	if (fp == NULL || nins == 0) {
-		filter->func = bpf_jit_accept_all;
-		return (filter);
-	}
-
-	/* Create the binary. */
-	if ((filter->func = bpf_jit_compile(fp, nins, &filter->size)) == NULL) {
-		free(filter);
-		return (NULL);
-	}
-
-	return (filter);
-}
-
-/*
- * Deletes a filtering function that was previously created by bpf_jitter().
- *
- * param filter	The filter to destroy.
- *
- * This function frees the variuos buffers (code, memory, etc.) associated
- * with a filtering function.
- */
-static void bpf_destroy_jit_filter(bpf_jit_filter *filter)
-{
-	if (filter->func != bpf_jit_accept_all)
-		munmap(filter->func, filter->size);
-	free(filter);
+	return ((bpf_filter_func_t)stream.ibuf);
 }
 
 
@@ -1131,14 +1071,16 @@ static void bpf_destroy_jit_filter(bpf_jit_filter *filter)
 #define MAX_FILTERS	128
 
 struct filter {
-	bpf_jit_filter *native_code;
+	bpf_filter_func_t func;
 	int gate;
-	int priority;
+
+	size_t mmap_size;	/* needed for munmap() */
+	int priority;		/* higher number == higher priority */
 	char *exp;		/* original filter expression string */
 };
 
 struct bpf_priv {
-	struct filter filters[MAX_FILTERS];
+	struct filter filters[MAX_FILTERS + 1];
 	int n_filters;
 };
 
@@ -1167,7 +1109,8 @@ static void bpf_deinit(struct module *m)
 	struct bpf_priv *priv = get_priv(m);
 
 	for (int i = 0; i < priv->n_filters; i++) {
-		bpf_destroy_jit_filter(priv->filters[i].native_code);
+		munmap(priv->filters[i].func, 
+				priv->filters[i].mmap_size);
 		free(priv->filters[i].exp);
 	}
 
@@ -1232,12 +1175,13 @@ static struct snobj *bpf_query(struct module *m, struct snobj *q)
 		filter->priority = priority;
 		filter->gate = gate;
 		filter->exp = strdup(exp);
-		filter->native_code = bpf_jitter(il_code.bf_insns,
-				il_code.bf_len);
+		
+		filter->func = bpf_jit_compile(il_code.bf_insns, il_code.bf_len,
+				&filter->mmap_size);
 
 		pcap_freecode(&il_code);
 
-		if (!filter->native_code) {
+		if (!filter->func) {
 			free(exp);
 			return snobj_err(ENOMEM, "BPF JIT compilation error");
 		}
@@ -1262,25 +1206,76 @@ static struct snobj *bpf_get_desc(const struct module *m)
 		return snobj_str_fmt("%d filters", priv->n_filters);
 }
 
-static void bpf_process_batch(struct module *m,
-		struct pkt_batch *batch)
+static inline void 
+bpf_process_batch_1filter(struct module *m, struct pkt_batch *batch)
+{
+	struct bpf_priv *priv = get_priv(m);
+	struct filter *filter = &priv->filters[0];
+
+	struct pkt_batch out_batches[2];
+	struct snbuf **ptrs[2];
+
+	ptrs[0] = (struct snbuf **)&out_batches[0].pkts;
+	ptrs[1] = (struct snbuf **)&out_batches[1].pkts;
+
+	int cnt = batch->cnt;
+
+	for (int i = 0; i < cnt; i++) {
+		struct snbuf *pkt = batch->pkts[i];
+		int ret;
+		int idx;
+
+		ret = filter->func((uint8_t *)snb_head_data(pkt),
+				       snb_total_len(pkt),
+				       snb_head_len(pkt));
+
+		idx = ret & 1;
+		*(ptrs[idx]++) = pkt;
+	}
+
+	out_batches[0].cnt = ptrs[0] - (struct snbuf **)&out_batches[0].pkts;
+	out_batches[1].cnt = ptrs[1] - (struct snbuf **)&out_batches[1].pkts;
+
+	if (out_batches[0].cnt)
+		run_choose_module(m, 0, &out_batches[0]);
+
+	/* matched packets */
+	if (out_batches[1].cnt)
+		run_choose_module(m, filter->gate, &out_batches[1]);
+}
+
+static void bpf_process_batch(struct module *m, struct pkt_batch *batch)
 {
 	struct bpf_priv *priv = get_priv(m);
 
 	gate_idx_t ogates[MAX_PKT_BURST];
 	int n_filters = priv->n_filters;
+	int cnt;
 
-	for (int i = 0; i < batch->cnt; i++) {
-		struct snbuf* pkt = batch->pkts[i];
+	if (n_filters == 0) {
+		run_next_module(m, batch);
+		return;
+	}
+
+	if (n_filters == 1) {
+		bpf_process_batch_1filter(m, batch);
+		return;
+	}
+
+	cnt = batch->cnt;
+
+	/* slow version for general cases */
+	for (int i = 0; i < cnt; i++) {
+		struct snbuf *pkt = batch->pkts[i];
+		struct filter *filter = &priv->filters[0];
 		gate_idx_t gate = 0;	/* default gate for unmatched pkts */
 
-		for (int filter = 0; filter < n_filters; filter++) {
-			if (priv->filters[filter].native_code->func(
-				       (uint8_t*)snb_head_data(pkt),
+		for (int j = 0; j < n_filters; j++, filter++) {
+			if (filter->func((uint8_t *)snb_head_data(pkt),
 				       snb_total_len(pkt),
 				       snb_head_len(pkt)) != 0)
 			{
-				gate = priv->filters[filter].gate;
+				gate = filter->gate;
 				break;
 			}
 		}
