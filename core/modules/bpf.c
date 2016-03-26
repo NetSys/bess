@@ -1128,15 +1128,17 @@ static void bpf_destroy_jit_filter(bpf_jit_filter *filter)
 /* Note: unmatched packets are sent to gate 0 */
 #define SNAPLEN		0xffff
 
+#define MAX_FILTERS	128
+
 struct filter {
-	bpf_jit_filter *native_filter;
+	bpf_jit_filter *native_code;
 	int gate;
 	int priority;
 	char *exp;		/* original filter expression string */
 };
 
 struct bpf_priv {
-	struct filter filters[MAX_GATES];
+	struct filter filters[MAX_FILTERS];
 	int n_filters;
 };
 
@@ -1165,7 +1167,7 @@ static void bpf_deinit(struct module *m)
 	struct bpf_priv *priv = get_priv(m);
 
 	for (int i = 0; i < priv->n_filters; i++) {
-		bpf_destroy_jit_filter(priv->filters[i].native_filter);
+		bpf_destroy_jit_filter(priv->filters[i].native_code);
 		free(priv->filters[i].exp);
 	}
 
@@ -1175,6 +1177,7 @@ static void bpf_deinit(struct module *m)
 static struct snobj *bpf_query(struct module *m, struct snobj *q)
 {
 	struct bpf_priv *priv = get_priv(m);
+	struct filter *filter;
 
 	if (snobj_type(q) == TYPE_STR &&
 			strcmp(snobj_str_get(q), "reset") == 0) {
@@ -1185,23 +1188,26 @@ static struct snobj *bpf_query(struct module *m, struct snobj *q)
 	if (snobj_type(q) != TYPE_LIST)
 		return snobj_err(EINVAL, "Argument must be a list");
 
-	if (priv->n_filters + q->size > MAX_GATES)
+	if (priv->n_filters + q->size > MAX_FILTERS)
 		return snobj_err(EINVAL, "Too many filters");
+
+	filter = &priv->filters[priv->n_filters];
 
 	for (int i = 0; i < q->size; i++) {
 		struct snobj *f = snobj_list_get(q, i);
 		int priority;
-		char *filter_string;
+		char *exp;
 		int gate;
 
-		struct bpf_program il_filter;
+		struct bpf_program il_code;
 
 		if (snobj_type(f) != TYPE_MAP)
 			return snobj_err(EINVAL, "Each filter must be a map");
 
+		/* 0 if unspecified */
 		priority = snobj_eval_int(f, "priority");
 
-		if (!(filter_string = snobj_eval_str(f, "filter")))
+		if (!(exp = snobj_eval_str(f, "filter")))
 			return snobj_err(EINVAL, "Must specify a filter "
 					         "expression");
 
@@ -1213,33 +1219,34 @@ static struct snobj *bpf_query(struct module *m, struct snobj *q)
 		if (gate < 0 || gate >= MAX_GATES)
 			return snobj_err(EINVAL, "Invalid gate");
 
-		priv->filters[priv->n_filters].priority = priority;
-		priv->filters[priv->n_filters].gate = gate;
-		priv->filters[priv->n_filters].exp = strdup(filter_string);
-
 		if (pcap_compile_nopcap(SNAPLEN,
 					DLT_EN10MB, 	/* Ethernet */
-					&il_filter,
-					filter_string,
+					&il_code,
+					exp,
 					1,		/* optimize (IL only) */
 					PCAP_NETMASK_UNKNOWN) == -1)
 		{
 			return snobj_err(EINVAL, "BPF compilation error");
 		}
 
-		bpf_jit_filter *native_filter =
-			bpf_jitter(il_filter.bf_insns, il_filter.bf_len);
+		filter->priority = priority;
+		filter->gate = gate;
+		filter->exp = strdup(exp);
+		filter->native_code = bpf_jitter(il_code.bf_insns,
+				il_code.bf_len);
 
-		if (!native_filter)
+		pcap_freecode(&il_code);
+
+		if (!filter->native_code) {
+			free(exp);
 			return snobj_err(ENOMEM, "BPF JIT compilation error");
-
-		pcap_freecode(&il_filter);
-
-		priv->filters[priv->n_filters].native_filter = native_filter;
+		}
 
 		priv->n_filters++;
 		qsort(priv->filters, priv->n_filters, sizeof(struct filter),
 			&compare_filter);
+
+		filter++;
 	}
 
 	return NULL;
@@ -1268,7 +1275,7 @@ static void bpf_process_batch(struct module *m,
 		gate_idx_t gate = 0;	/* default gate for unmatched pkts */
 
 		for (int filter = 0; filter < n_filters; filter++) {
-			if (priv->filters[filter].native_filter->func(
+			if (priv->filters[filter].native_code->func(
 				       (uint8_t*)snb_head_data(pkt),
 				       snb_total_len(pkt),
 				       snb_head_len(pkt)) != 0)
