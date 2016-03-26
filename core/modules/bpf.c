@@ -1130,7 +1130,6 @@ static void bpf_destroy_jit_filter(bpf_jit_filter *filter)
 
 struct filter {
 	bpf_jit_filter *native_filter;
-	struct bpf_program prog;
 	int gate;
 	int priority;
 	char *exp;		/* original filter expression string */
@@ -1168,7 +1167,6 @@ static void bpf_deinit(struct module *m)
 	for (int i = 0; i < priv->n_filters; i++) {
 		bpf_destroy_jit_filter(priv->filters[i].native_filter);
 		free(priv->filters[i].exp);
-		pcap_freecode(&priv->filters[i].prog);
 	}
 
 	priv->n_filters = 0;
@@ -1196,6 +1194,8 @@ static struct snobj *bpf_query(struct module *m, struct snobj *q)
 		char *filter_string;
 		int gate;
 
+		struct bpf_program il_filter;
+
 		if (snobj_type(f) != TYPE_MAP)
 			return snobj_err(EINVAL, "Each filter must be a map");
 
@@ -1219,7 +1219,7 @@ static struct snobj *bpf_query(struct module *m, struct snobj *q)
 
 		if (pcap_compile_nopcap(SNAPLEN,
 					DLT_EN10MB, 	/* Ethernet */
-					&priv->filters[priv->n_filters].prog,
+					&il_filter,
 					filter_string,
 					1,		/* optimize (IL only) */
 					PCAP_NETMASK_UNKNOWN) == -1)
@@ -1228,11 +1228,12 @@ static struct snobj *bpf_query(struct module *m, struct snobj *q)
 		}
 
 		bpf_jit_filter *native_filter =
-			bpf_jitter(priv->filters[priv->n_filters].prog.bf_insns,
-				   priv->filters[priv->n_filters].prog.bf_len);
+			bpf_jitter(il_filter.bf_insns, il_filter.bf_len);
 
 		if (!native_filter)
 			return snobj_err(ENOMEM, "BPF JIT compilation error");
+
+		pcap_freecode(&il_filter);
 
 		priv->filters[priv->n_filters].native_filter = native_filter;
 
