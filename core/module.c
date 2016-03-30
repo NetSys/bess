@@ -207,26 +207,24 @@ fail:
 
 void destroy_module(struct module *m)
 {
-	struct ns_iter iter;
-
 	if (m->mclass->deinit)
 		m->mclass->deinit(m);
 
-	/* disconnect from upstream modules. TODO: implement backlink */
-	ns_init_iterator(&iter, NS_TYPE_MODULE);
-	while (1) {
-		struct module *another = (struct module *) ns_next(&iter);
-		if (!another)
-			break;
-		
-		for (gate_idx_t i = 0; i < another->ogates.curr_size; i++) {
-			struct gate *igate = another->ogates.arr[i]->out.igate;
+	/* disconnect from upstream modules. */
+	for (int i = 0; i < m->igates.curr_size; i++) {
+		if (!is_active_gate(&m->igates, i))
+			continue;
 
-			if (igate->m == m)
-				disconnect_modules(another, i);
+		struct gate *igate = m->igates.arr[i];
+		struct gate *ogate;
+		struct gate *ogate_next;
+
+		cdlist_for_each_entry_safe(ogate, ogate_next,
+				&igate->in.ogates_upstream, out.igate_upstream)
+		{
+			disconnect_modules(ogate->m, ogate->gate_idx);
 		}
 	}
-	ns_release_iterator(&iter);
 
 	/* disconnect downstream modules */
 	for (gate_idx_t i = 0; i < m->ogates.curr_size; i++)
