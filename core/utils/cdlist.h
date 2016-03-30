@@ -65,13 +65,13 @@ struct cdlist_item {
 	     entry = container_of(entry->item_member.next, typeof(*entry), \
 		     item_member))
 
-#define cdlist_for_each_entry_safe(entry, next, head, item_member) \
+#define cdlist_for_each_entry_safe(entry, next_entry, head, item_member) \
 	for (entry = container_of((head)->next, typeof(*entry), item_member), \
-		next = container_of(entry->item_member.next, \
+		next_entry = container_of(entry->item_member.next, \
 			typeof(*entry), item_member); \
 	     &entry->item_member != (struct cdlist_item *)(head); \
-	     entry = next, \
-		next = container_of(entry->item_member.next, typeof(*entry), \
+	     entry = next_entry, \
+		next_entry = container_of(entry->item_member.next, typeof(*entry), \
 		item_member))
 			
 static inline void cdlist_head_init(struct cdlist_head *head)
