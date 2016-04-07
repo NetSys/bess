@@ -91,10 +91,11 @@ class SoftNIC(object):
         if self.debug:
             print >> sys.stderr, '\t<--- %s' % repr(obj)
 
-        if isinstance(obj, dict) and 'err' in obj:
+        if isinstance(obj, message.SNObjDict) and 'err' in obj:
             err = obj['err']
-            errmsg = obj.get('errmsg', '(error message is not given)')
-            details = obj.get('details', None)
+            errmsg = obj['errmsg'] if 'errmsg' in obj else \
+                    '(error message is not given)'
+            details = obj['details'] if 'details' in obj else None
             raise self.Error(err, errmsg, details)
 
         return obj
