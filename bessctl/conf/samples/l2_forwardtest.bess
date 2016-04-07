@@ -1,38 +1,43 @@
 import scapy.all as scapy
 
 def test_internal():
-    sw = L2Forward()
-
-    sw.query(cmd='test')
-    
-    softnic.destroy_module(sw.name)
+    l2fib = L2Forward()
+    l2fib.query(cmd='test')
 
 def test_lookup():
-    sw = L2Forward()
+    l2fib = L2Forward()
 
-    print 'Adding entry'
-    sw.query(add=[{'addr':'00:01:02:03:04:05','gate':64}])
+    print '1. Adding entry'
+    ret = l2fib.query(add=[{'addr':'00:01:02:03:04:05', 'gate':64},
+                        {'addr':'aa:bb:cc:dd:ee:ff', 'gate':1},
+                        {'addr':'11:11:11:11:11:22', 'gate':2}])
+    assert ret is None, 'Incorrect response'
+    print '  OK. Response:', ret
     
+    print '2. Adding entry again expecting failure'
     try:
-        print 'Adding entry again expecting failure'
-        sw.query(add=[{'addr':'00:01:02:03:04:05','gate':0}])
+        print l2fib.query(add=[{'addr':'00:01:02:03:04:05','gate':0}])
     except Exception as e:
-        print e
-        pass
+        print '  OK. Response:', e
+    else:
+        assert False, 'Failure was expected'
 
-    print 'Querying entry'
-    print sw.query(lookup=['00:01:02:03:04:05', '00:01:02:03:04:05'])
+    print '3. Querying entry'
+    ret = l2fib.query(lookup=['aa:bb:cc:dd:ee:ff', '00:01:02:03:04:05'])
+    assert ret == [1, 64], 'Incorrect response'
+    print '  OK. Response:', ret
 
-    print 'Removing Entry'
-    print sw.query({'del':['00:01:02:03:04:05']})
+    print '4. Removing Entry'
+    ret = l2fib.query({'del':['00:01:02:03:04:05']})
+    assert ret is None, 'Incorrect response'
+    print '  OK. Response:', ret
 
+    print '5. Querying entry again expecting failure'
     try:
-        print 'Querying entry again expecting failure'
-        print sw.query({'del':['00:01:02:03:04:05']})
+        print l2fib.query({'del':['00:01:02:03:04:05']})
     except Exception as e:
-        print e
-        pass
-    
-    softnic.destroy_module(sw.name)
+        print '  OK. Response:', e
+    else:
+        assert False, 'failure was expected'
 
 test_lookup()
