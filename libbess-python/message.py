@@ -41,6 +41,9 @@ class SNObjDict(object):
     def __delitem__(self, key):
         del self._dict[key]
 
+    def __contains__(self, key):
+        return key in self._dict
+
 def encode(obj):
     def zero_pad8(buf, num_bytes):
         while num_bytes % 8:
