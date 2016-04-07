@@ -14,6 +14,12 @@ class SNObjDict(object):
         # self._dict = dict() causes a recursive call
         self.__dict__['_dict'] = dict()
 
+    def __str__(self):
+        return self._dict.__str__()
+
+    def __repr__(self):
+        return self._dict.__repr__()
+
     def __getattr__(self, name):
         if name.startswith('__'):
             return self._dict.__getattr__(name)
