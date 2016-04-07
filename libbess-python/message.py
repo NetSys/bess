@@ -8,11 +8,32 @@ TYPE_BLOB   = 4
 TYPE_LIST   = 5
 TYPE_MAP    = 6
 
-def hexdump(buf):
-    print 'Len=%-5d' % len(buf),
-    for c in buf:
-        print '%02x' % ord(c), 
-    print
+# a custom class that supports both obj[x] and obj.x for convenience
+class SNObjDict(object):
+    def __init__(self):
+        # self._dict = dict() causes a recursive call
+        self.__dict__['_dict'] = dict()
+
+    def __getattr__(self, name):
+        if name.startswith('__'):
+            return self._dict.__getattr__(name)
+        else: 
+            return self._dict[name]
+
+    def __setattr__(self, name, value):
+        self._dict[name] = value
+
+    def __delattr__(self, name):
+        del self._dict[name]
+
+    def __getitem__(self, key):
+        return self._dict[key]
+
+    def __setitem__(self, key, value):
+        self._dict[key] = value
+
+    def __delitem__(self, key):
+        del self._dict[key]
 
 def encode(obj):
     def zero_pad8(buf, num_bytes):
@@ -48,8 +69,10 @@ def encode(obj):
         t = TYPE_LIST
         l = len(obj)
         v = ''.join(map(encode, obj))
-    elif isinstance(obj, dict):
+    elif isinstance(obj, (dict, SNObjDict)):
         t = TYPE_MAP
+        if isinstance(obj, SNObjDict):
+            obj = obj._dict
         keys = sorted(map(str, obj.keys())) # all keys must be a string
         l = len(keys)
         v = ''.join(map(lambda k: encode_cstr(k) + encode(obj[k]), keys))
@@ -84,7 +107,7 @@ def _decode_recur(buf, offset):
             obj, offset = _decode_recur(buf, offset)
             v.append(obj)
     elif t == TYPE_MAP:
-        v = dict()
+        v = SNObjDict()
         for i in xrange(l):
             z_pos = buf.find('\0', offset)
             if z_pos == -1:
@@ -114,5 +137,8 @@ def decode(buf):
                     (len(buf), consumed))
         return obj
     except Exception as e:
-        hexdump(buf)
+        print >> sys.stderr, 'Decoding error. Len=%-5d' % len(buf),
+        for c in buf:
+            print >> sys.stderr, '%02x' % ord(c), 
+        print >> sys.stderr
         raise e
