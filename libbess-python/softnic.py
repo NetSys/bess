@@ -86,11 +86,7 @@ class SoftNIC(object):
             buf.append(frag)
             received += len(frag)
 
-        try:
-            obj = message.decode(''.join(buf))
-        except:
-            print >> sys.stderr, 'Decoding error, binary: ' + obj.encode('hex')
-            raise
+        obj = message.decode(''.join(buf))
 
         if self.debug:
             print >> sys.stderr, '\t<--- %s' % repr(obj)
