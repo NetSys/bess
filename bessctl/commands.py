@@ -125,7 +125,7 @@ def get_var_attrs(cli, var_token, partial_word):
         if var_token == 'WORKER_ID...':
             var_type = 'wid+'
             var_desc = 'one or more worker IDs'
-            var_candidates = [str(m['wid']) for m in cli.softnic.list_workers()]
+            var_candidates = [str(m.wid) for m in cli.softnic.list_workers()]
 
         elif var_token == 'DRIVER':
             var_type = 'name'
@@ -144,12 +144,12 @@ def get_var_attrs(cli, var_token, partial_word):
         elif var_token == 'MODULE':
             var_type = 'name'
             var_desc = 'name of an existing module instance'
-            var_candidates = [m['name'] for m in cli.softnic.list_modules()]
+            var_candidates = [m.name for m in cli.softnic.list_modules()]
 
         elif var_token == 'MODULE...':
             var_type = 'name+'
             var_desc = 'one or more module names'
-            var_candidates = [m['name'] for m in cli.softnic.list_modules()]
+            var_candidates = [m.name for m in cli.softnic.list_modules()]
 
         elif var_token == '[NEW_PORT]':
             var_type = 'name'
@@ -158,17 +158,17 @@ def get_var_attrs(cli, var_token, partial_word):
         elif var_token == 'PORT':
             var_type = 'name'
             var_desc = 'name of a port'
-            var_candidates = [p['name'] for p in cli.softnic.list_ports()]
+            var_candidates = [p.name for p in cli.softnic.list_ports()]
 
         elif var_token == 'PORT...':
             var_type = 'name+'
             var_desc = 'one or more port names'
-            var_candidates = [p['name'] for p in cli.softnic.list_ports()]
+            var_candidates = [p.name for p in cli.softnic.list_ports()]
 
         elif var_token == 'TC...':
             var_type = 'name+'
             var_desc = 'one or more traffic class names'
-            var_candidates = [c['name'] for c in cli.softnic.list_tcs()]
+            var_candidates = [c.name for c in cli.softnic.list_tcs()]
 
         elif var_token == 'CONF':
             var_type = 'confname'
@@ -572,7 +572,7 @@ def add_port(cli, driver, port, args):
     ret = cli.softnic.create_port(driver, port, args)
 
     if port is None:
-        cli.fout.write('  The new port "%s" has been created\n' % ret['name'])
+        cli.fout.write('  The new port "%s" has been created\n' % ret.name)
 
 @cmd('add module MCLASS [NEW_MODULE] [MODULE_ARGS...]', 'Add a new module')
 def add_module(cli, mclass, module, args):
@@ -583,7 +583,7 @@ def add_module(cli, mclass, module, args):
         cli.softnic.resume_all()
 
     if module is None:
-        cli.fout.write('  The new module "%s" has been created\n' % ret['name'])
+        cli.fout.write('  The new module "%s" has been created\n' % ret.name)
 
 @cmd('add connection MODULE MODULE [OGATE] [IGATE]', 
         'Add a connection between two modules')
@@ -634,11 +634,11 @@ def _show_worker_header(cli):
 
 def _show_worker(cli, w):
     cli.fout.write('  %10d%10s%10d%10d%16d\n' % \
-            (w['wid'], 
-             'RUNNING' if w['running'] else 'PAUSED', 
-             w['core'], 
-             w['num_tcs'],
-             w['silent_drops']))
+            (w.wid, 
+             'RUNNING' if w.running else 'PAUSED', 
+             w.core, 
+             w.num_tcs,
+             w.silent_drops))
 
 @cmd('show worker', 'Show the status of all worker threads')
 def show_worker_all(cli):
@@ -657,21 +657,21 @@ def show_worker_list(cli, worker_ids):
 
     for wid in worker_ids:
         for worker in workers:
-            if worker['wid'] == wid:
+            if worker.wid == wid:
                 break;
         else:
             raise cli.CommandError('Worker ID %d does not exist' % wid)
 
     _show_worker_header(cli)
     for worker in workers:
-        if worker['wid'] in worker_ids:
+        if worker.wid in worker_ids:
             _show_worker(cli, worker)
 
 def _show_tc_list(cli, tcs):
-    wids = sorted(list(set(map(lambda tc: tc['wid'], tcs))))
+    wids = sorted(list(set(map(lambda tc: tc.wid, tcs))))
 
     for wid in wids:
-        matched= filter(lambda tc: tc['wid'] == wid, tcs)
+        matched= filter(lambda tc: tc.wid == wid, tcs)
 
         if wid == -1:
             cli.fout.write('  Unattached (%d classes)\n' % len(matched))
@@ -682,14 +682,14 @@ def _show_tc_list(cli, tcs):
             cli.fout.write('    %-16s  ' \
                            'parent %-10s  priority %-3d  tasks %-4d ' \
                            'limits: sps %.1e  cps %.1e  pps %.1e  bps %.1e\n' % \
-                    (tc['name'], 
-                     tc['parent'] if tc['parent'] else 'none', 
-                     tc['priority'],
-                     tc['tasks'],
-                     tc['limit_sps'],
-                     tc['limit_cps'],
-                     tc['limit_pps'],
-                     tc['limit_bps']))
+                    (tc.name, 
+                     tc.parent if tc.parent else 'none', 
+                     tc.priority,
+                     tc.tasks,
+                     tc.limit_sps,
+                     tc.limit_cps,
+                     tc.limit_pps,
+                     tc.limit_bps))
 
             
 @cmd('show tc', 'Show the list of traffic classes')
@@ -713,7 +713,7 @@ def show_status(cli):
     cli.fout.write('  Active worker threads: ')
     if workers:
         worker_list = ['worker%d (cpu %d)' % \
-                (worker['wid'], worker['core']) for worker in workers]
+                (worker.wid, worker.core) for worker in workers]
         cli.fout.write('%s\n' % ', '.join(worker_list))
     else:
         cli.fout.write('(none)\n')
@@ -732,7 +732,7 @@ def show_status(cli):
     
     cli.fout.write('  Active ports: ')
     if ports:
-        port_list = ['%s/%s' % (p['name'], p['driver']) for p in ports]
+        port_list = ['%s/%s' % (p.name, p.driver) for p in ports]
         cli.fout.write('%s\n' % ', '.join(port_list))
     else:
         cli.fout.write('(none)\n')
@@ -743,9 +743,9 @@ def show_status(cli):
         for m in modules:
             if 'desc' in m:
                 module_list.append('%s::%s(%s)' % \
-                        (m['name'], m['mclass'], m['desc']))
+                        (m.name, m.mclass, m.desc))
             else:
-                module_list.append('%s::%s' % (m['name'], m['mclass']))
+                module_list.append('%s::%s' % (m.name, m.mclass))
 
         cli.fout.write('%s\n' % ', '.join(module_list))
     else:
@@ -758,12 +758,12 @@ def _draw_pipeline(cli, field, last_stats = None):
     node_labels = {}
 
     for m in modules:
-        name = m['name']
-        mclass = m['mclass']
+        name = m.name
+        mclass = m.mclass
         names.append(name)
         node_labels[name] = '%s\\n%s' % (name, mclass)
         if 'desc' in m:
-            node_labels[name] += '\\n%s' % m['desc']
+            node_labels[name] += '\\n%s' % m.desc
         else:
             node_labels[name] += '\\n-'
 
@@ -776,28 +776,28 @@ def _draw_pipeline(cli, field, last_stats = None):
                 stderr=subprocess.PIPE)
 
         for m in modules:
-            print >> f.stdin, '[%s]' % node_labels[m['name']]
+            print >> f.stdin, '[%s]' % node_labels[m.name]
 
         for name in names:
-            gates = cli.softnic.get_module_info(name)['ogates']
+            gates = cli.softnic.get_module_info(name).ogates
 
             for gate in gates:
                 if last_stats is not None:
-                    last_time, last_val = last_stats[(name, gate['ogate'])]
-                    new_time, new_val = gate['timestamp'], gate[field]
-                    last_stats[(name, gate['ogate'])] = (new_time, new_val)
+                    last_time, last_val = last_stats[(name, gate.ogate)]
+                    new_time, new_val = gate.timestamp, gate[field]
+                    last_stats[(name, gate.ogate)] = (new_time, new_val)
 
                     val = int((new_val - last_val) / (new_time - last_time))
                 else:
                     val = gate[field]
 
                 edge_attr = '{label::%d  %d  %d:;}' % \
-                        (gate['ogate'], val, gate['igate'])
+                        (gate.ogate, val, gate.igate)
 
                 print >> f.stdin, '[%s] ->%s [%s]' % (
                         node_labels[name],
                         edge_attr,
-                        node_labels[gate['name']],
+                        node_labels[gate.name],
                     )
         output, error = f.communicate()
         f.wait()
@@ -828,19 +828,19 @@ def _group(number):
     return s + ','.join(reversed(groups))
 
 def _show_port(cli, port):
-    cli.fout.write('  %s/%s\n' % (port['name'], port['driver']))
+    cli.fout.write('  %s/%s\n' % (port.name, port.driver))
     
-    port_stats = cli.softnic.get_port_stats(port['name'])
+    port_stats = cli.softnic.get_port_stats(port.name)
 
     cli.fout.write('    Incoming (external -> BESS):\n')
-    cli.fout.write('      packets: %s\n' % _group(port_stats['inc']['packets']))
-    cli.fout.write('      dropped: %s\n' % _group(port_stats['inc']['dropped']))
-    cli.fout.write('      bytes  : %s\n' % _group(port_stats['inc']['bytes']))
+    cli.fout.write('      packets: %s\n' % _group(port_stats.inc.packets))
+    cli.fout.write('      dropped: %s\n' % _group(port_stats.inc.dropped))
+    cli.fout.write('      bytes  : %s\n' % _group(port_stats.inc.bytes))
 
     cli.fout.write('    Outgoing (BESS -> external):\n')
-    cli.fout.write('      packets: %s\n' % _group(port_stats['out']['packets']))
-    cli.fout.write('      dropped: %s\n' % _group(port_stats['out']['dropped']))
-    cli.fout.write('      bytes  : %s\n' % _group(port_stats['out']['bytes']))
+    cli.fout.write('      packets: %s\n' % _group(port_stats.out.packets))
+    cli.fout.write('      dropped: %s\n' % _group(port_stats.out.dropped))
+    cli.fout.write('      bytes  : %s\n' % _group(port_stats.out.bytes))
 
 @cmd('show port', 'Show the status of all ports')
 def show_port_all(cli):
@@ -859,45 +859,45 @@ def show_port_list(cli, port_names):
     port_names = list(set(port_names))
     for port_name in port_names:
         for port in ports:
-            if port_name == port['name']:
+            if port_name == port.name:
                 _show_port(cli, port)
                 break
         else:
             raise cli.CommandError('Port "%s" doest not exist' % port_name)
 
 def _show_module(cli, module):
-    info = cli.softnic.get_module_info(module['name'])
+    info = cli.softnic.get_module_info(module.name)
 
-    cli.fout.write('  %s::%s' % (info['name'], info['mclass']))
+    cli.fout.write('  %s::%s' % (info.name, info.mclass))
 
     if 'desc' in info:
-        cli.fout.write(' (%s)\n' % info['desc'])
+        cli.fout.write(' (%s)\n' % info.desc)
     else:
         cli.fout.write('\n')
 
-    if info['igates']:
+    if info.igates:
         cli.fout.write('    Input gates:\n')
-        for gate in info['igates']:
+        for gate in info.igates:
             cli.fout.write('      %5d: %s\n' % \
-                    (gate['igate'], 
-                     ', '.join('%s:%d ->' % (g['name'], g['ogate']) \
-                             for g in gate['ogates'])))
+                    (gate.igate, 
+                     ', '.join('%s:%d ->' % (g.name, g.ogate) \
+                             for g in gate.ogates)))
     else:
         cli.fout.write('    No input gate\n')
 
-    if info['ogates']:
+    if info.ogates:
         cli.fout.write('    Output gates:\n')
-        for gate in info['ogates']:
+        for gate in info.ogates:
             cli.fout.write(
                     '      %5d: batches %-16d packets %-16d -> %d:%s\n' % \
-                    (gate['ogate'], gate['cnt'], gate['pkts'], 
-                     gate['igate'], gate['name']))
+                    (gate.ogate, gate.cnt, gate.pkts, 
+                     gate.igate, gate.name))
     else:
         cli.fout.write('    No output gate\n')
 
     if 'dump' in info:
         cli.fout.write('    Dump:\n')
-        cli.fout.write('      %s' % info['dump'])
+        cli.fout.write('      %s' % info.dump)
 
 @cmd('show module', 'Show the status of all modules')
 def show_module_all(cli):
@@ -915,7 +915,7 @@ def show_module_list(cli, module_names):
 
     for module_name in module_names:
         for module in modules:
-            if module_name == module['name']:
+            if module_name == module.name:
                 _show_module(cli, module)
                 break
         else:
@@ -926,11 +926,11 @@ def _monitor_pipeline(cli, field):
    
     last_stats = {}
     for module in modules:
-        gates = cli.softnic.get_module_info(module['name'])['ogates']
+        gates = cli.softnic.get_module_info(module.name).ogates
 
         for gate in gates:
-            last_stats[(module['name'], gate['ogate'])] = \
-                    (gate['timestamp'], gate[field])
+            last_stats[(module.name, gate.ogate)] = \
+                    (gate.timestamp, gate[field])
 
     try:
         while True:
@@ -951,20 +951,8 @@ def monitor_pipeline_batch(cli):
 def _monitor_ports(cli, *ports):
 
     def get_delta(old, new):
-        assert(old.keys() == new.keys())
-
-        sec_diff = new['timestamp'] - old['timestamp']
-
-        delta = {}
-
-        for pdir in ('inc', 'out'):
-            assert(old[pdir].keys() == new[pdir].keys())
-            delta[pdir] = {}
-
-            for key in old[pdir].keys():
-                delta[pdir][key] = (new[pdir][key] - old[pdir][key]) / sec_diff
-
-        return delta
+        sec_diff = new.timestamp - old.timestamp
+        return (new - old) / sec_diff
 
     def print_header(timestamp):
         print
@@ -980,33 +968,29 @@ def _monitor_ports(cli, *ports):
 
     def print_delta(port, delta):
         print '%-20s%14.1f%10.3f%10d        %14.1f%10.3f%10d' % (port, 
-                (delta['inc']['bytes'] + delta['inc']['packets'] * 24) * 8
-                        / 1e6,
-                delta['inc']['packets'] / 1e6,
-                delta['inc']['dropped'],
-                (delta['out']['bytes'] + delta['out']['packets'] * 24) * 8
-                        / 1e6,
-                delta['out']['packets'] / 1e6,
-                delta['out']['dropped'],
+                (delta.inc.bytes + delta.inc.packets * 24) * 8 / 1e6,
+                delta.inc.packets / 1e6,
+                delta.inc.dropped,
+                (delta.out.bytes + delta.out.packets * 24) * 8 / 1e6,
+                delta.out.packets / 1e6,
+                delta.out.dropped,
             )
 
     def get_total(arr):
         total = copy.deepcopy(arr[0])
-
         for stat in arr[1:]:
             for pdir in ('inc', 'out'):
                 for key in total[pdir]:
                     total[pdir][key] += stat[pdir][key]
-
         return total
 
     all_ports = sorted(cli.softnic.list_ports())
     drivers = {}
     for port in all_ports:
-        drivers[port['name']] = port['driver']
+        drivers[port.name] = port.driver
 
     if not ports:
-        ports = [port['name'] for port in all_ports]
+        ports = [port.name for port in all_ports]
         if not ports:
             raise cli.CommandError('No port to monitor')
 
@@ -1025,7 +1009,7 @@ def _monitor_ports(cli, *ports):
             for port in ports:
                 now[port] = cli.softnic.get_port_stats(port)
 
-            print_header(now[port]['timestamp'])
+            print_header(now[port].timestamp)
 
             for port in ports:
                 print_delta('%s/%s' % (port, drivers[port]), 
@@ -1053,16 +1037,8 @@ def monitor_port_all(cli, ports):
 
 def _monitor_tcs(cli, *tcs):
     def get_delta(old, new):
-        assert(old.keys() == new.keys())
-
-        sec_diff = new['timestamp'] - old['timestamp']
-
-        delta = {}
-
-        for key in old.keys():
-            delta[key] = (new[key] - old[key]) / sec_diff
-
-        return delta
+        sec_diff = new.timestamp - old.timestamp
+        return (new - old) / sec_diff
 
     def print_header(timestamp):
         print
@@ -1077,21 +1053,21 @@ def _monitor_tcs(cli, *tcs):
         print '-' * 92
 
     def print_delta(tc, delta):
-        if delta['count'] >= 1:
-            ppb = delta['packets'] / delta['count']
+        if delta.count >= 1:
+            ppb = delta.packets / delta.count
         else:
             ppb = 0
 
-        if delta['packets'] >= 1:
-            cpp = delta['cycles'] / delta['packets']
+        if delta.packets >= 1:
+            cpp = delta.cycles / delta.packets
         else:
             cpp = 0
 
         print '%-20s%12.3f%12d%12.3f%12.3f%12.3f%12.3f' % (tc, 
-                delta['cycles'] / 1e6, 
-                delta['count'], 
-                delta['packets'] / 1e6, 
-                delta['bits'] / 1e6,
+                delta.cycles / 1e6, 
+                delta.count, 
+                delta.packets / 1e6, 
+                delta.bits / 1e6,
                 ppb,
                 cpp)
 
@@ -1100,7 +1076,7 @@ def _monitor_tcs(cli, *tcs):
         total = copy.deepcopy(arr[0])
 
         for stat in arr[1:]:
-            for key in total.keys():
+            for key in total._keys():
                 if key != 'timestamp':
                     total[key] += stat[key]
 
@@ -1109,10 +1085,10 @@ def _monitor_tcs(cli, *tcs):
     all_tcs = cli.softnic.list_tcs()
     wids = {}
     for tc in all_tcs:
-        wids[tc['name']] = tc['wid']
+        wids[tc.name] = tc.wid
 
     if not tcs:
-        tcs = [tc['name'] for tc in all_tcs]
+        tcs = [tc.name for tc in all_tcs]
         if not tcs:
             raise cli.CommandError('No traffic class to monitor')
 
@@ -1131,7 +1107,7 @@ def _monitor_tcs(cli, *tcs):
             for tc in tcs:
                 now[tc] = cli.softnic.get_tc_stats(tc)
 
-            print_header(now[tc]['timestamp'])
+            print_header(now[tc].timestamp)
 
             for tc in tcs:
                 print_delta('W%d %s' % (wids[tc], tc), 
