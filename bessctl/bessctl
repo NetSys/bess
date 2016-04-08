@@ -13,7 +13,7 @@ try:
     sys.path.insert(1, '%s/../libbess-python' % this_dir)
     from softnic import *
 except ImportError:
-    print >> sys.stderr, 'Cannot import the API module (libsn-python)'
+    print >> sys.stderr, 'Cannot import the API module (libbess-python)'
 
 class BESSCLI(cli.CLI):
     def __init__(self, softnic, cmd_db, fin=sys.stdin, 
