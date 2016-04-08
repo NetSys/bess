@@ -8,9 +8,6 @@ bpf:0 -> Sink()      # for unmatched packets
 bpf:1 -> Sink()      # for matched packets
 bpf:2 -> Sink()      # for matched packets (by the second filter)
 
-unmatched = 0
-matched = 1
-
 def run_testcase(exps, test_pkts):
     rewrite.query({'templates': map(lambda x: bytearray(str(x)), test_pkts)})
     bpf.query("reset")
@@ -21,21 +18,17 @@ def run_testcase(exps, test_pkts):
 
     softnic.resume_all()
 
-    old_stats = softnic.get_module_info(bpf.name)['ogates']
+    old_stats = softnic.get_module_info(bpf.name).ogates
     time.sleep(2)
-    new_stats = softnic.get_module_info(bpf.name)['ogates']
+    new_stats = softnic.get_module_info(bpf.name).ogates
 
     pps_unmatched = \
-            (new_stats[0]['pkts'] - \
-             old_stats[0]['pkts']) / \
-            (new_stats[0]['timestamp'] - \
-             old_stats[0]['timestamp'])
+            (new_stats[0].pkts - old_stats[0].pkts) / \
+            (new_stats[0].timestamp - old_stats[0].timestamp)
 
     pps_matched = sum([
-            (new_stats[i+1]['pkts'] - \
-             old_stats[i+1]['pkts']) / \
-            (new_stats[i+1]['timestamp'] - \
-             old_stats[i+1]['timestamp']) \
+            ((new_stats[i+1].pkts - old_stats[i+1].pkts) / \
+             (new_stats[i+1].timestamp - old_stats[i+1].timestamp))
             for i in range(len(exps))])
 
     pps_total = pps_matched + pps_unmatched

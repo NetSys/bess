@@ -29,14 +29,14 @@ def measure():
     inc_mpps = []
 
     for i in range(len(ports)):
-        time_diff = new_stats[i]['timestamp'] - old_stats[i]['timestamp']
+        time_diff = new_stats[i].timestamp - old_stats[i].timestamp
 
-        pkts_diff = new_stats[i]['out']['packets'] - \
-                    old_stats[i]['out']['packets']
+        pkts_diff = new_stats[i].out.packets - \
+                    old_stats[i].out.packets
         out_mpps.append(pkts_diff / time_diff / 1000000.0)
         
-        pkts_diff = new_stats[i]['inc']['packets'] - \
-                    old_stats[i]['inc']['packets']
+        pkts_diff = new_stats[i].inc.packets - \
+                    old_stats[i].inc.packets
         inc_mpps.append(pkts_diff / time_diff / 1000000.0)
 
     print '%-15s' % 'CPU',
