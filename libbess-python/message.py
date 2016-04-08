@@ -22,7 +22,7 @@ class SNObjDict(object):
 
     def __getattr__(self, name):
         if name.startswith('__'):
-            return self._dict.__getattr__(name)
+            return self._dict.__getattribute__(name)
         else: 
             return self._dict[name]
 
@@ -43,6 +43,55 @@ class SNObjDict(object):
 
     def __contains__(self, key):
         return key in self._dict
+
+    def __iter__(self):
+        return self._dict.__iter__()
+
+    @staticmethod
+    def __do_op(x, y, op, rop):
+        ret = x.__getattribute__(op)(y)
+        if ret == NotImplemented:
+            ret = y.__getattribute__(rop)(x)
+        return ret
+
+    def __op(a, b, op, rop):
+        a_keys = set(a._keys())
+        if isinstance(b, dict):
+            b_keys = set(b.keys())
+        elif isinstance(b, SNObjDict):
+            b_keys = set(b._keys())
+        elif isinstance(b, (int, float)):
+            ret = SNObjDict()
+            for k in a_keys:
+                ret[k] = a.__do_op(a[k], b, op, rop)
+            return ret
+        else:
+            return NotImplemented
+
+        if a_keys != b_keys:
+            raise TypeError('Attritubes %s are not in common', \
+                    set.symmetric_difference(a_keys, b_keys))
+
+        ret = SNObjDict()
+        for k in a_keys:
+            ret[k] = a.__do_op(a[k], b[k], op, rop)
+        return ret
+
+    def __add__(a, b):
+        return a.__op(b, '__add__', '__radd__')
+
+    def __sub__(a, b):
+        return a.__op(b, '__sub__', '__rsub__')
+
+    def __mul__(a, b):
+        return a.__op(b, '__mul__', '__rmul__')
+
+    def __div__(a, b):
+        return a.__op(b, '__div__', '__rdiv__')
+
+    # intended to be used by controller
+    def _keys(self):
+        return self._dict.keys()
 
 def encode(obj):
     def zero_pad8(buf, num_bytes):
