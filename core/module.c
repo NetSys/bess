@@ -18,7 +18,7 @@ task_id_t register_task(struct module *m, void *arg)
 	if (!m->mclass->run_task)
 		return INVALID_TASK_ID;
 
-	for (id = 0; id <= MAX_TASKS_PER_MODULE; id++)
+	for (id = 0; id < MAX_TASKS_PER_MODULE; id++)
 		if (m->tasks[id] == NULL)
 			goto found;
 
@@ -33,6 +33,28 @@ found:
 	m->tasks[id] = t;
 
 	return id;
+}
+
+task_id_t task_to_tid(struct task *t)
+{
+	struct module *m = t->m;
+
+	for (task_id_t id = 0; id < MAX_TASKS_PER_MODULE; id++)
+		if (m->tasks[id] == t)
+			return id;
+
+	return INVALID_TASK_ID;
+}
+
+int num_module_tasks(struct module *m)
+{
+	int cnt = 0;
+
+	for (task_id_t id = 0; id < MAX_TASKS_PER_MODULE; id++)
+		if (m->tasks[id])
+			cnt++;
+
+	return cnt;
 }
 
 size_t list_modules(const struct module **p_arr, size_t arr_size, size_t offset)

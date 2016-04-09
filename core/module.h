@@ -111,7 +111,8 @@ static inline const void *get_priv_const(const struct module *m)
 }
 
 task_id_t register_task(struct module *m, void *arg);
-void unregister_task(struct module *m, task_id_t tid);
+task_id_t task_to_tid(struct task *t);
+int num_module_tasks(struct module *m);
 
 size_t list_modules(const struct module **p_arr, size_t arr_size, size_t offset);
 
