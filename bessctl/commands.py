@@ -667,6 +667,36 @@ def show_worker_list(cli, worker_ids):
         if worker.wid in worker_ids:
             _show_worker(cli, worker)
 
+def _limit_to_str(limit):
+    buf = []
+    
+    if limit.schedules:
+        buf.append('%d times' % limit.schedules)
+
+    if limit.cycles:
+        buf.append('%.3f Mhz' % (limit.cycles / 1e6))
+
+    if limit.packets:
+        if limit.packets < 1e3:
+            buf.append('%.d pps' % limit.packets)
+        elif limit.packets < 1e6:
+            buf.append('%.3f kpps' % (limit.packets / 1e3))
+        else:
+            buf.append('%.3f Mpps' % (limit.packets / 1e6))
+
+    if limit.bits:
+        if limit.bits < 1e3:
+            buf.append('%.d bps' % limit.bits)
+        elif limit.bits < 1e6:
+            buf.append('%.3f kbps' % (limit.bits / 1e3))
+        else:
+            buf.append('%.3f Mbps' % (limit.bits / 1e6))
+
+    if buf:
+        return 'limits: ' + ', '.join(buf)
+    else:
+        return 'unlimited'
+
 def _show_tc_list(cli, tcs):
     wids = sorted(list(set(map(lambda tc: tc.wid, tcs))))
 
@@ -680,16 +710,13 @@ def _show_tc_list(cli, tcs):
 
         for tc in matched:
             cli.fout.write('    %-16s  ' \
-                           'parent %-10s  priority %-3d  tasks %-4d ' \
-                           'limits: sps %.1e  cps %.1e  pps %.1e  bps %.1e\n' % \
+                           'parent %-10s  priority %-3d  tasks %-3d ' \
+                           '%s\n' % \
                     (tc.name, 
                      tc.parent if tc.parent else 'none', 
                      tc.priority,
                      tc.tasks,
-                     tc.limit_sps,
-                     tc.limit_cps,
-                     tc.limit_pps,
-                     tc.limit_bps))
+                     _limit_to_str(tc.limit)))
 
             
 @cmd('show tc', 'Show the list of traffic classes')

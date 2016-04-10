@@ -60,7 +60,8 @@ struct tc_params {
 	int32_t share;
 	int share_resource;
 
-	uint64_t limit[NUM_RESOURCES];	/* in work units per sec. 0 if unlimited */
+	/* in bits/pkts/cycles per sec. 0 if unlimited */
+	uint64_t limit[NUM_RESOURCES];	
 	uint64_t max_burst[NUM_RESOURCES];
 };
 
@@ -138,10 +139,7 @@ struct tc {
 	/* who is scheduling me? (NULL iff not attached) */
 	struct sched *s;		
 
-	char name[SN_NAME_LEN];
-
-	int32_t priority;		/* the higher, the more important */
-	int auto_free;			/* is this TC ephemeral? */
+	struct tc_params settings;
 
 	/* linked list of all classes belonging to the same scheduler */
 	struct cdlist_item sched_all;

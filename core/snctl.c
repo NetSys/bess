@@ -25,8 +25,18 @@ struct handler_map {
 	struct snobj *(*func)(struct snobj *);
 };
 
-static const char *tc_limit_str[NUM_RESOURCES] = 
-		{"limit_sps", "limit_cps", "limit_pps", "limit_bps"};
+static const char *resource_names[NUM_RESOURCES] = 
+		{"schedules", "cycles", "packets", "bits"};
+
+static int name_to_resource(const char *name)
+{
+	for (int i = 0; i < NUM_RESOURCES; i++)
+		if (strcmp(resource_names[i], name) == 0)
+			return i;
+
+	/* not found */
+	return -1;
+}
 
 static struct snobj *handle_reset_modules(struct snobj *);
 static struct snobj *handle_reset_ports(struct snobj *);
@@ -171,10 +181,10 @@ static struct snobj *handle_reset_tcs(struct snobj *q)
 		if (c->num_tasks) {
 			free(c_arr);
 			return snobj_err(EBUSY, "TC %s still has %d tasks",
-					c->name, c->num_tasks);
+					c->settings.name, c->num_tasks);
 		}
 
-		if (c->auto_free)
+		if (c->settings.auto_free)
 			continue;
 
 		tc_leave(c);
@@ -227,23 +237,36 @@ static struct snobj *handle_list_tcs(struct snobj *q)
 						workers[wid]->s == c->s)
 					break;
 		}
+
 		struct snobj *elem = snobj_map();
 
-		snobj_map_set(elem, "name", snobj_str(c->name));
+		snobj_map_set(elem, "name", snobj_str(c->settings.name));
 		snobj_map_set(elem, "tasks", snobj_int(c->num_tasks));
-		snobj_map_set(elem, "parent", snobj_str(c->parent->name));
-		snobj_map_set(elem, "priority", snobj_int(c->priority));
-		// we list limit for each resource, reversing calculation from tc.c:tc_init()
-		for (int i = 0; i < NUM_RESOURCES; i++)
-		  snobj_map_set(elem, tc_limit_str[i],
-				snobj_int((c->tb[i].limit * (tsc_hz >> 4)) \
-					  >> (USAGE_AMPLIFIER_POW - 4)));
+		snobj_map_set(elem, "parent", snobj_str(c->parent->settings.name));
+		snobj_map_set(elem, "priority", snobj_int(c->settings.priority));
 
 		if (wid < MAX_WORKERS)
 			snobj_map_set(elem, "wid", snobj_uint(wid));
 		else
 			snobj_map_set(elem, "wid", snobj_int(-1));
 
+		struct snobj *limit = snobj_map();
+
+		for (int i = 0; i < NUM_RESOURCES; i++) {
+			  snobj_map_set(limit, resource_names[i],
+					snobj_uint(c->settings.limit[i]));
+		}
+
+		snobj_map_set(elem, "limit", limit);
+
+		struct snobj *max_burst = snobj_map();
+
+		for (int i = 0; i < NUM_RESOURCES; i++) {
+			  snobj_map_set(max_burst, resource_names[i],
+					snobj_uint(c->settings.max_burst[i]));
+		}
+
+		snobj_map_set(elem, "max_burst", max_burst);
 
 		snobj_list_add(r, elem);
 	}
@@ -261,8 +284,6 @@ static struct snobj *handle_add_tc(struct snobj *q)
 	struct tc_params params;
 	struct tc *c;
 
-	int64_t limit;
-	
 	tc_name = snobj_eval_str(q, "name");
 	if (!tc_name)
 		return snobj_err(EINVAL, "Missing 'name' field");
@@ -279,8 +300,13 @@ static struct snobj *handle_add_tc(struct snobj *q)
 				"'wid' must be between 0 and %d",
 				MAX_WORKERS - 1);
 
-	if (!is_worker_active(wid))
-		return snobj_err(EINVAL, "worker:%d does not exist", wid);
+	if (!is_worker_active(wid)) {
+		if (num_workers == 0 && wid == 0)
+			launch_worker(wid, 0);
+		else
+			return snobj_err(EINVAL, 
+					"worker:%d does not exist", wid);
+	}
 
 	memset(&params, 0, sizeof(params));
 
@@ -295,13 +321,39 @@ static struct snobj *handle_add_tc(struct snobj *q)
 	params.share = 1;
 	params.share_resource = RESOURCE_CNT;
 
-	for (int i = 0; i < NUM_RESOURCES; i++) {
-		limit = snobj_eval_int(q, tc_limit_str[i]);
-		if (limit < 0)
-			return snobj_err(EINVAL, 
-					"'%s' must be 0 or greater",
-					tc_limit_str[i]);
-		params.limit[i] = limit; 
+	struct snobj *limit = snobj_eval(q, "limit");
+	if (limit) {
+		if (snobj_type(limit) != TYPE_MAP)
+			return snobj_err(EINVAL, "'limit' must be a map\n");
+
+		for (int i = 0; i < limit->size; i++) {
+			int rsc = name_to_resource(limit->map.arr_k[i]);
+
+			if (rsc < 0)
+				return snobj_err(EINVAL, 
+						"Invalid resource name '%s'\n",
+						limit->map.arr_k[i]);
+
+			params.limit[rsc] = snobj_uint_get(limit->map.arr_v[i]);
+		}
+	}
+
+	struct snobj *max_burst = snobj_eval(q, "max_burst");
+	if (max_burst) {
+		if (snobj_type(max_burst) != TYPE_MAP)
+			return snobj_err(EINVAL, "'max_burst' must be a map\n");
+
+		for (int i = 0; i < max_burst->size; i++) {
+			int rsc = name_to_resource(max_burst->map.arr_k[i]);
+
+			if (rsc < 0)
+				return snobj_err(EINVAL, 
+						"Invalid resource name '%s'\n",
+						max_burst->map.arr_k[i]);
+
+			params.max_burst[rsc] = 
+				snobj_uint_get(max_burst->map.arr_v[i]);
+		}
 	}
 
 	c = tc_init(workers[wid]->s, &params);

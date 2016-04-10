@@ -63,7 +63,7 @@ void task_detach(struct task *t)
 	c->num_tasks--;
 
 	/* c is up for autofree, and the task t was the last one standing? */
-	if (cdlist_is_empty(&c->tasks) && c->auto_free) {
+	if (cdlist_is_empty(&c->tasks) && c->settings.auto_free) {
 		tc_leave(c);		/* stop scheduling this TC */
 		tc_dec_refcnt(c);	/* release my reference */
 	}

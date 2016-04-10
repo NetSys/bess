@@ -200,7 +200,7 @@ class SoftNIC(object):
         args = {'wid': wid, 'core': core}
         return self._request_softnic('add_worker', args)
 
-    def attach_task(self, m, tid, tc=None, wid=None):
+    def attach_task(self, m, tid=0, tc=None, wid=None):
         if (tc is None) == (wid is None):
             raise self.APIError('You should specify either "tc" or "wid"' \
                     ', but not both')
@@ -219,13 +219,14 @@ class SoftNIC(object):
 
         return self._request_softnic('list_tcs', args)
 
-    def add_tc(self, c, wid=0, priority=0, 
-            limit_sps=0, limit_cps=0, limit_pps=0, limit_bps=0):
-        args = {'name': c, 'wid': wid, 'priority': priority, 
-                'limit_sps': limit_sps, 
-                'limit_cps': limit_cps, 
-                'limit_pps': limit_pps, 
-                'limit_bps': limit_bps}
+    def add_tc(self, name, wid=0, priority=0, limit=None, max_burst=None):
+        args = {'name': name, 'wid': wid, 'priority': priority}
+        if limit:
+            args['limit'] = limit
+
+        if max_burst:
+            args['max_burst'] = max_burst
+
         return self._request_softnic('add_tc', args)
 
     def get_tc_stats(self, name):
