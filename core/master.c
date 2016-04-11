@@ -105,7 +105,7 @@ static int init_listen_fd(uint16_t port)
 		exit(EXIT_FAILURE);
 	}
 
-	if (listen(listen_fd, 0) < 0) {
+	if (listen(listen_fd, 10) < 0) {
 		log_perr("listen()");
 		exit(EXIT_FAILURE);
 	}
