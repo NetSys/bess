@@ -10,13 +10,13 @@ v_alice = Port(driver='VPort', ifname='eth_alice', ip_addr='10.255.99.1/24')
 PortInc(port=v_alice) -> PortOut(port=v_bob)
 PortInc(port=v_bob) -> PortOut(port=v_alice)
 
-softnic.resume_all()
+bess.resume_all()
 
 os.system('ping -W 1.0 -c 64 -i 0.2 10.255.99.2')
 
-softnic.pause_all()
+bess.pause_all()
 
 os.system('docker kill vport_test > /dev/null')
 os.system('docker rm vport_test > /dev/null')
 
-softnic.reset_all()
+bess.reset_all()

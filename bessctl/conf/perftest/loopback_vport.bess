@@ -18,12 +18,12 @@ def measure():
     new_stats = []
 
     for port in ports:
-        old_stats.append(softnic.get_port_stats(port.name))
+        old_stats.append(bess.get_port_stats(port.name))
 
     time.sleep(INTERVAL)
 
     for port in ports:
-        new_stats.append(softnic.get_port_stats(port.name))
+        new_stats.append(bess.get_port_stats(port.name))
 
     out_mpps = []
     inc_mpps = []
@@ -75,6 +75,6 @@ for cpu in range(CORE_START, CORE_END, CORE_STEP):
     Source() -> PortOut(port=v)
     PortInc(port=v) -> Sink()
 
-    softnic.resume_all()
+    bess.resume_all()
     measure()
-    softnic.pause_all()
+    bess.pause_all()

@@ -381,7 +381,7 @@ int sn_guest_init(void)
 	void *bar;
 	struct sn_device **dev_ret;
 
-	log_info("softnic guest module loaded\n");
+	log_info("bess guest module loaded\n");
 
 	ret = sn_ivsm_init();
 	if (ret < 0)

@@ -183,7 +183,7 @@ static int run_source(struct sn_port *port)
 
 		for (i = 0; i < sent; i++) {
 			/* NOTE: accessing packets after they are sent is dangerous.
-			 * (they may have been already freed on SoftNic cores
+			 * (they may have been already freed on BESS cores
 			 * Don't try this at home */
 			stats.tx_bytes += snb_total_len(pkts[i]);
 		}
@@ -237,7 +237,7 @@ static int run_echo(struct sn_port *port)
 
 		for (i = 0; i < sent; i++) {
 			/* NOTE: accessing packets after they are sent is dangerous.
-			 * (they may have been already freed on SoftNic cores
+			 * (they may have been already freed on BESS cores
 			 * Don't try this at home */
 			stats.tx_bytes += snb_total_len(pkts[i]);
 		}
@@ -321,7 +321,7 @@ int main(int argc, char **argv)
 		}
 	}
 
-	init_softnic(1 << core, "sample");
+	init_bess(1 << core, "sample");
 	init_ports();
 
 	printf("%d ports found\n", num_ports);

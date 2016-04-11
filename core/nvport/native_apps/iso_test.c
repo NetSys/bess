@@ -434,7 +434,7 @@ int main(int argc, char **argv)
 	if (fake_core == -1) {
 		fake_core = core;
 	}
-	init_softnic(core, unique_name);
+	init_bess(core, unique_name);
 	RTE_PER_LCORE(_lcore_id) = fake_core;
 
 	printf("Started iso_test with unique name %s\n", unique_name);

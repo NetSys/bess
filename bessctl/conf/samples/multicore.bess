@@ -9,8 +9,8 @@
 #bind worker:0 => core:0
 #bind worker:1 => core:1
 
-softnic.add_worker(0, 0)
-softnic.add_worker(1, 1)
+bess.add_worker(0, 0)
+bess.add_worker(1, 1)
 
 sink::Sink()
 src0::Source() -> sink
@@ -28,8 +28,8 @@ src1::Source() -> sink
 #attach src0:0 => worker:0 
 #attach src1:0 => worker:1
 
-softnic.attach_task("src0", 0, wid=0)
-softnic.attach_task("src1", 0, wid=1)
+bess.attach_task("src0", 0, wid=0)
+bess.attach_task("src1", 0, wid=1)
 
 # Future work
 #

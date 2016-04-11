@@ -187,13 +187,13 @@ static void *alloc_bar(struct port *p,
 	/* See sn_common.h for the llring usage */
 
 	for (i = 0; i < conf->num_txq; i++) {
-		/* Driver -> SoftNIC */
+		/* Driver -> BESS */
 		llring_init((struct llring *)ptr, SLOTS_PER_LLRING,
 				SINGLE_P, SINGLE_C);
 		priv->inc_qs[i].drv_to_sn = (struct llring *)ptr;
 		ptr += bytes_per_llring;
 
-		/* SoftNIC -> Driver */
+		/* BESS -> Driver */
 		llring_init((struct llring *)ptr, SLOTS_PER_LLRING, 
 				SINGLE_P, SINGLE_C);
 		refill_tx_bufs((struct llring *)ptr);
@@ -206,14 +206,14 @@ static void *alloc_bar(struct port *p,
 		priv->out_qs[i].rx_regs = (struct sn_rxq_registers *)ptr;
 		ptr += sizeof(struct sn_rxq_registers);
 
-		/* Driver -> SoftNIC */
+		/* Driver -> BESS */
 		llring_init((struct llring *)ptr, 
 				SLOTS_PER_LLRING, 
 				SINGLE_P, SINGLE_C);
 		priv->out_qs[i].drv_to_sn = (struct llring *)ptr;
 		ptr += bytes_per_llring;
 
-		/* SoftNIC -> Driver */
+		/* BESS -> Driver */
 		llring_init((struct llring *)ptr, SLOTS_PER_LLRING, 
 				SINGLE_P, SINGLE_C);
 		priv->out_qs[i].sn_to_drv = (struct llring *)ptr;

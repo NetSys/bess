@@ -27,10 +27,10 @@ ports = [Port(driver='PMD', port_id=i, num_inc_q=num_cores, num_out_q=num_cores)
          for i in range(num_ports)]
 
 for i in range(num_cores):
-    softnic.add_worker(wid=i, core=i)
+    bess.add_worker(wid=i, core=i)
 
     src = Source()
-    softnic.attach_task(src.name, 0, wid=i)
+    bess.attach_task(src.name, 0, wid=i)
 
     rr = Roundrobin(gates=num_ports)
 

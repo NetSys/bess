@@ -211,7 +211,7 @@ static void sn_enable_interrupt(struct sn_queue *rx_queue)
 	/* NOTE: make sure check again if the queue is really empty,
 	 * to avoid potential race conditions when you call this function:
 	 *
-	 * Driver:			SoftNIC:
+	 * Driver:			BESS:
 	 * [IRQ is disabled]
 	 * [doing polling]
 	 * if (no pending packet)
@@ -228,7 +228,7 @@ static void sn_enable_interrupt(struct sn_queue *rx_queue)
 
 static void sn_disable_interrupt(struct sn_queue *rx_queue)
 {
-	/* the interrupt is usually disabled by SoftNIC,
+	/* the interrupt is usually disabled by BESS,
 	 * but in some cases the driver itself may also want to disable IRQ
 	 * (e.g., for low latency socket polling) */
 
@@ -786,7 +786,7 @@ int sn_create_netdev(void *bar, struct sn_device **dev_ret)
 	sn_set_default_queue_mapping(dev);
 
 	/* This will disable the default qdisc (mq or pfifo_fast) on the 
-	 * interface. We don't need qdisc since SoftNIC already has its own.
+	 * interface. We don't need qdisc since BESS already has its own.
 	 * Also see attach_default_qdiscs() in sch_generic.c */
 	netdev->tx_queue_len = 0;
 

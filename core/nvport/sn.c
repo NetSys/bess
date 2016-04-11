@@ -87,7 +87,7 @@ static void load_mempool(void)
     /*meta->key_64 = 0;*/
     /*meta->val_64 = 0;*/
 
-    /*// Why do I even add an ethernet header? TODO check if softnic will be upset*/
+    /*// Why do I even add an ethernet header? TODO check if bess will be upset*/
     /*// if this isn't present*/
     /*ether->ether_type = rte_cpu_to_be_16(ETHER_TYPE_ESMETA);*/
     /*ether_addr_copy(&orig->d_addr, &ether->d_addr);*/
@@ -108,7 +108,7 @@ void sn_init_thread (uint32_t lcore) {
 	eal_thread_init_master(lcore);
 }
 
-void init_softnic(uint32_t lcore, char *name)
+void init_bess(uint32_t lcore, char *name)
 {
 	int rte_argc;
 	char *rte_argv[16];

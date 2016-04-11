@@ -4,7 +4,7 @@ class Module(object):
     def __init__(self, name = None, arg = None, **kwargs):
         self.name = '<uninitialized>'
  
-        ret = self.softnic.create_module(self.__class__.__name__, name, 
+        ret = self.bess.create_module(self.__class__.__name__, name, 
                 self.choose_arg(arg, kwargs))
 
         self.name = ret['name']
@@ -60,11 +60,11 @@ class Module(object):
         #print 'Connecting %s:%d -> %d:%s' % \
         #        (self.name, ogate, igate, next_mod.name)
 
-        self.softnic.connect_modules(self.name, next_mod.name, ogate, igate)
+        self.bess.connect_modules(self.name, next_mod.name, ogate, igate)
         
         # for a->b->c syntax
         return next_mod     
 
     def query(self, arg = None, **kwargs):
-        return self.softnic.query_module(self.name, 
+        return self.bess.query_module(self.name, 
                 self.choose_arg(arg, kwargs))

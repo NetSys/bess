@@ -1012,7 +1012,7 @@ static struct handler_map sn_handlers[] = {
 	{ NULL, 		0, NULL }
 };
 
-static struct snobj *handle_snobj_softnic(struct snobj *q)
+static struct snobj *handle_snobj_bess(struct snobj *q)
 {
 	struct snobj *arg;
 	const char *s;
@@ -1097,8 +1097,8 @@ struct snobj *handle_request(struct client *c, struct snobj *q)
 		goto reply;
 	}
 
-	if (strcmp(s, "softnic") == 0) {
-		r = handle_snobj_softnic(q);
+	if (strcmp(s, "bess") == 0) {
+		r = handle_snobj_bess(q);
 	} else if (strcmp(s, "module") == 0) {
 		r = handle_snobj_module(q);
 	} else

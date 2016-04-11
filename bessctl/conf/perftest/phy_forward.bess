@@ -23,7 +23,7 @@ if q_size:
     kwargs['size_out_q'] = q_size
 
 for i in range(num_cores):
-    softnic.add_worker(i, start_core + i)
+    bess.add_worker(i, start_core + i)
 
 ports = []
 for i in range(num_ports):
@@ -52,5 +52,5 @@ for i in range(num_ports):
         QueueInc(name=qinc_name, port=ports[inc_port_id], qid=j) \
         -> QueueOut(name=qout_name, port=ports[out_port_id], qid=j)
 
-        softnic.attach_task(qinc_name, 0, wid=next_wid)
+        bess.attach_task(qinc_name, 0, wid=next_wid)
         next_wid = (next_wid + 1) % num_cores

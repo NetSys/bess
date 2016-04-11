@@ -11,14 +11,14 @@ import commands
 try:
     this_dir = os.path.dirname(os.path.realpath(__file__))
     sys.path.insert(1, '%s/../libbess-python' % this_dir)
-    from softnic import *
+    from bess import *
 except ImportError:
     print >> sys.stderr, 'Cannot import the API module (libbess-python)'
 
 class BESSCLI(cli.CLI):
-    def __init__(self, softnic, cmd_db, fin=sys.stdin, 
+    def __init__(self, bess, cmd_db, fin=sys.stdin, 
                  fout=sys.stdout, history_file=None):
-        self.softnic = softnic
+        self.bess = bess
         self.cmd_db = cmd_db
         self.this_dir = this_dir
 
@@ -49,10 +49,10 @@ class BESSCLI(cli.CLI):
     def call_func(self, func, args):
         try:
             super(BESSCLI, self).call_func(func, args)
-        except self.softnic.APIError as e:
+        except self.bess.APIError as e:
             self.err(e)
             raise self.HandledError()
-        except self.softnic.Error as e:
+        except self.bess.Error as e:
             self.err(e.errmsg)
 
             if e.err in errno.errorcode:
@@ -89,16 +89,16 @@ class BESSCLI(cli.CLI):
 
             self.err('Disconnected from BESS daemon - errno=%d (%s: %s)' % \
                     (e.errno, err_code, os.strerror(e.errno)))
-            self.softnic.disconnect()
+            self.bess.disconnect()
 
     def get_prompt(self):
-        if self.softnic.is_connected():
-            return '%s:%d $ ' % self.softnic.peer
+        if self.bess.is_connected():
+            return '%s:%d $ ' % self.bess.peer
         else:
             return '<disconnected> $ '
 
-def connect_softnic():
-    s = SoftNIC()
+def connect_bess():
+    s = BESS()
     try:
         s.connect()
     except s.APIError as e:
@@ -114,12 +114,12 @@ def run_cli():
         hist_file = None
         raise
 
-    s = connect_softnic()
+    s = connect_bess()
     cli = BESSCLI(s, commands, history_file=hist_file)
     cli.loop()
 
 def run_cmds(instream):
-    s = connect_softnic()
+    s = connect_bess()
     cli = BESSCLI(s, commands, fin=instream, history_file=None)
     cli.loop()
 

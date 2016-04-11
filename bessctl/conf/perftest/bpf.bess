@@ -16,11 +16,11 @@ def run_testcase(exps, test_pkts):
     bpf.query([{'priority': -i, 'filter': exp, 'gate': i + 1} \
             for i, exp in enumerate(exps)])
 
-    softnic.resume_all()
+    bess.resume_all()
 
-    old_stats = softnic.get_module_info(bpf.name).ogates
+    old_stats = bess.get_module_info(bpf.name).ogates
     time.sleep(2)
-    new_stats = softnic.get_module_info(bpf.name).ogates
+    new_stats = bess.get_module_info(bpf.name).ogates
 
     pps_unmatched = \
             (new_stats[0].pkts - old_stats[0].pkts) / \
@@ -38,7 +38,7 @@ def run_testcase(exps, test_pkts):
              pps_matched / 1000000.0, 
              pps_unmatched / 1000000.0)
 
-    softnic.pause_all()
+    bess.pause_all()
 
 udp_pkt   = scapy.Ether()/scapy.IP()/scapy.UDP()
 tcp_pkt   = scapy.Ether()/scapy.IP()/scapy.TCP()

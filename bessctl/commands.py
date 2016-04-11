@@ -125,17 +125,17 @@ def get_var_attrs(cli, var_token, partial_word):
         if var_token == 'WORKER_ID...':
             var_type = 'wid+'
             var_desc = 'one or more worker IDs'
-            var_candidates = [str(m.wid) for m in cli.softnic.list_workers()]
+            var_candidates = [str(m.wid) for m in cli.bess.list_workers()]
 
         elif var_token == 'DRIVER':
             var_type = 'name'
             var_desc = 'name of a port driver'
-            var_candidates = cli.softnic.list_drivers()
+            var_candidates = cli.bess.list_drivers()
 
         elif var_token == 'MCLASS':
             var_type = 'name'
             var_desc = 'name of a module class'
-            var_candidates = cli.softnic.list_mclasses()
+            var_candidates = cli.bess.list_mclasses()
 
         elif var_token == '[NEW_MODULE]':
             var_type = 'name'
@@ -144,12 +144,12 @@ def get_var_attrs(cli, var_token, partial_word):
         elif var_token == 'MODULE':
             var_type = 'name'
             var_desc = 'name of an existing module instance'
-            var_candidates = [m.name for m in cli.softnic.list_modules()]
+            var_candidates = [m.name for m in cli.bess.list_modules()]
 
         elif var_token == 'MODULE...':
             var_type = 'name+'
             var_desc = 'one or more module names'
-            var_candidates = [m.name for m in cli.softnic.list_modules()]
+            var_candidates = [m.name for m in cli.bess.list_modules()]
 
         elif var_token == '[NEW_PORT]':
             var_type = 'name'
@@ -158,17 +158,17 @@ def get_var_attrs(cli, var_token, partial_word):
         elif var_token == 'PORT':
             var_type = 'name'
             var_desc = 'name of a port'
-            var_candidates = [p.name for p in cli.softnic.list_ports()]
+            var_candidates = [p.name for p in cli.bess.list_ports()]
 
         elif var_token == 'PORT...':
             var_type = 'name+'
             var_desc = 'one or more port names'
-            var_candidates = [p.name for p in cli.softnic.list_ports()]
+            var_candidates = [p.name for p in cli.bess.list_ports()]
 
         elif var_token == 'TC...':
             var_type = 'name+'
             var_desc = 'one or more traffic class names'
-            var_candidates = [c.name for c in cli.softnic.list_tcs()]
+            var_candidates = [c.name for c in cli.bess.list_tcs()]
 
         elif var_token == 'CONF':
             var_type = 'confname'
@@ -207,11 +207,11 @@ def get_var_attrs(cli, var_token, partial_word):
 
     except socket.error as e:
         if e.errno in [errno.ECONNRESET, errno.EPIPE]:
-            cli.softnic.disconnect()
+            cli.bess.disconnect()
         else:
             raise
 
-    except cli.softnic.APIError:
+    except cli.bess.APIError:
         pass
 
     if var_type == None:
@@ -345,11 +345,11 @@ def daemon_connect(cli, host, port):
     if port:
         kwargs['port'] = int(port)
 
-    cli.softnic.connect(**kwargs)
+    cli.bess.connect(**kwargs)
 
 @cmd('daemon disconnect', 'Disconnect from BESS daemon')
 def daemon_disconnect(cli):
-    cli.softnic.disconnect()
+    cli.bess.disconnect()
 
 # return False iff canceled.
 def warn(cli, msg, func):
@@ -385,7 +385,7 @@ def warn(cli, msg, func):
 def _do_start(cli):
     cmd = 'sudo %s/core/bessd -k' % os.path.dirname(cli.this_dir)
 
-    cli.softnic.disconnect()
+    cli.bess.disconnect()
 
     try:
         ret = os.system('sudo -n echo -n 2> /dev/null')
@@ -396,7 +396,7 @@ def _do_start(cli):
     except subprocess.CalledProcessError:
         raise cli.CommandError('Cannot start BESS daemon')
     else:
-        cli.softnic.connect()
+        cli.bess.connect()
 
 @cmd('daemon start', 'Start BESS daemon in the local machine')
 def daemon_start(cli):
@@ -421,13 +421,13 @@ def daemon_start(cli):
         _do_start(cli)
 
 def is_pipeline_empty(cli):
-    workers = cli.softnic.list_workers()
+    workers = cli.bess.list_workers()
     return len(workers) == 0
 
 def _do_reset(cli):
-    cli.softnic.pause_all()
-    cli.softnic.reset_all()
-    cli.softnic.resume_all()
+    cli.bess.pause_all()
+    cli.bess.reset_all()
+    cli.bess.resume_all()
     if cli.interactive:
         cli.fout.write('Done.\n')
 
@@ -439,8 +439,8 @@ def daemon_reset(cli):
         warn(cli, 'The entire pipeline will be cleared.', _do_reset)
 
 def _do_stop(cli):
-    cli.softnic.pause_all()
-    cli.softnic.kill()
+    cli.bess.pause_all()
+    cli.bess.kill()
     if cli.interactive:
         cli.fout.write('Done.\n')
 
@@ -459,7 +459,7 @@ def _choose_arg(arg, kwargs):
                 kwargs[key] = kwargs[key].name
 
         if arg:
-            raise softnic.Error('You cannot specify both arg and keyword args')
+            raise bess.Error('You cannot specify both arg and keyword args')
         else:
             return kwargs
 
@@ -469,8 +469,8 @@ def _choose_arg(arg, kwargs):
         return arg
 
 def _clear_pipeline(cli):
-    cli.softnic.pause_all()
-    cli.softnic.reset_all()
+    cli.bess.pause_all()
+    cli.bess.reset_all()
 
 # NOTE: the name of this function is used below
 def _do_run_file(cli, conf_file):
@@ -482,30 +482,30 @@ def _do_run_file(cli, conf_file):
 
     new_globals = {
             '__builtins__': __builtins__,
-            'softnic': cli.softnic,
+            'bess': cli.bess,
             'ConfError': ConfError,
             '__bess_env__': __bess_env__,
             '__bess_module__': __bess_module__,
         }
 
-    class_names = cli.softnic.list_mclasses()
+    class_names = cli.bess.list_mclasses()
 
     # Add the special Port class. TODO: per-driver classes
     new_globals['Port'] = type('Port', (Port,), 
-            {'softnic': cli.softnic, 'choose_arg': _choose_arg})
+            {'bess': cli.bess, 'choose_arg': _choose_arg})
 
-    # Add SoftNIC module classes
+    # Add BESS module classes
     for name in class_names:
         if name in new_globals:
             raise cli.InternalError('Invalid module class name: %s' % name)
 
         new_globals[name] = type(name, (Module,),
-                {'softnic': cli.softnic, 'choose_arg': _choose_arg})
+                {'bess': cli.bess, 'choose_arg': _choose_arg})
 
     code = compile(xformed, conf_file, 'exec')
 
     if is_pipeline_empty(cli):
-        cli.softnic.pause_all()
+        cli.bess.pause_all()
     else:
         ret = warn(cli, 'The current pipeline will be reset.', _clear_pipeline)
         if ret is False:
@@ -515,10 +515,10 @@ def _do_run_file(cli, conf_file):
         exec(code, new_globals)
         if cli.interactive:
             cli.fout.write('Done.\n')
-    except cli.softnic.Error:
+    except cli.bess.Error:
         raise
 
-    except cli.softnic.APIError:
+    except cli.bess.APIError:
         raise
 
     except ConfError as e:
@@ -538,7 +538,7 @@ def _do_run_file(cli, conf_file):
         cli.fout.write(''.join(traceback.format_exception_only(t, v)))
 
     finally:
-        cli.softnic.resume_all()
+        cli.bess.resume_all()
 
 def _run_file(cli, conf_file, env_map):
     if env_map:
@@ -569,18 +569,18 @@ def run_file(cli, conf_file, env_map):
 
 @cmd('add port DRIVER [NEW_PORT] [PORT_ARGS...]', 'Add a new port')
 def add_port(cli, driver, port, args):
-    ret = cli.softnic.create_port(driver, port, args)
+    ret = cli.bess.create_port(driver, port, args)
 
     if port is None:
         cli.fout.write('  The new port "%s" has been created\n' % ret.name)
 
 @cmd('add module MCLASS [NEW_MODULE] [MODULE_ARGS...]', 'Add a new module')
 def add_module(cli, mclass, module, args):
-    cli.softnic.pause_all()
+    cli.bess.pause_all()
     try:
-        ret = cli.softnic.create_module(mclass, module, args)
+        ret = cli.bess.create_module(mclass, module, args)
     finally:
-        cli.softnic.resume_all()
+        cli.bess.resume_all()
 
     if module is None:
         cli.fout.write('  The new module "%s" has been created\n' % ret.name)
@@ -594,23 +594,23 @@ def add_connection(cli, m1, m2, ogate, igate):
     if igate is None:
         igate = 0
 
-    cli.softnic.pause_all()
+    cli.bess.pause_all()
     try:
-        cli.softnic.connect_modules(m1, m2, ogate, igate)
+        cli.bess.connect_modules(m1, m2, ogate, igate)
     finally:
-        cli.softnic.resume_all()
+        cli.bess.resume_all()
 
 @cmd('delete port PORT', 'Delete a port')
 def delete_port(cli, port):
-    cli.softnic.destroy_port(port)
+    cli.bess.destroy_port(port)
 
 @cmd('delete module MODULE', 'Delete a module')
 def delete_module(cli, module):
-    cli.softnic.pause_all()
+    cli.bess.pause_all()
     try:
-        cli.softnic.destroy_module(module)
+        cli.bess.destroy_module(module)
     finally:
-        cli.softnic.resume_all()
+        cli.bess.resume_all()
 
 @cmd('delete connection MODULE ogate [OGATE]', 
     'Delete a connection between two modules')
@@ -618,11 +618,11 @@ def delete_connection(cli, module, ogate):
     if ogate is None:
         ogate = 0
 
-    cli.softnic.pause_all()
+    cli.bess.pause_all()
     try:
-        cli.softnic.disconnect_modules(module, ogate)
+        cli.bess.disconnect_modules(module, ogate)
     finally:
-        cli.softnic.resume_all()
+        cli.bess.resume_all()
 
 def _show_worker_header(cli):
     cli.fout.write('  %10s%10s%10s%10s%16s\n' % \
@@ -642,7 +642,7 @@ def _show_worker(cli, w):
 
 @cmd('show worker', 'Show the status of all worker threads')
 def show_worker_all(cli):
-    workers = cli.softnic.list_workers()
+    workers = cli.bess.list_workers()
 
     if not workers:
         raise cli.CommandError('There is no active worker thread to show.')
@@ -653,7 +653,7 @@ def show_worker_all(cli):
 
 @cmd('show worker WORKER_ID...', 'Show the status of specified worker threads')
 def show_worker_list(cli, worker_ids):
-    workers = cli.softnic.list_workers()
+    workers = cli.bess.list_workers()
 
     for wid in worker_ids:
         for worker in workers:
@@ -721,21 +721,21 @@ def _show_tc_list(cli, tcs):
             
 @cmd('show tc', 'Show the list of traffic classes')
 def show_tc_all(cli):
-    _show_tc_list(cli, cli.softnic.list_tcs())
+    _show_tc_list(cli, cli.bess.list_tcs())
 
 @cmd('show tc worker WORKER_ID...', 'Show the list of traffic classes')
 def show_tc_workers(cli, wids):
     wids = sorted(list(set(wids)))
     for wid in wids:
-        _show_tc_list(cli, cli.softnic.list_tcs(wid))
+        _show_tc_list(cli, cli.bess.list_tcs(wid))
 
 @cmd('show status', 'Show the overall status')
 def show_status(cli):
-    workers = sorted(cli.softnic.list_workers())
-    drivers = sorted(cli.softnic.list_drivers())
-    mclasses = sorted(cli.softnic.list_mclasses())
-    modules = sorted(cli.softnic.list_modules())
-    ports = sorted(cli.softnic.list_ports())
+    workers = sorted(cli.bess.list_workers())
+    drivers = sorted(cli.bess.list_drivers())
+    mclasses = sorted(cli.bess.list_mclasses())
+    modules = sorted(cli.bess.list_modules())
+    ports = sorted(cli.bess.list_ports())
 
     cli.fout.write('  Active worker threads: ')
     if workers:
@@ -780,7 +780,7 @@ def show_status(cli):
 
 # last_stats: a map of (node name, gateid) -> (timestamp, counter value)
 def _draw_pipeline(cli, field, last_stats = None):
-    modules = sorted(cli.softnic.list_modules())
+    modules = sorted(cli.bess.list_modules())
     names = []
     node_labels = {}
 
@@ -806,7 +806,7 @@ def _draw_pipeline(cli, field, last_stats = None):
             print >> f.stdin, '[%s]' % node_labels[m.name]
 
         for name in names:
-            gates = cli.softnic.get_module_info(name).ogates
+            gates = cli.bess.get_module_info(name).ogates
 
             for gate in gates:
                 if last_stats is not None:
@@ -857,7 +857,7 @@ def _group(number):
 def _show_port(cli, port):
     cli.fout.write('  %s/%s\n' % (port.name, port.driver))
     
-    port_stats = cli.softnic.get_port_stats(port.name)
+    port_stats = cli.bess.get_port_stats(port.name)
 
     cli.fout.write('    Incoming (external -> BESS):\n')
     cli.fout.write('      packets: %s\n' % _group(port_stats.inc.packets))
@@ -871,7 +871,7 @@ def _show_port(cli, port):
 
 @cmd('show port', 'Show the status of all ports')
 def show_port_all(cli):
-    ports = cli.softnic.list_ports()
+    ports = cli.bess.list_ports()
 
     if not ports:
         raise cli.CommandError('There is no active port to show.')
@@ -881,7 +881,7 @@ def show_port_all(cli):
 
 @cmd('show port PORT...', 'Show the status of spcified ports')
 def show_port_list(cli, port_names):
-    ports = cli.softnic.list_ports()
+    ports = cli.bess.list_ports()
 
     port_names = list(set(port_names))
     for port_name in port_names:
@@ -893,7 +893,7 @@ def show_port_list(cli, port_names):
             raise cli.CommandError('Port "%s" doest not exist' % port_name)
 
 def _show_module(cli, module):
-    info = cli.softnic.get_module_info(module.name)
+    info = cli.bess.get_module_info(module.name)
 
     cli.fout.write('  %s::%s' % (info.name, info.mclass))
 
@@ -928,7 +928,7 @@ def _show_module(cli, module):
 
 @cmd('show module', 'Show the status of all modules')
 def show_module_all(cli):
-    modules = cli.softnic.list_modules()
+    modules = cli.bess.list_modules()
 
     if not modules:
         raise cli.CommandError('There is no active module to show.')
@@ -938,7 +938,7 @@ def show_module_all(cli):
 
 @cmd('show module MODULE...', 'Show the status of specified modules')
 def show_module_list(cli, module_names):
-    modules = cli.softnic.list_modules()
+    modules = cli.bess.list_modules()
 
     for module_name in module_names:
         for module in modules:
@@ -949,11 +949,11 @@ def show_module_list(cli, module_names):
             raise cli.CommandError('Module "%s" doest not exist' % module_name)
 
 def _monitor_pipeline(cli, field):
-    modules = sorted(cli.softnic.list_modules())
+    modules = sorted(cli.bess.list_modules())
    
     last_stats = {}
     for module in modules:
-        gates = cli.softnic.get_module_info(module.name).ogates
+        gates = cli.bess.get_module_info(module.name).ogates
 
         for gate in gates:
             last_stats[(module.name, gate.ogate)] = \
@@ -1011,7 +1011,7 @@ def _monitor_ports(cli, *ports):
                     total[pdir][key] += stat[pdir][key]
         return total
 
-    all_ports = sorted(cli.softnic.list_ports())
+    all_ports = sorted(cli.bess.list_ports())
     drivers = {}
     for port in all_ports:
         drivers[port.name] = port.driver
@@ -1027,14 +1027,14 @@ def _monitor_ports(cli, *ports):
     now = {}
 
     for port in ports:
-        last[port] = cli.softnic.get_port_stats(port)
+        last[port] = cli.bess.get_port_stats(port)
     
     try:
         while True:
             time.sleep(1)
 
             for port in ports:
-                now[port] = cli.softnic.get_port_stats(port)
+                now[port] = cli.bess.get_port_stats(port)
 
             print_header(now[port].timestamp)
 
@@ -1109,7 +1109,7 @@ def _monitor_tcs(cli, *tcs):
 
         return total
 
-    all_tcs = cli.softnic.list_tcs()
+    all_tcs = cli.bess.list_tcs()
     wids = {}
     for tc in all_tcs:
         wids[tc.name] = tc.wid
@@ -1125,14 +1125,14 @@ def _monitor_tcs(cli, *tcs):
     now = {}
 
     for tc in tcs:
-        last[tc] = cli.softnic.get_tc_stats(tc)
+        last[tc] = cli.bess.get_tc_stats(tc)
 
     try:
         while True:
             time.sleep(1)
 
             for tc in tcs:
-                now[tc] = cli.softnic.get_tc_stats(tc)
+                now[tc] = cli.bess.get_tc_stats(tc)
 
             print_header(now[tc].timestamp)
 
@@ -1182,11 +1182,11 @@ def tcpdump_module(cli, module_name, ogate, opts):
     cli.fout.write('  Running: %s\n' % tcpdump_cmd)
     proc = subprocess.Popen(tcpdump_cmd, shell=True, preexec_fn = os.setsid)
 
-    cli.softnic.pause_all()
+    cli.bess.pause_all()
     try:
-        cli.softnic.enable_tcpdump(fifo, module_name, ogate)
+        cli.bess.enable_tcpdump(fifo, module_name, ogate)
     finally:
-        cli.softnic.resume_all()
+        cli.bess.resume_all()
 
     try:
         proc.wait()
@@ -1194,11 +1194,11 @@ def tcpdump_module(cli, module_name, ogate, opts):
         # kill all descendants in the process group
         os.killpg(proc.pid, signal.SIGTERM)
     finally:
-        cli.softnic.pause_all()
+        cli.bess.pause_all()
         try:
-            cli.softnic.disable_tcpdump(module_name, ogate)
+            cli.bess.disable_tcpdump(module_name, ogate)
         finally:
-            cli.softnic.resume_all()
+            cli.bess.resume_all()
 
         try:
             os.close(fd)

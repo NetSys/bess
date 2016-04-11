@@ -2,24 +2,24 @@
 
 # for every second, src0 is scheduled 100000 times 
 src0::Source() -> Sink()
-softnic.add_tc('schedule_limit', limit={'schedules': 100000})
-softnic.attach_task(src0.name, tc='schedule_limit')
+bess.add_tc('schedule_limit', limit={'schedules': 100000})
+bess.attach_task(src0.name, tc='schedule_limit')
 
 # up to 100Mhz
 src1::Source() -> Sink()
-softnic.add_tc('cycle_limit', limit={'cycles': 100000000})
-softnic.attach_task(src1.name, tc='cycle_limit')
+bess.add_tc('cycle_limit', limit={'cycles': 100000000})
+bess.attach_task(src1.name, tc='cycle_limit')
 
 # 10M packets / sec
 src2::Source() -> Sink()
-softnic.add_tc('packet_limit', limit={'packets': 10000000})
-softnic.attach_task(src2.name, tc='packet_limit')
+bess.add_tc('packet_limit', limit={'packets': 10000000})
+bess.attach_task(src2.name, tc='packet_limit')
 
 # Gigabits per second
 src3::Source() -> Sink()
-softnic.add_tc('bit_limit', limit={'bits': 1000000000})
-softnic.attach_task(src3.name, tc='bit_limit')
+bess.add_tc('bit_limit', limit={'bits': 1000000000})
+bess.attach_task(src3.name, tc='bit_limit')
 
 src4::Source() -> Sink()
-softnic.add_tc('unlimited')
-softnic.attach_task(src4.name, tc='unlimited')
+bess.add_tc('unlimited')
+bess.attach_task(src4.name, tc='unlimited')

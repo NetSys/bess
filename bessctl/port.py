@@ -3,7 +3,7 @@ class Port(object):
         self.name = '<uninitialized>'
         self.driver = driver
 
-        ret = self.softnic.create_port(driver, name, 
+        ret = self.bess.create_port(driver, name, 
                 self.choose_arg(arg, kwargs))
 
         self.name = ret['name']
@@ -13,4 +13,4 @@ class Port(object):
         return '%s::%s' % (self.name, self.driver)
 
     def get_port_stats(self):
-        return self.softnic.get_port_stats(self.name)
+        return self.bess.get_port_stats(self.name)

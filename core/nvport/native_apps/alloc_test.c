@@ -331,7 +331,7 @@ int main(int argc, char **argv)
 		// Choose a random unique name if one isn't provided
 		snprintf(unique_name, sizeof(unique_name), "%u", rand());
 	}
-	init_softnic(core, unique_name);
+	init_bess(core, unique_name);
 
 	printf("Started alloc_test with unique name %s\n", unique_name);
 	printf("registering input port %s\n", in_ifname);

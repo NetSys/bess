@@ -17,7 +17,7 @@ struct snstore_kvpair {
 	void *value;
 };
 
-/* Must be called by SoftNIC only */
+/* Must be called by BESS only */
 void init_snstore(void);
 
 /* returns -1 if not exists */

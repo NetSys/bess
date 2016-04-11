@@ -169,7 +169,7 @@ int main(int argc, char **argv)
 		snprintf(unique_name, sizeof(unique_name), "%u", rand());
 	}
 	
-	init_softnic(1 << core, unique_name);
+	init_bess(1 << core, unique_name);
 
 	printf("Starting sourcesink with unique name %s\n", unique_name);
 

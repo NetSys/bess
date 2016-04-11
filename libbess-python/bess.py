@@ -6,9 +6,9 @@ import os
 
 import message
 
-class SoftNIC(object):
+class BESS(object):
 
-    # errors from SoftNIC daemon
+    # errors from BESS daemon
     class Error(Exception):
         def __init__(self, err, errmsg, details):
             self.err = err
@@ -100,11 +100,11 @@ class SoftNIC(object):
 
         return obj
 
-    def _request_softnic(self, cmd, arg=None):
+    def _request_bess(self, cmd, arg=None):
         if arg is not None:
-            return self._request({'to': 'softnic', 'cmd': cmd, 'arg': arg})
+            return self._request({'to': 'bess', 'cmd': cmd, 'arg': arg})
         else:
-            return self._request({'to': 'softnic', 'cmd': cmd})
+            return self._request({'to': 'bess', 'cmd': cmd})
 
     def _request_module(self, name, cmd, arg=None):
         if arg is not None:
@@ -115,27 +115,27 @@ class SoftNIC(object):
 
     def kill(self):
         try:
-            return self._request_softnic('kill_bess')
+            return self._request_bess('kill_bess')
         except socket.error:
             self.disconnect()
 
     def reset_all(self):
-        return self._request_softnic('reset_all')
+        return self._request_bess('reset_all')
 
     def pause_all(self):
-        return self._request_softnic('pause_all')
+        return self._request_bess('pause_all')
 
     def resume_all(self):
-        return self._request_softnic('resume_all')
+        return self._request_bess('resume_all')
 
     def list_drivers(self):
-        return self._request_softnic('list_drivers')
+        return self._request_bess('list_drivers')
 
     def reset_ports(self):
-        return self._request_softnic('reset_ports')
+        return self._request_bess('reset_ports')
 
     def list_ports(self):
-        return self._request_softnic('list_ports')
+        return self._request_bess('list_ports')
 
     def create_port(self, driver = 'PMD', name = None, arg = None):
         kv = {'driver': driver}
@@ -143,22 +143,22 @@ class SoftNIC(object):
         if name is not None:    kv['name'] = name
         if arg is not None:     kv['arg'] = arg
 
-        return self._request_softnic('create_port', kv)
+        return self._request_bess('create_port', kv)
 
     def destroy_port(self, name):
-        return self._request_softnic('destroy_port', name)
+        return self._request_bess('destroy_port', name)
 
     def get_port_stats(self, port):
-        return self._request_softnic('get_port_stats', port)
+        return self._request_bess('get_port_stats', port)
 
     def list_modules(self):
-        return self._request_softnic('list_modules')
+        return self._request_bess('list_modules')
 
     def list_mclasses(self):
-        return self._request_softnic('list_mclasses')
+        return self._request_bess('list_mclasses')
 
     def reset_modules(self):
-        return self._request_softnic('reset_modules')
+        return self._request_bess('reset_modules')
 
     def create_module(self, mclass, name = None, arg = None):
         kv = {'mclass': mclass}
@@ -166,20 +166,20 @@ class SoftNIC(object):
         if name is not None:    kv['name'] = name
         if arg is not None:     kv['arg'] = arg
 
-        return self._request_softnic('create_module', kv)
+        return self._request_bess('create_module', kv)
 
     def destroy_module(self, name):
-        return self._request_softnic('destroy_module', name)
+        return self._request_bess('destroy_module', name)
 
     def get_module_info(self, name):
-        return self._request_softnic('get_module_info', name)
+        return self._request_bess('get_module_info', name)
 
     def connect_modules(self, m1, m2, ogate = 0, igate = 0):
-        return self._request_softnic('connect_modules', 
+        return self._request_bess('connect_modules', 
                 {'m1': m1, 'm2': m2, 'ogate': ogate, 'igate': igate})
 
     def disconnect_modules(self, name, ogate = 0):
-        return self._request_softnic('disconnect_modules', 
+        return self._request_bess('disconnect_modules', 
                 {'name': name, 'ogate': ogate})
 
     def query_module(self, name, arg):
@@ -187,18 +187,18 @@ class SoftNIC(object):
 
     def enable_tcpdump(self, fifo, m, ogate = 0):
         args = {'name': m, 'ogate': ogate, 'fifo': fifo}
-        return self._request_softnic('enable_tcpdump', args)
+        return self._request_bess('enable_tcpdump', args)
 
     def disable_tcpdump(self, m, ogate = 0):
         args = {'name': m, 'ogate': ogate}
-        return self._request_softnic('disable_tcpdump', args)
+        return self._request_bess('disable_tcpdump', args)
 
     def list_workers(self):
-        return self._request_softnic('list_workers')
+        return self._request_bess('list_workers')
 
     def add_worker(self, wid, core):
         args = {'wid': wid, 'core': core}
-        return self._request_softnic('add_worker', args)
+        return self._request_bess('add_worker', args)
 
     def attach_task(self, m, tid=0, tc=None, wid=None):
         if (tc is None) == (wid is None):
@@ -210,14 +210,14 @@ class SoftNIC(object):
         else:
             args = {'name': m, 'taskid': tid, 'wid': wid}
 
-        return self._request_softnic('attach_task', args)
+        return self._request_bess('attach_task', args)
 
     def list_tcs(self, wid = None):
         args = None
         if wid is not None:
             args = {'wid': wid}
 
-        return self._request_softnic('list_tcs', args)
+        return self._request_bess('list_tcs', args)
 
     def add_tc(self, name, wid=0, priority=0, limit=None, max_burst=None):
         args = {'name': name, 'wid': wid, 'priority': priority}
@@ -227,7 +227,7 @@ class SoftNIC(object):
         if max_burst:
             args['max_burst'] = max_burst
 
-        return self._request_softnic('add_tc', args)
+        return self._request_bess('add_tc', args)
 
     def get_tc_stats(self, name):
-        return self._request_softnic('get_tc_stats', name)
+        return self._request_bess('get_tc_stats', name)

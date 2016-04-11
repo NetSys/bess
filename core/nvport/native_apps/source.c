@@ -151,7 +151,7 @@ static int run_source(void)
 
 		for (i = 0; i < sent; i++) {
 			/* NOTE: accessing packets after they are sent is dangerous.
-			 * (they may have been already freed on SoftNic cores
+			 * (they may have been already freed on BESS cores
 			 * Don't try this at home */
 			stats.tx_bytes += snb_total_len(pkts[i]);
 		}
@@ -262,7 +262,7 @@ int main(int argc, char **argv)
 		// Choose a random unique name if one isn't provided
 		snprintf(unique_name, sizeof(unique_name), "%u", rand());
 	}
-	init_softnic(1 << core, unique_name);
+	init_bess(1 << core, unique_name);
 
 	printf("Started fastforward with unique name %s\n", unique_name);
 	printf("registering input port %s\n", in_ifname);

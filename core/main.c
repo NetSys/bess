@@ -32,7 +32,7 @@ static void print_usage(char *exec_name)
 			"-t");
 	log_err("  %-16s Core ID for each worker (e.g., -c 0,8)\n",
 			"-c <core list>");
-	log_err("  %-16s Specifies the TCP port on which SoftNIC" \
+	log_err("  %-16s Specifies the TCP port on which BESS" \
 			" listens for controller connections\n",
 			"-p <port>");
 	log_err("  %-16s Run BESS in foreground mode (for developers)\n",

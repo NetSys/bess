@@ -44,8 +44,8 @@ struct vport_bar {
 
 	/* The term RX/TX could be very confusing for a virtual switch.
 	 * Instead, we use the "incoming/outgoing" convention:
-	 * - incoming: outside -> SoftNIC
-	 * - outgoing: SoftNIC -> outside */
+	 * - incoming: outside -> BESS
+	 * - outgoing: BESS -> outside */
 	int num_inc_q;
 	int num_out_q;
 
@@ -84,7 +84,7 @@ void sn_init_thread (uint32_t lcore);
 
 uint32_t sn_get_lcore_id();
 
-void init_softnic(uint32_t lcore, char *name);
+void init_bess(uint32_t lcore, char *name);
 struct sn_port *init_port(const char *ifname);
 void close_port(struct sn_port *port);
 int sn_receive_pkts(struct sn_port *port, 

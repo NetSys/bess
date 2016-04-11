@@ -138,7 +138,7 @@ struct sn_rxq_registers {
 
 #define SN_TX_FRAG_MAX_NUM      18/*(MAX_SKB_FRAGS + 1)*/
 
-/* Driver -> SoftNIC metadata for TX packets */
+/* Driver -> BESS metadata for TX packets */
 struct sn_tx_metadata {
 	/* Both are relative offsets from the beginning of the packet.
 	 * The sender should set csum_start to CSUM_DONT
@@ -184,7 +184,7 @@ struct sn_rx_desc {
 
 /* BAR layout
  *
- * struct sn_conf_space (set by SoftNIC and currently read-only)
+ * struct sn_conf_space (set by BESS and currently read-only)
  * TX queue 0 llring (drv -> sn)
  * TX queue 0 llring (sn -> drv)
  * TX queue 1 llring (drv -> sn)
@@ -203,12 +203,12 @@ struct sn_rx_desc {
  * since there are differences in who has access whose packet buffer
  * (thus who can perform the copy).
  * For host mode, the driver is the copier. 
- * For guest mode, SoftNIC is the copier. */
+ * For guest mode, BESS is the copier. */
 
 /* Current host mode operation:
  *
  * TX:
- * SoftNIC feeds buffers to the driver via the sn_to_drv llring, in this order:
+ * BESS feeds buffers to the driver via the sn_to_drv llring, in this order:
  *   1. Cookie  2. Address of the buffer (host physical)
  * The buffer must be at least as big as sizeof(sn_tx_metadata) + SNBUF_DATA.
  *
@@ -218,7 +218,7 @@ struct sn_rx_desc {
  * 
  *
  * RX:
- * SoftNIC feeds received packet buffers to the driver via the sn_to_drv llring,
+ * BESS feeds received packet buffers to the driver via the sn_to_drv llring,
  * in this order:
  *   1. Cookie  2. Address of the buffer (host physical)
  * The buffer must be at least as big as sizeof(sn_tx_metadata) + packet size
