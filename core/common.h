@@ -18,7 +18,6 @@ ct_assert(MAX_QUEUES_PER_DIR < QUEUE_UNKNOWN);
 #define MAX_WORKERS	4
 
 extern const struct global_opts {
-	int wid_to_core[MAX_WORKERS];
 	uint16_t port;		/* TCP port for controller (0 for default) */
 	int foreground;		/* If 1, not daemonized */
 	int kill_existing;	/* If 1, kill existing BESS instance */
