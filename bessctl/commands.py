@@ -205,6 +205,10 @@ def get_var_attrs(cli, var_token, partial_word):
             var_type = 'opts'
             var_desc = 'tcpdump(1) options (e.g., "-ne tcp port 22")'
 
+        elif var_token == '[BESSD_OPTS...]':
+            var_type = 'opts'
+            var_desc = 'bess daemon options (see "bessd -h")'
+
     except socket.error as e:
         if e.errno in [errno.ECONNRESET, errno.EPIPE]:
             cli.bess.disconnect()
@@ -352,7 +356,7 @@ def daemon_disconnect(cli):
     cli.bess.disconnect()
 
 # return False iff canceled.
-def warn(cli, msg, func):
+def warn(cli, msg, func, *args):
     if cli.interactive:
         if cli.rl:
             cli.rl.set_completer(cli.complete_dummy)
@@ -361,7 +365,7 @@ def warn(cli, msg, func):
             resp = raw_input('WARNING: %s Are you sure? (type "yes") ' % msg)
 
             if resp.strip() == 'yes':
-                func(cli)
+                func(cli, *args)
             else:
                 cli.fout.write('Canceled.\n')
                 return False
@@ -378,12 +382,16 @@ def warn(cli, msg, func):
                 cli.rl.remove_history_item(hist_len - 1)
 
     else:
-        func(cli)
+        func(cli, *args)
 
     return True
 
-def _do_start(cli):
-    cmd = 'sudo %s/core/bessd -k' % os.path.dirname(cli.this_dir)
+def _do_start(cli, opts):
+    if opts is None:
+        opts = []
+
+    cmd = 'sudo %s/core/bessd -k %s' % \
+            (os.path.dirname(cli.this_dir), ' '.join(opts))
 
     cli.bess.disconnect()
 
@@ -394,12 +402,16 @@ def _do_start(cli):
                     'but "sudo" requires a password for this account.\n')
         subprocess.check_call(cmd, shell='True')
     except subprocess.CalledProcessError:
+        try:
+            cli.bess.connect()  # reconnect to the old instance, if any
+        except:
+            pass
         raise cli.CommandError('Cannot start BESS daemon')
     else:
         cli.bess.connect()
 
-@cmd('daemon start', 'Start BESS daemon in the local machine')
-def daemon_start(cli):
+@cmd('daemon start [BESSD_OPTS...]', 'Start BESS daemon in the local machine')
+def daemon_start(cli, opts):
     daemon_exists = False
 
     try:
@@ -416,9 +428,9 @@ def daemon_start(cli):
             raise
 
     if daemon_exists:
-        warn(cli, 'Existing BESS daemon will be killed.', _do_start)
+        warn(cli, 'Existing BESS daemon will be killed.', _do_start, opts)
     else:
-        _do_start(cli)
+        _do_start(cli, opts)
 
 def is_pipeline_empty(cli):
     workers = cli.bess.list_workers()
