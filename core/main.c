@@ -24,24 +24,24 @@ static struct global_opts *opts = (struct global_opts *)&global_opts;
 
 static void print_usage(char *exec_name)
 {
-	log_err("Usage: %s" \
-		" [-t] [-c <core list>] [-p <port>] [-f] [-k] [-d]\n\n",
+	log_info("Usage: %s" \
+		" [-t] [-c <core>] [-p <port>] [-f] [-k] [-d]\n\n",
 		exec_name);
 
-	log_err("  %-16s Dump the size of internal data structures\n", 
+	log_info("  %-16s Dump the size of internal data structures\n", 
 			"-t");
-	log_err("  %-16s Core ID for each worker (e.g., -c 0,8)\n",
-			"-c <core list>");
-	log_err("  %-16s Specifies the TCP port on which BESS" \
+	log_info("  %-16s Core ID for the default worker thread\n",
+			"-c <core>");
+	log_info("  %-16s Specifies the TCP port on which BESS" \
 			" listens for controller connections\n",
 			"-p <port>");
-	log_err("  %-16s Run BESS in foreground mode (for developers)\n",
+	log_info("  %-16s Run BESS in foreground mode (for developers)\n",
 			"-f");
-	log_err("  %-16s Kill existing BESS instance, if any\n",
+	log_info("  %-16s Kill existing BESS instance, if any\n",
 			"-k");
-	log_err("  %-16s Show TC statistics every second\n",
+	log_info("  %-16s Show TC statistics every second\n",
 			"-s");
-	log_err("  %-16s Run BESS in debug mode (with debug log messages)\n",
+	log_info("  %-16s Run BESS in debug mode (with debug log messages)\n",
 			"-d");
 
 	exit(2);
@@ -60,6 +60,15 @@ static void parse_args(int argc, char **argv)
 		case 't':
 			dump_types();
 			exit(EXIT_SUCCESS);
+			break;
+			
+		case 'c':
+			sscanf(optarg, "%d", &opts->default_core);
+			if (!is_cpu_present(opts->default_core)) {
+				log_err("Invalid core ID %d\n", 
+						opts->default_core);
+				print_usage(argv[0]);
+			}
 			break;
 
 		case 'p':
@@ -83,7 +92,7 @@ static void parse_args(int argc, char **argv)
 			break;
 
 		case ':':
-			log_err("argument is required for -%c\n", optopt);
+			log_err("Argument is required for -%c\n", optopt);
 			print_usage(argv[0]);
 			break;
 

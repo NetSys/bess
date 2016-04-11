@@ -137,7 +137,7 @@ void process_orphan_tasks()
 		if (get_next_wid(&wid) < 0) {
 			wid = 0;
 			/* There is no active worker. Create one. */
-			launch_worker(wid, 0);
+			launch_worker(wid, global_opts.default_core);
 		}
 
 		assign_default_tc(wid, t);

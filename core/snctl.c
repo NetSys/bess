@@ -302,7 +302,7 @@ static struct snobj *handle_add_tc(struct snobj *q)
 
 	if (!is_worker_active(wid)) {
 		if (num_workers == 0 && wid == 0)
-			launch_worker(wid, 0);
+			launch_worker(wid, global_opts.default_core);
 		else
 			return snobj_err(EINVAL, 
 					"worker:%d does not exist", wid);
