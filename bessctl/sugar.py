@@ -127,14 +127,6 @@ def replace_envvar(s):
     return s
 
 def replace_rarrows(s):
-    def untokenize(token_list):
-        token_list = map(lambda t: (t[0], t[1], 
-            (t[2][0] - row_offset, t[2][1] - col_offset),
-            (t[3][0] - row_offset, t[3][1] - col_offset),
-            ''), 
-            token_list)
-        return tokenize.untokenize(token_list)
-
     # if the gate expression is not trivial, add parenthesis
     def parenthesize(exp):
         for t in tokenize.generate_tokens(StringIO(exp).readline):
@@ -146,25 +138,52 @@ def replace_rarrows(s):
 
     # Phase 1: split the string with delimiter "->"
     # (cannot simply use .split() as lexical analysis is required)
-    segments = []
-    tbuf = []
+    last_token = None
+    arrows = []
 
-    curr_row = 1
-    row_offset = 0
+    try:
+        for t in tokenize.generate_tokens(StringIO(s).readline):
+            token = t[1]
+            row, col = t[2]
+
+            if last_token == '-' and token == '>':
+                # line numbers returned by tokenizer are 1-indexed...
+                arrows.append((row - 1, col))
+
+            last_token = token
+
+    except (TokenError, IndentationError):
+        return s    # source code with syntax errors. give up.
+
+    segments = []
+    curr_seg = []
+    arrow_idx = 0
+
+    lines = StringIO(s).readlines()
+    line_idx = 0
     col_offset = 0
 
-    for t in tokenize.generate_tokens(StringIO(s).readline):
-        tbuf.append(t)
-        if len(tbuf) >= 2 and tbuf[-2][1] == '-' and tbuf[-1][1] == '>':
-            segments.append(untokenize(tbuf[:-1])[:-1])
-            row_offset = t[3][0] - 1
-            col_offset = t[3][1]
-            tbuf = []
-        if curr_row != t[3][0]:
-            curr_row = t[3][0]
-            col_offset = 0
+    while line_idx < len(lines):
+        line = lines[line_idx]
 
-    segments.append(untokenize(tbuf))
+        if arrow_idx < len(arrows):
+            row, col = arrows[arrow_idx] 
+        else:
+            row, col = None, None
+
+        if row is None or line_idx < row:
+            curr_seg.append(line[col_offset:])
+            line_idx += 1
+            col_offset = 0
+        elif line_idx == row:
+            curr_seg.append(line[col_offset:col-1])
+            segments.append(''.join(curr_seg))
+            curr_seg = []
+            col_offset = col + 1
+            arrow_idx += 1
+        else:
+            assert False
+    segments.append(''.join(curr_seg))
 
     # Phase 2: transform output gate (:xx ->) and input gate (-> :yy) parts
     for i in range(len(segments) - 1):
