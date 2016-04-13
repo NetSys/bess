@@ -1,0 +1,6 @@
+dpdk_ports = int($SN_PORTS!'1')
+print 'Using %d DPDK ports... (envvar "SN_PORTS")' % dpdk_ports
+
+for i in range(dpdk_ports):
+    p = Port(driver='PMD', port_id=i)
+    PortInc(port=p) -> MACSwap() -> PortOut(port=p)
