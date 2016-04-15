@@ -6,7 +6,7 @@ num_cores = int($SN_CORES!'1')
 
 assert(60 <= pkt_size <= 1522)
 assert(1 <= num_ports <= 16)
-assert(1 <= num_ports <= 4)
+assert(1 <= num_cores <= 4)
 
 # generate flows by varying UDP dst port
 num_flows = int($SN_FLOWS!'1')
