@@ -1,16 +1,19 @@
 #include "../module.h"
 
+#include <rte_ether.h>
+
 static void macswap_process_batch(struct module *m, struct pkt_batch *batch)
 {
 	int cnt = batch->cnt;
 
 	for (int i = 0; i < cnt; i++) {
-		char *head = snb_head_data(batch->pkts[i]);
-		char tmp[6];
+		char *head  = snb_head_data(batch->pkts[i]);
+		struct ether_hdr *eth = (struct ether_hdr *)head;
+		struct ether_addr tmp;
 
-		rte_memcpy(tmp, head, 6);
-		rte_memcpy(head, head + 6, 6);
-		rte_memcpy(head + 6, tmp, 6);
+		tmp = eth->d_addr;
+		eth->d_addr = eth->s_addr;
+		eth->s_addr = tmp;
 	}
 
 	run_next_module(m, batch);
