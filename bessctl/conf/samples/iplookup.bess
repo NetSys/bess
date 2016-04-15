@@ -1,0 +1,36 @@
+# Simple IPv4 LPM example. Try tcpdump on each output gate of 'ipfwd'.
+
+import scapy.all as scapy
+
+pkt_size = int($SN_PKT_SIZE!'60')
+num_ports = int($SN_PORTS!'1')
+num_cores = int($SN_CORES!'1')
+
+assert(60 <= pkt_size <= 1522)
+assert(1 <= num_ports <= 16)
+assert(1 <= num_cores <= 4)
+
+# Craft a packet with the specified destination IP address
+def gen_packet(dst_ip):
+    eth = scapy.Ether(src='02:1e:67:9f:4d:ae', dst='06:16:3e:1b:72:32')
+    ip = scapy.IP(src='1.2.3.4', dst=dst_ip)
+    udp = scapy.UDP(sport=10001, dport=10002)
+    payload = ('hello' + '0123456789' * 200)[:pkt_size-len(eth/ip/udp)]
+    pkt = eth/ip/udp/payload
+    return bytearray(str(pkt))
+
+packets = [gen_packet('172.16.100.1'), 
+           gen_packet('172.12.55.99'),
+           gen_packet('192.168.1.123'),
+          ]
+
+Source() -> Rewrite(templates=packets) -> ipfwd::IPLookup()
+
+ipfwd:0 -> Sink()   # there should be no packets 
+ipfwd:1 -> Sink()
+ipfwd:2 -> Sink()
+ipfwd:5 -> Sink()   # used as default gate
+
+ipfwd.query(cmd='add', prefix='172.16.0.0', prefix_len=16, gate=1) 
+ipfwd.query(cmd='add', prefix='192.168.1.0', prefix_len=24, gate=2)
+ipfwd.query(cmd='add', prefix='0.0.0.0', prefix_len=0, gate=5)
