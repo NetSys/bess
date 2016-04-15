@@ -95,6 +95,11 @@ const struct mclass *find_mclass(const char *name);
 /* returns -1 if fails */
 int add_mclass(const struct mclass *mclass);
 
+static inline int is_valid_gate(gate_idx_t gate)
+{
+	return (gate < MAX_GATES || gate == DROP_GATE);
+}
+
 #if 0
 struct old_module_ops {
 	/* Only invoked on the master worker. */
