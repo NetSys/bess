@@ -560,24 +560,50 @@ static struct snobj *handle_get_port_stats(struct snobj *q)
 
 static struct snobj *handle_list_mclasses(struct snobj *q)
 {
+	struct snobj *r = snobj_list();
+	struct ns_iter iter;
+
+	struct mclass *cls;
+
+	ns_init_iterator(&iter, NS_TYPE_MCLASS);
+
+	while ((cls = (struct mclass *)ns_next(&iter)) != NULL)
+		snobj_list_add(r, snobj_str(cls->name));
+
+	ns_release_iterator(&iter);
+
+	return r;
+}
+
+static struct snobj *handle_get_mclass_info(struct snobj *q)
+{
+	const char *cls_name;
+	const struct mclass *cls;
+
 	struct snobj *r;
+	struct snobj *cmds;
 
-	int cnt = 1;
-	int offset;
+	cls_name = snobj_str_get(q);
 
-	r = snobj_list();
+	if (!cls_name)
+		return snobj_err(EINVAL, "Argument must be a name in str");
 
-	for (offset = 0; cnt != 0; offset += cnt) {
-		const int arr_size = 16;
-		const struct mclass *mclasses[arr_size];
+	if ((cls = find_mclass(cls_name)) == NULL)
+		return snobj_err(ENOENT, "No module class '%s' found", 
+				cls_name);
 
-		int i;
-		
-		cnt = list_mclasses(mclasses, arr_size, offset);
+	cmds = snobj_list();
+	for (int i = 0; i < MAX_COMMANDS; i++) {
+		if (!cls->commands[i].cmd)
+			break;
 
-		for (i = 0; i < cnt; i++)
-			snobj_list_add(r, snobj_str(mclasses[i]->name));
-	};
+		snobj_list_add(cmds, snobj_str(cls->commands[i].cmd));
+	}
+
+	r = snobj_map();
+	snobj_map_set(r, "name", snobj_str(cls->name));
+	snobj_map_set(r, "desc", snobj_str(cls->desc ? : ""));
+	snobj_map_set(r, "commands", cmds);
 
 	return r;
 }
@@ -992,6 +1018,7 @@ static struct handler_map sn_handlers[] = {
 	{ "get_port_stats",	0, handle_get_port_stats },
 
 	{ "list_mclasses", 	0, handle_list_mclasses },
+	{ "get_mclass_info",	0, handle_get_mclass_info },
 	{ "import_mclass",	0, handle_not_implemented },	/* TODO */
 
 	{ "reset_modules",	1, handle_reset_modules },
@@ -1036,6 +1063,33 @@ static struct snobj *handle_snobj_bess(struct snobj *q)
 	return snobj_err(ENOTSUP, "Unknown command in 'cmd': '%s'", s);
 }
 
+struct snobj *
+run_module_command(struct module *m, const char *cmd, struct snobj *arg)
+{
+	const struct mclass *cls = m->mclass;
+
+	for (int i = 0; i < MAX_COMMANDS; i++) {
+		if (!cls->commands[i].cmd)
+			break;
+
+		if (strcmp(cls->commands[i].cmd, cmd) == 0) {
+			if (!cls->commands[i].mt_safe && 
+					is_any_worker_running())
+			{
+				return snobj_err(EBUSY, 
+						"There is a running worker and"
+						"command '%s' is not MT safe",
+						cmd);
+			}
+
+			return cls->commands[i].func(m, cmd, arg);
+		}
+	}
+
+	return snobj_err(ENOTSUP, "'%s' does not support command '%s'",
+			cls->name, cmd);
+}
+
 static struct snobj *handle_snobj_module(struct snobj *q)
 {
 	const char *m_name;
@@ -1043,8 +1097,9 @@ static struct snobj *handle_snobj_module(struct snobj *q)
 
 	struct module *m;
 
-	m_name = snobj_eval_str(q, "name");
+	struct snobj *arg;
 
+	m_name = snobj_eval_str(q, "name");
 	if (!m_name)
 		return snobj_err(EINVAL, "Missing module name field 'name'");
 
@@ -1052,28 +1107,19 @@ static struct snobj *handle_snobj_module(struct snobj *q)
 		return snobj_err(ENOENT, "No module '%s' found", m_name);
 
 	cmd = snobj_eval_str(q, "cmd");
+	if (!cmd)
+		return snobj_err(EINVAL, "Missing command name field 'cmd'");
 
-	if (strcmp(cmd, "query") == 0) {
-		struct snobj *arg;
+	arg = snobj_eval(q, "arg");
+	if (!arg) {
+		struct snobj *ret;
 
-		if (!m->mclass->query)
-			return snobj_err(ENOTSUP,
-					"Module '%s' does not support queries",
-					m_name);
-
-		arg = snobj_eval(q, "arg");
-		if (!arg) {
-			struct snobj *ret;
-
-			arg = snobj_nil();
-			ret = m->mclass->query(m, arg);
-			snobj_free(arg);
-			return ret;
-		}
-
-		return m->mclass->query(m, arg);
+		arg = snobj_nil();
+		ret = run_module_command(m, cmd, arg);
+		snobj_free(arg);
+		return ret;
 	} else
-		return snobj_err(ENOTSUP, "Not supported command '%s'", cmd);
+		return run_module_command(m, cmd, arg);
 }
 
 struct snobj *handle_request(struct client *c, struct snobj *q)

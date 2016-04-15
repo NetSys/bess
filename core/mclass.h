@@ -22,16 +22,24 @@ typedef uint16_t gate_idx_t;
 ct_assert(MAX_GATES < INVALID_GATE);
 ct_assert(DROP_GATE <= MAX_GATES);
 
+#define MAX_COMMANDS		32
+
 struct module;
 struct pkt_batch;
 struct snobj;
 
 typedef void (*proc_func_t) (struct module *, struct pkt_batch *);
 
+typedef struct snobj *
+(*cmd_func_t) (struct module *, const char *, struct snobj *);
+
 struct mclass
 {
 	/* Required: should be like "CamelCase" */
 	const char *name;
+
+	/* Optional: one-line description of the module class */
+	const char *desc;
 
 	/* Optional: should be like "lower_case". 
 	 * - "%d" is automatically appended.
@@ -85,6 +93,15 @@ struct mclass
 	
 	/* The entry point of the packet packet processing pipeline */
 	task_func_t run_task;
+
+	const struct {
+		const char *cmd;
+		cmd_func_t func;
+
+		/* if non-zero, workers don't need to be paused in order to
+		 * run this command */
+		int mt_safe;
+	} commands[MAX_COMMANDS];
 };
 
 size_t list_mclasses(const struct mclass **p_arr, size_t arr_size, 
