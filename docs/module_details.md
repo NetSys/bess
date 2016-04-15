@@ -66,8 +66,6 @@ Some modules may not need input/output gates. For example, the `Source` module h
 
 Gates can be useful for debugging and performance monitoring purposes. For example, you can run `tcpdump` on an input/output gate to see what packets are flowing along the datapath pipeline. See [the command-line interface](bessctl.md) for more details.
 
-> NOTE: Input gates are not implemented yet. For now, modules should assume that all packets come into the input gate 0.
-
 
 ### Internal state management
 
