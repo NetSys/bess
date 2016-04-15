@@ -14,7 +14,6 @@
 #define MAX_INSERTION_SEARCH_DEPTH (2)
 
 #define L2_BROADCAST_GATE (UINT16_MAX - 1)
-#define L2_INVALID_GATE (INVALID_GATE)
 
 #define USE_RTEMALLOC (1)
 
@@ -40,7 +39,6 @@ struct l2_table
 };
 
 typedef uint64_t mac_addr_t;
-typedef uint16_t gate_t;
 
 static int is_power_of_2(uint64_t n)
 {
@@ -60,12 +58,10 @@ static int is_power_of_2(uint64_t n)
  */
 static int l2_init(struct l2_table *l2tbl, int size, int bucket)
 {
-	if (size <= 0 || size > MAX_TABLE_SIZE ||
-	    !is_power_of_2(size))
+	if (size <= 0 || size > MAX_TABLE_SIZE || !is_power_of_2(size))
 		return -EINVAL;
 
-	if (bucket <= 0 || bucket > MAX_BUCKET_SIZE ||
-	    !is_power_of_2(bucket))
+	if (bucket <= 0 || bucket > MAX_BUCKET_SIZE || !is_power_of_2(bucket))
 		return -EINVAL;
 
 	if (l2tbl == NULL)
@@ -74,7 +70,7 @@ static int l2_init(struct l2_table *l2tbl, int size, int bucket)
 #if USE_RTEMALLOC
 	l2tbl->table =
 		rte_zmalloc("l2tbl",
-			    sizeof(struct l2_entry) * size * bucket, 0);
+				sizeof(struct l2_entry) * size * bucket, 0);
 #else
 	l2tbl->table =
 		malloc(sizeof(struct l2_entry) * size * bucket);
@@ -148,10 +144,8 @@ static uint32_t l2_alt_index(uint32_t hash, uint32_t size_power, uint32_t index)
 static inline int find_index_basic(uint64_t addr, uint64_t *table)
 {
 	for (int i = 0; i < 4; i++) {
-		if ((addr | (1ul<<63)) ==
-		    (table[i] & 0x8000ffffFFFFffffUL)) {
+		if ((addr | (1ul<<63)) == (table[i] & 0x8000ffffFFFFffffUL))
 			return i + 1;
-		}
 	}
 
 	return 0;
@@ -187,7 +181,7 @@ static inline int find_index(uint64_t addr, uint64_t *table, const uint64_t coun
 
 
 static inline int l2_find(struct l2_table *l2tbl,
-			  uint64_t addr, gate_t *gate)
+			  uint64_t addr, gate_idx_t *gate)
 {
 	int i;
 	int ret = -ENOENT;
@@ -219,8 +213,7 @@ static inline int l2_find(struct l2_table *l2tbl,
 	} else {
 		/* search buckets for first index */
 		for (i = 0; i < l2tbl->bucket; i++) {
-			if (tbl[offset].occupied &&
-			    addr == tbl[offset].addr) {
+			if (tbl[offset].occupied && addr == tbl[offset].addr) {
 				*gate = tbl[offset].gate;
 				return 0;
 			}
@@ -232,8 +225,7 @@ static inline int l2_find(struct l2_table *l2tbl,
 		offset = l2_ib_to_offset(l2tbl, idx1, 0);
 		/* search buckets for alternate index */
 		for (i = 0; i < l2tbl->bucket; i++) {
-			if (tbl[offset].occupied &&
-			    addr == tbl[offset].addr) {
+			if (tbl[offset].occupied && addr == tbl[offset].addr) {
 				*gate = tbl[offset].gate;
 				return 0;
 			}
@@ -246,7 +238,7 @@ static inline int l2_find(struct l2_table *l2tbl,
 }
 
 static int l2_find_offset(struct l2_table *l2tbl,
-		   uint64_t addr, uint32_t *offset_out)
+		uint64_t addr, uint32_t *offset_out)
 {
 	int i;
 	uint32_t hash, idx1, offset;
@@ -260,8 +252,7 @@ static int l2_find_offset(struct l2_table *l2tbl,
 	/* search buckets for first index */
 	for (i = 0; i < l2tbl->bucket; i++) {
 
-		if (tbl[offset].occupied &&
-		    addr == tbl[offset].addr) {
+		if (tbl[offset].occupied && addr == tbl[offset].addr) {
 			*offset_out = offset;
 			return 0;
 		}
@@ -273,8 +264,7 @@ static int l2_find_offset(struct l2_table *l2tbl,
 	offset = l2_ib_to_offset(l2tbl, idx1, 0);
 	/* search buckets for alternate index */
 	for (i = 0; i < l2tbl->bucket; i++) {
-		if (tbl[offset].occupied &&
-		    addr == tbl[offset].addr) {
+		if (tbl[offset].occupied && addr == tbl[offset].addr) {
 			*offset_out = offset;
 			return 0;
 		}
@@ -339,15 +329,15 @@ static int l2_find_slot(struct l2_table *l2tbl, mac_addr_t addr,
 	return -ENOMEM;
 }
 
-static int l2_add_entry(struct l2_table *l2tbl, mac_addr_t addr, gate_t gate)
+static int l2_add_entry(struct l2_table *l2tbl, mac_addr_t addr, gate_idx_t gate)
 {
 	uint32_t offset;
 	uint32_t index;
 	uint32_t bucket;
-	gate_t gate_tmp;
+	gate_idx_t gate_idx_tmp;
 
 	/* if addr already exist then fail */
-	if (l2_find(l2tbl, addr, &gate_tmp) == 0) {
+	if (l2_find(l2tbl, addr, &gate_idx_tmp) == 0) {
 		return -EEXIST;
 	}
 
@@ -388,9 +378,8 @@ static int l2_flush(struct l2_table *l2tbl)
 	if (NULL == l2tbl->table)
 		return -EINVAL;
 
-	memset(l2tbl->table,
-	       0,
-	       sizeof(struct l2_entry) * l2tbl->size * l2tbl->bucket);
+	memset(l2tbl->table, 0,
+			sizeof(struct l2_entry) * l2tbl->size * l2tbl->bucket);
 
 	return 0;
 }
@@ -549,8 +538,8 @@ void l2_forward_collision_test()
 
 		ret = l2_find(&l2tbl, addr[i], &gate_index);
 
-		log_debug("find result: %ld, %d, %d\n",
-		       addr[i], gate_index, offset);
+		log_debug("find result: %ld, %d, %d\n", 
+				addr[i], gate_index, offset);
 
 		if (success[i]) {
 			assert(!ret);
@@ -576,9 +565,8 @@ int test_all()
 /******************************************************************************/
 
 struct l2_forward_priv {
-	int init;
 	struct l2_table l2_table;
-	gate_t default_gate;
+	gate_idx_t default_gate;
 };
 
 static struct snobj *l2_forward_init(struct module *m, struct snobj *arg)
@@ -588,9 +576,7 @@ static struct snobj *l2_forward_init(struct module *m, struct snobj *arg)
 	int size = snobj_eval_int(arg, "size");
 	int bucket = snobj_eval_int(arg, "bucket");
 
-	priv->init = 0;
-
-	priv->default_gate = INVALID_GATE;
+	priv->default_gate = DROP_GATE;
 
 	if (size == 0)
 		size = DEFAULT_TABLE_SIZE;
@@ -602,12 +588,10 @@ static struct snobj *l2_forward_init(struct module *m, struct snobj *arg)
 
 	if (ret != 0) {
 		return snobj_err(-ret,
-				 "initialization failed with argument " \
-                                 "size: '%d' bucket: '%d'\n",
-				 size, bucket);
+				"initialization failed with argument " \
+				"size: '%d' bucket: '%d'",
+				size, bucket);
 	}
-
-	priv->init = 1;
 
 	return NULL;
 }
@@ -616,10 +600,7 @@ static void l2_forward_deinit(struct module *m)
 {
 	struct l2_forward_priv *priv = get_priv(m);
 
-	if (priv->init) {
-		priv->init = 0;
-		l2_deinit(&priv->l2_table);
-	}
+	l2_deinit(&priv->l2_table);
 }
 
 static int parse_mac_addr(const char *str, char *addr)
@@ -642,8 +623,8 @@ static int parse_mac_addr(const char *str, char *addr)
 }
 
 
-static struct snobj *handle_add(struct l2_forward_priv *priv,
-				struct snobj *add)
+static struct snobj *
+handle_add(struct l2_forward_priv *priv, struct snobj *add)
 {
 	int i;
 
@@ -681,7 +662,7 @@ static struct snobj *handle_add(struct l2_forward_priv *priv,
 					 str_addr);
 
 		int r = l2_add_entry(&priv->l2_table,
-				   l2_addr_to_u64(addr), gate);
+				l2_addr_to_u64(addr), gate);
 
 		if (r == -EEXIST) {
 			return snobj_err(EEXIST,
@@ -699,8 +680,8 @@ static struct snobj *handle_add(struct l2_forward_priv *priv,
 	return NULL;
 }
 
-static struct snobj *handle_gen(struct l2_forward_priv *priv,
-				struct snobj *gen)
+static struct snobj *
+handle_gen(struct l2_forward_priv *priv, struct snobj *gen)
 {
 	int i;
 	struct snobj *m;
@@ -768,8 +749,8 @@ static struct snobj *handle_gen(struct l2_forward_priv *priv,
 }
 
 
-static struct snobj *handle_lookup(struct l2_forward_priv *priv,
-				struct snobj *lookup)
+static struct snobj *
+handle_lookup(struct l2_forward_priv *priv, struct snobj *lookup)
 {
 	int i;
 
@@ -795,7 +776,7 @@ static struct snobj *handle_lookup(struct l2_forward_priv *priv,
 					 str_addr);
 		}
 
-		gate_t gate;
+		gate_idx_t gate;
 		int r = l2_find(&priv->l2_table,
 				l2_addr_to_u64(addr),
 				&gate);
@@ -817,8 +798,8 @@ static struct snobj *handle_lookup(struct l2_forward_priv *priv,
 	return ret;
 }
 
-static struct snobj *handle_del(struct l2_forward_priv *priv,
-				struct snobj *del)
+static struct snobj *
+handle_del(struct l2_forward_priv *priv, struct snobj *del)
 {
 	int i;
 
@@ -843,7 +824,7 @@ static struct snobj *handle_del(struct l2_forward_priv *priv,
 		}
 
 		int r = l2_del_entry(&priv->l2_table,
-				     l2_addr_to_u64(addr));
+				l2_addr_to_u64(addr));
 
 		if (r == -ENOENT) {
 			return snobj_err(ENOENT,
@@ -859,8 +840,8 @@ static struct snobj *handle_del(struct l2_forward_priv *priv,
 }
 
 
-static struct snobj *handle_def_gate(struct l2_forward_priv *priv,
-				    struct snobj *def_gate)
+static struct snobj *
+handle_def_gate(struct l2_forward_priv *priv, struct snobj *def_gate)
 {
 	int gate = snobj_int_get(def_gate);
 
@@ -916,15 +897,9 @@ static struct snobj *l2_forward_query(struct module *m, struct snobj *q)
 	return NULL;
 }
 
-static struct snobj *l2_forward_get_desc(const struct module *m)
-{
-	return NULL;
-}
-
-__attribute__((optimize("unroll-loops")))
 static void l2_forward_process_batch(struct module *m, struct pkt_batch *batch)
 {
-	gate_t ogates[MAX_PKT_BURST];
+	gate_idx_t ogates[MAX_PKT_BURST];
 	int r, i;
 
 	struct l2_forward_priv *priv = get_priv(m);
@@ -942,19 +917,16 @@ static void l2_forward_process_batch(struct module *m, struct pkt_batch *batch)
 	run_split(m, ogates, batch);
 }
 
-
 static const struct mclass l2_forward = {
-	.name            = "L2Forward",
-	.def_module_name = "l2_forward",
-	.num_igates	 = 1,
-	.num_ogates	 = MAX_GATES,
-	.priv_size       = sizeof(struct l2_forward_priv),
-	.init            = l2_forward_init,
-	.deinit          = l2_forward_deinit,
-	.query           = l2_forward_query,
-	.get_desc        = l2_forward_get_desc,
-	.process_batch   = l2_forward_process_batch,
+	.name			= "L2Forward",
+	.def_module_name 	= "l2_forward",
+	.num_igates		= 1,
+	.num_ogates		= MAX_GATES,
+	.priv_size		= sizeof(struct l2_forward_priv),
+	.init			= l2_forward_init,
+	.deinit			= l2_forward_deinit,
+	.query			= l2_forward_query,
+	.process_batch		= l2_forward_process_batch,
 };
-
 
 ADD_MCLASS(l2_forward)
