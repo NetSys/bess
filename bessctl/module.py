@@ -1,4 +1,4 @@
-from port import Port
+import types
 
 class Module(object):
     def __init__(self, name = None, arg = None, **kwargs):
@@ -7,8 +7,15 @@ class Module(object):
         ret = self.bess.create_module(self.__class__.__name__, name, 
                 self.choose_arg(arg, kwargs))
 
-        self.name = ret['name']
+        self.name = ret.name
         #print 'Module %s created' % self
+
+        # add mclass-specific methods
+        cls = self.bess.get_mclass_info(self.__class__.__name__)
+        for cmd in cls.commands:
+            func = lambda mod, _cmd=cmd, **kwargs: \
+                    self.bess.run_module_command(mod.name, _cmd, kwargs)
+            setattr(self, cmd, types.MethodType(func, self))
 
         self.ogate = None
         self.igate = None

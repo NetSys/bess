@@ -137,6 +137,11 @@ def get_var_attrs(cli, var_token, partial_word):
             var_desc = 'name of a module class'
             var_candidates = cli.bess.list_mclasses()
 
+        elif var_token == 'MCLASS...':
+            var_type = 'name+'
+            var_desc = 'one or more module class names'
+            var_candidates = cli.bess.list_mclasses()
+
         elif var_token == '[NEW_MODULE]':
             var_type = 'name'
             var_desc = 'specify a name of the new module instance'
@@ -904,8 +909,8 @@ def show_port_list(cli, port_names):
         else:
             raise cli.CommandError('Port "%s" doest not exist' % port_name)
 
-def _show_module(cli, module):
-    info = cli.bess.get_module_info(module.name)
+def _show_module(cli, module_name):
+    info = cli.bess.get_module_info(module_name)
 
     cli.fout.write('  %s::%s' % (info.name, info.mclass))
 
@@ -946,19 +951,31 @@ def show_module_all(cli):
         raise cli.CommandError('There is no active module to show.')
 
     for module in modules:
-        _show_module(cli, module)
+        _show_module(cli, module.name)
 
 @cmd('show module MODULE...', 'Show the status of specified modules')
 def show_module_list(cli, module_names):
-    modules = cli.bess.list_modules()
-
     for module_name in module_names:
-        for module in modules:
-            if module_name == module.name:
-                _show_module(cli, module)
-                break
-        else:
-            raise cli.CommandError('Module "%s" doest not exist' % module_name)
+        _show_module(cli, module_name)
+
+def _show_mclass(cli, cls_name):
+    info = cli.bess.get_mclass_info(cls_name)
+
+    print '%-16s %s' % (info.name, info.desc)
+    if info.commands:
+        print '  commands: %s' % ', '.join(info.commands)
+
+@cmd('show mclass', 'Show all module classes')
+def show_mclass_all(cli):
+    mclasses = cli.bess.list_mclasses()
+
+    for cls_name in mclasses:
+        _show_mclass(cli, cls_name)
+
+@cmd('show mclass MCLASS...', 'Show the details of specified module classes')
+def show_mclass_list(cli, cls_names):
+    for cls_name in cls_names:
+        _show_mclass(cli, cls_name)
 
 def _monitor_pipeline(cli, field):
     modules = sorted(cli.bess.list_modules())

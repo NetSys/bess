@@ -151,11 +151,14 @@ class BESS(object):
     def get_port_stats(self, port):
         return self._request_bess('get_port_stats', port)
 
+    def list_mclasses(self):
+        return self._request_bess('list_mclasses')
+
     def list_modules(self):
         return self._request_bess('list_modules')
 
-    def list_mclasses(self):
-        return self._request_bess('list_mclasses')
+    def get_mclass_info(self, name):
+        return self._request_bess('get_mclass_info', name)
 
     def reset_modules(self):
         return self._request_bess('reset_modules')
@@ -182,8 +185,9 @@ class BESS(object):
         return self._request_bess('disconnect_modules', 
                 {'name': name, 'ogate': ogate})
 
-    def query_module(self, name, arg):
-        return self._request_module(name, 'query', arg)
+    def run_module_command(self, name, cmd, arg):
+        print name, cmd, arg
+        return self._request_module(name, cmd, arg)
 
     def enable_tcpdump(self, fifo, m, ogate = 0):
         args = {'name': m, 'ogate': ogate, 'fifo': fifo}
