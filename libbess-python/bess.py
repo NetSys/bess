@@ -36,7 +36,19 @@ class BESS(object):
         self.peer = None
 
     def is_connected(self):
-        return self.s is not None
+        if self.s is None:
+            return False
+
+        try:
+            tmp = self.s.recv(1, socket.MSG_DONTWAIT)
+            assert len(tmp) == 0, 'Bogus data from BESS daemon'
+        except socket.error as e:
+            if e.errno not in [errno.EAGAIN, errno.EWOULDBLOCK]:
+                self.s.close()
+                self.s = None
+                return False
+
+        return True
 
     def connect(self, host='localhost', port=DEF_PORT):
         if self.is_connected():
