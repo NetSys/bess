@@ -87,6 +87,7 @@ static void queue_out_process_batch(struct module *m,
 
 static const struct mclass queue_out = {
 	.name		= "QueueOut",
+	.help		= "sends packets to a port via a specific queue",
 	.num_igates	= 1,
 	.num_ogates	= 0,
 	.priv_size	= sizeof(struct queue_out_priv),

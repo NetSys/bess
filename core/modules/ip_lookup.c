@@ -110,20 +110,20 @@ static void ip_lookup_process_batch(struct module *m, struct pkt_batch *batch)
 	run_split(m, ogates, batch);
 }
 
-struct snobj *command_add(struct module *m, const char *cmd, struct snobj *q)
+struct snobj *command_add(struct module *m, const char *cmd, struct snobj *arg)
 {
 	struct ip_lookup_priv *priv = get_priv(m);
 	
-	char *prefix = snobj_eval_str(q, "prefix");
-	uint32_t prefix_len = snobj_eval_uint(q, "prefix_len");
-	gate_idx_t gate = snobj_eval_uint(q, "gate");
+	char *prefix = snobj_eval_str(arg, "prefix");
+	uint32_t prefix_len = snobj_eval_uint(arg, "prefix_len");
+	gate_idx_t gate = snobj_eval_uint(arg, "gate");
 
 	struct in_addr ip_addr_be;
 	uint32_t ip_addr;		/* in cpu order */
 	uint32_t netmask;
 	int ret;
 
-	if (!prefix || !snobj_eval_exists(q, "prefix_len"))
+	if (!prefix || !snobj_eval_exists(arg, "prefix_len"))
 		return snobj_err(EINVAL, 
 				"'prefix' or 'prefix_len' is missing");
 
@@ -143,7 +143,7 @@ struct snobj *command_add(struct module *m, const char *cmd, struct snobj *q)
 		return snobj_err(EINVAL, "Invalid IP prefix %s/%d %x %x",
 				prefix, prefix_len, ip_addr, netmask);
 
-	if (!snobj_eval_exists(q, "gate"))
+	if (!snobj_eval_exists(arg, "gate"))
 		return snobj_err(EINVAL, 
 				"'gate' must be specified");
 
@@ -166,7 +166,8 @@ struct snobj *command_add(struct module *m, const char *cmd, struct snobj *q)
 	return NULL;
 }
 
-struct snobj *command_clear(struct module *m, const char *cmd, struct snobj *q)
+struct snobj *
+command_clear(struct module *m, const char *cmd, struct snobj *arg)
 {
 	struct ip_lookup_priv *priv = get_priv(m);
 	
@@ -177,7 +178,7 @@ struct snobj *command_clear(struct module *m, const char *cmd, struct snobj *q)
 
 static const struct mclass ip_lookup = {
 	.name            = "IPLookup",
-	.desc		 = "performs Longest Prefix Match on IPv4 packets",
+	.help		 = "performs Longest Prefix Match on IPv4 packets",
 	.def_module_name = "ip_lookup",
 	.num_igates	 = 1,
 	.num_ogates	 = MAX_GATES,

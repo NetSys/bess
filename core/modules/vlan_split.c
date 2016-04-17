@@ -35,6 +35,7 @@ static void vsplit_process_batch(struct module *m, struct pkt_batch *batch)
 
 static const struct mclass vlan_split = {
 	.name 			= "VLANSplit",
+	.help			= "split packets depending on their VID",
 	.def_module_name 	= "vlan_split",
 	.num_igates		= 1,
 	.num_ogates		= 4096,

@@ -602,7 +602,7 @@ static struct snobj *handle_get_mclass_info(struct snobj *q)
 
 	r = snobj_map();
 	snobj_map_set(r, "name", snobj_str(cls->name));
-	snobj_map_set(r, "desc", snobj_str(cls->desc ? : ""));
+	snobj_map_set(r, "help", snobj_str(cls->help ? : ""));
 	snobj_map_set(r, "commands", cmds);
 
 	return r;
@@ -1077,7 +1077,7 @@ run_module_command(struct module *m, const char *cmd, struct snobj *arg)
 					is_any_worker_running())
 			{
 				return snobj_err(EBUSY, 
-						"There is a running worker and"
+						"There is a running worker and "
 						"command '%s' is not MT safe",
 						cmd);
 			}

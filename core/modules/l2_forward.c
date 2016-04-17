@@ -624,19 +624,18 @@ static int parse_mac_addr(const char *str, char *addr)
 
 
 static struct snobj *
-handle_add(struct l2_forward_priv *priv, struct snobj *add)
+command_add(struct module *m, const char *cmd, struct snobj *arg)
 {
-	int i;
+	struct l2_forward_priv *priv = get_priv(m);
 
-	if (snobj_type(add) != TYPE_LIST) {
-		return snobj_err(EINVAL, "add must be given as a list of map");
-	}
+	if (snobj_type(arg) != TYPE_LIST)
+		return snobj_err(EINVAL, "argument must be a list of map");
 
-	for (i = 0; i < add->size; i++) {
-		struct snobj *entry = snobj_list_get(add, i);
+	for (int i = 0; i < arg->size; i++) {
+		struct snobj *entry = snobj_list_get(arg, i);
 		if (snobj_type(entry) != TYPE_MAP) {
 			return snobj_err(EINVAL,
-					 "add must be given as a list of map");
+					 "argument must be a list of map");
 		}
 
 		struct snobj *_addr = snobj_map_get(entry, "addr");
@@ -671,9 +670,48 @@ handle_add(struct l2_forward_priv *priv, struct snobj *add)
 		} else if (r == -ENOMEM) {
 			return snobj_err(ENOMEM,
 					 "Not enough space");
+		} else if (r != 0)
+			return snobj_errno(-r);
+	}
+
+	return NULL;
+}
+
+static struct snobj *
+command_delete(struct module *m, const char *cmd, struct snobj *arg)
+{
+	struct l2_forward_priv *priv = get_priv(m);
+
+	if (snobj_type(arg) != TYPE_LIST) {
+		return snobj_err(EINVAL, "lookup must be given as a list");
+	}
+
+	for (int i = 0; i < arg->size; i++) {
+		struct snobj *_addr = snobj_list_get(arg, i);
+
+		if (!_addr || snobj_type(_addr) != TYPE_STR)
+			return snobj_err(EINVAL,
+					 "lookup must be list of string");
+
+		char *str_addr = snobj_str_get(_addr);
+		char addr[6];
+
+		if (parse_mac_addr(str_addr, addr) != 0) {
+			return snobj_err(EINVAL,
+					 "%s is not a proper mac address",
+					 str_addr);
+		}
+
+		int r = l2_del_entry(&priv->l2_table,
+				l2_addr_to_u64(addr));
+
+		if (r == -ENOENT) {
+			return snobj_err(ENOENT,
+					 "MAC address '%s' does not exist",
+					 str_addr);
 		} else if (r != 0) {
 			return snobj_err(EINVAL,
-					 "Unknown Erorr: %d\n", r);
+					 "Unknown Error: %d\n", r);
 		}
 	}
 
@@ -681,86 +719,30 @@ handle_add(struct l2_forward_priv *priv, struct snobj *add)
 }
 
 static struct snobj *
-handle_gen(struct l2_forward_priv *priv, struct snobj *gen)
+command_set_default_gate(struct module *m, const char *cmd, struct snobj *arg)
 {
-	int i;
-	struct snobj *m;
-	char *base;
-	char base_str[6];
-	uint64_t base_u64;
+	struct l2_forward_priv *priv = get_priv(m);
 
-	if (snobj_type(gen) != TYPE_MAP) {
-		return snobj_err(EINVAL, "gen must be given as a map");
-	}
+	int gate = snobj_int_get(arg);
 
-	//parse base addr
-	base = snobj_eval_str(gen, "base");
-	if (base == NULL) {
-		return snobj_err(EINVAL, "base must exist in gen, and must be string");
-	}
-
-	if (parse_mac_addr(base, base_str) != 0) {
-		return snobj_err(EINVAL,
-				 "%s is not a proper mac address",
-				 base_str);
-	}
-
-	base_u64 = l2_addr_to_u64(base_str);
-
-	//parse entry count
-	m = snobj_eval(gen, "count");
-
-	if (m == NULL)
-		return snobj_err(EINVAL,
-				 "count must exist in gen, and must be int");
-
-	if (snobj_type(m) != TYPE_INT)
-		return snobj_err(EINVAL,
-				 "count must be int");
-
-	//parse gate count
-	m = snobj_eval(gen, "gate_count");
-
-	if (m == NULL)
-		return snobj_err(EINVAL,
-				 "gate_count must exist in gen, and must be int");
-
-	if (snobj_type(m) != TYPE_INT)
-		return snobj_err(EINVAL,
-				 "gate_count must be int");
-
-
-	int cnt = snobj_eval_int(gen, "count");
-	int gate_cnt = snobj_eval_int(gen, "gate_count");
-
-	base_u64 = rte_be_to_cpu_64(base_u64);
-	base_u64 = base_u64 >> 16;
-
-	for (i = 0; i < cnt; i++) {
-		l2_add_entry(&priv->l2_table,
-			     rte_cpu_to_be_64(base_u64 << 16),
-			     i % gate_cnt);
-
-		base_u64++;
-	}
-
+	priv->default_gate = gate;
 
 	return NULL;
 }
 
-
 static struct snobj *
-handle_lookup(struct l2_forward_priv *priv, struct snobj *lookup)
+command_lookup(struct module *m, const char *cmd, struct snobj *arg)
 {
+	struct l2_forward_priv *priv = get_priv(m);
 	int i;
 
-	if (snobj_type(lookup) != TYPE_LIST) {
+	if (snobj_type(arg) != TYPE_LIST) {
 		return snobj_err(EINVAL, "lookup must be given as a list");
 	}
 
 	struct snobj *ret = snobj_list();
-	for (i = 0; i < lookup->size; i++) {
-		struct snobj *_addr = snobj_list_get(lookup, i);
+	for (i = 0; i < arg->size; i++) {
+		struct snobj *_addr = snobj_list_get(arg, i);
 
 		if (!_addr || snobj_type(_addr) != TYPE_STR)
 			return snobj_err(EINVAL,
@@ -799,99 +781,63 @@ handle_lookup(struct l2_forward_priv *priv, struct snobj *lookup)
 }
 
 static struct snobj *
-handle_del(struct l2_forward_priv *priv, struct snobj *del)
-{
-	int i;
-
-	if (snobj_type(del) != TYPE_LIST) {
-		return snobj_err(EINVAL, "lookup must be given as a list");
-	}
-
-	for (i = 0; i < del->size; i++) {
-		struct snobj *_addr = snobj_list_get(del, i);
-
-		if (!_addr || snobj_type(_addr) != TYPE_STR)
-			return snobj_err(EINVAL,
-					 "lookup must be list of string");
-
-		char *str_addr = snobj_str_get(_addr);
-		char addr[6];
-
-		if (parse_mac_addr(str_addr, addr) != 0) {
-			return snobj_err(EINVAL,
-					 "%s is not a proper mac address",
-					 str_addr);
-		}
-
-		int r = l2_del_entry(&priv->l2_table,
-				l2_addr_to_u64(addr));
-
-		if (r == -ENOENT) {
-			return snobj_err(ENOENT,
-					 "MAC address '%s' does not exist",
-					 str_addr);
-		} else if (r != 0) {
-			return snobj_err(EINVAL,
-					 "Unknown Error: %d\n", r);
-		}
-	}
-
-	return NULL;
-}
-
-
-static struct snobj *
-handle_def_gate(struct l2_forward_priv *priv, struct snobj *def_gate)
-{
-	int gate = snobj_int_get(def_gate);
-
-	priv->default_gate = gate;
-
-	return NULL;
-}
-
-static struct snobj *l2_forward_query(struct module *m, struct snobj *q)
+command_populate(struct module *m, const char *cmd, struct snobj *arg)
 {
 	struct l2_forward_priv *priv = get_priv(m);
+	struct snobj *t;
+	char *base;
+	char base_str[6];
+	uint64_t base_u64;
 
-	struct snobj *ret = NULL;
-
-	struct snobj *add = snobj_eval(q, "add");
-	struct snobj *lookup = snobj_eval(q, "lookup");
-	struct snobj *del = snobj_eval(q, "del");
-	struct snobj *def_gate = snobj_eval(q, "default");
-	struct snobj *gen = snobj_eval(q, "gen");
-
-	if (add) {
-		ret = handle_add(priv, add);
-		if (ret)
-			return ret;
+	if (snobj_type(arg) != TYPE_MAP) {
+		return snobj_err(EINVAL, "gen must be given as a map");
 	}
 
-	if (gen){
-		ret = handle_gen(priv, gen);
-		if (ret)
-			return ret;
+	//parse base addr
+	base = snobj_eval_str(arg, "base");
+	if (base == NULL) {
+		return snobj_err(EINVAL, "base must exist in gen, and must be string");
 	}
 
-
-
-	if (lookup) {
-		ret = handle_lookup(priv, lookup);
-		if (ret)
-			return ret;
+	if (parse_mac_addr(base, base_str) != 0) {
+		return snobj_err(EINVAL,
+				 "%s is not a proper mac address",
+				 base_str);
 	}
 
-	if (del) {
-		ret = handle_del(priv, del);
-		if (ret)
-			return ret;
-	}
+	base_u64 = l2_addr_to_u64(base_str);
 
-	if (def_gate) {
-		ret = handle_def_gate(priv, def_gate);
-		if (ret)
-			return ret;
+	t = snobj_eval(arg, "count");
+	if (t == NULL)
+		return snobj_err(EINVAL,
+				 "count must exist in gen, and must be int");
+
+	if (snobj_type(t) != TYPE_INT)
+		return snobj_err(EINVAL,
+				 "count must be int");
+
+	t = snobj_eval(arg, "gate_count");
+	if (t == NULL)
+		return snobj_err(EINVAL,
+				 "gate_count must exist in gen, and must be int");
+
+	if (snobj_type(t) != TYPE_INT)
+		return snobj_err(EINVAL,
+				 "gate_count must be int");
+
+
+	int cnt = snobj_eval_int(arg, "count");
+	int gate_cnt = snobj_eval_int(arg, "gate_count");
+
+	base_u64 = rte_be_to_cpu_64(base_u64);
+	base_u64 = base_u64 >> 16;
+
+	for (int i = 0; i < cnt; i++) {
+		l2_add_entry(&priv->l2_table,
+			     rte_cpu_to_be_64(base_u64 << 16),
+			     i % gate_cnt);
+
+		base_u64++;
 	}
 
 	return NULL;
@@ -899,17 +845,17 @@ static struct snobj *l2_forward_query(struct module *m, struct snobj *q)
 
 static void l2_forward_process_batch(struct module *m, struct pkt_batch *batch)
 {
-	gate_idx_t ogates[MAX_PKT_BURST];
-	int r, i;
-
 	struct l2_forward_priv *priv = get_priv(m);
 
-	for (i = 0; i < batch->cnt; i++) {
+	gate_idx_t default_gate = priv->default_gate;
+	gate_idx_t ogates[MAX_PKT_BURST];
+
+	for (int i = 0; i < batch->cnt; i++) {
 		struct snbuf *snb = batch->pkts[i];
 
-		ogates[i] = priv->default_gate;
+		ogates[i] = default_gate;
 
-		r = l2_find(&priv->l2_table,
+		l2_find(&priv->l2_table,
 			    l2_addr_to_u64(snb_head_data(snb)),
 			    &ogates[i]);
 	}
@@ -919,14 +865,22 @@ static void l2_forward_process_batch(struct module *m, struct pkt_batch *batch)
 
 static const struct mclass l2_forward = {
 	.name			= "L2Forward",
+	.help			= 
+		"classifies packets with destination MAC address",
 	.def_module_name 	= "l2_forward",
 	.num_igates		= 1,
 	.num_ogates		= MAX_GATES,
 	.priv_size		= sizeof(struct l2_forward_priv),
 	.init			= l2_forward_init,
 	.deinit			= l2_forward_deinit,
-	.query			= l2_forward_query,
 	.process_batch		= l2_forward_process_batch,
+	.commands		= {
+		{"add",			command_add},
+		{"delete",		command_delete},
+		{"set_default_gate",	command_set_default_gate, .mt_safe=1},
+		{"lookup",		command_lookup,		  .mt_safe=1},
+		{"populate",		command_populate},
+	}
 };
 
 ADD_MCLASS(l2_forward)

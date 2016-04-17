@@ -10,6 +10,7 @@ static void bypass_process_batch(struct module *m, struct pkt_batch *batch)
 
 static const struct mclass bypass = {
 	.name 		= "Bypass",
+	.help		= "bypasses packets without any processing",
 	.num_igates	= MAX_GATES,
 	.num_ogates	= MAX_GATES,
 	.process_batch 	= bypass_process_batch,

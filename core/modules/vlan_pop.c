@@ -30,6 +30,7 @@ static void vpop_process_batch(struct module *m, struct pkt_batch *batch)
 
 static const struct mclass vlan_pop = {
 	.name 			= "VLANPop",
+	.help			= "removes 802.1Q/802.11ad VLAN tag",
 	.def_module_name 	= "vlan_pop",
 	.num_igates 		= 1,
 	.num_ogates		= 1,

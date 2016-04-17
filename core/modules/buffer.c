@@ -1,7 +1,6 @@
 #include "../module.h"
 
 /* TODO: timer-triggered flush */
-/* TODO: use per-task stroage */
 struct buffer_priv {
 	struct pkt_batch buf;
 };
@@ -46,6 +45,7 @@ static void buffer_process_batch(struct module *m, struct pkt_batch *batch)
 
 static const struct mclass buffer = {
 	.name		= "Buffer",
+	.help		= "buffers packets into larger batches",
 	.num_igates	= 1,
 	.num_ogates	= 1,
 	.priv_size 	= sizeof(struct buffer_priv),

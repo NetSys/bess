@@ -24,13 +24,13 @@ packets = [gen_packet('172.16.100.1'),
            gen_packet('192.168.1.123'),
           ]
 
-Source() -> Rewrite(templates=packets) -> ipfwd::IPLookup()
+Source() -> Rewrite(packets) -> ipfwd::IPLookup()
 
 ipfwd:0 -> Sink()   # there should be no packets 
 ipfwd:1 -> Sink()
 ipfwd:2 -> Sink()
 ipfwd:5 -> Sink()   # used as default gate
 
-ipfwd.query(cmd='add', prefix='172.16.0.0', prefix_len=16, gate=1) 
-ipfwd.query(cmd='add', prefix='192.168.1.0', prefix_len=24, gate=2)
-ipfwd.query(cmd='add', prefix='0.0.0.0', prefix_len=0, gate=5)
+ipfwd.add(prefix='172.16.0.0', prefix_len=16, gate=1) 
+ipfwd.add(prefix='192.168.1.0', prefix_len=24, gate=2)
+ipfwd.add(prefix='0.0.0.0', prefix_len=0, gate=5)

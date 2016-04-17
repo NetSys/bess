@@ -39,7 +39,7 @@ struct mclass
 	const char *name;
 
 	/* Optional: one-line description of the module class */
-	const char *desc;
+	const char *help;
 
 	/* Optional: should be like "lower_case". 
 	 * - "%d" is automatically appended.
@@ -73,12 +73,8 @@ struct mclass
 	void (*init_worker)(struct module *m);
 #endif
 
-	/* Optional: module-specific query interface.
-	 * q is not NULL (will be snobj_nil if not given by user) */
-	struct snobj *(*query)(struct module *m, struct snobj *q);
-
 	/* Optional: return human-readable very short description of module
-	 *           e.g., port/PMD. Type must be a string */
+	 *           e.g., "port/PMD". Type must be a string */
 	struct snobj *(*get_desc)(const struct module *m);
 
 	/* Optional: return any object type. Module-specific semantics. */

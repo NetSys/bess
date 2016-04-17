@@ -15,34 +15,22 @@ struct rupdate_priv {
 	uint64_t seed;
 };
 
-static struct snobj *rupdate_query(struct module *, struct snobj *);
-
-static struct snobj *rupdate_init(struct module *m, struct snobj *arg)
+static struct snobj *
+command_add(struct module *m, const char *cmd, struct snobj *arg)
 {
 	struct rupdate_priv *priv = get_priv(m);
 
-	priv->seed = 1;
+	int curr = priv->num_vars;
 
-	if (arg)
-		return rupdate_query(m, arg);
-	
-	return NULL;
-}
+	if (snobj_type(arg) != TYPE_LIST)
+		return snobj_err(EINVAL, "argument must be a list of maps");
 
-static struct snobj *handle_vars(struct rupdate_priv *priv, 
-		struct snobj *vars)
-{
-	if (snobj_type(vars) != TYPE_LIST)
-		return snobj_err(EINVAL, "'vars' must be a list of maps");
-
-	if (vars->size > MAX_VARS)
-		return snobj_err(EINVAL, "Max %d variables " \
+	if (curr + arg->size > MAX_VARS)
+		return snobj_err(EINVAL, "max %d variables " \
 				"can be specified", MAX_VARS);
 
-	priv->num_vars = 0;
-
-	for (int i = 0; i < vars->size; i++) {
-		struct snobj *var = snobj_list_get(vars, i);
+	for (int i = 0; i < arg->size; i++) {
+		struct snobj *var = snobj_list_get(arg, i);
 
 		uint8_t size;
 		int16_t offset;
@@ -52,7 +40,7 @@ static struct snobj *handle_vars(struct rupdate_priv *priv,
 
 		if (var->type != TYPE_MAP)
 			return snobj_err(EINVAL, 
-					"'vars' must be a list of maps");
+					"argument must be a list of maps");
 
 		offset = snobj_eval_int(var, "offset");
 		size = snobj_eval_uint(var, "size");
@@ -60,7 +48,7 @@ static struct snobj *handle_vars(struct rupdate_priv *priv,
 		max = snobj_eval_uint(var, "max");
 
 		if (offset < 0)
-			return snobj_err(EINVAL, "Too small 'offset'");
+			return snobj_err(EINVAL, "too small 'offset'");
 
 		switch (size) {
 		case 1:
@@ -79,8 +67,8 @@ static struct snobj *handle_vars(struct rupdate_priv *priv,
 
 		case 4:
 			mask = rte_cpu_to_be_32(0x00000000);
-			min = MIN(min, 0xffffffff);
-			max = MIN(max, 0xffffffff);
+			min = MIN(min, 0xffffffffu);
+			max = MIN(max, 0xffffffffu);
 			break;
 
 		default:
@@ -88,40 +76,45 @@ static struct snobj *handle_vars(struct rupdate_priv *priv,
 		}
 
 		if (offset + 4 > SNBUF_DATA)
-			return snobj_err(EINVAL, "Too large 'offset'");
+			return snobj_err(EINVAL, "too large 'offset'");
 
 		if (min > max)
 			return snobj_err(EINVAL, "'min' should not be " \
 					"greater than 'max'");
 
-		priv->vars[i].offset = offset;
-		priv->vars[i].mask = mask;
-		priv->vars[i].min = min;
+		priv->vars[curr + i].offset = offset;
+		priv->vars[curr + i].mask = mask;
+		priv->vars[curr + i].min = min;
 
 		/* avoid modulo 0 */
-		priv->vars[i].range = (max - min + 1) ? : 0xffffffff;
+		priv->vars[curr + i].range = (max - min + 1) ? : 0xffffffff;
 	}
 
-	priv->num_vars = vars->size;
+	priv->num_vars = curr + arg->size;
 
 	return NULL;
 }
 
-static struct snobj *rupdate_query(struct module *m, struct snobj *q)
+static struct snobj *
+command_clear(struct module *m, const char *cmd, struct snobj *arg)
 {
 	struct rupdate_priv *priv = get_priv(m);
 
-	struct snobj *vars = snobj_eval(q, "vars");
-
-	struct snobj *err;
-
-	if (vars) {
-		err = handle_vars(priv, vars);
-		if (err)
-			return err;
-	}
+	priv->num_vars = 0;
 
 	return NULL;
+}
+
+static struct snobj *rupdate_init(struct module *m, struct snobj *arg)
+{
+	struct rupdate_priv *priv = get_priv(m);
+
+	priv->seed = 1;
+
+	if (arg)
+		return command_add(m, NULL, arg);
+	else
+		return NULL;
 }
 
 static void rupdate_process_batch(struct module *m, struct pkt_batch *batch)
@@ -160,13 +153,17 @@ static void rupdate_process_batch(struct module *m, struct pkt_batch *batch)
 
 static const struct mclass rupdate = {
 	.name 			= "RandomUpdate",
+	.help			= "updates packet data with random values",
 	.def_module_name	= "rupdate",
 	.num_igates		= 1,
 	.num_ogates		= 1,
 	.priv_size		= sizeof(struct rupdate_priv),
 	.init 			= rupdate_init,
-	.query			= rupdate_query,
 	.process_batch 		= rupdate_process_batch,
+	.commands		= {
+		{"add", 	command_add},
+		{"clear", 	command_clear},
+	}
 };
 
 ADD_MCLASS(rupdate)

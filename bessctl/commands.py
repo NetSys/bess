@@ -48,7 +48,7 @@ def __bess_module__(module_names, mclass_name, *args, **kwargs):
     if isinstance(module_names, str):
         if module_names in caller_globals:
             raise ConfError("Module name %s already exists" % module_names)
-        obj = mclass_obj(module_names, *args, **kwargs)
+        obj = mclass_obj(*args, _name=module_names, **kwargs)
         caller_globals[module_names] = obj
         return obj
 
@@ -61,7 +61,7 @@ def __bess_module__(module_names, mclass_name, *args, **kwargs):
                 raise ConfError("Module name %s already exists" % module)
 
         for module in module_names:
-            obj = mclass_obj(module, *args, **kwargs)
+            obj = mclass_obj(*args, _name=module, **kwargs)
             caller_globals[module] = obj
             obj_list.append(obj)
         return obj_list
@@ -961,9 +961,11 @@ def show_module_list(cli, module_names):
 def _show_mclass(cli, cls_name):
     info = cli.bess.get_mclass_info(cls_name)
 
-    print '%-16s %s' % (info.name, info.desc)
+    print '%-16s %s' % (info.name, info.help)
     if info.commands:
         print '  commands: %s' % ', '.join(info.commands)
+    else:
+        print '  commands: %s' % '(none)'
 
 @cmd('show mclass', 'Show all module classes')
 def show_mclass_all(cli):

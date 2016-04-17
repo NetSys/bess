@@ -1,9 +1,23 @@
 import types
 
+def _callback_factory(self, cmd):
+    return lambda mod, arg=None, **kwargs: \
+        self.bess.run_module_command(self.name, cmd, 
+                self.choose_arg(arg, kwargs))
+
 class Module(object):
-    def __init__(self, name = None, arg = None, **kwargs):
+    def __init__(self, arg=None, **kwargs):
         self.name = '<uninitialized>'
- 
+
+        assert self.__class__.__name__ != 'Module', \
+                "cannot instanciate 'Module'"
+
+        if '_name' in kwargs:
+            name = kwargs['_name']
+            del kwargs['_name']
+        else:
+            name = None
+
         ret = self.bess.create_module(self.__class__.__name__, name, 
                 self.choose_arg(arg, kwargs))
 
@@ -13,8 +27,7 @@ class Module(object):
         # add mclass-specific methods
         cls = self.bess.get_mclass_info(self.__class__.__name__)
         for cmd in cls.commands:
-            func = lambda mod, _cmd=cmd, **kwargs: \
-                    self.bess.run_module_command(mod.name, _cmd, kwargs)
+            func = _callback_factory(self, cmd)
             setattr(self, cmd, types.MethodType(func, self))
 
         self.ogate = None
@@ -71,7 +84,3 @@ class Module(object):
         
         # for a->b->c syntax
         return next_mod     
-
-    def query(self, arg = None, **kwargs):
-        return self.bess.query_module(self.name, 
-                self.choose_arg(arg, kwargs))

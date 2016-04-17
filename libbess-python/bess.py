@@ -137,7 +137,7 @@ class BESS(object):
     def list_ports(self):
         return self._request_bess('list_ports')
 
-    def create_port(self, driver = 'PMD', name = None, arg = None):
+    def create_port(self, driver = 'PMD', name=None, arg=None):
         kv = {'driver': driver}
 
         if name is not None:    kv['name'] = name
@@ -163,7 +163,7 @@ class BESS(object):
     def reset_modules(self):
         return self._request_bess('reset_modules')
 
-    def create_module(self, mclass, name = None, arg = None):
+    def create_module(self, mclass, name=None, arg=None):
         kv = {'mclass': mclass}
 
         if name is not None:    kv['name'] = name
@@ -177,7 +177,7 @@ class BESS(object):
     def get_module_info(self, name):
         return self._request_bess('get_module_info', name)
 
-    def connect_modules(self, m1, m2, ogate = 0, igate = 0):
+    def connect_modules(self, m1, m2, ogate=0, igate=0):
         return self._request_bess('connect_modules', 
                 {'m1': m1, 'm2': m2, 'ogate': ogate, 'igate': igate})
 
@@ -186,14 +186,13 @@ class BESS(object):
                 {'name': name, 'ogate': ogate})
 
     def run_module_command(self, name, cmd, arg):
-        print name, cmd, arg
         return self._request_module(name, cmd, arg)
 
-    def enable_tcpdump(self, fifo, m, ogate = 0):
+    def enable_tcpdump(self, fifo, m, ogate=0):
         args = {'name': m, 'ogate': ogate, 'fifo': fifo}
         return self._request_bess('enable_tcpdump', args)
 
-    def disable_tcpdump(self, m, ogate = 0):
+    def disable_tcpdump(self, m, ogate=0):
         args = {'name': m, 'ogate': ogate}
         return self._request_bess('disable_tcpdump', args)
 
