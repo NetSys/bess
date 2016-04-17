@@ -98,7 +98,6 @@ def complete_filename(partial_word, start_dir='', suffix=''):
             if not is_allowed_filename(basename):
                 continue
 
-            #print '%s-%s-%s' % (target_dir, basename, os.path.join(target_dir, basename))
             if os.path.isdir(os.path.join(target_dir, basename)):
                 candidates.append(basename + '/')
             else:
@@ -1034,26 +1033,26 @@ def _monitor_ports(cli, *ports):
         return (new - old) / sec_diff
 
     def print_header(timestamp):
-        print
-        print '%-20s%14s%10s%10s        %14s%10s%10s' % \
+        cli.fout.write('\n')
+        cli.fout.write('%-20s%14s%10s%10s        %14s%10s%10s\n' % \
                 (time.strftime('%X') + str(timestamp % 1)[1:8], \
                  'INC     Mbps', 'Mpps', 'dropped', \
-                 'OUT     Mbps', 'Mpps', 'dropped')
+                 'OUT     Mbps', 'Mpps', 'dropped'))
 
-        print '-' * 96
+        cli.fout.write('%s\n' % ('-' * 96))
 
     def print_footer():
-        print '-' * 96
+        cli.fout.write('%s\n' % ('-' * 96))
 
     def print_delta(port, delta):
-        print '%-20s%14.1f%10.3f%10d        %14.1f%10.3f%10d' % (port, 
-                (delta.inc.bytes + delta.inc.packets * 24) * 8 / 1e6,
-                delta.inc.packets / 1e6,
-                delta.inc.dropped,
-                (delta.out.bytes + delta.out.packets * 24) * 8 / 1e6,
-                delta.out.packets / 1e6,
-                delta.out.dropped,
-            )
+        cli.fout.write('%-20s%14.1f%10.3f%10d        %14.1f%10.3f%10d\n' % \
+                (port, 
+                 (delta.inc.bytes + delta.inc.packets * 24) * 8 / 1e6,
+                 delta.inc.packets / 1e6,
+                 delta.inc.dropped,
+                 (delta.out.bytes + delta.out.packets * 24) * 8 / 1e6,
+                 delta.out.packets / 1e6,
+                 delta.out.dropped))
 
     def get_total(arr):
         total = copy.deepcopy(arr[0])
@@ -1120,16 +1119,16 @@ def _monitor_tcs(cli, *tcs):
         return (new - old) / sec_diff
 
     def print_header(timestamp):
-        print
-        print '%-20s%12s%12s%12s%12s%12s%12s' % \
+        cli.fout.write('\n')
+        cli.fout.write('%-20s%12s%12s%12s%12s%12s%12s\n' % \
                 (time.strftime('%X') + str(timestamp % 1)[1:8], \
                  'CPU MHz', 'scheduled', 'Mpps', 'Mbps', 
-                 'pkts/batch', 'cycles/p')
+                 'pkts/batch', 'cycles/p'))
 
-        print '-' * 92
+        cli.fout.write('%s\n' % ('-' * 92))
 
     def print_footer():
-        print '-' * 92
+        cli.fout.write('%s\n' % ('-' * 92))
 
     def print_delta(tc, delta):
         if delta.count >= 1:
@@ -1142,13 +1141,14 @@ def _monitor_tcs(cli, *tcs):
         else:
             cpp = 0
 
-        print '%-20s%12.3f%12d%12.3f%12.3f%12.3f%12.3f' % (tc, 
-                delta.cycles / 1e6, 
-                delta.count, 
-                delta.packets / 1e6, 
-                delta.bits / 1e6,
-                ppb,
-                cpp)
+        cli.fout.write('%-20s%12.3f%12d%12.3f%12.3f%12.3f%12.3f\n' % \
+                (tc, 
+                 delta.cycles / 1e6, 
+                 delta.count, 
+                 delta.packets / 1e6, 
+                 delta.bits / 1e6,
+                 ppb,
+                 cpp))
 
 
     def get_total(arr):
