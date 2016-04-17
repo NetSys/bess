@@ -156,6 +156,10 @@ def get_var_attrs(cli, var_token, partial_word):
             var_desc = 'one or more module names'
             var_candidates = [m.name for m in cli.bess.list_modules()]
 
+        elif var_token == 'MODULE_CMD':
+            var_type = 'name'
+            var_desc = 'module command to run (see "show mclass")'
+
         elif var_token == '[NEW_PORT]':
             var_type = 'name'
             var_desc = 'specify a name of the new port'
@@ -206,13 +210,17 @@ def get_var_attrs(cli, var_token, partial_word):
             var_type = 'pyobj'
             var_desc = 'initial configuration for module'
 
+        elif var_token == '[CMD_ARGS...]':
+            var_type = 'pyobj'
+            var_desc = 'arguments for module command'
+
         elif var_token == '[TCPDUMP_OPTS...]':
             var_type = 'opts'
-            var_desc = 'tcpdump(1) options (e.g., "-ne tcp port 22")'
+            var_desc = 'tcpdump(1) command-line options (e.g., "-ne tcp port 22")'
 
         elif var_token == '[BESSD_OPTS...]':
             var_type = 'opts'
-            var_desc = 'bess daemon options (see "bessd -h")'
+            var_desc = 'bess daemon command-line options (see "bessd -h")'
 
     except socket.error as e:
         if e.errno in [errno.ECONNRESET, errno.EPIPE]:
@@ -617,6 +625,19 @@ def add_connection(cli, m1, m2, ogate, igate):
     finally:
         cli.bess.resume_all()
 
+@cmd('command module MODULE MODULE_CMD [CMD_ARGS...]', 
+        'Send a command to a module')
+def command_module(cli, module, cmd, args):
+    cli.bess.pause_all()
+    try:
+        ret = cli.bess.run_module_command(module, cmd, args)
+        if ret is None:
+            cli.fout.write('response: None (usually means SUCCESS)\n')
+        else:
+            cli.fout.write('response: %s\n', str(ret))
+    finally:
+        cli.bess.resume_all()
+
 @cmd('delete port PORT', 'Delete a port')
 def delete_port(cli, port):
     cli.bess.destroy_port(port)
@@ -961,11 +982,11 @@ def show_module_list(cli, module_names):
 def _show_mclass(cli, cls_name):
     info = cli.bess.get_mclass_info(cls_name)
 
-    print '%-16s %s' % (info.name, info.help)
+    cli.fout.write( '%-16s %s\n' % (info.name, info.help))
     if info.commands:
-        print '  commands: %s' % ', '.join(info.commands)
+        cli.fout.write('\t\t commands: %s\n' % (', '.join(info.commands)))
     else:
-        print '  commands: %s' % '(none)'
+        cli.fout.write('\t\t (no commands)\n')
 
 @cmd('show mclass', 'Show all module classes')
 def show_mclass_all(cli):
