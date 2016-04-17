@@ -121,7 +121,12 @@ def get_var_attrs(cli, var_token, partial_word):
     var_candidates = []
 
     try:
-        if var_token == 'WORKER_ID...':
+        if var_token == 'ENABLE_DISABLE':
+            var_type = 'endis'
+            var_desc = 'one or more worker IDs'
+            var_candidates = ['enable', 'disable']
+
+        elif var_token == 'WORKER_ID...':
             var_type = 'wid+'
             var_desc = 'one or more worker IDs'
             var_candidates = [str(m.wid) for m in cli.bess.list_workers()]
@@ -240,7 +245,7 @@ def get_var_attrs(cli, var_token, partial_word):
 #   tail: the rest of input line
 # You can assume that 'line == head + tail'
 def split_var(cli, var_type, line):
-    if var_type in ['name', 'gate', 'confname', 'filename']:
+    if var_type in ['name', 'gate', 'confname', 'filename', 'endis']:
         pos = line.find(' ')
         if pos == -1:
             head = line
@@ -270,7 +275,15 @@ def bind_var(cli, var_type, line):
     # default behavior
     val = head
 
-    if var_type == 'wid+':
+    if var_type == 'endis':
+        if 'enable'.startswith(val):
+            val = 'enable'
+        elif 'disable'.startswith(val):
+            val = 'disable'
+        else:
+            raise cli.BindError('"endis" must be either "enable" or "disable"')
+
+    elif var_type == 'wid+':
         val = []
         for wid_str in head.split():
             if wid_str.isdigit():
@@ -350,6 +363,11 @@ def history(cli):
             cli.fout.write('%5d  %s\n' % (i, cli.rl.get_history_item(i)))
     else:
         cli.err('"readline" not available')
+
+@cmd('debug ENABLE_DISABLE', 
+        'Enable/disable debug messages')
+def debug(cli, flag):
+    cli.bess.set_debug(flag== 'enable')
 
 @cmd('daemon connect [HOST] [PORT]', 'Connect to BESS daemon')
 def daemon_connect(cli, host, port):
