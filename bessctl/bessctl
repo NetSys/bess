@@ -127,14 +127,15 @@ if __name__ == '__main__':
     if len(sys.argv) == 1:
         run_cli()
     else:
-        cmds = ""
-        argv = []
+        cmds = []
+        line_buf = []
+
         for arg in sys.argv[1:]:
             if arg == '--':
-                cmds = "%s%s\n"%(cmds, " ".join(argv))
-                argv = []
+                cmds.append(' '.join(line_buf))
+                line_buf = []
             else:
-                argv.append(arg)
-        cmds = "%s%s\n"%(cmds, " ".join(argv))
-        bufin = cStringIO.StringIO(cmds)
-        run_cmds(bufin)
+                line_buf.append(arg)
+
+        cmds.append(' '.join(line_buf))
+        run_cmds(cStringIO.StringIO('\n'.join(cmds)))
