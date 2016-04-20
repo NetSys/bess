@@ -493,10 +493,9 @@ void _trace_after_call(void)
 }
 #endif
 
-/* currently very slow with linear search */
 struct module *find_module(const char *name)
 {
-	return (struct module *) ns_lookup(NS_TYPE_MODULE, name);
+	return (struct module *)ns_lookup(NS_TYPE_MODULE, name);
 }
 
 #if TCPDUMP_GATES

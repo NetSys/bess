@@ -36,7 +36,19 @@ class BESS(object):
         self.peer = None
 
     def is_connected(self):
-        return self.s is not None
+        if self.s is None:
+            return False
+
+        try:
+            tmp = self.s.recv(1, socket.MSG_DONTWAIT)
+            assert len(tmp) == 0, 'Bogus data from BESS daemon'
+        except socket.error as e:
+            if e.errno not in [errno.EAGAIN, errno.EWOULDBLOCK]:
+                self.s.close()
+                self.s = None
+                return False
+
+        return True
 
     def connect(self, host='localhost', port=DEF_PORT):
         if self.is_connected():
@@ -137,7 +149,7 @@ class BESS(object):
     def list_ports(self):
         return self._request_bess('list_ports')
 
-    def create_port(self, driver = 'PMD', name = None, arg = None):
+    def create_port(self, driver = 'PMD', name=None, arg=None):
         kv = {'driver': driver}
 
         if name is not None:    kv['name'] = name
@@ -151,16 +163,19 @@ class BESS(object):
     def get_port_stats(self, port):
         return self._request_bess('get_port_stats', port)
 
+    def list_mclasses(self):
+        return self._request_bess('list_mclasses')
+
     def list_modules(self):
         return self._request_bess('list_modules')
 
-    def list_mclasses(self):
-        return self._request_bess('list_mclasses')
+    def get_mclass_info(self, name):
+        return self._request_bess('get_mclass_info', name)
 
     def reset_modules(self):
         return self._request_bess('reset_modules')
 
-    def create_module(self, mclass, name = None, arg = None):
+    def create_module(self, mclass, name=None, arg=None):
         kv = {'mclass': mclass}
 
         if name is not None:    kv['name'] = name
@@ -174,7 +189,7 @@ class BESS(object):
     def get_module_info(self, name):
         return self._request_bess('get_module_info', name)
 
-    def connect_modules(self, m1, m2, ogate = 0, igate = 0):
+    def connect_modules(self, m1, m2, ogate=0, igate=0):
         return self._request_bess('connect_modules', 
                 {'m1': m1, 'm2': m2, 'ogate': ogate, 'igate': igate})
 
@@ -182,14 +197,14 @@ class BESS(object):
         return self._request_bess('disconnect_modules', 
                 {'name': name, 'ogate': ogate})
 
-    def query_module(self, name, arg):
-        return self._request_module(name, 'query', arg)
+    def run_module_command(self, name, cmd, arg):
+        return self._request_module(name, cmd, arg)
 
-    def enable_tcpdump(self, fifo, m, ogate = 0):
+    def enable_tcpdump(self, fifo, m, ogate=0):
         args = {'name': m, 'ogate': ogate, 'fifo': fifo}
         return self._request_bess('enable_tcpdump', args)
 
-    def disable_tcpdump(self, m, ogate = 0):
+    def disable_tcpdump(self, m, ogate=0):
         args = {'name': m, 'ogate': ogate}
         return self._request_bess('disable_tcpdump', args)
 

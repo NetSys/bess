@@ -21,6 +21,7 @@ static void macswap_process_batch(struct module *m, struct pkt_batch *batch)
 
 static const struct mclass macswap = {
 	.name 			= "MACSwap",
+	.help			= "swaps source/destination MAC addresses",
 	.def_module_name	= "macswap",
 	.num_igates		= 1,
 	.num_ogates		= 1,

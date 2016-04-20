@@ -11,30 +11,29 @@ struct vlan_push_priv {
 	uint32_t qinq_tag;
 };
 
-static struct snobj *vpush_query(struct module *m, struct snobj *q);
-
-static struct snobj *vpush_init(struct module *m, struct snobj *arg)
-{
-	return vpush_query(m, arg);
-}
-
-static struct snobj *vpush_query(struct module *m, struct snobj *q)
+static struct snobj *
+command_set_tci(struct module *m, const char *cmd, struct snobj *arg)
 {
 	struct vlan_push_priv *priv = get_priv(m);
 	uint16_t tci;
 
-	if (!q || !snobj_eval_exists(q, "tci"))
-		return snobj_err(EINVAL, "'tci' must be given as an integer");
+	if (!arg || snobj_type(arg) != TYPE_INT)
+		return snobj_err(EINVAL, "argument must be an integer");
 
-	tci = snobj_eval_uint(q, "tci");
+	tci = snobj_uint_get(arg);
 
 	if (tci > 0xffff)
-		return snobj_err(EINVAL, "'tci' value should be 0-65535");
+		return snobj_err(EINVAL, "TCI value must be 0-65535");
 
 	priv->vlan_tag = htonl((0x8100 << 16) | tci);
 	priv->qinq_tag = htonl((0x88a8 << 16) | tci);
 
 	return NULL;
+}
+
+static struct snobj *vpush_init(struct module *m, struct snobj *arg)
+{
+	return command_set_tci(m, NULL, arg);
 }
 
 static struct snobj *vpush_get_desc(const struct module *m)
@@ -56,8 +55,6 @@ static void vpush_process_batch(struct module *m, struct pkt_batch *batch)
 
 	uint32_t vlan_tag = priv->vlan_tag;
 	uint32_t qinq_tag = priv->qinq_tag;
-
-	//uint32_t tag[2] = {vlan_tag, qinq_tag};
 
 	for (int i = 0; i < cnt; i++) {
 		struct snbuf *pkt = batch->pkts[i];
@@ -94,14 +91,17 @@ static void vpush_process_batch(struct module *m, struct pkt_batch *batch)
 
 static const struct mclass vlan_push = {
 	.name 			= "VLANPush",
+	.help			= "adds 802.1Q/802.11ad VLAN tag",
 	.def_module_name 	= "vlan_push",
 	.num_igates 		= 1,
 	.num_ogates		= 1,
 	.priv_size		= sizeof(struct vlan_push_priv),
 	.init 			= vpush_init,
-	.query			= vpush_query,
 	.get_desc		= vpush_get_desc,
 	.process_batch  	= vpush_process_batch,
+	.commands		= {
+		{"set_tci", 	command_set_tci},
+	}
 };
 
 ADD_MCLASS(vlan_push)

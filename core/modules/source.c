@@ -4,56 +4,40 @@ struct source_priv {
 	int pkt_size;
 };
 
-static struct snobj *source_query(struct module *, struct snobj *);
+static struct snobj *
+command_set_pkt_size(struct module *m, const char *cmd, struct snobj *arg);
 
 static struct snobj *source_init(struct module *m, struct snobj *arg)
 {
 	struct source_priv *priv = get_priv(m);
 	task_id_t tid;
 
-	priv->pkt_size = 60;	/* default: min-sized Ethernet frames */
-
 	tid = register_task(m, NULL);
 	if (tid == INVALID_TASK_ID)
 		return snobj_err(ENOMEM, "Task creation failed");
 
-	if (arg)
-		return source_query(m, arg);
-	
-	return NULL;
+	if (!arg || (arg = snobj_eval(arg, "pkt_size"))) {
+		priv->pkt_size = 60;	/* default: min-sized Ethernet frames */
+		return NULL;
+	} else
+		return command_set_pkt_size(m, NULL, arg);
 }
 
-static struct snobj *handle_pkt_size(struct source_priv *priv, 
-		struct snobj *pkt_size)
+static struct snobj *
+command_set_pkt_size(struct module *m, const char *cmd, struct snobj *arg)
 {
+	struct source_priv *priv = get_priv(m);
 	uint64_t val;
 	
-	if (snobj_type(pkt_size) != TYPE_INT)
-		return snobj_err(EINVAL, 
-				"'pkt_size' must be an integer");
+	if (snobj_type(arg) != TYPE_INT)
+		return snobj_err(EINVAL, "argument must be an integer");
 
-	val = snobj_uint_get(pkt_size);
+	val = snobj_uint_get(arg);
 
 	if (val == 0 || val > SNBUF_DATA)
 		return snobj_err(EINVAL, "Invalid packet size");
 
 	priv->pkt_size = val;
-
-	return NULL;
-}
-
-static struct snobj *source_query(struct module *m, struct snobj *q)
-{
-	struct source_priv *priv = get_priv(m);
-
-	struct snobj *pkt_size = snobj_eval(q, "pkt_size");
-	struct snobj *err;
-
-	if (pkt_size) {
-		err = handle_pkt_size(priv, pkt_size);
-		if (err)
-			return err;
-	}
 
 	return NULL;
 }
@@ -88,12 +72,16 @@ source_run_task(struct module *m, void *arg)
 
 static const struct mclass source = {
 	.name 		= "Source",
+	.help		= 
+		"infinitely generates packets with uninitialized data",
 	.num_igates 	= 0,
 	.num_ogates	= 1,
 	.priv_size	= sizeof(struct source_priv),
 	.init 		= source_init,
-	.query		= source_query,
 	.run_task 	= source_run_task,
+	.commands	= {
+		{"set_pkt_size", command_set_pkt_size, .mt_safe=1},
+	}
 };
 
 ADD_MCLASS(source)

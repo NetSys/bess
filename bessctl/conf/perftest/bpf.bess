@@ -9,11 +9,12 @@ bpf:1 -> Sink()      # for matched packets
 bpf:2 -> Sink()      # for matched packets (by the second filter)
 
 def run_testcase(exps, test_pkts):
-    rewrite.query({'templates': map(lambda x: bytearray(str(x)), test_pkts)})
-    bpf.query("reset")
+    rewrite.clear()
+    rewrite.add(map(lambda x: bytearray(str(x)), test_pkts))
 
     # the higher number, the higher priority.
-    bpf.query([{'priority': -i, 'filter': exp, 'gate': i + 1} \
+    bpf.clear()
+    bpf.add([{'priority': -i, 'filter': exp, 'gate': i + 1} \
             for i, exp in enumerate(exps)])
 
     bess.resume_all()
@@ -53,10 +54,11 @@ testcases = [
     (['udp'], [udp_pkt]),
     (['udp'], [tcp_pkt]),
     (['udp'], [udp_pkt, tcp_pkt]),
-    (['tcp src portrange 8000-9000 && dst port 80'], [http_pkt1]),
-    (['tcp src portrange 8000-9000 && dst port 80'], [http_pkt1, http_pkt2, http_pkt3]),
-    (['tcp src portrange 8000-9000 && dst port 80'], [http_pkt1, http_pkt2, http_pkt3, ftp_pkt]),
-    (['tcp src portrange 8000-9000 && dst port 80', 'tcp'], [http_pkt1, http_pkt2, http_pkt3, ftp_pkt, udp_pkt]),
+    (['tcp dst port 80'], [http_pkt1, http_pkt2, http_pkt3, ftp_pkt]),
+    (['tcp src portrange 8000-9000 && tcp dst port 80'], [http_pkt1]),
+    (['tcp src portrange 8000-9000 && tcp dst port 80'], [http_pkt1, http_pkt2, http_pkt3]),
+    (['tcp src portrange 8000-9000 && tcp dst port 80'], [http_pkt1, http_pkt2, http_pkt3, ftp_pkt]),
+    (['tcp src portrange 8000-9000 && tcp dst port 80', 'tcp'], [http_pkt1, http_pkt2, http_pkt3, ftp_pkt, udp_pkt]),
 ]
 
 for i, case in enumerate(testcases):

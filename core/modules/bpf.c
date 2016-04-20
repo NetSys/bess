@@ -1097,11 +1097,12 @@ static int compare_filter(const void *filter1, const void *filter2)
 		return 0;
 }
 
-static struct snobj *bpf_query(struct module *, struct snobj *);
+static struct snobj *
+command_add(struct module *m, const char *cmd, struct snobj *arg);
 
 static struct snobj *bpf_init(struct module *m, struct snobj *arg)
 {
-	return arg ? bpf_query(m, arg) : NULL;
+	return arg ? command_add(m, NULL, arg) : NULL;
 }
 
 static void bpf_deinit(struct module *m)
@@ -1117,27 +1118,22 @@ static void bpf_deinit(struct module *m)
 	priv->n_filters = 0;
 }
 
-static struct snobj *bpf_query(struct module *m, struct snobj *q)
+static struct snobj *
+command_add(struct module *m, const char *cmd, struct snobj *arg)
 {
 	struct bpf_priv *priv = get_priv(m);
 	struct filter *filter;
 
-	if (snobj_type(q) == TYPE_STR &&
-			strcmp(snobj_str_get(q), "reset") == 0) {
-		bpf_deinit(m);
-		return NULL;
-	}
-	
-	if (snobj_type(q) != TYPE_LIST)
+	if (snobj_type(arg) != TYPE_LIST)
 		return snobj_err(EINVAL, "Argument must be a list");
 
-	if (priv->n_filters + q->size > MAX_FILTERS)
+	if (priv->n_filters + arg->size > MAX_FILTERS)
 		return snobj_err(EINVAL, "Too many filters");
 
 	filter = &priv->filters[priv->n_filters];
 
-	for (int i = 0; i < q->size; i++) {
-		struct snobj *f = snobj_list_get(q, i);
+	for (int i = 0; i < arg->size; i++) {
+		struct snobj *f = snobj_list_get(arg, i);
 		int priority;
 		char *exp;
 		int gate;
@@ -1193,6 +1189,13 @@ static struct snobj *bpf_query(struct module *m, struct snobj *q)
 		filter++;
 	}
 
+	return NULL;
+}
+
+static struct snobj *
+command_clear(struct module *m, const char *cmd, struct snobj *arg)
+{
+	bpf_deinit(m);
 	return NULL;
 }
 
@@ -1288,14 +1291,18 @@ static void bpf_process_batch(struct module *m, struct pkt_batch *batch)
 
 static const struct mclass bpf = {
 	.name 		= "BPF",
+	.help		= "classifies packets with pcap-filter(7) syntax",
 	.num_igates	= 1,
 	.num_ogates	= MAX_GATES,
 	.priv_size	= sizeof(struct bpf_priv),
 	.init 		= bpf_init,
 	.deinit 	= bpf_deinit,
-	.query		= bpf_query,
 	.get_desc	= bpf_get_desc,
 	.process_batch  = bpf_process_batch,
+	.commands	 = {
+		{"add", 	command_add},
+		{"clear", 	command_clear},
+	}
 };
 
 ADD_MCLASS(bpf)

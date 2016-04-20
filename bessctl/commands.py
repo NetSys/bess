@@ -48,7 +48,7 @@ def __bess_module__(module_names, mclass_name, *args, **kwargs):
     if isinstance(module_names, str):
         if module_names in caller_globals:
             raise ConfError("Module name %s already exists" % module_names)
-        obj = mclass_obj(module_names, *args, **kwargs)
+        obj = mclass_obj(*args, _name=module_names, **kwargs)
         caller_globals[module_names] = obj
         return obj
 
@@ -61,7 +61,7 @@ def __bess_module__(module_names, mclass_name, *args, **kwargs):
                 raise ConfError("Module name %s already exists" % module)
 
         for module in module_names:
-            obj = mclass_obj(module, *args, **kwargs)
+            obj = mclass_obj(*args, _name=module, **kwargs)
             caller_globals[module] = obj
             obj_list.append(obj)
         return obj_list
@@ -98,7 +98,6 @@ def complete_filename(partial_word, start_dir='', suffix=''):
             if not is_allowed_filename(basename):
                 continue
 
-            #print '%s-%s-%s' % (target_dir, basename, os.path.join(target_dir, basename))
             if os.path.isdir(os.path.join(target_dir, basename)):
                 candidates.append(basename + '/')
             else:
@@ -122,7 +121,12 @@ def get_var_attrs(cli, var_token, partial_word):
     var_candidates = []
 
     try:
-        if var_token == 'WORKER_ID...':
+        if var_token == 'ENABLE_DISABLE':
+            var_type = 'endis'
+            var_desc = 'one or more worker IDs'
+            var_candidates = ['enable', 'disable']
+
+        elif var_token == 'WORKER_ID...':
             var_type = 'wid+'
             var_desc = 'one or more worker IDs'
             var_candidates = [str(m.wid) for m in cli.bess.list_workers()]
@@ -135,6 +139,11 @@ def get_var_attrs(cli, var_token, partial_word):
         elif var_token == 'MCLASS':
             var_type = 'name'
             var_desc = 'name of a module class'
+            var_candidates = cli.bess.list_mclasses()
+
+        elif var_token == 'MCLASS...':
+            var_type = 'name+'
+            var_desc = 'one or more module class names'
             var_candidates = cli.bess.list_mclasses()
 
         elif var_token == '[NEW_MODULE]':
@@ -150,6 +159,10 @@ def get_var_attrs(cli, var_token, partial_word):
             var_type = 'name+'
             var_desc = 'one or more module names'
             var_candidates = [m.name for m in cli.bess.list_modules()]
+
+        elif var_token == 'MODULE_CMD':
+            var_type = 'name'
+            var_desc = 'module command to run (see "show mclass")'
 
         elif var_token == '[NEW_PORT]':
             var_type = 'name'
@@ -201,13 +214,17 @@ def get_var_attrs(cli, var_token, partial_word):
             var_type = 'pyobj'
             var_desc = 'initial configuration for module'
 
+        elif var_token == '[CMD_ARGS...]':
+            var_type = 'pyobj'
+            var_desc = 'arguments for module command'
+
         elif var_token == '[TCPDUMP_OPTS...]':
             var_type = 'opts'
-            var_desc = 'tcpdump(1) options (e.g., "-ne tcp port 22")'
+            var_desc = 'tcpdump(1) command-line options (e.g., "-ne tcp port 22")'
 
         elif var_token == '[BESSD_OPTS...]':
             var_type = 'opts'
-            var_desc = 'bess daemon options (see "bessd -h")'
+            var_desc = 'bess daemon command-line options (see "bessd -h")'
 
     except socket.error as e:
         if e.errno in [errno.ECONNRESET, errno.EPIPE]:
@@ -228,7 +245,7 @@ def get_var_attrs(cli, var_token, partial_word):
 #   tail: the rest of input line
 # You can assume that 'line == head + tail'
 def split_var(cli, var_type, line):
-    if var_type in ['name', 'gate', 'confname', 'filename']:
+    if var_type in ['name', 'gate', 'confname', 'filename', 'endis']:
         pos = line.find(' ')
         if pos == -1:
             head = line
@@ -258,7 +275,15 @@ def bind_var(cli, var_type, line):
     # default behavior
     val = head
 
-    if var_type == 'wid+':
+    if var_type == 'endis':
+        if 'enable'.startswith(val):
+            val = 'enable'
+        elif 'disable'.startswith(val):
+            val = 'disable'
+        else:
+            raise cli.BindError('"endis" must be either "enable" or "disable"')
+
+    elif var_type == 'wid+':
         val = []
         for wid_str in head.split():
             if wid_str.isdigit():
@@ -338,6 +363,11 @@ def history(cli):
             cli.fout.write('%5d  %s\n' % (i, cli.rl.get_history_item(i)))
     else:
         cli.err('"readline" not available')
+
+@cmd('debug ENABLE_DISABLE', 
+        'Enable/disable debug messages')
+def debug(cli, flag):
+    cli.bess.set_debug(flag== 'enable')
 
 @cmd('daemon connect [HOST] [PORT]', 'Connect to BESS daemon')
 def daemon_connect(cli, host, port):
@@ -609,6 +639,19 @@ def add_connection(cli, m1, m2, ogate, igate):
     cli.bess.pause_all()
     try:
         cli.bess.connect_modules(m1, m2, ogate, igate)
+    finally:
+        cli.bess.resume_all()
+
+@cmd('command module MODULE MODULE_CMD [CMD_ARGS...]', 
+        'Send a command to a module')
+def command_module(cli, module, cmd, args):
+    cli.bess.pause_all()
+    try:
+        ret = cli.bess.run_module_command(module, cmd, args)
+        if ret is None:
+            cli.fout.write('response: None (usually means SUCCESS)\n')
+        else:
+            cli.fout.write('response: %s\n', repr(ret))
     finally:
         cli.bess.resume_all()
 
@@ -904,8 +947,8 @@ def show_port_list(cli, port_names):
         else:
             raise cli.CommandError('Port "%s" doest not exist' % port_name)
 
-def _show_module(cli, module):
-    info = cli.bess.get_module_info(module.name)
+def _show_module(cli, module_name):
+    info = cli.bess.get_module_info(module_name)
 
     cli.fout.write('  %s::%s' % (info.name, info.mclass))
 
@@ -946,19 +989,33 @@ def show_module_all(cli):
         raise cli.CommandError('There is no active module to show.')
 
     for module in modules:
-        _show_module(cli, module)
+        _show_module(cli, module.name)
 
 @cmd('show module MODULE...', 'Show the status of specified modules')
 def show_module_list(cli, module_names):
-    modules = cli.bess.list_modules()
-
     for module_name in module_names:
-        for module in modules:
-            if module_name == module.name:
-                _show_module(cli, module)
-                break
-        else:
-            raise cli.CommandError('Module "%s" doest not exist' % module_name)
+        _show_module(cli, module_name)
+
+def _show_mclass(cli, cls_name):
+    info = cli.bess.get_mclass_info(cls_name)
+
+    cli.fout.write( '%-16s %s\n' % (info.name, info.help))
+    if info.commands:
+        cli.fout.write('\t\t commands: %s\n' % (', '.join(info.commands)))
+    else:
+        cli.fout.write('\t\t (no commands)\n')
+
+@cmd('show mclass', 'Show all module classes')
+def show_mclass_all(cli):
+    mclasses = cli.bess.list_mclasses()
+
+    for cls_name in mclasses:
+        _show_mclass(cli, cls_name)
+
+@cmd('show mclass MCLASS...', 'Show the details of specified module classes')
+def show_mclass_list(cli, cls_names):
+    for cls_name in cls_names:
+        _show_mclass(cli, cls_name)
 
 def _monitor_pipeline(cli, field):
     modules = sorted(cli.bess.list_modules())
@@ -994,26 +1051,26 @@ def _monitor_ports(cli, *ports):
         return (new - old) / sec_diff
 
     def print_header(timestamp):
-        print
-        print '%-20s%14s%10s%10s        %14s%10s%10s' % \
+        cli.fout.write('\n')
+        cli.fout.write('%-20s%14s%10s%10s        %14s%10s%10s\n' % \
                 (time.strftime('%X') + str(timestamp % 1)[1:8], \
                  'INC     Mbps', 'Mpps', 'dropped', \
-                 'OUT     Mbps', 'Mpps', 'dropped')
+                 'OUT     Mbps', 'Mpps', 'dropped'))
 
-        print '-' * 96
+        cli.fout.write('%s\n' % ('-' * 96))
 
     def print_footer():
-        print '-' * 96
+        cli.fout.write('%s\n' % ('-' * 96))
 
     def print_delta(port, delta):
-        print '%-20s%14.1f%10.3f%10d        %14.1f%10.3f%10d' % (port, 
-                (delta.inc.bytes + delta.inc.packets * 24) * 8 / 1e6,
-                delta.inc.packets / 1e6,
-                delta.inc.dropped,
-                (delta.out.bytes + delta.out.packets * 24) * 8 / 1e6,
-                delta.out.packets / 1e6,
-                delta.out.dropped,
-            )
+        cli.fout.write('%-20s%14.1f%10.3f%10d        %14.1f%10.3f%10d\n' % \
+                (port, 
+                 (delta.inc.bytes + delta.inc.packets * 24) * 8 / 1e6,
+                 delta.inc.packets / 1e6,
+                 delta.inc.dropped,
+                 (delta.out.bytes + delta.out.packets * 24) * 8 / 1e6,
+                 delta.out.packets / 1e6,
+                 delta.out.dropped))
 
     def get_total(arr):
         total = copy.deepcopy(arr[0])
@@ -1080,16 +1137,16 @@ def _monitor_tcs(cli, *tcs):
         return (new - old) / sec_diff
 
     def print_header(timestamp):
-        print
-        print '%-20s%12s%12s%12s%12s%12s%12s' % \
+        cli.fout.write('\n')
+        cli.fout.write('%-20s%12s%12s%12s%12s%12s%12s\n' % \
                 (time.strftime('%X') + str(timestamp % 1)[1:8], \
                  'CPU MHz', 'scheduled', 'Mpps', 'Mbps', 
-                 'pkts/batch', 'cycles/p')
+                 'pkts/batch', 'cycles/p'))
 
-        print '-' * 92
+        cli.fout.write('%s\n' % ('-' * 92))
 
     def print_footer():
-        print '-' * 92
+        cli.fout.write('%s\n' % ('-' * 92))
 
     def print_delta(tc, delta):
         if delta.count >= 1:
@@ -1102,13 +1159,14 @@ def _monitor_tcs(cli, *tcs):
         else:
             cpp = 0
 
-        print '%-20s%12.3f%12d%12.3f%12.3f%12.3f%12.3f' % (tc, 
-                delta.cycles / 1e6, 
-                delta.count, 
-                delta.packets / 1e6, 
-                delta.bits / 1e6,
-                ppb,
-                cpp)
+        cli.fout.write('%-20s%12.3f%12d%12.3f%12.3f%12.3f%12.3f\n' % \
+                (tc, 
+                 delta.cycles / 1e6, 
+                 delta.count, 
+                 delta.packets / 1e6, 
+                 delta.bits / 1e6,
+                 ppb,
+                 cpp))
 
 
     def get_total(arr):

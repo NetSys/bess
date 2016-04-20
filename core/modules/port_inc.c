@@ -113,6 +113,7 @@ port_inc_run_task(struct module *m, void *arg)
 
 static const struct mclass port_inc = {
 	.name 		= "PortInc",
+	.help		= "receives packets from a port",
 	.num_igates	= 0,
 	.num_ogates	= 1,
 	.priv_size	= sizeof(struct port_inc_priv),

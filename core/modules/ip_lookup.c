@@ -38,75 +38,6 @@ static void ip_lookup_deinit(struct module *m)
 	rte_lpm_free(priv->lpm);
 }
 
-static struct snobj *ip_lookup_query(struct module *m, struct snobj *q)
-{
-	struct ip_lookup_priv *priv = get_priv(m);
-	const char *cmd;
-
-	if (!(cmd = snobj_eval_str(q, "cmd")))
-		return snobj_err(EINVAL, "field 'cmd' is missing");
-
-	if (strcmp(cmd, "add") == 0) {
-		char *prefix = snobj_eval_str(q, "prefix");
-		uint32_t prefix_len = snobj_eval_uint(q, "prefix_len");
-		gate_idx_t gate = snobj_eval_uint(q, "gate");
-
-		struct in_addr ip_addr_be;
-		uint32_t ip_addr;		/* in cpu order */
-		uint32_t netmask;
-		int ret;
-
-		if (!prefix || !snobj_eval_exists(q, "prefix_len"))
-			return snobj_err(EINVAL, 
-					"'prefix' or 'prefix_len' is missing");
-
-		ret = inet_aton(prefix, &ip_addr_be);
-		if (!ret)
-			return snobj_err(EINVAL, "Invalid IP prefix: %s",
-					prefix);
-
-		if (prefix_len > 32)
-			return snobj_err(EINVAL, "Invalid prefix length: %d",
-					prefix_len);
-
-		ip_addr = rte_be_to_cpu_32(ip_addr_be.s_addr);
-		netmask = ~0 ^ ((1 << (32 - prefix_len)) - 1);
-
-		if (ip_addr & ~netmask)
-			return snobj_err(EINVAL, "Invalid IP prefix %s/%d %x %x",
-					prefix, prefix_len, ip_addr, netmask);
-
-		if (!snobj_eval_exists(q, "gate"))
-			return snobj_err(EINVAL, 
-					"'gate' must be specified");
-
-		if (!is_valid_gate(gate))
-			return snobj_err(EINVAL, "Invalid gate: %hu", gate);
-
-		if (prefix_len == 0)
-			priv->default_gate = gate;
-		else {
-			/* only in DPDK 2.2 or older */
-			if (gate >= 256)
-				return snobj_err(EINVAL, 
-						"'gate' should be < 256");
-
-			ret = rte_lpm_add(priv->lpm, ip_addr, prefix_len, gate); 
-			if (ret)
-				return snobj_err(-ret, "rpm_lpm_add() failed");
-		}
-
-		return NULL;
-
-	} else if (strcmp(cmd, "clear") == 0) {
-		rte_lpm_delete_all(priv->lpm);
-		priv->default_gate = DROP_GATE;
-		return NULL;
-
-	} else
-		return snobj_err(EINVAL, "unknown command '%s'", cmd);
-}
-
 static void ip_lookup_process_batch(struct module *m, struct pkt_batch *batch)
 {
 	struct ip_lookup_priv *priv = get_priv(m);
@@ -179,16 +110,86 @@ static void ip_lookup_process_batch(struct module *m, struct pkt_batch *batch)
 	run_split(m, ogates, batch);
 }
 
+struct snobj *command_add(struct module *m, const char *cmd, struct snobj *arg)
+{
+	struct ip_lookup_priv *priv = get_priv(m);
+	
+	char *prefix = snobj_eval_str(arg, "prefix");
+	uint32_t prefix_len = snobj_eval_uint(arg, "prefix_len");
+	gate_idx_t gate = snobj_eval_uint(arg, "gate");
+
+	struct in_addr ip_addr_be;
+	uint32_t ip_addr;		/* in cpu order */
+	uint32_t netmask;
+	int ret;
+
+	if (!prefix || !snobj_eval_exists(arg, "prefix_len"))
+		return snobj_err(EINVAL, 
+				"'prefix' or 'prefix_len' is missing");
+
+	ret = inet_aton(prefix, &ip_addr_be);
+	if (!ret)
+		return snobj_err(EINVAL, "Invalid IP prefix: %s",
+				prefix);
+
+	if (prefix_len > 32)
+		return snobj_err(EINVAL, "Invalid prefix length: %d",
+				prefix_len);
+
+	ip_addr = rte_be_to_cpu_32(ip_addr_be.s_addr);
+	netmask = ~0 ^ ((1 << (32 - prefix_len)) - 1);
+
+	if (ip_addr & ~netmask)
+		return snobj_err(EINVAL, "Invalid IP prefix %s/%d %x %x",
+				prefix, prefix_len, ip_addr, netmask);
+
+	if (!snobj_eval_exists(arg, "gate"))
+		return snobj_err(EINVAL, 
+				"'gate' must be specified");
+
+	if (!is_valid_gate(gate))
+		return snobj_err(EINVAL, "Invalid gate: %hu", gate);
+
+	if (prefix_len == 0)
+		priv->default_gate = gate;
+	else {
+		/* only in DPDK 2.2 or older */
+		if (gate >= 256)
+			return snobj_err(EINVAL, 
+					"'gate' should be < 256");
+
+		ret = rte_lpm_add(priv->lpm, ip_addr, prefix_len, gate); 
+		if (ret)
+			return snobj_err(-ret, "rpm_lpm_add() failed");
+	}
+
+	return NULL;
+}
+
+struct snobj *
+command_clear(struct module *m, const char *cmd, struct snobj *arg)
+{
+	struct ip_lookup_priv *priv = get_priv(m);
+	
+	rte_lpm_delete_all(priv->lpm);
+	priv->default_gate = DROP_GATE;
+	return NULL;
+}
+
 static const struct mclass ip_lookup = {
 	.name            = "IPLookup",
+	.help		 = "performs Longest Prefix Match on IPv4 packets",
 	.def_module_name = "ip_lookup",
 	.num_igates	 = 1,
 	.num_ogates	 = MAX_GATES,
 	.priv_size       = sizeof(struct ip_lookup_priv),
 	.init            = ip_lookup_init,
 	.deinit          = ip_lookup_deinit,
-	.query           = ip_lookup_query,
 	.process_batch   = ip_lookup_process_batch,
+	.commands	 = {
+		{"add", 	command_add},
+		{"clear", 	command_clear},
+	}
 };
 
 ADD_MCLASS(ip_lookup)
