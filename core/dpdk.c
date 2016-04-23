@@ -86,7 +86,7 @@ static cookie_io_functions_t dpdk_log_funcs = {
 	.write = &dpdk_log_writer,
 };
 
-static void init_eal(char *prog_name, int mb_per_socket)
+static void init_eal(char *prog_name, int mb_per_socket, int multi_instance)
 {
 	int rte_argc = 0;
 	char *rte_argv[16];
@@ -94,6 +94,7 @@ static void init_eal(char *prog_name, int mb_per_socket)
 	char opt_master_lcore[1024];
 	char opt_lcore_bitmap[1024];
 	char opt_socket_mem[1024];
+	char opt_file_prefix[1024];
 
 	int numa_count = get_numa_count();
 
@@ -126,6 +127,14 @@ static void init_eal(char *prog_name, int mb_per_socket)
 #else
 	rte_argv[rte_argc++] = "--no-huge";
 #endif
+	if (multi_instance) {
+		sprintf(opt_file_prefix, "rte%lld", (long long)getpid());
+		/* Casting to long long isn't guaranteed by POSIX to not lose
+                 * any information, but should be okay for Linux and BSDs for
+                 * the foreseeable future. */
+		rte_argv[rte_argc++] = "--file-prefix";
+		rte_argv[rte_argc++] = opt_file_prefix;
+	}
 	rte_argv[rte_argc] = NULL;
 
 	/* reset getopt() */
@@ -173,9 +182,9 @@ static void announce_cpumask()
 #endif
 }
 
-void init_dpdk(char *prog_name, int mb_per_socket)
+void init_dpdk(char *prog_name, int mb_per_socket, int multi_instance)
 {
-	init_eal(prog_name, mb_per_socket);
+	init_eal(prog_name, mb_per_socket, multi_instance);
 
 	tsc_hz = rte_get_tsc_hz();
 

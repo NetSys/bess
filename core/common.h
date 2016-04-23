@@ -26,6 +26,7 @@ extern const struct global_opts {
 	int debug_mode;		/* If 1, print control messages */
 	int mb_per_socket;	/* MB per CPU socket for DPDK (0=default) */
 	char * pidfile;		/* Filename (nullptr=default; nullstr=none) */
+	int multi_instance;	/* If 1, allow multiple BESS instances */
 } global_opts;
 
 /* The term RX/TX could be very confusing for a virtual switch.

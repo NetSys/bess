@@ -26,7 +26,7 @@ static void print_usage(char *exec_name)
 {
 	log_info("Usage: %s" \
 		" [-h] [-t] [-c <core>] [-p <port>] [-m <MB>] [-i pidfile]" \
-		" [-f] [-k] [-s] [-d]\n\n",
+		" [-f] [-k] [-s] [-d] [-a]\n\n",
 		exec_name);
 
 	log_info("  %-16s This help message\n", 
@@ -50,6 +50,8 @@ static void print_usage(char *exec_name)
 			"-s");
 	log_info("  %-16s Run BESS in debug mode (with debug log messages)\n",
 			"-d");
+	log_info("  %-16s Allow multiple instances\n",
+			"-a");
 
 	exit(2);
 }
@@ -62,7 +64,7 @@ static void parse_args(int argc, char **argv)
 
 	num_workers = 0;
 
-	while ((c = getopt(argc, argv, ":htc:p:fksdm:i:")) != -1) {
+	while ((c = getopt(argc, argv, ":htc:p:fksdm:i:a")) != -1) {
 		switch (c) {
 		case 'h':
 			print_usage(argv[0]);
@@ -113,6 +115,10 @@ static void parse_args(int argc, char **argv)
 			if (opts->pidfile)
 				free(opts->pidfile);
 			opts->pidfile = strdup(optarg); /* Gets leaked */
+			break;
+
+		case 'a':
+			opts->multi_instance = 1;
 			break;
 
 		case ':':
@@ -351,7 +357,7 @@ int main(int argc, char **argv)
 
 	start_logger();
 
-	init_dpdk(argv[0], opts->mb_per_socket);
+	init_dpdk(argv[0], opts->mb_per_socket, opts->multi_instance);
 	init_mempool();
 	init_drivers();
 
