@@ -24,6 +24,7 @@ extern const struct global_opts {
 	int kill_existing;	/* If 1, kill existing BESS instance */
 	int print_tc_stats;	/* If 1, print TC stats every second */
 	int debug_mode;		/* If 1, print control messages */
+	int mb_per_socket;	/* MB per CPU socket for DPDK (0=default) */
 } global_opts;
 
 /* The term RX/TX could be very confusing for a virtual switch.

@@ -86,7 +86,7 @@ static cookie_io_functions_t dpdk_log_funcs = {
 	.write = &dpdk_log_writer,
 };
 
-static void init_eal(char *prog_name)
+static void init_eal(char *prog_name, int mb_per_socket)
 {
 	int rte_argc = 0;
 	char *rte_argv[16];
@@ -94,8 +94,6 @@ static void init_eal(char *prog_name)
 	char opt_master_lcore[1024];
 	char opt_lcore_bitmap[1024];
 	char opt_socket_mem[1024];
-
-	const char *socket_mem = "2048";
 
 	int numa_count = get_numa_count();
 
@@ -108,9 +106,12 @@ static void init_eal(char *prog_name)
 
 	set_lcore_bitmap(opt_lcore_bitmap);
 
-	sprintf(opt_socket_mem, "%s", socket_mem);
+	if (mb_per_socket <= 0)
+		mb_per_socket = 2048;
+
+	sprintf(opt_socket_mem, "%d", mb_per_socket);
 	for(i = 1; i < numa_count; i++)
-		sprintf(opt_socket_mem + strlen(opt_socket_mem), ",%s", socket_mem);
+		sprintf(opt_socket_mem + strlen(opt_socket_mem), ",%d", mb_per_socket);
 
 	rte_argv[rte_argc++] = prog_name;
 	rte_argv[rte_argc++] = "--master-lcore";
@@ -172,9 +173,9 @@ static void announce_cpumask()
 #endif
 }
 
-void init_dpdk(char *prog_name)
+void init_dpdk(char *prog_name, int mb_per_socket)
 {
-	init_eal(prog_name);
+	init_eal(prog_name, mb_per_socket);
 
 	tsc_hz = rte_get_tsc_hz();
 

@@ -5,7 +5,7 @@ In BESS, all packets are represented as `struct snbuf`, which is defined in `cor
 
 ### Per-socket packet pool
 
-In NUMA systems, BESS allocates a pool of packet buffers for each NUMA socket/node. This is currently done with DPDK mempool, although it may change in the future. BESS requires 2GB of hugepages for each socket, either two 1GB hugepages or 1,024 2MB hugepages. The number of allocated packet buffers is 512k per pool by default, but it may be smaller if DPDK cannot find a physically contiguous memory that is large enough for 512k packets.
+In NUMA systems, BESS allocates a pool of packet buffers for each NUMA socket/node. This is currently done with DPDK mempool, although it may change in the future. BESS requires 2GB of hugepages for each socket by default -- either two 1GB hugepages or 1,024 2MB hugepages. The number of allocated packet buffers is 512k per pool by default, but it may be smaller if DPDK cannot find a physically contiguous memory that is large enough for 512k packets.
 
 
 ### Layout

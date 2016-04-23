@@ -14,6 +14,6 @@
   #define DPDK DPDK_VER(RTE_VER_MAJOR,RTE_VER_MINOR,RTE_VER_PATCH_LEVEL)
 #endif
 
-void init_dpdk(char *prog_name);
+void init_dpdk(char *prog_name, int mb_per_socket);
 
 #endif
