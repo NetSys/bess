@@ -309,7 +309,7 @@ class CLI(object):
             return matched[0]
 
         elif len(matched) >= 2:
-            self.err('Ambiguos command "%s". Candidates:' % line.strip())
+            self.err('Ambiguous command "%s". Candidates:' % line.strip())
             for cmd, desc, _ in matched + matched_low:
                 self.fout.write('  %-50s%s\n' % (cmd, desc))
 
