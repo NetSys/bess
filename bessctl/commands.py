@@ -245,7 +245,7 @@ def get_var_attrs(cli, var_token, partial_word):
 #   tail: the rest of input line
 # You can assume that 'line == head + tail'
 def split_var(cli, var_type, line):
-    if var_type in ['name', 'gate', 'confname', 'filename', 'endis']:
+    if var_type in ['name', 'gate', 'confname', 'filename', 'endis', 'int']:
         pos = line.find(' ')
         if pos == -1:
             head = line
@@ -334,6 +334,13 @@ def bind_var(cli, var_type, line):
 
     elif var_type == 'opts':
         val = val.split()
+
+    elif var_type == 'int':
+        try:
+            val = int(val)
+        except Exception:
+            raise cli.BindError('Expected an integer')
+
 
     return val, remainder
 
