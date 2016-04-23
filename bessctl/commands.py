@@ -496,14 +496,14 @@ def daemon_stop(cli):
 @staticmethod
 def _choose_arg(arg, kwargs):
     if kwargs:
+        if arg:
+            raise TypeError('You cannot specify both arg and keyword args')
+
         for key in kwargs:
             if isinstance(kwargs[key], (Module, Port)):
                 kwargs[key] = kwargs[key].name
 
-        if arg:
-            raise bess.Error('You cannot specify both arg and keyword args')
-        else:
-            return kwargs
+        return kwargs
 
     if isinstance(arg, (Module, Port)):
         return arg.name
