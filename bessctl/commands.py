@@ -226,6 +226,14 @@ def get_var_attrs(cli, var_token, partial_word):
             var_type = 'opts'
             var_desc = 'bess daemon command-line options (see "bessd -h")'
 
+        elif var_token == '[HOST]':
+            var_type = 'name'
+            var_desc = 'host address'
+
+        elif var_token == '[TCP_PORT]':
+            var_type = 'int'
+            var_desc = 'TCP port'
+
     except socket.error as e:
         if e.errno in [errno.ECONNRESET, errno.EPIPE]:
             cli.bess.disconnect()
@@ -376,7 +384,7 @@ def history(cli):
 def debug(cli, flag):
     cli.bess.set_debug(flag== 'enable')
 
-@cmd('daemon connect [HOST] [PORT]', 'Connect to BESS daemon')
+@cmd('daemon connect [HOST] [TCP_PORT]', 'Connect to BESS daemon')
 def daemon_connect(cli, host, port):
     kwargs = {}
 
@@ -384,7 +392,7 @@ def daemon_connect(cli, host, port):
         kwargs['host'] = host
 
     if port:
-        kwargs['port'] = int(port)
+        kwargs['port'] = port
 
     cli.bess.connect(**kwargs)
 
