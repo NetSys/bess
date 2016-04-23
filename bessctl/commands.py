@@ -1291,3 +1291,9 @@ def tcpdump_module(cli, module_name, ogate, opts):
             os.system('stty sane')  # more/less may have screwed the terminal
         except:
             pass
+
+@cmd('interactive', 'Switch to interactive mode')
+def interactive(cli):
+   cli.fin = sys.stdin
+   cli.fout = sys.stdout
+   cli.maybe_go_interactive()

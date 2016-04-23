@@ -28,8 +28,14 @@ class CLI(object):
         self.fout = fout
         self.history_file = history_file
 
-        self.interactive = fin.isatty() and fout.isatty()
+        self.interactive = False
         self.rl = None
+        self.maybe_go_interactive()
+
+    def maybe_go_interactive(self):
+        if self.interactive: return
+
+        self.interactive = self.fin.isatty() and self.fout.isatty()
 
         if self.interactive:
             self.print_banner()
