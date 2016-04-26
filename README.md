@@ -17,7 +17,7 @@ BESS runs on top of [DPDK](http://dpdk.org). The installation script will automa
 
 ### Running BESS
 
-Like any other DPDK applications, you need to [set up hugepages](http://dpdk.org/doc/guides/linux_gsg/sys_reqs.html#reserving-hugepages-for-dpdk-use) at least 2GB for each CPU socket. Using 2MB hugepages is recommended since it can be configured without system reboot and the performance difference is negligible. 
+Like any other DPDK applications, you need to [set up hugepages](http://dpdk.org/doc/guides/linux_gsg/sys_reqs.html#reserving-hugepages-for-dpdk-use) -- by default, BESS requires 2GB per CPU socket. Using 2MB hugepages is recommended since it can be configured without system reboot and the performance difference is negligible.
 
 If you want to use physical NIC ports (as an exception, you can skip this step for Mellanox NICs), you also need to [bind ports to DPDK](http://dpdk.org/doc/guides/linux_gsg/build_dpdk.html#binding-and-unbinding-network-ports-to-from-the-kernel-modules):
 

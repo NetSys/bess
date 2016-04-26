@@ -10,7 +10,7 @@ class Module(object):
         self.name = '<uninitialized>'
 
         assert self.__class__.__name__ != 'Module', \
-                "cannot instanciate 'Module'"
+                "cannot instantiate 'Module'"
 
         if '_name' in kwargs:
             name = kwargs['_name']

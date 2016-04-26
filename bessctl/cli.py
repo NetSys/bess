@@ -28,8 +28,14 @@ class CLI(object):
         self.fout = fout
         self.history_file = history_file
 
-        self.interactive = fin.isatty() and fout.isatty()
+        self.interactive = False
         self.rl = None
+        self.maybe_go_interactive()
+
+    def maybe_go_interactive(self):
+        if self.interactive: return
+
+        self.interactive = self.fin.isatty() and self.fout.isatty()
 
         if self.interactive:
             self.print_banner()
@@ -309,7 +315,7 @@ class CLI(object):
             return matched[0]
 
         elif len(matched) >= 2:
-            self.err('Ambiguos command "%s". Candidates:' % line.strip())
+            self.err('Ambiguous command "%s". Candidates:' % line.strip())
             for cmd, desc, _ in matched + matched_low:
                 self.fout.write('  %-50s%s\n' % (cmd, desc))
 

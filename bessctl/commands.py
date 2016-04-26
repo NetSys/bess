@@ -226,6 +226,14 @@ def get_var_attrs(cli, var_token, partial_word):
             var_type = 'opts'
             var_desc = 'bess daemon command-line options (see "bessd -h")'
 
+        elif var_token == '[HOST]':
+            var_type = 'name'
+            var_desc = 'host address'
+
+        elif var_token == '[TCP_PORT]':
+            var_type = 'int'
+            var_desc = 'TCP port'
+
     except socket.error as e:
         if e.errno in [errno.ECONNRESET, errno.EPIPE]:
             cli.bess.disconnect()
@@ -245,7 +253,7 @@ def get_var_attrs(cli, var_token, partial_word):
 #   tail: the rest of input line
 # You can assume that 'line == head + tail'
 def split_var(cli, var_type, line):
-    if var_type in ['name', 'gate', 'confname', 'filename', 'endis']:
+    if var_type in ['name', 'gate', 'confname', 'filename', 'endis', 'int']:
         pos = line.find(' ')
         if pos == -1:
             head = line
@@ -335,6 +343,13 @@ def bind_var(cli, var_type, line):
     elif var_type == 'opts':
         val = val.split()
 
+    elif var_type == 'int':
+        try:
+            val = int(val)
+        except Exception:
+            raise cli.BindError('Expected an integer')
+
+
     return val, remainder
 
 cmdlist = []
@@ -369,7 +384,7 @@ def history(cli):
 def debug(cli, flag):
     cli.bess.set_debug(flag== 'enable')
 
-@cmd('daemon connect [HOST] [PORT]', 'Connect to BESS daemon')
+@cmd('daemon connect [HOST] [TCP_PORT]', 'Connect to BESS daemon')
 def daemon_connect(cli, host, port):
     kwargs = {}
 
@@ -377,7 +392,7 @@ def daemon_connect(cli, host, port):
         kwargs['host'] = host
 
     if port:
-        kwargs['port'] = int(port)
+        kwargs['port'] = port
 
     cli.bess.connect(**kwargs)
 
@@ -1276,3 +1291,9 @@ def tcpdump_module(cli, module_name, ogate, opts):
             os.system('stty sane')  # more/less may have screwed the terminal
         except:
             pass
+
+@cmd('interactive', 'Switch to interactive mode')
+def interactive(cli):
+   cli.fin = sys.stdin
+   cli.fout = sys.stdout
+   cli.maybe_go_interactive()

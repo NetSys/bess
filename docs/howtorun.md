@@ -16,9 +16,9 @@ accountname ALL=NOPASSWD: ALL
 
 #### Setting hugepages
 
-BESS runs on top of DPDK, which requires hugepages for memory management. You can find details how to set up hugepages at [DPDK documentation](http://dpdk.org/doc/guides/linux_gsg/sys_reqs.html?highlight=hugepages#use-of-hugepages-in-the-linux-environment). BESS requires at least 2GB of memory reserved as hugepages. If you have NUMA systems, which have two processors or more, each node/processor/socket needs 2GB.
+BESS runs on top of DPDK, which requires hugepages for memory management. You can find details how to set up hugepages at [DPDK documentation](http://dpdk.org/doc/guides/linux_gsg/sys_reqs.html?highlight=hugepages#use-of-hugepages-in-the-linux-environment). By default, BESS requires at least 2GB of memory reserved as hugepages (in NUMA systems, which have two processors or more, that much memory is required for each node/processor/socket).
 
-On recent x86 servers, 2MB and 1GB hugepages are supported. You can use either of them for BESS. For 2MB hugepages (at least 1024 pages are needed), you can simply run:
+On recent x86 servers, 2MB and 1GB hugepages are supported. You can use either of them for BESS. For 2MB hugepages (where at least 1024 pages are needed to reach 2GB), you can simply run:
 
 ```
 (on a single-socket system)
