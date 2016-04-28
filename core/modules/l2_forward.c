@@ -9,12 +9,6 @@
 #define DEFAULT_TABLE_SIZE (1048576)
 #define MAX_BUCKET_SIZE (4)
 
-#define RESERVED_OCCUPIED_BIT (0x1ul)
-
-#define MAX_INSERTION_SEARCH_DEPTH (2)
-
-#define L2_BROADCAST_GATE (UINT16_MAX - 1)
-
 #define USE_RTEMALLOC (1)
 
 struct l2_entry
@@ -847,7 +841,7 @@ static void l2_forward_process_batch(struct module *m, struct pkt_batch *batch)
 {
 	struct l2_forward_priv *priv = get_priv(m);
 
-	gate_idx_t default_gate = priv->default_gate;
+	gate_idx_t default_gate = ACCESS_ONCE(priv->default_gate);
 	gate_idx_t ogates[MAX_PKT_BURST];
 
 	for (int i = 0; i < batch->cnt; i++) {

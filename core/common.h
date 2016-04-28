@@ -59,6 +59,8 @@ typedef enum {
 	 	_a >= _b ? _a : _b; \
 	 })
 
+#define ACCESS_ONCE(x) (*(volatile typeof(x) *)&(x))
+
 /* err is defined as -errno,  */
 static inline int64_t ptr_to_err(const void *ptr)
 {
