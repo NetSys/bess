@@ -9,6 +9,9 @@
 #include "tc.h"
 #include "namespace.h"
 
+static scope_component scope_components[100];
+static int curr_scope_id = 0;
+
 task_id_t register_task(struct module *m, void *arg)
 {
 	task_id_t id;
@@ -23,7 +26,7 @@ task_id_t register_task(struct module *m, void *arg)
 			goto found;
 
 	/* cannot find an empty slot */
-	return INVALID_TASK_ID;		
+	return INVALID_TASK_ID;
 
 found:
 	t = task_create(m, arg);
@@ -61,12 +64,12 @@ size_t list_modules(const struct module **p_arr, size_t arr_size, size_t offset)
 {
 	int ret = 0;
 	int iter_cnt = 0;
-	
+
 	struct ns_iter iter;
 
 	ns_init_iterator(&iter, NS_TYPE_MODULE);
 	while (1) {
-		struct module *module = (struct module *) ns_next(&iter);	
+		struct module *module = (struct module *) ns_next(&iter);
 		if (!module)
 			break;
 
@@ -75,7 +78,7 @@ size_t list_modules(const struct module **p_arr, size_t arr_size, size_t offset)
 
 		if (ret >= arr_size)
 			break;
-		
+
 		p_arr[ret++] = module;
 	}
 	ns_release_iterator(&iter);
@@ -105,7 +108,7 @@ static void set_default_name(struct module *m)
 		for (t = template; *t != '\0'; t++) {
 			if (t != template && islower(*(t - 1)) && isupper(*t))
 				*s++ = '_';
-			
+
 			*s++ = tolower(*t);
 		}
 
@@ -143,6 +146,7 @@ void deadend(struct module *m, struct pkt_batch *batch)
 	snb_free_bulk(batch->pkts, batch->cnt);
 }
 
+
 static void destroy_all_tasks(struct module *m)
 {
 	for (task_id_t i = 0; i < MAX_TASKS_PER_MODULE; i++) {
@@ -155,14 +159,13 @@ static void destroy_all_tasks(struct module *m)
 
 /* returns a pointer to the created module.
  * if error, returns NULL and *perr is set */
-struct module *create_module(const char *name, 
-		const struct mclass *mclass, 
+struct module *create_module(const char *name,
+		const struct mclass *mclass,
 		struct snobj *arg,
 		struct snobj **perr)
 {
 	struct module *m = NULL;
 	int ret = 0;
-
 	*perr = NULL;
 
 	if (name && find_module(name)) {
@@ -192,7 +195,7 @@ struct module *create_module(const char *name,
 #if 0
 	if (ops->timer) {
 		for (i = 0; i < num_workers; i++) {
-			m->timers[i] = rte_zmalloc_socket(NULL, 
+			m->timers[i] = rte_zmalloc_socket(NULL,
 					sizeof(struct rte_timer), 0,
 					wid_to_sid_map[i]);
 			assert(m->timers[i]);
@@ -270,14 +273,14 @@ static int grow_gates(struct module *m, struct gates *gates, gate_idx_t gate)
 	gate_idx_t new_size;
 
 	new_size = gates->curr_size ? : 1;
-	
+
 	while (new_size <= gate)
 		new_size *= 2;
 
 	if (new_size > MAX_GATES)
 		new_size = MAX_GATES;
 
-	new_arr = rte_realloc(gates->arr, 
+	new_arr = rte_realloc(gates->arr,
 			sizeof(struct gate *) * new_size, 0);
 	if (!new_arr)
 		return -ENOMEM;
@@ -288,14 +291,394 @@ static int grow_gates(struct module *m, struct gates *gates, gate_idx_t gate)
 	gates->curr_size = new_size;
 
 	/* initialize the newly created gates */
-	memset(&gates->arr[old_size], 0, 
+	memset(&gates->arr[old_size], 0,
 			sizeof(struct gate *) * (new_size - old_size));
 
 	return 0;
 }
 
+/*
+ * BEGIN METADATA OFFSET COMPUTATION
+ */
+
+/* Adds module to the current scope component. */
+static void add_module_to_component(struct module *m, metadata_field *field)
+{
+	scope_component *component = &scope_components[curr_scope_id];
+
+	/* module has already been added to current scope component */
+	for (int i = 0; i < component->num_modules; i++) {
+		if (component->modules[i] == m)
+			return;
+	}
+
+	if (component->num_modules == 0) {
+		component->num_modules++;
+		component->len = field->len;
+		component->name = field->name;
+		component->modules = rte_malloc("module array",
+						sizeof(struct module *), 0);
+		component->modes = rte_malloc("mode array",
+				       	      sizeof(metadata_mode), 0);
+		component->modules[0] = m;
+		component->modes[0] = field->mode;
+	} else {
+		component->num_modules++;
+		component->modules = rte_realloc(component->modules,
+						 sizeof(struct module *) * component->num_modules,
+						 0);
+		component->modes = rte_realloc(component->modes,
+					       sizeof(metadata_mode) * component->num_modules,
+					       0);
+		component->modules[component->num_modules - 1] = m;		
+		component->modes[component->num_modules - 1] = field->mode;		
+	}
+}
+
+/* Traverses graph upstream to help identify a scope component. */
+static void traverse_upstream(struct module *m, metadata_field *field)
+{
+	metadata_field *read_field = NULL;
+	metadata_field *written_field = NULL;
+
+	for (int i = 0; i < m->num_fields; i++) {
+		metadata_field *curr_field = &m->fields[i];
+
+		if (strcmp(curr_field->name, field->name) == 0 &&
+		    curr_field->len == field->len) {
+
+			if (curr_field->mode == WRITE) {
+				written_field = curr_field;
+			} else {
+				read_field = curr_field;
+			}
+		}
+	}
+
+	/* handles the case where a module writes and reads the same field */
+	if (read_field && read_field->scope_id == curr_scope_id)
+		goto up;
+
+	/* found a module that writes the field; end of scope component */
+	if (written_field && written_field->scope_id == -1) {
+		identify_scope_component(m, written_field);
+		return;
+	} else if (written_field) {
+		return;
+	}
+
+up:
+	for (int i = 0; i < m->igates.curr_size; i++) {
+		struct gate *g = m->igates.arr[i];
+		struct gate *og;
+
+		cdlist_for_each_entry(og, &g->in.ogates_upstream,
+				out.igate_upstream)
+		{
+			struct module *module = og->m;
+			traverse_upstream(module, field);
+		}
+	}
+}
+
+/*
+ * Traverses graph downstream to help identify a scope component.
+ * Return value of -1 indicates that module is not part of the scope component.
+ * Return value of 0 indicates that module is part of the scope component.
+ */
+static int traverse_downstream(struct module *m, metadata_field *field)
+{
+	struct gate *gate;
+	metadata_field *written_field = NULL;
+	metadata_field *read_field = NULL;
+	int in_scope = 0;
+
+	for (int i = 0; i < m->num_fields; i++) {
+		metadata_field *curr_field = &m->fields[i];
+
+		if (strcmp(curr_field->name, field->name) == 0 &&
+		    curr_field->len == field->len) {
+
+			if (curr_field->mode == WRITE) {
+				written_field = curr_field;
+			} else {
+				read_field = curr_field;
+			}
+		}
+	}
+
+	if (read_field) {
+		add_module_to_component(m, read_field);
+		read_field->scope_id = curr_scope_id;
+
+		if (!written_field) {
+			for (int i = 0; i < m->ogates.curr_size; i++) {
+				gate = m->ogates.arr[i];
+				struct module *m_next = (struct module *)gate->arg;
+				traverse_downstream(m_next, field);
+			}
+		}
+
+		traverse_upstream(m, field);
+		return 0;
+	} else {
+		if (written_field)
+			return -1;
+
+		for (int i = 0; i < m->ogates.curr_size; i++) {
+			gate = m->ogates.arr[i];
+			struct module *m_next = (struct module *)gate->arg;
+			if (traverse_downstream(m_next, field) != -1)
+				in_scope = 1;
+		}
+
+		if (in_scope) {
+			add_module_to_component(m, field);
+			traverse_upstream(m, field);
+			return 0;
+		}
+
+		return -1;
+	}
+}
+
+
+/*
+ * Given a module that writes a field, identifies the portion of corresponding scope 
+ * component that lies downstream from this module. 
+ */
+void identify_scope_component(struct module *m, metadata_field *field)
+{
+	struct gate *gate;
+
+	add_module_to_component(m, field);
+	field->scope_id = curr_scope_id;
+
+	for (int i = 0; i < m->ogates.curr_size; i++) {
+		gate = m->ogates.arr[i];
+		struct module *m_next = (struct module *)gate->arg;
+		traverse_downstream(m_next, field);
+	}
+}
+
+/* static void reset_cycle_detection()
+{
+	struct ns_iter iter;
+	ns_init_iterator(&iter, NS_TYPE_MODULE);
+	while (1) {
+		struct module *m = (struct module *) ns_next(&iter);
+		if (!m)
+			break;
+		
+		m->upstream_cycle = -1;
+		m->downstream_cycle = -1;
+	}
+	ns_release_iterator(&iter);
+} */
+
+static void prepare_metadata_computation()
+{
+	struct ns_iter iter;
+	ns_init_iterator(&iter, NS_TYPE_MODULE);
+	while (1) {
+		struct module *m = (struct module *) ns_next(&iter);
+		if (!m)
+			break;
+		
+		for (int i = 0; i < m->num_fields; i++)
+			m->fields[i].scope_id = -1;
+	}
+	ns_release_iterator(&iter);
+}
+
+static void cleanup_metadata_computation()
+{
+	for (int i = 0; i < curr_scope_id; i++) {
+		scope_component component = scope_components[i];
+		if (component.len == 0)
+			continue;
+		rte_free(component.modules);
+		rte_free(component.modes);
+	}
+
+	memset(&scope_components, 0, 100 * sizeof(scope_component));
+	curr_scope_id = 0;
+}
+
+
+static int scope_overlaps(int i1, int i2) {
+	scope_component n1 = scope_components[i1];
+	scope_component n2 = scope_components[i2];
+
+	for (int i = 0; i < n1.num_modules; i++) {
+		for (int j = 0; j < n2.num_modules; j++) {
+			if (n1.modules[i] == n2.modules[j])
+				return 1;
+		}
+	}
+	return 0;
+}
+
+/*
+ * Given a scope component id, identifies the set of all overlapping components
+ * including this scope component.
+ */
+static void find_overlapping_components(int index, int *offset)
+{
+	scope_components[index].offset = *offset;
+	*offset = *offset + scope_components[index].len;
+	scope_components[index].visited = 1;
+
+	for (int j = index; j < curr_scope_id; j++) {
+		if (scope_components[j].visited)
+			continue;
+
+		if (scope_overlaps(index,j))
+			find_overlapping_components(j, offset);
+	}
+}
+
+static void fill_offset_arrays()
+{
+	for (int i = 0; i < curr_scope_id; i++) {
+		struct module **modules = scope_components[i].modules;
+		char *name = scope_components[i].name;
+		int len = scope_components[i].len;
+		int offset = scope_components[i].offset;
+
+		for (int j = 0; j < scope_components[i].num_modules; j++) {
+			struct module *m = modules[j];
+
+			for (int k = 0; k < m->num_fields; k++) {
+				if (strcmp(m->fields[k].name, name) == 0 &&
+				    m->fields[k].len == len &&
+				    scope_components[i].modes[j] == m->fields[k].mode) {
+
+					m->field_offsets[k]= offset;
+					if (m->fields[k].mode == READ)
+						log_info("Module %s using offset %d to read field %s\n",
+							  m->name, offset, name);
+					else
+						log_info("Module %s using offset %d to write field %s\n",
+							  m->name, offset, name);
+
+				}
+			}
+		}
+
+	}
+}
+
+/* Calculates offsets after scope components are identified */
+static void assign_offsets()
+{
+	int offset = 0;
+	for (int i = 0; i < curr_scope_id; i++) {
+		if (scope_components[i].visited)
+			continue;
+
+		offset = 0;
+		find_overlapping_components(i, &offset);
+	}
+
+	fill_offset_arrays();
+}
+
+/* Main entry point for calculating metadata offsets. */
+void compute_metadata_offsets()
+{
+	prepare_metadata_computation();
+
+	struct ns_iter iter;
+	ns_init_iterator(&iter, NS_TYPE_MODULE);
+	while (1) {
+		struct module *m = (struct module *) ns_next(&iter);
+		if (!m)
+			break;
+
+		for (int i = 0; i < m->num_fields; i++) {
+			metadata_field *field = &m->fields[i];
+			if (field->mode == WRITE && field->scope_id == -1) {
+				identify_scope_component(m, field);
+				curr_scope_id++;
+			}
+		}
+	}
+	ns_release_iterator(&iter);
+
+	for (int i = 0; i < curr_scope_id; i++) {
+		log_info("SCOPE COMPONENT FOR FIELD %s\n", scope_components[i].name);
+		log_info("{ ");
+		for (int j = 0; j < scope_components[i].num_modules; j++) {
+			log_info("%s ", scope_components[i].modules[j]->name);
+		}
+		log_info("}\n");
+	}
+
+	assign_offsets();
+	cleanup_metadata_computation();
+}
+
+/* Checks if field is supported upstream. */
+static int field_supported(struct module *m, metadata_field *field)
+{
+	for (int i = 0; i < m->num_fields; i++) {
+		metadata_field curr_field = m->fields[i];
+		if (curr_field.mode == WRITE &&
+		    strcmp(curr_field.name, field->name) == 0  &&
+		    curr_field.len == field->len)
+			return 1;
+	}
+
+	if (m->igates.curr_size == 0)
+		return 0;
+
+	for (int i = 0; i < m->igates.curr_size; i++) {
+		struct gate *g = m->igates.arr[i];
+		struct gate *og;
+
+		cdlist_for_each_entry(og, &g->in.ogates_upstream,
+				out.igate_upstream)
+		{
+			if (!field_supported((struct module *)og->m, field))
+				return 0;
+		}
+	}
+
+	return 1;
+}
+
+/* Checks if configuration is valid with respect to metadata */
+int valid_metadata_configuration()
+{
+	struct ns_iter iter;
+
+	ns_init_iterator(&iter, NS_TYPE_MODULE);
+	while (1) {
+		struct module *m = (struct module *) ns_next(&iter);
+
+		if (!m)
+			break;
+
+		for (int i = 0; i < m->num_fields; i++) {
+			metadata_field field = m->fields[i];
+			if (field.mode == READ && !field_supported(m, &field))
+				return 0;
+		}
+	}
+	ns_release_iterator(&iter);
+
+	return 1;
+}
+
+
+/*
+ * END METADATA OFFSET COMPUTATION
+ */
+
+
 /* returns -errno if fails */
-int connect_modules(struct module *m_prev, gate_idx_t ogate_idx, 
+int connect_modules(struct module *m_prev, gate_idx_t ogate_idx,
 		    struct module *m_next, gate_idx_t igate_idx)
 {
 	struct gate *ogate;
@@ -385,7 +768,7 @@ int disconnect_modules(struct module *m_prev, gate_idx_t ogate_idx)
 		struct module *m_next = igate->m;
 		gate_idx_t igate_idx = ogate->out.igate_idx;
 		m_next->igates.arr[igate_idx] = NULL;
-		rte_free(igate);	
+		rte_free(igate);
 	}
 
 	rte_free(ogate);
@@ -569,8 +952,8 @@ void dump_pcap_pkts(struct gate *gate, struct pkt_batch *batch)
 	for (int i = 0; i < batch->cnt; i++) {
 		struct snbuf* pkt = batch->pkts[i];
 		int len = pkt->mbuf.data_len;
-		struct pcap_rec_hdr *pkthdr = 
-			(struct pcap_rec_hdr*) snb_prepend(pkt, 
+		struct pcap_rec_hdr *pkthdr =
+			(struct pcap_rec_hdr*) snb_prepend(pkt,
 				sizeof(struct pcap_rec_hdr));
 
 		pkthdr->ts_sec = tv.tv_sec;
@@ -704,7 +1087,7 @@ again:
 			idle = tsc_hz;
 		log_debug("Worker %d: %5.1f%%, "
 			"loop %4.2fM/%4.2fM, "
-			"idle %.2fus, " 
+			"idle %.2fus, "
 			"busy %.2fus (%.2fus/pkt), "
 			"%lu pkts\n",
 				current_wid,

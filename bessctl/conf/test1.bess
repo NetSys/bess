@@ -1,0 +1,2 @@
+# simplest
+Test(write={'foo':2}) -> Test(read={'foo':2})
