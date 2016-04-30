@@ -1,0 +1,9 @@
+# multiple paths from a module to another 
+
+a::Test(write={'foo':2})
+b::Test()
+c::Test(read={'foo':2})
+
+a->b->c
+a:1->c
+

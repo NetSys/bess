@@ -1,0 +1,15 @@
+# Testing modules that update (read + write), complex
+
+a::Test(write={'foo':2})
+b::Test(read={'foo':2}, write={'foo':2})
+c::Test(read={'foo':2})
+d::Test(read={'foo':2}, write={'foo':2})
+e::Test(read={'foo':2})
+f::Test(write={'foo':2})
+g::Test(read={'foo':2}, write={'foo':2})
+h::Test(read={'foo':2})
+
+a->b->c
+a:1->d->e
+f->d
+f:1->g->h
