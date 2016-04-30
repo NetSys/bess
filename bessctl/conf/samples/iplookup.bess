@@ -3,12 +3,8 @@
 import scapy.all as scapy
 
 pkt_size = int($SN_PKT_SIZE!'60')
-num_ports = int($SN_PORTS!'1')
-num_cores = int($SN_CORES!'1')
 
 assert(60 <= pkt_size <= 1522)
-assert(1 <= num_ports <= 16)
-assert(1 <= num_cores <= 4)
 
 # Craft a packet with the specified destination IP address
 def gen_packet(dst_ip):
