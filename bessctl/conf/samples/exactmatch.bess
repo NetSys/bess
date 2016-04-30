@@ -1,0 +1,48 @@
+# Simple IPv4 LPM example. Try tcpdump on each output gate of 'ipfwd'.
+
+import scapy.all as scapy
+import socket
+
+def aton(ip):
+    return bytearray(socket.inet_aton(ip))
+
+# Craft a packet with the specified IP addresses
+def gen_packet(proto, src_ip, dst_ip):
+    eth = scapy.Ether(src='02:1e:67:9f:4d:ae', dst='06:16:3e:1b:72:32')
+    ip = scapy.IP(src=src_ip, dst=dst_ip)
+    udp = proto(sport=10001, dport=10002)
+    payload = 'helloworld'
+    pkt = eth/ip/udp/payload
+    return bytearray(str(pkt))
+
+packets = [gen_packet(scapy.UDP, '172.16.100.1', '10.0.0.1'), 
+           gen_packet(scapy.UDP, '172.12.55.99', '12.34.56.78'),
+           gen_packet(scapy.UDP, '172.12.55.99', '10.0.0.1'),
+           gen_packet(scapy.UDP, '172.16.100.1', '12.34.56.78'),
+           gen_packet(scapy.TCP, '172.12.55.99', '12.34.56.78'),
+           gen_packet(scapy.UDP, '192.168.1.123', '12.34.56.78'),
+          ]
+
+# L4 protocol and source/destination IP addresses
+em::ExactMatch(fields=[{'offset':23, 'size':1}, 
+                       {'offset':26, 'size':4},
+                       {'offset':30, 'size':4}],
+               size=4096)
+
+Source() -> Rewrite(packets) -> em
+
+em:0 -> Sink()
+em:1 -> Sink()
+em:2 -> Sink()
+em:5 -> Sink()   # used as default gate
+
+# NOTE: the list should contain bytearrays (BLOBs), not strings
+em.add(fields=[bytearray(chr(17)), aton('172.16.100.1'), aton('10.0.0.1')], gate=0) 
+em.add(fields=[bytearray(chr(6)), aton('172.12.55.99'), aton('12.34.56.78')], gate=1) 
+em.add(fields=[bytearray(chr(17)), aton('172.12.55.99'), aton('12.34.56.78')], gate=2) 
+
+# delete test
+em.add(fields=[bytearray(chr(17)), aton('192.168.1.123'), aton('12.34.56.78')], gate=3) 
+em.delete([bytearray(chr(17)), aton('192.168.1.123'), aton('12.34.56.78')]) 
+
+em.set_default_gate(5)
