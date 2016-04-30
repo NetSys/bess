@@ -197,7 +197,7 @@ def replace_rarrows(s):
                 break
 
             try:
-                parser.expr(ogate)
+                parser.expr('(' + ogate + ')')
             except SyntaxError:
                 colon_pos = seg.rfind(':', 0, colon_pos)
                 continue
@@ -215,8 +215,7 @@ def replace_rarrows(s):
                 break
 
             try:
-                # lstrip is needed, otherwise whitespace is recognized as indent
-                parser.expr(igate.lstrip())
+                parser.expr('(' + igate + ')')
             except SyntaxError:
                 colon_pos = seg.find(':', colon_pos + 1)
                 continue
