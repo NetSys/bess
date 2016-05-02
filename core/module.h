@@ -22,7 +22,6 @@
 #include "snobj.h"
 
 #define MAX_TASKS_PER_MODULE	32
-#define MAX_FIELDS_PER_MODULE	16
 
 ct_assert(MAX_TASKS_PER_MODULE < INVALID_TASK_ID);
 
@@ -30,28 +29,6 @@ ct_assert(MAX_TASKS_PER_MODULE < INVALID_TASK_ID);
 
 #define TRACK_GATES		1
 #define TCPDUMP_GATES		1
-
-typedef enum metadata_mode {
-	READ,
-	WRITE
-} metadata_mode;
-
-typedef struct metadata_field {
-	char *name;
-	uint8_t len;
-	metadata_mode mode;
-	int scope_id;
-} metadata_field;
-
-typedef struct scope_component {
-	char *name;
-	uint8_t len;
-	struct module **modules;
-	metadata_mode *modes;
-	int num_modules;
-	uint8_t offset;
-	uint8_t visited;
-} scope_component;
 
 struct gate {
 	/* immutable values */
@@ -106,9 +83,6 @@ struct module {
 	char *name;
 	const struct mclass *mclass;
 	struct task *tasks[MAX_TASKS_PER_MODULE];
-	uint8_t num_fields;
-	uint8_t field_offsets[MAX_FIELDS_PER_MODULE];
-	metadata_field fields[MAX_FIELDS_PER_MODULE];
 
 	/* frequently access fields should be below */
 	struct gates igates;
@@ -139,10 +113,6 @@ static inline const void *get_priv_const(const struct module *m)
 task_id_t register_task(struct module *m, void *arg);
 task_id_t task_to_tid(struct task *t);
 int num_module_tasks(struct module *m);
-
-void identify_scope_component(struct module *m, metadata_field *field);
-int valid_metadata_configuration();
-void compute_metadata_offsets();
 
 size_t list_modules(const struct module **p_arr, size_t arr_size, size_t offset);
 

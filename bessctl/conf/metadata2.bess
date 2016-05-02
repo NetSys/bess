@@ -1,7 +1,0 @@
-# Testing update (read + write), simple 
-
-a::Test(write={'foo':2})
-b::Test(read={'foo':2}, write={'foo':2})
-c::Test(read={'foo':2})
-
-a->b->c

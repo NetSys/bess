@@ -1,3 +1,0 @@
-# simplest
-Test(write={'foo':2}) -> Test(read={'foo':2}) -> Test() -> \
-        Test(write={'foo':2}) -> Test(read={'foo':2})

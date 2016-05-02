@@ -1,2 +1,0 @@
-# error
-Test(read={'foo':2}) -> Test(write={'foo':2})
