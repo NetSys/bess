@@ -666,7 +666,7 @@ def command_module(cli, module, cmd, args):
         if ret is None:
             cli.fout.write('response: None (usually means SUCCESS)\n')
         else:
-            cli.fout.write('response: %s\n', repr(ret))
+            cli.fout.write('response: %s\n' % repr(ret))
     finally:
         cli.bess.resume_all()
 
