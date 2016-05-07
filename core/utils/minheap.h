@@ -4,9 +4,9 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-#include <rte_config.h>
 #include <rte_branch_prediction.h>
-#include <rte_malloc.h>
+
+#include "../mem_alloc.h"
 
 /* NOTE: The real index starts from 1. 
  *       The first and tail elements will be used as sentinel values. */
@@ -25,8 +25,8 @@ static void heap_init(struct heap *h)
 	h->size = default_size;
 	h->num_nodes = 0;
 	
-	h->arr_v = rte_malloc("heap_v", sizeof(int64_t) * (h->size * 2 + 2), 0);
-	h->arr_d = rte_malloc("heap_d", sizeof(void *) * (h->size * 2 + 2), 0);
+	h->arr_v = mem_alloc(sizeof(int64_t) * (h->size * 2 + 2));
+	h->arr_d = mem_alloc(sizeof(void *) * (h->size * 2 + 2));
 
 	h->arr_v[0] = INT64_MIN;
 	h->arr_d[0] = NULL;
@@ -39,8 +39,8 @@ static void heap_init(struct heap *h)
 
 static void heap_close(struct heap *h)
 {
-	rte_free(h->arr_v);
-	rte_free(h->arr_d);
+	mem_free(h->arr_v);
+	mem_free(h->arr_d);
 }
 
 static void heap_push(struct heap *h, int64_t val, void *data)
@@ -56,8 +56,8 @@ static void heap_push(struct heap *h, int64_t val, void *data)
 		h->size += h->size / 2;		/* grow by 50% */
 		array_size = h->size * 2 + 2;
 
-		h->arr_v = rte_realloc(h->arr_v, sizeof(int64_t) * array_size, 0);
-		h->arr_d = rte_realloc(h->arr_d, sizeof(void *) * array_size, 0);
+		h->arr_v = mem_realloc(h->arr_v, sizeof(int64_t) * array_size);
+		h->arr_d = mem_realloc(h->arr_d, sizeof(void *) * array_size);
 
 		for (i = h->num_nodes * 2 + 2; i <= h->size * 2 + 1; i++) {
 			h->arr_v[i] = INT64_MAX;

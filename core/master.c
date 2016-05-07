@@ -14,7 +14,6 @@
 
 #include <rte_config.h>
 #include <rte_lcore.h>
-#include <rte_malloc.h>
 
 #include "log.h"
 #include "worker.h"
@@ -123,7 +122,7 @@ static struct client *init_client(int fd, struct sockaddr_in c_addr)
 	/* because this is just optimization, we can ignore errors */
 	setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &(int){1}, sizeof(int));
 
-	c = rte_zmalloc("client", sizeof(struct client), 0);
+	c = mem_alloc(sizeof(struct client));
 	if (!c) 
 		return NULL;
 
@@ -131,9 +130,9 @@ static struct client *init_client(int fd, struct sockaddr_in c_addr)
 	c->addr = c_addr;
 	c->buf_size = INIT_BUF_SIZE;
 
-	c->buf = rte_zmalloc("client_buf", c->buf_size, 0);
+	c->buf = mem_alloc(c->buf_size);
 	if (!c->buf) {
-		rte_free(c);
+		mem_free(c);
 		return NULL;
 	}
 
@@ -165,15 +164,14 @@ static void close_client(struct client *c)
 		}
 	}
 
-	if (is_holding_pause(c)) {
+	if (is_holding_pause(c))
 		cdlist_del(&c->master_pause_holding);
-	}
 
 	cdlist_del(&c->master_lock_waiting);
 	cdlist_del(&c->master_all);
 
-	rte_free(c->buf);
-	rte_free(c);
+	mem_free(c->buf);
+	mem_free(c);
 }
 
 static struct client *accept_client(int listen_fd)
@@ -261,7 +259,7 @@ static void request_done(struct client *c)
 			goto err;
 		}
 
-		new_buf = rte_realloc(c->buf, c->msg_len, 0);
+		new_buf = mem_realloc(c->buf, c->msg_len);
 		if (!new_buf)
 			goto err;
 
@@ -334,7 +332,7 @@ static void client_recv(struct client *c)
 			return;
 		}
 
-		new_buf = rte_realloc(c->buf, c->msg_len, 0);
+		new_buf = mem_realloc(c->buf, c->msg_len);
 		if (!new_buf) {
 			log_err("Out of memory\n");
 			close_client(c);

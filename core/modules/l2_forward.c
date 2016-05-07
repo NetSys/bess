@@ -9,8 +9,6 @@
 #define DEFAULT_TABLE_SIZE 	1024
 #define MAX_BUCKET_SIZE 	4
 
-#define USE_RTEMALLOC (1)
-
 struct l2_entry
 {
 	union {
@@ -61,15 +59,7 @@ static int l2_init(struct l2_table *l2tbl, int size, int bucket)
 	if (l2tbl == NULL)
 		return -EINVAL;
 
-#if USE_RTEMALLOC
-	l2tbl->table =
-		rte_zmalloc("l2tbl",
-				sizeof(struct l2_entry) * size * bucket, 0);
-#else
-	l2tbl->table =
-		malloc(sizeof(struct l2_entry) * size * bucket);
-#endif
-
+	l2tbl->table = mem_alloc(sizeof(struct l2_entry) * size * bucket);
 	if (l2tbl->table == NULL)
 		return -ENOMEM;
 
@@ -82,7 +72,6 @@ static int l2_init(struct l2_table *l2tbl, int size, int bucket)
 		size = size >> 1;
 		l2tbl->size_power += 1;
 	}
-
 
 	return 0;
 }
@@ -101,11 +90,7 @@ static int l2_deinit(struct l2_table *l2tbl)
 	if (l2tbl->bucket == 0)
 		return -EINVAL;
 
-#if USE_RTEMALLOC
-	rte_free(l2tbl->table);
-#else
-	free(l2tbl->table);
-#endif
+	mem_free(l2tbl->table);
 
 	memset(l2tbl, 0, sizeof(struct l2_table));
 

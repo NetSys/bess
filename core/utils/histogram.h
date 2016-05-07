@@ -3,6 +3,8 @@
 
 #include <rte_cycles.h>
 
+#include "../mem_alloc.h"
+
 #define HISTO_TIMEUNIT_MULT (1000lu*1000*1000) // Nano seconds
 #define HISTO_TIME (100lu) // We measure in 100 ns units
 #define HISTO_BUCKETS (1000000) // Buckets
@@ -15,7 +17,7 @@
 
 typedef uint64_t histo_count_t;
 struct histogram {
-	histo_count_t *global_histogram;
+	histo_count_t *arr;
 	histo_count_t above_threshold;
 };
 
@@ -54,24 +56,22 @@ static void print_hist(struct histogram* hist) {
 	const int timeunit_mult = choose_unit_mult(HISTO_TIMEUNIT_MULT);
 	const char* timeunit_name = choose_unit_str(HISTO_TIMEUNIT_MULT);
 	printf("Unit: %lu %s\n", HISTO_TIME * timeunit_mult, timeunit_name);
-	histo_count_t *global_histogram = hist->global_histogram;
+	histo_count_t *arr = hist->arr;
 	for(int i=0; i<HISTO_BUCKETS; i++) {
-		size_t current_size = HISTO_BUCKET_VAL(global_histogram+i);
+		size_t current_size = HISTO_BUCKET_VAL(arr+i);
 		if (current_size > 0)
 			printf(" <  %9lu %s: %16lu pkts  \n",
 				(i+1)*HISTO_TIME*timeunit_mult, 
 				timeunit_name, current_size);
 	}
 	printf("above threshold %09lu pkts \n", hist->above_threshold);
-
-
 }
 
 // Add histogram b's observations into a, so that a contains all.
 static struct histogram* combine_histograms(struct histogram* a, 
 					struct histogram* b) {
 	for (int i=0; i<HISTO_BUCKETS; i++) {
-		*(a->global_histogram + i) += (*(b->global_histogram + i));
+		*(a->arr + i) += (*(b->arr + i));
 	}
 	a->above_threshold += b->above_threshold;
 	return a;
@@ -90,9 +90,9 @@ static void print_summary(struct histogram* hist) {
 	printf("   Unit: %lu %s\n", HISTO_TIME * timeunit_mult, timeunit_name);
 	printf("\n\nSummary Statistics\n");
 	printf("-----------------------------------------------------------\n");
-	histo_count_t *global_histogram = hist->global_histogram;
+	histo_count_t *arr = hist->arr;
 	for(int i=0; i<HISTO_BUCKETS; i++) {
-		size_t current_size = HISTO_BUCKET_VAL(global_histogram+i);
+		size_t current_size = HISTO_BUCKET_VAL(arr+i);
 		uint64_t latency = (i+1)*HISTO_TIME*timeunit_mult;
 		if (!found_min && current_size > 0) {
 			min = latency;
@@ -102,7 +102,7 @@ static void print_summary(struct histogram* hist) {
 			max = latency;
 			max_bucket=i;
 		}
-		histo_count_t* bucket = global_histogram + i;
+		histo_count_t* bucket = arr + i;
 		uint64_t samples = HISTO_BUCKET_VAL(bucket);
 		count += samples;
 		*bucket = count;
@@ -114,7 +114,7 @@ static void print_summary(struct histogram* hist) {
 		return;
 	}
 
-	uint64_t counts[]  =	{count / 100, 
+	uint64_t counts[] =	{count / 100, 
 				 count / 2, 
 				(count * 99) / 100,
 				(count * 999) / 1000,
@@ -127,7 +127,7 @@ static void print_summary(struct histogram* hist) {
 	for (int i=0; i<max_bucket; i++) {
 		uint64_t latency = (i+1)*HISTO_TIME*timeunit_mult;
 		for (int j=0; j<sizeof(counts)/sizeof(uint64_t); j++) {
-			if(HISTO_BUCKET_VAL(global_histogram + i) < counts[j]) {
+			if(HISTO_BUCKET_VAL(arr + i) < counts[j]) {
 				latencies[j] = latency;
 			} 
 		}
@@ -148,18 +148,15 @@ static void print_summary(struct histogram* hist) {
 
 static inline void record_latency(struct histogram* hist, uint64_t latency) {
 	if (latency >= HISTO_HARD_TIMEOUT) {
-		hist->above_threshold ++;
+		hist->above_threshold++;
 	} else {
-		histo_count_t* bucket = hist->global_histogram + latency;
+		histo_count_t* bucket = hist->arr + latency;
 		HISTO_BUCKET_INC(bucket);
 	}
 }
 
 static inline void init_hist(struct histogram* hist) {
-	// This is somewhere within DPDK, which is why you are not seeing it here.
-	hist->global_histogram = rte_zmalloc("timestamp:global_histo",
-		HISTO_BUCKETS * sizeof(histo_count_t), RTE_CACHE_LINE_SIZE);
-	printf("TSC HZ: %lu\n", rte_get_tsc_hz());
+	hist->arr = mem_alloc(HISTO_BUCKETS * sizeof(histo_count_t));
 }
 
 #endif

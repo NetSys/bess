@@ -4,8 +4,6 @@
 #include <sys/time.h>
 
 #include <rte_config.h>
-#include <rte_common.h>
-#include <rte_malloc.h>
 #include <rte_cycles.h>
 
 #include "common.h"
@@ -39,7 +37,7 @@ static void tc_add_to_parent_pgroup(struct tc *c, int share_resource)
 	next = (struct cdlist_item *)&parent->pgroups;
 
 pgroup_init:
-	g = rte_zmalloc("pgroup", sizeof(*g), 0);
+	g = mem_alloc(sizeof(*g));
 	if (!g)
 		oom_crash();
 
@@ -76,13 +74,13 @@ struct tc *tc_init(struct sched *s, const struct tc_params *params)
 	assert(params->share > 0);
 	assert(params->share <= MAX_SHARE);
 
-	c = rte_zmalloc("tc", sizeof(*c), 0);
+	c = mem_alloc(sizeof(*c));
 	if (!c)
 		oom_crash();
 
 	ret = ns_insert(NS_TYPE_TC, params->name, c);
 	if (ret < 0) {
-		rte_free(c);
+		mem_free(c);
 		return err_to_ptr(ret);
 	}
 
@@ -145,7 +143,7 @@ void _tc_do_free(struct tc *c)
 		if (g->num_children == 0) {
 			cdlist_del(&g->tc);
 			heap_close(&g->pq);
-			rte_free(g);
+			mem_free(g);
 		}
 
 		cdlist_del(&c->sched_all);
@@ -155,7 +153,7 @@ void _tc_do_free(struct tc *c)
 	ns_remove(c->settings.name);
 
 	memset(c, 0, sizeof(*c));	/* zero out to detect potential bugs */
-	rte_free(c);			/* Note: c is struct sched, if root */
+	mem_free(c);			/* Note: c is struct sched, if root */
 	
 	if (parent)
 		tc_dec_refcnt(parent);
@@ -203,7 +201,7 @@ struct sched *sched_init()
 {
 	struct sched *s;
 
-	s = rte_zmalloc("sched", sizeof(*s), 0);
+	s = mem_alloc(sizeof(*s));
 	if (!s)
 		oom_crash();
 
@@ -394,7 +392,7 @@ static int tc_account(struct sched *s, struct tc *c,
 			if (wait_tsc > max_wait_tsc)
 				max_wait_tsc = wait_tsc;
 		} else
-			c->tb[i].tokens = RTE_MIN(tokens - consumed, 
+			c->tb[i].tokens = MIN(tokens - consumed, 
 					c->tb[i].max_burst);
 	}
 
