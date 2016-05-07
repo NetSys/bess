@@ -13,23 +13,23 @@ $ git clone https://github.com/NetSys/bess.git
 $ bess/build.py
 ```
 
-BESS runs on top of [DPDK](http://dpdk.org). The installation script will automatically download and build DPDK 2.2 in `deps/dpdk-2.2.0` directory. 
+BESS runs on top of [DPDK](http://dpdk.org). The installation script will automatically download and build DPDK 16.04 in `deps/dpdk-16.04` directory. 
 
 ### Running BESS
 
-Like any other DPDK applications, you need to [set up hugepages](http://dpdk.org/doc/guides/linux_gsg/sys_reqs.html#reserving-hugepages-for-dpdk-use) -- by default, BESS requires 2GB per CPU socket. Using 2MB hugepages is recommended since it can be configured without system reboot and the performance difference is negligible.
+Like any other DPDK applications, you need to [set up hugepages](http://dpdk.org/doc/guides/linux_gsg/sys_reqs.html#reserving-hugepages-for-dpdk-use) -- by default, BESS requires 2GB per CPU socket. Using 2MB hugepages is recommended since it can be configured without system reboot and the performance difference compared to 1GB ones is negligible.
 
 If you want to use physical NIC ports (as an exception, you can skip this step for Mellanox NICs), you also need to [bind ports to DPDK](http://dpdk.org/doc/guides/linux_gsg/build_dpdk.html#binding-and-unbinding-network-ports-to-from-the-kernel-modules):
 
 ```
 $ sudo modprobe uio_pci_generic
-$ sudo bess/deps/dpdk-2.2.0/tools/dpdk_nic_bind.py -b uio_pci_generic PCI_DEV1 [PCI_DEV2 ...]
+$ sudo bess/deps/dpdk-16.04/tools/dpdk_nic_bind.py -b uio_pci_generic PCI_DEV1 [PCI_DEV2 ...]
 ```
 
 You can search for the PCI device IDs (in xx:yy.z form) corresponding to the physical ports you wish to bind by running
 
 ```
-$ bess/deps/dpdk-2.2.0/tools/dpdk_nic_bind.py --status
+$ bess/deps/dpdk-16.04/tools/dpdk_nic_bind.py --status
 ```
 
 Once ready to roll, launch the BESS daemon as root, then you can control the dataplane with the controller, `bessctl`:
