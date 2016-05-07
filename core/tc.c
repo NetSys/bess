@@ -8,8 +8,9 @@
 #include <rte_malloc.h>
 #include <rte_cycles.h>
 
-#include "debug.h"
 #include "common.h"
+#include "opts.h"
+#include "debug.h"
 #include "time.h"
 #include "task.h"
 #include "worker.h"

@@ -13,7 +13,15 @@
 #define DEFAULT_QUEUE_SIZE	256
 #define MAX_QUEUE_SIZE		4096
 
-struct module;
+/* The term RX/TX could be very confusing for a virtual switch.
+ * Instead, we use the "incoming/outgoing" convention:
+ * - incoming: outside -> BESS
+ * - outgoing: BESS -> outside */
+typedef enum {
+	PACKET_DIR_INC 	= 0,
+	PACKET_DIR_OUT 	= 1,
+	PACKET_DIRS
+} packet_dir_t;
 
 struct packet_stats {
 	uint64_t packets;
@@ -22,6 +30,8 @@ struct packet_stats {
 };
 
 typedef struct packet_stats port_stats_t[PACKET_DIRS];
+
+struct module;
 
 struct port {
 	char *name;

@@ -1,3 +1,4 @@
+#include <stdio.h>
 #include <string.h>
 #include <unistd.h>
 #include <fcntl.h>
@@ -5,7 +6,7 @@
 #include <sys/types.h>
 
 #include "common.h"
-
+#include "opts.h"
 #include "log.h"
 
 #define BESS_ID "bessd"

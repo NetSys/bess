@@ -12,6 +12,7 @@
 #include <sys/file.h>
 #include <sys/resource.h>
 
+#include "opts.h"
 #include "debug.h"
 #include "dpdk.h"
 #include "master.h"

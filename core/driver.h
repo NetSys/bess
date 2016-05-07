@@ -13,6 +13,13 @@
 		assert(ret == 0); \
 	}
 
+typedef uint8_t queue_t;
+
+#define QUEUE_UNKNOWN			255
+#define MAX_QUEUES_PER_DIR		32	/* [0, 31] (for each RX/TX) */
+
+ct_assert(MAX_QUEUES_PER_DIR < QUEUE_UNKNOWN);
+
 struct port;
 struct port_stats;
 struct snobj;
