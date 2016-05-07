@@ -335,9 +335,7 @@ __attribute__((constructor(101))) static void set_trap_handler()
 
 void dump_types(void)
 {
-	printf("DPDK %d.%d.%d.%d\n",
-			RTE_VER_MAJOR, RTE_VER_MINOR,
-			RTE_VER_PATCH_LEVEL, RTE_VER_PATCH_RELEASE);
+	printf("DPDK version: %s\n", rte_version());
 
 	printf("sizeof(char)=%zu\n", sizeof(char));
 	printf("sizeof(short)=%zu\n", sizeof(short));

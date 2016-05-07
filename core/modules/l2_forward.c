@@ -5,9 +5,9 @@
 #include <rte_hash_crc.h>
 #include <rte_prefetch.h>
 
-#define MAX_TABLE_SIZE (1048576*64)
-#define DEFAULT_TABLE_SIZE (1048576)
-#define MAX_BUCKET_SIZE (4)
+#define MAX_TABLE_SIZE 		(1048576*64)
+#define DEFAULT_TABLE_SIZE 	1024
+#define MAX_BUCKET_SIZE 	4
 
 #define USE_RTEMALLOC (1)
 

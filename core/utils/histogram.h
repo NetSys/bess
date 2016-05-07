@@ -1,6 +1,8 @@
-#include <signal.h>
 #ifndef __HISTOGRAM_H__
 #define __HISTOGRAM_H__
+
+#include <rte_cycles.h>
+
 #define HISTO_TIMEUNIT_MULT (1000lu*1000*1000) // Nano seconds
 #define HISTO_TIME (100lu) // We measure in 100 ns units
 #define HISTO_BUCKETS (1000000) // Buckets

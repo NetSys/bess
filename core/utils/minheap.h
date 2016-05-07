@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 
+#include <rte_config.h>
 #include <rte_branch_prediction.h>
 #include <rte_malloc.h>
 

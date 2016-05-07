@@ -18,8 +18,7 @@ struct pmd_priv {
 #define SN_HW_TXCSUM		0
 
 static const struct rte_eth_conf default_eth_conf = {
-	.link_speed = ETH_LINK_SPEED_AUTONEG,
-	.link_duplex = ETH_LINK_AUTONEG_DUPLEX,	/* auto negotiation */
+	.link_speeds = ETH_LINK_SPEED_AUTONEG,
 	.lpbk_mode = 0,
 	.rxmode = {
 		.mq_mode = ETH_MQ_RX_RSS,	/* doesn't matter for 1-queue */

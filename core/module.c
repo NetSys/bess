@@ -1,5 +1,6 @@
 #include <assert.h>
 
+#include <rte_config.h>
 #include <rte_cycles.h>
 #include <rte_malloc.h>
 

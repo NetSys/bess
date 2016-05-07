@@ -5,8 +5,8 @@
 #include <fcntl.h>
 #include <unistd.h>
 
-#include <rte_malloc.h>
 #include <rte_config.h>
+#include <rte_malloc.h>
 
 #include "../driver.h"
 #include "../port.h"
