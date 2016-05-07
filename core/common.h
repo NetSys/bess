@@ -7,6 +7,9 @@
 
 #define ct_assert(p)	_Static_assert(p, "Compile-time assertion failure")
 
+/* For minor performance optimization. Same as _nassert() of TI compilers */
+#define promise(cond) do { if (!(cond)) __builtin_unreachable(); } while (0)
+
 /* XXX: add queue.h? */
 typedef uint8_t queue_t;
 
@@ -25,7 +28,7 @@ extern const struct global_opts {
 	int print_tc_stats;	/* If 1, print TC stats every second */
 	int debug_mode;		/* If 1, print control messages */
 	int mb_per_socket;	/* MB per CPU socket for DPDK (0=default) */
-	char * pidfile;		/* Filename (nullptr=default; nullstr=none) */
+	char *pidfile;		/* Filename (nullptr=default; nullstr=none) */
 	int multi_instance;	/* If 1, allow multiple BESS instances */
 } global_opts;
 
