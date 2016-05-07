@@ -1,3 +1,5 @@
+/* This header file contains general (not BESS specific) C definitions */
+
 #ifndef _COMMON_H_
 #define _COMMON_H_
 
