@@ -1,5 +1,3 @@
-#include <assert.h>
-
 #include "mem_alloc.h"
 #include "dpdk.h"
 #include "time.h"
@@ -559,23 +557,20 @@ void dump_pcap_pkts(struct gate *gate, struct pkt_batch *batch)
 
 	int ret = 0;
 	int fd = gate->fifo_fd;
-	int packets = 0;
 
 	gettimeofday(&tv, NULL);
 
 	for (int i = 0; i < batch->cnt; i++) {
 		struct snbuf* pkt = batch->pkts[i];
-		int len = pkt->mbuf.data_len;
 		struct pcap_rec_hdr *pkthdr = 
 			(struct pcap_rec_hdr*) snb_prepend(pkt, 
 				sizeof(struct pcap_rec_hdr));
 
 		pkthdr->ts_sec = tv.tv_sec;
 		pkthdr->ts_usec = tv.tv_usec;
-		pkthdr->orig_len = pkthdr->incl_len = len;
-		assert(len < PCAP_SNAPLEN);
+		pkthdr->orig_len = pkt->mbuf.pkt_len;
+		pkthdr->incl_len = pkt->mbuf.data_len;
 		ret = write(fd, snb_head_data(pkt), pkt->mbuf.data_len);
-		assert(pkt->mbuf.data_len < PIPE_BUF);
 
 		if (ret < 0) {
 			if (errno == EPIPE) {
@@ -585,9 +580,6 @@ void dump_pcap_pkts(struct gate *gate, struct pkt_batch *batch)
 				close(fd);
 			}
 			return;
-		} else {
-			assert(ret == pkt->mbuf.data_len);
-			packets++;
 		}
 
 		snb_adj(pkt, sizeof(struct pcap_rec_hdr));
