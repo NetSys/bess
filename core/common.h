@@ -3,7 +3,6 @@
 
 #include <stddef.h>
 #include <stdint.h>
-#include <stdio.h>
 
 #define ct_assert(p)	_Static_assert(p, "Compile-time assertion failure")
 
