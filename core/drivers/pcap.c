@@ -84,7 +84,7 @@ static int pcap_rx_jumbo(struct rte_mempool *mb_pool,
 		m->data_len = 0;
 
 		/* Copy next segment. */
-		len = RTE_MIN(rte_pktmbuf_tailroom(m), data_len);
+		len = MIN(rte_pktmbuf_tailroom(m), data_len);
 		rte_memcpy(rte_pktmbuf_append(m, len), data, len);
 
 		mbuf->nb_segs++;
