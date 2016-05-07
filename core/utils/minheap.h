@@ -4,8 +4,6 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-#include <rte_branch_prediction.h>
-
 #include "../mem_alloc.h"
 
 /* NOTE: The real index starts from 1. 
