@@ -18,8 +18,6 @@ typedef uint8_t queue_t;
 
 ct_assert(MAX_QUEUES_PER_DIR < QUEUE_UNKNOWN);
 
-#define MAX_WORKERS	4
-
 extern const struct global_opts {
 	uint16_t port;		/* TCP port for controller (0 for default) */
 	int default_core;	/* Core ID for implicily launched worker */

@@ -7,6 +7,8 @@
 #include "mclass.h"
 #include "pktbatch.h"
 
+#define MAX_WORKERS	4
+
 #define MAX_MODULES_PER_PATH	256
 
 /* 	TODO: worker threads doesn't necessarily be pinned to 1 core
