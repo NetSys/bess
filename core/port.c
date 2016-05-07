@@ -1,11 +1,9 @@
 #include <errno.h>
 
-#include <rte_config.h>
-#include <rte_malloc.h>
-
-#include "port.h"
+#include "mem_alloc.h"
 #include "driver.h"
 #include "namespace.h"
+#include "port.h"
 
 size_t list_ports(const struct port **p_arr, size_t arr_size, size_t offset)
 {
@@ -173,13 +171,13 @@ struct port *create_port(const char *name,
 		goto fail;
 	}
 
-	p = rte_zmalloc("port", sizeof(struct port) + driver->priv_size , 0);
+	p = mem_alloc(sizeof(struct port) + driver->priv_size);
 	if (!p) {
 		*perr = snobj_errno(ENOMEM);
 		goto fail;
 	}
 
-	p->name = rte_zmalloc("name", PORT_NAME_LEN, 0);
+	p->name = mem_alloc(PORT_NAME_LEN);
 	if (!p->name) {
 		*perr = snobj_errno(ENOMEM);
 		goto fail;
@@ -213,9 +211,9 @@ struct port *create_port(const char *name,
 
 fail:
 	if (p)
-		rte_free(p->name);
+		mem_free(p->name);
 
-	rte_free(p);
+	mem_free(p);
 
 	return NULL;
 }
@@ -238,8 +236,8 @@ int destroy_port(struct port *p)
 	if (p->driver->deinit_port)
 		p->driver->deinit_port(p);
 
-	rte_free(p->name);
-	rte_free(p);
+	mem_free(p->name);
+	mem_free(p);
 
 	return 0;
 }

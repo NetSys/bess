@@ -1,14 +1,11 @@
 #include <assert.h>
 
-#include <rte_config.h>
-#include <rte_cycles.h>
-#include <rte_malloc.h>
-
-#include "module.h"
+#include "mem_alloc.h"
 #include "dpdk.h"
 #include "time.h"
 #include "tc.h"
 #include "namespace.h"
+#include "module.h"
 
 task_id_t register_task(struct module *m, void *arg)
 {
@@ -171,14 +168,14 @@ struct module *create_module(const char *name,
 		goto fail;
 	}
 
-	m = rte_zmalloc("module", sizeof(struct module) + mclass->priv_size, 0);
+	m = mem_alloc(sizeof(struct module) + mclass->priv_size);
 	if (!m) {
 		*perr = snobj_errno(ENOMEM);
 		goto fail;
 	}
 
 	m->mclass = mclass;
-	m->name = rte_zmalloc("name", MODULE_NAME_LEN, 0);
+	m->name = mem_alloc(MODULE_NAME_LEN);
 
 	if (!m->name) {
 		*perr = snobj_errno(ENOMEM);
@@ -220,10 +217,10 @@ struct module *create_module(const char *name,
 fail:
 	if (m) {
 		destroy_all_tasks(m);
-		rte_free(m->name);
+		mem_free(m->name);
 	}
 
-	rte_free(m);
+	mem_free(m);
 
 	return NULL;
 }
@@ -257,10 +254,10 @@ void destroy_module(struct module *m)
 
 	ns_remove(m->name);
 
-	rte_free(m->name);
-	rte_free(m->ogates.arr);
-	rte_free(m->igates.arr);
-	rte_free(m);
+	mem_free(m->name);
+	mem_free(m->ogates.arr);
+	mem_free(m->igates.arr);
+	mem_free(m);
 }
 
 
@@ -278,8 +275,7 @@ static int grow_gates(struct module *m, struct gates *gates, gate_idx_t gate)
 	if (new_size > MAX_GATES)
 		new_size = MAX_GATES;
 
-	new_arr = rte_realloc(gates->arr, 
-			sizeof(struct gate *) * new_size, 0);
+	new_arr = mem_realloc(gates->arr, sizeof(struct gate *) * new_size);
 	if (!new_arr)
 		return -ENOMEM;
 
@@ -327,7 +323,7 @@ int connect_modules(struct module *m_prev, gate_idx_t ogate_idx,
 			return ret;
 	}
 
-	ogate = rte_zmalloc("gate", sizeof(struct gate), 0);
+	ogate = mem_alloc(sizeof(struct gate));
 	if (!ogate)
 		return -ENOMEM;
 
@@ -335,9 +331,9 @@ int connect_modules(struct module *m_prev, gate_idx_t ogate_idx,
 
 	igate = m_next->igates.arr[igate_idx];
 	if (!igate) {
-		igate = rte_zmalloc("gate", sizeof(struct gate), 0);
+		igate = mem_alloc(sizeof(struct gate));
 		if (!igate) {
-			rte_free(ogate);
+			mem_free(ogate);
 			return -ENOMEM;
 		}
 
@@ -386,10 +382,10 @@ int disconnect_modules(struct module *m_prev, gate_idx_t ogate_idx)
 		struct module *m_next = igate->m;
 		gate_idx_t igate_idx = ogate->out.igate_idx;
 		m_next->igates.arr[igate_idx] = NULL;
-		rte_free(igate);	
+		mem_free(igate);	
 	}
 
-	rte_free(ogate);
+	mem_free(ogate);
 	m_prev->ogates.arr[ogate_idx] = NULL;
 
 	return 0;
