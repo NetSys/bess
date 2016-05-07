@@ -1,5 +1,6 @@
 #include <assert.h>
 
+#include <rte_config.h>
 #include <rte_malloc.h>
 
 #include "log.h"

@@ -2,6 +2,7 @@
 
 #include <arpa/inet.h>
 
+#include <rte_config.h>
 #include <rte_errno.h>
 #include <rte_lpm.h>
 #include <rte_byteorder.h>
@@ -17,12 +18,15 @@ static struct snobj *ip_lookup_init(struct module *m, struct snobj *arg)
 {
 	struct ip_lookup_priv *priv = get_priv(m);
 
+	struct rte_lpm_config conf = {
+		.max_rules = 1024,
+		.number_tbl8s = 128,
+		.flags = 0,
+	};
+
 	priv->default_gate = DROP_GATE;
 
-	priv->lpm = rte_lpm_create(m->name, 
-			/* socket_id = */ 0,
-			/* max_rules = */ 65536,
-			/* flags = */ 0);
+	priv->lpm = rte_lpm_create(m->name, /* socket_id = */ 0, &conf);
 
 	if (!priv->lpm)
 		return snobj_err(rte_errno, "DPDK error: %s", 
@@ -45,7 +49,7 @@ static void ip_lookup_process_batch(struct module *m, struct pkt_batch *batch)
 	gate_idx_t default_gate = priv->default_gate;
 
 	int cnt = batch->cnt;
-	int i = 0;
+	int i;
 
 #if VECTOR_OPTIMIZATION
 	const __m128i bswap_mask = _mm_set_epi8(12, 13, 14, 15, 
@@ -54,11 +58,12 @@ static void ip_lookup_process_batch(struct module *m, struct pkt_batch *batch)
 						0, 1, 2, 3);
 
 	/* 4 at a time */
-	for(; i + 3 < cnt; i += 4) {
+	for(i = 0; i + 3 < cnt; i += 4) {
 		struct ether_hdr *eth; 
 		struct ipv4_hdr *ip;
 
 		uint32_t a0, a1, a2, a3;
+		uint32_t next_hops[4];
 
 		__m128i ip_addr;
 
@@ -81,8 +86,13 @@ static void ip_lookup_process_batch(struct module *m, struct pkt_batch *batch)
 		ip_addr = _mm_set_epi32(a3, a2, a1, a0);
 		ip_addr = _mm_shuffle_epi8(ip_addr, bswap_mask);
 
-		rte_lpm_lookupx4(priv->lpm, ip_addr, &ogates[i], 
+		rte_lpm_lookupx4(priv->lpm, ip_addr, next_hops,
 				default_gate);
+
+		ogates[i + 0] = next_hops[0];
+		ogates[i + 1] = next_hops[1];
+		ogates[i + 2] = next_hops[2];
+		ogates[i + 3] = next_hops[3];
 	}
 #endif
 
@@ -91,7 +101,7 @@ static void ip_lookup_process_batch(struct module *m, struct pkt_batch *batch)
 		struct ether_hdr *eth; 
 		struct ipv4_hdr *ip;
 
-		gate_idx_t next_hop;
+		uint32_t next_hop;
 		int ret;	
 		
 		eth = (struct ether_hdr *)snb_head_data(batch->pkts[i]);
@@ -99,7 +109,7 @@ static void ip_lookup_process_batch(struct module *m, struct pkt_batch *batch)
 
 		ret = rte_lpm_lookup(priv->lpm, 
 				rte_be_to_cpu_32(ip->dst_addr), 
-				(uint8_t *)&next_hop);
+				&next_hop);
 
 		if (ret == 0)
 			ogates[i] = next_hop;
@@ -153,11 +163,6 @@ struct snobj *command_add(struct module *m, const char *cmd, struct snobj *arg)
 	if (prefix_len == 0)
 		priv->default_gate = gate;
 	else {
-		/* only in DPDK 2.2 or older */
-		if (gate >= 256)
-			return snobj_err(EINVAL, 
-					"'gate' should be < 256");
-
 		ret = rte_lpm_add(priv->lpm, ip_addr, prefix_len, gate); 
 		if (ret)
 			return snobj_err(-ret, "rpm_lpm_add() failed");

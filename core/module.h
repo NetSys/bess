@@ -8,9 +8,6 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 
-#include <rte_timer.h>
-#include <rte_cycles.h>
-
 #include "utils/cdlist.h"
 #include "utils/pcap.h"
 

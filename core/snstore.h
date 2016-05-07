@@ -7,6 +7,7 @@
 
 #include <string.h>
 
+#include <rte_config.h>
 #include <rte_memzone.h>
 
 #define SNSTORE_KEYSIZE	24

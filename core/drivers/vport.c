@@ -7,6 +7,7 @@
 #include <sys/ioctl.h>
 #include <sys/wait.h>
 
+#include <rte_config.h>
 #include <rte_malloc.h>
 
 #include "../port.h"

@@ -5,6 +5,7 @@
 #include <pthread.h>
 #include <unistd.h>
 
+#include <rte_config.h>
 #include <rte_malloc.h>
 #include <rte_common.h>
 #include <rte_atomic.h>

@@ -1,5 +1,6 @@
 #include <errno.h>
 
+#include <rte_config.h>
 #include <rte_malloc.h>
 
 #include "port.h"

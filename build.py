@@ -13,7 +13,7 @@ BESS_DIR = os.path.dirname(os.path.abspath(__file__))
 DEPS_DIR = '%s/deps' % BESS_DIR 
 
 DPDK_REPO = 'http://dpdk.org/browse/dpdk/snapshot'
-DPDK_VER = 'dpdk-2.2.0'
+DPDK_VER = 'dpdk-16.04'
 
 DPDK_DIR = '%s/%s' % (DEPS_DIR, DPDK_VER)
 DPDK_URL = '%s/%s.tar.gz' % (DPDK_REPO, DPDK_VER)

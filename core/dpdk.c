@@ -164,7 +164,7 @@ static void init_timer()
 	rte_timer_subsystem_init();
 }
 
-#if DPDK < DPDK_VER(2, 0, 0)
+#if DPDK_VER < DPDK_VER_NUM(2, 0, 0)
   #error DPDK 2.0.0 or higher is required
 #endif
 

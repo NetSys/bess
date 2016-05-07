@@ -14,7 +14,7 @@ snb_alloc_bulk(snb_array_t snbs, int cnt, uint16_t len)
 	__m128i mbuf_template;	/* 256-bit write was worse... */
 	__m128i rxdesc_fields;
 
-#if DPDK >= DPDK_VER(2, 1, 0)
+#if DPDK_VER >= DPDK_VER_NUM(2, 1, 0)
 	/* DPDK 2.1
 	 * packet_type		0 	(32 bits)
 	 * pkt_len 		len	(32 bits)
