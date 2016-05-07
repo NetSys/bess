@@ -45,12 +45,12 @@ extern const struct global_opts {
 #define ACCESS_ONCE(x) (*(volatile typeof(x) *)&(x))
 
 /* err is defined as -errno,  */
-static inline int64_t ptr_to_err(const void *ptr)
+static inline intptr_t ptr_to_err(const void *ptr)
 {
-	return (int64_t) ptr;
+	return (intptr_t) ptr;
 }
 
-static inline void *err_to_ptr(int64_t err)
+static inline void *err_to_ptr(intptr_t err)
 {
 	return (void *) err;
 }
@@ -58,7 +58,7 @@ static inline void *err_to_ptr(int64_t err)
 static inline int is_err(const void *ptr)
 {
 	const int max_errno = 4095;
-	return (uint64_t)ptr >= (uint64_t)-max_errno;
+	return (uintptr_t)ptr >= (uintptr_t)-max_errno;
 }
 
 static inline int is_err_or_null(const void *ptr)
