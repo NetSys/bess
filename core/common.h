@@ -10,14 +10,6 @@
 /* For minor performance optimization. Same as _nassert() of TI compilers */
 #define promise(cond) do { if (!(cond)) __builtin_unreachable(); } while (0)
 
-/* XXX: add queue.h? */
-typedef uint8_t queue_t;
-
-#define QUEUE_UNKNOWN			255
-#define MAX_QUEUES_PER_DIR		32	/* [0, 31] (for each RX/TX) */
-
-ct_assert(MAX_QUEUES_PER_DIR < QUEUE_UNKNOWN);
-
 extern const struct global_opts {
 	uint16_t port;		/* TCP port for controller (0 for default) */
 	int default_core;	/* Core ID for implicily launched worker */
