@@ -32,16 +32,6 @@ extern const struct global_opts {
 	int multi_instance;	/* If 1, allow multiple BESS instances */
 } global_opts;
 
-/* The term RX/TX could be very confusing for a virtual switch.
- * Instead, we use the "incoming/outgoing" convention:
- * - incoming: outside -> BESS
- * - outgoing: BESS -> outside */
-typedef enum {
-	PACKET_DIR_INC 	= 0,
-	PACKET_DIR_OUT 	= 1,
-	PACKET_DIRS
-} packet_dir_t;
-
 #define member_type(type, member) typeof(((type *)0)->member)
 
 #define container_of(ptr, type, member) \
