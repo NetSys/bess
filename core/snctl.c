@@ -12,6 +12,7 @@
 #include <sys/time.h>
 #include <sys/types.h>
 
+#include "opts.h"
 #include "worker.h"
 #include "master.h"
 #include "snobj.h"

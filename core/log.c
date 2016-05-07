@@ -5,7 +5,7 @@
 #include <sys/types.h>
 
 #include "common.h"
-
+#include "opts.h"
 #include "log.h"
 
 #define BESS_ID "bessd"

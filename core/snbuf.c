@@ -5,11 +5,11 @@
 #include <sn.h>
 
 #include "common.h"
+#include "opts.h"
 #include "log.h"
 #include "time.h"
 #include "dpdk.h"
 #include "snbuf.h"
-
 
 #define NUM_MEMPOOL_CACHE	512
 

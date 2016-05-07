@@ -7,20 +7,8 @@
 
 #define ct_assert(p)	_Static_assert(p, "Compile-time assertion failure")
 
-/* For minor performance optimization. Same as _nassert() of TI compilers */
-#define promise(cond) do { if (!(cond)) __builtin_unreachable(); } while (0)
-
-extern const struct global_opts {
-	uint16_t port;		/* TCP port for controller (0 for default) */
-	int default_core;	/* Core ID for implicily launched worker */
-	int foreground;		/* If 1, not daemonized */
-	int kill_existing;	/* If 1, kill existing BESS instance */
-	int print_tc_stats;	/* If 1, print TC stats every second */
-	int debug_mode;		/* If 1, print control messages */
-	int mb_per_socket;	/* MB per CPU socket for DPDK (0=default) */
-	char *pidfile;		/* Filename (nullptr=default; nullstr=none) */
-	int multi_instance;	/* If 1, allow multiple BESS instances */
-} global_opts;
+/* Hint for performance optimization. Same as _nassert() of TI compilers */
+#define promise(cond) ({if (!(cond)) __builtin_unreachable(); })
 
 #define member_type(type, member) typeof(((type *)0)->member)
 

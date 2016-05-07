@@ -3,6 +3,7 @@
 #include <rte_config.h>
 #include <rte_malloc.h>
 
+#include "opts.h"
 #include "log.h"
 #include "module.h"
 #include "task.h"
