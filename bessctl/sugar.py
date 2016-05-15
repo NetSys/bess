@@ -1,6 +1,7 @@
 import re
 import tokenize
 import parser
+import string
 from StringIO import StringIO
 
 '''
@@ -126,6 +127,21 @@ def replace_envvar(s):
     s = regex.sub(_replacer, s)
     return s
 
+def is_gate_expr(exp):
+    # check if the leading whitespace characters contains '\n'
+    for c in exp:
+        if c not in string.whitespace:
+            break
+        if c == '\n':
+            return False
+
+    try:
+        parser.expr('(' + exp + ')')
+    except SyntaxError:
+        return False
+    else:
+        return True
+
 def replace_rarrows(s):
     # if the gate expression is not trivial, add parenthesis
     def parenthesize(exp):
@@ -152,7 +168,7 @@ def replace_rarrows(s):
 
             last_token = token
 
-    except (TokenError, IndentationError):
+    except (tokenize.TokenError, IndentationError):
         return s    # source code with syntax errors. give up.
 
     segments = []
@@ -196,15 +212,11 @@ def replace_rarrows(s):
             if ogate.strip() == '':
                 break
 
-            try:
-                parser.expr('(' + ogate + ')')
-            except SyntaxError:
-                colon_pos = seg.rfind(':', 0, colon_pos)
-                continue
-            else:
-                # Found!
+            if is_gate_expr(ogate):
                 segments[i] = seg[:colon_pos] + '*' + parenthesize(ogate)
                 break
+
+            colon_pos = seg.rfind(':', 0, colon_pos)
 
         # process input gate
         seg = segments[i + 1]
@@ -214,15 +226,11 @@ def replace_rarrows(s):
             if igate.strip() == '':
                 break
 
-            try:
-                parser.expr('(' + igate + ')')
-            except SyntaxError:
-                colon_pos = seg.find(':', colon_pos + 1)
-                continue
-            else:
-                # Found!
+            if is_gate_expr(igate):
                 segments[i+1] = parenthesize(igate) + '*' + seg[colon_pos+1:]
                 break
+
+            colon_pos = seg.find(':', colon_pos + 1)
 
     return '+'.join(segments)
 
