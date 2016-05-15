@@ -7,6 +7,7 @@
 #include <ucontext.h>
 #include <unistd.h>
 #include <stdint.h>
+#include <sys/syscall.h>
 
 #include <rte_config.h>
 #include <rte_version.h>
@@ -257,7 +258,8 @@ static void trap_handler(int sig_num, siginfo_t *info, void *ucontext)
 	#error neither x86 or x86-64
 #endif
 
-	log_crit("A critical error has occured. Aborting...\n");
+	log_crit("A critical error has occured. Aborting... (pid=%d, tid=%d)\n",
+			getpid(), (pid_t)syscall(SYS_gettid));
 	log_crit("Signal: %d (%s), si_code: %d (%s), address: %p, IP: %p\n",
 			sig_num, strsignal(sig_num),
 			info->si_code, si_code_to_str(sig_num, info->si_code),
