@@ -1,4 +1,5 @@
 #include "../module.h"
+#include "../time.h"
 #include "../utils/random.h"
 
 #define MAX_VARS		16
@@ -109,7 +110,7 @@ static struct snobj *rupdate_init(struct module *m, struct snobj *arg)
 {
 	struct rupdate_priv *priv = get_priv(m);
 
-	priv->seed = 1;
+	priv->seed = rdtsc();
 
 	if (arg)
 		return command_add(m, NULL, arg);
