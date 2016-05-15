@@ -1,0 +1,53 @@
+import time
+import socket
+import scapy.all as scapy
+
+ITERATION = 10
+PORT_NAME = 'p'
+
+# NOTE: You can disable this option to use a conventional socket path based on
+# the filesystem. In that case, you must have (root) access to the socket path.
+ABSTRACT_SOCKET_ADDRESS = True
+
+SOCKET_PATH = '/tmp/bess_unix_%s' % PORT_NAME
+
+def gen_packet(src_ip, dst_ip):
+    eth = scapy.Ether(src='02:1e:67:9f:4d:ae', dst='06:16:3e:1b:72:32')
+    ip = scapy.IP(src=src_ip, dst=dst_ip)
+    udp = scapy.UDP(sport=10001, dport=10002)
+    payload = 'helloworld'
+    return eth/ip/udp/payload
+
+if ABSTRACT_SOCKET_ADDRESS:
+    # '@' is replaced with '\0' by BESS daemon
+    p = Port(driver='UnixSocket', name='p', path='@' + SOCKET_PATH)
+else:
+    p = Port(driver='UnixSocket', name='p', path=SOCKET_PATH)
+
+# Randomize source IP addresses
+PortInc(port=p) -> \
+        RandomUpdate([{'offset': 26, 'size': 4, 'min': 0, 'max': 0xffffffff}]) -> \
+        PortOut(port=p)
+
+bess.resume_all()
+
+s = socket.socket(socket.AF_UNIX, socket.SOCK_SEQPACKET)
+if ABSTRACT_SOCKET_ADDRESS:
+    s.connect('\0' + SOCKET_PATH)
+else:
+    s.connect(SOCKET_PATH)
+
+for i in range(ITERATION):
+    original = gen_packet('10.0.0.1', '192.168.1.10' + str(i))
+    s.send(str(original))
+
+    modified = s.recv(2048)
+    pkt = scapy.Ether(modified)
+    assert len(original) == len(modified)
+
+    print('%2d/%2d\tOriginal: %s' % (i + 1, ITERATION, original.summary()))
+    print '\tModified: %s' % pkt.summary()
+
+    time.sleep(1)
+
+bess.pause_all()
