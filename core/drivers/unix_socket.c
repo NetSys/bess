@@ -94,6 +94,7 @@ static struct snobj *unix_init_port(struct port *p, struct snobj *conf)
 	int num_rxq = p->num_queues[PACKET_DIR_INC];
 
 	const char *path;
+	size_t addrlen;
 
 	int ret;
 
@@ -111,17 +112,24 @@ static struct snobj *unix_init_port(struct port *p, struct snobj *conf)
 	priv->addr.sun_family = AF_UNIX;
 
 	path = snobj_eval_str(conf, "path");
-	if (path)
+	if (path) {
 		snprintf(priv->addr.sun_path, sizeof(priv->addr.sun_path), 
 				"%s", path);
-	else
+	} else
 		snprintf(priv->addr.sun_path, sizeof(priv->addr.sun_path),
 				"%s/bess_unix_%s", P_tmpdir, p->name);
 
-	/* remove existing socket file, if any */
-	unlink(priv->addr.sun_path);
+	/* This doesn't include the trailing null character */
+	addrlen = sizeof(priv->addr.sun_family) + strlen(priv->addr.sun_path);
 
-	ret = bind(priv->listen_fd, &priv->addr, sizeof(priv->addr));
+	/* non-abstract socket address? */
+	if (priv->addr.sun_path[0] != '@') {
+		/* remove existing socket file, if any */
+		unlink(priv->addr.sun_path);
+	} else
+		priv->addr.sun_path[0] = '\0';
+
+	ret = bind(priv->listen_fd, &priv->addr, addrlen);
 	if (ret < 0)
 		return snobj_err(errno, "bind(%s) failed", priv->addr.sun_path);
 
