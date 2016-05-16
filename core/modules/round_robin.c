@@ -45,7 +45,7 @@ command_set_gates(struct module *m, const char *cmd, struct snobj *arg)
 			priv->gates[i] = i;
 
 	} else if (snobj_type(arg) == TYPE_LIST) {
-		struct snobj *gates = snobj_eval(arg, "gates");
+		struct snobj *gates = arg;
 
 		if (gates->size > MAX_RR_GATES)
 			return snobj_err(EINVAL, "no more than %d gates", 
