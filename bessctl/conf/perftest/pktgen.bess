@@ -32,10 +32,10 @@ for i in range(num_cores):
     src = Source()
     bess.attach_task(src.name, 0, wid=i)
 
-    rr = Roundrobin(gates=num_ports)
+    rr = Roundrobin(num_ports)
 
     src \
-    -> Rewrite(templates=[pkt_bytes]) \
+    -> Rewrite([pkt_bytes]) \
     -> RandomUpdate([{'offset': 36, 'size': 2, 'min': 10002, 'max': 10002 + num_flows - 1}]) \
     -> rr
     
