@@ -562,27 +562,27 @@ void dump_pcap_pkts(struct gate *gate, struct pkt_batch *batch)
 
 	for (int i = 0; i < batch->cnt; i++) {
 		struct snbuf* pkt = batch->pkts[i];
-		struct pcap_rec_hdr *pkthdr = 
-			(struct pcap_rec_hdr*) snb_prepend(pkt, 
-				sizeof(struct pcap_rec_hdr));
+		struct pcap_rec_hdr rec = {
+			.ts_sec = tv.tv_sec,
+			.ts_usec = tv.tv_usec,
+			.incl_len = pkt->mbuf.data_len,
+			.orig_len = pkt->mbuf.pkt_len,
+		};
 
-		pkthdr->ts_sec = tv.tv_sec;
-		pkthdr->ts_usec = tv.tv_usec;
-		pkthdr->orig_len = pkt->mbuf.pkt_len;
-		pkthdr->incl_len = pkt->mbuf.data_len;
-		ret = write(fd, snb_head_data(pkt), pkt->mbuf.data_len);
+		struct iovec vec[2] = {{&rec, sizeof(rec)},
+			{snb_head_data(pkt), snb_head_len(pkt)}};
+
+		ret = writev(fd, vec, 2);
 
 		if (ret < 0) {
 			if (errno == EPIPE) {
-				log_debug("Stopping dump\n");
+				log_debug("Broken pipe: stopping tcpdump\n");
 				gate->tcpdump = 0;
 				gate->fifo_fd = 0;
 				close(fd);
 			}
 			return;
 		}
-
-		snb_adj(pkt, sizeof(struct pcap_rec_hdr));
 	}
 }
 #endif
