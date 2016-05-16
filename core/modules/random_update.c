@@ -7,7 +7,7 @@
 struct rupdate_priv {
 	int num_vars;
 	struct var {
-		uint32_t mask;
+		uint32_t mask;		/* bits with 1 won't be updated */
 		uint32_t min;
 		uint32_t range;		/* == max - min + 1 */
 		int16_t offset;
