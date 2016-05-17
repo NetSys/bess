@@ -314,7 +314,6 @@ static void add_module_to_component(struct module *m, metadata_field *field)
 		component->modules = mem_alloc(sizeof(struct module *));
 		component->modes = mem_alloc(sizeof(metadata_mode));
 		component->modules[0] = m;
-		component->modes[0] = field->mode;
 	} else {
 		component->num_modules++;
 		component->modules = mem_realloc(component->modules,
@@ -322,43 +321,30 @@ static void add_module_to_component(struct module *m, metadata_field *field)
 		component->modes = mem_realloc(component->modes,
 				sizeof(metadata_mode) * component->num_modules);
 		component->modules[component->num_modules - 1] = m;		
-		component->modes[component->num_modules - 1] = field->mode;		
 	}
 }
 
 /* Traverses graph upstream to help identify a scope component. */
 static void traverse_upstream(struct module *m, metadata_field *field)
 {
-	metadata_field *read_field = NULL;
-	metadata_field *written_field = NULL;
+	metadata_field *found_field = NULL;
 
 	for (int i = 0; i < m->num_fields; i++) {
 		metadata_field *curr_field = &m->fields[i];
 
 		if (strcmp(curr_field->name, field->name) == 0 &&
 		    curr_field->len == field->len) {
-
-			if (curr_field->mode == WRITE) {
-				written_field = curr_field;
-			} else {
-				read_field = curr_field;
-			}
+			found_field = curr_field;
 		}
 	}
 
-	/* handles the case where a module writes and reads the same field */
-	if (read_field && read_field->scope_id == curr_scope_id)
-		goto up;
-
 	/* found a module that writes the field; end of scope component */
-	if (written_field && written_field->scope_id == -1) {
-		identify_scope_component(m, written_field);
-		return;
-	} else if (written_field) {
+	if (found_field && found_field->mode == WRITE) {
+		if (found_field->scope_id == -1)
+			identify_scope_component(m, found_field);
 		return;
 	}
 
-up:
 	for (int i = 0; i < m->igates.curr_size; i++) {
 		struct gate *g = m->igates.arr[i];
 		struct gate *og;
@@ -380,8 +366,7 @@ up:
 static int traverse_downstream(struct module *m, metadata_field *field)
 {
 	struct gate *gate;
-	metadata_field *written_field = NULL;
-	metadata_field *read_field = NULL;
+	metadata_field *found_field = NULL;
 	int in_scope = 0;
 
 	for (int i = 0; i < m->num_fields; i++) {
@@ -389,33 +374,25 @@ static int traverse_downstream(struct module *m, metadata_field *field)
 
 		if (strcmp(curr_field->name, field->name) == 0 &&
 		    curr_field->len == field->len) {
-
-			if (curr_field->mode == WRITE) {
-				written_field = curr_field;
-			} else {
-				read_field = curr_field;
-			}
+			found_field = curr_field;
 		}
 	}
 
-	if (read_field) {
-		add_module_to_component(m, read_field);
-		read_field->scope_id = curr_scope_id;
+	if (found_field && (found_field->mode == READ || found_field->mode == UPDATE)) {
+		add_module_to_component(m, found_field);
+		found_field->scope_id = curr_scope_id;
 
-		if (!written_field) {
-			for (int i = 0; i < m->ogates.curr_size; i++) {
-				gate = m->ogates.arr[i];
-				struct module *m_next = (struct module *)gate->arg;
-				traverse_downstream(m_next, field);
-			}
+		for (int i = 0; i < m->ogates.curr_size; i++) {
+			gate = m->ogates.arr[i];
+			struct module *m_next = (struct module *)gate->arg;
+			traverse_downstream(m_next, field);
 		}
 
 		traverse_upstream(m, field);
 		return 0;
+	} else if (found_field && found_field->mode == WRITE) {
+		return -1;
 	} else {
-		if (written_field)
-			return -1;
-
 		for (int i = 0; i < m->ogates.curr_size; i++) {
 			gate = m->ogates.arr[i];
 			struct module *m_next = (struct module *)gate->arg;
@@ -536,27 +513,31 @@ static void fill_offset_arrays()
 		char *name = scope_components[i].name;
 		int len = scope_components[i].len;
 		int offset = scope_components[i].offset;
+		
+		/* field not read donwstream */
+		if (scope_components[i].num_modules == 1)
+			continue;
 
 		for (int j = 0; j < scope_components[i].num_modules; j++) {
 			struct module *m = modules[j];
 
 			for (int k = 0; k < m->num_fields; k++) {
 				if (strcmp(m->fields[k].name, name) == 0 &&
-				    m->fields[k].len == len &&
-				    scope_components[i].modes[j] == m->fields[k].mode) {
-
+				    m->fields[k].len == len) {
 					m->field_offsets[k]= offset;
-					if (m->fields[k].mode == READ)
+					if (m->fields[k].mode == READ) {
 						log_info("Module %s using offset %d to read field %s\n",
 							  m->name, offset, name);
-					else
+					} else if (m->fields[k].mode == WRITE) {
 						log_info("Module %s using offset %d to write field %s\n",
 							  m->name, offset, name);
-
+					} else {
+						log_info("Module %s using offset %d to update field %s\n",
+							  m->name, offset, name);
+					}
 				}
 			}
 		}
-
 	}
 }
 
@@ -615,7 +596,7 @@ static int field_supported(struct module *m, metadata_field *field)
 {
 	for (int i = 0; i < m->num_fields; i++) {
 		metadata_field curr_field = m->fields[i];
-		if (curr_field.mode == WRITE &&
+		if ((curr_field.mode == WRITE || curr_field.mode == UPDATE) &&
 		    strcmp(curr_field.name, field->name) == 0  &&
 		    curr_field.len == field->len)
 			return 1;
@@ -653,7 +634,8 @@ int valid_metadata_configuration()
 
 		for (int i = 0; i < m->num_fields; i++) {
 			metadata_field field = m->fields[i];
-			if (field.mode == READ && !field_supported(m, &field))
+			if ((field.mode == READ || field.mode == UPDATE) &&
+			    !field_supported(m, &field))
 				return 0;
 		}
 	}

@@ -28,9 +28,15 @@ ct_assert(MAX_TASKS_PER_MODULE < INVALID_TASK_ID);
 #define TRACK_GATES		1
 #define TCPDUMP_GATES		1
 
+#pragma GCC diagnostic ignored "-Wstrict-aliasing"
+
+#define ACCESS_METADATA(pkt, offset, type) \
+	*(type *)(pkt->_metadata_buf + offset)
+
 typedef enum metadata_mode {
 	READ,
-	WRITE
+	WRITE,
+	UPDATE
 } metadata_mode;
 
 typedef struct metadata_field {
@@ -44,7 +50,6 @@ typedef struct scope_component {
 	char *name;
 	uint8_t len;
 	struct module **modules;
-	metadata_mode *modes;
 	int num_modules;
 	uint8_t offset;
 	uint8_t visited;
@@ -131,6 +136,11 @@ static inline void *get_priv(struct module *m)
 static inline const void *get_priv_const(const struct module *m) 
 {
 	return (const void *)(m + 1);
+}
+
+static inline uint8_t get_metadata_offset(const struct module *m, int field)
+{
+	return m->field_offsets[field];
 }
 
 task_id_t register_task(struct module *m, void *arg);

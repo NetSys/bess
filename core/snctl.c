@@ -77,7 +77,9 @@ static struct snobj *handle_pause_all(struct snobj *q)
 
 static struct snobj *handle_resume_all(struct snobj *q)
 {
-	resume_all_workers();
+	if (resume_all_workers() == -1)
+		return snobj_err(EINVAL, "Invalid metadata configuration\n");
+
 	log_info("*** Resumed ***\n");
 	return NULL;
 }

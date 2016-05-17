@@ -1,0 +1,9 @@
+# simple update test, should be two components
+
+a::Test(write={'foo':2})
+b::Test(update={'foo':2})
+c::Test(write={'foo':2})
+
+a->b->c
+
+

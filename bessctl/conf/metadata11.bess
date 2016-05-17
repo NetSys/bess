@@ -1,0 +1,11 @@
+# simple update test, should be two components but the 
+# component {a} should not be needed because foo is not
+# needed downstream
+
+a::Test(write={'foo':2})
+b::Test(write={'bar':2})
+c::Test(read={'bar':2})
+
+a->b->c
+
+
