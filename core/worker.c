@@ -104,8 +104,10 @@ int resume_all_workers()
 {
 	if (valid_metadata_configuration())
 		compute_metadata_offsets();
-	else
+	else {
+		log_info("asdfadsfas\n");
 		return -1;
+	}
 
 	process_orphan_tasks();
 

@@ -2,8 +2,8 @@
 
 enum field_type {
 	FIELD_READ,
-	FIELD_WRITE
-	/* not now: FIELD_UPDATE */
+	FIELD_WRITE,
+	FIELD_UPDATE
 };
 
 static struct snobj *
@@ -30,9 +30,17 @@ add_fields(struct module *m, struct snobj *fields, enum field_type t)
 		/* or with some form of API... */
 
 		/* check /var/log/syslog for log messages */
-		log_info("module %s: %s, %d bytes, %s\n", 
-				m->name, field_name, field_size, 
-				t == FIELD_READ ? "read" : "write");
+		if (t == FIELD_READ)
+			log_info("module %s: %s, %d bytes, %s\n", 
+				m->name, field_name, field_size, "read");
+
+		if (t == FIELD_WRITE)
+			log_info("module %s: %s, %d bytes, %s\n", 
+				m->name, field_name, field_size, "write");
+
+		if (t == FIELD_UPDATE)
+			log_info("module %s: %s, %d bytes, %s\n", 
+				m->name, field_name, field_size, "update");
 	}
 
 	return NULL;
@@ -51,6 +59,12 @@ static struct snobj *test_init(struct module *m, struct snobj *arg)
 	
 	if ((fields = snobj_eval(arg, "write"))) {
 		err = add_fields(m, fields, FIELD_WRITE);
+		if (err)
+			return err;
+	}
+
+	if ((fields = snobj_eval(arg, "update"))) {
+		err = add_fields(m, fields, FIELD_UPDATE);
 		if (err)
 			return err;
 	}
