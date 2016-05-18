@@ -520,8 +520,10 @@ static void fill_offset_arrays()
 		/* field not read donwstream */
 		if (scope_components[i].num_modules == 1) {
 			struct module *m = modules[0];
-			for (int k = 0; k < m->num_field; k++) {
-				m->field_offsets[k] = MAX_UINT8;
+			for (int k = 0; k < m->num_fields; k++) {
+				if (strcmp(m->fields[k].name, name) == 0 &&
+				    m->fields[k].len == len)
+					m->field_offsets[k] = UINT8_MAX;
 			}
 			continue;
 		}
