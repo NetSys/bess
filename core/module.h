@@ -36,6 +36,8 @@ ct_assert(MAX_TASKS_PER_MODULE < INVALID_TASK_ID);
 #define ACCESS_METADATA(pkt, offset, type) \
 	*(type *)(pkt->_metadata_buf + offset)
 
+#define MAX_UINT8		255
+
 typedef enum metadata_mode {
 	READ,
 	WRITE,
@@ -143,7 +145,7 @@ static inline const void *get_priv_const(const struct module *m)
 
 static inline uint8_t get_metadata_offset(const struct module *m, int field)
 {
-	return m->field_offsets[field];
+	return (m->field_offsets[field] == MAX_UINT8) ? -1 : m->field_offsets[field];
 }
 
 task_id_t register_task(struct module *m, void *arg);
