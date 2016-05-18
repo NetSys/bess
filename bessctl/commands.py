@@ -972,6 +972,12 @@ def _show_module(cli, module_name):
     else:
         cli.fout.write('\n')
 
+    if info.metadata:
+        cli.fout.write('    Per-packet metadata fields:\n')
+        for field in info.metadata:
+            cli.fout.write('%16s %-6s%2d bytes at offset %d\n' % \
+                    (field.name + ':', field.mode, field.size, field.offset))
+
     if info.igates:
         cli.fout.write('    Input gates:\n')
         for gate in info.igates:
@@ -979,8 +985,6 @@ def _show_module(cli, module_name):
                     (gate.igate, 
                      ', '.join('%s:%d ->' % (g.name, g.ogate) \
                              for g in gate.ogates)))
-    else:
-        cli.fout.write('    No input gate\n')
 
     if info.ogates:
         cli.fout.write('    Output gates:\n')
@@ -989,8 +993,6 @@ def _show_module(cli, module_name):
                     '      %5d: batches %-16d packets %-16d -> %d:%s\n' % \
                     (gate.ogate, gate.cnt, gate.pkts, 
                      gate.igate, gate.name))
-    else:
-        cli.fout.write('    No output gate\n')
 
     if 'dump' in info:
         cli.fout.write('    Dump:\n')
