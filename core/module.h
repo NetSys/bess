@@ -28,8 +28,6 @@ ct_assert(MAX_TASKS_PER_MODULE < INVALID_TASK_ID);
 #define TRACK_GATES		1
 #define TCPDUMP_GATES		1
 
-#pragma GCC diagnostic ignored "-Wstrict-aliasing"
-
 #define ACCESS_METADATA(pkt, offset, type) \
 	*(type *)(pkt->_metadata_buf + offset)
 
