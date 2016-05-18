@@ -705,36 +705,9 @@ static struct snobj *handle_destroy_module(struct snobj *q)
 	return NULL;
 }
 
-static struct snobj *handle_get_module_info(struct snobj *q)
+static struct snobj *collect_igates(struct module *m)
 {
-	const char *m_name;
-	struct module *m;
-
-	struct snobj *r;
-	struct snobj *igates;
-	struct snobj *ogates;
-
-	m_name = snobj_str_get(q);
-
-	if (!m_name)
-		return snobj_err(EINVAL, "Argument must be a name in str");
-
-	if ((m = find_module(m_name)) == NULL)
-		return snobj_err(ENOENT, "No module '%s' found", m_name);
-
-	r = snobj_map();
-
-	snobj_map_set(r, "name", snobj_str(m->name));
-	snobj_map_set(r, "mclass", snobj_str(m->mclass->name));
-
-	if (m->mclass->get_desc)
-		snobj_map_set(r, "desc", m->mclass->get_desc(m));
-
-	if (m->mclass->get_dump)
-		snobj_map_set(r, "dump", m->mclass->get_dump(m));
-
-	/* add input gate list */
-	igates = snobj_list();
+	struct snobj *igates = snobj_list();
 
 	for (int i = 0; i < m->igates.curr_size; i++) {
 		if (!is_active_gate(&m->igates, i))
@@ -762,10 +735,12 @@ static struct snobj *handle_get_module_info(struct snobj *q)
 		snobj_list_add(igates, igate);
 	}
 
-	snobj_map_set(r, "igates", igates);
+	return igates;
+}
 
-	/* add output gate list */
-	ogates = snobj_list();
+static struct snobj *collect_ogates(struct module *m)
+{
+	struct snobj *ogates = snobj_list();
 
 	for (int i = 0; i < m->ogates.curr_size; i++) {
 		if (!is_active_gate(&m->ogates, i))
@@ -789,7 +764,70 @@ static struct snobj *handle_get_module_info(struct snobj *q)
 		snobj_list_add(ogates, ogate);
 	}
 
-	snobj_map_set(r, "ogates", ogates);
+	return ogates;
+}
+
+static struct snobj *collect_metadata(struct module *m)
+{
+	struct snobj *metadata = snobj_list();
+
+	for (int i = 0; i < m->num_fields; i++) {
+		struct snobj *field = snobj_map();
+
+		snobj_map_set(field, "name", snobj_str(m->fields[i].name));
+		snobj_map_set(field, "size", snobj_uint(m->fields[i].len));
+
+		switch (m->fields[i].mode) {
+		case READ:
+			snobj_map_set(field, "mode", snobj_str("read"));
+			break;
+		case WRITE:
+			snobj_map_set(field, "mode", snobj_str("write"));
+			break;
+		case UPDATE:
+			snobj_map_set(field, "mode", snobj_str("update"));
+			break;
+		default:
+			assert(0);
+		}
+
+		snobj_map_set(field, "offset", snobj_uint(m->field_offsets[i]));
+
+		snobj_list_add(metadata, field);
+	}
+
+	return metadata;
+}
+
+static struct snobj *handle_get_module_info(struct snobj *q)
+{
+	const char *m_name;
+	struct module *m;
+
+	struct snobj *r;
+
+	m_name = snobj_str_get(q);
+
+	if (!m_name)
+		return snobj_err(EINVAL, "Argument must be a name in str");
+
+	if ((m = find_module(m_name)) == NULL)
+		return snobj_err(ENOENT, "No module '%s' found", m_name);
+
+	r = snobj_map();
+
+	snobj_map_set(r, "name", snobj_str(m->name));
+	snobj_map_set(r, "mclass", snobj_str(m->mclass->name));
+
+	if (m->mclass->get_desc)
+		snobj_map_set(r, "desc", m->mclass->get_desc(m));
+
+	if (m->mclass->get_dump)
+		snobj_map_set(r, "dump", m->mclass->get_dump(m));
+
+	snobj_map_set(r, "igates", collect_igates(m));
+	snobj_map_set(r, "ogates", collect_ogates(m));
+	snobj_map_set(r, "metadata", collect_metadata(m));
 
 	return r;
 }
