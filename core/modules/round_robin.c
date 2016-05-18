@@ -16,10 +16,13 @@ command_set_mode(struct module *m, const char *cmd, struct snobj *arg)
 	struct roundrobin_priv *priv = get_priv(m);
 
 	const char *mode = snobj_str_get(arg);
-	
-	if (mode && strcmp(mode, "packet") == 0)
+
+	if (!mode)
+		return snobj_err(EINVAL, "argument must be a string");
+
+	if (strcmp(mode, "packet") == 0)
 		priv->per_packet = 1;
-	else if (mode && strcmp(mode, "batch") == 0)
+	else if (strcmp(mode, "batch") == 0)
 		priv->per_packet = 0;
 	else
 		return snobj_err(EINVAL, 
@@ -104,7 +107,7 @@ roundrobin_process_batch(struct module *m, struct pkt_batch *batch)
 
 static const struct mclass roundrobin = {
 	.name 		= "Roundrobin",
-	.help		= "split packets evenly with round robin",
+	.help		= "splits packets evenly with round robin",
 	.num_igates	= 1,
 	.num_ogates	= MAX_GATES,
 	.priv_size	= sizeof(struct roundrobin_priv),
