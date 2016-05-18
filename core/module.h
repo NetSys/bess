@@ -108,6 +108,7 @@ struct module {
 	char *name;
 	const struct mclass *mclass;
 	struct task *tasks[MAX_TASKS_PER_MODULE];
+
 	uint8_t num_fields;
 	uint8_t field_offsets[MAX_FIELDS_PER_MODULE];
 	metadata_field fields[MAX_FIELDS_PER_MODULE];

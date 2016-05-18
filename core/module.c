@@ -312,14 +312,11 @@ static void add_module_to_component(struct module *m, metadata_field *field)
 		component->len = field->len;
 		component->name = field->name;
 		component->modules = mem_alloc(sizeof(struct module *));
-		component->modes = mem_alloc(sizeof(metadata_mode));
 		component->modules[0] = m;
 	} else {
 		component->num_modules++;
 		component->modules = mem_realloc(component->modules,
 				sizeof(struct module *) * component->num_modules);
-		component->modes = mem_realloc(component->modes,
-				sizeof(metadata_mode) * component->num_modules);
 		component->modules[component->num_modules - 1] = m;		
 	}
 }
@@ -466,7 +463,6 @@ static void cleanup_metadata_computation()
 		if (component.len == 0)
 			continue;
 		mem_free(component.modules);
-		mem_free(component.modes);
 	}
 
 	memset(&scope_components, 0, 100 * sizeof(scope_component));
