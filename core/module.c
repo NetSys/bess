@@ -521,16 +521,6 @@ static void fill_offset_arrays()
 				if (strcmp(m->fields[k].name, name) == 0 &&
 				    m->fields[k].len == len) {
 					m->field_offsets[k]= offset;
-					if (m->fields[k].mode == READ) {
-						log_info("Module %s using offset %d to read field %s\n",
-							  m->name, offset, name);
-					} else if (m->fields[k].mode == WRITE) {
-						log_info("Module %s using offset %d to write field %s\n",
-							  m->name, offset, name);
-					} else {
-						log_info("Module %s using offset %d to update field %s\n",
-							  m->name, offset, name);
-					}
 				}
 			}
 		}
@@ -575,8 +565,8 @@ void compute_metadata_offsets()
 	ns_release_iterator(&iter);
 
 	for (int i = 0; i < curr_scope_id; i++) {
-		log_info("SCOPE COMPONENT FOR FIELD %s\n", scope_components[i].name);
-		log_info("{ ");
+		log_info("scope component for field %s {", 
+				scope_components[i].name);
 		for (int j = 0; j < scope_components[i].num_modules; j++) {
 			log_info("%s ", scope_components[i].modules[j]->name);
 		}
