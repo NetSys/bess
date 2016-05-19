@@ -4,7 +4,7 @@
 #define DPDK			1
 
 /* either LIBC or DPDK */
-#define MEM_ALLOC_PROVIDER	LIBC
+#define MEM_ALLOC_PROVIDER	DPDK
 
 #if MEM_ALLOC_PROVIDER == LIBC
 
