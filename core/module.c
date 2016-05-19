@@ -518,8 +518,18 @@ static void fill_offset_arrays()
 		int offset = scope_components[i].offset;
 		
 		/* field not read donwstream */
-		if (scope_components[i].num_modules == 1)
+		if (scope_components[i].num_modules == 1) {
+			struct module *m = modules[0];
+			for (int k = 0; k < m->num_fields; k++) {
+				if (strcmp(m->fields[k].name, name) == 0 &&
+				    m->fields[k].len == len) {
+					m->field_offsets[k] = UINT8_MAX;
+					log_info("Module %s using offset %d to write field %s\n",
+						  m->name, m->field_offsets[k], name);
+				}
+			}
 			continue;
+		}
 
 		for (int j = 0; j < scope_components[i].num_modules; j++) {
 			struct module *m = modules[j];
