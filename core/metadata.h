@@ -36,7 +36,6 @@ struct metadata_field {
 	int scope_id;
 };
 
-int valid_metadata_configuration();
 void compute_metadata_offsets();
 
 #endif

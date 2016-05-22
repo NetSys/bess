@@ -267,12 +267,35 @@ static void assign_offsets()
 	fill_offset_arrays();
 }
 
+void check_orphan_readers()
+{
+	struct ns_iter iter;
+
+	ns_init_iterator(&iter, NS_TYPE_MODULE);
+	while (1) {
+		struct module *m = (struct module *) ns_next(&iter);
+		if (!m)
+			break;
+
+		for (int i = 0; i < m->num_fields; i++) {
+			if (m->field_offsets[i] != MT_NOREAD)
+				continue;
+
+			log_warn("Metadata field '%s' of module '%s' has "
+				 "no upstream module that sets the value!\n",
+					m->name, m->fields[i].name);
+		}
+	}
+	ns_release_iterator(&iter);
+}
+
 /* Main entry point for calculating metadata offsets. */
 void compute_metadata_offsets()
 {
+	struct ns_iter iter;
+
 	prepare_metadata_computation();
 
-	struct ns_iter iter;
 	ns_init_iterator(&iter, NS_TYPE_MODULE);
 	while (1) {
 		struct module *m = (struct module *) ns_next(&iter);
@@ -311,61 +334,7 @@ void compute_metadata_offsets()
 		log_info("}\n");
 	}
 
+	check_orphan_readers();
+
 	cleanup_metadata_computation();
-}
-
-/* Checks if field is supported upstream. */
-static int field_supported(struct module *m, struct metadata_field *field)
-{
-	for (int i = 0; i < m->num_fields; i++) {
-		struct metadata_field curr_field = m->fields[i];
-		if ((curr_field.mode == WRITE || curr_field.mode == UPDATE) &&
-		    strcmp(curr_field.name, field->name) == 0  &&
-		    curr_field.len == field->len)
-			return 1;
-	}
-
-	if (m->igates.curr_size == 0)
-		return 0;
-
-	for (int i = 0; i < m->igates.curr_size; i++) {
-		struct gate *g = m->igates.arr[i];
-		struct gate *og;
-
-		cdlist_for_each_entry(og, &g->in.ogates_upstream,
-				out.igate_upstream)
-		{
-			if (!field_supported((struct module *)og->m, field))
-				return 0;
-		}
-	}
-
-	return 1;
-}
-
-/* Checks if configuration is valid with respect to metadata */
-int valid_metadata_configuration()
-{
-	struct ns_iter iter;
-
-	ns_init_iterator(&iter, NS_TYPE_MODULE);
-	while (1) {
-		struct module *m = (struct module *) ns_next(&iter);
-
-		if (!m)
-			break;
-
-		for (int i = 0; i < m->num_fields; i++) {
-			struct metadata_field field = m->fields[i];
-			if ((field.mode == READ || field.mode == UPDATE) &&
-			    !field_supported(m, &field))
-			{
-				ns_release_iterator(&iter);
-				return 0;
-			}
-		}
-	}
-	ns_release_iterator(&iter);
-
-	return 1;
 }

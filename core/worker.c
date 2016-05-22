@@ -100,19 +100,13 @@ static void resume_worker(int wid)
 	}
 }
 
-int resume_all_workers()
+void resume_all_workers()
 {
-	if (valid_metadata_configuration())
-		compute_metadata_offsets();
-	else
-		return -1;
-
+	compute_metadata_offsets();
 	process_orphan_tasks();
 
 	for (int wid = 0; wid < MAX_WORKERS; wid++)
 		resume_worker(wid);
-
-	return 0;
 }
 
 static void destroy_worker(int wid)
