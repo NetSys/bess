@@ -129,7 +129,9 @@ void _tc_do_free(struct tc *c)
 {
 	struct pgroup *g = c->ss.my_pgroup;
 	struct tc *parent = c->parent;
-	
+
+	int ret;
+
 	assert(c->refcnt == 0);
 
 	assert(!c->state.queued);
@@ -150,7 +152,8 @@ void _tc_do_free(struct tc *c)
 		c->s->num_classes--;
 	}
 
-	ns_remove(c->settings.name);
+	ret = ns_remove(c->settings.name);
+	assert(ret == 0);
 
 	memset(c, 0, sizeof(*c));	/* zero out to detect potential bugs */
 	mem_free(c);			/* Note: c is struct sched, if root */
