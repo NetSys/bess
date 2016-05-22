@@ -501,18 +501,8 @@ static void fill_offset_arrays()
 		int offset = scope_components[i].offset;
 		
 		/* field not read donwstream */
-		if (scope_components[i].num_modules == 1) {
-			struct module *m = modules[0];
-			for (int k = 0; k < m->num_fields; k++) {
-				if (strcmp(m->fields[k].name, name) == 0 &&
-				    m->fields[k].len == len) {
-					m->field_offsets[k] = UINT8_MAX;
-					log_info("Module %s using offset %d to write field %s\n",
-						  m->name, m->field_offsets[k], name);
-				}
-			}
-			continue;
-		}
+		if (scope_components[i].num_modules == 1)
+			scope_components[i].offset = UINT8_MAX;
 
 		for (int j = 0; j < scope_components[i].num_modules; j++) {
 			struct module *m = modules[j];
@@ -564,16 +554,22 @@ void compute_metadata_offsets()
 	}
 	ns_release_iterator(&iter);
 
+	assign_offsets();
+
 	for (int i = 0; i < curr_scope_id; i++) {
-		log_info("scope component for field %s {", 
-				scope_components[i].name);
-		for (int j = 0; j < scope_components[i].num_modules; j++) {
-			log_info("%s ", scope_components[i].modules[j]->name);
-		}
+		log_info("scope component for %d-byte field %s "
+			 "at offset%3d: {%s", 
+				scope_components[i].len,
+				scope_components[i].name,
+				scope_components[i].offset,
+				scope_components[i].modules[0]->name);
+
+		for (int j = 1; j < scope_components[i].num_modules; j++)
+			log_info(" %s", scope_components[i].modules[j]->name);
+
 		log_info("}\n");
 	}
 
-	assign_offsets();
 	cleanup_metadata_computation();
 }
 
