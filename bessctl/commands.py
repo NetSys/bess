@@ -977,8 +977,17 @@ def _show_module(cli, module_name):
     if info.metadata:
         cli.fout.write('    Per-packet metadata fields:\n')
         for field in info.metadata:
-            cli.fout.write('%16s %-6s%2d bytes at offset %d\n' % \
-                    (field.name + ':', field.mode, field.size, field.offset))
+            cli.fout.write('%16s %-6s%2d bytes ' % \
+                    (field.name + ':', field.mode, field.size))
+
+            if field.offset >= 0:
+                cli.fout.write('at offset %d\n' % field.offset)
+            elif field.offset == -1:
+                cli.fout.write('(no downstream reader)\n')
+            elif field.offset == -2:
+                cli.fout.write('(no upstream writer)\n')
+            else:
+                cli.fout.write('\n')
 
     if info.igates:
         cli.fout.write('    Input gates:\n')
