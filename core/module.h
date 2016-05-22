@@ -17,32 +17,15 @@
 #include "snbuf.h"
 #include "worker.h"
 #include "snobj.h"
+#include "metadata.h"
 
 #define MAX_TASKS_PER_MODULE	32
-#define MAX_FIELDS_PER_MODULE	16
-
 ct_assert(MAX_TASKS_PER_MODULE < INVALID_TASK_ID);
 
 #define MODULE_NAME_LEN		128
 
 #define TRACK_GATES		1
 #define TCPDUMP_GATES		1
-
-#define ACCESS_METADATA(pkt, offset, type) \
-	*(type *)(pkt->_metadata_buf + offset)
-
-typedef enum metadata_mode {
-	READ,
-	WRITE,
-	UPDATE
-} metadata_mode;
-
-struct metadata_field {
-	char *name;
-	uint8_t len;
-	metadata_mode mode;
-	int scope_id;
-};
 
 struct gate {
 	/* immutable values */
@@ -118,6 +101,11 @@ struct module {
 	void *priv[0]; 	
 };
 
+static inline uint8_t get_metadata_offset(const struct module *m, int field)
+{
+	return m->field_offsets[field];
+}
+
 static inline void *get_priv(struct module *m) 
 {
 	return (void *)(m + 1);
@@ -126,11 +114,6 @@ static inline void *get_priv(struct module *m)
 static inline const void *get_priv_const(const struct module *m) 
 {
 	return (const void *)(m + 1);
-}
-
-static inline uint8_t get_metadata_offset(const struct module *m, int field)
-{
-	return m->field_offsets[field];
 }
 
 task_id_t register_task(struct module *m, void *arg);
