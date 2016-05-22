@@ -97,7 +97,7 @@ struct gates {
 
 static inline int is_active_gate(struct gates *gates, gate_idx_t idx)
 {
-	return idx < gates->curr_size && gates->arr[idx] != NULL;
+	return idx < gates->curr_size && gates->arr && gates->arr[idx] != NULL;
 }
 
 /* This struct is shared across workers */
@@ -139,7 +139,7 @@ static inline const void *get_priv_const(const struct module *m)
 
 static inline uint8_t get_metadata_offset(const struct module *m, int field)
 {
-	return m->field_offsets[field];
+	return (m->field_offsets[field] == UINT8_MAX) ? -1 : m->field_offsets[field];
 }
 
 task_id_t register_task(struct module *m, void *arg);

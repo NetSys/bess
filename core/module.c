@@ -188,19 +188,6 @@ struct module *create_module(const char *name,
 	else
 		snprintf(m->name, MODULE_NAME_LEN, "%s", name);
 
-#if 0
-	if (ops->timer) {
-		for (i = 0; i < num_workers; i++) {
-			m->timers[i] = rte_zmalloc_socket(NULL,
-					sizeof(struct rte_timer), 0,
-					wid_to_sid_map[i]);
-			assert(m->timers[i]);
-
-			rte_timer_init(m->timers[i]);
-		}
-	}
-#endif
-
 	if (mclass->init) {
 		*perr = mclass->init(m, arg);
 		if (*perr != NULL)
@@ -228,6 +215,8 @@ fail:
 
 void destroy_module(struct module *m)
 {
+	int ret;
+
 	if (m->mclass->deinit)
 		m->mclass->deinit(m);
 
@@ -253,7 +242,8 @@ void destroy_module(struct module *m)
 
 	destroy_all_tasks(m);
 
-	ns_remove(m->name);
+	ret = ns_remove(m->name);
+	assert(ret == 0);
 
 	mem_free(m->name);
 	mem_free(m->ogates.arr);
@@ -511,8 +501,18 @@ static void fill_offset_arrays()
 		int offset = scope_components[i].offset;
 		
 		/* field not read donwstream */
-		if (scope_components[i].num_modules == 1)
+		if (scope_components[i].num_modules == 1) {
+			struct module *m = modules[0];
+			for (int k = 0; k < m->num_fields; k++) {
+				if (strcmp(m->fields[k].name, name) == 0 &&
+				    m->fields[k].len == len) {
+					m->field_offsets[k] = UINT8_MAX;
+					log_info("Module %s using offset %d to write field %s\n",
+						  m->name, m->field_offsets[k], name);
+				}
+			}
 			continue;
+		}
 
 		for (int j = 0; j < scope_components[i].num_modules; j++) {
 			struct module *m = modules[j];
@@ -622,7 +622,10 @@ int valid_metadata_configuration()
 			metadata_field field = m->fields[i];
 			if ((field.mode == READ || field.mode == UPDATE) &&
 			    !field_supported(m, &field))
+			{
+				ns_release_iterator(&iter);
 				return 0;
+			}
 		}
 	}
 	ns_release_iterator(&iter);
