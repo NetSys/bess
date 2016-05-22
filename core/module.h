@@ -37,21 +37,12 @@ typedef enum metadata_mode {
 	UPDATE
 } metadata_mode;
 
-typedef struct metadata_field {
+struct metadata_field {
 	char *name;
 	uint8_t len;
 	metadata_mode mode;
 	int scope_id;
-} metadata_field;
-
-typedef struct scope_component {
-	char *name;
-	uint8_t len;
-	struct module **modules;
-	int num_modules;
-	uint8_t offset;
-	uint8_t visited;
-} scope_component;
+};
 
 struct gate {
 	/* immutable values */
@@ -108,10 +99,10 @@ struct module {
 	struct task *tasks[MAX_TASKS_PER_MODULE];
 
 	uint8_t num_fields;
-	uint8_t field_offsets[MAX_FIELDS_PER_MODULE];
-	metadata_field fields[MAX_FIELDS_PER_MODULE];
+	struct metadata_field fields[MAX_FIELDS_PER_MODULE];
 
 	/* frequently access fields should be below */
+	uint8_t field_offsets[MAX_FIELDS_PER_MODULE];
 	struct gates igates;
 	struct gates ogates;
 
@@ -139,14 +130,13 @@ static inline const void *get_priv_const(const struct module *m)
 
 static inline uint8_t get_metadata_offset(const struct module *m, int field)
 {
-	return (m->field_offsets[field] == UINT8_MAX) ? -1 : m->field_offsets[field];
+	return m->field_offsets[field];
 }
 
 task_id_t register_task(struct module *m, void *arg);
 task_id_t task_to_tid(struct task *t);
 int num_module_tasks(struct module *m);
 
-void identify_scope_component(struct module *m, metadata_field *field);
 int valid_metadata_configuration();
 void compute_metadata_offsets();
 

@@ -5,7 +5,16 @@
 #include "namespace.h"
 #include "module.h"
 
-static scope_component scope_components[100];
+struct scope_component {
+	char *name;
+	uint8_t len;
+	struct module **modules;
+	int num_modules;
+	uint8_t offset;
+	uint8_t visited;
+};
+
+static struct scope_component scope_components[100];
 static int curr_scope_id = 0;
 
 task_id_t register_task(struct module *m, void *arg)
@@ -287,9 +296,10 @@ static int grow_gates(struct module *m, struct gates *gates, gate_idx_t gate)
  */
 
 /* Adds module to the current scope component. */
-static void add_module_to_component(struct module *m, metadata_field *field)
+static void 
+add_module_to_component(struct module *m, struct metadata_field *field)
 {
-	scope_component *component = &scope_components[curr_scope_id];
+	struct scope_component *component = &scope_components[curr_scope_id];
 
 	/* module has already been added to current scope component */
 	for (int i = 0; i < component->num_modules; i++) {
@@ -311,13 +321,16 @@ static void add_module_to_component(struct module *m, metadata_field *field)
 	}
 }
 
+static void 
+identify_scope_component(struct module *m, struct metadata_field *field);
+
 /* Traverses graph upstream to help identify a scope component. */
-static void traverse_upstream(struct module *m, metadata_field *field)
+static void traverse_upstream(struct module *m, struct metadata_field *field)
 {
-	metadata_field *found_field = NULL;
+	struct metadata_field *found_field = NULL;
 
 	for (int i = 0; i < m->num_fields; i++) {
-		metadata_field *curr_field = &m->fields[i];
+		struct metadata_field *curr_field = &m->fields[i];
 
 		if (strcmp(curr_field->name, field->name) == 0 &&
 		    curr_field->len == field->len) {
@@ -350,14 +363,14 @@ static void traverse_upstream(struct module *m, metadata_field *field)
  * Return value of -1 indicates that module is not part of the scope component.
  * Return value of 0 indicates that module is part of the scope component.
  */
-static int traverse_downstream(struct module *m, metadata_field *field)
+static int traverse_downstream(struct module *m, struct metadata_field *field)
 {
 	struct gate *gate;
-	metadata_field *found_field = NULL;
+	struct metadata_field *found_field = NULL;
 	int in_scope = 0;
 
 	for (int i = 0; i < m->num_fields; i++) {
-		metadata_field *curr_field = &m->fields[i];
+		struct metadata_field *curr_field = &m->fields[i];
 
 		if (strcmp(curr_field->name, field->name) == 0 &&
 		    curr_field->len == field->len) {
@@ -397,12 +410,12 @@ static int traverse_downstream(struct module *m, metadata_field *field)
 	}
 }
 
-
 /*
- * Given a module that writes a field, identifies the portion of corresponding scope 
- * component that lies downstream from this module. 
+ * Given a module that writes a field, identifies the portion of corresponding 
+ * scope component that lies downstream from this module. 
  */
-void identify_scope_component(struct module *m, metadata_field *field)
+static void 
+identify_scope_component(struct module *m, struct metadata_field *field)
 {
 	struct gate *gate;
 
@@ -449,20 +462,20 @@ static void prepare_metadata_computation()
 static void cleanup_metadata_computation()
 {
 	for (int i = 0; i < curr_scope_id; i++) {
-		scope_component component = scope_components[i];
+		struct scope_component component = scope_components[i];
 		if (component.len == 0)
 			continue;
 		mem_free(component.modules);
 	}
 
-	memset(&scope_components, 0, 100 * sizeof(scope_component));
+	memset(&scope_components, 0, 100 * sizeof(struct scope_component));
 	curr_scope_id = 0;
 }
 
 
 static int scope_overlaps(int i1, int i2) {
-	scope_component n1 = scope_components[i1];
-	scope_component n2 = scope_components[i2];
+	struct scope_component n1 = scope_components[i1];
+	struct scope_component n2 = scope_components[i2];
 
 	for (int i = 0; i < n1.num_modules; i++) {
 		for (int j = 0; j < n2.num_modules; j++) {
@@ -545,7 +558,7 @@ void compute_metadata_offsets()
 			break;
 
 		for (int i = 0; i < m->num_fields; i++) {
-			metadata_field *field = &m->fields[i];
+			struct metadata_field *field = &m->fields[i];
 			if (field->mode == WRITE && field->scope_id == -1) {
 				identify_scope_component(m, field);
 				curr_scope_id++;
@@ -574,10 +587,10 @@ void compute_metadata_offsets()
 }
 
 /* Checks if field is supported upstream. */
-static int field_supported(struct module *m, metadata_field *field)
+static int field_supported(struct module *m, struct metadata_field *field)
 {
 	for (int i = 0; i < m->num_fields; i++) {
-		metadata_field curr_field = m->fields[i];
+		struct metadata_field curr_field = m->fields[i];
 		if ((curr_field.mode == WRITE || curr_field.mode == UPDATE) &&
 		    strcmp(curr_field.name, field->name) == 0  &&
 		    curr_field.len == field->len)
@@ -615,7 +628,7 @@ int valid_metadata_configuration()
 			break;
 
 		for (int i = 0; i < m->num_fields; i++) {
-			metadata_field field = m->fields[i];
+			struct metadata_field field = m->fields[i];
 			if ((field.mode == READ || field.mode == UPDATE) &&
 			    !field_supported(m, &field))
 			{
