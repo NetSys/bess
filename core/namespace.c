@@ -320,13 +320,13 @@ void ns_init_iterator(struct ns_iter *iter, ns_type_t type)
 	assert(type < NS_TYPE_MAX);
 		
 	ht.iterator_cnt[type]++;
+	iter->type = type;
 
 	if (ht.item_count == 0) {
 		iter->next = NULL;
 		return;
 	}
 	
-	iter->type = type;
 	iter->ns_elem_iter = &ht.ns_elem_type_iter[type];
 	ihead = iter->ns_elem_iter;
 
