@@ -479,7 +479,9 @@ def daemon_start(cli, opts):
 
 def is_pipeline_empty(cli):
     workers = cli.bess.list_workers()
-    return len(workers) == 0
+    modules = cli.bess.list_modules()
+    ports = cli.bess.list_ports()
+    return len(workers) == 0 and len(modules) == 0 and len(ports) == 0
 
 def _do_reset(cli):
     cli.bess.pause_all()
