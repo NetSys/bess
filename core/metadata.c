@@ -8,7 +8,7 @@ struct scope_component {
 	uint8_t len;
 	struct module **modules;
 	int num_modules;
-	uint8_t offset;
+	int8_t offset;
 	uint8_t visited;
 };
 
@@ -234,8 +234,10 @@ static void fill_offset_arrays()
 		int offset = scope_components[i].offset;
 		
 		/* field not read donwstream */
-		if (scope_components[i].num_modules == 1)
-			scope_components[i].offset = UINT8_MAX;
+		if (scope_components[i].num_modules == 1) {
+			scope_components[i].offset = MT_NOWRITE;
+			offset = MT_NOWRITE;
+		}
 
 		for (int j = 0; j < scope_components[i].num_modules; j++) {
 			struct module *m = modules[j];
@@ -279,6 +281,12 @@ void compute_metadata_offsets()
 
 		for (int i = 0; i < m->num_fields; i++) {
 			struct metadata_field *field = &m->fields[i];
+
+			if (field->mode == READ || field->mode == UPDATE)
+				m->field_offsets[i] = MT_NOREAD;
+			else if (field->mode == WRITE)
+				m->field_offsets[i] = MT_NOWRITE;
+
 			if (field->mode == WRITE && field->scope_id == -1) {
 				identify_scope_component(m, field);
 				curr_scope_id++;

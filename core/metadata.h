@@ -5,20 +5,38 @@
 
 #define MAX_FIELDS_PER_MODULE	16
 
+/* normal offset values are 0 or a positive value */
+typedef int8_t metadata_offset_t;
+
+/* No downstream module reads this field, so the module can skip writing */
+#define MT_NOWRITE	-1
+
+/* No upstream module writes this field, thus garbage value will be read */
+#define MT_NOREAD	-2
+
+static inline int is_valid_offset(metadata_offset_t offset)
+{
+	return (offset >= 0);
+}
+
+/* You can retrieve the offset of a field with get_metadata_offset() */
 #define ACCESS_METADATA(pkt, offset, type) \
 	(*(type *)(pkt->_metadata_buf + offset))
 
-typedef enum metadata_mode {
+enum metadata_mode {
 	READ,
 	WRITE,
 	UPDATE
-} metadata_mode;
+};
 
 struct metadata_field {
 	char *name;
 	uint8_t len;
-	metadata_mode mode;
+	enum metadata_mode mode;
 	int scope_id;
 };
+
+int valid_metadata_configuration();
+void compute_metadata_offsets();
 
 #endif

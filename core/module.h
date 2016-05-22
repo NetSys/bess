@@ -85,7 +85,7 @@ struct module {
 	struct metadata_field fields[MAX_FIELDS_PER_MODULE];
 
 	/* frequently access fields should be below */
-	uint8_t field_offsets[MAX_FIELDS_PER_MODULE];
+	metadata_offset_t field_offsets[MAX_FIELDS_PER_MODULE];
 	struct gates igates;
 	struct gates ogates;
 
@@ -101,7 +101,8 @@ struct module {
 	void *priv[0]; 	
 };
 
-static inline uint8_t get_metadata_offset(const struct module *m, int field)
+static inline metadata_offset_t
+get_metadata_offset(const struct module *m, int field)
 {
 	return m->field_offsets[field];
 }
@@ -119,9 +120,6 @@ static inline const void *get_priv_const(const struct module *m)
 task_id_t register_task(struct module *m, void *arg);
 task_id_t task_to_tid(struct task *t);
 int num_module_tasks(struct module *m);
-
-int valid_metadata_configuration();
-void compute_metadata_offsets();
 
 size_t list_modules(const struct module **p_arr, size_t arr_size, size_t offset);
 

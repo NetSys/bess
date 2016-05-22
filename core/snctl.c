@@ -791,7 +791,7 @@ static struct snobj *collect_metadata(struct module *m)
 			assert(0);
 		}
 
-		snobj_map_set(field, "offset", snobj_uint(m->field_offsets[i]));
+		snobj_map_set(field, "offset", snobj_int(m->field_offsets[i]));
 
 		snobj_list_add(metadata, field);
 	}
