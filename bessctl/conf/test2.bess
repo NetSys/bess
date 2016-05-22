@@ -1,2 +1,2 @@
 # error
-Test(read={'foo':2}) -> Test(write={'foo':2})
+MetadataTest(read={'foo':2}) -> MetadataTest(write={'foo':2})

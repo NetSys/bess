@@ -8,14 +8,14 @@
 #  \
 #    g
 
-a::Test(write={'foo':2})
-b::Test(write={'foo':2})
-c::Test(write={'foo':2})
+a::MetadataTest(write={'foo':2})
+b::MetadataTest(write={'foo':2})
+c::MetadataTest(write={'foo':2})
 
-d::Test(read={'foo':2})
-e::Test(read={'foo':2})
-f::Test(read={'foo':2})
-g::Test(read={'foo':2})
+d::MetadataTest(read={'foo':2})
+e::MetadataTest(read={'foo':2})
+f::MetadataTest(read={'foo':2})
+g::MetadataTest(read={'foo':2})
 
 a:0->d
 a:1->e

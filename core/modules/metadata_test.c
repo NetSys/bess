@@ -46,7 +46,7 @@ add_fields(struct module *m, struct snobj *fields, enum field_type t)
 	return NULL;
 }
 
-static struct snobj *test_init(struct module *m, struct snobj *arg)
+static struct snobj *metadata_test_init(struct module *m, struct snobj *arg)
 {
 	struct snobj *fields;
 	struct snobj *err;
@@ -72,20 +72,22 @@ static struct snobj *test_init(struct module *m, struct snobj *arg)
 	return NULL;
 }
 
-static void test_process_batch(struct module *m, struct pkt_batch *batch)
+static void 
+metadata_test_process_batch(struct module *m, struct pkt_batch *batch)
 {
 	/* This module simply passes packets from input gate X down 
 	 * to output gate X (the same gate index) */
 	run_choose_module(m, get_igate(), batch);
 }
 
-static const struct mclass test = {
-	.name 		= "Test",
-	//.help		= "Dynamic metadata test",
-	.num_igates	= MAX_GATES,
-	.num_ogates	= MAX_GATES,
-	.init 		= test_init,
-	.process_batch 	= test_process_batch,
+static const struct mclass metadata_test = {
+	.name 			= "MetadataTest",
+	.def_module_name 	= "mt_test",
+	.help			= "Dynamic metadata test module",
+	.num_igates		= MAX_GATES,
+	.num_ogates		= MAX_GATES,
+	.init 			= metadata_test_init,
+	.process_batch		= metadata_test_process_batch,
 };
 
-ADD_MCLASS(test)
+ADD_MCLASS(metadata_test)
