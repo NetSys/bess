@@ -1,0 +1,193 @@
+import socket
+def aton(ip):
+    return bytearray(socket.inet_aton(ip))
+
+### NOTE USING 'src host n.n.n.n' in place of 'in_port n'
+### n=101 is magic number for LCAL
+
+to_tbl_1::Merge()
+to_tbl_2::Merge()
+to_tbl_3::Merge()
+to_tbl_4::Merge()
+to_tbl_5::Merge()
+to_tbl_6::Merge()
+to_tbl_grp::Merge()
+to_out_1::Merge()
+to_out_2::Merge()
+to_out_3::Merge()
+to_out_4::Merge()
+to_lcl::Merge()
+to_ctl::Merge()
+
+#### TABLE 0 COMPRISES A SINGLE INSTANCE OF THE BPF MODULE
+
+BPF_TBL_1 =0
+BPF_TBL_6 =1
+BPF_LCL   =2
+BPF_OUT_2 =3
+BPF_CTL   =4
+
+bpf::BPF()
+bpf:BPF_TBL_1 -> to_tbl_1
+bpf:BPF_TBL_6 -> to_tbl_6
+bpf:BPF_LCL   -> to_lcl
+bpf:BPF_OUT_2 -> to_out_2
+bpf:BPF_CTL   -> to_ctl
+
+#table=0 priority=55000 vlan_tci=0x1000/0x1000 actions=goto_table:6
+bpf.add([{'priority' : 55000,
+          'filter'   : 'vlan and vlan',
+          'gate'     : BPF_TBL_6 }])
+
+# table=0 priority=50000 ip in_port=2 nw_dst=1.1.1.1 actions=LOCAL
+bpf.add([{'priority' : 50000,
+          'filter'   : 'ip and dst host 1.1.1.1 and src host 2.2.2.2',
+          'gate'     : BPF_LCL }])
+
+#table=0 priority=50000	arp in_port=2 arp_tpa=1.1.1.1 actions=LOCAL
+bpf.add([{'priority' : 50000,
+          'filter'   : 'arp and dst host 1.1.1.1 and src host 2.2.2.2',
+          'gate'     : BPF_LCL }])
+
+#table=0 priority=50000	in_port=LOCAL actions=output:2
+bpf.add([{'priority' : 50000,
+          'filter'   : 'arp and dst host 1.1.1.1 and src host 101.101.101.101',
+          'gate'     : BPF_OUT_2 }])
+
+#table=0 priority=50000	udp in_port=2 tp_dst=4789 actions=LOCAL
+bpf.add([{'priority' : 50000,
+          'filter'   : 'udp and dst port 4789 and src host 2.2.2.2',
+          'gate'     : BPF_LCL }])
+
+# table=0 priority=40000 udp tp_src=68 tp_dst=67 actions=CONTROLLER:65535
+bpf.add([{'priority' : 40000,
+          'filter'   : 'udp and src port 68 and dst port 67',
+          'gate'     : BPF_CTL }])
+
+# table=0 priority=40000 dl_type=0x88cc	actions=CONTROLLER:65535
+bpf.add([{'priority' : 40000,
+          'filter'   : 'ether proto 0x88cc',
+          'gate'     : BPF_CTL }])
+ 
+# table=0 priority=40000 dl_type=0x8942 actions=CONTROLLER:65535
+bpf.add([{'priority' : 40000,
+          'filter'   : 'ether proto 0x8942',
+          'gate'     : BPF_CTL }])
+
+#table=0 priority=40000	arp actions=CONTROLLER:65535
+bpf.add([{'priority' : 40000,
+          'filter'   : 'arp',
+          'gate'     : BPF_CTL }])
+
+
+# table=0 priority=0 actions=goto_table:1
+### UNMATCHED PACKETS GO TO GATE 0 / BPF_TBL_1
+
+#### TABLE 1 ####
+t1_inport::ExactMatch(fields=[{'offset':30, 'size':4}],
+                      size=4096)
+t1_in1::ExactMatch(fields=[{'offset':26, 'size':4}],
+                    size=4096)
+t1_in2::ExactMatch(fields=[{'offset':26, 'size':4}],
+                    size=4096)
+t1_in3::ExactMatch(fields=[{'offset':26, 'size':4}],
+                    size=4096)
+t1_in4::ExactMatch(fields=[{'offset':26, 'size':4}],
+                    size=4096)
+
+to_tbl_1 -> t1_inport
+t1_inport:0 -> Sink()
+t1_inport:1 -> t1_in1
+t1_inport:2 -> t1_in2
+t1_inport:3 -> t1_in3
+t1_inport:4 -> t1_in4
+
+t1_in1:0 -> to_tbl_5
+t1_in2:0 -> to_tbl_4
+t1_in3:1 -> to_tbl_2
+t1_in3:0 -> to_tbl_3
+t1_in4:1 -> to_tbl_2
+t1_in4:0 -> to_tbl_3
+
+t1_inport.set_default_gate(0)
+t1_inport.add(fields=[aton('1.1.1.1')], gate=1)
+t1_inport.add(fields=[aton('2.2.2.2')], gate=2)
+t1_inport.add(fields=[aton('3.3.3.3')], gate=3)
+t1_inport.add(fields=[aton('4.4.4.4')], gate=4)
+
+# table=1 priority=5000 in_port=1 actions=goto_table:5
+t1_in1.set_default_gate(0)
+
+# table=1 priority=5000 in_port=2 actions=goto_table:4
+t1_in2.set_default_gate(0)
+
+# table=1 priority=5000 ip in_port=3 nw_src=10.10.10.3 actions=goto_table:2
+t1_in3.add(fields=[aton('10.10.10.3')], gate=1)
+# table=1 priority=4000 in_port=3 actions=goto_table:3
+t1_in3.set_default_gate(0)
+
+# table=1 priority=5000 ip in_port=4 nw_src=10.10.12.3 actions=goto_table:2
+t1_in4.add(fields=[aton('10.10.12.3')], gate=1)
+# table=1 priority=4000 in_port=4 actions=goto_table:3
+t1_in4.set_default_gate(0)
+
+
+#### TABLE 2 ####
+
+t2_A::ExactMatch(fields=[{'offset':26, 'size':4,'mask':0xFF000000},
+                         {'offset':30, 'size':4}],
+                 size=4096)
+
+t2_B::ExactMatch(fields=[{'offset':26, 'size':4,'mask':0xFF000000},
+                         {'offset':30, 'size':4,'mask':0xFF000000}],
+                 size=4096)
+
+t2_C::ExactMatch(fields=[{'offset':26, 'size':4,'mask':0xFF000000}],
+                 size=4096)
+
+to_tbl_2 -> t2_A
+t2_A:1 -> to_tbl_grp
+t2_A:0 -> t2_B
+t2_B:1 -> to_tbl_4
+t2_B:0 -> t2_C
+t2_C:1 -> Sink()
+t2_C:0 -> to_out_2
+
+# table=2 priority=50000 ip nw_src=10.10.10.0/24 nw_dst=10.10.12.1 actions=group:2953848289
+t2_A.add(fields=[aton('10.10.10.0'),aton('10.10.12.1')], gate=1)
+# otherwise match on stage B
+t2_A.set_default_gate(0)
+
+# table=2 priority=5000 ip nw_src=10.10.12.0/24 nw_dst=10.10.12.0/24 actions=goto_table:4
+t2_B.add(fields=[aton('10.10.12.0'),aton('10.10.12.0')], gate=1)
+# table=2 priority=5000 ip nw_src=10.10.12.0/24 nw_dst=10.10.10.0/24 actions=goto_table:4
+t2_B.add(fields=[aton('10.10.12.0'),aton('10.10.10.0')], gate=1)
+#table=2 priority=5000 ip nw_src=10.10.10.0/24 nw_dst=10.10.12.0/24 actions=goto_table:4
+t2_B.add(fields=[aton('10.10.10.0'),aton('10.10.12.0')], gate=1)
+# table=2 priority=5000 ip nw_src=10.10.10.0/24 nw_dst=10.10.10.0/24 actions=goto_table:4
+t2_B.add(fields=[aton('10.10.10.0'),aton('10.10.10.0')], gate=1)
+# otherwise match on stage C
+t2_B.set_default_gate(0)
+
+# table=2 priority=4000 ip nw_dst=10.10.10.0/24 actions=drop
+t2_C.add(fields=[aton('10.10.10.0')], gate=1)
+# table=2 priority=4000 ip nw_dst=10.10.12.0/24 actions=drop
+t2_C.add(fields=[aton('10.10.12.0')], gate=1)
+# table=2 priority=0 actions=output:2
+t2_C.set_default_gate(0)
+
+
+#### TABLE 3 ####
+
+t3::ExactMatch(fields=[{'offset':26, 'size':4}],
+                 size=4096)
+
+to_tbl_3 -> t3
+t3:1 -> to_tbl_grp
+t3:0 -> Sink()
+
+# table=3 priority=5000 in_port=3 actions=group:2953848289
+t3.add(fields=[aton('3.3.3.3')], gate=1)
+# otherwise drop
+t3.set_default_gate(0)
+
