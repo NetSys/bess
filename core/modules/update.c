@@ -23,7 +23,7 @@ command_add(struct module *m, const char *cmd, struct snobj *arg)
 		return snobj_err(EINVAL, "argument must be a list of maps");
 
 	if (curr + arg->size > MAX_FIELDS)
-		return snobj_err(EINVAL, "max %d fieldiables " \
+		return snobj_err(EINVAL, "max %d variables " \
 				"can be specified", MAX_FIELDS);
 
 	for (int i = 0; i < arg->size; i++) {
