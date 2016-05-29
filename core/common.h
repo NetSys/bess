@@ -9,16 +9,17 @@
 #define ct_assert(p)	_Static_assert(p, "Compile-time assertion failure")
 
 /* Hint for performance optimization. Same as _nassert() of TI compilers */
-#define promise(cond) ({if (!(cond)) __builtin_unreachable(); })
+#define promise(cond) 		({if (!(cond)) __builtin_unreachable(); })
+#define promise_unreachable()	__builtin_unreachable();
+
+#define likely(x)		__builtin_expect((x),1)
+#define unlikely(x)		__builtin_expect((x),0)
 
 #define member_type(type, member) typeof(((type *)0)->member)
 
 #define container_of(ptr, type, member) \
 	((type *)((char *)(member_type(type, member) *){ptr} - \
 		offsetof(type, member)))
-
-#define likely(x)	__builtin_expect((x),1)
-#define unlikely(x)	__builtin_expect((x),0)
 
 #define MIN(a, b) \
 	({ \
