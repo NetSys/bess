@@ -338,3 +338,39 @@ void compute_metadata_offsets()
 
 	cleanup_metadata_computation();
 }
+
+static int 
+is_valid_field(const char *name, uint8_t len, enum metadata_mode mode)
+{
+	if (!name || strlen(name) >= METADATA_NAME_LEN)
+		return 0;
+
+	if (len < 1 || len > METADATA_MAX_SIZE)
+		return 0;
+
+	if (mode != READ && mode != WRITE && mode != UPDATE)
+		return 0;
+
+	return 1;
+}
+
+int register_metadata_field(struct module *m, const char *name, uint8_t len, 
+		enum metadata_mode mode)
+{
+	int n = m->num_fields;
+
+	if (n >= MAX_FIELDS_PER_MODULE)
+		return -ENOSPC;
+
+	if (!is_valid_field(name, len, mode))
+		return -EINVAL;
+
+	strcpy(m->fields[n].name, name);
+	m->fields[n].len = len;
+	m->fields[n].mode = mode;
+	m->fields[n].scope_id = -1;
+
+	m->num_fields++;
+
+	return 0;
+}

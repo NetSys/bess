@@ -1,13 +1,7 @@
 #include "../module.h"
 
-enum field_type {
-	FIELD_READ,
-	FIELD_WRITE,
-	FIELD_UPDATE
-};
-
 static struct snobj *
-add_fields(struct module *m, struct snobj *fields, enum field_type t)
+add_fields(struct module *m, struct snobj *fields, enum metadata_mode mode)
 {
 	if (snobj_type(fields) != TYPE_MAP)
 		return snobj_err(EINVAL, 
@@ -16,31 +10,30 @@ add_fields(struct module *m, struct snobj *fields, enum field_type t)
 
 	/* a bit hacky, since there is no iterator for maps... */
 	for (int i = 0; i < fields->size; i++) {
+		int ret;
+
 		const char *field_name = fields->map.arr_k[i];
 		int field_size = snobj_int_get((fields->map.arr_v[i]));
 
-		if (field_size < 1 || field_size > 16)
-			return snobj_err(EINVAL,
-					"invalid field size %d", field_size);
-
-		int j = m->num_fields++;
-		m->fields[j].name = strdup(field_name);
-		m->fields[j].len = field_size;
-		m->fields[j].mode = t;
-		/* or with some form of API... */
+		ret = register_metadata_field(m, field_name, field_size, mode);
+		if (ret)
+			return snobj_err(-ret, "invalid metadata declaration");
 
 		/* check /var/log/syslog for log messages */
-		if (t == FIELD_READ)
+		switch (mode) {
+		case READ:
 			log_info("module %s: %s, %d bytes, %s\n", 
 				m->name, field_name, field_size, "read");
-
-		if (t == FIELD_WRITE)
+			break;
+		case WRITE:
 			log_info("module %s: %s, %d bytes, %s\n", 
 				m->name, field_name, field_size, "write");
-
-		if (t == FIELD_UPDATE)
+			break;
+		case UPDATE:
 			log_info("module %s: %s, %d bytes, %s\n", 
 				m->name, field_name, field_size, "update");
+			break;
+		}
 	}
 
 	return NULL;
@@ -52,19 +45,19 @@ static struct snobj *metadata_test_init(struct module *m, struct snobj *arg)
 	struct snobj *err;
 
 	if ((fields = snobj_eval(arg, "read"))) {
-		err = add_fields(m, fields, FIELD_READ);
+		err = add_fields(m, fields, READ);
 		if (err)
 			return err;
 	}
 	
 	if ((fields = snobj_eval(arg, "write"))) {
-		err = add_fields(m, fields, FIELD_WRITE);
+		err = add_fields(m, fields, WRITE);
 		if (err)
 			return err;
 	}
 
 	if ((fields = snobj_eval(arg, "update"))) {
-		err = add_fields(m, fields, FIELD_UPDATE);
+		err = add_fields(m, fields, UPDATE);
 		if (err)
 			return err;
 	}
