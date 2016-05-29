@@ -13,10 +13,10 @@
 typedef int8_t metadata_offset_t;
 
 /* No downstream module reads this field, so the module can skip writing */
-#define MT_NOWRITE	-1
+static const metadata_offset_t MT_OFFSET_NOWRITE = -1;
 
 /* No upstream module writes this field, thus garbage value will be read */
-#define MT_NOREAD	-2
+static const metadata_offset_t MT_OFFSET_NOREAD = -2;
 
 static inline int is_valid_offset(metadata_offset_t offset)
 {
@@ -49,7 +49,8 @@ struct metadata_field {
 void compute_metadata_offsets();
 
 /* Modules should call this function to declare additional metadata
- * fields at initialization time */
+ * fields at initialization time. 
+ * Returns its allocated ID (>= 0), or a negative number for error */
 int register_metadata_field(struct module *m, const char *name, uint8_t len, 
 		enum metadata_mode mode);
 

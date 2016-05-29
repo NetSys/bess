@@ -235,8 +235,8 @@ static void fill_offset_arrays()
 		
 		/* field not read donwstream */
 		if (scope_components[i].num_modules == 1) {
-			scope_components[i].offset = MT_NOWRITE;
-			offset = MT_NOWRITE;
+			scope_components[i].offset = MT_OFFSET_NOWRITE;
+			offset = MT_OFFSET_NOWRITE;
 		}
 
 		for (int j = 0; j < scope_components[i].num_modules; j++) {
@@ -278,7 +278,7 @@ void check_orphan_readers()
 			break;
 
 		for (int i = 0; i < m->num_fields; i++) {
-			if (m->field_offsets[i] != MT_NOREAD)
+			if (m->field_offsets[i] != MT_OFFSET_NOREAD)
 				continue;
 
 			log_warn("Metadata field '%s' of module '%s' has "
@@ -306,9 +306,9 @@ void compute_metadata_offsets()
 			struct metadata_field *field = &m->fields[i];
 
 			if (field->mode == READ || field->mode == UPDATE)
-				m->field_offsets[i] = MT_NOREAD;
+				m->field_offsets[i] = MT_OFFSET_NOREAD;
 			else if (field->mode == WRITE)
-				m->field_offsets[i] = MT_NOWRITE;
+				m->field_offsets[i] = MT_OFFSET_NOWRITE;
 
 			if (field->mode == WRITE && field->scope_id == -1) {
 				identify_scope_component(m, field);
@@ -372,5 +372,5 @@ int register_metadata_field(struct module *m, const char *name, uint8_t len,
 
 	m->num_fields++;
 
-	return 0;
+	return n;
 }

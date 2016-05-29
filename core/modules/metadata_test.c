@@ -16,7 +16,7 @@ add_fields(struct module *m, struct snobj *fields, enum metadata_mode mode)
 		int field_size = snobj_int_get((fields->map.arr_v[i]));
 
 		ret = register_metadata_field(m, field_name, field_size, mode);
-		if (ret)
+		if (ret < 0)
 			return snobj_err(-ret, "invalid metadata declaration");
 
 		/* check /var/log/syslog for log messages */
