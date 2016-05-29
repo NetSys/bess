@@ -81,7 +81,7 @@ struct module {
 	const struct mclass *mclass;
 	struct task *tasks[MAX_TASKS_PER_MODULE];
 
-	uint8_t num_fields;
+	int num_fields;
 	struct metadata_field fields[MAX_FIELDS_PER_MODULE];
 
 	/* frequently access fields should be below */
