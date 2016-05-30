@@ -769,29 +769,29 @@ static struct snobj *collect_metadata(struct module *m)
 {
 	struct snobj *metadata = snobj_list();
 
-	for (int i = 0; i < m->num_fields; i++) {
-		struct snobj *field = snobj_map();
+	for (int i = 0; i < m->num_attrs; i++) {
+		struct snobj *attr = snobj_map();
 
-		snobj_map_set(field, "name", snobj_str(m->fields[i].name));
-		snobj_map_set(field, "size", snobj_uint(m->fields[i].size));
+		snobj_map_set(attr, "name", snobj_str(m->attrs[i].name));
+		snobj_map_set(attr, "size", snobj_uint(m->attrs[i].size));
 
-		switch (m->fields[i].mode) {
-		case READ:
-			snobj_map_set(field, "mode", snobj_str("read"));
+		switch (m->attrs[i].mode) {
+		case MT_READ:
+			snobj_map_set(attr, "mode", snobj_str("read"));
 			break;
-		case WRITE:
-			snobj_map_set(field, "mode", snobj_str("write"));
+		case MT_WRITE:
+			snobj_map_set(attr, "mode", snobj_str("write"));
 			break;
-		case UPDATE:
-			snobj_map_set(field, "mode", snobj_str("update"));
+		case MT_UPDATE:
+			snobj_map_set(attr, "mode", snobj_str("update"));
 			break;
 		default:
 			assert(0);
 		}
 
-		snobj_map_set(field, "offset", snobj_int(m->field_offsets[i]));
+		snobj_map_set(attr, "offset", snobj_int(m->attr_offsets[i]));
 
-		snobj_list_add(metadata, field);
+		snobj_list_add(metadata, attr);
 	}
 
 	return metadata;

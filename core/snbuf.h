@@ -67,25 +67,11 @@ struct snbuf {
 				} immutable;
 			};
 
-			union {
-				char _metadata[SNBUF_METADATA];
+			/* Dynamic metadata. 
+			 * Each attribute value is stored in host order */
+			char _metadata[SNBUF_METADATA];
 
-				struct {
-					/* static fields */
-
-					/* Set (1) iff all of the
-					 * following conditions are met:
-					 *  1. refcnt == 1
-					 *  2. direct mbuf
-					 *  3. linear (non-chained) */
-					uint8_t simple;
-
-					/* user-defined dynamic fields */
-					char _metadata_buf[0]	__ymm_aligned;
-				};
-			};
-
-			/* used for module/driver-specific data */
+			/* Used for module/driver-specific data */
 			char _scratchpad[SNBUF_SCRATCHPAD];
 		};
 	};

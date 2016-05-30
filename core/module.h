@@ -22,6 +22,8 @@
 #define MAX_TASKS_PER_MODULE	32
 ct_assert(MAX_TASKS_PER_MODULE < INVALID_TASK_ID);
 
+#define MAX_ATTRS_PER_MODULE	16
+
 #define MODULE_NAME_LEN		128
 
 #define TRACK_GATES		1
@@ -81,11 +83,11 @@ struct module {
 	const struct mclass *mclass;
 	struct task *tasks[MAX_TASKS_PER_MODULE];
 
-	int num_fields;
-	struct metadata_field fields[MAX_FIELDS_PER_MODULE];
+	int num_attrs;
+	struct mt_attr attrs[MAX_ATTRS_PER_MODULE];
 
 	/* frequently access fields should be below */
-	metadata_offset_t field_offsets[MAX_FIELDS_PER_MODULE];
+	mt_offset_t attr_offsets[MAX_ATTRS_PER_MODULE];
 	struct gates igates;
 	struct gates ogates;
 
@@ -101,10 +103,10 @@ struct module {
 	void *priv[0]; 	
 };
 
-static inline metadata_offset_t
-get_metadata_offset(const struct module *m, int field)
+static inline mt_offset_t
+mt_attr_offset(const struct module *m, int attr_id)
 {
-	return m->field_offsets[field];
+	return m->attr_offsets[attr_id];
 }
 
 static inline void *get_priv(struct module *m) 

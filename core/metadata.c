@@ -17,7 +17,7 @@ static int curr_scope_id = 0;
 
 /* Adds module to the current scope component. */
 static void 
-add_module_to_component(struct module *m, struct metadata_field *field)
+add_module_to_component(struct module *m, struct mt_attr *attr)
 {
 	struct scope_component *component = &scope_components[curr_scope_id];
 
@@ -29,8 +29,8 @@ add_module_to_component(struct module *m, struct metadata_field *field)
 
 	if (component->num_modules == 0) {
 		component->num_modules++;
-		component->size = field->size;
-		component->name = field->name;
+		component->size = attr->size;
+		component->name = attr->name;
 		component->modules = mem_alloc(sizeof(struct module *));
 		component->modules[0] = m;
 	} else {
@@ -42,26 +42,26 @@ add_module_to_component(struct module *m, struct metadata_field *field)
 }
 
 static void 
-identify_scope_component(struct module *m, struct metadata_field *field);
+identify_scope_component(struct module *m, struct mt_attr *attr);
 
 /* Traverses graph upstream to help identify a scope component. */
-static void traverse_upstream(struct module *m, struct metadata_field *field)
+static void traverse_upstream(struct module *m, struct mt_attr *attr)
 {
-	struct metadata_field *found_field = NULL;
+	struct mt_attr *found_attr = NULL;
 
-	for (int i = 0; i < m->num_fields; i++) {
-		struct metadata_field *curr_field = &m->fields[i];
+	for (int i = 0; i < m->num_attrs; i++) {
+		struct mt_attr *curr_attr = &m->attrs[i];
 
-		if (strcmp(curr_field->name, field->name) == 0 &&
-		    curr_field->size == field->size) {
-			found_field = curr_field;
+		if (strcmp(curr_attr->name, attr->name) == 0 &&
+		    curr_attr->size == attr->size) {
+			found_attr = curr_attr;
 		}
 	}
 
-	/* found a module that writes the field; end of scope component */
-	if (found_field && found_field->mode == WRITE) {
-		if (found_field->scope_id == -1)
-			identify_scope_component(m, found_field);
+	/* found a module that writes the attr; end of scope component */
+	if (found_attr && found_attr->mode == MT_WRITE) {
+		if (found_attr->scope_id == -1)
+			identify_scope_component(m, found_attr);
 		return;
 	}
 
@@ -72,8 +72,7 @@ static void traverse_upstream(struct module *m, struct metadata_field *field)
 		cdlist_for_each_entry(og, &g->in.ogates_upstream,
 				out.igate_upstream)
 		{
-			struct module *module = og->m;
-			traverse_upstream(module, field);
+			traverse_upstream(og->m, attr);
 		}
 	}
 }
@@ -83,37 +82,37 @@ static void traverse_upstream(struct module *m, struct metadata_field *field)
  * Return value of -1 indicates that module is not part of the scope component.
  * Return value of 0 indicates that module is part of the scope component.
  */
-static int traverse_downstream(struct module *m, struct metadata_field *field)
+static int traverse_downstream(struct module *m, struct mt_attr *attr)
 {
 	struct gate *ogate;
-	struct metadata_field *found_field = NULL;
+	struct mt_attr *found_attr = NULL;
 	int in_scope = 0;
 
-	for (int i = 0; i < m->num_fields; i++) {
-		struct metadata_field *curr_field = &m->fields[i];
+	for (int i = 0; i < m->num_attrs; i++) {
+		struct mt_attr *curr_attr = &m->attrs[i];
 
-		if (strcmp(curr_field->name, field->name) == 0 &&
-		    curr_field->size == field->size) {
-			found_field = curr_field;
+		if (strcmp(curr_attr->name, attr->name) == 0 &&
+		    curr_attr->size == attr->size) {
+			found_attr = curr_attr;
 		}
 	}
 
-	if (found_field && (found_field->mode == READ || found_field->mode == UPDATE)) {
-		add_module_to_component(m, found_field);
-		found_field->scope_id = curr_scope_id;
+	if (found_attr && (found_attr->mode == MT_READ || found_attr->mode == MT_UPDATE)) {
+		add_module_to_component(m, found_attr);
+		found_attr->scope_id = curr_scope_id;
 
 		for (int i = 0; i < m->ogates.curr_size; i++) {
 			ogate = m->ogates.arr[i];
 			if (!ogate)
 				continue;
 
-			traverse_downstream(ogate->out.igate->m, field);
+			traverse_downstream(ogate->out.igate->m, attr);
 		}
 
-		traverse_upstream(m, field);
+		traverse_upstream(m, attr);
 		return 0;
 
-	} else if (found_field && found_field->mode == WRITE)
+	} else if (found_attr && found_attr->mode == MT_WRITE)
 		return -1;
 
 	for (int i = 0; i < m->ogates.curr_size; i++) {
@@ -121,13 +120,13 @@ static int traverse_downstream(struct module *m, struct metadata_field *field)
 		if (!ogate)
 			continue;
 
-		if (traverse_downstream(ogate->out.igate->m, field) != -1)
+		if (traverse_downstream(ogate->out.igate->m, attr) != -1)
 			in_scope = 1;
 	}
 
 	if (in_scope) {
-		add_module_to_component(m, field);
-		traverse_upstream(m, field);
+		add_module_to_component(m, attr);
+		traverse_upstream(m, attr);
 		return 0;
 	}
 
@@ -135,23 +134,23 @@ static int traverse_downstream(struct module *m, struct metadata_field *field)
 }
 
 /*
- * Given a module that writes a field, identifies the portion of corresponding 
+ * Given a module that writes a attr, identifies the portion of corresponding 
  * scope component that lies downstream from this module. 
  */
 static void 
-identify_scope_component(struct module *m, struct metadata_field *field)
+identify_scope_component(struct module *m, struct mt_attr *attr)
 {
 	struct gate *ogate;
 
-	add_module_to_component(m, field);
-	field->scope_id = curr_scope_id;
+	add_module_to_component(m, attr);
+	attr->scope_id = curr_scope_id;
 
 	for (int i = 0; i < m->ogates.curr_size; i++) {
 		ogate = m->ogates.arr[i];
 		if (!ogate)
 			continue;
 
-		traverse_downstream(ogate->out.igate->m, field);
+		traverse_downstream(ogate->out.igate->m, attr);
 	}
 }
 
@@ -179,8 +178,8 @@ static void prepare_metadata_computation()
 		if (!m)
 			break;
 		
-		for (int i = 0; i < m->num_fields; i++)
-			m->fields[i].scope_id = -1;
+		for (int i = 0; i < m->num_attrs; i++)
+			m->attrs[i].scope_id = -1;
 	}
 	ns_release_iterator(&iter);
 }
@@ -235,7 +234,7 @@ static void fill_offset_arrays()
 		int size = scope_components[i].size;
 		int offset = scope_components[i].offset;
 		
-		/* field not read donwstream */
+		/* attr not read donwstream */
 		if (scope_components[i].num_modules == 1) {
 			scope_components[i].offset = MT_OFFSET_NOWRITE;
 			offset = MT_OFFSET_NOWRITE;
@@ -244,10 +243,10 @@ static void fill_offset_arrays()
 		for (int j = 0; j < scope_components[i].num_modules; j++) {
 			struct module *m = modules[j];
 
-			for (int k = 0; k < m->num_fields; k++) {
-				if (strcmp(m->fields[k].name, name) == 0 &&
-				    m->fields[k].size == size) {
-					m->field_offsets[k]= offset;
+			for (int k = 0; k < m->num_attrs; k++) {
+				if (strcmp(m->attrs[k].name, name) == 0 &&
+				    m->attrs[k].size == size) {
+					m->attr_offsets[k]= offset;
 				}
 			}
 		}
@@ -279,13 +278,13 @@ void check_orphan_readers()
 		if (!m)
 			break;
 
-		for (int i = 0; i < m->num_fields; i++) {
-			if (m->field_offsets[i] != MT_OFFSET_NOREAD)
+		for (int i = 0; i < m->num_attrs; i++) {
+			if (m->attr_offsets[i] != MT_OFFSET_NOREAD)
 				continue;
 
-			log_warn("Metadata field '%s' of module '%s' has "
+			log_warn("Metadata attr '%s' of module '%s' has "
 				 "no upstream module that sets the value!\n",
-					m->name, m->fields[i].name);
+					m->name, m->attrs[i].name);
 		}
 	}
 	ns_release_iterator(&iter);
@@ -304,16 +303,16 @@ void compute_metadata_offsets()
 		if (!m)
 			break;
 
-		for (int i = 0; i < m->num_fields; i++) {
-			struct metadata_field *field = &m->fields[i];
+		for (int i = 0; i < m->num_attrs; i++) {
+			struct mt_attr *attr = &m->attrs[i];
 
-			if (field->mode == READ || field->mode == UPDATE)
-				m->field_offsets[i] = MT_OFFSET_NOREAD;
-			else if (field->mode == WRITE)
-				m->field_offsets[i] = MT_OFFSET_NOWRITE;
+			if (attr->mode == MT_READ || attr->mode == MT_UPDATE)
+				m->attr_offsets[i] = MT_OFFSET_NOREAD;
+			else if (attr->mode == MT_WRITE)
+				m->attr_offsets[i] = MT_OFFSET_NOWRITE;
 
-			if (field->mode == WRITE && field->scope_id == -1) {
-				identify_scope_component(m, field);
+			if (attr->mode == MT_WRITE && attr->scope_id == -1) {
+				identify_scope_component(m, attr);
 				curr_scope_id++;
 			}
 		}
@@ -323,7 +322,7 @@ void compute_metadata_offsets()
 	assign_offsets();
 
 	for (int i = 0; i < curr_scope_id; i++) {
-		log_info("scope component for %d-byte field %s "
+		log_info("scope component for %d-byte attr %s "
 			 "at offset%3d: {%s", 
 				scope_components[i].size,
 				scope_components[i].name,
@@ -342,37 +341,37 @@ void compute_metadata_offsets()
 }
 
 static int 
-is_valid_field(const char *name, int size, enum metadata_mode mode)
+is_valid_attr(const char *name, int size, enum mt_access_mode mode)
 {
-	if (!name || strlen(name) >= METADATA_NAME_LEN)
+	if (!name || strlen(name) >= MT_ATTR_NAME_LEN)
 		return 0;
 
-	if (size < 1 || size > METADATA_MAX_SIZE)
+	if (size < 1 || size > MT_ATTR_MAX_SIZE)
 		return 0;
 
-	if (mode != READ && mode != WRITE && mode != UPDATE)
+	if (mode != MT_READ && mode != MT_WRITE && mode != MT_UPDATE)
 		return 0;
 
 	return 1;
 }
 
-int register_metadata_field(struct module *m, const char *name, int size,
-		enum metadata_mode mode)
+int add_metadata_attr(struct module *m, const char *name, int size,
+		enum mt_access_mode mode)
 {
-	int n = m->num_fields;
+	int n = m->num_attrs;
 
-	if (n >= MAX_FIELDS_PER_MODULE)
+	if (n >= MAX_ATTRS_PER_MODULE)
 		return -ENOSPC;
 
-	if (!is_valid_field(name, size, mode))
+	if (!is_valid_attr(name, size, mode))
 		return -EINVAL;
 
-	strcpy(m->fields[n].name, name);
-	m->fields[n].size = size;
-	m->fields[n].mode = mode;
-	m->fields[n].scope_id = -1;
+	strcpy(m->attrs[n].name, name);
+	m->attrs[n].size = size;
+	m->attrs[n].mode = mode;
+	m->attrs[n].scope_id = -1;
 
-	m->num_fields++;
+	m->num_attrs++;
 
 	return n;
 }
