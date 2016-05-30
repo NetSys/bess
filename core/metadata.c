@@ -5,7 +5,7 @@
 
 struct scope_component {
 	char *name;
-	uint8_t len;
+	int size;
 	struct module **modules;
 	int num_modules;
 	int8_t offset;
@@ -29,7 +29,7 @@ add_module_to_component(struct module *m, struct metadata_field *field)
 
 	if (component->num_modules == 0) {
 		component->num_modules++;
-		component->len = field->len;
+		component->size = field->size;
 		component->name = field->name;
 		component->modules = mem_alloc(sizeof(struct module *));
 		component->modules[0] = m;
@@ -53,7 +53,7 @@ static void traverse_upstream(struct module *m, struct metadata_field *field)
 		struct metadata_field *curr_field = &m->fields[i];
 
 		if (strcmp(curr_field->name, field->name) == 0 &&
-		    curr_field->len == field->len) {
+		    curr_field->size == field->size) {
 			found_field = curr_field;
 		}
 	}
@@ -85,7 +85,7 @@ static void traverse_upstream(struct module *m, struct metadata_field *field)
  */
 static int traverse_downstream(struct module *m, struct metadata_field *field)
 {
-	struct gate *gate;
+	struct gate *ogate;
 	struct metadata_field *found_field = NULL;
 	int in_scope = 0;
 
@@ -93,7 +93,7 @@ static int traverse_downstream(struct module *m, struct metadata_field *field)
 		struct metadata_field *curr_field = &m->fields[i];
 
 		if (strcmp(curr_field->name, field->name) == 0 &&
-		    curr_field->len == field->len) {
+		    curr_field->size == field->size) {
 			found_field = curr_field;
 		}
 	}
@@ -103,31 +103,35 @@ static int traverse_downstream(struct module *m, struct metadata_field *field)
 		found_field->scope_id = curr_scope_id;
 
 		for (int i = 0; i < m->ogates.curr_size; i++) {
-			gate = m->ogates.arr[i];
-			struct module *m_next = (struct module *)gate->arg;
-			traverse_downstream(m_next, field);
+			ogate = m->ogates.arr[i];
+			if (!ogate)
+				continue;
+
+			traverse_downstream(ogate->out.igate->m, field);
 		}
 
 		traverse_upstream(m, field);
 		return 0;
-	} else if (found_field && found_field->mode == WRITE) {
-		return -1;
-	} else {
-		for (int i = 0; i < m->ogates.curr_size; i++) {
-			gate = m->ogates.arr[i];
-			struct module *m_next = (struct module *)gate->arg;
-			if (traverse_downstream(m_next, field) != -1)
-				in_scope = 1;
-		}
 
-		if (in_scope) {
-			add_module_to_component(m, field);
-			traverse_upstream(m, field);
-			return 0;
-		}
-
+	} else if (found_field && found_field->mode == WRITE)
 		return -1;
+
+	for (int i = 0; i < m->ogates.curr_size; i++) {
+		ogate = m->ogates.arr[i];
+		if (!ogate)
+			continue;
+
+		if (traverse_downstream(ogate->out.igate->m, field) != -1)
+			in_scope = 1;
 	}
+
+	if (in_scope) {
+		add_module_to_component(m, field);
+		traverse_upstream(m, field);
+		return 0;
+	}
+
+	return -1;
 }
 
 /*
@@ -137,15 +141,17 @@ static int traverse_downstream(struct module *m, struct metadata_field *field)
 static void 
 identify_scope_component(struct module *m, struct metadata_field *field)
 {
-	struct gate *gate;
+	struct gate *ogate;
 
 	add_module_to_component(m, field);
 	field->scope_id = curr_scope_id;
 
 	for (int i = 0; i < m->ogates.curr_size; i++) {
-		gate = m->ogates.arr[i];
-		struct module *m_next = (struct module *)gate->arg;
-		traverse_downstream(m_next, field);
+		ogate = m->ogates.arr[i];
+		if (!ogate)
+			continue;
+
+		traverse_downstream(ogate->out.igate->m, field);
 	}
 }
 
@@ -181,12 +187,8 @@ static void prepare_metadata_computation()
 
 static void cleanup_metadata_computation()
 {
-	for (int i = 0; i < curr_scope_id; i++) {
-		struct scope_component component = scope_components[i];
-		if (component.len == 0)
-			continue;
-		mem_free(component.modules);
-	}
+	for (int i = 0; i < curr_scope_id; i++)
+		mem_free(scope_components[i].modules);
 
 	memset(&scope_components, 0, 100 * sizeof(struct scope_component));
 	curr_scope_id = 0;
@@ -213,7 +215,7 @@ static int scope_overlaps(int i1, int i2) {
 static void find_overlapping_components(int index, int *offset)
 {
 	scope_components[index].offset = *offset;
-	*offset = *offset + scope_components[index].len;
+	*offset = *offset + scope_components[index].size;
 	scope_components[index].visited = 1;
 
 	for (int j = index; j < curr_scope_id; j++) {
@@ -230,7 +232,7 @@ static void fill_offset_arrays()
 	for (int i = 0; i < curr_scope_id; i++) {
 		struct module **modules = scope_components[i].modules;
 		char *name = scope_components[i].name;
-		int len = scope_components[i].len;
+		int size = scope_components[i].size;
 		int offset = scope_components[i].offset;
 		
 		/* field not read donwstream */
@@ -244,7 +246,7 @@ static void fill_offset_arrays()
 
 			for (int k = 0; k < m->num_fields; k++) {
 				if (strcmp(m->fields[k].name, name) == 0 &&
-				    m->fields[k].len == len) {
+				    m->fields[k].size == size) {
 					m->field_offsets[k]= offset;
 				}
 			}
@@ -323,7 +325,7 @@ void compute_metadata_offsets()
 	for (int i = 0; i < curr_scope_id; i++) {
 		log_info("scope component for %d-byte field %s "
 			 "at offset%3d: {%s", 
-				scope_components[i].len,
+				scope_components[i].size,
 				scope_components[i].name,
 				scope_components[i].offset,
 				scope_components[i].modules[0]->name);
@@ -340,12 +342,12 @@ void compute_metadata_offsets()
 }
 
 static int 
-is_valid_field(const char *name, uint8_t len, enum metadata_mode mode)
+is_valid_field(const char *name, int size, enum metadata_mode mode)
 {
 	if (!name || strlen(name) >= METADATA_NAME_LEN)
 		return 0;
 
-	if (len < 1 || len > METADATA_MAX_SIZE)
+	if (size < 1 || size > METADATA_MAX_SIZE)
 		return 0;
 
 	if (mode != READ && mode != WRITE && mode != UPDATE)
@@ -354,7 +356,7 @@ is_valid_field(const char *name, uint8_t len, enum metadata_mode mode)
 	return 1;
 }
 
-int register_metadata_field(struct module *m, const char *name, uint8_t len, 
+int register_metadata_field(struct module *m, const char *name, int size,
 		enum metadata_mode mode)
 {
 	int n = m->num_fields;
@@ -362,11 +364,11 @@ int register_metadata_field(struct module *m, const char *name, uint8_t len,
 	if (n >= MAX_FIELDS_PER_MODULE)
 		return -ENOSPC;
 
-	if (!is_valid_field(name, len, mode))
+	if (!is_valid_field(name, size, mode))
 		return -EINVAL;
 
 	strcpy(m->fields[n].name, name);
-	m->fields[n].len = len;
+	m->fields[n].size = size;
 	m->fields[n].mode = mode;
 	m->fields[n].scope_id = -1;
 

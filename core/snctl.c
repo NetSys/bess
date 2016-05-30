@@ -773,7 +773,7 @@ static struct snobj *collect_metadata(struct module *m)
 		struct snobj *field = snobj_map();
 
 		snobj_map_set(field, "name", snobj_str(m->fields[i].name));
-		snobj_map_set(field, "size", snobj_uint(m->fields[i].len));
+		snobj_map_set(field, "size", snobj_uint(m->fields[i].size));
 
 		switch (m->fields[i].mode) {
 		case READ:

@@ -41,7 +41,7 @@ enum metadata_mode {
 
 struct metadata_field {
 	char name[METADATA_NAME_LEN];
-	uint8_t len;
+	int size;
 	enum metadata_mode mode;
 	int scope_id;
 };
@@ -51,7 +51,7 @@ void compute_metadata_offsets();
 /* Modules should call this function to declare additional metadata
  * fields at initialization time. 
  * Returns its allocated ID (>= 0), or a negative number for error */
-int register_metadata_field(struct module *m, const char *name, uint8_t len, 
+int register_metadata_field(struct module *m, const char *name, int size, 
 		enum metadata_mode mode);
 
 #endif
