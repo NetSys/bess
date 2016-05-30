@@ -4,10 +4,12 @@
 #include "metadata.h"
 
 struct scope_component {
-	char *name;
+	char name[MT_ATTR_NAME_LEN];
 	int size;
-	struct module **modules;
+
 	int num_modules;
+	struct module **modules;
+
 	int8_t offset;
 	uint8_t visited;
 };
@@ -28,9 +30,9 @@ add_module_to_component(struct module *m, struct mt_attr *attr)
 	}
 
 	if (component->num_modules == 0) {
-		component->num_modules++;
+		strcpy(component->name, attr->name);
 		component->size = attr->size;
-		component->name = attr->name;
+		component->num_modules = 1;
 		component->modules = mem_alloc(sizeof(struct module *));
 		component->modules[0] = m;
 	} else {
@@ -246,7 +248,7 @@ static void fill_offset_arrays()
 			for (int k = 0; k < m->num_attrs; k++) {
 				if (strcmp(m->attrs[k].name, name) == 0 &&
 				    m->attrs[k].size == size) {
-					m->attr_offsets[k]= offset;
+					m->attr_offsets[k] = offset;
 				}
 			}
 		}
