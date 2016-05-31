@@ -45,7 +45,7 @@ struct worker_context {
 	uint64_t silent_drops;	/* packets that have been sent to a deadend */
 
 	uint64_t current_tsc;
-	uint64_t current_us;
+	uint64_t current_ns;
 
 	/* The current input gate index is not given as a function parameter.
 	 * Modules should use get_igate() for access */

@@ -651,6 +651,8 @@ void sched_loop(struct sched *s)
 	uint64_t checkpoint;
 	uint64_t now;
 
+	const double ns_per_cycle = 1e9 / tsc_hz;
+
 	last_print_tsc = checkpoint = now = rdtsc();
 
 	/* the main scheduling - running - accounting loop */
@@ -681,6 +683,7 @@ void sched_loop(struct sched *s)
 		if (c) {
 			/* Running (R) */
 			ctx.current_tsc = now;	/* tasks see updated tsc */
+			ctx.current_ns = now * ns_per_cycle;
 			ret = tc_scheduled(c);
 
 			now = rdtsc();
