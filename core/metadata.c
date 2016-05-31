@@ -284,9 +284,10 @@ void check_orphan_readers()
 			if (m->attr_offsets[i] != MT_OFFSET_NOREAD)
 				continue;
 
-			log_warn("Metadata attr '%s' of module '%s' has "
+			log_warn("Metadata attr '%s/%d' of module '%s' has "
 				 "no upstream module that sets the value!\n",
-					m->name, m->attrs[i].name);
+					m->attrs[i].name, m->attrs[i].size,
+					m->name);
 		}
 	}
 	ns_release_iterator(&iter);
