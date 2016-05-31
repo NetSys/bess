@@ -150,6 +150,21 @@ static void destroy_all_tasks(struct module *m)
 	}
 }
 
+static void inherit_attr_list(const struct mclass *mclass, struct module *m)
+{
+	for (int i = 0; i < MAX_ATTRS_PER_MODULE; i++) {
+		const struct mt_attr *attr = &mclass->attrs[i];
+		int ret;
+
+		/* end of the list is marked as a empty-string name */
+		if (strlen(attr->name) == 0)
+			return;
+
+		ret = add_metadata_attr(m, attr->name, attr->size, attr->mode);
+		assert(ret == i);
+	}
+}
+
 /* returns a pointer to the created module.
  * if error, returns NULL and *perr is set */
 struct module *create_module(const char *name,
@@ -184,6 +199,8 @@ struct module *create_module(const char *name,
 		set_default_name(m);
 	else
 		snprintf(m->name, MODULE_NAME_LEN, "%s", name);
+
+	inherit_attr_list(mclass, m);
 
 	if (mclass->init) {
 		*perr = mclass->init(m, arg);

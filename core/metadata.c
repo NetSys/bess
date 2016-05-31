@@ -342,8 +342,7 @@ void compute_metadata_offsets()
 	cleanup_metadata_computation();
 }
 
-static int 
-is_valid_attr(const char *name, int size, enum mt_access_mode mode)
+int is_valid_attr(const char *name, int size, enum mt_access_mode mode)
 {
 	if (!name || strlen(name) >= MT_ATTR_NAME_LEN)
 		return 0;

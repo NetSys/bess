@@ -7,6 +7,8 @@
 
 #define MT_ATTR_MAX_SIZE	32		/* in bytes, per attribute */
 
+#define MAX_ATTRS_PER_MODULE	16
+
 /* normal offset values are 0 or a positive value */
 typedef int8_t mt_offset_t;
 
@@ -75,6 +77,8 @@ struct mt_attr {
 };
 
 void compute_metadata_offsets();
+
+int is_valid_attr(const char *name, int size, enum mt_access_mode mode);
 
 /* Modules should call this function to declare additional metadata
  * attributes at initialization time.
