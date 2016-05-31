@@ -623,11 +623,18 @@ struct snobj *snobj_decode_recur(struct decode_state *s)
 		break;
 
 	case TYPE_INT:
-	case TYPE_DOUBLE:
 		if (size != 8 || s->offset + 8 > s->buf_size)
 			goto err;
 
 		m = snobj_int(*(int64_t *)(s->buf + s->offset));
+		s->offset += 8;
+		break;
+
+	case TYPE_DOUBLE:
+		if (size != 8 || s->offset + 8 > s->buf_size)
+			goto err;
+
+		m = snobj_double(*(double *)(s->buf + s->offset));
 		s->offset += 8;
 		break;
 
