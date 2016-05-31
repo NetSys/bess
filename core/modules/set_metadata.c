@@ -54,7 +54,7 @@ static struct snobj *add_attr_one(struct module *m, struct snobj *attr)
 
 	ret = add_metadata_attr(m, name, size, MT_WRITE);
 	if (ret < 0)
-		return snobj_err(-ret, "register_metadata_attr() failed");
+		return snobj_err(-ret, "add_metadata_attr() failed");
 
 	strcpy(priv->attrs[priv->num_attrs].name, name);
 	priv->attrs[priv->num_attrs].size = size;
@@ -113,21 +113,22 @@ set_metadata_process_batch(struct module *m, struct pkt_batch *batch)
 		switch (priv->attrs[i].size) {
 		case 1:
 			for (int j = 0; j < cnt; j++)
-				_set_attr_with_offset(offset, batch->pkts[i], 
+				_set_attr_with_offset(offset, batch->pkts[j], 
 						uint8_t, value);
 			break;
 		case 2:
 			for (int j = 0; j < cnt; j++)
-				_set_attr_with_offset(offset, batch->pkts[i], 
+				_set_attr_with_offset(offset, batch->pkts[j], 
 						uint16_t, value);
 			break;
 		case 4:
 			for (int j = 0; j < cnt; j++)
-				_set_attr_with_offset(offset, batch->pkts[i], 
+				_set_attr_with_offset(offset, batch->pkts[j], 
 						uint32_t, value);
 			break;
 		case 8:
-				_set_attr_with_offset(offset, batch->pkts[i], 
+			for (int j = 0; j < cnt; j++)
+				_set_attr_with_offset(offset, batch->pkts[j], 
 						uint64_t, value);
 			break;
 		default:
@@ -144,6 +145,7 @@ static const struct mclass set_metadata = {
 	.help			= "Set metadata attributes to packets",
 	.num_igates		= 1,
 	.num_ogates		= 1,
+	.priv_size		= sizeof(struct set_metadata_priv),
 	.init 			= set_metadata_init,
 	.process_batch		= set_metadata_process_batch,
 };
