@@ -263,6 +263,12 @@ static inline phys_addr_t snb_to_paddr(struct snbuf *snb)
 	return snb->immutable.paddr;
 }
 
+static inline int mt_offset_to_databuf_offset(mt_offset_t offset)
+{
+	return offset + offsetof(struct snbuf, _metadata) - 
+		offsetof(struct snbuf, _headroom);
+}
+
 /* Slow. Do not use in the datapath */
 struct snbuf *paddr_to_snb(phys_addr_t paddr);
 

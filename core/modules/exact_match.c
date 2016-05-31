@@ -185,20 +185,27 @@ static void em_process_batch(struct module *m, struct pkt_batch *batch)
 	 * (optimization TODO: we can skip this if only one field is used) */
 	for (int i = 0; i < priv->num_fields; i++) {
 		uint64_t mask = priv->fields[i].mask;
-		int offset = priv->fields[i].offset;
+		int offset;
 		int size_acc = priv->fields[i].size_acc;
 		int attr_id = priv->fields[i].attr_id;
+
+		if (attr_id < 0)
+			offset = priv->fields[i].offset;
+		else
+			offset = mt_offset_to_databuf_offset(
+					mt_attr_offset(m, attr_id));
 
 		char *key = keys[0] + size_acc;
 
 		for (int j = 0; j < cnt; j++, key += HASH_KEY_SIZE) {
 			char *buf_addr = (char *)batch->pkts[j]->mbuf.buf_addr;
 
+			/* for offset-based attrs we use relative offset */
 			if (attr_id < 0)
 				buf_addr += batch->pkts[j]->mbuf.data_off;
 
 			*(uint64_t *)key = 
-				*(uint64_t*)(buf_addr + offset) & mask;
+				*(uint64_t *)(buf_addr + offset) & mask;
 		}
 	}
 
