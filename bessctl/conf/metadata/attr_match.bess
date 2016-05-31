@@ -1,0 +1,13 @@
+Source() \
+        -> SetMetadata(name='foo', size=1, value=111) \
+        -> SetMetadata(name='bar', size=1, value=0x1122) \
+        -> Dump() \
+        -> em::ExactMatch(fields=[{'name':'foo', 'size':1}, \
+                                  {'name':'bar', 'size':2}])
+
+em.set_default_gate(0)
+em:0 -> Sink()
+em:1 -> Sink()
+em:2 -> Sink()
+
+em.add(fields=[bytearray(chr(111)), bytearray('\x22\x11')], gate=1)
