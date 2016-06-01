@@ -11,6 +11,7 @@
 
 #include "common.h"
 #include "debug.h"
+#include "mem_alloc.h"
 
 #define MAX_EXPR_LEN	128	/* including the trailing NULL */
 
@@ -66,20 +67,18 @@ struct snobj {
 /* this function does not return (always succeeds) */
 static inline void *_ALLOC(size_t size)
 {
-	void *ret = malloc(size);
+	void *ret = mem_alloc(size);
 
 	/* if memory allocation is fail, we are already screwed. Quit. */
 	if (!ret)
 		oom_crash();
-
-	memset(ret, 0, size);
 
 	return ret;
 }
 
 static inline void *_REALLOC(void *p, size_t new_size)
 {
-	void *ret = realloc(p, new_size);
+	void *ret = mem_realloc(p, new_size);
 	
 	/* if memory allocation is fail, we are already screwed. Quit. */
 	if (!ret)
@@ -104,7 +103,7 @@ static inline void _FREE(void *p)
 	else
 		*t = magic_number;;
 #endif
-	free(p);
+	mem_free(p);
 }
 
 static char *_STRDUP(const char *s)
