@@ -229,12 +229,15 @@ void sched_free(struct sched *s)
 	struct tc *next;
 
 	cdlist_for_each_entry_safe(c, next, &s->tcs_all, sched_all) {
-		if (c->state.queued) {
+		int queued = c->state.queued;
+		int throttled = c->state.throttled;
+
+		if (queued) {
 			c->state.queued = 0;
 			tc_dec_refcnt(c);
 		}
 
-		if (c->state.throttled) {
+		if (throttled) {
 			c->state.throttled = 0;
 			tc_dec_refcnt(c);
 		}
