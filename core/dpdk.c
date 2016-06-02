@@ -17,18 +17,6 @@
 #include "snstore.h"
 #include "dpdk.h"
 
-static void set_lcore_bitmap(char *buf)
-{
-	int off = 0;
-	int i;
-
-	/* launch everything on core 0 for now */
-	for (i = 0; i < MAX_WORKERS; i++)
-		off += sprintf(buf + off, "%d@0,", i);
-
-	off += sprintf(buf + off, "%d@%d", RTE_MAX_LCORE - 1, 0);
-}
-
 static int get_numa_count()
 {
 	FILE *fp;
@@ -104,8 +92,7 @@ static void init_eal(char *prog_name, int mb_per_socket, int multi_instance)
 	FILE *org_stdout;
 
 	sprintf(opt_master_lcore, "%d", RTE_MAX_LCORE - 1);
-
-	set_lcore_bitmap(opt_lcore_bitmap);
+	sprintf(opt_lcore_bitmap, "%d@%d", RTE_MAX_LCORE - 1, 0);
 
 	if (mb_per_socket <= 0)
 		mb_per_socket = 2048;
