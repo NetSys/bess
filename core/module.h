@@ -40,7 +40,7 @@ struct gate {
 		struct {
 			struct cdlist_item igate_upstream; 
 			struct gate *igate;
-			gate_idx_t igate_idx;
+			gate_idx_t igate_idx;	/* cache for igate->gate_idx */
 		} out;
 
 		struct {
