@@ -23,13 +23,18 @@ endif
 
 KMOD_INC_DIR = kmod
 
-LDFLAGS += -rdynamic -L$(DPDK_LIB_DIR) -Wl,-rpath=$(DPDK_LIB_DIR)
-LIBS += -Wl,--whole-archive -l$(DPDK_LIB) -Wl,--no-whole-archive -lm -pthread -ldl -lpcap
-
 CFLAGS += -std=gnu99 -g3 -ggdb3 -Ofast -m64 -march=native \
 	  -Wall -Werror -Wno-unused-function -Wno-unused-but-set-variable \
 	  -I $(KMOD_INC_DIR) -I$(DPDK_INC_DIR) \
 	  -D_GNU_SOURCE
+
+LDFLAGS += -rdynamic -L$(DPDK_LIB_DIR) -Wl,-rpath=$(DPDK_LIB_DIR)
+LIBS += -Wl,--whole-archive -l$(DPDK_LIB) -Wl,--no-whole-archive -lm -pthread -ldl -lpcap
+
+ifdef SANITIZE
+    LDFLAGS += -fsanitize=address
+    CFLAGS += -fsanitize=address -fno-omit-frame-pointer
+endif
 
 -include extra.mk
 
