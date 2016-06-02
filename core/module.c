@@ -227,6 +227,9 @@ fail:
 	return NULL;
 }
 
+static int
+disconnect_modules_upstream(struct module *m_next, gate_idx_t igate_idx);
+
 void destroy_module(struct module *m)
 {
 	int ret;
@@ -236,23 +239,15 @@ void destroy_module(struct module *m)
 
 	/* disconnect from upstream modules. */
 	for (int i = 0; i < m->igates.curr_size; i++) {
-		if (!is_active_gate(&m->igates, i))
-			continue;
-
-		struct gate *igate = m->igates.arr[i];
-		struct gate *ogate;
-		struct gate *ogate_next;
-
-		cdlist_for_each_entry_safe(ogate, ogate_next,
-				&igate->in.ogates_upstream, out.igate_upstream)
-		{
-			disconnect_modules(ogate->m, ogate->gate_idx);
-		}
+		ret = disconnect_modules_upstream(m, i);
+		assert(ret == 0);
 	}
 
 	/* disconnect downstream modules */
-	for (gate_idx_t i = 0; i < m->ogates.curr_size; i++)
-		disconnect_modules(m, i);
+	for (gate_idx_t i = 0; i < m->ogates.curr_size; i++) {
+		ret = disconnect_modules(m, i);
+		assert(ret == 0);
+	}
 
 	destroy_all_tasks(m);
 
@@ -385,13 +380,44 @@ int disconnect_modules(struct module *m_prev, gate_idx_t ogate_idx)
 	cdlist_del(&ogate->out.igate_upstream);
 	if (cdlist_is_empty(&igate->in.ogates_upstream)) {
 		struct module *m_next = igate->m;
-		gate_idx_t igate_idx = ogate->out.igate_idx;
-		m_next->igates.arr[igate_idx] = NULL;
+		m_next->igates.arr[igate->gate_idx] = NULL;
 		mem_free(igate);	
 	}
 
-	mem_free(ogate);
 	m_prev->ogates.arr[ogate_idx] = NULL;
+	mem_free(ogate);
+
+	return 0;
+}
+
+static int 
+disconnect_modules_upstream(struct module *m_next, gate_idx_t igate_idx)
+{
+	struct gate *igate;
+	struct gate *ogate;
+	struct gate *ogate_next;
+
+	if (igate_idx >= m_next->mclass->num_igates)
+		return -EINVAL;
+
+	/* no error even if the igate is unconnected already */
+	if (!is_active_gate(&m_next->igates, igate_idx))
+		return 0;
+
+	igate = m_next->igates.arr[igate_idx];
+	if (!igate)
+		return 0;
+
+	cdlist_for_each_entry_safe(ogate, ogate_next,
+			&igate->in.ogates_upstream, out.igate_upstream)
+	{
+		struct module *m_prev = ogate->m;
+		m_prev->ogates.arr[ogate->gate_idx] = NULL;
+		mem_free(ogate);
+	}
+
+	m_next->igates.arr[igate_idx] = NULL;
+	mem_free(igate);
 
 	return 0;
 }
