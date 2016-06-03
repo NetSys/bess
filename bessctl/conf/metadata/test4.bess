@@ -1,0 +1,16 @@
+# a        e
+#  \      /
+#   c -> d 
+#  /      \
+# b        f
+
+a::MetadataTest(write={'foo':2, 'bar':4})
+b::MetadataTest(write={'bar':4, 'foo':2})
+c::MetadataTest(write={'baz':1}, read={'bar':4})
+d::MetadataTest(read={'foo':2, 'baz':1})
+e::MetadataTest(read={'baz':1})
+f::MetadataTest(read={'foo':2})
+
+a->c->d->e
+b->c
+d:1->f

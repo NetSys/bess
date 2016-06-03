@@ -129,7 +129,9 @@ void _tc_do_free(struct tc *c)
 {
 	struct pgroup *g = c->ss.my_pgroup;
 	struct tc *parent = c->parent;
-	
+
+	int ret;
+
 	assert(c->refcnt == 0);
 
 	assert(!c->state.queued);
@@ -150,7 +152,10 @@ void _tc_do_free(struct tc *c)
 		c->s->num_classes--;
 	}
 
-	ns_remove(c->settings.name);
+	if (parent) {
+		ret = ns_remove(c->settings.name);
+		assert(ret == 0);
+	}
 
 	memset(c, 0, sizeof(*c));	/* zero out to detect potential bugs */
 	mem_free(c);			/* Note: c is struct sched, if root */
@@ -224,12 +229,15 @@ void sched_free(struct sched *s)
 	struct tc *next;
 
 	cdlist_for_each_entry_safe(c, next, &s->tcs_all, sched_all) {
-		if (c->state.queued) {
+		int queued = c->state.queued;
+		int throttled = c->state.throttled;
+
+		if (queued) {
 			c->state.queued = 0;
 			tc_dec_refcnt(c);
 		}
 
-		if (c->state.throttled) {
+		if (throttled) {
 			c->state.throttled = 0;
 			tc_dec_refcnt(c);
 		}
@@ -648,6 +656,8 @@ void sched_loop(struct sched *s)
 	uint64_t checkpoint;
 	uint64_t now;
 
+	const double ns_per_cycle = 1e9 / tsc_hz;
+
 	last_print_tsc = checkpoint = now = rdtsc();
 
 	/* the main scheduling - running - accounting loop */
@@ -678,6 +688,7 @@ void sched_loop(struct sched *s)
 		if (c) {
 			/* Running (R) */
 			ctx.current_tsc = now;	/* tasks see updated tsc */
+			ctx.current_ns = now * ns_per_cycle;
 			ret = tc_scheduled(c);
 
 			now = rdtsc();

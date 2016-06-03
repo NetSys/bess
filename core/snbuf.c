@@ -35,8 +35,6 @@ static void snbuf_pkt_init(struct rte_mempool *mp, void *opaque_arg,
 	immutable->paddr = rte_mempool_virt2phy(mp, snb);
 	immutable->sid = (uint32_t)(uint64_t)opaque_arg;
 	immutable->index = i;
-
-	snb->simple = 1;
 }
 
 static void init_mempool_socket(int sid)

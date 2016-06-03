@@ -1,0 +1,16 @@
+# MetadataTesting update complex
+# Should be single scope component
+
+a::MetadataTest(write={'foo':2})
+b::MetadataTest(update={'foo':2})
+c::MetadataTest(read={'foo':2})
+d::MetadataTest(update={'foo':2})
+e::MetadataTest(read={'foo':2})
+f::MetadataTest(write={'foo':2})
+g::MetadataTest(update={'foo':2})
+h::MetadataTest(read={'foo':2})
+
+a->b->c
+a:1->d->e
+f->d
+f:1->g->h

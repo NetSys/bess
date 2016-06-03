@@ -1,0 +1,8 @@
+# multiple paths from a module to another 
+
+a::MetadataTest(write={'foo':2})
+b::MetadataTest()
+c::MetadataTest(read={'foo':2})
+
+a->b->c
+a:1->c

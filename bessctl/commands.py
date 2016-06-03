@@ -479,7 +479,9 @@ def daemon_start(cli, opts):
 
 def is_pipeline_empty(cli):
     workers = cli.bess.list_workers()
-    return len(workers) == 0
+    modules = cli.bess.list_modules()
+    ports = cli.bess.list_ports()
+    return len(workers) == 0 and len(modules) == 0 and len(ports) == 0
 
 def _do_reset(cli):
     cli.bess.pause_all()
@@ -972,6 +974,21 @@ def _show_module(cli, module_name):
     else:
         cli.fout.write('\n')
 
+    if info.metadata:
+        cli.fout.write('    Per-packet metadata fields:\n')
+        for field in info.metadata:
+            cli.fout.write('%16s %-6s%2d bytes ' % \
+                    (field.name + ':', field.mode, field.size))
+
+            if field.offset >= 0:
+                cli.fout.write('at offset %d\n' % field.offset)
+            elif field.offset == -1:
+                cli.fout.write('(no downstream reader)\n')
+            elif field.offset == -2:
+                cli.fout.write('(no upstream writer)\n')
+            else:
+                cli.fout.write('\n')
+
     if info.igates:
         cli.fout.write('    Input gates:\n')
         for gate in info.igates:
@@ -979,8 +996,6 @@ def _show_module(cli, module_name):
                     (gate.igate, 
                      ', '.join('%s:%d ->' % (g.name, g.ogate) \
                              for g in gate.ogates)))
-    else:
-        cli.fout.write('    No input gate\n')
 
     if info.ogates:
         cli.fout.write('    Output gates:\n')
@@ -989,8 +1004,6 @@ def _show_module(cli, module_name):
                     '      %5d: batches %-16d packets %-16d -> %d:%s\n' % \
                     (gate.ogate, gate.cnt, gate.pkts, 
                      gate.igate, gate.name))
-    else:
-        cli.fout.write('    No output gate\n')
 
     if 'dump' in info:
         cli.fout.write('    Dump:\n')

@@ -2,6 +2,7 @@
 #define _WORKER_H_
 
 #include <stdint.h>
+#include <pthread.h>
 
 #include "common.h"
 #include "mclass.h"
@@ -28,11 +29,13 @@ typedef volatile enum {
 	WORKER_PAUSING = 0,	/* transient state for blocking or quitting */
 	WORKER_PAUSED,
 	WORKER_RUNNING,
+	WORKER_FINISHED,
 } worker_status_t;
 
 struct worker_context {
 	worker_status_t status;
 
+	pthread_t thread;
 	int wid;		/* always [0, MAX_WORKERS - 1] */
 	int core;		/* TODO: should be cpuset_t */
 	int socket;
@@ -45,7 +48,7 @@ struct worker_context {
 	uint64_t silent_drops;	/* packets that have been sent to a deadend */
 
 	uint64_t current_tsc;
-	uint64_t current_us;
+	uint64_t current_ns;
 
 	/* The current input gate index is not given as a function parameter.
 	 * Modules should use get_igate() for access */

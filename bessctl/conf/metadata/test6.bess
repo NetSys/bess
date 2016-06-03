@@ -1,0 +1,8 @@
+# MetadataTesting update simple 
+# Should be only one scope component
+
+a::MetadataTest(write={'foo':2})
+b::MetadataTest(update={'foo':2})
+c::MetadataTest(read={'foo':2})
+
+a->b->c

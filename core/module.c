@@ -19,7 +19,7 @@ task_id_t register_task(struct module *m, void *arg)
 			goto found;
 
 	/* cannot find an empty slot */
-	return INVALID_TASK_ID;		
+	return INVALID_TASK_ID;
 
 found:
 	t = task_create(m, arg);
@@ -57,12 +57,12 @@ size_t list_modules(const struct module **p_arr, size_t arr_size, size_t offset)
 {
 	int ret = 0;
 	int iter_cnt = 0;
-	
+
 	struct ns_iter iter;
 
 	ns_init_iterator(&iter, NS_TYPE_MODULE);
 	while (1) {
-		struct module *module = (struct module *) ns_next(&iter);	
+		struct module *module = (struct module *) ns_next(&iter);
 		if (!module)
 			break;
 
@@ -71,7 +71,7 @@ size_t list_modules(const struct module **p_arr, size_t arr_size, size_t offset)
 
 		if (ret >= arr_size)
 			break;
-		
+
 		p_arr[ret++] = module;
 	}
 	ns_release_iterator(&iter);
@@ -101,7 +101,7 @@ static void set_default_name(struct module *m)
 		for (t = template; *t != '\0'; t++) {
 			if (t != template && islower(*(t - 1)) && isupper(*t))
 				*s++ = '_';
-			
+
 			*s++ = tolower(*t);
 		}
 
@@ -139,6 +139,7 @@ void deadend(struct module *m, struct pkt_batch *batch)
 	snb_free_bulk(batch->pkts, batch->cnt);
 }
 
+
 static void destroy_all_tasks(struct module *m)
 {
 	for (task_id_t i = 0; i < MAX_TASKS_PER_MODULE; i++) {
@@ -149,16 +150,30 @@ static void destroy_all_tasks(struct module *m)
 	}
 }
 
+static void inherit_attr_list(const struct mclass *mclass, struct module *m)
+{
+	for (int i = 0; i < MAX_ATTRS_PER_MODULE; i++) {
+		const struct mt_attr *attr = &mclass->attrs[i];
+		int ret;
+
+		/* end of the list is marked as a empty-string name */
+		if (strlen(attr->name) == 0)
+			return;
+
+		ret = add_metadata_attr(m, attr->name, attr->size, attr->mode);
+		assert(ret == i);
+	}
+}
+
 /* returns a pointer to the created module.
  * if error, returns NULL and *perr is set */
-struct module *create_module(const char *name, 
-		const struct mclass *mclass, 
+struct module *create_module(const char *name,
+		const struct mclass *mclass,
 		struct snobj *arg,
 		struct snobj **perr)
 {
 	struct module *m = NULL;
 	int ret = 0;
-
 	*perr = NULL;
 
 	if (name && find_module(name)) {
@@ -185,18 +200,7 @@ struct module *create_module(const char *name,
 	else
 		snprintf(m->name, MODULE_NAME_LEN, "%s", name);
 
-#if 0
-	if (ops->timer) {
-		for (i = 0; i < num_workers; i++) {
-			m->timers[i] = rte_zmalloc_socket(NULL, 
-					sizeof(struct rte_timer), 0,
-					wid_to_sid_map[i]);
-			assert(m->timers[i]);
-
-			rte_timer_init(m->timers[i]);
-		}
-	}
-#endif
+	inherit_attr_list(mclass, m);
 
 	if (mclass->init) {
 		*perr = mclass->init(m, arg);
@@ -223,34 +227,32 @@ fail:
 	return NULL;
 }
 
+static int
+disconnect_modules_upstream(struct module *m_next, gate_idx_t igate_idx);
+
 void destroy_module(struct module *m)
 {
+	int ret;
+
 	if (m->mclass->deinit)
 		m->mclass->deinit(m);
 
 	/* disconnect from upstream modules. */
 	for (int i = 0; i < m->igates.curr_size; i++) {
-		if (!is_active_gate(&m->igates, i))
-			continue;
-
-		struct gate *igate = m->igates.arr[i];
-		struct gate *ogate;
-		struct gate *ogate_next;
-
-		cdlist_for_each_entry_safe(ogate, ogate_next,
-				&igate->in.ogates_upstream, out.igate_upstream)
-		{
-			disconnect_modules(ogate->m, ogate->gate_idx);
-		}
+		ret = disconnect_modules_upstream(m, i);
+		assert(ret == 0);
 	}
 
 	/* disconnect downstream modules */
-	for (gate_idx_t i = 0; i < m->ogates.curr_size; i++)
-		disconnect_modules(m, i);
+	for (gate_idx_t i = 0; i < m->ogates.curr_size; i++) {
+		ret = disconnect_modules(m, i);
+		assert(ret == 0);
+	}
 
 	destroy_all_tasks(m);
 
-	ns_remove(m->name);
+	ret = ns_remove(m->name);
+	assert(ret == 0);
 
 	mem_free(m->name);
 	mem_free(m->ogates.arr);
@@ -266,7 +268,7 @@ static int grow_gates(struct module *m, struct gates *gates, gate_idx_t gate)
 	gate_idx_t new_size;
 
 	new_size = gates->curr_size ? : 1;
-	
+
 	while (new_size <= gate)
 		new_size *= 2;
 
@@ -283,14 +285,14 @@ static int grow_gates(struct module *m, struct gates *gates, gate_idx_t gate)
 	gates->curr_size = new_size;
 
 	/* initialize the newly created gates */
-	memset(&gates->arr[old_size], 0, 
+	memset(&gates->arr[old_size], 0,
 			sizeof(struct gate *) * (new_size - old_size));
 
 	return 0;
 }
 
 /* returns -errno if fails */
-int connect_modules(struct module *m_prev, gate_idx_t ogate_idx, 
+int connect_modules(struct module *m_prev, gate_idx_t ogate_idx,
 		    struct module *m_next, gate_idx_t igate_idx)
 {
 	struct gate *ogate;
@@ -378,13 +380,44 @@ int disconnect_modules(struct module *m_prev, gate_idx_t ogate_idx)
 	cdlist_del(&ogate->out.igate_upstream);
 	if (cdlist_is_empty(&igate->in.ogates_upstream)) {
 		struct module *m_next = igate->m;
-		gate_idx_t igate_idx = ogate->out.igate_idx;
-		m_next->igates.arr[igate_idx] = NULL;
+		m_next->igates.arr[igate->gate_idx] = NULL;
 		mem_free(igate);	
 	}
 
-	mem_free(ogate);
 	m_prev->ogates.arr[ogate_idx] = NULL;
+	mem_free(ogate);
+
+	return 0;
+}
+
+static int 
+disconnect_modules_upstream(struct module *m_next, gate_idx_t igate_idx)
+{
+	struct gate *igate;
+	struct gate *ogate;
+	struct gate *ogate_next;
+
+	if (igate_idx >= m_next->mclass->num_igates)
+		return -EINVAL;
+
+	/* no error even if the igate is unconnected already */
+	if (!is_active_gate(&m_next->igates, igate_idx))
+		return 0;
+
+	igate = m_next->igates.arr[igate_idx];
+	if (!igate)
+		return 0;
+
+	cdlist_for_each_entry_safe(ogate, ogate_next,
+			&igate->in.ogates_upstream, out.igate_upstream)
+	{
+		struct module *m_prev = ogate->m;
+		m_prev->ogates.arr[ogate->gate_idx] = NULL;
+		mem_free(ogate);
+	}
+
+	m_next->igates.arr[igate_idx] = NULL;
+	mem_free(igate);
 
 	return 0;
 }
@@ -573,7 +606,6 @@ void dump_pcap_pkts(struct gate *gate, struct pkt_batch *batch)
 			{snb_head_data(pkt), snb_head_len(pkt)}};
 
 		ret = writev(fd, vec, 2);
-
 		if (ret < 0) {
 			if (errno == EPIPE) {
 				log_debug("Broken pipe: stopping tcpdump\n");
@@ -693,7 +725,7 @@ again:
 			idle = tsc_hz;
 		log_debug("Worker %d: %5.1f%%, "
 			"loop %4.2fM/%4.2fM, "
-			"idle %.2fus, " 
+			"idle %.2fus, "
 			"busy %.2fus (%.2fus/pkt), "
 			"%lu pkts\n",
 				current_wid,

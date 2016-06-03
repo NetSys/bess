@@ -1,0 +1,2 @@
+# error
+MetadataTest(read={'foo':2}) -> MetadataTest(write={'foo':2})

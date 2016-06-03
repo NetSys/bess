@@ -1,0 +1,3 @@
+# simplest
+MetadataTest(write={'foo':2}) -> MetadataTest(read={'foo':2}) -> MetadataTest() -> \
+        MetadataTest(write={'foo':2}) -> MetadataTest(read={'foo':2})

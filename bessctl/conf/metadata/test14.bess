@@ -1,0 +1,7 @@
+# simple update test, should be two components
+
+a::MetadataTest(write={'foo':2})
+b::MetadataTest(update={'foo':2})
+c::MetadataTest(write={'foo':2})
+
+a->b->c

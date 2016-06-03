@@ -1,0 +1,20 @@
+em::ExactMatch(fields=[{'name':'foo', 'size':1}, \
+                       {'name':'bar', 'size':2}])
+Source() \
+        -> SetMetadata(name='foo', size=1, value=0xcc) \
+        -> SetMetadata(name='bar', size=2, value=0x1122) \
+        -> em
+
+Source() \
+        -> SetMetadata([{'name':'bar', 'size':2, 'value':0x3344},
+                        {'name':'foo', 'size':1, 'value':0x42}]) \
+        -> em
+
+em.set_default_gate(0)
+em:0 -> Sink()
+em:1 -> Sink()
+em:2 -> Sink()
+
+# NOTE: metadata attribute values are stored in host order (little endian)!
+em.add(fields=[bytearray('\xcc'), bytearray('\x22\x11')], gate=1)
+em.add(fields=[bytearray('\x42'), bytearray('\x44\x33')], gate=2)

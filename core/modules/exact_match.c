@@ -44,12 +44,13 @@ struct em_priv {
 		 * bits with 0: don't care */
 		uint64_t mask;
 
-		/* offset in the packet data. will be negative for metadata */
+		/* Offset in the packet data.
+		 * For attribute-based fields, the value would be negative.
+		 * For offset-based fields, the value is relative.
+		 *  (starts from data_off, not the beginning of the headroom */
 		int16_t offset;
 
-		/* if 1, the offset starts from data_off (default).
-		 * if 0, it starts from the beginning of the headroom */
-		int8_t is_relative_offset;	/* 0 or 1 */
+		int attr_id;	/* -1 for offset-based fields */
 
 		uint8_t size_acc;
 
@@ -59,11 +60,51 @@ struct em_priv {
 	uint32_t total_field_size;
 };
 
+static struct snobj *
+add_field_one(struct module *m, struct snobj *field, struct field *f)
+{
+	if (field->type != TYPE_MAP)
+		return snobj_err(EINVAL, 
+				"'fields' must be a list of maps");
+
+	f->size = snobj_eval_uint(field, "size");
+	f->mask = snobj_eval_uint(field, "mask");
+
+	if (f->size < 1 || f->size > MAX_FIELD_SIZE)
+		return snobj_err(EINVAL, "'size' must be 1-%d",
+				MAX_FIELD_SIZE);
+
+	/* null mask doesn't make any sense... */
+	if (f->mask == 0)
+		f->mask = ~0ul;
+
+	if (snobj_eval_exists(field, "offset")) {
+		f->attr_id = -1;
+		f->offset = snobj_eval_int(field, "offset");
+		if (f->offset < 0)
+			return snobj_err(EINVAL, "too small 'offset'");
+		return NULL;
+	} 
+
+	const char *attr_name = snobj_eval_str(field, "name");
+	if (!attr_name)
+		return snobj_err(EINVAL, "specify 'offset' or 'name'");
+
+	f->attr_id = add_metadata_attr(m, attr_name, f->size, MT_READ);
+	if (f->attr_id < 0)
+		return snobj_err(-f->attr_id, "add_metadata_attr() failed");
+
+	return NULL;
+}
+
 /* Takes a list of fields. Each field needs 'offset' and 'size', 
  * and optional "mask" (0xfffff.. by default)
  *
  * e.g.: ExactMatch([{'offset': 14, 'size': 1, 'mask':0xf0}, ...] 
- * (checks the IP version field) */
+ * (checks the IP version field)
+ *
+ * You can also specify metadata attributes
+ * e.g.: ExactMatch([{'name': 'nexthop', 'size': 4}, ...] */
 static struct snobj *em_init(struct module *m, struct snobj *arg)
 {
 	struct em_priv *priv = get_priv(m);
@@ -78,29 +119,14 @@ static struct snobj *em_init(struct module *m, struct snobj *arg)
 
 	for (int i = 0; i < fields->size; i++) {
 		struct snobj *field = snobj_list_get(fields, i);
+		struct snobj *err;
 		struct field f;
 
-		f.is_relative_offset = 1;
 		f.size_acc = size_acc;
 
-		if (field->type != TYPE_MAP)
-			return snobj_err(EINVAL, 
-					"'fields' must be a list of maps");
-
-		f.offset = snobj_eval_int(field, "offset");
-		f.size = snobj_eval_uint(field, "size");
-		f.mask = snobj_eval_uint(field, "mask");
-
-		if (f.offset < 0)
-			return snobj_err(EINVAL, "too small 'offset'");
-
-		if (f.size < 1 || f.size > MAX_FIELD_SIZE)
-			return snobj_err(EINVAL, "'size' must be 1-%d",
-					MAX_FIELD_SIZE);
-
-		/* null mask doesn't make any sense... */
-		if (f.mask == 0)
-			f.mask = ~0ul;
+		err = add_field_one(m, field, &f);
+		if (err)
+			return err;
 
 		size_acc += f.size;
 		priv->fields[i] = f;
@@ -159,20 +185,27 @@ static void em_process_batch(struct module *m, struct pkt_batch *batch)
 	 * (optimization TODO: we can skip this if only one field is used) */
 	for (int i = 0; i < priv->num_fields; i++) {
 		uint64_t mask = priv->fields[i].mask;
-		int offset = priv->fields[i].offset;
+		int offset;
 		int size_acc = priv->fields[i].size_acc;
-		int is_relative_offset = priv->fields[i].is_relative_offset;
+		int attr_id = priv->fields[i].attr_id;
+
+		if (attr_id < 0)
+			offset = priv->fields[i].offset;
+		else
+			offset = mt_offset_to_databuf_offset(
+					mt_attr_offset(m, attr_id));
 
 		char *key = keys[0] + size_acc;
 
 		for (int j = 0; j < cnt; j++, key += HASH_KEY_SIZE) {
 			char *buf_addr = (char *)batch->pkts[j]->mbuf.buf_addr;
 
-			if (is_relative_offset)
+			/* for offset-based attrs we use relative offset */
+			if (attr_id < 0)
 				buf_addr += batch->pkts[j]->mbuf.data_off;
 
 			*(uint64_t *)key = 
-				*(uint64_t*)(buf_addr + offset) & mask;
+				*(uint64_t *)(buf_addr + offset) & mask;
 		}
 	}
 
@@ -324,7 +357,7 @@ command_set_default_gate(struct module *m, const char *cmd, struct snobj *arg)
 static const struct mclass em = {
 	.name 			= "ExactMatch",
 	.help			= 
-		"Multi-field classifier with exact match table",
+		"Multi-field classifier with a exact match table",
 	.def_module_name	= "em",
 	.num_igates		= 1,
 	.num_ogates		= MAX_GATES,

@@ -1,0 +1,20 @@
+# complex pipeline, single field
+
+a::MetadataTest(write={'foo':2})
+b::MetadataTest(write={'foo':2})
+c::MetadataTest(read={'foo':2})
+d::MetadataTest(write={'foo':2})
+e::MetadataTest(read={'foo':2})
+f::MetadataTest(write={'foo':2})
+g::MetadataTest()
+h::MetadataTest(write={'foo':2})
+i::MetadataTest(read={'foo':2})
+j::MetadataTest()
+
+a:0->b:0->c
+b:1->e
+a:1->e
+d->e
+f->g->e
+h:0->g
+h:1->i->j

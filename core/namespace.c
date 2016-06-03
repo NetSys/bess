@@ -8,13 +8,14 @@
 #include <rte_hash_crc.h>
 
 #include "log.h"
+#include "mem_alloc.h"
 #include "utils/cdlist.h"
 
 #include "namespace.h"
 
-#define NS_BUCKET_SIZE_INIT 64
+#define NS_BUCKET_SIZE_INIT	2
 #define NS_BUCKET_SIZE_MAX 	1048576
-#define NS_CRC_INIT	0xFFFFFFFF
+#define NS_CRC_INIT		0xFFFFFFFF
 
 struct ns_elem {
 	ns_type_t type; 
@@ -28,7 +29,6 @@ struct ns_elem {
 
 struct ns_table {
 	int bucket_size;
-	int type_count;
 	int item_count;
 
 	struct cdlist_head *ns_elem_bhead;	/* hash table */
@@ -44,7 +44,7 @@ static int ns_table_init()
 
 	ht.bucket_size = NS_BUCKET_SIZE_INIT;
 	ht.item_count = 0;
-	ht.ns_elem_bhead = malloc(ht.bucket_size * sizeof(struct cdlist_head));
+	ht.ns_elem_bhead = mem_alloc(ht.bucket_size * sizeof(struct cdlist_head));
 
 	if (!ht.ns_elem_bhead)
 		return -ENOMEM;
@@ -103,15 +103,15 @@ static int ns_table_resize(int new_bsize)
 	struct cdlist_head *to_move_bhead;
 
 	int old_bsize = ht.bucket_size;
-	
-	new_bhead = malloc(new_bsize * sizeof(struct cdlist_head));
+
+	new_bhead = mem_alloc(new_bsize * sizeof(struct cdlist_head));
 	if (!new_bhead)
 		return -ENOMEM;
 	
 	for (int i = 0; i < new_bsize; i++)
 		cdlist_head_init(&new_bhead[i]);
 	
-	// relocate elements
+	/* relocate elements */
 	for (int i = 0; i < old_bsize; i++) {
 		bhead = &ht.ns_elem_bhead[i];
 		cdlist_for_each_entry_safe(entry, next, bhead, ns_table_bhead) {
@@ -121,9 +121,10 @@ static int ns_table_resize(int new_bsize)
 			cdlist_add_tail(to_move_bhead, &entry->ns_table_bhead);
 		}
 	}
-	
-	ht.bucket_size = new_bsize;
+
+	mem_free(ht.ns_elem_bhead);
 	ht.ns_elem_bhead = new_bhead;
+	ht.bucket_size = new_bsize;
 
 	return 0;
 }
@@ -260,7 +261,7 @@ int ns_insert(ns_type_t type, const char *name, void *object)
 	assert(hash < ht.bucket_size);
 
 	bhead = &ht.ns_elem_bhead[hash];
-	i = malloc(sizeof(struct ns_elem));
+	i = mem_alloc(sizeof(struct ns_elem));
 	if (!i)
 		return -ENOMEM;
 
@@ -275,10 +276,10 @@ int ns_insert(ns_type_t type, const char *name, void *object)
 	cdlist_add_tail(bhead, &i->ns_table_bhead);
 
 	ihead = &ht.ns_elem_type_iter[type];
-	cdlist_add_tail(ihead, &i->ns_type_iter); //inorder insert
+	cdlist_add_tail(ihead, &i->ns_type_iter);
 	
 	ihead = &ht.ns_elem_type_iter[NS_TYPE_ALL];
-	cdlist_add_tail(ihead, &i->ns_all_iter); //inorder insert
+	cdlist_add_tail(ihead, &i->ns_all_iter);
 	
 	ht.item_count++;
 
@@ -306,6 +307,8 @@ int ns_remove(const char *name)
 	cdlist_del(&elem->ns_table_bhead);
 	cdlist_del(&elem->ns_type_iter);
 	cdlist_del(&elem->ns_all_iter);
+
+	mem_free(elem);
 	
 	ht.item_count--;
 
@@ -320,13 +323,13 @@ void ns_init_iterator(struct ns_iter *iter, ns_type_t type)
 	assert(type < NS_TYPE_MAX);
 		
 	ht.iterator_cnt[type]++;
+	iter->type = type;
 
 	if (ht.item_count == 0) {
 		iter->next = NULL;
 		return;
 	}
 	
-	iter->type = type;
 	iter->ns_elem_iter = &ht.ns_elem_type_iter[type];
 	ihead = iter->ns_elem_iter;
 
@@ -377,11 +380,11 @@ void ns_valid_name_test()
 {
 	int ret;
 	
-	char *name1 = "_Sangjin09";		// valid
-	char *name2 = "E2Classifier";	// valid	
-	char *name3 = "101Source";		// invalid: cannot start with numbers
-	char *name4 = "-Source";			// invliad: cannot include other than alnum
-	char *name5 = "Sink.port0";		// invliad: cannot include other than alnum
+	char *name1 = "_Sangjin09";	/* valid */
+	char *name2 = "E2Classifier";	/* valid */
+	char *name3 = "101Source";	/* invalid */
+	char *name4 = "-Source";	/* invliad */
+	char *name5 = "Sink.port0";	/* invliad */
 
 	ret = ns_is_valid_name(name1);
 	assert(ret);

@@ -25,19 +25,19 @@ ct_assert(SNBUF_HEADROOM == RTE_PKTMBUF_HEADROOM);
  *
  * Layout (2048 bytes):
  *    Offset	Size	Field
- *  - 0		128	mbuf (SNBUF_ sizeof(struct rte_mbuf))
- *  - 128	128	_headroom (SNBUF_HEADROOM == RTE_PKTMBUF_HEADROOM)
- *  - 256	1536	_data (SNBUF_DATA)
- *  - 1792	64	some read-only fields
- *  - 1856	128	static/dynamic metadata fields
- *  - 1984	64	private area for module/driver's internal use
+ *  - 0		128	mbuf (SNBUF_MBUF == sizeof(struct rte_mbuf))
+ *  - 128	64	some read-only/immutable fields
+ *  - 192	128	static/dynamic metadata fields
+ *  - 320	64	private area for module/driver's internal use
  *                        (currently used for vport RX/TX descriptors)
+ *  - 384	128	_headroom (SNBUF_HEADROOM == RTE_PKTMBUF_HEADROOM)
+ *  - 512	1536	_data (SNBUF_DATA)
  *
  * Stride will be 2112B, because of mempool's per-object header which takes 64B.
  *
  * Invariants:
  *  * When packets are newly allocated, the data should be filled from _data.
- *  * The packet data may reside in the _headroom + _data area, 
+ *  * The packet data may reside in the _headroom + _data areas, 
  *    but its size must not exceed 1536 (SNBUF_DATA) when passed to a port.
  */
 struct snbuf {
@@ -67,25 +67,11 @@ struct snbuf {
 				} immutable;
 			};
 
-			union {
-				char _metadata[SNBUF_METADATA];
+			/* Dynamic metadata. 
+			 * Each attribute value is stored in host order */
+			char _metadata[SNBUF_METADATA];
 
-				struct {
-					/* static fields */
-
-					/* Set (1) iff all of the
-					 * following conditions are met:
-					 *  1. refcnt == 1
-					 *  2. direct mbuf
-					 *  3. linear (non-chained) */
-					uint8_t simple;
-
-					/* user-defined dynamic fields */
-					char _metadata_buf[0]	__ymm_aligned;
-				};
-			};
-
-			/* used for module/driver-specific data */
+			/* Used for module/driver-specific data */
 			char _scratchpad[SNBUF_SCRATCHPAD];
 		};
 	};
@@ -275,6 +261,12 @@ struct rte_mempool *get_pframe_pool_socket(int socket);
 static inline phys_addr_t snb_to_paddr(struct snbuf *snb)
 {
 	return snb->immutable.paddr;
+}
+
+static inline int mt_offset_to_databuf_offset(mt_offset_t offset)
+{
+	return offset + offsetof(struct snbuf, _metadata) - 
+		offsetof(struct snbuf, _headroom);
 }
 
 /* Slow. Do not use in the datapath */

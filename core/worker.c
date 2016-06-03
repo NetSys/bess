@@ -1,10 +1,10 @@
 #include <sched.h>
 #include <unistd.h>
 #include <limits.h>
+
 #include <sys/eventfd.h>
 
 #include <rte_config.h>
-#include <rte_cycles.h>
 #include <rte_lcore.h>
 
 #include "common.h"
@@ -100,8 +100,9 @@ static void resume_worker(int wid)
 	}
 }
 
-void resume_all_workers() 
+void resume_all_workers()
 {
+	compute_metadata_offsets();
 	process_orphan_tasks();
 
 	for (int wid = 0; wid < MAX_WORKERS; wid++)
@@ -119,13 +120,13 @@ static void destroy_worker(int wid)
 				sizeof(uint64_t));
 		assert(ret == sizeof(uint64_t));
 
-		while (workers[wid])
-			; 	/* spin */
+		ret = pthread_join(workers[wid]->thread, NULL);
+		assert(ret == 0);
+
+		workers[wid] = NULL;
 
 		num_workers--;
 	}
-
-	rte_eal_wait_lcore(wid);
 }
 
 void destroy_all_workers()
@@ -156,34 +157,45 @@ int block_worker()
 	ret = read(ctx.fd_event, &t, sizeof(t));
 	assert(ret == sizeof(t));
 
-	if (t == SIGNAL_UNBLOCK)
+	if (t == SIGNAL_UNBLOCK) {
 		ctx.status = WORKER_RUNNING;
-	else if (t == SIGNAL_QUIT)
-		return 1;
-	else
-		assert(0);
+		return 0;
+	}
 
-	return 0;
+	if (t == SIGNAL_QUIT) {
+		ctx.status = WORKER_RUNNING;
+		return 1;
+	}
+
+	assert(0);
 }
 
-/* arg is the core ID it should run on */
-static int run_worker(void *arg)
-{
-	cpu_set_t set;
+struct thread_arg {
+	int wid;
 	int core;
+};
 
-	core = (int)(int64_t)arg;
+/* The entry point of worker threads */
+static void *run_worker(void *_arg)
+{
+	struct thread_arg *arg = _arg;
+
+	cpu_set_t set;
 
 	CPU_ZERO(&set);
-	CPU_SET(core, &set);
+	CPU_SET(arg->core, &set);
 	rte_thread_set_affinity(&set);
 
 	/* just in case */
 	memset(&ctx, 0, sizeof(ctx));
 
+	/* DPDK lcore ID == worker ID (0, 1, 2, 3, ...) */
+	RTE_PER_LCORE(_lcore_id) = arg->wid;
+
 	/* for workers, wid == rte_lcore_id() */
-	ctx.wid = rte_lcore_id();
-	ctx.core = core;
+	ctx.thread = pthread_self();
+	ctx.wid = arg->wid;
+	ctx.core = arg->core;
 	ctx.socket = rte_socket_id();
 	assert(ctx.socket >= 0);	/* shouldn't be SOCKET_ID_ANY (-1) */
 	ctx.fd_event = eventfd(0, 0);
@@ -217,23 +229,23 @@ static int run_worker(void *arg)
 
 	sched_free(ctx.s);
 
-	STORE_BARRIER();
-	workers[ctx.wid] = NULL;
-
-	return 0;
+	return NULL;
 }
 
 void launch_worker(int wid, int core)
 {
+	pthread_t thread;
+	struct thread_arg arg = {.wid = wid, .core = core};
 	int ret;
 
-	ret = rte_eal_remote_launch(run_worker, (void *)(int64_t)core, wid);
+	ret = pthread_create(&thread, NULL, run_worker, &arg);
 	assert(ret == 0);
 
 	INST_BARRIER();
 
+	/* spin until it becomes ready and fully paused */
 	while (!is_worker_active(wid) || workers[wid]->status != WORKER_PAUSED)
-		;	/* spin until it becomes ready and fully paused */
+		continue;
 
 	num_workers++;
 }

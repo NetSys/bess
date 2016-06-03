@@ -1,0 +1,9 @@
+# simple write test, should be two components but the 
+# component {a} should not be needed because foo is not
+# needed downstream
+
+a::MetadataTest(write={'foo':2})
+b::MetadataTest(write={'bar':2})
+c::MetadataTest(read={'bar':2})
+
+a->b->c

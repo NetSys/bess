@@ -408,8 +408,10 @@ void init_server(uint16_t port)
 
 	master.listen_fd = init_listen_fd(port ? : DEFAULT_PORT);
 
-	ev.events = EPOLLIN;
-	ev.data.fd = master.listen_fd;
+	ev = (struct epoll_event){
+		.events = EPOLLIN,
+		.data.fd = master.listen_fd,
+	};
 
 	ret = epoll_ctl(master.epoll_fd, EPOLL_CTL_ADD, master.listen_fd, &ev);
 	if (ret < 0) {

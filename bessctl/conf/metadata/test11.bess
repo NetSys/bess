@@ -1,0 +1,25 @@
+# complex pipeline, multiple fields, multiple components
+
+a::MetadataTest(write={'x1':2, 'x2':2})
+b::MetadataTest(write={'x1':2})
+c::MetadataTest()
+d::MetadataTest(read={'x1':2})
+e::MetadataTest(write={'x2':2})
+f::MetadataTest()
+g::MetadataTest(read={'x2':2})
+h::MetadataTest(write={'x2':2, 'x3':2})
+i::MetadataTest(read={'x2':2})
+j::MetadataTest(write={'x2':2, 'x3':2, 'x4':2})
+k::MetadataTest(read={'x4':2})
+l::MetadataTest(write={'x5':2})
+m::MetadataTest(read={'x5':2})
+
+a->b:0->c->d
+e->b
+b:1->f:0->g
+f:1->i
+j:0->h:0->f
+h:1->k
+j:1->k
+k:0->i
+k:1->l->m

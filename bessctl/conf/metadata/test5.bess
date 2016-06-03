@@ -1,0 +1,25 @@
+# Single scope component
+
+#a - d
+#  \
+#b - e
+#  \
+#c - f
+#  \
+#    g
+
+a::MetadataTest(write={'foo':2})
+b::MetadataTest(write={'foo':2})
+c::MetadataTest(write={'foo':2})
+
+d::MetadataTest(read={'foo':2})
+e::MetadataTest(read={'foo':2})
+f::MetadataTest(read={'foo':2})
+g::MetadataTest(read={'foo':2})
+
+a:0->d
+a:1->e
+b:0->e
+b:1->f
+c:0->f
+c:1->g

@@ -17,9 +17,9 @@
 #include "snbuf.h"
 #include "worker.h"
 #include "snobj.h"
+#include "metadata.h"
 
 #define MAX_TASKS_PER_MODULE	32
-
 ct_assert(MAX_TASKS_PER_MODULE < INVALID_TASK_ID);
 
 #define MODULE_NAME_LEN		128
@@ -40,7 +40,7 @@ struct gate {
 		struct {
 			struct cdlist_item igate_upstream; 
 			struct gate *igate;
-			gate_idx_t igate_idx;
+			gate_idx_t igate_idx;	/* cache for igate->gate_idx */
 		} out;
 
 		struct {
@@ -71,7 +71,7 @@ struct gates {
 
 static inline int is_active_gate(struct gates *gates, gate_idx_t idx)
 {
-	return idx < gates->curr_size && gates->arr[idx] != NULL;
+	return idx < gates->curr_size && gates->arr && gates->arr[idx] != NULL;
 }
 
 /* This struct is shared across workers */
@@ -81,7 +81,11 @@ struct module {
 	const struct mclass *mclass;
 	struct task *tasks[MAX_TASKS_PER_MODULE];
 
+	int num_attrs;
+	struct mt_attr attrs[MAX_ATTRS_PER_MODULE];
+
 	/* frequently access fields should be below */
+	mt_offset_t attr_offsets[MAX_ATTRS_PER_MODULE];
 	struct gates igates;
 	struct gates ogates;
 
@@ -96,6 +100,12 @@ struct module {
 	 * and/or managing per-worker data is each module's responsibility. */
 	void *priv[0]; 	
 };
+
+static inline mt_offset_t
+mt_attr_offset(const struct module *m, int attr_id)
+{
+	return m->attr_offsets[attr_id];
+}
 
 static inline void *get_priv(struct module *m) 
 {
