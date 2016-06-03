@@ -8,7 +8,6 @@
 #include <rte_hash_crc.h>
 
 #include "log.h"
-#include "mem_alloc.h"
 #include "utils/cdlist.h"
 
 #include "namespace.h"
@@ -44,7 +43,7 @@ static int ns_table_init()
 
 	ht.bucket_size = NS_BUCKET_SIZE_INIT;
 	ht.item_count = 0;
-	ht.ns_elem_bhead = mem_alloc(ht.bucket_size * sizeof(struct cdlist_head));
+	ht.ns_elem_bhead = malloc(ht.bucket_size * sizeof(struct cdlist_head));
 
 	if (!ht.ns_elem_bhead)
 		return -ENOMEM;
@@ -104,7 +103,7 @@ static int ns_table_resize(int new_bsize)
 
 	int old_bsize = ht.bucket_size;
 
-	new_bhead = mem_alloc(new_bsize * sizeof(struct cdlist_head));
+	new_bhead = malloc(new_bsize * sizeof(struct cdlist_head));
 	if (!new_bhead)
 		return -ENOMEM;
 	
@@ -122,7 +121,7 @@ static int ns_table_resize(int new_bsize)
 		}
 	}
 
-	mem_free(ht.ns_elem_bhead);
+	free(ht.ns_elem_bhead);
 	ht.ns_elem_bhead = new_bhead;
 	ht.bucket_size = new_bsize;
 
@@ -261,7 +260,7 @@ int ns_insert(ns_type_t type, const char *name, void *object)
 	assert(hash < ht.bucket_size);
 
 	bhead = &ht.ns_elem_bhead[hash];
-	i = mem_alloc(sizeof(struct ns_elem));
+	i = malloc(sizeof(struct ns_elem));
 	if (!i)
 		return -ENOMEM;
 
@@ -308,7 +307,7 @@ int ns_remove(const char *name)
 	cdlist_del(&elem->ns_type_iter);
 	cdlist_del(&elem->ns_all_iter);
 
-	mem_free(elem);
+	free(elem);
 	
 	ht.item_count--;
 
