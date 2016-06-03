@@ -2,7 +2,6 @@
 
 #include <rte_errno.h>
 #include <rte_hash.h>
-#include <rte_jhash.h>
 
 #define DEFAULT_TABLE_SIZE	1024
 #define MAX_FIELDS		8
@@ -38,26 +37,24 @@ struct em_priv {
 
 	gate_idx_t default_gate;
 
+	uint32_t total_key_size;
+
 	int num_fields;
 	struct field {
 		/* bits with 1: the bit must be considered.
 		 * bits with 0: don't care */
 		uint64_t mask;
 
-		/* Offset in the packet data.
-		 * For attribute-based fields, the value would be negative.
-		 * For offset-based fields, the value is relative.
+		int attr_id;	/* -1 for offset-based fields */
+
+		/* Relative offset in the packet data for offset-based fields.
 		 *  (starts from data_off, not the beginning of the headroom */
 		int16_t offset;
-
-		int attr_id;	/* -1 for offset-based fields */
 
 		uint8_t size_acc;
 
 		uint8_t size;	/* in bytes. 1 <= size <= MAX_FIELD_SIZE */
 	} fields[MAX_FIELDS];
-
-	uint32_t total_field_size;
 };
 
 static struct snobj *
@@ -97,7 +94,7 @@ add_field_one(struct module *m, struct snobj *field, struct field *f)
 	return NULL;
 }
 
-/* Takes a list of fields. Each field needs 'offset' and 'size', 
+/* Takes a list of fields. Each field needs 'offset' (or 'name') and 'size', 
  * and optional "mask" (0xfffff.. by default)
  *
  * e.g.: ExactMatch([{'offset': 14, 'size': 1, 'mask':0xf0}, ...] 
@@ -134,7 +131,7 @@ static struct snobj *em_init(struct module *m, struct snobj *arg)
 
 	priv->default_gate = DROP_GATE;
 	priv->num_fields = fields->size;
-	priv->total_field_size = size_acc;
+	priv->total_key_size = size_acc;
 	priv->tbl_size = DEFAULT_TABLE_SIZE;
 
 	/* hash table size is given? */
@@ -181,8 +178,6 @@ static void em_process_batch(struct module *m, struct pkt_batch *batch)
 
 	default_gate = ACCESS_ONCE(priv->default_gate);
 
-	/* collect keys 
-	 * (optimization TODO: we can skip this if only one field is used) */
 	for (int i = 0; i < priv->num_fields; i++) {
 		uint64_t mask = priv->fields[i].mask;
 		int offset;
@@ -230,7 +225,7 @@ static void em_process_batch(struct module *m, struct pkt_batch *batch)
 		}
 	} else {
 		struct rte_hash *tbl = priv->tbl;
-		int key_size = priv->total_field_size;
+		uint32_t key_size = priv->total_key_size;
 
 		for (int i = 0; i < cnt; i++) {
 			uintptr_t result = default_gate;
@@ -308,7 +303,7 @@ command_delete(struct module *m, const char *cmd, struct snobj *arg)
 		return snobj_err(EINVAL, "argument must be a list of blobs");
 
 	if (arg->size != priv->num_fields)
-		return snobj_err(EINVAL, "must specify %d arg", 
+		return snobj_err(EINVAL, "must specify %d fields", 
 				priv->num_fields);
 
 	for (int i = 0; i < arg->size; i++) {
