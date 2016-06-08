@@ -37,6 +37,16 @@
 
 #define ACCESS_ONCE(x) (*(volatile typeof(x) *)&(x))
 
+static inline uint64_t align_floor(uint64_t val, uint64_t align)
+{
+	return val - (val % align);
+}
+
+static inline uint64_t align_ceil(uint64_t val, uint64_t align)
+{
+	return align_floor(val + align - 1, align);
+}
+
 /* err is defined as -errno,  */
 static inline intptr_t ptr_to_err(const void *ptr)
 {

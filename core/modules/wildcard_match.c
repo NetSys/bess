@@ -37,7 +37,7 @@ struct wm_priv {
 
 	gate_idx_t default_gate;
 
-	uint32_t total_key_size;
+	uint32_t total_key_size;	/* a multiple of sizeof(uint64_t) */
 
 	int num_fields;
 	struct field {
@@ -173,7 +173,7 @@ static struct snobj *wm_init(struct module *m, struct snobj *arg)
 
 	priv->default_gate = DROP_GATE;
 	priv->num_fields = fields->size;
-	priv->total_key_size = size_acc;
+	priv->total_key_size = align_ceil(size_acc, sizeof(uint64_t));
 	priv->tbl_size = DEFAULT_TABLE_SIZE;
 
 	/* hash table size is given? */
@@ -207,6 +207,27 @@ static void wm_deinit(struct module *m)
 	mem_free(priv->rules);
 }
 
+/* check if (k1 & mask) == k2 */
+static int masked_eq(void *k1, void *k2, void *mask, int key_size)
+{
+	uint64_t *a = k1;
+	uint64_t *b = k2;
+	uint64_t *m = mask;
+
+	switch (key_size >> 3) {
+	case 8: if ((a[7] & m[7]) != b[7]) return 0;
+	case 7: if ((a[6] & m[6]) != b[6]) return 0;
+	case 6: if ((a[5] & m[5]) != b[5]) return 0;
+	case 5: if ((a[4] & m[4]) != b[4]) return 0;
+	case 4: if ((a[3] & m[3]) != b[3]) return 0;
+	case 3: if ((a[2] & m[2]) != b[2]) return 0;
+	case 2: if ((a[1] & m[1]) != b[1]) return 0;
+	case 1: if ((a[0] & m[0]) != b[0]) return 0;
+	}
+
+	return 1;
+}
+
 /* slowest possible implementation */
 static int match_entry(struct wm_priv *priv, char *key)
 {
@@ -215,11 +236,9 @@ static int match_entry(struct wm_priv *priv, char *key)
 
 	for (int i = 0; i < priv->num_rules; i++) {
 		struct rule *rule = &priv->rules[i];
-		int matched = 1;
+		int matched;
 
-		for (int j = 0; j < key_size; j++)
-			if ((key[j] & rule->mask[j]) != rule->key[j])
-				matched = 0;
+		matched = masked_eq(key, rule->key, rule->mask, key_size);
 
 		if (matched && (!found || found->priority < rule->priority))
 			found = rule;
@@ -259,6 +278,12 @@ static void wm_process_batch(struct module *m, struct pkt_batch *batch)
 	int cnt = batch->cnt;
 
 	default_gate = ACCESS_ONCE(priv->default_gate);
+
+	/* initialize the last uint64_t word */
+	for (int i = 0; i < cnt; i++) {
+		char *key = keys[0] + priv->total_key_size - 8;
+		*(uint64_t *)key = 0;
+	}
 
 	for (int i = 0; i < priv->num_fields; i++) {
 		int offset;
@@ -318,6 +343,9 @@ extract_key_mask(struct wm_priv *priv, struct snobj *arg, char *key, char *mask)
 		return snobj_err(EINVAL, "must specify %d masks", 
 				priv->num_fields);
 
+	memset(key, 0, HASH_KEY_SIZE);
+	memset(mask, 0, HASH_KEY_SIZE);
+
 	for (int i = 0; i < values->size; i++) {
 		int field_size = priv->fields[i].size;
 		int field_size_acc = priv->fields[i].size_acc;
@@ -348,8 +376,6 @@ extract_key_mask(struct wm_priv *priv, struct snobj *arg, char *key, char *mask)
 
 		memcpy(key + field_size_acc, &v, field_size);
 		memcpy(mask + field_size_acc, &m, field_size);
-//		*(uint64_t *)(key + field_size_acc) = v;
-//		*(uint64_t *)(mask + field_size_acc) = m;
 	}
 
 	return NULL;
