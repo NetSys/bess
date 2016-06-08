@@ -55,6 +55,55 @@ struct wm_priv {
 	int num_rules;
 };
 
+static int uint_to_bin(uint8_t *ptr, int size, uint64_t val, int be)
+{
+	if (be) {
+		for (int i = size - 1; i >= 0; i--) {
+			ptr[i] = val & 0xff;
+			val >>= 8;
+		}
+	} else {
+		for (int i = 0; i < size; i++) {
+			ptr[i] = val & 0xff;
+			val >>= 8;
+		}
+	}
+
+	if (val)
+		return -EINVAL;	/* the value is too large for the size */
+	else
+		return 0;
+}
+
+/* ptr must be big enough to hold 'size' bytes.
+ * If be is non-zero and the varible is given as an integer, 
+ * its value will be stored in big endian */
+static int get_binary_value(struct snobj *var, int size, void *ptr, int be)
+{
+	if (!var || size < 1)
+		return -EINVAL;
+
+	switch (snobj_type(var)) {
+		case TYPE_BLOB:
+			if (var->size != size)
+				return -EINVAL;
+			memcpy(ptr, snobj_blob_get(var), var->size);
+			return 0;
+
+		case TYPE_STR:
+			if (var->size != size + 1)
+				return -EINVAL;
+			memcpy(ptr, snobj_str_get(var), var->size);
+			return 0;
+
+		case TYPE_INT:
+			return uint_to_bin(ptr, size, snobj_uint_get(var), be);
+
+		default:
+			return -EINVAL;
+	}
+}
+
 static struct snobj *
 add_field_one(struct module *m, struct snobj *field, struct field *f)
 {
@@ -87,14 +136,14 @@ add_field_one(struct module *m, struct snobj *field, struct field *f)
 	return NULL;
 }
 
-/* Takes a list of fields. Each field needs 'offset' (or 'name') and 'size', 
- * and optional "mask" (0xfffff.. by default)
+/* Takes a list of all fields that may be used by rules. 
+ * Each field needs 'offset' (or 'name') and 'size' in bytes, 
  *
- * e.g.: ExactMatch([{'offset': 14, 'size': 1, 'mask':0xf0}, ...] 
- * (checks the IP version field)
+ * e.g.: WildcardMatch([{'offset': 26, 'size': 4}, ...] 
+ * (checks the source IP address)
  *
  * You can also specify metadata attributes
- * e.g.: ExactMatch([{'name': 'nexthop', 'size': 4}, ...] */
+ * e.g.: WildcardMatch([{'name': 'nexthop', 'size': 4}, ...] */
 static struct snobj *wm_init(struct module *m, struct snobj *arg)
 {
 	struct wm_priv *priv = get_priv(m);
@@ -197,6 +246,7 @@ static int find_entry(struct wm_priv *priv, char *key, char *mask)
 	return -ENOENT;
 }
 
+#include <rte_hexdump.h>
 static void wm_process_batch(struct module *m, struct pkt_batch *batch)
 {
 	struct wm_priv *priv = get_priv(m);
@@ -249,19 +299,72 @@ static void wm_process_batch(struct module *m, struct pkt_batch *batch)
 }
 
 static struct snobj *
+extract_key_mask(struct wm_priv *priv, struct snobj *arg, char *key, char *mask)
+{
+	struct snobj *values = snobj_eval(arg, "values");
+	struct snobj *masks = snobj_eval(arg, "masks");
+
+	if (!values || snobj_type(values) != TYPE_LIST)
+		return snobj_err(EINVAL, "'values' must be a list");
+
+	if (values->size != priv->num_fields)
+		return snobj_err(EINVAL, "must specify %d values", 
+				priv->num_fields);
+
+	if (!masks || snobj_type(masks) != TYPE_LIST)
+		return snobj_err(EINVAL, "'masks' must be a list");
+
+	if (masks->size != priv->num_fields)
+		return snobj_err(EINVAL, "must specify %d masks", 
+				priv->num_fields);
+
+	for (int i = 0; i < values->size; i++) {
+		int field_size = priv->fields[i].size;
+		int field_size_acc = priv->fields[i].size_acc;
+
+		struct snobj *v_obj = snobj_list_get(values, i);
+		struct snobj *m_obj = snobj_list_get(masks, i);
+		uint64_t v = 0;
+		uint64_t m = 0;
+
+		int be = is_be_system() ? 1 : (priv->fields[i].attr_id < 0); 
+
+		if (get_binary_value(v_obj, field_size, &v, be))
+			return snobj_err(EINVAL, 
+					"idx %d: not a correct %d-byte value",
+					i, field_size);
+
+		if (get_binary_value(m_obj, field_size, &m, be))
+			return snobj_err(EINVAL, 
+					"idx %d: not a correct %d-byte mask",
+					i, field_size);
+
+		if (v & ~m)
+			return snobj_err(EINVAL,
+					"idx %d: invalid pair of "
+					"value 0x%0*lx and mask 0x%0*lx",
+					i, 
+					field_size * 2, v, field_size * 2, m);
+
+		memcpy(key + field_size_acc, &v, field_size);
+		memcpy(mask + field_size_acc, &m, field_size);
+//		*(uint64_t *)(key + field_size_acc) = v;
+//		*(uint64_t *)(mask + field_size_acc) = m;
+	}
+
+	return NULL;
+}
+
+static struct snobj *
 command_add(struct module *m, const char *cmd, struct snobj *arg)
 {
 	struct wm_priv *priv = get_priv(m);
 
-	struct snobj *fields = snobj_eval(arg, "fields");
-	struct snobj *masks = snobj_eval(arg, "masks");
 	gate_idx_t gate = snobj_eval_uint(arg, "gate");
 	int priority = snobj_eval_int(arg, "priority");
 
 	char key[HASH_KEY_SIZE];
 	char mask[HASH_KEY_SIZE];
-
-	int idx;
 
 	if (priv->num_rules >= priv->tbl_size)
 		return snobj_err(ENOSPC, "table is full\n");
@@ -273,51 +376,25 @@ command_add(struct module *m, const char *cmd, struct snobj *arg)
 	if (!is_valid_gate(gate))
 		return snobj_err(EINVAL, "Invalid gate: %hu", gate);
 
-	if (!fields || snobj_type(fields) != TYPE_LIST)
-		return snobj_err(EINVAL, "'fields' must be a list of blobs");
+	struct snobj *err = extract_key_mask(priv, arg, key, mask);
+	if (err)
+		return err;
 
-	if (fields->size != priv->num_fields)
-		return snobj_err(EINVAL, "must specify %d fields", 
-				priv->num_fields);
-
-	if (!masks || snobj_type(masks) != TYPE_LIST)
-		return snobj_err(EINVAL, "'masks' must be a list of blobs");
-
-	if (masks->size != priv->num_fields)
-		return snobj_err(EINVAL, "must specify %d masks", 
-				priv->num_fields);
-
-	for (int i = 0; i < fields->size; i++) {
-		struct snobj *field_val = snobj_list_get(fields, i);
-		struct snobj *mask_val = snobj_list_get(masks, i);
-		uint64_t *p1;
-		uint64_t *p2;
-
-		if (snobj_type(field_val) != TYPE_BLOB ||
-				field_val->size != priv->fields[i].size)
-			return snobj_err(EINVAL, 
-					"field %d must be BLOB of %d bytes",
-					i, priv->fields[i].size);
-
-		if (snobj_type(mask_val) != TYPE_BLOB ||
-				mask_val->size != priv->fields[i].size)
-			return snobj_err(EINVAL, 
-					"mask %d must be BLOB of %d bytes",
-					i, priv->fields[i].size);
-
-		p1 = snobj_blob_get(field_val);
-		p2 = snobj_blob_get(mask_val);
-		*(uint64_t *)(key + priv->fields[i].size_acc) = *p1;
-		*(uint64_t *)(mask + priv->fields[i].size_acc) = *p2;
-	}
-
-	idx = find_entry(priv, key, mask);
+	int idx = find_entry(priv, key, mask);
 	if (idx < 0)
 		idx = priv->num_rules++;
 
-	struct rule *rule = &priv->rules[priv->num_rules++];
+	struct rule *rule = &priv->rules[idx];
 	rule->priority = priority;
 	rule->gate = gate;
+
+/*
+	log_err("rule #%d: priority=%d, gate=%d\n", 
+			idx, rule->priority, rule->gate);
+	rte_hexdump(stdout, "key ", key, priv->total_key_size);
+	rte_hexdump(stdout, "mask", mask, priv->total_key_size);
+*/
+
 	memcpy(rule->key, key, priv->total_key_size);
 	memcpy(rule->mask, mask, priv->total_key_size);
 
@@ -329,56 +406,17 @@ command_delete(struct module *m, const char *cmd, struct snobj *arg)
 {
 	struct wm_priv *priv = get_priv(m);
 
-	struct snobj *fields = snobj_eval(arg, "fields");
-	struct snobj *masks = snobj_eval(arg, "masks");
-
 	char key[HASH_KEY_SIZE];
 	char mask[HASH_KEY_SIZE];
 
-	int idx;
-
 	if (!arg || snobj_type(arg) != TYPE_LIST)
-		return snobj_err(EINVAL, "argument must be a list of blobs");
+		return snobj_err(EINVAL, "argument must be a list");
 
-	if (!fields || snobj_type(fields) != TYPE_LIST)
-		return snobj_err(EINVAL, "'fields' must be a list of blobs");
+	struct snobj *err = extract_key_mask(priv, arg, key, mask);
+	if (err)
+		return err;
 
-	if (fields->size != priv->num_fields)
-		return snobj_err(EINVAL, "must specify %d fields", 
-				priv->num_fields);
-
-	if (!masks || snobj_type(masks) != TYPE_LIST)
-		return snobj_err(EINVAL, "'masks' must be a list of blobs");
-
-	if (masks->size != priv->num_fields)
-		return snobj_err(EINVAL, "must specify %d masks", 
-				priv->num_fields);
-
-	for (int i = 0; i < fields->size; i++) {
-		struct snobj *field_val = snobj_list_get(arg, i);
-		struct snobj *mask_val = snobj_list_get(arg, i);
-		uint64_t *p1;
-		uint64_t *p2;
-
-		if (snobj_type(field_val) != TYPE_BLOB ||
-				field_val->size != priv->fields[i].size)
-			return snobj_err(EINVAL, 
-					"field %d must be BLOB of %d bytes",
-					i, priv->fields[i].size);
-
-		if (snobj_type(mask_val) != TYPE_BLOB ||
-				mask_val->size != priv->fields[i].size)
-			return snobj_err(EINVAL, 
-					"mask %d must be BLOB of %d bytes",
-					i, priv->fields[i].size);
-
-		p1 = snobj_blob_get(field_val);
-		p2 = snobj_blob_get(mask_val);
-		*(uint64_t *)(key + priv->fields[i].size_acc) = *p1;
-		*(uint64_t *)(mask + priv->fields[i].size_acc) = *p2;
-	}
-
-	idx = find_entry(priv, key, mask);
+	int idx = find_entry(priv, key, mask);
 	if (idx < 0)
 		return snobj_err(ENOENT, "the rule does not exist");
 
