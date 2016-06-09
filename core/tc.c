@@ -169,20 +169,29 @@ static inline int tc_is_root(struct tc *c)
 	return c->parent == NULL;
 }
 
-void tc_join(struct tc *c)
+static inline int64_t next_pass(struct heap *pq)
 {
-	struct pgroup *g = c->ss.my_pgroup;
-	struct heap *pq = &g->pq;
 	struct tc *next = heap_peek(pq);
 
+	if (next)
+		return next->ss.pass;
+	else
+		return 0;
+}
+
+void tc_join(struct tc *c)
+{
 	assert(!c->state.queued);
 	assert(!c->state.runnable);
 
 	c->state.runnable = 1;
 
 	if (!c->state.throttled) {
+		struct pgroup *g = c->ss.my_pgroup;
+		struct heap *pq = &g->pq;
+
 		c->state.queued = 1;
-		c->ss.pass = (next ? next->ss.pass : 0) + c->ss.remain;
+		c->ss.pass = next_pass(pq) + c->ss.remain;
 		heap_push(pq, c->ss.pass, c);
 		tc_inc_refcnt(c);
 	}
@@ -190,16 +199,14 @@ void tc_join(struct tc *c)
 
 void tc_leave(struct tc *c)
 {
-	struct pgroup *g = c->ss.my_pgroup;
-	struct heap *pq = &g->pq;
-	struct tc *next = heap_peek(pq);
-
 	/* if not joined yet, do nothing */
-	if (!c->state.runnable)
-		return;
+	if (c->state.runnable) {
+		struct pgroup *g = c->ss.my_pgroup;
+		struct heap *pq = &g->pq;
 
-	c->state.runnable = 0;
-	c->ss.remain = c->ss.pass - next->ss.pass;
+		c->state.runnable = 0;
+		c->ss.remain = c->ss.pass - next_pass(pq);
+	}
 }
 
 struct sched *sched_init()
@@ -451,14 +458,11 @@ static void sched_done(struct sched *s, struct tc *c,
 		if (reschedule) {
 			heap_replace(pq, c->ss.pass, c);
 		} else {
-			struct tc *next;
-
 			c->state.queued = 0;
 			heap_pop(pq);
 			tc_dec_refcnt(c);
 
-			next = heap_peek(pq);
-			c->ss.remain = c->ss.pass - (next ? next->ss.pass : 0);
+			c->ss.remain = c->ss.pass - next_pass(pq);
 
 			reschedule = (pq->num_nodes > 0);
 		}
