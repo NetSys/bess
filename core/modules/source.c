@@ -16,7 +16,7 @@ static struct snobj *source_init(struct module *m, struct snobj *arg)
 	if (tid == INVALID_TASK_ID)
 		return snobj_err(ENOMEM, "Task creation failed");
 
-	if (!arg || (arg = snobj_eval(arg, "pkt_size"))) {
+	if (!arg || !(arg = snobj_eval(arg, "pkt_size"))) {
 		priv->pkt_size = 60;	/* default: min-sized Ethernet frames */
 		return NULL;
 	} else
