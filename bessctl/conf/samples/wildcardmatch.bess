@@ -45,6 +45,10 @@ wm.add(values=[aton('172.16.100.1'),    80,         1       ], gate=0,
 wm.add(values=[aton('172.12.55.99'),    0,          2       ], gate=1,
         masks=[aton('255.255.255.255'), 0x0000,     0xffff  ], priority=1) 
 
+# 172.12.55.3/32, in_port 1 (w/ the same wildcard pattern as the previous one)
+wm.add(values=[aton('172.12.55.3'),     0,          1       ], gate=2,
+        masks=[aton('255.255.255.255'), 0x0000,     0xffff  ], priority=0) 
+
 # 172.0.0.0/8, port <= 1023
 wm.add(values=[aton('172.0.0.0'),       0,          0       ], gate=2,
         masks=[aton('255.0.0.0'),       0xfc00,     0x0000  ], priority=2)
@@ -52,3 +56,9 @@ wm.add(values=[aton('172.0.0.0'),       0,          0       ], gate=2,
 # port 80
 wm.add(values=[aton('0.0.0.0'),         80,         0       ], gate=3,
         masks=[aton('0.0.0.0'),         0xffff,     0x0000  ], priority=0)
+
+# delete test
+wm.add(values=[aton('172.12.55.0'),     0,          0       ], gate=0,
+        masks=[aton('255.255.255.0'),   0x0000,     0x0000  ], priority=4)
+wm.delete(values=[aton('172.12.55.0'),     0,          0       ],
+           masks=[aton('255.255.255.0'),   0x0000,     0x0000  ])

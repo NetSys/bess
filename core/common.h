@@ -37,14 +37,27 @@
 
 #define ACCESS_ONCE(x) (*(volatile typeof(x) *)&(x))
 
-static inline uint64_t align_floor(uint64_t val, uint64_t align)
+static inline uint64_t align_floor(uint64_t v, uint64_t align)
 {
-	return val - (val % align);
+	return v - (v % align);
 }
 
-static inline uint64_t align_ceil(uint64_t val, uint64_t align)
+static inline uint64_t align_ceil(uint64_t v, uint64_t align)
 {
-	return align_floor(val + align - 1, align);
+	return align_floor(v + align - 1, align);
+}
+
+static inline uint64_t align_ceil_pow2(uint64_t v)
+{
+	v--;
+	v |= v >> 1;
+	v |= v >> 2;
+	v |= v >> 4;
+	v |= v >> 8;
+	v |= v >> 16;
+	v |= v >> 32;
+
+	return v + 1;
 }
 
 /* err is defined as -errno,  */

@@ -2,6 +2,7 @@
 
 #include <rte_hash.h>
 #include <rte_jhash.h>
+#include <rte_errno.h>
 
 #define DEFAULT_TABLE_SIZE	1024
 #define MAX_FIELDS		8
@@ -24,20 +25,18 @@ ct_assert(MAX_FIELD_SIZE <= sizeof(uint64_t));
   #define DEFAULT_HASH_FUNC       rte_jhash
 #endif
 
-struct rule {
-	int priority;		/* higher number == higher priority */
-	gate_idx_t gate;
-	char key[HASH_KEY_SIZE];
-	char mask[HASH_KEY_SIZE];
+struct data {
+	int priority;
+	gate_idx_t ogate;
 };
 
 struct wm_priv {
-	struct rule *rules;
-	int tbl_size;
+	int max_rules;
+	int num_rules;
 
 	gate_idx_t default_gate;
 
-	uint32_t total_key_size;	/* a multiple of sizeof(uint64_t) */
+	int total_key_size;	/* a multiple of sizeof(uint64_t) */
 
 	int num_fields;
 	struct field {
@@ -52,7 +51,14 @@ struct wm_priv {
 		uint8_t size;	/* in bytes. 1 <= size <= MAX_FIELD_SIZE */
 	} fields[MAX_FIELDS];
 
-	int num_rules;
+	int num_tuples;
+	struct tuple {
+		struct rte_hash *tbl;
+		int num_rules;
+		char mask[HASH_KEY_SIZE];
+	} tuples[MAX_TUPLES];
+
+	int next_table_id;
 };
 
 static int uint_to_bin(uint8_t *ptr, int size, uint64_t val, int be)
@@ -151,8 +157,6 @@ static struct snobj *wm_init(struct module *m, struct snobj *arg)
 
 	struct snobj *fields = snobj_eval(arg, "fields");
 
-	struct rte_hash_parameters params;
-
 	if (snobj_type(fields) != TYPE_LIST)
 		return snobj_err(EINVAL, "'fields' must be a list of maps");
 
@@ -174,28 +178,15 @@ static struct snobj *wm_init(struct module *m, struct snobj *arg)
 	priv->default_gate = DROP_GATE;
 	priv->num_fields = fields->size;
 	priv->total_key_size = align_ceil(size_acc, sizeof(uint64_t));
-	priv->tbl_size = DEFAULT_TABLE_SIZE;
+	priv->max_rules = DEFAULT_TABLE_SIZE;
 
 	/* hash table size is given? */
 	if (snobj_eval_exists(arg, "size")) {
 		uint32_t size = snobj_eval_uint(arg, "size");
 		if (size == 0)
 			return snobj_err(EINVAL, "invalid table size");
-		priv->tbl_size = size;
+		priv->max_rules = size;
 	}
-
-	params = (struct rte_hash_parameters) {
-		.name = m->name,
-		.entries = priv->tbl_size,
-		.key_len = size_acc,
-		.hash_func = DEFAULT_HASH_FUNC,
-		.hash_func_init_val = 0,
-		.socket_id = 0,		/* XXX */
-	};
-
-	priv->rules = mem_alloc(priv->tbl_size * sizeof(struct rule));
-	if (!priv->rules)
-		return snobj_err(ENOMEM, "out of memory");
 
 	return NULL;
 }
@@ -204,68 +195,61 @@ static void wm_deinit(struct module *m)
 {
 	struct wm_priv *priv = get_priv(m);
 
-	mem_free(priv->rules);
+	for (int i = 0; i < priv->num_tuples; i++)
+		rte_hash_free(priv->tuples[i].tbl);
 }
 
-/* check if (k1 & mask) == k2 */
-static int masked_eq(void *k1, void *k2, void *mask, int key_size)
+/* k1 = k2 & mask */
+static void mask(void *k1, void *k2, void *mask, int key_size)
 {
 	uint64_t *a = k1;
 	uint64_t *b = k2;
 	uint64_t *m = mask;
 
 	switch (key_size >> 3) {
-	case 8: if ((a[7] & m[7]) != b[7]) return 0;
-	case 7: if ((a[6] & m[6]) != b[6]) return 0;
-	case 6: if ((a[5] & m[5]) != b[5]) return 0;
-	case 5: if ((a[4] & m[4]) != b[4]) return 0;
-	case 4: if ((a[3] & m[3]) != b[3]) return 0;
-	case 3: if ((a[2] & m[2]) != b[2]) return 0;
-	case 2: if ((a[1] & m[1]) != b[1]) return 0;
-	case 1: if ((a[0] & m[0]) != b[0]) return 0;
+	case 8: a[7] = b[7] & m[7];
+	case 7: a[6] = b[6] & m[6];
+	case 6: a[5] = b[5] & m[5];
+	case 5: a[4] = b[4] & m[4];
+	case 4: a[3] = b[3] & m[3];
+	case 3: a[2] = b[2] & m[2];
+	case 2: a[1] = b[1] & m[1];
+	case 1: a[0] = b[0] & m[0];
 	}
-
-	return 1;
 }
 
-/* slowest possible implementation */
-static int match_entry(struct wm_priv *priv, char *key)
+static gate_idx_t lookup_entry(struct wm_priv *priv, char *key, 
+		gate_idx_t def_gate)
 {
-	int key_size = priv->total_key_size;
-	struct rule *found = NULL;
+	struct data result = {
+		.priority = INT_MIN, 
+		.ogate = def_gate,
+	};
 
-	for (int i = 0; i < priv->num_rules; i++) {
-		struct rule *rule = &priv->rules[i];
-		int matched;
+	const int key_size = priv->total_key_size;
+	const int num_tuples = priv->num_tuples;
 
-		matched = masked_eq(key, rule->key, rule->mask, key_size);
+	char key_masked[HASH_KEY_SIZE];
 
-		if (matched && (!found || found->priority < rule->priority))
-			found = rule;
+	for (int i = 0; i < num_tuples; i++) {
+		struct tuple *tuple = &priv->tuples[i];
+		struct data cand;
+		int ret;
+
+		mask(key_masked, key, tuple->mask, key_size);
+
+		ret = rte_hash_lookup_with_hash_data(tuple->tbl,
+				(const void *)key_masked,
+				DEFAULT_HASH_FUNC(key_masked, key_size, 0),
+				(void **)&cand);
+
+		if (ret >= 0 && cand.priority >= result.priority)
+			result = cand;
 	}
 
-	if (!found)
-		return -ENOENT;
-	else
-		return found - priv->rules;
+	return result.ogate;
 }
 
-static int find_entry(struct wm_priv *priv, char *key, char *mask)
-{
-	int key_size = priv->total_key_size;
-
-	for (int i = 0; i < priv->num_rules; i++) {
-		struct rule *rule = &priv->rules[i];
-
-		if (memcmp(rule->key, key, key_size) == 0 &&
-				memcmp(rule->mask, mask, key_size) == 0)
-			return i;
-	}
-
-	return -ENOENT;
-}
-
-#include <rte_hexdump.h>
 static void wm_process_batch(struct module *m, struct pkt_batch *batch)
 {
 	struct wm_priv *priv = get_priv(m);
@@ -309,16 +293,8 @@ static void wm_process_batch(struct module *m, struct pkt_batch *batch)
 		}
 	}
 
-	for (int i = 0; i < cnt; i++) {
-		uintptr_t result = default_gate;
-		int ret;
-	
-		ret = match_entry(priv, keys[i]);
-		if (ret >= 0)
-			result = priv->rules[ret].gate;
-
-		ogates[i] = result;
-	}
+	for (int i = 0; i < cnt; i++)
+		ogates[i] = lookup_entry(priv, keys[i], default_gate);
 
 	run_split(m, ogates, batch);
 }
@@ -326,8 +302,14 @@ static void wm_process_batch(struct module *m, struct pkt_batch *batch)
 static struct snobj *
 extract_key_mask(struct wm_priv *priv, struct snobj *arg, char *key, char *mask)
 {
-	struct snobj *values = snobj_eval(arg, "values");
-	struct snobj *masks = snobj_eval(arg, "masks");
+	struct snobj *values;
+	struct snobj *masks;
+
+	if (snobj_type(arg) != TYPE_MAP)
+		return snobj_err(EINVAL, "argument must be a map");
+
+	values = snobj_eval(arg, "values");
+	masks = snobj_eval(arg, "masks");
 
 	if (!values || snobj_type(values) != TYPE_LIST)
 		return snobj_err(EINVAL, "'values' must be a list");
@@ -381,6 +363,100 @@ extract_key_mask(struct wm_priv *priv, struct snobj *arg, char *key, char *mask)
 	return NULL;
 }
 
+static int find_tuple(struct module *m, char *mask)
+{
+	struct wm_priv *priv = get_priv(m);
+
+	int key_size = priv->total_key_size;
+
+	for (int i = 0; i < priv->num_tuples; i++) {
+		struct tuple *tuple = &priv->tuples[i];
+
+		if (memcmp(tuple->mask, mask, key_size) == 0)
+			return i;
+	}
+
+	return -ENOENT;
+}
+
+static int add_tuple(struct module *m, char *mask)
+{
+	struct wm_priv *priv = get_priv(m);
+
+	struct tuple *tuple;
+	struct rte_hash_parameters params;
+
+	char ht_name[RTE_HASH_NAMESIZE];
+
+	if (priv->num_tuples >= MAX_TUPLES)
+		return -ENOSPC;
+
+	snprintf(ht_name, sizeof(ht_name), "%s_%d", 
+			m->name, priv->next_table_id++);
+
+	tuple = &priv->tuples[priv->num_tuples++];
+	tuple->num_rules = 0;
+	memcpy(tuple->mask, mask, HASH_KEY_SIZE);
+
+	params = (struct rte_hash_parameters) {
+		.name = ht_name,
+		.entries = priv->max_rules,
+		.key_len = priv->total_key_size,
+		.hash_func = DEFAULT_HASH_FUNC,
+		.hash_func_init_val = 0,
+		.socket_id = 0,		/* XXX */
+	};
+
+	tuple->tbl = rte_hash_create(&params);
+	if (!tuple->tbl)
+		return -rte_errno;
+
+	return tuple - priv->tuples;
+}
+
+static void *data_to_ptr(struct data *data)
+{
+	uintptr_t *ptr = (uintptr_t *)data;
+
+	return (void *)*ptr;
+}
+
+static int add_entry(struct tuple *tuple, char *key, struct data *data)
+{
+	int ret;
+	int already_exist = (rte_hash_lookup(tuple->tbl, key) >= 0);
+	
+	ret = rte_hash_add_key_data(tuple->tbl, key, data_to_ptr(data));
+	if (ret)
+		return ret;
+
+	if (!already_exist)
+		tuple->num_rules++;
+
+	return 0;
+}
+
+static int del_entry(struct wm_priv *priv, struct tuple *tuple, char *key)
+{
+	int ret = rte_hash_del_key(tuple->tbl, key);
+	if (ret)
+		return ret;
+
+	tuple->num_rules--;
+
+	if (tuple->num_rules == 0) {
+		int idx = tuple - priv->tuples;
+
+		rte_hash_free(tuple->tbl);
+
+		priv->num_tuples--;
+		memmove(&priv->tuples[idx], &priv->tuples[idx + 1],
+				sizeof(*tuple) * (priv->num_tuples - idx));
+	}
+
+	return 0;
+}
+
 static struct snobj *
 command_add(struct module *m, const char *cmd, struct snobj *arg)
 {
@@ -392,7 +468,13 @@ command_add(struct module *m, const char *cmd, struct snobj *arg)
 	char key[HASH_KEY_SIZE];
 	char mask[HASH_KEY_SIZE];
 
-	if (priv->num_rules >= priv->tbl_size)
+	struct data data;
+
+	struct snobj *err = extract_key_mask(priv, arg, key, mask);
+	if (err)
+		return err;
+
+	if (priv->num_rules >= priv->max_rules)
 		return snobj_err(ENOSPC, "table is full\n");
 
 	if (!snobj_eval_exists(arg, "gate"))
@@ -402,27 +484,22 @@ command_add(struct module *m, const char *cmd, struct snobj *arg)
 	if (!is_valid_gate(gate))
 		return snobj_err(EINVAL, "Invalid gate: %hu", gate);
 
-	struct snobj *err = extract_key_mask(priv, arg, key, mask);
-	if (err)
-		return err;
+	data = (struct data){
+		.priority = priority,
+		.ogate = gate,
+	};
 
-	int idx = find_entry(priv, key, mask);
-	if (idx < 0)
-		idx = priv->num_rules++;
+	int idx = find_tuple(m, mask);
+	if (idx < 0) {
+		idx = add_tuple(m, mask);
+		if (idx < 0)
+			return snobj_err(-idx,
+					"failed to add a new wildcard pattern");
+	}
 
-	struct rule *rule = &priv->rules[idx];
-	rule->priority = priority;
-	rule->gate = gate;
-
-/*
-	log_err("rule #%d: priority=%d, gate=%d\n", 
-			idx, rule->priority, rule->gate);
-	rte_hexdump(stdout, "key ", key, priv->total_key_size);
-	rte_hexdump(stdout, "mask", mask, priv->total_key_size);
-*/
-
-	memcpy(rule->key, key, priv->total_key_size);
-	memcpy(rule->mask, mask, priv->total_key_size);
+	int ret = add_entry(&priv->tuples[idx], key, &data);
+	if (ret < 0)
+		return snobj_err(-ret, "failed to add a rule");
 
 	return NULL;
 }
@@ -435,20 +512,17 @@ command_delete(struct module *m, const char *cmd, struct snobj *arg)
 	char key[HASH_KEY_SIZE];
 	char mask[HASH_KEY_SIZE];
 
-	if (!arg || snobj_type(arg) != TYPE_LIST)
-		return snobj_err(EINVAL, "argument must be a list");
-
 	struct snobj *err = extract_key_mask(priv, arg, key, mask);
 	if (err)
 		return err;
 
-	int idx = find_entry(priv, key, mask);
+	int idx = find_tuple(m, mask);
 	if (idx < 0)
-		return snobj_err(ENOENT, "the rule does not exist");
+		return snobj_err(-idx, "failed to delete a rule");
 
-	priv->num_rules--;
-	memmove(&priv->rules[idx], &priv->rules[idx + 1],
-			sizeof(struct rule) * (priv->num_rules - idx));
+	int ret = del_entry(priv, &priv->tuples[idx], key);
+	if (ret < 0)
+		return snobj_err(-ret, "failed to delete a rule");
 
 	return NULL;
 }
