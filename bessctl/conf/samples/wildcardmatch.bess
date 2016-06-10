@@ -1,0 +1,64 @@
+import scapy.all as scapy
+import socket
+
+def aton(ip):
+    return bytearray(socket.inet_aton(ip))
+
+# Craft a packet with the specified IP address and port number
+def gen_packet(dst_ip, dst_port):
+    eth = scapy.Ether(src='02:1e:67:9f:4d:ae', dst='06:16:3e:1b:72:32')
+    ip = scapy.IP(src='10.0.0.1', dst=dst_ip)
+    udp = scapy.UDP(sport=1234, dport=dst_port)
+    payload = 'helloworld'
+    pkt = eth/ip/udp/payload
+    return bytearray(str(pkt))
+
+pkts = [gen_packet('172.16.100.1', 80), 
+        gen_packet('172.12.55.99', 54321),
+        gen_packet('172.12.55.3', 8080),
+        gen_packet('172.16.100.1', 345),
+        gen_packet('172.12.55.99', 12345),
+        gen_packet('192.168.1.123', 80)]
+
+# destination IP address + destination port number + metadata 'in_port'
+wm::WildcardMatch(fields=[{'offset':30, 'size':4},
+                          {'offset':36, 'size':2},
+                          {'name':'in_port', 'size':2}])
+
+# locally emulate two input ports
+Source() -> SetMetadata(name='in_port', size=2, value=1) -> Rewrite(pkts) -> wm
+Source() -> SetMetadata(name='in_port', size=2, value=2) -> Rewrite(pkts) -> wm
+
+wm:0 -> Sink()
+wm:1 -> Sink()
+wm:2 -> Sink()
+wm:3 -> Sink()
+wm:5 -> Sink()   # used as default gate
+
+wm.set_default_gate(5)
+
+# 172.16.100.1/32, port 80, in_port 1
+wm.add(values=[aton('172.16.100.1'),    80,         1       ], gate=0,
+        masks=[aton('255.255.255.255'), 0xffff,     0xffff  ], priority=3) 
+
+# 172.12.55.99/32, in_port 2
+wm.add(values=[aton('172.12.55.99'),    0,          2       ], gate=1,
+        masks=[aton('255.255.255.255'), 0x0000,     0xffff  ], priority=1) 
+
+# 172.12.55.3/32, in_port 1 (w/ the same wildcard pattern as the previous one)
+wm.add(values=[aton('172.12.55.3'),     0,          1       ], gate=2,
+        masks=[aton('255.255.255.255'), 0x0000,     0xffff  ], priority=0) 
+
+# 172.0.0.0/8, port <= 1023
+wm.add(values=[aton('172.0.0.0'),       0,          0       ], gate=2,
+        masks=[aton('255.0.0.0'),       0xfc00,     0x0000  ], priority=2)
+
+# port 80
+wm.add(values=[aton('0.0.0.0'),         80,         0       ], gate=3,
+        masks=[aton('0.0.0.0'),         0xffff,     0x0000  ], priority=0)
+
+# delete test
+wm.add(values=[aton('172.12.55.0'),     0,          0       ], gate=0,
+        masks=[aton('255.255.255.0'),   0x0000,     0x0000  ], priority=4)
+wm.delete(values=[aton('172.12.55.0'),     0,          0       ],
+           masks=[aton('255.255.255.0'),   0x0000,     0x0000  ])

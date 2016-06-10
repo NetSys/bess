@@ -1,5 +1,3 @@
-# Simple IPv4 LPM example. Try tcpdump on each output gate of 'ipfwd'.
-
 import scapy.all as scapy
 import socket
 

@@ -574,15 +574,6 @@ def _do_run_file(cli, conf_file):
         exec(code, new_globals)
         if cli.interactive:
             cli.fout.write('Done.\n')
-    except cli.bess.Error:
-        raise
-
-    except cli.bess.APIError:
-        raise
-
-    except ConfError as e:
-        cli.err(e.message)
-
     except:
         cur_frame = inspect.currentframe()
         cur_func = inspect.getframeinfo(cur_frame).function
@@ -592,10 +583,16 @@ def _do_run_file(cli, conf_file):
         while len(stack) > 0 and stack.pop(0)[2] != cur_func:
             pass
 
-        cli.err('Unhandled exception in the script (most recent call last)')
-        cli.fout.write(''.join(traceback.format_list(stack)))
-        cli.fout.write(''.join(traceback.format_exception_only(t, v)))
+        errmsg = 'Unhandled exception in the configuration script'
 
+        cli.err('%s (most recent call last)' % errmsg)
+        cli.fout.write(''.join(traceback.format_list(stack)))
+        
+        if isinstance(v, cli.bess.Error):
+            raise
+        else:
+            cli.fout.write(''.join(traceback.format_exception_only(t, v)))
+            raise cli.HandledError()
     finally:
         cli.bess.resume_all()
 
