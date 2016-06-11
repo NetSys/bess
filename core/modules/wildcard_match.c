@@ -288,14 +288,14 @@ extract_key_mask(struct wm_priv *priv, struct snobj *arg, char *key, char *mask)
 		uint64_t v = 0;
 		uint64_t m = 0;
 
-		int be = is_be_system() ? 1 : (priv->fields[i].attr_id < 0);
+		int force_be = (priv->fields[i].attr_id < 0);
 
-		if (snobj_binvalue_get(v_obj, field_size, &v, be))
+		if (snobj_binvalue_get(v_obj, field_size, &v, force_be))
 			return snobj_err(EINVAL, 
 					"idx %d: not a correct %d-byte value",
 					i, field_size);
 
-		if (snobj_binvalue_get(m_obj, field_size, &m, be))
+		if (snobj_binvalue_get(m_obj, field_size, &m, force_be))
 			return snobj_err(EINVAL, 
 					"idx %d: not a correct %d-byte mask",
 					i, field_size);

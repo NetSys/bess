@@ -276,9 +276,9 @@ command_add(struct module *m, const char *cmd, struct snobj *arg)
 		struct snobj *f_obj = snobj_list_get(fields, i);
 		uint64_t f;
 
-		int be = is_be_system() ? 1 : (priv->fields[i].attr_id < 0);
+		int force_be = (priv->fields[i].attr_id < 0);
 
-		if (snobj_binvalue_get(f_obj, field_size, &f, be))
+		if (snobj_binvalue_get(f_obj, field_size, &f, force_be))
 			return snobj_err(EINVAL,
 					"idx %d: not a correct %d-byte value",
 					i, field_size);

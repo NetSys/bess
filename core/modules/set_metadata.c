@@ -40,12 +40,10 @@ static struct snobj *add_attr_one(struct module *m, struct snobj *attr)
 	if (size != 1 && size != 2 && size != 4 && size != 8)
 		return snobj_err(EINVAL, "'size' must be 1, 2, 4, or 8");
 
-	if (snobj_binvalue_get(snobj_eval(attr, "value"), size, &value,
-				is_be_system())) {
+	if (snobj_binvalue_get(snobj_eval(attr, "value"), size, &value, 0))
 		return snobj_err(EINVAL,
 				"'value' field has not a correct %d-byte value",
 				size);
-	}
 
 	ret = add_metadata_attr(m, name, size, MT_WRITE);
 	if (ret < 0)

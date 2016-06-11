@@ -199,7 +199,7 @@ static inline struct snobj *snobj_list_get(const struct snobj *m, int idx)
 struct snobj *snobj_map_get(const struct snobj *m, const char *key);
 int snobj_map_set(struct snobj *m, const char *key, struct snobj *val);
 
-int snobj_binvalue_get(struct snobj *m, int size, void *dst, int be);
+int snobj_binvalue_get(struct snobj *m, int size, void *dst, int force_be);
 
 static inline snobj_type_t snobj_type(const struct snobj *m)
 {
