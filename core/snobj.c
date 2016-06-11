@@ -328,9 +328,9 @@ static int uint64_to_bin(uint8_t *ptr, int size, uint64_t val, int be)
 
 /* Returns -errno for error.
  * ptr must be big enough to hold 'size' bytes.
- * If be is non-zero and the varible is given as an integer, 
+ * If force_be is non-zero and the varible is given as an integer, 
  * its value will be stored in big endian */
-int snobj_binvalue_get(struct snobj *m, int size, void *dst, int be)
+int snobj_binvalue_get(struct snobj *m, int size, void *dst, int force_be)
 {
 	if (!m || size < 1)
 		return -EINVAL;
@@ -349,7 +349,8 @@ int snobj_binvalue_get(struct snobj *m, int size, void *dst, int be)
 		return 0;
 
 	case TYPE_INT:
-		return uint64_to_bin(dst, size, snobj_uint_get(m), be);
+		return uint64_to_bin(dst, size, snobj_uint_get(m), 
+				is_be_system() || force_be);
 
 	default:
 		return -EINVAL;
