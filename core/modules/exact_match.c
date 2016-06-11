@@ -270,17 +270,20 @@ command_add(struct module *m, const char *cmd, struct snobj *arg)
 				priv->num_fields);
 
 	for (int i = 0; i < fields->size; i++) {
-		struct snobj *field_val = snobj_list_get(fields, i);
-		uint64_t *p;
+		int field_size = priv->fields[i].size;
+		int field_size_acc = priv->fields[i].size_acc;
 
-		if (snobj_type(field_val) != TYPE_BLOB ||
-				field_val->size != priv->fields[i].size)
-			return snobj_err(EINVAL, 
-					"field %d must be BLOB of %d bytes",
-					i, priv->fields[i].size);
+		struct snobj *f_obj = snobj_list_get(fields, i);
+		uint64_t f;
 
-		p = snobj_blob_get(field_val);
-		*(uint64_t *)(key + priv->fields[i].size_acc) = *p;
+		int be = is_be_system() ? 1 : (priv->fields[i].attr_id < 0);
+
+		if (snobj_binvalue_get(f_obj, field_size, &f, be))
+			return snobj_err(EINVAL,
+					"idx %d: not a correct %d-byte value",
+					i, field_size);
+
+		memcpy(key + field_size_acc, &f, field_size);
 	}
 
 	ret = rte_hash_add_key_data(priv->tbl, key, (void *)(uintptr_t)gate);

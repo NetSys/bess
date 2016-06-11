@@ -20,12 +20,11 @@ static struct snobj *add_attr_one(struct module *m, struct snobj *attr)
 	const char *name;
 	uint8_t size;
 	uint64_t value;
-	const char *value_str;
 
 	int ret;
 
 	if (priv->num_attrs >= MAX_ATTRS)
-		return snobj_err(EINVAL, "max %d attrs " \
+		return snobj_err(EINVAL, "max %d attributes " \
 				"can be specified", MAX_ATTRS);
 
 	if (attr->type != TYPE_MAP)
@@ -34,23 +33,19 @@ static struct snobj *add_attr_one(struct module *m, struct snobj *attr)
 
 	name = snobj_eval_str(attr, "name");
 	if (!name)
-		return snobj_err(EINVAL, "'name' attr is missing");
+		return snobj_err(EINVAL, "'name' field is missing");
 
 	size = snobj_eval_uint(attr, "size");
-
-	value_str = snobj_eval_str(attr, "value");
-	if (value_str) {
-		int ret = sscanf(value_str, "%lx", &value);
-		if (ret < 1)
-			return snobj_err(EINVAL, 
-					"not a valid hex number '%s'",
-					value_str);
-	} else
-		value = snobj_eval_uint(attr, "value");
 
 	if (size != 1 && size != 2 && size != 4 && size != 8)
 		return snobj_err(EINVAL, "'size' must be 1, 2, 4, or 8");
 
+	if (snobj_binvalue_get(snobj_eval(attr, "value"), size, &value,
+				is_be_system())) {
+		return snobj_err(EINVAL,
+				"'value' field has not a correct %d-byte value",
+				size);
+	}
 
 	ret = add_metadata_attr(m, name, size, MT_WRITE);
 	if (ret < 0)
