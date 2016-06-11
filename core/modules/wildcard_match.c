@@ -61,55 +61,6 @@ struct wm_priv {
 	int next_table_id;
 };
 
-static int uint_to_bin(uint8_t *ptr, int size, uint64_t val, int be)
-{
-	if (be) {
-		for (int i = size - 1; i >= 0; i--) {
-			ptr[i] = val & 0xff;
-			val >>= 8;
-		}
-	} else {
-		for (int i = 0; i < size; i++) {
-			ptr[i] = val & 0xff;
-			val >>= 8;
-		}
-	}
-
-	if (val)
-		return -EINVAL;	/* the value is too large for the size */
-	else
-		return 0;
-}
-
-/* ptr must be big enough to hold 'size' bytes.
- * If be is non-zero and the varible is given as an integer, 
- * its value will be stored in big endian */
-static int get_binary_value(struct snobj *var, int size, void *ptr, int be)
-{
-	if (!var || size < 1)
-		return -EINVAL;
-
-	switch (snobj_type(var)) {
-		case TYPE_BLOB:
-			if (var->size != size)
-				return -EINVAL;
-			memcpy(ptr, snobj_blob_get(var), var->size);
-			return 0;
-
-		case TYPE_STR:
-			if (var->size != size + 1)
-				return -EINVAL;
-			memcpy(ptr, snobj_str_get(var), var->size);
-			return 0;
-
-		case TYPE_INT:
-			return uint_to_bin(ptr, size, snobj_uint_get(var), be);
-
-		default:
-			return -EINVAL;
-	}
-}
-
 static struct snobj *
 add_field_one(struct module *m, struct snobj *field, struct field *f)
 {
@@ -337,14 +288,14 @@ extract_key_mask(struct wm_priv *priv, struct snobj *arg, char *key, char *mask)
 		uint64_t v = 0;
 		uint64_t m = 0;
 
-		int be = is_be_system() ? 1 : (priv->fields[i].attr_id < 0); 
+		int be = is_be_system() ? 1 : (priv->fields[i].attr_id < 0);
 
-		if (get_binary_value(v_obj, field_size, &v, be))
+		if (snobj_binvalue_get(v_obj, field_size, &v, be))
 			return snobj_err(EINVAL, 
 					"idx %d: not a correct %d-byte value",
 					i, field_size);
 
-		if (get_binary_value(m_obj, field_size, &m, be))
+		if (snobj_binvalue_get(m_obj, field_size, &m, be))
 			return snobj_err(EINVAL, 
 					"idx %d: not a correct %d-byte mask",
 					i, field_size);

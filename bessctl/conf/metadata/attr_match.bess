@@ -1,3 +1,6 @@
+# For metadata attribute usage for wildcard matching, 
+# also see samples/wildcardmatch.bess
+
 em::ExactMatch(fields=[{'name':'foo', 'size':1}, \
                        {'name':'bar', 'size':2}])
 Source() \
@@ -16,5 +19,5 @@ em:1 -> Sink()
 em:2 -> Sink()
 
 # NOTE: metadata attribute values are stored in host order (little endian)!
-em.add(fields=[bytearray('\xcc'), bytearray('\x22\x11')], gate=1)
-em.add(fields=[bytearray('\x42'), bytearray('\x44\x33')], gate=2)
+em.add(fields=['\xcc', '\x22\x11'], gate=1)
+em.add(fields=[0x42, 0x3344], gate=2)

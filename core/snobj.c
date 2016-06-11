@@ -304,6 +304,58 @@ int snobj_map_set(struct snobj *m, const char *key, struct snobj *val)
 	return 0;
 }
 
+static int uint64_to_bin(uint8_t *ptr, int size, uint64_t val, int be)
+{
+	memset(ptr, 0, size);
+
+	if (be) {
+		for (int i = size - 1; i >= 0; i--) {
+			ptr[i] = val & 0xff;
+			val >>= 8;
+		}
+	} else {
+		for (int i = 0; i < size; i++) {
+			ptr[i] = val & 0xff;
+			val >>= 8;
+		}
+	}
+
+	if (val)
+		return -EINVAL;	/* the value is too large for the size */
+	else
+		return 0;
+}
+
+/* Returns -errno for error.
+ * ptr must be big enough to hold 'size' bytes.
+ * If be is non-zero and the varible is given as an integer, 
+ * its value will be stored in big endian */
+int snobj_binvalue_get(struct snobj *m, int size, void *dst, int be)
+{
+	if (!m || size < 1)
+		return -EINVAL;
+
+	switch (snobj_type(m)) {
+	case TYPE_BLOB:
+		if (m->size != size)
+			return -EINVAL;
+		memcpy(dst, snobj_blob_get(m), m->size);
+		return 0;
+
+	case TYPE_STR:
+		if (m->size != size + 1)
+			return -EINVAL;
+		memcpy(dst, snobj_str_get(m), m->size);
+		return 0;
+
+	case TYPE_INT:
+		return uint64_to_bin(dst, size, snobj_uint_get(m), be);
+
+	default:
+		return -EINVAL;
+	}
+}
+
 struct snobj *snobj_eval(const struct snobj *m, const char *expr)
 {
 	char buf[MAX_EXPR_LEN];
