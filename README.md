@@ -2,7 +2,7 @@
 
 BESS is a modular framework for software switches. BESS itself is *not* a virtual switch; it is neither pre-configured or hardcoded to perform particular functionality, such as Ethernet bridging or OpenFlow switching. Instead, you (or an external controller) can *configure* your own packet processing datapath by composing small "modules". While the basic concept is similar to [Click](http://read.cs.ucla.edu/click/click), BESS does not sacrifice performance for programmability.
 
-[Detailed documentation](docs/main.md) is available (work in progress):
+[Detailed documentation](docs/main.md) is available (work in progress). Also take a quick look at [the brief overview of BESS] (https://github.com/NetSys/bess/raw/develop/docs/BESS_overview_20160520.pdf).
 
 ### Installation
 
@@ -40,3 +40,5 @@ $ bess/bin/bessctl
 Type "help" for more information.
 localhost:10514 $ _
 ```
+
+Type `run samples/<tab>` on the CLI prompt to run configuration examples. Corresponding files can be found in `bessctl/conf/samples/`.
