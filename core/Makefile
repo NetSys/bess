@@ -38,9 +38,9 @@ endif
 
 -include extra.mk
 
-SRCS = $(wildcard *.c modules/*.c drivers/*.c)
+SRCS = $(wildcard *.c utils/*.c modules/*.c drivers/*.c)
 OBJS = $(SRCS:.c=.o)
-HEADERS = $(wildcard *.h modules/*.h drivers/*.h)
+HEADERS = $(wildcard *.h utils/*.h modules/*.h drivers/*.h)
 EXEC = bessd
 
 DEPS = .make.dep
