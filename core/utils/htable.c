@@ -3,22 +3,29 @@
 #include <string.h>
 #include <stdio.h>
 
+#include <rte_config.h>
+#include <rte_hash_crc.h>
+
 #include "../common.h"
 #include "../mem_alloc.h"
 
-#include "random.h"
 #include "htable.h"
 
-#define INVALID_KEYIDX	INT32_MAX
+#define DEFAULT_HASH_FUNC rte_hash_crc;
 
-#define hash_primary(key, key_len)	ht_hash(key, key_len)
-
-/* from DPDK */
-static inline uint32_t hash_secondary(uint32_t primary)
+static inline uint32_t ht_hash(const struct htable *t, const void *key)
 {
-	uint32_t tag = primary >> 12;
+	return t->hash_func(key, t->key_size, UINT32_MAX);
+}
 
-	return primary ^ ((tag + 1) * 0x5bd1e995);
+static inline uint32_t ht_make_nonzero(uint32_t v)
+{
+	return v | (1u << 31);
+}
+
+static inline uint32_t ht_hash_nonzero(const struct htable *t, const void *key)
+{
+	return ht_make_nonzero(ht_hash(t, key));
 }
 
 static inline void *keyidx_to_ptr(const struct htable *t, ht_keyidx_t idx)
@@ -101,8 +108,8 @@ static int make_space(struct htable *t, struct ht_bucket *bucket, int depth)
 
 	for (int i = 0; i < ENTRIES_PER_BUCKET; i++) {
 		void *key = keyidx_to_ptr(t, bucket->keyidx[i]);
-		uint32_t pri = hash_primary(key, t->key_size);
-		uint32_t sec = hash_secondary(pri);
+		uint32_t pri = ht_hash_nonzero(t, key);
+		uint32_t sec = ht_hash_secondary(pri);
 		struct ht_bucket *alt_bucket;
 		int j;
 
@@ -139,7 +146,7 @@ static int add_to_bucket(struct htable *t, struct ht_bucket *bucket,
 			void *entry;
 			ht_keyidx_t k_idx = pop_free_keyidx(t);
 
-			bucket->hv[i] = hash_primary(key, t->key_size);
+			bucket->hv[i] = ht_hash_nonzero(t, key);
 			bucket->keyidx[i] = k_idx;
 
 			entry = keyidx_to_ptr(t, k_idx);
@@ -254,24 +261,11 @@ static void *get_from_bucket(const struct htable *t,
 		k_idx = bucket->keyidx[i];
 		key_stored = keyidx_to_ptr(t, k_idx);
 
-		if (memcmp(key, key_stored, t->key_size) == 0)
+		if (t->keycmp_func(key, key_stored, t->key_size) == 0)
 			return key_stored + t->value_offset;
 	}
 
 	return NULL;
-}
-
-static void *get_value(const struct htable *t, uint32_t pri, const void *key)
-{
-	void *ret;
-
-	/* check primary bucket */
-	ret = get_from_bucket(t, pri, pri, key);
-	if (ret)
-		return ret;
-
-	/* check secondary bucket */
-	return get_from_bucket(t, pri, hash_secondary(pri), key);
 }
 
 static int del_from_bucket(struct htable *t,
@@ -290,7 +284,7 @@ static int del_from_bucket(struct htable *t,
 		k_idx = bucket->keyidx[i];
 		key_stored = keyidx_to_ptr(t, k_idx);
 
-		if (memcmp(key, key_stored, t->key_size) == 0) {
+		if (t->keycmp_func(key, key_stored, t->key_size) == 0) {
 			bucket->hv[i] = 0;
 			push_free_keyidx(t, k_idx);
 			t->cnt--;
@@ -301,33 +295,51 @@ static int del_from_bucket(struct htable *t,
 	return -ENOENT;
 }
 
-int ht_init(struct htable *t, size_t key_size, size_t value_size)
+int ht_init_ex(struct htable *t, struct ht_params *params)
 {
-	if (key_size < 1)
+	if (!t || !params)
+		return -EINVAL;
+
+	if (params->key_size < 1)
+		return -EINVAL;
+
+	if (params->value_size < 0)
+		return -EINVAL;
+
+	if (params->key_align < 1 || params->key_align > 64)
+		return -EINVAL;
+
+	if (params->value_align < 0 || params->value_align > 64)
+		return -EINVAL;
+
+	if (params->value_size > 0 && params->value_align == 0)
+		return -EINVAL;
+
+	if (params->num_buckets < 1)
+		return -EINVAL;
+
+	if (params->num_buckets != align_ceil_pow2(params->num_buckets))
+		return -EINVAL;
+
+	if (params->num_entries < ENTRIES_PER_BUCKET)
 		return -EINVAL;
 
 	memset(t, 0, sizeof(*t));
 
-	t->bucket_mask = INIT_NUM_BUCKETS - 1;
-	assert(align_ceil_pow2(t->bucket_mask) == t->bucket_mask + 1);
+	t->hash_func = params->hash_func ? : DEFAULT_HASH_FUNC;
+	t->keycmp_func = params->keycmp_func ? : memcmp;
+
+	t->bucket_mask = params->num_buckets - 1;
 
 	t->cnt = 0;
-	t->num_entries = INIT_NUM_ENTRIES;
+	t->num_entries = params->num_entries;
 	t->free_keyidx = INVALID_KEYIDX;
 
-	t->key_size = key_size;
-	t->value_size = value_size;
-
-	if (value_size > 0 && value_size % 8 == 0)
-		t->value_offset = align_ceil(key_size, 8);
-	else if (value_size > 0 && value_size % 4 == 0)
-		t->value_offset = align_ceil(key_size, 4);
-	else if (value_size > 0 && value_size % 2 == 0)
-		t->value_offset = align_ceil(key_size, 2);
-	else
-		t->value_offset = key_size;
-
-	t->entry_size = align_ceil(t->value_offset + t->value_size, 4);
+	t->key_size = params->key_size;
+	t->value_size = params->value_size;
+	t->value_offset = align_ceil(t->key_size, MAX(1, params->value_align));
+	t->entry_size = align_ceil(t->value_offset + t->value_size,
+			params->key_align);
 
 	t->buckets = mem_alloc((t->bucket_mask + 1) * sizeof(struct ht_bucket));
 	if (!t->buckets)
@@ -341,8 +353,35 @@ int ht_init(struct htable *t, size_t key_size, size_t value_size)
 
 	for (ht_keyidx_t i = t->num_entries - 1; i >= 0; i--)
 		push_free_keyidx(t, i);
-	
+
 	return 0;
+}
+
+int ht_init(struct htable *t, size_t key_size, size_t value_size)
+{
+	struct ht_params params = {};
+
+	params.key_size = key_size;
+	params.value_size = value_size;
+
+	params.key_align = 1;
+
+	if (value_size > 0 && value_size % 8 == 0)
+		params.value_align = 8;
+	else if (value_size > 0 && value_size % 4 == 0)
+		params.value_align = 4;
+	else if (value_size > 0 && value_size % 2 == 0)
+		params.value_align = 2;
+	else
+		params.value_align = 1;
+
+	params.num_buckets = INIT_NUM_BUCKETS;
+	params.num_entries = INIT_NUM_ENTRIES;
+
+	params.hash_func = NULL;
+	params.keycmp_func = NULL;
+
+	return ht_init_ex(t, &params);
 }
 
 void ht_close(struct htable *t)
@@ -354,24 +393,42 @@ void ht_close(struct htable *t)
 
 void *ht_get(const struct htable *t, const void *key)
 {
-	uint32_t pri = hash_primary(key, t->key_size);
+	uint32_t pri = ht_hash(t, key);
 	
-	return get_value(t, pri, key);
+	return ht_get_hash(t, pri, key);
+}
+
+void *ht_get_hash(const struct htable *t, uint32_t pri, const void *key)
+{
+	void *ret;
+
+	pri = ht_make_nonzero(pri);
+
+	/* check primary bucket */
+	ret = get_from_bucket(t, pri, pri, key);
+	if (ret)
+		return ret;
+
+	/* check secondary bucket */
+	return get_from_bucket(t, pri, ht_hash_secondary(pri), key);
 }
 
 int ht_set(struct htable *t, const void *key, const void *value)
 {
-	uint32_t pri = hash_primary(key, t->key_size);
-	uint32_t sec = hash_secondary(pri);
+	uint32_t pri = ht_hash(t, key);
+	uint32_t sec = ht_hash_secondary(pri);
 
 	int ret = 0;
 
 	/* If the key already exists, its value is updated with the new one */
-	void *old_value = get_value(t, pri, key);
+	void *old_value = ht_get_hash(t, pri, key);
 	if (old_value) {
 		memcpy(old_value, value, t->value_size);
 		return 1;
 	}
+
+	pri = ht_make_nonzero(pri);
+	sec = ht_hash_secondary(pri);
 
 	while (add_entry(t, pri, sec, key, value) < 0) {
 		/* expand the table as the last resort */
@@ -386,13 +443,13 @@ int ht_set(struct htable *t, const void *key, const void *value)
 
 int ht_del(struct htable *t, const void *key)
 {
-	uint32_t pri = hash_primary(key, t->key_size);
+	uint32_t pri = ht_hash_nonzero(t, key);
 	uint32_t sec;
 
 	if (del_from_bucket(t, pri, pri, key) == 0)
 		return 0;
 
-	sec = hash_secondary(pri);
+	sec = ht_hash_secondary(pri);
 	if (del_from_bucket(t, pri, sec, key) == 0)
 		return 0;
 
@@ -449,7 +506,7 @@ void ht_dump(const struct htable *t, int detail)
 
 			for (int j = 0; j < ENTRIES_PER_BUCKET; j++) {
 				uint32_t pri = t->buckets[i].hv[j];
-				uint32_t sec = hash_secondary(pri);
+				uint32_t sec = ht_hash_secondary(pri);
 				char type;
 
 				if (!pri) {
@@ -487,58 +544,4 @@ void ht_dump(const struct htable *t, int detail)
 	printf("value_offset = %zu\n", t->value_offset);
 	printf("entry_size = %zu\n", t->entry_size);
 	printf("\n");
-}
-
-void ht_selftest()
-{
-	struct htable t;
-	uint64_t seed;
-
-	const int iteration = 1000000;
-	int num_updates = 0;
-
-	ht_init(&t, sizeof(uint32_t), sizeof(uint16_t));
-
-	seed = 0;
-	for (int i = 0; i < iteration; i++) {
-		uint32_t key = rand_fast(&seed);
-		uint16_t val = key & 0xffff;
-		int ret;
-
-		ret = ht_set(&t, &key, &val);
-		if (ret == 1)
-			num_updates++;
-		else
-			assert(ret == 0);
-	}
-
-	ht_dump(&t, 0);
-
-	seed = 0;
-	for (int i = 0; i < iteration; i++) {
-		uint32_t key = rand_fast(&seed);
-		uint16_t *val;
-
-		val = ht_get(&t, &key);
-		assert(val != NULL);
-		assert(*val == (key & 0xffff));
-	}
-
-	seed = 0;
-	for (int i = 0; i < iteration; i++) {
-		uint32_t key = rand_fast(&seed);
-		int ret;
-
-		ret = ht_del(&t, &key);
-		if (ret == -ENOENT)
-			num_updates--;
-		else
-			assert(ret == 0);
-	}
-
-	assert(num_updates == 0);
-	assert(t.cnt == 0);
-	ht_dump(&t, 0);
-
-	ht_close(&t);
 }
