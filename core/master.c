@@ -15,16 +15,13 @@
 #include <rte_config.h>
 #include <rte_lcore.h>
 
+#include "opts.h"
 #include "log.h"
 #include "worker.h"
 #include "snobj.h"
 #include "snctl.h"
 
 #include "master.h"
-
-/* Port this BESS instance listens on. 
- * Panda came up with this default number */
-#define DEFAULT_PORT 	0x02912		/* 10514 in decimal */
 
 #define INIT_BUF_SIZE	4096
 #define MAX_BUF_SIZE	(8 * 1048576)
@@ -394,11 +391,9 @@ static void client_send(struct client *c)
 		response_done(c);
 }
 
-void init_server(uint16_t port)
+static void init_server()
 {
 	struct epoll_event ev;
-
-	int ret;
 
 	master.epoll_fd = epoll_create(16);
 	if (master.epoll_fd < 0) {
@@ -406,21 +401,27 @@ void init_server(uint16_t port)
 		exit(EXIT_FAILURE);
 	}
 
-	master.listen_fd = init_listen_fd(port ? : DEFAULT_PORT);
+	if (global_opts.port) {
+		master.listen_fd = init_listen_fd(global_opts.port);
 
-	ev = (struct epoll_event){
-		.events = EPOLLIN,
-		.data.fd = master.listen_fd,
-	};
+		ev = (struct epoll_event){
+			.events = EPOLLIN,
+			.data.fd = master.listen_fd,
+		};
 
-	ret = epoll_ctl(master.epoll_fd, EPOLL_CTL_ADD, master.listen_fd, &ev);
-	if (ret < 0) {
-		log_perr("epoll_ctl(EPOLL_CTL_ADD, listen_fd)");
-		exit(EXIT_FAILURE);
+		int ret = epoll_ctl(master.epoll_fd, EPOLL_CTL_ADD, 
+				master.listen_fd, &ev);
+		if (ret < 0) {
+			log_perr("epoll_ctl(EPOLL_CTL_ADD, listen_fd)");
+			exit(EXIT_FAILURE);
+		}
+	} else {
+		log_warn("Running without the control channel.\n");
+		master.listen_fd = -1;		/* controller-less mode */
 	}
 }
 
-void setup_master(uint16_t port) 
+void setup_master() 
 {
 	reset_core_affinity();
 	
@@ -430,7 +431,7 @@ void setup_master(uint16_t port)
 	cdlist_head_init(&master.clients_lock_waiting);
 	cdlist_head_init(&master.clients_pause_holding);
 
-	init_server(port);
+	init_server();
 }
 
 void run_master() 

@@ -3,9 +3,10 @@
 
 #include <stdint.h>
 
-extern const struct global_opts {
-	uint16_t port;		/* TCP port for controller (0 for default) */
+extern struct global_opts {
+	uint16_t port;		/* TCP port for controller */
 	int default_core;	/* Core ID for implicily launched worker */
+	int test_mode;		/* If 1, run selftest */
 	int foreground;		/* If 1, not daemonized */
 	int kill_existing;	/* If 1, kill existing BESS instance */
 	int print_tc_stats;	/* If 1, print TC stats every second */
