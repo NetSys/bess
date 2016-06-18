@@ -53,14 +53,19 @@ static void do_log(int priority, const char *data, size_t len)
 					color, (int)len, data, ANSI_RESET);
 		else
 			fprintf(fp, "%.*s", (int)len, data);
+
+		fflush(fp);
 	} else {
 		syslog(priority, "%.*s", (int)len, data);
 	}
 }
 
-static void log_flush(int priority, struct logger *logger, int forced)
+static void do_flush(int priority, struct logger *logger, int forced)
 {
 	char *p;
+
+	if (logger->len == 0)
+		return;
 
 	p = logger->buf;
 	for (;;) {
@@ -68,14 +73,12 @@ static void log_flush(int priority, struct logger *logger, int forced)
 		if (!lf) {
 			/* forced or a long line without LF? */
 			if (forced || logger->len >= MAX_LOG_LEN) {
-				char tmp = p[MAX_LOG_LEN + 1];
+				int len = MIN(logger->len, MAX_LOG_LEN);
 
-				p[MAX_LOG_LEN + 1] = '\n';
-				do_log(priority, p, MAX_LOG_LEN + 1);
-				p[MAX_LOG_LEN + 1] = tmp;
+				do_log(priority, p, len);
 
-				p += MAX_LOG_LEN;
-				logger->len -= MAX_LOG_LEN;
+				p += len;
+				logger->len -= len;
 			}
 
 			break;
@@ -115,7 +118,15 @@ static void log_vfmt(int priority, const char *fmt, va_list ap)
 	logger->len += to_write;
 
 	if (initialized || priority < LOG_DEBUG)
-		log_flush(priority, logger, 0);
+		do_flush(priority, logger, 0);
+}
+
+void log_flush(int priority)
+{
+	if (priority < 0 || priority > MAX_LOG_PRIORITY)
+		return;
+
+	do_flush(priority, &loggers[priority], 1);
 }
 
 void _log(int priority, const char *fmt, ...)
@@ -208,7 +219,7 @@ void end_logger()
 {
 	for (int i = 0; i <= MAX_LOG_PRIORITY; i++) {
 		if (i < LOG_DEBUG || global_opts.debug_mode)
-			log_flush(i, &loggers[i], 1);
+			do_flush(i, &loggers[i], 1);
 	}
 
 	if (!global_opts.foreground)
