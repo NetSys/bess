@@ -18,16 +18,16 @@
 
 typedef uint16_t value_t;
 
-HT_DECLARE_INLINED_FUNCS(fast, uint32_t, value_t)
+HT_DECLARE_INLINED_FUNCS(inlined, uint32_t)
 
 static inline int 
-fast_keyeq(const uint32_t *key, const uint32_t *key_stored, size_t key_size)
+inlined_keycmp(const uint32_t *key, const uint32_t *key_stored, size_t key_size)
 {
-	return *key == *key_stored;
+	return *key != *key_stored;
 }
 
 static inline uint32_t
-fast_hash(const uint32_t *key, uint32_t key_size, uint32_t init_val)
+inlined_hash(const uint32_t *key, uint32_t key_size, uint32_t init_val)
 {
 #if __SSE4_2__
 	return crc32c_sse42_u32(*key, init_val);
@@ -38,7 +38,7 @@ fast_hash(const uint32_t *key, uint32_t key_size, uint32_t init_val)
 
 static inline value_t derive_val(uint32_t key)
 {
-	return (value_t)key;
+	return (value_t)(key + 3);
 }
 
 static inline uint32_t rand_fast_nonzero(uint64_t *seed)
@@ -95,7 +95,7 @@ static void bess_get(void *arg, int iteration, int entries)
 	}
 }
 
-static void bess_fast_get(void *arg, int iteration, int entries)
+static void bess_inlined_get(void *arg, int iteration, int entries)
 {
 	struct htable *t = arg;
 
@@ -105,8 +105,37 @@ static void bess_fast_get(void *arg, int iteration, int entries)
 			uint32_t key = rand_fast(&seed);
 			value_t *val;
 
-			val = ht_fast_get(t, &key);
+			val = ht_inlined_get(t, &key);
 			assert(val && *val == derive_val(key));
+		}
+	}
+}
+
+static void bess_inlined_get_bulk(void *arg, int iteration, int entries)
+{
+	struct htable *t = arg;
+
+	for (int k = 0; k < iteration; k++) {
+		uint64_t seed = 0;
+		for (int i = 0; i < entries; i += bulk_size) {
+			uint32_t keys[bulk_size];
+			uint32_t *key_ptrs[bulk_size];
+			value_t *data_ptrs[bulk_size];
+
+			int size = MIN(bulk_size, entries - i);
+
+			for (int j = 0; j < size; j++) {
+				keys[j] = rand_fast(&seed);
+				key_ptrs[j] = &keys[j];
+			}
+
+			ht_inlined_get_bulk(t, size, (const void **)key_ptrs, 
+					(void **)data_ptrs);
+
+			for (int j = 0; j < size; j++) {
+				value_t *p = data_ptrs[j];
+				assert(p && *p == derive_val(keys[j]));
+			}
 		}
 	}
 }
@@ -365,7 +394,7 @@ static void perftest()
 {
 #if 1
 	const int test_entries[] = {
-		16, 64, 256, 1024, 4096, 
+		1, 4, 16, 64, 256, 1024, 4096, 
 		16384, 65536, 262144, 1048576, 4194304
 	};
 #else
@@ -405,11 +434,11 @@ static void perftest()
 	};
 #endif
 
-	const int repeat = 1;
-
 	const struct player players[] = {
-		{"ht_fast_get", bess_init, bess_fast_get, bess_close},
 		{"ht_get", bess_init, bess_get, bess_close},
+		{"ht_inlined_get", bess_init, bess_inlined_get, bess_close},
+		{"ht_inlined_get_bulk(x16)", bess_init, 
+			bess_inlined_get_bulk, bess_close},
 		{"rte_hash_lookup", dpdk_discrete_init, 
 			dpdk_, dpdk_discrete_close},
 		{"rte_hash_lookup_with_hash", dpdk_discrete_init, 
@@ -434,22 +463,29 @@ static void perftest()
 		printf("%-32s", p->name);
 		for (int j = 0; j < ARR_SIZE(test_entries); j++) {
 			int entries = test_entries[j];
-			int iteration = MAX(1, (int)(1e8 * repeat / entries));
+			int iteration = MAX(1, (int)(1e6 / entries));
 			void *arg;
 			double elapsed = NAN;
-
-			fflush(stdout);
 
 			arg = p->init(entries);
 			if (!arg)
 				break;
 
-			double start_time = get_epoch_time();
-			p->lookup(arg, iteration, entries);
-			elapsed = get_epoch_time() - start_time;
-			p->close(arg);
+			fflush(stdout);
 
-			printf("%9.1f", iteration * entries / elapsed / 1e6);
+			double start_time = get_epoch_time();
+			int total_iteration = 0;
+
+			do {
+				p->lookup(arg, iteration, entries);
+				elapsed = get_epoch_time() - start_time;
+				total_iteration += iteration;
+			} while (elapsed < 1);
+
+			printf("%9.1f", (total_iteration * entries) / 
+					(elapsed * 1e6));
+
+			p->close(arg);
 		}
 		printf("\n");
 	}
@@ -468,7 +504,7 @@ static void functest()
 	seed = 0;
 	for (int i = 0; i < iteration; i++) {
 		uint32_t key = rand_fast(&seed);
-		uint16_t val = key & 0xffff;
+		uint16_t val = derive_val(key);
 		int ret;
 
 		ret = ht_set(&t, &key, &val);
@@ -485,7 +521,7 @@ static void functest()
 
 		val = ht_get(&t, &key);
 		assert(val != NULL);
-		assert(*val == (key & 0xffff));
+		assert(*val == derive_val(key));
 	}
 
 	seed = 0;
