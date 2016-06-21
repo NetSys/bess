@@ -52,7 +52,7 @@ struct ht_params {
 struct ht_bucket {
 	uint32_t hv[ENTRIES_PER_BUCKET];
 	ht_keyidx_t keyidx[ENTRIES_PER_BUCKET];
-};
+} __ymm_aligned;
 
 struct htable {
 	/* bucket and entry arrays grow independently */
@@ -122,7 +122,7 @@ static inline ht_keyidx_t _get_keyidx_vec(const struct htable *t, uint32_t pri)
 	struct ht_bucket *bucket = &t->buckets[pri & t->bucket_mask];
 
 	__m128i v_pri = _mm_set1_epi32(pri);
-	__m128i v_hv = _mm_loadu_si128((__m128i *)bucket->hv);
+	__m128i v_hv = _mm_load_si128((__m128i *)bucket->hv);
 	__m128i v_cmp = _mm_cmpeq_epi32(v_hv, v_pri);
 	int mask = _mm_movemask_epi8(v_cmp);
 	int ffs = __builtin_ffs(mask);
@@ -133,7 +133,7 @@ static inline ht_keyidx_t _get_keyidx_vec(const struct htable *t, uint32_t pri)
 	uint32_t sec = ht_hash_secondary(pri);
 	bucket = &t->buckets[sec & t->bucket_mask];
 
-	v_hv = _mm_loadu_si128((__m128i *)bucket->hv);
+	v_hv = _mm_load_si128((__m128i *)bucket->hv);
 	v_cmp = _mm_cmpeq_epi32(v_hv, v_pri);
 	mask = _mm_movemask_epi8(v_cmp);
 	ffs = __builtin_ffs(mask);
@@ -170,10 +170,9 @@ static inline ht_keyidx_t _get_keyidx(const struct htable *t, uint32_t pri)
 /* This macro provides an inlined (thus much faster) version for the lookup
  * operations. For example, suppose you have a custom hash table type "foo":
  * 
- * HT_DECLARE_INLINED_FUNCS(foo, uint64_t, uint8_t)
+ * HT_DECLARE_INLINED_FUNCS(foo, uint64_t)
  * 
- * where uint64_t is the key type and uint8_t is the value type.
- * (you must use the same types when you call ht_init())
+ * where uint64_t is the key type (the same type used for ht_init())
  * With this, you are required to define two functions (starting with "foo")
  * as follows:
  *
@@ -191,26 +190,27 @@ static inline ht_keyidx_t _get_keyidx(const struct htable *t, uint32_t pri)
  * 	...
  * }
  *
- * NOTE: You can ignore key_len, since you already know the size of 
- *       key_type. It is there to make the functions compatible with memcpy()
- *       and rte_hash_function
+ * NOTE: You can ignore key_len, if you already know the size of key_type 
  *
  * Once you define these functions, you can use ht_foo_hash(), which is a
  * faster version of ht_hash() with the same function prototype. */
-#define HT_DECLARE_INLINED_FUNCS(name, key_type, value_type) 		\
+#define HT_DECLARE_INLINED_FUNCS(name, key_type) 			\
 									\
 static inline int							\
-name##_keyeq(const key_type *key, const key_type *key_stored,		\
+name##_keycmp(const key_type *key, const key_type *key_stored,		\
 		size_t key_len);					\
 									\
 static inline uint32_t							\
 name##_hash(const key_type *key, uint32_t key_len, uint32_t init_val);	\
 									\
 static inline void *ht_##name##_get(const struct htable *t,		\
-		const key_type *key)					\
+		const void *_key)					\
 {									\
+	const key_type *key = _key;					\
 	uint32_t pri = name##_hash(key, sizeof(key_type), 		\
-			DEFAULT_HASH_INITVAL) | (1u << 31);		\
+			DEFAULT_HASH_INITVAL);				\
+	pri |= (1u << 31);						\
+	pri &= ~(1u << 30);						\
 									\
 	ht_keyidx_t k_idx = (t->cnt >= 2048) ?				\
 			_get_keyidx_vec(t, pri) : _get_keyidx(t, pri);	\
@@ -220,11 +220,64 @@ static inline void *ht_##name##_get(const struct htable *t,		\
 	key_type *key_stored = t->entries + t->entry_size * k_idx;	\
 									\
 	/* Go to slow path if false positive. */			\
-	if (likely(name##_keyeq(key, key_stored, sizeof(key_type))))	\
+	if (likely(!name##_keycmp(key, key_stored, sizeof(key_type))))	\
 		return (void *)key_stored + t->value_offset;		\
 	else								\
-		return ht_get(t, key);					\
-}
+		return ht_get_hash(t, pri, key);			\
+}									\
+									\
+static inline void ht_##name##_get_bulk(const struct htable *t, 	\
+		int num_keys, const void **_keys, void **values)	\
+{									\
+	const key_type **keys = (const key_type **)_keys;		\
+	uint32_t bucket_mask = t->bucket_mask;				\
+	void *entries = t->entries;					\
+	size_t key_size = sizeof(key_type);				\
+	size_t entry_size = t->entry_size;				\
+	size_t value_offset = t->value_offset;				\
+									\
+	for (int i = 0; i < num_keys; i++) {				\
+		struct ht_bucket *pri_bucket;				\
+		struct ht_bucket *sec_bucket;				\
+									\
+		uint32_t pri = name##_hash(keys[i], key_size,		\
+				DEFAULT_HASH_INITVAL);			\
+		pri |= (1u << 31);					\
+		pri &= ~(1u << 30);					\
+		pri_bucket = &t->buckets[pri & bucket_mask];		\
+									\
+		uint32_t sec = ht_hash_secondary(pri);			\
+		sec_bucket = &t->buckets[sec & bucket_mask];		\
+									\
+		__m256i v_pri = _mm256_set1_epi32(pri);			\
+		__m256i v_pri_bucket = _mm256_load_si256(		\
+				(__m256i *)pri_bucket);			\
+		__m256i v_sec_bucket = _mm256_load_si256(		\
+				(__m256i *)sec_bucket);			\
+		__m256i v_hv = _mm256_permute2f128_si256(		\
+				v_pri_bucket, v_sec_bucket, 0x20);	\
+		__m256i v_keyidx = _mm256_permute2f128_si256(		\
+				v_pri_bucket, v_sec_bucket, 0x31);	\
+									\
+		__m256 v_cmp = _mm256_cmp_ps((__m256)v_pri,		\
+				(__m256)v_hv, _CMP_EQ_OQ);		\
+									\
+		int mask = _mm256_movemask_ps(v_cmp);			\
+		int ffs = __builtin_ffs(mask);				\
+									\
+		if (!ffs)  {						\
+			values[i] = NULL;				\
+			continue;					\
+		}							\
+									\
+		ht_keyidx_t k_idx = ((__v8su)v_keyidx)[ffs - 1];	\
+		key_type *key_stored = entries + entry_size * k_idx;	\
+		if (!name##_keycmp(keys[i], key_stored, key_size))	\
+			values[i] = (void *)key_stored + value_offset;	\
+		else							\
+			values[i] = ht_get_hash(t, pri, keys[i]);	\
+	}								\
+}									
 
 /* with non-zero 'detail', each item in the hash table will be shown */
 void ht_dump(const struct htable *t, int detail);

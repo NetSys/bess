@@ -20,7 +20,10 @@ static inline uint32_t ht_hash(const struct htable *t, const void *key)
 
 static inline uint32_t ht_make_nonzero(uint32_t v)
 {
-	return v | (1u << 31);
+	/* Set the MSB and unset the 2nd MSB (NOTE: must be idempotent).
+	 * Then the result will never be a zero, and not a non-number when
+	 * represented as float (so we are good to use _mm_*_ps() SIMD ops) */
+	return (v | (1u << 31)) & (~(1u << 30));
 }
 
 static inline uint32_t ht_hash_nonzero(const struct htable *t, const void *key)
