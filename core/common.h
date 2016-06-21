@@ -35,7 +35,9 @@
 	 	_a >= _b ? _a : _b; \
 	 })
 
-#define ACCESS_ONCE(x) (*(volatile typeof(x) *)&(x))
+#define ARR_SIZE(arr)	(sizeof(arr) / sizeof(arr[0]))
+
+#define ACCESS_ONCE(x) 	(*(volatile typeof(x) *)&(x))
 
 static inline uint64_t align_floor(uint64_t v, uint64_t align)
 {

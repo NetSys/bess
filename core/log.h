@@ -6,6 +6,8 @@
 /* the maximum log size is 2KB, including the trailing NULL character */
 #define MAX_LOG_LEN	2048
 
+void log_flush(int priority);
+
 /* Corresponds to perror(). No LF should be given at the end */
 void log_perr(const char *fmt, ...)
 		__attribute__((format(printf, 1, 2)));

@@ -13,20 +13,28 @@
 #include <sys/resource.h>
 
 #include "opts.h"
+#include "log.h"
 #include "debug.h"
 #include "dpdk.h"
 #include "master.h"
 #include "worker.h"
 #include "driver.h"
-#include "log.h"
+#include "test.h"
 
-const struct global_opts global_opts;
+/* Port this BESS instance listens on.
+ * Panda came up with this default number */
+#define DEFAULT_PORT 	0x02912		/* 10514 in decimal */
+
+struct global_opts global_opts = {
+	.port = DEFAULT_PORT,
+};
+
 static struct global_opts *opts = (struct global_opts *)&global_opts;
 
 static void print_usage(char *exec_name)
 {
 	log_info("Usage: %s" \
-		" [-h] [-t] [-c <core>] [-p <port>] [-m <MB>] [-i pidfile]" \
+		" [-h] [-t] [-g] [-c <core>] [-p <port>] [-m <MB>] [-i pidfile]" \
 		" [-f] [-k] [-s] [-d] [-a]\n\n",
 		exec_name);
 
@@ -34,6 +42,8 @@ static void print_usage(char *exec_name)
 			"-h");
 	log_info("  %-16s Dump the size of internal data structures\n", 
 			"-t");
+	log_info("  %-16s Run test suites\n", 
+			"-g");
 	log_info("  %-16s Core ID for the default worker thread\n",
 			"-c <core>");
 	log_info("  %-16s Specifies the TCP port on which BESS" \
@@ -65,7 +75,7 @@ static void parse_args(int argc, char **argv)
 
 	num_workers = 0;
 
-	while ((c = getopt(argc, argv, ":htc:p:fksdm:i:a")) != -1) {
+	while ((c = getopt(argc, argv, ":htgc:p:fksdm:i:a")) != -1) {
 		switch (c) {
 		case 'h':
 			print_usage(argv[0]);
@@ -75,18 +85,26 @@ static void parse_args(int argc, char **argv)
 			dump_types();
 			exit(EXIT_SUCCESS);
 			break;
-			
+
+		case 'g':
+			opts->test_mode = 1;
+			break;
+
 		case 'c':
 			sscanf(optarg, "%d", &opts->default_core);
 			if (!is_cpu_present(opts->default_core)) {
-				log_err("Invalid core ID %d\n", 
-						opts->default_core);
+				log_err("Invalid core ID: %s\n", optarg);
 				print_usage(argv[0]);
 			}
 			break;
 
 		case 'p':
 			sscanf(optarg, "%hu", &opts->port);
+			if (opts->port == 0) {
+				log_err("Invalid TCP port number: %s\n",
+						optarg);
+				print_usage(argv[0]);
+			}
 			break;
 
 		case 'f':
@@ -107,7 +125,7 @@ static void parse_args(int argc, char **argv)
 
 		case 'm':
 			if (0 == sscanf(optarg, "%d", &opts->mb_per_socket)) {
-				log_err("Invalid value for -%c\n", optopt);
+				log_err("Invalid memory size: %s\n", optarg);
 				print_usage(argv[0]);
 			}
 			break;
@@ -135,6 +153,11 @@ static void parse_args(int argc, char **argv)
 		default:
 			assert(0);
 		}
+	}
+
+	if (opts->test_mode) {
+		opts->foreground = 1;
+		opts->port = 0;		/* disable the control channel */
 	}
 
 	if (opts->foreground && !opts->print_tc_stats)
@@ -362,7 +385,7 @@ int main(int argc, char **argv)
 	init_mempool();
 	init_drivers();
 
-	setup_master(opts->port);
+	setup_master();
 
 	/* signal the parent that all initialization has been finished */
 	if (!opts->foreground) {
@@ -374,7 +397,12 @@ int main(int argc, char **argv)
 		close(signal_fd);
 	}
 
-	run_master();
+	if (opts->test_mode) {
+		run_tests();
+	} else {
+		run_forced_tests();
+		run_master();
+	}
 
 	rte_eal_mp_wait_lcore();
 	close_mempool();

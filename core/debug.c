@@ -12,6 +12,8 @@
 #include <rte_config.h>
 #include <rte_version.h>
 
+#include "utils/htable.h"
+
 #include "tc.h"
 #include "task.h"
 #include "module.h"
@@ -345,34 +347,38 @@ void dump_types(void)
 	printf("sizeof(long)=%zu\n", sizeof(long));
 	printf("sizeof(long long)=%zu\n", sizeof(long long));
 	printf("sizeof(void *)=%zu\n", sizeof(void *));
+	printf("sizeof(size_t)=%zu\n", sizeof(size_t));
 
-	printf("sizeof(heap)=%lu\n", sizeof(struct heap));
-	printf("sizeof(clist_head)=%lu sizeof(cdlist_item)=%lu\n",
+	printf("sizeof(heap)=%zu\n", sizeof(struct heap));
+	printf("sizeof(ht_bucket)=%zu sizeof(htable)=%zu\n", 
+			sizeof(struct ht_bucket),
+			sizeof(struct htable));
+	printf("sizeof(clist_head)=%zu sizeof(cdlist_item)=%zu\n",
 			sizeof(struct cdlist_head),
 			sizeof(struct cdlist_item));
 
-	printf("sizeof(rte_mbuf)=%lu\n", sizeof(struct rte_mbuf));
-	printf("sizeof(snbuf)=%lu\n", sizeof(struct snbuf));
+	printf("sizeof(rte_mbuf)=%zu\n", sizeof(struct rte_mbuf));
+	printf("sizeof(snbuf)=%zu\n", sizeof(struct snbuf));
 
-	printf("sizeof(pkt_batch)=%lu\n",
+	printf("sizeof(pkt_batch)=%zu\n",
 			sizeof(struct pkt_batch));
-	printf("sizeof(sn_rx_metadata)=%lu sizeof(sn_tx_metadata)=%lu\n",
+	printf("sizeof(sn_rx_metadata)=%zu sizeof(sn_tx_metadata)=%zu\n",
 			sizeof(struct sn_rx_metadata),
 			sizeof(struct sn_tx_metadata));
-	printf("sizeof(sn_rx_desc)=%lu sizeof(sn_tx_desc)=%lu\n",
+	printf("sizeof(sn_rx_desc)=%zu sizeof(sn_tx_desc)=%zu\n",
 			sizeof(struct sn_rx_desc), sizeof(struct sn_tx_desc));
-	printf("sizeof(sched)=%lu sizeof(sched_stats)=%lu\n",
+	printf("sizeof(sched)=%zu sizeof(sched_stats)=%zu\n",
 			sizeof(struct sched),
 			sizeof(struct sched_stats));
-	printf("sizeof(tc)=%lu sizeof(tc_stats)=%lu\n",
+	printf("sizeof(tc)=%zu sizeof(tc_stats)=%zu\n",
 			sizeof(struct tc),
 			sizeof(struct tc_stats));
-	printf("sizeof(task)=%lu\n", sizeof(struct task));
+	printf("sizeof(task)=%zu\n", sizeof(struct task));
 
-	printf("sizeof(module)=%lu\n", sizeof(struct module));
-	printf("sizeof(gate)=%lu\n", sizeof(struct gate));
+	printf("sizeof(module)=%zu\n", sizeof(struct module));
+	printf("sizeof(gate)=%zu\n", sizeof(struct gate));
 
-	printf("sizeof(worker_context)=%lu\n", sizeof(struct worker_context));
+	printf("sizeof(worker_context)=%zu\n", sizeof(struct worker_context));
 
-	printf("sizeof(snobj)=%lu\n", sizeof(struct snobj));
+	printf("sizeof(snobj)=%zu\n", sizeof(struct snobj));
 }
