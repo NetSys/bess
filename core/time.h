@@ -3,7 +3,7 @@
 
 #include <stdint.h>
 #include <stdlib.h>
-
+#include <time.h>
 #include <sys/time.h>
 
 extern uint64_t tsc_hz;
@@ -22,11 +22,22 @@ static inline double tsc_to_us(uint64_t cycles)
 
 /* Return current time in seconds since the Epoch. 
  * This is consistent with Python's time.time() */
-static inline double get_epoch_time()
+static double get_epoch_time()
 {
 	struct timeval tv;
 	gettimeofday(&tv, NULL);
-	return tv.tv_sec + tv.tv_usec / 1000000.0;
+	return tv.tv_sec + tv.tv_usec / 1e6;
+}
+
+/* CPU time (in seconds) spent by the current thread.
+ * Use it only relatively. */
+static double get_cpu_time()
+{
+	struct timespec ts;
+	if (clock_gettime(CLOCK_THREAD_CPUTIME_ID, &ts) == 0)
+		return ts.tv_sec + ts.tv_nsec / 1e9;
+	else
+		return get_epoch_time();
 }
 
 #endif

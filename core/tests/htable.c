@@ -473,12 +473,12 @@ static void perftest()
 
 			fflush(stdout);
 
-			double start_time = get_epoch_time();
+			double start_time = get_cpu_time();
 			int total_iteration = 0;
 
 			do {
 				p->lookup(arg, iteration, entries);
-				elapsed = get_epoch_time() - start_time;
+				elapsed = get_cpu_time() - start_time;
 				total_iteration += iteration;
 			} while (elapsed < 1);
 
