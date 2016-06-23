@@ -182,8 +182,6 @@ void snb_dump(FILE *file, struct snbuf *pkt)
 {
 	struct rte_mbuf *mbuf;
 
-	fprintf(file, "----------------------------------------\n");
-
 	fprintf(file, "refcnt chain: ");
 	for (mbuf = (struct rte_mbuf *)pkt; mbuf; mbuf = mbuf->next)
 		fprintf(file, "%hu ", mbuf->refcnt);

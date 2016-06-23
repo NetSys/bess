@@ -39,7 +39,7 @@ static struct snobj *dump_init(struct module *m, struct snobj *arg)
 	priv->min_interval_ns = default_interval_ns;
 	priv->next_ns = ctx.current_tsc;
 
-	if (arg)
+	if (arg && (arg = snobj_eval(arg, "interval")))
 		return command_set_interval(m, NULL, arg);
 	else
 		return NULL;
@@ -52,6 +52,8 @@ static void dump_process_batch(struct module *m, struct pkt_batch *batch)
 	if (unlikely(ctx.current_ns >= priv->next_ns)) {
 		struct snbuf *pkt = batch->pkts[0];
 
+		printf("----------------------------------------\n");
+		printf("%s: packet dump\n", m->name);
 		snb_dump(stdout, pkt);
 		rte_hexdump(stdout, "Metadata buffer",
 				pkt->_metadata, SNBUF_METADATA);
