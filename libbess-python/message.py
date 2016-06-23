@@ -1,4 +1,6 @@
+from __future__ import print_function
 import struct
+import sys
 
 TYPE_NIL    = 0
 TYPE_INT    = 1
@@ -23,7 +25,7 @@ class SNObjDict(object):
     def __getattr__(self, name):
         if name.startswith('__'):
             return self._dict.__getattribute__(name)
-        else: 
+        else:
             return self._dict[name]
 
     def __setattr__(self, name, value):
@@ -98,8 +100,8 @@ def encode(obj):
         while num_bytes % 8:
             num_bytes += 1
 
-        return struct.pack(str(num_bytes) + 's', buf)
-        
+        return struct.pack(str(num_bytes) + 's', buf.encode())
+
     def encode_cstr(cstr):
         return zero_pad8(cstr, len(cstr) + 1)
 
@@ -126,14 +128,14 @@ def encode(obj):
     elif isinstance(obj, (list, set)):
         t = TYPE_LIST
         l = len(obj)
-        v = ''.join(map(encode, obj))
+        v = b''.join(map(encode, obj))
     elif isinstance(obj, (dict, SNObjDict)):
         t = TYPE_MAP
         if isinstance(obj, SNObjDict):
             obj = obj._dict
-        keys = sorted(map(str, obj.keys())) # all keys must be a string
+        keys = sorted(map(str, obj.keys()))  # all keys must be a string
         l = len(keys)
-        v = ''.join(map(lambda k: encode_cstr(k) + encode(obj[k]), keys))
+        v = b''.join(map(lambda k: encode_cstr(k) + encode(obj[k]), keys))
     else:
         raise Exception('Unsupported type %s' % type(obj))
 
@@ -161,13 +163,13 @@ def _decode_recur(buf, offset):
         offset += l
     elif t == TYPE_LIST:
         v  = list()
-        for i in xrange(l):
+        for i in range(l):
             obj, offset = _decode_recur(buf, offset)
             v.append(obj)
     elif t == TYPE_MAP:
         v = SNObjDict()
-        for i in xrange(l):
-            z_pos = buf.find('\0', offset)
+        for i in range(l):
+            z_pos = buf.find(b'\0', offset)
             if z_pos == -1:
                 raise Exception('non-null terminating key')
             key = buf[offset:z_pos]
@@ -191,12 +193,12 @@ def decode(buf):
     try:
         obj, consumed = _decode_recur(buf, 0)
         if consumed != len(buf):
-            raise Exception('%dB buffer, but only %dB consumed' % 
+            raise Exception('%dB buffer, but only %dB consumed' %
                     (len(buf), consumed))
         return obj
     except Exception as e:
-        print >> sys.stderr, 'Decoding error. Len=%-5d' % len(buf),
+        print('Decoding error. Len=%-5d' % len(buf), file=sys.stderr, end="")
         for c in buf:
-            print >> sys.stderr, '%02x' % ord(c), 
-        print >> sys.stderr
+            print('%02x' % ord(c), file=sys.stderr, end="")
+        print('', file=sys.stderr)
         raise e
