@@ -2,12 +2,16 @@
 
 #define MAX_ATTRS	MAX_ATTRS_PER_MODULE
 
+typedef struct {
+	char bytes[MT_ATTR_MAX_SIZE];
+} value_t;
+
 struct set_metadata_priv {
 	int num_attrs;
 
 	struct attr {
 		char name[MT_ATTR_NAME_LEN];
-		uint64_t value;			/* in host order */
+		value_t value;
 		uint8_t size;
 		mt_offset_t offset;
 	} attrs[MAX_ATTRS];
@@ -19,7 +23,7 @@ static struct snobj *add_attr_one(struct module *m, struct snobj *attr)
 
 	const char *name;
 	uint8_t size;
-	uint64_t value;
+	value_t value = {0};
 
 	int ret;
 
@@ -37,8 +41,9 @@ static struct snobj *add_attr_one(struct module *m, struct snobj *attr)
 
 	size = snobj_eval_uint(attr, "size");
 
-	if (size != 1 && size != 2 && size != 4 && size != 8)
-		return snobj_err(EINVAL, "'size' must be 1, 2, 4, or 8");
+	if (size < 1 || size > MT_ATTR_MAX_SIZE)
+		return snobj_err(EINVAL, "'size' must be 1-%d", 
+				MT_ATTR_MAX_SIZE);
 
 	if (snobj_binvalue_get(snobj_eval(attr, "value"), size, &value, 0))
 		return snobj_err(EINVAL,
@@ -101,32 +106,11 @@ set_metadata_process_batch(struct module *m, struct pkt_batch *batch)
 		if (!is_valid_offset(offset))
 			continue;
 
-		uint64_t value = attr->value;
-
-		switch (priv->attrs[i].size) {
-		case 1:
-			for (int j = 0; j < cnt; j++)
-				_set_attr_with_offset(offset, batch->pkts[j], 
-						uint8_t, value);
-			break;
-		case 2:
-			for (int j = 0; j < cnt; j++)
-				_set_attr_with_offset(offset, batch->pkts[j], 
-						uint16_t, value);
-			break;
-		case 4:
-			for (int j = 0; j < cnt; j++)
-				_set_attr_with_offset(offset, batch->pkts[j], 
-						uint32_t, value);
-			break;
-		case 8:
-			for (int j = 0; j < cnt; j++)
-				_set_attr_with_offset(offset, batch->pkts[j], 
-						uint64_t, value);
-			break;
-		default:
-			promise_unreachable();
-		};
+		for (int j = 0; j < cnt; j++) {
+			struct snbuf *pkt = batch->pkts[j];
+			rte_memcpy(_ptr_attr_with_offset(offset, pkt, value_t),
+					&attr->value, attr->size);
+		}
 	}
 
 	run_next_module(m, batch);
