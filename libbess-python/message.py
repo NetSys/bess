@@ -107,7 +107,7 @@ def encode(obj):
         t = TYPE_NIL
         l = 0
         v = ''
-    elif isinstance(obj, int):
+    elif isinstance(obj, (int, long)):
         t = TYPE_INT
         l = 8
         v = struct.pack('<q', obj)
