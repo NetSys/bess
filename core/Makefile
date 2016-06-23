@@ -24,7 +24,7 @@ endif
 KMOD_INC_DIR = kmod
 
 CFLAGS += -std=gnu99 -g3 -ggdb3 -Ofast -m64 -march=native \
-	  -Wall -Werror -Wno-unused-function -Wno-unused-but-set-variable \
+	  -Wall -Werror -Wno-unused-function -Wno-unused-but-set-variable -Wno-strict-aliasing -Wno-missing-braces \
 	  -I$(KMOD_INC_DIR) -I$(DPDK_INC_DIR) \
 	  -D_GNU_SOURCE
 
