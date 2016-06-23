@@ -133,6 +133,26 @@ struct snobj *snobj_str(const char *str)
 	return m;
 }
 
+/* str may have null characters */
+struct snobj *snobj_str_sized(const char *str, size_t size)
+{
+	struct snobj *m;
+	void *str_copied;
+
+	if (!str)
+		return NULL;
+
+	str_copied = _ALLOC(size);
+	memcpy(str_copied, str, size);
+
+	m = snobj_nil();
+	m->type = TYPE_STR;
+	m->size = size;
+	m->data = str_copied;
+
+	return m;
+}
+
 static struct snobj *snobj_str_vfmt(const char *fmt, va_list ap)
 {
 	const size_t init_bufsize = 128;
@@ -694,7 +714,7 @@ struct snobj *snobj_decode_recur(struct decode_state *s)
 	case TYPE_STR:
 	case TYPE_BLOB:
 		m = (type == TYPE_STR) ?
-			snobj_str(s->buf + s->offset) :
+			snobj_str_sized(s->buf + s->offset, size) :
 			snobj_blob(s->buf + s->offset, size);
 
 		s->offset += size;
