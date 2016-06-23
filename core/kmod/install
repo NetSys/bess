@@ -1,6 +1,6 @@
 #!/bin/sh
 
-killall -q bessd
+sudo killall -q bessd
 sleep 1
 if lsmod | grep -q bess; then
 	sudo rmmod bess || exit 0
