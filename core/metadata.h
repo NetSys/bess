@@ -27,38 +27,55 @@ static inline int is_valid_offset(mt_offset_t offset)
 }
 
 /* unsafe, but faster version. for offset use mt_attr_offset() */
-#define get_attr_with_offset(offset, pkt, type, val) \
-	((type)({ \
-		mt_offset_t _offset = (offset); \
-		is_valid_offset(_offset)) ? \
-			_set_attr_with_offset(_offset, (pkt), (type), (val)) : \
-	 		({});\
-	 }))
+#define _ptr_attr_with_offset(offset, pkt, type) \
+	({ \
+		struct snbuf *_pkt = (pkt); \
+		(type *)(_pkt->_metadata + offset); \
+	 })
+
+#define _get_attr_with_offset(offset, pkt, type) \
+	({ \
+		struct snbuf *_pkt = (pkt); \
+		*((type *)(_pkt->_metadata + offset)); \
+	 })
 
 #define _set_attr_with_offset(offset, pkt, type, val) \
 	((void)({ \
-		struct snbuf *_pkt = pkt; \
-	 	type * restrict ptr = (type *)(_pkt->_metadata + offset); \
+		struct snbuf *_pkt = (pkt); \
+		type * restrict ptr = (type *)(_pkt->_metadata + offset); \
 		*ptr = val; \
 	 }))
 
 /* safe version */
-#define _get_attr_with_offset(offset, pkt, type, val) \
-	((type)({ \
-		struct snbuf *_pkt = pkt; \
-	 	*((type *)(_pkt->_metadata_buf + offset)); \
-	 }))
+#define ptr_attr_with_offset(offset, pkt, type) \
+	({ \
+		mt_offset_t _offset = (offset); \
+		is_valid_offset(_offset) ? \
+			(type *)_ptr_attr_with_offset(_offset, (pkt), type) : \
+			(type *)NULL;\
+	 })
+
+#define get_attr_with_offset(offset, pkt, type) \
+	({ \
+		mt_offset_t _offset = (offset); \
+		is_valid_offset(_offset) ? \
+			(type)_get_attr_with_offset(_offset, (pkt), type) : \
+			(type){0};\
+	 })
 
 #define set_attr_with_offset(offset, pkt, type, val) \
 	((void)({ \
 		mt_offset_t _offset = (offset); \
 		if (is_valid_offset(_offset)) \
-			_set_attr_with_offset(_offset, (pkt), (type), (val)); \
+			_set_attr_with_offset(_offset, (pkt), type, (val)); \
 	 }))
 
 /* slowest but easiest */
-#define get_attr(module, attr_id, pkt, type, val) \
-	get_attr_with_offset(mt_attr_offset(module, attr_id), pkt, type, val)
+#define ptr_attr(module, attr_id, pkt, type) \
+	ptr_attr_with_offset(mt_attr_offset(module, attr_id), pkt, type)
+
+#define get_attr(module, attr_id, pkt, type) \
+	get_attr_with_offset(mt_attr_offset(module, attr_id), pkt, type)
 
 #define set_attr(module, attr_id, pkt, type, val) \
 	set_attr_with_offset(mt_attr_offset(module, attr_id), pkt, type, val)
