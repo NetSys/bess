@@ -249,6 +249,11 @@ static inline void ht_##name##_get_bulk(const struct htable *t, 	\
 		uint32_t sec = ht_hash_secondary(pri);			\
 		sec_bucket = &t->buckets[sec & bucket_mask];		\
 									\
+		union {							\
+			__m256i v;					\
+			uint32_t a[8];					\
+		} keyidx;						\
+									\
 		__m256i v_pri = _mm256_set1_epi32(pri);			\
 		__m256i v_pri_bucket = _mm256_load_si256(		\
 				(__m256i *)pri_bucket);			\
@@ -256,7 +261,7 @@ static inline void ht_##name##_get_bulk(const struct htable *t, 	\
 				(__m256i *)sec_bucket);			\
 		__m256i v_hv = _mm256_permute2f128_si256(		\
 				v_pri_bucket, v_sec_bucket, 0x20);	\
-		__m256i v_keyidx = _mm256_permute2f128_si256(		\
+		keyidx.v = _mm256_permute2f128_si256(			\
 				v_pri_bucket, v_sec_bucket, 0x31);	\
 									\
 		__m256 v_cmp = _mm256_cmp_ps((__m256)v_pri,		\
@@ -270,7 +275,7 @@ static inline void ht_##name##_get_bulk(const struct htable *t, 	\
 			continue;					\
 		}							\
 									\
-		ht_keyidx_t k_idx = ((__v8su)v_keyidx)[ffs - 1];	\
+		ht_keyidx_t k_idx = keyidx.a[ffs - 1];			\
 		key_type *key_stored = entries + entry_size * k_idx;	\
 		if (!name##_keycmp(keys[i], key_stored, key_size))	\
 			values[i] = (void *)key_stored + value_offset;	\
