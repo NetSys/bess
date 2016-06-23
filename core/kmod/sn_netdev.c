@@ -728,6 +728,8 @@ static void sn_netdev_destructor(struct net_device *netdev)
 		log_err("unknown device type %d\n", dev->type);
 	}
 
+	log_info("%s: releasing netdev...\n", netdev->name);
+
 	free_netdev(netdev);
 }
 
@@ -884,14 +886,10 @@ fail_free:
 
 void sn_release_netdev(struct sn_device *dev)
 {
-	if (!dev)
-		return;
-
-	log_info("%s: releasing netdev...\n", dev->netdev->name);
-
 	rtnl_lock();
 
-	if (dev->netdev->reg_state == NETREG_REGISTERED)
+	/* it is possible that the netdev has already been unregistered */
+	if (dev && dev->netdev && dev->netdev->reg_state == NETREG_REGISTERED)
 		unregister_netdevice(dev->netdev);
 
 	rtnl_unlock();
