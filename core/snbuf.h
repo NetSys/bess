@@ -82,9 +82,9 @@ struct snbuf {
 
 typedef struct snbuf * restrict * restrict snb_array_t;
 
-static inline char *snb_head_data(struct snbuf *snb)
+static inline void *snb_head_data(struct snbuf *snb)
 {
-	return rte_pktmbuf_mtod(&snb->mbuf, char *);
+	return rte_pktmbuf_mtod(&snb->mbuf, void *);
 }
 
 static inline int snb_head_len(struct snbuf *snb)
@@ -190,7 +190,7 @@ slow_path:
 #endif
 
 /* add bytes to the beginning */
-static inline char *snb_prepend(struct snbuf *snb, uint16_t len)
+static inline void *snb_prepend(struct snbuf *snb, uint16_t len)
 {
 	if (unlikely(snb->mbuf.data_off < len))
 		return NULL;
@@ -203,7 +203,7 @@ static inline char *snb_prepend(struct snbuf *snb, uint16_t len)
 }
 
 /* remove bytes from the beginning */
-static inline char *snb_adj(struct snbuf *snb, uint16_t len)
+static inline void *snb_adj(struct snbuf *snb, uint16_t len)
 {
 	if (unlikely(snb->mbuf.data_len < len))
 		return NULL;
@@ -216,7 +216,7 @@ static inline char *snb_adj(struct snbuf *snb, uint16_t len)
 }
 
 /* add bytes to the end */
-static inline char *snb_append(struct snbuf *snb, uint16_t len)
+static inline void *snb_append(struct snbuf *snb, uint16_t len)
 {
 	return rte_pktmbuf_append(&snb->mbuf, len);
 }
