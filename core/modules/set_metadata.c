@@ -23,7 +23,7 @@ static struct snobj *add_attr_one(struct module *m, struct snobj *attr)
 
 	const char *name;
 	uint8_t size;
-	value_t value = {0};
+	value_t value = {};
 
 	int ret;
 
