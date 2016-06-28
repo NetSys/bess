@@ -1,3 +1,4 @@
+from __future__ import print_function
 import socket
 import struct
 import errno
@@ -6,8 +7,8 @@ import os
 
 import message
 
-class BESS(object):
 
+class BESS(object):
     # errors from BESS daemon
     class Error(Exception):
         def __init__(self, err, errmsg, details):
@@ -21,7 +22,7 @@ class BESS(object):
             else:
                 err_code = '<unknown>'
             return 'errno: %d (%s: %s), %s, details: %s' % \
-                    (self.err, err_code, os.strerror(self.err), 
+                    (self.err, err_code, os.strerror(self.err),
                             self.errmsg, repr(self.details))
 
     # errors from this class itself
@@ -80,12 +81,12 @@ class BESS(object):
             raise self.APIError('Not connected to BESS daemon')
 
         if self.debug:
-            print >> sys.stderr, '\t---> %s' % repr(obj)
+            print('\t---> %s' % repr(obj), file=sys.stderr)
 
         try:
             q = message.encode(obj)
         except:
-            print >> sys.stderr, 'Encoding error, object: %s' % repr(obj)
+            print('Encoding error, object: %s' % repr(obj), file=sys.stderr)
             raise
 
         self.s.sendall(struct.pack('<L', len(q)) + q)
@@ -98,10 +99,10 @@ class BESS(object):
             buf.append(frag)
             received += len(frag)
 
-        obj = message.decode(''.join(buf))
+        obj = message.decode(b''.join(buf))
 
         if self.debug:
-            print >> sys.stderr, '\t<--- %s' % repr(obj)
+            print('\t<--- %s' % repr(obj), file=sys.stderr)
 
         if isinstance(obj, message.SNObjDict) and 'err' in obj:
             err = obj['err']
@@ -120,8 +121,8 @@ class BESS(object):
 
     def _request_module(self, name, cmd, arg=None):
         if arg is not None:
-            return self._request({'to': 'module', 'name': name, 'cmd': cmd, 
-                    'arg': arg}) 
+            return self._request({'to': 'module', 'name': name, 'cmd': cmd,
+                    'arg': arg})
         else:
             return self._request({'to': 'module', 'name': name, 'cmd': cmd})
 
@@ -190,11 +191,11 @@ class BESS(object):
         return self._request_bess('get_module_info', name)
 
     def connect_modules(self, m1, m2, ogate=0, igate=0):
-        return self._request_bess('connect_modules', 
+        return self._request_bess('connect_modules',
                 {'m1': m1, 'm2': m2, 'ogate': ogate, 'igate': igate})
 
     def disconnect_modules(self, name, ogate = 0):
-        return self._request_bess('disconnect_modules', 
+        return self._request_bess('disconnect_modules',
                 {'name': name, 'ogate': ogate})
 
     def run_module_command(self, name, cmd, arg):
