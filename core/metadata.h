@@ -29,21 +29,21 @@ static inline int is_valid_offset(mt_offset_t offset)
 /* unsafe, but faster version. for offset use mt_attr_offset() */
 #define _ptr_attr_with_offset(offset, pkt, type) \
 	({ \
+		promise(offset >= 0); \
 		struct snbuf *_pkt = (pkt); \
-		(type *)(_pkt->_metadata + offset); \
+		uintptr_t addr = (uintptr_t)(_pkt->_metadata + offset); \
+		(type *)addr; \
 	 })
 
 #define _get_attr_with_offset(offset, pkt, type) \
 	({ \
-		struct snbuf *_pkt = (pkt); \
-		*((type *)(_pkt->_metadata + offset)); \
+		*(_ptr_attr_with_offset(offset, pkt, type)); \
 	 })
 
 #define _set_attr_with_offset(offset, pkt, type, val) \
 	((void)({ \
-		struct snbuf *_pkt = (pkt); \
-		type * restrict ptr = (type *)(_pkt->_metadata + offset); \
-		*ptr = val; \
+		type _val = (val); \
+		*(_ptr_attr_with_offset(offset, pkt, type)) = _val; \
 	 }))
 
 /* safe version */
@@ -51,23 +51,24 @@ static inline int is_valid_offset(mt_offset_t offset)
 	({ \
 		mt_offset_t _offset = (offset); \
 		is_valid_offset(_offset) ? \
-			(type *)_ptr_attr_with_offset(_offset, (pkt), type) : \
-			(type *)NULL;\
+			(type *)_ptr_attr_with_offset(_offset, pkt, type) : \
+			(type *)NULL; \
 	 })
 
 #define get_attr_with_offset(offset, pkt, type) \
 	({ \
+		static type _zeroed; \
 		mt_offset_t _offset = (offset); \
 		is_valid_offset(_offset) ? \
-			(type)_get_attr_with_offset(_offset, (pkt), type) : \
-			(type){0};\
+			(type)_get_attr_with_offset(_offset, pkt, type) : \
+			(type)_zeroed; \
 	 })
 
 #define set_attr_with_offset(offset, pkt, type, val) \
 	((void)({ \
 		mt_offset_t _offset = (offset); \
 		if (is_valid_offset(_offset)) \
-			_set_attr_with_offset(_offset, (pkt), type, (val)); \
+			_set_attr_with_offset(_offset, pkt, type, val); \
 	 }))
 
 /* slowest but easiest */
