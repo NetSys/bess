@@ -1,4 +1,4 @@
-#include "../common.h"/* Streamlined hash table implementation, with emphasis on lookup performance. 
+/* Streamlined hash table implementation, with emphasis on lookup performance. 
  * Key and value sizes are fixed. Lookup is thread-safe, but update is not. */
 
 #ifndef _HTABLE_H_
@@ -207,7 +207,7 @@ static inline void *ht_##name##_get(const struct htable *t,		\
 		const void *_key)					\
 {									\
 	const key_type *key = _key;					\
-	uint32_t pri = name##_hash(key, sizeof(key_type), 		\
+	uint32_t pri = name##_hash(key, t->key_size, 			\
 			DEFAULT_HASH_INITVAL);				\
 	pri |= (1u << 31);						\
 	pri &= ~(1u << 30);						\
@@ -220,7 +220,7 @@ static inline void *ht_##name##_get(const struct htable *t,		\
 	key_type *key_stored = t->entries + t->entry_size * k_idx;	\
 									\
 	/* Go to slow path if false positive. */			\
-	if (likely(!name##_keycmp(key, key_stored, sizeof(key_type))))	\
+	if (likely(!name##_keycmp(key, key_stored, t->key_size)))	\
 		return (void *)key_stored + t->value_offset;		\
 	else								\
 		return ht_get_hash(t, pri, key);			\
@@ -232,7 +232,7 @@ static inline void ht_##name##_get_bulk(const struct htable *t, 	\
 	const key_type **keys = (const key_type **)_keys;		\
 	uint32_t bucket_mask = t->bucket_mask;				\
 	void *entries = t->entries;					\
-	size_t key_size = sizeof(key_type);				\
+	size_t key_size = t->key_size;					\
 	size_t entry_size = t->entry_size;				\
 	size_t value_offset = t->value_offset;				\
 									\
