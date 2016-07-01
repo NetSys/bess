@@ -54,38 +54,47 @@ em_hash(const hkey_t *key, uint32_t key_len, uint32_t init_val)
 }
 
 static struct snobj *
-add_field_one(struct module *m, struct snobj *field, struct field *f)
+add_field_one(struct module *m, struct snobj *field, struct field *f, int idx)
 {
 	if (field->type != TYPE_MAP)
 		return snobj_err(EINVAL, 
 				"'fields' must be a list of maps");
 
 	f->size = snobj_eval_uint(field, "size");
-	f->mask = snobj_eval_uint(field, "mask");
-
 	if (f->size < 1 || f->size > MAX_FIELD_SIZE)
-		return snobj_err(EINVAL, "'size' must be 1-%d",
-				MAX_FIELD_SIZE);
-
-	/* null mask doesn't make any sense... */
-	if (f->mask == 0)
-		f->mask = ~0ul;
-
-	if (snobj_eval_exists(field, "offset")) {
-		f->attr_id = -1;
-		f->offset = snobj_eval_int(field, "offset");
-		if (f->offset < 0)
-			return snobj_err(EINVAL, "too small 'offset'");
-		return NULL;
-	} 
+		return snobj_err(EINVAL, "idx %d: 'size' must be 1-%d",
+				idx, MAX_FIELD_SIZE);
 
 	const char *attr_name = snobj_eval_str(field, "name");
-	if (!attr_name)
-		return snobj_err(EINVAL, "specify 'offset' or 'name'");
 
-	f->attr_id = add_metadata_attr(m, attr_name, f->size, MT_READ);
-	if (f->attr_id < 0)
-		return snobj_err(-f->attr_id, "add_metadata_attr() failed");
+	if (attr_name) {
+		f->attr_id = add_metadata_attr(m, attr_name, f->size, MT_READ);
+		if (f->attr_id < 0)
+			return snobj_err(-f->attr_id, 
+					"idx %d: add_metadata_attr() failed",
+					idx);
+	} else if (snobj_eval_exists(field, "offset")) {
+		f->attr_id = -1;
+		f->offset = snobj_eval_int(field, "offset");
+		if (f->offset < 0 || f->offset > 1024)
+			return snobj_err(EINVAL, "idx %d: invalid 'offset'",
+					idx);
+	}  else
+		return snobj_err(EINVAL, 
+				"idx %d: must specify 'offset' or 'name'", idx);
+
+	struct snobj *mask = snobj_eval(field, "mask");
+	int force_be = (f->attr_id < 0);
+
+	if (!mask) {
+		/* by default all bits are considered */
+		f->mask = (1ul << (f->size * 8)) - 1;
+	} else if (snobj_binvalue_get(mask, f->size, &f->mask, force_be))
+		return snobj_err(EINVAL, "idx %d: not a correct %d-byte mask", 
+				idx, f->size);
+
+	if (f->mask == 0)
+		return snobj_err(EINVAL, "idx %d: empty mask", idx);
 
 	return NULL;
 }
@@ -115,7 +124,7 @@ static struct snobj *em_init(struct module *m, struct snobj *arg)
 
 		f.size_acc = size_acc;
 
-		err = add_field_one(m, field, &f);
+		err = add_field_one(m, field, &f, i);
 		if (err)
 			return err;
 
