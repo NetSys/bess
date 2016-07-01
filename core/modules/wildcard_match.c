@@ -77,7 +77,7 @@ add_field_one(struct module *m, struct snobj *field, struct field *f)
 	if (snobj_eval_exists(field, "offset")) {
 		f->attr_id = -1;
 		f->offset = snobj_eval_int(field, "offset");
-		if (f->offset < 0)
+		if (f->offset < 0 || f->offset > 1024)
 			return snobj_err(EINVAL, "too small 'offset'");
 		return NULL;
 	} 
