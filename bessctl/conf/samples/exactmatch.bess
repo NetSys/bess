@@ -39,7 +39,7 @@ em.add(fields=[chr(6), aton('172.12.55.99'), aton('12.34.56.78')], gate=1)
 em.add(fields=[chr(17), aton('172.12.55.99'), aton('12.34.56.78')], gate=2)
 
 # delete test
-em.add(fields=[bytearray(chr(17)), aton('192.168.1.123'), aton('12.34.56.78')], gate=3) 
-em.delete([bytearray(chr(17)), aton('192.168.1.123'), aton('12.34.56.78')]) 
+em.add(fields=[chr(17), aton('192.168.1.123'), aton('12.34.56.78')], gate=3)
+em.delete([chr(17), aton('192.168.1.123'), aton('12.34.56.78')])
 
 em.set_default_gate(5)
