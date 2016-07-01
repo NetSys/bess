@@ -1004,7 +1004,7 @@ def _show_module(cli, module_name):
 
     if 'dump' in info:
         cli.fout.write('    Dump:\n')
-        cli.fout.write('      %s' % info.dump)
+        cli.fout.write('      %s\n' % info.dump)
 
 @cmd('show module', 'Show the status of all modules')
 def show_module_all(cli):
