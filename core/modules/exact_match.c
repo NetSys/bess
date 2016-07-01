@@ -12,6 +12,10 @@ ct_assert(MAX_FIELD_SIZE <= sizeof(uint64_t));
   #error this code assumes little endian architecture (x86)
 #endif
 
+#if __AVX__
+  #define FASTPATH_SUPPORT	1
+#endif
+
 typedef char hkey_t[HASH_KEY_SIZE];
 
 HT_DECLARE_INLINED_FUNCS(em, hkey_t)
@@ -37,6 +41,16 @@ struct em_priv {
 
 		uint8_t size;	/* in bytes. 1 <= size <= MAX_FIELD_SIZE */
 	} fields[MAX_FIELDS];
+
+#if FASTPATH_SUPPORT
+	int fastpath;
+	int offset_pdata;
+
+	union {
+		__m256i mask_pdata_vec;
+		char mask_pdata_arr[32];
+	};
+#endif
 
 	struct htable ht;
 };
@@ -99,6 +113,47 @@ add_field_one(struct module *m, struct snobj *field, struct field *f, int idx)
 	return NULL;
 }
 
+static void setup_fastpath(struct em_priv *priv)
+{
+	int min_offset = INT_MAX;
+
+	for (int i = 0; i < priv->num_fields; i++) {
+		struct field *f1 = &priv->fields[i];
+
+		if (f1->attr_id >= 0)
+			return;
+
+		min_offset = MIN(min_offset, f1->offset);
+	}
+
+	for (int i = 0; i < priv->num_fields; i++) {
+		struct field *f = &priv->fields[i];
+
+		if (f->attr_id >= 0)
+			continue;
+
+		char *m = (char *)&f->mask;
+
+		for (int j = 0; j < f->size; j++) {
+			int offset_in_vec = f->offset - min_offset + j;
+
+			if (offset_in_vec >= sizeof(priv->mask_pdata_arr))
+				return;
+
+			/* overlap? */
+			if (m[j] & priv->mask_pdata_arr[offset_in_vec])
+				return;
+
+			priv->mask_pdata_arr[offset_in_vec] |= m[j];
+		}
+	}
+
+	/* now we know that all packet data fields are covered by a single
+	 * 32-byte variable, mask_pdata_vec */
+	priv->offset_pdata = min_offset;
+	priv->fastpath = 1;
+}
+
 /* Takes a list of fields. Each field needs 'offset' (or 'name') and 'size', 
  * and optional "mask" (0xfffff.. by default)
  *
@@ -114,27 +169,28 @@ static struct snobj *em_init(struct module *m, struct snobj *arg)
 
 	struct snobj *fields = snobj_eval(arg, "fields");
 
-	if (snobj_type(fields) != TYPE_LIST)
+	if (snobj_type(fields) != TYPE_LIST || !snobj_size(fields))
 		return snobj_err(EINVAL, "'fields' must be a list of maps");
 
 	for (int i = 0; i < fields->size; i++) {
 		struct snobj *field = snobj_list_get(fields, i);
 		struct snobj *err;
-		struct field f;
+		struct field *f = &priv->fields[i];
 
-		f.size_acc = size_acc;
+		f->size_acc = size_acc;
 
-		err = add_field_one(m, field, &f, i);
+		err = add_field_one(m, field, f, i);
 		if (err)
 			return err;
 
-		size_acc += f.size;
-		priv->fields[i] = f;
+		size_acc += f->size;
 	}
 
 	priv->default_gate = DROP_GATE;
 	priv->num_fields = fields->size;
 	priv->total_key_size = size_acc;
+
+	setup_fastpath(priv);
 
 	int ret = ht_init(&priv->ht, size_acc, sizeof(gate_idx_t));
 	if (ret < 0) 
@@ -199,28 +255,27 @@ static void em_process_batch(struct module *m, struct pkt_batch *batch)
 	run_split(m, ogates, batch);
 }
 
-static struct snobj *
-command_add(struct module *m, const char *cmd, struct snobj *arg)
+static struct snobj *em_get_dump(const struct module *m)
 {
-	struct em_priv *priv = get_priv(m);
+	const struct em_priv *priv = get_priv_const(m);
 
-	struct snobj *fields = snobj_eval(arg, "fields");
-	gate_idx_t gate = snobj_eval_uint(arg, "gate");
+	struct snobj *ret = snobj_map();
 
-	char key[HASH_KEY_SIZE];
+	snobj_map_set(ret, "fastpath", snobj_int(priv->fastpath));
+	if (priv->fastpath) {
+		snobj_map_set(ret, "offset_pdata", 
+				snobj_int(priv->offset_pdata));
+		snobj_map_set(ret, "mask_pdata_vec", 
+				snobj_blob(priv->mask_pdata_arr,
+					sizeof(priv->mask_pdata_arr)));
+	}
 
-	int ret;
+	return ret;
+}
 
-	if (!snobj_eval_exists(arg, "gate"))
-		return snobj_err(EINVAL, 
-				"'gate' must be specified");
-
-	if (!is_valid_gate(gate))
-		return snobj_err(EINVAL, "Invalid gate: %hu", gate);
-
-	if (!fields || snobj_type(fields) != TYPE_LIST)
-		return snobj_err(EINVAL, "'fields' must be a list of blobs");
-
+static struct snobj *
+gather_key(struct em_priv *priv, struct snobj *fields, char *key)
+{
 	if (fields->size != priv->num_fields)
 		return snobj_err(EINVAL, "must specify %d fields", 
 				priv->num_fields);
@@ -242,6 +297,35 @@ command_add(struct module *m, const char *cmd, struct snobj *arg)
 		memcpy(key + field_size_acc, &f, field_size);
 	}
 
+	return NULL;
+}
+
+static struct snobj *
+command_add(struct module *m, const char *cmd, struct snobj *arg)
+{
+	struct em_priv *priv = get_priv(m);
+
+	struct snobj *fields = snobj_eval(arg, "fields");
+	gate_idx_t gate = snobj_eval_uint(arg, "gate");
+
+	char key[HASH_KEY_SIZE] = {};
+
+	struct snobj *err;
+	int ret;
+
+	if (!snobj_eval_exists(arg, "gate"))
+		return snobj_err(EINVAL, 
+				"'gate' must be specified");
+
+	if (!is_valid_gate(gate))
+		return snobj_err(EINVAL, "Invalid gate: %hu", gate);
+
+	if (!fields || snobj_type(fields) != TYPE_LIST)
+		return snobj_err(EINVAL, "'fields' must be a list");
+
+	if ((err = gather_key(priv, fields, key)))
+		return err;
+
 	ret = ht_set(&priv->ht, key, &gate);
 	if (ret)
 		return snobj_err(-ret, "ht_set() failed");
@@ -254,33 +338,16 @@ command_delete(struct module *m, const char *cmd, struct snobj *arg)
 {
 	struct em_priv *priv = get_priv(m);
 
-	char key[HASH_KEY_SIZE];
+	char key[HASH_KEY_SIZE] = {};
 
+	struct snobj *err;
 	int ret;
 
 	if (!arg || snobj_type(arg) != TYPE_LIST)
-		return snobj_err(EINVAL, "argument must be a list of blobs");
+		return snobj_err(EINVAL, "argument must be a list");
 
-	if (arg->size != priv->num_fields)
-		return snobj_err(EINVAL, "must specify %d fields", 
-				priv->num_fields);
-
-	for (int i = 0; i < arg->size; i++) {
-		int field_size = priv->fields[i].size;
-		int field_size_acc = priv->fields[i].size_acc;
-
-		struct snobj *f_obj = snobj_list_get(arg, i);
-		uint64_t f;
-
-		int force_be = (priv->fields[i].attr_id < 0);
-
-		if (snobj_binvalue_get(f_obj, field_size, &f, force_be))
-			return snobj_err(EINVAL,
-					"idx %d: not a correct %d-byte value",
-					i, field_size);
-
-		memcpy(key + field_size_acc, &f, field_size);
-	}
+	if ((err = gather_key(priv, arg, key)))
+		return err;
 
 	ret = ht_del(&priv->ht, key);
 	if (ret < 0)
@@ -326,6 +393,7 @@ static const struct mclass em = {
 	.init 			= em_init,
 	.deinit          	= em_deinit,
 	.process_batch 		= em_process_batch,
+	.get_dump		= em_get_dump,
 	.commands		= {
 		{"add", 		command_add},
 		{"delete", 		command_delete},
