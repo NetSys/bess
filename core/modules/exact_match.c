@@ -1,19 +1,8 @@
+#include "../utils/htable.h"
+
 #include "../module.h"
 
-#include <rte_errno.h>
-#include <rte_hash.h>
-
-#define DEFAULT_TABLE_SIZE	1024
 #define MAX_FIELDS		8
-#define USE_BULK_LOOKUP		0	
-
-/* bulk version is actually much slower, if the hash table fits in the cache */
-#if USE_BULK_LOOKUP
-  #define BULK_THRESHOLD		8
-#else
-  #define BULK_THRESHOLD		9999
-#endif
-
 #define MAX_FIELD_SIZE		8
 ct_assert(MAX_FIELD_SIZE <= sizeof(uint64_t));
 
@@ -23,18 +12,11 @@ ct_assert(MAX_FIELD_SIZE <= sizeof(uint64_t));
   #error this code assumes little endian architecture (x86)
 #endif
 
-#if __SSE4_2__
-  #include <rte_hash_crc.h>
-  #define DEFAULT_HASH_FUNC       rte_hash_crc
-#else
-  #include <rte_jhash.h>
-  #define DEFAULT_HASH_FUNC       rte_jhash
-#endif
+typedef char hkey_t[HASH_KEY_SIZE];
+
+HT_DECLARE_INLINED_FUNCS(em, hkey_t)
 
 struct em_priv {
-	struct rte_hash *tbl;
-	int tbl_size;
-
 	gate_idx_t default_gate;
 
 	uint32_t total_key_size;
@@ -55,7 +37,21 @@ struct em_priv {
 
 		uint8_t size;	/* in bytes. 1 <= size <= MAX_FIELD_SIZE */
 	} fields[MAX_FIELDS];
+
+	struct htable ht;
 };
+
+static inline int
+em_keycmp(const hkey_t *key, const hkey_t *key_stored, size_t key_len)
+{
+	return memcmp(key, key_stored, key_len);
+}
+
+static inline uint32_t
+em_hash(const hkey_t *key, uint32_t key_len, uint32_t init_val)
+{
+	return rte_hash_crc(key, key_len, init_val);
+}
 
 static struct snobj *
 add_field_one(struct module *m, struct snobj *field, struct field *f)
@@ -109,8 +105,6 @@ static struct snobj *em_init(struct module *m, struct snobj *arg)
 
 	struct snobj *fields = snobj_eval(arg, "fields");
 
-	struct rte_hash_parameters params;
-
 	if (snobj_type(fields) != TYPE_LIST)
 		return snobj_err(EINVAL, "'fields' must be a list of maps");
 
@@ -132,28 +126,10 @@ static struct snobj *em_init(struct module *m, struct snobj *arg)
 	priv->default_gate = DROP_GATE;
 	priv->num_fields = fields->size;
 	priv->total_key_size = size_acc;
-	priv->tbl_size = DEFAULT_TABLE_SIZE;
 
-	/* hash table size is given? */
-	if (snobj_eval_exists(arg, "size")) {
-		uint32_t size = snobj_eval_uint(arg, "size");
-		if (size == 0)
-			return snobj_err(EINVAL, "invalid table size");
-		priv->tbl_size = size;
-	}
-
-	params = (struct rte_hash_parameters) {
-		.name = m->name,
-		.entries = priv->tbl_size,
-		.key_len = size_acc,
-		.hash_func = DEFAULT_HASH_FUNC,
-		.hash_func_init_val = 0,
-		.socket_id = 0,		/* XXX */
-	};
-
-	priv->tbl = rte_hash_create(&params);
-	if (!priv->tbl)
-		return snobj_err(rte_errno, "rte_hash_create() failed");
+	int ret = ht_init(&priv->ht, size_acc, sizeof(gate_idx_t));
+	if (ret < 0) 
+		return snobj_err(-ret, "hash table creation failed");
 
 	return NULL;
 }
@@ -162,7 +138,7 @@ static void em_deinit(struct module *m)
 {
 	struct em_priv *priv = get_priv(m);
 
-	rte_hash_free(priv->tbl);
+	ht_close(&priv->ht);
 }
 
 static void em_process_batch(struct module *m, struct pkt_batch *batch)
@@ -172,7 +148,7 @@ static void em_process_batch(struct module *m, struct pkt_batch *batch)
 	gate_idx_t default_gate;
 	gate_idx_t ogates[MAX_PKT_BURST];
 
-	char keys[MAX_PKT_BURST][HASH_KEY_SIZE];
+	char keys[MAX_PKT_BURST][HASH_KEY_SIZE] __ymm_aligned;
 
 	int cnt = batch->cnt;
 
@@ -204,40 +180,11 @@ static void em_process_batch(struct module *m, struct pkt_batch *batch)
 		}
 	}
 
-	if (cnt >= BULK_THRESHOLD) {
-		uintptr_t results[MAX_PKT_BURST];
-		uint64_t hits;
+	const struct htable *t = &priv->ht;
 
-		char *key_ptrs[MAX_PKT_BURST];
-
-		for (int i = 0; i < cnt; i++)
-			key_ptrs[i] = keys[i];
-
-		rte_hash_lookup_bulk_data(priv->tbl, (const void **)key_ptrs, 
-				cnt, &hits, (void **)results);
-	
-		/* branchless version didn't help */
-		for (int i = 0; i < cnt; i++) {
-			if (hits & (1 << i))
-				ogates[i] = results[i];
-			else
-				ogates[i] = default_gate;
-		}
-	} else {
-		struct rte_hash *tbl = priv->tbl;
-		uint32_t key_size = priv->total_key_size;
-
-		for (int i = 0; i < cnt; i++) {
-			uintptr_t result = default_gate;
-		
-			/* exploit that result is not updated if unmatched */
-			rte_hash_lookup_with_hash_data(tbl,
-					(const void *)keys[i], 
-					DEFAULT_HASH_FUNC(keys[i], key_size, 0),
-					(void **)&result);
-
-			ogates[i] = result;
-		}
+	for (int i = 0; i < cnt; i++) {
+		gate_idx_t *ret = ht_em_get(t, keys[i]);
+		ogates[i] = ret ? *ret : default_gate;
 	}
 
 	run_split(m, ogates, batch);
@@ -286,9 +233,9 @@ command_add(struct module *m, const char *cmd, struct snobj *arg)
 		memcpy(key + field_size_acc, &f, field_size);
 	}
 
-	ret = rte_hash_add_key_data(priv->tbl, key, (void *)(uintptr_t)gate);
+	ret = ht_set(&priv->ht, key, &gate);
 	if (ret)
-		return snobj_err(-ret, "rte_hash_add_key_data() failed");
+		return snobj_err(-ret, "ht_set() failed");
 
 	return NULL;
 }
@@ -326,9 +273,9 @@ command_delete(struct module *m, const char *cmd, struct snobj *arg)
 		memcpy(key + field_size_acc, &f, field_size);
 	}
 
-	ret = rte_hash_del_key(priv->tbl, key);
+	ret = ht_del(&priv->ht, key);
 	if (ret < 0)
-		return snobj_err(-ret, "rte_hash_del_key() failed");
+		return snobj_err(-ret, "ht_del() failed");
 
 	return NULL;
 }
@@ -337,8 +284,12 @@ static struct snobj *
 command_clear(struct module *m, const char *cmd, struct snobj *arg)
 {
 	struct em_priv *priv = get_priv(m);
+	struct htable *t = &priv->ht;
+	uint32_t next = 0;
+	void *key;
 
-	rte_hash_reset(priv->tbl);
+	while ((key = ht_iterate(t, &next)))
+		ht_del(t, key);
 
 	return NULL;
 }
