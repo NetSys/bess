@@ -262,7 +262,7 @@ extract_key_mask(struct wm_priv *priv, struct snobj *arg, char *key, char *mask)
 	values = snobj_eval(arg, "values");
 	masks = snobj_eval(arg, "masks");
 
-	if (!values || snobj_type(values) != TYPE_LIST)
+	if (!values || snobj_type(values) != TYPE_LIST || !snobj_size(values))
 		return snobj_err(EINVAL, "'values' must be a list");
 
 	if (values->size != priv->num_fields)
