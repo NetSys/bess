@@ -214,7 +214,7 @@ static inline void *ht_##name##_get(const struct htable *t,		\
 									\
 	ht_keyidx_t k_idx = (t->cnt >= 2048) ?				\
 			_get_keyidx_vec(t, pri) : _get_keyidx(t, pri);	\
-	if (unlikely(k_idx == INVALID_KEYIDX)) 				\
+	if (k_idx == INVALID_KEYIDX) 					\
 		return NULL;						\
 									\
 	key_type *key_stored = t->entries + t->entry_size * k_idx;	\
