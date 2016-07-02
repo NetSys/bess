@@ -12,11 +12,9 @@ ct_assert(MAX_FIELD_SIZE <= sizeof(uint64_t));
   #error this code assumes little endian architecture (x86)
 #endif
 
-#if __AVX__
-  #define FASTPATH_SUPPORT	1
-#endif
-
-typedef char hkey_t[HASH_KEY_SIZE];
+typedef struct {
+	uint64_t u64_arr[MAX_FIELDS];
+} hkey_t;
 
 HT_DECLARE_INLINED_FUNCS(em, hkey_t)
 
@@ -42,29 +40,52 @@ struct em_priv {
 		uint8_t size;	/* in bytes. 1 <= size <= MAX_FIELD_SIZE */
 	} fields[MAX_FIELDS];
 
-#if FASTPATH_SUPPORT
-	int fastpath;
-	int offset_pdata;
-
-	union {
-		__m256i mask_pdata_vec;
-		char mask_pdata_arr[32];
-	};
-#endif
-
 	struct htable ht;
 };
 
 static inline int
 em_keycmp(const hkey_t *key, const hkey_t *key_stored, size_t key_len)
 {
-	return memcmp(key, key_stored, key_len);
+	const uint64_t *a = key->u64_arr;
+	const uint64_t *b = key_stored->u64_arr;
+
+	switch (key_len >> 3) {
+	default: promise_unreachable();
+	case 8: if (unlikely(*a++ != *b++)) return 1;
+	case 7: if (unlikely(*a++ != *b++)) return 1;
+	case 6: if (unlikely(*a++ != *b++)) return 1;
+	case 5: if (unlikely(*a++ != *b++)) return 1;
+	case 4: if (unlikely(*a++ != *b++)) return 1;
+	case 3: if (unlikely(*a++ != *b++)) return 1;
+	case 2: if (unlikely(*a++ != *b++)) return 1;
+	case 1: if (unlikely(*a++ != *b++)) return 1;
+	}
+
+	return 0;
 }
 
 static inline uint32_t
 em_hash(const hkey_t *key, uint32_t key_len, uint32_t init_val)
 {
+#if __SSE4_2__
+	const uint64_t *a = key->u64_arr;
+
+	switch (key_len >> 3) {
+	default: promise_unreachable();
+	case 8: init_val = crc32c_sse42_u64(*a++, init_val);
+	case 7: init_val = crc32c_sse42_u64(*a++, init_val);
+	case 6: init_val = crc32c_sse42_u64(*a++, init_val);
+	case 5: init_val = crc32c_sse42_u64(*a++, init_val);
+	case 4: init_val = crc32c_sse42_u64(*a++, init_val);
+	case 3: init_val = crc32c_sse42_u64(*a++, init_val);
+	case 2: init_val = crc32c_sse42_u64(*a++, init_val);
+	case 1: init_val = crc32c_sse42_u64(*a++, init_val);
+	}
+
+	return init_val;
+#else
 	return rte_hash_crc(key, key_len, init_val);
+#endif
 }
 
 static struct snobj *
@@ -113,47 +134,6 @@ add_field_one(struct module *m, struct snobj *field, struct field *f, int idx)
 	return NULL;
 }
 
-static void setup_fastpath(struct em_priv *priv)
-{
-	int min_offset = INT_MAX;
-
-	for (int i = 0; i < priv->num_fields; i++) {
-		struct field *f1 = &priv->fields[i];
-
-		if (f1->attr_id >= 0)
-			return;
-
-		min_offset = MIN(min_offset, f1->offset);
-	}
-
-	for (int i = 0; i < priv->num_fields; i++) {
-		struct field *f = &priv->fields[i];
-
-		if (f->attr_id >= 0)
-			continue;
-
-		char *m = (char *)&f->mask;
-
-		for (int j = 0; j < f->size; j++) {
-			int offset_in_vec = f->offset - min_offset + j;
-
-			if (offset_in_vec >= sizeof(priv->mask_pdata_arr))
-				return;
-
-			/* overlap? */
-			if (m[j] & priv->mask_pdata_arr[offset_in_vec])
-				return;
-
-			priv->mask_pdata_arr[offset_in_vec] |= m[j];
-		}
-	}
-
-	/* now we know that all packet data fields are covered by a single
-	 * 32-byte variable, mask_pdata_vec */
-	priv->offset_pdata = min_offset;
-	priv->fastpath = 1;
-}
-
 /* Takes a list of fields. Each field needs 'offset' (or 'name') and 'size', 
  * and optional "mask" (0xfffff.. by default)
  *
@@ -169,7 +149,7 @@ static struct snobj *em_init(struct module *m, struct snobj *arg)
 
 	struct snobj *fields = snobj_eval(arg, "fields");
 
-	if (snobj_type(fields) != TYPE_LIST || !snobj_size(fields))
+	if (snobj_type(fields) != TYPE_LIST)
 		return snobj_err(EINVAL, "'fields' must be a list of maps");
 
 	for (int i = 0; i < fields->size; i++) {
@@ -188,11 +168,9 @@ static struct snobj *em_init(struct module *m, struct snobj *arg)
 
 	priv->default_gate = DROP_GATE;
 	priv->num_fields = fields->size;
-	priv->total_key_size = size_acc;
+	priv->total_key_size = align_ceil(size_acc, sizeof(uint64_t));
 
-	setup_fastpath(priv);
-
-	int ret = ht_init(&priv->ht, size_acc, sizeof(gate_idx_t));
+	int ret = ht_init(&priv->ht, priv->total_key_size, sizeof(gate_idx_t));
 	if (ret < 0) 
 		return snobj_err(-ret, "hash table creation failed");
 
@@ -218,6 +196,9 @@ static void em_process_batch(struct module *m, struct pkt_batch *batch)
 	int cnt = batch->cnt;
 
 	default_gate = ACCESS_ONCE(priv->default_gate);
+
+	for (int i = 0; i < cnt; i++)
+		memset(&keys[i][priv->total_key_size - 8], 0, sizeof(uint64_t));
 
 	for (int i = 0; i < priv->num_fields; i++) {
 		uint64_t mask = priv->fields[i].mask;
@@ -255,26 +236,8 @@ static void em_process_batch(struct module *m, struct pkt_batch *batch)
 	run_split(m, ogates, batch);
 }
 
-static struct snobj *em_get_dump(const struct module *m)
-{
-	const struct em_priv *priv = get_priv_const(m);
-
-	struct snobj *ret = snobj_map();
-
-	snobj_map_set(ret, "fastpath", snobj_int(priv->fastpath));
-	if (priv->fastpath) {
-		snobj_map_set(ret, "offset_pdata", 
-				snobj_int(priv->offset_pdata));
-		snobj_map_set(ret, "mask_pdata_vec", 
-				snobj_blob(priv->mask_pdata_arr,
-					sizeof(priv->mask_pdata_arr)));
-	}
-
-	return ret;
-}
-
 static struct snobj *
-gather_key(struct em_priv *priv, struct snobj *fields, char *key)
+gather_key(struct em_priv *priv, struct snobj *fields, hkey_t *key)
 {
 	if (fields->size != priv->num_fields)
 		return snobj_err(EINVAL, "must specify %d fields", 
@@ -294,7 +257,7 @@ gather_key(struct em_priv *priv, struct snobj *fields, char *key)
 					"idx %d: not a correct %d-byte value",
 					i, field_size);
 
-		memcpy(key + field_size_acc, &f, field_size);
+		memcpy((void *)key + field_size_acc, &f, field_size);
 	}
 
 	return NULL;
@@ -308,7 +271,7 @@ command_add(struct module *m, const char *cmd, struct snobj *arg)
 	struct snobj *fields = snobj_eval(arg, "fields");
 	gate_idx_t gate = snobj_eval_uint(arg, "gate");
 
-	char key[HASH_KEY_SIZE] = {};
+	hkey_t key = {};
 
 	struct snobj *err;
 	int ret;
@@ -323,10 +286,10 @@ command_add(struct module *m, const char *cmd, struct snobj *arg)
 	if (!fields || snobj_type(fields) != TYPE_LIST)
 		return snobj_err(EINVAL, "'fields' must be a list");
 
-	if ((err = gather_key(priv, fields, key)))
+	if ((err = gather_key(priv, fields, &key)))
 		return err;
 
-	ret = ht_set(&priv->ht, key, &gate);
+	ret = ht_set(&priv->ht, &key, &gate);
 	if (ret)
 		return snobj_err(-ret, "ht_set() failed");
 
@@ -338,7 +301,7 @@ command_delete(struct module *m, const char *cmd, struct snobj *arg)
 {
 	struct em_priv *priv = get_priv(m);
 
-	char key[HASH_KEY_SIZE] = {};
+	hkey_t key = {};
 
 	struct snobj *err;
 	int ret;
@@ -346,10 +309,10 @@ command_delete(struct module *m, const char *cmd, struct snobj *arg)
 	if (!arg || snobj_type(arg) != TYPE_LIST)
 		return snobj_err(EINVAL, "argument must be a list");
 
-	if ((err = gather_key(priv, arg, key)))
+	if ((err = gather_key(priv, arg, &key)))
 		return err;
 
-	ret = ht_del(&priv->ht, key);
+	ret = ht_del(&priv->ht, &key);
 	if (ret < 0)
 		return snobj_err(-ret, "ht_del() failed");
 
@@ -393,7 +356,6 @@ static const struct mclass em = {
 	.init 			= em_init,
 	.deinit          	= em_deinit,
 	.process_batch 		= em_process_batch,
-	.get_dump		= em_get_dump,
 	.commands		= {
 		{"add", 		command_add},
 		{"delete", 		command_delete},
