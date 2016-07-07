@@ -1003,8 +1003,10 @@ def _show_module(cli, module_name):
                      gate.igate, gate.name))
 
     if 'dump' in info:
+        dump_str = pprint.pformat(info.dump, width=74)
+        dump_str = '\n      '.join(dump_str.split('\n'))
         cli.fout.write('    Dump:\n')
-        cli.fout.write('      %s\n' % info.dump)
+        cli.fout.write('      %s\n' % dump_str)
 
 @cmd('show module', 'Show the status of all modules')
 def show_module_all(cli):
