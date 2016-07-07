@@ -2,6 +2,7 @@
 .*
 *.dump
 cscope.*
+*.vim
 core/extra.mk
 
 # VM images
