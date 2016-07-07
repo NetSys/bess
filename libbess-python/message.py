@@ -8,8 +8,36 @@ TYPE_BLOB   = 4
 TYPE_LIST   = 5
 TYPE_MAP    = 6
 
+import pprint
+import binascii
+
 # a custom class that supports both obj[x] and obj.x for convenience
 class SNObjDict(object):
+    # ------------------------------------------------------------------
+    # Ugly monkey patching to add support for SNObjDict to pprint
+    if not hasattr(pprint, 'old_printer'):
+        pprint.old_printer = pprint.PrettyPrinter
+
+    class MyPrettyPrinter(pprint.old_printer):
+        class MyBinaryData(str):
+            def __init__(self, data):
+                self.hex = binascii.hexlify(data)
+
+            def __repr__(self):
+                return '0x%s' % self.hex
+
+        def _format(self, obj, *args, **kwargs):
+            if isinstance(obj, bytearray):
+                obj = self.MyBinaryData(obj)
+
+            if isinstance(obj, SNObjDict):
+                obj = obj._dict
+
+            return pprint.old_printer._format(self, obj, *args, **kwargs)
+
+    pprint.PrettyPrinter = MyPrettyPrinter
+    # ------------------------------------------------------------------
+
     def __init__(self):
         # self._dict = dict() causes a recursive call
         self.__dict__['_dict'] = dict()
