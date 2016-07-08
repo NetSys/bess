@@ -39,8 +39,8 @@ def __bess_env__(key, default=None):
         return default
 
 def __bess_module__(module_names, mclass_name, *args, **kwargs):
-    caller_globals = inspect.stack()[1][0].f_globals 
-    
+    caller_globals = inspect.stack()[1][0].f_globals
+
     if mclass_name not in caller_globals:
         raise ConfError("Module class %s does not exist" % mclass_name)
     mclass_obj = caller_globals[mclass_name]
@@ -105,12 +105,12 @@ def complete_filename(partial_word, start_dir='', suffix=''):
                     if suffix:
                         basename = basename[:-len(suffix)]
                     candidates.append(basename)
-      
+
         ret = []
         for candidate in candidates:
             ret.append(os.path.join(sub_dir, candidate))
         return ret
-    
+
     except OSError:
         # ignore failure of os.listdir()
         return []
@@ -167,7 +167,7 @@ def get_var_attrs(cli, var_token, partial_word):
         elif var_token == '[NEW_PORT]':
             var_type = 'name'
             var_desc = 'specify a name of the new port'
-        
+
         elif var_token == 'PORT':
             var_type = 'name'
             var_desc = 'name of a port'
@@ -315,7 +315,7 @@ def bind_var(cli, var_type, line):
         for name in val:
             if re.match(r'^[_a-zA-Z][\w]*$', name) is None:
                 raise cli.BindError('"name" must be [_a-zA-Z][_a-zA-Z0-9]*')
-   
+
     elif var_type == 'confname':
         if val.find('\0') >= 0:
             raise cli.BindError('Invalid configuration name')
@@ -379,7 +379,7 @@ def history(cli):
     else:
         cli.err('"readline" not available')
 
-@cmd('debug ENABLE_DISABLE', 
+@cmd('debug ENABLE_DISABLE',
         'Enable/disable debug messages')
 def debug(cli, flag):
     cli.bess.set_debug(flag== 'enable')
@@ -550,7 +550,7 @@ def _do_run_file(cli, conf_file):
     class_names = cli.bess.list_mclasses()
 
     # Add the special Port class. TODO: per-driver classes
-    new_globals['Port'] = type('Port', (Port,), 
+    new_globals['Port'] = type('Port', (Port,),
             {'bess': cli.bess, 'choose_arg': _choose_arg})
 
     # Add BESS module classes
@@ -587,7 +587,7 @@ def _do_run_file(cli, conf_file):
 
         cli.err('%s (most recent call last)' % errmsg)
         cli.fout.write(''.join(traceback.format_list(stack)))
-        
+
         if isinstance(v, cli.bess.Error):
             raise
         else:
@@ -641,7 +641,7 @@ def add_module(cli, mclass, module, args):
     if module is None:
         cli.fout.write('  The new module "%s" has been created\n' % ret.name)
 
-@cmd('add connection MODULE MODULE [OGATE] [IGATE]', 
+@cmd('add connection MODULE MODULE [OGATE] [IGATE]',
         'Add a connection between two modules')
 def add_connection(cli, m1, m2, ogate, igate):
     if ogate is None:
@@ -656,7 +656,7 @@ def add_connection(cli, m1, m2, ogate, igate):
     finally:
         cli.bess.resume_all()
 
-@cmd('command module MODULE MODULE_CMD [CMD_ARGS...]', 
+@cmd('command module MODULE MODULE_CMD [CMD_ARGS...]',
         'Send a command to a module')
 def command_module(cli, module, cmd, args):
     cli.bess.pause_all()
@@ -681,7 +681,7 @@ def delete_module(cli, module):
     finally:
         cli.bess.resume_all()
 
-@cmd('delete connection MODULE ogate [OGATE]', 
+@cmd('delete connection MODULE ogate [OGATE]',
     'Delete a connection between two modules')
 def delete_connection(cli, module, ogate):
     if ogate is None:
@@ -695,17 +695,17 @@ def delete_connection(cli, module, ogate):
 
 def _show_worker_header(cli):
     cli.fout.write('  %10s%10s%10s%10s%16s\n' % \
-            ('Worker ID', 
-             'Status', 
-             'CPU core', 
+            ('Worker ID',
+             'Status',
+             'CPU core',
              '# of TCs',
              'Deadend pkts'))
 
 def _show_worker(cli, w):
     cli.fout.write('  %10d%10s%10d%10d%16d\n' % \
-            (w.wid, 
-             'RUNNING' if w.running else 'PAUSED', 
-             w.core, 
+            (w.wid,
+             'RUNNING' if w.running else 'PAUSED',
+             w.core,
              w.num_tcs,
              w.silent_drops))
 
@@ -715,7 +715,7 @@ def show_worker_all(cli):
 
     if not workers:
         raise cli.CommandError('There is no active worker thread to show.')
-       
+
     _show_worker_header(cli)
     for worker in workers:
         _show_worker(cli, worker)
@@ -738,7 +738,7 @@ def show_worker_list(cli, worker_ids):
 
 def _limit_to_str(limit):
     buf = []
-    
+
     if limit.schedules:
         buf.append('%d times' % limit.schedules)
 
@@ -781,13 +781,13 @@ def _show_tc_list(cli, tcs):
             cli.fout.write('    %-16s  ' \
                            'parent %-10s  priority %-3d  tasks %-3d ' \
                            '%s\n' % \
-                    (tc.name, 
-                     tc.parent if tc.parent else 'none', 
+                    (tc.name,
+                     tc.parent if tc.parent else 'none',
                      tc.priority,
                      tc.tasks,
                      _limit_to_str(tc.limit)))
 
-            
+
 @cmd('show tc', 'Show the list of traffic classes')
 def show_tc_all(cli):
     _show_tc_list(cli, cli.bess.list_tcs())
@@ -825,7 +825,7 @@ def show_status(cli):
         cli.fout.write('%s\n' % ', '.join(mclasses))
     else:
         cli.fout.write('(none)\n')
-    
+
     cli.fout.write('  Active ports: ')
     if ports:
         port_list = ['%s/%s' % (p.name, p.driver) for p in ports]
@@ -867,8 +867,8 @@ def _draw_pipeline(cli, field, last_stats = None):
 
     try:
         f = subprocess.Popen('graph-easy', shell=True,
-                stdin=subprocess.PIPE, 
-                stdout=subprocess.PIPE, 
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE)
 
         for m in modules:
@@ -910,7 +910,7 @@ def _draw_pipeline(cli, field, last_stats = None):
 def show_pipeline(cli):
     cli.fout.write(_draw_pipeline(cli, 'pkts'))
 
-@cmd('show pipeline batch', 
+@cmd('show pipeline batch',
         'Show the current datapath pipeline with batch counters')
 def show_pipeline_batch(cli):
     cli.fout.write(_draw_pipeline(cli, 'cnt'))
@@ -925,7 +925,7 @@ def _group(number):
 
 def _show_port(cli, port):
     cli.fout.write('  %s/%s\n' % (port.name, port.driver))
-    
+
     port_stats = cli.bess.get_port_stats(port.name)
 
     cli.fout.write('    Incoming (external -> BESS):\n')
@@ -990,7 +990,7 @@ def _show_module(cli, module_name):
         cli.fout.write('    Input gates:\n')
         for gate in info.igates:
             cli.fout.write('      %5d: %s\n' % \
-                    (gate.igate, 
+                    (gate.igate,
                      ', '.join('%s:%d ->' % (g.name, g.ogate) \
                              for g in gate.ogates)))
 
@@ -999,7 +999,7 @@ def _show_module(cli, module_name):
         for gate in info.ogates:
             cli.fout.write(
                     '      %5d: batches %-16d packets %-16d -> %d:%s\n' % \
-                    (gate.ogate, gate.cnt, gate.pkts, 
+                    (gate.ogate, gate.cnt, gate.pkts,
                      gate.igate, gate.name))
 
     if 'dump' in info:
@@ -1046,7 +1046,7 @@ def show_mclass_list(cli, cls_names):
 
 def _monitor_pipeline(cli, field):
     modules = sorted(cli.bess.list_modules())
-   
+
     last_stats = {}
     for module in modules:
         gates = cli.bess.get_module_info(module.name).ogates
@@ -1091,7 +1091,7 @@ def _monitor_ports(cli, *ports):
 
     def print_delta(port, delta):
         cli.fout.write('%-20s%14.1f%10.3f%10d        %14.1f%10.3f%10d\n' % \
-                (port, 
+                (port,
                  (delta.inc.bytes + delta.inc.packets * 24) * 8 / 1e6,
                  delta.inc.packets / 1e6,
                  delta.inc.dropped,
@@ -1124,7 +1124,7 @@ def _monitor_ports(cli, *ports):
 
     for port in ports:
         last[port] = cli.bess.get_port_stats(port)
-    
+
     try:
         while True:
             time.sleep(1)
@@ -1135,7 +1135,7 @@ def _monitor_ports(cli, *ports):
             print_header(now[port].timestamp)
 
             for port in ports:
-                print_delta('%s/%s' % (port, drivers[port]), 
+                print_delta('%s/%s' % (port, drivers[port]),
                         get_delta(last[port], now[port]))
 
             print_footer()
@@ -1167,7 +1167,7 @@ def _monitor_tcs(cli, *tcs):
         cli.fout.write('\n')
         cli.fout.write('%-20s%12s%12s%12s%12s%12s%12s\n' % \
                 (time.strftime('%X') + str(timestamp % 1)[1:8], \
-                 'CPU MHz', 'scheduled', 'Mpps', 'Mbps', 
+                 'CPU MHz', 'scheduled', 'Mpps', 'Mbps',
                  'pkts/batch', 'cycles/p'))
 
         cli.fout.write('%s\n' % ('-' * 92))
@@ -1187,10 +1187,10 @@ def _monitor_tcs(cli, *tcs):
             cpp = 0
 
         cli.fout.write('%-20s%12.3f%12d%12.3f%12.3f%12.3f%12.3f\n' % \
-                (tc, 
-                 delta.cycles / 1e6, 
-                 delta.count, 
-                 delta.packets / 1e6, 
+                (tc,
+                 delta.cycles / 1e6,
+                 delta.count,
+                 delta.packets / 1e6,
                  delta.bits / 1e6,
                  ppb,
                  cpp))
@@ -1234,7 +1234,7 @@ def _monitor_tcs(cli, *tcs):
             print_header(now[tc].timestamp)
 
             for tc in tcs:
-                print_delta('W%d %s' % (wids[tc], tc), 
+                print_delta('W%d %s' % (wids[tc], tc),
                         get_delta(last[tc], now[tc]))
 
             print_footer()
