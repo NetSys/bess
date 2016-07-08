@@ -51,14 +51,14 @@ em_keycmp(const hkey_t *key, const hkey_t *key_stored, size_t key_len)
 
 	switch (key_len >> 3) {
 	default: promise_unreachable();
-	case 8: if (unlikely(*a++ != *b++)) return 1;
-	case 7: if (unlikely(*a++ != *b++)) return 1;
-	case 6: if (unlikely(*a++ != *b++)) return 1;
-	case 5: if (unlikely(*a++ != *b++)) return 1;
-	case 4: if (unlikely(*a++ != *b++)) return 1;
-	case 3: if (unlikely(*a++ != *b++)) return 1;
-	case 2: if (unlikely(*a++ != *b++)) return 1;
-	case 1: if (unlikely(*a++ != *b++)) return 1;
+	case 8: if (unlikely(a[7] != b[7])) return 1;
+	case 7: if (unlikely(a[6] != b[6])) return 1;
+	case 6: if (unlikely(a[5] != b[5])) return 1;
+	case 5: if (unlikely(a[4] != b[4])) return 1;
+	case 4: if (unlikely(a[3] != b[3])) return 1;
+	case 3: if (unlikely(a[2] != b[2])) return 1;
+	case 2: if (unlikely(a[1] != b[1])) return 1;
+	case 1: if (unlikely(a[0] != b[0])) return 1;
 	}
 
 	return 0;
@@ -296,6 +296,8 @@ gather_key(struct em_priv *priv, struct snobj *fields, hkey_t *key)
 		return snobj_err(EINVAL, "must specify %d fields",
 				priv->num_fields);
 
+	memset(key, 0, sizeof(*key));
+
 	for (int i = 0; i < fields->size; i++) {
 		int field_size = priv->fields[i].size;
 		int field_pos = priv->fields[i].pos;
@@ -324,7 +326,7 @@ command_add(struct module *m, const char *cmd, struct snobj *arg)
 	struct snobj *fields = snobj_eval(arg, "fields");
 	gate_idx_t gate = snobj_eval_uint(arg, "gate");
 
-	hkey_t key = {};
+	hkey_t key;
 
 	struct snobj *err;
 	int ret;
@@ -354,7 +356,7 @@ command_delete(struct module *m, const char *cmd, struct snobj *arg)
 {
 	struct em_priv *priv = get_priv(m);
 
-	hkey_t key = {};
+	hkey_t key;
 
 	struct snobj *err;
 	int ret;
