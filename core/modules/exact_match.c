@@ -33,11 +33,11 @@ struct em_priv {
 
 		/* Relative offset in the packet data for offset-based fields.
 		 *  (starts from data_off, not the beginning of the headroom */
-		int16_t offset;
+		int offset;
 
-		uint8_t size_acc;
+		int pos;	/* relative position in the key */
 
-		uint8_t size;	/* in bytes. 1 <= size <= MAX_FIELD_SIZE */
+		int size;	/* in bytes. 1 <= size <= MAX_FIELD_SIZE */
 	} fields[MAX_FIELDS];
 
 	struct htable ht;
@@ -145,7 +145,7 @@ add_field_one(struct module *m, struct snobj *field, struct field *f, int idx)
 static  struct snobj *em_init(struct module *m, struct snobj *arg)
 {
 	struct em_priv *priv = get_priv(m);
-	int8_t size_acc = 0;
+	int size_acc = 0;
 
 	struct snobj *fields = snobj_eval(arg, "fields");
 
@@ -157,7 +157,7 @@ static  struct snobj *em_init(struct module *m, struct snobj *arg)
 		struct snobj *err;
 		struct field *f = &priv->fields[i];
 
-		f->size_acc = size_acc;
+		f->pos = size_acc;
 
 		err = add_field_one(m, field, f, i);
 		if (err)
@@ -203,7 +203,7 @@ static void em_process_batch(struct module *m, struct pkt_batch *batch)
 	for (int i = 0; i < priv->num_fields; i++) {
 		uint64_t mask = priv->fields[i].mask;
 		int offset;
-		int size_acc = priv->fields[i].size_acc;
+		int pos = priv->fields[i].pos;
 		int attr_id = priv->fields[i].attr_id;
 
 		if (attr_id < 0)
@@ -212,7 +212,7 @@ static void em_process_batch(struct module *m, struct pkt_batch *batch)
 			offset = mt_offset_to_databuf_offset(
 					mt_attr_offset(m, attr_id));
 
-		char *key = keys[0] + size_acc;
+		char *key = keys[0] + pos;
 
 		for (int j = 0; j < cnt; j++, key += HASH_KEY_SIZE) {
 			char *buf_addr = (char *)batch->pkts[j]->mbuf.buf_addr;
@@ -277,8 +277,7 @@ static struct snobj *em_get_dump(const struct module *m)
 		for (int i = 0; i < priv->num_fields; i++) {
 			const struct field *f = &priv->fields[i];
 
-			snobj_list_add(rule,
-					snobj_blob(key + f->size_acc, f->size));
+			snobj_list_add(rule, snobj_blob(key + f->pos, f->size));
 		}
 
 		snobj_list_add(rules, rule);
@@ -299,7 +298,7 @@ gather_key(struct em_priv *priv, struct snobj *fields, hkey_t *key)
 
 	for (int i = 0; i < fields->size; i++) {
 		int field_size = priv->fields[i].size;
-		int field_size_acc = priv->fields[i].size_acc;
+		int field_pos = priv->fields[i].pos;
 
 		struct snobj *f_obj = snobj_list_get(fields, i);
 		uint64_t f;
@@ -311,7 +310,7 @@ gather_key(struct em_priv *priv, struct snobj *fields, hkey_t *key)
 					"idx %d: not a correct %d-byte value",
 					i, field_size);
 
-		memcpy((void *)key + field_size_acc, &f, field_size);
+		memcpy((void *)key + field_pos, &f, field_size);
 	}
 
 	return NULL;
