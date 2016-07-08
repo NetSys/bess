@@ -1,13 +1,9 @@
+#include "../utils/htable.h"
+
 #include "../module.h"
 
-#include <rte_hash.h>
-#include <rte_jhash.h>
-#include <rte_errno.h>
-
-#define DEFAULT_TABLE_SIZE	1024
-#define MAX_FIELDS		8
 #define MAX_TUPLES		8
-
+#define MAX_FIELDS		8
 #define MAX_FIELD_SIZE		8
 ct_assert(MAX_FIELD_SIZE <= sizeof(uint64_t));
 
@@ -17,23 +13,12 @@ ct_assert(MAX_FIELD_SIZE <= sizeof(uint64_t));
   #error this code assumes little endian architecture (x86)
 #endif
 
-#if __SSE4_2__
-  #include <rte_hash_crc.h>
-  #define DEFAULT_HASH_FUNC       rte_hash_crc
-#else
-  #include <rte_jhash.h>
-  #define DEFAULT_HASH_FUNC       rte_jhash
-#endif
-
 struct data {
 	int priority;
 	gate_idx_t ogate;
 };
 
 struct wm_priv {
-	int max_rules;
-	int num_rules;
-
 	gate_idx_t default_gate;
 
 	int total_key_size;	/* a multiple of sizeof(uint64_t) */
@@ -44,17 +29,16 @@ struct wm_priv {
 
 		/* Relative offset in the packet data for offset-based fields.
 		 *  (starts from data_off, not the beginning of the headroom */
-		int16_t offset;
+		int offset;
 
-		uint8_t size_acc;
+		int pos;	/* relative position in the key */
 
-		uint8_t size;	/* in bytes. 1 <= size <= MAX_FIELD_SIZE */
+		int size;	/* in bytes. 1 <= size <= MAX_FIELD_SIZE */
 	} fields[MAX_FIELDS];
 
 	int num_tuples;
 	struct tuple {
-		struct rte_hash *tbl;
-		int num_rules;
+		struct htable ht;
 		char mask[HASH_KEY_SIZE];
 	} tuples[MAX_TUPLES];
 
@@ -65,7 +49,7 @@ static struct snobj *
 add_field_one(struct module *m, struct snobj *field, struct field *f)
 {
 	if (field->type != TYPE_MAP)
-		return snobj_err(EINVAL, 
+		return snobj_err(EINVAL,
 				"'fields' must be a list of maps");
 
 	f->size = snobj_eval_uint(field, "size");
@@ -80,7 +64,7 @@ add_field_one(struct module *m, struct snobj *field, struct field *f)
 		if (f->offset < 0 || f->offset > 1024)
 			return snobj_err(EINVAL, "too small 'offset'");
 		return NULL;
-	} 
+	}
 
 	const char *attr_name = snobj_eval_str(field, "name");
 	if (!attr_name)
@@ -93,10 +77,10 @@ add_field_one(struct module *m, struct snobj *field, struct field *f)
 	return NULL;
 }
 
-/* Takes a list of all fields that may be used by rules. 
- * Each field needs 'offset' (or 'name') and 'size' in bytes, 
+/* Takes a list of all fields that may be used by rules.
+ * Each field needs 'offset' (or 'name') and 'size' in bytes,
  *
- * e.g.: WildcardMatch([{'offset': 26, 'size': 4}, ...] 
+ * e.g.: WildcardMatch([{'offset': 26, 'size': 4}, ...]
  * (checks the source IP address)
  *
  * You can also specify metadata attributes
@@ -104,7 +88,7 @@ add_field_one(struct module *m, struct snobj *field, struct field *f)
 static struct snobj *wm_init(struct module *m, struct snobj *arg)
 {
 	struct wm_priv *priv = get_priv(m);
-	int8_t size_acc = 0;
+	int size_acc = 0;
 
 	struct snobj *fields = snobj_eval(arg, "fields");
 
@@ -116,7 +100,7 @@ static struct snobj *wm_init(struct module *m, struct snobj *arg)
 		struct snobj *err;
 		struct field f;
 
-		f.size_acc = size_acc;
+		f.pos = size_acc;
 
 		err = add_field_one(m, field, &f);
 		if (err)
@@ -129,15 +113,6 @@ static struct snobj *wm_init(struct module *m, struct snobj *arg)
 	priv->default_gate = DROP_GATE;
 	priv->num_fields = fields->size;
 	priv->total_key_size = align_ceil(size_acc, sizeof(uint64_t));
-	priv->max_rules = DEFAULT_TABLE_SIZE;
-
-	/* hash table size is given? */
-	if (snobj_eval_exists(arg, "size")) {
-		uint32_t size = snobj_eval_uint(arg, "size");
-		if (size == 0)
-			return snobj_err(EINVAL, "invalid table size");
-		priv->max_rules = size;
-	}
 
 	return NULL;
 }
@@ -147,7 +122,7 @@ static void wm_deinit(struct module *m)
 	struct wm_priv *priv = get_priv(m);
 
 	for (int i = 0; i < priv->num_tuples; i++)
-		rte_hash_free(priv->tuples[i].tbl);
+		ht_close(&priv->tuples[i].ht);
 }
 
 /* k1 = k2 & mask */
@@ -169,11 +144,11 @@ static void mask(void *k1, void *k2, void *mask, int key_size)
 	}
 }
 
-static gate_idx_t lookup_entry(struct wm_priv *priv, char *key, 
+static gate_idx_t lookup_entry(struct wm_priv *priv, char *key,
 		gate_idx_t def_gate)
 {
 	struct data result = {
-		.priority = INT_MIN, 
+		.priority = INT_MIN,
 		.ogate = def_gate,
 	};
 
@@ -184,18 +159,14 @@ static gate_idx_t lookup_entry(struct wm_priv *priv, char *key,
 
 	for (int i = 0; i < num_tuples; i++) {
 		struct tuple *tuple = &priv->tuples[i];
-		struct data cand;
-		int ret;
+		struct data *cand;
 
 		mask(key_masked, key, tuple->mask, key_size);
 
-		ret = rte_hash_lookup_with_hash_data(tuple->tbl,
-				(const void *)key_masked,
-				DEFAULT_HASH_FUNC(key_masked, key_size, 0),
-				(void **)&cand);
+		cand = ht_get(&tuple->ht, key_masked);
 
-		if (ret >= 0 && cand.priority >= result.priority)
-			result = cand;
+		if (cand && cand->priority >= result.priority)
+			result = *cand;
 	}
 
 	return result.ogate;
@@ -208,21 +179,19 @@ static void wm_process_batch(struct module *m, struct pkt_batch *batch)
 	gate_idx_t default_gate;
 	gate_idx_t ogates[MAX_PKT_BURST];
 
-	char keys[MAX_PKT_BURST][HASH_KEY_SIZE];
+	char keys[MAX_PKT_BURST][HASH_KEY_SIZE] __ymm_aligned;
 
 	int cnt = batch->cnt;
 
 	default_gate = ACCESS_ONCE(priv->default_gate);
 
 	/* initialize the last uint64_t word */
-	for (int i = 0; i < cnt; i++) {
-		char *key = keys[0] + priv->total_key_size - 8;
-		*(uint64_t *)key = 0;
-	}
+	for (int i = 0; i < cnt; i++)
+		memset(&keys[i][priv->total_key_size - 8], 0, sizeof(uint64_t));
 
 	for (int i = 0; i < priv->num_fields; i++) {
 		int offset;
-		int size_acc = priv->fields[i].size_acc;
+		int pos = priv->fields[i].pos;
 		int attr_id = priv->fields[i].attr_id;
 
 		if (attr_id < 0)
@@ -231,7 +200,7 @@ static void wm_process_batch(struct module *m, struct pkt_batch *batch)
 			offset = mt_offset_to_databuf_offset(
 					mt_attr_offset(m, attr_id));
 
-		char *key = keys[0] + size_acc;
+		char *key = keys[0] + pos;
 
 		for (int j = 0; j < cnt; j++, key += HASH_KEY_SIZE) {
 			char *buf_addr = (char *)batch->pkts[j]->mbuf.buf_addr;
@@ -250,6 +219,80 @@ static void wm_process_batch(struct module *m, struct pkt_batch *batch)
 	run_split(m, ogates, batch);
 }
 
+static struct snobj *wm_get_desc(const struct module *m)
+{
+	const struct wm_priv *priv = get_priv_const(m);
+	int num_rules = 0;
+
+	for (int i = 0; i < priv->num_tuples; i++)
+		num_rules += priv->tuples[i].ht.cnt;
+
+	return snobj_str_fmt("%d fields, %d rules",
+			priv->num_fields, num_rules);
+}
+
+static void collect_rules(const struct wm_priv *priv, const struct tuple *tuple,
+		struct snobj *rules)
+{
+	uint32_t next = 0;
+	void *key;
+
+	while ((key = ht_iterate(&tuple->ht, &next))) {
+		struct snobj *rule = snobj_map();
+		struct snobj *values = snobj_list();
+		struct snobj *masks = snobj_list();
+
+		for (int i = 0; i < priv->num_fields; i++) {
+			const struct field *f = &priv->fields[i];
+
+			snobj_list_add(values,
+					snobj_blob(key + f->pos, f->size));
+			snobj_list_add(masks,
+					snobj_blob(tuple->mask + f->pos, f->size));
+
+		}
+
+		snobj_map_set(rule, "values", values);
+		snobj_map_set(rule, "masks", masks);
+		snobj_list_add(rules, rule);
+	}
+}
+
+static struct snobj *wm_get_dump(const struct module *m)
+{
+	const struct wm_priv *priv = get_priv_const(m);
+
+	struct snobj *r = snobj_map();
+	struct snobj *fields = snobj_list();
+	struct snobj *rules = snobj_list();
+
+	for (int i = 0; i < priv->num_fields; i++) {
+		struct snobj *f_obj = snobj_map();
+		const struct field *f = &priv->fields[i];
+
+		snobj_map_set(f_obj, "size", snobj_uint(f->size));
+
+		if (f->attr_id < 0)
+			snobj_map_set(f_obj, "offset", snobj_uint(f->offset));
+		else
+			snobj_map_set(f_obj, "name",
+					snobj_str(m->attrs[f->attr_id].name));
+
+		snobj_list_add(fields, f_obj);
+	}
+
+	for (int k = 0; k < priv->num_tuples; k++) {
+		const struct tuple *tuple = &priv->tuples[k];
+
+		collect_rules(priv, tuple, rules);
+	}
+
+	snobj_map_set(r, "fields", fields);
+	snobj_map_set(r, "rules", rules);
+
+	return r;
+}
+
 static struct snobj *
 extract_key_mask(struct wm_priv *priv, struct snobj *arg, char *key, char *mask)
 {
@@ -266,14 +309,14 @@ extract_key_mask(struct wm_priv *priv, struct snobj *arg, char *key, char *mask)
 		return snobj_err(EINVAL, "'values' must be a list");
 
 	if (values->size != priv->num_fields)
-		return snobj_err(EINVAL, "must specify %d values", 
+		return snobj_err(EINVAL, "must specify %d values",
 				priv->num_fields);
 
 	if (!masks || snobj_type(masks) != TYPE_LIST)
 		return snobj_err(EINVAL, "'masks' must be a list");
 
 	if (masks->size != priv->num_fields)
-		return snobj_err(EINVAL, "must specify %d masks", 
+		return snobj_err(EINVAL, "must specify %d masks",
 				priv->num_fields);
 
 	memset(key, 0, HASH_KEY_SIZE);
@@ -281,7 +324,7 @@ extract_key_mask(struct wm_priv *priv, struct snobj *arg, char *key, char *mask)
 
 	for (int i = 0; i < values->size; i++) {
 		int field_size = priv->fields[i].size;
-		int field_size_acc = priv->fields[i].size_acc;
+		int field_pos = priv->fields[i].pos;
 
 		struct snobj *v_obj = snobj_list_get(values, i);
 		struct snobj *m_obj = snobj_list_get(masks, i);
@@ -291,12 +334,12 @@ extract_key_mask(struct wm_priv *priv, struct snobj *arg, char *key, char *mask)
 		int force_be = (priv->fields[i].attr_id < 0);
 
 		if (snobj_binvalue_get(v_obj, field_size, &v, force_be))
-			return snobj_err(EINVAL, 
+			return snobj_err(EINVAL,
 					"idx %d: not a correct %d-byte value",
 					i, field_size);
 
 		if (snobj_binvalue_get(m_obj, field_size, &m, force_be))
-			return snobj_err(EINVAL, 
+			return snobj_err(EINVAL,
 					"idx %d: not a correct %d-byte mask",
 					i, field_size);
 
@@ -304,11 +347,11 @@ extract_key_mask(struct wm_priv *priv, struct snobj *arg, char *key, char *mask)
 			return snobj_err(EINVAL,
 					"idx %d: invalid pair of "
 					"value 0x%0*lx and mask 0x%0*lx",
-					i, 
+					i,
 					field_size * 2, v, field_size * 2, m);
 
-		memcpy(key + field_size_acc, &v, field_size);
-		memcpy(mask + field_size_acc, &m, field_size);
+		memcpy(key + field_pos, &v, field_size);
+		memcpy(mask + field_pos, &m, field_size);
 	}
 
 	return NULL;
@@ -335,70 +378,43 @@ static int add_tuple(struct module *m, char *mask)
 	struct wm_priv *priv = get_priv(m);
 
 	struct tuple *tuple;
-	struct rte_hash_parameters params;
 
-	char ht_name[RTE_HASH_NAMESIZE];
+	int ret;
 
 	if (priv->num_tuples >= MAX_TUPLES)
 		return -ENOSPC;
 
-	snprintf(ht_name, sizeof(ht_name), "%s_%d", 
-			m->name, priv->next_table_id++);
-
 	tuple = &priv->tuples[priv->num_tuples++];
-	tuple->num_rules = 0;
 	memcpy(tuple->mask, mask, HASH_KEY_SIZE);
 
-	params = (struct rte_hash_parameters) {
-		.name = ht_name,
-		.entries = priv->max_rules,
-		.key_len = priv->total_key_size,
-		.hash_func = DEFAULT_HASH_FUNC,
-		.hash_func_init_val = 0,
-		.socket_id = 0,		/* XXX */
-	};
-
-	tuple->tbl = rte_hash_create(&params);
-	if (!tuple->tbl)
-		return -rte_errno;
+	ret = ht_init(&tuple->ht, priv->total_key_size, sizeof(struct data));
+	if (ret < 0)
+		return ret;
 
 	return tuple - priv->tuples;
-}
-
-static void *data_to_ptr(struct data *data)
-{
-	uintptr_t *ptr = (uintptr_t *)data;
-
-	return (void *)*ptr;
 }
 
 static int add_entry(struct tuple *tuple, char *key, struct data *data)
 {
 	int ret;
-	int already_exist = (rte_hash_lookup(tuple->tbl, key) >= 0);
-	
-	ret = rte_hash_add_key_data(tuple->tbl, key, data_to_ptr(data));
-	if (ret)
-		return ret;
 
-	if (!already_exist)
-		tuple->num_rules++;
+	ret = ht_set(&tuple->ht, key, data);
+	if (ret < 0)
+		return ret;
 
 	return 0;
 }
 
 static int del_entry(struct wm_priv *priv, struct tuple *tuple, char *key)
 {
-	int ret = rte_hash_del_key(tuple->tbl, key);
+	int ret = ht_del(&tuple->ht, key);
 	if (ret)
 		return ret;
 
-	tuple->num_rules--;
-
-	if (tuple->num_rules == 0) {
+	if (tuple->ht.cnt == 0) {
 		int idx = tuple - priv->tuples;
 
-		rte_hash_free(tuple->tbl);
+		ht_close(&tuple->ht);
 
 		priv->num_tuples--;
 		memmove(&priv->tuples[idx], &priv->tuples[idx + 1],
@@ -425,11 +441,8 @@ command_add(struct module *m, const char *cmd, struct snobj *arg)
 	if (err)
 		return err;
 
-	if (priv->num_rules >= priv->max_rules)
-		return snobj_err(ENOSPC, "table is full\n");
-
 	if (!snobj_eval_exists(arg, "gate"))
-		return snobj_err(EINVAL, 
+		return snobj_err(EINVAL,
 				"'gate' must be specified");
 
 	if (!is_valid_gate(gate))
@@ -483,7 +496,8 @@ command_clear(struct module *m, const char *cmd, struct snobj *arg)
 {
 	struct wm_priv *priv = get_priv(m);
 
-	priv->num_rules = 0;
+	for (int i = 0; i < priv->num_tuples; i++)
+		ht_clear(&priv->tuples[i].ht);
 
 	return NULL;
 }
@@ -502,7 +516,7 @@ command_set_default_gate(struct module *m, const char *cmd, struct snobj *arg)
 
 static const struct mclass wm = {
 	.name 			= "WildcardMatch",
-	.help			= 
+	.help			=
 		"Multi-field classifier with a wildcard match table",
 	.def_module_name	= "wm",
 	.num_igates		= 1,
@@ -511,6 +525,8 @@ static const struct mclass wm = {
 	.init 			= wm_init,
 	.deinit          	= wm_deinit,
 	.process_batch 		= wm_process_batch,
+	.get_desc		= wm_get_desc,
+	.get_dump		= wm_get_dump,
 	.commands		= {
 		{"add", 		command_add},
 		{"delete", 		command_delete},
