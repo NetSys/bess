@@ -57,7 +57,7 @@ static int expand_entries(struct htable *t)
 	ht_keyidx_t new_size = old_size + old_size / 2;
 
 	void *new_entries;
-	
+
 	new_entries = mem_realloc(t->entries, new_size * t->entry_size);
 	if (!new_entries)
 		return -ENOMEM;
@@ -165,7 +165,7 @@ static int add_to_bucket(struct htable *t, struct ht_bucket *bucket,
 }
 
 /* the key must not already exist in the hash table */
-static int add_entry(struct htable *t, uint32_t pri, uint32_t sec, 
+static int add_entry(struct htable *t, uint32_t pri, uint32_t sec,
 		const void *key, const void *value)
 {
 	struct ht_bucket *pri_bucket;
@@ -248,7 +248,7 @@ static int expand_buckets(struct htable *t_old)
 	return ret;
 }
 
-static void *get_from_bucket(const struct htable *t, 
+static void *get_from_bucket(const struct htable *t,
 		uint32_t pri, uint32_t hv, const void *key)
 {
 	uint32_t b_idx = hv & t->bucket_mask;
@@ -394,10 +394,19 @@ void ht_close(struct htable *t)
 	memset(t, 0, sizeof(*t));
 }
 
+void ht_clear(struct htable *t)
+{
+	uint32_t next = 0;
+	void *key;
+
+	while ((key = ht_iterate(t, &next)))
+		ht_del(t, key);
+}
+
 void *ht_get(const struct htable *t, const void *key)
 {
 	uint32_t pri = ht_hash(t, key);
-	
+
 	return ht_get_hash(t, pri, key);
 }
 
@@ -462,7 +471,7 @@ int ht_del(struct htable *t, const void *key)
 void *ht_iterate(const struct htable *t, uint32_t *next)
 {
 	uint32_t idx = *next;
-	
+
 	uint32_t i;
 	int j;
 
@@ -518,7 +527,7 @@ void ht_dump(const struct htable *t, int detail)
 				}
 
 				if ((pri & t->bucket_mask) == i) {
-					if ((sec & t->bucket_mask) != i) 
+					if ((sec & t->bucket_mask) != i)
 						type = ' ';
 					else
 						type = '?';
@@ -526,10 +535,10 @@ void ht_dump(const struct htable *t, int detail)
 					type = '!';
 
 				printf("%c %08x/%08x %4d     ",
-					type, pri, sec, 
+					type, pri, sec,
 					t->buckets[i].keyidx[j]);
 			}
-			
+
 			printf("\n");
 		}
 	}
@@ -537,8 +546,8 @@ void ht_dump(const struct htable *t, int detail)
 	printf("cnt = %d\n", t->cnt);
 	printf("entry array size = %d\n", t->num_entries);
 	printf("buckets = %d\n", t->bucket_mask + 1);
-	printf("occupancy = %.1f%% (%.1f%% in primary buckets)\n", 
-			100.0 * t->cnt / 
+	printf("occupancy = %.1f%% (%.1f%% in primary buckets)\n",
+			100.0 * t->cnt /
 				((t->bucket_mask + 1) * ENTRIES_PER_BUCKET),
 			100.0 * in_pri_bucket / (t->cnt ? : 1));
 
