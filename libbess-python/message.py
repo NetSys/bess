@@ -46,7 +46,7 @@ class SNObjDict(object):
     def __getattr__(self, name):
         if name.startswith('__'):
             return self._dict.__getattribute__(name)
-        else: 
+        else:
             return self._dict[name]
 
     def __setattr__(self, name, value):
@@ -122,7 +122,7 @@ def encode(obj):
             num_bytes += 1
 
         return struct.pack(str(num_bytes) + 's', buf)
-        
+
     def encode_cstr(cstr):
         return zero_pad8(cstr, len(cstr) + 1)
 
@@ -214,12 +214,12 @@ def decode(buf):
     try:
         obj, consumed = _decode_recur(buf, 0)
         if consumed != len(buf):
-            raise Exception('%dB buffer, but only %dB consumed' % 
+            raise Exception('%dB buffer, but only %dB consumed' %
                     (len(buf), consumed))
         return obj
     except Exception as e:
         print >> sys.stderr, 'Decoding error. Len=%-5d' % len(buf),
         for c in buf:
-            print >> sys.stderr, '%02x' % ord(c), 
+            print >> sys.stderr, '%02x' % ord(c),
         print >> sys.stderr
         raise e
