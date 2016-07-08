@@ -10,7 +10,7 @@ typedef uint8_t dpdk_port_t;
 
 struct pmd_priv {
 	dpdk_port_t dpdk_port_id;
-	int stats;
+	int hot_plugged;
 };
 
 #define SN_TSO_SG		0
@@ -86,7 +86,7 @@ static int pmd_init_driver(struct driver *driver)
 }
 
 static struct snobj *find_dpdk_port(struct snobj *conf,
-		dpdk_port_t *ret_port_id)
+		dpdk_port_t *ret_port_id, int *ret_hot_plugged)
 {
 	struct snobj *t;
 
@@ -144,20 +144,23 @@ pci_format_err:
 
 		/* If not found, maybe the device has not been attached yet */
 		if (port_id == DPDK_PORT_UNKNOWN) {
-			char devargs[1024];
+			char name[RTE_ETH_NAME_MAX_LEN];
 			int ret;
 
-			sprintf(devargs, "%04x:%02x:%02x.%02x",
+			snprintf(name, RTE_ETH_NAME_MAX_LEN,
+					"%04x:%02x:%02x.%02x",
 					addr.domain,
 					addr.bus,
 					addr.devid,
 					addr.function);
 
-			ret = rte_eth_dev_attach(devargs, &port_id);
+			ret = rte_eth_dev_attach(name, &port_id);
 
 			if (ret < 0)
 				return snobj_err(ENODEV, "Cannot attach PCI " \
-						"device %s", devargs);
+						"device %s", name);
+
+			*ret_hot_plugged = 1;
 		}
 	}
 
@@ -167,8 +170,9 @@ pci_format_err:
 		int ret = rte_eth_dev_attach(name, &port_id);
 
 		if (ret < 0)
-			return snobj_err(ENODEV, "Cannot attach to virtual" \
-					"device %s", name);
+			return snobj_err(ENODEV, "Cannot attach vdev %s", name);
+
+		*ret_hot_plugged = 1;
 	}
 
 	if (port_id == DPDK_PORT_UNKNOWN)
@@ -202,7 +206,7 @@ static struct snobj *pmd_init_port(struct port *p, struct snobj *conf)
 
 	int i;
 
-	err = find_dpdk_port(conf, &port_id);
+	err = find_dpdk_port(conf, &port_id, &priv->hot_plugged);
 	if (err)
 		return err;
 
@@ -282,6 +286,17 @@ static void pmd_deinit_port(struct port *p)
 	struct pmd_priv *priv = get_port_priv(p);
 
 	rte_eth_dev_stop(priv->dpdk_port_id);
+
+	if (priv->hot_plugged) {
+		char name[RTE_ETH_NAME_MAX_LEN];
+		int ret;
+
+		rte_eth_dev_close(priv->dpdk_port_id);
+		ret = rte_eth_dev_detach(priv->dpdk_port_id, name);
+		if (ret < 0)
+			log_warn("rte_eth_dev_detach(%d) failed: %s\n",
+					priv->dpdk_port_id, rte_strerror(-ret));
+	}
 }
 
 static void pmd_collect_stats(struct port *p, int reset)
@@ -302,7 +317,7 @@ static void pmd_collect_stats(struct port *p, int reset)
 	ret = rte_eth_stats_get(priv->dpdk_port_id, &stats);
 	if (ret < 0) {
 		log_err("rte_eth_stats_get() failed: %s\n",
-				rte_strerror(rte_errno));
+				rte_strerror(-ret));
 		return;
 	}
 
