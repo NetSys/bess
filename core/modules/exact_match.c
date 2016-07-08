@@ -92,7 +92,7 @@ static struct snobj *
 add_field_one(struct module *m, struct snobj *field, struct field *f, int idx)
 {
 	if (field->type != TYPE_MAP)
-		return snobj_err(EINVAL, 
+		return snobj_err(EINVAL,
 				"'fields' must be a list of maps");
 
 	f->size = snobj_eval_uint(field, "size");
@@ -105,7 +105,7 @@ add_field_one(struct module *m, struct snobj *field, struct field *f, int idx)
 	if (attr_name) {
 		f->attr_id = add_metadata_attr(m, attr_name, f->size, MT_READ);
 		if (f->attr_id < 0)
-			return snobj_err(-f->attr_id, 
+			return snobj_err(-f->attr_id,
 					"idx %d: add_metadata_attr() failed",
 					idx);
 	} else if (snobj_eval_exists(field, "offset")) {
@@ -115,7 +115,7 @@ add_field_one(struct module *m, struct snobj *field, struct field *f, int idx)
 			return snobj_err(EINVAL, "idx %d: invalid 'offset'",
 					idx);
 	}  else
-		return snobj_err(EINVAL, 
+		return snobj_err(EINVAL,
 				"idx %d: must specify 'offset' or 'name'", idx);
 
 	struct snobj *mask = snobj_eval(field, "mask");
@@ -125,7 +125,7 @@ add_field_one(struct module *m, struct snobj *field, struct field *f, int idx)
 		/* by default all bits are considered */
 		f->mask = (1ul << (f->size * 8)) - 1;
 	} else if (snobj_binvalue_get(mask, f->size, &f->mask, force_be))
-		return snobj_err(EINVAL, "idx %d: not a correct %d-byte mask", 
+		return snobj_err(EINVAL, "idx %d: not a correct %d-byte mask",
 				idx, f->size);
 
 	if (f->mask == 0)
@@ -134,15 +134,15 @@ add_field_one(struct module *m, struct snobj *field, struct field *f, int idx)
 	return NULL;
 }
 
-/* Takes a list of fields. Each field needs 'offset' (or 'name') and 'size', 
+/* Takes a list of fields. Each field needs 'offset' (or 'name') and 'size',
  * and optional "mask" (0xfffff.. by default)
  *
- * e.g.: ExactMatch([{'offset': 14, 'size': 1, 'mask':0xf0}, ...] 
+ * e.g.: ExactMatch([{'offset': 14, 'size': 1, 'mask':0xf0}, ...]
  * (checks the IP version field)
  *
  * You can also specify metadata attributes
  * e.g.: ExactMatch([{'name': 'nexthop', 'size': 4}, ...] */
-static struct snobj *em_init(struct module *m, struct snobj *arg)
+static  struct snobj *em_init(struct module *m, struct snobj *arg)
 {
 	struct em_priv *priv = get_priv(m);
 	int8_t size_acc = 0;
@@ -171,7 +171,7 @@ static struct snobj *em_init(struct module *m, struct snobj *arg)
 	priv->total_key_size = align_ceil(size_acc, sizeof(uint64_t));
 
 	int ret = ht_init(&priv->ht, priv->total_key_size, sizeof(gate_idx_t));
-	if (ret < 0) 
+	if (ret < 0)
 		return snobj_err(-ret, "hash table creation failed");
 
 	return NULL;
@@ -221,7 +221,7 @@ static void em_process_batch(struct module *m, struct pkt_batch *batch)
 			if (attr_id < 0)
 				buf_addr += batch->pkts[j]->mbuf.data_off;
 
-			*(uint64_t *)key = 
+			*(uint64_t *)key =
 				*(uint64_t *)(buf_addr + offset) & mask;
 		}
 	}
@@ -236,11 +236,65 @@ static void em_process_batch(struct module *m, struct pkt_batch *batch)
 	run_split(m, ogates, batch);
 }
 
+static struct snobj *em_get_desc(const struct module *m)
+{
+	const struct em_priv *priv = get_priv_const(m);
+
+	return snobj_str_fmt("%d fields, %d rules",
+			priv->num_fields, priv->ht.cnt);
+}
+
+static struct snobj *em_get_dump(const struct module *m)
+{
+	const struct em_priv *priv = get_priv_const(m);
+
+	struct snobj *r = snobj_map();
+	struct snobj *fields = snobj_list();
+	struct snobj *rules = snobj_list();
+
+	for (int i = 0; i < priv->num_fields; i++) {
+		struct snobj *f_obj = snobj_map();
+		const struct field *f = &priv->fields[i];
+
+		snobj_map_set(f_obj, "size", snobj_uint(f->size));
+		snobj_map_set(f_obj, "mask", snobj_blob(&f->mask, f->size));
+
+		if (f->attr_id < 0)
+			snobj_map_set(f_obj, "offset", snobj_uint(f->offset));
+		else
+			snobj_map_set(f_obj, "name",
+					snobj_str(m->attrs[f->attr_id].name));
+
+		snobj_list_add(fields, f_obj);
+	}
+
+	uint32_t next = 0;
+	void *key;
+
+	while ((key = ht_iterate(&priv->ht, &next))) {
+		struct snobj *rule = snobj_list();
+
+		for (int i = 0; i < priv->num_fields; i++) {
+			const struct field *f = &priv->fields[i];
+
+			snobj_list_add(rule,
+					snobj_blob(key + f->size_acc, f->size));
+		}
+
+		snobj_list_add(rules, rule);
+	}
+
+	snobj_map_set(r, "fields", fields);
+	snobj_map_set(r, "rules", rules);
+
+	return r;
+}
+
 static struct snobj *
 gather_key(struct em_priv *priv, struct snobj *fields, hkey_t *key)
 {
 	if (fields->size != priv->num_fields)
-		return snobj_err(EINVAL, "must specify %d fields", 
+		return snobj_err(EINVAL, "must specify %d fields",
 				priv->num_fields);
 
 	for (int i = 0; i < fields->size; i++) {
@@ -277,7 +331,7 @@ command_add(struct module *m, const char *cmd, struct snobj *arg)
 	int ret;
 
 	if (!snobj_eval_exists(arg, "gate"))
-		return snobj_err(EINVAL, 
+		return snobj_err(EINVAL,
 				"'gate' must be specified");
 
 	if (!is_valid_gate(gate))
@@ -347,8 +401,8 @@ command_set_default_gate(struct module *m, const char *cmd, struct snobj *arg)
 
 static const struct mclass em = {
 	.name 			= "ExactMatch",
-	.help			= 
-		"Multi-field classifier with a exact match table",
+	.help			=
+		"Multi-field classifier with an exact match table",
 	.def_module_name	= "em",
 	.num_igates		= 1,
 	.num_ogates		= MAX_GATES,
@@ -356,6 +410,8 @@ static const struct mclass em = {
 	.init 			= em_init,
 	.deinit          	= em_deinit,
 	.process_batch 		= em_process_batch,
+	.get_desc		= em_get_desc,
+	.get_dump		= em_get_dump,
 	.commands		= {
 		{"add", 		command_add},
 		{"delete", 		command_delete},
