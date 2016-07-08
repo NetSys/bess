@@ -1,4 +1,4 @@
-/* Streamlined hash table implementation, with emphasis on lookup performance. 
+/* Streamlined hash table implementation, with emphasis on lookup performance.
  * Key and value sizes are fixed. Lookup is thread-safe, but update is not. */
 
 #ifndef _HTABLE_H_
@@ -15,7 +15,7 @@
 #define INIT_NUM_BUCKETS	4
 #define INIT_NUM_ENTRIES	16
 
-/* 4^MAX_CUCKOO_PATH buckets will be considered to make a empty slot, 
+/* 4^MAX_CUCKOO_PATH buckets will be considered to make a empty slot,
  * before giving up and expand the table.
  * Higher number will yield better occupancy, but the worst case performance
  * of insertion will grow exponentially, so be careful. */
@@ -33,7 +33,7 @@ typedef uint32_t (*ht_hash_func_t)(const void *key, uint32_t key_len,
 				      uint32_t init_val);
 
 /* if the keys are identical, should return 0 */
-typedef int (*ht_keycmp_func_t)(const void *key, const void *key_stored, 
+typedef int (*ht_keycmp_func_t)(const void *key, const void *key_stored,
 		size_t key_size);
 
 struct ht_params {
@@ -57,7 +57,7 @@ struct ht_bucket {
 struct htable {
 	/* bucket and entry arrays grow independently */
 	struct ht_bucket *buckets;
-	void *entries;		/* entry_size * num_entries bytes */ 
+	void *entries;		/* entry_size * num_entries bytes */
 
 	ht_hash_func_t hash_func;
 	ht_keycmp_func_t keycmp_func;
@@ -69,7 +69,7 @@ struct htable {
 	ht_keyidx_t num_entries;	/* current array size (# entries) */
 
 	/* Linked list head for empty key slots (LIFO). NO_NEXT if empty */
-	ht_keyidx_t free_keyidx;	
+	ht_keyidx_t free_keyidx;
 
 	/* in bytes */
 	size_t key_size;
@@ -82,6 +82,8 @@ struct htable {
 int ht_init(struct htable *t, size_t key_size, size_t value_size);
 int ht_init_ex(struct htable *t, struct ht_params *params);
 void ht_close(struct htable *t);
+
+void ht_clear(struct htable *t);
 
 /* returns NULL or the pointer to the data */
 void *ht_get(const struct htable *t, const void *key);
@@ -169,9 +171,9 @@ static inline ht_keyidx_t _get_keyidx(const struct htable *t, uint32_t pri)
 
 /* This macro provides an inlined (thus much faster) version for the lookup
  * operations. For example, suppose you have a custom hash table type "foo":
- * 
+ *
  * HT_DECLARE_INLINED_FUNCS(foo, uint64_t)
- * 
+ *
  * where uint64_t is the key type (the same type used for ht_init())
  * With this, you are required to define two functions (starting with "foo")
  * as follows:
@@ -190,7 +192,7 @@ static inline ht_keyidx_t _get_keyidx(const struct htable *t, uint32_t pri)
  * 	...
  * }
  *
- * NOTE: You can ignore key_len, if you already know the size of key_type 
+ * NOTE: You can ignore key_len, if you already know the size of key_type
  *
  * Once you define these functions, you can use ht_foo_hash(), which is a
  * faster version of ht_hash() with the same function prototype. */
@@ -282,7 +284,7 @@ static inline void ht_##name##_get_bulk(const struct htable *t, 	\
 		else							\
 			values[i] = ht_get_hash(t, pri, keys[i]);	\
 	}								\
-}									
+}
 
 /* with non-zero 'detail', each item in the hash table will be shown */
 void ht_dump(const struct htable *t, int detail);

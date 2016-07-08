@@ -376,12 +376,8 @@ static struct snobj *
 command_clear(struct module *m, const char *cmd, struct snobj *arg)
 {
 	struct em_priv *priv = get_priv(m);
-	struct htable *t = &priv->ht;
-	uint32_t next = 0;
-	void *key;
 
-	while ((key = ht_iterate(t, &next)))
-		ht_del(t, key);
+	ht_clear(&priv->ht);
 
 	return NULL;
 }
