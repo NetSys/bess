@@ -1,3 +1,4 @@
+import sys
 import struct
 
 TYPE_NIL    = 0
@@ -11,6 +12,10 @@ TYPE_MAP    = 6
 import pprint
 import binascii
 
+class MyByteArray(bytearray):
+    def __repr__(self):
+        return '0x%s' % binascii.hexlify(self)
+
 # a custom class that supports both obj[x] and obj.x for convenience
 class SNObjDict(object):
     # ------------------------------------------------------------------
@@ -19,17 +24,7 @@ class SNObjDict(object):
         pprint.old_printer = pprint.PrettyPrinter
 
     class MyPrettyPrinter(pprint.old_printer):
-        class MyBinaryData(str):
-            def __init__(self, data):
-                self.hex = binascii.hexlify(data)
-
-            def __repr__(self):
-                return '0x%s' % self.hex
-
         def _format(self, obj, *args, **kwargs):
-            if isinstance(obj, bytearray):
-                obj = self.MyBinaryData(obj)
-
             if isinstance(obj, SNObjDict):
                 obj = obj._dict
 
@@ -185,7 +180,7 @@ def _decode_recur(buf, offset):
         v = str(buf[offset:offset + l - 1])
         offset += l
     elif t == TYPE_BLOB:
-        v = bytearray(buf[offset:offset + l])
+        v = MyByteArray(buf[offset:offset + l])
         offset += l
     elif t == TYPE_LIST:
         v  = list()
