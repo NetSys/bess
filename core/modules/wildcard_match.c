@@ -13,6 +13,12 @@ ct_assert(MAX_FIELD_SIZE <= sizeof(uint64_t));
   #error this code assumes little endian architecture (x86)
 #endif
 
+typedef struct {
+	uint64_t u64_arr[MAX_FIELDS];
+} hkey_t;
+
+HT_DECLARE_INLINED_FUNCS(wm, hkey_t)
+
 struct data {
 	int priority;
 	gate_idx_t ogate;
@@ -39,11 +45,56 @@ struct wm_priv {
 	int num_tuples;
 	struct tuple {
 		struct htable ht;
-		char mask[HASH_KEY_SIZE];
+		hkey_t mask;
 	} tuples[MAX_TUPLES];
 
 	int next_table_id;
 };
+
+static inline int
+wm_keycmp(const hkey_t *key, const hkey_t *key_stored, size_t key_len)
+{
+	const uint64_t *a = key->u64_arr;
+	const uint64_t *b = key_stored->u64_arr;
+
+	switch (key_len >> 3) {
+	default: promise_unreachable();
+	case 8: if (unlikely(a[7] != b[7])) return 1;
+	case 7: if (unlikely(a[6] != b[6])) return 1;
+	case 6: if (unlikely(a[5] != b[5])) return 1;
+	case 5: if (unlikely(a[4] != b[4])) return 1;
+	case 4: if (unlikely(a[3] != b[3])) return 1;
+	case 3: if (unlikely(a[2] != b[2])) return 1;
+	case 2: if (unlikely(a[1] != b[1])) return 1;
+	case 1: if (unlikely(a[0] != b[0])) return 1;
+	}
+
+	return 0;
+}
+
+static inline uint32_t
+wm_hash(const hkey_t *key, uint32_t key_len, uint32_t init_val)
+{
+#if __SSE4_2__
+	const uint64_t *a = key->u64_arr;
+
+	switch (key_len >> 3) {
+	default: promise_unreachable();
+	case 8: init_val = crc32c_sse42_u64(*a++, init_val);
+	case 7: init_val = crc32c_sse42_u64(*a++, init_val);
+	case 6: init_val = crc32c_sse42_u64(*a++, init_val);
+	case 5: init_val = crc32c_sse42_u64(*a++, init_val);
+	case 4: init_val = crc32c_sse42_u64(*a++, init_val);
+	case 3: init_val = crc32c_sse42_u64(*a++, init_val);
+	case 2: init_val = crc32c_sse42_u64(*a++, init_val);
+	case 1: init_val = crc32c_sse42_u64(*a++, init_val);
+	}
+
+	return init_val;
+#else
+	return rte_hash_crc(key, key_len, init_val);
+#endif
+}
 
 static struct snobj *
 add_field_one(struct module *m, struct snobj *field, struct field *f)
@@ -128,11 +179,12 @@ static void wm_deinit(struct module *m)
 /* k1 = k2 & mask */
 static void mask(void *k1, void *k2, void *mask, int key_size)
 {
-	uint64_t *a = k1;
-	uint64_t *b = k2;
-	uint64_t *m = mask;
+	uint64_t * restrict a = k1;
+	uint64_t * restrict b = k2;
+	uint64_t * restrict m = mask;
 
 	switch (key_size >> 3) {
+	default: promise_unreachable();
 	case 8: a[7] = b[7] & m[7];
 	case 7: a[6] = b[6] & m[6];
 	case 6: a[5] = b[5] & m[5];
@@ -144,7 +196,7 @@ static void mask(void *k1, void *k2, void *mask, int key_size)
 	}
 }
 
-static gate_idx_t lookup_entry(struct wm_priv *priv, char *key,
+static gate_idx_t lookup_entry(struct wm_priv *priv, hkey_t *key,
 		gate_idx_t def_gate)
 {
 	struct data result = {
@@ -155,15 +207,15 @@ static gate_idx_t lookup_entry(struct wm_priv *priv, char *key,
 	const int key_size = priv->total_key_size;
 	const int num_tuples = priv->num_tuples;
 
-	char key_masked[HASH_KEY_SIZE];
+	hkey_t key_masked;
 
 	for (int i = 0; i < num_tuples; i++) {
 		struct tuple *tuple = &priv->tuples[i];
 		struct data *cand;
 
-		mask(key_masked, key, tuple->mask, key_size);
+		mask(&key_masked, key, &tuple->mask, key_size);
 
-		cand = ht_get(&tuple->ht, key_masked);
+		cand = ht_wm_get(&tuple->ht, &key_masked);
 
 		if (cand && cand->priority >= result.priority)
 			result = *cand;
@@ -184,10 +236,6 @@ static void wm_process_batch(struct module *m, struct pkt_batch *batch)
 	int cnt = batch->cnt;
 
 	default_gate = ACCESS_ONCE(priv->default_gate);
-
-	/* initialize the last uint64_t word */
-	for (int i = 0; i < cnt; i++)
-		memset(&keys[i][priv->total_key_size - 8], 0, sizeof(uint64_t));
 
 	for (int i = 0; i < priv->num_fields; i++) {
 		int offset;
@@ -214,7 +262,7 @@ static void wm_process_batch(struct module *m, struct pkt_batch *batch)
 	}
 
 	for (int i = 0; i < cnt; i++)
-		ogates[i] = lookup_entry(priv, keys[i], default_gate);
+		ogates[i] = lookup_entry(priv, (hkey_t *)keys[i], default_gate);
 
 	run_split(m, ogates, batch);
 }
@@ -236,6 +284,7 @@ static void collect_rules(const struct wm_priv *priv, const struct tuple *tuple,
 {
 	uint32_t next = 0;
 	void *key;
+	const void *mask = &tuple->mask;
 
 	while ((key = ht_iterate(&tuple->ht, &next))) {
 		struct snobj *rule = snobj_map();
@@ -244,11 +293,11 @@ static void collect_rules(const struct wm_priv *priv, const struct tuple *tuple,
 
 		for (int i = 0; i < priv->num_fields; i++) {
 			const struct field *f = &priv->fields[i];
+			int pos = f->pos;
+			int size = f->size;
 
-			snobj_list_add(values,
-					snobj_blob(key + f->pos, f->size));
-			snobj_list_add(masks,
-					snobj_blob(tuple->mask + f->pos, f->size));
+			snobj_list_add(values, snobj_blob(key + pos, size));
+			snobj_list_add(masks, snobj_blob(mask + pos, size));
 
 		}
 
@@ -294,7 +343,8 @@ static struct snobj *wm_get_dump(const struct module *m)
 }
 
 static struct snobj *
-extract_key_mask(struct wm_priv *priv, struct snobj *arg, char *key, char *mask)
+extract_key_mask(struct wm_priv *priv, struct snobj *arg, 
+		hkey_t *key, hkey_t *mask)
 {
 	struct snobj *values;
 	struct snobj *masks;
@@ -319,8 +369,8 @@ extract_key_mask(struct wm_priv *priv, struct snobj *arg, char *key, char *mask)
 		return snobj_err(EINVAL, "must specify %d masks",
 				priv->num_fields);
 
-	memset(key, 0, HASH_KEY_SIZE);
-	memset(mask, 0, HASH_KEY_SIZE);
+	memset(key, 0, sizeof(*key));
+	memset(mask, 0, sizeof(*mask));
 
 	for (int i = 0; i < values->size; i++) {
 		int field_size = priv->fields[i].size;
@@ -350,14 +400,14 @@ extract_key_mask(struct wm_priv *priv, struct snobj *arg, char *key, char *mask)
 					i,
 					field_size * 2, v, field_size * 2, m);
 
-		memcpy(key + field_pos, &v, field_size);
-		memcpy(mask + field_pos, &m, field_size);
+		memcpy((void *)key + field_pos, &v, field_size);
+		memcpy((void *)mask + field_pos, &m, field_size);
 	}
 
 	return NULL;
 }
 
-static int find_tuple(struct module *m, char *mask)
+static int find_tuple(struct module *m, hkey_t *mask)
 {
 	struct wm_priv *priv = get_priv(m);
 
@@ -366,14 +416,14 @@ static int find_tuple(struct module *m, char *mask)
 	for (int i = 0; i < priv->num_tuples; i++) {
 		struct tuple *tuple = &priv->tuples[i];
 
-		if (memcmp(tuple->mask, mask, key_size) == 0)
+		if (memcmp(&tuple->mask, mask, key_size) == 0)
 			return i;
 	}
 
 	return -ENOENT;
 }
 
-static int add_tuple(struct module *m, char *mask)
+static int add_tuple(struct module *m, hkey_t *mask)
 {
 	struct wm_priv *priv = get_priv(m);
 
@@ -385,7 +435,7 @@ static int add_tuple(struct module *m, char *mask)
 		return -ENOSPC;
 
 	tuple = &priv->tuples[priv->num_tuples++];
-	memcpy(tuple->mask, mask, HASH_KEY_SIZE);
+	memcpy(&tuple->mask, mask, sizeof(*mask));
 
 	ret = ht_init(&tuple->ht, priv->total_key_size, sizeof(struct data));
 	if (ret < 0)
@@ -394,7 +444,7 @@ static int add_tuple(struct module *m, char *mask)
 	return tuple - priv->tuples;
 }
 
-static int add_entry(struct tuple *tuple, char *key, struct data *data)
+static int add_entry(struct tuple *tuple, hkey_t *key, struct data *data)
 {
 	int ret;
 
@@ -405,7 +455,7 @@ static int add_entry(struct tuple *tuple, char *key, struct data *data)
 	return 0;
 }
 
-static int del_entry(struct wm_priv *priv, struct tuple *tuple, char *key)
+static int del_entry(struct wm_priv *priv, struct tuple *tuple, hkey_t *key)
 {
 	int ret = ht_del(&tuple->ht, key);
 	if (ret)
@@ -432,12 +482,12 @@ command_add(struct module *m, const char *cmd, struct snobj *arg)
 	gate_idx_t gate = snobj_eval_uint(arg, "gate");
 	int priority = snobj_eval_int(arg, "priority");
 
-	char key[HASH_KEY_SIZE];
-	char mask[HASH_KEY_SIZE];
+	hkey_t key;
+	hkey_t mask;
 
 	struct data data;
 
-	struct snobj *err = extract_key_mask(priv, arg, key, mask);
+	struct snobj *err = extract_key_mask(priv, arg, &key, &mask);
 	if (err)
 		return err;
 
@@ -453,15 +503,15 @@ command_add(struct module *m, const char *cmd, struct snobj *arg)
 		.ogate = gate,
 	};
 
-	int idx = find_tuple(m, mask);
+	int idx = find_tuple(m, &mask);
 	if (idx < 0) {
-		idx = add_tuple(m, mask);
+		idx = add_tuple(m, &mask);
 		if (idx < 0)
 			return snobj_err(-idx,
 					"failed to add a new wildcard pattern");
 	}
 
-	int ret = add_entry(&priv->tuples[idx], key, &data);
+	int ret = add_entry(&priv->tuples[idx], &key, &data);
 	if (ret < 0)
 		return snobj_err(-ret, "failed to add a rule");
 
@@ -473,18 +523,18 @@ command_delete(struct module *m, const char *cmd, struct snobj *arg)
 {
 	struct wm_priv *priv = get_priv(m);
 
-	char key[HASH_KEY_SIZE];
-	char mask[HASH_KEY_SIZE];
+	hkey_t key;
+	hkey_t mask;
 
-	struct snobj *err = extract_key_mask(priv, arg, key, mask);
+	struct snobj *err = extract_key_mask(priv, arg, &key, &mask);
 	if (err)
 		return err;
 
-	int idx = find_tuple(m, mask);
+	int idx = find_tuple(m, &mask);
 	if (idx < 0)
 		return snobj_err(-idx, "failed to delete a rule");
 
-	int ret = del_entry(priv, &priv->tuples[idx], key);
+	int ret = del_entry(priv, &priv->tuples[idx], &key);
 	if (ret < 0)
 		return snobj_err(-ret, "failed to delete a rule");
 
