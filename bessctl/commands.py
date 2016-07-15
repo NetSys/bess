@@ -1107,7 +1107,7 @@ def _monitor_ports(cli, *ports):
                     total[pdir][key] += stat[pdir][key]
         return total
 
-    all_ports = sorted(cli.bess.list_ports())
+    all_ports = sorted(cli.bess.list_ports(), key=lambda x: x.name)
     drivers = {}
     for port in all_ports:
         drivers[port.name] = port.driver
