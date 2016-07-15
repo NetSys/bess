@@ -380,10 +380,10 @@ class CLI(object):
             line = self.fin.readline()
             if len(line) == 0:
                 raise EOFError()
-            else:
-                line = line.rstrip('\r\n')
 
-        if line.strip():
+        line = line.strip()
+
+        if line:
             try:
                 try:
                     cmd = self.find_cmd(line + ' ')
