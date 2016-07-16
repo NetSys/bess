@@ -6,6 +6,7 @@
 
 struct queue_priv {
 	struct llring *queue;
+	int burst;
 };
 
 static int resize(struct queue_priv *priv, int slots)
@@ -46,6 +47,9 @@ static int resize(struct queue_priv *priv, int slots)
 }
 
 static struct snobj *
+command_set_burst(struct module *m, const char *cmd, struct snobj *arg);
+
+static struct snobj *
 command_set_size(struct module *m, const char *cmd, struct snobj *arg);
 
 static struct snobj *queue_init(struct module *m, struct snobj *arg)
@@ -53,15 +57,32 @@ static struct snobj *queue_init(struct module *m, struct snobj *arg)
 	struct queue_priv *priv = get_priv(m);
 	task_id_t tid;
 
+	struct snobj *t;
+	struct snobj *err;
+
+	priv->burst = MAX_PKT_BURST;
+
 	tid = register_task(m, NULL);
 	if (tid == INVALID_TASK_ID)
 		return snobj_err(ENOMEM, "Task creation failed");
 
-	if (!arg || !(arg = snobj_eval(arg, "size"))) {
+	if ((t = snobj_eval(arg, "burst")) != NULL) {
+		err = command_set_burst(m, NULL, t);
+		if (err)
+			return err;
+	}
+
+	if ((t = snobj_eval(arg, "size")) != NULL) {
+		err = command_set_size(m, NULL, t);
+		if (err)
+			return err;
+	} else {
 		int ret = resize(priv, DEFAULT_QUEUE_SIZE);
-		return ret ? snobj_errno(-ret) : NULL;
-	} else
-		return command_set_size(m, NULL, arg);
+		if (ret)
+			return snobj_errno(-ret);
+	}
+
+	return NULL;
 }
 
 static void queue_deinit(struct module *m)
@@ -95,12 +116,13 @@ static struct task_result dequeue(struct module *m, void *arg)
 	struct pkt_batch batch;
 	struct task_result ret;
 
+	const int burst = ACCESS_ONCE(priv->burst);
 	const int pkt_overhead = 24;
 
 	uint64_t total_bytes = 0;
 
-	int cnt = llring_sc_dequeue_burst(priv->queue, (void **)batch.pkts, 
-			MAX_PKT_BURST);
+	int cnt = llring_sc_dequeue_burst(priv->queue, (void **)batch.pkts,
+			burst);
 
 	if (cnt > 0) {
 		batch.cnt = cnt;
@@ -116,6 +138,26 @@ static struct task_result dequeue(struct module *m, void *arg)
 	};
 
 	return ret;
+}
+
+static struct snobj *
+command_set_burst(struct module *m, const char *cmd, struct snobj *arg)
+{
+	struct queue_priv *priv = get_priv(m);
+	uint64_t val;
+
+	if (snobj_type(arg) != TYPE_INT)
+		return snobj_err(EINVAL, "burst must be an integer");
+
+	val = snobj_uint_get(arg);
+
+	if (val == 0 || val > MAX_PKT_BURST)
+		return snobj_err(EINVAL, "burst size must be [1,%d]",
+				MAX_PKT_BURST);
+
+	priv->burst = val;
+
+	return NULL;
 }
 
 static struct snobj *
@@ -155,6 +197,7 @@ static const struct mclass queue = {
 	.process_batch		= enqueue,
 	.run_task 		= dequeue,
 	.commands	= {
+		{"set_burst", command_set_burst, .mt_safe=1},
 		{"set_size", command_set_size},
 	}
 };
