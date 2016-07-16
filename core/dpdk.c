@@ -14,7 +14,6 @@
 #include "log.h"
 #include "time.h"
 #include "worker.h"
-#include "snstore.h"
 #include "dpdk.h"
 
 static int get_numa_count()
@@ -155,20 +154,6 @@ static void init_timer()
   #error DPDK 2.0.0 or higher is required
 #endif
 
-/* Secondary processes need to run on distinct cores */
-static void announce_cpumask()
-{
-#if 0
-	uint64_t cpumask = 0;
-	int i;
-
-	for (i = 0; i < num_workers; i++)
-		cpumask |= (1 << wid_to_lcore_map[i]);
-
-	snstore_put("_cpumask", (void *)cpumask);
-#endif
-}
-
 void init_dpdk(char *prog_name, int mb_per_socket, int multi_instance)
 {
 	init_eal(prog_name, mb_per_socket, multi_instance);
@@ -176,7 +161,4 @@ void init_dpdk(char *prog_name, int mb_per_socket, int multi_instance)
 	tsc_hz = rte_get_tsc_hz();
 
 	init_timer();
-	init_snstore();
-
-	announce_cpumask();
 }
