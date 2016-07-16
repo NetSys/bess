@@ -118,8 +118,10 @@ queue_inc_run_task(struct module *m, void *arg)
 			received_bytes += snb_total_len(batch.pkts[i]);
 	}
 
-	ret.packets = cnt;
-	ret.bits = (received_bytes + pkt_overhead * cnt) * 8;
+	ret = (struct task_result) {
+		.packets = cnt,
+		.bits = (received_bytes + cnt * pkt_overhead) * 8,
+	};
 
 	if (!(p->driver->flags & DRIVER_FLAG_SELF_INC_STATS)) {
 		p->queue_stats[PACKET_DIR_INC][qid].packets += cnt;
