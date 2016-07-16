@@ -6,18 +6,25 @@ struct queue_inc_priv {
 	pkt_io_func_t recv_pkts;
 	queue_t qid;
 	int prefetch;
+	int burst;
 };
+
+static struct snobj *
+command_set_burst(struct module *m, const char *cmd, struct snobj *arg);
 
 static struct snobj *queue_inc_init(struct module *m, struct snobj *arg)
 {
 	struct queue_inc_priv *priv = get_priv(m);
 
 	struct snobj *t;
+	struct snobj *err;
 
 	const char *port_name;
 	task_id_t tid;
 
 	int ret;
+
+	priv->burst = MAX_PKT_BURST;
 
 	if (!arg || snobj_type(arg) != TYPE_MAP)
 		return snobj_err(EINVAL, "Argument must be a map");
@@ -34,6 +41,12 @@ static struct snobj *queue_inc_init(struct module *m, struct snobj *arg)
 	priv->port = find_port(port_name);
 	if (!priv->port)
 		return snobj_err(ENODEV, "Port %s not found", port_name);
+
+	if ((t = snobj_eval(arg, "burst")) != NULL) {
+		err = command_set_burst(m, NULL, t);
+		if (err)
+			return err;
+	}
 
 	if (snobj_eval_int(arg, "prefetch"))
 		priv->prefetch = 1;
@@ -62,9 +75,9 @@ static struct snobj *queue_inc_get_desc(const struct module *m)
 {
 	const struct queue_inc_priv *priv = get_priv_const(m);
 
-	return snobj_str_fmt("%s:%hhu/%s", 
-			priv->port->name, 
-			priv->qid, 
+	return snobj_str_fmt("%s:%hhu/%s",
+			priv->port->name,
+			priv->qid,
 			priv->port->driver->name);
 }
 
@@ -81,12 +94,12 @@ queue_inc_run_task(struct module *m, void *arg)
 
 	uint64_t received_bytes = 0;
 
-	const int pkt_burst = MAX_PKT_BURST;
+	const int burst = ACCESS_ONCE(priv->burst);
 	const int pkt_overhead = 24;
-	
+
 	int cnt;
 
-	cnt = batch.cnt = priv->recv_pkts(p, qid, batch.pkts, pkt_burst);
+	cnt = batch.cnt = priv->recv_pkts(p, qid, batch.pkts, burst);
 
 	if (cnt == 0) {
 		ret.packets = 0;
@@ -118,6 +131,26 @@ queue_inc_run_task(struct module *m, void *arg)
 	return ret;
 }
 
+static struct snobj *
+command_set_burst(struct module *m, const char *cmd, struct snobj *arg)
+{
+	struct queue_inc_priv *priv = get_priv(m);
+	uint64_t val;
+
+	if (snobj_type(arg) != TYPE_INT)
+		return snobj_err(EINVAL, "burst must be an integer");
+
+	val = snobj_uint_get(arg);
+
+	if (val == 0 || val > MAX_PKT_BURST)
+		return snobj_err(EINVAL, "burst size must be [1,%d]",
+				MAX_PKT_BURST);
+
+	priv->burst = val;
+
+	return NULL;
+}
+
 static const struct mclass queue_inc = {
 	.name 		= "QueueInc",
 	.help		= "receives packets from a port via a specific queue",
@@ -128,6 +161,9 @@ static const struct mclass queue_inc = {
 	.deinit		= queue_inc_deinit,
 	.get_desc	= queue_inc_get_desc,
 	.run_task 	= queue_inc_run_task,
+	.commands	= {
+		{"set_burst", command_set_burst, .mt_safe=1},
+	}
 };
 
 ADD_MCLASS(queue_inc)
