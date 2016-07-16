@@ -6,6 +6,7 @@
 
 struct queue_priv {
 	struct llring *queue;
+	int prefetch;
 	int burst;
 };
 
@@ -82,6 +83,9 @@ static struct snobj *queue_init(struct module *m, struct snobj *arg)
 			return snobj_errno(-ret);
 	}
 
+	if (snobj_eval_int(arg, "prefetch"))
+		priv->prefetch = 1;
+
 	return NULL;
 }
 
@@ -129,8 +133,15 @@ static struct task_result dequeue(struct module *m, void *arg)
 		run_next_module(m, &batch);
 	}
 
-	for (int i = 0; i < cnt; i++)
-		total_bytes += snb_total_len(batch.pkts[i]);
+	if (priv->prefetch) {
+		for (int i = 0; i < cnt; i++) {
+			total_bytes += snb_total_len(batch.pkts[i]);
+			rte_prefetch0(snb_head_data(batch.pkts[i]));
+		}
+	} else {
+		for (int i = 0; i < cnt; i++)
+			total_bytes += snb_total_len(batch.pkts[i]);
+	}
 
 	ret = (struct task_result) {
 		.packets = cnt,
