@@ -1,0 +1,11 @@
+# a -> b -> c
+# ^	    |
+# | _ _ _ _ |
+
+a::MetadataTest(write={'foo':2})
+b::MetadataTest(read={'foo':2})
+c::MetadataTest(read={'foo':2})
+
+a->b->c
+c->a
+

@@ -9,6 +9,8 @@
 
 #define MAX_ATTRS_PER_MODULE	16
 
+#define MT_TOTAL_SIZE		96
+
 /* normal offset values are 0 or a positive value */
 typedef int8_t mt_offset_t;
 

@@ -8,13 +8,22 @@ struct scope_component {
 	int size;
 
 	int num_modules;
+	//struct module_info *modules;
 	struct module **modules;
 
-	int8_t offset;
-	uint8_t visited;
+	mt_offset_t offset;
+	uint8_t assigned;
+	uint8_t invalid;
 };
 
-static struct scope_component scope_components[100];
+/* links module to scope component */
+/* struct module_info {
+	struct module *module;
+	uint8_t index;
+	enum mt_access_mode mode;
+}; */
+
+static struct scope_component *scope_components;
 static int curr_scope_id = 0;
 
 /* Adds module to the current scope component. */
@@ -51,6 +60,8 @@ static void traverse_upstream(struct module *m, struct mt_attr *attr)
 {
 	struct mt_attr *found_attr = NULL;
 
+	add_module_to_component(m, attr);
+
 	for (int i = 0; i < m->num_attrs; i++) {
 		struct mt_attr *curr_attr = &m->attrs[i];
 
@@ -67,6 +78,11 @@ static void traverse_upstream(struct module *m, struct mt_attr *attr)
 		return;
 	}
 
+	/* cycle detection */
+	if (m->curr_scope == curr_scope_id)
+		return;
+	m->curr_scope = curr_scope_id;
+	
 	for (int i = 0; i < m->igates.curr_size; i++) {
 		struct gate *g = m->igates.arr[i];
 		struct gate *og;
@@ -77,6 +93,9 @@ static void traverse_upstream(struct module *m, struct mt_attr *attr)
 			traverse_upstream(og->m, attr);
 		}
 	}
+
+	if (m->igates.curr_size == 0)
+		scope_components[curr_scope_id].invalid = 1;
 }
 
 /*
@@ -89,6 +108,11 @@ static int traverse_downstream(struct module *m, struct mt_attr *attr)
 	struct gate *ogate;
 	struct mt_attr *found_attr = NULL;
 	int in_scope = 0;
+
+	/* cycle detection */
+	if (m->curr_scope == curr_scope_id)
+		return -1;
+	m->curr_scope = curr_scope_id;
 
 	for (int i = 0; i < m->num_attrs; i++) {
 		struct mt_attr *curr_attr = &m->attrs[i];
@@ -111,11 +135,14 @@ static int traverse_downstream(struct module *m, struct mt_attr *attr)
 			traverse_downstream(ogate->out.igate->m, attr);
 		}
 
+		m->curr_scope = -1;
 		traverse_upstream(m, attr);
 		return 0;
 
-	} else if (found_attr && found_attr->mode == MT_WRITE)
+	} else if (found_attr && found_attr->mode == MT_WRITE) {
+		m->curr_scope = -1;
 		return -1;
+	}
 
 	for (int i = 0; i < m->ogates.curr_size; i++) {
 		ogate = m->ogates.arr[i];
@@ -128,6 +155,7 @@ static int traverse_downstream(struct module *m, struct mt_attr *attr)
 
 	if (in_scope) {
 		add_module_to_component(m, attr);
+		m->curr_scope = -1;
 		traverse_upstream(m, attr);
 		return 0;
 	}
@@ -147,6 +175,9 @@ identify_scope_component(struct module *m, struct mt_attr *attr)
 	add_module_to_component(m, attr);
 	attr->scope_id = curr_scope_id;
 
+	/* cycle detection */
+	m->curr_scope = curr_scope_id;
+
 	for (int i = 0; i < m->ogates.curr_size; i++) {
 		ogate = m->ogates.arr[i];
 		if (!ogate)
@@ -156,21 +187,6 @@ identify_scope_component(struct module *m, struct mt_attr *attr)
 	}
 }
 
-/* static void reset_cycle_detection()
-{
-	struct ns_iter iter;
-	ns_init_iterator(&iter, NS_TYPE_MODULE);
-	while (1) {
-		struct module *m = (struct module *) ns_next(&iter);
-		if (!m)
-			break;
-		
-		m->upstream_cycle = -1;
-		m->downstream_cycle = -1;
-	}
-	ns_release_iterator(&iter);
-} */
-
 static void prepare_metadata_computation()
 {
 	struct ns_iter iter;
@@ -179,63 +195,44 @@ static void prepare_metadata_computation()
 		struct module *m = (struct module *) ns_next(&iter);
 		if (!m)
 			break;
+
+		m->curr_scope = -1;
 		
-		for (int i = 0; i < m->num_attrs; i++)
+		for (int i = 0; i < m->num_attrs; i++) {
 			m->attrs[i].scope_id = -1;
+		}
 	}
 	ns_release_iterator(&iter);
 }
 
 static void cleanup_metadata_computation()
 {
-	for (int i = 0; i < curr_scope_id; i++)
+	for (int i = 0; i < curr_scope_id; i++) {
 		mem_free(scope_components[i].modules);
-
-	memset(&scope_components, 0, 100 * sizeof(struct scope_component));
+	}
+	
+	mem_free(scope_components);
 	curr_scope_id = 0;
 }
 
 
-static int scope_overlaps(int i1, int i2) {
-	struct scope_component n1 = scope_components[i1];
-	struct scope_component n2 = scope_components[i2];
-
-	for (int i = 0; i < n1.num_modules; i++) {
-		for (int j = 0; j < n2.num_modules; j++) {
-			if (n1.modules[i] == n2.modules[j])
-				return 1;
-		}
-	}
-	return 0;
-}
-
-/*
- * Given a scope component id, identifies the set of all overlapping components
- * including this scope component.
- */
-static void find_overlapping_components(int index, int *offset)
-{
-	scope_components[index].offset = *offset;
-	*offset = *offset + scope_components[index].size;
-	scope_components[index].visited = 1;
-
-	for (int j = index; j < curr_scope_id; j++) {
-		if (scope_components[j].visited)
-			continue;
-
-		if (scope_overlaps(index,j))
-			find_overlapping_components(j, offset);
-	}
-}
-
 static void fill_offset_arrays()
 {
+	struct module **modules;
+	char *name;
+	int size;
+	mt_offset_t offset;
+	uint8_t invalid;
+	struct module *m;
+	uint8_t upstream_attr;
+
 	for (int i = 0; i < curr_scope_id; i++) {
-		struct module **modules = scope_components[i].modules;
-		char *name = scope_components[i].name;
-		int size = scope_components[i].size;
-		int offset = scope_components[i].offset;
-		
+		modules = scope_components[i].modules;
+		name = scope_components[i].name;
+		size = scope_components[i].size;
+		offset = scope_components[i].offset;
+		invalid = scope_components[i].invalid; 
+
 		/* attr not read donwstream */
 		if (scope_components[i].num_modules == 1) {
 			scope_components[i].offset = MT_OFFSET_NOWRITE;
@@ -243,32 +240,137 @@ static void fill_offset_arrays()
 		}
 
 		for (int j = 0; j < scope_components[i].num_modules; j++) {
-			struct module *m = modules[j];
+			m = modules[j];
+			upstream_attr = 1;
 
 			for (int k = 0; k < m->num_attrs; k++) {
 				if (strcmp(m->attrs[k].name, name) == 0 &&
 				    m->attrs[k].size == size) {
-					m->attr_offsets[k] = offset;
+					upstream_attr = 0;
+					if (invalid && m->attrs[k].mode == MT_READ)
+						m->attr_offsets[k] = MT_OFFSET_NOREAD;
+					else if (invalid)
+						m->attr_offsets[k] = MT_OFFSET_NOWRITE;
+					else
+						m->attr_offsets[k] = offset;
 				}
+			}
+
+			if (upstream_attr) {
+				m->num_upstream_attrs++;
+				m->upstream_attrs[m->num_upstream_attrs - 1] = name;
+				m->upstream_offsets[m->num_upstream_attrs - 1] = offset;	
 			}
 		}
 	}
 }
 
-/* Calculates offsets after scope components are identified */
+/*
+ * Checks if two scope components are disjoint.
+ */
+static int disjoint(int scope1, int scope2)
+{
+	struct scope_component comp1 = scope_components[scope1];
+	struct scope_component comp2 = scope_components[scope2];
+
+	for (int i = 0; i < comp1.num_modules; i++) {
+		for (int j = 0; j < comp2.num_modules; j++) {
+			if (comp1.modules[i] == comp2.modules[j])
+				return 0; 
+		}
+	}	
+	return 1;
+}
+
+/* 
+ * Returns the smallest power of two that is...
+ * 1). greater than or equal to num
+ * 2). smaller than or equal to 64 
+ */
+static uint8_t next_power_of_two(int8_t num)
+{
+	int i = 7;
+
+	while(i) {
+		if (num >> i == 1 && (num << (8-i) & 0xFF) == 0)
+			return num;
+		else if (num >> i == 1)
+			return 1 << (i + 1);
+		
+		i--;
+	}
+	return 0;
+}	
+
+static mt_offset_t next_offset(mt_offset_t curr_offset, int8_t size)
+{
+	uint32_t overflow = (uint32_t) curr_offset + (uint32_t) size;
+	int8_t rounded_size = next_power_of_two(size);
+
+	if (curr_offset % rounded_size != 0)
+		curr_offset = ((curr_offset / rounded_size) + 1) * rounded_size;
+	
+	return overflow > MT_TOTAL_SIZE ? MT_OFFSET_NOSPACE : curr_offset;
+}
+
+
 static void assign_offsets()
 {
-	int offset = 0;
+	mt_offset_t offset = 0;
+	struct heap h;
+	struct scope_component *comp1;
+	struct scope_component *comp2;
+	uint8_t comp1_size;
+
 	for (int i = 0; i < curr_scope_id; i++) {
-		if (scope_components[i].visited)
+		comp1 = &scope_components[i];
+		if (comp1->invalid) {
+			offset = MT_OFFSET_NOREAD;
+			comp1->offset = offset;
+			comp1->assigned = 1;
+			continue;
+		}
+		
+		if (comp1->assigned || comp1->num_modules == 1)
 			continue;
 
 		offset = 0;
-		find_overlapping_components(i, &offset);
+		comp1_size = next_power_of_two(comp1->size);
+		heap_init(&h);
+
+
+		for (int j = 0; j < curr_scope_id; j++) {
+			if (i == j)
+				continue;
+			
+			if (!disjoint(i,j) && scope_components[j].assigned)
+				heap_push(&h, scope_components[j].offset, &scope_components[j]);
+		}
+
+		while ((comp2 = (struct scope_component *)heap_peek(&h))) 
+		{
+			heap_pop(&h);
+
+			if (comp2->offset == MT_OFFSET_NOREAD || 
+			    comp2->offset == MT_OFFSET_NOWRITE ||
+			    comp2->offset == MT_OFFSET_NOSPACE)
+				continue;
+
+			if (offset + comp1->size > comp2->offset)
+				offset = next_offset(comp2->offset + comp2->size, comp1->size);
+			else
+				break;
+		}
+
+		comp1->offset = offset;
+		comp1->assigned = 1;
+
+		heap_close(&h);
 	}
 
 	fill_offset_arrays();
 }
+
 
 void check_orphan_readers()
 {
@@ -293,6 +395,37 @@ void check_orphan_readers()
 	ns_release_iterator(&iter);
 }
 
+static void allocate_scope_components()
+{
+	if (curr_scope_id == 0)
+		scope_components = mem_alloc(sizeof(struct scope_component) * 100);
+	else
+		scope_components = mem_realloc(scope_components, sizeof(struct scope_component)
+					   * 100 * ((curr_scope_id / 100) + 1));
+	return;
+}
+
+
+/* Debugging tool for upstream attributes */
+void log_upstream_attrs()
+{
+	struct ns_iter iter;
+
+	ns_init_iterator(&iter, NS_TYPE_MODULE);
+
+	while (1) {
+		struct module *m = (struct module *) ns_next(&iter);
+		if (!m)
+			break;
+
+		log_info("Module %s preserving the following upstream attrs: ", m->name);
+		for (int i = 0; i < m->num_upstream_attrs; i++) {
+			log_info("%s at offset %d, ", m->upstream_attrs[i], m->upstream_offsets[i]);
+		}
+		log_info("\n");
+	}
+}
+
 /* Main entry point for calculating metadata offsets. */
 void compute_metadata_offsets()
 {
@@ -315,6 +448,8 @@ void compute_metadata_offsets()
 				m->attr_offsets[i] = MT_OFFSET_NOWRITE;
 
 			if (attr->mode == MT_WRITE && attr->scope_id == -1) {
+			    	if (curr_scope_id % 100 == 0) 
+					allocate_scope_components();
 				identify_scope_component(m, attr);
 				curr_scope_id++;
 			}
@@ -337,6 +472,8 @@ void compute_metadata_offsets()
 
 		log_info("}\n");
 	}
+
+	log_upstream_attrs();
 
 	check_orphan_readers();
 
