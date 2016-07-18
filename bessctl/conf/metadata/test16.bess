@@ -1,0 +1,7 @@
+
+# testing heap usage in offset allocation
+
+a::MetadataTest(write={'foo':2, 'bar':3, 'baz':5, 'quz':8})
+b::MetadataTest(read={'foo':2, 'bar':3, 'baz':5, 'quz':8})
+
+a->b
