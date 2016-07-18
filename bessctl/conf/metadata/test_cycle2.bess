@@ -1,0 +1,9 @@
+# a -> b -> c
+# ^	    |
+# | _ _ _ _ |
+
+a::MetadataTest(update={'foo':2})
+b::MetadataTest()
+c::MetadataTest()
+
+
