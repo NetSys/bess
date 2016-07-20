@@ -13,6 +13,7 @@
 
 /* normal offset values are 0 or a positive value */
 typedef int8_t mt_offset_t;
+typedef int16_t scope_id_t;
 
 /* No downstream module reads the attribute, so the module can skip writing */
 static const mt_offset_t MT_OFFSET_NOWRITE = -1;
@@ -96,7 +97,22 @@ struct mt_attr {
 	int scope_id;
 };
 
+struct scope_component {
+	char name[MT_ATTR_NAME_LEN];
+	int size;
+	scope_id_t scope_id;
+	mt_offset_t offset;
+	uint8_t assigned;
+	uint8_t invalid;
+
+	int num_modules;
+	struct module **modules;
+};
+
 void compute_metadata_offsets();
+
+char *get_scope_attr_name(scope_id_t scope_id);
+int *get_scope_attr_size(scope_id_t scope_id);
 
 int is_valid_attr(const char *name, int size, enum mt_access_mode mode);
 
