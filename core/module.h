@@ -83,10 +83,7 @@ struct module {
 
 	int num_attrs;
 	struct mt_attr attrs[MAX_ATTRS_PER_MODULE];
-
-	char *upstream_attrs[MT_TOTAL_SIZE];
-	mt_offset_t upstream_offsets[MT_TOTAL_SIZE];
-	uint8_t num_upstream_attrs;
+	scope_id_t scope_components[MT_TOTAL_SIZE];
 
 	/* for cycle detection */
 	int curr_scope;

@@ -3,19 +3,6 @@
 
 #include "metadata.h"
 
-struct scope_component {
-	char name[MT_ATTR_NAME_LEN];
-	int size;
-
-	int num_modules;
-	//struct module_info *modules;
-	struct module **modules;
-
-	mt_offset_t offset;
-	uint8_t assigned;
-	uint8_t invalid;
-};
-
 /* links module to scope component */
 /* struct module_info {
 	struct module *module;
@@ -25,6 +12,16 @@ struct scope_component {
 
 static struct scope_component *scope_components;
 static int curr_scope_id = 0;
+
+char *get_scope_attr_name(scope_id_t scope_id)
+{
+	return scope_components[scope_id].name;
+}
+
+int get_scope_attr_(scope_id_t scope_id)
+{
+	return scope_components[scope_id].size;
+}
 
 /* Adds module to the current scope component. */
 static void 
@@ -197,6 +194,7 @@ static void prepare_metadata_computation()
 			break;
 
 		m->curr_scope = -1;
+		memset(m->scope_components, -1, sizeof(scope_id_t) * MT_TOTAL_SIZE);
 		
 		for (int i = 0; i < m->num_attrs; i++) {
 			m->attrs[i].scope_id = -1;
@@ -224,7 +222,6 @@ static void fill_offset_arrays()
 	mt_offset_t offset;
 	uint8_t invalid;
 	struct module *m;
-	uint8_t upstream_attr;
 
 	for (int i = 0; i < curr_scope_id; i++) {
 		modules = scope_components[i].modules;
@@ -241,25 +238,20 @@ static void fill_offset_arrays()
 
 		for (int j = 0; j < scope_components[i].num_modules; j++) {
 			m = modules[j];
-			upstream_attr = 1;
 
 			for (int k = 0; k < m->num_attrs; k++) {
 				if (strcmp(m->attrs[k].name, name) == 0 &&
 				    m->attrs[k].size == size) {
-					upstream_attr = 0;
 					if (invalid && m->attrs[k].mode == MT_READ)
 						m->attr_offsets[k] = MT_OFFSET_NOREAD;
 					else if (invalid)
 						m->attr_offsets[k] = MT_OFFSET_NOWRITE;
-					else
+					else {
 						m->attr_offsets[k] = offset;
+						for (int l = 0; l < size; l++)
+							m->scope_components[offset+l] = i;
+					}
 				}
-			}
-
-			if (upstream_attr) {
-				m->num_upstream_attrs++;
-				m->upstream_attrs[m->num_upstream_attrs - 1] = name;
-				m->upstream_offsets[m->num_upstream_attrs - 1] = offset;	
 			}
 		}
 	}
@@ -324,9 +316,9 @@ static void assign_offsets()
 
 	for (int i = 0; i < curr_scope_id; i++) {
 		comp1 = &scope_components[i];
+
 		if (comp1->invalid) {
-			offset = MT_OFFSET_NOREAD;
-			comp1->offset = offset;
+			comp1->offset = MT_OFFSET_NOREAD;
 			comp1->assigned = 1;
 			continue;
 		}
@@ -406,8 +398,8 @@ static void allocate_scope_components()
 }
 
 
-/* Debugging tool for upstream attributes */
-void log_upstream_attrs()
+/* Debugging tool */
+void log_all_scopes_per_module()
 {
 	struct ns_iter iter;
 
@@ -418,9 +410,10 @@ void log_upstream_attrs()
 		if (!m)
 			break;
 
-		log_info("Module %s preserving the following upstream attrs: ", m->name);
-		for (int i = 0; i < m->num_upstream_attrs; i++) {
-			log_info("%s at offset %d, ", m->upstream_attrs[i], m->upstream_offsets[i]);
+		log_info("Module %s part of the following scope components: ", m->name);
+		for (int i = 0; i < MT_TOTAL_SIZE; i++) {
+			if (m->scope_components[i] != -1)
+				log_info("scope %d at offset %d, ", m->scope_components[i], i);
 		}
 		log_info("\n");
 	}
@@ -452,6 +445,7 @@ void compute_metadata_offsets()
 					allocate_scope_components();
 				identify_scope_component(m, attr);
 				curr_scope_id++;
+				scope_components[curr_scope_id].scope_id = curr_scope_id;
 			}
 		}
 	}
@@ -473,7 +467,7 @@ void compute_metadata_offsets()
 		log_info("}\n");
 	}
 
-	log_upstream_attrs();
+	log_all_scopes_per_module();
 
 	check_orphan_readers();
 
