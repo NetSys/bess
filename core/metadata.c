@@ -14,7 +14,6 @@ struct scope_component {
         uint8_t assigned;
         uint8_t invalid;
         int num_modules;
-	//struct scope_module **scope_modules;
         struct module **modules;
 	int degree;
 };
@@ -267,10 +266,14 @@ static void fill_offset_arrays()
 						m->attr_offsets[k] = MT_OFFSET_NOWRITE;
 					else {
 						m->attr_offsets[k] = offset;
-						for (int l = 0; l < size; l++)
-							m->scope_components[offset+l] = i;
 					}
+					break;
 				}
+			}
+						
+			if (!invalid && offset >= 0) {
+				for (int l = 0; l < size; l++)
+					m->scope_components[offset+l] = i;
 			}
 		}
 	}
