@@ -97,18 +97,6 @@ struct mt_attr {
 	int scope_id;
 };
 
-struct scope_component {
-	char name[MT_ATTR_NAME_LEN];
-	int size;
-	scope_id_t scope_id;
-	mt_offset_t offset;
-	uint8_t assigned;
-	uint8_t invalid;
-
-	int num_modules;
-	struct module **modules;
-};
-
 void compute_metadata_offsets();
 
 char *get_scope_attr_name(scope_id_t scope_id);

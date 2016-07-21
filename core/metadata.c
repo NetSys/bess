@@ -3,12 +3,28 @@
 
 #include "metadata.h"
 
+struct scope_component {
+	/* identification fields */
+        char name[MT_ATTR_NAME_LEN];
+        int size;
+	mt_offset_t offset;
+        scope_id_t scope_id;
+
+	/* computation state fields */
+        uint8_t assigned;
+        uint8_t invalid;
+        int num_modules;
+	//struct scope_module **scope_modules;
+        struct module **modules;
+	int degree;
+};
+
 /* links module to scope component */
-/* struct module_info {
+struct scope_module {
 	struct module *module;
 	uint8_t index;
 	enum mt_access_mode mode;
-}; */
+};
 
 static struct scope_component *scope_components;
 static int curr_scope_id = 0;
@@ -23,6 +39,7 @@ int get_scope_attr_(scope_id_t scope_id)
 	return scope_components[scope_id].size;
 }
 
+/* TODO: make more efficient */
 /* Adds module to the current scope component. */
 static void 
 add_module_to_component(struct module *m, struct mt_attr *attr)
@@ -52,23 +69,31 @@ add_module_to_component(struct module *m, struct mt_attr *attr)
 static void 
 identify_scope_component(struct module *m, struct mt_attr *attr);
 
-/* Traverses graph upstream to help identify a scope component. */
-static void traverse_upstream(struct module *m, struct mt_attr *attr)
-{
-	struct mt_attr *found_attr = NULL;
 
-	add_module_to_component(m, attr);
+static struct mt_attr *find_attr(struct module *m, struct mt_attr *attr)
+{
+	struct mt_attr *curr_attr;
 
 	for (int i = 0; i < m->num_attrs; i++) {
-		struct mt_attr *curr_attr = &m->attrs[i];
-
+		curr_attr = &m->attrs[i];
 		if (strcmp(curr_attr->name, attr->name) == 0 &&
 		    curr_attr->size == attr->size) {
-			found_attr = curr_attr;
+			return curr_attr;
 		}
 	}
 
-	/* found a module that writes the attr; end of scope component */
+	return NULL;
+}
+
+/* Traverses module graph upstream to help identify a scope component. */
+static void traverse_upstream(struct module *m, struct mt_attr *attr)
+{
+	struct mt_attr *found_attr;
+
+	add_module_to_component(m, attr);
+	found_attr = find_attr(m, attr);
+
+	/* end of scope component */
 	if (found_attr && found_attr->mode == MT_WRITE) {
 		if (found_attr->scope_id == -1)
 			identify_scope_component(m, found_attr);
@@ -96,29 +121,21 @@ static void traverse_upstream(struct module *m, struct mt_attr *attr)
 }
 
 /*
- * Traverses graph downstream to help identify a scope component.
- * Return value of -1 indicates that module is not part of the scope component.
- * Return value of 0 indicates that module is part of the scope component.
+ * Traverses module graph downstream to help identify a scope component.
+ * Returns 0 if module is part of the scope component, -1 if not.
  */
 static int traverse_downstream(struct module *m, struct mt_attr *attr)
 {
 	struct gate *ogate;
-	struct mt_attr *found_attr = NULL;
-	int in_scope = 0;
+	struct mt_attr *found_attr;
+	int8_t in_scope = 0;
 
 	/* cycle detection */
 	if (m->curr_scope == curr_scope_id)
 		return -1;
 	m->curr_scope = curr_scope_id;
 
-	for (int i = 0; i < m->num_attrs; i++) {
-		struct mt_attr *curr_attr = &m->attrs[i];
-
-		if (strcmp(curr_attr->name, attr->name) == 0 &&
-		    curr_attr->size == attr->size) {
-			found_attr = curr_attr;
-		}
-	}
+	found_attr = find_attr(m, attr);
 
 	if (found_attr && (found_attr->mode == MT_READ || found_attr->mode == MT_UPDATE)) {
 		add_module_to_component(m, found_attr);
@@ -134,11 +151,13 @@ static int traverse_downstream(struct module *m, struct mt_attr *attr)
 
 		m->curr_scope = -1;
 		traverse_upstream(m, attr);
-		return 0;
+		in_scope = 1;
+		goto ret;
 
-	} else if (found_attr && found_attr->mode == MT_WRITE) {
+	} else if (found_attr) {
 		m->curr_scope = -1;
-		return -1;
+		in_scope = 0;
+		goto ret;
 	}
 
 	for (int i = 0; i < m->ogates.curr_size; i++) {
@@ -154,16 +173,13 @@ static int traverse_downstream(struct module *m, struct mt_attr *attr)
 		add_module_to_component(m, attr);
 		m->curr_scope = -1;
 		traverse_upstream(m, attr);
-		return 0;
 	}
 
-	return -1;
+ret:
+	return in_scope ? 0 : -1;
 }
 
-/*
- * Given a module that writes a attr, identifies the portion of corresponding 
- * scope component that lies downstream from this module. 
- */
+/* Given a module that writes an attr, identifies the corresponding scope component. */ 
 static void 
 identify_scope_component(struct module *m, struct mt_attr *attr)
 {
@@ -213,6 +229,7 @@ static void cleanup_metadata_computation()
 	curr_scope_id = 0;
 }
 
+/* TODO: simplify/optimize */
 
 static void fill_offset_arrays()
 {
@@ -222,6 +239,7 @@ static void fill_offset_arrays()
 	mt_offset_t offset;
 	uint8_t invalid;
 	struct module *m;
+	int num_modules;
 
 	for (int i = 0; i < curr_scope_id; i++) {
 		modules = scope_components[i].modules;
@@ -229,9 +247,10 @@ static void fill_offset_arrays()
 		size = scope_components[i].size;
 		offset = scope_components[i].offset;
 		invalid = scope_components[i].invalid; 
+		num_modules = scope_components[i].num_modules;
 
 		/* attr not read donwstream */
-		if (scope_components[i].num_modules == 1) {
+		if (num_modules == 1) {
 			scope_components[i].offset = MT_OFFSET_NOWRITE;
 			offset = MT_OFFSET_NOWRITE;
 		}
@@ -257,9 +276,6 @@ static void fill_offset_arrays()
 	}
 }
 
-/*
- * Checks if two scope components are disjoint.
- */
 static int disjoint(int scope1, int scope2)
 {
 	struct scope_component comp1 = scope_components[scope1];
@@ -274,11 +290,6 @@ static int disjoint(int scope1, int scope2)
 	return 1;
 }
 
-/* 
- * Returns the smallest power of two that is...
- * 1). greater than or equal to num
- * 2). smaller than or equal to 64 
- */
 static uint8_t next_power_of_two(int8_t num)
 {
 	int i = 7;
@@ -296,8 +307,11 @@ static uint8_t next_power_of_two(int8_t num)
 
 static mt_offset_t next_offset(mt_offset_t curr_offset, int8_t size)
 {
-	uint32_t overflow = (uint32_t) curr_offset + (uint32_t) size;
-	int8_t rounded_size = next_power_of_two(size);
+	uint32_t overflow;
+	int8_t rounded_size;
+
+	overflow = (uint32_t) curr_offset + (uint32_t) size;
+	rounded_size = next_power_of_two(size);
 
 	if (curr_offset % rounded_size != 0)
 		curr_offset = ((curr_offset / rounded_size) + 1) * rounded_size;
@@ -316,6 +330,7 @@ static void assign_offsets()
 
 	for (int i = 0; i < curr_scope_id; i++) {
 		comp1 = &scope_components[i];
+		log_info("Degree: %d\n", comp1->degree); 
 
 		if (comp1->invalid) {
 			comp1->offset = MT_OFFSET_NOREAD;
@@ -419,6 +434,31 @@ void log_all_scopes_per_module()
 	}
 }
 
+static void compute_scope_degrees()
+{
+	for (int i = 0; i < curr_scope_id; i++) {
+		for (int j = i + 1; j < curr_scope_id; j++) {
+			if (!disjoint(i, j)) {
+				scope_components[i].degree += 1;
+				scope_components[j].degree += 1;
+			}
+		}
+	}
+}
+
+static int degreeComp(const void *a, const void *b)
+{
+	int degree1 = ((struct scope_component *)a)->degree;
+	int degree2 = ((struct scope_component *)b)->degree;
+	return degree2 - degree1;
+}
+
+static void sort_scope_components()
+{
+	compute_scope_degrees();
+	qsort(scope_components, curr_scope_id, sizeof(struct scope_component), degreeComp);
+}
+
 /* Main entry point for calculating metadata offsets. */
 void compute_metadata_offsets()
 {
@@ -451,6 +491,7 @@ void compute_metadata_offsets()
 	}
 	ns_release_iterator(&iter);
 
+	sort_scope_components();
 	assign_offsets();
 
 	for (int i = 0; i < curr_scope_id; i++) {
