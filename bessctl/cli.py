@@ -21,7 +21,7 @@ class CLI(object):
     class InternalError(Exception):
         pass
 
-    def __init__(self, cmdlist, fin=sys.stdin, 
+    def __init__(self, cmdlist, fin=sys.stdin,
                  fout=sys.stdout, history_file=None):
         self.cmdlist = cmdlist
         self.fin = fin
@@ -54,7 +54,7 @@ class CLI(object):
                     self.rl.parse_and_bind('tab: complete')
 
                 self.rl.set_completer(self.complete)
-      
+
                 try:
                     if self.history_file and os.path.exists(self.history_file):
                         self.rl.read_history_file(self.history_file)
@@ -66,7 +66,7 @@ class CLI(object):
         self.fout.write('*** Error: %s\n' % msg);
 
     # If not a variable, simply return None
-    # Otherwise, return (var_type, desc, candidates): 
+    # Otherwise, return (var_type, desc, candidates):
     #    var_type can be: 'int', 'str', 'list'(list of strings), 'map'
     #    candidates is a list of string values.
     def get_var_attrs(self, var_token, partial_word):
@@ -92,10 +92,10 @@ class CLI(object):
     def bind_var(self, var_type, line):
         if var_type == 'keyword':
             return None, self.split_var(var_type, line)[1]
-        
+
         raise self.InternalError('type "%s" is undefined' % var_type)
 
-    # Compare a command with a user-typed line. 
+    # Compare a command with a user-typed line.
     # It returns (match_type, candidates, syntax_token, score).
     # match_type can be:
     #  - 'full': all tokens in syntax was consumed
@@ -164,7 +164,7 @@ class CLI(object):
                     for var in var_candidates:
                         if var.startswith(token.split()[-1]):
                             candidates.append(var)
- 
+
         if remainder.strip() == '':
             if '...' in syntax_token:
                 return 'full', candidates, syntax_token, score
@@ -180,7 +180,7 @@ class CLI(object):
         for cmd in self.cmdlist:
             syntax = cmd[0]
             match_type, _, _, score = self.match(syntax, line)
-            
+
             if match_type in filters:
                 matched_list.append((cmd, score))
 
@@ -334,7 +334,7 @@ class CLI(object):
         return []
 
     def bind_args(self, cmd, line):
-        syntax, desc, func = cmd 
+        syntax, desc, func = cmd
         remainder = line
         args = []
 
@@ -380,10 +380,10 @@ class CLI(object):
             line = self.fin.readline()
             if len(line) == 0:
                 raise EOFError()
-            else:
-                line = line.rstrip('\r\n')
-            
-        if line.strip():
+
+        line = line.strip()
+
+        if line:
             try:
                 try:
                     cmd = self.find_cmd(line + ' ')

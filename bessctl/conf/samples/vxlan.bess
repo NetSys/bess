@@ -1,0 +1,81 @@
+'''
+Simple VXLAN example. The tunnel is established between eth_alice and BESS,
+and Bob is a tenant on the overlay network.
+
+               +-------------------------------+
+               |                               |
+               |                               |
+               |            vxlan0             |   IP: 172.16.100.34/28
+               |              +                |
+               |              |                |
+Alice          |              +                |
+root container |          eth_alice            |   IP: 10.0.10.2/24
+               +--------------+----------------+      (02:0a:0b:0c:0d:0e)
+                              |
+                              |
+			      | (tunneled traffic w/ VNI 999)
+                              |
+                              | vport_alice
+                  +------+----+----+------+           (02:01:02:03:04:05)
+                  |      |  VTEP   |      |        IP: 10.0.10.1/24
+                  |      +---------+      |
+BESS              |           |           |
+                  |           |           |
+                  |           |           |
+                  +-----------+-----------+
+                              | vport_bob
+                              |
+                              | (non-tunneled traffic)
+                              |
+			      |
+               +--------------+----------------+   IP: 172.16.100.33/28
+               |           eth_bob             |
+Container Bob  |    (regular Ethernet port)    |
+               +-------------------------------+
+'''
+
+import os
+import socket
+
+def aton(ip):
+    return socket.inet_aton(ip)
+
+os.system('docker pull ubuntu > /dev/null')
+os.system('docker run -i -d --net=none --name=vxlan_test ubuntu /bin/bash > /dev/null')
+
+# Alice live outside the container, wanting to talk to Bob in the container
+v_bob = Port(driver='VPort', ifname='eth_bob', docker='vxlan_test', ip_addr='172.16.100.33/28')
+v_alice = Port(driver='VPort', ifname='eth_alice', ip_addr='10.0.10.2/24', mac_addr='02:0a:0b:0c:0d:0e')
+
+# Alice -> Bob
+PortInc(port=v_alice) -> bpf::BPF():1 -> VXLANDecap() -> PortOut(port=v_bob)
+
+# Bob -> Alice
+PortInc(port=v_bob) \
+    -> SetMetadata([{'name': 'tun_ip_src', 'size': 4, 'value': aton('10.0.10.1')},
+                    {'name': 'tun_ip_dst', 'size': 4, 'value': aton('10.0.10.2')},
+                    {'name': 'tun_id', 'size': 4, 'value': 999}]) \
+    -> VXLANEncap(dstport=4789) \
+    -> IPEncap() \
+    -> SetMetadata([{'name': 'ether_src', 'size': 6, 'value': '\x02\x01\x02\x03\x04\x05'},
+                    {'name': 'ether_dst', 'size': 6, 'value': '\x02\x0a\x0b\x0c\x0d\x0e'}]) \
+    -> EtherEncap() \
+    -> PortOut(port=v_alice)
+
+bpf.add([{'filter':'ip and udp dst port 4789', 'gate':1}])
+
+os.system('sudo ip neigh replace 10.0.10.1 lladdr 02:01:02:03:04:05 dev eth_alice')
+os.system('sudo ip link add vxlan0 type vxlan id 999 group 239.1.1.1 dev eth_alice dstport 4789')
+os.system('sudo ip addr add 172.16.100.34/28 dev vxlan0')
+os.system('sudo ip link set vxlan0 up')
+
+bess.resume_all()
+
+os.system('ping -W 1.0 -c 64 -i 0.2 172.16.100.33')
+
+bess.pause_all()
+
+os.system('docker kill vxlan_test > /dev/null')
+os.system('docker rm vxlan_test > /dev/null')
+
+bess.reset_all()

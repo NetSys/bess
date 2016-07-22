@@ -83,23 +83,26 @@ struct module {
 
 	int num_attrs;
 	struct mt_attr attrs[MAX_ATTRS_PER_MODULE];
+	scope_id_t scope_components[MT_TOTAL_SIZE];
+
+	/* for cycle detection */
+	int curr_scope;
 
 	/* frequently access fields should be below */
 	mt_offset_t attr_offsets[MAX_ATTRS_PER_MODULE];
 	struct gates igates;
 	struct gates ogates;
 
-	/* Some private data for this module instance begins at this marker. 
+	/* Some private data for this module instance begins after this struct. 
 	 * (this is poor person's class inheritance in C language)
 	 * The 'struct module' object will be allocated with enough tail room
 	 * to accommodate this private data. It is initialized with zeroes.
 	 * We don't do dynamic allocation for private data, 
 	 * to save a few cycles by avoiding indirect memory access.
 	 *
-	 * Note: this is shared across all workers. Ensuring thread safety 
+	 * Note: this space is shared across all workers. Ensuring thread safety 
 	 * and/or managing per-worker data is each module's responsibility. */
-	void *priv[0]; 	
-};
+} __zmm_aligned;
 
 static inline mt_offset_t
 mt_attr_offset(const struct module *m, int attr_id)

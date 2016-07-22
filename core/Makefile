@@ -25,7 +25,7 @@ KMOD_INC_DIR = kmod
 
 CFLAGS += -std=gnu99 -g3 -ggdb3 -Ofast -m64 -march=native \
 	  -Wall -Werror -Wno-unused-function -Wno-unused-but-set-variable \
-	  -I $(KMOD_INC_DIR) -I$(DPDK_INC_DIR) \
+	  -I$(KMOD_INC_DIR) -I$(DPDK_INC_DIR) \
 	  -D_GNU_SOURCE
 
 LDFLAGS += -rdynamic -L$(DPDK_LIB_DIR) -Wl,-rpath=$(DPDK_LIB_DIR)
@@ -38,9 +38,9 @@ endif
 
 -include extra.mk
 
-SRCS = $(wildcard *.c modules/*.c drivers/*.c)
+SRCS = $(wildcard *.c utils/*.c modules/*.c drivers/*.c tests/*.c)
 OBJS = $(SRCS:.c=.o)
-HEADERS = $(wildcard *.h modules/*.h drivers/*.h)
+HEADERS = $(wildcard *.h utils/*.h modules/*.h drivers/*.h tests/*.h)
 EXEC = bessd
 
 DEPS = .make.dep

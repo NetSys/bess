@@ -1,10 +1,8 @@
-# Simple IPv4 LPM example. Try tcpdump on each output gate of 'ipfwd'.
-
 import scapy.all as scapy
 import socket
 
 def aton(ip):
-    return bytearray(socket.inet_aton(ip))
+    return socket.inet_aton(ip)
 
 # Craft a packet with the specified IP addresses
 def gen_packet(proto, src_ip, dst_ip):
@@ -36,13 +34,12 @@ em:1 -> Sink()
 em:2 -> Sink()
 em:5 -> Sink()   # used as default gate
 
-# NOTE: the list should contain bytearrays (BLOBs), not strings
-em.add(fields=[bytearray(chr(17)), aton('172.16.100.1'), aton('10.0.0.1')], gate=0) 
-em.add(fields=[bytearray(chr(6)), aton('172.12.55.99'), aton('12.34.56.78')], gate=1) 
-em.add(fields=[bytearray(chr(17)), aton('172.12.55.99'), aton('12.34.56.78')], gate=2) 
+em.add(fields=[chr(17), aton('172.16.100.1'), aton('10.0.0.1')], gate=0)
+em.add(fields=[chr(6), aton('172.12.55.99'), aton('12.34.56.78')], gate=1)
+em.add(fields=[chr(17), aton('172.12.55.99'), aton('12.34.56.78')], gate=2)
 
 # delete test
-em.add(fields=[bytearray(chr(17)), aton('192.168.1.123'), aton('12.34.56.78')], gate=3) 
-em.delete([bytearray(chr(17)), aton('192.168.1.123'), aton('12.34.56.78')]) 
+em.add(fields=[chr(17), aton('192.168.1.123'), aton('12.34.56.78')], gate=3)
+em.delete([chr(17), aton('192.168.1.123'), aton('12.34.56.78')])
 
 em.set_default_gate(5)

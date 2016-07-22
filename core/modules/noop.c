@@ -5,8 +5,10 @@ noop_run_task(struct module *m, void *arg)
 {
 	struct task_result ret;
 
-	ret.packets = 0;
-	ret.bits = 0;
+	ret = (struct task_result) {
+		.packets = 0,
+		.bits = 0,
+	};
 
 	return ret;
 }

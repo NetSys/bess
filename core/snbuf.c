@@ -53,28 +53,30 @@ again:
 	sprintf(name, "pframe%d_%dk", sid, (current_try + 1) / 1024);
 
 	/* 2^n - 1 is optimal according to the DPDK manual */
-	pframe_pool[sid] = rte_mempool_create(name, 
-			current_try - 1, 
+	pframe_pool[sid] = rte_mempool_create(name,
+			current_try - 1,
 			sizeof(struct snbuf),
-			NUM_MEMPOOL_CACHE, 
+			NUM_MEMPOOL_CACHE,
 			sizeof(struct rte_pktmbuf_pool_private),
 			rte_pktmbuf_pool_init, &pool_priv,
-			snbuf_pkt_init, (void *)(int64_t)sid, 
+			snbuf_pkt_init, (void *)(int64_t)sid,
 			sid, 0);
 
 	if (!pframe_pool[sid]) {
-		log_warn("pframe allocation (%d pkts) failure on node %d: %s\n",
+		log_info("Allocating %d buffers on socket %d: Failed (%s)",
 				current_try - 1, sid, rte_strerror(rte_errno));
 		if (current_try > minimum_try) {
+			log_info(" - retrying...\n"),
 			current_try /= 2;
 			goto again;
 		}
 
+		log_info("\n");
 		log_crit("Packet buffer allocation failed on socket %d\n", sid);
 		exit(EXIT_FAILURE);
 	}
 
-	log_info("%d packet buffers allocated on socket %d\n", 
+	log_info("Allocating %d buffers on socket %d: OK\n",
 			current_try - 1, sid);
 
 	if (global_opts.debug_mode)
@@ -181,8 +183,6 @@ struct snbuf *paddr_to_snb(phys_addr_t paddr)
 void snb_dump(FILE *file, struct snbuf *pkt)
 {
 	struct rte_mbuf *mbuf;
-
-	fprintf(file, "----------------------------------------\n");
 
 	fprintf(file, "refcnt chain: ");
 	for (mbuf = (struct rte_mbuf *)pkt; mbuf; mbuf = mbuf->next)

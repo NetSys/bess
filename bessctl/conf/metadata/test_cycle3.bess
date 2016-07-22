@@ -1,0 +1,13 @@
+
+a::MetadataTest(write={'foo':2})
+b::MetadataTest(read={'foo':2})
+c::MetadataTest()
+d::MetadataTest(read={'foo':2})
+e::MetadataTest()
+
+a->b->c->d
+c:1->a
+d:1->a
+e->a
+
+

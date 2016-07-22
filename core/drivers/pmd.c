@@ -10,7 +10,7 @@ typedef uint8_t dpdk_port_t;
 
 struct pmd_priv {
 	dpdk_port_t dpdk_port_id;
-	int stats;
+	int hot_plugged;
 };
 
 #define SN_TSO_SG		0
@@ -63,8 +63,8 @@ static int pmd_init_driver(struct driver *driver)
 		memset(&dev_info, 0, sizeof(dev_info));
 		rte_eth_dev_info_get(i, &dev_info);
 
-		log_info("DPDK port_id %d (%s)   RXQ %hu TXQ %hu  ", 
-				i, 
+		log_info("DPDK port_id %d (%s)   RXQ %hu TXQ %hu  ",
+				i,
 				dev_info.driver_name,
 				dev_info.max_rx_queues,
 				dev_info.max_tx_queues);
@@ -85,8 +85,8 @@ static int pmd_init_driver(struct driver *driver)
 	return 0;
 }
 
-static struct snobj *find_dpdk_port(struct snobj *conf, 
-		dpdk_port_t *ret_port_id)
+static struct snobj *find_dpdk_port(struct snobj *conf,
+		dpdk_port_t *ret_port_id, int *ret_hot_plugged)
 {
 	struct snobj *t;
 
@@ -101,7 +101,7 @@ static struct snobj *find_dpdk_port(struct snobj *conf,
 		if (port_id < 0 || port_id >= RTE_MAX_ETHPORTS)
 			return snobj_err(EINVAL, "Invalid port id %d",
 					port_id);
-		
+
 		if (!rte_eth_devices[port_id].attached)
 			return snobj_err(ENODEV, "Port id %d is not available",
 					port_id);
@@ -123,7 +123,7 @@ pci_format_err:
 					"dddd:bb:dd.ff or bb:dd.ff");
 		}
 
-		if (eal_parse_pci_DomBDF(bdf, &addr) != 0 && 
+		if (eal_parse_pci_DomBDF(bdf, &addr) != 0 &&
 				eal_parse_pci_BDF(bdf, &addr) != 0)
 			goto pci_format_err;
 
@@ -134,7 +134,7 @@ pci_format_err:
 			if (!rte_eth_devices[i].pci_dev)
 				continue;
 
-			if (rte_eal_compare_pci_addr(&addr, 
+			if (rte_eal_compare_pci_addr(&addr,
 					&rte_eth_devices[i].pci_dev->addr))
 				continue;
 
@@ -144,25 +144,39 @@ pci_format_err:
 
 		/* If not found, maybe the device has not been attached yet */
 		if (port_id == DPDK_PORT_UNKNOWN) {
-			char devargs[1024];
+			char name[RTE_ETH_NAME_MAX_LEN];
 			int ret;
 
-			sprintf(devargs, "%04x:%02x:%02x.%02x",
+			snprintf(name, RTE_ETH_NAME_MAX_LEN,
+					"%04x:%02x:%02x.%02x",
 					addr.domain,
 					addr.bus,
 					addr.devid,
 					addr.function);
 
-			ret = rte_eth_dev_attach(devargs, &port_id);
+			ret = rte_eth_dev_attach(name, &port_id);
 
 			if (ret < 0)
 				return snobj_err(ENODEV, "Cannot attach PCI " \
-						"device %s", devargs);
+						"device %s", name);
+
+			*ret_hot_plugged = 1;
 		}
 	}
 
+	if (port_id == DPDK_PORT_UNKNOWN &&
+			(t = snobj_eval(conf, "vdev")) != NULL) {
+		const char *name = snobj_str_get(t);
+		int ret = rte_eth_dev_attach(name, &port_id);
+
+		if (ret < 0)
+			return snobj_err(ENODEV, "Cannot attach vdev %s", name);
+
+		*ret_hot_plugged = 1;
+	}
+
 	if (port_id == DPDK_PORT_UNKNOWN)
-		return snobj_err(EINVAL, "Either 'port_id' or 'pci' field " \
+		return snobj_err(EINVAL, "'port_id', 'pci', or 'vdev' field " \
 				"must be specified");
 
 	*ret_port_id = port_id;
@@ -187,12 +201,12 @@ static struct snobj *pmd_init_port(struct port *p, struct snobj *conf)
 	int num_rxq = p->num_queues[PACKET_DIR_INC];
 
 	struct snobj *err;
-	
+
 	int ret;
 
 	int i;
 
-	err = find_dpdk_port(conf, &port_id);
+	err = find_dpdk_port(conf, &port_id, &priv->hot_plugged);
 	if (err)
 		return err;
 
@@ -209,12 +223,12 @@ static struct snobj *pmd_init_port(struct port *p, struct snobj *conf)
 
 	eth_txconf = dev_info.default_txconf;
 	eth_txconf.txq_flags = ETH_TXQ_FLAGS_NOVLANOFFL |
-			ETH_TXQ_FLAGS_NOMULTSEGS * (1 - SN_TSO_SG) | 
+			ETH_TXQ_FLAGS_NOMULTSEGS * (1 - SN_TSO_SG) |
 			ETH_TXQ_FLAGS_NOXSUMS * (1 - SN_HW_TXCSUM);
 
 	ret = rte_eth_dev_configure(port_id,
 				    num_rxq, num_txq, &eth_conf);
-	if (ret != 0) 
+	if (ret != 0)
 		return snobj_err(-ret, "rte_eth_dev_configure() failed");
 
 	rte_eth_promiscuous_enable(port_id);
@@ -226,12 +240,12 @@ static struct snobj *pmd_init_port(struct port *p, struct snobj *conf)
 		if (sid < 0 || sid > RTE_MAX_NUMA_NODES)
 			sid = 0;
 
-		ret = rte_eth_rx_queue_setup(port_id, i, 
+		ret = rte_eth_rx_queue_setup(port_id, i,
 					     p->queue_size[PACKET_DIR_INC],
 					     sid, &eth_rxconf,
 					     get_pframe_pool_socket(sid));
-		if (ret != 0) 
-			return snobj_err(-ret, 
+		if (ret != 0)
+			return snobj_err(-ret,
 					"rte_eth_rx_queue_setup() failed");
 	}
 
@@ -241,14 +255,14 @@ static struct snobj *pmd_init_port(struct port *p, struct snobj *conf)
 		ret = rte_eth_tx_queue_setup(port_id, i,
 					     p->queue_size[PACKET_DIR_OUT],
 					     sid, &eth_txconf);
-		if (ret != 0) 
+		if (ret != 0)
 			return snobj_err(-ret,
 					"rte_eth_tx_queue_setup() failed");
 	}
 
 #if 0
 	ret = rte_eth_dev_flow_ctrl_get(port_id, &fc_conf);
-	if (ret != 0) 
+	if (ret != 0)
 		return snobj_err(-ret, "rte_eth_dev_flow_ctrl_get() failed");
 
 	log_info("port %d high %u low %u ptime %hu send_xon %hu mode %u cfwd %hhu autoneg %hhu\n",
@@ -259,7 +273,7 @@ static struct snobj *pmd_init_port(struct port *p, struct snobj *conf)
 #endif
 
 	ret = rte_eth_dev_start(port_id);
-	if (ret != 0) 
+	if (ret != 0)
 		return snobj_err(-ret, "rte_eth_dev_start() failed");
 
 	priv->dpdk_port_id = port_id;
@@ -272,6 +286,17 @@ static void pmd_deinit_port(struct port *p)
 	struct pmd_priv *priv = get_port_priv(p);
 
 	rte_eth_dev_stop(priv->dpdk_port_id);
+
+	if (priv->hot_plugged) {
+		char name[RTE_ETH_NAME_MAX_LEN];
+		int ret;
+
+		rte_eth_dev_close(priv->dpdk_port_id);
+		ret = rte_eth_dev_detach(priv->dpdk_port_id, name);
+		if (ret < 0)
+			log_warn("rte_eth_dev_detach(%d) failed: %s\n",
+					priv->dpdk_port_id, rte_strerror(-ret));
+	}
 }
 
 static void pmd_collect_stats(struct port *p, int reset)
@@ -292,7 +317,7 @@ static void pmd_collect_stats(struct port *p, int reset)
 	ret = rte_eth_stats_get(priv->dpdk_port_id, &stats);
 	if (ret < 0) {
 		log_err("rte_eth_stats_get() failed: %s\n",
-				rte_strerror(rte_errno));
+				rte_strerror(-ret));
 		return;
 	}
 
@@ -304,9 +329,9 @@ static void pmd_collect_stats(struct port *p, int reset)
 	       "tx_pause_xon %lu rx_pause_xon %lu "
 	       "tx_pause_xoff %lu rx_pause_xoff %lu\n",
 			priv->dpdk_port_id,
-			stats.ipackets, stats.opackets, 
+			stats.ipackets, stats.opackets,
 			stats.ibytes, stats.obytes,
-			stats.imissed, stats.ibadcrc, stats.ibadlen, 
+			stats.imissed, stats.ibadcrc, stats.ibadlen,
 			stats.ierrors, stats.oerrors, stats.imcasts,
 			stats.rx_nombuf, stats.fdirmatch, stats.fdirmiss,
 			stats.tx_pause_xon, stats.rx_pause_xon,
@@ -317,15 +342,15 @@ static void pmd_collect_stats(struct port *p, int reset)
 
 	dir = PACKET_DIR_INC;
 	for (qid = 0; qid < p->num_queues[dir]; qid++) {
-		p->queue_stats[dir][qid].packets = stats.q_ipackets[qid]; 
-		p->queue_stats[dir][qid].bytes   = stats.q_ibytes[qid]; 
-		p->queue_stats[dir][qid].dropped = stats.q_errors[qid]; 
+		p->queue_stats[dir][qid].packets = stats.q_ipackets[qid];
+		p->queue_stats[dir][qid].bytes   = stats.q_ibytes[qid];
+		p->queue_stats[dir][qid].dropped = stats.q_errors[qid];
 	}
 
 	dir = PACKET_DIR_OUT;
 	for (qid = 0; qid < p->num_queues[dir]; qid++) {
-		p->queue_stats[dir][qid].packets = stats.q_opackets[qid]; 
-		p->queue_stats[dir][qid].bytes   = stats.q_obytes[qid]; 
+		p->queue_stats[dir][qid].packets = stats.q_opackets[qid];
+		p->queue_stats[dir][qid].bytes   = stats.q_obytes[qid];
 	}
 }
 
@@ -333,7 +358,7 @@ static int pmd_recv_pkts(struct port *p, queue_t qid, snb_array_t pkts, int cnt)
 {
 	struct pmd_priv *priv = get_port_priv(p);
 
-	return rte_eth_rx_burst(priv->dpdk_port_id, qid, 
+	return rte_eth_rx_burst(priv->dpdk_port_id, qid,
 			(struct rte_mbuf **)pkts, cnt);
 }
 
@@ -341,7 +366,7 @@ static int pmd_send_pkts(struct port *p, queue_t qid, snb_array_t pkts, int cnt)
 {
 	struct pmd_priv *priv = get_port_priv(p);
 
-	int sent = rte_eth_tx_burst(priv->dpdk_port_id, qid, 
+	int sent = rte_eth_tx_burst(priv->dpdk_port_id, qid,
 			(struct rte_mbuf **)pkts, cnt);
 
 	p->port_stats[PACKET_DIR_OUT].dropped += (cnt - sent);

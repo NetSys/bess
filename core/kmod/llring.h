@@ -3,11 +3,11 @@
  *
  *   Copyright(c) 2010-2013 Intel Corporation. All rights reserved.
  *   All rights reserved.
- * 
+ *
  *   Redistribution and use in source and binary forms, with or without
  *   modification, are permitted provided that the following conditions
  *   are met:
- * 
+ *
  *     * Redistributions of source code must retain the above copyright
  *       notice, this list of conditions and the following disclaimer.
  *     * Redistributions in binary form must reproduce the above copyright
@@ -17,7 +17,7 @@
  *     * Neither the name of Intel Corporation nor the names of its
  *       contributors may be used to endorse or promote products derived
  *       from this software without specific prior written permission.
- * 
+ *
  *   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
  *   "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
  *   LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
@@ -112,7 +112,7 @@ static inline void llring_pause(void)	{ _mm_pause(); }
 /* dummy assembly operation to prevent compiler re-ordering of instructions */
 #define COMPILER_BARRIER() do { asm volatile("" ::: "memory"); } while(0)
 
-static inline int 
+static inline int
 llring_atomic32_cmpset(volatile uint32_t *dst, uint32_t exp, uint32_t src)
 {
 	return __sync_bool_compare_and_swap(dst, exp, src);
@@ -169,9 +169,9 @@ struct llring {
 	struct {
 		uint32_t slots;          /**< Size of ring. */
 		uint32_t mask;           /**< Mask (slots-1) of ring. */
-		uint32_t watermark;      /**< Maximum items before LLRING_ERR_QUOT. */
 		uint32_t sp_enqueue;     /**< True, if single producer. */
 		uint32_t sc_dequeue;     /**< True, if single consumer. */
+		uint32_t watermark;      /**< Maximum items before LLRING_ERR_QUOT. */
 	} common __llring_cache_aligned;
 
 	/** Ring producer status. */
@@ -230,7 +230,7 @@ static inline int llring_bytes(struct llring *r)
 	return llring_bytes_with_slots(r->common.slots);
 }
 
-static inline int 
+static inline int
 llring_init(struct llring *r, unsigned int slots, int sp, int sc)
 {
 	char *p = (char *)r;
@@ -243,7 +243,7 @@ llring_init(struct llring *r, unsigned int slots, int sp, int sc)
 	/* poor man's memset */
 	for (i = 0; i < llring_bytes_with_slots(slots); i++)
 		p[i] = 0;
-	
+
 	r->common.slots = slots;
 	r->common.mask = slots - 1;
 	r->common.watermark = slots;
@@ -288,7 +288,7 @@ static inline int llring_set_water_mark(struct llring *r, unsigned count)
 }
 
 
-/* the actual enqueue of pointers on the ring. 
+/* the actual enqueue of pointers on the ring.
  * Placed here since identical code needed in both
  * single and multi producer enqueue functions */
 #define LLRING_ENQUEUE_PTRS() do { \
@@ -314,7 +314,7 @@ static inline int llring_set_water_mark(struct llring *r, unsigned count)
 	} \
 } while(0)
 
-/* the actual copy of pointers on the ring to obj_table. 
+/* the actual copy of pointers on the ring to obj_table.
  * Placed here since identical code needed in both
  * single and multi consumer dequeue functions */
 #define LLRING_DEQUEUE_PTRS() do { \
@@ -408,7 +408,7 @@ __llring_mp_do_enqueue(struct llring *r, void * const *obj_table,
 		}
 
 		prod_next = prod_head + n;
-		success = llring_atomic32_cmpset(&r->prod.head, prod_head, 
+		success = llring_atomic32_cmpset(&r->prod.head, prod_head,
 				prod_next);
 	} while (llring_unlikely(success == 0));
 

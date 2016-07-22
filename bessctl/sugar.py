@@ -127,16 +127,20 @@ def replace_envvar(s):
     s = regex.sub(_replacer, s)
     return s
 
-def is_gate_expr(exp):
-    # check if the leading whitespace characters contains '\n'
-    for c in exp:
-        if c not in string.whitespace:
-            break
-        if c == '\n':
-            return False
+def is_gate_expr(exp, is_ogate):
+    # check if the leading/trailing whitespace characters contains '\n'
+    if is_ogate:
+        prefix, postfix = '1*', '+1'
+    else:
+        prefix, postfix = '1+', '*1'
+
+    exp_stripped = exp.strip()
+    while len(exp_stripped) > 0 and exp_stripped[-1] == '\\':
+        exp_stripped = exp_stripped[:-1].strip()
 
     try:
-        parser.expr('(' + exp + ')')
+        parser.expr('(%s)' % exp_stripped)
+        parser.expr('%s%s%s' % (prefix, exp, postfix))
     except SyntaxError:
         return False
     else:
@@ -212,7 +216,7 @@ def replace_rarrows(s):
             if ogate.strip() == '':
                 break
 
-            if is_gate_expr(ogate):
+            if is_gate_expr(ogate, True):
                 segments[i] = seg[:colon_pos] + '*' + parenthesize(ogate)
                 break
 
@@ -226,7 +230,7 @@ def replace_rarrows(s):
             if igate.strip() == '':
                 break
 
-            if is_gate_expr(igate):
+            if is_gate_expr(igate, False):
                 segments[i+1] = parenthesize(igate) + '*' + seg[colon_pos+1:]
                 break
 
@@ -348,6 +352,7 @@ def _run_tests():
         ('x:b[2] -> y', 'x*(b[2]) + y'),
         ('x:b[2] -> c[5]:y', 'x*(b[2]) + (c[5])*y'),
         ('a:2\\\n -> y', 'a*2\\\n + y'),
+        ('a -> \\\n2:y', 'a + \\\n2*y'),
         ('# a -> b', '# a -> b'),
         ('"a -> b"', '"a -> b"'),
         ('"""a -> b"""', '"""a -> b"""'),

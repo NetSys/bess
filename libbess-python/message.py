@@ -1,3 +1,4 @@
+import sys
 import struct
 
 TYPE_NIL    = 0
@@ -8,8 +9,30 @@ TYPE_BLOB   = 4
 TYPE_LIST   = 5
 TYPE_MAP    = 6
 
+import pprint
+import binascii
+
+class MyByteArray(bytearray):
+    def __repr__(self):
+        return '0x%s' % binascii.hexlify(self)
+
 # a custom class that supports both obj[x] and obj.x for convenience
 class SNObjDict(object):
+    # ------------------------------------------------------------------
+    # Ugly monkey patching to add support for SNObjDict to pprint
+    if not hasattr(pprint, 'old_printer'):
+        pprint.old_printer = pprint.PrettyPrinter
+
+    class MyPrettyPrinter(pprint.old_printer):
+        def _format(self, obj, *args, **kwargs):
+            if isinstance(obj, SNObjDict):
+                obj = obj._dict
+
+            return pprint.old_printer._format(self, obj, *args, **kwargs)
+
+    pprint.PrettyPrinter = MyPrettyPrinter
+    # ------------------------------------------------------------------
+
     def __init__(self):
         # self._dict = dict() causes a recursive call
         self.__dict__['_dict'] = dict()
@@ -23,7 +46,7 @@ class SNObjDict(object):
     def __getattr__(self, name):
         if name.startswith('__'):
             return self._dict.__getattribute__(name)
-        else: 
+        else:
             return self._dict[name]
 
     def __setattr__(self, name, value):
@@ -99,7 +122,7 @@ def encode(obj):
             num_bytes += 1
 
         return struct.pack(str(num_bytes) + 's', buf)
-        
+
     def encode_cstr(cstr):
         return zero_pad8(cstr, len(cstr) + 1)
 
@@ -107,7 +130,7 @@ def encode(obj):
         t = TYPE_NIL
         l = 0
         v = ''
-    elif isinstance(obj, int):
+    elif isinstance(obj, (int, long)):
         t = TYPE_INT
         l = 8
         v = struct.pack('<q', obj)
@@ -157,7 +180,7 @@ def _decode_recur(buf, offset):
         v = str(buf[offset:offset + l - 1])
         offset += l
     elif t == TYPE_BLOB:
-        v = bytearray(buf[offset:offset + l])
+        v = MyByteArray(buf[offset:offset + l])
         offset += l
     elif t == TYPE_LIST:
         v  = list()
@@ -191,12 +214,12 @@ def decode(buf):
     try:
         obj, consumed = _decode_recur(buf, 0)
         if consumed != len(buf):
-            raise Exception('%dB buffer, but only %dB consumed' % 
+            raise Exception('%dB buffer, but only %dB consumed' %
                     (len(buf), consumed))
         return obj
     except Exception as e:
         print >> sys.stderr, 'Decoding error. Len=%-5d' % len(buf),
         for c in buf:
-            print >> sys.stderr, '%02x' % ord(c), 
+            print >> sys.stderr, '%02x' % ord(c),
         print >> sys.stderr
         raise e

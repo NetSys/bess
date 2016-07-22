@@ -133,6 +133,26 @@ struct snobj *snobj_str(const char *str)
 	return m;
 }
 
+/* str may have null characters */
+struct snobj *snobj_str_sized(const char *str, size_t size)
+{
+	struct snobj *m;
+	void *str_copied;
+
+	if (!str)
+		return NULL;
+
+	str_copied = _ALLOC(size);
+	memcpy(str_copied, str, size);
+
+	m = snobj_nil();
+	m->type = TYPE_STR;
+	m->size = size;
+	m->data = str_copied;
+
+	return m;
+}
+
 static struct snobj *snobj_str_vfmt(const char *fmt, va_list ap)
 {
 	const size_t init_bufsize = 128;
@@ -302,6 +322,59 @@ int snobj_map_set(struct snobj *m, const char *key, struct snobj *val)
 	}
 
 	return 0;
+}
+
+static int uint64_to_bin(uint8_t *ptr, int size, uint64_t val, int be)
+{
+	memset(ptr, 0, size);
+
+	if (be) {
+		for (int i = size - 1; i >= 0; i--) {
+			ptr[i] = val & 0xff;
+			val >>= 8;
+		}
+	} else {
+		for (int i = 0; i < size; i++) {
+			ptr[i] = val & 0xff;
+			val >>= 8;
+		}
+	}
+
+	if (val)
+		return -EINVAL;	/* the value is too large for the size */
+	else
+		return 0;
+}
+
+/* Returns -errno for error.
+ * ptr must be big enough to hold 'size' bytes.
+ * If force_be is non-zero and the varible is given as an integer, 
+ * its value will be stored in big endian */
+int snobj_binvalue_get(struct snobj *m, int size, void *dst, int force_be)
+{
+	if (!m || size < 1)
+		return -EINVAL;
+
+	switch (snobj_type(m)) {
+	case TYPE_BLOB:
+		if (m->size != size)
+			return -EINVAL;
+		memcpy(dst, snobj_blob_get(m), m->size);
+		return 0;
+
+	case TYPE_STR:
+		if (m->size != size + 1)
+			return -EINVAL;
+		memcpy(dst, snobj_str_get(m), m->size);
+		return 0;
+
+	case TYPE_INT:
+		return uint64_to_bin(dst, size, snobj_uint_get(m), 
+				is_be_system() || force_be);
+
+	default:
+		return -EINVAL;
+	}
 }
 
 struct snobj *snobj_eval(const struct snobj *m, const char *expr)
@@ -641,7 +714,7 @@ struct snobj *snobj_decode_recur(struct decode_state *s)
 	case TYPE_STR:
 	case TYPE_BLOB:
 		m = (type == TYPE_STR) ?
-			snobj_str(s->buf + s->offset) :
+			snobj_str_sized(s->buf + s->offset, size) :
 			snobj_blob(s->buf + s->offset, size);
 
 		s->offset += size;
