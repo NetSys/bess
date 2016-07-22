@@ -100,7 +100,7 @@ struct module {
 	 * We don't do dynamic allocation for private data, 
 	 * to save a few cycles by avoiding indirect memory access.
 	 *
-	 * Note: this space is shared across all workers. Ensuring thread safety 
+	 * Note: the space is shared across all workers. Ensuring thread safety 
 	 * and/or managing per-worker data is each module's responsibility. */
 } __zmm_aligned;
 
