@@ -20,7 +20,7 @@ static struct snobj *rewrite_init(struct module *m, struct snobj *arg)
 {
 	if (arg)
 		return command_add(m, NULL, arg);
-	
+
 	return NULL;
 }
 
@@ -73,7 +73,7 @@ command_add(struct module *m, const char *cmd, struct snobj *arg)
 			return snobj_err(EINVAL, "template is too big");
 
 		memset(priv->templates[curr + i], 0, MAX_TEMPLATE_SIZE);
-		memcpy(priv->templates[curr + i], snobj_blob_get(template), 
+		memcpy(priv->templates[curr + i], snobj_blob_get(template),
 				template->size);
 		priv->template_size[curr + i] = template->size;
 	}
@@ -82,7 +82,7 @@ command_add(struct module *m, const char *cmd, struct snobj *arg)
 
 	for (i = priv->num_templates; i < SLOTS; i++) {
 		int j = i % priv->num_templates;
-		memcpy(priv->templates[i], priv->templates[j], 
+		memcpy(priv->templates[i], priv->templates[j],
 				priv->template_size[j]);
 		priv->template_size[i] = priv->template_size[j];
 	}
