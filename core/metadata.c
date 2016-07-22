@@ -18,6 +18,7 @@ struct scope_component {
 	int degree;
 };
 
+
 /* links module to scope component */
 struct scope_module {
 	struct module *module;
@@ -178,9 +179,29 @@ ret:
 	return in_scope ? 0 : -1;
 }
 
+static void allocate_scope_components()
+{
+	if (curr_scope_id == 0)
+		scope_components = mem_alloc(sizeof(struct scope_component) * 100);
+	else
+		scope_components = mem_realloc(scope_components, sizeof(struct scope_component)
+					   * 100 * ((curr_scope_id / 100) + 1));
+	return;
+}
+
+
+/* Wrapper for identifying scope components */
+static void identify_single_scope_component(struct module *m, struct mt_attr *attr){
+	if (curr_scope_id % 100 == 0) 
+		allocate_scope_components();
+	identify_scope_component(m, attr);
+	curr_scope_id++;
+	scope_components[curr_scope_id].scope_id = curr_scope_id;
+}
+
+
 /* Given a module that writes an attr, identifies the corresponding scope component. */ 
-static void 
-identify_scope_component(struct module *m, struct mt_attr *attr)
+static void identify_scope_component(struct module *m, struct mt_attr *attr)
 {
 	struct gate *ogate;
 
@@ -405,17 +426,6 @@ void check_orphan_readers()
 	ns_release_iterator(&iter);
 }
 
-static void allocate_scope_components()
-{
-	if (curr_scope_id == 0)
-		scope_components = mem_alloc(sizeof(struct scope_component) * 100);
-	else
-		scope_components = mem_realloc(scope_components, sizeof(struct scope_component)
-					   * 100 * ((curr_scope_id / 100) + 1));
-	return;
-}
-
-
 /* Debugging tool */
 void log_all_scopes_per_module()
 {
@@ -483,13 +493,8 @@ void compute_metadata_offsets()
 			else if (attr->mode == MT_WRITE)
 				m->attr_offsets[i] = MT_OFFSET_NOWRITE;
 
-			if (attr->mode == MT_WRITE && attr->scope_id == -1) {
-			    	if (curr_scope_id % 100 == 0) 
-					allocate_scope_components();
-				identify_scope_component(m, attr);
-				curr_scope_id++;
-				scope_components[curr_scope_id].scope_id = curr_scope_id;
-			}
+			if (attr->mode == MT_WRITE && attr->scope_id == -1)
+				identify_single_scope_component(m, attr);
 		}
 	}
 	ns_release_iterator(&iter);
