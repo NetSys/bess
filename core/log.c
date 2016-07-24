@@ -49,7 +49,7 @@ static void do_log(int priority, const char *data, size_t len)
 		}
 
 		if (color && isatty(fileno(fp)))
-			fprintf(fp, "%s%.*s%s", 
+			fprintf(fp, "%s%.*s%s",
 					color, (int)len, data, ANSI_RESET);
 		else
 			fprintf(fp, "%.*s", (int)len, data);
@@ -88,7 +88,7 @@ static void do_flush(int priority, struct logger *logger, int forced)
 		logger->len -= (lf - p + 1);
 		p = lf + 1;
 	}
-		
+
 	if (p != logger->buf && logger->len > 0)
 		memmove(logger->buf, p, logger->len);
 }
@@ -109,7 +109,7 @@ static void log_vfmt(int priority, const char *fmt, va_list ap)
 		size_t len;
 
 		len = sprintf(msg, "Too large log message: %d bytes\n",
-				to_write); 
+				to_write);
 		do_log(LOG_ERR, msg, len);
 
 		return;
@@ -190,7 +190,7 @@ void start_logger()
 			dup2(fd, STDOUT_FILENO);
 			dup2(fd, STDERR_FILENO);
 
-			openlog(BESS_ID, LOG_PID | LOG_CONS | LOG_NDELAY, 
+			openlog(BESS_ID, LOG_PID | LOG_CONS | LOG_NDELAY,
 					LOG_DAEMON);
 
 			/* NOTE: although we replace stdout with our handler,
