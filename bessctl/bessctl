@@ -89,6 +89,14 @@ class BESSCLI(cli.CLI):
 
             self.err('Disconnected from BESS daemon - errno=%d (%s: %s)' % \
                     (e.errno, err_code, os.strerror(e.errno)))
+
+            if self.bess.peer[0] == 'localhost':
+                try:
+                    log = open('/tmp/bess_crash.log').read()
+                    self.fout.write(log)
+                except:
+                    pass
+
             self.bess.disconnect()
 
     def get_prompt(self):

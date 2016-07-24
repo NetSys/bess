@@ -3,7 +3,9 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <stdarg.h>
+#include <time.h>
 #include <sys/types.h>
+#include <linux/limits.h>
 
 #include "common.h"
 #include "opts.h"
@@ -20,6 +22,8 @@
 #define ANSI_MAGENTA	"\x1b[35m"
 #define ANSI_CYAN	"\x1b[36m"
 #define ANSI_RESET	"\x1b[0m"
+
+static FILE *crashlog;
 
 static FILE *org_stdout;
 static FILE *org_stderr;
@@ -57,6 +61,27 @@ static void do_log(int priority, const char *data, size_t len)
 		fflush(fp);
 	} else {
 		syslog(priority, "%.*s", (int)len, data);
+	}
+
+	if (priority == LOG_CRIT) {
+		if (!crashlog) {
+			char buf[1024];
+			char path[PATH_MAX];
+			time_t curr;
+
+			sprintf(path, "%s/bess_crash.log", P_tmpdir);
+			if (!(crashlog = fopen(path, "w")))
+				return;
+
+			time(&curr);
+			ctime_r(&curr, buf);
+			*strchr(buf, '\n') = '\0';
+			fprintf(crashlog, "Last crashlog generated at %s   "
+					"----------------------------\n", buf);
+		}
+
+		fprintf(crashlog, "%.*s", (int)len, data);
+		fflush(crashlog);
 	}
 }
 
@@ -230,6 +255,11 @@ void end_logger()
 
 	fclose(stderr);
 	stderr = org_stderr;
+
+	if (crashlog) {
+		fclose(crashlog);
+		crashlog = NULL;
+	}
 
 	initialized = 0;
 }
