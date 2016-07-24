@@ -2,7 +2,6 @@
 #include <string.h>
 
 #include "log.h"
-#include "time.h"
 
 #include "test.h"
 
@@ -19,7 +18,7 @@ void add_testcase(struct testcase *t)
 
 	if (tail)
 		tail->next = t;
-	
+
 	tail = t;
 
 	num_tests++;
@@ -36,8 +35,7 @@ void run_tests()
 	if (num_tests == 0)
 		return;
 
-	//ctime(&curr);
-	curr = get_epoch_time();
+	time(&curr);
 	ctime_r(&curr, buf);
 	*strchr(buf, '\n') = '\0';
 
