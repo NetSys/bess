@@ -165,12 +165,12 @@ struct snbuf *paddr_to_snb(phys_addr_t paddr)
 
 		if (pg_start <= paddr && paddr < pg_end) {
 			uintptr_t offset;
-			
+
 			offset = paddr - pg_start;
 			ret = (struct snbuf *)(pool->elt_va_start + offset);
 
 			if (snb_to_paddr(ret) != paddr)
-				log_crit("snb->immutable.paddr "
+				log_err("snb->immutable.paddr "
 						"corruption detected\n");
 
 			break;
