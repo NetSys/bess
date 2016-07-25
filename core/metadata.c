@@ -41,7 +41,7 @@ int get_scope_attr_(scope_id_t scope_id)
 
 /* TODO: make more efficient */
 /* Adds module to the current scope component. */
-static void 
+static void
 add_module_to_component(struct module *m, struct mt_attr *attr)
 {
 	struct scope_component *component = &scope_components[curr_scope_id];
@@ -62,11 +62,11 @@ add_module_to_component(struct module *m, struct mt_attr *attr)
 		component->num_modules++;
 		component->modules = mem_realloc(component->modules,
 				sizeof(struct module *) * component->num_modules);
-		component->modules[component->num_modules - 1] = m;		
+		component->modules[component->num_modules - 1] = m;
 	}
 }
 
-static void 
+static void
 identify_scope_component(struct module *m, struct mt_attr *attr);
 
 
@@ -104,7 +104,7 @@ static void traverse_upstream(struct module *m, struct mt_attr *attr)
 	if (m->curr_scope == curr_scope_id)
 		return;
 	m->curr_scope = curr_scope_id;
-	
+
 	for (int i = 0; i < m->igates.curr_size; i++) {
 		struct gate *g = m->igates.arr[i];
 		struct gate *og;
@@ -191,8 +191,9 @@ static void allocate_scope_components()
 
 
 /* Wrapper for identifying scope components */
-static void identify_single_scope_component(struct module *m, struct mt_attr *attr){
-	if (curr_scope_id % 100 == 0) 
+static void identify_single_scope_component(struct module *m, struct mt_attr *attr)
+{
+	if (curr_scope_id % 100 == 0)
 		allocate_scope_components();
 	identify_scope_component(m, attr);
 	curr_scope_id++;
@@ -200,7 +201,8 @@ static void identify_single_scope_component(struct module *m, struct mt_attr *at
 }
 
 
-/* Given a module that writes an attr, identifies the corresponding scope component. */ 
+/* Given a module that writes an attr, 
+ * identifies the corresponding scope component. */
 static void identify_scope_component(struct module *m, struct mt_attr *attr)
 {
 	struct gate *ogate;
@@ -231,7 +233,7 @@ static void prepare_metadata_computation()
 
 		m->curr_scope = -1;
 		memset(m->scope_components, -1, sizeof(scope_id_t) * MT_TOTAL_SIZE);
-		
+
 		for (int i = 0; i < m->num_attrs; i++) {
 			m->attrs[i].scope_id = -1;
 		}
@@ -244,7 +246,7 @@ static void cleanup_metadata_computation()
 	for (int i = 0; i < curr_scope_id; i++) {
 		mem_free(scope_components[i].modules);
 	}
-	
+
 	mem_free(scope_components);
 	curr_scope_id = 0;
 }
@@ -266,7 +268,7 @@ static void fill_offset_arrays()
 		name = scope_components[i].name;
 		size = scope_components[i].size;
 		offset = scope_components[i].offset;
-		invalid = scope_components[i].invalid; 
+		invalid = scope_components[i].invalid;
 		num_modules = scope_components[i].num_modules;
 
 		/* attr not read donwstream */
@@ -291,7 +293,7 @@ static void fill_offset_arrays()
 					break;
 				}
 			}
-						
+
 			if (!invalid && offset >= 0) {
 				for (int l = 0; l < size; l++)
 					m->scope_components[offset+l] = i;
@@ -308,9 +310,9 @@ static int disjoint(int scope1, int scope2)
 	for (int i = 0; i < comp1.num_modules; i++) {
 		for (int j = 0; j < comp2.num_modules; j++) {
 			if (comp1.modules[i] == comp2.modules[j])
-				return 0; 
+				return 0;
 		}
-	}	
+	}
 	return 1;
 }
 
@@ -323,11 +325,11 @@ static uint8_t next_power_of_two(int8_t num)
 			return num;
 		else if (num >> i == 1)
 			return 1 << (i + 1);
-		
+
 		i--;
 	}
 	return 0;
-}	
+}
 
 static mt_offset_t next_offset(mt_offset_t curr_offset, int8_t size)
 {
@@ -339,7 +341,7 @@ static mt_offset_t next_offset(mt_offset_t curr_offset, int8_t size)
 
 	if (curr_offset % rounded_size != 0)
 		curr_offset = ((curr_offset / rounded_size) + 1) * rounded_size;
-	
+
 	return overflow > MT_TOTAL_SIZE ? MT_OFFSET_NOSPACE : curr_offset;
 }
 
@@ -354,14 +356,14 @@ static void assign_offsets()
 
 	for (int i = 0; i < curr_scope_id; i++) {
 		comp1 = &scope_components[i];
-		log_info("Degree: %d\n", comp1->degree); 
+		log_info("Degree: %d\n", comp1->degree);
 
 		if (comp1->invalid) {
 			comp1->offset = MT_OFFSET_NOREAD;
 			comp1->assigned = 1;
 			continue;
 		}
-		
+
 		if (comp1->assigned || comp1->num_modules == 1)
 			continue;
 
@@ -373,16 +375,16 @@ static void assign_offsets()
 		for (int j = 0; j < curr_scope_id; j++) {
 			if (i == j)
 				continue;
-			
+
 			if (!disjoint(i,j) && scope_components[j].assigned)
 				heap_push(&h, scope_components[j].offset, &scope_components[j]);
 		}
 
-		while ((comp2 = (struct scope_component *)heap_peek(&h))) 
+		while ((comp2 = (struct scope_component *)heap_peek(&h)))
 		{
 			heap_pop(&h);
 
-			if (comp2->offset == MT_OFFSET_NOREAD || 
+			if (comp2->offset == MT_OFFSET_NOREAD ||
 			    comp2->offset == MT_OFFSET_NOWRITE ||
 			    comp2->offset == MT_OFFSET_NOSPACE)
 				continue;
@@ -445,6 +447,7 @@ void log_all_scopes_per_module()
 		}
 		log_info("\n");
 	}
+	ns_release_iterator(&iter);
 }
 
 static void compute_scope_degrees()
@@ -504,7 +507,7 @@ void compute_metadata_offsets()
 
 	for (int i = 0; i < curr_scope_id; i++) {
 		log_info("scope component for %d-byte attr %s "
-			 "at offset%3d: {%s", 
+			 "at offset%3d: {%s",
 				scope_components[i].size,
 				scope_components[i].name,
 				scope_components[i].offset,
