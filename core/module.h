@@ -83,6 +83,10 @@ struct module {
 
 	int num_attrs;
 	struct mt_attr attrs[MAX_ATTRS_PER_MODULE];
+	scope_id_t scope_components[MT_TOTAL_SIZE];
+
+	/* for cycle detection */
+	int curr_scope;
 
 	/* frequently access fields should be below */
 	mt_offset_t attr_offsets[MAX_ATTRS_PER_MODULE];
