@@ -191,6 +191,7 @@ static void em_process_batch(struct module *m, struct pkt_batch *batch)
 	gate_idx_t default_gate;
 	gate_idx_t ogates[MAX_PKT_BURST];
 
+	int key_size = priv->total_key_size;
 	char keys[MAX_PKT_BURST][HASH_KEY_SIZE] __ymm_aligned;
 
 	int cnt = batch->cnt;
@@ -198,7 +199,7 @@ static void em_process_batch(struct module *m, struct pkt_batch *batch)
 	default_gate = ACCESS_ONCE(priv->default_gate);
 
 	for (int i = 0; i < cnt; i++)
-		memset(&keys[i][priv->total_key_size - 8], 0, sizeof(uint64_t));
+		memset(&keys[i][key_size - 8], 0, sizeof(uint64_t));
 
 	for (int i = 0; i < priv->num_fields; i++) {
 		uint64_t mask = priv->fields[i].mask;
