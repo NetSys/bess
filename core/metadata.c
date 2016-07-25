@@ -18,14 +18,6 @@ struct scope_component {
 	int degree;
 };
 
-
-/* links module to scope component */
-struct scope_module {
-	struct module *module;
-	uint8_t index;
-	enum mt_access_mode mode;
-};
-
 static struct scope_component *scope_components;
 static int curr_scope_id = 0;
 
@@ -356,7 +348,6 @@ static void assign_offsets()
 
 	for (int i = 0; i < curr_scope_id; i++) {
 		comp1 = &scope_components[i];
-		log_info("Degree: %d\n", comp1->degree);
 
 		if (comp1->invalid) {
 			comp1->offset = MT_OFFSET_NOREAD;
