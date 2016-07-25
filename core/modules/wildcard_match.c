@@ -177,11 +177,11 @@ static void wm_deinit(struct module *m)
 }
 
 /* k1 = k2 & mask */
-static void mask(void *k1, void *k2, void *mask, int key_size)
+static void mask(void *k1, const void *k2, const void *mask, int key_size)
 {
 	uint64_t * restrict a = k1;
-	uint64_t * restrict b = k2;
-	uint64_t * restrict m = mask;
+	const uint64_t * restrict b = k2;
+	const uint64_t * restrict m = mask;
 
 	switch (key_size >> 3) {
 	default: promise_unreachable();
@@ -196,8 +196,8 @@ static void mask(void *k1, void *k2, void *mask, int key_size)
 	}
 }
 
-static gate_idx_t lookup_entry(struct wm_priv *priv, hkey_t *key,
-		gate_idx_t def_gate)
+static gate_idx_t
+lookup_entry(struct wm_priv *priv, hkey_t *key, gate_idx_t def_gate)
 {
 	struct data result = {
 		.priority = INT_MIN,
@@ -261,8 +261,41 @@ static void wm_process_batch(struct module *m, struct pkt_batch *batch)
 		}
 	}
 
+#if 1
 	for (int i = 0; i < cnt; i++)
 		ogates[i] = lookup_entry(priv, (hkey_t *)keys[i], default_gate);
+#else
+	/* A version with an outer loop for tuples and an inner loop for pkts.
+	 * Significantly slower. */
+
+	int priorities[MAX_PKT_BURST];
+	const int key_size = priv->total_key_size;
+
+	for (int i = 0; i < cnt; i++) {
+		priorities[i] = INT_MIN;
+		ogates[i] = default_gate;
+	}
+
+	for (int i = 0; i < priv->num_tuples; i++) {
+		const struct tuple *tuple = &priv->tuples[i];
+		const struct htable *ht = &tuple->ht;
+		const hkey_t *tuple_mask = &tuple->mask;
+
+		for (int j = 0; j < cnt; j++) {
+			hkey_t key_masked;
+			struct data *cand;
+
+			mask(&key_masked, keys[j], tuple_mask, key_size);
+
+			cand = ht_wm_get(ht, &key_masked);
+
+			if (cand && cand->priority >= priorities[j]) {
+				ogates[j] = cand->ogate;
+				priorities[j] = cand->priority;
+			}
+		}
+	}
+#endif
 
 	run_split(m, ogates, batch);
 }
@@ -343,7 +376,7 @@ static struct snobj *wm_get_dump(const struct module *m)
 }
 
 static struct snobj *
-extract_key_mask(struct wm_priv *priv, struct snobj *arg, 
+extract_key_mask(struct wm_priv *priv, struct snobj *arg,
 		hkey_t *key, hkey_t *mask)
 {
 	struct snobj *values;
