@@ -181,7 +181,8 @@ struct module *create_module(const char *name,
 		goto fail;
 	}
 
-	m = mem_alloc(sizeof(struct module) + mclass->priv_size);
+	m = mem_alloc(sizeof(struct module) + mclass->priv_size +
+			/*hotfix*/ 128);
 	if (!m) {
 		*perr = snobj_errno(ENOMEM);
 		goto fail;
@@ -381,7 +382,7 @@ int disconnect_modules(struct module *m_prev, gate_idx_t ogate_idx)
 	if (cdlist_is_empty(&igate->in.ogates_upstream)) {
 		struct module *m_next = igate->m;
 		m_next->igates.arr[igate->gate_idx] = NULL;
-		mem_free(igate);	
+		mem_free(igate);
 	}
 
 	m_prev->ogates.arr[ogate_idx] = NULL;
@@ -390,7 +391,7 @@ int disconnect_modules(struct module *m_prev, gate_idx_t ogate_idx)
 	return 0;
 }
 
-static int 
+static int
 disconnect_modules_upstream(struct module *m_next, gate_idx_t igate_idx)
 {
 	struct gate *igate;
