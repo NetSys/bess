@@ -14,6 +14,6 @@ Source() \
         -> Rewrite([test_packet]) \
         -> GenericEncap(fields=[ \
             {'size': 6, 'value': 0x020000000001},
-            {'size': 6, 'value': 0x0619deadbeaf},
+            {'size': 6, 'value': 0x0619deadbeef},
             {'size': 2, 'name': 'ether_type'}]) \
         -> Sink()
