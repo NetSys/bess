@@ -193,7 +193,7 @@ static void identify_single_scope_component(struct module *m, struct mt_attr *at
 }
 
 
-/* Given a module that writes an attr, 
+/* Given a module that writes an attr,
  * identifies the corresponding scope component. */
 static void identify_scope_component(struct module *m, struct mt_attr *attr)
 {
@@ -308,31 +308,17 @@ static int disjoint(int scope1, int scope2)
 	return 1;
 }
 
-static uint8_t next_power_of_two(int8_t num)
-{
-	int i = 7;
-
-	while(i) {
-		if (num >> i == 1 && (num << (8-i) & 0xFF) == 0)
-			return num;
-		else if (num >> i == 1)
-			return 1 << (i + 1);
-
-		i--;
-	}
-	return 0;
-}
-
 static mt_offset_t next_offset(mt_offset_t curr_offset, int8_t size)
 {
 	uint32_t overflow;
 	int8_t rounded_size;
 
-	overflow = (uint32_t) curr_offset + (uint32_t) size;
-	rounded_size = next_power_of_two(size);
+	rounded_size = align_ceil_pow2(size);
 
 	if (curr_offset % rounded_size != 0)
 		curr_offset = ((curr_offset / rounded_size) + 1) * rounded_size;
+
+	overflow = (uint32_t) curr_offset + (uint32_t) size;
 
 	return overflow > MT_TOTAL_SIZE ? MT_OFFSET_NOSPACE : curr_offset;
 }
@@ -359,9 +345,8 @@ static void assign_offsets()
 			continue;
 
 		offset = 0;
-		comp1_size = next_power_of_two(comp1->size);
+		comp1_size = align_ceil_pow2(comp1->size);
 		heap_init(&h);
-
 
 		for (int j = 0; j < curr_scope_id; j++) {
 			if (i == j)
