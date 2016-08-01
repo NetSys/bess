@@ -100,6 +100,14 @@ static void queue_deinit(struct module *m)
 	mem_free(priv->queue);
 }
 
+static struct snobj *queue_get_desc(const struct module *m)
+{
+	const struct queue_priv *priv = get_priv_const(m);
+	const struct llring *ring = priv->queue;
+
+	return snobj_str_fmt("%u/%u", llring_count(ring), ring->common.slots);
+}
+
 /* from upstream */
 static void enqueue(struct module *m, struct pkt_batch *batch)
 {
@@ -205,6 +213,7 @@ static const struct mclass queue = {
 	.priv_size		= sizeof(struct queue_priv),
 	.init			= queue_init,
 	.deinit			= queue_deinit,
+	.get_desc		= queue_get_desc,
 	.process_batch		= enqueue,
 	.run_task 		= dequeue,
 	.commands	= {
