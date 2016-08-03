@@ -24,25 +24,6 @@ static struct snobj *rewrite_init(struct module *m, struct snobj *arg)
 	return NULL;
 }
 
-/* src/dst addresses and their sizes must be a multiple of SIMD register size */
-static inline void
-memcpy_sloppy(void * restrict dst, const void * restrict src, size_t n)
-{
-#if __AVX2__
-	typedef __m256i block_t;
-#else
-	typedef __m128i block_t;
-#endif
-	block_t * restrict d = dst;
-	const block_t * restrict s = src;
-
-	int bytes_left = n;
-	while (bytes_left > 0) {
-		*d++ = *s++;
-		bytes_left -= sizeof(block_t);
-	}
-}
-
 static inline void
 do_rewrite_single(struct rewrite_priv *priv, struct pkt_batch *batch)
 {
