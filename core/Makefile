@@ -29,7 +29,7 @@ CFLAGS += -std=gnu99 -g3 -ggdb3 -Ofast -m64 -march=native \
 	  -D_GNU_SOURCE
 
 LDFLAGS += -rdynamic -L$(DPDK_LIB_DIR) -Wl,-rpath=$(DPDK_LIB_DIR)
-LIBS += -Wl,--whole-archive -l$(DPDK_LIB) -Wl,--no-whole-archive -lm -pthread -ldl -lpcap
+LIBS += -Wl,--whole-archive -l$(DPDK_LIB) -Wl,--no-whole-archive -lm -pthread -ldl -lrt -lpcap
 
 ifdef SANITIZE
     LDFLAGS += -fsanitize=address
