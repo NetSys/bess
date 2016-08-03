@@ -5,16 +5,16 @@
 
 #include "../common.h"
 
-/* Circular, doubly linked list implementation. The idea is very similar to 
+/* Circular, doubly linked list implementation. The idea is very similar to
  * the one in Linux kernel, while we distinguish head and item types.
  * (identical but separated for type checking)
  *
- * NOTE: all heads and items must be initiailized before using. 
+ * NOTE: all heads and items must be initiailized before using.
  *
  * Notational convention:
  * head: pointer to struct cdlist_head
  * item: pointer to struct cdlist_item
- * entry: pointer to a struct that embeds the item 
+ * entry: pointer to a struct that embeds the item
  *
  * Suggested naming scheme:
  * for head: <item struct name (plural)>_<predicate>
@@ -73,7 +73,7 @@ struct cdlist_item {
 	     entry = next_entry, \
 		next_entry = container_of(entry->item_member.next, typeof(*entry), \
 		item_member))
-			
+
 static inline void cdlist_head_init(struct cdlist_head *head)
 {
 	head->next = (struct cdlist_item *)head;
@@ -108,13 +108,13 @@ static inline void cdlist_add_before(struct cdlist_item *next,
 	cdlist_add_between(next->prev, next, item);
 }
 
-static inline void cdlist_add_head(struct cdlist_head *head, 
+static inline void cdlist_add_head(struct cdlist_head *head,
 		struct cdlist_item *item)
 {
 	cdlist_add_between((struct cdlist_item *)head, head->next, item);
 };
 
-static inline void cdlist_add_tail(struct cdlist_head *head, 
+static inline void cdlist_add_tail(struct cdlist_head *head,
 		struct cdlist_item *item)
 {
 	cdlist_add_between(head->prev, (struct cdlist_item *)head, item);
@@ -125,16 +125,22 @@ static inline int cdlist_is_hooked(const struct cdlist_item *item)
 	return item->next != item;
 }
 
-static inline void cdlist_del(struct cdlist_item *item)
+static inline void _cdlist_del(struct cdlist_item *item)
 {
-	struct cdlist_item *next; 
-	struct cdlist_item *prev; 
+	struct cdlist_item *next;
+	struct cdlist_item *prev;
 
 	next = item->next;
 	prev = item->prev;
 
 	prev->next = next;
 	next->prev = prev;
+}
+
+static inline void cdlist_del(struct cdlist_item *item)
+{
+	_cdlist_del(item);
+	cdlist_item_init(item);
 }
 
 static inline int cdlist_is_empty(const struct cdlist_head *head)
@@ -145,6 +151,19 @@ static inline int cdlist_is_empty(const struct cdlist_head *head)
 static inline int cdlist_is_single(const struct cdlist_head *head)
 {
 	return !cdlist_is_empty(head) && (head->next == head->prev);
+}
+
+static inline struct cdlist_item *cdlist_pop_head(struct cdlist_head *head)
+{
+	struct cdlist_item *item;
+
+	if (cdlist_is_empty(head))
+		return NULL;
+
+	item = head->next;
+	cdlist_del(item);
+
+	return item;
 }
 
 /* The first item will become the last one. Useful for round robin.
@@ -158,7 +177,7 @@ static inline struct cdlist_item *cdlist_rotate_left(struct cdlist_head *head)
 
 	if (cdlist_is_empty(head))
 		return NULL;
-		
+
 	if (cdlist_is_single(head))
 		return head->next;
 
