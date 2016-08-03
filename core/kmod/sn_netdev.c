@@ -32,7 +32,17 @@
 #include <linux/version.h>
 #include <linux/etherdevice.h>
 #include <linux/if_vlan.h>
+
+/* disable for now, since it is not tested with new vport implementation */
+#undef CONFIG_NET_RX_BUSY_POLL
+
+#ifdef CONFIG_NET_RX_BUSY_POLL
 #include <net/busy_poll.h>
+#endif
+
+#ifndef NAPI_POLL_WEIGHT
+#define NAPI_POLL_WEIGHT 64
+#endif
 
 #include "sn.h"
 
@@ -153,7 +163,9 @@ static int sn_alloc_queues(struct sn_device *dev,
 	for (i = 0; i < dev->num_rxq; i++) {
 		netif_napi_add(dev->netdev, &dev->rx_queues[i]->rx.napi,
 				sn_poll, NAPI_POLL_WEIGHT);
+#ifdef CONFIG_NET_RX_BUSY_POLL
 		napi_hash_add(&dev->rx_queues[i]->rx.napi);
+#endif
 		spin_lock_init(&dev->rx_queues[i]->rx.lock);
 	}
 	
@@ -167,7 +179,9 @@ static void sn_free_queues(struct sn_device *dev)
 	int i;
 
 	for (i = 0; i < dev->num_rxq; i++) {
+#ifdef CONFIG_NET_RX_BUSY_POLL
 		napi_hash_del(&dev->rx_queues[i]->rx.napi);
+#endif
 		netif_napi_del(&dev->rx_queues[i]->rx.napi);
 	}
 
@@ -251,8 +265,10 @@ static int sn_process_rx_metadata(struct sk_buff *skb,
 
 	switch (rx_meta->csum_state) {
 	case SN_RX_CSUM_CORRECT_ENCAP:
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,13,0))
 		/* without this the upper layer won't respect skb->ip_summed */
 		skb->encapsulation = 1;
+#endif
 		/* fall through */
 
 	case SN_RX_CSUM_CORRECT:
@@ -347,7 +363,9 @@ static int sn_poll_action_batch(struct sn_queue *rx_queue, int budget)
 			if (ret == 0) {
 				skb_record_rx_queue(skb, rx_queue->queue_id);
 				skb->protocol = eth_type_trans(skb, napi->dev);
+#ifdef CONFIG_NET_RX_BUSY_POLL
 				skb_mark_napi_id(skb, napi);
+#endif
 			} else {
 				dev_kfree_skb(skb);
 				skbs[i] = NULL;
@@ -398,7 +416,9 @@ static int sn_poll_action_single(struct sn_queue *rx_queue, int budget)
 
 		skb_record_rx_queue(skb, rx_queue->queue_id);
 		skb->protocol = eth_type_trans(skb, napi->dev);
+#ifdef CONFIG_NET_RX_BUSY_POLL
 		skb_mark_napi_id(skb, napi);
+#endif
 
 		netif_receive_skb(skb);
 
@@ -415,9 +435,6 @@ static int sn_poll_action(struct sn_queue *rx_queue, int budget)
 	else
 		return sn_poll_action_single(rx_queue, budget);
 }
-
-/* disable for now, since it is not tested with new vport implementation */
-#undef CONFIG_NET_RX_BUSY_POLL
 
 #ifdef CONFIG_NET_RX_BUSY_POLL
 #define SN_BUSY_POLL_BUDGET	4
@@ -513,6 +530,13 @@ static inline int sn_send_tx_queue(struct sn_queue *queue,
 	struct sn_tx_metadata tx_meta;
 	int ret = NET_XMIT_DROP;
 
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(3,10,0))
+	if (queue->tx.opts.tci) {
+		skb = vlan_insert_tag(skb, queue->tx.opts.tci);
+		if (unlikely(!skb))
+			goto skip_send;
+	}
+#else
 	if (queue->tx.opts.tci) {
 		skb = vlan_insert_tag(skb, htons(ETH_P_8021Q), 
 				queue->tx.opts.tci);
@@ -526,6 +550,7 @@ static inline int sn_send_tx_queue(struct sn_queue *queue,
 		if (unlikely(!skb))
 			goto skip_send;
 	}
+#endif
 
 	skb_orphan(skb);
 
@@ -632,7 +657,11 @@ rtnl_link_stats64 *sn_get_stats64(struct net_device *netdev,
 	
 	return storage;
 }
-	
+
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(3,3,0))
+typedef uint32_t netdev_features_t;
+#endif
+
 netdev_features_t sn_fix_features(struct net_device *dev,
 				  netdev_features_t features)
 {
@@ -670,7 +699,9 @@ static void sn_set_offloads(struct net_device *netdev)
 	netdev->hw_features = 0;
 #endif
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,8,0))
 	netdev->hw_enc_features = netdev->hw_features;
+#endif
 
 	/* We prevent this interface from moving around namespaces.
 	 * This is to work around race between device unregister and namespace
