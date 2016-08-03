@@ -8,6 +8,7 @@
 #include <unistd.h>
 #include <stdint.h>
 #include <sys/syscall.h>
+#include <gnu/libc-version.h>
 
 #include <rte_config.h>
 #include <rte_version.h>
@@ -339,7 +340,11 @@ __attribute__((constructor(101))) static void set_trap_handler()
 
 void dump_types(void)
 {
-	printf("DPDK version: %s\n", rte_version());
+	printf("gcc: %d.%d.%d\n",
+			__GNUC__, __GNUC_MINOR__, __GNUC_PATCHLEVEL__);
+	printf("glibc: %s-%s\n",
+			gnu_get_libc_version(), gnu_get_libc_release());
+	printf("DPDK: %s\n", rte_version());
 
 	printf("sizeof(char)=%zu\n", sizeof(char));
 	printf("sizeof(short)=%zu\n", sizeof(short));
@@ -350,7 +355,7 @@ void dump_types(void)
 	printf("sizeof(size_t)=%zu\n", sizeof(size_t));
 
 	printf("sizeof(heap)=%zu\n", sizeof(struct heap));
-	printf("sizeof(ht_bucket)=%zu sizeof(htable)=%zu\n", 
+	printf("sizeof(ht_bucket)=%zu sizeof(htable)=%zu\n",
 			sizeof(struct ht_bucket),
 			sizeof(struct htable));
 	printf("sizeof(clist_head)=%zu sizeof(cdlist_item)=%zu\n",
