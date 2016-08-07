@@ -1168,7 +1168,7 @@ def _monitor_tcs(cli, *tcs):
         cli.fout.write('%-20s%12s%12s%12s%12s%12s%12s\n' % \
                 (time.strftime('%X') + str(timestamp % 1)[1:8], \
                  'CPU MHz', 'scheduled', 'Mpps', 'Mbps',
-                 'pkts/batch', 'cycles/p'))
+                 'pkts/sched', 'cycles/p'))
 
         cli.fout.write('%s\n' % ('-' * 92))
 
