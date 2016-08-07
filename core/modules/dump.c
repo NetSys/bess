@@ -16,18 +16,12 @@ command_set_interval(struct module *m, const char *cmd, struct snobj *arg)
 {
 	struct dump_priv *priv = get_priv(m);
 
-	if (snobj_type(arg) == TYPE_INT) {
-		int sec = snobj_int_get(arg);
-		if (sec < 0)
-			return snobj_err(EINVAL, "invalid interval");
-		priv->min_interval_ns = sec * NS_PER_SEC;
-	} else if (snobj_type(arg) == TYPE_DOUBLE) {
-		double sec = snobj_double_get(arg);
-		if (sec < 0.0)
-			return snobj_err(EINVAL, "invalid interval");
-		priv->min_interval_ns = (uint64_t)(sec * NS_PER_SEC);
-	} else
-		return snobj_err(EINVAL, "argument must be a number");
+	double sec = snobj_number_get(arg);
+
+	if (isnan(sec) || sec < 0.0)
+		return snobj_err(EINVAL, "invalid interval");
+
+	priv->min_interval_ns = (uint64_t)(sec * NS_PER_SEC);
 
 	return NULL;
 }

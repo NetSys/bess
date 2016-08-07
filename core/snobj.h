@@ -38,10 +38,10 @@ struct snobj {
 
 	/* INT: always 8,
 	 * BLOB: bytes (including \0 for string)
-	 * LIST, MAP: number of elements 
+	 * LIST, MAP: number of elements
 	 * (using size_t here is an overkill...) */
 	uint32_t size;
-	
+
 	/* used internally for maps and lists */
 	uint32_t max_size;
 	union {
@@ -49,13 +49,13 @@ struct snobj {
 		double double_value;
 
 		void *data;
-		
+
 		struct {
 			struct snobj **arr;
 		} list;
 
 		/* currently implemented with arrays and
-		 * linear search :( 
+		 * linear search :(
 		 * is hash table really necessary? */
 		struct {
 			char **arr_k;
@@ -79,7 +79,7 @@ static inline void *_ALLOC(size_t size)
 static inline void *_REALLOC(void *p, size_t new_size)
 {
 	void *ret = mem_realloc(p, new_size);
-	
+
 	/* if memory allocation is fail, we are already screwed. Quit. */
 	if (!ret)
 		oom_crash();
@@ -117,13 +117,13 @@ static char *_STRDUP(const char *s)
 	return ret;
 }
 
-/* 
+/*
  * Reference counting:
  * 1. when struct snobj is allocated, its refcnt is 1 (the holder is "you")
  * 2. snobj_free() decreases the refcnt by 1
  * 3. you give up your ref when you call snobj_list_add() or snobj_map_set()
  *    (if you want to keep using the child, call snobj_acquire() beforehand)
- * 4. snobj_*_get() or snobj_eval_*() do NOT affect its refcnt. 
+ * 4. snobj_*_get() or snobj_eval_*() do NOT affect its refcnt.
  */
 
 static inline void snobj_acquire(struct snobj *m)
@@ -167,6 +167,17 @@ static inline double snobj_double_get(const struct snobj *m)
 		return NAN;
 
 	return m->double_value;
+}
+
+static inline double snobj_number_get(const struct snobj *m)
+{
+	if (m->type == TYPE_INT)
+		return (double)m->int_value;
+
+	if (m->type == TYPE_DOUBLE)
+		return m->double_value;
+
+	return NAN;
 }
 
 static inline char *snobj_str_get(const struct snobj *m)
