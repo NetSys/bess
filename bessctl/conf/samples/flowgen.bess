@@ -1,0 +1,19 @@
+import scapy.all as scapy
+
+# 'show module' command shows detailed stats/parameters
+
+pkt_size = int($SN_PKT_SIZE!'60')
+assert(60 <= pkt_size <= 1522)
+
+eth = scapy.Ether(src='02:1e:67:9f:4d:ae', dst='06:16:3e:1b:72:32')
+ip = scapy.IP(src='10.0.0.1', dst='10.0.0.2')   # dst IP is overwritten
+tcp = scapy.TCP(sport=10001, dport=10002)
+payload = ('hello' + '0123456789' * 200)[:pkt_size-len(eth/ip/tcp)]
+pkt = eth/ip/tcp/payload
+pkt_data = bytearray(str(pkt))
+
+# NOTE: without quick_rampup=1, it takes a while to converge to
+# the desied load level, especially when flow duration is pareto distribution
+
+FlowGen(template=pkt_data, pps=1e6, flow_rate = 1e4, flow_duration = 10.0, \
+        arrival='exponential', duration='pareto', quick_rampup=1) -> Sink()
