@@ -178,6 +178,8 @@ static void allocate_scope_components()
 	else
 		scope_components = mem_realloc(scope_components, sizeof(struct scope_component)
 					   * 100 * ((curr_scope_id / 100) + 1));
+
+	log_err("alloc/realloc %p\n", scope_components);
 	return;
 }
 
@@ -235,11 +237,16 @@ static void prepare_metadata_computation()
 
 static void cleanup_metadata_computation()
 {
+	if (!scope_components)
+		return;
+
 	for (int i = 0; i < curr_scope_id; i++) {
 		mem_free(scope_components[i].modules);
 	}
 
 	mem_free(scope_components);
+
+	scope_components = NULL;
 	curr_scope_id = 0;
 }
 
