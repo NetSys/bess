@@ -53,9 +53,9 @@ struct vport_priv {
 	int container_pid;
 };
 
-static int next_cpu; 
+static int next_cpu;
 
-static inline int find_next_nonworker_cpu(int cpu) 
+static inline int find_next_nonworker_cpu(int cpu)
 {
 	do {
 		cpu = (cpu + 1) % sysconf(_SC_NPROCESSORS_ONLN);
@@ -83,22 +83,29 @@ static void refill_tx_bufs(struct llring *r)
 		return;
 
 	for (int i = 0; i < ret; i++)
-		objs[i] = (void *)pkts[i]->immutable.paddr;
-	
+		objs[i] = (void *)snb_to_paddr(pkts[i]);
+
 	ret = llring_mp_enqueue_bulk(r, objs, ret);
 	assert(ret == 0);
 }
 
 static void drain_sn_to_drv_q(struct llring *q)
 {
-	/* sn_to_drv queues contain physical address of packet buffers*/
+	/* sn_to_drv queues contain physical address of packet buffers */
 	for (;;) {
 		phys_addr_t paddr;
+		struct snbuf *snb;
 		int ret;
-		
+
 		ret = llring_mc_dequeue(q, (void **)&paddr);
 		if (ret)
 			break;
+
+		snb = paddr_to_snb(paddr);
+		if (!snb) {
+			log_err("paddr_to_snb(%lx) failed\n", paddr);
+			continue;
+		}
 
 		snb_free(paddr_to_snb(paddr));
 	}
@@ -106,11 +113,11 @@ static void drain_sn_to_drv_q(struct llring *q)
 
 static void drain_drv_to_sn_q(struct llring *q)
 {
-	/* sn_to_drv queues contain virtual address of packet buffers*/
+	/* sn_to_drv queues contain virtual address of packet buffers */
 	for (;;) {
 		struct snbuf *snb;
 		int ret;
-		
+
 		ret = llring_mc_dequeue(q, (void **)&snb);
 		if (ret)
 			break;
@@ -138,7 +145,7 @@ static void free_bar(struct vport_priv *priv)
 	rte_free(priv->bar);
 }
 
-static void *alloc_bar(struct port *p, 
+static void *alloc_bar(struct port *p,
 		struct tx_queue_opts *txq_opts,
 		struct rx_queue_opts *rxq_opts)
 {
@@ -146,20 +153,20 @@ static void *alloc_bar(struct port *p,
 
 	int bytes_per_llring;
 	int total_bytes;
-	
+
 	void *bar;
 	struct sn_conf_space *conf;
 	char *ptr;
-	
+
 	int i;
 
 	bytes_per_llring = llring_bytes_with_slots(SLOTS_PER_LLRING);
 
 	total_bytes = sizeof(struct sn_conf_space);
 	total_bytes += p->num_queues[PACKET_DIR_INC] * 2 * bytes_per_llring;
-	total_bytes += p->num_queues[PACKET_DIR_OUT] * 
+	total_bytes += p->num_queues[PACKET_DIR_OUT] *
 		(sizeof(struct sn_rxq_registers) + 2 * bytes_per_llring);
-	
+
 	bar = rte_zmalloc(NULL, total_bytes, 0);
 	assert(bar);
 
@@ -174,7 +181,7 @@ static void *alloc_bar(struct port *p,
 	strcpy(conf->ifname, priv->ifname);
 
 	memcpy(conf->mac_addr, p->mac_addr, ETH_ALEN);
-	
+
 	conf->num_txq = p->num_queues[PACKET_DIR_INC];
 	conf->num_rxq = p->num_queues[PACKET_DIR_OUT];
 	conf->link_on = 1;
@@ -195,7 +202,7 @@ static void *alloc_bar(struct port *p,
 		ptr += bytes_per_llring;
 
 		/* BESS -> Driver */
-		llring_init((struct llring *)ptr, SLOTS_PER_LLRING, 
+		llring_init((struct llring *)ptr, SLOTS_PER_LLRING,
 				SINGLE_P, SINGLE_C);
 		refill_tx_bufs((struct llring *)ptr);
 		priv->inc_qs[i].sn_to_drv = (struct llring *)ptr;
@@ -208,14 +215,14 @@ static void *alloc_bar(struct port *p,
 		ptr += sizeof(struct sn_rxq_registers);
 
 		/* Driver -> BESS */
-		llring_init((struct llring *)ptr, 
-				SLOTS_PER_LLRING, 
+		llring_init((struct llring *)ptr,
+				SLOTS_PER_LLRING,
 				SINGLE_P, SINGLE_C);
 		priv->out_qs[i].drv_to_sn = (struct llring *)ptr;
 		ptr += bytes_per_llring;
 
 		/* BESS -> Driver */
-		llring_init((struct llring *)ptr, SLOTS_PER_LLRING, 
+		llring_init((struct llring *)ptr, SLOTS_PER_LLRING,
 				SINGLE_P, SINGLE_C);
 		priv->out_qs[i].sn_to_drv = (struct llring *)ptr;
 		ptr += bytes_per_llring;
@@ -227,16 +234,16 @@ static void *alloc_bar(struct port *p,
 static int init_driver(struct driver *driver)
 {
 	struct stat buf;
-	
+
 	int ret;
-	
+
 	next_cpu = 0;
 
 	ret = stat("/dev/bess", &buf);
 	if (ret < 0) {
 		char exec_path[1024];
 		char *exec_dir;
-	
+
 		char cmd[2048];
 
 		log_notice("vport: BESS kernel module is not loaded. "
@@ -264,7 +271,7 @@ static struct snobj *docker_container_pid(char *cid, int *container_pid)
 	char buf[1024];
 
 	FILE *fp;
-		
+
 	int ret;
 	int exit_code;
 
@@ -272,7 +279,7 @@ static struct snobj *docker_container_pid(char *cid, int *container_pid)
 		return snobj_err(EINVAL, "field 'docker' should be " \
 				"a containder ID or name in string");
 
-	ret = snprintf(buf, sizeof(buf), 
+	ret = snprintf(buf, sizeof(buf),
 			"docker inspect --format '{{.State.Pid}}' " \
 			"%s 2>&1", cid);
 	if (ret >= sizeof(buf))
@@ -280,8 +287,8 @@ static struct snobj *docker_container_pid(char *cid, int *container_pid)
 				"container ID or name is too long");
 
 	fp = popen(buf, "r");
-	if (!fp) 
-		return snobj_err_details(ESRCH, 
+	if (!fp)
+		return snobj_err_details(ESRCH,
 				snobj_str_fmt("popen() errno=%d (%s)",
 					errno, strerror(errno)),
 				"Command 'docker' is not available. " \
@@ -293,7 +300,7 @@ static struct snobj *docker_container_pid(char *cid, int *container_pid)
 				"container %s", cid);
 
 	buf[ret] = '\0';
-	
+
 	ret = pclose(fp);
 	exit_code = WEXITSTATUS(ret);
 
@@ -302,7 +309,7 @@ static struct snobj *docker_container_pid(char *cid, int *container_pid)
 
 		snobj_map_set(details, "exit_code", snobj_int(exit_code));
 		snobj_map_set(details, "docker_err", snobj_str(buf));
-	
+
 		return snobj_err_details(ESRCH, details,
 				"Cannot find the PID of container %s", cid);
 	}
@@ -393,18 +400,18 @@ static struct snobj *set_ip_addr(struct port *p, struct snobj *arg)
 	}
 
 	switch (snobj_type(arg)) {
-	case TYPE_STR: 
+	case TYPE_STR:
 		ret = set_ip_addr_single(p, snobj_str_get(arg));
 		if (ret < 0) {
 			if (namespace) {
 				/* it must be the child */
-				assert(child_pid == 0);	
+				assert(child_pid == 0);
 				exit(errno <= 255 ? errno: ENOMSG);
 			}
 		}
 		break;
 
-	case TYPE_LIST: 
+	case TYPE_LIST:
 		if (!arg->size)
 			goto invalid_type;
 
@@ -415,7 +422,7 @@ static struct snobj *set_ip_addr(struct port *p, struct snobj *arg)
 			if (ret < 0) {
 				if (namespace) {
 					/* it must be the child */
-					assert(child_pid == 0);	
+					assert(child_pid == 0);
 					exit(errno <= 255 ? errno: ENOMSG);
 				} else
 					break;
@@ -467,7 +474,7 @@ static void deinit_port(struct port *p)
 
 	ret = ioctl(priv->fd, SN_IOC_RELEASE_HOSTNIC);
 	if (ret < 0)
-		log_perr("SN_IOC_RELEASE_HOSTNIC");	
+		log_perr("SN_IOC_RELEASE_HOSTNIC");
 
 	close(priv->fd);
 	free_bar(priv);
@@ -510,7 +517,7 @@ static struct snobj *init_port(struct port *p, struct snobj *conf)
 
 	if (snobj_eval_exists(conf, "docker")) {
 		err = docker_container_pid(
-				snobj_eval_str(conf, "docker"), 
+				snobj_eval_str(conf, "docker"),
 				&priv->container_pid);
 
 		if (err)
@@ -542,14 +549,14 @@ static struct snobj *init_port(struct port *p, struct snobj *conf)
 	}
 
 	if ((cpu_list = snobj_eval(conf, "rxq_cpus")) != NULL &&
-			cpu_list->size != p->num_queues[PACKET_DIR_OUT]) 
+			cpu_list->size != p->num_queues[PACKET_DIR_OUT])
 	{
 		err = snobj_err(EINVAL, "Must specify as many cores as rxqs");
 		goto fail;
 	}
 
 	if (snobj_eval_exists(conf, "rxq_cpu") &&
-			p->num_queues[PACKET_DIR_OUT] > 1) 
+			p->num_queues[PACKET_DIR_OUT] > 1)
 	{
 		err = snobj_err(EINVAL, "Must specify as many cores as rxqs");
 		goto fail;
@@ -567,17 +574,17 @@ static struct snobj *init_port(struct port *p, struct snobj *conf)
 
 	priv->bar = alloc_bar(p, &txq_opts, &rxq_opts);
 
-	ret = ioctl(priv->fd, SN_IOC_CREATE_HOSTNIC, 
+	ret = ioctl(priv->fd, SN_IOC_CREATE_HOSTNIC,
 			rte_malloc_virt2phy(priv->bar));
 	if (ret < 0) {
-		err = snobj_errno_details(-ret, 
+		err = snobj_errno_details(-ret,
 				snobj_str("SN_IOC_CREATE_HOSTNIC failure"));
 		goto fail;
 	}
 
 	if (snobj_eval_exists(conf, "ip_addr")) {
 		err = set_ip_addr(p, snobj_eval(conf, "ip_addr"));
-		
+
 		if (err) {
 			deinit_port(p);
 			goto fail;
@@ -590,12 +597,12 @@ static struct snobj *init_port(struct port *p, struct snobj *conf)
 	}
 
 	for (cpu = 0; cpu < SN_MAX_CPU; cpu++)
-		priv->map.cpu_to_txq[cpu] = 
+		priv->map.cpu_to_txq[cpu] =
 			cpu % p->num_queues[PACKET_DIR_INC];
 
 	if (cpu_list) {
 		for (rxq = 0; rxq < p->num_queues[PACKET_DIR_OUT]; rxq++) {
-			priv->map.rxq_to_cpu[rxq] = 
+			priv->map.rxq_to_cpu[rxq] =
 				snobj_int_get(snobj_list_get(cpu_list, rxq));
 		}
 	} else if (snobj_eval_exists(conf, "rxq_cpu")) {
@@ -609,7 +616,7 @@ static struct snobj *init_port(struct port *p, struct snobj *conf)
 
 	ret = ioctl(priv->fd, SN_IOC_SET_QUEUE_MAPPING, &priv->map);
 	if (ret < 0)
-		log_perr("ioctl(SN_IOC_SET_QUEUE_MAPPING)");	
+		log_perr("ioctl(SN_IOC_SET_QUEUE_MAPPING)");
 
 	return NULL;
 
@@ -623,7 +630,7 @@ fail:
 	return err;
 }
 
-static int vport_recv_pkts(struct port *p, queue_t qid, 
+static int vport_recv_pkts(struct port *p, queue_t qid,
 		snb_array_t pkts, int max_cnt)
 {
 	struct vport_priv *priv = get_port_priv(p);
@@ -632,7 +639,7 @@ static int vport_recv_pkts(struct port *p, queue_t qid,
 	int cnt;
 	int i;
 
-	cnt = llring_sc_dequeue_burst(tx_queue->drv_to_sn, 
+	cnt = llring_sc_dequeue_burst(tx_queue->drv_to_sn,
 			(void **)pkts, max_cnt);
 
 	refill_tx_bufs(tx_queue->sn_to_drv);
@@ -661,7 +668,7 @@ static void reclaim_packets(struct llring *ring)
 	int ret;
 
 	for (;;) {
-		ret = llring_mc_dequeue_burst(ring, objs, MAX_PKT_BURST);	
+		ret = llring_mc_dequeue_burst(ring, objs, MAX_PKT_BURST);
 		if (ret == 0)
 			break;
 
@@ -669,7 +676,7 @@ static void reclaim_packets(struct llring *ring)
 	}
 }
 
-static int vport_send_pkts(struct port *p, queue_t qid, 
+static int vport_send_pkts(struct port *p, queue_t qid,
 		snb_array_t pkts, int cnt)
 {
 	struct vport_priv *priv = get_port_priv(p);
@@ -685,7 +692,7 @@ static int vport_send_pkts(struct port *p, queue_t qid,
 		struct snbuf *snb = pkts[i];
 
 		struct sn_rx_desc *rx_desc;
-		
+
 		rx_desc = (struct sn_rx_desc *)snb->_scratchpad;
 
 		rte_prefetch0(rx_desc);
@@ -698,7 +705,7 @@ static int vport_send_pkts(struct port *p, queue_t qid,
 		struct rte_mbuf *mbuf = &snb->mbuf;
 
 		struct sn_rx_desc *rx_desc;
-		
+
 		rx_desc = (struct sn_rx_desc *)snb->_scratchpad;
 
 		rx_desc->total_len = snb_total_len(snb);
@@ -711,7 +718,7 @@ static int vport_send_pkts(struct port *p, queue_t qid,
 		for (struct rte_mbuf *seg = mbuf->next; seg; seg = seg->next) {
 			struct sn_rx_desc *next_desc;
 			struct snbuf *seg_snb;
-			
+
 			seg_snb = (struct snbuf *)seg;
 			next_desc = (struct sn_rx_desc *)seg_snb->_scratchpad;
 
@@ -731,9 +738,9 @@ static int vport_send_pkts(struct port *p, queue_t qid,
 
 	/* TODO: generic notification architecture */
 	if (__sync_bool_compare_and_swap(&rx_queue->rx_regs->irq_disabled,
-				0, 1)) 
+				0, 1))
 	{
-		ret = ioctl(priv->fd, SN_IOC_KICK_RX, 
+		ret = ioctl(priv->fd, SN_IOC_KICK_RX,
 				1 << priv->map.rxq_to_cpu[qid]);
 		if (ret)
 			log_perr("ioctl(kick_rx)");

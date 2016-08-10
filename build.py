@@ -10,10 +10,10 @@ import textwrap
 
 BESS_DIR = os.path.dirname(os.path.abspath(__file__))
 
-DEPS_DIR = '%s/deps' % BESS_DIR 
+DEPS_DIR = '%s/deps' % BESS_DIR
 
 DPDK_REPO = 'http://dpdk.org/browse/dpdk/snapshot'
-DPDK_VER = 'dpdk-16.04'
+DPDK_VER = 'dpdk-16.07'
 
 DPDK_DIR = '%s/%s' % (DEPS_DIR, DPDK_VER)
 DPDK_URL = '%s/%s.tar.gz' % (DPDK_REPO, DPDK_VER)
@@ -28,11 +28,11 @@ extra_libs = set()
 def download_hook(count, block_size, total_size):
     sys.stdout.write('\x08' + ['-', '\\', '|', '/'][int(time.time() * 3) % 4])
     sys.stdout.flush()
-    
+
 def cmd(cmd):
-    proc = subprocess.Popen(cmd, 
+    proc = subprocess.Popen(cmd,
             stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT, 
+            stderr=subprocess.STDOUT,
             shell=True)
 
     # err should be None
@@ -45,7 +45,7 @@ def cmd(cmd):
 
 def cmd_success(cmd):
     try:
-        subprocess.check_call(cmd, 
+        subprocess.check_call(cmd,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
                 shell=True)
@@ -95,7 +95,7 @@ def check_c_lib(lib):
         cmd('rm -f %s %s' % (test_c_file, test_e_file))
 
 def required(header_file, lib_name):
-    if not check_c_header(header_file): 
+    if not check_c_header(header_file):
         print >> sys.stderr, 'Error - #include <%s> failed. ' \
                 'Did you install "%s" package?' % (header_file, lib_name)
         sys.exit(1)
@@ -147,7 +147,7 @@ def check_mlx():
 
 def generate_extra_mk():
     global extra_libs
-   
+
     with open('core/extra.mk', 'w') as fp:
         fp.write('LIBS += %s ' % \
                 ' '.join(map(lambda lib: '-l' + lib, extra_libs)))
@@ -155,7 +155,7 @@ def generate_extra_mk():
 def download_dpdk():
     try:
         print 'Downloading %s ...  ' % DPDK_URL,
-        urllib.urlretrieve(DPDK_URL, DPDK_FILE, reporthook=download_hook) 
+        urllib.urlretrieve(DPDK_URL, DPDK_FILE, reporthook=download_hook)
         print
     except:
         cmd('rm -f %s' % (DPDK_FILE))
@@ -182,7 +182,7 @@ def setup_dpdk():
     if not os.path.exists(DPDK_DIR):
         if not os.path.exists(DPDK_FILE):
             download_dpdk()
-            
+
         try:
             print 'Decompressing DPDK...'
             cmd('mkdir -p %s' % DPDK_DIR)

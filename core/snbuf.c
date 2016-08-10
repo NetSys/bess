@@ -142,6 +142,50 @@ struct rte_mempool *get_pframe_pool_socket(int socket)
 	return pframe_pool[socket];
 }
 
+#if DPDK_VER >= DPDK_VER_NUM(16, 7, 0)
+static struct snbuf *paddr_to_snb_memchunk(struct rte_mempool_memhdr *chunk,
+		phys_addr_t paddr)
+{
+	if (chunk->phys_addr == RTE_BAD_PHYS_ADDR)
+		return NULL;
+
+	if (chunk->phys_addr <= paddr && paddr < chunk->phys_addr + chunk->len)
+		return chunk->addr + (paddr - chunk->phys_addr);
+
+	return NULL;
+}
+
+struct snbuf *paddr_to_snb(phys_addr_t paddr)
+{
+	for (int i = 0; i < RTE_MAX_NUMA_NODES; i++) {
+		struct rte_mempool *pool;
+		struct rte_mempool_memhdr *chunk;
+
+		pool = pframe_pool[i];
+		if (!pool)
+			continue;
+
+		STAILQ_FOREACH(chunk, &pool->mem_list, next) {
+			struct snbuf *snb = paddr_to_snb_memchunk(chunk, paddr);
+			if (!snb)
+				continue;
+
+			if (snb_to_paddr(snb) != paddr) {
+				log_err("snb->immutable.paddr corruption: "
+						"snb=%p, snb->immutable.paddr="
+						"%lx (!= %lx)\n",
+						snb, snb->immutable.paddr,
+						paddr);
+				return NULL;
+			}
+
+			return snb;
+		}
+	}
+
+	return NULL;
+}
+#else
 struct snbuf *paddr_to_snb(phys_addr_t paddr)
 {
 	struct snbuf *ret = NULL;
@@ -179,6 +223,7 @@ struct snbuf *paddr_to_snb(phys_addr_t paddr)
 
 	return ret;
 }
+#endif
 
 void snb_dump(FILE *file, struct snbuf *pkt)
 {
