@@ -2,7 +2,7 @@ CC = gcc
 DPDK_LIB = dpdk
 
 ifndef RTE_SDK
-    RTE_SDK = $(abspath ../deps/dpdk-16.04)
+    RTE_SDK = $(abspath ../deps/dpdk-16.07)
 endif
 
 ifndef RTE_TARGET
@@ -62,7 +62,7 @@ VERBOSE = 0
 .PHONY: all clean tags cscope
 
 all: $(DEPS) $(EXEC)
-	
+
 $(DEPS): $(SRCS) $(HEADERS)
 	@$(CC) $(CFLAGS) -MM $(SRCS) | sed 's|\(.*\)\.o: \(.*\)\.c|\2.o: \2.c|' > $(DEPS)
 
