@@ -37,7 +37,7 @@ To build BESS on your Linux machine, you will need the following software packag
 There are other packages that are not strictly required, but strongly recommended as follows.
 
 #### 1. Optional Packages
-- `linux-headers`: to build the kernel module for BESS virtual ports. Linux 3.19 or higher is required.
+- `linux-headers`: to build the kernel module for BESS virtual ports. Linux 3.2 or higher is required.
 - `libgraph-easy-perl`: "show pipeline" and "monitor pipeline" in bessctl depends on this Perl module
 - `docker.io`: some sample configuration files use Docker, to demonstrate how to use virtual ports in Linux containers. Make sure your user account has access to the docker daemon process (e.g., `$ sudo adduser <username> docker`)
 - `python-scapy`: some sample configuration files use this library to craft test packets.
