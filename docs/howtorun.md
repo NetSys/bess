@@ -52,7 +52,7 @@ BESS utilizes DPDK Poll-Mode Drivers (PMDs) to perform high-performance packet I
 DPDK provides a script to (un)bind network interfaces. The following command with `--status` can be used to list all network interfaces in the system.
 
 ```sh
-$ deps/dpdk-2.2.0/tools/dpdk_nic_bind.py --status
+$ bin/dpdk_devbind.py --status
 
 Network devices using DPDK-compatible driver
 ============================================
@@ -75,13 +75,13 @@ Suppose we want the Intel X552 dual-port NIC (03:00.0 and 03:00.1) to be used by
 
 ```sh
 $ sudo modprobe uio_pci_generic
-$ sudo deps/dpdk-2.2.0/tools/dpdk_nic_bind.py -b uio_pci_generic 03:00.0 03:00.1
+$ sudo bin/dpdk_devbind.py -b uio_pci_generic 03:00.0 03:00.1
 ```
 
 Then you can see the ports moved to under the "DPDK-compatible driver" section. The ports are ready to be used by BESS.
 
 ```sh
-$ deps/dpdk-2.2.0/tools/dpdk_nic_bind.py --status
+$ bin/dpdk_devbind.py --status
 
 Network devices using DPDK-compatible driver
 ============================================
@@ -108,7 +108,7 @@ Other network devices
 ```sh
 # Run `bessd` directly. No command-line option is required
 $ sudo bin/bessd
-``` 
+```
 
 > NOTE: Only one instance of `bessd` process can run on a host. If there already is a running process, the new process will fail to run.
 

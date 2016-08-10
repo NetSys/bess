@@ -23,13 +23,13 @@ If you want to use physical NIC ports (as an exception, you can skip this step f
 
 ```
 $ sudo modprobe uio_pci_generic
-$ sudo bess/deps/dpdk-16.04/tools/dpdk_nic_bind.py -b uio_pci_generic PCI_DEV1 [PCI_DEV2 ...]
+$ sudo bess/bin/dpdk_devbind.py -b uio_pci_generic PCI_DEV1 [PCI_DEV2 ...]
 ```
 
 You can search for the PCI device IDs (in xx:yy.z form) corresponding to the physical ports you wish to bind by running
 
 ```
-$ bess/deps/dpdk-16.04/tools/dpdk_nic_bind.py --status
+$ bess/bin/dpdk_devbind.py --status
 ```
 
 Once ready to roll, launch the BESS daemon as root, then you can control the dataplane with the controller, `bessctl`:
