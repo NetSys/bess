@@ -155,8 +155,12 @@ def generate_extra_mk():
 def download_dpdk():
     try:
         print 'Downloading %s ...  ' % DPDK_URL,
-        urllib.urlretrieve(DPDK_URL, DPDK_FILE, reporthook=download_hook)
-        print
+        if sys.stdout.isatty():
+            urllib.urlretrieve(DPDK_URL, DPDK_FILE, reporthook=download_hook)
+            print
+        else:
+            print
+            urllib.urlretrieve(DPDK_URL, DPDK_FILE)
     except:
         cmd('rm -f %s' % (DPDK_FILE))
         raise
