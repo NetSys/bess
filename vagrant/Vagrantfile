@@ -1,0 +1,58 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+required_plugins = %w(vagrant-cachier vagrant-reload)
+
+plugins_to_install = required_plugins.select { |plugin| not Vagrant.has_plugin? plugin }
+if not plugins_to_install.empty?
+  puts "Installing plugins: #{plugins_to_install.join(' ')}"
+  if system "vagrant plugin install #{plugins_to_install.join(' ')}"
+    exec "vagrant #{ARGV.join(' ')}"
+  else
+    abort "Installation of one or more plugins has failed. Aborting."
+  end
+end
+
+Vagrant.configure("2") do |config|
+  config.vm.box = "ubuntu/trusty64"
+  config.vm.hostname = "bessvm"
+  config.vm.synced_folder "..", "/opt/bess"
+
+  if Vagrant.has_plugin?("vagrant-cachier")
+    config.cache.scope = "machine"
+  end
+
+  config.vm.provision "shell", path: "init.sh"
+  config.vm.provision "shell", path: "packages.sh"
+  config.vm.provision "reload"
+  config.vm.provision "shell", path: "build.sh"
+  config.vm.provision "shell", inline: "/opt/bess/bin/bessd -k"
+
+  config.vm.network "private_network", ip: "10.248.0.100", auto_config: false, adapter: 2
+  config.vm.network "private_network", ip: "10.248.1.100", auto_config: false, adapter: 3
+
+  config.vm.provider "virtualbox" do |vb|
+    # Uncomment below if necessary.
+    # vb.gui = true
+    vb.name = "BESS dev VM"
+
+    # Customize below. At least two or more vCPUs are recommended.
+    vb.cpus = 4
+    vb.memory = 4096
+
+    vb.customize ["modifyvm", :id, "--nic1", "nat"]
+    vb.customize ["modifyvm", :id, "--nictype1", "virtio"]
+    vb.customize ["modifyvm", :id, "--nictype2", "virtio"]
+    vb.customize ["modifyvm", :id, "--nictype3", "virtio"]
+    vb.customize ["modifyvm", :id, "--macaddress2", "22DEADBEEF22"]
+    vb.customize ["modifyvm", :id, "--macaddress3", "66DEADBEEF66"]
+    vb.customize ["modifyvm", :id, "--nicpromisc2", "allow-all"]
+    vb.customize ["modifyvm", :id, "--nicpromisc3", "allow-all"]
+
+    # without this, spinlock and rdtsc can be significantly slower...
+    vb.customize ["modifyvm", :id, "--paravirtprovider", "kvm"]
+
+    # Uncomment this if you want AVX2...
+    #vb.customize ["setextradata", :id, "VBoxInternal/CPUM/IsaExts/AVX2", "1"]
+  end
+end
