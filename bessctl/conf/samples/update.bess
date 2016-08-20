@@ -10,7 +10,7 @@ Source() -> Rewrite([pkt_bytes]) -> rr::Roundrobin([1, 2])
 
 # src MAC address
 rr:1 \
-    -> Update([{'offset': 6, 'size': 6, 'value': '1234567890ab'}]) \
+    -> Update([{'offset': 6, 'size': 6, 'value': 0x1234567890ab}]) \
     -> Sink()
 
 # UDP src/dst ports

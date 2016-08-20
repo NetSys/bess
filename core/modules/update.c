@@ -34,33 +34,29 @@ command_add(struct module *m, const char *cmd, struct snobj *arg)
 		uint64_t mask;
 		uint64_t value;
 
-		const char *value_str;
+		struct snobj *t;
 
 		if (field->type != TYPE_MAP)
-			return snobj_err(EINVAL, 
+			return snobj_err(EINVAL,
 					"argument must be a list of maps");
 
 		offset = snobj_eval_int(field, "offset");
-		size = snobj_eval_uint(field, "size");
 
-		value_str = snobj_eval_str(field, "value");
-		if (value_str) {
-			int ret = sscanf(value_str, "%lx", &value);
-			if (ret < 1)
-				return snobj_err(EINVAL, 
-						"not a valid hex number '%s'",
-						value_str);
-		} else
-			value = snobj_eval_uint(field, "value");
+		size = snobj_eval_uint(field, "size");
+		if (size < 1 || size > 8)
+			return snobj_err(EINVAL, "'size' must be 1-8");
+
+		t = snobj_eval(field, "value");
+		if (snobj_binvalue_get(t, size, &value, 0)) {
+			return snobj_err(EINVAL, "'value' field has not a "
+					"correct %d-byte value", size);
+		}
 
 		if (offset < 0)
 			return snobj_err(EINVAL, "too small 'offset'");
 
-		if (size < 1 || size > 8)
-			return snobj_err(EINVAL, "'size' must be 1-8");
-
 		offset -= (8 - size);
-		mask = (1ul << ((8 - size) * 8)) - 1;
+		mask = ((uint64_t)1 << ((8 - size) * 8)) - 1;
 
 		if (offset + 8 > SNBUF_DATA)
 			return snobj_err(EINVAL, "too large 'offset'");
@@ -105,13 +101,13 @@ static void update_process_batch(struct module *m, struct pkt_batch *batch)
 		uint64_t mask = field->mask;
 		uint64_t value = field->value;
 		int16_t offset = field->offset;
-			
+
 		for (int j = 0; j < cnt; j++) {
 			struct snbuf *snb = batch->pkts[j];
 			char *head = snb_head_data(snb);
 
 			uint64_t * restrict p = (uint64_t *)(head + offset);
-			
+
 			*p = (*p & mask) | value;
 		}
 	}
