@@ -24,7 +24,7 @@ struct histogram {
 
 static inline uint64_t get_time() {
 	double t = rte_get_tsc_cycles();
-	return (uint64_t)(t * (HISTO_TIMEUNIT_MULT / HISTO_TIME) 
+	return (uint64_t)(t * (HISTO_TIMEUNIT_MULT / HISTO_TIME)
 				/ rte_get_tsc_hz());
 }
 
@@ -61,14 +61,14 @@ static void print_hist(struct histogram* hist) {
 		size_t current_size = HISTO_BUCKET_VAL(arr+i);
 		if (current_size > 0)
 			printf(" <  %9lu %s: %16lu pkts  \n",
-				(i+1)*HISTO_TIME*timeunit_mult, 
+				(i+1)*HISTO_TIME*timeunit_mult,
 				timeunit_name, current_size);
 	}
 	printf("above threshold %09lu pkts \n", hist->above_threshold);
 }
 
 // Add histogram b's observations into a, so that a contains all.
-static struct histogram* combine_histograms(struct histogram* a, 
+static struct histogram* combine_histograms(struct histogram* a,
 					struct histogram* b) {
 	for (int i=0; i<HISTO_BUCKETS; i++) {
 		*(a->arr + i) += (*(b->arr + i));
@@ -114,14 +114,14 @@ static void print_summary(struct histogram* hist) {
 		return;
 	}
 
-	uint64_t counts[] =	{count / 100, 
-				 count / 2, 
+	uint64_t counts[] =	{count / 100,
+				 count / 2,
 				(count * 99) / 100,
 				(count * 999) / 1000,
 				(uint64_t)((double)count * (0.9999)),
 				(uint64_t)((double)count * (0.99999)),
 				(uint64_t)((double)count * (0.999999))};
-	
+
 	uint64_t latencies[] = {0,0,0,0,0,0,0};
 
 	for (int i=0; i<max_bucket; i++) {
@@ -129,21 +129,21 @@ static void print_summary(struct histogram* hist) {
 		for (int j=0; j<sizeof(counts)/sizeof(uint64_t); j++) {
 			if(HISTO_BUCKET_VAL(arr + i) < counts[j]) {
 				latencies[j] = latency;
-			} 
+			}
 		}
 	}
 
-	printf("##   Min: %lu %s\n", min, timeunit_name);
-	printf("##   Avg: %lu %s\n", (total/count), timeunit_name);
-	printf("##   Max: %lu %s\n", max, timeunit_name);
-	printf("##   1%%ile: %lu %s\n", latencies[0], timeunit_name);
-	printf("##   50%%ile: %lu %s\n", latencies[1], timeunit_name);
-	printf("##   99%%ile: %lu %s\n", latencies[2], timeunit_name);
-	printf("##   99.9%%ile: %lu %s\n", latencies[3], timeunit_name);
-	printf("##   99.99%%ile: %lu %s\n", latencies[4], timeunit_name);
-	printf("##   99.999%%ile: %lu %s\n", latencies[5], timeunit_name);
-	printf("##   99.9999%%ile: %lu %s\n", latencies[6], timeunit_name);
-	printf("##   Total: %lu\n", count);
+	printf("##   Min: %"PRIu64" %s\n", min, timeunit_name);
+	printf("##   Avg: %"PRIu64" %s\n", (total/count), timeunit_name);
+	printf("##   Max: %"PRIu64" %s\n", max, timeunit_name);
+	printf("##   1%%ile: %"PRIu64" %s\n", latencies[0], timeunit_name);
+	printf("##   50%%ile: %"PRIu64" %s\n", latencies[1], timeunit_name);
+	printf("##   99%%ile: %"PRIu64" %s\n", latencies[2], timeunit_name);
+	printf("##   99.9%%ile: %"PRIu64" %s\n", latencies[3], timeunit_name);
+	printf("##   99.99%%ile: %"PRIu64" %s\n", latencies[4], timeunit_name);
+	printf("##   99.999%%ile: %"PRIu64" %s\n", latencies[5], timeunit_name);
+	printf("##   99.9999%%ile: %"PRIu64" %s\n", latencies[6], timeunit_name);
+	printf("##   Total: %"PRIu64"\n", count);
 }
 
 static inline void record_latency(struct histogram* hist, uint64_t latency) {

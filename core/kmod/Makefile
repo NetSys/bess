@@ -12,11 +12,11 @@ build:
 
 clean:
 	rm -rf *.o *~ core .depend .*.cmd *.ko *.mod.c *.symvers .tmp_versions
-else  
+else
 
 $(info Building with KERNELRELEASE = ${KERNELRELEASE})
 
-obj-m := $(MODNAME).o 
+obj-m := $(MODNAME).o
 
 $(MODNAME)-objs := sndrv.o sn_host.o sn_netdev.o sn_ethtool.o
 ccflags-y := -g

@@ -33,6 +33,14 @@
 #include <linux/etherdevice.h>
 #include <linux/if_vlan.h>
 
+#ifndef UTS_RELEASE
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,33)
+#include <linux/utsrelease.h>
+#else
+#include <generated/utsrelease.h>
+#endif
+#endif
+
 /* disable for now, since it is not tested with new vport implementation */
 #undef CONFIG_NET_RX_BUSY_POLL
 
@@ -72,15 +80,15 @@ static void sn_test_cache_alignment(struct sn_device *dev)
 		    (((uintptr_t) q->rx.rx_regs) % L1_CACHE_BYTES))
 		{
 			pr_err("invalid cache alignment: %p %p %p\n",
-					q->drv_to_sn, 
-					q->sn_to_drv, 
+					q->drv_to_sn,
+					q->sn_to_drv,
 					q->rx.rx_regs);
 		}
 	}
 }
 
-static int sn_alloc_queues(struct sn_device *dev, 
-		void *rings, u64 rings_size,
+static int sn_alloc_queues(struct sn_device *dev,
+		void *rings, uint64_t rings_size,
 		struct tx_queue_opts *txq_opts,
 		struct rx_queue_opts *rxq_opts)
 {
@@ -93,7 +101,7 @@ static int sn_alloc_queues(struct sn_device *dev,
 	int i;
 
 	int ret;
-	
+
 	ret = netif_set_real_num_tx_queues(dev->netdev, dev->num_txq);
 	if (ret) {
 		log_err("netif_set_real_num_tx_queues() failed\n");
@@ -122,7 +130,7 @@ static int sn_alloc_queues(struct sn_device *dev,
 		queue->tx.opts = *txq_opts;
 
 		queue->tx.netdev_txq = netdev_get_tx_queue(dev->netdev, i);
-		
+
 		queue->drv_to_sn = (struct llring *)p;
 		p += llring_bytes(queue->drv_to_sn);
 
@@ -151,10 +159,10 @@ static int sn_alloc_queues(struct sn_device *dev,
 		queue++;
 	}
 
-	if ((uint64_t)p != (uint64_t)rings + rings_size) {
-		log_err("Invalid ring space size: %llu, not %llu, at%p)\n", 
-				rings_size, 
-				(uint64_t)p - (uint64_t)rings,
+	if ((uintptr_t)p != (uintptr_t)rings + rings_size) {
+		log_err("Invalid ring space size: %llu, not %llu, at%p)\n",
+				rings_size,
+				(uint64_t)((uintptr_t)p - (uintptr_t)rings),
 				rings);
 		kfree(memchunk);
 		return -EFAULT;
@@ -168,7 +176,7 @@ static int sn_alloc_queues(struct sn_device *dev,
 #endif
 		spin_lock_init(&dev->rx_queues[i]->rx.lock);
 	}
-	
+
 	sn_test_cache_alignment(dev);
 
 	return 0;
@@ -198,7 +206,7 @@ static int sn_open(struct net_device *netdev)
 
 	for (i = 0; i < dev->num_rxq; i++)
 		napi_enable(&dev->rx_queues[i]->rx.napi);
-	for (i = 0; i < dev->num_rxq; i++) 
+	for (i = 0; i < dev->num_rxq; i++)
 		sn_enable_interrupt(dev->rx_queues[i]);
 
 	return 0;
@@ -250,7 +258,7 @@ static void sn_disable_interrupt(struct sn_queue *rx_queue)
 }
 
 /* if non-zero, the caller should drop the packet */
-static int sn_process_rx_metadata(struct sk_buff *skb, 
+static int sn_process_rx_metadata(struct sk_buff *skb,
 				   struct sn_rx_metadata *rx_meta)
 {
 	int ret = 0;
@@ -265,7 +273,7 @@ static int sn_process_rx_metadata(struct sk_buff *skb,
 
 	switch (rx_meta->csum_state) {
 	case SN_RX_CSUM_CORRECT_ENCAP:
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,13,0))
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,13,0)
 		/* without this the upper layer won't respect skb->ip_summed */
 		skb->encapsulation = 1;
 #endif
@@ -286,12 +294,12 @@ static int sn_process_rx_metadata(struct sk_buff *skb,
 	return ret;
 }
 
-static inline int sn_send_tx_queue(struct sn_queue *queue, 
+static inline int sn_send_tx_queue(struct sn_queue *queue,
 			            struct sn_device* dev, struct sk_buff* skb);
 
 DEFINE_PER_CPU(int, in_batched_polling);
 
-static void sn_process_loopback(struct sn_device *dev, 
+static void sn_process_loopback(struct sn_device *dev,
 		struct sk_buff *skbs[], int cnt)
 {
 	struct sn_queue *tx_queue;
@@ -301,7 +309,7 @@ static void sn_process_loopback(struct sn_device *dev,
 	int i;
 
 	int lock_required;
-	
+
 	cpu = raw_smp_processor_id();
 	qid = dev->cpu_to_txq[cpu];
 	tx_queue = dev->tx_queues[qid];
@@ -316,7 +324,7 @@ static void sn_process_loopback(struct sn_device *dev,
 			continue;
 
 		/* Ignoring return value here */
-		sn_send_tx_queue(tx_queue, dev, skbs[i]); 
+		sn_send_tx_queue(tx_queue, dev, skbs[i]);
 	}
 
 	if (lock_required)
@@ -342,7 +350,7 @@ static int sn_poll_action_batch(struct sn_queue *rx_queue, int budget)
 		int cnt;
 		int i;
 
-		cnt = dev->ops->do_rx_batch(rx_queue, rx_meta, skbs, 
+		cnt = dev->ops->do_rx_batch(rx_queue, rx_meta, skbs,
 				min(MAX_BATCH, budget - poll_cnt));
 		if (cnt == 0)
 			break;
@@ -464,7 +472,7 @@ static int sn_poll_ll(struct napi_struct *napi)
 		if (ret == 0)
 			cpu_relax();
 	} while (ret == 0 && idle_cnt++ < 1000);
-	
+
 	sn_enable_interrupt(rx_queue);
 
 	if (rx_queue->dev->ops->pending_rx(rx_queue)) {
@@ -492,7 +500,7 @@ static int sn_poll(struct napi_struct *napi, int budget)
 		return 0;
 
 	rx_queue->rx.stats.polls++;
-	
+
 	ret = sn_poll_action(rx_queue, budget);
 
 	if (ret < budget) {
@@ -512,7 +520,7 @@ static int sn_poll(struct napi_struct *napi, int budget)
 	return ret;
 }
 
-static void sn_set_tx_metadata(struct sk_buff *skb, 
+static void sn_set_tx_metadata(struct sk_buff *skb,
 			       struct sn_tx_metadata *tx_meta)
 {
 	if (skb->ip_summed == CHECKSUM_PARTIAL) {
@@ -524,13 +532,13 @@ static void sn_set_tx_metadata(struct sk_buff *skb,
 	}
 }
 
-static inline int sn_send_tx_queue(struct sn_queue *queue, 
+static inline int sn_send_tx_queue(struct sn_queue *queue,
 			            struct sn_device* dev, struct sk_buff* skb)
 {
 	struct sn_tx_metadata tx_meta;
 	int ret = NET_XMIT_DROP;
 
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(3,10,0))
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3,10,0)
 	if (queue->tx.opts.tci) {
 		skb = vlan_insert_tag(skb, queue->tx.opts.tci);
 		if (unlikely(!skb))
@@ -538,14 +546,14 @@ static inline int sn_send_tx_queue(struct sn_queue *queue,
 	}
 #else
 	if (queue->tx.opts.tci) {
-		skb = vlan_insert_tag(skb, htons(ETH_P_8021Q), 
+		skb = vlan_insert_tag(skb, htons(ETH_P_8021Q),
 				queue->tx.opts.tci);
 		if (unlikely(!skb))
 			goto skip_send;
 	}
 
 	if (queue->tx.opts.outer_tci) {
-		skb = vlan_insert_tag(skb, htons(ETH_P_8021AD), 
+		skb = vlan_insert_tag(skb, htons(ETH_P_8021AD),
 				queue->tx.opts.outer_tci);
 		if (unlikely(!skb))
 			goto skip_send;
@@ -581,7 +589,7 @@ skip_send:
 	return ret;
 }
 
-/* As a soft device without qdisc, 
+/* As a soft device without qdisc,
  * this function returns NET_XMIT_* instead of NETDEV_TX_* */
 static int sn_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 {
@@ -614,14 +622,15 @@ static int sn_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 	return sn_send_tx_queue(queue, dev, skb);
 }
 
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(3,13,0))
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3,13,0)
 static u16 sn_select_queue(struct net_device *netdev, struct sk_buff *skb)
-#elif (LINUX_VERSION_CODE < KERNEL_VERSION(3,14,0))
-static u16 sn_select_queue(struct net_device *netdev, 
+#elif LINUX_VERSION_CODE < KERNEL_VERSION(3,14,0) && \
+      (!defined(UTS_UBUNTU_RELEASE_ABI) || UTS_UBUNTU_RELEASE_ABI < 24)
+static u16 sn_select_queue(struct net_device *netdev,
 			   struct sk_buff *skb,
 			   void *accel_priv)
 #else
-static u16 sn_select_queue(struct net_device *netdev, 
+static u16 sn_select_queue(struct net_device *netdev,
 			   struct sk_buff *skb,
 			   void *accel_priv,
 			   select_queue_fallback_t fallback)
@@ -632,7 +641,7 @@ static u16 sn_select_queue(struct net_device *netdev,
 	return dev->cpu_to_txq[raw_smp_processor_id()];
 }
 
-static struct 
+static struct
 rtnl_link_stats64 *sn_get_stats64(struct net_device *netdev,
 				  struct rtnl_link_stats64 *storage)
 {
@@ -654,7 +663,7 @@ rtnl_link_stats64 *sn_get_stats64(struct net_device *netdev,
 		storage->rx_bytes 	+= dev->rx_queues[i]->rx.stats.bytes;
 		storage->rx_dropped 	+= dev->rx_queues[i]->rx.stats.dropped;
 	}
-	
+
 	return storage;
 }
 
@@ -784,15 +793,15 @@ int sn_create_netdev(void *bar, struct sn_device **dev_ret)
 	}
 
 	if (conf->num_txq < 1 || conf->num_rxq < 1 ||
-			conf->num_txq > MAX_QUEUES || 
-			conf->num_rxq > MAX_QUEUES) 
+			conf->num_txq > MAX_QUEUES ||
+			conf->num_rxq > MAX_QUEUES)
 	{
 		log_err("invalid ioctl arguments: num_txq=%d, num_rxq=%d\n",
 				conf->num_txq, conf->num_rxq);
 		return -EINVAL;
 	}
 
-	netdev = alloc_etherdev_mqs(sizeof(struct sn_device), 
+	netdev = alloc_etherdev_mqs(sizeof(struct sn_device),
 			conf->num_txq, conf->num_rxq);
 	if (!netdev) {
 		log_err("alloc_netdev_mqs() failed\n");
@@ -818,7 +827,7 @@ int sn_create_netdev(void *bar, struct sn_device **dev_ret)
 
 	sn_set_default_queue_mapping(dev);
 
-	/* This will disable the default qdisc (mq or pfifo_fast) on the 
+	/* This will disable the default qdisc (mq or pfifo_fast) on the
 	 * interface. We don't need qdisc since BESS already has its own.
 	 * Also see attach_default_qdiscs() in sch_generic.c */
 	netdev->tx_queue_len = 0;
@@ -832,7 +841,7 @@ int sn_create_netdev(void *bar, struct sn_device **dev_ret)
 
 	memcpy(netdev->dev_addr, conf->mac_addr, ETH_ALEN);
 
-	ret = sn_alloc_queues(dev, conf + 1, 
+	ret = sn_alloc_queues(dev, conf + 1,
 			conf->bar_size - sizeof(struct sn_conf_space),
 			&conf->txq_opts, &conf->rxq_opts);
 	if (ret) {
@@ -888,7 +897,7 @@ int sn_register_netdev(void *bar, struct sn_device *dev)
 
 	ret = register_netdevice(dev->netdev);
 	if (ret) {
-		log_err("%s: register_netdev() failed (ret = %d)\n", 
+		log_err("%s: register_netdev() failed (ret = %d)\n",
 				dev->netdev->name, ret);
 		goto fail_free;
 	}
@@ -899,9 +908,9 @@ int sn_register_netdev(void *bar, struct sn_device *dev)
 	strcpy(conf->ifname, dev->netdev->name);
 
 	log_info("%s: registered - %pM txq %d rxq %d\n",
-			dev->netdev->name, 
-			dev->netdev->dev_addr, 
-			dev->netdev->real_num_tx_queues, 
+			dev->netdev->name,
+			dev->netdev->dev_addr,
+			dev->netdev->real_num_tx_queues,
 			dev->netdev->real_num_rx_queues);
 
 	rtnl_unlock();

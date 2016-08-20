@@ -7,4 +7,5 @@ cp /opt/bess/vagrant/files/rc.local /etc/rc.local
 sysctl -p
 mkdir -p /mnt/huge
 adduser --quiet vagrant adm
+adduser --quiet vagrant docker
 sudo -u vagrant ln -f -s /opt/bess ~vagrant/bess

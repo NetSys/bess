@@ -1,5 +1,6 @@
 #include <assert.h>
 #include <stdio.h>
+#include <inttypes.h>
 
 #include <sys/time.h>
 
@@ -97,13 +98,13 @@ struct tc *tc_init(struct sched *s, const struct tc_params *params)
 	c->last_tsc = rdtsc();
 
 	for (i = 0; i < NUM_RESOURCES; i++) {
-		assert(params->limit[i] < (1UL << MAX_LIMIT_POW));
+		assert(params->limit[i] < ((uint64_t)1 << MAX_LIMIT_POW));
 		
 		c->tb[i].limit = (params->limit[i] << (USAGE_AMPLIFIER_POW - 4)) 
 				/ (tsc_hz >> 4);
 
 		if (c->tb[i].limit) {
-			assert(params->max_burst[i] < (1UL << MAX_LIMIT_POW));
+			assert(params->max_burst[i] < ((uint64_t)1 << MAX_LIMIT_POW));
 			c->tb[i].max_burst = (params->max_burst[i] << 
 					(USAGE_AMPLIFIER_POW - 4)) / (tsc_hz >> 4);
 			c->has_limit = 1;
@@ -526,7 +527,7 @@ static char *print_tc_stats_detail(struct sched *s, char *p, int max_cnt)
 #undef LAST_COUNTER
 
 			if (num_printed < max_cnt) {
-				p += sprintf(p, "%12lu", value);
+				p += sprintf(p, "%12"PRIu64, value);
 			} else {
 				p += sprintf(p, " ...");
 				break;

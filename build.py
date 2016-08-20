@@ -15,6 +15,14 @@ DEPS_DIR = '%s/deps' % BESS_DIR
 DPDK_REPO = 'http://dpdk.org/browse/dpdk/snapshot'
 DPDK_VER = 'dpdk-16.07'
 
+arch = subprocess.check_output('uname -m', shell=True).strip()
+if arch == 'x86_64':
+    DPDK_TARGET = 'x86_64-native-linuxapp-gcc'
+elif arch == 'i686':
+    DPDK_TARGET = 'i686-native-linuxapp-gcc'
+else:
+    assert False, 'Unsupported arch %s' % arch
+
 DPDK_DIR = '%s/%s' % (DEPS_DIR, DPDK_VER)
 DPDK_URL = '%s/%s.tar.gz' % (DPDK_REPO, DPDK_VER)
 DPDK_FILE = '%s/%s.tar.gz' % (DEPS_DIR, DPDK_VER)
@@ -176,7 +184,7 @@ def configure_dpdk():
         generate_extra_mk()
 
         cmd('cp -f %s %s' % (DPDK_FINAL_CONFIG, DPDK_ORIG_CONFIG))
-        cmd('make -C %s config T=x86_64-native-linuxapp-gcc' % DPDK_DIR)
+        cmd('make -C %s config T=%s' % (DPDK_DIR, DPDK_TARGET))
     finally:
         cmd('rm -f %s' % DPDK_FINAL_CONFIG)
 

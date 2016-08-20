@@ -6,7 +6,7 @@ ifndef RTE_SDK
 endif
 
 ifndef RTE_TARGET
-    RTE_TARGET = x86_64-native-linuxapp-gcc
+    RTE_TARGET = $(shell uname -m)-native-linuxapp-gcc
 endif
 
 ifneq ($(wildcard $(RTE_SDK)/$(RTE_TARGET)/*),)
@@ -23,7 +23,7 @@ endif
 
 KMOD_INC_DIR = kmod
 
-CFLAGS += -std=gnu99 -g3 -ggdb3 -Ofast -m64 -march=native \
+CFLAGS += -std=gnu99 -g3 -ggdb3 -Ofast -march=native \
 	  -Wall -Werror -Wno-unused-function -Wno-unused-but-set-variable \
 	  -I$(KMOD_INC_DIR) -I$(DPDK_INC_DIR) \
 	  -D_GNU_SOURCE

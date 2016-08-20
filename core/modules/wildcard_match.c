@@ -75,7 +75,7 @@ wm_keycmp(const hkey_t *key, const hkey_t *key_stored, size_t key_len)
 static inline uint32_t
 wm_hash(const hkey_t *key, uint32_t key_len, uint32_t init_val)
 {
-#if __SSE4_2__
+#if __SSE4_2__ && __x86_64
 	const uint64_t *a = key->u64_arr;
 
 	switch (key_len >> 3) {
@@ -429,7 +429,8 @@ extract_key_mask(struct wm_priv *priv, struct snobj *arg,
 		if (v & ~m)
 			return snobj_err(EINVAL,
 					"idx %d: invalid pair of "
-					"value 0x%0*lx and mask 0x%0*lx",
+					"value 0x%0*"PRIx64" and "
+					"mask 0x%0*"PRIx64,
 					i,
 					field_size * 2, v, field_size * 2, m);
 

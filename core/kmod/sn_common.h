@@ -77,9 +77,6 @@ typedef uint64_t phys_addr_t;
 #include "llring.h"
 
 #define SN_MAX_CPU			64
-#if defined(NR_CPUS) && SN_MAX_CPU > NR_CPUS
-	#error SN_MAX_CPU is larger than NR_CPUS
-#endif
 
 #define SN_MAX_TXQ			32
 #define SN_MAX_RXQ			32
@@ -162,7 +159,7 @@ struct sn_tx_desc {
 struct sn_rx_metadata {
 	/* Maximum TCP "payload" size among coalesced packets.
 	 * 0 for non-coalesed packets */
-	uint16_t gso_mss;	
+	uint16_t gso_mss;
 
 	uint8_t	csum_state;	/* SN_RX_CSUM_* */
 };
@@ -177,7 +174,7 @@ struct sn_rx_desc {
 
 	/* The physical address of next snbuf
 	 * (forms a NULL-terminating linked list) */
-	phys_addr_t next;		
+	phys_addr_t next;
 
 	struct sn_rx_metadata meta;
 };
@@ -202,7 +199,7 @@ struct sn_rx_desc {
 /* NOTE: The host mode and guest mode behave differently,
  * since there are differences in who has access whose packet buffer
  * (thus who can perform the copy).
- * For host mode, the driver is the copier. 
+ * For host mode, the driver is the copier.
  * For guest mode, BESS is the copier. */
 
 /* Current host mode operation:
@@ -215,7 +212,7 @@ struct sn_rx_desc {
  * Then the driver will copy (metedata + packet data) _into_ those buffers
  * as packets are transmitted, and writeback the cookie via the drv_to_sn.
  *   1. Cookie
- * 
+ *
  *
  * RX:
  * BESS feeds received packet buffers to the driver via the sn_to_drv llring,

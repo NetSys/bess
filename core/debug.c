@@ -253,9 +253,9 @@ static void trap_handler(int sig_num, siginfo_t *info, void *ucontext)
 
 	uc = (struct ucontext *)ucontext;
 
-#if defined(RTE_ARCH_I686)
+#if __i386
 	ip = (void *) uc->uc_mcontext.gregs[REG_EIP];
-#elif defined(RTE_ARCH_X86_64)
+#elif __x86_64
 	ip = (void *) uc->uc_mcontext.gregs[REG_RIP];
 #else
 	#error neither x86 or x86-64
@@ -289,7 +289,7 @@ static void trap_handler(int sig_num, siginfo_t *info, void *ucontext)
 	/* The return addresses point to the next instruction
 	 * after its call, so adjust. */
 	for (i = skips + 1; i < cnt; i++)
-		addrs[i] = (void *)((uint64_t)addrs[i] - 1);
+		addrs[i] = (void *)((uintptr_t)addrs[i] - 1);
 
 	symbols = backtrace_symbols(addrs, cnt);
 
@@ -351,6 +351,7 @@ void dump_types(void)
 	printf("sizeof(int)=%zu\n", sizeof(int));
 	printf("sizeof(long)=%zu\n", sizeof(long));
 	printf("sizeof(long long)=%zu\n", sizeof(long long));
+	printf("sizeof(intmax_t)=%zu\n", sizeof(intmax_t));
 	printf("sizeof(void *)=%zu\n", sizeof(void *));
 	printf("sizeof(size_t)=%zu\n", sizeof(size_t));
 

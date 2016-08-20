@@ -33,7 +33,7 @@ static void snbuf_pkt_init(struct rte_mempool *mp, void *opaque_arg,
 
 	immutable->vaddr = snb;
 	immutable->paddr = rte_mempool_virt2phy(mp, snb);
-	immutable->sid = (uint32_t)(uint64_t)opaque_arg;
+	immutable->sid = (uintptr_t)opaque_arg;
 	immutable->index = i;
 }
 
@@ -59,7 +59,7 @@ again:
 			NUM_MEMPOOL_CACHE,
 			sizeof(struct rte_pktmbuf_pool_private),
 			rte_pktmbuf_pool_init, &pool_priv,
-			snbuf_pkt_init, (void *)(int64_t)sid,
+			snbuf_pkt_init, (void *)(uintptr_t)sid,
 			sid, 0);
 
 	if (!pframe_pool[sid]) {
@@ -173,8 +173,8 @@ struct snbuf *paddr_to_snb(phys_addr_t paddr)
 			if (snb_to_paddr(snb) != paddr) {
 				log_err("snb->immutable.paddr corruption: "
 						"snb=%p, snb->immutable.paddr="
-						"%lx (!= %lx)\n",
-						snb, snb->immutable.paddr,
+						"%"PRIx64" (!= %"PRIx64")\n",
+						snb, snb->immutable.paddr, 
 						paddr);
 				return NULL;
 			}

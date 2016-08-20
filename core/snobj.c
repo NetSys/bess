@@ -2,6 +2,8 @@
 #include <stdio.h>
 #include <errno.h>
 #include <stdarg.h>
+#include <stdint.h>
+#include <inttypes.h>
 
 #include "log.h"
 
@@ -456,7 +458,7 @@ static void snobj_dump_recur(const struct snobj *m, int indent, int list_depth)
 		if (list_depth)
 			print_heading(indent, list_depth);
 
-		log_debug("%ld\n", m->int_value);
+		log_debug("%"PRId64"\n", m->int_value);
 		break;
 
 	case TYPE_DOUBLE:
