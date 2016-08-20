@@ -33,13 +33,17 @@
 
 #include "sn.h"
 
-static void 
+static void
 sn_dump_queue_mapping(struct sn_device *dev) __attribute__((unused));
 
 #define BUFS_PER_CPU 32
 
+/* We cannot directly use phys_addr_t on 32bit machines,
+ * since it may be sizeof(phys_addr_t) != sizeof(void *) */
+typedef uintptr_t paddr_t;
+
 struct snb_cache {
-	phys_addr_t paddr[BUFS_PER_CPU];
+	paddr_t paddr[BUFS_PER_CPU];
 	int cnt;
 };
 
@@ -80,7 +84,7 @@ static int sn_host_release(struct inode *inode, struct file *filp)
 	return 0;
 }
 
-static int load_from_cache(phys_addr_t paddr[], int cnt)
+static int load_from_cache(paddr_t paddr[], int cnt)
 {
 	struct snb_cache *cache;
 	int loaded;
@@ -90,13 +94,13 @@ static int load_from_cache(phys_addr_t paddr[], int cnt)
 	loaded = min(cnt, cache->cnt);
 
 	memcpy(paddr, &cache->paddr[cache->cnt - loaded],
-			loaded * sizeof(phys_addr_t));
+			loaded * sizeof(paddr_t));
 	cache->cnt -= loaded;
 
 	return loaded;
 }
 
-static int store_to_cache(phys_addr_t paddr[], int cnt)
+static int store_to_cache(paddr_t paddr[], int cnt)
 {
 	struct snb_cache *cache;
 	int free_slots;
@@ -107,14 +111,13 @@ static int store_to_cache(phys_addr_t paddr[], int cnt)
 	free_slots = BUFS_PER_CPU - cache->cnt;
 	stored = min(cnt, free_slots);
 
-	memcpy(&cache->paddr[cache->cnt], paddr, 
-			stored * sizeof(phys_addr_t));
+	memcpy(&cache->paddr[cache->cnt], paddr, stored * sizeof(paddr_t));
 	cache->cnt += stored;
 
 	return stored;
 }
 
-static int alloc_snb_burst(struct sn_queue *queue, phys_addr_t paddr[], int cnt)
+static int alloc_snb_burst(struct sn_queue *queue, paddr_t paddr[], int cnt)
 {
 	int loaded;
 
@@ -127,9 +130,9 @@ static int alloc_snb_burst(struct sn_queue *queue, phys_addr_t paddr[], int cnt)
 	return loaded + cnt;
 }
 
-static void free_snb_bulk(struct sn_queue *queue, phys_addr_t paddr[], int cnt)
+static void free_snb_bulk(struct sn_queue *queue, paddr_t paddr[], int cnt)
 {
-	uint64_t vaddr_user[MAX_BATCH];
+	uintptr_t vaddr_user[MAX_BATCH];
 
 	int stored;
 	int ret;
@@ -140,7 +143,7 @@ static void free_snb_bulk(struct sn_queue *queue, phys_addr_t paddr[], int cnt)
 		return;
 
 	for (i = stored; i < cnt; i++)
-		vaddr_user[i] = *(uint64_t *)phys_to_virt(paddr[i] + 
+		vaddr_user[i] = *(uintptr_t *)phys_to_virt(paddr[i] +
 				SNBUF_IMMUTABLE_OFF);
 
 	ret = llring_sp_enqueue_bulk(queue->drv_to_sn,
@@ -148,13 +151,13 @@ static void free_snb_bulk(struct sn_queue *queue, phys_addr_t paddr[], int cnt)
 			cnt - stored);
 
 	if (ret == -LLRING_ERR_NOBUF && net_ratelimit()) {
-		log_err("%s: RX free queue overflow!\n", 
+		log_err("%s: RX free queue overflow!\n",
 				queue->dev->netdev->name);
 	}
 }
 
 static int sn_host_do_tx_batch(struct sn_queue *queue,
-		struct sk_buff *skb_arr[], 
+		struct sk_buff *skb_arr[],
 		struct sn_tx_metadata meta_arr[],
 		int cnt_requested)
 {
@@ -163,10 +166,10 @@ static int sn_host_do_tx_batch(struct sn_queue *queue,
 	int ret;
 	int i;
 
-	phys_addr_t paddr_arr[MAX_BATCH];
-	uint64_t vaddr_user[MAX_BATCH];
+	paddr_t paddr_arr[MAX_BATCH];
+	uintptr_t vaddr_user[MAX_BATCH];
 
-	cnt_to_send = min(cnt_requested, 
+	cnt_to_send = min(cnt_requested,
 			(int)llring_free_count(queue->drv_to_sn));
 
 	cnt = alloc_snb_burst(queue, paddr_arr, cnt_to_send);
@@ -182,8 +185,8 @@ static int sn_host_do_tx_batch(struct sn_queue *queue,
 		char *dst_addr;
 
 		int j;
-		
-		vaddr_user[i] = *((uint64_t *)phys_to_virt(paddr + 
+
+		vaddr_user[i] = *((uintptr_t *)phys_to_virt(paddr +
 					SNBUF_IMMUTABLE_OFF));
 		dst_addr = phys_to_virt(paddr + SNBUF_DATA_OFF);
 		tx_desc = phys_to_virt(paddr + SNBUF_SCRATCHPAD_OFF);
@@ -197,18 +200,18 @@ static int sn_host_do_tx_batch(struct sn_queue *queue,
 		for (j = 0; j < skb_shinfo(skb)->nr_frags; j++) {
 			skb_frag_t *frag = &skb_shinfo(skb)->frags[j];
 
-			memcpy(dst_addr, skb_frag_address(frag), 
+			memcpy(dst_addr, skb_frag_address(frag),
 					skb_frag_size(frag));
 			dst_addr += skb_frag_size(frag);
 		}
 	}
 
-	ret = llring_sp_enqueue_burst(queue->drv_to_sn, 
+	ret = llring_sp_enqueue_burst(queue->drv_to_sn,
 			(void **)vaddr_user, cnt);
 	if (ret < cnt && net_ratelimit()) {
 		/* It should never happen since we cap cnt with llring_count().
 		 * If it does, snbufs leak. Ouch. */
-		log_err("%s: queue %d is overflowing!\n", 
+		log_err("%s: queue %d is overflowing!\n",
 				queue->dev->netdev->name, queue->queue_id);
 	}
 
@@ -242,9 +245,9 @@ static void sn_host_flush_tx(void)
 		if (lock_required)
 			HARD_TX_LOCK(queue->dev->netdev, netdev_txq, cpu);
 
-		sent = sn_host_do_tx_batch(queue, 
-				buf_queue->skb_arr, 
-				buf_queue->meta_arr, 
+		sent = sn_host_do_tx_batch(queue,
+				buf_queue->skb_arr,
+				buf_queue->meta_arr,
 				buf_queue->cnt);
 
 		if (lock_required)
@@ -289,7 +292,7 @@ again:
 		}
 
 		buf_queue = &buf->queue_arr[buf->tx_queue_cnt++];
-		
+
 		buf_queue->cnt = 0;
 		buf_queue->queue = queue;
 	}
@@ -325,14 +328,14 @@ static int sn_host_do_rx_batch(struct sn_queue *queue,
 			       struct sk_buff **skbs,
 			       int max_cnt)
 {
-	phys_addr_t paddr[MAX_BATCH];
+	paddr_t paddr[MAX_BATCH];
 
 	int cnt;
 	int i;
 
 	max_cnt = min(max_cnt, MAX_BATCH);
 
-	cnt = llring_sc_dequeue_burst(queue->sn_to_drv, 
+	cnt = llring_sc_dequeue_burst(queue->sn_to_drv,
 			(void **)paddr, max_cnt);
 	if (cnt == 0)
 		return 0;
@@ -346,18 +349,22 @@ static int sn_host_do_rx_batch(struct sn_queue *queue,
 		char *ptr;
 
 		rx_desc = phys_to_virt(paddr[i] + SNBUF_SCRATCHPAD_OFF);
-		
+		if (!virt_addr_valid(rx_desc)) {
+			log_err("invalid rx_desc %lu %p\n", paddr[i], rx_desc);
+			continue;
+		}
+
 		rx_meta[i] = rx_desc->meta;
 		total_len = rx_desc->total_len;
 
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(3,19,0))
 		skb = skbs[i] = netdev_alloc_skb(queue->dev->netdev, total_len);
-#else 
+#else
 		skb = skbs[i] = napi_alloc_skb(&queue->rx.napi, total_len);
 #endif
 		if (!skb) {
 			if (net_ratelimit())
-				log_err("napi_alloc_skb() failed\n");
+				log_err("skb alloc (%dB) failed\n", total_len);
 			continue;
 		}
 
@@ -367,7 +374,7 @@ static int sn_host_do_rx_batch(struct sn_queue *queue,
 		do {
 			char *seg;
 			uint16_t seg_len;
-			
+
 			seg = phys_to_virt(rx_desc->seg);
 			seg_len = rx_desc->seg_len;
 
@@ -400,7 +407,7 @@ static struct sn_ops sn_host_ops = {
 	.flush_tx	= sn_host_flush_tx,
 };
 
-static void sn_dump_queue_mapping(struct sn_device *dev) 
+static void sn_dump_queue_mapping(struct sn_device *dev)
 {
 	char buf[512];
 	int buflen;
@@ -410,7 +417,7 @@ static void sn_dump_queue_mapping(struct sn_device *dev)
 	buflen = sprintf(buf, "CPU->TXQ mapping: ");
 
 	for_each_online_cpu(cpu) {
-		buflen += sprintf(buf + buflen, "%d->%d ", cpu, 
+		buflen += sprintf(buf + buflen, "%d->%d ", cpu,
 				dev->cpu_to_txq[cpu]);
 	}
 
@@ -426,14 +433,14 @@ static void sn_dump_queue_mapping(struct sn_device *dev)
 
 		if (dev->cpu_to_rxqs[cpu][1] == -1) {
 			/* 1-to-1 mapping */
-			buflen += sprintf(buf + buflen, "%d->%d ", cpu, 
+			buflen += sprintf(buf + buflen, "%d->%d ", cpu,
 					dev->cpu_to_rxqs[cpu][0]);
 
 		} else {
 			buflen += sprintf(buf + buflen, "%d->[", cpu);
 
 			while (dev->cpu_to_rxqs[cpu][i] != -1) {
-				buflen += sprintf(buf + buflen, "%s%d", 
+				buflen += sprintf(buf + buflen, "%s%d",
 						i > 0 ? ", " : "",
 						dev->cpu_to_rxqs[cpu][i]);
 				i++;
@@ -455,8 +462,8 @@ static int sn_host_ioctl_create_netdev(phys_addr_t bar_phys,
 	bar = phys_to_virt(bar_phys);
 
 	if (!virt_addr_valid(bar)) {
-		log_err("invalid BAR address: phys=%p virt=%p\n", 
-				(void *)bar_phys, bar);
+		log_err("invalid BAR address: phys=%llx virt=%p\n",
+				bar_phys, bar);
 		return -EFAULT;
 	}
 
@@ -475,7 +482,7 @@ static int sn_host_ioctl_create_netdev(phys_addr_t bar_phys,
 	return ret;
 }
 
-static int sn_host_ioctl_kick_rx(struct sn_device *dev, 
+static int sn_host_ioctl_kick_rx(struct sn_device *dev,
 				 unsigned long cpumask)
 {
 	cpumask_var_t mask;
@@ -502,7 +509,7 @@ static int sn_host_ioctl_kick_rx(struct sn_device *dev,
 	}
 
 	*((unsigned long *) mask) = cpumask;
-	
+
 	smp_call_function_many(mask, sn_trigger_softirq, dev, 0);
 
 	free_cpumask_var(mask);
@@ -547,7 +554,7 @@ static int sn_host_ioctl_set_queue_mapping(
 		dev->cpu_to_rxqs[cpu][0] = -1;
 	}
 
-	for (cpu = 0; cpu < SN_MAX_CPU; cpu++)
+	for (cpu = 0; cpu < min(SN_MAX_CPU, NR_CPUS); cpu++)
 		dev->cpu_to_txq[cpu] = map.cpu_to_txq[cpu];
 
 	for (rxq = 0; rxq < dev->num_rxq; rxq++) {
@@ -567,7 +574,7 @@ static int sn_host_ioctl_set_queue_mapping(
 	return 0;
 }
 
-static long 
+static long
 sn_host_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
 	struct sn_device *dev = filp->private_data;
@@ -601,7 +608,7 @@ sn_host_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 
 	case SN_IOC_SET_QUEUE_MAPPING:
 		if (dev)
-			ret = sn_host_ioctl_set_queue_mapping(dev, 
+			ret = sn_host_ioctl_set_queue_mapping(dev,
 				(struct sn_ioc_queue_mapping __user *) arg);
 		else
 			ret = -ENODEV;

@@ -20,7 +20,7 @@ typedef uint16_t value_t;
 
 HT_DECLARE_INLINED_FUNCS(inlined, uint32_t)
 
-static inline int 
+static inline int
 inlined_keycmp(const uint32_t *key, const uint32_t *key_stored, size_t key_size)
 {
 	return *key != *key_stored;
@@ -44,7 +44,7 @@ static inline value_t derive_val(uint32_t key)
 static inline uint32_t rand_fast_nonzero(uint64_t *seed)
 {
 	uint32_t ret;
-	
+
 	/* work around with the bug with zero key in DPDK hash table */
 	do {
 		ret = rand_fast(seed);
@@ -129,7 +129,7 @@ static void bess_inlined_get_bulk(void *arg, int iteration, int entries)
 				key_ptrs[j] = &keys[j];
 			}
 
-			ht_inlined_get_bulk(t, size, (const void **)key_ptrs, 
+			ht_inlined_get_bulk(t, size, (const void **)key_ptrs,
 					(void **)data_ptrs);
 
 			for (int j = 0; j < size; j++) {
@@ -289,7 +289,7 @@ static void dpdk_bulk(void *arg, int iteration, int entries)
 				key_ptrs[j] = &keys[j];
 			}
 
-			rte_hash_lookup_bulk(t, (const void **)key_ptrs, 
+			rte_hash_lookup_bulk(t, (const void **)key_ptrs,
 					size, positions);
 
 			for (int j = 0; j < size; j++) {
@@ -327,8 +327,8 @@ static void dpdk_data_hash(void *arg, int iteration, int entries)
 			uint32_t key = rand_fast_nonzero(&seed);
 			uintptr_t val;
 
-			rte_hash_lookup_with_hash_data(t, &key, 
-					crc32c_sse42_u32(key, UINT32_MAX), 
+			rte_hash_lookup_with_hash_data(t, &key,
+					crc32c_sse42_u32(key, UINT32_MAX),
 					(void **)&val);
 			assert((value_t)val == derive_val(key));
 		}
@@ -354,10 +354,10 @@ static void dpdk_data_bulk(void *arg, int iteration, int entries)
 				key_ptrs[j] = &keys[j];
 			}
 
-			rte_hash_lookup_bulk_data(t, (const void **)key_ptrs, 
+			rte_hash_lookup_bulk_data(t, (const void **)key_ptrs,
 					size, &hit_mask, (void **)&data);
 
-			assert(hit_mask == (1ul << size) - 1);
+			assert(hit_mask == ((uint64_t)1 << size) - 1);
 			for (int j = 0; j < size; j++)
 				assert((value_t)data[j] == derive_val(keys[j]));
 		}
@@ -394,18 +394,18 @@ static void perftest()
 {
 #if 1
 	const int test_entries[] = {
-		1, 4, 16, 64, 256, 1024, 4096, 
+		1, 4, 16, 64, 256, 1024, 4096,
 		16384, 65536, 262144, 1048576, 4194304
 	};
 #else
 	const int test_entries[] = {
-		16, 64, 256, 1024, 4096, 
+		16, 64, 256, 1024, 4096,
 		16384, 65536, 262144, 1048576, 4194304
 	};
 
 	const int test_entries[] = {
 		1, 2, 3, 4, 5, 6, 7, 8, 9,
-		10, 20, 30, 40, 50, 60, 70, 80, 90, 
+		10, 20, 30, 40, 50, 60, 70, 80, 90,
 	};
 
 	const int test_entries[] = {
@@ -415,7 +415,7 @@ static void perftest()
 
 	const int test_entries[] = {
 		1, 2, 3, 4, 5, 6, 7, 8, 9,
-		10, 20, 30, 40, 50, 60, 70, 80, 90, 
+		10, 20, 30, 40, 50, 60, 70, 80, 90,
 	};
 
 	const int test_entries[] = {
@@ -437,17 +437,17 @@ static void perftest()
 	const struct player players[] = {
 		{"ht_get", bess_init, bess_get, bess_close},
 		{"ht_inlined_get", bess_init, bess_inlined_get, bess_close},
-		{"ht_inlined_get_bulk(x16)", bess_init, 
+		{"ht_inlined_get_bulk(x16)", bess_init,
 			bess_inlined_get_bulk, bess_close},
-		{"rte_hash_lookup", dpdk_discrete_init, 
+		{"rte_hash_lookup", dpdk_discrete_init,
 			dpdk_, dpdk_discrete_close},
-		{"rte_hash_lookup_with_hash", dpdk_discrete_init, 
+		{"rte_hash_lookup_with_hash", dpdk_discrete_init,
 			dpdk_hash, dpdk_discrete_close},
-		{"rte_hash_lookup_bulk(x16)", dpdk_discrete_init, 
+		{"rte_hash_lookup_bulk(x16)", dpdk_discrete_init,
 			dpdk_bulk, dpdk_discrete_close},
-		{"rte_hash_lookup_data", dpdk_embedded_init, 
+		{"rte_hash_lookup_data", dpdk_embedded_init,
 			dpdk_data, dpdk_embedded_close},
-		{"rte_hash_lookup_with_hash_data", dpdk_embedded_init, 
+		{"rte_hash_lookup_with_hash_data", dpdk_embedded_init,
 			dpdk_data_hash, dpdk_embedded_close},
 		{"rte_hash_lookup_bulk_data(x16)", dpdk_embedded_init,
 			dpdk_data_bulk, dpdk_embedded_close},
@@ -482,7 +482,7 @@ static void perftest()
 				total_iteration += iteration;
 			} while (elapsed < 1);
 
-			printf("%9.1f", (total_iteration * entries) / 
+			printf("%9.1f", (total_iteration * entries) /
 					(elapsed * 1e6));
 
 			p->close(arg);

@@ -40,7 +40,7 @@ static int __init sndrv_init(void)
 {
 	int ret;
 
-	log_info("llring offsets - common %lu prod %lu cons %lu ring %lu\n",
+	log_info("llring offsets - common %zu prod %zu cons %zu ring %zu\n",
 			offsetof(struct llring, common),
 			offsetof(struct llring, prod),
 			offsetof(struct llring, cons),

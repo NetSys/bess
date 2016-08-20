@@ -29,6 +29,10 @@
 #define SINGLE_P		0
 #define SINGLE_C		0
 
+/* We cannot directly use phys_addr_t on 32bit machines,
+ * since it may be sizeof(phys_addr_t) != sizeof(void *) */
+typedef uintptr_t paddr_t;
+
 struct queue {
 	union {
 		struct sn_rxq_registers *rx_regs;
@@ -83,7 +87,7 @@ static void refill_tx_bufs(struct llring *r)
 		return;
 
 	for (int i = 0; i < ret; i++)
-		objs[i] = (void *)snb_to_paddr(pkts[i]);
+		objs[i] = (void *)(uintptr_t)snb_to_paddr(pkts[i]);
 
 	ret = llring_mp_enqueue_bulk(r, objs, ret);
 	assert(ret == 0);
@@ -93,7 +97,7 @@ static void drain_sn_to_drv_q(struct llring *q)
 {
 	/* sn_to_drv queues contain physical address of packet buffers */
 	for (;;) {
-		phys_addr_t paddr;
+		paddr_t paddr;
 		struct snbuf *snb;
 		int ret;
 
@@ -103,7 +107,7 @@ static void drain_sn_to_drv_q(struct llring *q)
 
 		snb = paddr_to_snb(paddr);
 		if (!snb) {
-			log_err("paddr_to_snb(%lx) failed\n", paddr);
+			log_err("paddr_to_snb(%"PRIxPTR") failed\n", paddr);
 			continue;
 		}
 
@@ -167,6 +171,7 @@ static void *alloc_bar(struct port *p,
 	total_bytes += p->num_queues[PACKET_DIR_OUT] *
 		(sizeof(struct sn_rxq_registers) + 2 * bytes_per_llring);
 
+log_err("total_bytes = %d\n", total_bytes);
 	bar = rte_zmalloc(NULL, total_bytes, 0);
 	assert(bar);
 
@@ -574,6 +579,7 @@ static struct snobj *init_port(struct port *p, struct snobj *conf)
 
 	priv->bar = alloc_bar(p, &txq_opts, &rxq_opts);
 
+log_err("%p %"PRIx64"\n", priv->bar, rte_malloc_virt2phy(priv->bar));
 	ret = ioctl(priv->fd, SN_IOC_CREATE_HOSTNIC,
 			rte_malloc_virt2phy(priv->bar));
 	if (ret < 0) {
@@ -682,7 +688,7 @@ static int vport_send_pkts(struct port *p, queue_t qid,
 	struct vport_priv *priv = get_port_priv(p);
 	struct queue *rx_queue = &priv->out_qs[qid];
 
-	phys_addr_t paddr[MAX_PKT_BURST];
+	paddr_t paddr[MAX_PKT_BURST];
 
 	int ret;
 

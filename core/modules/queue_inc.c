@@ -51,7 +51,7 @@ static struct snobj *queue_inc_init(struct module *m, struct snobj *arg)
 	if (snobj_eval_int(arg, "prefetch"))
 		priv->prefetch = 1;
 
-	tid = register_task(m, (void *)(uint64_t)priv->qid);
+	tid = register_task(m, (void *)(uintptr_t)priv->qid);
 	if (tid == INVALID_TASK_ID)
 		return snobj_err(ENOMEM, "Task creation failed");
 
@@ -87,7 +87,7 @@ queue_inc_run_task(struct module *m, void *arg)
 	struct queue_inc_priv *priv = get_priv(m);
 	struct port *p = priv->port;
 
-	const queue_t qid = (queue_t)(uint64_t)arg;
+	const queue_t qid = (queue_t)(uintptr_t)arg;
 
 	struct pkt_batch batch;
 	struct task_result ret;

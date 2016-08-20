@@ -44,7 +44,7 @@ static struct snobj *port_inc_init(struct module *m, struct snobj *arg)
 				port_name);
 
 	for (queue_t qid = 0; qid < num_inc_q; qid++) {
-		task_id_t tid = register_task(m, (void *)(uint64_t)qid);
+		task_id_t tid = register_task(m, (void *)(uintptr_t)qid);
 
 		if (tid == INVALID_TASK_ID)
 			return snobj_err(ENOMEM, "Task creation failed");
@@ -82,7 +82,7 @@ port_inc_run_task(struct module *m, void *arg)
 	struct port_inc_priv *priv = get_priv(m);
 	struct port *p = priv->port;
 
-	const queue_t qid = (queue_t)(uint64_t)arg;
+	const queue_t qid = (queue_t)(uintptr_t)arg;
 
 	struct pkt_batch batch;
 	struct task_result ret;

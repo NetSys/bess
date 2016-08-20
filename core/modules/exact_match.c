@@ -67,7 +67,7 @@ em_keycmp(const hkey_t *key, const hkey_t *key_stored, size_t key_len)
 static inline uint32_t
 em_hash(const hkey_t *key, uint32_t key_len, uint32_t init_val)
 {
-#if __SSE4_2__
+#if __SSE4_2__ && __x86_64
 	const uint64_t *a = key->u64_arr;
 
 	switch (key_len >> 3) {
@@ -123,7 +123,7 @@ add_field_one(struct module *m, struct snobj *field, struct field *f, int idx)
 
 	if (!mask) {
 		/* by default all bits are considered */
-		f->mask = (1ul << (f->size * 8)) - 1;
+		f->mask = ((uint64_t)1 << (f->size * 8)) - 1;
 	} else if (snobj_binvalue_get(mask, f->size, &f->mask, force_be))
 		return snobj_err(EINVAL, "idx %d: not a correct %d-byte mask",
 				idx, f->size);

@@ -26,7 +26,7 @@ static struct snobj *split_init(struct module *m, struct snobj *arg)
 	if (priv->size < 1 || priv->size > MAX_SIZE)
 		return snobj_err(EINVAL, "'size' must be 1-%d", MAX_SIZE);
 
-	priv->mask = (1ul << (priv->size * 8)) - 1;
+	priv->mask = ((uint64_t)1 << (priv->size * 8)) - 1;
 
 	const char *name = snobj_eval_str(arg, "name");
 

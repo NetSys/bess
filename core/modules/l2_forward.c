@@ -123,7 +123,7 @@ static uint32_t l2_alt_index(uint32_t hash, uint32_t size_power, uint32_t index)
 static inline int find_index_basic(uint64_t addr, uint64_t *table)
 {
 	for (int i = 0; i < 4; i++) {
-		if ((addr | (1ul<<63)) == (table[i] & 0x8000ffffFFFFffffUL))
+		if ((addr | ((uint64_t)1 << 63)) == (table[i] & 0x8000ffffFFFFffffUL))
 			return i + 1;
 	}
 
@@ -141,7 +141,7 @@ const union {
 
 static inline int find_index_avx(uint64_t addr, uint64_t *table)
 {
-	__m256d _addr = (__m256d)_mm256_set1_epi64x(addr | (1lu << 63));
+	__m256d _addr = (__m256d)_mm256_set1_epi64x(addr | ((uint64_t)1 << 63));
 	__m256d _table = _mm256_load_pd((double *)table);
 	_table = _mm256_and_pd(_table, _mask._mask);
 	__m256d cmp = _mm256_cmp_pd(_addr, _table, _CMP_EQ_OQ);
@@ -432,11 +432,11 @@ static void l2_forward_entry_test()
 	assert(!ret);
 
 	ret = l2_add_entry(&l2tbl, addr1, index1);
-	log_debug("add entry: %lu, index: %hu\n", addr1, index1);
+	log_debug("add entry: %"PRIu64", index: %hu\n", addr1, index1);
 	assert(!ret);
 
 	ret = l2_find(&l2tbl, addr1, &gate_index);
-	log_debug("find entry: %lu, index: %hu\n", addr1, gate_index);
+	log_debug("find entry: %"PRIu64", index: %hu\n", addr1, gate_index);
 	assert(!ret);
 	assert(index1==gate_index);
 
@@ -505,7 +505,8 @@ void l2_forward_collision_test()
 		idx[i] = random() % USHRT_MAX;
 
 		ret = l2_add_entry(&l2tbl, addr[i], idx[i]);
-		log_debug("insert result:%ld %d %d\n", addr[i], idx[i], ret);
+		log_debug("insert result:%"PRId64" %d %d\n",
+				addr[i], idx[i], ret);
 		success[i] = (ret >= 0);
 	}
 
@@ -517,7 +518,7 @@ void l2_forward_collision_test()
 
 		ret = l2_find(&l2tbl, addr[i], &gate_index);
 
-		log_debug("find result: %ld, %d, %d\n", 
+		log_debug("find result: %"PRId64", %d, %d\n",
 				addr[i], gate_index, offset);
 
 		if (success[i]) {
