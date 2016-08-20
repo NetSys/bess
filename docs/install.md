@@ -1,11 +1,11 @@
 ## Installation
 
-BESS runs on x86 64-bit Linux machines. After downloading BESS, simply run the build script `build.py`.
+BESS runs on x86 Linux machines (64bit is recommended). After downloading BESS, simply run the build script `build.py`.
 
 ```
 $ git clone https://github.com/NetSys/bess.git
 $ bess/build.py
-Downloading http://dpdk.org/browse/dpdk/snapshot/dpdk-2.2.0.tar.gz ... |
+Downloading http://dpdk.org/browse/dpdk/snapshot/dpdk-16.07.tar.gz ... |
 Decompressing DPDK...
 Configuring DPDK...
 Building DPDK...
