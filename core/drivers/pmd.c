@@ -219,7 +219,10 @@ static struct snobj *pmd_init_port(struct port *p, struct snobj *conf)
 	rte_eth_dev_info_get(port_id, &dev_info);
 
 	eth_rxconf = dev_info.default_rxconf;
-	eth_rxconf.rx_drop_en = 1;
+
+	/* #36: em driver does not allow rx_drop_en enabled */
+	if (strcmp(dev_info.driver_name, "rte_em_pmd") != 0)
+		eth_rxconf.rx_drop_en = 1;
 
 	eth_txconf = dev_info.default_txconf;
 	eth_txconf.txq_flags = ETH_TXQ_FLAGS_NOVLANOFFL |
