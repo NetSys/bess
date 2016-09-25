@@ -378,7 +378,9 @@ static int pmd_send_pkts(struct port *p, queue_t qid, snb_array_t pkts, int cnt)
 }
 
 static const struct driver pmd = {
-	.name 		= "PMD",
+	.name 		= "PMDPort",
+	.help		= "DPDK poll mode driver",
+	.def_port_name	= "pmd_port",
 	.priv_size	= sizeof(struct pmd_priv),
 	.def_size_inc_q = 256,
 	.def_size_out_q = 256,
