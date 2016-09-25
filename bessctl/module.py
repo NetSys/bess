@@ -2,24 +2,25 @@ import types
 
 def _callback_factory(self, cmd):
     return lambda mod, arg=None, **kwargs: \
-        self.bess.run_module_command(self.name, cmd, 
+        self.bess.run_module_command(self.name, cmd,
                 self.choose_arg(arg, kwargs))
 
 class Module(object):
-    def __init__(self, arg=None, **kwargs):
+    def __init__(self, **kwargs):
         self.name = '<uninitialized>'
+        self.mclass = self.__class__.__name__
 
         assert self.__class__.__name__ != 'Module', \
-                "cannot instantiate 'Module'"
+                "do not instantiate 'Module' directly"
 
-        if '_name' in kwargs:
-            name = kwargs['_name']
-            del kwargs['_name']
+        if 'name' in kwargs:
+            name = kwargs['name']
+            del kwargs['name']
         else:
             name = None
 
-        ret = self.bess.create_module(self.__class__.__name__, name, 
-                self.choose_arg(arg, kwargs))
+        ret = self.bess.create_module(self.__class__.__name__, name,
+                self.choose_arg(None, kwargs))
 
         self.name = ret.name
         #print 'Module %s created' % self
@@ -70,7 +71,7 @@ class Module(object):
         if next_mod.igate is not None:
             igate = next_mod.igate
             next_mod.igate = None
-        
+
         return self.connect(next_mod, ogate, igate)
 
     def connect(self, next_mod, ogate = 0, igate = 0):
@@ -81,6 +82,6 @@ class Module(object):
         #        (self.name, ogate, igate, next_mod.name)
 
         self.bess.connect_modules(self.name, next_mod.name, ogate, igate)
-        
+
         # for a->b->c syntax
-        return next_mod     
+        return next_mod
