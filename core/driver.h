@@ -1,4 +1,4 @@
-#ifndef _DRIVER_H_ 
+#ifndef _DRIVER_H_
 #define _DRIVER_H_
 
 #include "common.h"
@@ -33,11 +33,14 @@ struct driver {
 	/* Required: should be like "CamelCase" */
 	const char *name;
 
-	/* Optional: should be like "lower_case". 
+	/* Optional: one-line description of the port driver */
+	const char *help;
+
+	/* Optional: should be like "lower_case".
 	 * - "%d" is automatically appended.
-	 * - Anonymous modules will have a default name "source0", "source1", ... 
-	 * - If this field is not provided, the mclass name will be used 
-	 *   after auto transformation (CamelCase -> camel_case)*/
+	 * - Unnamed ports will have a default name "pmd_port0", "pmd_port1" ...
+	 * - If this field is not provided, the driver name will be used
+	 *   after auto transformation (CamelCase -> camel_case) */
 	const char *def_port_name;
 
 	/* Optional: the size of per-port private data, if any. 0 by default */
@@ -64,12 +67,21 @@ struct driver {
 
 	/* Optional: port-specific query interface */
 	struct snobj *(*query)(struct port *p, struct snobj *q);
-	
+
 	/* Optional */
 	pkt_io_func_t recv_pkts;
 
 	/* Optional */
 	pkt_io_func_t send_pkts;
+
+	const struct {
+		const char *cmd;
+		cmd_func_t func;
+
+		/* if non-zero, workers don't need to be paused in order to
+		 * run this command */
+		int mt_safe;
+	} commands[MAX_COMMANDS];
 };
 
 size_t list_drivers(const struct driver **p_arr, size_t arr_size, size_t offset);

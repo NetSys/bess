@@ -26,18 +26,18 @@ static struct snobj *pcap_init_port(struct port *p, struct snobj *conf)
 
 	if (snobj_eval_str(conf, "dev"))
 		strncpy(priv->dev, snobj_eval_str(conf, "dev"), PCAP_IFNAME);
-	else 
+	else
 		return snobj_err(EINVAL, "PCAP need to set dev option");
 
 	//non-blocking pcap
-	priv->pcap_handle = pcap_open_live(priv->dev, PCAP_SNAPLEN, 1, -1, 
+	priv->pcap_handle = pcap_open_live(priv->dev, PCAP_SNAPLEN, 1, -1,
 			errbuf);
 	if(priv->pcap_handle == NULL)
 		return snobj_err(ENODEV, "PCAP Open dev error: %s", errbuf);
 
 	int ret = pcap_setnonblock(priv->pcap_handle, 1, errbuf);
 	if (ret != 0)
-		return snobj_err(ENODEV, "PCAP set to nonblock error: %s", 
+		return snobj_err(ENODEV, "PCAP set to nonblock error: %s",
 				errbuf);
 
 	log_info("PCAP: open dev %s\n", priv->dev);
@@ -96,7 +96,7 @@ static int pcap_rx_jumbo(struct rte_mempool *mb_pool,
 }
 
 
-static int 
+static int
 pcap_recv_pkts(struct port *p, queue_t qid, snb_array_t pkts, int cnt)
 {
 	const u_char *packet;
@@ -104,7 +104,7 @@ pcap_recv_pkts(struct port *p, queue_t qid, snb_array_t pkts, int cnt)
 	struct pcap_priv *priv = get_port_priv(p);
 
 	int recv_cnt = 0;
-	struct snbuf *sbuf; 
+	struct snbuf *sbuf;
 
 	while(recv_cnt < cnt) {
 		packet = pcap_next(priv->pcap_handle, &header);
@@ -123,7 +123,7 @@ pcap_recv_pkts(struct port *p, queue_t qid, snb_array_t pkts, int cnt)
 			/* FIXME: no support for chained mbuf for now */
 			snb_free(sbuf);
 			break;
-			
+
 			/* Try read jumbo frame into multi mbufs. */
 			if (unlikely(pcap_rx_jumbo(sbuf->mbuf.pool,
 							&sbuf->mbuf,
@@ -202,8 +202,9 @@ static int pcap_send_pkts(struct port *p, queue_t qid, snb_array_t pkts, int cnt
 }
 
 static const struct driver pcap = {
-	.name 		= "PCAP",
-	.def_port_name	= "pcap", 
+	.name 		= "PCAPPort",
+	.help		= "libpcap live packet capture from Linux port",
+	.def_port_name	= "pcap_port",
 	.priv_size	= sizeof(struct pcap_priv),
 	.init_driver	= pcap_init_driver,
 	.init_port 	= pcap_init_port,

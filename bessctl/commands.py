@@ -48,7 +48,7 @@ def __bess_module__(module_names, mclass_name, *args, **kwargs):
     if isinstance(module_names, str):
         if module_names in caller_globals:
             raise ConfError("Module name %s already exists" % module_names)
-        obj = mclass_obj(*args, _name=module_names, **kwargs)
+        obj = mclass_obj(*args, name=module_names, **kwargs)
         caller_globals[module_names] = obj
         return obj
 
@@ -61,7 +61,7 @@ def __bess_module__(module_names, mclass_name, *args, **kwargs):
                 raise ConfError("Module name %s already exists" % module)
 
         for module in module_names:
-            obj = mclass_obj(*args, _name=module, **kwargs)
+            obj = mclass_obj(*args, name=module, **kwargs)
             caller_globals[module] = obj
             obj_list.append(obj)
         return obj_list
@@ -548,10 +548,15 @@ def _do_run_file(cli, conf_file):
         }
 
     class_names = cli.bess.list_mclasses()
+    driver_names = cli.bess.list_drivers()
 
-    # Add the special Port class. TODO: per-driver classes
-    new_globals['Port'] = type('Port', (Port,),
-            {'bess': cli.bess, 'choose_arg': _choose_arg})
+    # Add BESS port classes
+    for name in driver_names:
+        if name in new_globals:
+            raise cli.InternalError('Invalid driver name: %s' % name)
+
+        new_globals[name] = type(name, (Port,),
+                {'bess': cli.bess, 'choose_arg': _choose_arg})
 
     # Add BESS module classes
     for name in class_names:
@@ -1023,26 +1028,51 @@ def show_module_list(cli, module_names):
     for module_name in module_names:
         _show_module(cli, module_name)
 
-def _show_mclass(cli, cls_name):
+def _show_mclass(cli, cls_name, detail):
     info = cli.bess.get_mclass_info(cls_name)
 
     cli.fout.write( '%-16s %s\n' % (info.name, info.help))
-    if info.commands:
-        cli.fout.write('\t\t commands: %s\n' % (', '.join(info.commands)))
-    else:
-        cli.fout.write('\t\t (no commands)\n')
+
+    if detail:
+        if info.commands:
+            cli.fout.write('\t\t commands: %s\n' % (', '.join(info.commands)))
+        else:
+            cli.fout.write('\t\t (no commands)\n')
 
 @cmd('show mclass', 'Show all module classes')
 def show_mclass_all(cli):
     mclasses = cli.bess.list_mclasses()
 
     for cls_name in mclasses:
-        _show_mclass(cli, cls_name)
+        _show_mclass(cli, cls_name, False)
 
 @cmd('show mclass MCLASS...', 'Show the details of specified module classes')
 def show_mclass_list(cli, cls_names):
     for cls_name in cls_names:
-        _show_mclass(cli, cls_name)
+        _show_mclass(cli, cls_name, True)
+
+def _show_driver(cli, drv_name, detail):
+    info = cli.bess.get_driver_info(drv_name)
+
+    cli.fout.write( '%-16s %s\n' % (info.name, info.help))
+
+    if detail:
+        if info.commands:
+            cli.fout.write('\t\t commands: %s\n' % (', '.join(info.commands)))
+        else:
+            cli.fout.write('\t\t (no commands)\n')
+
+@cmd('show driver', 'Show all port drivers')
+def show_driver_all(cli):
+    drivers = cli.bess.list_drivers()
+
+    for drv_name in drivers:
+        _show_driver(cli, drv_name, False)
+
+@cmd('show driver DRIVER...', 'Show the details of specified drivers')
+def show_driver_list(cli, drv_names):
+    for drv_name in drv_names:
+        _show_driver(cli, drv_name, True)
 
 def _monitor_pipeline(cli, field):
     modules = sorted(cli.bess.list_modules())

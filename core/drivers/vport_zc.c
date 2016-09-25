@@ -166,7 +166,7 @@ static void vport_deinit_port(struct port *p)
 	for (int i = 0; i <num_out_q; i++) {
 		snprintf(file_name, PORT_NAME_LEN + 256, "%s/%s/%s.rx%d",
 				P_tmpdir, VPORT_DIR_PREFIX, p->name, i);
-		
+
 		unlink(file_name);
 		close(priv->out_irq_fd[i]);
 	}
@@ -184,7 +184,7 @@ vport_send_pkts(struct port *p, queue_t qid, snb_array_t pkts, int cnt)
 	struct vport_priv *priv = get_port_priv(p);
 	struct llring* q = priv->out_qs[qid];
 	int ret;
-	
+
 	ret = llring_enqueue_bulk(q, (void**)pkts, cnt);
 	if (ret == -LLRING_ERR_NOBUF)
 		return 0;
@@ -205,13 +205,14 @@ vport_recv_pkts(struct port *p, queue_t qid, snb_array_t pkts, int cnt)
 	struct vport_priv *priv = get_port_priv(p);
 	struct llring* q = priv->inc_qs[qid];
 	int ret;
-	
+
 	ret = llring_dequeue_burst(q, (void **)pkts, cnt);
 	return ret;
 }
 
 static const struct driver vport = {
 	.name 		= "ZeroCopyVPort",
+	.help		= "zero copy virtual port for trusted user apps",
 	.def_port_name	= "zcvport",
 	.priv_size	= sizeof(struct vport_priv),
 	.init_port 	= vport_init_port,

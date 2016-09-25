@@ -21,7 +21,7 @@ class BESS(object):
             else:
                 err_code = '<unknown>'
             return 'errno: %d (%s: %s), %s, details: %s' % \
-                    (self.err, err_code, os.strerror(self.err), 
+                    (self.err, err_code, os.strerror(self.err),
                             self.errmsg, repr(self.details))
 
     # errors from this class itself
@@ -120,8 +120,8 @@ class BESS(object):
 
     def _request_module(self, name, cmd, arg=None):
         if arg is not None:
-            return self._request({'to': 'module', 'name': name, 'cmd': cmd, 
-                    'arg': arg}) 
+            return self._request({'to': 'module', 'name': name, 'cmd': cmd,
+                    'arg': arg})
         else:
             return self._request({'to': 'module', 'name': name, 'cmd': cmd})
 
@@ -143,13 +143,16 @@ class BESS(object):
     def list_drivers(self):
         return self._request_bess('list_drivers')
 
+    def get_driver_info(self, name):
+        return self._request_bess('get_driver_info', name)
+
     def reset_ports(self):
         return self._request_bess('reset_ports')
 
     def list_ports(self):
         return self._request_bess('list_ports')
 
-    def create_port(self, driver = 'PMD', name=None, arg=None):
+    def create_port(self, driver, name=None, arg=None):
         kv = {'driver': driver}
 
         if name is not None:    kv['name'] = name
@@ -190,11 +193,11 @@ class BESS(object):
         return self._request_bess('get_module_info', name)
 
     def connect_modules(self, m1, m2, ogate=0, igate=0):
-        return self._request_bess('connect_modules', 
+        return self._request_bess('connect_modules',
                 {'m1': m1, 'm2': m2, 'ogate': ogate, 'igate': igate})
 
     def disconnect_modules(self, name, ogate = 0):
-        return self._request_bess('disconnect_modules', 
+        return self._request_bess('disconnect_modules',
                 {'name': name, 'ogate': ogate})
 
     def run_module_command(self, name, cmd, arg):

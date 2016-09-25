@@ -14,7 +14,7 @@
 
 /* Polling sockets is quite exprensive, so we throttle the polling rate.
  * (by checking sockets once every RECV_TICKS schedules)
- * TODO: Revise this once the interrupt mode is implemented */ 
+ * TODO: Revise this once the interrupt mode is implemented */
 #define RECV_SKIP_TICKS	256
 
 #define MAX_TX_FRAGS	8
@@ -24,7 +24,7 @@ struct unix_priv {
 	int listen_fd;
 	struct sockaddr_un addr;
 
-	/* NOTE: three threads (accept / recv / send) may race on this, 
+	/* NOTE: three threads (accept / recv / send) may race on this,
 	 * so use volatile */
 	volatile int client_fd;
 	int old_client_fd;
@@ -48,12 +48,12 @@ static void accept_new_client(struct unix_priv *priv)
 	priv->recv_skip_cnt = 0;
 
 	if (priv->old_client_fd != NOT_CONNECTED) {
-		/* Reuse the old file descriptor number by atomically 
+		/* Reuse the old file descriptor number by atomically
 		 * exchanging the new fd with the old one.
 		 * The zombie socket is closed silently (see dup2) */
 		dup2(ret, priv->client_fd);
 		close(ret);
-	} else 
+	} else
 		priv->client_fd = ret;
 }
 
@@ -69,7 +69,7 @@ static void *accept_thread_main(void *arg)
 	return NULL;
 }
 
-/* The file descriptor for the connection will not be closed, 
+/* The file descriptor for the connection will not be closed,
  * until we have a new client. This is to avoid race condition in TX process */
 static void close_connection(struct unix_priv *priv)
 {
@@ -80,7 +80,7 @@ static void close_connection(struct unix_priv *priv)
 	priv->client_fd = NOT_CONNECTED;
 
 	/* relaunch the accept thread */
-	ret = pthread_create(&priv->accept_thread, NULL, 
+	ret = pthread_create(&priv->accept_thread, NULL,
 			accept_thread_main, priv);
 	if (ret)
 		log_err("[UnixSocket]:pthread_create() returned errno %d", ret);
@@ -102,7 +102,7 @@ static struct snobj *unix_init_port(struct port *p, struct snobj *conf)
 	priv->old_client_fd = NOT_CONNECTED;
 
 	if (num_txq > 1 || num_rxq > 1)
-		return snobj_err(EINVAL, 
+		return snobj_err(EINVAL,
 				"Cannot have more than 1 queue per RX/TX");
 
 	priv->listen_fd = socket(AF_UNIX, SOCK_SEQPACKET, 0);
@@ -113,7 +113,7 @@ static struct snobj *unix_init_port(struct port *p, struct snobj *conf)
 
 	path = snobj_eval_str(conf, "path");
 	if (path) {
-		snprintf(priv->addr.sun_path, sizeof(priv->addr.sun_path), 
+		snprintf(priv->addr.sun_path, sizeof(priv->addr.sun_path),
 				"%s", path);
 	} else
 		snprintf(priv->addr.sun_path, sizeof(priv->addr.sun_path),
@@ -137,7 +137,7 @@ static struct snobj *unix_init_port(struct port *p, struct snobj *conf)
 	if (ret < 0)
 		return snobj_err(errno, "listen() failed");
 
-	ret = pthread_create(&priv->accept_thread, NULL, 
+	ret = pthread_create(&priv->accept_thread, NULL,
 			accept_thread_main, priv);
 	if (ret)
 		return snobj_err(ret, "pthread_create() failed");
@@ -158,11 +158,11 @@ static void unix_deinit_port(struct port *p)
 		close(priv->client_fd);
 }
 
-static int 
+static int
 unix_recv_pkts(struct port *p, queue_t qid, snb_array_t pkts, int cnt)
 {
 	struct unix_priv *priv = get_port_priv(p);
-	
+
 	int client_fd = priv->client_fd;
 
 	int received;
@@ -180,7 +180,7 @@ unix_recv_pkts(struct port *p, queue_t qid, snb_array_t pkts, int cnt)
 		struct snbuf *pkt = snb_alloc();
 		int ret;
 
-		if (!pkt) 
+		if (!pkt)
 			break;
 
 		/* datagrams larger than 2KB will be truncated */
@@ -213,7 +213,7 @@ unix_recv_pkts(struct port *p, queue_t qid, snb_array_t pkts, int cnt)
 	return received;
 }
 
-static int 
+static int
 unix_send_pkts(struct port *p, queue_t qid, snb_array_t pkts, int cnt)
 {
 	struct unix_priv *priv = get_port_priv(p);
@@ -255,10 +255,12 @@ unix_send_pkts(struct port *p, queue_t qid, snb_array_t pkts, int cnt)
 }
 
 static const struct driver unix_socket = {
-	.name 		= "UnixSocket",
+	.name 		= "UnixSocketPort",
+	.help		= "packet exchange via a UNIX domain socket",
+	.def_port_name	= "unix_port",
 	.priv_size 	= sizeof(struct unix_priv),
 	.init_port 	= unix_init_port,
-	.deinit_port	= unix_deinit_port, 
+	.deinit_port	= unix_deinit_port,
 	.recv_pkts 	= unix_recv_pkts,
 	.send_pkts 	= unix_send_pkts,
 };

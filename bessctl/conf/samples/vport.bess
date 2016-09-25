@@ -1,8 +1,8 @@
 # To test a container vport, use this instead
-# v = Port(driver='VPort', ifname='sn0', docker=<name or CID>, ip_addr='192.168.10.1/24')
-v = Port(driver='VPort')
+# v = VPort(docker=<name or CID>, ip_addr='192.168.10.1/24')
+v = VPort()
 
-p = Port(driver='PMD', port_id = 0)
+p = PMDPort(port_id=0)
 
 PortInc(port=p) -> PortOut(port=v)
 PortInc(port=v) -> PortOut(port=p)

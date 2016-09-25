@@ -23,7 +23,7 @@ struct handler_map {
 	struct snobj *(*func)(struct snobj *);
 };
 
-static const char *resource_names[NUM_RESOURCES] = 
+static const char *resource_names[NUM_RESOURCES] =
 		{"schedules", "cycles", "packets", "bits"};
 
 static int name_to_resource(const char *name)
@@ -101,7 +101,7 @@ static struct snobj *handle_list_workers(struct snobj *q)
 
 		worker = snobj_map();
 		snobj_map_set(worker, "wid", snobj_int(wid));
-		snobj_map_set(worker, "running", 
+		snobj_map_set(worker, "running",
 				snobj_int(is_worker_running(wid)));
 		snobj_map_set(worker, "core",
 				snobj_int(workers[wid]->core));
@@ -171,7 +171,7 @@ static struct snobj *handle_reset_tcs(struct snobj *q)
 		n++;
 	}
 
-	ns_release_iterator(&iter);	
+	ns_release_iterator(&iter);
 
 	for (int i = 0; i < n; i++) {
 		c = c_arr[i];
@@ -209,12 +209,12 @@ static struct snobj *handle_list_tcs(struct snobj *q)
 		wid_filter = snobj_uint_get(t);
 
 		if (wid_filter >= MAX_WORKERS)
-			return snobj_err(EINVAL, 
+			return snobj_err(EINVAL,
 					"'wid' must be between 0 and %d",
 					MAX_WORKERS - 1);
 
 		if (!is_worker_active(wid_filter))
-			return snobj_err(EINVAL, "worker:%d does not exist", 
+			return snobj_err(EINVAL, "worker:%d does not exist",
 					wid_filter);
 	}
 
@@ -231,7 +231,7 @@ static struct snobj *handle_list_tcs(struct snobj *q)
 			wid = wid_filter;
 		} else {
 			for (wid = 0; wid < MAX_WORKERS; wid++)
-				if (is_worker_active(wid) && 
+				if (is_worker_active(wid) &&
 						workers[wid]->s == c->s)
 					break;
 		}
@@ -294,7 +294,7 @@ static struct snobj *handle_add_tc(struct snobj *q)
 
 	wid = snobj_eval_uint(q, "wid");
 	if (wid >= MAX_WORKERS)
-		return snobj_err(EINVAL, 
+		return snobj_err(EINVAL,
 				"'wid' must be between 0 and %d",
 				MAX_WORKERS - 1);
 
@@ -302,7 +302,7 @@ static struct snobj *handle_add_tc(struct snobj *q)
 		if (num_workers == 0 && wid == 0)
 			launch_worker(wid, global_opts.default_core);
 		else
-			return snobj_err(EINVAL, 
+			return snobj_err(EINVAL,
 					"worker:%d does not exist", wid);
 	}
 
@@ -328,7 +328,7 @@ static struct snobj *handle_add_tc(struct snobj *q)
 			int rsc = name_to_resource(limit->map.arr_k[i]);
 
 			if (rsc < 0)
-				return snobj_err(EINVAL, 
+				return snobj_err(EINVAL,
 						"Invalid resource name '%s'\n",
 						limit->map.arr_k[i]);
 
@@ -345,11 +345,11 @@ static struct snobj *handle_add_tc(struct snobj *q)
 			int rsc = name_to_resource(max_burst->map.arr_k[i]);
 
 			if (rsc < 0)
-				return snobj_err(EINVAL, 
+				return snobj_err(EINVAL,
 						"Invalid resource name '%s'\n",
 						max_burst->map.arr_k[i]);
 
-			params.max_burst[rsc] = 
+			params.max_burst[rsc] =
 				snobj_uint_get(max_burst->map.arr_v[i]);
 		}
 	}
@@ -368,7 +368,7 @@ static struct snobj *handle_get_tc_stats(struct snobj *q)
 	const char *tc_name;
 
 	struct tc *c;
-	
+
 	struct snobj *r;
 
 	tc_name = snobj_str_get(q);
@@ -382,13 +382,13 @@ static struct snobj *handle_get_tc_stats(struct snobj *q)
 	r = snobj_map();
 
 	snobj_map_set(r, "timestamp", snobj_double(get_epoch_time()));
-	snobj_map_set(r, "count", 
+	snobj_map_set(r, "count",
 			snobj_uint(c->stats.usage[RESOURCE_CNT]));
-	snobj_map_set(r, "cycles", 
+	snobj_map_set(r, "cycles",
 			snobj_uint(c->stats.usage[RESOURCE_CYCLE]));
-	snobj_map_set(r, "packets", 
+	snobj_map_set(r, "packets",
 			snobj_uint(c->stats.usage[RESOURCE_PACKET]));
-	snobj_map_set(r, "bits", 
+	snobj_map_set(r, "bits",
 			snobj_uint(c->stats.usage[RESOURCE_BIT]));
 
 	return r;
@@ -414,6 +414,39 @@ static struct snobj *handle_list_drivers(struct snobj *q)
 		for (i = 0; i < cnt; i++)
 			snobj_list_add(r, snobj_str(drivers[i]->name));
 	};
+
+	return r;
+}
+
+static struct snobj *handle_get_driver_info(struct snobj *q)
+{
+	const char *drv_name;
+	const struct driver *drv;
+
+	struct snobj *r;
+	struct snobj *cmds;
+
+	drv_name = snobj_str_get(q);
+
+	if (!drv_name)
+		return snobj_err(EINVAL, "Argument must be a name in str");
+
+	if ((drv = find_driver(drv_name)) == NULL)
+		return snobj_err(ENOENT, "No module class '%s' found",
+				drv_name);
+
+	cmds = snobj_list();
+	for (int i = 0; i < MAX_COMMANDS; i++) {
+		if (!drv->commands[i].cmd)
+			break;
+
+		snobj_list_add(cmds, snobj_str(drv->commands[i].cmd));
+	}
+
+	r = snobj_map();
+	snobj_map_set(r, "name", snobj_str(drv->name));
+	snobj_map_set(r, "help", snobj_str(drv->help ? : ""));
+	snobj_map_set(r, "commands", cmds);
 
 	return r;
 }
@@ -482,7 +515,7 @@ static struct snobj *handle_create_port(struct snobj *q)
 		return snobj_err(ENOENT, "No port driver '%s' found",
 				driver_name);
 
-	port = create_port(snobj_eval_str(q, "name"), driver, 
+	port = create_port(snobj_eval_str(q, "name"), driver,
 			snobj_eval(q, "arg"), &err);
 	if (!port)
 		return err;
@@ -504,7 +537,7 @@ static struct snobj *handle_destroy_port(struct snobj *q)
 	port_name = snobj_str_get(q);
 	if (!port_name)
 		return snobj_err(EINVAL, "Argument must be a name in str");
-	
+
 	port = find_port(port_name);
 	if (!port)
 		return snobj_err(ENOENT, "No port `%s' found", port_name);
@@ -531,7 +564,7 @@ static struct snobj *handle_get_port_stats(struct snobj *q)
 	port_name = snobj_str_get(q);
 	if (!port_name)
 		return snobj_err(EINVAL, "Argument must be a name in str");
-	
+
 	port = find_port(port_name);
 	if (!port)
 		return snobj_err(ENOENT, "No port '%s' found", port_name);
@@ -587,7 +620,7 @@ static struct snobj *handle_get_mclass_info(struct snobj *q)
 		return snobj_err(EINVAL, "Argument must be a name in str");
 
 	if ((cls = find_mclass(cls_name)) == NULL)
-		return snobj_err(ENOENT, "No module class '%s' found", 
+		return snobj_err(ENOENT, "No module class '%s' found",
 				cls_name);
 
 	cmds = snobj_list();
@@ -631,7 +664,7 @@ static struct snobj *handle_list_modules(struct snobj *q)
 		const struct module *modules[arr_size];
 
 		int i;
-		
+
 		cnt = list_modules(modules, arr_size, offset);
 
 		for (i = 0; i < cnt; i++) {
@@ -640,12 +673,12 @@ static struct snobj *handle_list_modules(struct snobj *q)
 
 			struct snobj *module = snobj_map();
 
-			snobj_map_set(module, "name", 
+			snobj_map_set(module, "name",
 					snobj_str(m->name));
-			snobj_map_set(module, "mclass", 
+			snobj_map_set(module, "mclass",
 					snobj_str(mclass->name));
 			if (mclass->get_desc) {
-				snobj_map_set(module, "desc", 
+				snobj_map_set(module, "desc",
 						mclass->get_desc(m));
 			}
 
@@ -672,7 +705,7 @@ static struct snobj *handle_create_module(struct snobj *q)
 	if (!mclass)
 		return snobj_err(ENOENT, "No mclass '%s' found", mclass_name);
 
-	module = create_module(snobj_eval_str(q, "name"), mclass, 
+	module = create_module(snobj_eval_str(q, "name"), mclass,
 			snobj_eval(q, "arg"), &r);
 	if (!module)
 		return r;
@@ -716,9 +749,9 @@ static struct snobj *collect_igates(struct module *m)
 		struct gate *og;
 
 		snobj_map_set(igate, "igate", snobj_uint(i));
-		
-		cdlist_for_each_entry(og, &g->in.ogates_upstream, 
-				out.igate_upstream) 
+
+		cdlist_for_each_entry(og, &g->in.ogates_upstream,
+				out.igate_upstream)
 		{
 			struct snobj *ogate = snobj_map();
 			snobj_map_set(ogate, "ogate", snobj_uint(og->gate_idx));
@@ -749,14 +782,14 @@ static struct snobj *collect_ogates(struct module *m)
 #if TRACK_GATES
 		snobj_map_set(ogate, "cnt", snobj_uint(g->cnt));
 		snobj_map_set(ogate, "pkts", snobj_uint(g->pkts));
-		snobj_map_set(ogate, "timestamp", 
+		snobj_map_set(ogate, "timestamp",
 				snobj_double(get_epoch_time()));
 #endif
-		snobj_map_set(ogate, "name", 
+		snobj_map_set(ogate, "name",
 				snobj_str(g->out.igate->m->name));
 		snobj_map_set(ogate, "igate",
 				snobj_uint(g->out.igate->gate_idx));
-		
+
 		snobj_list_add(ogates, ogate);
 	}
 
@@ -856,7 +889,7 @@ static struct snobj *handle_connect_modules(struct snobj *q)
 
 	ret = connect_modules(m1, ogate, m2, igate);
 	if (ret < 0)
-		return snobj_err(-ret, "Connection %s:%d->%d:%s failed", 
+		return snobj_err(-ret, "Connection %s:%d->%d:%s failed",
 			m1_name, ogate, igate, m2_name);
 
 	return NULL;
@@ -882,7 +915,7 @@ static struct snobj *handle_disconnect_modules(struct snobj *q)
 
 	ret = disconnect_modules(m, ogate);
 	if (ret < 0)
-		return snobj_err(-ret, "Disconnection %s:%d failed", 
+		return snobj_err(-ret, "Disconnection %s:%d failed",
 			m_name, ogate);
 
 	return NULL;
@@ -912,7 +945,7 @@ static struct snobj *handle_attach_task(struct snobj *q)
 				MAX_TASKS_PER_MODULE - 1);
 
 	if ((t = m->tasks[tid]) == NULL)
-		return snobj_err(ENOENT, "Task %s:%hu does not exist", 
+		return snobj_err(ENOENT, "Task %s:%hu does not exist",
 				m_name, tid);
 
 	tc_name = snobj_eval_str(q, "tc");
@@ -967,7 +1000,7 @@ static struct snobj *handle_enable_tcpdump(struct snobj *q)
 		return snobj_err(ENOENT, "No module '%s' found", m_name);
 
 	if (ogate >= m->ogates.curr_size)
-		return snobj_err(EINVAL, "Output gate '%hu' does not exist", 
+		return snobj_err(EINVAL, "Output gate '%hu' does not exist",
 				ogate);
 
 	ret = enable_tcpdump(fifo, m, ogate);
@@ -999,7 +1032,7 @@ static struct snobj *handle_disable_tcpdump(struct snobj *q)
 		return snobj_err(ENOENT, "No module '%s' found", m_name);
 
 	if (ogate >= m->ogates.curr_size)
-		return snobj_err(EINVAL, "Output gate '%hu' does not exist", 
+		return snobj_err(EINVAL, "Output gate '%hu' does not exist",
 				ogate);
 
 	ret = disable_tcpdump(m, ogate);
@@ -1045,6 +1078,7 @@ static struct handler_map sn_handlers[] = {
 	{ "get_tc_stats",	0, handle_get_tc_stats },
 
 	{ "list_drivers",	0, handle_list_drivers },
+	{ "get_driver_info",	0, handle_get_driver_info },
 	{ "import_driver",	0, handle_not_implemented },	/* TODO */
 
 	{ "reset_ports",	1, handle_reset_ports },
@@ -1109,10 +1143,10 @@ run_module_command(struct module *m, const char *cmd, struct snobj *arg)
 			break;
 
 		if (strcmp(cls->commands[i].cmd, cmd) == 0) {
-			if (!cls->commands[i].mt_safe && 
+			if (!cls->commands[i].mt_safe &&
 					is_any_worker_running())
 			{
-				return snobj_err(EBUSY, 
+				return snobj_err(EBUSY,
 						"There is a running worker and "
 						"command '%s' is not MT safe",
 						cmd);

@@ -18,7 +18,7 @@ typedef uint16_t gate_idx_t;
 #define INVALID_GATE		UINT16_MAX
 
 /* A module may have up to MAX_GATES input/output gates (separately). */
-#define MAX_GATES		8192 
+#define MAX_GATES		8192
 #define DROP_GATE		MAX_GATES
 ct_assert(MAX_GATES < INVALID_GATE);
 ct_assert(DROP_GATE <= MAX_GATES);
@@ -42,10 +42,10 @@ struct mclass
 	/* Optional: one-line description of the module class */
 	const char *help;
 
-	/* Optional: should be like "lower_case". 
+	/* Optional: should be like "lower_case".
 	 * - "%d" is automatically appended.
-	 * - Anonymous modules will have a default name source0, source1, ... 
-	 * - If this field is not provided, the mclass name will be used 
+	 * - Unnamed modules will have a default name source0, source1, ...
+	 * - If this field is not provided, the mclass name will be used
 	 *   after auto transformation (CamelCase -> camel_case) */
 	const char *def_module_name;
 
@@ -61,7 +61,7 @@ struct mclass
 	struct mt_attr attrs[MAX_ATTRS_PER_MODULE];
 
 	/* Optional: perform any necessary initialization.
-	 * Should return NULL if successful, or snobj_err_*() 
+	 * Should return NULL if successful, or snobj_err_*()
 	 * If this mclass implements run_task, this init function
 	 * 	should register its tasks, so that the scheduler can trigger
 	 * 	the tasks.
@@ -85,13 +85,13 @@ struct mclass
 	struct snobj *(*get_dump)(const struct module *m);
 
 	/* The (abstract) call stack would be:
-	 *   sched -> task -> module1.run_task -> 
+	 *   sched -> task -> module1.run_task ->
 	 *   		module2.process_batch -> module3.process_batch -> ... */
 
 	/* Optional: Triggered by its previous module */
 	proc_func_t process_batch;
-	
-	/* The entry point of the packet packet processing pipeline */
+
+	/* Optional: The entry point of the packet packet processing pipeline */
 	task_func_t run_task;
 
 	const struct {
@@ -104,7 +104,7 @@ struct mclass
 	} commands[MAX_COMMANDS];
 };
 
-size_t list_mclasses(const struct mclass **p_arr, size_t arr_size, 
+size_t list_mclasses(const struct mclass **p_arr, size_t arr_size,
 		size_t offset);
 
 const struct mclass *find_mclass(const char *name);

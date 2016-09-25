@@ -757,6 +757,7 @@ static int vport_send_pkts(struct port *p, queue_t qid,
 
 static const struct driver vport_host = {
 	.name 		= "VPort",
+	.help		= "Virtual port for Linux host",
 	.def_port_name	= "vport",
 	.priv_size	= sizeof(struct vport_priv),
 	.init_driver	= init_driver,

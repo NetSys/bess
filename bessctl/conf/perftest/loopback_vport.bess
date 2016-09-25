@@ -34,7 +34,7 @@ def measure():
         pkts_diff = new_stats[i].out.packets - \
                     old_stats[i].out.packets
         out_mpps.append(pkts_diff / time_diff / 1000000.0)
-        
+
         pkts_diff = new_stats[i].inc.packets - \
                     old_stats[i].inc.packets
         inc_mpps.append(pkts_diff / time_diff / 1000000.0)
@@ -67,7 +67,7 @@ def measure():
     print
 
 for cpu in range(CORE_START, CORE_END, CORE_STEP):
-    v = Port(driver='VPort', loopback=1, rxq_cpu=cpu)
+    v = VPort(loopback=1, rxq_cpu=cpu)
 
     cpu_set.append(cpu)
     ports.append(v)
