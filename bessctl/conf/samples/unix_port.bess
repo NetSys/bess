@@ -20,9 +20,9 @@ def gen_packet(src_ip, dst_ip):
 
 if ABSTRACT_SOCKET_ADDRESS:
     # '@' is replaced with '\0' by BESS daemon
-    p = Port(driver='UnixSocket', name='p', path='@' + SOCKET_PATH)
+    p = UnixSocketPort(name='p', path='@' + SOCKET_PATH)
 else:
-    p = Port(driver='UnixSocket', name='p', path=SOCKET_PATH)
+    p = UnixSocketPort(name='p', path=SOCKET_PATH)
 
 # Randomize source IP addresses
 PortInc(port=p) -> \

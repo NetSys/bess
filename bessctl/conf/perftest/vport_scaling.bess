@@ -5,7 +5,7 @@ NUM_PORTS = int($SN_PORTS!'100')
 
 for i in xrange(1, NUM_PORTS + 1):
     try:
-        vport = Port(driver='VPort', loopback=1)
+        vport = VPort(loopback=1)
     except:
         print 'FAILURE: %d vports has been initialized' % (i - 1)
         raise

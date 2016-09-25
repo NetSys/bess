@@ -23,7 +23,7 @@ pkt.show()
 pkt_bytes = bytearray(str(pkt))
 assert(len(pkt_bytes) == pkt_size)
 
-ports = [Port(driver='PMD', port_id=i, num_inc_q=num_cores, num_out_q=num_cores) \
+ports = [PMDPort(port_id=i, num_inc_q=num_cores, num_out_q=num_cores) \
          for i in range(num_ports)]
 
 for i in range(num_cores):
@@ -38,7 +38,7 @@ for i in range(num_cores):
     -> Rewrite([pkt_bytes]) \
     -> RandomUpdate([{'offset': 36, 'size': 2, 'min': 10002, 'max': 10002 + num_flows - 1}]) \
     -> rr
-    
+
     for j in range(num_ports):
         rr:j->QueueOut(port=ports[j], qid=i)
         QueueInc(port=ports[j], qid=i) -> Sink()
