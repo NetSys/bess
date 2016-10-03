@@ -74,11 +74,16 @@ static struct snobj *add_attr_one(struct module *m, struct snobj *attr)
 	return NULL;
 }
 
-static struct snobj *add_attr_many(struct module *m, struct snobj *list)
+static struct snobj *set_metadata_init(struct module *m, struct snobj *arg)
 {
+	struct snobj *list;
+
+	if (!arg || !(list = snobj_eval(arg, "attrs")))
+		return snobj_err(EINVAL, "'attrs' must be specified");
+
 	if (snobj_type(list) != TYPE_LIST)
 		return snobj_err(EINVAL,
-				"argument must be a map or a list of maps");
+				"'attrs' must be a map or a list of maps");
 
 	for (int i = 0; i < list->size; i++) {
 		struct snobj *attr = snobj_list_get(list, i);
@@ -90,17 +95,6 @@ static struct snobj *add_attr_many(struct module *m, struct snobj *list)
 	}
 
 	return NULL;
-}
-
-static struct snobj *set_metadata_init(struct module *m, struct snobj *arg)
-{
-	if (arg && snobj_type(arg) == TYPE_MAP)
-		return add_attr_one(m, arg);
-	else if (arg && snobj_type(arg) == TYPE_LIST)
-		return add_attr_many(m, arg);
-	else
-		return snobj_err(EINVAL,
-				"argument must be a map or a list of maps");
 }
 
 static void copy_from_packet(struct pkt_batch *batch,

@@ -100,10 +100,10 @@ add_field_one(struct module *m, struct snobj *field, struct field *f, int idx)
 		return snobj_err(EINVAL, "idx %d: 'size' must be 1-%d",
 				idx, MAX_FIELD_SIZE);
 
-	const char *attr_name = snobj_eval_str(field, "name");
+	const char *attr = snobj_eval_str(field, "attr");
 
-	if (attr_name) {
-		f->attr_id = add_metadata_attr(m, attr_name, f->size, MT_READ);
+	if (attr) {
+		f->attr_id = add_metadata_attr(m, attr, f->size, MT_READ);
 		if (f->attr_id < 0)
 			return snobj_err(-f->attr_id,
 					"idx %d: add_metadata_attr() failed",
@@ -116,7 +116,7 @@ add_field_one(struct module *m, struct snobj *field, struct field *f, int idx)
 					idx);
 	}  else
 		return snobj_err(EINVAL,
-				"idx %d: must specify 'offset' or 'name'", idx);
+				"idx %d: must specify 'offset' or 'attr'", idx);
 
 	struct snobj *mask = snobj_eval(field, "mask");
 	int force_be = (f->attr_id < 0);

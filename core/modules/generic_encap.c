@@ -35,12 +35,12 @@ add_field_one(struct module *m, struct snobj *field, struct field *f, int idx)
 		return snobj_err(EINVAL, "idx %d: 'size' must be 1-%d",
 				idx, MAX_FIELD_SIZE);
 
-	const char *attr_name = snobj_eval_str(field, "name");
+	const char *attr = snobj_eval_str(field, "attr");
 
 	struct snobj *t;
 
-	if (attr_name) {
-		f->attr_id = add_metadata_attr(m, attr_name, f->size, MT_READ);
+	if (attr) {
+		f->attr_id = add_metadata_attr(m, attr, f->size, MT_READ);
 		if (f->attr_id < 0)
 			return snobj_err(-f->attr_id,
 					"idx %d: add_metadata_attr() failed",
@@ -53,7 +53,7 @@ add_field_one(struct module *m, struct snobj *field, struct field *f, int idx)
 					idx, f->size);
 	}  else
 		return snobj_err(EINVAL,
-				"idx %d: must specify 'value' or 'name'", idx);
+				"idx %d: must specify 'value' or 'attr'", idx);
 
 	return NULL;
 }
@@ -61,10 +61,10 @@ add_field_one(struct module *m, struct snobj *field, struct field *f, int idx)
 /* Takes a list of fields. Each field is either:
  *
  *  1. {'size': X, 'value': Y}		(for constant values)
- *  2. {'size': X, 'name': Y}		(for metadata attributes)
+ *  2. {'size': X, 'attr': Y}		(for metadata attributes)
  *
  * e.g.: GenericEncap([{'size': 4, 'value':0xdeadbeef},
- *                     {'size': 2, 'name':'foo'},
+ *                     {'size': 2, 'attr':'foo'},
  *                     {'size': 2, 'value':0x1234}])
  * will prepend a 8-byte header:
  *    de ad be ef <xx> <xx> 12 34

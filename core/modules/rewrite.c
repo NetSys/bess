@@ -18,10 +18,15 @@ command_add(struct module *m, const char *cmd, struct snobj *arg);
 
 static struct snobj *rewrite_init(struct module *m, struct snobj *arg)
 {
-	if (arg)
-		return command_add(m, NULL, arg);
+	struct snobj *t;
 
-	return NULL;
+	if (!arg)
+		return NULL;
+
+	if (!(t = snobj_eval(arg, "templates")))
+		return snobj_err(EINVAL, "'templates' must be specified");
+
+	return command_add(m, NULL, t);
 }
 
 static inline void

@@ -26,7 +26,7 @@ command_set_mode(struct module *m, const char *cmd, struct snobj *arg)
 	struct hlb_priv *priv = get_priv(m);
 
 	const char *mode = snobj_str_get(arg);
-	
+
 	if (!mode)
 		return snobj_err(EINVAL, "argument must be a string");
 
@@ -51,7 +51,7 @@ command_set_gates(struct module *m, const char *cmd, struct snobj *arg)
 		int gates = snobj_int_get(arg);
 
 		if (gates < 0 || gates > MAX_HLB_GATES || gates > MAX_GATES)
-			return snobj_err(EINVAL, "no more than %d gates", 
+			return snobj_err(EINVAL, "no more than %d gates",
 					MIN(MAX_HLB_GATES, MAX_GATES));
 
 		priv->num_gates = gates;
@@ -62,14 +62,14 @@ command_set_gates(struct module *m, const char *cmd, struct snobj *arg)
 		struct snobj *gates = arg;
 
 		if (gates->size > MAX_HLB_GATES)
-			return snobj_err(EINVAL, "no more than %d gates", 
+			return snobj_err(EINVAL, "no more than %d gates",
 					MAX_HLB_GATES);
 
 		for (int i = 0; i < gates->size; i++) {
 			struct snobj *elem = snobj_list_get(gates, i);
 
 			if (snobj_type(elem) != TYPE_INT)
-				return snobj_err(EINVAL, 
+				return snobj_err(EINVAL,
 						"'gate' must be an integer");
 
 			priv->gates[i] = snobj_int_get(elem);
@@ -90,14 +90,24 @@ command_set_gates(struct module *m, const char *cmd, struct snobj *arg)
 static struct snobj *hlb_init(struct module *m, struct snobj *arg)
 {
 	struct hlb_priv *priv = get_priv(m);
+	struct snobj *t;
 
 	priv->mode = default_mode;
 
-	if (arg)
-		return command_set_gates(m, NULL, arg);
-	else
-		return snobj_err(EINVAL, "argument must specify a gate "
-				"or a list of gates");
+	if (!arg || snobj_type(arg) != TYPE_MAP)
+		return snobj_err(EINVAL, "empty argument");
+
+	if ((t = snobj_eval(arg, "gates"))) {
+		struct snobj *err = command_set_gates(m, NULL, t);
+		if (err)
+			return err;
+	} else
+		return snobj_err(EINVAL, "'gates' must be specified");
+
+	if ((t = snobj_eval(arg, "mode")))
+		return command_set_mode(m, NULL, t);
+
+	return NULL;
 }
 
 static inline uint32_t hash_64(uint64_t val, uint32_t init_val)
@@ -108,7 +118,7 @@ static inline uint32_t hash_64(uint64_t val, uint32_t init_val)
 		return crc32c_2words(val, init_val);
 #endif
 }
-/* Returns a value in [0, range) as a function of an opaque number. 
+/* Returns a value in [0, range) as a function of an opaque number.
  * Also see utils/random.h */
 static inline uint16_t hash_range(uint32_t hashval, uint16_t range)
 {
@@ -128,13 +138,13 @@ static inline uint16_t hash_range(uint32_t hashval, uint16_t range)
 #endif
 }
 
-static void 
+static void
 lb_l2(struct hlb_priv *priv, struct pkt_batch *batch, gate_idx_t *ogates)
 {
 	for (int i = 0; i < batch->cnt; i++) {
 		struct snbuf *snb = batch->pkts[i];
 		char *head = snb_head_data(snb);
-	
+
 		uint64_t v0 = *((uint64_t *)head);
 		uint32_t v1 = *((uint32_t *)(head + 8));
 
@@ -153,7 +163,7 @@ lb_l3(struct hlb_priv *priv, struct pkt_batch *batch, gate_idx_t *ogates)
 	for (int i = 0; i < batch->cnt; i++) {
 		struct snbuf *snb = batch->pkts[i];
 		char *head = snb_head_data(snb);
-	
+
 		uint32_t hash_val;
 		uint64_t v = *((uint64_t *)(head + ip_offset + 12));
 
@@ -173,7 +183,7 @@ lb_l4(struct hlb_priv *priv, struct pkt_batch *batch, gate_idx_t *ogates)
 	for (int i = 0; i < batch->cnt; i++) {
 		struct snbuf *snb = batch->pkts[i];
 		char *head = snb_head_data(snb);
-	
+
 		uint32_t hash_val;
 		uint64_t v0 = *((uint64_t *)(head + ip_offset + 12));
 		uint32_t v1 = *((uint64_t *)(head + l4_offset)); /* ports */
@@ -214,7 +224,7 @@ hlb_process_batch(struct module *m, struct pkt_batch *batch)
 
 static const struct mclass hlb = {
 	.name 		= "HashLB",
-	.help		= 
+	.help		=
 		"splits packets on a flow basis with L2/L3/L4 header fields",
 	.num_igates	= 1,
 	.num_ogates	= MAX_GATES,

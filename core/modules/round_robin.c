@@ -25,7 +25,7 @@ command_set_mode(struct module *m, const char *cmd, struct snobj *arg)
 	else if (strcmp(mode, "batch") == 0)
 		priv->per_packet = 0;
 	else
-		return snobj_err(EINVAL, 
+		return snobj_err(EINVAL,
 				"argument must be either 'packet' or 'batch'");
 
 	return NULL;
@@ -40,7 +40,7 @@ command_set_gates(struct module *m, const char *cmd, struct snobj *arg)
 		int gates = snobj_int_get(arg);
 
 		if (gates < 0 || gates > MAX_RR_GATES || gates > MAX_GATES)
-			return snobj_err(EINVAL, "no more than %d gates", 
+			return snobj_err(EINVAL, "no more than %d gates",
 					MIN(MAX_RR_GATES, MAX_GATES));
 
 		priv->ngates = gates;
@@ -51,14 +51,14 @@ command_set_gates(struct module *m, const char *cmd, struct snobj *arg)
 		struct snobj *gates = arg;
 
 		if (gates->size > MAX_RR_GATES)
-			return snobj_err(EINVAL, "no more than %d gates", 
+			return snobj_err(EINVAL, "no more than %d gates",
 					MAX_RR_GATES);
 
 		for (int i = 0; i < gates->size; i++) {
 			struct snobj *elem = snobj_list_get(gates, i);
 
 			if (snobj_type(elem) != TYPE_INT)
-				return snobj_err(EINVAL, 
+				return snobj_err(EINVAL,
 						"'gate' must be an integer");
 
 			priv->gates[i] = snobj_int_get(elem);
@@ -77,12 +77,23 @@ command_set_gates(struct module *m, const char *cmd, struct snobj *arg)
 }
 
 static struct snobj *roundrobin_init(struct module *m, struct snobj *arg)
-{	
-	if (arg)
-		return command_set_gates(m, NULL, arg);
-	else
-		return snobj_err(EINVAL, "argument must specify a gate "
-				"or a list of gates");
+{
+	struct snobj *t;
+
+	if (!arg || snobj_type(arg) != TYPE_MAP)
+		return snobj_err(EINVAL, "empty argument");
+
+	if ((t = snobj_eval(arg, "gates"))) {
+		struct snobj *err = command_set_gates(m, NULL, t);
+		if (err)
+			return err;
+	} else
+		return snobj_err(EINVAL, "'gates' must be specified");
+
+	if ((t = snobj_eval(arg, "mode")))
+		return command_set_mode(m, NULL, t);
+
+	return NULL;
 }
 
 static void
@@ -94,7 +105,7 @@ roundrobin_process_batch(struct module *m, struct pkt_batch *batch)
 	if (priv->per_packet) {
 		for (int i = 0; i < batch->cnt; i++) {
 			ogates[i] = priv->gates[priv->current_gate];
-			priv->current_gate = (priv->current_gate + 1) % 
+			priv->current_gate = (priv->current_gate + 1) %
 						priv->ngates;
 		}
 		run_split(m, ogates, batch);

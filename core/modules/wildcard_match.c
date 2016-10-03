@@ -117,11 +117,11 @@ add_field_one(struct module *m, struct snobj *field, struct field *f)
 		return NULL;
 	}
 
-	const char *attr_name = snobj_eval_str(field, "name");
-	if (!attr_name)
-		return snobj_err(EINVAL, "specify 'offset' or 'name'");
+	const char *attr = snobj_eval_str(field, "attr");
+	if (!attr)
+		return snobj_err(EINVAL, "specify 'offset' or 'attr'");
 
-	f->attr_id = add_metadata_attr(m, attr_name, f->size, MT_READ);
+	f->attr_id = add_metadata_attr(m, attr, f->size, MT_READ);
 	if (f->attr_id < 0)
 		return snobj_err(-f->attr_id, "add_metadata_attr() failed");
 

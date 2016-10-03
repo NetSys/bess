@@ -40,7 +40,7 @@ command_add(struct module *m, const char *cmd, struct snobj *arg)
 		uint32_t max;
 
 		if (var->type != TYPE_MAP)
-			return snobj_err(EINVAL, 
+			return snobj_err(EINVAL,
 					"argument must be a list of maps");
 
 		offset = snobj_eval_int(var, "offset");
@@ -109,13 +109,17 @@ command_clear(struct module *m, const char *cmd, struct snobj *arg)
 static struct snobj *rupdate_init(struct module *m, struct snobj *arg)
 {
 	struct rupdate_priv *priv = get_priv(m);
+	struct snobj *t;
 
 	priv->seed = rdtsc();
 
-	if (arg)
-		return command_add(m, NULL, arg);
-	else
+	if (!arg)
 		return NULL;
+
+	if (snobj_type(arg) != TYPE_MAP || !(t = snobj_eval(arg, "fields")))
+		return snobj_err(EINVAL, "'fields' must be specified");
+
+	return command_add(m, NULL, t);
 }
 
 static void rupdate_process_batch(struct module *m, struct pkt_batch *batch)
@@ -132,7 +136,7 @@ static void rupdate_process_batch(struct module *m, struct pkt_batch *batch)
 		uint32_t min = var->min;
 		uint32_t range = var->range;
 		int16_t offset = var->offset;
-			
+
 		for (int j = 0; j < cnt; j++) {
 			struct snbuf *snb = batch->pkts[j];
 			char *head = snb_head_data(snb);
@@ -142,7 +146,7 @@ static void rupdate_process_batch(struct module *m, struct pkt_batch *batch)
 
 			p = (uint32_t *)(head + offset);
 			rand_val = min + rand_fast_range(&seed, range);
-			
+
 			*p = (*p & mask) | rte_cpu_to_be_32(rand_val);
 		}
 	}

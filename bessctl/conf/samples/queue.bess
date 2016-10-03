@@ -8,9 +8,9 @@ payload = 'Hello World'
 test_packet = bytearray(str(eth/ip/udp/payload))
 
 src::Source() \
-        -> Rewrite([test_packet]) \
+        -> Rewrite(templates=[test_packet]) \
         -> queue::Queue() \
-        -> VLANPush(2) \
+        -> VLANPush(tci=2) \
         -> Sink()
 
 bess.add_tc('fast', limit={'packets': 9000000})

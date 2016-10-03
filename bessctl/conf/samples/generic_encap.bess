@@ -10,10 +10,10 @@ payload = 'Hello World'
 test_packet = bytearray(str(eth/ip/udp/payload))
 
 Source() \
-        -> SetMetadata(name='ether_type', size=2, value=0x9999) \
-        -> Rewrite([test_packet]) \
+        -> SetMetadata(attrs=[{'name': 'ether_type', 'size': 2, 'value': 0x9999}]) \
+        -> Rewrite(templates=[test_packet]) \
         -> GenericEncap(fields=[ \
             {'size': 6, 'value': 0x020000000001},
             {'size': 6, 'value': 0x0619deadbeef},
-            {'size': 2, 'name': 'ether_type'}]) \
+            {'size': 2, 'attr': 'ether_type'}]) \
         -> Sink()

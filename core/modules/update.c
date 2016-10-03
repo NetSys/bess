@@ -83,10 +83,15 @@ command_clear(struct module *m, const char *cmd, struct snobj *arg)
 
 static struct snobj *update_init(struct module *m, struct snobj *arg)
 {
-	if (arg)
-		return command_add(m, NULL, arg);
-	else
+	struct snobj *t;
+
+	if (!arg)
 		return NULL;
+
+	if (snobj_type(arg) != TYPE_MAP || !(t = snobj_eval(arg, "fields")))
+		return snobj_err(EINVAL, "'fields' must be specified");
+
+	return command_add(m, NULL, t);
 }
 
 static void update_process_batch(struct module *m, struct pkt_batch *batch)

@@ -1,16 +1,16 @@
-# For metadata attribute usage for wildcard matching, 
+# For metadata attribute usage for wildcard matching,
 # also see samples/wildcardmatch.bess
 
-em::ExactMatch(fields=[{'name':'foo', 'size':1}, \
-                       {'name':'bar', 'size':2}])
+em::ExactMatch(fields=[{'attr':'foo', 'size':1}, \
+                       {'attr':'bar', 'size':2}])
 Source() \
-        -> SetMetadata(name='foo', size=1, value=0xcc) \
-        -> SetMetadata(name='bar', size=2, value=0x1122) \
+        -> SetMetadata(attrs=[{'name': 'foo', 'size': 1, 'value': 0xcc}]) \
+        -> SetMetadata(attrs=[{'name': 'bar', 'size': 2, 'value': 0x1122}]) \
         -> em
 
 Source() \
-        -> SetMetadata([{'name':'bar', 'size':2, 'value':0x3344},
-                        {'name':'foo', 'size':1, 'value':0x42}]) \
+        -> SetMetadata(attrs=[{'name':'bar', 'size':2, 'value':0x3344},
+                              {'name':'foo', 'size':1, 'value':0x42}]) \
         -> em
 
 em.set_default_gate(0)

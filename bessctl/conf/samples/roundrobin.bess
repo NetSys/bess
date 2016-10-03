@@ -1,12 +1,11 @@
-Source() -> rr1::Roundrobin(3)
+Source() -> rr1::Roundrobin(gates=3)
 sink1::Sink()
 rr1:0 -> sink1
 rr1:1 -> sink1
 rr1:2 -> sink1
 
 # round robin for gate 0 and 2 (skipping 1), on a per-packet basis
-Source() -> rr2::Roundrobin([0, 2])
-rr2.set_mode('packet')      
+Source() -> rr2::Roundrobin(gates=[0, 2], mode='packet')
 sink2::Sink()
 rr2:0 -> sink2
 rr2:1 -> sink2

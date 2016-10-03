@@ -6,15 +6,15 @@ udp = scapy.UDP(sport=10001, dport=10002)
 payload = 'helloworld'
 pkt_bytes = bytearray(str(eth/ip/udp/payload))
 
-Source() -> Rewrite([pkt_bytes]) -> rr::Roundrobin([1, 2])
+Source() -> Rewrite(templates=[pkt_bytes]) -> rr::Roundrobin(gates=[1, 2])
 
 # src MAC address
 rr:1 \
-    -> Update([{'offset': 6, 'size': 6, 'value': 0x1234567890ab}]) \
+    -> Update(fields=[{'offset': 6, 'size': 6, 'value': 0x1234567890ab}]) \
     -> Sink()
 
 # UDP src/dst ports
 rr:2 \
-    -> RandomUpdate([{'offset': 34, 'size': 2, 'min': 20000, 'max': 30000},
+    -> RandomUpdate(fields=[{'offset': 34, 'size': 2, 'min': 20000, 'max': 30000},
                       {'offset': 36, 'size': 2, 'min': 40000, 'max': 50000}]) \
     -> Sink()

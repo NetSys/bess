@@ -13,7 +13,7 @@ def gen_packet(dst_ip, dst_port):
     pkt = eth/ip/udp/payload
     return bytearray(str(pkt))
 
-pkts = [gen_packet('172.16.100.1', 80), 
+pkts = [gen_packet('172.16.100.1', 80),
         gen_packet('172.12.55.99', 54321),
         gen_packet('172.12.55.3', 8080),
         gen_packet('172.16.100.1', 345),
@@ -23,11 +23,11 @@ pkts = [gen_packet('172.16.100.1', 80),
 # destination IP address + destination port number + metadata 'in_port'
 wm::WildcardMatch(fields=[{'offset':30, 'size':4},
                           {'offset':36, 'size':2},
-                          {'name':'in_port', 'size':2}])
+                          {'attr':'in_port', 'size':2}])
 
 # locally emulate two input ports
-Source() -> SetMetadata(name='in_port', size=2, value=1) -> Rewrite(pkts) -> wm
-Source() -> SetMetadata(name='in_port', size=2, value=2) -> Rewrite(pkts) -> wm
+Source() -> SetMetadata(attrs=[{'name': 'in_port', 'size': 2, 'value': 1}]) -> Rewrite(templates=pkts) -> wm
+Source() -> SetMetadata(attrs=[{'name': 'in_port', 'size': 2, 'value': 2}]) -> Rewrite(templates=pkts) -> wm
 
 wm:0 -> Sink()
 wm:1 -> Sink()
@@ -39,15 +39,15 @@ wm.set_default_gate(5)
 
 # 172.16.100.1/32, port 80, in_port 1
 wm.add(values=[aton('172.16.100.1'),    80,         1       ], gate=0,
-        masks=[aton('255.255.255.255'), 0xffff,     0xffff  ], priority=3) 
+        masks=[aton('255.255.255.255'), 0xffff,     0xffff  ], priority=3)
 
 # 172.12.55.99/32, in_port 2
 wm.add(values=[aton('172.12.55.99'),    0,          2       ], gate=1,
-        masks=[aton('255.255.255.255'), 0x0000,     0xffff  ], priority=1) 
+        masks=[aton('255.255.255.255'), 0x0000,     0xffff  ], priority=1)
 
 # 172.12.55.3/32, in_port 1 (w/ the same wildcard pattern as the previous one)
 wm.add(values=[aton('172.12.55.3'),     0,          1       ], gate=2,
-        masks=[aton('255.255.255.255'), 0x0000,     0xffff  ], priority=0) 
+        masks=[aton('255.255.255.255'), 0x0000,     0xffff  ], priority=0)
 
 # 172.0.0.0/8, port <= 1023
 wm.add(values=[aton('172.0.0.0'),       0,          0       ], gate=2,

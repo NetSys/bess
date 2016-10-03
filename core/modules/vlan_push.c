@@ -7,7 +7,7 @@
 
 struct vlan_push_priv {
 	/* network order */
-	uint32_t vlan_tag;	
+	uint32_t vlan_tag;
 	uint32_t qinq_tag;
 };
 
@@ -33,7 +33,15 @@ command_set_tci(struct module *m, const char *cmd, struct snobj *arg)
 
 static struct snobj *vpush_init(struct module *m, struct snobj *arg)
 {
-	return command_set_tci(m, NULL, arg);
+	struct snobj *t;
+
+	if (!arg || snobj_type(arg) != TYPE_MAP)
+		return snobj_err(EINVAL, "empty argument");
+
+	if ((t = snobj_eval(arg, "tci")))
+		return command_set_tci(m, NULL, t);
+	else
+		return snobj_err(EINVAL, "'tci' must be specified");
 }
 
 static struct snobj *vpush_get_desc(const struct module *m)
