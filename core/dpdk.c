@@ -9,8 +9,6 @@
 #include <rte_ethdev.h>
 #include <rte_eal.h>
 
-#include <sn.h>
-
 #include "log.h"
 #include "time.h"
 #include "worker.h"

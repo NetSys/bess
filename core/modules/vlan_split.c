@@ -1,5 +1,7 @@
 #include <string.h>
 
+#include <rte_byteorder.h>
+
 #include "../module.h"
 
 static void vsplit_process_batch(struct module *m, struct pkt_batch *batch)

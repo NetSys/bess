@@ -4,6 +4,8 @@
 
 #include <rte_config.h>
 #include <rte_errno.h>
+#include <rte_ether.h>
+#include <rte_ip.h>
 #include <rte_lpm.h>
 #include <rte_byteorder.h>
 

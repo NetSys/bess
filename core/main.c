@@ -19,6 +19,7 @@
 #include "master.h"
 #include "worker.h"
 #include "driver.h"
+#include "snbuf.h"
 #include "test.h"
 
 /* Port this BESS instance listens on.

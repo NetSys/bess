@@ -1,11 +1,10 @@
+#include <errno.h>
 #include <pcap/pcap.h>
 
 #include "../port.h"
+#include "../utils/pcap.h"
 
 #define PCAP_IFNAME 16
-
-#define PCAP_SNAPLEN ETHER_MAX_JUMBO_FRAME_LEN
-#define PCAP_SNAPSHOT_LEN 65535
 
 /* Experimental. Needs more tests */
 
@@ -55,6 +54,7 @@ static void pcap_deinit_port(struct port *p)
 	}
 }
 
+#if 0
 static int pcap_rx_jumbo(struct rte_mempool *mb_pool,
 		struct rte_mbuf *mbuf,
 		const u_char *data,
@@ -94,7 +94,7 @@ static int pcap_rx_jumbo(struct rte_mempool *mb_pool,
 
 	return mbuf->nb_segs;
 }
-
+#endif
 
 static int
 pcap_recv_pkts(struct port *p, queue_t qid, snb_array_t pkts, int cnt)
@@ -121,9 +121,7 @@ pcap_recv_pkts(struct port *p, queue_t qid, snb_array_t pkts, int cnt)
 					header.caplen);
 		} else {
 			/* FIXME: no support for chained mbuf for now */
-			snb_free(sbuf);
-			break;
-
+#if 0
 			/* Try read jumbo frame into multi mbufs. */
 			if (unlikely(pcap_rx_jumbo(sbuf->mbuf.pool,
 							&sbuf->mbuf,
@@ -133,6 +131,10 @@ pcap_recv_pkts(struct port *p, queue_t qid, snb_array_t pkts, int cnt)
 				snb_free(sbuf);
 				break;
 			}
+#else
+			snb_free(sbuf);
+			break;
+#endif
 		}
 
 		pkts[recv_cnt] = sbuf;
@@ -175,7 +177,7 @@ static int pcap_send_pkts(struct port *p, queue_t qid, snb_array_t pkts, int cnt
 					(const u_char*)snb_head_data(sbuf),
 					sbuf->mbuf.pkt_len);
 		} else {
-			if (sbuf->mbuf.pkt_len <= ETHER_MAX_JUMBO_FRAME_LEN) {
+			if (sbuf->mbuf.pkt_len <= PCAP_SNAPLEN) {
 				pcap_gather_data(tx_pcap_data, &sbuf->mbuf);
 				ret = pcap_sendpacket(priv->pcap_handle,
 						tx_pcap_data,
@@ -185,8 +187,7 @@ static int pcap_send_pkts(struct port *p, queue_t qid, snb_array_t pkts, int cnt
 						"Dropping PCAP packet. "
 						"Size (%d) > max jumbo size (%d).\n",
 						sbuf->mbuf.pkt_len,
-						ETHER_MAX_JUMBO_FRAME_LEN);
-
+						PCAP_SNAPLEN);
 				break;
 			}
 		}

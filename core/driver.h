@@ -3,8 +3,6 @@
 
 #include "common.h"
 
-#include "snbuf.h"
-
 #define ADD_DRIVER(drv) \
 	__attribute__((constructor(102))) void __driver_register_##drv() \
 	{ \
@@ -20,14 +18,21 @@ typedef uint8_t queue_t;
 
 ct_assert(MAX_QUEUES_PER_DIR < QUEUE_UNKNOWN);
 
+#define DRIVER_FLAG_SELF_INC_STATS	0x0001
+#define DRIVER_FLAG_SELF_OUT_STATS	0x0002
+
+#define MAX_COMMANDS		32
+
 struct port;
 struct port_stats;
 struct snobj;
 
+typedef struct snbuf * restrict * restrict snb_array_t;
+
 typedef int (*pkt_io_func_t)(struct port *, queue_t, snb_array_t, int);
 
-#define DRIVER_FLAG_SELF_INC_STATS	0x0001
-#define DRIVER_FLAG_SELF_OUT_STATS	0x0002
+typedef struct snobj *
+(*port_cmd_func_t) (struct port *, const char *, struct snobj *);
 
 struct driver {
 	/* Required: should be like "CamelCase" */
@@ -76,7 +81,7 @@ struct driver {
 
 	const struct {
 		const char *cmd;
-		cmd_func_t func;
+		port_cmd_func_t func;
 
 		/* if non-zero, workers don't need to be paused in order to
 		 * run this command */

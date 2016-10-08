@@ -2,8 +2,6 @@
 
 #include <rte_errno.h>
 
-#include <sn.h>
-
 #include "common.h"
 #include "opts.h"
 #include "log.h"

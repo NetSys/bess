@@ -365,14 +365,8 @@ void dump_types(void)
 
 	printf("sizeof(rte_mbuf)=%zu\n", sizeof(struct rte_mbuf));
 	printf("sizeof(snbuf)=%zu\n", sizeof(struct snbuf));
-
 	printf("sizeof(pkt_batch)=%zu\n",
 			sizeof(struct pkt_batch));
-	printf("sizeof(sn_rx_metadata)=%zu sizeof(sn_tx_metadata)=%zu\n",
-			sizeof(struct sn_rx_metadata),
-			sizeof(struct sn_tx_metadata));
-	printf("sizeof(sn_rx_desc)=%zu sizeof(sn_tx_desc)=%zu\n",
-			sizeof(struct sn_rx_desc), sizeof(struct sn_tx_desc));
 	printf("sizeof(sched)=%zu sizeof(sched_stats)=%zu\n",
 			sizeof(struct sched),
 			sizeof(struct sched_stats));

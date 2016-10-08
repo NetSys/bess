@@ -2,6 +2,8 @@
 
 #include <arpa/inet.h>
 
+#include <rte_byteorder.h>
+
 #include "../module.h"
 #include "../utils/simd.h"
 

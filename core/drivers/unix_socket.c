@@ -1,6 +1,8 @@
 #include <assert.h>
 #include <unistd.h>
 #include <errno.h>
+#include <stdio.h>
+#include <string.h>
 #include <poll.h>
 #include <pthread.h>
 #include <sys/un.h>

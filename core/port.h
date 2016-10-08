@@ -7,11 +7,14 @@
 #include "log.h"
 #include "snobj.h"
 #include "driver.h"
+#include "snbuf.h"
 
 #define PORT_NAME_LEN		128
 
 #define DEFAULT_QUEUE_SIZE	256
 #define MAX_QUEUE_SIZE		4096
+
+#define ETH_ALEN		6
 
 /* The term RX/TX could be very confusing for a virtual switch.
  * Instead, we use the "incoming/outgoing" convention:

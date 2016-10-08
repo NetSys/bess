@@ -1,3 +1,5 @@
+#include <rte_byteorder.h>
+
 #include "../module.h"
 #include "../time.h"
 #include "../utils/random.h"

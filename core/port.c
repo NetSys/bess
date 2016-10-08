@@ -1,4 +1,10 @@
+#include <assert.h>
+#include <ctype.h>
 #include <errno.h>
+#include <stdio.h>
+
+#include <rte_config.h>
+#include <rte_ether.h>
 
 #include "mem_alloc.h"
 #include "driver.h"

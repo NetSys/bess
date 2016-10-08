@@ -5,16 +5,12 @@
 
 #include <rte_config.h>
 #include <rte_mbuf.h>
-#include <rte_ether.h>
-#include <rte_ip.h>
-
-#include <sn.h>
 
 #include "debug.h"
 #include "worker.h"
 #include "dpdk.h"
 
-#include "utils/simd.h"
+#include "snbuf_layout.h"
 
 /* NOTE: NEVER use rte_pktmbuf_*() directly, 
  *       unless you know what you are doing */

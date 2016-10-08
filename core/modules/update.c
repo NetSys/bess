@@ -1,3 +1,5 @@
+#include <rte_byteorder.h>
+
 #include "../module.h"
 
 #define MAX_FIELDS		16

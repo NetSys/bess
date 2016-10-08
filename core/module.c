@@ -1,3 +1,5 @@
+#include <sys/uio.h>
+
 #include "mem_alloc.h"
 #include "dpdk.h"
 #include "time.h"

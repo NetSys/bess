@@ -10,8 +10,8 @@
 #include <rte_config.h>
 #include <rte_malloc.h>
 
+#include "../kmod/sn_common.h"
 #include "../port.h"
-#include "../snbuf.h"
 
 /* TODO: Unify vport and vport_native */
 

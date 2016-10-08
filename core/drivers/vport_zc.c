@@ -8,9 +8,8 @@
 #include <rte_config.h>
 #include <rte_malloc.h>
 
-#include "../driver.h"
+#include "../kmod/llring.h"
 #include "../port.h"
-#include "../snbuf.h"
 
 #define SLOTS_PER_LLRING	1024
 

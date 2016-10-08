@@ -3,7 +3,7 @@
 #include "../utils/simd.h"
 
 #include <rte_hash_crc.h>
-#include <rte_prefetch.h>
+#include <rte_byteorder.h>
 
 #define MAX_TABLE_SIZE 		(1048576*64)
 #define DEFAULT_TABLE_SIZE 	1024

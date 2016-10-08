@@ -21,11 +21,9 @@ else
             Make sure $(abspath $(RTE_SDK)) is available and built)
 endif
 
-KMOD_INC_DIR = kmod
-
 CFLAGS += -std=gnu99 -g3 -ggdb3 -Ofast -march=native \
 	  -Wall -Werror -Wno-unused-function -Wno-unused-but-set-variable \
-	  -I$(KMOD_INC_DIR) -I$(DPDK_INC_DIR) \
+	  -I$(DPDK_INC_DIR) \
 	  -D_GNU_SOURCE
 
 LDFLAGS += -rdynamic -L$(DPDK_LIB_DIR) -Wl,-rpath=$(DPDK_LIB_DIR)

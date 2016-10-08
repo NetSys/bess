@@ -86,7 +86,7 @@ static inline void do_work(struct snbuf *pkt)
 	if (lookup) {
 		struct ipv4_hdr *ip = (struct ipv4_hdr*)(snb_head_data(pkt) +
 						 sizeof(struct ether_hdr));
-		uint8_t nextHop = 0;
+		uint32_t nextHop = 0;
 		int ret = rte_lpm_lookup(lpm, ip->src_addr, &nextHop);
 		assert(ret == 0 || ret == -ENOENT);
 		if (ret == 0) {
@@ -443,8 +443,13 @@ int main(int argc, char **argv)
 
 	
 	if (lookup) {
+		struct rte_lpm_config config = {
+			.max_rules = max_rules,
+			.number_tbl8s = 1024,
+		};
+
 		printf("RIB file is %s\n", rib_file);
-		lpm = rte_lpm_create(unique_name, socket_id, max_rules, 0);
+		lpm = rte_lpm_create(unique_name, socket_id, &config);
 		assert(lpm);
 		FILE* rib = fopen(rib_file, "r");
 

@@ -32,7 +32,7 @@ struct snobj;
 typedef void (*proc_func_t) (struct module *, struct pkt_batch *);
 
 typedef struct snobj *
-(*cmd_func_t) (struct module *, const char *, struct snobj *);
+(*mod_cmd_func_t) (struct module *, const char *, struct snobj *);
 
 struct mclass
 {
@@ -96,7 +96,7 @@ struct mclass
 
 	const struct {
 		const char *cmd;
-		cmd_func_t func;
+		mod_cmd_func_t func;
 
 		/* if non-zero, workers don't need to be paused in order to
 		 * run this command */
