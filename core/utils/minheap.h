@@ -17,14 +17,14 @@ struct heap {
 
 static void heap_init(struct heap *h)
 {
-	int32_t i;
+	uint32_t i;
 	const uint32_t default_size = 4;
 
 	h->size = default_size;
 	h->num_nodes = 0;
 	
-	h->arr_v = mem_alloc(sizeof(int64_t) * (h->size * 2 + 2));
-	h->arr_d = mem_alloc(sizeof(void *) * (h->size * 2 + 2));
+	h->arr_v = (int64_t *)mem_alloc(sizeof(int64_t) * (h->size * 2 + 2));
+	h->arr_d = (void **)mem_alloc(sizeof(void *) * (h->size * 2 + 2));
 
 	h->arr_v[0] = INT64_MIN;
 	h->arr_d[0] = NULL;
@@ -54,8 +54,8 @@ static void heap_push(struct heap *h, int64_t val, void *data)
 		h->size += h->size / 2;		/* grow by 50% */
 		array_size = h->size * 2 + 2;
 
-		h->arr_v = mem_realloc(h->arr_v, sizeof(int64_t) * array_size);
-		h->arr_d = mem_realloc(h->arr_d, sizeof(void *) * array_size);
+		h->arr_v = (int64_t *)mem_realloc(h->arr_v, sizeof(int64_t) * array_size);
+		h->arr_d = (void **)mem_realloc(h->arr_d, sizeof(void *) * array_size);
 
 		for (i = h->num_nodes * 2 + 2; i <= h->size * 2 + 1; i++) {
 			h->arr_v[i] = INT64_MAX;

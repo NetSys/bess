@@ -105,7 +105,7 @@ void *ht_iterate(const struct htable *t, uint32_t *next);
 /* from the stored key pointer, return its value pointer */
 static inline void *ht_key_to_value(const struct htable *t, const void *key)
 {
-	return (void *)(key + t->value_offset);
+	return (void *)((char *)key + t->value_offset);
 }
 
 /* from DPDK */
@@ -208,7 +208,7 @@ name##_hash(const key_type *key, uint32_t key_len, uint32_t init_val);	\
 static inline void *ht_##name##_get(const struct htable *t,		\
 		const void *_key)					\
 {									\
-	const key_type *key = _key;					\
+	const key_type *key = (const key_type *)_key;			\
 	uint32_t pri = name##_hash(key, t->key_size, 			\
 			DEFAULT_HASH_INITVAL);				\
 	pri |= (1u << 31);						\
@@ -219,11 +219,12 @@ static inline void *ht_##name##_get(const struct htable *t,		\
 	if (k_idx == INVALID_KEYIDX) 					\
 		return NULL;						\
 									\
-	key_type *key_stored = t->entries + t->entry_size * k_idx;	\
+	key_type *key_stored = (key_type *)				\
+			((uintptr_t)t->entries + t->entry_size * k_idx);\
 									\
 	/* Go to slow path if false positive. */			\
 	if (likely(!name##_keycmp(key, key_stored, t->key_size)))	\
-		return (void *)key_stored + t->value_offset;		\
+		return (void *)((uintptr_t)key_stored + t->value_offset);	\
 	else								\
 		return ht_get_hash(t, pri, key);			\
 }									\
@@ -278,9 +279,9 @@ static inline void ht_##name##_get_bulk(const struct htable *t, 	\
 		}							\
 									\
 		ht_keyidx_t k_idx = keyidx.a[ffs - 1];			\
-		key_type *key_stored = entries + entry_size * k_idx;	\
+		key_type *key_stored = (key_type *)((uintptr_t)entries + entry_size * k_idx);	\
 		if (!name##_keycmp(keys[i], key_stored, key_size))	\
-			values[i] = (void *)key_stored + value_offset;	\
+			values[i] = (void *)((uintptr_t)key_stored + value_offset);	\
 		else							\
 			values[i] = ht_get_hash(t, pri, keys[i]);	\
 	}								\

@@ -24,7 +24,7 @@ int is_cpu_present(unsigned int core_id)
 {
        char path[PATH_MAX];
        int len = snprintf(path, sizeof(path), SYS_CPU_DIR
-               "/"CORE_ID_FILE, core_id);
+               "/" CORE_ID_FILE, core_id);
        if (len <= 0 || (unsigned)len >= sizeof(path))
                return 0;
        if (access(path, F_OK) != 0)
@@ -67,12 +67,12 @@ int is_worker_core(int cpu)
 
 static void pause_worker(int wid)
 {
-	if (workers[wid] && workers[wid]->status == WORKER_RUNNING) {
-		workers[wid]->status = WORKER_PAUSING;
+	if (workers[wid] && workers[wid]->status == worker_context::running) {
+		workers[wid]->status = worker_context::pausing;
 
 		FULL_BARRIER();
 
-		while (workers[wid]->status == WORKER_PAUSING)
+		while (workers[wid]->status == worker_context::pausing)
 			; 	/* spin */
 	}
 }
@@ -83,19 +83,21 @@ void pause_all_workers()
 		pause_worker(wid);
 }
 
-#define SIGNAL_UNBLOCK	1
-#define SIGNAL_QUIT	2
+enum class worker_signal : uint64_t {
+	unblock = 1,
+	quit,
+};
 
 static void resume_worker(int wid)
 {
-	if (workers[wid] && workers[wid]->status == WORKER_PAUSED) {
+	if (workers[wid] && workers[wid]->status == worker_context::paused) {
 		int ret;
+		worker_signal sig = worker_signal::unblock;
 
-		ret = write(workers[wid]->fd_event, &(uint64_t){SIGNAL_UNBLOCK}, 
-				sizeof(uint64_t));
+		ret = write(workers[wid]->fd_event, &sig, sizeof(sig));
 		assert(ret == sizeof(uint64_t));
 
-		while (workers[wid]->status == WORKER_PAUSED)
+		while (workers[wid]->status == worker_context::paused)
 			; 	/* spin */
 	}
 }
@@ -113,11 +115,11 @@ static void destroy_worker(int wid)
 {
 	pause_worker(wid);
 
-	if (workers[wid] && workers[wid]->status == WORKER_PAUSED) {
+	if (workers[wid] && workers[wid]->status == worker_context::paused) {
 		int ret;
+		worker_signal sig = worker_signal::quit;
 
-		ret = write(workers[wid]->fd_event, &(uint64_t){SIGNAL_QUIT}, 
-				sizeof(uint64_t));
+		ret = write(workers[wid]->fd_event, &sig, sizeof(sig));
 		assert(ret == sizeof(uint64_t));
 
 		ret = pthread_join(workers[wid]->thread, NULL);
@@ -140,7 +142,7 @@ int is_any_worker_running()
 	int wid;
 
 	for (wid = 0; wid < MAX_WORKERS; wid++) {
-		if (workers[wid] && workers[wid]->status == WORKER_RUNNING)
+		if (workers[wid] && workers[wid]->status == worker_context::running)
 			return 1;
 	}
 
@@ -149,21 +151,21 @@ int is_any_worker_running()
 
 int block_worker()
 {
-	uint64_t t;
+	worker_signal t;
 	int ret;
 
-	ctx.status = WORKER_PAUSED;
+	ctx.status = worker_context::paused;
 
 	ret = read(ctx.fd_event, &t, sizeof(t));
 	assert(ret == sizeof(t));
 
-	if (t == SIGNAL_UNBLOCK) {
-		ctx.status = WORKER_RUNNING;
+	if (t == worker_signal::unblock) {
+		ctx.status = worker_context::running;
 		return 0;
 	}
 
-	if (t == SIGNAL_QUIT) {
-		ctx.status = WORKER_RUNNING;
+	if (t == worker_signal::quit) {
+		ctx.status = worker_context::running;
 		return 1;
 	}
 
@@ -178,7 +180,7 @@ struct thread_arg {
 /* The entry point of worker threads */
 static void *run_worker(void *_arg)
 {
-	struct thread_arg *arg = _arg;
+	struct thread_arg *arg = (struct thread_arg *)_arg;
 
 	cpu_set_t set;
 
@@ -208,7 +210,7 @@ static void *run_worker(void *_arg)
 	ctx.pframe_pool = get_pframe_pool();
 	assert(ctx.pframe_pool);
 
-	ctx.status = WORKER_PAUSING;
+	ctx.status = worker_context::pausing;
 
 #if 0
 	/* FIXME: when should this be called, avoiding latency */
@@ -244,7 +246,7 @@ void launch_worker(int wid, int core)
 	INST_BARRIER();
 
 	/* spin until it becomes ready and fully paused */
-	while (!is_worker_active(wid) || workers[wid]->status != WORKER_PAUSED)
+	while (!is_worker_active(wid) || workers[wid]->status != worker_context::paused)
 		continue;
 
 	num_workers++;

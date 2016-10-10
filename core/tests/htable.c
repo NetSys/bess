@@ -58,7 +58,7 @@ static void *bess_init(int entries)
 	struct htable *t;
 	uint64_t seed = 0;
 
-	t = mem_alloc(sizeof(*t));
+	t = (struct htable *)mem_alloc(sizeof(*t));
 	if (!t)
 		return NULL;
 
@@ -81,7 +81,7 @@ static void *bess_init(int entries)
 
 static void bess_get(void *arg, int iteration, int entries)
 {
-	struct htable *t = arg;
+	struct htable *t = (struct htable *)arg;
 
 	for (int k = 0; k < iteration; k++) {
 		uint64_t seed = 0;
@@ -89,7 +89,7 @@ static void bess_get(void *arg, int iteration, int entries)
 			uint32_t key = rand_fast(&seed);
 			value_t *val;
 
-			val = ht_get(t, &key);
+			val = (value_t *)ht_get(t, &key);
 			assert(val && *val == derive_val(key));
 		}
 	}
@@ -97,7 +97,7 @@ static void bess_get(void *arg, int iteration, int entries)
 
 static void bess_inlined_get(void *arg, int iteration, int entries)
 {
-	struct htable *t = arg;
+	struct htable *t = (struct htable *)arg;
 
 	for (int k = 0; k < iteration; k++) {
 		uint64_t seed = 0;
@@ -105,7 +105,7 @@ static void bess_inlined_get(void *arg, int iteration, int entries)
 			uint32_t key = rand_fast(&seed);
 			value_t *val;
 
-			val = ht_inlined_get(t, &key);
+			val = (value_t *)ht_inlined_get(t, &key);
 			assert(val && *val == derive_val(key));
 		}
 	}
@@ -113,7 +113,7 @@ static void bess_inlined_get(void *arg, int iteration, int entries)
 
 static void bess_inlined_get_bulk(void *arg, int iteration, int entries)
 {
-	struct htable *t = arg;
+	struct htable *t = (struct htable *)arg;
 
 	for (int k = 0; k < iteration; k++) {
 		uint64_t seed = 0;
@@ -142,7 +142,7 @@ static void bess_inlined_get_bulk(void *arg, int iteration, int entries)
 
 static void bess_close(void *arg)
 {
-	struct htable *t = arg;
+	struct htable *t = (struct htable *)arg;
 
 	ht_close(t);
 }
@@ -164,7 +164,8 @@ static void *dpdk_discrete_init(int entries)
 
 	params = (struct rte_hash_parameters) {
 		.name = "rte_hash_test",
-		.entries = align_ceil_pow2(MAX(8, entries * 2)),
+		.entries = (uint32_t)align_ceil_pow2(MAX(8, entries * 2)),
+		.reserved = 0,
 		.key_len = sizeof(uint32_t),
 		.hash_func = rte_hash_crc,
 		.hash_func_init_val = UINT32_MAX,
@@ -175,13 +176,13 @@ static void *dpdk_discrete_init(int entries)
 	if (!t)
 		return NULL;
 
-	value_arr = mem_alloc(sizeof(value_t) * entries);
+	value_arr = (value_t *)mem_alloc(sizeof(value_t) * entries);
 	if (!value_arr) {
 		rte_hash_free(t);
 		return NULL;
 	}
 
-	ht = mem_alloc(sizeof(struct dpdk_ht));
+	ht = (struct dpdk_ht *)mem_alloc(sizeof(struct dpdk_ht));
 	if (!ht) {
 		mem_free(value_arr);
 		rte_hash_free(t);
@@ -212,7 +213,8 @@ static void *dpdk_embedded_init(int entries)
 
 	params = (struct rte_hash_parameters) {
 		.name = "rte_hash_test",
-		.entries = align_ceil_pow2(MAX(8, entries * 2)),
+		.entries = (uint32_t)align_ceil_pow2(MAX(8, entries * 2)),
+		.reserved = 0,
 		.key_len = sizeof(uint32_t),
 		.hash_func = rte_hash_crc,
 		.hash_func_init_val = UINT32_MAX,
@@ -236,7 +238,7 @@ static void *dpdk_embedded_init(int entries)
 
 static void dpdk_(void *arg, int iteration, int entries)
 {
-	struct dpdk_ht *ht = arg;
+	struct dpdk_ht *ht = (struct dpdk_ht *)arg;
 	struct rte_hash *t = ht->t;
 	value_t *value_arr = ht->value_arr;
 
@@ -253,7 +255,7 @@ static void dpdk_(void *arg, int iteration, int entries)
 
 static void dpdk_hash(void *arg, int iteration, int entries)
 {
-	struct dpdk_ht *ht = arg;
+	struct dpdk_ht *ht = (struct dpdk_ht *)arg;
 	struct rte_hash *t = ht->t;
 	value_t *value_arr = ht->value_arr;
 
@@ -271,7 +273,7 @@ static void dpdk_hash(void *arg, int iteration, int entries)
 
 static void dpdk_bulk(void *arg, int iteration, int entries)
 {
-	struct dpdk_ht *ht = arg;
+	struct dpdk_ht *ht = (struct dpdk_ht *)arg;
 	struct rte_hash *t = ht->t;
 	value_t *value_arr = ht->value_arr;
 
@@ -303,7 +305,7 @@ static void dpdk_bulk(void *arg, int iteration, int entries)
 
 static void dpdk_data(void *arg, int iteration, int entries)
 {
-	struct rte_hash *t = arg;
+	struct rte_hash *t = (struct rte_hash *)arg;
 
 	for (int k = 0; k < iteration; k++) {
 		uint64_t seed = 0;
@@ -319,7 +321,7 @@ static void dpdk_data(void *arg, int iteration, int entries)
 
 static void dpdk_data_hash(void *arg, int iteration, int entries)
 {
-	struct rte_hash *t = arg;
+	struct rte_hash *t = (struct rte_hash *)arg;
 
 	for (int k = 0; k < iteration; k++) {
 		uint64_t seed = 0;
@@ -337,7 +339,7 @@ static void dpdk_data_hash(void *arg, int iteration, int entries)
 
 static void dpdk_data_bulk(void *arg, int iteration, int entries)
 {
-	struct rte_hash *t = arg;
+	struct rte_hash *t = (struct rte_hash *)arg;
 
 	for (int k = 0; k < iteration; k++) {
 		uint64_t seed = 0;
@@ -366,14 +368,14 @@ static void dpdk_data_bulk(void *arg, int iteration, int entries)
 
 static void dpdk_embedded_close(void *arg)
 {
-	struct rte_hash *t = arg;
+	struct rte_hash *t = (struct rte_hash *)arg;
 
 	rte_hash_free(t);
 }
 
 static void dpdk_discrete_close(void *arg)
 {
-	struct dpdk_ht *ht = arg;
+	struct dpdk_ht *ht = (struct dpdk_ht *)arg;
 	struct rte_hash *t = ht->t;
 	value_t *value_arr = ht->value_arr;
 
@@ -454,14 +456,14 @@ static void perftest()
 	};
 
 	printf("%-32s", "Functions,Mops");
-	for (int i = 0; i < ARR_SIZE(test_entries); i++)
+	for (size_t i = 0; i < ARR_SIZE(test_entries); i++)
 		printf("%9d", test_entries[i]);
 	printf("\n");
 
-	for (int i = 0; i < ARR_SIZE(players); i++) {
+	for (size_t i = 0; i < ARR_SIZE(players); i++) {
 		const struct player *p = &players[i];
 		printf("%-32s", p->name);
-		for (int j = 0; j < ARR_SIZE(test_entries); j++) {
+		for (size_t j = 0; j < ARR_SIZE(test_entries); j++) {
 			int entries = test_entries[j];
 			int iteration = MAX(1, (int)(1e6 / entries));
 			void *arg;
@@ -519,7 +521,7 @@ static void functest()
 		uint32_t key = rand_fast(&seed);
 		uint16_t *val;
 
-		val = ht_get(&t, &key);
+		val = (uint16_t *)ht_get(&t, &key);
 		assert(val != NULL);
 		assert(*val == derive_val(key));
 	}

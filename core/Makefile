@@ -1,4 +1,4 @@
-CC = gcc
+CC = g++
 DPDK_LIB = dpdk
 
 ifndef RTE_SDK
@@ -21,7 +21,7 @@ else
             Make sure $(abspath $(RTE_SDK)) is available and built)
 endif
 
-CFLAGS += -std=gnu99 -g3 -ggdb3 -Ofast -march=native \
+CFLAGS += -std=gnu++11 -g3 -ggdb3 -Ofast -march=native \
 	  -Wall -Werror -Wno-unused-function -Wno-unused-but-set-variable \
 	  -I$(DPDK_INC_DIR) \
 	  -D_GNU_SOURCE
@@ -36,9 +36,9 @@ endif
 
 -include extra.mk
 
-SRCS = $(wildcard *.c utils/*.c modules/*.c drivers/*.c tests/*.c)
+SRCS = $(wildcard *.c utils/*.c tests/*.c)
 OBJS = $(SRCS:.c=.o)
-HEADERS = $(wildcard *.h utils/*.h modules/*.h drivers/*.h tests/*.h)
+HEADERS = $(wildcard *.h utils/*.h tests/*.h)
 EXEC = bessd
 
 DEPS = .make.dep

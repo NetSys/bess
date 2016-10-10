@@ -3,9 +3,10 @@
 
 #define _ADD_TEST(_func, _name, _forced) \
 	static struct testcase __t_##_func = { \
+		.next = NULL, \
 		.name = _name, \
-		.func = _func, \
 		.forced = _forced, \
+		.func = _func, \
 	}; \
 	__attribute__((constructor(104))) void __testcase_register_##_func() \
 	{ \

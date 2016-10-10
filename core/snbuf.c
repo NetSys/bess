@@ -20,19 +20,17 @@ static void snbuf_pkt_init(struct rte_mempool *mp, void *opaque_arg,
 		void *_m, unsigned i)
 {
 	struct snbuf *snb;
-	struct snbuf_immutable *immutable;
 
-	snb = _m;
-	immutable = (struct snbuf_immutable *)&snb->immutable;
+	snb = (struct snbuf *)_m;
 
 	rte_pktmbuf_init(mp, NULL, _m, i);
 
 	memset(snb->_reserve, 0, SNBUF_RESERVE);
 
-	immutable->vaddr = snb;
-	immutable->paddr = rte_mempool_virt2phy(mp, snb);
-	immutable->sid = (uintptr_t)opaque_arg;
-	immutable->index = i;
+	snb->vaddr = snb;
+	snb->paddr = rte_mempool_virt2phy(mp, snb);
+	snb->sid = (uintptr_t)opaque_arg;
+	snb->index = i;
 }
 
 static void init_mempool_socket(int sid)
@@ -147,8 +145,12 @@ static struct snbuf *paddr_to_snb_memchunk(struct rte_mempool_memhdr *chunk,
 	if (chunk->phys_addr == RTE_BAD_PHYS_ADDR)
 		return NULL;
 
-	if (chunk->phys_addr <= paddr && paddr < chunk->phys_addr + chunk->len)
-		return chunk->addr + (paddr - chunk->phys_addr);
+	if (chunk->phys_addr <= paddr && paddr < chunk->phys_addr + chunk->len) {
+		uintptr_t vaddr;
+
+		vaddr = (uintptr_t)chunk->addr + paddr - chunk->phys_addr;
+		return (struct snbuf *)vaddr;
+	}
 
 	return NULL;
 }
@@ -171,8 +173,8 @@ struct snbuf *paddr_to_snb(phys_addr_t paddr)
 			if (snb_to_paddr(snb) != paddr) {
 				log_err("snb->immutable.paddr corruption: "
 						"snb=%p, snb->immutable.paddr="
-						"%"PRIx64" (!= %"PRIx64")\n",
-						snb, snb->immutable.paddr, 
+						"%" PRIx64 " (!= %" PRIx64 ")\n",
+						snb, snb->paddr,
 						paddr);
 				return NULL;
 			}

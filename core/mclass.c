@@ -2,14 +2,14 @@
 #include "namespace.h"
 #include "mclass.h"
 
-size_t list_mclasses(const struct mclass **p_arr, size_t arr_size, 
+size_t list_mclasses(const struct mclass **p_arr, size_t arr_size,
 		size_t offset)
 {
-	int ret = 0; 
-	int iter_cnt = 0;
+	size_t ret = 0;
+	size_t iter_cnt = 0;
 
 	struct ns_iter iter;
-	
+
 	ns_init_iterator(&iter, NS_TYPE_MCLASS);
 	while (1) {
 		struct mclass *mc_obj = (struct mclass *) ns_next(&iter);
@@ -21,12 +21,12 @@ size_t list_mclasses(const struct mclass **p_arr, size_t arr_size,
 
 		if (ret >= arr_size)
 			break;
-		
+
 		p_arr[ret++] = mc_obj;
 
 	}
 	ns_release_iterator(&iter);
-	
+
 	return ret;
 }
 
@@ -80,14 +80,14 @@ int add_mclass(const struct mclass *mclass)
 		return 0;
 
 	if (!is_valid_attr_list(mclass)) {
-		log_err("is_valid_attr_list() failure for module class '%s'\n", 
+		log_err("is_valid_attr_list() failure for module class '%s'\n",
 				mclass->name);
 		return -1;
 	}
 
 	ret = ns_insert(NS_TYPE_MCLASS, mclass->name, (void *) mclass);
 	if (ret < 0) {
-		log_err("ns_insert() failure for module class '%s'\n", 
+		log_err("ns_insert() failure for module class '%s'\n",
 				mclass->name);
 		return -1;
 	}

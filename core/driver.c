@@ -4,8 +4,8 @@
 
 size_t list_drivers(const struct driver **p_arr, size_t arr_size, size_t offset)
 {
-	int ret = 0;
-	int iter_cnt = 0;
+	size_t ret = 0;
+	size_t iter_cnt = 0;
 
 	struct ns_iter iter;
 

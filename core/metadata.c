@@ -48,11 +48,11 @@ add_module_to_component(struct module *m, struct mt_attr *attr)
 		strcpy(component->name, attr->name);
 		component->size = attr->size;
 		component->num_modules = 1;
-		component->modules = mem_alloc(sizeof(struct module *));
+		component->modules = (struct module **)mem_alloc(sizeof(struct module *));
 		component->modules[0] = m;
 	} else {
 		component->num_modules++;
-		component->modules = mem_realloc(component->modules,
+		component->modules = (struct module **)mem_realloc(component->modules,
 				sizeof(struct module *) * component->num_modules);
 		component->modules[component->num_modules - 1] = m;
 	}
@@ -174,9 +174,11 @@ ret:
 static void allocate_scope_components()
 {
 	if (curr_scope_id == 0)
-		scope_components = mem_alloc(sizeof(struct scope_component) * 100);
+		scope_components = (struct scope_component *)
+			mem_alloc(sizeof(struct scope_component) * 100);
 	else
-		scope_components = mem_realloc(scope_components, sizeof(struct scope_component)
+		scope_components = (struct scope_component *)
+			mem_realloc(scope_components, sizeof(struct scope_component)
 					   * 100 * ((curr_scope_id / 100) + 1));
 
 	log_err("alloc/realloc %p\n", scope_components);

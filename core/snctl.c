@@ -155,16 +155,17 @@ static struct snobj *handle_reset_tcs(struct snobj *q)
 
 	struct tc **c_arr;
 	size_t arr_slots = 1024;
-	int n = 0;
+	size_t n = 0;
 
-	c_arr = malloc(arr_slots * sizeof(struct tc *));
+	c_arr = (struct tc **)malloc(arr_slots * sizeof(struct tc *));
 
 	ns_init_iterator(&iter, NS_TYPE_TC);
 
 	while ((c = (struct tc *)ns_next(&iter)) != NULL) {
 		if (n >= arr_slots) {
 			arr_slots *= 2;
-			c_arr = realloc(c_arr, arr_slots * sizeof(struct tc *));
+			c_arr = (struct tc **)
+				realloc(c_arr, arr_slots * sizeof(struct tc *));
 		}
 
 		c_arr[n] = c;
@@ -173,7 +174,7 @@ static struct snobj *handle_reset_tcs(struct snobj *q)
 
 	ns_release_iterator(&iter);
 
-	for (int i = 0; i < n; i++) {
+	for (size_t i = 0; i < n; i++) {
 		c = c_arr[i];
 
 		if (c->num_tasks) {
@@ -324,7 +325,7 @@ static struct snobj *handle_add_tc(struct snobj *q)
 		if (snobj_type(limit) != TYPE_MAP)
 			return snobj_err(EINVAL, "'limit' must be a map\n");
 
-		for (int i = 0; i < limit->size; i++) {
+		for (size_t i = 0; i < limit->size; i++) {
 			int rsc = name_to_resource(limit->map.arr_k[i]);
 
 			if (rsc < 0)
@@ -341,7 +342,7 @@ static struct snobj *handle_add_tc(struct snobj *q)
 		if (snobj_type(max_burst) != TYPE_MAP)
 			return snobj_err(EINVAL, "'max_burst' must be a map\n");
 
-		for (int i = 0; i < max_burst->size; i++) {
+		for (size_t i = 0; i < max_burst->size; i++) {
 			int rsc = name_to_resource(max_burst->map.arr_k[i]);
 
 			if (rsc < 0)
@@ -375,7 +376,7 @@ static struct snobj *handle_get_tc_stats(struct snobj *q)
 	if (!tc_name)
 		return snobj_err(EINVAL, "Argument must be a name in str");
 
-	c = ns_lookup(NS_TYPE_TC, tc_name);
+	c = (struct tc *)ns_lookup(NS_TYPE_TC, tc_name);
 	if (!c)
 		return snobj_err(ENOENT, "No TC '%s' found", tc_name);
 
@@ -953,7 +954,7 @@ static struct snobj *handle_attach_task(struct snobj *q)
 	if (tc_name) {
 		struct tc *c;
 
-		c = ns_lookup(NS_TYPE_TC, tc_name);
+		c = (struct tc *)ns_lookup(NS_TYPE_TC, tc_name);
 		if (!c)
 			return snobj_err(ENOENT, "No TC '%s' found", tc_name);
 

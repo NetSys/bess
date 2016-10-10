@@ -111,7 +111,7 @@ static char *_STRDUP(const char *s)
 	size_t len = strlen(s);
 	char *ret;
 
-	ret = _ALLOC(len + 1);
+	ret = (char *)_ALLOC(len + 1);
 	memcpy(ret, s, len + 1);
 
 	return ret;
@@ -146,7 +146,7 @@ struct snobj *snobj_list(void);
 struct snobj *snobj_map(void);
 
 int snobj_list_add(struct snobj *m, struct snobj *child);
-int snobj_list_del(struct snobj *m, int index);
+int snobj_list_del(struct snobj *m, size_t index);
 
 static inline int64_t snobj_int_get(const struct snobj *m)
 {
@@ -196,7 +196,7 @@ static inline void *snobj_blob_get(const struct snobj *m)
 	return (void *)m->data;
 }
 
-static inline struct snobj *snobj_list_get(const struct snobj *m, int idx)
+static inline struct snobj *snobj_list_get(const struct snobj *m, uint32_t idx)
 {
 	if (m->type != TYPE_LIST)
 		return NULL;
@@ -210,7 +210,7 @@ static inline struct snobj *snobj_list_get(const struct snobj *m, int idx)
 struct snobj *snobj_map_get(const struct snobj *m, const char *key);
 int snobj_map_set(struct snobj *m, const char *key, struct snobj *val);
 
-int snobj_binvalue_get(struct snobj *m, int size, void *dst, int force_be);
+int snobj_binvalue_get(struct snobj *m, uint32_t size, void *dst, int force_be);
 
 static inline snobj_type_t snobj_type(const struct snobj *m)
 {

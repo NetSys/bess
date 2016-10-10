@@ -43,7 +43,8 @@ static int ns_table_init()
 
 	ht.bucket_size = NS_BUCKET_SIZE_INIT;
 	ht.item_count = 0;
-	ht.ns_elem_bhead = malloc(ht.bucket_size * sizeof(struct cdlist_head));
+	ht.ns_elem_bhead = (struct cdlist_head *)
+		malloc(ht.bucket_size * sizeof(struct cdlist_head));
 
 	if (!ht.ns_elem_bhead)
 		return -ENOMEM;
@@ -103,7 +104,8 @@ static int ns_table_resize(int new_bsize)
 
 	int old_bsize = ht.bucket_size;
 
-	new_bhead = malloc(new_bsize * sizeof(struct cdlist_head));
+	new_bhead = (struct cdlist_head *)
+		malloc(new_bsize * sizeof(struct cdlist_head));
 	if (!new_bhead)
 		return -ENOMEM;
 
@@ -257,10 +259,9 @@ int ns_insert(ns_type_t type, const char *name, void *object)
 		return -EEXIST;
 
 	hash = ns_get_hash(name);
-	assert(hash < ht.bucket_size);
-
 	bhead = &ht.ns_elem_bhead[hash];
-	i = malloc(sizeof(struct ns_elem));
+
+	i = (struct ns_elem *)malloc(sizeof(struct ns_elem));
 	if (!i)
 		return -ENOMEM;
 
@@ -377,11 +378,11 @@ void ns_valid_name_test()
 {
 	int ret;
 
-	char *name1 = "_Sangjin09";	/* valid */
-	char *name2 = "E2Classifier";	/* valid */
-	char *name3 = "101Source";	/* invalid */
-	char *name4 = "-Source";	/* invliad */
-	char *name5 = "Sink.port0";	/* invliad */
+	const char *name1 = "_Sangjin09";	/* valid */
+	const char *name2 = "E2Classifier";	/* valid */
+	const char *name3 = "101Source";	/* invalid */
+	const char *name4 = "-Source";	/* invliad */
+	const char *name5 = "Sink.port0";	/* invliad */
 
 	ret = ns_is_valid_name(name1);
 	assert(ret);
@@ -405,12 +406,12 @@ void ns_hashtable_test()
 {
 	int ret;
 
-	char *class1_name = "_Sangjin09";
-	char *module1_name = "E2Calssifier";
-	char *driver1_name = "ixgbe";
-	char *port1_name = "in1";
-	char *port2_name = "in2";
-	char *port3_name = "in3";
+	const char *class1_name = "_Sangjin09";
+	const char *module1_name = "E2Calssifier";
+	const char *driver1_name = "ixgbe";
+	const char *port1_name = "in1";
+	const char *port2_name = "in2";
+	const char *port3_name = "in3";
 
 	typedef struct {
 		int value;
@@ -474,17 +475,17 @@ void ns_hashtable_test()
 
 void ns_iterator_test()
 {
-	char *module1_name = "Sink";
-	char *module2_name = "E2Calssifier";
-	char *module3_name = "E2LoadBalancer";
-	char *module4_name = "Source";
-	char *module5_name = "Source2";
+	const char *module1_name = "Sink";
+	const char *module2_name = "E2Calssifier";
+	const char *module3_name = "E2LoadBalancer";
+	const char *module4_name = "Source";
+	const char *module5_name = "Source2";
 
-	char *port1_name = "in1";
-	char *port2_name = "in2";
-	char *port3_name = "in3";
+	const char *port1_name = "in1";
+	const char *port2_name = "in2";
+	const char *port3_name = "in3";
 
-	char *driver1_name = "ixgbe";
+	const char *driver1_name = "ixgbe";
 
 	typedef struct {
 		int value;
@@ -606,15 +607,15 @@ void ns_iterator_test()
 
 void ns_table_resize_test()
 {
-	char *module1_name = "Sink";
-	char *module2_name = "E2Calssifier";
-	char *module3_name = "E2LoadBalancer";
-	char *module4_name = "Source";
-	char *module5_name = "Source2";
+	const char *module1_name = "Sink";
+	const char *module2_name = "E2Calssifier";
+	const char *module3_name = "E2LoadBalancer";
+	const char *module4_name = "Source";
+	const char *module5_name = "Source2";
 
-	char *port1_name = "in1";
-	char *port2_name = "in2";
-	char *port3_name = "in3";
+	const char *port1_name = "in1";
+	const char *port2_name = "in2";
+	const char *port3_name = "in3";
 
 	typedef struct {
 		int value;

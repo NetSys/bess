@@ -33,7 +33,7 @@ static inline uint32_t ht_hash_nonzero(const struct htable *t, const void *key)
 
 static inline void *keyidx_to_ptr(const struct htable *t, ht_keyidx_t idx)
 {
-	return t->entries + t->entry_size * idx;
+	return (void *)((uintptr_t)t->entries + t->entry_size * idx);
 }
 
 static inline ht_keyidx_t get_next(const struct htable *t, ht_keyidx_t curr)
@@ -45,7 +45,7 @@ static void push_free_keyidx(struct htable *t, ht_keyidx_t idx)
 {
 	assert(0 <= idx && idx < t->num_entries);
 
-	*(ht_keyidx_t *)(t->entries + t->entry_size * idx) = t->free_keyidx;
+	*(ht_keyidx_t *)((uintptr_t)t->entries + t->entry_size * idx) = t->free_keyidx;
 	t->free_keyidx = idx;
 }
 
@@ -154,7 +154,8 @@ static int add_to_bucket(struct htable *t, struct ht_bucket *bucket,
 
 			entry = keyidx_to_ptr(t, k_idx);
 			memcpy(entry, key, t->key_size);
-			memcpy(entry + t->value_offset, value, t->value_size);
+			memcpy((void *)((uintptr_t)entry + t->value_offset), 
+					value, t->value_size);
 
 			t->cnt++;
 			return 0;
@@ -200,7 +201,7 @@ static int clone_table(struct htable *t_new, struct htable *t_old,
 
 	*t_new = *t_old;
 
-	t_new->buckets = mem_alloc(num_buckets * sizeof(struct ht_bucket));
+	t_new->buckets = (struct ht_bucket *)mem_alloc(num_buckets * sizeof(struct ht_bucket));
 	if (!t_new->buckets)
 		return -ENOMEM;
 
@@ -265,7 +266,7 @@ static void *get_from_bucket(const struct htable *t,
 		key_stored = keyidx_to_ptr(t, k_idx);
 
 		if (t->keycmp_func(key, key_stored, t->key_size) == 0)
-			return key_stored + t->value_offset;
+			return (void *)((uintptr_t)key_stored + t->value_offset);
 	}
 
 	return NULL;
@@ -340,11 +341,11 @@ int ht_init_ex(struct htable *t, struct ht_params *params)
 
 	t->key_size = params->key_size;
 	t->value_size = params->value_size;
-	t->value_offset = align_ceil(t->key_size, MAX(1, params->value_align));
+	t->value_offset = align_ceil(t->key_size, MAX(1ul, params->value_align));
 	t->entry_size = align_ceil(t->value_offset + t->value_size,
 			params->key_align);
 
-	t->buckets = mem_alloc((t->bucket_mask + 1) * sizeof(struct ht_bucket));
+	t->buckets = (struct ht_bucket *)mem_alloc((t->bucket_mask + 1) * sizeof(struct ht_bucket));
 	if (!t->buckets)
 		return -ENOMEM;
 

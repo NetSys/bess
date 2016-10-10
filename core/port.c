@@ -13,8 +13,8 @@
 
 size_t list_ports(const struct port **p_arr, size_t arr_size, size_t offset)
 {
-	int ret = 0;
-	int iter_cnt = 0;
+	size_t ret = 0;
+	size_t iter_cnt = 0;
 
 	struct ns_iter iter;
 
@@ -44,20 +44,20 @@ static void set_default_name(struct port *p)
 	int i;
 
 	if (p->driver->def_port_name) {
-		fmt = alloca(strlen(p->driver->def_port_name) + 16);
+		fmt = (char *)alloca(strlen(p->driver->def_port_name) + 16);
 		strcpy(fmt, p->driver->def_port_name);
 	} else {
-		const char *template = p->driver->name;
+		const char *def = p->driver->name;
 		const char *t;
 
 		char *s;
 
-		fmt = alloca(strlen(template) + 16);
+		fmt = (char *)alloca(strlen(def) + 16);
 		s = fmt;
 
 		/* CamelCase -> camel_case */
-		for (t = template; *t != '\0'; t++) {
-			if (t != template && islower(*(t - 1)) && isupper(*t))
+		for (t = def; *t != '\0'; t++) {
+			if (t != def && islower(*(t - 1)) && isupper(*t))
 				*s++ = '_';
 			
 			*s++ = tolower(*t);
@@ -177,13 +177,13 @@ struct port *create_port(const char *name,
 		goto fail;
 	}
 
-	p = mem_alloc(sizeof(struct port) + driver->priv_size);
+	p = (struct port *)mem_alloc(sizeof(struct port) + driver->priv_size);
 	if (!p) {
 		*perr = snobj_errno(ENOMEM);
 		goto fail;
 	}
 
-	p->name = mem_alloc(PORT_NAME_LEN);
+	p->name = (char *)mem_alloc(PORT_NAME_LEN);
 	if (!p->name) {
 		*perr = snobj_errno(ENOMEM);
 		goto fail;
@@ -224,12 +224,14 @@ fail:
 	return NULL;
 }
 
+#include <initializer_list>
+
 /* -errno if not successful */
 int destroy_port(struct port *p)
 {
 	int ret;
 
-	for (packet_dir_t dir = 0; dir < PACKET_DIRS; dir++) {
+	for (packet_dir_t dir : {PACKET_DIR_INC, PACKET_DIR_OUT}) {
 		for (int i = 0; i < p->num_queues[dir]; i++) 
 			if (p->users[dir][i])
 				return -EBUSY;
@@ -255,7 +257,7 @@ void get_port_stats(struct port *p, port_stats_t *stats)
 
 	memcpy(stats, &p->port_stats, sizeof(port_stats_t));
 
-	for (packet_dir_t dir = 0; dir < PACKET_DIRS; dir++) {
+	for (packet_dir_t dir : {PACKET_DIR_INC, PACKET_DIR_OUT}) {
 		for (queue_t qid = 0; qid < p->num_queues[dir]; qid++) {
 			const struct packet_stats *queue_stats;
 			

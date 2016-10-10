@@ -57,24 +57,16 @@ static ssize_t dpdk_log_init_writer(void *cookie, const char *data, size_t len)
 	return len;
 }
 
-static cookie_io_functions_t dpdk_log_init_funcs = {
-	.write = &dpdk_log_init_writer,
-};
-
 static ssize_t dpdk_log_writer(void *cookie, const char *data, size_t len)
 {
 	_log(LOG_INFO, "%.*s", (int)len, data);
 	return len;
 }
 
-static cookie_io_functions_t dpdk_log_funcs = {
-	.write = &dpdk_log_writer,
-};
-
 static void init_eal(char *prog_name, int mb_per_socket, int multi_instance)
 {
 	int rte_argc = 0;
-	char *rte_argv[16];
+	const char *rte_argv[16];
 
 	char opt_master_lcore[1024];
 	char opt_lcore_bitmap[1024];
@@ -126,11 +118,17 @@ static void init_eal(char *prog_name, int mb_per_socket, int multi_instance)
 
 	/* DPDK creates duplicated outputs (stdout and syslog). 
 	 * We temporarily disable syslog, then set our log handler */
+	cookie_io_functions_t dpdk_log_init_funcs = {};
+	cookie_io_functions_t dpdk_log_funcs = {};
+
+	dpdk_log_init_funcs.write = &dpdk_log_init_writer;
+	dpdk_log_funcs.write = &dpdk_log_writer;
+
 	org_stdout = stdout;
 	stdout = fopencookie(NULL, "w", dpdk_log_init_funcs);
 
 	disable_syslog();
-	ret = rte_eal_init(rte_argc, rte_argv);
+	ret = rte_eal_init(rte_argc, const_cast<char **>(rte_argv));
 	if (ret < 0) {
 		log_crit("rte_eal_init() failed: ret = %d\n", ret);
 		exit(EXIT_FAILURE);

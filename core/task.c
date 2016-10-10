@@ -11,7 +11,7 @@ struct task *task_create(struct module *m, void *arg)
 {
 	struct task *t;
 
-	t = mem_alloc(sizeof(*t));
+	t = (struct task *)mem_alloc(sizeof(*t));
 	if (!t)
 		return NULL;
 	
@@ -74,13 +74,13 @@ void assign_default_tc(int wid, struct task *t)
 
 	struct tc *c_def;
 
-	struct tc_params params = {
-		.parent = NULL,
-		.auto_free = 1,	/* when no task is left, this TC is freed */
-		.priority = DEFAULT_PRIORITY,
-		.share = 1,
-		.share_resource = RESOURCE_CNT,
-	};
+	struct tc_params params = {};
+
+	params.parent = NULL;
+	params.auto_free = 1;	/* when no task is left, this TC is freed */
+	params.priority = DEFAULT_PRIORITY;
+	params.share = 1;
+	params.share_resource = RESOURCE_CNT;
 
 	if (num_module_tasks(t->m) == 1)
 		sprintf(params.name, "_tc_%s", t->m->name);

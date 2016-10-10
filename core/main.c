@@ -193,7 +193,7 @@ void check_pidfile()
 	pid_t pid;
 
 	if (!opts->pidfile)
-		opts->pidfile = "/var/run/bessd.pid";
+		opts->pidfile = (char *)"/var/run/bessd.pid";
 	else if (strlen(opts->pidfile) == 0)
 		return;
 
@@ -390,7 +390,8 @@ int main(int argc, char **argv)
 
 	/* signal the parent that all initialization has been finished */
 	if (!opts->foreground) {
-		int ret = write(signal_fd, &(uint64_t){1}, sizeof(uint64_t));
+		uint64_t one = 1;
+		int ret = write(signal_fd, &one, sizeof(one));
 		if (ret < 0) {
 			log_perr("write(signal_fd)");
 			exit(EXIT_FAILURE);

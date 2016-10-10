@@ -33,7 +33,12 @@ typedef volatile enum {
 } worker_status_t;
 
 struct worker_context {
-	worker_status_t status;
+	volatile enum {
+		pausing = 0, 	/* transient state for blocking or quitting */
+		paused,
+		running,
+		finished
+	} status;
 
 	pthread_t thread;
 	int wid;		/* always [0, MAX_WORKERS - 1] */
@@ -83,19 +88,19 @@ void launch_worker(int wid, int core);
 
 static inline int is_worker_active(int wid)
 {
-	return (workers[wid] != NULL);
+	return workers[wid] != NULL;
 }
 
 static inline int is_worker_running(int wid)
 {
-	return (workers[wid] && workers[wid]->status == WORKER_RUNNING);
+	return workers[wid] && workers[wid]->status == worker_context::running;
 }
 
 /* ------------------------------------------------------------------------
  * functions below are invoked by worker threads
  * ------------------------------------------------------------------------ */
 static inline int is_pause_requested() {
-	return (ctx.status == WORKER_PAUSING);
+	return ctx.status == worker_context::pausing;
 }
 
 /* Block myself. Return nonzero if the worker needs to die */

@@ -323,7 +323,7 @@ __attribute__((constructor(101))) static void set_trap_handler()
 		SIGPIPE,
 	};
 	struct sigaction sigact;
-	int i;
+	size_t i;
 
 	sigact.sa_sigaction = trap_handler;
 	sigact.sa_flags = SA_RESTART | SA_SIGINFO;

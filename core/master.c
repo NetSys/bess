@@ -40,7 +40,7 @@ static struct {
 static void reset_core_affinity()
 {
 	cpu_set_t set;
-	int i;
+	unsigned int i;
 
 	CPU_ZERO(&set);
 
@@ -67,21 +67,23 @@ static int init_listen_fd(uint16_t port)
 
 	int listen_fd;
 
+	const int one = 1;
+
+	struct linger l = {.l_onoff = 1, .l_linger = 0};
+
 	if ((listen_fd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
 		log_perr("socket()");
 		exit(EXIT_FAILURE);
 	}
 
-	if (setsockopt(listen_fd, SOL_SOCKET, SO_REUSEADDR, 
-				&(int){1}, sizeof(int)) < 0) 
+	if (setsockopt(listen_fd, SOL_SOCKET, SO_REUSEADDR,
+				&one, sizeof(one)) < 0)
 	{
 		log_perr("setsockopt(SO_REUSEADDR)");
 		exit(EXIT_FAILURE);
 	}
 
-	if (setsockopt(listen_fd, SOL_SOCKET, SO_LINGER,
-				&(struct linger){.l_onoff = 1, .l_linger = 0},
-				sizeof(struct linger)) < 0)
+	if (setsockopt(listen_fd, SOL_SOCKET, SO_LINGER, &l, sizeof(l)) < 0)
 	{
 		log_perr("setsockopt(SO_LINGER)");
 		exit(EXIT_FAILURE);
@@ -106,7 +108,7 @@ static int init_listen_fd(uint16_t port)
 		exit(EXIT_FAILURE);
 	}
 
-	log_info("Master: listening on %s:%hu\n", 
+	log_info("Master: listening on %s:%hu\n",
 			inet_ntoa(s_addr.sin_addr), port);
 
 	return listen_fd;
@@ -116,18 +118,20 @@ static struct client *init_client(int fd, struct sockaddr_in c_addr)
 {
 	struct client *c;
 
-	/* because this is just optimization, we can ignore errors */
-	setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &(int){1}, sizeof(int));
+	const int one = 1;
 
-	c = mem_alloc(sizeof(struct client));
-	if (!c) 
+	/* because this is just optimization, we can ignore errors */
+	setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &one, sizeof(one));
+
+	c = (struct client *)mem_alloc(sizeof(struct client));
+	if (!c)
 		return NULL;
 
 	c->fd = fd;
 	c->addr = c_addr;
 	c->buf_size = INIT_BUF_SIZE;
 
-	c->buf = mem_alloc(c->buf_size);
+	c->buf = (char *)mem_alloc(c->buf_size);
 	if (!c->buf) {
 		mem_free(c);
 		return NULL;
@@ -142,7 +146,7 @@ static struct client *init_client(int fd, struct sockaddr_in c_addr)
 
 static void close_client(struct client *c)
 {
-	log_info("Master: client %s:%hu disconnected\n", 
+	log_info("Master: client %s:%hu disconnected\n",
 			inet_ntoa(c->addr.sin_addr), c->addr.sin_port);
 
 	close(c->fd);
@@ -154,7 +158,7 @@ static void close_client(struct client *c)
 		if (!cdlist_is_empty(&master.clients_lock_waiting)) {
 			struct client *first;
 
-			first = container_of(master.clients_lock_waiting.next, 
+			first = container_of(master.clients_lock_waiting.next,
 					struct client, master_lock_waiting);
 			cdlist_del(&first->master_lock_waiting);
 			wakeup_client(first);
@@ -184,7 +188,7 @@ static struct client *accept_client(int listen_fd)
 
 	int ret;
 
-	conn_fd = accept(listen_fd, (struct sockaddr *)&c_addr, 
+	conn_fd = accept(listen_fd, (struct sockaddr *)&c_addr,
 			&addrlen);
 	if (conn_fd < 0) {
 		log_perr("accept()");
@@ -200,8 +204,7 @@ static struct client *accept_client(int listen_fd)
 	ev.events = EPOLLIN;
 	ev.data.ptr = c;
 
-	ret = epoll_ctl(master.epoll_fd, EPOLL_CTL_ADD, conn_fd, 
-			&(struct epoll_event){.events=EPOLLIN, .data.ptr = c}); 
+	ret = epoll_ctl(master.epoll_fd, EPOLL_CTL_ADD, conn_fd, &ev);
 	if (ret < 0) {
 		log_perr("epoll_ctl(EPOLL_CTL_ADD, conn_fd)");
 		close_client(c);
@@ -256,7 +259,7 @@ static void request_done(struct client *c)
 			goto err;
 		}
 
-		new_buf = mem_realloc(c->buf, c->msg_len);
+		new_buf = (char *)mem_realloc(c->buf, c->msg_len);
 		if (!new_buf)
 			goto err;
 
@@ -307,8 +310,8 @@ static void client_recv(struct client *c)
 	assert(c->msg_len == 0 || (c->buf_off < c->msg_len));
 
 	if (c->msg_len_off < sizeof(c->msg_len)) {
-		received = recv(c->fd, ((char *)&c->msg_len) + c->msg_len_off, 
-				sizeof(c->msg_len) - c->msg_len_off, 
+		received = recv(c->fd, ((char *)&c->msg_len) + c->msg_len_off,
+				sizeof(c->msg_len) - c->msg_len_off,
 				MSG_NOSIGNAL);
 		if (received <= 0) {
 			close_client(c);
@@ -329,7 +332,7 @@ static void client_recv(struct client *c)
 			return;
 		}
 
-		new_buf = mem_realloc(c->buf, c->msg_len);
+		new_buf = (char *)mem_realloc(c->buf, c->msg_len);
 		if (!new_buf) {
 			log_err("Out of memory\n");
 			close_client(c);
@@ -340,7 +343,7 @@ static void client_recv(struct client *c)
 		c->buf_size = c->msg_len;
 	}
 
-	received = recv(c->fd, c->buf + c->buf_off, c->msg_len - c->buf_off, 
+	received = recv(c->fd, c->buf + c->buf_off, c->msg_len - c->buf_off,
 			MSG_NOSIGNAL);
 	if (received < 0) {
 		close_client(c);
@@ -363,7 +366,7 @@ static void client_send(struct client *c)
 	assert(c->buf_off < c->msg_len);
 
 	if (c->msg_len_off < sizeof(c->msg_len)) {
-		sent = send(c->fd, ((char *)&c->msg_len) + c->msg_len_off, 
+		sent = send(c->fd, ((char *)&c->msg_len) + c->msg_len_off,
 				sizeof(c->msg_len) - c->msg_len_off, MSG_NOSIGNAL);
 		if (sent < 0) {
 			close_client(c);
@@ -375,7 +378,7 @@ static void client_send(struct client *c)
 		return;
 	}
 
-	sent = send(c->fd, c->buf + c->buf_off, c->msg_len - c->buf_off, 
+	sent = send(c->fd, c->buf + c->buf_off, c->msg_len - c->buf_off,
 			MSG_NOSIGNAL);
 	if (sent < 0) {
 		close_client(c);
@@ -387,14 +390,12 @@ static void client_send(struct client *c)
 	assert(c->buf_off <= c->msg_len);
 
 	/* reponse done? */
-	if (c->buf_off == c->msg_len) 
+	if (c->buf_off == c->msg_len)
 		response_done(c);
 }
 
 static void init_server()
 {
-	struct epoll_event ev;
-
 	master.epoll_fd = epoll_create(16);
 	if (master.epoll_fd < 0) {
 		log_perr("epoll_create()");
@@ -402,14 +403,17 @@ static void init_server()
 	}
 
 	if (global_opts.port) {
-		master.listen_fd = init_listen_fd(global_opts.port);
-
-		ev = (struct epoll_event){
+		struct epoll_event ev = {
 			.events = EPOLLIN,
-			.data.fd = master.listen_fd,
+			.data = {.fd = master.listen_fd},
 		};
 
-		int ret = epoll_ctl(master.epoll_fd, EPOLL_CTL_ADD, 
+		master.listen_fd = init_listen_fd(global_opts.port);
+
+		ev.events = EPOLLIN;
+		ev.data.fd = master.listen_fd;
+
+		int ret = epoll_ctl(master.epoll_fd, EPOLL_CTL_ADD,
 				master.listen_fd, &ev);
 		if (ret < 0) {
 			log_perr("epoll_ctl(EPOLL_CTL_ADD, listen_fd)");
@@ -421,12 +425,12 @@ static void init_server()
 	}
 }
 
-void setup_master() 
+void setup_master()
 {
 	reset_core_affinity();
-	
+
 	set_non_worker();
-	
+
 	cdlist_head_init(&master.clients_all);
 	cdlist_head_init(&master.clients_lock_waiting);
 	cdlist_head_init(&master.clients_pause_holding);
@@ -434,7 +438,7 @@ void setup_master()
 	init_server();
 }
 
-void run_master() 
+void run_master()
 {
 	struct client *c;
 
@@ -454,11 +458,11 @@ again:
 		if ((c = accept_client(master.listen_fd)) == NULL)
 			goto again;
 
-		log_info("Master: a new client from %s:%hu\n", 
-				inet_ntoa(c->addr.sin_addr), 
+		log_info("Master: a new client from %s:%hu\n",
+				inet_ntoa(c->addr.sin_addr),
 				c->addr.sin_port);
 	} else {
-		c = ev.data.ptr;
+		c = (struct client *)ev.data.ptr;
 
 		if (ev.events & (EPOLLERR | EPOLLHUP)) {
 			close_client(c);

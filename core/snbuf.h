@@ -49,7 +49,7 @@ struct snbuf {
 			union {
 				char _immutable[SNBUF_IMMUTABLE];
 
-				const struct snbuf_immutable {
+				const struct {
 					/* must be the first field */
 					struct snbuf *vaddr;
 
@@ -60,7 +60,7 @@ struct snbuf {
 
 					/* packet index within the pool */
 					uint32_t index;
-				} immutable;
+				};
 			};
 
 			/* Dynamic metadata. 
@@ -256,7 +256,7 @@ struct rte_mempool *get_pframe_pool_socket(int socket);
 
 static inline phys_addr_t snb_to_paddr(struct snbuf *snb)
 {
-	return snb->immutable.paddr;
+	return snb->paddr;
 }
 
 static inline int mt_offset_to_databuf_offset(mt_offset_t offset)

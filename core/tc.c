@@ -38,7 +38,7 @@ static void tc_add_to_parent_pgroup(struct tc *c, int share_resource)
 	next = (struct cdlist_item *)&parent->pgroups;
 
 pgroup_init:
-	g = mem_alloc(sizeof(*g));
+	g = (struct pgroup *)mem_alloc(sizeof(*g));
 	if (!g)
 		oom_crash();
 
@@ -75,14 +75,14 @@ struct tc *tc_init(struct sched *s, const struct tc_params *params)
 	assert(params->share > 0);
 	assert(params->share <= MAX_SHARE);
 
-	c = mem_alloc(sizeof(*c));
+	c = (struct tc *)mem_alloc(sizeof(*c));
 	if (!c)
 		oom_crash();
 
 	ret = ns_insert(NS_TYPE_TC, params->name, c);
 	if (ret < 0) {
 		mem_free(c);
-		return err_to_ptr(ret);
+		return (struct tc *)err_to_ptr(ret);
 	}
 
 	c->settings = *params;
@@ -99,20 +99,20 @@ struct tc *tc_init(struct sched *s, const struct tc_params *params)
 
 	for (i = 0; i < NUM_RESOURCES; i++) {
 		assert(params->limit[i] < ((uint64_t)1 << MAX_LIMIT_POW));
-		
-		c->tb[i].limit = (params->limit[i] << (USAGE_AMPLIFIER_POW - 4)) 
+
+		c->tb[i].limit = (params->limit[i] << (USAGE_AMPLIFIER_POW - 4))
 				/ (tsc_hz >> 4);
 
 		if (c->tb[i].limit) {
 			assert(params->max_burst[i] < ((uint64_t)1 << MAX_LIMIT_POW));
-			c->tb[i].max_burst = (params->max_burst[i] << 
+			c->tb[i].max_burst = (params->max_burst[i] <<
 					(USAGE_AMPLIFIER_POW - 4)) / (tsc_hz >> 4);
 			c->has_limit = 1;
 		}
 
 		c->tb[i].tokens = 0;
 	}
-	
+
 	c->ss.stride = STRIDE1 / params->share;
 	c->ss.pass = 0;			/* will be set when joined */
 
@@ -160,7 +160,7 @@ void _tc_do_free(struct tc *c)
 
 	memset(c, 0, sizeof(*c));	/* zero out to detect potential bugs */
 	mem_free(c);			/* Note: c is struct sched, if root */
-	
+
 	if (parent)
 		tc_dec_refcnt(parent);
 }
@@ -172,7 +172,7 @@ static inline int tc_is_root(struct tc *c)
 
 static inline int64_t next_pass(struct heap *pq)
 {
-	struct tc *next = heap_peek(pq);
+	struct tc *next = (struct tc*)heap_peek(pq);
 
 	if (next)
 		return next->ss.pass;
@@ -214,7 +214,7 @@ struct sched *sched_init()
 {
 	struct sched *s;
 
-	s = mem_alloc(sizeof(*s));
+	s = (struct sched *)mem_alloc(sizeof(*s));
 	if (!s)
 		oom_crash();
 
@@ -266,16 +266,16 @@ static void resume_throttled(struct sched *s, uint64_t tsc)
 
 		heap_peek_valdata(&s->pq, &event_tsc, (void **)&c);
 
-		if (event_tsc > tsc)
+		if ((uint64_t)event_tsc > tsc)
 			break;
 
 		heap_pop(&s->pq);
 
 		c->state.throttled = 0;
-		
+
 		if (c->state.runnable) {
-			/* No refcnt is adjusted, since we transfer 
-			 * s->pq's reference to my_pgroup->pq */ 
+			/* No refcnt is adjusted, since we transfer
+			 * s->pq's reference to my_pgroup->pq */
 			c->state.queued = 1;
 			c->last_tsc = event_tsc;
 			heap_push(&c->ss.my_pgroup->pq, 0, c);
@@ -298,7 +298,7 @@ again:
 		struct heap *pq = &g->pq;
 		struct tc *child;
 
-		child = heap_peek(pq);
+		child = (struct tc *)heap_peek(pq);
 		if (!child)
 			continue;
 
@@ -306,7 +306,7 @@ again:
 
 		if (!child->state.runnable)
 			return child;
-	
+
 		c = child;
 		goto again;
 	}
@@ -319,7 +319,7 @@ static struct tc *sched_next(struct sched *s, uint64_t tsc)
 	struct tc *c;
 
 	assert(!s->current);
-	
+
 	resume_throttled(s, tsc);
 
 again:
@@ -363,7 +363,7 @@ static inline void accumulate(resource_arr_t acc, resource_arr_t x)
 }
 
 /* returns 1 if it has been throttled */
-static int tc_account(struct sched *s, struct tc *c, 
+static int tc_account(struct sched *s, struct tc *c,
 		resource_arr_t usage, uint64_t tsc)
 {
 	uint64_t elapsed_cycles;
@@ -408,7 +408,7 @@ static int tc_account(struct sched *s, struct tc *c,
 			if (wait_tsc > max_wait_tsc)
 				max_wait_tsc = wait_tsc;
 		} else
-			c->tb[i].tokens = MIN(tokens - consumed, 
+			c->tb[i].tokens = MIN(tokens - consumed,
 					c->tb[i].max_burst);
 	}
 
@@ -424,12 +424,12 @@ static int tc_account(struct sched *s, struct tc *c,
 
 		return 1;
 	}
-		
+
 	return 0;
 }
 
 /* must be called after the previous sched_next() */
-static void sched_done(struct sched *s, struct tc *c, 
+static void sched_done(struct sched *s, struct tc *c,
 		resource_arr_t usage, int reschedule, uint64_t tsc)
 {
 	accumulate(s->stats.usage, usage);
@@ -441,7 +441,7 @@ static void sched_done(struct sched *s, struct tc *c,
 		c->state.runnable = 0;
 
 	/* upwards from the leaf, skipping the root class */
-	do { 
+	do {
 		struct pgroup *g = c->ss.my_pgroup;
 		struct heap *pq = &g->pq;
 
@@ -453,7 +453,7 @@ static void sched_done(struct sched *s, struct tc *c,
 		c->ss.pass += c->ss.stride * consumed / QUANTUM;
 
 		throttled = tc_account(s, c, usage, tsc);
-		if (throttled) 
+		if (throttled)
 			reschedule = 0;
 
 		if (reschedule) {
@@ -527,7 +527,7 @@ static char *print_tc_stats_detail(struct sched *s, char *p, int max_cnt)
 #undef LAST_COUNTER
 
 			if (num_printed < max_cnt) {
-				p += sprintf(p, "%12"PRIu64, value);
+				p += sprintf(p, "%12" PRIu64, value);
 			} else {
 				p += sprintf(p, " ...");
 				break;
@@ -554,31 +554,31 @@ static char *print_tc_stats_simple(struct sched *s, char *p, int max_cnt)
 		uint64_t pkts;
 		uint64_t bits;
 
-		cnt = c->stats.usage[RESOURCE_CNT] - 
+		cnt = c->stats.usage[RESOURCE_CNT] -
 				c->last_stats.usage[RESOURCE_CNT];
 
-		cycles = c->stats.usage[RESOURCE_CYCLE] - 
+		cycles = c->stats.usage[RESOURCE_CYCLE] -
 				c->last_stats.usage[RESOURCE_CYCLE];
 
-		pkts = c->stats.usage[RESOURCE_PACKET] - 
+		pkts = c->stats.usage[RESOURCE_PACKET] -
 				c->last_stats.usage[RESOURCE_PACKET];
 
-		bits = c->stats.usage[RESOURCE_BIT] - 
+		bits = c->stats.usage[RESOURCE_BIT] -
 			c->last_stats.usage[RESOURCE_BIT];
 
 		c->last_stats = c->stats;
 
-		p += sprintf(p, "\tC%s %.1f%%(%.2fM) %.3fMpps %.1fMbps", 
-				c->settings.name, 
-				cycles * 100.0 / tsc_hz, 
+		p += sprintf(p, "\tC%s %.1f%%(%.2fM) %.3fMpps %.1fMbps",
+				c->settings.name,
+				cycles * 100.0 / tsc_hz,
 				cnt / 1000000.0,
-				pkts / 1000000.0, 
+				pkts / 1000000.0,
 				bits / 1000000.0);
 
 		num_printed++;
 
 		if (num_printed >= max_cnt) {
-			p += sprintf(p, "\t... (%d more)", 
+			p += sprintf(p, "\t... (%d more)",
 					s->num_classes - max_cnt);
 			break;
 		}
@@ -604,22 +604,22 @@ static void print_stats(struct sched *s, struct sched_stats *last_stats)
 	cycles_idle = s->stats.cycles_idle - last_stats->cycles_idle;
 	cnt_idle = s->stats.cnt_idle - last_stats->cnt_idle;
 
-	cnt = s->stats.usage[RESOURCE_CNT] - 
+	cnt = s->stats.usage[RESOURCE_CNT] -
 			last_stats->usage[RESOURCE_CNT];
 
-	cycles = s->stats.usage[RESOURCE_CYCLE] - 
+	cycles = s->stats.usage[RESOURCE_CYCLE] -
 		last_stats->usage[RESOURCE_CYCLE];
 
-	pkts = s->stats.usage[RESOURCE_PACKET] - 
+	pkts = s->stats.usage[RESOURCE_PACKET] -
 			last_stats->usage[RESOURCE_PACKET];
 
-	bits = s->stats.usage[RESOURCE_BIT] - 
+	bits = s->stats.usage[RESOURCE_BIT] -
 		last_stats->usage[RESOURCE_BIT];
 
 	p = buf;
 	p += sprintf(p, "W%d: idle %.1f%%(%.1fM) "
-			"total %.1f%%(%.1fM) %.3fMpps %.1fMbps ", 
-			ctx.wid, 
+			"total %.1f%%(%.1fM) %.3fMpps %.1fMbps ",
+			ctx.wid,
 			cycles_idle * 100.0 / tsc_hz,
 			cnt_idle / 1000000.0,
 			cycles * 100.0 / tsc_hz,
@@ -711,7 +711,7 @@ void sched_loop(struct sched *s)
 			s->stats.cnt_idle++;
 			s->stats.cycles_idle += (now - checkpoint);
 		}
-	
+
 		checkpoint = now;
 	}
 }
@@ -739,18 +739,16 @@ void sched_test_alloc()
 
 	/* generate a random tree */
 	for (i = 0; i < num_classes; i++) {
-		struct tc_params params;
+		struct tc_params params = {};
 		int parent_id = rand_fast(&seed) % (i + 1);
 
-		params = (struct tc_params) {
-			.parent = parent_id ? classes[(parent_id - 1)] : NULL,
-			.priority = rand_fast(&seed) % 8,
-			.share = 1,
-		};
+		params.parent = parent_id ? classes[(parent_id - 1)] : NULL;
+		params.priority = rand_fast(&seed) % 8;
+		params.share = 1;
 
 		/* params.share_resource = rand_fast(&seed) % 2, should fail */
 		params.share_resource = params.priority % NUM_RESOURCES,
-		
+
 		classes[i] = tc_init(s, &params);
 	}
 
@@ -761,7 +759,7 @@ void sched_test_alloc()
 	for (i = num_classes - 1; i > 0; i--) {
 		struct tc *tmp;
 		int j;
-		
+
 		j = rand_fast(&seed) % (i + 1);
 		tmp = classes[j];
 		classes[j] = classes[i];
@@ -797,19 +795,19 @@ void sched_test_perf()
 	s = sched_init();
 
 	for (i = 0; i < num_classes; i++) {
-		struct tc_params params = {
-			.parent = NULL,
-			.priority = 0,
-			.share = 1,
-			.share_resource = RESOURCE_BIT,
-		};
+		struct tc_params params = {};
+
+		params.parent = NULL;
+		params.priority = 0;
+		params.share = 1;
+		params.share_resource = RESOURCE_BIT;
 
 		if (i % 3 == 0)
 			params.limit[RESOURCE_PACKET] = 1e5;
 
 		if (i % 2 == 0)
 			params.limit[RESOURCE_BIT] = 100e6;
-		
+
 		classes[i] = tc_init(s, &params);
 	}
 

@@ -38,7 +38,7 @@ struct gate {
 
 	union {
 		struct {
-			struct cdlist_item igate_upstream; 
+			struct cdlist_item igate_upstream;
 			struct gate *igate;
 			gate_idx_t igate_idx;	/* cache for igate->gate_idx */
 		} out;
@@ -60,9 +60,9 @@ struct gate {
 };
 
 struct gates {
-	/* Resizable array of 'struct gate *'. 
+	/* Resizable array of 'struct gate *'.
 	 * Unconnected elements are filled with NULL */
-	struct gate **arr;	
+	struct gate **arr;
 
 	/* The current size of the array.
 	 * Always <= m->mclass->num_[i|o]gates */
@@ -93,14 +93,14 @@ struct module {
 	struct gates igates;
 	struct gates ogates;
 
-	/* Some private data for this module instance begins after this struct. 
+	/* Some private data for this module instance begins after this struct.
 	 * (this is poor person's class inheritance in C language)
 	 * The 'struct module' object will be allocated with enough tail room
 	 * to accommodate this private data. It is initialized with zeroes.
-	 * We don't do dynamic allocation for private data, 
+	 * We don't do dynamic allocation for private data,
 	 * to save a few cycles by avoiding indirect memory access.
 	 *
-	 * Note: the space is shared across all workers. Ensuring thread safety 
+	 * Note: the space is shared across all workers. Ensuring thread safety
 	 * and/or managing per-worker data is each module's responsibility. */
 } __zmm_aligned;
 
@@ -110,12 +110,12 @@ mt_attr_offset(const struct module *m, int attr_id)
 	return m->attr_offsets[attr_id];
 }
 
-static inline void *get_priv(struct module *m) 
+static inline void *get_priv(struct module *m)
 {
 	return (void *)(m + 1);
 }
 
-static inline const void *get_priv_const(const struct module *m) 
+static inline const void *get_priv_const(const struct module *m)
 {
 	return (const void *)(m + 1);
 }
@@ -128,17 +128,17 @@ size_t list_modules(const struct module **p_arr, size_t arr_size, size_t offset)
 
 struct module *find_module(const char *name);
 
-struct module *create_module(const char *name, 
-		const struct mclass *class, 
+struct module *create_module(const char *name,
+		const struct mclass *mclass,
 		struct snobj *arg,
 		struct snobj **perr);
 
 void destroy_module(struct module *m);
 
-int connect_modules(struct module *m_prev, gate_idx_t ogate_idx, 
+int connect_modules(struct module *m_prev, gate_idx_t ogate_idx,
 		    struct module *m_next, gate_idx_t igate_idx);
 int disconnect_modules(struct module *m_prev, gate_idx_t ogate_idx);
-		
+
 void deadend(struct module *m, struct pkt_batch *batch);
 
 /* run all per-thread initializers */
@@ -212,7 +212,7 @@ static inline void run_choose_module(struct module *m, gate_idx_t ogate_idx,
 	ctx.igate_stack[ctx.stack_depth] = ogate->out.igate_idx;
 	ctx.stack_depth++;
 
-	ogate->f(ogate->arg, batch);
+	ogate->f((struct module *)ogate->arg, batch);
 
 	ctx.stack_depth--;
 
@@ -250,7 +250,7 @@ static void run_split(struct module *m, const gate_idx_t *ogates,
 	for (int i = 0; i < cnt; i++) {
 		struct pkt_batch *batch;
 		gate_idx_t ogate;
-		
+
 		ogate = ogates[i];
 		batch = &splits[ogate];
 

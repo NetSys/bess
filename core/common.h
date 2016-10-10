@@ -8,7 +8,9 @@
 
 #include <x86intrin.h>
 
-#define ct_assert(p)	_Static_assert(p, "Compile-time assertion failure")
+#define restrict __restrict__
+
+#define ct_assert(p)	static_assert(p, "Compile-time assertion failure")
 
 /* Hint for performance optimization. Same as _nassert() of TI compilers */
 #define promise(cond) 		({if (!(cond)) __builtin_unreachable(); })
@@ -112,8 +114,8 @@ memcpy_sloppy(void * restrict dst, const void * restrict src, size_t n)
 #else
 	typedef __m128i block_t;
 #endif
-	block_t * restrict d = dst;
-	const block_t * restrict s = src;
+	block_t * restrict d = (block_t *)dst;
+	const block_t * restrict s = (const block_t *)src;
 
 	int bytes_left = n;
 	while (bytes_left > 0) {

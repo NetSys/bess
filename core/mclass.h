@@ -5,7 +5,6 @@
 #include "metadata.h"
 
 #define ADD_MCLASS(mc) \
-	static const struct mclass mc; \
 	__attribute__((constructor(103))) void __mclass_register_##mc() \
 	{ \
 		int ret; \

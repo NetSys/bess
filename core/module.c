@@ -57,8 +57,8 @@ int num_module_tasks(struct module *m)
 
 size_t list_modules(const struct module **p_arr, size_t arr_size, size_t offset)
 {
-	int ret = 0;
-	int iter_cnt = 0;
+	size_t ret = 0;
+	size_t iter_cnt = 0;
 
 	struct ns_iter iter;
 
@@ -88,20 +88,20 @@ static void set_default_name(struct module *m)
 	int i;
 
 	if (m->mclass->def_module_name) {
-		fmt = alloca(strlen(m->mclass->def_module_name) + 16);
+		fmt = (char *)alloca(strlen(m->mclass->def_module_name) + 16);
 		strcpy(fmt, m->mclass->def_module_name);
 	} else {
-		const char *template = m->mclass->name;
+		const char *def = m->mclass->name;
 		const char *t;
 
 		char *s;
 
-		fmt = alloca(strlen(template) + 16);
+		fmt = (char *)alloca(strlen(def) + 16);
 		s = fmt;
 
 		/* CamelCase -> camel_case */
-		for (t = template; *t != '\0'; t++) {
-			if (t != template && islower(*(t - 1)) && isupper(*t))
+		for (t = def; *t != '\0'; t++) {
+			if (t != def && islower(*(t - 1)) && isupper(*t))
 				*s++ = '_';
 
 			*s++ = tolower(*t);
@@ -183,7 +183,7 @@ struct module *create_module(const char *name,
 		goto fail;
 	}
 
-	m = mem_alloc(sizeof(struct module) + mclass->priv_size +
+	m = (struct module *)mem_alloc(sizeof(struct module) + mclass->priv_size +
 			/*hotfix*/ 128);
 	if (!m) {
 		*perr = snobj_errno(ENOMEM);
@@ -191,7 +191,7 @@ struct module *create_module(const char *name,
 	}
 
 	m->mclass = mclass;
-	m->name = mem_alloc(MODULE_NAME_LEN);
+	m->name = (char *)mem_alloc(MODULE_NAME_LEN);
 
 	if (!m->name) {
 		*perr = snobj_errno(ENOMEM);
@@ -278,7 +278,7 @@ static int grow_gates(struct module *m, struct gates *gates, gate_idx_t gate)
 	if (new_size > MAX_GATES)
 		new_size = MAX_GATES;
 
-	new_arr = mem_realloc(gates->arr, sizeof(struct gate *) * new_size);
+	new_arr = (struct gate **)mem_realloc(gates->arr, sizeof(struct gate *) * new_size);
 	if (!new_arr)
 		return -ENOMEM;
 
@@ -326,7 +326,7 @@ int connect_modules(struct module *m_prev, gate_idx_t ogate_idx,
 			return ret;
 	}
 
-	ogate = mem_alloc(sizeof(struct gate));
+	ogate = (struct gate *)mem_alloc(sizeof(struct gate));
 	if (!ogate)
 		return -ENOMEM;
 
@@ -334,7 +334,7 @@ int connect_modules(struct module *m_prev, gate_idx_t ogate_idx,
 
 	igate = m_next->igates.arr[igate_idx];
 	if (!igate) {
-		igate = mem_alloc(sizeof(struct gate));
+		igate = (struct gate *)mem_alloc(sizeof(struct gate));
 		if (!igate) {
 			mem_free(ogate);
 			return -ENOMEM;
@@ -599,14 +599,14 @@ void dump_pcap_pkts(struct gate *gate, struct pkt_batch *batch)
 	for (int i = 0; i < batch->cnt; i++) {
 		struct snbuf* pkt = batch->pkts[i];
 		struct pcap_rec_hdr rec = {
-			.ts_sec = tv.tv_sec,
-			.ts_usec = tv.tv_usec,
+			.ts_sec = (uint32_t)tv.tv_sec,
+			.ts_usec = (uint32_t)tv.tv_usec,
 			.incl_len = pkt->mbuf.data_len,
 			.orig_len = pkt->mbuf.pkt_len,
 		};
 
 		struct iovec vec[2] = {{&rec, sizeof(rec)},
-			{snb_head_data(pkt), snb_head_len(pkt)}};
+			{snb_head_data(pkt), (size_t)snb_head_len(pkt)}};
 
 		ret = writev(fd, vec, 2);
 		if (ret < 0) {

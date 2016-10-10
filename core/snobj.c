@@ -14,7 +14,7 @@
 
 static void snobj_do_free(struct snobj *m)
 {
-	int i;
+	size_t i;
 
 	switch (m->type) {
 	case TYPE_STR:
@@ -41,7 +41,7 @@ static void snobj_do_free(struct snobj *m)
 
 	default:
 		; /* do nothing */
-	} 
+	}
 
 	_FREE(m);
 }
@@ -63,10 +63,10 @@ void snobj_free(struct snobj *m)
 struct snobj *snobj_nil()
 {
 	struct snobj *m;
-	
-	m = _ALLOC(sizeof(struct snobj));
+
+	m = (struct snobj *)_ALLOC(sizeof(struct snobj));
 	m->refcnt = 1;
-	
+
 	return m;
 }
 
@@ -120,7 +120,7 @@ struct snobj *snobj_blob(const void *data, size_t size)
 struct snobj *snobj_str(const char *str)
 {
 	struct snobj *m;
-	void *str_copied;
+	char *str_copied;
 
 	if (!str)
 		return NULL;
@@ -157,18 +157,18 @@ struct snobj *snobj_str_sized(const char *str, size_t size)
 
 static struct snobj *snobj_str_vfmt(const char *fmt, va_list ap)
 {
-	const size_t init_bufsize = 128;
+	const int init_bufsize = 128;
 	char *buf;
 
 	int ret;
 
 	struct snobj *m;
 
-	buf = _ALLOC(init_bufsize);
+	buf = (char *)_ALLOC(init_bufsize);
 	ret = vsnprintf(buf, init_bufsize, fmt, ap);
 
 	if (ret >= init_bufsize) {
-		char *new_buf = _REALLOC(buf, ret + 1);
+		char *new_buf = (char *)_REALLOC(buf, ret + 1);
 		int new_ret;
 
 		buf = new_buf;
@@ -178,7 +178,7 @@ static struct snobj *snobj_str_vfmt(const char *fmt, va_list ap)
 
 	m = snobj_str(buf);
 	_FREE(buf);
-	
+
 	return m;
 }
 
@@ -201,7 +201,7 @@ struct snobj *snobj_list()
 	m->type = TYPE_LIST;
 	m->size = 0;
 	m->max_size = DEF_LIST_SLOTS;
-	m->list.arr = _ALLOC(sizeof(struct snobj *) * DEF_LIST_SLOTS);
+	m->list.arr = (struct snobj **)_ALLOC(sizeof(struct snobj *) * DEF_LIST_SLOTS);
 
 	return m;
 }
@@ -213,8 +213,8 @@ struct snobj *snobj_map()
 
 	m->type = TYPE_MAP;
 	m->size = 0;
-	m->map.arr_k = _ALLOC(sizeof(char *) * DEF_MAP_SLOTS);
-	m->map.arr_v = _ALLOC(sizeof(struct snobj *) * DEF_MAP_SLOTS);
+	m->map.arr_k = (char **)_ALLOC(sizeof(char *) * DEF_MAP_SLOTS);
+	m->map.arr_v = (struct snobj **)_ALLOC(sizeof(struct snobj *) * DEF_MAP_SLOTS);
 	m->max_size = DEF_LIST_SLOTS;
 
 	return m;
@@ -230,7 +230,8 @@ int snobj_list_add(struct snobj *m, struct snobj *child)
 	if (m->size == m->max_size) {
 		/* too aggressive? */
 		m->max_size *= 2;
-		m->list.arr = _REALLOC(m->list.arr, m->max_size * sizeof(struct snobj *));
+		m->list.arr = (struct snobj **)
+			_REALLOC(m->list.arr, m->max_size * sizeof(struct snobj *));
 	}
 
 	idx = m->size;
@@ -241,9 +242,9 @@ int snobj_list_add(struct snobj *m, struct snobj *child)
 }
 
 /* returns -1 on error */
-int snobj_list_del(struct snobj *m, int idx)
+int snobj_list_del(struct snobj *m, size_t idx)
 {
-	int i;
+	size_t i;
 
 	if (m->type != TYPE_LIST)
 		return -1;
@@ -263,12 +264,10 @@ int snobj_list_del(struct snobj *m, int idx)
 /* returns -1 on error. -2 if not found */
 static int snobj_map_index(const struct snobj *m, const char *key)
 {
-	int i;
-
 	if (m->type != TYPE_MAP)
 		return -1;
 
-	for (i = 0; i < m->size; i++) {
+	for (size_t i = 0; i < m->size; i++) {
 		if (strcmp(key, m->map.arr_k[i]) == 0)
 			return i;
 	}
@@ -279,7 +278,7 @@ static int snobj_map_index(const struct snobj *m, const char *key)
 struct snobj *snobj_map_get(const struct snobj *m, const char *key)
 {
 	int i;
-	
+
 	i = snobj_map_index(m, key);
 
 	if (i < 0)
@@ -308,12 +307,12 @@ int snobj_map_set(struct snobj *m, const char *key, struct snobj *val)
 		/* expand? */
 		if (m->size == m->max_size) {
 			m->max_size *= 2;
-			m->map.arr_k = _REALLOC(m->map.arr_k,
+			m->map.arr_k = (char **)_REALLOC(m->map.arr_k,
 					m->max_size * sizeof(char *));
-			m->map.arr_v = _REALLOC(m->map.arr_v,
+			m->map.arr_v = (struct snobj **)_REALLOC(m->map.arr_v,
 					m->max_size * sizeof(struct snobj *));
 		}
-		
+
 		i = m->size;
 		m->map.arr_k[i] = key_copied;
 		m->map.arr_v[i] = val;
@@ -350,9 +349,9 @@ static int uint64_to_bin(uint8_t *ptr, int size, uint64_t val, int be)
 
 /* Returns -errno for error.
  * ptr must be big enough to hold 'size' bytes.
- * If force_be is non-zero and the varible is given as an integer, 
+ * If force_be is non-zero and the varible is given as an integer,
  * its value will be stored in big endian */
-int snobj_binvalue_get(struct snobj *m, int size, void *dst, int force_be)
+int snobj_binvalue_get(struct snobj *m, uint32_t size, void *dst, int force_be)
 {
 	if (!m || size < 1)
 		return -EINVAL;
@@ -371,7 +370,7 @@ int snobj_binvalue_get(struct snobj *m, int size, void *dst, int force_be)
 		return 0;
 
 	case TYPE_INT:
-		return uint64_to_bin(dst, size, snobj_uint_get(m), 
+		return uint64_to_bin((uint8_t *)dst, size, snobj_uint_get(m),
 				is_be_system() || force_be);
 
 	default:
@@ -444,7 +443,7 @@ static void snobj_dump_recur(const struct snobj *m, int indent, int list_depth)
 	const int blob_byte_limit = 16;
 	const int list_item_limit = 8;
 
-	int i;
+	size_t i;
 
 	switch (m->type) {
 	case TYPE_NIL:
@@ -458,7 +457,7 @@ static void snobj_dump_recur(const struct snobj *m, int indent, int list_depth)
 		if (list_depth)
 			print_heading(indent, list_depth);
 
-		log_debug("%"PRId64"\n", m->int_value);
+		log_debug("%" PRId64 "\n", m->int_value);
 		break;
 
 	case TYPE_DOUBLE:
@@ -496,7 +495,7 @@ static void snobj_dump_recur(const struct snobj *m, int indent, int list_depth)
 			struct snobj *child = m->list.arr[i];
 
 			if (i == list_item_limit) {
-				log_debug("(... %d more)\n", 
+				log_debug("(... %d more)\n",
 						(int)m->size - list_item_limit);
 				break;
 			}
@@ -513,7 +512,7 @@ static void snobj_dump_recur(const struct snobj *m, int indent, int list_depth)
 			if (list_depth) {
 				print_heading(indent, list_depth);
 				list_depth = 0;
-			} else 
+			} else
 				log_debug("%*s", indent, "");
 
 			log_debug("%s: ", m->map.arr_k[i]);
@@ -553,7 +552,7 @@ static void reserve_more(struct encode_state *s, size_t bytes)
 	while (new_buf_size < s->offset + bytes)
 		new_buf_size = new_buf_size * 2;
 
-	new_buf = _REALLOC(s->buf, new_buf_size);
+	new_buf = (char *)_REALLOC(s->buf, new_buf_size);
 
 	s->buf = new_buf;
 	s->buf_size = new_buf_size;
@@ -563,12 +562,12 @@ static void reserve_more(struct encode_state *s, size_t bytes)
 static int snobj_encode_recur(const struct snobj *m, struct encode_state *s)
 {
 	int ret = 0;
-	int i;
+	size_t i;
 
 	assert(s->offset % 8 == 0);
 
 #define NEED(x) do { reserve_more(s, (x)); } while(0)
-	
+
 	NEED(8);
 
 	*(uint32_t *)(s->buf + s->offset) = (uint32_t) m->type;
@@ -613,7 +612,7 @@ static int snobj_encode_recur(const struct snobj *m, struct encode_state *s)
 	case TYPE_MAP:
 		for (i = 0; i < m->size; i++) {
 			size_t key_size; /* including zeroed trailing bytes */
-			
+
 			key_size = strlen(m->map.arr_k[i]) + 1;
 			while (key_size % 8)
 				key_size++;
@@ -650,8 +649,8 @@ size_t snobj_encode(const struct snobj *m, char **pbuf, size_t hint)
 
 	s.offset = 0;
 	s.buf_size = hint;
-	s.buf = _ALLOC(s.buf_size);
-	
+	s.buf = (char *)_ALLOC(s.buf_size);
+
 	if (!s.buf)
 		return 0;
 
@@ -679,7 +678,7 @@ struct snobj *snobj_decode_recur(struct decode_state *s)
 	snobj_type_t type;
 	size_t size;
 
-	int i;
+	size_t i;
 
 	assert(s->offset % 8 == 0);
 
@@ -729,14 +728,12 @@ struct snobj *snobj_decode_recur(struct decode_state *s)
 
 		for (i = 0; i < size; i++) {
 			struct snobj *child;
-			int ret;
 
 			child = snobj_decode_recur(s);
 			if (!child)
 				goto err;
-			
-			ret = snobj_list_add(m, child);
-			assert(ret == i);
+
+			snobj_list_add(m, child);
 		}
 		break;
 
@@ -757,7 +754,7 @@ struct snobj *snobj_decode_recur(struct decode_state *s)
 			child = snobj_decode_recur(s);
 			if (!child)
 				goto err;
-			
+
 			ret = snobj_map_set(m, key, child);
 			assert(ret == 0);
 		}
@@ -847,7 +844,7 @@ static struct snobj *create_invoice()
 		struct snobj *c_1 = snobj_map();
 		snobj_map_set(c_1, "given", snobj_str("Chris"));
 		snobj_map_set(c_1, "family", snobj_str("Dumars"));
-		
+
 		{
 			struct snobj *c_1_1 = snobj_map();
 			snobj_map_set(c_1_1, "lines", snobj_str("458 Walkman Dr. Suite #292"));

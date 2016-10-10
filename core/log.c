@@ -192,14 +192,6 @@ static ssize_t stderr_writer(void *cookie, const char *data, size_t len)
 	return len;
 }
 
-static cookie_io_functions_t stdout_funcs = {
-	.write = &stdout_writer,
-};
-
-static cookie_io_functions_t stderr_funcs = {
-	.write = &stderr_writer,
-};
-
 void start_logger()
 {
 	int fd;
@@ -212,6 +204,12 @@ void start_logger()
 		dup2(fd, STDIN_FILENO);
 
 		if (!global_opts.foreground) {
+			cookie_io_functions_t stdout_funcs = {};
+			cookie_io_functions_t stderr_funcs = {};
+
+			stdout_funcs.write = &stdout_writer;
+			stderr_funcs.write = &stderr_writer,
+
 			dup2(fd, STDOUT_FILENO);
 			dup2(fd, STDERR_FILENO);
 
