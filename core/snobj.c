@@ -135,6 +135,11 @@ struct snobj *snobj_str(const char *str)
 	return m;
 }
 
+struct snobj *snobj_str(const std::string &str)
+{
+	return snobj_str(str.c_str());
+}
+
 /* str may have null characters */
 struct snobj *snobj_str_sized(const char *str, size_t size)
 {

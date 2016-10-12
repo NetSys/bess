@@ -1,20 +1,25 @@
+#include <fcntl.h>
+#include <unistd.h>
 #include <sys/uio.h>
+
+#include <sstream>
 
 #include "mem_alloc.h"
 #include "dpdk.h"
 #include "time.h"
 #include "tc.h"
 #include "namespace.h"
+#include "utils/pcap.h"
 #include "module.h"
 
-task_id_t register_task(struct module *m, void *arg)
+Module::~Module() {
+	;
+}
+
+task_id_t register_task(Module *m, void *arg)
 {
 	task_id_t id;
 	struct task *t;
-
-	/* Module class must define run_task() to register a task */
-	if (!m->mclass->run_task)
-		return INVALID_TASK_ID;
 
 	for (id = 0; id < MAX_TASKS_PER_MODULE; id++)
 		if (m->tasks[id] == NULL)
@@ -35,7 +40,7 @@ found:
 
 task_id_t task_to_tid(struct task *t)
 {
-	struct module *m = t->m;
+	Module *m = t->m;
 
 	for (task_id_t id = 0; id < MAX_TASKS_PER_MODULE; id++)
 		if (m->tasks[id] == t)
@@ -44,7 +49,7 @@ task_id_t task_to_tid(struct task *t)
 	return INVALID_TASK_ID;
 }
 
-int num_module_tasks(struct module *m)
+int num_module_tasks(Module *m)
 {
 	int cnt = 0;
 
@@ -55,7 +60,7 @@ int num_module_tasks(struct module *m)
 	return cnt;
 }
 
-size_t list_modules(const struct module **p_arr, size_t arr_size, size_t offset)
+size_t list_modules(const Module **p_arr, size_t arr_size, size_t offset)
 {
 	size_t ret = 0;
 	size_t iter_cnt = 0;
@@ -64,7 +69,7 @@ size_t list_modules(const struct module **p_arr, size_t arr_size, size_t offset)
 
 	ns_init_iterator(&iter, NS_TYPE_MODULE);
 	while (1) {
-		struct module *module = (struct module *) ns_next(&iter);
+		Module *module = (Module *) ns_next(&iter);
 		if (!module)
 			break;
 
@@ -81,68 +86,57 @@ size_t list_modules(const struct module **p_arr, size_t arr_size, size_t offset)
 	return ret;
 }
 
-static void set_default_name(struct module *m)
+static std::string set_default_name(const std::string &class_name,
+		const std::string &default_template)
 {
-	char *fmt;
+	std::string name_template;
 
-	int i;
+	if (default_template == "") {
+		std::ostringstream ss;
+		char last_char = '\0';
+		for (auto t : default_template) {
+			if (last_char != '\0' && islower(last_char) &&
+					isupper(t))
+				ss << '_';
 
-	if (m->mclass->def_module_name) {
-		fmt = (char *)alloca(strlen(m->mclass->def_module_name) + 16);
-		strcpy(fmt, m->mclass->def_module_name);
-	} else {
-		const char *def = m->mclass->name;
-		const char *t;
-
-		char *s;
-
-		fmt = (char *)alloca(strlen(def) + 16);
-		s = fmt;
-
-		/* CamelCase -> camel_case */
-		for (t = def; *t != '\0'; t++) {
-			if (t != def && islower(*(t - 1)) && isupper(*t))
-				*s++ = '_';
-
-			*s++ = tolower(*t);
+			ss << tolower(t);
+			last_char = t;
 		}
-
-		*s = '\0';
+		name_template = ss.str();
+	} else {
+		name_template = default_template;
 	}
 
-	/* lower_case -> lower_case%d */
-	strcat(fmt, "%d");
+	for (int i = 0; ; i++) {
+		std::ostringstream ss;
+		ss << name_template << i;
+		std::string name = ss.str();
 
-	for (i = 0; ; i++) {
-		int ret;
-
-		ret = snprintf(m->name, MODULE_NAME_LEN, fmt, i);
-		assert(ret < MODULE_NAME_LEN);
-
-		if (!find_module(m->name))
-			break;	/* found an unallocated name! */
+		if (!find_module(name.c_str()))
+			return name;	// found an unallocated name!
 	}
+
+	promise_unreachable();
 }
 
-static int register_module(struct module *m)
+static int register_module(Module *m)
 {
 	int ret;
 
-	ret = ns_insert(NS_TYPE_MODULE, m->name, (void *) m);
+	ret = ns_insert(NS_TYPE_MODULE, m->Name().c_str(), (void *) m);
 	if (ret < 0)
 		return ret;
 
 	return 0;
 }
 
-void deadend(struct module *m, struct pkt_batch *batch)
+void deadend(Module *m, struct pkt_batch *batch)
 {
 	ctx.silent_drops += batch->cnt;
 	snb_free_bulk(batch->pkts, batch->cnt);
 }
 
-
-static void destroy_all_tasks(struct module *m)
+static void destroy_all_tasks(Module *m)
 {
 	for (task_id_t i = 0; i < MAX_TASKS_PER_MODULE; i++) {
 		if (m->tasks[i]) {
@@ -152,93 +146,57 @@ static void destroy_all_tasks(struct module *m)
 	}
 }
 
-static void inherit_attr_list(const struct mclass *mclass, struct module *m)
-{
-	for (int i = 0; i < MAX_ATTRS_PER_MODULE; i++) {
-		const struct mt_attr *attr = &mclass->attrs[i];
-		int ret;
-
-		/* end of the list is marked as a empty-string name */
-		if (strlen(attr->name) == 0)
-			return;
-
-		ret = add_metadata_attr(m, attr->name, attr->size, attr->mode);
-		assert(ret == i);
-	}
-}
-
 /* returns a pointer to the created module.
  * if error, returns NULL and *perr is set */
-struct module *create_module(const char *name,
-		const struct mclass *mclass,
+Module *create_module(const char *name,
+		const ModuleClass *mclass,
 		struct snobj *arg,
 		struct snobj **perr)
 {
-	struct module *m = NULL;
+	Module *m = NULL;
 	int ret = 0;
 	*perr = NULL;
 
-	if (name && find_module(name)) {
-		*perr = snobj_err(EEXIST, "Module '%s' already exists", name);
-		goto fail;
+	std::string mod_name;
+
+	if (name) {
+		if (find_module(name)) {
+			*perr = snobj_err(EEXIST, "Module '%s' already exists", 
+					name);
+			return NULL;
+		}
+
+		mod_name = name;
+	} else {
+		mod_name = set_default_name(mclass->Name(), mclass->NameTemplate());
 	}
 
-	m = (struct module *)mem_alloc(sizeof(struct module) + mclass->priv_size +
-			/*hotfix*/ 128);
-	if (!m) {
-		*perr = snobj_errno(ENOMEM);
-		goto fail;
-	}
+	m = mclass->CreateModule(mod_name);
 
-	m->mclass = mclass;
-	m->name = (char *)mem_alloc(MODULE_NAME_LEN);
-
-	if (!m->name) {
-		*perr = snobj_errno(ENOMEM);
-		goto fail;
-	}
-
-	if (!name)
-		set_default_name(m);
-	else
-		snprintf(m->name, MODULE_NAME_LEN, "%s", name);
-
-	inherit_attr_list(mclass, m);
-
-	if (mclass->init) {
-		*perr = mclass->init(m, arg);
-		if (*perr != NULL)
-			goto fail;
+	*perr = m->Init(arg);
+	if (*perr != nullptr) {
+		delete m;
+		return NULL;
 	}
 
 	ret = register_module(m);
 	if (ret != 0) {
 		*perr = snobj_errno(-ret);
-		goto fail;
+		delete m;
+		return NULL;
 	}
 
 	return m;
-
-fail:
-	if (m) {
-		destroy_all_tasks(m);
-		mem_free(m->name);
-	}
-
-	mem_free(m);
-
-	return NULL;
 }
 
 static int
-disconnect_modules_upstream(struct module *m_next, gate_idx_t igate_idx);
+disconnect_modules_upstream(Module *m_next, gate_idx_t igate_idx);
 
-void destroy_module(struct module *m)
+void destroy_module(Module *m)
 {
 	int ret;
 
-	if (m->mclass->deinit)
-		m->mclass->deinit(m);
+	m->Deinit();
 
 	/* disconnect from upstream modules. */
 	for (int i = 0; i < m->igates.curr_size; i++) {
@@ -254,17 +212,16 @@ void destroy_module(struct module *m)
 
 	destroy_all_tasks(m);
 
-	ret = ns_remove(m->name);
+	ret = ns_remove(m->Name().c_str());
 	assert(ret == 0);
 
-	mem_free(m->name);
 	mem_free(m->ogates.arr);
 	mem_free(m->igates.arr);
-	mem_free(m);
+	delete m;
 }
 
 
-static int grow_gates(struct module *m, struct gates *gates, gate_idx_t gate)
+static int grow_gates(Module *m, struct gates *gates, gate_idx_t gate)
 {
 	struct gate **new_arr;
 	gate_idx_t old_size;
@@ -295,19 +252,16 @@ static int grow_gates(struct module *m, struct gates *gates, gate_idx_t gate)
 }
 
 /* returns -errno if fails */
-int connect_modules(struct module *m_prev, gate_idx_t ogate_idx,
-		    struct module *m_next, gate_idx_t igate_idx)
+int connect_modules(Module *m_prev, gate_idx_t ogate_idx,
+		    Module *m_next, gate_idx_t igate_idx)
 {
 	struct gate *ogate;
 	struct gate *igate;
 
-	if (!m_next->mclass->process_batch)
+	if (ogate_idx >= m_prev->Class()->NumOGates() || ogate_idx >= MAX_GATES)
 		return -EINVAL;
 
-	if (ogate_idx >= m_prev->mclass->num_ogates || ogate_idx >= MAX_GATES)
-		return -EINVAL;
-
-	if (igate_idx >= m_next->mclass->num_igates || igate_idx >= MAX_GATES)
+	if (igate_idx >= m_next->Class()->NumIGates() || igate_idx >= MAX_GATES)
 		return -EINVAL;
 
 	if (ogate_idx >= m_prev->ogates.curr_size) {
@@ -344,14 +298,12 @@ int connect_modules(struct module *m_prev, gate_idx_t ogate_idx,
 
 		igate->m = m_next;
 		igate->gate_idx = igate_idx;
-		igate->f = m_next->mclass->process_batch;
 		igate->arg = m_next;
 		cdlist_head_init(&igate->in.ogates_upstream);
 	}
 
 	ogate->m = m_prev;
 	ogate->gate_idx = ogate_idx;
-	ogate->f = m_next->mclass->process_batch;
 	ogate->arg = m_next;
 	ogate->out.igate = igate;
 	ogate->out.igate_idx = igate_idx;
@@ -361,12 +313,12 @@ int connect_modules(struct module *m_prev, gate_idx_t ogate_idx,
 	return 0;
 }
 
-int disconnect_modules(struct module *m_prev, gate_idx_t ogate_idx)
+int disconnect_modules(Module *m_prev, gate_idx_t ogate_idx)
 {
 	struct gate *ogate;
 	struct gate *igate;
 
-	if (ogate_idx >= m_prev->mclass->num_ogates)
+	if (ogate_idx >= m_prev->Class()->NumOGates())
 		return -EINVAL;
 
 	/* no error even if the ogate is unconnected already */
@@ -382,7 +334,7 @@ int disconnect_modules(struct module *m_prev, gate_idx_t ogate_idx)
 	/* Does the igate become inactive as well? */
 	cdlist_del(&ogate->out.igate_upstream);
 	if (cdlist_is_empty(&igate->in.ogates_upstream)) {
-		struct module *m_next = igate->m;
+		Module *m_next = igate->m;
 		m_next->igates.arr[igate->gate_idx] = NULL;
 		mem_free(igate);
 	}
@@ -394,13 +346,13 @@ int disconnect_modules(struct module *m_prev, gate_idx_t ogate_idx)
 }
 
 static int
-disconnect_modules_upstream(struct module *m_next, gate_idx_t igate_idx)
+disconnect_modules_upstream(Module *m_next, gate_idx_t igate_idx)
 {
 	struct gate *igate;
 	struct gate *ogate;
 	struct gate *ogate_next;
 
-	if (igate_idx >= m_next->mclass->num_igates)
+	if (igate_idx >= m_next->Class()->NumIGates())
 		return -EINVAL;
 
 	/* no error even if the igate is unconnected already */
@@ -414,7 +366,7 @@ disconnect_modules_upstream(struct module *m_next, gate_idx_t igate_idx)
 	cdlist_for_each_entry_safe(ogate, ogate_next,
 			&igate->in.ogates_upstream, out.igate_upstream)
 	{
-		struct module *m_prev = ogate->m;
+		Module *m_prev = ogate->m;
 		m_prev->ogates.arr[ogate->gate_idx] = NULL;
 		mem_free(ogate);
 	}
@@ -431,7 +383,7 @@ void init_module_worker()
 	int i;
 
 	for (i = 0; i < num_modules; i++) {
-		struct module *mod = modules[i];
+		Module *mod = modules[i];
 
 		if (mod->mclass->init_worker)
 			mod->mclass->init_worker(mod);
@@ -456,7 +408,7 @@ struct callstack {
 
 __thread struct callstack worker_callstack;
 
-void _trace_start(struct module *mod, char *type)
+void _trace_start(Module *mod, char *type)
 {
 	struct callstack *s = &worker_callstack;
 
@@ -481,7 +433,7 @@ void _trace_end(int print_out)
 		log_debug("%s", s->buf);
 }
 
-void _trace_before_call(struct module *mod, struct module *next,
+void _trace_before_call(Module *mod, Module *next,
 			struct pkt_batch *batch)
 {
 	struct callstack *s = &worker_callstack;
@@ -524,13 +476,13 @@ void _trace_after_call(void)
 }
 #endif
 
-struct module *find_module(const char *name)
+Module *find_module(const char *name)
 {
-	return (struct module *)ns_lookup(NS_TYPE_MODULE, name);
+	return (Module *)ns_lookup(NS_TYPE_MODULE, name);
 }
 
 #if TCPDUMP_GATES
-int enable_tcpdump(const char* fifo, struct module *m, gate_idx_t ogate)
+int enable_tcpdump(const char* fifo, Module *m, gate_idx_t ogate)
 {
 	static const struct pcap_hdr PCAP_FILE_HDR = {
 		.magic_number = PCAP_MAGIC_NUMBER,
@@ -573,7 +525,7 @@ int enable_tcpdump(const char* fifo, struct module *m, gate_idx_t ogate)
 	return 0;
 }
 
-int disable_tcpdump(struct module *m, gate_idx_t ogate)
+int disable_tcpdump(Module *m, gate_idx_t ogate)
 {
 	if (!is_active_gate(&m->ogates, ogate))
 		return -EINVAL;
@@ -620,4 +572,16 @@ void dump_pcap_pkts(struct gate *gate, struct pkt_batch *batch)
 		}
 	}
 }
+
+struct snobj *Module::RunCommand(const std::string &user_cmd, struct snobj *arg) {
+	for (auto &cmd : mclass_->cmds) {
+		/* TODO: check mt_safe */
+		if (user_cmd == cmd.cmd)
+			return CALL_MEMBER_FN(*this, cmd.func)(arg);
+	}
+
+	return snobj_err(ENOTSUP, "'%s' does not support command '%s'",
+			Class()->Name().c_str(), user_cmd.c_str());
+}
+
 #endif

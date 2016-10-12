@@ -9,10 +9,11 @@
 #include "debug.h"
 #include "worker.h"
 #include "dpdk.h"
+#include "metadata.h"
 
 #include "snbuf_layout.h"
 
-/* NOTE: NEVER use rte_pktmbuf_*() directly, 
+/* NOTE: NEVER use rte_pktmbuf_*() directly,
  *       unless you know what you are doing */
 ct_assert(SNBUF_MBUF == sizeof(struct rte_mbuf));
 ct_assert(SNBUF_HEADROOM == RTE_PKTMBUF_HEADROOM);
@@ -33,7 +34,7 @@ ct_assert(SNBUF_HEADROOM == RTE_PKTMBUF_HEADROOM);
  *
  * Invariants:
  *  * When packets are newly allocated, the data should be filled from _data.
- *  * The packet data may reside in the _headroom + _data areas, 
+ *  * The packet data may reside in the _headroom + _data areas,
  *    but its size must not exceed 1536 (SNBUF_DATA) when passed to a port.
  */
 struct snbuf {
@@ -63,7 +64,7 @@ struct snbuf {
 				};
 			};
 
-			/* Dynamic metadata. 
+			/* Dynamic metadata.
 			 * Each attribute value is stored in host order */
 			char _metadata[SNBUF_METADATA];
 
@@ -160,13 +161,13 @@ static inline int snb_alloc_bulk(snb_array_t snbs, int cnt, uint16_t len)
 static inline void snb_free_bulk(snb_array_t snbs, int cnt)
 {
 	struct rte_mempool *pool = snbs[0]->mbuf.pool;
-		
+
 	int i;
 
 	for (i = 0; i < cnt; i++) {
 		struct rte_mbuf *mbuf = &snbs[i]->mbuf;
 
-		if (unlikely(mbuf->pool != pool || 
+		if (unlikely(mbuf->pool != pool ||
 				!snb_is_simple(snbs[i]) ||
 				rte_mbuf_refcnt_read(mbuf) != 1))
 		{
@@ -221,7 +222,7 @@ static inline void *snb_append(struct snbuf *snb, uint16_t len)
 static inline void snb_trim(struct snbuf *snb, uint16_t to_remove)
 {
 	int ret;
-	
+
 	ret = rte_pktmbuf_trim(&snb->mbuf, to_remove);
 	assert(ret == 0);
 }
@@ -261,7 +262,7 @@ static inline phys_addr_t snb_to_paddr(struct snbuf *snb)
 
 static inline int mt_offset_to_databuf_offset(mt_offset_t offset)
 {
-	return offset + offsetof(struct snbuf, _metadata) - 
+	return offset + offsetof(struct snbuf, _metadata) -
 		offsetof(struct snbuf, _headroom);
 }
 

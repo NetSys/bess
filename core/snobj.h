@@ -9,6 +9,8 @@
 #include <string.h>
 #include <math.h>
 
+#include <string>
+
 #include "common.h"
 #include "debug.h"
 #include "mem_alloc.h"
@@ -140,6 +142,7 @@ struct snobj *snobj_uint(uint64_t v);
 struct snobj *snobj_double(double v);
 struct snobj *snobj_blob(const void *data, size_t size);	/* data is copied */
 struct snobj *snobj_str(const char *str);		/* str is copied */
+struct snobj *snobj_str(const std::string &str);
 struct snobj *snobj_str_fmt(const char *fmt, ...) \
 		     __attribute__((format(printf, 1, 2)));
 struct snobj *snobj_list(void);

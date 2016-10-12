@@ -3,23 +3,22 @@
 #include "opts.h"
 #include "log.h"
 #include "module.h"
-#include "task.h"
+#include "tc.h"
 
 struct cdlist_head all_tasks = CDLIST_HEAD_INIT(all_tasks);
 
-struct task *task_create(struct module *m, void *arg)
+struct task *task_create(Module *m, void *arg)
 {
 	struct task *t;
 
 	t = (struct task *)mem_alloc(sizeof(*t));
 	if (!t)
 		return NULL;
-	
+
 	cdlist_item_init(&t->tc);
 	cdlist_add_tail(&all_tasks, &t->all_tasks);
-	
+
 	t->m = m;
-	t->f = m->mclass->run_task;
 	t->arg = arg;
 
 	return t;
@@ -68,6 +67,7 @@ void task_detach(struct task *t)
 	}
 }
 
+#include <iostream>
 void assign_default_tc(int wid, struct task *t)
 {
 	static int next_default_tc_id;
@@ -82,10 +82,12 @@ void assign_default_tc(int wid, struct task *t)
 	params.share = 1;
 	params.share_resource = RESOURCE_CNT;
 
+printf("%p\n", t->m);
+
 	if (num_module_tasks(t->m) == 1)
-		sprintf(params.name, "_tc_%s", t->m->name);
+		sprintf(params.name, "_tc_%s", t->m->Name().c_str());
 	else
-		sprintf(params.name, "_tc_%s_%d", t->m->name, task_to_tid(t));
+		sprintf(params.name, "_tc_%s_%d", t->m->Name().c_str(), task_to_tid(t));
 
 	c_def = tc_init(workers[wid]->s, &params);
 
@@ -96,7 +98,7 @@ void assign_default_tc(int wid, struct task *t)
 			c_def = tc_init(workers[wid]->s, &params);
 		} while (ptr_to_err(c_def) == -EEXIST);
 	}
-	
+
 	if (is_err(c_def)) {
 		log_err("tc_init() failed\n");
 		return;

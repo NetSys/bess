@@ -5,12 +5,15 @@
 #include <pthread.h>
 
 #include "common.h"
-#include "mclass.h"
 #include "pktbatch.h"
 
 #define MAX_WORKERS	4
 
 #define MAX_MODULES_PER_PATH	256
+
+// XXX
+typedef uint16_t gate_idx_t;
+#define MAX_GATES		8192
 
 /* 	TODO: worker threads doesn't necessarily be pinned to 1 core
  *
@@ -59,7 +62,7 @@ struct worker_context {
 	 * Modules should use get_igate() for access */
 	gate_idx_t igate_stack[MAX_MODULES_PER_PATH];
 	int stack_depth;
-	
+
 	/* better be the last field. it's huge */
 	struct pkt_batch splits[MAX_GATES + 1];
 };
@@ -84,7 +87,7 @@ int is_any_worker_running();
 int is_cpu_present(unsigned int core_id);
 
 /* arg (int) is the core id the worker should run on */
-void launch_worker(int wid, int core);	
+void launch_worker(int wid, int core);
 
 static inline int is_worker_active(int wid)
 {
@@ -104,6 +107,6 @@ static inline int is_pause_requested() {
 }
 
 /* Block myself. Return nonzero if the worker needs to die */
-int block_worker(void);	
+int block_worker(void);
 
 #endif

@@ -10,7 +10,9 @@
 #include "common.h"
 #include "worker.h"
 #include "time.h"
+#include "snbuf.h"
 #include "module.h"
+#include "tc.h"
 
 int num_workers;
 struct worker_context * volatile workers[MAX_WORKERS];

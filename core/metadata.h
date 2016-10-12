@@ -3,6 +3,8 @@
 
 #include <stdint.h>
 
+#include "namespace.h"
+
 #define MT_ATTR_NAME_LEN	SN_NAME_LEN
 
 #define MT_ATTR_MAX_SIZE	32		/* in bytes, per attribute */

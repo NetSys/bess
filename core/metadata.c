@@ -1,5 +1,9 @@
+#include <string.h>
+
+#include "log.h"
 #include "mem_alloc.h"
 #include "module.h"
+#include "utils/minheap.h"
 
 #include "metadata.h"
 
@@ -14,7 +18,7 @@ struct scope_component {
         uint8_t assigned;
         uint8_t invalid;
         int num_modules;
-        struct module **modules;
+        Module **modules;
 	int degree;
 };
 
@@ -34,7 +38,7 @@ int get_scope_attr_(scope_id_t scope_id)
 /* TODO: make more efficient */
 /* Adds module to the current scope component. */
 static void
-add_module_to_component(struct module *m, struct mt_attr *attr)
+add_module_to_component(Module *m, struct mt_attr *attr)
 {
 	struct scope_component *component = &scope_components[curr_scope_id];
 
@@ -48,21 +52,21 @@ add_module_to_component(struct module *m, struct mt_attr *attr)
 		strcpy(component->name, attr->name);
 		component->size = attr->size;
 		component->num_modules = 1;
-		component->modules = (struct module **)mem_alloc(sizeof(struct module *));
+		component->modules = (Module **)mem_alloc(sizeof(Module *));
 		component->modules[0] = m;
 	} else {
 		component->num_modules++;
-		component->modules = (struct module **)mem_realloc(component->modules,
-				sizeof(struct module *) * component->num_modules);
+		component->modules = (Module **)mem_realloc(component->modules,
+				sizeof(Module *) * component->num_modules);
 		component->modules[component->num_modules - 1] = m;
 	}
 }
 
 static void
-identify_scope_component(struct module *m, struct mt_attr *attr);
+identify_scope_component(Module *m, struct mt_attr *attr);
 
 
-static struct mt_attr *find_attr(struct module *m, struct mt_attr *attr)
+static struct mt_attr *find_attr(Module *m, struct mt_attr *attr)
 {
 	struct mt_attr *curr_attr;
 
@@ -78,7 +82,7 @@ static struct mt_attr *find_attr(struct module *m, struct mt_attr *attr)
 }
 
 /* Traverses module graph upstream to help identify a scope component. */
-static void traverse_upstream(struct module *m, struct mt_attr *attr)
+static void traverse_upstream(Module *m, struct mt_attr *attr)
 {
 	struct mt_attr *found_attr;
 
@@ -116,7 +120,7 @@ static void traverse_upstream(struct module *m, struct mt_attr *attr)
  * Traverses module graph downstream to help identify a scope component.
  * Returns 0 if module is part of the scope component, -1 if not.
  */
-static int traverse_downstream(struct module *m, struct mt_attr *attr)
+static int traverse_downstream(Module *m, struct mt_attr *attr)
 {
 	struct gate *ogate;
 	struct mt_attr *found_attr;
@@ -187,7 +191,7 @@ static void allocate_scope_components()
 
 
 /* Wrapper for identifying scope components */
-static void identify_single_scope_component(struct module *m, struct mt_attr *attr)
+static void identify_single_scope_component(Module *m, struct mt_attr *attr)
 {
 	if (curr_scope_id % 100 == 0)
 		allocate_scope_components();
@@ -199,7 +203,7 @@ static void identify_single_scope_component(struct module *m, struct mt_attr *at
 
 /* Given a module that writes an attr,
  * identifies the corresponding scope component. */
-static void identify_scope_component(struct module *m, struct mt_attr *attr)
+static void identify_scope_component(Module *m, struct mt_attr *attr)
 {
 	struct gate *ogate;
 
@@ -223,7 +227,7 @@ static void prepare_metadata_computation()
 	struct ns_iter iter;
 	ns_init_iterator(&iter, NS_TYPE_MODULE);
 	while (1) {
-		struct module *m = (struct module *) ns_next(&iter);
+		Module *m = (Module *) ns_next(&iter);
 		if (!m)
 			break;
 
@@ -256,12 +260,12 @@ static void cleanup_metadata_computation()
 
 static void fill_offset_arrays()
 {
-	struct module **modules;
+	Module **modules;
 	char *name;
 	int size;
 	mt_offset_t offset;
 	uint8_t invalid;
-	struct module *m;
+	Module *m;
 	int num_modules;
 
 	for (int i = 0; i < curr_scope_id; i++) {
@@ -396,7 +400,7 @@ void check_orphan_readers()
 
 	ns_init_iterator(&iter, NS_TYPE_MODULE);
 	while (1) {
-		struct module *m = (struct module *) ns_next(&iter);
+		Module *m = (Module *) ns_next(&iter);
 		if (!m)
 			break;
 
@@ -407,7 +411,7 @@ void check_orphan_readers()
 			log_warn("Metadata attr '%s/%d' of module '%s' has "
 				 "no upstream module that sets the value!\n",
 					m->attrs[i].name, m->attrs[i].size,
-					m->name);
+					m->Name().c_str());
 		}
 	}
 	ns_release_iterator(&iter);
@@ -421,11 +425,12 @@ void log_all_scopes_per_module()
 	ns_init_iterator(&iter, NS_TYPE_MODULE);
 
 	while (1) {
-		struct module *m = (struct module *) ns_next(&iter);
+		Module *m = (Module *) ns_next(&iter);
 		if (!m)
 			break;
 
-		log_info("Module %s part of the following scope components: ", m->name);
+		log_info("Module %s part of the following scope components: ", 
+				m->Name().c_str());
 		for (int i = 0; i < MT_TOTAL_SIZE; i++) {
 			if (m->scope_components[i] != -1)
 				log_info("scope %d at offset %d, ", m->scope_components[i], i);
@@ -469,7 +474,7 @@ void compute_metadata_offsets()
 
 	ns_init_iterator(&iter, NS_TYPE_MODULE);
 	while (1) {
-		struct module *m = (struct module *) ns_next(&iter);
+		Module *m = (Module *) ns_next(&iter);
 		if (!m)
 			break;
 
@@ -496,10 +501,10 @@ void compute_metadata_offsets()
 				scope_components[i].size,
 				scope_components[i].name,
 				scope_components[i].offset,
-				scope_components[i].modules[0]->name);
+				scope_components[i].modules[0]->Name().c_str());
 
 		for (int j = 1; j < scope_components[i].num_modules; j++)
-			log_info(" %s", scope_components[i].modules[j]->name);
+			log_info(" %s", scope_components[i].modules[j]->Name().c_str());
 
 		log_info("}\n");
 	}
@@ -525,7 +530,7 @@ int is_valid_attr(const char *name, int size, enum mt_access_mode mode)
 	return 1;
 }
 
-int add_metadata_attr(struct module *m, const char *name, int size,
+int add_metadata_attr(Module *m, const char *name, int size,
 		enum mt_access_mode mode)
 {
 	int n = m->num_attrs;

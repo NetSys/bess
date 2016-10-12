@@ -51,14 +51,14 @@ struct port {
 	int queue_size[PACKET_DIRS];
 
 	struct packet_stats queue_stats[PACKET_DIRS][MAX_QUEUES_PER_DIR];
-	
-	/* for stats that do NOT belong to any queues */
-	port_stats_t port_stats;	
 
-	void *priv[0];	
+	/* for stats that do NOT belong to any queues */
+	port_stats_t port_stats;
+
+	void *priv[0];
 };
 
-static inline void *get_port_priv(struct port *p) 
+static inline void *get_port_priv(struct port *p)
 {
 	return (void *)(p + 1);
 }
@@ -67,7 +67,7 @@ size_t list_ports(const struct port **p_arr, size_t arr_size, size_t offset);
 struct port *find_port(const char *name);
 
 struct port *create_port(const char *name,
-		const struct driver *driver, 
+		const struct driver *driver,
 		struct snobj *arg,
 		struct snobj **perr);
 
@@ -75,13 +75,13 @@ int destroy_port(struct port *p);
 
 void get_port_stats(struct port *p, port_stats_t *stats);
 
-void get_queue_stats(struct port *p, packet_dir_t dir, queue_t qid, 
+void get_queue_stats(struct port *p, packet_dir_t dir, queue_t qid,
 		struct packet_stats *stats);
 
 /* quques == NULL if _all_ queues are being acquired/released */
-int acquire_queues(struct port *p, const struct module *m, packet_dir_t dir, 
+int acquire_queues(struct port *p, const struct module *m, packet_dir_t dir,
 		const queue_t *queues, int num_queues);
-void release_queues(struct port *p, const struct module *m, packet_dir_t dir, 
+void release_queues(struct port *p, const struct module *m, packet_dir_t dir,
 		const queue_t *queues, int num_queues);
 
 #endif

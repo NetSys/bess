@@ -16,6 +16,7 @@
 #include "module.h"
 #include "port.h"
 #include "time.h"
+#include "tc.h"
 
 struct handler_map {
 	const char *cmd;
@@ -595,12 +596,12 @@ static struct snobj *handle_list_mclasses(struct snobj *q)
 	struct snobj *r = snobj_list();
 	struct ns_iter iter;
 
-	struct mclass *cls;
+	ModuleClass *cls;
 
 	ns_init_iterator(&iter, NS_TYPE_MCLASS);
 
-	while ((cls = (struct mclass *)ns_next(&iter)) != NULL)
-		snobj_list_add(r, snobj_str(cls->name));
+	while ((cls = (ModuleClass *)ns_next(&iter)) != NULL)
+		snobj_list_add(r, snobj_str(cls->Name()));
 
 	ns_release_iterator(&iter);
 
@@ -610,7 +611,7 @@ static struct snobj *handle_list_mclasses(struct snobj *q)
 static struct snobj *handle_get_mclass_info(struct snobj *q)
 {
 	const char *cls_name;
-	const struct mclass *cls;
+	const ModuleClass *cls;
 
 	struct snobj *r;
 	struct snobj *cmds;
@@ -625,16 +626,14 @@ static struct snobj *handle_get_mclass_info(struct snobj *q)
 				cls_name);
 
 	cmds = snobj_list();
-	for (int i = 0; i < MAX_COMMANDS; i++) {
-		if (!cls->commands[i].cmd)
-			break;
 
-		snobj_list_add(cmds, snobj_str(cls->commands[i].cmd));
+	for (auto &cmd : cls->cmds) {
+		snobj_list_add(cmds, snobj_str(cmd.cmd));
 	}
 
 	r = snobj_map();
-	snobj_map_set(r, "name", snobj_str(cls->name));
-	snobj_map_set(r, "help", snobj_str(cls->help ? : ""));
+	snobj_map_set(r, "name", snobj_str(cls->Name()));
+	snobj_map_set(r, "help", snobj_str(cls->Help()));
 	snobj_map_set(r, "commands", cmds);
 
 	return r;
@@ -642,9 +641,9 @@ static struct snobj *handle_get_mclass_info(struct snobj *q)
 
 static struct snobj *handle_reset_modules(struct snobj *q)
 {
-	struct module *m;
+	Module *m;
 
-	while (list_modules((const struct module **)&m, 1, 0))
+	while (list_modules((const Module **)&m, 1, 0))
 		destroy_module(m);
 
 	log_info("*** All modules have been destroyed ***\n");
@@ -662,26 +661,23 @@ static struct snobj *handle_list_modules(struct snobj *q)
 
 	for (offset = 0; cnt != 0; offset += cnt) {
 		const int arr_size = 16;
-		const struct module *modules[arr_size];
+		const Module *modules[arr_size];
 
 		int i;
 
 		cnt = list_modules(modules, arr_size, offset);
 
 		for (i = 0; i < cnt; i++) {
-			const struct module *m = modules[i];
-			const struct mclass *mclass = m->mclass;
+			const Module *m = modules[i];
 
 			struct snobj *module = snobj_map();
 
 			snobj_map_set(module, "name",
-					snobj_str(m->name));
+					snobj_str(m->Name()));
 			snobj_map_set(module, "mclass",
-					snobj_str(mclass->name));
-			if (mclass->get_desc) {
-				snobj_map_set(module, "desc",
-						mclass->get_desc(m));
-			}
+					snobj_str(m->Class()->Name()));
+			snobj_map_set(module, "desc",
+					m->GetDesc());
 
 			snobj_list_add(r, module);
 		}
@@ -693,8 +689,8 @@ static struct snobj *handle_list_modules(struct snobj *q)
 static struct snobj *handle_create_module(struct snobj *q)
 {
 	const char *mclass_name;
-	const struct mclass *mclass;
-	struct module *module;
+	const ModuleClass *mclass;
+	Module *module;
 
 	struct snobj *r;
 
@@ -712,7 +708,7 @@ static struct snobj *handle_create_module(struct snobj *q)
 		return r;
 
 	r = snobj_map();
-	snobj_map_set(r, "name", snobj_str(module->name));
+	snobj_map_set(r, "name", snobj_str(module->Name()));
 
 	return r;
 }
@@ -720,7 +716,7 @@ static struct snobj *handle_create_module(struct snobj *q)
 static struct snobj *handle_destroy_module(struct snobj *q)
 {
 	const char *m_name;
-	struct module *m;
+	Module *m;
 
 	m_name = snobj_str_get(q);
 
@@ -735,7 +731,7 @@ static struct snobj *handle_destroy_module(struct snobj *q)
 	return NULL;
 }
 
-static struct snobj *collect_igates(struct module *m)
+static struct snobj *collect_igates(Module *m)
 {
 	struct snobj *igates = snobj_list();
 
@@ -756,7 +752,7 @@ static struct snobj *collect_igates(struct module *m)
 		{
 			struct snobj *ogate = snobj_map();
 			snobj_map_set(ogate, "ogate", snobj_uint(og->gate_idx));
-			snobj_map_set(ogate, "name", snobj_str(og->m->name));
+			snobj_map_set(ogate, "name", snobj_str(og->m->Name()));
 			snobj_list_add(ogates, ogate);
 		}
 
@@ -768,7 +764,7 @@ static struct snobj *collect_igates(struct module *m)
 	return igates;
 }
 
-static struct snobj *collect_ogates(struct module *m)
+static struct snobj *collect_ogates(Module *m)
 {
 	struct snobj *ogates = snobj_list();
 
@@ -787,7 +783,7 @@ static struct snobj *collect_ogates(struct module *m)
 				snobj_double(get_epoch_time()));
 #endif
 		snobj_map_set(ogate, "name",
-				snobj_str(g->out.igate->m->name));
+				snobj_str(g->out.igate->m->Name()));
 		snobj_map_set(ogate, "igate",
 				snobj_uint(g->out.igate->gate_idx));
 
@@ -797,7 +793,7 @@ static struct snobj *collect_ogates(struct module *m)
 	return ogates;
 }
 
-static struct snobj *collect_metadata(struct module *m)
+static struct snobj *collect_metadata(Module *m)
 {
 	struct snobj *metadata = snobj_list();
 
@@ -832,7 +828,7 @@ static struct snobj *collect_metadata(struct module *m)
 static struct snobj *handle_get_module_info(struct snobj *q)
 {
 	const char *m_name;
-	struct module *m;
+	Module *m;
 
 	struct snobj *r;
 
@@ -846,14 +842,11 @@ static struct snobj *handle_get_module_info(struct snobj *q)
 
 	r = snobj_map();
 
-	snobj_map_set(r, "name", snobj_str(m->name));
-	snobj_map_set(r, "mclass", snobj_str(m->mclass->name));
+	snobj_map_set(r, "name", snobj_str(m->Name()));
+	snobj_map_set(r, "mclass", snobj_str(m->Class()->Name()));
 
-	if (m->mclass->get_desc)
-		snobj_map_set(r, "desc", m->mclass->get_desc(m));
-
-	if (m->mclass->get_dump)
-		snobj_map_set(r, "dump", m->mclass->get_dump(m));
+	snobj_map_set(r, "desc", m->GetDesc());
+	snobj_map_set(r, "dump", m->GetDump());
 
 	snobj_map_set(r, "igates", collect_igates(m));
 	snobj_map_set(r, "ogates", collect_ogates(m));
@@ -869,8 +862,8 @@ static struct snobj *handle_connect_modules(struct snobj *q)
 	gate_idx_t ogate;
 	gate_idx_t igate;
 
-	struct module *m1;
-	struct module *m2;
+	Module *m1;
+	Module *m2;
 
 	int ret;
 
@@ -901,7 +894,7 @@ static struct snobj *handle_disconnect_modules(struct snobj *q)
 	const char *m_name;
 	gate_idx_t ogate;
 
-	struct module *m;
+	Module *m;
 
 	int ret;
 
@@ -929,7 +922,7 @@ static struct snobj *handle_attach_task(struct snobj *q)
 
 	task_id_t tid;
 
-	struct module *m;
+	Module *m;
 	struct task *t;
 
 	m_name = snobj_eval_str(q, "name");
@@ -986,7 +979,7 @@ static struct snobj *handle_enable_tcpdump(struct snobj *q)
 	const char *fifo;
 	gate_idx_t ogate;
 
-	struct module *m;
+	Module *m;
 
 	int ret;
 
@@ -1019,7 +1012,7 @@ static struct snobj *handle_disable_tcpdump(struct snobj *q)
 	const char *m_name;
 	gate_idx_t ogate;
 
-	struct module *m;
+	Module *m;
 
 	int ret;
 
@@ -1135,10 +1128,10 @@ static struct snobj *handle_snobj_bess(struct snobj *q)
 }
 
 struct snobj *
-run_module_command(struct module *m, const char *cmd, struct snobj *arg)
+run_module_command(Module *m, const char *cmd, struct snobj *arg)
 {
-	const struct mclass *cls = m->mclass;
-
+	return m->RunCommand(cmd, arg);
+#if 0
 	for (int i = 0; i < MAX_COMMANDS; i++) {
 		if (!cls->commands[i].cmd)
 			break;
@@ -1159,6 +1152,7 @@ run_module_command(struct module *m, const char *cmd, struct snobj *arg)
 
 	return snobj_err(ENOTSUP, "'%s' does not support command '%s'",
 			cls->name, cmd);
+#endif
 }
 
 static struct snobj *handle_snobj_module(struct snobj *q)
@@ -1166,7 +1160,7 @@ static struct snobj *handle_snobj_module(struct snobj *q)
 	const char *m_name;
 	const char *cmd;
 
-	struct module *m;
+	Module *m;
 
 	struct snobj *arg;
 

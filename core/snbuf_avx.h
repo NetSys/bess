@@ -5,6 +5,8 @@
 	#error "Do not directly include this file. Include snbuf.h instead."
 #endif
 
+#include "utils/simd.h"
+
 static inline int
 snb_alloc_bulk(snb_array_t snbs, int cnt, uint16_t len)
 {

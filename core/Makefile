@@ -24,6 +24,7 @@ endif
 CFLAGS += -std=gnu++11 -g3 -ggdb3 -Ofast -march=native \
 	  -Wall -Werror -Wno-unused-function -Wno-unused-but-set-variable \
 	  -I$(DPDK_INC_DIR) \
+	  -fno-rtti \
 	  -D_GNU_SOURCE
 
 LDFLAGS += -rdynamic -L$(DPDK_LIB_DIR) -Wl,-rpath=$(DPDK_LIB_DIR)
@@ -36,9 +37,9 @@ endif
 
 -include extra.mk
 
-SRCS = $(wildcard *.c utils/*.c tests/*.c)
+SRCS = $(wildcard *.c utils/*.c tests/*.c modules/_*.c)
 OBJS = $(SRCS:.c=.o)
-HEADERS = $(wildcard *.h utils/*.h tests/*.h)
+HEADERS = $(wildcard *.h utils/*.h tests/*.h modules/*.h)
 EXEC = bessd
 
 DEPS = .make.dep

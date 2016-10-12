@@ -1,16 +1,9 @@
 #ifndef _MCLASS_H_
 #define _MCLASS_H_
 
-#include "task.h"
+#include "common.h"
+//#include "task.h"
 #include "metadata.h"
-
-#define ADD_MCLASS(mc) \
-	__attribute__((constructor(103))) void __mclass_register_##mc() \
-	{ \
-		int ret; \
-		ret = add_mclass(&mc); \
-		assert(ret == 0); \
-	}
 
 typedef uint16_t gate_idx_t;
 
@@ -90,8 +83,8 @@ struct mclass
 	/* Optional: Triggered by its previous module */
 	proc_func_t process_batch;
 
-	/* Optional: The entry point of the packet packet processing pipeline */
-	task_func_t run_task;
+//	/* Optional: The entry point of the packet packet processing pipeline */
+//	task_func_t run_task;
 
 	const struct {
 		const char *cmd;

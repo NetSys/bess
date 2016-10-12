@@ -1,39 +1,52 @@
-#ifndef _MODULE_H_
-#define _MODULE_H_
+#ifndef _CC_MODULE_H_
+#define _CC_MODULE_H_
 
-#include <assert.h>
-#include <sys/time.h>
-#include <stdio.h>
-#include <unistd.h>
-#include <sys/stat.h>
-#include <fcntl.h>
+#include <cassert>
+#include <string>
+#include <vector>
 
-#include "utils/cdlist.h"
-#include "utils/pcap.h"
+#include "common.h"
 
-#include "log.h"
-#include "debug.h"
-#include "mclass.h"
-#include "snbuf.h"
-#include "worker.h"
+typedef uint16_t task_id_t;
+typedef uint16_t gate_idx_t;
+
+#define INVALID_GATE		UINT16_MAX
+
+/* A module may have up to MAX_GATES input/output gates (separately). */
+#define MAX_GATES		8192
+#define DROP_GATE		MAX_GATES
+ct_assert(MAX_GATES < INVALID_GATE);
+ct_assert(DROP_GATE <= MAX_GATES);
+
 #include "snobj.h"
 #include "metadata.h"
-
-#define MAX_TASKS_PER_MODULE	32
-ct_assert(MAX_TASKS_PER_MODULE < INVALID_TASK_ID);
+#include "worker.h"
+#include "snbuf.h"
+#include "utils/cdlist.h"
 
 #define MODULE_NAME_LEN		128
 
 #define TRACK_GATES		1
 #define TCPDUMP_GATES		1
 
+#define MAX_TASKS_PER_MODULE	32
+#define INVALID_TASK_ID		((task_id_t)-1)
+
+ct_assert(MAX_TASKS_PER_MODULE < INVALID_TASK_ID);
+
+struct task_result {
+	uint64_t packets;
+	uint64_t bits;
+};
+
+class Module;
+
 struct gate {
 	/* immutable values */
-	struct module *m;	/* the module this gate belongs to */
+	Module *m;	/* the module this gate belongs to */
 	gate_idx_t gate_idx;	/* input/output gate index of itself */
 
 	/* mutable values below */
-	proc_func_t f;		/* m_next->mclass->process_batch or deadend */
 	void *arg;
 
 	union {
@@ -69,102 +82,198 @@ struct gates {
 	gate_idx_t curr_size;
 };
 
-static inline int is_active_gate(struct gates *gates, gate_idx_t idx)
+#define CALL_MEMBER_FN(obj, ptr_to_member_func) ((obj).*(ptr_to_member_func))
+
+typedef struct snobj *(Module::*CmdFunc)(struct snobj *);
+
+struct Command {
+	std::string cmd;
+	CmdFunc func;
+
+	// if non-zero, workers don't need to be paused in order to
+	// run this command
+	int mt_safe;
+};
+
+class ModuleClass {
+public:
+	ModuleClass(const std::string &class_name,
+		    const std::string &name_template,
+		    const std::string &help) :
+			name_(class_name),
+			name_template_(name_template),
+			help_(help) {
+		int ret = ns_insert(NS_TYPE_MCLASS, class_name.c_str(),
+				static_cast<void *>(this));
+		if (ret < 0) {
+			log_err("ns_insert() failure for module class '%s'\n",
+					class_name.c_str());
+		}
+	}
+
+	virtual Module *CreateModule(const std::string &name) const = 0;
+
+	std::string Name() const { return name_; }
+	std::string NameTemplate() const {return name_template_; }
+	std::string Help() const { return help_; }
+
+	virtual gate_idx_t NumIGates() const = 0;
+	virtual gate_idx_t NumOGates() const = 0;
+
+	std::vector<struct Command> cmds;
+
+private:
+	std::string name_;
+	std::string name_template_;
+	std::string help_;
+};
+
+template <typename T>
+class ModuleClassRegister : public ModuleClass {
+public:
+	ModuleClassRegister(const std::string &class_name,
+		    const std::string &name_template,
+		    const std::string &help) :
+		ModuleClass(class_name, name_template, help) {};
+
+	virtual Module *CreateModule(const std::string &name) const {
+		T *m = new T;
+		m->name_ = name;
+		m->mclass_ = this;
+		return m;
+	};
+
+	virtual gate_idx_t NumIGates() const { return T::kNumIGates; }
+	virtual gate_idx_t NumOGates() const { return T::kNumOGates; }
+};
+
+class Module {
+// overide this section to create a new module -----------------------------
+public:
+	Module() = default;
+	virtual ~Module() = 0;
+
+	virtual struct snobj *Init(struct snobj *arg) { return nullptr; };
+	virtual void Deinit() {};
+
+	virtual struct task_result RunTask(void *arg) { assert(0); };
+	virtual void ProcessBatch(struct pkt_batch *batch) { assert(0); };
+
+	virtual struct snobj *GetDesc() const { return snobj_str(""); };
+	virtual struct snobj *GetDump() const { return snobj_nil(); };
+
+// -------------------------------------------------------------------------
+
+public:
+	const ModuleClass *Class() const { return mclass_; };
+//	std::string ClassName() const { return mclass_->Name(); };
+	std::string Name() const { return name_; };
+
+	struct snobj *RunCommand(const std::string &user_cmd, struct snobj *arg);
+
+private:
+	// non-copyable and non-movable by default
+	Module(Module&) = delete;
+	Module& operator=(Module&) = delete;
+	Module(Module&&) = delete;
+	Module& operator=(Module&&) = delete;
+
+	std::string name_;
+	const ModuleClass *mclass_;
+
+	template<typename T> friend class ModuleClassRegister;
+
+// FIXME: porting in progress ----------------------------
+public:
+	struct task *tasks[MAX_TASKS_PER_MODULE] = {};
+
+	int num_attrs = 0;
+	struct mt_attr attrs[MAX_ATTRS_PER_MODULE] = {};
+	scope_id_t scope_components[MT_TOTAL_SIZE] = {};
+
+	int curr_scope = 0;
+
+	mt_offset_t attr_offsets[MAX_ATTRS_PER_MODULE] = {};
+	struct gates igates = {};
+	struct gates ogates = {};
+};
+
+task_id_t register_task(Module *m, void *arg);
+
+struct task {
+	struct tc *c;
+
+	Module *m;
+	void *arg;
+
+	struct cdlist_item tc;
+	struct cdlist_item all_tasks;
+};
+
+struct task *task_create(Module *m, void *arg);
+
+void task_destroy(struct task *t);
+
+static inline int task_is_attached(struct task *t)
 {
-	return idx < gates->curr_size && gates->arr && gates->arr[idx] != NULL;
+	return (t->c != NULL);
 }
 
-/* This struct is shared across workers */
-struct module {
-	/* less frequently accessed fields should be here */
-	char *name;
-	const struct mclass *mclass;
-	struct task *tasks[MAX_TASKS_PER_MODULE];
+void task_attach(struct task *t, struct tc *c);
+void task_detach(struct task *t);
 
-	int num_attrs;
-	struct mt_attr attrs[MAX_ATTRS_PER_MODULE];
-	scope_id_t scope_components[MT_TOTAL_SIZE];
-
-	/* for cycle detection */
-	int curr_scope;
-
-	/* frequently access fields should be below */
-	mt_offset_t attr_offsets[MAX_ATTRS_PER_MODULE];
-	struct gates igates;
-	struct gates ogates;
-
-	/* Some private data for this module instance begins after this struct.
-	 * (this is poor person's class inheritance in C language)
-	 * The 'struct module' object will be allocated with enough tail room
-	 * to accommodate this private data. It is initialized with zeroes.
-	 * We don't do dynamic allocation for private data,
-	 * to save a few cycles by avoiding indirect memory access.
-	 *
-	 * Note: the space is shared across all workers. Ensuring thread safety
-	 * and/or managing per-worker data is each module's responsibility. */
-} __zmm_aligned;
-
-static inline mt_offset_t
-mt_attr_offset(const struct module *m, int attr_id)
+static inline struct task_result task_scheduled(struct task *t)
 {
-	return m->attr_offsets[attr_id];
+	return t->m->RunTask(t->arg);
 }
 
-static inline void *get_priv(struct module *m)
-{
-	return (void *)(m + 1);
-}
+void assign_default_tc(int wid, struct task *t);
+void process_orphan_tasks();
 
-static inline const void *get_priv_const(const struct module *m)
-{
-	return (const void *)(m + 1);
-}
-
-task_id_t register_task(struct module *m, void *arg);
 task_id_t task_to_tid(struct task *t);
-int num_module_tasks(struct module *m);
+int num_module_tasks(Module *m);
 
-size_t list_modules(const struct module **p_arr, size_t arr_size, size_t offset);
+size_t list_modules(const Module **p_arr, size_t arr_size, size_t offset);
 
-struct module *find_module(const char *name);
+Module *find_module(const char *name);
 
-struct module *create_module(const char *name,
-		const struct mclass *mclass,
+Module *create_module(const char *name,
+		const ModuleClass *mclass,
 		struct snobj *arg,
 		struct snobj **perr);
 
-void destroy_module(struct module *m);
+void destroy_module(Module *m);
 
-int connect_modules(struct module *m_prev, gate_idx_t ogate_idx,
-		    struct module *m_next, gate_idx_t igate_idx);
-int disconnect_modules(struct module *m_prev, gate_idx_t ogate_idx);
+int connect_modules(Module *m_prev, gate_idx_t ogate_idx,
+		    Module *m_next, gate_idx_t igate_idx);
+int disconnect_modules(Module *m_prev, gate_idx_t ogate_idx);
 
-void deadend(struct module *m, struct pkt_batch *batch);
+void deadend(Module *m, struct pkt_batch *batch);
 
 /* run all per-thread initializers */
 void init_module_worker(void);
 
 #if SN_TRACE_MODULES
-void _trace_before_call(struct module *mod, struct module *next,
+void _trace_before_call(Module *mod, Module *next,
 			struct pkt_batch *batch);
 
 void _trace_after_call(void);
 #endif
 
 #if TCPDUMP_GATES
-int enable_tcpdump(const char* fifo, struct module *m, gate_idx_t gate);
+int enable_tcpdump(const char* fifo, Module *m, gate_idx_t gate);
 
-int disable_tcpdump(struct module *m, gate_idx_t gate);
+int disable_tcpdump(Module *m, gate_idx_t gate);
 
 void dump_pcap_pkts(struct gate *gate, struct pkt_batch *batch);
 
 #else
-inline int enable_tcpdump(const char *, struct module *, gate_idx_t) {
+inline int enable_tcpdump(const char *, Module *, gate_idx_t) {
 	/* Cannot enable tcpdump */
 	return -EINVAL;
 }
 
-inline int disable_tcpdump(struct module *, int) {
+inline int disable_tcpdump(Module *, int) {
 	/* Cannot disable tcpdump */
 	return -EINVAL;
 }
@@ -178,7 +287,7 @@ static inline gate_idx_t get_igate()
 
 /* Pass packets to the next module.
  * Packet deallocation is callee's responsibility. */
-static inline void run_choose_module(struct module *m, gate_idx_t ogate_idx,
+static inline void run_choose_module(Module *m, gate_idx_t ogate_idx,
 				     struct pkt_batch *batch)
 {
 	struct gate *ogate;
@@ -212,7 +321,8 @@ static inline void run_choose_module(struct module *m, gate_idx_t ogate_idx,
 	ctx.igate_stack[ctx.stack_depth] = ogate->out.igate_idx;
 	ctx.stack_depth++;
 
-	ogate->f((struct module *)ogate->arg, batch);
+	// XXX
+	((Module *)ogate->arg)->ProcessBatch(batch);
 
 	ctx.stack_depth--;
 
@@ -222,7 +332,7 @@ static inline void run_choose_module(struct module *m, gate_idx_t ogate_idx,
 }
 
 /* Wrapper for single-output modules */
-static inline void run_next_module(struct module *m, struct pkt_batch *batch)
+static inline void run_next_module(Module *m, struct pkt_batch *batch)
 {
 	run_choose_module(m, 0, batch);
 }
@@ -233,7 +343,7 @@ static inline void run_next_module(struct module *m, struct pkt_batch *batch)
  *   1. Order is preserved for packets with the same gate.
  *   2. No ordering guarantee for packets with different gates.
  */
-static void run_split(struct module *m, const gate_idx_t *ogates,
+static void run_split(Module *m, const gate_idx_t *ogates,
 		struct pkt_batch *mixed_batch)
 {
 	int cnt = mixed_batch->cnt;
@@ -273,5 +383,23 @@ static void run_split(struct module *m, const gate_idx_t *ogates,
 	for (int i = 0; i < num_pending; i++)
 		run_choose_module(m, pending[i], &batches[i]);
 }
+
+static inline int is_active_gate(struct gates *gates, gate_idx_t idx)
+{
+	return idx < gates->curr_size && gates->arr && gates->arr[idx] != NULL;
+}
+
+typedef struct snobj *
+(*mod_cmd_func_t) (struct module *, const char *, struct snobj *);
+
+size_t list_mclasses(const ModuleClass **p_arr, size_t arr_size,
+		size_t offset);
+
+const ModuleClass *find_mclass(const char *name);
+
+int add_mclass(const ModuleClass *mclass);
+
+#define ADD_MODULE(_MOD, _NAME_TEMPLATE, _HELP) \
+	ModuleClassRegister<_MOD> noop(#_MOD, _NAME_TEMPLATE, _HELP);
 
 #endif

@@ -16,8 +16,8 @@
 #include "utils/htable.h"
 
 #include "tc.h"
-#include "task.h"
 #include "module.h"
+#include "snobj.h"
 #include "snbuf.h"
 
 #define STACK_DEPTH 64
@@ -375,7 +375,7 @@ void dump_types(void)
 			sizeof(struct tc_stats));
 	printf("sizeof(task)=%zu\n", sizeof(struct task));
 
-	printf("sizeof(module)=%zu\n", sizeof(struct module));
+	printf("sizeof(Module)=%zu\n", sizeof(Module));
 	printf("sizeof(gate)=%zu\n", sizeof(struct gate));
 
 	printf("sizeof(worker_context)=%zu\n", sizeof(struct worker_context));

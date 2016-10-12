@@ -1,8 +1,10 @@
+#include <string.h>
+
 #include "log.h"
 #include "namespace.h"
-#include "mclass.h"
+#include "module.h"
 
-size_t list_mclasses(const struct mclass **p_arr, size_t arr_size,
+size_t list_mclasses(const ModuleClass **p_arr, size_t arr_size,
 		size_t offset)
 {
 	size_t ret = 0;
@@ -12,7 +14,7 @@ size_t list_mclasses(const struct mclass **p_arr, size_t arr_size,
 
 	ns_init_iterator(&iter, NS_TYPE_MCLASS);
 	while (1) {
-		struct mclass *mc_obj = (struct mclass *) ns_next(&iter);
+		ModuleClass *mc_obj = (ModuleClass *) ns_next(&iter);
 		if (!mc_obj)
 			break;
 
@@ -30,12 +32,13 @@ size_t list_mclasses(const struct mclass **p_arr, size_t arr_size,
 	return ret;
 }
 
-const struct mclass *find_mclass(const char *name)
+const ModuleClass *find_mclass(const char *name)
 {
-	return (struct mclass *) ns_lookup(NS_TYPE_MCLASS, name);
+	return (ModuleClass *) ns_lookup(NS_TYPE_MCLASS, name);
 }
 
-int is_valid_attr_list(const struct mclass *mclass)
+#if 0
+int is_valid_attr_list(const ModuleClass *mclass)
 {
 	for (int i = 0; i < MAX_ATTRS_PER_MODULE; i++) {
 		const struct mt_attr *a1 = &mclass->attrs[i];
@@ -66,37 +69,35 @@ int is_valid_attr_list(const struct mclass *mclass)
 	return 1;
 }
 
-int add_mclass(const struct mclass *mclass)
+int add_mclass(const ModuleClass *mclass)
 {
 	int ret;
 
-	if (!mclass->name) {
-		log_err("Incomplete module class at %p\n", mclass);
-		return -1;
-	}
-
 	/* already exists? */
-	if (ns_name_exists(mclass->name))
+	if (ns_name_exists(mclass->Name()))
 		return 0;
-
+#if 0
 	if (!is_valid_attr_list(mclass)) {
 		log_err("is_valid_attr_list() failure for module class '%s'\n",
 				mclass->name);
 		return -1;
 	}
-
-	ret = ns_insert(NS_TYPE_MCLASS, mclass->name, (void *) mclass);
+#endif
+	ret = ns_insert(NS_TYPE_MCLASS, mclass->Name(), (void *) mclass);
 	if (ret < 0) {
 		log_err("ns_insert() failure for module class '%s'\n",
-				mclass->name);
+				mclass->Name());
 		return -1;
 	}
 
-	log_debug("Module class '%s' has been registered", mclass->name);
+	log_debug("Module class '%s' has been registered", mclass->class_name);
+#if 0
 	if (mclass->priv_size)
 		log_debug(", with %u-byte private data", mclass->priv_size);
+#endif
 
 	log_debug("\n");
 
 	return 0;
 }
+#endif

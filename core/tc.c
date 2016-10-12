@@ -11,9 +11,9 @@
 #include "opts.h"
 #include "debug.h"
 #include "time.h"
-#include "task.h"
 #include "worker.h"
 #include "log.h"
+#include "module.h"
 #include "utils/random.h"
 
 #include "tc.h"
