@@ -10,9 +10,13 @@ class Buffer : public Module {
   static const gate_idx_t kNumIGates = 1;
   static const gate_idx_t kNumOGates = 1;
 
+  static const std::vector<struct Command> cmds;
+
  private:
   struct pkt_batch buf;
 };
+
+const std::vector<struct Command> Buffer::cmds = {};
 
 void Buffer::Deinit() {
   struct pkt_batch *buf = &this->buf;

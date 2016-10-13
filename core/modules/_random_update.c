@@ -12,10 +12,10 @@ class RandomUpdate : public Module {
 
   virtual void ProcessBatch(struct pkt_batch *batch);
 
-  struct snobj *RunCommand(const std::string &user_cmd, struct snobj *arg);
-
   static const gate_idx_t kNumIGates = 1;
   static const gate_idx_t kNumOGates = 1;
+
+  static const std::vector<struct Command> cmds;
 
  private:
   struct snobj *CommandAdd(struct snobj *arg);
@@ -32,15 +32,10 @@ class RandomUpdate : public Module {
   uint64_t seed;
 };
 
-struct snobj *RandomUpdate::RunCommand(const std::string &user_cmd,
-                                       struct snobj *arg) {
-  if (user_cmd == "add") {
-    return this->CommandAdd(arg);
-  } else if (user_cmd == "clear") {
-    return this->CommandClear(arg);
-  }
-  return snobj_err(EINVAL, "invalid command");
-}
+const std::vector<struct Command> RandomUpdate::cmds = {
+    {"add", static_cast<CmdFunc>(&RandomUpdate::CommandAdd), 0},
+    {"clear", static_cast<CmdFunc>(&RandomUpdate::CommandClear), 0},
+};
 
 struct snobj *RandomUpdate::CommandAdd(struct snobj *arg) {
   int curr = this->num_vars;

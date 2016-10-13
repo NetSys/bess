@@ -13,11 +13,15 @@ class QueueOut : public Module {
   static const gate_idx_t kNumIGates = 1;
   static const gate_idx_t kNumOGates = 0;
 
+  static const std::vector<struct Command> cmds;
+
  private:
   struct port *port;
   pkt_io_func_t send_pkts;
   queue_t qid;
 };
+
+const std::vector<struct Command> QueueOut::cmds = {};
 
 struct snobj *QueueOut::Init(struct snobj *arg) {
   struct snobj *t;

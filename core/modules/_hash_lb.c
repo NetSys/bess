@@ -49,10 +49,11 @@ class HashLB : public Module {
  public:
   virtual struct snobj *Init(struct snobj *arg);
   virtual void ProcessBatch(struct pkt_batch *batch);
-  struct snobj *RunCommand(const std::string &user_cmd, struct snobj *arg);
 
   static const gate_idx_t kNumIGates = 1;
   static const gate_idx_t kNumOGates = MAX_GATES;
+
+  static const std::vector<struct Command> cmds;
 
  private:
   void LbL2(struct pkt_batch *batch, gate_idx_t *ogates);
@@ -67,15 +68,10 @@ class HashLB : public Module {
   enum LbMode mode;
 };
 
-struct snobj *HashLB::RunCommand(const std::string &user_cmd,
-                                 struct snobj *arg) {
-  if (user_cmd == "set_mode") {
-    return this->CommandSetMode(arg);
-  } else if (user_cmd == "set_gates") {
-    return this->CommandSetGates(arg);
-  }
-  return snobj_err(EINVAL, "invalid command");
-}
+const std::vector<struct Command> HashLB::cmds = {
+    {"set_mode", static_cast<CmdFunc>(&HashLB::CommandSetMode), 0},
+    {"set_gates", static_cast<CmdFunc>(&HashLB::CommandSetGates), 0},
+};
 
 struct snobj *HashLB::CommandSetMode(struct snobj *arg) {
   const char *mode = snobj_str_get(arg);

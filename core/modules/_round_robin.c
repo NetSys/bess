@@ -12,10 +12,10 @@ class RoundRobin : public Module {
 
   virtual void ProcessBatch(struct pkt_batch *batch);
 
-  struct snobj *RunCommand(const std::string &user_cmd, struct snobj *arg);
-
   static const gate_idx_t kNumIGates = 1;
   static const gate_idx_t kNumOGates = MAX_GATES;
+
+  static const std::vector<struct Command> cmds;
 
  private:
   struct snobj *CommandSetMode(struct snobj *arg);
@@ -26,6 +26,11 @@ class RoundRobin : public Module {
   int ngates;
   int current_gate;
   int per_packet;
+};
+
+const std::vector<struct Command> RoundRobin::cmds = {
+    {"set_mode", static_cast<CmdFunc>(&RoundRobin::CommandSetMode), 0},
+    {"set_gates", static_cast<CmdFunc>(&RoundRobin::CommandSetGates), 0},
 };
 
 struct snobj *RoundRobin::Init(struct snobj *arg) {
@@ -43,16 +48,6 @@ struct snobj *RoundRobin::Init(struct snobj *arg) {
   if ((t = snobj_eval(arg, "mode"))) return this->CommandSetMode(t);
 
   return NULL;
-}
-
-struct snobj *RoundRobin::RunCommand(const std::string &user_cmd,
-                                     struct snobj *arg) {
-  if (user_cmd == "set_mode") {
-    return this->CommandSetMode(arg);
-  } else if (user_cmd == "set_gates") {
-    return this->CommandSetGates(arg);
-  }
-  return snobj_err(EINVAL, "invalid command");
 }
 
 struct snobj *RoundRobin::CommandSetMode(struct snobj *arg) {

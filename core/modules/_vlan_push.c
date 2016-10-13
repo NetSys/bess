@@ -15,10 +15,10 @@ class VLanPush : public Module {
 
   virtual struct snobj *GetDesc();
 
-  struct snobj *RunCommand(const std::string &user_cmd, struct snobj *arg);
-
   static const gate_idx_t kNumIGates = 1;
   static const gate_idx_t kNumOGates = 1;
+
+  static const std::vector<struct Command> cmds;
 
  private:
   struct snobj *CommandSetTci(struct snobj *arg);
@@ -26,6 +26,10 @@ class VLanPush : public Module {
   /* network order */
   uint32_t vlan_tag;
   uint32_t qinq_tag;
+};
+
+const std::vector<struct Command> VLanPush::cmds = {
+    {"set_tci", static_cast<CmdFunc>(&VLanPush::CommandSetTci), 0},
 };
 
 struct snobj *VLanPush::Init(struct snobj *arg) {
@@ -82,14 +86,6 @@ struct snobj *VLanPush::GetDesc() {
 
   return snobj_str_fmt("PCP=%u DEI=%u VID=%u", (vlan_tag_cpu >> 13) & 0x0007,
                        (vlan_tag_cpu >> 12) & 0x0001, vlan_tag_cpu & 0x0fff);
-}
-
-struct snobj *VLanPush::RunCommand(const std::string &user_cmd,
-                                   struct snobj *arg) {
-  if (user_cmd == "set_tci") {
-    return this->CommandSetTci(arg);
-  }
-  return snobj_err(EINVAL, "invalid command");
 }
 
 struct snobj *VLanPush::CommandSetTci(struct snobj *arg) {

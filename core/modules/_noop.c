@@ -8,7 +8,11 @@ class NoOP : public Module {
 
   static const gate_idx_t kNumIGates = 0;
   static const gate_idx_t kNumOGates = 0;
+
+  static const std::vector<struct Command> cmds;
 };
+
+const std::vector<struct Command> NoOP::cmds = {};
 
 struct snobj *NoOP::Init(struct snobj *arg) {
   task_id_t tid;

@@ -53,6 +53,8 @@ class FlowGen : public Module {
   static const gate_idx_t kNumIGates = 0;
   static const gate_idx_t kNumOGates = 1;
 
+  static const std::vector<struct Command> cmds;
+
  private:
   int active_flows;
   int allocated_flows;
@@ -108,6 +110,8 @@ class FlowGen : public Module {
   struct snobj *InitFlowPool();
   struct snobj *ProcessArguments(struct snobj *arg);
 };
+
+const std::vector<struct Command> FlowGen::cmds = {};
 
 inline double FlowGen::NewFlowPkts() {
   switch (this->duration) {

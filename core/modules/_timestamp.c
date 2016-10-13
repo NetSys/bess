@@ -21,7 +21,11 @@ class Timestamp : public Module {
 
   static const gate_idx_t kNumIGates = 1;
   static const gate_idx_t kNumOGates = 1;
+
+  static const std::vector<struct Command> cmds;
 };
+
+const std::vector<struct Command> Timestamp::cmds = {};
 
 void Timestamp::ProcessBatch(struct pkt_batch *batch) {
   uint64_t time = get_time();

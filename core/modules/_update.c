@@ -10,10 +10,10 @@ class Update : public Module {
 
   virtual void ProcessBatch(struct pkt_batch *batch);
 
-  struct snobj *RunCommand(const std::string &user_cmd, struct snobj *arg);
-
   static const gate_idx_t kNumIGates = 1;
   static const gate_idx_t kNumOGates = 1;
+
+  static const std::vector<struct Command> cmds;
 
  private:
   struct snobj *CommandAdd(struct snobj *arg);
@@ -26,6 +26,11 @@ class Update : public Module {
     uint64_t value; /* in network order */
     int16_t offset;
   } fields[MAX_FIELDS];
+};
+
+const std::vector<struct Command> Update::cmds = {
+    {"add", static_cast<CmdFunc>(&Update::CommandAdd), 0},
+    {"clear", static_cast<CmdFunc>(&Update::CommandClear), 0},
 };
 
 struct snobj *Update::Init(struct snobj *arg) {
@@ -60,16 +65,6 @@ void Update::ProcessBatch(struct pkt_batch *batch) {
   }
 
   run_next_module(this, batch);
-}
-
-struct snobj *Update::RunCommand(const std::string &user_cmd,
-                                 struct snobj *arg) {
-  if (user_cmd == "add") {
-    return this->CommandAdd(arg);
-  } else if (user_cmd == "clear") {
-    return this->CommandClear(arg);
-  }
-  return snobj_err(EINVAL, "invalid command");
 }
 
 struct snobj *Update::CommandAdd(struct snobj *arg) {

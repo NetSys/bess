@@ -1087,22 +1087,6 @@ static bpf_filter_func_t bpf_jit_compile(struct bpf_insn *prog, u_int nins,
 
 #define MAX_FILTERS 128
 
-/*
-static const struct mclass bpf = {
-    .name = "BPF",
-    .help = "classifies packets with pcap-filter(7) syntax",
-    .num_igates = 1,
-    .num_ogates = MAX_GATES,
-    .priv_size = sizeof(struct bpf_priv),
-    .init = bpf_init,
-    .deinit = bpf_deinit,
-    .get_desc = bpf_get_desc,
-    .process_batch = bpf_process_batch,
-    .commands = {
-        {"add", command_add}, {"clear", command_clear},
-    }};
-*/
-
 struct filter {
   bpf_filter_func_t func;
   int gate;
@@ -1131,23 +1115,27 @@ class BPF : public Module {
 
   virtual void ProcessBatch(struct pkt_batch *batch);
 
+  struct snobj *CommandAdd(struct snobj *arg);
+  struct snobj *CommandClear(struct snobj *arg);
+
   static const gate_idx_t kNumIGates = 1;
   static const gate_idx_t kNumOGates = MAX_GATES;
 
-  struct snobj *RunCommand(const std::string &user_cmd, struct snobj *arg);
+  static const std::vector<struct Command> cmds;
 
  private:
   struct filter filters[MAX_FILTERS + 1];
   int n_filters;
 
-  struct snobj *command_add(struct snobj *arg);
-  struct snobj *command_clear(struct snobj *arg);
-
   inline void process_batch_1filter(struct pkt_batch *batch);
 };
 
+const std::vector<struct Command> BPF::cmds = {
+    {"add", static_cast<CmdFunc>(&BPF::CommandAdd), 0},
+    {"clear", static_cast<CmdFunc>(&BPF::CommandClear), 0}};
+
 struct snobj *BPF::Init(struct snobj *arg) {
-  return arg ? this->command_add(arg) : NULL;
+  return arg ? this->CommandAdd(arg) : NULL;
 }
 
 void BPF::Deinit() {
@@ -1160,7 +1148,7 @@ void BPF::Deinit() {
   this->n_filters = 0;
 }
 
-struct snobj *BPF::command_add(struct snobj *arg) {
+struct snobj *BPF::CommandAdd(struct snobj *arg) {
   struct filter *filter;
 
   if (snobj_type(arg) != TYPE_LIST)
@@ -1182,7 +1170,7 @@ struct snobj *BPF::command_add(struct snobj *arg) {
     if (snobj_type(f) != TYPE_MAP)
       return snobj_err(EINVAL, "Each filter must be a map");
 
-    /* 0 if unspecified */
+    // 0 if unspecified
     priority = snobj_eval_int(f, "priority");
 
     if (!(exp = snobj_eval_str(f, "filter")))
@@ -1198,8 +1186,8 @@ struct snobj *BPF::command_add(struct snobj *arg) {
     gate = snobj_eval_int(f, "gate");
     if (gate < 0 || gate >= MAX_GATES) return snobj_err(EINVAL, "Invalid gate");
 
-    if (pcap_compile_nopcap(SNAPLEN, DLT_EN10MB, /* Ethernet */
-                            &il_code, exp, 1,    /* optimize (IL only) */
+    if (pcap_compile_nopcap(SNAPLEN, DLT_EN10MB,  // Ethernet
+                            &il_code, exp, 1,     // optimize (IL only)
                             PCAP_NETMASK_UNKNOWN) == -1) {
       return snobj_err(EINVAL, "BPF compilation error");
     }
@@ -1228,18 +1216,9 @@ struct snobj *BPF::command_add(struct snobj *arg) {
   return NULL;
 }
 
-struct snobj *BPF::command_clear(struct snobj *arg) {
+struct snobj *BPF::CommandClear(struct snobj *arg) {
   this->Deinit();
   return NULL;
-}
-
-struct snobj *BPF::RunCommand(const std::string &user_cmd, struct snobj *arg) {
-  if (user_cmd == "add") {
-    this->command_add(arg);
-  } else if (user_cmd == "clear") {
-    this->command_clear(arg);
-  }
-  return snobj_err(EINVAL, "invalid command");
 }
 
 inline void BPF::process_batch_1filter(struct pkt_batch *batch) {

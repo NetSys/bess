@@ -9,10 +9,10 @@ class Rewrite : public Module {
 
   virtual void ProcessBatch(struct pkt_batch *batch);
 
-  struct snobj *RunCommand(const std::string &user_cmd, struct snobj *arg);
-
   static const gate_idx_t kNumIGates = 1;
   static const gate_idx_t kNumOGates = 1;
+
+  static const std::vector<struct Command> cmds;
 
  private:
   inline void DoRewrite(struct pkt_batch *batch);
@@ -28,6 +28,11 @@ class Rewrite : public Module {
   int num_templates;
   uint16_t template_size[SLOTS];
   unsigned char templates[SLOTS][MAX_TEMPLATE_SIZE] __ymm_aligned;
+};
+
+const std::vector<struct Command> Rewrite::cmds = {
+    {"add", static_cast<CmdFunc>(&Rewrite::CommandAdd), 0},
+    {"clear", static_cast<CmdFunc>(&Rewrite::CommandClear), 0},
 };
 
 struct snobj *Rewrite::Init(struct snobj *arg) {
@@ -84,16 +89,6 @@ void Rewrite::ProcessBatch(struct pkt_batch *batch) {
     this->DoRewrite(batch);
 
   run_next_module(this, batch);
-}
-
-struct snobj *Rewrite::RunCommand(const std::string &user_cmd,
-                                  struct snobj *arg) {
-  if (user_cmd == "add") {
-    return this->CommandAdd(arg);
-  } else if (user_cmd == "clear") {
-    return this->CommandClear(arg);
-  }
-  return snobj_err(EINVAL, "invalid command");
 }
 
 struct snobj *Rewrite::CommandAdd(struct snobj *arg) {

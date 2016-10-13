@@ -1,22 +1,6 @@
 #include "../module.h"
 #include "../port.h"
 
-/*
-static const struct mclass port_inc = {
-    .name = "PortInc",
-    .help = "receives packets from a port",
-    .num_igates = 0,
-    .num_ogates = 1,
-    .priv_size = sizeof(struct port_inc_priv),
-    .init = port_inc_init,
-    .deinit = port_inc_deinit,
-    .get_desc = port_inc_get_desc,
-    .run_task = port_inc_run_task,
-    .commands = {
-        {"set_burst", command_set_burst, .mt_safe = 1},
-    }};
-*/
-
 class PortInc : public Module {
  public:
   virtual struct snobj *Init(struct snobj *arg);
@@ -26,10 +10,10 @@ class PortInc : public Module {
 
   virtual struct snobj *GetDesc();
 
-  struct snobj *RunCommand(const std::string &user_cmd, struct snobj *arg);
-
   static const gate_idx_t kNumIGates = 0;
   static const gate_idx_t kNumOGates = 1;
+
+  static const std::vector<struct Command> cmds;
 
  private:
   struct snobj *CommandSetBurst(struct snobj *arg);
@@ -40,13 +24,9 @@ class PortInc : public Module {
   int burst;
 };
 
-struct snobj *PortInc::RunCommand(const std::string &user_cmd,
-                                  struct snobj *arg) {
-  if (user_cmd == "set_burst") {
-    return this->CommandSetBurst(arg);
-  }
-  return snobj_err(EINVAL, "invalid command");
-}
+const std::vector<struct Command> PortInc::cmds = {
+    {"set_burst", static_cast<CmdFunc>(&PortInc::CommandSetBurst), 1},
+};
 
 struct snobj *PortInc::Init(struct snobj *arg) {
   const char *port_name;

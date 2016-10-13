@@ -10,7 +10,11 @@ class VLanPop : public Module {
 
   static const gate_idx_t kNumIGates = 1;
   static const gate_idx_t kNumOGates = 1;
+
+  static const std::vector<struct Command> cmds;
 };
+
+const std::vector<struct Command> VLanPop::cmds = {};
 
 void VLanPop::ProcessBatch(struct pkt_batch *batch) {
   int cnt = batch->cnt;

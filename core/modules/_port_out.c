@@ -13,10 +13,14 @@ class PortOut : public Module {
   static const gate_idx_t kNumIGates = 1;
   static const gate_idx_t kNumOGates = 0;
 
+  static const std::vector<struct Command> cmds;
+
  private:
   struct port *port;
   pkt_io_func_t send_pkts;
 };
+
+const std::vector<struct Command> PortOut::cmds = {};
 
 struct snobj *PortOut::Init(struct snobj *arg) {
   const char *port_name;

@@ -26,10 +26,10 @@ class Measure : public Module {
 
   virtual void ProcessBatch(struct pkt_batch *batch);
 
-  struct snobj *RunCommand(const std::string &user_cmd, struct snobj *arg);
-
   static const gate_idx_t kNumIGates = 1;
   static const gate_idx_t kNumOGates = 1;
+
+  static const std::vector<struct Command> cmds;
 
  private:
   struct snobj *CommandGetSummary(struct snobj *arg);
@@ -42,6 +42,10 @@ class Measure : public Module {
   uint64_t pkt_cnt;
   uint64_t bytes_cnt;
   uint64_t total_latency;
+};
+
+const std::vector<struct Command> Measure::cmds = {
+    {"get_summary", static_cast<CmdFunc>(&Measure::CommandGetSummary), 0},
 };
 
 struct snobj *Measure::Init(struct snobj *arg) {
@@ -82,14 +86,6 @@ void Measure::ProcessBatch(struct pkt_batch *batch) {
 
 skip:
   run_next_module(this, batch);
-}
-
-struct snobj *Measure::RunCommand(const std::string &user_cmd,
-                                  struct snobj *arg) {
-  if (user_cmd == "get_summary") {
-    return this->CommandGetSummary(arg);
-  }
-  return snobj_err(EINVAL, "invalid command");
 }
 
 struct snobj *Measure::CommandGetSummary(struct snobj *arg) {

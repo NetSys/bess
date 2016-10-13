@@ -10,10 +10,10 @@ class QueueInc : public Module {
 
   virtual struct snobj *GetDesc();
 
-  struct snobj *RunCommand(const std::string &user_cmd, struct snobj *arg);
-
   static const gate_idx_t kNumIGates = 0;
   static const gate_idx_t kNumOGates = 1;
+
+  static const std::vector<struct Command> cmds;
 
  private:
   struct snobj *CommandSetBurst(struct snobj *arg);
@@ -23,6 +23,10 @@ class QueueInc : public Module {
   queue_t qid;
   int prefetch;
   int burst;
+};
+
+const std::vector<struct Command> QueueInc::cmds = {
+    {"set_burst", static_cast<CmdFunc>(&QueueInc::CommandSetBurst), 1},
 };
 
 struct snobj *QueueInc::Init(struct snobj *arg) {
@@ -126,14 +130,6 @@ struct task_result QueueInc::RunTask(void *arg) {
   run_next_module(this, &batch);
 
   return ret;
-}
-
-struct snobj *QueueInc::RunCommand(const std::string &user_cmd,
-                                   struct snobj *arg) {
-  if (user_cmd == "set_burst") {
-    return this->CommandSetBurst(arg);
-  }
-  return snobj_err(EINVAL, "invalid command");
 }
 
 struct snobj *QueueInc::CommandSetBurst(struct snobj *arg) {

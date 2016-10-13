@@ -10,7 +10,11 @@ class VLanSplit : public Module {
 
   static const gate_idx_t kNumIGates = 1;
   static const gate_idx_t kNumOGates = 4096;
+
+  static const std::vector<struct Command> cmds;
 };
+
+const std::vector<struct Command> VLanSplit::cmds = {};
 
 void VLanSplit::ProcessBatch(struct pkt_batch *batch) {
   gate_idx_t vid[MAX_PKT_BURST];

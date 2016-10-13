@@ -120,7 +120,7 @@ public:
 	virtual gate_idx_t NumIGates() const = 0;
 	virtual gate_idx_t NumOGates() const = 0;
 
-	std::vector<struct Command> cmds;
+  virtual std::vector<struct Command> Commands() const = 0;
 
 private:
 	std::string name_;
@@ -145,6 +145,8 @@ public:
 
 	virtual gate_idx_t NumIGates() const { return T::kNumIGates; }
 	virtual gate_idx_t NumOGates() const { return T::kNumOGates; }
+
+	virtual std::vector<struct Command> Commands() const { return T::cmds; }
 };
 
 class Module {

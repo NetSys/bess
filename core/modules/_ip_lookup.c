@@ -22,10 +22,10 @@ class IpLookup : public Module {
 
   virtual void ProcessBatch(struct pkt_batch *batch);
 
-  struct snobj *RunCommand(const std::string &user_cmd, struct snobj *arg);
-
   static const gate_idx_t kNumIGates = 1;
   static const gate_idx_t kNumOGates = MAX_GATES;
+
+  static const std::vector<struct Command> cmds;
 
  private:
   struct snobj *CommandAdd(struct snobj *arg);
@@ -33,6 +33,11 @@ class IpLookup : public Module {
 
   struct rte_lpm *lpm;
   gate_idx_t default_gate;
+};
+
+const std::vector<struct Command> IpLookup::cmds = {
+    {"add", static_cast<CmdFunc>(&IpLookup::CommandAdd), 0},
+    {"clear", static_cast<CmdFunc>(&IpLookup::CommandClear), 0},
 };
 
 struct snobj *IpLookup::Init(struct snobj *arg) {
@@ -121,16 +126,6 @@ void IpLookup::ProcessBatch(struct pkt_batch *batch) {
   }
 
   run_split(this, ogates, batch);
-}
-
-struct snobj *IpLookup::RunCommand(const std::string &user_cmd,
-                                   struct snobj *arg) {
-  if (user_cmd == "add") {
-    return this->CommandAdd(arg);
-  } else if (user_cmd == "clear") {
-    return this->CommandClear(arg);
-  }
-  return snobj_err(EINVAL, "invalid command");
 }
 
 struct snobj *IpLookup::CommandAdd(struct snobj *arg) {

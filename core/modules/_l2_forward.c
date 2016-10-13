@@ -522,10 +522,10 @@ class L2Forward : public Module {
 
   virtual void ProcessBatch(struct pkt_batch *batch);
 
-  struct snobj *RunCommand(const std::string &user_cmd, struct snobj *arg);
-
   static const gate_idx_t kNumIGates = 1;
   static const gate_idx_t kNumOGates = MAX_GATES;
+
+  static const std::vector<struct Command> cmds;
 
  private:
   struct snobj *CommandAdd(struct snobj *arg);
@@ -536,6 +536,15 @@ class L2Forward : public Module {
 
   struct l2_table l2_table;
   gate_idx_t default_gate;
+};
+
+const std::vector<struct Command> L2Forward::cmds = {
+    {"add", static_cast<CmdFunc>(&L2Forward::CommandAdd), 0},
+    {"delete", static_cast<CmdFunc>(&L2Forward::CommandDelete), 0},
+    {"set_default_gate",
+     static_cast<CmdFunc>(&L2Forward::CommandSetDefaultGate), 1},
+    {"lookup", static_cast<CmdFunc>(&L2Forward::CommandLookup), 1},
+    {"populate", static_cast<CmdFunc>(&L2Forward::CommandPopulate), 0},
 };
 
 struct snobj *L2Forward::Init(struct snobj *arg) {
@@ -577,22 +586,6 @@ void L2Forward::ProcessBatch(struct pkt_batch *batch) {
   }
 
   run_split(this, ogates, batch);
-}
-
-struct snobj *L2Forward::RunCommand(const std::string &user_cmd,
-                                    struct snobj *arg) {
-  if (user_cmd == "add") {
-    return this->CommandAdd(arg);
-  } else if (user_cmd == "delete") {
-    return this->CommandDelete(arg);
-  } else if (user_cmd == "set_default_gate") {
-    return this->CommandSetDefaultGate(arg);
-  } else if (user_cmd == "looup") {
-    return this->CommandLookup(arg);
-  } else if (user_cmd == "populate") {
-    return this->CommandPopulate(arg);
-  }
-  return snobj_err(EINVAL, "invalid command");
 }
 
 struct snobj *L2Forward::CommandAdd(struct snobj *arg) {

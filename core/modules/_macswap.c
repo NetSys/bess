@@ -8,7 +8,11 @@ class MacSwap : public Module {
 
   static const gate_idx_t kNumIGates = 1;
   static const gate_idx_t kNumOGates = 1;
+
+  static const std::vector<struct Command> cmds;
 };
+
+const std::vector<struct Command> MacSwap::cmds = {};
 
 void MacSwap::ProcessBatch(struct pkt_batch *batch) {
   int cnt = batch->cnt;

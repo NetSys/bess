@@ -14,10 +14,10 @@ class Queue : public Module {
 
   virtual struct snobj *GetDesc();
 
-  struct snobj *RunCommand(const std::string &user_cmd, struct snobj *arg);
-
   static const gate_idx_t kNumIGates = 1;
   static const gate_idx_t kNumOGates = 1;
+
+  static const std::vector<struct Command> cmds;
 
  private:
   int Resize(int slots);
@@ -27,6 +27,11 @@ class Queue : public Module {
   struct llring *queue;
   int prefetch;
   int burst;
+};
+
+const std::vector<struct Command> Queue::cmds = {
+    {"set_burst", static_cast<CmdFunc>(&Queue::CommandSetBurst), 1},
+    {"set_size", static_cast<CmdFunc>(&Queue::CommandSetSize), 0},
 };
 
 int Queue::Resize(int slots) {
@@ -148,16 +153,6 @@ struct task_result Queue::RunTask(void *arg) {
   };
 
   return ret;
-}
-
-struct snobj *Queue::RunCommand(const std::string &user_cmd,
-                                struct snobj *arg) {
-  if (user_cmd == "set_burst") {
-    return this->CommandSetBurst(arg);
-  } else if (user_cmd == "set_size") {
-    return this->CommandSetSize(arg);
-  }
-  return snobj_err(EINVAL, "invalid command");
 }
 
 struct snobj *Queue::CommandSetBurst(struct snobj *arg) {
