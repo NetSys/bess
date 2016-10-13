@@ -7,25 +7,25 @@ static inline int is_valid_gate(gate_idx_t gate) {
 }
 
 class RoundRobin : public Module {
-  public:
-    virtual struct snobj *Init(struct snobj *arg);
+ public:
+  virtual struct snobj *Init(struct snobj *arg);
 
-    virtual void ProcessBatch(struct pkt_batch *batch);
+  virtual void ProcessBatch(struct pkt_batch *batch);
 
-    struct snobj *RunCommand(const std::string &user_cmd, struct snobj *arg);
+  struct snobj *RunCommand(const std::string &user_cmd, struct snobj *arg);
 
-    static const gate_idx_t kNumIGates = 1;
-    static const gate_idx_t kNumOGates = MAX_GATES;
-    
-  private:
-    struct snobj *CommandSetMode(struct snobj *arg);
-    struct snobj *CommandSetGates(struct snobj *arg);
+  static const gate_idx_t kNumIGates = 1;
+  static const gate_idx_t kNumOGates = MAX_GATES;
 
-    /* XXX: currently doesn't support multiple workers */
-    gate_idx_t gates[MAX_RR_GATES];
-    int ngates;
-    int current_gate;
-    int per_packet;
+ private:
+  struct snobj *CommandSetMode(struct snobj *arg);
+  struct snobj *CommandSetGates(struct snobj *arg);
+
+  /* XXX: currently doesn't support multiple workers */
+  gate_idx_t gates[MAX_RR_GATES];
+  int ngates;
+  int current_gate;
+  int per_packet;
 };
 
 struct snobj *RoundRobin::Init(struct snobj *arg) {
@@ -45,7 +45,8 @@ struct snobj *RoundRobin::Init(struct snobj *arg) {
   return NULL;
 }
 
-struct snobj *RoundRobin::RunCommand(const std::string &user_cmd, struct snobj *arg) {
+struct snobj *RoundRobin::RunCommand(const std::string &user_cmd,
+                                     struct snobj *arg) {
   if (user_cmd == "set_mode") {
     return this->CommandSetMode(arg);
   } else if (user_cmd == "set_gates") {
@@ -122,4 +123,5 @@ void RoundRobin::ProcessBatch(struct pkt_batch *batch) {
   }
 }
 
-ModuleClassRegister<RoundRobin> round_roubin("RoundRobin", "round_robin", "splits packets evenly with round robin");
+ModuleClassRegister<RoundRobin> round_roubin(
+    "RoundRobin", "round_robin", "splits packets evenly with round robin");

@@ -12,7 +12,7 @@ enum LbMode {
   LB_L4  /* L4 proto + src IP + dst IP + src port + dst port */
 };
 
-const enum LbMode default_mode = LB_L4;
+const enum LbMode DEFAULT_MODE = LB_L4;
 
 static inline uint32_t hash_64(uint64_t val, uint32_t init_val) {
 #if __SSE4_2__ && __x86_64
@@ -135,7 +135,7 @@ struct snobj *HashLB::CommandSetGates(struct snobj *arg) {
 struct snobj *HashLB::Init(struct snobj *arg) {
   struct snobj *t;
 
-  this->mode = default_mode;
+  this->mode = DEFAULT_MODE;
 
   if (!arg || snobj_type(arg) != TYPE_MAP)
     return snobj_err(EINVAL, "empty argument");

@@ -71,13 +71,13 @@ class FlowGen : public Module {
   int quick_rampup;
 
   enum {
-    arrival_uniform = 0,
-    arrival_exponential,
+    ARRIVAL_UNIFORM = 0,
+    ARRIVAL_EXPONENTIAL,
   } arrival;
 
   enum {
-    duration_uniform = 0,
-    duration_pareto,
+    DURATION_UNIFORM = 0,
+    DURATION_PARETO,
   } duration;
 
   /* load parameters */
@@ -111,9 +111,9 @@ class FlowGen : public Module {
 
 inline double FlowGen::NewFlowPkts() {
   switch (this->duration) {
-    case duration_uniform:
+    case DURATION_UNIFORM:
       return this->flow_pkts;
-    case duration_pareto:
+    case DURATION_PARETO:
       return scaled_pareto_variate(this->pareto.inversed_alpha,
                                    this->pareto.mean, this->flow_pkts,
                                    rand_fast_real(&this->rseed));
@@ -124,9 +124,9 @@ inline double FlowGen::NewFlowPkts() {
 
 inline double FlowGen::MaxFlowPkts() {
   switch (this->duration) {
-    case duration_uniform:
+    case DURATION_UNIFORM:
       return this->flow_pkts;
-    case duration_pareto:
+    case DURATION_PARETO:
       return scaled_pareto_variate(this->pareto.inversed_alpha,
                                    this->pareto.mean, this->flow_pkts, 1.0);
     default:
@@ -136,10 +136,10 @@ inline double FlowGen::MaxFlowPkts() {
 
 inline uint64_t FlowGen::NextFlowArrival() {
   switch (this->arrival) {
-    case arrival_uniform:
+    case ARRIVAL_UNIFORM:
       return this->flow_gap_ns;
       break;
-    case arrival_exponential:
+    case ARRIVAL_EXPONENTIAL:
       return -log(rand_fast_real2(&this->rseed)) * this->flow_gap_ns;
       break;
     default:
@@ -253,9 +253,9 @@ struct snobj *FlowGen::ProcessArguments(struct snobj *arg) {
 
   if ((t = snobj_eval(arg, "arrival")) != NULL) {
     if (strcmp(snobj_str_get(t), "uniform") == 0)
-      this->arrival = arrival_uniform;
+      this->arrival = ARRIVAL_UNIFORM;
     else if (strcmp(snobj_str_get(t), "exponential") == 0)
-      this->arrival = arrival_exponential;
+      this->arrival = ARRIVAL_EXPONENTIAL;
     else
       return snobj_err(EINVAL,
                        "'arrival' must be either "
@@ -264,9 +264,9 @@ struct snobj *FlowGen::ProcessArguments(struct snobj *arg) {
 
   if ((t = snobj_eval(arg, "duration")) != NULL) {
     if (strcmp(snobj_str_get(t), "uniform") == 0)
-      this->duration = duration_uniform;
+      this->duration = DURATION_UNIFORM;
     else if (strcmp(snobj_str_get(t), "pareto") == 0)
-      this->duration = duration_pareto;
+      this->duration = DURATION_PARETO;
     else
       return snobj_err(EINVAL,
                        "'duration' must be either "
@@ -309,8 +309,8 @@ struct snobj *FlowGen::Init(struct snobj *arg) {
   this->total_pps = 1000.0;
   this->flow_rate = 10.0;
   this->flow_duration = 10.0;
-  this->arrival = arrival_uniform;
-  this->duration = duration_uniform;
+  this->arrival = ARRIVAL_UNIFORM;
+  this->duration = DURATION_UNIFORM;
   this->pareto.alpha = 1.3;
 
   /* register task */
@@ -323,7 +323,7 @@ struct snobj *FlowGen::Init(struct snobj *arg) {
   /* calculate derived variables */
   this->pareto.inversed_alpha = 1.0 / this->pareto.alpha;
 
-  if (this->duration == duration_pareto) this->MeasureParetoMean();
+  if (this->duration == DURATION_PARETO) this->MeasureParetoMean();
 
   this->concurrent_flows = this->flow_rate * this->flow_duration;
   if (this->concurrent_flows > 0.0)
@@ -484,16 +484,16 @@ struct snobj *FlowGen::GetDump() {
 
     snobj_map_set(t, "quick_rampup", snobj_int(this->quick_rampup));
     snobj_map_set(t, "arrival",
-                  snobj_str(this->arrival == arrival_uniform ? "uniform"
+                  snobj_str(this->arrival == ARRIVAL_UNIFORM ? "uniform"
                                                              : "exponential"));
     snobj_map_set(
         t, "duration",
-        snobj_str(this->duration == duration_uniform ? "uniform" : "pareto"));
+        snobj_str(this->duration == DURATION_UNIFORM ? "uniform" : "pareto"));
 
     snobj_map_set(r, "behavior", t);
   }
 
-  if (this->duration == duration_pareto) {
+  if (this->duration == DURATION_PARETO) {
     struct snobj *t = snobj_map();
 
     snobj_map_set(t, "alpha", snobj_double(this->pareto.alpha));
