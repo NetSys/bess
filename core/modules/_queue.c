@@ -157,7 +157,7 @@ struct snobj *Queue::RunCommand(const std::string &user_cmd,
   } else if (user_cmd == "set_size") {
     return this->CommandSetSize(arg);
   }
-  assert(0);
+  return snobj_err(EINVAL, "invalid command");
 }
 
 struct snobj *Queue::CommandSetBurst(struct snobj *arg) {

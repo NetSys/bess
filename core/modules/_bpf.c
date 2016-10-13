@@ -1239,7 +1239,7 @@ struct snobj *BPF::RunCommand(const std::string &user_cmd, struct snobj *arg) {
   } else if (user_cmd == "clear") {
     this->command_clear(arg);
   }
-  assert(0);
+  return snobj_err(EINVAL, "invalid command");
 }
 
 inline void BPF::process_batch_1filter(struct pkt_batch *batch) {

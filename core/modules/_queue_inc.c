@@ -133,7 +133,7 @@ struct snobj *QueueInc::RunCommand(const std::string &user_cmd,
   if (user_cmd == "set_burst") {
     return this->CommandSetBurst(arg);
   }
-  assert(0);
+  return snobj_err(EINVAL, "invalid command");
 }
 
 struct snobj *QueueInc::CommandSetBurst(struct snobj *arg) {

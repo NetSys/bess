@@ -89,7 +89,7 @@ struct snobj *VLanPush::RunCommand(const std::string &user_cmd,
   if (user_cmd == "set_tci") {
     return this->CommandSetTci(arg);
   }
-  assert(0);
+  return snobj_err(EINVAL, "invalid command");
 }
 
 struct snobj *VLanPush::CommandSetTci(struct snobj *arg) {

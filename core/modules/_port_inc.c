@@ -45,7 +45,7 @@ struct snobj *PortInc::RunCommand(const std::string &user_cmd,
   if (user_cmd == "set_burst") {
     return this->CommandSetBurst(arg);
   }
-  assert(0);
+  return snobj_err(EINVAL, "invalid command");
 }
 
 struct snobj *PortInc::Init(struct snobj *arg) {

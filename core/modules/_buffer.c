@@ -10,8 +10,6 @@ class Buffer : public Module {
   static const gate_idx_t kNumIGates = 1;
   static const gate_idx_t kNumOGates = 1;
 
-  struct snobj *RunCommand(const std::string &user_cmd, struct snobj *arg);
-
  private:
   struct pkt_batch buf;
 };

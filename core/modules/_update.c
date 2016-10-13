@@ -69,7 +69,7 @@ struct snobj *Update::RunCommand(const std::string &user_cmd,
   } else if (user_cmd == "clear") {
     return this->CommandClear(arg);
   }
-  assert(0);
+  return snobj_err(EINVAL, "invalid command");
 }
 
 struct snobj *Update::CommandAdd(struct snobj *arg) {

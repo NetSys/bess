@@ -89,7 +89,7 @@ struct snobj *Measure::RunCommand(const std::string &user_cmd,
   if (user_cmd == "get_summary") {
     return this->CommandGetSummary(arg);
   }
-  assert(0);
+  return snobj_err(EINVAL, "invalid command");
 }
 
 struct snobj *Measure::CommandGetSummary(struct snobj *arg) {

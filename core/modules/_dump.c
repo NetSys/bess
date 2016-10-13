@@ -52,7 +52,7 @@ struct snobj *Dump::RunCommand(const std::string &user_cmd, struct snobj *arg) {
   if (user_cmd == "set_interval") {
     return this->CommandSetInterval(arg);
   }
-  assert(0);
+  return snobj_err(EINVAL, "invalid command");
 }
 
 struct snobj *Dump::CommandSetInterval(struct snobj *arg) {
