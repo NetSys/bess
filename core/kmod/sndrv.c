@@ -46,27 +46,12 @@ static int __init sndrv_init(void)
 			offsetof(struct llring, cons),
 			offsetof(struct llring, ring));
 
-	/* note: I need a more robust way to detect whether this kernel
-	 * runs in virtualization mode, no matter whether it is 
-	 * full virtualization or paravirtualization.
-	 * Anyway, this should be good enough for Xen and KVM */
-	if (paravirt_enabled()) {
-		log_err("guest mode support is not enabled\n");
-#if 0
-		log_info("kernel module loaded in guest mode\n");
+	log_info("kernel module loaded in host/container mode\n");
 
-		ret = sn_guest_init();
-		if (ret < 0) 
-			return ret;
-#endif
-	} else {
-		log_info("kernel module loaded in host/container mode\n");
-
-		ret = misc_register(&sn_host_device);
-		if (ret < 0) {
-			log_err("misc_register() failed (%d)\n", ret);
-			return ret;
-		}
+	ret = misc_register(&sn_host_device);
+	if (ret < 0) {
+		log_err("misc_register() failed (%d)\n", ret);
+		return ret;
 	}
 
 	return 0;
@@ -74,13 +59,7 @@ static int __init sndrv_init(void)
 
 static void __exit sndrv_exit(void)
 {
-	if (paravirt_enabled()) {
-#if 0
-		sn_guest_cleanup();
-#endif
-	} else {
-		misc_deregister(&sn_host_device);
-	}
+	misc_deregister(&sn_host_device);
 
 	log_info("kernel module unloaded\n");
 }
