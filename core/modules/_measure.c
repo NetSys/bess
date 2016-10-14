@@ -34,14 +34,14 @@ class Measure : public Module {
  private:
   struct snobj *CommandGetSummary(struct snobj *arg);
 
-  struct histogram hist;
+  struct histogram hist = {0};
 
-  uint64_t start_time;
-  int warmup; /* second */
+  uint64_t start_time = {0};
+  int warmup = {0}; /* second */
 
-  uint64_t pkt_cnt;
-  uint64_t bytes_cnt;
-  uint64_t total_latency;
+  uint64_t pkt_cnt = {0};
+  uint64_t bytes_cnt = {0};
+  uint64_t total_latency = {0};
 };
 
 const std::vector<struct Command> Measure::cmds = {

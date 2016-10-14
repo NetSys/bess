@@ -16,8 +16,8 @@ class PortOut : public Module {
   static const std::vector<struct Command> cmds;
 
  private:
-  struct port *port;
-  pkt_io_func_t send_pkts;
+  struct port *port = {0};
+  pkt_io_func_t send_pkts = {0};
 };
 
 const std::vector<struct Command> PortOut::cmds = {};

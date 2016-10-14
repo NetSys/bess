@@ -24,9 +24,9 @@ class Queue : public Module {
   struct snobj *CommandSetBurst(struct snobj *arg);
   struct snobj *CommandSetSize(struct snobj *arg);
 
-  struct llring *queue;
-  int prefetch;
-  int burst;
+  struct llring *queue = {0};
+  int prefetch = {0};
+  int burst = {0};
 };
 
 const std::vector<struct Command> Queue::cmds = {

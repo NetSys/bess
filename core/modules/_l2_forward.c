@@ -534,8 +534,8 @@ class L2Forward : public Module {
   struct snobj *CommandLookup(struct snobj *arg);
   struct snobj *CommandPopulate(struct snobj *arg);
 
-  struct l2_table l2_table;
-  gate_idx_t default_gate;
+  struct l2_table l2_table = {0};
+  gate_idx_t default_gate = {0};
 };
 
 const std::vector<struct Command> L2Forward::cmds = {

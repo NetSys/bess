@@ -19,13 +19,13 @@ class Update : public Module {
   struct snobj *CommandAdd(struct snobj *arg);
   struct snobj *CommandClear(struct snobj *arg);
 
-  int num_fields;
+  int num_fields = {0};
 
   struct field {
     uint64_t mask;  /* bits with 1 won't be updated */
     uint64_t value; /* in network order */
     int16_t offset;
-  } fields[MAX_FIELDS];
+  } fields[MAX_FIELDS] = {{0}};
 };
 
 const std::vector<struct Command> Update::cmds = {

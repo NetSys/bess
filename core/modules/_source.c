@@ -15,8 +15,8 @@ class Source : public Module {
   static const std::vector<struct Command> cmds;
 
  private:
-  int pkt_size_;
-  int burst_;
+  int pkt_size_ = {0};
+  int burst_ = {0};
 };
 
 const std::vector<struct Command> Source::cmds = {

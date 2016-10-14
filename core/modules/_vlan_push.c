@@ -24,8 +24,8 @@ class VLanPush : public Module {
   struct snobj *CommandSetTci(struct snobj *arg);
 
   /* network order */
-  uint32_t vlan_tag;
-  uint32_t qinq_tag;
+  uint32_t vlan_tag = {0};
+  uint32_t qinq_tag = {0};
 };
 
 const std::vector<struct Command> VLanPush::cmds = {

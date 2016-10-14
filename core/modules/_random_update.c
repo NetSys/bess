@@ -21,15 +21,15 @@ class RandomUpdate : public Module {
   struct snobj *CommandAdd(struct snobj *arg);
   struct snobj *CommandClear(struct snobj *arg);
 
-  int num_vars;
+  int num_vars = {0};
   struct var {
     uint32_t mask; /* bits with 1 won't be updated */
     uint32_t min;
     uint32_t range; /* == max - min + 1 */
     int16_t offset;
-  } vars[MAX_VARS];
+  } vars[MAX_VARS] = {{0}};
 
-  uint64_t seed;
+  uint64_t seed = {0};
 };
 
 const std::vector<struct Command> RandomUpdate::cmds = {

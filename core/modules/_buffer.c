@@ -13,7 +13,7 @@ class Buffer : public Module {
   static const std::vector<struct Command> cmds;
 
  private:
-  struct pkt_batch buf;
+  struct pkt_batch buf = {0};
 };
 
 const std::vector<struct Command> Buffer::cmds = {};

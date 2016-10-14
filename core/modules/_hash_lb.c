@@ -63,8 +63,8 @@ class HashLB : public Module {
   struct snobj *CommandSetMode(struct snobj *arg);
   struct snobj *CommandSetGates(struct snobj *arg);
 
-  gate_idx_t gates[MAX_HLB_GATES];
-  int num_gates;
+  gate_idx_t gates[MAX_HLB_GATES] = {{0}};
+  int num_gates = {0};
   enum LbMode mode;
 };
 

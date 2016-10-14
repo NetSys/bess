@@ -23,11 +23,11 @@ class Rewrite : public Module {
 
   /* For fair round robin we remember the next index for later.
    * [0, num_templates - 1] */
-  int next_turn;
+  int next_turn = {0};
 
-  int num_templates;
-  uint16_t template_size[SLOTS];
-  unsigned char templates[SLOTS][MAX_TEMPLATE_SIZE] __ymm_aligned;
+  int num_templates = {0};
+  uint16_t template_size[SLOTS] = {0};
+  unsigned char templates[SLOTS][MAX_TEMPLATE_SIZE] __ymm_aligned = {{0}};
 };
 
 const std::vector<struct Command> Rewrite::cmds = {
@@ -101,8 +101,8 @@ struct snobj *Rewrite::CommandAdd(struct snobj *arg) {
   if (curr + arg->size > MAX_PKT_BURST)
     return snobj_err(EINVAL,
                      "max %d packet templates "
-                     "can be used",
-                     MAX_PKT_BURST);
+                     "can be used %d %d",
+                     MAX_PKT_BURST, curr, arg->size);
 
   for (i = 0; i < static_cast<int>(arg->size); i++) {
     struct snobj *templ = snobj_list_get(arg, i);

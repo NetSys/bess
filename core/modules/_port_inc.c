@@ -18,10 +18,10 @@ class PortInc : public Module {
  private:
   struct snobj *CommandSetBurst(struct snobj *arg);
 
-  struct port *port;
-  pkt_io_func_t recv_pkts;
-  int prefetch;
-  int burst;
+  struct port *port = {0};
+  pkt_io_func_t recv_pkts = {0};
+  int prefetch = {0};
+  int burst = {0};
 };
 
 const std::vector<struct Command> PortInc::cmds = {

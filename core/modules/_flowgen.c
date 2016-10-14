@@ -56,21 +56,21 @@ class FlowGen : public Module {
   static const std::vector<struct Command> cmds;
 
  private:
-  int active_flows;
-  int allocated_flows;
-  uint64_t generated_flows;
-  struct flow *flows;
-  struct cdlist_head flows_free;
+  int active_flows = {0};
+  int allocated_flows = {0};
+  uint64_t generated_flows = {0};
+  struct flow *flows = {0};
+  struct cdlist_head flows_free = {0};
 
   EventQueue events;
 
   char templ[MAX_TEMPLATE_SIZE];
-  int template_size;
+  int template_size = {0};
 
   uint64_t rseed;
 
   /* behavior parameters */
-  int quick_rampup;
+  int quick_rampup = {0};
 
   enum {
     ARRIVAL_UNIFORM = 0,
@@ -83,21 +83,21 @@ class FlowGen : public Module {
   } duration;
 
   /* load parameters */
-  double total_pps;
-  double flow_rate;     /* in flows/s */
-  double flow_duration; /* in seconds */
+  double total_pps = {0};
+  double flow_rate = {0};     /* in flows/s */
+  double flow_duration = {0}; /* in seconds */
 
   /* derived variables */
-  double concurrent_flows; /* expected # of flows */
-  double flow_pps;         /* packets/s/flow */
-  double flow_pkts;        /* flow_pps * flow_duration */
-  double flow_gap_ns;      /* == 10^9 / flow_rate */
+  double concurrent_flows = {0}; /* expected # of flows */
+  double flow_pps = {0};         /* packets/s/flow */
+  double flow_pkts = {0};        /* flow_pps * flow_duration */
+  double flow_gap_ns = {0};      /* == 10^9 / flow_rate */
 
   struct {
     double alpha;
     double inversed_alpha; /* 1.0 / alpha */
     double mean;           /* determined by alpha */
-  } pareto;
+  } pareto = {0};
 
   inline double NewFlowPkts();
   inline double MaxFlowPkts();

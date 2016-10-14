@@ -11,7 +11,7 @@ class GenericDecap : public Module {
   static const std::vector<struct Command> cmds;
 
  private:
-  int decap_size;
+  int decap_size = {0};
 };
 
 const std::vector<struct Command> GenericDecap::cmds = {};

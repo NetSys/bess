@@ -1124,8 +1124,8 @@ class BPF : public Module {
   static const std::vector<struct Command> cmds;
 
  private:
-  struct filter filters[MAX_FILTERS + 1];
-  int n_filters;
+  struct filter filters[MAX_FILTERS + 1] = {{0}};
+  int n_filters = {0};
 
   inline void process_batch_1filter(struct pkt_batch *batch);
 };

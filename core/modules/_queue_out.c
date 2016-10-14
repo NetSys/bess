@@ -16,9 +16,9 @@ class QueueOut : public Module {
   static const std::vector<struct Command> cmds;
 
  private:
-  struct port *port;
-  pkt_io_func_t send_pkts;
-  queue_t qid;
+  struct port *port = {0};
+  pkt_io_func_t send_pkts = {0};
+  queue_t qid = {0};
 };
 
 const std::vector<struct Command> QueueOut::cmds = {};
