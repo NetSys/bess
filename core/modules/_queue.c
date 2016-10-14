@@ -24,9 +24,9 @@ class Queue : public Module {
   struct snobj *CommandSetBurst(struct snobj *arg);
   struct snobj *CommandSetSize(struct snobj *arg);
 
-  struct llring *queue = {0};
-  int prefetch = {0};
-  int burst = {0};
+  struct llring *queue_ = {0};
+  int prefetch_ = {0};
+  int burst_ = {0};
 };
 
 const std::vector<struct Command> Queue::cmds = {
@@ -35,7 +35,7 @@ const std::vector<struct Command> Queue::cmds = {
 };
 
 int Queue::Resize(int slots) {
-  struct llring *old_queue = this->queue;
+  struct llring *old_queue = this->queue_;
   struct llring *new_queue;
 
   int bytes = llring_bytes_with_slots(slots);
@@ -63,7 +63,7 @@ int Queue::Resize(int slots) {
     mem_free(old_queue);
   }
 
-  this->queue = new_queue;
+  this->queue_ = new_queue;
 
   return 0;
 }
@@ -74,7 +74,7 @@ struct snobj *Queue::Init(struct snobj *arg) {
   struct snobj *t;
   struct snobj *err;
 
-  this->burst = MAX_PKT_BURST;
+  this->burst_ = MAX_PKT_BURST;
 
   tid = register_task(this, NULL);
   if (tid == INVALID_TASK_ID) return snobj_err(ENOMEM, "Task creation failed");
@@ -92,7 +92,7 @@ struct snobj *Queue::Init(struct snobj *arg) {
     if (ret) return snobj_errno(-ret);
   }
 
-  if (snobj_eval_int(arg, "prefetch")) this->prefetch = 1;
+  if (snobj_eval_int(arg, "prefetch")) this->prefetch_ = 1;
 
   return NULL;
 }
@@ -100,13 +100,13 @@ struct snobj *Queue::Init(struct snobj *arg) {
 void Queue::Deinit() {
   struct snbuf *pkt;
 
-  while (llring_sc_dequeue(this->queue, (void **)&pkt) == 0) snb_free(pkt);
+  while (llring_sc_dequeue(this->queue_, (void **)&pkt) == 0) snb_free(pkt);
 
-  mem_free(this->queue);
+  mem_free(this->queue_);
 }
 
 struct snobj *Queue::GetDesc() {
-  const struct llring *ring = this->queue;
+  const struct llring *ring = this->queue_;
 
   return snobj_str_fmt("%u/%u", llring_count(ring), ring->common.slots);
 }
@@ -114,7 +114,7 @@ struct snobj *Queue::GetDesc() {
 /* from upstream */
 void Queue::ProcessBatch(struct pkt_batch *batch) {
   int queued =
-      llring_mp_enqueue_burst(this->queue, (void **)batch->pkts, batch->cnt);
+      llring_mp_enqueue_burst(this->queue_, (void **)batch->pkts, batch->cnt);
 
   if (queued < batch->cnt)
     snb_free_bulk(batch->pkts + queued, batch->cnt - queued);
@@ -125,20 +125,20 @@ struct task_result Queue::RunTask(void *arg) {
   struct pkt_batch batch;
   struct task_result ret;
 
-  const int burst = ACCESS_ONCE(this->burst);
+  const int burst = ACCESS_ONCE(this->burst_);
   const int pkt_overhead = 24;
 
   uint64_t total_bytes = 0;
 
   uint64_t cnt =
-      llring_sc_dequeue_burst(this->queue, (void **)batch.pkts, burst);
+      llring_sc_dequeue_burst(this->queue_, (void **)batch.pkts, burst);
 
   if (cnt > 0) {
     batch.cnt = cnt;
     run_next_module(this, &batch);
   }
 
-  if (this->prefetch) {
+  if (this->prefetch_) {
     for (uint64_t i = 0; i < cnt; i++) {
       total_bytes += snb_total_len(batch.pkts[i]);
       rte_prefetch0(snb_head_data(batch.pkts[i]));
@@ -166,7 +166,7 @@ struct snobj *Queue::CommandSetBurst(struct snobj *arg) {
   if (val == 0 || val > MAX_PKT_BURST)
     return snobj_err(EINVAL, "burst size must be [1,%d]", MAX_PKT_BURST);
 
-  this->burst = val;
+  this->burst_ = val;
 
   return NULL;
 }

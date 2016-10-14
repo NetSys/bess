@@ -1124,8 +1124,8 @@ class BPF : public Module {
   static const std::vector<struct Command> cmds;
 
  private:
-  struct filter filters[MAX_FILTERS + 1] = {{0}};
-  int n_filters = {0};
+  struct filter filters_[MAX_FILTERS + 1] = {{0}};
+  int n_filters_ = {0};
 
   inline void process_batch_1filter(struct pkt_batch *batch);
 };
@@ -1139,13 +1139,13 @@ struct snobj *BPF::Init(struct snobj *arg) {
 }
 
 void BPF::Deinit() {
-  for (int i = 0; i < this->n_filters; i++) {
-    munmap(reinterpret_cast<void *>(this->filters[i].func),
-           this->filters[i].mmap_size);
-    free(this->filters[i].exp);
+  for (int i = 0; i < this->n_filters_; i++) {
+    munmap(reinterpret_cast<void *>(this->filters_[i].func),
+           this->filters_[i].mmap_size);
+    free(this->filters_[i].exp);
   }
 
-  this->n_filters = 0;
+  this->n_filters_ = 0;
 }
 
 struct snobj *BPF::CommandAdd(struct snobj *arg) {
@@ -1154,10 +1154,10 @@ struct snobj *BPF::CommandAdd(struct snobj *arg) {
   if (snobj_type(arg) != TYPE_LIST)
     return snobj_err(EINVAL, "Argument must be a list");
 
-  if (this->n_filters + arg->size > MAX_FILTERS)
+  if (this->n_filters_ + arg->size > MAX_FILTERS)
     return snobj_err(EINVAL, "Too many filters");
 
-  filter = &this->filters[this->n_filters];
+  filter = &this->filters_[this->n_filters_];
 
   for (size_t i = 0; i < arg->size; i++) {
     struct snobj *f = snobj_list_get(arg, i);
@@ -1206,8 +1206,8 @@ struct snobj *BPF::CommandAdd(struct snobj *arg) {
       return snobj_err(ENOMEM, "BPF JIT compilation error");
     }
 
-    this->n_filters++;
-    qsort(this->filters, this->n_filters, sizeof(struct filter),
+    this->n_filters_++;
+    qsort(this->filters_, this->n_filters_, sizeof(struct filter),
           &compare_filter);
 
     filter++;
@@ -1222,7 +1222,7 @@ struct snobj *BPF::CommandClear(struct snobj *arg) {
 }
 
 inline void BPF::process_batch_1filter(struct pkt_batch *batch) {
-  struct filter *filter = &this->filters[0];
+  struct filter *filter = &this->filters_[0];
 
   struct pkt_batch out_batches[2];
   struct snbuf **ptrs[2];
@@ -1256,7 +1256,7 @@ inline void BPF::process_batch_1filter(struct pkt_batch *batch) {
 
 void BPF::ProcessBatch(struct pkt_batch *batch) {
   gate_idx_t ogates[MAX_PKT_BURST];
-  int n_filters = this->n_filters;
+  int n_filters = this->n_filters_;
   int cnt;
 
   if (n_filters == 0) {
@@ -1274,7 +1274,7 @@ void BPF::ProcessBatch(struct pkt_batch *batch) {
   /* slow version for general cases */
   for (int i = 0; i < cnt; i++) {
     struct snbuf *pkt = batch->pkts[i];
-    struct filter *filter = &this->filters[0];
+    struct filter *filter = &this->filters_[0];
     gate_idx_t gate = 0; /* default gate for unmatched pkts */
 
     for (int j = 0; j < n_filters; j++, filter++) {

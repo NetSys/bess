@@ -13,19 +13,19 @@ class Buffer : public Module {
   static const std::vector<struct Command> cmds;
 
  private:
-  struct pkt_batch buf = {0};
+  struct pkt_batch buf_ = {0};
 };
 
 const std::vector<struct Command> Buffer::cmds = {};
 
 void Buffer::Deinit() {
-  struct pkt_batch *buf = &this->buf;
+  struct pkt_batch *buf = &this->buf_;
 
   if (buf->cnt) snb_free_bulk(buf->pkts, buf->cnt);
 }
 
 void Buffer::ProcessBatch(struct pkt_batch *batch) {
-  struct pkt_batch *buf = &this->buf;
+  struct pkt_batch *buf = &this->buf_;
 
   int free_slots = MAX_PKT_BURST - buf->cnt;
   int left = batch->cnt;

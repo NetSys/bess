@@ -19,13 +19,13 @@ class Update : public Module {
   struct snobj *CommandAdd(struct snobj *arg);
   struct snobj *CommandClear(struct snobj *arg);
 
-  int num_fields = {0};
+  int num_fields_ = {0};
 
   struct field {
     uint64_t mask;  /* bits with 1 won't be updated */
     uint64_t value; /* in network order */
     int16_t offset;
-  } fields[MAX_FIELDS] = {{0}};
+  } fields_[MAX_FIELDS] = {{0}};
 };
 
 const std::vector<struct Command> Update::cmds = {
@@ -47,8 +47,8 @@ struct snobj *Update::Init(struct snobj *arg) {
 void Update::ProcessBatch(struct pkt_batch *batch) {
   int cnt = batch->cnt;
 
-  for (int i = 0; i < this->num_fields; i++) {
-    const struct field *field = &this->fields[i];
+  for (int i = 0; i < this->num_fields_; i++) {
+    const struct field *field = &this->fields_[i];
 
     uint64_t mask = field->mask;
     uint64_t value = field->value;
@@ -68,7 +68,7 @@ void Update::ProcessBatch(struct pkt_batch *batch) {
 }
 
 struct snobj *Update::CommandAdd(struct snobj *arg) {
-  int curr = this->num_fields;
+  int curr = this->num_fields_;
 
   if (snobj_type(arg) != TYPE_LIST)
     return snobj_err(EINVAL, "argument must be a list of maps");
@@ -112,18 +112,18 @@ struct snobj *Update::CommandAdd(struct snobj *arg) {
 
     if (offset + 8 > SNBUF_DATA) return snobj_err(EINVAL, "too large 'offset'");
 
-    this->fields[curr + i].offset = offset;
-    this->fields[curr + i].mask = mask;
-    this->fields[curr + i].value = rte_cpu_to_be_64(value);
+    this->fields_[curr + i].offset = offset;
+    this->fields_[curr + i].mask = mask;
+    this->fields_[curr + i].value = rte_cpu_to_be_64(value);
   }
 
-  this->num_fields = curr + arg->size;
+  this->num_fields_ = curr + arg->size;
 
   return NULL;
 }
 
 struct snobj *Update::CommandClear(struct snobj *arg) {
-  this->num_fields = 0;
+  this->num_fields_ = 0;
 
   return NULL;
 }

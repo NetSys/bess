@@ -31,8 +31,8 @@ class IpLookup : public Module {
   struct snobj *CommandAdd(struct snobj *arg);
   struct snobj *CommandClear(struct snobj *arg);
 
-  struct rte_lpm *lpm;
-  gate_idx_t default_gate;
+  struct rte_lpm *lpm_;
+  gate_idx_t default_gate_;
 };
 
 const std::vector<struct Command> IpLookup::cmds = {
@@ -45,21 +45,21 @@ struct snobj *IpLookup::Init(struct snobj *arg) {
       .max_rules = 1024, .number_tbl8s = 128, .flags = 0,
   };
 
-  this->default_gate = DROP_GATE;
+  this->default_gate_ = DROP_GATE;
 
-  this->lpm = rte_lpm_create(this->Name().c_str(), /* socket_id = */ 0, &conf);
+  this->lpm_ = rte_lpm_create(this->Name().c_str(), /* socket_id = */ 0, &conf);
 
-  if (!this->lpm)
+  if (!this->lpm_)
     return snobj_err(rte_errno, "DPDK error: %s", rte_strerror(rte_errno));
 
   return NULL;
 }
 
-void IpLookup::Deinit() { rte_lpm_free(this->lpm); }
+void IpLookup::Deinit() { rte_lpm_free(this->lpm_); }
 
 void IpLookup::ProcessBatch(struct pkt_batch *batch) {
   gate_idx_t ogates[MAX_PKT_BURST];
-  gate_idx_t default_gate = this->default_gate;
+  gate_idx_t default_gate = this->default_gate_;
 
   int cnt = batch->cnt;
   int i;
@@ -97,7 +97,7 @@ void IpLookup::ProcessBatch(struct pkt_batch *batch) {
     ip_addr = _mm_set_epi32(a3, a2, a1, a0);
     ip_addr = _mm_shuffle_epi8(ip_addr, bswap_mask);
 
-    rte_lpm_lookupx4(this->lpm, ip_addr, next_hops, default_gate);
+    rte_lpm_lookupx4(this->lpm_, ip_addr, next_hops, default_gate);
 
     ogates[i + 0] = next_hops[0];
     ogates[i + 1] = next_hops[1];
@@ -117,7 +117,7 @@ void IpLookup::ProcessBatch(struct pkt_batch *batch) {
     eth = (struct ether_hdr *)snb_head_data(batch->pkts[i]);
     ip = (struct ipv4_hdr *)(eth + 1);
 
-    ret = rte_lpm_lookup(this->lpm, rte_be_to_cpu_32(ip->dst_addr), &next_hop);
+    ret = rte_lpm_lookup(this->lpm_, rte_be_to_cpu_32(ip->dst_addr), &next_hop);
 
     if (ret == 0)
       ogates[i] = next_hop;
@@ -160,9 +160,9 @@ struct snobj *IpLookup::CommandAdd(struct snobj *arg) {
   if (!is_valid_gate(gate)) return snobj_err(EINVAL, "Invalid gate: %hu", gate);
 
   if (prefix_len == 0)
-    this->default_gate = gate;
+    this->default_gate_ = gate;
   else {
-    ret = rte_lpm_add(this->lpm, ip_addr, prefix_len, gate);
+    ret = rte_lpm_add(this->lpm_, ip_addr, prefix_len, gate);
     if (ret) return snobj_err(-ret, "rpm_lpm_add() failed");
   }
 
@@ -170,8 +170,8 @@ struct snobj *IpLookup::CommandAdd(struct snobj *arg) {
 }
 
 struct snobj *IpLookup::CommandClear(struct snobj *arg) {
-  rte_lpm_delete_all(this->lpm);
-  this->default_gate = DROP_GATE;
+  rte_lpm_delete_all(this->lpm_);
+  this->default_gate_ = DROP_GATE;
   return NULL;
 }
 

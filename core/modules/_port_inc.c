@@ -18,10 +18,10 @@ class PortInc : public Module {
  private:
   struct snobj *CommandSetBurst(struct snobj *arg);
 
-  struct port *port = {0};
-  pkt_io_func_t recv_pkts = {0};
-  int prefetch = {0};
-  int burst = {0};
+  struct port *port_ = {0};
+  pkt_io_func_t recv_pkts_ = {0};
+  int prefetch_ = {0};
+  int burst_ = {0};
 };
 
 const std::vector<struct Command> PortInc::cmds = {
@@ -37,20 +37,20 @@ struct snobj *PortInc::Init(struct snobj *arg) {
   struct snobj *t;
   struct snobj *err;
 
-  this->burst = MAX_PKT_BURST;
+  this->burst_ = MAX_PKT_BURST;
 
   if (!arg || !(port_name = snobj_eval_str(arg, "port")))
     return snobj_err(EINVAL, "'port' must be given as a string");
 
-  this->port = find_port(port_name);
-  if (!this->port) return snobj_err(ENODEV, "Port %s not found", port_name);
+  this->port_ = find_port(port_name);
+  if (!this->port_) return snobj_err(ENODEV, "Port %s not found", port_name);
 
   if ((t = snobj_eval(arg, "burst")) != NULL) {
     err = this->CommandSetBurst(t);
     if (err) return err;
   }
 
-  num_inc_q = this->port->num_queues[PACKET_DIR_INC];
+  num_inc_q = this->port_->num_queues[PACKET_DIR_INC];
   if (num_inc_q == 0)
     return snobj_err(ENODEV, "Port %s has no incoming queue", port_name);
 
@@ -61,28 +61,28 @@ struct snobj *PortInc::Init(struct snobj *arg) {
       return snobj_err(ENOMEM, "Task creation failed");
   }
 
-  if (snobj_eval_int(arg, "prefetch")) this->prefetch = 1;
+  if (snobj_eval_int(arg, "prefetch")) this->prefetch_ = 1;
 
-  ret = acquire_queues(this->port, reinterpret_cast<const module *>(this),
+  ret = acquire_queues(this->port_, reinterpret_cast<const module *>(this),
                        PACKET_DIR_INC, NULL, 0);
   if (ret < 0) return snobj_errno(-ret);
 
-  this->recv_pkts = this->port->driver->recv_pkts;
+  this->recv_pkts_ = this->port_->driver->recv_pkts;
 
   return NULL;
 }
 
 void PortInc::Deinit() {
-  release_queues(this->port, reinterpret_cast<const module *>(this),
+  release_queues(this->port_, reinterpret_cast<const module *>(this),
                  PACKET_DIR_INC, NULL, 0);
 }
 
 struct snobj *PortInc::GetDesc() {
-  return snobj_str_fmt("%s/%s", this->port->name, this->port->driver->name);
+  return snobj_str_fmt("%s/%s", this->port_->name, this->port_->driver->name);
 }
 
 struct task_result PortInc::RunTask(void *arg) {
-  struct port *p = this->port;
+  struct port *p = this->port_;
 
   const queue_t qid = (queue_t)(uintptr_t)arg;
 
@@ -91,12 +91,12 @@ struct task_result PortInc::RunTask(void *arg) {
 
   uint64_t received_bytes = 0;
 
-  const int burst = ACCESS_ONCE(this->burst);
+  const int burst = ACCESS_ONCE(this->burst_);
   const int pkt_overhead = 24;
 
   uint64_t cnt;
 
-  cnt = batch.cnt = this->recv_pkts(p, qid, batch.pkts, burst);
+  cnt = batch.cnt = this->recv_pkts_(p, qid, batch.pkts, burst);
 
   if (cnt == 0) {
     ret.packets = 0;
@@ -105,7 +105,7 @@ struct task_result PortInc::RunTask(void *arg) {
   }
 
   /* NOTE: we cannot skip this step since it might be used by scheduler */
-  if (this->prefetch) {
+  if (this->prefetch_) {
     for (uint64_t i = 0; i < cnt; i++) {
       received_bytes += snb_total_len(batch.pkts[i]);
       rte_prefetch0(snb_head_data(batch.pkts[i]));
@@ -140,7 +140,7 @@ struct snobj *PortInc::CommandSetBurst(struct snobj *arg) {
   if (val == 0 || val > MAX_PKT_BURST)
     return snobj_err(EINVAL, "burst size must be [1,%d]", MAX_PKT_BURST);
 
-  this->burst = val;
+  this->burst_ = val;
 
   return NULL;
 }

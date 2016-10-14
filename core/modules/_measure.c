@@ -34,14 +34,14 @@ class Measure : public Module {
  private:
   struct snobj *CommandGetSummary(struct snobj *arg);
 
-  struct histogram hist = {0};
+  struct histogram hist_ = {0};
 
-  uint64_t start_time = {0};
-  int warmup = {0}; /* second */
+  uint64_t start_time_ = {0};
+  int warmup_ = {0}; /* second */
 
-  uint64_t pkt_cnt = {0};
-  uint64_t bytes_cnt = {0};
-  uint64_t total_latency = {0};
+  uint64_t pkt_cnt_ = {0};
+  uint64_t bytes_cnt_ = {0};
+  uint64_t total_latency_ = {0};
 };
 
 const std::vector<struct Command> Measure::cmds = {
@@ -49,9 +49,9 @@ const std::vector<struct Command> Measure::cmds = {
 };
 
 struct snobj *Measure::Init(struct snobj *arg) {
-  if (arg) this->warmup = snobj_eval_int(arg, "warmup");
+  if (arg) this->warmup_ = snobj_eval_int(arg, "warmup");
 
-  init_hist(&this->hist);
+  init_hist(&this->hist_);
 
   return NULL;
 }
@@ -59,13 +59,13 @@ struct snobj *Measure::Init(struct snobj *arg) {
 void Measure::ProcessBatch(struct pkt_batch *batch) {
   uint64_t time = get_time();
 
-  if (this->start_time == 0) this->start_time = get_time();
+  if (this->start_time_ == 0) this->start_time_ = get_time();
 
-  if (static_cast<int>(HISTO_TIME_TO_SEC(time - this->start_time)) <
-      this->warmup)
+  if (static_cast<int>(HISTO_TIME_TO_SEC(time - this->start_time_)) <
+      this->warmup_)
     goto skip;
 
-  this->pkt_cnt += batch->cnt;
+  this->pkt_cnt_ += batch->cnt;
 
   for (int i = 0; i < batch->cnt; i++) {
     uint64_t pkt_time;
@@ -77,10 +77,10 @@ void Measure::ProcessBatch(struct pkt_batch *batch) {
       else
         continue;
 
-      this->bytes_cnt += batch->pkts[i]->mbuf.pkt_len;
-      this->total_latency += diff;
+      this->bytes_cnt_ += batch->pkts[i]->mbuf.pkt_len;
+      this->total_latency_ += diff;
 
-      record_latency(&this->hist, diff);
+      record_latency(&this->hist_, diff);
     }
   }
 
@@ -89,8 +89,8 @@ skip:
 }
 
 struct snobj *Measure::CommandGetSummary(struct snobj *arg) {
-  uint64_t pkt_total = this->pkt_cnt;
-  uint64_t byte_total = this->bytes_cnt;
+  uint64_t pkt_total = this->pkt_cnt_;
+  uint64_t byte_total = this->bytes_cnt_;
   uint64_t bits = (byte_total + pkt_total * 24) * 8;
 
   struct snobj *r = snobj_map();
@@ -98,7 +98,7 @@ struct snobj *Measure::CommandGetSummary(struct snobj *arg) {
   snobj_map_set(r, "timestamp", snobj_double(get_epoch_time()));
   snobj_map_set(r, "packets", snobj_uint(pkt_total));
   snobj_map_set(r, "bits", snobj_uint(bits));
-  snobj_map_set(r, "total_latency_ns", snobj_uint(this->total_latency * 100));
+  snobj_map_set(r, "total_latency_ns", snobj_uint(this->total_latency_ * 100));
 
   return r;
 }

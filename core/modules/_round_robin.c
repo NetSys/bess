@@ -22,10 +22,10 @@ class RoundRobin : public Module {
   struct snobj *CommandSetGates(struct snobj *arg);
 
   /* XXX: currently doesn't support multiple workers */
-  gate_idx_t gates[MAX_RR_GATES] = {{0}};
-  int ngates = {0};
-  int current_gate = {0};
-  int per_packet = {0};
+  gate_idx_t gates_[MAX_RR_GATES] = {{0}};
+  int ngates_ = {0};
+  int current_gate_ = {0};
+  int per_packet_ = {0};
 };
 
 const std::vector<struct Command> RoundRobin::cmds = {
@@ -56,9 +56,9 @@ struct snobj *RoundRobin::CommandSetMode(struct snobj *arg) {
   if (!mode) return snobj_err(EINVAL, "argument must be a string");
 
   if (strcmp(mode, "packet") == 0)
-    this->per_packet = 1;
+    this->per_packet_ = 1;
   else if (strcmp(mode, "batch") == 0)
-    this->per_packet = 0;
+    this->per_packet_ = 0;
   else
     return snobj_err(EINVAL, "argument must be either 'packet' or 'batch'");
 
@@ -73,8 +73,8 @@ struct snobj *RoundRobin::CommandSetGates(struct snobj *arg) {
       return snobj_err(EINVAL, "no more than %d gates",
                        MIN(MAX_RR_GATES, MAX_GATES));
 
-    this->ngates = gates;
-    for (int i = 0; i < gates; i++) this->gates[i] = i;
+    this->ngates_ = gates;
+    for (int i = 0; i < gates; i++) this->gates_[i] = i;
 
   } else if (snobj_type(arg) == TYPE_LIST) {
     struct snobj *gates = arg;
@@ -88,12 +88,12 @@ struct snobj *RoundRobin::CommandSetGates(struct snobj *arg) {
       if (snobj_type(elem) != TYPE_INT)
         return snobj_err(EINVAL, "'gate' must be an integer");
 
-      this->gates[i] = snobj_int_get(elem);
-      if (!is_valid_gate(this->gates[i]))
-        return snobj_err(EINVAL, "invalid gate %d", this->gates[i]);
+      this->gates_[i] = snobj_int_get(elem);
+      if (!is_valid_gate(this->gates_[i]))
+        return snobj_err(EINVAL, "invalid gate %d", this->gates_[i]);
     }
 
-    this->ngates = gates->size;
+    this->ngates_ = gates->size;
 
   } else
     return snobj_err(EINVAL,
@@ -105,15 +105,15 @@ struct snobj *RoundRobin::CommandSetGates(struct snobj *arg) {
 void RoundRobin::ProcessBatch(struct pkt_batch *batch) {
   gate_idx_t ogates[MAX_PKT_BURST];
 
-  if (this->per_packet) {
+  if (this->per_packet_) {
     for (int i = 0; i < batch->cnt; i++) {
-      ogates[i] = this->gates[this->current_gate];
-      this->current_gate = (this->current_gate + 1) % this->ngates;
+      ogates[i] = this->gates_[this->current_gate_];
+      this->current_gate_ = (this->current_gate_ + 1) % this->ngates_;
     }
     run_split(this, ogates, batch);
   } else {
-    gate_idx_t gate = this->gates[this->current_gate];
-    this->current_gate = (this->current_gate + 1) % this->ngates;
+    gate_idx_t gate = this->gates_[this->current_gate_];
+    this->current_gate_ = (this->current_gate_ + 1) % this->ngates_;
     run_choose_module(this, gate, batch);
   }
 }

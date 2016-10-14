@@ -16,8 +16,8 @@ class PortOut : public Module {
   static const std::vector<struct Command> cmds;
 
  private:
-  struct port *port = {0};
-  pkt_io_func_t send_pkts = {0};
+  struct port *port_ = {0};
+  pkt_io_func_t send_pkts_ = {0};
 };
 
 const std::vector<struct Command> PortOut::cmds = {};
@@ -30,32 +30,32 @@ struct snobj *PortOut::Init(struct snobj *arg) {
   if (!arg || !(port_name = snobj_eval_str(arg, "port")))
     return snobj_err(EINVAL, "'port' must be given as a string");
 
-  this->port = find_port(port_name);
-  if (!this->port) return snobj_err(ENODEV, "Port %s not found", port_name);
+  this->port_ = find_port(port_name);
+  if (!this->port_) return snobj_err(ENODEV, "Port %s not found", port_name);
 
-  if (this->port->num_queues[PACKET_DIR_OUT] == 0)
+  if (this->port_->num_queues[PACKET_DIR_OUT] == 0)
     return snobj_err(ENODEV, "Port %s has no outgoing queue", port_name);
 
-  ret = acquire_queues(this->port, reinterpret_cast<const module *>(this),
+  ret = acquire_queues(this->port_, reinterpret_cast<const module *>(this),
                        PACKET_DIR_OUT, NULL, 0);
   if (ret < 0) return snobj_errno(-ret);
 
-  this->send_pkts = this->port->driver->send_pkts;
+  this->send_pkts_ = this->port_->driver->send_pkts;
 
   return NULL;
 }
 
 void PortOut::Deinit() {
-  release_queues(this->port, reinterpret_cast<const module *>(this),
+  release_queues(this->port_, reinterpret_cast<const module *>(this),
                  PACKET_DIR_OUT, NULL, 0);
 }
 
 struct snobj *PortOut::GetDesc() {
-  return snobj_str_fmt("%s/%s", this->port->name, this->port->driver->name);
+  return snobj_str_fmt("%s/%s", this->port_->name, this->port_->driver->name);
 }
 
 void PortOut::ProcessBatch(struct pkt_batch *batch) {
-  struct port *p = this->port;
+  struct port *p = this->port_;
 
   /* TODO: choose appropriate out queue */
   const queue_t qid = 0;
@@ -63,7 +63,7 @@ void PortOut::ProcessBatch(struct pkt_batch *batch) {
   uint64_t sent_bytes = 0;
   int sent_pkts;
 
-  sent_pkts = this->send_pkts(p, qid, batch->pkts, batch->cnt);
+  sent_pkts = this->send_pkts_(p, qid, batch->pkts, batch->cnt);
 
   if (!(p->driver->flags & DRIVER_FLAG_SELF_OUT_STATS)) {
     const packet_dir_t dir = PACKET_DIR_OUT;

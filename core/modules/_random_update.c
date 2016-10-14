@@ -21,15 +21,15 @@ class RandomUpdate : public Module {
   struct snobj *CommandAdd(struct snobj *arg);
   struct snobj *CommandClear(struct snobj *arg);
 
-  int num_vars = {0};
+  int num_vars_ = {0};
   struct var {
     uint32_t mask; /* bits with 1 won't be updated */
     uint32_t min;
     uint32_t range; /* == max - min + 1 */
     int16_t offset;
-  } vars[MAX_VARS] = {{0}};
+  } vars_[MAX_VARS] = {{0}};
 
-  uint64_t seed = {0};
+  uint64_t seed_ = {0};
 };
 
 const std::vector<struct Command> RandomUpdate::cmds = {
@@ -38,7 +38,7 @@ const std::vector<struct Command> RandomUpdate::cmds = {
 };
 
 struct snobj *RandomUpdate::CommandAdd(struct snobj *arg) {
-  int curr = this->num_vars;
+  int curr = this->num_vars_;
 
   if (snobj_type(arg) != TYPE_LIST)
     return snobj_err(EINVAL, "argument must be a list of maps");
@@ -100,21 +100,21 @@ struct snobj *RandomUpdate::CommandAdd(struct snobj *arg) {
                        "'min' should not be "
                        "greater than 'max'");
 
-    this->vars[curr + i].offset = offset;
-    this->vars[curr + i].mask = mask;
-    this->vars[curr + i].min = min;
+    this->vars_[curr + i].offset = offset;
+    this->vars_[curr + i].mask = mask;
+    this->vars_[curr + i].min = min;
 
     /* avoid modulo 0 */
-    this->vars[curr + i].range = (max - min + 1) ?: 0xffffffff;
+    this->vars_[curr + i].range = (max - min + 1) ?: 0xffffffff;
   }
 
-  this->num_vars = curr + arg->size;
+  this->num_vars_ = curr + arg->size;
 
   return NULL;
 }
 
 struct snobj *RandomUpdate::CommandClear(struct snobj *arg) {
-  this->num_vars = 0;
+  this->num_vars_ = 0;
 
   return NULL;
 }
@@ -122,7 +122,7 @@ struct snobj *RandomUpdate::CommandClear(struct snobj *arg) {
 struct snobj *RandomUpdate::Init(struct snobj *arg) {
   struct snobj *t;
 
-  this->seed = rdtsc();
+  this->seed_ = rdtsc();
 
   if (!arg) return NULL;
 
@@ -133,11 +133,11 @@ struct snobj *RandomUpdate::Init(struct snobj *arg) {
 }
 
 void RandomUpdate::ProcessBatch(struct pkt_batch *batch) {
-  uint64_t seed = this->seed;
+  uint64_t seed = this->seed_;
   int cnt = batch->cnt;
 
-  for (int i = 0; i < this->num_vars; i++) {
-    const struct var *var = &this->vars[i];
+  for (int i = 0; i < this->num_vars_; i++) {
+    const struct var *var = &this->vars_[i];
 
     uint32_t mask = var->mask;
     uint32_t min = var->min;
@@ -158,7 +158,7 @@ void RandomUpdate::ProcessBatch(struct pkt_batch *batch) {
     }
   }
 
-  this->seed = seed;
+  this->seed_ = seed;
 
   run_next_module(this, batch);
 }
