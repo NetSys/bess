@@ -1,0 +1,9 @@
+dist: trusty
+
+install:
+  - sudo apt-get -qq update
+  - sudo apt-get install -y python python-scapy libpcap-dev libgraph-easy-perl
+  - sudo apt-get install -y linux-headers-$(uname -r)
+
+script:
+  - ./build.py

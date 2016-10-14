@@ -232,6 +232,7 @@ def build_kmod():
         cmd('make -C core/kmod')
     except SystemExit:
         print >> sys.stderr, '*** module build has failed.'
+        raise
 
 def build_all():
     setup_dpdk()
