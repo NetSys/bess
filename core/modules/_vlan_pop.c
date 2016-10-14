@@ -41,5 +41,5 @@ void VLanPop::ProcessBatch(struct pkt_batch *batch) {
   run_next_module(this, batch);
 }
 
-ModuleClassRegister<VLanPop> vlan_pop("VLanPop", "vlan_pop",
+ModuleClassRegister<VLanPop> vlan_pop("VLANPop", "vlan_pop",
                                       "removes 802.1Q/802.11ad VLAN tag");

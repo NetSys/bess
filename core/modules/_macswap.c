@@ -30,5 +30,5 @@ void MacSwap::ProcessBatch(struct pkt_batch *batch) {
   run_next_module(this, batch);
 }
 
-ModuleClassRegister<MacSwap> macswap("MacSwap", "macswap",
+ModuleClassRegister<MacSwap> macswap("MACSwap", "macswap",
                                      "swaps source/destination MAC addresses");

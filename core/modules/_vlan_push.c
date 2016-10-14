@@ -104,5 +104,5 @@ struct snobj *VLanPush::CommandSetTci(struct snobj *arg) {
   return NULL;
 }
 
-ModuleClassRegister<VLanPush> vlan_push("VLanPush", "vlan_push",
+ModuleClassRegister<VLanPush> vlan_push("VLANPush", "vlan_push",
                                         "adds 802.1Q/802.11ad VLAN tag");

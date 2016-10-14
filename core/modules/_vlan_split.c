@@ -47,4 +47,4 @@ void VLanSplit::ProcessBatch(struct pkt_batch *batch) {
 }
 
 ModuleClassRegister<VLanSplit> vlan_split(
-    "VLanSplit", "vlan_split", "split packets depending on their VID");
+    "VLANSplit", "vlan_split", "split packets depending on their VID");

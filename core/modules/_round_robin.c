@@ -118,5 +118,5 @@ void RoundRobin::ProcessBatch(struct pkt_batch *batch) {
   }
 }
 
-ModuleClassRegister<RoundRobin> round_roubin(
-    "RoundRobin", "round_robin", "splits packets evenly with round robin");
+ModuleClassRegister<RoundRobin> round_robin(
+    "Roundrobin", "round_robin", "splits packets evenly with round robin");
