@@ -3,15 +3,20 @@
 #include <errno.h>
 #include <stdio.h>
 
+#include <sstream>
+
 #include <rte_config.h>
 #include <rte_ether.h>
 
 #include "mem_alloc.h"
-#include "driver.h"
 #include "namespace.h"
 #include "port.h"
 
-size_t list_ports(const struct port **p_arr, size_t arr_size, size_t offset)
+Port::~Port() {
+	;
+}
+
+size_t list_ports(const Port **p_arr, size_t arr_size, size_t offset)
 {
 	size_t ret = 0;
 	size_t iter_cnt = 0;
@@ -20,7 +25,7 @@ size_t list_ports(const struct port **p_arr, size_t arr_size, size_t offset)
 
 	ns_init_iterator(&iter, NS_TYPE_PORT);
 	while(1) {
-		struct port *port = (struct port*) ns_next(&iter);
+		Port *port = (Port*) ns_next(&iter);
 		if (!port)
 			break;
 
@@ -37,7 +42,41 @@ size_t list_ports(const struct port **p_arr, size_t arr_size, size_t offset)
 	return ret;
 }
 
-static void set_default_name(struct port *p)
+static std::string set_default_name(const std::string &driver_name,
+		const std::string &default_template)
+{
+	std::string name_template;
+
+	if (default_template == "") {
+		std::ostringstream ss;
+		char last_char = '\0';
+		for (auto t : default_template) {
+			if (last_char != '\0' && islower(last_char) &&
+					isupper(t))
+				ss << '_';
+
+			ss << tolower(t);
+			last_char = t;
+		}
+		name_template = ss.str();
+	} else {
+		name_template = default_template;
+	}
+
+	for (int i = 0; ; i++) {
+		std::ostringstream ss;
+		ss << name_template << i;
+		std::string name = ss.str();
+
+		if (!find_port(name.c_str()))
+			return name;	// found an unallocated name!
+	}
+
+	promise_unreachable();
+}
+
+#if 0
+static void set_default_name(Port *p)
 {
 	char *fmt;
 
@@ -59,7 +98,7 @@ static void set_default_name(struct port *p)
 		for (t = def; *t != '\0'; t++) {
 			if (t != def && islower(*(t - 1)) && isupper(*t))
 				*s++ = '_';
-			
+
 			*s++ = tolower(*t);
 		}
 
@@ -79,17 +118,18 @@ static void set_default_name(struct port *p)
 			break;	/* found an unallocated name! */
 	}
 }
+#endif
 
-struct port *find_port(const char *name)
+Port *find_port(const char *name)
 {
-	return (struct port *) ns_lookup(NS_TYPE_PORT, name);
+	return (Port *) ns_lookup(NS_TYPE_PORT, name);
 }
 
-static int register_port(struct port *p)
+static int register_port(Port *p)
 {
 	int ret;
 
-	ret = ns_insert(NS_TYPE_PORT, p->name, (void *) p);
+	ret = ns_insert(NS_TYPE_PORT, p->Name().c_str(), (void *) p);
 	if (ret < 0) {
 		return ret;
 	}
@@ -99,18 +139,18 @@ static int register_port(struct port *p)
 
 /* returns a pointer to the created port.
  * if error, returns NULL and *perr is set */
-struct port *create_port(const char *name, 
-		const struct driver *driver, 
+Port *create_port(const char *name,
+		const Driver *driver,
 		struct snobj *arg,
 		struct snobj **perr)
 {
-	struct port *p = NULL;
+	Port *p = NULL;
 	int ret;
 
 	queue_t num_inc_q = 1;
 	queue_t num_out_q = 1;
-	size_t size_inc_q = driver->def_size_inc_q ? : DEFAULT_QUEUE_SIZE;
-	size_t size_out_q = driver->def_size_out_q ? : DEFAULT_QUEUE_SIZE;
+	size_t size_inc_q = driver->DefaultQueueSize(PACKET_DIR_INC);
+	size_t size_out_q = driver->DefaultQueueSize(PACKET_DIR_OUT);
 
 	uint8_t mac_addr[ETH_ALEN];
 
@@ -130,8 +170,8 @@ struct port *create_port(const char *name,
 
 	if (snobj_eval_exists(arg, "mac_addr")) {
 		char *v = snobj_eval_str(arg, "mac_addr");
-		
-		ret = sscanf(v, 
+
+		ret = sscanf(v,
 				"%2hhx:%2hhx:%2hhx:%2hhx:%2hhx:%2hhx",
 				&mac_addr[0],
 				&mac_addr[1],
@@ -144,52 +184,39 @@ struct port *create_port(const char *name,
 			*perr = snobj_err(EINVAL, "MAC address should be " \
 					"formatted as a string " \
 					"xx:xx:xx:xx:xx:xx");
-			goto fail;
+			return NULL;
 		}
 	} else
 		eth_random_addr(mac_addr);
 
 	if (num_inc_q > MAX_QUEUES_PER_DIR || num_out_q > MAX_QUEUES_PER_DIR) {
 		*perr = snobj_err(EINVAL, "Invalid number of queues");
-		goto fail;
-	}
-
-	if (num_inc_q > 0 && !driver->recv_pkts) {
-		*perr = snobj_err(EINVAL, "Driver '%s' does not support "
-				"packet reception", driver->name);
-		goto fail;
-	}
-
-	if (num_out_q > 0 && !driver->send_pkts) {
-		*perr = snobj_err(EINVAL, "Driver '%s' does not support "
-				"packet transmission", driver->name);
-		goto fail;
+		return NULL;
 	}
 
 	if (size_inc_q < 0 || size_inc_q > MAX_QUEUE_SIZE ||
 	    size_out_q < 0 || size_out_q > MAX_QUEUE_SIZE) {
 		*perr = snobj_err(EINVAL, "Invalid queue size");
-		goto fail;
+		return NULL;
 	}
 
-	if (name && find_port(name)) {
-		*perr = snobj_err(EEXIST, "Port '%s' already exists", name);
-		goto fail;
+	std::string port_name;
+
+	if (name) {
+		if (find_port(name)) {
+			*perr = snobj_err(EEXIST, "Port '%s' already exists", 
+					name);
+			return NULL;
+		}
+
+		port_name = name;
+	} else {
+		port_name = set_default_name(driver->Name(), driver->NameTemplate());
 	}
 
-	p = (struct port *)mem_alloc(sizeof(struct port) + driver->priv_size);
-	if (!p) {
-		*perr = snobj_errno(ENOMEM);
-		goto fail;
-	}
+	p = driver->CreatePort(port_name);
 
-	p->name = (char *)mem_alloc(PORT_NAME_LEN);
-	if (!p->name) {
-		*perr = snobj_errno(ENOMEM);
-		goto fail;
-	}
-
-	p->driver = driver;
+//	p->driver = driver;
 
 	memcpy(p->mac_addr, mac_addr, ETH_ALEN);
 	p->num_queues[PACKET_DIR_INC] = num_inc_q;
@@ -198,69 +225,55 @@ struct port *create_port(const char *name,
 	p->queue_size[PACKET_DIR_INC] = size_inc_q;
 	p->queue_size[PACKET_DIR_OUT] = size_out_q;
 
-	if (!name)
-		set_default_name(p);
-	else
-		snprintf(p->name, PORT_NAME_LEN, "%s", name);
-
-	*perr = p->driver->init_port(p, arg);
-	if (*perr != NULL)
-		goto fail;
+	*perr = p->Init(arg);
+	if (*perr != NULL) {
+		delete p;
+		return NULL;
+	}
 
 	ret = register_port(p);
 	if (ret != 0) {
 		*perr = snobj_errno(-ret);
-		goto fail;
+		delete p;
+		return NULL;
 	}
 
 	return p;
-
-fail:
-	if (p)
-		mem_free(p->name);
-
-	mem_free(p);
-
-	return NULL;
 }
 
 #include <initializer_list>
 
 /* -errno if not successful */
-int destroy_port(struct port *p)
+int destroy_port(Port *p)
 {
 	int ret;
 
 	for (packet_dir_t dir : {PACKET_DIR_INC, PACKET_DIR_OUT}) {
-		for (int i = 0; i < p->num_queues[dir]; i++) 
+		for (queue_t i = 0; i < p->num_queues[dir]; i++)
 			if (p->users[dir][i])
 				return -EBUSY;
 	}
-	
-	ret = ns_remove(p->name);
+
+	ret = ns_remove(p->Name().c_str());
 	if (ret < 0)
-		return ret; 
+		return ret;
 
-	if (p->driver->deinit_port)
-		p->driver->deinit_port(p);
-
-	mem_free(p->name);
-	mem_free(p);
+	p->Deinit();
+	delete p;
 
 	return 0;
 }
 
-void get_port_stats(struct port *p, port_stats_t *stats)
+void get_port_stats(Port *p, port_stats_t *stats)
 {
-	if (p->driver->collect_stats)
-		p->driver->collect_stats(p, 0);
+	p->CollectStats(false);
 
 	memcpy(stats, &p->port_stats, sizeof(port_stats_t));
 
 	for (packet_dir_t dir : {PACKET_DIR_INC, PACKET_DIR_OUT}) {
 		for (queue_t qid = 0; qid < p->num_queues[dir]; qid++) {
 			const struct packet_stats *queue_stats;
-			
+
 			queue_stats = &p->queue_stats[dir][qid];
 
 			(*stats)[dir].packets	+= queue_stats->packets;
@@ -271,13 +284,13 @@ void get_port_stats(struct port *p, port_stats_t *stats)
 }
 
 /* XXX: Do we need this? Currently not being used anywhere */
-void get_queue_stats(struct port *p, packet_dir_t dir, queue_t qid, 
+void get_queue_stats(Port *p, packet_dir_t dir, queue_t qid,
 		struct packet_stats *stats)
 {
 	memcpy(stats, &p->queue_stats[dir][qid], sizeof(*stats));
 }
 
-int acquire_queues(struct port *p, const struct module *m, packet_dir_t dir, 
+int acquire_queues(Port *p, const struct module *m, packet_dir_t dir,
 		const queue_t *queues, int num_queues)
 {
 	queue_t qid;
@@ -307,9 +320,9 @@ int acquire_queues(struct port *p, const struct module *m, packet_dir_t dir,
 
 	for (i = 0; i < num_queues; i++) {
 		const struct module *user;
-		
+
 		qid = queues[i];
-	
+
 		if (qid >= p->num_queues[dir])
 			return -EINVAL;
 
@@ -328,7 +341,7 @@ int acquire_queues(struct port *p, const struct module *m, packet_dir_t dir,
 	return 0;
 }
 
-void release_queues(struct port *p, const struct module *m, packet_dir_t dir, 
+void release_queues(Port *p, const struct module *m, packet_dir_t dir,
 		const queue_t *queues, int num_queues)
 {
 	queue_t qid;

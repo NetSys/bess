@@ -407,14 +407,14 @@ static struct snobj *handle_list_drivers(struct snobj *q)
 
 	for (offset = 0; cnt != 0; offset += cnt) {
 		const int arr_size = 16;
-		const struct driver *drivers[arr_size];
+		const Driver *drivers[arr_size];
 
 		int i;
 
 		cnt = list_drivers(drivers, arr_size, offset);
 
 		for (i = 0; i < cnt; i++)
-			snobj_list_add(r, snobj_str(drivers[i]->name));
+			snobj_list_add(r, snobj_str(drivers[i]->Name()));
 	};
 
 	return r;
@@ -423,7 +423,7 @@ static struct snobj *handle_list_drivers(struct snobj *q)
 static struct snobj *handle_get_driver_info(struct snobj *q)
 {
 	const char *drv_name;
-	const struct driver *drv;
+	const Driver *drv;
 
 	struct snobj *r;
 	struct snobj *cmds;
@@ -438,16 +438,18 @@ static struct snobj *handle_get_driver_info(struct snobj *q)
 				drv_name);
 
 	cmds = snobj_list();
+#if 0
 	for (int i = 0; i < MAX_COMMANDS; i++) {
 		if (!drv->commands[i].cmd)
 			break;
 
 		snobj_list_add(cmds, snobj_str(drv->commands[i].cmd));
 	}
+#endif
 
 	r = snobj_map();
-	snobj_map_set(r, "name", snobj_str(drv->name));
-	snobj_map_set(r, "help", snobj_str(drv->help ? : ""));
+	snobj_map_set(r, "name", snobj_str(drv->Name()));
+	snobj_map_set(r, "help", snobj_str(drv->Help()));
 	snobj_map_set(r, "commands", cmds);
 
 	return r;
@@ -455,9 +457,9 @@ static struct snobj *handle_get_driver_info(struct snobj *q)
 
 static struct snobj *handle_reset_ports(struct snobj *q)
 {
-	struct port *p;
+	Port *p;
 
-	while (list_ports((const struct port **)&p, 1, 0)) {
+	while (list_ports((const Port **)&p, 1, 0)) {
 		int ret = destroy_port(p);
 		if (ret)
 			return snobj_errno(-ret);
@@ -478,7 +480,7 @@ static struct snobj *handle_list_ports(struct snobj *q)
 
 	for (offset = 0; cnt != 0; offset += cnt) {
 		const int arr_size = 16;
-		const struct port *ports[arr_size];
+		const Port *ports[arr_size];
 
 		int i;
 
@@ -488,9 +490,9 @@ static struct snobj *handle_list_ports(struct snobj *q)
 			struct snobj *port = snobj_map();
 
 			snobj_map_set(port, "name",
-					snobj_str(ports[i]->name));
+					snobj_str(ports[i]->Name()));
 			snobj_map_set(port, "driver",
-					snobj_str(ports[i]->driver->name));
+					snobj_str(ports[i]->GetDriver()->Name()));
 
 			snobj_list_add(r, port);
 		}
@@ -502,8 +504,8 @@ static struct snobj *handle_list_ports(struct snobj *q)
 static struct snobj *handle_create_port(struct snobj *q)
 {
 	const char *driver_name;
-	const struct driver *driver;
-	struct port *port;
+	const Driver *driver;
+	Port *port;
 
 	struct snobj *r;
 	struct snobj *err;
@@ -523,7 +525,7 @@ static struct snobj *handle_create_port(struct snobj *q)
 		return err;
 
 	r = snobj_map();
-	snobj_map_set(r, "name", snobj_str(port->name));
+	snobj_map_set(r, "name", snobj_str(port->Name()));
 
 	return r;
 }
@@ -532,7 +534,7 @@ static struct snobj *handle_destroy_port(struct snobj *q)
 {
 	const char *port_name;
 
-	struct port *port;
+	Port *port;
 
 	int ret;
 
@@ -555,7 +557,7 @@ static struct snobj *handle_get_port_stats(struct snobj *q)
 {
 	const char *port_name;
 
-	struct port *port;
+	Port *port;
 
 	port_stats_t stats;
 

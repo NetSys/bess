@@ -18,7 +18,7 @@
 #include "dpdk.h"
 #include "master.h"
 #include "worker.h"
-#include "driver.h"
+#include "port.h"
 #include "snbuf.h"
 #include "test.h"
 

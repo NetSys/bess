@@ -1,15 +1,11 @@
 #ifndef _DRIVER_H_
 #define _DRIVER_H_
 
-#include "common.h"
+#include <string>
 
-#define ADD_DRIVER(drv) \
-	__attribute__((constructor(102))) void __driver_register_##drv() \
-	{ \
-		int ret; \
-		ret = add_driver(&drv); \
-		assert(ret == 0); \
-	}
+#include "common.h"
+#include "namespace.h"
+#include "log.h"
 
 typedef uint8_t queue_t;
 
@@ -31,10 +27,11 @@ typedef struct snbuf * restrict * restrict snb_array_t;
 
 typedef int (*pkt_io_func_t)(struct port *, queue_t, snb_array_t, int);
 
+#if 0
 typedef struct snobj *
 (*port_cmd_func_t) (struct port *, const char *, struct snobj *);
 
-struct driver {
+Driver {
 	/* Required: should be like "CamelCase" */
 	const char *name;
 
@@ -59,7 +56,7 @@ struct driver {
 	uint32_t flags;
 
 	/* Optional */
-	int (*init_driver)(struct driver *driver);
+	int (*init_driver)(Driver *driver);
 
 	/* Required */
 	struct snobj *(*init_port)(struct port *p, struct snobj *conf);
@@ -88,13 +85,7 @@ struct driver {
 		int mt_safe;
 	} commands[MAX_COMMANDS];
 };
+#endif
 
-size_t list_drivers(const struct driver **p_arr, size_t arr_size, size_t offset);
-
-const struct driver *find_driver(const char *name);
-
-int add_driver(const struct driver *driver);
-
-void init_drivers();
 
 #endif
