@@ -18,8 +18,7 @@ class QueueInc : public Module {
  private:
   struct snobj *CommandSetBurst(struct snobj *arg);
 
-  struct port *port_ = {0};
-  pkt_io_func_t recv_pkts_ = {0};
+  Port *port_ = {0};
   queue_t qid_ = {0};
   int prefetch_ = {0};
   int burst_ = {0};
@@ -38,7 +37,7 @@ struct snobj *QueueInc::Init(struct snobj *arg) {
 
   int ret;
 
-  this->burst_ = MAX_PKT_BURST;
+  burst_ = MAX_PKT_BURST;
 
   if (!arg || snobj_type(arg) != TYPE_MAP)
     return snobj_err(EINVAL, "Argument must be a map");
@@ -50,42 +49,40 @@ struct snobj *QueueInc::Init(struct snobj *arg) {
   t = snobj_eval(arg, "qid");
   if (!t || snobj_type(t) != TYPE_INT)
     return snobj_err(EINVAL, "Field 'qid' must be specified");
-  this->qid_ = snobj_uint_get(t);
+  qid_ = snobj_uint_get(t);
 
-  this->port_ = find_port(port_name);
-  if (!this->port_) return snobj_err(ENODEV, "Port %s not found", port_name);
+  port_ = find_port(port_name);
+  if (!port_) return snobj_err(ENODEV, "Port %s not found", port_name);
 
   if ((t = snobj_eval(arg, "burst")) != NULL) {
-    err = this->CommandSetBurst(t);
+    err = CommandSetBurst(t);
     if (err) return err;
   }
 
-  if (snobj_eval_int(arg, "prefetch")) this->prefetch_ = 1;
+  if (snobj_eval_int(arg, "prefetch")) prefetch_ = 1;
 
-  tid = register_task(this, (void *)(uintptr_t) this->qid_);
+  tid = register_task(this, (void *)(uintptr_t)qid_);
   if (tid == INVALID_TASK_ID) return snobj_err(ENOMEM, "Task creation failed");
 
-  ret = acquire_queues(this->port_, reinterpret_cast<const module *>(this),
-                       PACKET_DIR_INC, &this->qid_, 1);
+  ret = acquire_queues(port_, reinterpret_cast<const module *>(this),
+                       PACKET_DIR_INC, &qid_, 1);
   if (ret < 0) return snobj_errno(-ret);
-
-  this->recv_pkts_ = this->port_->driver->recv_pkts;
 
   return NULL;
 }
 
 void QueueInc::Deinit() {
-  release_queues(this->port_, reinterpret_cast<const module *>(this),
-                 PACKET_DIR_INC, &this->qid_, 1);
+  release_queues(port_, reinterpret_cast<const module *>(this), PACKET_DIR_INC,
+                 &qid_, 1);
 }
 
 struct snobj *QueueInc::GetDesc() {
-  return snobj_str_fmt("%s:%hhu/%s", this->port_->name, this->qid_,
-                       this->port_->driver->name);
+  return snobj_str_fmt("%s:%hhu/%s", port_->Name().c_str(), qid_,
+                       port_->GetDriver()->Name().c_str());
 }
 
 struct task_result QueueInc::RunTask(void *arg) {
-  struct port *p = this->port_;
+  Port *p = port_;
 
   const queue_t qid = (queue_t)(uintptr_t)arg;
 
@@ -94,12 +91,12 @@ struct task_result QueueInc::RunTask(void *arg) {
 
   uint64_t received_bytes = 0;
 
-  const int burst = ACCESS_ONCE(this->burst_);
+  const int burst = ACCESS_ONCE(burst_);
   const int pkt_overhead = 24;
 
   uint64_t cnt;
 
-  cnt = batch.cnt = this->recv_pkts_(p, qid, batch.pkts, burst);
+  cnt = batch.cnt = p->RecvPackets(qid, batch.pkts, burst);
 
   if (cnt == 0) {
     ret.packets = 0;
@@ -108,7 +105,7 @@ struct task_result QueueInc::RunTask(void *arg) {
   }
 
   /* NOTE: we cannot skip this step since it might be used by scheduler */
-  if (this->prefetch_) {
+  if (prefetch_) {
     for (uint64_t i = 0; i < cnt; i++) {
       received_bytes += snb_total_len(batch.pkts[i]);
       rte_prefetch0(snb_head_data(batch.pkts[i]));
@@ -122,7 +119,7 @@ struct task_result QueueInc::RunTask(void *arg) {
       .packets = cnt, .bits = (received_bytes + cnt * pkt_overhead) * 8,
   };
 
-  if (!(p->driver->flags & DRIVER_FLAG_SELF_INC_STATS)) {
+  if (!(p->GetDriver()->GetFlags() & DRIVER_FLAG_SELF_INC_STATS)) {
     p->queue_stats[PACKET_DIR_INC][qid].packets += cnt;
     p->queue_stats[PACKET_DIR_INC][qid].bytes += received_bytes;
   }
@@ -143,7 +140,7 @@ struct snobj *QueueInc::CommandSetBurst(struct snobj *arg) {
   if (val == 0 || val > MAX_PKT_BURST)
     return snobj_err(EINVAL, "burst size must be [1,%d]", MAX_PKT_BURST);
 
-  this->burst_ = val;
+  burst_ = val;
 
   return NULL;
 }
