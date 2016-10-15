@@ -222,6 +222,5 @@ void HashLB::ProcessBatch(struct pkt_batch *batch) {
   run_split(this, ogates, batch);
 }
 
-ModuleClassRegister<HashLB> hash_lbl(
-    "HashLB", "hash_lb",
-    "splits packets on a flow basis with L2/L3/L4 header fields");
+ADD_MODULE(HashLB, "hash_lb",
+           "splits packets on a flow basis with L2/L3/L4 header fields")

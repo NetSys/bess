@@ -759,6 +759,5 @@ struct snobj *L2Forward::CommandPopulate(struct snobj *arg) {
   return NULL;
 }
 
-ModuleClassRegister<L2Forward> l2_forward(
-    "L2Forward", "l2_forward",
-    "classifies packets with destination MAC address");
+ADD_MODULE(L2Forward, "l2_forward",
+           "classifies packets with destination MAC address")

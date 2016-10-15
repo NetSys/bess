@@ -19,13 +19,13 @@ class Update : public Module {
   struct snobj *CommandAdd(struct snobj *arg);
   struct snobj *CommandClear(struct snobj *arg);
 
-  int num_fields_ = {0};
+  int num_fields_ = {};
 
   struct field {
     uint64_t mask;  /* bits with 1 won't be updated */
     uint64_t value; /* in network order */
     int16_t offset;
-  } fields_[MAX_FIELDS] = {{0}};
+  } fields_[MAX_FIELDS] = {};
 };
 
 const std::vector<struct Command> Update::cmds = {
@@ -128,5 +128,4 @@ struct snobj *Update::CommandClear(struct snobj *arg) {
   return NULL;
 }
 
-ModuleClassRegister<Update> update("Update", "update",
-                                   "updates packet data with specified values");
+ADD_MODULE(Update, "update", "updates packet data with specified values")

@@ -78,5 +78,4 @@ void PortOut::ProcessBatch(struct pkt_batch *batch) {
     snb_free_bulk(batch->pkts + sent_pkts, batch->cnt - sent_pkts);
 }
 
-ModuleClassRegister<PortOut> port_out("PortOut", "port_out",
-                                      "sends pakets to a port");
+ADD_MODULE(PortOut, "port_out", "sends pakets to a port")

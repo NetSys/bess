@@ -50,5 +50,4 @@ void Buffer::ProcessBatch(struct pkt_batch *batch) {
   rte_memcpy((void *)p_buf, (void *)p_batch, left * sizeof(struct snbuf *));
 }
 
-ModuleClassRegister<Buffer> buffer("Buffer", "buffer",
-                                   "buffers packets into larger batches");
+ADD_MODULE(Buffer, "buffer", "buffers packets into larger batches")

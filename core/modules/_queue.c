@@ -24,9 +24,9 @@ class Queue : public Module {
   struct snobj *CommandSetBurst(struct snobj *arg);
   struct snobj *CommandSetSize(struct snobj *arg);
 
-  struct llring *queue_ = {0};
-  int prefetch_ = {0};
-  int burst_ = {0};
+  struct llring *queue_ = {};
+  int prefetch_ = {};
+  int burst_ = {};
 };
 
 const std::vector<struct Command> Queue::cmds = {
@@ -190,6 +190,5 @@ struct snobj *Queue::CommandSetSize(struct snobj *arg) {
   return NULL;
 }
 
-ModuleClassRegister<Queue> queue(
-    "Queue", "queue",
-    "terminates current task and enqueue packets for new task");
+ADD_MODULE(Queue, "queue",
+           "terminates current task and enqueue packets for new task")

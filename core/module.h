@@ -402,6 +402,6 @@ const ModuleClass *find_mclass(const char *name);
 int add_mclass(const ModuleClass *mclass);
 
 #define ADD_MODULE(_MOD, _NAME_TEMPLATE, _HELP) \
-	ModuleClassRegister<_MOD> noop(#_MOD, _NAME_TEMPLATE, _HELP);
+	ModuleClassRegister<_MOD> __mclass##_MOD(#_MOD, _NAME_TEMPLATE, _HELP);
 
 #endif

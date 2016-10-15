@@ -4,7 +4,7 @@
 
 #include "../module.h"
 
-class VLanSplit : public Module {
+class VLANSplit : public Module {
  public:
   virtual void ProcessBatch(struct pkt_batch *batch);
 
@@ -14,9 +14,9 @@ class VLanSplit : public Module {
   static const std::vector<struct Command> cmds;
 };
 
-const std::vector<struct Command> VLanSplit::cmds = {};
+const std::vector<struct Command> VLANSplit::cmds = {};
 
-void VLanSplit::ProcessBatch(struct pkt_batch *batch) {
+void VLANSplit::ProcessBatch(struct pkt_batch *batch) {
   gate_idx_t vid[MAX_PKT_BURST];
   int cnt = batch->cnt;
 
@@ -46,5 +46,4 @@ void VLanSplit::ProcessBatch(struct pkt_batch *batch) {
   run_split(this, vid, batch);
 }
 
-ModuleClassRegister<VLanSplit> vlan_split(
-    "VLANSplit", "vlan_split", "split packets depending on their VID");
+ADD_MODULE(VLANSplit, "vlan_split", "split packets depending on their VID")

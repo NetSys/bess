@@ -42,6 +42,5 @@ void GenericDecap::ProcessBatch(struct pkt_batch *batch) {
   run_next_module(this, batch);
 }
 
-ModuleClassRegister<GenericDecap> generic_decap(
-    "GenericDecap", "generic_decap",
-    "remove specified bytes from the beginning of packets");
+ADD_MODULE(GenericDecap, "generic_decap",
+           "remove specified bytes from the beginning of packets")

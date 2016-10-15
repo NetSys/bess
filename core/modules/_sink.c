@@ -16,4 +16,4 @@ void Sink::ProcessBatch(struct pkt_batch *batch) {
 
 const std::vector<struct Command> Sink::cmds = {};
 
-ModuleClassRegister<Sink> sink("Sink", "sink", "discards all packets");
+ADD_MODULE(Sink, "sink", "discards all packets")

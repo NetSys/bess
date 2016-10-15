@@ -163,5 +163,4 @@ void RandomUpdate::ProcessBatch(struct pkt_batch *batch) {
   run_next_module(this, batch);
 }
 
-ModuleClassRegister<RandomUpdate> random_udpate(
-    "RandomUpdate", "rupdate", "updates packet data with random values");
+ADD_MODULE(RandomUpdate, "rupdate", "updates packet data with random values")

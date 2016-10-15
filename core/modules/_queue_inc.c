@@ -145,6 +145,5 @@ struct snobj *QueueInc::CommandSetBurst(struct snobj *arg) {
   return NULL;
 }
 
-ModuleClassRegister<QueueInc> queue_inc(
-    "QueueInc", "queue_inc",
-    "receives packets from a port via a specific queue");
+ADD_MODULE(QueueInc, "queue_inc",
+           "receives packets from a port via a specific queue")

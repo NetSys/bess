@@ -19,5 +19,4 @@ void Bypass::ProcessBatch(struct pkt_batch *batch) {
   run_choose_module(this, get_igate(), batch);
 }
 
-ModuleClassRegister<Bypass> bypass("Bypass", "bypass",
-                                   "bypasses packets without any processing");
+ADD_MODULE(Bypass, "bypass", "bypasses packets without any processing")

@@ -2,7 +2,7 @@
 
 #include <rte_ether.h>
 
-class MacSwap : public Module {
+class MACSwap : public Module {
  public:
   virtual void ProcessBatch(struct pkt_batch *batch);
 
@@ -12,9 +12,9 @@ class MacSwap : public Module {
   static const std::vector<struct Command> cmds;
 };
 
-const std::vector<struct Command> MacSwap::cmds = {};
+const std::vector<struct Command> MACSwap::cmds = {};
 
-void MacSwap::ProcessBatch(struct pkt_batch *batch) {
+void MACSwap::ProcessBatch(struct pkt_batch *batch) {
   int cnt = batch->cnt;
 
   for (int i = 0; i < cnt; i++) {
@@ -30,5 +30,4 @@ void MacSwap::ProcessBatch(struct pkt_batch *batch) {
   run_next_module(this, batch);
 }
 
-ModuleClassRegister<MacSwap> macswap("MACSwap", "macswap",
-                                     "swaps source/destination MAC addresses");
+ADD_MODULE(MACSwap, "macswap", "swaps source/destination MAC addresses")

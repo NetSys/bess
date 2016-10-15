@@ -16,8 +16,8 @@ class QueueOut : public Module {
   static const std::vector<struct Command> cmds;
 
  private:
-  Port *port_ = {0};
-  queue_t qid_ = {0};
+  Port *port_ = {};
+  queue_t qid_ = {};
 };
 
 const std::vector<struct Command> QueueOut::cmds = {};
@@ -52,8 +52,8 @@ struct snobj *QueueOut::Init(struct snobj *arg) {
 }
 
 void QueueOut::Deinit() {
-  release_queues(port_, reinterpret_cast<const module *>(this),
-                 PACKET_DIR_OUT, &qid_, 1);
+  release_queues(port_, reinterpret_cast<const module *>(this), PACKET_DIR_OUT,
+                 &qid_, 1);
 }
 
 struct snobj *QueueOut::GetDesc() {
@@ -86,5 +86,5 @@ void QueueOut::ProcessBatch(struct pkt_batch *batch) {
     snb_free_bulk(batch->pkts + sent_pkts, batch->cnt - sent_pkts);
 }
 
-ModuleClassRegister<QueueOut> queue_out(
-    "QueueOut", "queue_out", "sends packets to a port via a specific queue");
+ADD_MODULE(QueueOut, "queue_out",
+           "sends packets to a port via a specific queue")

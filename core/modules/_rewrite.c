@@ -23,11 +23,11 @@ class Rewrite : public Module {
 
   /* For fair round robin we remember the next index for later.
    * [0, num_templates - 1] */
-  int next_turn_ = {0};
+  int next_turn_ = {};
 
-  int num_templates_ = {0};
-  uint16_t template_size_[SLOTS] = {0};
-  unsigned char templates_[SLOTS][MAX_TEMPLATE_SIZE] __ymm_aligned = {{0}};
+  int num_templates_ = {};
+  uint16_t template_size_[SLOTS] = {};
+  unsigned char templates_[SLOTS][MAX_TEMPLATE_SIZE] __ymm_aligned = {};
 };
 
 const std::vector<struct Command> Rewrite::cmds = {
@@ -138,5 +138,4 @@ struct snobj *Rewrite::CommandClear(struct snobj *arg) {
   return NULL;
 }
 
-ModuleClassRegister<Rewrite> rewrite("Rewrite", "rewrite",
-                                     "replaces entire packet data");
+ADD_MODULE(Rewrite, "rewrite", "replaces entire packet data")

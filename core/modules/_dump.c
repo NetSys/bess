@@ -62,5 +62,4 @@ struct snobj *Dump::CommandSetInterval(struct snobj *arg) {
   return NULL;
 }
 
-ModuleClassRegister<Dump> dump("Dump", "dump",
-                               "Dump packet data and metadata attributes");
+ADD_MODULE(Dump, "dump", "Dump packet data and metadata attributes")

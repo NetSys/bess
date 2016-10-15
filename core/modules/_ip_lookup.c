@@ -175,5 +175,5 @@ struct snobj *IpLookup::CommandClear(struct snobj *arg) {
   return NULL;
 }
 
-ModuleClassRegister<IpLookup> ip_lookup(
-    "IPLookup", "ip_lookup", "performs Longest Prefix Match on IPv4 packets");
+ADD_MODULE(IpLookup, "ip_lookup",
+           "performs Longest Prefix Match on IPv4 packets")

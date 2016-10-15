@@ -7,7 +7,7 @@
 #include "../module.h"
 #include "../utils/simd.h"
 
-class VLanPush : public Module {
+class VLANPush : public Module {
  public:
   virtual struct snobj *Init(struct snobj *arg);
 
@@ -24,15 +24,15 @@ class VLanPush : public Module {
   struct snobj *CommandSetTci(struct snobj *arg);
 
   /* network order */
-  uint32_t vlan_tag_ = {0};
-  uint32_t qinq_tag_ = {0};
+  uint32_t vlan_tag_ = {};
+  uint32_t qinq_tag_ = {};
 };
 
-const std::vector<struct Command> VLanPush::cmds = {
-    {"set_tci", static_cast<CmdFunc>(&VLanPush::CommandSetTci), 0},
+const std::vector<struct Command> VLANPush::cmds = {
+    {"set_tci", static_cast<CmdFunc>(&VLANPush::CommandSetTci), 0},
 };
 
-struct snobj *VLanPush::Init(struct snobj *arg) {
+struct snobj *VLANPush::Init(struct snobj *arg) {
   struct snobj *t;
 
   if (!arg || snobj_type(arg) != TYPE_MAP)
@@ -45,7 +45,7 @@ struct snobj *VLanPush::Init(struct snobj *arg) {
 }
 
 /* the behavior is undefined if a packet is already double tagged */
-void VLanPush::ProcessBatch(struct pkt_batch *batch) {
+void VLANPush::ProcessBatch(struct pkt_batch *batch) {
   int cnt = batch->cnt;
 
   uint32_t vlan_tag = this->vlan_tag_;
@@ -81,14 +81,14 @@ void VLanPush::ProcessBatch(struct pkt_batch *batch) {
   run_next_module(this, batch);
 }
 
-struct snobj *VLanPush::GetDesc() {
+struct snobj *VLANPush::GetDesc() {
   uint32_t vlan_tag_cpu = ntohl(this->vlan_tag_);
 
   return snobj_str_fmt("PCP=%u DEI=%u VID=%u", (vlan_tag_cpu >> 13) & 0x0007,
                        (vlan_tag_cpu >> 12) & 0x0001, vlan_tag_cpu & 0x0fff);
 }
 
-struct snobj *VLanPush::CommandSetTci(struct snobj *arg) {
+struct snobj *VLANPush::CommandSetTci(struct snobj *arg) {
   uint16_t tci;
 
   if (!arg || snobj_type(arg) != TYPE_INT)
@@ -104,5 +104,4 @@ struct snobj *VLanPush::CommandSetTci(struct snobj *arg) {
   return NULL;
 }
 
-ModuleClassRegister<VLanPush> vlan_push("VLANPush", "vlan_push",
-                                        "adds 802.1Q/802.11ad VLAN tag");
+ADD_MODULE(VLANPush, "vlan_push", "adds 802.1Q/802.11ad VLAN tag")

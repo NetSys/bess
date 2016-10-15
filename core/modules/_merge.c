@@ -16,5 +16,4 @@ void Merge::ProcessBatch(struct pkt_batch *batch) {
   run_next_module(this, batch);
 }
 
-ModuleClassRegister<Merge> merge(
-    "Merge", "merge", "All input gates go out of a single output gate");
+ADD_MODULE(Merge, "merge", "All input gates go out of a single output gate")

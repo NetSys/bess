@@ -103,6 +103,5 @@ struct snobj *Measure::CommandGetSummary(struct snobj *arg) {
   return r;
 }
 
-ModuleClassRegister<Measure> measure(
-    "Measure", "measure",
-    "measures packet latency (paired with Timestamp module)");
+ADD_MODULE(Measure, "measure",
+           "measures packet latency (paired with Timestamp module)")

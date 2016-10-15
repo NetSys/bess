@@ -1291,5 +1291,4 @@ void BPF::ProcessBatch(struct pkt_batch *batch) {
   run_split(this, ogates, batch);
 }
 
-ModuleClassRegister<BPF> bpf("BPF", "bpf",
-                             "classifies packets with pcap-filter(7) syntax");
+ADD_MODULE(BPF, "bpf", "classifies packets with pcap-filter(7) syntax")

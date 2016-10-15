@@ -4,7 +4,7 @@
 
 #include "../module.h"
 
-class VLanPop : public Module {
+class VLANPop : public Module {
  public:
   virtual void ProcessBatch(struct pkt_batch *batch);
 
@@ -14,9 +14,9 @@ class VLanPop : public Module {
   static const std::vector<struct Command> cmds;
 };
 
-const std::vector<struct Command> VLanPop::cmds = {};
+const std::vector<struct Command> VLANPop::cmds = {};
 
-void VLanPop::ProcessBatch(struct pkt_batch *batch) {
+void VLANPop::ProcessBatch(struct pkt_batch *batch) {
   int cnt = batch->cnt;
 
   for (int i = 0; i < cnt; i++) {
@@ -41,5 +41,4 @@ void VLanPop::ProcessBatch(struct pkt_batch *batch) {
   run_next_module(this, batch);
 }
 
-ModuleClassRegister<VLanPop> vlan_pop("VLANPop", "vlan_pop",
-                                      "removes 802.1Q/802.11ad VLAN tag");
+ADD_MODULE(VLANPop, "vlan_pop", "removes 802.1Q/802.11ad VLAN tag")

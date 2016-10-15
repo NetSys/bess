@@ -107,8 +107,5 @@ struct snobj *Source::command_set_burst(struct snobj *arg) {
   return NULL;
 }
 
-ModuleClassRegister<Source> source(
-    "Source", "source", "infinitely generates packets with uninitialized data");
-
-// ADD_MODULE(Source, "source", "infinitely generates packets with uninitialized
-// data", cmds)
+ADD_MODULE(Source, "source",
+           "infinitely generates packets with uninitialized data")

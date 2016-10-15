@@ -510,5 +510,4 @@ struct snobj *FlowGen::GetDump() {
   return r;
 }
 
-ModuleClassRegister<FlowGen> flowgen("FlowGen", "flowgen",
-                                     "generates packets on a flow basis");
+ADD_MODULE(FlowGen, "flowgen", "generates packets on a flow basis")

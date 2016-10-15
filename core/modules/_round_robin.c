@@ -22,10 +22,10 @@ class RoundRobin : public Module {
   struct snobj *CommandSetGates(struct snobj *arg);
 
   /* XXX: currently doesn't support multiple workers */
-  gate_idx_t gates_[MAX_RR_GATES] = {{0}};
-  int ngates_ = {0};
-  int current_gate_ = {0};
-  int per_packet_ = {0};
+  gate_idx_t gates_[MAX_RR_GATES] = {};
+  int ngates_ = {};
+  int current_gate_ = {};
+  int per_packet_ = {};
 };
 
 const std::vector<struct Command> RoundRobin::cmds = {
@@ -118,5 +118,4 @@ void RoundRobin::ProcessBatch(struct pkt_batch *batch) {
   }
 }
 
-ModuleClassRegister<RoundRobin> round_robin(
-    "Roundrobin", "round_robin", "splits packets evenly with round robin");
+ADD_MODULE(RoundRobin, "round_robin", "splits packets evenly with round robin")

@@ -27,6 +27,4 @@ struct task_result NoOP::RunTask(void *arg) {
   return {};
 }
 
-// ModuleClassRegister<NoOP> noop("NoOP", "noop", "creates a task that does
-// nothing");
 ADD_MODULE(NoOP, "noop", "creates a task that does nothing")

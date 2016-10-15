@@ -70,8 +70,8 @@ struct snobj *PortInc::Init(struct snobj *arg) {
 }
 
 void PortInc::Deinit() {
-  release_queues(port_, reinterpret_cast<const module *>(this),
-                 PACKET_DIR_INC, NULL, 0);
+  release_queues(port_, reinterpret_cast<const module *>(this), PACKET_DIR_INC,
+                 NULL, 0);
 }
 
 struct snobj *PortInc::GetDesc() {
@@ -143,5 +143,4 @@ struct snobj *PortInc::CommandSetBurst(struct snobj *arg) {
   return NULL;
 }
 
-ModuleClassRegister<PortInc> port_inc("PortInc", "port_inc",
-                                      "receives packets from a port");
+ADD_MODULE(PortInc, "port_inc", "receives packets from a port")
