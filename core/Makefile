@@ -1,4 +1,7 @@
-CC = g++
+ifndef CXX
+    CXX = g++
+endif
+
 DPDK_LIB = dpdk
 
 ifndef RTE_SDK
@@ -63,15 +66,15 @@ VERBOSE = 0
 all: $(DEPS) $(EXEC)
 
 $(DEPS): $(SRCS) $(HEADERS)
-	@$(CC) $(CFLAGS) -MM $(SRCS) | sed 's|\(.*\)\.o: \(.*\)\.c|\2.o: \2.c|' > $(DEPS)
+	@$(CXX) $(CFLAGS) -MM $(SRCS) | sed 's|\(.*\)\.o: \(.*\)\.c|\2.o: \2.c|' > $(DEPS)
 
 %.o: %.c
-	$(eval COMMAND = $(CC) $(CFLAGS) -c -o $@ $<)
+	$(eval COMMAND = $(CXX) $(CFLAGS) -c -o $@ $<)
 	@if $(COMMAND); then \
 		if [ $(VERBOSE) -eq 0 ]; then \
-			echo "[CC] $<"; \
+			echo "[CXX] $<"; \
 		else \
-			echo "[CC] $(COMMAND)"; \
+			echo "[CXX] $(COMMAND)"; \
 		fi \
 	else \
 		echo "Compile error: \033[0;31m$<\033[0;33m\n$(COMMAND)\033[0m"; \
@@ -79,7 +82,7 @@ $(DEPS): $(SRCS) $(HEADERS)
 	fi
 
 $(EXEC): $(OBJS)
-	$(eval COMMAND = $(CC) $(OBJS) -o $@ $(LDFLAGS) $(LIBS))
+	$(eval COMMAND = $(CXX) $(OBJS) -o $@ $(LDFLAGS) $(LIBS))
 	@if $(COMMAND); then \
 		if [ $(VERBOSE) -eq 0 ]; then \
 			echo "[LD] $@"; \

@@ -1,9 +1,19 @@
+sudo: required
 dist: trusty
 
+env:
+  - CXX=g++ CC=gcc
+
 install:
-  - sudo apt-get -qq update
-  - sudo apt-get install -y python python-scapy libpcap-dev libgraph-easy-perl
-  - sudo apt-get install -y linux-headers-$(uname -r)
+  - sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
+  - sudo apt-get update
+  - sudo apt-get install -y gcc-5 g++-5
+  - sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-5 60 --slave /usr/bin/g++ g++ /usr/bin/g++-5
+  - sudo apt-get install -y python python-scapy libpcap-dev
+  - sudo apt-get install -y libgraph-easy-perl linux-headers-$(uname -r)
 
 script:
   - ./build.py
+
+notifications:
+  slack: nefeli:x5udJ7nDIKjCaCrRYprGc4mw
