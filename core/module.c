@@ -574,7 +574,7 @@ void dump_pcap_pkts(struct gate *gate, struct pkt_batch *batch)
 }
 
 struct snobj *Module::RunCommand(const std::string &user_cmd, struct snobj *arg) {
-	for (auto &cmd : mclass_->cmds) {
+	for (auto &cmd : mclass_->Commands()) {
 		/* TODO: check mt_safe */
 		if (user_cmd == cmd.cmd)
 			return CALL_MEMBER_FN(*this, cmd.func)(arg);

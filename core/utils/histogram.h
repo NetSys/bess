@@ -126,24 +126,24 @@ static void print_summary(struct histogram* hist) {
 
 	for (int i=0; i<max_bucket; i++) {
 		uint64_t latency = (i+1)*HISTO_TIME*timeunit_mult;
-		for (int j=0; j<sizeof(counts)/sizeof(uint64_t); j++) {
+		for (size_t j=0; j<sizeof(counts)/sizeof(uint64_t); j++) {
 			if(HISTO_BUCKET_VAL(arr + i) < counts[j]) {
 				latencies[j] = latency;
 			}
 		}
 	}
 
-	printf("##   Min: %"PRIu64" %s\n", min, timeunit_name);
-	printf("##   Avg: %"PRIu64" %s\n", (total/count), timeunit_name);
-	printf("##   Max: %"PRIu64" %s\n", max, timeunit_name);
-	printf("##   1%%ile: %"PRIu64" %s\n", latencies[0], timeunit_name);
-	printf("##   50%%ile: %"PRIu64" %s\n", latencies[1], timeunit_name);
-	printf("##   99%%ile: %"PRIu64" %s\n", latencies[2], timeunit_name);
-	printf("##   99.9%%ile: %"PRIu64" %s\n", latencies[3], timeunit_name);
-	printf("##   99.99%%ile: %"PRIu64" %s\n", latencies[4], timeunit_name);
-	printf("##   99.999%%ile: %"PRIu64" %s\n", latencies[5], timeunit_name);
-	printf("##   99.9999%%ile: %"PRIu64" %s\n", latencies[6], timeunit_name);
-	printf("##   Total: %"PRIu64"\n", count);
+	printf("##   Min: %" PRIu64 " %s\n", min, timeunit_name);
+	printf("##   Avg: %" PRIu64 " %s\n", (total/count), timeunit_name);
+	printf("##   Max: %" PRIu64 " %s\n", max, timeunit_name);
+	printf("##   1%%ile: %" PRIu64 " %s\n", latencies[0], timeunit_name);
+	printf("##   50%%ile: %" PRIu64 " %s\n", latencies[1], timeunit_name);
+	printf("##   99%%ile: %" PRIu64 " %s\n", latencies[2], timeunit_name);
+	printf("##   99.9%%ile: %" PRIu64 " %s\n", latencies[3], timeunit_name);
+	printf("##   99.99%%ile: %" PRIu64 " %s\n", latencies[4], timeunit_name);
+	printf("##   99.999%%ile: %" PRIu64 " %s\n", latencies[5], timeunit_name);
+	printf("##   99.9999%%ile: %" PRIu64 " %s\n", latencies[6], timeunit_name);
+	printf("##   Total: %" PRIu64 "\n", count);
 }
 
 static inline void record_latency(struct histogram* hist, uint64_t latency) {
@@ -156,7 +156,7 @@ static inline void record_latency(struct histogram* hist, uint64_t latency) {
 }
 
 static inline void init_hist(struct histogram* hist) {
-	hist->arr = mem_alloc(HISTO_BUCKETS * sizeof(histo_count_t));
+	hist->arr = static_cast<histo_count_t*>(mem_alloc(HISTO_BUCKETS * sizeof(histo_count_t)));
 }
 
 #endif
