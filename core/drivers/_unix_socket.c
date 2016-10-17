@@ -36,16 +36,16 @@ class UnixSocketPort : public Port {
  private:
   void CloseConnection();
 
-  uint32_t recv_skip_cnt_;
-  int listen_fd_;
-  struct sockaddr_un addr_;
+  uint32_t recv_skip_cnt_ = {0};
+  int listen_fd_ = {0};
+  struct sockaddr_un addr_ = {0};
 
   /* NOTE: three threads (accept / recv / send) may race on this,
    * so use volatile */
-  volatile int client_fd_;
-  int old_client_fd_;
+  volatile int client_fd_ = {0};
+  int old_client_fd_ = {0};
 
-  pthread_t accept_thread_;
+  pthread_t accept_thread_ = {0};
 };
 
 void UnixSocketPort::AcceptNewClient() {

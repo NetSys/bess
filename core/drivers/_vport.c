@@ -188,18 +188,18 @@ class VPort : public Port {
   int SetIPAddrSingle(char *ip_addr);
   struct snobj *SetIPAddr(struct snobj *arg);
 
-  int fd_;
+  int fd_ = {0};
 
-  char ifname_[IFNAMSIZ]; /* could be different from this->Name() */
-  void *bar_;
+  char ifname_[IFNAMSIZ] = {{0}}; /* could be different from this->Name() */
+  void *bar_ = {0};
 
   struct queue inc_qs_[MAX_QUEUES_PER_DIR];
   struct queue out_qs_[MAX_QUEUES_PER_DIR];
 
-  struct sn_ioc_queue_mapping map_;
+  struct sn_ioc_queue_mapping map_ = {{0}};
 
-  int netns_fd_;
-  int container_pid_;
+  int netns_fd_ = {0};
+  int container_pid_ = {0};
 };
 
 static int next_cpu;

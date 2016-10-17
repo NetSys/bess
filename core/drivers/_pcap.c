@@ -31,8 +31,8 @@ class PCAPPort : public Port {
   virtual int SendPackets(queue_t qid, snb_array_t pkts, int cnt);
 
  private:
-  pcap_t *pcap_handle_;
-  char dev_[PCAP_IFNAME];
+  pcap_t *pcap_handle_ = {0};
+  char dev_[PCAP_IFNAME] = {{0}};
 };
 
 struct snobj *PCAPPort::Init(struct snobj *conf) {
