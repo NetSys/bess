@@ -79,7 +79,6 @@ DEFINE_int32(m, 2048, "Specifies how many megabytes to use per socket");
 
 /* NOTE: At this point DPDK has not been initilaized, 
  *       so it cannot invoke rte_* functions yet. */
-// Processes already-parsed gflags command-line arguments.
 static void process_args(int argc, char *argv[]) {
   num_workers = 0;
 
