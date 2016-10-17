@@ -102,6 +102,7 @@ struct snobj *RoundRobin::CommandSetGates(struct snobj *arg) {
 
   return NULL;
 }
+
 void RoundRobin::ProcessBatch(struct pkt_batch *batch) {
   gate_idx_t ogates[MAX_PKT_BURST];
 
@@ -118,4 +119,4 @@ void RoundRobin::ProcessBatch(struct pkt_batch *batch) {
   }
 }
 
-ADD_MODULE(RoundRobin, "round_robin", "splits packets evenly with round robin")
+ADD_MODULE(RoundRobin, "rr", "splits packets evenly with round robin")
