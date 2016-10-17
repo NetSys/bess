@@ -685,7 +685,7 @@ int VPort::SendPackets(queue_t qid, snb_array_t pkts, int cnt) {
     rx_desc->seg = snb_dma_addr(snb);
     rx_desc->next = 0;
 
-    rx_desc->meta = (struct sn_rx_metadata){};
+    rx_desc->meta = {};
 
     for (struct rte_mbuf *seg = mbuf->next; seg; seg = seg->next) {
       struct sn_rx_desc *next_desc;
