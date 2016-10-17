@@ -31,7 +31,7 @@ CFLAGS += -std=gnu++11 -g3 -ggdb3 -Ofast -march=native \
 	  -D_GNU_SOURCE
 
 LDFLAGS += -rdynamic -L$(DPDK_LIB_DIR) -Wl,-rpath=$(DPDK_LIB_DIR)
-LIBS += -Wl,--whole-archive -l$(DPDK_LIB) -Wl,--no-whole-archive -lm -pthread -ldl -lrt -lpcap
+LIBS += -Wl,--whole-archive -l$(DPDK_LIB) -Wl,--no-whole-archive -lm -pthread -lgflags -ldl -lrt -lpcap
 
 ifdef SANITIZE
     LDFLAGS += -fsanitize=address
