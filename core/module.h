@@ -19,6 +19,7 @@ typedef uint16_t gate_idx_t;
 ct_assert(MAX_GATES < INVALID_GATE);
 ct_assert(DROP_GATE <= MAX_GATES);
 
+#include "log.h"
 #include "snobj.h"
 #include "metadata.h"
 #include "worker.h"
