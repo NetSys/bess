@@ -1,5 +1,4 @@
 #include "../module.h"
-#include "../utils/random.h"
 
 #include <rte_hash_crc.h>
 
@@ -79,11 +78,11 @@ struct snobj *HashLB::CommandSetMode(struct snobj *arg) {
   if (!mode) return snobj_err(EINVAL, "argument must be a string");
 
   if (strcmp(mode, "l2") == 0)
-    this->mode_ = LB_L2;
+    mode_ = LB_L2;
   else if (mode && strcmp(mode, "l3") == 0)
-    this->mode_ = LB_L3;
+    mode_ = LB_L3;
   else if (mode && strcmp(mode, "l4") == 0)
-    this->mode_ = LB_L4;
+    mode_ = LB_L4;
   else
     return snobj_err(EINVAL, "available LB modes: l2, l3, l4");
 
@@ -98,8 +97,8 @@ struct snobj *HashLB::CommandSetGates(struct snobj *arg) {
       return snobj_err(EINVAL, "no more than %d gates",
                        std::min(MAX_HLB_GATES, MAX_GATES));
 
-    this->num_gates_ = gates;
-    for (int i = 0; i < gates; i++) this->gates_[i] = i;
+    num_gates_ = gates;
+    for (int i = 0; i < gates; i++) gates_[i] = i;
 
   } else if (snobj_type(arg) == TYPE_LIST) {
     struct snobj *gates = arg;
@@ -113,12 +112,12 @@ struct snobj *HashLB::CommandSetGates(struct snobj *arg) {
       if (snobj_type(elem) != TYPE_INT)
         return snobj_err(EINVAL, "'gate' must be an integer");
 
-      this->gates_[i] = snobj_int_get(elem);
-      if (!is_valid_gate(this->gates_[i]))
-        return snobj_err(EINVAL, "invalid gate %d", this->gates_[i]);
+      gates_[i] = snobj_int_get(elem);
+      if (!is_valid_gate(gates_[i]))
+        return snobj_err(EINVAL, "invalid gate %d", gates_[i]);
     }
 
-    this->num_gates_ = gates->size;
+    num_gates_ = gates->size;
 
   } else
     return snobj_err(EINVAL,
@@ -131,18 +130,18 @@ struct snobj *HashLB::CommandSetGates(struct snobj *arg) {
 struct snobj *HashLB::Init(struct snobj *arg) {
   struct snobj *t;
 
-  this->mode_ = DEFAULT_MODE;
+  mode_ = DEFAULT_MODE;
 
   if (!arg || snobj_type(arg) != TYPE_MAP)
     return snobj_err(EINVAL, "empty argument");
 
   if ((t = snobj_eval(arg, "gates"))) {
-    struct snobj *err = this->CommandSetGates(t);
+    struct snobj *err = CommandSetGates(t);
     if (err) return err;
   } else
     return snobj_err(EINVAL, "'gates' must be specified");
 
-  if ((t = snobj_eval(arg, "mode"))) return this->CommandSetMode(t);
+  if ((t = snobj_eval(arg, "mode"))) return CommandSetMode(t);
 
   return NULL;
 }
@@ -157,7 +156,7 @@ void HashLB::LbL2(struct pkt_batch *batch, gate_idx_t *ogates) {
 
     uint32_t hash_val = hash_64(v0, v1);
 
-    ogates[i] = this->gates_[hash_range(hash_val, this->num_gates_)];
+    ogates[i] = gates_[hash_range(hash_val, num_gates_)];
   }
 }
 
@@ -174,7 +173,7 @@ void HashLB::LbL3(struct pkt_batch *batch, gate_idx_t *ogates) {
 
     hash_val = hash_64(v, 0);
 
-    ogates[i] = this->gates_[hash_range(hash_val, this->num_gates_)];
+    ogates[i] = gates_[hash_range(hash_val, num_gates_)];
   }
 }
 
@@ -195,24 +194,24 @@ void HashLB::LbL4(struct pkt_batch *batch, gate_idx_t *ogates) {
 
     hash_val = hash_64(v0, v1);
 
-    ogates[i] = this->gates_[hash_range(hash_val, this->num_gates_)];
+    ogates[i] = gates_[hash_range(hash_val, num_gates_)];
   }
 }
 
 void HashLB::ProcessBatch(struct pkt_batch *batch) {
   gate_idx_t ogates[MAX_PKT_BURST];
 
-  switch (this->mode_) {
+  switch (mode_) {
     case LB_L2:
-      this->LbL2(batch, ogates);
+      LbL2(batch, ogates);
       break;
 
     case LB_L3:
-      this->LbL3(batch, ogates);
+      LbL3(batch, ogates);
       break;
 
     case LB_L4:
-      this->LbL4(batch, ogates);
+      LbL4(batch, ogates);
       break;
 
     default:

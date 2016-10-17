@@ -237,22 +237,22 @@ struct snobj *WildcardMatch::Init(struct snobj *arg) {
 
     f.pos = size_acc;
 
-    err = this->AddFieldOne(field, &f);
+    err = AddFieldOne(field, &f);
     if (err) return err;
 
     size_acc += f.size;
-    this->fields_[i] = f;
+    fields_[i] = f;
   }
 
-  this->default_gate_ = DROP_GATE;
-  this->num_fields_ = fields->size;
-  this->total_key_size_ = align_ceil(size_acc, sizeof(uint64_t));
+  default_gate_ = DROP_GATE;
+  num_fields_ = fields->size;
+  total_key_size_ = align_ceil(size_acc, sizeof(uint64_t));
 
   return NULL;
 }
 
 void WildcardMatch::Deinit() {
-  for (int i = 0; i < this->num_tuples_; i++) ht_close(&this->tuples_[i].ht);
+  for (int i = 0; i < num_tuples_; i++) ht_close(&tuples_[i].ht);
 }
 
 gate_idx_t WildcardMatch::LookupEntry(hkey_t *key, gate_idx_t def_gate) {
@@ -260,13 +260,13 @@ gate_idx_t WildcardMatch::LookupEntry(hkey_t *key, gate_idx_t def_gate) {
       .priority = INT_MIN, .ogate = def_gate,
   };
 
-  const int key_size = this->total_key_size_;
-  const int num_tuples = this->num_tuples_;
+  const int key_size = total_key_size_;
+  const int num_tuples = num_tuples_;
 
   hkey_t key_masked;
 
   for (int i = 0; i < num_tuples; i++) {
-    struct WmTuple *tuple = &this->tuples_[i];
+    struct WmTuple *tuple = &tuples_[i];
     struct WmData *cand;
 
     mask(&key_masked, key, &tuple->mask, key_size);
@@ -287,15 +287,15 @@ void WildcardMatch::ProcessBatch(struct pkt_batch *batch) {
 
   int cnt = batch->cnt;
 
-  default_gate = ACCESS_ONCE(this->default_gate_);
+  default_gate = ACCESS_ONCE(default_gate_);
 
-  for (size_t i = 0; i < this->num_fields_; i++) {
+  for (size_t i = 0; i < num_fields_; i++) {
     int offset;
-    int pos = this->fields_[i].pos;
-    int attr_id = this->fields_[i].attr_id;
+    int pos = fields_[i].pos;
+    int attr_id = fields_[i].attr_id;
 
     if (attr_id < 0)
-      offset = this->fields_[i].offset;
+      offset = fields_[i].offset;
     else
       offset =
           mt_offset_to_databuf_offset(WildcardMatch::attr_offsets[attr_id]);
@@ -314,21 +314,21 @@ void WildcardMatch::ProcessBatch(struct pkt_batch *batch) {
 
 #if 1
   for (int i = 0; i < cnt; i++)
-    ogates[i] = this->LookupEntry((hkey_t *)keys[i], default_gate);
+    ogates[i] = LookupEntry((hkey_t *)keys[i], default_gate);
 #else
   /* A version with an outer loop for tuples and an inner loop for pkts.
    * Significantly slower. */
 
   int priorities[MAX_PKT_BURST];
-  const int key_size = this->total_key_size_;
+  const int key_size = total_key_size_;
 
   for (int i = 0; i < cnt; i++) {
     priorities[i] = INT_MIN;
     ogates[i] = default_gate;
   }
 
-  for (int i = 0; i < this->num_tuples_; i++) {
-    const struct WmTuple *tuple = &this->tuples_[i];
+  for (int i = 0; i < num_tuples_; i++) {
+    const struct WmTuple *tuple = &tuples_[i];
     const struct htable *ht = &tuple->ht;
     const hkey_t *tuple_mask = &tuple->mask;
 
@@ -354,10 +354,10 @@ void WildcardMatch::ProcessBatch(struct pkt_batch *batch) {
 struct snobj *WildcardMatch::GetDesc() {
   int num_rules = 0;
 
-  for (int i = 0; i < this->num_tuples_; i++)
-    num_rules += this->tuples_[i].ht.cnt;
+  for (int i = 0; i < num_tuples_; i++)
+    num_rules += tuples_[i].ht.cnt;
 
-  return snobj_str_fmt("%lu fields, %d rules", this->num_fields_, num_rules);
+  return snobj_str_fmt("%lu fields, %d rules", num_fields_, num_rules);
 }
 
 struct snobj *WildcardMatch::GetDump() {
@@ -365,9 +365,9 @@ struct snobj *WildcardMatch::GetDump() {
   struct snobj *fields = snobj_list();
   struct snobj *rules = snobj_list();
 
-  for (size_t i = 0; i < this->num_fields_; i++) {
+  for (size_t i = 0; i < num_fields_; i++) {
     struct snobj *f_obj = snobj_map();
-    const struct WmField *f = &this->fields_[i];
+    const struct WmField *f = &fields_[i];
 
     snobj_map_set(f_obj, "size", snobj_uint(f->size));
 
@@ -380,10 +380,10 @@ struct snobj *WildcardMatch::GetDump() {
     snobj_list_add(fields, f_obj);
   }
 
-  for (int k = 0; k < this->num_tuples_; k++) {
-    const struct WmTuple *tuple = &this->tuples_[k];
+  for (int k = 0; k < num_tuples_; k++) {
+    const struct WmTuple *tuple = &tuples_[k];
 
-    this->CollectRules(tuple, rules);
+    CollectRules(tuple, rules);
   }
 
   snobj_map_set(r, "fields", fields);
@@ -403,8 +403,8 @@ void WildcardMatch::CollectRules(const struct WmTuple *tuple,
     struct snobj *values = snobj_list();
     struct snobj *masks = snobj_list();
 
-    for (size_t i = 0; i < this->num_fields_; i++) {
-      const struct WmField *f = &this->fields_[i];
+    for (size_t i = 0; i < num_fields_; i++) {
+      const struct WmField *f = &fields_[i];
       int pos = f->pos;
       int size = f->size;
 
@@ -435,28 +435,28 @@ struct snobj *WildcardMatch::ExtractKeyMask(struct snobj *arg, hkey_t *key,
   if (!values || snobj_type(values) != TYPE_LIST || !snobj_size(values))
     return snobj_err(EINVAL, "'values' must be a list");
 
-  if (values->size != this->num_fields_)
-    return snobj_err(EINVAL, "must specify %lu values", this->num_fields_);
+  if (values->size != num_fields_)
+    return snobj_err(EINVAL, "must specify %lu values", num_fields_);
 
   if (!masks || snobj_type(masks) != TYPE_LIST)
     return snobj_err(EINVAL, "'masks' must be a list");
 
-  if (masks->size != this->num_fields_)
-    return snobj_err(EINVAL, "must specify %lu masks", this->num_fields_);
+  if (masks->size != num_fields_)
+    return snobj_err(EINVAL, "must specify %lu masks", num_fields_);
 
   memset(key, 0, sizeof(*key));
   memset(mask, 0, sizeof(*mask));
 
   for (size_t i = 0; i < values->size; i++) {
-    int field_size = this->fields_[i].size;
-    int field_pos = this->fields_[i].pos;
+    int field_size = fields_[i].size;
+    int field_pos = fields_[i].pos;
 
     struct snobj *v_obj = snobj_list_get(values, i);
     struct snobj *m_obj = snobj_list_get(masks, i);
     uint64_t v = 0;
     uint64_t m = 0;
 
-    int force_be = (this->fields_[i].attr_id < 0);
+    int force_be = (fields_[i].attr_id < 0);
 
     if (snobj_binvalue_get(v_obj, field_size, &v, force_be))
       return snobj_err(EINVAL, "idx %lu: not a correct %d-byte value", i,
@@ -482,10 +482,10 @@ struct snobj *WildcardMatch::ExtractKeyMask(struct snobj *arg, hkey_t *key,
 }
 
 int WildcardMatch::FindTuple(hkey_t *mask) {
-  int key_size = this->total_key_size_;
+  int key_size = total_key_size_;
 
-  for (int i = 0; i < this->num_tuples_; i++) {
-    struct WmTuple *tuple = &this->tuples_[i];
+  for (int i = 0; i < num_tuples_; i++) {
+    struct WmTuple *tuple = &tuples_[i];
 
     if (memcmp(&tuple->mask, mask, key_size) == 0) return i;
   }
@@ -498,15 +498,15 @@ int WildcardMatch::AddTuple(hkey_t *mask) {
 
   int ret;
 
-  if (this->num_tuples_ >= MAX_TUPLES) return -ENOSPC;
+  if (num_tuples_ >= MAX_TUPLES) return -ENOSPC;
 
-  tuple = &this->tuples_[this->num_tuples_++];
+  tuple = &tuples_[num_tuples_++];
   memcpy(&tuple->mask, mask, sizeof(*mask));
 
-  ret = ht_init(&tuple->ht, this->total_key_size_, sizeof(struct WmData));
+  ret = ht_init(&tuple->ht, total_key_size_, sizeof(struct WmData));
   if (ret < 0) return ret;
 
-  return tuple - this->tuples_;
+  return tuple - tuples_;
 }
 
 int WildcardMatch::AddEntry(struct WmTuple *tuple, hkey_t *key,
@@ -524,13 +524,13 @@ int WildcardMatch::DelEntry(struct WmTuple *tuple, hkey_t *key) {
   if (ret) return ret;
 
   if (tuple->ht.cnt == 0) {
-    int idx = tuple - this->tuples_;
+    int idx = tuple - tuples_;
 
     ht_close(&tuple->ht);
 
-    this->num_tuples_--;
-    memmove(&this->tuples_[idx], &this->tuples_[idx + 1],
-            sizeof(*tuple) * (this->num_tuples_ - idx));
+    num_tuples_--;
+    memmove(&tuples_[idx], &tuples_[idx + 1],
+            sizeof(*tuple) * (num_tuples_ - idx));
   }
 
   return 0;
@@ -545,7 +545,7 @@ struct snobj *WildcardMatch::CommandAdd(struct snobj *arg) {
 
   struct WmData data;
 
-  struct snobj *err = this->ExtractKeyMask(arg, &key, &mask);
+  struct snobj *err = ExtractKeyMask(arg, &key, &mask);
   if (err) return err;
 
   if (!snobj_eval_exists(arg, "gate"))
@@ -556,13 +556,13 @@ struct snobj *WildcardMatch::CommandAdd(struct snobj *arg) {
   data.priority = priority;
   data.ogate = gate;
 
-  int idx = this->FindTuple(&mask);
+  int idx = FindTuple(&mask);
   if (idx < 0) {
-    idx = this->AddTuple(&mask);
+    idx = AddTuple(&mask);
     if (idx < 0) return snobj_err(-idx, "failed to add a new wildcard pattern");
   }
 
-  int ret = this->AddEntry(&this->tuples_[idx], &key, &data);
+  int ret = AddEntry(&tuples_[idx], &key, &data);
   if (ret < 0) return snobj_err(-ret, "failed to add a rule");
 
   return NULL;
@@ -572,20 +572,20 @@ struct snobj *WildcardMatch::CommandDelete(struct snobj *arg) {
   hkey_t key;
   hkey_t mask;
 
-  struct snobj *err = this->ExtractKeyMask(arg, &key, &mask);
+  struct snobj *err = ExtractKeyMask(arg, &key, &mask);
   if (err) return err;
 
-  int idx = this->FindTuple(&mask);
+  int idx = FindTuple(&mask);
   if (idx < 0) return snobj_err(-idx, "failed to delete a rule");
 
-  int ret = this->DelEntry(&this->tuples_[idx], &key);
+  int ret = DelEntry(&tuples_[idx], &key);
   if (ret < 0) return snobj_err(-ret, "failed to delete a rule");
 
   return NULL;
 }
 
 struct snobj *WildcardMatch::CommandClear(struct snobj *arg) {
-  for (int i = 0; i < this->num_tuples_; i++) ht_clear(&this->tuples_[i].ht);
+  for (int i = 0; i < num_tuples_; i++) ht_clear(&tuples_[i].ht);
 
   return NULL;
 }
@@ -593,7 +593,7 @@ struct snobj *WildcardMatch::CommandClear(struct snobj *arg) {
 struct snobj *WildcardMatch::CommandSetDefaultGate(struct snobj *arg) {
   int gate = snobj_int_get(arg);
 
-  this->default_gate_ = gate;
+  default_gate_ = gate;
 
   return NULL;
 }

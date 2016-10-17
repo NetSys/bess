@@ -552,12 +552,12 @@ struct snobj *L2Forward::Init(struct snobj *arg) {
   int size = snobj_eval_int(arg, "size");
   int bucket = snobj_eval_int(arg, "bucket");
 
-  this->default_gate_ = DROP_GATE;
+  default_gate_ = DROP_GATE;
 
   if (size == 0) size = DEFAULT_TABLE_SIZE;
   if (bucket == 0) bucket = MAX_BUCKET_SIZE;
 
-  ret = l2_init(&this->l2_table_, size, bucket);
+  ret = l2_init(&l2_table_, size, bucket);
 
   if (ret != 0) {
     return snobj_err(-ret,
@@ -569,10 +569,10 @@ struct snobj *L2Forward::Init(struct snobj *arg) {
   return NULL;
 }
 
-void L2Forward::Deinit() { l2_deinit(&this->l2_table_); }
+void L2Forward::Deinit() { l2_deinit(&l2_table_); }
 
 void L2Forward::ProcessBatch(struct pkt_batch *batch) {
-  gate_idx_t default_gate = ACCESS_ONCE(this->default_gate_);
+  gate_idx_t default_gate = ACCESS_ONCE(default_gate_);
   gate_idx_t ogates[MAX_PKT_BURST];
 
   for (int i = 0; i < batch->cnt; i++) {
@@ -580,7 +580,7 @@ void L2Forward::ProcessBatch(struct pkt_batch *batch) {
 
     ogates[i] = default_gate;
 
-    l2_find(&this->l2_table_,
+    l2_find(&l2_table_,
             l2_addr_to_u64(static_cast<char *>(snb_head_data(snb))),
             &ogates[i]);
   }
@@ -618,7 +618,7 @@ struct snobj *L2Forward::CommandAdd(struct snobj *arg) {
     if (parse_mac_addr(str_addr, addr) != 0)
       return snobj_err(EINVAL, "%s is not a proper mac address", str_addr);
 
-    int r = l2_add_entry(&this->l2_table_, l2_addr_to_u64(addr), gate);
+    int r = l2_add_entry(&l2_table_, l2_addr_to_u64(addr), gate);
 
     if (r == -EEXIST) {
       return snobj_err(EEXIST, "MAC address '%s' already exist", str_addr);
@@ -649,7 +649,7 @@ struct snobj *L2Forward::CommandDelete(struct snobj *arg) {
       return snobj_err(EINVAL, "%s is not a proper mac address", str_addr);
     }
 
-    int r = l2_del_entry(&this->l2_table_, l2_addr_to_u64(addr));
+    int r = l2_del_entry(&l2_table_, l2_addr_to_u64(addr));
 
     if (r == -ENOENT) {
       return snobj_err(ENOENT, "MAC address '%s' does not exist", str_addr);
@@ -664,7 +664,7 @@ struct snobj *L2Forward::CommandDelete(struct snobj *arg) {
 struct snobj *L2Forward::CommandSetDefaultGate(struct snobj *arg) {
   int gate = snobj_int_get(arg);
 
-  this->default_gate_ = gate;
+  default_gate_ = gate;
 
   return NULL;
 }
@@ -692,7 +692,7 @@ struct snobj *L2Forward::CommandLookup(struct snobj *arg) {
     }
 
     gate_idx_t gate;
-    int r = l2_find(&this->l2_table_, l2_addr_to_u64(addr), &gate);
+    int r = l2_find(&l2_table_, l2_addr_to_u64(addr), &gate);
 
     if (r == -ENOENT) {
       snobj_free(ret);
@@ -750,7 +750,7 @@ struct snobj *L2Forward::CommandPopulate(struct snobj *arg) {
   base_u64 = base_u64 >> 16;
 
   for (int i = 0; i < cnt; i++) {
-    l2_add_entry(&this->l2_table_, rte_cpu_to_be_64(base_u64 << 16),
+    l2_add_entry(&l2_table_, rte_cpu_to_be_64(base_u64 << 16),
                  i % gate_cnt);
 
     base_u64++;

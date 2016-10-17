@@ -190,7 +190,7 @@ class VPort : public Port {
 
   int fd_ = {0};
 
-  char ifname_[IFNAMSIZ] = {{0}}; /* could be different from this->Name() */
+  char ifname_[IFNAMSIZ] = {{0}}; /* could be different from Name() */
   void *bar_ = {0};
 
   struct queue inc_qs_[MAX_QUEUES_PER_DIR];
@@ -207,19 +207,19 @@ static int next_cpu;
 /* Free an allocated bar, freeing resources in the queues */
 void VPort::FreeBar() {
   int i;
-  struct sn_conf_space *conf = static_cast<struct sn_conf_space *>(this->bar_);
+  struct sn_conf_space *conf = static_cast<struct sn_conf_space *>(bar_);
 
   for (i = 0; i < conf->num_txq; i++) {
-    drain_drv_to_sn_q(this->inc_qs_[i].drv_to_sn);
-    drain_sn_to_drv_q(this->inc_qs_[i].sn_to_drv);
+    drain_drv_to_sn_q(inc_qs_[i].drv_to_sn);
+    drain_sn_to_drv_q(inc_qs_[i].sn_to_drv);
   }
 
   for (i = 0; i < conf->num_rxq; i++) {
-    drain_drv_to_sn_q(this->inc_qs_[i].drv_to_sn);
-    drain_sn_to_drv_q(this->inc_qs_[i].sn_to_drv);
+    drain_drv_to_sn_q(inc_qs_[i].drv_to_sn);
+    drain_sn_to_drv_q(inc_qs_[i].sn_to_drv);
   }
 
-  rte_free(this->bar_);
+  rte_free(bar_);
 }
 
 void *VPort::AllocBar(struct tx_queue_opts *txq_opts,
@@ -236,8 +236,8 @@ void *VPort::AllocBar(struct tx_queue_opts *txq_opts,
   bytes_per_llring = llring_bytes_with_slots(SLOTS_PER_LLRING);
 
   total_bytes = sizeof(struct sn_conf_space);
-  total_bytes += this->num_queues[PACKET_DIR_INC] * 2 * bytes_per_llring;
-  total_bytes += this->num_queues[PACKET_DIR_OUT] *
+  total_bytes += num_queues[PACKET_DIR_INC] * 2 * bytes_per_llring;
+  total_bytes += num_queues[PACKET_DIR_OUT] *
                  (sizeof(struct sn_rxq_registers) + 2 * bytes_per_llring);
 
   log_err("total_bytes = %d\n", total_bytes);
@@ -249,15 +249,15 @@ void *VPort::AllocBar(struct tx_queue_opts *txq_opts,
   conf = reinterpret_cast<struct sn_conf_space *>(bar);
 
   conf->bar_size = total_bytes;
-  conf->netns_fd = this->netns_fd_;
-  conf->container_pid = this->container_pid_;
+  conf->netns_fd = netns_fd_;
+  conf->container_pid = container_pid_;
 
-  strcpy(conf->ifname, this->ifname_);
+  strcpy(conf->ifname, ifname_);
 
-  memcpy(conf->mac_addr, this->mac_addr, ETH_ALEN);
+  memcpy(conf->mac_addr, mac_addr, ETH_ALEN);
 
-  conf->num_txq = this->num_queues[PACKET_DIR_INC];
-  conf->num_rxq = this->num_queues[PACKET_DIR_OUT];
+  conf->num_txq = num_queues[PACKET_DIR_INC];
+  conf->num_rxq = num_queues[PACKET_DIR_OUT];
   conf->link_on = 1;
   conf->promisc_on = 1;
 
@@ -271,29 +271,29 @@ void *VPort::AllocBar(struct tx_queue_opts *txq_opts,
   for (i = 0; i < conf->num_txq; i++) {
     /* Driver -> BESS */
     llring_init((struct llring *)ptr, SLOTS_PER_LLRING, SINGLE_P, SINGLE_C);
-    this->inc_qs_[i].drv_to_sn = (struct llring *)ptr;
+    inc_qs_[i].drv_to_sn = (struct llring *)ptr;
     ptr += bytes_per_llring;
 
     /* BESS -> Driver */
     llring_init((struct llring *)ptr, SLOTS_PER_LLRING, SINGLE_P, SINGLE_C);
     refill_tx_bufs((struct llring *)ptr);
-    this->inc_qs_[i].sn_to_drv = (struct llring *)ptr;
+    inc_qs_[i].sn_to_drv = (struct llring *)ptr;
     ptr += bytes_per_llring;
   }
 
   for (i = 0; i < conf->num_rxq; i++) {
     /* RX queue registers */
-    this->out_qs_[i].rx_regs = (struct sn_rxq_registers *)ptr;
+    out_qs_[i].rx_regs = (struct sn_rxq_registers *)ptr;
     ptr += sizeof(struct sn_rxq_registers);
 
     /* Driver -> BESS */
     llring_init((struct llring *)ptr, SLOTS_PER_LLRING, SINGLE_P, SINGLE_C);
-    this->out_qs_[i].drv_to_sn = (struct llring *)ptr;
+    out_qs_[i].drv_to_sn = (struct llring *)ptr;
     ptr += bytes_per_llring;
 
     /* BESS -> Driver */
     llring_init((struct llring *)ptr, SLOTS_PER_LLRING, SINGLE_P, SINGLE_C);
-    this->out_qs_[i].sn_to_drv = (struct llring *)ptr;
+    out_qs_[i].sn_to_drv = (struct llring *)ptr;
     ptr += bytes_per_llring;
   }
 
@@ -343,7 +343,7 @@ int VPort::SetIPAddrSingle(char *ip_addr) {
   int exit_code;
 
   ret = snprintf(buf, sizeof(buf), "ip addr add %s dev %s 2>&1", ip_addr,
-                 this->ifname_);
+                 ifname_);
   if (ret >= static_cast<int>(sizeof(buf))) return -EINVAL;
 
   fp = popen(buf, "r");
@@ -375,7 +375,7 @@ struct snobj *VPort::SetIPAddr(struct snobj *arg) {
     goto invalid_type;
 
   /* change network namespace if necessary */
-  if (this->container_pid_ || this->netns_fd_ >= 0) {
+  if (container_pid_ || netns_fd_ >= 0) {
     nspace = 1;
 
     child_pid = fork();
@@ -385,15 +385,15 @@ struct snobj *VPort::SetIPAddr(struct snobj *arg) {
       char buf[1024];
       int fd;
 
-      if (this->container_pid_) {
-        sprintf(buf, "/proc/%d/ns/net", this->container_pid_);
+      if (container_pid_) {
+        sprintf(buf, "/proc/%d/ns/net", container_pid_);
         fd = open(buf, O_RDONLY);
         if (fd < 0) {
           log_perr("open(/proc/pid/ns/net)");
           exit(errno <= 255 ? errno : ENOMSG);
         }
       } else
-        fd = this->netns_fd_;
+        fd = netns_fd_;
 
       ret = setns(fd, 0);
       if (ret < 0) {
@@ -406,7 +406,7 @@ struct snobj *VPort::SetIPAddr(struct snobj *arg) {
 
   switch (snobj_type(arg)) {
     case TYPE_STR:
-      ret = this->SetIPAddrSingle(snobj_str_get(arg));
+      ret = SetIPAddrSingle(snobj_str_get(arg));
       if (ret < 0) {
         if (nspace) {
           /* it must be the child */
@@ -422,7 +422,7 @@ struct snobj *VPort::SetIPAddr(struct snobj *arg) {
       for (size_t i = 0; i < arg->size; i++) {
         struct snobj *addr = snobj_list_get(arg, i);
 
-        ret = this->SetIPAddrSingle(snobj_str_get(addr));
+        ret = SetIPAddrSingle(snobj_str_get(addr));
         if (ret < 0) {
           if (nspace) {
             /* it must be the child */
@@ -476,11 +476,11 @@ invalid_type:
 void VPort::DeInit() {
   int ret;
 
-  ret = ioctl(this->fd_, SN_IOC_RELEASE_HOSTNIC);
+  ret = ioctl(fd_, SN_IOC_RELEASE_HOSTNIC);
   if (ret < 0) log_perr("SN_IOC_RELEASE_HOSTNIC");
 
-  close(this->fd_);
-  this->FreeBar();
+  close(fd_);
+  FreeBar();
 }
 
 struct snobj *VPort::Init(struct snobj *conf) {
@@ -499,12 +499,12 @@ struct snobj *VPort::Init(struct snobj *conf) {
   struct tx_queue_opts txq_opts = {0};
   struct rx_queue_opts rxq_opts = {0};
 
-  this->fd_ = -1;
-  this->netns_fd_ = -1;
-  this->container_pid_ = 0;
+  fd_ = -1;
+  netns_fd_ = -1;
+  container_pid_ = 0;
 
   ifname = snobj_eval_str(conf, "ifname");
-  if (!ifname) ifname = this->Name().c_str();
+  if (!ifname) ifname = Name().c_str();
 
   if (strlen(ifname) >= IFNAMSIZ) {
     err = snobj_err(EINVAL,
@@ -514,54 +514,54 @@ struct snobj *VPort::Init(struct snobj *conf) {
     goto fail;
   }
 
-  strcpy(this->ifname_, ifname);
+  strcpy(ifname_, ifname);
 
   if (snobj_eval_exists(conf, "docker")) {
     err = docker_container_pid(snobj_eval_str(conf, "docker"),
-                               &this->container_pid_);
+                               &container_pid_);
 
     if (err) goto fail;
   }
 
   if (snobj_eval_exists(conf, "container_pid")) {
-    if (this->container_pid_) {
+    if (container_pid_) {
       err = snobj_err(EINVAL,
                       "You cannot specify both "
                       "'docker' and 'container_pid'");
       goto fail;
     }
 
-    this->container_pid_ = snobj_eval_int(conf, "container_pid");
+    container_pid_ = snobj_eval_int(conf, "container_pid");
   }
 
   if ((netns = snobj_eval_str(conf, "netns"))) {
-    if (this->container_pid_)
+    if (container_pid_)
       return snobj_err(EINVAL,
                        "You should specify only "
                        "one of 'docker', 'container_pid', "
                        "or 'netns'");
 
-    this->netns_fd_ = open(netns, O_RDONLY);
-    if (this->netns_fd_ < 0) {
+    netns_fd_ = open(netns, O_RDONLY);
+    if (netns_fd_ < 0) {
       err = snobj_err(EINVAL, "Invalid network namespace %s", netns);
       goto fail;
     }
   }
 
   if ((cpu_list = snobj_eval(conf, "rxq_cpus")) != NULL &&
-      cpu_list->size != this->num_queues[PACKET_DIR_OUT]) {
+      cpu_list->size != num_queues[PACKET_DIR_OUT]) {
     err = snobj_err(EINVAL, "Must specify as many cores as rxqs");
     goto fail;
   }
 
   if (snobj_eval_exists(conf, "rxq_cpu") &&
-      this->num_queues[PACKET_DIR_OUT] > 1) {
+      num_queues[PACKET_DIR_OUT] > 1) {
     err = snobj_err(EINVAL, "Must specify as many cores as rxqs");
     goto fail;
   }
 
-  this->fd_ = open("/dev/bess", O_RDONLY);
-  if (this->fd_ == -1) {
+  fd_ = open("/dev/bess", O_RDONLY);
+  if (fd_ == -1) {
     err = snobj_err(ENODEV, "the kernel module is not loaded");
     goto fail;
   }
@@ -570,61 +570,61 @@ struct snobj *VPort::Init(struct snobj *conf) {
   txq_opts.outer_tci = snobj_eval_uint(conf, "tx_outer_tci");
   rxq_opts.loopback = snobj_eval_uint(conf, "loopback");
 
-  this->bar_ = this->AllocBar(&txq_opts, &rxq_opts);
+  bar_ = AllocBar(&txq_opts, &rxq_opts);
 
-  log_err("%p %" PRIx64 "\n", this->bar_, rte_malloc_virt2phy(this->bar_));
+  log_err("%p %" PRIx64 "\n", bar_, rte_malloc_virt2phy(bar_));
   ret =
-      ioctl(this->fd_, SN_IOC_CREATE_HOSTNIC, rte_malloc_virt2phy(this->bar_));
+      ioctl(fd_, SN_IOC_CREATE_HOSTNIC, rte_malloc_virt2phy(bar_));
   if (ret < 0) {
     err = snobj_errno_details(-ret, snobj_str("SN_IOC_CREATE_HOSTNIC failure"));
     goto fail;
   }
 
   if (snobj_eval_exists(conf, "ip_addr")) {
-    err = this->SetIPAddr(snobj_eval(conf, "ip_addr"));
+    err = SetIPAddr(snobj_eval(conf, "ip_addr"));
 
     if (err) {
-      this->DeInit();
+      DeInit();
       goto fail;
     }
   }
 
-  if (this->netns_fd_ >= 0) {
-    close(this->netns_fd_);
-    this->netns_fd_ = -1;
+  if (netns_fd_ >= 0) {
+    close(netns_fd_);
+    netns_fd_ = -1;
   }
 
   for (cpu = 0; cpu < SN_MAX_CPU; cpu++)
-    this->map_.cpu_to_txq[cpu] = cpu % this->num_queues[PACKET_DIR_INC];
+    map_.cpu_to_txq[cpu] = cpu % num_queues[PACKET_DIR_INC];
 
   if (cpu_list) {
-    for (rxq = 0; rxq < this->num_queues[PACKET_DIR_OUT]; rxq++) {
-      this->map_.rxq_to_cpu[rxq] = snobj_int_get(snobj_list_get(cpu_list, rxq));
+    for (rxq = 0; rxq < num_queues[PACKET_DIR_OUT]; rxq++) {
+      map_.rxq_to_cpu[rxq] = snobj_int_get(snobj_list_get(cpu_list, rxq));
     }
   } else if (snobj_eval_exists(conf, "rxq_cpu")) {
-    this->map_.rxq_to_cpu[0] = snobj_eval_int(conf, "rxq_cpu");
+    map_.rxq_to_cpu[0] = snobj_eval_int(conf, "rxq_cpu");
   } else {
-    for (rxq = 0; rxq < this->num_queues[PACKET_DIR_OUT]; rxq++) {
+    for (rxq = 0; rxq < num_queues[PACKET_DIR_OUT]; rxq++) {
       next_cpu = find_next_nonworker_cpu(next_cpu);
-      this->map_.rxq_to_cpu[rxq] = next_cpu;
+      map_.rxq_to_cpu[rxq] = next_cpu;
     }
   }
 
-  ret = ioctl(this->fd_, SN_IOC_SET_QUEUE_MAPPING, &this->map_);
+  ret = ioctl(fd_, SN_IOC_SET_QUEUE_MAPPING, &map_);
   if (ret < 0) log_perr("ioctl(SN_IOC_SET_QUEUE_MAPPING)");
 
   return NULL;
 
 fail:
-  if (this->fd_ >= 0) close(this->fd_);
+  if (fd_ >= 0) close(fd_);
 
-  if (this->netns_fd_ >= 0) close(this->netns_fd_);
+  if (netns_fd_ >= 0) close(netns_fd_);
 
   return err;
 }
 
 int VPort::RecvPackets(queue_t qid, snb_array_t pkts, int max_cnt) {
-  struct queue *tx_queue = &this->inc_qs_[qid];
+  struct queue *tx_queue = &inc_qs_[qid];
 
   int cnt;
   int i;
@@ -652,7 +652,7 @@ int VPort::RecvPackets(queue_t qid, snb_array_t pkts, int max_cnt) {
 }
 
 int VPort::SendPackets(queue_t qid, snb_array_t pkts, int cnt) {
-  struct queue *rx_queue = &this->out_qs_[qid];
+  struct queue *rx_queue = &out_qs_[qid];
 
   paddr_t paddr[MAX_PKT_BURST];
 
@@ -709,7 +709,7 @@ int VPort::SendPackets(queue_t qid, snb_array_t pkts, int cnt) {
 
   /* TODO: generic notification architecture */
   if (__sync_bool_compare_and_swap(&rx_queue->rx_regs->irq_disabled, 0, 1)) {
-    ret = ioctl(this->fd_, SN_IOC_KICK_RX, 1 << this->map_.rxq_to_cpu[qid]);
+    ret = ioctl(fd_, SN_IOC_KICK_RX, 1 << map_.rxq_to_cpu[qid]);
     if (ret) log_perr("ioctl(kick_rx)");
   }
 

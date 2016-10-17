@@ -38,28 +38,28 @@ class PCAPPort : public Port {
 struct snobj *PCAPPort::Init(struct snobj *conf) {
   char errbuf[PCAP_ERRBUF_SIZE];
   if (snobj_eval_str(conf, "dev"))
-    strncpy(this->dev_, snobj_eval_str(conf, "dev"), PCAP_IFNAME);
+    strncpy(dev_, snobj_eval_str(conf, "dev"), PCAP_IFNAME);
   else
     return snobj_err(EINVAL, "PCAP need to set dev option");
 
   // non-blocking pcap
-  this->pcap_handle_ = pcap_open_live(this->dev_, PCAP_SNAPLEN, 1, -1, errbuf);
-  if (this->pcap_handle_ == NULL)
+  pcap_handle_ = pcap_open_live(dev_, PCAP_SNAPLEN, 1, -1, errbuf);
+  if (pcap_handle_ == NULL)
     return snobj_err(ENODEV, "PCAP Open dev error: %s", errbuf);
 
-  int ret = pcap_setnonblock(this->pcap_handle_, 1, errbuf);
+  int ret = pcap_setnonblock(pcap_handle_, 1, errbuf);
   if (ret != 0)
     return snobj_err(ENODEV, "PCAP set to nonblock error: %s", errbuf);
 
-  log_info("PCAP: open dev %s\n", this->dev_);
+  log_info("PCAP: open dev %s\n", dev_);
 
   return NULL;
 }
 
 void PCAPPort::DeInit() {
-  if (this->pcap_handle_) {
-    pcap_close(this->pcap_handle_);
-    this->pcap_handle_ = NULL;
+  if (pcap_handle_) {
+    pcap_close(pcap_handle_);
+    pcap_handle_ = NULL;
   }
 }
 
@@ -113,7 +113,7 @@ int PCAPPort::RecvPackets(queue_t qid, snb_array_t pkts, int cnt) {
   struct snbuf *sbuf;
 
   while (recv_cnt < cnt) {
-    packet = pcap_next(this->pcap_handle_, &header);
+    packet = pcap_next(pcap_handle_, &header);
     if (!packet) break;
 
     sbuf = snb_alloc();
@@ -156,13 +156,13 @@ int PCAPPort::SendPackets(queue_t qid, snb_array_t pkts, int cnt) {
     struct snbuf *sbuf = pkts[send_cnt];
 
     if (likely(sbuf->mbuf.nb_segs == 1)) {
-      ret = pcap_sendpacket(this->pcap_handle_,
+      ret = pcap_sendpacket(pcap_handle_,
                             (const u_char *)snb_head_data(sbuf),
                             sbuf->mbuf.pkt_len);
     } else {
       if (sbuf->mbuf.pkt_len <= PCAP_SNAPLEN) {
         pcap_gather_data(tx_pcap_data, &sbuf->mbuf);
-        ret = pcap_sendpacket(this->pcap_handle_, tx_pcap_data,
+        ret = pcap_sendpacket(pcap_handle_, tx_pcap_data,
                               sbuf->mbuf.pkt_len);
       } else {
         RTE_LOG(ERR, PMD,

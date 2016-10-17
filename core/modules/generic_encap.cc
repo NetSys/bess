@@ -96,18 +96,18 @@ struct snobj *GenericEncap::Init(struct snobj *arg) {
   for (size_t i = 0; i < fields->size; i++) {
     struct snobj *field = snobj_list_get(fields, i);
     struct snobj *err;
-    struct Field *f = &this->fields_[i];
+    struct Field *f = &fields_[i];
 
     f->pos = size_acc;
 
-    err = this->AddFieldOne(field, f, i);
+    err = AddFieldOne(field, f, i);
     if (err) return err;
 
     size_acc += f->size;
   }
 
-  this->encap_size_ = size_acc;
-  this->num_fields_ = fields->size;
+  encap_size_ = size_acc;
+  num_fields_ = fields->size;
 
   return NULL;
 }
@@ -115,17 +115,17 @@ struct snobj *GenericEncap::Init(struct snobj *arg) {
 void GenericEncap::ProcessBatch(struct pkt_batch *batch) {
   int cnt = batch->cnt;
 
-  int encap_size = this->encap_size_;
+  int encap_size = encap_size_;
 
   char headers[MAX_PKT_BURST][MAX_HEADER_SIZE] __ymm_aligned;
 
-  for (int i = 0; i < this->num_fields_; i++) {
-    uint64_t value = this->fields_[i].value;
+  for (int i = 0; i < num_fields_; i++) {
+    uint64_t value = fields_[i].value;
 
-    int attr_id = this->fields_[i].attr_id;
+    int attr_id = fields_[i].attr_id;
     int offset = (attr_id >= 0) ? GenericEncap::attr_offsets[attr_id] : 0;
 
-    char *header = headers[0] + this->fields_[i].pos;
+    char *header = headers[0] + fields_[i].pos;
 
     for (int j = 0; j < cnt; j++, header += MAX_HEADER_SIZE) {
       struct snbuf *pkt = batch->pkts[j];

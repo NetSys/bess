@@ -49,9 +49,9 @@ const std::vector<struct Command> Measure::cmds = {
 };
 
 struct snobj *Measure::Init(struct snobj *arg) {
-  if (arg) this->warmup_ = snobj_eval_int(arg, "warmup");
+  if (arg) warmup_ = snobj_eval_int(arg, "warmup");
 
-  init_hist(&this->hist_);
+  init_hist(&hist_);
 
   return NULL;
 }
@@ -59,13 +59,13 @@ struct snobj *Measure::Init(struct snobj *arg) {
 void Measure::ProcessBatch(struct pkt_batch *batch) {
   uint64_t time = get_time();
 
-  if (this->start_time_ == 0) this->start_time_ = get_time();
+  if (start_time_ == 0) start_time_ = get_time();
 
-  if (static_cast<int>(HISTO_TIME_TO_SEC(time - this->start_time_)) <
-      this->warmup_)
+  if (static_cast<int>(HISTO_TIME_TO_SEC(time - start_time_)) <
+      warmup_)
     goto skip;
 
-  this->pkt_cnt_ += batch->cnt;
+  pkt_cnt_ += batch->cnt;
 
   for (int i = 0; i < batch->cnt; i++) {
     uint64_t pkt_time;
@@ -77,10 +77,10 @@ void Measure::ProcessBatch(struct pkt_batch *batch) {
       else
         continue;
 
-      this->bytes_cnt_ += batch->pkts[i]->mbuf.pkt_len;
-      this->total_latency_ += diff;
+      bytes_cnt_ += batch->pkts[i]->mbuf.pkt_len;
+      total_latency_ += diff;
 
-      record_latency(&this->hist_, diff);
+      record_latency(&hist_, diff);
     }
   }
 
@@ -89,8 +89,8 @@ skip:
 }
 
 struct snobj *Measure::CommandGetSummary(struct snobj *arg) {
-  uint64_t pkt_total = this->pkt_cnt_;
-  uint64_t byte_total = this->bytes_cnt_;
+  uint64_t pkt_total = pkt_cnt_;
+  uint64_t byte_total = bytes_cnt_;
   uint64_t bits = (byte_total + pkt_total * 24) * 8;
 
   struct snobj *r = snobj_map();
@@ -98,7 +98,7 @@ struct snobj *Measure::CommandGetSummary(struct snobj *arg) {
   snobj_map_set(r, "timestamp", snobj_double(get_epoch_time()));
   snobj_map_set(r, "packets", snobj_uint(pkt_total));
   snobj_map_set(r, "bits", snobj_uint(bits));
-  snobj_map_set(r, "total_latency_ns", snobj_uint(this->total_latency_ * 100));
+  snobj_map_set(r, "total_latency_ns", snobj_uint(total_latency_ * 100));
 
   return r;
 }

@@ -57,20 +57,20 @@ class VXLANEncap : public Module {
 const std::vector<struct Command> VXLANEncap::cmds = {};
 
 struct snobj *VXLANEncap::Init(struct snobj *arg) {
-  this->dstport_ = rte_cpu_to_be_16(4789);
+  dstport_ = rte_cpu_to_be_16(4789);
 
   if (arg) {
     int dstport = snobj_eval_uint(arg, "dstport");
     if (dstport <= 0 || dstport >= 65536)
       return snobj_err(EINVAL, "invalid 'dstport' field");
-    this->dstport_ = rte_cpu_to_be_16(dstport);
+    dstport_ = rte_cpu_to_be_16(dstport);
   }
 
   return NULL;
 }
 
 void VXLANEncap::ProcessBatch(struct pkt_batch *batch) {
-  uint16_t dstport = this->dstport_;
+  uint16_t dstport = dstport_;
   int cnt = batch->cnt;
 
   for (int i = 0; i < cnt; i++) {
