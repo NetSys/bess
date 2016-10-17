@@ -2,12 +2,13 @@ sudo: required
 dist: trusty
 
 env:
-  - CXX=g++ CC=gcc
+  - CXX=g++-4.7 CC=gcc-4.7
   - CXX=g++-5 CC=gcc-5
 
 install:
   - sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
   - sudo apt-get update
+  - sudo apt-get install -y gcc-4.7 g++-4.7
   - sudo apt-get install -y gcc-5 g++-5
   - sudo apt-get install -y python python-scapy libpcap-dev
   - sudo apt-get install -y libgraph-easy-perl linux-headers-$(uname -r)
