@@ -67,6 +67,17 @@ struct sn_ioc_queue_mapping {
 	int rxq_to_cpu[SN_MAX_RXQ];
 };
 
+struct tx_queue_opts {
+  /* If set, the driver will push tags for all xmitted packets.
+   * Both are in host order. */
+  uint16_t tci;
+  uint16_t outer_tci;
+};
+
+struct rx_queue_opts {
+  uint8_t loopback;
+};
+
 struct sn_conf_space {
 	uint64_t bar_size;
 
@@ -83,19 +94,8 @@ struct sn_conf_space {
 	uint8_t link_on;
 	uint8_t promisc_on;
 
-	struct tx_queue_opts
-	{
-		/* If set, the driver will push tags for all xmitted packets.
-		 * Both are in host order. */
-		uint16_t tci;
-		uint16_t outer_tci;
-	} txq_opts;
-
-	struct rx_queue_opts
-	{
-		uint8_t loopback;
-	} rxq_opts;
-
+    struct tx_queue_opts txq_opts;
+	struct rx_queue_opts rxq_opts;
 } __attribute__((__aligned__(64)));
 
 struct sn_rxq_registers {
