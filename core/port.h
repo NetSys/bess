@@ -13,7 +13,7 @@ typedef uint8_t queue_t;
 #define QUEUE_UNKNOWN			255
 #define MAX_QUEUES_PER_DIR		32	/* [0, 31] (for each RX/TX) */
 
-ct_assert(MAX_QUEUES_PER_DIR < QUEUE_UNKNOWN);
+static_assert(MAX_QUEUES_PER_DIR < QUEUE_UNKNOWN, "too many queues");
 
 #define DRIVER_FLAG_SELF_INC_STATS	0x0001
 #define DRIVER_FLAG_SELF_OUT_STATS	0x0002

@@ -16,8 +16,8 @@ typedef uint16_t gate_idx_t;
 /* A module may have up to MAX_GATES input/output gates (separately). */
 #define MAX_GATES		8192
 #define DROP_GATE		MAX_GATES
-ct_assert(MAX_GATES < INVALID_GATE);
-ct_assert(DROP_GATE <= MAX_GATES);
+static_assert(MAX_GATES < INVALID_GATE, "invalid macro value");
+static_assert(DROP_GATE <= MAX_GATES, "invalid macro value");
 
 #include "snobj.h"
 #include "metadata.h"
@@ -33,8 +33,6 @@ ct_assert(DROP_GATE <= MAX_GATES);
 
 #define MAX_TASKS_PER_MODULE	32
 #define INVALID_TASK_ID		((task_id_t)-1)
-
-ct_assert(MAX_TASKS_PER_MODULE < INVALID_TASK_ID);
 
 struct task_result {
 	uint64_t packets;

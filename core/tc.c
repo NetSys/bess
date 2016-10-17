@@ -489,7 +489,8 @@ static char *print_tc_stats_detail(struct sched *s, char *p, int max_cnt)
 
 	int num_printed;
 
-	ct_assert(sizeof(struct tc_stats) >= sizeof(fields));
+	static_assert(sizeof(struct tc_stats) >= sizeof(fields),
+			"incomplete field names");
 
 	p += sprintf(p, "\n");
 

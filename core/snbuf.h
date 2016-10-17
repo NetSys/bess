@@ -15,8 +15,10 @@
 
 /* NOTE: NEVER use rte_pktmbuf_*() directly,
  *       unless you know what you are doing */
-ct_assert(SNBUF_MBUF == sizeof(struct rte_mbuf));
-ct_assert(SNBUF_HEADROOM == RTE_PKTMBUF_HEADROOM);
+static_assert(SNBUF_MBUF == sizeof(struct rte_mbuf),
+              "DPDK compatibility check failed");
+static_assert(SNBUF_HEADROOM == RTE_PKTMBUF_HEADROOM,
+              "DPDK compatibility check failed");
 
 /* snbuf and mbuf share the same start address, so that we can avoid conversion.
  *

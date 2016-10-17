@@ -8,8 +8,6 @@
 
 #include <x86intrin.h>
 
-#define ct_assert(p)	static_assert(p, "Compile-time assertion failure")
-
 /* Hint for performance optimization. Same as _nassert() of TI compilers */
 #define promise(cond) 		({if (!(cond)) __builtin_unreachable(); })
 #define promise_unreachable()	__builtin_unreachable();

@@ -4,7 +4,8 @@
 
 #define MAX_FIELDS 8
 #define MAX_FIELD_SIZE 8
-ct_assert(MAX_FIELD_SIZE <= sizeof(uint64_t));
+static_assert(MAX_FIELD_SIZE <= sizeof(uint64_t),
+              "field cannot be larger than 8 bytes");
 
 #define HASH_KEY_SIZE (MAX_FIELDS * MAX_FIELD_SIZE)
 
