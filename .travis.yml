@@ -6,7 +6,7 @@ env:
   - CXX=g++-5 CC=gcc-5
 
 before_install:
-  - sysctl -w vm.nr_hugepages=1024
+  - sudo sysctl -w vm.nr_hugepages=1024
   - sudo mkdir -p /mnt/huge
   - sudo mount -t hugetlbfs nodev /mnt/huge
 
