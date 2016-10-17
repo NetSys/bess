@@ -1,5 +1,4 @@
 #include "../module.h"
-#include "../utils/random.h"
 
 #include <rte_hash_crc.h>
 
