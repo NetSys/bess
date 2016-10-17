@@ -9,7 +9,8 @@
 #include <rte_ethdev.h>
 #include <rte_eal.h>
 
-#include "log.h"
+#include <glog/logging.h>
+
 #include "time.h"
 #include "worker.h"
 #include "dpdk.h"
@@ -33,8 +34,8 @@ fail:
 	if (fp)
 		fclose(fp);
 
-	log_notice("/sys/devices/system/node/possible not available. "
-			"Assuming a single-node system...\n");
+	LOG(INFO) << "/sys/devices/system/node/possible not available. "
+			      << "Assuming a single-node system...";
 	return 1;
 }
 
@@ -52,14 +53,14 @@ static void enable_syslog()
 static ssize_t dpdk_log_init_writer(void *cookie, const char *data, size_t len)
 {
 	enable_syslog();
-	_log(LOG_INFO, "%.*s", (int)len, data);
+	LOG(INFO) << string(data, len);
 	disable_syslog();
 	return len;
 }
 
 static ssize_t dpdk_log_writer(void *cookie, const char *data, size_t len)
 {
-	_log(LOG_INFO, "%.*s", (int)len, data);
+	LOG(INFO) << string(data, len);
 	return len;
 }
 
@@ -130,8 +131,7 @@ static void init_eal(char *prog_name, int mb_per_socket, int multi_instance)
 	disable_syslog();
 	ret = rte_eal_init(rte_argc, const_cast<char **>(rte_argv));
 	if (ret < 0) {
-		log_crit("rte_eal_init() failed: ret = %d\n", ret);
-		exit(EXIT_FAILURE);
+		LOG(FATAL) << "rte_eal_init() failed: ret = " << ret;
 	}
 
 	enable_syslog();
