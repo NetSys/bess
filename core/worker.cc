@@ -7,6 +7,8 @@
 #include <rte_config.h>
 #include <rte_lcore.h>
 
+#include <glog/logging.h>
+
 #include "common.h"
 #include "worker.h"
 #include "time.h"
@@ -222,14 +224,18 @@ static void *run_worker(void *_arg)
 	STORE_BARRIER();
 	workers[ctx.wid] = &ctx;
 
-	log_info("Worker %d(%p) is running on core %d (socket %d)\n", 
-			ctx.wid, &ctx, ctx.core, ctx.socket);
+	LOG(INFO) << "Worker " << ctx.wid
+            << "(" << &ctx << ") "
+            << "is running on core " << ctx.core
+            << " (socket " << ctx.socket << ")";
 
 	CPU_ZERO(&set);
 	sched_loop(ctx.s);
 
-	log_info("Worker %d(%p) is quitting... (core %d, socket %d)\n", 
-			ctx.wid, &ctx, ctx.core, ctx.socket);
+	LOG(INFO) << "Worker " << ctx.wid
+            << "(" << &ctx << ") "
+            << "is quitting... (core " << ctx.core
+            << ", socket " << ctx.socket << ")";
 
 	sched_free(ctx.s);
 

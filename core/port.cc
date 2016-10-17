@@ -8,6 +8,8 @@
 #include <rte_config.h>
 #include <rte_ether.h>
 
+#include <glog/logging.h>
+
 #include "mem_alloc.h"
 #include "namespace.h"
 #include "port.h"
@@ -297,7 +299,7 @@ int acquire_queues(Port *p, const struct module *m, packet_dir_t dir,
 	int i;
 
 	if (dir != PACKET_DIR_INC && dir != PACKET_DIR_OUT) {
-		log_err("Incorrect packet dir %d\n", dir);
+		LOG(ERROR) << "Incorrect packet dir " << dir;
 		return -EINVAL;
 	}
 
@@ -348,7 +350,7 @@ void release_queues(Port *p, const struct module *m, packet_dir_t dir,
 	int i;
 
 	if (dir != PACKET_DIR_INC && dir != PACKET_DIR_OUT) {
-		log_err("Incorrect packet dir %d\n", dir);
+		LOG(ERROR) << "Incorrect packet dir " << dir;
 		return;
 	}
 

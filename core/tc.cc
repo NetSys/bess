@@ -7,12 +7,13 @@
 #include <rte_config.h>
 #include <rte_cycles.h>
 
+#include <glog/logging.h>
+
 #include "common.h"
 #include "opts.h"
 #include "debug.h"
 #include "time.h"
 #include "worker.h"
-#include "log.h"
 #include "module.h"
 #include "utils/random.h"
 
@@ -634,7 +635,7 @@ static void print_stats(struct sched *s, struct sched_stats *last_stats)
 	p = print_tc_stats_detail(s, p, 16);
 #endif
 
-	log_info("%s", buf);
+	LOG(INFO) << buf;
 }
 
 static inline struct task_result tc_scheduled(struct tc *c)
@@ -777,7 +778,7 @@ void sched_test_alloc()
 
 	sched_free(s);
 
-	log_debug("SCHED: test passed\n");
+	DLOG(INFO) << "SCHED: test passed";
 }
 
 void sched_test_perf()

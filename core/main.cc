@@ -238,7 +238,7 @@ again:
 	}
 
 	if (trials > 0) {
-		LOG(INFO) << Old instance has been successfully terminated.";
+		LOG(INFO) << "Old instance has been successfully terminated.";
   }
 
 	ret = ftruncate(fd, 0);

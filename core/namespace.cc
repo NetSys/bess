@@ -7,7 +7,8 @@
 
 #include <rte_hash_crc.h>
 
-#include "log.h"
+#include <glog/logging.h>
+
 #include "utils/cdlist.h"
 
 #include "namespace.h"
@@ -79,17 +80,16 @@ static void ns_table_dump()
 	struct ns_elem *entry;
 	struct cdlist_head *bhead;
 
-	log_debug("== ns_table_dump starts ==\n");
+	DLOG(INFO) << "== ns_table_dump starts ==";
 
 	for (int i = 0; i < ht.bucket_size; i++) {
 		bhead = &ht.ns_elem_bhead[i];
 		cdlist_for_each_entry(entry, bhead, ns_table_bhead) {
-			log_debug("entry '%s' is in bucket %d\n",
-					entry->name, i);
+      DLOG(INFO) << "entry '" << entry->name << "' is in bucket " << i;
 		}
 	}
 
-	log_debug("== ns_table_dump ends ==\n");
+	DLOG(INFO) << "== ns_table_dump ends ==";
 }
 
 static int ns_table_resize(int new_bsize)
@@ -399,7 +399,7 @@ void ns_valid_name_test()
 	ret = ns_is_valid_name(name5);
 	assert(!ret);
 
-	log_info("PASS: ns_valid_name_test\n");
+  DLOG(INFO) << "PASS: ns_valid_name_test";
 }
 
 void ns_hashtable_test()
@@ -470,7 +470,7 @@ void ns_hashtable_test()
 	ret_obj = ns_lookup(NS_TYPE_PORT, port2_name);
 	assert (!ret_obj);
 
-	log_info("PASS: ns_hastable_test\n");
+	DLOG(INFO) << "PASS: ns_hastable_test";
 }
 
 void ns_iterator_test()
@@ -602,7 +602,7 @@ void ns_iterator_test()
 	assert(count == 7); // 4 modules, 1 driver, 3 ports
 	ns_release_iterator(&iter_all);
 
-	log_info("PASS: ns_iterator_test\n");
+	DLOG(INFO) << "PASS: ns_iterator_test";
 }
 
 void ns_table_resize_test()
@@ -654,7 +654,7 @@ void ns_table_resize_test()
 	// resize table
 	ret = ns_table_resize(64);
 	if (ret) {
-		log_err("FAIL: ns_table_resize()\n");
+		LOG(ERROR) << "FAIL: ns_table_resize()";
 		return;
 	}
 
@@ -680,7 +680,7 @@ void ns_table_resize_test()
 	// resize table
 	ret = ns_table_resize(16);
 	if (ret) {
-		log_err("FAIL: ns_table_resize()\n");
+		LOG(ERROR) << "FAIL: ns_table_resize()";
 		return;
 	}
 
@@ -703,5 +703,5 @@ void ns_table_resize_test()
 	ret_obj = ns_lookup(NS_TYPE_PORT, port2_name);
 	assert (ret_obj == &port2_obj);
 
-	log_info("PASS: ns_table_resize_test\n");
+	LOG(INFO) << "PASS: ns_table_resize_test";
 }
