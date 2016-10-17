@@ -40,8 +40,8 @@ endif
 
 -include extra.mk
 
-SRCS = $(wildcard *.c utils/*.c tests/*.c modules/_*.c drivers/_*.c)
-OBJS = $(SRCS:.c=.o)
+SRCS = $(wildcard *.c utils/*.c tests/*.c modules/*.cc drivers/*.cc)
+OBJS = $(patsubst %.c,%.o, $(filter %.c, $(SRCS))) $(patsubst %.cc,%.o, $(filter %.cc, $(SRCS)))
 HEADERS = $(wildcard *.h utils/*.h tests/*.h modules/*.h drivers/*.h)
 EXEC = bessd
 
@@ -69,6 +69,19 @@ $(DEPS): $(SRCS) $(HEADERS)
 	@$(CXX) $(CFLAGS) -MM $(SRCS) | sed 's|\(.*\)\.o: \(.*\)\.c|\2.o: \2.c|' > $(DEPS)
 
 %.o: %.c
+	$(eval COMMAND = $(CXX) $(CFLAGS) -c -o $@ $<)
+	@if $(COMMAND); then \
+		if [ $(VERBOSE) -eq 0 ]; then \
+			echo "[CXX] $<"; \
+		else \
+			echo "[CXX] $(COMMAND)"; \
+		fi \
+	else \
+		echo "Compile error: \033[0;31m$<\033[0;33m\n$(COMMAND)\033[0m"; \
+		false; \
+	fi
+
+%.o: %.cc
 	$(eval COMMAND = $(CXX) $(CFLAGS) -c -o $@ $<)
 	@if $(COMMAND); then \
 		if [ $(VERBOSE) -eq 0 ]; then \
