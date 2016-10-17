@@ -24,24 +24,24 @@ else
             Make sure $(abspath $(RTE_SDK)) is available and built)
 endif
 
-CFLAGS += -std=gnu++11 -g3 -ggdb3 -Ofast -march=native \
-	  -Wall -Werror -Wno-unused-function -Wno-unused-but-set-variable \
-	  -I$(DPDK_INC_DIR) \
-	  -fno-rtti \
-	  -D_GNU_SOURCE
+CXXFLAGS += -std=gnu++11 -g3 -ggdb3 -Ofast -march=native \
+	    -Wall -Werror -Wno-unused-function -Wno-unused-but-set-variable \
+	    -I$(DPDK_INC_DIR) \
+	    -fno-rtti \
+	    -D_GNU_SOURCE
 
 LDFLAGS += -rdynamic -L$(DPDK_LIB_DIR) -Wl,-rpath=$(DPDK_LIB_DIR)
 LIBS += -Wl,--whole-archive -l$(DPDK_LIB) -Wl,--no-whole-archive -lm -pthread -ldl -lrt -lpcap
 
 ifdef SANITIZE
     LDFLAGS += -fsanitize=address
-    CFLAGS += -fsanitize=address -fno-omit-frame-pointer
+    CXXFLAGS += -fsanitize=address -fno-omit-frame-pointer
 endif
 
 -include extra.mk
 
-SRCS = $(wildcard *.c utils/*.c tests/*.c modules/*.cc drivers/*.cc)
-OBJS = $(patsubst %.c,%.o, $(filter %.c, $(SRCS))) $(patsubst %.cc,%.o, $(filter %.cc, $(SRCS)))
+SRCS = $(wildcard *.cc utils/*.cc tests/*.cc modules/*.cc drivers/*.cc)
+OBJS = $(patsubst %.cc,%.o, $(filter %.cc, $(SRCS)))
 HEADERS = $(wildcard *.h utils/*.h tests/*.h modules/*.h drivers/*.h)
 EXEC = bessd
 
@@ -66,23 +66,10 @@ VERBOSE = 0
 all: $(DEPS) $(EXEC)
 
 $(DEPS): $(SRCS) $(HEADERS)
-	@$(CXX) $(CFLAGS) -MM $(SRCS) | sed 's|\(.*\)\.o: \(.*\)\.c|\2.o: \2.c|' > $(DEPS)
-
-%.o: %.c
-	$(eval COMMAND = $(CXX) $(CFLAGS) -c -o $@ $<)
-	@if $(COMMAND); then \
-		if [ $(VERBOSE) -eq 0 ]; then \
-			echo "[CXX] $<"; \
-		else \
-			echo "[CXX] $(COMMAND)"; \
-		fi \
-	else \
-		echo "Compile error: \033[0;31m$<\033[0;33m\n$(COMMAND)\033[0m"; \
-		false; \
-	fi
+	@$(CXX) $(CXXFLAGS) -MM $(SRCS) | sed 's|\(.*\)\.o: \(.*\)\.c|\2.o: \2.c|' > $(DEPS)
 
 %.o: %.cc
-	$(eval COMMAND = $(CXX) $(CFLAGS) -c -o $@ $<)
+	$(eval COMMAND = $(CXX) $(CXXFLAGS) -c -o $@ $<)
 	@if $(COMMAND); then \
 		if [ $(VERBOSE) -eq 0 ]; then \
 			echo "[CXX] $<"; \
@@ -112,7 +99,7 @@ $(EXEC): $(OBJS)
 -include $(DEPS)
 
 clean:
-	rm -f $(DEPS) $(EXEC) *.o modules/*.o drivers/*.o
+	rm -f $(DEPS) $(EXEC) *.o modules/*.o drivers/*.o utils/*.o tests/*.o
 
 tags:
 	@ctags -R *
