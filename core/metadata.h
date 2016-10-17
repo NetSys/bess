@@ -78,13 +78,13 @@ static inline int is_valid_offset(mt_offset_t offset)
 
 /* slowest but easiest */
 #define ptr_attr(module, attr_id, pkt, type) \
-	ptr_attr_with_offset(mt_attr_offset(module, attr_id), pkt, type)
+	ptr_attr_with_offset(module->attr_offsets[attr_id], pkt, type)
 
 #define get_attr(module, attr_id, pkt, type) \
-	get_attr_with_offset(mt_attr_offset(module, attr_id), pkt, type)
+	get_attr_with_offset(module->attr_offsets[attr_id], pkt, type)
 
 #define set_attr(module, attr_id, pkt, type, val) \
-	set_attr_with_offset(mt_attr_offset(module, attr_id), pkt, type, val)
+	set_attr_with_offset(module->attr_offsets[attr_id], pkt, type, val)
 
 enum mt_access_mode {
 	MT_READ,
@@ -105,14 +105,5 @@ char *get_scope_attr_name(scope_id_t scope_id);
 int *get_scope_attr_size(scope_id_t scope_id);
 
 int is_valid_attr(const char *name, int size, enum mt_access_mode mode);
-
-/* Modules should call this function to declare additional metadata
- * attributes at initialization time.
- * Static metadata attributes that are defined in module class are
- * automatically registered, so only attributes specific to a module 'instance'
- * need this function.
- * Returns its allocated ID (>= 0), or a negative number for error */
-int add_metadata_attr(struct module *m, const char *name, int size, 
-		enum mt_access_mode mode);
 
 #endif

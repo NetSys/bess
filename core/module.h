@@ -401,6 +401,15 @@ const ModuleClass *find_mclass(const char *name);
 
 int add_mclass(const ModuleClass *mclass);
 
+/* Modules should call this function to declare additional metadata
+ * attributes at initialization time.
+ * Static metadata attributes that are defined in module class are
+ * automatically registered, so only attributes specific to a module 'instance'
+ * need this function.
+ * Returns its allocated ID (>= 0), or a negative number for error */
+int add_metadata_attr(Module *m, const char *name, int size, 
+		enum mt_access_mode mode);
+
 #define ADD_MODULE(_MOD, _NAME_TEMPLATE, _HELP) \
 	ModuleClassRegister<_MOD> __mclass##_MOD(#_MOD, _NAME_TEMPLATE, _HELP);
 
