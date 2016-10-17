@@ -2,7 +2,7 @@
 #define _WORKER_H_
 
 #include <stdint.h>
-#include <pthread.h>
+#include <thread>
 
 #include "common.h"
 #include "pktbatch.h"
@@ -43,9 +43,8 @@ struct worker_context {
     finished
   } status;
 
-  pthread_t thread;
-  int wid;  /* always [0, MAX_WORKERS - 1] */
-  int core; /* TODO: should be cpuset_t */
+  int wid;		/* always [0, MAX_WORKERS - 1] */
+  int core;		/* TODO: should be cpuset_t */
   int socket;
   int fd_event;
 
@@ -68,6 +67,7 @@ struct worker_context {
 };
 
 extern int num_workers;
+extern std::thread worker_threads[MAX_WORKERS];
 extern struct worker_context *volatile workers[MAX_WORKERS];
 extern __thread struct worker_context ctx;
 
