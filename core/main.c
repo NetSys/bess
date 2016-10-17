@@ -54,7 +54,7 @@ static bool ValidateCoreID(const char* flagname, int32_t value) {
 
   return true;
 }
-DEFINE_int32(c, -1, "Core ID for the default worker thread");
+DEFINE_int32(c, 0, "Core ID for the default worker thread");
 
 static bool ValidateTCPPort(const char* flagname, int32_t value) {
   if (value <= 0) {
@@ -80,7 +80,7 @@ DEFINE_int32(m, 2048, "Specifies how many megabytes to use per socket");
 /* NOTE: At this point DPDK has not been initilaized, 
  *       so it cannot invoke rte_* functions yet. */
 // Processes already-parsed gflags command-line arguments.
-static void process_args() {
+static void process_args(int argc, char *argv[]) {
   num_workers = 0;
 
   // Validate arguments.  We do this here to avoid the unused-variable warning we'd get if
@@ -88,6 +88,8 @@ static void process_args() {
   google::RegisterFlagValidator(&FLAGS_c, &ValidateCoreID);
   google::RegisterFlagValidator(&FLAGS_p, &ValidateTCPPort);
   google::RegisterFlagValidator(&FLAGS_m, &ValidateMegabytesPerSocket);
+
+  gflags::ParseCommandLineFlags(&argc, &argv, true);
 
   // TODO(barath): Eliminate this sequence of ifs once we directly use FLAGS from other
   // components in BESS.
@@ -346,12 +348,13 @@ static void set_resource_limit()
 	}
 }
 
-int main(int argc, char **argv)
-{
+int main(int argc, char *argv[]) {
 	int signal_fd = -1;
 
-  gflags::ParseCommandLineFlags(&argc, &argv, true);
-	process_args();
+  google::InitGoogleLogging(argv[0]);
+  
+  gflags::SetUsageMessage("BESS Command Line Options:");
+	process_args(argc, argv);
 
 	check_user();
 	
