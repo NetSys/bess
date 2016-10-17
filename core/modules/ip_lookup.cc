@@ -15,7 +15,7 @@ static inline int is_valid_gate(gate_idx_t gate) {
   return (gate < MAX_GATES || gate == DROP_GATE);
 }
 
-class IpLookup : public Module {
+class IPLookup : public Module {
  public:
   virtual struct snobj *Init(struct snobj *arg);
   virtual void Deinit();
@@ -25,7 +25,7 @@ class IpLookup : public Module {
   static const gate_idx_t kNumIGates = 1;
   static const gate_idx_t kNumOGates = MAX_GATES;
 
-  static const Commands<IpLookup> cmds;
+  static const Commands<IPLookup> cmds;
 
  private:
   struct snobj *CommandAdd(struct snobj *arg);
@@ -35,12 +35,12 @@ class IpLookup : public Module {
   gate_idx_t default_gate_;
 };
 
-const Commands<IpLookup> IpLookup::cmds = {
-    {"add", &IpLookup::CommandAdd, 0},
-    {"clear", &IpLookup::CommandClear, 0},
+const Commands<IPLookup> IPLookup::cmds = {
+    {"add", &IPLookup::CommandAdd, 0},
+    {"clear", &IPLookup::CommandClear, 0},
 };
 
-struct snobj *IpLookup::Init(struct snobj *arg) {
+struct snobj *IPLookup::Init(struct snobj *arg) {
   struct rte_lpm_config conf = {
       .max_rules = 1024, .number_tbl8s = 128, .flags = 0,
   };
@@ -55,9 +55,9 @@ struct snobj *IpLookup::Init(struct snobj *arg) {
   return NULL;
 }
 
-void IpLookup::Deinit() { rte_lpm_free(lpm_); }
+void IPLookup::Deinit() { rte_lpm_free(lpm_); }
 
-void IpLookup::ProcessBatch(struct pkt_batch *batch) {
+void IPLookup::ProcessBatch(struct pkt_batch *batch) {
   gate_idx_t ogates[MAX_PKT_BURST];
   gate_idx_t default_gate = default_gate_;
 
@@ -128,7 +128,7 @@ void IpLookup::ProcessBatch(struct pkt_batch *batch) {
   run_split(this, ogates, batch);
 }
 
-struct snobj *IpLookup::CommandAdd(struct snobj *arg) {
+struct snobj *IPLookup::CommandAdd(struct snobj *arg) {
   char *prefix = snobj_eval_str(arg, "prefix");
   uint32_t prefix_len = snobj_eval_uint(arg, "prefix_len");
   gate_idx_t gate = snobj_eval_uint(arg, "gate");
@@ -169,11 +169,11 @@ struct snobj *IpLookup::CommandAdd(struct snobj *arg) {
   return NULL;
 }
 
-struct snobj *IpLookup::CommandClear(struct snobj *arg) {
+struct snobj *IPLookup::CommandClear(struct snobj *arg) {
   rte_lpm_delete_all(lpm_);
   default_gate_ = DROP_GATE;
   return NULL;
 }
 
-ADD_MODULE(IpLookup, "ip_lookup",
+ADD_MODULE(IPLookup, "ip_lookup",
            "performs Longest Prefix Match on IPv4 packets")
