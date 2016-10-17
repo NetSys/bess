@@ -445,8 +445,8 @@ static void print_heading(int indent, int list_depth)
 
 static void snobj_dump_recur(const struct snobj *m, int indent, int list_depth)
 {
-	const int blob_byte_limit = 16;
-	const int list_item_limit = 8;
+	const size_t blob_byte_limit = 16;
+	const size_t list_item_limit = 8;
 
 	size_t i;
 
@@ -500,8 +500,8 @@ static void snobj_dump_recur(const struct snobj *m, int indent, int list_depth)
 			struct snobj *child = m->list.arr[i];
 
 			if (i == list_item_limit) {
-				log_debug("(... %d more)\n",
-						(int)m->size - list_item_limit);
+				log_debug("(... %zu more)\n",
+						m->size - list_item_limit);
 				break;
 			}
 
