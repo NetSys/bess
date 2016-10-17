@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "common.h"
+#include "log.h"
 
 typedef uint16_t task_id_t;
 typedef uint16_t gate_idx_t;
@@ -23,6 +24,7 @@ ct_assert(DROP_GATE <= MAX_GATES);
 #include "worker.h"
 #include "snbuf.h"
 #include "utils/cdlist.h"
+#include "utils/simd.h"
 
 #define MODULE_NAME_LEN		128
 
