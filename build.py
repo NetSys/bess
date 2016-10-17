@@ -127,8 +127,8 @@ def check_essential():
         sys.exit(1)
 
     required('pcap/pcap.h', 'libpcap-dev')
-    required_cxx('glog/logging.h', 'libgoogle-glog-dev and libgoogle-glog0v5', 'g++')
-    required_cxx('gflags/gflags.h', 'libgflags-dev and libgflags2v5', 'g++')
+    required_cxx('glog/logging.h', 'libgoogle-glog-dev', 'g++')
+    required_cxx('gflags/gflags.h', 'libgflags-dev', 'g++')
 
 def set_config(filename, config, new_value):
     with open(filename) as fp:
