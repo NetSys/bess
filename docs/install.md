@@ -31,6 +31,8 @@ To build BESS on your Linux machine, you will need the following software packag
 - `build-essential`: for gcc, make, and libc-dev
 - `python`: Python 2.7 required (Python 3 support is planned)
 - `libpcap-dev`
+- `libgoogle-glog-dev` and `libgoogle-glog0v5`: Google glog logging library
+- `libgflags-dev` and `libgflags2v5`: Google gflags command-line argument library
 
 > NOTE: These package names are from Ubuntu. Other Linux distributions may have different package names.
 
