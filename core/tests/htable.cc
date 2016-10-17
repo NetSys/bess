@@ -1,3 +1,5 @@
+#if __AVX__
+
 #include <assert.h>
 #include <stdio.h>
 #include <math.h>
@@ -548,3 +550,5 @@ static void functest()
 
 ADD_TEST(perftest, "hash table performance comparison")
 ADD_TEST(functest, "hash table correctness test")
+
+#endif  // __AVX__
