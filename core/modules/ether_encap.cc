@@ -16,10 +16,8 @@ class EtherEncap : public Module {
   static const gate_idx_t kNumIGates = 1;
   static const gate_idx_t kNumOGates = 1;
 
-  static const std::vector<struct Command> cmds;
-
   int num_attrs = 5;
-  struct mt_attr atts[MAX_ATTRS_PER_MODULE] = {
+  struct mt_attr attrs[MAX_ATTRS_PER_MODULE] = {
       {
           .name = "ether_src", .size = ETHER_ADDR_LEN, .mode = MT_READ,
       },
@@ -31,8 +29,6 @@ class EtherEncap : public Module {
       },
   };
 };
-
-const std::vector<struct Command> EtherEncap::cmds = {};
 
 void EtherEncap::ProcessBatch(struct pkt_batch *batch) {
   int cnt = batch->cnt;

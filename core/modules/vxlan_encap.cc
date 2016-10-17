@@ -26,8 +26,6 @@ class VXLANEncap : public Module {
   static const gate_idx_t kNumIGates = 1;
   static const gate_idx_t kNumOGates = 1;
 
-  static const std::vector<struct Command> cmds;
-
   int num_attrs = 6;
   struct mt_attr attrs[MAX_ATTRS_PER_MODULE] = {
       {
@@ -53,8 +51,6 @@ class VXLANEncap : public Module {
  private:
   uint16_t dstport_;
 };
-
-const std::vector<struct Command> VXLANEncap::cmds = {};
 
 struct snobj *VXLANEncap::Init(struct snobj *arg) {
   dstport_ = rte_cpu_to_be_16(4789);

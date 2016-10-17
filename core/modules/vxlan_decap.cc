@@ -21,8 +21,6 @@ class VXLANDecap : public Module {
   static const gate_idx_t kNumIGates = 1;
   static const gate_idx_t kNumOGates = 1;
 
-  static const std::vector<struct Command> cmds;
-
   int num_attrs = 3;
   struct mt_attr attrs[MAX_ATTRS_PER_MODULE] = {
       {
@@ -36,8 +34,6 @@ class VXLANDecap : public Module {
       },
   };
 };
-
-const std::vector<struct Command> VXLANDecap::cmds = {};
 
 void VXLANDecap::ProcessBatch(struct pkt_batch *batch) {
   int cnt = batch->cnt;

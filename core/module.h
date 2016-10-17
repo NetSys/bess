@@ -84,16 +84,18 @@ struct gates {
 
 #define CALL_MEMBER_FN(obj, ptr_to_member_func) ((obj).*(ptr_to_member_func))
 
-typedef struct snobj *(Module::*CmdFunc)(struct snobj *);
-
+template <typename T>
 struct Command {
-	std::string cmd;
-	CmdFunc func;
+        std::string cmd;
+        struct snobj *(T::*func)(struct snobj *);
 
 	// if non-zero, workers don't need to be paused in order to
 	// run this command
 	int mt_safe;
 };
+
+template <typename T>
+using Commands = std::vector<struct Command<T> >;
 
 class ModuleClass {
 public:
@@ -120,12 +122,12 @@ public:
 	virtual gate_idx_t NumIGates() const = 0;
 	virtual gate_idx_t NumOGates() const = 0;
 
-  virtual std::vector<struct Command> Commands() const = 0;
-
+  virtual std::vector<std::string> Commands() const = 0;
+  virtual struct snobj *RunCommand(Module *m, const std::string &user_cmd, struct snobj *arg) const = 0;
 private:
-	std::string name_;
-	std::string name_template_;
-	std::string help_;
+	const std::string name_;
+	const std::string name_template_;
+	const std::string help_;
 };
 
 template <typename T>
@@ -143,10 +145,27 @@ public:
 		return m;
 	};
 
+        typedef struct snobj *(T::*CmdFunc)(struct snobj *);
+
 	virtual gate_idx_t NumIGates() const { return T::kNumIGates; }
 	virtual gate_idx_t NumOGates() const { return T::kNumOGates; }
 
-	virtual std::vector<struct Command> Commands() const { return T::cmds; }
+	virtual std::vector<std::string> Commands() const {
+                std::vector<std::string> ret;
+                for (auto &cmd : T::cmds)
+                        ret.push_back(cmd.cmd);
+                return ret;
+        }
+
+        virtual struct snobj *RunCommand(Module *m, const std::string &user_cmd, struct snobj *arg) const {
+                for (auto &cmd: T::cmds) {
+                        if (user_cmd == cmd.cmd)
+                                return CALL_MEMBER_FN(*reinterpret_cast<T *>(m), cmd.func)(arg);
+                }
+
+                return snobj_err(ENOTSUP, "'%s' does not support command '%s'",
+                                Name().c_str(), user_cmd.c_str());
+        }
 };
 
 class Module {
@@ -164,14 +183,20 @@ public:
 	virtual struct snobj *GetDesc() const { return snobj_str(""); };
 	virtual struct snobj *GetDump() const { return snobj_nil(); };
 
+        static const gate_idx_t kNumIGates = 1;
+        static const gate_idx_t kNumOGates = 1;
+
+        static const Commands<Module> cmds;
+
 // -------------------------------------------------------------------------
 
 public:
 	const ModuleClass *Class() const { return mclass_; };
-//	std::string ClassName() const { return mclass_->Name(); };
 	std::string Name() const { return name_; };
 
-	struct snobj *RunCommand(const std::string &user_cmd, struct snobj *arg);
+	struct snobj *RunCommand(const std::string &cmd, struct snobj *arg) {
+                return mclass_->RunCommand(this, cmd, arg);
+        }
 
 private:
 	// non-copyable and non-movable by default
@@ -183,7 +208,7 @@ private:
 	std::string name_;
 	const ModuleClass *mclass_;
 
-	template<typename T> friend class ModuleClassRegister;
+        template <typename T> friend class ModuleClassRegister;
 
 // FIXME: porting in progress ----------------------------
 public:
@@ -411,6 +436,6 @@ int add_metadata_attr(Module *m, const char *name, int size,
 		enum mt_access_mode mode);
 
 #define ADD_MODULE(_MOD, _NAME_TEMPLATE, _HELP) \
-	ModuleClassRegister<_MOD> __mclass##_MOD(#_MOD, _NAME_TEMPLATE, _HELP);
+	ModuleClassRegister<_MOD> __mclass_##_MOD(#_MOD, _NAME_TEMPLATE, _HELP);
 
 #endif

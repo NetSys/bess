@@ -16,11 +16,6 @@ class IPEncap : public Module {
  public:
   virtual void ProcessBatch(struct pkt_batch *batch);
 
-  static const gate_idx_t kNumIGates = 1;
-  static const gate_idx_t kNumOGates = 1;
-
-  static const std::vector<struct Command> cmds;
-
   int num_attrs = 5;
   struct mt_attr attrs[MAX_ATTRS_PER_MODULE] = {
       {
@@ -40,8 +35,6 @@ class IPEncap : public Module {
       },
   };
 };
-
-const std::vector<struct Command> IPEncap::cmds = {};
 
 void IPEncap::ProcessBatch(struct pkt_batch *batch) {
   int cnt = batch->cnt;

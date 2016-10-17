@@ -18,7 +18,7 @@ class VLANPush : public Module {
   static const gate_idx_t kNumIGates = 1;
   static const gate_idx_t kNumOGates = 1;
 
-  static const std::vector<struct Command> cmds;
+  static const Commands<VLANPush> cmds;
 
  private:
   struct snobj *CommandSetTci(struct snobj *arg);
@@ -28,8 +28,8 @@ class VLANPush : public Module {
   uint32_t qinq_tag_ = {};
 };
 
-const std::vector<struct Command> VLANPush::cmds = {
-    {"set_tci", static_cast<CmdFunc>(&VLANPush::CommandSetTci), 0},
+const Commands<VLANPush> VLANPush::cmds = {
+    {"set_tci", &VLANPush::CommandSetTci, 0},
 };
 
 struct snobj *VLANPush::Init(struct snobj *arg) {

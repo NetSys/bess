@@ -1118,10 +1118,9 @@ class BPF : public Module {
   struct snobj *CommandAdd(struct snobj *arg);
   struct snobj *CommandClear(struct snobj *arg);
 
-  static const gate_idx_t kNumIGates = 1;
   static const gate_idx_t kNumOGates = MAX_GATES;
 
-  static const std::vector<struct Command> cmds;
+  static const Commands<BPF> cmds;
 
  private:
   struct filter filters_[MAX_FILTERS + 1] = {{0}};
@@ -1130,9 +1129,9 @@ class BPF : public Module {
   inline void process_batch_1filter(struct pkt_batch *batch);
 };
 
-const std::vector<struct Command> BPF::cmds = {
-    {"add", static_cast<CmdFunc>(&BPF::CommandAdd), 0},
-    {"clear", static_cast<CmdFunc>(&BPF::CommandClear), 0}};
+const Commands<BPF> BPF::cmds = {
+    {"add", &BPF::CommandAdd, 0},
+    {"clear", &BPF::CommandClear, 0}};
 
 struct snobj *BPF::Init(struct snobj *arg) {
   return arg ? CommandAdd(arg) : NULL;

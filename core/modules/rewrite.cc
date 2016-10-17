@@ -9,10 +9,7 @@ class Rewrite : public Module {
 
   virtual void ProcessBatch(struct pkt_batch *batch);
 
-  static const gate_idx_t kNumIGates = 1;
-  static const gate_idx_t kNumOGates = 1;
-
-  static const std::vector<struct Command> cmds;
+  static const Commands<Rewrite> cmds;
 
  private:
   inline void DoRewrite(struct pkt_batch *batch);
@@ -30,9 +27,9 @@ class Rewrite : public Module {
   unsigned char templates_[SLOTS][MAX_TEMPLATE_SIZE] __ymm_aligned = {};
 };
 
-const std::vector<struct Command> Rewrite::cmds = {
-    {"add", static_cast<CmdFunc>(&Rewrite::CommandAdd), 0},
-    {"clear", static_cast<CmdFunc>(&Rewrite::CommandClear), 0},
+const Commands<Rewrite> Rewrite::cmds = {
+    {"add", &Rewrite::CommandAdd, 0},
+    {"clear", &Rewrite::CommandClear, 0},
 };
 
 struct snobj *Rewrite::Init(struct snobj *arg) {

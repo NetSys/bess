@@ -25,7 +25,7 @@ class IpLookup : public Module {
   static const gate_idx_t kNumIGates = 1;
   static const gate_idx_t kNumOGates = MAX_GATES;
 
-  static const std::vector<struct Command> cmds;
+  static const Commands<IpLookup> cmds;
 
  private:
   struct snobj *CommandAdd(struct snobj *arg);
@@ -35,9 +35,9 @@ class IpLookup : public Module {
   gate_idx_t default_gate_;
 };
 
-const std::vector<struct Command> IpLookup::cmds = {
-    {"add", static_cast<CmdFunc>(&IpLookup::CommandAdd), 0},
-    {"clear", static_cast<CmdFunc>(&IpLookup::CommandClear), 0},
+const Commands<IpLookup> IpLookup::cmds = {
+    {"add", &IpLookup::CommandAdd, 0},
+    {"clear", &IpLookup::CommandClear, 0},
 };
 
 struct snobj *IpLookup::Init(struct snobj *arg) {

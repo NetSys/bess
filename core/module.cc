@@ -16,6 +16,8 @@ Module::~Module() {
 	;
 }
 
+const Commands<Module> Module::cmds = {};
+
 task_id_t register_task(Module *m, void *arg)
 {
 	task_id_t id;
@@ -571,17 +573,6 @@ void dump_pcap_pkts(struct gate *gate, struct pkt_batch *batch)
 			return;
 		}
 	}
-}
-
-struct snobj *Module::RunCommand(const std::string &user_cmd, struct snobj *arg) {
-	for (auto &cmd : mclass_->Commands()) {
-		/* TODO: check mt_safe */
-		if (user_cmd == cmd.cmd)
-			return CALL_MEMBER_FN(*this, cmd.func)(arg);
-	}
-
-	return snobj_err(ENOTSUP, "'%s' does not support command '%s'",
-			Class()->Name().c_str(), user_cmd.c_str());
 }
 
 #endif

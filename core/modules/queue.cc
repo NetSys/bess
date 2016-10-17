@@ -17,7 +17,7 @@ class Queue : public Module {
   static const gate_idx_t kNumIGates = 1;
   static const gate_idx_t kNumOGates = 1;
 
-  static const std::vector<struct Command> cmds;
+  static const Commands<Queue> cmds;
 
  private:
   int Resize(int slots);
@@ -29,9 +29,9 @@ class Queue : public Module {
   int burst_ = {};
 };
 
-const std::vector<struct Command> Queue::cmds = {
-    {"set_burst", static_cast<CmdFunc>(&Queue::CommandSetBurst), 1},
-    {"set_size", static_cast<CmdFunc>(&Queue::CommandSetSize), 0},
+const Commands<Queue> Queue::cmds = {
+    {"set_burst", &Queue::CommandSetBurst, 1},
+    {"set_size", &Queue::CommandSetSize, 0},
 };
 
 int Queue::Resize(int slots) {

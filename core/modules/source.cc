@@ -12,16 +12,16 @@ class Source : public Module {
   static const gate_idx_t kNumIGates = 0;
   static const gate_idx_t kNumOGates = 1;
 
-  static const std::vector<struct Command> cmds;
+  static const Commands<Source> cmds;
 
  private:
   int pkt_size_ = {0};
   int burst_ = {0};
 };
 
-const std::vector<struct Command> Source::cmds = {
-    {"set_pkt_size", static_cast<CmdFunc>(&Source::command_set_pkt_size), 1},
-    {"set_burst", static_cast<CmdFunc>(&Source::command_set_burst), 1},
+const Commands<Source> Source::cmds = {
+    {"set_pkt_size", &Source::command_set_pkt_size, 1},
+    {"set_burst", &Source::command_set_burst, 1},
 };
 
 struct snobj *Source::Init(struct snobj *arg) {

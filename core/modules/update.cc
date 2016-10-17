@@ -13,7 +13,7 @@ class Update : public Module {
   static const gate_idx_t kNumIGates = 1;
   static const gate_idx_t kNumOGates = 1;
 
-  static const std::vector<struct Command> cmds;
+  static const Commands<Update> cmds;
 
  private:
   struct snobj *CommandAdd(struct snobj *arg);
@@ -28,9 +28,9 @@ class Update : public Module {
   } fields_[MAX_FIELDS] = {};
 };
 
-const std::vector<struct Command> Update::cmds = {
-    {"add", static_cast<CmdFunc>(&Update::CommandAdd), 0},
-    {"clear", static_cast<CmdFunc>(&Update::CommandClear), 0},
+const Commands<Update> Update::cmds = {
+    {"add", &Update::CommandAdd, 0},
+    {"clear", &Update::CommandClear, 0},
 };
 
 struct snobj *Update::Init(struct snobj *arg) {

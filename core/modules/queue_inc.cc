@@ -13,7 +13,7 @@ class QueueInc : public Module {
   static const gate_idx_t kNumIGates = 0;
   static const gate_idx_t kNumOGates = 1;
 
-  static const std::vector<struct Command> cmds;
+  static const Commands<QueueInc> cmds;
 
  private:
   struct snobj *CommandSetBurst(struct snobj *arg);
@@ -24,8 +24,8 @@ class QueueInc : public Module {
   int burst_ = {0};
 };
 
-const std::vector<struct Command> QueueInc::cmds = {
-    {"set_burst", static_cast<CmdFunc>(&QueueInc::CommandSetBurst), 1},
+const Commands<QueueInc> QueueInc::cmds = {
+    {"set_burst", &QueueInc::CommandSetBurst, 1},
 };
 
 struct snobj *QueueInc::Init(struct snobj *arg) {

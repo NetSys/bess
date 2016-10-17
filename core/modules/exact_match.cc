@@ -100,6 +100,9 @@ struct EmField {
   int size; /* in bytes. 1 <= size <= MAX_FIELD_SIZE */
 };
 
+#include <vector>
+#include <string>
+
 class ExactMatch : public Module {
  public:
   virtual struct snobj *Init(struct snobj *arg);
@@ -113,7 +116,7 @@ class ExactMatch : public Module {
   static const gate_idx_t kNumIGates = 1;
   static const gate_idx_t kNumOGates = MAX_GATES;
 
-  static const std::vector<struct Command> cmds;
+  static const Commands<ExactMatch> cmds;
 
  private:
   struct snobj *CommandAdd(struct snobj *arg);
@@ -134,12 +137,11 @@ class ExactMatch : public Module {
   struct htable ht_;
 };
 
-const std::vector<struct Command> ExactMatch::cmds = {
-    {"add", static_cast<CmdFunc>(&ExactMatch::CommandAdd), 0},
-    {"delete", static_cast<CmdFunc>(&ExactMatch::CommandDelete), 0},
-    {"clear", static_cast<CmdFunc>(&ExactMatch::CommandClear), 0},
-    {"set_default_gate",
-     static_cast<CmdFunc>(&ExactMatch::CommandSetDefaultGate), 1}};
+const Commands<ExactMatch> ExactMatch::cmds = {
+    {"add", &ExactMatch::CommandAdd, 0},
+    {"delete", &ExactMatch::CommandDelete, 0},
+    {"clear", &ExactMatch::CommandClear, 0},
+    {"set_default_gate", &ExactMatch::CommandSetDefaultGate, 1}};
 
 struct snobj *ExactMatch::AddFieldOne(struct snobj *field, struct EmField *f,
                                       int idx) {
