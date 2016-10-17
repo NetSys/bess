@@ -24,7 +24,7 @@ else
             Make sure $(abspath $(RTE_SDK)) is available and built)
 endif
 
-CXXFLAGS += -std=gnu++11 -g3 -ggdb3 -Ofast -march=core2 \
+CXXFLAGS += -std=gnu++11 -g3 -ggdb3 -Ofast -march=native \
 	    -Wall -Werror -Wno-unused-function -Wno-unused-but-set-variable \
 	    -I$(DPDK_INC_DIR) \
 	    -fno-rtti \
