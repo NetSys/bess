@@ -5,12 +5,16 @@
 #include <unistd.h>
 #include <errno.h>
 #include <signal.h>
+#include <stdint.h>
 
 #include <sys/ioctl.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/file.h>
 #include <sys/resource.h>
+
+#include <glog/logging.h>
+#include <gflags/gflags.h>
 
 #include "opts.h"
 #include "log.h"
@@ -32,137 +36,116 @@ struct global_opts global_opts = {
 
 static struct global_opts *opts = (struct global_opts *)&global_opts;
 
-static void print_usage(char *exec_name)
-{
-	log_info("Usage: %s" \
-		" [-h] [-t] [-g] [-c <core>] [-p <port>] [-m <MB>] [-i pidfile]" \
-		" [-f] [-k] [-s] [-d] [-a]\n\n",
-		exec_name);
+// TODO(barath): Rename these flags to something more intuitive.
+DEFINE_bool(t, false, "Dump the size of internal data structures");
+DEFINE_bool(g, false, "Run test suites");
+DEFINE_string(i, "", "Specifies where to write the pidfile");
+DEFINE_bool(f, false, "Run BESS in foreground mode (for developers)");
+DEFINE_bool(k, false, "Kill existing BESS instance, if any");
+DEFINE_bool(s, false, "Show TC statistics every second");
+DEFINE_bool(d, false, "Run BESS in debug mode (with debug log messages)");
+DEFINE_bool(a, false, "Allow multiple instances");
 
-	log_info("  %-16s This help message\n", 
-			"-h");
-	log_info("  %-16s Dump the size of internal data structures\n", 
-			"-t");
-	log_info("  %-16s Run test suites\n", 
-			"-g");
-	log_info("  %-16s Core ID for the default worker thread\n",
-			"-c <core>");
-	log_info("  %-16s Specifies the TCP port on which BESS" \
-			" listens for controller connections\n",
-			"-p <port>");
-	log_info("  %-16s Specifies how many megabytes to use per socket\n",
-			"-m <MB>");
-	log_info("  %-16s Specifies where to write the pidfile\n",
-			"-i <pidfile>");
-	log_info("  %-16s Run BESS in foreground mode (for developers)\n",
-			"-f");
-	log_info("  %-16s Kill existing BESS instance, if any\n",
-			"-k");
-	log_info("  %-16s Show TC statistics every second\n",
-			"-s");
-	log_info("  %-16s Run BESS in debug mode (with debug log messages)\n",
-			"-d");
-	log_info("  %-16s Allow multiple instances\n",
-			"-a");
+static bool ValidateCoreID(const char* flagname, int32_t value) {
+  if (!is_cpu_present(value)) {
+    LOG(ERROR) << "Invalid core ID: " << value;
+    return false;
+  }
 
-	exit(2);
+  return true;
 }
+DEFINE_int32(c, 0, "Core ID for the default worker thread");
+
+static bool ValidateTCPPort(const char* flagname, int32_t value) {
+  if (value <= 0) {
+    LOG(ERROR) << "Invalid TCP port number: " << value;
+    return false;
+  }
+
+  return true;
+}
+DEFINE_int32(p, DEFAULT_PORT, "Specifies the TCP port on which BESS listens for controller connections");
+
+static bool ValidateMegabytesPerSocket(const char* flagname, int32_t value) {
+  if (value <= 0) {
+    LOG(ERROR) << "Invalid memory size: " << value;
+    return false;
+  }
+
+  return true;
+}
+DEFINE_int32(m, 2048, "Specifies how many megabytes to use per socket");
+
 
 /* NOTE: At this point DPDK has not been initilaized, 
  *       so it cannot invoke rte_* functions yet. */
-static void parse_args(int argc, char **argv)
-{
-	char c;
+static void process_args(int argc, char *argv[]) {
+  num_workers = 0;
 
-	num_workers = 0;
+  // Validate arguments.  We do this here to avoid the unused-variable warning we'd get if
+  // we did it at the top of the file with static declarations.
+  google::RegisterFlagValidator(&FLAGS_c, &ValidateCoreID);
+  google::RegisterFlagValidator(&FLAGS_p, &ValidateTCPPort);
+  google::RegisterFlagValidator(&FLAGS_m, &ValidateMegabytesPerSocket);
 
-	while ((c = getopt(argc, argv, ":htgc:p:fksdm:i:a")) != -1) {
-		switch (c) {
-		case 'h':
-			print_usage(argv[0]);
-			break;
+  gflags::ParseCommandLineFlags(&argc, &argv, true);
 
-		case 't':
-			dump_types();
-			exit(EXIT_SUCCESS);
-			break;
+  // TODO(barath): Eliminate this sequence of ifs once we directly use FLAGS from other
+  // components in BESS.
+  if (FLAGS_t) {
+    dump_types();
+    exit(EXIT_SUCCESS);
+  }
+  if (FLAGS_g) {
+    opts->test_mode = 1;
+  }
 
-		case 'g':
-			opts->test_mode = 1;
-			break;
+  if (FLAGS_c != -1) {
+    opts->default_core = FLAGS_c;
+  }
 
-		case 'c':
-			sscanf(optarg, "%d", &opts->default_core);
-			if (!is_cpu_present(opts->default_core)) {
-				log_err("Invalid core ID: %s\n", optarg);
-				print_usage(argv[0]);
-			}
-			break;
+  if (FLAGS_p != -1) {
+    opts->port = FLAGS_p;
+  }
 
-		case 'p':
-			sscanf(optarg, "%hu", &opts->port);
-			if (opts->port == 0) {
-				log_err("Invalid TCP port number: %s\n",
-						optarg);
-				print_usage(argv[0]);
-			}
-			break;
+  if (FLAGS_f) {
+    opts->foreground = 1;
+  }
 
-		case 'f':
-			opts->foreground = 1;
-			break;
+  if (FLAGS_k) {
+    opts->kill_existing = 1;
+  }
 
-		case 'k':
-			opts->kill_existing = 1;
-			break;
+  if (FLAGS_s) {
+    opts->print_tc_stats = 1;
+  }
 
-		case 's':
-			opts->print_tc_stats = 1;
-			break;
+  if (FLAGS_d) {
+    opts->debug_mode = 1;
+  }
 
-		case 'd':
-			opts->debug_mode = 1;
-			break;
+  if (FLAGS_m) {
+    opts->mb_per_socket = FLAGS_m;
+  }
 
-		case 'm':
-			if (0 == sscanf(optarg, "%d", &opts->mb_per_socket)) {
-				log_err("Invalid memory size: %s\n", optarg);
-				print_usage(argv[0]);
-			}
-			break;
+  if (FLAGS_i.length() > 0) {
+    if (opts->pidfile)
+      free(opts->pidfile);
+    opts->pidfile = strdup(FLAGS_i.c_str()); /* Gets leaked */
+  }
 
-		case 'i':
-			if (opts->pidfile)
-				free(opts->pidfile);
-			opts->pidfile = strdup(optarg); /* Gets leaked */
-			break;
-
-		case 'a':
-			opts->multi_instance = 1;
-			break;
-
-		case ':':
-			log_err("Argument is required for -%c\n", optopt);
-			print_usage(argv[0]);
-			break;
-
-		case '?':
-			log_err("Invalid command line option -%c\n", optopt);
-			print_usage(argv[0]);
-			break;
-
-		default:
-			assert(0);
-		}
-	}
+  if (FLAGS_a) {
+    opts->multi_instance = 1;
+  }
 
 	if (opts->test_mode) {
 		opts->foreground = 1;
 		opts->port = 0;		/* disable the control channel */
 	}
 
-	if (opts->foreground && !opts->print_tc_stats)
+	if (opts->foreground && !opts->print_tc_stats) {
 		log_info("TC statistics output is disabled (add -s option?)\n");
+  }
 }
 
 /* todo: chdir */
@@ -364,11 +347,13 @@ static void set_resource_limit()
 	}
 }
 
-int main(int argc, char **argv)
-{
+int main(int argc, char *argv[]) {
 	int signal_fd = -1;
 
-	parse_args(argc, argv);
+  google::InitGoogleLogging(argv[0]);
+  
+  gflags::SetUsageMessage("BESS Command Line Options:");
+	process_args(argc, argv);
 
 	check_user();
 	
