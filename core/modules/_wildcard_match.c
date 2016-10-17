@@ -102,9 +102,9 @@ static inline uint32_t wm_hash(const hkey_t *key, uint32_t key_len,
 
 /* k1 = k2 & mask */
 static void mask(void *k1, const void *k2, const void *mask, int key_size) {
-  uint64_t *restrict a = static_cast<uint64_t *>(k1);
-  const uint64_t *restrict b = reinterpret_cast<const uint64_t *>(k2);
-  const uint64_t *restrict m = reinterpret_cast<const uint64_t *>(mask);
+  uint64_t *a = static_cast<uint64_t *>(k1);
+  const uint64_t *b = reinterpret_cast<const uint64_t *>(k2);
+  const uint64_t *m = reinterpret_cast<const uint64_t *>(mask);
 
   switch (key_size >> 3) {
     default:

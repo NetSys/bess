@@ -11,7 +11,7 @@ struct snbuf;
 
 struct pkt_batch {
 	int cnt;
-	struct snbuf * restrict pkts[MAX_PKT_BURST];
+	struct snbuf *pkts[MAX_PKT_BURST];
 };
 
 static inline void batch_clear(struct pkt_batch *batch)

@@ -8,8 +8,6 @@
 
 #include <x86intrin.h>
 
-#define restrict __restrict__
-
 #define ct_assert(p)	static_assert(p, "Compile-time assertion failure")
 
 /* Hint for performance optimization. Same as _nassert() of TI compilers */
@@ -107,15 +105,15 @@ static inline int is_be_system()
 
 /* src/dst addresses and their sizes must be a multiple of SIMD register size */
 static inline void
-memcpy_sloppy(void * restrict dst, const void * restrict src, size_t n)
+memcpy_sloppy(void * __restrict__ dst, const void * __restrict__ src, size_t n)
 {
 #if __AVX2__
 	typedef __m256i block_t;
 #else
 	typedef __m128i block_t;
 #endif
-	block_t * restrict d = (block_t *)dst;
-	const block_t * restrict s = (const block_t *)src;
+	block_t * __restrict__ d = (block_t *)dst;
+	const block_t * __restrict__ s = (const block_t *)src;
 
 	int bytes_left = n;
 	while (bytes_left > 0) {

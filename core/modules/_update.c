@@ -58,7 +58,7 @@ void Update::ProcessBatch(struct pkt_batch *batch) {
       struct snbuf *snb = batch->pkts[j];
       char *head = static_cast<char *>(snb_head_data(snb));
 
-      uint64_t *restrict p = reinterpret_cast<uint64_t *>(head) + offset;
+      uint64_t *p = reinterpret_cast<uint64_t *>(head) + offset;
 
       *p = (*p & mask) | value;
     }

@@ -77,7 +77,7 @@ struct snbuf {
 	char _data[SNBUF_DATA];
 };
 
-typedef struct snbuf * restrict * restrict snb_array_t;
+typedef struct snbuf **snb_array_t;
 
 static inline void *snb_head_data(struct snbuf *snb)
 {
@@ -147,7 +147,7 @@ static inline int snb_alloc_bulk(snb_array_t snbs, int cnt, uint16_t len)
 		return 0;
 
 	for (i = 0; i < cnt; i++) {
-		struct snbuf * __restrict snb = snbs[i];
+		struct snbuf *snb = snbs[i];
 
 		rte_mbuf_refcnt_set(&snb->mbuf, 1);
 		rte_pktmbuf_reset(&snb->mbuf);

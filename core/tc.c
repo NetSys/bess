@@ -348,8 +348,8 @@ again:
 /* acc += x */
 static inline void accumulate(resource_arr_t acc, resource_arr_t x)
 {
-	uint64_t * restrict p1 = acc;
-	uint64_t * restrict p2 = x;
+	uint64_t *p1 = acc;
+	uint64_t *p2 = x;
 
 #if 0 && __AVX2__
 	*((__m256i *)p1) = _mm256_add_epi64(*((__m256i *)p1), *((__m256i *)p2));

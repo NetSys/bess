@@ -23,7 +23,7 @@ struct port;
 struct port_stats;
 struct snobj;
 
-typedef struct snbuf * restrict * restrict snb_array_t;
+typedef struct snbuf **snb_array_t;
 
 typedef int (*pkt_io_func_t)(struct port *, queue_t, snb_array_t, int);
 

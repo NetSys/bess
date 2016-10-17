@@ -148,7 +148,7 @@ void RandomUpdate::ProcessBatch(struct pkt_batch *batch) {
       struct snbuf *snb = batch->pkts[j];
       char *head = static_cast<char *>(snb_head_data(snb));
 
-      uint32_t *restrict p;
+      uint32_t *p;
       uint32_t rand_val;
 
       p = (uint32_t *)(head + offset);
