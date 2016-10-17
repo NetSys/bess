@@ -37,15 +37,15 @@ struct snobj *MetadataTest::AddAttributes(struct snobj *attrs,
     /* check /var/log/syslog for log messages */
     switch (mode) {
       case MT_READ:
-        log_info("module %s: %s, %d bytes, read\n", this->Name().c_str(),
+        log_info("module %s: %s, %d bytes, read\n", Name().c_str(),
                  attr_name, attr_size);
         break;
       case MT_WRITE:
-        log_info("module %s: %s, %d bytes, write\n", this->Name().c_str(),
+        log_info("module %s: %s, %d bytes, write\n", Name().c_str(),
                  attr_name, attr_size);
         break;
       case MT_UPDATE:
-        log_info("module %s: %s, %d bytes, update\n", this->Name().c_str(),
+        log_info("module %s: %s, %d bytes, update\n", Name().c_str(),
                  attr_name, attr_size);
         break;
     }
@@ -59,17 +59,17 @@ struct snobj *MetadataTest::Init(struct snobj *arg) {
   struct snobj *err;
 
   if ((attrs = snobj_eval(arg, "read"))) {
-    err = this->AddAttributes(attrs, MT_READ);
+    err = AddAttributes(attrs, MT_READ);
     if (err) return err;
   }
 
   if ((attrs = snobj_eval(arg, "write"))) {
-    err = this->AddAttributes(attrs, MT_WRITE);
+    err = AddAttributes(attrs, MT_WRITE);
     if (err) return err;
   }
 
   if ((attrs = snobj_eval(arg, "update"))) {
-    err = this->AddAttributes(attrs, MT_UPDATE);
+    err = AddAttributes(attrs, MT_UPDATE);
     if (err) return err;
   }
 

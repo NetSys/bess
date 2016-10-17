@@ -199,52 +199,52 @@ struct snobj *ExactMatch::Init(struct snobj *arg) {
   for (size_t i = 0; i < fields->size; i++) {
     struct snobj *field = snobj_list_get(fields, i);
     struct snobj *err;
-    struct EmField *f = &this->fields_[i];
+    struct EmField *f = &fields_[i];
 
     f->pos = size_acc;
 
-    err = this->AddFieldOne(field, f, i);
+    err = AddFieldOne(field, f, i);
     if (err) return err;
 
     size_acc += f->size;
   }
 
-  this->default_gate_ = DROP_GATE;
-  this->num_fields_ = fields->size;
-  this->total_key_size_ = align_ceil(size_acc, sizeof(uint64_t));
+  default_gate_ = DROP_GATE;
+  num_fields_ = fields->size;
+  total_key_size_ = align_ceil(size_acc, sizeof(uint64_t));
 
-  int ret = ht_init(&ht_, this->total_key_size_, sizeof(gate_idx_t));
+  int ret = ht_init(&ht_, total_key_size_, sizeof(gate_idx_t));
   if (ret < 0) return snobj_err(-ret, "hash table creation failed");
 
   return NULL;
 }
 
-void ExactMatch::Deinit() { ht_close(&this->ht_); }
+void ExactMatch::Deinit() { ht_close(&ht_); }
 
 void ExactMatch::ProcessBatch(struct pkt_batch *batch) {
   gate_idx_t default_gate;
   gate_idx_t ogates[MAX_PKT_BURST];
 
-  int key_size = this->total_key_size_;
+  int key_size = total_key_size_;
   char keys[MAX_PKT_BURST][HASH_KEY_SIZE] __ymm_aligned;
 
   int cnt = batch->cnt;
 
-  default_gate = ACCESS_ONCE(this->default_gate_);
+  default_gate = ACCESS_ONCE(default_gate_);
 
   for (int i = 0; i < cnt; i++)
     memset(&keys[i][key_size - 8], 0, sizeof(uint64_t));
 
-  for (int i = 0; i < this->num_fields_; i++) {
-    uint64_t mask = this->fields_[i].mask;
+  for (int i = 0; i < num_fields_; i++) {
+    uint64_t mask = fields_[i].mask;
     int offset;
-    int pos = this->fields_[i].pos;
-    int attr_id = this->fields_[i].attr_id;
+    int pos = fields_[i].pos;
+    int attr_id = fields_[i].attr_id;
 
     if (attr_id < 0)
-      offset = this->fields_[i].offset;
+      offset = fields_[i].offset;
     else
-      offset = mt_offset_to_databuf_offset(this->attr_offsets[attr_id]);
+      offset = mt_offset_to_databuf_offset(attr_offsets[attr_id]);
 
     char *key = keys[0] + pos;
 
@@ -269,7 +269,7 @@ void ExactMatch::ProcessBatch(struct pkt_batch *batch) {
 }
 
 struct snobj *ExactMatch::GetDesc() {
-  return snobj_str_fmt("%d fields, %d rules", this->num_fields_, this->ht_.cnt);
+  return snobj_str_fmt("%d fields, %d rules", num_fields_, ht_.cnt);
 }
 
 struct snobj *ExactMatch::GetDump() {
@@ -277,9 +277,9 @@ struct snobj *ExactMatch::GetDump() {
   struct snobj *fields = snobj_list();
   struct snobj *rules = snobj_list();
 
-  for (int i = 0; i < this->num_fields_; i++) {
+  for (int i = 0; i < num_fields_; i++) {
     struct snobj *f_obj = snobj_map();
-    const struct EmField *f = &this->fields_[i];
+    const struct EmField *f = &fields_[i];
 
     snobj_map_set(f_obj, "size", snobj_uint(f->size));
     snobj_map_set(f_obj, "mask", snobj_blob(&f->mask, f->size));
@@ -296,11 +296,11 @@ struct snobj *ExactMatch::GetDump() {
   uint32_t next = 0;
   void *key;
 
-  while ((key = ht_iterate(&this->ht_, &next))) {
+  while ((key = ht_iterate(&ht_, &next))) {
     struct snobj *rule = snobj_list();
 
-    for (int i = 0; i < this->num_fields_; i++) {
-      const struct EmField *f = &this->fields_[i];
+    for (int i = 0; i < num_fields_; i++) {
+      const struct EmField *f = &fields_[i];
 
       snobj_list_add(rule,
                      snobj_blob(static_cast<uint8_t *>(key) + f->pos, f->size));
@@ -316,19 +316,19 @@ struct snobj *ExactMatch::GetDump() {
 }
 
 struct snobj *ExactMatch::GatherKey(struct snobj *fields, hkey_t *key) {
-  if (fields->size != static_cast<size_t>(this->num_fields_))
-    return snobj_err(EINVAL, "must specify %d fields", this->num_fields_);
+  if (fields->size != static_cast<size_t>(num_fields_))
+    return snobj_err(EINVAL, "must specify %d fields", num_fields_);
 
   memset(key, 0, sizeof(*key));
 
   for (size_t i = 0; i < fields->size; i++) {
-    int field_size = this->fields_[i].size;
-    int field_pos = this->fields_[i].pos;
+    int field_size = fields_[i].size;
+    int field_pos = fields_[i].pos;
 
     struct snobj *f_obj = snobj_list_get(fields, i);
     uint64_t f;
 
-    int force_be = (this->fields_[i].attr_id < 0);
+    int force_be = (fields_[i].attr_id < 0);
 
     if (snobj_binvalue_get(f_obj, field_size, &f, force_be))
       return snobj_err(EINVAL, "idx %lu: not a correct %d-byte value", i,
@@ -357,9 +357,9 @@ struct snobj *ExactMatch::CommandAdd(struct snobj *arg) {
   if (!fields || snobj_type(fields) != TYPE_LIST)
     return snobj_err(EINVAL, "'fields' must be a list");
 
-  if ((err = this->GatherKey(fields, &key))) return err;
+  if ((err = GatherKey(fields, &key))) return err;
 
-  ret = ht_set(&this->ht_, &key, &gate);
+  ret = ht_set(&ht_, &key, &gate);
   if (ret) return snobj_err(-ret, "ht_set() failed");
 
   return NULL;
@@ -374,16 +374,16 @@ struct snobj *ExactMatch::CommandDelete(struct snobj *arg) {
   if (!arg || snobj_type(arg) != TYPE_LIST)
     return snobj_err(EINVAL, "argument must be a list");
 
-  if ((err = this->GatherKey(arg, &key))) return err;
+  if ((err = GatherKey(arg, &key))) return err;
 
-  ret = ht_del(&this->ht_, &key);
+  ret = ht_del(&ht_, &key);
   if (ret < 0) return snobj_err(-ret, "ht_del() failed");
 
   return NULL;
 }
 
 struct snobj *ExactMatch::CommandClear(struct snobj *arg) {
-  ht_clear(&this->ht_);
+  ht_clear(&ht_);
 
   return NULL;
 }
@@ -391,7 +391,7 @@ struct snobj *ExactMatch::CommandClear(struct snobj *arg) {
 struct snobj *ExactMatch::CommandSetDefaultGate(struct snobj *arg) {
   int gate = snobj_int_get(arg);
 
-  this->default_gate_ = gate;
+  default_gate_ = gate;
 
   return NULL;
 }

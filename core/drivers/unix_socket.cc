@@ -52,22 +52,22 @@ void UnixSocketPort::AcceptNewClient() {
   int ret;
 
   for (;;) {
-    ret = accept4(this->listen_fd_, NULL, NULL, SOCK_NONBLOCK);
+    ret = accept4(listen_fd_, NULL, NULL, SOCK_NONBLOCK);
     if (ret >= 0) break;
 
     if (errno != EINTR) log_perr("[UnixSocket]:accept4()");
   }
 
-  this->recv_skip_cnt_ = 0;
+  recv_skip_cnt_ = 0;
 
-  if (this->old_client_fd_ != NOT_CONNECTED) {
+  if (old_client_fd_ != NOT_CONNECTED) {
     /* Reuse the old file descriptor number by atomically
      * exchanging the new fd with the old one.
      * The zombie socket is closed silently (see dup2) */
-    dup2(ret, this->client_fd_);
+    dup2(ret, client_fd_);
     close(ret);
   } else
-    this->client_fd_ = ret;
+    client_fd_ = ret;
 }
 
 /* This accept thread terminates once a new client is connected */
@@ -84,85 +84,85 @@ void UnixSocketPort::CloseConnection() {
   int ret;
 
   /* Keep client_fd, since it may be being used in unix_send_pkts() */
-  this->old_client_fd_ = this->client_fd_;
-  this->client_fd_ = NOT_CONNECTED;
+  old_client_fd_ = client_fd_;
+  client_fd_ = NOT_CONNECTED;
 
   /* relaunch the accept thread */
-  ret = pthread_create(&this->accept_thread_, NULL, AcceptThreadMain,
+  ret = pthread_create(&accept_thread_, NULL, AcceptThreadMain,
                        reinterpret_cast<void *>(this));
-  this->accept_thread_ = 0;
+  accept_thread_ = 0;
   if (ret) log_err("[UnixSocket]:pthread_create() returned errno %d", ret);
 }
 
 struct snobj *UnixSocketPort::Init(struct snobj *conf) {
-  int num_txq = this->num_queues[PACKET_DIR_OUT];
-  int num_rxq = this->num_queues[PACKET_DIR_INC];
+  int num_txq = num_queues[PACKET_DIR_OUT];
+  int num_rxq = num_queues[PACKET_DIR_INC];
 
   const char *path;
   size_t addrlen;
 
   int ret;
 
-  this->client_fd_ = NOT_CONNECTED;
-  this->old_client_fd_ = NOT_CONNECTED;
+  client_fd_ = NOT_CONNECTED;
+  old_client_fd_ = NOT_CONNECTED;
 
   if (num_txq > 1 || num_rxq > 1)
     return snobj_err(EINVAL, "Cannot have more than 1 queue per RX/TX");
 
-  this->listen_fd_ = socket(AF_UNIX, SOCK_SEQPACKET, 0);
-  if (this->listen_fd_ < 0) return snobj_err(errno, "socket(AF_UNIX) failed");
+  listen_fd_ = socket(AF_UNIX, SOCK_SEQPACKET, 0);
+  if (listen_fd_ < 0) return snobj_err(errno, "socket(AF_UNIX) failed");
 
-  this->addr_.sun_family = AF_UNIX;
+  addr_.sun_family = AF_UNIX;
 
   path = snobj_eval_str(conf, "path");
   if (path) {
-    snprintf(this->addr_.sun_path, sizeof(this->addr_.sun_path), "%s", path);
+    snprintf(addr_.sun_path, sizeof(addr_.sun_path), "%s", path);
   } else
-    snprintf(this->addr_.sun_path, sizeof(this->addr_.sun_path),
-             "%s/bess_unix_%s", P_tmpdir, this->Name().c_str());
+    snprintf(addr_.sun_path, sizeof(addr_.sun_path),
+             "%s/bess_unix_%s", P_tmpdir, Name().c_str());
 
   /* This doesn't include the trailing null character */
-  addrlen = sizeof(this->addr_.sun_family) + strlen(this->addr_.sun_path);
+  addrlen = sizeof(addr_.sun_family) + strlen(addr_.sun_path);
 
   /* non-abstract socket address? */
-  if (this->addr_.sun_path[0] != '@') {
+  if (addr_.sun_path[0] != '@') {
     /* remove existing socket file, if any */
-    unlink(this->addr_.sun_path);
+    unlink(addr_.sun_path);
   } else
-    this->addr_.sun_path[0] = '\0';
+    addr_.sun_path[0] = '\0';
 
-  ret = bind(this->listen_fd_,
-             reinterpret_cast<struct sockaddr *>(&this->addr_), addrlen);
-  if (ret < 0) return snobj_err(errno, "bind(%s) failed", this->addr_.sun_path);
+  ret = bind(listen_fd_,
+             reinterpret_cast<struct sockaddr *>(&addr_), addrlen);
+  if (ret < 0) return snobj_err(errno, "bind(%s) failed", addr_.sun_path);
 
-  ret = listen(this->listen_fd_, 1);
+  ret = listen(listen_fd_, 1);
   if (ret < 0) return snobj_err(errno, "listen() failed");
 
-  ret = pthread_create(&this->accept_thread_, NULL, AcceptThreadMain,
+  ret = pthread_create(&accept_thread_, NULL, AcceptThreadMain,
                        reinterpret_cast<void *>(this));
-  this->accept_thread_ = 0;
+  accept_thread_ = 0;
   if (ret) return snobj_err(ret, "pthread_create() failed");
 
   return NULL;
 }
 
 void UnixSocketPort::DeInit() {
-  if (this->accept_thread_) pthread_cancel(this->accept_thread_);
+  if (accept_thread_) pthread_cancel(accept_thread_);
 
-  close(this->listen_fd_);
+  close(listen_fd_);
 
-  if (this->client_fd_ >= 0) close(this->client_fd_);
+  if (client_fd_ >= 0) close(client_fd_);
 }
 
 int UnixSocketPort::RecvPackets(queue_t qid, snb_array_t pkts, int cnt) {
-  int client_fd = this->client_fd_;
+  int client_fd = client_fd_;
 
   int received;
 
   if (client_fd == NOT_CONNECTED) return 0;
 
-  if (this->recv_skip_cnt_) {
-    this->recv_skip_cnt_--;
+  if (recv_skip_cnt_) {
+    recv_skip_cnt_--;
     return 0;
   }
 
@@ -191,17 +191,17 @@ int UnixSocketPort::RecvPackets(queue_t qid, snb_array_t pkts, int cnt) {
     }
 
     /* connection closed */
-    this->CloseConnection();
+    CloseConnection();
     break;
   }
 
-  if (received == 0) this->recv_skip_cnt_ = RECV_SKIP_TICKS;
+  if (received == 0) recv_skip_cnt_ = RECV_SKIP_TICKS;
 
   return received;
 }
 
 int UnixSocketPort::SendPackets(queue_t qid, snb_array_t pkts, int cnt) {
-  int client_fd = this->client_fd_;
+  int client_fd = client_fd_;
   int sent = 0;
 
   for (int i = 0; i < cnt; i++) {

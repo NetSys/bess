@@ -39,7 +39,7 @@ struct snobj *VLANPush::Init(struct snobj *arg) {
     return snobj_err(EINVAL, "empty argument");
 
   if ((t = snobj_eval(arg, "tci")))
-    return this->CommandSetTci(t);
+    return CommandSetTci(t);
   else
     return snobj_err(EINVAL, "'tci' must be specified");
 }
@@ -48,8 +48,8 @@ struct snobj *VLANPush::Init(struct snobj *arg) {
 void VLANPush::ProcessBatch(struct pkt_batch *batch) {
   int cnt = batch->cnt;
 
-  uint32_t vlan_tag = this->vlan_tag_;
-  uint32_t qinq_tag = this->qinq_tag_;
+  uint32_t vlan_tag = vlan_tag_;
+  uint32_t qinq_tag = qinq_tag_;
 
   for (int i = 0; i < cnt; i++) {
     struct snbuf *pkt = batch->pkts[i];
@@ -82,7 +82,7 @@ void VLANPush::ProcessBatch(struct pkt_batch *batch) {
 }
 
 struct snobj *VLANPush::GetDesc() {
-  uint32_t vlan_tag_cpu = ntohl(this->vlan_tag_);
+  uint32_t vlan_tag_cpu = ntohl(vlan_tag_);
 
   return snobj_str_fmt("PCP=%u DEI=%u VID=%u", (vlan_tag_cpu >> 13) & 0x0007,
                        (vlan_tag_cpu >> 12) & 0x0001, vlan_tag_cpu & 0x0fff);
@@ -98,8 +98,8 @@ struct snobj *VLANPush::CommandSetTci(struct snobj *arg) {
 
   if (tci > 0xffff) return snobj_err(EINVAL, "TCI value must be 0-65535");
 
-  this->vlan_tag_ = htonl((0x8100 << 16) | tci);
-  this->qinq_tag_ = htonl((0x88a8 << 16) | tci);
+  vlan_tag_ = htonl((0x8100 << 16) | tci);
+  qinq_tag_ = htonl((0x88a8 << 16) | tci);
 
   return NULL;
 }

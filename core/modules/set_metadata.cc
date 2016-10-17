@@ -75,7 +75,7 @@ struct snobj *SetMetadata::AddAttrOne(struct snobj *attr) {
 
   int ret;
 
-  if (this->num_attrs_ >= MAX_ATTRS)
+  if (num_attrs_ >= MAX_ATTRS)
     return snobj_err(EINVAL,
                      "max %d attributes "
                      "can be specified",
@@ -110,11 +110,11 @@ struct snobj *SetMetadata::AddAttrOne(struct snobj *attr) {
   ret = add_metadata_attr(this, name, size, MT_WRITE);
   if (ret < 0) return snobj_err(-ret, "add_metadata_attr() failed");
 
-  strcpy(this->attrs_[this->num_attrs_].name, name);
-  this->attrs_[this->num_attrs_].size = size;
-  this->attrs_[this->num_attrs_].offset = offset;
-  this->attrs_[this->num_attrs_].value = value;
-  this->num_attrs_++;
+  strcpy(attrs_[num_attrs_].name, name);
+  attrs_[num_attrs_].size = size;
+  attrs_[num_attrs_].offset = offset;
+  attrs_[num_attrs_].value = value;
+  num_attrs_++;
 
   return NULL;
 }
@@ -132,7 +132,7 @@ struct snobj *SetMetadata::Init(struct snobj *arg) {
     struct snobj *attr = snobj_list_get(list, i);
     struct snobj *err;
 
-    err = this->AddAttrOne(attr);
+    err = AddAttrOne(attr);
     if (err) return err;
   }
 
@@ -140,8 +140,8 @@ struct snobj *SetMetadata::Init(struct snobj *arg) {
 }
 
 void SetMetadata::ProcessBatch(struct pkt_batch *batch) {
-  for (int i = 0; i < this->num_attrs_; i++) {
-    const struct Attr *attr = &this->attrs_[i];
+  for (int i = 0; i < num_attrs_; i++) {
+    const struct Attr *attr = &attrs_[i];
 
     mt_offset_t mt_offset = SetMetadata::attr_offsets[i];
 

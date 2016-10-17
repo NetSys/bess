@@ -76,8 +76,8 @@ class ZeroCopyVPort : public Port {
 struct snobj *ZeroCopyVPort::Init(struct snobj *arg) {
   struct vport_bar *bar = NULL;
 
-  int num_inc_q = this->num_queues[PACKET_DIR_INC];
-  int num_out_q = this->num_queues[PACKET_DIR_OUT];
+  int num_inc_q = num_queues[PACKET_DIR_INC];
+  int num_out_q = num_queues[PACKET_DIR_OUT];
 
   int bytes_per_llring;
   int total_bytes;
@@ -98,9 +98,9 @@ struct snobj *ZeroCopyVPort::Init(struct snobj *arg) {
   bar = static_cast<struct vport_bar *>(rte_zmalloc(NULL, total_bytes, 0));
   bar_address = (size_t)bar;
   assert(bar != NULL);
-  this->bar_ = bar;
+  bar_ = bar;
 
-  strncpy(bar->name, this->Name().c_str(), PORT_NAME_LEN);
+  strncpy(bar->name, Name().c_str(), PORT_NAME_LEN);
   bar->num_inc_q = num_inc_q;
   bar->num_out_q = num_out_q;
 
@@ -108,25 +108,25 @@ struct snobj *ZeroCopyVPort::Init(struct snobj *arg) {
 
   /* Set up inc llrings */
   for (i = 0; i < num_inc_q; i++) {
-    this->inc_regs_[i] = bar->inc_regs[i] = (struct vport_inc_regs *)ptr;
+    inc_regs_[i] = bar->inc_regs[i] = (struct vport_inc_regs *)ptr;
     ptr += sizeof(struct vport_inc_regs);
 
     llring_init((struct llring *)ptr, SLOTS_PER_LLRING, SINGLE_P, SINGLE_C);
     llring_set_water_mark((struct llring *)ptr, SLOTS_WATERMARK);
     bar->inc_qs[i] = (struct llring *)ptr;
-    this->inc_qs_[i] = bar->inc_qs[i];
+    inc_qs_[i] = bar->inc_qs[i];
     ptr += bytes_per_llring;
   }
 
   /* Set up out llrings */
   for (i = 0; i < num_out_q; i++) {
-    this->out_regs_[i] = bar->out_regs[i] = (struct vport_out_regs *)ptr;
+    out_regs_[i] = bar->out_regs[i] = (struct vport_out_regs *)ptr;
     ptr += sizeof(struct vport_out_regs);
 
     llring_init((struct llring *)ptr, SLOTS_PER_LLRING, SINGLE_P, SINGLE_C);
     llring_set_water_mark((struct llring *)ptr, SLOTS_WATERMARK);
     bar->out_qs[i] = (struct llring *)ptr;
-    this->out_qs_[i] = bar->out_qs[i];
+    out_qs_[i] = bar->out_qs[i];
     ptr += bytes_per_llring;
   }
 
@@ -141,15 +141,15 @@ struct snobj *ZeroCopyVPort::Init(struct snobj *arg) {
 
   for (i = 0; i < num_out_q; i++) {
     snprintf(file_name, PORT_NAME_LEN + 256, "%s/%s/%s.rx%d", P_tmpdir,
-             VPORT_DIR_PREFIX, this->Name().c_str(), i);
+             VPORT_DIR_PREFIX, Name().c_str(), i);
 
     mkfifo(file_name, 0666);
 
-    this->out_irq_fd_[i] = open(file_name, O_RDWR);
+    out_irq_fd_[i] = open(file_name, O_RDWR);
   }
 
   snprintf(file_name, PORT_NAME_LEN + 256, "%s/%s/%s", P_tmpdir,
-           VPORT_DIR_PREFIX, this->Name().c_str());
+           VPORT_DIR_PREFIX, Name().c_str());
   log_info("Writing port information to %s\n", file_name);
   fp = fopen(file_name, "w");
   fwrite(&bar_address, 8, 1, fp);
@@ -161,41 +161,41 @@ struct snobj *ZeroCopyVPort::Init(struct snobj *arg) {
 void ZeroCopyVPort::DeInit() {
   char file_name[PORT_NAME_LEN + 256];
 
-  int num_out_q = this->num_queues[PACKET_DIR_OUT];
+  int num_out_q = num_queues[PACKET_DIR_OUT];
 
   for (int i = 0; i < num_out_q; i++) {
     snprintf(file_name, PORT_NAME_LEN + 256, "%s/%s/%s.rx%d", P_tmpdir,
-             VPORT_DIR_PREFIX, this->Name().c_str(), i);
+             VPORT_DIR_PREFIX, Name().c_str(), i);
 
     unlink(file_name);
-    close(this->out_irq_fd_[i]);
+    close(out_irq_fd_[i]);
   }
 
   snprintf(file_name, PORT_NAME_LEN + 256, "%s/%s/%s", P_tmpdir,
-           VPORT_DIR_PREFIX, this->Name().c_str());
+           VPORT_DIR_PREFIX, Name().c_str());
   unlink(file_name);
 
-  rte_free(this->bar_);
+  rte_free(bar_);
 }
 
 int ZeroCopyVPort::SendPackets(queue_t qid, snb_array_t pkts, int cnt) {
-  struct llring *q = this->out_qs_[qid];
+  struct llring *q = out_qs_[qid];
   int ret;
 
   ret = llring_enqueue_bulk(q, (void **)pkts, cnt);
   if (ret == -LLRING_ERR_NOBUF) return 0;
 
-  if (__sync_bool_compare_and_swap(&this->out_regs_[qid]->irq_enabled, 1, 0)) {
+  if (__sync_bool_compare_and_swap(&out_regs_[qid]->irq_enabled, 1, 0)) {
     int ret;
     char t[1] = {'F'};
-    ret = write(this->out_irq_fd_[qid], reinterpret_cast<void *>(t), 1);
+    ret = write(out_irq_fd_[qid], reinterpret_cast<void *>(t), 1);
   }
 
   return cnt;
 }
 
 int ZeroCopyVPort::RecvPackets(queue_t qid, snb_array_t pkts, int cnt) {
-  struct llring *q = this->inc_qs_[qid];
+  struct llring *q = inc_qs_[qid];
   int ret;
 
   ret = llring_dequeue_burst(q, (void **)pkts, cnt);

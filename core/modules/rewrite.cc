@@ -43,13 +43,13 @@ struct snobj *Rewrite::Init(struct snobj *arg) {
   if (!(t = snobj_eval(arg, "templates")))
     return snobj_err(EINVAL, "'templates' must be specified");
 
-  return this->CommandAdd(t);
+  return CommandAdd(t);
 }
 
 inline void Rewrite::DoRewriteSingle(struct pkt_batch *batch) {
   const int cnt = batch->cnt;
-  uint16_t size = this->template_size_[0];
-  void *templ = this->templates_[0];
+  uint16_t size = template_size_[0];
+  void *templ = templates_[0];
 
   for (int i = 0; i < cnt; i++) {
     struct snbuf *pkt = batch->pkts[i];
@@ -64,11 +64,11 @@ inline void Rewrite::DoRewriteSingle(struct pkt_batch *batch) {
 }
 
 inline void Rewrite::DoRewrite(struct pkt_batch *batch) {
-  int start = this->next_turn_;
+  int start = next_turn_;
   const int cnt = batch->cnt;
 
   for (int i = 0; i < cnt; i++) {
-    uint16_t size = this->template_size_[start + i];
+    uint16_t size = template_size_[start + i];
     struct snbuf *pkt = batch->pkts[i];
     char *ptr = static_cast<char *>(pkt->mbuf.buf_addr) + SNBUF_HEADROOM;
 
@@ -76,23 +76,23 @@ inline void Rewrite::DoRewrite(struct pkt_batch *batch) {
     pkt->mbuf.pkt_len = size;
     pkt->mbuf.data_len = size;
 
-    memcpy_sloppy(ptr, this->templates_[start + i], size);
+    memcpy_sloppy(ptr, templates_[start + i], size);
   }
 
-  this->next_turn_ = (start + cnt) % this->num_templates_;
+  next_turn_ = (start + cnt) % num_templates_;
 }
 
 void Rewrite::ProcessBatch(struct pkt_batch *batch) {
-  if (this->num_templates_ == 1)
-    this->DoRewriteSingle(batch);
-  else if (this->num_templates_ > 1)
-    this->DoRewrite(batch);
+  if (num_templates_ == 1)
+    DoRewriteSingle(batch);
+  else if (num_templates_ > 1)
+    DoRewrite(batch);
 
   run_next_module(this, batch);
 }
 
 struct snobj *Rewrite::CommandAdd(struct snobj *arg) {
-  int curr = this->num_templates_;
+  int curr = num_templates_;
   int i;
 
   if (snobj_type(arg) != TYPE_LIST)
@@ -115,25 +115,25 @@ struct snobj *Rewrite::CommandAdd(struct snobj *arg) {
     if (templ->size > MAX_TEMPLATE_SIZE)
       return snobj_err(EINVAL, "template is too big");
 
-    memset(this->templates_[curr + i], 0, MAX_TEMPLATE_SIZE);
-    memcpy(this->templates_[curr + i], snobj_blob_get(templ), templ->size);
-    this->template_size_[curr + i] = templ->size;
+    memset(templates_[curr + i], 0, MAX_TEMPLATE_SIZE);
+    memcpy(templates_[curr + i], snobj_blob_get(templ), templ->size);
+    template_size_[curr + i] = templ->size;
   }
 
-  this->num_templates_ = curr + arg->size;
+  num_templates_ = curr + arg->size;
 
-  for (i = this->num_templates_; i < SLOTS; i++) {
-    int j = i % this->num_templates_;
-    memcpy(this->templates_[i], this->templates_[j], this->template_size_[j]);
-    this->template_size_[i] = this->template_size_[j];
+  for (i = num_templates_; i < SLOTS; i++) {
+    int j = i % num_templates_;
+    memcpy(templates_[i], templates_[j], template_size_[j]);
+    template_size_[i] = template_size_[j];
   }
 
   return NULL;
 }
 
 struct snobj *Rewrite::CommandClear(struct snobj *arg) {
-  this->next_turn_ = 0;
-  this->num_templates_ = 0;
+  next_turn_ = 0;
+  num_templates_ = 0;
 
   return NULL;
 }
