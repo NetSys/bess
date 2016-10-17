@@ -3,6 +3,8 @@
 #include <string.h>
 #include <stdio.h>
 
+#include <algorithm>
+
 #include <rte_config.h>
 #include <rte_hash_crc.h>
 
@@ -341,7 +343,7 @@ int ht_init_ex(struct htable *t, struct ht_params *params)
 
 	t->key_size = params->key_size;
 	t->value_size = params->value_size;
-	t->value_offset = align_ceil(t->key_size, MAX(1ul, params->value_align));
+	t->value_offset = align_ceil(t->key_size, std::max(1ul, params->value_align));
 	t->entry_size = align_ceil(t->value_offset + t->value_size,
 			params->key_align);
 

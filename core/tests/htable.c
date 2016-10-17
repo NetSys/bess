@@ -2,6 +2,8 @@
 #include <stdio.h>
 #include <math.h>
 
+#include <algorithm>
+
 #include <rte_config.h>
 #include <rte_hash.h>
 #include <rte_hash_crc.h>
@@ -122,7 +124,7 @@ static void bess_inlined_get_bulk(void *arg, int iteration, int entries)
 			uint32_t *key_ptrs[bulk_size];
 			value_t *data_ptrs[bulk_size];
 
-			int size = MIN(bulk_size, entries - i);
+			int size = std::min(bulk_size, entries - i);
 
 			for (int j = 0; j < size; j++) {
 				keys[j] = rand_fast(&seed);
@@ -164,7 +166,7 @@ static void *dpdk_discrete_init(int entries)
 
 	params = (struct rte_hash_parameters) {
 		.name = "rte_hash_test",
-		.entries = (uint32_t)align_ceil_pow2(MAX(8, entries * 2)),
+		.entries = (uint32_t)align_ceil_pow2(std::max(8, entries * 2)),
 		.reserved = 0,
 		.key_len = sizeof(uint32_t),
 		.hash_func = rte_hash_crc,
@@ -213,7 +215,7 @@ static void *dpdk_embedded_init(int entries)
 
 	params = (struct rte_hash_parameters) {
 		.name = "rte_hash_test",
-		.entries = (uint32_t)align_ceil_pow2(MAX(8, entries * 2)),
+		.entries = (uint32_t)align_ceil_pow2(std::max(8, entries * 2)),
 		.reserved = 0,
 		.key_len = sizeof(uint32_t),
 		.hash_func = rte_hash_crc,
@@ -284,7 +286,7 @@ static void dpdk_bulk(void *arg, int iteration, int entries)
 			uint32_t *key_ptrs[bulk_size];
 			int32_t positions[bulk_size];
 
-			int size = MIN(bulk_size, entries - i);
+			int size = std::min(bulk_size, entries - i);
 
 			for (int j = 0; j < size; j++) {
 				keys[j] = rand_fast_nonzero(&seed);
@@ -349,7 +351,7 @@ static void dpdk_data_bulk(void *arg, int iteration, int entries)
 			uintptr_t data[bulk_size];
 			uint64_t hit_mask;
 
-			int size = MIN(bulk_size, entries - i);
+			int size = std::min(bulk_size, entries - i);
 
 			for (int j = 0; j < size; j++) {
 				keys[j] = rand_fast_nonzero(&seed);
@@ -465,7 +467,7 @@ static void perftest()
 		printf("%-32s", p->name);
 		for (size_t j = 0; j < ARR_SIZE(test_entries); j++) {
 			int entries = test_entries[j];
-			int iteration = MAX(1, (int)(1e6 / entries));
+			int iteration = std::max(1, (int)(1e6 / entries));
 			void *arg;
 			double elapsed = NAN;
 

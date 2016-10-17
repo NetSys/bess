@@ -96,7 +96,7 @@ struct snobj *HashLB::CommandSetGates(struct snobj *arg) {
 
     if (gates < 0 || gates > MAX_HLB_GATES || gates > MAX_GATES)
       return snobj_err(EINVAL, "no more than %d gates",
-                       MIN(MAX_HLB_GATES, MAX_GATES));
+                       std::min(MAX_HLB_GATES, MAX_GATES));
 
     this->num_gates_ = gates;
     for (int i = 0; i < gates; i++) this->gates_[i] = i;

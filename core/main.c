@@ -355,7 +355,7 @@ static void set_resource_limit()
 
 		if (errno == EPERM && limit.rlim_cur >= 1024) {
 			limit.rlim_max /= 2;
-			limit.rlim_cur = MIN(limit.rlim_cur, limit.rlim_max);
+			limit.rlim_cur = std::min(limit.rlim_cur, limit.rlim_max);
 			continue;
 		}
 

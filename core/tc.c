@@ -408,7 +408,7 @@ static int tc_account(struct sched *s, struct tc *c,
 			if (wait_tsc > max_wait_tsc)
 				max_wait_tsc = wait_tsc;
 		} else
-			c->tb[i].tokens = MIN(tokens - consumed,
+			c->tb[i].tokens = std::min(tokens - consumed,
 					c->tb[i].max_burst);
 	}
 

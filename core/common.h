@@ -21,20 +21,6 @@
 	((type *)((char *)(member_type(type, member) *){ptr} - \
 		offsetof(type, member)))
 
-#define MIN(a, b) \
-	({ \
-		__typeof__ (a) _a = (a); \
-		__typeof__ (b) _b = (b); \
-	 	_a <= _b ? _a : _b; \
-	 })
-
-#define MAX(a, b) \
-	({ \
-		__typeof__ (a) _a = (a); \
-		__typeof__ (b) _b = (b); \
-	 	_a >= _b ? _a : _b; \
-	 })
-
 #define ARR_SIZE(arr)	(sizeof(arr) / sizeof(arr[0]))
 
 #define ACCESS_ONCE(x) 	(*(volatile typeof(x) *)&(x))

@@ -72,21 +72,21 @@ struct snobj *RandomUpdate::CommandAdd(struct snobj *arg) {
       case 1:
         offset -= 3;
         mask = rte_cpu_to_be_32(0xffffff00);
-        min = MIN(min, static_cast<uint32_t>(0xff));
-        max = MIN(max, static_cast<uint32_t>(0xff));
+        min = std::min(min, static_cast<uint32_t>(0xff));
+        max = std::min(max, static_cast<uint32_t>(0xff));
         break;
 
       case 2:
         offset -= 2;
         mask = rte_cpu_to_be_32(0xffff0000);
-        min = MIN(min, static_cast<uint32_t>(0xffff));
-        max = MIN(max, static_cast<uint32_t>(0xffff));
+        min = std::min(min, static_cast<uint32_t>(0xffff));
+        max = std::min(max, static_cast<uint32_t>(0xffff));
         break;
 
       case 4:
         mask = rte_cpu_to_be_32(0x00000000);
-        min = MIN(min, static_cast<uint32_t>(0xffffffffu));
-        max = MIN(max, static_cast<uint32_t>(0xffffffffu));
+        min = std::min(min, static_cast<uint32_t>(0xffffffffu));
+        max = std::min(max, static_cast<uint32_t>(0xffffffffu));
         break;
 
       default:

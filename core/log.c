@@ -7,6 +7,8 @@
 #include <sys/types.h>
 #include <linux/limits.h>
 
+#include <algorithm>
+
 #include "common.h"
 #include "opts.h"
 #include "log.h"
@@ -98,7 +100,7 @@ static void do_flush(int priority, struct logger *logger, int forced)
 		if (!lf) {
 			/* forced or a long line without LF? */
 			if (forced || logger->len >= MAX_LOG_LEN) {
-				int len = MIN(logger->len, MAX_LOG_LEN);
+				int len = std::min(logger->len, MAX_LOG_LEN);
 
 				do_log(priority, p, len);
 

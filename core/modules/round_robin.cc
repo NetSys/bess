@@ -71,7 +71,7 @@ struct snobj *RoundRobin::CommandSetGates(struct snobj *arg) {
 
     if (gates < 0 || gates > MAX_RR_GATES || gates > MAX_GATES)
       return snobj_err(EINVAL, "no more than %d gates",
-                       MIN(MAX_RR_GATES, MAX_GATES));
+                       std::min(MAX_RR_GATES, MAX_GATES));
 
     this->ngates_ = gates;
     for (int i = 0; i < gates; i++) this->gates_[i] = i;
