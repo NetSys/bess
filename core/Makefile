@@ -115,8 +115,6 @@ cscope:
 	cscope -b -q -k
 	@rm -f cscope.files
 
-TESTS = 
-
 # Rules to build gtest library.
 GTEST_SRCS_ = $(GTEST_DIR)/src/*.cc $(GTEST_DIR)/src/*.h $(GTEST_HEADERS)
 
@@ -137,6 +135,7 @@ gtest.a : gtest-all.o
 
 gtest_main.a : gtest-all.o gtest_main.o
 	$(AR) $(ARFLAGS) $@ $^
+
 
 
 endif
