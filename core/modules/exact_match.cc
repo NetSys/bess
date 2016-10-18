@@ -15,12 +15,10 @@ static_assert(MAX_FIELD_SIZE <= sizeof(uint64_t),
 
 typedef struct { uint64_t u64_arr[MAX_FIELDS]; } hkey_t;
 
-HT_DECLARE_INLINED_FUNCS(em, hkey_t)
-
-static inline int em_keycmp(const hkey_t *key, const hkey_t *key_stored,
+static inline int em_keycmp(const void *key, const void *key_stored,
                             size_t key_len) {
-  const uint64_t *a = key->u64_arr;
-  const uint64_t *b = key_stored->u64_arr;
+  const uint64_t *a = ((hkey_t *)key)->u64_arr;
+  const uint64_t *b = ((hkey_t *)key_stored)->u64_arr;
 
   switch (key_len >> 3) {
     default:
@@ -46,10 +44,10 @@ static inline int em_keycmp(const hkey_t *key, const hkey_t *key_stored,
   return 0;
 }
 
-static inline uint32_t em_hash(const hkey_t *key, uint32_t key_len,
+static inline uint32_t em_hash(const void *key, uint32_t key_len,
                                uint32_t init_val) {
 #if __SSE4_2__ && __x86_64
-  const uint64_t *a = key->u64_arr;
+  const uint64_t *a = ((hkey_t *)key)->u64_arr;
 
   switch (key_len >> 3) {
     default:
@@ -100,8 +98,8 @@ struct EmField {
   int size; /* in bytes. 1 <= size <= MAX_FIELD_SIZE */
 };
 
-#include <vector>
 #include <string>
+#include <vector>
 
 class ExactMatch : public Module {
  public:
@@ -134,7 +132,7 @@ class ExactMatch : public Module {
   int num_fields_;
   struct EmField fields_[MAX_FIELDS];
 
-  struct htable ht_;
+  HTable<hkey_t, gate_idx_t, em_keycmp, em_hash> ht_;
 };
 
 const Commands<ExactMatch> ExactMatch::cmds = {
@@ -215,13 +213,13 @@ struct snobj *ExactMatch::Init(struct snobj *arg) {
   num_fields_ = fields->size;
   total_key_size_ = align_ceil(size_acc, sizeof(uint64_t));
 
-  int ret = ht_init(&ht_, total_key_size_, sizeof(gate_idx_t));
+  int ret = ht_.Init(total_key_size_, sizeof(gate_idx_t));
   if (ret < 0) return snobj_err(-ret, "hash table creation failed");
 
   return NULL;
 }
 
-void ExactMatch::Deinit() { ht_close(&ht_); }
+void ExactMatch::Deinit() { ht_.Close(); }
 
 void ExactMatch::ProcessBatch(struct pkt_batch *batch) {
   gate_idx_t default_gate;
@@ -260,10 +258,9 @@ void ExactMatch::ProcessBatch(struct pkt_batch *batch) {
     }
   }
 
-  const struct htable *t = &ht_;
-
   for (int i = 0; i < cnt; i++) {
-    gate_idx_t *ret = static_cast<gate_idx_t *>(ht_em_get(t, keys[i]));
+    gate_idx_t *ret =
+        static_cast<gate_idx_t *>(ht_.Get(reinterpret_cast<hkey_t *>(keys[i])));
     ogates[i] = ret ? *ret : default_gate;
   }
 
@@ -271,7 +268,7 @@ void ExactMatch::ProcessBatch(struct pkt_batch *batch) {
 }
 
 struct snobj *ExactMatch::GetDesc() {
-  return snobj_str_fmt("%d fields, %d rules", num_fields_, ht_.cnt);
+  return snobj_str_fmt("%d fields, %d rules", num_fields_, ht_.Count());
 }
 
 struct snobj *ExactMatch::GetDump() {
@@ -298,7 +295,7 @@ struct snobj *ExactMatch::GetDump() {
   uint32_t next = 0;
   void *key;
 
-  while ((key = ht_iterate(&ht_, &next))) {
+  while ((key = ht_.Iterate(&next))) {
     struct snobj *rule = snobj_list();
 
     for (int i = 0; i < num_fields_; i++) {
@@ -361,7 +358,7 @@ struct snobj *ExactMatch::CommandAdd(struct snobj *arg) {
 
   if ((err = GatherKey(fields, &key))) return err;
 
-  ret = ht_set(&ht_, &key, &gate);
+  ret = ht_.Set(&key, &gate);
   if (ret) return snobj_err(-ret, "ht_set() failed");
 
   return NULL;
@@ -378,14 +375,14 @@ struct snobj *ExactMatch::CommandDelete(struct snobj *arg) {
 
   if ((err = GatherKey(arg, &key))) return err;
 
-  ret = ht_del(&ht_, &key);
+  ret = ht_.Del(&key);
   if (ret < 0) return snobj_err(-ret, "ht_del() failed");
 
   return NULL;
 }
 
 struct snobj *ExactMatch::CommandClear(struct snobj *arg) {
-  ht_clear(&ht_);
+  ht_.Clear();
 
   return NULL;
 }
