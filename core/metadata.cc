@@ -1,10 +1,11 @@
+#include <functional>
+#include <queue>
 #include <string.h>
 
 #include <glog/logging.h>
 
 #include "mem_alloc.h"
 #include "module.h"
-#include "utils/minheap.h"
 
 #include "metadata.h"
 
@@ -22,6 +23,11 @@ struct scope_component {
   Module **modules;
   int degree;
 };
+
+bool scope_component_less(const struct scope_component *a,
+                          const struct scope_component *b) {
+  return a->offset < b->offset;
+}
 
 static struct scope_component *scope_components;
 static int curr_scope_id = 0;
@@ -168,6 +174,7 @@ static void allocate_scope_components() {
         sizeof(struct scope_component) * 100 * ((curr_scope_id / 100) + 1));
 
   LOG(ERROR) << "alloc/realloc " << scope_components;
+
   return;
 }
 
@@ -304,7 +311,11 @@ static mt_offset_t next_offset(mt_offset_t curr_offset, int8_t size) {
 
 static void assign_offsets() {
   mt_offset_t offset = 0;
-  struct heap h;
+  std::priority_queue<struct scope_component *,
+                      std::vector<struct scope_component *>,
+                      std::function<bool(const struct scope_component *,
+                                         const struct scope_component *)>>
+      h(scope_component_less);
   struct scope_component *comp1;
   struct scope_component *comp2;
   uint8_t comp1_size;
@@ -322,17 +333,16 @@ static void assign_offsets() {
 
     offset = 0;
     comp1_size = align_ceil_pow2(comp1->size);
-    heap_init(&h);
 
     for (int j = 0; j < curr_scope_id; j++) {
       if (i == j) continue;
 
       if (!disjoint(i, j) && scope_components[j].assigned)
-        heap_push(&h, scope_components[j].offset, &scope_components[j]);
+        h.push(&scope_components[j]);
     }
 
-    while ((comp2 = (struct scope_component *)heap_peek(&h))) {
-      heap_pop(&h);
+    while (!h.empty() && (comp2 = h.top())) {
+      h.pop();
 
       if (comp2->offset == MT_OFFSET_NOREAD ||
           comp2->offset == MT_OFFSET_NOWRITE ||
@@ -347,8 +357,6 @@ static void assign_offsets() {
 
     comp1->offset = offset;
     comp1->assigned = 1;
-
-    heap_close(&h);
   }
 
   fill_offset_arrays();

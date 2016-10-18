@@ -1,6 +1,7 @@
 #include <assert.h>
-#include <stdio.h>
+#include <functional>
 #include <math.h>
+#include <stdio.h>
 
 #include <algorithm>
 
@@ -8,11 +9,11 @@
 #include <rte_hash.h>
 #include <rte_hash_crc.h>
 
-#include "../utils/htable.h"
-#include "../utils/random.h"
-#include "../time.h"
 #include "../common.h"
 #include "../mem_alloc.h"
+#include "../time.h"
+#include "../utils/htable.h"
+#include "../utils/random.h"
 
 #include "../test.h"
 
@@ -20,17 +21,15 @@
 
 typedef uint16_t value_t;
 
-HT_DECLARE_INLINED_FUNCS(inlined, uint32_t)
-
-static inline int inlined_keycmp(const uint32_t *key,
-                                 const uint32_t *key_stored, size_t key_size) {
-  return *key != *key_stored;
+static inline int inlined_keycmp(const void *key, const void *key_stored,
+                                 size_t key_size) {
+  return *(uint32_t *)key != *(uint32_t *)key_stored;
 }
 
-static inline uint32_t inlined_hash(const uint32_t *key, uint32_t key_size,
+static inline uint32_t inlined_hash(const void *key, uint32_t key_size,
                                     uint32_t init_val) {
 #if __SSE4_2__
-  return crc32c_sse42_u32(*key, init_val);
+  return crc32c_sse42_u32(*(uint32_t *)key, init_val);
 #else
   return rte_hash_crc_4byte(*(uint32_t *)key, init_val);
 #endif
@@ -50,21 +49,18 @@ static inline uint32_t rand_fast_nonzero(uint64_t *seed) {
 }
 
 static void *bess_init(int entries) {
-  struct htable *t;
+  HTable<uint32_t, value_t, inlined_keycmp, inlined_hash> *t =
+      new HTable<uint32_t, value_t, inlined_keycmp, inlined_hash>;
   uint64_t seed = 0;
 
-  t = (struct htable *)mem_alloc(sizeof(*t));
-  if (!t) return NULL;
-
-  ht_init(t, sizeof(uint32_t), sizeof(value_t));
+  t->Init(sizeof(uint32_t), sizeof(value_t));
 
   for (int i = 0; i < entries; i++) {
     uint32_t key = rand_fast(&seed);
     value_t val = derive_val(key);
 
-    int ret = ht_set(t, &key, &val);
+    int ret = t->Set(&key, &val);
     if (ret == -ENOMEM) {
-      ht_close(t);
       return NULL;
     } else
       assert(ret == 0 || ret == 1);
@@ -74,7 +70,8 @@ static void *bess_init(int entries) {
 }
 
 static void bess_get(void *arg, int iteration, int entries) {
-  struct htable *t = (struct htable *)arg;
+  HTable<uint32_t, value_t, inlined_keycmp, inlined_hash> *t =
+      (HTable<uint32_t, value_t, inlined_keycmp, inlined_hash> *)arg;
 
   for (int k = 0; k < iteration; k++) {
     uint64_t seed = 0;
@@ -82,14 +79,15 @@ static void bess_get(void *arg, int iteration, int entries) {
       uint32_t key = rand_fast(&seed);
       value_t *val;
 
-      val = (value_t *)ht_get(t, &key);
+      val = (value_t *)t->Get(&key);
       assert(val && *val == derive_val(key));
     }
   }
 }
 
 static void bess_inlined_get(void *arg, int iteration, int entries) {
-  struct htable *t = (struct htable *)arg;
+  HTable<uint32_t, value_t, inlined_keycmp, inlined_hash> *t =
+      (HTable<uint32_t, value_t, inlined_keycmp, inlined_hash> *)arg;
 
   for (int k = 0; k < iteration; k++) {
     uint64_t seed = 0;
@@ -97,14 +95,16 @@ static void bess_inlined_get(void *arg, int iteration, int entries) {
       uint32_t key = rand_fast(&seed);
       value_t *val;
 
-      val = (value_t *)ht_inlined_get(t, &key);
+      val = (value_t *)t->Get(&key);
       assert(val && *val == derive_val(key));
     }
   }
 }
 
+#if __AVX__
 static void bess_inlined_get_bulk(void *arg, int iteration, int entries) {
-  struct htable *t = (struct htable *)arg;
+  HTable<uint32_t, value_t, inlined_keycmp, inlined_hash> *t =
+      (HTable<uint32_t, value_t, inlined_keycmp, inlined_hash> *)arg;
 
   for (int k = 0; k < iteration; k++) {
     uint64_t seed = 0;
@@ -120,7 +120,7 @@ static void bess_inlined_get_bulk(void *arg, int iteration, int entries) {
         key_ptrs[j] = &keys[j];
       }
 
-      ht_inlined_get_bulk(t, size, (const void **)key_ptrs, (void **)data_ptrs);
+      t->GetBulk(size, (const uint32_t **)key_ptrs, (value_t **)data_ptrs);
 
       for (int j = 0; j < size; j++) {
         value_t *p = data_ptrs[j];
@@ -129,11 +129,12 @@ static void bess_inlined_get_bulk(void *arg, int iteration, int entries) {
     }
   }
 }
+#endif
 
 static void bess_close(void *arg) {
-  struct htable *t = (struct htable *)arg;
-
-  ht_close(t);
+  HTable<uint32_t, value_t, inlined_keycmp, inlined_hash> *t =
+      (HTable<uint32_t, value_t, inlined_keycmp, inlined_hash> *)arg;
+  t->Close();
 }
 
 struct dpdk_ht {
@@ -405,9 +406,9 @@ static void perftest() {
     {"ht_get", bess_init, bess_get, bess_close},
     {"ht_inlined_get", bess_init, bess_inlined_get, bess_close},
 #if __AVX__
-
-    {"ht_inlined_get_bulk(x16)", bess_init, bess_inlined_get_bulk, bess_close},
+    {"ht_inlined_get_bulk(x16)", bess_init, bess_inlined_get_bulk,
 #endif
+     bess_close},
     {"rte_hash_lookup", dpdk_discrete_init, dpdk_, dpdk_discrete_close},
     {"rte_hash_lookup_with_hash", dpdk_discrete_init, dpdk_hash,
      dpdk_discrete_close},
@@ -458,13 +459,13 @@ static void perftest() {
 }
 
 static void functest() {
-  struct htable t;
+  HTable<uint32_t, value_t, inlined_keycmp, inlined_hash> t;
   uint64_t seed;
 
   const int iteration = 1000000;
   int num_updates = 0;
 
-  ht_init(&t, sizeof(uint32_t), sizeof(uint16_t));
+  t.Init(sizeof(uint32_t), sizeof(uint16_t));
 
   seed = 0;
   for (int i = 0; i < iteration; i++) {
@@ -472,7 +473,7 @@ static void functest() {
     uint16_t val = derive_val(key);
     int ret;
 
-    ret = ht_set(&t, &key, &val);
+    ret = t.Set(&key, &val);
     if (ret == 1)
       num_updates++;
     else
@@ -484,7 +485,7 @@ static void functest() {
     uint32_t key = rand_fast(&seed);
     uint16_t *val;
 
-    val = (uint16_t *)ht_get(&t, &key);
+    val = (uint16_t *)t.Get(&key);
     assert(val != NULL);
     assert(*val == derive_val(key));
   }
@@ -494,7 +495,7 @@ static void functest() {
     uint32_t key = rand_fast(&seed);
     int ret;
 
-    ret = ht_del(&t, &key);
+    ret = t.Del(&key);
     if (ret == -ENOENT)
       num_updates--;
     else
@@ -502,9 +503,7 @@ static void functest() {
   }
 
   assert(num_updates == 0);
-  assert(t.cnt == 0);
-
-  ht_close(&t);
+  assert(t.Count() == 0);
 }
 
 ADD_TEST(perftest, "hash table performance comparison")

@@ -16,8 +16,6 @@ static_assert(MAX_FIELD_SIZE <= sizeof(uint64_t),
 
 typedef struct { uint64_t u64_arr[MAX_FIELDS]; } hkey_t;
 
-HT_DECLARE_INLINED_FUNCS(wm, hkey_t)
-
 struct WmData {
   int priority;
   gate_idx_t ogate;
@@ -35,15 +33,10 @@ struct WmField {
   int size; /* in bytes. 1 <= size <= MAX_FIELD_SIZE */
 };
 
-struct WmTuple {
-  struct htable ht;
-  hkey_t mask;
-};
-
-static inline int wm_keycmp(const hkey_t *key, const hkey_t *key_stored,
+static inline int wm_keycmp(const void *key, const void *key_stored,
                             size_t key_len) {
-  const uint64_t *a = key->u64_arr;
-  const uint64_t *b = key_stored->u64_arr;
+  const uint64_t *a = ((hkey_t *)key)->u64_arr;
+  const uint64_t *b = ((hkey_t *)key_stored)->u64_arr;
 
   switch (key_len >> 3) {
     default:
@@ -69,10 +62,10 @@ static inline int wm_keycmp(const hkey_t *key, const hkey_t *key_stored,
   return 0;
 }
 
-static inline uint32_t wm_hash(const hkey_t *key, uint32_t key_len,
+static inline uint32_t wm_hash(const void *key, uint32_t key_len,
                                uint32_t init_val) {
 #if __SSE4_2__ && __x86_64
-  const uint64_t *a = key->u64_arr;
+  const uint64_t *a = ((hkey_t *)key)->u64_arr;
 
   switch (key_len >> 3) {
     default:
@@ -100,6 +93,11 @@ static inline uint32_t wm_hash(const hkey_t *key, uint32_t key_len,
   return rte_hash_crc(key, key_len, init_val);
 #endif
 }
+
+struct WmTuple {
+  HTable<hkey_t, struct WmData, wm_keycmp, wm_hash> ht;
+  hkey_t mask;
+};
 
 /* k1 = k2 & mask */
 static void mask(void *k1, const void *k2, const void *mask, int key_size) {
@@ -251,7 +249,7 @@ struct snobj *WildcardMatch::Init(struct snobj *arg) {
 }
 
 void WildcardMatch::Deinit() {
-  for (int i = 0; i < num_tuples_; i++) ht_close(&tuples_[i].ht);
+  for (int i = 0; i < num_tuples_; i++) tuples_[i].ht.Close();
 }
 
 gate_idx_t WildcardMatch::LookupEntry(hkey_t *key, gate_idx_t def_gate) {
@@ -270,7 +268,7 @@ gate_idx_t WildcardMatch::LookupEntry(hkey_t *key, gate_idx_t def_gate) {
 
     mask(&key_masked, key, &tuple->mask, key_size);
 
-    cand = static_cast<struct WmData *>(ht_wm_get(&tuple->ht, &key_masked));
+    cand = static_cast<struct WmData *>(tuple->ht.Get(&key_masked));
 
     if (cand && cand->priority >= result.priority) result = *cand;
   }
@@ -337,7 +335,7 @@ void WildcardMatch::ProcessBatch(struct pkt_batch *batch) {
 
       mask(&key_masked, keys[j], tuple_mask, key_size);
 
-      cand = ht_wm_get(ht, &key_masked);
+      cand = ht->Get(&key_masked);
 
       if (cand && cand->priority >= priorities[j]) {
         ogates[j] = cand->ogate;
@@ -353,7 +351,7 @@ void WildcardMatch::ProcessBatch(struct pkt_batch *batch) {
 struct snobj *WildcardMatch::GetDesc() {
   int num_rules = 0;
 
-  for (int i = 0; i < num_tuples_; i++) num_rules += tuples_[i].ht.cnt;
+  for (int i = 0; i < num_tuples_; i++) num_rules += tuples_[i].ht.Count();
 
   return snobj_str_fmt("%lu fields, %d rules", num_fields_, num_rules);
 }
@@ -396,7 +394,7 @@ void WildcardMatch::CollectRules(const struct WmTuple *tuple,
   void *key;
   const void *mask = &tuple->mask;
 
-  while ((key = ht_iterate(&tuple->ht, &next))) {
+  while ((key = tuple->ht.Iterate(&next))) {
     struct snobj *rule = snobj_map();
     struct snobj *values = snobj_list();
     struct snobj *masks = snobj_list();
@@ -501,7 +499,7 @@ int WildcardMatch::AddTuple(hkey_t *mask) {
   tuple = &tuples_[num_tuples_++];
   memcpy(&tuple->mask, mask, sizeof(*mask));
 
-  ret = ht_init(&tuple->ht, total_key_size_, sizeof(struct WmData));
+  ret = tuple->ht.Init(total_key_size_, sizeof(struct WmData));
   if (ret < 0) return ret;
 
   return tuple - tuples_;
@@ -511,20 +509,20 @@ int WildcardMatch::AddEntry(struct WmTuple *tuple, hkey_t *key,
                             struct WmData *data) {
   int ret;
 
-  ret = ht_set(&tuple->ht, key, data);
+  ret = tuple->ht.Set(key, data);
   if (ret < 0) return ret;
 
   return 0;
 }
 
 int WildcardMatch::DelEntry(struct WmTuple *tuple, hkey_t *key) {
-  int ret = ht_del(&tuple->ht, key);
+  int ret = tuple->ht.Del(key);
   if (ret) return ret;
 
-  if (tuple->ht.cnt == 0) {
+  if (tuple->ht.Count() == 0) {
     int idx = tuple - tuples_;
 
-    ht_close(&tuple->ht);
+    tuple->ht.Close();
 
     num_tuples_--;
     memmove(&tuples_[idx], &tuples_[idx + 1],
@@ -583,7 +581,7 @@ struct snobj *WildcardMatch::CommandDelete(struct snobj *arg) {
 }
 
 struct snobj *WildcardMatch::CommandClear(struct snobj *arg) {
-  for (int i = 0; i < num_tuples_; i++) ht_clear(&tuples_[i].ht);
+  for (int i = 0; i < num_tuples_; i++) tuples_[i].ht.Clear();
 
   return NULL;
 }

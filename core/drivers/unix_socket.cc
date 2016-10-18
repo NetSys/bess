@@ -1,11 +1,11 @@
 #include <assert.h>
 #include <errno.h>
 #include <poll.h>
-#include <pthread.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/socket.h>
 #include <sys/un.h>
+#include <thread>
 #include <unistd.h>
 
 #include "../port.h"
@@ -44,8 +44,6 @@ class UnixSocketPort : public Port {
    * so use volatile */
   volatile int client_fd_ = {0};
   int old_client_fd_ = {0};
-
-  pthread_t accept_thread_ = {0};
 };
 
 void UnixSocketPort::AcceptNewClient() {
@@ -73,7 +71,6 @@ void UnixSocketPort::AcceptNewClient() {
 /* This accept thread terminates once a new client is connected */
 void *AcceptThreadMain(void *arg) {
   UnixSocketPort *p = reinterpret_cast<UnixSocketPort *>(arg);
-  pthread_detach(pthread_self());
   p->AcceptNewClient();
   return NULL;
 }
@@ -81,17 +78,13 @@ void *AcceptThreadMain(void *arg) {
 /* The file descriptor for the connection will not be closed,
  * until we have a new client. This is to avoid race condition in TX process */
 void UnixSocketPort::CloseConnection() {
-  int ret;
-
   /* Keep client_fd, since it may be being used in unix_send_pkts() */
   old_client_fd_ = client_fd_;
   client_fd_ = NOT_CONNECTED;
 
   /* relaunch the accept thread */
-  ret = pthread_create(&accept_thread_, NULL, AcceptThreadMain,
-                       reinterpret_cast<void *>(this));
-  accept_thread_ = 0;
-  if (ret) log_err("[UnixSocket]:pthread_create() returned errno %d", ret);
+  std::thread accept_thread(AcceptThreadMain, reinterpret_cast<void *>(this));
+  accept_thread.detach();
 }
 
 struct snobj *UnixSocketPort::Init(struct snobj *conf) {
@@ -137,17 +130,13 @@ struct snobj *UnixSocketPort::Init(struct snobj *conf) {
   ret = listen(listen_fd_, 1);
   if (ret < 0) return snobj_err(errno, "listen() failed");
 
-  ret = pthread_create(&accept_thread_, NULL, AcceptThreadMain,
-                       reinterpret_cast<void *>(this));
-  accept_thread_ = 0;
-  if (ret) return snobj_err(ret, "pthread_create() failed");
+  std::thread accept_thread(AcceptThreadMain, reinterpret_cast<void *>(this));
+  accept_thread.detach();
 
   return NULL;
 }
 
 void UnixSocketPort::DeInit() {
-  if (accept_thread_) pthread_cancel(accept_thread_);
-
   close(listen_fd_);
 
   if (client_fd_ >= 0) close(client_fd_);
