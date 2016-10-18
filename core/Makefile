@@ -27,7 +27,6 @@ endif
 # gtest definitions
 GTEST_DIR = /usr/src/gtest
 CXXFLAGS += -isystem $(GTEST_DIR)/include
-CXXFLAGS += -g -Wall -pthread
 
 CXXFLAGS += -std=gnu++11 -g3 -ggdb3 -Ofast -march=native \
 	    -Wall -Werror -Wno-unused-function -Wno-unused-but-set-variable \
