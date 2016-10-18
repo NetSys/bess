@@ -27,7 +27,7 @@ endif
 # gtest definitions
 GTEST_DIR = /usr/src/gtest
 CXXFLAGS += -isystem $(GTEST_DIR)/include
-CXXFLAGS += -g -Wall -Wextra -pthread
+CXXFLAGS += -g -Wall -pthread
 
 CXXFLAGS += -std=gnu++11 -g3 -ggdb3 -Ofast -march=native \
 	    -Wall -Werror -Wno-unused-function -Wno-unused-but-set-variable \
@@ -45,7 +45,7 @@ endif
 
 -include extra.mk
 
-SRCS = $(wildcard *.cc utils/*.cc modules/*.cc drivers/*.cc oldtests/*.cc)
+SRCS = $(filter-out time_test.cc, $(wildcard *.cc utils/*.cc modules/*.cc drivers/*.cc oldtests/*.cc))
 OBJS = $(patsubst %.cc,%.o, $(filter %.cc, $(SRCS)))
 HEADERS = $(wildcard *.h utils/*.h modules/*.h drivers/*.h oldtests/*.h)
 EXEC = bessd
