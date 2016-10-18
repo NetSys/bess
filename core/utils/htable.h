@@ -77,7 +77,7 @@ struct ht_bucket {
   ht_keyidx_t keyidx[ENTRIES_PER_BUCKET];
 } __ymm_aligned;
 
-template <class K, class V, ht_keycmp_func_t C = memcmp,
+template <typename K, typename V, ht_keycmp_func_t C = memcmp,
           ht_hash_func_t H = DEFAULT_HASH_FUNC>
 class HTable {
  public:
@@ -94,7 +94,9 @@ class HTable {
 
   /* returns NULL or the pointer to the data */
   V *Get(const K *key) const;
+#if __AVX__
   inline void GetBulk(int num_keys, const K **_keys, V **values) const;
+#endif
 
   /* identical to ht_Get(), but you can supply a precomputed hash value "pri" */
   V *GetHash(uint32_t pri, const K *key) const;
@@ -169,7 +171,7 @@ class HTable {
 };
 
 /* from the stored key pointer, return its value pointer */
-template <class K, class V, ht_keycmp_func_t C, ht_hash_func_t H>
+template <typename K, typename V, ht_keycmp_func_t C, ht_hash_func_t H>
 inline V *HTable<K, V, C, H>::key_to_value(const K *key) const {
   return (V *)((char *)key + value_offset_);
 }
@@ -177,7 +179,7 @@ inline V *HTable<K, V, C, H>::key_to_value(const K *key) const {
 #define INVALID_KEYIDX INT32_MAX
 
 /* actually works faster for very small tables */
-template <class K, class V, ht_keycmp_func_t C, ht_hash_func_t H>
+template <typename K, typename V, ht_keycmp_func_t C, ht_hash_func_t H>
 inline ht_keyidx_t HTable<K, V, C, H>::_get_keyidx(uint32_t pri) const {
   struct ht_bucket *bucket = &buckets_[pri & bucket_mask_];
 
@@ -195,7 +197,7 @@ inline ht_keyidx_t HTable<K, V, C, H>::_get_keyidx(uint32_t pri) const {
 }
 
 #if __AVX__
-template <class K, class V, ht_keycmp_func_t C, ht_hash_func_t H>
+template <typename K, typename V, ht_keycmp_func_t C, ht_hash_func_t H>
 inline uint32_t HTable<K, V, C, H>::_get_keyidx_vec(uint32_t pri) const {
   struct ht_bucket *bucket = &buckets_[pri & bucket_mask_];
 
@@ -223,7 +225,8 @@ inline uint32_t HTable<K, V, C, H>::_get_keyidx_vec(uint32_t pri) const {
 #define _get_keyidx_vec _get_keyidx
 #endif
 
-template <class K, class V, ht_keycmp_func_t C, ht_hash_func_t H>
+#if __AVX__
+template <typename K, typename V, ht_keycmp_func_t C, ht_hash_func_t H>
 inline void HTable<K, V, C, H>::GetBulk(int num_keys, const K **_keys,
                                         V **values) const {
   const K **keys = (const K **)_keys;
@@ -274,8 +277,9 @@ inline void HTable<K, V, C, H>::GetBulk(int num_keys, const K **_keys,
       values[i] = GetHash(pri, keys[i]);
   }
 }
+#endif
 
-template <class K, class V, ht_keycmp_func_t C, ht_hash_func_t H>
+template <typename K, typename V, ht_keycmp_func_t C, ht_hash_func_t H>
 inline uint32_t HTable<K, V, C, H>::hash(const K *key) const {
   return H(key, key_size_, UINT32_MAX);
 }
@@ -287,22 +291,22 @@ static inline uint32_t ht_make_nonzero(uint32_t v) {
   return (v | (1u << 31)) & (~(1u << 30));
 }
 
-template <class K, class V, ht_keycmp_func_t C, ht_hash_func_t H>
+template <typename K, typename V, ht_keycmp_func_t C, ht_hash_func_t H>
 inline uint32_t HTable<K, V, C, H>::hash_nonzero(const K *key) const {
   return ht_make_nonzero(hash(key));
 }
 
-template <class K, class V, ht_keycmp_func_t C, ht_hash_func_t H>
+template <typename K, typename V, ht_keycmp_func_t C, ht_hash_func_t H>
 inline K *HTable<K, V, C, H>::keyidx_to_ptr(ht_keyidx_t idx) const {
   return (K *)((uintptr_t)entries_ + entry_size_ * idx);
 }
 
-template <class K, class V, ht_keycmp_func_t C, ht_hash_func_t H>
+template <typename K, typename V, ht_keycmp_func_t C, ht_hash_func_t H>
 inline ht_keyidx_t HTable<K, V, C, H>::get_next(ht_keyidx_t curr) const {
   return *(ht_keyidx_t *)keyidx_to_ptr(curr);
 }
 
-template <class K, class V, ht_keycmp_func_t C, ht_hash_func_t H>
+template <typename K, typename V, ht_keycmp_func_t C, ht_hash_func_t H>
 void HTable<K, V, C, H>::push_free_keyidx(ht_keyidx_t idx) {
   assert(0 <= idx && idx < num_entries_);
 
@@ -312,7 +316,7 @@ void HTable<K, V, C, H>::push_free_keyidx(ht_keyidx_t idx) {
 
 /* entry array grows much more gently (50%) than bucket array (100%),
  * since space efficiency may be important for large keys and/or values. */
-template <class K, class V, ht_keycmp_func_t C, ht_hash_func_t H>
+template <typename K, typename V, ht_keycmp_func_t C, ht_hash_func_t H>
 int HTable<K, V, C, H>::expand_entries() {
   ht_keyidx_t old_size = num_entries_;
   ht_keyidx_t new_size = old_size + old_size / 2;
@@ -330,7 +334,7 @@ int HTable<K, V, C, H>::expand_entries() {
   return 0;
 }
 
-template <class K, class V, ht_keycmp_func_t C, ht_hash_func_t H>
+template <typename K, typename V, ht_keycmp_func_t C, ht_hash_func_t H>
 ht_keyidx_t HTable<K, V, C, H>::pop_free_keyidx() {
   ht_keyidx_t ret = free_keyidx_;
 
@@ -357,7 +361,7 @@ static int find_empty_slot(const struct ht_bucket *bucket) {
 /* Recursive function to try making an empty slot in the bucket.
  * Returns a slot ID in [0, ENTRIES_PER_BUCKET) for successful operation,
  * or -ENOSPC if failed */
-template <class K, class V, ht_keycmp_func_t C, ht_hash_func_t H>
+template <typename K, typename V, ht_keycmp_func_t C, ht_hash_func_t H>
 int HTable<K, V, C, H>::make_space(struct ht_bucket *bucket, int depth) {
   if (depth >= MAX_CUCKOO_PATH) return -ENOSPC;
 
@@ -395,7 +399,7 @@ int HTable<K, V, C, H>::make_space(struct ht_bucket *bucket, int depth) {
 }
 
 /* -ENOSPC if the bucket is full, 0 for success */
-template <class K, class V, ht_keycmp_func_t C, ht_hash_func_t H>
+template <typename K, typename V, ht_keycmp_func_t C, ht_hash_func_t H>
 int HTable<K, V, C, H>::add_to_bucket(struct ht_bucket *bucket, const K *key,
                                       const V *value) {
   for (int i = 0; i < ENTRIES_PER_BUCKET; i++) {
@@ -419,7 +423,7 @@ int HTable<K, V, C, H>::add_to_bucket(struct ht_bucket *bucket, const K *key,
 }
 
 /* the key must not already exist in the hash table */
-template <class K, class V, ht_keycmp_func_t C, ht_hash_func_t H>
+template <typename K, typename V, ht_keycmp_func_t C, ht_hash_func_t H>
 int HTable<K, V, C, H>::add_entry(uint32_t pri, uint32_t sec, const K *key,
                                   const V *value) {
   struct ht_bucket *pri_bucket;
@@ -442,7 +446,7 @@ again:
   return -ENOSPC;
 }
 
-template <class K, class V, ht_keycmp_func_t C, ht_hash_func_t H>
+template <typename K, typename V, ht_keycmp_func_t C, ht_hash_func_t H>
 V *HTable<K, V, C, H>::get_from_bucket(uint32_t pri, uint32_t hv,
                                        const K *key) const {
   uint32_t b_idx = hv & bucket_mask_;
@@ -464,7 +468,7 @@ V *HTable<K, V, C, H>::get_from_bucket(uint32_t pri, uint32_t hv,
   return NULL;
 }
 
-template <class K, class V, ht_keycmp_func_t C, ht_hash_func_t H>
+template <typename K, typename V, ht_keycmp_func_t C, ht_hash_func_t H>
 int HTable<K, V, C, H>::del_from_bucket(uint32_t pri, uint32_t hv,
                                         const K *key) {
   uint32_t b_idx = hv & bucket_mask_;
@@ -490,7 +494,7 @@ int HTable<K, V, C, H>::del_from_bucket(uint32_t pri, uint32_t hv,
   return -ENOENT;
 }
 
-template <class K, class V, ht_keycmp_func_t C, ht_hash_func_t H>
+template <typename K, typename V, ht_keycmp_func_t C, ht_hash_func_t H>
 int HTable<K, V, C, H>::InitEx(struct ht_params *params) {
   if (!params) return -EINVAL;
 
@@ -537,7 +541,7 @@ int HTable<K, V, C, H>::InitEx(struct ht_params *params) {
   return 0;
 }
 
-template <class K, class V, ht_keycmp_func_t C, ht_hash_func_t H>
+template <typename K, typename V, ht_keycmp_func_t C, ht_hash_func_t H>
 int HTable<K, V, C, H>::Init(size_t key_size, size_t value_size) {
   struct ht_params params = {};
 
@@ -564,14 +568,14 @@ int HTable<K, V, C, H>::Init(size_t key_size, size_t value_size) {
   return InitEx(&params);
 }
 
-template <class K, class V, ht_keycmp_func_t C, ht_hash_func_t H>
+template <typename K, typename V, ht_keycmp_func_t C, ht_hash_func_t H>
 void HTable<K, V, C, H>::Close() {
   mem_free(buckets_);
   mem_free(entries_);
   memset(this, 0, sizeof(*this));
 }
 
-template <class K, class V, ht_keycmp_func_t C, ht_hash_func_t H>
+template <typename K, typename V, ht_keycmp_func_t C, ht_hash_func_t H>
 void HTable<K, V, C, H>::Clear() {
   uint32_t next = 0;
   K *key;
@@ -579,14 +583,14 @@ void HTable<K, V, C, H>::Clear() {
   while ((key = Iterate(&next))) Del(key);
 }
 
-template <class K, class V, ht_keycmp_func_t C, ht_hash_func_t H>
+template <typename K, typename V, ht_keycmp_func_t C, ht_hash_func_t H>
 V *HTable<K, V, C, H>::Get(const K *key) const {
   uint32_t pri = hash(key);
 
   return GetHash(pri, key);
 }
 
-template <class K, class V, ht_keycmp_func_t C, ht_hash_func_t H>
+template <typename K, typename V, ht_keycmp_func_t C, ht_hash_func_t H>
 V *HTable<K, V, C, H>::GetHash(uint32_t pri, const K *key) const {
   V *ret;
 
@@ -600,7 +604,7 @@ V *HTable<K, V, C, H>::GetHash(uint32_t pri, const K *key) const {
   return get_from_bucket(pri, ht_hash_secondary(pri), key);
 }
 
-template <class K, class V, ht_keycmp_func_t C, ht_hash_func_t H>
+template <typename K, typename V, ht_keycmp_func_t C, ht_hash_func_t H>
 int HTable<K, V, C, H>::clone_table(HTable<K, V, C, H> *t_old,
                                     uint32_t num_buckets,
                                     ht_keyidx_t num_entries) {
@@ -640,7 +644,7 @@ int HTable<K, V, C, H>::clone_table(HTable<K, V, C, H> *t_old,
 }
 
 /* may be called recursively */
-template <class K, class V, ht_keycmp_func_t C, ht_hash_func_t H>
+template <typename K, typename V, ht_keycmp_func_t C, ht_hash_func_t H>
 int HTable<K, V, C, H>::expand_buckets() {
   HTable<K, V, C, H> *t = new HTable<K, V, C, H>;
   uint32_t num_buckets = (bucket_mask_ + 1) * 2;
@@ -656,7 +660,7 @@ int HTable<K, V, C, H>::expand_buckets() {
   return ret;
 }
 
-template <class K, class V, ht_keycmp_func_t C, ht_hash_func_t H>
+template <typename K, typename V, ht_keycmp_func_t C, ht_hash_func_t H>
 int HTable<K, V, C, H>::Set(const K *key, const V *value) {
   uint32_t pri = hash(key);
   uint32_t sec = ht_hash_secondary(pri);
@@ -683,7 +687,7 @@ int HTable<K, V, C, H>::Set(const K *key, const V *value) {
   return ret;
 }
 
-template <class K, class V, ht_keycmp_func_t C, ht_hash_func_t H>
+template <typename K, typename V, ht_keycmp_func_t C, ht_hash_func_t H>
 int HTable<K, V, C, H>::Del(const K *key) {
   uint32_t pri = hash_nonzero(key);
   uint32_t sec;
@@ -696,7 +700,7 @@ int HTable<K, V, C, H>::Del(const K *key) {
   return -ENOENT;
 }
 
-template <class K, class V, ht_keycmp_func_t C, ht_hash_func_t H>
+template <typename K, typename V, ht_keycmp_func_t C, ht_hash_func_t H>
 K *HTable<K, V, C, H>::Iterate(uint32_t *next) const {
   uint32_t idx = *next;
 
@@ -719,12 +723,12 @@ K *HTable<K, V, C, H>::Iterate(uint32_t *next) const {
   return keyidx_to_ptr(buckets_[i].keyidx[j]);
 }
 
-template <class K, class V, ht_keycmp_func_t C, ht_hash_func_t H>
+template <typename K, typename V, ht_keycmp_func_t C, ht_hash_func_t H>
 int HTable<K, V, C, H>::Count() const {
   return cnt_;
 }
 
-template <class K, class V, ht_keycmp_func_t C, ht_hash_func_t H>
+template <typename K, typename V, ht_keycmp_func_t C, ht_hash_func_t H>
 int HTable<K, V, C, H>::count_entries_in_pri_bucket() const {
   int ret = 0;
 
@@ -738,7 +742,7 @@ int HTable<K, V, C, H>::count_entries_in_pri_bucket() const {
   return ret;
 }
 
-template <class K, class V, ht_keycmp_func_t C, ht_hash_func_t H>
+template <typename K, typename V, ht_keycmp_func_t C, ht_hash_func_t H>
 void HTable<K, V, C, H>::Dump(int detail) const {
   int in_pri_bucket = count_entries_in_pri_bucket();
 
