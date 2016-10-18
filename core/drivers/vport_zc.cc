@@ -9,6 +9,7 @@
 #include <rte_malloc.h>
 
 #include "../kmod/llring.h"
+#include "../message.h"
 #include "../port.h"
 
 #define SLOTS_PER_LLRING 1024
@@ -55,7 +56,7 @@ class ZeroCopyVPort : public Port {
  public:
   static void InitDriver(){};
 
-  struct snobj *Init(struct snobj *arg);
+  error_ptr_t Init();
   void DeInit();
 
   int RecvPackets(queue_t qid, snb_array_t pkts, int cnt);
@@ -73,7 +74,7 @@ class ZeroCopyVPort : public Port {
   int out_irq_fd_[MAX_QUEUES_PER_DIR] = {{0}};
 };
 
-struct snobj *ZeroCopyVPort::Init(struct snobj *arg) {
+error_ptr_t ZeroCopyVPort::Init() {
   struct vport_bar *bar = NULL;
 
   int num_inc_q = num_queues[PACKET_DIR_INC];
@@ -155,7 +156,7 @@ struct snobj *ZeroCopyVPort::Init(struct snobj *arg) {
   fwrite(&bar_address, 8, 1, fp);
   fclose(fp);
 
-  return NULL;
+  return pb_error(0);
 }
 
 void ZeroCopyVPort::DeInit() {
