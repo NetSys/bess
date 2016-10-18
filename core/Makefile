@@ -145,6 +145,6 @@ time_test.o : time_test.cc time.h $(GTEST_HEADERS)
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c time_test.cc
 
 time_test : time.o time_test.o gtest_main.a
-	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -lpthread $^ -o $@
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -pthread $^ -o $@
 
 endif
