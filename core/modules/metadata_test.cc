@@ -9,13 +9,9 @@ class MetadataTest : public Module {
   static const gate_idx_t kNumIGates = MAX_GATES;
   static const gate_idx_t kNumOGates = MAX_GATES;
 
-  static const std::vector<struct Command> cmds;
-
  private:
   struct snobj *AddAttributes(struct snobj *attrs, enum mt_access_mode mode);
 };
-
-const std::vector<struct Command> MetadataTest::cmds = {};
 
 struct snobj *MetadataTest::AddAttributes(struct snobj *attrs,
                                           enum mt_access_mode mode) {

@@ -29,7 +29,7 @@ class Measure : public Module {
   static const gate_idx_t kNumIGates = 1;
   static const gate_idx_t kNumOGates = 1;
 
-  static const std::vector<struct Command> cmds;
+  static const Commands<Measure> cmds;
 
  private:
   struct snobj *CommandGetSummary(struct snobj *arg);
@@ -44,8 +44,8 @@ class Measure : public Module {
   uint64_t total_latency_ = {0};
 };
 
-const std::vector<struct Command> Measure::cmds = {
-    {"get_summary", static_cast<CmdFunc>(&Measure::CommandGetSummary), 0},
+const Commands<Measure> Measure::cmds = {
+    {"get_summary", &Measure::CommandGetSummary, 0},
 };
 
 struct snobj *Measure::Init(struct snobj *arg) {

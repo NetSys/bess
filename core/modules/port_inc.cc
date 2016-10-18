@@ -13,7 +13,7 @@ class PortInc : public Module {
   static const gate_idx_t kNumIGates = 0;
   static const gate_idx_t kNumOGates = 1;
 
-  static const std::vector<struct Command> cmds;
+  static const Commands<PortInc> cmds;
 
  private:
   struct snobj *CommandSetBurst(struct snobj *arg);
@@ -23,8 +23,8 @@ class PortInc : public Module {
   int burst_ = {};
 };
 
-const std::vector<struct Command> PortInc::cmds = {
-    {"set_burst", static_cast<CmdFunc>(&PortInc::CommandSetBurst), 1},
+const Commands<PortInc> PortInc::cmds = {
+    {"set_burst", &PortInc::CommandSetBurst, 1},
 };
 
 struct snobj *PortInc::Init(struct snobj *arg) {

@@ -7,16 +7,9 @@ class Buffer : public Module {
 
   virtual void ProcessBatch(struct pkt_batch *batch);
 
-  static const gate_idx_t kNumIGates = 1;
-  static const gate_idx_t kNumOGates = 1;
-
-  static const std::vector<struct Command> cmds;
-
  private:
   struct pkt_batch buf_ = {0};
 };
-
-const std::vector<struct Command> Buffer::cmds = {};
 
 void Buffer::Deinit() {
   struct pkt_batch *buf = &buf_;

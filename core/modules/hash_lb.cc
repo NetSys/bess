@@ -52,7 +52,7 @@ class HashLB : public Module {
   static const gate_idx_t kNumIGates = 1;
   static const gate_idx_t kNumOGates = MAX_GATES;
 
-  static const std::vector<struct Command> cmds;
+  static const Commands<HashLB> cmds;
 
  private:
   void LbL2(struct pkt_batch *batch, gate_idx_t *ogates);
@@ -67,9 +67,9 @@ class HashLB : public Module {
   enum LbMode mode_;
 };
 
-const std::vector<struct Command> HashLB::cmds = {
-    {"set_mode", static_cast<CmdFunc>(&HashLB::CommandSetMode), 0},
-    {"set_gates", static_cast<CmdFunc>(&HashLB::CommandSetGates), 0},
+const Commands<HashLB> HashLB::cmds = {
+    {"set_mode", &HashLB::CommandSetMode, 0},
+    {"set_gates", &HashLB::CommandSetGates, 0},
 };
 
 struct snobj *HashLB::CommandSetMode(struct snobj *arg) {

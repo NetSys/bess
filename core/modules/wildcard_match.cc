@@ -148,7 +148,7 @@ class WildcardMatch : public Module {
   static const gate_idx_t kNumIGates = 1;
   static const gate_idx_t kNumOGates = MAX_GATES;
 
-  static const std::vector<struct Command> cmds;
+  static const Commands<WildcardMatch> cmds;
 
  private:
   struct snobj *CommandAdd(struct snobj *arg);
@@ -179,12 +179,11 @@ class WildcardMatch : public Module {
   int next_table_id_;
 };
 
-const std::vector<struct Command> WildcardMatch::cmds = {
-    {"add", static_cast<CmdFunc>(&WildcardMatch::CommandAdd), 0},
-    {"delete", static_cast<CmdFunc>(&WildcardMatch::CommandDelete), 0},
-    {"clear", static_cast<CmdFunc>(&WildcardMatch::CommandClear), 0},
-    {"set_default_gate",
-     static_cast<CmdFunc>(&WildcardMatch::CommandSetDefaultGate), 1}};
+const Commands<WildcardMatch> WildcardMatch::cmds = {
+    {"add", &WildcardMatch::CommandAdd, 0},
+    {"delete", &WildcardMatch::CommandDelete, 0},
+    {"clear", &WildcardMatch::CommandClear, 0},
+    {"set_default_gate", &WildcardMatch::CommandSetDefaultGate, 1}};
 
 struct snobj *WildcardMatch::AddFieldOne(struct snobj *field,
                                          struct WmField *f) {

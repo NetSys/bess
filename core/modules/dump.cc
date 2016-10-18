@@ -15,7 +15,7 @@ class Dump : public Module {
   static const gate_idx_t kNumIGates = 1;
   static const gate_idx_t kNumOGates = 1;
 
-  static const std::vector<struct Command> cmds;
+  static const Commands<Dump> cmds;
 
  private:
   struct snobj *CommandSetInterval(struct snobj *arg);
@@ -24,8 +24,8 @@ class Dump : public Module {
   uint64_t next_ns_;
 };
 
-const std::vector<struct Command> Dump::cmds = {
-    {"set_interval", static_cast<CmdFunc>(&Dump::CommandSetInterval), 0},
+const Commands<Dump> Dump::cmds = {
+    {"set_interval", &Dump::CommandSetInterval, 0},
 };
 
 struct snobj *Dump::Init(struct snobj *arg) {

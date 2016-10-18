@@ -629,8 +629,8 @@ static struct snobj *handle_get_mclass_info(struct snobj *q)
 
 	cmds = snobj_list();
 
-	for (auto &cmd : cls->Commands()) {
-		snobj_list_add(cmds, snobj_str(cmd.cmd));
+	for (const std::string &cmd : cls->Commands()) {
+		snobj_list_add(cmds, snobj_str(cmd));
 	}
 
 	r = snobj_map();

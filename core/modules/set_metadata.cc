@@ -50,11 +50,6 @@ class SetMetadata : public Module {
 
   void ProcessBatch(struct pkt_batch *batch);
 
-  static const gate_idx_t kNumIGates = 1;
-  static const gate_idx_t kNumOGates = 1;
-
-  static const std::vector<struct Command> cmds;
-
  private:
   struct snobj *AddAttrOne(struct snobj *attr);
 
@@ -62,8 +57,6 @@ class SetMetadata : public Module {
 
   struct Attr attrs_[MAX_ATTRS];
 };
-
-const std::vector<struct Command> SetMetadata::cmds = {};
 
 struct snobj *SetMetadata::AddAttrOne(struct snobj *attr) {
   const char *name;

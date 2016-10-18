@@ -8,13 +8,9 @@ class GenericDecap : public Module {
   static const gate_idx_t kNumIGates = 1;
   static const gate_idx_t kNumOGates = 1;
 
-  static const std::vector<struct Command> cmds;
-
  private:
   int decap_size_ = {0};
 };
-
-const std::vector<struct Command> GenericDecap::cmds = {};
 
 struct snobj *GenericDecap::Init(struct snobj *arg) {
   if (!arg) return NULL;

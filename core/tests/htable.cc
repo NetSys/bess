@@ -1,5 +1,3 @@
-#if __AVX__
-
 #include <assert.h>
 #include <stdio.h>
 #include <math.h>
@@ -443,8 +441,11 @@ static void perftest()
 	const struct player players[] = {
 		{"ht_get", bess_init, bess_get, bess_close},
 		{"ht_inlined_get", bess_init, bess_inlined_get, bess_close},
+#if __AVX__
+
 		{"ht_inlined_get_bulk(x16)", bess_init,
 			bess_inlined_get_bulk, bess_close},
+#endif
 		{"rte_hash_lookup", dpdk_discrete_init,
 			dpdk_, dpdk_discrete_close},
 		{"rte_hash_lookup_with_hash", dpdk_discrete_init,
@@ -550,5 +551,3 @@ static void functest()
 
 ADD_TEST(perftest, "hash table performance comparison")
 ADD_TEST(functest, "hash table correctness test")
-
-#endif  // __AVX__

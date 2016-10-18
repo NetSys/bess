@@ -522,10 +522,9 @@ class L2Forward : public Module {
 
   virtual void ProcessBatch(struct pkt_batch *batch);
 
-  static const gate_idx_t kNumIGates = 1;
   static const gate_idx_t kNumOGates = MAX_GATES;
 
-  static const std::vector<struct Command> cmds;
+  static const Commands<L2Forward> cmds;
 
  private:
   struct snobj *CommandAdd(struct snobj *arg);
@@ -538,13 +537,12 @@ class L2Forward : public Module {
   gate_idx_t default_gate_ = {0};
 };
 
-const std::vector<struct Command> L2Forward::cmds = {
-    {"add", static_cast<CmdFunc>(&L2Forward::CommandAdd), 0},
-    {"delete", static_cast<CmdFunc>(&L2Forward::CommandDelete), 0},
-    {"set_default_gate",
-     static_cast<CmdFunc>(&L2Forward::CommandSetDefaultGate), 1},
-    {"lookup", static_cast<CmdFunc>(&L2Forward::CommandLookup), 1},
-    {"populate", static_cast<CmdFunc>(&L2Forward::CommandPopulate), 0},
+const Commands<L2Forward> L2Forward::cmds = {
+    {"add", &L2Forward::CommandAdd, 0},
+    {"delete", &L2Forward::CommandDelete, 0},
+    {"set_default_gate", &L2Forward::CommandSetDefaultGate, 1},
+    {"lookup", &L2Forward::CommandLookup, 1},
+    {"populate", &L2Forward::CommandPopulate, 0},
 };
 
 struct snobj *L2Forward::Init(struct snobj *arg) {

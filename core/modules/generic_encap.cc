@@ -27,8 +27,6 @@ class GenericEncap : public Module {
   static const gate_idx_t kNumIGates = 1;
   static const gate_idx_t kNumOGates = 1;
 
-  static const std::vector<struct Command> cmds;
-
  private:
   struct snobj *AddFieldOne(struct snobj *field, struct Field *f, int idx);
 
@@ -38,8 +36,6 @@ class GenericEncap : public Module {
 
   struct Field fields_[MAX_FIELDS];
 };
-
-const std::vector<struct Command> GenericEncap::cmds = {};
 
 struct snobj *GenericEncap::AddFieldOne(struct snobj *field, struct Field *f,
                                         int idx) {

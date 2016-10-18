@@ -15,7 +15,7 @@ class RoundRobin : public Module {
   static const gate_idx_t kNumIGates = 1;
   static const gate_idx_t kNumOGates = MAX_GATES;
 
-  static const std::vector<struct Command> cmds;
+  static const Commands<RoundRobin> cmds;
 
  private:
   struct snobj *CommandSetMode(struct snobj *arg);
@@ -28,9 +28,9 @@ class RoundRobin : public Module {
   int per_packet_ = {};
 };
 
-const std::vector<struct Command> RoundRobin::cmds = {
-    {"set_mode", static_cast<CmdFunc>(&RoundRobin::CommandSetMode), 0},
-    {"set_gates", static_cast<CmdFunc>(&RoundRobin::CommandSetGates), 0},
+const Commands<RoundRobin> RoundRobin::cmds = {
+    {"set_mode", &RoundRobin::CommandSetMode, 0},
+    {"set_gates", &RoundRobin::CommandSetGates, 0},
 };
 
 struct snobj *RoundRobin::Init(struct snobj *arg) {

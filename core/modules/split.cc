@@ -23,16 +23,12 @@ class Split : public Module {
   static const gate_idx_t kNumIGates = 1;
   static const gate_idx_t kNumOGates = MAX_GATES;
 
-  static const std::vector<struct Command> cmds;
-
  private:
   uint64_t mask_;
   int attr_id_;
   int offset_;
   int size_;
 };
-
-const std::vector<struct Command> Split::cmds = {};
 
 struct snobj *Split::Init(struct snobj *arg) {
   if (!arg || snobj_type(arg) != TYPE_MAP)

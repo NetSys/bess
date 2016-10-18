@@ -15,7 +15,7 @@ class RandomUpdate : public Module {
   static const gate_idx_t kNumIGates = 1;
   static const gate_idx_t kNumOGates = 1;
 
-  static const std::vector<struct Command> cmds;
+  static const Commands<RandomUpdate> cmds;
 
  private:
   struct snobj *CommandAdd(struct snobj *arg);
@@ -32,9 +32,9 @@ class RandomUpdate : public Module {
   uint64_t seed_ = {0};
 };
 
-const std::vector<struct Command> RandomUpdate::cmds = {
-    {"add", static_cast<CmdFunc>(&RandomUpdate::CommandAdd), 0},
-    {"clear", static_cast<CmdFunc>(&RandomUpdate::CommandClear), 0},
+const Commands<RandomUpdate> RandomUpdate::cmds = {
+    {"add", &RandomUpdate::CommandAdd, 0},
+    {"clear", &RandomUpdate::CommandClear, 0},
 };
 
 struct snobj *RandomUpdate::CommandAdd(struct snobj *arg) {
