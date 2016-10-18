@@ -24,6 +24,10 @@ else
             Make sure $(abspath $(RTE_SDK)) is available and built)
 endif
 
+# gtest definitions
+GTEST_DIR = /usr/src/gtest
+CXXFLAGS += -isystem $(GTEST_DIR)/include
+
 CXXFLAGS += -std=gnu++11 -g3 -ggdb3 -Ofast -march=native \
 	    -Wall -Werror -Wno-unused-function -Wno-unused-but-set-variable \
 	    -I$(DPDK_INC_DIR) \
@@ -40,9 +44,9 @@ endif
 
 -include extra.mk
 
-SRCS = $(wildcard *.cc utils/*.cc modules/*.cc drivers/*.cc tests/*.cc)
+SRCS = $(filter-out time_test.cc, $(wildcard *.cc utils/*.cc modules/*.cc drivers/*.cc oldtests/*.cc))
 OBJS = $(patsubst %.cc,%.o, $(filter %.cc, $(SRCS)))
-HEADERS = $(wildcard *.h utils/*.h modules/*.h drivers/*.h tests/*.h)
+HEADERS = $(wildcard *.h utils/*.h modules/*.h drivers/*.h oldtests/*.h)
 EXEC = bessd
 
 DEPS = .make.dep
@@ -61,7 +65,7 @@ CORES ?= $(shell nproc || echo 1)
 MAKEFLAGS += -j $(CORES)
 VERBOSE = 0
 
-.PHONY: all clean tags cscope
+.PHONY: all clean tests tags cscope
 
 all: $(DEPS) $(EXEC)
 
@@ -99,7 +103,7 @@ $(EXEC): $(OBJS)
 -include $(DEPS)
 
 clean:
-	rm -f $(DEPS) $(EXEC) *.o modules/*.o drivers/*.o utils/*.o tests/*.o
+	rm -f $(DEPS) $(EXEC) $(TESTS) *.o modules/*.o drivers/*.o utils/*.o oldtests/*.o gtest.a gtest_main.a
 
 tags:
 	@ctags -R *
@@ -109,5 +113,38 @@ cscope:
 	@find . -name "*.c" -o -name "*.h" > cscope.files
 	cscope -b -q -k
 	@rm -f cscope.files
+
+# Test rules
+TESTS = time_test
+
+tests: $(TESTS)
+
+# Rules to build gtest library.
+GTEST_SRCS_ = $(GTEST_DIR)/src/*.cc $(GTEST_DIR)/src/*.h $(GTEST_HEADERS)
+
+# For simplicity and to avoid depending on Google Test's
+# implementation details, the dependencies specified below are
+# conservative and not optimized.  This is fine as Google Test
+# compiles fast and for ordinary users its source rarely changes.
+gtest-all.o : $(GTEST_SRCS_)
+	$(CXX) $(CPPFLAGS) -I$(GTEST_DIR) $(CXXFLAGS) -c \
+            $(GTEST_DIR)/src/gtest-all.cc
+
+gtest_main.o : $(GTEST_SRCS_)
+	$(CXX) $(CPPFLAGS) -I$(GTEST_DIR) $(CXXFLAGS) -c \
+            $(GTEST_DIR)/src/gtest_main.cc
+
+gtest.a : gtest-all.o
+	$(AR) $(ARFLAGS) $@ $^
+
+gtest_main.a : gtest-all.o gtest_main.o
+	$(AR) $(ARFLAGS) $@ $^
+
+# Time test build rules.
+time_test.o : time_test.cc time.h $(GTEST_HEADERS)
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c time_test.cc
+
+time_test : time.o time_test.o gtest_main.a
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -lpthread $^ -o $@
 
 endif
