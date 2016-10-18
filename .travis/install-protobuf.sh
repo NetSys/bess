@@ -6,3 +6,4 @@ cd protobuf-3.1.0
 ./autogen.sh
 ./configure
 make && sudo make install
+sudo ldconfig
