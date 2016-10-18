@@ -129,6 +129,7 @@ def check_essential():
     required('pcap/pcap.h', 'libpcap-dev')
     required_cxx('glog/logging.h', 'libgoogle-glog-dev', 'g++')
     required_cxx('gflags/gflags.h', 'libgflags-dev', 'g++')
+    required_cxx('gtest/gtest.h', 'libgtest-dev', 'g++')
 
 def set_config(filename, config, new_value):
     with open(filename) as fp:
