@@ -1,6 +1,7 @@
 #include <string.h>
 
-#include "log.h"
+#include <glog/logging.h>
+
 #include "mem_alloc.h"
 #include "module.h"
 #include "utils/minheap.h"
@@ -185,7 +186,7 @@ static void allocate_scope_components()
 			mem_realloc(scope_components, sizeof(struct scope_component)
 					   * 100 * ((curr_scope_id / 100) + 1));
 
-	log_err("alloc/realloc %p\n", scope_components);
+	LOG(ERROR) << "alloc/realloc " << scope_components;
 	return;
 }
 
@@ -408,10 +409,10 @@ void check_orphan_readers()
 			if (m->attr_offsets[i] != MT_OFFSET_NOREAD)
 				continue;
 
-			log_warn("Metadata attr '%s/%d' of module '%s' has "
-				 "no upstream module that sets the value!\n",
-					m->attrs[i].name, m->attrs[i].size,
-					m->Name().c_str());
+			LOG(WARNING) << "Metadata attr "
+                   << m->attrs[i].name << "/" << m->attrs[i].size
+                   << " of module " << m->Name() << " has "
+				           << "no upstream module that sets the value!";
 		}
 	}
 	ns_release_iterator(&iter);
@@ -429,13 +430,12 @@ void log_all_scopes_per_module()
 		if (!m)
 			break;
 
-		log_info("Module %s part of the following scope components: ", 
-				m->Name().c_str());
+		LOG(INFO) << "Module " << m->Name()
+              << " part of the following scope components: ";
 		for (int i = 0; i < MT_TOTAL_SIZE; i++) {
 			if (m->scope_components[i] != -1)
-				log_info("scope %d at offset %d, ", m->scope_components[i], i);
+				LOG(INFO) << "scope " << m->scope_components[i] << " at offset " << i;
 		}
-		log_info("\n");
 	}
 	ns_release_iterator(&iter);
 }
@@ -496,17 +496,15 @@ void compute_metadata_offsets()
 	assign_offsets();
 
 	for (int i = 0; i < curr_scope_id; i++) {
-		log_info("scope component for %d-byte attr %s "
-			 "at offset%3d: {%s",
-				scope_components[i].size,
-				scope_components[i].name,
-				scope_components[i].offset,
-				scope_components[i].modules[0]->Name().c_str());
+		LOG(INFO) << "scope component for " << scope_components[i].size << "-byte"
+              << "attr " << scope_components[i].name
+              << "at offset " << scope_components[i].offset << ": {"
+				      << scope_components[i].modules[0]->Name();
 
 		for (int j = 1; j < scope_components[i].num_modules; j++)
-			log_info(" %s", scope_components[i].modules[j]->Name().c_str());
+			LOG(INFO) << scope_components[i].modules[j]->Name();
 
-		log_info("}\n");
+		LOG(INFO) << "}";
 	}
 
 	log_all_scopes_per_module();

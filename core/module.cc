@@ -4,6 +4,8 @@
 
 #include <sstream>
 
+#include <glog/logging.h>
+
 #include "mem_alloc.h"
 #include "dpdk.h"
 #include "time.h"
@@ -431,8 +433,9 @@ void _trace_end(int print_out)
 	s->buflen = 0;
 	s->newlined = 0;
 
-	if (print_out)
-		log_debug("%s", s->buf);
+	if (print_out) {
+		DLOG(INFO) << s->buf;
+  }
 }
 
 void _trace_before_call(Module *mod, Module *next,
@@ -565,7 +568,7 @@ void dump_pcap_pkts(struct gate *gate, struct pkt_batch *batch)
 		ret = writev(fd, vec, 2);
 		if (ret < 0) {
 			if (errno == EPIPE) {
-				log_debug("Broken pipe: stopping tcpdump\n");
+				DLOG(WARNING) << "Broken pipe: stopping tcpdump";
 				gate->tcpdump = 0;
 				gate->fifo_fd = 0;
 				close(fd);

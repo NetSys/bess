@@ -1,7 +1,8 @@
 #include <assert.h>
 
+#include <glog/logging.h>
+
 #include "opts.h"
-#include "log.h"
 #include "module.h"
 #include "tc.h"
 
@@ -100,7 +101,7 @@ printf("%p\n", t->m);
 	}
 
 	if (is_err(c_def)) {
-		log_err("tc_init() failed\n");
+		LOG(ERROR) << "tc_init() failed";
 		return;
 	}
 

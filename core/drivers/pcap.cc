@@ -1,6 +1,8 @@
 #include <errno.h>
 #include <pcap/pcap.h>
 
+#include <glog/logging.h>
+
 #include "../port.h"
 #include "../utils/pcap.h"
 
@@ -51,7 +53,7 @@ struct snobj *PCAPPort::Init(struct snobj *conf) {
   if (ret != 0)
     return snobj_err(ENODEV, "PCAP set to nonblock error: %s", errbuf);
 
-  log_info("PCAP: open dev %s\n", dev_);
+  LOG(INFO) << "PCAP: open dev " << dev_;
 
   return NULL;
 }

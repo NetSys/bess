@@ -15,8 +15,9 @@
 #include <rte_config.h>
 #include <rte_lcore.h>
 
+#include <glog/logging.h>
+
 #include "opts.h"
-#include "log.h"
 #include "worker.h"
 #include "snobj.h"
 #include "snctl.h"
@@ -72,21 +73,18 @@ static int init_listen_fd(uint16_t port)
 	struct linger l = {.l_onoff = 1, .l_linger = 0};
 
 	if ((listen_fd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
-		log_perr("socket()");
-		exit(EXIT_FAILURE);
+		PLOG(FATAL) << "socket()";
 	}
 
 	if (setsockopt(listen_fd, SOL_SOCKET, SO_REUSEADDR,
 				&one, sizeof(one)) < 0)
 	{
-		log_perr("setsockopt(SO_REUSEADDR)");
-		exit(EXIT_FAILURE);
+		PLOG(FATAL) << "setsockopt(SO_REUSEADDR)";
 	}
 
 	if (setsockopt(listen_fd, SOL_SOCKET, SO_LINGER, &l, sizeof(l)) < 0)
 	{
-		log_perr("setsockopt(SO_LINGER)");
-		exit(EXIT_FAILURE);
+		PLOG(FATAL) << "setsockopt(SO_LINGER)";
 	}
 
 	memset(&s_addr, 0, sizeof(s_addr));
@@ -96,20 +94,19 @@ static int init_listen_fd(uint16_t port)
 	s_addr.sin_port = htons(port);
 
 	if (bind(listen_fd, (struct sockaddr *)&s_addr, sizeof(s_addr)) < 0) {
-		if (errno == EADDRINUSE)
-			log_crit("Error: port %u is already in use\n", port);
-		else
-			log_perr("bind()");
-		exit(EXIT_FAILURE);
+		if (errno == EADDRINUSE) {
+			LOG(FATAL) << "Error: port " << port << " is already in use";
+    } else {
+			PLOG(FATAL) << "bind()";
+    }
 	}
 
 	if (listen(listen_fd, 10) < 0) {
-		log_perr("listen()");
-		exit(EXIT_FAILURE);
+		PLOG(FATAL) << "listen()";
 	}
 
-	log_info("Master: listening on %s:%hu\n",
-			inet_ntoa(s_addr.sin_addr), port);
+	LOG(INFO) << "Master: listening on " << inet_ntoa(s_addr.sin_addr)
+            << ":" << std::hex << port;
 
 	return listen_fd;
 }
@@ -146,8 +143,8 @@ static struct client *init_client(int fd, struct sockaddr_in c_addr)
 
 static void close_client(struct client *c)
 {
-	log_info("Master: client %s:%hu disconnected\n",
-			inet_ntoa(c->addr.sin_addr), c->addr.sin_port);
+	LOG(INFO) << "Master: client " << inet_ntoa(c->addr.sin_addr)
+            << ":" << std::hex << c->addr.sin_port << " disconnected";
 
 	close(c->fd);
 
@@ -191,7 +188,7 @@ static struct client *accept_client(int listen_fd)
 	conn_fd = accept(listen_fd, (struct sockaddr *)&c_addr,
 			&addrlen);
 	if (conn_fd < 0) {
-		log_perr("accept()");
+		PLOG(WARNING) << "accept()";
 		return NULL;
 	}
 
@@ -206,7 +203,7 @@ static struct client *accept_client(int listen_fd)
 
 	ret = epoll_ctl(master.epoll_fd, EPOLL_CTL_ADD, conn_fd, &ev);
 	if (ret < 0) {
-		log_perr("epoll_ctl(EPOLL_CTL_ADD, conn_fd)");
+		PLOG(WARNING) << "epoll_ctl(EPOLL_CTL_ADD, conn_fd)";
 		close_client(c);
 	}
 
@@ -229,7 +226,7 @@ static void request_done(struct client *c)
 
 	q = snobj_decode(c->buf, c->msg_len);
 	if (!q) {
-		log_err("Incorrect message\n");
+		LOG(ERROR) << "Incorrect message";
 		goto err;
 	}
 
@@ -240,13 +237,13 @@ static void request_done(struct client *c)
 
 	ret = epoll_ctl(master.epoll_fd, EPOLL_CTL_MOD, c->fd, &ev);
 	if (ret < 0) {
-		log_perr("epoll_ctl(EPOLL_CTL_MOD, listen_fd, OUT)");
+		PLOG(WARNING) << "epoll_ctl(EPOLL_CTL_MOD, listen_fd, OUT)";
 		goto err;
 	}
 
 	c->msg_len = snobj_encode(r, &buf, 0);
 	if (c->msg_len == 0) {
-		log_err("Encoding error\n");
+		LOG(ERROR) << "Encoding error";
 		goto err;
 	}
 
@@ -255,7 +252,7 @@ static void request_done(struct client *c)
 		char *new_buf;
 
 		if (c->msg_len > MAX_BUF_SIZE)  {
-			log_err("too large response was attempted\n");
+			LOG(ERROR) << "too large response was attempted";
 			goto err;
 		}
 
@@ -293,7 +290,7 @@ static void response_done(struct client *c)
 
 	ret = epoll_ctl(master.epoll_fd, EPOLL_CTL_MOD, c->fd, &ev);
 	if (ret < 0) {
-		log_perr("epoll_ctl(EPOLL_CTL_MOD, listen_fd, IN)");
+		PLOG(WARNING) << "epoll_ctl(EPOLL_CTL_MOD, listen_fd, IN)";
 		close_client(c);
 	}
 
@@ -327,14 +324,14 @@ static void client_recv(struct client *c)
 		char *new_buf;
 
 		if (c->msg_len > MAX_BUF_SIZE)  {
-			log_err("too large request was attempted\n");
+			LOG(ERROR) << "too large request was attempted";
 			close_client(c);
 			return;
 		}
 
 		new_buf = (char *)mem_realloc(c->buf, c->msg_len);
 		if (!new_buf) {
-			log_err("Out of memory\n");
+			LOG(ERROR) << "Out of memory";
 			close_client(c);
 			return;
 		}
@@ -398,8 +395,7 @@ static void init_server()
 {
 	master.epoll_fd = epoll_create(16);
 	if (master.epoll_fd < 0) {
-		log_perr("epoll_create()");
-		exit(EXIT_FAILURE);
+		PLOG(FATAL) << "epoll_create()";
 	}
 
 	if (global_opts.port) {
@@ -416,11 +412,10 @@ static void init_server()
 		int ret = epoll_ctl(master.epoll_fd, EPOLL_CTL_ADD,
 				master.listen_fd, &ev);
 		if (ret < 0) {
-			log_perr("epoll_ctl(EPOLL_CTL_ADD, listen_fd)");
-			exit(EXIT_FAILURE);
+			PLOG(FATAL) << "epoll_ctl(EPOLL_CTL_ADD, listen_fd)";
 		}
 	} else {
-		log_warn("Running without the control channel.\n");
+		LOG(WARNING) << "Running without the control channel.";
 		master.listen_fd = -1;		/* controller-less mode */
 	}
 }
@@ -449,8 +444,9 @@ void run_master()
 again:
 	ret = epoll_wait(master.epoll_fd, &ev, 1, -1);
 	if (ret <= 0) {
-		if (errno != EINTR)
-			log_perr("epoll_wait()");
+		if (errno != EINTR) {
+			PLOG(WARNING) << "epoll_wait()";
+    }
 		goto again;
 	}
 
@@ -458,9 +454,8 @@ again:
 		if ((c = accept_client(master.listen_fd)) == NULL)
 			goto again;
 
-		log_info("Master: a new client from %s:%hu\n",
-				inet_ntoa(c->addr.sin_addr),
-				c->addr.sin_port);
+		LOG(INFO) << "Master: a new client from " << inet_ntoa(c->addr.sin_addr)
+              << ":" << std::hex << c->addr.sin_port;
 	} else {
 		c = (struct client *)ev.data.ptr;
 
@@ -474,7 +469,7 @@ again:
 		} else if (ev.events & EPOLLOUT) {
 			client_send(c);
 		} else {
-			log_err("Unknown epoll event %u\n", ev.events);
+			LOG(ERROR) << "Unknown epoll event " << ev.events;
 			close_client(c);
 		}
 	}

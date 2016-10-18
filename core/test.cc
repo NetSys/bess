@@ -1,7 +1,7 @@
 #include <time.h>
 #include <string.h>
 
-#include "log.h"
+#include <glog/logging.h>
 
 #include "test.h"
 
@@ -39,10 +39,10 @@ void run_tests()
 	ctime_r(&curr, buf);
 	*strchr(buf, '\n') = '\0';
 
-	log_notice("Test started at %s   --------------------------\n", buf);
+	LOG(INFO) << "Test started at " << buf << "--------------------------";
 	for (struct testcase *ptr = head; ptr; ptr = ptr->next) {
 		i++;
-		log_notice("%2d/%2d: %s\n", i, num_tests, ptr->name);
+		LOG(INFO) << i << "/" << num_tests << ": " << ptr->name;
 		ptr->func();
 	}
 
@@ -50,7 +50,7 @@ void run_tests()
 	ctime_r(&curr, buf);
 	*strchr(buf, '\n') = '\0';
 
-	log_notice("Test ended at %s     --------------------------\n", buf);
+	LOG(INFO) << "Test ended at " << buf << "--------------------------";
 }
 
 void run_forced_tests()
@@ -66,13 +66,13 @@ void run_forced_tests()
 	ctime_r(&curr, buf);
 	*strchr(buf, '\n') = '\0';
 
-	log_notice("Test started at %s   --------------------------\n", buf);
+	LOG(INFO) << "Test started at " << buf << "--------------------------";
 
 	for (struct testcase *ptr = head; ptr; ptr = ptr->next) {
 		if (!ptr->forced)
 			continue;
 		i++;
-		log_notice("%2d/%2d: %s\n", i, num_forced_tests, ptr->name);
+    LOG(INFO) << i << "/" << num_forced_tests << ": " << ptr->name;
 		ptr->func();
 	}
 
@@ -80,5 +80,5 @@ void run_forced_tests()
 	ctime_r(&curr, buf);
 	*strchr(buf, '\n') = '\0';
 
-	log_notice("Test ended at %s     --------------------------\n", buf);
+	LOG(INFO) << "Test ended at " << buf << "--------------------------";
 }
