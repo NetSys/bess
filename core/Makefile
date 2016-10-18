@@ -115,6 +115,11 @@ cscope:
 	cscope -b -q -k
 	@rm -f cscope.files
 
+# Test rules
+TESTS = time_test
+
+tests: $(TESTS)
+
 # Rules to build gtest library.
 GTEST_SRCS_ = $(GTEST_DIR)/src/*.cc $(GTEST_DIR)/src/*.h $(GTEST_HEADERS)
 
@@ -136,6 +141,11 @@ gtest.a : gtest-all.o
 gtest_main.a : gtest-all.o gtest_main.o
 	$(AR) $(ARFLAGS) $@ $^
 
+# Time test build rules.
+time_test.o : time_test.cc time.h $(GTEST_HEADERS)
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c time_test.cc
 
+time_test : time.o time_test.o gtest_main.a
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -lpthread $^ -o $@
 
 endif
