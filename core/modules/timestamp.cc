@@ -23,8 +23,7 @@ class Timestamp : public Module {
 void Timestamp::ProcessBatch(struct pkt_batch *batch) {
   uint64_t time = get_time();
 
-  for (int i = 0; i < batch->cnt; i++)
-          timestamp_packet(batch->pkts[i], time);
+  for (int i = 0; i < batch->cnt; i++) timestamp_packet(batch->pkts[i], time);
 
   run_next_module(this, batch);
 }

@@ -61,8 +61,7 @@ void Measure::ProcessBatch(struct pkt_batch *batch) {
 
   if (start_time_ == 0) start_time_ = get_time();
 
-  if (static_cast<int>(HISTO_TIME_TO_SEC(time - start_time_)) <
-      warmup_)
+  if (static_cast<int>(HISTO_TIME_TO_SEC(time - start_time_)) < warmup_)
     goto skip;
 
   pkt_cnt_ += batch->cnt;

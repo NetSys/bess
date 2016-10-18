@@ -158,14 +158,12 @@ int PCAPPort::SendPackets(queue_t qid, snb_array_t pkts, int cnt) {
     struct snbuf *sbuf = pkts[send_cnt];
 
     if (likely(sbuf->mbuf.nb_segs == 1)) {
-      ret = pcap_sendpacket(pcap_handle_,
-                            (const u_char *)snb_head_data(sbuf),
+      ret = pcap_sendpacket(pcap_handle_, (const u_char *)snb_head_data(sbuf),
                             sbuf->mbuf.pkt_len);
     } else {
       if (sbuf->mbuf.pkt_len <= PCAP_SNAPLEN) {
         pcap_gather_data(tx_pcap_data, &sbuf->mbuf);
-        ret = pcap_sendpacket(pcap_handle_, tx_pcap_data,
-                              sbuf->mbuf.pkt_len);
+        ret = pcap_sendpacket(pcap_handle_, tx_pcap_data, sbuf->mbuf.pkt_len);
       } else {
         RTE_LOG(ERR, PMD,
                 "Dropping PCAP packet. "

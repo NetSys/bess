@@ -28,8 +28,7 @@ class Rewrite : public Module {
 };
 
 const Commands<Rewrite> Rewrite::cmds = {
-    {"add", &Rewrite::CommandAdd, 0},
-    {"clear", &Rewrite::CommandClear, 0},
+    {"add", &Rewrite::CommandAdd, 0}, {"clear", &Rewrite::CommandClear, 0},
 };
 
 struct snobj *Rewrite::Init(struct snobj *arg) {

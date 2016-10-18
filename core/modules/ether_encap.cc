@@ -57,4 +57,5 @@ void EtherEncap::ProcessBatch(struct pkt_batch *batch) {
   run_next_module(this, batch);
 }
 
-ADD_MODULE(EtherEncap, "ether_encap", "encapsulates packets with an Ethernet header")
+ADD_MODULE(EtherEncap, "ether_encap",
+           "encapsulates packets with an Ethernet header")

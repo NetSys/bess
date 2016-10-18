@@ -578,8 +578,7 @@ void L2Forward::ProcessBatch(struct pkt_batch *batch) {
 
     ogates[i] = default_gate;
 
-    l2_find(&l2_table_,
-            l2_addr_to_u64(static_cast<char *>(snb_head_data(snb))),
+    l2_find(&l2_table_, l2_addr_to_u64(static_cast<char *>(snb_head_data(snb))),
             &ogates[i]);
   }
 
@@ -748,8 +747,7 @@ struct snobj *L2Forward::CommandPopulate(struct snobj *arg) {
   base_u64 = base_u64 >> 16;
 
   for (int i = 0; i < cnt; i++) {
-    l2_add_entry(&l2_table_, rte_cpu_to_be_64(base_u64 << 16),
-                 i % gate_cnt);
+    l2_add_entry(&l2_table_, rte_cpu_to_be_64(base_u64 << 16), i % gate_cnt);
 
     base_u64++;
   }

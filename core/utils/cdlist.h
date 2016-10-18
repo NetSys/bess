@@ -1,7 +1,7 @@
 #ifndef _CDLIST_H_
 #define _CDLIST_H_
 
-#include <stddef.h>	/* offsetof */
+#include <stddef.h> /* offsetof */
 
 #include "../common.h"
 
@@ -41,172 +41,152 @@
 struct cdlist_item;
 
 struct cdlist_head {
-	struct cdlist_item *next;
-	struct cdlist_item *prev;
+  struct cdlist_item *next;
+  struct cdlist_item *prev;
 };
 
 struct cdlist_item {
-	struct cdlist_item *next;
-	struct cdlist_item *prev;
+  struct cdlist_item *next;
+  struct cdlist_item *prev;
 };
 
 /* for static declaration of an empty list */
 #define CDLIST_HEAD_INIT(name) \
-	{(struct cdlist_item *)&(name), (struct cdlist_item *)&(name)}
+  { (struct cdlist_item *) & (name), (struct cdlist_item *) & (name) }
 
-#define cdlist_for_each(item, head) \
-	for (item = (head)->next; \
-	     item != (struct cdlist_item *)(head); \
-	     item = item->next)
+#define cdlist_for_each(item, head)                               \
+  for (item = (head)->next; item != (struct cdlist_item *)(head); \
+       item = item->next)
 
-#define cdlist_for_each_entry(entry, head, item_member) \
-	for (entry = container_of((head)->next, typeof(*entry), item_member); \
-	     &entry->item_member != (struct cdlist_item *)(head); \
-	     entry = container_of(entry->item_member.next, typeof(*entry), \
-		     item_member))
+#define cdlist_for_each_entry(entry, head, item_member)                 \
+  for (entry = container_of((head)->next, typeof(*entry), item_member); \
+       &entry->item_member != (struct cdlist_item *)(head);             \
+       entry =                                                          \
+           container_of(entry->item_member.next, typeof(*entry), item_member))
 
-#define cdlist_for_each_entry_safe(entry, next_entry, head, item_member) \
-	for (entry = container_of((head)->next, typeof(*entry), item_member), \
-		next_entry = container_of(entry->item_member.next, \
-			typeof(*entry), item_member); \
-	     &entry->item_member != (struct cdlist_item *)(head); \
-	     entry = next_entry, \
-		next_entry = container_of(entry->item_member.next, typeof(*entry), \
-		item_member))
+#define cdlist_for_each_entry_safe(entry, next_entry, head, item_member)       \
+  for (entry = container_of((head)->next, typeof(*entry), item_member),        \
+      next_entry =                                                             \
+           container_of(entry->item_member.next, typeof(*entry), item_member); \
+       &entry->item_member != (struct cdlist_item *)(head);                    \
+       entry = next_entry,                                                     \
+      next_entry =                                                             \
+           container_of(entry->item_member.next, typeof(*entry), item_member))
 
-static inline void cdlist_head_init(struct cdlist_head *head)
-{
-	head->next = (struct cdlist_item *)head;
-	head->prev = (struct cdlist_item *)head;
+static inline void cdlist_head_init(struct cdlist_head *head) {
+  head->next = (struct cdlist_item *)head;
+  head->prev = (struct cdlist_item *)head;
 };
 
-static inline void cdlist_item_init(struct cdlist_item *item)
-{
-	item->next = item;
-	item->prev = item;
+static inline void cdlist_item_init(struct cdlist_item *item) {
+  item->next = item;
+  item->prev = item;
 }
 
 static inline void cdlist_add_between(struct cdlist_item *prev,
-		struct cdlist_item *next,
-		struct cdlist_item *item)
-{
-	prev->next = item;
-	item->next = next;
-	item->prev = prev;
-	next->prev = item;
+                                      struct cdlist_item *next,
+                                      struct cdlist_item *item) {
+  prev->next = item;
+  item->next = next;
+  item->prev = prev;
+  next->prev = item;
 };
 
 static inline void cdlist_add_after(struct cdlist_item *prev,
-		struct cdlist_item *item)
-{
-	cdlist_add_between(prev, prev->next, item);
+                                    struct cdlist_item *item) {
+  cdlist_add_between(prev, prev->next, item);
 }
 
 static inline void cdlist_add_before(struct cdlist_item *next,
-		struct cdlist_item *item)
-{
-	cdlist_add_between(next->prev, next, item);
+                                     struct cdlist_item *item) {
+  cdlist_add_between(next->prev, next, item);
 }
 
 static inline void cdlist_add_head(struct cdlist_head *head,
-		struct cdlist_item *item)
-{
-	cdlist_add_between((struct cdlist_item *)head, head->next, item);
+                                   struct cdlist_item *item) {
+  cdlist_add_between((struct cdlist_item *)head, head->next, item);
 };
 
 static inline void cdlist_add_tail(struct cdlist_head *head,
-		struct cdlist_item *item)
-{
-	cdlist_add_between(head->prev, (struct cdlist_item *)head, item);
+                                   struct cdlist_item *item) {
+  cdlist_add_between(head->prev, (struct cdlist_item *)head, item);
 }
 
-static inline int cdlist_is_hooked(const struct cdlist_item *item)
-{
-	return item->next != item;
+static inline int cdlist_is_hooked(const struct cdlist_item *item) {
+  return item->next != item;
 }
 
-static inline void _cdlist_del(struct cdlist_item *item)
-{
-	struct cdlist_item *next;
-	struct cdlist_item *prev;
+static inline void _cdlist_del(struct cdlist_item *item) {
+  struct cdlist_item *next;
+  struct cdlist_item *prev;
 
-	next = item->next;
-	prev = item->prev;
+  next = item->next;
+  prev = item->prev;
 
-	prev->next = next;
-	next->prev = prev;
+  prev->next = next;
+  next->prev = prev;
 }
 
-static inline void cdlist_del(struct cdlist_item *item)
-{
-	_cdlist_del(item);
-	cdlist_item_init(item);
+static inline void cdlist_del(struct cdlist_item *item) {
+  _cdlist_del(item);
+  cdlist_item_init(item);
 }
 
-static inline int cdlist_is_empty(const struct cdlist_head *head)
-{
-	return head->next == (struct cdlist_item *)head;
+static inline int cdlist_is_empty(const struct cdlist_head *head) {
+  return head->next == (struct cdlist_item *)head;
 }
 
-static inline int cdlist_is_single(const struct cdlist_head *head)
-{
-	return !cdlist_is_empty(head) && (head->next == head->prev);
+static inline int cdlist_is_single(const struct cdlist_head *head) {
+  return !cdlist_is_empty(head) && (head->next == head->prev);
 }
 
-static inline struct cdlist_item *cdlist_pop_head(struct cdlist_head *head)
-{
-	struct cdlist_item *item;
+static inline struct cdlist_item *cdlist_pop_head(struct cdlist_head *head) {
+  struct cdlist_item *item;
 
-	if (cdlist_is_empty(head))
-		return NULL;
+  if (cdlist_is_empty(head)) return NULL;
 
-	item = head->next;
-	cdlist_del(item);
+  item = head->next;
+  cdlist_del(item);
 
-	return item;
+  return item;
 }
 
 /* The first item will become the last one. Useful for round robin.
  * It returns the original first item (or the last item after rotation).
  * It returns NULL if the list is empty. */
-static inline struct cdlist_item *cdlist_rotate_left(struct cdlist_head *head)
-{
-	struct cdlist_item *first;
-	struct cdlist_item *second;
-	struct cdlist_item *last;
+static inline struct cdlist_item *cdlist_rotate_left(struct cdlist_head *head) {
+  struct cdlist_item *first;
+  struct cdlist_item *second;
+  struct cdlist_item *last;
 
-	if (cdlist_is_empty(head))
-		return NULL;
+  if (cdlist_is_empty(head)) return NULL;
 
-	if (cdlist_is_single(head))
-		return head->next;
+  if (cdlist_is_single(head)) return head->next;
 
-	first = head->next;
-	second = first->next;
-	last = head->prev;
+  first = head->next;
+  second = first->next;
+  last = head->prev;
 
-	head->next = second;
-	second->prev = (struct cdlist_item *)head;
+  head->next = second;
+  second->prev = (struct cdlist_item *)head;
 
-	first->next = (struct cdlist_item *)head;
-	head->prev = first;
+  first->next = (struct cdlist_item *)head;
+  head->prev = first;
 
-	last->next = first;
-	first->prev = last;
+  last->next = first;
+  first->prev = last;
 
-	return first;
+  return first;
 }
 
 /* O(N). Guaranteed to be slow. */
-static inline int cdlist_count(struct cdlist_head *head)
-{
-	struct cdlist_item *i;
-	int count = 0;
+static inline int cdlist_count(struct cdlist_head *head) {
+  struct cdlist_item *i;
+  int count = 0;
 
-	cdlist_for_each(i, head)
-		count++;
+  cdlist_for_each(i, head) count++;
 
-	return count;
+  return count;
 }
 
 #endif

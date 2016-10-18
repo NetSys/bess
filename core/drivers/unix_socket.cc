@@ -118,8 +118,8 @@ struct snobj *UnixSocketPort::Init(struct snobj *conf) {
   if (path) {
     snprintf(addr_.sun_path, sizeof(addr_.sun_path), "%s", path);
   } else
-    snprintf(addr_.sun_path, sizeof(addr_.sun_path),
-             "%s/bess_unix_%s", P_tmpdir, Name().c_str());
+    snprintf(addr_.sun_path, sizeof(addr_.sun_path), "%s/bess_unix_%s",
+             P_tmpdir, Name().c_str());
 
   /* This doesn't include the trailing null character */
   addrlen = sizeof(addr_.sun_family) + strlen(addr_.sun_path);
@@ -131,8 +131,7 @@ struct snobj *UnixSocketPort::Init(struct snobj *conf) {
   } else
     addr_.sun_path[0] = '\0';
 
-  ret = bind(listen_fd_,
-             reinterpret_cast<struct sockaddr *>(&addr_), addrlen);
+  ret = bind(listen_fd_, reinterpret_cast<struct sockaddr *>(&addr_), addrlen);
   if (ret < 0) return snobj_err(errno, "bind(%s) failed", addr_.sun_path);
 
   ret = listen(listen_fd_, 1);

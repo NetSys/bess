@@ -1,30 +1,26 @@
 #ifndef _TEST_H_
 #define _TEST_H_
 
-#define _ADD_TEST(_func, _name, _forced) \
-	static struct testcase __t_##_func = { \
-		.next = NULL, \
-		.name = _name, \
-		.forced = _forced, \
-		.func = _func, \
-	}; \
-	__attribute__((constructor(104))) void __testcase_register_##_func() \
-	{ \
-		add_testcase(&__t_##_func); \
-	}
+#define _ADD_TEST(_func, _name, _forced)                                 \
+  static struct testcase __t_##_func = {                                 \
+      .next = NULL, .name = _name, .forced = _forced, .func = _func,     \
+  };                                                                     \
+  __attribute__((constructor(104))) void __testcase_register_##_func() { \
+    add_testcase(&__t_##_func);                                          \
+  }
 
-#define ADD_TEST(func, name)		_ADD_TEST(func, name, 0)
+#define ADD_TEST(func, name) _ADD_TEST(func, name, 0)
 
 /* convenience macro for testcase development */
-#define ADD_TEST_FORCED(func, name)	_ADD_TEST(func, name, 1)
+#define ADD_TEST_FORCED(func, name) _ADD_TEST(func, name, 1)
 
 typedef void (*test_func_t)(void);
 
 struct testcase {
-	struct testcase *next;
-	const char *name;
-	int forced;
-	test_func_t func;
+  struct testcase *next;
+  const char *name;
+  int forced;
+  test_func_t func;
 };
 
 void add_testcase(struct testcase *t);

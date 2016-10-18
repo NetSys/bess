@@ -1129,9 +1129,8 @@ class BPF : public Module {
   inline void process_batch_1filter(struct pkt_batch *batch);
 };
 
-const Commands<BPF> BPF::cmds = {
-    {"add", &BPF::CommandAdd, 0},
-    {"clear", &BPF::CommandClear, 0}};
+const Commands<BPF> BPF::cmds = {{"add", &BPF::CommandAdd, 0},
+                                 {"clear", &BPF::CommandClear, 0}};
 
 struct snobj *BPF::Init(struct snobj *arg) {
   return arg ? CommandAdd(arg) : NULL;
@@ -1139,8 +1138,7 @@ struct snobj *BPF::Init(struct snobj *arg) {
 
 void BPF::Deinit() {
   for (int i = 0; i < n_filters_; i++) {
-    munmap(reinterpret_cast<void *>(filters_[i].func),
-           filters_[i].mmap_size);
+    munmap(reinterpret_cast<void *>(filters_[i].func), filters_[i].mmap_size);
     free(filters_[i].exp);
   }
 
@@ -1206,8 +1204,7 @@ struct snobj *BPF::CommandAdd(struct snobj *arg) {
     }
 
     n_filters_++;
-    qsort(filters_, n_filters_, sizeof(struct filter),
-          &compare_filter);
+    qsort(filters_, n_filters_, sizeof(struct filter), &compare_filter);
 
     filter++;
   }

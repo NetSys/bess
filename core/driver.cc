@@ -1,34 +1,29 @@
 #include "port.h"
 
-size_t list_drivers(const Driver **p_arr, size_t arr_size, size_t offset)
-{
-	size_t ret = 0;
-	size_t iter_cnt = 0;
+size_t list_drivers(const Driver **p_arr, size_t arr_size, size_t offset) {
+  size_t ret = 0;
+  size_t iter_cnt = 0;
 
-	struct ns_iter iter;
+  struct ns_iter iter;
 
-	ns_init_iterator(&iter, NS_TYPE_DRIVER);
-	while (1) {
-		Driver* driver = (Driver *) ns_next(&iter);
-		if (!driver)
-			break;
+  ns_init_iterator(&iter, NS_TYPE_DRIVER);
+  while (1) {
+    Driver *driver = (Driver *)ns_next(&iter);
+    if (!driver) break;
 
-		if (iter_cnt++ < offset)
-			continue;
+    if (iter_cnt++ < offset) continue;
 
-		if (ret >= arr_size)
-			break;
+    if (ret >= arr_size) break;
 
-		p_arr[ret++] = driver;
-	}
-	ns_release_iterator(&iter);
+    p_arr[ret++] = driver;
+  }
+  ns_release_iterator(&iter);
 
-	return ret;
+  return ret;
 }
 
-const Driver *find_driver(const char *name)
-{
-	return (Driver *) ns_lookup(NS_TYPE_DRIVER, name);
+const Driver *find_driver(const char *name) {
+  return (Driver *)ns_lookup(NS_TYPE_DRIVER, name);
 }
 
 #if 0
@@ -61,17 +56,15 @@ int add_driver(const Driver *driver)
 }
 #endif
 
-void init_drivers()
-{
-	struct ns_iter iter;
+void init_drivers() {
+  struct ns_iter iter;
 
-	ns_init_iterator(&iter, NS_TYPE_DRIVER);
-	while (1) {
-		Driver *driver = (Driver *) ns_next(&iter);
-		if (!driver)
-			break;
+  ns_init_iterator(&iter, NS_TYPE_DRIVER);
+  while (1) {
+    Driver *driver = (Driver *)ns_next(&iter);
+    if (!driver) break;
 
-		driver->Init();
-	}
-	ns_release_iterator(&iter);
+    driver->Init();
+  }
+  ns_release_iterator(&iter);
 }

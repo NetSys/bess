@@ -144,4 +144,5 @@ void GenericEncap::ProcessBatch(struct pkt_batch *batch) {
   run_next_module(this, batch);
 }
 
-ADD_MODULE(GenericEncap, "generic_encap", "encapsulates packets with constant values and metadata attributes")
+ADD_MODULE(GenericEncap, "generic_encap",
+           "encapsulates packets with constant values and metadata attributes")

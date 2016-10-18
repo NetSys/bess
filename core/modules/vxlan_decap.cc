@@ -59,4 +59,5 @@ void VXLANDecap::ProcessBatch(struct pkt_batch *batch) {
   run_next_module(this, batch);
 }
 
-ADD_MODULE(VXLANDecap, "vxlan_decap", "decapsulates the outer Ethetnet/IP/UDP/VXLAN headers")
+ADD_MODULE(VXLANDecap, "vxlan_decap",
+           "decapsulates the outer Ethetnet/IP/UDP/VXLAN headers")

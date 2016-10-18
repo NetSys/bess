@@ -4,36 +4,30 @@
 #include "module.h"
 
 size_t list_mclasses(const ModuleClass **p_arr, size_t arr_size,
-		size_t offset)
-{
-	size_t ret = 0;
-	size_t iter_cnt = 0;
+                     size_t offset) {
+  size_t ret = 0;
+  size_t iter_cnt = 0;
 
-	struct ns_iter iter;
+  struct ns_iter iter;
 
-	ns_init_iterator(&iter, NS_TYPE_MCLASS);
-	while (1) {
-		ModuleClass *mc_obj = (ModuleClass *) ns_next(&iter);
-		if (!mc_obj)
-			break;
+  ns_init_iterator(&iter, NS_TYPE_MCLASS);
+  while (1) {
+    ModuleClass *mc_obj = (ModuleClass *)ns_next(&iter);
+    if (!mc_obj) break;
 
-		if (iter_cnt++ < offset)
-			continue;
+    if (iter_cnt++ < offset) continue;
 
-		if (ret >= arr_size)
-			break;
+    if (ret >= arr_size) break;
 
-		p_arr[ret++] = mc_obj;
+    p_arr[ret++] = mc_obj;
+  }
+  ns_release_iterator(&iter);
 
-	}
-	ns_release_iterator(&iter);
-
-	return ret;
+  return ret;
 }
 
-const ModuleClass *find_mclass(const char *name)
-{
-	return (ModuleClass *) ns_lookup(NS_TYPE_MCLASS, name);
+const ModuleClass *find_mclass(const char *name) {
+  return (ModuleClass *)ns_lookup(NS_TYPE_MCLASS, name);
 }
 
 #if 0
