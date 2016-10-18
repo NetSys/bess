@@ -1,5 +1,5 @@
-#ifndef _CC_MODULE_H_
-#define _CC_MODULE_H_
+#ifndef _MODULE_H_
+#define _MODULE_H_
 
 #include <cassert>
 #include <string>
