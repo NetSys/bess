@@ -2,12 +2,15 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <syslog.h>
 
 #include <rte_config.h>
 #include <rte_cycles.h>
 #include <rte_timer.h>
 #include <rte_ethdev.h>
 #include <rte_eal.h>
+
+#include <string>
 
 #include <glog/logging.h>
 
@@ -53,14 +56,14 @@ static void enable_syslog()
 static ssize_t dpdk_log_init_writer(void *cookie, const char *data, size_t len)
 {
 	enable_syslog();
-	LOG(INFO) << string(data, len);
+	LOG(INFO) << std::string(data, len);
 	disable_syslog();
 	return len;
 }
 
 static ssize_t dpdk_log_writer(void *cookie, const char *data, size_t len)
 {
-	LOG(INFO) << string(data, len);
+	LOG(INFO) << std::string(data, len);
 	return len;
 }
 

@@ -1,7 +1,5 @@
 #include <string.h>
 
-#include <glog/logging.h>
-
 #include "namespace.h"
 #include "module.h"
 
