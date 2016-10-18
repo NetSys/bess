@@ -189,7 +189,7 @@ class Module {
   // -------------------------------------------------------------------------
 
  public:
-  const ModuleClass *Class() const { return mclass_; };
+  const ModuleClass *GetClass() const { return mclass_; };
   std::string Name() const { return name_; };
 
   struct snobj *RunCommand(const std::string &cmd, struct snobj *arg) {

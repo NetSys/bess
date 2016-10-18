@@ -600,7 +600,7 @@ static struct snobj *handle_list_modules(struct snobj *q) {
       struct snobj *module = snobj_map();
 
       snobj_map_set(module, "name", snobj_str(m->Name()));
-      snobj_map_set(module, "mclass", snobj_str(m->Class()->Name()));
+      snobj_map_set(module, "mclass", snobj_str(m->GetClass()->Name()));
       snobj_map_set(module, "desc", m->GetDesc());
 
       snobj_list_add(r, module);
@@ -749,7 +749,7 @@ static struct snobj *handle_get_module_info(struct snobj *q) {
   r = snobj_map();
 
   snobj_map_set(r, "name", snobj_str(m->Name()));
-  snobj_map_set(r, "mclass", snobj_str(m->Class()->Name()));
+  snobj_map_set(r, "mclass", snobj_str(m->GetClass()->Name()));
 
   snobj_map_set(r, "desc", m->GetDesc());
   snobj_map_set(r, "dump", m->GetDump());
