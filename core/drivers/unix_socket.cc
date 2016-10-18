@@ -8,6 +8,7 @@
 #include <sys/un.h>
 #include <unistd.h>
 
+#include "../message.h"
 #include "../port.h"
 
 #define NOT_CONNECTED -1
@@ -25,7 +26,7 @@ class UnixSocketPort : public Port {
  public:
   static void InitDriver(){};
 
-  virtual struct snobj *Init(struct snobj *arg);
+  virtual error_ptr_t Init(const std::string &path);
   virtual void DeInit();
 
   virtual int RecvPackets(queue_t qid, snb_array_t pkts, int cnt);
@@ -94,11 +95,10 @@ void UnixSocketPort::CloseConnection() {
   if (ret) log_err("[UnixSocket]:pthread_create() returned errno %d", ret);
 }
 
-struct snobj *UnixSocketPort::Init(struct snobj *conf) {
+error_ptr_t UnixSocketPort::Init(const std::string &path) {
   int num_txq = num_queues[PACKET_DIR_OUT];
   int num_rxq = num_queues[PACKET_DIR_INC];
 
-  const char *path;
   size_t addrlen;
 
   int ret;
@@ -107,16 +107,15 @@ struct snobj *UnixSocketPort::Init(struct snobj *conf) {
   old_client_fd_ = NOT_CONNECTED;
 
   if (num_txq > 1 || num_rxq > 1)
-    return snobj_err(EINVAL, "Cannot have more than 1 queue per RX/TX");
+    return pb_error(EINVAL, "Cannot have more than 1 queue per RX/TX");
 
   listen_fd_ = socket(AF_UNIX, SOCK_SEQPACKET, 0);
-  if (listen_fd_ < 0) return snobj_err(errno, "socket(AF_UNIX) failed");
+  if (listen_fd_ < 0) return pb_error(errno, "socket(AF_UNIX) failed");
 
   addr_.sun_family = AF_UNIX;
 
-  path = snobj_eval_str(conf, "path");
-  if (path) {
-    snprintf(addr_.sun_path, sizeof(addr_.sun_path), "%s", path);
+  if (path.length() != 0) {
+    snprintf(addr_.sun_path, sizeof(addr_.sun_path), "%s", path.c_str());
   } else
     snprintf(addr_.sun_path, sizeof(addr_.sun_path), "%s/bess_unix_%s",
              P_tmpdir, Name().c_str());
@@ -132,17 +131,17 @@ struct snobj *UnixSocketPort::Init(struct snobj *conf) {
     addr_.sun_path[0] = '\0';
 
   ret = bind(listen_fd_, reinterpret_cast<struct sockaddr *>(&addr_), addrlen);
-  if (ret < 0) return snobj_err(errno, "bind(%s) failed", addr_.sun_path);
+  if (ret < 0) return pb_error(errno, "bind(%s) failed", addr_.sun_path);
 
   ret = listen(listen_fd_, 1);
-  if (ret < 0) return snobj_err(errno, "listen() failed");
+  if (ret < 0) return pb_error(errno, "listen() failed");
 
   ret = pthread_create(&accept_thread_, NULL, AcceptThreadMain,
                        reinterpret_cast<void *>(this));
   accept_thread_ = 0;
-  if (ret) return snobj_err(ret, "pthread_create() failed");
+  if (ret) return pb_error(ret, "pthread_create() failed");
 
-  return NULL;
+  return pb_error(0);
 }
 
 void UnixSocketPort::DeInit() {
