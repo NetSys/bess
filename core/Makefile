@@ -40,9 +40,9 @@ endif
 
 -include extra.mk
 
-SRCS = $(wildcard *.cc utils/*.cc modules/*.cc drivers/*.cc)
+SRCS = $(wildcard *.cc utils/*.cc modules/*.cc drivers/*.cc tests/*.cc)
 OBJS = $(patsubst %.cc,%.o, $(filter %.cc, $(SRCS)))
-HEADERS = $(wildcard *.h utils/*.h modules/*.h drivers/*.h)
+HEADERS = $(wildcard *.h utils/*.h modules/*.h drivers/*.h tests/*.h)
 EXEC = bessd
 
 DEPS = .make.dep
@@ -99,7 +99,7 @@ $(EXEC): $(OBJS)
 -include $(DEPS)
 
 clean:
-	rm -f $(DEPS) $(EXEC) *.o modules/*.o drivers/*.o utils/*.o 
+	rm -f $(DEPS) $(EXEC) *.o modules/*.o drivers/*.o utils/*.o tests/*.o
 
 tags:
 	@ctags -R *
