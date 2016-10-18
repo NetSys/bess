@@ -7,13 +7,13 @@
 #include "common.h"
 #include "pktbatch.h"
 
-#define MAX_WORKERS	4
+#define MAX_WORKERS 4
 
-#define MAX_MODULES_PER_PATH	256
+#define MAX_MODULES_PER_PATH 256
 
 // XXX
 typedef uint16_t gate_idx_t;
-#define MAX_GATES		8192
+#define MAX_GATES 8192
 
 /* 	TODO: worker threads doesn't necessarily be pinned to 1 core
  *
@@ -29,46 +29,46 @@ typedef uint16_t gate_idx_t;
  */
 
 typedef volatile enum {
-	WORKER_PAUSING = 0,	/* transient state for blocking or quitting */
-	WORKER_PAUSED,
-	WORKER_RUNNING,
-	WORKER_FINISHED,
+  WORKER_PAUSING = 0, /* transient state for blocking or quitting */
+  WORKER_PAUSED,
+  WORKER_RUNNING,
+  WORKER_FINISHED,
 } worker_status_t;
 
 struct worker_context {
-	volatile enum {
-		pausing = 0, 	/* transient state for blocking or quitting */
-		paused,
-		running,
-		finished
-	} status;
+  volatile enum {
+    pausing = 0, /* transient state for blocking or quitting */
+    paused,
+    running,
+    finished
+  } status;
 
-	pthread_t thread;
-	int wid;		/* always [0, MAX_WORKERS - 1] */
-	int core;		/* TODO: should be cpuset_t */
-	int socket;
-	int fd_event;
+  pthread_t thread;
+  int wid;  /* always [0, MAX_WORKERS - 1] */
+  int core; /* TODO: should be cpuset_t */
+  int socket;
+  int fd_event;
 
-	struct rte_mempool *pframe_pool;
+  struct rte_mempool *pframe_pool;
 
-	struct sched *s;
+  struct sched *s;
 
-	uint64_t silent_drops;	/* packets that have been sent to a deadend */
+  uint64_t silent_drops; /* packets that have been sent to a deadend */
 
-	uint64_t current_tsc;
-	uint64_t current_ns;
+  uint64_t current_tsc;
+  uint64_t current_ns;
 
-	/* The current input gate index is not given as a function parameter.
-	 * Modules should use get_igate() for access */
-	gate_idx_t igate_stack[MAX_MODULES_PER_PATH];
-	int stack_depth;
+  /* The current input gate index is not given as a function parameter.
+   * Modules should use get_igate() for access */
+  gate_idx_t igate_stack[MAX_MODULES_PER_PATH];
+  int stack_depth;
 
-	/* better be the last field. it's huge */
-	struct pkt_batch splits[MAX_GATES + 1];
+  /* better be the last field. it's huge */
+  struct pkt_batch splits[MAX_GATES + 1];
 };
 
 extern int num_workers;
-extern struct worker_context * volatile workers[MAX_WORKERS];
+extern struct worker_context *volatile workers[MAX_WORKERS];
 extern __thread struct worker_context ctx;
 
 /* ------------------------------------------------------------------------
@@ -89,21 +89,17 @@ int is_cpu_present(unsigned int core_id);
 /* arg (int) is the core id the worker should run on */
 void launch_worker(int wid, int core);
 
-static inline int is_worker_active(int wid)
-{
-	return workers[wid] != NULL;
-}
+static inline int is_worker_active(int wid) { return workers[wid] != NULL; }
 
-static inline int is_worker_running(int wid)
-{
-	return workers[wid] && workers[wid]->status == worker_context::running;
+static inline int is_worker_running(int wid) {
+  return workers[wid] && workers[wid]->status == worker_context::running;
 }
 
 /* ------------------------------------------------------------------------
  * functions below are invoked by worker threads
  * ------------------------------------------------------------------------ */
 static inline int is_pause_requested() {
-	return ctx.status == worker_context::pausing;
+  return ctx.status == worker_context::pausing;
 }
 
 /* Block myself. Return nonzero if the worker needs to die */

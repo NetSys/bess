@@ -353,8 +353,7 @@ void WildcardMatch::ProcessBatch(struct pkt_batch *batch) {
 struct snobj *WildcardMatch::GetDesc() {
   int num_rules = 0;
 
-  for (int i = 0; i < num_tuples_; i++)
-    num_rules += tuples_[i].ht.cnt;
+  for (int i = 0; i < num_tuples_; i++) num_rules += tuples_[i].ht.cnt;
 
   return snobj_str_fmt("%lu fields, %d rules", num_fields_, num_rules);
 }
@@ -597,4 +596,5 @@ struct snobj *WildcardMatch::CommandSetDefaultGate(struct snobj *arg) {
   return NULL;
 }
 
-ADD_MODULE(WildcardMatch, "wm", "Multi-field classifier with a wildcard match table")
+ADD_MODULE(WildcardMatch, "wm",
+           "Multi-field classifier with a wildcard match table")

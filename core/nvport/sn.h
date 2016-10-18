@@ -10,24 +10,24 @@
 #include "../kmod/llring.h"
 #include "../snbuf.h"
 
-#define IFNAMSIZ	16
-#define ETH_ALEN	6
+#define IFNAMSIZ 16
+#define ETH_ALEN 6
 
-#define MAX_QUEUES	128
+#define MAX_QUEUES 128
 
-#define APPNAMESIZ	16
+#define APPNAMESIZ 16
 
 /* Ideally share this with vport driver */
 
-#define PORT_NAME_LEN		128
-#define PORT_FNAME_LEN		128 + 256
+#define PORT_NAME_LEN 128
+#define PORT_FNAME_LEN 128 + 256
 
-#define MAX_QUEUES_PER_PORT_DIR              32
+#define MAX_QUEUES_PER_PORT_DIR 32
 
 #define VPORT_DIR_PREFIX "sn_vports"
 
 #ifndef __cacheline_aligned
-  #define __cacheline_aligned __attribute__((aligned(64)))
+#define __cacheline_aligned __attribute__((aligned(64)))
 #endif
 
 struct vport_inc_regs {
@@ -49,24 +49,24 @@ struct vport_bar {
 	int num_inc_q;
 	int num_out_q;
 
-	struct vport_inc_regs* inc_regs[MAX_QUEUES_PER_PORT_DIR];
-	struct llring* inc_qs[MAX_QUEUES_PER_PORT_DIR];
+	struct vport_inc_regs *inc_regs[MAX_QUEUES_PER_PORT_DIR];
+	struct llring *inc_qs[MAX_QUEUES_PER_PORT_DIR];
 
-	struct vport_out_regs* out_regs[MAX_QUEUES_PER_PORT_DIR];
-	struct llring* out_qs[MAX_QUEUES_PER_PORT_DIR];
+	struct vport_out_regs *out_regs[MAX_QUEUES_PER_PORT_DIR];
+	struct llring *out_qs[MAX_QUEUES_PER_PORT_DIR];
 };
 
 struct sn_port {
-	struct vport_bar* bar;
+	struct vport_bar *bar;
 
 	int num_txq;
 	int num_rxq;
 
-	struct vport_inc_regs* tx_regs[MAX_QUEUES_PER_PORT_DIR];
-	struct llring* tx_qs[MAX_QUEUES_PER_PORT_DIR];
+	struct vport_inc_regs *tx_regs[MAX_QUEUES_PER_PORT_DIR];
+	struct llring *tx_qs[MAX_QUEUES_PER_PORT_DIR];
 
-	struct vport_out_regs* rx_regs[MAX_QUEUES_PER_PORT_DIR];
-	struct llring* rx_qs[MAX_QUEUES_PER_PORT_DIR];
+	struct vport_out_regs *rx_regs[MAX_QUEUES_PER_PORT_DIR];
+	struct llring *rx_qs[MAX_QUEUES_PER_PORT_DIR];
 
 	int fd[MAX_QUEUES_PER_PORT_DIR];
 };
@@ -74,36 +74,35 @@ struct sn_port {
 /* End ideally share this part */
 
 //// Maximum size of a metadata attribute or value
-//extern const int ATTRSZ;
+// extern const int ATTRSZ;
 
 extern struct rte_mbuf rte_mbuf_template;
 
 void eal_thread_init_master(unsigned lcore_id);
 
-void sn_init_thread (uint32_t lcore);
+void sn_init_thread(uint32_t lcore);
 
 uint32_t sn_get_lcore_id();
 
 void init_bess(uint32_t lcore, char *name);
 struct sn_port *init_port(const char *ifname);
 void close_port(struct sn_port *port);
-int sn_receive_pkts(struct sn_port *port, 
-		 int rxq, struct snbuf **pkts, int cnt);
-int sn_send_pkts(struct sn_port *port,
-	      int txq, struct snbuf **pkts, int cnt);
+int sn_receive_pkts(struct sn_port *port, int rxq, struct snbuf **pkts,
+		    int cnt);
+int sn_send_pkts(struct sn_port *port, int txq, struct snbuf **pkts, int cnt);
 void sn_snb_free(struct snbuf *pkt);
 struct snbuf *sn_snb_alloc(void);
 void sn_snb_alloc_bulk(snb_array_t snbs, int cnt);
-void sn_snb_free_bulk(snb_array_t snbs, int cnt); 
+void sn_snb_free_bulk(snb_array_t snbs, int cnt);
 void sn_snb_free_bulk_range(snb_array_t snbs, int start, int cnt);
 void sn_snb_copy_batch(snb_array_t src, snb_array_t dest, int cnt);
 
 void sn_enable_interrupt(struct vport_out_regs *);
 void sn_disable_interrupt(struct vport_out_regs *);
 
-uint16_t sn_num_txq(struct sn_port* vport);
+uint16_t sn_num_txq(struct sn_port *vport);
 
-uint16_t sn_num_rxq(struct sn_port* vport);
+uint16_t sn_num_rxq(struct sn_port *vport);
 
 uint64_t sn_rdtsc();
 
@@ -119,26 +118,25 @@ void sn_wait(long cycles);
  *
  * @return 0 on success, -1 on failure.
  */
-//int push_metadata_tag(struct snbuf *pkt,
-       //const char *key,
-       //const char *value);
+// int push_metadata_tag(struct snbuf *pkt,
+// const char *key,
+// const char *value);
 
 extern struct rte_mempool *mempool;
 
-static inline int __receive_pkts(struct sn_port *port, 
-			       int rxq, struct snbuf **pkts, int cnt)
+static inline int __receive_pkts(struct sn_port *port, int rxq,
+				 struct snbuf **pkts, int cnt)
 {
-	return llring_dequeue_burst(port->rx_qs[rxq], 
-			(void **)pkts, cnt);
+	return llring_dequeue_burst(port->rx_qs[rxq], (void **)pkts, cnt);
 }
 
-static inline int __send_pkts(struct sn_port *port,
-			    int txq, struct snbuf **pkts, int cnt)
+static inline int __send_pkts(struct sn_port *port, int txq,
+			      struct snbuf **pkts, int cnt)
 {
 	int sent;
-	
-	sent = llring_enqueue_burst(port->tx_qs[txq],
-			(void **)pkts, cnt) & (~RING_QUOT_EXCEED);
+
+	sent = llring_enqueue_burst(port->tx_qs[txq], (void **)pkts, cnt) &
+	       (~RING_QUOT_EXCEED);
 
 	port->tx_regs[txq]->dropped += (cnt - sent);
 
@@ -154,7 +152,7 @@ static inline void __sn_enable_interrupt(struct vport_out_regs *rx_regs)
 
 static inline void __sn_disable_interrupt(struct vport_out_regs *rx_regs)
 {
-	rx_regs->irq_enabled = 0;	
+	rx_regs->irq_enabled = 0;
 }
 
 static inline struct snbuf *__sn_snb_alloc()
@@ -164,24 +162,19 @@ static inline struct snbuf *__sn_snb_alloc()
 	return pkt;
 }
 
-static inline void __sn_snb_free(struct snbuf *pkt)
-{
-	snb_free(pkt);
-}
+static inline void __sn_snb_free(struct snbuf *pkt) { snb_free(pkt); }
 
 static inline void __sn_snb_free_bulk(snb_array_t pkts, int cnt)
 {
 	struct rte_mempool *pool = pkts[0]->mbuf.pool;
-		
+
 	int i;
 
 	for (i = 0; i < cnt; i++) {
 		struct rte_mbuf *mbuf = &pkts[i]->mbuf;
 
-		if (unlikely(mbuf->pool != pool || 
-				!snb_is_simple(pkts[i]) ||
-				rte_mbuf_refcnt_read(mbuf) != 1))
-		{
+		if (unlikely(mbuf->pool != pool || !snb_is_simple(pkts[i]) ||
+			     rte_mbuf_refcnt_read(mbuf) != 1)) {
 			goto slow_path;
 		}
 	}
@@ -204,9 +197,9 @@ static inline void __sn_snb_alloc_bulk(snb_array_t snbs, int cnt)
 #if PARANOIAC_OPTIMIZATION
 	__m128 mbuf_template;
 
-	mbuf_template = *((__m128 *)&rte_mbuf_template.buf_len);	
+	mbuf_template = *((__m128 *)&rte_mbuf_template.buf_len);
 #endif
-	ret = rte_mempool_get_bulk(mempool, (void**)snbs, cnt);
+	ret = rte_mempool_get_bulk(mempool, (void **)snbs, cnt);
 	assert(ret == 0);
 
 	for (i = 0; i < cnt; i++) {

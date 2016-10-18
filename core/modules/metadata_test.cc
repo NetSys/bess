@@ -33,16 +33,16 @@ struct snobj *MetadataTest::AddAttributes(struct snobj *attrs,
     /* check /var/log/syslog for log messages */
     switch (mode) {
       case MT_READ:
-        log_info("module %s: %s, %d bytes, read\n", Name().c_str(),
-                 attr_name, attr_size);
+        log_info("module %s: %s, %d bytes, read\n", Name().c_str(), attr_name,
+                 attr_size);
         break;
       case MT_WRITE:
-        log_info("module %s: %s, %d bytes, write\n", Name().c_str(),
-                 attr_name, attr_size);
+        log_info("module %s: %s, %d bytes, write\n", Name().c_str(), attr_name,
+                 attr_size);
         break;
       case MT_UPDATE:
-        log_info("module %s: %s, %d bytes, update\n", Name().c_str(),
-                 attr_name, attr_size);
+        log_info("module %s: %s, %d bytes, update\n", Name().c_str(), attr_name,
+                 attr_size);
         break;
     }
   }

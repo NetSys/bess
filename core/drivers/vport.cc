@@ -517,8 +517,7 @@ struct snobj *VPort::Init(struct snobj *conf) {
   strcpy(ifname_, ifname);
 
   if (snobj_eval_exists(conf, "docker")) {
-    err = docker_container_pid(snobj_eval_str(conf, "docker"),
-                               &container_pid_);
+    err = docker_container_pid(snobj_eval_str(conf, "docker"), &container_pid_);
 
     if (err) goto fail;
   }
@@ -554,8 +553,7 @@ struct snobj *VPort::Init(struct snobj *conf) {
     goto fail;
   }
 
-  if (snobj_eval_exists(conf, "rxq_cpu") &&
-      num_queues[PACKET_DIR_OUT] > 1) {
+  if (snobj_eval_exists(conf, "rxq_cpu") && num_queues[PACKET_DIR_OUT] > 1) {
     err = snobj_err(EINVAL, "Must specify as many cores as rxqs");
     goto fail;
   }
@@ -573,8 +571,7 @@ struct snobj *VPort::Init(struct snobj *conf) {
   bar_ = AllocBar(&txq_opts, &rxq_opts);
 
   log_err("%p %" PRIx64 "\n", bar_, rte_malloc_virt2phy(bar_));
-  ret =
-      ioctl(fd_, SN_IOC_CREATE_HOSTNIC, rte_malloc_virt2phy(bar_));
+  ret = ioctl(fd_, SN_IOC_CREATE_HOSTNIC, rte_malloc_virt2phy(bar_));
   if (ret < 0) {
     err = snobj_errno_details(-ret, snobj_str("SN_IOC_CREATE_HOSTNIC failure"));
     goto fail;

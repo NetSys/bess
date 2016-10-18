@@ -130,8 +130,7 @@ struct task_result Queue::RunTask(void *arg) {
 
   uint64_t total_bytes = 0;
 
-  uint64_t cnt =
-      llring_sc_dequeue_burst(queue_, (void **)batch.pkts, burst);
+  uint64_t cnt = llring_sc_dequeue_burst(queue_, (void **)batch.pkts, burst);
 
   if (cnt > 0) {
     batch.cnt = cnt;

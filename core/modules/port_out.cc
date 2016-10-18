@@ -39,8 +39,8 @@ struct snobj *PortOut::Init(struct snobj *arg) {
 }
 
 void PortOut::Deinit() {
-  release_queues(port_, reinterpret_cast<const module *>(this),
-                 PACKET_DIR_OUT, NULL, 0);
+  release_queues(port_, reinterpret_cast<const module *>(this), PACKET_DIR_OUT,
+                 NULL, 0);
 }
 
 struct snobj *PortOut::GetDesc() {

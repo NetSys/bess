@@ -106,4 +106,5 @@ void VXLANEncap::ProcessBatch(struct pkt_batch *batch) {
   run_next_module(this, batch);
 }
 
-ADD_MODULE(VXLANEncap, "vxlan_encap", "encapsulates packets with UDP/VXLAN headers")
+ADD_MODULE(VXLANEncap, "vxlan_encap",
+           "encapsulates packets with UDP/VXLAN headers")

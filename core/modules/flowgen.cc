@@ -20,8 +20,7 @@ struct flow {
 
 typedef std::pair<uint64_t, struct flow *> Event;
 typedef std::priority_queue<Event, std::vector<Event>,
-                            std::function<bool(Event, Event)>>
-    EventQueue;
+                            std::function<bool(Event, Event)>> EventQueue;
 
 bool EventLess(const Event &a, const Event &b) { return a.first < b.first; }
 
@@ -114,9 +113,8 @@ inline double FlowGen::NewFlowPkts() {
     case DURATION_UNIFORM:
       return flow_pkts_;
     case DURATION_PARETO:
-      return scaled_pareto_variate(pareto_.inversed_alpha,
-                                   pareto_.mean, flow_pkts_,
-                                   rand_fast_real(&rseed_));
+      return scaled_pareto_variate(pareto_.inversed_alpha, pareto_.mean,
+                                   flow_pkts_, rand_fast_real(&rseed_));
     default:
       assert(0);
   }
@@ -127,8 +125,8 @@ inline double FlowGen::MaxFlowPkts() {
     case DURATION_UNIFORM:
       return flow_pkts_;
     case DURATION_PARETO:
-      return scaled_pareto_variate(pareto_.inversed_alpha,
-                                   pareto_.mean, flow_pkts_, 1.0);
+      return scaled_pareto_variate(pareto_.inversed_alpha, pareto_.mean,
+                                   flow_pkts_, 1.0);
     default:
       assert(0);
   }
@@ -326,8 +324,7 @@ struct snobj *FlowGen::Init(struct snobj *arg) {
   if (duration_ == DURATION_PARETO) MeasureParetoMean();
 
   concurrent_flows_ = flow_rate_ * flow_duration_;
-  if (concurrent_flows_ > 0.0)
-    flow_pps_ = total_pps_ / concurrent_flows_;
+  if (concurrent_flows_ > 0.0) flow_pps_ = total_pps_ / concurrent_flows_;
 
   flow_pkts_ = flow_pps_ * flow_duration_;
   if (flow_rate_ > 0.0) flow_gap_ns_ = 1e9 / flow_rate_;
@@ -416,8 +413,8 @@ void FlowGen::GeneratePackets(struct pkt_batch *batch) {
 
     f->packets_left--;
 
-    events_.push(std::pair<uint64_t, struct flow *>(
-        t + (uint64_t)(1e9 / flow_pps_), f));
+    events_.push(
+        std::pair<uint64_t, struct flow *>(t + (uint64_t)(1e9 / flow_pps_), f));
 
     if (pkt) batch_add(batch, pkt);
   }
@@ -483,9 +480,9 @@ struct snobj *FlowGen::GetDump() {
     struct snobj *t = snobj_map();
 
     snobj_map_set(t, "quick_rampup", snobj_int(quick_rampup_));
-    snobj_map_set(t, "arrival",
-                  snobj_str(arrival_ == ARRIVAL_UNIFORM ? "uniform"
-                                                              : "exponential"));
+    snobj_map_set(
+        t, "arrival",
+        snobj_str(arrival_ == ARRIVAL_UNIFORM ? "uniform" : "exponential"));
     snobj_map_set(
         t, "duration",
         snobj_str(duration_ == DURATION_UNIFORM ? "uniform" : "pareto"));

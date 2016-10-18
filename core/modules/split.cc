@@ -44,8 +44,7 @@ struct snobj *Split::Init(struct snobj *arg) {
 
   if (name) {
     attr_id_ = add_metadata_attr(this, name, size_, MT_READ);
-    if (attr_id_ < 0)
-      return snobj_err(-attr_id_, "add_metadata_attr() failed");
+    if (attr_id_ < 0) return snobj_err(-attr_id_, "add_metadata_attr() failed");
   } else if (snobj_eval_exists(arg, "offset")) {
     attr_id_ = -1;
     offset_ = snobj_eval_int(arg, "offset");
@@ -96,4 +95,5 @@ void Split::ProcessBatch(struct pkt_batch *batch) {
   run_split(this, ogate, batch);
 }
 
-ADD_MODULE(Split, "split", "split packets depending on packet data or metadata attributes")
+ADD_MODULE(Split, "split",
+           "split packets depending on packet data or metadata attributes")

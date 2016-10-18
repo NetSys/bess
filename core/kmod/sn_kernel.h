@@ -39,19 +39,19 @@
 
 #include "sn_stack.h"
 
-#define MODULE_NAME	"bess"
+#define MODULE_NAME "bess"
 
-#define log_info(fmt, ...) \
-	printk(KERN_INFO "%s - %s():%d " pr_fmt(fmt), \
-			MODULE_NAME, __func__, __LINE__, ##__VA_ARGS__)
+#define log_info(fmt, ...)                                                     \
+	printk(KERN_INFO "%s - %s():%d " pr_fmt(fmt), MODULE_NAME, __func__,   \
+	       __LINE__, ##__VA_ARGS__)
 
-#define log_err(fmt, ...) \
-	printk(KERN_ERR "%s - %s():%d " pr_fmt(fmt), \
-			MODULE_NAME, __func__, __LINE__, ##__VA_ARGS__)
+#define log_err(fmt, ...)                                                      \
+	printk(KERN_ERR "%s - %s():%d " pr_fmt(fmt), MODULE_NAME, __func__,    \
+	       __LINE__, ##__VA_ARGS__)
 
-#define MAX_QUEUES	128
+#define MAX_QUEUES 128
 
-#define MAX_BATCH	32
+#define MAX_BATCH 32
 
 DECLARE_PER_CPU(int, in_batched_polling);
 
@@ -59,10 +59,10 @@ struct sn_device;
 
 enum sn_dev_type {
 	sn_dev_type_host,
-	sn_dev_type_pci,	
+	sn_dev_type_pci,
 };
 
-#define SN_NET_XMIT_BUFFERED	-1
+#define SN_NET_XMIT_BUFFERED -1
 
 struct sn_queue {
 	struct sn_device *dev;
@@ -111,30 +111,29 @@ struct sn_ops {
 	/* Returns NET_XMIT_SUCCESS, NET_XMIT_CN, or NET_XMIT_DROP.
 	 * The caller sets tx_meta, and the callee is responsible to
 	 * transmit it along with the packet data. */
-	int (*do_tx) (struct sn_queue *tx_queue, struct sk_buff *skb,
-		      struct sn_tx_metadata *tx_meta);
+	int (*do_tx)(struct sn_queue *tx_queue, struct sk_buff *skb,
+		     struct sn_tx_metadata *tx_meta);
 
 	/* Receives a packet and returns an skb (NULL if no pending packet).
-	 * The callee fills the given rx_meta, then the caller will take care 
+	 * The callee fills the given rx_meta, then the caller will take care
 	 * of it (except for packet length) */
-	struct sk_buff * (*do_rx) (struct sn_queue *rx_queue,
-			           struct sn_rx_metadata *rx_meta);
+	struct sk_buff *(*do_rx)(struct sn_queue *rx_queue,
+				 struct sn_rx_metadata *rx_meta);
 
 	/* Returns # of packets received */
-	int (*do_rx_batch) (struct sn_queue *rx_queue,
-			    struct sn_rx_metadata *rx_meta,
-			    struct sk_buff **skb,
-			    int max_cnt);
+	int (*do_rx_batch)(struct sn_queue *rx_queue,
+			   struct sn_rx_metadata *rx_meta, struct sk_buff **skb,
+			   int max_cnt);
 
 	/* Returns true if there are pending RX packets */
-	bool (*pending_rx) (struct sn_queue *rx_queue);
+	bool (*pending_rx)(struct sn_queue *rx_queue);
 
 	void (*flush_tx)(void);
 };
 
 struct sn_device {
 	struct net_device *netdev;
-	
+
 	int num_txq;
 	int num_rxq;
 
@@ -149,14 +148,14 @@ struct sn_device {
 
 	enum sn_dev_type type;
 	struct sn_ops *ops;
-	struct pci_dev *pdev;	/* NULL in host mode */
+	struct pci_dev *pdev; /* NULL in host mode */
 };
 
 /* function prototypes defined in sn_netdev.c */
 int sn_create_netdev(void *bar, struct sn_device **dev_ret);
 int sn_register_netdev(void *bar, struct sn_device *dev);
 void sn_release_netdev(struct sn_device *dev);
-void sn_trigger_softirq(void *info);	/* info is (struct sn_device *) */
+void sn_trigger_softirq(void *info); /* info is (struct sn_device *) */
 void sn_trigger_softirq_with_qid(void *info, int rxq);
 
 #endif
