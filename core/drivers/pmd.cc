@@ -1,7 +1,9 @@
 #include <rte_config.h>
-#include <rte_ethdev.h>
 #include <rte_errno.h>
+#include <rte_ethdev.h>
 
+#include "../error.pb.h"
+#include "../message.h"
 #include "../port.h"
 
 typedef uint8_t dpdk_port_t;
@@ -11,7 +13,8 @@ typedef uint8_t dpdk_port_t;
 class PMDPort : public Port {
  public:
   static void InitDriver();
-  virtual struct snobj *Init(struct snobj *arg);
+  virtual error_ptr_t Init(int loopback, dpdk_port_t port_id,
+                           const std::string &pci, const std::string &vdev);
   virtual void DeInit();
 
   virtual void CollectStats(bool reset);
@@ -97,48 +100,30 @@ void PMDPort::InitDriver() {
   }
 }
 
-static struct snobj *find_dpdk_port(struct snobj *conf,
-                                    dpdk_port_t *ret_port_id,
-                                    bool *ret_hot_plugged) {
-  struct snobj *t;
-
-  dpdk_port_t port_id = DPDK_PORT_UNKNOWN;
-
-  if ((t = snobj_eval(conf, "port_id")) != NULL) {
-    if (snobj_type(t) != TYPE_INT)
-      return snobj_err(EINVAL, "Port ID must be an integer");
-
-    port_id = snobj_int_get(t);
-
-    if (port_id < 0 || port_id >= RTE_MAX_ETHPORTS)
-      return snobj_err(EINVAL, "Invalid port id %d", port_id);
-
-    if (!rte_eth_devices[port_id].attached)
-      return snobj_err(ENODEV, "Port id %d is not available", port_id);
-  }
-
-  if ((t = snobj_eval(conf, "pci")) != NULL) {
-    const char *bdf;
-    struct rte_pci_addr addr;
-
-    if (port_id != DPDK_PORT_UNKNOWN)
-      return snobj_err(EINVAL,
-                       "You cannot specify both "
-                       "'port_id' and 'pci' fields");
-
-    bdf = snobj_str_get(t);
-
-    if (!bdf) {
-    pci_format_err:
-      return snobj_err(EINVAL,
-                       "PCI address must be like "
-                       "dddd:bb:dd.ff or bb:dd.ff");
+static error_ptr_t find_dpdk_port(dpdk_port_t port_id, const std::string &pci,
+                                  const std::string &vdev,
+                                  dpdk_port_t *ret_port_id,
+                                  bool *ret_hot_plugged) {
+  if (pci.length() == 0) {
+    if (port_id < 0 || port_id >= RTE_MAX_ETHPORTS) {
+      return pb_error(EINVAL, "Invalid port id %d", port_id);
     }
-
-    if (eal_parse_pci_DomBDF(bdf, &addr) != 0 &&
-        eal_parse_pci_BDF(bdf, &addr) != 0)
-      goto pci_format_err;
-
+    if (!rte_eth_devices[port_id].attached) {
+      return pb_error(ENODEV, "Port id %d is not available", port_id);
+    }
+  } else {
+    struct rte_pci_addr addr;
+    if (port_id != DPDK_PORT_UNKNOWN) {
+      return pb_error(EINVAL,
+                      "You cannot specify both "
+                      "'port_id' and 'pci' fields");
+    }
+    if (eal_parse_pci_DomBDF(pci.c_str(), &addr) != 0 &&
+        eal_parse_pci_BDF(pci.c_str(), &addr) != 0) {
+      return pb_error(EINVAL,
+                      "PCI address must be like "
+                      "dddd:bb:dd.ff or bb:dd.ff");
+    }
     for (int i = 0; i < RTE_MAX_ETHPORTS; i++) {
       if (!rte_eth_devices[i].attached) continue;
 
@@ -162,35 +147,36 @@ static struct snobj *find_dpdk_port(struct snobj *conf,
       ret = rte_eth_dev_attach(name, &port_id);
 
       if (ret < 0)
-        return snobj_err(ENODEV,
-                         "Cannot attach PCI "
-                         "device %s",
-                         name);
+        return pb_error(ENODEV,
+                        "Cannot attach PCI "
+                        "device %s",
+                        name);
 
       *ret_hot_plugged = true;
     }
   }
 
-  if (port_id == DPDK_PORT_UNKNOWN && (t = snobj_eval(conf, "vdev")) != NULL) {
-    const char *name = snobj_str_get(t);
+  if (port_id == DPDK_PORT_UNKNOWN && vdev.length() != 0) {
+    const char *name = vdev.c_str();
     int ret = rte_eth_dev_attach(name, &port_id);
 
-    if (ret < 0) return snobj_err(ENODEV, "Cannot attach vdev %s", name);
+    if (ret < 0) return pb_error(ENODEV, "Cannot attach vdev %s", name);
 
     *ret_hot_plugged = true;
   }
 
   if (port_id == DPDK_PORT_UNKNOWN)
-    return snobj_err(EINVAL,
-                     "'port_id', 'pci', or 'vdev' field "
-                     "must be specified");
+    return pb_error(EINVAL,
+                    "'port_id', 'pci', or 'vdev' field "
+                    "must be specified");
 
   *ret_port_id = port_id;
-  return NULL;
+  return pb_error(0);
 }
 
-struct snobj *PMDPort::Init(struct snobj *conf) {
-  dpdk_port_t port_id = -1;
+error_ptr_t PMDPort::Init(int loopback, dpdk_port_t port_id,
+                          const std::string &pci, const std::string &vdev) {
+  dpdk_port_t ret_port_id = -1;
 
   struct rte_eth_dev_info dev_info = {};
   struct rte_eth_conf eth_conf;
@@ -200,21 +186,24 @@ struct snobj *PMDPort::Init(struct snobj *conf) {
   int num_txq = num_queues[PACKET_DIR_OUT];
   int num_rxq = num_queues[PACKET_DIR_INC];
 
-  struct snobj *err;
-
   int ret;
 
   int i;
 
-  err = find_dpdk_port(conf, &port_id, &hot_plugged_);
-  if (err) return err;
+  error_ptr_t p_err =
+      find_dpdk_port(port_id, pci, vdev, &ret_port_id, &hot_plugged_);
+  if (p_err->err() != 0) {
+    return p_err;
+  }
 
   eth_conf = default_eth_conf;
-  if (snobj_eval_int(conf, "loopback")) eth_conf.lpbk_mode = 1;
+  if (loopback) {
+    eth_conf.lpbk_mode = 1;
+  }
 
   /* Use defaut rx/tx configuration as provided by PMD drivers,
    * with minor tweaks */
-  rte_eth_dev_info_get(port_id, &dev_info);
+  rte_eth_dev_info_get(ret_port_id, &dev_info);
 
   eth_rxconf = dev_info.default_rxconf;
 
@@ -227,36 +216,36 @@ struct snobj *PMDPort::Init(struct snobj *conf) {
                          ETH_TXQ_FLAGS_NOMULTSEGS * (1 - SN_TSO_SG) |
                          ETH_TXQ_FLAGS_NOXSUMS * (1 - SN_HW_TXCSUM);
 
-  ret = rte_eth_dev_configure(port_id, num_rxq, num_txq, &eth_conf);
-  if (ret != 0) return snobj_err(-ret, "rte_eth_dev_configure() failed");
+  ret = rte_eth_dev_configure(ret_port_id, num_rxq, num_txq, &eth_conf);
+  if (ret != 0) return pb_error(-ret, "rte_eth_dev_configure() failed");
 
-  rte_eth_promiscuous_enable(port_id);
+  rte_eth_promiscuous_enable(ret_port_id);
 
   for (i = 0; i < num_rxq; i++) {
-    int sid = rte_eth_dev_socket_id(port_id);
+    int sid = rte_eth_dev_socket_id(ret_port_id);
 
     /* if socket_id is invalid, set to 0 */
     if (sid < 0 || sid > RTE_MAX_NUMA_NODES) sid = 0;
 
-    ret = rte_eth_rx_queue_setup(port_id, i, queue_size[PACKET_DIR_INC], sid,
-                                 &eth_rxconf, get_pframe_pool_socket(sid));
-    if (ret != 0) return snobj_err(-ret, "rte_eth_rx_queue_setup() failed");
+    ret = rte_eth_rx_queue_setup(ret_port_id, i, queue_size[PACKET_DIR_INC],
+                                 sid, &eth_rxconf, get_pframe_pool_socket(sid));
+    if (ret != 0) return pb_error(-ret, "rte_eth_rx_queue_setup() failed");
   }
 
   for (i = 0; i < num_txq; i++) {
     int sid = 0; /* XXX */
 
-    ret = rte_eth_tx_queue_setup(port_id, i, queue_size[PACKET_DIR_OUT], sid,
-                                 &eth_txconf);
-    if (ret != 0) return snobj_err(-ret, "rte_eth_tx_queue_setup() failed");
+    ret = rte_eth_tx_queue_setup(ret_port_id, i, queue_size[PACKET_DIR_OUT],
+                                 sid, &eth_txconf);
+    if (ret != 0) return pb_error(-ret, "rte_eth_tx_queue_setup() failed");
   }
 
-  ret = rte_eth_dev_start(port_id);
-  if (ret != 0) return snobj_err(-ret, "rte_eth_dev_start() failed");
+  ret = rte_eth_dev_start(ret_port_id);
+  if (ret != 0) return pb_error(-ret, "rte_eth_dev_start() failed");
 
-  dpdk_port_id_ = port_id;
+  dpdk_port_id_ = ret_port_id;
 
-  return NULL;
+  return pb_error(0);
 }
 
 void PMDPort::DeInit() {

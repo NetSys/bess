@@ -6,6 +6,9 @@
 #include "../port.h"
 #include "../utils/pcap.h"
 
+#include "../error.pb.h"
+#include "../message.h"
+
 #define PCAP_IFNAME 16
 
 static unsigned char tx_pcap_data[PCAP_SNAPLEN];
@@ -26,7 +29,7 @@ static void pcap_gather_data(unsigned char *data, struct rte_mbuf *mbuf) {
 class PCAPPort : public Port {
  public:
   static void InitDriver(){};
-  virtual struct snobj *Init(struct snobj *arg);
+  virtual error_ptr_t Init(const std::string &dev);
   virtual void DeInit();
 
   virtual int RecvPackets(queue_t qid, snb_array_t pkts, int cnt);
@@ -37,25 +40,26 @@ class PCAPPort : public Port {
   char dev_[PCAP_IFNAME] = {{0}};
 };
 
-struct snobj *PCAPPort::Init(struct snobj *conf) {
+error_ptr_t PCAPPort::Init(const std::string &dev) {
   char errbuf[PCAP_ERRBUF_SIZE];
-  if (snobj_eval_str(conf, "dev"))
-    strncpy(dev_, snobj_eval_str(conf, "dev"), PCAP_IFNAME);
-  else
-    return snobj_err(EINVAL, "PCAP need to set dev option");
 
+  if (dev.length() == 0) {
+    return pb_error(EINVAL, "PCAP need to set dev option");
+  }
   // non-blocking pcap
-  pcap_handle_ = pcap_open_live(dev_, PCAP_SNAPLEN, 1, -1, errbuf);
-  if (pcap_handle_ == NULL)
-    return snobj_err(ENODEV, "PCAP Open dev error: %s", errbuf);
+  pcap_handle_ = pcap_open_live(dev.c_str(), PCAP_SNAPLEN, 1, -1, errbuf);
+  if (pcap_handle_ == NULL) {
+    return pb_error(ENODEV, "PCAP Open dev error: %s", errbuf);
+  }
 
   int ret = pcap_setnonblock(pcap_handle_, 1, errbuf);
-  if (ret != 0)
-    return snobj_err(ENODEV, "PCAP set to nonblock error: %s", errbuf);
+  if (ret != 0) {
+    return pb_error(ENODEV, "PCAP set to nonblock error: %s", errbuf);
+  }
 
-  LOG(INFO) << "PCAP: open dev " << dev_;
+  LOG(INFO) << "PCAP: open dev " << dev;
 
-  return NULL;
+  return pb_error(0);
 }
 
 void PCAPPort::DeInit() {

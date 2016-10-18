@@ -27,11 +27,10 @@ endif
 CXXFLAGS += -std=gnu++11 -g3 -ggdb3 -Ofast -march=native \
 	    -Wall -Werror -Wno-unused-function -Wno-unused-but-set-variable \
 	    -I$(DPDK_INC_DIR) \
-	    -fno-rtti \
 	    -D_GNU_SOURCE
 
 LDFLAGS += -rdynamic -L$(DPDK_LIB_DIR) -Wl,-rpath=$(DPDK_LIB_DIR)
-LIBS += -Wl,--whole-archive -l$(DPDK_LIB) -Wl,--no-whole-archive -lm -pthread -lgflags -lglog -ldl -lrt -lpcap
+LIBS += -Wl,--whole-archive -l$(DPDK_LIB) -Wl,--no-whole-archive -lm -pthread -lgflags -lglog -ldl -lrt -lpcap -lprotobuf
 
 ifdef SANITIZE
     LDFLAGS += -fsanitize=address
