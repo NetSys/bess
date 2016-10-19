@@ -41,8 +41,11 @@ struct snobj *PortInc::Init(struct snobj *arg) {
   if (!arg || !(port_name = snobj_eval_str(arg, "port")))
     return snobj_err(EINVAL, "'port' must be given as a string");
 
-  port_ = find_port(port_name);
-  if (!port_) return snobj_err(ENODEV, "Port %s not found", port_name);
+  const auto &it = PortBuilder::all_ports().find(port_name);
+  if (it == PortBuilder::all_ports().end()) {
+    return snobj_err(ENODEV, "Port %s not found", port_name);
+  }
+  port_ = it->second;
 
   if ((t = snobj_eval(arg, "burst")) != NULL) {
     err = CommandSetBurst(t);
@@ -62,21 +65,21 @@ struct snobj *PortInc::Init(struct snobj *arg) {
 
   if (snobj_eval_int(arg, "prefetch")) prefetch_ = 1;
 
-  ret = acquire_queues(port_, reinterpret_cast<const module *>(this),
-                       PACKET_DIR_INC, NULL, 0);
+  ret = port_->AcquireQueues(reinterpret_cast<const module *>(this),
+                             PACKET_DIR_INC, NULL, 0);
   if (ret < 0) return snobj_errno(-ret);
 
   return NULL;
 }
 
 void PortInc::Deinit() {
-  release_queues(port_, reinterpret_cast<const module *>(this), PACKET_DIR_INC,
-                 NULL, 0);
+  port_->ReleaseQueues(reinterpret_cast<const module *>(this), PACKET_DIR_INC,
+                       NULL, 0);
 }
 
 struct snobj *PortInc::GetDesc() {
-  return snobj_str_fmt("%s/%s", port_->Name().c_str(),
-                       port_->GetDriver()->Name().c_str());
+  return snobj_str_fmt("%s/%s", port_->name().c_str(),
+                       port_->port_builder()->class_name().c_str());
 }
 
 struct task_result PortInc::RunTask(void *arg) {
@@ -117,7 +120,7 @@ struct task_result PortInc::RunTask(void *arg) {
       .packets = cnt, .bits = (received_bytes + cnt * pkt_overhead) * 8,
   };
 
-  if (!(p->GetDriver()->GetFlags() & DRIVER_FLAG_SELF_INC_STATS)) {
+  if (!(p->GetFlags() & DRIVER_FLAG_SELF_INC_STATS)) {
     p->queue_stats[PACKET_DIR_INC][qid].packets += cnt;
     p->queue_stats[PACKET_DIR_INC][qid].bytes += received_bytes;
   }

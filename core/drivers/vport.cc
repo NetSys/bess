@@ -10,6 +10,7 @@
 #include <rte_config.h>
 #include <rte_malloc.h>
 
+#include "../log.h"
 #include "../kmod/sn_common.h"
 #include "../port.h"
 
@@ -173,7 +174,7 @@ static struct snobj *docker_container_pid(char *cid, int *container_pid) {
 
 class VPort : public Port {
  public:
-  static void InitDriver();
+  virtual void InitDriver();
 
   struct snobj *Init(struct snobj *conf);
   void DeInit();
@@ -504,7 +505,7 @@ struct snobj *VPort::Init(struct snobj *conf) {
   container_pid_ = 0;
 
   ifname = snobj_eval_str(conf, "ifname");
-  if (!ifname) ifname = Name().c_str();
+  if (!ifname) ifname = name().c_str();
 
   if (strlen(ifname) >= IFNAMSIZ) {
     err = snobj_err(EINVAL,

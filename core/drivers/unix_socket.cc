@@ -8,6 +8,7 @@
 #include <thread>
 #include <unistd.h>
 
+#include "../log.h"
 #include "../port.h"
 
 #define NOT_CONNECTED -1
@@ -23,8 +24,6 @@
 
 class UnixSocketPort : public Port {
  public:
-  static void InitDriver(){};
-
   virtual struct snobj *Init(struct snobj *arg);
   virtual void DeInit();
 
@@ -112,7 +111,7 @@ struct snobj *UnixSocketPort::Init(struct snobj *conf) {
     snprintf(addr_.sun_path, sizeof(addr_.sun_path), "%s", path);
   } else
     snprintf(addr_.sun_path, sizeof(addr_.sun_path), "%s/bess_unix_%s",
-             P_tmpdir, Name().c_str());
+             P_tmpdir, name().c_str());
 
   /* This doesn't include the trailing null character */
   addrlen = sizeof(addr_.sun_family) + strlen(addr_.sun_path);

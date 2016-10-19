@@ -328,6 +328,15 @@ static void set_resource_limit() {
   }
 }
 
+void init_drivers() {
+  for (auto &pair : PortBuilder::all_port_builders()) {
+    if (!const_cast<PortBuilder &>(pair.second).InitPortClass()) {
+      LOG(WARNING) << "Initializing driver (port class) "
+                   << pair.second.class_name() << " failed.";
+    }
+  }
+}
+
 int main(int argc, char *argv[]) {
   int signal_fd = -1;
 
