@@ -141,7 +141,7 @@ error_ptr_t UnixSocketPort::Init(const std::string &path) {
   accept_thread_ = 0;
   if (ret) return pb_error(ret, "pthread_create() failed");
 
-  return pb_error(0);
+  return pb_errno(0);
 }
 
 void UnixSocketPort::DeInit() {

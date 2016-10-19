@@ -156,7 +156,7 @@ error_ptr_t ZeroCopyVPort::Init() {
   fwrite(&bar_address, 8, 1, fp);
   fclose(fp);
 
-  return pb_error(0);
+  return pb_errno(0);
 }
 
 void ZeroCopyVPort::DeInit() {

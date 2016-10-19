@@ -171,7 +171,7 @@ static error_ptr_t find_dpdk_port(dpdk_port_t port_id, const std::string &pci,
                     "must be specified");
 
   *ret_port_id = port_id;
-  return pb_error(0);
+  return pb_errno(0);
 }
 
 error_ptr_t PMDPort::Init(int loopback, dpdk_port_t port_id,
@@ -245,7 +245,7 @@ error_ptr_t PMDPort::Init(int loopback, dpdk_port_t port_id,
 
   dpdk_port_id_ = ret_port_id;
 
-  return pb_error(0);
+  return pb_errno(0);
 }
 
 void PMDPort::DeInit() {

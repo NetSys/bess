@@ -59,7 +59,7 @@ error_ptr_t PCAPPort::Init(const std::string &dev) {
 
   LOG(INFO) << "PCAP: open dev " << dev;
 
-  return pb_error(0);
+  return pb_errno(0);
 }
 
 void PCAPPort::DeInit() {

@@ -11,6 +11,7 @@
 #include <rte_malloc.h>
 
 #include "../kmod/sn_common.h"
+#include "../message.h"
 #include "../port.h"
 
 /* TODO: Unify vport and vport_native */
@@ -117,7 +118,8 @@ static void reclaim_packets(struct llring *ring) {
   }
 }
 
-static struct snobj *docker_container_pid(char *cid, int *container_pid) {
+static error_ptr_t docker_container_pid(const std::string &cid,
+                                        int *container_pid) {
   char buf[1024];
 
   FILE *fp;
@@ -125,33 +127,36 @@ static struct snobj *docker_container_pid(char *cid, int *container_pid) {
   int ret;
   int exit_code;
 
-  if (!cid)
-    return snobj_err(EINVAL,
-                     "field 'docker' should be "
-                     "a containder ID or name in string");
+  if (cid.length() == 0)
+    return pb_error(EINVAL,
+                    "field 'docker' should be "
+                    "a containder ID or name in string");
 
   ret = snprintf(buf, static_cast<int>(sizeof(buf)),
                  "docker inspect --format '{{.State.Pid}}' "
                  "%s 2>&1",
-                 cid);
+                 cid.c_str());
   if (ret >= static_cast<int>(sizeof(buf)))
-    return snobj_err(EINVAL,
-                     "The specified Docker "
-                     "container ID or name is too long");
+    return pb_error(EINVAL,
+                    "The specified Docker "
+                    "container ID or name is too long");
 
   fp = popen(buf, "r");
-  if (!fp)
-    return snobj_err_details(
-        ESRCH, snobj_str_fmt("popen() errno=%d (%s)", errno, strerror(errno)),
-        "Command 'docker' is not available. "
-        "(not installed?)");
+  if (!fp) {
+    const std::string details =
+        string_format("popen() errno=%d (%s)", errno, strerror(errno));
+
+    return pb_error_details(
+        ESRCH, details.c_str(),
+        "Command 'docker' is not available. (not installed?)");
+  }
 
   ret = fread(buf, 1, sizeof(buf) - 1, fp);
   if (ret == 0)
-    return snobj_err(ENOENT,
-                     "Cannot find the PID of "
-                     "container %s",
-                     cid);
+    return pb_error(ENOENT,
+                    "Cannot find the PID of "
+                    "container %s",
+                    cid.c_str());
 
   buf[ret] = '\0';
 
@@ -159,23 +164,26 @@ static struct snobj *docker_container_pid(char *cid, int *container_pid) {
   exit_code = WEXITSTATUS(ret);
 
   if (exit_code != 0 || sscanf(buf, "%d", container_pid) == 0) {
-    struct snobj *details = snobj_map();
+    // TODO(clan): Need to fully replicate the map in details
+    // snobj_map_set(details, "exit_code", snobj_int(exit_code));
+    // snobj_map_set(details, "docker_err", snobj_str(buf));
 
-    snobj_map_set(details, "exit_code", snobj_int(exit_code));
-    snobj_map_set(details, "docker_err", snobj_str(buf));
-
-    return snobj_err_details(ESRCH, details,
-                             "Cannot find the PID of container %s", cid);
+    return pb_error_details(ESRCH, buf, "Cannot find the PID of container %s",
+                            cid.c_str());
   }
 
-  return NULL;
+  return pb_errno(0);
 }
 
 class VPort : public Port {
  public:
   static void InitDriver();
 
-  struct snobj *Init(struct snobj *conf);
+  error_ptr_t Init(const std::string &ifname, const std::string &docker,
+                   int64_t container_pid, const std::string &netns,
+                   const std::vector<int64_t> rxq_cpus, uint64_t tx_tci,
+                   uint64_t tx_outer_tci, uint64_t loopback,
+                   const std::vector<std::string> ip_addr);
   void DeInit();
 
   int RecvPackets(queue_t qid, snb_array_t pkts, int max_cnt);
@@ -185,8 +193,8 @@ class VPort : public Port {
   void FreeBar();
   void *AllocBar(struct tx_queue_opts *txq_opts,
                  struct rx_queue_opts *rxq_opts);
-  int SetIPAddrSingle(char *ip_addr);
-  struct snobj *SetIPAddr(struct snobj *arg);
+  int SetIPAddrSingle(const std::string &ip_addr);
+  error_ptr_t SetIPAddr(const std::vector<std::string> &arg);
 
   int fd_ = {0};
 
@@ -334,7 +342,7 @@ void VPort::InitDriver() {
   }
 }
 
-int VPort::SetIPAddrSingle(char *ip_addr) {
+int VPort::SetIPAddrSingle(const std::string &ip_addr) {
   FILE *fp;
 
   char buf[1024];
@@ -342,8 +350,8 @@ int VPort::SetIPAddrSingle(char *ip_addr) {
   int ret;
   int exit_code;
 
-  ret = snprintf(buf, sizeof(buf), "ip addr add %s dev %s 2>&1", ip_addr,
-                 ifname_);
+  ret = snprintf(buf, sizeof(buf), "ip addr add %s dev %s 2>&1",
+                 ip_addr.c_str(), ifname_);
   if (ret >= static_cast<int>(sizeof(buf))) return -EINVAL;
 
   fp = popen(buf, "r");
@@ -356,30 +364,18 @@ int VPort::SetIPAddrSingle(char *ip_addr) {
   return 0;
 }
 
-struct snobj *VPort::SetIPAddr(struct snobj *arg) {
+error_ptr_t VPort::SetIPAddr(const std::vector<std::string> &arg) {
   int child_pid;
 
   int ret = 0;
   int nspace = 0;
-
-  if (snobj_type(arg) == TYPE_STR || snobj_type(arg) == TYPE_LIST) {
-    if (snobj_type(arg) == TYPE_LIST) {
-      if (arg->size == 0) goto invalid_type;
-
-      for (size_t i = 0; i < arg->size; i++) {
-        struct snobj *addr = snobj_list_get(arg, i);
-        if (snobj_type(addr) != TYPE_STR) goto invalid_type;
-      }
-    }
-  } else
-    goto invalid_type;
 
   /* change network namespace if necessary */
   if (container_pid_ || netns_fd_ >= 0) {
     nspace = 1;
 
     child_pid = fork();
-    if (child_pid < 0) return snobj_errno(-child_pid);
+    if (child_pid < 0) return pb_errno(-child_pid);
 
     if (child_pid == 0) {
       char buf[1024];
@@ -404,39 +400,21 @@ struct snobj *VPort::SetIPAddr(struct snobj *arg) {
       goto wait_child;
   }
 
-  switch (snobj_type(arg)) {
-    case TYPE_STR:
-      ret = SetIPAddrSingle(snobj_str_get(arg));
+  if (arg.size() > 0) {
+    for (size_t i = 0; i < arg.size(); ++i) {
+      const char *addr = arg[i].c_str();
+      ret = SetIPAddrSingle(addr);
       if (ret < 0) {
         if (nspace) {
           /* it must be the child */
           assert(child_pid == 0);
           exit(errno <= 255 ? errno : ENOMSG);
-        }
+        } else
+          break;
       }
-      break;
-
-    case TYPE_LIST:
-      if (!arg->size) goto invalid_type;
-
-      for (size_t i = 0; i < arg->size; i++) {
-        struct snobj *addr = snobj_list_get(arg, i);
-
-        ret = SetIPAddrSingle(snobj_str_get(addr));
-        if (ret < 0) {
-          if (nspace) {
-            /* it must be the child */
-            assert(child_pid == 0);
-            exit(errno <= 255 ? errno : ENOMSG);
-          } else
-            break;
-        }
-      }
-
-      break;
-
-    default:
-      assert(0);
+    }
+  } else {
+    assert(0);
   }
 
   if (nspace) {
@@ -461,16 +439,11 @@ struct snobj *VPort::SetIPAddr(struct snobj *arg) {
   }
 
   if (ret < 0)
-    return snobj_err(-ret,
-                     "Failed to set IP addresses "
-                     "(incorrect IP address format?)");
+    return pb_error(-ret,
+                    "Failed to set IP addresses "
+                    "(incorrect IP address format?)");
 
-  return NULL;
-
-invalid_type:
-  return snobj_err(EINVAL,
-                   "'ip_addr' must be a string or list "
-                   "of IPv4/v6 addresses (e.g., '10.0.20.1/24')");
+  return pb_errno(0);
 }
 
 void VPort::DeInit() {
@@ -483,18 +456,17 @@ void VPort::DeInit() {
   FreeBar();
 }
 
-struct snobj *VPort::Init(struct snobj *conf) {
+error_ptr_t VPort::Init(const std::string &ifname, const std::string &docker,
+                        int64_t container_pid, const std::string &netns,
+                        const std::vector<int64_t> rxq_cpus, uint64_t tx_tci,
+                        uint64_t tx_outer_tci, uint64_t loopback,
+                        const std::vector<std::string> ip_addr) {
   int cpu;
   int rxq;
 
   int ret;
 
-  struct snobj *cpu_list = NULL;
-
-  const char *netns;
-  const char *ifname;
-
-  struct snobj *err = NULL;
+  error_ptr_t err;
 
   struct tx_queue_opts txq_opts = {0};
   struct rx_queue_opts rxq_opts = {0};
@@ -503,82 +475,72 @@ struct snobj *VPort::Init(struct snobj *conf) {
   netns_fd_ = -1;
   container_pid_ = 0;
 
-  ifname = snobj_eval_str(conf, "ifname");
-  if (!ifname) ifname = Name().c_str();
-
-  if (strlen(ifname) >= IFNAMSIZ) {
-    err = snobj_err(EINVAL,
-                    "Linux interface name should be "
-                    "shorter than %d characters",
-                    IFNAMSIZ);
+  if (ifname.length() >= IFNAMSIZ) {
+    err = pb_error(EINVAL,
+                   "Linux interface name should be "
+                   "shorter than %d characters",
+                   IFNAMSIZ);
     goto fail;
   }
 
-  strcpy(ifname_, ifname);
+  strcpy(ifname_, (ifname.length() == 0) ? Name().c_str() : ifname.c_str());
 
-  if (snobj_eval_exists(conf, "docker")) {
-    err = docker_container_pid(snobj_eval_str(conf, "docker"), &container_pid_);
+  if (docker.length() > 0) {
+    err = docker_container_pid(docker, &container_pid_);
 
-    if (err) goto fail;
+    if (err->err() != 0) goto fail;
   }
 
-  if (snobj_eval_exists(conf, "container_pid")) {
+  if (container_pid != -1) {
     if (container_pid_) {
-      err = snobj_err(EINVAL,
-                      "You cannot specify both "
-                      "'docker' and 'container_pid'");
+      err = pb_error(EINVAL,
+                     "You cannot specify both "
+                     "'docker' and 'container_pid'");
       goto fail;
     }
-
-    container_pid_ = snobj_eval_int(conf, "container_pid");
+    container_pid_ = container_pid;
   }
 
-  if ((netns = snobj_eval_str(conf, "netns"))) {
-    if (container_pid_)
-      return snobj_err(EINVAL,
-                       "You should specify only "
-                       "one of 'docker', 'container_pid', "
-                       "or 'netns'");
-
-    netns_fd_ = open(netns, O_RDONLY);
+  if (netns.length() > 0) {
+    if (container_pid_) {
+      return pb_error(EINVAL,
+                      "You should specify only "
+                      "one of 'docker', 'container_pid', "
+                      "or 'netns'");
+    }
+    netns_fd_ = open(netns.c_str(), O_RDONLY);
     if (netns_fd_ < 0) {
-      err = snobj_err(EINVAL, "Invalid network namespace %s", netns);
+      err = pb_error(EINVAL, "Invalid network namespace %s", netns);
       goto fail;
     }
   }
 
-  if ((cpu_list = snobj_eval(conf, "rxq_cpus")) != NULL &&
-      cpu_list->size != num_queues[PACKET_DIR_OUT]) {
-    err = snobj_err(EINVAL, "Must specify as many cores as rxqs");
-    goto fail;
-  }
-
-  if (snobj_eval_exists(conf, "rxq_cpu") && num_queues[PACKET_DIR_OUT] > 1) {
-    err = snobj_err(EINVAL, "Must specify as many cores as rxqs");
+  if (rxq_cpus.size() > 0 && rxq_cpus.size() != num_queues[PACKET_DIR_OUT]) {
+    err = pb_error(EINVAL, "Must specify as many cores as rxqs");
     goto fail;
   }
 
   fd_ = open("/dev/bess", O_RDONLY);
   if (fd_ == -1) {
-    err = snobj_err(ENODEV, "the kernel module is not loaded");
+    err = pb_error(ENODEV, "the kernel module is not loaded");
     goto fail;
   }
 
-  txq_opts.tci = snobj_eval_uint(conf, "tx_tci");
-  txq_opts.outer_tci = snobj_eval_uint(conf, "tx_outer_tci");
-  rxq_opts.loopback = snobj_eval_uint(conf, "loopback");
+  txq_opts.tci = tx_tci;
+  txq_opts.outer_tci = tx_outer_tci;
+  rxq_opts.loopback = loopback;
 
   bar_ = AllocBar(&txq_opts, &rxq_opts);
 
   log_err("%p %" PRIx64 "\n", bar_, rte_malloc_virt2phy(bar_));
   ret = ioctl(fd_, SN_IOC_CREATE_HOSTNIC, rte_malloc_virt2phy(bar_));
   if (ret < 0) {
-    err = snobj_errno_details(-ret, snobj_str("SN_IOC_CREATE_HOSTNIC failure"));
+    err = pb_errno_details(-ret, "SN_IOC_CREATE_HOSTNIC failure");
     goto fail;
   }
 
-  if (snobj_eval_exists(conf, "ip_addr")) {
-    err = SetIPAddr(snobj_eval(conf, "ip_addr"));
+  if (ip_addr.size() > 0) {
+    err = SetIPAddr(ip_addr);
 
     if (err) {
       DeInit();
@@ -594,12 +556,10 @@ struct snobj *VPort::Init(struct snobj *conf) {
   for (cpu = 0; cpu < SN_MAX_CPU; cpu++)
     map_.cpu_to_txq[cpu] = cpu % num_queues[PACKET_DIR_INC];
 
-  if (cpu_list) {
+  if (rxq_cpus.size() > 0) {
     for (rxq = 0; rxq < num_queues[PACKET_DIR_OUT]; rxq++) {
-      map_.rxq_to_cpu[rxq] = snobj_int_get(snobj_list_get(cpu_list, rxq));
+      map_.rxq_to_cpu[rxq] = rxq_cpus[rxq];
     }
-  } else if (snobj_eval_exists(conf, "rxq_cpu")) {
-    map_.rxq_to_cpu[0] = snobj_eval_int(conf, "rxq_cpu");
   } else {
     for (rxq = 0; rxq < num_queues[PACKET_DIR_OUT]; rxq++) {
       next_cpu = find_next_nonworker_cpu(next_cpu);
@@ -610,7 +570,7 @@ struct snobj *VPort::Init(struct snobj *conf) {
   ret = ioctl(fd_, SN_IOC_SET_QUEUE_MAPPING, &map_);
   if (ret < 0) log_perr("ioctl(SN_IOC_SET_QUEUE_MAPPING)");
 
-  return NULL;
+  return pb_errno(0);
 
 fail:
   if (fd_ >= 0) close(fd_);

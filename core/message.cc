@@ -1,7 +1,14 @@
 #include "message.h"
 
 #include <memory>
-#include <stdarg.h>
+
+const std::string string_format(const char *fmt, ...) {
+  va_list ap;
+  va_start(ap, fmt);
+  const std::string s = string_format(fmt, ap);
+  va_end(ap);
+  return s;
+}
 
 static const std::string string_vformat(const char *fmt, va_list ap) {
   const int init_bufsize = 128;
@@ -21,22 +28,23 @@ static const std::string string_vformat(const char *fmt, va_list ap) {
   return std::string(buf.get());
 }
 
-error_ptr_t pb_error(int code) {
+error_ptr_t pb_error_details(int code, const char *details, const char *fmt,
+                             ...) {
   error_ptr_t p(new bess::Error());
-  p->set_err(code);
-  return p;
-}
-
-error_ptr_t pb_error(int code, const char *fmt, ...) {
-  error_ptr_t p(new bess::Error());
-  va_list ap;
 
   p->set_err(code);
 
-  va_start(ap, fmt);
-  const std::string message = string_vformat(fmt, ap);
-  va_end(ap);
+  if (fmt) {
+    va_list ap;
+    va_start(ap, fmt);
+    const std::string message = string_vformat(fmt, ap);
+    va_end(ap);
+    p->set_errmsg(message);
+  }
 
-  p->set_errmsg(message);
+  if (details) {
+    p->set_details(details);
+  }
+
   return p;
 }
