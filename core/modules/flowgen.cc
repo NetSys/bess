@@ -345,7 +345,10 @@ struct snobj *FlowGen::Init(struct snobj *arg) {
   return NULL;
 }
 
-void FlowGen::Deinit() { mem_free(flows_); }
+void FlowGen::Deinit() {
+  mem_free(flows_);
+  delete templ_;
+}
 
 struct snbuf *FlowGen::FillPacket(struct flow *f) {
   struct snbuf *pkt;
