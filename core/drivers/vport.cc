@@ -510,7 +510,7 @@ error_ptr_t VPort::Init(const std::string &ifname, const std::string &docker,
     }
     netns_fd_ = open(netns.c_str(), O_RDONLY);
     if (netns_fd_ < 0) {
-      err = pb_error(EINVAL, "Invalid network namespace %s", netns);
+      err = pb_error(EINVAL, "Invalid network namespace %s", netns.c_str());
       goto fail;
     }
   }
