@@ -20,7 +20,8 @@ struct flow {
 
 typedef std::pair<uint64_t, struct flow *> Event;
 typedef std::priority_queue<Event, std::vector<Event>,
-                            std::function<bool(Event, Event)>> EventQueue;
+                            std::function<bool(Event, Event)>>
+    EventQueue;
 
 bool EventLess(const Event &a, const Event &b) { return a.first < b.first; }
 
@@ -61,7 +62,7 @@ class FlowGen : public Module {
 
   EventQueue events_;
 
-  char templ_[MAX_TEMPLATE_SIZE];
+  char *templ_;
   int template_size_ = {0};
 
   uint64_t rseed_;
@@ -228,6 +229,8 @@ struct snobj *FlowGen::ProcessArguments(struct snobj *arg) {
 
   template_size_ = snobj_size(t);
 
+  templ_ = new char[MAX_TEMPLATE_SIZE];
+  assert(templ_ != NULL);
   memset(templ_, 0, MAX_TEMPLATE_SIZE);
   memcpy(templ_, snobj_blob_get(t), template_size_);
 
@@ -356,8 +359,9 @@ struct snbuf *FlowGen::FillPacket(struct flow *f) {
 
   p = reinterpret_cast<char *>(pkt->mbuf.buf_addr) +
       static_cast<size_t>(SNBUF_HEADROOM);
+  if (!p) return NULL;
 
-  pkt->mbuf.data_off = static_cast<size_t>(SNBUF_HEADROOM);
+  pkt->mbuf.data_off = SNBUF_HEADROOM;
   pkt->mbuf.pkt_len = size;
   pkt->mbuf.data_len = size;
 
