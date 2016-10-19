@@ -36,24 +36,27 @@ struct snobj *QueueOut::Init(struct snobj *arg) {
     return snobj_err(EINVAL, "Field 'qid' must be specified");
   qid_ = snobj_uint_get(t);
 
-  port_ = find_port(port_name);
-  if (!port_) return snobj_err(ENODEV, "Port %s not found", port_name);
+  const auto &it = PortBuilder::all_ports().find(port_name);
+  if (it == PortBuilder::all_ports().end()) {
+    return snobj_err(ENODEV, "Port %s not found", port_name);
+  }
+  port_ = it->second;
 
-  ret = acquire_queues(port_, reinterpret_cast<const module *>(this),
-                       PACKET_DIR_OUT, &qid_, 1);
+  ret = port_->AcquireQueues(reinterpret_cast<const module *>(this),
+                             PACKET_DIR_OUT, &qid_, 1);
   if (ret < 0) return snobj_errno(-ret);
 
   return NULL;
 }
 
 void QueueOut::Deinit() {
-  release_queues(port_, reinterpret_cast<const module *>(this), PACKET_DIR_OUT,
-                 &qid_, 1);
+  port_->ReleaseQueues(reinterpret_cast<const module *>(this), PACKET_DIR_OUT,
+                       &qid_, 1);
 }
 
 struct snobj *QueueOut::GetDesc() {
-  return snobj_str_fmt("%s/%s", port_->Name().c_str(),
-                       port_->GetDriver()->Name().c_str());
+  return snobj_str_fmt("%s/%s", port_->name().c_str(),
+                       port_->port_builder()->class_name().c_str());
 }
 
 void QueueOut::ProcessBatch(struct pkt_batch *batch) {
@@ -66,7 +69,7 @@ void QueueOut::ProcessBatch(struct pkt_batch *batch) {
 
   sent_pkts = p->SendPackets(qid, batch->pkts, batch->cnt);
 
-  if (!(p->GetDriver()->GetFlags() & DRIVER_FLAG_SELF_OUT_STATS)) {
+  if (!(p->GetFlags() & DRIVER_FLAG_SELF_OUT_STATS)) {
     const packet_dir_t dir = PACKET_DIR_OUT;
 
     for (int i = 0; i < sent_pkts; i++)

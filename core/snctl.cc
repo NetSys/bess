@@ -9,6 +9,9 @@
 #include <sys/time.h>
 #include <sys/types.h>
 
+#include <rte_config.h>
+#include <rte_ether.h>
+
 #include "opts.h"
 #include "worker.h"
 #include "master.h"
@@ -352,28 +355,18 @@ static struct snobj *handle_get_tc_stats(struct snobj *q) {
 static struct snobj *handle_list_drivers(struct snobj *q) {
   struct snobj *r;
 
-  int cnt = 1;
-  int offset;
-
   r = snobj_list();
 
-  for (offset = 0; cnt != 0; offset += cnt) {
-    const int arr_size = 16;
-    const Driver *drivers[arr_size];
-
-    int i;
-
-    cnt = list_drivers(drivers, arr_size, offset);
-
-    for (i = 0; i < cnt; i++) snobj_list_add(r, snobj_str(drivers[i]->Name()));
-  };
+  for (const auto &pair : PortBuilder::all_port_builders()) {
+    const PortBuilder &builder = pair.second;
+    snobj_list_add(r, snobj_str(builder.class_name()));
+  }
 
   return r;
 }
 
 static struct snobj *handle_get_driver_info(struct snobj *q) {
   const char *drv_name;
-  const Driver *drv;
 
   struct snobj *r;
   struct snobj *cmds;
@@ -382,8 +375,10 @@ static struct snobj *handle_get_driver_info(struct snobj *q) {
 
   if (!drv_name) return snobj_err(EINVAL, "Argument must be a name in str");
 
-  if ((drv = find_driver(drv_name)) == NULL)
-    return snobj_err(ENOENT, "No module class '%s' found", drv_name);
+  const auto &it = PortBuilder::all_port_builders().find(drv_name);
+  if (it == PortBuilder::all_port_builders().end()) {
+    return snobj_err(ENOENT, "No driver '%s' found", drv_name);
+  }
 
   cmds = snobj_list();
 #if 0
@@ -396,18 +391,16 @@ static struct snobj *handle_get_driver_info(struct snobj *q) {
 #endif
 
   r = snobj_map();
-  snobj_map_set(r, "name", snobj_str(drv->Name()));
-  snobj_map_set(r, "help", snobj_str(drv->Help()));
+  snobj_map_set(r, "name", snobj_str(it->second.class_name()));
+  snobj_map_set(r, "help", snobj_str(it->second.help_text()));
   snobj_map_set(r, "commands", cmds);
 
   return r;
 }
 
 static struct snobj *handle_reset_ports(struct snobj *q) {
-  Port *p;
-
-  while (list_ports((const Port **)&p, 1, 0)) {
-    int ret = destroy_port(p);
+  for (const auto &it : PortBuilder::all_ports()) {
+    int ret = PortBuilder::DestroyPort(it.second);
     if (ret) return snobj_errno(-ret);
   }
 
@@ -418,35 +411,131 @@ static struct snobj *handle_reset_ports(struct snobj *q) {
 static struct snobj *handle_list_ports(struct snobj *q) {
   struct snobj *r;
 
-  int cnt = 1;
-  int offset;
-
   r = snobj_list();
 
-  for (offset = 0; cnt != 0; offset += cnt) {
-    const int arr_size = 16;
-    const Port *ports[arr_size];
+  for (const auto &pair : PortBuilder::all_ports()) {
+    const Port *p = pair.second;
+    struct snobj *port = snobj_map();
 
-    int i;
+    snobj_map_set(port, "name", snobj_str(p->name()));
+    snobj_map_set(port, "driver", snobj_str(p->port_builder()->class_name()));
 
-    cnt = list_ports(ports, arr_size, offset);
-
-    for (i = 0; i < cnt; i++) {
-      struct snobj *port = snobj_map();
-
-      snobj_map_set(port, "name", snobj_str(ports[i]->Name()));
-      snobj_map_set(port, "driver", snobj_str(ports[i]->GetDriver()->Name()));
-
-      snobj_list_add(r, port);
-    }
-  };
+    snobj_list_add(r, port);
+  }
 
   return r;
 }
 
+/* returns a pointer to the created port.
+ * if error, returns NULL and *perr is set */
+Port *create_port(const char *name, const PortBuilder *driver, struct snobj *arg,
+                  struct snobj **perr) {
+  std::unique_ptr<Port> p;
+  int ret;
+
+  queue_t num_inc_q = 1;
+  queue_t num_out_q = 1;
+
+  bool size_inc_q_set = false;
+  bool size_out_q_set = false;
+  size_t size_inc_q = 0;
+  size_t size_out_q = 0;
+
+  uint8_t mac_addr[ETH_ALEN];
+
+  *perr = NULL;
+
+  if (snobj_eval_exists(arg, "num_inc_q"))
+    num_inc_q = snobj_eval_uint(arg, "num_inc_q");
+
+  if (snobj_eval_exists(arg, "num_out_q"))
+    num_out_q = snobj_eval_uint(arg, "num_out_q");
+
+  if (snobj_eval_exists(arg, "size_inc_q")) {
+    size_inc_q = snobj_eval_uint(arg, "size_inc_q");
+    size_inc_q_set = true;
+  }
+
+  if (snobj_eval_exists(arg, "size_out_q")) {
+    size_out_q = snobj_eval_uint(arg, "size_out_q");
+    size_out_q_set = true;
+  }
+
+  if (snobj_eval_exists(arg, "mac_addr")) {
+    char *v = snobj_eval_str(arg, "mac_addr");
+
+    ret = sscanf(v, "%2hhx:%2hhx:%2hhx:%2hhx:%2hhx:%2hhx", &mac_addr[0],
+                 &mac_addr[1], &mac_addr[2], &mac_addr[3], &mac_addr[4],
+                 &mac_addr[5]);
+
+    if (ret != 6) {
+      *perr = snobj_err(EINVAL,
+                        "MAC address should be "
+                        "formatted as a string "
+                        "xx:xx:xx:xx:xx:xx");
+      return NULL;
+    }
+  } else
+    eth_random_addr(mac_addr);
+
+  if (num_inc_q > MAX_QUEUES_PER_DIR || num_out_q > MAX_QUEUES_PER_DIR) {
+    *perr = snobj_err(EINVAL, "Invalid number of queues");
+    return NULL;
+  }
+
+  if (size_inc_q < 0 || size_inc_q > MAX_QUEUE_SIZE || size_out_q < 0 ||
+      size_out_q > MAX_QUEUE_SIZE) {
+    *perr = snobj_err(EINVAL, "Invalid queue size");
+    return NULL;
+  }
+
+  std::string port_name;
+
+  if (name) {
+    if (PortBuilder::all_ports().count(name)) {
+      *perr = snobj_err(EEXIST, "Port '%s' already exists", name);
+      return NULL;
+    }
+
+    port_name = name;
+  } else {
+    port_name = PortBuilder::GenerateDefaultPortName(driver->class_name(),
+                                                     driver->name_template());
+  }
+
+  // Try to create and initialize the port.
+  p.reset(driver->CreatePort(port_name));
+
+  memcpy(p->mac_addr, mac_addr, ETH_ALEN);
+  p->num_queues[PACKET_DIR_INC] = num_inc_q;
+  p->num_queues[PACKET_DIR_OUT] = num_out_q;
+
+  if (size_inc_q_set) {
+    p->queue_size[PACKET_DIR_INC] = size_inc_q;
+  } else {
+    p->queue_size[PACKET_DIR_INC] = p->DefaultIncQueueSize();
+  }
+  if (size_out_q_set) {
+    p->queue_size[PACKET_DIR_OUT] = size_out_q;
+  } else {
+    p->queue_size[PACKET_DIR_OUT] = p->DefaultOutQueueSize();
+  }
+
+  *perr = p->Init(arg);
+  if (*perr != NULL) {
+    return NULL;
+  }
+
+  if (!PortBuilder::AddPort(p.get())) {
+    return NULL;
+  }
+
+  return p.release();
+}
+
+
 static struct snobj *handle_create_port(struct snobj *q) {
   const char *driver_name;
-  const Driver *driver;
   Port *port;
 
   struct snobj *r;
@@ -455,16 +544,18 @@ static struct snobj *handle_create_port(struct snobj *q) {
   driver_name = snobj_eval_str(q, "driver");
   if (!driver_name) return snobj_err(EINVAL, "Missing 'driver' field");
 
-  driver = find_driver(driver_name);
-  if (!driver)
+  const auto &builders = PortBuilder::all_port_builders();
+  const auto &it = builders.find(driver_name);
+  if (it == builders.end()) {
     return snobj_err(ENOENT, "No port driver '%s' found", driver_name);
+  }
+  const PortBuilder &builder = it->second;
 
-  port = create_port(snobj_eval_str(q, "name"), driver, snobj_eval(q, "arg"),
-                     &err);
+  port = create_port(snobj_eval_str(q, "name"), &builder, snobj_eval(q, "arg"), &err);
   if (!port) return err;
 
   r = snobj_map();
-  snobj_map_set(r, "name", snobj_str(port->Name()));
+  snobj_map_set(r, "name", snobj_str(port->name()));
 
   return r;
 }
@@ -472,17 +563,17 @@ static struct snobj *handle_create_port(struct snobj *q) {
 static struct snobj *handle_destroy_port(struct snobj *q) {
   const char *port_name;
 
-  Port *port;
-
   int ret;
 
   port_name = snobj_str_get(q);
   if (!port_name) return snobj_err(EINVAL, "Argument must be a name in str");
 
-  port = find_port(port_name);
-  if (!port) return snobj_err(ENOENT, "No port `%s' found", port_name);
+  const auto &it = PortBuilder::all_ports().find(port_name);
+  if (it == PortBuilder::all_ports().end()) {
+    return snobj_err(ENOENT, "No port `%s' found", port_name);
+  }
 
-  ret = destroy_port(port);
+  ret = PortBuilder::DestroyPort(it->second);
   if (ret) return snobj_errno(-ret);
 
   return NULL;
@@ -490,8 +581,6 @@ static struct snobj *handle_destroy_port(struct snobj *q) {
 
 static struct snobj *handle_get_port_stats(struct snobj *q) {
   const char *port_name;
-
-  Port *port;
 
   port_stats_t stats;
 
@@ -502,10 +591,11 @@ static struct snobj *handle_get_port_stats(struct snobj *q) {
   port_name = snobj_str_get(q);
   if (!port_name) return snobj_err(EINVAL, "Argument must be a name in str");
 
-  port = find_port(port_name);
-  if (!port) return snobj_err(ENOENT, "No port '%s' found", port_name);
-
-  get_port_stats(port, &stats);
+  const auto &it = PortBuilder::all_ports().find(port_name);
+  if (it == PortBuilder::all_ports().end()) {
+    return snobj_err(ENOENT, "No port '%s' found", port_name);
+  }
+  it->second->GetPortStats(&stats);
 
   inc = snobj_map();
   snobj_map_set(inc, "packets", snobj_uint(stats[PACKET_DIR_INC].packets));

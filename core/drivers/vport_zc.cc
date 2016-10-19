@@ -8,6 +8,7 @@
 #include <rte_config.h>
 #include <rte_malloc.h>
 
+#include "../log.h"
 #include "../kmod/llring.h"
 #include "../port.h"
 
@@ -53,8 +54,6 @@ struct vport_bar {
 
 class ZeroCopyVPort : public Port {
  public:
-  static void InitDriver(){};
-
   struct snobj *Init(struct snobj *arg);
   void DeInit();
 
@@ -100,7 +99,7 @@ struct snobj *ZeroCopyVPort::Init(struct snobj *arg) {
   assert(bar != NULL);
   bar_ = bar;
 
-  strncpy(bar->name, Name().c_str(), PORT_NAME_LEN);
+  strncpy(bar->name, name().c_str(), PORT_NAME_LEN);
   bar->num_inc_q = num_inc_q;
   bar->num_out_q = num_out_q;
 
@@ -141,7 +140,7 @@ struct snobj *ZeroCopyVPort::Init(struct snobj *arg) {
 
   for (i = 0; i < num_out_q; i++) {
     snprintf(file_name, PORT_NAME_LEN + 256, "%s/%s/%s.rx%d", P_tmpdir,
-             VPORT_DIR_PREFIX, Name().c_str(), i);
+             VPORT_DIR_PREFIX, name().c_str(), i);
 
     mkfifo(file_name, 0666);
 
@@ -149,7 +148,7 @@ struct snobj *ZeroCopyVPort::Init(struct snobj *arg) {
   }
 
   snprintf(file_name, PORT_NAME_LEN + 256, "%s/%s/%s", P_tmpdir,
-           VPORT_DIR_PREFIX, Name().c_str());
+           VPORT_DIR_PREFIX, name().c_str());
   log_info("Writing port information to %s\n", file_name);
   fp = fopen(file_name, "w");
   fwrite(&bar_address, 8, 1, fp);
@@ -165,14 +164,14 @@ void ZeroCopyVPort::DeInit() {
 
   for (int i = 0; i < num_out_q; i++) {
     snprintf(file_name, PORT_NAME_LEN + 256, "%s/%s/%s.rx%d", P_tmpdir,
-             VPORT_DIR_PREFIX, Name().c_str(), i);
+             VPORT_DIR_PREFIX, name().c_str(), i);
 
     unlink(file_name);
     close(out_irq_fd_[i]);
   }
 
   snprintf(file_name, PORT_NAME_LEN + 256, "%s/%s/%s", P_tmpdir,
-           VPORT_DIR_PREFIX, Name().c_str());
+           VPORT_DIR_PREFIX, name().c_str());
   unlink(file_name);
 
   rte_free(bar_);
