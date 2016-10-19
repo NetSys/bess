@@ -6,7 +6,6 @@
 #include "../port.h"
 #include "../utils/pcap.h"
 
-#include "../error.pb.h"
 #include "../message.h"
 
 #define PCAP_IFNAME 16

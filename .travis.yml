@@ -22,7 +22,7 @@ install:
   - sudo apt-get install -y libgraph-easy-perl linux-headers-$(uname -r)
   - .travis/install-glog.sh
   - .travis/install-gflags.sh
-  - .travis/install-protobuf.sh
+  - .travis/install-grpc.sh
 
 script:
   - ./build.py

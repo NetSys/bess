@@ -1,0 +1,256 @@
+syntax = "proto3";
+
+package bess;
+
+service BESSControl {
+  rpc ResetAll (Empty) returns (Error) {}
+
+  rpc PauseAll (Empty) returns (Error) {}
+  rpc ResumeAll (Empty) returns (Error) {}
+
+  rpc ResetWorkers (Empty) returns (Error) {}
+  rpc ListWorkers (Empty) returns (ListWorkersResponse) {}
+  rpc AddWorker (AddWorkerRequest) returns (Error) {}
+  // TODO: delete_worker
+
+  rpc ResetTcs (Empty) returns (Error) {}
+  rpc ListTcs (ListTcsRequest) returns (ListTcsResponse) {}
+  rpc AddTc (AddTcRequest) returns (Error) {}
+  rpc GetTcStats (GetTcStatsRequest) returns (GetTcStatsResponse) {}
+
+  rpc ListDrivers (Empty) returns (ListDriversResponse) {}
+  rpc GetDriverInfo(GetDriverInfoRequest) returns (GetDriverInfoResponse) {}
+  // TODO: rpc import_driver()
+
+  rpc ResetPorts (Empty) returns (Error) {}
+  rpc ListPorts (Empty) returns (ListPortsResponse) {}
+  rpc CreatePort (CreatePortRequest) returns (Error) {}
+  rpc DestroyPort (DestroyPortRequest) returns (Error) {}
+  rpc GetPortStats (GetPortStatsRequest) returns (GetPortStatsResponse) {}
+
+  // TODO: mclass
+
+  rpc ResetModules (Empty) returns (Error) {}
+  rpc ListModules (Empty) returns (ListModulesResponse) {}
+  rpc CreateModule (CreateModuleRequest) returns (CreateModuleResponse) {}
+  rpc DestroyModule (DestroyModuleRequest) returns (Error) {}
+  rpc GetModuleInfo (GetModuleInfoRequest) returns (GetModuleInfoResponse) {}
+  rpc ConnectModules (ConnectModulesRequest) returns (Error) {}
+  rpc DisconnectModules (DisconnectModulesRequest) returns (Error) {}
+
+  rpc AttachTask (AttachTaskRequest) returns (Error) {}
+
+  rpc EnableTcpdump (EnableTcpdumpRequest) returns (Error) {}
+  rpc DisableTcpdump (DisableTcpdumpRequest) returns (Error) {}
+
+  rpc KillBess (Empty) returns (Error) {}
+}
+
+message Empty {
+
+}
+
+message DisableTcpdumpRequest {
+  string name = 1;
+  uint64 ogate = 2;
+}
+
+message EnableTcpdumpRequest {
+  string name = 1;
+  uint64 ogate = 2;
+  string fifo = 3;
+}
+
+message AttachTaskRequest {
+  string name = 1;
+  uint64 taskid = 2;
+  string tc = 3;
+  uint64 wid = 4;
+}
+
+message DisconnectModulesRequest {
+  string name = 1;
+  uint64 ogate = 2;
+}
+
+message ConnectModulesRequest {
+  string m1 = 1;
+  string m2 = 2;
+  uint64 ogate = 3;
+  uint64 igate = 4;
+}
+
+message GetModuleInfoResponse {
+  message IGate {
+    message OGate {
+      uint64 ogate = 1;
+      string name = 2;
+    }
+    uint64 igate = 1;
+    repeated OGate ogates = 2;
+  }
+  message OGate {
+    uint64 ogate = 1;
+    uint64 cnt = 2;
+    uint64 pkts = 3;
+    double timestamp = 4;
+    string name = 5;
+    uint64 igate = 6;
+  }
+  message Attribute {
+    string name = 1;
+    uint64 size = 2;
+    string mode = 3;
+    int64 offset = 4;
+  }
+  string name = 1;
+  string mclass = 2;
+  string desc = 3;
+  // TODO: string dump = 4;
+  repeated IGate igates = 5;
+  repeated OGate ogates = 6;
+  repeated Attribute metadata = 7;
+}
+
+message GetModuleInfoRequest {
+  string name = 1;
+}
+
+message DestroyModuleRequest {
+  string name = 1;
+}
+
+message CreateModuleResponse {
+  string name = 1;
+}
+
+message CreateModuleRequest {
+  string name = 1;
+  string mclass = 2;
+  // TODO: args
+}
+
+message ListModulesResponse {
+  message Module {
+    string name = 1;
+    string mclass = 2;
+    string desc = 3;
+  }
+  repeated Module modules = 1;
+}
+
+message GetPortStatsResponse {
+  message Stat {
+    uint64 packets = 1;
+    uint64 dropped = 2;
+    uint64 bytes = 3;
+  }
+  Stat inc = 1;
+  Stat out = 2;
+  double timestamp = 3;
+}
+
+message GetPortStatsRequest {
+  string name = 1;
+}
+
+message DestroyPortRequest {
+  string name = 1;
+}
+
+message CreatePortRequest {
+  Port port = 1;
+  uint64 num_inc_q = 2;
+  uint64 num_out_q = 3;
+  uint64 size_inc_q = 4;
+  uint64 size_out_q = 5;
+  string mac_addr = 6;
+}
+
+message Port {
+  string name = 1;
+  string driver = 2;
+}
+
+message ListPortsResponse {
+  repeated Port ports = 1;
+}
+
+message Error {
+  int32 err = 1;
+  string errmsg = 2;
+  string details = 3;
+}
+
+message ListWorkersResponse {
+  message WorkerStatus {
+    int64 wid = 1;
+    int64 core = 2;
+    int64 running = 3;
+    int64 num_tcs = 4;
+    int64 silent_drops = 5;
+  }
+  repeated WorkerStatus workers_status = 1;
+}
+
+message AddWorkerRequest {
+  uint64 wid = 1;
+  uint64 core = 2;
+}
+
+message ListTcsRequest {
+  uint64 wid = 1;
+}
+
+message TrafficClass {
+  message Resource {
+    int64 schedules = 1;
+    int64 cycles = 2;
+    int64 packets = 3;
+    int64 bits = 4;
+  }
+  string name = 1;
+  int64 priority = 2;
+  int64 wid = 3;
+  Resource limit = 4;
+  Resource max_burst = 5;
+}
+
+message GetTcStatsResponse {
+  double timestamp = 1;
+  uint64 count = 2;
+  uint64 cycles = 3;
+  uint64 packets = 4;
+  uint64 bits = 5;
+}
+
+message ListTcsResponse {
+  message TrafficClassStatus {
+    TrafficClass class = 1;
+    string parent = 2;
+    int64 tasks = 3;
+  }
+  repeated TrafficClassStatus classes_status = 1;
+}
+
+message AddTcRequest {
+  TrafficClass class = 1;
+}
+
+message GetTcStatsRequest {
+  string name = 1;
+}
+
+message ListDriversResponse {
+  repeated string driver_names = 1;
+}
+
+message GetDriverInfoRequest {
+  string driver_name = 1;
+}
+
+message GetDriverInfoResponse {
+  string name = 1;
+  string help = 2;
+  repeated string commands = 3;
+}

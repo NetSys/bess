@@ -2,7 +2,6 @@
 #include <rte_errno.h>
 #include <rte_ethdev.h>
 
-#include "../error.pb.h"
 #include "../message.h"
 #include "../port.h"
 
