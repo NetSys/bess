@@ -229,8 +229,6 @@ struct snobj *FlowGen::ProcessArguments(struct snobj *arg) {
 
   template_size_ = snobj_size(t);
 
-  templ_ = new char[MAX_TEMPLATE_SIZE];
-  assert(templ_ != NULL);
   memset(templ_, 0, MAX_TEMPLATE_SIZE);
   memcpy(templ_, snobj_blob_get(t), template_size_);
 
@@ -317,6 +315,9 @@ struct snobj *FlowGen::Init(struct snobj *arg) {
   /* register task */
   tid = register_task(this, NULL);
   if (tid == INVALID_TASK_ID) return snobj_err(ENOMEM, "task creation failed");
+
+  templ_ = new char[MAX_TEMPLATE_SIZE];
+  if (templ_ == NULL) return snobj_err(ENOMEM, "unable to allocate template");
 
   err = ProcessArguments(arg);
   if (err) return err;
