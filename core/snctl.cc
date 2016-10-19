@@ -1023,6 +1023,7 @@ static struct snobj *handle_disable_tcpdump(struct snobj *q) {
 /* Adding this mostly to provide a reasonable way to exit when daemonized */
 static struct snobj *handle_kill_bess(struct snobj *q) {
   log_notice("Halt requested by a client\n");
+  destroy_all_workers();
   exit(EXIT_SUCCESS);
 
   /* Never called */

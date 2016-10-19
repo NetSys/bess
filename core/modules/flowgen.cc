@@ -20,7 +20,8 @@ struct flow {
 
 typedef std::pair<uint64_t, struct flow *> Event;
 typedef std::priority_queue<Event, std::vector<Event>,
-                            std::function<bool(Event, Event)>> EventQueue;
+                            std::function<bool(Event, Event)>>
+    EventQueue;
 
 bool EventLess(const Event &a, const Event &b) { return a.first < b.first; }
 
@@ -61,7 +62,7 @@ class FlowGen : public Module {
 
   EventQueue events_;
 
-  char templ_[MAX_TEMPLATE_SIZE];
+  char *templ_;
   int template_size_ = {0};
 
   uint64_t rseed_;
@@ -315,6 +316,9 @@ struct snobj *FlowGen::Init(struct snobj *arg) {
   tid = register_task(this, NULL);
   if (tid == INVALID_TASK_ID) return snobj_err(ENOMEM, "task creation failed");
 
+  templ_ = new char[MAX_TEMPLATE_SIZE];
+  if (templ_ == NULL) return snobj_err(ENOMEM, "unable to allocate template");
+
   err = ProcessArguments(arg);
   if (err) return err;
 
@@ -342,7 +346,10 @@ struct snobj *FlowGen::Init(struct snobj *arg) {
   return NULL;
 }
 
-void FlowGen::Deinit() { mem_free(flows_); }
+void FlowGen::Deinit() {
+  mem_free(flows_);
+  delete templ_;
+}
 
 struct snbuf *FlowGen::FillPacket(struct flow *f) {
   struct snbuf *pkt;
@@ -356,8 +363,9 @@ struct snbuf *FlowGen::FillPacket(struct flow *f) {
 
   p = reinterpret_cast<char *>(pkt->mbuf.buf_addr) +
       static_cast<size_t>(SNBUF_HEADROOM);
+  if (!p) return NULL;
 
-  pkt->mbuf.data_off = static_cast<size_t>(SNBUF_HEADROOM);
+  pkt->mbuf.data_off = SNBUF_HEADROOM;
   pkt->mbuf.pkt_len = size;
   pkt->mbuf.data_len = size;
 
