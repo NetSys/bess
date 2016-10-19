@@ -332,8 +332,7 @@ void dump_types(void) {
   printf("sizeof(size_t)=%zu\n", sizeof(size_t));
 
   printf("sizeof(heap)=%zu\n", sizeof(struct heap));
-  printf("sizeof(ht_bucket)=%zu sizeof(htable)=%zu\n", sizeof(struct ht_bucket),
-         sizeof(HTable<void*,void*>));
+  printf("sizeof(htable)=%zu\n", sizeof(HTable<void*,void*>));
   printf("sizeof(clist_head)=%zu sizeof(cdlist_item)=%zu\n",
          sizeof(struct cdlist_head), sizeof(struct cdlist_item));
 

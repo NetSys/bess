@@ -407,8 +407,8 @@ static void perftest() {
     {"ht_inlined_get", bess_init, bess_inlined_get, bess_close},
 #if __AVX__
     {"ht_inlined_get_bulk(x16)", bess_init, bess_inlined_get_bulk,
-#endif
      bess_close},
+#endif
     {"rte_hash_lookup", dpdk_discrete_init, dpdk_, dpdk_discrete_close},
     {"rte_hash_lookup_with_hash", dpdk_discrete_init, dpdk_hash,
      dpdk_discrete_close},
