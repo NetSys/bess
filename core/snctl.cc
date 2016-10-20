@@ -228,10 +228,7 @@ static struct snobj *handle_add_tc(struct snobj *q) {
   tc_name = snobj_eval_str(q, "name");
   if (!tc_name) return snobj_err(EINVAL, "Missing 'name' field");
 
-  if (!ns_is_valid_name(tc_name))
-    return snobj_err(EINVAL, "'%s' is an invalid name", tc_name);
-
-  if (ns_name_exists(tc_name))
+  if (TCContainer::tcs.count(tc_name))
     return snobj_err(EINVAL, "Name '%s' already exists", tc_name);
 
   wid = snobj_eval_uint(q, "wid");
