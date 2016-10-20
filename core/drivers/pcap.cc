@@ -3,6 +3,7 @@
 
 #include <glog/logging.h>
 
+#include "../log.h"
 #include "../port.h"
 #include "../utils/pcap.h"
 
@@ -25,7 +26,6 @@ static void pcap_gather_data(unsigned char *data, struct rte_mbuf *mbuf) {
 /* Experimental. Needs more tests */
 class PCAPPort : public Port {
  public:
-  static void InitDriver(){};
   virtual struct snobj *Init(struct snobj *arg);
   virtual void DeInit();
 

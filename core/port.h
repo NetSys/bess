@@ -3,8 +3,14 @@
 
 #include <stdint.h>
 
+#include <functional>
+#include <memory>
+#include <map>
+
+#include <glog/logging.h>
+#include <gtest/gtest_prod.h>
+
 #include "common.h"
-#include "log.h"
 #include "snobj.h"
 #include "snbuf.h"
 
@@ -42,106 +48,98 @@ struct packet_stats {
 
 typedef struct packet_stats port_stats_t[PACKET_DIRS];
 
-#if 0
-struct module;
-
-Port {
-	char *name;
-
-	const Driver *driver;
-
-	/* which modules are using this port?
-	 * TODO: more robust gate keeping */
-	const struct module *users[PACKET_DIRS][MAX_QUEUES_PER_DIR];
-
-	char mac_addr[ETH_ALEN];
-
-	queue_t num_queues[PACKET_DIRS];
-	int queue_size[PACKET_DIRS];
-
-	struct packet_stats queue_stats[PACKET_DIRS][MAX_QUEUES_PER_DIR];
-
-	/* for stats that do NOT belong to any queues */
-	port_stats_t port_stats;
-
-	void *priv[0];
-};
-
-static inline void *get_port_priv(Port *p)
-{
-	return (void *)(p + 1);
-}
-#endif
-
 class Port;
+class PortTest;
 
-class Driver {
+// A class to generate new Port objects of specific types.  Each instance can
+// generate Port objects of a specific class and specification.  Represents a
+// "driver" of that port.
+class PortBuilder {
  public:
-  Driver(const std::string &driver_name, const std::string &name_template,
-         const std::string &help)
-      : name_(driver_name), name_template_(name_template), help_(help) {
-    int ret = ns_insert(NS_TYPE_DRIVER, driver_name.c_str(),
-                        static_cast<void *>(this));
-    if (ret < 0) {
-      log_err("ns_insert() failure for driver '%s'\n", driver_name.c_str());
-    }
-  }
+  friend class PortTest;
+  FRIEND_TEST(PortBuilderTest, RegisterPortClassDirectCall);
+  FRIEND_TEST(PortBuilderTest, RegisterPortClassMacroCall);
 
-  static void InitDriver(){};
 
-  virtual Port *CreatePort(const std::string &name) const = 0;
-  virtual void Init() {}
+  PortBuilder(std::function<Port *()> port_generator,
+              const std::string &class_name,
+              const std::string &name_template,
+              const std::string &help_text) :
+      port_generator_(port_generator),
+      class_name_(class_name),
+      name_template_(name_template),
+      help_text_(help_text),
+      initialized_(false) {}
 
-  std::string Name() const { return name_; }
-  std::string NameTemplate() const { return name_template_; }
-  std::string Help() const { return help_; }
+  // Returns a new Port object of the type represented by this PortBuilder
+  // instance (of type class_name) with the Port instance's name set to the
+  // given name.
+  Port *CreatePort(const std::string &name) const;
 
-  virtual size_t DefaultQueueSize(packet_dir_t dir) const = 0;
-  virtual uint32_t GetFlags() const = 0;
+  // Adds the given Port to the global Port collection.  Takes ownership of the
+  // pointer.  Returns true upon success.
+  static bool AddPort(Port *p);
+
+  // Returns 0 upon success, -errno upon failure.
+  static int DestroyPort(Port *p);
+
+  // Generates a name for a new port given the driver name and its template.
+  static std::string GenerateDefaultPortName(const std::string &driver_name,
+                                             const std::string &default_template);
+
+  // Invokes one-time initialization of the corresponding port class.  Returns
+  // true upon success.
+  bool InitPortClass();
+
+  // Should be called via ADD_DRIVER (once per driver file) to register the
+  // existence of this driver.  Always returns true;
+  static bool RegisterPortClass(std::function<Port *()> port_generator,
+                                const std::string &class_name,
+                                const std::string &name_template,
+                                const std::string &help_text);
+
+  static const std::map<std::string, PortBuilder> &all_port_builders();
+
+  static const std::map<std::string, Port*> &all_ports();
+  
+  const std::string &class_name() const { return class_name_; };
+  const std::string &name_template() const { return name_template_; };
+  const std::string &help_text() const { return help_text_; };
 
  private:
-  std::string name_;
-  std::string name_template_;
-  std::string help_;
 
-  size_t def_size_inc_q;
-  size_t def_size_out_q;
-};
+  // To avoid the static initialization ordering problem, this pseudo-getter
+  // function contains the real static all_port_builders class variable and
+  // returns it, ensuring its construction before use.
+  // 
+  // If reset is true, clears the store of all port builders; to be used for
+  // testing and for dynamic loading of "drivers".
+  static std::map<std::string, PortBuilder> &all_port_builders_holder(bool reset = false);
 
-template <typename T>
-class DriverRegister : public Driver {
- public:
-  DriverRegister(const std::string &class_name,
-                 const std::string &name_template, const std::string &help)
-      : Driver(class_name, name_template, help){};
+  // A function that emits a new Port object of the type class_name.
+  std::function<Port *()> port_generator_; 
 
-  virtual void InitDriver() { T::InitDriver(); }
+  // Tracks all port instances.
+  static std::map<std::string, Port*> all_ports_;
 
-  virtual Port *CreatePort(const std::string &name) const {
-    T *m = new T;
-    m->name_ = name;
-    m->driver_ = this;
-    return m;
-  }
+  std::string class_name_;     // The name of this Port class.
+  std::string name_template_;  // The port default name prefix.
+  std::string help_text_;      // Help text about this port type.
 
-  virtual size_t DefaultQueueSize(packet_dir_t dir) const {
-    if (dir == PACKET_DIR_INC)
-      return T::kDefaultIncQueueSize;
-    else
-      return T::kDefaultOutQueueSize;
-  }
-
-  virtual uint32_t GetFlags() const { return T::kFlags; }
+  bool initialized_;  // Has this port class been initialized via InitPortClass()?
 };
 
 class Port {
   // overide this section to create a new module -----------------------------
  public:
   Port() = default;
-  virtual ~Port() = 0;
+  virtual ~Port() {};
 
   virtual struct snobj *Init(struct snobj *arg) { return nullptr; }
   virtual void Deinit() {}
+
+  // For one-time initialization of the port's "driver" (optional).
+  virtual void InitDriver() {}
 
   virtual void CollectStats(bool reset) {}
 
@@ -149,31 +147,51 @@ class Port {
 
   virtual int SendPackets(queue_t qid, snb_array_t pkts, int cnt) { return 0; }
 
+  // For custom incoming / outgoing queue sizes (optional).
+  virtual size_t DefaultIncQueueSize() const { return kDefaultIncQueueSize; }
+  virtual size_t DefaultOutQueueSize() const { return kDefaultOutQueueSize; }
+
+  virtual size_t GetFlags() const { return kFlags; }
+
+  // -------------------------------------------------------------------------
+
+ public:
+  friend class PortBuilder;
+
+  // Fills in pointed-to structure with this port's stats.
+  void GetPortStats(port_stats_t *stats);
+
+  /* queues == NULL if _all_ queues are being acquired/released */
+  int AcquireQueues(const struct module *m, packet_dir_t dir,
+                    const queue_t *queues, int num);
+
+  void ReleaseQueues(const struct module *m, packet_dir_t dir,
+                     const queue_t *queues, int num);
+
+  const std::string &name() const { return name_; };
+
+  const PortBuilder *port_builder() const { return port_builder_; }
+
+  struct snobj *RunCommand(const std::string &user_cmd, struct snobj *arg);
+
+ private:
+  // Private methods, for use by PortBuilder.
+  void set_name(const std::string &name) { name_ = name; }
+  void set_port_builder(const PortBuilder *port_builder) {
+    port_builder_ = port_builder;
+  }
+
+  std::string name_; // The name of this port instance.
+
+  // Class-wide spec of this type of port.  Non-owning.
+  const PortBuilder *port_builder_;
+
   static const size_t kDefaultIncQueueSize = 256;
   static const size_t kDefaultOutQueueSize = 256;
 
   static const uint32_t kFlags = 0;
 
-  // -------------------------------------------------------------------------
-
- public:
-  const Driver *GetDriver() const { return driver_; };
-  std::string Name() const { return name_; };
-
-  struct snobj *RunCommand(const std::string &user_cmd, struct snobj *arg);
-
- private:
-  // non-copyable and non-movable by default
-  Port(Port &) = delete;
-  Port &operator=(Port &) = delete;
-  Port(Port &&) = delete;
-  Port &operator=(Port &&) = delete;
-
-  std::string name_;
-  const Driver *driver_;
-
-  template <typename T>
-  friend class DriverRegister;
+  DISALLOW_COPY_AND_ASSIGN(Port);
 
   // FIXME: porting in progress ----------------------------
  public:
@@ -192,34 +210,7 @@ class Port {
   port_stats_t port_stats;
 };
 
-size_t list_drivers(const Driver **p_arr, size_t arr_size, size_t offset);
-
-const Driver *find_driver(const char *name);
-
-int add_driver(const Driver *driver);
-
-void init_drivers();
-
-size_t list_ports(const Port **p_arr, size_t arr_size, size_t offset);
-Port *find_port(const char *name);
-
-Port *create_port(const char *name, const Driver *driver, struct snobj *arg,
-                  struct snobj **perr);
-
-int destroy_port(Port *p);
-
-void get_port_stats(Port *p, port_stats_t *stats);
-
-void get_queue_stats(Port *p, packet_dir_t dir, queue_t qid,
-                     struct packet_stats *stats);
-
-/* quques == NULL if _all_ queues are being acquired/released */
-int acquire_queues(Port *p, const struct module *m, packet_dir_t dir,
-                   const queue_t *queues, int num_queues);
-void release_queues(Port *p, const struct module *m, packet_dir_t dir,
-                    const queue_t *queues, int num_queues);
-
 #define ADD_DRIVER(_DRIVER, _NAME_TEMPLATE, _HELP) \
-  DriverRegister<_DRIVER> __driver__##_DRIVER(#_DRIVER, _NAME_TEMPLATE, _HELP);
+  bool __driver__##_DRIVER = PortBuilder::RegisterPortClass(std::function<Port *()>([]() { return new _DRIVER (); }), #_DRIVER, _NAME_TEMPLATE, _HELP);
 
 #endif

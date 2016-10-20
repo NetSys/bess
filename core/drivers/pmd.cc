@@ -2,6 +2,7 @@
 #include <rte_ethdev.h>
 #include <rte_errno.h>
 
+#include "../log.h"
 #include "../port.h"
 
 typedef uint8_t dpdk_port_t;
@@ -10,7 +11,7 @@ typedef uint8_t dpdk_port_t;
 
 class PMDPort : public Port {
  public:
-  static void InitDriver();
+  virtual void InitDriver();
   virtual struct snobj *Init(struct snobj *arg);
   virtual void DeInit();
 
