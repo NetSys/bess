@@ -53,9 +53,9 @@ class SetMetadata : public Module {
  private:
   struct snobj *AddAttrOne(struct snobj *attr);
 
-  int num_attrs_;
+  int num_attrs_ = 0;
 
-  struct Attr attrs_[MAX_ATTRS];
+  struct Attr attrs_[MAX_ATTRS] = {};
 };
 
 struct snobj *SetMetadata::AddAttrOne(struct snobj *attr) {
