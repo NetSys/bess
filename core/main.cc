@@ -25,14 +25,6 @@
 #include "snbuf.h"
 #include "test.h"
 
-/* Port this BESS instance listens on.
- * Panda came up with this default number */
-#define DEFAULT_PORT 0x02912 /* 10514 in decimal */
-
-struct global_opts global_opts = {
-    .port = DEFAULT_PORT,
-};
-
 static struct global_opts *opts = (struct global_opts *)&global_opts;
 
 // TODO(barath): Rename these flags to something more intuitive.

@@ -1,32 +1,4 @@
-#include "../module.h"
-
-#define MAX_RR_GATES 16384
-
-static inline int is_valid_gate(gate_idx_t gate) {
-  return (gate < MAX_GATES || gate == DROP_GATE);
-}
-
-class RoundRobin : public Module {
- public:
-  virtual struct snobj *Init(struct snobj *arg);
-
-  virtual void ProcessBatch(struct pkt_batch *batch);
-
-  static const gate_idx_t kNumIGates = 1;
-  static const gate_idx_t kNumOGates = MAX_GATES;
-
-  static const Commands<RoundRobin> cmds;
-
- private:
-  struct snobj *CommandSetMode(struct snobj *arg);
-  struct snobj *CommandSetGates(struct snobj *arg);
-
-  /* XXX: currently doesn't support multiple workers */
-  gate_idx_t gates_[MAX_RR_GATES] = {};
-  int ngates_ = {};
-  int current_gate_ = {};
-  int per_packet_ = {};
-};
+#include "round_robin.h"
 
 const Commands<RoundRobin> RoundRobin::cmds = {
     {"set_mode", &RoundRobin::CommandSetMode, 0},
