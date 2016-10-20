@@ -1,6 +1,7 @@
 #include "htable.h"
 
 #include <cassert>
+#include <cstdio>
 
 #include "../mem_alloc.h"
 

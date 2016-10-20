@@ -101,7 +101,6 @@ static void bess_inlined_get(void *arg, int iteration, int entries) {
   }
 }
 
-#if __AVX__
 static void bess_inlined_get_bulk(void *arg, int iteration, int entries) {
   HTable<uint32_t, value_t, inlined_keycmp, inlined_hash> *t =
       (HTable<uint32_t, value_t, inlined_keycmp, inlined_hash> *)arg;
@@ -129,7 +128,6 @@ static void bess_inlined_get_bulk(void *arg, int iteration, int entries) {
     }
   }
 }
-#endif
 
 static void bess_close(void *arg) {
   HTable<uint32_t, value_t, inlined_keycmp, inlined_hash> *t =
@@ -405,10 +403,8 @@ static void perftest() {
   const struct player players[] = {
     {"ht_get", bess_init, bess_get, bess_close},
     {"ht_inlined_get", bess_init, bess_inlined_get, bess_close},
-#if __AVX__
     {"ht_inlined_get_bulk(x16)", bess_init, bess_inlined_get_bulk,
      bess_close},
-#endif
     {"rte_hash_lookup", dpdk_discrete_init, dpdk_, dpdk_discrete_close},
     {"rte_hash_lookup_with_hash", dpdk_discrete_init, dpdk_hash,
      dpdk_discrete_close},

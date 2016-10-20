@@ -49,8 +49,8 @@ class HTableBase {
   /* -errno, or 0 for success */
   int Init(size_t key_size, size_t value_size);
   int InitEx(struct ht_params *params);
-
   void Close();
+
   void Clear();
 
   /* returns NULL or the pointer to the data */
@@ -179,9 +179,7 @@ class HTable : public HTableBase {
  public:
   /* returns NULL or the pointer to the data */
   V *Get(const K *key) const;
-#if __AVX__
-  void GetBulk(int num_keys, const K **_keys, V **values) const;
-#endif
+  void GetBulk(int num_keys, const K **keys, V **values) const;
 
   /* identical to ht_Get(), but you can supply a precomputed hash value "pri" */
   V *GetHash(uint32_t pri, const K *key) const;
@@ -237,9 +235,8 @@ inline V *HTable<K, V, C, H>::get_from_bucket(uint32_t pri, uint32_t hv,
 #if __AVX__
 template <typename K, typename V, HTableBase::KeyCmpFunc C,
           HTableBase::HashFunc H>
-inline void HTable<K, V, C, H>::GetBulk(int num_keys, const K **_keys,
+inline void HTable<K, V, C, H>::GetBulk(int num_keys, const K **keys,
                                         V **values) const {
-  const K **keys = (const K **)_keys;
   uint32_t bucket_mask = bucket_mask_;
   void *entries = entries_;
   size_t key_size = key_size_;
@@ -286,6 +283,14 @@ inline void HTable<K, V, C, H>::GetBulk(int num_keys, const K **_keys,
     else
       values[i] = GetHash(pri, keys[i]);
   }
+}
+#else
+template <typename K, typename V, HTableBase::KeyCmpFunc C,
+          HTableBase::HashFunc H>
+inline void HTable<K, V, C, H>::GetBulk(int num_keys, const K **keys,
+                                        V **values) const {
+  for (int i = 0; i < num_keys; i++)
+    values[i] = Get(keys[i]);
 }
 #endif
 
