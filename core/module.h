@@ -217,8 +217,6 @@ class Module {
   struct mt_attr attrs[MAX_ATTRS_PER_MODULE] = {};
   scope_id_t scope_components[MT_TOTAL_SIZE] = {};
 
-  int curr_scope = 0;
-
   mt_offset_t attr_offsets[MAX_ATTRS_PER_MODULE] = {};
   struct gates igates = {};
   struct gates ogates = {};

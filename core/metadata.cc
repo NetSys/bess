@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <functional>
+#include <map>
 #include <queue>
 #include <string.h>
 #include <vector>
@@ -30,6 +31,7 @@ bool scope_component_less(const struct scope_component *a,
 }
 
 static std::vector<struct scope_component> scope_components;
+static std::map<Module *, int> module_scopes;
 
 char *get_scope_attr_name(scope_id_t scope_id) {
   return scope_components[scope_id].name;
@@ -86,8 +88,8 @@ static void traverse_upstream(Module *m, struct mt_attr *attr) {
   }
 
   /* cycle detection */
-  if (m->curr_scope == static_cast<int>(scope_components.size())) return;
-  m->curr_scope = static_cast<int>(scope_components.size());
+  if (module_scopes[m] == static_cast<int>(scope_components.size())) return;
+  module_scopes[m] = static_cast<int>(scope_components.size());
 
   for (int i = 0; i < m->igates.curr_size; i++) {
     struct gate *g = m->igates.arr[i];
@@ -111,8 +113,8 @@ static int traverse_downstream(Module *m, struct mt_attr *attr) {
   int8_t in_scope = 0;
 
   /* cycle detection */
-  if (m->curr_scope == static_cast<int>(scope_components.size())) return -1;
-  m->curr_scope = static_cast<int>(scope_components.size());
+  if (module_scopes[m] == static_cast<int>(scope_components.size())) return -1;
+  module_scopes[m] = static_cast<int>(scope_components.size());
 
   found_attr = find_attr(m, attr);
 
@@ -128,13 +130,13 @@ static int traverse_downstream(Module *m, struct mt_attr *attr) {
       traverse_downstream(ogate->out.igate->m, attr);
     }
 
-    m->curr_scope = -1;
+    module_scopes[m] = -1;
     traverse_upstream(m, attr);
     in_scope = 1;
     goto ret;
 
   } else if (found_attr) {
-    m->curr_scope = -1;
+    module_scopes[m] = -1;
     in_scope = 0;
     goto ret;
   }
@@ -148,7 +150,7 @@ static int traverse_downstream(Module *m, struct mt_attr *attr) {
 
   if (in_scope) {
     add_module_to_component(m, attr);
-    m->curr_scope = -1;
+    module_scopes[m] = -1;
     traverse_upstream(m, attr);
   }
 
@@ -172,7 +174,7 @@ static void identify_scope_component(Module *m, struct mt_attr *attr) {
   attr->scope_id = scope_components.size();
 
   /* cycle detection */
-  m->curr_scope = static_cast<int>(scope_components.size());
+  module_scopes[m] = static_cast<int>(scope_components.size());
 
   for (int i = 0; i < m->ogates.curr_size; i++) {
     ogate = m->ogates.arr[i];
@@ -189,7 +191,7 @@ static void prepare_metadata_computation() {
     Module *m = (Module *)ns_next(&iter);
     if (!m) break;
 
-    m->curr_scope = -1;
+    module_scopes[m] = -1;
     memset(m->scope_components, -1, sizeof(scope_id_t) * MT_TOTAL_SIZE);
 
     for (int i = 0; i < m->num_attrs; i++) {
