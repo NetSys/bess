@@ -100,8 +100,7 @@ class PortBuilder {
   const std::string &help_text() const { return help_text_; };
 
  private:
-  // A function that emits a new Port object of the type class_name.  Sets the
-  // port's name to the given string argument.
+  // A function that emits a new Port object of the type class_name.
   std::function<Port *()> port_generator_; 
 
   // Maps from class names to port builders.  Tracks all port classes (via their
