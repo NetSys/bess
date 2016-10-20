@@ -122,7 +122,7 @@ class HTableBase {
   /* non-tunable macros */
   static const int kEntriesPerBucket = 4; /* 4-way set associative */
   static const uint32_t kHashInitval = UINT32_MAX;
-  static const KeyIndex kInvalidKeyIdx = UINT32_MAX;
+  static const KeyIndex kInvalidKeyIdx = std::numeric_limits<KeyIndex>::max();
 
   struct Bucket {
     uint32_t hv[kEntriesPerBucket];
