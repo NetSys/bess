@@ -3,7 +3,13 @@
 #include <cassert>
 #include <cstdio>
 
+#include <rte_config.h>
+#include <rte_hash_crc.h>
+
 #include "../mem_alloc.h"
+
+const HTableBase::KeyCmpFunc HTableBase::kDefaultKeyCmpFunc = memcmp;
+const HTableBase::HashFunc HTableBase::kDefaultHashFunc = rte_hash_crc;
 
 /* from the stored key pointer, return its value pointer */
 void *HTableBase::key_to_value(const void *key) const {

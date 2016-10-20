@@ -7,9 +7,6 @@
 #include <algorithm>
 #include <cstring>
 
-#include <rte_config.h>
-#include <rte_hash_crc.h>
-
 #include "../common.h"
 
 class HTableBase {
@@ -22,8 +19,8 @@ class HTableBase {
   typedef int (*KeyCmpFunc)(const void *key, const void *key_stored,
                             size_t key_size);
 
-  static constexpr KeyCmpFunc kDefaultKeyCmpFunc = memcmp;
-  static constexpr HashFunc kDefaultHashFunc = rte_hash_crc;
+  static const KeyCmpFunc kDefaultKeyCmpFunc;
+  static const HashFunc kDefaultHashFunc;
 
   struct ht_params {
     size_t key_size;
