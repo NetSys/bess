@@ -5,7 +5,7 @@
 
 #include <functional>
 #include <memory>
-#include <unordered_map>
+#include <map>
 
 #include <glog/logging.h>
 
@@ -91,13 +91,9 @@ class PortBuilder {
                                 const std::string &name_template,
                                 const std::string &help_text);
 
-  static const std::unordered_map<std::string, PortBuilder> &all_port_builders() {
-    return all_port_builders_;
-  }
+  static const std::map<std::string, PortBuilder> &all_port_builders();
 
-  static const std::unordered_map<std::string, Port*> &all_ports() {
-    return all_ports_;
-  }
+  static const std::map<std::string, Port*> &all_ports();
   
   const std::string &class_name() const { return class_name_; };
   const std::string &name_template() const { return name_template_; };
@@ -110,10 +106,10 @@ class PortBuilder {
 
   // Maps from class names to port builders.  Tracks all port classes (via their
   // PortBuilders).
-  static std::unordered_map<std::string, PortBuilder> all_port_builders_;
+  static std::map<std::string, PortBuilder> all_port_builders_;
 
   // Tracks all port instances.
-  static std::unordered_map<std::string, Port*> all_ports_;
+  static std::map<std::string, Port*> all_ports_;
 
   std::string class_name_;     // The name of this Port class.
   std::string name_template_;  // The port default name prefix.
@@ -126,7 +122,7 @@ class Port {
   // overide this section to create a new module -----------------------------
  public:
   Port() = default;
-  virtual ~Port() = 0;
+  virtual ~Port() {};
 
   virtual struct snobj *Init(struct snobj *arg) { return nullptr; }
   virtual void Deinit() {}
@@ -203,7 +199,8 @@ class Port {
   port_stats_t port_stats;
 };
 
-
+// TODO(barath): Change the structure of this, because we can't rely on static
+//               initialization order.
 #define ADD_DRIVER(_DRIVER, _NAME_TEMPLATE, _HELP) \
   bool __driver__##_DRIVER = PortBuilder::RegisterPortClass(std::function<Port *()>([]() { return new _DRIVER (); }), #_DRIVER, _NAME_TEMPLATE, _HELP);
 

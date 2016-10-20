@@ -14,6 +14,10 @@
 #include "mem_alloc.h"
 #include "port.h"
 
+std::map<std::string, PortBuilder> PortBuilder::all_port_builders_;
+
+std::map<std::string, Port*> PortBuilder::all_ports_;
+
 Port *PortBuilder::CreatePort(const std::string &name) const {
   Port *p = port_generator_();
   p->set_name(name);
@@ -86,6 +90,14 @@ bool PortBuilder::RegisterPortClass(std::function<Port *()> port_generator,
       std::forward_as_tuple(class_name),
       std::forward_as_tuple(port_generator, class_name, name_template, help_text));
   return true;
+}
+
+const std::map<std::string, PortBuilder> &PortBuilder::all_port_builders() {
+  return all_port_builders_;
+}
+
+const std::map<std::string, Port*> &PortBuilder::all_ports() {
+  return all_ports_;
 }
 
 void Port::GetPortStats(port_stats_t *stats) {
