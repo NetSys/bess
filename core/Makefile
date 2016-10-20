@@ -12,6 +12,10 @@ ifndef RTE_TARGET
     RTE_TARGET = $(shell uname -m)-native-linuxapp-gcc
 endif
 
+ifndef PROTOC
+    PROTOC = protoc
+endif
+
 ifneq ($(wildcard $(RTE_SDK)/$(RTE_TARGET)/*),)
     DPDK_INC_DIR = $(RTE_SDK)/$(RTE_TARGET)/include
     DPDK_LIB_DIR = $(RTE_SDK)/$(RTE_TARGET)/lib
@@ -40,9 +44,17 @@ endif
 
 -include extra.mk
 
-SRCS = $(wildcard *.cc utils/*.cc modules/*.cc drivers/*.cc tests/*.cc)
-OBJS = $(patsubst %.cc,%.o, $(filter %.cc, $(SRCS)))
+PROTO_DIR = ../protobuf
+PROTOS = $(wildcard $(PROTO_DIR)/*.proto)
+PROTO_SRCS = $(patsubst %.proto,%.pb.cc, $(notdir $(PROTOS)))
+PROTO_SRCS += $(patsubst %.proto,%.grpc.pb.cc, $(notdir $(PROTOS)))
+PROTO_HEADERS = $(patsubst %.cc,%.h, $(PROTO_SRCS))
+
+SRCS = $(filter-out %.pb.cc, $(wildcard *.cc utils/*.cc modules/*.cc drivers/*.cc tests/*.cc))
+SRCS += $(PROTO_SRCS)
 HEADERS = $(wildcard *.h utils/*.h modules/*.h drivers/*.h tests/*.h)
+OBJS = $(patsubst %.cc,%.o, $(filter %.cc, $(SRCS)))
+
 EXEC = bessd
 
 DEPS = .make.dep
@@ -64,6 +76,12 @@ VERBOSE = 0
 .PHONY: all clean tags cscope
 
 all: $(DEPS) $(EXEC)
+
+%.grpc.pb.cc: $(PROTO_DIR)/%.proto
+	@$(PROTOC) $< --proto_path=$(PROTO_DIR) --grpc_out=. --plugin=protoc-gen-grpc=`which grpc_cpp_plugin`
+
+%.pb.cc: $(PROTO_DIR)/%.proto
+	@$(PROTOC) $< --proto_path=$(PROTO_DIR) --cpp_out=.
 
 $(DEPS): $(SRCS) $(HEADERS)
 	@$(CXX) $(CXXFLAGS) -MM $(SRCS) | sed 's|\(.*\)\.o: \(.*\)\.c|\2.o: \2.c|' > $(DEPS)
@@ -99,7 +117,7 @@ $(EXEC): $(OBJS)
 -include $(DEPS)
 
 clean:
-	rm -f $(DEPS) $(EXEC) *.o modules/*.o drivers/*.o utils/*.o tests/*.o
+	rm -f $(DEPS) $(EXEC) *.pb.cc *.pb.h *.o modules/*.o drivers/*.o utils/*.o tests/*.o
 
 tags:
 	@ctags -R *

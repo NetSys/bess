@@ -34,3 +34,7 @@ deps/*.gz
 
 # OSX
 .DS_Store
+
+# Protobuf
+*.pb.cc
+*.pb.h
