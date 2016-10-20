@@ -11,7 +11,6 @@
 #include <rte_hash_crc.h>
 
 #include "../common.h"
-#include "simd.h"
 
 class HTableBase {
  public:
@@ -73,31 +72,10 @@ class HTableBase {
   int Count() const;
 
   /* with non-zero 'detail', each item in the hash table will be shown */
-  void Dump(int detail) const;
+  void Dump(bool detail) const;
 
  protected:
-  typedef int32_t KeyIndex;
-
-  /* tunable macros */
-  static const int kInitNumBucket = 4;
-  static const int kInitNumEntries = 16;
-
-  /* 4^kMaxCuckooPath buckets will be considered to make a empty slot,
-   * before giving up and expand the table.
-   * Higher number will yield better occupancy, but the worst case performance
-   * of insertion will grow exponentially, so be careful. */
-  static const int kMaxCuckooPath = 3;
-
-  /* non-tunable macros */
-  static const int kEntriesPerBucket = 4; /* 4-way set associative */
-  static const uint32_t kHashInitval = UINT32_MAX;
-  static const KeyIndex kInvalidKeyIdx = INT32_MAX;
-#define DEFAULT_HASH_FUNC rte_hash_crc
-
-  struct Bucket {
-    uint32_t hv[kEntriesPerBucket];
-    KeyIndex keyidx[kEntriesPerBucket];
-  } __ymm_aligned;
+  typedef uint32_t KeyIndex;
 
   static uint32_t make_nonzero(uint32_t v) {
     /* Set the MSB and unset the 2nd MSB (NOTE: must be idempotent).
@@ -111,6 +89,43 @@ class HTableBase {
     uint32_t tag = primary >> 12;
     return primary ^ ((tag + 1) * 0x5bd1e995);
   }
+
+  void *keyidx_to_ptr(KeyIndex idx) const {
+    return (void *)((uintptr_t)entries_ + entry_size_ * idx);
+  }
+
+  struct Bucket;
+  Bucket *hv_to_bucket(uint32_t hv) const {
+    return &buckets_[hv & bucket_mask_];
+  }
+
+  /* in bytes */
+  size_t key_size_ = {};
+  size_t value_size_ = {};
+  size_t value_offset_ = {};
+  size_t entry_size_ = {};
+
+ private:
+  /* tunable macros */
+  static const int kInitNumBucket = 4;
+  static const int kInitNumEntries = 16;
+
+  /* 4^kMaxCuckooPath buckets will be considered to make a empty slot,
+   * before giving up and expand the table.
+   * Higher number will yield better occupancy, but the worst case performance
+   * of insertion will grow exponentially, so be careful. */
+  static const int kMaxCuckooPath = 3;
+
+  /* non-tunable macros */
+  static const int kEntriesPerBucket = 4; /* 4-way set associative */
+  static const uint32_t kHashInitval = UINT32_MAX;
+  static const KeyIndex kInvalidKeyIdx = UINT32_MAX;
+#define DEFAULT_HASH_FUNC rte_hash_crc
+
+  struct Bucket {
+    uint32_t hv[kEntriesPerBucket];
+    KeyIndex keyidx[kEntriesPerBucket];
+  } __ymm_aligned;
 
   int count_entries_in_pri_bucket() const;
   void *get_from_bucket(uint32_t pri, uint32_t hv, const void *key) const;
@@ -130,17 +145,16 @@ class HTableBase {
   uint32_t hash_nonzero(const void *key) const;
 
   KeyIndex get_next(KeyIndex curr) const;
-  void *keyidx_to_ptr(KeyIndex idx) const;
 
   void *key_to_value(const void *key) const;
   KeyIndex _get_keyidx(uint32_t pri) const;
 
+  /* # of buckets == mask + 1 */
+  uint32_t bucket_mask_ = {};
+
   /* bucket and entry arrays grow independently */
   Bucket *buckets_ = NULL;
   void *entries_ = NULL; /* entry_size * num_entries bytes */
-
-  /* # of buckets == mask + 1 */
-  uint32_t bucket_mask_ = {};
 
   int cnt_ = 0;              /* current number of entries */
   KeyIndex num_entries_ = 0; /* current array size (# entries) */
@@ -148,23 +162,9 @@ class HTableBase {
   /* Linked list head for empty key slots (LIFO). NO_NEXT if empty */
   KeyIndex free_keyidx_ = {};
 
-  /* in bytes */
-  size_t key_size_ = {};
-  size_t value_size_ = {};
-  size_t value_offset_ = {};
-  size_t entry_size_ = {};
-
   HashFunc hash_func_;
   KeyCmpFunc keycmp_func_;
 };
-
-inline void *HTableBase::keyidx_to_ptr(KeyIndex idx) const {
-  return (void *)((uintptr_t)entries_ + entry_size_ * idx);
-}
-
-inline HTableBase::KeyIndex HTableBase::get_next(KeyIndex curr) const {
-  return *(KeyIndex *)keyidx_to_ptr(curr);
-}
 
 template <typename K, typename V, HTableBase::KeyCmpFunc C = memcmp,
           HTableBase::HashFunc H = DEFAULT_HASH_FUNC>
@@ -172,12 +172,11 @@ class HTable : public HTableBase {
  public:
   /* returns NULL or the pointer to the data */
   V *Get(const K *key) const;
-  void GetBulk(int num_keys, const K **keys, V **values) const;
 
   /* identical to ht_Get(), but you can supply a precomputed hash value "pri" */
   V *GetHash(uint32_t pri, const K *key) const;
 
- protected:
+ private:
   V *get_from_bucket(uint32_t pri, uint32_t hv, const K *key) const;
 };
 
@@ -206,8 +205,7 @@ template <typename K, typename V, HTableBase::KeyCmpFunc C,
           HTableBase::HashFunc H>
 inline V *HTable<K, V, C, H>::get_from_bucket(uint32_t pri, uint32_t hv,
                                               const K *key) const {
-  uint32_t b_idx = hv & bucket_mask_;
-  Bucket *bucket = &buckets_[b_idx];
+  Bucket *bucket = hv_to_bucket(hv);
 
   for (int i = 0; i < kEntriesPerBucket; i++) {
     KeyIndex k_idx;
@@ -224,66 +222,5 @@ inline V *HTable<K, V, C, H>::get_from_bucket(uint32_t pri, uint32_t hv,
 
   return NULL;
 }
-
-#if __AVX__
-template <typename K, typename V, HTableBase::KeyCmpFunc C,
-          HTableBase::HashFunc H>
-inline void HTable<K, V, C, H>::GetBulk(int num_keys, const K **keys,
-                                        V **values) const {
-  uint32_t bucket_mask = bucket_mask_;
-  void *entries = entries_;
-  size_t key_size = key_size_;
-  size_t entry_size = entry_size_;
-  size_t value_offset = value_offset_;
-
-  for (int i = 0; i < num_keys; i++) {
-    Bucket *pri_bucket;
-    Bucket *sec_bucket;
-
-    uint32_t pri = H(keys[i], key_size, kHashInitval);
-    pri |= (1u << 31);
-    pri &= ~(1u << 30);
-    pri_bucket = &buckets_[pri & bucket_mask];
-
-    uint32_t sec = hash_secondary(pri);
-    sec_bucket = &buckets_[sec & bucket_mask];
-
-    union {
-      __m256i v;
-      uint32_t a[8];
-    } keyidx;
-
-    __m256i v_pri = _mm256_set1_epi32(pri);
-    __m256i v_pri_bucket = _mm256_load_si256((__m256i *)pri_bucket);
-    __m256i v_sec_bucket = _mm256_load_si256((__m256i *)sec_bucket);
-    __m256i v_hv = _mm256_permute2f128_si256(v_pri_bucket, v_sec_bucket, 0x20);
-    keyidx.v = _mm256_permute2f128_si256(v_pri_bucket, v_sec_bucket, 0x31);
-
-    __m256 v_cmp = _mm256_cmp_ps((__m256)v_pri, (__m256)v_hv, _CMP_EQ_OQ);
-
-    int mask = _mm256_movemask_ps(v_cmp);
-    int ffs = __builtin_ffs(mask);
-
-    if (!ffs) {
-      values[i] = NULL;
-      continue;
-    }
-
-    KeyIndex k_idx = keyidx.a[ffs - 1];
-    K *key_stored = (K *)((uintptr_t)entries + entry_size * k_idx);
-    if (!C(keys[i], key_stored, key_size))
-      values[i] = (V *)((uintptr_t)key_stored + value_offset);
-    else
-      values[i] = GetHash(pri, keys[i]);
-  }
-}
-#else
-template <typename K, typename V, HTableBase::KeyCmpFunc C,
-          HTableBase::HashFunc H>
-inline void HTable<K, V, C, H>::GetBulk(int num_keys, const K **keys,
-                                        V **values) const {
-  for (int i = 0; i < num_keys; i++) values[i] = Get(keys[i]);
-}
-#endif
 
 #endif
