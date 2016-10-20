@@ -44,7 +44,7 @@ endif
 
 -include extra.mk
 
-SRCS = $(filter-out time_test.cc, $(wildcard *.cc utils/*.cc modules/*.cc drivers/*.cc oldtests/*.cc))
+SRCS = $(filter-out time_test.cc $(wildcard modules/*_test.cc), $(wildcard *.cc utils/*.cc modules/*.cc drivers/*.cc oldtests/*.cc))
 OBJS = $(patsubst %.cc,%.o, $(filter %.cc, $(SRCS)))
 HEADERS = $(wildcard *.h utils/*.h modules/*.h drivers/*.h oldtests/*.h)
 EXEC = bessd
@@ -115,7 +115,7 @@ cscope:
 	@rm -f cscope.files
 
 # Test rules
-TESTS = time_test
+TESTS = time_test #round_robin_test
 
 tests: $(TESTS)
 
@@ -146,5 +146,11 @@ time_test.o : time_test.cc time.h $(GTEST_HEADERS)
 
 time_test : time.o time_test.o gtest_main.a
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -pthread $^ -o $@
+
+#round_robin_test.o : modules/round_robin_test.cc modules/round_robin.h $(GTEST_HEADERS)
+#	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c modules/round_robin_test.cc
+
+#round_robin_test : round_robin_test.o modules/round_robin.o gtest_main.a
+#	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -pthread $^ -o $@
 
 endif
