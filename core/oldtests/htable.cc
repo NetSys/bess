@@ -60,9 +60,9 @@ static void *bess_init(int entries) {
     value_t val = derive_val(key);
 
     int ret = t->Set(&key, &val);
-    if (ret == -ENOMEM) {
+    if (ret == -ENOMEM)
       return NULL;
-    } else
+    else
       assert(ret == 0 || ret == 1);
   }
 
@@ -70,8 +70,7 @@ static void *bess_init(int entries) {
 }
 
 static void bess_get(void *arg, int iteration, int entries) {
-  HTable<uint32_t, value_t, inlined_keycmp, inlined_hash> *t =
-      (HTable<uint32_t, value_t, inlined_keycmp, inlined_hash> *)arg;
+  HTableBase *t = static_cast<HTableBase *>(arg);
 
   for (int k = 0; k < iteration; k++) {
     uint64_t seed = 0;
@@ -100,36 +99,6 @@ static void bess_inlined_get(void *arg, int iteration, int entries) {
     }
   }
 }
-
-#if __AVX__
-static void bess_inlined_get_bulk(void *arg, int iteration, int entries) {
-  HTable<uint32_t, value_t, inlined_keycmp, inlined_hash> *t =
-      (HTable<uint32_t, value_t, inlined_keycmp, inlined_hash> *)arg;
-
-  for (int k = 0; k < iteration; k++) {
-    uint64_t seed = 0;
-    for (int i = 0; i < entries; i += bulk_size) {
-      uint32_t keys[bulk_size];
-      uint32_t *key_ptrs[bulk_size];
-      value_t *data_ptrs[bulk_size];
-
-      int size = std::min(bulk_size, entries - i);
-
-      for (int j = 0; j < size; j++) {
-        keys[j] = rand_fast(&seed);
-        key_ptrs[j] = &keys[j];
-      }
-
-      t->GetBulk(size, (const uint32_t **)key_ptrs, (value_t **)data_ptrs);
-
-      for (int j = 0; j < size; j++) {
-        value_t *p = data_ptrs[j];
-        assert(p && *p == derive_val(keys[j]));
-      }
-    }
-  }
-}
-#endif
 
 static void bess_close(void *arg) {
   HTable<uint32_t, value_t, inlined_keycmp, inlined_hash> *t =
@@ -403,23 +372,19 @@ static void perftest() {
 #endif
 
   const struct player players[] = {
-    {"ht_get", bess_init, bess_get, bess_close},
-    {"ht_inlined_get", bess_init, bess_inlined_get, bess_close},
-#if __AVX__
-    {"ht_inlined_get_bulk(x16)", bess_init, bess_inlined_get_bulk,
-     bess_close},
-#endif
-    {"rte_hash_lookup", dpdk_discrete_init, dpdk_, dpdk_discrete_close},
-    {"rte_hash_lookup_with_hash", dpdk_discrete_init, dpdk_hash,
-     dpdk_discrete_close},
-    {"rte_hash_lookup_bulk(x16)", dpdk_discrete_init, dpdk_bulk,
-     dpdk_discrete_close},
-    {"rte_hash_lookup_data", dpdk_embedded_init, dpdk_data,
-     dpdk_embedded_close},
-    {"rte_hash_lookup_with_hash_data", dpdk_embedded_init, dpdk_data_hash,
-     dpdk_embedded_close},
-    {"rte_hash_lookup_bulk_data(x16)", dpdk_embedded_init, dpdk_data_bulk,
-     dpdk_embedded_close},
+      {"ht_get", bess_init, bess_get, bess_close},
+      {"ht_inlined_get", bess_init, bess_inlined_get, bess_close},
+      {"rte_hash_lookup", dpdk_discrete_init, dpdk_, dpdk_discrete_close},
+      {"rte_hash_lookup_with_hash", dpdk_discrete_init, dpdk_hash,
+       dpdk_discrete_close},
+      {"rte_hash_lookup_bulk(x16)", dpdk_discrete_init, dpdk_bulk,
+       dpdk_discrete_close},
+      {"rte_hash_lookup_data", dpdk_embedded_init, dpdk_data,
+       dpdk_embedded_close},
+      {"rte_hash_lookup_with_hash_data", dpdk_embedded_init, dpdk_data_hash,
+       dpdk_embedded_close},
+      {"rte_hash_lookup_bulk_data(x16)", dpdk_embedded_init, dpdk_data_bulk,
+       dpdk_embedded_close},
   };
 
   printf("%-32s", "Functions,Mops");

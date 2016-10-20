@@ -75,8 +75,6 @@ void assign_default_tc(int wid, struct task *t) {
   params.share = 1;
   params.share_resource = RESOURCE_CNT;
 
-  printf("%p\n", t->m);
-
   if (num_module_tasks(t->m) == 1)
     sprintf(params.name, "_tc_%s", t->m->Name().c_str());
   else

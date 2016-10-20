@@ -1,24 +1,31 @@
 #include "htable.h"
 
 #include <cassert>
+#include <cstdio>
+
+#include <rte_config.h>
+#include <rte_hash_crc.h>
 
 #include "../mem_alloc.h"
 
+const HTableBase::KeyCmpFunc HTableBase::kDefaultKeyCmpFunc = memcmp;
+const HTableBase::HashFunc HTableBase::kDefaultHashFunc = rte_hash_crc;
+
 /* from the stored key pointer, return its value pointer */
-inline void *HTableBase::key_to_value(const void *key) const {
+void *HTableBase::key_to_value(const void *key) const {
   return (void *)((char *)key + value_offset_);
 }
 
 /* actually works faster for very small tables */
-inline HTableBase::KeyIndex HTableBase::_get_keyidx(uint32_t pri) const {
-  Bucket *bucket = &buckets_[pri & bucket_mask_];
+HTableBase::KeyIndex HTableBase::_get_keyidx(uint32_t pri) const {
+  Bucket *bucket = hv_to_bucket(pri);
 
   for (int i = 0; i < kEntriesPerBucket; i++) {
     if (pri == bucket->hv[i]) return bucket->keyidx[i];
   }
 
   uint32_t sec = hash_secondary(pri);
-  bucket = &buckets_[sec & bucket_mask_];
+  bucket = hv_to_bucket(sec);
   for (int i = 0; i < kEntriesPerBucket; i++) {
     if (pri == bucket->hv[i]) return bucket->keyidx[i];
   }
@@ -31,6 +38,14 @@ void HTableBase::push_free_keyidx(KeyIndex idx) {
 
   *(KeyIndex *)((uintptr_t)entries_ + entry_size_ * idx) = free_keyidx_;
   free_keyidx_ = idx;
+}
+
+uint32_t HTableBase::hash(const void *key) const {
+  return hash_func_(key, key_size_, kHashInitval);
+}
+
+uint32_t HTableBase::hash_nonzero(const void *key) const {
+  return make_nonzero(hash(key));
 }
 
 /* entry array grows much more gently (50%) than bucket array (100%),
@@ -47,9 +62,13 @@ int HTableBase::expand_entries() {
   num_entries_ = new_size;
   entries_ = new_entries;
 
-  for (KeyIndex i = new_size - 1; i >= old_size; i--) push_free_keyidx(i);
+  for (KeyIndex i = new_size - 1; i-- > old_size;) push_free_keyidx(i);
 
   return 0;
+}
+
+HTableBase::KeyIndex HTableBase::get_next(KeyIndex curr) const {
+  return *(KeyIndex *)keyidx_to_ptr(curr);
 }
 
 HTableBase::KeyIndex HTableBase::pop_free_keyidx() {
@@ -93,9 +112,9 @@ int HTableBase::make_space(Bucket *bucket, int depth) {
 
     /* this entry is in its primary bucket? */
     if (pri == bucket->hv[i])
-      alt_bucket = &buckets_[sec & bucket_mask_];
+      alt_bucket = hv_to_bucket(sec);
     else if (sec == bucket->hv[i])
-      alt_bucket = &buckets_[pri & bucket_mask_];
+      alt_bucket = hv_to_bucket(pri);
     else
       assert(0);
 
@@ -144,11 +163,11 @@ int HTableBase::add_entry(uint32_t pri, uint32_t sec, const void *key,
   Bucket *sec_bucket;
 
 again:
-  pri_bucket = &buckets_[pri & bucket_mask_];
+  pri_bucket = hv_to_bucket(pri);
   if (add_to_bucket(pri_bucket, key, value) == 0) return 0;
 
   /* empty space in the secondary bucket? */
-  sec_bucket = &buckets_[sec & bucket_mask_];
+  sec_bucket = hv_to_bucket(sec);
   if (add_to_bucket(sec_bucket, key, value) == 0) return 0;
 
   /* try kicking out someone in the primary bucket. */
@@ -162,8 +181,7 @@ again:
 
 void *HTableBase::get_from_bucket(uint32_t pri, uint32_t hv,
                                   const void *key) const {
-  uint32_t b_idx = hv & bucket_mask_;
-  Bucket *bucket = &buckets_[b_idx];
+  Bucket *bucket = hv_to_bucket(hv);
 
   for (int i = 0; i < kEntriesPerBucket; i++) {
     KeyIndex k_idx;
@@ -182,8 +200,7 @@ void *HTableBase::get_from_bucket(uint32_t pri, uint32_t hv,
 }
 
 int HTableBase::del_from_bucket(uint32_t pri, uint32_t hv, const void *key) {
-  uint32_t b_idx = hv & bucket_mask_;
-  Bucket *bucket = &buckets_[b_idx];
+  Bucket *bucket = hv_to_bucket(hv);
 
   for (int i = 0; i < kEntriesPerBucket; i++) {
     KeyIndex k_idx;
@@ -225,8 +242,8 @@ int HTableBase::InitEx(struct ht_params *params) {
 
   if (params->num_entries < kEntriesPerBucket) return -EINVAL;
 
-  hash_func_ = params->hash_func ?: DEFAULT_HASH_FUNC;
-  keycmp_func_ = params->keycmp_func ?: memcmp;
+  hash_func_ = params->hash_func ?: kDefaultHashFunc;
+  keycmp_func_ = params->keycmp_func ?: kDefaultKeyCmpFunc;
 
   bucket_mask_ = params->num_buckets - 1;
 
@@ -248,7 +265,8 @@ int HTableBase::InitEx(struct ht_params *params) {
     return -ENOMEM;
   }
 
-  for (KeyIndex i = num_entries_ - 1; i >= 0; i--) push_free_keyidx(i);
+  // beware of underflow
+  for (KeyIndex i = num_entries_ - 1; i-- > 0;) push_free_keyidx(i);
 
   return 0;
 }
@@ -332,7 +350,8 @@ int HTableBase::clone_table(HTableBase *t_old, uint32_t num_buckets,
   num_entries_ = num_entries;
   free_keyidx_ = kInvalidKeyIdx;
 
-  for (KeyIndex i = num_entries_ - 1; i >= 0; i--) push_free_keyidx(i);
+  // beware of underflow
+  for (KeyIndex i = num_entries_ - 1; i-- > 0;) push_free_keyidx(i);
 
   while ((key = t_old->Iterate(&next))) {
     void *value = t_old->key_to_value(key);
@@ -438,7 +457,7 @@ int HTableBase::count_entries_in_pri_bucket() const {
   return ret;
 }
 
-void HTableBase::Dump(int detail) const {
+void HTableBase::Dump(bool detail) const {
   int in_pri_bucket = count_entries_in_pri_bucket();
 
   printf("--------------------------------------------\n");

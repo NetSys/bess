@@ -217,8 +217,6 @@ class Module {
   struct mt_attr attrs[MAX_ATTRS_PER_MODULE] = {};
   scope_id_t scope_components[MT_TOTAL_SIZE] = {};
 
-  int curr_scope = 0;
-
   mt_offset_t attr_offsets[MAX_ATTRS_PER_MODULE] = {};
   struct gates igates = {};
   struct gates ogates = {};
@@ -416,7 +414,7 @@ int add_mclass(const ModuleClass *mclass);
  * automatically registered, so only attributes specific to a module 'instance'
  * need this function.
  * Returns its allocated ID (>= 0), or a negative number for error */
-int add_metadata_attr(Module *m, const char *name, int size,
+int add_metadata_attr(Module *m, const std::string &name, int size,
                       enum mt_access_mode mode);
 
 #define ADD_MODULE(_MOD, _NAME_TEMPLATE, _HELP) \
