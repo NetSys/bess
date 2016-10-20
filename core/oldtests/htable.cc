@@ -372,19 +372,19 @@ static void perftest() {
 #endif
 
   const struct player players[] = {
-    {"ht_get", bess_init, bess_get, bess_close},
-    {"ht_inlined_get", bess_init, bess_inlined_get, bess_close},
-    {"rte_hash_lookup", dpdk_discrete_init, dpdk_, dpdk_discrete_close},
-    {"rte_hash_lookup_with_hash", dpdk_discrete_init, dpdk_hash,
-     dpdk_discrete_close},
-    {"rte_hash_lookup_bulk(x16)", dpdk_discrete_init, dpdk_bulk,
-     dpdk_discrete_close},
-    {"rte_hash_lookup_data", dpdk_embedded_init, dpdk_data,
-     dpdk_embedded_close},
-    {"rte_hash_lookup_with_hash_data", dpdk_embedded_init, dpdk_data_hash,
-     dpdk_embedded_close},
-    {"rte_hash_lookup_bulk_data(x16)", dpdk_embedded_init, dpdk_data_bulk,
-     dpdk_embedded_close},
+      {"ht_get", bess_init, bess_get, bess_close},
+      {"ht_inlined_get", bess_init, bess_inlined_get, bess_close},
+      {"rte_hash_lookup", dpdk_discrete_init, dpdk_, dpdk_discrete_close},
+      {"rte_hash_lookup_with_hash", dpdk_discrete_init, dpdk_hash,
+       dpdk_discrete_close},
+      {"rte_hash_lookup_bulk(x16)", dpdk_discrete_init, dpdk_bulk,
+       dpdk_discrete_close},
+      {"rte_hash_lookup_data", dpdk_embedded_init, dpdk_data,
+       dpdk_embedded_close},
+      {"rte_hash_lookup_with_hash_data", dpdk_embedded_init, dpdk_data_hash,
+       dpdk_embedded_close},
+      {"rte_hash_lookup_bulk_data(x16)", dpdk_embedded_init, dpdk_data_bulk,
+       dpdk_embedded_close},
   };
 
   printf("%-32s", "Functions,Mops");

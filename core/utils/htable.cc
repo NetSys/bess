@@ -56,7 +56,7 @@ int HTableBase::expand_entries() {
   num_entries_ = new_size;
   entries_ = new_entries;
 
-  for (KeyIndex i = new_size - 1; i-- > old_size; ) push_free_keyidx(i);
+  for (KeyIndex i = new_size - 1; i-- > old_size;) push_free_keyidx(i);
 
   return 0;
 }
@@ -236,8 +236,8 @@ int HTableBase::InitEx(struct ht_params *params) {
 
   if (params->num_entries < kEntriesPerBucket) return -EINVAL;
 
-  hash_func_ = params->hash_func ?: DEFAULT_HASH_FUNC;
-  keycmp_func_ = params->keycmp_func ?: memcmp;
+  hash_func_ = params->hash_func ?: kDefaultHashFunc;
+  keycmp_func_ = params->keycmp_func ?: kDefaultKeyCmpFunc;
 
   bucket_mask_ = params->num_buckets - 1;
 
@@ -260,7 +260,7 @@ int HTableBase::InitEx(struct ht_params *params) {
   }
 
   // beware of underflow
-  for (KeyIndex i = num_entries_ - 1; i-- > 0; ) push_free_keyidx(i);
+  for (KeyIndex i = num_entries_ - 1; i-- > 0;) push_free_keyidx(i);
 
   return 0;
 }
@@ -345,7 +345,7 @@ int HTableBase::clone_table(HTableBase *t_old, uint32_t num_buckets,
   free_keyidx_ = kInvalidKeyIdx;
 
   // beware of underflow
-  for (KeyIndex i = num_entries_ - 1; i-- > 0; ) push_free_keyidx(i);
+  for (KeyIndex i = num_entries_ - 1; i-- > 0;) push_free_keyidx(i);
 
   while ((key = t_old->Iterate(&next))) {
     void *value = t_old->key_to_value(key);

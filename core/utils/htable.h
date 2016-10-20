@@ -22,6 +22,9 @@ class HTableBase {
   typedef int (*KeyCmpFunc)(const void *key, const void *key_stored,
                             size_t key_size);
 
+  static constexpr KeyCmpFunc kDefaultKeyCmpFunc = memcmp;
+  static constexpr HashFunc kDefaultHashFunc = rte_hash_crc;
+
   struct ht_params {
     size_t key_size;
     size_t value_size;
@@ -120,7 +123,6 @@ class HTableBase {
   static const int kEntriesPerBucket = 4; /* 4-way set associative */
   static const uint32_t kHashInitval = UINT32_MAX;
   static const KeyIndex kInvalidKeyIdx = UINT32_MAX;
-#define DEFAULT_HASH_FUNC rte_hash_crc
 
   struct Bucket {
     uint32_t hv[kEntriesPerBucket];
@@ -159,15 +161,16 @@ class HTableBase {
   int cnt_ = 0;              /* current number of entries */
   KeyIndex num_entries_ = 0; /* current array size (# entries) */
 
-  /* Linked list head for empty key slots (LIFO). NO_NEXT if empty */
+  /* Linked list head for empty key slots (LIFO). kInvalidKeyIdx if empty */
   KeyIndex free_keyidx_ = {};
 
   HashFunc hash_func_;
   KeyCmpFunc keycmp_func_;
 };
 
-template <typename K, typename V, HTableBase::KeyCmpFunc C = memcmp,
-          HTableBase::HashFunc H = DEFAULT_HASH_FUNC>
+template <typename K, typename V,
+          HTableBase::KeyCmpFunc C = HTableBase::kDefaultKeyCmpFunc,
+          HTableBase::HashFunc H = HTableBase::kDefaultHashFunc>
 class HTable : public HTableBase {
  public:
   /* returns NULL or the pointer to the data */
