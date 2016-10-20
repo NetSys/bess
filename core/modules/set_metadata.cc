@@ -1,11 +1,9 @@
 #include "../module.h"
 
-#define MAX_ATTRS MAX_ATTRS_PER_MODULE
-
 typedef struct { char bytes[MT_ATTR_MAX_SIZE]; } value_t;
 
 struct Attr {
-  char name[MT_ATTR_NAME_LEN];
+  std::string name;
   value_t value;
   int offset;
   int size;
@@ -53,13 +51,12 @@ class SetMetadata : public Module {
  private:
   struct snobj *AddAttrOne(struct snobj *attr);
 
-  int num_attrs_ = 0;
-
-  struct Attr attrs_[MAX_ATTRS] = {};
+  std::vector<struct Attr> attrs_;
 };
 
 struct snobj *SetMetadata::AddAttrOne(struct snobj *attr) {
-  const char *name;
+  const char *name_c;
+  std::string name;
   int size = 0;
   int offset = -1;
   value_t value = {};
@@ -68,17 +65,12 @@ struct snobj *SetMetadata::AddAttrOne(struct snobj *attr) {
 
   int ret;
 
-  if (num_attrs_ >= MAX_ATTRS)
-    return snobj_err(EINVAL,
-                     "max %d attributes "
-                     "can be specified",
-                     MAX_ATTRS);
-
   if (attr->type != TYPE_MAP)
     return snobj_err(EINVAL, "argument must be a map or a list of maps");
 
-  name = snobj_eval_str(attr, "name");
-  if (!name) return snobj_err(EINVAL, "'name' field is missing");
+  name_c = snobj_eval_str(attr, "name");
+  if (!name_c) return snobj_err(EINVAL, "'name' field is missing");
+  name = std::string(name_c);
 
   size = snobj_eval_uint(attr, "size");
 
@@ -103,11 +95,11 @@ struct snobj *SetMetadata::AddAttrOne(struct snobj *attr) {
   ret = add_metadata_attr(this, name, size, MT_WRITE);
   if (ret < 0) return snobj_err(-ret, "add_metadata_attr() failed");
 
-  strcpy(attrs_[num_attrs_].name, name);
-  attrs_[num_attrs_].size = size;
-  attrs_[num_attrs_].offset = offset;
-  attrs_[num_attrs_].value = value;
-  num_attrs_++;
+  attrs_.emplace_back();
+  attrs_.back().name = name;
+  attrs_.back().size = size;
+  attrs_.back().offset = offset;
+  attrs_.back().value = value;
 
   return NULL;
 }
@@ -133,7 +125,7 @@ struct snobj *SetMetadata::Init(struct snobj *arg) {
 }
 
 void SetMetadata::ProcessBatch(struct pkt_batch *batch) {
-  for (int i = 0; i < num_attrs_; i++) {
+  for (size_t i = 0; i < attrs_.size(); i++) {
     const struct Attr *attr = &attrs_[i];
 
     mt_offset_t mt_offset = SetMetadata::attr_offsets[i];

@@ -1,19 +1,20 @@
+#include "metadata.h"
+
+#include <string.h>
+
 #include <algorithm>
 #include <functional>
 #include <map>
 #include <queue>
-#include <string.h>
 #include <vector>
 
 #include <glog/logging.h>
 
 #include "module.h"
 
-#include "metadata.h"
-
 struct scope_component {
   /* identification fields */
-  char name[MT_ATTR_NAME_LEN];
+  std::string name;
   int size;
   mt_offset_t offset;
   scope_id_t scope_id;
@@ -25,21 +26,13 @@ struct scope_component {
   int degree;
 };
 
-bool scope_component_less(const struct scope_component *a,
-                          const struct scope_component *b) {
+static bool scope_component_less(const struct scope_component *a,
+                                 const struct scope_component *b) {
   return a->offset < b->offset;
 }
 
 static std::vector<struct scope_component> scope_components;
-static std::map<Module *, int> module_scopes;
-
-char *get_scope_attr_name(scope_id_t scope_id) {
-  return scope_components[scope_id].name;
-}
-
-int get_scope_attr_(scope_id_t scope_id) {
-  return scope_components[scope_id].size;
-}
+static std::map<Module *, scope_id_t> module_scopes;
 
 /* TODO: make more efficient */
 /* Adds module to the current scope component. */
@@ -52,7 +45,7 @@ static void add_module_to_component(Module *m, struct mt_attr *attr) {
   }
 
   if (component.modules.size() == 0) {
-    strcpy(component.name, attr->name);
+    component.name = attr->name;
     component.size = attr->size;
   }
   component.modules.push_back(m);
@@ -65,8 +58,7 @@ static struct mt_attr *find_attr(Module *m, struct mt_attr *attr) {
 
   for (int i = 0; i < m->num_attrs; i++) {
     curr_attr = &m->attrs[i];
-    if (strcmp(curr_attr->name, attr->name) == 0 &&
-        curr_attr->size == attr->size) {
+    if (curr_attr->name == attr->name && curr_attr->size == attr->size) {
       return curr_attr;
     }
   }
@@ -212,7 +204,7 @@ static void cleanup_metadata_computation() {
 
 static void fill_offset_arrays() {
   std::vector<Module *> *modules;
-  char *name;
+  std::string name;
   int size;
   mt_offset_t offset;
   uint8_t invalid;
@@ -237,7 +229,7 @@ static void fill_offset_arrays() {
       m = modules->at(j);
 
       for (int k = 0; k < m->num_attrs; k++) {
-        if (strcmp(m->attrs[k].name, name) == 0 && m->attrs[k].size == size) {
+        if (m->attrs[k].name == name && m->attrs[k].size == size) {
           if (invalid && m->attrs[k].mode == MT_READ)
             m->attr_offsets[k] = MT_OFFSET_NOREAD;
           else if (invalid)
@@ -442,8 +434,8 @@ void compute_metadata_offsets() {
   cleanup_metadata_computation();
 }
 
-int is_valid_attr(const char *name, int size, enum mt_access_mode mode) {
-  if (!name || strlen(name) >= MT_ATTR_NAME_LEN) return 0;
+int is_valid_attr(const std::string &name, int size, enum mt_access_mode mode) {
+  if (name.empty()) return 0;
 
   if (size < 1 || size > MT_ATTR_MAX_SIZE) return 0;
 
@@ -452,7 +444,7 @@ int is_valid_attr(const char *name, int size, enum mt_access_mode mode) {
   return 1;
 }
 
-int add_metadata_attr(Module *m, const char *name, int size,
+int add_metadata_attr(Module *m, const std::string &name, int size,
                       enum mt_access_mode mode) {
   int n = m->num_attrs;
 
@@ -460,7 +452,7 @@ int add_metadata_attr(Module *m, const char *name, int size,
 
   if (!is_valid_attr(name, size, mode)) return -EINVAL;
 
-  strcpy(m->attrs[n].name, name);
+  m->attrs[n].name = name;
   m->attrs[n].size = size;
   m->attrs[n].mode = mode;
   m->attrs[n].scope_id = -1;
