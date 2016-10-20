@@ -3,9 +3,10 @@
 
 #include <string.h>
 
-#include "common.h"
-#include "namespace.h"
+#include <string>
+#include <unordered_map>
 
+#include "common.h"
 #include "utils/minheap.h"
 #include "utils/cdlist.h"
 #include "utils/simd.h"
@@ -16,6 +17,9 @@
 
 #define MAX_LIMIT_POW 36
 #define USAGE_AMPLIFIER_POW 32
+
+// TODO(barath): Remove this limitation once this code is ported to C++.
+#define TC_SN_NAME_LEN 32 /* including trailing null char */
 
 enum {
   RESOURCE_CNT = 0, /* how many times scheduled */
@@ -34,6 +38,14 @@ enum {
 
 typedef uint64_t resource_arr_t[NUM_RESOURCES] __ymm_aligned;
 
+// TODO(barath): This container is meant to be temporary, until we port the below TC code
+// to C++, at which point this container can be moved to the new TC class.
+//
+// A simple container to hold global TC members as was contained in namespace.h
+namespace TCContainer {
+extern std::unordered_map<std::string, struct tc *> tcs;
+}  // TCContainer
+
 /* pgroup is a collection of sibling classes with the same priority */
 struct pgroup {
   struct heap pq;
@@ -47,7 +59,7 @@ struct pgroup {
 };
 
 struct tc_params {
-  char name[SN_NAME_LEN];
+  char name[TC_SN_NAME_LEN];
 
   struct tc *parent;
 

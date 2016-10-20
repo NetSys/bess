@@ -133,34 +133,10 @@ static struct snobj *handle_add_worker(struct snobj *q) {
 }
 
 static struct snobj *handle_reset_tcs(struct snobj *q) {
-  struct ns_iter iter;
-  struct tc *c;
-
-  struct tc **c_arr;
-  size_t arr_slots = 1024;
-  size_t n = 0;
-
-  c_arr = (struct tc **)malloc(arr_slots * sizeof(struct tc *));
-
-  ns_init_iterator(&iter, NS_TYPE_TC);
-
-  while ((c = (struct tc *)ns_next(&iter)) != NULL) {
-    if (n >= arr_slots) {
-      arr_slots *= 2;
-      c_arr = (struct tc **)realloc(c_arr, arr_slots * sizeof(struct tc *));
-    }
-
-    c_arr[n] = c;
-    n++;
-  }
-
-  ns_release_iterator(&iter);
-
-  for (size_t i = 0; i < n; i++) {
-    c = c_arr[i];
+  for (const auto &it : TCContainer::tcs) {
+    struct tc *c = it.second;
 
     if (c->num_tasks) {
-      free(c_arr);
       return snobj_err(EBUSY, "TC %s still has %d tasks", c->settings.name,
                        c->num_tasks);
     }
@@ -171,7 +147,6 @@ static struct snobj *handle_reset_tcs(struct snobj *q) {
     tc_dec_refcnt(c);
   }
 
-  free(c_arr);
   return NULL;
 }
 
@@ -181,9 +156,6 @@ static struct snobj *handle_list_tcs(struct snobj *q) {
 
   unsigned int wid_filter = MAX_WORKERS;
 
-  struct ns_iter iter;
-
-  struct tc *c;
 
   t = snobj_eval(q, "wid");
   if (t) {
@@ -199,9 +171,8 @@ static struct snobj *handle_list_tcs(struct snobj *q) {
 
   r = snobj_list();
 
-  ns_init_iterator(&iter, NS_TYPE_TC);
-
-  while ((c = (struct tc *)ns_next(&iter)) != NULL) {
+  for (const auto &it : TCContainer::tcs) {
+    struct tc *c = it.second;
     int wid;
 
     if (wid_filter < MAX_WORKERS) {
@@ -244,8 +215,6 @@ static struct snobj *handle_list_tcs(struct snobj *q) {
     snobj_list_add(r, elem);
   }
 
-  ns_release_iterator(&iter);
-
   return r;
 }
 
@@ -259,10 +228,7 @@ static struct snobj *handle_add_tc(struct snobj *q) {
   tc_name = snobj_eval_str(q, "name");
   if (!tc_name) return snobj_err(EINVAL, "Missing 'name' field");
 
-  if (!ns_is_valid_name(tc_name))
-    return snobj_err(EINVAL, "'%s' is an invalid name", tc_name);
-
-  if (ns_name_exists(tc_name))
+  if (TCContainer::tcs.count(tc_name))
     return snobj_err(EINVAL, "Name '%s' already exists", tc_name);
 
   wid = snobj_eval_uint(q, "wid");
@@ -338,8 +304,11 @@ static struct snobj *handle_get_tc_stats(struct snobj *q) {
   tc_name = snobj_str_get(q);
   if (!tc_name) return snobj_err(EINVAL, "Argument must be a name in str");
 
-  c = (struct tc *)ns_lookup(NS_TYPE_TC, tc_name);
-  if (!c) return snobj_err(ENOENT, "No TC '%s' found", tc_name);
+  const auto &it = TCContainer::tcs.find(tc_name);
+  if (it == TCContainer::tcs.end()) {
+    return snobj_err(ENOENT, "No TC '%s' found", tc_name);
+  }
+  c = it->second;
 
   r = snobj_map();
 
@@ -936,8 +905,11 @@ static struct snobj *handle_attach_task(struct snobj *q) {
   if (tc_name) {
     struct tc *c;
 
-    c = (struct tc *)ns_lookup(NS_TYPE_TC, tc_name);
-    if (!c) return snobj_err(ENOENT, "No TC '%s' found", tc_name);
+    const auto &it = TCContainer::tcs.find(tc_name);
+    if (it == TCContainer::tcs.end()) {
+      return snobj_err(ENOENT, "No TC '%s' found", tc_name);
+    }
+    c = it->second;
 
     task_attach(t, c);
   } else {
