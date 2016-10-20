@@ -48,12 +48,15 @@ struct packet_stats {
 typedef struct packet_stats port_stats_t[PACKET_DIRS];
 
 class Port;
+class PortTest;
 
 // A class to generate new Port objects of specific types.  Each instance can
 // generate Port objects of a specific class and specification.  Represents a
 // "driver" of that port.
 class PortBuilder {
  public:
+  friend class PortTest;
+
   PortBuilder(std::function<Port *()> port_generator,
               const std::string &class_name,
               const std::string &name_template,
@@ -100,12 +103,17 @@ class PortBuilder {
   const std::string &help_text() const { return help_text_; };
 
  private:
+
+  // To avoid the static initialization ordering problem, this pseudo-getter
+  // function contains the real static all_port_builders class variable and
+  // returns it, ensuring its construction before use.
+  // 
+  // If reset is true, clears the store of all port builders; to be used for
+  // testing and for dynamic loading of "drivers".
+  static std::map<std::string, PortBuilder> &all_port_builders_holder(bool reset = false);
+
   // A function that emits a new Port object of the type class_name.
   std::function<Port *()> port_generator_; 
-
-  // Maps from class names to port builders.  Tracks all port classes (via their
-  // PortBuilders).
-  static std::map<std::string, PortBuilder> all_port_builders_;
 
   // Tracks all port instances.
   static std::map<std::string, Port*> all_ports_;
@@ -198,8 +206,6 @@ class Port {
   port_stats_t port_stats;
 };
 
-// TODO(barath): Change the structure of this, because we can't rely on static
-//               initialization order.
 #define ADD_DRIVER(_DRIVER, _NAME_TEMPLATE, _HELP) \
   bool __driver__##_DRIVER = PortBuilder::RegisterPortClass(std::function<Port *()>([]() { return new _DRIVER (); }), #_DRIVER, _NAME_TEMPLATE, _HELP);
 

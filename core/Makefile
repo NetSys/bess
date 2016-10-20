@@ -44,7 +44,7 @@ endif
 
 -include extra.mk
 
-SRCS = $(filter-out time_test.cc, $(wildcard *.cc utils/*.cc modules/*.cc drivers/*.cc oldtests/*.cc))
+SRCS = $(filter-out $(wildcard *_test.cc), $(wildcard *.cc utils/*.cc modules/*.cc drivers/*.cc oldtests/*.cc))
 OBJS = $(patsubst %.cc,%.o, $(filter %.cc, $(SRCS)))
 HEADERS = $(wildcard *.h utils/*.h modules/*.h drivers/*.h oldtests/*.h)
 EXEC = bessd
@@ -115,7 +115,7 @@ cscope:
 	@rm -f cscope.files
 
 # Test rules
-TESTS = time_test
+TESTS = time_test port_test
 
 tests: $(TESTS)
 
@@ -145,6 +145,13 @@ time_test.o : time_test.cc time.h $(GTEST_HEADERS)
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c time_test.cc
 
 time_test : time.o time_test.o gtest_main.a
-	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -pthread $^ -o $@
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -pthread $^ -o $@ $(LDFLAGS) $(LIBS)
+
+# Port test build rules.
+port_test.o : port_test.cc port.h $(GTEST_HEADERS)
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c port_test.cc
+
+port_test : port.o port_test.o gtest_main.a
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -pthread $^ -o $@ $(LDFLAGS) $(LIBS)
 
 endif
