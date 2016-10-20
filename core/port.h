@@ -8,6 +8,7 @@
 #include <map>
 
 #include <glog/logging.h>
+#include <gtest/gtest_prod.h>
 
 #include "common.h"
 #include "snobj.h"
@@ -56,6 +57,9 @@ class PortTest;
 class PortBuilder {
  public:
   friend class PortTest;
+  FRIEND_TEST(PortBuilderTest, RegisterPortClassDirectCall);
+  FRIEND_TEST(PortBuilderTest, RegisterPortClassMacroCall);
+
 
   PortBuilder(std::function<Port *()> port_generator,
               const std::string &class_name,
@@ -72,8 +76,8 @@ class PortBuilder {
   // given name.
   Port *CreatePort(const std::string &name) const;
 
-  // Adds the given Port to the global Port collection.  Returns true upon
-  // success.
+  // Adds the given Port to the global Port collection.  Takes ownership of the
+  // pointer.  Returns true upon success.
   static bool AddPort(Port *p);
 
   // Returns 0 upon success, -errno upon failure.

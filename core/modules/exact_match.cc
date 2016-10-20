@@ -1,5 +1,7 @@
-#include "../utils/htable.h"
+#include <rte_config.h>
+#include <rte_hash_crc.h>
 
+#include "../utils/htable.h"
 #include "../module.h"
 
 #define MAX_FIELDS 8
