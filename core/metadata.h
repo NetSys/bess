@@ -3,9 +3,9 @@
 
 #include <stdint.h>
 
-#include "namespace.h"
+#include <string>
 
-#define MT_ATTR_NAME_LEN SN_NAME_LEN
+#include "namespace.h"
 
 #define MT_ATTR_MAX_SIZE 32 /* in bytes, per attribute */
 
@@ -34,7 +34,7 @@ static inline int is_valid_offset(mt_offset_t offset) { return (offset >= 0); }
     promise(offset >= 0);                                   \
     struct snbuf *_pkt = (pkt);                             \
     uintptr_t addr = (uintptr_t)(_pkt->_metadata + offset); \
-    (type *) addr;                                          \
+    (type *)addr;                                           \
   })
 
 #define _get_attr_with_offset(offset, pkt, type) \
@@ -83,7 +83,7 @@ static inline int is_valid_offset(mt_offset_t offset) { return (offset >= 0); }
 enum mt_access_mode { MT_READ, MT_WRITE, MT_UPDATE };
 
 struct mt_attr {
-  char name[MT_ATTR_NAME_LEN];
+  std::string name;
   int size;
   enum mt_access_mode mode;
   int scope_id;
