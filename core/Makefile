@@ -50,8 +50,7 @@ PROTO_SRCS = $(patsubst %.proto,%.pb.cc, $(notdir $(PROTOS)))
 PROTO_SRCS += $(patsubst %.proto,%.grpc.pb.cc, $(notdir $(PROTOS)))
 PROTO_HEADERS = $(patsubst %.cc,%.h, $(PROTO_SRCS))
 
-SRCS = $(filter-out %.pb.cc, $(wildcard *.cc utils/*.cc modules/*.cc drivers/*.cc tests/*.cc))
-SRCS += $(PROTO_SRCS)
+SRCS = $(wildcard *.cc utils/*.cc modules/*.cc drivers/*.cc tests/*.cc)
 HEADERS = $(wildcard *.h utils/*.h modules/*.h drivers/*.h tests/*.h)
 OBJS = $(patsubst %.cc,%.o, $(filter %.cc, $(SRCS)))
 
@@ -73,7 +72,7 @@ CORES ?= $(shell nproc || echo 1)
 MAKEFLAGS += -j $(CORES)
 VERBOSE = 0
 
-.PHONY: all clean tags cscope
+.PHONY: all clean tags cscope protobuf
 
 all: $(DEPS) $(EXEC)
 
@@ -83,7 +82,7 @@ all: $(DEPS) $(EXEC)
 %.pb.cc: $(PROTO_DIR)/%.proto
 	@$(PROTOC) $< --proto_path=$(PROTO_DIR) --cpp_out=.
 
-$(DEPS): $(SRCS) $(HEADERS)
+$(DEPS): $(PROTO_SRCS) $(SRCS) $(HEADERS)
 	@$(CXX) $(CXXFLAGS) -MM $(SRCS) | sed 's|\(.*\)\.o: \(.*\)\.c|\2.o: \2.c|' > $(DEPS)
 
 %.o: %.cc
@@ -127,5 +126,7 @@ cscope:
 	@find . -name "*.c" -o -name "*.h" > cscope.files
 	cscope -b -q -k
 	@rm -f cscope.files
+
+protobuf: $(PROTO_SRCS)
 
 endif
