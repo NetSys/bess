@@ -1,3 +1,4 @@
+#pragma once
 #include "../module.h"
 
 #define MAX_RR_GATES 16384
@@ -52,11 +53,6 @@ class RoundRobin : public Module {
   int current_gate_ = {};
   //Whether or not to schedule per-packet or per-batch
   int per_packet_ = {};
-};
-
-const Commands<RoundRobin> RoundRobin::cmds = {
-    {"set_mode", &RoundRobin::CommandSetMode, 0},
-    {"set_gates", &RoundRobin::CommandSetGates, 0},
 };
 
 /*! 

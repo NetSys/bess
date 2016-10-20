@@ -16,4 +16,9 @@ extern struct global_opts {
   int multi_instance; /* If 1, allow multiple BESS instances */
 } global_opts;
 
+/* Port this BESS instance listens on.
+ * Panda came up with this default number */
+#define DEFAULT_PORT 0x02912 /* 10514 in decimal */
+
+
 #endif
