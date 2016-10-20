@@ -99,14 +99,14 @@ class HTableBase {
     KeyIndex keyidx[kEntriesPerBucket];
   } __ymm_aligned;
 
-  static inline uint32_t make_nonzero(uint32_t v) {
+  static uint32_t make_nonzero(uint32_t v) {
     /* Set the MSB and unset the 2nd MSB (NOTE: must be idempotent).
      * Then the result will never be a zero, and not a non-number when
      * represented as float (so we are good to use _mm_*_ps() SIMD ops) */
     return (v | (1u << 31)) & (~(1u << 30));
   }
 
-  static inline uint32_t hash_secondary(uint32_t primary) {
+  static uint32_t hash_secondary(uint32_t primary) {
     /* from DPDK */
     uint32_t tag = primary >> 12;
     return primary ^ ((tag + 1) * 0x5bd1e995);
@@ -126,13 +126,14 @@ class HTableBase {
   int expand_buckets();
   int expand_entries();
   void push_free_keyidx(KeyIndex idx);
-  inline KeyIndex get_next(KeyIndex curr) const;
-  inline void *keyidx_to_ptr(KeyIndex idx) const;
-  inline uint32_t hash_nonzero(const void *key) const;
-  inline uint32_t hash(const void *key) const;
+  uint32_t hash(const void *key) const;
+  uint32_t hash_nonzero(const void *key) const;
 
-  inline void *key_to_value(const void *key) const;
-  inline KeyIndex _get_keyidx(uint32_t pri) const;
+  KeyIndex get_next(KeyIndex curr) const;
+  void *keyidx_to_ptr(KeyIndex idx) const;
+
+  void *key_to_value(const void *key) const;
+  KeyIndex _get_keyidx(uint32_t pri) const;
 
   /* bucket and entry arrays grow independently */
   Bucket *buckets_ = NULL;
@@ -156,14 +157,6 @@ class HTableBase {
   HashFunc hash_func_;
   KeyCmpFunc keycmp_func_;
 };
-
-inline uint32_t HTableBase::hash(const void *key) const {
-  return hash_func_(key, key_size_, kHashInitval);
-}
-
-inline uint32_t HTableBase::hash_nonzero(const void *key) const {
-  return make_nonzero(hash(key));
-}
 
 inline void *HTableBase::keyidx_to_ptr(KeyIndex idx) const {
   return (void *)((uintptr_t)entries_ + entry_size_ * idx);
@@ -289,8 +282,7 @@ template <typename K, typename V, HTableBase::KeyCmpFunc C,
           HTableBase::HashFunc H>
 inline void HTable<K, V, C, H>::GetBulk(int num_keys, const K **keys,
                                         V **values) const {
-  for (int i = 0; i < num_keys; i++)
-    values[i] = Get(keys[i]);
+  for (int i = 0; i < num_keys; i++) values[i] = Get(keys[i]);
 }
 #endif
 

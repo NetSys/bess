@@ -6,12 +6,12 @@
 #include "../mem_alloc.h"
 
 /* from the stored key pointer, return its value pointer */
-inline void *HTableBase::key_to_value(const void *key) const {
+void *HTableBase::key_to_value(const void *key) const {
   return (void *)((char *)key + value_offset_);
 }
 
 /* actually works faster for very small tables */
-inline HTableBase::KeyIndex HTableBase::_get_keyidx(uint32_t pri) const {
+HTableBase::KeyIndex HTableBase::_get_keyidx(uint32_t pri) const {
   Bucket *bucket = &buckets_[pri & bucket_mask_];
 
   for (int i = 0; i < kEntriesPerBucket; i++) {
@@ -32,6 +32,14 @@ void HTableBase::push_free_keyidx(KeyIndex idx) {
 
   *(KeyIndex *)((uintptr_t)entries_ + entry_size_ * idx) = free_keyidx_;
   free_keyidx_ = idx;
+}
+
+uint32_t HTableBase::hash(const void *key) const {
+  return hash_func_(key, key_size_, kHashInitval);
+}
+
+uint32_t HTableBase::hash_nonzero(const void *key) const {
+  return make_nonzero(hash(key));
 }
 
 /* entry array grows much more gently (50%) than bucket array (100%),
