@@ -1,6 +1,11 @@
 #pragma once
 #include "../module.h"
 
+/*!
+ * TODO: RoundRobin currently does not support multiple workers.
+ */
+
+//Maxumum number of output gates to allow.
 #define MAX_RR_GATES 16384
 
 /*!
@@ -10,15 +15,17 @@
  * https://en.wikipedia.org/wiki/Round-robin_scheduling
  *
  * EXPECTS: Input packets in any format
+ *
  * MODIFICATIONS: None
  *
  * INPUT GATES: 1
+ *
  * OUTPUT GATES: 1..MAX_GATES
  *
  * PARAMETERS:
- * gates    * the number of output gates for the module
- * mode     * whether to schedule with per-packet or per-batch granularity.
- *          * options are "packet" or "batch".
+ *    * gates: the number of output gates for the module
+ *    * mode: whether to schedule with per-packet or per-batch granularity options 
+ *    are "packet" or "batch".
 */
 class RoundRobin : public Module {
  public:
@@ -30,7 +37,6 @@ class RoundRobin : public Module {
   static const gate_idx_t kNumOGates = MAX_GATES;
 
   static const Commands<RoundRobin> cmds;
-
  private:
   /*! 
    * Switches the RoundRobin module between "batch" vs "packet" scheduling.
@@ -42,11 +48,9 @@ class RoundRobin : public Module {
    */
   struct snobj *CommandSetGates(struct snobj *arg);
 
-/*!
- * TODO: RoundRobin currently does not support multiple workers.
- */
+
+  //ID number for each egress gate.
   gate_idx_t gates_[MAX_RR_GATES] = {};
-  
   //The total number of output gates
   int ngates_ = {};
   //The next gate to transmit on in the RoundRobin scheduler
