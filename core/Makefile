@@ -120,7 +120,7 @@ cscope:
 	@rm -f cscope.files
 
 # Test rules
-TESTS = utils/time_test port_test modules/round_robin_test
+TESTS = utils/time_test port_test module_test modules/round_robin_test
 
 tests: $(TESTS)
 
@@ -144,6 +144,12 @@ gtest.a : gtest-all.o
 
 gtest_main.a : gtest-all.o gtest_main.o
 	$(AR) $(ARFLAGS) $@ $^
+
+module_test.o : module_test.cc module.h $(GTEST_HEADERS)
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c $< -o $@
+
+module_test : mem_alloc.o module.o module_test.o gtest_main.a
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -pthread $^ -o $@ $(LDFLAGS) $(LIBS)
 
 port_test.o : port_test.cc port.h $(GTEST_HEADERS)
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c $< -o $@
