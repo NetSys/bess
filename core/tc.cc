@@ -19,6 +19,11 @@
 
 #include "tc.h"
 
+// TODO(barath): move this global container of TCs to the TC class once it exists.
+namespace TCContainer {
+std::unordered_map<std::string, struct tc *> tcs;
+}  // TCContainer
+
 /* this library is not thread safe */
 
 static void tc_add_to_parent_pgroup(struct tc *c, int share_resource) {
@@ -62,7 +67,6 @@ pgroup_add:
 struct tc *tc_init(struct sched *s, const struct tc_params *params) {
   struct tc *c;
 
-  int ret;
   int i;
 
   assert(!s->current);
@@ -76,10 +80,9 @@ struct tc *tc_init(struct sched *s, const struct tc_params *params) {
   c = (struct tc *)mem_alloc(sizeof(*c));
   if (!c) oom_crash();
 
-  ret = ns_insert(NS_TYPE_TC, params->name, c);
-  if (ret < 0) {
+  if (!TCContainer::tcs.insert({params->name, c}).second) {
     mem_free(c);
-    return (struct tc *)err_to_ptr(ret);
+    return (struct tc *)err_to_ptr(-EEXIST);
   }
 
   c->settings = *params;
@@ -127,8 +130,6 @@ void _tc_do_free(struct tc *c) {
   struct pgroup *g = c->ss.my_pgroup;
   struct tc *parent = c->parent;
 
-  int ret;
-
   assert(c->refcnt == 0);
 
   assert(!c->state.queued);
@@ -150,8 +151,7 @@ void _tc_do_free(struct tc *c) {
   }
 
   if (parent) {
-    ret = ns_remove(c->settings.name);
-    assert(ret == 0);
+    assert(TCContainer::tcs.erase(c->settings.name));
   }
 
   memset(c, 0, sizeof(*c)); /* zero out to detect potential bugs */
