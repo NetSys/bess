@@ -7,7 +7,14 @@
 class VLANPop : public Module {
  public:
   virtual void ProcessBatch(struct pkt_batch *batch);
+
+  static const gate_idx_t kNumIGates = 1;
+  static const gate_idx_t kNumOGates = 1;
+
+  static const Commands<Module> cmds;
 };
+
+const Commands<Module> VLANPop::cmds = {};
 
 void VLANPop::ProcessBatch(struct pkt_batch *batch) {
   int cnt = batch->cnt;
@@ -31,7 +38,7 @@ void VLANPop::ProcessBatch(struct pkt_batch *batch) {
     }
   }
 
-  run_next_module(this, batch);
+  RunNextModule(batch);
 }
 
 ADD_MODULE(VLANPop, "vlan_pop", "removes 802.1Q/802.11ad VLAN tag")

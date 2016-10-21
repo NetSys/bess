@@ -10,9 +10,13 @@ class GenericDecap : public Module {
   virtual struct snobj *Init(struct snobj *arg);
   virtual void ProcessBatch(struct pkt_batch *batch);
 
+  static const Commands<Module> cmds;
+
  private:
   int decap_size_;
 };
+
+const Commands<Module> GenericDecap::cmds = {};
 
 struct snobj *GenericDecap::Init(struct snobj *arg) {
   if (!arg) {
@@ -43,7 +47,7 @@ void GenericDecap::ProcessBatch(struct pkt_batch *batch) {
     snb_adj(batch->pkts[i], decap_size);
   }
 
-  run_next_module(this, batch);
+  RunNextModule(batch);
 }
 
 ADD_MODULE(GenericDecap, "generic_decap",

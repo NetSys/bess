@@ -339,7 +339,7 @@ void check_orphan_readers() {
       if (m->attr_offsets[i] != MT_OFFSET_NOREAD) continue;
 
       LOG(WARNING) << "Metadata attr " << m->attrs[i].name << "/"
-                   << m->attrs[i].size << " of module " << m->Name() << " has "
+                   << m->attrs[i].size << " of module " << m->name() << " has "
                    << "no upstream module that sets the value!";
     }
   }
@@ -356,7 +356,7 @@ void log_all_scopes_per_module() {
     Module *m = (Module *)ns_next(&iter);
     if (!m) break;
 
-    LOG(INFO) << "Module " << m->Name()
+    LOG(INFO) << "Module " << m->name()
               << " part of the following scope components: ";
     for (int i = 0; i < MT_TOTAL_SIZE; i++) {
       if (m->scope_components[i] != -1)
@@ -419,10 +419,10 @@ void compute_metadata_offsets() {
     LOG(INFO) << "scope component for " << scope_components[i].size << "-byte"
               << "attr " << scope_components[i].name << "at offset "
               << scope_components[i].offset << ": {"
-              << scope_components[i].modules[0]->Name();
+              << scope_components[i].modules[0]->name();
 
     for (size_t j = 1; j < scope_components[i].modules.size(); j++)
-      LOG(INFO) << scope_components[i].modules[j]->Name();
+      LOG(INFO) << scope_components[i].modules[j]->name();
 
     LOG(INFO) << "}";
   }
@@ -432,32 +432,4 @@ void compute_metadata_offsets() {
   check_orphan_readers();
 
   cleanup_metadata_computation();
-}
-
-int is_valid_attr(const std::string &name, int size, enum mt_access_mode mode) {
-  if (name.empty()) return 0;
-
-  if (size < 1 || size > MT_ATTR_MAX_SIZE) return 0;
-
-  if (mode != MT_READ && mode != MT_WRITE && mode != MT_UPDATE) return 0;
-
-  return 1;
-}
-
-int add_metadata_attr(Module *m, const std::string &name, int size,
-                      enum mt_access_mode mode) {
-  int n = m->num_attrs;
-
-  if (n >= MAX_ATTRS_PER_MODULE) return -ENOSPC;
-
-  if (!is_valid_attr(name, size, mode)) return -EINVAL;
-
-  m->attrs[n].name = name;
-  m->attrs[n].size = size;
-  m->attrs[n].mode = mode;
-  m->attrs[n].scope_id = -1;
-
-  m->num_attrs++;
-
-  return n;
 }

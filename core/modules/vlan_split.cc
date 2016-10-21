@@ -10,7 +10,11 @@ class VLANSplit : public Module {
   static const gate_idx_t kNumOGates = 4096;
 
   virtual void ProcessBatch(struct pkt_batch *batch);
+
+  static const Commands<Module> cmds;
 };
+
+const Commands<Module> VLANSplit::cmds = {};
 
 void VLANSplit::ProcessBatch(struct pkt_batch *batch) {
   gate_idx_t vid[MAX_PKT_BURST];
@@ -40,7 +44,7 @@ void VLANSplit::ProcessBatch(struct pkt_batch *batch) {
     }
   }
 
-  run_split(this, vid, batch);
+  RunSplit(vid, batch);
 }
 
 ADD_MODULE(VLANSplit, "vlan_split", "split packets depending on their VID")

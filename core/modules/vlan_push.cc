@@ -9,9 +9,6 @@
 
 class VLANPush : public Module {
  public:
-  static const gate_idx_t kNumIGates = 1;
-  static const gate_idx_t kNumOGates = 1;
-
   VLANPush() : Module(), vlan_tag_(), qinq_tag_() {}
 
   virtual struct snobj *Init(struct snobj *arg);
@@ -20,18 +17,21 @@ class VLANPush : public Module {
 
   virtual struct snobj *GetDesc();
 
-  static const Commands<VLANPush> cmds;
-
- private:
   struct snobj *CommandSetTci(struct snobj *arg);
 
+  static const gate_idx_t kNumIGates = 1;
+  static const gate_idx_t kNumOGates = 1;
+
+  static const Commands<Module> cmds;
+
+ private:
   /* network order */
   uint32_t vlan_tag_;
   uint32_t qinq_tag_;
 };
 
-const Commands<VLANPush> VLANPush::cmds = {
-    {"set_tci", &VLANPush::CommandSetTci, 0},
+const Commands<Module> VLANPush::cmds = {
+    {"set_tci", MODULE_FUNC &VLANPush::CommandSetTci, 0},
 };
 
 struct snobj *VLANPush::Init(struct snobj *arg) {
@@ -82,7 +82,7 @@ void VLANPush::ProcessBatch(struct pkt_batch *batch) {
     }
   }
 
-  run_next_module(this, batch);
+  RunNextModule(batch);
 }
 
 struct snobj *VLANPush::GetDesc() {

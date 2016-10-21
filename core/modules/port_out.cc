@@ -1,5 +1,5 @@
-#include "../module.h"
 #include "../port.h"
+#include "../module.h"
 
 class PortOut : public Module {
  public:
@@ -15,9 +15,13 @@ class PortOut : public Module {
 
   virtual std::string GetDesc();
 
+  static const Commands<Module> cmds;
+
  private:
   Port *port_;
 };
+
+const Commands<Module> PortOut::cmds = {};
 
 struct snobj *PortOut::Init(struct snobj *arg) {
   const char *port_name;

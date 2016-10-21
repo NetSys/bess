@@ -2,9 +2,6 @@
 
 class Source : public Module {
  public:
-  static const gate_idx_t kNumIGates = 0;
-  static const gate_idx_t kNumOGates = 1;
-
   Source() : Module(), pkt_size_(), burst_() {}
 
   virtual struct snobj *Init(struct snobj *arg);
@@ -14,26 +11,28 @@ class Source : public Module {
   struct snobj *command_set_pkt_size(struct snobj *arg);
   struct snobj *command_set_burst(struct snobj *arg);
 
-  static const Commands<Source> cmds;
+  static const gate_idx_t kNumIGates = 0;
+  static const gate_idx_t kNumOGates = 1;
+
+  static const Commands<Module> cmds;
 
  private:
   int pkt_size_;
   int burst_;
 };
 
-const Commands<Source> Source::cmds = {
-    {"set_pkt_size", &Source::command_set_pkt_size, 1},
-    {"set_burst", &Source::command_set_burst, 1},
+const Commands<Module> Source::cmds = {
+    {"set_pkt_size", MODULE_FUNC &Source::command_set_pkt_size, 1},
+    {"set_burst", MODULE_FUNC &Source::command_set_burst, 1},
 };
 
 struct snobj *Source::Init(struct snobj *arg) {
   struct snobj *t;
   struct snobj *err;
 
-  task_id_t tid = register_task(this, nullptr);
-  if (tid == INVALID_TASK_ID) {
+  task_id_t tid = RegisterTask(NULL);
+  if (tid == INVALID_TASK_ID)
     return snobj_err(ENOMEM, "Task creation failed");
-  }
 
   pkt_size_ = 60;
   burst_ = MAX_PKT_BURST;
@@ -74,7 +73,7 @@ struct task_result Source::RunTask(void *arg) {
 
   if (cnt > 0) {
     batch.cnt = cnt;
-    run_next_module(this, &batch);
+    RunNextModule(&batch);
   }
 
   ret = (struct task_result){
