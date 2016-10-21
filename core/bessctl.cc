@@ -674,7 +674,7 @@ class BESSControlImpl final : public BESSControl::Service {
                                mclass_name);
 
     Error* error = response->mutable_error();
-    // TODO: Argument!
+
     switch (request.arg_case()) {
       case CreateModuleRequest::kBpfArg:
         module = create_module(request.name().c_str(), mclass,
