@@ -399,9 +399,15 @@ static struct snobj *handle_get_driver_info(struct snobj *q) {
 }
 
 static struct snobj *handle_reset_ports(struct snobj *q) {
-  for (const auto &it : PortBuilder::all_ports()) {
-    int ret = PortBuilder::DestroyPort(it.second);
+  for (auto it = PortBuilder::all_ports().cbegin();
+       it != PortBuilder::all_ports().end();) {
+    auto it_next = std::next(it);
+    Port *p = it->second;
+
+    int ret = PortBuilder::DestroyPort(p);
     if (ret) return snobj_errno(-ret);
+
+    it = it_next;
   }
 
   log_info("*** All ports have been destroyed ***\n");

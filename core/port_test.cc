@@ -115,7 +115,41 @@ TEST_F(PortTest, DestroyPort) {
   ASSERT_FALSE(deinited);
   PortBuilder::DestroyPort(p_fetched);
   ASSERT_TRUE(deinited);
+
+  EXPECT_TRUE(PortBuilder::all_ports().empty());
 }
+
+// Checks that the logic for destroying multiple (all) ports works right.
+TEST_F(PortTest, DestroyAllPorts) {
+  Port *p1 = dummy_port_builder->CreatePort("port1");
+  Port *p2 = dummy_port_builder->CreatePort("port2");
+  ASSERT_NE(nullptr, p1);
+  ASSERT_NE(nullptr, p2);
+
+  ASSERT_TRUE(PortBuilder::all_ports().empty());
+  PortBuilder::AddPort(p1);
+  ASSERT_EQ(1, PortBuilder::all_ports().size());
+  PortBuilder::AddPort(p2);
+  ASSERT_EQ(2, PortBuilder::all_ports().size());
+
+  ASSERT_TRUE(PortBuilder::all_ports().count("port1"));
+  ASSERT_TRUE(PortBuilder::all_ports().count("port2"));
+
+  // Now destroy all ports; logic from snctl.cc.
+  for (auto it = PortBuilder::all_ports().cbegin();
+       it != PortBuilder::all_ports().end();) {
+    auto it_next = std::next(it);
+    Port *p = it->second;
+
+    int ret = PortBuilder::DestroyPort(p);
+    ASSERT_FALSE(ret);
+
+    it = it_next;
+  }
+
+  EXPECT_TRUE(PortBuilder::all_ports().empty());
+}
+
 
 // Checks that the default port name generator produces names that match the
 // naming scheme.
