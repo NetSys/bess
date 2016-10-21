@@ -11,6 +11,7 @@
 #include <glog/logging.h>
 
 #include "mem_alloc.h"
+#include "message.h"
 #include "namespace.h"
 #include "port.h"
 
@@ -129,57 +130,46 @@ static int register_port(Port *p) {
 
 /* returns a pointer to the created port.
  * if error, returns NULL and *perr is set */
-Port *create_port(const char *name, const Driver *driver, struct snobj *arg,
-                  struct snobj **perr) {
+template <typename T>
+Port *create_port(const char *name, const Driver *driver, queue_t num_inc_q,
+                  queue_t num_out_q, size_t size_inc_q, size_t size_out_q,
+                  const char *mac_addr_str, const T &arg, bess::Error *perr) {
   Port *p = NULL;
   int ret;
 
-  queue_t num_inc_q = 1;
-  queue_t num_out_q = 1;
-  size_t size_inc_q = driver->DefaultQueueSize(PACKET_DIR_INC);
-  size_t size_out_q = driver->DefaultQueueSize(PACKET_DIR_OUT);
+  if (num_inc_q == 0) num_inc_q = 1;
+  if (num_out_q == 0) num_out_q = 1;
+  if (size_inc_q == 0) size_inc_q = driver->DefaultQueueSize(PACKET_DIR_INC);
+  if (size_out_q == 0) size_out_q = driver->DefaultQueueSize(PACKET_DIR_OUT);
 
   uint8_t mac_addr[ETH_ALEN];
 
-  *perr = NULL;
-
-  if (snobj_eval_exists(arg, "num_inc_q"))
-    num_inc_q = snobj_eval_uint(arg, "num_inc_q");
-
-  if (snobj_eval_exists(arg, "num_out_q"))
-    num_out_q = snobj_eval_uint(arg, "num_out_q");
-
-  if (snobj_eval_exists(arg, "size_inc_q"))
-    size_inc_q = snobj_eval_uint(arg, "size_inc_q");
-
-  if (snobj_eval_exists(arg, "size_out_q"))
-    size_out_q = snobj_eval_uint(arg, "size_out_q");
-
-  if (snobj_eval_exists(arg, "mac_addr")) {
-    char *v = snobj_eval_str(arg, "mac_addr");
-
-    ret = sscanf(v, "%2hhx:%2hhx:%2hhx:%2hhx:%2hhx:%2hhx", &mac_addr[0],
-                 &mac_addr[1], &mac_addr[2], &mac_addr[3], &mac_addr[4],
-                 &mac_addr[5]);
+  if (strlen(mac_addr) > 0) {
+    ret = sscanf(mac_addr_str, "%2hhx:%2hhx:%2hhx:%2hhx:%2hhx:%2hhx",
+                 &mac_addr[0], &mac_addr[1], &mac_addr[2], &mac_addr[3],
+                 &mac_addr[4], &mac_addr[5]);
 
     if (ret != 6) {
-      *perr = snobj_err(EINVAL,
-                        "MAC address should be "
-                        "formatted as a string "
-                        "xx:xx:xx:xx:xx:xx");
+      perr->set_err(EINVAL);
+      perr->set_errmsg(
+          "MAC address should be "
+          "formatted as a string "
+          "xx:xx:xx:xx:xx:xx");
       return NULL;
     }
   } else
     eth_random_addr(mac_addr);
 
   if (num_inc_q > MAX_QUEUES_PER_DIR || num_out_q > MAX_QUEUES_PER_DIR) {
-    *perr = snobj_err(EINVAL, "Invalid number of queues");
+    perr->set_err(EINVAL);
+    perr->set_errmsg("Invalid number of queues");
     return NULL;
   }
 
   if (size_inc_q < 0 || size_inc_q > MAX_QUEUE_SIZE || size_out_q < 0 ||
       size_out_q > MAX_QUEUE_SIZE) {
-    *perr = snobj_err(EINVAL, "Invalid queue size");
+    perr->set_err(EINVAL);
+    perr->set_errmsg("Invalid queue size");
     return NULL;
   }
 
@@ -187,7 +177,8 @@ Port *create_port(const char *name, const Driver *driver, struct snobj *arg,
 
   if (name) {
     if (find_port(name)) {
-      *perr = snobj_err(EEXIST, "Port '%s' already exists", name);
+      perr->set_err(EEXIST);
+      perr->set_errmsg(string_format("Port '%s' already exists", name));
       return NULL;
     }
 
@@ -207,15 +198,17 @@ Port *create_port(const char *name, const Driver *driver, struct snobj *arg,
   p->queue_size[PACKET_DIR_INC] = size_inc_q;
   p->queue_size[PACKET_DIR_OUT] = size_out_q;
 
-  *perr = p->Init(arg);
-  if (*perr != NULL) {
+  error_ptr_t result = p->Init(arg);
+  *perr = result;
+
+  if (perr->err() != 0) {
     delete p;
     return NULL;
   }
 
   ret = register_port(p);
   if (ret != 0) {
-    *perr = snobj_errno(-ret);
+    *perr = pb_errno(-ret);
     delete p;
     return NULL;
   }

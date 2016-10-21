@@ -6,6 +6,8 @@
 
 typedef std::unique_ptr<bess::Error> error_ptr_t;
 
+const std::string string_vformat(const char *fmt, va_list ap);
+
 const std::string string_format(const char *fmt, ...);
 
 error_ptr_t pb_error_details(int code, const char *details, const char *fmt,

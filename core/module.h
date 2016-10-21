@@ -7,6 +7,7 @@
 
 #include "common.h"
 #include "log.h"
+#include "message.h"
 
 typedef uint16_t task_id_t;
 typedef uint16_t gate_idx_t;
@@ -19,12 +20,12 @@ typedef uint16_t gate_idx_t;
 static_assert(MAX_GATES < INVALID_GATE, "invalid macro value");
 static_assert(DROP_GATE <= MAX_GATES, "invalid macro value");
 
-#include "snobj.h"
 #include "metadata.h"
-#include "worker.h"
 #include "snbuf.h"
+#include "snobj.h"
 #include "utils/cdlist.h"
 #include "utils/simd.h"
+#include "worker.h"
 
 #define MODULE_NAME_LEN 128
 
@@ -158,7 +159,7 @@ class ModuleClassRegister : public ModuleClass {
                                    struct snobj *arg) const {
     for (auto &cmd : T::cmds) {
       if (user_cmd == cmd.cmd)
-        return CALL_MEMBER_FN (*reinterpret_cast<T *>(m), cmd.func)(arg);
+        return CALL_MEMBER_FN(*reinterpret_cast<T *>(m), cmd.func)(arg);
     }
 
     return snobj_err(ENOTSUP, "'%s' does not support command '%s'",
@@ -178,7 +179,7 @@ class Module {
   virtual struct task_result RunTask(void *arg) { assert(0); };
   virtual void ProcessBatch(struct pkt_batch *batch) { assert(0); };
 
-  virtual struct snobj *GetDesc() const { return snobj_str(""); };
+  virtual std::string GetDesc() const { return ""; };
   virtual struct snobj *GetDump() const { return snobj_nil(); };
 
   static const gate_idx_t kNumIGates = 1;
@@ -259,8 +260,9 @@ size_t list_modules(const Module **p_arr, size_t arr_size, size_t offset);
 
 Module *find_module(const char *name);
 
-Module *create_module(const char *name, const ModuleClass *mclass,
-                      struct snobj *arg, struct snobj **perr);
+template <typename T>
+Module *create_module(const char *name, const ModuleClass *mclass, const T &arg,
+                      bess::Error *perr);
 
 void destroy_module(Module *m);
 
@@ -413,7 +415,8 @@ int add_mclass(const ModuleClass *mclass);
 /* Modules should call this function to declare additional metadata
  * attributes at initialization time.
  * Static metadata attributes that are defined in module class are
- * automatically registered, so only attributes specific to a module 'instance'
+ * automatically registered, so only attributes specific to a module
+ * 'instance'
  * need this function.
  * Returns its allocated ID (>= 0), or a negative number for error */
 int add_metadata_attr(Module *m, const char *name, int size,

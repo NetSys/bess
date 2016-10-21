@@ -12,8 +12,7 @@ typedef uint8_t dpdk_port_t;
 class PMDPort : public Port {
  public:
   static void InitDriver();
-  virtual error_ptr_t Init(int loopback, dpdk_port_t port_id,
-                           const std::string &pci, const std::string &vdev);
+  virtual error_ptr_t Init(const bess::PMDPortArg &arg);
   virtual void DeInit();
 
   virtual void CollectStats(bool reset);
@@ -145,11 +144,12 @@ static error_ptr_t find_dpdk_port(dpdk_port_t port_id, const std::string &pci,
 
       ret = rte_eth_dev_attach(name, &port_id);
 
-      if (ret < 0)
+      if (ret < 0) {
         return pb_error(ENODEV,
                         "Cannot attach PCI "
                         "device %s",
                         name);
+      }
 
       *ret_hot_plugged = true;
     }
@@ -159,22 +159,24 @@ static error_ptr_t find_dpdk_port(dpdk_port_t port_id, const std::string &pci,
     const char *name = vdev.c_str();
     int ret = rte_eth_dev_attach(name, &port_id);
 
-    if (ret < 0) return pb_error(ENODEV, "Cannot attach vdev %s", name);
+    if (ret < 0) {
+      return pb_error(ENODEV, "Cannot attach vdev %s", name);
+    }
 
     *ret_hot_plugged = true;
   }
 
-  if (port_id == DPDK_PORT_UNKNOWN)
+  if (port_id == DPDK_PORT_UNKNOWN) {
     return pb_error(EINVAL,
                     "'port_id', 'pci', or 'vdev' field "
                     "must be specified");
+  }
 
   *ret_port_id = port_id;
   return pb_errno(0);
 }
 
-error_ptr_t PMDPort::Init(int loopback, dpdk_port_t port_id,
-                          const std::string &pci, const std::string &vdev) {
+error_ptr_t PMDPort::Init(const bess::PMDPortArg &arg) {
   dpdk_port_t ret_port_id = -1;
 
   struct rte_eth_dev_info dev_info = {};
@@ -189,14 +191,14 @@ error_ptr_t PMDPort::Init(int loopback, dpdk_port_t port_id,
 
   int i;
 
-  error_ptr_t p_err =
-      find_dpdk_port(port_id, pci, vdev, &ret_port_id, &hot_plugged_);
-  if (p_err->err() != 0) {
-    return p_err;
+  error_ptr_t err = find_dpdk_port(arg.port_id(), arg.pci(), arg.vdev(),
+                                   &ret_port_id, &hot_plugged_);
+  if (err->err() != 0) {
+    return err;
   }
 
   eth_conf = default_eth_conf;
-  if (loopback) {
+  if (arg.loopback()) {
     eth_conf.lpbk_mode = 1;
   }
 
@@ -216,8 +218,9 @@ error_ptr_t PMDPort::Init(int loopback, dpdk_port_t port_id,
                          ETH_TXQ_FLAGS_NOXSUMS * (1 - SN_HW_TXCSUM);
 
   ret = rte_eth_dev_configure(ret_port_id, num_rxq, num_txq, &eth_conf);
-  if (ret != 0) return pb_error(-ret, "rte_eth_dev_configure() failed");
-
+  if (ret != 0) {
+    return pb_error(-ret, "rte_eth_dev_configure() failed");
+  }
   rte_eth_promiscuous_enable(ret_port_id);
 
   for (i = 0; i < num_rxq; i++) {
@@ -228,7 +231,9 @@ error_ptr_t PMDPort::Init(int loopback, dpdk_port_t port_id,
 
     ret = rte_eth_rx_queue_setup(ret_port_id, i, queue_size[PACKET_DIR_INC],
                                  sid, &eth_rxconf, get_pframe_pool_socket(sid));
-    if (ret != 0) return pb_error(-ret, "rte_eth_rx_queue_setup() failed");
+    if (ret != 0) {
+      return pb_error(-ret, "rte_eth_rx_queue_setup() failed");
+    }
   }
 
   for (i = 0; i < num_txq; i++) {
@@ -236,11 +241,15 @@ error_ptr_t PMDPort::Init(int loopback, dpdk_port_t port_id,
 
     ret = rte_eth_tx_queue_setup(ret_port_id, i, queue_size[PACKET_DIR_OUT],
                                  sid, &eth_txconf);
-    if (ret != 0) return pb_error(-ret, "rte_eth_tx_queue_setup() failed");
+    if (ret != 0) {
+      return pb_error(-ret, "rte_eth_tx_queue_setup() failed");
+    }
   }
 
   ret = rte_eth_dev_start(ret_port_id);
-  if (ret != 0) return pb_error(-ret, "rte_eth_dev_start() failed");
+  if (ret != 0) {
+    return pb_error(-ret, "rte_eth_dev_start() failed");
+  }
 
   dpdk_port_id_ = ret_port_id;
 

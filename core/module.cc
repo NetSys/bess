@@ -1,18 +1,18 @@
 #include <fcntl.h>
-#include <unistd.h>
 #include <sys/uio.h>
+#include <unistd.h>
 
 #include <sstream>
 
 #include <glog/logging.h>
 
-#include "mem_alloc.h"
 #include "dpdk.h"
-#include "time.h"
-#include "tc.h"
-#include "namespace.h"
-#include "utils/pcap.h"
+#include "mem_alloc.h"
 #include "module.h"
+#include "namespace.h"
+#include "tc.h"
+#include "time.h"
+#include "utils/pcap.h"
 
 Module::~Module() { ; }
 
@@ -131,11 +131,11 @@ static void destroy_all_tasks(Module *m) {
 
 /* returns a pointer to the created module.
  * if error, returns NULL and *perr is set */
-Module *create_module(const char *name, const ModuleClass *mclass,
-                      struct snobj *arg, struct snobj **perr) {
+template <typename T>
+Module *create_module(const char *name, const ModuleClass *mclass, const T &arg,
+                      bess::Error *perr) {
   Module *m = NULL;
   int ret = 0;
-  *perr = NULL;
 
   std::string mod_name;
 
@@ -153,14 +153,14 @@ Module *create_module(const char *name, const ModuleClass *mclass,
   m = mclass->CreateModule(mod_name);
 
   *perr = m->Init(arg);
-  if (*perr != nullptr) {
+  if (perr != nullptr) {
     delete m;
     return NULL;
   }
 
   ret = register_module(m);
   if (ret != 0) {
-    *perr = snobj_errno(-ret);
+    *perr = pb_errno(-ret);
     delete m;
     return NULL;
   }

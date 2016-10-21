@@ -10,7 +10,7 @@ const std::string string_format(const char *fmt, ...) {
   return s;
 }
 
-static const std::string string_vformat(const char *fmt, va_list ap) {
+const std::string string_vformat(const char *fmt, va_list ap) {
   const int init_bufsize = 128;
   std::unique_ptr<char[]> buf;
 

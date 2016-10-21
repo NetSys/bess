@@ -56,7 +56,7 @@ class ZeroCopyVPort : public Port {
  public:
   static void InitDriver(){};
 
-  error_ptr_t Init();
+  error_ptr_t Init(const bess::ZeroCopyVPortArg &arg);
   void DeInit();
 
   int RecvPackets(queue_t qid, snb_array_t pkts, int cnt);
@@ -74,7 +74,7 @@ class ZeroCopyVPort : public Port {
   int out_irq_fd_[MAX_QUEUES_PER_DIR] = {{0}};
 };
 
-error_ptr_t ZeroCopyVPort::Init() {
+error_ptr_t ZeroCopyVPort::Init(const bess::ZeroCopyVPortArg &arg) {
   struct vport_bar *bar = NULL;
 
   int num_inc_q = num_queues[PACKET_DIR_INC];

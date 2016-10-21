@@ -26,7 +26,7 @@ class UnixSocketPort : public Port {
  public:
   static void InitDriver(){};
 
-  virtual error_ptr_t Init(const std::string &path);
+  virtual error_ptr_t Init(const bess::UnixSocketPortArg &arg);
   virtual void DeInit();
 
   virtual int RecvPackets(queue_t qid, snb_array_t pkts, int cnt);
@@ -95,7 +95,8 @@ void UnixSocketPort::CloseConnection() {
   if (ret) log_err("[UnixSocket]:pthread_create() returned errno %d", ret);
 }
 
-error_ptr_t UnixSocketPort::Init(const std::string &path) {
+error_ptr_t UnixSocketPort::Init(const bess::UnixSocketPortArg &arg) {
+  const std::string path = arg.path();
   int num_txq = num_queues[PACKET_DIR_OUT];
   int num_rxq = num_queues[PACKET_DIR_INC];
 
@@ -106,11 +107,14 @@ error_ptr_t UnixSocketPort::Init(const std::string &path) {
   client_fd_ = NOT_CONNECTED;
   old_client_fd_ = NOT_CONNECTED;
 
-  if (num_txq > 1 || num_rxq > 1)
+  if (num_txq > 1 || num_rxq > 1) {
     return pb_error(EINVAL, "Cannot have more than 1 queue per RX/TX");
+  }
 
   listen_fd_ = socket(AF_UNIX, SOCK_SEQPACKET, 0);
-  if (listen_fd_ < 0) return pb_error(errno, "socket(AF_UNIX) failed");
+  if (listen_fd_ < 0) {
+    return pb_error(errno, "socket(AF_UNIX) failed");
+  }
 
   addr_.sun_family = AF_UNIX;
 
@@ -131,16 +135,21 @@ error_ptr_t UnixSocketPort::Init(const std::string &path) {
     addr_.sun_path[0] = '\0';
 
   ret = bind(listen_fd_, reinterpret_cast<struct sockaddr *>(&addr_), addrlen);
-  if (ret < 0) return pb_error(errno, "bind(%s) failed", addr_.sun_path);
+  if (ret < 0) {
+    return pb_error(errno, "bind(%s) failed", addr_.sun_path);
+  }
 
   ret = listen(listen_fd_, 1);
-  if (ret < 0) return pb_error(errno, "listen() failed");
+  if (ret < 0) {
+    return pb_error(errno, "listen() failed");
+  }
 
   ret = pthread_create(&accept_thread_, NULL, AcceptThreadMain,
                        reinterpret_cast<void *>(this));
   accept_thread_ = 0;
-  if (ret) return pb_error(ret, "pthread_create() failed");
-
+  if (ret) {
+    return pb_error(ret, "pthread_create() failed");
+  }
   return pb_errno(0);
 }
 

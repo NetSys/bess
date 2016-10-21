@@ -3,11 +3,11 @@
 
 /* NOTE: this library is not thread-safe */
 
+#include <math.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
-#include <math.h>
 
 #include <string>
 
@@ -183,7 +183,7 @@ static inline struct snobj *snobj_list_get(const struct snobj *m,
                                            uint32_t idx) {
   if (m->type != TYPE_LIST) return NULL;
 
-  if (idx < 0 || idx >= m->size) return NULL;
+  if (idx >= m->size) return NULL;
 
   return m->list.arr[idx];
 }

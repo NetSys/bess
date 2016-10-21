@@ -179,11 +179,7 @@ class VPort : public Port {
  public:
   static void InitDriver();
 
-  error_ptr_t Init(const std::string &ifname, const std::string &docker,
-                   int64_t container_pid, const std::string &netns,
-                   const std::vector<int64_t> rxq_cpus, uint64_t tx_tci,
-                   uint64_t tx_outer_tci, uint64_t loopback,
-                   const std::vector<std::string> ip_addr);
+  error_ptr_t Init(const bess::VPortArg &arg);
   void DeInit();
 
   int RecvPackets(queue_t qid, snb_array_t pkts, int max_cnt);
@@ -194,7 +190,7 @@ class VPort : public Port {
   void *AllocBar(struct tx_queue_opts *txq_opts,
                  struct rx_queue_opts *rxq_opts);
   int SetIPAddrSingle(const std::string &ip_addr);
-  error_ptr_t SetIPAddr(const std::vector<std::string> &arg);
+  error_ptr_t SetIPAddr(const bess::VPortArg &arg);
 
   int fd_ = {0};
 
@@ -364,7 +360,7 @@ int VPort::SetIPAddrSingle(const std::string &ip_addr) {
   return 0;
 }
 
-error_ptr_t VPort::SetIPAddr(const std::vector<std::string> &arg) {
+error_ptr_t VPort::SetIPAddr(const bess::VPortArg &arg) {
   int child_pid;
 
   int ret = 0;
@@ -375,7 +371,9 @@ error_ptr_t VPort::SetIPAddr(const std::vector<std::string> &arg) {
     nspace = 1;
 
     child_pid = fork();
-    if (child_pid < 0) return pb_errno(-child_pid);
+    if (child_pid < 0) {
+      return pb_errno(-child_pid);
+    }
 
     if (child_pid == 0) {
       char buf[1024];
@@ -400,9 +398,9 @@ error_ptr_t VPort::SetIPAddr(const std::vector<std::string> &arg) {
       goto wait_child;
   }
 
-  if (arg.size() > 0) {
-    for (size_t i = 0; i < arg.size(); ++i) {
-      const char *addr = arg[i].c_str();
+  if (arg.ip_addrs_size() > 0) {
+    for (int i = 0; i < arg.ip_addrs_size(); ++i) {
+      const char *addr = arg.ip_addrs(i).c_str();
       ret = SetIPAddrSingle(addr);
       if (ret < 0) {
         if (nspace) {
@@ -438,10 +436,11 @@ error_ptr_t VPort::SetIPAddr(const std::vector<std::string> &arg) {
     }
   }
 
-  if (ret < 0)
+  if (ret < 0) {
     return pb_error(-ret,
                     "Failed to set IP addresses "
                     "(incorrect IP address format?)");
+  }
 
   return pb_errno(0);
 }
@@ -456,11 +455,7 @@ void VPort::DeInit() {
   FreeBar();
 }
 
-error_ptr_t VPort::Init(const std::string &ifname, const std::string &docker,
-                        int64_t container_pid, const std::string &netns,
-                        const std::vector<int64_t> rxq_cpus, uint64_t tx_tci,
-                        uint64_t tx_outer_tci, uint64_t loopback,
-                        const std::vector<std::string> ip_addr) {
+error_ptr_t VPort::Init(const bess::VPortArg &arg) {
   int cpu;
   int rxq;
 
@@ -475,7 +470,7 @@ error_ptr_t VPort::Init(const std::string &ifname, const std::string &docker,
   netns_fd_ = -1;
   container_pid_ = 0;
 
-  if (ifname.length() >= IFNAMSIZ) {
+  if (arg.ifname().length() >= IFNAMSIZ) {
     err = pb_error(EINVAL,
                    "Linux interface name should be "
                    "shorter than %d characters",
@@ -483,39 +478,42 @@ error_ptr_t VPort::Init(const std::string &ifname, const std::string &docker,
     goto fail;
   }
 
-  strcpy(ifname_, (ifname.length() == 0) ? Name().c_str() : ifname.c_str());
+  strcpy(ifname_,
+         (arg.ifname().length() == 0) ? Name().c_str() : arg.ifname().c_str());
 
-  if (docker.length() > 0) {
-    err = docker_container_pid(docker, &container_pid_);
+  if (arg.docker().length() > 0) {
+    err = docker_container_pid(arg.docker(), &container_pid_);
 
     if (err->err() != 0) goto fail;
   }
 
-  if (container_pid != -1) {
+  if (arg.container_pid() != -1) {
     if (container_pid_) {
       err = pb_error(EINVAL,
                      "You cannot specify both "
                      "'docker' and 'container_pid'");
       goto fail;
     }
-    container_pid_ = container_pid;
+    container_pid_ = arg.container_pid();
   }
 
-  if (netns.length() > 0) {
+  if (arg.netns().length() > 0) {
     if (container_pid_) {
       return pb_error(EINVAL,
                       "You should specify only "
                       "one of 'docker', 'container_pid', "
                       "or 'netns'");
     }
-    netns_fd_ = open(netns.c_str(), O_RDONLY);
+    netns_fd_ = open(arg.netns().c_str(), O_RDONLY);
     if (netns_fd_ < 0) {
-      err = pb_error(EINVAL, "Invalid network namespace %s", netns.c_str());
+      err =
+          pb_error(EINVAL, "Invalid network namespace %s", arg.netns().c_str());
       goto fail;
     }
   }
 
-  if (rxq_cpus.size() > 0 && rxq_cpus.size() != num_queues[PACKET_DIR_OUT]) {
+  if (arg.rxq_cpus_size() > 0 &&
+      arg.rxq_cpus_size() != num_queues[PACKET_DIR_OUT]) {
     err = pb_error(EINVAL, "Must specify as many cores as rxqs");
     goto fail;
   }
@@ -526,9 +524,9 @@ error_ptr_t VPort::Init(const std::string &ifname, const std::string &docker,
     goto fail;
   }
 
-  txq_opts.tci = tx_tci;
-  txq_opts.outer_tci = tx_outer_tci;
-  rxq_opts.loopback = loopback;
+  txq_opts.tci = arg.tx_tci();
+  txq_opts.outer_tci = arg.tx_outer_tci();
+  rxq_opts.loopback = arg.loopback();
 
   bar_ = AllocBar(&txq_opts, &rxq_opts);
 
@@ -539,10 +537,10 @@ error_ptr_t VPort::Init(const std::string &ifname, const std::string &docker,
     goto fail;
   }
 
-  if (ip_addr.size() > 0) {
-    err = SetIPAddr(ip_addr);
+  if (arg.ip_addrs_size() > 0) {
+    err = SetIPAddr(arg);
 
-    if (err) {
+    if (err->err() != 0) {
       DeInit();
       goto fail;
     }
@@ -556,9 +554,9 @@ error_ptr_t VPort::Init(const std::string &ifname, const std::string &docker,
   for (cpu = 0; cpu < SN_MAX_CPU; cpu++)
     map_.cpu_to_txq[cpu] = cpu % num_queues[PACKET_DIR_INC];
 
-  if (rxq_cpus.size() > 0) {
+  if (arg.rxq_cpus_size() > 0) {
     for (rxq = 0; rxq < num_queues[PACKET_DIR_OUT]; rxq++) {
-      map_.rxq_to_cpu[rxq] = rxq_cpus[rxq];
+      map_.rxq_to_cpu[rxq] = arg.rxq_cpus(rxq);
     }
   } else {
     for (rxq = 0; rxq < num_queues[PACKET_DIR_OUT]; rxq++) {

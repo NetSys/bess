@@ -5,7 +5,7 @@
 
 #include "common.h"
 #include "log.h"
-#include "snobj.h"
+#include "message.h"
 #include "snbuf.h"
 
 typedef uint8_t queue_t;
@@ -203,8 +203,10 @@ void init_drivers();
 size_t list_ports(const Port **p_arr, size_t arr_size, size_t offset);
 Port *find_port(const char *name);
 
-Port *create_port(const char *name, const Driver *driver, struct snobj *arg,
-                  struct snobj **perr);
+template <typename T>
+Port *create_port(const char *name, const Driver *driver, queue_t num_inc_q,
+                  queue_t num_out_q, size_t size_inc_q, size_t size_out_q,
+                  const char *mac_addr_str, const T &arg, bess::Error *perr);
 
 int destroy_port(Port *p);
 

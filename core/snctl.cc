@@ -1,22 +1,21 @@
+#include <assert.h>
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <assert.h>
-#include <errno.h>
-#include <stdlib.h>
 
 #include <sys/time.h>
 #include <sys/types.h>
 
-#include "opts.h"
-#include "worker.h"
 #include "master.h"
-#include "snobj.h"
 #include "module.h"
+#include "opts.h"
 #include "port.h"
-#include "time.h"
+#include "snobj.h"
 #include "tc.h"
+#include "time.h"
+#include "worker.h"
 
 struct handler_map {
   const char *cmd;
@@ -444,6 +443,7 @@ static struct snobj *handle_list_ports(struct snobj *q) {
   return r;
 }
 
+/*
 static struct snobj *handle_create_port(struct snobj *q) {
   const char *driver_name;
   const Driver *driver;
@@ -468,6 +468,7 @@ static struct snobj *handle_create_port(struct snobj *q) {
 
   return r;
 }
+*/
 
 static struct snobj *handle_destroy_port(struct snobj *q) {
   const char *port_name;
@@ -578,6 +579,7 @@ static struct snobj *handle_reset_modules(struct snobj *q) {
   return NULL;
 }
 
+/*
 static struct snobj *handle_list_modules(struct snobj *q) {
   struct snobj *r;
 
@@ -610,6 +612,7 @@ static struct snobj *handle_list_modules(struct snobj *q) {
   return r;
 }
 
+
 static struct snobj *handle_create_module(struct snobj *q) {
   const char *mclass_name;
   const ModuleClass *mclass;
@@ -632,6 +635,7 @@ static struct snobj *handle_create_module(struct snobj *q) {
 
   return r;
 }
+*/
 
 static struct snobj *handle_destroy_module(struct snobj *q) {
   const char *m_name;
@@ -733,6 +737,7 @@ static struct snobj *collect_metadata(Module *m) {
   return metadata;
 }
 
+/*
 static struct snobj *handle_get_module_info(struct snobj *q) {
   const char *m_name;
   Module *m;
@@ -760,6 +765,7 @@ static struct snobj *handle_get_module_info(struct snobj *q) {
 
   return r;
 }
+*/
 
 static struct snobj *handle_connect_modules(struct snobj *q) {
   const char *m1_name;
@@ -967,7 +973,7 @@ static struct handler_map sn_handlers[] = {
 
     {"reset_ports", 1, handle_reset_ports},
     {"list_ports", 0, handle_list_ports},
-    {"create_port", 0, handle_create_port},
+    {"create_port", 0, handle_not_implemented},
     {"destroy_port", 0, handle_destroy_port},
     {"get_port_stats", 0, handle_get_port_stats},
 
@@ -976,10 +982,10 @@ static struct handler_map sn_handlers[] = {
     {"import_mclass", 0, handle_not_implemented}, /* TODO */
 
     {"reset_modules", 1, handle_reset_modules},
-    {"list_modules", 0, handle_list_modules},
-    {"create_module", 1, handle_create_module},
+    {"list_modules", 0, handle_not_implemented},
+    {"create_module", 1, handle_not_implemented},
     {"destroy_module", 1, handle_destroy_module},
-    {"get_module_info", 0, handle_get_module_info},
+    {"get_module_info", 0, handle_not_implemented},
     {"connect_modules", 1, handle_connect_modules},
     {"disconnect_modules", 1, handle_disconnect_modules},
 

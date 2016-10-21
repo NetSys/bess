@@ -8,7 +8,7 @@ class PortOut : public Module {
 
   virtual void ProcessBatch(struct pkt_batch *batch);
 
-  virtual struct snobj *GetDesc();
+  virtual std::string GetDesc();
 
   static const gate_idx_t kNumIGates = 1;
   static const gate_idx_t kNumOGates = 0;
@@ -43,8 +43,8 @@ void PortOut::Deinit() {
                  NULL, 0);
 }
 
-struct snobj *PortOut::GetDesc() {
-  return snobj_str_fmt("%s/%s", port_->Name().c_str(),
+std::string PortOut::GetDesc() {
+  return string_format("%s/%s", port_->Name().c_str(),
                        port_->GetDriver()->Name().c_str());
 }
 

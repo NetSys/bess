@@ -3,10 +3,9 @@
 
 #include <glog/logging.h>
 
+#include "../message.h"
 #include "../port.h"
 #include "../utils/pcap.h"
-
-#include "../message.h"
 
 #define PCAP_IFNAME 16
 
@@ -28,7 +27,7 @@ static void pcap_gather_data(unsigned char *data, struct rte_mbuf *mbuf) {
 class PCAPPort : public Port {
  public:
   static void InitDriver(){};
-  virtual error_ptr_t Init(const std::string &dev);
+  virtual error_ptr_t Init(const bess::PCAPPortArg &arg);
   virtual void DeInit();
 
   virtual int RecvPackets(queue_t qid, snb_array_t pkts, int cnt);
@@ -39,9 +38,10 @@ class PCAPPort : public Port {
   char dev_[PCAP_IFNAME] = {{0}};
 };
 
-error_ptr_t PCAPPort::Init(const std::string &dev) {
+error_ptr_t PCAPPort::Init(const bess::PCAPPortArg &arg) {
   char errbuf[PCAP_ERRBUF_SIZE];
 
+  const std::string dev = arg.dev();
   if (dev.length() == 0) {
     return pb_error(EINVAL, "PCAP need to set dev option");
   }
