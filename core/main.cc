@@ -24,6 +24,10 @@
 #include "snbuf.h"
 #include "test.h"
 
+// Port this BESS instance listens on.
+// Panda came up with this default number
+static const int kDefaultPort = 0x02912; // 10514 in decimal
+
 // TODO(barath): Rename these flags to something more intuitive.
 DEFINE_bool(t, false, "Dump the size of internal data structures");
 DEFINE_bool(g, false, "Run test suites");
@@ -56,7 +60,7 @@ static bool ValidateTCPPort(const char *flagname, int32_t value) {
   return true;
 }
 DEFINE_int32(
-    p, DEFAULT_PORT,
+    p, kDefaultPort,
     "Specifies the TCP port on which BESS listens for controller connections");
 
 static bool ValidateMegabytesPerSocket(const char *flagname, int32_t value) {
