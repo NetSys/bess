@@ -44,7 +44,9 @@ endif
 
 -include extra.mk
 
-SRCS = $(filter-out $(wildcard *_test.cc) $(wildcard modules/*_test.cc) modules/module_testing_helper.cc, $(wildcard *.cc utils/*.cc modules/*.cc drivers/*.cc oldtests/*.cc))
+ALL_SRCS = $(wildcard *.cc utils/*.cc modules/*.cc drivers/*.cc oldtests/*.cc)
+TEST_SRCS = $(filter %_test.cc, $(ALL_SRCS))
+SRCS = $(filter-out $(TEST_SRCS), $(ALL_SRCS))
 OBJS = $(patsubst %.cc,%.o, $(filter %.cc, $(SRCS)))
 HEADERS = $(wildcard *.h utils/*.h modules/*.h drivers/*.h oldtests/*.h)
 EXEC = bessd
@@ -115,7 +117,7 @@ cscope:
 	@rm -f cscope.files
 
 # Test rules
-TESTS = time_test port_test modules/round_robin_test
+TESTS = utils/time_test port_test modules/round_robin_test
 
 tests: $(TESTS)
 
@@ -140,24 +142,22 @@ gtest.a : gtest-all.o
 gtest_main.a : gtest-all.o gtest_main.o
 	$(AR) $(ARFLAGS) $@ $^
 
-# Time test build rules.
-time_test.o : time_test.cc time.h $(GTEST_HEADERS)
-	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c time_test.cc
-
-time_test : time.o time_test.o gtest_main.a
-	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -pthread $^ -o $@ $(LDFLAGS) $(LIBS)
-
-# Port test build rules.
 port_test.o : port_test.cc port.h $(GTEST_HEADERS)
-	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c port_test.cc
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c $< -o $@
 
 port_test : port.o port_test.o gtest_main.a
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -pthread $^ -o $@ $(LDFLAGS) $(LIBS)
 
-modules/round_robin_test.o : modules/round_robin_test.cc modules/round_robin.h $(GTEST_HEADERS)
-	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c modules/round_robin_test.cc -o $@
+utils/time_test.o : utils/time_test.cc utils/time.h $(GTEST_HEADERS)
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c $< -o $@
 
-modules/round_robin_test : modules/round_robin_test.o gtest_main.a $(filter-out main.o, $(OBJS)) 
+utils/time_test : utils/time.o utils/time_test.o gtest_main.a
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -pthread $^ -o $@ $(LDFLAGS) $(LIBS)
+
+modules/round_robin_test.o : modules/round_robin_test.cc modules/round_robin.h $(GTEST_HEADERS)
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c $< -o $@
+
+modules/round_robin_test : modules/round_robin_test.o gtest_main.a $(filter-out main.o, $(OBJS))
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -pthread $^ -o $@ $(LDFLAGS) $(LIBS)
 
 endif
