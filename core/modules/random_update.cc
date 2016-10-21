@@ -1,8 +1,8 @@
 #include <rte_byteorder.h>
 
-#include "../module.h"
-#include "../time.h"
+#include "../utils/time.h"
 #include "../utils/random.h"
+#include "../module.h"
 
 #define MAX_VARS 16
 

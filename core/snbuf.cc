@@ -6,7 +6,6 @@
 
 #include "common.h"
 #include "log.h"
-#include "time.h"
 #include "dpdk.h"
 #include "snbuf.h"
 

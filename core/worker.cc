@@ -9,9 +9,10 @@
 
 #include <glog/logging.h>
 
+#include "utils/time.h"
+
 #include "common.h"
 #include "worker.h"
-#include "time.h"
 #include "snbuf.h"
 #include "module.h"
 #include "tc.h"

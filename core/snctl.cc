@@ -14,12 +14,13 @@
 
 #include <gflags/gflags.h>
 
+#include "utils/time.h"
+
 #include "worker.h"
 #include "master.h"
 #include "snobj.h"
 #include "module.h"
 #include "port.h"
-#include "time.h"
 #include "tc.h"
 
 // Capture the default core command line flag.

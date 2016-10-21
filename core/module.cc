@@ -6,12 +6,13 @@
 
 #include <glog/logging.h>
 
+#include "utils/time.h"
+#include "utils/pcap.h"
+
 #include "mem_alloc.h"
 #include "dpdk.h"
-#include "time.h"
 #include "tc.h"
 #include "namespace.h"
-#include "utils/pcap.h"
 #include "module.h"
 
 Module::~Module() { ; }

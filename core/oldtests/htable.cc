@@ -9,11 +9,11 @@
 #include <rte_hash.h>
 #include <rte_hash_crc.h>
 
-#include "../common.h"
-#include "../mem_alloc.h"
-#include "../time.h"
 #include "../utils/htable.h"
 #include "../utils/random.h"
+
+#include "../common.h"
+#include "../mem_alloc.h"
 
 #include "../test.h"
 
