@@ -9,9 +9,13 @@ class MetadataTest : public Module {
   static const gate_idx_t kNumIGates = MAX_GATES;
   static const gate_idx_t kNumOGates = MAX_GATES;
 
+  static const Commands<Module> cmds;
+
  private:
   struct snobj *AddAttributes(struct snobj *attrs, enum mt_access_mode mode);
 };
+
+const Commands<Module> MetadataTest::cmds = {};
 
 struct snobj *MetadataTest::AddAttributes(struct snobj *attrs,
                                           enum mt_access_mode mode) {
@@ -27,21 +31,21 @@ struct snobj *MetadataTest::AddAttributes(struct snobj *attrs,
     const char *attr_name = attrs->map.arr_k[i];
     int attr_size = snobj_int_get((attrs->map.arr_v[i]));
 
-    ret = add_metadata_attr(this, attr_name, attr_size, mode);
+    ret = AddMetadataAttr(attr_name, attr_size, mode);
     if (ret < 0) return snobj_err(-ret, "invalid metadata declaration");
 
     /* check /var/log/syslog for log messages */
     switch (mode) {
       case MT_READ:
-        log_info("module %s: %s, %d bytes, read\n", Name().c_str(), attr_name,
+        log_info("module %s: %s, %d bytes, read\n", name().c_str(), attr_name,
                  attr_size);
         break;
       case MT_WRITE:
-        log_info("module %s: %s, %d bytes, write\n", Name().c_str(), attr_name,
+        log_info("module %s: %s, %d bytes, write\n", name().c_str(), attr_name,
                  attr_size);
         break;
       case MT_UPDATE:
-        log_info("module %s: %s, %d bytes, update\n", Name().c_str(), attr_name,
+        log_info("module %s: %s, %d bytes, update\n", name().c_str(), attr_name,
                  attr_size);
         break;
     }
@@ -75,7 +79,7 @@ struct snobj *MetadataTest::Init(struct snobj *arg) {
 void MetadataTest::ProcessBatch(struct pkt_batch *batch) {
   /* This module simply passes packets from input gate X down
    * to output gate X (the same gate index) */
-  run_choose_module(this, get_igate(), batch);
+  RunChooseModule(get_igate(), batch);
 }
 
 ADD_MODULE(MetadataTest, "mt_test", "Dynamic metadata test module")

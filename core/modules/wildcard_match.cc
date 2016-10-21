@@ -145,17 +145,17 @@ class WildcardMatch : public Module {
   virtual struct snobj *GetDesc();
   virtual struct snobj *GetDump();
 
-  static const gate_idx_t kNumIGates = 1;
-  static const gate_idx_t kNumOGates = MAX_GATES;
-
-  static const Commands<WildcardMatch> cmds;
-
- private:
   struct snobj *CommandAdd(struct snobj *arg);
   struct snobj *CommandDelete(struct snobj *arg);
   struct snobj *CommandClear(struct snobj *arg);
   struct snobj *CommandSetDefaultGate(struct snobj *arg);
 
+  static const gate_idx_t kNumIGates = 1;
+  static const gate_idx_t kNumOGates = MAX_GATES;
+
+  static const Commands<Module> cmds;
+
+ private:
   gate_idx_t LookupEntry(hkey_t *key, gate_idx_t def_gate);
   struct snobj *AddFieldOne(struct snobj *field, struct WmField *f);
 
@@ -179,11 +179,11 @@ class WildcardMatch : public Module {
   int next_table_id_;
 };
 
-const Commands<WildcardMatch> WildcardMatch::cmds = {
-    {"add", &WildcardMatch::CommandAdd, 0},
-    {"delete", &WildcardMatch::CommandDelete, 0},
-    {"clear", &WildcardMatch::CommandClear, 0},
-    {"set_default_gate", &WildcardMatch::CommandSetDefaultGate, 1}};
+const Commands<Module> WildcardMatch::cmds = {
+    {"add", MODULE_FUNC &WildcardMatch::CommandAdd, 0},
+    {"delete", MODULE_FUNC &WildcardMatch::CommandDelete, 0},
+    {"clear", MODULE_FUNC &WildcardMatch::CommandClear, 0},
+    {"set_default_gate", MODULE_FUNC &WildcardMatch::CommandSetDefaultGate, 1}};
 
 struct snobj *WildcardMatch::AddFieldOne(struct snobj *field,
                                          struct WmField *f) {
@@ -206,7 +206,7 @@ struct snobj *WildcardMatch::AddFieldOne(struct snobj *field,
   const char *attr = snobj_eval_str(field, "attr");
   if (!attr) return snobj_err(EINVAL, "specify 'offset' or 'attr'");
 
-  f->attr_id = add_metadata_attr(this, attr, f->size, MT_READ);
+  f->attr_id = AddMetadataAttr(attr, f->size, MT_READ);
   if (f->attr_id < 0)
     return snobj_err(-f->attr_id, "add_metadata_attr() failed");
 
@@ -347,7 +347,7 @@ void WildcardMatch::ProcessBatch(struct pkt_batch *batch) {
   }
 #endif
 
-  run_split(this, ogates, batch);
+  RunSplit(ogates, batch);
 }
 
 struct snobj *WildcardMatch::GetDesc() {

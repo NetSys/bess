@@ -48,11 +48,18 @@ class SetMetadata : public Module {
 
   void ProcessBatch(struct pkt_batch *batch);
 
+  static const gate_idx_t kNumIGates = 1;
+  static const gate_idx_t kNumOGates = 1;
+
+  static const Commands<Module> cmds;
+
  private:
   struct snobj *AddAttrOne(struct snobj *attr);
 
   std::vector<struct Attr> attrs_;
 };
+
+const Commands<Module> SetMetadata::cmds = {};
 
 struct snobj *SetMetadata::AddAttrOne(struct snobj *attr) {
   const char *name_c;
@@ -92,7 +99,7 @@ struct snobj *SetMetadata::AddAttrOne(struct snobj *attr) {
       return snobj_err(EINVAL, "invalid packet offset");
   }
 
-  ret = add_metadata_attr(this, name, size, MT_WRITE);
+  ret = AddMetadataAttr(name, size, MT_WRITE);
   if (ret < 0) return snobj_err(-ret, "add_metadata_attr() failed");
 
   attrs_.emplace_back();
@@ -139,7 +146,7 @@ void SetMetadata::ProcessBatch(struct pkt_batch *batch) {
       CopyFromValue(batch, attr, mt_offset);
   }
 
-  run_next_module(this, batch);
+  RunNextModule(batch);
 }
 
 ADD_MODULE(SetMetadata, "setattr", "Set metadata attributes to packets")

@@ -12,16 +12,17 @@ class RandomUpdate : public Module {
 
   virtual void ProcessBatch(struct pkt_batch *batch);
 
-  static const gate_idx_t kNumIGates = 1;
-  static const gate_idx_t kNumOGates = 1;
-
-  static const Commands<RandomUpdate> cmds;
-
- private:
   struct snobj *CommandAdd(struct snobj *arg);
   struct snobj *CommandClear(struct snobj *arg);
 
+  static const gate_idx_t kNumIGates = 1;
+  static const gate_idx_t kNumOGates = 1;
+
+  static const Commands<Module> cmds;
+
+ private:
   int num_vars_ = {};
+
   struct var {
     uint32_t mask; /* bits with 1 won't be updated */
     uint32_t min;
@@ -32,9 +33,11 @@ class RandomUpdate : public Module {
   Random rng_;
 };
 
-const Commands<RandomUpdate> RandomUpdate::cmds = {
-    {"add", &RandomUpdate::CommandAdd, 0},
-    {"clear", &RandomUpdate::CommandClear, 0},
+const Commands<Module> RandomUpdate::cmds = {};
+
+static const Commands<Module> cmds = {
+    {"add", MODULE_FUNC &RandomUpdate::CommandAdd, 0},
+    {"clear", MODULE_FUNC &RandomUpdate::CommandClear, 0},
 };
 
 struct snobj *RandomUpdate::CommandAdd(struct snobj *arg) {
@@ -152,7 +155,7 @@ void RandomUpdate::ProcessBatch(struct pkt_batch *batch) {
     }
   }
 
-  run_next_module(this, batch);
+  RunNextModule(batch);
 }
 
 ADD_MODULE(RandomUpdate, "rupdate", "updates packet data with random values")

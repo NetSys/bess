@@ -13,9 +13,13 @@ class PortOut : public Module {
   static const gate_idx_t kNumIGates = 1;
   static const gate_idx_t kNumOGates = 0;
 
+  static const Commands<Module> cmds;
+
  private:
   Port *port_ = {};
 };
+
+const Commands<Module> PortOut::cmds = {};
 
 struct snobj *PortOut::Init(struct snobj *arg) {
   const char *port_name;

@@ -23,12 +23,16 @@ class Split : public Module {
   static const gate_idx_t kNumIGates = 1;
   static const gate_idx_t kNumOGates = MAX_GATES;
 
+  static const Commands<Module> cmds;
+
  private:
   uint64_t mask_;
   int attr_id_;
   int offset_;
   int size_;
 };
+
+const Commands<Module> Split::cmds = {};
 
 struct snobj *Split::Init(struct snobj *arg) {
   if (!arg || snobj_type(arg) != TYPE_MAP)
@@ -43,7 +47,7 @@ struct snobj *Split::Init(struct snobj *arg) {
   const char *name = snobj_eval_str(arg, "name");
 
   if (name) {
-    attr_id_ = add_metadata_attr(this, name, size_, MT_READ);
+    attr_id_ = AddMetadataAttr(name, size_, MT_READ);
     if (attr_id_ < 0) return snobj_err(-attr_id_, "add_metadata_attr() failed");
   } else if (snobj_eval_exists(arg, "offset")) {
     attr_id_ = -1;
@@ -92,7 +96,7 @@ void Split::ProcessBatch(struct pkt_batch *batch) {
     }
   }
 
-  run_split(this, ogate, batch);
+  RunSplit(ogate, batch);
 }
 
 ADD_MODULE(Split, "split",
