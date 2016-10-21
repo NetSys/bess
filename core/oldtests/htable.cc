@@ -37,26 +37,30 @@ static inline uint32_t inlined_hash(const void *key, uint32_t key_size,
 
 static inline value_t derive_val(uint32_t key) { return (value_t)(key + 3); }
 
-static inline uint32_t rand_fast_nonzero(uint64_t *seed) {
-  uint32_t ret;
+static Random rng;
 
-  /* work around with the bug with zero key in DPDK hash table */
-  do {
-    ret = rand_fast(seed);
-  } while (unlikely(ret == 0));
+static inline uint32_t rand_fast() {
+  return rng.Get();
+}
 
-  return ret;
+/* work around with the bug with zero key in DPDK hash table */
+static inline uint32_t rand_fast_nonzero() {
+  while (true) {
+    uint32_t ret = rand_fast();
+    if (likely(ret))
+      return ret;
+  }
 }
 
 static void *bess_init(int entries) {
   HTable<uint32_t, value_t, inlined_keycmp, inlined_hash> *t =
       new HTable<uint32_t, value_t, inlined_keycmp, inlined_hash>;
-  uint64_t seed = 0;
 
   t->Init(sizeof(uint32_t), sizeof(value_t));
+  rng.SetSeed(0);
 
   for (int i = 0; i < entries; i++) {
-    uint32_t key = rand_fast(&seed);
+    uint32_t key = rand_fast();
     value_t val = derive_val(key);
 
     int ret = t->Set(&key, &val);
@@ -73,9 +77,9 @@ static void bess_get(void *arg, int iteration, int entries) {
   HTableBase *t = static_cast<HTableBase *>(arg);
 
   for (int k = 0; k < iteration; k++) {
-    uint64_t seed = 0;
+    rng.SetSeed(0);
     for (int i = 0; i < entries; i++) {
-      uint32_t key = rand_fast(&seed);
+      uint32_t key = rand_fast();
       value_t *val;
 
       val = (value_t *)t->Get(&key);
@@ -89,9 +93,9 @@ static void bess_inlined_get(void *arg, int iteration, int entries) {
       (HTable<uint32_t, value_t, inlined_keycmp, inlined_hash> *)arg;
 
   for (int k = 0; k < iteration; k++) {
-    uint64_t seed = 0;
+    rng.SetSeed(0);
     for (int i = 0; i < entries; i++) {
-      uint32_t key = rand_fast(&seed);
+      uint32_t key = rand_fast();
       value_t *val;
 
       val = (value_t *)t->Get(&key);
@@ -118,7 +122,6 @@ static void *dpdk_discrete_init(int entries) {
   value_t *value_arr;
 
   struct rte_hash_parameters params;
-  uint64_t seed = 0;
 
   params = (struct rte_hash_parameters){
       .name = "rte_hash_test",
@@ -146,8 +149,10 @@ static void *dpdk_discrete_init(int entries) {
     return NULL;
   }
 
+  rng.SetSeed(0);
+
   for (int i = 0; i < entries; i++) {
-    uint32_t key = rand_fast_nonzero(&seed);
+    uint32_t key = rand_fast_nonzero();
     value_t val = derive_val(key);
 
     int ret = rte_hash_add_key(t, &key);
@@ -165,7 +170,6 @@ static void *dpdk_embedded_init(int entries) {
   struct rte_hash *t;
 
   struct rte_hash_parameters params;
-  uint64_t seed = 0;
 
   params = (struct rte_hash_parameters){
       .name = "rte_hash_test",
@@ -180,8 +184,10 @@ static void *dpdk_embedded_init(int entries) {
   t = rte_hash_create(&params);
   if (!t) return NULL;
 
+  rng.SetSeed(0);
+
   for (int i = 0; i < entries; i++) {
-    uint32_t key = rand_fast_nonzero(&seed);
+    uint32_t key = rand_fast_nonzero();
     uintptr_t val = derive_val(key);
 
     int ret = rte_hash_add_key_data(t, &key, (void *)val);
@@ -197,9 +203,9 @@ static void dpdk_(void *arg, int iteration, int entries) {
   value_t *value_arr = ht->value_arr;
 
   for (int k = 0; k < iteration; k++) {
-    uint64_t seed = 0;
+    rng.SetSeed(0);
     for (int i = 0; i < entries; i++) {
-      uint32_t key = rand_fast_nonzero(&seed);
+      uint32_t key = rand_fast_nonzero();
 
       int ret = rte_hash_lookup(t, &key);
       assert(ret >= 0 && value_arr[ret] == derive_val(key));
@@ -213,9 +219,9 @@ static void dpdk_hash(void *arg, int iteration, int entries) {
   value_t *value_arr = ht->value_arr;
 
   for (int k = 0; k < iteration; k++) {
-    uint64_t seed = 0;
+    rng.SetSeed(0);
     for (int i = 0; i < entries; i++) {
-      uint32_t key = rand_fast_nonzero(&seed);
+      uint32_t key = rand_fast_nonzero();
 
       int ret =
           rte_hash_lookup_with_hash(t, &key, crc32c_sse42_u32(key, UINT32_MAX));
@@ -230,7 +236,7 @@ static void dpdk_bulk(void *arg, int iteration, int entries) {
   value_t *value_arr = ht->value_arr;
 
   for (int k = 0; k < iteration; k++) {
-    uint64_t seed = 0;
+    rng.SetSeed(0);
     for (int i = 0; i < entries; i += bulk_size) {
       uint32_t keys[bulk_size];
       uint32_t *key_ptrs[bulk_size];
@@ -239,7 +245,7 @@ static void dpdk_bulk(void *arg, int iteration, int entries) {
       int size = std::min(bulk_size, entries - i);
 
       for (int j = 0; j < size; j++) {
-        keys[j] = rand_fast_nonzero(&seed);
+        keys[j] = rand_fast_nonzero();
         key_ptrs[j] = &keys[j];
       }
 
@@ -257,9 +263,9 @@ static void dpdk_data(void *arg, int iteration, int entries) {
   struct rte_hash *t = (struct rte_hash *)arg;
 
   for (int k = 0; k < iteration; k++) {
-    uint64_t seed = 0;
+    rng.SetSeed(0);
     for (int i = 0; i < entries; i++) {
-      uint32_t key = rand_fast_nonzero(&seed);
+      uint32_t key = rand_fast_nonzero();
       uintptr_t val;
 
       rte_hash_lookup_data(t, &key, (void **)&val);
@@ -272,9 +278,9 @@ static void dpdk_data_hash(void *arg, int iteration, int entries) {
   struct rte_hash *t = (struct rte_hash *)arg;
 
   for (int k = 0; k < iteration; k++) {
-    uint64_t seed = 0;
+    rng.SetSeed(0);
     for (int i = 0; i < entries; i++) {
-      uint32_t key = rand_fast_nonzero(&seed);
+      uint32_t key = rand_fast_nonzero();
       uintptr_t val;
 
       rte_hash_lookup_with_hash_data(t, &key, crc32c_sse42_u32(key, UINT32_MAX),
@@ -288,7 +294,7 @@ static void dpdk_data_bulk(void *arg, int iteration, int entries) {
   struct rte_hash *t = (struct rte_hash *)arg;
 
   for (int k = 0; k < iteration; k++) {
-    uint64_t seed = 0;
+    rng.SetSeed(0);
     for (int i = 0; i < entries; i += bulk_size) {
       uint32_t keys[bulk_size];
       uint32_t *key_ptrs[bulk_size];
@@ -298,7 +304,7 @@ static void dpdk_data_bulk(void *arg, int iteration, int entries) {
       int size = std::min(bulk_size, entries - i);
 
       for (int j = 0; j < size; j++) {
-        keys[j] = rand_fast_nonzero(&seed);
+        keys[j] = rand_fast_nonzero();
         key_ptrs[j] = &keys[j];
       }
 
@@ -425,16 +431,15 @@ static void perftest() {
 
 static void functest() {
   HTable<uint32_t, value_t, inlined_keycmp, inlined_hash> t;
-  uint64_t seed;
 
   const int iteration = 1000000;
   int num_updates = 0;
 
   t.Init(sizeof(uint32_t), sizeof(uint16_t));
 
-  seed = 0;
+  rng.SetSeed(0);
   for (int i = 0; i < iteration; i++) {
-    uint32_t key = rand_fast(&seed);
+    uint32_t key = rand_fast();
     uint16_t val = derive_val(key);
     int ret;
 
@@ -445,9 +450,9 @@ static void functest() {
       assert(ret == 0);
   }
 
-  seed = 0;
+  rng.SetSeed(0);
   for (int i = 0; i < iteration; i++) {
-    uint32_t key = rand_fast(&seed);
+    uint32_t key = rand_fast();
     uint16_t *val;
 
     val = (uint16_t *)t.Get(&key);
@@ -455,9 +460,9 @@ static void functest() {
     assert(*val == derive_val(key));
   }
 
-  seed = 0;
+  rng.SetSeed(0);
   for (int i = 0; i < iteration; i++) {
-    uint32_t key = rand_fast(&seed);
+    uint32_t key = rand_fast();
     int ret;
 
     ret = t.Del(&key);

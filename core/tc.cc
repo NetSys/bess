@@ -675,8 +675,7 @@ void sched_test_alloc() {
   struct sched *s;
   struct tc *classes[num_classes];
 
-  uint64_t seed = get_usec();
-
+  Random rng_;
   int i;
 
   s = sched_init();
@@ -684,10 +683,10 @@ void sched_test_alloc() {
   /* generate a random tree */
   for (i = 0; i < num_classes; i++) {
     struct tc_params params = {};
-    int parent_id = rand_fast(&seed) % (i + 1);
+    int parent_id = rng_.Get() % (i + 1);
 
     params.parent = parent_id ? classes[(parent_id - 1)] : NULL;
-    params.priority = rand_fast(&seed) % 8;
+    params.priority = rng_.Get() % 8;
     params.share = 1;
 
     /* params.share_resource = rand_fast(&seed) % 2, should fail */
@@ -704,7 +703,7 @@ void sched_test_alloc() {
     struct tc *tmp;
     int j;
 
-    j = rand_fast(&seed) % (i + 1);
+    j = rng_.Get() % (i + 1);
     tmp = classes[j];
     classes[j] = classes[i];
     classes[i] = tmp;
