@@ -115,15 +115,7 @@ cscope:
 	@rm -f cscope.files
 
 # Test rules
-<<<<<<< HEAD
-<<<<<<< HEAD
-TESTS = time_test port_test
-=======
-TESTS = time_test #round_robin_test
->>>>>>> b480ad2... Tricked Makefile into not thinking tests are modules, phew.
-=======
-TESTS = time_test modules/round_robin_test
->>>>>>> bf78ec4... Testing for one module compiles! Next step: write a real test.
+TESTS = time_test port_test modules/round_robin_test
 
 tests: $(TESTS)
 

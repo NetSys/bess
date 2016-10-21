@@ -24,8 +24,6 @@
 #include "snbuf.h"
 #include "test.h"
 
-static struct global_opts *opts = (struct global_opts *)&global_opts;
-
 // TODO(barath): Rename these flags to something more intuitive.
 DEFINE_bool(t, false, "Dump the size of internal data structures");
 DEFINE_bool(g, false, "Run test suites");
