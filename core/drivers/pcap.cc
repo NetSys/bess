@@ -1,31 +1,22 @@
 #include <errno.h>
 #include <pcap/pcap.h>
 
+#include <string>
+
 #include <glog/logging.h>
 
 #include "../log.h"
 #include "../port.h"
 #include "../utils/pcap.h"
 
-#define PCAP_IFNAME 16
-
-static unsigned char tx_pcap_data[PCAP_SNAPLEN];
-
-/* Copy data from mbuf chain to a buffer suitable for writing to a PCAP file. */
-static void pcap_gather_data(unsigned char *data, struct rte_mbuf *mbuf) {
-  uint16_t data_len = 0;
-
-  while (mbuf) {
-    rte_memcpy(data + data_len, rte_pktmbuf_mtod(mbuf, void *), mbuf->data_len);
-
-    data_len += mbuf->data_len;
-    mbuf = mbuf->next;
-  }
-}
-
-/* Experimental. Needs more tests */
+// TODO(barath): Add a class comment.
 class PCAPPort : public Port {
  public:
+  // TODO(barath): Add a comment for this constant.
+  static const int kPCAPIfname = 16;
+
+  PCAPPort() : Port(), pcap_handle_(), dev_() {}
+
   virtual struct snobj *Init(struct snobj *arg);
   virtual void DeInit();
 
@@ -33,25 +24,30 @@ class PCAPPort : public Port {
   virtual int SendPackets(queue_t qid, snb_array_t pkts, int cnt);
 
  private:
-  pcap_t *pcap_handle_ = {0};
-  char dev_[PCAP_IFNAME] = {{0}};
+  void GatherData(unsigned char *data, struct rte_mbuf *mbuf);
+
+  pcap_t *pcap_handle_;  // TODO(barath): Add comment.
+  std::string dev_;  // TODO(barath): Add comment.
 };
 
 struct snobj *PCAPPort::Init(struct snobj *conf) {
   char errbuf[PCAP_ERRBUF_SIZE];
-  if (snobj_eval_str(conf, "dev"))
-    strncpy(dev_, snobj_eval_str(conf, "dev"), PCAP_IFNAME);
-  else
+  if (snobj_eval_str(conf, "dev")) {
+    dev_ = std::string(snobj_eval_str(conf, "dev"), kPCAPIfname);
+  } else {
     return snobj_err(EINVAL, "PCAP need to set dev option");
+  }
 
   // non-blocking pcap
-  pcap_handle_ = pcap_open_live(dev_, PCAP_SNAPLEN, 1, -1, errbuf);
-  if (pcap_handle_ == NULL)
+  pcap_handle_ = pcap_open_live(dev_.c_str(), PCAP_SNAPLEN, 1, -1, errbuf);
+  if (pcap_handle_ == NULL) {
     return snobj_err(ENODEV, "PCAP Open dev error: %s", errbuf);
+  }
 
   int ret = pcap_setnonblock(pcap_handle_, 1, errbuf);
-  if (ret != 0)
+  if (ret != 0) {
     return snobj_err(ENODEV, "PCAP set to nonblock error: %s", errbuf);
+  }
 
   LOG(INFO) << "PCAP: open dev " << dev_;
 
@@ -64,48 +60,6 @@ void PCAPPort::DeInit() {
     pcap_handle_ = NULL;
   }
 }
-
-#if 0
-static int pcap_rx_jumbo(struct rte_mempool *mb_pool,
-		struct rte_mbuf *mbuf,
-		const u_char *data,
-		uint16_t data_len)
-{
-	struct rte_mbuf *m = mbuf;
-
-	/* Copy the first segment. */
-	uint16_t len = rte_pktmbuf_tailroom(mbuf);
-
-	rte_memcpy(rte_pktmbuf_append(mbuf, len), data, len);
-	data_len -= len;
-	data += len;
-
-	while (data_len > 0) {
-		/* Allocate next mbuf and point to that. */
-		m->next = rte_pktmbuf_alloc(mb_pool);
-
-		if (unlikely(!m->next))
-			return -1;
-
-		m = m->next;
-
-		/* Headroom is needed for VPort TX */
-
-		m->pkt_len = 0;
-		m->data_len = 0;
-
-		/* Copy next segment. */
-		len = MIN(rte_pktmbuf_tailroom(m), data_len);
-		rte_memcpy(rte_pktmbuf_append(m, len), data, len);
-
-		mbuf->nb_segs++;
-		data_len -= len;
-		data += len;
-	}
-
-	return mbuf->nb_segs;
-}
-#endif
 
 int PCAPPort::RecvPackets(queue_t qid, snb_array_t pkts, int cnt) {
   const u_char *packet;
@@ -162,7 +116,8 @@ int PCAPPort::SendPackets(queue_t qid, snb_array_t pkts, int cnt) {
                             sbuf->mbuf.pkt_len);
     } else {
       if (sbuf->mbuf.pkt_len <= PCAP_SNAPLEN) {
-        pcap_gather_data(tx_pcap_data, &sbuf->mbuf);
+        unsigned char tx_pcap_data[PCAP_SNAPLEN];
+        GatherData(tx_pcap_data, &sbuf->mbuf);
         ret = pcap_sendpacket(pcap_handle_, tx_pcap_data, sbuf->mbuf.pkt_len);
       } else {
         RTE_LOG(ERR, PMD,
@@ -180,6 +135,18 @@ int PCAPPort::SendPackets(queue_t qid, snb_array_t pkts, int cnt) {
 
   snb_free_bulk(pkts, send_cnt);
   return send_cnt;
+}
+
+// Copy data from mbuf chain to a buffer suitable for writing to a PCAP file.
+void PCAPPort::GatherData(unsigned char *data, struct rte_mbuf *mbuf) {
+  uint16_t data_len = 0;
+
+  while (mbuf) {
+    rte_memcpy(data + data_len, rte_pktmbuf_mtod(mbuf, void *), mbuf->data_len);
+
+    data_len += mbuf->data_len;
+    mbuf = mbuf->next;
+  }
 }
 
 ADD_DRIVER(PCAPPort, "pcap_port", "libpcap live packet capture from Linux port")
