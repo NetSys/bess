@@ -7,10 +7,10 @@
 #include <rte_config.h>
 #include <rte_cycles.h>
 
+#include <gflags/gflags.h>
 #include <glog/logging.h>
 
 #include "common.h"
-#include "opts.h"
 #include "debug.h"
 #include "time.h"
 #include "worker.h"
@@ -18,6 +18,9 @@
 #include "utils/random.h"
 
 #include "tc.h"
+
+// Capture the "print TC stats" command line flag.
+DECLARE_bool(s);
 
 /* this library is not thread safe */
 
@@ -625,8 +628,7 @@ void sched_loop(struct sched *s) {
         if (unlikely(block_worker())) break;
         last_stats = s->stats;
         last_print_tsc = checkpoint = now = rdtsc();
-      } else if (unlikely(global_opts.print_tc_stats &&
-                          now - last_print_tsc >= tsc_hz)) {
+      } else if (unlikely(FLAGS_s && now - last_print_tsc >= tsc_hz)) {
         print_stats(s, &last_stats);
         last_stats = s->stats;
         last_print_tsc = checkpoint = now = rdtsc();

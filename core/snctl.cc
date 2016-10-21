@@ -12,7 +12,8 @@
 #include <rte_config.h>
 #include <rte_ether.h>
 
-#include "opts.h"
+#include <gflags/gflags.h>
+
 #include "worker.h"
 #include "master.h"
 #include "snobj.h"
@@ -20,6 +21,12 @@
 #include "port.h"
 #include "time.h"
 #include "tc.h"
+
+// Capture the default core command line flag.
+DECLARE_int32(c);
+
+// Capture the "debug mode" command line flag.
+DECLARE_bool(d);
 
 struct handler_map {
   const char *cmd;
@@ -271,7 +278,7 @@ static struct snobj *handle_add_tc(struct snobj *q) {
 
   if (!is_worker_active(wid)) {
     if (num_workers == 0 && wid == 0)
-      launch_worker(wid, global_opts.default_core);
+      launch_worker(wid, FLAGS_c);
     else
       return snobj_err(EINVAL, "worker:%d does not exist", wid);
   }
@@ -1164,7 +1171,7 @@ struct snobj *handle_request(struct client *c, struct snobj *q) {
   struct snobj *r = NULL;
   const char *s;
 
-  if (global_opts.debug_mode) {
+  if (FLAGS_d) {
     log_debug("Request:\n");
     snobj_dump(q);
   }
@@ -1191,7 +1198,7 @@ reply:
   /* No response was made? (normally means "success") */
   if (!r) r = snobj_nil();
 
-  if (global_opts.debug_mode) {
+  if (FLAGS_d) {
     log_debug("Response:\n");
     snobj_dump(r);
   }
