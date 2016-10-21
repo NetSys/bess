@@ -24,10 +24,6 @@
 #include "snbuf.h"
 #include "test.h"
 
-/* Port this BESS instance listens on.
- * Panda came up with this default number */
-#define DEFAULT_PORT 0x02912 /* 10514 in decimal */
-
 // TODO(barath): Rename these flags to something more intuitive.
 DEFINE_bool(t, false, "Dump the size of internal data structures");
 DEFINE_bool(g, false, "Run test suites");
