@@ -1,5 +1,10 @@
 #include "round_robin.h"
 
+const Commands<RoundRobin> RoundRobin::cmds = {
+    {"set_mode", &RoundRobin::CommandSetMode, 0},
+    {"set_gates", &RoundRobin::CommandSetGates, 0},
+};
+
 struct snobj *RoundRobin::Init(struct snobj *arg) {
   struct snobj *t;
 
