@@ -680,6 +680,154 @@ class BESSControlImpl final : public BESSControl::Service {
         module = create_module(request.name().c_str(), mclass,
                                request.bpf_arg(), error);
         break;
+      case CreateModuleRequest::kBufferArg:
+        module = create_module(request.name().c_str(), mclass,
+                               request.buffer_arg(), error);
+        break;
+      case CreateModuleRequest::kBypassArg:
+        module = create_module(request.name().c_str(), mclass,
+                               request.bypass_arg(), error);
+        break;
+      case CreateModuleRequest::kDumpArg:
+        module = create_module(request.name().c_str(), mclass,
+                               request.dump_arg(), error);
+        break;
+      case CreateModuleRequest::kEtherEncapArg:
+        module = create_module(request.name().c_str(), mclass,
+                               request.ether_encap_arg(), error);
+        break;
+      case CreateModuleRequest::kExactMatchArg:
+        module = create_module(request.name().c_str(), mclass,
+                               request.exact_match_arg(), error);
+        break;
+      case CreateModuleRequest::kFlowGenArg:
+        module = create_module(request.name().c_str(), mclass,
+                               request.flow_gen_arg(), error);
+        break;
+      case CreateModuleRequest::kGenericDecapArg:
+        module = create_module(request.name().c_str(), mclass,
+                               request.generic_decap_arg(), error);
+        break;
+      case CreateModuleRequest::kGenericEncapArg:
+        module = create_module(request.name().c_str(), mclass,
+                               request.generic_encap_arg(), error);
+        break;
+      case CreateModuleRequest::kHashLbArg:
+        module = create_module(request.name().c_str(), mclass,
+                               request.hash_lb_arg(), error);
+        break;
+      case CreateModuleRequest::kIpEncapArg:
+        module = create_module(request.name().c_str(), mclass,
+                               request.ip_encap_arg(), error);
+        break;
+      case CreateModuleRequest::kIpLookupArg:
+        module = create_module(request.name().c_str(), mclass,
+                               request.ip_lookup_arg(), error);
+        break;
+      case CreateModuleRequest::kL2ForwardArg:
+        module = create_module(request.name().c_str(), mclass,
+                               request.l2_forward_arg(), error);
+        break;
+      case CreateModuleRequest::kMacSwapArg:
+        module = create_module(request.name().c_str(), mclass,
+                               request.mac_swap_arg(), error);
+        break;
+      case CreateModuleRequest::kMeasureArg:
+        module = create_module(request.name().c_str(), mclass,
+                               request.measure_arg(), error);
+        break;
+      case CreateModuleRequest::kMergeArg:
+        module = create_module(request.name().c_str(), mclass,
+                               request.merge_arg(), error);
+        break;
+      case CreateModuleRequest::kMetadataTestArg:
+        module = create_module(request.name().c_str(), mclass,
+                               request.metadata_test_arg(), error);
+        break;
+      case CreateModuleRequest::kNoopArg:
+        module = create_module(request.name().c_str(), mclass,
+                               request.noop_arg(), error);
+        break;
+      case CreateModuleRequest::kPortIncArg:
+        module = create_module(request.name().c_str(), mclass,
+                               request.port_inc_arg(), error);
+        break;
+      case CreateModuleRequest::kPortOutArg:
+        module = create_module(request.name().c_str(), mclass,
+                               request.port_out_arg(), error);
+        break;
+      case CreateModuleRequest::kQueueIncArg:
+        module = create_module(request.name().c_str(), mclass,
+                               request.queue_inc_arg(), error);
+        break;
+      case CreateModuleRequest::kQueueOutArg:
+        module = create_module(request.name().c_str(), mclass,
+                               request.queue_out_arg(), error);
+        break;
+      case CreateModuleRequest::kQueueArg:
+        module = create_module(request.name().c_str(), mclass,
+                               request.queue_arg(), error);
+        break;
+      case CreateModuleRequest::kRandomUpdateArg:
+        module = create_module(request.name().c_str(), mclass,
+                               request.random_update_arg(), error);
+        break;
+      case CreateModuleRequest::kRewriteArg:
+        module = create_module(request.name().c_str(), mclass,
+                               request.rewrite_arg(), error);
+        break;
+      case CreateModuleRequest::kRoundRobinArg:
+        module = create_module(request.name().c_str(), mclass,
+                               request.round_robin_arg(), error);
+        break;
+      case CreateModuleRequest::kSetMetadataArg:
+        module = create_module(request.name().c_str(), mclass,
+                               request.set_metadata_arg(), error);
+        break;
+      case CreateModuleRequest::kSinkArg:
+        module = create_module(request.name().c_str(), mclass,
+                               request.sink_arg(), error);
+        break;
+      case CreateModuleRequest::kSourceArg:
+        module = create_module(request.name().c_str(), mclass,
+                               request.source_arg(), error);
+        break;
+      case CreateModuleRequest::kSplitArg:
+        module = create_module(request.name().c_str(), mclass,
+                               request.split_arg(), error);
+        break;
+      case CreateModuleRequest::kTimestampArg:
+        module = create_module(request.name().c_str(), mclass,
+                               request.timestamp_arg(), error);
+        break;
+      case CreateModuleRequest::kUpdateArg:
+        module = create_module(request.name().c_str(), mclass,
+                               request.update_arg(), error);
+        break;
+      case CreateModuleRequest::kVlanPopArg:
+        module = create_module(request.name().c_str(), mclass,
+                               request.vlan_pop_arg(), error);
+        break;
+      case CreateModuleRequest::kVlanPushArg:
+        module = create_module(request.name().c_str(), mclass,
+                               request.vlan_push_arg(), error);
+        break;
+      case CreateModuleRequest::kVlanSplitArg:
+        module = create_module(request.name().c_str(), mclass,
+                               request.vlan_split_arg(), error);
+        break;
+      case CreateModuleRequest::kVxlanEncapArg:
+        module = create_module(request.name().c_str(), mclass,
+                               request.vxlan_encap_arg(), error);
+        break;
+      case CreateModuleRequest::kVxlanDecapArg:
+        module = create_module(request.name().c_str(), mclass,
+                               request.vxlan_decap_arg(), error);
+        break;
+      case CreateModuleRequest::kWildcardMatchArg:
+        module = create_module(request.name().c_str(), mclass,
+                               request.wildcard_match_arg(), error);
+        break;
       case CreateModuleRequest::ARG_NOT_SET:
         return return_with_error(response, CreateModuleRequest::ARG_NOT_SET,
                                  "Missing argument");
