@@ -190,7 +190,7 @@ class Module {
   // -------------------------------------------------------------------------
 
  public:
-  const ModuleClass *Class() const { return mclass_; };
+  const ModuleClass *GetClass() const { return mclass_; };
   std::string Name() const { return name_; };
 
   struct snobj *RunCommand(const std::string &cmd, struct snobj *arg) {
@@ -217,8 +217,6 @@ class Module {
   int num_attrs = 0;
   struct mt_attr attrs[MAX_ATTRS_PER_MODULE] = {};
   scope_id_t scope_components[MT_TOTAL_SIZE] = {};
-
-  int curr_scope = 0;
 
   mt_offset_t attr_offsets[MAX_ATTRS_PER_MODULE] = {};
   struct gates igates = {};
@@ -419,7 +417,7 @@ int add_mclass(const ModuleClass *mclass);
  * 'instance'
  * need this function.
  * Returns its allocated ID (>= 0), or a negative number for error */
-int add_metadata_attr(Module *m, const char *name, int size,
+int add_metadata_attr(Module *m, const std::string &name, int size,
                       enum mt_access_mode mode);
 
 #define ADD_MODULE(_MOD, _NAME_TEMPLATE, _HELP) \

@@ -15,9 +15,9 @@
 #include <rte_config.h>
 #include <rte_lcore.h>
 
+#include <gflags/gflags.h>
 #include <glog/logging.h>
 
-#include "opts.h"
 #include "worker.h"
 #include "snobj.h"
 #include "snctl.h"
@@ -26,6 +26,9 @@
 
 #define INIT_BUF_SIZE 4096
 #define MAX_BUF_SIZE (8 * 1048576)
+
+// Capture the port command line flag.
+DECLARE_int32(p);
 
 static struct {
   int listen_fd;
@@ -372,12 +375,12 @@ static void init_server() {
     PLOG(FATAL) << "epoll_create()";
   }
 
-  if (global_opts.port) {
+  if (FLAGS_p) {
     struct epoll_event ev = {
         .events = EPOLLIN, .data = {.fd = master.listen_fd},
     };
 
-    master.listen_fd = init_listen_fd(global_opts.port);
+    master.listen_fd = init_listen_fd(FLAGS_p);
 
     ev.events = EPOLLIN;
     ev.data.fd = master.listen_fd;

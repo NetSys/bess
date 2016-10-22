@@ -51,8 +51,11 @@ struct snobj *QueueInc::Init(struct snobj *arg) {
     return snobj_err(EINVAL, "Field 'qid' must be specified");
   qid_ = snobj_uint_get(t);
 
-  port_ = find_port(port_name);
-  if (!port_) return snobj_err(ENODEV, "Port %s not found", port_name);
+  const auto &it = PortBuilder::all_ports().find(port_name);
+  if (it == PortBuilder::all_ports().end()) {
+    return snobj_err(ENODEV, "Port %s not found", port_name);
+  }
+  port_ = it->second;
 
   if ((t = snobj_eval(arg, "burst")) != NULL) {
     err = CommandSetBurst(t);
@@ -64,21 +67,21 @@ struct snobj *QueueInc::Init(struct snobj *arg) {
   tid = register_task(this, (void *)(uintptr_t)qid_);
   if (tid == INVALID_TASK_ID) return snobj_err(ENOMEM, "Task creation failed");
 
-  ret = acquire_queues(port_, reinterpret_cast<const module *>(this),
-                       PACKET_DIR_INC, &qid_, 1);
+  ret = port_->AcquireQueues(reinterpret_cast<const module *>(this),
+                             PACKET_DIR_INC, &qid_, 1);
   if (ret < 0) return snobj_errno(-ret);
 
   return NULL;
 }
 
 void QueueInc::Deinit() {
-  release_queues(port_, reinterpret_cast<const module *>(this), PACKET_DIR_INC,
-                 &qid_, 1);
+  port_->ReleaseQueues(reinterpret_cast<const module *>(this), PACKET_DIR_INC,
+                       &qid_, 1);
 }
 
 struct snobj *QueueInc::GetDesc() {
-  return snobj_str_fmt("%s:%hhu/%s", port_->Name().c_str(), qid_,
-                       port_->GetDriver()->Name().c_str());
+  return snobj_str_fmt("%s:%hhu/%s", port_->name().c_str(), qid_,
+                       port_->port_builder()->class_name().c_str());
 }
 
 struct task_result QueueInc::RunTask(void *arg) {
@@ -119,7 +122,7 @@ struct task_result QueueInc::RunTask(void *arg) {
       .packets = cnt, .bits = (received_bytes + cnt * pkt_overhead) * 8,
   };
 
-  if (!(p->GetDriver()->GetFlags() & DRIVER_FLAG_SELF_INC_STATS)) {
+  if (!(p->GetFlags() & DRIVER_FLAG_SELF_INC_STATS)) {
     p->queue_stats[PACKET_DIR_INC][qid].packets += cnt;
     p->queue_stats[PACKET_DIR_INC][qid].bytes += received_bytes;
   }

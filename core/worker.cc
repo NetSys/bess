@@ -17,6 +17,7 @@
 #include "tc.h"
 
 int num_workers;
+std::thread worker_threads[MAX_WORKERS];
 struct worker_context *volatile workers[MAX_WORKERS];
 __thread struct worker_context ctx;
 
@@ -111,8 +112,7 @@ static void destroy_worker(int wid) {
     ret = write(workers[wid]->fd_event, &sig, sizeof(sig));
     assert(ret == sizeof(uint64_t));
 
-    ret = pthread_join(workers[wid]->thread, NULL);
-    assert(ret == 0);
+    worker_threads[wid].join();
 
     workers[wid] = NULL;
 
@@ -179,7 +179,6 @@ static void *run_worker(void *_arg) {
   RTE_PER_LCORE(_lcore_id) = arg->wid;
 
   /* for workers, wid == rte_lcore_id() */
-  ctx.thread = pthread_self();
   ctx.wid = arg->wid;
   ctx.core = arg->core;
   ctx.socket = rte_socket_id();
@@ -221,12 +220,8 @@ static void *run_worker(void *_arg) {
 }
 
 void launch_worker(int wid, int core) {
-  pthread_t thread;
   struct thread_arg arg = {.wid = wid, .core = core};
-  int ret;
-
-  ret = pthread_create(&thread, NULL, run_worker, &arg);
-  assert(ret == 0);
+  worker_threads[wid] = std::thread(run_worker, &arg);
 
   INST_BARRIER();
 

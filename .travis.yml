@@ -24,6 +24,7 @@ install:
   - sudo apt-get install -y gcc-5 g++-5
   - sudo apt-get install -y cmake
   - sudo apt-get install -y autoconf automake libtool make unzip
+  - sudo apt-get install -y libgtest-dev
   - sudo apt-get install -y python python-scapy libpcap-dev
   - sudo apt-get install -y libgraph-easy-perl linux-headers-$(uname -r)
   - .travis/install-glog.sh

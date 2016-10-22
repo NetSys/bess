@@ -3,51 +3,57 @@
 #include <errno.h>
 #include <stdio.h>
 
+#include <initializer_list>
+#include <memory>
 #include <sstream>
 
 #include <rte_config.h>
-#include <rte_ether.h>
 
 #include <glog/logging.h>
 
 #include "mem_alloc.h"
 #include "message.h"
-#include "namespace.h"
+
 #include "port.h"
 
-Port::~Port() { ; }
+std::map<std::string, Port *> PortBuilder::all_ports_;
 
-size_t list_ports(const Port **p_arr, size_t arr_size, size_t offset) {
-  size_t ret = 0;
-  size_t iter_cnt = 0;
-
-  struct ns_iter iter;
-
-  ns_init_iterator(&iter, NS_TYPE_PORT);
-  while (1) {
-    Port *port = (Port *)ns_next(&iter);
-    if (!port) break;
-
-    if (iter_cnt++ < offset) continue;
-
-    if (ret >= arr_size) break;
-
-    p_arr[ret++] = port;
-  }
-  ns_release_iterator(&iter);
-
-  return ret;
+Port *PortBuilder::CreatePort(const std::string &name) const {
+  Port *p = port_generator_();
+  p->set_name(name);
+  p->set_port_builder(this);
+  return p;
 }
 
-static std::string set_default_name(const std::string &driver_name,
-                                    const std::string &default_template) {
+bool PortBuilder::AddPort(Port *p) {
+  return all_ports_.insert({p->name(), p}).second;
+}
+
+int PortBuilder::DestroyPort(Port *p) {
+  for (packet_dir_t dir : {PACKET_DIR_INC, PACKET_DIR_OUT}) {
+    for (queue_t i = 0; i < p->num_queues[dir]; i++) {
+      if (p->users[dir][i])
+        return -EBUSY;
+    }
+  }
+
+  all_ports_.erase(p->name());
+  p->Deinit();
+  delete p;
+
+  return 0;
+}
+
+std::string PortBuilder::GenerateDefaultPortName(
+    const std::string &driver_name, const std::string &default_template) {
   std::string name_template;
 
   if (default_template == "") {
     std::ostringstream ss;
     char last_char = '\0';
     for (auto t : default_template) {
-      if (last_char != '\0' && islower(last_char) && isupper(t)) ss << '_';
+      if (last_char != '\0' && islower(last_char) && isupper(t))
+        ss << '_';
 
       ss << tolower(t);
       last_char = t;
@@ -62,206 +68,73 @@ static std::string set_default_name(const std::string &driver_name,
     ss << name_template << i;
     std::string name = ss.str();
 
-    if (!find_port(name.c_str())) return name;  // found an unallocated name!
+    if (!all_ports_.count(name))
+      return name;  // found an unallocated name!
   }
 
   promise_unreachable();
 }
 
-#if 0
-static void set_default_name(Port *p)
-{
-	char *fmt;
+bool PortBuilder::InitPortClass() {
+  if (initialized_)
+    return false;
 
-	int i;
-
-	if (p->driver->def_port_name) {
-		fmt = (char *)alloca(strlen(p->driver->def_port_name) + 16);
-		strcpy(fmt, p->driver->def_port_name);
-	} else {
-		const char *def = p->driver->name;
-		const char *t;
-
-		char *s;
-
-		fmt = (char *)alloca(strlen(def) + 16);
-		s = fmt;
-
-		/* CamelCase -> camel_case */
-		for (t = def; *t != '\0'; t++) {
-			if (t != def && islower(*(t - 1)) && isupper(*t))
-				*s++ = '_';
-
-			*s++ = tolower(*t);
-		}
-
-		*s = '\0';
-	}
-
-	/* lower_case -> lower_case%d */
-	strcat(fmt, "%d");
-
-	for (i = 0; ; i++) {
-		int ret;
-
-		ret = snprintf(p->name, PORT_NAME_LEN, fmt, i);
-		assert(ret < PORT_NAME_LEN);
-
-		if (!find_port(p->name))
-			break;	/* found an unallocated name! */
-	}
-}
-#endif
-
-Port *find_port(const char *name) {
-  return (Port *)ns_lookup(NS_TYPE_PORT, name);
+  std::unique_ptr<Port> p(port_generator_());
+  p->InitDriver();
+  initialized_ = true;
+  return true;
 }
 
-static int register_port(Port *p) {
-  int ret;
-
-  ret = ns_insert(NS_TYPE_PORT, p->Name().c_str(), (void *)p);
-  if (ret < 0) {
-    return ret;
-  }
-
-  return 0;
+bool PortBuilder::RegisterPortClass(std::function<Port *()> port_generator,
+                                    const std::string &class_name,
+                                    const std::string &name_template,
+                                    const std::string &help_text) {
+  all_port_builders_holder().emplace(
+      std::piecewise_construct, std::forward_as_tuple(class_name),
+      std::forward_as_tuple(port_generator, class_name, name_template,
+                            help_text));
+  return true;
 }
 
-/* returns a pointer to the created port.
- * if error, returns NULL and *perr is set */
-template <typename T>
-Port *create_port(const char *name, const Driver *driver, queue_t num_inc_q,
-                  queue_t num_out_q, size_t size_inc_q, size_t size_out_q,
-                  const char *mac_addr_str, const T &arg, bess::Error *perr) {
-  Port *p = NULL;
-  int ret;
-
-  if (num_inc_q == 0) num_inc_q = 1;
-  if (num_out_q == 0) num_out_q = 1;
-  if (size_inc_q == 0) size_inc_q = driver->DefaultQueueSize(PACKET_DIR_INC);
-  if (size_out_q == 0) size_out_q = driver->DefaultQueueSize(PACKET_DIR_OUT);
-
-  uint8_t mac_addr[ETH_ALEN];
-
-  if (strlen(mac_addr) > 0) {
-    ret = sscanf(mac_addr_str, "%2hhx:%2hhx:%2hhx:%2hhx:%2hhx:%2hhx",
-                 &mac_addr[0], &mac_addr[1], &mac_addr[2], &mac_addr[3],
-                 &mac_addr[4], &mac_addr[5]);
-
-    if (ret != 6) {
-      perr->set_err(EINVAL);
-      perr->set_errmsg(
-          "MAC address should be "
-          "formatted as a string "
-          "xx:xx:xx:xx:xx:xx");
-      return NULL;
-    }
-  } else
-    eth_random_addr(mac_addr);
-
-  if (num_inc_q > MAX_QUEUES_PER_DIR || num_out_q > MAX_QUEUES_PER_DIR) {
-    perr->set_err(EINVAL);
-    perr->set_errmsg("Invalid number of queues");
-    return NULL;
-  }
-
-  if (size_inc_q < 0 || size_inc_q > MAX_QUEUE_SIZE || size_out_q < 0 ||
-      size_out_q > MAX_QUEUE_SIZE) {
-    perr->set_err(EINVAL);
-    perr->set_errmsg("Invalid queue size");
-    return NULL;
-  }
-
-  std::string port_name;
-
-  if (name) {
-    if (find_port(name)) {
-      perr->set_err(EEXIST);
-      perr->set_errmsg(string_format("Port '%s' already exists", name));
-      return NULL;
-    }
-
-    port_name = name;
-  } else {
-    port_name = set_default_name(driver->Name(), driver->NameTemplate());
-  }
-
-  p = driver->CreatePort(port_name);
-
-  //	p->driver = driver;
-
-  memcpy(p->mac_addr, mac_addr, ETH_ALEN);
-  p->num_queues[PACKET_DIR_INC] = num_inc_q;
-  p->num_queues[PACKET_DIR_OUT] = num_out_q;
-
-  p->queue_size[PACKET_DIR_INC] = size_inc_q;
-  p->queue_size[PACKET_DIR_OUT] = size_out_q;
-
-  error_ptr_t result = p->Init(arg);
-  *perr = result;
-
-  if (perr->err() != 0) {
-    delete p;
-    return NULL;
-  }
-
-  ret = register_port(p);
-  if (ret != 0) {
-    *perr = pb_errno(-ret);
-    delete p;
-    return NULL;
-  }
-
-  return p;
+const std::map<std::string, PortBuilder> &PortBuilder::all_port_builders() {
+  return all_port_builders_holder();
 }
 
-#include <initializer_list>
+std::map<std::string, PortBuilder> &PortBuilder::all_port_builders_holder(
+    bool reset) {
+  // Maps from class names to port builders.  Tracks all port classes (via their
+  // PortBuilders).
+  static std::map<std::string, PortBuilder> all_port_builders;
 
-/* -errno if not successful */
-int destroy_port(Port *p) {
-  int ret;
+  if (reset) {
+    all_port_builders.clear();
+  }
+
+  return all_port_builders;
+}
+
+const std::map<std::string, Port *> &PortBuilder::all_ports() {
+  return all_ports_;
+}
+
+void Port::GetPortStats(port_stats_t *stats) {
+  CollectStats(false);
+
+  memcpy(stats, &port_stats, sizeof(port_stats_t));
 
   for (packet_dir_t dir : {PACKET_DIR_INC, PACKET_DIR_OUT}) {
-    for (queue_t i = 0; i < p->num_queues[dir]; i++)
-      if (p->users[dir][i]) return -EBUSY;
-  }
+    for (queue_t qid = 0; qid < num_queues[dir]; qid++) {
+      const struct packet_stats *qs = &queue_stats[dir][qid];
 
-  ret = ns_remove(p->Name().c_str());
-  if (ret < 0) return ret;
-
-  p->Deinit();
-  delete p;
-
-  return 0;
-}
-
-void get_port_stats(Port *p, port_stats_t *stats) {
-  p->CollectStats(false);
-
-  memcpy(stats, &p->port_stats, sizeof(port_stats_t));
-
-  for (packet_dir_t dir : {PACKET_DIR_INC, PACKET_DIR_OUT}) {
-    for (queue_t qid = 0; qid < p->num_queues[dir]; qid++) {
-      const struct packet_stats *queue_stats;
-
-      queue_stats = &p->queue_stats[dir][qid];
-
-      (*stats)[dir].packets += queue_stats->packets;
-      (*stats)[dir].dropped += queue_stats->dropped;
-      (*stats)[dir].bytes += queue_stats->bytes;
+      (*stats)[dir].packets += qs->packets;
+      (*stats)[dir].dropped += qs->dropped;
+      (*stats)[dir].bytes += qs->bytes;
     }
   }
 }
 
-/* XXX: Do we need this? Currently not being used anywhere */
-void get_queue_stats(Port *p, packet_dir_t dir, queue_t qid,
-                     struct packet_stats *stats) {
-  memcpy(stats, &p->queue_stats[dir][qid], sizeof(*stats));
-}
-
-int acquire_queues(Port *p, const struct module *m, packet_dir_t dir,
-                   const queue_t *queues, int num_queues) {
+int Port::AcquireQueues(const struct module *m, packet_dir_t dir,
+                        const queue_t *queues, int num) {
   queue_t qid;
   int i;
 
@@ -271,43 +144,47 @@ int acquire_queues(Port *p, const struct module *m, packet_dir_t dir,
   }
 
   if (queues == NULL) {
-    for (qid = 0; qid < p->num_queues[dir]; qid++) {
+    for (qid = 0; qid < num_queues[dir]; qid++) {
       const struct module *user;
 
-      user = p->users[dir][qid];
+      user = users[dir][qid];
 
       /* the queue is already being used by someone else? */
-      if (user && user != m) return -EBUSY;
+      if (user && user != m)
+        return -EBUSY;
     }
 
-    for (qid = 0; qid < p->num_queues[dir]; qid++) p->users[dir][qid] = m;
+    for (qid = 0; qid < num_queues[dir]; qid++)
+      users[dir][qid] = m;
 
     return 0;
   }
 
-  for (i = 0; i < num_queues; i++) {
+  for (i = 0; i < num; i++) {
     const struct module *user;
 
     qid = queues[i];
 
-    if (qid >= p->num_queues[dir]) return -EINVAL;
+    if (qid >= num_queues[dir])
+      return -EINVAL;
 
-    user = p->users[dir][qid];
+    user = users[dir][qid];
 
     /* the queue is already being used by someone else? */
-    if (user && user != m) return -EBUSY;
+    if (user && user != m)
+      return -EBUSY;
   }
 
-  for (i = 0; i < num_queues; i++) {
+  for (i = 0; i < num; i++) {
     qid = queues[i];
-    p->users[dir][qid] = m;
+    users[dir][qid] = m;
   }
 
   return 0;
 }
 
-void release_queues(Port *p, const struct module *m, packet_dir_t dir,
-                    const queue_t *queues, int num_queues) {
+void Port::ReleaseQueues(const struct module *m, packet_dir_t dir,
+                         const queue_t *queues, int num) {
   queue_t qid;
   int i;
 
@@ -317,17 +194,26 @@ void release_queues(Port *p, const struct module *m, packet_dir_t dir,
   }
 
   if (queues == NULL) {
-    for (qid = 0; qid < p->num_queues[dir]; qid++) {
-      if (p->users[dir][qid] == m) p->users[dir][qid] = NULL;
+    for (qid = 0; qid < num_queues[dir]; qid++) {
+      if (users[dir][qid] == m)
+        users[dir][qid] = NULL;
     }
 
     return;
   }
 
-  for (i = 0; i < num_queues; i++) {
+  for (i = 0; i < num; i++) {
     qid = queues[i];
-    if (qid >= p->num_queues[dir]) continue;
+    if (qid >= num_queues[dir])
+      continue;
 
-    if (p->users[dir][qid] == m) p->users[dir][qid] = NULL;
+    if (users[dir][qid] == m)
+      users[dir][qid] = NULL;
   }
 }
+
+/* XXX: Do we need this? Currently not being used anywhere */
+// void get_queue_stats(Port *p, packet_dir_t dir, queue_t qid,
+//                      struct packet_stats *stats) {
+//   memcpy(stats, &p->queue_stats[dir][qid], sizeof(*stats));
+// }

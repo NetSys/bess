@@ -1,7 +1,11 @@
+#include <gflags/gflags.h>
+
+#include <rte_config.h>
+#include <rte_ether.h>
+
 #include "bessctl.grpc.pb.h"
 #include "message.h"
 #include "module.h"
-#include "opts.h"
 #include "port.h"
 #include "tc.h"
 #include "time.h"
@@ -60,6 +64,8 @@ using bess::TrafficClass;
 using bess::TrafficClass_Resource;
 using bess::EmptyResponse;
 
+DECLARE_int32(c);
+
 template <typename T>
 static inline Status return_with_error(T* response, int code, const char* fmt,
                                        ...) {
@@ -80,7 +86,8 @@ static inline Status return_with_errno(T* response, int code) {
 
 static int collect_igates(Module* m, GetModuleInfoResponse* response) {
   for (int i = 0; i < m->igates.curr_size; i++) {
-    if (!is_active_gate(&m->igates, i)) continue;
+    if (!is_active_gate(&m->igates, i))
+      continue;
 
     GetModuleInfoResponse_IGate* igate = response->add_igates();
     struct gate* g = m->igates.arr[i];
@@ -100,7 +107,8 @@ static int collect_igates(Module* m, GetModuleInfoResponse* response) {
 
 static int collect_ogates(Module* m, GetModuleInfoResponse* response) {
   for (int i = 0; i < m->ogates.curr_size; i++) {
-    if (!is_active_gate(&m->ogates, i)) continue;
+    if (!is_active_gate(&m->ogates, i))
+      continue;
     GetModuleInfoResponse_OGate* ogate = response->add_ogates();
     struct gate* g = m->ogates.arr[i];
 
@@ -142,6 +150,91 @@ static int collect_metadata(Module* m, GetModuleInfoResponse* response) {
   }
 
   return 0;
+}
+
+template <typename T>
+static Port* create_port(const std::string& name, const PortBuilder& driver,
+                         queue_t num_inc_q, queue_t num_out_q,
+                         size_t size_inc_q, size_t size_out_q,
+                         const std::string& mac_addr_str, const T& arg,
+                         Error* perr) {
+  std::unique_ptr<Port> p;
+  int ret;
+
+  if (num_inc_q == 0)
+    num_inc_q = 1;
+  if (num_out_q == 0)
+    num_out_q = 1;
+
+  uint8_t mac_addr[ETH_ALEN];
+
+  if (mac_addr_str.length() > 0) {
+    ret = sscanf(mac_addr_str.c_str(), "%2hhx:%2hhx:%2hhx:%2hhx:%2hhx:%2hhx",
+                 &mac_addr[0], &mac_addr[1], &mac_addr[2], &mac_addr[3],
+                 &mac_addr[4], &mac_addr[5]);
+
+    if (ret != 6) {
+      perr->set_err(EINVAL);
+      perr->set_errmsg(
+          "MAC address should be "
+          "formatted as a string "
+          "xx:xx:xx:xx:xx:xx");
+      return NULL;
+    }
+  } else
+    eth_random_addr(mac_addr);
+
+  if (num_inc_q > MAX_QUEUES_PER_DIR || num_out_q > MAX_QUEUES_PER_DIR) {
+    perr->set_err(EINVAL);
+    perr->set_errmsg("Invalid number of queues");
+    return NULL;
+  }
+
+  if (size_inc_q < 0 || size_inc_q > MAX_QUEUE_SIZE || size_out_q < 0 ||
+      size_out_q > MAX_QUEUE_SIZE) {
+    perr->set_err(EINVAL);
+    perr->set_errmsg("Invalid queue size");
+    return NULL;
+  }
+
+  std::string port_name;
+
+  if (name.length() > 0) {
+    if (PortBuilder::all_ports().count(name)) {
+      perr->set_err(EEXIST);
+      perr->set_errmsg(string_format("Port '%s' already exists", name.c_str()));
+      return NULL;
+    }
+    port_name = name;
+  } else {
+    port_name = PortBuilder::GenerateDefaultPortName(driver.class_name(),
+                                                     driver.name_template());
+  }
+
+  // Try to create and initialize the port.
+  p.reset(driver.CreatePort(port_name));
+
+  if (size_inc_q == 0)
+    size_inc_q = p->DefaultIncQueueSize();
+  if (size_out_q == 0)
+    size_out_q = p->DefaultOutQueueSize();
+
+  memcpy(p->mac_addr, mac_addr, ETH_ALEN);
+  p->num_queues[PACKET_DIR_INC] = num_inc_q;
+  p->num_queues[PACKET_DIR_OUT] = num_out_q;
+  p->queue_size[PACKET_DIR_INC] = size_inc_q;
+  p->queue_size[PACKET_DIR_OUT] = size_out_q;
+
+  *perr = p->Init(arg);
+  if (perr->err() != 0) {
+    return NULL;
+  }
+
+  if (!PortBuilder::AddPort(p.get())) {
+    return NULL;
+  }
+
+  return p.release();
 }
 
 class BESSControlImpl final : public BESSControl::Service {
@@ -188,7 +281,8 @@ class BESSControlImpl final : public BESSControl::Service {
   Status ListWorkers(ClientContext* context, const Empty& request,
                      ListWorkersResponse* response) {
     for (int wid = 0; wid < MAX_WORKERS; wid++) {
-      if (!is_worker_active(wid)) continue;
+      if (!is_worker_active(wid))
+        continue;
       ListWorkersResponse_WorkerStatus* status = response->add_workers_status();
       status->set_wid(wid);
       status->set_running(is_worker_running(wid));
@@ -249,7 +343,8 @@ class BESSControlImpl final : public BESSControl::Service {
                                  c->settings.name, c->num_tasks);
       }
 
-      if (c->settings.auto_free) continue;
+      if (c->settings.auto_free)
+        continue;
 
       tc_leave(c);
       tc_dec_refcnt(c);
@@ -286,11 +381,13 @@ class BESSControlImpl final : public BESSControl::Service {
       int wid;
 
       if (wid_filter < MAX_WORKERS) {
-        if (workers[wid_filter]->s != c->s) continue;
+        if (workers[wid_filter]->s != c->s)
+          continue;
         wid = wid_filter;
       } else {
         for (wid = 0; wid < MAX_WORKERS; wid++)
-          if (is_worker_active(wid) && workers[wid]->s == c->s) break;
+          if (is_worker_active(wid) && workers[wid]->s == c->s)
+            break;
       }
 
       ListTcsResponse_TrafficClassStatus* status =
@@ -359,7 +456,7 @@ class BESSControlImpl final : public BESSControl::Service {
 
     if (!is_worker_active(wid)) {
       if (num_workers == 0 && wid == 0)
-        launch_worker(wid, global_opts.default_core);
+        launch_worker(wid, FLAGS_c);
       else {
         return return_with_error(response, EINVAL, "worker:%d does not exist",
                                  wid);
@@ -424,39 +521,27 @@ class BESSControlImpl final : public BESSControl::Service {
   }
   Status ListDrivers(ClientContext* context, const Empty& request,
                      ListDriversResponse* response) {
-    int cnt = 1;
-    int offset;
-
-    for (offset = 0; cnt != 0; offset += cnt) {
-      const int arr_size = 16;
-      const Driver* drivers[arr_size];
-
-      int i;
-
-      cnt = list_drivers(drivers, arr_size, offset);
-
-      for (i = 0; i < cnt; i++) {
-        response->add_driver_names(drivers[i]->Name());
-      }
-    };
+    for (const auto& pair : PortBuilder::all_port_builders()) {
+      const PortBuilder& builder = pair.second;
+      response->add_driver_names(builder.class_name());
+    }
 
     return Status::OK;
   }
   Status GetDriverInfo(ClientContext* context,
                        const GetDriverInfoRequest& request,
                        GetDriverInfoResponse* response) {
-    const char* drv_name;
-    const Driver* drv;
-
-    if (request.driver_name().length() == 0)
+    if (request.driver_name().length() == 0) {
       return return_with_error(response, EINVAL,
                                "Argument must be a name in str");
+    }
 
-    drv_name = request.driver_name().c_str();
-
-    if ((drv = find_driver(drv_name)) == NULL)
-      return return_with_error(response, ENOENT, "No module class '%s' found",
-                               drv_name);
+    const auto& it =
+        PortBuilder::all_port_builders().find(request.driver_name());
+    if (it == PortBuilder::all_port_builders().end()) {
+      return return_with_error(response, ENOENT, "No driver '%s' found",
+                               request.driver_name().c_str());
+    }
 
 #if 0
                         for (int i = 0; i < MAX_COMMANDS; i++) {
@@ -465,19 +550,23 @@ class BESSControlImpl final : public BESSControl::Service {
                           response->add_commands(drv->commands[i].cmd);
                         }
 #endif
-    response->set_name(drv->Name());
-    response->set_help(drv->Help());
+    response->set_name(it->second.class_name());
+    response->set_help(it->second.help_text());
 
     return Status::OK;
   }
   Status ResetPorts(ClientContext* context, const Empty& request,
                     EmptyResponse* response) {
-    Port* p;
-    while (list_ports((const Port**)&p, 1, 0)) {
-      int ret = destroy_port(p);
-      if (ret) {
+    for (auto it = PortBuilder::all_ports().cbegin();
+         it != PortBuilder::all_ports().end();) {
+      auto it_next = std::next(it);
+      Port* p = it->second;
+
+      int ret = PortBuilder::DestroyPort(p);
+      if (ret)
         return return_with_errno(response, -ret);
-      }
+
+      it = it_next;
     }
 
     log_info("*** All ports have been destroyed ***\n");
@@ -485,91 +574,80 @@ class BESSControlImpl final : public BESSControl::Service {
   }
   Status ListPorts(ClientContext* context, const Empty& request,
                    ListPortsResponse* response) {
-    int cnt = 1;
-    int offset;
+    for (const auto& pair : PortBuilder::all_ports()) {
+      const Port* p = pair.second;
+      bess::Port* port = response->add_ports();
 
-    for (offset = 0; cnt != 0; offset += cnt) {
-      const int arr_size = 16;
-      const Port* ports[arr_size];
-
-      int i;
-
-      cnt = list_ports(ports, arr_size, offset);
-
-      for (i = 0; i < cnt; i++) {
-        bess::Port* port = response->add_ports();
-        port->set_name(ports[i]->Name());
-        port->set_driver(ports[i]->GetDriver()->Name());
-      }
-    };
+      port->set_name(p->name());
+      port->set_driver(p->port_builder()->class_name());
+    }
 
     return Status::OK;
   }
   Status CreatePort(ClientContext* context, const CreatePortRequest& request,
                     CreatePortResponse* response) {
     const char* driver_name;
-    const Driver* driver;
     Port* port;
 
     if (request.port().driver().length() == 0)
       return return_with_error(response, EINVAL, "Missing 'driver' field");
 
     driver_name = request.port().driver().c_str();
-    driver = find_driver(driver_name);
-    if (!driver) {
+    const auto& builders = PortBuilder::all_port_builders();
+    const auto& it = builders.find(driver_name);
+    if (it == builders.end()) {
       return return_with_error(response, ENOENT, "No port driver '%s' found",
                                driver_name);
     }
 
+    const PortBuilder& builder = it->second;
     Error* error = response->mutable_error();
 
     switch (request.arg_case()) {
       case CreatePortRequest::kPcapArg:
-        port = create_port(
-            request.port().name().c_str(), driver, request.num_inc_q(),
-            request.num_out_q(), request.size_inc_q(), request.size_out_q(),
-            request.mac_addr().c_str(), request.pcap_arg(), error);
+        port = create_port(request.port().name(), builder, request.num_inc_q(),
+                           request.num_out_q(), request.size_inc_q(),
+                           request.size_out_q(), request.mac_addr(),
+                           request.pcap_arg(), error);
         break;
       case CreatePortRequest::kPmdArg:
-        port = create_port(
-            request.port().name().c_str(), driver, request.num_inc_q(),
-            request.num_out_q(), request.size_inc_q(), request.size_out_q(),
-            request.mac_addr().c_str(), request.pmd_arg(), error);
+        port = create_port(request.port().name(), builder, request.num_inc_q(),
+                           request.num_out_q(), request.size_inc_q(),
+                           request.size_out_q(), request.mac_addr(),
+                           request.pmd_arg(), error);
         break;
       case CreatePortRequest::kSocketArg:
-        port = create_port(
-            request.port().name().c_str(), driver, request.num_inc_q(),
-            request.num_out_q(), request.size_inc_q(), request.size_out_q(),
-            request.mac_addr().c_str(), request.socket_arg(), error);
+        port = create_port(request.port().name(), builder, request.num_inc_q(),
+                           request.num_out_q(), request.size_inc_q(),
+                           request.size_out_q(), request.mac_addr(),
+                           request.socket_arg(), error);
         break;
       case CreatePortRequest::kZcvportArg:
-        port = create_port(
-            request.port().name().c_str(), driver, request.num_inc_q(),
-            request.num_out_q(), request.size_inc_q(), request.size_out_q(),
-            request.mac_addr().c_str(), request.zcvport_arg(), error);
+        port = create_port(request.port().name(), builder, request.num_inc_q(),
+                           request.num_out_q(), request.size_inc_q(),
+                           request.size_out_q(), request.mac_addr(),
+                           request.zcvport_arg(), error);
         break;
       case CreatePortRequest::kVportArg:
-        port = create_port(
-            request.port().name().c_str(), driver, request.num_inc_q(),
-            request.num_out_q(), request.size_inc_q(), request.size_out_q(),
-            request.mac_addr().c_str(), request.vport_arg(), error);
+        port = create_port(request.port().name(), builder, request.num_inc_q(),
+                           request.num_out_q(), request.size_inc_q(),
+                           request.size_out_q(), request.mac_addr(),
+                           request.vport_arg(), error);
         break;
       case CreatePortRequest::ARG_NOT_SET:
         return return_with_error(response, CreatePortRequest::ARG_NOT_SET,
                                  "Missing argument");
     }
 
-    if (!port) return Status::OK;
+    if (!port)
+      return Status::OK;
 
-    response->set_name(port->Name());
+    response->set_name(port->name());
     return Status::OK;
   }
   Status DestroyPort(ClientContext* context, const DestroyPortRequest& request,
                      EmptyResponse* response) {
     const char* port_name;
-
-    Port* port;
-
     int ret;
 
     if (!request.name().length())
@@ -577,12 +655,12 @@ class BESSControlImpl final : public BESSControl::Service {
                                "Argument must be a name in str");
 
     port_name = request.name().c_str();
-    port = find_port(port_name);
-    if (!port)
+    const auto& it = PortBuilder::all_ports().find(port_name);
+    if (it == PortBuilder::all_ports().end())
       return return_with_error(response, ENOENT, "No port `%s' found",
                                port_name);
 
-    ret = destroy_port(port);
+    ret = PortBuilder::DestroyPort(it->second);
     if (ret) {
       return return_with_errno(response, -ret);
     }
@@ -593,9 +671,6 @@ class BESSControlImpl final : public BESSControl::Service {
                       const GetPortStatsRequest& request,
                       GetPortStatsResponse* response) {
     const char* port_name;
-
-    Port* port;
-
     port_stats_t stats;
 
     if (!request.name().length())
@@ -603,12 +678,12 @@ class BESSControlImpl final : public BESSControl::Service {
                                "Argument must be a name in str");
     port_name = request.name().c_str();
 
-    port = find_port(port_name);
-    if (!port)
+    const auto& it = PortBuilder::all_ports().find(port_name);
+    if (it == PortBuilder::all_ports().end()) {
       return return_with_error(response, ENOENT, "No port '%s' found",
                                port_name);
-
-    get_port_stats(port, &stats);
+    }
+    it->second->GetPortStats(&stats);
 
     response->mutable_inc()->set_packets(stats[PACKET_DIR_INC].packets);
     response->mutable_inc()->set_dropped(stats[PACKET_DIR_INC].dropped);
@@ -626,7 +701,8 @@ class BESSControlImpl final : public BESSControl::Service {
                       EmptyResponse* response) {
     Module* m;
 
-    while (list_modules((const Module**)&m, 1, 0)) destroy_module(m);
+    while (list_modules((const Module**)&m, 1, 0))
+      destroy_module(m);
 
     log_info("*** All modules have been destroyed ***\n");
     return Status::OK;
@@ -650,7 +726,7 @@ class BESSControlImpl final : public BESSControl::Service {
         const Module* m = modules[i];
 
         module->set_name(m->Name());
-        module->set_mclass(m->Class()->Name());
+        module->set_mclass(m->GetClass()->Name());
         module->set_desc(m->GetDesc());
       }
     };
@@ -833,7 +909,8 @@ class BESSControlImpl final : public BESSControl::Service {
                                  "Missing argument");
     }
 
-    if (!module) return Status::OK;
+    if (!module)
+      return Status::OK;
 
     response->set_name(module->Name());
     return Status::OK;
@@ -873,7 +950,7 @@ class BESSControlImpl final : public BESSControl::Service {
                                m_name);
 
     response->set_name(m->Name());
-    response->set_mclass(m->Class()->Name());
+    response->set_mclass(m->GetClass()->Name());
 
     response->set_desc(m->GetDesc());
 

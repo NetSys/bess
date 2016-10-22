@@ -11,6 +11,7 @@
 #include <rte_malloc.h>
 
 #include "../kmod/sn_common.h"
+#include "../log.h"
 #include "../message.h"
 #include "../port.h"
 
@@ -59,12 +60,14 @@ static void refill_tx_bufs(struct llring *r) {
 
   int curr_cnt = llring_count(r);
 
-  if (curr_cnt >= REFILL_LOW) return;
+  if (curr_cnt >= REFILL_LOW)
+    return;
 
   deficit = REFILL_HIGH - curr_cnt;
 
   ret = snb_alloc_bulk((snb_array_t)pkts, deficit, 0);
-  if (ret == 0) return;
+  if (ret == 0)
+    return;
 
   for (int i = 0; i < ret; i++)
     objs[i] = (void *)(uintptr_t)snb_to_paddr(pkts[i]);
@@ -81,7 +84,8 @@ static void drain_sn_to_drv_q(struct llring *q) {
     int ret;
 
     ret = llring_mc_dequeue(q, (void **)&paddr);
-    if (ret) break;
+    if (ret)
+      break;
 
     snb = paddr_to_snb(paddr);
     if (!snb) {
@@ -100,7 +104,8 @@ static void drain_drv_to_sn_q(struct llring *q) {
     int ret;
 
     ret = llring_mc_dequeue(q, (void **)&snb);
-    if (ret) break;
+    if (ret)
+      break;
 
     snb_free(snb);
   }
@@ -112,14 +117,15 @@ static void reclaim_packets(struct llring *ring) {
 
   for (;;) {
     ret = llring_mc_dequeue_burst(ring, objs, MAX_PKT_BURST);
-    if (ret == 0) break;
+    if (ret == 0)
+      break;
 
     snb_free_bulk((snb_array_t)objs, ret);
   }
 }
 
-static error_ptr_t docker_container_pid(const std::string &cid,
-                                        int *container_pid) {
+static pb_error_t docker_container_pid(const std::string &cid,
+                                       int *container_pid) {
   char buf[1024];
 
   FILE *fp;
@@ -177,9 +183,9 @@ static error_ptr_t docker_container_pid(const std::string &cid,
 
 class VPort : public Port {
  public:
-  static void InitDriver();
+  virtual void InitDriver();
 
-  error_ptr_t Init(const bess::VPortArg &arg);
+  pb_error_t Init(const bess::VPortArg &arg);
   void DeInit();
 
   int RecvPackets(queue_t qid, snb_array_t pkts, int max_cnt);
@@ -190,7 +196,7 @@ class VPort : public Port {
   void *AllocBar(struct tx_queue_opts *txq_opts,
                  struct rx_queue_opts *rxq_opts);
   int SetIPAddrSingle(const std::string &ip_addr);
-  error_ptr_t SetIPAddr(const bess::VPortArg &arg);
+  pb_error_t SetIPAddr(const bess::VPortArg &arg);
 
   int fd_ = {0};
 
@@ -323,7 +329,8 @@ void VPort::InitDriver() {
         "Loading...\n");
 
     ret = readlink("/proc/self/exe", exec_path, sizeof(exec_path));
-    if (ret == -1 || ret >= static_cast<int>(sizeof(exec_path))) return;
+    if (ret == -1 || ret >= static_cast<int>(sizeof(exec_path)))
+      return;
 
     exec_path[ret] = '\0';
     exec_dir = dirname(exec_path);
@@ -348,19 +355,22 @@ int VPort::SetIPAddrSingle(const std::string &ip_addr) {
 
   ret = snprintf(buf, sizeof(buf), "ip addr add %s dev %s 2>&1",
                  ip_addr.c_str(), ifname_);
-  if (ret >= static_cast<int>(sizeof(buf))) return -EINVAL;
+  if (ret >= static_cast<int>(sizeof(buf)))
+    return -EINVAL;
 
   fp = popen(buf, "r");
-  if (!fp) return -errno;
+  if (!fp)
+    return -errno;
 
   ret = pclose(fp);
   exit_code = WEXITSTATUS(ret);
-  if (exit_code) return -EINVAL;
+  if (exit_code)
+    return -EINVAL;
 
   return 0;
 }
 
-error_ptr_t VPort::SetIPAddr(const bess::VPortArg &arg) {
+pb_error_t VPort::SetIPAddr(const bess::VPortArg &arg) {
   int child_pid;
 
   int ret = 0;
@@ -449,19 +459,20 @@ void VPort::DeInit() {
   int ret;
 
   ret = ioctl(fd_, SN_IOC_RELEASE_HOSTNIC);
-  if (ret < 0) log_perr("SN_IOC_RELEASE_HOSTNIC");
+  if (ret < 0)
+    log_perr("SN_IOC_RELEASE_HOSTNIC");
 
   close(fd_);
   FreeBar();
 }
 
-error_ptr_t VPort::Init(const bess::VPortArg &arg) {
+pb_error_t VPort::Init(const bess::VPortArg &arg) {
   int cpu;
   int rxq;
 
   int ret;
 
-  error_ptr_t err;
+  pb_error_t err;
 
   struct tx_queue_opts txq_opts = {0};
   struct rx_queue_opts rxq_opts = {0};
@@ -479,12 +490,13 @@ error_ptr_t VPort::Init(const bess::VPortArg &arg) {
   }
 
   strcpy(ifname_,
-         (arg.ifname().length() == 0) ? Name().c_str() : arg.ifname().c_str());
+         (arg.ifname().length() == 0) ? name().c_str() : arg.ifname().c_str());
 
   if (arg.docker().length() > 0) {
     err = docker_container_pid(arg.docker(), &container_pid_);
 
-    if (err->err() != 0) goto fail;
+    if (err.err() != 0)
+      goto fail;
   }
 
   if (arg.container_pid() != -1) {
@@ -540,7 +552,7 @@ error_ptr_t VPort::Init(const bess::VPortArg &arg) {
   if (arg.ip_addrs_size() > 0) {
     err = SetIPAddr(arg);
 
-    if (err->err() != 0) {
+    if (err.err() != 0) {
       DeInit();
       goto fail;
     }
@@ -566,14 +578,17 @@ error_ptr_t VPort::Init(const bess::VPortArg &arg) {
   }
 
   ret = ioctl(fd_, SN_IOC_SET_QUEUE_MAPPING, &map_);
-  if (ret < 0) log_perr("ioctl(SN_IOC_SET_QUEUE_MAPPING)");
+  if (ret < 0)
+    log_perr("ioctl(SN_IOC_SET_QUEUE_MAPPING)");
 
   return pb_errno(0);
 
 fail:
-  if (fd_ >= 0) close(fd_);
+  if (fd_ >= 0)
+    close(fd_);
 
-  if (netns_fd_ >= 0) close(netns_fd_);
+  if (netns_fd_ >= 0)
+    close(netns_fd_);
 
   return err;
 }
@@ -660,12 +675,14 @@ int VPort::SendPackets(queue_t qid, snb_array_t pkts, int cnt) {
 
   ret = llring_mp_enqueue_bulk(rx_queue->sn_to_drv, (void **)paddr, cnt);
 
-  if (ret == -LLRING_ERR_NOBUF) return 0;
+  if (ret == -LLRING_ERR_NOBUF)
+    return 0;
 
   /* TODO: generic notification architecture */
   if (__sync_bool_compare_and_swap(&rx_queue->rx_regs->irq_disabled, 0, 1)) {
     ret = ioctl(fd_, SN_IOC_KICK_RX, 1 << map_.rxq_to_cpu[qid]);
-    if (ret) log_perr("ioctl(kick_rx)");
+    if (ret)
+      log_perr("ioctl(kick_rx)");
   }
 
   return cnt;

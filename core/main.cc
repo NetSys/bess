@@ -16,7 +16,6 @@
 #include <glog/logging.h>
 #include <gflags/gflags.h>
 
-#include "opts.h"
 #include "debug.h"
 #include "dpdk.h"
 #include "master.h"
@@ -25,15 +24,9 @@
 #include "snbuf.h"
 #include "test.h"
 
-/* Port this BESS instance listens on.
- * Panda came up with this default number */
-#define DEFAULT_PORT 0x02912 /* 10514 in decimal */
-
-struct global_opts global_opts = {
-    .port = DEFAULT_PORT,
-};
-
-static struct global_opts *opts = (struct global_opts *)&global_opts;
+// Port this BESS instance listens on.
+// Panda came up with this default number
+static const int kDefaultPort = 0x02912; // 10514 in decimal
 
 // TODO(barath): Rename these flags to something more intuitive.
 DEFINE_bool(t, false, "Dump the size of internal data structures");
@@ -44,6 +37,9 @@ DEFINE_bool(k, false, "Kill existing BESS instance, if any");
 DEFINE_bool(s, false, "Show TC statistics every second");
 DEFINE_bool(d, false, "Run BESS in debug mode (with debug log messages)");
 DEFINE_bool(a, false, "Allow multiple instances");
+
+// Pidfile; Filename (nullptr=default; nullstr=none).
+static char *pidfile = nullptr;
 
 static bool ValidateCoreID(const char *flagname, int32_t value) {
   if (!is_cpu_present(value)) {
@@ -64,7 +60,7 @@ static bool ValidateTCPPort(const char *flagname, int32_t value) {
   return true;
 }
 DEFINE_int32(
-    p, DEFAULT_PORT,
+    p, kDefaultPort,
     "Specifies the TCP port on which BESS listens for controller connections");
 
 static bool ValidateMegabytesPerSocket(const char *flagname, int32_t value) {
@@ -98,53 +94,17 @@ static void process_args(int argc, char *argv[]) {
     dump_types();
     exit(EXIT_SUCCESS);
   }
-  if (FLAGS_g) {
-    opts->test_mode = 1;
-  }
-
-  if (FLAGS_c != -1) {
-    opts->default_core = FLAGS_c;
-  }
-
-  if (FLAGS_p != -1) {
-    opts->port = FLAGS_p;
-  }
-
-  if (FLAGS_f) {
-    opts->foreground = 1;
-  }
-
-  if (FLAGS_k) {
-    opts->kill_existing = 1;
-  }
-
-  if (FLAGS_s) {
-    opts->print_tc_stats = 1;
-  }
-
-  if (FLAGS_d) {
-    opts->debug_mode = 1;
-  }
-
-  if (FLAGS_m) {
-    opts->mb_per_socket = FLAGS_m;
-  }
-
   if (FLAGS_i.length() > 0) {
-    if (opts->pidfile) free(opts->pidfile);
-    opts->pidfile = strdup(FLAGS_i.c_str()); /* Gets leaked */
+    if (pidfile) free(pidfile);
+    pidfile = strdup(FLAGS_i.c_str()); /* Gets leaked */
   }
 
-  if (FLAGS_a) {
-    opts->multi_instance = 1;
+  if (FLAGS_g) {
+    FLAGS_f = true;
+    FLAGS_p = 0; /* disable the control channel */
   }
 
-  if (opts->test_mode) {
-    opts->foreground = 1;
-    opts->port = 0; /* disable the control channel */
-  }
-
-  if (opts->foreground && !opts->print_tc_stats) {
+  if (FLAGS_f && !FLAGS_s) {
     LOG(INFO) << "TC statistics output is disabled (add -s option?)";
   }
 }
@@ -173,12 +133,12 @@ void check_pidfile() {
 
   pid_t pid;
 
-  if (!opts->pidfile)
-    opts->pidfile = (char *)"/var/run/bessd.pid";
-  else if (strlen(opts->pidfile) == 0)
+  if (!pidfile)
+    pidfile = (char *)"/var/run/bessd.pid";
+  else if (strlen(pidfile) == 0)
     return;
 
-  fd = open(opts->pidfile, O_RDWR | O_CREAT, 0644);
+  fd = open(pidfile, O_RDWR | O_CREAT, 0644);
   if (fd == -1) {
     PLOG(FATAL) << "open(pidfile)";
   }
@@ -204,7 +164,7 @@ again:
       LOG(INFO) << "There is another BESS daemon running (PID=" << pid << ")";
     }
 
-    if (!opts->kill_existing) {
+    if (!FLAGS_k) {
       LOG(FATAL) << "You cannot run more than one BESS instance at a time "
                  << "(add -k option?)";
     }
@@ -328,6 +288,15 @@ static void set_resource_limit() {
   }
 }
 
+void init_drivers() {
+  for (auto &pair : PortBuilder::all_port_builders()) {
+    if (!const_cast<PortBuilder &>(pair.second).InitPortClass()) {
+      LOG(WARNING) << "Initializing driver (port class) "
+                   << pair.second.class_name() << " failed.";
+    }
+  }
+}
+
 int main(int argc, char *argv[]) {
   int signal_fd = -1;
 
@@ -338,7 +307,7 @@ int main(int argc, char *argv[]) {
 
   check_user();
 
-  if (opts->foreground) {
+  if (FLAGS_f) {
     LOG(INFO) << "Launching BESS daemon in process mode...";
   } else {
     signal_fd = daemon_start();
@@ -347,14 +316,14 @@ int main(int argc, char *argv[]) {
   check_pidfile();
   set_resource_limit();
 
-  init_dpdk(argv[0], opts->mb_per_socket, opts->multi_instance);
+  init_dpdk(argv[0], FLAGS_m, FLAGS_a);
   init_mempool();
   init_drivers();
 
   setup_master();
 
   /* signal the parent that all initialization has been finished */
-  if (!opts->foreground) {
+  if (!FLAGS_f) {
     uint64_t one = 1;
     int ret = write(signal_fd, &one, sizeof(one));
     if (ret < 0) {
@@ -363,7 +332,7 @@ int main(int argc, char *argv[]) {
     close(signal_fd);
   }
 
-  if (opts->test_mode) {
+  if (FLAGS_g) {
     run_tests();
   } else {
     run_forced_tests();

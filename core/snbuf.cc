@@ -2,14 +2,18 @@
 
 #include <rte_errno.h>
 
+#include <gflags/gflags.h>
+
 #include "common.h"
-#include "opts.h"
 #include "log.h"
 #include "time.h"
 #include "dpdk.h"
 #include "snbuf.h"
 
 #define NUM_MEMPOOL_CACHE 512
+
+// Capture the "debug mode" command line flag.
+DECLARE_bool(d);
 
 struct rte_mbuf pframe_template;
 
@@ -67,7 +71,7 @@ again:
 
   log_info("Allocating %d buffers on socket %d: OK\n", current_try - 1, sid);
 
-  if (global_opts.debug_mode) rte_mempool_dump(stdout, pframe_pool[sid]);
+  if (FLAGS_d) rte_mempool_dump(stdout, pframe_pool[sid]);
 }
 
 static void init_templates(void) {
@@ -93,7 +97,7 @@ void init_mempool(void) {
   assert(SNBUF_METADATA_OFF == 192);
   assert(SNBUF_SCRATCHPAD_OFF == 320);
 
-  if (global_opts.debug_mode) rte_dump_physmem_layout(stdout);
+  if (FLAGS_d) rte_dump_physmem_layout(stdout);
 
   for (i = 0; i < RTE_MAX_NUMA_NODES; i++) initialized[i] = 0;
 

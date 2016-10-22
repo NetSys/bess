@@ -9,6 +9,7 @@
 #include <rte_malloc.h>
 
 #include "../kmod/llring.h"
+#include "../log.h"
 #include "../message.h"
 #include "../port.h"
 
@@ -54,9 +55,7 @@ struct vport_bar {
 
 class ZeroCopyVPort : public Port {
  public:
-  static void InitDriver(){};
-
-  error_ptr_t Init(const bess::ZeroCopyVPortArg &arg);
+  pb_error_t Init(const bess::ZeroCopyVPortArg &arg);
   void DeInit();
 
   int RecvPackets(queue_t qid, snb_array_t pkts, int cnt);
@@ -74,7 +73,7 @@ class ZeroCopyVPort : public Port {
   int out_irq_fd_[MAX_QUEUES_PER_DIR] = {{0}};
 };
 
-error_ptr_t ZeroCopyVPort::Init(const bess::ZeroCopyVPortArg &arg) {
+pb_error_t ZeroCopyVPort::Init(const bess::ZeroCopyVPortArg &arg) {
   struct vport_bar *bar = NULL;
 
   int num_inc_q = num_queues[PACKET_DIR_INC];
@@ -101,7 +100,7 @@ error_ptr_t ZeroCopyVPort::Init(const bess::ZeroCopyVPortArg &arg) {
   assert(bar != NULL);
   bar_ = bar;
 
-  strncpy(bar->name, Name().c_str(), PORT_NAME_LEN);
+  strncpy(bar->name, name().c_str(), PORT_NAME_LEN);
   bar->num_inc_q = num_inc_q;
   bar->num_out_q = num_out_q;
 
@@ -142,7 +141,7 @@ error_ptr_t ZeroCopyVPort::Init(const bess::ZeroCopyVPortArg &arg) {
 
   for (i = 0; i < num_out_q; i++) {
     snprintf(file_name, PORT_NAME_LEN + 256, "%s/%s/%s.rx%d", P_tmpdir,
-             VPORT_DIR_PREFIX, Name().c_str(), i);
+             VPORT_DIR_PREFIX, name().c_str(), i);
 
     mkfifo(file_name, 0666);
 
@@ -150,7 +149,7 @@ error_ptr_t ZeroCopyVPort::Init(const bess::ZeroCopyVPortArg &arg) {
   }
 
   snprintf(file_name, PORT_NAME_LEN + 256, "%s/%s/%s", P_tmpdir,
-           VPORT_DIR_PREFIX, Name().c_str());
+           VPORT_DIR_PREFIX, name().c_str());
   log_info("Writing port information to %s\n", file_name);
   fp = fopen(file_name, "w");
   fwrite(&bar_address, 8, 1, fp);
@@ -166,14 +165,14 @@ void ZeroCopyVPort::DeInit() {
 
   for (int i = 0; i < num_out_q; i++) {
     snprintf(file_name, PORT_NAME_LEN + 256, "%s/%s/%s.rx%d", P_tmpdir,
-             VPORT_DIR_PREFIX, Name().c_str(), i);
+             VPORT_DIR_PREFIX, name().c_str(), i);
 
     unlink(file_name);
     close(out_irq_fd_[i]);
   }
 
   snprintf(file_name, PORT_NAME_LEN + 256, "%s/%s/%s", P_tmpdir,
-           VPORT_DIR_PREFIX, Name().c_str());
+           VPORT_DIR_PREFIX, name().c_str());
   unlink(file_name);
 
   rte_free(bar_);
@@ -184,7 +183,8 @@ int ZeroCopyVPort::SendPackets(queue_t qid, snb_array_t pkts, int cnt) {
   int ret;
 
   ret = llring_enqueue_bulk(q, (void **)pkts, cnt);
-  if (ret == -LLRING_ERR_NOBUF) return 0;
+  if (ret == -LLRING_ERR_NOBUF)
+    return 0;
 
   if (__sync_bool_compare_and_swap(&out_regs_[qid]->irq_enabled, 1, 0)) {
     int ret;

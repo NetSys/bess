@@ -20,7 +20,8 @@ struct flow {
 
 typedef std::pair<uint64_t, struct flow *> Event;
 typedef std::priority_queue<Event, std::vector<Event>,
-                            std::function<bool(Event, Event)>> EventQueue;
+                            std::function<bool(Event, Event)>>
+    EventQueue;
 
 bool EventLess(const Event &a, const Event &b) { return a.first < b.first; }
 
@@ -41,6 +42,9 @@ static inline double scaled_pareto_variate(double inversed_alpha, double mean,
 
 class FlowGen : public Module {
  public:
+  static const gate_idx_t kNumIGates = 0;
+  static const gate_idx_t kNumOGates = 1;
+
   virtual struct snobj *Init(struct snobj *arg);
   virtual void Deinit();
 
@@ -49,25 +53,32 @@ class FlowGen : public Module {
   virtual struct snobj *GetDesc();
   virtual struct snobj *GetDump();
 
-  static const gate_idx_t kNumIGates = 0;
-  static const gate_idx_t kNumOGates = 1;
-
  private:
-  int active_flows_ = {0};
-  int allocated_flows_ = {0};
-  uint64_t generated_flows_ = {0};
-  struct flow *flows_ = {0};
-  struct cdlist_head flows_free_ = {0};
+  inline double NewFlowPkts();
+  inline double MaxFlowPkts();
+  inline uint64_t NextFlowArrival();
+  inline struct flow *ScheduleFlow(uint64_t time_ns);
+  void MeasureParetoMean();
+  void PopulateInitialFlows();
+  struct snbuf *FillPacket(struct flow *f);
+  void GeneratePackets(struct pkt_batch *batch);
+  struct snobj *InitFlowPool();
+  struct snobj *ProcessArguments(struct snobj *arg);
+  int active_flows_ = {};
+  int allocated_flows_ = {};
+  uint64_t generated_flows_ = {};
+  struct flow *flows_ = {};
+  struct cdlist_head flows_free_ = {};
 
   EventQueue events_;
 
-  char templ_[MAX_TEMPLATE_SIZE];
-  int template_size_ = {0};
+  char *templ_;
+  int template_size_ = {};
 
-  uint64_t rseed_;
+  Random rng_;
 
   /* behavior parameters */
-  int quick_rampup_ = {0};
+  int quick_rampup_ = {};
 
   enum {
     ARRIVAL_UNIFORM = 0,
@@ -80,32 +91,21 @@ class FlowGen : public Module {
   } duration_;
 
   /* load parameters */
-  double total_pps_ = {0};
-  double flow_rate_ = {0};     /* in flows/s */
-  double flow_duration_ = {0}; /* in seconds */
+  double total_pps_ = {};
+  double flow_rate_ = {};     /* in flows/s */
+  double flow_duration_ = {}; /* in seconds */
 
   /* derived variables */
-  double concurrent_flows_ = {0}; /* expected # of flows */
-  double flow_pps_ = {0};         /* packets/s/flow */
-  double flow_pkts_ = {0};        /* flow_pps * flow_duration */
-  double flow_gap_ns_ = {0};      /* == 10^9 / flow_rate */
+  double concurrent_flows_ = {}; /* expected # of flows */
+  double flow_pps_ = {};         /* packets/s/flow */
+  double flow_pkts_ = {};        /* flow_pps * flow_duration */
+  double flow_gap_ns_ = {};      /* == 10^9 / flow_rate */
 
   struct {
     double alpha;
     double inversed_alpha; /* 1.0 / alpha */
     double mean;           /* determined by alpha */
-  } pareto_ = {0};
-
-  inline double NewFlowPkts();
-  inline double MaxFlowPkts();
-  inline uint64_t NextFlowArrival();
-  inline struct flow *ScheduleFlow(uint64_t time_ns);
-  void MeasureParetoMean();
-  void PopulateInitialFlows();
-  struct snbuf *FillPacket(struct flow *f);
-  void GeneratePackets(struct pkt_batch *batch);
-  struct snobj *InitFlowPool();
-  struct snobj *ProcessArguments(struct snobj *arg);
+  } pareto_ = {};
 };
 
 inline double FlowGen::NewFlowPkts() {
@@ -114,7 +114,7 @@ inline double FlowGen::NewFlowPkts() {
       return flow_pkts_;
     case DURATION_PARETO:
       return scaled_pareto_variate(pareto_.inversed_alpha, pareto_.mean,
-                                   flow_pkts_, rand_fast_real(&rseed_));
+                                   flow_pkts_, rng_.GetReal());
     default:
       assert(0);
   }
@@ -138,7 +138,7 @@ inline uint64_t FlowGen::NextFlowArrival() {
       return flow_gap_ns_;
       break;
     case ARRIVAL_EXPONENTIAL:
-      return -log(rand_fast_real2(&rseed_)) * flow_gap_ns_;
+      return -log(rng_.GetRealNonzero()) * flow_gap_ns_;
       break;
     default:
       assert(0);
@@ -154,11 +154,10 @@ inline struct flow *FlowGen::ScheduleFlow(uint64_t time_ns) {
 
   f = container_of(item, struct flow, free);
   f->first = 1;
-  f->flow_id = (uint32_t)rand_fast(&rseed_);
+  f->flow_id = rng_.Get();
 
   /* compensate the fraction part by adding [0.0, 1.0) */
-  f->packets_left = NewFlowPkts() + rand_fast_real(&rseed_);
-  ;
+  f->packets_left = NewFlowPkts() + rng_.GetReal();
 
   active_flows_++;
   generated_flows_++;
@@ -202,7 +201,7 @@ void FlowGen::PopulateInitialFlows() {
     double flow_pkts = NewFlowPkts();
 
     if (flow_pkts > pre_consumed_pkts) {
-      uint64_t jitter = 1e9 * rand_fast_real(&rseed_) / flow_pps_;
+      uint64_t jitter = 1e9 * rng_.GetReal() / flow_pps_;
 
       f = ScheduleFlow(now_ns + jitter);
       if (!f) break;
@@ -301,7 +300,7 @@ struct snobj *FlowGen::Init(struct snobj *arg) {
   task_id_t tid;
   struct snobj *err;
 
-  rseed_ = 0xBAADF00DDEADBEEFul;
+  rng_.SetSeed(0xBAADF00DDEADBEEFul);
 
   /* set default parameters */
   total_pps_ = 1000.0;
@@ -314,6 +313,9 @@ struct snobj *FlowGen::Init(struct snobj *arg) {
   /* register task */
   tid = register_task(this, NULL);
   if (tid == INVALID_TASK_ID) return snobj_err(ENOMEM, "task creation failed");
+
+  templ_ = new char[MAX_TEMPLATE_SIZE];
+  if (templ_ == NULL) return snobj_err(ENOMEM, "unable to allocate template");
 
   err = ProcessArguments(arg);
   if (err) return err;
@@ -342,7 +344,10 @@ struct snobj *FlowGen::Init(struct snobj *arg) {
   return NULL;
 }
 
-void FlowGen::Deinit() { mem_free(flows_); }
+void FlowGen::Deinit() {
+  mem_free(flows_);
+  delete templ_;
+}
 
 struct snbuf *FlowGen::FillPacket(struct flow *f) {
   struct snbuf *pkt;
@@ -356,8 +361,9 @@ struct snbuf *FlowGen::FillPacket(struct flow *f) {
 
   p = reinterpret_cast<char *>(pkt->mbuf.buf_addr) +
       static_cast<size_t>(SNBUF_HEADROOM);
+  if (!p) return NULL;
 
-  pkt->mbuf.data_off = static_cast<size_t>(SNBUF_HEADROOM);
+  pkt->mbuf.data_off = SNBUF_HEADROOM;
   pkt->mbuf.pkt_len = size;
   pkt->mbuf.data_len = size;
 

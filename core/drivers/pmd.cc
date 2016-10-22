@@ -2,6 +2,7 @@
 #include <rte_errno.h>
 #include <rte_ethdev.h>
 
+#include "../log.h"
 #include "../message.h"
 #include "../port.h"
 
@@ -11,8 +12,8 @@ typedef uint8_t dpdk_port_t;
 
 class PMDPort : public Port {
  public:
-  static void InitDriver();
-  virtual error_ptr_t Init(const bess::PMDPortArg &arg);
+  virtual void InitDriver();
+  virtual pb_error_t Init(const bess::PMDPortArg &arg);
   virtual void DeInit();
 
   virtual void CollectStats(bool reset);
@@ -98,10 +99,10 @@ void PMDPort::InitDriver() {
   }
 }
 
-static error_ptr_t find_dpdk_port(dpdk_port_t port_id, const std::string &pci,
-                                  const std::string &vdev,
-                                  dpdk_port_t *ret_port_id,
-                                  bool *ret_hot_plugged) {
+static pb_error_t find_dpdk_port(dpdk_port_t port_id, const std::string &pci,
+                                 const std::string &vdev,
+                                 dpdk_port_t *ret_port_id,
+                                 bool *ret_hot_plugged) {
   if (pci.length() == 0) {
     if (port_id < 0 || port_id >= RTE_MAX_ETHPORTS) {
       return pb_error(EINVAL, "Invalid port id %d", port_id);
@@ -123,9 +124,11 @@ static error_ptr_t find_dpdk_port(dpdk_port_t port_id, const std::string &pci,
                       "dddd:bb:dd.ff or bb:dd.ff");
     }
     for (int i = 0; i < RTE_MAX_ETHPORTS; i++) {
-      if (!rte_eth_devices[i].attached) continue;
+      if (!rte_eth_devices[i].attached)
+        continue;
 
-      if (!rte_eth_devices[i].pci_dev) continue;
+      if (!rte_eth_devices[i].pci_dev)
+        continue;
 
       if (rte_eal_compare_pci_addr(&addr, &rte_eth_devices[i].pci_dev->addr))
         continue;
@@ -176,7 +179,7 @@ static error_ptr_t find_dpdk_port(dpdk_port_t port_id, const std::string &pci,
   return pb_errno(0);
 }
 
-error_ptr_t PMDPort::Init(const bess::PMDPortArg &arg) {
+pb_error_t PMDPort::Init(const bess::PMDPortArg &arg) {
   dpdk_port_t ret_port_id = -1;
 
   struct rte_eth_dev_info dev_info = {};
@@ -191,9 +194,9 @@ error_ptr_t PMDPort::Init(const bess::PMDPortArg &arg) {
 
   int i;
 
-  error_ptr_t err = find_dpdk_port(arg.port_id(), arg.pci(), arg.vdev(),
-                                   &ret_port_id, &hot_plugged_);
-  if (err->err() != 0) {
+  pb_error_t err = find_dpdk_port(arg.port_id(), arg.pci(), arg.vdev(),
+                                  &ret_port_id, &hot_plugged_);
+  if (err.err() != 0) {
     return err;
   }
 
@@ -227,7 +230,8 @@ error_ptr_t PMDPort::Init(const bess::PMDPortArg &arg) {
     int sid = rte_eth_dev_socket_id(ret_port_id);
 
     /* if socket_id is invalid, set to 0 */
-    if (sid < 0 || sid > RTE_MAX_NUMA_NODES) sid = 0;
+    if (sid < 0 || sid > RTE_MAX_NUMA_NODES)
+      sid = 0;
 
     ret = rte_eth_rx_queue_setup(ret_port_id, i, queue_size[PACKET_DIR_INC],
                                  sid, &eth_rxconf, get_pframe_pool_socket(sid));

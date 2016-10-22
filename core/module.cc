@@ -230,10 +230,10 @@ int connect_modules(Module *m_prev, gate_idx_t ogate_idx, Module *m_next,
   struct gate *ogate;
   struct gate *igate;
 
-  if (ogate_idx >= m_prev->Class()->NumOGates() || ogate_idx >= MAX_GATES)
+  if (ogate_idx >= m_prev->GetClass()->NumOGates() || ogate_idx >= MAX_GATES)
     return -EINVAL;
 
-  if (igate_idx >= m_next->Class()->NumIGates() || igate_idx >= MAX_GATES)
+  if (igate_idx >= m_next->GetClass()->NumIGates() || igate_idx >= MAX_GATES)
     return -EINVAL;
 
   if (ogate_idx >= m_prev->ogates.curr_size) {
@@ -285,7 +285,7 @@ int disconnect_modules(Module *m_prev, gate_idx_t ogate_idx) {
   struct gate *ogate;
   struct gate *igate;
 
-  if (ogate_idx >= m_prev->Class()->NumOGates()) return -EINVAL;
+  if (ogate_idx >= m_prev->GetClass()->NumOGates()) return -EINVAL;
 
   /* no error even if the ogate is unconnected already */
   if (!is_active_gate(&m_prev->ogates, ogate_idx)) return 0;
@@ -314,7 +314,7 @@ static int disconnect_modules_upstream(Module *m_next, gate_idx_t igate_idx) {
   struct gate *ogate;
   struct gate *ogate_next;
 
-  if (igate_idx >= m_next->Class()->NumIGates()) return -EINVAL;
+  if (igate_idx >= m_next->GetClass()->NumIGates()) return -EINVAL;
 
   /* no error even if the igate is unconnected already */
   if (!is_active_gate(&m_next->igates, igate_idx)) return 0;
@@ -519,3 +519,30 @@ void dump_pcap_pkts(struct gate *gate, struct pkt_batch *batch) {
 }
 
 #endif
+
+size_t list_mclasses(const ModuleClass **p_arr, size_t arr_size,
+                     size_t offset) {
+  size_t ret = 0;
+  size_t iter_cnt = 0;
+
+  struct ns_iter iter;
+
+  ns_init_iterator(&iter, NS_TYPE_MCLASS);
+  while (1) {
+    ModuleClass *mc_obj = (ModuleClass *)ns_next(&iter);
+    if (!mc_obj) break;
+
+    if (iter_cnt++ < offset) continue;
+
+    if (ret >= arr_size) break;
+
+    p_arr[ret++] = mc_obj;
+  }
+  ns_release_iterator(&iter);
+
+  return ret;
+}
+
+const ModuleClass *find_mclass(const char *name) {
+  return (ModuleClass *)ns_lookup(NS_TYPE_MCLASS, name);
+}

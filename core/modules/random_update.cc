@@ -21,15 +21,15 @@ class RandomUpdate : public Module {
   struct snobj *CommandAdd(struct snobj *arg);
   struct snobj *CommandClear(struct snobj *arg);
 
-  int num_vars_ = {0};
+  int num_vars_ = {};
   struct var {
     uint32_t mask; /* bits with 1 won't be updated */
     uint32_t min;
     uint32_t range; /* == max - min + 1 */
     int16_t offset;
-  } vars_[MAX_VARS] = {{0}};
+  } vars_[MAX_VARS] = {};
 
-  uint64_t seed_ = {0};
+  Random rng_;
 };
 
 const Commands<RandomUpdate> RandomUpdate::cmds = {
@@ -122,8 +122,6 @@ struct snobj *RandomUpdate::CommandClear(struct snobj *arg) {
 struct snobj *RandomUpdate::Init(struct snobj *arg) {
   struct snobj *t;
 
-  seed_ = rdtsc();
-
   if (!arg) return NULL;
 
   if (snobj_type(arg) != TYPE_MAP || !(t = snobj_eval(arg, "fields")))
@@ -133,7 +131,6 @@ struct snobj *RandomUpdate::Init(struct snobj *arg) {
 }
 
 void RandomUpdate::ProcessBatch(struct pkt_batch *batch) {
-  uint64_t seed = seed_;
   int cnt = batch->cnt;
 
   for (int i = 0; i < num_vars_; i++) {
@@ -148,17 +145,12 @@ void RandomUpdate::ProcessBatch(struct pkt_batch *batch) {
       struct snbuf *snb = batch->pkts[j];
       char *head = static_cast<char *>(snb_head_data(snb));
 
-      uint32_t *p;
-      uint32_t rand_val;
-
-      p = (uint32_t *)(head + offset);
-      rand_val = min + rand_fast_range(&seed, range);
+      uint32_t *p  = (uint32_t *)(head + offset);
+      uint32_t rand_val = min + rng_.GetRange(range);
 
       *p = (*p & mask) | rte_cpu_to_be_32(rand_val);
     }
   }
-
-  seed_ = seed;
 
   run_next_module(this, batch);
 }

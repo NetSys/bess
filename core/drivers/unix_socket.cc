@@ -1,13 +1,14 @@
 #include <assert.h>
 #include <errno.h>
 #include <poll.h>
-#include <pthread.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/socket.h>
 #include <sys/un.h>
+#include <thread>
 #include <unistd.h>
 
+#include "../log.h"
 #include "../message.h"
 #include "../port.h"
 
@@ -19,14 +20,11 @@
  * (by checking sockets once every RECV_TICKS schedules)
  * TODO: Revise this once the interrupt mode is implemented */
 #define RECV_SKIP_TICKS 256
-
 #define MAX_TX_FRAGS 8
 
 class UnixSocketPort : public Port {
  public:
-  static void InitDriver(){};
-
-  virtual error_ptr_t Init(const bess::UnixSocketPortArg &arg);
+  virtual pb_error_t Init(const bess::UnixSocketPortArg &arg);
   virtual void DeInit();
 
   virtual int RecvPackets(queue_t qid, snb_array_t pkts, int cnt);
@@ -45,8 +43,6 @@ class UnixSocketPort : public Port {
    * so use volatile */
   volatile int client_fd_ = {0};
   int old_client_fd_ = {0};
-
-  pthread_t accept_thread_ = {0};
 };
 
 void UnixSocketPort::AcceptNewClient() {
@@ -54,9 +50,11 @@ void UnixSocketPort::AcceptNewClient() {
 
   for (;;) {
     ret = accept4(listen_fd_, NULL, NULL, SOCK_NONBLOCK);
-    if (ret >= 0) break;
+    if (ret >= 0)
+      break;
 
-    if (errno != EINTR) log_perr("[UnixSocket]:accept4()");
+    if (errno != EINTR)
+      log_perr("[UnixSocket]:accept4()");
   }
 
   recv_skip_cnt_ = 0;
@@ -74,7 +72,6 @@ void UnixSocketPort::AcceptNewClient() {
 /* This accept thread terminates once a new client is connected */
 void *AcceptThreadMain(void *arg) {
   UnixSocketPort *p = reinterpret_cast<UnixSocketPort *>(arg);
-  pthread_detach(pthread_self());
   p->AcceptNewClient();
   return NULL;
 }
@@ -82,20 +79,16 @@ void *AcceptThreadMain(void *arg) {
 /* The file descriptor for the connection will not be closed,
  * until we have a new client. This is to avoid race condition in TX process */
 void UnixSocketPort::CloseConnection() {
-  int ret;
-
   /* Keep client_fd, since it may be being used in unix_send_pkts() */
   old_client_fd_ = client_fd_;
   client_fd_ = NOT_CONNECTED;
 
   /* relaunch the accept thread */
-  ret = pthread_create(&accept_thread_, NULL, AcceptThreadMain,
-                       reinterpret_cast<void *>(this));
-  accept_thread_ = 0;
-  if (ret) log_err("[UnixSocket]:pthread_create() returned errno %d", ret);
+  std::thread accept_thread(AcceptThreadMain, reinterpret_cast<void *>(this));
+  accept_thread.detach();
 }
 
-error_ptr_t UnixSocketPort::Init(const bess::UnixSocketPortArg &arg) {
+pb_error_t UnixSocketPort::Init(const bess::UnixSocketPortArg &arg) {
   const std::string path = arg.path();
   int num_txq = num_queues[PACKET_DIR_OUT];
   int num_rxq = num_queues[PACKET_DIR_INC];
@@ -122,7 +115,7 @@ error_ptr_t UnixSocketPort::Init(const bess::UnixSocketPortArg &arg) {
     snprintf(addr_.sun_path, sizeof(addr_.sun_path), "%s", path.c_str());
   } else
     snprintf(addr_.sun_path, sizeof(addr_.sun_path), "%s/bess_unix_%s",
-             P_tmpdir, Name().c_str());
+             P_tmpdir, name().c_str());
 
   /* This doesn't include the trailing null character */
   addrlen = sizeof(addr_.sun_family) + strlen(addr_.sun_path);
@@ -144,21 +137,17 @@ error_ptr_t UnixSocketPort::Init(const bess::UnixSocketPortArg &arg) {
     return pb_error(errno, "listen() failed");
   }
 
-  ret = pthread_create(&accept_thread_, NULL, AcceptThreadMain,
-                       reinterpret_cast<void *>(this));
-  accept_thread_ = 0;
-  if (ret) {
-    return pb_error(ret, "pthread_create() failed");
-  }
+  std::thread accept_thread(AcceptThreadMain, reinterpret_cast<void *>(this));
+  accept_thread.detach();
+
   return pb_errno(0);
 }
 
 void UnixSocketPort::DeInit() {
-  if (accept_thread_) pthread_cancel(accept_thread_);
-
   close(listen_fd_);
 
-  if (client_fd_ >= 0) close(client_fd_);
+  if (client_fd_ >= 0)
+    close(client_fd_);
 }
 
 int UnixSocketPort::RecvPackets(queue_t qid, snb_array_t pkts, int cnt) {
@@ -166,7 +155,8 @@ int UnixSocketPort::RecvPackets(queue_t qid, snb_array_t pkts, int cnt) {
 
   int received;
 
-  if (client_fd == NOT_CONNECTED) return 0;
+  if (client_fd == NOT_CONNECTED)
+    return 0;
 
   if (recv_skip_cnt_) {
     recv_skip_cnt_--;
@@ -178,7 +168,8 @@ int UnixSocketPort::RecvPackets(queue_t qid, snb_array_t pkts, int cnt) {
     struct snbuf *pkt = static_cast<struct snbuf *>(snb_alloc());
     int ret;
 
-    if (!pkt) break;
+    if (!pkt)
+      break;
 
     /* datagrams larger than 2KB will be truncated */
     ret = recv(client_fd, pkt->_data, SNBUF_DATA, 0);
@@ -192,9 +183,11 @@ int UnixSocketPort::RecvPackets(queue_t qid, snb_array_t pkts, int cnt) {
     snb_free(pkt);
 
     if (ret < 0) {
-      if (errno == EAGAIN || errno == EWOULDBLOCK) break;
+      if (errno == EAGAIN || errno == EWOULDBLOCK)
+        break;
 
-      if (errno == EINTR) continue;
+      if (errno == EINTR)
+        continue;
     }
 
     /* connection closed */
@@ -202,7 +195,8 @@ int UnixSocketPort::RecvPackets(queue_t qid, snb_array_t pkts, int cnt) {
     break;
   }
 
-  if (received == 0) recv_skip_cnt_ = RECV_SKIP_TICKS;
+  if (received == 0)
+    recv_skip_cnt_ = RECV_SKIP_TICKS;
 
   return received;
 }
@@ -231,12 +225,14 @@ int UnixSocketPort::SendPackets(queue_t qid, snb_array_t pkts, int cnt) {
     }
 
     ret = sendmsg(client_fd, &msg, 0);
-    if (ret < 0) break;
+    if (ret < 0)
+      break;
 
     sent++;
   }
 
-  if (sent) snb_free_bulk(pkts, sent);
+  if (sent)
+    snb_free_bulk(pkts, sent);
 
   return sent;
 }

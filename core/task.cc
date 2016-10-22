@@ -1,10 +1,13 @@
 #include <assert.h>
 
+#include <gflags/gflags.h>
 #include <glog/logging.h>
 
-#include "opts.h"
 #include "module.h"
 #include "tc.h"
+
+// Capture the default core command line flag.
+DECLARE_int32(c);
 
 struct cdlist_head all_tasks = CDLIST_HEAD_INIT(all_tasks);
 
@@ -75,8 +78,6 @@ void assign_default_tc(int wid, struct task *t) {
   params.share = 1;
   params.share_resource = RESOURCE_CNT;
 
-  printf("%p\n", t->m);
-
   if (num_module_tasks(t->m) == 1)
     sprintf(params.name, "_tc_%s", t->m->Name().c_str());
   else
@@ -126,7 +127,7 @@ void process_orphan_tasks() {
     if (get_next_wid(&wid) < 0) {
       wid = 0;
       /* There is no active worker. Create one. */
-      launch_worker(wid, global_opts.default_core);
+      launch_worker(wid, FLAGS_c);
     }
 
     assign_default_tc(wid, t);

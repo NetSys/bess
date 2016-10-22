@@ -9,8 +9,9 @@
 
 #include <algorithm>
 
+#include <gflags/gflags.h>
+
 #include "common.h"
-#include "opts.h"
 #include "log.h"
 
 #define BESS_ID "bessd"
@@ -24,6 +25,12 @@
 #define ANSI_MAGENTA "\x1b[35m"
 #define ANSI_CYAN "\x1b[36m"
 #define ANSI_RESET "\x1b[0m"
+
+// Capture the "foreground mode" command line flag.
+DECLARE_bool(f);
+
+// Capture the "debug mode" command line flag.
+DECLARE_bool(d);
 
 static FILE *crashlog;
 
@@ -40,7 +47,7 @@ static __thread struct logger loggers[MAX_LOG_PRIORITY + 1];
 static int initialized = 0;
 
 static void do_log(int priority, const char *data, size_t len) {
-  if (!initialized || global_opts.foreground) {
+  if (!initialized || FLAGS_f) {
     FILE *fp;
     const char *color = NULL;
 
@@ -151,7 +158,7 @@ void _log(int priority, const char *fmt, ...) {
 
   if (priority < 0 || priority > MAX_LOG_PRIORITY) return;
 
-  if (!initialized || global_opts.debug_mode || priority < LOG_DEBUG) {
+  if (!initialized || FLAGS_d || priority < LOG_DEBUG) {
     va_start(ap, fmt);
     log_vfmt(priority, fmt, ap);
     va_end(ap);
@@ -189,7 +196,7 @@ void start_logger() {
   if (fd >= 0) {
     dup2(fd, STDIN_FILENO);
 
-    if (!global_opts.foreground) {
+    if (!FLAGS_f) {
       cookie_io_functions_t stdout_funcs = {};
       cookie_io_functions_t stderr_funcs = {};
 
@@ -224,10 +231,10 @@ void start_logger() {
 
 void end_logger() {
   for (int i = 0; i <= MAX_LOG_PRIORITY; i++) {
-    if (i < LOG_DEBUG || global_opts.debug_mode) do_flush(i, &loggers[i], 1);
+    if (i < LOG_DEBUG || FLAGS_d) do_flush(i, &loggers[i], 1);
   }
 
-  if (!global_opts.foreground) closelog();
+  if (!FLAGS_f) closelog();
 
   fclose(stdout);
   stdout = org_stdout;
