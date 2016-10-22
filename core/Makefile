@@ -148,7 +148,7 @@ gtest_main.a : gtest-all.o gtest_main.o
 module_test.o : module_test.cc module.h $(GTEST_HEADERS)
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c $< -o $@
 
-module_test : mem_alloc.o module.o module_test.o gtest_main.a
+module_test : module.o module_test.o gtest_main.a
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -pthread $^ -o $@ $(LDFLAGS) $(LIBS)
 
 port_test.o : port_test.cc port.h $(GTEST_HEADERS)
