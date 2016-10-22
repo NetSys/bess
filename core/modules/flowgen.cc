@@ -86,14 +86,14 @@ class FlowGen : public Module {
 
   virtual struct task_result RunTask(void *arg);
 
-  virtual struct snobj *GetDesc();
-  virtual struct snobj *GetDump();
+  std::string GetDesc() const;
+  struct snobj *GetDump() const;
 
   static const Commands<Module> cmds;
 
  private:
   inline double NewFlowPkts();
-  inline double MaxFlowPkts();
+  inline double MaxFlowPkts() const;
   inline uint64_t NextFlowArrival();
   inline struct flow *ScheduleFlow(uint64_t time_ns);
   void MeasureParetoMean();
@@ -153,7 +153,7 @@ inline double FlowGen::NewFlowPkts() {
   }
 }
 
-inline double FlowGen::MaxFlowPkts() {
+inline double FlowGen::MaxFlowPkts() const {
   switch (duration_) {
     case DURATION_UNIFORM:
       return flow_pkts_;
@@ -520,11 +520,11 @@ struct task_result FlowGen::RunTask(void *arg) {
   return ret;
 }
 
-struct snobj *FlowGen::GetDesc() {
-  return snobj_str_fmt("%d flows", active_flows_);
+std::string FlowGen::GetDesc() const {
+  return string_format("%d flows", active_flows_);
 }
 
-struct snobj *FlowGen::GetDump() {
+struct snobj *FlowGen::GetDump() const {
   struct snobj *r = snobj_map();
 
   {

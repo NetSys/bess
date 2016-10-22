@@ -126,8 +126,8 @@ class ExactMatch : public Module {
 
   virtual void ProcessBatch(struct pkt_batch *batch);
 
-  virtual struct snobj *GetDesc();
-  virtual struct snobj *GetDump();
+  virtual std::string GetDesc() const;
+  virtual struct snobj *GetDump() const;
 
   struct snobj *CommandAdd(struct snobj *arg);
   struct snobj *CommandDelete(struct snobj *arg);
@@ -303,11 +303,11 @@ void ExactMatch::ProcessBatch(struct pkt_batch *batch) {
   RunSplit(ogates, batch);
 }
 
-struct snobj *ExactMatch::GetDesc() {
-  return snobj_str_fmt("%d fields, %d rules", num_fields_, ht_.Count());
+std::string ExactMatch::GetDesc() const {
+  return string_format("%d fields, %d rules", num_fields_, ht_.Count());
 }
 
-struct snobj *ExactMatch::GetDump() {
+struct snobj *ExactMatch::GetDump() const {
   struct snobj *r = snobj_map();
   struct snobj *fields = snobj_list();
   struct snobj *rules = snobj_list();

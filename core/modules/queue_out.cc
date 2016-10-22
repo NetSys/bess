@@ -10,7 +10,7 @@ class QueueOut : public Module {
 
   virtual void ProcessBatch(struct pkt_batch *batch);
 
-  virtual struct snobj *GetDesc();
+  virtual std::string GetDesc() const;
 
   static const gate_idx_t kNumIGates = 1;
   static const gate_idx_t kNumOGates = 0;
@@ -66,8 +66,8 @@ void QueueOut::Deinit() {
                        &qid_, 1);
 }
 
-struct snobj *QueueOut::GetDesc() {
-  return snobj_str_fmt("%s/%s", port_->name().c_str(),
+std::string QueueOut::GetDesc() const {
+  return string_format("%s/%s", port_->name().c_str(),
                        port_->port_builder()->class_name().c_str());
 }
 

@@ -14,7 +14,7 @@ class Queue : public Module {
   virtual struct task_result RunTask(void *arg);
   virtual void ProcessBatch(struct pkt_batch *batch);
 
-  virtual struct snobj *GetDesc();
+  virtual std::string GetDesc() const;
 
   struct snobj *CommandSetBurst(struct snobj *arg);
   struct snobj *CommandSetSize(struct snobj *arg);
@@ -122,10 +122,10 @@ void Queue::Deinit() {
   mem_free(queue_);
 }
 
-struct snobj *Queue::GetDesc() {
+std::string Queue::GetDesc() const {
   const struct llring *ring = queue_;
 
-  return snobj_str_fmt("%u/%u", llring_count(ring), ring->common.slots);
+  return string_format("%u/%u", llring_count(ring), ring->common.slots);
 }
 
 /* from upstream */
