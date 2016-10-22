@@ -1,3 +1,5 @@
+#include "module.h"
+
 #include <fcntl.h>
 #include <unistd.h>
 #include <sys/uio.h>
@@ -11,10 +13,6 @@
 #include "utils/pcap.h"
 
 #include "mem_alloc.h"
-#include "dpdk.h"
-#include "tc.h"
-#include "namespace.h"
-#include "module.h"
 
 std::map<std::string, Module*> ModuleBuilder::all_modules_;
 

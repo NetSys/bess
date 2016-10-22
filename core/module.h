@@ -160,7 +160,7 @@ class ModuleBuilder {
 
     const std::string &class_name() const { return class_name_; };
     const std::string &name_template() const { return name_template_; };
-    const std::string &help_text() const { return class_name_; };
+    const std::string &help_text() const { return help_text_; };
     const std::vector<std::string> cmds() const {
       std::vector<std::string> ret;
       for (auto &cmd : cmds_) ret.push_back(cmd.cmd);
