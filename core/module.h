@@ -150,6 +150,12 @@ class ModuleBuilder {
         const gate_idx_t ogates,
         const Commands<Module> &cmds);
 
+    // To avoid the static initialization ordering problem, this pseudo-getter
+    // function contains the real static all_module_builders class variable and
+    // returns it, ensuring its construction before use.
+    //
+    // If reset is true, clears the store of all module builders; to be used for
+    // testing and for dynamic loading of module classes.
     static std::map<std::string, ModuleBuilder> &all_module_builders_holder(bool reset = false);
     static const std::map<std::string, ModuleBuilder> &all_module_builders();
 
@@ -172,7 +178,7 @@ class ModuleBuilder {
 
     struct snobj *RunCommand(Module *m, const std::string &user_cmd,
         struct snobj *arg) const {
-      for (auto &cmd : cmds_) {
+      for (const auto &cmd : cmds_) {
         if (user_cmd == cmd.cmd)
           return (*m.*(cmd.func))(arg);
       }

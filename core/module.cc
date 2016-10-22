@@ -73,14 +73,15 @@ int ModuleBuilder::DestroyModule(Module *m, bool erase) {
 
 void ModuleBuilder::DestroyAllModules() {
   int ret;
-  for (auto it = all_modules_.begin(); it != all_modules_.end(); ++it) {
+  for (auto it = all_modules_.begin(); it != all_modules_.end();) {
+    auto it_next = std::next(it);
     ret = DestroyModule(it->second, false);
     if (ret) {
       LOG(ERROR) << "Error destroying module '" << it->first << "' (errno = " << ret << ")";
-      ++it;
-      continue;
+    } else {
+      all_modules_.erase(it);
     }
-    all_modules_.erase(it);
+    it = it_next;
   }
 }
 
