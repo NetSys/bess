@@ -22,21 +22,22 @@ class IPLookup : public Module {
 
   virtual void ProcessBatch(struct pkt_batch *batch);
 
-  static const gate_idx_t kNumIGates = 1;
-  static const gate_idx_t kNumOGates = MAX_GATES;
-
-  static const Commands<IPLookup> cmds;
-
- private:
   struct snobj *CommandAdd(struct snobj *arg);
   struct snobj *CommandClear(struct snobj *arg);
 
+  static const gate_idx_t kNumIGates = 1;
+  static const gate_idx_t kNumOGates = MAX_GATES;
+
+  static const Commands<Module> cmds;
+
+ private:
   struct rte_lpm *lpm_;
   gate_idx_t default_gate_;
 };
 
-const Commands<IPLookup> IPLookup::cmds = {
-    {"add", &IPLookup::CommandAdd, 0}, {"clear", &IPLookup::CommandClear, 0},
+const Commands<Module> IPLookup::cmds = {
+    {"add", MODULE_FUNC &IPLookup::CommandAdd, 0},
+    {"clear", MODULE_FUNC &IPLookup::CommandClear, 0},
 };
 
 struct snobj *IPLookup::Init(struct snobj *arg) {
@@ -46,7 +47,7 @@ struct snobj *IPLookup::Init(struct snobj *arg) {
 
   default_gate_ = DROP_GATE;
 
-  lpm_ = rte_lpm_create(Name().c_str(), /* socket_id = */ 0, &conf);
+  lpm_ = rte_lpm_create(name().c_str(), /* socket_id = */ 0, &conf);
 
   if (!lpm_)
     return snobj_err(rte_errno, "DPDK error: %s", rte_strerror(rte_errno));
@@ -124,7 +125,7 @@ void IPLookup::ProcessBatch(struct pkt_batch *batch) {
       ogates[i] = default_gate;
   }
 
-  run_split(this, ogates, batch);
+  RunSplit(ogates, batch);
 }
 
 struct snobj *IPLookup::CommandAdd(struct snobj *arg) {

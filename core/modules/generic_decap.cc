@@ -8,9 +8,13 @@ class GenericDecap : public Module {
   static const gate_idx_t kNumIGates = 1;
   static const gate_idx_t kNumOGates = 1;
 
+  static const Commands<Module> cmds;
+
  private:
   int decap_size_ = {0};
 };
+
+const Commands<Module> GenericDecap::cmds = {};
 
 struct snobj *GenericDecap::Init(struct snobj *arg) {
   if (!arg) return NULL;
@@ -35,7 +39,7 @@ void GenericDecap::ProcessBatch(struct pkt_batch *batch) {
 
   for (int i = 0; i < cnt; i++) snb_adj(batch->pkts[i], decap_size);
 
-  run_next_module(this, batch);
+  RunNextModule(batch);
 }
 
 ADD_MODULE(GenericDecap, "generic_decap",

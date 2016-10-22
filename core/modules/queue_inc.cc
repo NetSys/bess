@@ -10,13 +10,14 @@ class QueueInc : public Module {
 
   virtual struct snobj *GetDesc();
 
+  struct snobj *CommandSetBurst(struct snobj *arg);
+
   static const gate_idx_t kNumIGates = 0;
   static const gate_idx_t kNumOGates = 1;
 
-  static const Commands<QueueInc> cmds;
+  static const Commands<Module> cmds;
 
  private:
-  struct snobj *CommandSetBurst(struct snobj *arg);
 
   Port *port_ = {0};
   queue_t qid_ = {0};
@@ -24,8 +25,8 @@ class QueueInc : public Module {
   int burst_ = {0};
 };
 
-const Commands<QueueInc> QueueInc::cmds = {
-    {"set_burst", &QueueInc::CommandSetBurst, 1},
+const Commands<Module> QueueInc::cmds = {
+    {"set_burst", MODULE_FUNC &QueueInc::CommandSetBurst, 1}
 };
 
 struct snobj *QueueInc::Init(struct snobj *arg) {
@@ -64,7 +65,7 @@ struct snobj *QueueInc::Init(struct snobj *arg) {
 
   if (snobj_eval_int(arg, "prefetch")) prefetch_ = 1;
 
-  tid = register_task(this, (void *)(uintptr_t)qid_);
+  tid = RegisterTask((void *)(uintptr_t)qid_);
   if (tid == INVALID_TASK_ID) return snobj_err(ENOMEM, "Task creation failed");
 
   ret = port_->AcquireQueues(reinterpret_cast<const module *>(this),
@@ -127,7 +128,7 @@ struct task_result QueueInc::RunTask(void *arg) {
     p->queue_stats[PACKET_DIR_INC][qid].bytes += received_bytes;
   }
 
-  run_next_module(this, &batch);
+  RunNextModule(&batch);
 
   return ret;
 }

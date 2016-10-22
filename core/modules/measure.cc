@@ -27,14 +27,14 @@ class Measure : public Module {
 
   virtual void ProcessBatch(struct pkt_batch *batch);
 
+  struct snobj *CommandGetSummary(struct snobj *arg);
+
   static const gate_idx_t kNumIGates = 1;
   static const gate_idx_t kNumOGates = 1;
 
-  static const Commands<Measure> cmds;
+  static const Commands<Module> cmds;
 
  private:
-  struct snobj *CommandGetSummary(struct snobj *arg);
-
   struct histogram hist_ = {0};
 
   uint64_t start_time_ = {0};
@@ -45,8 +45,8 @@ class Measure : public Module {
   uint64_t total_latency_ = {0};
 };
 
-const Commands<Measure> Measure::cmds = {
-    {"get_summary", &Measure::CommandGetSummary, 0},
+const Commands<Module> Measure::cmds = {
+    {"get_summary", MODULE_FUNC &Measure::CommandGetSummary, 0},
 };
 
 struct snobj *Measure::Init(struct snobj *arg) {
@@ -85,7 +85,7 @@ void Measure::ProcessBatch(struct pkt_batch *batch) {
   }
 
 skip:
-  run_next_module(this, batch);
+  RunNextModule(batch);
 }
 
 struct snobj *Measure::CommandGetSummary(struct snobj *arg) {

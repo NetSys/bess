@@ -8,12 +8,16 @@ class NoOP : public Module {
 
   static const gate_idx_t kNumIGates = 0;
   static const gate_idx_t kNumOGates = 0;
+
+  static const Commands<Module> cmds;
 };
+
+const Commands<Module> NoOP::cmds = {};
 
 struct snobj *NoOP::Init(struct snobj *arg) {
   task_id_t tid;
 
-  tid = register_task(this, NULL);
+  tid = RegisterTask(NULL);
   if (tid == INVALID_TASK_ID) return snobj_err(ENOMEM, "Task creation failed");
 
   return NULL;

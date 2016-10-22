@@ -10,15 +10,15 @@ class Update : public Module {
 
   virtual void ProcessBatch(struct pkt_batch *batch);
 
-  static const gate_idx_t kNumIGates = 1;
-  static const gate_idx_t kNumOGates = 1;
-
-  static const Commands<Update> cmds;
-
- private:
   struct snobj *CommandAdd(struct snobj *arg);
   struct snobj *CommandClear(struct snobj *arg);
 
+  static const gate_idx_t kNumIGates = 1;
+  static const gate_idx_t kNumOGates = 1;
+
+  static const Commands<Module> cmds;
+
+ private:
   int num_fields_ = {};
 
   struct field {
@@ -28,8 +28,9 @@ class Update : public Module {
   } fields_[MAX_FIELDS] = {};
 };
 
-const Commands<Update> Update::cmds = {
-    {"add", &Update::CommandAdd, 0}, {"clear", &Update::CommandClear, 0},
+const Commands<Module> Update::cmds = {
+    {"add", MODULE_FUNC &Update::CommandAdd, 0},
+    {"clear", MODULE_FUNC &Update::CommandClear, 0},
 };
 
 struct snobj *Update::Init(struct snobj *arg) {
@@ -63,7 +64,7 @@ void Update::ProcessBatch(struct pkt_batch *batch) {
     }
   }
 
-  run_next_module(this, batch);
+  RunNextModule(batch);
 }
 
 struct snobj *Update::CommandAdd(struct snobj *arg) {

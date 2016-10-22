@@ -9,14 +9,17 @@ class Rewrite : public Module {
 
   virtual void ProcessBatch(struct pkt_batch *batch);
 
-  static const Commands<Rewrite> cmds;
+  struct snobj *CommandAdd(struct snobj *arg);
+  struct snobj *CommandClear(struct snobj *arg);
+
+  static const gate_idx_t kNumIGates = 1;
+  static const gate_idx_t kNumOGates = 1;
+
+  static const Commands<Module> cmds;
 
  private:
   inline void DoRewrite(struct pkt_batch *batch);
   inline void DoRewriteSingle(struct pkt_batch *batch);
-
-  struct snobj *CommandAdd(struct snobj *arg);
-  struct snobj *CommandClear(struct snobj *arg);
 
   /* For fair round robin we remember the next index for later.
    * [0, num_templates - 1] */
@@ -27,8 +30,9 @@ class Rewrite : public Module {
   unsigned char templates_[SLOTS][MAX_TEMPLATE_SIZE] __ymm_aligned = {};
 };
 
-const Commands<Rewrite> Rewrite::cmds = {
-    {"add", &Rewrite::CommandAdd, 0}, {"clear", &Rewrite::CommandClear, 0},
+const Commands<Module> Rewrite::cmds = {
+    {"add", MODULE_FUNC &Rewrite::CommandAdd, 0},
+    {"clear", MODULE_FUNC &Rewrite::CommandClear, 0},
 };
 
 struct snobj *Rewrite::Init(struct snobj *arg) {
@@ -84,7 +88,7 @@ void Rewrite::ProcessBatch(struct pkt_batch *batch) {
   else if (num_templates_ > 1)
     DoRewrite(batch);
 
-  run_next_module(this, batch);
+  RunNextModule(batch);
 }
 
 struct snobj *Rewrite::CommandAdd(struct snobj *arg) {

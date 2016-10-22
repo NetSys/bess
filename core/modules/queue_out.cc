@@ -10,12 +10,17 @@ class QueueOut : public Module {
 
   virtual struct snobj *GetDesc();
 
+  static const gate_idx_t kNumIGates = 1;
   static const gate_idx_t kNumOGates = 0;
+
+  static const Commands<Module> cmds;
 
  private:
   Port *port_ = {};
   queue_t qid_ = {};
 };
+
+const Commands<Module> QueueOut::cmds = {};
 
 struct snobj *QueueOut::Init(struct snobj *arg) {
   struct snobj *t;

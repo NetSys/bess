@@ -522,27 +522,28 @@ class L2Forward : public Module {
 
   virtual void ProcessBatch(struct pkt_batch *batch);
 
-  static const gate_idx_t kNumOGates = MAX_GATES;
-
-  static const Commands<L2Forward> cmds;
-
- private:
   struct snobj *CommandAdd(struct snobj *arg);
   struct snobj *CommandDelete(struct snobj *arg);
   struct snobj *CommandSetDefaultGate(struct snobj *arg);
   struct snobj *CommandLookup(struct snobj *arg);
   struct snobj *CommandPopulate(struct snobj *arg);
 
+  static const gate_idx_t kNumIGates = 1;
+  static const gate_idx_t kNumOGates = MAX_GATES;
+
+  static const Commands<Module> cmds;
+
+ private:
   struct l2_table l2_table_ = {0};
   gate_idx_t default_gate_ = {0};
 };
 
-const Commands<L2Forward> L2Forward::cmds = {
-    {"add", &L2Forward::CommandAdd, 0},
-    {"delete", &L2Forward::CommandDelete, 0},
-    {"set_default_gate", &L2Forward::CommandSetDefaultGate, 1},
-    {"lookup", &L2Forward::CommandLookup, 1},
-    {"populate", &L2Forward::CommandPopulate, 0},
+const Commands<Module> L2Forward::cmds = {
+    {"add", MODULE_FUNC &L2Forward::CommandAdd, 0},
+    {"delete", MODULE_FUNC &L2Forward::CommandDelete, 0},
+    {"set_default_gate", MODULE_FUNC &L2Forward::CommandSetDefaultGate, 1},
+    {"lookup", MODULE_FUNC &L2Forward::CommandLookup, 1},
+    {"populate", MODULE_FUNC &L2Forward::CommandPopulate, 0},
 };
 
 struct snobj *L2Forward::Init(struct snobj *arg) {
@@ -582,7 +583,7 @@ void L2Forward::ProcessBatch(struct pkt_batch *batch) {
             &ogates[i]);
   }
 
-  run_split(this, ogates, batch);
+  RunSplit(ogates, batch);
 }
 
 struct snobj *L2Forward::CommandAdd(struct snobj *arg) {

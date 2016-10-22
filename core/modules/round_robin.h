@@ -36,7 +36,8 @@ class RoundRobin : public Module {
   static const gate_idx_t kNumIGates = 1;
   static const gate_idx_t kNumOGates = MAX_GATES;
 
-  static const Commands<RoundRobin> cmds;
+  static const Commands<Module> cmds;
+
  private:
   /*! 
    * Switches the RoundRobin module between "batch" vs "packet" scheduling.

@@ -78,10 +78,12 @@ void assign_default_tc(int wid, struct task *t) {
   params.share = 1;
   params.share_resource = RESOURCE_CNT;
 
-  if (num_module_tasks(t->m) == 1)
-    sprintf(params.name, "_tc_%s", t->m->Name().c_str());
+  printf("%p\n", t->m);
+
+  if (t->m->NumTasks() == 1)
+    sprintf(params.name, "_tc_%s", t->m->name().c_str());
   else
-    sprintf(params.name, "_tc_%s_%d", t->m->Name().c_str(), task_to_tid(t));
+    sprintf(params.name, "_tc_%s_%d", t->m->name().c_str(), task_to_tid(t));
 
   c_def = tc_init(workers[wid]->s, &params);
 

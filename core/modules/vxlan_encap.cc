@@ -23,9 +23,6 @@ class VXLANEncap : public Module {
   virtual struct snobj *Init(struct snobj *arg);
   virtual void ProcessBatch(struct pkt_batch *batch);
 
-  static const gate_idx_t kNumIGates = 1;
-  static const gate_idx_t kNumOGates = 1;
-
   int num_attrs = 6;
   struct mt_attr attrs[MAX_ATTRS_PER_MODULE] = {
       {
@@ -48,9 +45,16 @@ class VXLANEncap : public Module {
       },
   };
 
+  static const gate_idx_t kNumIGates = 1;
+  static const gate_idx_t kNumOGates = 1;
+
+  static const Commands<Module> cmds;
+
  private:
   uint16_t dstport_;
 };
+
+const Commands<Module> VXLANEncap::cmds = {};
 
 struct snobj *VXLANEncap::Init(struct snobj *arg) {
   dstport_ = rte_cpu_to_be_16(4789);
@@ -103,7 +107,7 @@ void VXLANEncap::ProcessBatch(struct pkt_batch *batch) {
     set_attr(this, ATTR_W_IP_PROTO, pkt, uint8_t, IPPROTO_UDP);
   }
 
-  run_next_module(this, batch);
+  RunNextModule(batch);
 }
 
 ADD_MODULE(VXLANEncap, "vxlan_encap",
