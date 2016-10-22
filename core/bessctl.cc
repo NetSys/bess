@@ -8,7 +8,7 @@
 #include "module.h"
 #include "port.h"
 #include "tc.h"
-#include "time.h"
+#include "utils/time.h"
 #include "worker.h"
 
 using grpc::Server;
