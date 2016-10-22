@@ -86,10 +86,31 @@ VERBOSE = 0
 all: $(DEPS) $(EXEC)
 
 %.grpc.pb.cc: $(PROTO_DIR)/%.proto
-	@$(PROTOC) $< --proto_path=$(PROTO_DIR) --grpc_out=. --plugin=protoc-gen-grpc=`which grpc_cpp_plugin`
+	$(eval COMMAND = $(PROTOC) $< --proto_path=$(PROTO_DIR) --grpc_out=. --plugin=protoc-gen-grpc=`which grpc_cpp_plugin`)
+	@if $(COMMAND); then \
+		if [ $(VERBOSE) -eq 0 ]; then \
+			echo "[PROTOC] $@"; \
+		else \
+			echo "[PROTOC] $(COMMAND)"; \
+		fi \
+	else \
+		echo "Protobuf error: \033[0;31m$<\033[0;33m\n$(COMMAND)\033[0m"; \
+		false; \
+	fi
+
 
 %.pb.cc: $(PROTO_DIR)/%.proto
-	@$(PROTOC) $< --proto_path=$(PROTO_DIR) --cpp_out=.
+	$(eval COMMAND = $(PROTOC) $< --proto_path=$(PROTO_DIR) --cpp_out=.)
+	@if $(COMMAND); then \
+		if [ $(VERBOSE) -eq 0 ]; then \
+			echo "[PROTOC] $@"; \
+		else \
+			echo "[PROTOC] $(COMMAND)"; \
+		fi \
+	else \
+		echo "Protobuf error: \033[0;31m$<\033[0;33m\n$(COMMAND)\033[0m"; \
+		false; \
+	fi
 
 $(DEPS): $(PROTO_SRCS) $(SRCS) $(HEADERS)
 	@$(CXX) $(CXXFLAGS) -MM $(SRCS) | sed 's|\(.*\)\.o: \(.*\)\.c|\2.o: \2.c|' > $(DEPS)
