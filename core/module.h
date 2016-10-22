@@ -200,7 +200,7 @@ class Module {
   // overide this section to create a new module -----------------------------
  public:
   Module() = default;
-  virtual ~Module() { LOG(ERROR) << "~" << name_ << "()"; };
+  virtual ~Module() {};
 
   virtual struct snobj *Init(struct snobj *arg) { return nullptr; }
   virtual void Deinit() {}
