@@ -6,6 +6,11 @@
 
 class Queue : public Module {
  public:
+  static const gate_idx_t kNumIGates = 1;
+  static const gate_idx_t kNumOGates = 1;
+
+  Queue() : Module(), queue_(), prefetch_(), burst_() {}
+
   virtual struct snobj *Init(struct snobj *arg);
   virtual void Deinit();
 
@@ -14,9 +19,6 @@ class Queue : public Module {
 
   virtual struct snobj *GetDesc();
 
-  static const gate_idx_t kNumIGates = 1;
-  static const gate_idx_t kNumOGates = 1;
-
   static const Commands<Queue> cmds;
 
  private:
@@ -24,9 +26,9 @@ class Queue : public Module {
   struct snobj *CommandSetBurst(struct snobj *arg);
   struct snobj *CommandSetSize(struct snobj *arg);
 
-  struct llring *queue_ = {};
-  int prefetch_ = {};
-  int burst_ = {};
+  struct llring *queue_;
+  bool prefetch_;
+  int burst_;
 };
 
 const Commands<Queue> Queue::cmds = {
@@ -43,7 +45,9 @@ int Queue::Resize(int slots) {
   int ret;
 
   new_queue = static_cast<llring *>(mem_alloc(bytes));
-  if (!new_queue) return -ENOMEM;
+  if (!new_queue) {
+    return -ENOMEM;
+  }
 
   ret = llring_init(new_queue, slots, 0, 1);
   if (ret) {
@@ -57,7 +61,9 @@ int Queue::Resize(int slots) {
 
     while (llring_sc_dequeue(old_queue, (void **)&pkt) == 0) {
       ret = llring_sp_enqueue(new_queue, pkt);
-      if (ret == -LLRING_ERR_NOBUF) snb_free(pkt);
+      if (ret == -LLRING_ERR_NOBUF) {
+        snb_free(pkt);
+      }
     }
 
     mem_free(old_queue);
@@ -76,31 +82,43 @@ struct snobj *Queue::Init(struct snobj *arg) {
 
   burst_ = MAX_PKT_BURST;
 
-  tid = register_task(this, NULL);
-  if (tid == INVALID_TASK_ID) return snobj_err(ENOMEM, "Task creation failed");
-
-  if ((t = snobj_eval(arg, "burst")) != NULL) {
-    err = CommandSetBurst(t);
-    if (err) return err;
+  tid = register_task(this, nullptr);
+  if (tid == INVALID_TASK_ID) {
+    return snobj_err(ENOMEM, "Task creation failed");
   }
 
-  if ((t = snobj_eval(arg, "size")) != NULL) {
+  if ((t = snobj_eval(arg, "burst")) != nullptr) {
+    err = CommandSetBurst(t);
+    if (err) {
+      return err;
+    }
+  }
+
+  if ((t = snobj_eval(arg, "size")) != nullptr) {
     err = CommandSetSize(t);
-    if (err) return err;
+    if (err) {
+      return err;
+    }
   } else {
     int ret = Resize(DEFAULT_QUEUE_SIZE);
-    if (ret) return snobj_errno(-ret);
+    if (ret) {
+      return snobj_errno(-ret);
+    }
   }
 
-  if (snobj_eval_int(arg, "prefetch")) prefetch_ = 1;
+  if (snobj_eval_int(arg, "prefetch")) {
+    prefetch_ = true;
+  }
 
-  return NULL;
+  return nullptr;
 }
 
 void Queue::Deinit() {
   struct snbuf *pkt;
 
-  while (llring_sc_dequeue(queue_, (void **)&pkt) == 0) snb_free(pkt);
+  while (llring_sc_dequeue(queue_, (void **)&pkt) == 0) {
+    snb_free(pkt);
+  }
 
   mem_free(queue_);
 }
@@ -116,8 +134,9 @@ void Queue::ProcessBatch(struct pkt_batch *batch) {
   int queued =
       llring_mp_enqueue_burst(queue_, (void **)batch->pkts, batch->cnt);
 
-  if (queued < batch->cnt)
+  if (queued < batch->cnt) {
     snb_free_bulk(batch->pkts + queued, batch->cnt - queued);
+  }
 }
 
 /* to downstream */
@@ -157,36 +176,45 @@ struct task_result Queue::RunTask(void *arg) {
 struct snobj *Queue::CommandSetBurst(struct snobj *arg) {
   uint64_t val;
 
-  if (snobj_type(arg) != TYPE_INT)
+  if (snobj_type(arg) != TYPE_INT) {
     return snobj_err(EINVAL, "burst must be an integer");
+  }
 
   val = snobj_uint_get(arg);
 
-  if (val == 0 || val > MAX_PKT_BURST)
+  if (val == 0 || val > MAX_PKT_BURST) {
     return snobj_err(EINVAL, "burst size must be [1,%d]", MAX_PKT_BURST);
+  }
 
   burst_ = val;
 
-  return NULL;
+  return nullptr;
 }
 
 struct snobj *Queue::CommandSetSize(struct snobj *arg) {
   uint64_t val;
   int ret;
 
-  if (snobj_type(arg) != TYPE_INT)
+  if (snobj_type(arg) != TYPE_INT) {
     return snobj_err(EINVAL, "argument must be an integer");
+  }
 
   val = snobj_uint_get(arg);
 
-  if (val < 4 || val > 16384) return snobj_err(EINVAL, "must be in [4, 16384]");
+  if (val < 4 || val > 16384) {
+    return snobj_err(EINVAL, "must be in [4, 16384]");
+  }
 
-  if (val & (val - 1)) return snobj_err(EINVAL, "must be a power of 2");
+  if (val & (val - 1)) {
+    return snobj_err(EINVAL, "must be a power of 2");
+  }
 
   ret = Resize(val);
-  if (ret) return snobj_errno(-ret);
+  if (ret) {
+    return snobj_errno(-ret);
+  }
 
-  return NULL;
+  return nullptr;
 }
 
 ADD_MODULE(Queue, "queue",

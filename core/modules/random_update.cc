@@ -8,12 +8,14 @@
 
 class RandomUpdate : public Module {
  public:
+  static const gate_idx_t kNumIGates = 1;
+  static const gate_idx_t kNumOGates = 1;
+
+  RandomUpdate() : Module(), num_vars_(), vars_(), rng_() {}
+
   virtual struct snobj *Init(struct snobj *arg);
 
   virtual void ProcessBatch(struct pkt_batch *batch);
-
-  static const gate_idx_t kNumIGates = 1;
-  static const gate_idx_t kNumOGates = 1;
 
   static const Commands<RandomUpdate> cmds;
 
@@ -21,13 +23,13 @@ class RandomUpdate : public Module {
   struct snobj *CommandAdd(struct snobj *arg);
   struct snobj *CommandClear(struct snobj *arg);
 
-  int num_vars_ = {};
+  int num_vars_;
   struct var {
     uint32_t mask; /* bits with 1 won't be updated */
     uint32_t min;
     uint32_t range; /* == max - min + 1 */
     int16_t offset;
-  } vars_[MAX_VARS] = {};
+  } vars_[MAX_VARS];
 
   Random rng_;
 };
@@ -40,14 +42,16 @@ const Commands<RandomUpdate> RandomUpdate::cmds = {
 struct snobj *RandomUpdate::CommandAdd(struct snobj *arg) {
   int curr = num_vars_;
 
-  if (snobj_type(arg) != TYPE_LIST)
+  if (snobj_type(arg) != TYPE_LIST) {
     return snobj_err(EINVAL, "argument must be a list of maps");
+  }
 
-  if (curr + arg->size > MAX_VARS)
+  if (curr + arg->size > MAX_VARS) {
     return snobj_err(EINVAL,
                      "max %d variables "
                      "can be specified",
                      MAX_VARS);
+  }
 
   for (size_t i = 0; i < arg->size; i++) {
     struct snobj *var = snobj_list_get(arg, i);
@@ -58,15 +62,18 @@ struct snobj *RandomUpdate::CommandAdd(struct snobj *arg) {
     uint32_t min;
     uint32_t max;
 
-    if (var->type != TYPE_MAP)
+    if (var->type != TYPE_MAP) {
       return snobj_err(EINVAL, "argument must be a list of maps");
+    }
 
     offset = snobj_eval_int(var, "offset");
     size = snobj_eval_uint(var, "size");
     min = snobj_eval_uint(var, "min");
     max = snobj_eval_uint(var, "max");
 
-    if (offset < 0) return snobj_err(EINVAL, "too small 'offset'");
+    if (offset < 0) {
+      return snobj_err(EINVAL, "too small 'offset'");
+    }
 
     switch (size) {
       case 1:
@@ -93,12 +100,15 @@ struct snobj *RandomUpdate::CommandAdd(struct snobj *arg) {
         return snobj_err(EINVAL, "'size' must be 1, 2, or 4");
     }
 
-    if (offset + 4 > SNBUF_DATA) return snobj_err(EINVAL, "too large 'offset'");
+    if (offset + 4 > SNBUF_DATA) {
+      return snobj_err(EINVAL, "too large 'offset'");
+    }
 
-    if (min > max)
+    if (min > max) {
       return snobj_err(EINVAL,
                        "'min' should not be "
                        "greater than 'max'");
+    }
 
     vars_[curr + i].offset = offset;
     vars_[curr + i].mask = mask;
@@ -110,22 +120,25 @@ struct snobj *RandomUpdate::CommandAdd(struct snobj *arg) {
 
   num_vars_ = curr + arg->size;
 
-  return NULL;
+  return nullptr;
 }
 
 struct snobj *RandomUpdate::CommandClear(struct snobj *arg) {
   num_vars_ = 0;
 
-  return NULL;
+  return nullptr;
 }
 
 struct snobj *RandomUpdate::Init(struct snobj *arg) {
   struct snobj *t;
 
-  if (!arg) return NULL;
+  if (!arg) {
+    return nullptr;
+  }
 
-  if (snobj_type(arg) != TYPE_MAP || !(t = snobj_eval(arg, "fields")))
+  if (snobj_type(arg) != TYPE_MAP || !(t = snobj_eval(arg, "fields"))) {
     return snobj_err(EINVAL, "'fields' must be specified");
+  }
 
   return CommandAdd(t);
 }

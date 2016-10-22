@@ -46,11 +46,13 @@ static inline int is_valid_gate(gate_idx_t gate) {
 
 class HashLB : public Module {
  public:
-  virtual struct snobj *Init(struct snobj *arg);
-  virtual void ProcessBatch(struct pkt_batch *batch);
-
   static const gate_idx_t kNumIGates = 1;
   static const gate_idx_t kNumOGates = MAX_GATES;
+
+  HashLB() : Module(), gates_(), num_gates_(), mode_() {}
+
+  virtual struct snobj *Init(struct snobj *arg);
+  virtual void ProcessBatch(struct pkt_batch *batch);
 
   static const Commands<HashLB> cmds;
 
@@ -62,8 +64,8 @@ class HashLB : public Module {
   struct snobj *CommandSetMode(struct snobj *arg);
   struct snobj *CommandSetGates(struct snobj *arg);
 
-  gate_idx_t gates_[MAX_HLB_GATES] = {{0}};
-  int num_gates_ = {0};
+  gate_idx_t gates_[MAX_HLB_GATES];
+  int num_gates_;
   enum LbMode mode_;
 };
 
@@ -75,56 +77,65 @@ const Commands<HashLB> HashLB::cmds = {
 struct snobj *HashLB::CommandSetMode(struct snobj *arg) {
   const char *mode = snobj_str_get(arg);
 
-  if (!mode) return snobj_err(EINVAL, "argument must be a string");
+  if (!mode) {
+    return snobj_err(EINVAL, "argument must be a string");
+  }
 
-  if (strcmp(mode, "l2") == 0)
+  if (strcmp(mode, "l2") == 0) {
     mode_ = LB_L2;
-  else if (mode && strcmp(mode, "l3") == 0)
+  } else if (mode && strcmp(mode, "l3") == 0) {
     mode_ = LB_L3;
-  else if (mode && strcmp(mode, "l4") == 0)
+  } else if (mode && strcmp(mode, "l4") == 0) {
     mode_ = LB_L4;
-  else
+  } else {
     return snobj_err(EINVAL, "available LB modes: l2, l3, l4");
+  }
 
-  return NULL;
+  return nullptr;
 }
 
 struct snobj *HashLB::CommandSetGates(struct snobj *arg) {
   if (snobj_type(arg) == TYPE_INT) {
     int gates = snobj_int_get(arg);
 
-    if (gates < 0 || gates > MAX_HLB_GATES || gates > MAX_GATES)
+    if (gates < 0 || gates > MAX_HLB_GATES || gates > MAX_GATES) {
       return snobj_err(EINVAL, "no more than %d gates",
                        std::min(MAX_HLB_GATES, MAX_GATES));
+    }
 
     num_gates_ = gates;
-    for (int i = 0; i < gates; i++) gates_[i] = i;
+    for (int i = 0; i < gates; i++) {
+      gates_[i] = i;
+    }
 
   } else if (snobj_type(arg) == TYPE_LIST) {
     struct snobj *gates = arg;
 
-    if (gates->size > MAX_HLB_GATES)
+    if (gates->size > MAX_HLB_GATES) {
       return snobj_err(EINVAL, "no more than %d gates", MAX_HLB_GATES);
+    }
 
     for (size_t i = 0; i < gates->size; i++) {
       struct snobj *elem = snobj_list_get(gates, i);
 
-      if (snobj_type(elem) != TYPE_INT)
+      if (snobj_type(elem) != TYPE_INT) {
         return snobj_err(EINVAL, "'gate' must be an integer");
+      }
 
       gates_[i] = snobj_int_get(elem);
-      if (!is_valid_gate(gates_[i]))
+      if (!is_valid_gate(gates_[i])) {
         return snobj_err(EINVAL, "invalid gate %d", gates_[i]);
+      }
     }
 
     num_gates_ = gates->size;
-
-  } else
+  } else {
     return snobj_err(EINVAL,
                      "argument must specify a gate "
                      "or a list of gates");
+  }
 
-  return NULL;
+  return nullptr;
 }
 
 struct snobj *HashLB::Init(struct snobj *arg) {
@@ -132,18 +143,24 @@ struct snobj *HashLB::Init(struct snobj *arg) {
 
   mode_ = DEFAULT_MODE;
 
-  if (!arg || snobj_type(arg) != TYPE_MAP)
+  if (!arg || snobj_type(arg) != TYPE_MAP) {
     return snobj_err(EINVAL, "empty argument");
+  }
 
   if ((t = snobj_eval(arg, "gates"))) {
     struct snobj *err = CommandSetGates(t);
-    if (err) return err;
-  } else
+    if (err) {
+      return err;
+    }
+  } else {
     return snobj_err(EINVAL, "'gates' must be specified");
+  }
 
-  if ((t = snobj_eval(arg, "mode"))) return CommandSetMode(t);
+  if ((t = snobj_eval(arg, "mode"))) {
+    return CommandSetMode(t);
+  }
 
-  return NULL;
+  return nullptr;
 }
 
 void HashLB::LbL2(struct pkt_batch *batch, gate_idx_t *ogates) {

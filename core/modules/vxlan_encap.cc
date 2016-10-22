@@ -20,11 +20,13 @@ enum {
 
 class VXLANEncap : public Module {
  public:
-  virtual struct snobj *Init(struct snobj *arg);
-  virtual void ProcessBatch(struct pkt_batch *batch);
-
   static const gate_idx_t kNumIGates = 1;
   static const gate_idx_t kNumOGates = 1;
+
+  VXLANEncap() : Module(), dstport_() {}
+
+  virtual struct snobj *Init(struct snobj *arg);
+  virtual void ProcessBatch(struct pkt_batch *batch);
 
   int num_attrs = 6;
   struct mt_attr attrs[MAX_ATTRS_PER_MODULE] = {
@@ -62,7 +64,7 @@ struct snobj *VXLANEncap::Init(struct snobj *arg) {
     dstport_ = rte_cpu_to_be_16(dstport);
   }
 
-  return NULL;
+  return nullptr;
 }
 
 void VXLANEncap::ProcessBatch(struct pkt_batch *batch) {
@@ -86,7 +88,9 @@ void VXLANEncap::ProcessBatch(struct pkt_batch *batch) {
     udph = static_cast<struct udp_hdr *>(
         snb_prepend(pkt, sizeof(*udph) + sizeof(*vh)));
 
-    if (unlikely(!udph)) continue;
+    if (unlikely(!udph)) {
+      continue;
+    }
 
     vh = reinterpret_cast<struct vxlan_hdr *>(udph + 1);
     vh->vx_flags = rte_cpu_to_be_32(0x08000000);

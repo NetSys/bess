@@ -20,12 +20,15 @@ struct Field {
 
 class GenericEncap : public Module {
  public:
+  static const gate_idx_t kNumIGates = 1;
+  static const gate_idx_t kNumOGates = 1;
+
+  GenericEncap() : Module(), encap_size_(), num_fields_(), fields_() {}
+
   struct snobj *Init(struct snobj *arg);
 
   void ProcessBatch(struct pkt_batch *batch);
 
-  static const gate_idx_t kNumIGates = 1;
-  static const gate_idx_t kNumOGates = 1;
 
  private:
   struct snobj *AddFieldOne(struct snobj *field, struct Field *f, int idx);
@@ -39,13 +42,15 @@ class GenericEncap : public Module {
 
 struct snobj *GenericEncap::AddFieldOne(struct snobj *field, struct Field *f,
                                         int idx) {
-  if (field->type != TYPE_MAP)
+  if (field->type != TYPE_MAP) {
     return snobj_err(EINVAL, "'fields' must be a list of maps");
+  }
 
   f->size = snobj_eval_uint(field, "size");
-  if (f->size < 1 || f->size > MAX_FIELD_SIZE)
+  if (f->size < 1 || f->size > MAX_FIELD_SIZE) {
     return snobj_err(EINVAL, "idx %d: 'size' must be 1-%d", idx,
                      MAX_FIELD_SIZE);
+  }
 
   const char *attr = snobj_eval_str(field, "attr");
 
@@ -53,19 +58,22 @@ struct snobj *GenericEncap::AddFieldOne(struct snobj *field, struct Field *f,
 
   if (attr) {
     f->attr_id = add_metadata_attr(this, attr, f->size, MT_READ);
-    if (f->attr_id < 0)
+    if (f->attr_id < 0) {
       return snobj_err(-f->attr_id, "idx %d: add_metadata_attr() failed", idx);
+    }
   } else if ((t = snobj_eval(field, "value"))) {
     f->attr_id = -1;
-    if (snobj_binvalue_get(t, f->size, &f->value, 1))
+    if (snobj_binvalue_get(t, f->size, &f->value, 1)) {
       return snobj_err(EINVAL,
                        "idx %d: "
                        "not a correct %d-byte value",
                        idx, f->size);
-  } else
+    }
+  } else {
     return snobj_err(EINVAL, "idx %d: must specify 'value' or 'attr'", idx);
+  }
 
-  return NULL;
+  return nullptr;
 }
 
 /* Takes a list of fields. Each field is either:
@@ -86,8 +94,9 @@ struct snobj *GenericEncap::Init(struct snobj *arg) {
 
   struct snobj *fields = snobj_eval(arg, "fields");
 
-  if (snobj_type(fields) != TYPE_LIST)
+  if (snobj_type(fields) != TYPE_LIST) {
     return snobj_err(EINVAL, "'fields' must be a list of maps");
+  }
 
   for (size_t i = 0; i < fields->size; i++) {
     struct snobj *field = snobj_list_get(fields, i);
@@ -97,7 +106,9 @@ struct snobj *GenericEncap::Init(struct snobj *arg) {
     f->pos = size_acc;
 
     err = AddFieldOne(field, f, i);
-    if (err) return err;
+    if (err) {
+      return err;
+    }
 
     size_acc += f->size;
   }
@@ -105,7 +116,7 @@ struct snobj *GenericEncap::Init(struct snobj *arg) {
   encap_size_ = size_acc;
   num_fields_ = fields->size;
 
-  return NULL;
+  return nullptr;
 }
 
 void GenericEncap::ProcessBatch(struct pkt_batch *batch) {
@@ -136,7 +147,9 @@ void GenericEncap::ProcessBatch(struct pkt_batch *batch) {
 
     char *p = static_cast<char *>(snb_prepend(pkt, encap_size));
 
-    if (unlikely(!p)) continue;
+    if (unlikely(!p)) {
+      continue;
+    }
 
     rte_memcpy(p, headers[i], encap_size);
   }

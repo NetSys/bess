@@ -5,6 +5,13 @@
 
 class Rewrite : public Module {
  public:
+  Rewrite() :
+      Module(),
+      next_turn_(),
+      num_templates_(),
+      template_size_(),
+      templates_() {}
+
   virtual struct snobj *Init(struct snobj *arg);
 
   virtual void ProcessBatch(struct pkt_batch *batch);
@@ -20,11 +27,11 @@ class Rewrite : public Module {
 
   /* For fair round robin we remember the next index for later.
    * [0, num_templates - 1] */
-  int next_turn_ = {};
+  int next_turn_;
 
-  int num_templates_ = {};
-  uint16_t template_size_[SLOTS] = {};
-  unsigned char templates_[SLOTS][MAX_TEMPLATE_SIZE] __ymm_aligned = {};
+  int num_templates_;
+  uint16_t template_size_[SLOTS];
+  unsigned char templates_[SLOTS][MAX_TEMPLATE_SIZE] __ymm_aligned;
 };
 
 const Commands<Rewrite> Rewrite::cmds = {
@@ -34,10 +41,13 @@ const Commands<Rewrite> Rewrite::cmds = {
 struct snobj *Rewrite::Init(struct snobj *arg) {
   struct snobj *t;
 
-  if (!arg) return NULL;
+  if (!arg) {
+    return nullptr;
+  }
 
-  if (!(t = snobj_eval(arg, "templates")))
+  if (!(t = snobj_eval(arg, "templates"))) {
     return snobj_err(EINVAL, "'templates' must be specified");
+  }
 
   return CommandAdd(t);
 }
@@ -79,10 +89,11 @@ inline void Rewrite::DoRewrite(struct pkt_batch *batch) {
 }
 
 void Rewrite::ProcessBatch(struct pkt_batch *batch) {
-  if (num_templates_ == 1)
+  if (num_templates_ == 1) {
     DoRewriteSingle(batch);
-  else if (num_templates_ > 1)
+  } else if (num_templates_ > 1) {
     DoRewrite(batch);
+  }
 
   run_next_module(this, batch);
 }
@@ -91,25 +102,29 @@ struct snobj *Rewrite::CommandAdd(struct snobj *arg) {
   int curr = num_templates_;
   int i;
 
-  if (snobj_type(arg) != TYPE_LIST)
+  if (snobj_type(arg) != TYPE_LIST) {
     return snobj_err(EINVAL, "argument must be a list");
+  }
 
-  if (curr + arg->size > MAX_PKT_BURST)
+  if (curr + arg->size > MAX_PKT_BURST) {
     return snobj_err(EINVAL,
                      "max %d packet templates "
                      "can be used %d %d",
                      MAX_PKT_BURST, curr, arg->size);
+  }
 
   for (i = 0; i < static_cast<int>(arg->size); i++) {
     struct snobj *templ = snobj_list_get(arg, i);
 
-    if (templ->type != TYPE_BLOB)
+    if (templ->type != TYPE_BLOB) {
       return snobj_err(EINVAL,
                        "packet template "
                        "should be BLOB type");
+    }
 
-    if (templ->size > MAX_TEMPLATE_SIZE)
+    if (templ->size > MAX_TEMPLATE_SIZE) {
       return snobj_err(EINVAL, "template is too big");
+    }
 
     memset(templates_[curr + i], 0, MAX_TEMPLATE_SIZE);
     memcpy(templates_[curr + i], snobj_blob_get(templ), templ->size);
@@ -124,14 +139,14 @@ struct snobj *Rewrite::CommandAdd(struct snobj *arg) {
     template_size_[i] = template_size_[j];
   }
 
-  return NULL;
+  return nullptr;
 }
 
 struct snobj *Rewrite::CommandClear(struct snobj *arg) {
   next_turn_ = 0;
   num_templates_ = 0;
 
-  return NULL;
+  return nullptr;
 }
 
 ADD_MODULE(Rewrite, "rewrite", "replaces entire packet data")

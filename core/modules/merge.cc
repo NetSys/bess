@@ -2,10 +2,10 @@
 
 class Merge : public Module {
  public:
-  virtual void ProcessBatch(struct pkt_batch *batch);
-
   static const gate_idx_t kNumIGates = MAX_GATES;
   static const gate_idx_t kNumOGates = 1;
+
+  virtual void ProcessBatch(struct pkt_batch *batch);
 };
 
 void Merge::ProcessBatch(struct pkt_batch *batch) {

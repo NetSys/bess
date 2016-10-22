@@ -3,6 +3,11 @@
 
 class QueueInc : public Module {
  public:
+  static const gate_idx_t kNumIGates = 0;
+  static const gate_idx_t kNumOGates = 1;
+
+  QueueInc() : Module(), port_(), qid_(), prefetch_(), burst_() {}
+
   virtual struct snobj *Init(struct snobj *arg);
   virtual void Deinit();
 
@@ -10,18 +15,15 @@ class QueueInc : public Module {
 
   virtual struct snobj *GetDesc();
 
-  static const gate_idx_t kNumIGates = 0;
-  static const gate_idx_t kNumOGates = 1;
-
   static const Commands<QueueInc> cmds;
 
  private:
   struct snobj *CommandSetBurst(struct snobj *arg);
 
-  Port *port_ = {0};
-  queue_t qid_ = {0};
-  int prefetch_ = {0};
-  int burst_ = {0};
+  Port *port_;
+  queue_t qid_;
+  int prefetch_;
+  int burst_;
 };
 
 const Commands<QueueInc> QueueInc::cmds = {
@@ -39,16 +41,19 @@ struct snobj *QueueInc::Init(struct snobj *arg) {
 
   burst_ = MAX_PKT_BURST;
 
-  if (!arg || snobj_type(arg) != TYPE_MAP)
+  if (!arg || snobj_type(arg) != TYPE_MAP) {
     return snobj_err(EINVAL, "Argument must be a map");
+  }
 
   t = snobj_eval(arg, "port");
-  if (!t || !(port_name = snobj_str_get(t)))
+  if (!t || !(port_name = snobj_str_get(t))) {
     return snobj_err(EINVAL, "Field 'port' must be specified");
+  }
 
   t = snobj_eval(arg, "qid");
-  if (!t || snobj_type(t) != TYPE_INT)
+  if (!t || snobj_type(t) != TYPE_INT) {
     return snobj_err(EINVAL, "Field 'qid' must be specified");
+  }
   qid_ = snobj_uint_get(t);
 
   const auto &it = PortBuilder::all_ports().find(port_name);
@@ -57,21 +62,29 @@ struct snobj *QueueInc::Init(struct snobj *arg) {
   }
   port_ = it->second;
 
-  if ((t = snobj_eval(arg, "burst")) != NULL) {
+  if ((t = snobj_eval(arg, "burst")) != nullptr) {
     err = CommandSetBurst(t);
-    if (err) return err;
+    if (err) {
+      return err;
+    }
   }
 
-  if (snobj_eval_int(arg, "prefetch")) prefetch_ = 1;
+  if (snobj_eval_int(arg, "prefetch")) {
+    prefetch_ = 1;
+  }
 
   tid = register_task(this, (void *)(uintptr_t)qid_);
-  if (tid == INVALID_TASK_ID) return snobj_err(ENOMEM, "Task creation failed");
+  if (tid == INVALID_TASK_ID) {
+    return snobj_err(ENOMEM, "Task creation failed");
+  }
 
   ret = port_->AcquireQueues(reinterpret_cast<const module *>(this),
                              PACKET_DIR_INC, &qid_, 1);
-  if (ret < 0) return snobj_errno(-ret);
+  if (ret < 0) {
+    return snobj_errno(-ret);
+  }
 
-  return NULL;
+  return nullptr;
 }
 
 void QueueInc::Deinit() {
@@ -114,8 +127,9 @@ struct task_result QueueInc::RunTask(void *arg) {
       rte_prefetch0(snb_head_data(batch.pkts[i]));
     }
   } else {
-    for (uint64_t i = 0; i < cnt; i++)
+    for (uint64_t i = 0; i < cnt; i++) {
       received_bytes += snb_total_len(batch.pkts[i]);
+    }
   }
 
   ret = (struct task_result){
@@ -135,17 +149,19 @@ struct task_result QueueInc::RunTask(void *arg) {
 struct snobj *QueueInc::CommandSetBurst(struct snobj *arg) {
   uint64_t val;
 
-  if (snobj_type(arg) != TYPE_INT)
+  if (snobj_type(arg) != TYPE_INT) {
     return snobj_err(EINVAL, "burst must be an integer");
+  }
 
   val = snobj_uint_get(arg);
 
-  if (val == 0 || val > MAX_PKT_BURST)
+  if (val == 0 || val > MAX_PKT_BURST) {
     return snobj_err(EINVAL, "burst size must be [1,%d]", MAX_PKT_BURST);
+  }
 
   burst_ = val;
 
-  return NULL;
+  return nullptr;
 }
 
 ADD_MODULE(QueueInc, "queue_inc",
