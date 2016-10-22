@@ -13,65 +13,15 @@
 #include <sys/file.h>
 #include <sys/resource.h>
 
-#include <glog/logging.h>
-#include <gflags/gflags.h>
-
+#include "opts.h"
 #include "debug.h"
 #include "dpdk.h"
 #include "master.h"
-#include "worker.h"
 #include "port.h"
-#include "snbuf.h"
 #include "test.h"
-
-// Port this BESS instance listens on.
-// Panda came up with this default number
-static const int kDefaultPort = 0x02912; // 10514 in decimal
-
-// TODO(barath): Rename these flags to something more intuitive.
-DEFINE_bool(t, false, "Dump the size of internal data structures");
-DEFINE_bool(g, false, "Run test suites");
-DEFINE_string(i, "", "Specifies where to write the pidfile");
-DEFINE_bool(f, false, "Run BESS in foreground mode (for developers)");
-DEFINE_bool(k, false, "Kill existing BESS instance, if any");
-DEFINE_bool(s, false, "Show TC statistics every second");
-DEFINE_bool(d, false, "Run BESS in debug mode (with debug log messages)");
-DEFINE_bool(a, false, "Allow multiple instances");
 
 // Pidfile; Filename (nullptr=default; nullstr=none).
 static char *pidfile = nullptr;
-
-static bool ValidateCoreID(const char *flagname, int32_t value) {
-  if (!is_cpu_present(value)) {
-    LOG(ERROR) << "Invalid core ID: " << value;
-    return false;
-  }
-
-  return true;
-}
-DEFINE_int32(c, 0, "Core ID for the default worker thread");
-
-static bool ValidateTCPPort(const char *flagname, int32_t value) {
-  if (value <= 0) {
-    LOG(ERROR) << "Invalid TCP port number: " << value;
-    return false;
-  }
-
-  return true;
-}
-DEFINE_int32(
-    p, kDefaultPort,
-    "Specifies the TCP port on which BESS listens for controller connections");
-
-static bool ValidateMegabytesPerSocket(const char *flagname, int32_t value) {
-  if (value <= 0) {
-    LOG(ERROR) << "Invalid memory size: " << value;
-    return false;
-  }
-
-  return true;
-}
-DEFINE_int32(m, 2048, "Specifies how many megabytes to use per socket");
 
 /* NOTE: At this point DPDK has not been initilaized,
  *       so it cannot invoke rte_* functions yet. */
@@ -81,15 +31,10 @@ static void process_args(int argc, char *argv[]) {
   // Validate arguments.  We do this here to avoid the unused-variable warning
   // we'd get if
   // we did it at the top of the file with static declarations.
-  google::RegisterFlagValidator(&FLAGS_c, &ValidateCoreID);
-  google::RegisterFlagValidator(&FLAGS_p, &ValidateTCPPort);
-  google::RegisterFlagValidator(&FLAGS_m, &ValidateMegabytesPerSocket);
-
   gflags::ParseCommandLineFlags(&argc, &argv, true);
 
   // TODO(barath): Eliminate this sequence of ifs once we directly use FLAGS
-  // from other
-  // components in BESS.
+  // from other components in BESS.
   if (FLAGS_t) {
     dump_types();
     exit(EXIT_SUCCESS);

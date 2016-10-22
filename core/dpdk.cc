@@ -14,7 +14,8 @@
 
 #include <glog/logging.h>
 
-#include "time.h"
+#include "utils/time.h"
+
 #include "worker.h"
 #include "dpdk.h"
 

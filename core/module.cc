@@ -6,15 +6,19 @@
 
 #include <glog/logging.h>
 
+#include "utils/pcap.h"
+#include "utils/time.h"
+
 #include "dpdk.h"
 #include "mem_alloc.h"
 #include "module.h"
 #include "namespace.h"
 #include "tc.h"
 #include "time.h"
-#include "utils/pcap.h"
 
-Module::~Module() { ; }
+Module::~Module() {
+  ;
+}
 
 const Commands<Module> Module::cmds = {};
 
@@ -23,14 +27,16 @@ task_id_t register_task(Module *m, void *arg) {
   struct task *t;
 
   for (id = 0; id < MAX_TASKS_PER_MODULE; id++)
-    if (m->tasks[id] == NULL) goto found;
+    if (m->tasks[id] == NULL)
+      goto found;
 
   /* cannot find an empty slot */
   return INVALID_TASK_ID;
 
 found:
   t = task_create(m, arg);
-  if (!t) return INVALID_TASK_ID;
+  if (!t)
+    return INVALID_TASK_ID;
 
   m->tasks[id] = t;
 
@@ -41,7 +47,8 @@ task_id_t task_to_tid(struct task *t) {
   Module *m = t->m;
 
   for (task_id_t id = 0; id < MAX_TASKS_PER_MODULE; id++)
-    if (m->tasks[id] == t) return id;
+    if (m->tasks[id] == t)
+      return id;
 
   return INVALID_TASK_ID;
 }
@@ -50,7 +57,8 @@ int num_module_tasks(Module *m) {
   int cnt = 0;
 
   for (task_id_t id = 0; id < MAX_TASKS_PER_MODULE; id++)
-    if (m->tasks[id]) cnt++;
+    if (m->tasks[id])
+      cnt++;
 
   return cnt;
 }
@@ -64,11 +72,14 @@ size_t list_modules(const Module **p_arr, size_t arr_size, size_t offset) {
   ns_init_iterator(&iter, NS_TYPE_MODULE);
   while (1) {
     Module *module = (Module *)ns_next(&iter);
-    if (!module) break;
+    if (!module)
+      break;
 
-    if (iter_cnt++ < offset) continue;
+    if (iter_cnt++ < offset)
+      continue;
 
-    if (ret >= arr_size) break;
+    if (ret >= arr_size)
+      break;
 
     p_arr[ret++] = module;
   }
@@ -85,7 +96,8 @@ static std::string set_default_name(const std::string &class_name,
     std::ostringstream ss;
     char last_char = '\0';
     for (auto t : default_template) {
-      if (last_char != '\0' && islower(last_char) && isupper(t)) ss << '_';
+      if (last_char != '\0' && islower(last_char) && isupper(t))
+        ss << '_';
 
       ss << tolower(t);
       last_char = t;
@@ -100,7 +112,8 @@ static std::string set_default_name(const std::string &class_name,
     ss << name_template << i;
     std::string name = ss.str();
 
-    if (!find_module(name.c_str())) return name;  // found an unallocated name!
+    if (!find_module(name.c_str()))
+      return name;  // found an unallocated name!
   }
 
   promise_unreachable();
@@ -110,7 +123,8 @@ static int register_module(Module *m) {
   int ret;
 
   ret = ns_insert(NS_TYPE_MODULE, m->Name().c_str(), (void *)m);
-  if (ret < 0) return ret;
+  if (ret < 0)
+    return ret;
 
   return 0;
 }
@@ -204,13 +218,16 @@ static int grow_gates(Module *m, struct gates *gates, gate_idx_t gate) {
 
   new_size = gates->curr_size ?: 1;
 
-  while (new_size <= gate) new_size *= 2;
+  while (new_size <= gate)
+    new_size *= 2;
 
-  if (new_size > MAX_GATES) new_size = MAX_GATES;
+  if (new_size > MAX_GATES)
+    new_size = MAX_GATES;
 
   new_arr =
       (struct gate **)mem_realloc(gates->arr, sizeof(struct gate *) * new_size);
-  if (!new_arr) return -ENOMEM;
+  if (!new_arr)
+    return -ENOMEM;
 
   gates->arr = new_arr;
 
@@ -238,19 +255,23 @@ int connect_modules(Module *m_prev, gate_idx_t ogate_idx, Module *m_next,
 
   if (ogate_idx >= m_prev->ogates.curr_size) {
     int ret = grow_gates(m_prev, &m_prev->ogates, ogate_idx);
-    if (ret) return ret;
+    if (ret)
+      return ret;
   }
 
   /* already being used? */
-  if (is_active_gate(&m_prev->ogates, ogate_idx)) return -EBUSY;
+  if (is_active_gate(&m_prev->ogates, ogate_idx))
+    return -EBUSY;
 
   if (igate_idx >= m_next->igates.curr_size) {
     int ret = grow_gates(m_next, &m_next->igates, igate_idx);
-    if (ret) return ret;
+    if (ret)
+      return ret;
   }
 
   ogate = (struct gate *)mem_alloc(sizeof(struct gate));
-  if (!ogate) return -ENOMEM;
+  if (!ogate)
+    return -ENOMEM;
 
   m_prev->ogates.arr[ogate_idx] = ogate;
 
@@ -285,13 +306,16 @@ int disconnect_modules(Module *m_prev, gate_idx_t ogate_idx) {
   struct gate *ogate;
   struct gate *igate;
 
-  if (ogate_idx >= m_prev->GetClass()->NumOGates()) return -EINVAL;
+  if (ogate_idx >= m_prev->GetClass()->NumOGates())
+    return -EINVAL;
 
   /* no error even if the ogate is unconnected already */
-  if (!is_active_gate(&m_prev->ogates, ogate_idx)) return 0;
+  if (!is_active_gate(&m_prev->ogates, ogate_idx))
+    return 0;
 
   ogate = m_prev->ogates.arr[ogate_idx];
-  if (!ogate) return 0;
+  if (!ogate)
+    return 0;
 
   igate = ogate->out.igate;
 
@@ -314,13 +338,16 @@ static int disconnect_modules_upstream(Module *m_next, gate_idx_t igate_idx) {
   struct gate *ogate;
   struct gate *ogate_next;
 
-  if (igate_idx >= m_next->GetClass()->NumIGates()) return -EINVAL;
+  if (igate_idx >= m_next->GetClass()->NumIGates())
+    return -EINVAL;
 
   /* no error even if the igate is unconnected already */
-  if (!is_active_gate(&m_next->igates, igate_idx)) return 0;
+  if (!is_active_gate(&m_next->igates, igate_idx))
+    return 0;
 
   igate = m_next->igates.arr[igate_idx];
-  if (!igate) return 0;
+  if (!igate)
+    return 0;
 
   cdlist_for_each_entry_safe(ogate, ogate_next, &igate->in.ogates_upstream,
                              out.igate_upstream) {
@@ -449,10 +476,12 @@ int enable_tcpdump(const char *fifo, Module *m, gate_idx_t ogate) {
   int ret;
 
   /* Don't allow tcpdump to be attached to gates that are not active */
-  if (!is_active_gate(&m->ogates, ogate)) return -EINVAL;
+  if (!is_active_gate(&m->ogates, ogate))
+    return -EINVAL;
 
   fd = open(fifo, O_WRONLY | O_NONBLOCK);
-  if (fd < 0) return -errno;
+  if (fd < 0)
+    return -errno;
 
   /* Looooong time ago Linux ignored O_NONBLOCK in open().
    * Try again just in case. */
@@ -475,9 +504,11 @@ int enable_tcpdump(const char *fifo, Module *m, gate_idx_t ogate) {
 }
 
 int disable_tcpdump(Module *m, gate_idx_t ogate) {
-  if (!is_active_gate(&m->ogates, ogate)) return -EINVAL;
+  if (!is_active_gate(&m->ogates, ogate))
+    return -EINVAL;
 
-  if (!m->ogates.arr[ogate]->tcpdump) return -EINVAL;
+  if (!m->ogates.arr[ogate]->tcpdump)
+    return -EINVAL;
 
   m->ogates.arr[ogate]->tcpdump = 0;
   close(m->ogates.arr[ogate]->fifo_fd);
@@ -530,11 +561,14 @@ size_t list_mclasses(const ModuleClass **p_arr, size_t arr_size,
   ns_init_iterator(&iter, NS_TYPE_MCLASS);
   while (1) {
     ModuleClass *mc_obj = (ModuleClass *)ns_next(&iter);
-    if (!mc_obj) break;
+    if (!mc_obj)
+      break;
 
-    if (iter_cnt++ < offset) continue;
+    if (iter_cnt++ < offset)
+      continue;
 
-    if (ret >= arr_size) break;
+    if (ret >= arr_size)
+      break;
 
     p_arr[ret++] = mc_obj;
   }

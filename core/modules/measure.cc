@@ -5,9 +5,10 @@
 #include <rte_ip.h>
 #include <rte_tcp.h>
 
-#include "../module.h"
-#include "../time.h"
+#include "../utils/time.h"
 #include "../utils/histogram.h"
+
+#include "../module.h"
 
 inline int get_measure_packet(struct snbuf *pkt, uint64_t *time) {
   uint8_t *avail = (static_cast<uint8_t *>(snb_head_data(pkt)) +

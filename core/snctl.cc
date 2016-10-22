@@ -13,10 +13,11 @@
 
 #include <gflags/gflags.h>
 
+#include "utils/time.h"
+
 #include "master.h"
 #include "module.h"
 #include "port.h"
-#include "snobj.h"
 #include "tc.h"
 #include "time.h"
 #include "worker.h"
