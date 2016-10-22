@@ -18,9 +18,6 @@ class VXLANDecap : public Module {
  public:
   void ProcessBatch(struct pkt_batch *batch);
 
-  static const gate_idx_t kNumIGates = 1;
-  static const gate_idx_t kNumOGates = 1;
-
   int num_attrs = 3;
   struct mt_attr attrs[MAX_ATTRS_PER_MODULE] = {
       {
@@ -33,7 +30,14 @@ class VXLANDecap : public Module {
           .name = "tun_id", .size = 4, .mode = MT_WRITE,
       },
   };
+
+  static const gate_idx_t kNumIGates = 1;
+  static const gate_idx_t kNumOGates = 1;
+
+  static const Commands<Module> cmds;
 };
+
+const Commands<Module> VXLANDecap::cmds = {};
 
 void VXLANDecap::ProcessBatch(struct pkt_batch *batch) {
   int cnt = batch->cnt;
@@ -56,7 +60,7 @@ void VXLANDecap::ProcessBatch(struct pkt_batch *batch) {
     snb_adj(pkt, sizeof(*ethh) + iph_bytes + sizeof(*udph) + sizeof(*vh));
   }
 
-  run_next_module(this, batch);
+  RunNextModule(batch);
 }
 
 ADD_MODULE(VXLANDecap, "vxlan_decap",

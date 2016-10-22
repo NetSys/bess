@@ -42,20 +42,22 @@ static inline double scaled_pareto_variate(double inversed_alpha, double mean,
 
 class FlowGen : public Module {
  public:
-  static const gate_idx_t kNumIGates = 0;
-  static const gate_idx_t kNumOGates = 1;
-
   virtual struct snobj *Init(struct snobj *arg);
   virtual void Deinit();
 
   virtual struct task_result RunTask(void *arg);
 
-  virtual struct snobj *GetDesc();
-  virtual struct snobj *GetDump();
+  struct snobj *GetDesc() const;
+  struct snobj *GetDump() const;
+
+  static const gate_idx_t kNumIGates = 0;
+  static const gate_idx_t kNumOGates = 1;
+
+  static const Commands<Module> cmds;
 
  private:
   inline double NewFlowPkts();
-  inline double MaxFlowPkts();
+  inline double MaxFlowPkts() const;
   inline uint64_t NextFlowArrival();
   inline struct flow *ScheduleFlow(uint64_t time_ns);
   void MeasureParetoMean();
@@ -108,6 +110,8 @@ class FlowGen : public Module {
   } pareto_ = {};
 };
 
+const Commands<Module> FlowGen::cmds = {};
+
 inline double FlowGen::NewFlowPkts() {
   switch (duration_) {
     case DURATION_UNIFORM:
@@ -120,7 +124,7 @@ inline double FlowGen::NewFlowPkts() {
   }
 }
 
-inline double FlowGen::MaxFlowPkts() {
+inline double FlowGen::MaxFlowPkts() const {
   switch (duration_) {
     case DURATION_UNIFORM:
       return flow_pkts_;
@@ -311,7 +315,7 @@ struct snobj *FlowGen::Init(struct snobj *arg) {
   pareto_.alpha = 1.3;
 
   /* register task */
-  tid = register_task(this, NULL);
+  tid = RegisterTask(NULL);
   if (tid == INVALID_TASK_ID) return snobj_err(ENOMEM, "task creation failed");
 
   templ_ = new char[MAX_TEMPLATE_SIZE];
@@ -433,7 +437,7 @@ struct task_result FlowGen::RunTask(void *arg) {
   const int pkt_overhead = 24;
 
   GeneratePackets(&batch);
-  if (batch.cnt > 0) run_next_module(this, &batch);
+  if (batch.cnt > 0) RunNextModule(&batch);
 
   ret = (struct task_result){
       .packets = static_cast<uint64_t>(batch.cnt),
@@ -444,11 +448,11 @@ struct task_result FlowGen::RunTask(void *arg) {
   return ret;
 }
 
-struct snobj *FlowGen::GetDesc() {
+struct snobj *FlowGen::GetDesc() const {
   return snobj_str_fmt("%d flows", active_flows_);
 }
 
-struct snobj *FlowGen::GetDump() {
+struct snobj *FlowGen::GetDump() const {
   struct snobj *r = snobj_map();
 
   {

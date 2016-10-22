@@ -7,9 +7,16 @@ class Buffer : public Module {
 
   virtual void ProcessBatch(struct pkt_batch *batch);
 
+  static const gate_idx_t kNumIGates = 1;
+  static const gate_idx_t kNumOGates = 1;
+
+  static const Commands<Module> cmds;
+
  private:
   struct pkt_batch buf_ = {0};
 };
+
+const Commands<Module> Buffer::cmds = {};
 
 void Buffer::Deinit() {
   struct pkt_batch *buf = &buf_;
@@ -35,7 +42,7 @@ void Buffer::ProcessBatch(struct pkt_batch *batch) {
     p_batch += free_slots;
     left -= free_slots;
 
-    run_next_module(this, buf);
+    RunNextModule(buf);
     batch_clear(buf);
   }
 

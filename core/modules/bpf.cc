@@ -1118,9 +1118,10 @@ class BPF : public Module {
   struct snobj *CommandAdd(struct snobj *arg);
   struct snobj *CommandClear(struct snobj *arg);
 
+  static const gate_idx_t kNumIGates = 1;
   static const gate_idx_t kNumOGates = MAX_GATES;
 
-  static const Commands<BPF> cmds;
+  static const Commands<Module> cmds;
 
  private:
   struct filter filters_[MAX_FILTERS + 1] = {{0}};
@@ -1129,8 +1130,8 @@ class BPF : public Module {
   inline void process_batch_1filter(struct pkt_batch *batch);
 };
 
-const Commands<BPF> BPF::cmds = {{"add", &BPF::CommandAdd, 0},
-                                 {"clear", &BPF::CommandClear, 0}};
+const Commands<Module> BPF::cmds = {{"add", MODULE_FUNC &BPF::CommandAdd, 0},
+                                 {"clear", MODULE_FUNC &BPF::CommandClear, 0}};
 
 struct snobj *BPF::Init(struct snobj *arg) {
   return arg ? CommandAdd(arg) : NULL;
@@ -1243,11 +1244,11 @@ inline void BPF::process_batch_1filter(struct pkt_batch *batch) {
   out_batches[0].cnt = ptrs[0] - (struct snbuf **)&out_batches[0].pkts;
   out_batches[1].cnt = ptrs[1] - (struct snbuf **)&out_batches[1].pkts;
 
-  if (out_batches[0].cnt) run_choose_module(this, 0, &out_batches[0]);
+  if (out_batches[0].cnt) RunChooseModule(0, &out_batches[0]);
 
   /* matched packets */
   if (out_batches[1].cnt)
-    run_choose_module(this, filter->gate, &out_batches[1]);
+    RunChooseModule(filter->gate, &out_batches[1]);
 }
 
 void BPF::ProcessBatch(struct pkt_batch *batch) {
@@ -1256,7 +1257,7 @@ void BPF::ProcessBatch(struct pkt_batch *batch) {
   int cnt;
 
   if (n_filters == 0) {
-    run_next_module(this, batch);
+    RunNextModule(batch);
     return;
   }
 
@@ -1284,7 +1285,7 @@ void BPF::ProcessBatch(struct pkt_batch *batch) {
     ogates[i] = gate;
   }
 
-  run_split(this, ogates, batch);
+  RunSplit(ogates, batch);
 }
 
 ADD_MODULE(BPF, "bpf", "classifies packets with pcap-filter(7) syntax")

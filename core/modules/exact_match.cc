@@ -110,20 +110,20 @@ class ExactMatch : public Module {
 
   virtual void ProcessBatch(struct pkt_batch *batch);
 
-  virtual struct snobj *GetDesc();
-  virtual struct snobj *GetDump();
+  virtual struct snobj *GetDesc() const;
+  virtual struct snobj *GetDump() const;
 
-  static const gate_idx_t kNumIGates = 1;
-  static const gate_idx_t kNumOGates = MAX_GATES;
-
-  static const Commands<ExactMatch> cmds;
-
- private:
   struct snobj *CommandAdd(struct snobj *arg);
   struct snobj *CommandDelete(struct snobj *arg);
   struct snobj *CommandClear(struct snobj *arg);
   struct snobj *CommandSetDefaultGate(struct snobj *arg);
 
+  static const gate_idx_t kNumIGates = 1;
+  static const gate_idx_t kNumOGates = MAX_GATES;
+
+  static const Commands<Module> cmds;
+
+ private:
   struct snobj *AddFieldOne(struct snobj *field, struct EmField *f, int idx);
   struct snobj *GatherKey(struct snobj *fields, hkey_t *key);
 
@@ -137,11 +137,11 @@ class ExactMatch : public Module {
   HTable<hkey_t, gate_idx_t, em_keycmp, em_hash> ht_;
 };
 
-const Commands<ExactMatch> ExactMatch::cmds = {
-    {"add", &ExactMatch::CommandAdd, 0},
-    {"delete", &ExactMatch::CommandDelete, 0},
-    {"clear", &ExactMatch::CommandClear, 0},
-    {"set_default_gate", &ExactMatch::CommandSetDefaultGate, 1}};
+const Commands<Module> ExactMatch::cmds = {
+    {"add", MODULE_FUNC &ExactMatch::CommandAdd, 0},
+    {"delete", MODULE_FUNC &ExactMatch::CommandDelete, 0},
+    {"clear", MODULE_FUNC &ExactMatch::CommandClear, 0},
+    {"set_default_gate", MODULE_FUNC &ExactMatch::CommandSetDefaultGate, 1}};
 
 struct snobj *ExactMatch::AddFieldOne(struct snobj *field, struct EmField *f,
                                       int idx) {
@@ -156,7 +156,7 @@ struct snobj *ExactMatch::AddFieldOne(struct snobj *field, struct EmField *f,
   const char *attr = static_cast<char *>(snobj_eval_str(field, "attr"));
 
   if (attr) {
-    f->attr_id = add_metadata_attr(this, attr, f->size, MT_READ);
+    f->attr_id = AddMetadataAttr(attr, f->size, MT_READ);
     if (f->attr_id < 0)
       return snobj_err(-f->attr_id, "idx %d: add_metadata_attr() failed", idx);
   } else if (snobj_eval_exists(field, "offset")) {
@@ -266,14 +266,14 @@ void ExactMatch::ProcessBatch(struct pkt_batch *batch) {
     ogates[i] = ret ? *ret : default_gate;
   }
 
-  run_split(this, ogates, batch);
+  RunSplit(ogates, batch);
 }
 
-struct snobj *ExactMatch::GetDesc() {
+struct snobj *ExactMatch::GetDesc() const {
   return snobj_str_fmt("%d fields, %d rules", num_fields_, ht_.Count());
 }
 
-struct snobj *ExactMatch::GetDump() {
+struct snobj *ExactMatch::GetDump() const {
   struct snobj *r = snobj_map();
   struct snobj *fields = snobj_list();
   struct snobj *rules = snobj_list();

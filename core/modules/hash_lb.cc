@@ -49,27 +49,27 @@ class HashLB : public Module {
   virtual struct snobj *Init(struct snobj *arg);
   virtual void ProcessBatch(struct pkt_batch *batch);
 
+  struct snobj *CommandSetMode(struct snobj *arg);
+  struct snobj *CommandSetGates(struct snobj *arg);
+
   static const gate_idx_t kNumIGates = 1;
   static const gate_idx_t kNumOGates = MAX_GATES;
 
-  static const Commands<HashLB> cmds;
+  static const Commands<Module> cmds;
 
  private:
   void LbL2(struct pkt_batch *batch, gate_idx_t *ogates);
   void LbL3(struct pkt_batch *batch, gate_idx_t *ogates);
   void LbL4(struct pkt_batch *batch, gate_idx_t *ogates);
 
-  struct snobj *CommandSetMode(struct snobj *arg);
-  struct snobj *CommandSetGates(struct snobj *arg);
-
   gate_idx_t gates_[MAX_HLB_GATES] = {{0}};
   int num_gates_ = {0};
   enum LbMode mode_;
 };
 
-const Commands<HashLB> HashLB::cmds = {
-    {"set_mode", &HashLB::CommandSetMode, 0},
-    {"set_gates", &HashLB::CommandSetGates, 0},
+const Commands<Module> HashLB::cmds = {
+    {"set_mode", MODULE_FUNC &HashLB::CommandSetMode, 0},
+    {"set_gates", MODULE_FUNC &HashLB::CommandSetGates, 0},
 };
 
 struct snobj *HashLB::CommandSetMode(struct snobj *arg) {
@@ -218,7 +218,7 @@ void HashLB::ProcessBatch(struct pkt_batch *batch) {
       assert(0);
   }
 
-  run_split(this, ogates, batch);
+  RunSplit(ogates, batch);
 }
 
 ADD_MODULE(HashLB, "hash_lb",

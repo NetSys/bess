@@ -1,8 +1,8 @@
 #include "round_robin.h"
 
-const Commands<RoundRobin> RoundRobin::cmds = {
-    {"set_mode", &RoundRobin::CommandSetMode, 0},
-    {"set_gates", &RoundRobin::CommandSetGates, 0},
+const Commands<Module> RoundRobin::cmds = {
+    {"set_mode", MODULE_FUNC &RoundRobin::CommandSetMode, 0},
+    {"set_gates", MODULE_FUNC &RoundRobin::CommandSetGates, 0},
 };
 
 struct snobj *RoundRobin::Init(struct snobj *arg) {
@@ -83,11 +83,11 @@ void RoundRobin::ProcessBatch(struct pkt_batch *batch) {
       ogates[i] = gates_[current_gate_];
       current_gate_ = (current_gate_ + 1) % ngates_;
     }
-    run_split(this, ogates, batch);
+    RunSplit(ogates, batch);
   } else {
     gate_idx_t gate = gates_[current_gate_];
     current_gate_ = (current_gate_ + 1) % ngates_;
-    run_choose_module(this, gate, batch);
+    RunChooseModule(gate, batch);
   }
 }
 

@@ -12,26 +12,26 @@ class Queue : public Module {
   virtual struct task_result RunTask(void *arg);
   virtual void ProcessBatch(struct pkt_batch *batch);
 
-  virtual struct snobj *GetDesc();
+  virtual struct snobj *GetDesc() const;
+
+  struct snobj *CommandSetBurst(struct snobj *arg);
+  struct snobj *CommandSetSize(struct snobj *arg);
 
   static const gate_idx_t kNumIGates = 1;
   static const gate_idx_t kNumOGates = 1;
 
-  static const Commands<Queue> cmds;
+  static const Commands<Module> cmds;
 
  private:
   int Resize(int slots);
-  struct snobj *CommandSetBurst(struct snobj *arg);
-  struct snobj *CommandSetSize(struct snobj *arg);
-
   struct llring *queue_ = {};
   int prefetch_ = {};
   int burst_ = {};
 };
 
-const Commands<Queue> Queue::cmds = {
-    {"set_burst", &Queue::CommandSetBurst, 1},
-    {"set_size", &Queue::CommandSetSize, 0},
+const Commands<Module> Queue::cmds = {
+    {"set_burst", MODULE_FUNC &Queue::CommandSetBurst, 1},
+    {"set_size", MODULE_FUNC &Queue::CommandSetSize, 0},
 };
 
 int Queue::Resize(int slots) {
@@ -76,7 +76,7 @@ struct snobj *Queue::Init(struct snobj *arg) {
 
   burst_ = MAX_PKT_BURST;
 
-  tid = register_task(this, NULL);
+  tid = RegisterTask(NULL);
   if (tid == INVALID_TASK_ID) return snobj_err(ENOMEM, "Task creation failed");
 
   if ((t = snobj_eval(arg, "burst")) != NULL) {
@@ -105,7 +105,7 @@ void Queue::Deinit() {
   mem_free(queue_);
 }
 
-struct snobj *Queue::GetDesc() {
+struct snobj *Queue::GetDesc() const {
   const struct llring *ring = queue_;
 
   return snobj_str_fmt("%u/%u", llring_count(ring), ring->common.slots);
@@ -134,7 +134,7 @@ struct task_result Queue::RunTask(void *arg) {
 
   if (cnt > 0) {
     batch.cnt = cnt;
-    run_next_module(this, &batch);
+    RunNextModule(&batch);
   }
 
   if (prefetch_) {

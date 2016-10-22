@@ -34,7 +34,14 @@ class IPEncap : public Module {
           .name = "ether_type", .size = 2, .mode = MT_WRITE,
       },
   };
+
+  static const gate_idx_t kNumIGates = 1;
+  static const gate_idx_t kNumOGates = 1;
+
+  static const Commands<Module> cmds;
 };
+
+const Commands<Module> IPEncap::cmds = {};
 
 void IPEncap::ProcessBatch(struct pkt_batch *batch) {
   int cnt = batch->cnt;
@@ -69,7 +76,7 @@ void IPEncap::ProcessBatch(struct pkt_batch *batch) {
              rte_cpu_to_be_16(ETHER_TYPE_IPv4));
   }
 
-  run_next_module(this, batch);
+  RunNextModule(batch);
 }
 
 ADD_MODULE(IPEncap, "ip_encap", "encapsulates packets with an IPv4 header")
