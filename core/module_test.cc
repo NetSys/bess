@@ -1,6 +1,11 @@
 #include "module.h"
 
+#include <stdlib.h>
+#include <string.h>
+
 #include <gtest/gtest.h>
+
+#include "utils/cdlist.h"
 
 // Mocking out misc things  ------------------------------------------------
 
@@ -23,6 +28,18 @@ struct snobj *snobj_err_details(int err, struct snobj *details, const char *fmt,
   return nullptr;
 }
 
+void *mem_alloc(size_t size) {
+  void *ptr = malloc(size);
+
+  if (ptr) memset(ptr, 0, size);
+
+  return ptr;
+}
+
+void *mem_realloc(void *ptr, size_t size) { return realloc(ptr, size); }
+
+void mem_free(void *ptr) { free(ptr); }
+
 // -------------------------------------------------------------------------
 
 class AcmeModule : public Module {
@@ -42,43 +59,6 @@ class AcmeModule : public Module {
 const Commands<Module> AcmeModule::cmds = {
   {"foo", MODULE_FUNC &AcmeModule::Foo, 0}
 };
-
-// Simple test harness.
-class ModuleTester : public ::testing::Test {
-  protected:
-    virtual void SetUp() {
-      ADD_MODULE(AcmeModule, "acme_module", "foo bar")
-        ASSERT_TRUE(__module__AcmeModule);
-      const ModuleBuilder &builder = ModuleBuilder::all_module_builders().find("AcmeModule")->second;
-      EXPECT_EQ("AcmeModule", builder.class_name());
-      EXPECT_EQ("acme_module", builder.name_template());
-      EXPECT_EQ("foo bar", builder.help_text());
-      EXPECT_EQ(1, builder.cmds().size());
-    }
-
-    virtual void TearDown() {
-      ModuleBuilder::DestroyAllModules();
-      ModuleBuilder::all_module_builders_holder(true);
-    }
-};
-
-// Check that new module classes are actually created correctly and stored in
-// the table of module classes
-TEST(ModuleBuilderTest, RegisterModuleClass) {
-  ADD_MODULE(AcmeModule, "acme_module", "foo bar")
-  ASSERT_TRUE(__module__AcmeModule);
-
-  EXPECT_EQ(1, ModuleBuilder::all_module_builders().size());
-  EXPECT_EQ(1, ModuleBuilder::all_module_builders().count("AcmeModule"));
-
-  const ModuleBuilder &builder = ModuleBuilder::all_module_builders().find("AcmeModule")->second;
-  EXPECT_EQ("AcmeModule", builder.class_name());
-  EXPECT_EQ("acme_module", builder.name_template());
-  EXPECT_EQ("foo bar", builder.help_text());
-  EXPECT_EQ(1, builder.cmds().size());
-
-  ModuleBuilder::all_module_builders_holder(true);
-}
 
 int create_acme(const char *name, Module **m) {
   EXPECT_EQ(1, ModuleBuilder::all_module_builders().size());
@@ -105,6 +85,26 @@ int create_acme(const char *name, Module **m) {
   EXPECT_EQ(1, builder.cmds().size());
 
   return 0;
+}
+
+// Check that new module classes are actually created correctly and stored in
+// the table of module classes
+TEST(ModuleBuilderTest, RegisterModuleClass) {
+  ADD_MODULE(AcmeModule, "acme_module", "foo bar")
+  ASSERT_TRUE(__module__AcmeModule);
+
+  EXPECT_EQ(1, ModuleBuilder::all_module_builders().size());
+  EXPECT_EQ(1, ModuleBuilder::all_module_builders().count("AcmeModule"));
+
+  const ModuleBuilder &builder = ModuleBuilder::all_module_builders().find("AcmeModule")->second;
+  EXPECT_EQ("AcmeModule", builder.class_name());
+  EXPECT_EQ("acme_module", builder.name_template());
+  EXPECT_EQ("foo bar", builder.help_text());
+  EXPECT_EQ(1, builder.NumIGates());
+  EXPECT_EQ(1, builder.NumOGates());
+  EXPECT_EQ(1, builder.cmds().size());
+
+  ModuleBuilder::all_module_builders_holder(true);
 }
 
 // Check that module builders create modules correctly when given a name
@@ -142,7 +142,7 @@ TEST(ModuleBuilderTest, CreateModuleGenerateName) {
   ModuleBuilder::all_module_builders_holder(true);
 }
 
-TEST(ModuleBuilderTest, AcmeRunCommand) {
+TEST(ModuleTest, RunCommand) {
   Module *m;
   ADD_MODULE(AcmeModule, "acme_module", "foo bar")
   ASSERT_TRUE(__module__AcmeModule);
@@ -158,4 +158,44 @@ TEST(ModuleBuilderTest, AcmeRunCommand) {
   ModuleBuilder::all_module_builders_holder(true);
 }
 
-// XXX: ProcessBatch() test?
+TEST(ModuleTest, ConnectModules) {
+  Module *m1, *m2;
+  struct gate *og;
+
+  ADD_MODULE(AcmeModule, "acme_module", "foo bar")
+  ASSERT_TRUE(__module__AcmeModule);
+
+  EXPECT_EQ(0, create_acme("m1", &m1));
+  ASSERT_NE(nullptr, m1);
+  EXPECT_EQ(0, create_acme("m2", &m2));
+  ASSERT_NE(nullptr, m2);
+
+  EXPECT_EQ(0, m1->ConnectModules(0, m2, 0));
+  EXPECT_EQ(1, m1->ogates.curr_size);
+  EXPECT_EQ(m2, m1->ogates.arr[0]->out.igate->m);
+  EXPECT_EQ(1, m2->igates.curr_size);
+  cdlist_for_each_entry(og, &m2->igates.arr[0]->in.ogates_upstream, out.igate_upstream) {
+    ASSERT_NE(nullptr, og);
+    EXPECT_EQ(m1, og->m);
+  }
+
+  ModuleBuilder::DestroyAllModules();
+  ModuleBuilder::all_module_builders_holder(true);
+}
+
+TEST(ModuleTest, ResetModules) {
+  Module *m;
+  ADD_MODULE(AcmeModule, "acme_module", "foo bar")
+  ASSERT_TRUE(__module__AcmeModule);
+
+  for (int i = 0; i < 10; i++) {
+    EXPECT_EQ(0, create_acme(nullptr, &m));
+    ASSERT_NE(nullptr, m);
+  }
+  EXPECT_EQ(10, ModuleBuilder::all_modules().size());
+
+  ModuleBuilder::DestroyAllModules();
+  EXPECT_EQ(0, ModuleBuilder::all_modules().size());
+
+  ModuleBuilder::all_module_builders_holder(true);
+}
