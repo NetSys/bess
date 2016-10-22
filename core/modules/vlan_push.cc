@@ -13,7 +13,7 @@ class VLANPush : public Module {
 
   virtual void ProcessBatch(struct pkt_batch *batch);
 
-  virtual struct snobj *GetDesc();
+  virtual struct snobj *GetDesc() const;
 
   struct snobj *CommandSetTci(struct snobj *arg);
 
@@ -81,7 +81,7 @@ void VLANPush::ProcessBatch(struct pkt_batch *batch) {
   RunNextModule(batch);
 }
 
-struct snobj *VLANPush::GetDesc() {
+struct snobj *VLANPush::GetDesc() const {
   uint32_t vlan_tag_cpu = ntohl(vlan_tag_);
 
   return snobj_str_fmt("PCP=%u DEI=%u VID=%u", (vlan_tag_cpu >> 13) & 0x0007,

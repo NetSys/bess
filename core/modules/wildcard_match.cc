@@ -142,8 +142,8 @@ class WildcardMatch : public Module {
 
   virtual void ProcessBatch(struct pkt_batch *batch);
 
-  virtual struct snobj *GetDesc();
-  virtual struct snobj *GetDump();
+  virtual struct snobj *GetDesc() const;
+  virtual struct snobj *GetDump() const;
 
   struct snobj *CommandAdd(struct snobj *arg);
   struct snobj *CommandDelete(struct snobj *arg);
@@ -159,7 +159,7 @@ class WildcardMatch : public Module {
   gate_idx_t LookupEntry(hkey_t *key, gate_idx_t def_gate);
   struct snobj *AddFieldOne(struct snobj *field, struct WmField *f);
 
-  void CollectRules(const struct WmTuple *tuple, struct snobj *rules);
+  void CollectRules(const struct WmTuple *tuple, struct snobj *rules) const;
   struct snobj *ExtractKeyMask(struct snobj *arg, hkey_t *key, hkey_t *mask);
   int FindTuple(hkey_t *mask);
   int AddTuple(hkey_t *mask);
@@ -350,7 +350,7 @@ void WildcardMatch::ProcessBatch(struct pkt_batch *batch) {
   RunSplit(ogates, batch);
 }
 
-struct snobj *WildcardMatch::GetDesc() {
+struct snobj *WildcardMatch::GetDesc() const {
   int num_rules = 0;
 
   for (int i = 0; i < num_tuples_; i++) num_rules += tuples_[i].ht.Count();
@@ -358,7 +358,7 @@ struct snobj *WildcardMatch::GetDesc() {
   return snobj_str_fmt("%lu fields, %d rules", num_fields_, num_rules);
 }
 
-struct snobj *WildcardMatch::GetDump() {
+struct snobj *WildcardMatch::GetDump() const {
   struct snobj *r = snobj_map();
   struct snobj *fields = snobj_list();
   struct snobj *rules = snobj_list();
@@ -391,7 +391,7 @@ struct snobj *WildcardMatch::GetDump() {
 }
 
 void WildcardMatch::CollectRules(const struct WmTuple *tuple,
-                                 struct snobj *rules) {
+                                 struct snobj *rules) const {
   uint32_t next = 0;
   void *key;
   const void *mask = &tuple->mask;

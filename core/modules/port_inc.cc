@@ -8,7 +8,7 @@ class PortInc : public Module {
 
   virtual struct task_result RunTask(void *arg);
 
-  virtual struct snobj *GetDesc();
+  virtual struct snobj *GetDesc() const;
 
   struct snobj *CommandSetBurst(struct snobj *arg);
 
@@ -77,7 +77,7 @@ void PortInc::Deinit() {
                        NULL, 0);
 }
 
-struct snobj *PortInc::GetDesc() {
+struct snobj *PortInc::GetDesc() const {
   return snobj_str_fmt("%s/%s", port_->name().c_str(),
                        port_->port_builder()->class_name().c_str());
 }

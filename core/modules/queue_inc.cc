@@ -8,7 +8,7 @@ class QueueInc : public Module {
 
   virtual struct task_result RunTask(void *arg);
 
-  virtual struct snobj *GetDesc();
+  virtual struct snobj *GetDesc() const;
 
   struct snobj *CommandSetBurst(struct snobj *arg);
 
@@ -80,7 +80,7 @@ void QueueInc::Deinit() {
                        &qid_, 1);
 }
 
-struct snobj *QueueInc::GetDesc() {
+struct snobj *QueueInc::GetDesc() const {
   return snobj_str_fmt("%s:%hhu/%s", port_->name().c_str(), qid_,
                        port_->port_builder()->class_name().c_str());
 }
