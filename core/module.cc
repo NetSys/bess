@@ -167,7 +167,7 @@ Module *create_module(const char *name, const ModuleClass *mclass, const T &arg,
   m = mclass->CreateModule(mod_name);
 
   *perr = m->Init(arg);
-  if (perr != nullptr) {
+  if (perr->err() != 0) {
     delete m;
     return NULL;
   }
