@@ -8,8 +8,9 @@
 #include <rte_config.h>
 #include <rte_malloc.h>
 
-#include "../log.h"
 #include "../kmod/llring.h"
+#include "../log.h"
+#include "../message.h"
 #include "../port.h"
 
 #define SLOTS_PER_LLRING 1024
@@ -54,7 +55,7 @@ struct vport_bar {
 
 class ZeroCopyVPort : public Port {
  public:
-  struct snobj *Init(struct snobj *arg);
+  pb_error_t Init(const bess::ZeroCopyVPortArg &arg);
   void DeInit();
 
   int RecvPackets(queue_t qid, snb_array_t pkts, int cnt);
@@ -72,7 +73,7 @@ class ZeroCopyVPort : public Port {
   int out_irq_fd_[MAX_QUEUES_PER_DIR] = {{0}};
 };
 
-struct snobj *ZeroCopyVPort::Init(struct snobj *arg) {
+pb_error_t ZeroCopyVPort::Init(const bess::ZeroCopyVPortArg &arg) {
   struct vport_bar *bar = NULL;
 
   int num_inc_q = num_queues[PACKET_DIR_INC];
@@ -154,7 +155,7 @@ struct snobj *ZeroCopyVPort::Init(struct snobj *arg) {
   fwrite(&bar_address, 8, 1, fp);
   fclose(fp);
 
-  return NULL;
+  return pb_errno(0);
 }
 
 void ZeroCopyVPort::DeInit() {
@@ -182,7 +183,8 @@ int ZeroCopyVPort::SendPackets(queue_t qid, snb_array_t pkts, int cnt) {
   int ret;
 
   ret = llring_enqueue_bulk(q, (void **)pkts, cnt);
-  if (ret == -LLRING_ERR_NOBUF) return 0;
+  if (ret == -LLRING_ERR_NOBUF)
+    return 0;
 
   if (__sync_bool_compare_and_swap(&out_regs_[qid]->irq_enabled, 1, 0)) {
     int ret;

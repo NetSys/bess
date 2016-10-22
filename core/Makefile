@@ -15,6 +15,10 @@ ifndef RTE_TARGET
     RTE_TARGET = $(shell uname -m)-native-linuxapp-gcc
 endif
 
+ifndef PROTOC
+    PROTOC = protoc
+endif
+
 ifneq ($(wildcard $(RTE_SDK)/$(RTE_TARGET)/*),)
     DPDK_INC_DIR = $(RTE_SDK)/$(RTE_TARGET)/include
     DPDK_LIB_DIR = $(RTE_SDK)/$(RTE_TARGET)/lib
@@ -34,11 +38,11 @@ CXXFLAGS += -isystem $(GTEST_DIR)/include
 CXXFLAGS += -std=gnu++11 -g3 -ggdb3 -Ofast -march=native \
 	    -Wall -Werror -Wno-unused-function -Wno-unused-but-set-variable \
 	    -I$(DPDK_INC_DIR) \
-	    -fno-rtti \
 	    -D_GNU_SOURCE
 
 LDFLAGS += -rdynamic -L$(DPDK_LIB_DIR) -Wl,-rpath=$(DPDK_LIB_DIR)
-LIBS += -Wl,--whole-archive -l$(DPDK_LIB) -Wl,--no-whole-archive -lm -pthread -lgflags -lglog -ldl -lrt -lpcap
+LIBS += -Wl,--whole-archive -l$(DPDK_LIB) -Wl,--no-whole-archive -lm -pthread \
+			-lgflags -lglog -ldl -lrt -lpcap -lprotobuf -lgrpc++ -lgrpc++_reflection
 
 ifdef SANITIZE
     LDFLAGS += -fsanitize=address
@@ -47,11 +51,18 @@ endif
 
 -include extra.mk
 
+PROTO_DIR = ../protobuf
+PROTOS = $(wildcard $(PROTO_DIR)/*.proto)
+PROTO_SRCS = $(patsubst %.proto,%.pb.cc, $(notdir $(PROTOS)))
+PROTO_SRCS += $(patsubst %.proto,%.grpc.pb.cc, $(notdir $(PROTOS)))
+PROTO_HEADERS = $(patsubst %.cc,%.h, $(PROTO_SRCS))
+
 ALL_SRCS = $(wildcard *.cc utils/*.cc modules/*.cc drivers/*.cc oldtests/*.cc)
 TEST_SRCS = $(filter %_test.cc, $(ALL_SRCS))
 SRCS = $(filter-out $(TEST_SRCS), $(ALL_SRCS))
 OBJS = $(patsubst %.cc,%.o, $(filter %.cc, $(SRCS)))
 HEADERS = $(wildcard *.h utils/*.h modules/*.h drivers/*.h oldtests/*.h)
+
 EXEC = bessd
 
 DEPS = .make.dep
@@ -70,11 +81,38 @@ CORES ?= $(shell nproc || echo 1)
 MAKEFLAGS += -j $(CORES)
 VERBOSE = 0
 
-.PHONY: all clean tests tags cscope
+.PHONY: all clean tests tags cscope protobuf
 
 all: $(DEPS) $(EXEC)
 
-$(DEPS): $(SRCS) $(HEADERS)
+%.grpc.pb.cc: $(PROTO_DIR)/%.proto
+	$(eval COMMAND = $(PROTOC) $< --proto_path=$(PROTO_DIR) --grpc_out=. --plugin=protoc-gen-grpc=`which grpc_cpp_plugin`)
+	@if $(COMMAND); then \
+		if [ $(VERBOSE) -eq 0 ]; then \
+			echo "[PROTOC] $@"; \
+		else \
+			echo "[PROTOC] $(COMMAND)"; \
+		fi \
+	else \
+		echo "Protobuf error: \033[0;31m$<\033[0;33m\n$(COMMAND)\033[0m"; \
+		false; \
+	fi
+
+
+%.pb.cc: $(PROTO_DIR)/%.proto
+	$(eval COMMAND = $(PROTOC) $< --proto_path=$(PROTO_DIR) --cpp_out=.)
+	@if $(COMMAND); then \
+		if [ $(VERBOSE) -eq 0 ]; then \
+			echo "[PROTOC] $@"; \
+		else \
+			echo "[PROTOC] $(COMMAND)"; \
+		fi \
+	else \
+		echo "Protobuf error: \033[0;31m$<\033[0;33m\n$(COMMAND)\033[0m"; \
+		false; \
+	fi
+
+$(DEPS): $(PROTO_SRCS) $(SRCS) $(HEADERS)
 	@$(CXX) $(CXXFLAGS) -MM $(SRCS) | sed 's|\(.*\)\.o: \(.*\)\.c|\2.o: \2.c|' > $(DEPS)
 
 %.o: %.cc
@@ -108,7 +146,7 @@ $(EXEC): $(OBJS)
 -include $(DEPS)
 
 clean:
-	rm -f $(DEPS) $(EXEC) $(TESTS) *.o modules/*.o drivers/*.o utils/*.o oldtests/*.o gtest.a gtest_main.a
+	rm -f $(DEPS) $(EXEC) $(TESTS) *.pb.cc *.pb.h *.o modules/*.o drivers/*.o utils/*.o oldtests/*.o gtest.a gtest_main.a
 
 tags:
 	@ctags -R *
@@ -118,6 +156,8 @@ cscope:
 	@find . -name "*.c" -o -name "*.h" > cscope.files
 	cscope -b -q -k
 	@rm -f cscope.files
+
+protobuf: $(PROTO_SRCS)
 
 # Test rules
 TESTS = utils/time_test port_test modules/round_robin_test

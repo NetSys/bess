@@ -9,6 +9,7 @@
 #include <unistd.h>
 
 #include "../log.h"
+#include "../message.h"
 #include "../port.h"
 
 #define NOT_CONNECTED -1
@@ -19,12 +20,11 @@
  * (by checking sockets once every RECV_TICKS schedules)
  * TODO: Revise this once the interrupt mode is implemented */
 #define RECV_SKIP_TICKS 256
-
 #define MAX_TX_FRAGS 8
 
 class UnixSocketPort : public Port {
  public:
-  virtual struct snobj *Init(struct snobj *arg);
+  virtual pb_error_t Init(const bess::UnixSocketPortArg &arg);
   virtual void DeInit();
 
   virtual int RecvPackets(queue_t qid, snb_array_t pkts, int cnt);
@@ -50,9 +50,11 @@ void UnixSocketPort::AcceptNewClient() {
 
   for (;;) {
     ret = accept4(listen_fd_, NULL, NULL, SOCK_NONBLOCK);
-    if (ret >= 0) break;
+    if (ret >= 0)
+      break;
 
-    if (errno != EINTR) log_perr("[UnixSocket]:accept4()");
+    if (errno != EINTR)
+      log_perr("[UnixSocket]:accept4()");
   }
 
   recv_skip_cnt_ = 0;
@@ -86,11 +88,11 @@ void UnixSocketPort::CloseConnection() {
   accept_thread.detach();
 }
 
-struct snobj *UnixSocketPort::Init(struct snobj *conf) {
+pb_error_t UnixSocketPort::Init(const bess::UnixSocketPortArg &arg) {
+  const std::string path = arg.path();
   int num_txq = num_queues[PACKET_DIR_OUT];
   int num_rxq = num_queues[PACKET_DIR_INC];
 
-  const char *path;
   size_t addrlen;
 
   int ret;
@@ -98,17 +100,19 @@ struct snobj *UnixSocketPort::Init(struct snobj *conf) {
   client_fd_ = NOT_CONNECTED;
   old_client_fd_ = NOT_CONNECTED;
 
-  if (num_txq > 1 || num_rxq > 1)
-    return snobj_err(EINVAL, "Cannot have more than 1 queue per RX/TX");
+  if (num_txq > 1 || num_rxq > 1) {
+    return pb_error(EINVAL, "Cannot have more than 1 queue per RX/TX");
+  }
 
   listen_fd_ = socket(AF_UNIX, SOCK_SEQPACKET, 0);
-  if (listen_fd_ < 0) return snobj_err(errno, "socket(AF_UNIX) failed");
+  if (listen_fd_ < 0) {
+    return pb_error(errno, "socket(AF_UNIX) failed");
+  }
 
   addr_.sun_family = AF_UNIX;
 
-  path = snobj_eval_str(conf, "path");
-  if (path) {
-    snprintf(addr_.sun_path, sizeof(addr_.sun_path), "%s", path);
+  if (path.length() != 0) {
+    snprintf(addr_.sun_path, sizeof(addr_.sun_path), "%s", path.c_str());
   } else
     snprintf(addr_.sun_path, sizeof(addr_.sun_path), "%s/bess_unix_%s",
              P_tmpdir, name().c_str());
@@ -124,21 +128,26 @@ struct snobj *UnixSocketPort::Init(struct snobj *conf) {
     addr_.sun_path[0] = '\0';
 
   ret = bind(listen_fd_, reinterpret_cast<struct sockaddr *>(&addr_), addrlen);
-  if (ret < 0) return snobj_err(errno, "bind(%s) failed", addr_.sun_path);
+  if (ret < 0) {
+    return pb_error(errno, "bind(%s) failed", addr_.sun_path);
+  }
 
   ret = listen(listen_fd_, 1);
-  if (ret < 0) return snobj_err(errno, "listen() failed");
+  if (ret < 0) {
+    return pb_error(errno, "listen() failed");
+  }
 
   std::thread accept_thread(AcceptThreadMain, reinterpret_cast<void *>(this));
   accept_thread.detach();
 
-  return NULL;
+  return pb_errno(0);
 }
 
 void UnixSocketPort::DeInit() {
   close(listen_fd_);
 
-  if (client_fd_ >= 0) close(client_fd_);
+  if (client_fd_ >= 0)
+    close(client_fd_);
 }
 
 int UnixSocketPort::RecvPackets(queue_t qid, snb_array_t pkts, int cnt) {
@@ -146,7 +155,8 @@ int UnixSocketPort::RecvPackets(queue_t qid, snb_array_t pkts, int cnt) {
 
   int received;
 
-  if (client_fd == NOT_CONNECTED) return 0;
+  if (client_fd == NOT_CONNECTED)
+    return 0;
 
   if (recv_skip_cnt_) {
     recv_skip_cnt_--;
@@ -158,7 +168,8 @@ int UnixSocketPort::RecvPackets(queue_t qid, snb_array_t pkts, int cnt) {
     struct snbuf *pkt = static_cast<struct snbuf *>(snb_alloc());
     int ret;
 
-    if (!pkt) break;
+    if (!pkt)
+      break;
 
     /* datagrams larger than 2KB will be truncated */
     ret = recv(client_fd, pkt->_data, SNBUF_DATA, 0);
@@ -172,9 +183,11 @@ int UnixSocketPort::RecvPackets(queue_t qid, snb_array_t pkts, int cnt) {
     snb_free(pkt);
 
     if (ret < 0) {
-      if (errno == EAGAIN || errno == EWOULDBLOCK) break;
+      if (errno == EAGAIN || errno == EWOULDBLOCK)
+        break;
 
-      if (errno == EINTR) continue;
+      if (errno == EINTR)
+        continue;
     }
 
     /* connection closed */
@@ -182,7 +195,8 @@ int UnixSocketPort::RecvPackets(queue_t qid, snb_array_t pkts, int cnt) {
     break;
   }
 
-  if (received == 0) recv_skip_cnt_ = RECV_SKIP_TICKS;
+  if (received == 0)
+    recv_skip_cnt_ = RECV_SKIP_TICKS;
 
   return received;
 }
@@ -211,12 +225,14 @@ int UnixSocketPort::SendPackets(queue_t qid, snb_array_t pkts, int cnt) {
     }
 
     ret = sendmsg(client_fd, &msg, 0);
-    if (ret < 0) break;
+    if (ret < 0)
+      break;
 
     sent++;
   }
 
-  if (sent) snb_free_bulk(pkts, sent);
+  if (sent)
+    snb_free_bulk(pkts, sent);
 
   return sent;
 }

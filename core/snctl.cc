@@ -1,10 +1,9 @@
+#include <assert.h>
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <assert.h>
-#include <errno.h>
-#include <stdlib.h>
 
 #include <sys/time.h>
 #include <sys/types.h>
@@ -16,12 +15,12 @@
 
 #include "utils/time.h"
 
-#include "worker.h"
 #include "master.h"
-#include "snobj.h"
 #include "module.h"
 #include "port.h"
 #include "tc.h"
+#include "time.h"
+#include "worker.h"
 
 // Capture the default core command line flag.
 DECLARE_int32(c);
@@ -40,7 +39,8 @@ static const char *resource_names[NUM_RESOURCES] = {"schedules", "cycles",
 
 static int name_to_resource(const char *name) {
   for (int i = 0; i < NUM_RESOURCES; i++)
-    if (strcmp(resource_names[i], name) == 0) return i;
+    if (strcmp(resource_names[i], name) == 0)
+      return i;
 
   /* not found */
   return -1;
@@ -57,16 +57,20 @@ static struct snobj *handle_reset_all(struct snobj *q) {
   log_info("*** reset_all requested ***\n");
 
   r = handle_reset_modules(NULL);
-  if (r) return r;
+  if (r)
+    return r;
 
   r = handle_reset_ports(NULL);
-  if (r) return r;
+  if (r)
+    return r;
 
   r = handle_reset_tcs(NULL);
-  if (r) return r;
+  if (r)
+    return r;
 
   r = handle_reset_workers(NULL);
-  if (r) return r;
+  if (r)
+    return r;
 
   return NULL;
 }
@@ -97,7 +101,8 @@ static struct snobj *handle_list_workers(struct snobj *q) {
   for (int wid = 0; wid < MAX_WORKERS; wid++) {
     struct snobj *worker;
 
-    if (!is_worker_active(wid)) continue;
+    if (!is_worker_active(wid))
+      continue;
 
     worker = snobj_map();
     snobj_map_set(worker, "wid", snobj_int(wid));
@@ -120,17 +125,20 @@ static struct snobj *handle_add_worker(struct snobj *q) {
   struct snobj *t;
 
   t = snobj_eval(q, "wid");
-  if (!t) return snobj_err(EINVAL, "Missing 'wid' field");
+  if (!t)
+    return snobj_err(EINVAL, "Missing 'wid' field");
 
   wid = snobj_uint_get(t);
   if (wid >= MAX_WORKERS)
     return snobj_err(EINVAL, "'wid' must be between 0 and %d", MAX_WORKERS - 1);
 
   t = snobj_eval(q, "core");
-  if (!t) return snobj_err(EINVAL, "Missing 'core' field");
+  if (!t)
+    return snobj_err(EINVAL, "Missing 'core' field");
 
   core = snobj_uint_get(t);
-  if (!is_cpu_present(core)) return snobj_err(EINVAL, "Invalid core %d", core);
+  if (!is_cpu_present(core))
+    return snobj_err(EINVAL, "Invalid core %d", core);
 
   if (is_worker_active(wid))
     return snobj_err(EEXIST, "worker:%d is already active", wid);
@@ -149,7 +157,8 @@ static struct snobj *handle_reset_tcs(struct snobj *q) {
                        c->num_tasks);
     }
 
-    if (c->settings.auto_free) continue;
+    if (c->settings.auto_free)
+      continue;
 
     tc_leave(c);
     tc_dec_refcnt(c);
@@ -163,7 +172,6 @@ static struct snobj *handle_list_tcs(struct snobj *q) {
   struct snobj *t;
 
   unsigned int wid_filter = MAX_WORKERS;
-
 
   t = snobj_eval(q, "wid");
   if (t) {
@@ -184,11 +192,13 @@ static struct snobj *handle_list_tcs(struct snobj *q) {
     int wid;
 
     if (wid_filter < MAX_WORKERS) {
-      if (workers[wid_filter]->s != c->s) continue;
+      if (workers[wid_filter]->s != c->s)
+        continue;
       wid = wid_filter;
     } else {
       for (wid = 0; wid < MAX_WORKERS; wid++)
-        if (is_worker_active(wid) && workers[wid]->s == c->s) break;
+        if (is_worker_active(wid) && workers[wid]->s == c->s)
+          break;
     }
 
     struct snobj *elem = snobj_map();
@@ -234,7 +244,8 @@ static struct snobj *handle_add_tc(struct snobj *q) {
   struct tc *c;
 
   tc_name = snobj_eval_str(q, "name");
-  if (!tc_name) return snobj_err(EINVAL, "Missing 'name' field");
+  if (!tc_name)
+    return snobj_err(EINVAL, "Missing 'name' field");
 
   if (TCContainer::tcs.count(tc_name))
     return snobj_err(EINVAL, "Name '%s' already exists", tc_name);
@@ -295,7 +306,8 @@ static struct snobj *handle_add_tc(struct snobj *q) {
   }
 
   c = tc_init(workers[wid]->s, &params);
-  if (is_err(c)) return snobj_err(-ptr_to_err(c), "tc_init() failed");
+  if (is_err(c))
+    return snobj_err(-ptr_to_err(c), "tc_init() failed");
 
   tc_join(c);
 
@@ -310,7 +322,8 @@ static struct snobj *handle_get_tc_stats(struct snobj *q) {
   struct snobj *r;
 
   tc_name = snobj_str_get(q);
-  if (!tc_name) return snobj_err(EINVAL, "Argument must be a name in str");
+  if (!tc_name)
+    return snobj_err(EINVAL, "Argument must be a name in str");
 
   const auto &it = TCContainer::tcs.find(tc_name);
   if (it == TCContainer::tcs.end()) {
@@ -350,7 +363,8 @@ static struct snobj *handle_get_driver_info(struct snobj *q) {
 
   drv_name = snobj_str_get(q);
 
-  if (!drv_name) return snobj_err(EINVAL, "Argument must be a name in str");
+  if (!drv_name)
+    return snobj_err(EINVAL, "Argument must be a name in str");
 
   const auto &it = PortBuilder::all_port_builders().find(drv_name);
   if (it == PortBuilder::all_port_builders().end()) {
@@ -382,7 +396,8 @@ static struct snobj *handle_reset_ports(struct snobj *q) {
     Port *p = it->second;
 
     int ret = PortBuilder::DestroyPort(p);
-    if (ret) return snobj_errno(-ret);
+    if (ret)
+      return snobj_errno(-ret);
 
     it = it_next;
   }
@@ -411,8 +426,9 @@ static struct snobj *handle_list_ports(struct snobj *q) {
 
 /* returns a pointer to the created port.
  * if error, returns NULL and *perr is set */
-Port *create_port(const char *name, const PortBuilder *driver, struct snobj *arg,
-                  struct snobj **perr) {
+/*
+static Port *create_port(const char *name, const PortBuilder *driver,
+                         struct snobj *arg, struct snobj **perr) {
   std::unique_ptr<Port> p;
   int ret;
 
@@ -515,7 +531,9 @@ Port *create_port(const char *name, const PortBuilder *driver, struct snobj *arg
 
   return p.release();
 }
+*/
 
+/*
 
 static struct snobj *handle_create_port(struct snobj *q) {
   const char *driver_name;
@@ -534,7 +552,8 @@ static struct snobj *handle_create_port(struct snobj *q) {
   }
   const PortBuilder &builder = it->second;
 
-  port = create_port(snobj_eval_str(q, "name"), &builder, snobj_eval(q, "arg"), &err);
+  port = create_port(snobj_eval_str(q, "name"), &builder, snobj_eval(q, "arg"),
+&err);
   if (!port) return err;
 
   r = snobj_map();
@@ -542,6 +561,7 @@ static struct snobj *handle_create_port(struct snobj *q) {
 
   return r;
 }
+*/
 
 static struct snobj *handle_destroy_port(struct snobj *q) {
   const char *port_name;
@@ -549,7 +569,8 @@ static struct snobj *handle_destroy_port(struct snobj *q) {
   int ret;
 
   port_name = snobj_str_get(q);
-  if (!port_name) return snobj_err(EINVAL, "Argument must be a name in str");
+  if (!port_name)
+    return snobj_err(EINVAL, "Argument must be a name in str");
 
   const auto &it = PortBuilder::all_ports().find(port_name);
   if (it == PortBuilder::all_ports().end()) {
@@ -557,7 +578,8 @@ static struct snobj *handle_destroy_port(struct snobj *q) {
   }
 
   ret = PortBuilder::DestroyPort(it->second);
-  if (ret) return snobj_errno(-ret);
+  if (ret)
+    return snobj_errno(-ret);
 
   return NULL;
 }
@@ -572,7 +594,8 @@ static struct snobj *handle_get_port_stats(struct snobj *q) {
   struct snobj *out;
 
   port_name = snobj_str_get(q);
-  if (!port_name) return snobj_err(EINVAL, "Argument must be a name in str");
+  if (!port_name)
+    return snobj_err(EINVAL, "Argument must be a name in str");
 
   const auto &it = PortBuilder::all_ports().find(port_name);
   if (it == PortBuilder::all_ports().end()) {
@@ -623,7 +646,8 @@ static struct snobj *handle_get_mclass_info(struct snobj *q) {
 
   cls_name = snobj_str_get(q);
 
-  if (!cls_name) return snobj_err(EINVAL, "Argument must be a name in str");
+  if (!cls_name)
+    return snobj_err(EINVAL, "Argument must be a name in str");
 
   if ((cls = find_mclass(cls_name)) == NULL)
     return snobj_err(ENOENT, "No module class '%s' found", cls_name);
@@ -645,12 +669,14 @@ static struct snobj *handle_get_mclass_info(struct snobj *q) {
 static struct snobj *handle_reset_modules(struct snobj *q) {
   Module *m;
 
-  while (list_modules((const Module **)&m, 1, 0)) destroy_module(m);
+  while (list_modules((const Module **)&m, 1, 0))
+    destroy_module(m);
 
   log_info("*** All modules have been destroyed ***\n");
   return NULL;
 }
 
+/*
 static struct snobj *handle_list_modules(struct snobj *q) {
   struct snobj *r;
 
@@ -683,6 +709,7 @@ static struct snobj *handle_list_modules(struct snobj *q) {
   return r;
 }
 
+
 static struct snobj *handle_create_module(struct snobj *q) {
   const char *mclass_name;
   const ModuleClass *mclass;
@@ -705,6 +732,7 @@ static struct snobj *handle_create_module(struct snobj *q) {
 
   return r;
 }
+*/
 
 static struct snobj *handle_destroy_module(struct snobj *q) {
   const char *m_name;
@@ -712,7 +740,8 @@ static struct snobj *handle_destroy_module(struct snobj *q) {
 
   m_name = snobj_str_get(q);
 
-  if (!m_name) return snobj_err(EINVAL, "Argument must be a name in str");
+  if (!m_name)
+    return snobj_err(EINVAL, "Argument must be a name in str");
 
   if ((m = find_module(m_name)) == NULL)
     return snobj_err(ENOENT, "No module '%s' found", m_name);
@@ -726,7 +755,8 @@ static struct snobj *collect_igates(Module *m) {
   struct snobj *igates = snobj_list();
 
   for (int i = 0; i < m->igates.curr_size; i++) {
-    if (!is_active_gate(&m->igates, i)) continue;
+    if (!is_active_gate(&m->igates, i))
+      continue;
 
     struct snobj *igate = snobj_map();
     struct gate *g = m->igates.arr[i];
@@ -755,7 +785,8 @@ static struct snobj *collect_ogates(Module *m) {
   struct snobj *ogates = snobj_list();
 
   for (int i = 0; i < m->ogates.curr_size; i++) {
-    if (!is_active_gate(&m->ogates, i)) continue;
+    if (!is_active_gate(&m->ogates, i))
+      continue;
 
     struct snobj *ogate = snobj_map();
     struct gate *g = m->ogates.arr[i];
@@ -806,6 +837,7 @@ static struct snobj *collect_metadata(Module *m) {
   return metadata;
 }
 
+/*
 static struct snobj *handle_get_module_info(struct snobj *q) {
   const char *m_name;
   Module *m;
@@ -833,6 +865,7 @@ static struct snobj *handle_get_module_info(struct snobj *q) {
 
   return r;
 }
+*/
 
 static struct snobj *handle_connect_modules(struct snobj *q) {
   const char *m1_name;
@@ -878,7 +911,8 @@ static struct snobj *handle_disconnect_modules(struct snobj *q) {
   m_name = snobj_eval_str(q, "name");
   ogate = snobj_eval_uint(q, "ogate");
 
-  if (!m_name) return snobj_err(EINVAL, "Missing 'name' field");
+  if (!m_name)
+    return snobj_err(EINVAL, "Missing 'name' field");
 
   if ((m = find_module(m_name)) == NULL)
     return snobj_err(ENOENT, "No module '%s' found", m_name);
@@ -901,7 +935,8 @@ static struct snobj *handle_attach_task(struct snobj *q) {
 
   m_name = snobj_eval_str(q, "name");
 
-  if (!m_name) return snobj_err(EINVAL, "Missing 'name' field");
+  if (!m_name)
+    return snobj_err(EINVAL, "Missing 'name' field");
 
   if ((m = find_module(m_name)) == NULL)
     return snobj_err(ENOENT, "No module '%s' found", m_name);
@@ -962,7 +997,8 @@ static struct snobj *handle_enable_tcpdump(struct snobj *q) {
   ogate = snobj_eval_uint(q, "ogate");
   fifo = snobj_eval_str(q, "fifo");
 
-  if (!m_name) return snobj_err(EINVAL, "Missing 'name' field");
+  if (!m_name)
+    return snobj_err(EINVAL, "Missing 'name' field");
 
   if ((m = find_module(m_name)) == NULL)
     return snobj_err(ENOENT, "No module '%s' found", m_name);
@@ -990,7 +1026,8 @@ static struct snobj *handle_disable_tcpdump(struct snobj *q) {
   m_name = snobj_eval_str(q, "name");
   ogate = snobj_eval_uint(q, "ogate");
 
-  if (!m_name) return snobj_err(EINVAL, "Missing 'name' field");
+  if (!m_name)
+    return snobj_err(EINVAL, "Missing 'name' field");
 
   if ((m = find_module(m_name)) == NULL)
     return snobj_err(ENOENT, "No module '%s' found", m_name);
@@ -1044,7 +1081,7 @@ static struct handler_map sn_handlers[] = {
 
     {"reset_ports", 1, handle_reset_ports},
     {"list_ports", 0, handle_list_ports},
-    {"create_port", 0, handle_create_port},
+    {"create_port", 0, handle_not_implemented},
     {"destroy_port", 0, handle_destroy_port},
     {"get_port_stats", 0, handle_get_port_stats},
 
@@ -1053,10 +1090,10 @@ static struct handler_map sn_handlers[] = {
     {"import_mclass", 0, handle_not_implemented}, /* TODO */
 
     {"reset_modules", 1, handle_reset_modules},
-    {"list_modules", 0, handle_list_modules},
-    {"create_module", 1, handle_create_module},
+    {"list_modules", 0, handle_not_implemented},
+    {"create_module", 1, handle_not_implemented},
     {"destroy_module", 1, handle_destroy_module},
-    {"get_module_info", 0, handle_get_module_info},
+    {"get_module_info", 0, handle_not_implemented},
     {"connect_modules", 1, handle_connect_modules},
     {"disconnect_modules", 1, handle_disconnect_modules},
 
@@ -1074,12 +1111,14 @@ static struct snobj *handle_snobj_bess(struct snobj *q) {
   const char *s;
 
   s = snobj_eval_str(q, "cmd");
-  if (!s) return snobj_err(EINVAL, "Missing 'cmd' field");
+  if (!s)
+    return snobj_err(EINVAL, "Missing 'cmd' field");
 
   arg = snobj_map_get(q, "arg");
 
   for (int i = 0; sn_handlers[i].cmd != NULL; i++) {
-    if (strcmp(s, sn_handlers[i].cmd) != 0) continue;
+    if (strcmp(s, sn_handlers[i].cmd) != 0)
+      continue;
 
     if (sn_handlers[i].pause_needed && is_any_worker_running())
       return snobj_err(EBUSY, "There is a running worker");
@@ -1126,13 +1165,15 @@ static struct snobj *handle_snobj_module(struct snobj *q) {
   struct snobj *arg;
 
   m_name = snobj_eval_str(q, "name");
-  if (!m_name) return snobj_err(EINVAL, "Missing module name field 'name'");
+  if (!m_name)
+    return snobj_err(EINVAL, "Missing module name field 'name'");
 
   if ((m = find_module(m_name)) == NULL)
     return snobj_err(ENOENT, "No module '%s' found", m_name);
 
   cmd = snobj_eval_str(q, "cmd");
-  if (!cmd) return snobj_err(EINVAL, "Missing command name field 'cmd'");
+  if (!cmd)
+    return snobj_err(EINVAL, "Missing command name field 'cmd'");
 
   arg = snobj_eval(q, "arg");
   if (!arg) {
@@ -1175,7 +1216,8 @@ struct snobj *handle_request(struct client *c, struct snobj *q) {
 
 reply:
   /* No response was made? (normally means "success") */
-  if (!r) r = snobj_nil();
+  if (!r)
+    r = snobj_nil();
 
   if (FLAGS_d) {
     log_debug("Response:\n");

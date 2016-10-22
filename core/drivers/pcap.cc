@@ -4,11 +4,10 @@
 #include <glog/logging.h>
 
 #include "../log.h"
+#include "../message.h"
 #include "../port.h"
 #include "../utils/pcap.h"
-
 #define PCAP_IFNAME 16
-
 static unsigned char tx_pcap_data[PCAP_SNAPLEN];
 
 /* Copy data from mbuf chain to a buffer suitable for writing to a PCAP file. */
@@ -26,7 +25,7 @@ static void pcap_gather_data(unsigned char *data, struct rte_mbuf *mbuf) {
 /* Experimental. Needs more tests */
 class PCAPPort : public Port {
  public:
-  virtual struct snobj *Init(struct snobj *arg);
+  virtual pb_error_t Init(const bess::PCAPPortArg &arg);
   virtual void DeInit();
 
   virtual int RecvPackets(queue_t qid, snb_array_t pkts, int cnt);
@@ -37,25 +36,27 @@ class PCAPPort : public Port {
   char dev_[PCAP_IFNAME] = {{0}};
 };
 
-struct snobj *PCAPPort::Init(struct snobj *conf) {
+pb_error_t PCAPPort::Init(const bess::PCAPPortArg &arg) {
   char errbuf[PCAP_ERRBUF_SIZE];
-  if (snobj_eval_str(conf, "dev"))
-    strncpy(dev_, snobj_eval_str(conf, "dev"), PCAP_IFNAME);
-  else
-    return snobj_err(EINVAL, "PCAP need to set dev option");
 
+  const std::string dev = arg.dev();
+  if (dev.length() == 0) {
+    return pb_error(EINVAL, "PCAP need to set dev option");
+  }
   // non-blocking pcap
-  pcap_handle_ = pcap_open_live(dev_, PCAP_SNAPLEN, 1, -1, errbuf);
-  if (pcap_handle_ == NULL)
-    return snobj_err(ENODEV, "PCAP Open dev error: %s", errbuf);
+  pcap_handle_ = pcap_open_live(dev.c_str(), PCAP_SNAPLEN, 1, -1, errbuf);
+  if (pcap_handle_ == NULL) {
+    return pb_error(ENODEV, "PCAP Open dev error: %s", errbuf);
+  }
 
   int ret = pcap_setnonblock(pcap_handle_, 1, errbuf);
-  if (ret != 0)
-    return snobj_err(ENODEV, "PCAP set to nonblock error: %s", errbuf);
+  if (ret != 0) {
+    return pb_error(ENODEV, "PCAP set to nonblock error: %s", errbuf);
+  }
 
-  LOG(INFO) << "PCAP: open dev " << dev_;
+  LOG(INFO) << "PCAP: open dev " << dev;
 
-  return NULL;
+  return pb_errno(0);
 }
 
 void PCAPPort::DeInit() {
@@ -116,10 +117,12 @@ int PCAPPort::RecvPackets(queue_t qid, snb_array_t pkts, int cnt) {
 
   while (recv_cnt < cnt) {
     packet = pcap_next(pcap_handle_, &header);
-    if (!packet) break;
+    if (!packet)
+      break;
 
     sbuf = snb_alloc();
-    if (!sbuf) break;
+    if (!sbuf)
+      break;
 
     if (header.caplen <= SNBUF_DATA) {
       /* pcap packet will fit in the mbuf, go ahead and copy */
@@ -173,7 +176,8 @@ int PCAPPort::SendPackets(queue_t qid, snb_array_t pkts, int cnt) {
       }
     }
 
-    if (unlikely(ret != 0)) break;
+    if (unlikely(ret != 0))
+      break;
 
     send_cnt++;
   }

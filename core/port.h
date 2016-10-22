@@ -4,14 +4,15 @@
 #include <stdint.h>
 
 #include <functional>
-#include <memory>
 #include <map>
+#include <memory>
 
 #include <glog/logging.h>
 #include <gtest/gtest_prod.h>
 
 #include "common.h"
-#include "snobj.h"
+#include "log.h"
+#include "message.h"
 #include "snbuf.h"
 
 typedef uint8_t queue_t;
@@ -60,16 +61,14 @@ class PortBuilder {
   FRIEND_TEST(PortBuilderTest, RegisterPortClassDirectCall);
   FRIEND_TEST(PortBuilderTest, RegisterPortClassMacroCall);
 
-
   PortBuilder(std::function<Port *()> port_generator,
-              const std::string &class_name,
-              const std::string &name_template,
-              const std::string &help_text) :
-      port_generator_(port_generator),
-      class_name_(class_name),
-      name_template_(name_template),
-      help_text_(help_text),
-      initialized_(false) {}
+              const std::string &class_name, const std::string &name_template,
+              const std::string &help_text)
+      : port_generator_(port_generator),
+        class_name_(class_name),
+        name_template_(name_template),
+        help_text_(help_text),
+        initialized_(false) {}
 
   // Returns a new Port object of the type represented by this PortBuilder
   // instance (of type class_name) with the Port instance's name set to the
@@ -84,8 +83,8 @@ class PortBuilder {
   static int DestroyPort(Port *p);
 
   // Generates a name for a new port given the driver name and its template.
-  static std::string GenerateDefaultPortName(const std::string &driver_name,
-                                             const std::string &default_template);
+  static std::string GenerateDefaultPortName(
+      const std::string &driver_name, const std::string &default_template);
 
   // Invokes one-time initialization of the corresponding port class.  Returns
   // true upon success.
@@ -100,42 +99,46 @@ class PortBuilder {
 
   static const std::map<std::string, PortBuilder> &all_port_builders();
 
-  static const std::map<std::string, Port*> &all_ports();
-  
+  static const std::map<std::string, Port *> &all_ports();
+
   const std::string &class_name() const { return class_name_; };
   const std::string &name_template() const { return name_template_; };
   const std::string &help_text() const { return help_text_; };
 
  private:
-
   // To avoid the static initialization ordering problem, this pseudo-getter
   // function contains the real static all_port_builders class variable and
   // returns it, ensuring its construction before use.
-  // 
+  //
   // If reset is true, clears the store of all port builders; to be used for
   // testing and for dynamic loading of "drivers".
-  static std::map<std::string, PortBuilder> &all_port_builders_holder(bool reset = false);
+  static std::map<std::string, PortBuilder> &all_port_builders_holder(
+      bool reset = false);
 
   // A function that emits a new Port object of the type class_name.
-  std::function<Port *()> port_generator_; 
+  std::function<Port *()> port_generator_;
 
   // Tracks all port instances.
-  static std::map<std::string, Port*> all_ports_;
+  static std::map<std::string, Port *> all_ports_;
 
   std::string class_name_;     // The name of this Port class.
   std::string name_template_;  // The port default name prefix.
   std::string help_text_;      // Help text about this port type.
 
-  bool initialized_;  // Has this port class been initialized via InitPortClass()?
+  bool initialized_;  // Has this port class been initialized via
+                      // InitPortClass()?
 };
 
 class Port {
   // overide this section to create a new module -----------------------------
  public:
   Port() = default;
-  virtual ~Port() {};
+  virtual ~Port(){};
 
-  virtual struct snobj *Init(struct snobj *arg) { return nullptr; }
+  template <typename T>
+  pb_error_t Init(const T &arg) {
+    return pb_errno(0);
+  }
   virtual void Deinit() {}
 
   // For one-time initialization of the port's "driver" (optional).
@@ -181,7 +184,7 @@ class Port {
     port_builder_ = port_builder;
   }
 
-  std::string name_; // The name of this port instance.
+  std::string name_;  // The name of this port instance.
 
   // Class-wide spec of this type of port.  Non-owning.
   const PortBuilder *port_builder_;
@@ -210,7 +213,9 @@ class Port {
   port_stats_t port_stats;
 };
 
-#define ADD_DRIVER(_DRIVER, _NAME_TEMPLATE, _HELP) \
-  bool __driver__##_DRIVER = PortBuilder::RegisterPortClass(std::function<Port *()>([]() { return new _DRIVER (); }), #_DRIVER, _NAME_TEMPLATE, _HELP);
+#define ADD_DRIVER(_DRIVER, _NAME_TEMPLATE, _HELP)                       \
+  bool __driver__##_DRIVER = PortBuilder::RegisterPortClass(             \
+      std::function<Port *()>([]() { return new _DRIVER(); }), #_DRIVER, \
+      _NAME_TEMPLATE, _HELP);
 
 #endif

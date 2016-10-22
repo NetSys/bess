@@ -1,0 +1,571 @@
+syntax = "proto3";
+
+package bess;
+
+service BESSControl {
+  rpc ResetAll (Empty) returns (EmptyResponse) {}
+
+  rpc PauseAll (Empty) returns (EmptyResponse) {}
+  rpc ResumeAll (Empty) returns (EmptyResponse) {}
+
+  rpc ResetWorkers (Empty) returns (EmptyResponse) {}
+  rpc ListWorkers (Empty) returns (ListWorkersResponse) {}
+  rpc AddWorker (AddWorkerRequest) returns (EmptyResponse) {}
+  // TODO: delete_worker
+
+  rpc ResetTcs (Empty) returns (EmptyResponse) {}
+  rpc ListTcs (ListTcsRequest) returns (ListTcsResponse) {}
+  rpc AddTc (AddTcRequest) returns (EmptyResponse) {}
+  rpc GetTcStats (GetTcStatsRequest) returns (GetTcStatsResponse) {}
+
+  rpc ListDrivers (Empty) returns (ListDriversResponse) {}
+  rpc GetDriverInfo(GetDriverInfoRequest) returns (GetDriverInfoResponse) {}
+  // TODO: rpc import_driver()
+
+  rpc ResetPorts (Empty) returns (EmptyResponse) {}
+  rpc ListPorts (Empty) returns (ListPortsResponse) {}
+  rpc CreatePort (CreatePortRequest) returns (CreatePortResponse) {}
+  rpc DestroyPort (DestroyPortRequest) returns (EmptyResponse) {}
+  rpc GetPortStats (GetPortStatsRequest) returns (GetPortStatsResponse) {}
+
+  // TODO: mclass
+
+  rpc ResetModules (Empty) returns (EmptyResponse) {}
+  rpc ListModules (Empty) returns (ListModulesResponse) {}
+  rpc CreateModule (CreateModuleRequest) returns (CreateModuleResponse) {}
+  rpc DestroyModule (DestroyModuleRequest) returns (EmptyResponse) {}
+  rpc GetModuleInfo (GetModuleInfoRequest) returns (GetModuleInfoResponse) {}
+  rpc ConnectModules (ConnectModulesRequest) returns (EmptyResponse) {}
+  rpc DisconnectModules (DisconnectModulesRequest) returns (EmptyResponse) {}
+
+  rpc AttachTask (AttachTaskRequest) returns (EmptyResponse) {}
+
+  rpc EnableTcpdump (EnableTcpdumpRequest) returns (EmptyResponse) {}
+  rpc DisableTcpdump (DisableTcpdumpRequest) returns (EmptyResponse) {}
+
+  rpc KillBess (Empty) returns (EmptyResponse) {}
+
+  // TODO: modules commands
+}
+
+message Empty {
+
+}
+
+message CreatePortResponse {
+  Error error = 1;
+  string name = 2;
+}
+
+message EmptyResponse {
+  Error error = 1;
+}
+
+message DisableTcpdumpRequest {
+  string name = 1;
+  uint64 ogate = 2;
+}
+
+message EnableTcpdumpRequest {
+  string name = 1;
+  uint64 ogate = 2;
+  string fifo = 3;
+}
+
+message AttachTaskRequest {
+  string name = 1;
+  uint64 taskid = 2;
+  string tc = 3;
+  uint64 wid = 4;
+}
+
+message DisconnectModulesRequest {
+  string name = 1;
+  uint64 ogate = 2;
+}
+
+message ConnectModulesRequest {
+  string m1 = 1;
+  string m2 = 2;
+  uint64 ogate = 3;
+  uint64 igate = 4;
+}
+
+message GetModuleInfoResponse {
+  message IGate {
+    message OGate {
+      uint64 ogate = 1;
+      string name = 2;
+    }
+    uint64 igate = 1;
+    repeated OGate ogates = 2;
+  }
+  message OGate {
+    uint64 ogate = 1;
+    uint64 cnt = 2;
+    uint64 pkts = 3;
+    double timestamp = 4;
+    string name = 5;
+    uint64 igate = 6;
+  }
+  message Attribute {
+    string name = 1;
+    uint64 size = 2;
+    string mode = 3;
+    int64 offset = 4;
+  }
+  Error error = 1;
+  string name = 2;
+  string mclass = 3;
+  string desc = 4;
+  // TODO: string dump = 4;
+  repeated IGate igates = 6;
+  repeated OGate ogates = 7;
+  repeated Attribute metadata = 8;
+}
+
+message GetModuleInfoRequest {
+  string name = 1;
+}
+
+message DestroyModuleRequest {
+  string name = 1;
+}
+
+message CreateModuleResponse {
+  Error error = 1;
+  string name = 2;
+}
+
+message BPFArg {
+  message Filter {
+    int64 priority = 1;
+    string filter = 2;
+    int64 gate = 3;
+  }
+  repeated Filter filters = 1;
+}
+
+message BufferArg {
+}
+
+message BypassArg {
+}
+
+message DumpArg {
+  double interval = 1;
+}
+
+message EtherEncapArg {
+}
+
+message ExactMatchArg {
+  message Field {
+    uint64 size = 1;
+    string attribute = 2;
+    int64 offset = 3;
+    bytes mask = 4;
+  }
+  repeated Field fields = 1;
+}
+
+message FlowGenArg {
+  bytes template = 1;
+  double pps = 2;
+  double flow_rate = 3;
+  double flow_duration = 4;
+  enum Dist {
+    UNIFORM = 0;
+    EXPONENTIAL = 1;
+    PARETO = 2;
+  }
+  Dist arrival = 5;
+  Dist duration = 6;
+  bool quick_rampup = 7;
+}
+
+message GenericDecapArg {
+  uint64 bytes = 1;
+}
+
+message GenericEncapArg {
+  message Field {
+    uint64 size = 1;
+    string attribute = 2;
+  }
+  repeated Field fields = 1;
+}
+
+message HashLBArg {
+  repeated int64 gates = 1;
+  enum Mode {
+    L2 = 0;
+    L3 = 1;
+    L4 = 2;
+  }
+  Mode mode = 2;
+}
+
+message IPEncapArg {
+}
+
+message IPLookupArg {
+}
+
+message L2ForwardArg {
+  int64 size = 1;
+  int64 bucket = 2;
+}
+
+message MACSwapArg {
+}
+
+message MeasureArg {
+  int64 warmup = 1;
+}
+
+message MergeArg {
+}
+
+message MetadataTestArg {
+  message Attribute {
+    string name = 1;
+    int64 size = 2;
+  }
+  Attribute read = 1;
+  Attribute write = 2;
+  Attribute update = 3;
+}
+
+message NoOpArg {
+}
+
+message PortIncArg {
+  string port = 1;
+  int64 burst = 2;
+  bool prefetch = 3;
+}
+
+message PortOutArg {
+  string port = 1;
+}
+
+message QueueIncArg {
+  string port = 1;
+  uint64 qid = 2;
+  int64 burst = 3;
+  bool prefetch = 4;
+}
+
+message QueueOutArg {
+  string port = 1;
+  uint64 qid = 2;
+}
+
+message QueueArg {
+  uint64 size = 1;
+  int64 burst = 2;
+  bool prefetch = 3;
+}
+
+message RandomUpdateArg {
+  message Field {
+    int64 offset = 1;
+    uint64 size = 2;
+    uint64 min = 3;
+    uint64 max = 4;
+  }
+  repeated Field fields = 1;
+}
+
+message RewriteArg {
+  repeated bytes templates = 1;
+}
+
+message RoundRobinArg {
+  repeated int64 gates = 1;
+  enum Mode {
+    PACKET = 0;
+    BATCH = 1;
+  }
+  Mode mode = 2;
+}
+
+message SetMetadataArg {
+  message Attribute {
+    string name = 1;
+    uint64 size = 2;
+    bytes value = 3;
+    int64 offset = 4;
+  }
+  repeated Attribute attrs = 1;
+}
+
+message SinkArg {
+}
+
+message SourceArg {
+  uint64 pkt_size = 1;
+  uint64 burst = 2;
+}
+
+message SplitArg {
+  uint64 size = 1;
+  string name = 2;
+  int64 offset = 3;
+}
+
+message TimestampArg {
+}
+
+message UpdateArg {
+  message Field {
+    int64 offset = 1;
+    uint64 size = 2;
+    bytes value = 3;
+  }
+  repeated Field fields = 1;
+}
+
+message VLANPopArg {
+}
+
+message VLANPushArg {
+  uint64 tci = 1;
+}
+
+message VLANSplitArg {
+}
+
+message VXLANDecapArg {
+}
+
+message VXLANEncapArg {
+  uint64 dstport = 1;
+}
+
+message WildcardMatchArg {
+  message Field {
+    int64 offset = 1;
+    uint64 size = 2;
+    string attribute = 3;
+  }
+  repeated Field fields = 1;
+}
+
+message CreateModuleRequest {
+  string name = 1;
+  string mclass = 2;
+  // TODO: args
+  oneof arg {
+    BPFArg bpf_arg = 3;
+    BufferArg buffer_arg = 4;
+    BypassArg bypass_arg = 5;
+    DumpArg dump_arg = 6;
+    EtherEncapArg ether_encap_arg = 7;
+    ExactMatchArg exact_match_arg = 8;
+    FlowGenArg flow_gen_arg = 9;
+    GenericDecapArg generic_decap_arg = 10;
+    GenericEncapArg generic_encap_arg = 11;
+    HashLBArg hash_lb_arg = 12;
+    IPEncapArg ip_encap_arg = 13;
+    IPLookupArg ip_lookup_arg = 14;
+    L2ForwardArg l2_forward_arg = 15;
+    MACSwapArg mac_swap_arg = 16;
+    MeasureArg measure_arg = 17;
+    MergeArg merge_arg = 18;
+    MetadataTestArg metadata_test_arg = 19;
+    NoOpArg noop_arg = 20;
+    PortIncArg port_inc_arg = 21;
+    PortOutArg port_out_arg = 22;
+    QueueIncArg queue_inc_arg = 23;
+    QueueOutArg queue_out_arg = 24;
+    QueueArg queue_arg = 25;
+    RandomUpdateArg random_update_arg = 26;
+    RewriteArg rewrite_arg = 27;
+    RoundRobinArg round_robin_arg = 28;
+    SetMetadataArg set_metadata_arg = 29;
+    SinkArg sink_arg = 30;
+    SourceArg source_arg = 31;
+    SplitArg split_arg = 32;
+    TimestampArg timestamp_arg = 33;
+    UpdateArg update_arg = 34;
+    VLANPopArg vlan_pop_arg = 35;
+    VLANPushArg vlan_push_arg = 36;
+    VLANSplitArg vlan_split_arg = 37;
+    VXLANEncapArg vxlan_encap_arg = 38;
+    VXLANDecapArg vxlan_decap_arg = 39;
+    WildcardMatchArg wildcard_match_arg = 40;
+  }
+}
+
+message ListModulesResponse {
+  message Module {
+    string name = 1;
+    string mclass = 2;
+    string desc = 3;
+  }
+  Error error = 1;
+  repeated Module modules = 2;
+}
+
+message GetPortStatsResponse {
+  message Stat {
+    uint64 packets = 1;
+    uint64 dropped = 2;
+    uint64 bytes = 3;
+  }
+  Error error = 1;
+  Stat inc = 2;
+  Stat out = 3;
+  double timestamp = 4;
+}
+
+message GetPortStatsRequest {
+  string name = 1;
+}
+
+message DestroyPortRequest {
+  string name = 1;
+}
+
+message PCAPPortArg {
+  string dev = 1;
+}
+
+message PMDPortArg {
+  bool loopback = 1;
+  uint32 port_id = 2;
+  string pci = 3;
+  string vdev = 4;
+}
+
+message UnixSocketPortArg {
+  string path = 1;
+}
+
+message ZeroCopyVPortArg {
+
+}
+
+message VPortArg {
+  string ifname = 1;
+  string docker = 2;
+  int64 container_pid = 3;
+  string netns = 4;
+  repeated int64 rxq_cpus = 5;
+  uint64 tx_tci = 6;
+  uint64 tx_outer_tci = 7;
+  bool loopback = 8;
+  repeated string ip_addrs = 9;
+}
+
+message CreatePortRequest {
+  Port port = 1;
+  uint64 num_inc_q = 2;
+  uint64 num_out_q = 3;
+  uint64 size_inc_q = 4;
+  uint64 size_out_q = 5;
+  string mac_addr = 6;
+  oneof arg {
+    PCAPPortArg pcap_arg = 7;
+    PMDPortArg pmd_arg = 8;
+    UnixSocketPortArg socket_arg = 9;
+    ZeroCopyVPortArg zcvport_arg = 10;
+    VPortArg vport_arg = 11;
+  }
+}
+
+message Port {
+  string name = 1;
+  string driver = 2;
+}
+
+message ListPortsResponse {
+  Error error = 1;
+  repeated Port ports = 2;
+}
+
+message Error {
+  int32 err = 1;
+  string errmsg = 2;
+  string details = 3;
+}
+
+message ListWorkersResponse {
+  message WorkerStatus {
+    int64 wid = 1;
+    int64 core = 2;
+    int64 running = 3;
+    int64 num_tcs = 4;
+    int64 silent_drops = 5;
+  }
+  Error error = 1;
+  repeated WorkerStatus workers_status = 2;
+}
+
+message AddWorkerRequest {
+  int64 wid = 1;
+  int64 core = 2;
+}
+
+message ListTcsRequest {
+  int64 wid = 1;
+}
+
+message TrafficClass {
+  message Resource {
+    int64 schedules = 1;
+    int64 cycles = 2;
+    int64 packets = 3;
+    int64 bits = 4;
+  }
+  string name = 1;
+  int64 priority = 2;
+  int64 wid = 3;
+  Resource limit = 4;
+  Resource max_burst = 5;
+}
+
+message GetTcStatsResponse {
+  Error error = 1;
+  double timestamp = 2;
+  uint64 count = 3;
+  uint64 cycles = 4;
+  uint64 packets = 5;
+  uint64 bits = 6;
+}
+
+message ListTcsResponse {
+  message TrafficClassStatus {
+    TrafficClass class = 1;
+    string parent = 2;
+    int64 tasks = 3;
+  }
+  Error error = 1;
+  repeated TrafficClassStatus classes_status = 2;
+}
+
+message AddTcRequest {
+  TrafficClass class = 1;
+}
+
+message GetTcStatsRequest {
+  string name = 1;
+}
+
+message ListDriversResponse {
+  Error error = 1;
+  repeated string driver_names = 2;
+}
+
+message GetDriverInfoRequest {
+  string driver_name = 1;
+}
+
+message GetDriverInfoResponse {
+  Error error = 1;
+  string name = 2;
+  string help = 3;
+  repeated string commands = 4;
+}
