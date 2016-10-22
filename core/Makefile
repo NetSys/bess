@@ -1,3 +1,6 @@
+# Disable all implicit Makefile rules
+.SUFFIXES:
+
 ifndef CXX
     CXX = g++
 endif
