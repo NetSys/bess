@@ -1,3 +1,5 @@
+#include "module.h"
+
 #include <fcntl.h>
 #include <sys/uio.h>
 #include <unistd.h>
@@ -10,12 +12,7 @@
 #include "utils/pcap.h"
 #include "utils/time.h"
 
-#include "dpdk.h"
 #include "mem_alloc.h"
-#include "module.h"
-#include "namespace.h"
-#include "tc.h"
-#include "time.h"
 
 std::map<std::string, Module *> ModuleBuilder::all_modules_;
 

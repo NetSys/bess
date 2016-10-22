@@ -4,8 +4,8 @@
 #include <string>
 #include <vector>
 
-#include "../module.h"
 #include "../utils/htable.h"
+#include "../module.h"
 
 #define MAX_FIELDS 8
 #define MAX_FIELD_SIZE 8
