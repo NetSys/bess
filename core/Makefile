@@ -1,23 +1,12 @@
 # Disable all implicit Makefile rules
 .SUFFIXES:
 
-ifndef CXX
-    CXX = g++
-endif
+CXX ?= g++
+PROTOC ?= protoc
 
+RTE_SDK ?= $(abspath ../deps/dpdk-16.07)
+RTE_TARGET ?= $(shell uname -m)-native-linuxapp-gcc
 DPDK_LIB = dpdk
-
-ifndef RTE_SDK
-    RTE_SDK = $(abspath ../deps/dpdk-16.07)
-endif
-
-ifndef RTE_TARGET
-    RTE_TARGET = $(shell uname -m)-native-linuxapp-gcc
-endif
-
-ifndef PROTOC
-    PROTOC = protoc
-endif
 
 ifneq ($(wildcard $(RTE_SDK)/$(RTE_TARGET)/*),)
     DPDK_INC_DIR = $(RTE_SDK)/$(RTE_TARGET)/include
@@ -31,18 +20,14 @@ else
             Make sure $(abspath $(RTE_SDK)) is available and built)
 endif
 
-# gtest definitions
-GTEST_DIR = /usr/src/gtest
-CXXFLAGS += -isystem $(GTEST_DIR)/include
-
 CXXFLAGS += -std=gnu++11 -g3 -ggdb3 -Ofast -march=native \
 	    -Wall -Werror -Wno-unused-function -Wno-unused-but-set-variable \
 	    -I$(DPDK_INC_DIR) \
 	    -D_GNU_SOURCE
 
-LDFLAGS += -rdynamic -L$(DPDK_LIB_DIR) -Wl,-rpath=$(DPDK_LIB_DIR)
-LIBS += -Wl,--whole-archive -l$(DPDK_LIB) -Wl,--no-whole-archive -lm -pthread \
-			-lgflags -lglog -ldl -lrt -lpcap -lprotobuf -lgrpc++ -lgrpc++_reflection
+LDFLAGS += -rdynamic -L$(DPDK_LIB_DIR) -Wl,-rpath=$(DPDK_LIB_DIR) -pthread
+LIBS += -Wl,--whole-archive -l$(DPDK_LIB) -Wl,--no-whole-archive \
+	-lm -lgflags -lglog -ldl -lrt -lpcap -lprotobuf -lgrpc++ -lgrpc++_reflection
 
 ifdef SANITIZE
     LDFLAGS += -fsanitize=address
@@ -56,16 +41,22 @@ PROTOS = $(wildcard $(PROTO_DIR)/*.proto)
 PROTO_SRCS = $(patsubst %.proto,%.pb.cc, $(notdir $(PROTOS)))
 PROTO_SRCS += $(patsubst %.proto,%.grpc.pb.cc, $(notdir $(PROTOS)))
 PROTO_HEADERS = $(patsubst %.cc,%.h, $(PROTO_SRCS))
+PROTOCFLAGS += --proto_path=$(PROTO_DIR) --cpp_out=. --grpc_out=. --plugin=protoc-gen-grpc=`which grpc_cpp_plugin`
 
 ALL_SRCS = $(wildcard *.cc utils/*.cc modules/*.cc drivers/*.cc oldtests/*.cc)
-TEST_SRCS = $(filter %_test.cc, $(ALL_SRCS))
-SRCS = $(filter-out $(TEST_SRCS), $(ALL_SRCS))
-OBJS = $(patsubst %.cc,%.o, $(filter %.cc, $(SRCS)))
 HEADERS = $(wildcard *.h utils/*.h modules/*.h drivers/*.h oldtests/*.h)
 
-EXEC = bessd
+TEST_SRCS = $(filter %_test.cc, $(ALL_SRCS))
+TEST_OBJS = $(TEST_SRCS:.cc=.o)
+TEST_EXEC = $(TEST_OBJS:%.o=%)
 
+SRCS = $(filter-out $(TEST_SRCS), $(ALL_SRCS))
+OBJS = $(SRCS:.cc=.o)
+
+EXEC = bessd
 DEPS = .make.dep
+
+GTEST_DIR = /usr/src/gtest
 
 # if multiple targets are specified, do them one by one */
 ifneq ($(words $(MAKECMDGOALS)),1)
@@ -79,74 +70,14 @@ else
 # parallel build by default
 CORES ?= $(shell nproc || echo 1)
 MAKEFLAGS += -j $(CORES)
-VERBOSE = 0
+VERBOSE ?= 0
 
-.PHONY: all clean tests tags cscope protobuf
+.PHONY: all clean tags cscope tests protobuf
 
 all: $(DEPS) $(EXEC)
 
-%.grpc.pb.cc: $(PROTO_DIR)/%.proto
-	$(eval COMMAND = $(PROTOC) $< --proto_path=$(PROTO_DIR) --grpc_out=. --plugin=protoc-gen-grpc=`which grpc_cpp_plugin`)
-	@if $(COMMAND); then \
-		if [ $(VERBOSE) -eq 0 ]; then \
-			echo "[PROTOC] $@"; \
-		else \
-			echo "[PROTOC] $(COMMAND)"; \
-		fi \
-	else \
-		echo "Protobuf error: \033[0;31m$<\033[0;33m\n$(COMMAND)\033[0m"; \
-		false; \
-	fi
-
-
-%.pb.cc: $(PROTO_DIR)/%.proto
-	$(eval COMMAND = $(PROTOC) $< --proto_path=$(PROTO_DIR) --cpp_out=.)
-	@if $(COMMAND); then \
-		if [ $(VERBOSE) -eq 0 ]; then \
-			echo "[PROTOC] $@"; \
-		else \
-			echo "[PROTOC] $(COMMAND)"; \
-		fi \
-	else \
-		echo "Protobuf error: \033[0;31m$<\033[0;33m\n$(COMMAND)\033[0m"; \
-		false; \
-	fi
-
-$(DEPS): $(PROTO_SRCS) $(SRCS) $(HEADERS)
-	@$(CXX) $(CXXFLAGS) -MM $(SRCS) | sed 's|\(.*\)\.o: \(.*\)\.c|\2.o: \2.c|' > $(DEPS)
-
-%.o: %.cc
-	$(eval COMMAND = $(CXX) $(CXXFLAGS) -c -o $@ $<)
-	@if $(COMMAND); then \
-		if [ $(VERBOSE) -eq 0 ]; then \
-			echo "[CXX] $<"; \
-		else \
-			echo "[CXX] $(COMMAND)"; \
-		fi \
-	else \
-		echo "Compile error: \033[0;31m$<\033[0;33m\n$(COMMAND)\033[0m"; \
-		false; \
-	fi
-
-$(EXEC): $(OBJS)
-	$(eval COMMAND = $(CXX) $(OBJS) -o $@ $(LDFLAGS) $(LIBS))
-	@if $(COMMAND); then \
-		if [ $(VERBOSE) -eq 0 ]; then \
-			echo "[LD] $@"; \
-		else \
-			echo "[LD] $(COMMAND)"; \
-		fi \
-	else \
-		echo "Link error: \033[0;31m$@\033[0;33m\n$(COMMAND) \033[0m"; \
-		false; \
-	fi
-	@echo "Build succeeded."
-	@sync
-
--include $(DEPS)
-
 clean:
-	rm -f $(DEPS) $(EXEC) $(TESTS) *.pb.cc *.pb.h *.o modules/*.o drivers/*.o utils/*.o oldtests/*.o gtest.a gtest_main.a
+	rm -f $(DEPS) $(EXEC) $(TEST_EXEC) *.a *.pb.* *.o modules/*.o drivers/*.o utils/*.o oldtests/*.o
 
 tags:
 	@ctags -R *
@@ -157,50 +88,93 @@ cscope:
 	cscope -b -q -k
 	@rm -f cscope.files
 
+tests: $(DEPS) $(TEST_OBJS) $(TEST_EXEC)
+
 protobuf: $(PROTO_SRCS)
 
-# Test rules
-TESTS = utils/time_test port_test modules/round_robin_test
+# This build wrapper takes 4 parameters:
+# $(1): build type (CXX, LD, ...)
+# $(2): Make target
+# $(3): Make prerequisites
+# $(4): command
+define BUILD =
+$(2): $(3)
+	$$(eval _TYPE = $$(strip $(1)))
+	$$(eval _TARGET = $$(if $$(word 2, $$^), $$@, $$<))
+	$$(eval _CMD = $$(strip $(4)))
+	@if [ $$(VERBOSE) -eq 0 ]; then \
+		printf "%-10s %s\n" [$$(_TYPE)] $$(_TARGET); \
+	else \
+		printf "%-10s %s\n" [$$(_TYPE)] $$(_CMD); \
+	fi
+	@if ! $$(_CMD); then \
+		echo "Error: \033[0;31m$$(_TARGET)"; \
+		echo "\033[0;33m$$(_CMD)\033[0m"; \
+		false; \
+	fi
+endef
 
-tests: $(TESTS)
+$(eval $(call BUILD, \
+	PROTOC, \
+	%.pb.cc %.pb.h %.grpc.pb.cc %.grpc.pb.h, \
+	$$(PROTO_DIR)/%.proto, \
+	$$(PROTOC) $$< $$(PROTOCFLAGS)))
 
-# Rules to build gtest library.
-GTEST_SRCS_ = $(GTEST_DIR)/src/*.cc $(GTEST_DIR)/src/*.h $(GTEST_HEADERS)
+$(eval $(call BUILD, \
+	DEPS, \
+	$$(DEPS), \
+	$$(PROTO_HEADERS) $$(SRCS) $$(HEADERS), \
+	$$(CXX) $$(CXXFLAGS) -MM $$(SRCS) | sed 's|\(.*\)\.o: \(.*\)\.c|\2.o: \2.c|' > $$(DEPS)))
 
-# For simplicity and to avoid depending on Google Test's
-# implementation details, the dependencies specified below are
-# conservative and not optimized.  This is fine as Google Test
-# compiles fast and for ordinary users its source rarely changes.
-gtest-all.o : $(GTEST_SRCS_)
-	$(CXX) $(CPPFLAGS) -I$(GTEST_DIR) $(CXXFLAGS) -c \
-            $(GTEST_DIR)/src/gtest-all.cc
+$(eval $(call BUILD, \
+	CXX, \
+	%.o, \
+	%.cc, \
+	$$(CXX) -o $$@ -c $$< $$(CXXFLAGS)))
 
-gtest_main.o : $(GTEST_SRCS_)
-	$(CXX) $(CPPFLAGS) -I$(GTEST_DIR) $(CXXFLAGS) -c \
-            $(GTEST_DIR)/src/gtest_main.cc
+$(eval $(call BUILD, \
+	LD, \
+	$$(EXEC), \
+	$$(OBJS), \
+	$$(CXX) -o $$@ $$^ $$(LDFLAGS) $$(LIBS)))
 
-gtest.a : gtest-all.o
-	$(AR) $(ARFLAGS) $@ $^
+$(eval $(call BUILD, \
+	TEST_CXX, \
+	%_test.o, \
+	%_test.cc, \
+	$$(CXX) -o $$@ -c $$< $$(CXXFLAGS)))
 
-gtest_main.a : gtest-all.o gtest_main.o
-	$(AR) $(ARFLAGS) $@ $^
+$(eval $(call BUILD, \
+	TEST_LD, \
+	%_test, \
+	%_test.o %.o gtest_main.a bess.a, \
+	$$(CXX) -o $$@ $$^ $$(LDFLAGS) $(LIBS)))
 
-port_test.o : port_test.cc port.h $(GTEST_HEADERS)
-	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c $< -o $@
+$(eval $(call BUILD, \
+	TEST_CXX, \
+	gtest-all.o, \
+	$$(GTEST_DIR)/src/gtest-all.cc, \
+	$$(CXX) -o $$@ -c $$< -I$$(GTEST_DIR) $$(CXXFLAGS)))
 
-port_test : port.o port_test.o gtest_main.a
-	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -pthread $^ -o $@ $(LDFLAGS) $(LIBS)
+$(eval $(call BUILD, \
+	TEST_CXX, \
+	gtest_main.o, \
+	$$(GTEST_DIR)/src/gtest_main.cc, \
+	$$(CXX) -o $$@ -c $$< -I$$(GTEST_DIR) $$(CXXFLAGS)))
 
-utils/time_test.o : utils/time_test.cc utils/time.h $(GTEST_HEADERS)
-	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c $< -o $@
+$(eval $(call BUILD, \
+	TEST_AR, \
+	gtest_main.a, \
+	gtest-all.o gtest_main.o, \
+	$$(AR) rcs $$@ $$^))
 
-utils/time_test : utils/time.o utils/time_test.o gtest_main.a
-	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -pthread $^ -o $@ $(LDFLAGS) $(LIBS)
+CORE_OBJS = $(filter-out main.o drivers/%.o modules/%.o oldtests/%.o, $(OBJS))
+$(eval $(call BUILD, \
+	TEST_AR, \
+	bess.a, \
+	$(CORE_OBJS), \
+	$$(AR) rcs $$@ $$^))
 
-modules/round_robin_test.o : modules/round_robin_test.cc modules/round_robin.h $(GTEST_HEADERS)
-	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c $< -o $@
-
-modules/round_robin_test : modules/round_robin_test.o gtest_main.a $(filter-out main.o, $(OBJS))
-	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -pthread $^ -o $@ $(LDFLAGS) $(LIBS)
+-include $(DEPS)
 
 endif
