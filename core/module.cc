@@ -145,6 +145,45 @@ static void destroy_all_tasks(Module *m) {
 
 /* returns a pointer to the created module.
  * if error, returns NULL and *perr is set */
+Module *create_module(const char *name, const ModuleClass *mclass,
+                      struct snobj *arg, struct snobj **perr) {
+  Module *m = NULL;
+  int ret = 0;
+  *perr = NULL;
+
+  std::string mod_name;
+
+  if (name) {
+    if (find_module(name)) {
+      *perr = snobj_err(EEXIST, "Module '%s' already exists", name);
+      return NULL;
+    }
+
+    mod_name = name;
+  } else {
+    mod_name = set_default_name(mclass->Name(), mclass->NameTemplate());
+  }
+
+  m = mclass->CreateModule(mod_name);
+
+  *perr = m->Init(arg);
+  if (*perr != nullptr) {
+    delete m;
+    return NULL;
+  }
+
+  ret = register_module(m);
+  if (ret != 0) {
+    *perr = snobj_errno(-ret);
+    delete m;
+    return NULL;
+  }
+
+  return m;
+}
+
+/* returns a pointer to the created module.
+ * if error, returns NULL and *perr is set */
 template <typename T>
 Module *create_module(const char *name, const ModuleClass *mclass, const T &arg,
                       bess::Error *perr) {

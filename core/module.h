@@ -151,7 +151,8 @@ class ModuleClassRegister : public ModuleClass {
 
   virtual std::vector<std::string> Commands() const {
     std::vector<std::string> ret;
-    for (auto &cmd : T::cmds) ret.push_back(cmd.cmd);
+    for (auto &cmd : T::cmds)
+      ret.push_back(cmd.cmd);
     return ret;
   }
 
@@ -239,7 +240,9 @@ struct task *task_create(Module *m, void *arg);
 
 void task_destroy(struct task *t);
 
-static inline int task_is_attached(struct task *t) { return (t->c != NULL); }
+static inline int task_is_attached(struct task *t) {
+  return (t->c != NULL);
+}
 
 void task_attach(struct task *t, struct tc *c);
 void task_detach(struct task *t);
@@ -257,6 +260,9 @@ int num_module_tasks(Module *m);
 size_t list_modules(const Module **p_arr, size_t arr_size, size_t offset);
 
 Module *find_module(const char *name);
+
+Module *create_module(const char *name, const ModuleClass *mclass,
+                      struct snobj *arg, struct snobj **perr);
 
 template <typename T>
 Module *create_module(const char *name, const ModuleClass *mclass, const T &arg,
@@ -330,7 +336,8 @@ static inline void run_choose_module(Module *m, gate_idx_t ogate_idx,
 #endif
 
 #if TCPDUMP_GATES
-  if (unlikely(ogate->tcpdump)) dump_pcap_pkts(ogate, batch);
+  if (unlikely(ogate->tcpdump))
+    dump_pcap_pkts(ogate, batch);
 #endif
 
   ctx.igate_stack[ctx.stack_depth] = ogate->out.igate_idx;

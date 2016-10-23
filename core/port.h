@@ -14,6 +14,7 @@
 #include "log.h"
 #include "message.h"
 #include "snbuf.h"
+#include "snobj.h"
 
 typedef uint8_t queue_t;
 
@@ -139,6 +140,9 @@ class Port {
   pb_error_t Init(const T &arg) {
     return pb_errno(0);
   }
+
+  virtual struct snobj *Init(struct snobj *arg) { return nullptr; }
+
   virtual void Deinit() {}
 
   // For one-time initialization of the port's "driver" (optional).

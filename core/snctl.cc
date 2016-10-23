@@ -17,6 +17,7 @@
 
 #include "master.h"
 #include "module.h"
+#include "namespace.h"
 #include "port.h"
 #include "tc.h"
 #include "time.h"
@@ -426,7 +427,7 @@ static struct snobj *handle_list_ports(struct snobj *q) {
 
 /* returns a pointer to the created port.
  * if error, returns NULL and *perr is set */
-/*
+
 static Port *create_port(const char *name, const PortBuilder *driver,
                          struct snobj *arg, struct snobj **perr) {
   std::unique_ptr<Port> p;
@@ -531,9 +532,6 @@ static Port *create_port(const char *name, const PortBuilder *driver,
 
   return p.release();
 }
-*/
-
-/*
 
 static struct snobj *handle_create_port(struct snobj *q) {
   const char *driver_name;
@@ -543,7 +541,8 @@ static struct snobj *handle_create_port(struct snobj *q) {
   struct snobj *err;
 
   driver_name = snobj_eval_str(q, "driver");
-  if (!driver_name) return snobj_err(EINVAL, "Missing 'driver' field");
+  if (!driver_name)
+    return snobj_err(EINVAL, "Missing 'driver' field");
 
   const auto &builders = PortBuilder::all_port_builders();
   const auto &it = builders.find(driver_name);
@@ -553,15 +552,15 @@ static struct snobj *handle_create_port(struct snobj *q) {
   const PortBuilder &builder = it->second;
 
   port = create_port(snobj_eval_str(q, "name"), &builder, snobj_eval(q, "arg"),
-&err);
-  if (!port) return err;
+                     &err);
+  if (!port)
+    return err;
 
   r = snobj_map();
   snobj_map_set(r, "name", snobj_str(port->name()));
 
   return r;
 }
-*/
 
 static struct snobj *handle_destroy_port(struct snobj *q) {
   const char *port_name;
@@ -676,7 +675,6 @@ static struct snobj *handle_reset_modules(struct snobj *q) {
   return NULL;
 }
 
-/*
 static struct snobj *handle_list_modules(struct snobj *q) {
   struct snobj *r;
 
@@ -700,7 +698,7 @@ static struct snobj *handle_list_modules(struct snobj *q) {
 
       snobj_map_set(module, "name", snobj_str(m->Name()));
       snobj_map_set(module, "mclass", snobj_str(m->GetClass()->Name()));
-      snobj_map_set(module, "desc", m->GetDesc());
+      snobj_map_set(module, "desc", snobj_str(m->GetDesc().c_str()));
 
       snobj_list_add(r, module);
     }
@@ -708,7 +706,6 @@ static struct snobj *handle_list_modules(struct snobj *q) {
 
   return r;
 }
-
 
 static struct snobj *handle_create_module(struct snobj *q) {
   const char *mclass_name;
@@ -718,21 +715,23 @@ static struct snobj *handle_create_module(struct snobj *q) {
   struct snobj *r;
 
   mclass_name = snobj_eval_str(q, "mclass");
-  if (!mclass_name) return snobj_err(EINVAL, "Missing 'mclass' field");
+  if (!mclass_name)
+    return snobj_err(EINVAL, "Missing 'mclass' field");
 
   mclass = find_mclass(mclass_name);
-  if (!mclass) return snobj_err(ENOENT, "No mclass '%s' found", mclass_name);
+  if (!mclass)
+    return snobj_err(ENOENT, "No mclass '%s' found", mclass_name);
 
   module = create_module(snobj_eval_str(q, "name"), mclass,
                          snobj_eval(q, "arg"), &r);
-  if (!module) return r;
+  if (!module)
+    return r;
 
   r = snobj_map();
   snobj_map_set(r, "name", snobj_str(module->Name()));
 
   return r;
 }
-*/
 
 static struct snobj *handle_destroy_module(struct snobj *q) {
   const char *m_name;
@@ -837,7 +836,6 @@ static struct snobj *collect_metadata(Module *m) {
   return metadata;
 }
 
-/*
 static struct snobj *handle_get_module_info(struct snobj *q) {
   const char *m_name;
   Module *m;
@@ -846,7 +844,8 @@ static struct snobj *handle_get_module_info(struct snobj *q) {
 
   m_name = snobj_str_get(q);
 
-  if (!m_name) return snobj_err(EINVAL, "Argument must be a name in str");
+  if (!m_name)
+    return snobj_err(EINVAL, "Argument must be a name in str");
 
   if ((m = find_module(m_name)) == NULL)
     return snobj_err(ENOENT, "No module '%s' found", m_name);
@@ -856,7 +855,7 @@ static struct snobj *handle_get_module_info(struct snobj *q) {
   snobj_map_set(r, "name", snobj_str(m->Name()));
   snobj_map_set(r, "mclass", snobj_str(m->GetClass()->Name()));
 
-  snobj_map_set(r, "desc", m->GetDesc());
+  snobj_map_set(r, "desc", snobj_str(m->GetDesc().c_str()));
   snobj_map_set(r, "dump", m->GetDump());
 
   snobj_map_set(r, "igates", collect_igates(m));
@@ -865,7 +864,6 @@ static struct snobj *handle_get_module_info(struct snobj *q) {
 
   return r;
 }
-*/
 
 static struct snobj *handle_connect_modules(struct snobj *q) {
   const char *m1_name;
@@ -1081,7 +1079,7 @@ static struct handler_map sn_handlers[] = {
 
     {"reset_ports", 1, handle_reset_ports},
     {"list_ports", 0, handle_list_ports},
-    {"create_port", 0, handle_not_implemented},
+    {"create_port", 0, handle_create_port},
     {"destroy_port", 0, handle_destroy_port},
     {"get_port_stats", 0, handle_get_port_stats},
 
@@ -1090,10 +1088,10 @@ static struct handler_map sn_handlers[] = {
     {"import_mclass", 0, handle_not_implemented}, /* TODO */
 
     {"reset_modules", 1, handle_reset_modules},
-    {"list_modules", 0, handle_not_implemented},
-    {"create_module", 1, handle_not_implemented},
+    {"list_modules", 0, handle_list_modules},
+    {"create_module", 1, handle_create_module},
     {"destroy_module", 1, handle_destroy_module},
-    {"get_module_info", 0, handle_not_implemented},
+    {"get_module_info", 0, handle_get_module_info},
     {"connect_modules", 1, handle_connect_modules},
     {"disconnect_modules", 1, handle_disconnect_modules},
 
