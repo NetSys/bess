@@ -8,22 +8,31 @@
 #include <thread>
 #include <unistd.h>
 
-#include "../log.h"
+#include <glog/logging.h>
+
 #include "../message.h"
 #include "../port.h"
 
-#define NOT_CONNECTED -1
-
-/* Only one client can be connected at the same time */
-
-/* Polling sockets is quite exprensive, so we throttle the polling rate.
- * (by checking sockets once every RECV_TICKS schedules)
- * TODO: Revise this once the interrupt mode is implemented */
+// TODO(barath): Clarify these comments.
+// Only one client can be connected at the same time.
+// Polling sockets is quite exprensive, so we throttle the polling rate.  (by checking
+// sockets once every RECV_TICKS schedules) TODO: Revise this once the interrupt mode is
+// implemented.
 #define RECV_SKIP_TICKS 256
 #define MAX_TX_FRAGS 8
 
 class UnixSocketPort : public Port {
  public:
+  static const int kNotConnectedFd = -1;  // Value for a disconnected socket.
+
+  UnixSocketPort() :
+      Port(),
+      recv_skip_cnt_(),
+      listen_fd_(),
+      addr_(),
+      client_fd_(),
+      old_client_fd_() {}
+
   virtual pb_error_t Init(const bess::UnixSocketPortArg &arg);
   virtual void DeInit();
 
@@ -35,55 +44,56 @@ class UnixSocketPort : public Port {
  private:
   void CloseConnection();
 
-  uint32_t recv_skip_cnt_ = {0};
-  int listen_fd_ = {0};
-  struct sockaddr_un addr_ = {0};
+  uint32_t recv_skip_cnt_;
+  int listen_fd_;
+  struct sockaddr_un addr_;
 
-  /* NOTE: three threads (accept / recv / send) may race on this,
-   * so use volatile */
-  volatile int client_fd_ = {0};
-  int old_client_fd_ = {0};
+  // NOTE: three threads (accept / recv / send) may race on this, so use volatile.
+  volatile int client_fd_;
+  int old_client_fd_;
 };
 
 void UnixSocketPort::AcceptNewClient() {
   int ret;
 
   for (;;) {
-    ret = accept4(listen_fd_, NULL, NULL, SOCK_NONBLOCK);
-    if (ret >= 0)
+    ret = accept4(listen_fd_, nullptr, nullptr, SOCK_NONBLOCK);
+    if (ret >= 0) {
       break;
+    }
 
-    if (errno != EINTR)
-      log_perr("[UnixSocket]:accept4()");
+    if (errno != EINTR) {
+      PLOG(ERROR) << "[UnixSocket]:accept4()";
+    }
   }
 
   recv_skip_cnt_ = 0;
 
-  if (old_client_fd_ != NOT_CONNECTED) {
-    /* Reuse the old file descriptor number by atomically
-     * exchanging the new fd with the old one.
-     * The zombie socket is closed silently (see dup2) */
+  if (old_client_fd_ != kNotConnectedFd) {
+    // Reuse the old file descriptor number by atomically exchanging the new fd with the
+    // old one.  The zombie socket is closed silently (see dup2).
     dup2(ret, client_fd_);
     close(ret);
-  } else
+  } else {
     client_fd_ = ret;
+  }
 }
 
-/* This accept thread terminates once a new client is connected */
+// This accept thread terminates once a new client is connected.
 void *AcceptThreadMain(void *arg) {
   UnixSocketPort *p = reinterpret_cast<UnixSocketPort *>(arg);
   p->AcceptNewClient();
-  return NULL;
+  return nullptr;
 }
 
-/* The file descriptor for the connection will not be closed,
- * until we have a new client. This is to avoid race condition in TX process */
+// The file descriptor for the connection will not be closed, until we have a new client.
+// This is to avoid race condition in TX process.
 void UnixSocketPort::CloseConnection() {
-  /* Keep client_fd, since it may be being used in unix_send_pkts() */
+  // Keep client_fd, since it may be being used in unix_send_pkts().
   old_client_fd_ = client_fd_;
-  client_fd_ = NOT_CONNECTED;
+  client_fd_ = kNotConnectedFd;
 
-  /* relaunch the accept thread */
+  // Relaunch the accept thread.
   std::thread accept_thread(AcceptThreadMain, reinterpret_cast<void *>(this));
   accept_thread.detach();
 }
@@ -97,8 +107,8 @@ pb_error_t UnixSocketPort::Init(const bess::UnixSocketPortArg &arg) {
 
   int ret;
 
-  client_fd_ = NOT_CONNECTED;
-  old_client_fd_ = NOT_CONNECTED;
+  client_fd_ = kNotConnectedFd;
+  old_client_fd_ = kNotConnectedFd;
 
   if (num_txq > 1 || num_rxq > 1) {
     return pb_error(EINVAL, "Cannot have more than 1 queue per RX/TX");
@@ -113,19 +123,21 @@ pb_error_t UnixSocketPort::Init(const bess::UnixSocketPortArg &arg) {
 
   if (path.length() != 0) {
     snprintf(addr_.sun_path, sizeof(addr_.sun_path), "%s", path.c_str());
-  } else
+  } else {
     snprintf(addr_.sun_path, sizeof(addr_.sun_path), "%s/bess_unix_%s",
              P_tmpdir, name().c_str());
+  }
 
-  /* This doesn't include the trailing null character */
+  // This doesn't include the trailing null character.
   addrlen = sizeof(addr_.sun_family) + strlen(addr_.sun_path);
 
-  /* non-abstract socket address? */
+  // Non-abstract socket address?
   if (addr_.sun_path[0] != '@') {
-    /* remove existing socket file, if any */
+    // Remove existing socket file, if any.
     unlink(addr_.sun_path);
-  } else
+  } else {
     addr_.sun_path[0] = '\0';
+  }
 
   ret = bind(listen_fd_, reinterpret_cast<struct sockaddr *>(&addr_), addrlen);
   if (ret < 0) {
@@ -146,8 +158,9 @@ pb_error_t UnixSocketPort::Init(const bess::UnixSocketPortArg &arg) {
 void UnixSocketPort::DeInit() {
   close(listen_fd_);
 
-  if (client_fd_ >= 0)
+  if (client_fd_ >= 0) {
     close(client_fd_);
+  }
 }
 
 int UnixSocketPort::RecvPackets(queue_t qid, snb_array_t pkts, int cnt) {
@@ -155,8 +168,9 @@ int UnixSocketPort::RecvPackets(queue_t qid, snb_array_t pkts, int cnt) {
 
   int received;
 
-  if (client_fd == NOT_CONNECTED)
+  if (client_fd == kNotConnectedFd) {
     return 0;
+  }
 
   if (recv_skip_cnt_) {
     recv_skip_cnt_--;
@@ -168,10 +182,11 @@ int UnixSocketPort::RecvPackets(queue_t qid, snb_array_t pkts, int cnt) {
     struct snbuf *pkt = static_cast<struct snbuf *>(snb_alloc());
     int ret;
 
-    if (!pkt)
+    if (!pkt) {
       break;
+    }
 
-    /* datagrams larger than 2KB will be truncated */
+    // Datagrams larger than 2KB will be truncated.
     ret = recv(client_fd, pkt->_data, SNBUF_DATA, 0);
 
     if (ret > 0) {
@@ -183,20 +198,23 @@ int UnixSocketPort::RecvPackets(queue_t qid, snb_array_t pkts, int cnt) {
     snb_free(pkt);
 
     if (ret < 0) {
-      if (errno == EAGAIN || errno == EWOULDBLOCK)
+      if (errno == EAGAIN || errno == EWOULDBLOCK) {
         break;
+      }
 
-      if (errno == EINTR)
+      if (errno == EINTR) {
         continue;
+      }
     }
 
-    /* connection closed */
+    // Connection closed.
     CloseConnection();
     break;
   }
 
-  if (received == 0)
+  if (received == 0) {
     recv_skip_cnt_ = RECV_SKIP_TICKS;
+  }
 
   return received;
 }
@@ -225,14 +243,16 @@ int UnixSocketPort::SendPackets(queue_t qid, snb_array_t pkts, int cnt) {
     }
 
     ret = sendmsg(client_fd, &msg, 0);
-    if (ret < 0)
+    if (ret < 0) {
       break;
+    }
 
     sent++;
   }
 
-  if (sent)
+  if (sent) {
     snb_free_bulk(pkts, sent);
+  }
 
   return sent;
 }
