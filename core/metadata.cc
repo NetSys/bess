@@ -177,10 +177,8 @@ static void identify_scope_component(Module *m, struct mt_attr *attr) {
 }
 
 static void prepare_metadata_computation() {
-  struct ns_iter iter;
-  ns_init_iterator(&iter, NS_TYPE_MODULE);
-  while (1) {
-    Module *m = (Module *)ns_next(&iter);
+  for (const auto &it : ModuleBuilder::all_modules()) {
+    Module *m = it.second;
     if (!m) break;
 
     module_scopes[m] = -1;
@@ -190,7 +188,6 @@ static void prepare_metadata_computation() {
       m->attrs[i].scope_id = -1;
     }
   }
-  ns_release_iterator(&iter);
 }
 
 static void cleanup_metadata_computation() {
@@ -328,11 +325,8 @@ static void assign_offsets() {
 }
 
 void check_orphan_readers() {
-  struct ns_iter iter;
-
-  ns_init_iterator(&iter, NS_TYPE_MODULE);
-  while (1) {
-    Module *m = (Module *)ns_next(&iter);
+  for (const auto &it : ModuleBuilder::all_modules()) {
+    const Module *m = it.second;
     if (!m) break;
 
     for (int i = 0; i < m->num_attrs; i++) {
@@ -343,17 +337,12 @@ void check_orphan_readers() {
                    << "no upstream module that sets the value!";
     }
   }
-  ns_release_iterator(&iter);
 }
 
 /* Debugging tool */
 void log_all_scopes_per_module() {
-  struct ns_iter iter;
-
-  ns_init_iterator(&iter, NS_TYPE_MODULE);
-
-  while (1) {
-    Module *m = (Module *)ns_next(&iter);
+  for (const auto &it : ModuleBuilder::all_modules()) {
+    const Module *m = it.second;
     if (!m) break;
 
     LOG(INFO) << "Module " << m->name()
@@ -363,7 +352,6 @@ void log_all_scopes_per_module() {
         LOG(INFO) << "scope " << m->scope_components[i] << " at offset " << i;
     }
   }
-  ns_release_iterator(&iter);
 }
 
 static void compute_scope_degrees() {
@@ -389,13 +377,10 @@ static void sort_scope_components() {
 
 /* Main entry point for calculating metadata offsets. */
 void compute_metadata_offsets() {
-  struct ns_iter iter;
-
   prepare_metadata_computation();
 
-  ns_init_iterator(&iter, NS_TYPE_MODULE);
-  while (1) {
-    Module *m = (Module *)ns_next(&iter);
+  for (const auto &it : ModuleBuilder::all_modules()) {
+    Module *m = it.second;
     if (!m) break;
 
     for (int i = 0; i < m->num_attrs; i++) {
@@ -410,7 +395,6 @@ void compute_metadata_offsets() {
         identify_single_scope_component(m, attr);
     }
   }
-  ns_release_iterator(&iter);
 
   sort_scope_components();
   assign_offsets();
