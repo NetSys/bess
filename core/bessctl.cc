@@ -242,6 +242,11 @@ class BESSControlImpl final : public BESSControl::Service {
   Status ResetAll(ClientContext* context, const Empty& request,
                   EmptyResponse* response) {
     Status status;
+
+    if (is_any_worker_running()) {
+      return return_with_error(response, EBUSY, "There is a running worker");
+    }
+
     status = ResetModules(context, request, response);
     if (response->error().err() != 0) {
       return status;
@@ -274,6 +279,9 @@ class BESSControlImpl final : public BESSControl::Service {
   }
   Status ResetWorkers(ClientContext* context, const Empty& request,
                       EmptyResponse* response) {
+    if (is_any_worker_running()) {
+      return return_with_error(response, EBUSY, "There is a running worker");
+    }
     destroy_all_workers();
     log_info("*** All workers have been destroyed ***\n");
     return Status::OK;
@@ -311,6 +319,9 @@ class BESSControlImpl final : public BESSControl::Service {
   }
   Status ResetTcs(ClientContext* context, const Empty& request,
                   EmptyResponse* response) {
+    if (is_any_worker_running()) {
+      return return_with_error(response, EBUSY, "There is a running worker");
+    }
     struct ns_iter iter;
     struct tc* c;
 
@@ -428,6 +439,9 @@ class BESSControlImpl final : public BESSControl::Service {
   }
   Status AddTc(ClientContext* context, const AddTcRequest& request,
                EmptyResponse* response) {
+    if (is_any_worker_running()) {
+      return return_with_error(response, EBUSY, "There is a running worker");
+    }
     int wid;
 
     struct tc_params params;
@@ -557,6 +571,9 @@ class BESSControlImpl final : public BESSControl::Service {
   }
   Status ResetPorts(ClientContext* context, const Empty& request,
                     EmptyResponse* response) {
+    if (is_any_worker_running()) {
+      return return_with_error(response, EBUSY, "There is a running worker");
+    }
     for (auto it = PortBuilder::all_ports().cbegin();
          it != PortBuilder::all_ports().end();) {
       auto it_next = std::next(it);
@@ -699,6 +716,9 @@ class BESSControlImpl final : public BESSControl::Service {
   }
   Status ResetModules(ClientContext* context, const Empty& request,
                       EmptyResponse* response) {
+    if (is_any_worker_running()) {
+      return return_with_error(response, EBUSY, "There is a running worker");
+    }
     Module* m;
 
     while (list_modules((const Module**)&m, 1, 0))
@@ -736,6 +756,9 @@ class BESSControlImpl final : public BESSControl::Service {
   Status CreateModule(ClientContext* context,
                       const CreateModuleRequest& request,
                       CreateModuleResponse* response) {
+    if (is_any_worker_running()) {
+      return return_with_error(response, EBUSY, "There is a running worker");
+    }
     const char* mclass_name;
     const ModuleClass* mclass;
     Module* module;
@@ -918,6 +941,9 @@ class BESSControlImpl final : public BESSControl::Service {
   Status DestroyModule(ClientContext* context,
                        const DestroyModuleRequest& request,
                        EmptyResponse* response) {
+    if (is_any_worker_running()) {
+      return return_with_error(response, EBUSY, "There is a running worker");
+    }
     const char* m_name;
     Module* m;
 
@@ -937,6 +963,9 @@ class BESSControlImpl final : public BESSControl::Service {
   Status GetModuleInfo(ClientContext* context,
                        const GetModuleInfoRequest& request,
                        GetModuleInfoResponse* response) {
+    if (is_any_worker_running()) {
+      return return_with_error(response, EBUSY, "There is a running worker");
+    }
     const char* m_name;
     Module* m;
 
@@ -965,6 +994,9 @@ class BESSControlImpl final : public BESSControl::Service {
   Status ConnectModules(ClientContext* context,
                         const ConnectModulesRequest& request,
                         EmptyResponse* response) {
+    if (is_any_worker_running()) {
+      return return_with_error(response, EBUSY, "There is a running worker");
+    }
     const char* m1_name;
     const char* m2_name;
     gate_idx_t ogate;
@@ -1001,6 +1033,9 @@ class BESSControlImpl final : public BESSControl::Service {
   Status DisconnectModules(ClientContext* context,
                            const DisconnectModulesRequest& request,
                            EmptyResponse* response) {
+    if (is_any_worker_running()) {
+      return return_with_error(response, EBUSY, "There is a running worker");
+    }
     const char* m_name;
     gate_idx_t ogate;
 
@@ -1027,6 +1062,9 @@ class BESSControlImpl final : public BESSControl::Service {
   }
   Status AttachTask(ClientContext* context, const AttachTaskRequest& request,
                     EmptyResponse* response) {
+    if (is_any_worker_running()) {
+      return return_with_error(response, EBUSY, "There is a running worker");
+    }
     const char* m_name;
     const char* tc_name;
 
@@ -1091,6 +1129,9 @@ class BESSControlImpl final : public BESSControl::Service {
   Status EnableTcpdump(ClientContext* context,
                        const EnableTcpdumpRequest& request,
                        EmptyResponse* response) {
+    if (is_any_worker_running()) {
+      return return_with_error(response, EBUSY, "There is a running worker");
+    }
     const char* m_name;
     const char* fifo;
     gate_idx_t ogate;
@@ -1126,6 +1167,9 @@ class BESSControlImpl final : public BESSControl::Service {
   Status DisableTcpdump(ClientContext* context,
                         const DisableTcpdumpRequest& request,
                         EmptyResponse* response) {
+    if (is_any_worker_running()) {
+      return return_with_error(response, EBUSY, "There is a running worker");
+    }
     const char* m_name;
     gate_idx_t ogate;
 
@@ -1158,6 +1202,9 @@ class BESSControlImpl final : public BESSControl::Service {
 
   Status KillBess(ClientContext* context, const Empty& request,
                   EmptyResponse* response) {
+    if (is_any_worker_running()) {
+      return return_with_error(response, EBUSY, "There is a running worker");
+    }
     log_notice("Halt requested by a client\n");
     exit(EXIT_SUCCESS);
 
