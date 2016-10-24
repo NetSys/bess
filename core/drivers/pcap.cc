@@ -3,37 +3,27 @@
 
 #include <glog/logging.h>
 
-#include "../log.h"
 #include "../message.h"
 #include "../port.h"
 #include "../utils/pcap.h"
-#define PCAP_IFNAME 16
+
 static unsigned char tx_pcap_data[PCAP_SNAPLEN];
-
-/* Copy data from mbuf chain to a buffer suitable for writing to a PCAP file. */
-static void pcap_gather_data(unsigned char *data, struct rte_mbuf *mbuf) {
-  uint16_t data_len = 0;
-
-  while (mbuf) {
-    rte_memcpy(data + data_len, rte_pktmbuf_mtod(mbuf, void *), mbuf->data_len);
-
-    data_len += mbuf->data_len;
-    mbuf = mbuf->next;
-  }
-}
 
 /* Experimental. Needs more tests */
 class PCAPPort : public Port {
  public:
+  PCAPPort() : Port(), pcap_handle_() {}
+
   virtual pb_error_t Init(const bess::PCAPPortArg &arg);
   virtual void DeInit();
 
   virtual int RecvPackets(queue_t qid, snb_array_t pkts, int cnt);
   virtual int SendPackets(queue_t qid, snb_array_t pkts, int cnt);
 
+  static void GatherData(unsigned char *data, struct rte_mbuf *mbuf);
+
  private:
-  pcap_t *pcap_handle_ = {0};
-  char dev_[PCAP_IFNAME] = {{0}};
+  pcap_t *pcap_handle_;
 };
 
 pb_error_t PCAPPort::Init(const bess::PCAPPortArg &arg) {
@@ -43,7 +33,7 @@ pb_error_t PCAPPort::Init(const bess::PCAPPortArg &arg) {
   if (dev.length() == 0) {
     return pb_error(EINVAL, "PCAP need to set dev option");
   }
-  // non-blocking pcap
+  // Non-blocking pcap.
   pcap_handle_ = pcap_open_live(dev.c_str(), PCAP_SNAPLEN, 1, -1, errbuf);
   if (pcap_handle_ == NULL) {
     return pb_error(ENODEV, "PCAP Open dev error: %s", errbuf);
@@ -117,15 +107,17 @@ int PCAPPort::RecvPackets(queue_t qid, snb_array_t pkts, int cnt) {
 
   while (recv_cnt < cnt) {
     packet = pcap_next(pcap_handle_, &header);
-    if (!packet)
+    if (!packet) {
       break;
+    }
 
     sbuf = snb_alloc();
-    if (!sbuf)
+    if (!sbuf) {
       break;
+    }
 
     if (header.caplen <= SNBUF_DATA) {
-      /* pcap packet will fit in the mbuf, go ahead and copy */
+      // pcap packet will fit in the mbuf, go ahead and copy.
       rte_memcpy(rte_pktmbuf_append(&sbuf->mbuf, header.caplen), packet,
                  header.caplen);
     } else {
@@ -165,7 +157,7 @@ int PCAPPort::SendPackets(queue_t qid, snb_array_t pkts, int cnt) {
                             sbuf->mbuf.pkt_len);
     } else {
       if (sbuf->mbuf.pkt_len <= PCAP_SNAPLEN) {
-        pcap_gather_data(tx_pcap_data, &sbuf->mbuf);
+        PCAPPort::GatherData(tx_pcap_data, &sbuf->mbuf);
         ret = pcap_sendpacket(pcap_handle_, tx_pcap_data, sbuf->mbuf.pkt_len);
       } else {
         RTE_LOG(ERR, PMD,
@@ -176,14 +168,27 @@ int PCAPPort::SendPackets(queue_t qid, snb_array_t pkts, int cnt) {
       }
     }
 
-    if (unlikely(ret != 0))
+    if (unlikely(ret != 0)) {
       break;
+    }
 
     send_cnt++;
   }
 
   snb_free_bulk(pkts, send_cnt);
   return send_cnt;
+}
+
+// Copy data from mbuf chain to a buffer suitable for writing to a PCAP file.
+void PCAPPort::GatherData(unsigned char *data, struct rte_mbuf *mbuf) {
+  uint16_t data_len = 0;
+
+  while (mbuf) {
+    rte_memcpy(data + data_len, rte_pktmbuf_mtod(mbuf, void *), mbuf->data_len);
+
+    data_len += mbuf->data_len;
+    mbuf = mbuf->next;
+  }
 }
 
 ADD_DRIVER(PCAPPort, "pcap_port", "libpcap live packet capture from Linux port")
