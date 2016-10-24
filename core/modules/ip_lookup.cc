@@ -1,5 +1,3 @@
-#include "../module.h"
-
 #include <arpa/inet.h>
 
 #include <rte_byteorder.h>
@@ -9,6 +7,8 @@
 #include <rte_ip.h>
 #include <rte_lpm.h>
 
+#include "../module.h"
+
 #define VECTOR_OPTIMIZATION 1
 
 static inline int is_valid_gate(gate_idx_t gate) {
@@ -17,13 +17,15 @@ static inline int is_valid_gate(gate_idx_t gate) {
 
 class IPLookup : public Module {
  public:
+  static const gate_idx_t kNumIGates = 1;
+  static const gate_idx_t kNumOGates = MAX_GATES;
+
+  IPLookup() : Module(), lpm_(), default_gate_() {}
+
   virtual struct snobj *Init(struct snobj *arg);
   virtual void Deinit();
 
   virtual void ProcessBatch(struct pkt_batch *batch);
-
-  static const gate_idx_t kNumIGates = 1;
-  static const gate_idx_t kNumOGates = MAX_GATES;
 
   static const Commands<IPLookup> cmds;
 
@@ -48,10 +50,11 @@ struct snobj *IPLookup::Init(struct snobj *arg) {
 
   lpm_ = rte_lpm_create(Name().c_str(), /* socket_id = */ 0, &conf);
 
-  if (!lpm_)
+  if (!lpm_) {
     return snobj_err(rte_errno, "DPDK error: %s", rte_strerror(rte_errno));
+  }
 
-  return NULL;
+  return nullptr;
 }
 
 void IPLookup::Deinit() { rte_lpm_free(lpm_); }
@@ -118,10 +121,11 @@ void IPLookup::ProcessBatch(struct pkt_batch *batch) {
 
     ret = rte_lpm_lookup(lpm_, rte_be_to_cpu_32(ip->dst_addr), &next_hop);
 
-    if (ret == 0)
+    if (ret == 0) {
       ogates[i] = next_hop;
-    else
+    } else {
       ogates[i] = default_gate;
+    }
   }
 
   run_split(this, ogates, batch);
@@ -137,41 +141,51 @@ struct snobj *IPLookup::CommandAdd(struct snobj *arg) {
   uint32_t netmask;
   int ret;
 
-  if (!prefix || !snobj_eval_exists(arg, "prefix_len"))
+  if (!prefix || !snobj_eval_exists(arg, "prefix_len")) {
     return snobj_err(EINVAL, "'prefix' or 'prefix_len' is missing");
+  }
 
   ret = inet_aton(prefix, &ip_addr_be);
-  if (!ret) return snobj_err(EINVAL, "Invalid IP prefix: %s", prefix);
+  if (!ret) {
+    return snobj_err(EINVAL, "Invalid IP prefix: %s", prefix);
+  }
 
-  if (prefix_len > 32)
+  if (prefix_len > 32) {
     return snobj_err(EINVAL, "Invalid prefix length: %d", prefix_len);
+  }
 
   ip_addr = rte_be_to_cpu_32(ip_addr_be.s_addr);
   netmask = ~0 ^ ((1 << (32 - prefix_len)) - 1);
 
-  if (ip_addr & ~netmask)
+  if (ip_addr & ~netmask) {
     return snobj_err(EINVAL, "Invalid IP prefix %s/%d %x %x", prefix,
                      prefix_len, ip_addr, netmask);
-
-  if (!snobj_eval_exists(arg, "gate"))
-    return snobj_err(EINVAL, "'gate' must be specified");
-
-  if (!is_valid_gate(gate)) return snobj_err(EINVAL, "Invalid gate: %hu", gate);
-
-  if (prefix_len == 0)
-    default_gate_ = gate;
-  else {
-    ret = rte_lpm_add(lpm_, ip_addr, prefix_len, gate);
-    if (ret) return snobj_err(-ret, "rpm_lpm_add() failed");
   }
 
-  return NULL;
+  if (!snobj_eval_exists(arg, "gate")) {
+    return snobj_err(EINVAL, "'gate' must be specified");
+  }
+
+  if (!is_valid_gate(gate)) {
+    return snobj_err(EINVAL, "Invalid gate: %hu", gate);
+  }
+
+  if (prefix_len == 0) {
+    default_gate_ = gate;
+  } else {
+    ret = rte_lpm_add(lpm_, ip_addr, prefix_len, gate);
+    if (ret) {
+      return snobj_err(-ret, "rpm_lpm_add() failed");
+    }
+  }
+
+  return nullptr;
 }
 
 struct snobj *IPLookup::CommandClear(struct snobj *arg) {
   rte_lpm_delete_all(lpm_);
   default_gate_ = DROP_GATE;
-  return NULL;
+  return nullptr;
 }
 
 ADD_MODULE(IPLookup, "ip_lookup",

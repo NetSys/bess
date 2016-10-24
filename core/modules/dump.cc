@@ -8,12 +8,12 @@ static const uint64_t DEFAULT_INTERVAL_NS = 1 * NS_PER_SEC; /* 1 sec */
 
 class Dump : public Module {
  public:
+  static const gate_idx_t kNumIGates = 1;
+  static const gate_idx_t kNumOGates = 1;
+
   virtual struct snobj *Init(struct snobj *arg);
 
   virtual void ProcessBatch(struct pkt_batch *batch);
-
-  static const gate_idx_t kNumIGates = 1;
-  static const gate_idx_t kNumOGates = 1;
 
   static const Commands<Dump> cmds;
 
@@ -32,10 +32,11 @@ struct snobj *Dump::Init(struct snobj *arg) {
   min_interval_ns_ = DEFAULT_INTERVAL_NS;
   next_ns_ = ctx.current_tsc;
 
-  if (arg && (arg = snobj_eval(arg, "interval")))
+  if (arg && (arg = snobj_eval(arg, "interval"))) {
     return CommandSetInterval(arg);
-  else
-    return NULL;
+  } else {
+    return nullptr;
+  }
 }
 
 void Dump::ProcessBatch(struct pkt_batch *batch) {
@@ -55,7 +56,9 @@ void Dump::ProcessBatch(struct pkt_batch *batch) {
 struct snobj *Dump::CommandSetInterval(struct snobj *arg) {
   double sec = snobj_number_get(arg);
 
-  if (isnan(sec) || sec < 0.0) return snobj_err(EINVAL, "invalid interval");
+  if (isnan(sec) || sec < 0.0) {
+    return snobj_err(EINVAL, "invalid interval");
+  }
 
   min_interval_ns_ = static_cast<uint64_t>(sec * NS_PER_SEC);
 

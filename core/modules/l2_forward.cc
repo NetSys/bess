@@ -1,9 +1,8 @@
-#include "../module.h"
-
-#include "../utils/simd.h"
-
 #include <rte_byteorder.h>
 #include <rte_hash_crc.h>
+
+#include "../module.h"
+#include "../utils/simd.h"
 
 #define MAX_TABLE_SIZE (1048576 * 64)
 #define DEFAULT_TABLE_SIZE 1024
@@ -46,17 +45,23 @@ static int is_power_of_2(uint64_t n) {
  *        and less than equal to MAX_BUCKET_SIZE (4)
  */
 static int l2_init(struct l2_table *l2tbl, int size, int bucket) {
-  if (size <= 0 || size > MAX_TABLE_SIZE || !is_power_of_2(size))
+  if (size <= 0 || size > MAX_TABLE_SIZE || !is_power_of_2(size)) {
     return -EINVAL;
+  }
 
-  if (bucket <= 0 || bucket > MAX_BUCKET_SIZE || !is_power_of_2(bucket))
+  if (bucket <= 0 || bucket > MAX_BUCKET_SIZE || !is_power_of_2(bucket)) {
     return -EINVAL;
+  }
 
-  if (l2tbl == NULL) return -EINVAL;
+  if (l2tbl == nullptr) {
+    return -EINVAL;
+  }
 
   l2tbl->table = static_cast<l2_entry *>(
       mem_alloc(sizeof(struct l2_entry) * size * bucket));
-  if (l2tbl->table == NULL) return -ENOMEM;
+  if (l2tbl->table == nullptr) {
+    return -ENOMEM;
+  }
 
   l2tbl->size = size;
   l2tbl->bucket = bucket;
@@ -72,13 +77,10 @@ static int l2_init(struct l2_table *l2tbl, int size, int bucket) {
 }
 
 static int l2_deinit(struct l2_table *l2tbl) {
-  if (l2tbl == NULL) return -EINVAL;
-
-  if (l2tbl->table == NULL) return -EINVAL;
-
-  if (l2tbl->size == 0) return -EINVAL;
-
-  if (l2tbl->bucket == 0) return -EINVAL;
+  if (l2tbl == nullptr || l2tbl->table == nullptr ||
+      l2tbl->size == 0 || l2tbl->bucket == 0) {
+    return -EINVAL;
+  }
 
   mem_free(l2tbl->table);
 
@@ -106,8 +108,9 @@ static uint32_t l2_alt_index(uint32_t hash, uint32_t size_power,
 
 static inline int find_index_basic(uint64_t addr, uint64_t *table) {
   for (int i = 0; i < 4; i++) {
-    if ((addr | ((uint64_t)1 << 63)) == (table[i] & 0x8000ffffFFFFffffUL))
+    if ((addr | ((uint64_t)1 << 63)) == (table[i] & 0x8000ffffFFFFffffUL)) {
       return i + 1;
+    }
   }
 
   return 0;
@@ -324,8 +327,9 @@ static int l2_del_entry(struct l2_table *l2tbl, uint64_t addr) {
 }
 
 static int l2_flush(struct l2_table *l2tbl) {
-  if (NULL == l2tbl) return -EINVAL;
-  if (NULL == l2tbl->table) return -EINVAL;
+  if (nullptr == l2tbl || nullptr == l2tbl->table) {
+    return -EINVAL;
+  }
 
   memset(l2tbl->table, 0,
          sizeof(struct l2_entry) * l2tbl->size * l2tbl->bucket);
@@ -340,6 +344,7 @@ static uint64_t l2_addr_to_u64(char *addr) {
 }
 
 /******************************************************************************/
+// TODO(barath): Move this test code elsewhere.
 
 #include <limits.h>
 #include <stdint.h>
@@ -486,8 +491,9 @@ void l2_forward_collision_test() {
     if (success[i]) {
       assert(!ret);
       assert(idx[i] == gate_index);
-    } else
+    } else {
       assert(ret);
+    }
   }
 
   ret = l2_deinit(&l2tbl);
@@ -504,11 +510,13 @@ int test_all() {
 }
 
 static int parse_mac_addr(const char *str, char *addr) {
-  if (str != NULL && addr != NULL) {
+  if (str != nullptr && addr != nullptr) {
     int r = sscanf(str, "%2hhx:%2hhx:%2hhx:%2hhx:%2hhx:%2hhx", addr, addr + 1,
                    addr + 2, addr + 3, addr + 4, addr + 5);
 
-    if (r != 6) return -EINVAL;
+    if (r != 6) {
+      return -EINVAL;
+    }
   }
 
   return 0;
@@ -517,12 +525,14 @@ static int parse_mac_addr(const char *str, char *addr) {
 /******************************************************************************/
 class L2Forward : public Module {
  public:
+  static const gate_idx_t kNumOGates = MAX_GATES;
+
+  L2Forward() : Module(), l2_table_(), default_gate_() {}
+
   virtual struct snobj *Init(struct snobj *arg);
   virtual void Deinit();
 
   virtual void ProcessBatch(struct pkt_batch *batch);
-
-  static const gate_idx_t kNumOGates = MAX_GATES;
 
   static const Commands<L2Forward> cmds;
 
@@ -533,8 +543,8 @@ class L2Forward : public Module {
   struct snobj *CommandLookup(struct snobj *arg);
   struct snobj *CommandPopulate(struct snobj *arg);
 
-  struct l2_table l2_table_ = {0};
-  gate_idx_t default_gate_ = {0};
+  struct l2_table l2_table_;
+  gate_idx_t default_gate_;
 };
 
 const Commands<L2Forward> L2Forward::cmds = {
@@ -552,8 +562,12 @@ struct snobj *L2Forward::Init(struct snobj *arg) {
 
   default_gate_ = DROP_GATE;
 
-  if (size == 0) size = DEFAULT_TABLE_SIZE;
-  if (bucket == 0) bucket = MAX_BUCKET_SIZE;
+  if (size == 0) {
+    size = DEFAULT_TABLE_SIZE;
+  }
+  if (bucket == 0) {
+    bucket = MAX_BUCKET_SIZE;
+  }
 
   ret = l2_init(&l2_table_, size, bucket);
 
@@ -564,7 +578,7 @@ struct snobj *L2Forward::Init(struct snobj *arg) {
                      size, bucket);
   }
 
-  return NULL;
+  return nullptr;
 }
 
 void L2Forward::Deinit() { l2_deinit(&l2_table_); }
@@ -586,8 +600,9 @@ void L2Forward::ProcessBatch(struct pkt_batch *batch) {
 }
 
 struct snobj *L2Forward::CommandAdd(struct snobj *arg) {
-  if (snobj_type(arg) != TYPE_LIST)
+  if (snobj_type(arg) != TYPE_LIST) {
     return snobj_err(EINVAL, "argument must be a list of map");
+  }
 
   for (size_t i = 0; i < arg->size; i++) {
     struct snobj *entry = snobj_list_get(arg, i);
@@ -598,22 +613,25 @@ struct snobj *L2Forward::CommandAdd(struct snobj *arg) {
     struct snobj *_addr = snobj_map_get(entry, "addr");
     struct snobj *_gate = snobj_map_get(entry, "gate");
 
-    if (!_addr || snobj_type(_addr) != TYPE_STR)
+    if (!_addr || snobj_type(_addr) != TYPE_STR) {
       return snobj_err(EINVAL,
                        "add list item map must contain addr"
                        " as a string");
+    }
 
-    if (!_gate || snobj_type(_gate) != TYPE_INT)
+    if (!_gate || snobj_type(_gate) != TYPE_INT) {
       return snobj_err(EINVAL,
                        "add list item map must contain gate"
                        " as an integer");
+    }
 
     char *str_addr = snobj_str_get(_addr);
     int gate = snobj_int_get(_gate);
     char addr[6];
 
-    if (parse_mac_addr(str_addr, addr) != 0)
+    if (parse_mac_addr(str_addr, addr) != 0) {
       return snobj_err(EINVAL, "%s is not a proper mac address", str_addr);
+    }
 
     int r = l2_add_entry(&l2_table_, l2_addr_to_u64(addr), gate);
 
@@ -621,11 +639,12 @@ struct snobj *L2Forward::CommandAdd(struct snobj *arg) {
       return snobj_err(EEXIST, "MAC address '%s' already exist", str_addr);
     } else if (r == -ENOMEM) {
       return snobj_err(ENOMEM, "Not enough space");
-    } else if (r != 0)
+    } else if (r != 0) {
       return snobj_errno(-r);
+    }
   }
 
-  return NULL;
+  return nullptr;
 }
 
 struct snobj *L2Forward::CommandDelete(struct snobj *arg) {
@@ -636,8 +655,9 @@ struct snobj *L2Forward::CommandDelete(struct snobj *arg) {
   for (size_t i = 0; i < arg->size; i++) {
     struct snobj *_addr = snobj_list_get(arg, i);
 
-    if (!_addr || snobj_type(_addr) != TYPE_STR)
+    if (!_addr || snobj_type(_addr) != TYPE_STR) {
       return snobj_err(EINVAL, "lookup must be list of string");
+    }
 
     char *str_addr = snobj_str_get(_addr);
     char addr[6];
@@ -655,7 +675,7 @@ struct snobj *L2Forward::CommandDelete(struct snobj *arg) {
     }
   }
 
-  return NULL;
+  return nullptr;
 }
 
 struct snobj *L2Forward::CommandSetDefaultGate(struct snobj *arg) {
@@ -663,7 +683,7 @@ struct snobj *L2Forward::CommandSetDefaultGate(struct snobj *arg) {
 
   default_gate_ = gate;
 
-  return NULL;
+  return nullptr;
 }
 
 struct snobj *L2Forward::CommandLookup(struct snobj *arg) {
@@ -677,8 +697,9 @@ struct snobj *L2Forward::CommandLookup(struct snobj *arg) {
   for (i = 0; i < arg->size; i++) {
     struct snobj *_addr = snobj_list_get(arg, i);
 
-    if (!_addr || snobj_type(_addr) != TYPE_STR)
+    if (!_addr || snobj_type(_addr) != TYPE_STR) {
       return snobj_err(EINVAL, "lookup must be list of string");
+    }
 
     char *str_addr = snobj_str_get(_addr);
     char addr[6];
@@ -717,7 +738,7 @@ struct snobj *L2Forward::CommandPopulate(struct snobj *arg) {
 
   // parse base addr
   base = snobj_eval_str(arg, "base");
-  if (base == NULL) {
+  if (base == nullptr) {
     return snobj_err(EINVAL, "base must exist in gen, and must be string");
   }
 
@@ -728,17 +749,20 @@ struct snobj *L2Forward::CommandPopulate(struct snobj *arg) {
   base_u64 = l2_addr_to_u64(base_str);
 
   t = snobj_eval(arg, "count");
-  if (t == NULL)
+  if (t == nullptr) {
     return snobj_err(EINVAL, "count must exist in gen, and must be int");
+  }
 
   if (snobj_type(t) != TYPE_INT) return snobj_err(EINVAL, "count must be int");
 
   t = snobj_eval(arg, "gate_count");
-  if (t == NULL)
+  if (t == nullptr) {
     return snobj_err(EINVAL, "gate_count must exist in gen, and must be int");
+  }
 
-  if (snobj_type(t) != TYPE_INT)
+  if (snobj_type(t) != TYPE_INT) {
     return snobj_err(EINVAL, "gate_count must be int");
+  }
 
   int cnt = snobj_eval_int(arg, "count");
   int gate_cnt = snobj_eval_int(arg, "gate_count");
@@ -752,7 +776,7 @@ struct snobj *L2Forward::CommandPopulate(struct snobj *arg) {
     base_u64++;
   }
 
-  return NULL;
+  return nullptr;
 }
 
 ADD_MODULE(L2Forward, "l2_forward",

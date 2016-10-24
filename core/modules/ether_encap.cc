@@ -47,7 +47,9 @@ void EtherEncap::ProcessBatch(struct pkt_batch *batch) {
     struct ether_hdr *ethh =
         static_cast<struct ether_hdr *>(snb_prepend(pkt, sizeof(*ethh)));
 
-    if (unlikely(!ethh)) continue;
+    if (unlikely(!ethh)) {
+      continue;
+    }
 
     ethh->d_addr = ether_dst;
     ethh->s_addr = ether_src;

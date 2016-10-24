@@ -16,10 +16,10 @@ enum {
 
 class VXLANDecap : public Module {
  public:
-  void ProcessBatch(struct pkt_batch *batch);
-
   static const gate_idx_t kNumIGates = 1;
   static const gate_idx_t kNumOGates = 1;
+
+  void ProcessBatch(struct pkt_batch *batch);
 
   int num_attrs = 3;
   struct mt_attr attrs[MAX_ATTRS_PER_MODULE] = {

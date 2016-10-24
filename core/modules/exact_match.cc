@@ -1,6 +1,9 @@
 #include <rte_config.h>
 #include <rte_hash_crc.h>
 
+#include <string>
+#include <vector>
+
 #include "../utils/htable.h"
 #include "../module.h"
 
@@ -100,11 +103,19 @@ struct EmField {
   int size; /* in bytes. 1 <= size <= MAX_FIELD_SIZE */
 };
 
-#include <string>
-#include <vector>
-
 class ExactMatch : public Module {
  public:
+  static const gate_idx_t kNumIGates = 1;
+  static const gate_idx_t kNumOGates = MAX_GATES;
+
+  ExactMatch() :
+      Module(),
+      default_gate_(),
+      total_key_size_(),
+      num_fields_(),
+      fields_(),
+      ht_() {}
+
   virtual struct snobj *Init(struct snobj *arg);
   virtual void Deinit();
 
@@ -112,9 +123,6 @@ class ExactMatch : public Module {
 
   virtual struct snobj *GetDesc();
   virtual struct snobj *GetDump();
-
-  static const gate_idx_t kNumIGates = 1;
-  static const gate_idx_t kNumOGates = MAX_GATES;
 
   static const Commands<ExactMatch> cmds;
 
@@ -145,27 +153,32 @@ const Commands<ExactMatch> ExactMatch::cmds = {
 
 struct snobj *ExactMatch::AddFieldOne(struct snobj *field, struct EmField *f,
                                       int idx) {
-  if (field->type != TYPE_MAP)
+  if (field->type != TYPE_MAP) {
     return snobj_err(EINVAL, "'fields' must be a list of maps");
+  }
 
   f->size = snobj_eval_uint(field, "size");
-  if (f->size < 1 || f->size > MAX_FIELD_SIZE)
+  if (f->size < 1 || f->size > MAX_FIELD_SIZE) {
     return snobj_err(EINVAL, "idx %d: 'size' must be 1-%d", idx,
                      MAX_FIELD_SIZE);
+  }
 
   const char *attr = static_cast<char *>(snobj_eval_str(field, "attr"));
 
   if (attr) {
     f->attr_id = add_metadata_attr(this, attr, f->size, MT_READ);
-    if (f->attr_id < 0)
+    if (f->attr_id < 0) {
       return snobj_err(-f->attr_id, "idx %d: add_metadata_attr() failed", idx);
+    }
   } else if (snobj_eval_exists(field, "offset")) {
     f->attr_id = -1;
     f->offset = snobj_eval_int(field, "offset");
-    if (f->offset < 0 || f->offset > 1024)
+    if (f->offset < 0 || f->offset > 1024) {
       return snobj_err(EINVAL, "idx %d: invalid 'offset'", idx);
-  } else
+    }
+  } else {
     return snobj_err(EINVAL, "idx %d: must specify 'offset' or 'attr'", idx);
+  }
 
   struct snobj *mask = snobj_eval(field, "mask");
   int force_be = (f->attr_id < 0);
@@ -173,13 +186,16 @@ struct snobj *ExactMatch::AddFieldOne(struct snobj *field, struct EmField *f,
   if (!mask) {
     /* by default all bits are considered */
     f->mask = ((uint64_t)1 << (f->size * 8)) - 1;
-  } else if (snobj_binvalue_get(mask, f->size, &f->mask, force_be))
+  } else if (snobj_binvalue_get(mask, f->size, &f->mask, force_be)) {
     return snobj_err(EINVAL, "idx %d: not a correct %d-byte mask", idx,
                      f->size);
+  }
 
-  if (f->mask == 0) return snobj_err(EINVAL, "idx %d: empty mask", idx);
+  if (f->mask == 0) {
+    return snobj_err(EINVAL, "idx %d: empty mask", idx);
+  }
 
-  return NULL;
+  return nullptr;
 }
 
 /* Takes a list of fields. Each field needs 'offset' (or 'name') and 'size',
@@ -195,8 +211,9 @@ struct snobj *ExactMatch::Init(struct snobj *arg) {
 
   struct snobj *fields = snobj_eval(arg, "fields");
 
-  if (snobj_type(fields) != TYPE_LIST)
+  if (snobj_type(fields) != TYPE_LIST) {
     return snobj_err(EINVAL, "'fields' must be a list of maps");
+  }
 
   for (size_t i = 0; i < fields->size; i++) {
     struct snobj *field = snobj_list_get(fields, i);
@@ -216,12 +233,16 @@ struct snobj *ExactMatch::Init(struct snobj *arg) {
   total_key_size_ = align_ceil(size_acc, sizeof(uint64_t));
 
   int ret = ht_.Init(total_key_size_, sizeof(gate_idx_t));
-  if (ret < 0) return snobj_err(-ret, "hash table creation failed");
+  if (ret < 0) {
+    return snobj_err(-ret, "hash table creation failed");
+  }
 
-  return NULL;
+  return nullptr;
 }
 
-void ExactMatch::Deinit() { ht_.Close(); }
+void ExactMatch::Deinit() {
+  ht_.Close();
+}
 
 void ExactMatch::ProcessBatch(struct pkt_batch *batch) {
   gate_idx_t default_gate;
@@ -234,8 +255,9 @@ void ExactMatch::ProcessBatch(struct pkt_batch *batch) {
 
   default_gate = ACCESS_ONCE(default_gate_);
 
-  for (int i = 0; i < cnt; i++)
+  for (int i = 0; i < cnt; i++) {
     memset(&keys[i][key_size - 8], 0, sizeof(uint64_t));
+  }
 
   for (int i = 0; i < num_fields_; i++) {
     uint64_t mask = fields_[i].mask;
@@ -243,18 +265,21 @@ void ExactMatch::ProcessBatch(struct pkt_batch *batch) {
     int pos = fields_[i].pos;
     int attr_id = fields_[i].attr_id;
 
-    if (attr_id < 0)
+    if (attr_id < 0) {
       offset = fields_[i].offset;
-    else
+    } else {
       offset = mt_offset_to_databuf_offset(attr_offsets[attr_id]);
+    }
 
     char *key = keys[0] + pos;
 
     for (int j = 0; j < cnt; j++, key += HASH_KEY_SIZE) {
-      char *buf_addr = (char *)batch->pkts[j]->mbuf.buf_addr;
+      char *buf_addr = reinterpret_cast<char *>(batch->pkts[j]->mbuf.buf_addr);
 
       /* for offset-based attrs we use relative offset */
-      if (attr_id < 0) buf_addr += batch->pkts[j]->mbuf.data_off;
+      if (attr_id < 0) {
+        buf_addr += batch->pkts[j]->mbuf.data_off;
+      }
 
       *(uint64_t *)key = *(uint64_t *)(buf_addr + offset) & mask;
     }
@@ -285,11 +310,12 @@ struct snobj *ExactMatch::GetDump() {
     snobj_map_set(f_obj, "size", snobj_uint(f->size));
     snobj_map_set(f_obj, "mask", snobj_blob(&f->mask, f->size));
 
-    if (f->attr_id < 0)
+    if (f->attr_id < 0) {
       snobj_map_set(f_obj, "offset", snobj_uint(f->offset));
-    else
+    } else {
       snobj_map_set(f_obj, "name",
                     snobj_str(ExactMatch::attrs[f->attr_id].name));
+    }
 
     snobj_list_add(fields, f_obj);
   }
@@ -317,8 +343,9 @@ struct snobj *ExactMatch::GetDump() {
 }
 
 struct snobj *ExactMatch::GatherKey(struct snobj *fields, hkey_t *key) {
-  if (fields->size != static_cast<size_t>(num_fields_))
+  if (fields->size != static_cast<size_t>(num_fields_)) {
     return snobj_err(EINVAL, "must specify %d fields", num_fields_);
+  }
 
   memset(key, 0, sizeof(*key));
 
@@ -331,14 +358,15 @@ struct snobj *ExactMatch::GatherKey(struct snobj *fields, hkey_t *key) {
 
     int force_be = (fields_[i].attr_id < 0);
 
-    if (snobj_binvalue_get(f_obj, field_size, &f, force_be))
+    if (snobj_binvalue_get(f_obj, field_size, &f, force_be)) {
       return snobj_err(EINVAL, "idx %lu: not a correct %d-byte value", i,
                        field_size);
+    }
 
     memcpy(reinterpret_cast<uint8_t *>(key) + field_pos, &f, field_size);
   }
 
-  return NULL;
+  return nullptr;
 }
 
 struct snobj *ExactMatch::CommandAdd(struct snobj *arg) {
@@ -350,20 +378,28 @@ struct snobj *ExactMatch::CommandAdd(struct snobj *arg) {
   struct snobj *err;
   int ret;
 
-  if (!snobj_eval_exists(arg, "gate"))
+  if (!snobj_eval_exists(arg, "gate")) {
     return snobj_err(EINVAL, "'gate' must be specified");
+  }
 
-  if (!is_valid_gate(gate)) return snobj_err(EINVAL, "Invalid gate: %hu", gate);
+  if (!is_valid_gate(gate)) {
+    return snobj_err(EINVAL, "Invalid gate: %hu", gate);
+  }
 
-  if (!fields || snobj_type(fields) != TYPE_LIST)
+  if (!fields || snobj_type(fields) != TYPE_LIST) {
     return snobj_err(EINVAL, "'fields' must be a list");
+  }
 
-  if ((err = GatherKey(fields, &key))) return err;
+  if ((err = GatherKey(fields, &key))) {
+    return err;
+  }
 
   ret = ht_.Set(&key, &gate);
-  if (ret) return snobj_err(-ret, "ht_set() failed");
+  if (ret) {
+    return snobj_err(-ret, "ht_set() failed");
+  }
 
-  return NULL;
+  return nullptr;
 }
 
 struct snobj *ExactMatch::CommandDelete(struct snobj *arg) {
@@ -372,21 +408,26 @@ struct snobj *ExactMatch::CommandDelete(struct snobj *arg) {
   struct snobj *err;
   int ret;
 
-  if (!arg || snobj_type(arg) != TYPE_LIST)
+  if (!arg || snobj_type(arg) != TYPE_LIST) {
     return snobj_err(EINVAL, "argument must be a list");
+  }
 
-  if ((err = GatherKey(arg, &key))) return err;
+  if ((err = GatherKey(arg, &key))) {
+    return err;
+  }
 
   ret = ht_.Del(&key);
-  if (ret < 0) return snobj_err(-ret, "ht_del() failed");
+  if (ret < 0) {
+    return snobj_err(-ret, "ht_del() failed");
+  }
 
-  return NULL;
+  return nullptr;
 }
 
 struct snobj *ExactMatch::CommandClear(struct snobj *arg) {
   ht_.Clear();
 
-  return NULL;
+  return nullptr;
 }
 
 struct snobj *ExactMatch::CommandSetDefaultGate(struct snobj *arg) {
@@ -394,7 +435,7 @@ struct snobj *ExactMatch::CommandSetDefaultGate(struct snobj *arg) {
 
   default_gate_ = gate;
 
-  return NULL;
+  return nullptr;
 }
 
 ADD_MODULE(ExactMatch, "em", "Multi-field classifier with an exact match table")

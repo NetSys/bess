@@ -23,26 +23,35 @@ inline int get_measure_packet(struct snbuf *pkt, uint64_t *time) {
 /* XXX: currently doesn't support multiple workers */
 class Measure : public Module {
  public:
+  static const gate_idx_t kNumIGates = 1;
+  static const gate_idx_t kNumOGates = 1;
+
+  Measure() :
+      Module(),
+      hist_(),
+      start_time_(),
+      warmup_(),
+      pkt_cnt_(),
+      bytes_cnt_(),
+      total_latency_() {}
+
   virtual struct snobj *Init(struct snobj *arg);
 
   virtual void ProcessBatch(struct pkt_batch *batch);
-
-  static const gate_idx_t kNumIGates = 1;
-  static const gate_idx_t kNumOGates = 1;
 
   static const Commands<Measure> cmds;
 
  private:
   struct snobj *CommandGetSummary(struct snobj *arg);
 
-  struct histogram hist_ = {0};
+  struct histogram hist_;
 
-  uint64_t start_time_ = {0};
-  int warmup_ = {0}; /* second */
+  uint64_t start_time_;
+  int warmup_; /* second */
 
-  uint64_t pkt_cnt_ = {0};
-  uint64_t bytes_cnt_ = {0};
-  uint64_t total_latency_ = {0};
+  uint64_t pkt_cnt_;
+  uint64_t bytes_cnt_;
+  uint64_t total_latency_;
 };
 
 const Commands<Measure> Measure::cmds = {
@@ -50,20 +59,26 @@ const Commands<Measure> Measure::cmds = {
 };
 
 struct snobj *Measure::Init(struct snobj *arg) {
-  if (arg) warmup_ = snobj_eval_int(arg, "warmup");
+  if (arg) {
+    warmup_ = snobj_eval_int(arg, "warmup");
+  }
 
   init_hist(&hist_);
 
-  return NULL;
+  return nullptr;
 }
 
 void Measure::ProcessBatch(struct pkt_batch *batch) {
   uint64_t time = get_time();
 
-  if (start_time_ == 0) start_time_ = get_time();
+  if (start_time_ == 0) {
+    start_time_ = get_time();
+  }
 
-  if (static_cast<int>(HISTO_TIME_TO_SEC(time - start_time_)) < warmup_)
-    goto skip;
+  if (static_cast<int>(HISTO_TIME_TO_SEC(time - start_time_)) < warmup_) {
+    run_next_module(this, batch);
+    return;
+  }
 
   pkt_cnt_ += batch->cnt;
 
@@ -72,10 +87,11 @@ void Measure::ProcessBatch(struct pkt_batch *batch) {
     if (get_measure_packet(batch->pkts[i], &pkt_time)) {
       uint64_t diff;
 
-      if (time >= pkt_time)
+      if (time >= pkt_time) {
         diff = time - pkt_time;
-      else
+      } else {
         continue;
+      }
 
       bytes_cnt_ += batch->pkts[i]->mbuf.pkt_len;
       total_latency_ += diff;
@@ -83,9 +99,6 @@ void Measure::ProcessBatch(struct pkt_batch *batch) {
       record_latency(&hist_, diff);
     }
   }
-
-skip:
-  run_next_module(this, batch);
 }
 
 struct snobj *Measure::CommandGetSummary(struct snobj *arg) {

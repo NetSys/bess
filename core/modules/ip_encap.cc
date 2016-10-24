@@ -52,7 +52,9 @@ void IPEncap::ProcessBatch(struct pkt_batch *batch) {
 
     iph = static_cast<struct ipv4_hdr *>(snb_prepend(pkt, sizeof(*iph)));
 
-    if (unlikely(!iph)) continue;
+    if (unlikely(!iph)) {
+      continue;
+    }
 
     iph->version_ihl = 0x45;
     iph->total_length = rte_cpu_to_be_16(total_len);

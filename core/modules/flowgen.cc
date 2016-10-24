@@ -1,5 +1,6 @@
-#include <functional>
 #include <math.h>
+
+#include <functional>
 #include <queue>
 
 #include "../utils/time.h"
@@ -20,10 +21,11 @@ struct flow {
 
 typedef std::pair<uint64_t, struct flow *> Event;
 typedef std::priority_queue<Event, std::vector<Event>,
-                            std::function<bool(Event, Event)>>
-    EventQueue;
+                            std::function<bool(Event, Event)>> EventQueue;
 
-bool EventLess(const Event &a, const Event &b) { return a.first < b.first; }
+bool EventLess(const Event &a, const Event &b) {
+  return a.first < b.first;
+}
 
 /* we ignore the last 1% tail to make the variance finite */
 const double PARETO_TAIL_LIMIT = 0.99;
@@ -45,6 +47,39 @@ class FlowGen : public Module {
   static const gate_idx_t kNumIGates = 0;
   static const gate_idx_t kNumOGates = 1;
 
+  enum Arrival {
+    ARRIVAL_UNIFORM = 0,
+    ARRIVAL_EXPONENTIAL,
+  };
+
+  enum Duration {
+    DURATION_UNIFORM = 0,
+    DURATION_PARETO,
+  };
+
+  FlowGen() :
+      Module(),
+      active_flows_(),
+      allocated_flows_(),
+      generated_flows_(),
+      flows_(),
+      flows_free_(),
+      events_(),
+      templ_(),
+      template_size_(),
+      rng_(),
+      arrival_(),
+      duration_(),
+      quick_rampup_(),
+      total_pps_(),
+      flow_rate_(),
+      flow_duration_(),
+      concurrent_flows_(),
+      flow_pps_(),
+      flow_pkts_(),
+      flow_gap_ns_(),
+      pareto_() {}
+
   virtual struct snobj *Init(struct snobj *arg);
   virtual void Deinit();
 
@@ -64,48 +99,41 @@ class FlowGen : public Module {
   void GeneratePackets(struct pkt_batch *batch);
   struct snobj *InitFlowPool();
   struct snobj *ProcessArguments(struct snobj *arg);
-  int active_flows_ = {};
-  int allocated_flows_ = {};
-  uint64_t generated_flows_ = {};
-  struct flow *flows_ = {};
-  struct cdlist_head flows_free_ = {};
+  int active_flows_;
+  int allocated_flows_;
+  uint64_t generated_flows_;
+  struct flow *flows_;
+  struct cdlist_head flows_free_;
 
   EventQueue events_;
 
   char *templ_;
-  int template_size_ = {};
+  int template_size_;
 
   Random rng_;
 
+  Arrival arrival_;
+  Duration duration_;
+
   /* behavior parameters */
-  int quick_rampup_ = {};
-
-  enum {
-    ARRIVAL_UNIFORM = 0,
-    ARRIVAL_EXPONENTIAL,
-  } arrival_;
-
-  enum {
-    DURATION_UNIFORM = 0,
-    DURATION_PARETO,
-  } duration_;
+  int quick_rampup_;
 
   /* load parameters */
-  double total_pps_ = {};
-  double flow_rate_ = {};     /* in flows/s */
-  double flow_duration_ = {}; /* in seconds */
+  double total_pps_;
+  double flow_rate_;     /* in flows/s */
+  double flow_duration_; /* in seconds */
 
   /* derived variables */
-  double concurrent_flows_ = {}; /* expected # of flows */
-  double flow_pps_ = {};         /* packets/s/flow */
-  double flow_pkts_ = {};        /* flow_pps * flow_duration */
-  double flow_gap_ns_ = {};      /* == 10^9 / flow_rate */
+  double concurrent_flows_; /* expected # of flows */
+  double flow_pps_;         /* packets/s/flow */
+  double flow_pkts_;        /* flow_pps * flow_duration */
+  double flow_gap_ns_;      /* == 10^9 / flow_rate */
 
   struct {
     double alpha;
     double inversed_alpha; /* 1.0 / alpha */
     double mean;           /* determined by alpha */
-  } pareto_ = {};
+  } pareto_;
 };
 
 inline double FlowGen::NewFlowPkts() {
@@ -150,7 +178,9 @@ inline struct flow *FlowGen::ScheduleFlow(uint64_t time_ns) {
   struct flow *f;
 
   item = cdlist_pop_head(&flows_free_);
-  if (!item) return NULL;
+  if (!item) {
+    return nullptr;
+  }
 
   f = container_of(item, struct flow, free);
   f->first = 1;
@@ -188,9 +218,13 @@ void FlowGen::PopulateInitialFlows() {
   f = ScheduleFlow(now_ns);
   assert(f);
 
-  if (!quick_rampup_) return;
+  if (!quick_rampup_) {
+    return;
+  }
 
-  if (flow_pps_ < 1.0 || flow_rate_ < 1.0) return;
+  if (flow_pps_ < 1.0 || flow_rate_ < 1.0) {
+    return;
+  }
 
   /* emulate pre-existing flows at the beginning */
   double past_origin = MaxFlowPkts() / flow_pps_; /* in secs */
@@ -204,7 +238,9 @@ void FlowGen::PopulateInitialFlows() {
       uint64_t jitter = 1e9 * rng_.GetReal() / flow_pps_;
 
       f = ScheduleFlow(now_ns + jitter);
-      if (!f) break;
+      if (!f) {
+        break;
+      }
 
       /* overwrite with a emulated pre-existing flow */
       f->first = 0;
@@ -216,75 +252,88 @@ void FlowGen::PopulateInitialFlows() {
 struct snobj *FlowGen::ProcessArguments(struct snobj *arg) {
   struct snobj *t;
 
-  if (!arg || !(t = snobj_eval(arg, "template")))
+  if (!arg || !(t = snobj_eval(arg, "template"))) {
     return snobj_err(EINVAL, "must specify 'template'");
+  }
 
-  if (snobj_type(t) != TYPE_BLOB)
+  if (snobj_type(t) != TYPE_BLOB) {
     return snobj_err(EINVAL, "'template' must be BLOB type");
+  }
 
-  if (snobj_size(t) > MAX_TEMPLATE_SIZE)
+  if (snobj_size(t) > MAX_TEMPLATE_SIZE) {
     return snobj_err(EINVAL, "'template' is too big");
+  }
 
   template_size_ = snobj_size(t);
 
   memset(templ_, 0, MAX_TEMPLATE_SIZE);
   memcpy(templ_, snobj_blob_get(t), template_size_);
 
-  if ((t = snobj_eval(arg, "pps")) != NULL) {
+  if ((t = snobj_eval(arg, "pps")) != nullptr) {
     total_pps_ = snobj_number_get(t);
-    if (isnan(total_pps_) || total_pps_ < 0.0)
+    if (isnan(total_pps_) || total_pps_ < 0.0) {
       return snobj_err(EINVAL, "invalid 'pps'");
+    }
   }
 
-  if ((t = snobj_eval(arg, "flow_rate")) != NULL) {
+  if ((t = snobj_eval(arg, "flow_rate")) != nullptr) {
     flow_rate_ = snobj_number_get(t);
-    if (isnan(flow_rate_) || flow_rate_ < 0.0)
+    if (isnan(flow_rate_) || flow_rate_ < 0.0) {
       return snobj_err(EINVAL, "invalid 'flow_rate'");
+    }
   }
 
-  if ((t = snobj_eval(arg, "flow_duration")) != NULL) {
+  if ((t = snobj_eval(arg, "flow_duration")) != nullptr) {
     flow_duration_ = snobj_number_get(t);
-    if (isnan(flow_duration_) || flow_duration_ < 0.0)
+    if (isnan(flow_duration_) || flow_duration_ < 0.0) {
       return snobj_err(EINVAL, "invalid 'flow_duration'");
+    }
   }
 
-  if ((t = snobj_eval(arg, "arrival")) != NULL) {
-    if (strcmp(snobj_str_get(t), "uniform") == 0)
+  if ((t = snobj_eval(arg, "arrival")) != nullptr) {
+    if (strcmp(snobj_str_get(t), "uniform") == 0) {
       arrival_ = ARRIVAL_UNIFORM;
-    else if (strcmp(snobj_str_get(t), "exponential") == 0)
+    } else if (strcmp(snobj_str_get(t), "exponential") == 0) {
       arrival_ = ARRIVAL_EXPONENTIAL;
-    else
+    } else {
       return snobj_err(EINVAL,
                        "'arrival' must be either "
                        "'uniform' or 'exponential'");
+    }
   }
 
-  if ((t = snobj_eval(arg, "duration")) != NULL) {
-    if (strcmp(snobj_str_get(t), "uniform") == 0)
+  if ((t = snobj_eval(arg, "duration")) != nullptr) {
+    if (strcmp(snobj_str_get(t), "uniform") == 0) {
       duration_ = DURATION_UNIFORM;
-    else if (strcmp(snobj_str_get(t), "pareto") == 0)
+    } else if (strcmp(snobj_str_get(t), "pareto") == 0) {
       duration_ = DURATION_PARETO;
-    else
+    } else {
       return snobj_err(EINVAL,
                        "'duration' must be either "
                        "'uniform' or 'pareto'");
+    }
   }
 
-  if (snobj_eval_int(arg, "quick_rampup")) quick_rampup_ = 1;
+  if (snobj_eval_int(arg, "quick_rampup")) {
+    quick_rampup_ = 1;
+  }
 
-  return NULL;
+  return nullptr;
 }
 
 struct snobj *FlowGen::InitFlowPool() {
   /* allocate 20% more in case of temporal overflow */
   allocated_flows_ = (int)(concurrent_flows_ * 1.2);
-  if (allocated_flows_ < 128) allocated_flows_ = 128;
+  if (allocated_flows_ < 128) {
+    allocated_flows_ = 128;
+  }
 
   flows_ = static_cast<struct flow *>(
       mem_alloc(allocated_flows_ * sizeof(struct flow)));
-  if (!flows_)
+  if (!flows_) {
     return snobj_err(ENOMEM, "memory allocation failed (%d flows)",
                      allocated_flows_);
+  }
 
   cdlist_head_init(&flows_free_);
 
@@ -293,7 +342,7 @@ struct snobj *FlowGen::InitFlowPool() {
     cdlist_add_tail(&flows_free_, &f->free);
   }
 
-  return NULL;
+  return nullptr;
 }
 
 struct snobj *FlowGen::Init(struct snobj *arg) {
@@ -311,29 +360,43 @@ struct snobj *FlowGen::Init(struct snobj *arg) {
   pareto_.alpha = 1.3;
 
   /* register task */
-  tid = register_task(this, NULL);
-  if (tid == INVALID_TASK_ID) return snobj_err(ENOMEM, "task creation failed");
+  tid = register_task(this, nullptr);
+  if (tid == INVALID_TASK_ID) {
+    return snobj_err(ENOMEM, "task creation failed");
+  }
 
   templ_ = new char[MAX_TEMPLATE_SIZE];
-  if (templ_ == NULL) return snobj_err(ENOMEM, "unable to allocate template");
+  if (templ_ == nullptr) {
+    return snobj_err(ENOMEM, "unable to allocate template");
+  }
 
   err = ProcessArguments(arg);
-  if (err) return err;
+  if (err) {
+    return err;
+  }
 
   /* calculate derived variables */
   pareto_.inversed_alpha = 1.0 / pareto_.alpha;
 
-  if (duration_ == DURATION_PARETO) MeasureParetoMean();
+  if (duration_ == DURATION_PARETO) {
+    MeasureParetoMean();
+  }
 
   concurrent_flows_ = flow_rate_ * flow_duration_;
-  if (concurrent_flows_ > 0.0) flow_pps_ = total_pps_ / concurrent_flows_;
+  if (concurrent_flows_ > 0.0) {
+    flow_pps_ = total_pps_ / concurrent_flows_;
+  }
 
   flow_pkts_ = flow_pps_ * flow_duration_;
-  if (flow_rate_ > 0.0) flow_gap_ns_ = 1e9 / flow_rate_;
+  if (flow_rate_ > 0.0) {
+    flow_gap_ns_ = 1e9 / flow_rate_;
+  }
 
   /* initialize flow pool */
   err = InitFlowPool();
-  if (err) return err;
+  if (err) {
+    return err;
+  }
 
   /* initialize time-sorted priority queue */
   events_ = EventQueue(EventLess);
@@ -341,7 +404,7 @@ struct snobj *FlowGen::Init(struct snobj *arg) {
   /* add a seed flow (and background flows if necessary) */
   PopulateInitialFlows();
 
-  return NULL;
+  return nullptr;
 }
 
 void FlowGen::Deinit() {
@@ -357,11 +420,15 @@ struct snbuf *FlowGen::FillPacket(struct flow *f) {
 
   int size = template_size_;
 
-  if (!(pkt = snb_alloc())) return NULL;
+  if (!(pkt = snb_alloc())) {
+    return nullptr;
+  }
 
   p = reinterpret_cast<char *>(pkt->mbuf.buf_addr) +
       static_cast<size_t>(SNBUF_HEADROOM);
-  if (!p) return NULL;
+  if (!p) {
+    return nullptr;
+  }
 
   pkt->mbuf.data_off = SNBUF_HEADROOM;
   pkt->mbuf.pkt_len = size;
@@ -422,7 +489,9 @@ void FlowGen::GeneratePackets(struct pkt_batch *batch) {
     events_.push(
         std::pair<uint64_t, struct flow *>(t + (uint64_t)(1e9 / flow_pps_), f));
 
-    if (pkt) batch_add(batch, pkt);
+    if (pkt) {
+      batch_add(batch, pkt);
+    }
   }
 }
 
@@ -433,7 +502,9 @@ struct task_result FlowGen::RunTask(void *arg) {
   const int pkt_overhead = 24;
 
   GeneratePackets(&batch);
-  if (batch.cnt > 0) run_next_module(this, &batch);
+  if (batch.cnt > 0) {
+    run_next_module(this, &batch);
+  }
 
   ret = (struct task_result){
       .packets = static_cast<uint64_t>(batch.cnt),

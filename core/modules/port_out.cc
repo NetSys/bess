@@ -3,6 +3,11 @@
 
 class PortOut : public Module {
  public:
+  static const gate_idx_t kNumIGates = 1;
+  static const gate_idx_t kNumOGates = 0;
+
+  PortOut() : Module(), port_() {}
+
   virtual struct snobj *Init(struct snobj *arg);
   virtual void Deinit();
 
@@ -10,11 +15,8 @@ class PortOut : public Module {
 
   virtual std::string GetDesc();
 
-  static const gate_idx_t kNumIGates = 1;
-  static const gate_idx_t kNumOGates = 0;
-
  private:
-  Port *port_ = {};
+  Port *port_;
 };
 
 struct snobj *PortOut::Init(struct snobj *arg) {
@@ -22,8 +24,9 @@ struct snobj *PortOut::Init(struct snobj *arg) {
 
   int ret;
 
-  if (!arg || !(port_name = snobj_eval_str(arg, "port")))
+  if (!arg || !(port_name = snobj_eval_str(arg, "port"))) {
     return snobj_err(EINVAL, "'port' must be given as a string");
+  }
 
   const auto &it = PortBuilder::all_ports().find(port_name);
   if (it == PortBuilder::all_ports().end()) {
@@ -31,20 +34,22 @@ struct snobj *PortOut::Init(struct snobj *arg) {
   }
   port_ = it->second;
 
-  if (port_->num_queues[PACKET_DIR_OUT] == 0)
+  if (port_->num_queues[PACKET_DIR_OUT] == 0) {
     return snobj_err(ENODEV, "Port %s has no outgoing queue", port_name);
+  }
 
   ret = port_->AcquireQueues(reinterpret_cast<const module *>(this),
-                             PACKET_DIR_OUT, NULL, 0);
-  if (ret < 0)
+                             PACKET_DIR_OUT, nullptr, 0);
+  if (ret < 0) {
     return snobj_errno(-ret);
+  }
 
-  return NULL;
+  return nullptr;
 }
 
 void PortOut::Deinit() {
   port_->ReleaseQueues(reinterpret_cast<const module *>(this), PACKET_DIR_OUT,
-                       NULL, 0);
+                       nullptr, 0);
 }
 
 std::string PortOut::GetDesc() {
@@ -74,8 +79,9 @@ void PortOut::ProcessBatch(struct pkt_batch *batch) {
     p->queue_stats[dir][qid].bytes += sent_bytes;
   }
 
-  if (sent_pkts < batch->cnt)
+  if (sent_pkts < batch->cnt) {
     snb_free_bulk(batch->pkts + sent_pkts, batch->cnt - sent_pkts);
+  }
 }
 
 ADD_MODULE(PortOut, "port_out", "sends pakets to a port")

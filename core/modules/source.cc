@@ -2,6 +2,11 @@
 
 class Source : public Module {
  public:
+  static const gate_idx_t kNumIGates = 0;
+  static const gate_idx_t kNumOGates = 1;
+
+  Source() : Module(), pkt_size_(), burst_() {}
+
   virtual struct snobj *Init(struct snobj *arg);
 
   virtual struct task_result RunTask(void *arg);
@@ -9,14 +14,11 @@ class Source : public Module {
   struct snobj *command_set_pkt_size(struct snobj *arg);
   struct snobj *command_set_burst(struct snobj *arg);
 
-  static const gate_idx_t kNumIGates = 0;
-  static const gate_idx_t kNumOGates = 1;
-
   static const Commands<Source> cmds;
 
  private:
-  int pkt_size_ = {0};
-  int burst_ = {0};
+  int pkt_size_;
+  int burst_;
 };
 
 const Commands<Source> Source::cmds = {
@@ -28,25 +30,33 @@ struct snobj *Source::Init(struct snobj *arg) {
   struct snobj *t;
   struct snobj *err;
 
-  task_id_t tid = register_task(this, NULL);
-  if (tid == INVALID_TASK_ID) return snobj_err(ENOMEM, "Task creation failed");
+  task_id_t tid = register_task(this, nullptr);
+  if (tid == INVALID_TASK_ID) {
+    return snobj_err(ENOMEM, "Task creation failed");
+  }
 
   pkt_size_ = 60;
   burst_ = MAX_PKT_BURST;
 
-  if (!arg) return NULL;
+  if (!arg) {
+    return nullptr;
+  }
 
-  if ((t = snobj_eval(arg, "pkt_size")) != NULL) {
+  if ((t = snobj_eval(arg, "pkt_size")) != nullptr) {
     err = command_set_pkt_size(t);
-    if (err) return err;
+    if (err) {
+      return err;
+    }
   }
 
-  if ((t = snobj_eval(arg, "burst")) != NULL) {
+  if ((t = snobj_eval(arg, "burst")) != nullptr) {
     err = command_set_burst(t);
-    if (err) return err;
+    if (err) {
+      return err;
+    }
   }
 
-  return NULL;
+  return nullptr;
 }
 
 struct task_result Source::RunTask(void *arg) {
@@ -78,33 +88,37 @@ struct task_result Source::RunTask(void *arg) {
 struct snobj *Source::command_set_pkt_size(struct snobj *arg) {
   uint64_t val;
 
-  if (snobj_type(arg) != TYPE_INT)
+  if (snobj_type(arg) != TYPE_INT) {
     return snobj_err(EINVAL, "pkt_size must be an integer");
+  }
 
   val = snobj_uint_get(arg);
 
-  if (val == 0 || val > SNBUF_DATA)
+  if (val == 0 || val > SNBUF_DATA) {
     return snobj_err(EINVAL, "Invalid packet size");
+  }
 
   pkt_size_ = val;
 
-  return NULL;
+  return nullptr;
 }
 
 struct snobj *Source::command_set_burst(struct snobj *arg) {
   uint64_t val;
 
-  if (snobj_type(arg) != TYPE_INT)
+  if (snobj_type(arg) != TYPE_INT) {
     return snobj_err(EINVAL, "burst must be an integer");
+  }
 
   val = snobj_uint_get(arg);
 
-  if (val == 0 || val > MAX_PKT_BURST)
+  if (val == 0 || val > MAX_PKT_BURST) {
     return snobj_err(EINVAL, "burst size must be [1,%d]", MAX_PKT_BURST);
+  }
 
   burst_ = val;
 
-  return NULL;
+  return nullptr;
 }
 
 ADD_MODULE(Source, "source",
