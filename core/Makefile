@@ -50,7 +50,7 @@ TEST_SRCS = $(filter %_test.cc, $(ALL_SRCS))
 TEST_OBJS = $(TEST_SRCS:.cc=.o)
 TEST_EXEC = $(TEST_OBJS:%.o=%)
 
-SRCS = $(filter-out $(TEST_SRCS), $(ALL_SRCS))
+SRCS = $(filter-out $(TEST_SRCS), $(ALL_SRCS)) $(PROTO_SRCS)
 OBJS = $(SRCS:.cc=.o)
 
 EXEC = bessd
@@ -72,9 +72,9 @@ CORES ?= $(shell nproc || echo 1)
 MAKEFLAGS += -j $(CORES)
 VERBOSE ?= 0
 
-.PHONY: all clean tags cscope tests protobuf
+.PHONY: all clean tags deps cscope tests protobuf
 
-all: $(DEPS) $(EXEC)
+all: $(EXEC)
 
 clean:
 	rm -f $(DEPS) $(EXEC) $(TEST_EXEC) *.a *.pb.* *.o modules/*.o drivers/*.o utils/*.o oldtests/*.o
@@ -82,13 +82,15 @@ clean:
 tags:
 	@ctags -R *
 
+deps: $(DEPS)
+
 cscope:
 	@rm -f cscope.*
 	@find . -name "*.c" -o -name "*.h" > cscope.files
 	cscope -b -q -k
 	@rm -f cscope.files
 
-tests: $(DEPS) $(TEST_OBJS) $(TEST_EXEC)
+tests: $(TEST_OBJS) $(TEST_EXEC)
 
 protobuf: $(PROTO_SRCS)
 
@@ -97,7 +99,7 @@ protobuf: $(PROTO_SRCS)
 # $(2): Make target
 # $(3): Make prerequisites
 # $(4): command
-define BUILD =
+define BUILD
 $(2): $(3)
 	$$(eval _TYPE = $$(strip $(1)))
 	$$(eval _TARGET = $$(if $$(word 2, $$^), $$@, $$<))
@@ -124,12 +126,12 @@ $(eval $(call BUILD, \
 	DEPS, \
 	$$(DEPS), \
 	$$(PROTO_HEADERS) $$(SRCS) $$(HEADERS), \
-	$$(CXX) $$(CXXFLAGS) -MM $$(SRCS) | sed 's|\(.*\)\.o: \(.*\)\.c|\2.o: \2.c|' > $$(DEPS)))
+	$$(CXX) $$(CXXFLAGS) -MM $$(SRCS) | sed 's|\(.*\)\.o: \(.*\)\.cc|\2.o: \2.cc|' > $$(DEPS)))
 
 $(eval $(call BUILD, \
 	CXX, \
 	%.o, \
-	%.cc, \
+	%.cc $(DEPS), \
 	$$(CXX) -o $$@ -c $$< $$(CXXFLAGS)))
 
 $(eval $(call BUILD, \
@@ -141,7 +143,7 @@ $(eval $(call BUILD, \
 $(eval $(call BUILD, \
 	TEST_CXX, \
 	%_test.o, \
-	%_test.cc, \
+	%_test.cc $(DEPS), \
 	$$(CXX) -o $$@ -c $$< $$(CXXFLAGS)))
 
 $(eval $(call BUILD, \
