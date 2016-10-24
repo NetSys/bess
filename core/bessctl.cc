@@ -3,10 +3,10 @@
 #include <rte_config.h>
 #include <rte_ether.h>
 
-#include "bessctl.grpc.pb.h"
 #include "message.h"
 #include "module.h"
 #include "port.h"
+#include "service.grpc.pb.h"
 #include "tc.h"
 #include "utils/time.h"
 #include "worker.h"
