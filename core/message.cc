@@ -5,7 +5,7 @@
 const std::string string_format(const char *fmt, ...) {
   va_list ap;
   va_start(ap, fmt);
-  const std::string s = string_format(fmt, ap);
+  const std::string s = string_vformat(fmt, ap);
   va_end(ap);
   return s;
 }
