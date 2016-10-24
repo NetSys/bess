@@ -1,8 +1,9 @@
 #ifndef _MESSAGE_H_
 #define _MESSAGE_H_
 
+#include "bess_message.pb.h"
 #include "error.pb.h"
-#include "message.pb.h"
+#include "module_message.pb.h"
 #include <stdarg.h>
 
 typedef bess::Error pb_error_t;

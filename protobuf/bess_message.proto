@@ -117,9 +117,11 @@ message EtherEncapArg {
 message ExactMatchArg {
   message Field {
     uint64 size = 1;
-    string attribute = 2;
-    int64 offset = 3;
-    bytes mask = 4;
+    uint64 mask = 4;
+    oneof position {
+      string name = 2;
+      int64 offset = 3;
+    }
   }
   repeated Field fields = 1;
 }
