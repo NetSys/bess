@@ -3,18 +3,22 @@
 /* TODO: timer-triggered flush */
 class Buffer : public Module {
  public:
+  Buffer() : Module(), buf_() {}
+
   virtual void Deinit();
 
   virtual void ProcessBatch(struct pkt_batch *batch);
 
  private:
-  struct pkt_batch buf_ = {0};
+  struct pkt_batch buf_;
 };
 
 void Buffer::Deinit() {
   struct pkt_batch *buf = &buf_;
 
-  if (buf->cnt) snb_free_bulk(buf->pkts, buf->cnt);
+  if (buf->cnt) {
+    snb_free_bulk(buf->pkts, buf->cnt);
+  }
 }
 
 void Buffer::ProcessBatch(struct pkt_batch *batch) {
@@ -28,7 +32,8 @@ void Buffer::ProcessBatch(struct pkt_batch *batch) {
 
   if (left >= free_slots) {
     buf->cnt = MAX_PKT_BURST;
-    rte_memcpy((void *)p_buf, (void *)p_batch,
+    rte_memcpy(reinterpret_cast<void *>(p_buf),
+               reinterpret_cast<void *>(p_batch),
                free_slots * sizeof(struct snbuf *));
 
     p_buf = &buf->pkts[0];
@@ -40,7 +45,7 @@ void Buffer::ProcessBatch(struct pkt_batch *batch) {
   }
 
   buf->cnt += left;
-  rte_memcpy((void *)p_buf, (void *)p_batch, left * sizeof(struct snbuf *));
+  rte_memcpy(reinterpret_cast<void *>(p_buf), reinterpret_cast<void *>(p_batch), left * sizeof(struct snbuf *));
 }
 
 ADD_MODULE(Buffer, "buffer", "buffers packets into larger batches")

@@ -6,10 +6,10 @@
 
 class VLANSplit : public Module {
  public:
-  virtual void ProcessBatch(struct pkt_batch *batch);
-
   static const gate_idx_t kNumIGates = 1;
   static const gate_idx_t kNumOGates = 4096;
+
+  virtual void ProcessBatch(struct pkt_batch *batch);
 };
 
 void VLANSplit::ProcessBatch(struct pkt_batch *batch) {
@@ -35,8 +35,9 @@ void VLANSplit::ProcessBatch(struct pkt_batch *batch) {
       ethh = _mm_slli_si128(ethh, 4);
       _mm_storeu_si128((__m128i *)old_head, ethh);
       vid[i] = rte_be_to_cpu_16(tci) & 0x0fff;
-    } else
+    } else {
       vid[i] = 0; /* untagged packets go to gate 0 */
+    }
   }
 
   run_split(this, vid, batch);

@@ -16,12 +16,14 @@ static inline int is_valid_gate(gate_idx_t gate) {
 
 class Split : public Module {
  public:
+  static const gate_idx_t kNumIGates = 1;
+  static const gate_idx_t kNumOGates = MAX_GATES;
+
+  Split() : Module(), mask_(), attr_id_(), offset_(), size_() {}
+
   struct snobj *Init(struct snobj *arg);
 
   void ProcessBatch(struct pkt_batch *batch);
-
-  static const gate_idx_t kNumIGates = 1;
-  static const gate_idx_t kNumOGates = MAX_GATES;
 
  private:
   uint64_t mask_;
@@ -31,12 +33,14 @@ class Split : public Module {
 };
 
 struct snobj *Split::Init(struct snobj *arg) {
-  if (!arg || snobj_type(arg) != TYPE_MAP)
+  if (!arg || snobj_type(arg) != TYPE_MAP) {
     return snobj_err(EINVAL, "specify 'offset'/'name' and 'size'");
+  }
 
   size_ = snobj_eval_uint(arg, "size");
-  if (size_ < 1 || size_ > MAX_SIZE)
+  if (size_ < 1 || size_ > MAX_SIZE) {
     return snobj_err(EINVAL, "'size' must be 1-%d", MAX_SIZE);
+  }
 
   mask_ = ((uint64_t)1 << (size_ * 8)) - 1;
 
@@ -44,17 +48,21 @@ struct snobj *Split::Init(struct snobj *arg) {
 
   if (name) {
     attr_id_ = add_metadata_attr(this, name, size_, MT_READ);
-    if (attr_id_ < 0) return snobj_err(-attr_id_, "add_metadata_attr() failed");
+    if (attr_id_ < 0) {
+      return snobj_err(-attr_id_, "add_metadata_attr() failed");
+    }
   } else if (snobj_eval_exists(arg, "offset")) {
     attr_id_ = -1;
     offset_ = snobj_eval_int(arg, "offset");
-    if (offset_ < 0 || offset_ > 1024)
+    if (offset_ < 0 || offset_ > 1024) {
       return snobj_err(EINVAL, "invalid 'offset'");
+    }
     offset_ -= (8 - size_);
-  } else
+  } else {
     return snobj_err(EINVAL, "must specify 'offset' or 'name'");
+  }
 
-  return NULL;
+  return nullptr;
 }
 
 void Split::ProcessBatch(struct pkt_batch *batch) {
@@ -70,10 +78,11 @@ void Split::ProcessBatch(struct pkt_batch *batch) {
       uint64_t val = get_attr(this, attr_id, pkt, uint64_t);
       val &= mask_;
 
-      if (is_valid_gate(val))
+      if (is_valid_gate(val)) {
         ogate[i] = val;
-      else
+      } else {
         ogate[i] = DROP_GATE;
+      }
     }
   } else {
     int offset = offset_;
@@ -85,10 +94,11 @@ void Split::ProcessBatch(struct pkt_batch *batch) {
       uint64_t val = *(uint64_t *)(head + offset);
       val = rte_be_to_cpu_64(val) & mask_;
 
-      if (is_valid_gate(val))
+      if (is_valid_gate(val)) {
         ogate[i] = val;
-      else
+      } else {
         ogate[i] = DROP_GATE;
+      }
     }
   }
 

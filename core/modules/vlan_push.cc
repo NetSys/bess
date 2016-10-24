@@ -9,14 +9,16 @@
 
 class VLANPush : public Module {
  public:
+  static const gate_idx_t kNumIGates = 1;
+  static const gate_idx_t kNumOGates = 1;
+
+  VLANPush() : Module(), vlan_tag_(), qinq_tag_() {}
+
   virtual struct snobj *Init(struct snobj *arg);
 
   virtual void ProcessBatch(struct pkt_batch *batch);
 
   virtual struct snobj *GetDesc();
-
-  static const gate_idx_t kNumIGates = 1;
-  static const gate_idx_t kNumOGates = 1;
 
   static const Commands<VLANPush> cmds;
 
@@ -24,8 +26,8 @@ class VLANPush : public Module {
   struct snobj *CommandSetTci(struct snobj *arg);
 
   /* network order */
-  uint32_t vlan_tag_ = {};
-  uint32_t qinq_tag_ = {};
+  uint32_t vlan_tag_;
+  uint32_t qinq_tag_;
 };
 
 const Commands<VLANPush> VLANPush::cmds = {
@@ -35,13 +37,15 @@ const Commands<VLANPush> VLANPush::cmds = {
 struct snobj *VLANPush::Init(struct snobj *arg) {
   struct snobj *t;
 
-  if (!arg || snobj_type(arg) != TYPE_MAP)
+  if (!arg || snobj_type(arg) != TYPE_MAP) {
     return snobj_err(EINVAL, "empty argument");
+  }
 
-  if ((t = snobj_eval(arg, "tci")))
+  if ((t = snobj_eval(arg, "tci"))) {
     return CommandSetTci(t);
-  else
+  } else {
     return snobj_err(EINVAL, "'tci' must be specified");
+  }
 }
 
 /* the behavior is undefined if a packet is already double tagged */
@@ -56,7 +60,7 @@ void VLANPush::ProcessBatch(struct pkt_batch *batch) {
     char *new_head;
     uint16_t tpid;
 
-    if ((new_head = static_cast<char *>(snb_prepend(pkt, 4))) != NULL) {
+    if ((new_head = static_cast<char *>(snb_prepend(pkt, 4))) != nullptr) {
 /* shift 12 bytes to the left by 4 bytes */
 #if __SSE4_1__
       __m128i ethh;
@@ -91,17 +95,20 @@ struct snobj *VLANPush::GetDesc() {
 struct snobj *VLANPush::CommandSetTci(struct snobj *arg) {
   uint16_t tci;
 
-  if (!arg || snobj_type(arg) != TYPE_INT)
+  if (!arg || snobj_type(arg) != TYPE_INT) {
     return snobj_err(EINVAL, "argument must be an integer");
+  }
 
   tci = snobj_uint_get(arg);
 
-  if (tci > 0xffff) return snobj_err(EINVAL, "TCI value must be 0-65535");
+  if (tci > 0xffff) {
+    return snobj_err(EINVAL, "TCI value must be 0-65535");
+  }
 
   vlan_tag_ = htonl((0x8100 << 16) | tci);
   qinq_tag_ = htonl((0x88a8 << 16) | tci);
 
-  return NULL;
+  return nullptr;
 }
 
 ADD_MODULE(VLANPush, "vlan_push", "adds 802.1Q/802.11ad VLAN tag")

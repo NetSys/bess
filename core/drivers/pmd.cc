@@ -137,16 +137,13 @@ static struct snobj *find_dpdk_port(struct snobj *conf,
 
     bdf = snobj_str_get(t);
 
-    if (!bdf) {
-pci_format_err:
+    if (!bdf ||
+        (eal_parse_pci_DomBDF(bdf, &addr) != 0 &&
+         eal_parse_pci_BDF(bdf, &addr)) != 0) {
       return snobj_err(EINVAL,
                        "PCI address must be like "
                        "dddd:bb:dd.ff or bb:dd.ff");
     }
-
-    if (eal_parse_pci_DomBDF(bdf, &addr) != 0 &&
-        eal_parse_pci_BDF(bdf, &addr) != 0)
-      goto pci_format_err;
 
     for (int i = 0; i < RTE_MAX_ETHPORTS; i++) {
       if (rte_eth_devices[i].attached &&
@@ -201,7 +198,8 @@ pci_format_err:
   return NULL;
 }
 
-static pb_error_t find_dpdk_port(dpdk_port_t port_id, const std::string &pci,
+static pb_error_t find_dpdk_port(dpdk_port_t port_id,
+                                 const std::string &pci,
                                  const std::string &vdev,
                                  dpdk_port_t *ret_port_id,
                                  bool *ret_hot_plugged) {
