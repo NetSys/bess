@@ -167,7 +167,7 @@ task_id_t Module::RegisterTask(void *arg) {
   struct task *t;
 
   for (id = 0; id < MAX_TASKS_PER_MODULE; id++)
-    if (tasks[id] == NULL)
+    if (tasks[id] == nullptr)
       goto found;
 
   /* cannot find an empty slot */
@@ -197,7 +197,7 @@ void Module::DestroyAllTasks() {
   for (task_id_t i = 0; i < MAX_TASKS_PER_MODULE; i++) {
     if (tasks[i]) {
       task_destroy(tasks[i]);
-      tasks[i] = NULL; /* just in case */
+      tasks[i] = nullptr; /* just in case */
     }
   }
 }
@@ -335,11 +335,11 @@ int Module::DisconnectModules(gate_idx_t ogate_idx) {
   cdlist_del(&ogate->out.igate_upstream);
   if (cdlist_is_empty(&igate->in.ogates_upstream)) {
     Module *m_next = igate->m;
-    m_next->igates.arr[igate->gate_idx] = NULL;
+    m_next->igates.arr[igate->gate_idx] = nullptr;
     mem_free(igate);
   }
 
-  ogates.arr[ogate_idx] = NULL;
+  ogates.arr[ogate_idx] = nullptr;
   mem_free(ogate);
 
   return 0;
@@ -364,11 +364,11 @@ int Module::DisconnectModulesUpstream(gate_idx_t igate_idx) {
   cdlist_for_each_entry_safe(ogate, ogate_next, &igate->in.ogates_upstream,
                              out.igate_upstream) {
     Module *m_prev = ogate->m;
-    m_prev->ogates.arr[ogate->gate_idx] = NULL;
+    m_prev->ogates.arr[ogate->gate_idx] = nullptr;
     mem_free(ogate);
   }
 
-  igates.arr[igate_idx] = NULL;
+  igates.arr[igate_idx] = nullptr;
   mem_free(igate);
 
   return 0;
@@ -555,7 +555,7 @@ void Module::DumpPcapPkts(struct gate *gate, struct pkt_batch *batch) {
   int ret = 0;
   int fd = gate->fifo_fd;
 
-  gettimeofday(&tv, NULL);
+  gettimeofday(&tv, nullptr);
 
   for (int i = 0; i < batch->cnt; i++) {
     struct snbuf *pkt = batch->pkts[i];

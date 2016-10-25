@@ -76,7 +76,7 @@ class ZeroCopyVPort : public Port {
 };
 
 struct snobj *ZeroCopyVPort::Init(struct snobj *arg) {
-  struct vport_bar *bar = NULL;
+  struct vport_bar *bar = nullptr;
 
   int num_inc_q = num_queues[PACKET_DIR_INC];
   int num_out_q = num_queues[PACKET_DIR_OUT];
@@ -97,9 +97,9 @@ struct snobj *ZeroCopyVPort::Init(struct snobj *arg) {
                 (sizeof(struct vport_inc_regs) * (num_inc_q)) +
                 (sizeof(struct vport_out_regs) * (num_out_q));
 
-  bar = static_cast<struct vport_bar *>(rte_zmalloc(NULL, total_bytes, 0));
+  bar = static_cast<struct vport_bar *>(rte_zmalloc(nullptr, total_bytes, 0));
   bar_address = (size_t)bar;
-  assert(bar != NULL);
+  assert(bar != nullptr);
   bar_ = bar;
 
   strncpy(bar->name, name().c_str(), PORT_NAME_LEN);
@@ -157,11 +157,11 @@ struct snobj *ZeroCopyVPort::Init(struct snobj *arg) {
   fwrite(&bar_address, 8, 1, fp);
   fclose(fp);
 
-  return NULL;
+  return nullptr;
 }
 
 pb_error_t ZeroCopyVPort::Init(const bess::ZeroCopyVPortArg &arg) {
-  struct vport_bar *bar = NULL;
+  struct vport_bar *bar = nullptr;
 
   int num_inc_q = num_queues[PACKET_DIR_INC];
   int num_out_q = num_queues[PACKET_DIR_OUT];
@@ -182,9 +182,9 @@ pb_error_t ZeroCopyVPort::Init(const bess::ZeroCopyVPortArg &arg) {
                 (sizeof(struct vport_inc_regs) * (num_inc_q)) +
                 (sizeof(struct vport_out_regs) * (num_out_q));
 
-  bar = static_cast<struct vport_bar *>(rte_zmalloc(NULL, total_bytes, 0));
+  bar = static_cast<struct vport_bar *>(rte_zmalloc(nullptr, total_bytes, 0));
   bar_address = (size_t)bar;
-  assert(bar != NULL);
+  assert(bar != nullptr);
   bar_ = bar;
 
   strncpy(bar->name, name().c_str(), PORT_NAME_LEN);

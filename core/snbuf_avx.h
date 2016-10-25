@@ -114,7 +114,7 @@ static inline void snb_free_bulk(snb_array_t snbs, int cnt) {
   if (i < cnt) {
     struct snbuf *snb = snbs[i];
 
-    if (unlikely(snb->mbuf.pool != _pool || snb->mbuf.next != NULL ||
+    if (unlikely(snb->mbuf.pool != _pool || snb->mbuf.next != nullptr ||
                  rte_mbuf_refcnt_read(&snb->mbuf) != 1 ||
                  snb->mbuf.buf_addr != snb->_headroom)) {
       goto slow_path;

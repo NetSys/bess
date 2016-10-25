@@ -78,7 +78,7 @@ struct snobj *Dump::CommandSetInterval(struct snobj *arg) {
 
   min_interval_ns_ = static_cast<uint64_t>(sec * NS_PER_SEC);
 
-  return NULL;
+  return nullptr;
 }
 
 pb_error_t Dump::CommandSetInterval(const bess::DumpArg &arg) {

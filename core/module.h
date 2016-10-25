@@ -81,7 +81,7 @@ struct gate {
 
 struct gates {
   /* Resizable array of 'struct gate *'.
-   * Unconnected elements are filled with NULL */
+   * Unconnected elements are filled with nullptr */
   struct gate **arr;
 
   /* The current size of the array.
@@ -131,7 +131,7 @@ class ModuleBuilder {
   }
 
   /* returns a pointer to the created module.
-   * if error, returns NULL and *perr is set */
+   * if error, returns nullptr and *perr is set */
   Module *CreateModule(const std::string &name) const;
 
   // Add a module to the collection. Returns true on success, false otherwise.
@@ -371,7 +371,7 @@ struct task *task_create(Module *m, void *arg);
 void task_destroy(struct task *t);
 
 static inline int task_is_attached(struct task *t) {
-  return (t->c != NULL);
+  return (t->c != nullptr);
 }
 
 void task_attach(struct task *t, struct tc *c);
@@ -400,7 +400,7 @@ static inline gate_idx_t get_igate() {
 }
 
 static inline int is_active_gate(struct gates *gates, gate_idx_t idx) {
-  return idx < gates->curr_size && gates->arr && gates->arr[idx] != NULL;
+  return idx < gates->curr_size && gates->arr && gates->arr[idx] != nullptr;
 }
 
 typedef struct snobj *(*mod_cmd_func_t)(struct module *, const char *,

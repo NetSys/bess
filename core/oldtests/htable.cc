@@ -65,7 +65,7 @@ static void *bess_init(int entries) {
 
     int ret = t->Set(&key, &val);
     if (ret == -ENOMEM)
-      return NULL;
+      return nullptr;
     else
       assert(ret == 0 || ret == 1);
   }
@@ -134,19 +134,19 @@ static void *dpdk_discrete_init(int entries) {
   };
 
   t = rte_hash_create(&params);
-  if (!t) return NULL;
+  if (!t) return nullptr;
 
   value_arr = (value_t *)mem_alloc(sizeof(value_t) * entries);
   if (!value_arr) {
     rte_hash_free(t);
-    return NULL;
+    return nullptr;
   }
 
   ht = (struct dpdk_ht *)mem_alloc(sizeof(struct dpdk_ht));
   if (!ht) {
     mem_free(value_arr);
     rte_hash_free(t);
-    return NULL;
+    return nullptr;
   }
 
   rng.SetSeed(0);
@@ -182,7 +182,7 @@ static void *dpdk_embedded_init(int entries) {
   };
 
   t = rte_hash_create(&params);
-  if (!t) return NULL;
+  if (!t) return nullptr;
 
   rng.SetSeed(0);
 
@@ -456,7 +456,7 @@ static void functest() {
     uint16_t *val;
 
     val = (uint16_t *)t.Get(&key);
-    assert(val != NULL);
+    assert(val != nullptr);
     assert(*val == derive_val(key));
   }
 

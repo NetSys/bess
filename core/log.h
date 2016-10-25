@@ -3,7 +3,7 @@
 
 #include <syslog.h>
 
-/* the maximum log size is 2KB, including the trailing NULL character */
+/* the maximum log size is 2KB, including the trailing nullptr character */
 #define MAX_LOG_LEN 2048
 
 void log_flush(int priority);

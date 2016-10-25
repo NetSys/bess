@@ -32,7 +32,7 @@ DECLARE_bool(s);
 
 static void tc_add_to_parent_pgroup(struct tc *c, int share_resource) {
   struct tc *parent = c->parent;
-  struct pgroup *g = NULL;
+  struct pgroup *g = nullptr;
 
   struct cdlist_item *next;
 
@@ -164,7 +164,7 @@ void _tc_do_free(struct tc *c) {
   if (parent) tc_dec_refcnt(parent);
 }
 
-static inline int tc_is_root(struct tc *c) { return c->parent == NULL; }
+static inline int tc_is_root(struct tc *c) { return c->parent == nullptr; }
 
 static inline int64_t next_pass(struct heap *pq) {
   struct tc *next = (struct tc *)heap_peek(pq);
@@ -295,7 +295,7 @@ again:
     goto again;
   }
 
-  return NULL;
+  return nullptr;
 }
 
 static struct tc *sched_next(struct sched *s, uint64_t tsc) {
@@ -309,7 +309,7 @@ again:
   c = pick(&s->root);
 
   /* empty tree? */
-  if (c == &s->root) c = NULL;
+  if (c == &s->root) c = nullptr;
 
   if (c) {
     if (!c->state.runnable) {
@@ -411,7 +411,7 @@ static void sched_done(struct sched *s, struct tc *c, resource_arr_t usage,
   accumulate(s->stats.usage, usage);
 
   assert(s->current);
-  s->current = NULL;
+  s->current = nullptr;
 
   if (!reschedule) c->state.runnable = 0;
 
@@ -668,7 +668,7 @@ void sched_loop(struct sched *s) {
 static uint64_t get_usec(void) {
   struct timeval tv;
 
-  gettimeofday(&tv, NULL);
+  gettimeofday(&tv, nullptr);
   return tv.tv_sec * 1000000 + tv.tv_usec;
 }
 
@@ -688,7 +688,7 @@ void sched_test_alloc() {
     struct tc_params params = {};
     int parent_id = rng_.Get() % (i + 1);
 
-    params.parent = parent_id ? classes[(parent_id - 1)] : NULL;
+    params.parent = parent_id ? classes[(parent_id - 1)] : nullptr;
     params.priority = rng_.Get() % 8;
     params.share = 1;
 
@@ -741,7 +741,7 @@ void sched_test_perf() {
   for (i = 0; i < num_classes; i++) {
     struct tc_params params = {};
 
-    params.parent = NULL;
+    params.parent = nullptr;
     params.priority = 0;
     params.share = 1;
     params.share_resource = RESOURCE_BIT;

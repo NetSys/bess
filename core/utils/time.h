@@ -22,7 +22,7 @@ static inline double tsc_to_us(uint64_t cycles) {
  * This is consistent with Python's time.time() */
 static double get_epoch_time() {
   struct timeval tv;
-  gettimeofday(&tv, NULL);
+  gettimeofday(&tv, nullptr);
   return tv.tv_sec + tv.tv_usec / 1e6;
 }
 

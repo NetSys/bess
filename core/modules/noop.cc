@@ -17,7 +17,7 @@ const Commands<Module> NoOP::cmds = {};
 struct snobj *NoOP::Init(struct snobj *arg) {
   task_id_t tid;
 
-  tid = RegisterTask(NULL);
+  tid = RegisterTask(nullptr);
   if (tid == INVALID_TASK_ID)
     return snobj_err(ENOMEM, "Task creation failed");
 

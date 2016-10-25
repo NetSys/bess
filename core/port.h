@@ -168,7 +168,7 @@ class Port {
   // Fills in pointed-to structure with this port's stats.
   void GetPortStats(port_stats_t *stats);
 
-  /* queues == NULL if _all_ queues are being acquired/released */
+  /* queues == nullptr if _all_ queues are being acquired/released */
   int AcquireQueues(const struct module *m, packet_dir_t dir,
                     const queue_t *queues, int num);
 

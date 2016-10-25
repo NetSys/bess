@@ -29,7 +29,7 @@ void mem_free(void *ptr) { free(ptr); }
 #include <rte_malloc.h>
 
 void *mem_alloc(size_t size) {
-  return rte_zmalloc(/* name= */ NULL, size, /* align= */ 0);
+  return rte_zmalloc(/* name= */ nullptr, size, /* align= */ 0);
 }
 
 void *mem_realloc(void *ptr, size_t size) {

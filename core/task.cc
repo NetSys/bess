@@ -15,7 +15,7 @@ struct task *task_create(Module *m, void *arg) {
   struct task *t;
 
   t = (struct task *)mem_alloc(sizeof(*t));
-  if (!t) return NULL;
+  if (!t) return nullptr;
 
   cdlist_item_init(&t->tc);
   cdlist_add_tail(&all_tasks, &t->all_tasks);
@@ -52,7 +52,7 @@ void task_detach(struct task *t) {
 
   if (!task_is_attached(t)) return;
 
-  t->c = NULL;
+  t->c = nullptr;
   cdlist_del(&t->tc);
   tc_dec_refcnt(c);
   c->num_tasks--;
@@ -72,7 +72,7 @@ void assign_default_tc(int wid, struct task *t) {
 
   struct tc_params params = {};
 
-  params.parent = NULL;
+  params.parent = nullptr;
   params.auto_free = 1; /* when no task is left, this TC is freed */
   params.priority = DEFAULT_PRIORITY;
   params.share = 1;

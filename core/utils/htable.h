@@ -52,7 +52,7 @@ class HTableBase {
 
   void Clear();
 
-  /* returns NULL or the pointer to the data */
+  /* returns nullptr or the pointer to the data */
   void *Get(const void *key) const;
 
   /* identical to Get(), but you can supply a precomputed hash value "pri" */
@@ -65,7 +65,7 @@ class HTableBase {
   int Del(const void *key);
 
   /* Iterate over key pointers.
-   * NULL if it reached the end of the table, or the pointer to the key.
+   * nullptr if it reached the end of the table, or the pointer to the key.
    * User should set *next to 0 when starting iteration */
   void *Iterate(uint32_t *next) const;
 
@@ -152,8 +152,8 @@ class HTableBase {
   uint32_t bucket_mask_ = {};
 
   /* bucket and entry arrays grow independently */
-  Bucket *buckets_ = NULL;
-  void *entries_ = NULL; /* entry_size * num_entries bytes */
+  Bucket *buckets_ = nullptr;
+  void *entries_ = nullptr; /* entry_size * num_entries bytes */
 
   int cnt_ = 0;              /* current number of entries */
   KeyIndex num_entries_ = 0; /* current array size (# entries) */
@@ -170,7 +170,7 @@ template <typename K, typename V,
           HTableBase::HashFunc H = HTableBase::kDefaultHashFunc>
 class HTable : public HTableBase {
  public:
-  /* returns NULL or the pointer to the data */
+  /* returns nullptr or the pointer to the data */
   V *Get(const K *key) const;
 
   /* identical to ht_Get(), but you can supply a precomputed hash value "pri" */
@@ -220,7 +220,7 @@ inline V *HTable<K, V, C, H>::get_from_bucket(uint32_t pri, uint32_t hv,
       return (V *)((uintptr_t)key_stored + value_offset_);
   }
 
-  return NULL;
+  return nullptr;
 }
 
 #endif

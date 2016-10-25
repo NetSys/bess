@@ -179,7 +179,7 @@ static Port* create_port(const std::string& name, const PortBuilder& driver,
           "MAC address should be "
           "formatted as a string "
           "xx:xx:xx:xx:xx:xx");
-      return NULL;
+      return nullptr;
     }
   } else
     eth_random_addr(mac_addr);
@@ -187,14 +187,14 @@ static Port* create_port(const std::string& name, const PortBuilder& driver,
   if (num_inc_q > MAX_QUEUES_PER_DIR || num_out_q > MAX_QUEUES_PER_DIR) {
     perr->set_err(EINVAL);
     perr->set_errmsg("Invalid number of queues");
-    return NULL;
+    return nullptr;
   }
 
   if (size_inc_q < 0 || size_inc_q > MAX_QUEUE_SIZE || size_out_q < 0 ||
       size_out_q > MAX_QUEUE_SIZE) {
     perr->set_err(EINVAL);
     perr->set_errmsg("Invalid queue size");
-    return NULL;
+    return nullptr;
   }
 
   std::string port_name;
@@ -203,7 +203,7 @@ static Port* create_port(const std::string& name, const PortBuilder& driver,
     if (PortBuilder::all_ports().count(name)) {
       perr->set_err(EEXIST);
       perr->set_errmsg(string_format("Port '%s' already exists", name.c_str()));
-      return NULL;
+      return nullptr;
     }
     port_name = name;
   } else {
@@ -227,11 +227,11 @@ static Port* create_port(const std::string& name, const PortBuilder& driver,
 
   *perr = p->Init(arg);
   if (perr->err() != 0) {
-    return NULL;
+    return nullptr;
   }
 
   if (!PortBuilder::AddPort(p.get())) {
-    return NULL;
+    return nullptr;
   }
 
   return p.release();
@@ -1083,7 +1083,7 @@ class BESSControlImpl final : public BESSControl::Service {
                                "'taskid' must be between 0 and %d",
                                MAX_TASKS_PER_MODULE - 1);
 
-    if ((t = m->tasks[tid]) == NULL)
+    if ((t = m->tasks[tid]) == nullptr)
       return return_with_error(response, ENOENT, "Task %s:%hu does not exist",
                                m_name, tid);
 

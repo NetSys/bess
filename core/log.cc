@@ -49,7 +49,7 @@ static int initialized = 0;
 static void do_log(int priority, const char *data, size_t len) {
   if (!initialized || FLAGS_f) {
     FILE *fp;
-    const char *color = NULL;
+    const char *color = nullptr;
 
     if (priority <= LOG_ERR) {
       fp = org_stderr ?: stderr;
@@ -216,11 +216,11 @@ void start_logger() {
        *   a format string that ends with '\n'.
        *   In that case, the message will go to /dev/null
        *   (see dup2 above). */
-      stdout = fopencookie(NULL, "w", stdout_funcs);
-      setvbuf(stdout, NULL, _IOLBF, 0);
+      stdout = fopencookie(nullptr, "w", stdout_funcs);
+      setvbuf(stdout, nullptr, _IOLBF, 0);
 
-      stderr = fopencookie(NULL, "w", stderr_funcs);
-      setvbuf(stderr, NULL, _IOLBF, 0);
+      stderr = fopencookie(nullptr, "w", stderr_funcs);
+      setvbuf(stderr, nullptr, _IOLBF, 0);
     }
 
     if (fd > 2) close(fd);
@@ -244,7 +244,7 @@ void end_logger() {
 
   if (crashlog) {
     fclose(crashlog);
-    crashlog = NULL;
+    crashlog = nullptr;
   }
 
   initialized = 0;

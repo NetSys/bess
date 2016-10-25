@@ -24,7 +24,7 @@
 
 void oom_crash(void) {
   log_crit("Fatal: out of memory for critical operations\n");
-  *((int *)NULL) = 0;
+  *((int *)nullptr) = 0;
 }
 
 static const char *si_code_to_str(int sig_num, int si_code) {
@@ -183,7 +183,7 @@ static void print_code(char *symbol, int context) {
 
     if (strcmp(filename, "??") == 0) continue;
 
-    ret = strtok(NULL, "");
+    ret = strtok(nullptr, "");
     if (!ret) continue;
 
     lineno = atoi(ret);
@@ -308,7 +308,7 @@ __attribute__((constructor(101))) static void set_trap_handler() {
   sigact.sa_flags = SA_RESTART | SA_SIGINFO;
 
   for (i = 0; i < sizeof(signals) / sizeof(int); i++) {
-    int ret = sigaction(signals[i], &sigact, NULL);
+    int ret = sigaction(signals[i], &sigact, nullptr);
     assert(ret != 1);
   }
 

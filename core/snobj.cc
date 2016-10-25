@@ -92,7 +92,7 @@ struct snobj *snobj_blob(const void *data, size_t size) {
   struct snobj *m;
   void *data_copied;
 
-  if (!data || !size) return NULL;
+  if (!data || !size) return nullptr;
 
   data_copied = _ALLOC(size);
 
@@ -110,7 +110,7 @@ struct snobj *snobj_str(const char *str) {
   struct snobj *m;
   char *str_copied;
 
-  if (!str) return NULL;
+  if (!str) return nullptr;
 
   str_copied = _STRDUP(str);
 
@@ -131,7 +131,7 @@ struct snobj *snobj_str_sized(const char *str, size_t size) {
   struct snobj *m;
   void *str_copied;
 
-  if (!str) return NULL;
+  if (!str) return nullptr;
 
   str_copied = _ALLOC(size);
   memcpy(str_copied, str, size);
@@ -259,7 +259,7 @@ struct snobj *snobj_map_get(const struct snobj *m, const char *key) {
   i = snobj_map_index(m, key);
 
   if (i < 0)
-    return NULL;
+    return nullptr;
   else
     return m->map.arr_v[i];
 }
@@ -353,7 +353,7 @@ struct snobj *snobj_eval(const struct snobj *m, const char *expr) {
   const char *p = expr;
 
   strncpy(buf, expr, MAX_EXPR_LEN);
-  if (buf[MAX_EXPR_LEN - 1] != '\0') return NULL;
+  if (buf[MAX_EXPR_LEN - 1] != '\0') return nullptr;
 
   while (m && *p) {
     const char *end;
@@ -362,7 +362,7 @@ struct snobj *snobj_eval(const struct snobj *m, const char *expr) {
     switch (*p) {
       case '[':
         idx = (int)strtol(p + 1, (char **)&end, 10);
-        if (*end != ']') return NULL;
+        if (*end != ']') return nullptr;
 
         m = snobj_list_get(m, idx);
         p = end + 1;
@@ -385,7 +385,7 @@ struct snobj *snobj_eval(const struct snobj *m, const char *expr) {
         }
 
         if (p == end) /* empty token? */
-          return NULL;
+          return nullptr;
 
         buf[end - expr] = '\0';
         m = snobj_map_get(m, &buf[idx]);
@@ -604,7 +604,7 @@ size_t snobj_encode(const struct snobj *m, char **pbuf, size_t hint) {
   ret = snobj_encode_recur(m, &s);
   if (ret) {
     _FREE(s.buf);
-    *pbuf = NULL;
+    *pbuf = nullptr;
     return 0;
   }
 
@@ -619,7 +619,7 @@ struct decode_state {
 };
 
 struct snobj *snobj_decode_recur(struct decode_state *s) {
-  struct snobj *m = NULL;
+  struct snobj *m = nullptr;
 
   snobj_type_t type;
   size_t size;
@@ -706,13 +706,13 @@ struct snobj *snobj_decode_recur(struct decode_state *s) {
 
 err:
   snobj_free(m);
-  return NULL;
+  return nullptr;
 }
 
 struct snobj *snobj_decode(char *buf, size_t buf_size) {
   struct decode_state s;
 
-  if (buf_size % 8) return NULL;
+  if (buf_size % 8) return nullptr;
 
   s.buf = buf;
   s.offset = 0;
@@ -721,7 +721,7 @@ struct snobj *snobj_decode(char *buf, size_t buf_size) {
   return snobj_decode_recur(&s);
 }
 
-/* details is optional (can be NULL) */
+/* details is optional (can be nullptr) */
 struct snobj *snobj_err_details(int err, struct snobj *details, const char *fmt,
                                 ...) {
   struct snobj *m;
@@ -757,7 +757,7 @@ struct snobj *snobj_err_details(int err, struct snobj *details, const char *fmt,
 }
 
 struct snobj *snobj_errno(int err) {
-  return snobj_err_details(err, NULL, "%s", strerror(err));
+  return snobj_err_details(err, nullptr, "%s", strerror(err));
 }
 
 struct snobj *snobj_errno_details(int err, struct snobj *details) {
@@ -885,7 +885,7 @@ static void test_invoice() {
   assert(snobj_eval_exists(m, "bill-to"));
   assert(!snobj_eval_exists(m, "name"));
   assert(snobj_eval_int(m, "invoice") == 34943);
-  assert(snobj_eval_str(m, "invoice") == NULL);
+  assert(snobj_eval_str(m, "invoice") == nullptr);
   assert(snobj_eval_exists(m, "bill-to.address.city"));
   assert(!snobj_eval_exists(m, "bill-to.address.zip"));
   assert(snobj_eval_int(m, "bill-to.address.postal") == 48046);

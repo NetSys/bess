@@ -115,7 +115,7 @@ struct tc {
   /****************************************************************
    * Used for accounting only
    ****************************************************************/
-  struct tc *parent; /* NULL for the root */
+  struct tc *parent; /* nullptr for the root */
 
   uint64_t last_tsc; /* when was it last scheduled? */
 
@@ -148,7 +148,7 @@ struct tc {
   /****************************************************************
    * Not used in the "datapath" (sched_next or sched_done)
    ****************************************************************/
-  /* who is scheduling me? (NULL iff not attached) */
+  /* who is scheduling me? (nullptr iff not attached) */
   struct sched *s;
 
   struct tc_params settings;

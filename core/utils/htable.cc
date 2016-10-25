@@ -196,7 +196,7 @@ void *HTableBase::get_from_bucket(uint32_t pri, uint32_t hv,
       return (void *)((uintptr_t)key_stored + value_offset_);
   }
 
-  return NULL;
+  return nullptr;
 }
 
 int HTableBase::del_from_bucket(uint32_t pri, uint32_t hv, const void *key) {
@@ -291,8 +291,8 @@ int HTableBase::Init(size_t key_size, size_t value_size) {
   params.num_buckets = kInitNumBucket;
   params.num_entries = kInitNumEntries;
 
-  params.hash_func = NULL;
-  params.keycmp_func = NULL;
+  params.hash_func = nullptr;
+  params.keycmp_func = nullptr;
 
   return InitEx(&params);
 }
@@ -432,7 +432,7 @@ void *HTableBase::Iterate(uint32_t *next) const {
 
     if (i >= bucket_mask_ + 1) {
       *next = idx;
-      return NULL;
+      return nullptr;
     }
 
     idx++;

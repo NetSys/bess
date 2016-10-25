@@ -34,7 +34,7 @@ static struct {
   int listen_fd;
   int epoll_fd;
 
-  struct client *lock_holder; /* NULL if unlocked */
+  struct client *lock_holder; /* nullptr if unlocked */
 
   struct cdlist_head clients_all;
   struct cdlist_head clients_lock_waiting;
@@ -113,7 +113,7 @@ static struct client *init_client(int fd, struct sockaddr_in c_addr) {
   setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &one, sizeof(one));
 
   c = (struct client *)mem_alloc(sizeof(struct client));
-  if (!c) return NULL;
+  if (!c) return nullptr;
 
   c->fd = fd;
   c->addr = c_addr;
@@ -122,7 +122,7 @@ static struct client *init_client(int fd, struct sockaddr_in c_addr) {
   c->buf = (char *)mem_alloc(c->buf_size);
   if (!c->buf) {
     mem_free(c);
-    return NULL;
+    return nullptr;
   }
 
   cdlist_add_tail(&master.clients_all, &c->master_all);
@@ -176,13 +176,13 @@ static struct client *accept_client(int listen_fd) {
   conn_fd = accept(listen_fd, (struct sockaddr *)&c_addr, &addrlen);
   if (conn_fd < 0) {
     PLOG(WARNING) << "accept()";
-    return NULL;
+    return nullptr;
   }
 
   c = init_client(conn_fd, c_addr);
   if (!c) {
     close(conn_fd);
-    return NULL;
+    return nullptr;
   }
 
   ev.events = EPOLLIN;
@@ -200,8 +200,8 @@ static struct client *accept_client(int listen_fd) {
 static void request_done(struct client *c) {
   struct epoll_event ev;
 
-  struct snobj *q = NULL;
-  struct snobj *r = NULL;
+  struct snobj *q = nullptr;
+  struct snobj *r = nullptr;
 
   char *buf;
 
@@ -424,7 +424,7 @@ again:
   }
 
   if (ev.data.fd == master.listen_fd) {
-    if ((c = accept_client(master.listen_fd)) == NULL) goto again;
+    if ((c = accept_client(master.listen_fd)) == nullptr) goto again;
 
     LOG(INFO) << "Master: a new client from " << inet_ntoa(c->addr.sin_addr)
               << ":" << std::hex << c->addr.sin_port;
