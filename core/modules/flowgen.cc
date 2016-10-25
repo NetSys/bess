@@ -447,7 +447,7 @@ struct snbuf *FlowGen::FillPacket(struct flow *f) {
 }
 
 void FlowGen::GeneratePackets(struct pkt_batch *batch) {
-  uint64_t now = ctx.current_ns;
+  uint64_t now = ctx.current_ns();
 
   batch_clear(batch);
 

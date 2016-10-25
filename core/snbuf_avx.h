@@ -33,7 +33,7 @@ static inline int snb_alloc_bulk(snb_array_t snbs, int cnt, uint16_t len) {
   rxdesc_fields = _mm_setr_epi32(len << 16, len, 0, 0);
 #endif
 
-  ret = rte_mempool_get_bulk(ctx.pframe_pool, (void **)snbs, cnt);
+  ret = rte_mempool_get_bulk(ctx.pframe_pool(), (void **)snbs, cnt);
   if (ret != 0) return 0;
 
   mbuf_template = *((__m128i *)&pframe_template.buf_len);

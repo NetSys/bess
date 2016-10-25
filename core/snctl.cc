@@ -108,10 +108,10 @@ static struct snobj *handle_list_workers(struct snobj *q) {
     worker = snobj_map();
     snobj_map_set(worker, "wid", snobj_int(wid));
     snobj_map_set(worker, "running", snobj_int(is_worker_running(wid)));
-    snobj_map_set(worker, "core", snobj_int(workers[wid]->core));
-    snobj_map_set(worker, "num_tcs", snobj_int(workers[wid]->s->num_classes));
+    snobj_map_set(worker, "core", snobj_int(workers[wid]->core()));
+    snobj_map_set(worker, "num_tcs", snobj_int(workers[wid]->s()->num_classes));
     snobj_map_set(worker, "silent_drops",
-                  snobj_int(workers[wid]->silent_drops));
+                  snobj_int(workers[wid]->silent_drops()));
 
     snobj_list_add(r, worker);
   }
@@ -193,12 +193,12 @@ static struct snobj *handle_list_tcs(struct snobj *q) {
     int wid;
 
     if (wid_filter < MAX_WORKERS) {
-      if (workers[wid_filter]->s != c->s)
+      if (workers[wid_filter]->s() != c->s)
         continue;
       wid = wid_filter;
     } else {
       for (wid = 0; wid < MAX_WORKERS; wid++)
-        if (is_worker_active(wid) && workers[wid]->s == c->s)
+        if (is_worker_active(wid) && workers[wid]->s() == c->s)
           break;
     }
 
@@ -306,7 +306,7 @@ static struct snobj *handle_add_tc(struct snobj *q) {
     }
   }
 
-  c = tc_init(workers[wid]->s, &params);
+  c = tc_init(workers[wid]->s(), &params);
   if (is_err(c))
     return snobj_err(-ptr_to_err(c), "tc_init() failed");
 
