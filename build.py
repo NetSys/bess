@@ -61,7 +61,7 @@ def cmd_success(cmd):
     except subprocess.CalledProcessError:
         return False
 
-def check_c_header(header_file):
+def check_cxx_header(header_file, compiler):
     test_c_file = '%s/test.c' % DEPS_DIR
     test_o_file = '%s/test.o' % DEPS_DIR
 
@@ -78,9 +78,15 @@ def check_c_header(header_file):
         with open(test_c_file, 'w') as fp:
             fp.write(textwrap.dedent(src))
 
-        return cmd_success('gcc -c %s -o %s' % (test_c_file, test_o_file))
+        return cmd_success('%s -c %s -o %s' % (compiler, test_c_file, test_o_file))
     finally:
         cmd('rm -f %s %s' % (test_c_file, test_o_file))
+
+def check_c_header(header_file):
+    return check_cxx_header(header_file, 'gcc')
+
+def check_cpp_header(header_file):
+    return check_cxx_header(header_file, 'g++')
 
 def check_c_lib(lib):
     test_c_file = '%s/test.c' % DEPS_DIR
@@ -102,11 +108,14 @@ def check_c_lib(lib):
     finally:
         cmd('rm -f %s %s' % (test_c_file, test_e_file))
 
-def required(header_file, lib_name):
-    if not check_c_header(header_file):
+def required_cxx(header_file, lib_name, compiler):
+    if not check_cxx_header(header_file, compiler):
         print >> sys.stderr, 'Error - #include <%s> failed. ' \
                 'Did you install "%s" package?' % (header_file, lib_name)
         sys.exit(1)
+
+def required(header_file, lib_name):
+    required_cxx(header_file, lib_name, 'gcc')
 
 def check_essential():
     if not cmd_success('gcc -v'):
@@ -118,6 +127,9 @@ def check_essential():
         sys.exit(1)
 
     required('pcap/pcap.h', 'libpcap-dev')
+    required_cxx('glog/logging.h', 'libgoogle-glog-dev', 'g++')
+    required_cxx('gflags/gflags.h', 'libgflags-dev', 'g++')
+    required_cxx('gtest/gtest.h', 'libgtest-dev', 'g++')
 
 def set_config(filename, config, new_value):
     with open(filename) as fp:

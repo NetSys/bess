@@ -29,7 +29,8 @@
  */
 /* Dual BSD/GPL */
 
-#include "sn.h"
+#include "sn_common.h"
+#include "sn_kernel.h"
 
 extern struct miscdevice sn_host_device;
 

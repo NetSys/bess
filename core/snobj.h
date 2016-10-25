@@ -3,28 +3,30 @@
 
 /* NOTE: this library is not thread-safe */
 
+#include <math.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
-#include <math.h>
+
+#include <string>
 
 #include "common.h"
 #include "debug.h"
 #include "mem_alloc.h"
 
-#define MAX_EXPR_LEN	128	/* including the trailing NULL */
+#define MAX_EXPR_LEN 128 /* including the trailing NULL */
 
-#define CHECK_DOUBLE_FREE	0
+#define CHECK_DOUBLE_FREE 0
 
 enum snobj_type {
-	TYPE_NIL = 0,	/* must be zero. useful for boolean flags */
-	TYPE_INT,	/* signed or unsigned 64-bit integer */
-	TYPE_DOUBLE,	/* double-precision floating-point numbers */
-	TYPE_STR,	/* null-terminated strings (size includes \0) */
-	TYPE_BLOB,
-	TYPE_LIST,
-	TYPE_MAP,
+  TYPE_NIL = 0, /* must be zero. useful for boolean flags */
+  TYPE_INT,     /* signed or unsigned 64-bit integer */
+  TYPE_DOUBLE,  /* double-precision floating-point numbers */
+  TYPE_STR,     /* null-terminated strings (size includes \0) */
+  TYPE_BLOB,
+  TYPE_LIST,
+  TYPE_MAP,
 };
 
 /* In C99 we cannot specify enum size. Instead, use uint*_t directly */
@@ -32,89 +34,84 @@ typedef uint32_t snobj_type_t;
 
 /* keep it to 32B for optimal memory usage */
 struct snobj {
-	snobj_type_t type;
+  snobj_type_t type;
 
-	uint32_t refcnt;
+  uint32_t refcnt;
 
-	/* INT: always 8,
-	 * BLOB: bytes (including \0 for string)
-	 * LIST, MAP: number of elements
-	 * (using size_t here is an overkill...) */
-	uint32_t size;
+  /* INT: always 8,
+   * BLOB: bytes (including \0 for string)
+   * LIST, MAP: number of elements
+   * (using size_t here is an overkill...) */
+  uint32_t size;
 
-	/* used internally for maps and lists */
-	uint32_t max_size;
-	union {
-		int64_t int_value;
-		double double_value;
+  /* used internally for maps and lists */
+  uint32_t max_size;
+  union {
+    int64_t int_value;
+    double double_value;
 
-		void *data;
+    void *data;
 
-		struct {
-			struct snobj **arr;
-		} list;
+    struct {
+      struct snobj **arr;
+    } list;
 
-		/* currently implemented with arrays and
-		 * linear search :(
-		 * is hash table really necessary? */
-		struct {
-			char **arr_k;
-			struct snobj **arr_v;
-		} map;
-	};
+    /* currently implemented with arrays and
+     * linear search :(
+     * is hash table really necessary? */
+    struct {
+      char **arr_k;
+      struct snobj **arr_v;
+    } map;
+  };
 } __attribute__((aligned(32)));
 
 /* this function does not return (always succeeds) */
-static inline void *_ALLOC(size_t size)
-{
-	void *ret = mem_alloc(size);
+static inline void *_ALLOC(size_t size) {
+  void *ret = mem_alloc(size);
 
-	/* if memory allocation is fail, we are already screwed. Quit. */
-	if (!ret)
-		oom_crash();
+  /* if memory allocation is fail, we are already screwed. Quit. */
+  if (!ret) oom_crash();
 
-	return ret;
+  return ret;
 }
 
-static inline void *_REALLOC(void *p, size_t new_size)
-{
-	void *ret = mem_realloc(p, new_size);
+static inline void *_REALLOC(void *p, size_t new_size) {
+  void *ret = mem_realloc(p, new_size);
 
-	/* if memory allocation is fail, we are already screwed. Quit. */
-	if (!ret)
-		oom_crash();
+  /* if memory allocation is fail, we are already screwed. Quit. */
+  if (!ret) oom_crash();
 
-	return ret;
+  return ret;
 }
 
 #if CHECK_DOUBLE_FREE
-  #include <assert.h>
+#include <assert.h>
 #endif
 
 /* should not crash when p == NULL */
-static inline void _FREE(void *p)
-{
+static inline void _FREE(void *p) {
 #if CHECK_DOUBLE_FREE
-	const uint64_t magic_number = 0xc1fa23e79b0486d5UL;
-	uint64_t *t = p;
+  const uint64_t magic_number = 0xc1fa23e79b0486d5UL;
+  uint64_t *t = p;
 
-	if (*t == magic_number)
-		assert(0);	/* Found (potential double free!) */
-	else
-		*t = magic_number;;
+  if (*t == magic_number)
+    assert(0); /* Found (potential double free!) */
+  else
+    *t = magic_number;
+  ;
 #endif
-	mem_free(p);
+  mem_free(p);
 }
 
-static char *_STRDUP(const char *s)
-{
-	size_t len = strlen(s);
-	char *ret;
+static char *_STRDUP(const char *s) {
+  size_t len = strlen(s);
+  char *ret;
 
-	ret = _ALLOC(len + 1);
-	memcpy(ret, s, len + 1);
+  ret = (char *)_ALLOC(len + 1);
+  memcpy(ret, s, len + 1);
 
-	return ret;
+  return ret;
 }
 
 /*
@@ -126,10 +123,7 @@ static char *_STRDUP(const char *s)
  * 4. snobj_*_get() or snobj_eval_*() do NOT affect its refcnt.
  */
 
-static inline void snobj_acquire(struct snobj *m)
-{
-	m->refcnt++;
-}
+static inline void snobj_acquire(struct snobj *m) { m->refcnt++; }
 
 void snobj_free(struct snobj *m);
 
@@ -138,131 +132,108 @@ struct snobj *snobj_nil(void);
 struct snobj *snobj_int(int64_t v);
 struct snobj *snobj_uint(uint64_t v);
 struct snobj *snobj_double(double v);
-struct snobj *snobj_blob(const void *data, size_t size);	/* data is copied */
-struct snobj *snobj_str(const char *str);		/* str is copied */
-struct snobj *snobj_str_fmt(const char *fmt, ...) \
-		     __attribute__((format(printf, 1, 2)));
+struct snobj *snobj_blob(const void *data, size_t size); /* data is copied */
+struct snobj *snobj_str(const char *str);                /* str is copied */
+struct snobj *snobj_str(const std::string &str);
+struct snobj *snobj_str_fmt(const char *fmt, ...)
+    __attribute__((format(printf, 1, 2)));
 struct snobj *snobj_list(void);
 struct snobj *snobj_map(void);
 
 int snobj_list_add(struct snobj *m, struct snobj *child);
-int snobj_list_del(struct snobj *m, int index);
+int snobj_list_del(struct snobj *m, size_t index);
 
-static inline int64_t snobj_int_get(const struct snobj *m)
-{
-	if (m->type != TYPE_INT)
-		return 0;
+static inline int64_t snobj_int_get(const struct snobj *m) {
+  if (m->type != TYPE_INT) return 0;
 
-	return m->int_value;
+  return m->int_value;
 }
 
-static inline uint64_t snobj_uint_get(const struct snobj *m)
-{
-	return (uint64_t)snobj_int_get(m);
+static inline uint64_t snobj_uint_get(const struct snobj *m) {
+  return (uint64_t)snobj_int_get(m);
 }
 
-static inline double snobj_double_get(const struct snobj *m)
-{
-	if (m->type != TYPE_DOUBLE)
-		return NAN;
+static inline double snobj_double_get(const struct snobj *m) {
+  if (m->type != TYPE_DOUBLE) return NAN;
 
-	return m->double_value;
+  return m->double_value;
 }
 
-static inline double snobj_number_get(const struct snobj *m)
-{
-	if (m->type == TYPE_INT)
-		return (double)m->int_value;
+static inline double snobj_number_get(const struct snobj *m) {
+  if (m->type == TYPE_INT) return (double)m->int_value;
 
-	if (m->type == TYPE_DOUBLE)
-		return m->double_value;
+  if (m->type == TYPE_DOUBLE) return m->double_value;
 
-	return NAN;
+  return NAN;
 }
 
-static inline char *snobj_str_get(const struct snobj *m)
-{
-	if (m->type != TYPE_STR)
-		return NULL;
+static inline char *snobj_str_get(const struct snobj *m) {
+  if (m->type != TYPE_STR) return NULL;
 
-	return (char *)m->data;
+  return (char *)m->data;
 }
 
-static inline void *snobj_blob_get(const struct snobj *m)
-{
-	if (m->type != TYPE_BLOB)
-		return NULL;
+static inline void *snobj_blob_get(const struct snobj *m) {
+  if (m->type != TYPE_BLOB) return NULL;
 
-	return (void *)m->data;
+  return (void *)m->data;
 }
 
-static inline struct snobj *snobj_list_get(const struct snobj *m, int idx)
-{
-	if (m->type != TYPE_LIST)
-		return NULL;
+static inline struct snobj *snobj_list_get(const struct snobj *m,
+                                           uint32_t idx) {
+  if (m->type != TYPE_LIST) return NULL;
 
-	if (idx < 0 || idx >= m->size)
-		return NULL;
+  if (idx >= m->size) return NULL;
 
-	return m->list.arr[idx];
+  return m->list.arr[idx];
 }
 
 struct snobj *snobj_map_get(const struct snobj *m, const char *key);
 int snobj_map_set(struct snobj *m, const char *key, struct snobj *val);
 
-int snobj_binvalue_get(struct snobj *m, int size, void *dst, int force_be);
+int snobj_binvalue_get(struct snobj *m, uint32_t size, void *dst, int force_be);
 
-static inline snobj_type_t snobj_type(const struct snobj *m)
-{
-	return m->type;
-}
+static inline snobj_type_t snobj_type(const struct snobj *m) { return m->type; }
 
-static inline size_t snobj_size(const struct snobj *m)
-{
-	return m->size;
-}
+static inline size_t snobj_size(const struct snobj *m) { return m->size; }
 
 /* expr can be recursive (e.g., foo.bar[3].baz).
  * returns NULL if not found */
 struct snobj *snobj_eval(const struct snobj *m, const char *expr);
 
 /* snobj_eval_* return 0, NAN, or NULL if the key is not found */
-static inline int64_t snobj_eval_int(const struct snobj *m, const char *expr)
-{
-	m = snobj_eval(m, expr);
+static inline int64_t snobj_eval_int(const struct snobj *m, const char *expr) {
+  m = snobj_eval(m, expr);
 
-	return m ? snobj_int_get(m) : 0;
+  return m ? snobj_int_get(m) : 0;
 }
 
-static inline uint64_t snobj_eval_uint(const struct snobj *m, const char *expr)
-{
-	return (uint64_t)snobj_eval_int(m, expr);
+static inline uint64_t snobj_eval_uint(const struct snobj *m,
+                                       const char *expr) {
+  return (uint64_t)snobj_eval_int(m, expr);
 }
 
-static inline double snobj_eval_double(const struct snobj *m, const char *expr)
-{
-	m = snobj_eval(m, expr);
+static inline double snobj_eval_double(const struct snobj *m,
+                                       const char *expr) {
+  m = snobj_eval(m, expr);
 
-	return m ? snobj_double_get(m) : NAN;
+  return m ? snobj_double_get(m) : NAN;
 }
 
-static inline char *snobj_eval_str(const struct snobj *m, const char *expr)
-{
-	m = snobj_eval(m, expr);
+static inline char *snobj_eval_str(const struct snobj *m, const char *expr) {
+  m = snobj_eval(m, expr);
 
-	return m ? snobj_str_get(m) : NULL;
+  return m ? snobj_str_get(m) : NULL;
 }
 
-static inline void *snobj_eval_blob(const struct snobj *m, const char *expr)
-{
-	m = snobj_eval(m, expr);
+static inline void *snobj_eval_blob(const struct snobj *m, const char *expr) {
+  m = snobj_eval(m, expr);
 
-	return m ? snobj_blob_get(m) : NULL;
+  return m ? snobj_blob_get(m) : NULL;
 }
 
-static inline int snobj_eval_exists(const struct snobj *m, const char *expr)
-{
-	return snobj_eval(m, expr) != NULL;
+static inline int snobj_eval_exists(const struct snobj *m, const char *expr) {
+  return snobj_eval(m, expr) != NULL;
 }
 
 void snobj_dump(const struct snobj *m);
@@ -277,11 +248,11 @@ size_t snobj_encode(const struct snobj *m, char **pbuf, size_t hint);
 struct snobj *snobj_decode(char *buf, size_t buf_size);
 
 /* helper function for the common error message format */
-struct snobj * __attribute__((format(printf, 3, 4)))
+struct snobj *__attribute__((format(printf, 3, 4)))
 snobj_err_details(int err, struct snobj *details, const char *fmt, ...);
 
 #define snobj_err(err, fmt, ...) \
-	snobj_err_details(err, NULL, fmt, ##__VA_ARGS__)
+  snobj_err_details(err, NULL, fmt, ##__VA_ARGS__)
 
 struct snobj *snobj_errno(int err);
 

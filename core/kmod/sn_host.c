@@ -31,7 +31,9 @@
 
 #include <linux/version.h>
 
-#include "sn.h"
+#include "sn_common.h"
+#include "sn_kernel.h"
+#include "../snbuf_layout.h"
 
 static void
 sn_dump_queue_mapping(struct sn_device *dev) __attribute__((unused));

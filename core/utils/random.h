@@ -1,79 +1,74 @@
 #ifndef __RANDOM_H__
 #define __RANDOM_H__
 
-#include <stdint.h>
+#include <cstdint>
 
-static inline uint32_t rand_fast(uint64_t *seed)
-{
-	uint64_t next_seed;
-	next_seed = *seed * 1103515245 + 12345;
-	*seed = next_seed;
-	return next_seed >> 32;
+#include "time.h"
+
+class Random {
+ public:
+  Random() { SetSeed(rdtsc()); }
+  Random(uint64_t seed) { SetSeed(seed_); }
+
+  void SetSeed(uint64_t seed) { this->seed_ = seed; };
+
+  uint32_t Get();
+  uint32_t GetRange(uint32_t range);
+  double GetReal();
+  double GetRealNonzero();
+
+ private:
+  void UpdateSeed();
+  uint64_t seed_;
+};
+
+inline uint32_t Random::Get() {
+  seed_ = seed_ * 1103515245 + 12345;
+  return seed_ >> 32;
 }
 
 /* returns [0, range) with no integer modulo operation */
-static inline uint32_t rand_fast_range(uint64_t *seed, uint32_t range)
-{
-	uint64_t next_seed;
+inline uint32_t Random::GetRange(uint32_t range) {
+  union {
+    uint64_t i;
+    double d;
+  } tmp;
 
-	union {
-		uint64_t i;
-		double d;
-	} tmp;
-
-	next_seed = *seed * 1103515245 + 12345;
-
-	/*
-	 * From the MSB,
-	 * 0: sign
-	 * 1-11: exponent (0x3ff == 0, 0x400 == 1)
-	 * 12-63: mantissa
-	 * The resulting double number is 1.(b0)(b1)...(b47),
-	 * where next_seed is (b0)(b1)...(b63).
-	 */
-	tmp.i = (next_seed >> 12) | 0x3ff0000000000000ul;
-
-	*seed = next_seed;
-
-	return (tmp.d - 1.0) * range;
+  /*
+   * From the MSB,
+   * 0: sign
+   * 1-11: exponent (0x3ff == 0, 0x400 == 1)
+   * 12-63: mantissa
+   * The resulting double number is 1.(b0)(b1)...(b47),
+   * where seed_ is (b0)(b1)...(b63).
+   */
+  seed_ = seed_ * 1103515245 + 12345;
+  tmp.i = (seed_ >> 12) | 0x3ff0000000000000ul;
+  return (tmp.d - 1.0) * range;
 }
 
 /* returns [0.0, 1.0) */
-static inline double rand_fast_real(uint64_t *seed)
-{
-	uint64_t next_seed;
+inline double Random::GetReal() {
+  union {
+    uint64_t i;
+    double d;
+  } tmp;
 
-	union {
-		uint64_t i;
-		double d;
-	} tmp;
-
-	next_seed = *seed * 1103515245 + 12345;
-
-	tmp.i = (next_seed >> 12) | 0x3ff0000000000000ul;
-
-	*seed = next_seed;
-
-	return tmp.d - 1.0;
+  seed_ = seed_ * 1103515245 + 12345;
+  tmp.i = (seed_ >> 12) | 0x3ff0000000000000ul;
+  return tmp.d - 1.0;
 }
 
-/* returns (0.0, 1.0] */
-static inline double rand_fast_real2(uint64_t *seed)
-{
-	uint64_t next_seed;
+/* returns (0.0, 1.0] (note it includes 1.0) */
+inline double Random::GetRealNonzero() {
+  union {
+    uint64_t i;
+    double d;
+  } tmp;
 
-	union {
-		uint64_t i;
-		double d;
-	} tmp;
-
-	next_seed = *seed * 1103515245 + 12345;
-
-	tmp.i = (next_seed >> 12) | 0x3ff0000000000000ul;
-
-	*seed = next_seed;
-
-	return 2.0 - tmp.d;
+  seed_ = seed_ * 1103515245 + 12345;
+  tmp.i = (seed_ >> 12) | 0x3ff0000000000000ul;
+  return 2.0 - tmp.d;
 }
 
 #endif

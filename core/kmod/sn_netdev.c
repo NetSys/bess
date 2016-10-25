@@ -52,7 +52,9 @@
 #define NAPI_POLL_WEIGHT 64
 #endif
 
-#include "sn.h"
+#include "sn_common.h"
+#include "sn_kernel.h"
+#include "../snbuf_layout.h"
 
 static int sn_poll(struct napi_struct *napi, int budget);
 static void sn_enable_interrupt(struct sn_queue *rx_queue);

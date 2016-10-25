@@ -32,30 +32,6 @@
 #ifndef _SN_COMMON_H_
 #define _SN_COMMON_H_
 
-#define SNBUF_MBUF			128
-#define SNBUF_IMMUTABLE			64
-#define SNBUF_METADATA			128
-#define SNBUF_SCRATCHPAD		64
-#define SNBUF_RESERVE			(SNBUF_IMMUTABLE + \
-					 SNBUF_METADATA + \
-					 SNBUF_SCRATCHPAD)
-#define SNBUF_HEADROOM			128
-#define SNBUF_DATA			2048
-
-#define SNBUF_IMMUTABLE_OFF		SNBUF_MBUF
-
-#define SNBUF_METADATA_OFF		(SNBUF_IMMUTABLE_OFF + \
-					 SNBUF_IMMUTABLE)
-
-#define SNBUF_SCRATCHPAD_OFF		(SNBUF_METADATA_OFF + \
-					 SNBUF_METADATA)
-
-#define SNBUF_HEADROOM_OFF		(SNBUF_SCRATCHPAD_OFF + \
-					 SNBUF_SCRATCHPAD)
-
-#define SNBUF_DATA_OFF			(SNBUF_HEADROOM_OFF + \
-					 SNBUF_HEADROOM)
-
 #include <linux/if_ether.h>
 
 #ifdef __KERNEL__
@@ -66,7 +42,7 @@
 #else
 
 #define __user
-#define IFNAMSIZ			16
+#define IFNAMSIZ 16
 
 #include <stdint.h>
 
@@ -76,28 +52,39 @@ typedef uint64_t phys_addr_t;
 
 #include "llring.h"
 
-#define SN_MAX_CPU			64
+#define SN_MAX_CPU 64
 
-#define SN_MAX_TXQ			32
-#define SN_MAX_RXQ			32
+#define SN_MAX_TXQ 32
+#define SN_MAX_RXQ 32
 
-#define SN_IOC_CREATE_HOSTNIC		0x8501
-#define SN_IOC_RELEASE_HOSTNIC		0x8502
-#define SN_IOC_KICK_RX			0x8503
-#define SN_IOC_SET_QUEUE_MAPPING	0x8504
+#define SN_IOC_CREATE_HOSTNIC 0x8501
+#define SN_IOC_RELEASE_HOSTNIC 0x8502
+#define SN_IOC_KICK_RX 0x8503
+#define SN_IOC_SET_QUEUE_MAPPING 0x8504
 
 struct sn_ioc_queue_mapping {
 	int cpu_to_txq[SN_MAX_CPU];
 	int rxq_to_cpu[SN_MAX_RXQ];
 };
 
+struct tx_queue_opts {
+	/* If set, the driver will push tags for all xmitted packets.
+	 * Both are in host order. */
+	uint16_t tci;
+	uint16_t outer_tci;
+};
+
+struct rx_queue_opts {
+	uint8_t loopback;
+};
+
 struct sn_conf_space {
 	uint64_t bar_size;
 
-	int netns_fd;				/* < 0 if unset */
-	int container_pid;			/* = 0 if unset */
+	int netns_fd;      /* < 0 if unset */
+	int container_pid; /* = 0 if unset */
 
-	char ifname[IFNAMSIZ];		/* in/out argument */
+	char ifname[IFNAMSIZ]; /* in/out argument */
 	uint8_t mac_addr[ETH_ALEN];
 
 	uint16_t num_txq;
@@ -107,19 +94,8 @@ struct sn_conf_space {
 	uint8_t link_on;
 	uint8_t promisc_on;
 
-	struct tx_queue_opts
-	{
-		/* If set, the driver will push tags for all xmitted packets.
-		 * Both are in host order. */
-		uint16_t tci;
-		uint16_t outer_tci;
-	} txq_opts;
-
-	struct rx_queue_opts
-	{
-		uint8_t loopback;
-	} rxq_opts;
-
+	struct tx_queue_opts txq_opts;
+	struct rx_queue_opts rxq_opts;
 } __attribute__((__aligned__(64)));
 
 struct sn_rxq_registers {
@@ -131,9 +107,9 @@ struct sn_rxq_registers {
 } __attribute__((__aligned__(64)));
 
 /* Do not attempt to calculate checksum for this TX packet */
-#define SN_TX_CSUM_DONT		65535
+#define SN_TX_CSUM_DONT 65535
 
-#define SN_TX_FRAG_MAX_NUM      18/*(MAX_SKB_FRAGS + 1)*/
+#define SN_TX_FRAG_MAX_NUM 18 /*(MAX_SKB_FRAGS + 1)*/
 
 /* Driver -> BESS metadata for TX packets */
 struct sn_tx_metadata {
@@ -150,18 +126,18 @@ struct sn_tx_desc {
 	struct sn_tx_metadata meta;
 };
 
-#define SN_RX_CSUM_UNEXAMINED		0
-#define SN_RX_CSUM_UNKNOWN_P		1	/* unknown protocol */
-#define SN_RX_CSUM_INCORRECT		2
-#define SN_RX_CSUM_CORRECT		3
-#define SN_RX_CSUM_CORRECT_ENCAP	4
+#define SN_RX_CSUM_UNEXAMINED 0
+#define SN_RX_CSUM_UNKNOWN_P 1 /* unknown protocol */
+#define SN_RX_CSUM_INCORRECT 2
+#define SN_RX_CSUM_CORRECT 3
+#define SN_RX_CSUM_CORRECT_ENCAP 4
 
 struct sn_rx_metadata {
 	/* Maximum TCP "payload" size among coalesced packets.
 	 * 0 for non-coalesed packets */
 	uint16_t gso_mss;
 
-	uint8_t	csum_state;	/* SN_RX_CSUM_* */
+	uint8_t csum_state; /* SN_RX_CSUM_* */
 };
 
 /* BESS -> Driver descriptor for RX packets */
@@ -170,7 +146,7 @@ struct sn_rx_desc {
 
 	/* Only the following three fields are valid for non-head segments */
 	uint16_t seg_len;
-	phys_addr_t seg; 	/* where's the actual data? */
+	phys_addr_t seg; /* where's the actual data? */
 
 	/* The physical address of next snbuf
 	 * (forms a NULL-terminating linked list) */

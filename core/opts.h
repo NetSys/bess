@@ -1,19 +1,19 @@
 #ifndef _OPTS_H_
 #define _OPTS_H_
 
-#include <stdint.h>
+#include <gflags/gflags.h>
 
-extern struct global_opts {
-	uint16_t port;		/* TCP port for controller */
-	int default_core;	/* Core ID for implicily launched worker */
-	int test_mode;		/* If 1, run selftest */
-	int foreground;		/* If 1, not daemonized */
-	int kill_existing;	/* If 1, kill existing BESS instance */
-	int print_tc_stats;	/* If 1, print TC stats every second */
-	int debug_mode;		/* If 1, print control messages */
-	int mb_per_socket;	/* MB per CPU socket for DPDK (0=default) */
-	char *pidfile;		/* Filename (nullptr=default; nullstr=none) */
-	int multi_instance;	/* If 1, allow multiple BESS instances */
-} global_opts;
+// TODO(barath): Rename these flags to something more intuitive.
+DECLARE_bool(t);
+DECLARE_bool(g);
+DECLARE_string(i);
+DECLARE_bool(f);
+DECLARE_bool(k);
+DECLARE_bool(s);
+DECLARE_bool(d);
+DECLARE_bool(a);
+DECLARE_int32(c);
+DECLARE_int32(p);
+DECLARE_int32(m);
 
 #endif

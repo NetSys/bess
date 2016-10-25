@@ -32,7 +32,7 @@ for i in range(num_cores):
     src = Source()
     bess.attach_task(src.name, 0, wid=i)
 
-    rr = Roundrobin(gates=num_ports)
+    rr = RoundRobin(gates=num_ports)
 
     src \
     -> Rewrite(templates=[pkt_bytes]) \

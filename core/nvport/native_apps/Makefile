@@ -1,7 +1,7 @@
 DPDK_LIB = dpdk
 
 ifndef RTE_SDK
-    RTE_SDK = $(abspath ../../../deps/dpdk-2.2.0)
+    RTE_SDK = $(abspath ../../../deps/dpdk-16.07)
 endif
 
 ifndef RTE_TARGET
