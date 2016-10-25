@@ -3,10 +3,10 @@
 #include <functional>
 #include <queue>
 
-#include "../utils/time.h"
-#include "../utils/random.h"
-
+#include "../message.h"
 #include "../module.h"
+#include "../utils/random.h"
+#include "../utils/time.h"
 
 #define MAX_TEMPLATE_SIZE 1536
 
@@ -21,7 +21,8 @@ struct flow {
 
 typedef std::pair<uint64_t, struct flow *> Event;
 typedef std::priority_queue<Event, std::vector<Event>,
-                            std::function<bool(Event, Event)>> EventQueue;
+                            std::function<bool(Event, Event)>>
+    EventQueue;
 
 bool EventLess(const Event &a, const Event &b) {
   return a.first < b.first;
@@ -57,30 +58,32 @@ class FlowGen : public Module {
     DURATION_PARETO,
   };
 
-  FlowGen() :
-      Module(),
-      active_flows_(),
-      allocated_flows_(),
-      generated_flows_(),
-      flows_(),
-      flows_free_(),
-      events_(),
-      templ_(),
-      template_size_(),
-      rng_(),
-      arrival_(),
-      duration_(),
-      quick_rampup_(),
-      total_pps_(),
-      flow_rate_(),
-      flow_duration_(),
-      concurrent_flows_(),
-      flow_pps_(),
-      flow_pkts_(),
-      flow_gap_ns_(),
-      pareto_() {}
+  FlowGen()
+      : Module(),
+        active_flows_(),
+        allocated_flows_(),
+        generated_flows_(),
+        flows_(),
+        flows_free_(),
+        events_(),
+        templ_(),
+        template_size_(),
+        rng_(),
+        arrival_(),
+        duration_(),
+        quick_rampup_(),
+        total_pps_(),
+        flow_rate_(),
+        flow_duration_(),
+        concurrent_flows_(),
+        flow_pps_(),
+        flow_pkts_(),
+        flow_gap_ns_(),
+        pareto_() {}
 
   virtual struct snobj *Init(struct snobj *arg);
+  virtual pb_error_t Init(const bess::FlowGenArg &arg);
+
   virtual void Deinit();
 
   virtual struct task_result RunTask(void *arg);
@@ -97,8 +100,12 @@ class FlowGen : public Module {
   void PopulateInitialFlows();
   struct snbuf *FillPacket(struct flow *f);
   void GeneratePackets(struct pkt_batch *batch);
-  struct snobj *InitFlowPool();
+  struct snobj *InitFlowPoolOld();
   struct snobj *ProcessArguments(struct snobj *arg);
+
+  pb_error_t InitFlowPool();
+  pb_error_t ProcessArguments(const bess::FlowGenArg &arg);
+
   int active_flows_;
   int allocated_flows_;
   uint64_t generated_flows_;
@@ -321,7 +328,149 @@ struct snobj *FlowGen::ProcessArguments(struct snobj *arg) {
   return nullptr;
 }
 
-struct snobj *FlowGen::InitFlowPool() {
+pb_error_t FlowGen::ProcessArguments(const bess::FlowGenArg &arg) {
+  if (arg.template_().length() == 0) {
+    return pb_error(EINVAL, "must specify 'template'");
+  }
+
+  if (arg.template_().length() > MAX_TEMPLATE_SIZE) {
+    return pb_error(EINVAL, "'template' is too big");
+  }
+
+  template_size_ = arg.template_().length();
+
+  memset(templ_, 0, MAX_TEMPLATE_SIZE);
+  memcpy(templ_, arg.template_().c_str(), template_size_);
+
+  total_pps_ = arg.pps();
+  if (isnan(total_pps_) || total_pps_ < 0.0) {
+    return pb_error(EINVAL, "invalid 'pps'");
+  }
+
+  flow_rate_ = arg.flow_rate();
+  if (isnan(flow_rate_) || flow_rate_ < 0.0) {
+    return pb_error(EINVAL, "invalid 'flow_rate'");
+  }
+
+  flow_duration_ = arg.flow_duration();
+  if (isnan(flow_duration_) || flow_duration_ < 0.0) {
+    return pb_error(EINVAL, "invalid 'flow_duration'");
+  }
+
+  if (arg.arrival() == bess::FlowGenArg::UNIFORM) {
+    arrival_ = ARRIVAL_UNIFORM;
+  } else if (arg.arrival() == bess::FlowGenArg::EXPONENTIAL) {
+    arrival_ = ARRIVAL_EXPONENTIAL;
+  } else {
+    return pb_error(EINVAL,
+                    "'arrival' must be either "
+                    "'uniform' or 'exponential'");
+  }
+
+  if (arg.duration() == bess::FlowGenArg::UNIFORM) {
+    duration_ = DURATION_UNIFORM;
+  } else if (arg.duration() == bess::FlowGenArg::PARETO) {
+    duration_ = DURATION_PARETO;
+  } else {
+    return pb_error(EINVAL,
+                    "'duration' must be either "
+                    "'uniform' or 'pareto'");
+  }
+
+  if (arg.quick_rampup()) {
+    quick_rampup_ = 1;
+  }
+
+  return pb_errno(0);
+}
+
+pb_error_t FlowGen::InitFlowPool() {
+  /* allocate 20% more in case of temporal overflow */
+  allocated_flows_ = (int)(concurrent_flows_ * 1.2);
+  if (allocated_flows_ < 128) {
+    allocated_flows_ = 128;
+  }
+
+  flows_ = static_cast<struct flow *>(
+      mem_alloc(allocated_flows_ * sizeof(struct flow)));
+  if (!flows_) {
+    return pb_error(ENOMEM, "memory allocation failed (%d flows)",
+                    allocated_flows_);
+  }
+
+  cdlist_head_init(&flows_free_);
+
+  for (int i = 0; i < allocated_flows_; i++) {
+    struct flow *f = &flows_[i];
+    cdlist_add_tail(&flows_free_, &f->free);
+  }
+
+  return pb_errno(0);
+}
+
+pb_error_t FlowGen::Init(const bess::FlowGenArg &arg) {
+  task_id_t tid;
+  pb_error_t err;
+
+  rng_.SetSeed(0xBAADF00DDEADBEEFul);
+
+  /* set default parameters */
+  total_pps_ = 1000.0;
+  flow_rate_ = 10.0;
+  flow_duration_ = 10.0;
+  arrival_ = ARRIVAL_UNIFORM;
+  duration_ = DURATION_UNIFORM;
+  pareto_.alpha = 1.3;
+
+  /* register task */
+  tid = register_task(this, nullptr);
+  if (tid == INVALID_TASK_ID) {
+    return pb_error(ENOMEM, "task creation failed");
+  }
+
+  templ_ = new char[MAX_TEMPLATE_SIZE];
+  if (templ_ == nullptr) {
+    return pb_error(ENOMEM, "unable to allocate template");
+  }
+
+  err = ProcessArguments(arg);
+  if (err.err() != 0) {
+    return err;
+  }
+
+  /* calculate derived variables */
+  pareto_.inversed_alpha = 1.0 / pareto_.alpha;
+
+  if (duration_ == DURATION_PARETO) {
+    MeasureParetoMean();
+  }
+
+  concurrent_flows_ = flow_rate_ * flow_duration_;
+  if (concurrent_flows_ > 0.0) {
+    flow_pps_ = total_pps_ / concurrent_flows_;
+  }
+
+  flow_pkts_ = flow_pps_ * flow_duration_;
+  if (flow_rate_ > 0.0) {
+    flow_gap_ns_ = 1e9 / flow_rate_;
+  }
+
+  /* initialize flow pool */
+  err = InitFlowPool();
+  if (err.err() != 0) {
+    return err;
+  }
+
+  /* initialize time-sorted priority queue */
+  events_ = EventQueue(EventLess);
+
+  /* add a seed flow (and background flows if necessary) */
+  PopulateInitialFlows();
+
+  return pb_errno(0);
+}
+
+struct snobj *FlowGen::InitFlowPoolOld() {
   /* allocate 20% more in case of temporal overflow */
   allocated_flows_ = (int)(concurrent_flows_ * 1.2);
   if (allocated_flows_ < 128) {
@@ -393,7 +542,7 @@ struct snobj *FlowGen::Init(struct snobj *arg) {
   }
 
   /* initialize flow pool */
-  err = InitFlowPool();
+  err = InitFlowPoolOld();
   if (err) {
     return err;
   }
@@ -438,7 +587,8 @@ struct snbuf *FlowGen::FillPacket(struct flow *f) {
 
   tcp_flags = f->first ? /* SYN */ 0x02 : /* ACK */ 0x10;
 
-  if (f->packets_left <= 1) tcp_flags |= 0x01; /* FIN */
+  if (f->packets_left <= 1)
+    tcp_flags |= 0x01; /* FIN */
 
   *(uint32_t *)(p + 14 + /* IP dst */ 16) = f->flow_id;
   *(uint8_t *)(p + 14 + /* IP */ 20 + /* TCP flags */ 13) = tcp_flags;
@@ -458,7 +608,8 @@ void FlowGen::GeneratePackets(struct pkt_batch *batch) {
 
     t = events_.top().first;
     f = events_.top().second;
-    if (!f || now < t) return;
+    if (!f || now < t)
+      return;
 
     events_.pop();
 
