@@ -20,6 +20,28 @@ message ExactMatchCommandSetDefaultGateArg {
   uint64 gate = 1;
 }
 
+message HashLBCommandSetModeArg {
+  enum Mode {
+    L2 = 0;
+    L3 = 1;
+    L4 = 2;
+  }
+  Mode mode = 1;
+}
+
+message HashLBCommandSetGatesArg {
+  repeated int64 gates = 1;
+}
+
+message IPLookupCommandAddArg {
+  string prefix = 1;
+  uint64 prefix_len = 2;
+  uint64 gate = 3;
+}
+
+message IPLookupCommandClearArg {
+}
+
 message ModuleCommandRequest {
   string cmd = 1;
   oneof arg {
@@ -92,19 +114,6 @@ message GenericEncapArg {
     }
   }
   repeated Field fields = 1;
-}
-
-message HashLBCommandSetModeArg {
-  enum Mode {
-    L2 = 0;
-    L3 = 1;
-    L4 = 2;
-  }
-  Mode mode = 1;
-}
-
-message HashLBCommandSetGatesArg {
-  repeated int64 gates = 1;
 }
 
 message HashLBArg {
