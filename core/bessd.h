@@ -28,7 +28,7 @@ std::tuple<bool, pid_t> ReadPidfile(int fd);
 std::tuple<bool, pid_t> TryAcquirePidfileLock(int fd);
 
 // Ensures that we are a unique instance.
-void CheckUniqueInstance();
+void CheckUniqueInstance(const std::string &pidfile_path);
 
 // Starts BESS as a daemon running in the background.
 int StartDaemon();

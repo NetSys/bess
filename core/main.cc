@@ -26,7 +26,7 @@ int main(int argc, char *argv[]) {
     signal_fd = bess::bessd::StartDaemon();
   }
 
-  bess::bessd::CheckUniqueInstance();
+  bess::bessd::CheckUniqueInstance(FLAGS_i);
   bess::bessd::SetResourceLimit();
 
   // TODO(barath): Make these DPDK calls generic, so as to not be so tied to DPDK.
