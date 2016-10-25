@@ -83,13 +83,13 @@ void assign_default_tc(int wid, struct task *t) {
   else
     sprintf(params.name, "_tc_%s_%d", t->m->Name().c_str(), task_to_tid(t));
 
-  c_def = tc_init(workers[wid]->s, &params);
+  c_def = tc_init(workers[wid]->s(), &params);
 
   /* maybe the default name is too long, or already occupied */
   if (is_err_or_null(c_def)) {
     do {
       sprintf(params.name, "_tc_noname%d", next_default_tc_id++);
-      c_def = tc_init(workers[wid]->s, &params);
+      c_def = tc_init(workers[wid]->s(), &params);
     } while (ptr_to_err(c_def) == -EEXIST);
   }
 
