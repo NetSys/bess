@@ -1,17 +1,4 @@
-#include <assert.h>
-#include <errno.h>
-#include <poll.h>
-#include <stdio.h>
-#include <string.h>
-#include <sys/socket.h>
-#include <sys/un.h>
-#include <thread>
-#include <unistd.h>
-
-#include <glog/logging.h>
-
-#include "../message.h"
-#include "../port.h"
+#include "unix_socket.h"
 
 // TODO(barath): Clarify these comments.
 // Only one client can be connected at the same time.
@@ -20,39 +7,6 @@
 // implemented.
 #define RECV_SKIP_TICKS 256
 #define MAX_TX_FRAGS 8
-
-class UnixSocketPort : public Port {
- public:
-  UnixSocketPort() :
-      Port(),
-      recv_skip_cnt_(),
-      listen_fd_(),
-      addr_(),
-      client_fd_(),
-      old_client_fd_() {}
-
-  virtual pb_error_t Init(const bess::UnixSocketPortArg &arg);
-  virtual struct snobj *Init(struct snobj *arg);
-  virtual void DeInit();
-
-  virtual int RecvPackets(queue_t qid, snb_array_t pkts, int cnt);
-  virtual int SendPackets(queue_t qid, snb_array_t pkts, int cnt);
-
-  void AcceptNewClient();
-
- private:
-  static const int kNotConnectedFd = -1;  // Value for a disconnected socket.
-
-  void CloseConnection();
-
-  uint32_t recv_skip_cnt_;
-  int listen_fd_;
-  struct sockaddr_un addr_;
-
-  // NOTE: three threads (accept / recv / send) may race on this, so use volatile.
-  volatile int client_fd_;
-  int old_client_fd_;
-};
 
 void UnixSocketPort::AcceptNewClient() {
   int ret;
