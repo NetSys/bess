@@ -1,3 +1,4 @@
+#include "../message.h"
 #include "../module.h"
 
 #define MAX_FIELDS 8
@@ -26,6 +27,7 @@ class GenericEncap : public Module {
   GenericEncap() : Module(), encap_size_(), num_fields_(), fields_() {}
 
   struct snobj *Init(struct snobj *arg);
+  pb_error_t Init(const bess::GenericEncapArg &arg);
 
   void ProcessBatch(struct pkt_batch *batch);
 
@@ -33,6 +35,8 @@ class GenericEncap : public Module {
 
  private:
   struct snobj *AddFieldOne(struct snobj *field, struct Field *f, int idx);
+  pb_error_t AddFieldOne(const bess::GenericEncapArg_Field &field,
+                         struct Field *f, int idx);
 
   int encap_size_;
 
@@ -42,6 +46,35 @@ class GenericEncap : public Module {
 };
 
 const Commands<Module> GenericEncap::cmds = {};
+
+pb_error_t GenericEncap::AddFieldOne(const bess::GenericEncapArg_Field &field,
+                                     struct Field *f, int idx) {
+  f->size = field.size();
+  if (f->size < 1 || f->size > MAX_FIELD_SIZE) {
+    return pb_error(EINVAL, "idx %d: 'size' must be 1-%d", idx, MAX_FIELD_SIZE);
+  }
+
+  if (field.attribute_case() == bess::GenericEncapArg_Field::kName) {
+    const char *attr = field.name().c_str();
+    f->attr_id = AddMetadataAttr(attr, f->size, MT_READ);
+    if (f->attr_id < 0) {
+      return pb_error(-f->attr_id, "idx %d: add_metadata_attr() failed", idx);
+    }
+  } else if (field.attribute_case() == bess::GenericEncapArg_Field::kValue) {
+    f->attr_id = -1;
+    uint64_t value = field.value();
+    if (uint64_to_bin((uint8_t *)&f->value, f->size, value, 1)) {
+      return pb_error(EINVAL,
+                      "idx %d: "
+                      "not a correct %d-byte value",
+                      idx, f->size);
+    }
+  } else {
+    return pb_error(EINVAL, "idx %d: must specify 'value' or 'attr'", idx);
+  }
+
+  return pb_errno(0);
+}
 
 struct snobj *GenericEncap::AddFieldOne(struct snobj *field, struct Field *f,
                                         int idx) {
@@ -120,6 +153,30 @@ struct snobj *GenericEncap::Init(struct snobj *arg) {
   num_fields_ = fields->size;
 
   return nullptr;
+}
+
+pb_error_t GenericEncap::Init(const bess::GenericEncapArg &arg) {
+  int size_acc = 0;
+
+  for (int i = 0; i < arg.fields_size(); i++) {
+    const auto &field = arg.fields(i);
+    pb_error_t err;
+    struct Field *f = &fields_[i];
+
+    f->pos = size_acc;
+
+    err = AddFieldOne(field, f, i);
+    if (err.err() != 0) {
+      return err;
+    }
+
+    size_acc += f->size;
+  }
+
+  encap_size_ = size_acc;
+  num_fields_ = arg.fields_size();
+
+  return pb_errno(0);
 }
 
 void GenericEncap::ProcessBatch(struct pkt_batch *batch) {

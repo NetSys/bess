@@ -148,7 +148,10 @@ message GenericDecapArg {
 message GenericEncapArg {
   message Field {
     uint64 size = 1;
-    string attribute = 2;
+    oneof attribute {
+      string name = 2;
+      uint64 value = 3;
+    }
   }
   repeated Field fields = 1;
 }

@@ -174,27 +174,6 @@ const Commands<Module> ExactMatch::cmds = {
     {"clear", MODULE_FUNC &ExactMatch::CommandClear, 0},
     {"set_default_gate", MODULE_FUNC &ExactMatch::CommandSetDefaultGate, 1}};
 
-static int uint64_to_bin(uint8_t *ptr, int size, uint64_t val, int be) {
-  memset(ptr, 0, size);
-
-  if (be) {
-    for (int i = size - 1; i >= 0; i--) {
-      ptr[i] = val & 0xff;
-      val >>= 8;
-    }
-  } else {
-    for (int i = 0; i < size; i++) {
-      ptr[i] = val & 0xff;
-      val >>= 8;
-    }
-  }
-
-  if (val)
-    return -EINVAL; /* the value is too large for the size */
-  else
-    return 0;
-}
-
 pb_error_t ExactMatch::AddFieldOne(const bess::ExactMatchArg_Field &field,
                                    struct EmField *f, int idx) {
   f->size = field.size();
