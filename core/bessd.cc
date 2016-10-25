@@ -63,13 +63,22 @@ void WritePidfile(int fd, pid_t pid) {
   if (write(fd, buf, pidlen) < 0) {
     PLOG(FATAL) << "write(pidfile, pid)";
   }
+  fsync(fd);
 }
 
 std::tuple<bool, pid_t> ReadPidfile(int fd) {
+  if (lseek(fd, 0, SEEK_SET)) {
+    PLOG(FATAL) << "lseek(pidfile, 0, SEEK_SET)";
+  }
+
   char buf[1024];
   int readlen = read(fd, buf, sizeof(buf) - 1);
   if (readlen <= 0) {
-    PLOG(ERROR) << "read(pidfile=" << FLAGS_i << ")";
+    if (readlen < 0) {
+      PLOG(ERROR) << "read(pidfile=" << FLAGS_i << ")";
+    } else {
+      LOG(ERROR) << "read(pidfile=" << FLAGS_i << ")" << " at EOF";
+    }
 
     return std::make_tuple(false, 0);
   }
@@ -82,39 +91,44 @@ std::tuple<bool, pid_t> ReadPidfile(int fd) {
 }
 
 std::tuple<bool, pid_t> TryAcquirePidfileLock(int fd) {
-  bool lockheld = false;
+  bool lockacquired = false;
   pid_t pid = 0;
 
   if (flock(fd, LOCK_EX | LOCK_NB)) {
+    // Lock is already held by another process.
     if (errno != EWOULDBLOCK) {
       PLOG(FATAL) << "flock(pidfile=" << FLAGS_i << ")";
+    } else {
+      PLOG(INFO) << "flock";
     }
 
-    lockheld = true;
+    // Try to read the pid of the other process.
     bool success = false;
     std::tie(success, pid) = ReadPidfile(fd);
     if (!success) {
       PLOG(FATAL) << "Couldn't read pidfile";
     }
+  } else {
+    lockacquired = true;
   }
 
-  return std::make_tuple(lockheld, pid);
+  return std::make_tuple(lockacquired, pid);
 }
 
-void CheckUniqueInstance() {
+void CheckUniqueInstance(const std::string &pidfile_path) {
   static const int kMaxPidfileLockTrials = 5;
 
-  int fd = open(FLAGS_i.c_str(), O_RDWR | O_CREAT, 0644);
+  int fd = open(pidfile_path.c_str(), O_RDWR | O_CREAT, 0644);
   if (fd == -1) {
     PLOG(FATAL) << "open(pidfile=" << FLAGS_i << ")";
   }
 
-  bool lockheld;
+  bool lockacquired;
   pid_t pid;
   int trials;
   for (trials = 0; trials < kMaxPidfileLockTrials; trials++) {
-    std::tie(lockheld, pid) = TryAcquirePidfileLock(fd);
-    if (!lockheld) {
+    std::tie(lockacquired, pid) = TryAcquirePidfileLock(fd);
+    if (lockacquired) {
       break;
     } else {
       if (!FLAGS_k) {

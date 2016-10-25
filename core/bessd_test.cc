@@ -4,10 +4,13 @@
 
 #include <gtest/gtest.h>
 
+#include "common.h"
 #include "opts.h"
 
 namespace bess {
 namespace bessd {
+
+static const char *kTestLockFilePath = "/tmp/tryacquirepidfilelocktest.log";
 
 // Checks that FLAGS_t causes types to dump.
 TEST(ProcessCommandLineArgs, DumpTypes) {
@@ -37,28 +40,34 @@ TEST(CheckRunningAsRoot, NonRoot) {
 
 // Checks that we can write out and read in a pid value to/from a good file.
 TEST(WriteAndReadPidFile, GoodFile) {
-  // Write to the file.
-  int fd = open("/tmp/tryacquirepidfilelocktest.log", O_RDWR | O_CREAT, 0644);
   pid_t pid = getpid();
 
-  WritePidfile(fd, pid);
-  close(fd);
+  // Write to the file.
+  {
+    unique_fd fd(open(kTestLockFilePath, O_RDWR | O_CREAT, 0644));
+
+    WritePidfile(fd.get(), pid);
+  }
 
   // Read from the file.
-  fd = open("/tmp/tryacquirepidfilelocktest.log", O_RDONLY, 0644);
+  {
+    unique_fd fd(open(kTestLockFilePath, O_RDONLY));
 
-  bool success;
-  pid_t readpid;
-  std::tie(success, readpid) = ReadPidfile(fd);
-  ASSERT_TRUE(success) << "Couldn't read pidfile due to error: " << errno;
-  EXPECT_EQ(pid, readpid);
+    bool success;
+    pid_t readpid;
+    std::tie(success, readpid) = ReadPidfile(fd.get());
+    ASSERT_TRUE(success) << "Couldn't read pidfile due to error: " << errno;
+    EXPECT_EQ(pid, readpid);
+  }
+
+  unlink(kTestLockFilePath);
 }
 
 // Checks that we fail to write a pid value to a bad file.
 TEST(WritePidFile, BadFile) {
-  int fd = open("/dev/null", O_RDWR, 0644);
+  unique_fd fd(open("/dev/null", O_RDWR, 0644));
 
-  EXPECT_DEATH(WritePidfile(fd, getpid()), "");
+  EXPECT_DEATH(WritePidfile(fd.get(), getpid()), "");
 }
 
 // Checks that trying to acquire a pidfile lock on a bad fd fails.
@@ -68,18 +77,89 @@ TEST(TryAcquirePidfileLock, BadFd) {
 
 // Checks that trying to acquire a pidfile lock on a new temporary file is fine.
 TEST(TryAcquirePidfileLock, GoodFd) {
-  bool lockheld;
-  pid_t pid;
+  unique_fd fd(open(kTestLockFilePath, O_RDWR | O_CREAT, 0644));
 
-  int fd = open("/tmp/tryacquirepidfilelocktest.log", O_RDWR | O_CREAT, 0644);
-  std::tie(lockheld, pid) = TryAcquirePidfileLock(fd);
-  EXPECT_FALSE(lockheld);
+  bool lockacquired;
+  pid_t pid;
+  std::tie(lockacquired, pid) = TryAcquirePidfileLock(fd.get());
+  EXPECT_TRUE(lockacquired) << "Lock already held by pid " << pid;
+
+  unlink(kTestLockFilePath);
 }
 
-// TODO(barath): Add a test case that tests what happens when another process is holding
-// the file lock.
+// Checks that file locking fails when another process is holding the lock.
 TEST(TryAcquirePidfileLock, AlreadyHeld) {
-  // TODO
+  // Acquire the lock in a forked process.
+  pid_t childpid = fork();
+  if (!childpid) {
+    // Child process.
+    pid_t pid = getpid();
+
+    // Write to the file.
+    {
+      unique_fd fd(open(kTestLockFilePath, O_RDWR | O_CREAT, 0644));
+
+      WritePidfile(fd.get(), pid);
+    }
+
+    int fd = open(kTestLockFilePath, O_RDWR | O_CREAT, 0644);
+    ASSERT_EQ(0, flock(fd, LOCK_EX | LOCK_NB)) << "Couldn't acquire file lock for test.";
+
+    // Sleep for up to 10 seconds, while holding lock.
+    sleep(10);
+  } else {
+    // Parent process.
+    // Wait for child process to get the lock.
+    sleep(2);
+
+    unique_fd fd(open(kTestLockFilePath, O_RDWR | O_CREAT, 0644));
+
+    bool lockacquired;
+    pid_t pid;
+    std::tie(lockacquired, pid) = TryAcquirePidfileLock(fd.get());
+
+    EXPECT_FALSE(lockacquired);
+    EXPECT_EQ(childpid, pid);
+
+    kill(childpid, SIGKILL);
+
+    unlink(kTestLockFilePath);
+  }
+}
+
+// Checks that the combined routine to check for a unique instance works when
+// the lock isn't held.
+TEST(CheckUniqueInstance, NotHeld) {
+  ASSERT_NO_FATAL_FAILURE(CheckUniqueInstance(kTestLockFilePath));
+
+  // Release lock for later tests.
+  int fd = open(kTestLockFilePath, O_RDWR | O_CREAT, 0644);
+  flock(fd, LOCK_UN);
+  close(fd);
+  unlink(kTestLockFilePath);
+}
+
+// Checks that the combined routine to check for a unique instance fails
+// properly when the lock is already held.
+TEST(CheckUniqueInstance, Held) {
+  // Acquire the lock in a forked process.
+  pid_t childpid = fork();
+  if (!childpid) {
+    // Child process.
+    CheckUniqueInstance(kTestLockFilePath);
+
+    sleep(10);
+  } else {
+    // Parent process.
+    // Wait for child process to get the lock.
+    sleep(2);
+
+    EXPECT_DEATH(CheckUniqueInstance(kTestLockFilePath), "");
+
+    kill(childpid, SIGKILL);
+
+    unlink(kTestLockFilePath);
+  }
 }
 
 }  // namespace bessd

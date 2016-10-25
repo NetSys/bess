@@ -5,6 +5,7 @@
 
 #include <stddef.h>
 #include <stdint.h>
+#include <unistd.h>
 
 #include <x86intrin.h>
 
@@ -133,5 +134,50 @@ static inline void memcpy_sloppy(void *__restrict__ dst,
 template<typename T>
 inline void ignore_result(const T&) {
 }
+
+// An RAII holder for file descriptors.  When initialized with a file desciptor, takes
+// ownership of the fd, meaning that when this holder instance is destroyed the fd is
+// closed.  Primarily useful in unit tests where we want to ensure that previous tests
+// have been cleaned up before starting new ones.
+class unique_fd {
+ public:
+  // Constructs a unique fd that owns the given fd.
+  unique_fd(int fd) : fd_(fd) {}
+
+  // Move constructor 
+  unique_fd(unique_fd &&other) {
+    fd_ = other.fd_;
+    other.fd_ = -1;
+  }
+
+  // Destructor, which closes the fd if not -1.
+  ~unique_fd() {
+    if (fd_ != -1) {
+      close(fd_);
+    }
+  }
+
+  // Resets this instance and closes the fd held, if any.
+  void reset() {
+    if (fd_ != -1) {
+      close(fd_);
+    }
+    fd_ = -1;
+  }
+
+  // Releases the held fd from ownership.  Returns -1 if no fd is held.
+  int release() {
+    int ret = fd_;
+    fd_ = -1;
+    return ret;
+  }
+
+  int get() const { return fd_; }
+
+ private:
+  int fd_;
+
+  DISALLOW_COPY_AND_ASSIGN(unique_fd);
+};
 
 #endif
