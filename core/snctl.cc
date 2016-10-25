@@ -17,7 +17,6 @@
 
 #include "master.h"
 #include "module.h"
-#include "namespace.h"
 #include "port.h"
 #include "tc.h"
 #include "time.h"
