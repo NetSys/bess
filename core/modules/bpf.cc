@@ -525,7 +525,8 @@ typedef void (*emit_func)(bpf_bin_stream *stream, u_int value, u_int n);
  * Emit routine to update the jump table.
  */
 static void emit_length(bpf_bin_stream *stream, u_int value, u_int len) {
-  if (stream->refs != NULL) (stream->refs)[stream->bpf_pc] += len;
+  if (stream->refs != NULL)
+    (stream->refs)[stream->bpf_pc] += len;
   stream->cur_ip += len;
 }
 
@@ -561,7 +562,8 @@ static int bpf_jit_optimize(struct bpf_insn *prog, u_int nins) {
   u_int i;
 
   /* Do we return immediately? */
-  if (BPF_CLASS(prog[0].code) == BPF_RET) return (BPF_JIT_FRET);
+  if (BPF_CLASS(prog[0].code) == BPF_RET)
+    return (BPF_JIT_FRET);
 
   for (flags = 0, i = 0; i < nins; i++) {
     switch (prog[i].code) {
@@ -596,7 +598,8 @@ static int bpf_jit_optimize(struct bpf_insn *prog, u_int nins) {
         flags |= BPF_JIT_FJMP;
         break;
     }
-    if (flags == BPF_JIT_FLAG_ALL) break;
+    if (flags == BPF_JIT_FLAG_ALL)
+      break;
   }
 
   return (flags);
@@ -625,14 +628,16 @@ static bpf_filter_func_t bpf_jit_compile(struct bpf_insn *prog, u_int nins,
   fjmp = (flags & BPF_JIT_FJMP) != 0;
   flen = (flags & BPF_JIT_FLEN) != 0;
 
-  if (fret) nins = 1;
+  if (fret)
+    nins = 1;
 
   memset(&stream, 0, sizeof(stream));
 
   /* Allocate the reference table for the jumps. */
   if (fjmp) {
     stream.refs = static_cast<uint *>(calloc(nins + 1, sizeof(u_int)));
-    if (stream.refs == NULL) return (NULL);
+    if (stream.refs == NULL)
+      return (NULL);
   }
 
   /*
@@ -650,7 +655,8 @@ static bpf_filter_func_t bpf_jit_compile(struct bpf_insn *prog, u_int nins,
       MOVrq(RSP, RBP);
       SUBib(BPF_MEMWORDS * sizeof(uint32_t), RSP);
     }
-    if (flen) MOVrd2(ESI, R9D);
+    if (flen)
+      MOVrd2(ESI, R9D);
     if (fpkt) {
       MOVrq2(RDI, R8);
       MOVrd(EDX, EDI);
@@ -665,12 +671,14 @@ static bpf_filter_func_t bpf_jit_compile(struct bpf_insn *prog, u_int nins,
 
         case BPF_RET | BPF_K:
           MOVid(ins->k, EAX);
-          if (fmem) LEAVE();
+          if (fmem)
+            LEAVE();
           RET();
           break;
 
         case BPF_RET | BPF_A:
-          if (fmem) LEAVE();
+          if (fmem)
+            LEAVE();
           RET();
           break;
 
@@ -1036,7 +1044,8 @@ static bpf_filter_func_t bpf_jit_compile(struct bpf_insn *prog, u_int nins,
       ins++;
     }
 
-    if (pass > 0) continue;
+    if (pass > 0)
+      continue;
 
     *size = stream.cur_ip;
     stream.ibuf = static_cast<char *>(mmap(NULL, *size, PROT_READ | PROT_WRITE,
@@ -1051,7 +1060,8 @@ static bpf_filter_func_t bpf_jit_compile(struct bpf_insn *prog, u_int nins,
      * not the lengths of the instructions.
      */
     if (fjmp)
-      for (i = 1; i < nins + 1; i++) stream.refs[i] += stream.refs[i - 1];
+      for (i = 1; i < nins + 1; i++)
+        stream.refs[i] += stream.refs[i - 1];
 
     /* Reset the counters. */
     stream.cur_ip = 0;
@@ -1065,7 +1075,8 @@ static bpf_filter_func_t bpf_jit_compile(struct bpf_insn *prog, u_int nins,
    * The reference table is needed only during compilation,
    * now we can free it.
    */
-  if (fjmp) free(stream.refs);
+  if (fjmp)
+    free(stream.refs);
 
   if (stream.ibuf != NULL &&
       mprotect(stream.ibuf, *size, PROT_READ | PROT_EXEC) != 0) {
@@ -1118,9 +1129,10 @@ class BPF : public Module {
   struct snobj *CommandAdd(struct snobj *arg);
   struct snobj *CommandClear(struct snobj *arg);
 
+  static const gate_idx_t kNumIGates = 1;
   static const gate_idx_t kNumOGates = MAX_GATES;
 
-  static const Commands<BPF> cmds;
+  static const Commands<Module> cmds;
 
  private:
   struct filter filters_[MAX_FILTERS + 1] = {{0}};
@@ -1129,8 +1141,9 @@ class BPF : public Module {
   inline void process_batch_1filter(struct pkt_batch *batch);
 };
 
-const Commands<BPF> BPF::cmds = {{"add", &BPF::CommandAdd, 0},
-                                 {"clear", &BPF::CommandClear, 0}};
+const Commands<Module> BPF::cmds = {
+    {"add", MODULE_FUNC &BPF::CommandAdd, 0},
+    {"clear", MODULE_FUNC &BPF::CommandClear, 0}};
 
 struct snobj *BPF::Init(struct snobj *arg) {
   return arg ? CommandAdd(arg) : NULL;
@@ -1181,7 +1194,8 @@ struct snobj *BPF::CommandAdd(struct snobj *arg) {
                        "ouput gate");
 
     gate = snobj_eval_int(f, "gate");
-    if (gate < 0 || gate >= MAX_GATES) return snobj_err(EINVAL, "Invalid gate");
+    if (gate < 0 || gate >= MAX_GATES)
+      return snobj_err(EINVAL, "Invalid gate");
 
     if (pcap_compile_nopcap(SNAPLEN, DLT_EN10MB,  // Ethernet
                             &il_code, exp, 1,     // optimize (IL only)
@@ -1243,11 +1257,12 @@ inline void BPF::process_batch_1filter(struct pkt_batch *batch) {
   out_batches[0].cnt = ptrs[0] - (struct snbuf **)&out_batches[0].pkts;
   out_batches[1].cnt = ptrs[1] - (struct snbuf **)&out_batches[1].pkts;
 
-  if (out_batches[0].cnt) run_choose_module(this, 0, &out_batches[0]);
+  if (out_batches[0].cnt)
+    RunChooseModule(0, &out_batches[0]);
 
   /* matched packets */
   if (out_batches[1].cnt)
-    run_choose_module(this, filter->gate, &out_batches[1]);
+    RunChooseModule(filter->gate, &out_batches[1]);
 }
 
 void BPF::ProcessBatch(struct pkt_batch *batch) {
@@ -1256,7 +1271,7 @@ void BPF::ProcessBatch(struct pkt_batch *batch) {
   int cnt;
 
   if (n_filters == 0) {
-    run_next_module(this, batch);
+    RunNextModule(batch);
     return;
   }
 
@@ -1284,7 +1299,7 @@ void BPF::ProcessBatch(struct pkt_batch *batch) {
     ogates[i] = gate;
   }
 
-  run_split(this, ogates, batch);
+  RunSplit(ogates, batch);
 }
 
 ADD_MODULE(BPF, "bpf", "classifies packets with pcap-filter(7) syntax")

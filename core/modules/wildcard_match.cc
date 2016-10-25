@@ -44,21 +44,29 @@ static inline int wm_keycmp(const void *key, const void *key_stored,
     default:
       promise_unreachable();
     case 8:
-      if (unlikely(a[7] != b[7])) return 1;
+      if (unlikely(a[7] != b[7]))
+        return 1;
     case 7:
-      if (unlikely(a[6] != b[6])) return 1;
+      if (unlikely(a[6] != b[6]))
+        return 1;
     case 6:
-      if (unlikely(a[5] != b[5])) return 1;
+      if (unlikely(a[5] != b[5]))
+        return 1;
     case 5:
-      if (unlikely(a[4] != b[4])) return 1;
+      if (unlikely(a[4] != b[4]))
+        return 1;
     case 4:
-      if (unlikely(a[3] != b[3])) return 1;
+      if (unlikely(a[3] != b[3]))
+        return 1;
     case 3:
-      if (unlikely(a[2] != b[2])) return 1;
+      if (unlikely(a[2] != b[2]))
+        return 1;
     case 2:
-      if (unlikely(a[1] != b[1])) return 1;
+      if (unlikely(a[1] != b[1]))
+        return 1;
     case 1:
-      if (unlikely(a[0] != b[0])) return 1;
+      if (unlikely(a[0] != b[0]))
+        return 1;
   }
 
   return 0;
@@ -137,39 +145,39 @@ static inline int is_valid_gate(gate_idx_t gate) {
 
 class WildcardMatch : public Module {
  public:
-  static const gate_idx_t kNumIGates = 1;
-  static const gate_idx_t kNumOGates = MAX_GATES;
-
-  WildcardMatch() :
-      Module(),
-      default_gate_(),
-      total_key_size_(),
-      num_fields_(),
-      fields_(),
-      num_tuples_(),
-      tuples_(),
-      next_table_id_() {}
+  WildcardMatch()
+      : Module(),
+        default_gate_(),
+        total_key_size_(),
+        num_fields_(),
+        fields_(),
+        num_tuples_(),
+        tuples_(),
+        next_table_id_() {}
 
   virtual struct snobj *Init(struct snobj *arg);
   virtual void Deinit();
 
   virtual void ProcessBatch(struct pkt_batch *batch);
 
-  virtual struct snobj *GetDesc();
-  virtual struct snobj *GetDump();
+  virtual std::string GetDesc() const;
+  virtual struct snobj *GetDump() const;
 
-  static const Commands<WildcardMatch> cmds;
-
- private:
   struct snobj *CommandAdd(struct snobj *arg);
   struct snobj *CommandDelete(struct snobj *arg);
   struct snobj *CommandClear(struct snobj *arg);
   struct snobj *CommandSetDefaultGate(struct snobj *arg);
 
+  static const gate_idx_t kNumIGates = 1;
+  static const gate_idx_t kNumOGates = MAX_GATES;
+
+  static const Commands<Module> cmds;
+
+ private:
   gate_idx_t LookupEntry(hkey_t *key, gate_idx_t def_gate);
   struct snobj *AddFieldOne(struct snobj *field, struct WmField *f);
 
-  void CollectRules(const struct WmTuple *tuple, struct snobj *rules);
+  void CollectRules(const struct WmTuple *tuple, struct snobj *rules) const;
   struct snobj *ExtractKeyMask(struct snobj *arg, hkey_t *key, hkey_t *mask);
   int FindTuple(hkey_t *mask);
   int AddTuple(hkey_t *mask);
@@ -189,11 +197,11 @@ class WildcardMatch : public Module {
   int next_table_id_;
 };
 
-const Commands<WildcardMatch> WildcardMatch::cmds = {
-    {"add", &WildcardMatch::CommandAdd, 0},
-    {"delete", &WildcardMatch::CommandDelete, 0},
-    {"clear", &WildcardMatch::CommandClear, 0},
-    {"set_default_gate", &WildcardMatch::CommandSetDefaultGate, 1}};
+const Commands<Module> WildcardMatch::cmds = {
+    {"add", MODULE_FUNC &WildcardMatch::CommandAdd, 0},
+    {"delete", MODULE_FUNC &WildcardMatch::CommandDelete, 0},
+    {"clear", MODULE_FUNC &WildcardMatch::CommandClear, 0},
+    {"set_default_gate", MODULE_FUNC &WildcardMatch::CommandSetDefaultGate, 1}};
 
 struct snobj *WildcardMatch::AddFieldOne(struct snobj *field,
                                          struct WmField *f) {
@@ -221,7 +229,7 @@ struct snobj *WildcardMatch::AddFieldOne(struct snobj *field,
     return snobj_err(EINVAL, "specify 'offset' or 'attr'");
   }
 
-  f->attr_id = add_metadata_attr(this, attr, f->size, MT_READ);
+  f->attr_id = AddMetadataAttr(attr, f->size, MT_READ);
   if (f->attr_id < 0) {
     return snobj_err(-f->attr_id, "add_metadata_attr() failed");
   }
@@ -374,20 +382,20 @@ void WildcardMatch::ProcessBatch(struct pkt_batch *batch) {
   }
 #endif
 
-  run_split(this, ogates, batch);
+  RunSplit(ogates, batch);
 }
 
-struct snobj *WildcardMatch::GetDesc() {
+std::string WildcardMatch::GetDesc() const {
   int num_rules = 0;
 
   for (int i = 0; i < num_tuples_; i++) {
     num_rules += tuples_[i].ht.Count();
   }
 
-  return snobj_str_fmt("%lu fields, %d rules", num_fields_, num_rules);
+  return string_format("%lu fields, %d rules", num_fields_, num_rules);
 }
 
-struct snobj *WildcardMatch::GetDump() {
+struct snobj *WildcardMatch::GetDump() const {
   struct snobj *r = snobj_map();
   struct snobj *fields = snobj_list();
   struct snobj *rules = snobj_list();
@@ -421,7 +429,7 @@ struct snobj *WildcardMatch::GetDump() {
 }
 
 void WildcardMatch::CollectRules(const struct WmTuple *tuple,
-                                 struct snobj *rules) {
+                                 struct snobj *rules) const {
   uint32_t next = 0;
   void *key;
   const void *mask = &tuple->mask;

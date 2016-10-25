@@ -622,23 +622,18 @@ static struct snobj *handle_get_port_stats(struct snobj *q) {
 
 static struct snobj *handle_list_mclasses(struct snobj *q) {
   struct snobj *r = snobj_list();
-  struct ns_iter iter;
 
-  ModuleClass *cls;
-
-  ns_init_iterator(&iter, NS_TYPE_MCLASS);
-
-  while ((cls = (ModuleClass *)ns_next(&iter)) != NULL)
-    snobj_list_add(r, snobj_str(cls->Name()));
-
-  ns_release_iterator(&iter);
+  for (const auto &pair : ModuleBuilder::all_module_builders()) {
+    const ModuleBuilder &builder = pair.second;
+    snobj_list_add(r, snobj_str(builder.class_name()));
+  }
 
   return r;
 }
 
 static struct snobj *handle_get_mclass_info(struct snobj *q) {
   const char *cls_name;
-  const ModuleClass *cls;
+  const ModuleBuilder *cls;
 
   struct snobj *r;
   struct snobj *cmds;
@@ -648,29 +643,28 @@ static struct snobj *handle_get_mclass_info(struct snobj *q) {
   if (!cls_name)
     return snobj_err(EINVAL, "Argument must be a name in str");
 
-  if ((cls = find_mclass(cls_name)) == NULL)
+  const auto &it = ModuleBuilder::all_module_builders().find(cls_name);
+  if (it == ModuleBuilder::all_module_builders().end()) {
     return snobj_err(ENOENT, "No module class '%s' found", cls_name);
+  }
+  cls = &it->second;
 
   cmds = snobj_list();
 
-  for (const std::string &cmd : cls->Commands()) {
+  for (const std::string &cmd : cls->cmds()) {
     snobj_list_add(cmds, snobj_str(cmd));
   }
 
   r = snobj_map();
-  snobj_map_set(r, "name", snobj_str(cls->Name()));
-  snobj_map_set(r, "help", snobj_str(cls->Help()));
+  snobj_map_set(r, "name", snobj_str(cls->class_name()));
+  snobj_map_set(r, "help", snobj_str(cls->help_text()));
   snobj_map_set(r, "commands", cmds);
 
   return r;
 }
 
 static struct snobj *handle_reset_modules(struct snobj *q) {
-  Module *m;
-
-  while (list_modules((const Module **)&m, 1, 0))
-    destroy_module(m);
-
+  ModuleBuilder::DestroyAllModules();
   log_info("*** All modules have been destroyed ***\n");
   return NULL;
 }
@@ -678,74 +672,87 @@ static struct snobj *handle_reset_modules(struct snobj *q) {
 static struct snobj *handle_list_modules(struct snobj *q) {
   struct snobj *r;
 
-  int cnt = 1;
-  int offset;
-
   r = snobj_list();
 
-  for (offset = 0; cnt != 0; offset += cnt) {
-    const int arr_size = 16;
-    const Module *modules[arr_size];
+  for (const auto &pair : ModuleBuilder::all_modules()) {
+    const Module *m = pair.second;
+    struct snobj *module = snobj_map();
 
-    int i;
-
-    cnt = list_modules(modules, arr_size, offset);
-
-    for (i = 0; i < cnt; i++) {
-      const Module *m = modules[i];
-
-      struct snobj *module = snobj_map();
-
-      snobj_map_set(module, "name", snobj_str(m->Name()));
-      snobj_map_set(module, "mclass", snobj_str(m->GetClass()->Name()));
-      snobj_map_set(module, "desc", snobj_str(m->GetDesc().c_str()));
-
-      snobj_list_add(r, module);
-    }
-  };
+    snobj_map_set(module, "name", snobj_str(m->name()));
+    snobj_map_set(module, "mclass",
+                  snobj_str(m->module_builder()->class_name()));
+    snobj_map_set(module, "desc", snobj_str(m->GetDesc().c_str()));
+    snobj_list_add(r, module);
+  }
 
   return r;
 }
 
+// FIXME
 static struct snobj *handle_create_module(struct snobj *q) {
   const char *mclass_name;
-  const ModuleClass *mclass;
-  Module *module;
+  const char *name;
+  Module *m = nullptr;
 
   struct snobj *r;
+  struct snobj *err;
 
   mclass_name = snobj_eval_str(q, "mclass");
   if (!mclass_name)
     return snobj_err(EINVAL, "Missing 'mclass' field");
 
-  mclass = find_mclass(mclass_name);
-  if (!mclass)
+  const auto &builders = ModuleBuilder::all_module_builders();
+  const auto &it = builders.find(mclass_name);
+  if (it == builders.end()) {
     return snobj_err(ENOENT, "No mclass '%s' found", mclass_name);
+  }
+  const ModuleBuilder &builder = it->second;
 
-  module = create_module(snobj_eval_str(q, "name"), mclass,
-                         snobj_eval(q, "arg"), &r);
-  if (!module)
-    return r;
+  name = snobj_eval_str(q, "name");
+  std::string mod_name;
+  if (name) {
+    const auto &it = ModuleBuilder::all_modules().find(name);
+    if (it != ModuleBuilder::all_modules().end()) {
+      return snobj_err(EEXIST, "Module '%s' already exists", name);
+    }
+    mod_name = name;
+  } else {
+    mod_name = ModuleBuilder::GenerateDefaultName(builder.class_name(),
+                                                  builder.name_template());
+  }
+
+  m = builder.CreateModule(mod_name);
+
+  err = m->Init(snobj_eval(q, "arg"));
+  if (err != nullptr) {
+    ModuleBuilder::DestroyModule(m);  // XXX: fix me
+    return err;
+  }
+
+  if (!builder.AddModule(m)) {
+    return snobj_err(ENOMEM, "Failed to add module '%s'", name);
+    ;
+  }
 
   r = snobj_map();
-  snobj_map_set(r, "name", snobj_str(module->Name()));
+  snobj_map_set(r, "name", snobj_str(m->name()));
 
   return r;
 }
 
 static struct snobj *handle_destroy_module(struct snobj *q) {
   const char *m_name;
-  Module *m;
 
   m_name = snobj_str_get(q);
 
   if (!m_name)
     return snobj_err(EINVAL, "Argument must be a name in str");
 
-  if ((m = find_module(m_name)) == NULL)
+  const auto &it = ModuleBuilder::all_modules().find(m_name);
+  if (it == ModuleBuilder::all_modules().end())
     return snobj_err(ENOENT, "No module '%s' found", m_name);
 
-  destroy_module(m);
+  ModuleBuilder::DestroyModule(it->second);
 
   return NULL;
 }
@@ -768,7 +775,7 @@ static struct snobj *collect_igates(Module *m) {
     cdlist_for_each_entry(og, &g->in.ogates_upstream, out.igate_upstream) {
       struct snobj *ogate = snobj_map();
       snobj_map_set(ogate, "ogate", snobj_uint(og->gate_idx));
-      snobj_map_set(ogate, "name", snobj_str(og->m->Name()));
+      snobj_map_set(ogate, "name", snobj_str(og->m->name()));
       snobj_list_add(ogates, ogate);
     }
 
@@ -796,7 +803,7 @@ static struct snobj *collect_ogates(Module *m) {
     snobj_map_set(ogate, "pkts", snobj_uint(g->pkts));
     snobj_map_set(ogate, "timestamp", snobj_double(get_epoch_time()));
 #endif
-    snobj_map_set(ogate, "name", snobj_str(g->out.igate->m->Name()));
+    snobj_map_set(ogate, "name", snobj_str(g->out.igate->m->name()));
     snobj_map_set(ogate, "igate", snobj_uint(g->out.igate->gate_idx));
 
     snobj_list_add(ogates, ogate);
@@ -847,13 +854,15 @@ static struct snobj *handle_get_module_info(struct snobj *q) {
   if (!m_name)
     return snobj_err(EINVAL, "Argument must be a name in str");
 
-  if ((m = find_module(m_name)) == NULL)
+  const auto &it = ModuleBuilder::all_modules().find(m_name);
+  if (it == ModuleBuilder::all_modules().end())
     return snobj_err(ENOENT, "No module '%s' found", m_name);
 
+  m = it->second;
   r = snobj_map();
 
-  snobj_map_set(r, "name", snobj_str(m->Name()));
-  snobj_map_set(r, "mclass", snobj_str(m->GetClass()->Name()));
+  snobj_map_set(r, "name", snobj_str(m->name()));
+  snobj_map_set(r, "mclass", snobj_str(m->module_builder()->class_name()));
 
   snobj_map_set(r, "desc", snobj_str(m->GetDesc().c_str()));
   snobj_map_set(r, "dump", m->GetDump());
@@ -884,13 +893,17 @@ static struct snobj *handle_connect_modules(struct snobj *q) {
   if (!m1_name || !m2_name)
     return snobj_err(EINVAL, "Missing 'm1' or 'm2' field");
 
-  if ((m1 = find_module(m1_name)) == NULL)
+  const auto &it1 = ModuleBuilder::all_modules().find(m1_name);
+  if (it1 == ModuleBuilder::all_modules().end())
     return snobj_err(ENOENT, "No module '%s' found", m1_name);
+  m1 = it1->second;
 
-  if ((m2 = find_module(m2_name)) == NULL)
+  const auto &it2 = ModuleBuilder::all_modules().find(m2_name);
+  if (it2 == ModuleBuilder::all_modules().end())
     return snobj_err(ENOENT, "No module '%s' found", m2_name);
+  m2 = it2->second;
 
-  ret = connect_modules(m1, ogate, m2, igate);
+  ret = m1->ConnectModules(ogate, m2, igate);
   if (ret < 0)
     return snobj_err(-ret, "Connection %s:%d->%d:%s failed", m1_name, ogate,
                      igate, m2_name);
@@ -912,10 +925,12 @@ static struct snobj *handle_disconnect_modules(struct snobj *q) {
   if (!m_name)
     return snobj_err(EINVAL, "Missing 'name' field");
 
-  if ((m = find_module(m_name)) == NULL)
+  const auto &it = ModuleBuilder::all_modules().find(m_name);
+  if (it == ModuleBuilder::all_modules().end())
     return snobj_err(ENOENT, "No module '%s' found", m_name);
+  m = it->second;
 
-  ret = disconnect_modules(m, ogate);
+  ret = m->DisconnectModules(ogate);
   if (ret < 0)
     return snobj_err(-ret, "Disconnection %s:%d failed", m_name, ogate);
 
@@ -936,8 +951,10 @@ static struct snobj *handle_attach_task(struct snobj *q) {
   if (!m_name)
     return snobj_err(EINVAL, "Missing 'name' field");
 
-  if ((m = find_module(m_name)) == NULL)
+  const auto &it = ModuleBuilder::all_modules().find(m_name);
+  if (it == ModuleBuilder::all_modules().end())
     return snobj_err(ENOENT, "No module '%s' found", m_name);
+  m = it->second;
 
   tid = snobj_eval_uint(q, "taskid");
   if (tid >= MAX_TASKS_PER_MODULE)
@@ -998,13 +1015,15 @@ static struct snobj *handle_enable_tcpdump(struct snobj *q) {
   if (!m_name)
     return snobj_err(EINVAL, "Missing 'name' field");
 
-  if ((m = find_module(m_name)) == NULL)
+  const auto &it = ModuleBuilder::all_modules().find(m_name);
+  if (it == ModuleBuilder::all_modules().end())
     return snobj_err(ENOENT, "No module '%s' found", m_name);
+  m = it->second;
 
   if (ogate >= m->ogates.curr_size)
     return snobj_err(EINVAL, "Output gate '%hu' does not exist", ogate);
 
-  ret = enable_tcpdump(fifo, m, ogate);
+  ret = m->EnableTcpDump(fifo, ogate);
 
   if (ret < 0) {
     return snobj_err(-ret, "Enabling tcpdump %s:%d failed", m_name, ogate);
@@ -1027,13 +1046,15 @@ static struct snobj *handle_disable_tcpdump(struct snobj *q) {
   if (!m_name)
     return snobj_err(EINVAL, "Missing 'name' field");
 
-  if ((m = find_module(m_name)) == NULL)
+  const auto &it = ModuleBuilder::all_modules().find(m_name);
+  if (it == ModuleBuilder::all_modules().end())
     return snobj_err(ENOENT, "No module '%s' found", m_name);
+  m = it->second;
 
   if (ogate >= m->ogates.curr_size)
     return snobj_err(EINVAL, "Output gate '%hu' does not exist", ogate);
 
-  ret = disable_tcpdump(m, ogate);
+  ret = m->DisableTcpDump(ogate);
 
   if (ret < 0) {
     return snobj_err(-ret, "Disabling tcpdump %s:%d failed", m_name, ogate);
@@ -1166,8 +1187,10 @@ static struct snobj *handle_snobj_module(struct snobj *q) {
   if (!m_name)
     return snobj_err(EINVAL, "Missing module name field 'name'");
 
-  if ((m = find_module(m_name)) == NULL)
+  const auto &it = ModuleBuilder::all_modules().find(m_name);
+  if (it == ModuleBuilder::all_modules().end())
     return snobj_err(ENOENT, "No module '%s' found", m_name);
+  m = it->second;
 
   cmd = snobj_eval_str(q, "cmd");
   if (!cmd)

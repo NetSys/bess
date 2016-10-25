@@ -1,11 +1,8 @@
-#include "../module.h"
 #include "../port.h"
+#include "../module.h"
 
 class PortInc : public Module {
  public:
-  static const gate_idx_t kNumIGates = 0;
-  static const gate_idx_t kNumOGates = 1;
-
   PortInc() : Module(), port_(), prefetch_(), burst_() {}
 
   virtual struct snobj *Init(struct snobj *arg);
@@ -13,20 +10,23 @@ class PortInc : public Module {
 
   virtual struct task_result RunTask(void *arg);
 
-  virtual struct snobj *GetDesc();
+  virtual std::string GetDesc() const;
 
-  static const Commands<PortInc> cmds;
-
- private:
   struct snobj *CommandSetBurst(struct snobj *arg);
 
-  Port *port_;
-  int prefetch_;
-  int burst_;
+  static const gate_idx_t kNumIGates = 0;
+  static const gate_idx_t kNumOGates = 1;
+
+  static const Commands<Module> cmds;
+
+ private:
+  Port *port_ = {};
+  int prefetch_ = {};
+  int burst_ = {};
 };
 
-const Commands<PortInc> PortInc::cmds = {
-    {"set_burst", &PortInc::CommandSetBurst, 1},
+const Commands<Module> PortInc::cmds = {
+    {"set_burst", MODULE_FUNC &PortInc::CommandSetBurst, 1},
 };
 
 struct snobj *PortInc::Init(struct snobj *arg) {
@@ -63,7 +63,7 @@ struct snobj *PortInc::Init(struct snobj *arg) {
   }
 
   for (queue_t qid = 0; qid < num_inc_q; qid++) {
-    task_id_t tid = register_task(this, (void *)(uintptr_t)qid);
+    task_id_t tid = RegisterTask((void *)(uintptr_t)qid);
 
     if (tid == INVALID_TASK_ID) {
       return snobj_err(ENOMEM, "Task creation failed");
@@ -88,8 +88,8 @@ void PortInc::Deinit() {
                        nullptr, 0);
 }
 
-struct snobj *PortInc::GetDesc() {
-  return snobj_str_fmt("%s/%s", port_->name().c_str(),
+std::string PortInc::GetDesc() const {
+  return string_format("%s/%s", port_->name().c_str(),
                        port_->port_builder()->class_name().c_str());
 }
 
@@ -136,7 +136,7 @@ struct task_result PortInc::RunTask(void *arg) {
     p->queue_stats[PACKET_DIR_INC][qid].bytes += received_bytes;
   }
 
-  run_next_module(this, &batch);
+  RunNextModule(&batch);
 
   return ret;
 }

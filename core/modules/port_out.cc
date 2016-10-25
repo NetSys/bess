@@ -1,11 +1,8 @@
-#include "../module.h"
 #include "../port.h"
+#include "../module.h"
 
 class PortOut : public Module {
  public:
-  static const gate_idx_t kNumIGates = 1;
-  static const gate_idx_t kNumOGates = 0;
-
   PortOut() : Module(), port_() {}
 
   virtual struct snobj *Init(struct snobj *arg);
@@ -15,9 +12,16 @@ class PortOut : public Module {
 
   virtual std::string GetDesc();
 
+  static const gate_idx_t kNumIGates = 1;
+  static const gate_idx_t kNumOGates = 0;
+
+  static const Commands<Module> cmds;
+
  private:
   Port *port_;
 };
+
+const Commands<Module> PortOut::cmds = {};
 
 struct snobj *PortOut::Init(struct snobj *arg) {
   const char *port_name;

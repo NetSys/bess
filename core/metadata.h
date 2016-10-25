@@ -94,6 +94,4 @@ void compute_metadata_offsets();
 char *get_scope_attr_name(scope_id_t scope_id);
 int *get_scope_attr_size(scope_id_t scope_id);
 
-int is_valid_attr(const char *name, int size, enum mt_access_mode mode);
-
 #endif

@@ -16,14 +16,16 @@ static inline int is_valid_gate(gate_idx_t gate) {
 
 class Split : public Module {
  public:
-  static const gate_idx_t kNumIGates = 1;
-  static const gate_idx_t kNumOGates = MAX_GATES;
-
   Split() : Module(), mask_(), attr_id_(), offset_(), size_() {}
 
   struct snobj *Init(struct snobj *arg);
 
   void ProcessBatch(struct pkt_batch *batch);
+
+  static const gate_idx_t kNumIGates = 1;
+  static const gate_idx_t kNumOGates = MAX_GATES;
+
+  static const Commands<Module> cmds;
 
  private:
   uint64_t mask_;
@@ -31,6 +33,8 @@ class Split : public Module {
   int offset_;
   int size_;
 };
+
+const Commands<Module> Split::cmds = {};
 
 struct snobj *Split::Init(struct snobj *arg) {
   if (!arg || snobj_type(arg) != TYPE_MAP) {
@@ -47,10 +51,9 @@ struct snobj *Split::Init(struct snobj *arg) {
   const char *name = snobj_eval_str(arg, "name");
 
   if (name) {
-    attr_id_ = add_metadata_attr(this, name, size_, MT_READ);
-    if (attr_id_ < 0) {
+    attr_id_ = AddMetadataAttr(name, size_, MT_READ);
+    if (attr_id_ < 0)
       return snobj_err(-attr_id_, "add_metadata_attr() failed");
-    }
   } else if (snobj_eval_exists(arg, "offset")) {
     attr_id_ = -1;
     offset_ = snobj_eval_int(arg, "offset");
@@ -102,7 +105,7 @@ void Split::ProcessBatch(struct pkt_batch *batch) {
     }
   }
 
-  run_split(this, ogate, batch);
+  RunSplit(ogate, batch);
 }
 
 ADD_MODULE(Split, "split",

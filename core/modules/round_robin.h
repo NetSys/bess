@@ -29,16 +29,17 @@
 */
 class RoundRobin : public Module {
  public:
-  static const gate_idx_t kNumIGates = 1;
-  static const gate_idx_t kNumOGates = MAX_GATES;
-
   RoundRobin() : Module(), gates_(), ngates_(), current_gate_(), per_packet_() {}
 
   virtual struct snobj *Init(struct snobj *arg);
 
   virtual void ProcessBatch(struct pkt_batch *batch);
 
-  static const Commands<RoundRobin> cmds;
+  static const gate_idx_t kNumIGates = 1;
+  static const gate_idx_t kNumOGates = MAX_GATES;
+
+  static const Commands<Module> cmds;
+
  private:
   /*! 
    * Switches the RoundRobin module between "batch" vs "packet" scheduling.
