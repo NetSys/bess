@@ -46,7 +46,7 @@ struct snobj *Dump::Init(struct snobj *arg) {
 
 pb_error_t Dump::Init(const bess::DumpArg &arg) {
   min_interval_ns_ = DEFAULT_INTERVAL_NS;
-  next_ns_ = ctx.current_tsc;
+  next_ns_ = ctx.current_tsc();
 
   if (arg.interval() != 0.0) {
     return CommandSetInterval(arg);
