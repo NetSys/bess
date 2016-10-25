@@ -174,13 +174,9 @@ message MergeArg {
 }
 
 message MetadataTestArg {
-  message Attribute {
-    string name = 1;
-    int64 size = 2;
-  }
-  Attribute read = 1;
-  Attribute write = 2;
-  Attribute update = 3;
+  map<string, int64> read = 1;
+  map<string, int64> write = 2;
+  map<string, int64> update = 3;
 }
 
 message NoOpArg {
