@@ -354,8 +354,7 @@ class BESSControlImpl final : public BESSControl::Service {
     if (is_any_worker_running()) {
       return return_with_error(response, EBUSY, "There is a running worker");
     }
-    for (auto it = TCContainer::tcs.begin();
-         it != TCContainer::tcs.end();) {
+    for (auto it = TCContainer::tcs.begin(); it != TCContainer::tcs.end();) {
       auto it_next = std::next(it);
       struct tc* c = it->second;
 
@@ -394,7 +393,7 @@ class BESSControlImpl final : public BESSControl::Service {
       }
     }
 
-    for (const auto &pair : TCContainer::tcs) {
+    for (const auto& pair : TCContainer::tcs) {
       struct tc* c = pair.second;
 
       int wid;
@@ -526,7 +525,7 @@ class BESSControlImpl final : public BESSControl::Service {
     if (it == TCContainer::tcs.end()) {
       return return_with_error(response, ENOENT, "No TC '%s' found", tc_name);
     }
-    c = it->second;    
+    c = it->second;
 
     response->set_timestamp(get_epoch_time());
     response->set_count(c->stats.usage[RESOURCE_CNT]);
@@ -958,9 +957,6 @@ class BESSControlImpl final : public BESSControl::Service {
   Status GetModuleInfo(ClientContext* context,
                        const GetModuleInfoRequest& request,
                        GetModuleInfoResponse* response) {
-    if (is_any_worker_running()) {
-      return return_with_error(response, EBUSY, "There is a running worker");
-    }
     const char* m_name;
     Module* m;
 
