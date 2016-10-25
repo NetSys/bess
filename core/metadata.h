@@ -5,8 +5,6 @@
 
 #include <string>
 
-#include "namespace.h"
-
 #define MT_ATTR_MAX_SIZE 32 /* in bytes, per attribute */
 
 #define MAX_ATTRS_PER_MODULE 16

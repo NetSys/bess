@@ -343,55 +343,31 @@ class BESSControlImpl final : public BESSControl::Service {
   }
   Status ResetTcs(ClientContext* context, const Empty& request,
                   EmptyResponse* response) {
-    struct ns_iter iter;
-    struct tc* c;
-
-    struct tc** c_arr;
-    size_t arr_slots = 1024;
-    size_t n = 0;
-
-    c_arr = (struct tc**)malloc(arr_slots * sizeof(struct tc*));
-
-    ns_init_iterator(&iter, NS_TYPE_TC);
-
-    while ((c = (struct tc*)ns_next(&iter)) != NULL) {
-      if (n >= arr_slots) {
-        arr_slots *= 2;
-        c_arr = (struct tc**)realloc(c_arr, arr_slots * sizeof(struct tc*));
-      }
-
-      c_arr[n] = c;
-      n++;
-    }
-
-    ns_release_iterator(&iter);
-
-    for (size_t i = 0; i < n; i++) {
-      c = c_arr[i];
+    for (auto it = TCContainer::tcs.begin();
+         it != TCContainer::tcs.end();) {
+      auto it_next = std::next(it);
+      struct tc* c = it->second;
 
       if (c->num_tasks) {
-        free(c_arr);
         return return_with_error(response, EBUSY, "TC %s still has %d tasks",
                                  c->settings.name, c->num_tasks);
       }
 
-      if (c->settings.auto_free)
+      if (c->settings.auto_free) {
         continue;
+      }
 
       tc_leave(c);
       tc_dec_refcnt(c);
+
+      it = it_next;
     }
 
-    free(c_arr);
     return Status::OK;
   }
   Status ListTcs(ClientContext* context, const ListTcsRequest& request,
                  ListTcsResponse* response) {
     unsigned int wid_filter = MAX_WORKERS;
-
-    struct ns_iter iter;
-
-    struct tc* c;
 
     wid_filter = request.wid();
     if (wid_filter >= 0) {
@@ -407,9 +383,9 @@ class BESSControlImpl final : public BESSControl::Service {
       }
     }
 
-    ns_init_iterator(&iter, NS_TYPE_TC);
+    for (const auto &pair : TCContainer::tcs) {
+      struct tc* c = pair.second;
 
-    while ((c = (struct tc*)ns_next(&iter)) != NULL) {
       int wid;
 
       if (wid_filter < MAX_WORKERS) {
@@ -454,8 +430,6 @@ class BESSControlImpl final : public BESSControl::Service {
           c->settings.max_burst[3]);
     }
 
-    ns_release_iterator(&iter);
-
     return Status::OK;
   }
   Status AddTc(ClientContext* context, const AddTcRequest& request,
@@ -470,12 +444,7 @@ class BESSControlImpl final : public BESSControl::Service {
       return return_with_error(response, EINVAL, "Missing 'name' field");
     }
 
-    if (!ns_is_valid_name(tc_name)) {
-      return return_with_error(response, EINVAL, "'%s' is an invalid name",
-                               tc_name);
-    }
-
-    if (ns_name_exists(tc_name)) {
+    if (TCContainer::tcs.count(tc_name)) {
       return return_with_error(response, EINVAL, "Name '%s' already exists",
                                tc_name);
     }
@@ -539,9 +508,11 @@ class BESSControlImpl final : public BESSControl::Service {
       return return_with_error(response, EINVAL,
                                "Argument must be a name in str");
 
-    c = (struct tc*)ns_lookup(NS_TYPE_TC, tc_name);
-    if (!c)
+    const auto& it = TCContainer::tcs.find(tc_name);
+    if (it == TCContainer::tcs.end()) {
       return return_with_error(response, ENOENT, "No TC '%s' found", tc_name);
+    }
+    c = it->second;    
 
     response->set_timestamp(get_epoch_time());
     response->set_count(c->stats.usage[RESOURCE_CNT]);
@@ -1082,9 +1053,11 @@ class BESSControlImpl final : public BESSControl::Service {
     if (request.tc().length() > 0) {
       struct tc* c;
 
-      c = (struct tc*)ns_lookup(NS_TYPE_TC, tc_name);
-      if (!c)
+      const auto& it = TCContainer::tcs.find(tc_name);
+      if (it == TCContainer::tcs.end()) {
         return return_with_error(response, ENOENT, "No TC '%s' found", tc_name);
+      }
+      c = it->second;
 
       task_attach(t, c);
     } else {
