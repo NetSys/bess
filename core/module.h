@@ -23,7 +23,6 @@ typedef uint16_t gate_idx_t;
 static_assert(MAX_GATES < INVALID_GATE, "invalid macro value");
 static_assert(DROP_GATE <= MAX_GATES, "invalid macro value");
 
-#include "bessctl.grpc.pb.h"
 #include "metadata.h"
 #include "snbuf.h"
 #include "snobj.h"

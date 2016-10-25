@@ -1,52 +1,7 @@
 syntax = "proto3";
 
+import "error.proto";
 package bess;
-
-service BESSControl {
-  rpc ResetAll (Empty) returns (EmptyResponse) {}
-
-  rpc PauseAll (Empty) returns (EmptyResponse) {}
-  rpc ResumeAll (Empty) returns (EmptyResponse) {}
-
-  rpc ResetWorkers (Empty) returns (EmptyResponse) {}
-  rpc ListWorkers (Empty) returns (ListWorkersResponse) {}
-  rpc AddWorker (AddWorkerRequest) returns (EmptyResponse) {}
-  // TODO: delete_worker
-
-  rpc ResetTcs (Empty) returns (EmptyResponse) {}
-  rpc ListTcs (ListTcsRequest) returns (ListTcsResponse) {}
-  rpc AddTc (AddTcRequest) returns (EmptyResponse) {}
-  rpc GetTcStats (GetTcStatsRequest) returns (GetTcStatsResponse) {}
-
-  rpc ListDrivers (Empty) returns (ListDriversResponse) {}
-  rpc GetDriverInfo(GetDriverInfoRequest) returns (GetDriverInfoResponse) {}
-  // TODO: rpc import_driver()
-
-  rpc ResetPorts (Empty) returns (EmptyResponse) {}
-  rpc ListPorts (Empty) returns (ListPortsResponse) {}
-  rpc CreatePort (CreatePortRequest) returns (CreatePortResponse) {}
-  rpc DestroyPort (DestroyPortRequest) returns (EmptyResponse) {}
-  rpc GetPortStats (GetPortStatsRequest) returns (GetPortStatsResponse) {}
-
-  // TODO: mclass
-
-  rpc ResetModules (Empty) returns (EmptyResponse) {}
-  rpc ListModules (Empty) returns (ListModulesResponse) {}
-  rpc CreateModule (CreateModuleRequest) returns (CreateModuleResponse) {}
-  rpc DestroyModule (DestroyModuleRequest) returns (EmptyResponse) {}
-  rpc GetModuleInfo (GetModuleInfoRequest) returns (GetModuleInfoResponse) {}
-  rpc ConnectModules (ConnectModulesRequest) returns (EmptyResponse) {}
-  rpc DisconnectModules (DisconnectModulesRequest) returns (EmptyResponse) {}
-
-  rpc AttachTask (AttachTaskRequest) returns (EmptyResponse) {}
-
-  rpc EnableTcpdump (EnableTcpdumpRequest) returns (EmptyResponse) {}
-  rpc DisableTcpdump (DisableTcpdumpRequest) returns (EmptyResponse) {}
-
-  rpc KillBess (Empty) returns (EmptyResponse) {}
-
-  // TODO: modules commands
-}
 
 message Empty {
 
@@ -162,9 +117,11 @@ message EtherEncapArg {
 message ExactMatchArg {
   message Field {
     uint64 size = 1;
-    string attribute = 2;
-    int64 offset = 3;
-    bytes mask = 4;
+    uint64 mask = 4;
+    oneof position {
+      string name = 2;
+      int64 offset = 3;
+    }
   }
   repeated Field fields = 1;
 }
@@ -484,12 +441,6 @@ message Port {
 message ListPortsResponse {
   Error error = 1;
   repeated Port ports = 2;
-}
-
-message Error {
-  int32 err = 1;
-  string errmsg = 2;
-  string details = 3;
 }
 
 message ListWorkersResponse {

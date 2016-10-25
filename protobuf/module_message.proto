@@ -1,0 +1,31 @@
+syntax = "proto3";
+
+import "bess_message.proto";
+
+package bess;
+
+message ExactMatchCommandAddArg {
+  uint64 gate = 1;
+  repeated uint64 fields = 2;
+}
+
+message ExactMatchCommandDeleteArg {
+  repeated uint64 fields = 2;
+}
+
+message ExactMatchCommandClearArg {
+}
+
+message ExactMatchCommandSetDefaultGateArg {
+  uint64 gate = 1;
+}
+
+message ModuleCommandRequest {
+  string cmd = 1;
+  oneof arg {
+    BPFArg bpf_add_arg = 2;
+    DumpArg dump_set_interval_arg = 4;
+    ExactMatchCommandAddArg exact_match_add_arg = 5;
+    ExactMatchCommandDeleteArg exact_match_delete_arg = 6;
+  }
+}
