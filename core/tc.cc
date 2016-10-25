@@ -577,7 +577,7 @@ static void print_stats(struct sched *s, struct sched_stats *last_stats) {
   p += sprintf(p,
                "W%d: idle %.1f%%(%.1fM) "
                "total %.1f%%(%.1fM) %.3fMpps %.1fMbps ",
-               ctx.wid, cycles_idle * 100.0 / tsc_hz, cnt_idle / 1000000.0,
+               ctx.wid(), cycles_idle * 100.0 / tsc_hz, cnt_idle / 1000000.0,
                cycles * 100.0 / tsc_hz, cnt / 1000000.0, pkts / 1000000.0,
                bits / 1000000.0);
 
@@ -625,8 +625,8 @@ void sched_loop(struct sched *s) {
     /* periodic check for every 2^8 rounds,
      * to mitigate expensive operations */
     if ((round & 0xff) == 0) {
-      if (unlikely(is_pause_requested())) {
-        if (unlikely(block_worker())) break;
+      if (unlikely(ctx.is_pause_requested())) {
+        if (unlikely(ctx.Block())) break;
         last_stats = s->stats;
         last_print_tsc = checkpoint = now = rdtsc();
       } else if (unlikely(FLAGS_s && now - last_print_tsc >= tsc_hz)) {
@@ -641,8 +641,8 @@ void sched_loop(struct sched *s) {
 
     if (c) {
       /* Running (R) */
-      ctx.current_tsc = now; /* tasks see updated tsc */
-      ctx.current_ns = now * ns_per_cycle;
+      ctx.set_current_tsc(now); /* tasks see updated tsc */
+      ctx.set_current_ns(now * ns_per_cycle);
       ret = tc_scheduled(c);
 
       now = rdtsc();

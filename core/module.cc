@@ -130,7 +130,7 @@ static int register_module(Module *m) {
 }
 
 void deadend(Module *m, struct pkt_batch *batch) {
-  ctx.silent_drops += batch->cnt;
+  ctx.incr_silent_drops(batch->cnt);
   snb_free_bulk(batch->pkts, batch->cnt);
 }
 

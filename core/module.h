@@ -305,7 +305,7 @@ inline int disable_tcpdump(Module *, int) {
 #endif
 
 static inline gate_idx_t get_igate() {
-  return ctx.igate_stack[ctx.stack_depth - 1];
+  return ctx.igate_stack_top();
 }
 
 /* Pass packets to the next module.
@@ -340,13 +340,12 @@ static inline void run_choose_module(Module *m, gate_idx_t ogate_idx,
     dump_pcap_pkts(ogate, batch);
 #endif
 
-  ctx.igate_stack[ctx.stack_depth] = ogate->out.igate_idx;
-  ctx.stack_depth++;
+  ctx.push_igate(ogate->out.igate_idx);
 
   // XXX
   ((Module *)ogate->arg)->ProcessBatch(batch);
 
-  ctx.stack_depth--;
+  ctx.pop_igate();
 
 #if SN_TRACE_MODULES
   _trace_after_call();
@@ -374,7 +373,7 @@ static void run_split(Module *m, const gate_idx_t *ogates,
   gate_idx_t pending[MAX_PKT_BURST];
   struct pkt_batch batches[MAX_PKT_BURST];
 
-  struct pkt_batch *splits = ctx.splits;
+  struct pkt_batch *splits = ctx.splits();
 
   /* phase 1: collect unique ogates into pending[] */
   for (int i = 0; i < cnt; i++) {

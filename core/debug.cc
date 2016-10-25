@@ -348,7 +348,7 @@ void dump_types(void) {
   printf("sizeof(Module)=%zu\n", sizeof(Module));
   printf("sizeof(gate)=%zu\n", sizeof(struct gate));
 
-  printf("sizeof(worker_context)=%zu\n", sizeof(struct worker_context));
+  printf("sizeof(worker_context)=%zu\n", sizeof(Worker));
 
   printf("sizeof(snobj)=%zu\n", sizeof(struct snobj));
 }
