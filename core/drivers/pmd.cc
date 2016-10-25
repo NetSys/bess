@@ -1,34 +1,9 @@
-#include <rte_config.h>
-#include <rte_errno.h>
-#include <rte_ethdev.h>
+#include "pmd.h"
 
-#include "../log.h"
-#include "../message.h"
-#include "../port.h"
 
-typedef uint8_t dpdk_port_t;
-
-#define DPDK_PORT_UNKNOWN RTE_MAX_ETHPORTS
-
-class PMDPort : public Port {
- public:
-  PMDPort() : Port(), dpdk_port_id_(DPDK_PORT_UNKNOWN), hot_plugged_(false) {}
-
-  virtual void InitDriver();
-  virtual pb_error_t Init(const bess::PMDPortArg &arg);
-  virtual struct snobj *Init(struct snobj *arg);
-  virtual void DeInit();
-
-  virtual void CollectStats(bool reset);
-
-  virtual int RecvPackets(queue_t qid, snb_array_t pkts, int cnt);
-  virtual int SendPackets(queue_t qid, snb_array_t pkts, int cnt);
-
- private:
-  dpdk_port_t dpdk_port_id_;
-  bool hot_plugged_;
-};
-
+/*!
+ * The following are deprecated. Ignore us.
+ */
 #define SN_TSO_SG 0
 #define SN_HW_RXCSUM 0
 #define SN_HW_TXCSUM 0

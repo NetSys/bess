@@ -1,34 +1,4 @@
-#include <errno.h>
-#include <pcap/pcap.h>
-
-#include <glog/logging.h>
-
-#include "../message.h"
-#include "../port.h"
-#include "../snobj.h"
-#include "../utils/pcap.h"
-
-static unsigned char tx_pcap_data[PCAP_SNAPLEN];
-
-/* Experimental. Needs more tests */
-class PCAPPort : public Port {
- public:
-  PCAPPort() : Port(), pcap_handle_() {}
-
-  virtual pb_error_t Init(const bess::PCAPPortArg &arg);
-  virtual struct snobj *Init(struct snobj *arg);
-
-  virtual void DeInit();
-
-  virtual int RecvPackets(queue_t qid, snb_array_t pkts, int cnt);
-  virtual int SendPackets(queue_t qid, snb_array_t pkts, int cnt);
-
- private:
-  static void GatherData(unsigned char *data, struct rte_mbuf *mbuf);
-
-  pcap_t *pcap_handle_;
-};
-
+#include "pcap.h"
 struct snobj *PCAPPort::Init(struct snobj *conf) {
   char errbuf[PCAP_ERRBUF_SIZE];
   char *_dev = snobj_eval_str(conf, "dev");
