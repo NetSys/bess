@@ -18,7 +18,7 @@ std::map<std::string, Module *> ModuleBuilder::all_modules_;
 
 // FIXME: move somewhere else?
 void deadend(struct pkt_batch *batch) {
-  ctx.silent_drops += batch->cnt;
+  ctx.incr_silent_drops(batch->cnt);
   snb_free_bulk(batch->pkts, batch->cnt);
 }
 
@@ -149,6 +149,11 @@ std::map<std::string, ModuleBuilder> &ModuleBuilder::all_module_builders_holder(
 const std::map<std::string, ModuleBuilder>
     &ModuleBuilder::all_module_builders() {
   return all_module_builders_holder();
+}
+
+void deadend(Module *m, struct pkt_batch *batch) {
+  ctx.incr_silent_drops(batch->cnt);
+  snb_free_bulk(batch->pkts, batch->cnt);
 }
 
 const std::map<std::string, Module *> &ModuleBuilder::all_modules() {
@@ -378,7 +383,7 @@ void Module::RunSplit(const gate_idx_t *ogates, struct pkt_batch *mixed_batch) {
   gate_idx_t pending[MAX_PKT_BURST];
   struct pkt_batch batches[MAX_PKT_BURST];
 
-  struct pkt_batch *splits = ctx.splits;
+  struct pkt_batch *splits = ctx.splits();
 
   /* phase 1: collect unique ogates into pending[] */
   for (int i = 0; i < cnt; i++) {
