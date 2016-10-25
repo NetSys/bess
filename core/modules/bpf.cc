@@ -36,6 +36,7 @@
 #include <string.h>
 #include <sys/mman.h>
 
+#include "../message.h"
 #include <pcap.h>
 
 typedef u_int (*bpf_filter_func_t)(u_char *, u_int, u_int);
@@ -1122,12 +1123,16 @@ static int compare_filter(const void *filter1, const void *filter2) {
 class BPF : public Module {
  public:
   virtual struct snobj *Init(struct snobj *arg);
+  virtual pb_error_t Init(const bess::BPFArg &arg);
   virtual void Deinit();
 
   virtual void ProcessBatch(struct pkt_batch *batch);
 
   struct snobj *CommandAdd(struct snobj *arg);
   struct snobj *CommandClear(struct snobj *arg);
+
+  pb_error_t CommandAdd(const bess::BPFArg &arg);
+  pb_error_t CommandClear(const bess::BPFArg &arg);
 
   static const gate_idx_t kNumIGates = 1;
   static const gate_idx_t kNumOGates = MAX_GATES;
@@ -1145,6 +1150,10 @@ const Commands<Module> BPF::cmds = {
     {"add", MODULE_FUNC &BPF::CommandAdd, 0},
     {"clear", MODULE_FUNC &BPF::CommandClear, 0}};
 
+pb_error_t BPF::Init(const bess::BPFArg &arg) {
+  return arg.filters_size() > 0 ? CommandAdd(arg) : pb_errno(0);
+}
+
 struct snobj *BPF::Init(struct snobj *arg) {
   return arg ? CommandAdd(arg) : NULL;
 }
@@ -1156,6 +1165,43 @@ void BPF::Deinit() {
   }
 
   n_filters_ = 0;
+}
+
+pb_error_t BPF::CommandAdd(const bess::BPFArg &arg) {
+  if (n_filters_ + arg.filters_size() > MAX_FILTERS) {
+    return pb_error(EINVAL, "Too many filters");
+  }
+
+  struct filter *filter = &filters_[n_filters_];
+  struct bpf_program il_code;
+
+  for (const auto &f : arg.filters()) {
+    const char *exp = f.filter().c_str();
+    int64_t gate = f.gate();
+    if (gate < 0 || gate >= MAX_GATES) {
+      return pb_error(EINVAL, "Invalid gate");
+    }
+    if (pcap_compile_nopcap(SNAPLEN, DLT_EN10MB,  // Ethernet
+                            &il_code, exp, 1,     // optimize (IL only)
+                            PCAP_NETMASK_UNKNOWN) == -1) {
+      return pb_error(EINVAL, "BPF compilation error");
+    }
+    filter->priority = f.priority();
+    filter->gate = f.gate();
+    filter->exp = strdup(exp);
+    filter->func =
+        bpf_jit_compile(il_code.bf_insns, il_code.bf_len, &filter->mmap_size);
+    pcap_freecode(&il_code);
+    if (!filter->func) {
+      free(filter->exp);
+      return pb_error(ENOMEM, "BPF JIT compilation error");
+    }
+    n_filters_++;
+    qsort(filters_, n_filters_, sizeof(struct filter), &compare_filter);
+
+    filter++;
+  }
+  return pb_errno(0);
 }
 
 struct snobj *BPF::CommandAdd(struct snobj *arg) {
@@ -1213,7 +1259,7 @@ struct snobj *BPF::CommandAdd(struct snobj *arg) {
     pcap_freecode(&il_code);
 
     if (!filter->func) {
-      free(exp);
+      free(filter->exp);
       return snobj_err(ENOMEM, "BPF JIT compilation error");
     }
 
@@ -1224,6 +1270,11 @@ struct snobj *BPF::CommandAdd(struct snobj *arg) {
   }
 
   return NULL;
+}
+
+pb_error_t BPF::CommandClear(const bess::BPFArg &arg) {
+  Deinit();
+  return pb_errno(0);
 }
 
 struct snobj *BPF::CommandClear(struct snobj *arg) {

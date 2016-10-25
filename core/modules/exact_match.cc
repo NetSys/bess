@@ -5,7 +5,11 @@
 #include <vector>
 
 #include "../utils/htable.h"
+
+#include "../message.h"
 #include "../module.h"
+
+using google::protobuf::RepeatedField;
 
 #define MAX_FIELDS 8
 #define MAX_FIELD_SIZE 8
@@ -113,6 +117,9 @@ struct EmField {
 
 class ExactMatch : public Module {
  public:
+  static const gate_idx_t kNumIGates = 1;
+  static const gate_idx_t kNumOGates = MAX_GATES;
+
   ExactMatch()
       : Module(),
         default_gate_(),
@@ -122,6 +129,7 @@ class ExactMatch : public Module {
         ht_() {}
 
   virtual struct snobj *Init(struct snobj *arg);
+
   virtual void Deinit();
 
   virtual void ProcessBatch(struct pkt_batch *batch);
@@ -134,14 +142,21 @@ class ExactMatch : public Module {
   struct snobj *CommandClear(struct snobj *arg);
   struct snobj *CommandSetDefaultGate(struct snobj *arg);
 
-  static const gate_idx_t kNumIGates = 1;
-  static const gate_idx_t kNumOGates = MAX_GATES;
-
   static const Commands<Module> cmds;
 
  private:
   struct snobj *AddFieldOne(struct snobj *field, struct EmField *f, int idx);
   struct snobj *GatherKey(struct snobj *fields, hkey_t *key);
+
+  pb_error_t Init(const bess::ExactMatchArg &arg);
+  pb_error_t CommandAdd(const bess::ExactMatchCommandAddArg &arg);
+  pb_error_t CommandDelete(const bess::ExactMatchCommandDeleteArg &arg);
+  pb_error_t CommandClear(const bess::ExactMatchCommandClearArg &arg);
+  pb_error_t CommandSetDefaultGate(
+      const bess::ExactMatchCommandSetDefaultGateArg &arg);
+  pb_error_t AddFieldOne(const bess::ExactMatchArg_Field &field,
+                         struct EmField *f, int idx);
+  pb_error_t GatherKey(const RepeatedField<uint64_t> &fields, hkey_t *key);
 
   gate_idx_t default_gate_;
 
@@ -158,6 +173,69 @@ const Commands<Module> ExactMatch::cmds = {
     {"delete", MODULE_FUNC &ExactMatch::CommandDelete, 0},
     {"clear", MODULE_FUNC &ExactMatch::CommandClear, 0},
     {"set_default_gate", MODULE_FUNC &ExactMatch::CommandSetDefaultGate, 1}};
+
+static int uint64_to_bin(uint8_t *ptr, int size, uint64_t val, int be) {
+  memset(ptr, 0, size);
+
+  if (be) {
+    for (int i = size - 1; i >= 0; i--) {
+      ptr[i] = val & 0xff;
+      val >>= 8;
+    }
+  } else {
+    for (int i = 0; i < size; i++) {
+      ptr[i] = val & 0xff;
+      val >>= 8;
+    }
+  }
+
+  if (val)
+    return -EINVAL; /* the value is too large for the size */
+  else
+    return 0;
+}
+
+pb_error_t ExactMatch::AddFieldOne(const bess::ExactMatchArg_Field &field,
+                                   struct EmField *f, int idx) {
+  f->size = field.size();
+  if (f->size < 1 || f->size > MAX_FIELD_SIZE) {
+    return pb_error(EINVAL, "idx %d: 'size' must be 1-%d", idx, MAX_FIELD_SIZE);
+  }
+
+  if (field.position_case() == bess::ExactMatchArg_Field::kName) {
+    const char *attr = field.name().c_str();
+    f->attr_id = AddMetadataAttr(attr, f->size, MT_READ);
+    if (f->attr_id < 0) {
+      return pb_error(-f->attr_id, "idx %d: add_metadata_attr() failed", idx);
+    }
+  } else if (field.position_case() == bess::ExactMatchArg_Field::kOffset) {
+    f->attr_id = -1;
+    f->offset = field.offset();
+    if (f->offset < 0 || f->offset > 1024) {
+      return pb_error(EINVAL, "idx %d: invalid 'offset'", idx);
+    }
+  } else {
+    return pb_error(EINVAL, "idx %d: must specify 'offset' or 'attr'", idx);
+  }
+
+  int force_be = (f->attr_id < 0);
+
+  if (!field.mask()) {
+    /* by default all bits are considered */
+    f->mask = ((uint64_t)1 << (f->size * 8)) - 1;
+  } else {
+    if (uint64_to_bin((uint8_t *)&f->mask, f->size, field.mask(),
+                      is_be_system() | force_be))
+      return pb_error(EINVAL, "idx %d: not a correct %d-byte mask", idx,
+                      f->size);
+  }
+
+  if (f->mask == 0) {
+    return pb_error(EINVAL, "idx %d: empty mask", idx);
+  }
+
+  return pb_errno(0);
+}
 
 struct snobj *ExactMatch::AddFieldOne(struct snobj *field, struct EmField *f,
                                       int idx) {
@@ -247,6 +325,34 @@ struct snobj *ExactMatch::Init(struct snobj *arg) {
   }
 
   return nullptr;
+}
+
+pb_error_t ExactMatch::Init(const bess::ExactMatchArg &arg) {
+  int size_acc = 0;
+
+  for (auto i = 0; i < arg.fields_size(); ++i) {
+    pb_error_t err;
+    struct EmField *f = &fields_[i];
+
+    f->pos = size_acc;
+
+    err = AddFieldOne(arg.fields(i), f, i);
+    if (err.err() != 0)
+      return err;
+
+    size_acc += f->size;
+  }
+
+  default_gate_ = DROP_GATE;
+  num_fields_ = arg.fields_size();
+  total_key_size_ = align_ceil(size_acc, sizeof(uint64_t));
+
+  int ret = ht_.Init(total_key_size_, sizeof(gate_idx_t));
+  if (ret < 0) {
+    return pb_error(-ret, "hash table creation failed");
+  }
+
+  return pb_errno(0);
 }
 
 void ExactMatch::Deinit() {
@@ -378,6 +484,36 @@ struct snobj *ExactMatch::GatherKey(struct snobj *fields, hkey_t *key) {
   return nullptr;
 }
 
+pb_error_t ExactMatch::GatherKey(const RepeatedField<uint64_t> &fields,
+                                 hkey_t *key) {
+  if (fields.size() != num_fields_) {
+    return pb_error(EINVAL, "must specify %d fields", num_fields_);
+  }
+
+  memset(key, 0, sizeof(*key));
+
+  for (auto i = 0; i < fields.size(); i++) {
+    int field_size = fields_[i].size;
+    int field_pos = fields_[i].pos;
+
+    uint64_t f;
+
+    int force_be = (fields_[i].attr_id < 0);
+
+    uint64_t f_obj = fields.Get(i);
+
+    if (uint64_to_bin((uint8_t *)&f, field_size, f_obj,
+                      force_be | is_be_system())) {
+      return pb_error(EINVAL, "idx %lu: not a correct %d-byte value", i,
+                      field_size);
+    }
+
+    memcpy(reinterpret_cast<uint8_t *>(key) + field_pos, &f, field_size);
+  }
+
+  return pb_errno(0);
+}
+
 struct snobj *ExactMatch::CommandAdd(struct snobj *arg) {
   struct snobj *fields = snobj_eval(arg, "fields");
   gate_idx_t gate = snobj_eval_uint(arg, "gate");
@@ -411,6 +547,32 @@ struct snobj *ExactMatch::CommandAdd(struct snobj *arg) {
   return nullptr;
 }
 
+pb_error_t ExactMatch::CommandAdd(const bess::ExactMatchCommandAddArg &arg) {
+  hkey_t key;
+  gate_idx_t gate = arg.gate();
+  pb_error_t err;
+  int ret;
+
+  if (!is_valid_gate(gate)) {
+    return pb_error(EINVAL, "Invalid gate: %hu", gate);
+  }
+
+  if (arg.fields_size() == 0) {
+    return pb_error(EINVAL, "'fields' must be a list");
+  }
+
+  if ((err = GatherKey(arg.fields(), &key)).err() != 0) {
+    return err;
+  }
+
+  ret = ht_.Set(&key, &gate);
+  if (ret) {
+    return pb_error(-ret, "ht_set() failed");
+  }
+
+  return pb_errno(0);
+}
+
 struct snobj *ExactMatch::CommandDelete(struct snobj *arg) {
   hkey_t key;
 
@@ -433,10 +595,40 @@ struct snobj *ExactMatch::CommandDelete(struct snobj *arg) {
   return nullptr;
 }
 
+pb_error_t ExactMatch::CommandDelete(
+    const bess::ExactMatchCommandDeleteArg &arg) {
+  hkey_t key;
+
+  pb_error_t err;
+  int ret;
+
+  if (arg.fields_size() == 0) {
+    return pb_error(EINVAL, "argument must be a list");
+  }
+
+  if ((err = GatherKey(arg.fields(), &key)).err() != 0) {
+    return err;
+  }
+
+  ret = ht_.Del(&key);
+  if (ret < 0) {
+    return pb_error(-ret, "ht_del() failed");
+  }
+
+  return pb_errno(0);
+}
+
 struct snobj *ExactMatch::CommandClear(struct snobj *arg) {
   ht_.Clear();
 
   return nullptr;
+}
+
+pb_error_t ExactMatch::CommandClear(
+    const bess::ExactMatchCommandClearArg &arg) {
+  ht_.Clear();
+
+  return pb_errno(0);
 }
 
 struct snobj *ExactMatch::CommandSetDefaultGate(struct snobj *arg) {
@@ -445,6 +637,13 @@ struct snobj *ExactMatch::CommandSetDefaultGate(struct snobj *arg) {
   default_gate_ = gate;
 
   return nullptr;
+}
+
+pb_error_t ExactMatch::CommandSetDefaultGate(
+    const bess::ExactMatchCommandSetDefaultGateArg &arg) {
+  default_gate_ = arg.gate();
+
+  return pb_errno(0);
 }
 
 ADD_MODULE(ExactMatch, "em", "Multi-field classifier with an exact match table")

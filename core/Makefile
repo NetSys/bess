@@ -74,7 +74,7 @@ VERBOSE ?= 0
 
 .PHONY: all clean tags deps cscope tests protobuf
 
-all: $(EXEC)
+all: tests $(EXEC)
 
 clean:
 	rm -f $(DEPS) $(EXEC) $(TEST_EXEC) *.a *.pb.* *.o modules/*.o drivers/*.o utils/*.o oldtests/*.o
@@ -102,15 +102,14 @@ protobuf: $(PROTO_SRCS)
 define BUILD
 $(2): $(3)
 	$$(eval _TYPE = $$(strip $(1)))
-	$$(eval _TARGET = $$(if $$(word 2, $$^), $$@, $$<))
 	$$(eval _CMD = $$(strip $(4)))
 	@if [ $$(VERBOSE) -eq 0 ]; then \
-		printf "%-10s %s\n" [$$(_TYPE)] $$(_TARGET); \
+		printf "%-10s %s\n" [$$(_TYPE)] $$@; \
 	else \
 		printf "%-10s %s\n" [$$(_TYPE)] $$(_CMD); \
 	fi
 	@if ! $$(_CMD); then \
-		echo "Error: \033[0;31m$$(_TARGET)"; \
+		echo "Error: \033[0;31m$$@"; \
 		echo "\033[0;33m$$(_CMD)\033[0m"; \
 		false; \
 	fi
@@ -125,13 +124,13 @@ $(eval $(call BUILD, \
 $(eval $(call BUILD, \
 	DEPS, \
 	$$(DEPS), \
-	$$(PROTO_HEADERS) $$(SRCS) $$(HEADERS), \
-	$$(CXX) $$(CXXFLAGS) -MM $$(SRCS) | sed 's|\(.*\)\.o: \(.*\)\.cc|\2.o: \2.cc|' > $$(DEPS)))
+	$$(PROTO_HEADERS) $$(ALL_SRCS) $$(HEADERS), \
+	$$(CXX) $$(CXXFLAGS) -MM $$(ALL_SRCS) | sed 's|\(.*\)\.o: \(.*\)\.cc|\2.o: \2.cc|' > $$(DEPS)))
 
 $(eval $(call BUILD, \
 	CXX, \
 	%.o, \
-	%.cc $(DEPS), \
+	%.cc, \
 	$$(CXX) -o $$@ -c $$< $$(CXXFLAGS)))
 
 $(eval $(call BUILD, \
@@ -143,7 +142,7 @@ $(eval $(call BUILD, \
 $(eval $(call BUILD, \
 	TEST_CXX, \
 	%_test.o, \
-	%_test.cc $(DEPS), \
+	%_test.cc, \
 	$$(CXX) -o $$@ -c $$< $$(CXXFLAGS)))
 
 $(eval $(call BUILD, \
@@ -177,6 +176,8 @@ $(eval $(call BUILD, \
 	$(CORE_OBJS), \
 	$$(AR) rcs $$@ $$^))
 
--include $(DEPS)
+ifneq ($(MAKECMDGOALS),clean)
+	-include $(DEPS)
+endif
 
 endif
