@@ -72,6 +72,17 @@ message L2ForwardCommandPopulateArg {
   int64 gate_count = 3;
 }
 
+message MeasureCommandGetSummaryArg {
+}
+
+message MeasureCommandGetSummaryResponse {
+  Error error = 1;
+  double timestamp = 2;
+  uint64 packets = 3;
+  uint64 bits = 4;
+  uint64 total_latency_ns = 5;
+}
+
 message BPFArg {
   message Filter {
     int64 priority = 1;
