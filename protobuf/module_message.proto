@@ -1,7 +1,6 @@
 syntax = "proto3";
 
-import "bess_message.proto";
-
+import "error.proto";
 package bess;
 
 message ExactMatchCommandAddArg {
@@ -42,14 +41,35 @@ message IPLookupCommandAddArg {
 message IPLookupCommandClearArg {
 }
 
-message ModuleCommandRequest {
-  string cmd = 1;
-  oneof arg {
-    BPFArg bpf_add_arg = 2;
-    DumpArg dump_set_interval_arg = 4;
-    ExactMatchCommandAddArg exact_match_add_arg = 5;
-    ExactMatchCommandDeleteArg exact_match_delete_arg = 6;
+message L2ForwardCommandAddArg {
+  message Entry {
+    string addr = 1;
+    int64 gate = 2;
   }
+  repeated Entry entries = 1;
+}
+
+message L2ForwardCommandDeleteArg {
+  repeated string addrs = 1;
+}
+
+message L2ForwardCommandSetDefaultGateArg {
+  int64 gate = 1;
+}
+
+message L2ForwardCommandLookupArg {
+  repeated string addrs = 1;
+}
+
+message L2ForwardCommandLookupResponse {
+  Error error = 1;
+  repeated uint64 gates = 2;
+}
+
+message L2ForwardCommandPopulateArg {
+  string base = 1;
+  int64 count = 2;
+  int64 gate_count = 3;
 }
 
 message BPFArg {

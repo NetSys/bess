@@ -531,6 +531,8 @@ class L2Forward : public Module {
   L2Forward() : Module(), l2_table_(), default_gate_() {}
 
   virtual struct snobj *Init(struct snobj *arg);
+  virtual pb_error_t Init(const bess::L2ForwardArg &arg);
+
   virtual void Deinit();
 
   virtual void ProcessBatch(struct pkt_batch *batch);
@@ -540,6 +542,14 @@ class L2Forward : public Module {
   struct snobj *CommandSetDefaultGate(struct snobj *arg);
   struct snobj *CommandLookup(struct snobj *arg);
   struct snobj *CommandPopulate(struct snobj *arg);
+
+  pb_error_t CommandAdd(const bess::L2ForwardCommandAddArg &arg);
+  pb_error_t CommandDelete(const bess::L2ForwardCommandDeleteArg &arg);
+  pb_error_t CommandSetDefaultGate(
+      const bess::L2ForwardCommandSetDefaultGateArg &arg);
+  bess::L2ForwardCommandLookupResponse CommandLookup(
+      const bess::L2ForwardCommandLookupArg &arg);
+  pb_error_t CommandPopulate(const bess::L2ForwardCommandPopulateArg &arg);
 
   static const gate_idx_t kNumIGates = 1;
   static const gate_idx_t kNumOGates = MAX_GATES;
@@ -585,6 +595,32 @@ struct snobj *L2Forward::Init(struct snobj *arg) {
   return nullptr;
 }
 
+pb_error_t L2Forward::Init(const bess::L2ForwardArg &arg) {
+  int ret = 0;
+  int size = arg.size();
+  int bucket = arg.bucket();
+
+  default_gate_ = DROP_GATE;
+
+  if (size == 0) {
+    size = DEFAULT_TABLE_SIZE;
+  }
+  if (bucket == 0) {
+    bucket = MAX_BUCKET_SIZE;
+  }
+
+  ret = l2_init(&l2_table_, size, bucket);
+
+  if (ret != 0) {
+    return pb_error(-ret,
+                    "initialization failed with argument "
+                    "size: '%d' bucket: '%d'",
+                    size, bucket);
+  }
+
+  return pb_errno(0);
+}
+
 void L2Forward::Deinit() {
   l2_deinit(&l2_table_);
 }
@@ -603,6 +639,149 @@ void L2Forward::ProcessBatch(struct pkt_batch *batch) {
   }
 
   RunSplit(ogates, batch);
+}
+
+pb_error_t L2Forward::CommandAdd(const bess::L2ForwardCommandAddArg &arg) {
+  for (int i = 0; i < arg.entries_size(); i++) {
+    const auto &entry = arg.entries(i);
+
+    if (!entry.addr().length()) {
+      return pb_error(EINVAL,
+                      "add list item map must contain addr"
+                      " as a string");
+    }
+
+    const char *str_addr = entry.addr().c_str();
+    int gate = entry.gate();
+    char addr[6];
+
+    if (parse_mac_addr(str_addr, addr) != 0) {
+      return pb_error(EINVAL, "%s is not a proper mac address", str_addr);
+    }
+
+    int r = l2_add_entry(&l2_table_, l2_addr_to_u64(addr), gate);
+
+    if (r == -EEXIST) {
+      return pb_error(EEXIST, "MAC address '%s' already exist", str_addr);
+    } else if (r == -ENOMEM) {
+      return pb_error(ENOMEM, "Not enough space");
+    } else if (r != 0) {
+      return pb_errno(-r);
+    }
+  }
+
+  return pb_errno(0);
+}
+
+pb_error_t L2Forward::CommandDelete(
+    const bess::L2ForwardCommandDeleteArg &arg) {
+  for (int i = 0; i < arg.addrs_size(); i++) {
+    const auto &_addr = arg.addrs(i);
+
+    if (!_addr.length()) {
+      return pb_error(EINVAL, "lookup must be list of string");
+    }
+
+    const char *str_addr = _addr.c_str();
+    char addr[6];
+
+    if (parse_mac_addr(str_addr, addr) != 0) {
+      return pb_error(EINVAL, "%s is not a proper mac address", str_addr);
+    }
+
+    int r = l2_del_entry(&l2_table_, l2_addr_to_u64(addr));
+
+    if (r == -ENOENT) {
+      return pb_error(ENOENT, "MAC address '%s' does not exist", str_addr);
+    } else if (r != 0) {
+      return pb_error(EINVAL, "Unknown Error: %d\n", r);
+    }
+  }
+
+  return pb_errno(0);
+}
+
+pb_error_t L2Forward::CommandSetDefaultGate(
+    const bess::L2ForwardCommandSetDefaultGateArg &arg) {
+  default_gate_ = arg.gate();
+  return pb_errno(0);
+}
+
+bess::L2ForwardCommandLookupResponse L2Forward::CommandLookup(
+    const bess::L2ForwardCommandLookupArg &arg) {
+  int i;
+  bess::L2ForwardCommandLookupResponse ret;
+  for (i = 0; i < arg.addrs_size(); i++) {
+    const auto &_addr = arg.addrs(i);
+
+    if (!_addr.length()) {
+      ret.set_allocated_error(
+          new pb_error_t(pb_error(EINVAL, "lookup must be list of string")));
+      ret.clear_gates();
+      return ret;
+    }
+
+    const char *str_addr = _addr.c_str();
+    char addr[6];
+
+    if (parse_mac_addr(str_addr, addr) != 0) {
+      ret.set_allocated_error(new pb_error_t(
+          pb_error(EINVAL, "%s is not a proper mac address", str_addr)));
+      ret.clear_gates();
+      return ret;
+    }
+
+    gate_idx_t gate;
+    int r = l2_find(&l2_table_, l2_addr_to_u64(addr), &gate);
+
+    if (r == -ENOENT) {
+      ret.set_allocated_error(new pb_error_t(
+          pb_error(ENOENT, "MAC address '%s' does not exist", str_addr)));
+      ret.clear_gates();
+      return ret;
+    } else if (r != 0) {
+      ret.set_allocated_error(
+          new pb_error_t(pb_error(EINVAL, "Unknown Error: %d\n", r)));
+      ret.clear_gates();
+      return ret;
+    }
+    ret.add_gates(gate);
+  }
+
+  return ret;
+}
+
+pb_error_t L2Forward::CommandPopulate(
+    const bess::L2ForwardCommandPopulateArg &arg) {
+  const char *base;
+  char base_str[6] = {0};
+  uint64_t base_u64;
+
+  if (!arg.base().length()) {
+    return pb_error(EINVAL, "base must exist in gen, and must be string");
+  }
+
+  // parse base addr
+  base = arg.base().c_str();
+  if (parse_mac_addr(base, base_str) != 0) {
+    return pb_error(EINVAL, "%s is not a proper mac address", base_str);
+  }
+
+  base_u64 = l2_addr_to_u64(base_str);
+
+  int cnt = arg.count();
+  int gate_cnt = arg.gate_count();
+
+  base_u64 = rte_be_to_cpu_64(base_u64);
+  base_u64 = base_u64 >> 16;
+
+  for (int i = 0; i < cnt; i++) {
+    l2_add_entry(&l2_table_, rte_cpu_to_be_64(base_u64 << 16), i % gate_cnt);
+
+    base_u64++;
+  }
+
+  return pb_errno(0);
 }
 
 struct snobj *L2Forward::CommandAdd(struct snobj *arg) {
