@@ -117,7 +117,7 @@ void close_mempool(void) {
 }
 
 struct rte_mempool *get_pframe_pool() {
-  return pframe_pool[ctx.socket];
+  return pframe_pool[ctx.socket()];
 }
 
 struct rte_mempool *get_pframe_pool_socket(int socket) {

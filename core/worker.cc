@@ -1,6 +1,8 @@
+#include "worker.h"
+
+#include <limits.h>
 #include <sched.h>
 #include <unistd.h>
-#include <limits.h>
 
 #include <sys/eventfd.h>
 
@@ -12,15 +14,18 @@
 #include "utils/time.h"
 
 #include "common.h"
-#include "worker.h"
-#include "snbuf.h"
 #include "module.h"
 #include "tc.h"
 
-int num_workers;
+int num_workers = 0;
 std::thread worker_threads[MAX_WORKERS];
-struct worker_context *volatile workers[MAX_WORKERS];
-__thread struct worker_context ctx;
+Worker *volatile workers[MAX_WORKERS];
+thread_local Worker ctx;
+
+struct thread_arg {
+  int wid;
+  int core;
+};
 
 #define SYS_CPU_DIR "/sys/devices/system/cpu/cpu%u"
 #define CORE_ID_FILE "topology/core_id"
@@ -29,53 +34,39 @@ __thread struct worker_context ctx;
 int is_cpu_present(unsigned int core_id) {
   char path[PATH_MAX];
   int len = snprintf(path, sizeof(path), SYS_CPU_DIR "/" CORE_ID_FILE, core_id);
-  if (len <= 0 || (unsigned)len >= sizeof(path)) return 0;
-  if (access(path, F_OK) != 0) return 0;
+  if (len <= 0 || (unsigned)len >= sizeof(path))
+    return 0;
+  if (access(path, F_OK) != 0)
+    return 0;
 
   return 1;
-}
-
-void set_non_worker() {
-  int socket;
-
-  /* These TLS variables should not be accessed by the master thread.
-   * Assign INT_MIN to the variables so that the program can crash
-   * when accessed as an index of an array. */
-  ctx.wid = INT_MIN;
-  ctx.core = INT_MIN;
-  ctx.socket = INT_MIN;
-  ctx.fd_event = INT_MIN;
-
-  /* Packet pools should be available to non-worker threads */
-  for (socket = 0; socket < RTE_MAX_NUMA_NODES; socket++) {
-    struct rte_mempool *pool = get_pframe_pool_socket(socket);
-    if (pool) ctx.pframe_pool = pool;
-  }
 }
 
 int is_worker_core(int cpu) {
   int wid;
 
   for (wid = 0; wid < MAX_WORKERS; wid++) {
-    if (is_worker_active(wid) && workers[wid]->core == cpu) return 1;
+    if (is_worker_active(wid) && workers[wid]->core() == cpu)
+      return 1;
   }
 
   return 0;
 }
 
 static void pause_worker(int wid) {
-  if (workers[wid] && workers[wid]->status == worker_context::running) {
-    workers[wid]->status = worker_context::pausing;
+  if (workers[wid] && workers[wid]->status() == WORKER_RUNNING) {
+    workers[wid]->set_status(WORKER_PAUSING);
 
     FULL_BARRIER();
 
-    while (workers[wid]->status == worker_context::pausing)
+    while (workers[wid]->status() == WORKER_PAUSING)
       ; /* spin */
   }
 }
 
 void pause_all_workers() {
-  for (int wid = 0; wid < MAX_WORKERS; wid++) pause_worker(wid);
+  for (int wid = 0; wid < MAX_WORKERS; wid++)
+    pause_worker(wid);
 }
 
 enum class worker_signal : uint64_t {
@@ -84,14 +75,14 @@ enum class worker_signal : uint64_t {
 };
 
 static void resume_worker(int wid) {
-  if (workers[wid] && workers[wid]->status == worker_context::paused) {
+  if (workers[wid] && workers[wid]->status() == WORKER_PAUSED) {
     int ret;
     worker_signal sig = worker_signal::unblock;
 
-    ret = write(workers[wid]->fd_event, &sig, sizeof(sig));
+    ret = write(workers[wid]->fd_event(), &sig, sizeof(sig));
     assert(ret == sizeof(uint64_t));
 
-    while (workers[wid]->status == worker_context::paused)
+    while (workers[wid]->status() == WORKER_PAUSED)
       ; /* spin */
   }
 }
@@ -100,71 +91,87 @@ void resume_all_workers() {
   compute_metadata_offsets();
   process_orphan_tasks();
 
-  for (int wid = 0; wid < MAX_WORKERS; wid++) resume_worker(wid);
+  for (int wid = 0; wid < MAX_WORKERS; wid++)
+    resume_worker(wid);
 }
 
 static void destroy_worker(int wid) {
   pause_worker(wid);
 
-  if (workers[wid] && workers[wid]->status == worker_context::paused) {
+  if (workers[wid] && workers[wid]->status() == WORKER_PAUSED) {
     int ret;
     worker_signal sig = worker_signal::quit;
 
-    ret = write(workers[wid]->fd_event, &sig, sizeof(sig));
+    ret = write(workers[wid]->fd_event(), &sig, sizeof(sig));
     assert(ret == sizeof(uint64_t));
 
     worker_threads[wid].join();
 
-    workers[wid] = NULL;
+    workers[wid] = nullptr;
 
     num_workers--;
   }
 }
 
 void destroy_all_workers() {
-  for (int wid = 0; wid < MAX_WORKERS; wid++) destroy_worker(wid);
+  for (int wid = 0; wid < MAX_WORKERS; wid++)
+    destroy_worker(wid);
 }
 
 int is_any_worker_running() {
   int wid;
 
   for (wid = 0; wid < MAX_WORKERS; wid++) {
-    if (workers[wid] && workers[wid]->status == worker_context::running)
+    if (workers[wid] && workers[wid]->status() == WORKER_RUNNING)
       return 1;
   }
 
   return 0;
 }
 
-int block_worker() {
+void Worker::SetNonWorker() {
+  int socket;
+
+  /* These TLS variables should not be accessed by the master thread.
+   * Assign INT_MIN to the variables so that the program can crash
+   * when accessed as an index of an array. */
+  wid_ = INT_MIN;
+  core_ = INT_MIN;
+  socket_ = INT_MIN;
+  fd_event_ = INT_MIN;
+
+  /* Packet pools should be available to non-worker threads */
+  for (socket = 0; socket < RTE_MAX_NUMA_NODES; socket++) {
+    struct rte_mempool *pool = get_pframe_pool_socket(socket);
+    if (pool)
+      pframe_pool_ = pool;
+  }
+}
+
+int Worker::Block() {
   worker_signal t;
   int ret;
 
-  ctx.status = worker_context::paused;
+  status_ = WORKER_PAUSED;
 
-  ret = read(ctx.fd_event, &t, sizeof(t));
+  ret = read(fd_event_, &t, sizeof(t));
   assert(ret == sizeof(t));
 
   if (t == worker_signal::unblock) {
-    ctx.status = worker_context::running;
+    status_ = WORKER_RUNNING;
     return 0;
   }
 
   if (t == worker_signal::quit) {
-    ctx.status = worker_context::running;
+    status_ = WORKER_RUNNING;
     return 1;
   }
 
   assert(0);
 }
 
-struct thread_arg {
-  int wid;
-  int core;
-};
-
 /* The entry point of worker threads */
-static void *run_worker(void *_arg) {
+void *Worker::Run(void *_arg) {
   struct thread_arg *arg = (struct thread_arg *)_arg;
 
   cpu_set_t set;
@@ -174,50 +181,50 @@ static void *run_worker(void *_arg) {
   rte_thread_set_affinity(&set);
 
   /* just in case */
-  memset(&ctx, 0, sizeof(ctx));
+  memset(this, 0, sizeof(*this));  // FIXME
 
   /* DPDK lcore ID == worker ID (0, 1, 2, 3, ...) */
   RTE_PER_LCORE(_lcore_id) = arg->wid;
 
   /* for workers, wid == rte_lcore_id() */
-  ctx.wid = arg->wid;
-  ctx.core = arg->core;
-  ctx.socket = rte_socket_id();
-  assert(ctx.socket >= 0); /* shouldn't be SOCKET_ID_ANY (-1) */
-  ctx.fd_event = eventfd(0, 0);
-  assert(ctx.fd_event >= 0);
+  wid_ = arg->wid;
+  core_ = arg->core;
+  socket_ = rte_socket_id();
+  assert(socket_ >= 0); /* shouldn't be SOCKET_ID_ANY (-1) */
+  fd_event_ = eventfd(0, 0);
+  assert(fd_event_ >= 0);
 
-  ctx.s = sched_init();
+  s_ = sched_init();
 
-  ctx.current_tsc = rdtsc();
+  current_tsc_ = rdtsc();
 
-  ctx.pframe_pool = get_pframe_pool();
-  assert(ctx.pframe_pool);
+  pframe_pool_ = get_pframe_pool();
+  assert(pframe_pool_);
 
-  ctx.status = worker_context::pausing;
-
-#if 0
-	/* FIXME: when should this be called, avoiding latency */
-	init_module_worker();
-#endif
+  status_ = WORKER_PAUSING;
 
   STORE_BARRIER();
-  workers[ctx.wid] = &ctx;
 
-  LOG(INFO) << "Worker " << ctx.wid << "(" << &ctx << ") "
-            << "is running on core " << ctx.core << " (socket " << ctx.socket
-            << ")";
+  workers[wid_] = this;  // FIXME: consider making workers a static member
+                         // instead of a global
+
+  LOG(INFO) << "Worker " << wid_ << "(" << this << ") "
+            << "is running on core " << core_ << " (socket " << socket_ << ")";
 
   CPU_ZERO(&set);
-  sched_loop(ctx.s);
+  sched_loop(s_);
 
-  LOG(INFO) << "Worker " << ctx.wid << "(" << &ctx << ") "
-            << "is quitting... (core " << ctx.core << ", socket " << ctx.socket
+  LOG(INFO) << "Worker " << wid_ << "(" << this << ") "
+            << "is quitting... (core " << core_ << ", socket " << socket_
             << ")";
 
-  sched_free(ctx.s);
+  sched_free(s_);
 
-  return NULL;
+  return nullptr;
+}
+
+void *run_worker(void *_arg) {
+  return ctx.Run(_arg);
 }
 
 void launch_worker(int wid, int core) {
@@ -227,8 +234,7 @@ void launch_worker(int wid, int core) {
   INST_BARRIER();
 
   /* spin until it becomes ready and fully paused */
-  while (!is_worker_active(wid) ||
-         workers[wid]->status != worker_context::paused)
+  while (!is_worker_active(wid) || workers[wid]->status() != WORKER_PAUSED)
     continue;
 
   num_workers++;

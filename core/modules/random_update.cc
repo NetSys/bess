@@ -1,29 +1,30 @@
 #include <rte_byteorder.h>
 
-#include "../utils/time.h"
-#include "../utils/random.h"
 #include "../module.h"
+#include "../utils/random.h"
+#include "../utils/time.h"
 
 #define MAX_VARS 16
 
 class RandomUpdate : public Module {
  public:
-  static const gate_idx_t kNumIGates = 1;
-  static const gate_idx_t kNumOGates = 1;
-
   RandomUpdate() : Module(), num_vars_(), vars_(), rng_() {}
 
   virtual struct snobj *Init(struct snobj *arg);
 
   virtual void ProcessBatch(struct pkt_batch *batch);
 
-  static const Commands<RandomUpdate> cmds;
-
- private:
   struct snobj *CommandAdd(struct snobj *arg);
   struct snobj *CommandClear(struct snobj *arg);
 
-  int num_vars_;
+  static const gate_idx_t kNumIGates = 1;
+  static const gate_idx_t kNumOGates = 1;
+
+  static const Commands<Module> cmds;
+
+ private:
+  int num_vars_ = {};
+
   struct var {
     uint32_t mask; /* bits with 1 won't be updated */
     uint32_t min;
@@ -34,9 +35,11 @@ class RandomUpdate : public Module {
   Random rng_;
 };
 
-const Commands<RandomUpdate> RandomUpdate::cmds = {
-    {"add", &RandomUpdate::CommandAdd, 0},
-    {"clear", &RandomUpdate::CommandClear, 0},
+const Commands<Module> RandomUpdate::cmds = {};
+
+static const Commands<Module> cmds = {
+    {"add", MODULE_FUNC &RandomUpdate::CommandAdd, 0},
+    {"clear", MODULE_FUNC &RandomUpdate::CommandClear, 0},
 };
 
 struct snobj *RandomUpdate::CommandAdd(struct snobj *arg) {
@@ -158,14 +161,14 @@ void RandomUpdate::ProcessBatch(struct pkt_batch *batch) {
       struct snbuf *snb = batch->pkts[j];
       char *head = static_cast<char *>(snb_head_data(snb));
 
-      uint32_t *p  = (uint32_t *)(head + offset);
+      uint32_t *p = (uint32_t *)(head + offset);
       uint32_t rand_val = min + rng_.GetRange(range);
 
       *p = (*p & mask) | rte_cpu_to_be_32(rand_val);
     }
   }
 
-  run_next_module(this, batch);
+  RunNextModule(batch);
 }
 
 ADD_MODULE(RandomUpdate, "rupdate", "updates packet data with random values")

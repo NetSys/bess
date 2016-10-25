@@ -52,7 +52,7 @@ static void reset_core_affinity() {
 
   /* ...and then unset the ones where workers run */
   for (i = 0; i < MAX_WORKERS; i++)
-    if (is_worker_active(i)) CPU_CLR(workers[i]->core, &set);
+    if (is_worker_active(i)) CPU_CLR(workers[i]->core(), &set);
 
   rte_thread_set_affinity(&set);
 }
@@ -395,10 +395,10 @@ static void init_server() {
   }
 }
 
-void setup_master() {
+void SetupMaster() {
   reset_core_affinity();
 
-  set_non_worker();
+  ctx.SetNonWorker();
 
   cdlist_head_init(&master.clients_all);
   cdlist_head_init(&master.clients_lock_waiting);
@@ -407,7 +407,7 @@ void setup_master() {
   init_server();
 }
 
-void run_master() {
+void RunMaster() {
   struct client *c;
 
   struct epoll_event ev;

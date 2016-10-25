@@ -29,6 +29,7 @@ class GenericEncap : public Module {
 
   void ProcessBatch(struct pkt_batch *batch);
 
+  static const Commands<Module> cmds;
 
  private:
   struct snobj *AddFieldOne(struct snobj *field, struct Field *f, int idx);
@@ -39,6 +40,8 @@ class GenericEncap : public Module {
 
   struct Field fields_[MAX_FIELDS];
 };
+
+const Commands<Module> GenericEncap::cmds = {};
 
 struct snobj *GenericEncap::AddFieldOne(struct snobj *field, struct Field *f,
                                         int idx) {
@@ -57,7 +60,7 @@ struct snobj *GenericEncap::AddFieldOne(struct snobj *field, struct Field *f,
   struct snobj *t;
 
   if (attr) {
-    f->attr_id = add_metadata_attr(this, attr, f->size, MT_READ);
+    f->attr_id = AddMetadataAttr(attr, f->size, MT_READ);
     if (f->attr_id < 0) {
       return snobj_err(-f->attr_id, "idx %d: add_metadata_attr() failed", idx);
     }
@@ -154,7 +157,7 @@ void GenericEncap::ProcessBatch(struct pkt_batch *batch) {
     rte_memcpy(p, headers[i], encap_size);
   }
 
-  run_next_module(this, batch);
+  RunNextModule(batch);
 }
 
 ADD_MODULE(GenericEncap, "generic_encap",

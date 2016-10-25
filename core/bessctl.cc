@@ -3,10 +3,10 @@
 #include <rte_config.h>
 #include <rte_ether.h>
 
-#include "bessctl.grpc.pb.h"
 #include "message.h"
 #include "module.h"
 #include "port.h"
+#include "service.grpc.pb.h"
 #include "tc.h"
 #include "utils/time.h"
 #include "worker.h"
@@ -98,7 +98,7 @@ static int collect_igates(Module* m, GetModuleInfoResponse* response) {
     cdlist_for_each_entry(og, &g->in.ogates_upstream, out.igate_upstream) {
       GetModuleInfoResponse_IGate_OGate* ogate = igate->add_ogates();
       ogate->set_ogate(og->gate_idx);
-      ogate->set_name(og->m->Name());
+      ogate->set_name(og->m->name());
     }
   }
 
@@ -118,7 +118,7 @@ static int collect_ogates(Module* m, GetModuleInfoResponse* response) {
     ogate->set_pkts(g->pkts);
     ogate->set_timestamp(get_epoch_time());
 #endif
-    ogate->set_name(g->out.igate->m->Name());
+    ogate->set_name(g->out.igate->m->name());
     ogate->set_igate(g->out.igate->gate_idx);
   }
 
@@ -237,11 +237,48 @@ static Port* create_port(const std::string& name, const PortBuilder& driver,
   return p.release();
 }
 
+template <typename T>
+static Module* create_module(const char* name, const ModuleBuilder& builder,
+                             const T& arg, bess::Error* perr) {
+  Module* m;
+  std::string mod_name;
+  if (name) {
+    const auto& it = ModuleBuilder::all_modules().find(name);
+    if (it != ModuleBuilder::all_modules().end()) {
+      *perr = pb_errno(EEXIST);
+      return nullptr;
+    }
+    mod_name = name;
+  } else {
+    mod_name = ModuleBuilder::GenerateDefaultName(builder.class_name(),
+                                                  builder.name_template());
+  }
+
+  m = builder.CreateModule(mod_name);
+
+  *perr = *m->Init(&arg);
+  if (perr != nullptr) {
+    ModuleBuilder::DestroyModule(m);  // XXX: fix me
+    return nullptr;
+  }
+
+  if (!builder.AddModule(m)) {
+    *perr = pb_errno(ENOMEM);
+    return nullptr;
+  }
+  return m;
+}
+
 class BESSControlImpl final : public BESSControl::Service {
  public:
   Status ResetAll(ClientContext* context, const Empty& request,
                   EmptyResponse* response) {
     Status status;
+
+    if (is_any_worker_running()) {
+      return return_with_error(response, EBUSY, "There is a running worker");
+    }
+
     status = ResetModules(context, request, response);
     if (response->error().err() != 0) {
       return status;
@@ -274,6 +311,9 @@ class BESSControlImpl final : public BESSControl::Service {
   }
   Status ResetWorkers(ClientContext* context, const Empty& request,
                       EmptyResponse* response) {
+    if (is_any_worker_running()) {
+      return return_with_error(response, EBUSY, "There is a running worker");
+    }
     destroy_all_workers();
     log_info("*** All workers have been destroyed ***\n");
     return Status::OK;
@@ -286,9 +326,9 @@ class BESSControlImpl final : public BESSControl::Service {
       ListWorkersResponse_WorkerStatus* status = response->add_workers_status();
       status->set_wid(wid);
       status->set_running(is_worker_running(wid));
-      status->set_core(workers[wid]->core);
-      status->set_num_tcs(workers[wid]->s->num_classes);
-      status->set_silent_drops(workers[wid]->silent_drops);
+      status->set_core(workers[wid]->core());
+      status->set_num_tcs(workers[wid]->s()->num_classes);
+      status->set_silent_drops(workers[wid]->silent_drops());
     }
     return Status::OK;
   }
@@ -311,55 +351,34 @@ class BESSControlImpl final : public BESSControl::Service {
   }
   Status ResetTcs(ClientContext* context, const Empty& request,
                   EmptyResponse* response) {
-    struct ns_iter iter;
-    struct tc* c;
-
-    struct tc** c_arr;
-    size_t arr_slots = 1024;
-    size_t n = 0;
-
-    c_arr = (struct tc**)malloc(arr_slots * sizeof(struct tc*));
-
-    ns_init_iterator(&iter, NS_TYPE_TC);
-
-    while ((c = (struct tc*)ns_next(&iter)) != NULL) {
-      if (n >= arr_slots) {
-        arr_slots *= 2;
-        c_arr = (struct tc**)realloc(c_arr, arr_slots * sizeof(struct tc*));
-      }
-
-      c_arr[n] = c;
-      n++;
+    if (is_any_worker_running()) {
+      return return_with_error(response, EBUSY, "There is a running worker");
     }
-
-    ns_release_iterator(&iter);
-
-    for (size_t i = 0; i < n; i++) {
-      c = c_arr[i];
+    for (auto it = TCContainer::tcs.begin();
+         it != TCContainer::tcs.end();) {
+      auto it_next = std::next(it);
+      struct tc* c = it->second;
 
       if (c->num_tasks) {
-        free(c_arr);
         return return_with_error(response, EBUSY, "TC %s still has %d tasks",
                                  c->settings.name, c->num_tasks);
       }
 
-      if (c->settings.auto_free)
+      if (c->settings.auto_free) {
         continue;
+      }
 
       tc_leave(c);
       tc_dec_refcnt(c);
+
+      it = it_next;
     }
 
-    free(c_arr);
     return Status::OK;
   }
   Status ListTcs(ClientContext* context, const ListTcsRequest& request,
                  ListTcsResponse* response) {
     unsigned int wid_filter = MAX_WORKERS;
-
-    struct ns_iter iter;
-
-    struct tc* c;
 
     wid_filter = request.wid();
     if (wid_filter >= 0) {
@@ -375,18 +394,18 @@ class BESSControlImpl final : public BESSControl::Service {
       }
     }
 
-    ns_init_iterator(&iter, NS_TYPE_TC);
+    for (const auto &pair : TCContainer::tcs) {
+      struct tc* c = pair.second;
 
-    while ((c = (struct tc*)ns_next(&iter)) != NULL) {
       int wid;
 
       if (wid_filter < MAX_WORKERS) {
-        if (workers[wid_filter]->s != c->s)
+        if (workers[wid_filter]->s() != c->s)
           continue;
         wid = wid_filter;
       } else {
         for (wid = 0; wid < MAX_WORKERS; wid++)
-          if (is_worker_active(wid) && workers[wid]->s == c->s)
+          if (is_worker_active(wid) && workers[wid]->s() == c->s)
             break;
       }
 
@@ -422,12 +441,13 @@ class BESSControlImpl final : public BESSControl::Service {
           c->settings.max_burst[3]);
     }
 
-    ns_release_iterator(&iter);
-
     return Status::OK;
   }
   Status AddTc(ClientContext* context, const AddTcRequest& request,
                EmptyResponse* response) {
+    if (is_any_worker_running()) {
+      return return_with_error(response, EBUSY, "There is a running worker");
+    }
     int wid;
 
     struct tc_params params;
@@ -438,12 +458,7 @@ class BESSControlImpl final : public BESSControl::Service {
       return return_with_error(response, EINVAL, "Missing 'name' field");
     }
 
-    if (!ns_is_valid_name(tc_name)) {
-      return return_with_error(response, EINVAL, "'%s' is an invalid name",
-                               tc_name);
-    }
-
-    if (ns_name_exists(tc_name)) {
+    if (TCContainer::tcs.count(tc_name)) {
       return return_with_error(response, EINVAL, "Name '%s' already exists",
                                tc_name);
     }
@@ -489,7 +504,7 @@ class BESSControlImpl final : public BESSControl::Service {
       params.max_burst[3] = request.class_().max_burst().bits();
     }
 
-    c = tc_init(workers[wid]->s, &params);
+    c = tc_init(workers[wid]->s(), &params);
     if (is_err(c))
       return return_with_error(response, -ptr_to_err(c), "tc_init() failed");
 
@@ -507,9 +522,11 @@ class BESSControlImpl final : public BESSControl::Service {
       return return_with_error(response, EINVAL,
                                "Argument must be a name in str");
 
-    c = (struct tc*)ns_lookup(NS_TYPE_TC, tc_name);
-    if (!c)
+    const auto& it = TCContainer::tcs.find(tc_name);
+    if (it == TCContainer::tcs.end()) {
       return return_with_error(response, ENOENT, "No TC '%s' found", tc_name);
+    }
+    c = it->second;    
 
     response->set_timestamp(get_epoch_time());
     response->set_count(c->stats.usage[RESOURCE_CNT]);
@@ -557,6 +574,9 @@ class BESSControlImpl final : public BESSControl::Service {
   }
   Status ResetPorts(ClientContext* context, const Empty& request,
                     EmptyResponse* response) {
+    if (is_any_worker_running()) {
+      return return_with_error(response, EBUSY, "There is a running worker");
+    }
     for (auto it = PortBuilder::all_ports().cbegin();
          it != PortBuilder::all_ports().end();) {
       auto it_next = std::next(it);
@@ -699,11 +719,11 @@ class BESSControlImpl final : public BESSControl::Service {
   }
   Status ResetModules(ClientContext* context, const Empty& request,
                       EmptyResponse* response) {
-    Module* m;
+    if (is_any_worker_running()) {
+      return return_with_error(response, EBUSY, "There is a running worker");
+    }
 
-    while (list_modules((const Module**)&m, 1, 0))
-      destroy_module(m);
-
+    ModuleBuilder::DestroyAllModules();
     log_info("*** All modules have been destroyed ***\n");
     return Status::OK;
   }
@@ -713,20 +733,13 @@ class BESSControlImpl final : public BESSControl::Service {
     int offset;
 
     for (offset = 0; cnt != 0; offset += cnt) {
-      const int arr_size = 16;
-      const Module* modules[arr_size];
-
-      int i;
-
-      cnt = list_modules(modules, arr_size, offset);
-
       ListModulesResponse_Module* module = response->add_modules();
 
-      for (i = 0; i < cnt; i++) {
-        const Module* m = modules[i];
+      for (const auto& pair : ModuleBuilder::all_modules()) {
+        const Module* m = pair.second;
 
-        module->set_name(m->Name());
-        module->set_mclass(m->GetClass()->Name());
+        module->set_name(m->name());
+        module->set_mclass(m->module_builder()->class_name());
         module->set_desc(m->GetDesc());
       }
     };
@@ -736,172 +749,177 @@ class BESSControlImpl final : public BESSControl::Service {
   Status CreateModule(ClientContext* context,
                       const CreateModuleRequest& request,
                       CreateModuleResponse* response) {
+    if (is_any_worker_running()) {
+      return return_with_error(response, EBUSY, "There is a running worker");
+    }
     const char* mclass_name;
-    const ModuleClass* mclass;
     Module* module;
 
     if (!request.mclass().length())
       return return_with_error(response, EINVAL, "Missing 'mclass' field");
     mclass_name = request.mclass().c_str();
 
-    mclass = find_mclass(mclass_name);
-    if (!mclass)
+    const auto& builders = ModuleBuilder::all_module_builders();
+    const auto& it = builders.find(mclass_name);
+    if (it == builders.end()) {
       return return_with_error(response, ENOENT, "No mclass '%s' found",
                                mclass_name);
+    }
+    const ModuleBuilder& builder = it->second;
 
     Error* error = response->mutable_error();
 
     switch (request.arg_case()) {
       case CreateModuleRequest::kBpfArg:
-        module = create_module(request.name().c_str(), mclass,
+        module = create_module(request.name().c_str(), builder,
                                request.bpf_arg(), error);
         break;
       case CreateModuleRequest::kBufferArg:
-        module = create_module(request.name().c_str(), mclass,
+        module = create_module(request.name().c_str(), builder,
                                request.buffer_arg(), error);
         break;
       case CreateModuleRequest::kBypassArg:
-        module = create_module(request.name().c_str(), mclass,
+        module = create_module(request.name().c_str(), builder,
                                request.bypass_arg(), error);
         break;
       case CreateModuleRequest::kDumpArg:
-        module = create_module(request.name().c_str(), mclass,
+        module = create_module(request.name().c_str(), builder,
                                request.dump_arg(), error);
         break;
       case CreateModuleRequest::kEtherEncapArg:
-        module = create_module(request.name().c_str(), mclass,
+        module = create_module(request.name().c_str(), builder,
                                request.ether_encap_arg(), error);
         break;
       case CreateModuleRequest::kExactMatchArg:
-        module = create_module(request.name().c_str(), mclass,
+        module = create_module(request.name().c_str(), builder,
                                request.exact_match_arg(), error);
         break;
       case CreateModuleRequest::kFlowGenArg:
-        module = create_module(request.name().c_str(), mclass,
+        module = create_module(request.name().c_str(), builder,
                                request.flow_gen_arg(), error);
         break;
       case CreateModuleRequest::kGenericDecapArg:
-        module = create_module(request.name().c_str(), mclass,
+        module = create_module(request.name().c_str(), builder,
                                request.generic_decap_arg(), error);
         break;
       case CreateModuleRequest::kGenericEncapArg:
-        module = create_module(request.name().c_str(), mclass,
+        module = create_module(request.name().c_str(), builder,
                                request.generic_encap_arg(), error);
         break;
       case CreateModuleRequest::kHashLbArg:
-        module = create_module(request.name().c_str(), mclass,
+        module = create_module(request.name().c_str(), builder,
                                request.hash_lb_arg(), error);
         break;
       case CreateModuleRequest::kIpEncapArg:
-        module = create_module(request.name().c_str(), mclass,
+        module = create_module(request.name().c_str(), builder,
                                request.ip_encap_arg(), error);
         break;
       case CreateModuleRequest::kIpLookupArg:
-        module = create_module(request.name().c_str(), mclass,
+        module = create_module(request.name().c_str(), builder,
                                request.ip_lookup_arg(), error);
         break;
       case CreateModuleRequest::kL2ForwardArg:
-        module = create_module(request.name().c_str(), mclass,
+        module = create_module(request.name().c_str(), builder,
                                request.l2_forward_arg(), error);
         break;
       case CreateModuleRequest::kMacSwapArg:
-        module = create_module(request.name().c_str(), mclass,
+        module = create_module(request.name().c_str(), builder,
                                request.mac_swap_arg(), error);
         break;
       case CreateModuleRequest::kMeasureArg:
-        module = create_module(request.name().c_str(), mclass,
+        module = create_module(request.name().c_str(), builder,
                                request.measure_arg(), error);
         break;
       case CreateModuleRequest::kMergeArg:
-        module = create_module(request.name().c_str(), mclass,
+        module = create_module(request.name().c_str(), builder,
                                request.merge_arg(), error);
         break;
       case CreateModuleRequest::kMetadataTestArg:
-        module = create_module(request.name().c_str(), mclass,
+        module = create_module(request.name().c_str(), builder,
                                request.metadata_test_arg(), error);
         break;
       case CreateModuleRequest::kNoopArg:
-        module = create_module(request.name().c_str(), mclass,
+        module = create_module(request.name().c_str(), builder,
                                request.noop_arg(), error);
         break;
       case CreateModuleRequest::kPortIncArg:
-        module = create_module(request.name().c_str(), mclass,
+        module = create_module(request.name().c_str(), builder,
                                request.port_inc_arg(), error);
         break;
       case CreateModuleRequest::kPortOutArg:
-        module = create_module(request.name().c_str(), mclass,
+        module = create_module(request.name().c_str(), builder,
                                request.port_out_arg(), error);
         break;
       case CreateModuleRequest::kQueueIncArg:
-        module = create_module(request.name().c_str(), mclass,
+        module = create_module(request.name().c_str(), builder,
                                request.queue_inc_arg(), error);
         break;
       case CreateModuleRequest::kQueueOutArg:
-        module = create_module(request.name().c_str(), mclass,
+        module = create_module(request.name().c_str(), builder,
                                request.queue_out_arg(), error);
         break;
       case CreateModuleRequest::kQueueArg:
-        module = create_module(request.name().c_str(), mclass,
+        module = create_module(request.name().c_str(), builder,
                                request.queue_arg(), error);
         break;
       case CreateModuleRequest::kRandomUpdateArg:
-        module = create_module(request.name().c_str(), mclass,
+        module = create_module(request.name().c_str(), builder,
                                request.random_update_arg(), error);
         break;
       case CreateModuleRequest::kRewriteArg:
-        module = create_module(request.name().c_str(), mclass,
+        module = create_module(request.name().c_str(), builder,
                                request.rewrite_arg(), error);
         break;
       case CreateModuleRequest::kRoundRobinArg:
-        module = create_module(request.name().c_str(), mclass,
+        module = create_module(request.name().c_str(), builder,
                                request.round_robin_arg(), error);
         break;
       case CreateModuleRequest::kSetMetadataArg:
-        module = create_module(request.name().c_str(), mclass,
+        module = create_module(request.name().c_str(), builder,
                                request.set_metadata_arg(), error);
         break;
       case CreateModuleRequest::kSinkArg:
-        module = create_module(request.name().c_str(), mclass,
+        module = create_module(request.name().c_str(), builder,
                                request.sink_arg(), error);
         break;
       case CreateModuleRequest::kSourceArg:
-        module = create_module(request.name().c_str(), mclass,
+        module = create_module(request.name().c_str(), builder,
                                request.source_arg(), error);
         break;
       case CreateModuleRequest::kSplitArg:
-        module = create_module(request.name().c_str(), mclass,
+        module = create_module(request.name().c_str(), builder,
                                request.split_arg(), error);
         break;
       case CreateModuleRequest::kTimestampArg:
-        module = create_module(request.name().c_str(), mclass,
+        module = create_module(request.name().c_str(), builder,
                                request.timestamp_arg(), error);
         break;
       case CreateModuleRequest::kUpdateArg:
-        module = create_module(request.name().c_str(), mclass,
+        module = create_module(request.name().c_str(), builder,
                                request.update_arg(), error);
         break;
       case CreateModuleRequest::kVlanPopArg:
-        module = create_module(request.name().c_str(), mclass,
+        module = create_module(request.name().c_str(), builder,
                                request.vlan_pop_arg(), error);
         break;
       case CreateModuleRequest::kVlanPushArg:
-        module = create_module(request.name().c_str(), mclass,
+        module = create_module(request.name().c_str(), builder,
                                request.vlan_push_arg(), error);
         break;
       case CreateModuleRequest::kVlanSplitArg:
-        module = create_module(request.name().c_str(), mclass,
+        module = create_module(request.name().c_str(), builder,
                                request.vlan_split_arg(), error);
         break;
       case CreateModuleRequest::kVxlanEncapArg:
-        module = create_module(request.name().c_str(), mclass,
+        module = create_module(request.name().c_str(), builder,
                                request.vxlan_encap_arg(), error);
         break;
       case CreateModuleRequest::kVxlanDecapArg:
-        module = create_module(request.name().c_str(), mclass,
+        module = create_module(request.name().c_str(), builder,
                                request.vxlan_decap_arg(), error);
         break;
       case CreateModuleRequest::kWildcardMatchArg:
-        module = create_module(request.name().c_str(), mclass,
+        module = create_module(request.name().c_str(), builder,
                                request.wildcard_match_arg(), error);
         break;
       case CreateModuleRequest::ARG_NOT_SET:
@@ -912,12 +930,15 @@ class BESSControlImpl final : public BESSControl::Service {
     if (!module)
       return Status::OK;
 
-    response->set_name(module->Name());
+    response->set_name(module->name());
     return Status::OK;
   }
   Status DestroyModule(ClientContext* context,
                        const DestroyModuleRequest& request,
                        EmptyResponse* response) {
+    if (is_any_worker_running()) {
+      return return_with_error(response, EBUSY, "There is a running worker");
+    }
     const char* m_name;
     Module* m;
 
@@ -926,17 +947,20 @@ class BESSControlImpl final : public BESSControl::Service {
                                "Argument must be a name in str");
     m_name = request.name().c_str();
 
-    if ((m = find_module(m_name)) == NULL)
+    if (!ModuleBuilder::all_modules().count(m_name))
       return return_with_error(response, ENOENT, "No module '%s' found",
                                m_name);
 
-    destroy_module(m);
+    ModuleBuilder::DestroyModule(m);
 
     return Status::OK;
   }
   Status GetModuleInfo(ClientContext* context,
                        const GetModuleInfoRequest& request,
                        GetModuleInfoResponse* response) {
+    if (is_any_worker_running()) {
+      return return_with_error(response, EBUSY, "There is a running worker");
+    }
     const char* m_name;
     Module* m;
 
@@ -945,12 +969,12 @@ class BESSControlImpl final : public BESSControl::Service {
                                "Argument must be a name in str");
     m_name = request.name().c_str();
 
-    if ((m = find_module(m_name)) == NULL)
+    if (!ModuleBuilder::all_modules().count(m_name))
       return return_with_error(response, ENOENT, "No module '%s' found",
                                m_name);
 
-    response->set_name(m->Name());
-    response->set_mclass(m->GetClass()->Name());
+    response->set_name(m->name());
+    response->set_mclass(m->module_builder()->class_name());
 
     response->set_desc(m->GetDesc());
 
@@ -965,6 +989,9 @@ class BESSControlImpl final : public BESSControl::Service {
   Status ConnectModules(ClientContext* context,
                         const ConnectModulesRequest& request,
                         EmptyResponse* response) {
+    if (is_any_worker_running()) {
+      return return_with_error(response, EBUSY, "There is a running worker");
+    }
     const char* m1_name;
     const char* m2_name;
     gate_idx_t ogate;
@@ -983,15 +1010,15 @@ class BESSControlImpl final : public BESSControl::Service {
     if (!m1_name || !m2_name)
       return return_with_error(response, EINVAL, "Missing 'm1' or 'm2' field");
 
-    if ((m1 = find_module(m1_name)) == NULL)
+    if (!ModuleBuilder::all_modules().count(m1_name))
       return return_with_error(response, ENOENT, "No module '%s' found",
                                m1_name);
 
-    if ((m2 = find_module(m2_name)) == NULL)
+    if (!ModuleBuilder::all_modules().count(m2_name))
       return return_with_error(response, ENOENT, "No module '%s' found",
                                m2_name);
 
-    ret = connect_modules(m1, ogate, m2, igate);
+    ret = m1->ConnectModules(ogate, m2, igate);
     if (ret < 0)
       return return_with_error(response, -ret, "Connection %s:%d->%d:%s failed",
                                m1_name, ogate, igate, m2_name);
@@ -1001,6 +1028,9 @@ class BESSControlImpl final : public BESSControl::Service {
   Status DisconnectModules(ClientContext* context,
                            const DisconnectModulesRequest& request,
                            EmptyResponse* response) {
+    if (is_any_worker_running()) {
+      return return_with_error(response, EBUSY, "There is a running worker");
+    }
     const char* m_name;
     gate_idx_t ogate;
 
@@ -1014,11 +1044,11 @@ class BESSControlImpl final : public BESSControl::Service {
     if (!request.name().length())
       return return_with_error(response, EINVAL, "Missing 'name' field");
 
-    if ((m = find_module(m_name)) == NULL)
+    if (!ModuleBuilder::all_modules().count(m_name))
       return return_with_error(response, ENOENT, "No module '%s' found",
                                m_name);
 
-    ret = disconnect_modules(m, ogate);
+    ret = m->DisconnectModules(ogate);
     if (ret < 0)
       return return_with_error(response, -ret, "Disconnection %s:%d failed",
                                m_name, ogate);
@@ -1027,6 +1057,9 @@ class BESSControlImpl final : public BESSControl::Service {
   }
   Status AttachTask(ClientContext* context, const AttachTaskRequest& request,
                     EmptyResponse* response) {
+    if (is_any_worker_running()) {
+      return return_with_error(response, EBUSY, "There is a running worker");
+    }
     const char* m_name;
     const char* tc_name;
 
@@ -1040,7 +1073,7 @@ class BESSControlImpl final : public BESSControl::Service {
     if (!request.name().length())
       return return_with_error(response, EINVAL, "Missing 'name' field");
 
-    if ((m = find_module(m_name)) == NULL)
+    if (!ModuleBuilder::all_modules().count(m_name))
       return return_with_error(response, ENOENT, "No module '%s' found",
                                m_name);
 
@@ -1059,9 +1092,11 @@ class BESSControlImpl final : public BESSControl::Service {
     if (request.tc().length() > 0) {
       struct tc* c;
 
-      c = (struct tc*)ns_lookup(NS_TYPE_TC, tc_name);
-      if (!c)
+      const auto& it = TCContainer::tcs.find(tc_name);
+      if (it == TCContainer::tcs.end()) {
         return return_with_error(response, ENOENT, "No TC '%s' found", tc_name);
+      }
+      c = it->second;
 
       task_attach(t, c);
     } else {
@@ -1091,6 +1126,9 @@ class BESSControlImpl final : public BESSControl::Service {
   Status EnableTcpdump(ClientContext* context,
                        const EnableTcpdumpRequest& request,
                        EmptyResponse* response) {
+    if (is_any_worker_running()) {
+      return return_with_error(response, EBUSY, "There is a running worker");
+    }
     const char* m_name;
     const char* fifo;
     gate_idx_t ogate;
@@ -1106,7 +1144,7 @@ class BESSControlImpl final : public BESSControl::Service {
     if (!request.name().length())
       return return_with_error(response, EINVAL, "Missing 'name' field");
 
-    if ((m = find_module(m_name)) == NULL)
+    if (!ModuleBuilder::all_modules().count(m_name))
       return return_with_error(response, ENOENT, "No module '%s' found",
                                m_name);
 
@@ -1114,7 +1152,7 @@ class BESSControlImpl final : public BESSControl::Service {
       return return_with_error(response, EINVAL,
                                "Output gate '%hu' does not exist", ogate);
 
-    ret = enable_tcpdump(fifo, m, ogate);
+    ret = m->EnableTcpDump(fifo, ogate);
 
     if (ret < 0) {
       return return_with_error(response, -ret, "Enabling tcpdump %s:%d failed",
@@ -1126,6 +1164,9 @@ class BESSControlImpl final : public BESSControl::Service {
   Status DisableTcpdump(ClientContext* context,
                         const DisableTcpdumpRequest& request,
                         EmptyResponse* response) {
+    if (is_any_worker_running()) {
+      return return_with_error(response, EBUSY, "There is a running worker");
+    }
     const char* m_name;
     gate_idx_t ogate;
 
@@ -1139,7 +1180,7 @@ class BESSControlImpl final : public BESSControl::Service {
     if (!request.name().length())
       return return_with_error(response, EINVAL, "Missing 'name' field");
 
-    if ((m = find_module(m_name)) == NULL)
+    if (!ModuleBuilder::all_modules().count(m_name))
       return return_with_error(response, ENOENT, "No module '%s' found",
                                m_name);
 
@@ -1147,7 +1188,7 @@ class BESSControlImpl final : public BESSControl::Service {
       return return_with_error(response, EINVAL,
                                "Output gate '%hu' does not exist", ogate);
 
-    ret = disable_tcpdump(m, ogate);
+    ret = m->DisableTcpDump(ogate);
 
     if (ret < 0) {
       return return_with_error(response, -ret, "Disabling tcpdump %s:%d failed",
@@ -1158,6 +1199,9 @@ class BESSControlImpl final : public BESSControl::Service {
 
   Status KillBess(ClientContext* context, const Empty& request,
                   EmptyResponse* response) {
+    if (is_any_worker_running()) {
+      return return_with_error(response, EBUSY, "There is a running worker");
+    }
     log_notice("Halt requested by a client\n");
     exit(EXIT_SUCCESS);
 
