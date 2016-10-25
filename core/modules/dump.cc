@@ -32,7 +32,7 @@ const Commands<Module> Dump::cmds = {
 
 struct snobj *Dump::Init(struct snobj *arg) {
   min_interval_ns_ = DEFAULT_INTERVAL_NS;
-  next_ns_ = ctx.current_tsc;
+  next_ns_ = ctx.current_tsc();
 
   if (arg && (arg = snobj_eval(arg, "interval"))) {
     return CommandSetInterval(arg);
@@ -42,14 +42,14 @@ struct snobj *Dump::Init(struct snobj *arg) {
 }
 
 void Dump::ProcessBatch(struct pkt_batch *batch) {
-  if (unlikely(ctx.current_ns >= next_ns_)) {
+  if (unlikely(ctx.current_ns() >= next_ns_)) {
     struct snbuf *pkt = batch->pkts[0];
 
     printf("----------------------------------------\n");
     printf("%s: packet dump\n", name().c_str());
     snb_dump(stdout, pkt);
     rte_hexdump(stdout, "Metadata buffer", pkt->_metadata, SNBUF_METADATA);
-    next_ns_ = ctx.current_ns + min_interval_ns_;
+    next_ns_ = ctx.current_ns() + min_interval_ns_;
   }
 
   RunChooseModule(get_igate(), batch);

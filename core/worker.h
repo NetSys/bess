@@ -28,54 +28,131 @@ typedef uint16_t gate_idx_t;
  *	master		RTE_MAX_LCORE-1		all other cores
  */
 
-typedef volatile enum {
+typedef enum {
   WORKER_PAUSING = 0, /* transient state for blocking or quitting */
   WORKER_PAUSED,
   WORKER_RUNNING,
   WORKER_FINISHED,
 } worker_status_t;
 
-struct worker_context {
-  volatile enum {
-    pausing = 0, /* transient state for blocking or quitting */
-    paused,
-    running,
-    finished
-  } status;
+class Worker {
+ public:
+  Worker()
+      : wid_(),
+        core_(),
+        socket_(),
+        fd_event_(),
+        pframe_pool_(),
+        s_(),
+        silent_drops_(),
+        current_tsc_(),
+        current_ns_(),
+        igate_stack_(),
+        stack_depth_(),
+        splits_() {}
 
-  int wid;		/* always [0, MAX_WORKERS - 1] */
-  int core;		/* TODO: should be cpuset_t */
-  int socket;
-  int fd_event;
+  ~Worker() {}
 
-  struct rte_mempool *pframe_pool;
+  /* ----------------------------------------------------------------------
+   * functions below are invoked by non-worker threads (the master)
+   * ---------------------------------------------------------------------- */
+  void SetNonWorker();
 
-  struct sched *s;
+  /* ----------------------------------------------------------------------
+   * functions below are invoked by worker threads
+   * ---------------------------------------------------------------------- */
+  inline int is_pause_requested() { return status_ == WORKER_PAUSING; }
 
-  uint64_t silent_drops; /* packets that have been sent to a deadend */
+  /* Block myself. Return nonzero if the worker needs to die */
+  int Block();
 
-  uint64_t current_tsc;
-  uint64_t current_ns;
+  /* The entry point of worker threads */
+  void *Run(void *_arg);
+
+  worker_status_t status() { return status_; }
+  void set_status(worker_status_t status) { status_ = status; }
+
+  int wid() { return wid_; }
+  int core() { return core_; }
+  int socket() { return socket_; }
+  int fd_event() { return fd_event_; }
+
+  struct rte_mempool *pframe_pool() {
+    return pframe_pool_;
+  }
+
+  struct sched *s() {
+    return s_;
+  }
+
+  uint64_t silent_drops() { return silent_drops_; }
+  inline void set_silent_drops(uint64_t drops) { silent_drops_ = drops; }
+  inline void incr_silent_drops(uint64_t drops) { silent_drops_ += drops; }
+
+  uint64_t current_tsc() { return current_tsc_; }
+  inline void set_current_tsc(uint64_t tsc) { current_tsc_ = tsc; }
+
+  uint64_t current_ns() { return current_ns_; }
+  inline void set_current_ns(uint64_t ns) { current_ns_ = ns; }
 
   /* The current input gate index is not given as a function parameter.
    * Modules should use get_igate() for access */
-  gate_idx_t igate_stack[MAX_MODULES_PER_PATH];
-  int stack_depth;
+  gate_idx_t *igate_stack() { return igate_stack_; }
+  int stack_depth() { return stack_depth_; }
+
+  inline gate_idx_t igate_stack_top() { return igate_stack_[stack_depth_ - 1]; }
+
+  inline void push_igate(gate_idx_t gate) {
+    igate_stack_[stack_depth_] = gate;
+    stack_depth_++;
+  }
+
+  inline gate_idx_t pop_igate() {
+    stack_depth_--;
+    return igate_stack_[stack_depth_];
+  }
 
   /* better be the last field. it's huge */
-  struct pkt_batch splits[MAX_GATES + 1];
+  struct pkt_batch *splits() {
+    return splits_;
+  }
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(Worker);
+
+  volatile worker_status_t status_;
+
+  int wid_;  /* always [0, MAX_WORKERS - 1] */
+  int core_; /* TODO: should be cpuset_t */
+  int socket_;
+  int fd_event_;
+
+  struct rte_mempool *pframe_pool_;
+
+  struct sched *s_;
+
+  uint64_t silent_drops_; /* packets that have been sent to a deadend */
+
+  uint64_t current_tsc_;
+  uint64_t current_ns_;
+
+  /* The current input gate index is not given as a function parameter.
+   * Modules should use get_igate() for access */
+  gate_idx_t igate_stack_[MAX_MODULES_PER_PATH];
+  int stack_depth_;
+
+  /* better be the last field. it's huge */
+  struct pkt_batch splits_[MAX_GATES + 1];
 };
 
 extern int num_workers;
 extern std::thread worker_threads[MAX_WORKERS];
-extern struct worker_context *volatile workers[MAX_WORKERS];
-extern __thread struct worker_context ctx;
+extern Worker *volatile workers[MAX_WORKERS];
+extern thread_local Worker ctx;
 
 /* ------------------------------------------------------------------------
  * functions below are invoked by non-worker threads (the master)
  * ------------------------------------------------------------------------ */
-void set_non_worker();
-
 int is_worker_core(int cpu);
 
 void pause_all_workers();
@@ -86,23 +163,15 @@ int is_any_worker_running();
 
 int is_cpu_present(unsigned int core_id);
 
-/* arg (int) is the core id the worker should run on */
-void launch_worker(int wid, int core);
-
-static inline int is_worker_active(int wid) { return workers[wid] != NULL; }
+static inline int is_worker_active(int wid) {
+  return workers[wid] != nullptr;
+}
 
 static inline int is_worker_running(int wid) {
-  return workers[wid] && workers[wid]->status == worker_context::running;
+  return workers[wid] && workers[wid]->status() == WORKER_RUNNING;
 }
 
-/* ------------------------------------------------------------------------
- * functions below are invoked by worker threads
- * ------------------------------------------------------------------------ */
-static inline int is_pause_requested() {
-  return ctx.status == worker_context::pausing;
-}
-
-/* Block myself. Return nonzero if the worker needs to die */
-int block_worker(void);
+/* arg (int) is the core id the worker should run on */
+void launch_worker(int wid, int core);
 
 #endif

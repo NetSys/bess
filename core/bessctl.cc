@@ -318,9 +318,9 @@ class BESSControlImpl final : public BESSControl::Service {
       ListWorkersResponse_WorkerStatus* status = response->add_workers_status();
       status->set_wid(wid);
       status->set_running(is_worker_running(wid));
-      status->set_core(workers[wid]->core);
-      status->set_num_tcs(workers[wid]->s->num_classes);
-      status->set_silent_drops(workers[wid]->silent_drops);
+      status->set_core(workers[wid]->core());
+      status->set_num_tcs(workers[wid]->s()->num_classes);
+      status->set_silent_drops(workers[wid]->silent_drops());
     }
     return Status::OK;
   }
@@ -413,12 +413,12 @@ class BESSControlImpl final : public BESSControl::Service {
       int wid;
 
       if (wid_filter < MAX_WORKERS) {
-        if (workers[wid_filter]->s != c->s)
+        if (workers[wid_filter]->s() != c->s)
           continue;
         wid = wid_filter;
       } else {
         for (wid = 0; wid < MAX_WORKERS; wid++)
-          if (is_worker_active(wid) && workers[wid]->s == c->s)
+          if (is_worker_active(wid) && workers[wid]->s() == c->s)
             break;
       }
 
@@ -521,7 +521,7 @@ class BESSControlImpl final : public BESSControl::Service {
       params.max_burst[3] = request.class_().max_burst().bits();
     }
 
-    c = tc_init(workers[wid]->s, &params);
+    c = tc_init(workers[wid]->s(), &params);
     if (is_err(c))
       return return_with_error(response, -ptr_to_err(c), "tc_init() failed");
 

@@ -106,7 +106,7 @@ static inline int snb_is_simple(struct snbuf *snb) {
 extern struct rte_mbuf pframe_template;
 
 static inline struct snbuf *__snb_alloc() {
-  return (struct snbuf *)rte_pktmbuf_alloc(ctx.pframe_pool);
+  return (struct snbuf *)rte_pktmbuf_alloc(ctx.pframe_pool());
 }
 
 static inline struct snbuf *__snb_alloc_pool(struct rte_mempool *pool) {
@@ -134,7 +134,7 @@ static inline int snb_alloc_bulk(snb_array_t snbs, int cnt, uint16_t len) {
   int ret;
   int i;
 
-  ret = rte_mempool_get_bulk(ctx.pframe_pool, (void **)snbs, cnt);
+  ret = rte_mempool_get_bulk(ctx.pframe_pool(), (void **)snbs, cnt);
   if (ret != 0) return 0;
 
   for (i = 0; i < cnt; i++) {

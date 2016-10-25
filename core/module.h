@@ -203,7 +203,7 @@ class Module {
   // overide this section to create a new module -----------------------------
  public:
   Module() = default;
-  virtual ~Module() {};
+  virtual ~Module(){};
 
   virtual bess::Error *Init(const void *arg) { return nullptr; }
   virtual struct snobj *Init(struct snobj *arg) { return nullptr; }
@@ -337,13 +337,12 @@ inline void Module::RunChooseModule(gate_idx_t ogate_idx,
     DumpPcapPkts(ogate, batch);
 #endif
 
-  ctx.igate_stack[ctx.stack_depth] = ogate->out.igate_idx;
-  ctx.stack_depth++;
+  ctx.push_igate(ogate->out.igate_idx);
 
   // XXX
   ((Module *)ogate->arg)->ProcessBatch(batch);
 
-  ctx.stack_depth--;
+  ctx.pop_igate();
 
 #if SN_TRACE_MODULES
   _trace_after_call();
@@ -398,7 +397,7 @@ void _trace_after_call(void);
 #endif
 
 static inline gate_idx_t get_igate() {
-  return ctx.igate_stack[ctx.stack_depth - 1];
+  return ctx.igate_stack_top();
 }
 
 static inline int is_active_gate(struct gates *gates, gate_idx_t idx) {
