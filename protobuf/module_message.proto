@@ -83,6 +83,10 @@ message MeasureCommandGetSummaryResponse {
   uint64 total_latency_ns = 5;
 }
 
+message PortIncCommandSetBurstArg {
+  int64 burst = 1;
+}
+
 message BPFArg {
   message Filter {
     int64 priority = 1;
