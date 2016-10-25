@@ -5,8 +5,8 @@
 #include <rte_ip.h>
 #include <rte_tcp.h>
 
-#include "../utils/time.h"
 #include "../utils/histogram.h"
+#include "../utils/time.h"
 
 #include "../module.h"
 
@@ -23,28 +23,28 @@ inline int get_measure_packet(struct snbuf *pkt, uint64_t *time) {
 /* XXX: currently doesn't support multiple workers */
 class Measure : public Module {
  public:
-  static const gate_idx_t kNumIGates = 1;
-  static const gate_idx_t kNumOGates = 1;
-
-  Measure() :
-      Module(),
-      hist_(),
-      start_time_(),
-      warmup_(),
-      pkt_cnt_(),
-      bytes_cnt_(),
-      total_latency_() {}
+  Measure()
+      : Module(),
+        hist_(),
+        start_time_(),
+        warmup_(),
+        pkt_cnt_(),
+        bytes_cnt_(),
+        total_latency_() {}
 
   virtual struct snobj *Init(struct snobj *arg);
 
   virtual void ProcessBatch(struct pkt_batch *batch);
 
-  static const Commands<Measure> cmds;
-
- private:
   struct snobj *CommandGetSummary(struct snobj *arg);
 
-  struct histogram hist_;
+  static const gate_idx_t kNumIGates = 1;
+  static const gate_idx_t kNumOGates = 1;
+
+  static const Commands<Module> cmds;
+
+ private:
+  struct histogram hist_ = {0};
 
   uint64_t start_time_;
   int warmup_; /* second */
@@ -54,8 +54,8 @@ class Measure : public Module {
   uint64_t total_latency_;
 };
 
-const Commands<Measure> Measure::cmds = {
-    {"get_summary", &Measure::CommandGetSummary, 0},
+const Commands<Module> Measure::cmds = {
+    {"get_summary", MODULE_FUNC &Measure::CommandGetSummary, 0},
 };
 
 struct snobj *Measure::Init(struct snobj *arg) {
@@ -76,7 +76,7 @@ void Measure::ProcessBatch(struct pkt_batch *batch) {
   }
 
   if (static_cast<int>(HISTO_TIME_TO_SEC(time - start_time_)) < warmup_) {
-    run_next_module(this, batch);
+    RunNextModule(batch);
     return;
   }
 

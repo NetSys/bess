@@ -177,10 +177,8 @@ static void identify_scope_component(Module *m, struct mt_attr *attr) {
 }
 
 static void prepare_metadata_computation() {
-  struct ns_iter iter;
-  ns_init_iterator(&iter, NS_TYPE_MODULE);
-  while (1) {
-    Module *m = (Module *)ns_next(&iter);
+  for (const auto &it : ModuleBuilder::all_modules()) {
+    Module *m = it.second;
     if (!m) break;
 
     module_scopes[m] = -1;
@@ -190,7 +188,6 @@ static void prepare_metadata_computation() {
       m->attrs[i].scope_id = -1;
     }
   }
-  ns_release_iterator(&iter);
 }
 
 static void cleanup_metadata_computation() {
@@ -328,42 +325,33 @@ static void assign_offsets() {
 }
 
 void check_orphan_readers() {
-  struct ns_iter iter;
-
-  ns_init_iterator(&iter, NS_TYPE_MODULE);
-  while (1) {
-    Module *m = (Module *)ns_next(&iter);
+  for (const auto &it : ModuleBuilder::all_modules()) {
+    const Module *m = it.second;
     if (!m) break;
 
     for (int i = 0; i < m->num_attrs; i++) {
       if (m->attr_offsets[i] != MT_OFFSET_NOREAD) continue;
 
       LOG(WARNING) << "Metadata attr " << m->attrs[i].name << "/"
-                   << m->attrs[i].size << " of module " << m->Name() << " has "
+                   << m->attrs[i].size << " of module " << m->name() << " has "
                    << "no upstream module that sets the value!";
     }
   }
-  ns_release_iterator(&iter);
 }
 
 /* Debugging tool */
 void log_all_scopes_per_module() {
-  struct ns_iter iter;
-
-  ns_init_iterator(&iter, NS_TYPE_MODULE);
-
-  while (1) {
-    Module *m = (Module *)ns_next(&iter);
+  for (const auto &it : ModuleBuilder::all_modules()) {
+    const Module *m = it.second;
     if (!m) break;
 
-    LOG(INFO) << "Module " << m->Name()
+    LOG(INFO) << "Module " << m->name()
               << " part of the following scope components: ";
     for (int i = 0; i < MT_TOTAL_SIZE; i++) {
       if (m->scope_components[i] != -1)
         LOG(INFO) << "scope " << m->scope_components[i] << " at offset " << i;
     }
   }
-  ns_release_iterator(&iter);
 }
 
 static void compute_scope_degrees() {
@@ -389,13 +377,10 @@ static void sort_scope_components() {
 
 /* Main entry point for calculating metadata offsets. */
 void compute_metadata_offsets() {
-  struct ns_iter iter;
-
   prepare_metadata_computation();
 
-  ns_init_iterator(&iter, NS_TYPE_MODULE);
-  while (1) {
-    Module *m = (Module *)ns_next(&iter);
+  for (const auto &it : ModuleBuilder::all_modules()) {
+    Module *m = it.second;
     if (!m) break;
 
     for (int i = 0; i < m->num_attrs; i++) {
@@ -410,7 +395,6 @@ void compute_metadata_offsets() {
         identify_single_scope_component(m, attr);
     }
   }
-  ns_release_iterator(&iter);
 
   sort_scope_components();
   assign_offsets();
@@ -419,10 +403,10 @@ void compute_metadata_offsets() {
     LOG(INFO) << "scope component for " << scope_components[i].size << "-byte"
               << "attr " << scope_components[i].name << "at offset "
               << scope_components[i].offset << ": {"
-              << scope_components[i].modules[0]->Name();
+              << scope_components[i].modules[0]->name();
 
     for (size_t j = 1; j < scope_components[i].modules.size(); j++)
-      LOG(INFO) << scope_components[i].modules[j]->Name();
+      LOG(INFO) << scope_components[i].modules[j]->name();
 
     LOG(INFO) << "}";
   }
@@ -432,32 +416,4 @@ void compute_metadata_offsets() {
   check_orphan_readers();
 
   cleanup_metadata_computation();
-}
-
-int is_valid_attr(const std::string &name, int size, enum mt_access_mode mode) {
-  if (name.empty()) return 0;
-
-  if (size < 1 || size > MT_ATTR_MAX_SIZE) return 0;
-
-  if (mode != MT_READ && mode != MT_WRITE && mode != MT_UPDATE) return 0;
-
-  return 1;
-}
-
-int add_metadata_attr(Module *m, const std::string &name, int size,
-                      enum mt_access_mode mode) {
-  int n = m->num_attrs;
-
-  if (n >= MAX_ATTRS_PER_MODULE) return -ENOSPC;
-
-  if (!is_valid_attr(name, size, mode)) return -EINVAL;
-
-  m->attrs[n].name = name;
-  m->attrs[n].size = size;
-  m->attrs[n].mode = mode;
-  m->attrs[n].scope_id = -1;
-
-  m->num_attrs++;
-
-  return n;
 }

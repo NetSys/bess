@@ -13,7 +13,7 @@ static const int kDefaultPort = 0x02912; // 10514 in decimal
 // TODO(barath): Rename these flags to something more intuitive.
 DEFINE_bool(t, false, "Dump the size of internal data structures");
 DEFINE_bool(g, false, "Run test suites");
-DEFINE_string(i, "", "Specifies where to write the pidfile");
+DEFINE_string(i, "/var/run/bessd.pid", "Specifies where to write the pidfile");
 DEFINE_bool(f, false, "Run BESS in foreground mode (for developers)");
 DEFINE_bool(k, false, "Kill existing BESS instance, if any");
 DEFINE_bool(s, false, "Show TC statistics every second");

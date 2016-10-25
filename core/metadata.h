@@ -5,8 +5,6 @@
 
 #include <string>
 
-#include "namespace.h"
-
 #define MT_ATTR_MAX_SIZE 32 /* in bytes, per attribute */
 
 #define MAX_ATTRS_PER_MODULE 16
@@ -93,7 +91,5 @@ void compute_metadata_offsets();
 
 char *get_scope_attr_name(scope_id_t scope_id);
 int *get_scope_attr_size(scope_id_t scope_id);
-
-int is_valid_attr(const char *name, int size, enum mt_access_mode mode);
 
 #endif

@@ -3,9 +3,6 @@
 
 class QueueInc : public Module {
  public:
-  static const gate_idx_t kNumIGates = 0;
-  static const gate_idx_t kNumOGates = 1;
-
   QueueInc() : Module(), port_(), qid_(), prefetch_(), burst_() {}
 
   virtual struct snobj *Init(struct snobj *arg);
@@ -13,22 +10,24 @@ class QueueInc : public Module {
 
   virtual struct task_result RunTask(void *arg);
 
-  virtual struct snobj *GetDesc();
+  virtual std::string GetDesc() const;
 
-  static const Commands<QueueInc> cmds;
-
- private:
   struct snobj *CommandSetBurst(struct snobj *arg);
 
+  static const gate_idx_t kNumIGates = 0;
+  static const gate_idx_t kNumOGates = 1;
+
+  static const Commands<Module> cmds;
+
+ private:
   Port *port_;
   queue_t qid_;
   int prefetch_;
   int burst_;
 };
 
-const Commands<QueueInc> QueueInc::cmds = {
-    {"set_burst", &QueueInc::CommandSetBurst, 1},
-};
+const Commands<Module> QueueInc::cmds = {
+    {"set_burst", MODULE_FUNC &QueueInc::CommandSetBurst, 1}};
 
 struct snobj *QueueInc::Init(struct snobj *arg) {
   struct snobj *t;
@@ -73,10 +72,9 @@ struct snobj *QueueInc::Init(struct snobj *arg) {
     prefetch_ = 1;
   }
 
-  tid = register_task(this, (void *)(uintptr_t)qid_);
-  if (tid == INVALID_TASK_ID) {
+  tid = RegisterTask((void *)(uintptr_t)qid_);
+  if (tid == INVALID_TASK_ID)
     return snobj_err(ENOMEM, "Task creation failed");
-  }
 
   ret = port_->AcquireQueues(reinterpret_cast<const module *>(this),
                              PACKET_DIR_INC, &qid_, 1);
@@ -92,8 +90,8 @@ void QueueInc::Deinit() {
                        &qid_, 1);
 }
 
-struct snobj *QueueInc::GetDesc() {
-  return snobj_str_fmt("%s:%hhu/%s", port_->name().c_str(), qid_,
+std::string QueueInc::GetDesc() const {
+  return string_format("%s:%hhu/%s", port_->name().c_str(), qid_,
                        port_->port_builder()->class_name().c_str());
 }
 
@@ -141,7 +139,7 @@ struct task_result QueueInc::RunTask(void *arg) {
     p->queue_stats[PACKET_DIR_INC][qid].bytes += received_bytes;
   }
 
-  run_next_module(this, &batch);
+  RunNextModule(&batch);
 
   return ret;
 }

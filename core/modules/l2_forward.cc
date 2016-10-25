@@ -77,8 +77,8 @@ static int l2_init(struct l2_table *l2tbl, int size, int bucket) {
 }
 
 static int l2_deinit(struct l2_table *l2tbl) {
-  if (l2tbl == nullptr || l2tbl->table == nullptr ||
-      l2tbl->size == 0 || l2tbl->bucket == 0) {
+  if (l2tbl == nullptr || l2tbl->table == nullptr || l2tbl->size == 0 ||
+      l2tbl->bucket == 0) {
     return -EINVAL;
   }
 
@@ -93,7 +93,9 @@ static uint32_t l2_ib_to_offset(struct l2_table *l2tbl, int index, int bucket) {
   return index * l2tbl->bucket + bucket;
 }
 
-static uint32_t l2_hash(mac_addr_t addr) { return rte_hash_crc_8byte(addr, 0); }
+static uint32_t l2_hash(mac_addr_t addr) {
+  return rte_hash_crc_8byte(addr, 0);
+}
 
 static uint32_t l2_hash_to_index(uint32_t hash, uint32_t size) {
   return hash & (size - 1);
@@ -264,7 +266,8 @@ static int l2_find_slot(struct l2_table *l2tbl, mac_addr_t addr, uint32_t *idx,
     idx_v2 = l2_alt_index(hash, l2tbl->size_power, idx_v1);
 
     /* if the alternate bucket is same as original skip it */
-    if (idx_v1 == idx_v2 || idx1 == idx_v2) break;
+    if (idx_v1 == idx_v2 || idx1 == idx_v2)
+      break;
 
     for (j = 0; j < l2tbl->bucket; j++) {
       offset2 = l2_ib_to_offset(l2tbl, idx_v2, j);
@@ -525,8 +528,6 @@ static int parse_mac_addr(const char *str, char *addr) {
 /******************************************************************************/
 class L2Forward : public Module {
  public:
-  static const gate_idx_t kNumOGates = MAX_GATES;
-
   L2Forward() : Module(), l2_table_(), default_gate_() {}
 
   virtual struct snobj *Init(struct snobj *arg);
@@ -534,25 +535,28 @@ class L2Forward : public Module {
 
   virtual void ProcessBatch(struct pkt_batch *batch);
 
-  static const Commands<L2Forward> cmds;
-
- private:
   struct snobj *CommandAdd(struct snobj *arg);
   struct snobj *CommandDelete(struct snobj *arg);
   struct snobj *CommandSetDefaultGate(struct snobj *arg);
   struct snobj *CommandLookup(struct snobj *arg);
   struct snobj *CommandPopulate(struct snobj *arg);
 
-  struct l2_table l2_table_;
-  gate_idx_t default_gate_;
+  static const gate_idx_t kNumIGates = 1;
+  static const gate_idx_t kNumOGates = MAX_GATES;
+
+  static const Commands<Module> cmds;
+
+ private:
+  struct l2_table l2_table_ = {0};
+  gate_idx_t default_gate_ = {0};
 };
 
-const Commands<L2Forward> L2Forward::cmds = {
-    {"add", &L2Forward::CommandAdd, 0},
-    {"delete", &L2Forward::CommandDelete, 0},
-    {"set_default_gate", &L2Forward::CommandSetDefaultGate, 1},
-    {"lookup", &L2Forward::CommandLookup, 1},
-    {"populate", &L2Forward::CommandPopulate, 0},
+const Commands<Module> L2Forward::cmds = {
+    {"add", MODULE_FUNC &L2Forward::CommandAdd, 0},
+    {"delete", MODULE_FUNC &L2Forward::CommandDelete, 0},
+    {"set_default_gate", MODULE_FUNC &L2Forward::CommandSetDefaultGate, 1},
+    {"lookup", MODULE_FUNC &L2Forward::CommandLookup, 1},
+    {"populate", MODULE_FUNC &L2Forward::CommandPopulate, 0},
 };
 
 struct snobj *L2Forward::Init(struct snobj *arg) {
@@ -581,7 +585,9 @@ struct snobj *L2Forward::Init(struct snobj *arg) {
   return nullptr;
 }
 
-void L2Forward::Deinit() { l2_deinit(&l2_table_); }
+void L2Forward::Deinit() {
+  l2_deinit(&l2_table_);
+}
 
 void L2Forward::ProcessBatch(struct pkt_batch *batch) {
   gate_idx_t default_gate = ACCESS_ONCE(default_gate_);
@@ -596,7 +602,7 @@ void L2Forward::ProcessBatch(struct pkt_batch *batch) {
             &ogates[i]);
   }
 
-  run_split(this, ogates, batch);
+  RunSplit(ogates, batch);
 }
 
 struct snobj *L2Forward::CommandAdd(struct snobj *arg) {
@@ -753,7 +759,8 @@ struct snobj *L2Forward::CommandPopulate(struct snobj *arg) {
     return snobj_err(EINVAL, "count must exist in gen, and must be int");
   }
 
-  if (snobj_type(t) != TYPE_INT) return snobj_err(EINVAL, "count must be int");
+  if (snobj_type(t) != TYPE_INT)
+    return snobj_err(EINVAL, "count must be int");
 
   t = snobj_eval(arg, "gate_count");
   if (t == nullptr) {
