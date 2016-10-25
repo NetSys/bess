@@ -43,9 +43,9 @@ static inline int is_holding_pause(struct client *c) {
   return cdlist_is_hooked(&c->master_pause_holding);
 }
 
-void setup_master();
+void SetupMaster();
 
 /* The main run loop of the channel thread. Never returns. */
-void run_master();
+void RunMaster();
 
 #endif

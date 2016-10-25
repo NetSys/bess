@@ -22,7 +22,9 @@ void add_testcase(struct testcase *t) {
   if (t->forced) num_forced_tests++;
 }
 
-void run_tests() {
+// TODO(barath): Legacy testing code -- refactor to move performance tests into benchmarks
+// and unit tests into gtests.
+void RunTests() {
   int i = 0;
   time_t curr;
   char buf[1024];
@@ -47,7 +49,10 @@ void run_tests() {
   LOG(INFO) << "Test ended at " << buf << "--------------------------";
 }
 
-void run_forced_tests() {
+// TODO(barath): Replace this with a new command line argument that allows you to provide
+// the specific list of tests to run, so that we don't need to have a distinction between
+// all tests and forced tests.
+void RunForcedTests() {
   int i = 0;
   time_t curr;
   char buf[1024];

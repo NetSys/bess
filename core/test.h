@@ -25,7 +25,7 @@ struct testcase {
 
 void add_testcase(struct testcase *t);
 
-void run_tests();
-void run_forced_tests();
+void RunTests();
+void RunForcedTests();
 
 #endif
