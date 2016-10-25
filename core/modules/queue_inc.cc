@@ -6,6 +6,7 @@ class QueueInc : public Module {
   QueueInc() : Module(), port_(), qid_(), prefetch_(), burst_() {}
 
   virtual struct snobj *Init(struct snobj *arg);
+  virtual pb_error_t Init(const bess::QueueIncArg &arg);
   virtual void Deinit();
 
   virtual struct task_result RunTask(void *arg);
@@ -13,6 +14,7 @@ class QueueInc : public Module {
   virtual std::string GetDesc() const;
 
   struct snobj *CommandSetBurst(struct snobj *arg);
+  pb_error_t CommandSetBurst(const bess::QueueIncCommandSetBurstArg &arg);
 
   static const gate_idx_t kNumIGates = 0;
   static const gate_idx_t kNumOGates = 1;
@@ -24,10 +26,52 @@ class QueueInc : public Module {
   queue_t qid_;
   int prefetch_;
   int burst_;
+  pb_error_t SetBurst(int64_t burst);
 };
 
 const Commands<Module> QueueInc::cmds = {
     {"set_burst", MODULE_FUNC &QueueInc::CommandSetBurst, 1}};
+
+pb_error_t QueueInc::Init(const bess::QueueIncArg &arg) {
+  const char *port_name;
+  task_id_t tid;
+  pb_error_t err;
+  burst_ = MAX_PKT_BURST;
+  if (!arg.port().length()) {
+    return pb_error(EINVAL, "Field 'port' must be specified");
+  }
+  port_name = arg.port().c_str();
+  qid_ = arg.qid();
+
+  const auto &it = PortBuilder::all_ports().find(port_name);
+  if (it == PortBuilder::all_ports().end()) {
+    return pb_error(ENODEV, "Port %s not found", port_name);
+  }
+  port_ = it->second;
+
+  if (arg.burst() != 0) {
+    err = SetBurst(arg.burst());
+    if (err.err() != 0) {
+      return err;
+    }
+  }
+
+  if (arg.prefetch()) {
+    prefetch_ = 1;
+  }
+
+  tid = RegisterTask((void *)(uintptr_t)qid_);
+  if (tid == INVALID_TASK_ID)
+    return pb_error(ENOMEM, "Task creation failed");
+
+  int ret = port_->AcquireQueues(reinterpret_cast<const module *>(this),
+                                 PACKET_DIR_INC, &qid_, 1);
+  if (ret < 0) {
+    return pb_errno(-ret);
+  }
+
+  return pb_errno(0);
+}
 
 struct snobj *QueueInc::Init(struct snobj *arg) {
   struct snobj *t;
@@ -160,6 +204,19 @@ struct snobj *QueueInc::CommandSetBurst(struct snobj *arg) {
   burst_ = val;
 
   return nullptr;
+}
+
+pb_error_t QueueInc::SetBurst(int64_t burst) {
+  if (burst == 0 || burst > MAX_PKT_BURST) {
+    return pb_error(EINVAL, "burst size must be [1,%d]", MAX_PKT_BURST);
+  }
+  burst_ = burst;
+  return pb_errno(0);
+}
+
+pb_error_t QueueInc::CommandSetBurst(
+    const bess::QueueIncCommandSetBurstArg &arg) {
+  return SetBurst(arg.burst());
 }
 
 ADD_MODULE(QueueInc, "queue_inc",
