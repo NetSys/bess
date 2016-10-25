@@ -56,41 +56,41 @@ static struct snobj *handle_reset_all(struct snobj *q) {
 
   log_info("*** reset_all requested ***\n");
 
-  r = handle_reset_modules(NULL);
+  r = handle_reset_modules(nullptr);
   if (r)
     return r;
 
-  r = handle_reset_ports(NULL);
+  r = handle_reset_ports(nullptr);
   if (r)
     return r;
 
-  r = handle_reset_tcs(NULL);
+  r = handle_reset_tcs(nullptr);
   if (r)
     return r;
 
-  r = handle_reset_workers(NULL);
+  r = handle_reset_workers(nullptr);
   if (r)
     return r;
 
-  return NULL;
+  return nullptr;
 }
 
 static struct snobj *handle_pause_all(struct snobj *q) {
   pause_all_workers();
   log_info("*** All workers have been paused ***\n");
-  return NULL;
+  return nullptr;
 }
 
 static struct snobj *handle_resume_all(struct snobj *q) {
   log_info("*** Resuming ***\n");
   resume_all_workers();
-  return NULL;
+  return nullptr;
 }
 
 static struct snobj *handle_reset_workers(struct snobj *q) {
   destroy_all_workers();
   log_info("*** All workers have been destroyed ***\n");
-  return NULL;
+  return nullptr;
 }
 
 static struct snobj *handle_list_workers(struct snobj *q) {
@@ -145,7 +145,7 @@ static struct snobj *handle_add_worker(struct snobj *q) {
 
   launch_worker(wid, core);
 
-  return NULL;
+  return nullptr;
 }
 
 static struct snobj *handle_reset_tcs(struct snobj *q) {
@@ -164,7 +164,7 @@ static struct snobj *handle_reset_tcs(struct snobj *q) {
     tc_dec_refcnt(c);
   }
 
-  return NULL;
+  return nullptr;
 }
 
 static struct snobj *handle_list_tcs(struct snobj *q) {
@@ -311,7 +311,7 @@ static struct snobj *handle_add_tc(struct snobj *q) {
 
   tc_join(c);
 
-  return NULL;
+  return nullptr;
 }
 
 static struct snobj *handle_get_tc_stats(struct snobj *q) {
@@ -403,7 +403,7 @@ static struct snobj *handle_reset_ports(struct snobj *q) {
   }
 
   log_info("*** All ports have been destroyed ***\n");
-  return NULL;
+  return nullptr;
 }
 
 static struct snobj *handle_list_ports(struct snobj *q) {
@@ -425,7 +425,7 @@ static struct snobj *handle_list_ports(struct snobj *q) {
 }
 
 /* returns a pointer to the created port.
- * if error, returns NULL and *perr is set */
+ * if error, returns nullptr and *perr is set */
 
 static Port *create_port(const char *name, const PortBuilder *driver,
                          struct snobj *arg, struct snobj **perr) {
@@ -442,7 +442,7 @@ static Port *create_port(const char *name, const PortBuilder *driver,
 
   uint8_t mac_addr[ETH_ALEN];
 
-  *perr = NULL;
+  *perr = nullptr;
 
   if (snobj_eval_exists(arg, "num_inc_q"))
     num_inc_q = snobj_eval_uint(arg, "num_inc_q");
@@ -472,20 +472,20 @@ static Port *create_port(const char *name, const PortBuilder *driver,
                         "MAC address should be "
                         "formatted as a string "
                         "xx:xx:xx:xx:xx:xx");
-      return NULL;
+      return nullptr;
     }
   } else
     eth_random_addr(mac_addr);
 
   if (num_inc_q > MAX_QUEUES_PER_DIR || num_out_q > MAX_QUEUES_PER_DIR) {
     *perr = snobj_err(EINVAL, "Invalid number of queues");
-    return NULL;
+    return nullptr;
   }
 
   if (size_inc_q < 0 || size_inc_q > MAX_QUEUE_SIZE || size_out_q < 0 ||
       size_out_q > MAX_QUEUE_SIZE) {
     *perr = snobj_err(EINVAL, "Invalid queue size");
-    return NULL;
+    return nullptr;
   }
 
   std::string port_name;
@@ -493,7 +493,7 @@ static Port *create_port(const char *name, const PortBuilder *driver,
   if (name) {
     if (PortBuilder::all_ports().count(name)) {
       *perr = snobj_err(EEXIST, "Port '%s' already exists", name);
-      return NULL;
+      return nullptr;
     }
 
     port_name = name;
@@ -521,12 +521,12 @@ static Port *create_port(const char *name, const PortBuilder *driver,
   }
 
   *perr = p->Init(arg);
-  if (*perr != NULL) {
-    return NULL;
+  if (*perr != nullptr) {
+    return nullptr;
   }
 
   if (!PortBuilder::AddPort(p.get())) {
-    return NULL;
+    return nullptr;
   }
 
   return p.release();
@@ -579,7 +579,7 @@ static struct snobj *handle_destroy_port(struct snobj *q) {
   if (ret)
     return snobj_errno(-ret);
 
-  return NULL;
+  return nullptr;
 }
 
 static struct snobj *handle_get_port_stats(struct snobj *q) {
@@ -665,7 +665,7 @@ static struct snobj *handle_get_mclass_info(struct snobj *q) {
 static struct snobj *handle_reset_modules(struct snobj *q) {
   ModuleBuilder::DestroyAllModules();
   log_info("*** All modules have been destroyed ***\n");
-  return NULL;
+  return nullptr;
 }
 
 static struct snobj *handle_list_modules(struct snobj *q) {
@@ -753,7 +753,7 @@ static struct snobj *handle_destroy_module(struct snobj *q) {
 
   ModuleBuilder::DestroyModule(it->second);
 
-  return NULL;
+  return nullptr;
 }
 
 static struct snobj *collect_igates(Module *m) {
@@ -907,7 +907,7 @@ static struct snobj *handle_connect_modules(struct snobj *q) {
     return snobj_err(-ret, "Connection %s:%d->%d:%s failed", m1_name, ogate,
                      igate, m2_name);
 
-  return NULL;
+  return nullptr;
 }
 
 static struct snobj *handle_disconnect_modules(struct snobj *q) {
@@ -933,7 +933,7 @@ static struct snobj *handle_disconnect_modules(struct snobj *q) {
   if (ret < 0)
     return snobj_err(-ret, "Disconnection %s:%d failed", m_name, ogate);
 
-  return NULL;
+  return nullptr;
 }
 
 static struct snobj *handle_attach_task(struct snobj *q) {
@@ -960,7 +960,7 @@ static struct snobj *handle_attach_task(struct snobj *q) {
     return snobj_err(EINVAL, "'taskid' must be between 0 and %d",
                      MAX_TASKS_PER_MODULE - 1);
 
-  if ((t = m->tasks[tid]) == NULL)
+  if ((t = m->tasks[tid]) == nullptr)
     return snobj_err(ENOENT, "Task %s:%hu does not exist", m_name, tid);
 
   tc_name = snobj_eval_str(q, "tc");
@@ -995,7 +995,7 @@ static struct snobj *handle_attach_task(struct snobj *q) {
     assign_default_tc(wid, t);
   }
 
-  return NULL;
+  return nullptr;
 }
 
 static struct snobj *handle_enable_tcpdump(struct snobj *q) {
@@ -1028,7 +1028,7 @@ static struct snobj *handle_enable_tcpdump(struct snobj *q) {
     return snobj_err(-ret, "Enabling tcpdump %s:%d failed", m_name, ogate);
   }
 
-  return NULL;
+  return nullptr;
 }
 
 static struct snobj *handle_disable_tcpdump(struct snobj *q) {
@@ -1058,7 +1058,7 @@ static struct snobj *handle_disable_tcpdump(struct snobj *q) {
   if (ret < 0) {
     return snobj_err(-ret, "Disabling tcpdump %s:%d failed", m_name, ogate);
   }
-  return NULL;
+  return nullptr;
 }
 
 /* Adding this mostly to provide a reasonable way to exit when daemonized */
@@ -1068,7 +1068,7 @@ static struct snobj *handle_kill_bess(struct snobj *q) {
   exit(EXIT_SUCCESS);
 
   /* Never called */
-  return NULL;
+  return nullptr;
 }
 
 static struct snobj *handle_not_implemented(struct snobj *q) {
@@ -1122,7 +1122,7 @@ static struct handler_map sn_handlers[] = {
 
     {"kill_bess", 1, handle_kill_bess},
 
-    {NULL, 0, NULL}};
+    {nullptr, 0, nullptr}};
 
 static struct snobj *handle_snobj_bess(struct snobj *q) {
   struct snobj *arg;
@@ -1134,7 +1134,7 @@ static struct snobj *handle_snobj_bess(struct snobj *q) {
 
   arg = snobj_map_get(q, "arg");
 
-  for (int i = 0; sn_handlers[i].cmd != NULL; i++) {
+  for (int i = 0; sn_handlers[i].cmd != nullptr; i++) {
     if (strcmp(s, sn_handlers[i].cmd) != 0)
       continue;
 
@@ -1208,7 +1208,7 @@ static struct snobj *handle_snobj_module(struct snobj *q) {
 }
 
 struct snobj *handle_request(struct client *c, struct snobj *q) {
-  struct snobj *r = NULL;
+  struct snobj *r = nullptr;
   const char *s;
 
   if (FLAGS_d) {

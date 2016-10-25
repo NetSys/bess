@@ -82,7 +82,7 @@ struct snobj *Queue::Init(struct snobj *arg) {
 
   burst_ = MAX_PKT_BURST;
 
-  tid = RegisterTask(NULL);
+  tid = RegisterTask(nullptr);
   if (tid == INVALID_TASK_ID)
     return snobj_err(ENOMEM, "Task creation failed");
 

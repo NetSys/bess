@@ -526,7 +526,7 @@ typedef void (*emit_func)(bpf_bin_stream *stream, u_int value, u_int n);
  * Emit routine to update the jump table.
  */
 static void emit_length(bpf_bin_stream *stream, u_int value, u_int len) {
-  if (stream->refs != NULL)
+  if (stream->refs != nullptr)
     (stream->refs)[stream->bpf_pc] += len;
   stream->cur_ip += len;
 }
@@ -637,8 +637,8 @@ static bpf_filter_func_t bpf_jit_compile(struct bpf_insn *prog, u_int nins,
   /* Allocate the reference table for the jumps. */
   if (fjmp) {
     stream.refs = static_cast<uint *>(calloc(nins + 1, sizeof(u_int)));
-    if (stream.refs == NULL)
-      return (NULL);
+    if (stream.refs == nullptr)
+      return (nullptr);
   }
 
   /*
@@ -1049,10 +1049,10 @@ static bpf_filter_func_t bpf_jit_compile(struct bpf_insn *prog, u_int nins,
       continue;
 
     *size = stream.cur_ip;
-    stream.ibuf = static_cast<char *>(mmap(NULL, *size, PROT_READ | PROT_WRITE,
+    stream.ibuf = static_cast<char *>(mmap(nullptr, *size, PROT_READ | PROT_WRITE,
                                            MAP_PRIVATE | MAP_ANONYMOUS, -1, 0));
     if (stream.ibuf == MAP_FAILED) {
-      stream.ibuf = NULL;
+      stream.ibuf = nullptr;
       break;
     }
 
@@ -1079,10 +1079,10 @@ static bpf_filter_func_t bpf_jit_compile(struct bpf_insn *prog, u_int nins,
   if (fjmp)
     free(stream.refs);
 
-  if (stream.ibuf != NULL &&
+  if (stream.ibuf != nullptr &&
       mprotect(stream.ibuf, *size, PROT_READ | PROT_EXEC) != 0) {
     munmap(stream.ibuf, *size);
-    stream.ibuf = NULL;
+    stream.ibuf = nullptr;
   }
 
   return ((bpf_filter_func_t)stream.ibuf);
@@ -1155,7 +1155,7 @@ pb_error_t BPF::Init(const bess::BPFArg &arg) {
 }
 
 struct snobj *BPF::Init(struct snobj *arg) {
-  return arg ? CommandAdd(arg) : NULL;
+  return arg ? CommandAdd(arg) : nullptr;
 }
 
 void BPF::Deinit() {
@@ -1269,7 +1269,7 @@ struct snobj *BPF::CommandAdd(struct snobj *arg) {
     filter++;
   }
 
-  return NULL;
+  return nullptr;
 }
 
 pb_error_t BPF::CommandClear(const bess::BPFArg &arg) {
@@ -1279,7 +1279,7 @@ pb_error_t BPF::CommandClear(const bess::BPFArg &arg) {
 
 struct snobj *BPF::CommandClear(struct snobj *arg) {
   Deinit();
-  return NULL;
+  return nullptr;
 }
 
 inline void BPF::process_batch_1filter(struct pkt_batch *batch) {

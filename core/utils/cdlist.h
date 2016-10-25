@@ -143,7 +143,7 @@ static inline int cdlist_is_single(const struct cdlist_head *head) {
 static inline struct cdlist_item *cdlist_pop_head(struct cdlist_head *head) {
   struct cdlist_item *item;
 
-  if (cdlist_is_empty(head)) return NULL;
+  if (cdlist_is_empty(head)) return nullptr;
 
   item = head->next;
   cdlist_del(item);
@@ -153,13 +153,13 @@ static inline struct cdlist_item *cdlist_pop_head(struct cdlist_head *head) {
 
 /* The first item will become the last one. Useful for round robin.
  * It returns the original first item (or the last item after rotation).
- * It returns NULL if the list is empty. */
+ * It returns nullptr if the list is empty. */
 static inline struct cdlist_item *cdlist_rotate_left(struct cdlist_head *head) {
   struct cdlist_item *first;
   struct cdlist_item *second;
   struct cdlist_item *last;
 
-  if (cdlist_is_empty(head)) return NULL;
+  if (cdlist_is_empty(head)) return nullptr;
 
   if (cdlist_is_single(head)) return head->next;
 

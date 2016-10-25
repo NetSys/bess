@@ -175,7 +175,7 @@ static struct snobj *docker_container_pid(char *cid, int *container_pid) {
                              "Cannot find the PID of container %s", cid);
   }
 
-  return NULL;
+  return nullptr;
 }
 
 static pb_error_t docker_container_pid(const std::string &cid,
@@ -307,7 +307,7 @@ void *VPort::AllocBar(struct tx_queue_opts *txq_opts,
                  (sizeof(struct sn_rxq_registers) + 2 * bytes_per_llring);
 
   log_err("total_bytes = %d\n", total_bytes);
-  bar = rte_zmalloc(NULL, total_bytes, 0);
+  bar = rte_zmalloc(nullptr, total_bytes, 0);
   assert(bar);
 
   /* log_debug("vport_host_sndrv: allocated %dB BAR\n", total_bytes); */
@@ -762,7 +762,7 @@ struct snobj *VPort::SetIPAddr(struct snobj *arg) {
                      "Failed to set IP addresses "
                      "(incorrect IP address format?)");
 
-  return NULL;
+  return nullptr;
 
 invalid_type:
   return snobj_err(EINVAL,
@@ -776,12 +776,12 @@ struct snobj *VPort::Init(struct snobj *conf) {
 
   int ret;
 
-  struct snobj *cpu_list = NULL;
+  struct snobj *cpu_list = nullptr;
 
   const char *netns;
   const char *ifname;
 
-  struct snobj *err = NULL;
+  struct snobj *err = nullptr;
 
   struct tx_queue_opts txq_opts = {0};
   struct rx_queue_opts rxq_opts = {0};
@@ -836,7 +836,7 @@ struct snobj *VPort::Init(struct snobj *conf) {
     }
   }
 
-  if ((cpu_list = snobj_eval(conf, "rxq_cpus")) != NULL &&
+  if ((cpu_list = snobj_eval(conf, "rxq_cpus")) != nullptr &&
       cpu_list->size != num_queues[PACKET_DIR_OUT]) {
     err = snobj_err(EINVAL, "Must specify as many cores as rxqs");
     goto fail;
@@ -900,7 +900,7 @@ struct snobj *VPort::Init(struct snobj *conf) {
   if (ret < 0)
     log_perr("ioctl(SN_IOC_SET_QUEUE_MAPPING)");
 
-  return NULL;
+  return nullptr;
 
 fail:
   if (fd_ >= 0)

@@ -25,7 +25,7 @@ static void snbuf_pkt_init(struct rte_mempool *mp, void *opaque_arg, void *_m,
 
   snb = (struct snbuf *)_m;
 
-  rte_pktmbuf_init(mp, NULL, _m, i);
+  rte_pktmbuf_init(mp, nullptr, _m, i);
 
   memset(snb->_reserve, 0, SNBUF_RESERVE);
 
@@ -127,7 +127,7 @@ struct rte_mempool *get_pframe_pool_socket(int socket) {
 #if DPDK_VER >= DPDK_VER_NUM(16, 7, 0)
 static struct snbuf *paddr_to_snb_memchunk(struct rte_mempool_memhdr *chunk,
                                            phys_addr_t paddr) {
-  if (chunk->phys_addr == RTE_BAD_PHYS_ADDR) return NULL;
+  if (chunk->phys_addr == RTE_BAD_PHYS_ADDR) return nullptr;
 
   if (chunk->phys_addr <= paddr && paddr < chunk->phys_addr + chunk->len) {
     uintptr_t vaddr;
@@ -136,7 +136,7 @@ static struct snbuf *paddr_to_snb_memchunk(struct rte_mempool_memhdr *chunk,
     return (struct snbuf *)vaddr;
   }
 
-  return NULL;
+  return nullptr;
 }
 
 struct snbuf *paddr_to_snb(phys_addr_t paddr) {
@@ -157,18 +157,18 @@ struct snbuf *paddr_to_snb(phys_addr_t paddr) {
             "snb=%p, snb->immutable.paddr="
             "%" PRIx64 " (!= %" PRIx64 ")\n",
             snb, snb->paddr, paddr);
-        return NULL;
+        return nullptr;
       }
 
       return snb;
     }
   }
 
-  return NULL;
+  return nullptr;
 }
 #else
 struct snbuf *paddr_to_snb(phys_addr_t paddr) {
-  struct snbuf *ret = NULL;
+  struct snbuf *ret = nullptr;
 
   for (int i = 0; i < RTE_MAX_NUMA_NODES; i++) {
     struct rte_mempool *pool;

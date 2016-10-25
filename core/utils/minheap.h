@@ -26,11 +26,11 @@ static void heap_init(struct heap *h) {
   h->arr_d = (void **)mem_alloc(sizeof(void *) * (h->size * 2 + 2));
 
   h->arr_v[0] = INT64_MIN;
-  h->arr_d[0] = NULL;
+  h->arr_d[0] = nullptr;
 
   for (i = 1; i <= h->size * 2 + 1; i++) {
     h->arr_v[i] = INT64_MAX;
-    h->arr_d[i] = NULL;
+    h->arr_d[i] = nullptr;
   }
 }
 
@@ -56,7 +56,7 @@ static void heap_push(struct heap *h, int64_t val, void *data) {
 
     for (i = h->num_nodes * 2 + 2; i <= h->size * 2 + 1; i++) {
       h->arr_v[i] = INT64_MAX;
-      h->arr_d[i] = NULL;
+      h->arr_d[i] = nullptr;
     }
   }
 
@@ -77,7 +77,7 @@ static void heap_push(struct heap *h, int64_t val, void *data) {
 }
 
 static void *heap_peek(struct heap *h) {
-  /* guaranteed to be NULL if the heap is empty */
+  /* guaranteed to be nullptr if the heap is empty */
   return h->arr_d[1];
 }
 
@@ -126,7 +126,7 @@ static void heap_pop(struct heap *h) {
   /* required for correctness */
   if (num_nodes == 1) {
     arr_v[1] = INT64_MAX;
-    arr_d[1] = NULL;
+    arr_d[1] = nullptr;
     h->num_nodes = 0;
     return;
   }
@@ -134,7 +134,7 @@ static void heap_pop(struct heap *h) {
   val = arr_v[num_nodes];
   data = arr_d[num_nodes];
   arr_v[num_nodes] = INT64_MAX;
-  arr_d[num_nodes] = NULL;
+  arr_d[num_nodes] = nullptr;
   h->num_nodes = num_nodes - 1;
 
   heap_replace(h, val, data);

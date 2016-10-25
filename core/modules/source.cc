@@ -30,7 +30,7 @@ struct snobj *Source::Init(struct snobj *arg) {
   struct snobj *t;
   struct snobj *err;
 
-  task_id_t tid = RegisterTask(NULL);
+  task_id_t tid = RegisterTask(nullptr);
   if (tid == INVALID_TASK_ID)
     return snobj_err(ENOMEM, "Task creation failed");
 

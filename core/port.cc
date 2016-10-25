@@ -143,7 +143,7 @@ int Port::AcquireQueues(const struct module *m, packet_dir_t dir,
     return -EINVAL;
   }
 
-  if (queues == NULL) {
+  if (queues == nullptr) {
     for (qid = 0; qid < num_queues[dir]; qid++) {
       const struct module *user;
 
@@ -193,10 +193,10 @@ void Port::ReleaseQueues(const struct module *m, packet_dir_t dir,
     return;
   }
 
-  if (queues == NULL) {
+  if (queues == nullptr) {
     for (qid = 0; qid < num_queues[dir]; qid++) {
       if (users[dir][qid] == m)
-        users[dir][qid] = NULL;
+        users[dir][qid] = nullptr;
     }
 
     return;
@@ -208,7 +208,7 @@ void Port::ReleaseQueues(const struct module *m, packet_dir_t dir,
       continue;
 
     if (users[dir][qid] == m)
-      users[dir][qid] = NULL;
+      users[dir][qid] = nullptr;
   }
 }
 

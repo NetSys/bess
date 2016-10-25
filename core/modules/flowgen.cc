@@ -515,7 +515,7 @@ struct snobj *FlowGen::Init(struct snobj *arg) {
   pareto_.alpha = 1.3;
 
   /* register task */
-  tid = RegisterTask(NULL);
+  tid = RegisterTask(nullptr);
   if (tid == INVALID_TASK_ID)
     return snobj_err(ENOMEM, "task creation failed");
 

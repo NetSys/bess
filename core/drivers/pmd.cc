@@ -57,7 +57,7 @@ static const struct rte_eth_conf default_eth_conf = {
         {
             .rss_conf =
                 {
-                    .rss_key = NULL,
+                    .rss_key = nullptr,
                     .rss_key_len = 40,
                     /* TODO: query rte_eth_dev_info_get() to set this*/
                     .rss_hf =
@@ -109,7 +109,7 @@ static struct snobj *find_dpdk_port(struct snobj *conf,
 
   dpdk_port_t port_id = DPDK_PORT_UNKNOWN;
 
-  if ((t = snobj_eval(conf, "port_id")) != NULL) {
+  if ((t = snobj_eval(conf, "port_id")) != nullptr) {
     if (snobj_type(t) != TYPE_INT) {
       return snobj_err(EINVAL, "Port ID must be an integer");
     }
@@ -125,7 +125,7 @@ static struct snobj *find_dpdk_port(struct snobj *conf,
     }
   }
 
-  if ((t = snobj_eval(conf, "pci")) != NULL) {
+  if ((t = snobj_eval(conf, "pci")) != nullptr) {
     const char *bdf;
     struct rte_pci_addr addr;
 
@@ -177,7 +177,7 @@ static struct snobj *find_dpdk_port(struct snobj *conf,
     }
   }
 
-  if (port_id == DPDK_PORT_UNKNOWN && (t = snobj_eval(conf, "vdev")) != NULL) {
+  if (port_id == DPDK_PORT_UNKNOWN && (t = snobj_eval(conf, "vdev")) != nullptr) {
     const char *name = snobj_str_get(t);
     int ret = rte_eth_dev_attach(name, &port_id);
 
@@ -195,7 +195,7 @@ static struct snobj *find_dpdk_port(struct snobj *conf,
   }
 
   *ret_port_id = port_id;
-  return NULL;
+  return nullptr;
 }
 
 static pb_error_t find_dpdk_port(dpdk_port_t port_id,
@@ -358,7 +358,7 @@ struct snobj *PMDPort::Init(struct snobj *conf) {
 
   dpdk_port_id_ = port_id;
 
-  return NULL;
+  return nullptr;
 }
 
 pb_error_t PMDPort::Init(const bess::PMDPortArg &arg) {

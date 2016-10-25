@@ -41,7 +41,7 @@ struct snobj *PCAPPort::Init(struct snobj *conf) {
 
   // non-blocking pcap
   pcap_handle_ = pcap_open_live(dev.c_str(), PCAP_SNAPLEN, 1, -1, errbuf);
-  if (pcap_handle_ == NULL) {
+  if (pcap_handle_ == nullptr) {
     return snobj_err(ENODEV, "PCAP Open dev error: %s", errbuf);
   }
 
@@ -52,7 +52,7 @@ struct snobj *PCAPPort::Init(struct snobj *conf) {
 
   LOG(INFO) << "PCAP: open dev " << dev;
 
-  return NULL;
+  return nullptr;
 }
 
 pb_error_t PCAPPort::Init(const bess::PCAPPortArg &arg) {
@@ -64,7 +64,7 @@ pb_error_t PCAPPort::Init(const bess::PCAPPortArg &arg) {
   }
   // Non-blocking pcap.
   pcap_handle_ = pcap_open_live(dev.c_str(), PCAP_SNAPLEN, 1, -1, errbuf);
-  if (pcap_handle_ == NULL) {
+  if (pcap_handle_ == nullptr) {
     return pb_error(ENODEV, "PCAP Open dev error: %s", errbuf);
   }
 
@@ -81,7 +81,7 @@ pb_error_t PCAPPort::Init(const bess::PCAPPortArg &arg) {
 void PCAPPort::DeInit() {
   if (pcap_handle_) {
     pcap_close(pcap_handle_);
-    pcap_handle_ = NULL;
+    pcap_handle_ = nullptr;
   }
 }
 

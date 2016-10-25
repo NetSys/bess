@@ -175,7 +175,7 @@ slow_path:
 
 /* add bytes to the beginning */
 static inline void *snb_prepend(struct snbuf *snb, uint16_t len) {
-  if (unlikely(snb->mbuf.data_off < len)) return NULL;
+  if (unlikely(snb->mbuf.data_off < len)) return nullptr;
 
   snb->mbuf.data_off -= len;
   snb->mbuf.data_len += len;
@@ -186,7 +186,7 @@ static inline void *snb_prepend(struct snbuf *snb, uint16_t len) {
 
 /* remove bytes from the beginning */
 static inline void *snb_adj(struct snbuf *snb, uint16_t len) {
-  if (unlikely(snb->mbuf.data_len < len)) return NULL;
+  if (unlikely(snb->mbuf.data_len < len)) return nullptr;
 
   snb->mbuf.data_off += len;
   snb->mbuf.data_len -= len;

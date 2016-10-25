@@ -154,7 +154,7 @@ struct snobj *UnixSocketPort::Init(struct snobj *conf) {
   std::thread accept_thread(AcceptThreadMain, reinterpret_cast<void *>(this));
   accept_thread.detach();
 
-  return NULL;
+  return nullptr;
 }
 
 pb_error_t UnixSocketPort::Init(const bess::UnixSocketPortArg &arg) {

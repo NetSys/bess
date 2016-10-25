@@ -16,15 +16,15 @@ struct mcslock {
 
 typedef struct mcslock mcslock_t;
 
-static inline void mcs_lock_init(mcslock_t *lock) { lock->tail = NULL; }
+static inline void mcs_lock_init(mcslock_t *lock) { lock->tail = nullptr; }
 
 static inline void mcs_lock(mcslock_t *lock, mcslock_node_t *mynode) {
   mcslock_node_t *pre;
-  mynode->next = NULL;
+  mynode->next = nullptr;
   mynode->locked = 1;
 
   pre = __sync_lock_test_and_set(&lock->tail, mynode);
-  if (pre == NULL) return;
+  if (pre == nullptr) return;
 
   /* it's hold by others. queue up and spin on the node of myself */
   pre->next = mynode;
@@ -34,10 +34,10 @@ static inline void mcs_lock(mcslock_t *lock, mcslock_node_t *mynode) {
 }
 
 static inline void mcs_unlock(mcslock_t *lock, mcslock_node_t *mynode) {
-  if (mynode->next == NULL) {
-    if (__sync_bool_compare_and_swap(&lock->tail, mynode, NULL)) return;
+  if (mynode->next == nullptr) {
+    if (__sync_bool_compare_and_swap(&lock->tail, mynode, nullptr)) return;
 
-    while (mynode->next == NULL) {
+    while (mynode->next == nullptr) {
       asm volatile("lfence" ::: "memory");
       __builtin_ia32_pause();
     }
@@ -48,9 +48,9 @@ static inline void mcs_unlock(mcslock_t *lock, mcslock_node_t *mynode) {
 }
 
 static inline int mcs_trylock(mcslock_t *lock, mcslock_node_t *mynode) {
-  return __sync_bool_compare_and_swap(&lock->tail, NULL, mynode);
+  return __sync_bool_compare_and_swap(&lock->tail, nullptr, mynode);
 }
 
-static inline int mcs_is_locked(mcslock_t *lock) { return lock->tail != NULL; }
+static inline int mcs_is_locked(mcslock_t *lock) { return lock->tail != nullptr; }
 
 #endif

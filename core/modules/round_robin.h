@@ -65,7 +65,7 @@ class RoundRobin : public Module {
 /*! 
  * Sanity function: is this gate_idx_t possibly a real gate?
  * Note that true only indicates that the gate_idx_t is not > MAX_GATES and does
- * not represent the NULL gate -- true does not indicate that the gate is
+ * not represent the nullptr gate -- true does not indicate that the gate is
  * actually instantiated and connected to anything.
  */
 static inline int is_valid_gate(gate_idx_t gate) {

@@ -50,7 +50,7 @@ static inline int is_valid_offset(mt_offset_t offset) { return (offset >= 0); }
     mt_offset_t _offset = (offset);                         \
     is_valid_offset(_offset)                                \
         ? (type *)_ptr_attr_with_offset(_offset, pkt, type) \
-        : (type *)NULL;                                     \
+        : (type *)nullptr;                                     \
   })
 
 #define get_attr_with_offset(offset, pkt, type)                                \

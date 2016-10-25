@@ -63,7 +63,7 @@ static struct mt_attr *find_attr(Module *m, struct mt_attr *attr) {
     }
   }
 
-  return NULL;
+  return nullptr;
 }
 
 /* Traverses module graph upstream to help identify a scope component. */

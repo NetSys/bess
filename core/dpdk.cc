@@ -103,7 +103,7 @@ static void init_eal(char *prog_name, int mb_per_socket, int multi_instance) {
     rte_argv[rte_argc++] = "--file-prefix";
     rte_argv[rte_argc++] = opt_file_prefix;
   }
-  rte_argv[rte_argc] = NULL;
+  rte_argv[rte_argc] = nullptr;
 
   /* reset getopt() */
   optind = 0;
@@ -117,7 +117,7 @@ static void init_eal(char *prog_name, int mb_per_socket, int multi_instance) {
   dpdk_log_funcs.write = &dpdk_log_writer;
 
   org_stdout = stdout;
-  stdout = fopencookie(NULL, "w", dpdk_log_init_funcs);
+  stdout = fopencookie(nullptr, "w", dpdk_log_init_funcs);
 
   disable_syslog();
   ret = rte_eal_init(rte_argc, const_cast<char **>(rte_argv));
@@ -129,7 +129,7 @@ static void init_eal(char *prog_name, int mb_per_socket, int multi_instance) {
   fclose(stdout);
   stdout = org_stdout;
 
-  rte_openlog_stream(fopencookie(NULL, "w", dpdk_log_funcs));
+  rte_openlog_stream(fopencookie(nullptr, "w", dpdk_log_funcs));
 }
 
 static void init_timer() { rte_timer_subsystem_init(); }

@@ -15,7 +15,7 @@
 #include "debug.h"
 #include "mem_alloc.h"
 
-#define MAX_EXPR_LEN 128 /* including the trailing NULL */
+#define MAX_EXPR_LEN 128 /* including the trailing nullptr */
 
 #define CHECK_DOUBLE_FREE 0
 
@@ -89,7 +89,7 @@ static inline void *_REALLOC(void *p, size_t new_size) {
 #include <assert.h>
 #endif
 
-/* should not crash when p == NULL */
+/* should not crash when p == nullptr */
 static inline void _FREE(void *p) {
 #if CHECK_DOUBLE_FREE
   const uint64_t magic_number = 0xc1fa23e79b0486d5UL;
@@ -168,22 +168,22 @@ static inline double snobj_number_get(const struct snobj *m) {
 }
 
 static inline char *snobj_str_get(const struct snobj *m) {
-  if (m->type != TYPE_STR) return NULL;
+  if (m->type != TYPE_STR) return nullptr;
 
   return (char *)m->data;
 }
 
 static inline void *snobj_blob_get(const struct snobj *m) {
-  if (m->type != TYPE_BLOB) return NULL;
+  if (m->type != TYPE_BLOB) return nullptr;
 
   return (void *)m->data;
 }
 
 static inline struct snobj *snobj_list_get(const struct snobj *m,
                                            uint32_t idx) {
-  if (m->type != TYPE_LIST) return NULL;
+  if (m->type != TYPE_LIST) return nullptr;
 
-  if (idx >= m->size) return NULL;
+  if (idx >= m->size) return nullptr;
 
   return m->list.arr[idx];
 }
@@ -198,10 +198,10 @@ static inline snobj_type_t snobj_type(const struct snobj *m) { return m->type; }
 static inline size_t snobj_size(const struct snobj *m) { return m->size; }
 
 /* expr can be recursive (e.g., foo.bar[3].baz).
- * returns NULL if not found */
+ * returns nullptr if not found */
 struct snobj *snobj_eval(const struct snobj *m, const char *expr);
 
-/* snobj_eval_* return 0, NAN, or NULL if the key is not found */
+/* snobj_eval_* return 0, NAN, or nullptr if the key is not found */
 static inline int64_t snobj_eval_int(const struct snobj *m, const char *expr) {
   m = snobj_eval(m, expr);
 
@@ -223,17 +223,17 @@ static inline double snobj_eval_double(const struct snobj *m,
 static inline char *snobj_eval_str(const struct snobj *m, const char *expr) {
   m = snobj_eval(m, expr);
 
-  return m ? snobj_str_get(m) : NULL;
+  return m ? snobj_str_get(m) : nullptr;
 }
 
 static inline void *snobj_eval_blob(const struct snobj *m, const char *expr) {
   m = snobj_eval(m, expr);
 
-  return m ? snobj_blob_get(m) : NULL;
+  return m ? snobj_blob_get(m) : nullptr;
 }
 
 static inline int snobj_eval_exists(const struct snobj *m, const char *expr) {
-  return snobj_eval(m, expr) != NULL;
+  return snobj_eval(m, expr) != nullptr;
 }
 
 void snobj_dump(const struct snobj *m);
@@ -252,7 +252,7 @@ struct snobj *__attribute__((format(printf, 3, 4)))
 snobj_err_details(int err, struct snobj *details, const char *fmt, ...);
 
 #define snobj_err(err, fmt, ...) \
-  snobj_err_details(err, NULL, fmt, ##__VA_ARGS__)
+  snobj_err_details(err, nullptr, fmt, ##__VA_ARGS__)
 
 struct snobj *snobj_errno(int err);
 
