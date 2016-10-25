@@ -395,7 +395,7 @@ static void init_server() {
   }
 }
 
-void setup_master() {
+void SetupMaster() {
   reset_core_affinity();
 
   set_non_worker();
@@ -407,7 +407,7 @@ void setup_master() {
   init_server();
 }
 
-void run_master() {
+void RunMaster() {
   struct client *c;
 
   struct epoll_event ev;

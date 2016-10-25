@@ -17,7 +17,7 @@
 #include "module.h"
 #include "tc.h"
 
-int num_workers;
+int num_workers = 0;
 std::thread worker_threads[MAX_WORKERS];
 struct worker_context *volatile workers[MAX_WORKERS];
 __thread struct worker_context ctx;
