@@ -39,7 +39,8 @@ using bess::Error;
 
 #define MAX_TASKS_PER_MODULE 32
 #define INVALID_TASK_ID ((task_id_t)-1)
-#define MODULE_FUNC (struct snobj * (Module::*)(struct snobj *))
+#define MODULE_FUNC(x) \
+  (reinterpret_cast<struct snobj * (Module::*)(struct snobj *)>( x ))
 
 struct task_result {
   uint64_t packets;

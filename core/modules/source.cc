@@ -22,8 +22,8 @@ class Source : public Module {
 };
 
 const Commands<Module> Source::cmds = {
-    {"set_pkt_size", MODULE_FUNC &Source::command_set_pkt_size, 1},
-    {"set_burst", MODULE_FUNC &Source::command_set_burst, 1},
+    {"set_pkt_size", MODULE_FUNC(&Source::command_set_pkt_size), 1},
+    {"set_burst", MODULE_FUNC(&Source::command_set_burst), 1},
 };
 
 struct snobj *Source::Init(struct snobj *arg) {

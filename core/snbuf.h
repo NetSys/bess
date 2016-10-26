@@ -106,7 +106,7 @@ static inline int snb_is_simple(struct snbuf *snb) {
 extern struct rte_mbuf pframe_template;
 
 static inline struct snbuf *__snb_alloc() {
-  return (struct snbuf *)rte_pktmbuf_alloc(ctx.pframe_pool());
+  return reinterpret_cast<struct snbuf *>(rte_pktmbuf_alloc(ctx.pframe_pool()));
 }
 
 static inline struct snbuf *__snb_alloc_pool(struct rte_mempool *pool) {
@@ -114,7 +114,7 @@ static inline struct snbuf *__snb_alloc_pool(struct rte_mempool *pool) {
 
   mbuf = rte_pktmbuf_alloc(pool);
 
-  return (struct snbuf *)mbuf;
+  return reinterpret_cast<struct snbuf *>(mbuf);
 }
 
 static inline struct snbuf *snb_alloc() {
@@ -124,7 +124,7 @@ static inline struct snbuf *snb_alloc() {
 }
 
 static inline void snb_free(struct snbuf *snb) {
-  rte_pktmbuf_free((struct rte_mbuf *)snb);
+  rte_pktmbuf_free(reinterpret_cast<struct rte_mbuf *>(snb));
 }
 
 #if __AVX__
