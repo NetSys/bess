@@ -1,5 +1,5 @@
-#ifndef _DPDK_H_
-#define _DPDK_H_
+#ifndef CORE_DPDK_H_
+#define CORE_DPDK_H_
 
 /* rte_version.h depends on these but has no #include :( */
 #include <stdio.h>

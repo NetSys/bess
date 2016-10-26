@@ -1,5 +1,5 @@
-#ifndef _LOG_H_
-#define _LOG_H_
+#ifndef CORE_LOG_H_
+#define CORE_LOG_H_
 
 #include <syslog.h>
 

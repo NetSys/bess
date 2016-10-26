@@ -1,5 +1,5 @@
-#ifndef _TC_H_
-#define _TC_H_
+#ifndef CORE_TC_H_
+#define CORE_TC_H_
 
 #include <string.h>
 

@@ -1,5 +1,5 @@
-#ifndef _TIME_H_
-#define _TIME_H_
+#ifndef CORE_UTILS_TIME_H_
+#define CORE_UTILS_TIME_H_
 
 #include <stdint.h>
 #include <stdlib.h>

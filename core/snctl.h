@@ -1,5 +1,5 @@
-#ifndef _SNCTL_H_
-#define _SNCTL_H_
+#ifndef CORE_SNCTL_H_
+#define CORE_SNCTL_H_
 
 struct client;
 struct snobj;

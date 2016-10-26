@@ -1,5 +1,5 @@
-#ifndef _SNBUF_H_
-#define _SNBUF_H_
+#ifndef CORE_SNBUF_H_
+#define CORE_SNBUF_H_
 
 #include <assert.h>
 

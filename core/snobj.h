@@ -1,5 +1,5 @@
-#ifndef _SNOBJ_H_
-#define _SNOBJ_H_
+#ifndef CORE_SNOBJ_H_
+#define CORE_SNOBJ_H_
 
 /* NOTE: this library is not thread-safe */
 

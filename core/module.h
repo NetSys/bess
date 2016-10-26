@@ -1,5 +1,5 @@
-#ifndef _MODULE_H_
-#define _MODULE_H_
+#ifndef CORE_MODULE_H_
+#define CORE_MODULE_H_
 
 #include <cassert>
 #include <map>

@@ -1,5 +1,5 @@
-#ifndef _METADATA_H_
-#define _METADATA_H_
+#ifndef CORE_METADATA_H_
+#define CORE_METADATA_H_
 
 #include <stdint.h>
 

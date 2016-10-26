@@ -63,8 +63,8 @@
  *
  ***************************************************************************/
 
-#ifndef _LLRING_H_
-#define _LLRING_H_
+#ifndef CORE_KMOD_LLRING_H_
+#define CORE_KMOD_LLRING_H_
 
 /**
  * Note: the ring implementation is not preemptable. A producer must not

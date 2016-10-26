@@ -1,5 +1,5 @@
-#ifndef _MINHEAP_H_
-#define _MINHEAP_H_
+#ifndef CORE_UTILS_MINHEAP_H_
+#define CORE_UTILS_MINHEAP_H_
 
 #include <stdint.h>
 #include <stdlib.h>
