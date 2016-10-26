@@ -1,3 +1,4 @@
+#include "../message.h"
 #include "../module.h"
 
 class GenericDecap : public Module {
@@ -8,6 +9,8 @@ class GenericDecap : public Module {
   GenericDecap() : Module(), decap_size_() {}
 
   virtual struct snobj *Init(struct snobj *arg);
+  virtual pb_error_t Init(const bess::GenericDecapArg &arg);
+
   virtual void ProcessBatch(struct pkt_batch *batch);
 
   static const Commands<Module> cmds;
@@ -17,6 +20,17 @@ class GenericDecap : public Module {
 };
 
 const Commands<Module> GenericDecap::cmds = {};
+
+pb_error_t GenericDecap::Init(const bess::GenericDecapArg &arg) {
+  if (arg.bytes() == 0) {
+    return pb_errno(0);
+  }
+  decap_size_ = arg.bytes();
+  if (decap_size_ <= 0 || decap_size_ > 1024) {
+    return pb_error(EINVAL, "invalid decap size");
+  }
+  return pb_errno(0);
+}
 
 struct snobj *GenericDecap::Init(struct snobj *arg) {
   if (!arg) {

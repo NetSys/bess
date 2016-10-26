@@ -47,6 +47,7 @@ class SetMetadata : public Module {
   SetMetadata() : Module(), attrs_() {}
 
   struct snobj *Init(struct snobj *arg);
+  pb_error_t Init(const bess::SetMetadataArg &arg);
 
   void ProcessBatch(struct pkt_batch *batch);
 
@@ -57,11 +58,70 @@ class SetMetadata : public Module {
 
  private:
   struct snobj *AddAttrOne(struct snobj *attr);
+  pb_error_t AddAttrOne(const bess::SetMetadataArg_Attribute &attr);
 
   std::vector<struct Attr> attrs_;
 };
 
 const Commands<Module> SetMetadata::cmds = {};
+
+pb_error_t SetMetadata::AddAttrOne(const bess::SetMetadataArg_Attribute &attr) {
+  std::string name;
+  int size = 0;
+  int offset = -1;
+  value_t value = {};
+
+  int ret;
+
+  if (!attr.name().length()) {
+    return pb_error(EINVAL, "'name' field is missing");
+  }
+  name = attr.name();
+  size = attr.size();
+
+  if (size < 1 || size > MT_ATTR_MAX_SIZE) {
+    return pb_error(EINVAL, "'size' must be 1-%d", MT_ATTR_MAX_SIZE);
+  }
+
+  if (attr.value().length()) {
+    memcpy(&value, attr.value().c_str(), size);
+  } else {
+    offset = attr.offset();
+    if (offset < 0 || offset + size >= SNBUF_DATA) {
+      return pb_error(EINVAL, "invalid packet offset");
+    }
+  }
+
+  ret = AddMetadataAttr(name, size, MT_WRITE);
+  if (ret < 0)
+    return pb_error(-ret, "add_metadata_attr() failed");
+
+  attrs_.emplace_back();
+  attrs_.back().name = name;
+  attrs_.back().size = size;
+  attrs_.back().offset = offset;
+  attrs_.back().value = value;
+
+  return pb_errno(0);
+}
+
+pb_error_t SetMetadata::Init(const bess::SetMetadataArg &arg) {
+  if (!arg.attrs_size()) {
+    return pb_error(EINVAL, "'attrs' must be specified");
+  }
+
+  for (int i = 0; i < arg.attrs_size(); i++) {
+    const auto &attr = arg.attrs(i);
+    pb_error_t err;
+
+    err = AddAttrOne(attr);
+    if (err.err() != 0) {
+      return err;
+    }
+  }
+
+  return pb_errno(0);
+}
 
 struct snobj *SetMetadata::AddAttrOne(struct snobj *attr) {
   const char *name_c;

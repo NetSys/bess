@@ -33,10 +33,13 @@ class Measure : public Module {
         total_latency_() {}
 
   virtual struct snobj *Init(struct snobj *arg);
+  virtual pb_error_t Init(const bess::MeasureArg &arg);
 
   virtual void ProcessBatch(struct pkt_batch *batch);
 
   struct snobj *CommandGetSummary(struct snobj *arg);
+  bess::MeasureCommandGetSummaryResponse CommandGetSummary(
+      const bess::MeasureCommandGetSummaryArg &arg);
 
   static const gate_idx_t kNumIGates = 1;
   static const gate_idx_t kNumOGates = 1;
@@ -66,6 +69,14 @@ struct snobj *Measure::Init(struct snobj *arg) {
   init_hist(&hist_);
 
   return nullptr;
+}
+
+pb_error_t Measure::Init(const bess::MeasureArg &arg) {
+  if (arg.warmup()) {
+    warmup_ = arg.warmup();
+  }
+  init_hist(&hist_);
+  return pb_errno(0);
 }
 
 void Measure::ProcessBatch(struct pkt_batch *batch) {
@@ -112,6 +123,21 @@ struct snobj *Measure::CommandGetSummary(struct snobj *arg) {
   snobj_map_set(r, "packets", snobj_uint(pkt_total));
   snobj_map_set(r, "bits", snobj_uint(bits));
   snobj_map_set(r, "total_latency_ns", snobj_uint(total_latency_ * 100));
+
+  return r;
+}
+
+bess::MeasureCommandGetSummaryResponse Measure::CommandGetSummary(
+    const bess::MeasureCommandGetSummaryArg &arg) {
+  uint64_t pkt_total = pkt_cnt_;
+  uint64_t byte_total = bytes_cnt_;
+  uint64_t bits = (byte_total + pkt_total * 24) * 8;
+
+  bess::MeasureCommandGetSummaryResponse r;
+  r.set_timestamp(get_epoch_time());
+  r.set_packets(pkt_total);
+  r.set_bits(bits);
+  r.set_total_latency_ns(total_latency_ * 100);
 
   return r;
 }

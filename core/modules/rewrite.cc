@@ -13,11 +13,15 @@ class Rewrite : public Module {
         templates_() {}
 
   virtual struct snobj *Init(struct snobj *arg);
+  virtual pb_error_t Init(const bess::RewriteArg &arg);
 
   virtual void ProcessBatch(struct pkt_batch *batch);
 
   struct snobj *CommandAdd(struct snobj *arg);
   struct snobj *CommandClear(struct snobj *arg);
+
+  pb_error_t CommandAdd(const bess::RewriteArg &arg);
+  pb_error_t CommandClear(const bess::RewriteCommandClearArg &arg);
 
   static const gate_idx_t kNumIGates = 1;
   static const gate_idx_t kNumOGates = 1;
@@ -54,6 +58,51 @@ struct snobj *Rewrite::Init(struct snobj *arg) {
   }
 
   return CommandAdd(t);
+}
+
+pb_error_t Rewrite::Init(const bess::RewriteArg &arg) {
+  return CommandAdd(arg);
+}
+
+pb_error_t Rewrite::CommandAdd(const bess::RewriteArg &arg) {
+  int curr = num_templates_;
+  int i;
+
+  if (curr + arg.templates_size() > MAX_PKT_BURST) {
+    return pb_error(EINVAL,
+                    "max %d packet templates "
+                    "can be used %d %d",
+                    MAX_PKT_BURST, curr, arg.templates_size());
+  }
+
+  for (i = 0; i < arg.templates_size(); i++) {
+    const auto &templ = arg.templates(i);
+
+    if (templ.length() > MAX_TEMPLATE_SIZE) {
+      return pb_error(EINVAL, "template is too big");
+    }
+
+    memset(templates_[curr + i], 0, MAX_TEMPLATE_SIZE);
+    memcpy(templates_[curr + i], templ.c_str(), templ.length());
+    template_size_[curr + i] = templ.length();
+  }
+
+  num_templates_ = curr + arg.templates_size();
+
+  for (i = num_templates_; i < SLOTS; i++) {
+    int j = i % num_templates_;
+    memcpy(templates_[i], templates_[j], template_size_[j]);
+    template_size_[i] = template_size_[j];
+  }
+
+  return pb_errno(0);
+}
+
+pb_error_t Rewrite::CommandClear(const bess::RewriteCommandClearArg &arg) {
+  next_turn_ = 0;
+  num_templates_ = 0;
+
+  return pb_errno(0);
 }
 
 inline void Rewrite::DoRewriteSingle(struct pkt_batch *batch) {

@@ -1,11 +1,13 @@
-#include "../port.h"
 #include "../module.h"
+#include "../port.h"
 
 class PortInc : public Module {
  public:
   PortInc() : Module(), port_(), prefetch_(), burst_() {}
 
   virtual struct snobj *Init(struct snobj *arg);
+  virtual pb_error_t Init(const bess::PortIncArg &arg);
+
   virtual void Deinit();
 
   virtual struct task_result RunTask(void *arg);
@@ -13,6 +15,7 @@ class PortInc : public Module {
   virtual std::string GetDesc() const;
 
   struct snobj *CommandSetBurst(struct snobj *arg);
+  pb_error_t CommandSetBurst(const bess::PortIncCommandSetBurstArg &arg);
 
   static const gate_idx_t kNumIGates = 0;
   static const gate_idx_t kNumOGates = 1;
@@ -23,11 +26,64 @@ class PortInc : public Module {
   Port *port_ = {};
   int prefetch_ = {};
   int burst_ = {};
+  pb_error_t SetBurst(int64_t burst);
 };
 
 const Commands<Module> PortInc::cmds = {
     {"set_burst", MODULE_FUNC &PortInc::CommandSetBurst, 1},
 };
+
+pb_error_t PortInc::Init(const bess::PortIncArg &arg) {
+  const char *port_name;
+  queue_t num_inc_q;
+  int ret;
+  pb_error_t err;
+
+  burst_ = MAX_PKT_BURST;
+
+  if (!arg.port().length()) {
+    return pb_error(EINVAL, "'port' must be given as a string");
+  }
+  port_name = arg.port().c_str();
+
+  const auto &it = PortBuilder::all_ports().find(port_name);
+  if (it == PortBuilder::all_ports().end()) {
+    return pb_error(ENODEV, "Port %s not found", port_name);
+  }
+  port_ = it->second;
+
+  if (arg.burst() != 0) {
+    err = SetBurst(arg.burst());
+    if (err.err() != 0) {
+      return err;
+    }
+  }
+
+  num_inc_q = port_->num_queues[PACKET_DIR_INC];
+  if (num_inc_q == 0) {
+    return pb_error(ENODEV, "Port %s has no incoming queue", port_name);
+  }
+
+  for (queue_t qid = 0; qid < num_inc_q; qid++) {
+    task_id_t tid = RegisterTask((void *)(uintptr_t)qid);
+
+    if (tid == INVALID_TASK_ID) {
+      return pb_error(ENOMEM, "Task creation failed");
+    }
+  }
+
+  if (arg.prefetch()) {
+    prefetch_ = 1;
+  }
+
+  ret = port_->AcquireQueues(reinterpret_cast<const module *>(this),
+                             PACKET_DIR_INC, nullptr, 0);
+  if (ret < 0) {
+    return pb_errno(-ret);
+  }
+
+  return pb_errno(0);
+}
 
 struct snobj *PortInc::Init(struct snobj *arg) {
   const char *port_name;
@@ -157,6 +213,19 @@ struct snobj *PortInc::CommandSetBurst(struct snobj *arg) {
   burst_ = val;
 
   return nullptr;
+}
+
+pb_error_t PortInc::SetBurst(int64_t burst) {
+  if (burst == 0 || burst > MAX_PKT_BURST) {
+    return pb_error(EINVAL, "burst size must be [1,%d]", MAX_PKT_BURST);
+  }
+  burst_ = burst;
+  return pb_errno(0);
+}
+
+pb_error_t PortInc::CommandSetBurst(
+    const bess::PortIncCommandSetBurstArg &arg) {
+  return SetBurst(arg.burst());
 }
 
 ADD_MODULE(PortInc, "port_inc", "receives packets from a port")

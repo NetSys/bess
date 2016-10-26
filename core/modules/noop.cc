@@ -3,6 +3,7 @@
 class NoOP : public Module {
  public:
   virtual struct snobj *Init(struct snobj *arg);
+  virtual pb_error_t Init(const bess::NoOpArg &arg);
 
   virtual struct task_result RunTask(void *arg);
 
@@ -22,6 +23,16 @@ struct snobj *NoOP::Init(struct snobj *arg) {
     return snobj_err(ENOMEM, "Task creation failed");
 
   return nullptr;
+}
+
+pb_error_t NoOP::Init(const bess::NoOpArg &arg) {
+  task_id_t tid;
+
+  tid = RegisterTask(nullptr);
+  if (tid == INVALID_TASK_ID)
+    return pb_error(ENOMEM, "Task creation failed");
+
+  return pb_errno(0);
 }
 
 struct task_result NoOP::RunTask(void *arg) {

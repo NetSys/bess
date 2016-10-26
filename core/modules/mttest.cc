@@ -3,6 +3,7 @@
 class MetadataTest : public Module {
  public:
   struct snobj *Init(struct snobj *arg);
+  pb_error_t Init(const bess::MetadataTestArg &arg);
 
   void ProcessBatch(struct pkt_batch *batch);
 
@@ -13,9 +14,45 @@ class MetadataTest : public Module {
 
  private:
   struct snobj *AddAttributes(struct snobj *attrs, enum mt_access_mode mode);
+  pb_error_t AddAttributes(
+      const google::protobuf::Map<std::string, int64_t> &attrs,
+      enum mt_access_mode mode);
 };
 
 const Commands<Module> MetadataTest::cmds = {};
+
+pb_error_t MetadataTest::AddAttributes(
+    const google::protobuf::Map<std::string, int64_t> &attrs,
+    enum mt_access_mode mode) {
+  for (const auto &kv : attrs) {
+    int ret;
+
+    const char *attr_name = kv.first.c_str();
+    int attr_size = kv.second;
+
+    ret = AddMetadataAttr(attr_name, attr_size, mode);
+    if (ret < 0)
+      return pb_error(-ret, "invalid metadata declaration");
+
+    /* check /var/log/syslog for log messages */
+    switch (mode) {
+      case MT_READ:
+        log_info("module %s: %s, %d bytes, read\n", name().c_str(), attr_name,
+                 attr_size);
+        break;
+      case MT_WRITE:
+        log_info("module %s: %s, %d bytes, write\n", name().c_str(), attr_name,
+                 attr_size);
+        break;
+      case MT_UPDATE:
+        log_info("module %s: %s, %d bytes, update\n", name().c_str(), attr_name,
+                 attr_size);
+        break;
+    }
+  }
+
+  return pb_errno(0);
+}
 
 struct snobj *MetadataTest::AddAttributes(struct snobj *attrs,
                                           enum mt_access_mode mode) {
@@ -54,6 +91,27 @@ struct snobj *MetadataTest::AddAttributes(struct snobj *attrs,
   }
 
   return nullptr;
+}
+
+pb_error_t MetadataTest::Init(const bess::MetadataTestArg &arg) {
+  pb_error_t err;
+
+  err = AddAttributes(arg.read(), MT_READ);
+  if (err.err() != 0) {
+    return err;
+  }
+
+  err = AddAttributes(arg.write(), MT_WRITE);
+  if (err.err() != 0) {
+    return err;
+  }
+
+  err = AddAttributes(arg.update(), MT_UPDATE);
+  if (err.err() != 0) {
+    return err;
+  }
+
+  return pb_errno(0);
 }
 
 struct snobj *MetadataTest::Init(struct snobj *arg) {

@@ -49,10 +49,15 @@ class HashLB : public Module {
   HashLB() : Module(), gates_(), num_gates_(), mode_() {}
 
   virtual struct snobj *Init(struct snobj *arg);
+  virtual pb_error_t Init(const bess::HashLBArg &arg);
+
   virtual void ProcessBatch(struct pkt_batch *batch);
 
   struct snobj *CommandSetMode(struct snobj *arg);
   struct snobj *CommandSetGates(struct snobj *arg);
+
+  pb_error_t CommandSetMode(const bess::HashLBCommandSetModeArg &arg);
+  pb_error_t CommandSetGates(const bess::HashLBCommandSetGatesArg &arg);
 
   static const gate_idx_t kNumIGates = 1;
   static const gate_idx_t kNumOGates = MAX_GATES;
@@ -92,6 +97,23 @@ struct snobj *HashLB::CommandSetMode(struct snobj *arg) {
   }
 
   return nullptr;
+}
+
+pb_error_t HashLB::CommandSetMode(const bess::HashLBCommandSetModeArg &arg) {
+  switch (arg.mode()) {
+    case bess::HashLBCommandSetModeArg::L2:
+      mode_ = LB_L2;
+      break;
+    case bess::HashLBCommandSetModeArg::L3:
+      mode_ = LB_L3;
+      break;
+    case bess::HashLBCommandSetModeArg::L4:
+      mode_ = LB_L4;
+      break;
+    default:
+      return pb_error(EINVAL, "available LB modes: l2, l3, l4");
+  }
+  return pb_errno(0);
 }
 
 struct snobj *HashLB::CommandSetGates(struct snobj *arg) {
@@ -138,6 +160,23 @@ struct snobj *HashLB::CommandSetGates(struct snobj *arg) {
   return nullptr;
 }
 
+pb_error_t HashLB::CommandSetGates(const bess::HashLBCommandSetGatesArg &arg) {
+  if (arg.gates_size() > MAX_HLB_GATES) {
+    return pb_error(EINVAL, "no more than %d gates", MAX_HLB_GATES);
+  }
+
+  for (int i = 0; i < arg.gates_size(); i++) {
+    gates_[i] = arg.gates(i);
+    if (!is_valid_gate(gates_[i])) {
+      return pb_error(EINVAL, "invalid gate %d", gates_[i]);
+    }
+  }
+
+  num_gates_ = arg.gates_size();
+
+  return pb_errno(0);
+}
+
 struct snobj *HashLB::Init(struct snobj *arg) {
   struct snobj *t;
 
@@ -161,6 +200,25 @@ struct snobj *HashLB::Init(struct snobj *arg) {
   }
 
   return nullptr;
+}
+
+pb_error_t HashLB::Init(const bess::HashLBArg &arg) {
+  mode_ = DEFAULT_MODE;
+
+  if (arg.has_gate_arg()) {
+    pb_error_t err = CommandSetGates(arg.gate_arg());
+    if (err.err() != 0) {
+      return err;
+    }
+  } else {
+    return pb_error(EINVAL, "'gates' must be specified");
+  }
+
+  if (arg.has_mode_arg()) {
+    return CommandSetMode(arg.mode_arg());
+  }
+
+  return pb_errno(0);
 }
 
 void HashLB::LbL2(struct pkt_batch *batch, gate_idx_t *ogates) {

@@ -7,6 +7,7 @@
 #include <rte_ip.h>
 #include <rte_lpm.h>
 
+#include "../message.h"
 #include "../module.h"
 
 #define VECTOR_OPTIMIZATION 1
@@ -20,12 +21,17 @@ class IPLookup : public Module {
   IPLookup() : Module(), lpm_(), default_gate_() {}
 
   virtual struct snobj *Init(struct snobj *arg);
+  virtual pb_error_t Init(const bess::IPLookupArg &arg);
+
   virtual void Deinit();
 
   virtual void ProcessBatch(struct pkt_batch *batch);
 
   struct snobj *CommandAdd(struct snobj *arg);
   struct snobj *CommandClear(struct snobj *arg);
+
+  pb_error_t CommandAdd(const bess::IPLookupCommandAddArg &arg);
+  pb_error_t CommandClear(const bess::IPLookupCommandClearArg &arg);
 
   static const gate_idx_t kNumIGates = 1;
   static const gate_idx_t kNumOGates = MAX_GATES;
@@ -56,6 +62,22 @@ struct snobj *IPLookup::Init(struct snobj *arg) {
   }
 
   return nullptr;
+}
+
+pb_error_t IPLookup::Init(const bess::IPLookupArg &arg) {
+  struct rte_lpm_config conf = {
+      .max_rules = 1024, .number_tbl8s = 128, .flags = 0,
+  };
+
+  default_gate_ = DROP_GATE;
+
+  lpm_ = rte_lpm_create(name().c_str(), /* socket_id = */ 0, &conf);
+
+  if (!lpm_) {
+    return pb_error(rte_errno, "DPDK error: %s", rte_strerror(rte_errno));
+  }
+
+  return pb_errno(0);
 }
 
 void IPLookup::Deinit() {
@@ -189,6 +211,59 @@ struct snobj *IPLookup::CommandClear(struct snobj *arg) {
   rte_lpm_delete_all(lpm_);
   default_gate_ = DROP_GATE;
   return nullptr;
+}
+
+pb_error_t IPLookup::CommandAdd(const bess::IPLookupCommandAddArg &arg) {
+  struct in_addr ip_addr_be;
+  uint32_t ip_addr; /* in cpu order */
+  uint32_t netmask;
+  int ret;
+  gate_idx_t gate = arg.gate();
+
+  if (!arg.prefix().length()) {
+    return pb_error(EINVAL, "prefix' is missing");
+  }
+
+  const char *prefix = arg.prefix().c_str();
+  uint64_t prefix_len = arg.prefix_len();
+
+  ret = inet_aton(prefix, &ip_addr_be);
+  if (!ret) {
+    return pb_error(EINVAL, "Invalid IP prefix: %s", prefix);
+  }
+
+  if (prefix_len > 32) {
+    return pb_error(EINVAL, "Invalid prefix length: %d", prefix_len);
+  }
+
+  ip_addr = rte_be_to_cpu_32(ip_addr_be.s_addr);
+  netmask = ~0 ^ ((1 << (32 - prefix_len)) - 1);
+
+  if (ip_addr & ~netmask) {
+    return pb_error(EINVAL, "Invalid IP prefix %s/%d %x %x", prefix, prefix_len,
+                    ip_addr, netmask);
+  }
+
+  if (!is_valid_gate(gate)) {
+    return pb_error(EINVAL, "Invalid gate: %hu", gate);
+  }
+
+  if (prefix_len == 0) {
+    default_gate_ = gate;
+  } else {
+    ret = rte_lpm_add(lpm_, ip_addr, prefix_len, gate);
+    if (ret) {
+      return pb_error(-ret, "rpm_lpm_add() failed");
+    }
+  }
+
+  return pb_errno(0);
+}
+
+pb_error_t IPLookup::CommandClear(const bess::IPLookupCommandClearArg &arg) {
+  rte_lpm_delete_all(lpm_);
+  default_gate_ = DROP_GATE;
+  return pb_errno(0);
 }
 
 ADD_MODULE(IPLookup, "ip_lookup",

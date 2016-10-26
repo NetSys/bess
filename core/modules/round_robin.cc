@@ -5,6 +5,52 @@ const Commands<Module> RoundRobin::cmds = {
     {"set_gates", MODULE_FUNC &RoundRobin::CommandSetGates, 0},
 };
 
+pb_error_t RoundRobin::Init(const bess::RoundRobinArg &arg) {
+  pb_error_t err;
+  err = CommandSetGates(arg.gate_arg());
+  if (err.err() != 0) {
+    return err;
+  }
+  err = CommandSetMode(arg.mode_arg());
+  if (err.err() != 0) {
+    return err;
+  }
+  return pb_errno(0);
+}
+
+pb_error_t RoundRobin::CommandSetMode(
+    const bess::RoundRobinCommandSetModeArg &arg) {
+  switch (arg.mode()) {
+    case bess::RoundRobinCommandSetModeArg::PACKET:
+      per_packet_ = 1;
+      break;
+    case bess::RoundRobinCommandSetModeArg::BATCH:
+      per_packet_ = 0;
+      break;
+    default:
+      pb_error(EINVAL, "argument must be either 'packet' or 'batch'");
+  }
+  return pb_errno(0);
+}
+
+pb_error_t RoundRobin::CommandSetGates(
+    const bess::RoundRobinCommandSetGatesArg &arg) {
+  if (arg.gates_size() > MAX_RR_GATES) {
+    return pb_error(EINVAL, "no more than %d gates", MAX_RR_GATES);
+  }
+
+  for (int i = 0; i < arg.gates_size(); i++) {
+    int elem = arg.gates(i);
+    gates_[i] = elem;
+    if (!is_valid_gate(gates_[i])) {
+      return pb_error(EINVAL, "invalid gate %d", gates_[i]);
+    }
+  }
+
+  ngates_ = arg.gates_size();
+  return pb_errno(0);
+}
+
 struct snobj *RoundRobin::Init(struct snobj *arg) {
   struct snobj *t;
 

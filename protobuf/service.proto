@@ -48,5 +48,5 @@ service BESSControl {
   rpc KillBess (Empty) returns (EmptyResponse) {}
 
   // TODO: modules commands
-  rpc ModuleCommand (ModuleCommandRequest) returns (EmptyResponse) {}
+  // rpc ModuleCommand (ModuleCommandRequest) returns (EmptyResponse) {}
 }
