@@ -5,6 +5,8 @@
 
 #include "time.h"
 
+#include "../common.h"
+
 class Random {
  public:
   Random() { SetSeed(rdtsc()); }
@@ -18,6 +20,8 @@ class Random {
   double GetRealNonzero();
 
  private:
+  DISALLOW_COPY_AND_ASSIGN(Random);
+
   void UpdateSeed();
   uint64_t seed_;
 };
