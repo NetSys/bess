@@ -1,4 +1,38 @@
 #include "pcap.h"
+
+/*!
+ * Queue of data to be transmitted.
+ * TODO: Why is this global and not declared on the stack?
+ */
+static unsigned char tx_pcap_data[PCAP_SNAPLEN];
+
+
+/*!
+ * LibPCAP function definitions below here.
+ */
+pcap_t* LibPCAP::open_live(const char *device, int snaplen, int promisc, int to_ms, char *errbuf){
+  return pcap_open_live(device, snaplen, promisc, to_ms, errbuf);
+}
+
+int LibPCAP::setnonblock(pcap_t *p, int nonblock, char *errbuf){
+  return pcap_setnonblock(p, nonblock, errbuf);
+}
+
+void LibPCAP::close(pcap_t* p){
+  pcap_close(p);
+}
+
+const u_char* LibPCAP::next(pcap_t* p, struct pcap_pkthdr* header){
+  return pcap_next(p, header);
+}
+
+int LibPCAP::sendpacket(pcap_t* p, const u_char* send_data, int len){
+  return pcap_sendpacket(p, send_data, len);
+}
+
+/*!
+ * PCAPPort function definitions below.
+ */
 struct snobj *PCAPPort::Init(struct snobj *conf) {
   char errbuf[PCAP_ERRBUF_SIZE];
   char *_dev = snobj_eval_str(conf, "dev");
@@ -10,12 +44,12 @@ struct snobj *PCAPPort::Init(struct snobj *conf) {
   const std::string dev(_dev);
 
   // non-blocking pcap
-  pcap_handle_ = pcap_open_live(dev.c_str(), PCAP_SNAPLEN, 1, -1, errbuf);
+  pcap_handle_ = pcap_dev_->open_live(dev.c_str(), PCAP_SNAPLEN, 1, -1, errbuf);
   if (pcap_handle_ == nullptr) {
     return snobj_err(ENODEV, "PCAP Open dev error: %s", errbuf);
   }
 
-  int ret = pcap_setnonblock(pcap_handle_, 1, errbuf);
+  int ret = pcap_dev_->setnonblock(pcap_handle_, 1, errbuf);
   if (ret != 0) {
     return snobj_err(ENODEV, "PCAP set to nonblock error: %s", errbuf);
   }
@@ -33,12 +67,12 @@ pb_error_t PCAPPort::Init(const bess::PCAPPortArg &arg) {
     return pb_error(EINVAL, "PCAP need to set dev option");
   }
   // Non-blocking pcap.
-  pcap_handle_ = pcap_open_live(dev.c_str(), PCAP_SNAPLEN, 1, -1, errbuf);
+  pcap_handle_ = pcap_dev_->open_live(dev.c_str(), PCAP_SNAPLEN, 1, -1, errbuf);
   if (pcap_handle_ == nullptr) {
     return pb_error(ENODEV, "PCAP Open dev error: %s", errbuf);
   }
 
-  int ret = pcap_setnonblock(pcap_handle_, 1, errbuf);
+  int ret = pcap_dev_->setnonblock(pcap_handle_, 1, errbuf);
   if (ret != 0) {
     return pb_error(ENODEV, "PCAP set to nonblock error: %s", errbuf);
   }
@@ -50,7 +84,7 @@ pb_error_t PCAPPort::Init(const bess::PCAPPortArg &arg) {
 
 void PCAPPort::DeInit() {
   if (pcap_handle_) {
-    pcap_close(pcap_handle_);
+    pcap_dev_->close(pcap_handle_);
     pcap_handle_ = nullptr;
   }
 }
@@ -105,7 +139,7 @@ int PCAPPort::RecvPackets(queue_t qid, snb_array_t pkts, int cnt) {
   struct snbuf *sbuf;
 
   while (recv_cnt < cnt) {
-    packet = pcap_next(pcap_handle_, &header);
+    packet = pcap_dev_->next(pcap_handle_, &header);
     if (!packet) {
       break;
     }
@@ -152,12 +186,12 @@ int PCAPPort::SendPackets(queue_t qid, snb_array_t pkts, int cnt) {
     struct snbuf *sbuf = pkts[send_cnt];
 
     if (likely(sbuf->mbuf.nb_segs == 1)) {
-      ret = pcap_sendpacket(pcap_handle_, (const u_char *)snb_head_data(sbuf),
+      ret = pcap_dev_->sendpacket(pcap_handle_, (const u_char *)snb_head_data(sbuf),
                             sbuf->mbuf.pkt_len);
     } else {
       if (sbuf->mbuf.pkt_len <= PCAP_SNAPLEN) {
         GatherData(tx_pcap_data, &sbuf->mbuf);
-        ret = pcap_sendpacket(pcap_handle_, tx_pcap_data, sbuf->mbuf.pkt_len);
+        ret = pcap_dev_->sendpacket(pcap_handle_, tx_pcap_data, sbuf->mbuf.pkt_len);
       } else {
         RTE_LOG(ERR, PMD,
                 "Dropping PCAP packet. "
