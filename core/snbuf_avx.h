@@ -40,7 +40,7 @@ static inline int snb_alloc_bulk(snb_array_t snbs, int cnt, uint16_t len) {
 
   /* 4 at a time didn't help */
   for (i = 0; i < (cnt & (~0x1)); i += 2) {
-    /* since the data is likely to be in the store buffer
+    /* since the data is LIKELY to be in the store buffer
      * as 64-bit writes, 128-bit read will cause stalls */
     struct snbuf *snb0 = snbs[i];
     struct snbuf *snb1 = snbs[i + 1];
@@ -108,13 +108,13 @@ static inline void snb_free_bulk(snb_array_t snbs, int cnt) {
     vcmp1 = _mm_and_si128(vcmp1, vcmp2);
     vcmp1 = _mm_and_si128(vcmp1, vcmp3);
 
-    if (unlikely(_mm_movemask_epi8(vcmp1) != 0xffff)) goto slow_path;
+    if (BESS_UNLIKELY(_mm_movemask_epi8(vcmp1) != 0xffff)) goto slow_path;
   }
 
   if (i < cnt) {
     struct snbuf *snb = snbs[i];
 
-    if (unlikely(snb->mbuf.pool != _pool || snb->mbuf.next != nullptr ||
+    if (BESS_UNLIKELY(snb->mbuf.pool != _pool || snb->mbuf.next != nullptr ||
                  rte_mbuf_refcnt_read(&snb->mbuf) != 1 ||
                  snb->mbuf.buf_addr != snb->_headroom)) {
       goto slow_path;

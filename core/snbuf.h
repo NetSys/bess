@@ -157,7 +157,7 @@ static inline void snb_free_bulk(snb_array_t snbs, int cnt) {
   for (i = 0; i < cnt; i++) {
     struct rte_mbuf *mbuf = &snbs[i]->mbuf;
 
-    if (unlikely(mbuf->pool != pool || !snb_is_simple(snbs[i]) ||
+    if (BESS_UNLIKELY(mbuf->pool != pool || !snb_is_simple(snbs[i]) ||
                  rte_mbuf_refcnt_read(mbuf) != 1)) {
       goto slow_path;
     }
@@ -175,7 +175,7 @@ slow_path:
 
 /* add bytes to the beginning */
 static inline void *snb_prepend(struct snbuf *snb, uint16_t len) {
-  if (unlikely(snb->mbuf.data_off < len)) return nullptr;
+  if (BESS_UNLIKELY(snb->mbuf.data_off < len)) return nullptr;
 
   snb->mbuf.data_off -= len;
   snb->mbuf.data_len += len;
@@ -186,7 +186,7 @@ static inline void *snb_prepend(struct snbuf *snb, uint16_t len) {
 
 /* remove bytes from the beginning */
 static inline void *snb_adj(struct snbuf *snb, uint16_t len) {
-  if (unlikely(snb->mbuf.data_len < len)) return nullptr;
+  if (BESS_UNLIKELY(snb->mbuf.data_len < len)) return nullptr;
 
   snb->mbuf.data_off += len;
   snb->mbuf.data_len -= len;

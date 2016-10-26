@@ -145,7 +145,7 @@ static void close_client(struct client *c) {
     if (!cdlist_is_empty(&master.clients_lock_waiting)) {
       struct client *first;
 
-      first = container_of(master.clients_lock_waiting.next, struct client,
+      first = CONTAINER_OF(master.clients_lock_waiting.next, struct client,
                            master_lock_waiting);
       cdlist_del(&first->master_lock_waiting);
       wakeup_client(first);

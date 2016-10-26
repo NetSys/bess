@@ -195,7 +195,7 @@ inline struct flow *FlowGen::ScheduleFlow(uint64_t time_ns) {
     return nullptr;
   }
 
-  f = container_of(item, struct flow, free);
+  f = CONTAINER_OF(item, struct flow, free);
   f->first = 1;
   f->flow_id = rng_.Get();
 

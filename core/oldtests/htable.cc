@@ -47,7 +47,7 @@ static inline uint32_t rand_fast() {
 static inline uint32_t rand_fast_nonzero() {
   while (true) {
     uint32_t ret = rand_fast();
-    if (likely(ret))
+    if (BESS_LIKELY(ret))
       return ret;
   }
 }

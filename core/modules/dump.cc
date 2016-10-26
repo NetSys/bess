@@ -58,7 +58,7 @@ pb_error_t Dump::Init(const bess::DumpArg &arg) {
 }
 
 void Dump::ProcessBatch(struct pkt_batch *batch) {
-  if (unlikely(ctx.current_ns() >= next_ns_)) {
+  if (BESS_UNLIKELY(ctx.current_ns() >= next_ns_)) {
     struct snbuf *pkt = batch->pkts[0];
 
     printf("----------------------------------------\n");

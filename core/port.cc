@@ -72,7 +72,7 @@ std::string PortBuilder::GenerateDefaultPortName(
       return name;  // found an unallocated name!
   }
 
-  promise_unreachable();
+  PROMISE_UNREACHABLE();
 }
 
 bool PortBuilder::InitPortClass() {

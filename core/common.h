@@ -10,23 +10,23 @@
 #include <x86intrin.h>
 
 /* Hint for performance optimization. Same as _nassert() of TI compilers */
-#define promise(cond)                     \
+#define PROMISE(cond)                     \
   ({                                      \
     if (!(cond)) __builtin_unreachable(); \
   })
-#define promise_unreachable() __builtin_unreachable();
+#define PROMISE_UNREACHABLE() __builtin_unreachable();
 
-#ifndef likely
-#  define likely(x) __builtin_expect((x), 1)
+#ifndef BESS_LIKELY
+#  define BESS_LIKELY(x) __builtin_expect((x), 1)
 #endif
 
-#ifndef unlikely
-#  define unlikely(x) __builtin_expect((x), 0)
+#ifndef BESS_UNLIKELY
+#  define BESS_UNLIKELY(x) __builtin_expect((x), 0)
 #endif
 
 #define member_type(type, member) typeof(((type *)0)->member)
 
-#define container_of(ptr, type, member)                  \
+#define CONTAINER_OF(ptr, type, member)                  \
   ((type *)((char *)(member_type(type, member) *){ptr} - \
             offsetof(type, member)))
 
@@ -79,10 +79,10 @@ static inline int is_be_system() {
 #define __cacheline_aligned __attribute__((aligned(64)))
 
 /* For x86_64. DMA operations are not safe with these macros */
-#define INST_BARRIER() asm volatile("" ::: "memory")
-#define LOAD_BARRIER() INST_BARRIER()
-#define STORE_BARRIER() INST_BARRIER()
-#define FULL_BARRIER() asm volatile("mfence" ::: "memory")
+static inline void INST_BARRIER() { asm volatile("" ::: "memory"); }
+static inline void LOAD_BARRIER() { INST_BARRIER(); }
+static inline void STORE_BARRIER() { INST_BARRIER(); }
+static inline void FULL_BARRIER() { asm volatile("mfence" ::: "memory"); }
 
 /* src/dst addresses and their sizes must be a multiple of SIMD register size */
 static inline void memcpy_sloppy(void *__restrict__ dst,

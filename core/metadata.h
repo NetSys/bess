@@ -11,56 +11,56 @@
 // the namespace.
 //
 // Unsafe, but faster version. for offset use mt_attr_offset().
-#define _ptr_attr_with_offset(offset, pkt, type)            \
+#define _PTR_ATTR_WITH_OFFSET(offset, pkt, type)            \
   ({                                                        \
-    promise(offset >= 0);                                   \
+    PROMISE(offset >= 0);                                   \
     struct snbuf *_pkt = (pkt);                             \
     uintptr_t addr = (uintptr_t)(_pkt->_metadata + offset); \
     (type *)addr;                                           \
   })
 
-#define _get_attr_with_offset(offset, pkt, type) \
-  ({ *(_ptr_attr_with_offset(offset, pkt, type)); })
+#define _GET_ATTR_WITH_OFFSET(offset, pkt, type) \
+  ({ *(_PTR_ATTR_WITH_OFFSET(offset, pkt, type)); })
 
-#define _set_attr_with_offset(offset, pkt, type, val)   \
+#define _SET_ATTR_WITH_OFFSET(offset, pkt, type, val)   \
   ((void)({                                             \
     type _val = (val);                                  \
-    *(_ptr_attr_with_offset(offset, pkt, type)) = _val; \
+    *(_PTR_ATTR_WITH_OFFSET(offset, pkt, type)) = _val; \
   }))
 
 // Safe version.
-#define ptr_attr_with_offset(offset, pkt, type)             \
+#define PTR_ATTR_WITH_OFFSET(offset, pkt, type)             \
   ({                                                        \
     bess::metadata::mt_offset_t _offset = (offset);         \
     bess::metadata::IsValidOffset(_offset)                  \
-        ? (type *)_ptr_attr_with_offset(_offset, pkt, type) \
+        ? (type *)_PTR_ATTR_WITH_OFFSET(_offset, pkt, type) \
         : (type *)nullptr;                                  \
   })
 
-#define get_attr_with_offset(offset, pkt, type)                                              \
+#define GET_ATTR_WITH_OFFSET(offset, pkt, type)                                              \
   ({                                                                                         \
     static type _zeroed;                                                                     \
     bess::metadata::mt_offset_t _offset = (offset);                                          \
-    bess::metadata::IsValidOffset(_offset) ? (type)_get_attr_with_offset(_offset, pkt, type) \
+    bess::metadata::IsValidOffset(_offset) ? (type)_GET_ATTR_WITH_OFFSET(_offset, pkt, type) \
                              : (type)_zeroed;                                                \
   })
 
-#define set_attr_with_offset(offset, pkt, type, val)  \
+#define SET_ATTR_WITH_OFFSET(offset, pkt, type, val)  \
   ((void)({                                           \
     bess::metadata::mt_offset_t _offset = (offset);   \
     if (bess::metadata::IsValidOffset(_offset))        \
-      _set_attr_with_offset(_offset, pkt, type, val); \
+      _SET_ATTR_WITH_OFFSET(_offset, pkt, type, val); \
   }))
 
 // Slowest but easiest.
-#define ptr_attr(module, attr_id, pkt, type) \
-  ptr_attr_with_offset(module->attr_offsets[attr_id], pkt, type)
+#define PTR_ATTR(module, attr_id, pkt, type) \
+  PTR_ATTR_WITH_OFFSET(module->attr_offsets[attr_id], pkt, type)
 
-#define get_attr(module, attr_id, pkt, type) \
-  get_attr_with_offset(module->attr_offsets[attr_id], pkt, type)
+#define GET_ATTR(module, attr_id, pkt, type) \
+  GET_ATTR_WITH_OFFSET(module->attr_offsets[attr_id], pkt, type)
 
-#define set_attr(module, attr_id, pkt, type, val) \
-  set_attr_with_offset(module->attr_offsets[attr_id], pkt, type, val)
+#define SET_ATTR(module, attr_id, pkt, type, val) \
+  SET_ATTR_WITH_OFFSET(module->attr_offsets[attr_id], pkt, type, val)
 
 namespace bess {
 namespace metadata {
