@@ -27,8 +27,9 @@ modules.order
 # Executables
 bessd
 
-# Unittest executables
+# Unittest/benchmark executables
 *_test
+*_bench
 
 # 3rd-party libraries
 deps/dpdk*/*
