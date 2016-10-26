@@ -198,10 +198,18 @@ class WildcardMatch : public Module {
 };
 
 const Commands<Module> WildcardMatch::cmds = {
-    {"add", MODULE_FUNC &WildcardMatch::CommandAdd, 0},
-    {"delete", MODULE_FUNC &WildcardMatch::CommandDelete, 0},
-    {"clear", MODULE_FUNC &WildcardMatch::CommandClear, 0},
-    {"set_default_gate", MODULE_FUNC &WildcardMatch::CommandSetDefaultGate, 1}};
+    {"add",
+     MODULE_FUNC(static_cast<struct snobj *(WildcardMatch::*)(struct snobj*)>(
+         &WildcardMatch::CommandAdd)), 0},
+    {"delete",
+     MODULE_FUNC(static_cast<struct snobj *(WildcardMatch::*)(struct snobj*)>(
+         &WildcardMatch::CommandDelete)), 0},
+    {"clear",
+     MODULE_FUNC(static_cast<struct snobj *(WildcardMatch::*)(struct snobj*)>(
+         &WildcardMatch::CommandClear)), 0},
+    {"set_default_gate",
+     MODULE_FUNC(static_cast<struct snobj *(WildcardMatch::*)(struct snobj*)>(
+         &WildcardMatch::CommandSetDefaultGate)), 1}};
 
 struct snobj *WildcardMatch::AddFieldOne(struct snobj *field,
                                          struct WmField *f) {

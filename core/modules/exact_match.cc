@@ -169,10 +169,18 @@ class ExactMatch : public Module {
 };
 
 const Commands<Module> ExactMatch::cmds = {
-    {"add", MODULE_FUNC &ExactMatch::CommandAdd, 0},
-    {"delete", MODULE_FUNC &ExactMatch::CommandDelete, 0},
-    {"clear", MODULE_FUNC &ExactMatch::CommandClear, 0},
-    {"set_default_gate", MODULE_FUNC &ExactMatch::CommandSetDefaultGate, 1}};
+    {"add",
+     MODULE_FUNC(static_cast<struct snobj *(ExactMatch::*)(struct snobj*)>(
+         &ExactMatch::CommandAdd)), 0},
+    {"delete",
+     MODULE_FUNC(static_cast<struct snobj *(ExactMatch::*)(struct snobj*)>(
+         &ExactMatch::CommandDelete)), 0},
+    {"clear",
+     MODULE_FUNC(static_cast<struct snobj *(ExactMatch::*)(struct snobj*)>(
+         &ExactMatch::CommandClear)), 0},
+    {"set_default_gate",
+     MODULE_FUNC(static_cast<struct snobj *(ExactMatch::*)(struct snobj*)>(
+         &ExactMatch::CommandSetDefaultGate)), 1}};
 
 pb_error_t ExactMatch::AddFieldOne(const bess::ExactMatchArg_Field &field,
                                    struct EmField *f, int idx) {

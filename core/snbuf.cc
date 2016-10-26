@@ -53,7 +53,7 @@ again:
   pframe_pool[sid] = rte_mempool_create(
       name, current_try - 1, sizeof(struct snbuf), NUM_MEMPOOL_CACHE,
       sizeof(struct rte_pktmbuf_pool_private), rte_pktmbuf_pool_init,
-      &pool_priv, snbuf_pkt_init, (void *)(uintptr_t)sid, sid, 0);
+      &pool_priv, snbuf_pkt_init, reinterpret_cast<void *>((uintptr_t)sid), sid, 0);
 
   if (!pframe_pool[sid]) {
     log_info("Allocating %d buffers on socket %d: Failed (%s)", current_try - 1,
