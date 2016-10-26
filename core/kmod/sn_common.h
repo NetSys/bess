@@ -29,8 +29,8 @@
  */
 /* Dual BSD/GPL */
 
-#ifndef _SN_COMMON_H_
-#define _SN_COMMON_H_
+#ifndef BESS_CORE_KMOD_SN_COMMON_H_
+#define BESS_CORE_KMOD_SN_COMMON_H_
 
 #include <linux/if_ether.h>
 

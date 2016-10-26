@@ -1,5 +1,5 @@
-#ifndef _TC_H_
-#define _TC_H_
+#ifndef BESS_CORE_TC_H_
+#define BESS_CORE_TC_H_
 
 #include <string.h>
 

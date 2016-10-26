@@ -1,5 +1,5 @@
-#ifndef _SNOBJ_H_
-#define _SNOBJ_H_
+#ifndef BESS_CORE_SNOBJ_H_
+#define BESS_CORE_SNOBJ_H_
 
 /* NOTE: this library is not thread-safe */
 

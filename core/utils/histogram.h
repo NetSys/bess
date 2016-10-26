@@ -1,5 +1,5 @@
-#ifndef __HISTOGRAM_H__
-#define __HISTOGRAM_H__
+#ifndef BESS_CORE_UTILS_HISTOGRAM_H_
+#define BESS_CORE_UTILS_HISTOGRAM_H_
 
 #include <rte_cycles.h>
 

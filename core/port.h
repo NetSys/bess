@@ -1,5 +1,5 @@
-#ifndef _PORT_H_
-#define _PORT_H_
+#ifndef BESS_CORE_PORT_H_
+#define BESS_CORE_PORT_H_
 
 #include <stdint.h>
 
