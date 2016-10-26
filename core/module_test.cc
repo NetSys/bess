@@ -57,7 +57,7 @@ class AcmeModule : public Module {
 };
 
 const Commands<Module> AcmeModule::cmds = {
-  {"foo", MODULE_FUNC &AcmeModule::Foo, 0}
+  {"foo", MODULE_FUNC(&AcmeModule::Foo), 0}
 };
 
 // Simple harness for testing the Module class.

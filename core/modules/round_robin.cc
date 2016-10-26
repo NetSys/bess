@@ -1,8 +1,12 @@
 #include "round_robin.h"
 
 const Commands<Module> RoundRobin::cmds = {
-    {"set_mode", MODULE_FUNC &RoundRobin::CommandSetMode, 0},
-    {"set_gates", MODULE_FUNC &RoundRobin::CommandSetGates, 0},
+    {"set_mode",
+     MODULE_FUNC(static_cast<struct snobj *(RoundRobin::*)(struct snobj*)>(
+                 &RoundRobin::CommandSetMode)), 0},
+    {"set_gates",
+     MODULE_FUNC(static_cast<struct snobj *(RoundRobin::*)(struct snobj*)>(
+                 &RoundRobin::CommandSetGates)), 0},
 };
 
 pb_error_t RoundRobin::Init(const bess::RoundRobinArg &arg) {

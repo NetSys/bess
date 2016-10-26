@@ -253,7 +253,7 @@ static void resume_throttled(struct sched *s, uint64_t tsc) {
     struct tc *c;
     int64_t event_tsc;
 
-    heap_peek_valdata(&s->pq, &event_tsc, (void **)&c);
+    heap_peek_valdata(&s->pq, &event_tsc, reinterpret_cast<void **>(&c));
 
     if ((uint64_t)event_tsc > tsc) break;
 
@@ -333,12 +333,16 @@ static inline void accumulate(resource_arr_t acc, resource_arr_t x) {
   uint64_t *p2 = x;
 
 #if 0 && __AVX2__
-	*((__m256i *)p1) = _mm256_add_epi64(*((__m256i *)p1), *((__m256i *)p2));
+	*reinterpret_cast<__m256i *>(p1) =
+      _mm256_add_epi64(*reinterpret_cast<__m256i *>(p1),
+      *reinterpret_cast<__m256i *>(p2));
 #elif 0 && __AVX__
-  *((__m128i *)p1 + 0) =
-      _mm_add_epi64(*((__m128i *)p1 + 0), *((__m128i *)p2 + 0));
-  *((__m128i *)p1 + 1) =
-      _mm_add_epi64(*((__m128i *)p1 + 1), *((__m128i *)p2 + 1));
+  *(reinterpret_cast<__m128i *>(p1) + 0) =
+      _mm_add_epi64(*(reinterpret_cast<__m128i *>(p1) + 0),
+                    *(reinterpret_cast<__m128i *>(p2) + 0));
+  *(reinterpret_cast<__m128i *>(p1) + 1) =
+      _mm_add_epi64(*(reinterpret_cast<__m128i *>(p1) + 1),
+                    *(reinterpret_cast<__m128i *>(p2) + 1));
 #else
   for (int i = 0; i < NUM_RESOURCES; i++) p1[i] += p2[i];
 #endif
@@ -486,8 +490,8 @@ static char *print_tc_stats_detail(struct sched *s, char *p, int max_cnt) {
     cdlist_for_each_entry(c, &s->tcs_all, sched_all) {
       uint64_t value;
 
-#define COUNTER (((uint64_t *)&c->stats)[i])
-#define LAST_COUNTER (((uint64_t *)&c->last_stats)[i])
+#define COUNTER ((reinterpret_cast<uint64_t *>(&c->stats))[i])
+#define LAST_COUNTER ((reinterpret_cast<uint64_t *>(&c->last_stats))[i])
 
       value = COUNTER - LAST_COUNTER;
       LAST_COUNTER = COUNTER;

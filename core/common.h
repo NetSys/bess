@@ -55,13 +55,13 @@ static inline uint64_t align_ceil_pow2(uint64_t v) {
 }
 
 /* err is defined as -errno,  */
-static inline intptr_t ptr_to_err(const void *ptr) { return (intptr_t)ptr; }
+static inline intptr_t ptr_to_err(const void *ptr) { return reinterpret_cast<const intptr_t>(ptr); }
 
-static inline void *err_to_ptr(intptr_t err) { return (void *)err; }
+static inline void *err_to_ptr(intptr_t err) { return reinterpret_cast<void *>(err); }
 
 static inline int is_err(const void *ptr) {
-  const int max_errno = 4095;
-  return (uintptr_t)ptr >= (uintptr_t)-max_errno;
+  const intptr_t max_errno = 4095;
+  return reinterpret_cast<uintptr_t>(ptr) >= static_cast<uintptr_t>(-max_errno);
 }
 
 static inline int is_err_or_null(const void *ptr) {
@@ -92,8 +92,8 @@ static inline void memcpy_sloppy(void *__restrict__ dst,
 #else
   typedef __m128i block_t;
 #endif
-  block_t *__restrict__ d = (block_t *)dst;
-  const block_t *__restrict__ s = (const block_t *)src;
+  block_t *__restrict__ d = reinterpret_cast<block_t *>(dst);
+  const block_t *__restrict__ s = reinterpret_cast<const block_t *>(src);
 
   int bytes_left = n;
   while (bytes_left > 0) {

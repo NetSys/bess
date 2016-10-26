@@ -30,7 +30,9 @@ class QueueInc : public Module {
 };
 
 const Commands<Module> QueueInc::cmds = {
-    {"set_burst", MODULE_FUNC &QueueInc::CommandSetBurst, 1}};
+    {"set_burst",
+     MODULE_FUNC(static_cast<struct snobj *(QueueInc::*)(struct snobj*)>(
+                 &QueueInc::CommandSetBurst)), 1}};
 
 pb_error_t QueueInc::Init(const bess::QueueIncArg &arg) {
   const char *port_name;

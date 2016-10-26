@@ -108,7 +108,7 @@ static char *_STRDUP(const char *s) {
   size_t len = strlen(s);
   char *ret;
 
-  ret = (char *)_ALLOC(len + 1);
+  ret = reinterpret_cast<char *>(_ALLOC(len + 1));
   memcpy(ret, s, len + 1);
 
   return ret;
@@ -170,13 +170,13 @@ static inline double snobj_number_get(const struct snobj *m) {
 static inline char *snobj_str_get(const struct snobj *m) {
   if (m->type != TYPE_STR) return nullptr;
 
-  return (char *)m->data;
+  return reinterpret_cast<char *>(m->data);
 }
 
 static inline void *snobj_blob_get(const struct snobj *m) {
   if (m->type != TYPE_BLOB) return nullptr;
 
-  return (void *)m->data;
+  return reinterpret_cast<void *>(m->data);
 }
 
 static inline struct snobj *snobj_list_get(const struct snobj *m,
