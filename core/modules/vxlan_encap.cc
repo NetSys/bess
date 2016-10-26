@@ -23,6 +23,8 @@ class VXLANEncap : public Module {
   VXLANEncap() : Module(), dstport_() {}
 
   virtual struct snobj *Init(struct snobj *arg);
+  virtual pb_error_t Init(const bess::VXLANEncapArg &arg);
+
   virtual void ProcessBatch(struct pkt_batch *batch);
 
   int num_attrs = 6;
@@ -57,6 +59,17 @@ class VXLANEncap : public Module {
 };
 
 const Commands<Module> VXLANEncap::cmds = {};
+
+pb_error_t VXLANEncap::Init(const bess::VXLANEncapArg &arg) {
+  dstport_ = rte_cpu_to_be_16(4789);
+
+  int dstport = arg.dstport();
+  if (dstport <= 0 || dstport >= 65536)
+    return pb_error(EINVAL, "invalid 'dstport' field");
+  dstport_ = rte_cpu_to_be_16(dstport);
+
+  return pb_errno(0);
+}
 
 struct snobj *VXLANEncap::Init(struct snobj *arg) {
   dstport_ = rte_cpu_to_be_16(4789);

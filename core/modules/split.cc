@@ -19,6 +19,7 @@ class Split : public Module {
   Split() : Module(), mask_(), attr_id_(), offset_(), size_() {}
 
   struct snobj *Init(struct snobj *arg);
+  pb_error_t Init(const bess::SplitArg &arg);
 
   void ProcessBatch(struct pkt_batch *batch);
 
@@ -35,6 +36,27 @@ class Split : public Module {
 };
 
 const Commands<Module> Split::cmds = {};
+
+pb_error_t Split::Init(const bess::SplitArg &arg) {
+  size_ = arg.size();
+  if (size_ < 1 || size_ > MAX_SIZE) {
+    return pb_error(EINVAL, "'size' must be 1-%d", MAX_SIZE);
+  }
+  mask_ = ((uint64_t)1 << (size_ * 8)) - 1;
+  const char *name = arg.name().c_str();
+  if (arg.name().length()) {
+    attr_id_ = AddMetadataAttr(name, size_, MT_READ);
+    if (attr_id_ < 0)
+      return pb_error(-attr_id_, "add_metadata_attr() failed");
+  } else {
+    attr_id_ = -1;
+    offset_ = arg.offset();
+    if (offset_ < 0 || offset_ > 1024) {
+      return pb_error(EINVAL, "invalid 'offset'");
+    }
+  }
+  return pb_errno(0);
+}
 
 struct snobj *Split::Init(struct snobj *arg) {
   if (!arg || snobj_type(arg) != TYPE_MAP) {

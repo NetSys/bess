@@ -9,11 +9,15 @@ class Update : public Module {
   Update() : Module(), num_fields_(), fields_() {}
 
   virtual struct snobj *Init(struct snobj *arg);
+  virtual pb_error_t Init(const bess::UpdateArg &arg);
 
   virtual void ProcessBatch(struct pkt_batch *batch);
 
   struct snobj *CommandAdd(struct snobj *arg);
   struct snobj *CommandClear(struct snobj *arg);
+
+  pb_error_t CommandAdd(const bess::UpdateArg &arg);
+  pb_error_t CommandClear(const bess::UpdateCommandClearArg &arg);
 
   static const gate_idx_t kNumIGates = 1;
   static const gate_idx_t kNumOGates = 1;
@@ -49,6 +53,10 @@ struct snobj *Update::Init(struct snobj *arg) {
   return CommandAdd(t);
 }
 
+pb_error_t Update::Init(const bess::UpdateArg &arg) {
+  return CommandAdd(arg);
+}
+
 void Update::ProcessBatch(struct pkt_batch *batch) {
   int cnt = batch->cnt;
 
@@ -70,6 +78,59 @@ void Update::ProcessBatch(struct pkt_batch *batch) {
   }
 
   RunNextModule(batch);
+}
+
+pb_error_t Update::CommandAdd(const bess::UpdateArg &arg) {
+  int curr = num_fields_;
+
+  if (curr + arg.fields_size() > MAX_FIELDS) {
+    return pb_error(EINVAL,
+                    "max %d variables "
+                    "can be specified",
+                    MAX_FIELDS);
+  }
+
+  for (int i = 0; i < arg.fields_size(); i++) {
+    const auto &field = arg.fields(i);
+
+    uint8_t size;
+    int16_t offset;
+    uint64_t mask;
+    uint64_t value;
+
+    offset = field.offset();
+
+    size = field.size();
+    if (size < 1 || size > 8) {
+      return pb_error(EINVAL, "'size' must be 1-8");
+    }
+
+    const char *t = field.value().c_str();
+    memcpy(&value, t, size);
+
+    if (offset < 0) {
+      return pb_error(EINVAL, "too small 'offset'");
+    }
+
+    offset -= (8 - size);
+    mask = ((uint64_t)1 << ((8 - size) * 8)) - 1;
+
+    if (offset + 8 > SNBUF_DATA) {
+      return pb_error(EINVAL, "too large 'offset'");
+    }
+
+    fields_[curr + i].offset = offset;
+    fields_[curr + i].mask = mask;
+    fields_[curr + i].value = rte_cpu_to_be_64(value);
+  }
+
+  num_fields_ = curr + arg.fields_size();
+  return pb_errno(0);
+}
+
+pb_error_t Update::CommandClear(const bess::UpdateCommandClearArg &arg) {
+  num_fields_ = 0;
+  return pb_errno(0);
 }
 
 struct snobj *Update::CommandAdd(struct snobj *arg) {

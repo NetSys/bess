@@ -5,11 +5,15 @@ class Source : public Module {
   Source() : Module(), pkt_size_(), burst_() {}
 
   virtual struct snobj *Init(struct snobj *arg);
+  pb_error_t Init(const bess::SourceArg &arg);
 
   virtual struct task_result RunTask(void *arg);
 
   struct snobj *command_set_pkt_size(struct snobj *arg);
   struct snobj *command_set_burst(struct snobj *arg);
+
+  pb_error_t CommandSetBurst(const bess::SourceCommandSetBurstArg &arg);
+  pb_error_t CommandSetPktSize(const bess::SourceCommandSetPktSizeArg &arg);
 
   static const gate_idx_t kNumIGates = 0;
   static const gate_idx_t kNumOGates = 1;
@@ -25,6 +29,48 @@ const Commands<Module> Source::cmds = {
     {"set_pkt_size", MODULE_FUNC &Source::command_set_pkt_size, 1},
     {"set_burst", MODULE_FUNC &Source::command_set_burst, 1},
 };
+
+pb_error_t Source::Init(const bess::SourceArg &arg) {
+  pb_error_t err;
+
+  task_id_t tid = RegisterTask(nullptr);
+  if (tid == INVALID_TASK_ID)
+    return pb_error(ENOMEM, "Task creation failed");
+
+  pkt_size_ = 60;
+  burst_ = MAX_PKT_BURST;
+
+  err = CommandSetPktSize(arg.pkt_size_arg());
+  if (err.err() != 0) {
+    return err;
+  }
+
+  err = CommandSetBurst(arg.burst_arg());
+  if (err.err() != 0) {
+    return err;
+  }
+
+  return pb_errno(0);
+}
+
+pb_error_t Source::CommandSetBurst(const bess::SourceCommandSetBurstArg &arg) {
+  uint64_t val = arg.burst();
+  if (val == 0 || val > MAX_PKT_BURST) {
+    return pb_error(EINVAL, "burst size must be [1,%d]", MAX_PKT_BURST);
+  }
+  burst_ = val;
+  return pb_errno(0);
+}
+
+pb_error_t Source::CommandSetPktSize(
+    const bess::SourceCommandSetPktSizeArg &arg) {
+  uint64_t val = arg.pkt_size();
+  if (val == 0 || val > SNBUF_DATA) {
+    return pb_error(EINVAL, "Invalid packet size");
+  }
+  pkt_size_ = val;
+  return pb_errno(0);
+}
 
 struct snobj *Source::Init(struct snobj *arg) {
   struct snobj *t;

@@ -100,13 +100,34 @@ message QueueCommandSetSizeArg {
 }
 
 message RandomUpdateCommandAddArg {
-
 }
 
 message RandomUpdateCommandClearArg {
 }
 
 message RewriteCommandClearArg {
+}
+
+message UpdateCommandClearArg {
+}
+
+message WildcardMatchCommandAddArg {
+  uint64 gate = 1;
+  int64 priority = 2;
+  repeated uint64 values = 3;
+  repeated uint64 masks = 4;
+}
+
+message WildcardMatchCommandDeleteArg {
+  repeated uint64 values = 1;
+  repeated uint64 masks = 2;
+}
+
+message WildcardMatchCommandClearArg {
+}
+
+message WildcardMatchCommandSetDefaultGateArg {
+  uint64 gate = 1;
 }
 
 message BPFArg {
@@ -280,9 +301,17 @@ message SetMetadataArg {
 message SinkArg {
 }
 
-message SourceArg {
+message SourceCommandSetBurstArg {
+  uint64 burst = 1;
+}
+
+message SourceCommandSetPktSizeArg {
   uint64 pkt_size = 1;
-  uint64 burst = 2;
+}
+
+message SourceArg {
+  SourceCommandSetBurstArg burst_arg = 1;
+  SourceCommandSetPktSizeArg pkt_size_arg = 2;
 }
 
 message SplitArg {
@@ -322,9 +351,11 @@ message VXLANEncapArg {
 
 message WildcardMatchArg {
   message Field {
-    int64 offset = 1;
-    uint64 size = 2;
-    string attribute = 3;
+    uint64 size = 1;
+    oneof length {
+      uint64 offset = 2;
+      string attribute = 3;
+    }
   }
   repeated Field fields = 1;
 }
