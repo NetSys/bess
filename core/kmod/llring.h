@@ -91,8 +91,8 @@
 
 #ifdef __KERNEL__
 
-#define llring_likely(x) likely(x)
-#define llring_unlikely(x) unlikely(x)
+#define LLRING_LIKELY(x) likely(x)
+#define LLRING_UNLIKELY(x) unlikely(x)
 
 static inline void llring_pause(void) { cpu_relax(); }
 
@@ -100,8 +100,8 @@ static inline void llring_pause(void) { cpu_relax(); }
 
 #include <stdint.h>
 
-#define llring_likely(x) __builtin_expect(!!(x), 1)
-#define llring_unlikely(x) __builtin_expect(!!(x), 0)
+#define LLRING_LIKELY(x) __builtin_expect(!!(x), 1)
+#define LLRING_UNLIKELY(x) __builtin_expect(!!(x), 0)
 
 #include <emmintrin.h>
 
@@ -302,7 +302,7 @@ static inline int llring_set_water_mark(struct llring *r, unsigned count)
 	do {                                                                   \
 		const uint32_t slots = r->common.slots;                        \
 		uint32_t idx = prod_head & mask;                               \
-		if (llring_likely(idx + n < slots)) {                          \
+		if (LLRING_LIKELY(idx + n < slots)) {                          \
 			for (i = 0; i < (n & ((~(unsigned)0x3)));              \
 			     i += 4, idx += 4) {                               \
 				r->ring[idx] = obj_table[i];                   \
@@ -333,7 +333,7 @@ static inline int llring_set_water_mark(struct llring *r, unsigned count)
 	do {                                                                   \
 		uint32_t idx = cons_head & mask;                               \
 		const uint32_t slots = r->common.slots;                        \
-		if (llring_likely(idx + n < slots)) {                          \
+		if (LLRING_LIKELY(idx + n < slots)) {                          \
 			for (i = 0; i < (n & (~(unsigned)0x3));                \
 			     i += 4, idx += 4) {                               \
 				obj_table[i] = r->ring[idx];                   \
@@ -409,7 +409,7 @@ __llring_mp_do_enqueue(struct llring *r, void *const *obj_table, unsigned n,
 		free_entries = (mask + cons_tail - prod_head);
 
 		/* check that we have enough room in ring */
-		if (llring_unlikely(n > free_entries)) {
+		if (LLRING_UNLIKELY(n > free_entries)) {
 			if (behavior == LLRING_QUEUE_FIXED) {
 				__RING_STAT_ADD(r, enq_fail, n);
 				return -LLRING_ERR_NOBUF;
@@ -427,14 +427,14 @@ __llring_mp_do_enqueue(struct llring *r, void *const *obj_table, unsigned n,
 		prod_next = prod_head + n;
 		success =
 		    llring_atomic32_cmpset(&r->prod.head, prod_head, prod_next);
-	} while (llring_unlikely(success == 0));
+	} while (LLRING_UNLIKELY(success == 0));
 
 	/* write entries in ring */
 	LLRING_ENQUEUE_PTRS();
 	COMPILER_BARRIER();
 
 	/* if we exceed the watermark */
-	if (llring_unlikely(((mask + 1) - free_entries + n) >
+	if (LLRING_UNLIKELY(((mask + 1) - free_entries + n) >
 			    r->common.watermark)) {
 		ret = (behavior == LLRING_QUEUE_FIXED)
 			  ? -LLRING_ERR_QUOT
@@ -449,7 +449,7 @@ __llring_mp_do_enqueue(struct llring *r, void *const *obj_table, unsigned n,
 	 * If there are other enqueues in progress that preceeded us,
 	 * we need to wait for them to complete
 	 */
-	while (llring_unlikely(r->prod.tail != prod_head))
+	while (LLRING_UNLIKELY(r->prod.tail != prod_head))
 		llring_pause();
 
 	r->prod.tail = prod_next;
@@ -498,7 +498,7 @@ __llring_sp_do_enqueue(struct llring *r, void *const *obj_table, unsigned n,
 	free_entries = mask + cons_tail - prod_head;
 
 	/* check that we have enough room in ring */
-	if (llring_unlikely(n > free_entries)) {
+	if (LLRING_UNLIKELY(n > free_entries)) {
 		if (behavior == LLRING_QUEUE_FIXED) {
 			__RING_STAT_ADD(r, enq_fail, n);
 			return -LLRING_ERR_NOBUF;
@@ -521,7 +521,7 @@ __llring_sp_do_enqueue(struct llring *r, void *const *obj_table, unsigned n,
 	COMPILER_BARRIER();
 
 	/* if we exceed the watermark */
-	if (llring_unlikely(((mask + 1) - free_entries + n) >
+	if (LLRING_UNLIKELY(((mask + 1) - free_entries + n) >
 			    r->common.watermark)) {
 		ret = (behavior == LLRING_QUEUE_FIXED)
 			  ? -LLRING_ERR_QUOT
@@ -606,7 +606,7 @@ __llring_mc_do_dequeue(struct llring *r, void **obj_table, unsigned n,
 		cons_next = cons_head + n;
 		success =
 		    llring_atomic32_cmpset(&r->cons.head, cons_head, cons_next);
-	} while (llring_unlikely(success == 0));
+	} while (LLRING_UNLIKELY(success == 0));
 
 	/* copy in table */
 	LLRING_DEQUEUE_PTRS();
@@ -616,7 +616,7 @@ __llring_mc_do_dequeue(struct llring *r, void **obj_table, unsigned n,
 	 * If there are other dequeues in progress that preceded us,
 	 * we need to wait for them to complete
 	 */
-	while (llring_unlikely(r->cons.tail != cons_head))
+	while (LLRING_UNLIKELY(r->cons.tail != cons_head))
 		llring_pause();
 
 	__RING_STAT_ADD(r, deq_success, n);

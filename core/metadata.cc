@@ -87,7 +87,7 @@ static void traverse_upstream(Module *m, struct mt_attr *attr) {
     struct gate *g = m->igates.arr[i];
     struct gate *og;
 
-    cdlist_for_each_entry(og, &g->in.ogates_upstream, out.igate_upstream) {
+    CDLIST_FOR_EACH_ENTRY(og, &g->in.ogates_upstream, out.igate_upstream) {
       traverse_upstream(og->m, attr);
     }
   }

@@ -95,7 +95,7 @@ static int collect_igates(Module* m, GetModuleInfoResponse* response) {
 
     igate->set_igate(i);
 
-    cdlist_for_each_entry(og, &g->in.ogates_upstream, out.igate_upstream) {
+    CDLIST_FOR_EACH_ENTRY(og, &g->in.ogates_upstream, out.igate_upstream) {
       GetModuleInfoResponse_IGate_OGate* ogate = igate->add_ogates();
       ogate->set_ogate(og->gate_idx);
       ogate->set_name(og->m->name());

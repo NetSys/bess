@@ -771,7 +771,7 @@ static struct snobj *collect_igates(Module *m) {
 
     snobj_map_set(igate, "igate", snobj_uint(i));
 
-    cdlist_for_each_entry(og, &g->in.ogates_upstream, out.igate_upstream) {
+    CDLIST_FOR_EACH_ENTRY(og, &g->in.ogates_upstream, out.igate_upstream) {
       struct snobj *ogate = snobj_map();
       snobj_map_set(ogate, "ogate", snobj_uint(og->gate_idx));
       snobj_map_set(ogate, "name", snobj_str(og->m->name()));

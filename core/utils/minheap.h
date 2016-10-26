@@ -45,7 +45,7 @@ static void heap_push(struct heap *h, int64_t val, void *data) {
 
   uint32_t i;
 
-  if (unlikely(h->num_nodes == h->size)) {
+  if (BESS_UNLIKELY(h->num_nodes == h->size)) {
     size_t array_size;
 
     h->size += h->size / 2; /* grow by 50% */

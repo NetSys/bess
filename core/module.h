@@ -311,14 +311,14 @@ inline void Module::RunChooseModule(gate_idx_t ogate_idx,
                                     struct pkt_batch *batch) {
   struct gate *ogate;
 
-  if (unlikely(ogate_idx >= ogates.curr_size)) {
+  if (BESS_UNLIKELY(ogate_idx >= ogates.curr_size)) {
     deadend(batch);
     return;
   }
 
   ogate = ogates.arr[ogate_idx];
 
-  if (unlikely(!ogate)) {
+  if (BESS_UNLIKELY(!ogate)) {
     deadend(batch);
     return;
   }
@@ -333,7 +333,7 @@ inline void Module::RunChooseModule(gate_idx_t ogate_idx,
 #endif
 
 #if TCPDUMP_GATES
-  if (unlikely(ogate->tcpdump))
+  if (BESS_UNLIKELY(ogate->tcpdump))
     DumpPcapPkts(ogate, batch);
 #endif
 
