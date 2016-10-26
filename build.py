@@ -130,6 +130,8 @@ def check_essential():
     required_cxx('glog/logging.h', 'libgoogle-glog-dev', 'g++')
     required_cxx('gflags/gflags.h', 'libgflags-dev', 'g++')
     required_cxx('gtest/gtest.h', 'libgtest-dev', 'g++')
+    required_cxx('benchmark/benchmark.h', 'https://github.com/google/benchmark',
+            'g++')
 
 def set_config(filename, config, new_value):
     with open(filename) as fp:
