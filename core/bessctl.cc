@@ -1204,4 +1204,6 @@ class BESSControlImpl final : public BESSControl::Service {
     /* Never called */
     return Status::OK;
   }
+ private:
+  DISALLOW_COPY_AND_ASSIGN(BESSControlImpl);
 };

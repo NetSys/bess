@@ -116,6 +116,8 @@ class PortBuilder {
   static std::map<std::string, PortBuilder> &all_port_builders_holder(
       bool reset = false);
 
+  DISALLOW_COPY_AND_ASSIGN(PortBuilder);
+
   // A function that emits a new Port object of the type class_name.
   std::function<Port *()> port_generator_;
 

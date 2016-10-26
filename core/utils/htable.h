@@ -148,6 +148,8 @@ class HTableBase {
   void *key_to_value(const void *key) const;
   KeyIndex _get_keyidx(uint32_t pri) const;
 
+  DISALLOW_COPY_AND_ASSIGN(HTableBase);
+
   /* # of buckets == mask + 1 */
   uint32_t bucket_mask_ = {};
 
