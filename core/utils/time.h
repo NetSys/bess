@@ -1,5 +1,5 @@
-#ifndef _TIME_H_
-#define _TIME_H_
+#ifndef BESS_CORE_UTILS_TIME_H_
+#define BESS_CORE_UTILS_TIME_H_
 
 #include <stdint.h>
 #include <stdlib.h>

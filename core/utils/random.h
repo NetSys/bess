@@ -1,9 +1,11 @@
-#ifndef __RANDOM_H__
-#define __RANDOM_H__
+#ifndef BESS_CORE_UTILS_RANDOM_H_
+#define BESS_CORE_UTILS_RANDOM_H_
 
 #include <cstdint>
 
 #include "time.h"
+
+#include "../common.h"
 
 class Random {
  public:
@@ -18,6 +20,8 @@ class Random {
   double GetRealNonzero();
 
  private:
+  DISALLOW_COPY_AND_ASSIGN(Random);
+
   void UpdateSeed();
   uint64_t seed_;
 };

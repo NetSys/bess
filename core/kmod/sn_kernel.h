@@ -29,7 +29,7 @@
  */
 /* Dual BSD/GPL */
 
-#ifndef _SN_KERNEL_H
+#ifndef BESS_CORE_KMOD_SN_KERNEL_H_
 
 #ifdef __KERNEL__
 

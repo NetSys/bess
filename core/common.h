@@ -1,7 +1,7 @@
 /* This header file contains general (not BESS specific) C definitions */
 
-#ifndef _COMMON_H_
-#define _COMMON_H_
+#ifndef BESS_CORE_COMMON_H_
+#define BESS_CORE_COMMON_H_
 
 #include <stddef.h>
 #include <stdint.h>
@@ -10,23 +10,23 @@
 #include <x86intrin.h>
 
 /* Hint for performance optimization. Same as _nassert() of TI compilers */
-#define promise(cond)                     \
+#define PROMISE(cond)                     \
   ({                                      \
     if (!(cond)) __builtin_unreachable(); \
   })
-#define promise_unreachable() __builtin_unreachable();
+#define PROMISE_UNREACHABLE() __builtin_unreachable();
 
-#ifndef likely
-#  define likely(x) __builtin_expect((x), 1)
+#ifndef BESS_LIKELY
+#  define BESS_LIKELY(x) __builtin_expect((x), 1)
 #endif
 
-#ifndef unlikely
-#  define unlikely(x) __builtin_expect((x), 0)
+#ifndef BESS_UNLIKELY
+#  define BESS_UNLIKELY(x) __builtin_expect((x), 0)
 #endif
 
 #define member_type(type, member) typeof(((type *)0)->member)
 
-#define container_of(ptr, type, member)                  \
+#define CONTAINER_OF(ptr, type, member)                  \
   ((type *)((char *)(member_type(type, member) *){ptr} - \
             offsetof(type, member)))
 
@@ -55,13 +55,13 @@ static inline uint64_t align_ceil_pow2(uint64_t v) {
 }
 
 /* err is defined as -errno,  */
-static inline intptr_t ptr_to_err(const void *ptr) { return (intptr_t)ptr; }
+static inline intptr_t ptr_to_err(const void *ptr) { return reinterpret_cast<const intptr_t>(ptr); }
 
-static inline void *err_to_ptr(intptr_t err) { return (void *)err; }
+static inline void *err_to_ptr(intptr_t err) { return reinterpret_cast<void *>(err); }
 
 static inline int is_err(const void *ptr) {
-  const int max_errno = 4095;
-  return (uintptr_t)ptr >= (uintptr_t)-max_errno;
+  const intptr_t max_errno = 4095;
+  return reinterpret_cast<uintptr_t>(ptr) >= static_cast<uintptr_t>(-max_errno);
 }
 
 static inline int is_err_or_null(const void *ptr) {
@@ -79,10 +79,10 @@ static inline int is_be_system() {
 #define __cacheline_aligned __attribute__((aligned(64)))
 
 /* For x86_64. DMA operations are not safe with these macros */
-#define INST_BARRIER() asm volatile("" ::: "memory")
-#define LOAD_BARRIER() INST_BARRIER()
-#define STORE_BARRIER() INST_BARRIER()
-#define FULL_BARRIER() asm volatile("mfence" ::: "memory")
+static inline void INST_BARRIER() { asm volatile("" ::: "memory"); }
+static inline void LOAD_BARRIER() { INST_BARRIER(); }
+static inline void STORE_BARRIER() { INST_BARRIER(); }
+static inline void FULL_BARRIER() { asm volatile("mfence" ::: "memory"); }
 
 /* src/dst addresses and their sizes must be a multiple of SIMD register size */
 static inline void memcpy_sloppy(void *__restrict__ dst,
@@ -92,8 +92,8 @@ static inline void memcpy_sloppy(void *__restrict__ dst,
 #else
   typedef __m128i block_t;
 #endif
-  block_t *__restrict__ d = (block_t *)dst;
-  const block_t *__restrict__ s = (const block_t *)src;
+  block_t *__restrict__ d = reinterpret_cast<block_t *>(dst);
+  const block_t *__restrict__ s = reinterpret_cast<const block_t *>(src);
 
   int bytes_left = n;
   while (bytes_left > 0) {

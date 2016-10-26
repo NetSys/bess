@@ -1,5 +1,5 @@
-#ifndef _CDLIST_H_
-#define _CDLIST_H_
+#ifndef BESS_CORE_UTILS_CDLIST_H_
+#define BESS_CORE_UTILS_CDLIST_H_
 
 #include <stddef.h> /* offsetof */
 
@@ -54,24 +54,24 @@ struct cdlist_item {
 #define CDLIST_HEAD_INIT(name) \
   { (struct cdlist_item *) & (name), (struct cdlist_item *) & (name) }
 
-#define cdlist_for_each(item, head)                               \
+#define CDLIST_FOR_EACH(item, head)                               \
   for (item = (head)->next; item != (struct cdlist_item *)(head); \
        item = item->next)
 
-#define cdlist_for_each_entry(entry, head, item_member)                 \
-  for (entry = container_of((head)->next, typeof(*entry), item_member); \
+#define CDLIST_FOR_EACH_ENTRY(entry, head, item_member)                 \
+  for (entry = CONTAINER_OF((head)->next, typeof(*entry), item_member); \
        &entry->item_member != (struct cdlist_item *)(head);             \
        entry =                                                          \
-           container_of(entry->item_member.next, typeof(*entry), item_member))
+           CONTAINER_OF(entry->item_member.next, typeof(*entry), item_member))
 
-#define cdlist_for_each_entry_safe(entry, next_entry, head, item_member)       \
-  for (entry = container_of((head)->next, typeof(*entry), item_member),        \
+#define CDLIST_FOR_EACH_ENTRY_SAFE(entry, next_entry, head, item_member)       \
+  for (entry = CONTAINER_OF((head)->next, typeof(*entry), item_member),        \
       next_entry =                                                             \
-           container_of(entry->item_member.next, typeof(*entry), item_member); \
+           CONTAINER_OF(entry->item_member.next, typeof(*entry), item_member); \
        &entry->item_member != (struct cdlist_item *)(head);                    \
        entry = next_entry,                                                     \
       next_entry =                                                             \
-           container_of(entry->item_member.next, typeof(*entry), item_member))
+           CONTAINER_OF(entry->item_member.next, typeof(*entry), item_member))
 
 static inline void cdlist_head_init(struct cdlist_head *head) {
   head->next = (struct cdlist_item *)head;
@@ -184,7 +184,7 @@ static inline int cdlist_count(struct cdlist_head *head) {
   struct cdlist_item *i;
   int count = 0;
 
-  cdlist_for_each(i, head) count++;
+  CDLIST_FOR_EACH(i, head) count++;
 
   return count;
 }

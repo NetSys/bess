@@ -1,7 +1,7 @@
-#ifndef _SNBUF_AVX_H_
-#define _SNBUF_AVX_H_
+#ifndef BESS_CORE_SNBUF_AVX_H_
+#define BESS_CORE_SNBUF_AVX_H_
 
-#ifndef _SNBUF_H_
+#ifndef BESS_CORE_SNBUF_H_
 #error "Do not directly include this file. Include snbuf.h instead."
 #endif
 
@@ -33,30 +33,30 @@ static inline int snb_alloc_bulk(snb_array_t snbs, int cnt, uint16_t len) {
   rxdesc_fields = _mm_setr_epi32(len << 16, len, 0, 0);
 #endif
 
-  ret = rte_mempool_get_bulk(ctx.pframe_pool(), (void **)snbs, cnt);
+  ret = rte_mempool_get_bulk(ctx.pframe_pool(), reinterpret_cast<void **>(snbs), cnt);
   if (ret != 0) return 0;
 
-  mbuf_template = *((__m128i *)&pframe_template.buf_len);
+  mbuf_template = *reinterpret_cast<__m128i *>(&pframe_template.buf_len);
 
   /* 4 at a time didn't help */
   for (i = 0; i < (cnt & (~0x1)); i += 2) {
-    /* since the data is likely to be in the store buffer
+    /* since the data is LIKELY to be in the store buffer
      * as 64-bit writes, 128-bit read will cause stalls */
     struct snbuf *snb0 = snbs[i];
     struct snbuf *snb1 = snbs[i + 1];
 
-    _mm_storeu_si128((__m128i *)&snb0->mbuf.buf_len, mbuf_template);
-    _mm_storeu_si128((__m128i *)&snb0->mbuf.packet_type, rxdesc_fields);
+    _mm_storeu_si128(reinterpret_cast<__m128i *>(&snb0->mbuf.buf_len), mbuf_template);
+    _mm_storeu_si128(reinterpret_cast<__m128i *>(&snb0->mbuf.packet_type), rxdesc_fields);
 
-    _mm_storeu_si128((__m128i *)&snb1->mbuf.buf_len, mbuf_template);
-    _mm_storeu_si128((__m128i *)&snb1->mbuf.packet_type, rxdesc_fields);
+    _mm_storeu_si128(reinterpret_cast<__m128i *>(&snb1->mbuf.buf_len), mbuf_template);
+    _mm_storeu_si128(reinterpret_cast<__m128i *>(&snb1->mbuf.packet_type), rxdesc_fields);
   }
 
   if (cnt & 0x1) {
     struct snbuf *snb = snbs[i];
 
-    _mm_storeu_si128((__m128i *)&snb->mbuf.buf_len, mbuf_template);
-    _mm_storeu_si128((__m128i *)&snb->mbuf.packet_type, rxdesc_fields);
+    _mm_storeu_si128(reinterpret_cast<__m128i *>(&snb->mbuf.buf_len), mbuf_template);
+    _mm_storeu_si128(reinterpret_cast<__m128i *>(&snb->mbuf.packet_type), rxdesc_fields);
   }
 
   return cnt;
@@ -76,13 +76,13 @@ static inline void snb_free_bulk(snb_array_t snbs, int cnt) {
   __m128i offset = _mm_set1_epi64x(SNBUF_HEADROOM_OFF);
   __m128i info_mask = _mm_set1_epi64x(0x00ffffff00000000UL);
   __m128i info_simple = _mm_set1_epi64x(0x0001000100000000UL);
-  __m128i pool = _mm_set1_epi64x((uintptr_t)_pool);
+  __m128i pool = _mm_set1_epi64x(reinterpret_cast<uintptr_t>(_pool));
 
   int i;
 
   for (i = 0; i < (cnt & ~1); i += 2) {
-    struct rte_mbuf *mbuf0 = (struct rte_mbuf *)snbs[i];
-    struct rte_mbuf *mbuf1 = (struct rte_mbuf *)snbs[i + 1];
+    struct rte_mbuf *mbuf0 = reinterpret_cast<struct rte_mbuf *>(snbs[i]);
+    struct rte_mbuf *mbuf1 = reinterpret_cast<struct rte_mbuf *>(snbs[i + 1]);
 
     __m128i buf_addrs_derived;
     __m128i buf_addrs_actual;
@@ -90,7 +90,7 @@ static inline void snb_free_bulk(snb_array_t snbs, int cnt) {
     __m128i pools;
     __m128i vcmp1, vcmp2, vcmp3;
 
-    __m128i mbuf_ptrs = _mm_set_epi64x((uintptr_t)mbuf1, (uintptr_t)mbuf0);
+    __m128i mbuf_ptrs = _mm_set_epi64x(reinterpret_cast<uintptr_t>(mbuf1), reinterpret_cast<uintptr_t>(mbuf0));
 
     buf_addrs_actual = gather_m128i(&mbuf0->buf_addr, &mbuf1->buf_addr);
     buf_addrs_derived = _mm_add_epi64(mbuf_ptrs, offset);
@@ -108,13 +108,13 @@ static inline void snb_free_bulk(snb_array_t snbs, int cnt) {
     vcmp1 = _mm_and_si128(vcmp1, vcmp2);
     vcmp1 = _mm_and_si128(vcmp1, vcmp3);
 
-    if (unlikely(_mm_movemask_epi8(vcmp1) != 0xffff)) goto slow_path;
+    if (BESS_UNLIKELY(_mm_movemask_epi8(vcmp1) != 0xffff)) goto slow_path;
   }
 
   if (i < cnt) {
     struct snbuf *snb = snbs[i];
 
-    if (unlikely(snb->mbuf.pool != _pool || snb->mbuf.next != nullptr ||
+    if (BESS_UNLIKELY(snb->mbuf.pool != _pool || snb->mbuf.next != nullptr ||
                  rte_mbuf_refcnt_read(&snb->mbuf) != 1 ||
                  snb->mbuf.buf_addr != snb->_headroom)) {
       goto slow_path;
@@ -123,7 +123,7 @@ static inline void snb_free_bulk(snb_array_t snbs, int cnt) {
 
   /* NOTE: it seems that zeroing the refcnt of mbufs is not necessary.
    *   (allocators will reset them) */
-  rte_mempool_put_bulk(_pool, (void **)snbs, cnt);
+  rte_mempool_put_bulk(_pool, reinterpret_cast<void **>(snbs), cnt);
   return;
 
 slow_path:

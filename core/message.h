@@ -1,5 +1,5 @@
-#ifndef _MESSAGE_H_
-#define _MESSAGE_H_
+#ifndef BESS_CORE_MESSAGE_H_
+#define BESS_CORE_MESSAGE_H_
 
 #include "bess_message.pb.h"
 #include "error.pb.h"

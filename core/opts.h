@@ -1,5 +1,5 @@
-#ifndef _OPTS_H_
-#define _OPTS_H_
+#ifndef BESS_CORE_OPTS_H_
+#define BESS_CORE_OPTS_H_
 
 #include <gflags/gflags.h>
 

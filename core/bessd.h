@@ -1,7 +1,7 @@
 // Utility routines for the main bess daemon.
 
-#ifndef BESS_CORE_BESSD_H_
-#define BESS_CORE_BESSD_H_
+#ifndef BESS_BESS_CORE_BESSD_H_
+#define BESS_BESS_CORE_BESSD_H_
 
 #include <tuple>
 
