@@ -91,6 +91,24 @@ message QueueIncCommandSetBurstArg {
   int64 burst = 1;
 }
 
+message QueueCommandSetBurstArg {
+  int64 burst = 1;
+}
+
+message QueueCommandSetSizeArg {
+  uint64 size = 1;
+}
+
+message RandomUpdateCommandAddArg {
+
+}
+
+message RandomUpdateCommandClearArg {
+}
+
+message RewriteCommandClearArg {
+}
+
 message BPFArg {
   message Filter {
     int64 priority = 1;
@@ -232,13 +250,21 @@ message RewriteArg {
   repeated bytes templates = 1;
 }
 
-message RoundRobinArg {
+message RoundRobinCommandSetGatesArg {
   repeated int64 gates = 1;
+}
+
+message RoundRobinCommandSetModeArg {
   enum Mode {
     PACKET = 0;
     BATCH = 1;
   }
-  Mode mode = 2;
+  Mode mode = 1;
+}
+
+message RoundRobinArg {
+  RoundRobinCommandSetGatesArg gate_arg = 1;
+  RoundRobinCommandSetModeArg mode_arg = 2;
 }
 
 message SetMetadataArg {

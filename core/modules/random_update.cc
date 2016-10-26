@@ -11,11 +11,15 @@ class RandomUpdate : public Module {
   RandomUpdate() : Module(), num_vars_(), vars_(), rng_() {}
 
   virtual struct snobj *Init(struct snobj *arg);
+  virtual pb_error_t Init(const bess::RandomUpdateArg &arg);
 
   virtual void ProcessBatch(struct pkt_batch *batch);
 
   struct snobj *CommandAdd(struct snobj *arg);
   struct snobj *CommandClear(struct snobj *arg);
+
+  pb_error_t CommandAdd(const bess::RandomUpdateArg &arg);
+  pb_error_t CommandClear(const bess::RandomUpdateCommandClearArg &arg);
 
   static const gate_idx_t kNumIGates = 1;
   static const gate_idx_t kNumOGates = 1;
@@ -144,6 +148,91 @@ struct snobj *RandomUpdate::Init(struct snobj *arg) {
   }
 
   return CommandAdd(t);
+}
+
+pb_error_t RandomUpdate::Init(const bess::RandomUpdateArg &arg) {
+  return CommandAdd(arg);
+}
+
+pb_error_t RandomUpdate::CommandAdd(const bess::RandomUpdateArg &arg) {
+  int curr = num_vars_;
+  if (curr + arg.fields_size() > MAX_VARS) {
+    return pb_error(EINVAL,
+                    "max %d variables "
+                    "can be specified",
+                    MAX_VARS);
+  }
+
+  for (int i = 0; i < arg.fields_size(); i++) {
+    const auto &var = arg.fields(i);
+
+    uint8_t size;
+    int16_t offset;
+    uint32_t mask;
+    uint32_t min;
+    uint32_t max;
+
+    offset = var.offset();
+    size = var.size();
+    min = var.min();
+    max = var.max();
+
+    if (offset < 0) {
+      return pb_error(EINVAL, "too small 'offset'");
+    }
+
+    switch (size) {
+      case 1:
+        offset -= 3;
+        mask = rte_cpu_to_be_32(0xffffff00);
+        min = std::min(min, static_cast<uint32_t>(0xff));
+        max = std::min(max, static_cast<uint32_t>(0xff));
+        break;
+
+      case 2:
+        offset -= 2;
+        mask = rte_cpu_to_be_32(0xffff0000);
+        min = std::min(min, static_cast<uint32_t>(0xffff));
+        max = std::min(max, static_cast<uint32_t>(0xffff));
+        break;
+
+      case 4:
+        mask = rte_cpu_to_be_32(0x00000000);
+        min = std::min(min, static_cast<uint32_t>(0xffffffffu));
+        max = std::min(max, static_cast<uint32_t>(0xffffffffu));
+        break;
+
+      default:
+        return pb_error(EINVAL, "'size' must be 1, 2, or 4");
+    }
+
+    if (offset + 4 > SNBUF_DATA) {
+      return pb_error(EINVAL, "too large 'offset'");
+    }
+
+    if (min > max) {
+      return pb_error(EINVAL,
+                      "'min' should not be "
+                      "greater than 'max'");
+    }
+
+    vars_[curr + i].offset = offset;
+    vars_[curr + i].mask = mask;
+    vars_[curr + i].min = min;
+
+    /* avoid modulo 0 */
+    vars_[curr + i].range = (max - min + 1) ?: 0xffffffff;
+  }
+
+  num_vars_ = curr + arg.fields_size();
+
+  return pb_errno(0);
+}
+
+pb_error_t RandomUpdate::CommandClear(
+    const bess::RandomUpdateCommandClearArg &arg) {
+  num_vars_ = 0;
+  return pb_errno(0);
 }
 
 void RandomUpdate::ProcessBatch(struct pkt_batch *batch) {

@@ -6,6 +6,8 @@ class QueueOut : public Module {
   QueueOut() : Module(), port_(), qid_() {}
 
   virtual struct snobj *Init(struct snobj *arg);
+  virtual pb_error_t Init(const bess::QueueOutArg &arg);
+
   virtual void Deinit();
 
   virtual void ProcessBatch(struct pkt_batch *batch);
@@ -23,6 +25,32 @@ class QueueOut : public Module {
 };
 
 const Commands<Module> QueueOut::cmds = {};
+
+pb_error_t QueueOut::Init(const bess::QueueOutArg &arg) {
+  const char *port_name;
+  int ret;
+
+  if (!arg.port().length()) {
+    return pb_error(EINVAL, "Field 'port' must be specified");
+  }
+
+  port_name = arg.port().c_str();
+  qid_ = arg.qid();
+
+  const auto &it = PortBuilder::all_ports().find(port_name);
+  if (it == PortBuilder::all_ports().end()) {
+    return pb_error(ENODEV, "Port %s not found", port_name);
+  }
+  port_ = it->second;
+
+  ret = port_->AcquireQueues(reinterpret_cast<const module *>(this),
+                             PACKET_DIR_OUT, &qid_, 1);
+  if (ret < 0) {
+    return pb_errno(-ret);
+  }
+
+  return pb_errno(0);
+}
 
 struct snobj *QueueOut::Init(struct snobj *arg) {
   struct snobj *t;

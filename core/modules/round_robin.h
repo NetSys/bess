@@ -5,7 +5,7 @@
  * TODO: RoundRobin currently does not support multiple workers.
  */
 
-//Maxumum number of output gates to allow.
+// Maxumum number of output gates to allow.
 #define MAX_RR_GATES 16384
 
 /*!
@@ -24,14 +24,17 @@
  *
  * PARAMETERS:
  *    * gates: the number of output gates for the module
- *    * mode: whether to schedule with per-packet or per-batch granularity options 
+ *    * mode: whether to schedule with per-packet or per-batch granularity
+ * options
  *    are "packet" or "batch".
 */
 class RoundRobin : public Module {
  public:
-  RoundRobin() : Module(), gates_(), ngates_(), current_gate_(), per_packet_() {}
+  RoundRobin()
+      : Module(), gates_(), ngates_(), current_gate_(), per_packet_() {}
 
   virtual struct snobj *Init(struct snobj *arg);
+  virtual pb_error_t Init(const bess::RoundRobinArg &arg);
 
   virtual void ProcessBatch(struct pkt_batch *batch);
 
@@ -41,28 +44,28 @@ class RoundRobin : public Module {
   static const Commands<Module> cmds;
 
  private:
-  /*! 
+  /*!
    * Switches the RoundRobin module between "batch" vs "packet" scheduling.
    */
   struct snobj *CommandSetMode(struct snobj *arg);
-  
+  pb_error_t CommandSetMode(const bess::RoundRobinCommandSetModeArg &arg);
   /*!
    * Sets the number of output gates.
    */
   struct snobj *CommandSetGates(struct snobj *arg);
+  pb_error_t CommandSetGates(const bess::RoundRobinCommandSetGatesArg &arg);
 
-
-  //ID number for each egress gate.
+  // ID number for each egress gate.
   gate_idx_t gates_[MAX_RR_GATES];
-  //The total number of output gates
+  // The total number of output gates
   int ngates_;
-  //The next gate to transmit on in the RoundRobin scheduler
+  // The next gate to transmit on in the RoundRobin scheduler
   int current_gate_;
-  //Whether or not to schedule per-packet or per-batch
+  // Whether or not to schedule per-packet or per-batch
   int per_packet_;
 };
 
-/*! 
+/*!
  * Sanity function: is this gate_idx_t possibly a real gate?
  * Note that true only indicates that the gate_idx_t is not > MAX_GATES and does
  * not represent the nullptr gate -- true does not indicate that the gate is

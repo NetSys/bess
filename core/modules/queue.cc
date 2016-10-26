@@ -9,6 +9,8 @@ class Queue : public Module {
   Queue() : Module(), queue_(), prefetch_(), burst_() {}
 
   virtual struct snobj *Init(struct snobj *arg);
+  virtual pb_error_t Init(const bess::QueueArg &arg);
+
   virtual void Deinit();
 
   virtual struct task_result RunTask(void *arg);
@@ -19,6 +21,9 @@ class Queue : public Module {
   struct snobj *CommandSetBurst(struct snobj *arg);
   struct snobj *CommandSetSize(struct snobj *arg);
 
+  pb_error_t CommandSetBurst(const bess::QueueCommandSetBurstArg &arg);
+  pb_error_t CommandSetSize(const bess::QueueCommandSetSizeArg &arg);
+
   static const gate_idx_t kNumIGates = 1;
   static const gate_idx_t kNumOGates = 1;
 
@@ -26,6 +31,8 @@ class Queue : public Module {
 
  private:
   int Resize(int slots);
+  pb_error_t SetBurst(int64_t burst);
+  pb_error_t SetSize(uint64_t size);
   struct llring *queue_ = {};
   int prefetch_ = {};
   int burst_ = {};
@@ -72,6 +79,40 @@ int Queue::Resize(int slots) {
   queue_ = new_queue;
 
   return 0;
+}
+
+pb_error_t Queue::Init(const bess::QueueArg &arg) {
+  task_id_t tid;
+  pb_error_t err;
+
+  burst_ = MAX_PKT_BURST;
+
+  tid = RegisterTask(nullptr);
+  if (tid == INVALID_TASK_ID)
+    return pb_error(ENOMEM, "Task creation failed");
+
+  err = SetBurst(arg.burst());
+  if (err.err() != 0) {
+    return err;
+  }
+
+  if (arg.size() != 0) {
+    err = SetSize(arg.size());
+    if (err.err() != 0) {
+      return err;
+    }
+  } else {
+    int ret = Resize(DEFAULT_QUEUE_SIZE);
+    if (ret) {
+      return pb_errno(-ret);
+    }
+  }
+
+  if (arg.prefetch()) {
+    prefetch_ = true;
+  }
+
+  return pb_errno(0);
 }
 
 struct snobj *Queue::Init(struct snobj *arg) {
@@ -214,6 +255,38 @@ struct snobj *Queue::CommandSetSize(struct snobj *arg) {
   }
 
   return nullptr;
+}
+
+pb_error_t Queue::SetBurst(int64_t burst) {
+  if (burst == 0 || burst > MAX_PKT_BURST) {
+    return pb_error(EINVAL, "burst size must be [1,%d]", MAX_PKT_BURST);
+  }
+
+  burst_ = burst;
+  return pb_errno(0);
+}
+
+pb_error_t Queue::SetSize(uint64_t size) {
+  if (size < 4 || size > 16384) {
+    return pb_error(EINVAL, "must be in [4, 16384]");
+  }
+
+  if (size & (size - 1)) {
+    return pb_error(EINVAL, "must be a power of 2");
+  }
+
+  int ret = Resize(size);
+  if (ret) {
+    return pb_errno(-ret);
+  }
+  return pb_errno(0);
+}
+
+pb_error_t Queue::CommandSetBurst(const bess::QueueCommandSetBurstArg &arg) {
+  return SetBurst(arg.burst());
+}
+pb_error_t Queue::CommandSetSize(const bess::QueueCommandSetSizeArg &arg) {
+  return SetSize(arg.size());
 }
 
 ADD_MODULE(Queue, "queue",
