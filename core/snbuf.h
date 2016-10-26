@@ -234,7 +234,8 @@ struct rte_mempool *get_pframe_pool_socket(int socket);
 
 static inline phys_addr_t snb_to_paddr(struct snbuf *snb) { return snb->paddr; }
 
-static inline int mt_offset_to_databuf_offset(mt_offset_t offset) {
+static inline int mt_offset_to_databuf_offset(
+    bess::metadata::mt_offset_t offset) {
   return offset + offsetof(struct snbuf, _metadata) -
          offsetof(struct snbuf, _headroom);
 }

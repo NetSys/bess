@@ -26,24 +26,24 @@ class VXLANEncap : public Module {
   virtual void ProcessBatch(struct pkt_batch *batch);
 
   int num_attrs = 6;
-  struct mt_attr attrs[MAX_ATTRS_PER_MODULE] = {
+  struct bess::metadata::mt_attr attrs[bess::metadata::kMaxAttrsPerModule] = {
       {
-          .name = "tun_ip_src", .size = 4, .mode = MT_READ,
+          .name = "tun_ip_src", .size = 4, .mode = bess::metadata::MT_READ,
       },
       {
-          .name = "tun_ip_dst", .size = 4, .mode = MT_READ,
+          .name = "tun_ip_dst", .size = 4, .mode = bess::metadata::MT_READ,
       },
       {
-          .name = "tun_id", .size = 4, .mode = MT_READ,
+          .name = "tun_id", .size = 4, .mode = bess::metadata::MT_READ,
       },
       {
-          .name = "ip_src", .size = 4, .mode = MT_WRITE,
+          .name = "ip_src", .size = 4, .mode = bess::metadata::MT_WRITE,
       },
       {
-          .name = "ip_dst", .size = 4, .mode = MT_WRITE,
+          .name = "ip_dst", .size = 4, .mode = bess::metadata::MT_WRITE,
       },
       {
-          .name = "ip_proto", .size = 1, .mode = MT_WRITE,
+          .name = "ip_proto", .size = 1, .mode = bess::metadata::MT_WRITE,
       },
   };
 

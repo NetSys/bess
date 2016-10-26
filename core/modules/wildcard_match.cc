@@ -229,7 +229,7 @@ struct snobj *WildcardMatch::AddFieldOne(struct snobj *field,
     return snobj_err(EINVAL, "specify 'offset' or 'attr'");
   }
 
-  f->attr_id = AddMetadataAttr(attr, f->size, MT_READ);
+  f->attr_id = AddMetadataAttr(attr, f->size, bess::metadata::MT_READ);
   if (f->attr_id < 0) {
     return snobj_err(-f->attr_id, "add_metadata_attr() failed");
   }

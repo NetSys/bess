@@ -821,13 +821,13 @@ static struct snobj *collect_metadata(Module *m) {
     snobj_map_set(attr, "size", snobj_uint(m->attrs[i].size));
 
     switch (m->attrs[i].mode) {
-      case MT_READ:
+      case bess::metadata::MT_READ:
         snobj_map_set(attr, "mode", snobj_str("read"));
         break;
-      case MT_WRITE:
+      case bess::metadata::MT_WRITE:
         snobj_map_set(attr, "mode", snobj_str("write"));
         break;
-      case MT_UPDATE:
+      case bess::metadata::MT_UPDATE:
         snobj_map_set(attr, "mode", snobj_str("update"));
         break;
       default:

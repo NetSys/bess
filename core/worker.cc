@@ -88,7 +88,7 @@ static void resume_worker(int wid) {
 }
 
 void resume_all_workers() {
-  compute_metadata_offsets();
+  bess::metadata::ComputeMetadataOffsets();
   process_orphan_tasks();
 
   for (int wid = 0; wid < MAX_WORKERS; wid++)
