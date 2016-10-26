@@ -4,7 +4,7 @@
 #define DPDK 1
 
 /* either LIBC or DPDK */
-#define MEM_ALLOC_PROVIDER DPDK
+#define MEM_ALLOC_PROVIDER LIBC
 
 #if MEM_ALLOC_PROVIDER == LIBC
 
@@ -12,11 +12,7 @@
 #include <string.h>
 
 void *mem_alloc(size_t size) {
-  void *ptr = malloc(size);
-
-  if (ptr) memset(ptr, 0, size);
-
-  return ptr;
+  return calloc(1, size);
 }
 
 void *mem_realloc(void *ptr, size_t size) { return realloc(ptr, size); }

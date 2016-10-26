@@ -43,14 +43,18 @@ PROTO_SRCS += $(patsubst %.proto,%.grpc.pb.cc, $(notdir $(PROTOS)))
 PROTO_HEADERS = $(patsubst %.cc,%.h, $(PROTO_SRCS))
 PROTOCFLAGS += --proto_path=$(PROTO_DIR) --cpp_out=. --grpc_out=. --plugin=protoc-gen-grpc=`which grpc_cpp_plugin`
 
-ALL_SRCS = $(wildcard *.cc utils/*.cc modules/*.cc drivers/*.cc oldtests/*.cc)
-HEADERS = $(wildcard *.h utils/*.h modules/*.h drivers/*.h oldtests/*.h)
+ALL_SRCS = $(wildcard *.cc utils/*.cc modules/*.cc drivers/*.cc)
+HEADERS = $(wildcard *.h utils/*.h modules/*.h drivers/*.h)
 
 TEST_SRCS = $(filter %_test.cc, $(ALL_SRCS))
 TEST_OBJS = $(TEST_SRCS:.cc=.o)
 TEST_EXEC = $(TEST_OBJS:%.o=%)
 
-SRCS = $(filter-out $(TEST_SRCS), $(ALL_SRCS)) $(PROTO_SRCS)
+BENCHMARK_SRCS = $(filter %_bench.cc, $(ALL_SRCS))
+BENCHMARK_OBJS = $(BENCHMARK_SRCS:.cc=.o)
+BENCHMARK_EXEC = $(BENCHMARK_OBJS:%.o=%)
+
+SRCS = $(filter-out $(TEST_SRCS) $(BENCHMARK_SRCS), $(ALL_SRCS)) $(PROTO_SRCS)
 OBJS = $(SRCS:.cc=.o)
 
 EXEC = bessd
@@ -72,12 +76,12 @@ CORES ?= $(shell nproc || echo 1)
 MAKEFLAGS += -j $(CORES)
 VERBOSE ?= 0
 
-.PHONY: all clean tags deps cscope tests protobuf
+.PHONY: all clean tags deps cscope tests benchmarks protobuf
 
-all: tests $(EXEC)
+all: $(EXEC) tests benchmarks
 
 clean:
-	rm -f $(DEPS) $(EXEC) $(TEST_EXEC) *.a *.pb.* *.o modules/*.o drivers/*.o utils/*.o oldtests/*.o
+	rm -f $(DEPS) $(EXEC) $(TEST_EXEC) $(BENCHMARK_EXEC) *.a *.pb.* *.o modules/*.o drivers/*.o utils/*.o
 
 tags:
 	@ctags -R *
@@ -91,6 +95,8 @@ cscope:
 	@rm -f cscope.files
 
 tests: $(TEST_OBJS) $(TEST_EXEC)
+
+benchmarks: $(BENCHMARK_OBJS) $(BENCHMARK_EXEC)
 
 protobuf: $(PROTO_SRCS)
 
@@ -169,9 +175,22 @@ $(eval $(call BUILD, \
 	gtest-all.o gtest_main.o, \
 	$$(AR) rcs $$@ $$^))
 
-CORE_OBJS = $(filter-out main.o drivers/%.o modules/%.o oldtests/%.o, $(OBJS))
 $(eval $(call BUILD, \
-	TEST_AR, \
+	BENCHMARK_CXX, \
+	%_bench.o, \
+	%_bench.cc, \
+	$$(CXX) -o $$@ -c $$< $$(CXXFLAGS)))
+
+$(eval $(call BUILD, \
+	BENCHMARK_LD, \
+	%_bench, \
+	%_bench.o %.o bess.a, \
+	$$(CXX) -o $$@ $$^ $$(LDFLAGS) -lbenchmark $(LIBS)))
+
+CORE_OBJS = $(filter-out main.o drivers/%.o modules/%.o %_bench.o, $(OBJS))
+
+$(eval $(call BUILD, \
+	AR, \
 	bess.a, \
 	$(CORE_OBJS), \
 	$$(AR) rcs $$@ $$^))

@@ -77,6 +77,13 @@ class HTableBase {
  protected:
   typedef uint32_t KeyIndex;
 
+  static const int kEntriesPerBucket = 4; /* 4-way set associative */
+
+  struct Bucket {
+    uint32_t hv[kEntriesPerBucket];
+    KeyIndex keyidx[kEntriesPerBucket];
+  } __ymm_aligned;
+
   static uint32_t make_nonzero(uint32_t v) {
     /* Set the MSB and unset the 2nd MSB (NOTE: must be idempotent).
      * Then the result will never be a zero, and not a non-number when
@@ -94,7 +101,6 @@ class HTableBase {
     return (void *)((uintptr_t)entries_ + entry_size_ * idx);
   }
 
-  struct Bucket;
   Bucket *hv_to_bucket(uint32_t hv) const {
     return &buckets_[hv & bucket_mask_];
   }
@@ -117,14 +123,8 @@ class HTableBase {
   static const int kMaxCuckooPath = 3;
 
   /* non-tunable macros */
-  static const int kEntriesPerBucket = 4; /* 4-way set associative */
   static const uint32_t kHashInitval = UINT32_MAX;
   static const KeyIndex kInvalidKeyIdx = std::numeric_limits<KeyIndex>::max();
-
-  struct Bucket {
-    uint32_t hv[kEntriesPerBucket];
-    KeyIndex keyidx[kEntriesPerBucket];
-  } __ymm_aligned;
 
   int count_entries_in_pri_bucket() const;
   void *get_from_bucket(uint32_t pri, uint32_t hv, const void *key) const;
