@@ -119,7 +119,7 @@ static struct client *init_client(int fd, struct sockaddr_in c_addr) {
   c->addr = c_addr;
   c->buf_size = INIT_BUF_SIZE;
 
-  c->buf = (char *)mem_alloc(c->buf_size);
+  c->buf = reinterpret_cast<char *>(mem_alloc(c->buf_size));
   if (!c->buf) {
     mem_free(c);
     return nullptr;
@@ -242,7 +242,7 @@ static void request_done(struct client *c) {
       goto err;
     }
 
-    new_buf = (char *)mem_realloc(c->buf, c->msg_len);
+    new_buf = reinterpret_cast<char *>(mem_realloc(c->buf, c->msg_len));
     if (!new_buf) goto err;
 
     c->buf = new_buf;
@@ -289,7 +289,7 @@ static void client_recv(struct client *c) {
   assert(c->msg_len == 0 || (c->buf_off < c->msg_len));
 
   if (c->msg_len_off < sizeof(c->msg_len)) {
-    received = recv(c->fd, ((char *)&c->msg_len) + c->msg_len_off,
+    received = recv(c->fd, (reinterpret_cast<char *>(&c->msg_len)) + c->msg_len_off,
                     sizeof(c->msg_len) - c->msg_len_off, MSG_NOSIGNAL);
     if (received <= 0) {
       close_client(c);
@@ -310,7 +310,7 @@ static void client_recv(struct client *c) {
       return;
     }
 
-    new_buf = (char *)mem_realloc(c->buf, c->msg_len);
+    new_buf = reinterpret_cast<char *>(mem_realloc(c->buf, c->msg_len));
     if (!new_buf) {
       LOG(ERROR) << "Out of memory";
       close_client(c);
@@ -342,7 +342,7 @@ static void client_send(struct client *c) {
   assert(c->buf_off < c->msg_len);
 
   if (c->msg_len_off < sizeof(c->msg_len)) {
-    sent = send(c->fd, ((char *)&c->msg_len) + c->msg_len_off,
+    sent = send(c->fd, (reinterpret_cast<char *>(&c->msg_len)) + c->msg_len_off,
                 sizeof(c->msg_len) - c->msg_len_off, MSG_NOSIGNAL);
     if (sent < 0) {
       close_client(c);

@@ -42,8 +42,12 @@ class RandomUpdate : public Module {
 const Commands<Module> RandomUpdate::cmds = {};
 
 static const Commands<Module> cmds = {
-    {"add", MODULE_FUNC &RandomUpdate::CommandAdd, 0},
-    {"clear", MODULE_FUNC &RandomUpdate::CommandClear, 0},
+    {"add",
+     MODULE_FUNC(static_cast<struct snobj *(RandomUpdate::*)(struct snobj*)>(
+         &RandomUpdate::CommandAdd)), 0},
+    {"clear",
+     MODULE_FUNC(static_cast<struct snobj *(RandomUpdate::*)(struct snobj*)>(
+         &RandomUpdate::CommandClear)), 0},
 };
 
 struct snobj *RandomUpdate::CommandAdd(struct snobj *arg) {

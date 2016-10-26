@@ -1147,8 +1147,12 @@ class BPF : public Module {
 };
 
 const Commands<Module> BPF::cmds = {
-    {"add", MODULE_FUNC &BPF::CommandAdd, 0},
-    {"clear", MODULE_FUNC &BPF::CommandClear, 0}};
+    {"add",
+     MODULE_FUNC(static_cast<struct snobj *(BPF::*)(struct snobj*)>(
+                 &BPF::CommandAdd)), 0},
+    {"clear",
+     MODULE_FUNC(static_cast<struct snobj *(BPF::*)(struct snobj*)>(
+                 &BPF::CommandClear)), 0}};
 
 pb_error_t BPF::Init(const bess::BPFArg &arg) {
   return arg.filters_size() > 0 ? CommandAdd(arg) : pb_errno(0);
