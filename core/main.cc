@@ -8,7 +8,6 @@
 #include "master.h"
 #include "opts.h"
 #include "snbuf.h"
-#include "test.h"
 
 int main(int argc, char *argv[]) {
   google::InitGoogleLogging(argv[0]);
@@ -47,9 +46,8 @@ int main(int argc, char *argv[]) {
   }
 
   if (FLAGS_g) {
-    RunTests();
+    LOG(ERROR) << "Testing mode currently doesn't do anything.";
   } else {
-    RunForcedTests();
     RunMaster();
   }
 

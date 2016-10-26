@@ -7,6 +7,7 @@ cache:
     /tmp/gflags-2.1.2
     /tmp/glog-0.3.4
     /tmp/grpc
+    /tmp/benchmark-1.0.0
 
 env:
   - CXX=g++-4.7 CC=gcc-4.7
@@ -16,6 +17,7 @@ before_install:
   - sudo sysctl -w vm.nr_hugepages=1024
   - sudo mkdir -p /mnt/huge
   - sudo mount -t hugetlbfs nodev /mnt/huge
+  - chmod +x .travis/*.sh
 
 install:
   - sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
@@ -29,6 +31,7 @@ install:
   - sudo apt-get install -y libgraph-easy-perl linux-headers-$(uname -r)
   - .travis/install-glog.sh
   - .travis/install-gflags.sh
+  - .travis/install-gbenchmark.sh
   - .travis/install-grpc.sh
 
 script:
