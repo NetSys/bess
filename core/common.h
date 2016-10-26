@@ -1,7 +1,7 @@
 /* This header file contains general (not BESS specific) C definitions */
 
-#ifndef CORE_COMMON_H_
-#define CORE_COMMON_H_
+#ifndef BESS_CORE_COMMON_H_
+#define BESS_CORE_COMMON_H_
 
 #include <stddef.h>
 #include <stdint.h>

@@ -1,5 +1,5 @@
-#ifndef CORE_PKTBATCH_H_
-#define CORE_PKTBATCH_H_
+#ifndef BESS_CORE_PKTBATCH_H_
+#define BESS_CORE_PKTBATCH_H_
 
 #include <string.h>
 

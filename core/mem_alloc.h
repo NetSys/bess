@@ -1,8 +1,8 @@
 /* a tiny shim layer to switch between rte_malloc and malloc
  * (or something else in the future) */
 
-#ifndef CORE_MEM_ALLOC_H_
-#define CORE_MEM_ALLOC_H_
+#ifndef BESS_CORE_MEM_ALLOC_H_
+#define BESS_CORE_MEM_ALLOC_H_
 
 #include <stddef.h>
 

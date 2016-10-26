@@ -1,5 +1,5 @@
-#ifndef CORE_UTILS_RANDOM_H_
-#define CORE_UTILS_RANDOM_H_
+#ifndef BESS_CORE_UTILS_RANDOM_H_
+#define BESS_CORE_UTILS_RANDOM_H_
 
 #include <cstdint>
 

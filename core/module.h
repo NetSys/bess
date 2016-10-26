@@ -1,5 +1,5 @@
-#ifndef CORE_MODULE_H_
-#define CORE_MODULE_H_
+#ifndef BESS_CORE_MODULE_H_
+#define BESS_CORE_MODULE_H_
 
 #include <cassert>
 #include <map>

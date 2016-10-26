@@ -1,8 +1,8 @@
 /* Streamlined hash table implementation, with emphasis on lookup performance.
  * Key and value sizes are fixed. Lookup is thread-safe, but update is not. */
 
-#ifndef CORE_UTILS_HTABLE_H_
-#define CORE_UTILS_HTABLE_H_
+#ifndef BESS_CORE_UTILS_HTABLE_H_
+#define BESS_CORE_UTILS_HTABLE_H_
 
 #include <algorithm>
 #include <cstring>

@@ -1,5 +1,5 @@
-#ifndef CORE_DEBUG_H_
-#define CORE_DEBUG_H_
+#ifndef BESS_CORE_DEBUG_H_
+#define BESS_CORE_DEBUG_H_
 
 /* #define RTE_LIBRTE_MBUF_DEBUG */
 
