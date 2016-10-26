@@ -1,5 +1,5 @@
-#ifndef CORE_MASTER_H_
-#define CORE_MASTER_H_
+#ifndef BESS_CORE_MASTER_H_
+#define BESS_CORE_MASTER_H_
 
 #include <stdint.h>
 

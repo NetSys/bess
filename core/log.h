@@ -1,5 +1,5 @@
-#ifndef CORE_LOG_H_
-#define CORE_LOG_H_
+#ifndef BESS_CORE_LOG_H_
+#define BESS_CORE_LOG_H_
 
 #include <syslog.h>
 

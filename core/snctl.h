@@ -1,5 +1,5 @@
-#ifndef CORE_SNCTL_H_
-#define CORE_SNCTL_H_
+#ifndef BESS_CORE_SNCTL_H_
+#define BESS_CORE_SNCTL_H_
 
 struct client;
 struct snobj;

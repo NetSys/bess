@@ -1,5 +1,5 @@
-#ifndef CORE_UTILS_CDLIST_H_
-#define CORE_UTILS_CDLIST_H_
+#ifndef BESS_CORE_UTILS_CDLIST_H_
+#define BESS_CORE_UTILS_CDLIST_H_
 
 #include <stddef.h> /* offsetof */
 

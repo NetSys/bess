@@ -1,7 +1,7 @@
-#ifndef CORE_SNBUF_AVX_H_
-#define CORE_SNBUF_AVX_H_
+#ifndef BESS_CORE_SNBUF_AVX_H_
+#define BESS_CORE_SNBUF_AVX_H_
 
-#ifndef CORE_SNBUF_H_
+#ifndef BESS_CORE_SNBUF_H_
 #error "Do not directly include this file. Include snbuf.h instead."
 #endif
 

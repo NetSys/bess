@@ -1,5 +1,5 @@
-#ifndef CORE_UTILS_MCS_LOCK_H_
-#define CORE_UTILS_MCS_LOCK_H_
+#ifndef BESS_CORE_UTILS_MCS_LOCK_H_
+#define BESS_CORE_UTILS_MCS_LOCK_H_
 
 #include "../common.h"
 
