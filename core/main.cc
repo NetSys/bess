@@ -13,8 +13,8 @@
 int main(int argc, char *argv[]) {
   google::InitGoogleLogging(argv[0]);
 
-  gflags::SetUsageMessage("BESS Command Line Options:");
-  gflags::ParseCommandLineFlags(&argc, &argv, true);
+  google::SetUsageMessage("BESS Command Line Options:");
+  google::ParseCommandLineFlags(&argc, &argv, true);
   bess::bessd::ProcessCommandLineArgs();
 
   bess::bessd::CheckRunningAsRoot();
