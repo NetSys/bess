@@ -1,5 +1,5 @@
-#ifndef _SNBUF_LAYOUT_H
-#define _SNBUF_LAYOUT_H
+#ifndef CORE_SNBUF_LAYOUT_H
+#define CORE_SNBUF_LAYOUT_H
 
 #define SNBUF_MBUF 128
 #define SNBUF_IMMUTABLE 64

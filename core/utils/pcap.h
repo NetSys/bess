@@ -1,5 +1,5 @@
-#ifndef _PCAP_H_
-#define _PCAP_H_
+#ifndef CORE_UTILS_PCAP_H_
+#define CORE_UTILS_PCAP_H_
 
 #define PCAP_MAGIC_NUMBER 0xa1b2c3d4
 #define PCAP_VERSION_MAJOR 2

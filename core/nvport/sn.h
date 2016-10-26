@@ -1,5 +1,5 @@
-#ifndef __SN_H__
-#define __SN_H__
+#ifndef CORE_NVPORT_SN_H_
+#define CORE_NVPORT_SN_H_
 
 #include <stdint.h>
 

@@ -1,5 +1,5 @@
-#ifndef __SN_STACK_H__
-#define __SN_STACK_H__
+#ifndef CORE_KMOD_SN_STACK_H_
+#define CORE_KMOD_SN_STACK_H_
 
 #define SN_STACK_MAX_LEN 1024
 typedef struct sn_stack {

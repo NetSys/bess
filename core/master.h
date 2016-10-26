@@ -1,5 +1,5 @@
-#ifndef _MASTER_H_
-#define _MASTER_H_
+#ifndef CORE_MASTER_H_
+#define CORE_MASTER_H_
 
 #include <stdint.h>
 

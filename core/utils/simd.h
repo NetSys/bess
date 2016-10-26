@@ -1,5 +1,5 @@
-#ifndef _SIMD_H_
-#define _SIMD_H_
+#ifndef CORE_UTILS_SIMD_H_
+#define CORE_UTILS_SIMD_H_
 
 #include <stdio.h>
 
