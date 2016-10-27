@@ -252,6 +252,7 @@ def build_all():
     setup_dpdk()
     build_bess()
     build_kmod()
+    print 'Done.'
 
 def do_clean():
     print 'Cleaning up...'
@@ -293,8 +294,6 @@ def main():
             print_usage()
     else:
         print_usage()
-
-    print 'Done.'
 
 if __name__ == '__main__':
     main()
