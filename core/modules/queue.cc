@@ -9,7 +9,7 @@ class Queue : public Module {
   Queue() : Module(), queue_(), prefetch_(), burst_() {}
 
   virtual struct snobj *Init(struct snobj *arg);
-  virtual pb_error_t Init(const bess::QueueArg &arg);
+  virtual pb_error_t Init(const bess::protobuf::QueueArg &arg);
 
   virtual void Deinit();
 
@@ -21,8 +21,8 @@ class Queue : public Module {
   struct snobj *CommandSetBurst(struct snobj *arg);
   struct snobj *CommandSetSize(struct snobj *arg);
 
-  pb_error_t CommandSetBurst(const bess::QueueCommandSetBurstArg &arg);
-  pb_error_t CommandSetSize(const bess::QueueCommandSetSizeArg &arg);
+  pb_error_t CommandSetBurst(const bess::protobuf::QueueCommandSetBurstArg &arg);
+  pb_error_t CommandSetSize(const bess::protobuf::QueueCommandSetSizeArg &arg);
 
   static const gate_idx_t kNumIGates = 1;
   static const gate_idx_t kNumOGates = 1;
@@ -81,7 +81,7 @@ int Queue::Resize(int slots) {
   return 0;
 }
 
-pb_error_t Queue::Init(const bess::QueueArg &arg) {
+pb_error_t Queue::Init(const bess::protobuf::QueueArg &arg) {
   task_id_t tid;
   pb_error_t err;
 
@@ -282,10 +282,10 @@ pb_error_t Queue::SetSize(uint64_t size) {
   return pb_errno(0);
 }
 
-pb_error_t Queue::CommandSetBurst(const bess::QueueCommandSetBurstArg &arg) {
+pb_error_t Queue::CommandSetBurst(const bess::protobuf::QueueCommandSetBurstArg &arg) {
   return SetBurst(arg.burst());
 }
-pb_error_t Queue::CommandSetSize(const bess::QueueCommandSetSizeArg &arg) {
+pb_error_t Queue::CommandSetSize(const bess::protobuf::QueueCommandSetSizeArg &arg) {
   return SetSize(arg.size());
 }
 

@@ -9,15 +9,15 @@ class Update : public Module {
   Update() : Module(), num_fields_(), fields_() {}
 
   virtual struct snobj *Init(struct snobj *arg);
-  virtual pb_error_t Init(const bess::UpdateArg &arg);
+  virtual pb_error_t Init(const bess::protobuf::UpdateArg &arg);
 
   virtual void ProcessBatch(struct pkt_batch *batch);
 
   struct snobj *CommandAdd(struct snobj *arg);
   struct snobj *CommandClear(struct snobj *arg);
 
-  pb_error_t CommandAdd(const bess::UpdateArg &arg);
-  pb_error_t CommandClear(const bess::UpdateCommandClearArg &arg);
+  pb_error_t CommandAdd(const bess::protobuf::UpdateArg &arg);
+  pb_error_t CommandClear(const bess::protobuf::UpdateCommandClearArg &arg);
 
   static const gate_idx_t kNumIGates = 1;
   static const gate_idx_t kNumOGates = 1;
@@ -53,7 +53,7 @@ struct snobj *Update::Init(struct snobj *arg) {
   return CommandAdd(t);
 }
 
-pb_error_t Update::Init(const bess::UpdateArg &arg) {
+pb_error_t Update::Init(const bess::protobuf::UpdateArg &arg) {
   return CommandAdd(arg);
 }
 
@@ -80,7 +80,7 @@ void Update::ProcessBatch(struct pkt_batch *batch) {
   RunNextModule(batch);
 }
 
-pb_error_t Update::CommandAdd(const bess::UpdateArg &arg) {
+pb_error_t Update::CommandAdd(const bess::protobuf::UpdateArg &arg) {
   int curr = num_fields_;
 
   if (curr + arg.fields_size() > MAX_FIELDS) {
@@ -128,7 +128,7 @@ pb_error_t Update::CommandAdd(const bess::UpdateArg &arg) {
   return pb_errno(0);
 }
 
-pb_error_t Update::CommandClear(const bess::UpdateCommandClearArg &arg) {
+pb_error_t Update::CommandClear(const bess::protobuf::UpdateCommandClearArg &arg) {
   num_fields_ = 0;
   return pb_errno(0);
 }

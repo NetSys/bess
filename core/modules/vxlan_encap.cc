@@ -23,7 +23,7 @@ class VXLANEncap : public Module {
   VXLANEncap() : Module(), dstport_() {}
 
   virtual struct snobj *Init(struct snobj *arg);
-  virtual pb_error_t Init(const bess::VXLANEncapArg &arg);
+  virtual pb_error_t Init(const bess::protobuf::VXLANEncapArg &arg);
 
   virtual void ProcessBatch(struct pkt_batch *batch);
 
@@ -60,7 +60,7 @@ class VXLANEncap : public Module {
 
 const Commands<Module> VXLANEncap::cmds = {};
 
-pb_error_t VXLANEncap::Init(const bess::VXLANEncapArg &arg) {
+pb_error_t VXLANEncap::Init(const bess::protobuf::VXLANEncapArg &arg) {
   dstport_ = rte_cpu_to_be_16(4789);
 
   int dstport = arg.dstport();

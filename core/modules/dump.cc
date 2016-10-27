@@ -12,12 +12,12 @@ static const uint64_t DEFAULT_INTERVAL_NS = 1 * NS_PER_SEC; /* 1 sec */
 class Dump : public Module {
  public:
   virtual struct snobj *Init(struct snobj *arg);
-  pb_error_t Init(const bess::DumpArg &arg);
+  pb_error_t Init(const bess::protobuf::DumpArg &arg);
 
   virtual void ProcessBatch(struct pkt_batch *batch);
 
   struct snobj *CommandSetInterval(struct snobj *arg);
-  pb_error_t CommandSetInterval(const bess::DumpArg &arg);
+  pb_error_t CommandSetInterval(const bess::protobuf::DumpArg &arg);
 
   static const gate_idx_t kNumIGates = 1;
   static const gate_idx_t kNumOGates = 1;
@@ -44,7 +44,7 @@ struct snobj *Dump::Init(struct snobj *arg) {
   }
 }
 
-pb_error_t Dump::Init(const bess::DumpArg &arg) {
+pb_error_t Dump::Init(const bess::protobuf::DumpArg &arg) {
   min_interval_ns_ = DEFAULT_INTERVAL_NS;
   next_ns_ = ctx.current_tsc();
 
@@ -81,7 +81,7 @@ struct snobj *Dump::CommandSetInterval(struct snobj *arg) {
   return nullptr;
 }
 
-pb_error_t Dump::CommandSetInterval(const bess::DumpArg &arg) {
+pb_error_t Dump::CommandSetInterval(const bess::protobuf::DumpArg &arg) {
   double sec = arg.interval();
 
   if (std::isnan(sec) || sec < 0.0) {

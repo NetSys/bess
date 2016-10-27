@@ -21,7 +21,7 @@ class IPLookup : public Module {
   IPLookup() : Module(), lpm_(), default_gate_() {}
 
   virtual struct snobj *Init(struct snobj *arg);
-  virtual pb_error_t Init(const bess::IPLookupArg &arg);
+  virtual pb_error_t Init(const bess::protobuf::IPLookupArg &arg);
 
   virtual void Deinit();
 
@@ -30,8 +30,8 @@ class IPLookup : public Module {
   struct snobj *CommandAdd(struct snobj *arg);
   struct snobj *CommandClear(struct snobj *arg);
 
-  pb_error_t CommandAdd(const bess::IPLookupCommandAddArg &arg);
-  pb_error_t CommandClear(const bess::IPLookupCommandClearArg &arg);
+  pb_error_t CommandAdd(const bess::protobuf::IPLookupCommandAddArg &arg);
+  pb_error_t CommandClear(const bess::protobuf::IPLookupCommandClearArg &arg);
 
   static const gate_idx_t kNumIGates = 1;
   static const gate_idx_t kNumOGates = MAX_GATES;
@@ -64,7 +64,7 @@ struct snobj *IPLookup::Init(struct snobj *arg) {
   return nullptr;
 }
 
-pb_error_t IPLookup::Init(const bess::IPLookupArg &arg) {
+pb_error_t IPLookup::Init(const bess::protobuf::IPLookupArg &arg) {
   struct rte_lpm_config conf = {
       .max_rules = 1024, .number_tbl8s = 128, .flags = 0,
   };
@@ -213,7 +213,7 @@ struct snobj *IPLookup::CommandClear(struct snobj *arg) {
   return nullptr;
 }
 
-pb_error_t IPLookup::CommandAdd(const bess::IPLookupCommandAddArg &arg) {
+pb_error_t IPLookup::CommandAdd(const bess::protobuf::IPLookupCommandAddArg &arg) {
   struct in_addr ip_addr_be;
   uint32_t ip_addr; /* in cpu order */
   uint32_t netmask;
@@ -260,7 +260,7 @@ pb_error_t IPLookup::CommandAdd(const bess::IPLookupCommandAddArg &arg) {
   return pb_errno(0);
 }
 
-pb_error_t IPLookup::CommandClear(const bess::IPLookupCommandClearArg &arg) {
+pb_error_t IPLookup::CommandClear(const bess::protobuf::IPLookupCommandClearArg &arg) {
   rte_lpm_delete_all(lpm_);
   default_gate_ = DROP_GATE;
   return pb_errno(0);

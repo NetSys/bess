@@ -5,15 +5,15 @@ class Source : public Module {
   Source() : Module(), pkt_size_(), burst_() {}
 
   virtual struct snobj *Init(struct snobj *arg);
-  pb_error_t Init(const bess::SourceArg &arg);
+  pb_error_t Init(const bess::protobuf::SourceArg &arg);
 
   virtual struct task_result RunTask(void *arg);
 
   struct snobj *command_set_pkt_size(struct snobj *arg);
   struct snobj *command_set_burst(struct snobj *arg);
 
-  pb_error_t CommandSetBurst(const bess::SourceCommandSetBurstArg &arg);
-  pb_error_t CommandSetPktSize(const bess::SourceCommandSetPktSizeArg &arg);
+  pb_error_t CommandSetBurst(const bess::protobuf::SourceCommandSetBurstArg &arg);
+  pb_error_t CommandSetPktSize(const bess::protobuf::SourceCommandSetPktSizeArg &arg);
 
   static const gate_idx_t kNumIGates = 0;
   static const gate_idx_t kNumOGates = 1;
@@ -30,7 +30,7 @@ const Commands<Module> Source::cmds = {
     {"set_burst", MODULE_FUNC &Source::command_set_burst, 1},
 };
 
-pb_error_t Source::Init(const bess::SourceArg &arg) {
+pb_error_t Source::Init(const bess::protobuf::SourceArg &arg) {
   pb_error_t err;
 
   task_id_t tid = RegisterTask(nullptr);
@@ -53,7 +53,7 @@ pb_error_t Source::Init(const bess::SourceArg &arg) {
   return pb_errno(0);
 }
 
-pb_error_t Source::CommandSetBurst(const bess::SourceCommandSetBurstArg &arg) {
+pb_error_t Source::CommandSetBurst(const bess::protobuf::SourceCommandSetBurstArg &arg) {
   uint64_t val = arg.burst();
   if (val == 0 || val > MAX_PKT_BURST) {
     return pb_error(EINVAL, "burst size must be [1,%d]", MAX_PKT_BURST);
@@ -63,7 +63,7 @@ pb_error_t Source::CommandSetBurst(const bess::SourceCommandSetBurstArg &arg) {
 }
 
 pb_error_t Source::CommandSetPktSize(
-    const bess::SourceCommandSetPktSizeArg &arg) {
+    const bess::protobuf::SourceCommandSetPktSizeArg &arg) {
   uint64_t val = arg.pkt_size();
   if (val == 0 || val > SNBUF_DATA) {
     return pb_error(EINVAL, "Invalid packet size");

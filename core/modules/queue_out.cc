@@ -6,7 +6,7 @@ class QueueOut : public Module {
   QueueOut() : Module(), port_(), qid_() {}
 
   virtual struct snobj *Init(struct snobj *arg);
-  virtual pb_error_t Init(const bess::QueueOutArg &arg);
+  virtual pb_error_t Init(const bess::protobuf::QueueOutArg &arg);
 
   virtual void Deinit();
 
@@ -26,7 +26,7 @@ class QueueOut : public Module {
 
 const Commands<Module> QueueOut::cmds = {};
 
-pb_error_t QueueOut::Init(const bess::QueueOutArg &arg) {
+pb_error_t QueueOut::Init(const bess::protobuf::QueueOutArg &arg) {
   const char *port_name;
   int ret;
 

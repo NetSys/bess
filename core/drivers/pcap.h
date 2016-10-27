@@ -31,7 +31,7 @@ class PCAPPort : public Port {
    * PARAMETERS:
    * * string dev : the device to bind to with PCAP.
    */
-   virtual pb_error_t Init(const bess::PCAPPortArg &arg);
+   virtual pb_error_t Init(const bess::protobuf::PCAPPortArg &arg);
   
   /*!
    * Deprecated! Don't use!

@@ -148,13 +148,13 @@ class ExactMatch : public Module {
   struct snobj *AddFieldOne(struct snobj *field, struct EmField *f, int idx);
   struct snobj *GatherKey(struct snobj *fields, hkey_t *key);
 
-  pb_error_t Init(const bess::ExactMatchArg &arg);
-  pb_error_t CommandAdd(const bess::ExactMatchCommandAddArg &arg);
-  pb_error_t CommandDelete(const bess::ExactMatchCommandDeleteArg &arg);
-  pb_error_t CommandClear(const bess::ExactMatchCommandClearArg &arg);
+  pb_error_t Init(const bess::protobuf::ExactMatchArg &arg);
+  pb_error_t CommandAdd(const bess::protobuf::ExactMatchCommandAddArg &arg);
+  pb_error_t CommandDelete(const bess::protobuf::ExactMatchCommandDeleteArg &arg);
+  pb_error_t CommandClear(const bess::protobuf::ExactMatchCommandClearArg &arg);
   pb_error_t CommandSetDefaultGate(
-      const bess::ExactMatchCommandSetDefaultGateArg &arg);
-  pb_error_t AddFieldOne(const bess::ExactMatchArg_Field &field,
+      const bess::protobuf::ExactMatchCommandSetDefaultGateArg &arg);
+  pb_error_t AddFieldOne(const bess::protobuf::ExactMatchArg_Field &field,
                          struct EmField *f, int idx);
   pb_error_t GatherKey(const RepeatedField<uint64_t> &fields, hkey_t *key);
 
@@ -174,20 +174,20 @@ const Commands<Module> ExactMatch::cmds = {
     {"clear", MODULE_FUNC &ExactMatch::CommandClear, 0},
     {"set_default_gate", MODULE_FUNC &ExactMatch::CommandSetDefaultGate, 1}};
 
-pb_error_t ExactMatch::AddFieldOne(const bess::ExactMatchArg_Field &field,
+pb_error_t ExactMatch::AddFieldOne(const bess::protobuf::ExactMatchArg_Field &field,
                                    struct EmField *f, int idx) {
   f->size = field.size();
   if (f->size < 1 || f->size > MAX_FIELD_SIZE) {
     return pb_error(EINVAL, "idx %d: 'size' must be 1-%d", idx, MAX_FIELD_SIZE);
   }
 
-  if (field.position_case() == bess::ExactMatchArg_Field::kName) {
+  if (field.position_case() == bess::protobuf::ExactMatchArg_Field::kName) {
     const char *attr = field.name().c_str();
     f->attr_id = AddMetadataAttr(attr, f->size, MT_READ);
     if (f->attr_id < 0) {
       return pb_error(-f->attr_id, "idx %d: add_metadata_attr() failed", idx);
     }
-  } else if (field.position_case() == bess::ExactMatchArg_Field::kOffset) {
+  } else if (field.position_case() == bess::protobuf::ExactMatchArg_Field::kOffset) {
     f->attr_id = -1;
     f->offset = field.offset();
     if (f->offset < 0 || f->offset > 1024) {
@@ -306,7 +306,7 @@ struct snobj *ExactMatch::Init(struct snobj *arg) {
   return nullptr;
 }
 
-pb_error_t ExactMatch::Init(const bess::ExactMatchArg &arg) {
+pb_error_t ExactMatch::Init(const bess::protobuf::ExactMatchArg &arg) {
   int size_acc = 0;
 
   for (auto i = 0; i < arg.fields_size(); ++i) {
@@ -526,7 +526,7 @@ struct snobj *ExactMatch::CommandAdd(struct snobj *arg) {
   return nullptr;
 }
 
-pb_error_t ExactMatch::CommandAdd(const bess::ExactMatchCommandAddArg &arg) {
+pb_error_t ExactMatch::CommandAdd(const bess::protobuf::ExactMatchCommandAddArg &arg) {
   hkey_t key;
   gate_idx_t gate = arg.gate();
   pb_error_t err;
@@ -575,7 +575,7 @@ struct snobj *ExactMatch::CommandDelete(struct snobj *arg) {
 }
 
 pb_error_t ExactMatch::CommandDelete(
-    const bess::ExactMatchCommandDeleteArg &arg) {
+    const bess::protobuf::ExactMatchCommandDeleteArg &arg) {
   hkey_t key;
 
   pb_error_t err;
@@ -604,7 +604,7 @@ struct snobj *ExactMatch::CommandClear(struct snobj *arg) {
 }
 
 pb_error_t ExactMatch::CommandClear(
-    const bess::ExactMatchCommandClearArg &arg) {
+    const bess::protobuf::ExactMatchCommandClearArg &arg) {
   ht_.Clear();
 
   return pb_errno(0);
@@ -619,7 +619,7 @@ struct snobj *ExactMatch::CommandSetDefaultGate(struct snobj *arg) {
 }
 
 pb_error_t ExactMatch::CommandSetDefaultGate(
-    const bess::ExactMatchCommandSetDefaultGateArg &arg) {
+    const bess::protobuf::ExactMatchCommandSetDefaultGateArg &arg) {
   default_gate_ = arg.gate();
 
   return pb_errno(0);

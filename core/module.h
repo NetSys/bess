@@ -30,8 +30,6 @@ static_assert(DROP_GATE <= MAX_GATES, "invalid macro value");
 #include "utils/simd.h"
 #include "worker.h"
 
-using bess::Error;
-
 #define MODULE_NAME_LEN 128
 
 #define TRACK_GATES 1
@@ -204,7 +202,7 @@ class Module {
   Module() = default;
   virtual ~Module(){};
 
-  virtual bess::Error *Init(const void *arg) { return nullptr; }
+  virtual pb_error_t Init(const void *arg) { return pb_errno(0); }
   virtual struct snobj *Init(struct snobj *arg) { return nullptr; }
   virtual void Deinit() {}
 

@@ -47,7 +47,7 @@ class SetMetadata : public Module {
   SetMetadata() : Module(), attrs_() {}
 
   struct snobj *Init(struct snobj *arg);
-  pb_error_t Init(const bess::SetMetadataArg &arg);
+  pb_error_t Init(const bess::protobuf::SetMetadataArg &arg);
 
   void ProcessBatch(struct pkt_batch *batch);
 
@@ -58,14 +58,14 @@ class SetMetadata : public Module {
 
  private:
   struct snobj *AddAttrOne(struct snobj *attr);
-  pb_error_t AddAttrOne(const bess::SetMetadataArg_Attribute &attr);
+  pb_error_t AddAttrOne(const bess::protobuf::SetMetadataArg_Attribute &attr);
 
   std::vector<struct Attr> attrs_;
 };
 
 const Commands<Module> SetMetadata::cmds = {};
 
-pb_error_t SetMetadata::AddAttrOne(const bess::SetMetadataArg_Attribute &attr) {
+pb_error_t SetMetadata::AddAttrOne(const bess::protobuf::SetMetadataArg_Attribute &attr) {
   std::string name;
   int size = 0;
   int offset = -1;
@@ -105,7 +105,7 @@ pb_error_t SetMetadata::AddAttrOne(const bess::SetMetadataArg_Attribute &attr) {
   return pb_errno(0);
 }
 
-pb_error_t SetMetadata::Init(const bess::SetMetadataArg &arg) {
+pb_error_t SetMetadata::Init(const bess::protobuf::SetMetadataArg &arg) {
   if (!arg.attrs_size()) {
     return pb_error(EINVAL, "'attrs' must be specified");
   }

@@ -6,7 +6,7 @@ class QueueInc : public Module {
   QueueInc() : Module(), port_(), qid_(), prefetch_(), burst_() {}
 
   virtual struct snobj *Init(struct snobj *arg);
-  virtual pb_error_t Init(const bess::QueueIncArg &arg);
+  virtual pb_error_t Init(const bess::protobuf::QueueIncArg &arg);
   virtual void Deinit();
 
   virtual struct task_result RunTask(void *arg);
@@ -14,7 +14,7 @@ class QueueInc : public Module {
   virtual std::string GetDesc() const;
 
   struct snobj *CommandSetBurst(struct snobj *arg);
-  pb_error_t CommandSetBurst(const bess::QueueIncCommandSetBurstArg &arg);
+  pb_error_t CommandSetBurst(const bess::protobuf::QueueIncCommandSetBurstArg &arg);
 
   static const gate_idx_t kNumIGates = 0;
   static const gate_idx_t kNumOGates = 1;
@@ -32,7 +32,7 @@ class QueueInc : public Module {
 const Commands<Module> QueueInc::cmds = {
     {"set_burst", MODULE_FUNC &QueueInc::CommandSetBurst, 1}};
 
-pb_error_t QueueInc::Init(const bess::QueueIncArg &arg) {
+pb_error_t QueueInc::Init(const bess::protobuf::QueueIncArg &arg) {
   const char *port_name;
   task_id_t tid;
   pb_error_t err;
@@ -215,7 +215,7 @@ pb_error_t QueueInc::SetBurst(int64_t burst) {
 }
 
 pb_error_t QueueInc::CommandSetBurst(
-    const bess::QueueIncCommandSetBurstArg &arg) {
+    const bess::protobuf::QueueIncCommandSetBurstArg &arg) {
   return SetBurst(arg.burst());
 }
 

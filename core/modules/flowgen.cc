@@ -84,7 +84,7 @@ class FlowGen : public Module {
         pareto_() {}
 
   virtual struct snobj *Init(struct snobj *arg);
-  virtual pb_error_t Init(const bess::FlowGenArg &arg);
+  virtual pb_error_t Init(const bess::protobuf::FlowGenArg &arg);
 
   virtual void Deinit();
 
@@ -108,7 +108,7 @@ class FlowGen : public Module {
   struct snobj *ProcessArguments(struct snobj *arg);
 
   pb_error_t InitFlowPool();
-  pb_error_t ProcessArguments(const bess::FlowGenArg &arg);
+  pb_error_t ProcessArguments(const bess::protobuf::FlowGenArg &arg);
 
   int active_flows_;
   int allocated_flows_;
@@ -334,7 +334,7 @@ struct snobj *FlowGen::ProcessArguments(struct snobj *arg) {
   return nullptr;
 }
 
-pb_error_t FlowGen::ProcessArguments(const bess::FlowGenArg &arg) {
+pb_error_t FlowGen::ProcessArguments(const bess::protobuf::FlowGenArg &arg) {
   if (arg.template_().length() == 0) {
     return pb_error(EINVAL, "must specify 'template'");
   }
@@ -363,9 +363,9 @@ pb_error_t FlowGen::ProcessArguments(const bess::FlowGenArg &arg) {
     return pb_error(EINVAL, "invalid 'flow_duration'");
   }
 
-  if (arg.arrival() == bess::FlowGenArg::UNIFORM) {
+  if (arg.arrival() == bess::protobuf::FlowGenArg::UNIFORM) {
     arrival_ = ARRIVAL_UNIFORM;
-  } else if (arg.arrival() == bess::FlowGenArg::EXPONENTIAL) {
+  } else if (arg.arrival() == bess::protobuf::FlowGenArg::EXPONENTIAL) {
     arrival_ = ARRIVAL_EXPONENTIAL;
   } else {
     return pb_error(EINVAL,
@@ -373,9 +373,9 @@ pb_error_t FlowGen::ProcessArguments(const bess::FlowGenArg &arg) {
                     "'uniform' or 'exponential'");
   }
 
-  if (arg.duration() == bess::FlowGenArg::UNIFORM) {
+  if (arg.duration() == bess::protobuf::FlowGenArg::UNIFORM) {
     duration_ = DURATION_UNIFORM;
-  } else if (arg.duration() == bess::FlowGenArg::PARETO) {
+  } else if (arg.duration() == bess::protobuf::FlowGenArg::PARETO) {
     duration_ = DURATION_PARETO;
   } else {
     return pb_error(EINVAL,
@@ -414,7 +414,7 @@ pb_error_t FlowGen::InitFlowPool() {
   return pb_errno(0);
 }
 
-pb_error_t FlowGen::Init(const bess::FlowGenArg &arg) {
+pb_error_t FlowGen::Init(const bess::protobuf::FlowGenArg &arg) {
   task_id_t tid;
   pb_error_t err;
 

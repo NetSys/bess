@@ -239,7 +239,7 @@ class VPort : public Port {
  public:
   virtual void InitDriver();
 
-  pb_error_t Init(const bess::VPortArg &arg);
+  pb_error_t Init(const bess::protobuf::VPortArg &arg);
   struct snobj *Init(struct snobj *conf);
   void DeInit();
 
@@ -251,7 +251,7 @@ class VPort : public Port {
   void *AllocBar(struct tx_queue_opts *txq_opts,
                  struct rx_queue_opts *rxq_opts);
   int SetIPAddrSingle(const std::string &ip_addr);
-  pb_error_t SetIPAddr(const bess::VPortArg &arg);
+  pb_error_t SetIPAddr(const bess::protobuf::VPortArg &arg);
   struct snobj *SetIPAddr(struct snobj *arg);
 
   int fd_ = {0};
@@ -426,7 +426,7 @@ int VPort::SetIPAddrSingle(const std::string &ip_addr) {
   return 0;
 }
 
-pb_error_t VPort::SetIPAddr(const bess::VPortArg &arg) {
+pb_error_t VPort::SetIPAddr(const bess::protobuf::VPortArg &arg) {
   int child_pid;
 
   int ret = 0;
@@ -522,7 +522,7 @@ void VPort::DeInit() {
   FreeBar();
 }
 
-pb_error_t VPort::Init(const bess::VPortArg &arg) {
+pb_error_t VPort::Init(const bess::protobuf::VPortArg &arg) {
   int cpu;
   int rxq;
 

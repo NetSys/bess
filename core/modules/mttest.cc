@@ -3,7 +3,7 @@
 class MetadataTest : public Module {
  public:
   struct snobj *Init(struct snobj *arg);
-  pb_error_t Init(const bess::MetadataTestArg &arg);
+  pb_error_t Init(const bess::protobuf::MetadataTestArg &arg);
 
   void ProcessBatch(struct pkt_batch *batch);
 
@@ -93,7 +93,7 @@ struct snobj *MetadataTest::AddAttributes(struct snobj *attrs,
   return nullptr;
 }
 
-pb_error_t MetadataTest::Init(const bess::MetadataTestArg &arg) {
+pb_error_t MetadataTest::Init(const bess::protobuf::MetadataTestArg &arg) {
   pb_error_t err;
 
   err = AddAttributes(arg.read(), MT_READ);

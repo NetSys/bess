@@ -9,7 +9,7 @@ class GenericDecap : public Module {
   GenericDecap() : Module(), decap_size_() {}
 
   virtual struct snobj *Init(struct snobj *arg);
-  virtual pb_error_t Init(const bess::GenericDecapArg &arg);
+  virtual pb_error_t Init(const bess::protobuf::GenericDecapArg &arg);
 
   virtual void ProcessBatch(struct pkt_batch *batch);
 
@@ -21,7 +21,7 @@ class GenericDecap : public Module {
 
 const Commands<Module> GenericDecap::cmds = {};
 
-pb_error_t GenericDecap::Init(const bess::GenericDecapArg &arg) {
+pb_error_t GenericDecap::Init(const bess::protobuf::GenericDecapArg &arg) {
   if (arg.bytes() == 0) {
     return pb_errno(0);
   }

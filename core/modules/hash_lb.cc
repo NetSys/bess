@@ -49,15 +49,15 @@ class HashLB : public Module {
   HashLB() : Module(), gates_(), num_gates_(), mode_() {}
 
   virtual struct snobj *Init(struct snobj *arg);
-  virtual pb_error_t Init(const bess::HashLBArg &arg);
+  virtual pb_error_t Init(const bess::protobuf::HashLBArg &arg);
 
   virtual void ProcessBatch(struct pkt_batch *batch);
 
   struct snobj *CommandSetMode(struct snobj *arg);
   struct snobj *CommandSetGates(struct snobj *arg);
 
-  pb_error_t CommandSetMode(const bess::HashLBCommandSetModeArg &arg);
-  pb_error_t CommandSetGates(const bess::HashLBCommandSetGatesArg &arg);
+  pb_error_t CommandSetMode(const bess::protobuf::HashLBCommandSetModeArg &arg);
+  pb_error_t CommandSetGates(const bess::protobuf::HashLBCommandSetGatesArg &arg);
 
   static const gate_idx_t kNumIGates = 1;
   static const gate_idx_t kNumOGates = MAX_GATES;
@@ -99,15 +99,15 @@ struct snobj *HashLB::CommandSetMode(struct snobj *arg) {
   return nullptr;
 }
 
-pb_error_t HashLB::CommandSetMode(const bess::HashLBCommandSetModeArg &arg) {
+pb_error_t HashLB::CommandSetMode(const bess::protobuf::HashLBCommandSetModeArg &arg) {
   switch (arg.mode()) {
-    case bess::HashLBCommandSetModeArg::L2:
+    case bess::protobuf::HashLBCommandSetModeArg::L2:
       mode_ = LB_L2;
       break;
-    case bess::HashLBCommandSetModeArg::L3:
+    case bess::protobuf::HashLBCommandSetModeArg::L3:
       mode_ = LB_L3;
       break;
-    case bess::HashLBCommandSetModeArg::L4:
+    case bess::protobuf::HashLBCommandSetModeArg::L4:
       mode_ = LB_L4;
       break;
     default:
@@ -160,7 +160,7 @@ struct snobj *HashLB::CommandSetGates(struct snobj *arg) {
   return nullptr;
 }
 
-pb_error_t HashLB::CommandSetGates(const bess::HashLBCommandSetGatesArg &arg) {
+pb_error_t HashLB::CommandSetGates(const bess::protobuf::HashLBCommandSetGatesArg &arg) {
   if (arg.gates_size() > MAX_HLB_GATES) {
     return pb_error(EINVAL, "no more than %d gates", MAX_HLB_GATES);
   }
@@ -202,7 +202,7 @@ struct snobj *HashLB::Init(struct snobj *arg) {
   return nullptr;
 }
 
-pb_error_t HashLB::Init(const bess::HashLBArg &arg) {
+pb_error_t HashLB::Init(const bess::protobuf::HashLBArg &arg) {
   mode_ = DEFAULT_MODE;
 
   if (arg.has_gate_arg()) {

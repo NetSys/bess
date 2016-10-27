@@ -156,7 +156,7 @@ class WildcardMatch : public Module {
         next_table_id_() {}
 
   virtual struct snobj *Init(struct snobj *arg);
-  pb_error_t Init(const bess::WildcardMatchArg &arg);
+  pb_error_t Init(const bess::protobuf::WildcardMatchArg &arg);
 
   virtual void Deinit();
 
@@ -170,11 +170,11 @@ class WildcardMatch : public Module {
   struct snobj *CommandClear(struct snobj *arg);
   struct snobj *CommandSetDefaultGate(struct snobj *arg);
 
-  pb_error_t CommandAdd(const bess::WildcardMatchCommandAddArg &arg);
-  pb_error_t CommandDelete(const bess::WildcardMatchCommandDeleteArg &arg);
-  pb_error_t CommandClear(const bess::WildcardMatchCommandClearArg &arg);
+  pb_error_t CommandAdd(const bess::protobuf::WildcardMatchCommandAddArg &arg);
+  pb_error_t CommandDelete(const bess::protobuf::WildcardMatchCommandDeleteArg &arg);
+  pb_error_t CommandClear(const bess::protobuf::WildcardMatchCommandClearArg &arg);
   pb_error_t CommandSetDefaultGate(
-      const bess::WildcardMatchCommandSetDefaultGateArg &arg);
+      const bess::protobuf::WildcardMatchCommandSetDefaultGateArg &arg);
 
   static const gate_idx_t kNumIGates = 1;
   static const gate_idx_t kNumOGates = MAX_GATES;
@@ -185,7 +185,7 @@ class WildcardMatch : public Module {
   gate_idx_t LookupEntry(hkey_t *key, gate_idx_t def_gate);
 
   struct snobj *AddFieldOne(struct snobj *field, struct WmField *f);
-  pb_error_t AddFieldOne(const bess::WildcardMatchArg_Field &field,
+  pb_error_t AddFieldOne(const bess::protobuf::WildcardMatchArg_Field &field,
                          struct WmField *f);
 
   void CollectRules(const struct WmTuple *tuple, struct snobj *rules) const;
@@ -253,7 +253,7 @@ struct snobj *WildcardMatch::AddFieldOne(struct snobj *field,
   return nullptr;
 }
 
-pb_error_t WildcardMatch::AddFieldOne(const bess::WildcardMatchArg_Field &field,
+pb_error_t WildcardMatch::AddFieldOne(const bess::protobuf::WildcardMatchArg_Field &field,
                                       struct WmField *f) {
   f->size = field.size();
 
@@ -261,13 +261,13 @@ pb_error_t WildcardMatch::AddFieldOne(const bess::WildcardMatchArg_Field &field,
     return pb_error(EINVAL, "'size' must be 1-%d", MAX_FIELD_SIZE);
   }
 
-  if (field.length_case() == bess::WildcardMatchArg_Field::kOffset) {
+  if (field.length_case() == bess::protobuf::WildcardMatchArg_Field::kOffset) {
     f->attr_id = -1;
     f->offset = field.offset();
     if (f->offset < 0 || f->offset > 1024) {
       return pb_error(EINVAL, "too small 'offset'");
     }
-  } else if (field.length_case() == bess::WildcardMatchArg_Field::kAttribute) {
+  } else if (field.length_case() == bess::protobuf::WildcardMatchArg_Field::kAttribute) {
     const char *attr = field.attribute().c_str();
     f->attr_id = AddMetadataAttr(attr, f->size, MT_READ);
     if (f->attr_id < 0) {
@@ -320,7 +320,7 @@ struct snobj *WildcardMatch::Init(struct snobj *arg) {
   return nullptr;
 }
 
-pb_error_t WildcardMatch::Init(const bess::WildcardMatchArg &arg) {
+pb_error_t WildcardMatch::Init(const bess::protobuf::WildcardMatchArg &arg) {
   int size_acc = 0;
 
   for (int i = 0; i < arg.fields_size(); i++) {
@@ -699,7 +699,7 @@ int WildcardMatch::DelEntry(struct WmTuple *tuple, hkey_t *key) {
 }
 
 pb_error_t WildcardMatch::CommandAdd(
-    const bess::WildcardMatchCommandAddArg &arg) {
+    const bess::protobuf::WildcardMatchCommandAddArg &arg) {
   gate_idx_t gate = arg.gate();
   int priority = arg.priority();
 
@@ -737,7 +737,7 @@ pb_error_t WildcardMatch::CommandAdd(
 }
 
 pb_error_t WildcardMatch::CommandDelete(
-    const bess::WildcardMatchCommandDeleteArg &arg) {
+    const bess::protobuf::WildcardMatchCommandDeleteArg &arg) {
   hkey_t key;
   hkey_t mask;
 
@@ -760,7 +760,7 @@ pb_error_t WildcardMatch::CommandDelete(
 }
 
 pb_error_t WildcardMatch::CommandClear(
-    const bess::WildcardMatchCommandClearArg &arg) {
+    const bess::protobuf::WildcardMatchCommandClearArg &arg) {
   for (int i = 0; i < num_tuples_; i++) {
     tuples_[i].ht.Clear();
   }
@@ -769,7 +769,7 @@ pb_error_t WildcardMatch::CommandClear(
 }
 
 pb_error_t WildcardMatch::CommandSetDefaultGate(
-    const bess::WildcardMatchCommandSetDefaultGateArg &arg) {
+    const bess::protobuf::WildcardMatchCommandSetDefaultGateArg &arg) {
   int gate = arg.gate();
 
   default_gate_ = gate;

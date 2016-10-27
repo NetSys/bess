@@ -6,7 +6,7 @@ class PortOut : public Module {
   PortOut() : Module(), port_() {}
 
   virtual struct snobj *Init(struct snobj *arg);
-  virtual pb_error_t Init(const bess::PortOutArg &arg);
+  virtual pb_error_t Init(const bess::protobuf::PortOutArg &arg);
 
   virtual void Deinit();
 
@@ -25,7 +25,7 @@ class PortOut : public Module {
 
 const Commands<Module> PortOut::cmds = {};
 
-pb_error_t PortOut::Init(const bess::PortOutArg &arg) {
+pb_error_t PortOut::Init(const bess::protobuf::PortOutArg &arg) {
   const char *port_name;
   int ret;
 

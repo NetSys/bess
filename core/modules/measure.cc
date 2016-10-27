@@ -33,13 +33,13 @@ class Measure : public Module {
         total_latency_() {}
 
   virtual struct snobj *Init(struct snobj *arg);
-  virtual pb_error_t Init(const bess::MeasureArg &arg);
+  virtual pb_error_t Init(const bess::protobuf::MeasureArg &arg);
 
   virtual void ProcessBatch(struct pkt_batch *batch);
 
   struct snobj *CommandGetSummary(struct snobj *arg);
-  bess::MeasureCommandGetSummaryResponse CommandGetSummary(
-      const bess::MeasureCommandGetSummaryArg &arg);
+  bess::protobuf::MeasureCommandGetSummaryResponse CommandGetSummary(
+      const bess::protobuf::MeasureCommandGetSummaryArg &arg);
 
   static const gate_idx_t kNumIGates = 1;
   static const gate_idx_t kNumOGates = 1;
@@ -71,7 +71,7 @@ struct snobj *Measure::Init(struct snobj *arg) {
   return nullptr;
 }
 
-pb_error_t Measure::Init(const bess::MeasureArg &arg) {
+pb_error_t Measure::Init(const bess::protobuf::MeasureArg &arg) {
   if (arg.warmup()) {
     warmup_ = arg.warmup();
   }
@@ -127,13 +127,13 @@ struct snobj *Measure::CommandGetSummary(struct snobj *arg) {
   return r;
 }
 
-bess::MeasureCommandGetSummaryResponse Measure::CommandGetSummary(
-    const bess::MeasureCommandGetSummaryArg &arg) {
+bess::protobuf::MeasureCommandGetSummaryResponse Measure::CommandGetSummary(
+    const bess::protobuf::MeasureCommandGetSummaryArg &arg) {
   uint64_t pkt_total = pkt_cnt_;
   uint64_t byte_total = bytes_cnt_;
   uint64_t bits = (byte_total + pkt_total * 24) * 8;
 
-  bess::MeasureCommandGetSummaryResponse r;
+  bess::protobuf::MeasureCommandGetSummaryResponse r;
   r.set_timestamp(get_epoch_time());
   r.set_packets(pkt_total);
   r.set_bits(bits);

@@ -13,15 +13,15 @@ class Rewrite : public Module {
         templates_() {}
 
   virtual struct snobj *Init(struct snobj *arg);
-  virtual pb_error_t Init(const bess::RewriteArg &arg);
+  virtual pb_error_t Init(const bess::protobuf::RewriteArg &arg);
 
   virtual void ProcessBatch(struct pkt_batch *batch);
 
   struct snobj *CommandAdd(struct snobj *arg);
   struct snobj *CommandClear(struct snobj *arg);
 
-  pb_error_t CommandAdd(const bess::RewriteArg &arg);
-  pb_error_t CommandClear(const bess::RewriteCommandClearArg &arg);
+  pb_error_t CommandAdd(const bess::protobuf::RewriteArg &arg);
+  pb_error_t CommandClear(const bess::protobuf::RewriteCommandClearArg &arg);
 
   static const gate_idx_t kNumIGates = 1;
   static const gate_idx_t kNumOGates = 1;
@@ -60,11 +60,11 @@ struct snobj *Rewrite::Init(struct snobj *arg) {
   return CommandAdd(t);
 }
 
-pb_error_t Rewrite::Init(const bess::RewriteArg &arg) {
+pb_error_t Rewrite::Init(const bess::protobuf::RewriteArg &arg) {
   return CommandAdd(arg);
 }
 
-pb_error_t Rewrite::CommandAdd(const bess::RewriteArg &arg) {
+pb_error_t Rewrite::CommandAdd(const bess::protobuf::RewriteArg &arg) {
   int curr = num_templates_;
   int i;
 
@@ -98,7 +98,7 @@ pb_error_t Rewrite::CommandAdd(const bess::RewriteArg &arg) {
   return pb_errno(0);
 }
 
-pb_error_t Rewrite::CommandClear(const bess::RewriteCommandClearArg &arg) {
+pb_error_t Rewrite::CommandClear(const bess::protobuf::RewriteCommandClearArg &arg) {
   next_turn_ = 0;
   num_templates_ = 0;
 

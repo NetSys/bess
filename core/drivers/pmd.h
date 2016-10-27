@@ -37,7 +37,7 @@ class PMDPort : public Port {
    * EXPECTS:
    * * Must specify exactly one of port_id or PCI or vdev.
    */
-  virtual pb_error_t Init(const bess::PMDPortArg &arg);
+  virtual pb_error_t Init(const bess::protobuf::PMDPortArg &arg);
 
   /*!
    * Deprecated! Don't use me :-)

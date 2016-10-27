@@ -27,7 +27,7 @@ class GenericEncap : public Module {
   GenericEncap() : Module(), encap_size_(), num_fields_(), fields_() {}
 
   struct snobj *Init(struct snobj *arg);
-  pb_error_t Init(const bess::GenericEncapArg &arg);
+  pb_error_t Init(const bess::protobuf::GenericEncapArg &arg);
 
   void ProcessBatch(struct pkt_batch *batch);
 
@@ -35,7 +35,7 @@ class GenericEncap : public Module {
 
  private:
   struct snobj *AddFieldOne(struct snobj *field, struct Field *f, int idx);
-  pb_error_t AddFieldOne(const bess::GenericEncapArg_Field &field,
+  pb_error_t AddFieldOne(const bess::protobuf::GenericEncapArg_Field &field,
                          struct Field *f, int idx);
 
   int encap_size_;
@@ -47,20 +47,20 @@ class GenericEncap : public Module {
 
 const Commands<Module> GenericEncap::cmds = {};
 
-pb_error_t GenericEncap::AddFieldOne(const bess::GenericEncapArg_Field &field,
+pb_error_t GenericEncap::AddFieldOne(const bess::protobuf::GenericEncapArg_Field &field,
                                      struct Field *f, int idx) {
   f->size = field.size();
   if (f->size < 1 || f->size > MAX_FIELD_SIZE) {
     return pb_error(EINVAL, "idx %d: 'size' must be 1-%d", idx, MAX_FIELD_SIZE);
   }
 
-  if (field.attribute_case() == bess::GenericEncapArg_Field::kName) {
+  if (field.attribute_case() == bess::protobuf::GenericEncapArg_Field::kName) {
     const char *attr = field.name().c_str();
     f->attr_id = AddMetadataAttr(attr, f->size, MT_READ);
     if (f->attr_id < 0) {
       return pb_error(-f->attr_id, "idx %d: add_metadata_attr() failed", idx);
     }
-  } else if (field.attribute_case() == bess::GenericEncapArg_Field::kValue) {
+  } else if (field.attribute_case() == bess::protobuf::GenericEncapArg_Field::kValue) {
     f->attr_id = -1;
     uint64_t value = field.value();
     if (uint64_to_bin((uint8_t *)&f->value, f->size, value, 1)) {
@@ -155,7 +155,7 @@ struct snobj *GenericEncap::Init(struct snobj *arg) {
   return nullptr;
 }
 
-pb_error_t GenericEncap::Init(const bess::GenericEncapArg &arg) {
+pb_error_t GenericEncap::Init(const bess::protobuf::GenericEncapArg &arg) {
   int size_acc = 0;
 
   for (int i = 0; i < arg.fields_size(); i++) {

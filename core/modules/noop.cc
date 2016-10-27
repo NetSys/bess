@@ -3,7 +3,7 @@
 class NoOP : public Module {
  public:
   virtual struct snobj *Init(struct snobj *arg);
-  virtual pb_error_t Init(const bess::NoOpArg &arg);
+  virtual pb_error_t Init(const bess::protobuf::NoOpArg &arg);
 
   virtual struct task_result RunTask(void *arg);
 
@@ -25,7 +25,7 @@ struct snobj *NoOP::Init(struct snobj *arg) {
   return nullptr;
 }
 
-pb_error_t NoOP::Init(const bess::NoOpArg &arg) {
+pb_error_t NoOP::Init(const bess::protobuf::NoOpArg &arg) {
   task_id_t tid;
 
   tid = RegisterTask(nullptr);

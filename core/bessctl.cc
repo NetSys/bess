@@ -20,49 +20,7 @@ using grpc::ServerWriter;
 using grpc::Status;
 using grpc::ClientContext;
 
-using bess::BESSControl;
-using bess::Error;
-using bess::Empty;
-using bess::AddTcRequest;
-using bess::AddWorkerRequest;
-using bess::AttachTaskRequest;
-using bess::ConnectModulesRequest;
-using bess::CreateModuleRequest;
-using bess::CreateModuleResponse;
-using bess::CreatePortRequest;
-using bess::CreatePortResponse;
-using bess::DestroyModuleRequest;
-using bess::DestroyPortRequest;
-using bess::DisableTcpdumpRequest;
-using bess::DisconnectModulesRequest;
-using bess::Empty;
-using bess::EnableTcpdumpRequest;
-using bess::Error;
-using bess::GetDriverInfoRequest;
-using bess::GetDriverInfoResponse;
-using bess::GetModuleInfoRequest;
-using bess::GetModuleInfoResponse;
-using bess::GetModuleInfoResponse_Attribute;
-using bess::GetModuleInfoResponse_IGate;
-using bess::GetModuleInfoResponse_IGate_OGate;
-using bess::GetModuleInfoResponse_OGate;
-using bess::GetPortStatsRequest;
-using bess::GetPortStatsResponse;
-using bess::GetPortStatsResponse_Stat;
-using bess::GetTcStatsRequest;
-using bess::GetTcStatsResponse;
-using bess::ListDriversResponse;
-using bess::ListModulesResponse;
-using bess::ListModulesResponse_Module;
-using bess::ListPortsResponse;
-using bess::ListTcsRequest;
-using bess::ListTcsResponse;
-using bess::ListTcsResponse_TrafficClassStatus;
-using bess::ListWorkersResponse;
-using bess::ListWorkersResponse_WorkerStatus;
-using bess::TrafficClass;
-using bess::TrafficClass_Resource;
-using bess::EmptyResponse;
+using namespace bess::protobuf;
 
 DECLARE_int32(c);
 
@@ -153,12 +111,12 @@ static int collect_metadata(Module* m, GetModuleInfoResponse* response) {
 }
 
 template <typename T>
-static Port* create_port(const std::string& name, const PortBuilder& driver,
-                         queue_t num_inc_q, queue_t num_out_q,
-                         size_t size_inc_q, size_t size_out_q,
-                         const std::string& mac_addr_str, const T& arg,
-                         Error* perr) {
-  std::unique_ptr<Port> p;
+static ::Port* create_port(const std::string& name, const PortBuilder& driver,
+                           queue_t num_inc_q, queue_t num_out_q,
+                           size_t size_inc_q, size_t size_out_q,
+                           const std::string& mac_addr_str, const T& arg,
+                           pb_error_t* perr) {
+  std::unique_ptr<::Port> p;
   int ret;
 
   if (num_inc_q == 0)
@@ -239,7 +197,7 @@ static Port* create_port(const std::string& name, const PortBuilder& driver,
 
 template <typename T>
 static Module* create_module(const char* name, const ModuleBuilder& builder,
-                             const T& arg, bess::Error* perr) {
+                             const T& arg, pb_error_t* perr) {
   Module* m;
   std::string mod_name;
   if (name) {
@@ -256,7 +214,7 @@ static Module* create_module(const char* name, const ModuleBuilder& builder,
 
   m = builder.CreateModule(mod_name);
 
-  *perr = *m->Init(&arg);
+  *perr = m->Init(&arg);
   if (perr != nullptr) {
     ModuleBuilder::DestroyModule(m);  // XXX: fix me
     return nullptr;
@@ -579,7 +537,7 @@ class BESSControlImpl final : public BESSControl::Service {
     for (auto it = PortBuilder::all_ports().cbegin();
          it != PortBuilder::all_ports().end();) {
       auto it_next = std::next(it);
-      Port* p = it->second;
+      ::Port* p = it->second;
 
       int ret = PortBuilder::DestroyPort(p);
       if (ret)
@@ -594,8 +552,8 @@ class BESSControlImpl final : public BESSControl::Service {
   Status ListPorts(ClientContext* context, const Empty& request,
                    ListPortsResponse* response) {
     for (const auto& pair : PortBuilder::all_ports()) {
-      const Port* p = pair.second;
-      bess::Port* port = response->add_ports();
+      const ::Port* p = pair.second;
+      bess::protobuf::Port* port = response->add_ports();
 
       port->set_name(p->name());
       port->set_driver(p->port_builder()->class_name());
@@ -606,7 +564,7 @@ class BESSControlImpl final : public BESSControl::Service {
   Status CreatePort(ClientContext* context, const CreatePortRequest& request,
                     CreatePortResponse* response) {
     const char* driver_name;
-    Port* port;
+    ::Port* port;
 
     if (request.port().driver().length() == 0)
       return return_with_error(response, EINVAL, "Missing 'driver' field");
@@ -620,7 +578,7 @@ class BESSControlImpl final : public BESSControl::Service {
     }
 
     const PortBuilder& builder = it->second;
-    Error* error = response->mutable_error();
+    pb_error_t* error = response->mutable_error();
 
     switch (request.arg_case()) {
       case CreatePortRequest::kPcapArg:
@@ -766,7 +724,7 @@ class BESSControlImpl final : public BESSControl::Service {
     }
     const ModuleBuilder& builder = it->second;
 
-    Error* error = response->mutable_error();
+    pb_error_t* error = response->mutable_error();
 
     switch (request.arg_case()) {
       case CreateModuleRequest::kBpfArg:

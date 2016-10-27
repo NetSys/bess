@@ -1,7 +1,10 @@
 syntax = "proto3";
 
 import "error.proto";
-package bess;
+package bess.protobuf;
+
+message BPFCommandClearArg {
+}
 
 message ExactMatchCommandAddArg {
   uint64 gate = 1;
@@ -97,9 +100,6 @@ message QueueCommandSetBurstArg {
 
 message QueueCommandSetSizeArg {
   uint64 size = 1;
-}
-
-message RandomUpdateCommandAddArg {
 }
 
 message RandomUpdateCommandClearArg {
