@@ -23,7 +23,7 @@ def run_cmd(cmd):
         sys.exit(proc.returncode)
 
 def run_docker_cmd(cmd):
-    run_cmd('docker run -t -v %s:%s %s %s' % \
+    run_cmd('docker run -e CC -e CXX -rm -t -v %s:%s %s %s' % \
             (BESS_DIR_HOST, BESS_DIR_CONTAINER, IMAGE, cmd))
 
 def build_bess():
