@@ -16,7 +16,7 @@ before_install:
 
 install:
   - sudo apt-get install -y python
-  - docker pull nefelinetworks/bess_build
+  - docker pull nefelinetworks/bess_build:latest
 
 before_script:
   - sudo sysctl -w vm.nr_hugepages=1024
