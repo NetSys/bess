@@ -31,8 +31,8 @@ class Update : public Module {
 };
 
 const Commands<Module> Update::cmds = {
-    {"add", MODULE_FUNC &Update::CommandAdd, 0},
-    {"clear", MODULE_FUNC &Update::CommandClear, 0},
+    {"add", MODULE_FUNC(&Update::CommandAdd), 0},
+    {"clear", MODULE_FUNC(&Update::CommandClear), 0},
 };
 
 struct snobj *Update::Init(struct snobj *arg) {

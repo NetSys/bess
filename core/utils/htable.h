@@ -1,8 +1,8 @@
 /* Streamlined hash table implementation, with emphasis on lookup performance.
  * Key and value sizes are fixed. Lookup is thread-safe, but update is not. */
 
-#ifndef _HTABLE_H_
-#define _HTABLE_H_
+#ifndef BESS_CORE_UTILS_HTABLE_H_
+#define BESS_CORE_UTILS_HTABLE_H_
 
 #include <algorithm>
 #include <cstring>
@@ -147,6 +147,8 @@ class HTableBase {
 
   void *key_to_value(const void *key) const;
   KeyIndex _get_keyidx(uint32_t pri) const;
+
+  DISALLOW_COPY_AND_ASSIGN(HTableBase);
 
   /* # of buckets == mask + 1 */
   uint32_t bucket_mask_ = {};

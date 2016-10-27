@@ -58,7 +58,9 @@ class Measure : public Module {
 };
 
 const Commands<Module> Measure::cmds = {
-    {"get_summary", MODULE_FUNC &Measure::CommandGetSummary, 0},
+    {"get_summary",
+     MODULE_FUNC(static_cast<struct snobj *(Measure::*)(struct snobj*)>(
+         &Measure::CommandGetSummary)), 0},
 };
 
 struct snobj *Measure::Init(struct snobj *arg) {

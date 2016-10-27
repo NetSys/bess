@@ -30,7 +30,9 @@ class Dump : public Module {
 };
 
 const Commands<Module> Dump::cmds = {
-    {"set_interval", MODULE_FUNC &Dump::CommandSetInterval, 0},
+    {"set_interval",
+     MODULE_FUNC(static_cast<struct snobj *(Dump::*)(struct snobj*)>(
+                 &Dump::CommandSetInterval)), 0},
 };
 
 struct snobj *Dump::Init(struct snobj *arg) {
@@ -56,7 +58,7 @@ pb_error_t Dump::Init(const bess::DumpArg &arg) {
 }
 
 void Dump::ProcessBatch(struct pkt_batch *batch) {
-  if (unlikely(ctx.current_ns() >= next_ns_)) {
+  if (BESS_UNLIKELY(ctx.current_ns() >= next_ns_)) {
     struct snbuf *pkt = batch->pkts[0];
 
     printf("----------------------------------------\n");

@@ -44,14 +44,14 @@ void EtherEncap::ProcessBatch(struct pkt_batch *batch) {
     struct ether_addr ether_dst;
     uint16_t ether_type;
 
-    ether_src = get_attr(this, ATTR_R_ETHER_SRC, pkt, struct ether_addr);
-    ether_dst = get_attr(this, ATTR_R_ETHER_DST, pkt, struct ether_addr);
-    ether_type = get_attr(this, ATTR_R_ETHER_TYPE, pkt, uint16_t);
+    ether_src = GET_ATTR(this, ATTR_R_ETHER_SRC, pkt, struct ether_addr);
+    ether_dst = GET_ATTR(this, ATTR_R_ETHER_DST, pkt, struct ether_addr);
+    ether_type = GET_ATTR(this, ATTR_R_ETHER_TYPE, pkt, uint16_t);
 
     struct ether_hdr *ethh =
         static_cast<struct ether_hdr *>(snb_prepend(pkt, sizeof(*ethh)));
 
-    if (unlikely(!ethh)) {
+    if (BESS_UNLIKELY(!ethh)) {
       continue;
     }
 

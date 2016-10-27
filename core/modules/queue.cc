@@ -39,8 +39,12 @@ class Queue : public Module {
 };
 
 const Commands<Module> Queue::cmds = {
-    {"set_burst", MODULE_FUNC &Queue::CommandSetBurst, 1},
-    {"set_size", MODULE_FUNC &Queue::CommandSetSize, 0},
+    {"set_burst",
+      MODULE_FUNC(static_cast<struct snobj *(Queue::*)(struct snobj*)>(
+                  &Queue::CommandSetBurst)), 1},
+    {"set_size",
+     MODULE_FUNC(static_cast<struct snobj *(Queue::*)(struct snobj*)>(
+                 &Queue::CommandSetSize)), 0},
 };
 
 int Queue::Resize(int slots) {

@@ -1,5 +1,5 @@
-#ifndef __SN_H__
-#define __SN_H__
+#ifndef BESS_CORE_NVPORT_SN_H_
+#define BESS_CORE_NVPORT_SN_H_
 
 #include <stdint.h>
 
@@ -173,7 +173,7 @@ static inline void __sn_snb_free_bulk(snb_array_t pkts, int cnt)
 	for (i = 0; i < cnt; i++) {
 		struct rte_mbuf *mbuf = &pkts[i]->mbuf;
 
-		if (unlikely(mbuf->pool != pool || !snb_is_simple(pkts[i]) ||
+		if (UNLIKELY(mbuf->pool != pool || !snb_is_simple(pkts[i]) ||
 			     rte_mbuf_refcnt_read(mbuf) != 1)) {
 			goto slow_path;
 		}

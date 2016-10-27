@@ -1,5 +1,5 @@
-#ifndef _PKTBATCH_H_
-#define _PKTBATCH_H_
+#ifndef BESS_CORE_PKTBATCH_H_
+#define BESS_CORE_PKTBATCH_H_
 
 #include <string.h>
 
@@ -29,7 +29,7 @@ static inline void batch_copy(struct pkt_batch *dst,
   int cnt = src->cnt;
 
   dst->cnt = cnt;
-  rte_memcpy((void *)dst->pkts, (void *)src->pkts,
+  rte_memcpy(reinterpret_cast<void *>(dst->pkts), reinterpret_cast<const void *>(src->pkts),
              cnt * sizeof(struct snbuf *));
 }
 

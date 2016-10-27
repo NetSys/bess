@@ -75,8 +75,12 @@ class HashLB : public Module {
 };
 
 const Commands<Module> HashLB::cmds = {
-    {"set_mode", MODULE_FUNC &HashLB::CommandSetMode, 0},
-    {"set_gates", MODULE_FUNC &HashLB::CommandSetGates, 0},
+    {"set_mode",
+      MODULE_FUNC(static_cast<struct snobj *(HashLB::*)(struct snobj*)>(
+                  &HashLB::CommandSetMode)), 0},
+    {"set_gates",
+      MODULE_FUNC(static_cast<struct snobj *(HashLB::*)(struct snobj*)>(
+                  &HashLB::CommandSetGates)), 0},
 };
 
 struct snobj *HashLB::CommandSetMode(struct snobj *arg) {

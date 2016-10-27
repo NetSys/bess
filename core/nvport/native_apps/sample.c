@@ -58,7 +58,7 @@ static int run_sink(struct sn_port *port)
 		stats.rx_batch++;
 		stats.rx_bytes += received * 24;	/* Ethernet overheads */
 
-		if (unlikely(dump)) {
+		if (UNLIKELY(dump)) {
 			for (i = 0; i < received; i++)
 				rte_pktmbuf_dump(stdout, (struct rte_mbuf*)pkts[i], 64);
 		}
@@ -221,7 +221,7 @@ static int run_echo(struct sn_port *port)
 		stats.rx_batch += (received > 0);
 		stats.rx_bytes += received * 24;	/* Ethernet overheads */
 
-		if (unlikely(dump)) {
+		if (UNLIKELY(dump)) {
 			for (i = 0; i < received; i++)
 				rte_pktmbuf_dump(stdout, (struct rte_mbuf*)pkts[i], 64);
 		}

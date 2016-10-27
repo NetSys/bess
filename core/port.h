@@ -1,5 +1,5 @@
-#ifndef _PORT_H_
-#define _PORT_H_
+#ifndef BESS_CORE_PORT_H_
+#define BESS_CORE_PORT_H_
 
 #include <stdint.h>
 
@@ -115,6 +115,8 @@ class PortBuilder {
   // testing and for dynamic loading of "drivers".
   static std::map<std::string, PortBuilder> &all_port_builders_holder(
       bool reset = false);
+
+  DISALLOW_COPY_AND_ASSIGN(PortBuilder);
 
   // A function that emits a new Port object of the type class_name.
   std::function<Port *()> port_generator_;

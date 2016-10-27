@@ -239,9 +239,9 @@ static void trap_handler(int sig_num, siginfo_t *info, void *ucontext) {
   uc = (struct ucontext *)ucontext;
 
 #if __i386
-  ip = (void *)uc->uc_mcontext.gregs[REG_EIP];
+  ip = reinterpret_cast<void *>(uc->uc_mcontext.gregs[REG_EIP]);
 #elif __x86_64
-  ip = (void *)uc->uc_mcontext.gregs[REG_RIP];
+  ip = reinterpret_cast<void *>(uc->uc_mcontext.gregs[REG_RIP]);
 #else
 #error neither x86 or x86-64
 #endif
@@ -273,7 +273,7 @@ static void trap_handler(int sig_num, siginfo_t *info, void *ucontext) {
   /* The return addresses point to the next instruction
    * after its call, so adjust. */
   for (i = skips + 1; i < cnt; i++)
-    addrs[i] = (void *)((uintptr_t)addrs[i] - 1);
+    addrs[i] = reinterpret_cast<void *>(reinterpret_cast<uintptr_t>(addrs[i]) - 1);
 
   symbols = backtrace_symbols(addrs, cnt);
 

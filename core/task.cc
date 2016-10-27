@@ -119,7 +119,7 @@ static int get_next_wid(int *wid) {
 void process_orphan_tasks() {
   struct task *t;
 
-  cdlist_for_each_entry(t, &all_tasks, all_tasks) {
+  CDLIST_FOR_EACH_ENTRY(t, &all_tasks, all_tasks) {
     int wid;
 
     if (task_is_attached(t)) continue;

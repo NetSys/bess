@@ -57,7 +57,7 @@ class AcmeModule : public Module {
 };
 
 const Commands<Module> AcmeModule::cmds = {
-  {"foo", MODULE_FUNC &AcmeModule::Foo, 0}
+  {"foo", MODULE_FUNC(&AcmeModule::Foo), 0}
 };
 
 // Simple harness for testing the Module class.
@@ -181,7 +181,7 @@ TEST_F(ModuleTester, ConnectModules) {
   EXPECT_EQ(1, m1->ogates.curr_size);
   EXPECT_EQ(m2, m1->ogates.arr[0]->out.igate->m);
   EXPECT_EQ(1, m2->igates.curr_size);
-  cdlist_for_each_entry(og, &m2->igates.arr[0]->in.ogates_upstream, out.igate_upstream) {
+  CDLIST_FOR_EACH_ENTRY(og, &m2->igates.arr[0]->in.ogates_upstream, out.igate_upstream) {
     ASSERT_NE(nullptr, og);
     EXPECT_EQ(m1, og->m);
   }

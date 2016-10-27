@@ -74,7 +74,7 @@ static int pcap_rx_jumbo(struct rte_mempool *mb_pool,
 		/* Allocate next mbuf and point to that. */
 		m->next = rte_pktmbuf_alloc(mb_pool);
 
-		if (unlikely(!m->next))
+		if (BESS_UNLIKELY(!m->next))
 			return -1;
 
 		m = m->next;
@@ -123,7 +123,7 @@ int PCAPPort::RecvPackets(queue_t qid, snb_array_t pkts, int cnt) {
 /* FIXME: no support for chained mbuf for now */
 #if 0
 			/* Try read jumbo frame into multi mbufs. */
-			if (unlikely(pcap_rx_jumbo(sbuf->mbuf.pool,
+			if (BESS_UNLIKELY(pcap_rx_jumbo(sbuf->mbuf.pool,
 							&sbuf->mbuf,
 							packet,
 							header.caplen) == -1)) {
@@ -151,7 +151,7 @@ int PCAPPort::SendPackets(queue_t qid, snb_array_t pkts, int cnt) {
   while (send_cnt < cnt) {
     struct snbuf *sbuf = pkts[send_cnt];
 
-    if (likely(sbuf->mbuf.nb_segs == 1)) {
+    if (BESS_LIKELY(sbuf->mbuf.nb_segs == 1)) {
       ret = pcap_sendpacket(pcap_handle_, (const u_char *)snb_head_data(sbuf),
                             sbuf->mbuf.pkt_len);
     } else {
@@ -167,7 +167,7 @@ int PCAPPort::SendPackets(queue_t qid, snb_array_t pkts, int cnt) {
       }
     }
 
-    if (unlikely(ret != 0)) {
+    if (BESS_UNLIKELY(ret != 0)) {
       break;
     }
 

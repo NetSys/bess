@@ -36,7 +36,7 @@ static void tc_add_to_parent_pgroup(struct tc *c, int share_resource) {
 
   struct cdlist_item *next;
 
-  cdlist_for_each_entry(g, &parent->pgroups, tc) {
+  CDLIST_FOR_EACH_ENTRY(g, &parent->pgroups, tc) {
     if (c->settings.priority > g->priority) {
       next = &g->tc;
       goto pgroup_init;
@@ -226,7 +226,7 @@ void sched_free(struct sched *s) {
   struct tc *c;
   struct tc *next;
 
-  cdlist_for_each_entry_safe(c, next, &s->tcs_all, sched_all) {
+  CDLIST_FOR_EACH_ENTRY_SAFE(c, next, &s->tcs_all, sched_all) {
     int queued = c->state.queued;
     int throttled = c->state.throttled;
 
@@ -253,7 +253,7 @@ static void resume_throttled(struct sched *s, uint64_t tsc) {
     struct tc *c;
     int64_t event_tsc;
 
-    heap_peek_valdata(&s->pq, &event_tsc, (void **)&c);
+    heap_peek_valdata(&s->pq, &event_tsc, reinterpret_cast<void **>(&c));
 
     if ((uint64_t)event_tsc > tsc) break;
 
@@ -280,7 +280,7 @@ again:
   /* found a leaf? */
   if (cdlist_is_empty(&c->pgroups)) return c;
 
-  cdlist_for_each_entry(g, &c->pgroups, tc) {
+  CDLIST_FOR_EACH_ENTRY(g, &c->pgroups, tc) {
     struct heap *pq = &g->pq;
     struct tc *child;
 
@@ -333,12 +333,16 @@ static inline void accumulate(resource_arr_t acc, resource_arr_t x) {
   uint64_t *p2 = x;
 
 #if 0 && __AVX2__
-	*((__m256i *)p1) = _mm256_add_epi64(*((__m256i *)p1), *((__m256i *)p2));
+	*reinterpret_cast<__m256i *>(p1) =
+      _mm256_add_epi64(*reinterpret_cast<__m256i *>(p1),
+      *reinterpret_cast<__m256i *>(p2));
 #elif 0 && __AVX__
-  *((__m128i *)p1 + 0) =
-      _mm_add_epi64(*((__m128i *)p1 + 0), *((__m128i *)p2 + 0));
-  *((__m128i *)p1 + 1) =
-      _mm_add_epi64(*((__m128i *)p1 + 1), *((__m128i *)p2 + 1));
+  *(reinterpret_cast<__m128i *>(p1) + 0) =
+      _mm_add_epi64(*(reinterpret_cast<__m128i *>(p1) + 0),
+                    *(reinterpret_cast<__m128i *>(p2) + 0));
+  *(reinterpret_cast<__m128i *>(p1) + 1) =
+      _mm_add_epi64(*(reinterpret_cast<__m128i *>(p1) + 1),
+                    *(reinterpret_cast<__m128i *>(p2) + 1));
 #else
   for (int i = 0; i < NUM_RESOURCES; i++) p1[i] += p2[i];
 #endif
@@ -468,7 +472,7 @@ static char *print_tc_stats_detail(struct sched *s, char *p, int max_cnt) {
   p += sprintf(p, "%-10s ", "TC");
   num_printed = 0;
 
-  cdlist_for_each_entry(c, &s->tcs_all, sched_all) {
+  CDLIST_FOR_EACH_ENTRY(c, &s->tcs_all, sched_all) {
     if (num_printed < max_cnt) {
       p += sprintf(p, "%12s", c->settings.name);
     } else {
@@ -483,11 +487,11 @@ static char *print_tc_stats_detail(struct sched *s, char *p, int max_cnt) {
     p += sprintf(p, "%-10s ", fields[i]);
     num_printed = 0;
 
-    cdlist_for_each_entry(c, &s->tcs_all, sched_all) {
+    CDLIST_FOR_EACH_ENTRY(c, &s->tcs_all, sched_all) {
       uint64_t value;
 
-#define COUNTER (((uint64_t *)&c->stats)[i])
-#define LAST_COUNTER (((uint64_t *)&c->last_stats)[i])
+#define COUNTER ((reinterpret_cast<uint64_t *>(&c->stats))[i])
+#define LAST_COUNTER ((reinterpret_cast<uint64_t *>(&c->last_stats))[i])
 
       value = COUNTER - LAST_COUNTER;
       LAST_COUNTER = COUNTER;
@@ -516,7 +520,7 @@ static char *print_tc_stats_simple(struct sched *s, char *p, int max_cnt) {
 
   int num_printed = 0;
 
-  cdlist_for_each_entry(c, &s->tcs_all, sched_all) {
+  CDLIST_FOR_EACH_ENTRY(c, &s->tcs_all, sched_all) {
     uint64_t cnt;
     uint64_t cycles;
     uint64_t pkts;
@@ -597,7 +601,7 @@ static inline struct task_result tc_scheduled(struct tc *c) {
   int num_tasks = c->num_tasks;
 
   while (num_tasks--) {
-    t = container_of(cdlist_rotate_left(&c->tasks), struct task, tc);
+    t = CONTAINER_OF(cdlist_rotate_left(&c->tasks), struct task, tc);
 
     ret = task_scheduled(t);
     if (ret.packets) return ret;
@@ -625,11 +629,11 @@ void sched_loop(struct sched *s) {
     /* periodic check for every 2^8 rounds,
      * to mitigate expensive operations */
     if ((round & 0xff) == 0) {
-      if (unlikely(ctx.is_pause_requested())) {
-        if (unlikely(ctx.Block())) break;
+      if (BESS_UNLIKELY(ctx.is_pause_requested())) {
+        if (BESS_UNLIKELY(ctx.Block())) break;
         last_stats = s->stats;
         last_print_tsc = checkpoint = now = rdtsc();
-      } else if (unlikely(FLAGS_s && now - last_print_tsc >= tsc_hz)) {
+      } else if (BESS_UNLIKELY(FLAGS_s && now - last_print_tsc >= tsc_hz)) {
         print_stats(s, &last_stats);
         last_stats = s->stats;
         last_print_tsc = checkpoint = now = rdtsc();

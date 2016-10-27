@@ -1,5 +1,5 @@
-#ifndef _WORKER_H_
-#define _WORKER_H_
+#ifndef BESS_CORE_WORKER_H_
+#define BESS_CORE_WORKER_H_
 
 #include <stdint.h>
 #include <thread>

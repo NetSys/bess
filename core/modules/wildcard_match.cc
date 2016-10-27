@@ -42,30 +42,30 @@ static inline int wm_keycmp(const void *key, const void *key_stored,
 
   switch (key_len >> 3) {
     default:
-      promise_unreachable();
+      PROMISE_UNREACHABLE();
     case 8:
-      if (unlikely(a[7] != b[7]))
+      if (BESS_UNLIKELY(a[7] != b[7]))
         return 1;
     case 7:
-      if (unlikely(a[6] != b[6]))
+      if (BESS_UNLIKELY(a[6] != b[6]))
         return 1;
     case 6:
-      if (unlikely(a[5] != b[5]))
+      if (BESS_UNLIKELY(a[5] != b[5]))
         return 1;
     case 5:
-      if (unlikely(a[4] != b[4]))
+      if (BESS_UNLIKELY(a[4] != b[4]))
         return 1;
     case 4:
-      if (unlikely(a[3] != b[3]))
+      if (BESS_UNLIKELY(a[3] != b[3]))
         return 1;
     case 3:
-      if (unlikely(a[2] != b[2]))
+      if (BESS_UNLIKELY(a[2] != b[2]))
         return 1;
     case 2:
-      if (unlikely(a[1] != b[1]))
+      if (BESS_UNLIKELY(a[1] != b[1]))
         return 1;
     case 1:
-      if (unlikely(a[0] != b[0]))
+      if (BESS_UNLIKELY(a[0] != b[0]))
         return 1;
   }
 
@@ -79,7 +79,7 @@ static inline uint32_t wm_hash(const void *key, uint32_t key_len,
 
   switch (key_len >> 3) {
     default:
-      promise_unreachable();
+      PROMISE_UNREACHABLE();
     case 8:
       init_val = crc32c_sse42_u64(*a++, init_val);
     case 7:
@@ -117,7 +117,7 @@ static void mask(void *k1, const void *k2, const void *mask, int key_size) {
 
   switch (key_size >> 3) {
     default:
-      promise_unreachable();
+      PROMISE_UNREACHABLE();
     case 8:
       a[7] = b[7] & m[7];
     case 7:
@@ -198,10 +198,18 @@ class WildcardMatch : public Module {
 };
 
 const Commands<Module> WildcardMatch::cmds = {
-    {"add", MODULE_FUNC &WildcardMatch::CommandAdd, 0},
-    {"delete", MODULE_FUNC &WildcardMatch::CommandDelete, 0},
-    {"clear", MODULE_FUNC &WildcardMatch::CommandClear, 0},
-    {"set_default_gate", MODULE_FUNC &WildcardMatch::CommandSetDefaultGate, 1}};
+    {"add",
+     MODULE_FUNC(static_cast<struct snobj *(WildcardMatch::*)(struct snobj*)>(
+         &WildcardMatch::CommandAdd)), 0},
+    {"delete",
+     MODULE_FUNC(static_cast<struct snobj *(WildcardMatch::*)(struct snobj*)>(
+         &WildcardMatch::CommandDelete)), 0},
+    {"clear",
+     MODULE_FUNC(static_cast<struct snobj *(WildcardMatch::*)(struct snobj*)>(
+         &WildcardMatch::CommandClear)), 0},
+    {"set_default_gate",
+     MODULE_FUNC(static_cast<struct snobj *(WildcardMatch::*)(struct snobj*)>(
+         &WildcardMatch::CommandSetDefaultGate)), 1}};
 
 struct snobj *WildcardMatch::AddFieldOne(struct snobj *field,
                                          struct WmField *f) {

@@ -130,7 +130,7 @@ std::string ModuleBuilder::GenerateDefaultName(
       return name;
   }
 
-  promise_unreachable();
+  PROMISE_UNREACHABLE();
 }
 
 std::map<std::string, ModuleBuilder> &ModuleBuilder::all_module_builders_holder(
@@ -361,7 +361,7 @@ int Module::DisconnectModulesUpstream(gate_idx_t igate_idx) {
   if (!igate)
     return 0;
 
-  cdlist_for_each_entry_safe(ogate, ogate_next, &igate->in.ogates_upstream,
+  CDLIST_FOR_EACH_ENTRY_SAFE(ogate, ogate_next, &igate->in.ogates_upstream,
                              out.igate_upstream) {
     Module *m_prev = ogate->m;
     m_prev->ogates.arr[ogate->gate_idx] = nullptr;

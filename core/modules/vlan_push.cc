@@ -31,7 +31,7 @@ class VLANPush : public Module {
 };
 
 const Commands<Module> VLANPush::cmds = {
-    {"set_tci", MODULE_FUNC &VLANPush::CommandSetTci, 0},
+    {"set_tci", MODULE_FUNC(&VLANPush::CommandSetTci), 0},
 };
 
 struct snobj *VLANPush::Init(struct snobj *arg) {

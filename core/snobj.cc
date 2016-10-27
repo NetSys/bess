@@ -152,11 +152,11 @@ static struct snobj *snobj_str_vfmt(const char *fmt, va_list ap) {
 
   struct snobj *m;
 
-  buf = (char *)_ALLOC(init_bufsize);
+  buf = reinterpret_cast<char *>(_ALLOC(init_bufsize));
   ret = vsnprintf(buf, init_bufsize, fmt, ap);
 
   if (ret >= init_bufsize) {
-    char *new_buf = (char *)_REALLOC(buf, ret + 1);
+    char *new_buf = reinterpret_cast<char *>(_REALLOC(buf, ret + 1));
     int new_ret;
 
     buf = new_buf;
@@ -199,7 +199,7 @@ struct snobj *snobj_map() {
 
   m->type = TYPE_MAP;
   m->size = 0;
-  m->map.arr_k = (char **)_ALLOC(sizeof(char *) * DEF_MAP_SLOTS);
+  m->map.arr_k = reinterpret_cast<char **>(_ALLOC(sizeof(char *) * DEF_MAP_SLOTS));
   m->map.arr_v =
       (struct snobj **)_ALLOC(sizeof(struct snobj *) * DEF_MAP_SLOTS);
   m->max_size = DEF_LIST_SLOTS;
@@ -282,7 +282,7 @@ int snobj_map_set(struct snobj *m, const char *key, struct snobj *val) {
     if (m->size == m->max_size) {
       m->max_size *= 2;
       m->map.arr_k =
-          (char **)_REALLOC(m->map.arr_k, m->max_size * sizeof(char *));
+          reinterpret_cast<char **>(_REALLOC(m->map.arr_k, m->max_size * sizeof(char *)));
       m->map.arr_v = (struct snobj **)_REALLOC(
           m->map.arr_v, m->max_size * sizeof(struct snobj *));
     }
@@ -340,7 +340,7 @@ int snobj_binvalue_get(struct snobj *m, uint32_t size, void *dst,
       return 0;
 
     case TYPE_INT:
-      return uint64_to_bin((uint8_t *)dst, size, snobj_uint_get(m),
+      return uint64_to_bin(reinterpret_cast<uint8_t *>(dst), size, snobj_uint_get(m),
                            is_be_system() || force_be);
 
     default:
@@ -361,7 +361,7 @@ struct snobj *snobj_eval(const struct snobj *m, const char *expr) {
 
     switch (*p) {
       case '[':
-        idx = (int)strtol(p + 1, (char **)&end, 10);
+        idx = (int)strtol(p + 1, const_cast<char **>(&end), 10);
         if (*end != ']') return nullptr;
 
         m = snobj_list_get(m, idx);
@@ -432,7 +432,7 @@ static void snobj_dump_recur(const struct snobj *m, int indent,
     case TYPE_STR:
       if (list_depth) print_heading(indent, list_depth);
 
-      log_debug("'%s'\n", (char *)m->data);
+      log_debug("'%s'\n", reinterpret_cast<char *>(m->data));
       break;
 
     case TYPE_BLOB:
@@ -444,7 +444,7 @@ static void snobj_dump_recur(const struct snobj *m, int indent,
           log_debug("...");
           break;
         }
-        log_debug("%02hhx ", ((char *)m->data)[i]);
+        log_debug("%02hhx ", (reinterpret_cast<char *>(m->data))[i]);
       }
 
       log_debug("\n");
@@ -507,7 +507,7 @@ static void reserve_more(struct encode_state *s, size_t bytes) {
 
   while (new_buf_size < s->offset + bytes) new_buf_size = new_buf_size * 2;
 
-  new_buf = (char *)_REALLOC(s->buf, new_buf_size);
+  new_buf = reinterpret_cast<char *>(_REALLOC(s->buf, new_buf_size));
 
   s->buf = new_buf;
   s->buf_size = new_buf_size;
@@ -527,8 +527,8 @@ static int snobj_encode_recur(const struct snobj *m, struct encode_state *s) {
 
   NEED(8);
 
-  *(uint32_t *)(s->buf + s->offset) = (uint32_t)m->type;
-  *(uint32_t *)(s->buf + s->offset + 4) = (uint32_t)m->size;
+  *reinterpret_cast<uint32_t *>(s->buf + s->offset) = reinterpret_cast<uint32_t>(m->type);
+  *reinterpret_cast<uint32_t *>(s->buf + s->offset + 4) = reinterpret_cast<uint32_t>(m->size);
   s->offset += 8;
 
   switch (m->type) {
@@ -539,7 +539,7 @@ static int snobj_encode_recur(const struct snobj *m, struct encode_state *s) {
     case TYPE_INT:
     case TYPE_DOUBLE:
       NEED(8);
-      *(int64_t *)(s->buf + s->offset) = m->int_value;
+      *reinterpret_cast<int64_t *>(s->buf + s->offset) = m->int_value;
       s->offset += 8;
       break;
 
@@ -597,7 +597,7 @@ size_t snobj_encode(const struct snobj *m, char **pbuf, size_t hint) {
 
   s.offset = 0;
   s.buf_size = hint;
-  s.buf = (char *)_ALLOC(s.buf_size);
+  s.buf = reinterpret_cast<char *>(_ALLOC(s.buf_size));
 
   if (!s.buf) return 0;
 
@@ -630,8 +630,8 @@ struct snobj *snobj_decode_recur(struct decode_state *s) {
 
   if (s->offset + 8 > s->buf_size) goto err;
 
-  type = *(snobj_type_t *)(s->buf + s->offset);
-  size = *(uint32_t *)(s->buf + s->offset + 4);
+  type = *reinterpret_cast<snobj_type_t *>(s->buf + s->offset);
+  size = *reinterpret_cast<uint32_t *>(s->buf + s->offset + 4);
   s->offset += 8;
 
   switch (type) {
@@ -643,14 +643,14 @@ struct snobj *snobj_decode_recur(struct decode_state *s) {
     case TYPE_INT:
       if (size != 8 || s->offset + 8 > s->buf_size) goto err;
 
-      m = snobj_int(*(int64_t *)(s->buf + s->offset));
+      m = snobj_int(*reinterpret_cast<int64_t *>(s->buf + s->offset));
       s->offset += 8;
       break;
 
     case TYPE_DOUBLE:
       if (size != 8 || s->offset + 8 > s->buf_size) goto err;
 
-      m = snobj_double(*(double *)(s->buf + s->offset));
+      m = snobj_double(*reinterpret_cast<double *>(s->buf + s->offset));
       s->offset += 8;
       break;
 

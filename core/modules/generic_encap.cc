@@ -198,7 +198,7 @@ void GenericEncap::ProcessBatch(struct pkt_batch *batch) {
       struct snbuf *pkt = batch->pkts[j];
 
       *(uint64_t *)header =
-          (attr_id < 0) ? value : get_attr_with_offset(offset, pkt, uint64_t);
+          (attr_id < 0) ? value : GET_ATTR_WITH_OFFSET(offset, pkt, uint64_t);
     }
   }
 
@@ -207,7 +207,7 @@ void GenericEncap::ProcessBatch(struct pkt_batch *batch) {
 
     char *p = static_cast<char *>(snb_prepend(pkt, encap_size));
 
-    if (unlikely(!p)) {
+    if (BESS_UNLIKELY(!p)) {
       continue;
     }
 

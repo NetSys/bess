@@ -44,8 +44,12 @@ class IPLookup : public Module {
 };
 
 const Commands<Module> IPLookup::cmds = {
-    {"add", MODULE_FUNC &IPLookup::CommandAdd, 0},
-    {"clear", MODULE_FUNC &IPLookup::CommandClear, 0},
+    {"add",
+     MODULE_FUNC(static_cast<struct snobj *(IPLookup::*)(struct snobj*)>(
+                 &IPLookup::CommandAdd)), 0},
+    {"clear",
+     MODULE_FUNC(static_cast<struct snobj *(IPLookup::*)(struct snobj*)>(
+                 &IPLookup::CommandClear)), 0},
 };
 
 struct snobj *IPLookup::Init(struct snobj *arg) {

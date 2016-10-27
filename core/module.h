@@ -1,5 +1,5 @@
-#ifndef _MODULE_H_
-#define _MODULE_H_
+#ifndef BESS_CORE_MODULE_H_
+#define BESS_CORE_MODULE_H_
 
 #include <cassert>
 #include <map>
@@ -39,7 +39,8 @@ using bess::Error;
 
 #define MAX_TASKS_PER_MODULE 32
 #define INVALID_TASK_ID ((task_id_t)-1)
-#define MODULE_FUNC (struct snobj * (Module::*)(struct snobj *))
+#define MODULE_FUNC(x) \
+  (reinterpret_cast<struct snobj * (Module::*)(struct snobj *)>( x ))
 
 struct task_result {
   uint64_t packets;
@@ -311,14 +312,14 @@ inline void Module::RunChooseModule(gate_idx_t ogate_idx,
                                     struct pkt_batch *batch) {
   struct gate *ogate;
 
-  if (unlikely(ogate_idx >= ogates.curr_size)) {
+  if (BESS_UNLIKELY(ogate_idx >= ogates.curr_size)) {
     deadend(batch);
     return;
   }
 
   ogate = ogates.arr[ogate_idx];
 
-  if (unlikely(!ogate)) {
+  if (BESS_UNLIKELY(!ogate)) {
     deadend(batch);
     return;
   }
@@ -333,7 +334,7 @@ inline void Module::RunChooseModule(gate_idx_t ogate_idx,
 #endif
 
 #if TCPDUMP_GATES
-  if (unlikely(ogate->tcpdump))
+  if (BESS_UNLIKELY(ogate->tcpdump))
     DumpPcapPkts(ogate, batch);
 #endif
 

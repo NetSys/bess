@@ -30,7 +30,9 @@ class PortInc : public Module {
 };
 
 const Commands<Module> PortInc::cmds = {
-    {"set_burst", MODULE_FUNC &PortInc::CommandSetBurst, 1},
+    {"set_burst",
+     MODULE_FUNC(static_cast<struct snobj *(PortInc::*)(struct snobj*)>(
+                 &PortInc::CommandSetBurst)), 1},
 };
 
 pb_error_t PortInc::Init(const bess::PortIncArg &arg) {
