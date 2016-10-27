@@ -34,6 +34,12 @@ ifdef SANITIZE
     CXXFLAGS += -fsanitize=address -fno-omit-frame-pointer
 endif
 
+ifdef COVERAGE
+	  LDFLAGS += -lgcov
+    CXXFLAGS += --coverage -fprofile-arcs -ftest-coverage
+endif
+
+
 -include extra.mk
 
 PROTO_DIR = ../protobuf
@@ -81,7 +87,7 @@ VERBOSE ?= 0
 all: $(EXEC) tests benchmarks
 
 clean:
-	rm -f $(DEPS) $(EXEC) $(TEST_EXEC) $(BENCHMARK_EXEC) *.a *.pb.* *.o modules/*.o drivers/*.o utils/*.o
+	rm -f $(DEPS) $(EXEC) $(TEST_EXEC) $(BENCHMARK_EXEC) *.a *.pb.* *.o */*.gcda */*.gcno modules/*.o drivers/*.o utils/*.o
 
 tags:
 	@ctags -R *
