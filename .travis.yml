@@ -6,7 +6,7 @@ services:
   - docker
 
 env:
-  - CXX=g++-4.7 CC=gcc-4.7
+  - CXX=g++-4.8 CC=gcc-4.8
   - CXX=g++-5 CC=gcc-5
   - CXX=g++-6 CC=gcc-6
 
