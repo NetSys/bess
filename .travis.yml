@@ -2,37 +2,30 @@ sudo: required
 dist: trusty
 language: cpp
 
-cache:
-  directories:
-    /tmp/gflags-2.1.2
-    /tmp/glog-0.3.4
-    /tmp/grpc
+services:
+  - docker
 
 env:
   - CXX=g++-4.7 CC=gcc-4.7
   - CXX=g++-5 CC=gcc-5
+  - CXX=g++-6 CC=gcc-6
 
 before_install:
+  - sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
+  - sudo apt-get -q update
+
+install:
+  - sudo apt-get install -y python
+  - docker pull nefelinetworks/buildsrv
+
+before_script:
   - sudo sysctl -w vm.nr_hugepages=1024
   - sudo mkdir -p /mnt/huge
   - sudo mount -t hugetlbfs nodev /mnt/huge
 
-install:
-  - sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
-  - sudo apt-get update
-  - sudo apt-get install -y gcc-4.7 g++-4.7
-  - sudo apt-get install -y gcc-5 g++-5
-  - sudo apt-get install -y cmake
-  - sudo apt-get install -y autoconf automake libtool make unzip
-  - sudo apt-get install -y libgtest-dev
-  - sudo apt-get install -y python python-scapy libpcap-dev
-  - sudo apt-get install -y libgraph-easy-perl linux-headers-$(uname -r)
-  - .travis/install-glog.sh
-  - .travis/install-gflags.sh
-  - .travis/install-grpc.sh
-
 script:
-  - ./build.py
+  - container_build.py
+  - container_build.py kmod_buildtest
   - sudo bin/bessd -g
 
 notifications:
