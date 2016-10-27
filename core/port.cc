@@ -85,6 +85,15 @@ bool PortBuilder::InitPortClass() {
   return true;
 }
 
+void PortBuilder::InitDrivers() {
+  for (auto &pair : all_port_builders()) {
+    if (!const_cast<PortBuilder &>(pair.second).InitPortClass()) {
+      LOG(WARNING) << "Initializing driver (port class) "
+                   << pair.second.class_name() << " failed.";
+    }
+  }
+}
+
 bool PortBuilder::RegisterPortClass(std::function<Port *()> port_generator,
                                     const std::string &class_name,
                                     const std::string &name_template,

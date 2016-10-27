@@ -91,6 +91,9 @@ class PortBuilder {
   // true upon success.
   bool InitPortClass();
 
+  // Initializes all drivers.
+  static void InitDrivers();
+
   // Should be called via ADD_DRIVER (once per driver file) to register the
   // existence of this driver.  Always returns true;
   static bool RegisterPortClass(std::function<Port *()> port_generator,
