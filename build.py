@@ -229,6 +229,9 @@ def setup_dpdk():
 def build_bess():
     check_essential()
 
+    if not os.path.exists('%s/build' % DPDK_DIR):
+        setup_dpdk()
+
     print 'Building BESS daemon...'
     cmd('bin/bessctl daemon stop 2> /dev/null || true')
     cmd('rm -f core/bessd')     # force relink as DPDK might have been rebuilt
@@ -244,7 +247,6 @@ def build_kmod():
         cmd('make -C core/kmod')
     except SystemExit:
         print >> sys.stderr, '*** module build has failed.'
-        raise
 
 def build_all():
     setup_dpdk()
