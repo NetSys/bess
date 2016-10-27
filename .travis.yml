@@ -11,10 +11,11 @@ env:
   - CXX=g++-6 CC=gcc-6
 
 before_install:
-  - sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
   - sudo apt-get -q update
 
 install:
+  - "wget http://security.ubuntu.com/ubuntu/pool/main/g/gcc-5/libstdc++6_5.4.0-6ubuntu1~16.04.2_amd64.deb"
+  - dpkg -i libstdc++6_5.4.0-6ubuntu1~16.04.2_amd64.deb
   - sudo apt-get install -y libstdc++6
   - sudo apt-get install -y python
   - docker pull nefelinetworks/bess_build:latest
