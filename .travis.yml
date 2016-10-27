@@ -25,7 +25,6 @@ before_script:
   - sudo mount -t hugetlbfs nodev /mnt/huge
   - export CXX=$VER_CXX
   - export CC=$VER_CC
-  - $CXX -v
 
 script:
   - ./container_build.py
