@@ -133,13 +133,13 @@ static int collect_metadata(Module* m, GetModuleInfoResponse* response) {
     attr->set_size(m->attrs[i].size);
 
     switch (m->attrs[i].mode) {
-      case MT_READ:
+      case bess::metadata::MT_READ:
         attr->set_mode("read");
         break;
-      case MT_WRITE:
+      case bess::metadata::MT_WRITE:
         attr->set_mode("write");
         break;
-      case MT_UPDATE:
+      case bess::metadata::MT_UPDATE:
         attr->set_mode("update");
         break;
       default:

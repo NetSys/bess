@@ -17,21 +17,21 @@ class IPEncap : public Module {
   virtual void ProcessBatch(struct pkt_batch *batch);
 
   int num_attrs = 5;
-  struct mt_attr attrs[MAX_ATTRS_PER_MODULE] = {
+  struct bess::metadata::mt_attr attrs[bess::metadata::kMaxAttrsPerModule] = {
       {
-          .name = "ip_src", .size = 4, .mode = MT_READ,
+          .name = "ip_src", .size = 4, .mode = bess::metadata::MT_READ,
       },
       {
-          .name = "ip_dst", .size = 4, .mode = MT_READ,
+          .name = "ip_dst", .size = 4, .mode = bess::metadata::MT_READ,
       },
       {
-          .name = "ip_proto", .size = 1, .mode = MT_READ,
+          .name = "ip_proto", .size = 1, .mode = bess::metadata::MT_READ,
       },
       {
-          .name = "ip_nexthop", .size = 4, .mode = MT_WRITE,
+          .name = "ip_nexthop", .size = 4, .mode = bess::metadata::MT_WRITE,
       },
       {
-          .name = "ether_type", .size = 2, .mode = MT_WRITE,
+          .name = "ether_type", .size = 2, .mode = bess::metadata::MT_WRITE,
       },
   };
 

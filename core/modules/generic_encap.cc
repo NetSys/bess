@@ -56,7 +56,7 @@ pb_error_t GenericEncap::AddFieldOne(const bess::GenericEncapArg_Field &field,
 
   if (field.attribute_case() == bess::GenericEncapArg_Field::kName) {
     const char *attr = field.name().c_str();
-    f->attr_id = AddMetadataAttr(attr, f->size, MT_READ);
+    f->attr_id = AddMetadataAttr(attr, f->size, bess::metadata::MT_READ);
     if (f->attr_id < 0) {
       return pb_error(-f->attr_id, "idx %d: add_metadata_attr() failed", idx);
     }
@@ -93,7 +93,7 @@ struct snobj *GenericEncap::AddFieldOne(struct snobj *field, struct Field *f,
   struct snobj *t;
 
   if (attr) {
-    f->attr_id = AddMetadataAttr(attr, f->size, MT_READ);
+    f->attr_id = AddMetadataAttr(attr, f->size, bess::metadata::MT_READ);
     if (f->attr_id < 0) {
       return snobj_err(-f->attr_id, "idx %d: add_metadata_attr() failed", idx);
     }
