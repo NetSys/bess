@@ -23,7 +23,7 @@ endif
 CXXFLAGS += -std=gnu++11 -g3 -ggdb3 -Ofast -march=native \
 	    -Wall -Werror -Wno-unused-function -Wno-unused-but-set-variable \
 	    -isystem $(DPDK_INC_DIR) \
-	    -D_GNU_SOURCE
+	    -D_GNU_SOURCE -D_GLIBCXX_USE_CXX11_ABI=0
 
 LDFLAGS += -rdynamic -L$(DPDK_LIB_DIR) -Wl,-rpath=$(DPDK_LIB_DIR) -pthread
 LIBS += -Wl,-non_shared \
