@@ -24,8 +24,8 @@ before_script:
   - sudo mount -t hugetlbfs nodev /mnt/huge
 
 script:
-  - container_build.py
-  - container_build.py kmod_buildtest
+  - ./container_build.py
+  - ./container_build.py kmod_buildtest
   - sudo bin/bessd -g
 
 notifications:
