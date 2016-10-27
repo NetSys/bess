@@ -15,7 +15,7 @@ before_install:
   - sudo apt-get -q update
 
 install:
-  - sudo apt-get install -y libstdc++6
+  - sudo apt-get install -y g++-6 g++
   - sudo apt-get install -y python
   - docker pull nefelinetworks/bess_build:latest
 
@@ -25,6 +25,7 @@ before_script:
   - sudo mount -t hugetlbfs nodev /mnt/huge
 
 script:
+  - ls /usr/lib/x86_64-linux-gnu/libstd* -al
   - ./container_build.py
   - ./container_build.py kmod_buildtest
   - sudo bin/bessd -g
