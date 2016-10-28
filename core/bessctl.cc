@@ -1192,6 +1192,39 @@ class BESSControlImpl final : public BESSControl::Service {
     return Status::OK;
   }
 
+  Status ListMclass(ClientContext* context, const Empty& request,
+                    ListMclassResponse* response) {
+    for (const auto& pair : ModuleBuilder::all_module_builders()) {
+      const ModuleBuilder& builder = pair.second;
+      response->add_name(builder.class_name());
+    }
+    return Status::OK;
+  }
+
+  Status GetMclassInfo(ClientContext* context,
+                       const GetMclassInfoRequest& request,
+                       GetMclassInfoResponse* response) {
+    if (!request.name().length()) {
+      return return_with_error(response, EINVAL,
+                               "Argument must be a name in str");
+    }
+
+    const std::string& cls_name = request.name();
+    const auto& it = ModuleBuilder::all_module_builders().find(cls_name);
+    if (it == ModuleBuilder::all_module_builders().end()) {
+      return return_with_error(response, ENOENT, "No module class '%s' found",
+                               cls_name.c_str());
+    }
+    const ModuleBuilder* cls = &it->second;
+
+    response->set_name(cls->class_name());
+    response->set_help(cls->help_text());
+    for (const std::string& cmd : cls->cmds()) {
+      response->add_cmds(cmd);
+    }
+    return Status::OK;
+  }
+
   Status ModuleCommand(ClientContext* context,
                        const ModuleCommandRequest& request,
                        ModuleCommandResponse* response) {

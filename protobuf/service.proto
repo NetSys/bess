@@ -13,7 +13,7 @@ service BESSControl {
   rpc ResetWorkers (Empty) returns (EmptyResponse) {}
   rpc ListWorkers (Empty) returns (ListWorkersResponse) {}
   rpc AddWorker (AddWorkerRequest) returns (EmptyResponse) {}
-  // TODO: delete_worker
+  // TODO: delete_worker()
 
   rpc ResetTcs (Empty) returns (EmptyResponse) {}
   rpc ListTcs (ListTcsRequest) returns (ListTcsResponse) {}
@@ -22,7 +22,7 @@ service BESSControl {
 
   rpc ListDrivers (Empty) returns (ListDriversResponse) {}
   rpc GetDriverInfo(GetDriverInfoRequest) returns (GetDriverInfoResponse) {}
-  // TODO: rpc import_driver()
+  // TODO: import_driver()
 
   rpc ResetPorts (Empty) returns (EmptyResponse) {}
   rpc ListPorts (Empty) returns (ListPortsResponse) {}
@@ -30,7 +30,9 @@ service BESSControl {
   rpc DestroyPort (DestroyPortRequest) returns (EmptyResponse) {}
   rpc GetPortStats (GetPortStatsRequest) returns (GetPortStatsResponse) {}
 
-  // TODO: mclass
+  rpc ListMclass (Empty) returns (ListMclassResponse) {}
+  rpc GetMclassInfo (GetMclassInfoRequest) returns (GetMclassInfoResponse) {}
+  // TODO: import_mclass()
 
   rpc ResetModules (Empty) returns (EmptyResponse) {}
   rpc ListModules (Empty) returns (ListModulesResponse) {}
@@ -47,6 +49,5 @@ service BESSControl {
 
   rpc KillBess (Empty) returns (EmptyResponse) {}
 
-  // TODO: modules commands
   rpc ModuleCommand (ModuleCommandRequest) returns (ModuleCommandResponse) {}
 }
