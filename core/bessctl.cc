@@ -3,8 +3,14 @@
 #include <rte_config.h>
 #include <rte_ether.h>
 
+#include <grpc++/server.h>
+#include <grpc++/server_builder.h>
+#include <grpc++/server_context.h>
+#include <grpc/grpc.h>
+
 #include "service.grpc.pb.h"
 
+#include "bessctl.h"
 #include "message.h"
 #include "module.h"
 #include "port.h"
@@ -38,10 +44,13 @@ using grpc::ServerReaderWriter;
 using grpc::ServerWriter;
 using grpc::Status;
 using grpc::ClientContext;
+using grpc::ServerBuilder;
 
 using namespace bess::protobuf;
 
 DECLARE_int32(c);
+// Capture the port command line flag.
+DECLARE_int32(p);
 
 template <typename T>
 static inline Status return_with_error(T* response, int code, const char* fmt,
@@ -1352,3 +1361,42 @@ class BESSControlImpl final : public BESSControl::Service {
     return Status::OK;
   }
 };
+
+static void reset_core_affinity() {
+  cpu_set_t set;
+  unsigned int i;
+
+  CPU_ZERO(&set);
+
+  /* set all cores... */
+  for (i = 0; i < rte_lcore_count(); i++)
+    CPU_SET(i, &set);
+
+  /* ...and then unset the ones where workers run */
+  for (i = 0; i < MAX_WORKERS; i++)
+    if (is_worker_active(i))
+      CPU_CLR(workers[i]->core(), &set);
+
+  rte_thread_set_affinity(&set);
+}
+
+void SetupControl() {
+  reset_core_affinity();
+  ctx.SetNonWorker();
+}
+
+void RunControl() {
+  BESSControlImpl service;
+  std::string server_address;
+  ServerBuilder builder;
+
+  if (FLAGS_p) {
+    server_address = string_format("127.0.0.1:%d", FLAGS_p);
+    builder.AddListeningPort(server_address, grpc::InsecureServerCredentials());
+  }
+
+  builder.RegisterService(&service);
+  std::unique_ptr<Server> server(builder.BuildAndStart());
+  std::cout << "Server listening on " << server_address << std::endl;
+  server->Wait();
+}
