@@ -24,7 +24,7 @@ pb_error_t Split::Init(const bess::protobuf::SplitArg &arg) {
   mask_ = ((uint64_t)1 << (size_ * 8)) - 1;
   const char *name = arg.name().c_str();
   if (arg.name().length()) {
-    attr_id_ = AddMetadataAttr(name, size_, MT_READ);
+    attr_id_ = AddMetadataAttr(name, size_, bess::metadata::MT_READ);
     if (attr_id_ < 0)
       return pb_error(-attr_id_, "add_metadata_attr() failed");
   } else {
@@ -52,7 +52,7 @@ struct snobj *Split::Init(struct snobj *arg) {
   const char *name = snobj_eval_str(arg, "name");
 
   if (name) {
-    attr_id_ = AddMetadataAttr(name, size_, MT_READ);
+    attr_id_ = AddMetadataAttr(name, size_, bess::metadata::MT_READ);
     if (attr_id_ < 0)
       return snobj_err(-attr_id_, "add_metadata_attr() failed");
   } else if (snobj_eval_exists(arg, "offset")) {

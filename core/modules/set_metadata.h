@@ -3,7 +3,7 @@
 
 #include "../module.h"
 
-typedef struct { char bytes[MT_ATTR_MAX_SIZE]; } value_t;
+typedef struct { char bytes[bess::metadata::kMetadataAttrMaxSize]; } value_t;
 
 struct Attr {
   std::string name;

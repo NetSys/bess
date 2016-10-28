@@ -203,10 +203,10 @@ void Module::DestroyAllTasks() {
 }
 
 int Module::AddMetadataAttr(const std::string &name, int size,
-                            enum mt_access_mode mode) {
+                            enum bess::metadata::mt_access_mode mode) {
   int n = num_attrs;
 
-  if (n >= MAX_ATTRS_PER_MODULE)
+  if (n >= bess::metadata::kMaxAttrsPerModule)
     return -ENOSPC;
 
   if (!is_valid_attr(name.c_str(), size, mode))

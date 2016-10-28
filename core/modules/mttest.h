@@ -16,10 +16,11 @@ class MetadataTest : public Module {
   static const Commands<Module> cmds;
 
  private:
-  struct snobj *AddAttributes(struct snobj *attrs, enum mt_access_mode mode);
+  struct snobj *AddAttributes(struct snobj *attrs,
+                              enum bess::metadata::mt_access_mode mode);
   pb_error_t AddAttributes(
       const google::protobuf::Map<std::string, int64_t> &attrs,
-      enum mt_access_mode mode);
+      enum bess::metadata::mt_access_mode mode);
 };
 
 #endif

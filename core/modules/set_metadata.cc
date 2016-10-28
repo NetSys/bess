@@ -1,7 +1,7 @@
 #include "set_metadata.h"
 
 static void CopyFromPacket(struct pkt_batch *batch, const struct Attr *attr,
-                           mt_offset_t mt_off) {
+                           bess::metadata::mt_offset_t mt_off) {
   int cnt = batch->cnt;
   int size = attr->size;
 
@@ -18,7 +18,7 @@ static void CopyFromPacket(struct pkt_batch *batch, const struct Attr *attr,
 }
 
 static void CopyFromValue(struct pkt_batch *batch, const struct Attr *attr,
-                          mt_offset_t mt_off) {
+                          bess::metadata::mt_offset_t mt_off) {
   int cnt = batch->cnt;
   int size = attr->size;
 
@@ -50,8 +50,9 @@ pb_error_t SetMetadata::AddAttrOne(
   name = attr.name();
   size = attr.size();
 
-  if (size < 1 || size > MT_ATTR_MAX_SIZE) {
-    return pb_error(EINVAL, "'size' must be 1-%d", MT_ATTR_MAX_SIZE);
+  if (size < 1 || size > bess::metadata::kMetadataAttrMaxSize) {
+    return pb_error(EINVAL, "'size' must be 1-%d",
+                    bess::metadata::kMetadataAttrMaxSize);
   }
 
   if (attr.value().length()) {
@@ -63,7 +64,7 @@ pb_error_t SetMetadata::AddAttrOne(
     }
   }
 
-  ret = AddMetadataAttr(name, size, MT_WRITE);
+  ret = AddMetadataAttr(name, size, bess::metadata::MT_WRITE);
   if (ret < 0)
     return pb_error(-ret, "add_metadata_attr() failed");
 
@@ -117,8 +118,9 @@ struct snobj *SetMetadata::AddAttrOne(struct snobj *attr) {
 
   size = snobj_eval_uint(attr, "size");
 
-  if (size < 1 || size > MT_ATTR_MAX_SIZE) {
-    return snobj_err(EINVAL, "'size' must be 1-%d", MT_ATTR_MAX_SIZE);
+  if (size < 1 || size > bess::metadata::kMetadataAttrMaxSize) {
+    return snobj_err(EINVAL, "'size' must be 1-%d",
+                     bess::metadata::kMetadataAttrMaxSize);
   }
 
   if ((t = snobj_eval(attr, "value"))) {
@@ -139,7 +141,7 @@ struct snobj *SetMetadata::AddAttrOne(struct snobj *attr) {
     }
   }
 
-  ret = AddMetadataAttr(name, size, MT_WRITE);
+  ret = AddMetadataAttr(name, size, bess::metadata::MT_WRITE);
   if (ret < 0)
     return snobj_err(-ret, "add_metadata_attr() failed");
 
@@ -180,9 +182,9 @@ void SetMetadata::ProcessBatch(struct pkt_batch *batch) {
   for (size_t i = 0; i < attrs_.size(); i++) {
     const struct Attr *attr = &attrs_[i];
 
-    mt_offset_t mt_offset = SetMetadata::attr_offsets[i];
+    bess::metadata::mt_offset_t mt_offset = SetMetadata::attr_offsets[i];
 
-    if (!is_valid_offset(mt_offset)) {
+    if (!bess::metadata::IsValidOffset(mt_offset)) {
       continue;
     }
 

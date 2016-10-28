@@ -4,7 +4,7 @@ const Commands<Module> MetadataTest::cmds = {};
 
 pb_error_t MetadataTest::AddAttributes(
     const google::protobuf::Map<std::string, int64_t> &attrs,
-    enum mt_access_mode mode) {
+    enum bess::metadata::mt_access_mode mode) {
   for (const auto &kv : attrs) {
     int ret;
 
@@ -17,15 +17,15 @@ pb_error_t MetadataTest::AddAttributes(
 
     /* check /var/log/syslog for log messages */
     switch (mode) {
-      case MT_READ:
+      case bess::metadata::MT_READ:
         log_info("module %s: %s, %d bytes, read\n", name().c_str(), attr_name,
                  attr_size);
         break;
-      case MT_WRITE:
+      case bess::metadata::MT_WRITE:
         log_info("module %s: %s, %d bytes, write\n", name().c_str(), attr_name,
                  attr_size);
         break;
-      case MT_UPDATE:
+      case bess::metadata::MT_UPDATE:
         log_info("module %s: %s, %d bytes, update\n", name().c_str(), attr_name,
                  attr_size);
         break;
@@ -35,8 +35,8 @@ pb_error_t MetadataTest::AddAttributes(
   return pb_errno(0);
 }
 
-struct snobj *MetadataTest::AddAttributes(struct snobj *attrs,
-                                          enum mt_access_mode mode) {
+struct snobj *MetadataTest::AddAttributes(
+    struct snobj *attrs, enum bess::metadata::mt_access_mode mode) {
   if (snobj_type(attrs) != TYPE_MAP) {
     return snobj_err(EINVAL,
                      "argument must be a map of "
@@ -56,15 +56,15 @@ struct snobj *MetadataTest::AddAttributes(struct snobj *attrs,
 
     /* check /var/log/syslog for log messages */
     switch (mode) {
-      case MT_READ:
+      case bess::metadata::MT_READ:
         log_info("module %s: %s, %d bytes, read\n", name().c_str(), attr_name,
                  attr_size);
         break;
-      case MT_WRITE:
+      case bess::metadata::MT_WRITE:
         log_info("module %s: %s, %d bytes, write\n", name().c_str(), attr_name,
                  attr_size);
         break;
-      case MT_UPDATE:
+      case bess::metadata::MT_UPDATE:
         log_info("module %s: %s, %d bytes, update\n", name().c_str(), attr_name,
                  attr_size);
         break;
@@ -77,17 +77,17 @@ struct snobj *MetadataTest::AddAttributes(struct snobj *attrs,
 pb_error_t MetadataTest::Init(const bess::protobuf::MetadataTestArg &arg) {
   pb_error_t err;
 
-  err = AddAttributes(arg.read(), MT_READ);
+  err = AddAttributes(arg.read(), bess::metadata::MT_READ);
   if (err.err() != 0) {
     return err;
   }
 
-  err = AddAttributes(arg.write(), MT_WRITE);
+  err = AddAttributes(arg.write(), bess::metadata::MT_WRITE);
   if (err.err() != 0) {
     return err;
   }
 
-  err = AddAttributes(arg.update(), MT_UPDATE);
+  err = AddAttributes(arg.update(), bess::metadata::MT_UPDATE);
   if (err.err() != 0) {
     return err;
   }
@@ -100,21 +100,21 @@ struct snobj *MetadataTest::Init(struct snobj *arg) {
   struct snobj *err;
 
   if ((attrs = snobj_eval(arg, "read"))) {
-    err = AddAttributes(attrs, MT_READ);
+    err = AddAttributes(attrs, bess::metadata::MT_READ);
     if (err) {
       return err;
     }
   }
 
   if ((attrs = snobj_eval(arg, "write"))) {
-    err = AddAttributes(attrs, MT_WRITE);
+    err = AddAttributes(attrs, bess::metadata::MT_WRITE);
     if (err) {
       return err;
     }
   }
 
   if ((attrs = snobj_eval(arg, "update"))) {
-    err = AddAttributes(attrs, MT_UPDATE);
+    err = AddAttributes(attrs, bess::metadata::MT_UPDATE);
     if (err) {
       return err;
     }

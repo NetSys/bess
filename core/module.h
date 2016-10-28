@@ -255,7 +255,7 @@ class Module {
    * need this function.
    * Returns its allocated ID (>= 0), or a negative number for error */
   int AddMetadataAttr(const std::string &name, int size,
-                      enum mt_access_mode mode);
+                      enum bess::metadata::mt_access_mode mode);
 
 #if TCPDUMP_GATES
   int EnableTcpDump(const char *fifo, gate_idx_t gate);
@@ -292,12 +292,13 @@ class Module {
   struct task *tasks[MAX_TASKS_PER_MODULE] = {};
 
   int num_attrs = 0;
-  struct mt_attr attrs[MAX_ATTRS_PER_MODULE] = {};
-  scope_id_t scope_components[MT_TOTAL_SIZE] = {};
+  struct bess::metadata::mt_attr attrs[bess::metadata::kMaxAttrsPerModule] = {};
+  bess::metadata::scope_id_t scope_components[bess::metadata::kMetadataTotalSize] = {};
 
   int curr_scope = 0;
 
-  mt_offset_t attr_offsets[MAX_ATTRS_PER_MODULE] = {};
+  bess::metadata::mt_offset_t
+      attr_offsets[bess::metadata::kMaxAttrsPerModule] = {};
   struct gates igates = {};
   struct gates ogates = {};
 };
@@ -351,14 +352,16 @@ inline void Module::RunNextModule(struct pkt_batch *batch) {
 }
 
 static int is_valid_attr(const std::string &name, int size,
-                         enum mt_access_mode mode) {
+                         enum bess::metadata::mt_access_mode mode) {
   if (name.empty())
     return 0;
 
-  if (size < 1 || size > MT_ATTR_MAX_SIZE)
+  if (size < 1 || size > bess::metadata::kMetadataAttrMaxSize)
     return 0;
 
-  if (mode != MT_READ && mode != MT_WRITE && mode != MT_UPDATE)
+  if (mode != bess::metadata::MT_READ &&
+      mode != bess::metadata::MT_WRITE &&
+      mode != bess::metadata::MT_UPDATE)
     return 0;
 
   return 1;

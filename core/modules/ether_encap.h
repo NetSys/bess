@@ -8,15 +8,19 @@ class EtherEncap : public Module {
   void ProcessBatch(struct pkt_batch *batch);
 
   int num_attrs = 5;
-  struct mt_attr attrs[MAX_ATTRS_PER_MODULE] = {
+  struct bess::metadata::mt_attr attrs[bess::metadata::kMaxAttrsPerModule] = {
       {
-          .name = "ether_src", .size = ETHER_ADDR_LEN, .mode = MT_READ,
+          .name = "ether_src",
+          .size = ETHER_ADDR_LEN,
+          .mode = bess::metadata::MT_READ,
       },
       {
-          .name = "ether_dst", .size = ETHER_ADDR_LEN, .mode = MT_READ,
+          .name = "ether_dst",
+          .size = ETHER_ADDR_LEN,
+          .mode = bess::metadata::MT_READ,
       },
       {
-          .name = "ether_type", .size = 2, .mode = MT_READ,
+          .name = "ether_type", .size = 2, .mode = bess::metadata::MT_READ,
       },
   };
 
