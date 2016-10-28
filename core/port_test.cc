@@ -3,6 +3,7 @@
 #include "port.h"
 
 #include <memory>
+#include <string>
 
 #include <gtest/gtest.h>
 
@@ -93,7 +94,64 @@ TEST_F(PortTest, AddPort) {
   EXPECT_EQ(dummy_port_builder, p_fetched->port_builder());
 }
 
-// Checks that adding a port puts it into the global port collection.
+// Checks that we can get (empty) stats for a port.
+TEST_F(PortTest, GetPortStats) {
+  std::unique_ptr<Port> p(dummy_port_builder->CreatePort("port1"));
+  ASSERT_NE(nullptr, p.get());
+
+  ASSERT_TRUE(PortBuilder::all_ports().empty());
+  PortBuilder::AddPort(p.get());
+  ASSERT_EQ(1, PortBuilder::all_ports().size());
+
+  const auto &it = PortBuilder::all_ports().find("port1");
+  ASSERT_NE(it, PortBuilder::all_ports().end());
+  
+  port_stats_t stats;
+  it->second->GetPortStats(&stats);
+  EXPECT_EQ(0, stats[PACKET_DIR_INC].packets);
+  EXPECT_EQ(0, stats[PACKET_DIR_INC].dropped);
+  EXPECT_EQ(0, stats[PACKET_DIR_INC].bytes);
+}
+
+// Checks that we can acquire and release queues.
+TEST_F(PortTest, AcquireAndReleaseQueues) {
+  std::unique_ptr<Port> p(dummy_port_builder->CreatePort("port1"));
+  p->num_queues[PACKET_DIR_INC] = 1;
+  p->num_queues[PACKET_DIR_OUT] = 1;
+  ASSERT_NE(nullptr, p.get());
+
+  ASSERT_TRUE(PortBuilder::all_ports().empty());
+  PortBuilder::AddPort(p.get());
+  ASSERT_EQ(1, PortBuilder::all_ports().size());
+
+  const auto &it = PortBuilder::all_ports().find("port1");
+  ASSERT_NE(it, PortBuilder::all_ports().end());
+
+  // Set up two dummy modules; this isn't safe, but the pointers shouldn't be
+  // dereferenced by the called code so it should be fine for the test.
+  struct module *m1 = (struct module *) 1;
+  struct module *m2 = (struct module *) 2;
+
+  // First don't specify a valid direction, shouldn't work.
+  EXPECT_EQ(-EINVAL, p->AcquireQueues(m1, PACKET_DIRS, nullptr, 1));
+
+  ASSERT_EQ(0, p->AcquireQueues(m1, PACKET_DIR_INC, nullptr, 1));
+  EXPECT_EQ(-EBUSY, p->AcquireQueues(m2, PACKET_DIR_INC, nullptr, 1));
+  p->ReleaseQueues(m1, PACKET_DIR_INC, nullptr, 1);
+  EXPECT_EQ(0, p->AcquireQueues(m2, PACKET_DIR_INC, nullptr, 1));
+  p->ReleaseQueues(m2, PACKET_DIR_INC, nullptr, 1);
+
+  queue_t queues;
+  memset(&queues, 0, sizeof(queues));
+
+  ASSERT_EQ(0, p->AcquireQueues(m1, PACKET_DIR_INC, &queues, 1));
+  EXPECT_EQ(-EBUSY, p->AcquireQueues(m2, PACKET_DIR_INC, &queues, 1));
+  p->ReleaseQueues(m1, PACKET_DIR_INC, &queues, 1);
+  EXPECT_EQ(0, p->AcquireQueues(m2, PACKET_DIR_INC, &queues, 1));
+  p->ReleaseQueues(m2, PACKET_DIR_INC, &queues, 1);
+}
+
+// Checks that destroying a port works.
 TEST_F(PortTest, DestroyPort) {
   Port *p = dummy_port_builder->CreatePort("port1");
   ASSERT_NE(nullptr, p);
@@ -150,14 +208,6 @@ TEST_F(PortTest, DestroyAllPorts) {
   EXPECT_TRUE(PortBuilder::all_ports().empty());
 }
 
-
-// Checks that the default port name generator produces names that match the
-// naming scheme.
-TEST_F(PortTest, GenerateDefaultPortName) {
-  // TODO(barath): Sangjin -- I don't quite know the naming scheme that is
-  //               used right now, so we can add this test later.
-}
-
 // Checks that a port's driver is initialized when the port class is
 // initialized.
 TEST_F(PortTest, InitPortClass) {
@@ -167,6 +217,20 @@ TEST_F(PortTest, InitPortClass) {
   EXPECT_TRUE(builder->InitPortClass());
   EXPECT_TRUE(DummyPort::initialized());
   EXPECT_FALSE(builder->InitPortClass());
+}
+
+// Checks that a port's driver is initialized when all drivers are initialized.
+TEST_F(PortTest, InitDrivers) {
+  ASSERT_FALSE(DummyPort::initialized());
+
+  PortBuilder::InitDrivers();
+
+  EXPECT_TRUE(DummyPort::initialized());
+  EXPECT_TRUE(dummy_port_builder->initialized());
+
+  // Subsequent calls should fail.  (We can't check for this right now because
+  // there is no return value.)
+  PortBuilder::InitDrivers();
 }
 
 // Checks that when we register a portclass, the global table of PortBuilders
@@ -204,5 +268,14 @@ TEST(PortBuilderTest, RegisterPortClassMacroCall) {
   EXPECT_EQ("dummy help", b.help_text());
 
   PortBuilder::all_port_builders_holder(true);
+}
+
+// Checks that we can generate a proper port name given a template or not.
+TEST(PortBuilderTest, GenerateDefaultPortNameTemplate) {
+  std::string name1 = PortBuilder::GenerateDefaultPortName("FooDriver", "foo");
+  EXPECT_EQ("foo0", name1);
+
+  std::string name2 = PortBuilder::GenerateDefaultPortName("FooDriver", "");
+  EXPECT_EQ("foo_driver0", name2);
 }
 

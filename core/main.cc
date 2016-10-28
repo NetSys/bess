@@ -7,6 +7,7 @@
 #include "dpdk.h"
 #include "master.h"
 #include "opts.h"
+#include "port.h"
 #include "snbuf.h"
 
 int main(int argc, char *argv[]) {
@@ -26,13 +27,13 @@ int main(int argc, char *argv[]) {
   }
 
   bess::bessd::CheckUniqueInstance(FLAGS_i);
-  bess::bessd::SetResourceLimit();
+  ignore_result(bess::bessd::SetResourceLimit());
 
   // TODO(barath): Make these DPDK calls generic, so as to not be so tied to DPDK.
   init_dpdk(argv[0], FLAGS_m, FLAGS_a);
   init_mempool();
 
-  bess::bessd::InitDrivers();
+  PortBuilder::InitDrivers();
 
   SetupMaster();
 
