@@ -7,7 +7,7 @@
 #include <rte_ip.h>
 #include <rte_udp.h>
 
-#include "../module.h"
+#include "vxlan_encap.h"
 
 enum {
   ATTR_R_TUN_IP_SRC,
@@ -16,46 +16,6 @@ enum {
   ATTR_W_IP_SRC,
   ATTR_W_IP_DST,
   ATTR_W_IP_PROTO,
-};
-
-class VXLANEncap : public Module {
- public:
-  VXLANEncap() : Module(), dstport_() {}
-
-  virtual struct snobj *Init(struct snobj *arg);
-  virtual pb_error_t Init(const bess::protobuf::VXLANEncapArg &arg);
-
-  virtual void ProcessBatch(struct pkt_batch *batch);
-
-  int num_attrs = 6;
-  struct mt_attr attrs[MAX_ATTRS_PER_MODULE] = {
-      {
-          .name = "tun_ip_src", .size = 4, .mode = MT_READ,
-      },
-      {
-          .name = "tun_ip_dst", .size = 4, .mode = MT_READ,
-      },
-      {
-          .name = "tun_id", .size = 4, .mode = MT_READ,
-      },
-      {
-          .name = "ip_src", .size = 4, .mode = MT_WRITE,
-      },
-      {
-          .name = "ip_dst", .size = 4, .mode = MT_WRITE,
-      },
-      {
-          .name = "ip_proto", .size = 1, .mode = MT_WRITE,
-      },
-  };
-
-  static const gate_idx_t kNumIGates = 1;
-  static const gate_idx_t kNumOGates = 1;
-
-  static const Commands<Module> cmds;
-
- private:
-  uint16_t dstport_;
 };
 
 const Commands<Module> VXLANEncap::cmds = {};

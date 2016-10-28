@@ -1,8 +1,5 @@
-#include "../message.h"
-#include "../module.h"
+#include "generic_encap.h"
 
-#define MAX_FIELDS 8
-#define MAX_FIELD_SIZE 8
 static_assert(MAX_FIELD_SIZE <= sizeof(uint64_t),
               "field cannot be larger than 8 bytes");
 
@@ -12,43 +9,11 @@ static_assert(MAX_FIELD_SIZE <= sizeof(uint64_t),
 #error this code assumes little endian architecture (x86)
 #endif
 
-struct Field {
-  uint64_t value; /* onlt for constant values */
-  int attr_id;    /* -1 for constant values */
-  int pos;        /* relative position in the new header */
-  int size;       /* in bytes. 1 <= size <= MAX_FIELD_SIZE */
-};
-
-class GenericEncap : public Module {
- public:
-  static const gate_idx_t kNumIGates = 1;
-  static const gate_idx_t kNumOGates = 1;
-
-  GenericEncap() : Module(), encap_size_(), num_fields_(), fields_() {}
-
-  struct snobj *Init(struct snobj *arg);
-  pb_error_t Init(const bess::protobuf::GenericEncapArg &arg);
-
-  void ProcessBatch(struct pkt_batch *batch);
-
-  static const Commands<Module> cmds;
-
- private:
-  struct snobj *AddFieldOne(struct snobj *field, struct Field *f, int idx);
-  pb_error_t AddFieldOne(const bess::protobuf::GenericEncapArg_Field &field,
-                         struct Field *f, int idx);
-
-  int encap_size_;
-
-  int num_fields_;
-
-  struct Field fields_[MAX_FIELDS];
-};
-
 const Commands<Module> GenericEncap::cmds = {};
 
-pb_error_t GenericEncap::AddFieldOne(const bess::protobuf::GenericEncapArg_Field &field,
-                                     struct Field *f, int idx) {
+pb_error_t GenericEncap::AddFieldOne(
+    const bess::protobuf::GenericEncapArg_Field &field, struct Field *f,
+    int idx) {
   f->size = field.size();
   if (f->size < 1 || f->size > MAX_FIELD_SIZE) {
     return pb_error(EINVAL, "idx %d: 'size' must be 1-%d", idx, MAX_FIELD_SIZE);
@@ -60,7 +25,8 @@ pb_error_t GenericEncap::AddFieldOne(const bess::protobuf::GenericEncapArg_Field
     if (f->attr_id < 0) {
       return pb_error(-f->attr_id, "idx %d: add_metadata_attr() failed", idx);
     }
-  } else if (field.attribute_case() == bess::protobuf::GenericEncapArg_Field::kValue) {
+  } else if (field.attribute_case() ==
+             bess::protobuf::GenericEncapArg_Field::kValue) {
     f->attr_id = -1;
     uint64_t value = field.value();
     if (uint64_to_bin((uint8_t *)&f->value, f->size, value, 1)) {

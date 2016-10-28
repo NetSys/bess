@@ -7,41 +7,13 @@
 #include <rte_ip.h>
 #include <rte_lpm.h>
 
-#include "../message.h"
-#include "../module.h"
+#include "ip_lookup.h"
 
 #define VECTOR_OPTIMIZATION 1
 
 static inline int is_valid_gate(gate_idx_t gate) {
   return (gate < MAX_GATES || gate == DROP_GATE);
 }
-
-class IPLookup : public Module {
- public:
-  IPLookup() : Module(), lpm_(), default_gate_() {}
-
-  virtual struct snobj *Init(struct snobj *arg);
-  virtual pb_error_t Init(const bess::protobuf::IPLookupArg &arg);
-
-  virtual void Deinit();
-
-  virtual void ProcessBatch(struct pkt_batch *batch);
-
-  struct snobj *CommandAdd(struct snobj *arg);
-  struct snobj *CommandClear(struct snobj *arg);
-
-  pb_error_t CommandAdd(const bess::protobuf::IPLookupCommandAddArg &arg);
-  pb_error_t CommandClear(const bess::protobuf::IPLookupCommandClearArg &arg);
-
-  static const gate_idx_t kNumIGates = 1;
-  static const gate_idx_t kNumOGates = MAX_GATES;
-
-  static const Commands<Module> cmds;
-
- private:
-  struct rte_lpm *lpm_;
-  gate_idx_t default_gate_;
-};
 
 const Commands<Module> IPLookup::cmds = {
     {"add", MODULE_FUNC &IPLookup::CommandAdd, 0},
@@ -213,7 +185,8 @@ struct snobj *IPLookup::CommandClear(struct snobj *arg) {
   return nullptr;
 }
 
-pb_error_t IPLookup::CommandAdd(const bess::protobuf::IPLookupCommandAddArg &arg) {
+pb_error_t IPLookup::CommandAdd(
+    const bess::protobuf::IPLookupCommandAddArg &arg) {
   struct in_addr ip_addr_be;
   uint32_t ip_addr; /* in cpu order */
   uint32_t netmask;
@@ -260,7 +233,8 @@ pb_error_t IPLookup::CommandAdd(const bess::protobuf::IPLookupCommandAddArg &arg
   return pb_errno(0);
 }
 
-pb_error_t IPLookup::CommandClear(const bess::protobuf::IPLookupCommandClearArg &arg) {
+pb_error_t IPLookup::CommandClear(
+    const bess::protobuf::IPLookupCommandClearArg &arg) {
   rte_lpm_delete_all(lpm_);
   default_gate_ = DROP_GATE;
   return pb_errno(0);

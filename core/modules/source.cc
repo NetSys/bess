@@ -1,29 +1,4 @@
-#include "../module.h"
-
-class Source : public Module {
- public:
-  Source() : Module(), pkt_size_(), burst_() {}
-
-  virtual struct snobj *Init(struct snobj *arg);
-  pb_error_t Init(const bess::protobuf::SourceArg &arg);
-
-  virtual struct task_result RunTask(void *arg);
-
-  struct snobj *command_set_pkt_size(struct snobj *arg);
-  struct snobj *command_set_burst(struct snobj *arg);
-
-  pb_error_t CommandSetBurst(const bess::protobuf::SourceCommandSetBurstArg &arg);
-  pb_error_t CommandSetPktSize(const bess::protobuf::SourceCommandSetPktSizeArg &arg);
-
-  static const gate_idx_t kNumIGates = 0;
-  static const gate_idx_t kNumOGates = 1;
-
-  static const Commands<Module> cmds;
-
- private:
-  int pkt_size_;
-  int burst_;
-};
+#include "source.h"
 
 const Commands<Module> Source::cmds = {
     {"set_pkt_size", MODULE_FUNC &Source::command_set_pkt_size, 1},
@@ -53,7 +28,8 @@ pb_error_t Source::Init(const bess::protobuf::SourceArg &arg) {
   return pb_errno(0);
 }
 
-pb_error_t Source::CommandSetBurst(const bess::protobuf::SourceCommandSetBurstArg &arg) {
+pb_error_t Source::CommandSetBurst(
+    const bess::protobuf::SourceCommandSetBurstArg &arg) {
   uint64_t val = arg.burst();
   if (val == 0 || val > MAX_PKT_BURST) {
     return pb_error(EINVAL, "burst size must be [1,%d]", MAX_PKT_BURST);

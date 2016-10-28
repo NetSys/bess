@@ -1,6 +1,6 @@
 #include <rte_byteorder.h>
 
-#include "../module.h"
+#include "split.h"
 
 #define MAX_SIZE 8
 
@@ -13,27 +13,6 @@
 static inline int is_valid_gate(gate_idx_t gate) {
   return (gate < MAX_GATES || gate == DROP_GATE);
 }
-
-class Split : public Module {
- public:
-  Split() : Module(), mask_(), attr_id_(), offset_(), size_() {}
-
-  struct snobj *Init(struct snobj *arg);
-  pb_error_t Init(const bess::protobuf::SplitArg &arg);
-
-  void ProcessBatch(struct pkt_batch *batch);
-
-  static const gate_idx_t kNumIGates = 1;
-  static const gate_idx_t kNumOGates = MAX_GATES;
-
-  static const Commands<Module> cmds;
-
- private:
-  uint64_t mask_;
-  int attr_id_;
-  int offset_;
-  int size_;
-};
 
 const Commands<Module> Split::cmds = {};
 

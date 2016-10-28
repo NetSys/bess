@@ -48,56 +48,5 @@ service BESSControl {
   rpc KillBess (Empty) returns (EmptyResponse) {}
 
   // TODO: modules commands
-  rpc BPFCommandAdd (BPFArg) returns (EmptyResponse) {}
-  rpc BPFCommandClear (BPFCommandClearArg) returns (EmptyResponse) {}
-
-  rpc DumpCommandSetInterval (DumpArg) returns (EmptyResponse) {}
-  rpc ExactMatchCommandAdd (ExactMatchCommandAddArg) returns (EmptyResponse) {}
-  rpc ExactMatchCommandDelete (ExactMatchCommandDeleteArg) returns (EmptyResponse) {}
-  rpc ExactMatchCommandClear (ExactMatchCommandClearArg) returns (EmptyResponse) {}
-  rpc ExactMatchCommandSetDefaultGate (ExactMatchCommandSetDefaultGateArg) returns (EmptyResponse) {}
-
-  rpc HashLBCommandSetMode (HashLBCommandSetModeArg) returns (EmptyResponse) {}
-  rpc HashLBCommandSetGates (HashLBCommandSetGatesArg) returns (EmptyResponse) {}
-
-  rpc IPLookupCommandAdd (IPLookupCommandAddArg) returns (EmptyResponse) {}
-  rpc IPLookupCommandClear (IPLookupCommandClearArg) returns (EmptyResponse) {}
-
-  rpc L2ForwardCommandAdd (L2ForwardCommandAddArg) returns (EmptyResponse) {}
-  rpc L2ForwardCommandDelete (L2ForwardCommandDeleteArg) returns (EmptyResponse) {}
-  rpc L2ForwardCommandSetDefaultGate (L2ForwardCommandSetDefaultGateArg) returns (EmptyResponse) {}
-  rpc L2ForwardCommandLookup (L2ForwardCommandLookupArg) returns (L2ForwardCommandLookupResponse) {}
-  rpc L2ForwardCommandPopulate (L2ForwardCommandPopulateArg) returns (EmptyResponse) {}
-
-  rpc MeasureCommandGetSummary (MeasureCommandGetSummaryArg) returns (MeasureCommandGetSummaryResponse) {}
-
-  rpc PortIncCommandSetBurst (PortIncCommandSetBurstArg) returns (EmptyResponse) {}
-
-  rpc QueueIncCommandSetBurst (QueueIncCommandSetBurstArg) returns (EmptyResponse) {}
-
-  rpc QueueCommandSetBurst (QueueCommandSetBurstArg) returns (EmptyResponse) {}
-  rpc QueueCommandSetSize (QueueCommandSetSizeArg) returns (EmptyResponse) {}
-
-  rpc RandomUpdateCommandAdd (RandomUpdateArg) returns (EmptyResponse) {}
-  rpc RandomUpdateCommandClear (RandomUpdateCommandClearArg) returns (EmptyResponse) {}
-
-  rpc RewriteCommandAdd (RewriteArg) returns (EmptyResponse) {}
-  rpc RewriteCommandClear (RewriteCommandClearArg) returns (EmptyResponse) {}
-
-  rpc RoundRobinCommandSetMode (RoundRobinCommandSetModeArg) returns (EmptyResponse) {}
-  rpc RoundRobinCommandSetGates (RoundRobinCommandSetGatesArg) returns (EmptyResponse) {}
-
-  rpc SourceCommandSetBurst (SourceCommandSetBurstArg) returns (EmptyResponse) {}
-  rpc SourceCommandSetPktSize (SourceCommandSetPktSizeArg) returns (EmptyResponse) {}
-
-  rpc UpdateCommandAdd (UpdateArg) returns (EmptyResponse) {}
-  rpc UpdateCommandClear (UpdateCommandClearArg) returns (EmptyResponse) {}
-
-  rpc VLANPushCommandSetTci (VLANPushArg) returns (EmptyResponse) {}
-
-  rpc WildcardMatchCommandAdd (WildcardMatchCommandAddArg) returns (EmptyResponse) {}
-  rpc WildcardMatchCommandDelete (WildcardMatchCommandDeleteArg) returns (EmptyResponse) {}
-  rpc WildcardMatchCommandClear (WildcardMatchCommandClearArg) returns (EmptyResponse) {}
-  rpc WildcardMatchCommandSetDefaultGate (WildcardMatchCommandSetDefaultGateArg) returns (EmptyResponse) {}
-
+  rpc ModuleCommand (ModuleCommandRequest) returns (ModuleCommandResponse) {}
 }

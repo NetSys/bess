@@ -43,7 +43,6 @@ class RoundRobin : public Module {
 
   static const Commands<Module> cmds;
 
- private:
   /*!
    * Switches the RoundRobin module between "batch" vs "packet" scheduling.
    */
@@ -57,6 +56,7 @@ class RoundRobin : public Module {
   pb_error_t CommandSetGates(
       const bess::protobuf::RoundRobinCommandSetGatesArg &arg);
 
+ private:
   // ID number for each egress gate.
   gate_idx_t gates_[MAX_RR_GATES];
   // The total number of output gates

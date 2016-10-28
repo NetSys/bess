@@ -5,10 +5,9 @@
 #include <rte_ip.h>
 #include <rte_tcp.h>
 
-#include "../utils/histogram.h"
 #include "../utils/time.h"
 
-#include "../module.h"
+#include "measure.h"
 
 inline int get_measure_packet(struct snbuf *pkt, uint64_t *time) {
   uint8_t *avail = (static_cast<uint8_t *>(snb_head_data(pkt)) +
@@ -21,41 +20,6 @@ inline int get_measure_packet(struct snbuf *pkt, uint64_t *time) {
 }
 
 /* XXX: currently doesn't support multiple workers */
-class Measure : public Module {
- public:
-  Measure()
-      : Module(),
-        hist_(),
-        start_time_(),
-        warmup_(),
-        pkt_cnt_(),
-        bytes_cnt_(),
-        total_latency_() {}
-
-  virtual struct snobj *Init(struct snobj *arg);
-  virtual pb_error_t Init(const bess::protobuf::MeasureArg &arg);
-
-  virtual void ProcessBatch(struct pkt_batch *batch);
-
-  struct snobj *CommandGetSummary(struct snobj *arg);
-  bess::protobuf::MeasureCommandGetSummaryResponse CommandGetSummary(
-      const bess::protobuf::MeasureCommandGetSummaryArg &arg);
-
-  static const gate_idx_t kNumIGates = 1;
-  static const gate_idx_t kNumOGates = 1;
-
-  static const Commands<Module> cmds;
-
- private:
-  struct histogram hist_ = {0};
-
-  uint64_t start_time_;
-  int warmup_; /* second */
-
-  uint64_t pkt_cnt_;
-  uint64_t bytes_cnt_;
-  uint64_t total_latency_;
-};
 
 const Commands<Module> Measure::cmds = {
     {"get_summary", MODULE_FUNC &Measure::CommandGetSummary, 0},

@@ -1,13 +1,4 @@
-#include "../module.h"
-
-typedef struct { char bytes[MT_ATTR_MAX_SIZE]; } value_t;
-
-struct Attr {
-  std::string name;
-  value_t value;
-  int offset;
-  int size;
-};
+#include "set_metadata.h"
 
 static void CopyFromPacket(struct pkt_batch *batch, const struct Attr *attr,
                            mt_offset_t mt_off) {
@@ -42,30 +33,10 @@ static void CopyFromValue(struct pkt_batch *batch, const struct Attr *attr,
   }
 }
 
-class SetMetadata : public Module {
- public:
-  SetMetadata() : Module(), attrs_() {}
-
-  struct snobj *Init(struct snobj *arg);
-  pb_error_t Init(const bess::protobuf::SetMetadataArg &arg);
-
-  void ProcessBatch(struct pkt_batch *batch);
-
-  static const gate_idx_t kNumIGates = 1;
-  static const gate_idx_t kNumOGates = 1;
-
-  static const Commands<Module> cmds;
-
- private:
-  struct snobj *AddAttrOne(struct snobj *attr);
-  pb_error_t AddAttrOne(const bess::protobuf::SetMetadataArg_Attribute &attr);
-
-  std::vector<struct Attr> attrs_;
-};
-
 const Commands<Module> SetMetadata::cmds = {};
 
-pb_error_t SetMetadata::AddAttrOne(const bess::protobuf::SetMetadataArg_Attribute &attr) {
+pb_error_t SetMetadata::AddAttrOne(
+    const bess::protobuf::SetMetadataArg_Attribute &attr) {
   std::string name;
   int size = 0;
   int offset = -1;

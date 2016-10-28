@@ -2,17 +2,7 @@
 
 #include <rte_byteorder.h>
 
-#include "../module.h"
-
-class VLANSplit : public Module {
- public:
-  static const gate_idx_t kNumIGates = 1;
-  static const gate_idx_t kNumOGates = 4096;
-
-  virtual void ProcessBatch(struct pkt_batch *batch);
-
-  static const Commands<Module> cmds;
-};
+#include "vlan_split.h"
 
 const Commands<Module> VLANSplit::cmds = {};
 
