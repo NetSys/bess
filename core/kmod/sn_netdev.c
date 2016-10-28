@@ -687,6 +687,8 @@ static const struct net_device_ops sn_netdev_ops = {
 	.ndo_select_queue	= sn_select_queue,
 	.ndo_get_stats64 	= sn_get_stats64,
 	.ndo_fix_features	= sn_fix_features,
+	.ndo_set_mac_address    = eth_mac_addr,
+	.ndo_validate_addr      = eth_validate_addr,
 };
 
 extern const struct ethtool_ops sn_ethtool_ops;
