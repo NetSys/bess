@@ -36,10 +36,8 @@
 #include <string.h>
 #include <sys/mman.h>
 
-#include "../message.h"
+#include "bpf.h"
 #include <pcap.h>
-
-typedef u_int (*bpf_filter_func_t)(u_char *, u_int, u_int);
 
 /*
  * Registers
@@ -1049,8 +1047,9 @@ static bpf_filter_func_t bpf_jit_compile(struct bpf_insn *prog, u_int nins,
       continue;
 
     *size = stream.cur_ip;
-    stream.ibuf = static_cast<char *>(mmap(nullptr, *size, PROT_READ | PROT_WRITE,
-                                           MAP_PRIVATE | MAP_ANONYMOUS, -1, 0));
+    stream.ibuf =
+        static_cast<char *>(mmap(nullptr, *size, PROT_READ | PROT_WRITE,
+                                 MAP_PRIVATE | MAP_ANONYMOUS, -1, 0));
     if (stream.ibuf == MAP_FAILED) {
       stream.ibuf = nullptr;
       break;
@@ -1091,22 +1090,10 @@ static bpf_filter_func_t bpf_jit_compile(struct bpf_insn *prog, u_int nins,
 /* -------------------------------------------------------------------------
  * Module code begins from here
  * ------------------------------------------------------------------------- */
-#include "../module.h"
 
 /* Note: bpf_filter will return SNAPLEN if matched, and 0 if unmatched. */
 /* Note: unmatched packets are sent to gate 0 */
 #define SNAPLEN 0xffff
-
-#define MAX_FILTERS 128
-
-struct filter {
-  bpf_filter_func_t func;
-  int gate;
-
-  size_t mmap_size; /* needed for munmap() */
-  int priority;     /* higher number == higher priority */
-  char *exp;        /* original filter expression string */
-};
 
 static int compare_filter(const void *filter1, const void *filter2) {
   struct filter *f1 = (struct filter *)filter1;
@@ -1120,38 +1107,12 @@ static int compare_filter(const void *filter1, const void *filter2) {
     return 0;
 }
 
-class BPF : public Module {
- public:
-  virtual struct snobj *Init(struct snobj *arg);
-  virtual pb_error_t Init(const bess::BPFArg &arg);
-  virtual void Deinit();
-
-  virtual void ProcessBatch(struct pkt_batch *batch);
-
-  struct snobj *CommandAdd(struct snobj *arg);
-  struct snobj *CommandClear(struct snobj *arg);
-
-  pb_error_t CommandAdd(const bess::BPFArg &arg);
-  pb_error_t CommandClear(const bess::BPFArg &arg);
-
-  static const gate_idx_t kNumIGates = 1;
-  static const gate_idx_t kNumOGates = MAX_GATES;
-
-  static const Commands<Module> cmds;
-
- private:
-  struct filter filters_[MAX_FILTERS + 1] = {{0}};
-  int n_filters_ = {0};
-
-  inline void process_batch_1filter(struct pkt_batch *batch);
-};
-
 const Commands<Module> BPF::cmds = {
     {"add", MODULE_FUNC &BPF::CommandAdd, 0},
     {"clear", MODULE_FUNC &BPF::CommandClear, 0}};
 
-pb_error_t BPF::Init(const bess::BPFArg &arg) {
-  return arg.filters_size() > 0 ? CommandAdd(arg) : pb_errno(0);
+pb_error_t BPF::Init(const bess::protobuf::BPFArg &arg) {
+  return CommandAdd(arg);
 }
 
 struct snobj *BPF::Init(struct snobj *arg) {
@@ -1167,7 +1128,7 @@ void BPF::Deinit() {
   n_filters_ = 0;
 }
 
-pb_error_t BPF::CommandAdd(const bess::BPFArg &arg) {
+pb_error_t BPF::CommandAdd(const bess::protobuf::BPFArg &arg) {
   if (n_filters_ + arg.filters_size() > MAX_FILTERS) {
     return pb_error(EINVAL, "Too many filters");
   }
@@ -1272,7 +1233,7 @@ struct snobj *BPF::CommandAdd(struct snobj *arg) {
   return nullptr;
 }
 
-pb_error_t BPF::CommandClear(const bess::BPFArg &arg) {
+pb_error_t BPF::CommandClear(const bess::protobuf::BPFCommandClearArg &arg) {
   Deinit();
   return pb_errno(0);
 }

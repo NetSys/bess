@@ -25,7 +25,7 @@ struct snobj *PCAPPort::Init(struct snobj *conf) {
   return nullptr;
 }
 
-pb_error_t PCAPPort::Init(const bess::PCAPPortArg &arg) {
+pb_error_t PCAPPort::Init(const bess::protobuf::PCAPPortArg &arg) {
   char errbuf[PCAP_ERRBUF_SIZE];
 
   const std::string dev = arg.dev();

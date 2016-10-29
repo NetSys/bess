@@ -1,31 +1,8 @@
-#include "../module.h"
-#include "../port.h"
-
-class PortOut : public Module {
- public:
-  PortOut() : Module(), port_() {}
-
-  virtual struct snobj *Init(struct snobj *arg);
-  virtual pb_error_t Init(const bess::PortOutArg &arg);
-
-  virtual void Deinit();
-
-  virtual void ProcessBatch(struct pkt_batch *batch);
-
-  virtual std::string GetDesc();
-
-  static const gate_idx_t kNumIGates = 1;
-  static const gate_idx_t kNumOGates = 0;
-
-  static const Commands<Module> cmds;
-
- private:
-  Port *port_;
-};
+#include "port_out.h"
 
 const Commands<Module> PortOut::cmds = {};
 
-pb_error_t PortOut::Init(const bess::PortOutArg &arg) {
+pb_error_t PortOut::Init(const bess::protobuf::PortOutArg &arg) {
   const char *port_name;
   int ret;
 

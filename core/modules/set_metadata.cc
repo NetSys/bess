@@ -1,13 +1,4 @@
-#include "../module.h"
-
-typedef struct { char bytes[bess::metadata::kMetadataAttrMaxSize]; } value_t;
-
-struct Attr {
-  std::string name;
-  value_t value;
-  int offset;
-  int size;
-};
+#include "set_metadata.h"
 
 static void CopyFromPacket(struct pkt_batch *batch, const struct Attr *attr,
                            bess::metadata::mt_offset_t mt_off) {
@@ -42,30 +33,10 @@ static void CopyFromValue(struct pkt_batch *batch, const struct Attr *attr,
   }
 }
 
-class SetMetadata : public Module {
- public:
-  SetMetadata() : Module(), attrs_() {}
-
-  struct snobj *Init(struct snobj *arg);
-  pb_error_t Init(const bess::SetMetadataArg &arg);
-
-  void ProcessBatch(struct pkt_batch *batch);
-
-  static const gate_idx_t kNumIGates = 1;
-  static const gate_idx_t kNumOGates = 1;
-
-  static const Commands<Module> cmds;
-
- private:
-  struct snobj *AddAttrOne(struct snobj *attr);
-  pb_error_t AddAttrOne(const bess::SetMetadataArg_Attribute &attr);
-
-  std::vector<struct Attr> attrs_;
-};
-
 const Commands<Module> SetMetadata::cmds = {};
 
-pb_error_t SetMetadata::AddAttrOne(const bess::SetMetadataArg_Attribute &attr) {
+pb_error_t SetMetadata::AddAttrOne(
+    const bess::protobuf::SetMetadataArg_Attribute &attr) {
   std::string name;
   int size = 0;
   int offset = -1;
@@ -80,7 +51,8 @@ pb_error_t SetMetadata::AddAttrOne(const bess::SetMetadataArg_Attribute &attr) {
   size = attr.size();
 
   if (size < 1 || size > bess::metadata::kMetadataAttrMaxSize) {
-    return pb_error(EINVAL, "'size' must be 1-%d", bess::metadata::kMetadataAttrMaxSize);
+    return pb_error(EINVAL, "'size' must be 1-%d",
+                    bess::metadata::kMetadataAttrMaxSize);
   }
 
   if (attr.value().length()) {
@@ -105,7 +77,7 @@ pb_error_t SetMetadata::AddAttrOne(const bess::SetMetadataArg_Attribute &attr) {
   return pb_errno(0);
 }
 
-pb_error_t SetMetadata::Init(const bess::SetMetadataArg &arg) {
+pb_error_t SetMetadata::Init(const bess::protobuf::SetMetadataArg &arg) {
   if (!arg.attrs_size()) {
     return pb_error(EINVAL, "'attrs' must be specified");
   }
@@ -147,7 +119,8 @@ struct snobj *SetMetadata::AddAttrOne(struct snobj *attr) {
   size = snobj_eval_uint(attr, "size");
 
   if (size < 1 || size > bess::metadata::kMetadataAttrMaxSize) {
-    return snobj_err(EINVAL, "'size' must be 1-%d", bess::metadata::kMetadataAttrMaxSize);
+    return snobj_err(EINVAL, "'size' must be 1-%d",
+                     bess::metadata::kMetadataAttrMaxSize);
   }
 
   if ((t = snobj_eval(attr, "value"))) {

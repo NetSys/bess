@@ -7,7 +7,7 @@
 #include <rte_ip.h>
 #include <rte_udp.h>
 
-#include "../module.h"
+#include "vxlan_encap.h"
 
 enum {
   ATTR_R_TUN_IP_SRC,
@@ -18,45 +18,18 @@ enum {
   ATTR_W_IP_PROTO,
 };
 
-class VXLANEncap : public Module {
- public:
-  VXLANEncap() : Module(), dstport_() {}
-
-  virtual struct snobj *Init(struct snobj *arg);
-  virtual void ProcessBatch(struct pkt_batch *batch);
-
-  int num_attrs = 6;
-  struct bess::metadata::mt_attr attrs[bess::metadata::kMaxAttrsPerModule] = {
-      {
-          .name = "tun_ip_src", .size = 4, .mode = bess::metadata::MT_READ,
-      },
-      {
-          .name = "tun_ip_dst", .size = 4, .mode = bess::metadata::MT_READ,
-      },
-      {
-          .name = "tun_id", .size = 4, .mode = bess::metadata::MT_READ,
-      },
-      {
-          .name = "ip_src", .size = 4, .mode = bess::metadata::MT_WRITE,
-      },
-      {
-          .name = "ip_dst", .size = 4, .mode = bess::metadata::MT_WRITE,
-      },
-      {
-          .name = "ip_proto", .size = 1, .mode = bess::metadata::MT_WRITE,
-      },
-  };
-
-  static const gate_idx_t kNumIGates = 1;
-  static const gate_idx_t kNumOGates = 1;
-
-  static const Commands<Module> cmds;
-
- private:
-  uint16_t dstport_;
-};
-
 const Commands<Module> VXLANEncap::cmds = {};
+
+pb_error_t VXLANEncap::Init(const bess::protobuf::VXLANEncapArg &arg) {
+  dstport_ = rte_cpu_to_be_16(4789);
+
+  int dstport = arg.dstport();
+  if (dstport <= 0 || dstport >= 65536)
+    return pb_error(EINVAL, "invalid 'dstport' field");
+  dstport_ = rte_cpu_to_be_16(dstport);
+
+  return pb_errno(0);
+}
 
 struct snobj *VXLANEncap::Init(struct snobj *arg) {
   dstport_ = rte_cpu_to_be_16(4789);

@@ -2,112 +2,7 @@
 #include <rte_hash_crc.h>
 
 #include "../utils/htable.h"
-#include "../module.h"
-
-#define MAX_TUPLES 8
-#define MAX_FIELDS 8
-#define MAX_FIELD_SIZE 8
-static_assert(MAX_FIELD_SIZE <= sizeof(uint64_t),
-              "field cannot be larger than 8 bytes");
-
-#define HASH_KEY_SIZE (MAX_FIELDS * MAX_FIELD_SIZE)
-
-#if __BYTE_ORDER__ != __ORDER_LITTLE_ENDIAN__
-#error this code assumes little endian architecture (x86)
-#endif
-
-typedef struct { uint64_t u64_arr[MAX_FIELDS]; } hkey_t;
-
-struct WmData {
-  int priority;
-  gate_idx_t ogate;
-};
-
-struct WmField {
-  int attr_id; /* -1 for offset-based fields */
-
-  /* Relative offset in the packet data for offset-based fields.
-   *  (starts from data_off, not the beginning of the headroom */
-  int offset;
-
-  int pos; /* relative position in the key */
-
-  int size; /* in bytes. 1 <= size <= MAX_FIELD_SIZE */
-};
-
-static inline int wm_keycmp(const void *key, const void *key_stored,
-                            size_t key_len) {
-  const uint64_t *a = ((hkey_t *)key)->u64_arr;
-  const uint64_t *b = ((hkey_t *)key_stored)->u64_arr;
-
-  switch (key_len >> 3) {
-    default:
-      promise_unreachable();
-    case 8:
-      if (unlikely(a[7] != b[7]))
-        return 1;
-    case 7:
-      if (unlikely(a[6] != b[6]))
-        return 1;
-    case 6:
-      if (unlikely(a[5] != b[5]))
-        return 1;
-    case 5:
-      if (unlikely(a[4] != b[4]))
-        return 1;
-    case 4:
-      if (unlikely(a[3] != b[3]))
-        return 1;
-    case 3:
-      if (unlikely(a[2] != b[2]))
-        return 1;
-    case 2:
-      if (unlikely(a[1] != b[1]))
-        return 1;
-    case 1:
-      if (unlikely(a[0] != b[0]))
-        return 1;
-  }
-
-  return 0;
-}
-
-static inline uint32_t wm_hash(const void *key, uint32_t key_len,
-                               uint32_t init_val) {
-#if __SSE4_2__ && __x86_64
-  const uint64_t *a = ((hkey_t *)key)->u64_arr;
-
-  switch (key_len >> 3) {
-    default:
-      promise_unreachable();
-    case 8:
-      init_val = crc32c_sse42_u64(*a++, init_val);
-    case 7:
-      init_val = crc32c_sse42_u64(*a++, init_val);
-    case 6:
-      init_val = crc32c_sse42_u64(*a++, init_val);
-    case 5:
-      init_val = crc32c_sse42_u64(*a++, init_val);
-    case 4:
-      init_val = crc32c_sse42_u64(*a++, init_val);
-    case 3:
-      init_val = crc32c_sse42_u64(*a++, init_val);
-    case 2:
-      init_val = crc32c_sse42_u64(*a++, init_val);
-    case 1:
-      init_val = crc32c_sse42_u64(*a++, init_val);
-  }
-
-  return init_val;
-#else
-  return rte_hash_crc(key, key_len, init_val);
-#endif
-}
-
-struct WmTuple {
-  HTable<hkey_t, struct WmData, wm_keycmp, wm_hash> ht;
-  hkey_t mask;
-};
+#include "wildcard_match.h"
 
 /* k1 = k2 & mask */
 static void mask(void *k1, const void *k2, const void *mask, int key_size) {
@@ -142,60 +37,6 @@ static void mask(void *k1, const void *k2, const void *mask, int key_size) {
 static inline int is_valid_gate(gate_idx_t gate) {
   return (gate < MAX_GATES || gate == DROP_GATE);
 }
-
-class WildcardMatch : public Module {
- public:
-  WildcardMatch()
-      : Module(),
-        default_gate_(),
-        total_key_size_(),
-        num_fields_(),
-        fields_(),
-        num_tuples_(),
-        tuples_(),
-        next_table_id_() {}
-
-  virtual struct snobj *Init(struct snobj *arg);
-  virtual void Deinit();
-
-  virtual void ProcessBatch(struct pkt_batch *batch);
-
-  virtual std::string GetDesc() const;
-  virtual struct snobj *GetDump() const;
-
-  struct snobj *CommandAdd(struct snobj *arg);
-  struct snobj *CommandDelete(struct snobj *arg);
-  struct snobj *CommandClear(struct snobj *arg);
-  struct snobj *CommandSetDefaultGate(struct snobj *arg);
-
-  static const gate_idx_t kNumIGates = 1;
-  static const gate_idx_t kNumOGates = MAX_GATES;
-
-  static const Commands<Module> cmds;
-
- private:
-  gate_idx_t LookupEntry(hkey_t *key, gate_idx_t def_gate);
-  struct snobj *AddFieldOne(struct snobj *field, struct WmField *f);
-
-  void CollectRules(const struct WmTuple *tuple, struct snobj *rules) const;
-  struct snobj *ExtractKeyMask(struct snobj *arg, hkey_t *key, hkey_t *mask);
-  int FindTuple(hkey_t *mask);
-  int AddTuple(hkey_t *mask);
-  int AddEntry(struct WmTuple *tuple, hkey_t *key, struct WmData *data);
-  int DelEntry(struct WmTuple *tuple, hkey_t *key);
-
-  gate_idx_t default_gate_;
-
-  int total_key_size_; /* a multiple of sizeof(uint64_t) */
-
-  size_t num_fields_;
-  struct WmField fields_[MAX_FIELDS];
-
-  int num_tuples_;
-  struct WmTuple tuples_[MAX_TUPLES];
-
-  int next_table_id_;
-};
 
 const Commands<Module> WildcardMatch::cmds = {
     {"add", MODULE_FUNC &WildcardMatch::CommandAdd, 0},
@@ -235,6 +76,34 @@ struct snobj *WildcardMatch::AddFieldOne(struct snobj *field,
   }
 
   return nullptr;
+}
+
+pb_error_t WildcardMatch::AddFieldOne(
+    const bess::protobuf::WildcardMatchArg_Field &field, struct WmField *f) {
+  f->size = field.size();
+
+  if (f->size < 1 || f->size > MAX_FIELD_SIZE) {
+    return pb_error(EINVAL, "'size' must be 1-%d", MAX_FIELD_SIZE);
+  }
+
+  if (field.length_case() == bess::protobuf::WildcardMatchArg_Field::kOffset) {
+    f->attr_id = -1;
+    f->offset = field.offset();
+    if (f->offset < 0 || f->offset > 1024) {
+      return pb_error(EINVAL, "too small 'offset'");
+    }
+  } else if (field.length_case() ==
+             bess::protobuf::WildcardMatchArg_Field::kAttribute) {
+    const char *attr = field.attribute().c_str();
+    f->attr_id = AddMetadataAttr(attr, f->size, bess::metadata::MT_READ);
+    if (f->attr_id < 0) {
+      return pb_error(-f->attr_id, "add_metadata_attr() failed");
+    }
+  } else {
+    return pb_error(EINVAL, "specify 'offset' or 'attr'");
+  }
+
+  return pb_errno(0);
 }
 
 /* Takes a list of all fields that may be used by rules.
@@ -277,13 +146,39 @@ struct snobj *WildcardMatch::Init(struct snobj *arg) {
   return nullptr;
 }
 
+pb_error_t WildcardMatch::Init(const bess::protobuf::WildcardMatchArg &arg) {
+  int size_acc = 0;
+
+  for (int i = 0; i < arg.fields_size(); i++) {
+    const auto &field = arg.fields(i);
+    pb_error_t err;
+    struct WmField f;
+
+    f.pos = size_acc;
+
+    err = AddFieldOne(field, &f);
+    if (err.err() != 0) {
+      return err;
+    }
+
+    size_acc += f.size;
+    fields_[i] = f;
+  }
+
+  default_gate_ = DROP_GATE;
+  num_fields_ = (size_t)arg.fields_size();
+  total_key_size_ = align_ceil(size_acc, sizeof(uint64_t));
+
+  return pb_errno(0);
+}
+
 void WildcardMatch::Deinit() {
   for (int i = 0; i < num_tuples_; i++) {
     tuples_[i].ht.Close();
   }
 }
 
-gate_idx_t WildcardMatch::LookupEntry(hkey_t *key, gate_idx_t def_gate) {
+gate_idx_t WildcardMatch::LookupEntry(wm_hkey_t *key, gate_idx_t def_gate) {
   struct WmData result = {
       .priority = INT_MIN, .ogate = def_gate,
   };
@@ -291,7 +186,7 @@ gate_idx_t WildcardMatch::LookupEntry(hkey_t *key, gate_idx_t def_gate) {
   const int key_size = total_key_size_;
   const int num_tuples = num_tuples_;
 
-  hkey_t key_masked;
+  wm_hkey_t key_masked;
 
   for (int i = 0; i < num_tuples; i++) {
     struct WmTuple *tuple = &tuples_[i];
@@ -347,7 +242,7 @@ void WildcardMatch::ProcessBatch(struct pkt_batch *batch) {
 
 #if 1
   for (int i = 0; i < cnt; i++) {
-    ogates[i] = LookupEntry((hkey_t *)keys[i], default_gate);
+    ogates[i] = LookupEntry((wm_hkey_t *)keys[i], default_gate);
   }
 #else
   /* A version with an outer loop for tuples and an inner loop for pkts.
@@ -364,10 +259,10 @@ void WildcardMatch::ProcessBatch(struct pkt_batch *batch) {
   for (int i = 0; i < num_tuples_; i++) {
     const struct WmTuple *tuple = &tuples_[i];
     const struct htable *ht = &tuple->ht;
-    const hkey_t *tuple_mask = &tuple->mask;
+    const wm_hkey_t *tuple_mask = &tuple->mask;
 
     for (int j = 0; j < cnt; j++) {
-      hkey_t key_masked;
+      wm_hkey_t key_masked;
       struct WmData *cand;
 
       mask(&key_masked, keys[j], tuple_mask, key_size);
@@ -457,8 +352,55 @@ void WildcardMatch::CollectRules(const struct WmTuple *tuple,
   }
 }
 
-struct snobj *WildcardMatch::ExtractKeyMask(struct snobj *arg, hkey_t *key,
-                                            hkey_t *mask) {
+template <typename T>
+pb_error_t WildcardMatch::ExtractKeyMask(const T &arg, wm_hkey_t *key,
+                                         wm_hkey_t *mask) {
+  if ((size_t)arg.values_size() != num_fields_) {
+    return pb_error(EINVAL, "must specify %lu values", num_fields_);
+  } else if ((size_t)arg.masks_size() != num_fields_) {
+    return pb_error(EINVAL, "must specify %lu masks", num_fields_);
+  }
+
+  memset(key, 0, sizeof(*key));
+  memset(mask, 0, sizeof(*mask));
+
+  for (size_t i = 0; i < num_fields_; i++) {
+    int field_size = fields_[i].size;
+    int field_pos = fields_[i].pos;
+
+    uint64_t v = 0;
+    uint64_t m = 0;
+
+    int force_be = (fields_[i].attr_id < 0);
+
+    if (uint64_to_bin(reinterpret_cast<uint8_t *>(&v), field_size,
+                      arg.values(i), force_be || is_be_system())) {
+      return pb_error(EINVAL, "idx %lu: not a correct %d-byte value", i,
+                      field_size);
+    } else if (uint64_to_bin(reinterpret_cast<uint8_t *>(&m), field_size,
+                             arg.masks(i), force_be || is_be_system())) {
+      return pb_error(EINVAL, "idx %lu: not a correct %d-byte mask", i,
+                      field_size);
+    }
+
+    if (v & ~m) {
+      return pb_error(EINVAL,
+                      "idx %lu: invalid pair of "
+                      "value 0x%0*" PRIx64
+                      " and "
+                      "mask 0x%0*" PRIx64,
+                      i, field_size * 2, v, field_size * 2, m);
+    }
+
+    memcpy(reinterpret_cast<uint8_t *>(key) + field_pos, &v, field_size);
+    memcpy(reinterpret_cast<uint8_t *>(mask) + field_pos, &m, field_size);
+  }
+
+  return pb_errno(0);
+}
+
+struct snobj *WildcardMatch::ExtractKeyMask(struct snobj *arg, wm_hkey_t *key,
+                                            wm_hkey_t *mask) {
   struct snobj *values;
   struct snobj *masks;
 
@@ -517,7 +459,7 @@ struct snobj *WildcardMatch::ExtractKeyMask(struct snobj *arg, hkey_t *key,
   return nullptr;
 }
 
-int WildcardMatch::FindTuple(hkey_t *mask) {
+int WildcardMatch::FindTuple(wm_hkey_t *mask) {
   int key_size = total_key_size_;
 
   for (int i = 0; i < num_tuples_; i++) {
@@ -531,7 +473,7 @@ int WildcardMatch::FindTuple(hkey_t *mask) {
   return -ENOENT;
 }
 
-int WildcardMatch::AddTuple(hkey_t *mask) {
+int WildcardMatch::AddTuple(wm_hkey_t *mask) {
   struct WmTuple *tuple;
 
   int ret;
@@ -551,7 +493,7 @@ int WildcardMatch::AddTuple(hkey_t *mask) {
   return tuple - tuples_;
 }
 
-int WildcardMatch::AddEntry(struct WmTuple *tuple, hkey_t *key,
+int WildcardMatch::AddEntry(struct WmTuple *tuple, wm_hkey_t *key,
                             struct WmData *data) {
   int ret;
 
@@ -563,7 +505,7 @@ int WildcardMatch::AddEntry(struct WmTuple *tuple, hkey_t *key,
   return 0;
 }
 
-int WildcardMatch::DelEntry(struct WmTuple *tuple, hkey_t *key) {
+int WildcardMatch::DelEntry(struct WmTuple *tuple, wm_hkey_t *key) {
   int ret = tuple->ht.Del(key);
   if (ret) {
     return ret;
@@ -582,12 +524,91 @@ int WildcardMatch::DelEntry(struct WmTuple *tuple, hkey_t *key) {
   return 0;
 }
 
+pb_error_t WildcardMatch::CommandAdd(
+    const bess::protobuf::WildcardMatchCommandAddArg &arg) {
+  gate_idx_t gate = arg.gate();
+  int priority = arg.priority();
+
+  wm_hkey_t key;
+  wm_hkey_t mask;
+
+  struct WmData data;
+
+  pb_error_t err = ExtractKeyMask(arg, &key, &mask);
+  if (err.err() != 0) {
+    return err;
+  }
+
+  if (!is_valid_gate(gate)) {
+    return pb_error(EINVAL, "Invalid gate: %hu", gate);
+  }
+
+  data.priority = priority;
+  data.ogate = gate;
+
+  int idx = FindTuple(&mask);
+  if (idx < 0) {
+    idx = AddTuple(&mask);
+    if (idx < 0) {
+      return pb_error(-idx, "failed to add a new wildcard pattern");
+    }
+  }
+
+  int ret = AddEntry(&tuples_[idx], &key, &data);
+  if (ret < 0) {
+    return pb_error(-ret, "failed to add a rule");
+  }
+
+  return pb_errno(0);
+}
+
+pb_error_t WildcardMatch::CommandDelete(
+    const bess::protobuf::WildcardMatchCommandDeleteArg &arg) {
+  wm_hkey_t key;
+  wm_hkey_t mask;
+
+  pb_error_t err = ExtractKeyMask(arg, &key, &mask);
+  if (err.err() != 0) {
+    return err;
+  }
+
+  int idx = FindTuple(&mask);
+  if (idx < 0) {
+    return pb_error(-idx, "failed to delete a rule");
+  }
+
+  int ret = DelEntry(&tuples_[idx], &key);
+  if (ret < 0) {
+    return pb_error(-ret, "failed to delete a rule");
+  }
+
+  return pb_errno(0);
+}
+
+pb_error_t WildcardMatch::CommandClear(
+    const bess::protobuf::WildcardMatchCommandClearArg &arg) {
+  for (int i = 0; i < num_tuples_; i++) {
+    tuples_[i].ht.Clear();
+  }
+
+  return pb_errno(0);
+}
+
+pb_error_t WildcardMatch::CommandSetDefaultGate(
+    const bess::protobuf::WildcardMatchCommandSetDefaultGateArg &arg) {
+  int gate = arg.gate();
+
+  default_gate_ = gate;
+
+  return pb_errno(0);
+}
+
 struct snobj *WildcardMatch::CommandAdd(struct snobj *arg) {
   gate_idx_t gate = snobj_eval_uint(arg, "gate");
   int priority = snobj_eval_int(arg, "priority");
 
-  hkey_t key;
-  hkey_t mask;
+  wm_hkey_t key;
+  wm_hkey_t mask;
 
   struct WmData data;
 
@@ -624,8 +645,8 @@ struct snobj *WildcardMatch::CommandAdd(struct snobj *arg) {
 }
 
 struct snobj *WildcardMatch::CommandDelete(struct snobj *arg) {
-  hkey_t key;
-  hkey_t mask;
+  wm_hkey_t key;
+  wm_hkey_t mask;
 
   struct snobj *err = ExtractKeyMask(arg, &key, &mask);
   if (err) {

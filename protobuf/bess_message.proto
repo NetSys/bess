@@ -1,7 +1,7 @@
 syntax = "proto3";
 
 import "error.proto";
-package bess;
+package bess.protobuf;
 
 message Empty {
 
@@ -255,4 +255,20 @@ message GetDriverInfoResponse {
   string name = 2;
   string help = 3;
   repeated string commands = 4;
+}
+
+message ListMclassResponse {
+  Error error = 1;
+  repeated string name = 2;
+}
+
+message GetMclassInfoRequest {
+  string name = 1;
+}
+
+message GetMclassInfoResponse {
+  Error error = 1;
+  string name = 2;
+  string help = 3;
+  repeated string cmds = 4;
 }

@@ -1,23 +1,4 @@
-#include "../module.h"
-
-class MetadataTest : public Module {
- public:
-  struct snobj *Init(struct snobj *arg);
-  pb_error_t Init(const bess::MetadataTestArg &arg);
-
-  void ProcessBatch(struct pkt_batch *batch);
-
-  static const gate_idx_t kNumIGates = MAX_GATES;
-  static const gate_idx_t kNumOGates = MAX_GATES;
-
-  static const Commands<Module> cmds;
-
- private:
-  struct snobj *AddAttributes(struct snobj *attrs, enum bess::metadata::mt_access_mode mode);
-  pb_error_t AddAttributes(
-      const google::protobuf::Map<std::string, int64_t> &attrs,
-      enum bess::metadata::mt_access_mode mode);
-};
+#include "mttest.h"
 
 const Commands<Module> MetadataTest::cmds = {};
 
@@ -54,8 +35,8 @@ pb_error_t MetadataTest::AddAttributes(
   return pb_errno(0);
 }
 
-struct snobj *MetadataTest::AddAttributes(struct snobj *attrs,
-                                          enum bess::metadata::mt_access_mode mode) {
+struct snobj *MetadataTest::AddAttributes(
+    struct snobj *attrs, enum bess::metadata::mt_access_mode mode) {
   if (snobj_type(attrs) != TYPE_MAP) {
     return snobj_err(EINVAL,
                      "argument must be a map of "
@@ -93,7 +74,7 @@ struct snobj *MetadataTest::AddAttributes(struct snobj *attrs,
   return nullptr;
 }
 
-pb_error_t MetadataTest::Init(const bess::MetadataTestArg &arg) {
+pb_error_t MetadataTest::Init(const bess::protobuf::MetadataTestArg &arg) {
   pb_error_t err;
 
   err = AddAttributes(arg.read(), bess::metadata::MT_READ);

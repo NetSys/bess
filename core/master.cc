@@ -1,16 +1,16 @@
+#include <assert.h>
+#include <errno.h>
+#include <limits.h>
+#include <sched.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <limits.h>
 #include <unistd.h>
-#include <errno.h>
-#include <sched.h>
-#include <assert.h>
 
 #include <netinet/tcp.h>
 
-#include <sys/socket.h>
 #include <sys/epoll.h>
+#include <sys/socket.h>
 
 #include <rte_config.h>
 #include <rte_lcore.h>
@@ -18,9 +18,9 @@
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 
-#include "worker.h"
-#include "snobj.h"
 #include "snctl.h"
+#include "snobj.h"
+#include "worker.h"
 
 #include "master.h"
 
@@ -48,16 +48,19 @@ static void reset_core_affinity() {
   CPU_ZERO(&set);
 
   /* set all cores... */
-  for (i = 0; i < rte_lcore_count(); i++) CPU_SET(i, &set);
+  for (i = 0; i < rte_lcore_count(); i++)
+    CPU_SET(i, &set);
 
   /* ...and then unset the ones where workers run */
   for (i = 0; i < MAX_WORKERS; i++)
-    if (is_worker_active(i)) CPU_CLR(workers[i]->core(), &set);
+    if (is_worker_active(i))
+      CPU_CLR(workers[i]->core(), &set);
 
   rte_thread_set_affinity(&set);
 }
 
-static void wakeup_client(struct client *c) { /* XXX */ }
+static void wakeup_client(struct client *c) { /* XXX */
+}
 
 static int init_listen_fd(uint16_t port) {
   struct sockaddr_in s_addr;
@@ -113,7 +116,8 @@ static struct client *init_client(int fd, struct sockaddr_in c_addr) {
   setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &one, sizeof(one));
 
   c = (struct client *)mem_alloc(sizeof(struct client));
-  if (!c) return nullptr;
+  if (!c)
+    return nullptr;
 
   c->fd = fd;
   c->addr = c_addr;
@@ -152,7 +156,8 @@ static void close_client(struct client *c) {
     }
   }
 
-  if (is_holding_pause(c)) cdlist_del(&c->master_pause_holding);
+  if (is_holding_pause(c))
+    cdlist_del(&c->master_pause_holding);
 
   cdlist_del(&c->master_lock_waiting);
   cdlist_del(&c->master_all);
@@ -243,7 +248,8 @@ static void request_done(struct client *c) {
     }
 
     new_buf = (char *)mem_realloc(c->buf, c->msg_len);
-    if (!new_buf) goto err;
+    if (!new_buf)
+      goto err;
 
     c->buf = new_buf;
     c->buf_size = c->msg_len;
@@ -251,7 +257,8 @@ static void request_done(struct client *c) {
 
   memcpy(c->buf, buf, c->msg_len);
 
-  if (buf) _FREE(buf);
+  if (buf)
+    _FREE(buf);
 
   snobj_free(q);
   snobj_free(r);
@@ -332,7 +339,8 @@ static void client_recv(struct client *c) {
   assert(c->buf_off <= c->msg_len);
 
   /* request done? */
-  if (c->buf_off == c->msg_len) request_done(c);
+  if (c->buf_off == c->msg_len)
+    request_done(c);
 }
 
 static void client_send(struct client *c) {
@@ -366,7 +374,8 @@ static void client_send(struct client *c) {
   assert(c->buf_off <= c->msg_len);
 
   /* reponse done? */
-  if (c->buf_off == c->msg_len) response_done(c);
+  if (c->buf_off == c->msg_len)
+    response_done(c);
 }
 
 static void init_server() {
@@ -409,9 +418,7 @@ void SetupMaster() {
 
 void RunMaster() {
   struct client *c;
-
   struct epoll_event ev;
-
   int ret;
 
 again:
@@ -424,7 +431,8 @@ again:
   }
 
   if (ev.data.fd == master.listen_fd) {
-    if ((c = accept_client(master.listen_fd)) == nullptr) goto again;
+    if ((c = accept_client(master.listen_fd)) == nullptr)
+      goto again;
 
     LOG(INFO) << "Master: a new client from " << inet_ntoa(c->addr.sin_addr)
               << ":" << std::hex << c->addr.sin_port;

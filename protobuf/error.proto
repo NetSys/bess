@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package bess;
+package bess.protobuf;
 
 message Error {
   int32 err = 1;

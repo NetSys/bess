@@ -1,7 +1,7 @@
 #include <rte_launch.h>
 
-#include <glog/logging.h>
 #include <gflags/gflags.h>
+#include <glog/logging.h>
 
 #include "bessd.h"
 #include "dpdk.h"
@@ -29,7 +29,8 @@ int main(int argc, char *argv[]) {
   bess::bessd::CheckUniqueInstance(FLAGS_i);
   ignore_result(bess::bessd::SetResourceLimit());
 
-  // TODO(barath): Make these DPDK calls generic, so as to not be so tied to DPDK.
+  // TODO(barath): Make these DPDK calls generic, so as to not be so tied to
+  // DPDK.
   init_dpdk(argv[0], FLAGS_m, FLAGS_a);
   init_mempool();
 
@@ -57,4 +58,3 @@ int main(int argc, char *argv[]) {
 
   return 0;
 }
-
