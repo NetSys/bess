@@ -5,7 +5,9 @@
 
 #include <initializer_list>
 #include <memory>
+#include <regex>
 #include <sstream>
+#include <string>
 
 #include <rte_config.h>
 
@@ -49,16 +51,10 @@ std::string PortBuilder::GenerateDefaultPortName(
   std::string name_template;
 
   if (default_template == "") {
-    std::ostringstream ss;
-    char last_char = '\0';
-    for (auto t : default_template) {
-      if (last_char != '\0' && islower(last_char) && isupper(t))
-        ss << '_';
-
-      ss << tolower(t);
-      last_char = t;
-    }
-    name_template = ss.str();
+    name_template = driver_name;
+    name_template[0] = tolower(name_template[0]);
+    name_template = std::regex_replace(name_template, std::regex("[A-Z]"), "_$&");
+    std::transform(name_template.begin(), name_template.end(), name_template.begin(), ::tolower);
   } else {
     name_template = default_template;
   }
@@ -68,16 +64,18 @@ std::string PortBuilder::GenerateDefaultPortName(
     ss << name_template << i;
     std::string name = ss.str();
 
-    if (!all_ports_.count(name))
+    if (!all_ports_.count(name)) {
       return name;  // found an unallocated name!
+    }
   }
 
   promise_unreachable();
 }
 
 bool PortBuilder::InitPortClass() {
-  if (initialized_)
+  if (initialized_) {
     return false;
+  }
 
   std::unique_ptr<Port> p(port_generator_());
   p->InitDriver();
@@ -159,12 +157,14 @@ int Port::AcquireQueues(const struct module *m, packet_dir_t dir,
       user = users[dir][qid];
 
       /* the queue is already being used by someone else? */
-      if (user && user != m)
+      if (user && user != m) {
         return -EBUSY;
+      }
     }
 
-    for (qid = 0; qid < num_queues[dir]; qid++)
+    for (qid = 0; qid < num_queues[dir]; qid++) {
       users[dir][qid] = m;
+    }
 
     return 0;
   }
@@ -174,14 +174,16 @@ int Port::AcquireQueues(const struct module *m, packet_dir_t dir,
 
     qid = queues[i];
 
-    if (qid >= num_queues[dir])
+    if (qid >= num_queues[dir]) {
       return -EINVAL;
+    }
 
     user = users[dir][qid];
 
     /* the queue is already being used by someone else? */
-    if (user && user != m)
+    if (user && user != m) {
       return -EBUSY;
+    }
   }
 
   for (i = 0; i < num; i++) {
