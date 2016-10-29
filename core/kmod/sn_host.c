@@ -334,6 +334,7 @@ static int sn_host_do_rx_batch(struct sn_queue *queue,
 	int i;
 
 	max_cnt = min(max_cnt, MAX_BATCH);
+	max_cnt = min(max_cnt, (int)llring_free_count(queue->drv_to_sn));
 
 	cnt = llring_sc_dequeue_burst(queue->sn_to_drv,
 			(void **)paddr, max_cnt);
