@@ -1,35 +1,12 @@
 #include <rte_config.h>
 #include <rte_ether.h>
 
-#include "../module.h"
+#include "ether_encap.h"
 
 enum {
   ATTR_R_ETHER_SRC,
   ATTR_R_ETHER_DST,
   ATTR_R_ETHER_TYPE,
-};
-
-class EtherEncap : public Module {
- public:
-  void ProcessBatch(struct pkt_batch *batch);
-
-  int num_attrs = 5;
-  struct bess::metadata::mt_attr attrs[bess::metadata::kMaxAttrsPerModule] = {
-      {
-          .name = "ether_src", .size = ETHER_ADDR_LEN, .mode = bess::metadata::MT_READ,
-      },
-      {
-          .name = "ether_dst", .size = ETHER_ADDR_LEN, .mode = bess::metadata::MT_READ,
-      },
-      {
-          .name = "ether_type", .size = 2, .mode = bess::metadata::MT_READ,
-      },
-  };
-
-  static const gate_idx_t kNumIGates = 1;
-  static const gate_idx_t kNumOGates = 1;
-
-  static const Commands<Module> cmds;
 };
 
 const Commands<Module> EtherEncap::cmds = {};

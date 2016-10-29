@@ -1,42 +1,6 @@
-#include "../kmod/llring.h"
-
-#include "../module.h"
+#include "queue.h"
 
 #define DEFAULT_QUEUE_SIZE 1024
-
-class Queue : public Module {
- public:
-  Queue() : Module(), queue_(), prefetch_(), burst_() {}
-
-  virtual struct snobj *Init(struct snobj *arg);
-  virtual pb_error_t Init(const bess::QueueArg &arg);
-
-  virtual void Deinit();
-
-  virtual struct task_result RunTask(void *arg);
-  virtual void ProcessBatch(struct pkt_batch *batch);
-
-  virtual std::string GetDesc() const;
-
-  struct snobj *CommandSetBurst(struct snobj *arg);
-  struct snobj *CommandSetSize(struct snobj *arg);
-
-  pb_error_t CommandSetBurst(const bess::QueueCommandSetBurstArg &arg);
-  pb_error_t CommandSetSize(const bess::QueueCommandSetSizeArg &arg);
-
-  static const gate_idx_t kNumIGates = 1;
-  static const gate_idx_t kNumOGates = 1;
-
-  static const Commands<Module> cmds;
-
- private:
-  int Resize(int slots);
-  pb_error_t SetBurst(int64_t burst);
-  pb_error_t SetSize(uint64_t size);
-  struct llring *queue_ = {};
-  int prefetch_ = {};
-  int burst_ = {};
-};
 
 const Commands<Module> Queue::cmds = {
     {"set_burst", MODULE_FUNC &Queue::CommandSetBurst, 1},
@@ -81,7 +45,7 @@ int Queue::Resize(int slots) {
   return 0;
 }
 
-pb_error_t Queue::Init(const bess::QueueArg &arg) {
+pb_error_t Queue::Init(const bess::protobuf::QueueArg &arg) {
   task_id_t tid;
   pb_error_t err;
 
@@ -282,10 +246,12 @@ pb_error_t Queue::SetSize(uint64_t size) {
   return pb_errno(0);
 }
 
-pb_error_t Queue::CommandSetBurst(const bess::QueueCommandSetBurstArg &arg) {
+pb_error_t Queue::CommandSetBurst(
+    const bess::protobuf::QueueCommandSetBurstArg &arg) {
   return SetBurst(arg.burst());
 }
-pb_error_t Queue::CommandSetSize(const bess::QueueCommandSetSizeArg &arg) {
+pb_error_t Queue::CommandSetSize(
+    const bess::protobuf::QueueCommandSetSizeArg &arg) {
   return SetSize(arg.size());
 }
 

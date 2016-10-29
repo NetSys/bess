@@ -4,35 +4,27 @@
 
 #include <rte_byteorder.h>
 
-#include "../module.h"
 #include "../utils/simd.h"
-
-class VLANPush : public Module {
- public:
-  VLANPush() : Module(), vlan_tag_(), qinq_tag_() {}
-
-  virtual struct snobj *Init(struct snobj *arg);
-
-  virtual void ProcessBatch(struct pkt_batch *batch);
-
-  virtual std::string GetDesc() const;
-
-  struct snobj *CommandSetTci(struct snobj *arg);
-
-  static const gate_idx_t kNumIGates = 1;
-  static const gate_idx_t kNumOGates = 1;
-
-  static const Commands<Module> cmds;
-
- private:
-  /* network order */
-  uint32_t vlan_tag_;
-  uint32_t qinq_tag_;
-};
+#include "vlan_push.h"
 
 const Commands<Module> VLANPush::cmds = {
     {"set_tci", MODULE_FUNC &VLANPush::CommandSetTci, 0},
 };
+
+pb_error_t VLANPush::Init(const bess::protobuf::VLANPushArg &arg) {
+  return CommandSetTci(arg);
+}
+
+pb_error_t VLANPush::CommandSetTci(const bess::protobuf::VLANPushArg &arg) {
+  uint16_t tci;
+  tci = arg.tci();
+  if (tci > 0xffff) {
+    return pb_error(EINVAL, "TCI value must be 0-65535");
+  }
+  vlan_tag_ = htonl((0x8100 << 16) | tci);
+  qinq_tag_ = htonl((0x88a8 << 16) | tci);
+  return pb_errno(0);
+}
 
 struct snobj *VLANPush::Init(struct snobj *arg) {
   struct snobj *t;

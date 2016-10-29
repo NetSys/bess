@@ -5,7 +5,7 @@ const Commands<Module> RoundRobin::cmds = {
     {"set_gates", MODULE_FUNC &RoundRobin::CommandSetGates, 0},
 };
 
-pb_error_t RoundRobin::Init(const bess::RoundRobinArg &arg) {
+pb_error_t RoundRobin::Init(const bess::protobuf::RoundRobinArg &arg) {
   pb_error_t err;
   err = CommandSetGates(arg.gate_arg());
   if (err.err() != 0) {
@@ -19,12 +19,12 @@ pb_error_t RoundRobin::Init(const bess::RoundRobinArg &arg) {
 }
 
 pb_error_t RoundRobin::CommandSetMode(
-    const bess::RoundRobinCommandSetModeArg &arg) {
+    const bess::protobuf::RoundRobinCommandSetModeArg &arg) {
   switch (arg.mode()) {
-    case bess::RoundRobinCommandSetModeArg::PACKET:
+    case bess::protobuf::RoundRobinCommandSetModeArg::PACKET:
       per_packet_ = 1;
       break;
-    case bess::RoundRobinCommandSetModeArg::BATCH:
+    case bess::protobuf::RoundRobinCommandSetModeArg::BATCH:
       per_packet_ = 0;
       break;
     default:
@@ -34,7 +34,7 @@ pb_error_t RoundRobin::CommandSetMode(
 }
 
 pb_error_t RoundRobin::CommandSetGates(
-    const bess::RoundRobinCommandSetGatesArg &arg) {
+    const bess::protobuf::RoundRobinCommandSetGatesArg &arg) {
   if (arg.gates_size() > MAX_RR_GATES) {
     return pb_error(EINVAL, "no more than %d gates", MAX_RR_GATES);
   }

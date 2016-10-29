@@ -6,7 +6,7 @@
 #include "module_message.pb.h"
 #include <stdarg.h>
 
-typedef bess::Error pb_error_t;
+typedef bess::protobuf::Error pb_error_t;
 
 const std::string string_vformat(const char *fmt, va_list ap);
 

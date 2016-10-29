@@ -1,6 +1,6 @@
 #include <rte_byteorder.h>
 
-#include "../module.h"
+#include "split.h"
 
 #define MAX_SIZE 8
 
@@ -14,27 +14,28 @@ static inline int is_valid_gate(gate_idx_t gate) {
   return (gate < MAX_GATES || gate == DROP_GATE);
 }
 
-class Split : public Module {
- public:
-  Split() : Module(), mask_(), attr_id_(), offset_(), size_() {}
-
-  struct snobj *Init(struct snobj *arg);
-
-  void ProcessBatch(struct pkt_batch *batch);
-
-  static const gate_idx_t kNumIGates = 1;
-  static const gate_idx_t kNumOGates = MAX_GATES;
-
-  static const Commands<Module> cmds;
-
- private:
-  uint64_t mask_;
-  int attr_id_;
-  int offset_;
-  int size_;
-};
-
 const Commands<Module> Split::cmds = {};
+
+pb_error_t Split::Init(const bess::protobuf::SplitArg &arg) {
+  size_ = arg.size();
+  if (size_ < 1 || size_ > MAX_SIZE) {
+    return pb_error(EINVAL, "'size' must be 1-%d", MAX_SIZE);
+  }
+  mask_ = ((uint64_t)1 << (size_ * 8)) - 1;
+  const char *name = arg.name().c_str();
+  if (arg.name().length()) {
+    attr_id_ = AddMetadataAttr(name, size_, bess::metadata::MT_READ);
+    if (attr_id_ < 0)
+      return pb_error(-attr_id_, "add_metadata_attr() failed");
+  } else {
+    attr_id_ = -1;
+    offset_ = arg.offset();
+    if (offset_ < 0 || offset_ > 1024) {
+      return pb_error(EINVAL, "invalid 'offset'");
+    }
+  }
+  return pb_errno(0);
+}
 
 struct snobj *Split::Init(struct snobj *arg) {
   if (!arg || snobj_type(arg) != TYPE_MAP) {

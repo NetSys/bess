@@ -1,97 +1,7 @@
-#include <rte_config.h>
-#include <rte_hash_crc.h>
-
 #include <string>
 #include <vector>
 
-#include "../utils/htable.h"
-
-#include "../message.h"
-#include "../module.h"
-
-using google::protobuf::RepeatedField;
-
-#define MAX_FIELDS 8
-#define MAX_FIELD_SIZE 8
-static_assert(MAX_FIELD_SIZE <= sizeof(uint64_t),
-              "field cannot be larger than 8 bytes");
-
-#define HASH_KEY_SIZE (MAX_FIELDS * MAX_FIELD_SIZE)
-
-#if __BYTE_ORDER__ != __ORDER_LITTLE_ENDIAN__
-#error this code assumes little endian architecture (x86)
-#endif
-
-typedef struct { uint64_t u64_arr[MAX_FIELDS]; } hkey_t;
-
-static inline int em_keycmp(const void *key, const void *key_stored,
-                            size_t key_len) {
-  const uint64_t *a = ((hkey_t *)key)->u64_arr;
-  const uint64_t *b = ((hkey_t *)key_stored)->u64_arr;
-
-  switch (key_len >> 3) {
-    default:
-      promise_unreachable();
-    case 8:
-      if (unlikely(a[7] != b[7]))
-        return 1;
-    case 7:
-      if (unlikely(a[6] != b[6]))
-        return 1;
-    case 6:
-      if (unlikely(a[5] != b[5]))
-        return 1;
-    case 5:
-      if (unlikely(a[4] != b[4]))
-        return 1;
-    case 4:
-      if (unlikely(a[3] != b[3]))
-        return 1;
-    case 3:
-      if (unlikely(a[2] != b[2]))
-        return 1;
-    case 2:
-      if (unlikely(a[1] != b[1]))
-        return 1;
-    case 1:
-      if (unlikely(a[0] != b[0]))
-        return 1;
-  }
-
-  return 0;
-}
-
-static inline uint32_t em_hash(const void *key, uint32_t key_len,
-                               uint32_t init_val) {
-#if __SSE4_2__ && __x86_64
-  const uint64_t *a = ((hkey_t *)key)->u64_arr;
-
-  switch (key_len >> 3) {
-    default:
-      promise_unreachable();
-    case 8:
-      init_val = crc32c_sse42_u64(*a++, init_val);
-    case 7:
-      init_val = crc32c_sse42_u64(*a++, init_val);
-    case 6:
-      init_val = crc32c_sse42_u64(*a++, init_val);
-    case 5:
-      init_val = crc32c_sse42_u64(*a++, init_val);
-    case 4:
-      init_val = crc32c_sse42_u64(*a++, init_val);
-    case 3:
-      init_val = crc32c_sse42_u64(*a++, init_val);
-    case 2:
-      init_val = crc32c_sse42_u64(*a++, init_val);
-    case 1:
-      init_val = crc32c_sse42_u64(*a++, init_val);
-  }
-
-  return init_val;
-#else
-  return rte_hash_crc(key, key_len, init_val);
-#endif
-}
+#include "exact_match.h"
 
 // XXX: this is repeated in many modules. get rid of them when converting .h to
 // .hh, etc... it's in defined in some old header
@@ -99,95 +9,28 @@ static inline int is_valid_gate(gate_idx_t gate) {
   return (gate < MAX_GATES || gate == DROP_GATE);
 }
 
-struct EmField {
-  /* bits with 1: the bit must be considered.
-   * bits with 0: don't care */
-  uint64_t mask;
-
-  int attr_id; /* -1 for offset-based fields */
-
-  /* Relative offset in the packet data for offset-based fields.
-   *  (starts from data_off, not the beginning of the headroom */
-  int offset;
-
-  int pos; /* relative position in the key */
-
-  int size; /* in bytes. 1 <= size <= MAX_FIELD_SIZE */
-};
-
-class ExactMatch : public Module {
- public:
-  static const gate_idx_t kNumIGates = 1;
-  static const gate_idx_t kNumOGates = MAX_GATES;
-
-  ExactMatch()
-      : Module(),
-        default_gate_(),
-        total_key_size_(),
-        num_fields_(),
-        fields_(),
-        ht_() {}
-
-  virtual struct snobj *Init(struct snobj *arg);
-
-  virtual void Deinit();
-
-  virtual void ProcessBatch(struct pkt_batch *batch);
-
-  virtual std::string GetDesc() const;
-  virtual struct snobj *GetDump() const;
-
-  struct snobj *CommandAdd(struct snobj *arg);
-  struct snobj *CommandDelete(struct snobj *arg);
-  struct snobj *CommandClear(struct snobj *arg);
-  struct snobj *CommandSetDefaultGate(struct snobj *arg);
-
-  static const Commands<Module> cmds;
-
- private:
-  struct snobj *AddFieldOne(struct snobj *field, struct EmField *f, int idx);
-  struct snobj *GatherKey(struct snobj *fields, hkey_t *key);
-
-  pb_error_t Init(const bess::ExactMatchArg &arg);
-  pb_error_t CommandAdd(const bess::ExactMatchCommandAddArg &arg);
-  pb_error_t CommandDelete(const bess::ExactMatchCommandDeleteArg &arg);
-  pb_error_t CommandClear(const bess::ExactMatchCommandClearArg &arg);
-  pb_error_t CommandSetDefaultGate(
-      const bess::ExactMatchCommandSetDefaultGateArg &arg);
-  pb_error_t AddFieldOne(const bess::ExactMatchArg_Field &field,
-                         struct EmField *f, int idx);
-  pb_error_t GatherKey(const RepeatedField<uint64_t> &fields, hkey_t *key);
-
-  gate_idx_t default_gate_;
-
-  uint32_t total_key_size_;
-
-  int num_fields_;
-  struct EmField fields_[MAX_FIELDS];
-
-  HTable<hkey_t, gate_idx_t, em_keycmp, em_hash> ht_;
-};
-
 const Commands<Module> ExactMatch::cmds = {
     {"add", MODULE_FUNC &ExactMatch::CommandAdd, 0},
     {"delete", MODULE_FUNC &ExactMatch::CommandDelete, 0},
     {"clear", MODULE_FUNC &ExactMatch::CommandClear, 0},
     {"set_default_gate", MODULE_FUNC &ExactMatch::CommandSetDefaultGate, 1}};
 
-pb_error_t ExactMatch::AddFieldOne(const bess::ExactMatchArg_Field &field,
-                                   struct EmField *f, int idx) {
+pb_error_t ExactMatch::AddFieldOne(
+    const bess::protobuf::ExactMatchArg_Field &field, struct EmField *f,
+    int idx) {
   f->size = field.size();
   if (f->size < 1 || f->size > MAX_FIELD_SIZE) {
     return pb_error(EINVAL, "idx %d: 'size' must be 1-%d", idx, MAX_FIELD_SIZE);
   }
 
-  if (field.position_case() == bess::ExactMatchArg_Field::kName) {
+  if (field.position_case() == bess::protobuf::ExactMatchArg_Field::kName) {
     const char *attr = field.name().c_str();
     f->attr_id = AddMetadataAttr(attr, f->size, bess::metadata::MT_READ);
     if (f->attr_id < 0) {
       return pb_error(-f->attr_id, "idx %d: add_metadata_attr() failed", idx);
     }
-  } else if (field.position_case() == bess::ExactMatchArg_Field::kOffset) {
+  } else if (field.position_case() ==
+             bess::protobuf::ExactMatchArg_Field::kOffset) {
     f->attr_id = -1;
     f->offset = field.offset();
     if (f->offset < 0 || f->offset > 1024) {
@@ -306,7 +149,7 @@ struct snobj *ExactMatch::Init(struct snobj *arg) {
   return nullptr;
 }
 
-pb_error_t ExactMatch::Init(const bess::ExactMatchArg &arg) {
+pb_error_t ExactMatch::Init(const bess::protobuf::ExactMatchArg &arg) {
   int size_acc = 0;
 
   for (auto i = 0; i < arg.fields_size(); ++i) {
@@ -380,8 +223,8 @@ void ExactMatch::ProcessBatch(struct pkt_batch *batch) {
   }
 
   for (int i = 0; i < cnt; i++) {
-    gate_idx_t *ret =
-        static_cast<gate_idx_t *>(ht_.Get(reinterpret_cast<hkey_t *>(keys[i])));
+    gate_idx_t *ret = static_cast<gate_idx_t *>(
+        ht_.Get(reinterpret_cast<em_hkey_t *>(keys[i])));
     ogates[i] = ret ? *ret : default_gate;
   }
 
@@ -436,7 +279,7 @@ struct snobj *ExactMatch::GetDump() const {
   return r;
 }
 
-struct snobj *ExactMatch::GatherKey(struct snobj *fields, hkey_t *key) {
+struct snobj *ExactMatch::GatherKey(struct snobj *fields, em_hkey_t *key) {
   if (fields->size != static_cast<size_t>(num_fields_)) {
     return snobj_err(EINVAL, "must specify %d fields", num_fields_);
   }
@@ -464,7 +307,7 @@ struct snobj *ExactMatch::GatherKey(struct snobj *fields, hkey_t *key) {
 }
 
 pb_error_t ExactMatch::GatherKey(const RepeatedField<uint64_t> &fields,
-                                 hkey_t *key) {
+                                 em_hkey_t *key) {
   if (fields.size() != num_fields_) {
     return pb_error(EINVAL, "must specify %d fields", num_fields_);
   }
@@ -497,7 +340,7 @@ struct snobj *ExactMatch::CommandAdd(struct snobj *arg) {
   struct snobj *fields = snobj_eval(arg, "fields");
   gate_idx_t gate = snobj_eval_uint(arg, "gate");
 
-  hkey_t key;
+  em_hkey_t key;
 
   struct snobj *err;
   int ret;
@@ -526,8 +369,9 @@ struct snobj *ExactMatch::CommandAdd(struct snobj *arg) {
   return nullptr;
 }
 
-pb_error_t ExactMatch::CommandAdd(const bess::ExactMatchCommandAddArg &arg) {
-  hkey_t key;
+pb_error_t ExactMatch::CommandAdd(
+    const bess::protobuf::ExactMatchCommandAddArg &arg) {
+  em_hkey_t key;
   gate_idx_t gate = arg.gate();
   pb_error_t err;
   int ret;
@@ -553,7 +397,7 @@ pb_error_t ExactMatch::CommandAdd(const bess::ExactMatchCommandAddArg &arg) {
 }
 
 struct snobj *ExactMatch::CommandDelete(struct snobj *arg) {
-  hkey_t key;
+  em_hkey_t key;
 
   struct snobj *err;
   int ret;
@@ -575,8 +419,8 @@ struct snobj *ExactMatch::CommandDelete(struct snobj *arg) {
 }
 
 pb_error_t ExactMatch::CommandDelete(
-    const bess::ExactMatchCommandDeleteArg &arg) {
-  hkey_t key;
+    const bess::protobuf::ExactMatchCommandDeleteArg &arg) {
+  em_hkey_t key;
 
   pb_error_t err;
   int ret;
@@ -604,7 +448,7 @@ struct snobj *ExactMatch::CommandClear(struct snobj *arg) {
 }
 
 pb_error_t ExactMatch::CommandClear(
-    const bess::ExactMatchCommandClearArg &arg) {
+    const bess::protobuf::ExactMatchCommandClearArg &arg) {
   ht_.Clear();
 
   return pb_errno(0);
@@ -619,7 +463,7 @@ struct snobj *ExactMatch::CommandSetDefaultGate(struct snobj *arg) {
 }
 
 pb_error_t ExactMatch::CommandSetDefaultGate(
-    const bess::ExactMatchCommandSetDefaultGateArg &arg) {
+    const bess::protobuf::ExactMatchCommandSetDefaultGateArg &arg) {
   default_gate_ = arg.gate();
 
   return pb_errno(0);

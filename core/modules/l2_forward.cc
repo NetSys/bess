@@ -1,31 +1,12 @@
 #include <rte_byteorder.h>
 #include <rte_hash_crc.h>
 
-#include "../module.h"
 #include "../utils/simd.h"
+#include "l2_forward.h"
 
 #define MAX_TABLE_SIZE (1048576 * 64)
 #define DEFAULT_TABLE_SIZE 1024
 #define MAX_BUCKET_SIZE 4
-
-struct l2_entry {
-  union {
-    struct {
-      uint64_t addr : 48;
-      uint64_t gate : 15;
-      uint64_t occupied : 1;
-    };
-    uint64_t entry;
-  };
-};
-
-struct l2_table {
-  struct l2_entry *table;
-  uint64_t size;
-  uint64_t size_power;
-  uint64_t bucket;
-  uint64_t count;
-};
 
 typedef uint64_t mac_addr_t;
 
@@ -526,40 +507,6 @@ static int parse_mac_addr(const char *str, char *addr) {
 }
 
 /******************************************************************************/
-class L2Forward : public Module {
- public:
-  L2Forward() : Module(), l2_table_(), default_gate_() {}
-
-  virtual struct snobj *Init(struct snobj *arg);
-  virtual pb_error_t Init(const bess::L2ForwardArg &arg);
-
-  virtual void Deinit();
-
-  virtual void ProcessBatch(struct pkt_batch *batch);
-
-  struct snobj *CommandAdd(struct snobj *arg);
-  struct snobj *CommandDelete(struct snobj *arg);
-  struct snobj *CommandSetDefaultGate(struct snobj *arg);
-  struct snobj *CommandLookup(struct snobj *arg);
-  struct snobj *CommandPopulate(struct snobj *arg);
-
-  pb_error_t CommandAdd(const bess::L2ForwardCommandAddArg &arg);
-  pb_error_t CommandDelete(const bess::L2ForwardCommandDeleteArg &arg);
-  pb_error_t CommandSetDefaultGate(
-      const bess::L2ForwardCommandSetDefaultGateArg &arg);
-  bess::L2ForwardCommandLookupResponse CommandLookup(
-      const bess::L2ForwardCommandLookupArg &arg);
-  pb_error_t CommandPopulate(const bess::L2ForwardCommandPopulateArg &arg);
-
-  static const gate_idx_t kNumIGates = 1;
-  static const gate_idx_t kNumOGates = MAX_GATES;
-
-  static const Commands<Module> cmds;
-
- private:
-  struct l2_table l2_table_ = {0};
-  gate_idx_t default_gate_ = {0};
-};
 
 const Commands<Module> L2Forward::cmds = {
     {"add", MODULE_FUNC &L2Forward::CommandAdd, 0},
@@ -595,7 +542,7 @@ struct snobj *L2Forward::Init(struct snobj *arg) {
   return nullptr;
 }
 
-pb_error_t L2Forward::Init(const bess::L2ForwardArg &arg) {
+pb_error_t L2Forward::Init(const bess::protobuf::L2ForwardArg &arg) {
   int ret = 0;
   int size = arg.size();
   int bucket = arg.bucket();
@@ -641,7 +588,8 @@ void L2Forward::ProcessBatch(struct pkt_batch *batch) {
   RunSplit(ogates, batch);
 }
 
-pb_error_t L2Forward::CommandAdd(const bess::L2ForwardCommandAddArg &arg) {
+pb_error_t L2Forward::CommandAdd(
+    const bess::protobuf::L2ForwardCommandAddArg &arg) {
   for (int i = 0; i < arg.entries_size(); i++) {
     const auto &entry = arg.entries(i);
 
@@ -674,7 +622,7 @@ pb_error_t L2Forward::CommandAdd(const bess::L2ForwardCommandAddArg &arg) {
 }
 
 pb_error_t L2Forward::CommandDelete(
-    const bess::L2ForwardCommandDeleteArg &arg) {
+    const bess::protobuf::L2ForwardCommandDeleteArg &arg) {
   for (int i = 0; i < arg.addrs_size(); i++) {
     const auto &_addr = arg.addrs(i);
 
@@ -702,15 +650,15 @@ pb_error_t L2Forward::CommandDelete(
 }
 
 pb_error_t L2Forward::CommandSetDefaultGate(
-    const bess::L2ForwardCommandSetDefaultGateArg &arg) {
+    const bess::protobuf::L2ForwardCommandSetDefaultGateArg &arg) {
   default_gate_ = arg.gate();
   return pb_errno(0);
 }
 
-bess::L2ForwardCommandLookupResponse L2Forward::CommandLookup(
-    const bess::L2ForwardCommandLookupArg &arg) {
+bess::protobuf::L2ForwardCommandLookupResponse L2Forward::CommandLookup(
+    const bess::protobuf::L2ForwardCommandLookupArg &arg) {
   int i;
-  bess::L2ForwardCommandLookupResponse ret;
+  bess::protobuf::L2ForwardCommandLookupResponse ret;
   for (i = 0; i < arg.addrs_size(); i++) {
     const auto &_addr = arg.addrs(i);
 
@@ -752,7 +700,7 @@ bess::L2ForwardCommandLookupResponse L2Forward::CommandLookup(
 }
 
 pb_error_t L2Forward::CommandPopulate(
-    const bess::L2ForwardCommandPopulateArg &arg) {
+    const bess::protobuf::L2ForwardCommandPopulateArg &arg) {
   const char *base;
   char base_str[6] = {0};
   uint64_t base_u64;

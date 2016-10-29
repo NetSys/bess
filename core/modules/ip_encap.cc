@@ -2,7 +2,7 @@
 #include <rte_ether.h>
 #include <rte_ip.h>
 
-#include "../module.h"
+#include "ip_encap.h"
 
 enum {
   ATTR_R_IP_SRC,
@@ -10,35 +10,6 @@ enum {
   ATTR_R_IP_PROTO,
   ATTR_W_IP_NEXTHOP,
   ATTR_W_ETHER_TYPE,
-};
-
-class IPEncap : public Module {
- public:
-  virtual void ProcessBatch(struct pkt_batch *batch);
-
-  int num_attrs = 5;
-  struct bess::metadata::mt_attr attrs[bess::metadata::kMaxAttrsPerModule] = {
-      {
-          .name = "ip_src", .size = 4, .mode = bess::metadata::MT_READ,
-      },
-      {
-          .name = "ip_dst", .size = 4, .mode = bess::metadata::MT_READ,
-      },
-      {
-          .name = "ip_proto", .size = 1, .mode = bess::metadata::MT_READ,
-      },
-      {
-          .name = "ip_nexthop", .size = 4, .mode = bess::metadata::MT_WRITE,
-      },
-      {
-          .name = "ether_type", .size = 2, .mode = bess::metadata::MT_WRITE,
-      },
-  };
-
-  static const gate_idx_t kNumIGates = 1;
-  static const gate_idx_t kNumOGates = 1;
-
-  static const Commands<Module> cmds;
 };
 
 const Commands<Module> IPEncap::cmds = {};

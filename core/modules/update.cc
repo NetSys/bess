@@ -1,34 +1,6 @@
 #include <rte_byteorder.h>
 
-#include "../module.h"
-
-#define MAX_FIELDS 16
-
-class Update : public Module {
- public:
-  Update() : Module(), num_fields_(), fields_() {}
-
-  virtual struct snobj *Init(struct snobj *arg);
-
-  virtual void ProcessBatch(struct pkt_batch *batch);
-
-  struct snobj *CommandAdd(struct snobj *arg);
-  struct snobj *CommandClear(struct snobj *arg);
-
-  static const gate_idx_t kNumIGates = 1;
-  static const gate_idx_t kNumOGates = 1;
-
-  static const Commands<Module> cmds;
-
- private:
-  int num_fields_ = {};
-
-  struct field {
-    uint64_t mask;  /* bits with 1 won't be updated */
-    uint64_t value; /* in network order */
-    int16_t offset;
-  } fields_[MAX_FIELDS];
-};
+#include "update.h"
 
 const Commands<Module> Update::cmds = {
     {"add", MODULE_FUNC &Update::CommandAdd, 0},
@@ -47,6 +19,10 @@ struct snobj *Update::Init(struct snobj *arg) {
   }
 
   return CommandAdd(t);
+}
+
+pb_error_t Update::Init(const bess::protobuf::UpdateArg &arg) {
+  return CommandAdd(arg);
 }
 
 void Update::ProcessBatch(struct pkt_batch *batch) {
@@ -72,6 +48,60 @@ void Update::ProcessBatch(struct pkt_batch *batch) {
   RunNextModule(batch);
 }
 
+pb_error_t Update::CommandAdd(const bess::protobuf::UpdateArg &arg) {
+  int curr = num_fields_;
+
+  if (curr + arg.fields_size() > UPDATE_MAX_FIELDS) {
+    return pb_error(EINVAL,
+                    "max %d variables "
+                    "can be specified",
+                    UPDATE_MAX_FIELDS);
+  }
+
+  for (int i = 0; i < arg.fields_size(); i++) {
+    const auto &field = arg.fields(i);
+
+    uint8_t size;
+    int16_t offset;
+    uint64_t mask;
+    uint64_t value;
+
+    offset = field.offset();
+
+    size = field.size();
+    if (size < 1 || size > 8) {
+      return pb_error(EINVAL, "'size' must be 1-8");
+    }
+
+    const char *t = field.value().c_str();
+    memcpy(&value, t, size);
+
+    if (offset < 0) {
+      return pb_error(EINVAL, "too small 'offset'");
+    }
+
+    offset -= (8 - size);
+    mask = ((uint64_t)1 << ((8 - size) * 8)) - 1;
+
+    if (offset + 8 > SNBUF_DATA) {
+      return pb_error(EINVAL, "too large 'offset'");
+    }
+
+    fields_[curr + i].offset = offset;
+    fields_[curr + i].mask = mask;
+    fields_[curr + i].value = rte_cpu_to_be_64(value);
+  }
+
+  num_fields_ = curr + arg.fields_size();
+  return pb_errno(0);
+}
+
+pb_error_t Update::CommandClear(
+    const bess::protobuf::UpdateCommandClearArg &arg) {
+  num_fields_ = 0;
+  return pb_errno(0);
+}
+
 struct snobj *Update::CommandAdd(struct snobj *arg) {
   int curr = num_fields_;
 
@@ -79,11 +109,11 @@ struct snobj *Update::CommandAdd(struct snobj *arg) {
     return snobj_err(EINVAL, "argument must be a list of maps");
   }
 
-  if (curr + arg->size > MAX_FIELDS) {
+  if (curr + arg->size > UPDATE_MAX_FIELDS) {
     return snobj_err(EINVAL,
                      "max %d variables "
                      "can be specified",
-                     MAX_FIELDS);
+                     UPDATE_MAX_FIELDS);
   }
 
   for (size_t i = 0; i < arg->size; i++) {

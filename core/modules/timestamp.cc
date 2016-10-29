@@ -3,8 +3,8 @@
 #include <rte_ip.h>
 #include <rte_tcp.h>
 
-#include "../module.h"
 #include "../utils/histogram.h"
+#include "timestamp.h"
 
 static inline void timestamp_packet(struct snbuf *pkt, uint64_t time) {
   uint8_t *avail = static_cast<uint8_t *>(snb_head_data(pkt)) +
@@ -14,16 +14,6 @@ static inline void timestamp_packet(struct snbuf *pkt, uint64_t time) {
   uint64_t *ts = (uint64_t *)(avail + 1);
   *ts = time;
 }
-
-class Timestamp : public Module {
- public:
-  virtual void ProcessBatch(struct pkt_batch *batch);
-
-  static const gate_idx_t kNumIGates = 1;
-  static const gate_idx_t kNumOGates = 1;
-
-  static const Commands<Module> cmds;
-};
 
 const Commands<Module> Timestamp::cmds = {};
 

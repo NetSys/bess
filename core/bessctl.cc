@@ -3,13 +3,38 @@
 #include <rte_config.h>
 #include <rte_ether.h>
 
+#include <grpc++/server.h>
+#include <grpc++/server_builder.h>
+#include <grpc++/server_context.h>
+#include <grpc/grpc.h>
+
+#include "service.grpc.pb.h"
+
+#include "bessctl.h"
 #include "message.h"
 #include "module.h"
 #include "port.h"
-#include "service.grpc.pb.h"
 #include "tc.h"
 #include "utils/time.h"
 #include "worker.h"
+
+#include "modules/bpf.h"
+#include "modules/dump.h"
+#include "modules/exact_match.h"
+#include "modules/hash_lb.h"
+#include "modules/ip_lookup.h"
+#include "modules/l2_forward.h"
+#include "modules/measure.h"
+#include "modules/port_inc.h"
+#include "modules/queue.h"
+#include "modules/queue_inc.h"
+#include "modules/random_update.h"
+#include "modules/rewrite.h"
+#include "modules/round_robin.h"
+#include "modules/source.h"
+#include "modules/update.h"
+#include "modules/vlan_push.h"
+#include "modules/wildcard_match.h"
 
 using grpc::Server;
 using grpc::ServerBuilder;
@@ -19,52 +44,13 @@ using grpc::ServerReaderWriter;
 using grpc::ServerWriter;
 using grpc::Status;
 using grpc::ClientContext;
+using grpc::ServerBuilder;
 
-using bess::BESSControl;
-using bess::Error;
-using bess::Empty;
-using bess::AddTcRequest;
-using bess::AddWorkerRequest;
-using bess::AttachTaskRequest;
-using bess::ConnectModulesRequest;
-using bess::CreateModuleRequest;
-using bess::CreateModuleResponse;
-using bess::CreatePortRequest;
-using bess::CreatePortResponse;
-using bess::DestroyModuleRequest;
-using bess::DestroyPortRequest;
-using bess::DisableTcpdumpRequest;
-using bess::DisconnectModulesRequest;
-using bess::Empty;
-using bess::EnableTcpdumpRequest;
-using bess::Error;
-using bess::GetDriverInfoRequest;
-using bess::GetDriverInfoResponse;
-using bess::GetModuleInfoRequest;
-using bess::GetModuleInfoResponse;
-using bess::GetModuleInfoResponse_Attribute;
-using bess::GetModuleInfoResponse_IGate;
-using bess::GetModuleInfoResponse_IGate_OGate;
-using bess::GetModuleInfoResponse_OGate;
-using bess::GetPortStatsRequest;
-using bess::GetPortStatsResponse;
-using bess::GetPortStatsResponse_Stat;
-using bess::GetTcStatsRequest;
-using bess::GetTcStatsResponse;
-using bess::ListDriversResponse;
-using bess::ListModulesResponse;
-using bess::ListModulesResponse_Module;
-using bess::ListPortsResponse;
-using bess::ListTcsRequest;
-using bess::ListTcsResponse;
-using bess::ListTcsResponse_TrafficClassStatus;
-using bess::ListWorkersResponse;
-using bess::ListWorkersResponse_WorkerStatus;
-using bess::TrafficClass;
-using bess::TrafficClass_Resource;
-using bess::EmptyResponse;
+using namespace bess::protobuf;
 
 DECLARE_int32(c);
+// Capture the port command line flag.
+DECLARE_int32(p);
 
 template <typename T>
 static inline Status return_with_error(T* response, int code, const char* fmt,
@@ -153,12 +139,12 @@ static int collect_metadata(Module* m, GetModuleInfoResponse* response) {
 }
 
 template <typename T>
-static Port* create_port(const std::string& name, const PortBuilder& driver,
-                         queue_t num_inc_q, queue_t num_out_q,
-                         size_t size_inc_q, size_t size_out_q,
-                         const std::string& mac_addr_str, const T& arg,
-                         Error* perr) {
-  std::unique_ptr<Port> p;
+static ::Port* create_port(const std::string& name, const PortBuilder& driver,
+                           queue_t num_inc_q, queue_t num_out_q,
+                           size_t size_inc_q, size_t size_out_q,
+                           const std::string& mac_addr_str, const T& arg,
+                           pb_error_t* perr) {
+  std::unique_ptr<::Port> p;
   int ret;
 
   if (num_inc_q == 0)
@@ -239,7 +225,7 @@ static Port* create_port(const std::string& name, const PortBuilder& driver,
 
 template <typename T>
 static Module* create_module(const char* name, const ModuleBuilder& builder,
-                             const T& arg, bess::Error* perr) {
+                             const T& arg, pb_error_t* perr) {
   Module* m;
   std::string mod_name;
   if (name) {
@@ -256,7 +242,7 @@ static Module* create_module(const char* name, const ModuleBuilder& builder,
 
   m = builder.CreateModule(mod_name);
 
-  *perr = *m->Init(&arg);
+  *perr = m->Init(&arg);
   if (perr != nullptr) {
     ModuleBuilder::DestroyModule(m);  // XXX: fix me
     return nullptr;
@@ -579,7 +565,7 @@ class BESSControlImpl final : public BESSControl::Service {
     for (auto it = PortBuilder::all_ports().cbegin();
          it != PortBuilder::all_ports().end();) {
       auto it_next = std::next(it);
-      Port* p = it->second;
+      ::Port* p = it->second;
 
       int ret = PortBuilder::DestroyPort(p);
       if (ret)
@@ -594,8 +580,8 @@ class BESSControlImpl final : public BESSControl::Service {
   Status ListPorts(ClientContext* context, const Empty& request,
                    ListPortsResponse* response) {
     for (const auto& pair : PortBuilder::all_ports()) {
-      const Port* p = pair.second;
-      bess::Port* port = response->add_ports();
+      const ::Port* p = pair.second;
+      bess::protobuf::Port* port = response->add_ports();
 
       port->set_name(p->name());
       port->set_driver(p->port_builder()->class_name());
@@ -606,7 +592,7 @@ class BESSControlImpl final : public BESSControl::Service {
   Status CreatePort(ClientContext* context, const CreatePortRequest& request,
                     CreatePortResponse* response) {
     const char* driver_name;
-    Port* port;
+    ::Port* port;
 
     if (request.port().driver().length() == 0)
       return return_with_error(response, EINVAL, "Missing 'driver' field");
@@ -620,7 +606,7 @@ class BESSControlImpl final : public BESSControl::Service {
     }
 
     const PortBuilder& builder = it->second;
-    Error* error = response->mutable_error();
+    pb_error_t* error = response->mutable_error();
 
     switch (request.arg_case()) {
       case CreatePortRequest::kPcapArg:
@@ -766,7 +752,7 @@ class BESSControlImpl final : public BESSControl::Service {
     }
     const ModuleBuilder& builder = it->second;
 
-    Error* error = response->mutable_error();
+    pb_error_t* error = response->mutable_error();
 
     switch (request.arg_case()) {
       case CreateModuleRequest::kBpfArg:
@@ -922,6 +908,7 @@ class BESSControlImpl final : public BESSControl::Service {
                                request.wildcard_match_arg(), error);
         break;
       case CreateModuleRequest::ARG_NOT_SET:
+      default:
         return return_with_error(response, CreateModuleRequest::ARG_NOT_SET,
                                  "Missing argument");
     }
@@ -1204,4 +1191,245 @@ class BESSControlImpl final : public BESSControl::Service {
     /* Never called */
     return Status::OK;
   }
+
+  Status ListMclass(ClientContext* context, const Empty& request,
+                    ListMclassResponse* response) {
+    for (const auto& pair : ModuleBuilder::all_module_builders()) {
+      const ModuleBuilder& builder = pair.second;
+      response->add_name(builder.class_name());
+    }
+    return Status::OK;
+  }
+
+  Status GetMclassInfo(ClientContext* context,
+                       const GetMclassInfoRequest& request,
+                       GetMclassInfoResponse* response) {
+    if (!request.name().length()) {
+      return return_with_error(response, EINVAL,
+                               "Argument must be a name in str");
+    }
+
+    const std::string& cls_name = request.name();
+    const auto& it = ModuleBuilder::all_module_builders().find(cls_name);
+    if (it == ModuleBuilder::all_module_builders().end()) {
+      return return_with_error(response, ENOENT, "No module class '%s' found",
+                               cls_name.c_str());
+    }
+    const ModuleBuilder* cls = &it->second;
+
+    response->set_name(cls->class_name());
+    response->set_help(cls->help_text());
+    for (const std::string& cmd : cls->cmds()) {
+      response->add_cmds(cmd);
+    }
+    return Status::OK;
+  }
+
+  Status ModuleCommand(ClientContext* context,
+                       const ModuleCommandRequest& request,
+                       ModuleCommandResponse* response) {
+    if (!request.name().length()) {
+      return return_with_error(response->mutable_empty(), EINVAL,
+                               "Missing module name field 'name'");
+    }
+    const auto& it = ModuleBuilder::all_modules().find(request.name());
+    if (it == ModuleBuilder::all_modules().end()) {
+      return return_with_error(response->mutable_empty(), ENOENT,
+                               "No module '%s' found", request.name().c_str());
+    }
+    Module* m = it->second;
+    MeasureCommandGetSummaryResponse* summary;
+    L2ForwardCommandLookupResponse* lookup_result;
+
+    pb_error_t* error = response->mutable_empty()->mutable_error();
+
+    switch (request.cmd_case()) {
+      case ModuleCommandRequest::kBpfAddArg:
+        *error = reinterpret_cast<BPF*>(m)->CommandAdd(request.bpf_add_arg());
+        break;
+      case ModuleCommandRequest::kBpfClearArg:
+        *error =
+            reinterpret_cast<BPF*>(m)->CommandClear(request.bpf_clear_arg());
+        break;
+      case ModuleCommandRequest::kDumpSetIntervalArg:
+        *error = reinterpret_cast<Dump*>(m)->CommandSetInterval(
+            request.dump_set_interval_arg());
+        break;
+      case ModuleCommandRequest::kExactmatchAddArg:
+        *error = reinterpret_cast<ExactMatch*>(m)->CommandAdd(
+            request.exactmatch_add_arg());
+        break;
+      case ModuleCommandRequest::kExactmatchDeleteArg:
+        *error = reinterpret_cast<ExactMatch*>(m)->CommandDelete(
+            request.exactmatch_delete_arg());
+        break;
+      case ModuleCommandRequest::kExactmatchClearArg:
+        *error = reinterpret_cast<ExactMatch*>(m)->CommandSetDefaultGate(
+            request.exactmatch_set_default_gate_arg());
+        break;
+      case ModuleCommandRequest::kHashlbSetModeArg:
+        *error = reinterpret_cast<HashLB*>(m)->CommandSetMode(
+            request.hashlb_set_mode_arg());
+        break;
+      case ModuleCommandRequest::kHashlbSetGatesArg:
+        *error = reinterpret_cast<HashLB*>(m)->CommandSetGates(
+            request.hashlb_set_gates_arg());
+        break;
+      case ModuleCommandRequest::kIplookupAddArg:
+        *error = reinterpret_cast<IPLookup*>(m)->CommandAdd(
+            request.iplookup_add_arg());
+        break;
+      case ModuleCommandRequest::kIplookupClearArg:
+        *error = reinterpret_cast<IPLookup*>(m)->CommandClear(
+            request.iplookup_clear_arg());
+        break;
+      case ModuleCommandRequest::kL2ForwardAddArg:
+        *error = reinterpret_cast<L2Forward*>(m)->CommandAdd(
+            request.l2forward_add_arg());
+        break;
+      case ModuleCommandRequest::kL2ForwardDeleteArg:
+        *error = reinterpret_cast<L2Forward*>(m)->CommandDelete(
+            request.l2forward_delete_arg());
+        break;
+      case ModuleCommandRequest::kL2ForwardSetDefaultGateArg:
+        *error = reinterpret_cast<L2Forward*>(m)->CommandSetDefaultGate(
+            request.l2forward_set_default_gate_arg());
+        break;
+      case ModuleCommandRequest::kL2ForwardLookupArg:
+        lookup_result = response->mutable_l2forward_lookup();
+        *lookup_result = reinterpret_cast<L2Forward*>(m)->CommandLookup(
+            request.l2forward_lookup_arg());
+        break;
+      case ModuleCommandRequest::kL2ForwardPopulateArg:
+        *error = reinterpret_cast<L2Forward*>(m)->CommandPopulate(
+            request.l2forward_populate_arg());
+        break;
+      case ModuleCommandRequest::kMeasureGetSummaryArg:
+        summary = response->mutable_measure_summary();
+        *summary = reinterpret_cast<Measure*>(m)->CommandGetSummary(
+            request.measure_get_summary_arg());
+        break;
+      case ModuleCommandRequest::kPortincSetBurstArg:
+        *error = reinterpret_cast<PortInc*>(m)->CommandSetBurst(
+            request.portinc_set_burst_arg());
+        break;
+      case ModuleCommandRequest::kQueueincSetBurstArg:
+        *error = reinterpret_cast<QueueInc*>(m)->CommandSetBurst(
+            request.queueinc_set_burst_arg());
+        break;
+      case ModuleCommandRequest::kQueueSetSizeArg:
+        *error = reinterpret_cast<Queue*>(m)->CommandSetSize(
+            request.queue_set_size_arg());
+        break;
+      case ModuleCommandRequest::kQueueSetBurstArg:
+        *error = reinterpret_cast<Queue*>(m)->CommandSetBurst(
+            request.queue_set_burst_arg());
+        break;
+      case ModuleCommandRequest::kRandomUpdateAddArg:
+        *error = reinterpret_cast<RandomUpdate*>(m)->CommandAdd(
+            request.random_update_add_arg());
+        break;
+      case ModuleCommandRequest::kRandomUpdateClearArg:
+        *error = reinterpret_cast<RandomUpdate*>(m)->CommandClear(
+            request.random_update_clear_arg());
+        break;
+      case ModuleCommandRequest::kRewriteAddArg:
+        *error = reinterpret_cast<Rewrite*>(m)->CommandAdd(
+            request.rewrite_add_arg());
+        break;
+      case ModuleCommandRequest::kRewriteClearArg:
+        *error = reinterpret_cast<Rewrite*>(m)->CommandClear(
+            request.rewrite_clear_arg());
+        break;
+      case ModuleCommandRequest::kRoundrobinSetGatesArg:
+        *error = reinterpret_cast<RoundRobin*>(m)->CommandSetGates(
+            request.roundrobin_set_gates_arg());
+        break;
+      case ModuleCommandRequest::kRoundrobinSetModeArg:
+        *error = reinterpret_cast<RoundRobin*>(m)->CommandSetMode(
+            request.roundrobin_set_mode_arg());
+        break;
+      case ModuleCommandRequest::kSourceSetBurstArg:
+        *error = reinterpret_cast<Source*>(m)->CommandSetBurst(
+            request.source_set_burst_arg());
+        break;
+      case ModuleCommandRequest::kSourceSetPktSizeArg:
+        *error = reinterpret_cast<Source*>(m)->CommandSetPktSize(
+            request.source_set_pkt_size_arg());
+        break;
+      case ModuleCommandRequest::kUpdateAddArg:
+        *error =
+            reinterpret_cast<Update*>(m)->CommandAdd(request.update_add_arg());
+        break;
+      case ModuleCommandRequest::kUpdateClearArg:
+        *error = reinterpret_cast<Update*>(m)->CommandClear(
+            request.update_clear_arg());
+        break;
+      case ModuleCommandRequest::kVlanSetTciArg:
+        *error = reinterpret_cast<VLANPush*>(m)->CommandSetTci(
+            request.vlan_set_tci_arg());
+        break;
+      case ModuleCommandRequest::kWildcardAddArg:
+        *error = reinterpret_cast<WildcardMatch*>(m)->CommandAdd(
+            request.wildcard_add_arg());
+        break;
+      case ModuleCommandRequest::kWildcardDeleteArg:
+        *error = reinterpret_cast<WildcardMatch*>(m)->CommandDelete(
+            request.wildcard_delete_arg());
+        break;
+      case ModuleCommandRequest::kWildcardClearArg:
+        *error = reinterpret_cast<WildcardMatch*>(m)->CommandClear(
+            request.wildcard_clear_arg());
+        break;
+      case ModuleCommandRequest::kWildcardSetDefaultGateArg:
+        *error = reinterpret_cast<WildcardMatch*>(m)->CommandSetDefaultGate(
+            request.wildcard_set_default_gate_arg());
+        break;
+      case ModuleCommandRequest::CMD_NOT_SET:
+      default:
+        return return_with_error(response->mutable_empty(),
+                                 ModuleCommandRequest::CMD_NOT_SET,
+                                 "Missing cmd argument");
+    }
+    return Status::OK;
+  }
 };
+
+static void reset_core_affinity() {
+  cpu_set_t set;
+  unsigned int i;
+
+  CPU_ZERO(&set);
+
+  /* set all cores... */
+  for (i = 0; i < rte_lcore_count(); i++)
+    CPU_SET(i, &set);
+
+  /* ...and then unset the ones where workers run */
+  for (i = 0; i < MAX_WORKERS; i++)
+    if (is_worker_active(i))
+      CPU_CLR(workers[i]->core(), &set);
+
+  rte_thread_set_affinity(&set);
+}
+
+void SetupControl() {
+  reset_core_affinity();
+  ctx.SetNonWorker();
+}
+
+void RunControl() {
+  BESSControlImpl service;
+  std::string server_address;
+  ServerBuilder builder;
+
+  if (FLAGS_p) {
+    server_address = string_format("127.0.0.1:%d", FLAGS_p);
+    builder.AddListeningPort(server_address, grpc::InsecureServerCredentials());
+  }
+
+  builder.RegisterService(&service);
+  std::unique_ptr<Server> server(builder.BuildAndStart());
+  std::cout << "Server listening on " << server_address << std::endl;
+  server->Wait();
+}

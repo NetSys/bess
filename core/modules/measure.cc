@@ -5,10 +5,9 @@
 #include <rte_ip.h>
 #include <rte_tcp.h>
 
-#include "../utils/histogram.h"
 #include "../utils/time.h"
 
-#include "../module.h"
+#include "measure.h"
 
 inline int get_measure_packet(struct snbuf *pkt, uint64_t *time) {
   uint8_t *avail = (static_cast<uint8_t *>(snb_head_data(pkt)) +
@@ -21,41 +20,6 @@ inline int get_measure_packet(struct snbuf *pkt, uint64_t *time) {
 }
 
 /* XXX: currently doesn't support multiple workers */
-class Measure : public Module {
- public:
-  Measure()
-      : Module(),
-        hist_(),
-        start_time_(),
-        warmup_(),
-        pkt_cnt_(),
-        bytes_cnt_(),
-        total_latency_() {}
-
-  virtual struct snobj *Init(struct snobj *arg);
-  virtual pb_error_t Init(const bess::MeasureArg &arg);
-
-  virtual void ProcessBatch(struct pkt_batch *batch);
-
-  struct snobj *CommandGetSummary(struct snobj *arg);
-  bess::MeasureCommandGetSummaryResponse CommandGetSummary(
-      const bess::MeasureCommandGetSummaryArg &arg);
-
-  static const gate_idx_t kNumIGates = 1;
-  static const gate_idx_t kNumOGates = 1;
-
-  static const Commands<Module> cmds;
-
- private:
-  struct histogram hist_ = {0};
-
-  uint64_t start_time_;
-  int warmup_; /* second */
-
-  uint64_t pkt_cnt_;
-  uint64_t bytes_cnt_;
-  uint64_t total_latency_;
-};
 
 const Commands<Module> Measure::cmds = {
     {"get_summary", MODULE_FUNC &Measure::CommandGetSummary, 0},
@@ -71,7 +35,7 @@ struct snobj *Measure::Init(struct snobj *arg) {
   return nullptr;
 }
 
-pb_error_t Measure::Init(const bess::MeasureArg &arg) {
+pb_error_t Measure::Init(const bess::protobuf::MeasureArg &arg) {
   if (arg.warmup()) {
     warmup_ = arg.warmup();
   }
@@ -127,13 +91,13 @@ struct snobj *Measure::CommandGetSummary(struct snobj *arg) {
   return r;
 }
 
-bess::MeasureCommandGetSummaryResponse Measure::CommandGetSummary(
-    const bess::MeasureCommandGetSummaryArg &arg) {
+bess::protobuf::MeasureCommandGetSummaryResponse Measure::CommandGetSummary(
+    const bess::protobuf::MeasureCommandGetSummaryArg &arg) {
   uint64_t pkt_total = pkt_cnt_;
   uint64_t byte_total = bytes_cnt_;
   uint64_t bits = (byte_total + pkt_total * 24) * 8;
 
-  bess::MeasureCommandGetSummaryResponse r;
+  bess::protobuf::MeasureCommandGetSummaryResponse r;
   r.set_timestamp(get_epoch_time());
   r.set_packets(pkt_total);
   r.set_bits(bits);
