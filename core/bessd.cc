@@ -194,7 +194,7 @@ int StartDaemon() {
       LOG(INFO) << "Done (PID=" << pid << ")";
       exit(EXIT_SUCCESS);
     } else {
-      LOG(FATAL) << "Failed. (syslog may have details)";
+      PLOG(FATAL) << "Failed. (syslog may have details)";
     }
   } else {
     // Child process.
@@ -210,12 +210,12 @@ int StartDaemon() {
   return pipe_fds[write_end];
 }
 
-void SetResourceLimit() {
+bool SetResourceLimit() {
   struct rlimit limit = {.rlim_cur = 65536, .rlim_max = 262144};
 
   for (;;) {
     if (setrlimit(RLIMIT_NOFILE, &limit) == 0) {
-      return;
+      return true;
     }
 
     if (errno == EPERM && limit.rlim_cur >= 1024) {
@@ -225,16 +225,7 @@ void SetResourceLimit() {
     }
 
     LOG(WARNING) << "setrlimit() failed";
-    return;
-  }
-}
-
-void InitDrivers() {
-  for (auto &pair : PortBuilder::all_port_builders()) {
-    if (!const_cast<PortBuilder &>(pair.second).InitPortClass()) {
-      LOG(WARNING) << "Initializing driver (port class) "
-                   << pair.second.class_name() << " failed.";
-    }
+    return false;
   }
 }
 

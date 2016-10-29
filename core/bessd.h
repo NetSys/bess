@@ -33,11 +33,8 @@ void CheckUniqueInstance(const std::string &pidfile_path);
 // Starts BESS as a daemon running in the background.
 int StartDaemon();
 
-// Sets BESS's resource limit.
-void SetResourceLimit();
-
-// Initializes all drivers.
-void InitDrivers();
+// Sets BESS's resource limit.  Returns true upon success.
+bool SetResourceLimit();
 
 }  // namespace bessd
 }  // namespace bess

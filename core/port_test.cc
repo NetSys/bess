@@ -169,6 +169,15 @@ TEST_F(PortTest, InitPortClass) {
   EXPECT_FALSE(builder->InitPortClass());
 }
 
+// Checks that a port's driver is initialized when all drivers are initialized.
+TEST_F(PortTest, InitDrivers) {
+  ASSERT_FALSE(DummyPort::initialized());
+
+  PortBuilder::InitDrivers();
+
+  EXPECT_TRUE(DummyPort::initialized());
+}
+
 // Checks that when we register a portclass, the global table of PortBuilders
 // contains it.
 TEST(PortBuilderTest, RegisterPortClassDirectCall) {
