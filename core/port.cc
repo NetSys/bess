@@ -5,7 +5,6 @@
 
 #include <initializer_list>
 #include <memory>
-#include <regex>
 #include <sstream>
 #include <string>
 
@@ -51,10 +50,16 @@ std::string PortBuilder::GenerateDefaultPortName(
   std::string name_template;
 
   if (default_template == "") {
-    name_template = driver_name;
-    name_template[0] = tolower(name_template[0]);
-    name_template = std::regex_replace(name_template, std::regex("[A-Z]"), "_$&");
-    std::transform(name_template.begin(), name_template.end(), name_template.begin(), ::tolower);
+    std::ostringstream ss;
+    char last_char = '\0';
+    for (auto t : default_template) {
+      if (last_char != '\0' && islower(last_char) && isupper(t))
+        ss << '_';
+
+      ss << tolower(t);
+      last_char = t;
+    }
+    name_template = ss.str();
   } else {
     name_template = default_template;
   }

@@ -64,15 +64,15 @@ class ZeroCopyVPort : public Port {
   int SendPackets(queue_t qid, snb_array_t pkts, int cnt);
 
  private:
-  struct vport_bar *bar_ = {0};
+  struct vport_bar *bar_ = {};
 
-  struct vport_inc_regs *inc_regs_[MAX_QUEUES_PER_DIR] = {{0}};
-  struct llring *inc_qs_[MAX_QUEUES_PER_DIR] = {{0}};
+  struct vport_inc_regs *inc_regs_[MAX_QUEUES_PER_DIR] = {};
+  struct llring *inc_qs_[MAX_QUEUES_PER_DIR] = {};
 
-  struct vport_out_regs *out_regs_[MAX_QUEUES_PER_DIR] = {{0}};
-  struct llring *out_qs_[MAX_QUEUES_PER_DIR] = {{0}};
+  struct vport_out_regs *out_regs_[MAX_QUEUES_PER_DIR] = {};
+  struct llring *out_qs_[MAX_QUEUES_PER_DIR] = {};
 
-  int out_irq_fd_[MAX_QUEUES_PER_DIR] = {{0}};
+  int out_irq_fd_[MAX_QUEUES_PER_DIR] = {};
 };
 
 struct snobj *ZeroCopyVPort::Init(struct snobj *arg) {

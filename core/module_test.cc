@@ -9,7 +9,7 @@
 
 // Mocking out misc things  ------------------------------------------------
 
-__thread Worker ctx = {};
+thread_local Worker ctx;
 
 struct task *task_create(Module *m, void *arg) {
   return nullptr;

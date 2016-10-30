@@ -23,7 +23,7 @@ RUN cd /build/grpc && git submodule update --init && make -j && make install
 RUN cd /build/grpc/third_party/protobuf && make -j && make install
 
 # Same for Google benchmark
-RUN cd /build && git clone -b v1.0.0 https://github.com/google/benchmark && mkdir -p benchmark/build
-RUN cd /build/benchmark/build && cmake .. && make && make install
+RUN cd /build && git clone https://github.com/google/benchmark && cd benchmark && git checkout 4f8bfea
+RUN mkdir -p /build/benchmark/build && cd /build/benchmark/build && cmake .. && make && make install
 
 WORKDIR /build/bess

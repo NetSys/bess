@@ -29,7 +29,7 @@ LDFLAGS += -rdynamic -L$(DPDK_LIB_DIR) -Wl,-rpath=$(DPDK_LIB_DIR) -pthread
 LIBS += -Wl,-non_shared \
 	-Wl,--whole-archive -l$(DPDK_LIB) -Wl,--no-whole-archive \
 	-lglog -lgflags -lprotobuf -lgrpc++ -lgrpc \
-	-lssl -lcrypto -lcrypt -lunwind -llzma -lpcap \
+	-lssl -lcrypto -lunwind -llzma -lpcap \
 	-Wl,-call_shared \
 	-ldl
 
