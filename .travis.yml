@@ -5,6 +5,10 @@ language: cpp
 services:
   - docker
 
+cache:
+  directories:
+    - /tmp/docker
+
 env:
   - VER_CXX=g++-4.8 VER_CC=gcc-4.8
   - VER_CXX=g++-5 VER_CC=gcc-5
@@ -13,9 +17,10 @@ env:
 before_install:
   - sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
   - sudo apt-get -q update
+  - if [[ -d /tmp/docker ]]; then ls /tmp/docker/*.tar.gz | xargs -I {file} sh -c "zcat {file} | docker load"; fi
 
 install:
-  - sudo apt-get install -y g++-6 g++
+  - sudo apt-get install -y g++-4.8 g++-5 g++-6 g++
   - sudo apt-get install -y python
   - docker pull nefelinetworks/bess_build:latest
 
@@ -30,6 +35,11 @@ script:
   - ./container_build.py
   - ./container_build.py kmod_buildtest
   - sudo bin/bessd -g
+
+before_cache:
+  - >
+    mkdir -p /tmp/docker && docker images -a --filter='dangling=false' --format '{{.Repository}}:{{.Tag}} {{.ID}}'
+    | xargs -n 2 -t sh -c 'test -e /tmp/docker/$1.tar.gz || docker save $0 | gzip -2 > /tmp/docker/$1.tar.gz'
 
 notifications:
   slack: nefeli:x5udJ7nDIKjCaCrRYprGc4mw
