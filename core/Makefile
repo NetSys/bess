@@ -22,12 +22,16 @@ endif
 
 CXXFLAGS += -std=gnu++11 -g3 -ggdb3 -Ofast -march=native \
 	    -Wall -Werror -Wno-unused-function -Wno-unused-but-set-variable \
-	    -I$(DPDK_INC_DIR) \
+	    -isystem $(DPDK_INC_DIR) \
 	    -D_GNU_SOURCE
 
 LDFLAGS += -rdynamic -L$(DPDK_LIB_DIR) -Wl,-rpath=$(DPDK_LIB_DIR) -pthread
-LIBS += -Wl,--whole-archive -l$(DPDK_LIB) -Wl,--no-whole-archive \
-	-lm -lgflags -lglog -ldl -lrt -lpcap -lprotobuf -lgrpc++ -lgrpc++_reflection
+LIBS += -Wl,-non_shared \
+	-Wl,--whole-archive -l$(DPDK_LIB) -Wl,--no-whole-archive \
+	-lglog -lgflags -lprotobuf -lgrpc++ -lgrpc \
+	-lssl -lcrypto -lcrypt -lunwind -llzma -lpcap \
+	-Wl,-call_shared \
+	-ldl
 
 ifdef SANITIZE
     LDFLAGS += -fsanitize=address
@@ -35,7 +39,7 @@ ifdef SANITIZE
 endif
 
 ifdef COVERAGE
-	  LDFLAGS += -lgcov
+    LDFLAGS += -lgcov
     CXXFLAGS += --coverage -fprofile-arcs -ftest-coverage
 endif
 
