@@ -254,18 +254,18 @@ class VPort : public Port {
   pb_error_t SetIPAddr(const bess::protobuf::VPortArg &arg);
   struct snobj *SetIPAddr(struct snobj *arg);
 
-  int fd_ = {0};
+  int fd_ = {};
 
-  char ifname_[IFNAMSIZ] = {{0}}; /* could be different from Name() */
-  void *bar_ = {0};
+  char ifname_[IFNAMSIZ] = {}; /* could be different from Name() */
+  void *bar_ = {};
 
   struct queue inc_qs_[MAX_QUEUES_PER_DIR];
   struct queue out_qs_[MAX_QUEUES_PER_DIR];
 
-  struct sn_ioc_queue_mapping map_ = {{0}};
+  struct sn_ioc_queue_mapping map_ = {};
 
-  int netns_fd_ = {0};
-  int container_pid_ = {0};
+  int netns_fd_ = {};
+  int container_pid_ = {};
 };
 
 static int next_cpu;
