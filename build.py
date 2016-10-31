@@ -127,6 +127,7 @@ def check_essential():
         sys.exit(1)
 
     required('pcap/pcap.h', 'libpcap-dev')
+    required('zlib.h', 'zlib1g-dev')
     required_cxx('glog/logging.h', 'libgoogle-glog-dev', 'g++')
     required_cxx('gflags/gflags.h', 'libgflags-dev', 'g++')
     required_cxx('gtest/gtest.h', 'libgtest-dev', 'g++')
@@ -192,7 +193,6 @@ def configure_dpdk():
         print 'Configuring DPDK...'
         cmd('cp -f %s %s' % (DPDK_BASE_CONFIG, DPDK_FINAL_CONFIG))
 
-        check_bnx()
         check_mlx()
 
         generate_extra_mk()
