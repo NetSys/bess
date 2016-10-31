@@ -4,7 +4,7 @@ set -e
 
 REPOSITORY=${REPOSITORY:-nefelinetworks/bess_build}
 VERSION=${VERSION:-`date +%y%m%d`}
-docker build -t $REPOSITORY:latest -t $REPOSITORY:$VERSION .
+docker build --build-arg BESS_DPDK_BRANCH=${BESS_DPDK_BRANCH:-develop} -t $REPOSITORY:latest -t $REPOSITORY:$VERSION .
 
 echo Build succeeded: $REPOSITORY:$VERSION
 echo Build succeeded: $REPOSITORY:latest

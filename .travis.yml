@@ -6,18 +6,21 @@ services:
   - docker
 
 env:
-  - VER_CXX=g++-4.8 VER_CC=gcc-4.8
-  - VER_CXX=g++-5 VER_CC=gcc-5
-  - VER_CXX=g++-6 VER_CC=gcc-6
+  global:
+    - "IMAGE=nefelinetworks/bess_build:latest"
+  matrix:
+    - VER_CXX=g++-4.8 VER_CC=gcc-4.8
+    - VER_CXX=g++-5 VER_CC=gcc-5
+    - VER_CXX=g++-6 VER_CC=gcc-6
 
 before_install:
   - sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
   - sudo apt-get -q update
 
 install:
-  - sudo apt-get install -y g++-6 g++
   - sudo apt-get install -y python
-  - docker pull nefelinetworks/bess_build:latest
+  - ln -s /build/dpdk-16.07 deps
+  - docker pull $IMAGE
 
 before_script:
   - sudo sysctl -w vm.nr_hugepages=1024
@@ -27,7 +30,7 @@ before_script:
   - export CC=$VER_CC
 
 script:
-  - ./container_build.py
+  - ./container_build.py bess
   - ./container_build.py kmod_buildtest
   - sudo bin/bessd -g
 

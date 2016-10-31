@@ -61,7 +61,7 @@ def cmd_success(cmd):
     except subprocess.CalledProcessError:
         return False
 
-def check_cxx_header(header_file, compiler):
+def check_header(header_file, compiler):
     test_c_file = '%s/test.c' % DEPS_DIR
     test_o_file = '%s/test.o' % DEPS_DIR
 
@@ -81,12 +81,6 @@ def check_cxx_header(header_file, compiler):
         return cmd_success('%s -c %s -o %s' % (compiler, test_c_file, test_o_file))
     finally:
         cmd('rm -f %s %s' % (test_c_file, test_o_file))
-
-def check_c_header(header_file):
-    return check_cxx_header(header_file, 'gcc')
-
-def check_cpp_header(header_file):
-    return check_cxx_header(header_file, 'g++')
 
 def check_c_lib(lib):
     test_c_file = '%s/test.c' % DEPS_DIR
@@ -108,29 +102,31 @@ def check_c_lib(lib):
     finally:
         cmd('rm -f %s %s' % (test_c_file, test_e_file))
 
-def required_cxx(header_file, lib_name, compiler):
-    if not check_cxx_header(header_file, compiler):
+def required(header_file, lib_name, compiler):
+    if not check_header(header_file, compiler):
         print >> sys.stderr, 'Error - #include <%s> failed. ' \
                 'Did you install "%s" package?' % (header_file, lib_name)
         sys.exit(1)
-
-def required(header_file, lib_name):
-    required_cxx(header_file, lib_name, 'gcc')
 
 def check_essential():
     if not cmd_success('gcc -v'):
         print >> sys.stderr, 'Error - "gcc" is not available'
         sys.exit(1)
 
+    if not cmd_success('g++ -v'):
+        print >> sys.stderr, 'Error - "g++" is not available'
+        sys.exit(1)
+
     if not cmd_success('make -v'):
         print >> sys.stderr, 'Error - "make" is not available'
         sys.exit(1)
 
-    required('pcap/pcap.h', 'libpcap-dev')
-    required_cxx('glog/logging.h', 'libgoogle-glog-dev', 'g++')
-    required_cxx('gflags/gflags.h', 'libgflags-dev', 'g++')
-    required_cxx('gtest/gtest.h', 'libgtest-dev', 'g++')
-    required_cxx('benchmark/benchmark.h', 'https://github.com/google/benchmark',
+    required('pcap/pcap.h', 'libpcap-dev', 'gcc')
+    required('zlib.h', 'zlib1g-dev', 'gcc')
+    required('glog/logging.h', 'libgoogle-glog-dev', 'g++')
+    required('gflags/gflags.h', 'libgflags-dev', 'g++')
+    required('gtest/gtest.h', 'libgtest-dev', 'g++')
+    required('benchmark/benchmark.h', 'https://github.com/google/benchmark',
             'g++')
 
 def set_config(filename, config, new_value):
@@ -192,7 +188,6 @@ def configure_dpdk():
         print 'Configuring DPDK...'
         cmd('cp -f %s %s' % (DPDK_BASE_CONFIG, DPDK_FINAL_CONFIG))
 
-        check_bnx()
         check_mlx()
 
         generate_extra_mk()
@@ -202,7 +197,7 @@ def configure_dpdk():
     finally:
         cmd('rm -f %s' % DPDK_FINAL_CONFIG)
 
-def setup_dpdk():
+def build_dpdk():
     check_essential()
 
     if not os.path.exists(DPDK_DIR):
@@ -232,7 +227,7 @@ def build_bess():
     check_essential()
 
     if not os.path.exists('%s/build' % DPDK_DIR):
-        setup_dpdk()
+        build_dpdk()
 
     print 'Building BESS daemon...'
     cmd('bin/bessctl daemon stop 2> /dev/null || true')
@@ -243,15 +238,22 @@ def build_bess():
 def build_kmod():
     check_essential()
 
-    print 'Building BESS Linux kernel module... (optional)'
+    if os.getenv('KERNELDIR'):
+        print 'Building BESS kernel module (%s) ...' % \
+                os.getenv('KERNELDIR')
+    else:
+        print 'Building BESS kernel module (%s - running kernel) ...' % \
+                subprocess.check_output('uname -r', shell=True).strip()
+
     cmd('sudo -n rmmod bess 2> /dev/null || true')
     try:
         cmd('make -C core/kmod')
     except SystemExit:
         print >> sys.stderr, '*** module build has failed.'
+        sys.exit(1)
 
 def build_all():
-    setup_dpdk()
+    build_dpdk()
     build_bess()
     build_kmod()
     print 'Done.'
@@ -269,7 +271,7 @@ def do_dist_clean():
 
 def print_usage():
     print >> sys.stderr, \
-            'Usage: %s [all|bess|kmod|clean|dist_clean|help]' % \
+            'Usage: %s [all|dpdk|bess|kmod|clean|dist_clean|help]' % \
             sys.argv[0]
     sys.exit(2)
 
@@ -281,6 +283,8 @@ def main():
     elif len(sys.argv) == 2:
         if sys.argv[1] == 'all':
             build_all()
+        elif sys.argv[1] == 'dpdk':
+            build_dpdk()
         elif sys.argv[1] == 'bess':
             build_bess()
         elif sys.argv[1] == 'kmod':
