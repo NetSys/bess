@@ -97,4 +97,4 @@ if __name__ == '__main__':
         print 'Done.'
 
     finally:
-        run_docker_cmd('chown --reference=. . -R')
+        run_docker_cmd('chown -f --reference=. . -R')
