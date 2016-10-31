@@ -47,3 +47,11 @@ deps/*.gz
 doxygen/doxygen.errors
 doxygen/html/
 doxygen/latex/
+
+# Code coverage files
+core/*.gcda
+core/*.gcno
+core/*/*.gcda
+core/*/*.gcno
+core/coverage.info
+core/coverage-html-output/
