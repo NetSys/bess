@@ -16,8 +16,12 @@ else ifneq ($(wildcard $(RTE_SDK)/build/*),)
     DPDK_INC_DIR = $(RTE_SDK)/build/include
     DPDK_LIB_DIR = $(RTE_SDK)/build/lib
 else
-    $(error DPDK is not available. \
-            Make sure $(abspath $(RTE_SDK)) is available and built)
+    ifeq ($(words $(MAKECMDGOALS)),1)
+        ifneq ($(MAKECMDGOALS),clean)
+            $(error DPDK is not available. \
+                    Make sure $(abspath $(RTE_SDK)) is available and built)
+        endif
+    endif
 endif
 
 CXXFLAGS += -std=gnu++11 -g3 -ggdb3 -Ofast -march=native \
@@ -60,6 +64,7 @@ HEADERS = $(wildcard *.h utils/*.h modules/*.h drivers/*.h)
 TEST_SRCS = $(filter %_test.cc, $(ALL_SRCS))
 TEST_OBJS = $(TEST_SRCS:.cc=.o)
 TEST_EXEC = $(TEST_OBJS:%.o=%)
+TEST_ALL_EXEC = test_all
 
 BENCH_SRCS = $(filter %_bench.cc, $(ALL_SRCS))
 BENCH_OBJS = $(BENCH_SRCS:.cc=.o)
@@ -92,7 +97,8 @@ VERBOSE ?= 0
 all: $(EXEC) tests benchmarks
 
 clean:
-	rm -f $(DEPS) $(EXEC) $(TEST_EXEC) $(BENCH_EXEC) *.a *.pb.* *.o *.gcda *.gcno */*.gcda */*.gcno modules/*.o drivers/*.o utils/*.o
+	rm -f $(DEPS) $(EXEC) $(TEST_EXEC) $(TEST_ALL_EXEC) $(BENCH_EXEC) \
+		*.a *.pb.* *.o */*.o *.gcda *.gcno */*.gcda */*.gcno
 
 tags:
 	@ctags -R *
@@ -105,7 +111,7 @@ cscope:
 	cscope -b -q -k
 	@rm -f cscope.files
 
-tests: $(TEST_OBJS) $(TEST_EXEC) test_all
+tests: $(TEST_OBJS) $(TEST_EXEC) $(TEST_ALL_EXEC)
 
 benchmarks: $(BENCH_OBJS) $(BENCH_EXEC)
 
@@ -170,8 +176,8 @@ $(eval $(call BUILD, \
 
 $(eval $(call BUILD, \
 	TEST_LD, \
-	test_all, \
-	$(TEST_OBJS) bess.a gtest_main.a, \
+	$$(TEST_ALL_EXEC), \
+	$$(TEST_OBJS) bess.a gtest_main.a, \
 	$$(CXX) -o $$@ $$^ $$(LDFLAGS) $(LIBS)))
 
 $(eval $(call BUILD, \
