@@ -25,7 +25,8 @@ CXXFLAGS += -std=gnu++11 -g3 -ggdb3 -Ofast -march=native \
 	    -isystem $(DPDK_INC_DIR) \
 	    -D_GNU_SOURCE
 
-LDFLAGS += -rdynamic -L$(DPDK_LIB_DIR) -Wl,-rpath=$(DPDK_LIB_DIR) -pthread
+LDFLAGS += -rdynamic -L$(DPDK_LIB_DIR) -Wl,-rpath=$(DPDK_LIB_DIR) -pthread \
+	   -static-libstdc++
 LIBS += -Wl,-non_shared \
 	-Wl,--whole-archive -l$(DPDK_LIB) -Wl,--no-whole-archive \
 	-lglog -lgflags -lprotobuf -lgrpc++ -lgrpc \
@@ -34,13 +35,13 @@ LIBS += -Wl,-non_shared \
 	-ldl
 
 ifdef SANITIZE
-    LDFLAGS += -fsanitize=address
+    LDFLAGS += -fsanitize=address -static-libasan
     CXXFLAGS += -fsanitize=address -fno-omit-frame-pointer
 endif
 
 ifdef COVERAGE
-    LDFLAGS += -lgcov
-    CXXFLAGS += --coverage -fprofile-arcs -ftest-coverage
+    LDFLAGS += --coverage
+    CXXFLAGS += --coverage
 endif
 
 
@@ -83,7 +84,7 @@ else
 
 # parallel build by default
 CORES ?= $(shell nproc || echo 1)
-MAKEFLAGS += -j $(CORES)
+MAKEFLAGS += -j $(CORES) -Otarget
 VERBOSE ?= 0
 
 .PHONY: all clean tags deps cscope tests benchmarks protobuf
