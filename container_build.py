@@ -12,8 +12,7 @@ BESS_DIR_CONTAINER = '/build/bess'
 BUILD_SCRIPT = './build.py'
 
 def run_cmd(cmd):
-    proc = subprocess.Popen(cmd,
-            shell=True)
+    proc = subprocess.Popen(cmd, shell=True)
 
     # err should be None
     out, err = proc.communicate()
@@ -22,9 +21,12 @@ def run_cmd(cmd):
         print >> sys.stderr, 'Error has occured running host command: %s' % cmd
         sys.exit(proc.returncode)
 
+def shell_quote(cmd):
+        return "'" + cmd.replace("'", "'\\''") + "'"
+
 def run_docker_cmd(cmd):
-    run_cmd('docker run -e CC -e CXX --rm -t -v %s:%s %s %s' % \
-            (BESS_DIR_HOST, BESS_DIR_CONTAINER, IMAGE, cmd))
+    run_cmd('docker run -e CC -e CXX --rm -t -v %s:%s %s sh -c %s' % \
+            (BESS_DIR_HOST, BESS_DIR_CONTAINER, IMAGE, shell_quote(cmd)))
 
 def build_bess():
     run_docker_cmd('%s bess' % BUILD_SCRIPT)
@@ -33,18 +35,16 @@ def build_kmod():
     kernel_ver = subprocess.check_output('uname -r', shell=True).strip()
 
     try:
-        print 'Trying module build with the host kernel %s (optional)' % \
-                kernel_ver
         run_docker_cmd('%s kmod' % BUILD_SCRIPT)
     except:
         print >> sys.stderr, '*** module build has failed.'
 
 def build_kmod_buildtest():
-    kernels_to_test = '/usr/src/linux-headers-*-generic'
-    run_docker_cmd("sh -c 'ls -d %s' | xargs -n 1 " \
-                   "sh -c 'echo Building kernel module: $0; " \
-                          "KERNEL_DIR=$0 %s kmod'" % \
-                   (kernels_to_test, BUILD_SCRIPT))
+    kernels_to_test = '/lib/modules/*/build'
+    kmod_build = 'KERNELDIR=$0 %s kmod' % BUILD_SCRIPT
+
+    run_docker_cmd('ls -x -d %s | xargs -n 1 sh -c %s' % \
+            (kernels_to_test, shell_quote(kmod_build)))
 
 def build_all():
     build_bess()
