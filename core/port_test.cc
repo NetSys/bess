@@ -272,10 +272,12 @@ TEST(PortBuilderTest, RegisterPortClassMacroCall) {
 
 // Checks that we can generate a proper port name given a template or not.
 TEST(PortBuilderTest, GenerateDefaultPortNameTemplate) {
-  std::string name1 = PortBuilder::GenerateDefaultPortName("FooDriver", "foo");
+  std::string name1 = PortBuilder::GenerateDefaultPortName("FooPort", "foo");
   EXPECT_EQ("foo0", name1);
 
-  std::string name2 = PortBuilder::GenerateDefaultPortName("FooDriver", "");
-  EXPECT_EQ("foo_driver0", name2);
-}
+  std::string name2 = PortBuilder::GenerateDefaultPortName("FooPort", "");
+  EXPECT_EQ("foo_port0", name2);
 
+  std::string name3 = PortBuilder::GenerateDefaultPortName("FooABCPort", "");
+  EXPECT_EQ("foo_abcport0", name3);
+}

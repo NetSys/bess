@@ -130,6 +130,17 @@ TEST(ModuleBuilderTest, RegisterModuleClass) {
   ModuleBuilder::all_module_builders_holder(true);
 }
 
+TEST(ModuleBuilderTest, GenerateDefaultNameTemplate) {
+  std::string name1 = ModuleBuilder::GenerateDefaultName("FooBar", "foo");
+  EXPECT_EQ("foo0", name1);
+
+  std::string name2 = ModuleBuilder::GenerateDefaultName("FooBar", "");
+  EXPECT_EQ("foo_bar0", name2);
+
+  std::string name3 = ModuleBuilder::GenerateDefaultName("FooABCBar", "");
+  EXPECT_EQ("foo_abcbar0", name3);
+}
+
 // Check that module builders create modules correctly when given a name
 TEST_F(ModuleTester, CreateModuleWithName) {
   Module *m1, *m2;

@@ -52,11 +52,11 @@ std::string PortBuilder::GenerateDefaultPortName(
   if (default_template == "") {
     std::ostringstream ss;
     char last_char = '\0';
-    for (auto t : default_template) {
+    for (auto t : driver_name) {
       if (last_char != '\0' && islower(last_char) && isupper(t))
         ss << '_';
 
-      ss << tolower(t);
+      ss << char(tolower(t));
       last_char = t;
     }
     name_template = ss.str();
