@@ -105,7 +105,7 @@ cscope:
 	cscope -b -q -k
 	@rm -f cscope.files
 
-tests: $(TEST_OBJS) $(TEST_EXEC)
+tests: $(TEST_OBJS) $(TEST_EXEC) test_all
 
 benchmarks: $(BENCH_OBJS) $(BENCH_EXEC)
 
@@ -165,7 +165,13 @@ $(eval $(call BUILD, \
 $(eval $(call BUILD, \
 	TEST_LD, \
 	%_test, \
-	%_test.o %.o gtest_main.a bess.a, \
+	%_test.o bess.a gtest_main.a, \
+	$$(CXX) -o $$@ $$^ $$(LDFLAGS) $(LIBS)))
+
+$(eval $(call BUILD, \
+	TEST_LD, \
+	test_all, \
+	$(TEST_OBJS) bess.a gtest_main.a, \
 	$$(CXX) -o $$@ $$^ $$(LDFLAGS) $(LIBS)))
 
 $(eval $(call BUILD, \
@@ -198,7 +204,7 @@ $(eval $(call BUILD, \
 	%_bench.o %.o bess.a, \
 	$$(CXX) -o $$@ $$^ $$(LDFLAGS) -lbenchmark $(LIBS)))
 
-CORE_OBJS = $(filter-out main.o drivers/%.o modules/%.o %_bench.o, $(OBJS))
+CORE_OBJS = $(filter-out main.o %_bench.o, $(OBJS))
 
 $(eval $(call BUILD, \
 	AR, \

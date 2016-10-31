@@ -28,6 +28,7 @@ modules.order
 bessd
 
 # Unittest/benchmark executables
+core/test_all
 *_test
 *_bench
 
