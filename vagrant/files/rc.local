@@ -1,5 +1,7 @@
 #!/bin/sh -e
 
+mount --bind /opt/bess /home/vagrant/bess
+
 # skip if already mounted
 mount | grep -q /mnt/huge || mount -t hugetlbfs none /mnt/huge
 

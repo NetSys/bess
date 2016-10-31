@@ -8,4 +8,6 @@ sysctl -p
 mkdir -p /mnt/huge
 adduser --quiet vagrant adm
 adduser --quiet vagrant docker
-sudo -u vagrant ln -f -s /opt/bess ~vagrant/bess
+
+# ~vagrant/bess will be bind-mounted to /opt/bess in /etc/rc.local
+sudo -u vagrant mkdir -p /home/vagrant/bess
