@@ -36,7 +36,7 @@ before_script:
   - export CC=$VER_CC
 
 script:
-  - ./container_build.py
+  - ./container_build.py bess
   - ./container_build.py kmod_buildtest
   - sudo bin/bessd -g
 
