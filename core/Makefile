@@ -84,7 +84,7 @@ else
 
 # parallel build by default
 CORES ?= $(shell nproc || echo 1)
-MAKEFLAGS += -j $(CORES) -Otarget
+MAKEFLAGS += -j $(CORES)
 VERBOSE ?= 0
 
 .PHONY: all clean tags deps cscope tests benchmarks protobuf
