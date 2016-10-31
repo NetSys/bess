@@ -40,10 +40,10 @@ def build_kmod():
         print >> sys.stderr, '*** module build has failed.'
 
 def build_kmod_buildtest():
-    kernels_to_test = 'linux-headers-*-generic'
-    run_docker_cmd("find /usr/src -name '%s' -exec bash -c " \
-                   "'echo Building bessd module: {}; " \
-                   "KERNELDIR={} %s kmod' \;" % \
+    kernels_to_test = '/usr/src/linux-headers-*-generic'
+    run_docker_cmd("sh -c 'ls -d %s' | xargs -n 1 " \
+                   "sh -c 'echo Building kernel module: $0; " \
+                          "KERNEL_DIR=$0 %s kmod'" % \
                    (kernels_to_test, BUILD_SCRIPT))
 
 def build_all():
