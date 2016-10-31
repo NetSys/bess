@@ -140,7 +140,7 @@ def set_config(filename, config, new_value):
             fp.write(line)
 
 def check_bnx():
-    if check_c_header('zlib.h') and check_c_lib('z'):
+    if check_header('zlib.h', 'gcc') and check_c_lib('z'):
         global extra_libs
         extra_libs.add('z')
     else:
@@ -149,14 +149,14 @@ def check_bnx():
         set_config(DPDK_FINAL_CONFIG, 'CONFIG_RTE_LIBRTE_BNX2X_PMD', 'n')
 
 def check_mlx():
-    if check_c_header('infiniband/verbs_exp.h'):
+    if check_header('infiniband/verbs_exp.h', 'gcc'):
         global extra_libs
         extra_libs.add('ibverbs')
         #extra_libs.add('mlx5')
     else:
         print ' - "Mellanox OFED" is not available. ' \
                 'Disabling MLX4 and MLX5 PMDs...'
-        if check_c_header('infiniband/verbs.h'):
+        if check_header('infiniband/verbs.h', 'gcc'):
             print '   NOTE: "libibverbs-dev" does exist, but it does not ' \
                     'work with MLX PMDs. Instead download OFED from ' \
                     'http://www.melloanox.com'
