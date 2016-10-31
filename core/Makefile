@@ -60,11 +60,11 @@ TEST_SRCS = $(filter %_test.cc, $(ALL_SRCS))
 TEST_OBJS = $(TEST_SRCS:.cc=.o)
 TEST_EXEC = $(TEST_OBJS:%.o=%)
 
-BENCHMARK_SRCS = $(filter %_bench.cc, $(ALL_SRCS))
-BENCHMARK_OBJS = $(BENCHMARK_SRCS:.cc=.o)
-BENCHMARK_EXEC = $(BENCHMARK_OBJS:%.o=%)
+BENCH_SRCS = $(filter %_bench.cc, $(ALL_SRCS))
+BENCH_OBJS = $(BENCH_SRCS:.cc=.o)
+BENCH_EXEC = $(BENCH_OBJS:%.o=%)
 
-SRCS = $(filter-out $(TEST_SRCS) $(BENCHMARK_SRCS), $(ALL_SRCS)) $(PROTO_SRCS)
+SRCS = $(filter-out $(TEST_SRCS) $(BENCH_SRCS), $(ALL_SRCS)) $(PROTO_SRCS)
 OBJS = $(SRCS:.cc=.o)
 
 EXEC = bessd
@@ -91,7 +91,7 @@ VERBOSE ?= 0
 all: $(EXEC) tests benchmarks
 
 clean:
-	rm -f $(DEPS) $(EXEC) $(TEST_EXEC) $(BENCHMARK_EXEC) *.a *.pb.* *.o *.gcda *.gcno */*.gcda */*.gcno modules/*.o drivers/*.o utils/*.o
+	rm -f $(DEPS) $(EXEC) $(TEST_EXEC) $(BENCH_EXEC) *.a *.pb.* *.o *.gcda *.gcno */*.gcda */*.gcno modules/*.o drivers/*.o utils/*.o
 
 tags:
 	@ctags -R *
@@ -106,7 +106,7 @@ cscope:
 
 tests: $(TEST_OBJS) $(TEST_EXEC)
 
-benchmarks: $(BENCHMARK_OBJS) $(BENCHMARK_EXEC)
+benchmarks: $(BENCH_OBJS) $(BENCH_EXEC)
 
 protobuf: $(PROTO_SRCS)
 
@@ -120,9 +120,9 @@ $(2): $(3)
 	$$(eval _TYPE = $$(strip $(1)))
 	$$(eval _CMD = $$(strip $(4)))
 	@if [ $$(VERBOSE) -eq 0 ]; then \
-		printf "%-10s %s\n" [$$(_TYPE)] $$@; \
+		printf "%-11s %s\n" [$$(_TYPE)] $$@; \
 	else \
-		printf "%-10s %s\n" [$$(_TYPE)] $$(_CMD); \
+		printf "%-11s %s\n" [$$(_TYPE)] $$(_CMD); \
 	fi
 	@if ! $$(_CMD); then \
 		echo "Error: \033[0;31m$$@"; \
@@ -186,13 +186,13 @@ $(eval $(call BUILD, \
 	$$(AR) rcs $$@ $$^))
 
 $(eval $(call BUILD, \
-	BENCHMARK_CXX, \
+	BENCH_CXX, \
 	%_bench.o, \
 	%_bench.cc, \
 	$$(CXX) -o $$@ -c $$< $$(CXXFLAGS)))
 
 $(eval $(call BUILD, \
-	BENCHMARK_LD, \
+	BENCH_LD, \
 	%_bench, \
 	%_bench.o %.o bess.a, \
 	$$(CXX) -o $$@ $$^ $$(LDFLAGS) -lbenchmark $(LIBS)))
