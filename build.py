@@ -202,7 +202,7 @@ def configure_dpdk():
     finally:
         cmd('rm -f %s' % DPDK_FINAL_CONFIG)
 
-def setup_dpdk():
+def build_dpdk():
     check_essential()
 
     if not os.path.exists(DPDK_DIR):
@@ -232,7 +232,7 @@ def build_bess():
     check_essential()
 
     if not os.path.exists('%s/build' % DPDK_DIR):
-        setup_dpdk()
+        build_dpdk()
 
     print 'Building BESS daemon...'
     cmd('bin/bessctl daemon stop 2> /dev/null || true')
@@ -251,7 +251,7 @@ def build_kmod():
         print >> sys.stderr, '*** module build has failed.'
 
 def build_all():
-    setup_dpdk()
+    build_dpdk()
     build_bess()
     build_kmod()
     print 'Done.'
@@ -269,7 +269,7 @@ def do_dist_clean():
 
 def print_usage():
     print >> sys.stderr, \
-            'Usage: %s [all|bess|kmod|clean|dist_clean|help]' % \
+            'Usage: %s [all|dpdk|bess|kmod|clean|dist_clean|help]' % \
             sys.argv[0]
     sys.exit(2)
 
@@ -281,6 +281,8 @@ def main():
     elif len(sys.argv) == 2:
         if sys.argv[1] == 'all':
             build_all()
+        elif sys.argv[1] == 'dpdk':
+            build_dpdk()
         elif sys.argv[1] == 'bess':
             build_bess()
         elif sys.argv[1] == 'kmod':
