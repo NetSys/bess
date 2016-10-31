@@ -10,9 +10,12 @@ cache:
     - /tmp/docker
 
 env:
-  - VER_CXX=g++-4.8 VER_CC=gcc-4.8
-  - VER_CXX=g++-5 VER_CC=gcc-5
-  - VER_CXX=g++-6 VER_CC=gcc-6
+  global:
+    - "IMAGE=/nefelinetworks/bess_build:latest"
+  matrix:
+    - VER_CXX=g++-4.8 VER_CC=gcc-4.8
+    - VER_CXX=g++-5 VER_CC=gcc-5
+    - VER_CXX=g++-6 VER_CC=gcc-6
 
 before_install:
   - sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
@@ -22,7 +25,8 @@ before_install:
 install:
   - sudo apt-get install -y g++-4.8 g++-5 g++-6 g++
   - sudo apt-get install -y python
-  - docker pull nefelinetworks/bess_build:latest
+  - ln -s /build/dpdk-16.07 deps
+  - docker pull $IMAGE
 
 before_script:
   - sudo sysctl -w vm.nr_hugepages=1024
@@ -38,7 +42,7 @@ script:
 
 before_cache:
   - >
-    mkdir -p /tmp/docker && docker images -a --filter='dangling=false' --format '{{.Repository}}:{{.Tag}} {{.ID}}'
+    mkdir -p /tmp/docker && docker images $IMAGE --format '{{.Repository}}:{{.Tag}} {{.ID}}'
     | xargs -n 2 -t sh -c 'test -e /tmp/docker/$1.tar.gz || docker save $0 | gzip -2 > /tmp/docker/$1.tar.gz'
 
 notifications:
