@@ -11,7 +11,7 @@ cache:
 
 env:
   global:
-    - "IMAGE=/nefelinetworks/bess_build:latest"
+    - "IMAGE=nefelinetworks/bess_build:latest"
   matrix:
     - VER_CXX=g++-4.8 VER_CC=gcc-4.8
     - VER_CXX=g++-5 VER_CC=gcc-5
