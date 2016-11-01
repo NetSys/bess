@@ -1,111 +1,48 @@
 #include "pcap.h"
-struct snobj *PCAPPort::Init(struct snobj *conf) {
-  char errbuf[PCAP_ERRBUF_SIZE];
-  char *_dev = snobj_eval_str(conf, "dev");
 
-  if (!_dev) {
-    return snobj_err(EINVAL, "PCAP need to set dev option");
+PCAPPort::~PCAPPort() {
+  if (pcap_handle_.is_initialized()) {
+    DeInit();
   }
+}
 
-  const std::string dev(_dev);
-
-  // non-blocking pcap
-  pcap_handle_ = pcap_open_live(dev.c_str(), PCAP_SNAPLEN, 1, -1, errbuf);
-  if (pcap_handle_ == nullptr) {
-    return snobj_err(ENODEV, "PCAP Open dev error: %s", errbuf);
-  }
-
-  int ret = pcap_setnonblock(pcap_handle_, 1, errbuf);
-  if (ret != 0) {
-    return snobj_err(ENODEV, "PCAP set to nonblock error: %s", errbuf);
-  }
-
-  LOG(INFO) << "PCAP: open dev " << dev;
-
+// don't use
+struct snobj* PCAPPort::Init(struct snobj* conf) {
   return nullptr;
 }
 
-pb_error_t PCAPPort::Init(const bess::protobuf::PCAPPortArg &arg) {
-  char errbuf[PCAP_ERRBUF_SIZE];
+pb_error_t PCAPPort::Init(const bess::protobuf::PCAPPortArg& arg) {
+  if (pcap_handle_.is_initialized()) {
+    return pb_error(EINVAL, "Device already initialized.");
+  }
 
   const std::string dev = arg.dev();
-  if (dev.length() == 0) {
-    return pb_error(EINVAL, "PCAP need to set dev option");
-  }
-  // Non-blocking pcap.
-  pcap_handle_ = pcap_open_live(dev.c_str(), PCAP_SNAPLEN, 1, -1, errbuf);
-  if (pcap_handle_ == nullptr) {
-    return pb_error(ENODEV, "PCAP Open dev error: %s", errbuf);
-  }
+  pcap_handle_ = PcapHandle(dev);
 
-  int ret = pcap_setnonblock(pcap_handle_, 1, errbuf);
-  if (ret != 0) {
-    return pb_error(ENODEV, "PCAP set to nonblock error: %s", errbuf);
+  if (pcap_handle_.is_initialized()) {
+    return pb_errno(0);
+  } else {
+    return pb_error(EINVAL, "Error initializing device.");
   }
-
-  LOG(INFO) << "PCAP: open dev " << dev;
-
-  return pb_errno(0);
 }
 
 void PCAPPort::DeInit() {
-  if (pcap_handle_) {
-    pcap_close(pcap_handle_);
-    pcap_handle_ = nullptr;
+  if (pcap_handle_.is_initialized()) {
+    pcap_handle_.~PcapHandle();
   }
 }
 
-#if 0
-static int pcap_rx_jumbo(struct rte_mempool *mb_pool,
-		struct rte_mbuf *mbuf,
-		const u_char *data,
-		uint16_t data_len)
-{
-	struct rte_mbuf *m = mbuf;
-
-	/* Copy the first segment. */
-	uint16_t len = rte_pktmbuf_tailroom(mbuf);
-
-	rte_memcpy(rte_pktmbuf_append(mbuf, len), data, len);
-	data_len -= len;
-	data += len;
-
-	while (data_len > 0) {
-		/* Allocate next mbuf and point to that. */
-		m->next = rte_pktmbuf_alloc(mb_pool);
-
-		if (unlikely(!m->next))
-			return -1;
-
-		m = m->next;
-
-		/* Headroom is needed for VPort TX */
-
-		m->pkt_len = 0;
-		m->data_len = 0;
-
-		/* Copy next segment. */
-		len = MIN(rte_pktmbuf_tailroom(m), data_len);
-		rte_memcpy(rte_pktmbuf_append(m, len), data, len);
-
-		mbuf->nb_segs++;
-		data_len -= len;
-		data += len;
-	}
-
-	return mbuf->nb_segs;
-}
-#endif
-
 int PCAPPort::RecvPackets(queue_t qid, snb_array_t pkts, int cnt) {
-  const u_char *packet;
-  struct pcap_pkthdr header;
+  if (!pcap_handle_.is_initialized()) {
+    return 0;
+  }
 
   int recv_cnt = 0;
-  struct snbuf *sbuf;
+  struct snbuf* sbuf;
 
   while (recv_cnt < cnt) {
-    packet = pcap_next(pcap_handle_, &header);
+    int caplen = 0;
+    const u_char* packet = pcap_handle_.RecvPacket(&caplen);
     if (!packet) {
       break;
     }
@@ -115,23 +52,24 @@ int PCAPPort::RecvPackets(queue_t qid, snb_array_t pkts, int cnt) {
       break;
     }
 
-    if (header.caplen <= SNBUF_DATA) {
+    if (caplen <= SNBUF_DATA) {
       // pcap packet will fit in the mbuf, go ahead and copy.
-      rte_memcpy(rte_pktmbuf_append(&sbuf->mbuf, header.caplen), packet,
-                 header.caplen);
+      rte_memcpy(rte_pktmbuf_append(&sbuf->mbuf, caplen), packet, caplen);
     } else {
 /* FIXME: no support for chained mbuf for now */
 #if 0
-			/* Try read jumbo frame into multi mbufs. */
-			if (unlikely(pcap_rx_jumbo(sbuf->mbuf.pool,
-							&sbuf->mbuf,
-							packet,
-							header.caplen) == -1)) {
-				//drop all the mbufs.
-				snb_free(sbuf);
-				break;
-			}
+      /* Try read jumbo frame into multi mbufs. */
+      if (unlikely(pcap_rx_jumbo(sbuf->mbuf.pool,
+              &sbuf->mbuf,
+              packet,
+              caplen) == -1)) {
+        //drop all the mbufs.
+        snb_free(sbuf);
+        break;
+      }
 #else
+      RTE_LOG(ERR, PMD, "Dropping PCAP packet: Size (%d) > max size (%d).\n",
+              sbuf->mbuf.pkt_len, SNBUF_DATA);
       snb_free(sbuf);
       break;
 #endif
@@ -145,26 +83,27 @@ int PCAPPort::RecvPackets(queue_t qid, snb_array_t pkts, int cnt) {
 }
 
 int PCAPPort::SendPackets(queue_t qid, snb_array_t pkts, int cnt) {
+  if (!pcap_handle_.is_initialized()) {
+    return 0;  // TODO: Would like to raise an error here...
+  }
+
   int ret;
   int send_cnt = 0;
 
   while (send_cnt < cnt) {
-    struct snbuf *sbuf = pkts[send_cnt];
+    struct snbuf* sbuf = pkts[send_cnt];
 
     if (likely(sbuf->mbuf.nb_segs == 1)) {
-      ret = pcap_sendpacket(pcap_handle_, (const u_char *)snb_head_data(sbuf),
-                            sbuf->mbuf.pkt_len);
+      ret = pcap_handle_.SendPacket((const u_char*)snb_head_data(sbuf),
+                                    sbuf->mbuf.pkt_len);
+    } else if (sbuf->mbuf.pkt_len <= PCAP_SNAPLEN) {
+      unsigned char tx_pcap_data[PCAP_SNAPLEN];
+      GatherData(tx_pcap_data, &sbuf->mbuf);
+      ret = pcap_handle_.SendPacket(tx_pcap_data, sbuf->mbuf.pkt_len);
     } else {
-      if (sbuf->mbuf.pkt_len <= PCAP_SNAPLEN) {
-        GatherData(tx_pcap_data, &sbuf->mbuf);
-        ret = pcap_sendpacket(pcap_handle_, tx_pcap_data, sbuf->mbuf.pkt_len);
-      } else {
-        RTE_LOG(ERR, PMD,
-                "Dropping PCAP packet. "
-                "Size (%d) > max jumbo size (%d).\n",
-                sbuf->mbuf.pkt_len, PCAP_SNAPLEN);
-        break;
-      }
+      RTE_LOG(ERR, PMD, "PCAP Packet Drop. Size (%d) > max size (%d).\n",
+              sbuf->mbuf.pkt_len, PCAP_SNAPLEN);
+      break;
     }
 
     if (unlikely(ret != 0)) {
@@ -178,12 +117,11 @@ int PCAPPort::SendPackets(queue_t qid, snb_array_t pkts, int cnt) {
   return send_cnt;
 }
 
-// Copy data from mbuf chain to a buffer suitable for writing to a PCAP file.
-void PCAPPort::GatherData(unsigned char *data, struct rte_mbuf *mbuf) {
+void PCAPPort::GatherData(unsigned char* data, struct rte_mbuf* mbuf) {
   uint16_t data_len = 0;
 
   while (mbuf) {
-    rte_memcpy(data + data_len, rte_pktmbuf_mtod(mbuf, void *), mbuf->data_len);
+    rte_memcpy(data + data_len, rte_pktmbuf_mtod(mbuf, void*), mbuf->data_len);
 
     data_len += mbuf->data_len;
     mbuf = mbuf->next;
