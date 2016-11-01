@@ -8,11 +8,12 @@ services:
 env:
   global:
     - "IMAGE=nefelinetworks/bess_build:latest"
+    - GCOV_PREFIX_STRIP=2
   matrix:
     - VER_CXX=g++-4.8 VER_CC=gcc-4.8
     - VER_CXX=g++-5 VER_CC=gcc-5
     - VER_CXX=g++-6 VER_CC=gcc-6
-    - VER_CXX=g++ VER_CC=gcc COVERAGE=1 GCOV_PREFIX_STRIP=2
+    - VER_CXX=g++ VER_CC=gcc COVERAGE=1
 
 before_install:
   - sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
