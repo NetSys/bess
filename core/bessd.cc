@@ -29,10 +29,6 @@ void ProcessCommandLineArgs() {
     dump_types();
     exit(EXIT_SUCCESS);
   }
-  if (FLAGS_g) {
-    FLAGS_f = true;
-    FLAGS_p = 0; // Disable the control channel.
-  }
   if (FLAGS_f && !FLAGS_s) {
     LOG(INFO) << "TC statistics output is disabled (add -s option?)";
   }

@@ -5,7 +5,6 @@
 
 // TODO(barath): Rename these flags to something more intuitive.
 DECLARE_bool(t);
-DECLARE_bool(g);
 DECLARE_string(i);
 DECLARE_bool(f);
 DECLARE_bool(k);
