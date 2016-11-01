@@ -36,7 +36,7 @@ script:
   - core/all_test
 
 after_success:
-  - [[ ${COVERAGE:-0} != 0 ]] && bash <(curl -s https://codecov.io/bash)
+  - "[[ ${COVERAGE:-0} != 0 ]] && bash <(curl -s https://codecov.io/bash)"
 
 notifications:
   slack: nefeli:x5udJ7nDIKjCaCrRYprGc4mw
