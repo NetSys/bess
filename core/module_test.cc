@@ -12,6 +12,7 @@ namespace {
 // Mocking out misc things  ------------------------------------------------
 
 thread_local Worker ctx;
+static bess::metadata::Pipeline default_pipeline;
 
 struct task *task_create(Module *m, void *arg) {
   return nullptr;
@@ -100,7 +101,7 @@ int create_acme(const char *name, Module **m) {
                                                   builder.name_template());
   }
 
-  *m = builder.CreateModule(mod_name);
+  *m = builder.CreateModule(mod_name, &default_pipeline);
   builder.AddModule(*m);
 
   EXPECT_EQ("AcmeModule", builder.class_name());
@@ -216,4 +217,4 @@ TEST_F(ModuleTester, ResetModules) {
   EXPECT_EQ(0, ModuleBuilder::all_modules().size());
 }
 
-} // namespace (unnamed)
+}  // namespace (unnamed)

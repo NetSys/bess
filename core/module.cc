@@ -35,10 +35,12 @@ task_id_t task_to_tid(struct task *t) {
 
 // -------------------------------------------------------------------------
 
-Module *ModuleBuilder::CreateModule(const std::string &name) const {
+Module *ModuleBuilder::CreateModule(const std::string &name,
+                                    bess::metadata::Pipeline *pipeline) const {
   Module *m = module_generator_();
   m->set_name(name);
   m->set_module_builder(this);
+  m->set_pipeline(pipeline);
   return m;
 }
 
@@ -203,8 +205,9 @@ void Module::DestroyAllTasks() {
 }
 
 int Module::AddMetadataAttr(const std::string &name, int size,
-                            enum bess::metadata::mt_access_mode mode) {
-  int n = num_attrs;
+                            bess::metadata::AccessMode mode) {
+  size_t n = num_attrs;
+  int ret;
 
   if (n >= bess::metadata::kMaxAttrsPerModule)
     return -ENOSPC;
@@ -216,6 +219,9 @@ int Module::AddMetadataAttr(const std::string &name, int size,
   attrs[n].size = size;
   attrs[n].mode = mode;
   attrs[n].scope_id = -1;
+  if ((ret = pipeline_->RegisterAttribute(&attrs[n]))) {
+    return ret;
+  }
 
   num_attrs++;
 

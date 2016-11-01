@@ -25,7 +25,7 @@ pb_error_t ExactMatch::AddFieldOne(
 
   if (field.position_case() == bess::protobuf::ExactMatchArg_Field::kName) {
     const char *attr = field.name().c_str();
-    f->attr_id = AddMetadataAttr(attr, f->size, bess::metadata::MT_READ);
+    f->attr_id = AddMetadataAttr(attr, f->size, bess::metadata::AccessMode::READ);
     if (f->attr_id < 0) {
       return pb_error(-f->attr_id, "idx %d: add_metadata_attr() failed", idx);
     }
@@ -74,7 +74,7 @@ struct snobj *ExactMatch::AddFieldOne(struct snobj *field, struct EmField *f,
   const char *attr = static_cast<char *>(snobj_eval_str(field, "attr"));
 
   if (attr) {
-    f->attr_id = AddMetadataAttr(attr, f->size, bess::metadata::MT_READ);
+    f->attr_id = AddMetadataAttr(attr, f->size, bess::metadata::AccessMode::READ);
     if (f->attr_id < 0) {
       return snobj_err(-f->attr_id, "idx %d: add_metadata_attr() failed", idx);
     }
