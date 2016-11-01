@@ -1,0 +1,4 @@
+coverage:
+  ignore:          # files and folders that will be removed during processing
+    - ".*_test\.cc$"
+    - ".*_bench\.cc$"
