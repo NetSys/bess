@@ -54,5 +54,3 @@ core/*.gcda
 core/*.gcno
 core/*/*.gcda
 core/*/*.gcno
-core/coverage.info
-core/coverage-html-output/
