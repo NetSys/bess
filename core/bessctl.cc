@@ -346,7 +346,7 @@ class BESSControlImpl final : public BESSControl::Service {
 
       if (c->num_tasks) {
         return return_with_error(response, EBUSY, "TC %s still has %d tasks",
-                                 c->settings.name, c->num_tasks);
+                                 c->settings.name.c_str(), c->num_tasks);
       }
 
       if (c->settings.auto_free) {
@@ -464,7 +464,7 @@ class BESSControlImpl final : public BESSControl::Service {
     }
 
     memset(&params, 0, sizeof(params));
-    strcpy(params.name, tc_name);
+    params.name = tc_name;
 
     params.priority = request.class_().priority();
     if (params.priority == DEFAULT_PRIORITY)

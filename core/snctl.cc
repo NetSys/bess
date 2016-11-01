@@ -153,7 +153,7 @@ static struct snobj *handle_reset_tcs(struct snobj *q) {
     struct tc *c = it.second;
 
     if (c->num_tasks) {
-      return snobj_err(EBUSY, "TC %s still has %d tasks", c->settings.name,
+      return snobj_err(EBUSY, "TC %s still has %d tasks", c->settings.name.c_str(),
                        c->num_tasks);
     }
 
@@ -262,8 +262,7 @@ static struct snobj *handle_add_tc(struct snobj *q) {
   }
 
   memset(&params, 0, sizeof(params));
-
-  strcpy(params.name, tc_name);
+  params.name = tc_name;
 
   params.priority = snobj_eval_int(q, "priority");
   if (params.priority == DEFAULT_PRIORITY)
