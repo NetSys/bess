@@ -51,9 +51,9 @@ void VXLANEncap::ProcessBatch(struct pkt_batch *batch) {
   for (int i = 0; i < cnt; i++) {
     struct snbuf *pkt = batch->pkts[i];
 
-    uint32_t ip_src = get_attr(this, ATTR_R_TUN_IP_SRC, pkt, uint32_t);
-    uint32_t ip_dst = get_attr(this, ATTR_R_TUN_IP_DST, pkt, uint32_t);
-    uint32_t vni = get_attr(this, ATTR_R_TUN_ID, pkt, uint32_t);
+    uint32_t ip_src = get_attr<uint32_t>(this, ATTR_R_TUN_IP_SRC, pkt);
+    uint32_t ip_dst = get_attr<uint32_t>(this, ATTR_R_TUN_IP_DST, pkt);
+    uint32_t vni = get_attr<uint32_t>(this, ATTR_R_TUN_ID, pkt);
 
     struct ether_hdr *inner_ethh;
     struct udp_hdr *udph;
@@ -79,9 +79,9 @@ void VXLANEncap::ProcessBatch(struct pkt_batch *batch) {
     udph->dgram_len = rte_cpu_to_be_16(sizeof(*udph) + inner_frame_len);
     udph->dgram_cksum = rte_cpu_to_be_16(0);
 
-    set_attr(this, ATTR_W_IP_SRC, pkt, uint32_t, ip_src);
-    set_attr(this, ATTR_W_IP_DST, pkt, uint32_t, ip_dst);
-    set_attr(this, ATTR_W_IP_PROTO, pkt, uint8_t, IPPROTO_UDP);
+    set_attr<uint32_t>(this, ATTR_W_IP_SRC, pkt, ip_src);
+    set_attr<uint32_t>(this, ATTR_W_IP_DST, pkt, ip_dst);
+    set_attr<uint8_t>(this, ATTR_W_IP_PROTO, pkt, IPPROTO_UDP);
   }
 
   RunNextModule(batch);

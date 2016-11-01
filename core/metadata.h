@@ -5,63 +5,6 @@
 
 #include <string>
 
-// TODO(barath): Replace with inline template functions?  Also, these macros
-// need to live outside of the namespace because otherwise the expansion won't
-// work in all cases, but at the same time we want to eventually move them into
-// the namespace.
-//
-// Unsafe, but faster version. for offset use mt_attr_offset().
-#define _ptr_attr_with_offset(offset, pkt, type)            \
-  ({                                                        \
-    promise(offset >= 0);                                   \
-    struct snbuf *_pkt = (pkt);                             \
-    uintptr_t addr = (uintptr_t)(_pkt->_metadata + offset); \
-    (type *)addr;                                           \
-  })
-
-#define _get_attr_with_offset(offset, pkt, type) \
-  ({ *(_ptr_attr_with_offset(offset, pkt, type)); })
-
-#define _set_attr_with_offset(offset, pkt, type, val)   \
-  ((void)({                                             \
-    type _val = (val);                                  \
-    *(_ptr_attr_with_offset(offset, pkt, type)) = _val; \
-  }))
-
-// Safe version.
-#define ptr_attr_with_offset(offset, pkt, type)             \
-  ({                                                        \
-    bess::metadata::mt_offset_t _offset = (offset);         \
-    bess::metadata::IsValidOffset(_offset)                  \
-        ? (type *)_ptr_attr_with_offset(_offset, pkt, type) \
-        : (type *)nullptr;                                  \
-  })
-
-#define get_attr_with_offset(offset, pkt, type)                                              \
-  ({                                                                                         \
-    static type _zeroed;                                                                     \
-    bess::metadata::mt_offset_t _offset = (offset);                                          \
-    bess::metadata::IsValidOffset(_offset) ? (type)_get_attr_with_offset(_offset, pkt, type) \
-                             : (type)_zeroed;                                                \
-  })
-
-#define set_attr_with_offset(offset, pkt, type, val)  \
-  ((void)({                                           \
-    bess::metadata::mt_offset_t _offset = (offset);   \
-    if (bess::metadata::IsValidOffset(_offset))        \
-      _set_attr_with_offset(_offset, pkt, type, val); \
-  }))
-
-// Slowest but easiest.
-#define ptr_attr(module, attr_id, pkt, type) \
-  ptr_attr_with_offset(module->attr_offsets[attr_id], pkt, type)
-
-#define get_attr(module, attr_id, pkt, type) \
-  get_attr_with_offset(module->attr_offsets[attr_id], pkt, type)
-
-#define set_attr(module, attr_id, pkt, type, val) \
-  set_attr_with_offset(module->attr_offsets[attr_id], pkt, type, val)
-
 namespace bess {
 namespace metadata {
 

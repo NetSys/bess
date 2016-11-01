@@ -79,7 +79,7 @@ void Split::ProcessBatch(struct pkt_batch *batch) {
     for (int i = 0; i < cnt; i++) {
       struct snbuf *pkt = batch->pkts[i];
 
-      uint64_t val = get_attr(this, attr_id, pkt, uint64_t);
+      uint64_t val = get_attr<uint64_t>(this, attr_id, pkt);
       val &= mask_;
 
       if (is_valid_gate(val)) {

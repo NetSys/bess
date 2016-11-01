@@ -164,7 +164,7 @@ void GenericEncap::ProcessBatch(struct pkt_batch *batch) {
       struct snbuf *pkt = batch->pkts[j];
 
       *(uint64_t *)header =
-          (attr_id < 0) ? value : get_attr_with_offset(offset, pkt, uint64_t);
+          (attr_id < 0) ? value : get_attr_with_offset<uint64_t>(offset, pkt);
     }
   }
 

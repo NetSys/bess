@@ -12,7 +12,7 @@ static void CopyFromPacket(struct pkt_batch *batch, const struct Attr *attr,
     char *head = static_cast<char *>(snb_head_data(pkt));
     void *mt_ptr;
 
-    mt_ptr = _ptr_attr_with_offset(mt_off, pkt, value_t);
+    mt_ptr = _ptr_attr_with_offset<value_t>(mt_off, pkt);
     rte_memcpy(mt_ptr, head + pkt_off, size);
   }
 }
@@ -28,7 +28,7 @@ static void CopyFromValue(struct pkt_batch *batch, const struct Attr *attr,
     struct snbuf *pkt = batch->pkts[i];
     void *mt_ptr;
 
-    mt_ptr = _ptr_attr_with_offset(mt_off, pkt, value_t);
+    mt_ptr = _ptr_attr_with_offset<value_t>(mt_off, pkt);
     rte_memcpy(mt_ptr, val_ptr, size);
   }
 }

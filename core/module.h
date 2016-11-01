@@ -407,6 +407,81 @@ static inline int is_active_gate(struct gates *gates, gate_idx_t idx) {
 typedef struct snobj *(*mod_cmd_func_t)(struct module *, const char *,
                                         struct snobj *);
 
+// Unsafe, but faster version. for offset use mt_attr_offset().
+template<typename T>
+inline T* _ptr_attr_with_offset(bess::metadata::mt_offset_t offset, struct snbuf *pkt) {
+  promise(offset >= 0);
+  uintptr_t addr = (uintptr_t)(pkt->_metadata + offset);
+  return reinterpret_cast<T *>(addr);
+}
+
+template<typename T>
+inline T _get_attr_with_offset(bess::metadata::mt_offset_t offset, struct snbuf *pkt) {
+  return *_ptr_attr_with_offset<T>(offset, pkt);
+}
+
+template<typename T>
+inline void _set_attr_with_offset(bess::metadata::mt_offset_t offset,  struct snbuf *pkt, T val) {
+  *(_ptr_attr_with_offset<T>(offset, pkt)) = val;
+}
+
+// Safe version.
+template<typename T>
+inline T* ptr_attr_with_offset(bess::metadata::mt_offset_t offset, struct snbuf *pkt) {
+  return bess::metadata::IsValidOffset(offset)
+    ? _ptr_attr_with_offset<T>(offset, pkt)
+    : nullptr;
+}
+
+template<typename T>
+inline T get_attr_with_offset(bess::metadata::mt_offset_t offset, struct snbuf *pkt) {
+  T _zeroed = {};
+  return bess::metadata::IsValidOffset(offset)
+    ? _get_attr_with_offset<T>(offset, pkt)
+    : _zeroed;
+}
+
+template<typename T>
+inline void set_attr_with_offset(bess::metadata::mt_offset_t offset, struct snbuf *pkt, T val) {
+  if (bess::metadata::IsValidOffset(offset)) {
+    _set_attr_with_offset<T>(offset, pkt, val);
+  }
+}
+
+// Slowest but easiest.
+// TODO(melvin): These ought to be members of Module
+template<typename T>
+inline T* ptr_attr(Module *m, int attr_id, struct snbuf *pkt) {
+  return ptr_attr_with_offset<T>(m->attr_offsets[attr_id], pkt);
+}
+
+template<typename T>
+inline T get_attr(Module *m, int attr_id, struct snbuf *pkt) {
+  return get_attr_with_offset<T>(m->attr_offsets[attr_id], pkt);
+}
+
+template<typename T>
+inline void set_attr(Module *m, int attr_id, struct snbuf *pkt, T val) {
+  set_attr_with_offset(m->attr_offsets[attr_id], pkt, val);
+}
+
+// Define some common versions of the above functions
+#define INSTANTIATE_MT_FOR_TYPE(type) \
+  template type *_ptr_attr_with_offset(bess::metadata::mt_offset_t offset, struct snbuf *pkt); \
+  template type _get_attr_with_offset(bess::metadata::mt_offset_t offset, struct snbuf *pkt); \
+  template void _set_attr_with_offset(bess::metadata::mt_offset_t offset,  struct snbuf *pkt, type val); \
+  template type *ptr_attr_with_offset(bess::metadata::mt_offset_t offset, struct snbuf *pkt); \
+  template type get_attr_with_offset(bess::metadata::mt_offset_t offset, struct snbuf *pkt); \
+  template void set_attr_with_offset(bess::metadata::mt_offset_t offset, struct snbuf *pkt, type val); \
+  template type *ptr_attr< type >(Module *m, int attr_id, struct snbuf *pkt); \
+  template type get_attr< type >(Module *m, int attr_id, struct snbuf *pkt); \
+  template void set_attr<>(Module *m, int attr_id, struct snbuf *pkt, type val);
+
+INSTANTIATE_MT_FOR_TYPE(uint8_t)
+INSTANTIATE_MT_FOR_TYPE(uint16_t)
+INSTANTIATE_MT_FOR_TYPE(uint32_t)
+INSTANTIATE_MT_FOR_TYPE(uint64_t)
+
 #define ADD_MODULE(_MOD, _NAME_TEMPLATE, _HELP)                      \
   bool __module__##_MOD = ModuleBuilder::RegisterModuleClass(        \
       std::function<Module *()>([]() { return new _MOD(); }), #_MOD, \
