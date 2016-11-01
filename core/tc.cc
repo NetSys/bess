@@ -85,6 +85,7 @@ struct tc *tc_init(struct sched *s, const struct tc_params *params) {
   if (!c) oom_crash();
 
   if (!TCContainer::tcs.insert({params->name, c}).second) {
+    LOG(ERROR) << "Can't insert TC named " << params->name << "TCContainer::tcs.size()=" << TCContainer::tcs.size();
     mem_free(c);
     return (struct tc *)err_to_ptr(-EEXIST);
   }
@@ -470,7 +471,7 @@ static char *print_tc_stats_detail(struct sched *s, char *p, int max_cnt) {
 
   cdlist_for_each_entry(c, &s->tcs_all, sched_all) {
     if (num_printed < max_cnt) {
-      p += sprintf(p, "%12s", c->settings.name);
+      p += sprintf(p, "%12s", c->settings.name.c_str());
     } else {
       p += sprintf(p, " ...");
       break;
@@ -534,7 +535,7 @@ static char *print_tc_stats_simple(struct sched *s, char *p, int max_cnt) {
 
     c->last_stats = c->stats;
 
-    p += sprintf(p, "\tC%s %.1f%%(%.2fM) %.3fMpps %.1fMbps", c->settings.name,
+    p += sprintf(p, "\tC%s %.1f%%(%.2fM) %.3fMpps %.1fMbps", c->settings.name.c_str(),
                  cycles * 100.0 / tsc_hz, cnt / 1000000.0, pkts / 1000000.0,
                  bits / 1000000.0);
 
@@ -587,7 +588,7 @@ static void print_stats(struct sched *s, struct sched_stats *last_stats) {
   p = print_tc_stats_detail(s, p, 16);
 #endif
 
-  LOG(INFO) << buf;
+  fprintf(stderr, "%s\n", buf);
 }
 
 static inline struct task_result tc_scheduled(struct tc *c) {
@@ -606,27 +607,68 @@ static inline struct task_result tc_scheduled(struct tc *c) {
   return (struct task_result){.packets = 0, .bits = 0};
 }
 
+// Thread local variables that we only want to initialize upon sched_loop
+// getting invoked.
+static thread_local struct sched_stats last_stats;
+static thread_local uint64_t last_print_tsc;
+static thread_local uint64_t checkpoint;
+static thread_local uint64_t now;
+
+void print_last_stats(struct sched *s) {
+  print_stats(s, &last_stats);
+}
+
+void schedule_once(struct sched *s) {
+  static const double ns_per_cycle = 1e9 / tsc_hz;
+
+  /* Schedule (S) */
+  struct tc *c = sched_next(s, now);
+
+  if (c) {
+    /* Running (R) */
+    ctx.set_current_tsc(now); /* tasks see updated tsc */
+    ctx.set_current_ns(now * ns_per_cycle);
+    struct task_result ret = tc_scheduled(c);
+
+    now = rdtsc();
+
+    /* Accounting (A) */
+    resource_arr_t usage;
+    usage[RESOURCE_CNT] = 1;
+    usage[RESOURCE_CYCLE] = now - checkpoint;
+    usage[RESOURCE_PACKET] = ret.packets;
+    usage[RESOURCE_BIT] = ret.bits;
+
+    sched_done(s, c, usage, 1, now);
+  } else {
+    now = rdtsc();
+
+    s->stats.cnt_idle++;
+    s->stats.cycles_idle += (now - checkpoint);
+  }
+
+  checkpoint = now;
+}
+
 void sched_loop(struct sched *s) {
-  struct sched_stats last_stats = s->stats;
-  uint64_t last_print_tsc;
-  uint64_t checkpoint;
-  uint64_t now;
+  // How many rounds to go before we do accounting.
+  const uint64_t accounting_mask = 0xff; 
+  static_assert(((accounting_mask+1) & (accounting_mask)) == 0,
+                "Accounting mask must be a (2^n)-1");
 
-  const double ns_per_cycle = 1e9 / tsc_hz;
-
+  last_stats = s->stats;
   last_print_tsc = checkpoint = now = rdtsc();
 
   /* the main scheduling - running - accounting loop */
   for (uint64_t round = 0;; round++) {
-    struct tc *c;
-    struct task_result ret;
-    resource_arr_t usage;
-
     /* periodic check for every 2^8 rounds,
      * to mitigate expensive operations */
-    if ((round & 0xff) == 0) {
+    if ((round & accounting_mask) == 0) {
       if (unlikely(ctx.is_pause_requested())) {
-        if (unlikely(ctx.Block())) break;
+        if (unlikely(ctx.Block())) {
+          // TODO(barath): Add log message here?
+          break;
+        }
         last_stats = s->stats;
         last_print_tsc = checkpoint = now = rdtsc();
       } else if (unlikely(FLAGS_s && now - last_print_tsc >= tsc_hz)) {
@@ -636,32 +678,7 @@ void sched_loop(struct sched *s) {
       }
     }
 
-    /* Schedule (S) */
-    c = sched_next(s, now);
-
-    if (c) {
-      /* Running (R) */
-      ctx.set_current_tsc(now); /* tasks see updated tsc */
-      ctx.set_current_ns(now * ns_per_cycle);
-      ret = tc_scheduled(c);
-
-      now = rdtsc();
-
-      /* Accounting (A) */
-      usage[RESOURCE_CNT] = 1;
-      usage[RESOURCE_CYCLE] = now - checkpoint;
-      usage[RESOURCE_PACKET] = ret.packets;
-      usage[RESOURCE_BIT] = ret.bits;
-
-      sched_done(s, c, usage, 1, now);
-    } else {
-      now = rdtsc();
-
-      s->stats.cnt_idle++;
-      s->stats.cycles_idle += (now - checkpoint);
-    }
-
-    checkpoint = now;
+    schedule_once(s);
   }
 }
 
@@ -722,38 +739,4 @@ void sched_test_alloc() {
   sched_free(s);
 
   DLOG(INFO) << "SCHED: test passed";
-}
-
-void sched_test_perf() {
-#if 1
-  const int num_classes = 50; /* CPU bound */
-#else
-  const int num_classes = 1000; /* cache bound */
-#endif
-
-  struct sched *s;
-  struct tc *classes[num_classes];
-
-  int i;
-
-  s = sched_init();
-
-  for (i = 0; i < num_classes; i++) {
-    struct tc_params params = {};
-
-    params.parent = nullptr;
-    params.priority = 0;
-    params.share = 1;
-    params.share_resource = RESOURCE_BIT;
-
-    if (i % 3 == 0) params.limit[RESOURCE_PACKET] = 1e5;
-
-    if (i % 2 == 0) params.limit[RESOURCE_BIT] = 100e6;
-
-    classes[i] = tc_init(s, &params);
-  }
-
-  for (i = 0; i < num_classes; i++) tc_join(classes[i]);
-
-  sched_loop(s);
 }

@@ -18,9 +18,6 @@
 #define MAX_LIMIT_POW 36
 #define USAGE_AMPLIFIER_POW 32
 
-// TODO(barath): Remove this limitation once this code is ported to C++.
-#define TC_SN_NAME_LEN 32 /* including trailing null char */
-
 enum {
   RESOURCE_CNT = 0, /* how many times scheduled */
   RESOURCE_CYCLE,
@@ -59,7 +56,7 @@ struct pgroup {
 };
 
 struct tc_params {
-  char name[TC_SN_NAME_LEN];
+  std::string name;
 
   struct tc *parent;
 
@@ -198,9 +195,13 @@ void sched_free(struct sched *s);
 // struct tc *sched_next(struct sched *s);
 // void sched_done(struct sched *s, const uint32_t *usage, int reschedule);
 
+// Represents one iteration of the core scheduler loop.
+void schedule_once(struct sched *s);
+
 void sched_loop(struct sched *s);
 
 void sched_test_alloc();
-void sched_test_perf();
+
+void print_last_stats(struct sched *s);
 
 #endif
