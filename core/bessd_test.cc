@@ -20,18 +20,6 @@ TEST(ProcessCommandLineArgs, DumpTypes) {
   EXPECT_EXIT(ProcessCommandLineArgs(), ::testing::ExitedWithCode(EXIT_SUCCESS), "");
 }
 
-// Checks that FLAGS_g sets testing mode.
-TEST(ProcessCommandLineArgs, TestingMode) {
-  FLAGS_t = false;
-  FLAGS_f = false;
-  FLAGS_p = 1;
-
-  FLAGS_g = true;
-  ProcessCommandLineArgs();
-  EXPECT_TRUE(FLAGS_f);
-  EXPECT_EQ(0, FLAGS_p);
-}
-
 // Checks that running as non-root causes termination.
 TEST(CheckRunningAsRoot, NonRoot) {
   // Only do the test if we're not root.

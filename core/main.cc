@@ -47,11 +47,7 @@ int main(int argc, char *argv[]) {
     close(signal_fd);
   }
 
-  if (FLAGS_g) {
-    LOG(ERROR) << "Testing mode currently doesn't do anything.";
-  } else {
-    RunMaster();
-  }
+  RunMaster();
 
   rte_eal_mp_wait_lcore();
   close_mempool();
