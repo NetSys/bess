@@ -61,10 +61,10 @@ PROTOCFLAGS += --proto_path=$(PROTO_DIR) --cpp_out=. --grpc_out=. --plugin=proto
 ALL_SRCS = $(wildcard *.cc utils/*.cc modules/*.cc drivers/*.cc)
 HEADERS = $(wildcard *.h utils/*.h modules/*.h drivers/*.h)
 
-TEST_SRCS = $(filter %_test.cc, $(ALL_SRCS))
+TEST_SRCS = $(filter %_test.cc gtest_main.cc, $(ALL_SRCS))
 TEST_OBJS = $(TEST_SRCS:.cc=.o)
-TEST_EXEC = $(TEST_OBJS:%.o=%)
-TEST_ALL_EXEC = test_all
+TEST_EXEC = $(filter-out gtest_main, $(TEST_OBJS:%.o=%))
+TEST_ALL_EXEC = all_test
 
 BENCH_SRCS = $(filter %_bench.cc, $(ALL_SRCS))
 BENCH_OBJS = $(BENCH_SRCS:.cc=.o)
@@ -97,7 +97,7 @@ VERBOSE ?= 0
 all: $(EXEC) tests benchmarks
 
 clean:
-	rm -f $(DEPS) $(EXEC) $(TEST_EXEC) $(TEST_ALL_EXEC) $(BENCH_EXEC) \
+	rm -f $(DEPS) $(EXEC) *_test */*_test *_bench */*_bench \
 		*.a *.pb.* *.o */*.o *.gcda *.gcno */*.gcda */*.gcno
 
 tags:
@@ -171,13 +171,13 @@ $(eval $(call BUILD, \
 $(eval $(call BUILD, \
 	TEST_LD, \
 	%_test, \
-	%_test.o bess.a gtest_main.a, \
+	%_test.o gtest-all.o gtest_main.o bess.a, \
 	$$(CXX) -o $$@ $$^ $$(LDFLAGS) $(LIBS)))
 
 $(eval $(call BUILD, \
 	TEST_LD, \
 	$$(TEST_ALL_EXEC), \
-	$$(TEST_OBJS) bess.a gtest_main.a, \
+	$$(TEST_OBJS) gtest-all.o bess.a, \
 	$$(CXX) -o $$@ $$^ $$(LDFLAGS) $(LIBS)))
 
 $(eval $(call BUILD, \
@@ -185,18 +185,6 @@ $(eval $(call BUILD, \
 	gtest-all.o, \
 	$$(GTEST_DIR)/src/gtest-all.cc, \
 	$$(CXX) -o $$@ -c $$< -I$$(GTEST_DIR) $$(CXXFLAGS)))
-
-$(eval $(call BUILD, \
-	TEST_CXX, \
-	gtest_main.o, \
-	$$(GTEST_DIR)/src/gtest_main.cc, \
-	$$(CXX) -o $$@ -c $$< -I$$(GTEST_DIR) $$(CXXFLAGS)))
-
-$(eval $(call BUILD, \
-	TEST_AR, \
-	gtest_main.a, \
-	gtest-all.o gtest_main.o, \
-	$$(AR) rcs $$@ $$^))
 
 $(eval $(call BUILD, \
 	BENCH_CXX, \
