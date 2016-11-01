@@ -25,7 +25,7 @@ def shell_quote(cmd):
         return "'" + cmd.replace("'", "'\\''") + "'"
 
 def run_docker_cmd(cmd):
-    run_cmd('docker run -e CC -e CXX --rm -t -v %s:%s %s sh -c %s' % \
+    run_cmd('docker run -e CC -e CXX -e COVERAGE --rm -t -v %s:%s %s sh -c %s' % \
             (BESS_DIR_HOST, BESS_DIR_CONTAINER, IMAGE, shell_quote(cmd)))
 
 def build_bess():
