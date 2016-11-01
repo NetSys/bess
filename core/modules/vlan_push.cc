@@ -18,9 +18,6 @@ pb_error_t VLANPush::Init(const bess::protobuf::VLANPushArg &arg) {
 pb_error_t VLANPush::CommandSetTci(const bess::protobuf::VLANPushArg &arg) {
   uint16_t tci;
   tci = arg.tci();
-  if (tci > 0xffff) {
-    return pb_error(EINVAL, "TCI value must be 0-65535");
-  }
   vlan_tag_ = htonl((0x8100 << 16) | tci);
   qinq_tag_ = htonl((0x88a8 << 16) | tci);
   return pb_errno(0);
@@ -92,11 +89,6 @@ struct snobj *VLANPush::CommandSetTci(struct snobj *arg) {
   }
 
   tci = snobj_uint_get(arg);
-
-  if (tci > 0xffff) {
-    return snobj_err(EINVAL, "TCI value must be 0-65535");
-  }
-
   vlan_tag_ = htonl((0x8100 << 16) | tci);
   qinq_tag_ = htonl((0x88a8 << 16) | tci);
 

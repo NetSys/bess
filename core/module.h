@@ -155,8 +155,8 @@ class ModuleBuilder {
 
   static const std::map<std::string, Module *> &all_modules();
 
-  const gate_idx_t NumIGates() const { return kNumIGates; }
-  const gate_idx_t NumOGates() const { return kNumOGates; }
+  gate_idx_t NumIGates() const { return kNumIGates; }
+  gate_idx_t NumOGates() const { return kNumOGates; }
 
   const std::string &class_name() const { return class_name_; };
   const std::string &name_template() const { return name_template_; };

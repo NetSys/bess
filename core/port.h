@@ -110,7 +110,7 @@ class PortBuilder {
   const std::string &class_name() const { return class_name_; }
   const std::string &name_template() const { return name_template_; }
   const std::string &help_text() const { return help_text_; }
-  const bool initialized() const { return initialized_; }
+  bool initialized() const { return initialized_; }
 
  private:
   // To avoid the static initialization ordering problem, this pseudo-getter

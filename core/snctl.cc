@@ -481,8 +481,7 @@ static Port *create_port(const char *name, const PortBuilder *driver,
     return nullptr;
   }
 
-  if (size_inc_q < 0 || size_inc_q > MAX_QUEUE_SIZE || size_out_q < 0 ||
-      size_out_q > MAX_QUEUE_SIZE) {
+  if (size_inc_q > MAX_QUEUE_SIZE || size_out_q > MAX_QUEUE_SIZE) {
     *perr = snobj_err(EINVAL, "Invalid queue size");
     return nullptr;
   }

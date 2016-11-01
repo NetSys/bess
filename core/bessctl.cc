@@ -366,17 +366,14 @@ class BESSControlImpl final : public BESSControl::Service {
     unsigned int wid_filter = MAX_WORKERS;
 
     wid_filter = request.wid();
-    if (wid_filter >= 0) {
-      if (wid_filter >= MAX_WORKERS) {
-        return return_with_error(response, EINVAL,
-                                 "'wid' must be between 0 and %d",
-                                 MAX_WORKERS - 1);
-      }
+    if (wid_filter >= MAX_WORKERS) {
+      return return_with_error(
+          response, EINVAL, "'wid' must be between 0 and %d", MAX_WORKERS - 1);
+    }
 
-      if (!is_worker_active(wid_filter)) {
-        return return_with_error(response, EINVAL, "worker:%d does not exist",
-                                 wid_filter);
-      }
+    if (!is_worker_active(wid_filter)) {
+      return return_with_error(response, EINVAL, "worker:%d does not exist",
+                               wid_filter);
     }
 
     for (const auto& pair : TCContainer::tcs) {

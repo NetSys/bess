@@ -228,17 +228,20 @@ int snobj_list_add(struct snobj *m, struct snobj *child) {
 
 /* returns -1 on error */
 int snobj_list_del(struct snobj *m, size_t idx) {
-  size_t i;
+  if (m->type != TYPE_LIST) {
+    return -1;
+  }
 
-  if (m->type != TYPE_LIST) return -1;
-
-  if (idx < 0 || idx >= m->size) return -1;
+  if (idx >= m->size) {
+    return -1;
+  }
 
   /* shift */
-  for (i = idx; i < m->size - 1; i++) m->list.arr[i] = m->list.arr[i + 1];
+  for (size_t i = idx; i < m->size - 1; i++) {
+    m->list.arr[i] = m->list.arr[i + 1];
+  }
 
   m->size--;
-
   return 0;
 }
 
