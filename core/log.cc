@@ -176,12 +176,14 @@ void log_perr(const char *fmt, ...) {
   _log(LOG_ERR, "%s: %m\n", buf);
 }
 
-static ssize_t stdout_writer(void *cookie, const char *data, size_t len) {
+static ssize_t stdout_writer(void *, const char *data,
+                             size_t len) {
   _log(LOG_INFO, "%.*s", (int)len, data);
   return len;
 }
 
-static ssize_t stderr_writer(void *cookie, const char *data, size_t len) {
+static ssize_t stderr_writer(void *, const char *data,
+                             size_t len) {
   _log(LOG_ERR, "%.*s", (int)len, data);
   return len;
 }

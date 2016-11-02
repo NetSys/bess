@@ -26,7 +26,6 @@ endif
 
 CXXFLAGS += -std=gnu++11 -g3 -ggdb3 -Ofast -march=native \
 	    -Werror -Wall -Wextra \
-	    -Wno-unused-parameter \
 	    -Wno-missing-field-initializers \
 	    -isystem $(DPDK_INC_DIR) \
 	    -D_GNU_SOURCE
@@ -157,6 +156,12 @@ $(eval $(call BUILD, \
 	%.o, \
 	%.cc, \
 	$$(CXX) -o $$@ -c $$< $$(CXXFLAGS)))
+
+$(eval $(call BUILD, \
+	CXX, \
+	%.pb.o, \
+	%.pb.cc, \
+	$$(CXX) -o $$@ -c $$< $$(CXXFLAGS) -Wno-unused-parameter))
 
 $(eval $(call BUILD, \
 	LD, \

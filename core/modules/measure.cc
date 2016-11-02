@@ -72,7 +72,7 @@ void Measure::ProcessBatch(struct pkt_batch *batch) {
   }
 }
 
-struct snobj *Measure::CommandGetSummary(struct snobj *arg) {
+struct snobj *Measure::CommandGetSummary(struct snobj *) {
   uint64_t pkt_total = pkt_cnt_;
   uint64_t byte_total = bytes_cnt_;
   uint64_t bits = (byte_total + pkt_total * 24) * 8;
@@ -88,7 +88,7 @@ struct snobj *Measure::CommandGetSummary(struct snobj *arg) {
 }
 
 bess::protobuf::MeasureCommandGetSummaryResponse Measure::CommandGetSummary(
-    const bess::protobuf::MeasureCommandGetSummaryArg &arg) {
+    const bess::protobuf::MeasureCommandGetSummaryArg &) {
   uint64_t pkt_total = pkt_cnt_;
   uint64_t byte_total = bytes_cnt_;
   uint64_t bits = (byte_total + pkt_total * 24) * 8;

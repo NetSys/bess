@@ -586,7 +586,7 @@ pb_error_t WildcardMatch::CommandDelete(
 }
 
 pb_error_t WildcardMatch::CommandClear(
-    const bess::protobuf::WildcardMatchCommandClearArg &arg) {
+    const bess::protobuf::WildcardMatchCommandClearArg &) {
   for (int i = 0; i < num_tuples_; i++) {
     tuples_[i].ht.Clear();
   }
@@ -666,7 +666,7 @@ struct snobj *WildcardMatch::CommandDelete(struct snobj *arg) {
   return nullptr;
 }
 
-struct snobj *WildcardMatch::CommandClear(struct snobj *arg) {
+struct snobj *WildcardMatch::CommandClear(struct snobj *) {
   for (int i = 0; i < num_tuples_; i++) {
     tuples_[i].ht.Clear();
   }

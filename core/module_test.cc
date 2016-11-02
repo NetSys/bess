@@ -20,7 +20,7 @@ class AcmeModule : public Module {
 
   static const Commands<Module> cmds;
 
-  void Foo(struct snobj *arg) { n += 1; }
+  void Foo(struct snobj *) { n += 1; }
 
   int n = {};
 };

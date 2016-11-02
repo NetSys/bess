@@ -153,7 +153,7 @@ const std::map<std::string, ModuleBuilder>
   return all_module_builders_holder();
 }
 
-void deadend(Module *m, struct pkt_batch *batch) {
+void deadend(Module *, struct pkt_batch *batch) {
   ctx.incr_silent_drops(batch->cnt);
   snb_free_bulk(batch->pkts, batch->cnt);
 }
@@ -163,6 +163,21 @@ const std::map<std::string, Module *> &ModuleBuilder::all_modules() {
 }
 
 // -------------------------------------------------------------------------
+pb_error_t Module::Init(const void *) {
+  return pb_errno(0);
+}
+
+struct snobj *Module::Init(struct snobj *) {
+  return nullptr;
+}
+
+struct task_result Module::RunTask(void *) {
+  assert(0);  // You must override this function
+}
+
+void Module::ProcessBatch(struct pkt_batch *) {
+  assert(0);  // You must override this function
+}
 
 task_id_t Module::RegisterTask(void *arg) {
   task_id_t id;

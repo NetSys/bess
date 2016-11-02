@@ -117,7 +117,7 @@ static inline int find_index_avx(uint64_t addr, uint64_t *table) {
 #endif
 
 static inline int find_index(uint64_t addr, uint64_t *table,
-                             const uint64_t count) {
+                             const uint64_t) {
 #if __AVX__
   return find_index_avx(addr, table);
 #else

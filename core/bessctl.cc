@@ -283,19 +283,19 @@ class BESSControlImpl final : public BESSControl::Service {
     }
     return Status::OK;
   }
-  Status PauseAll(ClientContext* context, const Empty& request,
-                  EmptyResponse* response) {
+
+  Status PauseAll(ClientContext*, const Empty&, EmptyResponse*) {
     pause_all_workers();
     log_info("*** All workers have been paused ***\n");
     return Status::OK;
   }
-  Status ResumeAll(ClientContext* context, const Empty& request,
-                   EmptyResponse* response) {
+ 
+  Status ResumeAll(ClientContext*, const Empty&, EmptyResponse*) {
     log_info("*** Resuming ***\n");
     resume_all_workers();
     return Status::OK;
   }
-  Status ResetWorkers(ClientContext* context, const Empty& request,
+  Status ResetWorkers(ClientContext*, const Empty&,
                       EmptyResponse* response) {
     if (is_any_worker_running()) {
       return return_with_error(response, EBUSY, "There is a running worker");
@@ -304,7 +304,7 @@ class BESSControlImpl final : public BESSControl::Service {
     log_info("*** All workers have been destroyed ***\n");
     return Status::OK;
   }
-  Status ListWorkers(ClientContext* context, const Empty& request,
+  Status ListWorkers(ClientContext*, const Empty&,
                      ListWorkersResponse* response) {
     for (int wid = 0; wid < MAX_WORKERS; wid++) {
       if (!is_worker_active(wid))
@@ -318,7 +318,7 @@ class BESSControlImpl final : public BESSControl::Service {
     }
     return Status::OK;
   }
-  Status AddWorker(ClientContext* context, const AddWorkerRequest& request,
+  Status AddWorker(ClientContext*, const AddWorkerRequest& request,
                    EmptyResponse* response) {
     uint64_t wid = request.wid();
     if (wid >= MAX_WORKERS) {
@@ -335,7 +335,7 @@ class BESSControlImpl final : public BESSControl::Service {
     launch_worker(wid, core);
     return Status::OK;
   }
-  Status ResetTcs(ClientContext* context, const Empty& request,
+  Status ResetTcs(ClientContext*, const Empty&,
                   EmptyResponse* response) {
     if (is_any_worker_running()) {
       return return_with_error(response, EBUSY, "There is a running worker");
@@ -361,7 +361,7 @@ class BESSControlImpl final : public BESSControl::Service {
 
     return Status::OK;
   }
-  Status ListTcs(ClientContext* context, const ListTcsRequest& request,
+  Status ListTcs(ClientContext*, const ListTcsRequest& request,
                  ListTcsResponse* response) {
     unsigned int wid_filter = MAX_WORKERS;
 
@@ -425,7 +425,7 @@ class BESSControlImpl final : public BESSControl::Service {
 
     return Status::OK;
   }
-  Status AddTc(ClientContext* context, const AddTcRequest& request,
+  Status AddTc(ClientContext*, const AddTcRequest& request,
                EmptyResponse* response) {
     if (is_any_worker_running()) {
       return return_with_error(response, EBUSY, "There is a running worker");
@@ -494,7 +494,7 @@ class BESSControlImpl final : public BESSControl::Service {
 
     return Status::OK;
   }
-  Status GetTcStats(ClientContext* context, const GetTcStatsRequest& request,
+  Status GetTcStats(ClientContext*, const GetTcStatsRequest& request,
                     GetTcStatsResponse* response) {
     const char* tc_name = request.name().c_str();
 
@@ -518,7 +518,7 @@ class BESSControlImpl final : public BESSControl::Service {
 
     return Status::OK;
   }
-  Status ListDrivers(ClientContext* context, const Empty& request,
+  Status ListDrivers(ClientContext*, const Empty&,
                      ListDriversResponse* response) {
     for (const auto& pair : PortBuilder::all_port_builders()) {
       const PortBuilder& builder = pair.second;
@@ -527,8 +527,7 @@ class BESSControlImpl final : public BESSControl::Service {
 
     return Status::OK;
   }
-  Status GetDriverInfo(ClientContext* context,
-                       const GetDriverInfoRequest& request,
+  Status GetDriverInfo(ClientContext*, const GetDriverInfoRequest& request,
                        GetDriverInfoResponse* response) {
     if (request.driver_name().length() == 0) {
       return return_with_error(response, EINVAL,
@@ -554,7 +553,7 @@ class BESSControlImpl final : public BESSControl::Service {
 
     return Status::OK;
   }
-  Status ResetPorts(ClientContext* context, const Empty& request,
+  Status ResetPorts(ClientContext*, const Empty&,
                     EmptyResponse* response) {
     if (is_any_worker_running()) {
       return return_with_error(response, EBUSY, "There is a running worker");
@@ -574,7 +573,7 @@ class BESSControlImpl final : public BESSControl::Service {
     log_info("*** All ports have been destroyed ***\n");
     return Status::OK;
   }
-  Status ListPorts(ClientContext* context, const Empty& request,
+  Status ListPorts(ClientContext*, const Empty&,
                    ListPortsResponse* response) {
     for (const auto& pair : PortBuilder::all_ports()) {
       const ::Port* p = pair.second;
@@ -586,7 +585,7 @@ class BESSControlImpl final : public BESSControl::Service {
 
     return Status::OK;
   }
-  Status CreatePort(ClientContext* context, const CreatePortRequest& request,
+  Status CreatePort(ClientContext*, const CreatePortRequest& request,
                     CreatePortResponse* response) {
     const char* driver_name;
     ::Port* port;
@@ -647,7 +646,7 @@ class BESSControlImpl final : public BESSControl::Service {
     response->set_name(port->name());
     return Status::OK;
   }
-  Status DestroyPort(ClientContext* context, const DestroyPortRequest& request,
+  Status DestroyPort(ClientContext*, const DestroyPortRequest& request,
                      EmptyResponse* response) {
     const char* port_name;
     int ret;
@@ -669,8 +668,7 @@ class BESSControlImpl final : public BESSControl::Service {
 
     return Status::OK;
   }
-  Status GetPortStats(ClientContext* context,
-                      const GetPortStatsRequest& request,
+  Status GetPortStats(ClientContext*, const GetPortStatsRequest& request,
                       GetPortStatsResponse* response) {
     const char* port_name;
     port_stats_t stats;
@@ -699,7 +697,7 @@ class BESSControlImpl final : public BESSControl::Service {
 
     return Status::OK;
   }
-  Status ResetModules(ClientContext* context, const Empty& request,
+  Status ResetModules(ClientContext*, const Empty&,
                       EmptyResponse* response) {
     if (is_any_worker_running()) {
       return return_with_error(response, EBUSY, "There is a running worker");
@@ -709,7 +707,7 @@ class BESSControlImpl final : public BESSControl::Service {
     log_info("*** All modules have been destroyed ***\n");
     return Status::OK;
   }
-  Status ListModules(ClientContext* context, const Empty& request,
+  Status ListModules(ClientContext*, const Empty&,
                      ListModulesResponse* response) {
     int cnt = 1;
     int offset;
@@ -728,8 +726,7 @@ class BESSControlImpl final : public BESSControl::Service {
 
     return Status::OK;
   }
-  Status CreateModule(ClientContext* context,
-                      const CreateModuleRequest& request,
+  Status CreateModule(ClientContext*, const CreateModuleRequest& request,
                       CreateModuleResponse* response) {
     if (is_any_worker_running()) {
       return return_with_error(response, EBUSY, "There is a running worker");
@@ -916,8 +913,7 @@ class BESSControlImpl final : public BESSControl::Service {
     response->set_name(module->name());
     return Status::OK;
   }
-  Status DestroyModule(ClientContext* context,
-                       const DestroyModuleRequest& request,
+  Status DestroyModule(ClientContext*, const DestroyModuleRequest& request,
                        EmptyResponse* response) {
     if (is_any_worker_running()) {
       return return_with_error(response, EBUSY, "There is a running worker");
@@ -938,8 +934,7 @@ class BESSControlImpl final : public BESSControl::Service {
 
     return Status::OK;
   }
-  Status GetModuleInfo(ClientContext* context,
-                       const GetModuleInfoRequest& request,
+  Status GetModuleInfo(ClientContext*, const GetModuleInfoRequest& request,
                        GetModuleInfoResponse* response) {
     const char* m_name;
     Module* m;
@@ -966,8 +961,7 @@ class BESSControlImpl final : public BESSControl::Service {
 
     return Status::OK;
   }
-  Status ConnectModules(ClientContext* context,
-                        const ConnectModulesRequest& request,
+  Status ConnectModules(ClientContext*, const ConnectModulesRequest& request,
                         EmptyResponse* response) {
     if (is_any_worker_running()) {
       return return_with_error(response, EBUSY, "There is a running worker");
@@ -1005,7 +999,7 @@ class BESSControlImpl final : public BESSControl::Service {
 
     return Status::OK;
   }
-  Status DisconnectModules(ClientContext* context,
+  Status DisconnectModules(ClientContext*,
                            const DisconnectModulesRequest& request,
                            EmptyResponse* response) {
     if (is_any_worker_running()) {
@@ -1035,7 +1029,7 @@ class BESSControlImpl final : public BESSControl::Service {
 
     return Status::OK;
   }
-  Status AttachTask(ClientContext* context, const AttachTaskRequest& request,
+  Status AttachTask(ClientContext*, const AttachTaskRequest& request,
                     EmptyResponse* response) {
     if (is_any_worker_running()) {
       return return_with_error(response, EBUSY, "There is a running worker");
@@ -1103,8 +1097,7 @@ class BESSControlImpl final : public BESSControl::Service {
 
     return Status::OK;
   }
-  Status EnableTcpdump(ClientContext* context,
-                       const EnableTcpdumpRequest& request,
+  Status EnableTcpdump(ClientContext*, const EnableTcpdumpRequest& request,
                        EmptyResponse* response) {
     if (is_any_worker_running()) {
       return return_with_error(response, EBUSY, "There is a running worker");
@@ -1141,8 +1134,7 @@ class BESSControlImpl final : public BESSControl::Service {
 
     return Status::OK;
   }
-  Status DisableTcpdump(ClientContext* context,
-                        const DisableTcpdumpRequest& request,
+  Status DisableTcpdump(ClientContext*, const DisableTcpdumpRequest& request,
                         EmptyResponse* response) {
     if (is_any_worker_running()) {
       return return_with_error(response, EBUSY, "There is a running worker");
@@ -1177,7 +1169,7 @@ class BESSControlImpl final : public BESSControl::Service {
     return Status::OK;
   }
 
-  Status KillBess(ClientContext* context, const Empty& request,
+  Status KillBess(ClientContext*, const Empty&,
                   EmptyResponse* response) {
     if (is_any_worker_running()) {
       return return_with_error(response, EBUSY, "There is a running worker");
@@ -1189,7 +1181,7 @@ class BESSControlImpl final : public BESSControl::Service {
     return Status::OK;
   }
 
-  Status ListMclass(ClientContext* context, const Empty& request,
+  Status ListMclass(ClientContext*, const Empty&,
                     ListMclassResponse* response) {
     for (const auto& pair : ModuleBuilder::all_module_builders()) {
       const ModuleBuilder& builder = pair.second;
@@ -1198,8 +1190,7 @@ class BESSControlImpl final : public BESSControl::Service {
     return Status::OK;
   }
 
-  Status GetMclassInfo(ClientContext* context,
-                       const GetMclassInfoRequest& request,
+  Status GetMclassInfo(ClientContext*, const GetMclassInfoRequest& request,
                        GetMclassInfoResponse* response) {
     if (!request.name().length()) {
       return return_with_error(response, EINVAL,
@@ -1222,8 +1213,7 @@ class BESSControlImpl final : public BESSControl::Service {
     return Status::OK;
   }
 
-  Status ModuleCommand(ClientContext* context,
-                       const ModuleCommandRequest& request,
+  Status ModuleCommand(ClientContext*, const ModuleCommandRequest& request,
                        ModuleCommandResponse* response) {
     if (!request.name().length()) {
       return return_with_error(response->mutable_empty(), EINVAL,
@@ -1249,44 +1239,44 @@ class BESSControlImpl final : public BESSControl::Service {
             reinterpret_cast<BPF*>(m)->CommandClear(request.bpf_clear_arg());
         break;
       case ModuleCommandRequest::kDumpSetIntervalArg:
-        *error = reinterpret_cast<Dump*>(m)->CommandSetInterval(
-            request.dump_set_interval_arg());
+        *error = reinterpret_cast<Dump*>(m)
+                     ->CommandSetInterval(request.dump_set_interval_arg());
         break;
       case ModuleCommandRequest::kExactmatchAddArg:
-        *error = reinterpret_cast<ExactMatch*>(m)->CommandAdd(
-            request.exactmatch_add_arg());
+        *error = reinterpret_cast<ExactMatch*>(m)
+                     ->CommandAdd(request.exactmatch_add_arg());
         break;
       case ModuleCommandRequest::kExactmatchDeleteArg:
-        *error = reinterpret_cast<ExactMatch*>(m)->CommandDelete(
-            request.exactmatch_delete_arg());
+        *error = reinterpret_cast<ExactMatch*>(m)
+                     ->CommandDelete(request.exactmatch_delete_arg());
         break;
       case ModuleCommandRequest::kExactmatchClearArg:
         *error = reinterpret_cast<ExactMatch*>(m)->CommandSetDefaultGate(
             request.exactmatch_set_default_gate_arg());
         break;
       case ModuleCommandRequest::kHashlbSetModeArg:
-        *error = reinterpret_cast<HashLB*>(m)->CommandSetMode(
-            request.hashlb_set_mode_arg());
+        *error = reinterpret_cast<HashLB*>(m)
+                     ->CommandSetMode(request.hashlb_set_mode_arg());
         break;
       case ModuleCommandRequest::kHashlbSetGatesArg:
-        *error = reinterpret_cast<HashLB*>(m)->CommandSetGates(
-            request.hashlb_set_gates_arg());
+        *error = reinterpret_cast<HashLB*>(m)
+                     ->CommandSetGates(request.hashlb_set_gates_arg());
         break;
       case ModuleCommandRequest::kIplookupAddArg:
-        *error = reinterpret_cast<IPLookup*>(m)->CommandAdd(
-            request.iplookup_add_arg());
+        *error = reinterpret_cast<IPLookup*>(m)
+                     ->CommandAdd(request.iplookup_add_arg());
         break;
       case ModuleCommandRequest::kIplookupClearArg:
-        *error = reinterpret_cast<IPLookup*>(m)->CommandClear(
-            request.iplookup_clear_arg());
+        *error = reinterpret_cast<IPLookup*>(m)
+                     ->CommandClear(request.iplookup_clear_arg());
         break;
       case ModuleCommandRequest::kL2ForwardAddArg:
-        *error = reinterpret_cast<L2Forward*>(m)->CommandAdd(
-            request.l2forward_add_arg());
+        *error = reinterpret_cast<L2Forward*>(m)
+                     ->CommandAdd(request.l2forward_add_arg());
         break;
       case ModuleCommandRequest::kL2ForwardDeleteArg:
-        *error = reinterpret_cast<L2Forward*>(m)->CommandDelete(
-            request.l2forward_delete_arg());
+        *error = reinterpret_cast<L2Forward*>(m)
+                     ->CommandDelete(request.l2forward_delete_arg());
         break;
       case ModuleCommandRequest::kL2ForwardSetDefaultGateArg:
         *error = reinterpret_cast<L2Forward*>(m)->CommandSetDefaultGate(
@@ -1294,89 +1284,89 @@ class BESSControlImpl final : public BESSControl::Service {
         break;
       case ModuleCommandRequest::kL2ForwardLookupArg:
         lookup_result = response->mutable_l2forward_lookup();
-        *lookup_result = reinterpret_cast<L2Forward*>(m)->CommandLookup(
-            request.l2forward_lookup_arg());
+        *lookup_result = reinterpret_cast<L2Forward*>(m)
+                             ->CommandLookup(request.l2forward_lookup_arg());
         break;
       case ModuleCommandRequest::kL2ForwardPopulateArg:
-        *error = reinterpret_cast<L2Forward*>(m)->CommandPopulate(
-            request.l2forward_populate_arg());
+        *error = reinterpret_cast<L2Forward*>(m)
+                     ->CommandPopulate(request.l2forward_populate_arg());
         break;
       case ModuleCommandRequest::kMeasureGetSummaryArg:
         summary = response->mutable_measure_summary();
-        *summary = reinterpret_cast<Measure*>(m)->CommandGetSummary(
-            request.measure_get_summary_arg());
+        *summary = reinterpret_cast<Measure*>(m)
+                       ->CommandGetSummary(request.measure_get_summary_arg());
         break;
       case ModuleCommandRequest::kPortincSetBurstArg:
-        *error = reinterpret_cast<PortInc*>(m)->CommandSetBurst(
-            request.portinc_set_burst_arg());
+        *error = reinterpret_cast<PortInc*>(m)
+                     ->CommandSetBurst(request.portinc_set_burst_arg());
         break;
       case ModuleCommandRequest::kQueueincSetBurstArg:
-        *error = reinterpret_cast<QueueInc*>(m)->CommandSetBurst(
-            request.queueinc_set_burst_arg());
+        *error = reinterpret_cast<QueueInc*>(m)
+                     ->CommandSetBurst(request.queueinc_set_burst_arg());
         break;
       case ModuleCommandRequest::kQueueSetSizeArg:
-        *error = reinterpret_cast<Queue*>(m)->CommandSetSize(
-            request.queue_set_size_arg());
+        *error = reinterpret_cast<Queue*>(m)
+                     ->CommandSetSize(request.queue_set_size_arg());
         break;
       case ModuleCommandRequest::kQueueSetBurstArg:
-        *error = reinterpret_cast<Queue*>(m)->CommandSetBurst(
-            request.queue_set_burst_arg());
+        *error = reinterpret_cast<Queue*>(m)
+                     ->CommandSetBurst(request.queue_set_burst_arg());
         break;
       case ModuleCommandRequest::kRandomUpdateAddArg:
-        *error = reinterpret_cast<RandomUpdate*>(m)->CommandAdd(
-            request.random_update_add_arg());
+        *error = reinterpret_cast<RandomUpdate*>(m)
+                     ->CommandAdd(request.random_update_add_arg());
         break;
       case ModuleCommandRequest::kRandomUpdateClearArg:
-        *error = reinterpret_cast<RandomUpdate*>(m)->CommandClear(
-            request.random_update_clear_arg());
+        *error = reinterpret_cast<RandomUpdate*>(m)
+                     ->CommandClear(request.random_update_clear_arg());
         break;
       case ModuleCommandRequest::kRewriteAddArg:
-        *error = reinterpret_cast<Rewrite*>(m)->CommandAdd(
-            request.rewrite_add_arg());
+        *error = reinterpret_cast<Rewrite*>(m)
+                     ->CommandAdd(request.rewrite_add_arg());
         break;
       case ModuleCommandRequest::kRewriteClearArg:
-        *error = reinterpret_cast<Rewrite*>(m)->CommandClear(
-            request.rewrite_clear_arg());
+        *error = reinterpret_cast<Rewrite*>(m)
+                     ->CommandClear(request.rewrite_clear_arg());
         break;
       case ModuleCommandRequest::kRoundrobinSetGatesArg:
-        *error = reinterpret_cast<RoundRobin*>(m)->CommandSetGates(
-            request.roundrobin_set_gates_arg());
+        *error = reinterpret_cast<RoundRobin*>(m)
+                     ->CommandSetGates(request.roundrobin_set_gates_arg());
         break;
       case ModuleCommandRequest::kRoundrobinSetModeArg:
-        *error = reinterpret_cast<RoundRobin*>(m)->CommandSetMode(
-            request.roundrobin_set_mode_arg());
+        *error = reinterpret_cast<RoundRobin*>(m)
+                     ->CommandSetMode(request.roundrobin_set_mode_arg());
         break;
       case ModuleCommandRequest::kSourceSetBurstArg:
-        *error = reinterpret_cast<Source*>(m)->CommandSetBurst(
-            request.source_set_burst_arg());
+        *error = reinterpret_cast<Source*>(m)
+                     ->CommandSetBurst(request.source_set_burst_arg());
         break;
       case ModuleCommandRequest::kSourceSetPktSizeArg:
-        *error = reinterpret_cast<Source*>(m)->CommandSetPktSize(
-            request.source_set_pkt_size_arg());
+        *error = reinterpret_cast<Source*>(m)
+                     ->CommandSetPktSize(request.source_set_pkt_size_arg());
         break;
       case ModuleCommandRequest::kUpdateAddArg:
         *error =
             reinterpret_cast<Update*>(m)->CommandAdd(request.update_add_arg());
         break;
       case ModuleCommandRequest::kUpdateClearArg:
-        *error = reinterpret_cast<Update*>(m)->CommandClear(
-            request.update_clear_arg());
+        *error = reinterpret_cast<Update*>(m)
+                     ->CommandClear(request.update_clear_arg());
         break;
       case ModuleCommandRequest::kVlanSetTciArg:
-        *error = reinterpret_cast<VLANPush*>(m)->CommandSetTci(
-            request.vlan_set_tci_arg());
+        *error = reinterpret_cast<VLANPush*>(m)
+                     ->CommandSetTci(request.vlan_set_tci_arg());
         break;
       case ModuleCommandRequest::kWildcardAddArg:
-        *error = reinterpret_cast<WildcardMatch*>(m)->CommandAdd(
-            request.wildcard_add_arg());
+        *error = reinterpret_cast<WildcardMatch*>(m)
+                     ->CommandAdd(request.wildcard_add_arg());
         break;
       case ModuleCommandRequest::kWildcardDeleteArg:
-        *error = reinterpret_cast<WildcardMatch*>(m)->CommandDelete(
-            request.wildcard_delete_arg());
+        *error = reinterpret_cast<WildcardMatch*>(m)
+                     ->CommandDelete(request.wildcard_delete_arg());
         break;
       case ModuleCommandRequest::kWildcardClearArg:
-        *error = reinterpret_cast<WildcardMatch*>(m)->CommandClear(
-            request.wildcard_clear_arg());
+        *error = reinterpret_cast<WildcardMatch*>(m)
+                     ->CommandClear(request.wildcard_clear_arg());
         break;
       case ModuleCommandRequest::kWildcardSetDefaultGateArg:
         *error = reinterpret_cast<WildcardMatch*>(m)->CommandSetDefaultGate(

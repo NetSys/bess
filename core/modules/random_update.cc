@@ -94,7 +94,7 @@ struct snobj *RandomUpdate::CommandAdd(struct snobj *arg) {
   return nullptr;
 }
 
-struct snobj *RandomUpdate::CommandClear(struct snobj *arg) {
+struct snobj *RandomUpdate::CommandClear(struct snobj *) {
   num_vars_ = 0;
 
   return nullptr;
@@ -195,7 +195,7 @@ pb_error_t RandomUpdate::CommandAdd(
 }
 
 pb_error_t RandomUpdate::CommandClear(
-    const bess::protobuf::RandomUpdateCommandClearArg &arg) {
+    const bess::protobuf::RandomUpdateCommandClearArg &) {
   num_vars_ = 0;
   return pb_errno(0);
 }

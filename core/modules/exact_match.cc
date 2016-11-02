@@ -441,14 +441,14 @@ pb_error_t ExactMatch::CommandDelete(
   return pb_errno(0);
 }
 
-struct snobj *ExactMatch::CommandClear(struct snobj *arg) {
+struct snobj *ExactMatch::CommandClear(struct snobj *) {
   ht_.Clear();
 
   return nullptr;
 }
 
 pb_error_t ExactMatch::CommandClear(
-    const bess::protobuf::ExactMatchCommandClearArg &arg) {
+    const bess::protobuf::ExactMatchCommandClearArg &) {
   ht_.Clear();
 
   return pb_errno(0);

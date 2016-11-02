@@ -523,7 +523,7 @@ typedef void (*emit_func)(bpf_bin_stream *stream, u_int value, u_int n);
 /*
  * Emit routine to update the jump table.
  */
-static void emit_length(bpf_bin_stream *stream, u_int value, u_int len) {
+static void emit_length(bpf_bin_stream *stream, u_int, u_int len) {
   if (stream->refs != nullptr)
     (stream->refs)[stream->bpf_pc] += len;
   stream->cur_ip += len;
@@ -1233,12 +1233,12 @@ struct snobj *BPF::CommandAdd(struct snobj *arg) {
   return nullptr;
 }
 
-pb_error_t BPF::CommandClear(const bess::protobuf::BPFCommandClearArg &arg) {
+pb_error_t BPF::CommandClear(const bess::protobuf::BPFCommandClearArg &) {
   Deinit();
   return pb_errno(0);
 }
 
-struct snobj *BPF::CommandClear(struct snobj *arg) {
+struct snobj *BPF::CommandClear(struct snobj *) {
   Deinit();
   return nullptr;
 }

@@ -130,6 +130,25 @@ const std::map<std::string, Port *> &PortBuilder::all_ports() {
   return all_ports_;
 }
 
+void Port::CollectStats(bool) {}
+
+template <typename T>
+pb_error_t Port::Init(const T &arg) {
+  return pb_errno(0);
+}
+
+struct snobj *Port::Init(struct snobj *) {
+  return nullptr;
+}
+
+int Port::RecvPackets(queue_t, snb_array_t, int) {
+  return 0;
+}
+
+int Port::SendPackets(queue_t, snb_array_t, int) {
+  return 0;
+}
+
 void Port::GetPortStats(port_stats_t *stats) {
   CollectStats(false);
 

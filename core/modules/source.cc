@@ -80,7 +80,7 @@ struct snobj *Source::Init(struct snobj *arg) {
   return nullptr;
 }
 
-struct task_result Source::RunTask(void *arg) {
+struct task_result Source::RunTask(void *) {
   struct pkt_batch batch;
   struct task_result ret;
 

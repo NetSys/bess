@@ -69,7 +69,7 @@ class TCFixture : public benchmark::Fixture {
     }
   }
 
-  virtual void TearDown(benchmark::State &state) {
+  virtual void TearDown(benchmark::State &) {
     // TODO(barath): This leaks memory at the moment, but it's easier than
     // proper cleanup.
     classes_.clear();

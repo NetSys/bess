@@ -96,8 +96,7 @@ pb_error_t Update::CommandAdd(const bess::protobuf::UpdateArg &arg) {
   return pb_errno(0);
 }
 
-pb_error_t Update::CommandClear(
-    const bess::protobuf::UpdateCommandClearArg &arg) {
+pb_error_t Update::CommandClear(const bess::protobuf::UpdateCommandClearArg &) {
   num_fields_ = 0;
   return pb_errno(0);
 }
@@ -166,7 +165,7 @@ struct snobj *Update::CommandAdd(struct snobj *arg) {
   return nullptr;
 }
 
-struct snobj *Update::CommandClear(struct snobj *arg) {
+struct snobj *Update::CommandClear(struct snobj *) {
   num_fields_ = 0;
 
   return nullptr;

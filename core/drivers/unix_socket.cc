@@ -177,11 +177,9 @@ void UnixSocketPort::DeInit() {
 }
 
 int UnixSocketPort::RecvPackets(queue_t qid, snb_array_t pkts, int cnt) {
-  int client_fd = client_fd_;
+  assert(qid == 0);
 
-  int received;
-
-  if (client_fd == kNotConnectedFd) {
+  if (client_fd_ == kNotConnectedFd) {
     return 0;
   }
 
@@ -190,7 +188,7 @@ int UnixSocketPort::RecvPackets(queue_t qid, snb_array_t pkts, int cnt) {
     return 0;
   }
 
-  received = 0;
+  int received = 0;
   while (received < cnt) {
     struct snbuf *pkt = static_cast<struct snbuf *>(snb_alloc());
     int ret;
@@ -200,7 +198,7 @@ int UnixSocketPort::RecvPackets(queue_t qid, snb_array_t pkts, int cnt) {
     }
 
     // Datagrams larger than 2KB will be truncated.
-    ret = recv(client_fd, pkt->_data, SNBUF_DATA, 0);
+    ret = recv(client_fd_, pkt->_data, SNBUF_DATA, 0);
 
     if (ret > 0) {
       snb_append(pkt, ret);
@@ -233,8 +231,9 @@ int UnixSocketPort::RecvPackets(queue_t qid, snb_array_t pkts, int cnt) {
 }
 
 int UnixSocketPort::SendPackets(queue_t qid, snb_array_t pkts, int cnt) {
-  int client_fd = client_fd_;
   int sent = 0;
+
+  assert(qid == 0);
 
   for (int i = 0; i < cnt; i++) {
     struct snbuf *pkt = pkts[i];
@@ -255,7 +254,7 @@ int UnixSocketPort::SendPackets(queue_t qid, snb_array_t pkts, int cnt) {
       mbuf = mbuf->next;
     }
 
-    ret = sendmsg(client_fd, &msg, 0);
+    ret = sendmsg(client_fd_, &msg, 0);
     if (ret < 0) {
       break;
     }

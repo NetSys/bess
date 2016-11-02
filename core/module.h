@@ -203,12 +203,12 @@ class Module {
   Module() = default;
   virtual ~Module(){};
 
-  virtual pb_error_t Init(const void *arg) { return pb_errno(0); }
-  virtual struct snobj *Init(struct snobj *arg) { return nullptr; }
+  virtual pb_error_t Init(const void *arg);
+  virtual struct snobj *Init(struct snobj *arg);
   virtual void Deinit() {}
 
-  virtual struct task_result RunTask(void *arg) { assert(0); }
-  virtual void ProcessBatch(struct pkt_batch *batch) { assert(0); }
+  virtual struct task_result RunTask(void *arg);
+  virtual void ProcessBatch(struct pkt_batch *batch);
 
   virtual std::string GetDesc() const { return ""; };
   virtual struct snobj *GetDump() const { return snobj_nil(); }

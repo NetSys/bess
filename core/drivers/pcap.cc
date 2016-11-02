@@ -40,6 +40,8 @@ int PCAPPort::RecvPackets(queue_t qid, snb_array_t pkts, int cnt) {
   int recv_cnt = 0;
   struct snbuf* sbuf;
 
+  assert(qid == 0);
+
   while (recv_cnt < cnt) {
     int caplen = 0;
     const u_char* packet = pcap_handle_.RecvPacket(&caplen);
@@ -89,6 +91,8 @@ int PCAPPort::SendPackets(queue_t qid, snb_array_t pkts, int cnt) {
 
   int ret;
   int send_cnt = 0;
+
+  assert(qid == 0);
 
   while (send_cnt < cnt) {
     struct snbuf* sbuf = pkts[send_cnt];

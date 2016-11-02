@@ -20,7 +20,7 @@ const Commands<Module> IPLookup::cmds = {
     {"clear", MODULE_FUNC &IPLookup::CommandClear, 0},
 };
 
-struct snobj *IPLookup::Init(struct snobj *arg) {
+struct snobj *IPLookup::Init(struct snobj *) {
   struct rte_lpm_config conf = {
       .max_rules = 1024, .number_tbl8s = 128, .flags = 0,
   };
@@ -36,7 +36,7 @@ struct snobj *IPLookup::Init(struct snobj *arg) {
   return nullptr;
 }
 
-pb_error_t IPLookup::Init(const bess::protobuf::IPLookupArg &arg) {
+pb_error_t IPLookup::Init(const bess::protobuf::IPLookupArg &) {
   struct rte_lpm_config conf = {
       .max_rules = 1024, .number_tbl8s = 128, .flags = 0,
   };
@@ -179,7 +179,7 @@ struct snobj *IPLookup::CommandAdd(struct snobj *arg) {
   return nullptr;
 }
 
-struct snobj *IPLookup::CommandClear(struct snobj *arg) {
+struct snobj *IPLookup::CommandClear(struct snobj *) {
   rte_lpm_delete_all(lpm_);
   default_gate_ = DROP_GATE;
   return nullptr;
@@ -234,7 +234,7 @@ pb_error_t IPLookup::CommandAdd(
 }
 
 pb_error_t IPLookup::CommandClear(
-    const bess::protobuf::IPLookupCommandClearArg &arg) {
+    const bess::protobuf::IPLookupCommandClearArg &) {
   rte_lpm_delete_all(lpm_);
   default_gate_ = DROP_GATE;
   return pb_errno(0);

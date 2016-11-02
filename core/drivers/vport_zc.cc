@@ -75,7 +75,7 @@ class ZeroCopyVPort : public Port {
   int out_irq_fd_[MAX_QUEUES_PER_DIR] = {};
 };
 
-struct snobj *ZeroCopyVPort::Init(struct snobj *arg) {
+struct snobj *ZeroCopyVPort::Init(struct snobj *) {
   struct vport_bar *bar = nullptr;
 
   int num_inc_q = num_queues[PACKET_DIR_INC];
@@ -160,7 +160,7 @@ struct snobj *ZeroCopyVPort::Init(struct snobj *arg) {
   return nullptr;
 }
 
-pb_error_t ZeroCopyVPort::Init(const bess::protobuf::ZeroCopyVPortArg &arg) {
+pb_error_t ZeroCopyVPort::Init(const bess::protobuf::ZeroCopyVPortArg &) {
   struct vport_bar *bar = nullptr;
 
   int num_inc_q = num_queues[PACKET_DIR_INC];
