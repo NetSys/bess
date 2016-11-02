@@ -140,6 +140,7 @@ void Pipeline::AddModuleToComponent(Module *m, struct mt_attr *attr) {
 
   if (component.modules().empty()) {
     component.set_attr_id(get_attr_id(attr));
+    component.set_size(attr->size);
   }
   component.add_module(m);
 }
