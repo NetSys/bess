@@ -29,9 +29,9 @@ void VXLANDecap::ProcessBatch(struct pkt_batch *batch) {
         reinterpret_cast<uint8_t *>(iph) + iph_bytes);
     struct vxlan_hdr *vh = reinterpret_cast<struct vxlan_hdr *>(udph + 1);
 
-    set_attr(this, ATTR_W_TUN_IP_SRC, pkt, uint32_t, iph->src_addr);
-    set_attr(this, ATTR_W_TUN_IP_DST, pkt, uint32_t, iph->dst_addr);
-    set_attr(this, ATTR_W_TUN_ID, pkt, uint32_t,
+    set_attr<uint32_t>(this, ATTR_W_TUN_IP_SRC, pkt, iph->src_addr);
+    set_attr<uint32_t>(this, ATTR_W_TUN_IP_DST, pkt, iph->dst_addr);
+    set_attr<uint32_t>(this, ATTR_W_TUN_ID, pkt,
              rte_be_to_cpu_32(vh->vx_vni) >> 8);
 
     snb_adj(pkt, sizeof(*ethh) + iph_bytes + sizeof(*udph) + sizeof(*vh));

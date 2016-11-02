@@ -12,7 +12,7 @@ static void CopyFromPacket(struct pkt_batch *batch, const struct Attr *attr,
     char *head = static_cast<char *>(snb_head_data(pkt));
     void *mt_ptr;
 
-    mt_ptr = _ptr_attr_with_offset(mt_off, pkt, value_t);
+    mt_ptr = _ptr_attr_with_offset<value_t>(mt_off, pkt);
     rte_memcpy(mt_ptr, head + pkt_off, size);
   }
 }
@@ -28,7 +28,7 @@ static void CopyFromValue(struct pkt_batch *batch, const struct Attr *attr,
     struct snbuf *pkt = batch->pkts[i];
     void *mt_ptr;
 
-    mt_ptr = _ptr_attr_with_offset(mt_off, pkt, value_t);
+    mt_ptr = _ptr_attr_with_offset<value_t>(mt_off, pkt);
     rte_memcpy(mt_ptr, val_ptr, size);
   }
 }
@@ -38,7 +38,7 @@ const Commands<Module> SetMetadata::cmds = {};
 pb_error_t SetMetadata::AddAttrOne(
     const bess::protobuf::SetMetadataArg_Attribute &attr) {
   std::string name;
-  int size = 0;
+  size_t size = 0;
   int offset = -1;
   value_t value = {};
 
@@ -64,7 +64,7 @@ pb_error_t SetMetadata::AddAttrOne(
     }
   }
 
-  ret = AddMetadataAttr(name, size, bess::metadata::MT_WRITE);
+  ret = AddMetadataAttr(name, size, bess::metadata::AccessMode::WRITE);
   if (ret < 0)
     return pb_error(-ret, "add_metadata_attr() failed");
 
@@ -98,7 +98,7 @@ pb_error_t SetMetadata::Init(const bess::protobuf::SetMetadataArg &arg) {
 struct snobj *SetMetadata::AddAttrOne(struct snobj *attr) {
   const char *name_c;
   std::string name;
-  int size = 0;
+  size_t size = 0;
   int offset = -1;
   value_t value = {};
 
@@ -119,7 +119,7 @@ struct snobj *SetMetadata::AddAttrOne(struct snobj *attr) {
   size = snobj_eval_uint(attr, "size");
 
   if (size < 1 || size > bess::metadata::kMetadataAttrMaxSize) {
-    return snobj_err(EINVAL, "'size' must be 1-%d",
+    return snobj_err(EINVAL, "'size' must be 1-%lu",
                      bess::metadata::kMetadataAttrMaxSize);
   }
 
@@ -127,7 +127,7 @@ struct snobj *SetMetadata::AddAttrOne(struct snobj *attr) {
     if (snobj_binvalue_get(t, size, &value, 0)) {
       return snobj_err(EINVAL,
                        "'value' field has not a "
-                       "correct %d-byte value",
+                       "correct %lu-byte value",
                        size);
     }
   } else if ((t = snobj_eval(attr, "offset"))) {
@@ -141,7 +141,7 @@ struct snobj *SetMetadata::AddAttrOne(struct snobj *attr) {
     }
   }
 
-  ret = AddMetadataAttr(name, size, bess::metadata::MT_WRITE);
+  ret = AddMetadataAttr(name, size, bess::metadata::AccessMode::WRITE);
   if (ret < 0)
     return snobj_err(-ret, "add_metadata_attr() failed");
 

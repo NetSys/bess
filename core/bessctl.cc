@@ -112,20 +112,20 @@ static int collect_ogates(Module* m, GetModuleInfoResponse* response) {
 }
 
 static int collect_metadata(Module* m, GetModuleInfoResponse* response) {
-  for (int i = 0; i < m->num_attrs; i++) {
+  for (size_t i = 0; i < m->num_attrs; i++) {
     GetModuleInfoResponse_Attribute* attr = response->add_metadata();
 
     attr->set_name(m->attrs[i].name);
     attr->set_size(m->attrs[i].size);
 
     switch (m->attrs[i].mode) {
-      case bess::metadata::MT_READ:
+      case bess::metadata::AccessMode::READ:
         attr->set_mode("read");
         break;
-      case bess::metadata::MT_WRITE:
+      case bess::metadata::AccessMode::WRITE:
         attr->set_mode("write");
         break;
-      case bess::metadata::MT_UPDATE:
+      case bess::metadata::AccessMode::UPDATE:
         attr->set_mode("update");
         break;
       default:
@@ -240,7 +240,7 @@ static Module* create_module(const char* name, const ModuleBuilder& builder,
                                                   builder.name_template());
   }
 
-  m = builder.CreateModule(mod_name);
+  m = builder.CreateModule(mod_name, &default_pipeline);
 
   *perr = m->Init(&arg);
   if (perr != nullptr) {

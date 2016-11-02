@@ -5,6 +5,7 @@
 #include <thread>
 
 #include "common.h"
+#include "metadata.h"
 #include "pktbatch.h"
 
 #define MAX_WORKERS 4
@@ -149,6 +150,7 @@ extern int num_workers;
 extern std::thread worker_threads[MAX_WORKERS];
 extern Worker *volatile workers[MAX_WORKERS];
 extern thread_local Worker ctx;
+extern bess::metadata::Pipeline default_pipeline;
 
 /* ------------------------------------------------------------------------
  * functions below are invoked by non-worker threads (the master)

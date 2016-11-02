@@ -22,6 +22,10 @@ std::thread worker_threads[MAX_WORKERS];
 Worker *volatile workers[MAX_WORKERS];
 thread_local Worker ctx;
 
+// TODO: Once the rest of the code supports multiple pipelines, this ought to be
+// a collection of pipelines in bess::metadata a la Ports/Modules.
+bess::metadata::Pipeline default_pipeline;
+
 struct thread_arg {
   int wid;
   int core;
@@ -88,7 +92,7 @@ static void resume_worker(int wid) {
 }
 
 void resume_all_workers() {
-  bess::metadata::ComputeMetadataOffsets();
+  default_pipeline.ComputeMetadataOffsets();
   process_orphan_tasks();
 
   for (int wid = 0; wid < MAX_WORKERS; wid++)

@@ -4,6 +4,7 @@
 #include "../module.h"
 
 typedef struct { char bytes[bess::metadata::kMetadataAttrMaxSize]; } value_t;
+INSTANTIATE_MT_FOR_TYPE(value_t)
 
 struct Attr {
   std::string name;

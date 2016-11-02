@@ -20,9 +20,9 @@ void IPEncap::ProcessBatch(struct pkt_batch *batch) {
   for (int i = 0; i < cnt; i++) {
     struct snbuf *pkt = batch->pkts[i];
 
-    uint32_t ip_src = get_attr(this, ATTR_R_IP_SRC, pkt, uint32_t);
-    uint32_t ip_dst = get_attr(this, ATTR_R_IP_DST, pkt, uint32_t);
-    uint8_t ip_proto = get_attr(this, ATTR_R_IP_PROTO, pkt, uint8_t);
+    uint32_t ip_src = get_attr<uint32_t>(this, ATTR_R_IP_SRC, pkt);
+    uint32_t ip_dst = get_attr<uint32_t>(this, ATTR_R_IP_DST, pkt);
+    uint8_t ip_proto = get_attr<uint8_t>(this, ATTR_R_IP_PROTO, pkt);
 
     struct ipv4_hdr *iph;
 
@@ -44,8 +44,8 @@ void IPEncap::ProcessBatch(struct pkt_batch *batch) {
 
     iph->hdr_checksum = rte_ipv4_cksum(iph);
 
-    set_attr(this, ATTR_W_IP_NEXTHOP, pkt, uint32_t, ip_dst);
-    set_attr(this, ATTR_W_ETHER_TYPE, pkt, uint16_t,
+    set_attr<uint32_t>(this, ATTR_W_IP_NEXTHOP, pkt, ip_dst);
+    set_attr<uint16_t>(this, ATTR_W_ETHER_TYPE, pkt,
              rte_cpu_to_be_16(ETHER_TYPE_IPv4));
   }
 

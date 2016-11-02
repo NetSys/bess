@@ -719,7 +719,7 @@ static struct snobj *handle_create_module(struct snobj *q) {
                                                   builder.name_template());
   }
 
-  m = builder.CreateModule(mod_name);
+  m = builder.CreateModule(mod_name, &default_pipeline);
 
   err = m->Init(snobj_eval(q, "arg"));
   if (err != nullptr) {
@@ -813,20 +813,20 @@ static struct snobj *collect_ogates(Module *m) {
 static struct snobj *collect_metadata(Module *m) {
   struct snobj *metadata = snobj_list();
 
-  for (int i = 0; i < m->num_attrs; i++) {
+  for (size_t i = 0; i < m->num_attrs; i++) {
     struct snobj *attr = snobj_map();
 
     snobj_map_set(attr, "name", snobj_str(m->attrs[i].name));
     snobj_map_set(attr, "size", snobj_uint(m->attrs[i].size));
 
     switch (m->attrs[i].mode) {
-      case bess::metadata::MT_READ:
+      case bess::metadata::AccessMode::READ:
         snobj_map_set(attr, "mode", snobj_str("read"));
         break;
-      case bess::metadata::MT_WRITE:
+      case bess::metadata::AccessMode::WRITE:
         snobj_map_set(attr, "mode", snobj_str("write"));
         break;
-      case bess::metadata::MT_UPDATE:
+      case bess::metadata::AccessMode::UPDATE:
         snobj_map_set(attr, "mode", snobj_str("update"));
         break;
       default:
