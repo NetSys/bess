@@ -274,7 +274,6 @@ int ZeroCopyVPort::SendPackets(queue_t qid, snb_array_t pkts, int cnt) {
     return 0;
 
   if (__sync_bool_compare_and_swap(&out_regs_[qid]->irq_enabled, 1, 0)) {
-    int ret;
     char t[1] = {'F'};
     ret = write(out_irq_fd_[qid], reinterpret_cast<void *>(t), 1);
   }
