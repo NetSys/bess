@@ -56,10 +56,20 @@ static inline attr_id_t get_attr_id(const struct mt_attr *attr) {
 
 // ScopeComponent ----------------------------------------------------------
 
-static bool ScopeComponentLess(const ScopeComponent *a,
-                               const ScopeComponent *b) {
-  return a->offset() < b->offset();
-}
+class ScopeComponentComp {
+ public:
+  ScopeComponentComp(const bool &revparam = false) { reverse_ = revparam; }
+
+  bool operator()(const ScopeComponent &lhs, const ScopeComponent &rhs) const {
+    if (reverse_) {
+      return (lhs.offset() > rhs.offset());
+    }
+    return (lhs.offset() < rhs.offset());
+  }
+
+ private:
+  bool reverse_;
+};
 
 static int DegreeComp(const ScopeComponent &a, const ScopeComponent &b) {
   return b.degree() - a.degree();
@@ -301,12 +311,11 @@ void Pipeline::FillOffsetArrays() {
 
 void Pipeline::AssignOffsets() {
   mt_offset_t offset = 0;
-  std::priority_queue<
-      ScopeComponent *, std::vector<ScopeComponent *>,
-      std::function<bool(const ScopeComponent *, const ScopeComponent *)>>
-      h(ScopeComponentLess);
+  std::priority_queue<ScopeComponent, std::vector<ScopeComponent>,
+                      ScopeComponentComp>
+      h;
   ScopeComponent *comp1;
-  ScopeComponent *comp2;
+  const ScopeComponent *comp2;
   uint8_t comp1_size;
 
   for (size_t i = 0; i < scope_components_.size(); i++) {
@@ -332,11 +341,12 @@ void Pipeline::AssignOffsets() {
 
       if (!scope_components_[i].DisjointFrom(scope_components_[j]) &&
           scope_components_[j].assigned()) {
-        h.push(&scope_components_[j]);
+        h.push(scope_components_[j]);
       }
     }
 
-    while (!h.empty() && (comp2 = h.top())) {
+    while (!h.empty()) {
+      comp2 = &h.top();
       h.pop();
 
       if (comp2->offset() == kMetadataOffsetNoRead ||
