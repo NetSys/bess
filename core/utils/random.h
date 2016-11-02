@@ -8,7 +8,7 @@
 class Random {
  public:
   Random() { SetSeed(rdtsc()); }
-  Random(uint64_t seed) { SetSeed(seed_); }
+  Random(uint64_t seed) { SetSeed(seed); }
 
   void SetSeed(uint64_t seed) { this->seed_ = seed; };
 
@@ -18,7 +18,6 @@ class Random {
   double GetRealNonzero();
 
  private:
-  void UpdateSeed();
   uint64_t seed_;
 };
 
