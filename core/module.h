@@ -358,7 +358,7 @@ inline void Module::RunNextModule(struct pkt_batch *batch) {
   RunChooseModule(0, batch);
 }
 
-static int is_valid_attr(const std::string &name, size_t size,
+static inline int is_valid_attr(const std::string &name, size_t size,
                          bess::metadata::AccessMode mode) {
   if (name.empty())
     return 0;
@@ -366,7 +366,8 @@ static int is_valid_attr(const std::string &name, size_t size,
   if (size < 1 || size > bess::metadata::kMetadataAttrMaxSize)
     return 0;
 
-  if (mode != bess::metadata::AccessMode::READ && mode != bess::metadata::AccessMode::WRITE &&
+  if (mode != bess::metadata::AccessMode::READ &&
+      mode != bess::metadata::AccessMode::WRITE &&
       mode != bess::metadata::AccessMode::UPDATE)
     return 0;
 

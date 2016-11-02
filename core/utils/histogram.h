@@ -1,9 +1,7 @@
 #ifndef __HISTOGRAM_H__
 #define __HISTOGRAM_H__
 
-#include <rte_cycles.h>
-
-#include "../mem_alloc.h"
+#include "time.h"
 
 #define HISTO_TIMEUNIT_MULT (1000lu * 1000 * 1000)  // Nano seconds
 #define HISTO_TIME (100lu)       // We measure in 100 ns units
@@ -17,16 +15,17 @@
 
 typedef uint64_t histo_count_t;
 struct histogram {
-  histo_count_t* arr;
+  histo_count_t arr[HISTO_BUCKETS];
   histo_count_t above_threshold;
 };
 
 static inline uint64_t get_time() {
-  double t = rte_get_tsc_cycles();
-  return (uint64_t)(t * (HISTO_TIMEUNIT_MULT / HISTO_TIME) / rte_get_tsc_hz());
+  double t = rdtsc();
+  return (uint64_t)(t * (HISTO_TIMEUNIT_MULT / HISTO_TIME) / tsc_hz);
 }
 
-static inline const char* choose_unit_str(int TIMEUNIT) {
+#if 0
+static const char* choose_unit_str(int TIMEUNIT) {
   if (TIMEUNIT <= 1) return "sec";
   if (TIMEUNIT <= 1000) return "msec";
   if (TIMEUNIT <= 1000 * 1000) return "usec";
@@ -34,7 +33,7 @@ static inline const char* choose_unit_str(int TIMEUNIT) {
   return "nsec";
 }
 
-static inline int choose_unit_mult(int TIMEUNIT) {
+static int choose_unit_mult(int TIMEUNIT) {
   if (TIMEUNIT <= 1) return 1;
   if (TIMEUNIT <= 1000) return TIMEUNIT / 1000;
   if (TIMEUNIT <= 1000 * 1000) return TIMEUNIT / (1000 * 1000);
@@ -134,6 +133,7 @@ static void print_summary(struct histogram* hist) {
   printf("##   99.9999%%ile: %" PRIu64 " %s\n", latencies[6], timeunit_name);
   printf("##   Total: %" PRIu64 "\n", count);
 }
+#endif
 
 static inline void record_latency(struct histogram* hist, uint64_t latency) {
   if (latency >= HISTO_HARD_TIMEOUT) {
@@ -142,11 +142,6 @@ static inline void record_latency(struct histogram* hist, uint64_t latency) {
     histo_count_t* bucket = hist->arr + latency;
     HISTO_BUCKET_INC(bucket);
   }
-}
-
-static inline void init_hist(struct histogram* hist) {
-  hist->arr = static_cast<histo_count_t*>(
-      mem_alloc(HISTO_BUCKETS * sizeof(histo_count_t)));
 }
 
 #endif

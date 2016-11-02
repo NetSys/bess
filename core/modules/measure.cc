@@ -29,9 +29,6 @@ struct snobj *Measure::Init(struct snobj *arg) {
   if (arg) {
     warmup_ = snobj_eval_int(arg, "warmup");
   }
-
-  init_hist(&hist_);
-
   return nullptr;
 }
 
@@ -39,7 +36,6 @@ pb_error_t Measure::Init(const bess::protobuf::MeasureArg &arg) {
   if (arg.warmup()) {
     warmup_ = arg.warmup();
   }
-  init_hist(&hist_);
   return pb_errno(0);
 }
 

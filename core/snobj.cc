@@ -767,6 +767,7 @@ struct snobj *snobj_errno_details(int err, struct snobj *details) {
   return snobj_err_details(err, details, "%s", strerror(err));
 }
 
+#if 0
 /* example taken from http://www.yaml.org/start.html */
 static struct snobj *create_invoice() {
   struct snobj *m = snobj_map();
@@ -913,3 +914,4 @@ static void test_invoice() {
   _FREE(buf);
   _FREE(buf2);
 }
+#endif
