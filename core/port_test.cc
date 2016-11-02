@@ -171,7 +171,8 @@ TEST_F(PortTest, DestroyPort) {
   bool deinited = false;
   static_cast<DummyPort *>(p_fetched)->set_deinited(&deinited);
   ASSERT_FALSE(deinited);
-  PortBuilder::DestroyPort(p_fetched);
+  int ret = PortBuilder::DestroyPort(p_fetched);
+  ASSERT_EQ(0, ret) << "DestroyPort returned -EBUSY? " << (ret == -EBUSY);
   ASSERT_TRUE(deinited);
 
   EXPECT_TRUE(PortBuilder::all_ports().empty());
@@ -200,7 +201,7 @@ TEST_F(PortTest, DestroyAllPorts) {
     Port *p = it->second;
 
     int ret = PortBuilder::DestroyPort(p);
-    ASSERT_FALSE(ret);
+    EXPECT_EQ(0, ret) << "DestroyPort returned -EBUSY? " << (ret == -EBUSY);
 
     it = it_next;
   }

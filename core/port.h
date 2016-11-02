@@ -43,6 +43,8 @@ typedef enum {
 } packet_dir_t;
 
 struct packet_stats {
+  packet_stats() : packets(), dropped(), bytes() {}
+
   uint64_t packets;
   uint64_t dropped; /* Not all drivers support this for inc dir */
   uint64_t bytes;   /* doesn't include Ethernet overhead */
@@ -137,7 +139,13 @@ class PortBuilder {
 class Port {
   // overide this section to create a new module -----------------------------
  public:
-  Port() = default;
+  Port()
+      : port_builder_(),
+        num_queues(),
+        queue_size(),
+        users(),
+        queue_stats(),
+        port_stats() {}
   virtual ~Port(){};
 
   template <typename T>

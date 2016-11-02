@@ -33,8 +33,9 @@ bool PortBuilder::AddPort(Port *p) {
 int PortBuilder::DestroyPort(Port *p) {
   for (packet_dir_t dir : {PACKET_DIR_INC, PACKET_DIR_OUT}) {
     for (queue_t i = 0; i < p->num_queues[dir]; i++) {
-      if (p->users[dir][i])
+      if (p->users[dir][i]) {
         return -EBUSY;
+      }
     }
   }
 
