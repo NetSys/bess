@@ -708,8 +708,8 @@ static struct snobj *handle_create_module(struct snobj *q) {
   name = snobj_eval_str(q, "name");
   std::string mod_name;
   if (name) {
-    const auto &it = ModuleBuilder::all_modules().find(name);
-    if (it != ModuleBuilder::all_modules().end()) {
+    const auto &all_modules = ModuleBuilder::all_modules();
+    if (all_modules.find(name) != all_modules.end()) {
       return snobj_err(EEXIST, "Module '%s' already exists", name);
     }
     mod_name = name;
@@ -948,10 +948,12 @@ static struct snobj *handle_attach_task(struct snobj *q) {
   if (!m_name)
     return snobj_err(EINVAL, "Missing 'name' field");
 
-  const auto &it = ModuleBuilder::all_modules().find(m_name);
-  if (it == ModuleBuilder::all_modules().end())
-    return snobj_err(ENOENT, "No module '%s' found", m_name);
-  m = it->second;
+  {
+    const auto &it = ModuleBuilder::all_modules().find(m_name);
+    if (it == ModuleBuilder::all_modules().end())
+      return snobj_err(ENOENT, "No module '%s' found", m_name);
+    m = it->second;
+  }
 
   tid = snobj_eval_uint(q, "taskid");
   if (tid >= MAX_TASKS_PER_MODULE)

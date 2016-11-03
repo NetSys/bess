@@ -29,7 +29,7 @@ void Update::ProcessBatch(struct pkt_batch *batch) {
   int cnt = batch->cnt;
 
   for (int i = 0; i < num_fields_; i++) {
-    const struct field *field = &fields_[i];
+    const auto field = &fields_[i];
 
     uint64_t mask = field->mask;
     uint64_t value = field->value;

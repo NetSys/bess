@@ -204,7 +204,7 @@ void RandomUpdate::ProcessBatch(struct pkt_batch *batch) {
   int cnt = batch->cnt;
 
   for (int i = 0; i < num_vars_; i++) {
-    const struct var *var = &vars_[i];
+    const auto var = &vars_[i];
 
     uint32_t mask = var->mask;
     uint32_t min = var->min;

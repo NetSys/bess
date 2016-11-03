@@ -138,14 +138,14 @@ struct snobj *RoundRobin::CommandSetGates(struct snobj *arg) {
 }
 
 void RoundRobin::ProcessBatch(struct pkt_batch *batch) {
-  gate_idx_t ogates[MAX_PKT_BURST];
+  gate_idx_t out_gates[MAX_PKT_BURST];
 
   if (per_packet_) {
     for (int i = 0; i < batch->cnt; i++) {
-      ogates[i] = gates_[current_gate_];
+      out_gates[i] = gates_[current_gate_];
       current_gate_ = (current_gate_ + 1) % ngates_;
     }
-    RunSplit(ogates, batch);
+    RunSplit(out_gates, batch);
   } else {
     gate_idx_t gate = gates_[current_gate_];
     current_gate_ = (current_gate_ + 1) % ngates_;

@@ -3,9 +3,9 @@
 const Commands<Module> MetadataTest::cmds = {};
 
 pb_error_t MetadataTest::AddAttributes(
-    const google::protobuf::Map<std::string, int64_t> &attrs,
+    const google::protobuf::Map<std::string, int64_t> &attributes,
     bess::metadata::AccessMode mode) {
-  for (const auto &kv : attrs) {
+  for (const auto &kv : attributes) {
     int ret;
 
     const char *attr_name = kv.first.c_str();
@@ -36,19 +36,19 @@ pb_error_t MetadataTest::AddAttributes(
 }
 
 struct snobj *MetadataTest::AddAttributes(
-    struct snobj *attrs, bess::metadata::AccessMode mode) {
-  if (snobj_type(attrs) != TYPE_MAP) {
+    struct snobj *attributes, bess::metadata::AccessMode mode) {
+  if (snobj_type(attributes) != TYPE_MAP) {
     return snobj_err(EINVAL,
                      "argument must be a map of "
                      "{'attribute name': size, ...}");
   }
 
   /* a bit hacky, since there is no iterator for maps... */
-  for (size_t i = 0; i < attrs->size; i++) {
+  for (size_t i = 0; i < attributes->size; i++) {
     int ret;
 
-    const char *attr_name = attrs->map.arr_k[i];
-    int attr_size = snobj_int_get((attrs->map.arr_v[i]));
+    const char *attr_name = attributes->map.arr_k[i];
+    int attr_size = snobj_int_get((attributes->map.arr_v[i]));
 
     ret = AddMetadataAttr(attr_name, attr_size, mode);
     if (ret < 0)
@@ -96,25 +96,25 @@ pb_error_t MetadataTest::Init(const bess::protobuf::MetadataTestArg &arg) {
 }
 
 struct snobj *MetadataTest::Init(struct snobj *arg) {
-  struct snobj *attrs;
+  struct snobj *attributes;
   struct snobj *err;
 
-  if ((attrs = snobj_eval(arg, "read"))) {
-    err = AddAttributes(attrs, bess::metadata::AccessMode::READ);
+  if ((attributes = snobj_eval(arg, "read"))) {
+    err = AddAttributes(attributes, bess::metadata::AccessMode::READ);
     if (err) {
       return err;
     }
   }
 
-  if ((attrs = snobj_eval(arg, "write"))) {
-    err = AddAttributes(attrs, bess::metadata::AccessMode::WRITE);
+  if ((attributes = snobj_eval(arg, "write"))) {
+    err = AddAttributes(attributes, bess::metadata::AccessMode::WRITE);
     if (err) {
       return err;
     }
   }
 
-  if ((attrs = snobj_eval(arg, "update"))) {
-    err = AddAttributes(attrs, bess::metadata::AccessMode::UPDATE);
+  if ((attributes = snobj_eval(arg, "update"))) {
+    err = AddAttributes(attributes, bess::metadata::AccessMode::UPDATE);
     if (err) {
       return err;
     }

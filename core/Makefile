@@ -25,7 +25,7 @@ else
 endif
 
 CXXFLAGS += -std=gnu++11 -g3 -ggdb3 -Ofast -march=native \
-	    -Werror -Wall -Wextra \
+	    -Werror -Wall -Wextra -Wshadow \
 	    -Wno-missing-field-initializers \
 	    -isystem $(DPDK_INC_DIR) \
 	    -D_GNU_SOURCE
