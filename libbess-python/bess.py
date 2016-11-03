@@ -166,6 +166,9 @@ class BESS(object):
     def get_port_stats(self, port):
         return self._request_bess('get_port_stats', port)
 
+    def get_port_link(self, port):
+        return self._request_bess('get_port_link', port)
+
     def list_mclasses(self):
         return self._request_bess('list_mclasses')
 

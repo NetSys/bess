@@ -242,6 +242,12 @@ int destroy_port(struct port *p)
 	return 0;
 }
 
+void get_port_link_status(struct port *p)
+{
+	if (p->driver->get_link_status)
+		p->driver->get_link_status(p);
+}
+
 void get_port_stats(struct port *p, port_stats_t *stats)
 {
 	if (p->driver->collect_stats)

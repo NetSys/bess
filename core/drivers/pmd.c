@@ -377,6 +377,14 @@ static int pmd_send_pkts(struct port *p, queue_t qid, snb_array_t pkts, int cnt)
 	return sent;
 }
 
+static void pmd_link_status(struct port *p)
+{
+	struct pmd_priv *priv = get_port_priv(p);
+
+	rte_eth_link_get_nowait(priv->dpdk_port_id,
+		(struct rte_eth_link *)&p->link_status);
+}
+
 static const struct driver pmd = {
 	.name 		= "PMDPort",
 	.help		= "DPDK poll mode driver",
@@ -392,6 +400,7 @@ static const struct driver pmd = {
 	.collect_stats	= pmd_collect_stats,
 	.recv_pkts 	= pmd_recv_pkts,
 	.send_pkts 	= pmd_send_pkts,
+	.get_link_status = pmd_link_status,
 };
 
 ADD_DRIVER(pmd)

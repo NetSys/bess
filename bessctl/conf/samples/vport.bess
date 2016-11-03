@@ -6,3 +6,8 @@ p = PMDPort(port_id=0)
 
 PortInc(port=p) -> PortOut(port=v)
 PortInc(port=v) -> PortOut(port=p)
+
+link_state = bess.get_port_link(p.name)
+# http://dpdk.org/doc/api/rte__ethdev_8h_source.html
+# Values for link_state
+print "Current Link State for Physical port is %s" % link_state

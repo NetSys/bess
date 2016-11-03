@@ -549,6 +549,32 @@ static struct snobj *handle_destroy_port(struct snobj *q)
 	return NULL;
 }
 
+static struct snobj *handle_get_port_link(struct snobj *q)
+{
+	const char *port_name;
+	struct port *port;
+	struct snobj *r;
+
+	port_name = snobj_str_get(q);
+	if (!port_name)
+		return snobj_err(EINVAL, "Argument must be a name in str");
+
+	port = find_port(port_name);
+	if (!port)
+		return snobj_err(ENOENT, "No port '%s' found", port_name);
+
+	/* get updated link status */
+	get_port_link_status(port);
+
+	r = snobj_map();
+	/* TODO XXX Make this return strings instead of raw values */
+	snobj_map_set(r, "speed", snobj_uint(port->link_status.link_speed));
+	snobj_map_set(r, "duplex", snobj_uint(port->link_status.link_duplex));
+	snobj_map_set(r, "autoneg", snobj_uint(port->link_status.link_autoneg));
+	snobj_map_set(r, "status", snobj_uint(port->link_status.link_status));
+	return r;
+}
+
 static struct snobj *handle_get_port_stats(struct snobj *q)
 {
 	const char *port_name;
@@ -1086,6 +1112,7 @@ static struct handler_map sn_handlers[] = {
 	{ "create_port", 	0, handle_create_port },
 	{ "destroy_port",	0, handle_destroy_port },
 	{ "get_port_stats",	0, handle_get_port_stats },
+	{ "get_port_link",	0, handle_get_port_link },
 
 	{ "list_mclasses", 	0, handle_list_mclasses },
 	{ "get_mclass_info",	0, handle_get_mclass_info },
