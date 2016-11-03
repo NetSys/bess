@@ -1,7 +1,12 @@
 #ifndef __HASH_LB_H__
 #define __HASH_LB_H__
 
+#include <gtest/gtest_prod.h>
+
 #include "../module.h"
+
+namespace bess {
+namespace modules {
 
 #define MAX_HLB_GATES 16384
 
@@ -34,6 +39,12 @@ class HashLB : public Module {
   static const Commands<Module> cmds;
 
  private:
+  FRIEND_TEST(HashLBTest, SetGatesVanilla);
+  FRIEND_TEST(HashLBTest, SetGatesList);
+  FRIEND_TEST(HashLBTest, SetMode);
+  FRIEND_TEST(HashLBTest, Init);
+  FRIEND_TEST(HashLBTest, InitWithMode);
+
   void LbL2(struct pkt_batch *batch, gate_idx_t *ogates);
   void LbL3(struct pkt_batch *batch, gate_idx_t *ogates);
   void LbL4(struct pkt_batch *batch, gate_idx_t *ogates);
@@ -42,5 +53,8 @@ class HashLB : public Module {
   int num_gates_;
   enum LbMode mode_;
 };
+
+} // namespace modules
+} // namespace bess
 
 #endif

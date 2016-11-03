@@ -2,6 +2,9 @@
 
 #include <rte_hash_crc.h>
 
+namespace bess {
+namespace modules {
+
 const enum LbMode DEFAULT_MODE = LB_L4;
 
 static inline uint32_t hash_64(uint64_t val, uint32_t init_val) {
@@ -261,3 +264,6 @@ void HashLB::ProcessBatch(struct pkt_batch *batch) {
 
 ADD_MODULE(HashLB, "hash_lb",
            "splits packets on a flow basis with L2/L3/L4 header fields")
+
+} // namespace modules
+} // namespace bess
