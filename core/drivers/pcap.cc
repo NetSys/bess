@@ -7,7 +7,7 @@ PCAPPort::~PCAPPort() {
 }
 
 // don't use
-struct snobj* PCAPPort::Init(struct snobj* conf) {
+struct snobj* PCAPPort::Init(struct snobj*) {
   return nullptr;
 }
 
