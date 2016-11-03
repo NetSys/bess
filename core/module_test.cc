@@ -65,6 +65,11 @@ int create_acme(const char *name, Module **m) {
   EXPECT_EQ("foo bar", builder.help_text());
   EXPECT_EQ(1, builder.cmds().size());
 
+  EXPECT_EQ(&builder, (*m)->module_builder());
+  EXPECT_EQ(&default_pipeline, (*m)->pipeline());
+  EXPECT_EQ(0, (*m)->GetDesc().size());
+  EXPECT_NE(nullptr, (*m)->GetDump());
+
   return 0;
 }
 
@@ -172,6 +177,28 @@ TEST_F(ModuleTester, ResetModules) {
 
   ModuleBuilder::DestroyAllModules();
   EXPECT_EQ(0, ModuleBuilder::all_modules().size());
+}
+
+TEST_F(ModuleTester, Metadata) {
+  Module *m1, *m2;
+  struct snbuf *pkt =
+      reinterpret_cast<struct snbuf *>(mem_alloc(sizeof(struct snbuf)));
+
+  EXPECT_EQ(0, create_acme(nullptr, &m1));
+  ASSERT_NE(nullptr, m1);
+  EXPECT_EQ(0, create_acme(nullptr, &m2));
+  ASSERT_NE(nullptr, m2);
+
+  m1->AddMetadataAttr("foo", 1, bess::metadata::AccessMode::WRITE);
+  m2->AddMetadataAttr("foo", 1, bess::metadata::AccessMode::READ);
+  EXPECT_EQ(0, m1->ConnectModules(0, m2, 0));
+
+  ASSERT_EQ(0, default_pipeline.ComputeMetadataOffsets());
+
+  ASSERT_EQ(pkt->_metadata,
+            reinterpret_cast<char *>(ptr_attr<uint8_t>(m1, 0, pkt)));
+  set_attr<uint8_t>(m1, 0, pkt, 255);
+  ASSERT_EQ(255, get_attr<uint8_t>(m1, 0, pkt));
 }
 
 }  // namespace (unnamed)
