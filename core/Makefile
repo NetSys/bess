@@ -4,6 +4,14 @@
 CXX ?= g++
 PROTOC ?= protoc
 
+# e.g., 4.9.3 -> 40903
+CXXVERSION := $(shell $(CXX) -dumpversion | sed -e 's/\.\([0-9][0-9]\)/\1/g' -e 's/\.\([0-9]\)/0\1/g' -e 's/^[0-9]\{3,4\}$$/&00/')
+
+CXXVERSION_4_8_OR_HIGHER := $(shell expr $(CXXVERSION) \>= 40800)
+ifeq "$(CXXVERSION_4_8_OR_HIGHER)" "0"
+  $(error g++ 4.8 or higher is required)
+endif
+
 RTE_SDK ?= $(abspath ../deps/dpdk-16.07)
 RTE_TARGET ?= $(shell uname -m)-native-linuxapp-gcc
 DPDK_LIB = dpdk
@@ -29,8 +37,14 @@ CXXFLAGS += -std=gnu++11 -g3 -ggdb3 -Ofast -march=native \
 	    -isystem $(DPDK_INC_DIR) \
 	    -D_GNU_SOURCE
 
-HARDCORE = -Wextra -Wshadow -Wcast-align \
+HARDCORE = -Wextra -Wcast-align \
 	   -Wno-missing-field-initializers	# FIXME
+
+# -Wshadow should not be used for g++ 4.x, as it has too many false positives
+CXXVERSION_5_OR_HIGHER := $(shell expr $(CXXVERSION) \>= 50000)
+ifeq "$(CXXVERSION_5_OR_HIGHER)" "1"
+  HARDCORE += -Wshadow
+endif
 
 LDFLAGS += -rdynamic -L$(DPDK_LIB_DIR) -Wl,-rpath=$(DPDK_LIB_DIR) -pthread \
 	   -static-libstdc++

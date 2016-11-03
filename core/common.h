@@ -13,7 +13,7 @@
 # error The compiler does not support C++11
 #endif
 
-// [[maybe_unused]] is a c++17 feature, 
+// [[maybe_unused]] is a c++17 feature,
 // but g++ (>= 4.8) has its own [[gnu::unused]]
 #if __cplusplus <= 201402L  // C++14 or older?
 #  define maybe_unused gnu::unused
