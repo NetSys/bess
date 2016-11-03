@@ -137,7 +137,7 @@ class PortBuilder {
 };
 
 class Port {
-  // overide this section to create a new module -----------------------------
+  // overide this section to create a new driver -----------------------------
  public:
   Port()
       : port_builder_(),

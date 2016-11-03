@@ -52,7 +52,7 @@ bool PcapHandle::is_initialized() const {
 }
 
 int PcapHandle::SendPacket(const u_char* packet, int len) {
-  if (len <= PCAP_SNAPLEN) {
+  if (is_initialized() && len <= PCAP_SNAPLEN) {
     return pcap_sendpacket(handle_, packet, len);
   } else {
     return 1;
@@ -60,6 +60,10 @@ int PcapHandle::SendPacket(const u_char* packet, int len) {
 }
 
 const u_char* PcapHandle::RecvPacket(int* caplen) {
+  if (!is_initialized()) {
+    *caplen = 0;
+    return nullptr;
+  }
   pcap_pkthdr header;
   const u_char* pkt = pcap_next(handle_, &header);
   *caplen = header.caplen;

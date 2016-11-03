@@ -8,6 +8,8 @@
 
 // Wraps all accesses to libpcap
 class PcapHandle {
+  friend class PcapHandleFixtureTest;
+
  public:
   // Opens a device and sets it to nonblocking
   PcapHandle(const std::string &dev);
