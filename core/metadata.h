@@ -132,6 +132,8 @@ class Pipeline {
   int RegisterAttribute(const struct mt_attr *attr);
 
  private:
+  friend class MetadataTest;
+
   // Allocate and initiliaze scope component storage.
   // Returns 0 on sucess, -errno on failure.
   int PrepareMetadataComputation();

@@ -60,11 +60,11 @@ class ScopeComponentComp {
  public:
   ScopeComponentComp(const bool &revparam = false) { reverse_ = revparam; }
 
-  bool operator()(const ScopeComponent &lhs, const ScopeComponent &rhs) const {
+  bool operator()(const ScopeComponent *lhs, const ScopeComponent *rhs) const {
     if (reverse_) {
-      return (lhs.offset() > rhs.offset());
+      return (lhs->offset() < rhs->offset());
     }
-    return (lhs.offset() < rhs.offset());
+    return (lhs->offset() > rhs->offset());
   }
 
  private:
@@ -77,7 +77,7 @@ static int DegreeComp(const ScopeComponent &a, const ScopeComponent &b) {
 
 bool ScopeComponent::DisjointFrom(const ScopeComponent &rhs) {
   for (const auto &i : modules_) {
-    for (const auto &j : rhs.modules()) {
+    for (const auto &j : rhs.modules_) {
       if (i == j) {
         return 0;
       }
@@ -120,6 +120,7 @@ void Pipeline::CleanupMetadataComputation() {
     mem_free(module_components_[it.first]);
   }
   module_components_.clear();
+  module_scopes_.clear();
 
   attributes_.clear();
 
@@ -140,6 +141,7 @@ void Pipeline::AddModuleToComponent(Module *m, struct mt_attr *attr) {
 
   if (component.modules().empty()) {
     component.set_attr_id(get_attr_id(attr));
+    component.set_size(attr->size);
   }
   component.add_module(m);
 }
@@ -203,8 +205,8 @@ int Pipeline::TraverseDownstream(Module *m, struct mt_attr *attr) {
 
   found_attr = FindAttr(m, attr);
 
-  if (found_attr &&
-      (found_attr->mode == AccessMode::READ || found_attr->mode == AccessMode::UPDATE)) {
+  if (found_attr && (found_attr->mode == AccessMode::READ ||
+                     found_attr->mode == AccessMode::UPDATE)) {
     AddModuleToComponent(m, found_attr);
     found_attr->scope_id = scope_components_.size();
 
@@ -311,14 +313,14 @@ void Pipeline::FillOffsetArrays() {
 
 void Pipeline::AssignOffsets() {
   mt_offset_t offset = 0;
-  std::priority_queue<ScopeComponent, std::vector<ScopeComponent>,
-                      ScopeComponentComp>
-      h;
   ScopeComponent *comp1;
   const ScopeComponent *comp2;
   uint8_t comp1_size;
 
   for (size_t i = 0; i < scope_components_.size(); i++) {
+    std::priority_queue<const ScopeComponent *, std::vector<const ScopeComponent *>,
+                        ScopeComponentComp>
+        h;
     comp1 = &scope_components_[i];
 
     if (comp1->invalid()) {
@@ -341,12 +343,12 @@ void Pipeline::AssignOffsets() {
 
       if (!scope_components_[i].DisjointFrom(scope_components_[j]) &&
           scope_components_[j].assigned()) {
-        h.push(scope_components_[j]);
+        h.push(&scope_components_[j]);
       }
     }
 
     while (!h.empty()) {
-      comp2 = &h.top();
+      comp2 = h.top();
       h.pop();
 
       if (comp2->offset() == kMetadataOffsetNoRead ||
