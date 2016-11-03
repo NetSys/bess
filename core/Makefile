@@ -153,15 +153,15 @@ $(eval $(call BUILD, \
 
 $(eval $(call BUILD, \
 	CXX, \
-	%.o, \
-	%.cc, \
-	$$(CXX) -o $$@ -c $$< $$(CXXFLAGS)))
-
-$(eval $(call BUILD, \
-	CXX, \
 	%.pb.o, \
 	%.pb.cc, \
 	$$(CXX) -o $$@ -c $$< $$(CXXFLAGS) -Wno-unused-parameter))
+
+$(eval $(call BUILD, \
+	CXX, \
+	%.o, \
+	%.cc, \
+	$$(CXX) -o $$@ -c $$< $$(CXXFLAGS)))
 
 $(eval $(call BUILD, \
 	LD, \
