@@ -29,11 +29,11 @@
 typedef uint16_t value_t;
 
 static inline int inlined_keycmp(const void *key, const void *key_stored,
-                                 size_t key_size) {
+                                 size_t) {
   return *(uint32_t *)key != *(uint32_t *)key_stored;
 }
 
-static inline uint32_t inlined_hash(const void *key, uint32_t key_size,
+static inline uint32_t inlined_hash(const void *key, uint32_t,
                                     uint32_t init_val) {
 #if __SSE4_2__
   return crc32c_sse42_u32(*(uint32_t *)key, init_val);
@@ -77,7 +77,7 @@ class BessFixture : public benchmark::Fixture {
     arg_ = static_cast<HTableBase *>(t);
   }
 
-  virtual void TearDown(benchmark::State &st) {
+  virtual void TearDown(benchmark::State &) {
     HTable<uint32_t, value_t, inlined_keycmp, inlined_hash> *t =
         (HTable<uint32_t, value_t, inlined_keycmp, inlined_hash> *) arg_;
     t->Close();

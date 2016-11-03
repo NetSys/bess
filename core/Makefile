@@ -25,12 +25,16 @@ else
 endif
 
 CXXFLAGS += -std=gnu++11 -g3 -ggdb3 -Ofast -march=native \
-	    -Wall -Werror -Wno-unused-function -Wno-unused-but-set-variable \
+	    -Werror -Wall \
 	    -isystem $(DPDK_INC_DIR) \
 	    -D_GNU_SOURCE
 
+HARDCORE = -Wextra -Wshadow -Wcast-align \
+	   -Wno-missing-field-initializers	# FIXME
+
 LDFLAGS += -rdynamic -L$(DPDK_LIB_DIR) -Wl,-rpath=$(DPDK_LIB_DIR) -pthread \
 	   -static-libstdc++
+
 LIBS += -Wl,-non_shared \
 	-Wl,--whole-archive -l$(DPDK_LIB) -Wl,--no-whole-archive \
 	-lglog -lgflags -lprotobuf -lgrpc++ -lgrpc \
@@ -152,9 +156,15 @@ $(eval $(call BUILD, \
 
 $(eval $(call BUILD, \
 	CXX, \
+	%.pb.o, \
+	%.pb.cc, \
+	$$(CXX) -o $$@ -c $$< $$(CXXFLAGS)))
+
+$(eval $(call BUILD, \
+	CXX, \
 	%.o, \
 	%.cc, \
-	$$(CXX) -o $$@ -c $$< $$(CXXFLAGS)))
+	$$(CXX) -o $$@ -c $$< $$(CXXFLAGS) $$(HARDCORE)))
 
 $(eval $(call BUILD, \
 	LD, \
@@ -166,7 +176,7 @@ $(eval $(call BUILD, \
 	TEST_CXX, \
 	%_test.o, \
 	%_test.cc, \
-	$$(CXX) -o $$@ -c $$< $$(CXXFLAGS)))
+	$$(CXX) -o $$@ -c $$< $$(CXXFLAGS) $$(HARDCORE)))
 
 $(eval $(call BUILD, \
 	TEST_LD, \
@@ -184,13 +194,13 @@ $(eval $(call BUILD, \
 	TEST_CXX, \
 	gtest-all.o, \
 	$$(GTEST_DIR)/src/gtest-all.cc, \
-	$$(CXX) -o $$@ -c $$< -I$$(GTEST_DIR) $$(CXXFLAGS)))
+	$$(CXX) -o $$@ -c $$< -I$$(GTEST_DIR) $$(CXXFLAGS) $$(HARDCORE)))
 
 $(eval $(call BUILD, \
 	BENCH_CXX, \
 	%_bench.o, \
 	%_bench.cc, \
-	$$(CXX) -o $$@ -c $$< $$(CXXFLAGS)))
+	$$(CXX) -o $$@ -c $$< $$(CXXFLAGS) $$(HARDCORE)))
 
 $(eval $(call BUILD, \
 	BENCH_LD, \

@@ -1,7 +1,5 @@
 #include "metadata.h"
 
-#include <string.h>
-
 #include <algorithm>
 #include <functional>
 #include <queue>
@@ -315,7 +313,6 @@ void Pipeline::AssignOffsets() {
   mt_offset_t offset = 0;
   ScopeComponent *comp1;
   const ScopeComponent *comp2;
-  uint8_t comp1_size;
 
   for (size_t i = 0; i < scope_components_.size(); i++) {
     std::priority_queue<const ScopeComponent *, std::vector<const ScopeComponent *>,
@@ -334,7 +331,6 @@ void Pipeline::AssignOffsets() {
     }
 
     offset = 0;
-    comp1_size = align_ceil_pow2(comp1->size());
 
     for (size_t j = 0; j < scope_components_.size(); j++) {
       if (i == j) {

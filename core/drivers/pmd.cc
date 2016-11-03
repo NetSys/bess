@@ -91,7 +91,7 @@ static struct snobj *find_dpdk_port(struct snobj *conf,
 
     port_id = snobj_int_get(t);
 
-    if (port_id < 0 || port_id >= RTE_MAX_ETHPORTS) {
+    if (port_id >= RTE_MAX_ETHPORTS) {
       return snobj_err(EINVAL, "Invalid port id %d", port_id);
     }
 
@@ -179,7 +179,7 @@ static pb_error_t find_dpdk_port(dpdk_port_t port_id,
                                  dpdk_port_t *ret_port_id,
                                  bool *ret_hot_plugged) {
   if (pci.length() == 0) {
-    if (port_id < 0 || port_id >= RTE_MAX_ETHPORTS) {
+    if (port_id >= RTE_MAX_ETHPORTS) {
       return pb_error(EINVAL, "Invalid port id %d", port_id);
     }
     if (!rte_eth_devices[port_id].attached) {

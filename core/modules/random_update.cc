@@ -94,7 +94,7 @@ struct snobj *RandomUpdate::CommandAdd(struct snobj *arg) {
   return nullptr;
 }
 
-struct snobj *RandomUpdate::CommandClear(struct snobj *arg) {
+struct snobj *RandomUpdate::CommandClear(struct snobj *) {
   num_vars_ = 0;
 
   return nullptr;
@@ -195,7 +195,7 @@ pb_error_t RandomUpdate::CommandAdd(
 }
 
 pb_error_t RandomUpdate::CommandClear(
-    const bess::protobuf::RandomUpdateCommandClearArg &arg) {
+    const bess::protobuf::RandomUpdateCommandClearArg &) {
   num_vars_ = 0;
   return pb_errno(0);
 }
@@ -204,7 +204,7 @@ void RandomUpdate::ProcessBatch(struct pkt_batch *batch) {
   int cnt = batch->cnt;
 
   for (int i = 0; i < num_vars_; i++) {
-    const struct var *var = &vars_[i];
+    const auto var = &vars_[i];
 
     uint32_t mask = var->mask;
     uint32_t min = var->min;

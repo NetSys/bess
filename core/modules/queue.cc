@@ -144,7 +144,7 @@ void Queue::ProcessBatch(struct pkt_batch *batch) {
 }
 
 /* to downstream */
-struct task_result Queue::RunTask(void *arg) {
+struct task_result Queue::RunTask(void *) {
   struct pkt_batch batch;
   struct task_result ret;
 

@@ -155,8 +155,8 @@ class ModuleBuilder {
 
   static const std::map<std::string, Module *> &all_modules();
 
-  const gate_idx_t NumIGates() const { return kNumIGates; }
-  const gate_idx_t NumOGates() const { return kNumOGates; }
+  gate_idx_t NumIGates() const { return kNumIGates; }
+  gate_idx_t NumOGates() const { return kNumOGates; }
 
   const std::string &class_name() const { return class_name_; };
   const std::string &name_template() const { return name_template_; };
@@ -203,12 +203,12 @@ class Module {
   Module() = default;
   virtual ~Module(){};
 
-  virtual pb_error_t Init(const void *arg) { return pb_errno(0); }
-  virtual struct snobj *Init(struct snobj *arg) { return nullptr; }
+  virtual pb_error_t Init(const void *arg);
+  virtual struct snobj *Init(struct snobj *arg);
   virtual void Deinit() {}
 
-  virtual struct task_result RunTask(void *arg) { assert(0); }
-  virtual void ProcessBatch(struct pkt_batch *batch) { assert(0); }
+  virtual struct task_result RunTask(void *arg);
+  virtual void ProcessBatch(struct pkt_batch *batch);
 
   virtual std::string GetDesc() const { return ""; };
   virtual struct snobj *GetDump() const { return snobj_nil(); }
@@ -358,7 +358,7 @@ inline void Module::RunNextModule(struct pkt_batch *batch) {
   RunChooseModule(0, batch);
 }
 
-static int is_valid_attr(const std::string &name, size_t size,
+static inline int is_valid_attr(const std::string &name, size_t size,
                          bess::metadata::AccessMode mode) {
   if (name.empty())
     return 0;
@@ -366,7 +366,8 @@ static int is_valid_attr(const std::string &name, size_t size,
   if (size < 1 || size > bess::metadata::kMetadataAttrMaxSize)
     return 0;
 
-  if (mode != bess::metadata::AccessMode::READ && mode != bess::metadata::AccessMode::WRITE &&
+  if (mode != bess::metadata::AccessMode::READ &&
+      mode != bess::metadata::AccessMode::WRITE &&
       mode != bess::metadata::AccessMode::UPDATE)
     return 0;
 

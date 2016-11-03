@@ -55,8 +55,8 @@ class L2Forward : public Module {
   static const Commands<Module> cmds;
 
  private:
-  struct l2_table l2_table_ = {0};
-  gate_idx_t default_gate_ = {0};
+  struct l2_table l2_table_ = {};
+  gate_idx_t default_gate_ = {};
 };
 
 #endif

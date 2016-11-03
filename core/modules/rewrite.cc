@@ -58,7 +58,7 @@ pb_error_t Rewrite::CommandAdd(const bess::protobuf::RewriteArg &arg) {
 }
 
 pb_error_t Rewrite::CommandClear(
-    const bess::protobuf::RewriteCommandClearArg &arg) {
+    const bess::protobuf::RewriteCommandClearArg &) {
   next_turn_ = 0;
   num_templates_ = 0;
 
@@ -155,7 +155,7 @@ struct snobj *Rewrite::CommandAdd(struct snobj *arg) {
   return nullptr;
 }
 
-struct snobj *Rewrite::CommandClear(struct snobj *arg) {
+struct snobj *Rewrite::CommandClear(struct snobj *) {
   next_turn_ = 0;
   num_templates_ = 0;
 

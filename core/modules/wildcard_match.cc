@@ -206,7 +206,7 @@ gate_idx_t WildcardMatch::LookupEntry(wm_hkey_t *key, gate_idx_t def_gate) {
 
 void WildcardMatch::ProcessBatch(struct pkt_batch *batch) {
   gate_idx_t default_gate;
-  gate_idx_t ogates[MAX_PKT_BURST];
+  gate_idx_t out_gates[MAX_PKT_BURST];
 
   char keys[MAX_PKT_BURST][HASH_KEY_SIZE] __ymm_aligned;
 
@@ -242,7 +242,7 @@ void WildcardMatch::ProcessBatch(struct pkt_batch *batch) {
 
 #if 1
   for (int i = 0; i < cnt; i++) {
-    ogates[i] = LookupEntry((wm_hkey_t *)keys[i], default_gate);
+    out_gates[i] = LookupEntry((wm_hkey_t *)keys[i], default_gate);
   }
 #else
   /* A version with an outer loop for tuples and an inner loop for pkts.
@@ -253,7 +253,7 @@ void WildcardMatch::ProcessBatch(struct pkt_batch *batch) {
 
   for (int i = 0; i < cnt; i++) {
     priorities[i] = INT_MIN;
-    ogates[i] = default_gate;
+    out_gates[i] = default_gate;
   }
 
   for (int i = 0; i < num_tuples_; i++) {
@@ -270,14 +270,14 @@ void WildcardMatch::ProcessBatch(struct pkt_batch *batch) {
       cand = ht->Get(&key_masked);
 
       if (cand && cand->priority >= priorities[j]) {
-        ogates[j] = cand->ogate;
+        out_gates[j] = cand->ogate;
         priorities[j] = cand->priority;
       }
     }
   }
 #endif
 
-  RunSplit(ogates, batch);
+  RunSplit(out_gates, batch);
 }
 
 std::string WildcardMatch::GetDesc() const {
@@ -586,7 +586,7 @@ pb_error_t WildcardMatch::CommandDelete(
 }
 
 pb_error_t WildcardMatch::CommandClear(
-    const bess::protobuf::WildcardMatchCommandClearArg &arg) {
+    const bess::protobuf::WildcardMatchCommandClearArg &) {
   for (int i = 0; i < num_tuples_; i++) {
     tuples_[i].ht.Clear();
   }
@@ -666,7 +666,7 @@ struct snobj *WildcardMatch::CommandDelete(struct snobj *arg) {
   return nullptr;
 }
 
-struct snobj *WildcardMatch::CommandClear(struct snobj *arg) {
+struct snobj *WildcardMatch::CommandClear(struct snobj *) {
   for (int i = 0; i < num_tuples_; i++) {
     tuples_[i].ht.Clear();
   }

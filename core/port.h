@@ -110,7 +110,7 @@ class PortBuilder {
   const std::string &class_name() const { return class_name_; }
   const std::string &name_template() const { return name_template_; }
   const std::string &help_text() const { return help_text_; }
-  const bool initialized() const { return initialized_; }
+  bool initialized() const { return initialized_; }
 
  private:
   // To avoid the static initialization ordering problem, this pseudo-getter
@@ -149,22 +149,19 @@ class Port {
   virtual ~Port(){};
 
   template <typename T>
-  pb_error_t Init(const T &arg) {
-    return pb_errno(0);
-  }
+  pb_error_t Init(const T &arg);
 
-  virtual struct snobj *Init(struct snobj *arg) { return nullptr; }
+  virtual struct snobj *Init(struct snobj *arg);
 
   virtual void Deinit() {}
 
   // For one-time initialization of the port's "driver" (optional).
   virtual void InitDriver() {}
 
-  virtual void CollectStats(bool reset) {}
+  virtual void CollectStats(bool reset);
 
-  virtual int RecvPackets(queue_t qid, snb_array_t pkts, int cnt) { return 0; }
-
-  virtual int SendPackets(queue_t qid, snb_array_t pkts, int cnt) { return 0; }
+  virtual int RecvPackets(queue_t qid, snb_array_t pkts, int cnt);
+  virtual int SendPackets(queue_t qid, snb_array_t pkts, int cnt);
 
   // For custom incoming / outgoing queue sizes (optional).
   virtual size_t DefaultIncQueueSize() const { return kDefaultIncQueueSize; }

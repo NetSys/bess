@@ -34,7 +34,7 @@ HTableBase::KeyIndex HTableBase::_get_keyidx(uint32_t pri) const {
 }
 
 void HTableBase::push_free_keyidx(KeyIndex idx) {
-  assert(0 <= idx && idx < num_entries_);
+  assert(idx < num_entries_);
 
   *(KeyIndex *)((uintptr_t)entries_ + entry_size_ * idx) = free_keyidx_;
   free_keyidx_ = idx;
@@ -223,24 +223,37 @@ int HTableBase::del_from_bucket(uint32_t pri, uint32_t hv, const void *key) {
 }
 
 int HTableBase::InitEx(struct ht_params *params) {
-  if (!params) return -EINVAL;
-
-  if (params->key_size < 1) return -EINVAL;
-
-  if (params->value_size < 0) return -EINVAL;
-
-  if (params->key_align < 1 || params->key_align > 64) return -EINVAL;
-
-  if (params->value_align < 0 || params->value_align > 64) return -EINVAL;
-
-  if (params->value_size > 0 && params->value_align == 0) return -EINVAL;
-
-  if (params->num_buckets < 1) return -EINVAL;
-
-  if (params->num_buckets != align_ceil_pow2(params->num_buckets))
+  if (!params) {
     return -EINVAL;
+  }
 
-  if (params->num_entries < kEntriesPerBucket) return -EINVAL;
+  if (params->key_size < 1) {
+    return -EINVAL;
+  }
+
+  if (params->key_align < 1 || params->key_align > 64) {
+    return -EINVAL;
+  }
+
+  if (params->value_align > 64) {
+    return -EINVAL;
+  }
+
+  if (params->value_size > 0 && params->value_align == 0) {
+    return -EINVAL;
+  }
+
+  if (params->num_buckets < 1) {
+    return -EINVAL;
+  }
+
+  if (params->num_buckets != align_ceil_pow2(params->num_buckets)) {
+    return -EINVAL;
+  }
+
+  if (params->num_entries < kEntriesPerBucket) {
+    return -EINVAL;
+  }
 
   hash_func_ = params->hash_func ?: kDefaultHashFunc;
   keycmp_func_ = params->keycmp_func ?: kDefaultKeyCmpFunc;

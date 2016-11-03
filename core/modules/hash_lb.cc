@@ -184,7 +184,7 @@ pb_error_t HashLB::Init(const bess::protobuf::HashLBArg &arg) {
   return pb_errno(0);
 }
 
-void HashLB::LbL2(struct pkt_batch *batch, gate_idx_t *ogates) {
+void HashLB::LbL2(struct pkt_batch *batch, gate_idx_t *out_gates) {
   for (int i = 0; i < batch->cnt; i++) {
     struct snbuf *snb = batch->pkts[i];
     char *head = static_cast<char *>(snb_head_data(snb));
@@ -194,11 +194,11 @@ void HashLB::LbL2(struct pkt_batch *batch, gate_idx_t *ogates) {
 
     uint32_t hash_val = hash_64(v0, v1);
 
-    ogates[i] = gates_[hash_range(hash_val, num_gates_)];
+    out_gates[i] = gates_[hash_range(hash_val, num_gates_)];
   }
 }
 
-void HashLB::LbL3(struct pkt_batch *batch, gate_idx_t *ogates) {
+void HashLB::LbL3(struct pkt_batch *batch, gate_idx_t *out_gates) {
   /* assumes untagged packets */
   const int ip_offset = 14;
 
@@ -211,11 +211,11 @@ void HashLB::LbL3(struct pkt_batch *batch, gate_idx_t *ogates) {
 
     hash_val = hash_64(v, 0);
 
-    ogates[i] = gates_[hash_range(hash_val, num_gates_)];
+    out_gates[i] = gates_[hash_range(hash_val, num_gates_)];
   }
 }
 
-void HashLB::LbL4(struct pkt_batch *batch, gate_idx_t *ogates) {
+void HashLB::LbL4(struct pkt_batch *batch, gate_idx_t *out_gates) {
   /* assumes untagged packets without IP options */
   const int ip_offset = 14;
   const int l4_offset = ip_offset + 20;
@@ -232,31 +232,31 @@ void HashLB::LbL4(struct pkt_batch *batch, gate_idx_t *ogates) {
 
     hash_val = hash_64(v0, v1);
 
-    ogates[i] = gates_[hash_range(hash_val, num_gates_)];
+    out_gates[i] = gates_[hash_range(hash_val, num_gates_)];
   }
 }
 
 void HashLB::ProcessBatch(struct pkt_batch *batch) {
-  gate_idx_t ogates[MAX_PKT_BURST];
+  gate_idx_t out_gates[MAX_PKT_BURST];
 
   switch (mode_) {
     case LB_L2:
-      LbL2(batch, ogates);
+      LbL2(batch, out_gates);
       break;
 
     case LB_L3:
-      LbL3(batch, ogates);
+      LbL3(batch, out_gates);
       break;
 
     case LB_L4:
-      LbL4(batch, ogates);
+      LbL4(batch, out_gates);
       break;
 
     default:
       assert(0);
   }
 
-  RunSplit(ogates, batch);
+  RunSplit(out_gates, batch);
 }
 
 ADD_MODULE(HashLB, "hash_lb",

@@ -39,12 +39,16 @@ fail:
   return 1;
 }
 
-static void disable_syslog() { setlogmask(0x01); }
+static void disable_syslog() {
+  setlogmask(0x01);
+}
 
-static void enable_syslog() { setlogmask(0xff); }
+static void enable_syslog() {
+  setlogmask(0xff);
+}
 
 /* for log messages during rte_eal_init() */
-static ssize_t dpdk_log_init_writer(void *cookie, const char *data,
+static ssize_t dpdk_log_init_writer(void *, const char *data,
                                     size_t len) {
   enable_syslog();
   LOG(INFO) << std::string(data, len);
@@ -52,7 +56,7 @@ static ssize_t dpdk_log_init_writer(void *cookie, const char *data,
   return len;
 }
 
-static ssize_t dpdk_log_writer(void *cookie, const char *data, size_t len) {
+static ssize_t dpdk_log_writer(void *, const char *data, size_t len) {
   LOG(INFO) << std::string(data, len);
   return len;
 }

@@ -20,7 +20,7 @@ const Commands<Module> IPLookup::cmds = {
     {"clear", MODULE_FUNC &IPLookup::CommandClear, 0},
 };
 
-struct snobj *IPLookup::Init(struct snobj *arg) {
+struct snobj *IPLookup::Init(struct snobj *) {
   struct rte_lpm_config conf = {
       .max_rules = 1024, .number_tbl8s = 128, .flags = 0,
   };
@@ -36,7 +36,7 @@ struct snobj *IPLookup::Init(struct snobj *arg) {
   return nullptr;
 }
 
-pb_error_t IPLookup::Init(const bess::protobuf::IPLookupArg &arg) {
+pb_error_t IPLookup::Init(const bess::protobuf::IPLookupArg &) {
   struct rte_lpm_config conf = {
       .max_rules = 1024, .number_tbl8s = 128, .flags = 0,
   };
@@ -57,7 +57,7 @@ void IPLookup::Deinit() {
 }
 
 void IPLookup::ProcessBatch(struct pkt_batch *batch) {
-  gate_idx_t ogates[MAX_PKT_BURST];
+  gate_idx_t out_gates[MAX_PKT_BURST];
   gate_idx_t default_gate = default_gate_;
 
   int cnt = batch->cnt;
@@ -98,10 +98,10 @@ void IPLookup::ProcessBatch(struct pkt_batch *batch) {
 
     rte_lpm_lookupx4(lpm_, ip_addr, next_hops, default_gate);
 
-    ogates[i + 0] = next_hops[0];
-    ogates[i + 1] = next_hops[1];
-    ogates[i + 2] = next_hops[2];
-    ogates[i + 3] = next_hops[3];
+    out_gates[i + 0] = next_hops[0];
+    out_gates[i + 1] = next_hops[1];
+    out_gates[i + 2] = next_hops[2];
+    out_gates[i + 3] = next_hops[3];
   }
 #endif
 
@@ -119,13 +119,13 @@ void IPLookup::ProcessBatch(struct pkt_batch *batch) {
     ret = rte_lpm_lookup(lpm_, rte_be_to_cpu_32(ip->dst_addr), &next_hop);
 
     if (ret == 0) {
-      ogates[i] = next_hop;
+      out_gates[i] = next_hop;
     } else {
-      ogates[i] = default_gate;
+      out_gates[i] = default_gate;
     }
   }
 
-  RunSplit(ogates, batch);
+  RunSplit(out_gates, batch);
 }
 
 struct snobj *IPLookup::CommandAdd(struct snobj *arg) {
@@ -179,7 +179,7 @@ struct snobj *IPLookup::CommandAdd(struct snobj *arg) {
   return nullptr;
 }
 
-struct snobj *IPLookup::CommandClear(struct snobj *arg) {
+struct snobj *IPLookup::CommandClear(struct snobj *) {
   rte_lpm_delete_all(lpm_);
   default_gate_ = DROP_GATE;
   return nullptr;
@@ -234,7 +234,7 @@ pb_error_t IPLookup::CommandAdd(
 }
 
 pb_error_t IPLookup::CommandClear(
-    const bess::protobuf::IPLookupCommandClearArg &arg) {
+    const bess::protobuf::IPLookupCommandClearArg &) {
   rte_lpm_delete_all(lpm_);
   default_gate_ = DROP_GATE;
   return pb_errno(0);

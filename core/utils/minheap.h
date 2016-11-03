@@ -1,10 +1,10 @@
-#ifndef _MINHEAP_H_
-#define _MINHEAP_H_
+#ifndef BESS_UTILS_MINHEAP_H_
+#define BESS_UTILS_MINHEAP_H_
 
 #include <stdint.h>
 #include <stdlib.h>
 
-#include "../mem_alloc.h"
+#include "../common.h"
 
 /* NOTE: The real index starts from 1.
  *       The first and tail elements will be used as sentinel values. */
@@ -15,49 +15,18 @@ struct heap {
   void **arr_d;
 };
 
-static void heap_init(struct heap *h) {
-  uint32_t i;
-  const uint32_t default_size = 4;
+void heap_init(struct heap *h);
+void heap_close(struct heap *h);
+void heap_grow(struct heap *h);
 
-  h->size = default_size;
-  h->num_nodes = 0;
-
-  h->arr_v = (int64_t *)mem_alloc(sizeof(int64_t) * (h->size * 2 + 2));
-  h->arr_d = (void **)mem_alloc(sizeof(void *) * (h->size * 2 + 2));
-
-  h->arr_v[0] = INT64_MIN;
-  h->arr_d[0] = nullptr;
-
-  for (i = 1; i <= h->size * 2 + 1; i++) {
-    h->arr_v[i] = INT64_MAX;
-    h->arr_d[i] = nullptr;
-  }
-}
-
-static void heap_close(struct heap *h) {
-  mem_free(h->arr_v);
-  mem_free(h->arr_d);
-}
-
-static void heap_push(struct heap *h, int64_t val, void *data) {
+static inline void heap_push(struct heap *h, int64_t val, void *data) {
   int64_t *arr_v;
   void **arr_d;
 
   uint32_t i;
 
   if (unlikely(h->num_nodes == h->size)) {
-    size_t array_size;
-
-    h->size += h->size / 2; /* grow by 50% */
-    array_size = h->size * 2 + 2;
-
-    h->arr_v = (int64_t *)mem_realloc(h->arr_v, sizeof(int64_t) * array_size);
-    h->arr_d = (void **)mem_realloc(h->arr_d, sizeof(void *) * array_size);
-
-    for (i = h->num_nodes * 2 + 2; i <= h->size * 2 + 1; i++) {
-      h->arr_v[i] = INT64_MAX;
-      h->arr_d[i] = nullptr;
-    }
+    heap_grow(h);
   }
 
   arr_v = h->arr_v;
@@ -76,19 +45,19 @@ static void heap_push(struct heap *h, int64_t val, void *data) {
   arr_d[i] = data;
 }
 
-static void *heap_peek(struct heap *h) {
+static inline void *heap_peek(struct heap *h) {
   /* guaranteed to be nullptr if the heap is empty */
   return h->arr_d[1];
 }
 
-static void heap_peek_valdata(const struct heap *h, int64_t *ret_val,
+static inline void heap_peek_valdata(const struct heap *h, int64_t *ret_val,
                               void **ret_data) {
   *ret_val = h->arr_v[1];
   *ret_data = h->arr_d[1];
 }
 
 /* semantically identical to pop() followed by push() */
-static void heap_replace(struct heap *h, int64_t val, void *data) {
+static inline void heap_replace(struct heap *h, int64_t val, void *data) {
   uint64_t i = 1;
   uint64_t c = 2;
 
@@ -114,7 +83,7 @@ static void heap_replace(struct heap *h, int64_t val, void *data) {
   arr_v[i] = val;
 }
 
-static void heap_pop(struct heap *h) {
+static inline void heap_pop(struct heap *h) {
   uint32_t num_nodes = h->num_nodes;
   int64_t *arr_v = h->arr_v;
   void **arr_d = h->arr_d;
