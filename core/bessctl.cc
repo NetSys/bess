@@ -1255,11 +1255,11 @@ class BESSControlImpl final : public BESSControl::Service {
             request.exactmatch_set_default_gate_arg());
         break;
       case ModuleCommandRequest::kHashlbSetModeArg:
-        *error = reinterpret_cast<HashLB*>(m)
+        *error = reinterpret_cast<bess::modules::HashLB*>(m)
                      ->CommandSetMode(request.hashlb_set_mode_arg());
         break;
       case ModuleCommandRequest::kHashlbSetGatesArg:
-        *error = reinterpret_cast<HashLB*>(m)
+        *error = reinterpret_cast<bess::modules::HashLB*>(m)
                      ->CommandSetGates(request.hashlb_set_gates_arg());
         break;
       case ModuleCommandRequest::kIplookupAddArg:
