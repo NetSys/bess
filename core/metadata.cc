@@ -1,7 +1,5 @@
 #include "metadata.h"
 
-#include <string.h>
-
 #include <algorithm>
 #include <functional>
 #include <queue>
