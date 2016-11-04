@@ -41,15 +41,14 @@ class L2Forward : public Module {
   struct snobj *CommandLookup(struct snobj *arg);
   struct snobj *CommandPopulate(struct snobj *arg);
 
-  bess::protobuf::ModuleCommandResponse CommandAdd(
+  bess::pb::ModuleCommandResponse CommandAdd(const google::protobuf::Any &arg);
+  bess::pb::ModuleCommandResponse CommandDelete(
       const google::protobuf::Any &arg);
-  bess::protobuf::ModuleCommandResponse CommandDelete(
+  bess::pb::ModuleCommandResponse CommandSetDefaultGate(
       const google::protobuf::Any &arg);
-  bess::protobuf::ModuleCommandResponse CommandSetDefaultGate(
+  bess::pb::ModuleCommandResponse CommandLookup(
       const google::protobuf::Any &arg);
-  bess::protobuf::ModuleCommandResponse CommandLookup(
-      const google::protobuf::Any &arg);
-  bess::protobuf::ModuleCommandResponse CommandPopulate(
+  bess::pb::ModuleCommandResponse CommandPopulate(
       const google::protobuf::Any &arg);
 
   static const gate_idx_t kNumIGates = 1;

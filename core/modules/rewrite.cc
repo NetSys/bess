@@ -26,16 +26,16 @@ struct snobj *Rewrite::Init(struct snobj *arg) {
 }
 
 pb_error_t Rewrite::Init(const google::protobuf::Any &arg) {
-  bess::protobuf::ModuleCommandResponse response = CommandAdd(arg);
+  bess::pb::ModuleCommandResponse response = CommandAdd(arg);
   return response.error();
 }
 
-bess::protobuf::ModuleCommandResponse Rewrite::CommandAdd(
+bess::pb::ModuleCommandResponse Rewrite::CommandAdd(
     const google::protobuf::Any &arg_) {
-  bess::protobuf::RewriteArg arg;
+  bess::pb::RewriteArg arg;
   arg_.UnpackTo(&arg);
 
-  bess::protobuf::ModuleCommandResponse response;
+  bess::pb::ModuleCommandResponse response;
 
   int curr = num_templates_;
   int i;
@@ -75,12 +75,12 @@ bess::protobuf::ModuleCommandResponse Rewrite::CommandAdd(
   return response;
 }
 
-bess::protobuf::ModuleCommandResponse Rewrite::CommandClear(
+bess::pb::ModuleCommandResponse Rewrite::CommandClear(
     const google::protobuf::Any &) {
   next_turn_ = 0;
   num_templates_ = 0;
 
-  bess::protobuf::ModuleCommandResponse response;
+  bess::pb::ModuleCommandResponse response;
 
   set_cmd_response_error(&response, pb_errno(0));
   return response;

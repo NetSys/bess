@@ -2,7 +2,7 @@ syntax = "proto3";
 
 import "bess_msg.proto";
 
-package bess.protobuf;
+package bess.pb;
 
 message BPFCommandClearArg {
 }

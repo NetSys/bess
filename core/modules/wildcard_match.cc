@@ -87,21 +87,21 @@ struct snobj *WildcardMatch::AddFieldOne(struct snobj *field,
 }
 
 pb_error_t WildcardMatch::AddFieldOne(
-    const bess::protobuf::WildcardMatchArg_Field &field, struct WmField *f) {
+    const bess::pb::WildcardMatchArg_Field &field, struct WmField *f) {
   f->size = field.size();
 
   if (f->size < 1 || f->size > MAX_FIELD_SIZE) {
     return pb_error(EINVAL, "'size' must be 1-%d", MAX_FIELD_SIZE);
   }
 
-  if (field.length_case() == bess::protobuf::WildcardMatchArg_Field::kOffset) {
+  if (field.length_case() == bess::pb::WildcardMatchArg_Field::kOffset) {
     f->attr_id = -1;
     f->offset = field.offset();
     if (f->offset < 0 || f->offset > 1024) {
       return pb_error(EINVAL, "too small 'offset'");
     }
   } else if (field.length_case() ==
-             bess::protobuf::WildcardMatchArg_Field::kAttribute) {
+             bess::pb::WildcardMatchArg_Field::kAttribute) {
     const char *attr = field.attribute().c_str();
     f->attr_id =
         AddMetadataAttr(attr, f->size, bess::metadata::AccessMode::READ);
@@ -156,7 +156,7 @@ struct snobj *WildcardMatch::Init(struct snobj *arg) {
 }
 
 pb_error_t WildcardMatch::Init(const google::protobuf::Any &arg_) {
-  bess::protobuf::WildcardMatchArg arg;
+  bess::pb::WildcardMatchArg arg;
   arg_.UnpackTo(&arg);
 
   int size_acc = 0;
@@ -536,12 +536,12 @@ int WildcardMatch::DelEntry(struct WmTuple *tuple, wm_hkey_t *key) {
   return 0;
 }
 
-bess::protobuf::ModuleCommandResponse WildcardMatch::CommandAdd(
+bess::pb::ModuleCommandResponse WildcardMatch::CommandAdd(
     const google::protobuf::Any &arg_) {
-  bess::protobuf::WildcardMatchCommandAddArg arg;
+  bess::pb::WildcardMatchCommandAddArg arg;
   arg_.UnpackTo(&arg);
 
-  bess::protobuf::ModuleCommandResponse response;
+  bess::pb::ModuleCommandResponse response;
 
   gate_idx_t gate = arg.gate();
   int priority = arg.priority();
@@ -586,12 +586,12 @@ bess::protobuf::ModuleCommandResponse WildcardMatch::CommandAdd(
   return response;
 }
 
-bess::protobuf::ModuleCommandResponse WildcardMatch::CommandDelete(
+bess::pb::ModuleCommandResponse WildcardMatch::CommandDelete(
     const google::protobuf::Any &arg_) {
-  bess::protobuf::WildcardMatchCommandDeleteArg arg;
+  bess::pb::WildcardMatchCommandDeleteArg arg;
   arg_.UnpackTo(&arg);
 
-  bess::protobuf::ModuleCommandResponse response;
+  bess::pb::ModuleCommandResponse response;
 
   wm_hkey_t key;
   wm_hkey_t mask;
@@ -620,24 +620,24 @@ bess::protobuf::ModuleCommandResponse WildcardMatch::CommandDelete(
   return response;
 }
 
-bess::protobuf::ModuleCommandResponse WildcardMatch::CommandClear(
+bess::pb::ModuleCommandResponse WildcardMatch::CommandClear(
     const google::protobuf::Any &) {
   for (int i = 0; i < num_tuples_; i++) {
     tuples_[i].ht.Clear();
   }
 
-  bess::protobuf::ModuleCommandResponse response;
+  bess::pb::ModuleCommandResponse response;
 
   set_cmd_response_error(&response, pb_errno(0));
   return response;
 }
 
-bess::protobuf::ModuleCommandResponse WildcardMatch::CommandSetDefaultGate(
+bess::pb::ModuleCommandResponse WildcardMatch::CommandSetDefaultGate(
     const google::protobuf::Any &arg_) {
-  bess::protobuf::WildcardMatchCommandSetDefaultGateArg arg;
+  bess::pb::WildcardMatchCommandSetDefaultGateArg arg;
   arg_.UnpackTo(&arg);
 
-  bess::protobuf::ModuleCommandResponse response;
+  bess::pb::ModuleCommandResponse response;
 
   int gate = arg.gate();
 

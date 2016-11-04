@@ -251,7 +251,7 @@ class VPort : public Port {
   void *AllocBar(struct tx_queue_opts *txq_opts,
                  struct rx_queue_opts *rxq_opts);
   int SetIPAddrSingle(const std::string &ip_addr);
-  pb_error_t SetIPAddr(const bess::protobuf::VPortArg &arg);
+  pb_error_t SetIPAddr(const bess::pb::VPortArg &arg);
   struct snobj *SetIPAddr(struct snobj *arg);
 
   int fd_ = {};
@@ -426,7 +426,7 @@ int VPort::SetIPAddrSingle(const std::string &ip_addr) {
   return 0;
 }
 
-pb_error_t VPort::SetIPAddr(const bess::protobuf::VPortArg &arg) {
+pb_error_t VPort::SetIPAddr(const bess::pb::VPortArg &arg) {
   int child_pid;
 
   int ret = 0;
@@ -523,7 +523,7 @@ void VPort::DeInit() {
 }
 
 pb_error_t VPort::Init(const google::protobuf::Any &arg_) {
-  bess::protobuf::VPortArg arg;
+  bess::pb::VPortArg arg;
   arg_.UnpackTo(&arg);
 
   int cpu;

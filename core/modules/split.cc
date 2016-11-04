@@ -19,7 +19,7 @@ const Commands<Module> Split::cmds = {};
 const PbCommands<Module> Split::pb_cmds = {};
 
 pb_error_t Split::Init(const google::protobuf::Any &arg_) {
-  bess::protobuf::SplitArg arg;
+  bess::pb::SplitArg arg;
   arg_.UnpackTo(&arg);
 
   size_ = arg.size();

@@ -17,9 +17,8 @@ class IPLookup : public Module {
   struct snobj *CommandAdd(struct snobj *arg);
   struct snobj *CommandClear(struct snobj *arg);
 
-  bess::protobuf::ModuleCommandResponse CommandAdd(
-      const google::protobuf::Any &arg);
-  bess::protobuf::ModuleCommandResponse CommandClear(
+  bess::pb::ModuleCommandResponse CommandAdd(const google::protobuf::Any &arg);
+  bess::pb::ModuleCommandResponse CommandClear(
       const google::protobuf::Any &arg);
 
   static const gate_idx_t kNumIGates = 1;

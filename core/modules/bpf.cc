@@ -1118,7 +1118,7 @@ const PbCommands<Module> BPF::pb_cmds = {
     {"clear", PB_MODULE_FUNC &BPF::CommandClear, 0}};
 
 pb_error_t BPF::Init(const google::protobuf::Any &arg) {
-  bess::protobuf::ModuleCommandResponse response = CommandAdd(arg);
+  bess::pb::ModuleCommandResponse response = CommandAdd(arg);
   return response.error();
 }
 
@@ -1135,12 +1135,12 @@ void BPF::Deinit() {
   n_filters_ = 0;
 }
 
-bess::protobuf::ModuleCommandResponse BPF::CommandAdd(
+bess::pb::ModuleCommandResponse BPF::CommandAdd(
     const google::protobuf::Any &arg_) {
-  bess::protobuf::BPFArg arg;
+  bess::pb::BPFArg arg;
   arg_.UnpackTo(&arg);
 
-  bess::protobuf::ModuleCommandResponse response;
+  bess::pb::ModuleCommandResponse response;
 
   if (n_filters_ + arg.filters_size() > MAX_FILTERS) {
     set_cmd_response_error(&response, pb_error(EINVAL, "Too many filters"));
@@ -1253,10 +1253,10 @@ struct snobj *BPF::CommandAdd(struct snobj *arg) {
   return nullptr;
 }
 
-bess::protobuf::ModuleCommandResponse BPF::CommandClear(
+bess::pb::ModuleCommandResponse BPF::CommandClear(
     const google::protobuf::Any &) {
   Deinit();
-  bess::protobuf::ModuleCommandResponse response;
+  bess::pb::ModuleCommandResponse response;
   set_cmd_response_error(&response, pb_errno(0));
   return response;
 }

@@ -116,7 +116,7 @@ struct snobj *UnixSocketPort::Init(struct snobj *conf) {
 }
 
 pb_error_t UnixSocketPort::Init(const google::protobuf::Any &arg_) {
-  bess::protobuf::UnixSocketPortArg arg;
+  bess::pb::UnixSocketPortArg arg;
   arg_.UnpackTo(&arg);
 
   const std::string path = arg.path();

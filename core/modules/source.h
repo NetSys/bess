@@ -15,9 +15,9 @@ class Source : public Module {
   struct snobj *command_set_pkt_size(struct snobj *arg);
   struct snobj *command_set_burst(struct snobj *arg);
 
-  bess::protobuf::ModuleCommandResponse CommandSetBurst(
+  bess::pb::ModuleCommandResponse CommandSetBurst(
       const google::protobuf::Any &arg);
-  bess::protobuf::ModuleCommandResponse CommandSetPktSize(
+  bess::pb::ModuleCommandResponse CommandSetPktSize(
       const google::protobuf::Any &arg);
 
   static const gate_idx_t kNumIGates = 0;

@@ -334,7 +334,7 @@ struct snobj *PMDPort::Init(struct snobj *conf) {
 }
 
 pb_error_t PMDPort::Init(const google::protobuf::Any &arg_) {
-  bess::protobuf::PMDPortArg arg;
+  bess::pb::PMDPortArg arg;
   arg_.UnpackTo(&arg);
 
   dpdk_port_t ret_port_id = -1;

@@ -143,20 +143,19 @@ class ExactMatch : public Module {
   static const PbCommands<Module> pb_cmds;
 
   pb_error_t Init(const google::protobuf::Any &arg);
-  bess::protobuf::ModuleCommandResponse CommandAdd(
+  bess::pb::ModuleCommandResponse CommandAdd(const google::protobuf::Any &arg);
+  bess::pb::ModuleCommandResponse CommandDelete(
       const google::protobuf::Any &arg);
-  bess::protobuf::ModuleCommandResponse CommandDelete(
+  bess::pb::ModuleCommandResponse CommandClear(
       const google::protobuf::Any &arg);
-  bess::protobuf::ModuleCommandResponse CommandClear(
-      const google::protobuf::Any &arg);
-  bess::protobuf::ModuleCommandResponse CommandSetDefaultGate(
+  bess::pb::ModuleCommandResponse CommandSetDefaultGate(
       const google::protobuf::Any &arg);
 
  private:
   struct snobj *AddFieldOne(struct snobj *field, struct EmField *f, int idx);
   struct snobj *GatherKey(struct snobj *fields, em_hkey_t *key);
 
-  pb_error_t AddFieldOne(const bess::protobuf::ExactMatchArg_Field &field,
+  pb_error_t AddFieldOne(const bess::pb::ExactMatchArg_Field &field,
                          struct EmField *f, int idx);
   pb_error_t GatherKey(const RepeatedField<uint64_t> &fields, em_hkey_t *key);
 

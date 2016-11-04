@@ -1,7 +1,7 @@
 syntax = "proto3";
 
 import "bess_msg.proto";
-package bess.protobuf;
+package bess.pb;
 
 service BESSControl {
   rpc ResetAll (EmptyRequest) returns (EmptyResponse) {}

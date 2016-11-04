@@ -10,7 +10,7 @@ const PbCommands<Module> PortInc::pb_cmds = {
 };
 
 pb_error_t PortInc::Init(const google::protobuf::Any &arg_) {
-  bess::protobuf::PortIncArg arg;
+  bess::pb::PortIncArg arg;
   arg_.UnpackTo(&arg);
 
   const char *port_name;
@@ -202,10 +202,10 @@ pb_error_t PortInc::SetBurst(int64_t burst) {
   return pb_errno(0);
 }
 
-bess::protobuf::ModuleCommandResponse PortInc::CommandSetBurst(
+bess::pb::ModuleCommandResponse PortInc::CommandSetBurst(
     const google::protobuf::Any &arg_) {
-  bess::protobuf::PortIncCommandSetBurstArg arg;
-  bess::protobuf::ModuleCommandResponse response;
+  bess::pb::PortIncCommandSetBurstArg arg;
+  bess::pb::ModuleCommandResponse response;
   arg_.UnpackTo(&arg);
   set_cmd_response_error(&response, SetBurst(arg.burst()));
   return response;

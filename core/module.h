@@ -39,7 +39,7 @@ static_assert(DROP_GATE <= MAX_GATES, "invalid macro value");
 #define INVALID_TASK_ID ((task_id_t)-1)
 #define MODULE_FUNC (struct snobj * (Module::*)(struct snobj *))
 #define PB_MODULE_FUNC                               \
-  (bess::protobuf::ModuleCommandResponse(Module::*)( \
+  (bess::pb::ModuleCommandResponse(Module::*)( \
       const google::protobuf::Any &))
 
 struct task_result {
@@ -109,8 +109,7 @@ using Commands = std::vector<struct Command<T> >;
 template <typename T>
 struct PbCommand {
   std::string cmd;
-  bess::protobuf::ModuleCommandResponse (T::*func)(
-      const google::protobuf::Any &);
+  bess::pb::ModuleCommandResponse (T::*func)(const google::protobuf::Any &);
 
   // if non-zero, workers don't need to be paused in order to
   // run this command
@@ -207,14 +206,14 @@ class ModuleBuilder {
                      class_name_.c_str(), user_cmd.c_str());
   }
 
-  bess::protobuf::ModuleCommandResponse RunCommand(
+  bess::pb::ModuleCommandResponse RunCommand(
       Module *m, const std::string &user_cmd,
       const google::protobuf::Any &arg) const {
     for (auto &cmd : pb_cmds_) {
       if (user_cmd == cmd.cmd)
         return (*m.*(cmd.func))(arg);
     }
-    bess::protobuf::ModuleCommandResponse response;
+    bess::pb::ModuleCommandResponse response;
     set_cmd_response_error(
         &response, pb_error(ENOTSUP, "'%s' does not support command '%s'",
                             class_name_.c_str(), user_cmd.c_str()));
@@ -244,6 +243,7 @@ class Module {
   virtual ~Module(){};
 
   virtual pb_error_t Init(const google::protobuf::Any &arg);
+
   virtual struct snobj *Init(struct snobj *arg);
 
   virtual void Deinit() {}
@@ -319,7 +319,7 @@ class Module {
     return module_builder_->RunCommand(this, cmd, arg);
   }
 
-  bess::protobuf::ModuleCommandResponse RunCommand(
+  bess::pb::ModuleCommandResponse RunCommand(
       const std::string &cmd, const google::protobuf::Any &arg) {
     return module_builder_->RunCommand(this, cmd, arg);
   }

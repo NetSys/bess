@@ -28,7 +28,7 @@ struct snobj *Update::Init(struct snobj *arg) {
 }
 
 pb_error_t Update::Init(const google::protobuf::Any &arg) {
-  bess::protobuf::ModuleCommandResponse response = CommandAdd(arg);
+  bess::pb::ModuleCommandResponse response = CommandAdd(arg);
   return response.error();
 }
 
@@ -55,12 +55,12 @@ void Update::ProcessBatch(struct pkt_batch *batch) {
   RunNextModule(batch);
 }
 
-bess::protobuf::ModuleCommandResponse Update::CommandAdd(
+bess::pb::ModuleCommandResponse Update::CommandAdd(
     const google::protobuf::Any &arg_) {
-  bess::protobuf::UpdateArg arg;
+  bess::pb::UpdateArg arg;
   arg_.UnpackTo(&arg);
 
-  bess::protobuf::ModuleCommandResponse response;
+  bess::pb::ModuleCommandResponse response;
 
   int curr = num_fields_;
 
@@ -114,11 +114,11 @@ bess::protobuf::ModuleCommandResponse Update::CommandAdd(
   return response;
 }
 
-bess::protobuf::ModuleCommandResponse Update::CommandClear(
+bess::pb::ModuleCommandResponse Update::CommandClear(
     const google::protobuf::Any &) {
   num_fields_ = 0;
 
-  bess::protobuf::ModuleCommandResponse response;
+  bess::pb::ModuleCommandResponse response;
   set_cmd_response_error(&response, pb_errno(0));
   return response;
 }

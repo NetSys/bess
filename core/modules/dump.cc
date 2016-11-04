@@ -31,7 +31,7 @@ struct snobj *Dump::Init(struct snobj *arg) {
 pb_error_t Dump::Init(const google::protobuf::Any &arg) {
   min_interval_ns_ = DEFAULT_INTERVAL_NS;
   next_ns_ = ctx.current_tsc();
-  bess::protobuf::ModuleCommandResponse response = CommandSetInterval(arg);
+  bess::pb::ModuleCommandResponse response = CommandSetInterval(arg);
   return response.error();
 }
 
@@ -61,12 +61,12 @@ struct snobj *Dump::CommandSetInterval(struct snobj *arg) {
   return nullptr;
 }
 
-bess::protobuf::ModuleCommandResponse Dump::CommandSetInterval(
+bess::pb::ModuleCommandResponse Dump::CommandSetInterval(
     const google::protobuf::Any &arg_) {
-  bess::protobuf::DumpArg arg;
+  bess::pb::DumpArg arg;
   arg_.UnpackTo(&arg);
 
-  bess::protobuf::ModuleCommandResponse response;
+  bess::pb::ModuleCommandResponse response;
 
   double sec = arg.interval();
 

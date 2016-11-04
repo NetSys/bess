@@ -137,13 +137,12 @@ class WildcardMatch : public Module {
   struct snobj *CommandClear(struct snobj *arg);
   struct snobj *CommandSetDefaultGate(struct snobj *arg);
 
-  bess::protobuf::ModuleCommandResponse CommandAdd(
+  bess::pb::ModuleCommandResponse CommandAdd(const google::protobuf::Any &arg);
+  bess::pb::ModuleCommandResponse CommandDelete(
       const google::protobuf::Any &arg);
-  bess::protobuf::ModuleCommandResponse CommandDelete(
+  bess::pb::ModuleCommandResponse CommandClear(
       const google::protobuf::Any &arg);
-  bess::protobuf::ModuleCommandResponse CommandClear(
-      const google::protobuf::Any &arg);
-  bess::protobuf::ModuleCommandResponse CommandSetDefaultGate(
+  bess::pb::ModuleCommandResponse CommandSetDefaultGate(
       const google::protobuf::Any &arg);
 
   static const gate_idx_t kNumIGates = 1;
@@ -156,7 +155,7 @@ class WildcardMatch : public Module {
   gate_idx_t LookupEntry(wm_hkey_t *key, gate_idx_t def_gate);
 
   struct snobj *AddFieldOne(struct snobj *field, struct WmField *f);
-  pb_error_t AddFieldOne(const bess::protobuf::WildcardMatchArg_Field &field,
+  pb_error_t AddFieldOne(const bess::pb::WildcardMatchArg_Field &field,
                          struct WmField *f);
 
   void CollectRules(const struct WmTuple *tuple, struct snobj *rules) const;

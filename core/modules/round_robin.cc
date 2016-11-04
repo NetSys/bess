@@ -12,11 +12,11 @@ const PbCommands<Module> RoundRobin::pb_cmds = {
 };
 
 pb_error_t RoundRobin::Init(const google::protobuf::Any &arg_) {
-  bess::protobuf::RoundRobinArg arg;
+  bess::pb::RoundRobinArg arg;
   arg_.UnpackTo(&arg);
 
   pb_error_t err;
-  bess::protobuf::ModuleCommandResponse response;
+  bess::pb::ModuleCommandResponse response;
 
   google::protobuf::Any gate_arg;
   gate_arg.PackFrom(arg.gate_arg());
@@ -37,18 +37,18 @@ pb_error_t RoundRobin::Init(const google::protobuf::Any &arg_) {
   return pb_errno(0);
 }
 
-bess::protobuf::ModuleCommandResponse RoundRobin::CommandSetMode(
+bess::pb::ModuleCommandResponse RoundRobin::CommandSetMode(
     const google::protobuf::Any &arg_) {
-  bess::protobuf::RoundRobinCommandSetModeArg arg;
+  bess::pb::RoundRobinCommandSetModeArg arg;
   arg_.UnpackTo(&arg);
 
-  bess::protobuf::ModuleCommandResponse response;
+  bess::pb::ModuleCommandResponse response;
 
   switch (arg.mode()) {
-    case bess::protobuf::RoundRobinCommandSetModeArg::PACKET:
+    case bess::pb::RoundRobinCommandSetModeArg::PACKET:
       per_packet_ = 1;
       break;
-    case bess::protobuf::RoundRobinCommandSetModeArg::BATCH:
+    case bess::pb::RoundRobinCommandSetModeArg::BATCH:
       per_packet_ = 0;
       break;
     default:
@@ -61,12 +61,12 @@ bess::protobuf::ModuleCommandResponse RoundRobin::CommandSetMode(
   return response;
 }
 
-bess::protobuf::ModuleCommandResponse RoundRobin::CommandSetGates(
+bess::pb::ModuleCommandResponse RoundRobin::CommandSetGates(
     const google::protobuf::Any &arg_) {
-  bess::protobuf::RoundRobinCommandSetGatesArg arg;
+  bess::pb::RoundRobinCommandSetGatesArg arg;
   arg_.UnpackTo(&arg);
 
-  bess::protobuf::ModuleCommandResponse response;
+  bess::pb::ModuleCommandResponse response;
 
   if (arg.gates_size() > MAX_RR_GATES) {
     set_cmd_response_error(

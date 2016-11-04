@@ -31,7 +31,7 @@ class SetMetadata : public Module {
 
  private:
   struct snobj *AddAttrOne(struct snobj *attr);
-  pb_error_t AddAttrOne(const bess::protobuf::SetMetadataArg_Attribute &attr);
+  pb_error_t AddAttrOne(const bess::pb::SetMetadataArg_Attribute &attr);
 
   std::vector<struct Attr> attrs_;
 };

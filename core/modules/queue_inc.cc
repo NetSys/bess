@@ -9,7 +9,7 @@ const PbCommands<Module> QueueInc::pb_cmds = {
     {"set_burst", PB_MODULE_FUNC &QueueInc::CommandSetBurst, 1}};
 
 pb_error_t QueueInc::Init(const google::protobuf::Any &arg_) {
-  bess::protobuf::QueueIncArg arg;
+  bess::pb::QueueIncArg arg;
   arg_.UnpackTo(&arg);
 
   const char *port_name;
@@ -193,10 +193,10 @@ pb_error_t QueueInc::SetBurst(int64_t burst) {
   return pb_errno(0);
 }
 
-bess::protobuf::ModuleCommandResponse QueueInc::CommandSetBurst(
+bess::pb::ModuleCommandResponse QueueInc::CommandSetBurst(
     const google::protobuf::Any &arg_) {
-  bess::protobuf::QueueIncCommandSetBurstArg arg;
-  bess::protobuf::ModuleCommandResponse response;
+  bess::pb::QueueIncCommandSetBurstArg arg;
+  bess::pb::ModuleCommandResponse response;
   arg_.UnpackTo(&arg);
   set_cmd_response_error(&response, SetBurst(arg.burst()));
   return response;

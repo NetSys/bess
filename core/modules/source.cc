@@ -12,11 +12,11 @@ const PbCommands<Module> Source::pb_cmds = {
 };
 
 pb_error_t Source::Init(const google::protobuf::Any &arg_) {
-  bess::protobuf::SourceArg arg;
+  bess::pb::SourceArg arg;
   arg_.UnpackTo(&arg);
 
   pb_error_t err;
-  bess::protobuf::ModuleCommandResponse response;
+  bess::pb::ModuleCommandResponse response;
 
   task_id_t tid = RegisterTask(nullptr);
   if (tid == INVALID_TASK_ID)
@@ -44,12 +44,12 @@ pb_error_t Source::Init(const google::protobuf::Any &arg_) {
   return pb_errno(0);
 }
 
-bess::protobuf::ModuleCommandResponse Source::CommandSetBurst(
+bess::pb::ModuleCommandResponse Source::CommandSetBurst(
     const google::protobuf::Any &arg_) {
-  bess::protobuf::SourceCommandSetBurstArg arg;
+  bess::pb::SourceCommandSetBurstArg arg;
   arg_.UnpackTo(&arg);
 
-  bess::protobuf::ModuleCommandResponse response;
+  bess::pb::ModuleCommandResponse response;
 
   uint64_t val = arg.burst();
   if (val == 0 || val > MAX_PKT_BURST) {
@@ -63,12 +63,12 @@ bess::protobuf::ModuleCommandResponse Source::CommandSetBurst(
   return response;
 }
 
-bess::protobuf::ModuleCommandResponse Source::CommandSetPktSize(
+bess::pb::ModuleCommandResponse Source::CommandSetPktSize(
     const google::protobuf::Any &arg_) {
-  bess::protobuf::SourceCommandSetPktSizeArg arg;
+  bess::pb::SourceCommandSetPktSizeArg arg;
   arg_.UnpackTo(&arg);
 
-  bess::protobuf::ModuleCommandResponse response;
+  bess::pb::ModuleCommandResponse response;
 
   uint64_t val = arg.pkt_size();
   if (val == 0 || val > SNBUF_DATA) {

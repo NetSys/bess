@@ -17,16 +17,16 @@ const PbCommands<Module> VLANPush::pb_cmds = {
 };
 
 pb_error_t VLANPush::Init(const google::protobuf::Any &arg) {
-  bess::protobuf::ModuleCommandResponse response = CommandSetTci(arg);
+  bess::pb::ModuleCommandResponse response = CommandSetTci(arg);
   return response.error();
 }
 
-bess::protobuf::ModuleCommandResponse VLANPush::CommandSetTci(
+bess::pb::ModuleCommandResponse VLANPush::CommandSetTci(
     const google::protobuf::Any &arg_) {
-  bess::protobuf::VLANPushArg arg;
+  bess::pb::VLANPushArg arg;
   arg_.UnpackTo(&arg);
 
-  bess::protobuf::ModuleCommandResponse response;
+  bess::pb::ModuleCommandResponse response;
 
   uint16_t tci;
   tci = arg.tci();

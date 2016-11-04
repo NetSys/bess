@@ -38,7 +38,7 @@ struct snobj *Measure::Init(struct snobj *arg) {
 }
 
 pb_error_t Measure::Init(const google::protobuf::Any &arg_) {
-  bess::protobuf::MeasureArg arg;
+  bess::pb::MeasureArg arg;
   arg_.UnpackTo(&arg);
 
   if (arg.warmup()) {
@@ -95,15 +95,15 @@ struct snobj *Measure::CommandGetSummary(struct snobj *) {
   return r;
 }
 
-bess::protobuf::ModuleCommandResponse Measure::CommandGetSummary(
+bess::pb::ModuleCommandResponse Measure::CommandGetSummary(
     const google::protobuf::Any &) {
   uint64_t pkt_total = pkt_cnt_;
   uint64_t byte_total = bytes_cnt_;
   uint64_t bits = (byte_total + pkt_total * 24) * 8;
 
-  bess::protobuf::ModuleCommandResponse response;
+  bess::pb::ModuleCommandResponse response;
 
-  bess::protobuf::MeasureCommandGetSummaryResponse r;
+  bess::pb::MeasureCommandGetSummaryResponse r;
   r.set_timestamp(get_epoch_time());
   r.set_packets(pkt_total);
   r.set_bits(bits);

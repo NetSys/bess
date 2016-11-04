@@ -28,7 +28,7 @@ using grpc::Status;
 using grpc::ClientContext;
 using grpc::ServerBuilder;
 
-using namespace bess::protobuf;
+using namespace bess::pb;
 
 DECLARE_int32(c);
 // Capture the port command line flag.
@@ -558,7 +558,7 @@ class BESSControlImpl final : public BESSControl::Service {
                    ListPortsResponse* response) {
     for (const auto& pair : PortBuilder::all_ports()) {
       const ::Port* p = pair.second;
-      bess::protobuf::Port* port = response->add_ports();
+      bess::pb::Port* port = response->add_ports();
 
       port->set_name(p->name());
       port->set_driver(p->port_builder()->class_name());

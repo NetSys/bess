@@ -6,7 +6,7 @@ const Commands<Module> QueueOut::cmds = {};
 const PbCommands<Module> QueueOut::pb_cmds = {};
 
 pb_error_t QueueOut::Init(const google::protobuf::Any &arg_) {
-  bess::protobuf::QueueOutArg arg;
+  bess::pb::QueueOutArg arg;
   arg_.UnpackTo(&arg);
 
   const char *port_name;

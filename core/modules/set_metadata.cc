@@ -37,7 +37,7 @@ const Commands<Module> SetMetadata::cmds = {};
 const PbCommands<Module> SetMetadata::pb_cmds = {};
 
 pb_error_t SetMetadata::AddAttrOne(
-    const bess::protobuf::SetMetadataArg_Attribute &attr) {
+    const bess::pb::SetMetadataArg_Attribute &attr) {
   std::string name;
   size_t size = 0;
   int offset = -1;
@@ -79,7 +79,7 @@ pb_error_t SetMetadata::AddAttrOne(
 }
 
 pb_error_t SetMetadata::Init(const google::protobuf::Any &arg_) {
-  bess::protobuf::SetMetadataArg arg;
+  bess::pb::SetMetadataArg arg;
   arg_.UnpackTo(&arg);
 
   if (!arg.attrs_size()) {

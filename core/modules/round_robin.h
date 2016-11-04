@@ -48,13 +48,13 @@ class RoundRobin : public Module {
    * Switches the RoundRobin module between "batch" vs "packet" scheduling.
    */
   struct snobj *CommandSetMode(struct snobj *arg);
-  bess::protobuf::ModuleCommandResponse CommandSetMode(
+  bess::pb::ModuleCommandResponse CommandSetMode(
       const google::protobuf::Any &arg);
   /*!
    * Sets the number of output gates.
    */
   struct snobj *CommandSetGates(struct snobj *arg);
-  bess::protobuf::ModuleCommandResponse CommandSetGates(
+  bess::pb::ModuleCommandResponse CommandSetGates(
       const google::protobuf::Any &arg);
 
  private:

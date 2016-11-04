@@ -24,9 +24,9 @@ class HashLB : public Module {
   struct snobj *CommandSetMode(struct snobj *arg);
   struct snobj *CommandSetGates(struct snobj *arg);
 
-  bess::protobuf::ModuleCommandResponse CommandSetMode(
+  bess::pb::ModuleCommandResponse CommandSetMode(
       const google::protobuf::Any &arg);
-  bess::protobuf::ModuleCommandResponse CommandSetGates(
+  bess::pb::ModuleCommandResponse CommandSetGates(
       const google::protobuf::Any &arg);
 
   static const gate_idx_t kNumIGates = 1;

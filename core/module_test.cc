@@ -26,9 +26,9 @@ class AcmeModule : public Module {
     return nullptr;
   }
 
-  bess::protobuf::ModuleCommandResponse Foo(const google::protobuf::Any &) {
+  bess::pb::ModuleCommandResponse Foo(const google::protobuf::Any &) {
     n += 1;
-    return bess::protobuf::ModuleCommandResponse();
+    return bess::pb::ModuleCommandResponse();
   }
 
   int n = {};

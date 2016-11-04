@@ -17,7 +17,7 @@ class QueueInc : public Module {
   virtual std::string GetDesc() const;
 
   struct snobj *CommandSetBurst(struct snobj *arg);
-  bess::protobuf::ModuleCommandResponse CommandSetBurst(
+  bess::pb::ModuleCommandResponse CommandSetBurst(
       const google::protobuf::Any &arg);
 
   static const gate_idx_t kNumIGates = 0;

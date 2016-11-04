@@ -12,7 +12,7 @@ struct snobj* PCAPPort::Init(struct snobj*) {
 }
 
 pb_error_t PCAPPort::Init(const google::protobuf::Any& arg_) {
-  bess::protobuf::PCAPPortArg arg;
+  bess::pb::PCAPPortArg arg;
   arg_.UnpackTo(&arg);
 
   if (pcap_handle_.is_initialized()) {

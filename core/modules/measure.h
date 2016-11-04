@@ -23,7 +23,7 @@ class Measure : public Module {
   virtual void ProcessBatch(struct pkt_batch *batch);
 
   struct snobj *CommandGetSummary(struct snobj *arg);
-  bess::protobuf::ModuleCommandResponse CommandGetSummary(
+  bess::pb::ModuleCommandResponse CommandGetSummary(
       const google::protobuf::Any &arg);
 
   static const gate_idx_t kNumIGates = 1;

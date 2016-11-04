@@ -31,7 +31,7 @@ class GenericEncap : public Module {
 
  private:
   struct snobj *AddFieldOne(struct snobj *field, struct Field *f, int idx);
-  pb_error_t AddFieldOne(const bess::protobuf::GenericEncapArg_Field &field,
+  pb_error_t AddFieldOne(const bess::pb::GenericEncapArg_Field &field,
                          struct Field *f, int idx);
 
   int encap_size_;

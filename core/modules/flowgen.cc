@@ -232,7 +232,7 @@ struct snobj *FlowGen::ProcessArguments(struct snobj *arg) {
 }
 
 pb_error_t FlowGen::ProcessArguments(const google::protobuf::Any &arg_) {
-  bess::protobuf::FlowGenArg arg;
+  bess::pb::FlowGenArg arg;
   arg_.UnpackTo(&arg);
 
   if (arg.template_().length() == 0) {
@@ -263,9 +263,9 @@ pb_error_t FlowGen::ProcessArguments(const google::protobuf::Any &arg_) {
     return pb_error(EINVAL, "invalid 'flow_duration'");
   }
 
-  if (arg.arrival() == bess::protobuf::FlowGenArg::UNIFORM) {
+  if (arg.arrival() == bess::pb::FlowGenArg::UNIFORM) {
     arrival_ = ARRIVAL_UNIFORM;
-  } else if (arg.arrival() == bess::protobuf::FlowGenArg::EXPONENTIAL) {
+  } else if (arg.arrival() == bess::pb::FlowGenArg::EXPONENTIAL) {
     arrival_ = ARRIVAL_EXPONENTIAL;
   } else {
     return pb_error(EINVAL,
@@ -273,9 +273,9 @@ pb_error_t FlowGen::ProcessArguments(const google::protobuf::Any &arg_) {
                     "'uniform' or 'exponential'");
   }
 
-  if (arg.duration() == bess::protobuf::FlowGenArg::UNIFORM) {
+  if (arg.duration() == bess::pb::FlowGenArg::UNIFORM) {
     duration_ = DURATION_UNIFORM;
-  } else if (arg.duration() == bess::protobuf::FlowGenArg::PARETO) {
+  } else if (arg.duration() == bess::pb::FlowGenArg::PARETO) {
     duration_ = DURATION_PARETO;
   } else {
     return pb_error(EINVAL,

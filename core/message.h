@@ -4,7 +4,7 @@
 #include "bess_msg.pb.h"
 #include <stdarg.h>
 
-typedef bess::protobuf::Error pb_error_t;
+typedef bess::pb::Error pb_error_t;
 
 const std::string string_vformat(const char *fmt, va_list ap);
 
@@ -51,7 +51,7 @@ static inline int uint64_to_bin(uint8_t *ptr, int size, uint64_t val, int be) {
 }
 
 static inline void set_cmd_response_error(
-    bess::protobuf::ModuleCommandResponse *response, const pb_error_t &error) {
+    bess::pb::ModuleCommandResponse *response, const pb_error_t &error) {
   response->mutable_error()->CopyFrom(error);
 }
 

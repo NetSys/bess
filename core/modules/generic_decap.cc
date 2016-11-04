@@ -5,7 +5,7 @@ const Commands<Module> GenericDecap::cmds = {};
 const PbCommands<Module> GenericDecap::pb_cmds = {};
 
 pb_error_t GenericDecap::Init(const google::protobuf::Any &arg_) {
-  bess::protobuf::GenericDecapArg arg;
+  bess::pb::GenericDecapArg arg;
   arg_.UnpackTo(&arg);
 
   if (arg.bytes() == 0) {

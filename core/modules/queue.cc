@@ -52,7 +52,7 @@ int Queue::Resize(int slots) {
 }
 
 pb_error_t Queue::Init(const google::protobuf::Any &arg_) {
-  bess::protobuf::QueueArg arg;
+  bess::pb::QueueArg arg;
   arg_.UnpackTo(&arg);
 
   task_id_t tid;
@@ -255,18 +255,18 @@ pb_error_t Queue::SetSize(uint64_t size) {
   return pb_errno(0);
 }
 
-bess::protobuf::ModuleCommandResponse Queue::CommandSetBurst(
+bess::pb::ModuleCommandResponse Queue::CommandSetBurst(
     const google::protobuf::Any &arg_) {
-  bess::protobuf::QueueCommandSetBurstArg arg;
-  bess::protobuf::ModuleCommandResponse response;
+  bess::pb::QueueCommandSetBurstArg arg;
+  bess::pb::ModuleCommandResponse response;
   arg_.UnpackTo(&arg);
   set_cmd_response_error(&response, SetBurst(arg.burst()));
   return response;
 }
-bess::protobuf::ModuleCommandResponse Queue::CommandSetSize(
+bess::pb::ModuleCommandResponse Queue::CommandSetSize(
     const google::protobuf::Any &arg_) {
-  bess::protobuf::QueueCommandSetSizeArg arg;
-  bess::protobuf::ModuleCommandResponse response;
+  bess::pb::QueueCommandSetSizeArg arg;
+  bess::pb::ModuleCommandResponse response;
   arg_.UnpackTo(&arg);
   set_cmd_response_error(&response, SetSize(arg.size()));
   return response;

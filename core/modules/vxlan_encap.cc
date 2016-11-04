@@ -23,7 +23,7 @@ const Commands<Module> VXLANEncap::cmds = {};
 const PbCommands<Module> VXLANEncap::pb_cmds = {};
 
 pb_error_t VXLANEncap::Init(const google::protobuf::Any &arg_) {
-  bess::protobuf::VXLANEncapArg arg;
+  bess::pb::VXLANEncapArg arg;
   arg_.UnpackTo(&arg);
 
   dstport_ = rte_cpu_to_be_16(4789);

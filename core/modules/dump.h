@@ -12,7 +12,7 @@ class Dump : public Module {
   virtual void ProcessBatch(struct pkt_batch *batch);
 
   struct snobj *CommandSetInterval(struct snobj *arg);
-  bess::protobuf::ModuleCommandResponse CommandSetInterval(
+  bess::pb::ModuleCommandResponse CommandSetInterval(
       const google::protobuf::Any &arg);
 
   static const gate_idx_t kNumIGates = 1;

@@ -15,7 +15,7 @@ class VLANPush : public Module {
   virtual std::string GetDesc() const;
 
   struct snobj *CommandSetTci(struct snobj *arg);
-  bess::protobuf::ModuleCommandResponse CommandSetTci(
+  bess::pb::ModuleCommandResponse CommandSetTci(
       const google::protobuf::Any &arg);
 
   static const gate_idx_t kNumIGates = 1;
