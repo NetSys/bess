@@ -8,7 +8,7 @@ class IPLookup : public Module {
   IPLookup() : Module(), lpm_(), default_gate_() {}
 
   virtual struct snobj *Init(struct snobj *arg);
-  virtual pb_error_t Init(const bess::protobuf::IPLookupArg &arg);
+  virtual pb_error_t Init(const google::protobuf::Any &arg);
 
   virtual void Deinit();
 
@@ -17,13 +17,16 @@ class IPLookup : public Module {
   struct snobj *CommandAdd(struct snobj *arg);
   struct snobj *CommandClear(struct snobj *arg);
 
-  pb_error_t CommandAdd(const bess::protobuf::IPLookupCommandAddArg &arg);
-  pb_error_t CommandClear(const bess::protobuf::IPLookupCommandClearArg &arg);
+  bess::protobuf::ModuleCommandResponse CommandAdd(
+      const google::protobuf::Any &arg);
+  bess::protobuf::ModuleCommandResponse CommandClear(
+      const google::protobuf::Any &arg);
 
   static const gate_idx_t kNumIGates = 1;
   static const gate_idx_t kNumOGates = MAX_GATES;
 
   static const Commands<Module> cmds;
+  static const PbCommands<Module> pb_cmds;
 
  private:
   struct rte_lpm *lpm_;

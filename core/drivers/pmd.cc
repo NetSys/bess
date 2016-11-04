@@ -1,6 +1,5 @@
 #include "pmd.h"
 
-
 /*!
  * The following are deprecated. Ignore us.
  */
@@ -121,8 +120,7 @@ static struct snobj *find_dpdk_port(struct snobj *conf,
     }
 
     for (int i = 0; i < RTE_MAX_ETHPORTS; i++) {
-      if (rte_eth_devices[i].attached &&
-          rte_eth_devices[i].pci_dev &&
+      if (rte_eth_devices[i].attached && rte_eth_devices[i].pci_dev &&
           !rte_eal_compare_pci_addr(&addr, &rte_eth_devices[i].pci_dev->addr)) {
         continue;
       }
@@ -152,7 +150,8 @@ static struct snobj *find_dpdk_port(struct snobj *conf,
     }
   }
 
-  if (port_id == DPDK_PORT_UNKNOWN && (t = snobj_eval(conf, "vdev")) != nullptr) {
+  if (port_id == DPDK_PORT_UNKNOWN &&
+      (t = snobj_eval(conf, "vdev")) != nullptr) {
     const char *name = snobj_str_get(t);
     int ret = rte_eth_dev_attach(name, &port_id);
 
@@ -173,8 +172,7 @@ static struct snobj *find_dpdk_port(struct snobj *conf,
   return nullptr;
 }
 
-static pb_error_t find_dpdk_port(dpdk_port_t port_id,
-                                 const std::string &pci,
+static pb_error_t find_dpdk_port(dpdk_port_t port_id, const std::string &pci,
                                  const std::string &vdev,
                                  dpdk_port_t *ret_port_id,
                                  bool *ret_hot_plugged) {
@@ -199,8 +197,7 @@ static pb_error_t find_dpdk_port(dpdk_port_t port_id,
                       "dddd:bb:dd.ff or bb:dd.ff");
     }
     for (int i = 0; i < RTE_MAX_ETHPORTS; i++) {
-      if (!rte_eth_devices[i].attached ||
-          !rte_eth_devices[i].pci_dev ||
+      if (!rte_eth_devices[i].attached || !rte_eth_devices[i].pci_dev ||
           rte_eal_compare_pci_addr(&addr, &rte_eth_devices[i].pci_dev->addr)) {
         continue;
       }
@@ -336,7 +333,10 @@ struct snobj *PMDPort::Init(struct snobj *conf) {
   return nullptr;
 }
 
-pb_error_t PMDPort::Init(const bess::protobuf::PMDPortArg &arg) {
+pb_error_t PMDPort::Init(const google::protobuf::Any &arg_) {
+  bess::protobuf::PMDPortArg arg;
+  arg_.UnpackTo(&arg);
+
   dpdk_port_t ret_port_id = -1;
 
   struct rte_eth_dev_info dev_info = {};

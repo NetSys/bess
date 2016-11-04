@@ -9,7 +9,7 @@ class QueueOut : public Module {
   QueueOut() : Module(), port_(), qid_() {}
 
   virtual struct snobj *Init(struct snobj *arg);
-  virtual pb_error_t Init(const bess::protobuf::QueueOutArg &arg);
+  virtual pb_error_t Init(const google::protobuf::Any &arg);
 
   virtual void Deinit();
 
@@ -21,6 +21,7 @@ class QueueOut : public Module {
   static const gate_idx_t kNumOGates = 0;
 
   static const Commands<Module> cmds;
+  static const PbCommands<Module> pb_cmds;
 
  private:
   Port *port_;

@@ -7,6 +7,8 @@
 #include "../module.h"
 #include "../utils/htable.h"
 
+#include "../module_msg.pb.h"
+
 #define MAX_FIELDS 8
 #define MAX_FIELD_SIZE 8
 
@@ -138,14 +140,17 @@ class ExactMatch : public Module {
   struct snobj *CommandSetDefaultGate(struct snobj *arg);
 
   static const Commands<Module> cmds;
+  static const PbCommands<Module> pb_cmds;
 
-  pb_error_t Init(const bess::protobuf::ExactMatchArg &arg);
-  pb_error_t CommandAdd(const bess::protobuf::ExactMatchCommandAddArg &arg);
-  pb_error_t CommandDelete(
-      const bess::protobuf::ExactMatchCommandDeleteArg &arg);
-  pb_error_t CommandClear(const bess::protobuf::ExactMatchCommandClearArg &arg);
-  pb_error_t CommandSetDefaultGate(
-      const bess::protobuf::ExactMatchCommandSetDefaultGateArg &arg);
+  pb_error_t Init(const google::protobuf::Any &arg);
+  bess::protobuf::ModuleCommandResponse CommandAdd(
+      const google::protobuf::Any &arg);
+  bess::protobuf::ModuleCommandResponse CommandDelete(
+      const google::protobuf::Any &arg);
+  bess::protobuf::ModuleCommandResponse CommandClear(
+      const google::protobuf::Any &arg);
+  bess::protobuf::ModuleCommandResponse CommandSetDefaultGate(
+      const google::protobuf::Any &arg);
 
  private:
   struct snobj *AddFieldOne(struct snobj *field, struct EmField *f, int idx);

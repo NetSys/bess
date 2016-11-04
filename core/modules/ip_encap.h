@@ -16,13 +16,19 @@ class IPEncap : public Module {
           .name = "ip_dst", .size = 4, .mode = bess::metadata::AccessMode::READ,
       },
       {
-          .name = "ip_proto", .size = 1, .mode = bess::metadata::AccessMode::READ,
+          .name = "ip_proto",
+          .size = 1,
+          .mode = bess::metadata::AccessMode::READ,
       },
       {
-          .name = "ip_nexthop", .size = 4, .mode = bess::metadata::AccessMode::WRITE,
+          .name = "ip_nexthop",
+          .size = 4,
+          .mode = bess::metadata::AccessMode::WRITE,
       },
       {
-          .name = "ether_type", .size = 2, .mode = bess::metadata::AccessMode::WRITE,
+          .name = "ether_type",
+          .size = 2,
+          .mode = bess::metadata::AccessMode::WRITE,
       },
   };
 
@@ -30,6 +36,7 @@ class IPEncap : public Module {
   static const gate_idx_t kNumOGates = 1;
 
   static const Commands<Module> cmds;
+  static const PbCommands<Module> pb_cmds;
 };
 
 #endif

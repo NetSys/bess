@@ -16,6 +16,7 @@ static inline void timestamp_packet(struct snbuf *pkt, uint64_t time) {
 }
 
 const Commands<Module> Timestamp::cmds = {};
+const PbCommands<Module> Timestamp::pb_cmds = {};
 
 void Timestamp::ProcessBatch(struct pkt_batch *batch) {
   uint64_t time = get_time();

@@ -34,6 +34,7 @@ static void CopyFromValue(struct pkt_batch *batch, const struct Attr *attr,
 }
 
 const Commands<Module> SetMetadata::cmds = {};
+const PbCommands<Module> SetMetadata::pb_cmds = {};
 
 pb_error_t SetMetadata::AddAttrOne(
     const bess::protobuf::SetMetadataArg_Attribute &attr) {
@@ -77,7 +78,10 @@ pb_error_t SetMetadata::AddAttrOne(
   return pb_errno(0);
 }
 
-pb_error_t SetMetadata::Init(const bess::protobuf::SetMetadataArg &arg) {
+pb_error_t SetMetadata::Init(const google::protobuf::Any &arg_) {
+  bess::protobuf::SetMetadataArg arg;
+  arg_.UnpackTo(&arg);
+
   if (!arg.attrs_size()) {
     return pb_error(EINVAL, "'attrs' must be specified");
   }

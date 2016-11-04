@@ -1,6 +1,7 @@
 #include "mttest.h"
 
 const Commands<Module> MetadataTest::cmds = {};
+const PbCommands<Module> MetadataTest::pb_cmds = {};
 
 pb_error_t MetadataTest::AddAttributes(
     const google::protobuf::Map<std::string, int64_t> &attrs,
@@ -35,8 +36,8 @@ pb_error_t MetadataTest::AddAttributes(
   return pb_errno(0);
 }
 
-struct snobj *MetadataTest::AddAttributes(
-    struct snobj *attrs, bess::metadata::AccessMode mode) {
+struct snobj *MetadataTest::AddAttributes(struct snobj *attrs,
+                                          bess::metadata::AccessMode mode) {
   if (snobj_type(attrs) != TYPE_MAP) {
     return snobj_err(EINVAL,
                      "argument must be a map of "
@@ -74,7 +75,9 @@ struct snobj *MetadataTest::AddAttributes(
   return nullptr;
 }
 
-pb_error_t MetadataTest::Init(const bess::protobuf::MetadataTestArg &arg) {
+pb_error_t MetadataTest::Init(const google::protobuf::Any &arg_) {
+  bess::protobuf::MetadataTestArg arg;
+  arg_.UnpackTo(&arg);
   pb_error_t err;
 
   err = AddAttributes(arg.read(), bess::metadata::AccessMode::READ);

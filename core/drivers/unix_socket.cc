@@ -2,8 +2,10 @@
 
 // TODO(barath): Clarify these comments.
 // Only one client can be connected at the same time.
-// Polling sockets is quite exprensive, so we throttle the polling rate.  (by checking
-// sockets once every RECV_TICKS schedules) TODO: Revise this once the interrupt mode is
+// Polling sockets is quite exprensive, so we throttle the polling rate.  (by
+// checking
+// sockets once every RECV_TICKS schedules) TODO: Revise this once the interrupt
+// mode is
 // implemented.
 #define RECV_SKIP_TICKS 256
 #define MAX_TX_FRAGS 8
@@ -25,7 +27,8 @@ void UnixSocketPort::AcceptNewClient() {
   recv_skip_cnt_ = 0;
 
   if (old_client_fd_ != kNotConnectedFd) {
-    // Reuse the old file descriptor number by atomically exchanging the new fd with the
+    // Reuse the old file descriptor number by atomically exchanging the new fd
+    // with the
     // old one.  The zombie socket is closed silently (see dup2).
     dup2(ret, client_fd_);
     close(ret);
@@ -41,7 +44,8 @@ void *AcceptThreadMain(void *arg) {
   return nullptr;
 }
 
-// The file descriptor for the connection will not be closed, until we have a new client.
+// The file descriptor for the connection will not be closed, until we have a
+// new client.
 // This is to avoid race condition in TX process.
 void UnixSocketPort::CloseConnection() {
   // Keep client_fd, since it may be being used in unix_send_pkts().
@@ -111,7 +115,10 @@ struct snobj *UnixSocketPort::Init(struct snobj *conf) {
   return nullptr;
 }
 
-pb_error_t UnixSocketPort::Init(const bess::protobuf::UnixSocketPortArg &arg) {
+pb_error_t UnixSocketPort::Init(const google::protobuf::Any &arg_) {
+  bess::protobuf::UnixSocketPortArg arg;
+  arg_.UnpackTo(&arg);
+
   const std::string path = arg.path();
   int num_txq = num_queues[PACKET_DIR_OUT];
   int num_rxq = num_queues[PACKET_DIR_INC];

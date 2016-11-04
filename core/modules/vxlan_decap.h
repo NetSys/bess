@@ -10,13 +10,19 @@ class VXLANDecap : public Module {
   size_t num_attrs = 3;
   struct bess::metadata::mt_attr attrs[bess::metadata::kMaxAttrsPerModule] = {
       {
-          .name = "tun_ip_src", .size = 4, .mode = bess::metadata::AccessMode::WRITE,
+          .name = "tun_ip_src",
+          .size = 4,
+          .mode = bess::metadata::AccessMode::WRITE,
       },
       {
-          .name = "tun_ip_dst", .size = 4, .mode = bess::metadata::AccessMode::WRITE,
+          .name = "tun_ip_dst",
+          .size = 4,
+          .mode = bess::metadata::AccessMode::WRITE,
       },
       {
-          .name = "tun_id", .size = 4, .mode = bess::metadata::AccessMode::WRITE,
+          .name = "tun_id",
+          .size = 4,
+          .mode = bess::metadata::AccessMode::WRITE,
       },
   };
 
@@ -24,6 +30,7 @@ class VXLANDecap : public Module {
   static const gate_idx_t kNumOGates = 1;
 
   static const Commands<Module> cmds;
+  static const PbCommands<Module> pb_cmds;
 };
 
 #endif

@@ -11,6 +11,7 @@ class Merge : public Module {
   virtual void ProcessBatch(struct pkt_batch *batch);
 
   static const Commands<Module> cmds;
+  static const PbCommands<Module> pb_cmds;
 };
 
 #endif

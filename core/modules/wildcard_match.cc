@@ -1,6 +1,7 @@
 #include <rte_config.h>
 #include <rte_hash_crc.h>
 
+#include "../module_msg.pb.h"
 #include "../utils/htable.h"
 #include "wildcard_match.h"
 
@@ -43,6 +44,13 @@ const Commands<Module> WildcardMatch::cmds = {
     {"delete", MODULE_FUNC &WildcardMatch::CommandDelete, 0},
     {"clear", MODULE_FUNC &WildcardMatch::CommandClear, 0},
     {"set_default_gate", MODULE_FUNC &WildcardMatch::CommandSetDefaultGate, 1}};
+
+const PbCommands<Module> WildcardMatch::pb_cmds = {
+    {"add", PB_MODULE_FUNC &WildcardMatch::CommandAdd, 0},
+    {"delete", PB_MODULE_FUNC &WildcardMatch::CommandDelete, 0},
+    {"clear", PB_MODULE_FUNC &WildcardMatch::CommandClear, 0},
+    {"set_default_gate", PB_MODULE_FUNC &WildcardMatch::CommandSetDefaultGate,
+     1}};
 
 struct snobj *WildcardMatch::AddFieldOne(struct snobj *field,
                                          struct WmField *f) {
@@ -95,7 +103,8 @@ pb_error_t WildcardMatch::AddFieldOne(
   } else if (field.length_case() ==
              bess::protobuf::WildcardMatchArg_Field::kAttribute) {
     const char *attr = field.attribute().c_str();
-    f->attr_id = AddMetadataAttr(attr, f->size, bess::metadata::AccessMode::READ);
+    f->attr_id =
+        AddMetadataAttr(attr, f->size, bess::metadata::AccessMode::READ);
     if (f->attr_id < 0) {
       return pb_error(-f->attr_id, "add_metadata_attr() failed");
     }
@@ -146,7 +155,10 @@ struct snobj *WildcardMatch::Init(struct snobj *arg) {
   return nullptr;
 }
 
-pb_error_t WildcardMatch::Init(const bess::protobuf::WildcardMatchArg &arg) {
+pb_error_t WildcardMatch::Init(const google::protobuf::Any &arg_) {
+  bess::protobuf::WildcardMatchArg arg;
+  arg_.UnpackTo(&arg);
+
   int size_acc = 0;
 
   for (int i = 0; i < arg.fields_size(); i++) {
@@ -524,8 +536,13 @@ int WildcardMatch::DelEntry(struct WmTuple *tuple, wm_hkey_t *key) {
   return 0;
 }
 
-pb_error_t WildcardMatch::CommandAdd(
-    const bess::protobuf::WildcardMatchCommandAddArg &arg) {
+bess::protobuf::ModuleCommandResponse WildcardMatch::CommandAdd(
+    const google::protobuf::Any &arg_) {
+  bess::protobuf::WildcardMatchCommandAddArg arg;
+  arg_.UnpackTo(&arg);
+
+  bess::protobuf::ModuleCommandResponse response;
+
   gate_idx_t gate = arg.gate();
   int priority = arg.priority();
 
@@ -536,11 +553,14 @@ pb_error_t WildcardMatch::CommandAdd(
 
   pb_error_t err = ExtractKeyMask(arg, &key, &mask);
   if (err.err() != 0) {
-    return err;
+    set_cmd_response_error(&response, err);
+    return response;
   }
 
   if (!is_valid_gate(gate)) {
-    return pb_error(EINVAL, "Invalid gate: %hu", gate);
+    set_cmd_response_error(&response,
+                           pb_error(EINVAL, "Invalid gate: %hu", gate));
+    return response;
   }
 
   data.priority = priority;
@@ -550,57 +570,81 @@ pb_error_t WildcardMatch::CommandAdd(
   if (idx < 0) {
     idx = AddTuple(&mask);
     if (idx < 0) {
-      return pb_error(-idx, "failed to add a new wildcard pattern");
+      set_cmd_response_error(
+          &response, pb_error(-idx, "failed to add a new wildcard pattern"));
+      return response;
     }
   }
 
   int ret = AddEntry(&tuples_[idx], &key, &data);
   if (ret < 0) {
-    return pb_error(-ret, "failed to add a rule");
+    set_cmd_response_error(&response, pb_error(-ret, "failed to add a rule"));
+    return response;
   }
 
-  return pb_errno(0);
+  set_cmd_response_error(&response, pb_errno(0));
+  return response;
 }
 
-pb_error_t WildcardMatch::CommandDelete(
-    const bess::protobuf::WildcardMatchCommandDeleteArg &arg) {
+bess::protobuf::ModuleCommandResponse WildcardMatch::CommandDelete(
+    const google::protobuf::Any &arg_) {
+  bess::protobuf::WildcardMatchCommandDeleteArg arg;
+  arg_.UnpackTo(&arg);
+
+  bess::protobuf::ModuleCommandResponse response;
+
   wm_hkey_t key;
   wm_hkey_t mask;
 
   pb_error_t err = ExtractKeyMask(arg, &key, &mask);
   if (err.err() != 0) {
-    return err;
+    set_cmd_response_error(&response, err);
+    return response;
   }
 
   int idx = FindTuple(&mask);
   if (idx < 0) {
-    return pb_error(-idx, "failed to delete a rule");
+    set_cmd_response_error(&response,
+                           pb_error(-idx, "failed to delete a rule"));
+    return response;
   }
 
   int ret = DelEntry(&tuples_[idx], &key);
   if (ret < 0) {
-    return pb_error(-ret, "failed to delete a rule");
+    set_cmd_response_error(&response,
+                           pb_error(-ret, "failed to delete a rule"));
+    return response;
   }
 
-  return pb_errno(0);
+  set_cmd_response_error(&response, pb_errno(0));
+  return response;
 }
 
-pb_error_t WildcardMatch::CommandClear(
-    const bess::protobuf::WildcardMatchCommandClearArg &arg) {
+bess::protobuf::ModuleCommandResponse WildcardMatch::CommandClear(
+    const google::protobuf::Any &arg) {
   for (int i = 0; i < num_tuples_; i++) {
     tuples_[i].ht.Clear();
   }
 
-  return pb_errno(0);
+  bess::protobuf::ModuleCommandResponse response;
+
+  set_cmd_response_error(&response, pb_errno(0));
+  return response;
 }
 
-pb_error_t WildcardMatch::CommandSetDefaultGate(
-    const bess::protobuf::WildcardMatchCommandSetDefaultGateArg &arg) {
+bess::protobuf::ModuleCommandResponse WildcardMatch::CommandSetDefaultGate(
+    const google::protobuf::Any &arg_) {
+  bess::protobuf::WildcardMatchCommandSetDefaultGateArg arg;
+  arg_.UnpackTo(&arg);
+
+  bess::protobuf::ModuleCommandResponse response;
+
   int gate = arg.gate();
 
   default_gate_ = gate;
 
-  return pb_errno(0);
+  set_cmd_response_error(&response, pb_errno(0));
+  return response;
 }
 
 struct snobj *WildcardMatch::CommandAdd(struct snobj *arg) {

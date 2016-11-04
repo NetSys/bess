@@ -4,6 +4,7 @@
 
 #include <rte_byteorder.h>
 
+#include "../module_msg.pb.h"
 #include "../utils/simd.h"
 #include "vlan_push.h"
 
@@ -11,19 +12,33 @@ const Commands<Module> VLANPush::cmds = {
     {"set_tci", MODULE_FUNC &VLANPush::CommandSetTci, 0},
 };
 
-pb_error_t VLANPush::Init(const bess::protobuf::VLANPushArg &arg) {
-  return CommandSetTci(arg);
+const PbCommands<Module> VLANPush::pb_cmds = {
+    {"set_tci", PB_MODULE_FUNC &VLANPush::CommandSetTci, 0},
+};
+
+pb_error_t VLANPush::Init(const google::protobuf::Any &arg) {
+  bess::protobuf::ModuleCommandResponse response = CommandSetTci(arg);
+  return response.error();
 }
 
-pb_error_t VLANPush::CommandSetTci(const bess::protobuf::VLANPushArg &arg) {
+bess::protobuf::ModuleCommandResponse VLANPush::CommandSetTci(
+    const google::protobuf::Any &arg_) {
+  bess::protobuf::VLANPushArg arg;
+  arg_.UnpackTo(&arg);
+
+  bess::protobuf::ModuleCommandResponse response;
+
   uint16_t tci;
   tci = arg.tci();
   if (tci > 0xffff) {
-    return pb_error(EINVAL, "TCI value must be 0-65535");
+    set_cmd_response_error(&response,
+                           pb_error(EINVAL, "TCI value must be 0-65535"));
+    return response;
   }
   vlan_tag_ = htonl((0x8100 << 16) | tci);
   qinq_tag_ = htonl((0x88a8 << 16) | tci);
-  return pb_errno(0);
+  set_cmd_response_error(&response, pb_errno(0));
+  return response;
 }
 
 struct snobj *VLANPush::Init(struct snobj *arg) {

@@ -8,7 +8,7 @@ class Split : public Module {
   Split() : Module(), mask_(), attr_id_(), offset_(), size_() {}
 
   struct snobj *Init(struct snobj *arg);
-  pb_error_t Init(const bess::protobuf::SplitArg &arg);
+  pb_error_t Init(const google::protobuf::Any &arg);
 
   void ProcessBatch(struct pkt_batch *batch);
 
@@ -16,6 +16,7 @@ class Split : public Module {
   static const gate_idx_t kNumOGates = MAX_GATES;
 
   static const Commands<Module> cmds;
+  static const PbCommands<Module> pb_cmds;
 
  private:
   uint64_t mask_;

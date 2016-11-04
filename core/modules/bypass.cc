@@ -1,6 +1,7 @@
 #include "bypass.h"
 
 const Commands<Module> Bypass::cmds = {};
+const PbCommands<Module> Bypass::pb_cmds = {};
 
 void Bypass::ProcessBatch(struct pkt_batch *batch) {
   RunChooseModule(get_igate(), batch);

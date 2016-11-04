@@ -1,5 +1,6 @@
 #include <rte_byteorder.h>
 
+#include "../module_msg.pb.h"
 #include "split.h"
 
 #define MAX_SIZE 8
@@ -15,8 +16,12 @@ static inline int is_valid_gate(gate_idx_t gate) {
 }
 
 const Commands<Module> Split::cmds = {};
+const PbCommands<Module> Split::pb_cmds = {};
 
-pb_error_t Split::Init(const bess::protobuf::SplitArg &arg) {
+pb_error_t Split::Init(const google::protobuf::Any &arg_) {
+  bess::protobuf::SplitArg arg;
+  arg_.UnpackTo(&arg);
+
   size_ = arg.size();
   if (size_ < 1 || size_ > MAX_SIZE) {
     return pb_error(EINVAL, "'size' must be 1-%d", MAX_SIZE);

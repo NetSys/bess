@@ -11,21 +11,23 @@ class RandomUpdate : public Module {
   RandomUpdate() : Module(), num_vars_(), vars_(), rng_() {}
 
   virtual struct snobj *Init(struct snobj *arg);
-  virtual pb_error_t Init(const bess::protobuf::RandomUpdateArg &arg);
+  virtual pb_error_t Init(const google::protobuf::Any &arg);
 
   virtual void ProcessBatch(struct pkt_batch *batch);
 
   struct snobj *CommandAdd(struct snobj *arg);
   struct snobj *CommandClear(struct snobj *arg);
 
-  pb_error_t CommandAdd(const bess::protobuf::RandomUpdateArg &arg);
-  pb_error_t CommandClear(
-      const bess::protobuf::RandomUpdateCommandClearArg &arg);
+  bess::protobuf::ModuleCommandResponse CommandAdd(
+      const google::protobuf::Any &arg);
+  bess::protobuf::ModuleCommandResponse CommandClear(
+      const google::protobuf::Any &arg);
 
   static const gate_idx_t kNumIGates = 1;
   static const gate_idx_t kNumOGates = 1;
 
   static const Commands<Module> cmds;
+  static const PbCommands<Module> pb_cmds;
 
  private:
   int num_vars_ = {};

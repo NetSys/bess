@@ -5,6 +5,7 @@
 #include "../utils/random.h"
 #include "../utils/time.h"
 
+#include "../module_msg.pb.h"
 #include "flowgen.h"
 
 #define MAX_TEMPLATE_SIZE 1536
@@ -43,6 +44,7 @@ static inline double scaled_pareto_variate(double inversed_alpha, double mean,
 }
 
 const Commands<Module> FlowGen::cmds = {};
+const PbCommands<Module> FlowGen::pb_cmds = {};
 
 inline double FlowGen::NewFlowPkts() {
   switch (duration_) {
@@ -229,7 +231,10 @@ struct snobj *FlowGen::ProcessArguments(struct snobj *arg) {
   return nullptr;
 }
 
-pb_error_t FlowGen::ProcessArguments(const bess::protobuf::FlowGenArg &arg) {
+pb_error_t FlowGen::ProcessArguments(const google::protobuf::Any &arg_) {
+  bess::protobuf::FlowGenArg arg;
+  arg_.UnpackTo(&arg);
+
   if (arg.template_().length() == 0) {
     return pb_error(EINVAL, "must specify 'template'");
   }
@@ -309,7 +314,7 @@ pb_error_t FlowGen::InitFlowPool() {
   return pb_errno(0);
 }
 
-pb_error_t FlowGen::Init(const bess::protobuf::FlowGenArg &arg) {
+pb_error_t FlowGen::Init(const google::protobuf::Any &arg) {
   task_id_t tid;
   pb_error_t err;
 

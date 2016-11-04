@@ -1,9 +1,14 @@
 #include "queue_out.h"
+#include "../module_msg.pb.h"
 #include "../port.h"
 
 const Commands<Module> QueueOut::cmds = {};
+const PbCommands<Module> QueueOut::pb_cmds = {};
 
-pb_error_t QueueOut::Init(const bess::protobuf::QueueOutArg &arg) {
+pb_error_t QueueOut::Init(const google::protobuf::Any &arg_) {
+  bess::protobuf::QueueOutArg arg;
+  arg_.UnpackTo(&arg);
+
   const char *port_name;
   int ret;
 

@@ -14,7 +14,7 @@ class PCAPPort : public Port {
   PCAPPort(){};
   ~PCAPPort();
 
-  virtual pb_error_t Init(const bess::protobuf::PCAPPortArg &arg);
+  virtual pb_error_t Init(const google::protobuf::Any &arg);
 
   // DEPRECATED DONT USE
   virtual struct snobj *Init(struct snobj *arg);

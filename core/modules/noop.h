@@ -6,7 +6,7 @@
 class NoOP : public Module {
  public:
   virtual struct snobj *Init(struct snobj *arg);
-  virtual pb_error_t Init(const bess::protobuf::NoOpArg &arg);
+  virtual pb_error_t Init(const google::protobuf::Any &arg);
 
   virtual struct task_result RunTask(void *arg);
 
@@ -14,6 +14,7 @@ class NoOP : public Module {
   static const gate_idx_t kNumOGates = 0;
 
   static const Commands<Module> cmds;
+  static const PbCommands<Module> pb_cmds;
 };
 
 #endif

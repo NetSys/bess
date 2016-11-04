@@ -18,24 +18,6 @@
 #include "utils/time.h"
 #include "worker.h"
 
-#include "modules/bpf.h"
-#include "modules/dump.h"
-#include "modules/exact_match.h"
-#include "modules/hash_lb.h"
-#include "modules/ip_lookup.h"
-#include "modules/l2_forward.h"
-#include "modules/measure.h"
-#include "modules/port_inc.h"
-#include "modules/queue.h"
-#include "modules/queue_inc.h"
-#include "modules/random_update.h"
-#include "modules/rewrite.h"
-#include "modules/round_robin.h"
-#include "modules/source.h"
-#include "modules/update.h"
-#include "modules/vlan_push.h"
-#include "modules/wildcard_match.h"
-
 using grpc::Server;
 using grpc::ServerBuilder;
 using grpc::ServerContext;
@@ -223,12 +205,13 @@ static ::Port* create_port(const std::string& name, const PortBuilder& driver,
   return p.release();
 }
 
-template <typename T>
-static Module* create_module(const char* name, const ModuleBuilder& builder,
-                             const T& arg, pb_error_t* perr) {
+static Module* create_module(const std::string& name,
+                             const ModuleBuilder& builder,
+                             const google::protobuf::Any& arg,
+                             pb_error_t* perr) {
   Module* m;
   std::string mod_name;
-  if (name) {
+  if (name.length() > 0) {
     const auto& it = ModuleBuilder::all_modules().find(name);
     if (it != ModuleBuilder::all_modules().end()) {
       *perr = pb_errno(EEXIST);
@@ -242,7 +225,7 @@ static Module* create_module(const char* name, const ModuleBuilder& builder,
 
   m = builder.CreateModule(mod_name, &default_pipeline);
 
-  *perr = m->Init(&arg);
+  *perr = m->Init(arg);
   if (perr != nullptr) {
     ModuleBuilder::DestroyModule(m);  // XXX: fix me
     return nullptr;
@@ -257,7 +240,7 @@ static Module* create_module(const char* name, const ModuleBuilder& builder,
 
 class BESSControlImpl final : public BESSControl::Service {
  public:
-  Status ResetAll(ClientContext* context, const Empty& request,
+  Status ResetAll(ClientContext* context, const EmptyRequest& request,
                   EmptyResponse* response) {
     Status status;
 
@@ -283,19 +266,19 @@ class BESSControlImpl final : public BESSControl::Service {
     }
     return Status::OK;
   }
-  Status PauseAll(ClientContext* context, const Empty& request,
+  Status PauseAll(ClientContext* context, const EmptyRequest& request,
                   EmptyResponse* response) {
     pause_all_workers();
     log_info("*** All workers have been paused ***\n");
     return Status::OK;
   }
-  Status ResumeAll(ClientContext* context, const Empty& request,
+  Status ResumeAll(ClientContext* context, const EmptyRequest& request,
                    EmptyResponse* response) {
     log_info("*** Resuming ***\n");
     resume_all_workers();
     return Status::OK;
   }
-  Status ResetWorkers(ClientContext* context, const Empty& request,
+  Status ResetWorkers(ClientContext* context, const EmptyRequest& request,
                       EmptyResponse* response) {
     if (is_any_worker_running()) {
       return return_with_error(response, EBUSY, "There is a running worker");
@@ -304,7 +287,7 @@ class BESSControlImpl final : public BESSControl::Service {
     log_info("*** All workers have been destroyed ***\n");
     return Status::OK;
   }
-  Status ListWorkers(ClientContext* context, const Empty& request,
+  Status ListWorkers(ClientContext* context, const EmptyRequest& request,
                      ListWorkersResponse* response) {
     for (int wid = 0; wid < MAX_WORKERS; wid++) {
       if (!is_worker_active(wid))
@@ -335,7 +318,7 @@ class BESSControlImpl final : public BESSControl::Service {
     launch_worker(wid, core);
     return Status::OK;
   }
-  Status ResetTcs(ClientContext* context, const Empty& request,
+  Status ResetTcs(ClientContext* context, const EmptyRequest& request,
                   EmptyResponse* response) {
     if (is_any_worker_running()) {
       return return_with_error(response, EBUSY, "There is a running worker");
@@ -521,7 +504,7 @@ class BESSControlImpl final : public BESSControl::Service {
 
     return Status::OK;
   }
-  Status ListDrivers(ClientContext* context, const Empty& request,
+  Status ListDrivers(ClientContext* context, const EmptyRequest& request,
                      ListDriversResponse* response) {
     for (const auto& pair : PortBuilder::all_port_builders()) {
       const PortBuilder& builder = pair.second;
@@ -557,7 +540,7 @@ class BESSControlImpl final : public BESSControl::Service {
 
     return Status::OK;
   }
-  Status ResetPorts(ClientContext* context, const Empty& request,
+  Status ResetPorts(ClientContext* context, const EmptyRequest& request,
                     EmptyResponse* response) {
     if (is_any_worker_running()) {
       return return_with_error(response, EBUSY, "There is a running worker");
@@ -577,7 +560,7 @@ class BESSControlImpl final : public BESSControl::Service {
     log_info("*** All ports have been destroyed ***\n");
     return Status::OK;
   }
-  Status ListPorts(ClientContext* context, const Empty& request,
+  Status ListPorts(ClientContext* context, const EmptyRequest& request,
                    ListPortsResponse* response) {
     for (const auto& pair : PortBuilder::all_ports()) {
       const ::Port* p = pair.second;
@@ -702,7 +685,7 @@ class BESSControlImpl final : public BESSControl::Service {
 
     return Status::OK;
   }
-  Status ResetModules(ClientContext* context, const Empty& request,
+  Status ResetModules(ClientContext* context, const EmptyRequest& request,
                       EmptyResponse* response) {
     if (is_any_worker_running()) {
       return return_with_error(response, EBUSY, "There is a running worker");
@@ -712,7 +695,7 @@ class BESSControlImpl final : public BESSControl::Service {
     log_info("*** All modules have been destroyed ***\n");
     return Status::OK;
   }
-  Status ListModules(ClientContext* context, const Empty& request,
+  Status ListModules(ClientContext* context, const EmptyRequest& request,
                      ListModulesResponse* response) {
     int cnt = 1;
     int offset;
@@ -753,165 +736,7 @@ class BESSControlImpl final : public BESSControl::Service {
     const ModuleBuilder& builder = it->second;
 
     pb_error_t* error = response->mutable_error();
-
-    switch (request.arg_case()) {
-      case CreateModuleRequest::kBpfArg:
-        module = create_module(request.name().c_str(), builder,
-                               request.bpf_arg(), error);
-        break;
-      case CreateModuleRequest::kBufferArg:
-        module = create_module(request.name().c_str(), builder,
-                               request.buffer_arg(), error);
-        break;
-      case CreateModuleRequest::kBypassArg:
-        module = create_module(request.name().c_str(), builder,
-                               request.bypass_arg(), error);
-        break;
-      case CreateModuleRequest::kDumpArg:
-        module = create_module(request.name().c_str(), builder,
-                               request.dump_arg(), error);
-        break;
-      case CreateModuleRequest::kEtherEncapArg:
-        module = create_module(request.name().c_str(), builder,
-                               request.ether_encap_arg(), error);
-        break;
-      case CreateModuleRequest::kExactMatchArg:
-        module = create_module(request.name().c_str(), builder,
-                               request.exact_match_arg(), error);
-        break;
-      case CreateModuleRequest::kFlowGenArg:
-        module = create_module(request.name().c_str(), builder,
-                               request.flow_gen_arg(), error);
-        break;
-      case CreateModuleRequest::kGenericDecapArg:
-        module = create_module(request.name().c_str(), builder,
-                               request.generic_decap_arg(), error);
-        break;
-      case CreateModuleRequest::kGenericEncapArg:
-        module = create_module(request.name().c_str(), builder,
-                               request.generic_encap_arg(), error);
-        break;
-      case CreateModuleRequest::kHashLbArg:
-        module = create_module(request.name().c_str(), builder,
-                               request.hash_lb_arg(), error);
-        break;
-      case CreateModuleRequest::kIpEncapArg:
-        module = create_module(request.name().c_str(), builder,
-                               request.ip_encap_arg(), error);
-        break;
-      case CreateModuleRequest::kIpLookupArg:
-        module = create_module(request.name().c_str(), builder,
-                               request.ip_lookup_arg(), error);
-        break;
-      case CreateModuleRequest::kL2ForwardArg:
-        module = create_module(request.name().c_str(), builder,
-                               request.l2_forward_arg(), error);
-        break;
-      case CreateModuleRequest::kMacSwapArg:
-        module = create_module(request.name().c_str(), builder,
-                               request.mac_swap_arg(), error);
-        break;
-      case CreateModuleRequest::kMeasureArg:
-        module = create_module(request.name().c_str(), builder,
-                               request.measure_arg(), error);
-        break;
-      case CreateModuleRequest::kMergeArg:
-        module = create_module(request.name().c_str(), builder,
-                               request.merge_arg(), error);
-        break;
-      case CreateModuleRequest::kMetadataTestArg:
-        module = create_module(request.name().c_str(), builder,
-                               request.metadata_test_arg(), error);
-        break;
-      case CreateModuleRequest::kNoopArg:
-        module = create_module(request.name().c_str(), builder,
-                               request.noop_arg(), error);
-        break;
-      case CreateModuleRequest::kPortIncArg:
-        module = create_module(request.name().c_str(), builder,
-                               request.port_inc_arg(), error);
-        break;
-      case CreateModuleRequest::kPortOutArg:
-        module = create_module(request.name().c_str(), builder,
-                               request.port_out_arg(), error);
-        break;
-      case CreateModuleRequest::kQueueIncArg:
-        module = create_module(request.name().c_str(), builder,
-                               request.queue_inc_arg(), error);
-        break;
-      case CreateModuleRequest::kQueueOutArg:
-        module = create_module(request.name().c_str(), builder,
-                               request.queue_out_arg(), error);
-        break;
-      case CreateModuleRequest::kQueueArg:
-        module = create_module(request.name().c_str(), builder,
-                               request.queue_arg(), error);
-        break;
-      case CreateModuleRequest::kRandomUpdateArg:
-        module = create_module(request.name().c_str(), builder,
-                               request.random_update_arg(), error);
-        break;
-      case CreateModuleRequest::kRewriteArg:
-        module = create_module(request.name().c_str(), builder,
-                               request.rewrite_arg(), error);
-        break;
-      case CreateModuleRequest::kRoundRobinArg:
-        module = create_module(request.name().c_str(), builder,
-                               request.round_robin_arg(), error);
-        break;
-      case CreateModuleRequest::kSetMetadataArg:
-        module = create_module(request.name().c_str(), builder,
-                               request.set_metadata_arg(), error);
-        break;
-      case CreateModuleRequest::kSinkArg:
-        module = create_module(request.name().c_str(), builder,
-                               request.sink_arg(), error);
-        break;
-      case CreateModuleRequest::kSourceArg:
-        module = create_module(request.name().c_str(), builder,
-                               request.source_arg(), error);
-        break;
-      case CreateModuleRequest::kSplitArg:
-        module = create_module(request.name().c_str(), builder,
-                               request.split_arg(), error);
-        break;
-      case CreateModuleRequest::kTimestampArg:
-        module = create_module(request.name().c_str(), builder,
-                               request.timestamp_arg(), error);
-        break;
-      case CreateModuleRequest::kUpdateArg:
-        module = create_module(request.name().c_str(), builder,
-                               request.update_arg(), error);
-        break;
-      case CreateModuleRequest::kVlanPopArg:
-        module = create_module(request.name().c_str(), builder,
-                               request.vlan_pop_arg(), error);
-        break;
-      case CreateModuleRequest::kVlanPushArg:
-        module = create_module(request.name().c_str(), builder,
-                               request.vlan_push_arg(), error);
-        break;
-      case CreateModuleRequest::kVlanSplitArg:
-        module = create_module(request.name().c_str(), builder,
-                               request.vlan_split_arg(), error);
-        break;
-      case CreateModuleRequest::kVxlanEncapArg:
-        module = create_module(request.name().c_str(), builder,
-                               request.vxlan_encap_arg(), error);
-        break;
-      case CreateModuleRequest::kVxlanDecapArg:
-        module = create_module(request.name().c_str(), builder,
-                               request.vxlan_decap_arg(), error);
-        break;
-      case CreateModuleRequest::kWildcardMatchArg:
-        module = create_module(request.name().c_str(), builder,
-                               request.wildcard_match_arg(), error);
-        break;
-      case CreateModuleRequest::ARG_NOT_SET:
-      default:
-        return return_with_error(response, CreateModuleRequest::ARG_NOT_SET,
-                                 "Missing argument");
-    }
+    module = create_module(request.name(), builder, request.arg(), error);
 
     if (!module)
       return Status::OK;
@@ -1180,7 +1005,7 @@ class BESSControlImpl final : public BESSControl::Service {
     return Status::OK;
   }
 
-  Status KillBess(ClientContext* context, const Empty& request,
+  Status KillBess(ClientContext* context, const EmptyRequest& request,
                   EmptyResponse* response) {
     if (is_any_worker_running()) {
       return return_with_error(response, EBUSY, "There is a running worker");
@@ -1192,7 +1017,7 @@ class BESSControlImpl final : public BESSControl::Service {
     return Status::OK;
   }
 
-  Status ListMclass(ClientContext* context, const Empty& request,
+  Status ListMclass(ClientContext* context, const EmptyRequest& request,
                     ListMclassResponse* response) {
     for (const auto& pair : ModuleBuilder::all_module_builders()) {
       const ModuleBuilder& builder = pair.second;
@@ -1229,168 +1054,16 @@ class BESSControlImpl final : public BESSControl::Service {
                        const ModuleCommandRequest& request,
                        ModuleCommandResponse* response) {
     if (!request.name().length()) {
-      return return_with_error(response->mutable_empty(), EINVAL,
+      return return_with_error(response, EINVAL,
                                "Missing module name field 'name'");
     }
     const auto& it = ModuleBuilder::all_modules().find(request.name());
     if (it == ModuleBuilder::all_modules().end()) {
-      return return_with_error(response->mutable_empty(), ENOENT,
-                               "No module '%s' found", request.name().c_str());
+      return return_with_error(response, ENOENT, "No module '%s' found",
+                               request.name().c_str());
     }
     Module* m = it->second;
-    MeasureCommandGetSummaryResponse* summary;
-    L2ForwardCommandLookupResponse* lookup_result;
-
-    pb_error_t* error = response->mutable_empty()->mutable_error();
-
-    switch (request.cmd_case()) {
-      case ModuleCommandRequest::kBpfAddArg:
-        *error = reinterpret_cast<BPF*>(m)->CommandAdd(request.bpf_add_arg());
-        break;
-      case ModuleCommandRequest::kBpfClearArg:
-        *error =
-            reinterpret_cast<BPF*>(m)->CommandClear(request.bpf_clear_arg());
-        break;
-      case ModuleCommandRequest::kDumpSetIntervalArg:
-        *error = reinterpret_cast<Dump*>(m)->CommandSetInterval(
-            request.dump_set_interval_arg());
-        break;
-      case ModuleCommandRequest::kExactmatchAddArg:
-        *error = reinterpret_cast<ExactMatch*>(m)->CommandAdd(
-            request.exactmatch_add_arg());
-        break;
-      case ModuleCommandRequest::kExactmatchDeleteArg:
-        *error = reinterpret_cast<ExactMatch*>(m)->CommandDelete(
-            request.exactmatch_delete_arg());
-        break;
-      case ModuleCommandRequest::kExactmatchClearArg:
-        *error = reinterpret_cast<ExactMatch*>(m)->CommandSetDefaultGate(
-            request.exactmatch_set_default_gate_arg());
-        break;
-      case ModuleCommandRequest::kHashlbSetModeArg:
-        *error = reinterpret_cast<HashLB*>(m)->CommandSetMode(
-            request.hashlb_set_mode_arg());
-        break;
-      case ModuleCommandRequest::kHashlbSetGatesArg:
-        *error = reinterpret_cast<HashLB*>(m)->CommandSetGates(
-            request.hashlb_set_gates_arg());
-        break;
-      case ModuleCommandRequest::kIplookupAddArg:
-        *error = reinterpret_cast<IPLookup*>(m)->CommandAdd(
-            request.iplookup_add_arg());
-        break;
-      case ModuleCommandRequest::kIplookupClearArg:
-        *error = reinterpret_cast<IPLookup*>(m)->CommandClear(
-            request.iplookup_clear_arg());
-        break;
-      case ModuleCommandRequest::kL2ForwardAddArg:
-        *error = reinterpret_cast<L2Forward*>(m)->CommandAdd(
-            request.l2forward_add_arg());
-        break;
-      case ModuleCommandRequest::kL2ForwardDeleteArg:
-        *error = reinterpret_cast<L2Forward*>(m)->CommandDelete(
-            request.l2forward_delete_arg());
-        break;
-      case ModuleCommandRequest::kL2ForwardSetDefaultGateArg:
-        *error = reinterpret_cast<L2Forward*>(m)->CommandSetDefaultGate(
-            request.l2forward_set_default_gate_arg());
-        break;
-      case ModuleCommandRequest::kL2ForwardLookupArg:
-        lookup_result = response->mutable_l2forward_lookup();
-        *lookup_result = reinterpret_cast<L2Forward*>(m)->CommandLookup(
-            request.l2forward_lookup_arg());
-        break;
-      case ModuleCommandRequest::kL2ForwardPopulateArg:
-        *error = reinterpret_cast<L2Forward*>(m)->CommandPopulate(
-            request.l2forward_populate_arg());
-        break;
-      case ModuleCommandRequest::kMeasureGetSummaryArg:
-        summary = response->mutable_measure_summary();
-        *summary = reinterpret_cast<Measure*>(m)->CommandGetSummary(
-            request.measure_get_summary_arg());
-        break;
-      case ModuleCommandRequest::kPortincSetBurstArg:
-        *error = reinterpret_cast<PortInc*>(m)->CommandSetBurst(
-            request.portinc_set_burst_arg());
-        break;
-      case ModuleCommandRequest::kQueueincSetBurstArg:
-        *error = reinterpret_cast<QueueInc*>(m)->CommandSetBurst(
-            request.queueinc_set_burst_arg());
-        break;
-      case ModuleCommandRequest::kQueueSetSizeArg:
-        *error = reinterpret_cast<Queue*>(m)->CommandSetSize(
-            request.queue_set_size_arg());
-        break;
-      case ModuleCommandRequest::kQueueSetBurstArg:
-        *error = reinterpret_cast<Queue*>(m)->CommandSetBurst(
-            request.queue_set_burst_arg());
-        break;
-      case ModuleCommandRequest::kRandomUpdateAddArg:
-        *error = reinterpret_cast<RandomUpdate*>(m)->CommandAdd(
-            request.random_update_add_arg());
-        break;
-      case ModuleCommandRequest::kRandomUpdateClearArg:
-        *error = reinterpret_cast<RandomUpdate*>(m)->CommandClear(
-            request.random_update_clear_arg());
-        break;
-      case ModuleCommandRequest::kRewriteAddArg:
-        *error = reinterpret_cast<Rewrite*>(m)->CommandAdd(
-            request.rewrite_add_arg());
-        break;
-      case ModuleCommandRequest::kRewriteClearArg:
-        *error = reinterpret_cast<Rewrite*>(m)->CommandClear(
-            request.rewrite_clear_arg());
-        break;
-      case ModuleCommandRequest::kRoundrobinSetGatesArg:
-        *error = reinterpret_cast<RoundRobin*>(m)->CommandSetGates(
-            request.roundrobin_set_gates_arg());
-        break;
-      case ModuleCommandRequest::kRoundrobinSetModeArg:
-        *error = reinterpret_cast<RoundRobin*>(m)->CommandSetMode(
-            request.roundrobin_set_mode_arg());
-        break;
-      case ModuleCommandRequest::kSourceSetBurstArg:
-        *error = reinterpret_cast<Source*>(m)->CommandSetBurst(
-            request.source_set_burst_arg());
-        break;
-      case ModuleCommandRequest::kSourceSetPktSizeArg:
-        *error = reinterpret_cast<Source*>(m)->CommandSetPktSize(
-            request.source_set_pkt_size_arg());
-        break;
-      case ModuleCommandRequest::kUpdateAddArg:
-        *error =
-            reinterpret_cast<Update*>(m)->CommandAdd(request.update_add_arg());
-        break;
-      case ModuleCommandRequest::kUpdateClearArg:
-        *error = reinterpret_cast<Update*>(m)->CommandClear(
-            request.update_clear_arg());
-        break;
-      case ModuleCommandRequest::kVlanSetTciArg:
-        *error = reinterpret_cast<VLANPush*>(m)->CommandSetTci(
-            request.vlan_set_tci_arg());
-        break;
-      case ModuleCommandRequest::kWildcardAddArg:
-        *error = reinterpret_cast<WildcardMatch*>(m)->CommandAdd(
-            request.wildcard_add_arg());
-        break;
-      case ModuleCommandRequest::kWildcardDeleteArg:
-        *error = reinterpret_cast<WildcardMatch*>(m)->CommandDelete(
-            request.wildcard_delete_arg());
-        break;
-      case ModuleCommandRequest::kWildcardClearArg:
-        *error = reinterpret_cast<WildcardMatch*>(m)->CommandClear(
-            request.wildcard_clear_arg());
-        break;
-      case ModuleCommandRequest::kWildcardSetDefaultGateArg:
-        *error = reinterpret_cast<WildcardMatch*>(m)->CommandSetDefaultGate(
-            request.wildcard_set_default_gate_arg());
-        break;
-      case ModuleCommandRequest::CMD_NOT_SET:
-      default:
-        return return_with_error(response->mutable_empty(),
-                                 ModuleCommandRequest::CMD_NOT_SET,
-                                 "Missing cmd argument");
-    }
+    *response = m->RunCommand(request.cmd(), request.arg());
     return Status::OK;
   }
 };

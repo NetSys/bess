@@ -13,6 +13,7 @@ enum {
 };
 
 const Commands<Module> IPEncap::cmds = {};
+const PbCommands<Module> IPEncap::pb_cmds = {};
 
 void IPEncap::ProcessBatch(struct pkt_batch *batch) {
   int cnt = batch->cnt;
@@ -46,7 +47,7 @@ void IPEncap::ProcessBatch(struct pkt_batch *batch) {
 
     set_attr<uint32_t>(this, ATTR_W_IP_NEXTHOP, pkt, ip_dst);
     set_attr<uint16_t>(this, ATTR_W_ETHER_TYPE, pkt,
-             rte_cpu_to_be_16(ETHER_TYPE_IPv4));
+                       rte_cpu_to_be_16(ETHER_TYPE_IPv4));
   }
 
   RunNextModule(batch);

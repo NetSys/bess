@@ -1,8 +1,13 @@
 #include "port_out.h"
+#include "../module_msg.pb.h"
 
 const Commands<Module> PortOut::cmds = {};
+const PbCommands<Module> PortOut::pb_cmds = {};
 
-pb_error_t PortOut::Init(const bess::protobuf::PortOutArg &arg) {
+pb_error_t PortOut::Init(const google::protobuf::Any &arg_) {
+  bess::protobuf::PortOutArg arg;
+  arg_.UnpackTo(&arg);
+
   const char *port_name;
   int ret;
 

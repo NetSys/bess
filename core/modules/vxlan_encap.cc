@@ -7,6 +7,7 @@
 #include <rte_ip.h>
 #include <rte_udp.h>
 
+#include "../module_msg.pb.h"
 #include "vxlan_encap.h"
 
 enum {
@@ -19,8 +20,12 @@ enum {
 };
 
 const Commands<Module> VXLANEncap::cmds = {};
+const PbCommands<Module> VXLANEncap::pb_cmds = {};
 
-pb_error_t VXLANEncap::Init(const bess::protobuf::VXLANEncapArg &arg) {
+pb_error_t VXLANEncap::Init(const google::protobuf::Any &arg_) {
+  bess::protobuf::VXLANEncapArg arg;
+  arg_.UnpackTo(&arg);
+
   dstport_ = rte_cpu_to_be_16(4789);
 
   int dstport = arg.dstport();

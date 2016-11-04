@@ -1,10 +1,16 @@
 #include <rte_byteorder.h>
 
+#include "../module_msg.pb.h"
 #include "update.h"
 
 const Commands<Module> Update::cmds = {
     {"add", MODULE_FUNC &Update::CommandAdd, 0},
     {"clear", MODULE_FUNC &Update::CommandClear, 0},
+};
+
+const PbCommands<Module> Update::pb_cmds = {
+    {"add", PB_MODULE_FUNC &Update::CommandAdd, 0},
+    {"clear", PB_MODULE_FUNC &Update::CommandClear, 0},
 };
 
 struct snobj *Update::Init(struct snobj *arg) {
@@ -21,8 +27,9 @@ struct snobj *Update::Init(struct snobj *arg) {
   return CommandAdd(t);
 }
 
-pb_error_t Update::Init(const bess::protobuf::UpdateArg &arg) {
-  return CommandAdd(arg);
+pb_error_t Update::Init(const google::protobuf::Any &arg) {
+  bess::protobuf::ModuleCommandResponse response = CommandAdd(arg);
+  return response.error();
 }
 
 void Update::ProcessBatch(struct pkt_batch *batch) {
@@ -48,14 +55,21 @@ void Update::ProcessBatch(struct pkt_batch *batch) {
   RunNextModule(batch);
 }
 
-pb_error_t Update::CommandAdd(const bess::protobuf::UpdateArg &arg) {
+bess::protobuf::ModuleCommandResponse Update::CommandAdd(
+    const google::protobuf::Any &arg_) {
+  bess::protobuf::UpdateArg arg;
+  arg_.UnpackTo(&arg);
+
+  bess::protobuf::ModuleCommandResponse response;
+
   int curr = num_fields_;
 
   if (curr + arg.fields_size() > UPDATE_MAX_FIELDS) {
-    return pb_error(EINVAL,
-                    "max %d variables "
-                    "can be specified",
-                    UPDATE_MAX_FIELDS);
+    set_cmd_response_error(&response, pb_error(EINVAL,
+                                               "max %d variables "
+                                               "can be specified",
+                                               UPDATE_MAX_FIELDS));
+    return response;
   }
 
   for (int i = 0; i < arg.fields_size(); i++) {
@@ -70,21 +84,24 @@ pb_error_t Update::CommandAdd(const bess::protobuf::UpdateArg &arg) {
 
     size = field.size();
     if (size < 1 || size > 8) {
-      return pb_error(EINVAL, "'size' must be 1-8");
+      set_cmd_response_error(&response, pb_error(EINVAL, "'size' must be 1-8"));
+      return response;
     }
 
     const char *t = field.value().c_str();
     memcpy(&value, t, size);
 
     if (offset < 0) {
-      return pb_error(EINVAL, "too small 'offset'");
+      set_cmd_response_error(&response, pb_error(EINVAL, "too small 'offset'"));
+      return response;
     }
 
     offset -= (8 - size);
     mask = ((uint64_t)1 << ((8 - size) * 8)) - 1;
 
     if (offset + 8 > SNBUF_DATA) {
-      return pb_error(EINVAL, "too large 'offset'");
+      set_cmd_response_error(&response, pb_error(EINVAL, "too large 'offset'"));
+      return response;
     }
 
     fields_[curr + i].offset = offset;
@@ -93,13 +110,17 @@ pb_error_t Update::CommandAdd(const bess::protobuf::UpdateArg &arg) {
   }
 
   num_fields_ = curr + arg.fields_size();
-  return pb_errno(0);
+  set_cmd_response_error(&response, pb_errno(0));
+  return response;
 }
 
-pb_error_t Update::CommandClear(
-    const bess::protobuf::UpdateCommandClearArg &arg) {
+bess::protobuf::ModuleCommandResponse Update::CommandClear(
+    const google::protobuf::Any &arg) {
   num_fields_ = 0;
-  return pb_errno(0);
+
+  bess::protobuf::ModuleCommandResponse response;
+  set_cmd_response_error(&response, pb_errno(0));
+  return response;
 }
 
 struct snobj *Update::CommandAdd(struct snobj *arg) {

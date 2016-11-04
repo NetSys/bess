@@ -9,7 +9,7 @@ class Queue : public Module {
   Queue() : Module(), queue_(), prefetch_(), burst_() {}
 
   virtual struct snobj *Init(struct snobj *arg);
-  virtual pb_error_t Init(const bess::protobuf::QueueArg &arg);
+  virtual pb_error_t Init(const google::protobuf::Any &arg);
 
   virtual void Deinit();
 
@@ -21,14 +21,16 @@ class Queue : public Module {
   struct snobj *CommandSetBurst(struct snobj *arg);
   struct snobj *CommandSetSize(struct snobj *arg);
 
-  pb_error_t CommandSetBurst(
-      const bess::protobuf::QueueCommandSetBurstArg &arg);
-  pb_error_t CommandSetSize(const bess::protobuf::QueueCommandSetSizeArg &arg);
+  bess::protobuf::ModuleCommandResponse CommandSetBurst(
+      const google::protobuf::Any &arg);
+  bess::protobuf::ModuleCommandResponse CommandSetSize(
+      const google::protobuf::Any &arg);
 
   static const gate_idx_t kNumIGates = 1;
   static const gate_idx_t kNumOGates = 1;
 
   static const Commands<Module> cmds;
+  static const PbCommands<Module> pb_cmds;
 
  private:
   int Resize(int slots);

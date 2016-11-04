@@ -1,8 +1,14 @@
 #include "rewrite.h"
+#include "../module_msg.pb.h"
 
 const Commands<Module> Rewrite::cmds = {
     {"add", MODULE_FUNC &Rewrite::CommandAdd, 0},
     {"clear", MODULE_FUNC &Rewrite::CommandClear, 0},
+};
+
+const PbCommands<Module> Rewrite::pb_cmds = {
+    {"add", PB_MODULE_FUNC &Rewrite::CommandAdd, 0},
+    {"clear", PB_MODULE_FUNC &Rewrite::CommandClear, 0},
 };
 
 struct snobj *Rewrite::Init(struct snobj *arg) {
@@ -19,26 +25,37 @@ struct snobj *Rewrite::Init(struct snobj *arg) {
   return CommandAdd(t);
 }
 
-pb_error_t Rewrite::Init(const bess::protobuf::RewriteArg &arg) {
-  return CommandAdd(arg);
+pb_error_t Rewrite::Init(const google::protobuf::Any &arg) {
+  bess::protobuf::ModuleCommandResponse response = CommandAdd(arg);
+  return response.error();
 }
 
-pb_error_t Rewrite::CommandAdd(const bess::protobuf::RewriteArg &arg) {
+bess::protobuf::ModuleCommandResponse Rewrite::CommandAdd(
+    const google::protobuf::Any &arg_) {
+  bess::protobuf::RewriteArg arg;
+  arg_.UnpackTo(&arg);
+
+  bess::protobuf::ModuleCommandResponse response;
+
   int curr = num_templates_;
   int i;
 
   if (curr + arg.templates_size() > MAX_PKT_BURST) {
-    return pb_error(EINVAL,
-                    "max %d packet templates "
-                    "can be used %d %d",
-                    MAX_PKT_BURST, curr, arg.templates_size());
+    set_cmd_response_error(&response,
+                           pb_error(EINVAL,
+                                    "max %d packet templates "
+                                    "can be used %d %d",
+                                    MAX_PKT_BURST, curr, arg.templates_size()));
+    return response;
   }
 
   for (i = 0; i < arg.templates_size(); i++) {
     const auto &templ = arg.templates(i);
 
     if (templ.length() > MAX_TEMPLATE_SIZE) {
-      return pb_error(EINVAL, "template is too big");
+      set_cmd_response_error(&response,
+                             pb_error(EINVAL, "template is too big"));
+      return response;
     }
 
     memset(templates_[curr + i], 0, MAX_TEMPLATE_SIZE);
@@ -54,15 +71,19 @@ pb_error_t Rewrite::CommandAdd(const bess::protobuf::RewriteArg &arg) {
     template_size_[i] = template_size_[j];
   }
 
-  return pb_errno(0);
+  set_cmd_response_error(&response, pb_errno(0));
+  return response;
 }
 
-pb_error_t Rewrite::CommandClear(
-    const bess::protobuf::RewriteCommandClearArg &arg) {
+bess::protobuf::ModuleCommandResponse Rewrite::CommandClear(
+    const google::protobuf::Any &arg) {
   next_turn_ = 0;
   num_templates_ = 0;
 
-  return pb_errno(0);
+  bess::protobuf::ModuleCommandResponse response;
+
+  set_cmd_response_error(&response, pb_errno(0));
+  return response;
 }
 
 inline void Rewrite::DoRewriteSingle(struct pkt_batch *batch) {

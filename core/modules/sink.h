@@ -11,6 +11,7 @@ class Sink : public Module {
   static const gate_idx_t kNumOGates = 0;
 
   static const Commands<Module> cmds;
+  static const PbCommands<Module> pb_cmds;
 };
 
 #endif

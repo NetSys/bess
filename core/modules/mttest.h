@@ -2,11 +2,12 @@
 #define __MTTEST_H__
 
 #include "../module.h"
+#include "../module_msg.pb.h"
 
 class MetadataTest : public Module {
  public:
   struct snobj *Init(struct snobj *arg);
-  pb_error_t Init(const bess::protobuf::MetadataTestArg &arg);
+  pb_error_t Init(const google::protobuf::Any &arg);
 
   void ProcessBatch(struct pkt_batch *batch);
 
@@ -14,6 +15,7 @@ class MetadataTest : public Module {
   static const gate_idx_t kNumOGates = MAX_GATES;
 
   static const Commands<Module> cmds;
+  static const PbCommands<Module> pb_cmds;
 
  private:
   struct snobj *AddAttributes(struct snobj *attrs,

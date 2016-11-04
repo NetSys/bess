@@ -11,7 +11,10 @@ struct snobj* PCAPPort::Init(struct snobj* conf) {
   return nullptr;
 }
 
-pb_error_t PCAPPort::Init(const bess::protobuf::PCAPPortArg& arg) {
+pb_error_t PCAPPort::Init(const google::protobuf::Any& arg_) {
+  bess::protobuf::PCAPPortArg arg;
+  arg_.UnpackTo(&arg);
+
   if (pcap_handle_.is_initialized()) {
     return pb_error(EINVAL, "Device already initialized.");
   }

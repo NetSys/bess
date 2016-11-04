@@ -239,7 +239,7 @@ class VPort : public Port {
  public:
   virtual void InitDriver();
 
-  pb_error_t Init(const bess::protobuf::VPortArg &arg);
+  pb_error_t Init(const google::protobuf::Any &arg);
   struct snobj *Init(struct snobj *conf);
   void DeInit();
 
@@ -522,7 +522,10 @@ void VPort::DeInit() {
   FreeBar();
 }
 
-pb_error_t VPort::Init(const bess::protobuf::VPortArg &arg) {
+pb_error_t VPort::Init(const google::protobuf::Any &arg_) {
+  bess::protobuf::VPortArg arg;
+  arg_.UnpackTo(&arg);
+
   int cpu;
   int rxq;
 

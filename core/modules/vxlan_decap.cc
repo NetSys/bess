@@ -15,6 +15,7 @@ enum {
 };
 
 const Commands<Module> VXLANDecap::cmds = {};
+const PbCommands<Module> VXLANDecap::pb_cmds = {};
 
 void VXLANDecap::ProcessBatch(struct pkt_batch *batch) {
   int cnt = batch->cnt;
@@ -32,7 +33,7 @@ void VXLANDecap::ProcessBatch(struct pkt_batch *batch) {
     set_attr<uint32_t>(this, ATTR_W_TUN_IP_SRC, pkt, iph->src_addr);
     set_attr<uint32_t>(this, ATTR_W_TUN_IP_DST, pkt, iph->dst_addr);
     set_attr<uint32_t>(this, ATTR_W_TUN_ID, pkt,
-             rte_be_to_cpu_32(vh->vx_vni) >> 8);
+                       rte_be_to_cpu_32(vh->vx_vni) >> 8);
 
     snb_adj(pkt, sizeof(*ethh) + iph_bytes + sizeof(*udph) + sizeof(*vh));
   }

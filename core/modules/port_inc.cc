@@ -1,10 +1,18 @@
 #include "port_inc.h"
+#include "../module_msg.pb.h"
 
 const Commands<Module> PortInc::cmds = {
     {"set_burst", MODULE_FUNC &PortInc::CommandSetBurst, 1},
 };
 
-pb_error_t PortInc::Init(const bess::protobuf::PortIncArg &arg) {
+const PbCommands<Module> PortInc::pb_cmds = {
+    {"set_burst", PB_MODULE_FUNC &PortInc::CommandSetBurst, 1},
+};
+
+pb_error_t PortInc::Init(const google::protobuf::Any &arg_) {
+  bess::protobuf::PortIncArg arg;
+  arg_.UnpackTo(&arg);
+
   const char *port_name;
   queue_t num_inc_q;
   int ret;
@@ -194,9 +202,13 @@ pb_error_t PortInc::SetBurst(int64_t burst) {
   return pb_errno(0);
 }
 
-pb_error_t PortInc::CommandSetBurst(
-    const bess::protobuf::PortIncCommandSetBurstArg &arg) {
-  return SetBurst(arg.burst());
+bess::protobuf::ModuleCommandResponse PortInc::CommandSetBurst(
+    const google::protobuf::Any &arg_) {
+  bess::protobuf::PortIncCommandSetBurstArg arg;
+  bess::protobuf::ModuleCommandResponse response;
+  arg_.UnpackTo(&arg);
+  set_cmd_response_error(&response, SetBurst(arg.burst()));
+  return response;
 }
 
 ADD_MODULE(PortInc, "port_inc", "receives packets from a port")
