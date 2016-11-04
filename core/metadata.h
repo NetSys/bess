@@ -9,8 +9,6 @@
 #include <tuple>
 #include <vector>
 
-#include <gtest/gtest_prod.h>
-
 #include "snbuf_layout.h"
 
 class Module;

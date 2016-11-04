@@ -266,19 +266,17 @@ class BESSControlImpl final : public BESSControl::Service {
     }
     return Status::OK;
   }
-  Status PauseAll(ClientContext* context, const EmptyRequest& request,
-                  EmptyResponse* response) {
+  Status PauseAll(ClientContext*, const EmptyRequest&, EmptyResponse*) {
     pause_all_workers();
     log_info("*** All workers have been paused ***\n");
     return Status::OK;
   }
-  Status ResumeAll(ClientContext* context, const EmptyRequest& request,
-                   EmptyResponse* response) {
+  Status ResumeAll(ClientContext*, const EmptyRequest&, EmptyResponse*) {
     log_info("*** Resuming ***\n");
     resume_all_workers();
     return Status::OK;
   }
-  Status ResetWorkers(ClientContext* context, const EmptyRequest& request,
+  Status ResetWorkers(ClientContext*, const EmptyRequest&,
                       EmptyResponse* response) {
     if (is_any_worker_running()) {
       return return_with_error(response, EBUSY, "There is a running worker");
@@ -287,7 +285,7 @@ class BESSControlImpl final : public BESSControl::Service {
     log_info("*** All workers have been destroyed ***\n");
     return Status::OK;
   }
-  Status ListWorkers(ClientContext* context, const EmptyRequest& request,
+  Status ListWorkers(ClientContext*, const EmptyRequest&,
                      ListWorkersResponse* response) {
     for (int wid = 0; wid < MAX_WORKERS; wid++) {
       if (!is_worker_active(wid))
@@ -301,7 +299,7 @@ class BESSControlImpl final : public BESSControl::Service {
     }
     return Status::OK;
   }
-  Status AddWorker(ClientContext* context, const AddWorkerRequest& request,
+  Status AddWorker(ClientContext*, const AddWorkerRequest& request,
                    EmptyResponse* response) {
     uint64_t wid = request.wid();
     if (wid >= MAX_WORKERS) {
@@ -318,7 +316,7 @@ class BESSControlImpl final : public BESSControl::Service {
     launch_worker(wid, core);
     return Status::OK;
   }
-  Status ResetTcs(ClientContext* context, const EmptyRequest& request,
+  Status ResetTcs(ClientContext*, const EmptyRequest&,
                   EmptyResponse* response) {
     if (is_any_worker_running()) {
       return return_with_error(response, EBUSY, "There is a running worker");
@@ -344,22 +342,19 @@ class BESSControlImpl final : public BESSControl::Service {
 
     return Status::OK;
   }
-  Status ListTcs(ClientContext* context, const ListTcsRequest& request,
+  Status ListTcs(ClientContext*, const ListTcsRequest& request,
                  ListTcsResponse* response) {
     unsigned int wid_filter = MAX_WORKERS;
 
     wid_filter = request.wid();
-    if (wid_filter >= 0) {
-      if (wid_filter >= MAX_WORKERS) {
-        return return_with_error(response, EINVAL,
-                                 "'wid' must be between 0 and %d",
-                                 MAX_WORKERS - 1);
-      }
+    if (wid_filter >= MAX_WORKERS) {
+      return return_with_error(
+          response, EINVAL, "'wid' must be between 0 and %d", MAX_WORKERS - 1);
+    }
 
-      if (!is_worker_active(wid_filter)) {
-        return return_with_error(response, EINVAL, "worker:%d does not exist",
-                                 wid_filter);
-      }
+    if (!is_worker_active(wid_filter)) {
+      return return_with_error(response, EINVAL, "worker:%d does not exist",
+                               wid_filter);
     }
 
     for (const auto& pair : TCContainer::tcs) {
@@ -411,7 +406,7 @@ class BESSControlImpl final : public BESSControl::Service {
 
     return Status::OK;
   }
-  Status AddTc(ClientContext* context, const AddTcRequest& request,
+  Status AddTc(ClientContext*, const AddTcRequest& request,
                EmptyResponse* response) {
     if (is_any_worker_running()) {
       return return_with_error(response, EBUSY, "There is a running worker");
@@ -480,7 +475,7 @@ class BESSControlImpl final : public BESSControl::Service {
 
     return Status::OK;
   }
-  Status GetTcStats(ClientContext* context, const GetTcStatsRequest& request,
+  Status GetTcStats(ClientContext*, const GetTcStatsRequest& request,
                     GetTcStatsResponse* response) {
     const char* tc_name = request.name().c_str();
 
@@ -504,7 +499,7 @@ class BESSControlImpl final : public BESSControl::Service {
 
     return Status::OK;
   }
-  Status ListDrivers(ClientContext* context, const EmptyRequest& request,
+  Status ListDrivers(ClientContext*, const EmptyRequest&,
                      ListDriversResponse* response) {
     for (const auto& pair : PortBuilder::all_port_builders()) {
       const PortBuilder& builder = pair.second;
@@ -513,8 +508,7 @@ class BESSControlImpl final : public BESSControl::Service {
 
     return Status::OK;
   }
-  Status GetDriverInfo(ClientContext* context,
-                       const GetDriverInfoRequest& request,
+  Status GetDriverInfo(ClientContext*, const GetDriverInfoRequest& request,
                        GetDriverInfoResponse* response) {
     if (request.driver_name().length() == 0) {
       return return_with_error(response, EINVAL,
@@ -540,7 +534,7 @@ class BESSControlImpl final : public BESSControl::Service {
 
     return Status::OK;
   }
-  Status ResetPorts(ClientContext* context, const EmptyRequest& request,
+  Status ResetPorts(ClientContext*, const EmptyRequest&,
                     EmptyResponse* response) {
     if (is_any_worker_running()) {
       return return_with_error(response, EBUSY, "There is a running worker");
@@ -560,7 +554,7 @@ class BESSControlImpl final : public BESSControl::Service {
     log_info("*** All ports have been destroyed ***\n");
     return Status::OK;
   }
-  Status ListPorts(ClientContext* context, const EmptyRequest& request,
+  Status ListPorts(ClientContext*, const EmptyRequest&,
                    ListPortsResponse* response) {
     for (const auto& pair : PortBuilder::all_ports()) {
       const ::Port* p = pair.second;
@@ -572,7 +566,7 @@ class BESSControlImpl final : public BESSControl::Service {
 
     return Status::OK;
   }
-  Status CreatePort(ClientContext* context, const CreatePortRequest& request,
+  Status CreatePort(ClientContext*, const CreatePortRequest& request,
                     CreatePortResponse* response) {
     const char* driver_name;
     ::Port* port;
@@ -633,7 +627,7 @@ class BESSControlImpl final : public BESSControl::Service {
     response->set_name(port->name());
     return Status::OK;
   }
-  Status DestroyPort(ClientContext* context, const DestroyPortRequest& request,
+  Status DestroyPort(ClientContext*, const DestroyPortRequest& request,
                      EmptyResponse* response) {
     const char* port_name;
     int ret;
@@ -655,8 +649,7 @@ class BESSControlImpl final : public BESSControl::Service {
 
     return Status::OK;
   }
-  Status GetPortStats(ClientContext* context,
-                      const GetPortStatsRequest& request,
+  Status GetPortStats(ClientContext*, const GetPortStatsRequest& request,
                       GetPortStatsResponse* response) {
     const char* port_name;
     port_stats_t stats;
@@ -685,7 +678,7 @@ class BESSControlImpl final : public BESSControl::Service {
 
     return Status::OK;
   }
-  Status ResetModules(ClientContext* context, const EmptyRequest& request,
+  Status ResetModules(ClientContext*, const EmptyRequest&,
                       EmptyResponse* response) {
     if (is_any_worker_running()) {
       return return_with_error(response, EBUSY, "There is a running worker");
@@ -695,7 +688,7 @@ class BESSControlImpl final : public BESSControl::Service {
     log_info("*** All modules have been destroyed ***\n");
     return Status::OK;
   }
-  Status ListModules(ClientContext* context, const EmptyRequest& request,
+  Status ListModules(ClientContext*, const EmptyRequest&,
                      ListModulesResponse* response) {
     int cnt = 1;
     int offset;
@@ -714,8 +707,7 @@ class BESSControlImpl final : public BESSControl::Service {
 
     return Status::OK;
   }
-  Status CreateModule(ClientContext* context,
-                      const CreateModuleRequest& request,
+  Status CreateModule(ClientContext*, const CreateModuleRequest& request,
                       CreateModuleResponse* response) {
     if (is_any_worker_running()) {
       return return_with_error(response, EBUSY, "There is a running worker");
@@ -744,8 +736,7 @@ class BESSControlImpl final : public BESSControl::Service {
     response->set_name(module->name());
     return Status::OK;
   }
-  Status DestroyModule(ClientContext* context,
-                       const DestroyModuleRequest& request,
+  Status DestroyModule(ClientContext*, const DestroyModuleRequest& request,
                        EmptyResponse* response) {
     if (is_any_worker_running()) {
       return return_with_error(response, EBUSY, "There is a running worker");
@@ -766,8 +757,7 @@ class BESSControlImpl final : public BESSControl::Service {
 
     return Status::OK;
   }
-  Status GetModuleInfo(ClientContext* context,
-                       const GetModuleInfoRequest& request,
+  Status GetModuleInfo(ClientContext*, const GetModuleInfoRequest& request,
                        GetModuleInfoResponse* response) {
     const char* m_name;
     Module* m;
@@ -794,8 +784,7 @@ class BESSControlImpl final : public BESSControl::Service {
 
     return Status::OK;
   }
-  Status ConnectModules(ClientContext* context,
-                        const ConnectModulesRequest& request,
+  Status ConnectModules(ClientContext*, const ConnectModulesRequest& request,
                         EmptyResponse* response) {
     if (is_any_worker_running()) {
       return return_with_error(response, EBUSY, "There is a running worker");
@@ -833,7 +822,7 @@ class BESSControlImpl final : public BESSControl::Service {
 
     return Status::OK;
   }
-  Status DisconnectModules(ClientContext* context,
+  Status DisconnectModules(ClientContext*,
                            const DisconnectModulesRequest& request,
                            EmptyResponse* response) {
     if (is_any_worker_running()) {
@@ -863,7 +852,7 @@ class BESSControlImpl final : public BESSControl::Service {
 
     return Status::OK;
   }
-  Status AttachTask(ClientContext* context, const AttachTaskRequest& request,
+  Status AttachTask(ClientContext*, const AttachTaskRequest& request,
                     EmptyResponse* response) {
     if (is_any_worker_running()) {
       return return_with_error(response, EBUSY, "There is a running worker");
@@ -931,8 +920,7 @@ class BESSControlImpl final : public BESSControl::Service {
 
     return Status::OK;
   }
-  Status EnableTcpdump(ClientContext* context,
-                       const EnableTcpdumpRequest& request,
+  Status EnableTcpdump(ClientContext*, const EnableTcpdumpRequest& request,
                        EmptyResponse* response) {
     if (is_any_worker_running()) {
       return return_with_error(response, EBUSY, "There is a running worker");
@@ -969,8 +957,7 @@ class BESSControlImpl final : public BESSControl::Service {
 
     return Status::OK;
   }
-  Status DisableTcpdump(ClientContext* context,
-                        const DisableTcpdumpRequest& request,
+  Status DisableTcpdump(ClientContext*, const DisableTcpdumpRequest& request,
                         EmptyResponse* response) {
     if (is_any_worker_running()) {
       return return_with_error(response, EBUSY, "There is a running worker");
@@ -1005,7 +992,7 @@ class BESSControlImpl final : public BESSControl::Service {
     return Status::OK;
   }
 
-  Status KillBess(ClientContext* context, const EmptyRequest& request,
+  Status KillBess(ClientContext*, const EmptyRequest&,
                   EmptyResponse* response) {
     if (is_any_worker_running()) {
       return return_with_error(response, EBUSY, "There is a running worker");
@@ -1017,7 +1004,7 @@ class BESSControlImpl final : public BESSControl::Service {
     return Status::OK;
   }
 
-  Status ListMclass(ClientContext* context, const EmptyRequest& request,
+  Status ListMclass(ClientContext*, const EmptyRequest&,
                     ListMclassResponse* response) {
     for (const auto& pair : ModuleBuilder::all_module_builders()) {
       const ModuleBuilder& builder = pair.second;
@@ -1026,8 +1013,7 @@ class BESSControlImpl final : public BESSControl::Service {
     return Status::OK;
   }
 
-  Status GetMclassInfo(ClientContext* context,
-                       const GetMclassInfoRequest& request,
+  Status GetMclassInfo(ClientContext*, const GetMclassInfoRequest& request,
                        GetMclassInfoResponse* response) {
     if (!request.name().length()) {
       return return_with_error(response, EINVAL,
@@ -1050,8 +1036,7 @@ class BESSControlImpl final : public BESSControl::Service {
     return Status::OK;
   }
 
-  Status ModuleCommand(ClientContext* context,
-                       const ModuleCommandRequest& request,
+  Status ModuleCommand(ClientContext*, const ModuleCommandRequest& request,
                        ModuleCommandResponse* response) {
     if (!request.name().length()) {
       return return_with_error(response, EINVAL,

@@ -173,8 +173,8 @@ class ModuleBuilder {
 
   static const std::map<std::string, Module *> &all_modules();
 
-  const gate_idx_t NumIGates() const { return kNumIGates; }
-  const gate_idx_t NumOGates() const { return kNumOGates; }
+  gate_idx_t NumIGates() const { return kNumIGates; }
+  gate_idx_t NumOGates() const { return kNumOGates; }
 
   const std::string &class_name() const { return class_name_; };
   const std::string &name_template() const { return name_template_; };
@@ -243,15 +243,13 @@ class Module {
   Module() = default;
   virtual ~Module(){};
 
-  virtual pb_error_t Init(const google::protobuf::Any &arg) {
-    return pb_errno(0);
-  }
+  virtual pb_error_t Init(const google::protobuf::Any &arg);
+  virtual struct snobj *Init(struct snobj *arg);
 
-  virtual struct snobj *Init(struct snobj *arg) { return nullptr; }
   virtual void Deinit() {}
 
-  virtual struct task_result RunTask(void *arg) { assert(0); }
-  virtual void ProcessBatch(struct pkt_batch *batch) { assert(0); }
+  virtual struct task_result RunTask(void *arg);
+  virtual void ProcessBatch(struct pkt_batch *batch);
 
   virtual std::string GetDesc() const { return ""; };
   virtual struct snobj *GetDump() const { return snobj_nil(); }
@@ -406,8 +404,8 @@ inline void Module::RunNextModule(struct pkt_batch *batch) {
   RunChooseModule(0, batch);
 }
 
-static int is_valid_attr(const std::string &name, size_t size,
-                         bess::metadata::AccessMode mode) {
+static inline int is_valid_attr(const std::string &name, size_t size,
+                                bess::metadata::AccessMode mode) {
   if (name.empty())
     return 0;
 

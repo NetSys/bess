@@ -33,7 +33,7 @@ class Measure : public Module {
   static const PbCommands<Module> pb_cmds;
 
  private:
-  struct histogram hist_ = {0};
+  struct histogram hist_ = {};
 
   uint64_t start_time_;
   int warmup_; /* second */

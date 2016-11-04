@@ -118,7 +118,7 @@ static inline int find_index_avx(uint64_t addr, uint64_t *table) {
 #endif
 
 static inline int find_index(uint64_t addr, uint64_t *table,
-                             const uint64_t count) {
+                             const uint64_t) {
 #if __AVX__
   return find_index_avx(addr, table);
 #else
@@ -586,18 +586,18 @@ void L2Forward::Deinit() {
 
 void L2Forward::ProcessBatch(struct pkt_batch *batch) {
   gate_idx_t default_gate = ACCESS_ONCE(default_gate_);
-  gate_idx_t ogates[MAX_PKT_BURST];
+  gate_idx_t out_gates[MAX_PKT_BURST];
 
   for (int i = 0; i < batch->cnt; i++) {
     struct snbuf *snb = batch->pkts[i];
 
-    ogates[i] = default_gate;
+    out_gates[i] = default_gate;
 
     l2_find(&l2_table_, l2_addr_to_u64(static_cast<char *>(snb_head_data(snb))),
-            &ogates[i]);
+            &out_gates[i]);
   }
 
-  RunSplit(ogates, batch);
+  RunSplit(out_gates, batch);
 }
 
 bess::protobuf::ModuleCommandResponse L2Forward::CommandAdd(

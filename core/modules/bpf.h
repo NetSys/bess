@@ -40,8 +40,8 @@ class BPF : public Module {
   static const PbCommands<Module> pb_cmds;
 
  private:
-  struct filter filters_[MAX_FILTERS + 1] = {{0}};
-  int n_filters_ = {0};
+  struct filter filters_[MAX_FILTERS + 1] = {};
+  int n_filters_ = {};
 
   inline void process_batch_1filter(struct pkt_batch *batch);
 };

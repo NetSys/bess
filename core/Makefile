@@ -4,6 +4,14 @@
 CXX ?= g++
 PROTOC ?= protoc
 
+# e.g., 4.9.3 -> 40903
+CXXVERSION := $(shell $(CXX) -dumpversion | sed -e 's/\.\([0-9][0-9]\)/\1/g' -e 's/\.\([0-9]\)/0\1/g' -e 's/^[0-9]\{3,4\}$$/&00/')
+
+CXXVERSION_4_8_OR_HIGHER := $(shell expr $(CXXVERSION) \>= 40800)
+ifeq "$(CXXVERSION_4_8_OR_HIGHER)" "0"
+  $(error g++ 4.8 or higher is required)
+endif
+
 RTE_SDK ?= $(abspath ../deps/dpdk-16.07)
 RTE_TARGET ?= $(shell uname -m)-native-linuxapp-gcc
 DPDK_LIB = dpdk
@@ -25,12 +33,22 @@ else
 endif
 
 CXXFLAGS += -std=gnu++11 -g3 -ggdb3 -Ofast -march=native \
-	    -Wall -Werror -Wno-unused-function -Wno-unused-but-set-variable \
+	    -Werror -Wall \
 	    -isystem $(DPDK_INC_DIR) \
 	    -D_GNU_SOURCE
 
+HARDCORE = -Wextra -Wcast-align \
+	   -Wno-missing-field-initializers	# FIXME
+
+# -Wshadow should not be used for g++ 4.x, as it has too many false positives
+CXXVERSION_5_OR_HIGHER := $(shell expr $(CXXVERSION) \>= 50000)
+ifeq "$(CXXVERSION_5_OR_HIGHER)" "1"
+  HARDCORE += -Wshadow
+endif
+
 LDFLAGS += -rdynamic -L$(DPDK_LIB_DIR) -Wl,-rpath=$(DPDK_LIB_DIR) -pthread \
 	   -static-libstdc++
+
 LIBS += -Wl,-non_shared \
 	-Wl,--whole-archive -l$(DPDK_LIB) -Wl,--no-whole-archive \
 	-lglog -lgflags -lprotobuf -lgrpc++ -lgrpc \
@@ -152,9 +170,15 @@ $(eval $(call BUILD, \
 
 $(eval $(call BUILD, \
 	CXX, \
+	%.pb.o, \
+	%.pb.cc, \
+	$$(CXX) -o $$@ -c $$< $$(CXXFLAGS)))
+
+$(eval $(call BUILD, \
+	CXX, \
 	%.o, \
 	%.cc, \
-	$$(CXX) -o $$@ -c $$< $$(CXXFLAGS)))
+	$$(CXX) -o $$@ -c $$< $$(CXXFLAGS) $$(HARDCORE)))
 
 $(eval $(call BUILD, \
 	LD, \
@@ -166,7 +190,7 @@ $(eval $(call BUILD, \
 	TEST_CXX, \
 	%_test.o, \
 	%_test.cc, \
-	$$(CXX) -o $$@ -c $$< $$(CXXFLAGS)))
+	$$(CXX) -o $$@ -c $$< $$(CXXFLAGS) $$(HARDCORE)))
 
 $(eval $(call BUILD, \
 	TEST_LD, \
@@ -184,13 +208,13 @@ $(eval $(call BUILD, \
 	TEST_CXX, \
 	gtest-all.o, \
 	$$(GTEST_DIR)/src/gtest-all.cc, \
-	$$(CXX) -o $$@ -c $$< -I$$(GTEST_DIR) $$(CXXFLAGS)))
+	$$(CXX) -o $$@ -c $$< -I$$(GTEST_DIR) $$(CXXFLAGS) $$(HARDCORE)))
 
 $(eval $(call BUILD, \
 	BENCH_CXX, \
 	%_bench.o, \
 	%_bench.cc, \
-	$$(CXX) -o $$@ -c $$< $$(CXXFLAGS)))
+	$$(CXX) -o $$@ -c $$< $$(CXXFLAGS) $$(HARDCORE)))
 
 $(eval $(call BUILD, \
 	BENCH_LD, \

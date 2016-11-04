@@ -3,7 +3,7 @@
 const Commands<Module> NoOP::cmds = {};
 const PbCommands<Module> NoOP::pb_cmds = {};
 
-struct snobj *NoOP::Init(struct snobj *arg) {
+struct snobj *NoOP::Init(struct snobj *) {
   task_id_t tid;
 
   tid = RegisterTask(nullptr);
@@ -13,7 +13,7 @@ struct snobj *NoOP::Init(struct snobj *arg) {
   return nullptr;
 }
 
-pb_error_t NoOP::Init(const google::protobuf::Any &arg) {
+pb_error_t NoOP::Init(const google::protobuf::Any &) {
   task_id_t tid;
 
   tid = RegisterTask(nullptr);
@@ -23,7 +23,7 @@ pb_error_t NoOP::Init(const google::protobuf::Any &arg) {
   return pb_errno(0);
 }
 
-struct task_result NoOP::RunTask(void *arg) {
+struct task_result NoOP::RunTask(void *) {
   return {};
 }
 

@@ -28,6 +28,10 @@ def run_docker_cmd(cmd):
     run_cmd('docker run -e CC -e CXX -e COVERAGE --rm -t -v %s:%s %s sh -c %s' % \
             (BESS_DIR_HOST, BESS_DIR_CONTAINER, IMAGE, shell_quote(cmd)))
 
+def run_shell():
+    run_cmd('docker run -e CC -e CXX -e COVERAGE --rm -it -v %s:%s %s' % \
+            (BESS_DIR_HOST, BESS_DIR_CONTAINER, IMAGE))
+
 def build_bess():
     run_docker_cmd('%s bess' % BUILD_SCRIPT)
 
@@ -58,7 +62,8 @@ def do_dist_clean():
 
 def print_usage():
     print >> sys.stderr, \
-            'Usage: %s [all|bess|kmod|kmod_buildtest|clean|dist_clean|help]' % \
+            'Usage: %s ' \
+            '[all|bess|kmod|kmod_buildtest|clean|dist_clean|shell||help]' % \
             sys.argv[0]
 
 def main():
@@ -80,6 +85,8 @@ def main():
             do_clean()
         elif sys.argv[1] == 'dist_clean':
             do_dist_clean()
+        elif sys.argv[1] == 'shell':
+            run_shell()
         elif sys.argv[1] == 'help':
             print_usage()
             sys.exit(0)

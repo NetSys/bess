@@ -153,7 +153,7 @@ const std::map<std::string, ModuleBuilder>
   return all_module_builders_holder();
 }
 
-void deadend(Module *m, struct pkt_batch *batch) {
+void deadend(Module *, struct pkt_batch *batch) {
   ctx.incr_silent_drops(batch->cnt);
   snb_free_bulk(batch->pkts, batch->cnt);
 }
@@ -163,6 +163,21 @@ const std::map<std::string, Module *> &ModuleBuilder::all_modules() {
 }
 
 // -------------------------------------------------------------------------
+pb_error_t Module::Init(const google::protobuf::Any &) {
+  return pb_errno(0);
+}
+
+struct snobj *Module::Init(struct snobj *) {
+  return nullptr;
+}
+
+struct task_result Module::RunTask(void *) {
+  assert(0);  // You must override this function
+}
+
+void Module::ProcessBatch(struct pkt_batch *) {
+  assert(0);  // You must override this function
+}
 
 task_id_t Module::RegisterTask(void *arg) {
   task_id_t id;
@@ -380,7 +395,8 @@ int Module::DisconnectModulesUpstream(gate_idx_t igate_idx) {
   return 0;
 }
 
-void Module::RunSplit(const gate_idx_t *ogates, struct pkt_batch *mixed_batch) {
+void Module::RunSplit(const gate_idx_t *out_gates,
+                      struct pkt_batch *mixed_batch) {
   int cnt = mixed_batch->cnt;
   int num_pending = 0;
 
@@ -396,7 +412,7 @@ void Module::RunSplit(const gate_idx_t *ogates, struct pkt_batch *mixed_batch) {
     struct pkt_batch *batch;
     gate_idx_t ogate;
 
-    ogate = ogates[i];
+    ogate = out_gates[i];
     batch = &splits[ogate];
 
     batch_add(batch, *(p_pkt++));

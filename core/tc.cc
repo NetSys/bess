@@ -512,6 +512,7 @@ static char *print_tc_stats_detail(struct sched *s, char *p, int max_cnt) {
   return p;
 }
 
+#if 0
 static char *print_tc_stats_simple(struct sched *s, char *p, int max_cnt) {
   struct tc *c;
 
@@ -551,6 +552,7 @@ static char *print_tc_stats_simple(struct sched *s, char *p, int max_cnt) {
 
   return p;
 }
+#endif
 
 static void print_stats(struct sched *s, struct sched_stats *last_stats) {
   uint64_t cycles_idle;
@@ -583,7 +585,7 @@ static void print_stats(struct sched *s, struct sched_stats *last_stats) {
                bits / 1000000.0);
 
 #if 0
-	p = print_tc_stats_simple(s, p, 5);
+  p = print_tc_stats_simple(s, p, 5);
 #else
   p = print_tc_stats_detail(s, p, 16);
 #endif
@@ -680,13 +682,6 @@ void sched_loop(struct sched *s) {
 
     schedule_once(s);
   }
-}
-
-static uint64_t get_usec(void) {
-  struct timeval tv;
-
-  gettimeofday(&tv, nullptr);
-  return tv.tv_sec * 1000000 + tv.tv_usec;
 }
 
 void sched_test_alloc() {

@@ -533,8 +533,8 @@ pb_error_t VPort::Init(const google::protobuf::Any &arg_) {
 
   pb_error_t err;
 
-  struct tx_queue_opts txq_opts = {0};
-  struct rx_queue_opts rxq_opts = {0};
+  struct tx_queue_opts txq_opts = {};
+  struct rx_queue_opts rxq_opts = {};
 
   fd_ = -1;
   netns_fd_ = -1;
@@ -786,8 +786,8 @@ struct snobj *VPort::Init(struct snobj *conf) {
 
   struct snobj *err = nullptr;
 
-  struct tx_queue_opts txq_opts = {0};
-  struct rx_queue_opts rxq_opts = {0};
+  struct tx_queue_opts txq_opts = {};
+  struct rx_queue_opts rxq_opts = {};
 
   fd_ = -1;
   netns_fd_ = -1;

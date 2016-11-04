@@ -75,7 +75,7 @@ class ZeroCopyVPort : public Port {
   int out_irq_fd_[MAX_QUEUES_PER_DIR] = {};
 };
 
-struct snobj *ZeroCopyVPort::Init(struct snobj *arg) {
+struct snobj *ZeroCopyVPort::Init(struct snobj *) {
   struct vport_bar *bar = nullptr;
 
   int num_inc_q = num_queues[PACKET_DIR_INC];
@@ -160,7 +160,7 @@ struct snobj *ZeroCopyVPort::Init(struct snobj *arg) {
   return nullptr;
 }
 
-pb_error_t ZeroCopyVPort::Init(const google::protobuf::Any &arg) {
+pb_error_t ZeroCopyVPort::Init(const google::protobuf::Any &) {
   struct vport_bar *bar = nullptr;
 
   int num_inc_q = num_queues[PACKET_DIR_INC];
@@ -274,7 +274,6 @@ int ZeroCopyVPort::SendPackets(queue_t qid, snb_array_t pkts, int cnt) {
     return 0;
 
   if (__sync_bool_compare_and_swap(&out_regs_[qid]->irq_enabled, 1, 0)) {
-    int ret;
     char t[1] = {'F'};
     ret = write(out_irq_fd_[qid], reinterpret_cast<void *>(t), 1);
   }

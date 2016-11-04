@@ -34,9 +34,6 @@ struct snobj *Measure::Init(struct snobj *arg) {
   if (arg) {
     warmup_ = snobj_eval_int(arg, "warmup");
   }
-
-  init_hist(&hist_);
-
   return nullptr;
 }
 
@@ -47,7 +44,6 @@ pb_error_t Measure::Init(const google::protobuf::Any &arg_) {
   if (arg.warmup()) {
     warmup_ = arg.warmup();
   }
-  init_hist(&hist_);
   return pb_errno(0);
 }
 
@@ -84,7 +80,7 @@ void Measure::ProcessBatch(struct pkt_batch *batch) {
   }
 }
 
-struct snobj *Measure::CommandGetSummary(struct snobj *arg) {
+struct snobj *Measure::CommandGetSummary(struct snobj *) {
   uint64_t pkt_total = pkt_cnt_;
   uint64_t byte_total = bytes_cnt_;
   uint64_t bits = (byte_total + pkt_total * 24) * 8;
@@ -100,7 +96,7 @@ struct snobj *Measure::CommandGetSummary(struct snobj *arg) {
 }
 
 bess::protobuf::ModuleCommandResponse Measure::CommandGetSummary(
-    const google::protobuf::Any &arg) {
+    const google::protobuf::Any &) {
   uint64_t pkt_total = pkt_cnt_;
   uint64_t byte_total = bytes_cnt_;
   uint64_t bits = (byte_total + pkt_total * 24) * 8;

@@ -9,6 +9,16 @@
 
 #include <x86intrin.h>
 
+#if __cplusplus < 201103L  // pre-C++11?
+# error The compiler does not support C++11
+#endif
+
+// [[maybe_unused]] is a c++17 feature,
+// but g++ (>= 4.8) has its own [[gnu::unused]]
+#if __cplusplus <= 201402L  // C++14 or older?
+#  define maybe_unused gnu::unused
+#endif
+
 /* Hint for performance optimization. Same as _nassert() of TI compilers */
 #define promise(cond)                     \
   ({                                      \

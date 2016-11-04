@@ -76,7 +76,7 @@ bess::protobuf::ModuleCommandResponse Rewrite::CommandAdd(
 }
 
 bess::protobuf::ModuleCommandResponse Rewrite::CommandClear(
-    const google::protobuf::Any &arg) {
+    const google::protobuf::Any &) {
   next_turn_ = 0;
   num_templates_ = 0;
 
@@ -176,7 +176,7 @@ struct snobj *Rewrite::CommandAdd(struct snobj *arg) {
   return nullptr;
 }
 
-struct snobj *Rewrite::CommandClear(struct snobj *arg) {
+struct snobj *Rewrite::CommandClear(struct snobj *) {
   next_turn_ = 0;
   num_templates_ = 0;
 

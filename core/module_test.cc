@@ -11,50 +11,6 @@ namespace {
 
 // Mocking out misc things  ------------------------------------------------
 
-thread_local Worker ctx;
-static bess::metadata::Pipeline default_pipeline;
-
-struct task *task_create(Module *m, void *arg) {
-  return nullptr;
-}
-
-void task_destroy(struct task *t) {}
-
-void task_attach(struct task *t, struct tc *c) {}
-void task_detach(struct task *t) {}
-
-struct snobj *snobj_str(const char *s) {
-  return nullptr;
-}
-struct snobj *snobj_nil() {
-  return nullptr;
-}
-
-struct snobj *snobj_err_details(int err, struct snobj *details, const char *fmt,
-                                ...) {
-  return nullptr;
-}
-
-void *mem_alloc(size_t size) {
-  void *ptr = malloc(size);
-
-  if (ptr) {
-    memset(ptr, 0, size);
-  }
-
-  return ptr;
-}
-
-void *mem_realloc(void *ptr, size_t size) {
-  return realloc(ptr, size);
-}
-
-void mem_free(void *ptr) {
-  free(ptr);
-}
-
-// -------------------------------------------------------------------------
-
 class AcmeModule : public Module {
  public:
   AcmeModule() : Module() {}
@@ -65,12 +21,12 @@ class AcmeModule : public Module {
   static const Commands<Module> cmds;
   static const PbCommands<Module> pb_cmds;
 
-  struct snobj *Foo(struct snobj *arg) {
+  struct snobj *Foo(struct snobj *) {
     n += 1;
     return nullptr;
   }
 
-  bess::protobuf::ModuleCommandResponse Foo(const google::protobuf::Any &arg) {
+  bess::protobuf::ModuleCommandResponse Foo(const google::protobuf::Any &) {
     n += 1;
     return bess::protobuf::ModuleCommandResponse();
   }
@@ -209,6 +165,7 @@ TEST_F(ModuleTester, ConnectModules) {
   EXPECT_EQ(1, m1->ogates.curr_size);
   EXPECT_EQ(m2, m1->ogates.arr[0]->out.igate->m);
   EXPECT_EQ(1, m2->igates.curr_size);
+
   cdlist_for_each_entry(og, &m2->igates.arr[0]->in.ogates_upstream,
                         out.igate_upstream) {
     ASSERT_NE(nullptr, og);

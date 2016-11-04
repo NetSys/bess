@@ -195,7 +195,7 @@ void ExactMatch::Deinit() {
 
 void ExactMatch::ProcessBatch(struct pkt_batch *batch) {
   gate_idx_t default_gate;
-  gate_idx_t ogates[MAX_PKT_BURST];
+  gate_idx_t out_gates[MAX_PKT_BURST];
 
   int key_size = total_key_size_;
   char keys[MAX_PKT_BURST][HASH_KEY_SIZE] __ymm_aligned;
@@ -237,10 +237,10 @@ void ExactMatch::ProcessBatch(struct pkt_batch *batch) {
   for (int i = 0; i < cnt; i++) {
     gate_idx_t *ret = static_cast<gate_idx_t *>(
         ht_.Get(reinterpret_cast<em_hkey_t *>(keys[i])));
-    ogates[i] = ret ? *ret : default_gate;
+    out_gates[i] = ret ? *ret : default_gate;
   }
 
-  RunSplit(ogates, batch);
+  RunSplit(out_gates, batch);
 }
 
 std::string ExactMatch::GetDesc() const {
@@ -475,14 +475,14 @@ bess::protobuf::ModuleCommandResponse ExactMatch::CommandDelete(
   return response;
 }
 
-struct snobj *ExactMatch::CommandClear(struct snobj *arg) {
+struct snobj *ExactMatch::CommandClear(struct snobj *) {
   ht_.Clear();
 
   return nullptr;
 }
 
 bess::protobuf::ModuleCommandResponse ExactMatch::CommandClear(
-    const google::protobuf::Any &arg) {
+    const google::protobuf::Any &) {
   ht_.Clear();
 
   bess::protobuf::ModuleCommandResponse response;

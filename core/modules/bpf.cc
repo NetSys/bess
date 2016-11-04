@@ -525,7 +525,7 @@ typedef void (*emit_func)(bpf_bin_stream *stream, u_int value, u_int n);
 /*
  * Emit routine to update the jump table.
  */
-static void emit_length(bpf_bin_stream *stream, u_int value, u_int len) {
+static void emit_length(bpf_bin_stream *stream, u_int, u_int len) {
   if (stream->refs != nullptr)
     (stream->refs)[stream->bpf_pc] += len;
   stream->cur_ip += len;
@@ -1254,14 +1254,14 @@ struct snobj *BPF::CommandAdd(struct snobj *arg) {
 }
 
 bess::protobuf::ModuleCommandResponse BPF::CommandClear(
-    const google::protobuf::Any &arg) {
+    const google::protobuf::Any &) {
   Deinit();
   bess::protobuf::ModuleCommandResponse response;
   set_cmd_response_error(&response, pb_errno(0));
   return response;
 }
 
-struct snobj *BPF::CommandClear(struct snobj *arg) {
+struct snobj *BPF::CommandClear(struct snobj *) {
   Deinit();
   return nullptr;
 }
@@ -1301,7 +1301,7 @@ inline void BPF::process_batch_1filter(struct pkt_batch *batch) {
 }
 
 void BPF::ProcessBatch(struct pkt_batch *batch) {
-  gate_idx_t ogates[MAX_PKT_BURST];
+  gate_idx_t out_gates[MAX_PKT_BURST];
   int n_filters = n_filters_;
   int cnt;
 
@@ -1331,10 +1331,10 @@ void BPF::ProcessBatch(struct pkt_batch *batch) {
       }
     }
 
-    ogates[i] = gate;
+    out_gates[i] = gate;
   }
 
-  RunSplit(ogates, batch);
+  RunSplit(out_gates, batch);
 }
 
 ADD_MODULE(BPF, "bpf", "classifies packets with pcap-filter(7) syntax")

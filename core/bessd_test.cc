@@ -2,6 +2,8 @@
 
 #include <signal.h>
 #include <sys/file.h>
+#include <sys/select.h>
+#include <unistd.h>
 
 #include <glog/logging.h>
 #include <gtest/gtest.h>
@@ -13,6 +15,73 @@ namespace bess {
 namespace bessd {
 
 static const char *kTestLockFilePath = "/tmp/tryacquirepidfilelocktest.log";
+
+// Executes CHILD before PARENT, then once PARENT completes, signals
+// the child and waits for its exit code, which we expect to be SIGNAL.
+// This ended up having to be a macro because gtest DEATH tests did not work
+// with lambda expressions.
+#define DO_MULTI_PROCESS_TEST(CHILD, PARENT, SIGNAL)                           \
+  const int kSelectTimeoutInSecs = 2;\
+  const char *kSignalText = "foo";\
+  const int kSignalTextLen = 4;\
+\
+  int child_to_parent[2];\
+  int parent_to_child[2];\
+\
+  ASSERT_EQ(0, pipe(child_to_parent)) << "pipe() failed";\
+  ASSERT_EQ(0, pipe(parent_to_child)) << "pipe() failed";\
+\
+  pid_t childpid = fork();\
+  ASSERT_NE(-1, childpid) << "fork() failed.";\
+  if (!childpid) {\
+    CHILD;\
+\
+    ignore_result(write(child_to_parent[1], kSignalText, kSignalTextLen));\
+\
+    char buf[kSignalTextLen];\
+\
+    ignore_result(read(parent_to_child[0], buf, kSignalTextLen));\
+\
+    exit(0);\
+  } else {\
+    fd_set read_fds, write_fds, err_fds;\
+    struct timeval tv = { kSelectTimeoutInSecs, 0 };\
+    FD_ZERO(&read_fds);\
+    FD_ZERO(&err_fds);\
+    FD_SET(child_to_parent[0], &read_fds);\
+    FD_SET(child_to_parent[0], &err_fds);\
+\
+    int ret = select(child_to_parent[0]+1, &read_fds, nullptr, &err_fds, &tv);\
+    ASSERT_NE(0, ret) << "select() timed out in parent.";\
+    ASSERT_NE(-1, ret) << "select() had an error " << errno;\
+    ASSERT_TRUE(FD_ISSET(child_to_parent[0], &read_fds)) << "Child didn't send us anything.";\
+    char buf[kSignalTextLen];\
+    ASSERT_EQ(kSignalTextLen, read(child_to_parent[0], buf, kSignalTextLen));\
+\
+    PARENT;\
+\
+    tv = { kSelectTimeoutInSecs, 0 };\
+    FD_ZERO(&write_fds);\
+    FD_ZERO(&err_fds);\
+    FD_SET(parent_to_child[1], &write_fds);\
+    FD_SET(parent_to_child[1], &err_fds);\
+    ret = select(parent_to_child[1]+1, nullptr, &write_fds, &err_fds, &tv);\
+    ASSERT_NE(0, ret) << "select() timed out in parent trying to write.";\
+    ASSERT_NE(-1, ret) << "select() had an error " << errno;\
+    ASSERT_TRUE(FD_ISSET(parent_to_child[1], &write_fds)) << "Can't write.";\
+\
+    ignore_result(write(parent_to_child[1], kSignalText, kSignalTextLen));\
+\
+    int status;\
+    waitpid(childpid, &status, 0);\
+    if (SIGNAL) {\
+      EXPECT_NE(0, status);\
+      ASSERT_TRUE(WIFSIGNALED(status));\
+      EXPECT_EQ(SIGNAL, WTERMSIG(status));\
+    } else {\
+      ASSERT_EQ(0, status);\
+    }\
+  }\
 
 // Checks that FLAGS_t causes types to dump.
 TEST(ProcessCommandLineArgs, DumpTypes) {
@@ -99,14 +168,9 @@ TEST(TryAcquirePidfileLock, GoodFd) {
 
 // Checks that file locking fails when another process is holding the lock.
 TEST(TryAcquirePidfileLock, AlreadyHeld) {
-  // Acquire the lock in a forked process.
-  pid_t childpid = fork();
-  if (!childpid) {
-    // Child process.
-    pid_t pid = getpid();
-
-    // Write to the file.
+  DO_MULTI_PROCESS_TEST({
     {
+      pid_t pid = getpid();
       unique_fd fd(open(kTestLockFilePath, O_RDWR | O_CREAT, 0644));
 
       WritePidfile(fd.get(), pid);
@@ -114,14 +178,7 @@ TEST(TryAcquirePidfileLock, AlreadyHeld) {
 
     int fd = open(kTestLockFilePath, O_RDWR | O_CREAT, 0644);
     ASSERT_EQ(0, flock(fd, LOCK_EX | LOCK_NB)) << "Couldn't acquire file lock for test.";
-
-    // Sleep for up to 10 seconds, while holding lock.
-    sleep(10);
-  } else {
-    // Parent process.
-    // Wait for child process to get the lock.
-    sleep(2);
-
+  }, {
     unique_fd fd(open(kTestLockFilePath, O_RDWR | O_CREAT, 0644));
 
     bool lockacquired;
@@ -131,39 +188,24 @@ TEST(TryAcquirePidfileLock, AlreadyHeld) {
     EXPECT_FALSE(lockacquired);
     EXPECT_EQ(childpid, pid);
 
-    kill(childpid, SIGKILL);
-
     unlink(kTestLockFilePath);
-  }
+  }, 0);
 }
 
 // Checks that file locking dies when another process is holding the lock but
 // we're not able to read the pid.
 TEST(TryAcquirePidfileLock, AlreadyHeldPidReadFails) {
-  // Acquire the lock in a forked process.
-  pid_t childpid = fork();
-  if (!childpid) {
-    // Child process.
+  DO_MULTI_PROCESS_TEST({
     int fd = open(kTestLockFilePath, O_RDWR | O_CREAT, 0644);
     ASSERT_EQ(0, flock(fd, LOCK_EX | LOCK_NB)) << "Couldn't acquire file lock for test.";
-
-    // Sleep for up to 10 seconds, while holding lock.
-    sleep(10);
-  } else {
-    // Parent process.
-    // Wait for child process to get the lock.
-    sleep(2);
-
+  }, {
     unique_fd fd(open(kTestLockFilePath, O_RDWR | O_CREAT, 0644));
 
     bool lockacquired;
     pid_t pid;
     EXPECT_DEATH(std::tie(lockacquired, pid) = TryAcquirePidfileLock(fd.get()), "");
-
-    kill(childpid, SIGKILL);
-
     unlink(kTestLockFilePath);
-  }
+  }, 0);
 }
 
 // Checks that trying to check for a unique instance with a bad pidfile path
@@ -189,24 +231,12 @@ TEST(CheckUniqueInstance, NotHeld) {
 // Checks that the combined routine to check for a unique instance fails
 // properly when the lock is already held.
 TEST(CheckUniqueInstance, Held) {
-  // Acquire the lock in a forked process.
-  pid_t childpid = fork();
-  if (!childpid) {
-    // Child process.
+  DO_MULTI_PROCESS_TEST({
     CheckUniqueInstance(kTestLockFilePath);
-
-    sleep(10);
-  } else {
-    // Parent process.
-    // Wait for child process to get the lock.
-    sleep(2);
-
+  }, {
     EXPECT_DEATH(CheckUniqueInstance(kTestLockFilePath), "");
-
-    kill(childpid, SIGKILL);
-
     unlink(kTestLockFilePath);
-  }
+  }, 0);
 }
 
 // Checks that the combined routine to check for a unique instance attempts to
@@ -215,37 +245,31 @@ TEST(CheckUniqueInstance, HeldKillCurrentHolder) {
   // Set the command-line arg for -k.
   FLAGS_k = true;
 
-  // Acquire the lock in a forked process.
-  pid_t childpid = fork();
-  if (!childpid) {
+  DO_MULTI_PROCESS_TEST({
     // Ignore SIGTERM, to force parent to kill us.
     signal(SIGTERM, SIG_IGN);
 
     // Child process.
     CheckUniqueInstance(kTestLockFilePath);
-
-    sleep(50);
-  } else {
-    // Parent process.
-    // Wait for child process to get the lock.
-    sleep(2);
-
+  }, {
     ASSERT_NO_FATAL_FAILURE(CheckUniqueInstance(kTestLockFilePath));
-
     unlink(kTestLockFilePath);
-  }
+  }, SIGKILL);
 }
 
 // Checks that we can do a basic call to start the daemon.
 TEST(StartDaemon, BasicRun) {
-  int signal_fd = -1;
-  ASSERT_NO_FATAL_FAILURE(signal_fd = StartDaemon());
-  ASSERT_NE(-1, signal_fd);
-  
-  uint64_t one = 1;
-  ASSERT_LT(-1, write(signal_fd, &one, sizeof(one)) < 0) <<
-      "Couldn't write out to fd that communicates with child (daemon) process";
-  close(signal_fd);
+  DO_MULTI_PROCESS_TEST({
+    int signal_fd = -1;
+    ASSERT_NO_FATAL_FAILURE(signal_fd = StartDaemon(););
+    ASSERT_NE(-1, signal_fd);
+
+    uint64_t one = 1;
+    ASSERT_LT(-1, write(signal_fd, &one, sizeof(one)) < 0) <<
+        "Couldn't write out to fd that communicates with parent process";
+    close(signal_fd);
+  }, {
+  }, 0);
 }
 
 // Checks that we can do a basic call to set resource limits.

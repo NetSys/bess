@@ -31,7 +31,7 @@ class Update : public Module {
  private:
   int num_fields_ = {};
 
-  struct field {
+  struct {
     uint64_t mask;  /* bits with 1 won't be updated */
     uint64_t value; /* in network order */
     int16_t offset;

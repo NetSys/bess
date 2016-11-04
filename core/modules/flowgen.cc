@@ -551,7 +551,7 @@ void FlowGen::GeneratePackets(struct pkt_batch *batch) {
   }
 }
 
-struct task_result FlowGen::RunTask(void *arg) {
+struct task_result FlowGen::RunTask(void *) {
   struct pkt_batch batch;
   struct task_result ret;
 

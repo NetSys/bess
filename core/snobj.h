@@ -104,7 +104,7 @@ static inline void _FREE(void *p) {
   mem_free(p);
 }
 
-static char *_STRDUP(const char *s) {
+static inline char *_STRDUP(const char *s) {
   size_t len = strlen(s);
   char *ret;
 

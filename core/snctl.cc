@@ -51,7 +51,7 @@ static struct snobj *handle_reset_ports(struct snobj *);
 static struct snobj *handle_reset_tcs(struct snobj *);
 static struct snobj *handle_reset_workers(struct snobj *);
 
-static struct snobj *handle_reset_all(struct snobj *q) {
+static struct snobj *handle_reset_all(struct snobj *) {
   struct snobj *r;
 
   log_info("*** reset_all requested ***\n");
@@ -75,25 +75,25 @@ static struct snobj *handle_reset_all(struct snobj *q) {
   return nullptr;
 }
 
-static struct snobj *handle_pause_all(struct snobj *q) {
+static struct snobj *handle_pause_all(struct snobj *) {
   pause_all_workers();
   log_info("*** All workers have been paused ***\n");
   return nullptr;
 }
 
-static struct snobj *handle_resume_all(struct snobj *q) {
+static struct snobj *handle_resume_all(struct snobj *) {
   log_info("*** Resuming ***\n");
   resume_all_workers();
   return nullptr;
 }
 
-static struct snobj *handle_reset_workers(struct snobj *q) {
+static struct snobj *handle_reset_workers(struct snobj *) {
   destroy_all_workers();
   log_info("*** All workers have been destroyed ***\n");
   return nullptr;
 }
 
-static struct snobj *handle_list_workers(struct snobj *q) {
+static struct snobj *handle_list_workers(struct snobj *) {
   struct snobj *r;
 
   r = snobj_list();
@@ -148,7 +148,7 @@ static struct snobj *handle_add_worker(struct snobj *q) {
   return nullptr;
 }
 
-static struct snobj *handle_reset_tcs(struct snobj *q) {
+static struct snobj *handle_reset_tcs(struct snobj *) {
   for (const auto &it : TCContainer::tcs) {
     struct tc *c = it.second;
 
@@ -341,7 +341,7 @@ static struct snobj *handle_get_tc_stats(struct snobj *q) {
   return r;
 }
 
-static struct snobj *handle_list_drivers(struct snobj *q) {
+static struct snobj *handle_list_drivers(struct snobj *) {
   struct snobj *r;
 
   r = snobj_list();
@@ -388,7 +388,7 @@ static struct snobj *handle_get_driver_info(struct snobj *q) {
   return r;
 }
 
-static struct snobj *handle_reset_ports(struct snobj *q) {
+static struct snobj *handle_reset_ports(struct snobj *) {
   for (auto it = PortBuilder::all_ports().cbegin();
        it != PortBuilder::all_ports().end();) {
     auto it_next = std::next(it);
@@ -405,7 +405,7 @@ static struct snobj *handle_reset_ports(struct snobj *q) {
   return nullptr;
 }
 
-static struct snobj *handle_list_ports(struct snobj *q) {
+static struct snobj *handle_list_ports(struct snobj *) {
   struct snobj *r;
 
   r = snobj_list();
@@ -481,8 +481,7 @@ static Port *create_port(const char *name, const PortBuilder *driver,
     return nullptr;
   }
 
-  if (size_inc_q < 0 || size_inc_q > MAX_QUEUE_SIZE || size_out_q < 0 ||
-      size_out_q > MAX_QUEUE_SIZE) {
+  if (size_inc_q > MAX_QUEUE_SIZE || size_out_q > MAX_QUEUE_SIZE) {
     *perr = snobj_err(EINVAL, "Invalid queue size");
     return nullptr;
   }
@@ -618,7 +617,7 @@ static struct snobj *handle_get_port_stats(struct snobj *q) {
   return r;
 }
 
-static struct snobj *handle_list_mclasses(struct snobj *q) {
+static struct snobj *handle_list_mclasses(struct snobj *) {
   struct snobj *r = snobj_list();
 
   for (const auto &pair : ModuleBuilder::all_module_builders()) {
@@ -661,13 +660,13 @@ static struct snobj *handle_get_mclass_info(struct snobj *q) {
   return r;
 }
 
-static struct snobj *handle_reset_modules(struct snobj *q) {
+static struct snobj *handle_reset_modules(struct snobj *) {
   ModuleBuilder::DestroyAllModules();
   log_info("*** All modules have been destroyed ***\n");
   return nullptr;
 }
 
-static struct snobj *handle_list_modules(struct snobj *q) {
+static struct snobj *handle_list_modules(struct snobj *) {
   struct snobj *r;
 
   r = snobj_list();
@@ -709,8 +708,8 @@ static struct snobj *handle_create_module(struct snobj *q) {
   name = snobj_eval_str(q, "name");
   std::string mod_name;
   if (name) {
-    const auto &it = ModuleBuilder::all_modules().find(name);
-    if (it != ModuleBuilder::all_modules().end()) {
+    const auto &all_modules = ModuleBuilder::all_modules();
+    if (all_modules.find(name) != all_modules.end()) {
       return snobj_err(EEXIST, "Module '%s' already exists", name);
     }
     mod_name = name;
@@ -949,10 +948,12 @@ static struct snobj *handle_attach_task(struct snobj *q) {
   if (!m_name)
     return snobj_err(EINVAL, "Missing 'name' field");
 
-  const auto &it = ModuleBuilder::all_modules().find(m_name);
-  if (it == ModuleBuilder::all_modules().end())
-    return snobj_err(ENOENT, "No module '%s' found", m_name);
-  m = it->second;
+  {
+    const auto &it = ModuleBuilder::all_modules().find(m_name);
+    if (it == ModuleBuilder::all_modules().end())
+      return snobj_err(ENOENT, "No module '%s' found", m_name);
+    m = it->second;
+  }
 
   tid = snobj_eval_uint(q, "taskid");
   if (tid >= MAX_TASKS_PER_MODULE)
@@ -1061,7 +1062,7 @@ static struct snobj *handle_disable_tcpdump(struct snobj *q) {
 }
 
 /* Adding this mostly to provide a reasonable way to exit when daemonized */
-static struct snobj *handle_kill_bess(struct snobj *q) {
+static struct snobj *handle_kill_bess(struct snobj *) {
   log_notice("Halt requested by a client\n");
   destroy_all_workers();
   exit(EXIT_SUCCESS);
@@ -1070,7 +1071,7 @@ static struct snobj *handle_kill_bess(struct snobj *q) {
   return nullptr;
 }
 
-static struct snobj *handle_not_implemented(struct snobj *q) {
+static struct snobj *handle_not_implemented(struct snobj *) {
   return snobj_err(ENOTSUP, "Not implemented yet");
 }
 
@@ -1206,7 +1207,7 @@ static struct snobj *handle_snobj_module(struct snobj *q) {
     return run_module_command(m, cmd, arg);
 }
 
-struct snobj *handle_request(struct client *c, struct snobj *q) {
+struct snobj *handle_request(struct snobj *q) {
   struct snobj *r = nullptr;
   const char *s;
 

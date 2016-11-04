@@ -32,7 +32,7 @@ class RandomUpdate : public Module {
  private:
   int num_vars_ = {};
 
-  struct var {
+  struct {
     uint32_t mask; /* bits with 1 won't be updated */
     uint32_t min;
     uint32_t range; /* == max - min + 1 */

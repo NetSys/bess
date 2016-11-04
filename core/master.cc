@@ -59,7 +59,8 @@ static void reset_core_affinity() {
   rte_thread_set_affinity(&set);
 }
 
-static void wakeup_client(struct client *c) { /* XXX */
+static void wakeup_client(struct client *) {
+  // NOTE: not implemented yet
 }
 
 static int init_listen_fd(uint16_t port) {
@@ -221,7 +222,7 @@ static void request_done(struct client *c) {
     goto err;
   }
 
-  r = handle_request(c, q);
+  r = handle_request(q);
 
   ev.events = EPOLLOUT;
   ev.data.ptr = c;
