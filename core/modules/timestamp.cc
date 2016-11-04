@@ -1,10 +1,11 @@
+#include "timestamp.h"
+
 #include <rte_config.h>
 #include <rte_ether.h>
 #include <rte_ip.h>
 #include <rte_tcp.h>
 
 #include "../utils/histogram.h"
-#include "timestamp.h"
 
 static inline void timestamp_packet(struct snbuf *pkt, uint64_t time) {
   uint8_t *avail = static_cast<uint8_t *>(snb_head_data(pkt)) +

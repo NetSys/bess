@@ -1,14 +1,13 @@
-#ifndef _SNBUF_H_
-#define _SNBUF_H_
+#ifndef BESS_SNBUF_H_
+#define BESS_SNBUF_H_
 
-#include <assert.h>
+#include <cassert>
 
 #include <rte_config.h>
 #include <rte_mbuf.h>
 
 #include "debug.h"
 #include "worker.h"
-#include "dpdk.h"
 #include "metadata.h"
 
 #include "snbuf_layout.h"
@@ -20,25 +19,7 @@ static_assert(SNBUF_MBUF == sizeof(struct rte_mbuf),
 static_assert(SNBUF_HEADROOM == RTE_PKTMBUF_HEADROOM,
               "DPDK compatibility check failed");
 
-/* snbuf and mbuf share the same start address, so that we can avoid conversion.
- *
- * Layout (2048 bytes):
- *    Offset	Size	Field
- *  - 0		128	mbuf (SNBUF_MBUF == sizeof(struct rte_mbuf))
- *  - 128	64	some read-only/immutable fields
- *  - 192	128	static/dynamic metadata fields
- *  - 320	64	private area for module/driver's internal use
- *                        (currently used for vport RX/TX descriptors)
- *  - 384	128	_headroom (SNBUF_HEADROOM == RTE_PKTMBUF_HEADROOM)
- *  - 512	1536	_data (SNBUF_DATA)
- *
- * Stride will be 2112B, because of mempool's per-object header which takes 64B.
- *
- * Invariants:
- *  * When packets are newly allocated, the data should be filled from _data.
- *  * The packet data may reside in the _headroom + _data areas,
- *    but its size must not exceed 1536 (SNBUF_DATA) when passed to a port.
- */
+// For the layout of snbuf, see snbuf_layout.h
 struct snbuf {
   union {
     struct rte_mbuf mbuf;
@@ -248,4 +229,4 @@ void snb_dump(FILE *file, struct snbuf *pkt);
 void init_mempool(void);
 void close_mempool(void);
 
-#endif
+#endif  // BESS_SNBUF_H_

@@ -1,5 +1,5 @@
-#ifndef __NOOP_H__
-#define __NOOP_H__
+#ifndef BESS_MODULES_NOOP_H_
+#define BESS_MODULES_NOOP_H_
 
 #include "../module.h"
 
@@ -17,4 +17,4 @@ class NoOP : public Module {
   static const PbCommands<Module> pb_cmds;
 };
 
-#endif
+#endif  // BESS_MODULES_NOOP_H_

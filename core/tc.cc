@@ -1,24 +1,19 @@
-#include <assert.h>
-#include <stdio.h>
-#include <inttypes.h>
+#include "tc.h"
 
-#include <sys/time.h>
-
-#include <rte_config.h>
-#include <rte_cycles.h>
+#include <cassert>
+#include <cinttypes>
+#include <cstdio>
 
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 
-#include "utils/time.h"
-#include "utils/random.h"
-
 #include "common.h"
 #include "debug.h"
+#include "mem_alloc.h"
 #include "worker.h"
-#include "module.h"
-
-#include "tc.h"
+#include "task.h"
+#include "utils/time.h"
+#include "utils/random.h"
 
 // TODO(barath): move this global container of TCs to the TC class once it exists.
 namespace TCContainer {
@@ -48,7 +43,9 @@ static void tc_add_to_parent_pgroup(struct tc *c, int share_resource) {
 
 pgroup_init:
   g = (struct pgroup *)mem_alloc(sizeof(*g));
-  if (!g) oom_crash();
+  if (!g) {
+    abort();
+  }
 
   cdlist_add_before(next, &g->tc);
 
@@ -82,7 +79,9 @@ struct tc *tc_init(struct sched *s, const struct tc_params *params) {
   assert(params->share <= MAX_SHARE);
 
   c = (struct tc *)mem_alloc(sizeof(*c));
-  if (!c) oom_crash();
+  if (!c) {
+    abort();
+  }
 
   if (!TCContainer::tcs.insert({params->name, c}).second) {
     LOG(ERROR) << "Can't insert TC named " << params->name << "TCContainer::tcs.size()=" << TCContainer::tcs.size();
@@ -208,7 +207,9 @@ struct sched *sched_init() {
   struct sched *s;
 
   s = (struct sched *)mem_alloc(sizeof(*s));
-  if (!s) oom_crash();
+  if (!s) {
+    abort();
+  }
 
   s->root.refcnt = 1;
   cdlist_head_init(&s->root.tasks); /* this will be always empty */

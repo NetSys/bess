@@ -1,9 +1,8 @@
-#ifndef _DPDK_H_
-#define _DPDK_H_
+#ifndef BESS_DPDK_H_
+#define BESS_DPDK_H_
 
-/* rte_version.h depends on these but has no #include :( */
-#include <stdio.h>
-#include <string.h>
+/* rte_version.h depends on this but has no #include :( */
+#include <cstdio>
 
 #include <rte_version.h>
 
@@ -25,4 +24,4 @@
 
 void init_dpdk(char *prog_name, int mb_per_socket, int multi_instance);
 
-#endif
+#endif  // BESS_DPDK_H_

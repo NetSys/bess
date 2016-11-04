@@ -1,9 +1,9 @@
-#ifndef _SIMD_H_
-#define _SIMD_H_
-
-#include <stdio.h>
+#ifndef BESS_UTILS_SIMD_H_
+#define BESS_UTILS_SIMD_H_
 
 #include <x86intrin.h>
+
+#include <cstdio>
 
 #include "../log.h"
 
@@ -59,6 +59,6 @@ static inline __m256i concat_two_m128i(__m128i lo, __m128i hi) {
   return _mm256_insertf128_si256(_mm256_castsi128_si256(lo), hi, 1);
 #endif
 }
-#endif /* __AVX__ */
+#endif  // __AVX__
 
-#endif
+#endif  // BESS_UTILS_SIMD_H_

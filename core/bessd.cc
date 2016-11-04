@@ -1,17 +1,15 @@
 #include "bessd.h"
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <errno.h>
-#include <signal.h>
-#include <stdint.h>
-#include <sys/ioctl.h>
-#include <sys/types.h>
-#include <sys/stat.h>
 #include <sys/file.h>
 #include <sys/resource.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
+#include <cerrno>
+#include <csignal>
+#include <cstdint>
+#include <cstdio>
+#include <cstdlib>
 #include <tuple>
 
 #include <glog/logging.h>

@@ -1,5 +1,5 @@
-#ifndef __SINK_H__
-#define __SINK_H__
+#ifndef BESS_MODULES_SINK_H_
+#define BESS_MODULES_SINK_H_
 
 #include "../module.h"
 

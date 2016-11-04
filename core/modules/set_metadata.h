@@ -1,8 +1,7 @@
-#ifndef __SET_METADATA_H__
-#define __SET_METADATA_H__
+#ifndef BESS_MODULES_SETMETADATA_H_
+#define BESS_MODULES_SETMETADATA_H_
 
 #include "../module.h"
-#include "../module_msg.pb.h"
 
 typedef struct { char bytes[bess::metadata::kMetadataAttrMaxSize]; } value_t;
 INSTANTIATE_MT_FOR_TYPE(value_t)
@@ -36,4 +35,4 @@ class SetMetadata : public Module {
   std::vector<struct Attr> attrs_;
 };
 
-#endif
+#endif  // BESS_MODULES_SETMETADATA_H_

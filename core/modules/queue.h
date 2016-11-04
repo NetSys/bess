@@ -1,5 +1,5 @@
-#ifndef __QUEUE_H__
-#define __QUEUE_H__
+#ifndef BESS_MODULES_QUEUE_H_
+#define BESS_MODULES_QUEUE_H_
 
 #include "../kmod/llring.h"
 #include "../module.h"
@@ -41,4 +41,4 @@ class Queue : public Module {
   int burst_ = {};
 };
 
-#endif
+#endif  // BESS_MODULES_QUEUE_H_

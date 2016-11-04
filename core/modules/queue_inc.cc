@@ -1,5 +1,5 @@
 #include "queue_inc.h"
-#include "../module_msg.pb.h"
+
 #include "../port.h"
 
 const Commands<Module> QueueInc::cmds = {

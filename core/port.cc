@@ -1,21 +1,18 @@
-#include <assert.h>
-#include <ctype.h>
-#include <errno.h>
-#include <stdio.h>
+#include "port.h"
 
+#include <cassert>
+#include <cctype>
+#include <cerrno>
+#include <cstdio>
 #include <initializer_list>
 #include <memory>
 #include <sstream>
 #include <string>
 
-#include <rte_config.h>
-
 #include <glog/logging.h>
 
 #include "mem_alloc.h"
 #include "message.h"
-
-#include "port.h"
 
 std::map<std::string, Port *> PortBuilder::all_ports_;
 

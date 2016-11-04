@@ -1,9 +1,10 @@
-#ifndef __FLOWGEN_H__
-#define __FLOWGEN_H__
+#ifndef BESS_MODULES_FLOWGEN_H_
+#define BESS_MODULES_FLOWGEN_H_
 
 #include <queue>
 
 #include "../module.h"
+#include "../utils/random.h"
 
 typedef std::pair<uint64_t, struct flow *> Event;
 typedef std::priority_queue<Event, std::vector<Event>,
@@ -113,4 +114,4 @@ class FlowGen : public Module {
   } pareto_;
 };
 
-#endif
+#endif  // BESS_MODULES_FLOWGEN_H_

@@ -1,14 +1,17 @@
-#include <assert.h>
+#include "debug.h"
+
 #include <execinfo.h>
-#include <signal.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#include <gnu/libc-version.h>
+#include <sys/syscall.h>
 #include <ucontext.h>
 #include <unistd.h>
-#include <stdint.h>
-#include <sys/syscall.h>
-#include <gnu/libc-version.h>
+
+#include <cassert>
+#include <csignal>
+#include <cstdint>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
 
 #include <rte_config.h>
 #include <rte_version.h>
@@ -21,11 +24,6 @@
 #include "snbuf.h"
 
 #define STACK_DEPTH 64
-
-void oom_crash(void) {
-  log_crit("Fatal: out of memory for critical operations\n");
-  *((int *)nullptr) = 0;
-}
 
 static const char *si_code_to_str(int sig_num, int si_code) {
   /* See the manpage of sigaction() */

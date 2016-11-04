@@ -1,5 +1,4 @@
 #include "queue.h"
-#include "../module_msg.pb.h"
 
 #define DEFAULT_QUEUE_SIZE 1024
 

@@ -1,8 +1,7 @@
-#ifndef _PORT_H_
-#define _PORT_H_
+#ifndef BESS_PORT_H_
+#define BESS_PORT_H_
 
-#include <stdint.h>
-
+#include <cstdint>
 #include <functional>
 #include <map>
 #include <memory>
@@ -11,8 +10,8 @@
 #include <gtest/gtest_prod.h>
 
 #include "common.h"
-#include "log.h"
 #include "message.h"
+#include "port_msg.pb.h"
 #include "snbuf.h"
 #include "snobj.h"
 
@@ -231,4 +230,4 @@ class Port {
       std::function<Port *()>([]() { return new _DRIVER(); }), #_DRIVER, \
       _NAME_TEMPLATE, _HELP);
 
-#endif
+#endif  // BESS_PORT_H_

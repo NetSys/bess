@@ -1,8 +1,8 @@
 /* Streamlined hash table implementation, with emphasis on lookup performance.
  * Key and value sizes are fixed. Lookup is thread-safe, but update is not. */
 
-#ifndef _HTABLE_H_
-#define _HTABLE_H_
+#ifndef BESS_UTILS_HTABLE_H_
+#define BESS_UTILS_HTABLE_H_
 
 #include <algorithm>
 #include <cstring>
@@ -223,4 +223,4 @@ inline V *HTable<K, V, C, H>::get_from_bucket(uint32_t pri, uint32_t hv,
   return nullptr;
 }
 
-#endif
+#endif  // BESS_UTILS_HTABLE_H_

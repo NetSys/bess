@@ -1,18 +1,24 @@
-#ifndef _MODULE_H_
-#define _MODULE_H_
+#ifndef BESS_MODULE_H_
+#define BESS_MODULE_H_
 
-#include <cassert>
 #include <map>
 #include <string>
 #include <vector>
 
-#include "common.h"
-#include "log.h"
 #include "message.h"
+#include "module_msg.pb.h"
+#include "metadata.h"
+#include "snbuf.h"
+#include "snobj.h"
+#include "task.h"
+#include "utils/cdlist.h"
+#include "utils/simd.h"
 
-#include <glog/logging.h>
+static inline void set_cmd_response_error(
+    bess::pb::ModuleCommandResponse *response, const pb_error_t &error) {
+  response->mutable_error()->CopyFrom(error);
+}
 
-typedef uint16_t task_id_t;
 typedef uint16_t gate_idx_t;
 
 #define INVALID_GATE UINT16_MAX
@@ -22,13 +28,6 @@ typedef uint16_t gate_idx_t;
 #define DROP_GATE MAX_GATES
 static_assert(MAX_GATES < INVALID_GATE, "invalid macro value");
 static_assert(DROP_GATE <= MAX_GATES, "invalid macro value");
-
-#include "metadata.h"
-#include "snbuf.h"
-#include "snobj.h"
-#include "utils/cdlist.h"
-#include "utils/simd.h"
-#include "worker.h"
 
 #define MODULE_NAME_LEN 128
 
@@ -41,11 +40,6 @@ static_assert(DROP_GATE <= MAX_GATES, "invalid macro value");
 #define PB_MODULE_FUNC                               \
   (bess::pb::ModuleCommandResponse(Module::*)( \
       const google::protobuf::Any &))
-
-struct task_result {
-  uint64_t packets;
-  uint64_t bits;
-};
 
 class Module;
 
@@ -118,16 +112,6 @@ struct PbCommand {
 
 template <typename T>
 using PbCommands = std::vector<struct PbCommand<T> >;
-
-struct task {
-  struct tc *c;
-
-  Module *m;
-  void *arg;
-
-  struct cdlist_item tc;
-  struct cdlist_item all_tasks;
-};
 
 // A class for generating new Modules of a particular type.
 class ModuleBuilder {
@@ -420,26 +404,6 @@ static inline int is_valid_attr(const std::string &name, size_t size,
   return 1;
 }
 
-struct task *task_create(Module *m, void *arg);
-
-void task_destroy(struct task *t);
-
-static inline int task_is_attached(struct task *t) {
-  return (t->c != nullptr);
-}
-
-void task_attach(struct task *t, struct tc *c);
-void task_detach(struct task *t);
-
-static inline struct task_result task_scheduled(struct task *t) {
-  return t->m->RunTask(t->arg);
-}
-
-void assign_default_tc(int wid, struct task *t);
-void process_orphan_tasks();
-
-task_id_t task_to_tid(struct task *t);
-
 /* run all per-thread initializers */
 void init_module_worker(void);
 
@@ -554,4 +518,4 @@ INSTANTIATE_MT_FOR_TYPE(uint64_t)
       _NAME_TEMPLATE, _HELP, _MOD::kNumIGates, _MOD::kNumOGates, _MOD::cmds, \
       _MOD::pb_cmds);
 
-#endif
+#endif  // BESS_MODULE_H_

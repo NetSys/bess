@@ -1,5 +1,4 @@
 #include "round_robin.h"
-#include "../module_msg.pb.h"
 
 const Commands<Module> RoundRobin::cmds = {
     {"set_mode", MODULE_FUNC &RoundRobin::CommandSetMode, 0},

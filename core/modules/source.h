@@ -1,5 +1,5 @@
-#ifndef __FLOWGEN_H__
-#define __FLOWGEN_H__
+#ifndef BESS_MODULES_FLOWGEN_H_
+#define BESS_MODULES_FLOWGEN_H_
 
 #include "../module.h"
 
@@ -31,4 +31,4 @@ class Source : public Module {
   int burst_;
 };
 
-#endif
+#endif  // BESS_MODULES_FLOWGEN_H_

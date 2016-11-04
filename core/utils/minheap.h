@@ -1,8 +1,8 @@
 #ifndef BESS_UTILS_MINHEAP_H_
 #define BESS_UTILS_MINHEAP_H_
 
-#include <stdint.h>
-#include <stdlib.h>
+#include <cstdint>
+#include <cstdlib>
 
 #include "../common.h"
 
@@ -109,4 +109,4 @@ static inline void heap_pop(struct heap *h) {
   heap_replace(h, val, data);
 }
 
-#endif
+#endif  // BESS_UTILS_MINHEAP_H_

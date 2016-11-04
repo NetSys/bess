@@ -3,26 +3,21 @@
 // TODO(barath): Add dpdk benchmarks from oldtests/htable.cc once we re-enable
 // dpdk memory allocation.
 
-#include <assert.h>
-#include <functional>
-#include <math.h>
-#include <stdio.h>
+#include "htable.h"
 
 #include <algorithm>
-#include <string>
+#include <cassert>
+#include <cmath>
+#include <cstdio>
+#include <functional>
 
 #include <benchmark/benchmark.h>
 #include <glog/logging.h>
-
 #include <rte_config.h>
 #include <rte_hash.h>
 #include <rte_hash_crc.h>
 
-#include "../snbuf.h"
-
-#include "../utils/htable.h"
-#include "../utils/random.h"
-
+#include "random.h"
 #include "../common.h"
 #include "../mem_alloc.h"
 

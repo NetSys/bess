@@ -1,6 +1,8 @@
 #include "hash_lb.h"
-#include "../module_msg.pb.h"
+
 #include <rte_hash_crc.h>
+
+#include "../module_msg.pb.h"
 
 const enum LbMode DEFAULT_MODE = LB_L4;
 

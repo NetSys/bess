@@ -1,18 +1,16 @@
-#include <stdio.h>
-#include <string.h>
-#include <unistd.h>
+#include "log.h"
+
 #include <fcntl.h>
-#include <stdarg.h>
-#include <time.h>
-#include <sys/types.h>
+#include <unistd.h>
 #include <linux/limits.h>
 
 #include <algorithm>
+#include <cstdarg>
+#include <cstdio>
+#include <cstring>
+#include <ctime>
 
 #include <gflags/gflags.h>
-
-#include "common.h"
-#include "log.h"
 
 #define BESS_ID "bessd"
 

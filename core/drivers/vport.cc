@@ -1,3 +1,5 @@
+#include "vport.h"
+
 #include <fcntl.h>
 #include <libgen.h>
 #include <sched.h>
@@ -10,10 +12,8 @@
 #include <rte_config.h>
 #include <rte_malloc.h>
 
-#include "../kmod/sn_common.h"
 #include "../log.h"
 #include "../message.h"
-#include "../port.h"
 
 /* TODO: Unify vport and vport_native */
 
@@ -34,15 +34,6 @@
 /* We cannot directly use phys_addr_t on 32bit machines,
  * since it may be sizeof(phys_addr_t) != sizeof(void *) */
 typedef uintptr_t paddr_t;
-
-struct queue {
-  union {
-    struct sn_rxq_registers *rx_regs;
-  };
-
-  struct llring *drv_to_sn;
-  struct llring *sn_to_drv;
-};
 
 static inline int find_next_nonworker_cpu(int cpu) {
   do {
@@ -234,39 +225,6 @@ static pb_error_t docker_container_pid(const std::string &cid,
 
   return pb_errno(0);
 }
-
-class VPort : public Port {
- public:
-  virtual void InitDriver();
-
-  pb_error_t Init(const google::protobuf::Any &arg);
-  struct snobj *Init(struct snobj *conf);
-  void DeInit();
-
-  int RecvPackets(queue_t qid, snb_array_t pkts, int max_cnt);
-  int SendPackets(queue_t qid, snb_array_t pkts, int cnt);
-
- private:
-  void FreeBar();
-  void *AllocBar(struct tx_queue_opts *txq_opts,
-                 struct rx_queue_opts *rxq_opts);
-  int SetIPAddrSingle(const std::string &ip_addr);
-  pb_error_t SetIPAddr(const bess::pb::VPortArg &arg);
-  struct snobj *SetIPAddr(struct snobj *arg);
-
-  int fd_ = {};
-
-  char ifname_[IFNAMSIZ] = {}; /* could be different from Name() */
-  void *bar_ = {};
-
-  struct queue inc_qs_[MAX_QUEUES_PER_DIR];
-  struct queue out_qs_[MAX_QUEUES_PER_DIR];
-
-  struct sn_ioc_queue_mapping map_ = {};
-
-  int netns_fd_ = {};
-  int container_pid_ = {};
-};
 
 static int next_cpu;
 

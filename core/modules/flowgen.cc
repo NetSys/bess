@@ -1,12 +1,10 @@
-#include <cmath>
+#include "flowgen.h"
 
+#include <cmath>
 #include <functional>
 
-#include "../utils/random.h"
-#include "../utils/time.h"
-
 #include "../module_msg.pb.h"
-#include "flowgen.h"
+#include "../utils/time.h"
 
 #define MAX_TEMPLATE_SIZE 1536
 

@@ -1,9 +1,8 @@
-#ifndef _DEBUG_H_
-#define _DEBUG_H_
+#ifndef BESS_DEBUG_H_
+#define BESS_DEBUG_H_
 
 /* #define RTE_LIBRTE_MBUF_DEBUG */
 
-void oom_crash(void);
 void dump_types(void);
 
-#endif
+#endif  // BESS_DEBUG_H_

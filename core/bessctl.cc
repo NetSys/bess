@@ -1,3 +1,5 @@
+#include "bessctl.h"
+
 #include <gflags/gflags.h>
 
 #include <rte_config.h>
@@ -10,8 +12,8 @@
 
 #include "service.grpc.pb.h"
 
-#include "bessctl.h"
 #include "message.h"
+#include "metadata.h"
 #include "module.h"
 #include "port.h"
 #include "tc.h"
@@ -223,7 +225,7 @@ static Module* create_module(const std::string& name,
                                                   builder.name_template());
   }
 
-  m = builder.CreateModule(mod_name, &default_pipeline);
+  m = builder.CreateModule(mod_name, &bess::metadata::default_pipeline);
 
   *perr = m->Init(arg);
   if (perr != nullptr) {
@@ -571,10 +573,10 @@ class BESSControlImpl final : public BESSControl::Service {
     const char* driver_name;
     ::Port* port;
 
-    if (request.port().driver().length() == 0)
+    if (request.driver().length() == 0)
       return return_with_error(response, EINVAL, "Missing 'driver' field");
 
-    driver_name = request.port().driver().c_str();
+    driver_name = request.driver().c_str();
     const auto& builders = PortBuilder::all_port_builders();
     const auto& it = builders.find(driver_name);
     if (it == builders.end()) {
@@ -587,31 +589,31 @@ class BESSControlImpl final : public BESSControl::Service {
 
     switch (request.arg_case()) {
       case CreatePortRequest::kPcapArg:
-        port = create_port(request.port().name(), builder, request.num_inc_q(),
+        port = create_port(request.name(), builder, request.num_inc_q(),
                            request.num_out_q(), request.size_inc_q(),
                            request.size_out_q(), request.mac_addr(),
                            request.pcap_arg(), error);
         break;
       case CreatePortRequest::kPmdArg:
-        port = create_port(request.port().name(), builder, request.num_inc_q(),
+        port = create_port(request.name(), builder, request.num_inc_q(),
                            request.num_out_q(), request.size_inc_q(),
                            request.size_out_q(), request.mac_addr(),
                            request.pmd_arg(), error);
         break;
       case CreatePortRequest::kSocketArg:
-        port = create_port(request.port().name(), builder, request.num_inc_q(),
+        port = create_port(request.name(), builder, request.num_inc_q(),
                            request.num_out_q(), request.size_inc_q(),
                            request.size_out_q(), request.mac_addr(),
                            request.socket_arg(), error);
         break;
       case CreatePortRequest::kZcvportArg:
-        port = create_port(request.port().name(), builder, request.num_inc_q(),
+        port = create_port(request.name(), builder, request.num_inc_q(),
                            request.num_out_q(), request.size_inc_q(),
                            request.size_out_q(), request.mac_addr(),
                            request.zcvport_arg(), error);
         break;
       case CreatePortRequest::kVportArg:
-        port = create_port(request.port().name(), builder, request.num_inc_q(),
+        port = create_port(request.name(), builder, request.num_inc_q(),
                            request.num_out_q(), request.size_inc_q(),
                            request.size_out_q(), request.mac_addr(),
                            request.vport_arg(), error);

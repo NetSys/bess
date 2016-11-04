@@ -1,3 +1,5 @@
+#include "ip_lookup.h"
+
 #include <arpa/inet.h>
 
 #include <rte_byteorder.h>
@@ -8,7 +10,6 @@
 #include <rte_lpm.h>
 
 #include "../module_msg.pb.h"
-#include "ip_lookup.h"
 
 #define VECTOR_OPTIMIZATION 1
 

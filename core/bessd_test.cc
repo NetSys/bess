@@ -1,9 +1,10 @@
 #include "bessd.h"
 
-#include <signal.h>
 #include <sys/file.h>
 #include <sys/select.h>
 #include <unistd.h>
+
+#include <csignal>
 
 #include <glog/logging.h>
 #include <gtest/gtest.h>
@@ -20,68 +21,70 @@ static const char *kTestLockFilePath = "/tmp/tryacquirepidfilelocktest.log";
 // the child and waits for its exit code, which we expect to be SIGNAL.
 // This ended up having to be a macro because gtest DEATH tests did not work
 // with lambda expressions.
-#define DO_MULTI_PROCESS_TEST(CHILD, PARENT, SIGNAL)                           \
-  const int kSelectTimeoutInSecs = 2;\
-  const char *kSignalText = "foo";\
-  const int kSignalTextLen = 4;\
-\
-  int child_to_parent[2];\
-  int parent_to_child[2];\
-\
-  ASSERT_EQ(0, pipe(child_to_parent)) << "pipe() failed";\
-  ASSERT_EQ(0, pipe(parent_to_child)) << "pipe() failed";\
-\
-  pid_t childpid = fork();\
-  ASSERT_NE(-1, childpid) << "fork() failed.";\
-  if (!childpid) {\
-    CHILD;\
-\
-    ignore_result(write(child_to_parent[1], kSignalText, kSignalTextLen));\
-\
-    char buf[kSignalTextLen];\
-\
-    ignore_result(read(parent_to_child[0], buf, kSignalTextLen));\
-\
-    exit(0);\
-  } else {\
-    fd_set read_fds, write_fds, err_fds;\
-    struct timeval tv = { kSelectTimeoutInSecs, 0 };\
-    FD_ZERO(&read_fds);\
-    FD_ZERO(&err_fds);\
-    FD_SET(child_to_parent[0], &read_fds);\
-    FD_SET(child_to_parent[0], &err_fds);\
-\
-    int ret = select(child_to_parent[0]+1, &read_fds, nullptr, &err_fds, &tv);\
-    ASSERT_NE(0, ret) << "select() timed out in parent.";\
-    ASSERT_NE(-1, ret) << "select() had an error " << errno;\
-    ASSERT_TRUE(FD_ISSET(child_to_parent[0], &read_fds)) << "Child didn't send us anything.";\
-    char buf[kSignalTextLen];\
-    ASSERT_EQ(kSignalTextLen, read(child_to_parent[0], buf, kSignalTextLen));\
-\
-    PARENT;\
-\
-    tv = { kSelectTimeoutInSecs, 0 };\
-    FD_ZERO(&write_fds);\
-    FD_ZERO(&err_fds);\
-    FD_SET(parent_to_child[1], &write_fds);\
-    FD_SET(parent_to_child[1], &err_fds);\
-    ret = select(parent_to_child[1]+1, nullptr, &write_fds, &err_fds, &tv);\
-    ASSERT_NE(0, ret) << "select() timed out in parent trying to write.";\
-    ASSERT_NE(-1, ret) << "select() had an error " << errno;\
-    ASSERT_TRUE(FD_ISSET(parent_to_child[1], &write_fds)) << "Can't write.";\
-\
-    ignore_result(write(parent_to_child[1], kSignalText, kSignalTextLen));\
-\
-    int status;\
-    waitpid(childpid, &status, 0);\
-    if (SIGNAL) {\
-      EXPECT_NE(0, status);\
-      ASSERT_TRUE(WIFSIGNALED(status));\
-      EXPECT_EQ(SIGNAL, WTERMSIG(status));\
-    } else {\
-      ASSERT_EQ(0, status);\
-    }\
-  }\
+#define DO_MULTI_PROCESS_TEST(CHILD, PARENT, SIGNAL)                          \
+  const int kSelectTimeoutInSecs = 2;                                         \
+  const char *kSignalText = "foo";                                            \
+  const int kSignalTextLen = 4;                                               \
+                                                                              \
+  int child_to_parent[2];                                                     \
+  int parent_to_child[2];                                                     \
+                                                                              \
+  ASSERT_EQ(0, pipe(child_to_parent)) << "pipe() failed";                     \
+  ASSERT_EQ(0, pipe(parent_to_child)) << "pipe() failed";                     \
+                                                                              \
+  pid_t childpid = fork();                                                    \
+  ASSERT_NE(-1, childpid) << "fork() failed.";                                \
+  if (!childpid) {                                                            \
+    CHILD;                                                                    \
+                                                                              \
+    ignore_result(write(child_to_parent[1], kSignalText, kSignalTextLen));    \
+                                                                              \
+    char buf[kSignalTextLen];                                                 \
+                                                                              \
+    ignore_result(read(parent_to_child[0], buf, kSignalTextLen));             \
+                                                                              \
+    exit(0);                                                                  \
+  } else {                                                                    \
+    fd_set read_fds, write_fds, err_fds;                                      \
+    struct timeval tv = {kSelectTimeoutInSecs, 0};                            \
+    FD_ZERO(&read_fds);                                                       \
+    FD_ZERO(&err_fds);                                                        \
+    FD_SET(child_to_parent[0], &read_fds);                                    \
+    FD_SET(child_to_parent[0], &err_fds);                                     \
+                                                                              \
+    int ret =                                                                 \
+        select(child_to_parent[0] + 1, &read_fds, nullptr, &err_fds, &tv);    \
+    ASSERT_NE(0, ret) << "select() timed out in parent.";                     \
+    ASSERT_NE(-1, ret) << "select() had an error " << errno;                  \
+    ASSERT_TRUE(FD_ISSET(child_to_parent[0], &read_fds))                      \
+        << "Child didn't send us anything.";                                  \
+    char buf[kSignalTextLen];                                                 \
+    ASSERT_EQ(kSignalTextLen, read(child_to_parent[0], buf, kSignalTextLen)); \
+                                                                              \
+    PARENT;                                                                   \
+                                                                              \
+    tv = {kSelectTimeoutInSecs, 0};                                           \
+    FD_ZERO(&write_fds);                                                      \
+    FD_ZERO(&err_fds);                                                        \
+    FD_SET(parent_to_child[1], &write_fds);                                   \
+    FD_SET(parent_to_child[1], &err_fds);                                     \
+    ret = select(parent_to_child[1] + 1, nullptr, &write_fds, &err_fds, &tv); \
+    ASSERT_NE(0, ret) << "select() timed out in parent trying to write.";     \
+    ASSERT_NE(-1, ret) << "select() had an error " << errno;                  \
+    ASSERT_TRUE(FD_ISSET(parent_to_child[1], &write_fds)) << "Can't write.";  \
+                                                                              \
+    ignore_result(write(parent_to_child[1], kSignalText, kSignalTextLen));    \
+                                                                              \
+    int status;                                                               \
+    waitpid(childpid, &status, 0);                                            \
+    if (SIGNAL) {                                                             \
+      EXPECT_NE(0, status);                                                   \
+      ASSERT_TRUE(WIFSIGNALED(status));                                       \
+      EXPECT_EQ(SIGNAL, WTERMSIG(status));                                    \
+    } else {                                                                  \
+      ASSERT_EQ(0, status);                                                   \
+    }                                                                         \
+  }
 
 // Checks that FLAGS_t causes types to dump.
 TEST(ProcessCommandLineArgs, DumpTypes) {

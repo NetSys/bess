@@ -1,4 +1,6 @@
-#pragma once
+#ifndef BESS_MODULES_ROUNDROBIN_H_
+#define BESS_MODULES_ROUNDROBIN_H_
+
 #include "../module.h"
 
 /*!
@@ -77,3 +79,5 @@ class RoundRobin : public Module {
 static inline int is_valid_gate(gate_idx_t gate) {
   return (gate < MAX_GATES || gate == DROP_GATE);
 }
+
+#endif  // BESS_MODULES_ROUNDROBIN_H_

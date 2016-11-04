@@ -1,5 +1,5 @@
-#ifndef __TIMESTAMP_H__
-#define __TIMESTAMP_H__
+#ifndef BESS_MODULES_TIMESTAMP_H_
+#define BESS_MODULES_TIMESTAMP_H_
 
 #include "../module.h"
 
@@ -14,4 +14,4 @@ class Timestamp : public Module {
   static const PbCommands<Module> pb_cmds;
 };
 
-#endif
+#endif  // BESS_MODULES_TIMESTAMP_H_

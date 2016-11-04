@@ -1,5 +1,4 @@
 #include "rewrite.h"
-#include "../module_msg.pb.h"
 
 const Commands<Module> Rewrite::cmds = {
     {"add", MODULE_FUNC &Rewrite::CommandAdd, 0},

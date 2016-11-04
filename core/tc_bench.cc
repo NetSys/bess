@@ -2,28 +2,12 @@
 
 #include "tc.h"
 
-#include <assert.h>
-#include <stdio.h>
-#include <inttypes.h>
-
-#include <sys/time.h>
-
-#include <rte_config.h>
-#include <rte_cycles.h>
-
 #include <vector>
 
 #include <benchmark/benchmark.h>
-#include <gflags/gflags.h>
 #include <glog/logging.h>
 
 #include "utils/time.h"
-#include "utils/random.h"
-
-#include "common.h"
-#include "debug.h"
-#include "worker.h"
-#include "module.h"
 
 // Performs TC Scheduler init/deinit before/after each test.
 class TCFixture : public benchmark::Fixture {
