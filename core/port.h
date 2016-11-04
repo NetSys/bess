@@ -29,6 +29,17 @@ struct packet_stats {
 	uint64_t bytes;		/* doesn't include Ethernet overhead */
 };
 
+/* link_status maintains all link status details like speed/duplex/link.
+ * It is intentionally a copy of the DPDK struct rte_eth_link
+ * to avoid pointless translations. Q - Why not keeep rte_eth_link ?
+ * A - Don't want to tie it to DPDK */
+struct link_status {
+	uint32_t link_speed;
+	uint16_t link_duplex  : 1;
+	uint16_t link_autoneg : 1;
+	uint16_t link_status  : 1;
+};
+
 typedef struct packet_stats port_stats_t[PACKET_DIRS];
 
 struct module;
@@ -50,7 +61,9 @@ struct port {
 	struct packet_stats queue_stats[PACKET_DIRS][MAX_QUEUES_PER_DIR];
 	
 	/* for stats that do NOT belong to any queues */
-	port_stats_t port_stats;	
+	port_stats_t port_stats;
+
+	struct link_status link_status;
 
 	void *priv[0];	
 };
@@ -71,6 +84,7 @@ struct port *create_port(const char *name,
 int destroy_port(struct port *p);
 
 void get_port_stats(struct port *p, port_stats_t *stats);
+void get_port_link_status(struct port *p);
 
 void get_queue_stats(struct port *p, packet_dir_t dir, queue_t qid, 
 		struct packet_stats *stats);

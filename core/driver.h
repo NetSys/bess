@@ -23,6 +23,7 @@ ct_assert(MAX_QUEUES_PER_DIR < QUEUE_UNKNOWN);
 struct port;
 struct port_stats;
 struct snobj;
+struct link_status;
 
 typedef int (*pkt_io_func_t)(struct port *, queue_t, snb_array_t, int);
 
@@ -64,6 +65,9 @@ struct driver {
 
 	/* Optional: collect internal (HW) stats, if available */
 	void (*collect_stats)(struct port *p, int reset);
+
+	/* Optional: collect link (HW) stats (speed/duplex/link status) */
+	void (*get_link_status)(struct port *p);
 
 	/* Optional: port-specific query interface */
 	struct snobj *(*query)(struct port *p, struct snobj *q);
