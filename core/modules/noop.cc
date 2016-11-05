@@ -1,6 +1,7 @@
 #include "noop.h"
 
 const Commands<Module> NoOP::cmds = {};
+const PbCommands<Module> NoOP::pb_cmds = {};
 
 struct snobj *NoOP::Init(struct snobj *) {
   task_id_t tid;
@@ -12,7 +13,7 @@ struct snobj *NoOP::Init(struct snobj *) {
   return nullptr;
 }
 
-pb_error_t NoOP::Init(const bess::protobuf::NoOpArg &) {
+pb_error_t NoOP::Init(const google::protobuf::Any &) {
   task_id_t tid;
 
   tid = RegisterTask(nullptr);

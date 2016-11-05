@@ -1,6 +1,7 @@
 #include "merge.h"
 
 const Commands<Module> Merge::cmds = {};
+const PbCommands<Module> Merge::pb_cmds = {};
 
 void Merge::ProcessBatch(struct pkt_batch *batch) {
   RunNextModule(batch);

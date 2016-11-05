@@ -19,14 +19,26 @@ class AcmeModule : public Module {
   static const gate_idx_t kNumOGates = 1;
 
   static const Commands<Module> cmds;
+  static const PbCommands<Module> pb_cmds;
 
-  void Foo(struct snobj *) { n += 1; }
+  struct snobj *Foo(struct snobj *) {
+    n += 1;
+    return nullptr;
+  }
+
+  bess::pb::ModuleCommandResponse Foo(const google::protobuf::Any &) {
+    n += 1;
+    return bess::pb::ModuleCommandResponse();
+  }
 
   int n = {};
 };
 
 const Commands<Module> AcmeModule::cmds = {
     {"foo", MODULE_FUNC &AcmeModule::Foo, 0}};
+
+const PbCommands<Module> AcmeModule::pb_cmds = {
+    {"foo", PB_MODULE_FUNC &AcmeModule::Foo, 0}};
 
 // Simple harness for testing the Module class.
 class ModuleTester : public ::testing::Test {

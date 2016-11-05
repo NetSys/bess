@@ -1,6 +1,7 @@
 #include <rte_byteorder.h>
 #include <rte_hash_crc.h>
 
+#include "../module_msg.pb.h"
 #include "../utils/simd.h"
 #include "l2_forward.h"
 
@@ -116,8 +117,7 @@ static inline int find_index_avx(uint64_t addr, uint64_t *table) {
 }
 #endif
 
-static inline int find_index(uint64_t addr, uint64_t *table,
-                             const uint64_t) {
+static inline int find_index(uint64_t addr, uint64_t *table, const uint64_t) {
 #if __AVX__
   return find_index_avx(addr, table);
 #else
@@ -516,6 +516,14 @@ const Commands<Module> L2Forward::cmds = {
     {"populate", MODULE_FUNC &L2Forward::CommandPopulate, 0},
 };
 
+const PbCommands<Module> L2Forward::pb_cmds = {
+    {"add", PB_MODULE_FUNC &L2Forward::CommandAdd, 0},
+    {"delete", PB_MODULE_FUNC &L2Forward::CommandDelete, 0},
+    {"set_default_gate", PB_MODULE_FUNC &L2Forward::CommandSetDefaultGate, 1},
+    {"lookup", PB_MODULE_FUNC &L2Forward::CommandLookup, 1},
+    {"populate", PB_MODULE_FUNC &L2Forward::CommandPopulate, 0},
+};
+
 struct snobj *L2Forward::Init(struct snobj *arg) {
   int ret = 0;
   int size = snobj_eval_int(arg, "size");
@@ -542,7 +550,10 @@ struct snobj *L2Forward::Init(struct snobj *arg) {
   return nullptr;
 }
 
-pb_error_t L2Forward::Init(const bess::protobuf::L2ForwardArg &arg) {
+pb_error_t L2Forward::Init(const google::protobuf::Any &arg_) {
+  bess::pb::L2ForwardArg arg;
+  arg_.UnpackTo(&arg);
+
   int ret = 0;
   int size = arg.size();
   int bucket = arg.bucket();
@@ -588,15 +599,22 @@ void L2Forward::ProcessBatch(struct pkt_batch *batch) {
   RunSplit(out_gates, batch);
 }
 
-pb_error_t L2Forward::CommandAdd(
-    const bess::protobuf::L2ForwardCommandAddArg &arg) {
+bess::pb::ModuleCommandResponse L2Forward::CommandAdd(
+    const google::protobuf::Any &arg_) {
+  bess::pb::L2ForwardCommandAddArg arg;
+  arg_.UnpackTo(&arg);
+
+  bess::pb::ModuleCommandResponse response;
+
   for (int i = 0; i < arg.entries_size(); i++) {
     const auto &entry = arg.entries(i);
 
     if (!entry.addr().length()) {
-      return pb_error(EINVAL,
-                      "add list item map must contain addr"
-                      " as a string");
+      set_cmd_response_error(&response,
+                             pb_error(EINVAL,
+                                      "add list item map must contain addr"
+                                      " as a string"));
+      return response;
     }
 
     const char *str_addr = entry.addr().c_str();
@@ -604,115 +622,161 @@ pb_error_t L2Forward::CommandAdd(
     char addr[6];
 
     if (parse_mac_addr(str_addr, addr) != 0) {
-      return pb_error(EINVAL, "%s is not a proper mac address", str_addr);
+      set_cmd_response_error(
+          &response,
+          pb_error(EINVAL, "%s is not a proper mac address", str_addr));
+      return response;
     }
 
     int r = l2_add_entry(&l2_table_, l2_addr_to_u64(addr), gate);
 
     if (r == -EEXIST) {
-      return pb_error(EEXIST, "MAC address '%s' already exist", str_addr);
+      set_cmd_response_error(
+          &response,
+          pb_error(EEXIST, "MAC address '%s' already exist", str_addr));
+      return response;
     } else if (r == -ENOMEM) {
-      return pb_error(ENOMEM, "Not enough space");
+      set_cmd_response_error(&response, pb_error(ENOMEM, "Not enough space"));
+      return response;
     } else if (r != 0) {
-      return pb_errno(-r);
+      set_cmd_response_error(&response, pb_errno(-r));
+      return response;
     }
   }
 
-  return pb_errno(0);
+  set_cmd_response_error(&response, pb_errno(0));
+  return response;
 }
 
-pb_error_t L2Forward::CommandDelete(
-    const bess::protobuf::L2ForwardCommandDeleteArg &arg) {
+bess::pb::ModuleCommandResponse L2Forward::CommandDelete(
+    const google::protobuf::Any &arg_) {
+  bess::pb::L2ForwardCommandDeleteArg arg;
+  arg_.UnpackTo(&arg);
+
+  bess::pb::ModuleCommandResponse response;
+
   for (int i = 0; i < arg.addrs_size(); i++) {
     const auto &_addr = arg.addrs(i);
 
     if (!_addr.length()) {
-      return pb_error(EINVAL, "lookup must be list of string");
+      set_cmd_response_error(&response,
+                             pb_error(EINVAL, "lookup must be list of string"));
+      return response;
     }
 
     const char *str_addr = _addr.c_str();
     char addr[6];
 
     if (parse_mac_addr(str_addr, addr) != 0) {
-      return pb_error(EINVAL, "%s is not a proper mac address", str_addr);
+      set_cmd_response_error(
+          &response,
+          pb_error(EINVAL, "%s is not a proper mac address", str_addr));
+      return response;
     }
 
     int r = l2_del_entry(&l2_table_, l2_addr_to_u64(addr));
 
     if (r == -ENOENT) {
-      return pb_error(ENOENT, "MAC address '%s' does not exist", str_addr);
+      set_cmd_response_error(
+          &response,
+          pb_error(ENOENT, "MAC address '%s' does not exist", str_addr));
+      return response;
     } else if (r != 0) {
-      return pb_error(EINVAL, "Unknown Error: %d\n", r);
+      set_cmd_response_error(&response,
+                             pb_error(EINVAL, "Unknown Error: %d\n", r));
+      return response;
     }
   }
 
-  return pb_errno(0);
+  set_cmd_response_error(&response, pb_errno(0));
+  return response;
 }
 
-pb_error_t L2Forward::CommandSetDefaultGate(
-    const bess::protobuf::L2ForwardCommandSetDefaultGateArg &arg) {
+bess::pb::ModuleCommandResponse L2Forward::CommandSetDefaultGate(
+    const google::protobuf::Any &arg_) {
+  bess::pb::L2ForwardCommandSetDefaultGateArg arg;
+  arg_.UnpackTo(&arg);
+
+  bess::pb::ModuleCommandResponse response;
+
   default_gate_ = arg.gate();
-  return pb_errno(0);
+  set_cmd_response_error(&response, pb_errno(0));
+  return response;
 }
 
-bess::protobuf::L2ForwardCommandLookupResponse L2Forward::CommandLookup(
-    const bess::protobuf::L2ForwardCommandLookupArg &arg) {
+bess::pb::ModuleCommandResponse L2Forward::CommandLookup(
+    const google::protobuf::Any &arg_) {
+  bess::pb::L2ForwardCommandLookupArg arg;
+  arg_.UnpackTo(&arg);
+
   int i;
-  bess::protobuf::L2ForwardCommandLookupResponse ret;
+  bess::pb::ModuleCommandResponse response;
+  bess::pb::L2ForwardCommandLookupResponse ret;
   for (i = 0; i < arg.addrs_size(); i++) {
     const auto &_addr = arg.addrs(i);
 
     if (!_addr.length()) {
-      ret.set_allocated_error(
-          new pb_error_t(pb_error(EINVAL, "lookup must be list of string")));
-      ret.clear_gates();
-      return ret;
+      set_cmd_response_error(&response,
+                             pb_error(EINVAL, "lookup must be list of string"));
+      return response;
     }
 
     const char *str_addr = _addr.c_str();
     char addr[6];
 
     if (parse_mac_addr(str_addr, addr) != 0) {
-      ret.set_allocated_error(new pb_error_t(
-          pb_error(EINVAL, "%s is not a proper mac address", str_addr)));
-      ret.clear_gates();
-      return ret;
+      set_cmd_response_error(
+          &response,
+          pb_error(EINVAL, "%s is not a proper mac address", str_addr));
+      return response;
     }
 
     gate_idx_t gate;
     int r = l2_find(&l2_table_, l2_addr_to_u64(addr), &gate);
 
     if (r == -ENOENT) {
-      ret.set_allocated_error(new pb_error_t(
-          pb_error(ENOENT, "MAC address '%s' does not exist", str_addr)));
-      ret.clear_gates();
-      return ret;
+      set_cmd_response_error(
+          &response,
+          pb_error(ENOENT, "MAC address '%s' does not exist", str_addr));
+      return response;
     } else if (r != 0) {
-      ret.set_allocated_error(
-          new pb_error_t(pb_error(EINVAL, "Unknown Error: %d\n", r)));
-      ret.clear_gates();
-      return ret;
+      set_cmd_response_error(&response,
+                             pb_error(EINVAL, "Unknown Error: %d\n", r));
+      return response;
     }
     ret.add_gates(gate);
   }
 
-  return ret;
+  response.mutable_error()->set_err(0);
+  response.mutable_other()->PackFrom(ret);
+  return response;
 }
 
-pb_error_t L2Forward::CommandPopulate(
-    const bess::protobuf::L2ForwardCommandPopulateArg &arg) {
+bess::pb::ModuleCommandResponse L2Forward::CommandPopulate(
+    const google::protobuf::Any &arg_) {
+  bess::pb::L2ForwardCommandPopulateArg arg;
+  arg_.UnpackTo(&arg);
+
+  bess::pb::ModuleCommandResponse response;
+
   const char *base;
   char base_str[6] = {0};
   uint64_t base_u64;
 
   if (!arg.base().length()) {
-    return pb_error(EINVAL, "base must exist in gen, and must be string");
+    set_cmd_response_error(
+        &response,
+        pb_error(EINVAL, "base must exist in gen, and must be string"));
+    return response;
   }
 
   // parse base addr
   base = arg.base().c_str();
   if (parse_mac_addr(base, base_str) != 0) {
-    return pb_error(EINVAL, "%s is not a proper mac address", base_str);
+    set_cmd_response_error(
+        &response,
+        pb_error(EINVAL, "%s is not a proper mac address", base_str));
+    return response;
   }
 
   base_u64 = l2_addr_to_u64(base_str);
@@ -729,7 +793,8 @@ pb_error_t L2Forward::CommandPopulate(
     base_u64++;
   }
 
-  return pb_errno(0);
+  set_cmd_response_error(&response, pb_errno(0));
+  return response;
 }
 
 struct snobj *L2Forward::CommandAdd(struct snobj *arg) {

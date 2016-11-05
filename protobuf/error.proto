@@ -1,9 +1,0 @@
-syntax = "proto3";
-
-package bess.protobuf;
-
-message Error {
-  int32 err = 1;
-  string errmsg = 2;
-  string details = 3;
-}

@@ -17,21 +17,23 @@ class HashLB : public Module {
   HashLB() : Module(), gates_(), num_gates_(), mode_() {}
 
   virtual struct snobj *Init(struct snobj *arg);
-  virtual pb_error_t Init(const bess::protobuf::HashLBArg &arg);
+  virtual pb_error_t Init(const google::protobuf::Any &arg);
 
   virtual void ProcessBatch(struct pkt_batch *batch);
 
   struct snobj *CommandSetMode(struct snobj *arg);
   struct snobj *CommandSetGates(struct snobj *arg);
 
-  pb_error_t CommandSetMode(const bess::protobuf::HashLBCommandSetModeArg &arg);
-  pb_error_t CommandSetGates(
-      const bess::protobuf::HashLBCommandSetGatesArg &arg);
+  bess::pb::ModuleCommandResponse CommandSetMode(
+      const google::protobuf::Any &arg);
+  bess::pb::ModuleCommandResponse CommandSetGates(
+      const google::protobuf::Any &arg);
 
   static const gate_idx_t kNumIGates = 1;
   static const gate_idx_t kNumOGates = MAX_GATES;
 
   static const Commands<Module> cmds;
+  static const PbCommands<Module> pb_cmds;
 
  private:
   void LbL2(struct pkt_batch *batch, gate_idx_t *ogates);

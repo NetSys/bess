@@ -14,6 +14,7 @@ class Bypass : public Module {
   static const gate_idx_t kNumOGates = MAX_GATES;
 
   static const Commands<Module> cmds;
+  static const PbCommands<Module> pb_cmds;
 };
 
 #endif

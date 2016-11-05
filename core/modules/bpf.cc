@@ -39,6 +39,8 @@
 #include "bpf.h"
 #include <pcap.h>
 
+#include "../module_msg.pb.h"
+
 /*
  * Registers
  */
@@ -1111,8 +1113,13 @@ const Commands<Module> BPF::cmds = {
     {"add", MODULE_FUNC &BPF::CommandAdd, 0},
     {"clear", MODULE_FUNC &BPF::CommandClear, 0}};
 
-pb_error_t BPF::Init(const bess::protobuf::BPFArg &arg) {
-  return CommandAdd(arg);
+const PbCommands<Module> BPF::pb_cmds = {
+    {"add", PB_MODULE_FUNC &BPF::CommandAdd, 0},
+    {"clear", PB_MODULE_FUNC &BPF::CommandClear, 0}};
+
+pb_error_t BPF::Init(const google::protobuf::Any &arg) {
+  bess::pb::ModuleCommandResponse response = CommandAdd(arg);
+  return response.error();
 }
 
 struct snobj *BPF::Init(struct snobj *arg) {
@@ -1128,9 +1135,16 @@ void BPF::Deinit() {
   n_filters_ = 0;
 }
 
-pb_error_t BPF::CommandAdd(const bess::protobuf::BPFArg &arg) {
+bess::pb::ModuleCommandResponse BPF::CommandAdd(
+    const google::protobuf::Any &arg_) {
+  bess::pb::BPFArg arg;
+  arg_.UnpackTo(&arg);
+
+  bess::pb::ModuleCommandResponse response;
+
   if (n_filters_ + arg.filters_size() > MAX_FILTERS) {
-    return pb_error(EINVAL, "Too many filters");
+    set_cmd_response_error(&response, pb_error(EINVAL, "Too many filters"));
+    return response;
   }
 
   struct filter *filter = &filters_[n_filters_];
@@ -1140,12 +1154,15 @@ pb_error_t BPF::CommandAdd(const bess::protobuf::BPFArg &arg) {
     const char *exp = f.filter().c_str();
     int64_t gate = f.gate();
     if (gate < 0 || gate >= MAX_GATES) {
-      return pb_error(EINVAL, "Invalid gate");
+      set_cmd_response_error(&response, pb_error(EINVAL, "Invalid gate"));
+      return response;
     }
     if (pcap_compile_nopcap(SNAPLEN, DLT_EN10MB,  // Ethernet
                             &il_code, exp, 1,     // optimize (IL only)
                             PCAP_NETMASK_UNKNOWN) == -1) {
-      return pb_error(EINVAL, "BPF compilation error");
+      set_cmd_response_error(&response,
+                             pb_error(EINVAL, "BPF compilation error"));
+      return response;
     }
     filter->priority = f.priority();
     filter->gate = f.gate();
@@ -1155,14 +1172,17 @@ pb_error_t BPF::CommandAdd(const bess::protobuf::BPFArg &arg) {
     pcap_freecode(&il_code);
     if (!filter->func) {
       free(filter->exp);
-      return pb_error(ENOMEM, "BPF JIT compilation error");
+      set_cmd_response_error(&response,
+                             pb_error(ENOMEM, "BPF JIT compilation error"));
+      return response;
     }
     n_filters_++;
     qsort(filters_, n_filters_, sizeof(struct filter), &compare_filter);
 
     filter++;
   }
-  return pb_errno(0);
+  set_cmd_response_error(&response, pb_errno(0));
+  return response;
 }
 
 struct snobj *BPF::CommandAdd(struct snobj *arg) {
@@ -1233,9 +1253,12 @@ struct snobj *BPF::CommandAdd(struct snobj *arg) {
   return nullptr;
 }
 
-pb_error_t BPF::CommandClear(const bess::protobuf::BPFCommandClearArg &) {
+bess::pb::ModuleCommandResponse BPF::CommandClear(
+    const google::protobuf::Any &) {
   Deinit();
-  return pb_errno(0);
+  bess::pb::ModuleCommandResponse response;
+  set_cmd_response_error(&response, pb_errno(0));
+  return response;
 }
 
 struct snobj *BPF::CommandClear(struct snobj *) {

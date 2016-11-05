@@ -11,11 +11,12 @@ class GenericDecap : public Module {
   GenericDecap() : Module(), decap_size_() {}
 
   virtual struct snobj *Init(struct snobj *arg);
-  virtual pb_error_t Init(const bess::protobuf::GenericDecapArg &arg);
+  virtual pb_error_t Init(const google::protobuf::Any &arg);
 
   virtual void ProcessBatch(struct pkt_batch *batch);
 
   static const Commands<Module> cmds;
+  static const PbCommands<Module> pb_cmds;
 
  private:
   int decap_size_;

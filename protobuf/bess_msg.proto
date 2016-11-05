@@ -1,10 +1,16 @@
 syntax = "proto3";
 
-import "error.proto";
-package bess.protobuf;
+import "google/protobuf/any.proto";
 
-message Empty {
+package bess.pb;
 
+message Error {
+  int32 err = 1;
+  string errmsg = 2;
+  string details = 3;
+}
+
+message EmptyRequest {
 }
 
 message CreatePortResponse {
@@ -271,4 +277,21 @@ message GetMclassInfoResponse {
   string name = 2;
   string help = 3;
   repeated string cmds = 4;
+}
+
+message CreateModuleRequest {
+  string name = 1;
+  string mclass = 2;
+  google.protobuf.Any arg = 3;
+}
+
+message ModuleCommandRequest {
+  string name = 1;
+  string cmd = 2;
+  google.protobuf.Any arg = 3;
+}
+
+message ModuleCommandResponse {
+  Error error = 1;
+  google.protobuf.Any other = 2;
 }

@@ -1,12 +1,22 @@
 #include "source.h"
+#include "../module_msg.pb.h"
 
 const Commands<Module> Source::cmds = {
     {"set_pkt_size", MODULE_FUNC &Source::command_set_pkt_size, 1},
     {"set_burst", MODULE_FUNC &Source::command_set_burst, 1},
 };
 
-pb_error_t Source::Init(const bess::protobuf::SourceArg &arg) {
+const PbCommands<Module> Source::pb_cmds = {
+    {"set_pkt_size", PB_MODULE_FUNC &Source::command_set_pkt_size, 1},
+    {"set_burst", PB_MODULE_FUNC &Source::command_set_burst, 1},
+};
+
+pb_error_t Source::Init(const google::protobuf::Any &arg_) {
+  bess::pb::SourceArg arg;
+  arg_.UnpackTo(&arg);
+
   pb_error_t err;
+  bess::pb::ModuleCommandResponse response;
 
   task_id_t tid = RegisterTask(nullptr);
   if (tid == INVALID_TASK_ID)
@@ -15,12 +25,18 @@ pb_error_t Source::Init(const bess::protobuf::SourceArg &arg) {
   pkt_size_ = 60;
   burst_ = MAX_PKT_BURST;
 
-  err = CommandSetPktSize(arg.pkt_size_arg());
+  google::protobuf::Any pkt_size_arg;
+  pkt_size_arg.PackFrom(arg.pkt_size_arg());
+  response = CommandSetPktSize(pkt_size_arg);
+  err = response.error();
   if (err.err() != 0) {
     return err;
   }
 
-  err = CommandSetBurst(arg.burst_arg());
+  google::protobuf::Any burst_arg;
+  burst_arg.PackFrom(arg.burst_arg());
+  response = CommandSetBurst(burst_arg);
+  err = response.error();
   if (err.err() != 0) {
     return err;
   }
@@ -28,24 +44,40 @@ pb_error_t Source::Init(const bess::protobuf::SourceArg &arg) {
   return pb_errno(0);
 }
 
-pb_error_t Source::CommandSetBurst(
-    const bess::protobuf::SourceCommandSetBurstArg &arg) {
+bess::pb::ModuleCommandResponse Source::CommandSetBurst(
+    const google::protobuf::Any &arg_) {
+  bess::pb::SourceCommandSetBurstArg arg;
+  arg_.UnpackTo(&arg);
+
+  bess::pb::ModuleCommandResponse response;
+
   uint64_t val = arg.burst();
   if (val == 0 || val > MAX_PKT_BURST) {
-    return pb_error(EINVAL, "burst size must be [1,%d]", MAX_PKT_BURST);
+    set_cmd_response_error(
+        &response,
+        pb_error(EINVAL, "burst size must be [1,%d]", MAX_PKT_BURST));
+    return response;
   }
   burst_ = val;
-  return pb_errno(0);
+  set_cmd_response_error(&response, pb_errno(0));
+  return response;
 }
 
-pb_error_t Source::CommandSetPktSize(
-    const bess::protobuf::SourceCommandSetPktSizeArg &arg) {
+bess::pb::ModuleCommandResponse Source::CommandSetPktSize(
+    const google::protobuf::Any &arg_) {
+  bess::pb::SourceCommandSetPktSizeArg arg;
+  arg_.UnpackTo(&arg);
+
+  bess::pb::ModuleCommandResponse response;
+
   uint64_t val = arg.pkt_size();
   if (val == 0 || val > SNBUF_DATA) {
-    return pb_error(EINVAL, "Invalid packet size");
+    set_cmd_response_error(&response, pb_error(EINVAL, "Invalid packet size"));
+    return response;
   }
   pkt_size_ = val;
-  return pb_errno(0);
+  set_cmd_response_error(&response, pb_errno(0));
+  return response;
 }
 
 struct snobj *Source::Init(struct snobj *arg) {

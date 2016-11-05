@@ -20,7 +20,9 @@ class EtherEncap : public Module {
           .mode = bess::metadata::AccessMode::READ,
       },
       {
-          .name = "ether_type", .size = 2, .mode = bess::metadata::AccessMode::READ,
+          .name = "ether_type",
+          .size = 2,
+          .mode = bess::metadata::AccessMode::READ,
       },
   };
 
@@ -28,6 +30,7 @@ class EtherEncap : public Module {
   static const gate_idx_t kNumOGates = 1;
 
   static const Commands<Module> cmds;
+  static const PbCommands<Module> pb_cmds;
 };
 
 #endif

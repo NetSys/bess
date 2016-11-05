@@ -1,5 +1,5 @@
 #include "hash_lb.h"
-
+#include "../module_msg.pb.h"
 #include <rte_hash_crc.h>
 
 const enum LbMode DEFAULT_MODE = LB_L4;
@@ -40,6 +40,10 @@ const Commands<Module> HashLB::cmds = {
     {"set_gates", MODULE_FUNC &HashLB::CommandSetGates, 0},
 };
 
+const PbCommands<Module> HashLB::pb_cmds = {
+    {"set_mode", PB_MODULE_FUNC &HashLB::CommandSetMode, 0},
+    {"set_gates", PB_MODULE_FUNC &HashLB::CommandSetGates, 0}};
+
 struct snobj *HashLB::CommandSetMode(struct snobj *arg) {
   const char *mode = snobj_str_get(arg);
 
@@ -60,22 +64,29 @@ struct snobj *HashLB::CommandSetMode(struct snobj *arg) {
   return nullptr;
 }
 
-pb_error_t HashLB::CommandSetMode(
-    const bess::protobuf::HashLBCommandSetModeArg &arg) {
+bess::pb::ModuleCommandResponse HashLB::CommandSetMode(
+    const google::protobuf::Any &arg_) {
+  bess::pb::HashLBCommandSetModeArg arg;
+  arg_.UnpackTo(&arg);
+
+  bess::pb::ModuleCommandResponse response;
   switch (arg.mode()) {
-    case bess::protobuf::HashLBCommandSetModeArg::L2:
+    case bess::pb::HashLBCommandSetModeArg::L2:
       mode_ = LB_L2;
       break;
-    case bess::protobuf::HashLBCommandSetModeArg::L3:
+    case bess::pb::HashLBCommandSetModeArg::L3:
       mode_ = LB_L3;
       break;
-    case bess::protobuf::HashLBCommandSetModeArg::L4:
+    case bess::pb::HashLBCommandSetModeArg::L4:
       mode_ = LB_L4;
       break;
     default:
-      return pb_error(EINVAL, "available LB modes: l2, l3, l4");
+      set_cmd_response_error(
+          &response, pb_error(EINVAL, "available LB modes: l2, l3, l4"));
+      return response;
   }
-  return pb_errno(0);
+  set_cmd_response_error(&response, pb_errno(0));
+  return response;
 }
 
 struct snobj *HashLB::CommandSetGates(struct snobj *arg) {
@@ -122,22 +133,32 @@ struct snobj *HashLB::CommandSetGates(struct snobj *arg) {
   return nullptr;
 }
 
-pb_error_t HashLB::CommandSetGates(
-    const bess::protobuf::HashLBCommandSetGatesArg &arg) {
+bess::pb::ModuleCommandResponse HashLB::CommandSetGates(
+    const google::protobuf::Any &arg_) {
+  bess::pb::HashLBCommandSetGatesArg arg;
+  arg_.UnpackTo(&arg);
+
+  bess::pb::ModuleCommandResponse response;
+
   if (arg.gates_size() > MAX_HLB_GATES) {
-    return pb_error(EINVAL, "no more than %d gates", MAX_HLB_GATES);
+    set_cmd_response_error(
+        &response, pb_error(EINVAL, "no more than %d gates", MAX_HLB_GATES));
+    return response;
   }
 
   for (int i = 0; i < arg.gates_size(); i++) {
     gates_[i] = arg.gates(i);
     if (!is_valid_gate(gates_[i])) {
-      return pb_error(EINVAL, "invalid gate %d", gates_[i]);
+      set_cmd_response_error(&response,
+                             pb_error(EINVAL, "invalid gate %d", gates_[i]));
+      return response;
     }
   }
 
   num_gates_ = arg.gates_size();
 
-  return pb_errno(0);
+  set_cmd_response_error(&response, pb_errno(0));
+  return response;
 }
 
 struct snobj *HashLB::Init(struct snobj *arg) {
@@ -165,11 +186,17 @@ struct snobj *HashLB::Init(struct snobj *arg) {
   return nullptr;
 }
 
-pb_error_t HashLB::Init(const bess::protobuf::HashLBArg &arg) {
+pb_error_t HashLB::Init(const google::protobuf::Any &arg_) {
+  bess::pb::HashLBArg arg;
+  arg_.UnpackTo(&arg);
+
   mode_ = DEFAULT_MODE;
 
   if (arg.has_gate_arg()) {
-    pb_error_t err = CommandSetGates(arg.gate_arg());
+    google::protobuf::Any gate_arg;
+    gate_arg.PackFrom(arg.gate_arg());
+    bess::pb::ModuleCommandResponse response = CommandSetGates(gate_arg);
+    pb_error_t err = response.error();
     if (err.err() != 0) {
       return err;
     }
@@ -178,7 +205,10 @@ pb_error_t HashLB::Init(const bess::protobuf::HashLBArg &arg) {
   }
 
   if (arg.has_mode_arg()) {
-    return CommandSetMode(arg.mode_arg());
+    google::protobuf::Any mode_arg;
+    mode_arg.PackFrom(arg.mode_arg());
+    bess::pb::ModuleCommandResponse response = CommandSetMode(mode_arg);
+    return response.error();
   }
 
   return pb_errno(0);

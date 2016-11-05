@@ -1,54 +1,92 @@
 #include "round_robin.h"
+#include "../module_msg.pb.h"
 
 const Commands<Module> RoundRobin::cmds = {
     {"set_mode", MODULE_FUNC &RoundRobin::CommandSetMode, 0},
     {"set_gates", MODULE_FUNC &RoundRobin::CommandSetGates, 0},
 };
 
-pb_error_t RoundRobin::Init(const bess::protobuf::RoundRobinArg &arg) {
+const PbCommands<Module> RoundRobin::pb_cmds = {
+    {"set_mode", PB_MODULE_FUNC &RoundRobin::CommandSetMode, 0},
+    {"set_gates", PB_MODULE_FUNC &RoundRobin::CommandSetGates, 0},
+};
+
+pb_error_t RoundRobin::Init(const google::protobuf::Any &arg_) {
+  bess::pb::RoundRobinArg arg;
+  arg_.UnpackTo(&arg);
+
   pb_error_t err;
-  err = CommandSetGates(arg.gate_arg());
+  bess::pb::ModuleCommandResponse response;
+
+  google::protobuf::Any gate_arg;
+  gate_arg.PackFrom(arg.gate_arg());
+  response = CommandSetGates(gate_arg);
+  err = response.error();
   if (err.err() != 0) {
     return err;
   }
-  err = CommandSetMode(arg.mode_arg());
+
+  google::protobuf::Any mode_arg;
+  mode_arg.PackFrom(arg.mode_arg());
+  response = CommandSetMode(mode_arg);
+  err = response.error();
   if (err.err() != 0) {
     return err;
   }
+
   return pb_errno(0);
 }
 
-pb_error_t RoundRobin::CommandSetMode(
-    const bess::protobuf::RoundRobinCommandSetModeArg &arg) {
+bess::pb::ModuleCommandResponse RoundRobin::CommandSetMode(
+    const google::protobuf::Any &arg_) {
+  bess::pb::RoundRobinCommandSetModeArg arg;
+  arg_.UnpackTo(&arg);
+
+  bess::pb::ModuleCommandResponse response;
+
   switch (arg.mode()) {
-    case bess::protobuf::RoundRobinCommandSetModeArg::PACKET:
+    case bess::pb::RoundRobinCommandSetModeArg::PACKET:
       per_packet_ = 1;
       break;
-    case bess::protobuf::RoundRobinCommandSetModeArg::BATCH:
+    case bess::pb::RoundRobinCommandSetModeArg::BATCH:
       per_packet_ = 0;
       break;
     default:
-      pb_error(EINVAL, "argument must be either 'packet' or 'batch'");
+      set_cmd_response_error(
+          &response,
+          pb_error(EINVAL, "argument must be either 'packet' or 'batch'"));
+      return response;
   }
-  return pb_errno(0);
+  set_cmd_response_error(&response, pb_errno(0));
+  return response;
 }
 
-pb_error_t RoundRobin::CommandSetGates(
-    const bess::protobuf::RoundRobinCommandSetGatesArg &arg) {
+bess::pb::ModuleCommandResponse RoundRobin::CommandSetGates(
+    const google::protobuf::Any &arg_) {
+  bess::pb::RoundRobinCommandSetGatesArg arg;
+  arg_.UnpackTo(&arg);
+
+  bess::pb::ModuleCommandResponse response;
+
   if (arg.gates_size() > MAX_RR_GATES) {
-    return pb_error(EINVAL, "no more than %d gates", MAX_RR_GATES);
+    set_cmd_response_error(
+        &response, pb_error(EINVAL, "no more than %d gates", MAX_RR_GATES));
+    return response;
   }
 
   for (int i = 0; i < arg.gates_size(); i++) {
     int elem = arg.gates(i);
     gates_[i] = elem;
     if (!is_valid_gate(gates_[i])) {
-      return pb_error(EINVAL, "invalid gate %d", gates_[i]);
+      set_cmd_response_error(&response,
+                             pb_error(EINVAL, "invalid gate %d", gates_[i]));
+      return response;
     }
   }
 
   ngates_ = arg.gates_size();
-  return pb_errno(0);
+  set_cmd_response_error(&response, pb_errno(0));
+  return response;
 }
 
 struct snobj *RoundRobin::Init(struct snobj *arg) {

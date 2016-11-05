@@ -1,6 +1,7 @@
 #include <string>
 #include <vector>
 
+#include "../module_msg.pb.h"
 #include "exact_match.h"
 
 // XXX: this is repeated in many modules. get rid of them when converting .h to
@@ -15,22 +16,27 @@ const Commands<Module> ExactMatch::cmds = {
     {"clear", MODULE_FUNC &ExactMatch::CommandClear, 0},
     {"set_default_gate", MODULE_FUNC &ExactMatch::CommandSetDefaultGate, 1}};
 
-pb_error_t ExactMatch::AddFieldOne(
-    const bess::protobuf::ExactMatchArg_Field &field, struct EmField *f,
-    int idx) {
+const PbCommands<Module> ExactMatch::pb_cmds = {
+    {"add", PB_MODULE_FUNC &ExactMatch::CommandAdd, 0},
+    {"delete", PB_MODULE_FUNC &ExactMatch::CommandDelete, 0},
+    {"clear", PB_MODULE_FUNC &ExactMatch::CommandClear, 0},
+    {"set_default_gate", PB_MODULE_FUNC &ExactMatch::CommandSetDefaultGate, 1}};
+
+pb_error_t ExactMatch::AddFieldOne(const bess::pb::ExactMatchArg_Field &field,
+                                   struct EmField *f, int idx) {
   f->size = field.size();
   if (f->size < 1 || f->size > MAX_FIELD_SIZE) {
     return pb_error(EINVAL, "idx %d: 'size' must be 1-%d", idx, MAX_FIELD_SIZE);
   }
 
-  if (field.position_case() == bess::protobuf::ExactMatchArg_Field::kName) {
+  if (field.position_case() == bess::pb::ExactMatchArg_Field::kName) {
     const char *attr = field.name().c_str();
-    f->attr_id = AddMetadataAttr(attr, f->size, bess::metadata::AccessMode::READ);
+    f->attr_id =
+        AddMetadataAttr(attr, f->size, bess::metadata::AccessMode::READ);
     if (f->attr_id < 0) {
       return pb_error(-f->attr_id, "idx %d: add_metadata_attr() failed", idx);
     }
-  } else if (field.position_case() ==
-             bess::protobuf::ExactMatchArg_Field::kOffset) {
+  } else if (field.position_case() == bess::pb::ExactMatchArg_Field::kOffset) {
     f->attr_id = -1;
     f->offset = field.offset();
     if (f->offset < 0 || f->offset > 1024) {
@@ -74,7 +80,8 @@ struct snobj *ExactMatch::AddFieldOne(struct snobj *field, struct EmField *f,
   const char *attr = static_cast<char *>(snobj_eval_str(field, "attr"));
 
   if (attr) {
-    f->attr_id = AddMetadataAttr(attr, f->size, bess::metadata::AccessMode::READ);
+    f->attr_id =
+        AddMetadataAttr(attr, f->size, bess::metadata::AccessMode::READ);
     if (f->attr_id < 0) {
       return snobj_err(-f->attr_id, "idx %d: add_metadata_attr() failed", idx);
     }
@@ -149,7 +156,10 @@ struct snobj *ExactMatch::Init(struct snobj *arg) {
   return nullptr;
 }
 
-pb_error_t ExactMatch::Init(const bess::protobuf::ExactMatchArg &arg) {
+pb_error_t ExactMatch::Init(const google::protobuf::Any &arg_) {
+  bess::pb::ExactMatchArg arg;
+  arg_.UnpackTo(&arg);
+
   int size_acc = 0;
 
   for (auto i = 0; i < arg.fields_size(); ++i) {
@@ -369,31 +379,43 @@ struct snobj *ExactMatch::CommandAdd(struct snobj *arg) {
   return nullptr;
 }
 
-pb_error_t ExactMatch::CommandAdd(
-    const bess::protobuf::ExactMatchCommandAddArg &arg) {
+bess::pb::ModuleCommandResponse ExactMatch::CommandAdd(
+    const google::protobuf::Any &arg_) {
+  bess::pb::ExactMatchCommandAddArg arg;
+  arg_.UnpackTo(&arg);
+
   em_hkey_t key;
   gate_idx_t gate = arg.gate();
   pb_error_t err;
   int ret;
 
+  bess::pb::ModuleCommandResponse response;
+
   if (!is_valid_gate(gate)) {
-    return pb_error(EINVAL, "Invalid gate: %hu", gate);
+    set_cmd_response_error(&response,
+                           pb_error(EINVAL, "Invalid gate: %hu", gate));
+    return response;
   }
 
   if (arg.fields_size() == 0) {
-    return pb_error(EINVAL, "'fields' must be a list");
+    set_cmd_response_error(&response,
+                           pb_error(EINVAL, "'fields' must be a list"));
+    return response;
   }
 
   if ((err = GatherKey(arg.fields(), &key)).err() != 0) {
-    return err;
+    set_cmd_response_error(&response, err);
+    return response;
   }
 
   ret = ht_.Set(&key, &gate);
   if (ret) {
-    return pb_error(-ret, "ht_set() failed");
+    set_cmd_response_error(&response, pb_error(-ret, "ht_set() failed"));
+    return response;
   }
 
-  return pb_errno(0);
+  set_cmd_response_error(&response, pb_errno(0));
+  return response;
 }
 
 struct snobj *ExactMatch::CommandDelete(struct snobj *arg) {
@@ -418,27 +440,37 @@ struct snobj *ExactMatch::CommandDelete(struct snobj *arg) {
   return nullptr;
 }
 
-pb_error_t ExactMatch::CommandDelete(
-    const bess::protobuf::ExactMatchCommandDeleteArg &arg) {
+bess::pb::ModuleCommandResponse ExactMatch::CommandDelete(
+    const google::protobuf::Any &arg_) {
+  bess::pb::ExactMatchCommandDeleteArg arg;
+  arg_.UnpackTo(&arg);
+
+  bess::pb::ModuleCommandResponse response;
+
   em_hkey_t key;
 
   pb_error_t err;
   int ret;
 
   if (arg.fields_size() == 0) {
-    return pb_error(EINVAL, "argument must be a list");
+    set_cmd_response_error(&response,
+                           pb_error(EINVAL, "argument must be a list"));
+    return response;
   }
 
   if ((err = GatherKey(arg.fields(), &key)).err() != 0) {
-    return err;
+    set_cmd_response_error(&response, err);
+    return response;
   }
 
   ret = ht_.Del(&key);
   if (ret < 0) {
-    return pb_error(-ret, "ht_del() failed");
+    set_cmd_response_error(&response, pb_error(-ret, "ht_del() failed"));
+    return response;
   }
 
-  return pb_errno(0);
+  set_cmd_response_error(&response, pb_errno(0));
+  return response;
 }
 
 struct snobj *ExactMatch::CommandClear(struct snobj *) {
@@ -447,11 +479,13 @@ struct snobj *ExactMatch::CommandClear(struct snobj *) {
   return nullptr;
 }
 
-pb_error_t ExactMatch::CommandClear(
-    const bess::protobuf::ExactMatchCommandClearArg &) {
+bess::pb::ModuleCommandResponse ExactMatch::CommandClear(
+    const google::protobuf::Any &) {
   ht_.Clear();
 
-  return pb_errno(0);
+  bess::pb::ModuleCommandResponse response;
+  set_cmd_response_error(&response, pb_errno(0));
+  return response;
 }
 
 struct snobj *ExactMatch::CommandSetDefaultGate(struct snobj *arg) {
@@ -462,11 +496,16 @@ struct snobj *ExactMatch::CommandSetDefaultGate(struct snobj *arg) {
   return nullptr;
 }
 
-pb_error_t ExactMatch::CommandSetDefaultGate(
-    const bess::protobuf::ExactMatchCommandSetDefaultGateArg &arg) {
+bess::pb::ModuleCommandResponse ExactMatch::CommandSetDefaultGate(
+    const google::protobuf::Any &arg_) {
+  bess::pb::ExactMatchCommandSetDefaultGateArg arg;
+  arg_.UnpackTo(&arg);
+
+  bess::pb::ModuleCommandResponse response;
   default_gate_ = arg.gate();
 
-  return pb_errno(0);
+  set_cmd_response_error(&response, pb_errno(0));
+  return response;
 }
 
 ADD_MODULE(ExactMatch, "em", "Multi-field classifier with an exact match table")

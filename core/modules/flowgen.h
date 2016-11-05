@@ -49,7 +49,7 @@ class FlowGen : public Module {
         pareto_() {}
 
   virtual struct snobj *Init(struct snobj *arg);
-  virtual pb_error_t Init(const bess::protobuf::FlowGenArg &arg);
+  virtual pb_error_t Init(const google::protobuf::Any &arg);
 
   virtual void Deinit();
 
@@ -59,6 +59,7 @@ class FlowGen : public Module {
   struct snobj *GetDump() const;
 
   static const Commands<Module> cmds;
+  static const PbCommands<Module> pb_cmds;
 
  private:
   inline double NewFlowPkts();
@@ -73,7 +74,7 @@ class FlowGen : public Module {
   struct snobj *ProcessArguments(struct snobj *arg);
 
   pb_error_t InitFlowPool();
-  pb_error_t ProcessArguments(const bess::protobuf::FlowGenArg &arg);
+  pb_error_t ProcessArguments(const google::protobuf::Any &arg);
 
   int active_flows_;
   int allocated_flows_;

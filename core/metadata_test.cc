@@ -14,9 +14,11 @@ class Foo : public Module {
   static const gate_idx_t kNumIGates = MAX_GATES;
   static const gate_idx_t kNumOGates = MAX_GATES;
   static const Commands<Module> cmds;
+  static const PbCommands<Module> pb_cmds;
 };
 
 const Commands<Module> Foo::cmds = {};
+const PbCommands<Module> Foo::pb_cmds = {};
 
 Module *create_foo() {
   const ModuleBuilder &builder =
@@ -30,7 +32,6 @@ Module *create_foo() {
 
   return m;
 }
-
 }
 
 namespace bess {

@@ -1,41 +1,40 @@
 syntax = "proto3";
 
-import "bess_message.proto";
-import "module_message.proto";
-package bess.protobuf;
+import "bess_msg.proto";
+package bess.pb;
 
 service BESSControl {
-  rpc ResetAll (Empty) returns (EmptyResponse) {}
+  rpc ResetAll (EmptyRequest) returns (EmptyResponse) {}
 
-  rpc PauseAll (Empty) returns (EmptyResponse) {}
-  rpc ResumeAll (Empty) returns (EmptyResponse) {}
+  rpc PauseAll (EmptyRequest) returns (EmptyResponse) {}
+  rpc ResumeAll (EmptyRequest) returns (EmptyResponse) {}
 
-  rpc ResetWorkers (Empty) returns (EmptyResponse) {}
-  rpc ListWorkers (Empty) returns (ListWorkersResponse) {}
+  rpc ResetWorkers (EmptyRequest) returns (EmptyResponse) {}
+  rpc ListWorkers (EmptyRequest) returns (ListWorkersResponse) {}
   rpc AddWorker (AddWorkerRequest) returns (EmptyResponse) {}
   // TODO: delete_worker()
 
-  rpc ResetTcs (Empty) returns (EmptyResponse) {}
+  rpc ResetTcs (EmptyRequest) returns (EmptyResponse) {}
   rpc ListTcs (ListTcsRequest) returns (ListTcsResponse) {}
   rpc AddTc (AddTcRequest) returns (EmptyResponse) {}
   rpc GetTcStats (GetTcStatsRequest) returns (GetTcStatsResponse) {}
 
-  rpc ListDrivers (Empty) returns (ListDriversResponse) {}
+  rpc ListDrivers (EmptyRequest) returns (ListDriversResponse) {}
   rpc GetDriverInfo(GetDriverInfoRequest) returns (GetDriverInfoResponse) {}
   // TODO: import_driver()
 
-  rpc ResetPorts (Empty) returns (EmptyResponse) {}
-  rpc ListPorts (Empty) returns (ListPortsResponse) {}
+  rpc ResetPorts (EmptyRequest) returns (EmptyResponse) {}
+  rpc ListPorts (EmptyRequest) returns (ListPortsResponse) {}
   rpc CreatePort (CreatePortRequest) returns (CreatePortResponse) {}
   rpc DestroyPort (DestroyPortRequest) returns (EmptyResponse) {}
   rpc GetPortStats (GetPortStatsRequest) returns (GetPortStatsResponse) {}
 
-  rpc ListMclass (Empty) returns (ListMclassResponse) {}
+  rpc ListMclass (EmptyRequest) returns (ListMclassResponse) {}
   rpc GetMclassInfo (GetMclassInfoRequest) returns (GetMclassInfoResponse) {}
   // TODO: import_mclass()
 
-  rpc ResetModules (Empty) returns (EmptyResponse) {}
-  rpc ListModules (Empty) returns (ListModulesResponse) {}
+  rpc ResetModules (EmptyRequest) returns (EmptyResponse) {}
+  rpc ListModules (EmptyRequest) returns (ListModulesResponse) {}
   rpc CreateModule (CreateModuleRequest) returns (CreateModuleResponse) {}
   rpc DestroyModule (DestroyModuleRequest) returns (EmptyResponse) {}
   rpc GetModuleInfo (GetModuleInfoRequest) returns (GetModuleInfoResponse) {}
@@ -47,7 +46,7 @@ service BESSControl {
   rpc EnableTcpdump (EnableTcpdumpRequest) returns (EmptyResponse) {}
   rpc DisableTcpdump (DisableTcpdumpRequest) returns (EmptyResponse) {}
 
-  rpc KillBess (Empty) returns (EmptyResponse) {}
+  rpc KillBess (EmptyRequest) returns (EmptyResponse) {}
 
   rpc ModuleCommand (ModuleCommandRequest) returns (ModuleCommandResponse) {}
 }

@@ -1,58 +1,8 @@
 syntax = "proto3";
 
-import "error.proto";
-import "bess_message.proto";
-package bess.protobuf;
+import "bess_msg.proto";
 
-message ModuleCommandRequest {
-  string name = 1;
-  oneof cmd {
-    BPFArg bpf_add_arg = 2;
-    BPFCommandClearArg bpf_clear_arg = 3;
-    DumpArg dump_set_interval_arg = 4;
-    ExactMatchCommandAddArg exactmatch_add_arg = 5;
-    ExactMatchCommandDeleteArg exactmatch_delete_arg = 6;
-    ExactMatchCommandClearArg exactmatch_clear_arg = 7;
-    ExactMatchCommandSetDefaultGateArg exactmatch_set_default_gate_arg = 8;
-    HashLBCommandSetModeArg hashlb_set_mode_arg = 9;
-    HashLBCommandSetGatesArg hashlb_set_gates_arg = 10;
-    IPLookupCommandAddArg iplookup_add_arg = 11;
-    IPLookupCommandClearArg iplookup_clear_arg = 12;
-    L2ForwardCommandAddArg l2forward_add_arg = 13;
-    L2ForwardCommandDeleteArg l2forward_delete_arg = 14;
-    L2ForwardCommandSetDefaultGateArg l2forward_set_default_gate_arg = 15;
-    L2ForwardCommandLookupArg l2forward_lookup_arg = 16;
-    L2ForwardCommandPopulateArg l2forward_populate_arg = 17;
-    MeasureCommandGetSummaryArg measure_get_summary_arg = 18;
-    PortIncCommandSetBurstArg portinc_set_burst_arg = 19;
-    QueueIncCommandSetBurstArg queueinc_set_burst_arg = 20;
-    QueueCommandSetBurstArg queue_set_burst_arg = 21;
-    QueueCommandSetSizeArg queue_set_size_arg = 22;
-    RandomUpdateArg random_update_add_arg = 23;
-    RandomUpdateCommandClearArg random_update_clear_arg = 24;
-    RewriteArg rewrite_add_arg = 25;
-    RewriteCommandClearArg rewrite_clear_arg = 26;
-    RoundRobinCommandSetModeArg roundrobin_set_mode_arg = 27;
-    RoundRobinCommandSetGatesArg roundrobin_set_gates_arg = 28;
-    SourceCommandSetBurstArg source_set_burst_arg = 29;
-    SourceCommandSetPktSizeArg source_set_pkt_size_arg = 30;
-    UpdateArg update_add_arg = 31;
-    UpdateCommandClearArg update_clear_arg = 32;
-    VLANPushArg vlan_set_tci_arg = 33;
-    WildcardMatchCommandAddArg wildcard_add_arg = 34;
-    WildcardMatchCommandDeleteArg wildcard_delete_arg = 35;
-    WildcardMatchCommandClearArg wildcard_clear_arg = 36;
-    WildcardMatchCommandSetDefaultGateArg wildcard_set_default_gate_arg = 37;
-  }
-}
-
-message ModuleCommandResponse {
-  oneof result {
-    EmptyResponse empty = 1;
-    L2ForwardCommandLookupResponse l2forward_lookup = 2;
-    MeasureCommandGetSummaryResponse measure_summary = 3;
-  }
-}
+package bess.pb;
 
 message BPFCommandClearArg {
 }
@@ -409,50 +359,4 @@ message WildcardMatchArg {
     }
   }
   repeated Field fields = 1;
-}
-
-message CreateModuleRequest {
-  string name = 1;
-  string mclass = 2;
-  // TODO: args
-  oneof arg {
-    BPFArg bpf_arg = 3;
-    BufferArg buffer_arg = 4;
-    BypassArg bypass_arg = 5;
-    DumpArg dump_arg = 6;
-    EtherEncapArg ether_encap_arg = 7;
-    ExactMatchArg exact_match_arg = 8;
-    FlowGenArg flow_gen_arg = 9;
-    GenericDecapArg generic_decap_arg = 10;
-    GenericEncapArg generic_encap_arg = 11;
-    HashLBArg hash_lb_arg = 12;
-    IPEncapArg ip_encap_arg = 13;
-    IPLookupArg ip_lookup_arg = 14;
-    L2ForwardArg l2_forward_arg = 15;
-    MACSwapArg mac_swap_arg = 16;
-    MeasureArg measure_arg = 17;
-    MergeArg merge_arg = 18;
-    MetadataTestArg metadata_test_arg = 19;
-    NoOpArg noop_arg = 20;
-    PortIncArg port_inc_arg = 21;
-    PortOutArg port_out_arg = 22;
-    QueueIncArg queue_inc_arg = 23;
-    QueueOutArg queue_out_arg = 24;
-    QueueArg queue_arg = 25;
-    RandomUpdateArg random_update_arg = 26;
-    RewriteArg rewrite_arg = 27;
-    RoundRobinArg round_robin_arg = 28;
-    SetMetadataArg set_metadata_arg = 29;
-    SinkArg sink_arg = 30;
-    SourceArg source_arg = 31;
-    SplitArg split_arg = 32;
-    TimestampArg timestamp_arg = 33;
-    UpdateArg update_arg = 34;
-    VLANPopArg vlan_pop_arg = 35;
-    VLANPushArg vlan_push_arg = 36;
-    VLANSplitArg vlan_split_arg = 37;
-    VXLANEncapArg vxlan_encap_arg = 38;
-    VXLANDecapArg vxlan_decap_arg = 39;
-    WildcardMatchArg wildcard_match_arg = 40;
-  }
 }

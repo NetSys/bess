@@ -55,7 +55,7 @@ struct vport_bar {
 
 class ZeroCopyVPort : public Port {
  public:
-  pb_error_t Init(const bess::protobuf::ZeroCopyVPortArg &arg);
+  pb_error_t Init(const google::protobuf::Any &arg);
   struct snobj *Init(struct snobj *conf);
 
   void DeInit();
@@ -160,7 +160,7 @@ struct snobj *ZeroCopyVPort::Init(struct snobj *) {
   return nullptr;
 }
 
-pb_error_t ZeroCopyVPort::Init(const bess::protobuf::ZeroCopyVPortArg &) {
+pb_error_t ZeroCopyVPort::Init(const google::protobuf::Any &) {
   struct vport_bar *bar = nullptr;
 
   int num_inc_q = num_queues[PACKET_DIR_INC];

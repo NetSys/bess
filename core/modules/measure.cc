@@ -5,6 +5,7 @@
 #include <rte_ip.h>
 #include <rte_tcp.h>
 
+#include "../module_msg.pb.h"
 #include "../utils/time.h"
 
 #include "measure.h"
@@ -25,6 +26,10 @@ const Commands<Module> Measure::cmds = {
     {"get_summary", MODULE_FUNC &Measure::CommandGetSummary, 0},
 };
 
+const PbCommands<Module> Measure::pb_cmds = {
+    {"get_summary", PB_MODULE_FUNC &Measure::CommandGetSummary, 0},
+};
+
 struct snobj *Measure::Init(struct snobj *arg) {
   if (arg) {
     warmup_ = snobj_eval_int(arg, "warmup");
@@ -32,7 +37,10 @@ struct snobj *Measure::Init(struct snobj *arg) {
   return nullptr;
 }
 
-pb_error_t Measure::Init(const bess::protobuf::MeasureArg &arg) {
+pb_error_t Measure::Init(const google::protobuf::Any &arg_) {
+  bess::pb::MeasureArg arg;
+  arg_.UnpackTo(&arg);
+
   if (arg.warmup()) {
     warmup_ = arg.warmup();
   }
@@ -87,19 +95,24 @@ struct snobj *Measure::CommandGetSummary(struct snobj *) {
   return r;
 }
 
-bess::protobuf::MeasureCommandGetSummaryResponse Measure::CommandGetSummary(
-    const bess::protobuf::MeasureCommandGetSummaryArg &) {
+bess::pb::ModuleCommandResponse Measure::CommandGetSummary(
+    const google::protobuf::Any &) {
   uint64_t pkt_total = pkt_cnt_;
   uint64_t byte_total = bytes_cnt_;
   uint64_t bits = (byte_total + pkt_total * 24) * 8;
 
-  bess::protobuf::MeasureCommandGetSummaryResponse r;
+  bess::pb::ModuleCommandResponse response;
+
+  bess::pb::MeasureCommandGetSummaryResponse r;
   r.set_timestamp(get_epoch_time());
   r.set_packets(pkt_total);
   r.set_bits(bits);
   r.set_total_latency_ns(total_latency_ * 100);
 
-  return r;
+  response.mutable_error()->set_err(0);
+  response.mutable_other()->PackFrom(r);
+
+  return response;
 }
 
 ADD_MODULE(Measure, "measure",

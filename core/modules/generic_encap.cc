@@ -10,23 +10,24 @@ static_assert(MAX_FIELD_SIZE <= sizeof(uint64_t),
 #endif
 
 const Commands<Module> GenericEncap::cmds = {};
+const PbCommands<Module> GenericEncap::pb_cmds = {};
 
 pb_error_t GenericEncap::AddFieldOne(
-    const bess::protobuf::GenericEncapArg_Field &field, struct Field *f,
-    int idx) {
+    const bess::pb::GenericEncapArg_Field &field, struct Field *f, int idx) {
   f->size = field.size();
   if (f->size < 1 || f->size > MAX_FIELD_SIZE) {
     return pb_error(EINVAL, "idx %d: 'size' must be 1-%d", idx, MAX_FIELD_SIZE);
   }
 
-  if (field.attribute_case() == bess::protobuf::GenericEncapArg_Field::kName) {
+  if (field.attribute_case() == bess::pb::GenericEncapArg_Field::kName) {
     const char *attr = field.name().c_str();
-    f->attr_id = AddMetadataAttr(attr, f->size, bess::metadata::AccessMode::READ);
+    f->attr_id =
+        AddMetadataAttr(attr, f->size, bess::metadata::AccessMode::READ);
     if (f->attr_id < 0) {
       return pb_error(-f->attr_id, "idx %d: add_metadata_attr() failed", idx);
     }
   } else if (field.attribute_case() ==
-             bess::protobuf::GenericEncapArg_Field::kValue) {
+             bess::pb::GenericEncapArg_Field::kValue) {
     f->attr_id = -1;
     uint64_t value = field.value();
     if (uint64_to_bin((uint8_t *)&f->value, f->size, value, 1)) {
@@ -59,7 +60,8 @@ struct snobj *GenericEncap::AddFieldOne(struct snobj *field, struct Field *f,
   struct snobj *t;
 
   if (attr) {
-    f->attr_id = AddMetadataAttr(attr, f->size, bess::metadata::AccessMode::READ);
+    f->attr_id =
+        AddMetadataAttr(attr, f->size, bess::metadata::AccessMode::READ);
     if (f->attr_id < 0) {
       return snobj_err(-f->attr_id, "idx %d: add_metadata_attr() failed", idx);
     }
@@ -121,7 +123,10 @@ struct snobj *GenericEncap::Init(struct snobj *arg) {
   return nullptr;
 }
 
-pb_error_t GenericEncap::Init(const bess::protobuf::GenericEncapArg &arg) {
+pb_error_t GenericEncap::Init(const google::protobuf::Any &arg_) {
+  bess::pb::GenericEncapArg arg;
+  arg_.UnpackTo(&arg);
+
   int size_acc = 0;
 
   for (int i = 0; i < arg.fields_size(); i++) {

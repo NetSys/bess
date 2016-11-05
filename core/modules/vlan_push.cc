@@ -4,6 +4,7 @@
 
 #include <rte_byteorder.h>
 
+#include "../module_msg.pb.h"
 #include "../utils/simd.h"
 #include "vlan_push.h"
 
@@ -11,16 +12,29 @@ const Commands<Module> VLANPush::cmds = {
     {"set_tci", MODULE_FUNC &VLANPush::CommandSetTci, 0},
 };
 
-pb_error_t VLANPush::Init(const bess::protobuf::VLANPushArg &arg) {
-  return CommandSetTci(arg);
+const PbCommands<Module> VLANPush::pb_cmds = {
+    {"set_tci", PB_MODULE_FUNC &VLANPush::CommandSetTci, 0},
+};
+
+pb_error_t VLANPush::Init(const google::protobuf::Any &arg) {
+  bess::pb::ModuleCommandResponse response = CommandSetTci(arg);
+  return response.error();
 }
 
-pb_error_t VLANPush::CommandSetTci(const bess::protobuf::VLANPushArg &arg) {
+bess::pb::ModuleCommandResponse VLANPush::CommandSetTci(
+    const google::protobuf::Any &arg_) {
+  bess::pb::VLANPushArg arg;
+  arg_.UnpackTo(&arg);
+
+  bess::pb::ModuleCommandResponse response;
+
   uint16_t tci;
   tci = arg.tci();
+
   vlan_tag_ = htonl((0x8100 << 16) | tci);
   qinq_tag_ = htonl((0x88a8 << 16) | tci);
-  return pb_errno(0);
+  set_cmd_response_error(&response, pb_errno(0));
+  return response;
 }
 
 struct snobj *VLANPush::Init(struct snobj *arg) {

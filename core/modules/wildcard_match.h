@@ -123,7 +123,7 @@ class WildcardMatch : public Module {
         next_table_id_() {}
 
   virtual struct snobj *Init(struct snobj *arg);
-  pb_error_t Init(const bess::protobuf::WildcardMatchArg &arg);
+  pb_error_t Init(const google::protobuf::Any &arg);
 
   virtual void Deinit();
 
@@ -137,24 +137,25 @@ class WildcardMatch : public Module {
   struct snobj *CommandClear(struct snobj *arg);
   struct snobj *CommandSetDefaultGate(struct snobj *arg);
 
-  pb_error_t CommandAdd(const bess::protobuf::WildcardMatchCommandAddArg &arg);
-  pb_error_t CommandDelete(
-      const bess::protobuf::WildcardMatchCommandDeleteArg &arg);
-  pb_error_t CommandClear(
-      const bess::protobuf::WildcardMatchCommandClearArg &arg);
-  pb_error_t CommandSetDefaultGate(
-      const bess::protobuf::WildcardMatchCommandSetDefaultGateArg &arg);
+  bess::pb::ModuleCommandResponse CommandAdd(const google::protobuf::Any &arg);
+  bess::pb::ModuleCommandResponse CommandDelete(
+      const google::protobuf::Any &arg);
+  bess::pb::ModuleCommandResponse CommandClear(
+      const google::protobuf::Any &arg);
+  bess::pb::ModuleCommandResponse CommandSetDefaultGate(
+      const google::protobuf::Any &arg);
 
   static const gate_idx_t kNumIGates = 1;
   static const gate_idx_t kNumOGates = MAX_GATES;
 
   static const Commands<Module> cmds;
+  static const PbCommands<Module> pb_cmds;
 
  private:
   gate_idx_t LookupEntry(wm_hkey_t *key, gate_idx_t def_gate);
 
   struct snobj *AddFieldOne(struct snobj *field, struct WmField *f);
-  pb_error_t AddFieldOne(const bess::protobuf::WildcardMatchArg_Field &field,
+  pb_error_t AddFieldOne(const bess::pb::WildcardMatchArg_Field &field,
                          struct WmField *f);
 
   void CollectRules(const struct WmTuple *tuple, struct snobj *rules) const;

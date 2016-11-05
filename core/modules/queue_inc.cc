@@ -1,10 +1,17 @@
 #include "queue_inc.h"
+#include "../module_msg.pb.h"
 #include "../port.h"
 
 const Commands<Module> QueueInc::cmds = {
     {"set_burst", MODULE_FUNC &QueueInc::CommandSetBurst, 1}};
 
-pb_error_t QueueInc::Init(const bess::protobuf::QueueIncArg &arg) {
+const PbCommands<Module> QueueInc::pb_cmds = {
+    {"set_burst", PB_MODULE_FUNC &QueueInc::CommandSetBurst, 1}};
+
+pb_error_t QueueInc::Init(const google::protobuf::Any &arg_) {
+  bess::pb::QueueIncArg arg;
+  arg_.UnpackTo(&arg);
+
   const char *port_name;
   task_id_t tid;
   pb_error_t err;
@@ -186,9 +193,13 @@ pb_error_t QueueInc::SetBurst(int64_t burst) {
   return pb_errno(0);
 }
 
-pb_error_t QueueInc::CommandSetBurst(
-    const bess::protobuf::QueueIncCommandSetBurstArg &arg) {
-  return SetBurst(arg.burst());
+bess::pb::ModuleCommandResponse QueueInc::CommandSetBurst(
+    const google::protobuf::Any &arg_) {
+  bess::pb::QueueIncCommandSetBurstArg arg;
+  bess::pb::ModuleCommandResponse response;
+  arg_.UnpackTo(&arg);
+  set_cmd_response_error(&response, SetBurst(arg.burst()));
+  return response;
 }
 
 ADD_MODULE(QueueInc, "queue_inc",

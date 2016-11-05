@@ -95,12 +95,12 @@ void ModuleBuilder::DestroyAllModules() {
 bool ModuleBuilder::RegisterModuleClass(
     std::function<Module *()> module_generator, const std::string &class_name,
     const std::string &name_template, const std::string &help_text,
-    const gate_idx_t num_igates, const gate_idx_t num_ogates,
-    const Commands<Module> &cmds) {
+    const gate_idx_t igates, const gate_idx_t ogates,
+    const Commands<Module> &cmds, const PbCommands<Module> &pb_cmds) {
   all_module_builders_holder().emplace(
       std::piecewise_construct, std::forward_as_tuple(class_name),
       std::forward_as_tuple(module_generator, class_name, name_template,
-                            help_text, num_igates, num_ogates, cmds));
+                            help_text, igates, ogates, cmds, pb_cmds));
   return true;
 }
 
@@ -163,7 +163,7 @@ const std::map<std::string, Module *> &ModuleBuilder::all_modules() {
 }
 
 // -------------------------------------------------------------------------
-pb_error_t Module::Init(const void *) {
+pb_error_t Module::Init(const google::protobuf::Any &) {
   return pb_errno(0);
 }
 

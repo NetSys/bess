@@ -2,6 +2,7 @@
 
 #include <rte_hexdump.h>
 
+#include "../module_msg.pb.h"
 #include "dump.h"
 
 #define NS_PER_SEC 1000000000ul
@@ -10,6 +11,10 @@ static const uint64_t DEFAULT_INTERVAL_NS = 1 * NS_PER_SEC; /* 1 sec */
 
 const Commands<Module> Dump::cmds = {
     {"set_interval", MODULE_FUNC &Dump::CommandSetInterval, 0},
+};
+
+const PbCommands<Module> Dump::pb_cmds = {
+    {"set_interval", PB_MODULE_FUNC &Dump::CommandSetInterval, 0},
 };
 
 struct snobj *Dump::Init(struct snobj *arg) {
@@ -23,15 +28,11 @@ struct snobj *Dump::Init(struct snobj *arg) {
   }
 }
 
-pb_error_t Dump::Init(const bess::protobuf::DumpArg &arg) {
+pb_error_t Dump::Init(const google::protobuf::Any &arg) {
   min_interval_ns_ = DEFAULT_INTERVAL_NS;
   next_ns_ = ctx.current_tsc();
-
-  if (arg.interval() != 0.0) {
-    return CommandSetInterval(arg);
-  } else {
-    return pb_errno(0);
-  }
+  bess::pb::ModuleCommandResponse response = CommandSetInterval(arg);
+  return response.error();
 }
 
 void Dump::ProcessBatch(struct pkt_batch *batch) {
@@ -60,16 +61,24 @@ struct snobj *Dump::CommandSetInterval(struct snobj *arg) {
   return nullptr;
 }
 
-pb_error_t Dump::CommandSetInterval(const bess::protobuf::DumpArg &arg) {
+bess::pb::ModuleCommandResponse Dump::CommandSetInterval(
+    const google::protobuf::Any &arg_) {
+  bess::pb::DumpArg arg;
+  arg_.UnpackTo(&arg);
+
+  bess::pb::ModuleCommandResponse response;
+
   double sec = arg.interval();
 
-  if (std::isnan(sec) || sec < 0.0) {
-    return pb_error(EINVAL, "invalid interval");
+  if (std::isnan(sec) || sec <= 0.0) {
+    set_cmd_response_error(&response, pb_error(EINVAL, "invalid interval"));
+    return response;
   }
 
   min_interval_ns_ = static_cast<uint64_t>(sec * NS_PER_SEC);
 
-  return pb_errno(0);
+  set_cmd_response_error(&response, pb_errno(0));
+  return response;
 }
 
 ADD_MODULE(Dump, "dump", "Dump packet data and metadata attributes")

@@ -7,6 +7,7 @@
 #include <rte_ip.h>
 #include <rte_lpm.h>
 
+#include "../module_msg.pb.h"
 #include "ip_lookup.h"
 
 #define VECTOR_OPTIMIZATION 1
@@ -19,6 +20,10 @@ const Commands<Module> IPLookup::cmds = {
     {"add", MODULE_FUNC &IPLookup::CommandAdd, 0},
     {"clear", MODULE_FUNC &IPLookup::CommandClear, 0},
 };
+
+const PbCommands<Module> IPLookup::pb_cmds = {
+    {"add", PB_MODULE_FUNC &IPLookup::CommandAdd, 0},
+    {"clear", PB_MODULE_FUNC &IPLookup::CommandAdd, 0}};
 
 struct snobj *IPLookup::Init(struct snobj *) {
   struct rte_lpm_config conf = {
@@ -36,7 +41,7 @@ struct snobj *IPLookup::Init(struct snobj *) {
   return nullptr;
 }
 
-pb_error_t IPLookup::Init(const bess::protobuf::IPLookupArg &) {
+pb_error_t IPLookup::Init(const google::protobuf::Any &) {
   struct rte_lpm_config conf = {
       .max_rules = 1024, .number_tbl8s = 128, .flags = 0,
   };
@@ -185,8 +190,13 @@ struct snobj *IPLookup::CommandClear(struct snobj *) {
   return nullptr;
 }
 
-pb_error_t IPLookup::CommandAdd(
-    const bess::protobuf::IPLookupCommandAddArg &arg) {
+bess::pb::ModuleCommandResponse IPLookup::CommandAdd(
+    const google::protobuf::Any &arg_) {
+  bess::pb::IPLookupCommandAddArg arg;
+  arg_.UnpackTo(&arg);
+
+  bess::pb::ModuleCommandResponse response;
+
   struct in_addr ip_addr_be;
   uint32_t ip_addr; /* in cpu order */
   uint32_t netmask;
@@ -194,7 +204,8 @@ pb_error_t IPLookup::CommandAdd(
   gate_idx_t gate = arg.gate();
 
   if (!arg.prefix().length()) {
-    return pb_error(EINVAL, "prefix' is missing");
+    set_cmd_response_error(&response, pb_error(EINVAL, "prefix' is missing"));
+    return response;
   }
 
   const char *prefix = arg.prefix().c_str();
@@ -202,23 +213,31 @@ pb_error_t IPLookup::CommandAdd(
 
   ret = inet_aton(prefix, &ip_addr_be);
   if (!ret) {
-    return pb_error(EINVAL, "Invalid IP prefix: %s", prefix);
+    set_cmd_response_error(&response,
+                           pb_error(EINVAL, "Invalid IP prefix: %s", prefix));
+    return response;
   }
 
   if (prefix_len > 32) {
-    return pb_error(EINVAL, "Invalid prefix length: %d", prefix_len);
+    set_cmd_response_error(
+        &response, pb_error(EINVAL, "Invalid prefix length: %d", prefix_len));
+    return response;
   }
 
   ip_addr = rte_be_to_cpu_32(ip_addr_be.s_addr);
   netmask = ~0 ^ ((1 << (32 - prefix_len)) - 1);
 
   if (ip_addr & ~netmask) {
-    return pb_error(EINVAL, "Invalid IP prefix %s/%d %x %x", prefix, prefix_len,
-                    ip_addr, netmask);
+    set_cmd_response_error(
+        &response, pb_error(EINVAL, "Invalid IP prefix %s/%d %x %x", prefix,
+                            prefix_len, ip_addr, netmask));
+    return response;
   }
 
   if (!is_valid_gate(gate)) {
-    return pb_error(EINVAL, "Invalid gate: %hu", gate);
+    set_cmd_response_error(&response,
+                           pb_error(EINVAL, "Invalid gate: %hu", gate));
+    return response;
   }
 
   if (prefix_len == 0) {
@@ -226,18 +245,23 @@ pb_error_t IPLookup::CommandAdd(
   } else {
     ret = rte_lpm_add(lpm_, ip_addr, prefix_len, gate);
     if (ret) {
-      return pb_error(-ret, "rpm_lpm_add() failed");
+      set_cmd_response_error(&response, pb_error(-ret, "rpm_lpm_add() failed"));
+      return response;
     }
   }
 
-  return pb_errno(0);
+  set_cmd_response_error(&response, pb_errno(0));
+  return response;
 }
 
-pb_error_t IPLookup::CommandClear(
-    const bess::protobuf::IPLookupCommandClearArg &) {
+bess::pb::ModuleCommandResponse IPLookup::CommandClear(
+    const google::protobuf::Any &) {
+  bess::pb::ModuleCommandResponse response;
+
   rte_lpm_delete_all(lpm_);
   default_gate_ = DROP_GATE;
-  return pb_errno(0);
+  set_cmd_response_error(&response, pb_errno(0));
+  return response;
 }
 
 ADD_MODULE(IPLookup, "ip_lookup",

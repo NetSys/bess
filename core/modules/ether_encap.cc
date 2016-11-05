@@ -10,6 +10,7 @@ enum {
 };
 
 const Commands<Module> EtherEncap::cmds = {};
+const PbCommands<Module> EtherEncap::pb_cmds = {};
 
 void EtherEncap::ProcessBatch(struct pkt_batch *batch) {
   int cnt = batch->cnt;

@@ -1,13 +1,17 @@
 #include <rte_byteorder.h>
 
+#include "../module_msg.pb.h"
 #include "../utils/time.h"
 #include "random_update.h"
 
-const Commands<Module> RandomUpdate::cmds = {};
-
-static const Commands<Module> cmds = {
+const Commands<Module> RandomUpdate::cmds = {
     {"add", MODULE_FUNC &RandomUpdate::CommandAdd, 0},
     {"clear", MODULE_FUNC &RandomUpdate::CommandClear, 0},
+};
+
+const PbCommands<Module> RandomUpdate::pb_cmds = {
+    {"add", PB_MODULE_FUNC &RandomUpdate::CommandAdd, 0},
+    {"clear", PB_MODULE_FUNC &RandomUpdate::CommandClear, 0},
 };
 
 struct snobj *RandomUpdate::CommandAdd(struct snobj *arg) {
@@ -114,18 +118,25 @@ struct snobj *RandomUpdate::Init(struct snobj *arg) {
   return CommandAdd(t);
 }
 
-pb_error_t RandomUpdate::Init(const bess::protobuf::RandomUpdateArg &arg) {
-  return CommandAdd(arg);
+pb_error_t RandomUpdate::Init(const google::protobuf::Any &arg) {
+  bess::pb::ModuleCommandResponse response = CommandAdd(arg);
+  return response.error();
 }
 
-pb_error_t RandomUpdate::CommandAdd(
-    const bess::protobuf::RandomUpdateArg &arg) {
+bess::pb::ModuleCommandResponse RandomUpdate::CommandAdd(
+    const google::protobuf::Any &arg_) {
+  bess::pb::RandomUpdateArg arg;
+  arg_.UnpackTo(&arg);
+
+  bess::pb::ModuleCommandResponse response;
+
   int curr = num_vars_;
   if (curr + arg.fields_size() > MAX_VARS) {
-    return pb_error(EINVAL,
-                    "max %d variables "
-                    "can be specified",
-                    MAX_VARS);
+    set_cmd_response_error(&response, pb_error(EINVAL,
+                                               "max %d variables "
+                                               "can be specified",
+                                               MAX_VARS));
+    return response;
   }
 
   for (int i = 0; i < arg.fields_size(); i++) {
@@ -143,7 +154,8 @@ pb_error_t RandomUpdate::CommandAdd(
     max = var.max();
 
     if (offset < 0) {
-      return pb_error(EINVAL, "too small 'offset'");
+      set_cmd_response_error(&response, pb_error(EINVAL, "too small 'offset'"));
+      return response;
     }
 
     switch (size) {
@@ -168,17 +180,21 @@ pb_error_t RandomUpdate::CommandAdd(
         break;
 
       default:
-        return pb_error(EINVAL, "'size' must be 1, 2, or 4");
+        set_cmd_response_error(&response,
+                               pb_error(EINVAL, "'size' must be 1, 2, or 4"));
+        return response;
     }
 
     if (offset + 4 > SNBUF_DATA) {
-      return pb_error(EINVAL, "too large 'offset'");
+      set_cmd_response_error(&response, pb_error(EINVAL, "too large 'offset'"));
+      return response;
     }
 
     if (min > max) {
-      return pb_error(EINVAL,
-                      "'min' should not be "
-                      "greater than 'max'");
+      set_cmd_response_error(&response, pb_error(EINVAL,
+                                                 "'min' should not be "
+                                                 "greater than 'max'"));
+      return response;
     }
 
     vars_[curr + i].offset = offset;
@@ -191,13 +207,17 @@ pb_error_t RandomUpdate::CommandAdd(
 
   num_vars_ = curr + arg.fields_size();
 
-  return pb_errno(0);
+  set_cmd_response_error(&response, pb_errno(0));
+  return response;
 }
 
-pb_error_t RandomUpdate::CommandClear(
-    const bess::protobuf::RandomUpdateCommandClearArg &) {
+bess::pb::ModuleCommandResponse RandomUpdate::CommandClear(
+    const google::protobuf::Any &) {
   num_vars_ = 0;
-  return pb_errno(0);
+
+  bess::pb::ModuleCommandResponse response;
+  set_cmd_response_error(&response, pb_errno(0));
+  return response;
 }
 
 void RandomUpdate::ProcessBatch(struct pkt_batch *batch) {
