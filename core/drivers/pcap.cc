@@ -1,10 +1,6 @@
 #include "pcap.h"
 
-PCAPPort::~PCAPPort() {
-  if (pcap_handle_.is_initialized()) {
-    DeInit();
-  }
-}
+#include "../utils/pcap.h"
 
 // don't use
 struct snobj* PCAPPort::Init(struct snobj*) {
@@ -19,17 +15,19 @@ pb_error_t PCAPPort::Init(const bess::protobuf::PCAPPortArg& arg) {
   const std::string dev = arg.dev();
   pcap_handle_ = PcapHandle(dev);
 
-  if (pcap_handle_.is_initialized()) {
-    return pb_errno(0);
-  } else {
+  if (!pcap_handle_.is_initialized()) {
     return pb_error(EINVAL, "Error initializing device.");
   }
+
+  if (pcap_handle_.SetBlocking(false)) {
+    return pb_error(EINVAL, "Error initializing device.");
+  }
+
+  return pb_errno(0);
 }
 
 void PCAPPort::DeInit() {
-  if (pcap_handle_.is_initialized()) {
-    pcap_handle_.~PcapHandle();
-  }
+  pcap_handle_.Reset();
 }
 
 int PCAPPort::RecvPackets(queue_t qid, snb_array_t pkts, int cnt) {
@@ -84,50 +82,37 @@ int PCAPPort::RecvPackets(queue_t qid, snb_array_t pkts, int cnt) {
   return recv_cnt;
 }
 
-int PCAPPort::SendPackets(queue_t qid, snb_array_t pkts, int cnt) {
+int PCAPPort::SendPackets(queue_t, snb_array_t pkts, int cnt) {
   if (!pcap_handle_.is_initialized()) {
     return 0;  // TODO: Would like to raise an error here...
   }
 
-  int ret;
-  int send_cnt = 0;
+  int sent = 0;
 
-  assert(qid == 0);
-
-  while (send_cnt < cnt) {
-    struct snbuf* sbuf = pkts[send_cnt];
+  while (sent < cnt) {
+    struct snbuf* sbuf = pkts[sent];
 
     if (likely(sbuf->mbuf.nb_segs == 1)) {
-      ret = pcap_handle_.SendPacket((const u_char*)snb_head_data(sbuf),
+      pcap_handle_.SendPacket((const u_char*)snb_head_data(sbuf),
                                     sbuf->mbuf.pkt_len);
     } else if (sbuf->mbuf.pkt_len <= PCAP_SNAPLEN) {
       unsigned char tx_pcap_data[PCAP_SNAPLEN];
       GatherData(tx_pcap_data, &sbuf->mbuf);
-      ret = pcap_handle_.SendPacket(tx_pcap_data, sbuf->mbuf.pkt_len);
-    } else {
-      RTE_LOG(ERR, PMD, "PCAP Packet Drop. Size (%d) > max size (%d).\n",
-              sbuf->mbuf.pkt_len, PCAP_SNAPLEN);
-      break;
+      pcap_handle_.SendPacket(tx_pcap_data, sbuf->mbuf.pkt_len);
     }
 
-    if (unlikely(ret != 0)) {
-      break;
-    }
-
-    send_cnt++;
+    sent++;
   }
 
-  snb_free_bulk(pkts, send_cnt);
-  return send_cnt;
+  snb_free_bulk(pkts, sent);
+  return sent;
 }
 
 void PCAPPort::GatherData(unsigned char* data, struct rte_mbuf* mbuf) {
-  uint16_t data_len = 0;
-
   while (mbuf) {
-    rte_memcpy(data + data_len, rte_pktmbuf_mtod(mbuf, void*), mbuf->data_len);
+    rte_memcpy(data, rte_pktmbuf_mtod(mbuf, void*), mbuf->data_len);
 
-    data_len += mbuf->data_len;
+    data += mbuf->data_len;
     mbuf = mbuf->next;
   }
 }

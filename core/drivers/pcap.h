@@ -11,9 +11,6 @@
 // needs more tests!
 class PCAPPort : public Port {
  public:
-  PCAPPort(){};
-  ~PCAPPort();
-
   virtual pb_error_t Init(const bess::protobuf::PCAPPortArg &arg);
 
   // DEPRECATED DONT USE
