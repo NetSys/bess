@@ -86,37 +86,55 @@ class BessFixture : public benchmark::Fixture {
 BENCHMARK_DEFINE_F(BessFixture, BessGet)(benchmark::State& state) {
   HTableBase *t = static_cast<HTableBase *>(arg_);
 
-  while (state.KeepRunning()) {
+  while (true) {
+    const size_t n = state.range(0);
     rng.SetSeed(0);
-    for (int i = 0; i < state.range(0); i++) {
+
+    for (size_t i = 0; i < n; i++) {
       uint32_t key = rng.Get();
       value_t *val;
 
       val = (value_t *)t->Get(&key);
       assert(val && *val == derive_val(key));
+
+      if (!state.KeepRunning()) {
+        state.SetItemsProcessed(state.iterations());
+        return;
+      }
     }
   }
 }
 
-BENCHMARK_REGISTER_F(BessFixture, BessGet)->RangeMultiplier(4)->Range(4, 4<<20);
+BENCHMARK_REGISTER_F(BessFixture, BessGet)
+    ->RangeMultiplier(4)
+    ->Range(4, 4 << 20);
 
 // Benchmarks the Get() method in HTable, which is inlined.
 BENCHMARK_DEFINE_F(BessFixture, BessInlinedGet)(benchmark::State& state) {
   HTable<uint32_t, value_t, inlined_keycmp, inlined_hash> *t =
       (HTable<uint32_t, value_t, inlined_keycmp, inlined_hash> *)arg_;
 
-  while (state.KeepRunning()) {
+  while (true) {
+    const size_t n = state.range(0);
     rng.SetSeed(0);
-    for (int i = 0; i < state.range(0); i++) {
+
+    for (size_t i = 0; i < n; i++) {
       uint32_t key = rng.Get();
       value_t *val;
 
       val = (value_t *)t->Get(&key);
       assert(val && *val == derive_val(key));
+
+      if (!state.KeepRunning()) {
+        state.SetItemsProcessed(state.iterations());
+        return;
+      }
     }
   }
 }
 
-BENCHMARK_REGISTER_F(BessFixture, BessInlinedGet)->RangeMultiplier(4)->Range(4, 4<<20);
+BENCHMARK_REGISTER_F(BessFixture, BessInlinedGet)
+    ->RangeMultiplier(4)
+    ->Range(4, 4 << 20);
 
 BENCHMARK_MAIN();
