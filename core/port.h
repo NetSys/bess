@@ -9,11 +9,11 @@
 #include <glog/logging.h>
 #include <gtest/gtest_prod.h>
 
-#include "common.h"
 #include "message.h"
 #include "port_msg.pb.h"
 #include "snbuf.h"
 #include "snobj.h"
+#include "utils/common.h"
 
 typedef uint8_t queue_t;
 

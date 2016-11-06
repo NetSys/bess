@@ -5,7 +5,7 @@
 #include <gflags/gflags.h>
 #include <rte_errno.h>
 
-#include "common.h"
+#include "utils/common.h"
 #include "dpdk.h"
 #include "log.h"
 

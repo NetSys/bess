@@ -9,9 +9,9 @@
 #include <cstring>
 #include <string>
 
-#include "common.h"
 #include "debug.h"
 #include "mem_alloc.h"
+#include "utils/common.h"
 
 #define MAX_EXPR_LEN 128 /* including the trailing nullptr */
 

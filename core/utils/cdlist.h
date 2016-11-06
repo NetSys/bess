@@ -3,7 +3,7 @@
 
 #include <cstddef> /* offsetof */
 
-#include "../common.h"
+#include "common.h"
 
 /* Circular, doubly linked list implementation. The idea is very similar to
  * the one in Linux kernel, while we distinguish head and item types.

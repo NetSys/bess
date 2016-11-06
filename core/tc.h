@@ -4,9 +4,9 @@
 #include <string>
 #include <unordered_map>
 
-#include "common.h"
-#include "utils/minheap.h"
 #include "utils/cdlist.h"
+#include "utils/common.h"
+#include "utils/minheap.h"
 #include "utils/simd.h"
 
 #define SCHED_DEBUG 0

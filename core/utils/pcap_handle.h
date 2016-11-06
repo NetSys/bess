@@ -5,7 +5,7 @@
 
 #include <pcap/pcap.h>
 
-#include "../common.h"
+#include "common.h"
 
 // Wraps all accesses to libpcap
 class PcapHandle {

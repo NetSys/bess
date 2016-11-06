@@ -7,11 +7,11 @@
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 
-#include "common.h"
 #include "debug.h"
 #include "mem_alloc.h"
 #include "worker.h"
 #include "task.h"
+#include "utils/common.h"
 #include "utils/time.h"
 #include "utils/random.h"
 

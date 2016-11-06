@@ -4,8 +4,8 @@
 #include <cstdint>
 #include <thread>
 
-#include "common.h"
 #include "pktbatch.h"
+#include "utils/common.h"
 
 #define MAX_WORKERS 4
 
