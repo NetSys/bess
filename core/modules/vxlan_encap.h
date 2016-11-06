@@ -2,13 +2,14 @@
 #define __VXLAN_ENCAP_H__
 
 #include "../module.h"
+#include "../module_msg.pb.h"
 
 class VXLANEncap : public Module {
  public:
   VXLANEncap() : Module(), dstport_() {}
 
   virtual struct snobj *Init(struct snobj *arg);
-  virtual pb_error_t Init(const google::protobuf::Any &arg);
+  virtual pb_error_t Init(const bess::pb::VXLANEncapArg &arg);
   virtual void ProcessBatch(struct pkt_batch *batch);
 
   size_t num_attrs = 6;

@@ -11,6 +11,7 @@
 #include "../kmod/llring.h"
 #include "../log.h"
 #include "../message.h"
+#include "../module_msg.pb.h"
 #include "../port.h"
 
 #define SLOTS_PER_LLRING 1024
@@ -55,7 +56,7 @@ struct vport_bar {
 
 class ZeroCopyVPort : public Port {
  public:
-  pb_error_t Init(const google::protobuf::Any &arg);
+  pb_error_t Init(const bess::pb::EmptyArg &arg);
   struct snobj *Init(struct snobj *conf);
 
   void DeInit();
@@ -160,7 +161,7 @@ struct snobj *ZeroCopyVPort::Init(struct snobj *) {
   return nullptr;
 }
 
-pb_error_t ZeroCopyVPort::Init(const google::protobuf::Any &) {
+pb_error_t ZeroCopyVPort::Init(const bess::pb::EmptyArg &) {
   struct vport_bar *bar = nullptr;
 
   int num_inc_q = num_queues[PACKET_DIR_INC];

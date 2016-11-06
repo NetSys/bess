@@ -18,13 +18,13 @@ class Measure : public Module {
         total_latency_() {}
 
   virtual struct snobj *Init(struct snobj *arg);
-  virtual pb_error_t Init(const google::protobuf::Any &arg);
+  virtual pb_error_t Init(const bess::pb::MeasureArg &arg);
 
   virtual void ProcessBatch(struct pkt_batch *batch);
 
   struct snobj *CommandGetSummary(struct snobj *arg);
-  bess::pb::ModuleCommandResponse CommandGetSummary(
-      const google::protobuf::Any &arg);
+  bess::pb::ModuleCommandResponse CommandGetSummaryPb(
+      const bess::pb::EmptyArg &arg);
 
   static const gate_idx_t kNumIGates = 1;
   static const gate_idx_t kNumOGates = 1;

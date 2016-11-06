@@ -13,6 +13,7 @@
 #include "../kmod/sn_common.h"
 #include "../log.h"
 #include "../message.h"
+#include "../module_msg.pb.h"
 #include "../port.h"
 
 /* TODO: Unify vport and vport_native */
@@ -239,7 +240,7 @@ class VPort : public Port {
  public:
   virtual void InitDriver();
 
-  pb_error_t Init(const google::protobuf::Any &arg);
+  pb_error_t Init(const bess::pb::VPortArg &arg);
   struct snobj *Init(struct snobj *conf);
   void DeInit();
 
@@ -522,10 +523,7 @@ void VPort::DeInit() {
   FreeBar();
 }
 
-pb_error_t VPort::Init(const google::protobuf::Any &arg_) {
-  bess::pb::VPortArg arg;
-  arg_.UnpackTo(&arg);
-
+pb_error_t VPort::Init(const bess::pb::VPortArg &arg) {
   int cpu;
   int rxq;
 

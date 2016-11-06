@@ -1,18 +1,14 @@
 #include "port_inc.h"
-#include "../module_msg.pb.h"
 
 const Commands<Module> PortInc::cmds = {
     {"set_burst", MODULE_FUNC &PortInc::CommandSetBurst, 1},
 };
 
 const PbCommands<Module> PortInc::pb_cmds = {
-    {"set_burst", PB_MODULE_FUNC &PortInc::CommandSetBurst, 1},
+    {"set_burst", PB_MODULE_FUNC(&PortInc::CommandSetBurst), 1},
 };
 
-pb_error_t PortInc::Init(const google::protobuf::Any &arg_) {
-  bess::pb::PortIncArg arg;
-  arg_.UnpackTo(&arg);
-
+pb_error_t PortInc::Init(const bess::pb::PortIncArg &arg) {
   const char *port_name;
   queue_t num_inc_q;
   int ret;
@@ -202,11 +198,9 @@ pb_error_t PortInc::SetBurst(int64_t burst) {
   return pb_errno(0);
 }
 
-bess::pb::ModuleCommandResponse PortInc::CommandSetBurst(
-    const google::protobuf::Any &arg_) {
-  bess::pb::PortIncCommandSetBurstArg arg;
+bess::pb::ModuleCommandResponse PortInc::CommandSetBurstPb(
+    const bess::pb::PortIncCommandSetBurstArg &arg) {
   bess::pb::ModuleCommandResponse response;
-  arg_.UnpackTo(&arg);
   set_cmd_response_error(&response, SetBurst(arg.burst()));
   return response;
 }

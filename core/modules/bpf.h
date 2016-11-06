@@ -3,6 +3,7 @@
 
 #include "../message.h"
 #include "../module.h"
+#include "../module_msg.pb.h"
 
 #define MAX_FILTERS 128
 
@@ -20,7 +21,7 @@ struct filter {
 class BPF : public Module {
  public:
   virtual struct snobj *Init(struct snobj *arg);
-  virtual pb_error_t Init(const google::protobuf::Any &arg);
+  virtual pb_error_t Init(const bess::pb::BPFArg &arg);
   virtual void Deinit();
 
   virtual void ProcessBatch(struct pkt_batch *batch);
@@ -28,9 +29,8 @@ class BPF : public Module {
   struct snobj *CommandAdd(struct snobj *arg);
   struct snobj *CommandClear(struct snobj *arg);
 
-  bess::pb::ModuleCommandResponse CommandAdd(const google::protobuf::Any &arg);
-  bess::pb::ModuleCommandResponse CommandClear(
-      const google::protobuf::Any &arg);
+  bess::pb::ModuleCommandResponse CommandAddPb(const bess::pb::BPFArg &arg);
+  bess::pb::ModuleCommandResponse CommandClearPb(const bess::pb::EmptyArg &arg);
 
   static const gate_idx_t kNumIGates = 1;
   static const gate_idx_t kNumOGates = MAX_GATES;

@@ -7,8 +7,8 @@ const Commands<Module> Rewrite::cmds = {
 };
 
 const PbCommands<Module> Rewrite::pb_cmds = {
-    {"add", PB_MODULE_FUNC &Rewrite::CommandAdd, 0},
-    {"clear", PB_MODULE_FUNC &Rewrite::CommandClear, 0},
+    {"add", PB_MODULE_FUNC(&Rewrite::CommandAdd), 0},
+    {"clear", PB_MODULE_FUNC(&Rewrite::CommandClear), 0},
 };
 
 struct snobj *Rewrite::Init(struct snobj *arg) {
@@ -25,16 +25,13 @@ struct snobj *Rewrite::Init(struct snobj *arg) {
   return CommandAdd(t);
 }
 
-pb_error_t Rewrite::Init(const google::protobuf::Any &arg) {
-  bess::pb::ModuleCommandResponse response = CommandAdd(arg);
+pb_error_t Rewrite::Init(const bess::pb::RewriteArg &arg) {
+  bess::pb::ModuleCommandResponse response = CommandAddPb(arg);
   return response.error();
 }
 
-bess::pb::ModuleCommandResponse Rewrite::CommandAdd(
-    const google::protobuf::Any &arg_) {
-  bess::pb::RewriteArg arg;
-  arg_.UnpackTo(&arg);
-
+bess::pb::ModuleCommandResponse Rewrite::CommandAddPb(
+    const bess::pb::RewriteArg &arg) {
   bess::pb::ModuleCommandResponse response;
 
   int curr = num_templates_;
@@ -75,8 +72,8 @@ bess::pb::ModuleCommandResponse Rewrite::CommandAdd(
   return response;
 }
 
-bess::pb::ModuleCommandResponse Rewrite::CommandClear(
-    const google::protobuf::Any &) {
+bess::pb::ModuleCommandResponse Rewrite::CommandClearPb(
+    const bess::pb::EmptyArg &) {
   next_turn_ = 0;
   num_templates_ = 0;
 

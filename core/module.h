@@ -38,9 +38,9 @@ static_assert(DROP_GATE <= MAX_GATES, "invalid macro value");
 #define MAX_TASKS_PER_MODULE 32
 #define INVALID_TASK_ID ((task_id_t)-1)
 #define MODULE_FUNC (struct snobj * (Module::*)(struct snobj *))
-#define PB_MODULE_FUNC                               \
-  (bess::pb::ModuleCommandResponse(Module::*)( \
-      const google::protobuf::Any &))
+#define PB_MODULE_FUNC                                          \
+  reinterpret_cast<bess::pb::ModuleCommandResponse (Module::*)( \
+      const google::protobuf::Message &)>
 
 struct task_result {
   uint64_t packets;
@@ -109,7 +109,9 @@ using Commands = std::vector<struct Command<T> >;
 template <typename T>
 struct PbCommand {
   std::string cmd;
-  bess::pb::ModuleCommandResponse (T::*func)(const google::protobuf::Any &);
+  std::function<bess::pb::ModuleCommandResponse(
+      T *, const google::protobuf::Message &)>
+      func;
 
   // if non-zero, workers don't need to be paused in order to
   // run this command
@@ -208,10 +210,12 @@ class ModuleBuilder {
 
   bess::pb::ModuleCommandResponse RunCommand(
       Module *m, const std::string &user_cmd,
-      const google::protobuf::Any &arg) const {
+      const google::protobuf::Message &arg) const {
     for (auto &cmd : pb_cmds_) {
-      if (user_cmd == cmd.cmd)
-        return (*m.*(cmd.func))(arg);
+      if (user_cmd == cmd.cmd) {
+        auto bound_func = std::bind(cmd.func, m, std::placeholders::_1);
+        return bound_func(arg);
+      }
     }
     bess::pb::ModuleCommandResponse response;
     set_cmd_response_error(
@@ -242,7 +246,7 @@ class Module {
   Module() = default;
   virtual ~Module(){};
 
-  virtual pb_error_t Init(const google::protobuf::Any &arg);
+  virtual pb_error_t Init(const google::protobuf::Message &arg);
 
   virtual struct snobj *Init(struct snobj *arg);
 
@@ -320,7 +324,7 @@ class Module {
   }
 
   bess::pb::ModuleCommandResponse RunCommand(
-      const std::string &cmd, const google::protobuf::Any &arg) {
+      const std::string &cmd, const google::protobuf::Message &arg) {
     return module_builder_->RunCommand(this, cmd, arg);
   }
 

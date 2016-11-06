@@ -123,10 +123,7 @@ struct snobj *GenericEncap::Init(struct snobj *arg) {
   return nullptr;
 }
 
-pb_error_t GenericEncap::Init(const google::protobuf::Any &arg_) {
-  bess::pb::GenericEncapArg arg;
-  arg_.UnpackTo(&arg);
-
+pb_error_t GenericEncap::Init(const bess::pb::GenericEncapArg &arg) {
   int size_acc = 0;
 
   for (int i = 0; i < arg.fields_size(); i++) {

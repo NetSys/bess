@@ -231,10 +231,7 @@ struct snobj *FlowGen::ProcessArguments(struct snobj *arg) {
   return nullptr;
 }
 
-pb_error_t FlowGen::ProcessArguments(const google::protobuf::Any &arg_) {
-  bess::pb::FlowGenArg arg;
-  arg_.UnpackTo(&arg);
-
+pb_error_t FlowGen::ProcessArguments(const bess::pb::FlowGenArg &arg) {
   if (arg.template_().length() == 0) {
     return pb_error(EINVAL, "must specify 'template'");
   }
@@ -314,7 +311,7 @@ pb_error_t FlowGen::InitFlowPool() {
   return pb_errno(0);
 }
 
-pb_error_t FlowGen::Init(const google::protobuf::Any &arg) {
+pb_error_t FlowGen::Init(const bess::pb::FlowGenArg &arg) {
   task_id_t tid;
   pb_error_t err;
 

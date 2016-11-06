@@ -2,7 +2,6 @@
 #define __L2_FORWARD_H__
 
 #include "../module.h"
-
 #include "../module_msg.pb.h"
 
 struct l2_entry {
@@ -29,7 +28,7 @@ class L2Forward : public Module {
   L2Forward() : Module(), l2_table_(), default_gate_() {}
 
   virtual struct snobj *Init(struct snobj *arg);
-  virtual pb_error_t Init(const google::protobuf::Any &arg);
+  virtual pb_error_t Init(const bess::pb::L2ForwardArg &arg);
 
   virtual void Deinit();
 
@@ -41,15 +40,16 @@ class L2Forward : public Module {
   struct snobj *CommandLookup(struct snobj *arg);
   struct snobj *CommandPopulate(struct snobj *arg);
 
-  bess::pb::ModuleCommandResponse CommandAdd(const google::protobuf::Any &arg);
-  bess::pb::ModuleCommandResponse CommandDelete(
-      const google::protobuf::Any &arg);
-  bess::pb::ModuleCommandResponse CommandSetDefaultGate(
-      const google::protobuf::Any &arg);
-  bess::pb::ModuleCommandResponse CommandLookup(
-      const google::protobuf::Any &arg);
-  bess::pb::ModuleCommandResponse CommandPopulate(
-      const google::protobuf::Any &arg);
+  bess::pb::ModuleCommandResponse CommandAddPb(
+      const bess::pb::L2ForwardCommandAddArg &arg);
+  bess::pb::ModuleCommandResponse CommandDeletePb(
+      const bess::pb::L2ForwardCommandDeleteArg &arg);
+  bess::pb::ModuleCommandResponse CommandSetDefaultGatePb(
+      const bess::pb::L2ForwardCommandSetDefaultGateArg &arg);
+  bess::pb::ModuleCommandResponse CommandLookupPb(
+      const bess::pb::L2ForwardCommandLookupArg &arg);
+  bess::pb::ModuleCommandResponse CommandPopulatePb(
+      const bess::pb::L2ForwardCommandPopulateArg &arg);
 
   static const gate_idx_t kNumIGates = 1;
   static const gate_idx_t kNumOGates = MAX_GATES;

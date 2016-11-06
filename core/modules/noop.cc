@@ -13,7 +13,7 @@ struct snobj *NoOP::Init(struct snobj *) {
   return nullptr;
 }
 
-pb_error_t NoOP::Init(const google::protobuf::Any &) {
+pb_error_t NoOP::Init(const bess::pb::EmptyArg &) {
   task_id_t tid;
 
   tid = RegisterTask(nullptr);

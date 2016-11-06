@@ -1,6 +1,5 @@
 #include <rte_byteorder.h>
 
-#include "../module_msg.pb.h"
 #include "../utils/time.h"
 #include "random_update.h"
 
@@ -10,8 +9,8 @@ const Commands<Module> RandomUpdate::cmds = {
 };
 
 const PbCommands<Module> RandomUpdate::pb_cmds = {
-    {"add", PB_MODULE_FUNC &RandomUpdate::CommandAdd, 0},
-    {"clear", PB_MODULE_FUNC &RandomUpdate::CommandClear, 0},
+    {"add", PB_MODULE_FUNC(&RandomUpdate::CommandAdd), 0},
+    {"clear", PB_MODULE_FUNC(&RandomUpdate::CommandClear), 0},
 };
 
 struct snobj *RandomUpdate::CommandAdd(struct snobj *arg) {
@@ -118,16 +117,13 @@ struct snobj *RandomUpdate::Init(struct snobj *arg) {
   return CommandAdd(t);
 }
 
-pb_error_t RandomUpdate::Init(const google::protobuf::Any &arg) {
-  bess::pb::ModuleCommandResponse response = CommandAdd(arg);
+pb_error_t RandomUpdate::Init(const bess::pb::RandomUpdateArg &arg) {
+  bess::pb::ModuleCommandResponse response = CommandAddPb(arg);
   return response.error();
 }
 
-bess::pb::ModuleCommandResponse RandomUpdate::CommandAdd(
-    const google::protobuf::Any &arg_) {
-  bess::pb::RandomUpdateArg arg;
-  arg_.UnpackTo(&arg);
-
+bess::pb::ModuleCommandResponse RandomUpdate::CommandAddPb(
+    const bess::pb::RandomUpdateArg &arg) {
   bess::pb::ModuleCommandResponse response;
 
   int curr = num_vars_;
@@ -211,8 +207,8 @@ bess::pb::ModuleCommandResponse RandomUpdate::CommandAdd(
   return response;
 }
 
-bess::pb::ModuleCommandResponse RandomUpdate::CommandClear(
-    const google::protobuf::Any &) {
+bess::pb::ModuleCommandResponse RandomUpdate::CommandClearPb(
+    const bess::pb::EmptyArg &) {
   num_vars_ = 0;
 
   bess::pb::ModuleCommandResponse response;

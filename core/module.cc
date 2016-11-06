@@ -163,7 +163,7 @@ const std::map<std::string, Module *> &ModuleBuilder::all_modules() {
 }
 
 // -------------------------------------------------------------------------
-pb_error_t Module::Init(const google::protobuf::Any &) {
+pb_error_t Module::Init(const google::protobuf::Message &) {
   return pb_errno(0);
 }
 

@@ -2,6 +2,7 @@
 #define __QUEUE_OUT_H__
 
 #include "../module.h"
+#include "../module_msg.pb.h"
 #include "../port.h"
 
 class QueueOut : public Module {
@@ -9,7 +10,7 @@ class QueueOut : public Module {
   QueueOut() : Module(), port_(), qid_() {}
 
   virtual struct snobj *Init(struct snobj *arg);
-  virtual pb_error_t Init(const google::protobuf::Any &arg);
+  virtual pb_error_t Init(const bess::pb::QueueOutArg &arg);
 
   virtual void Deinit();
 

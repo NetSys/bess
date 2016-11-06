@@ -75,9 +75,7 @@ struct snobj *MetadataTest::AddAttributes(struct snobj *attributes,
   return nullptr;
 }
 
-pb_error_t MetadataTest::Init(const google::protobuf::Any &arg_) {
-  bess::pb::MetadataTestArg arg;
-  arg_.UnpackTo(&arg);
+pb_error_t MetadataTest::Init(const bess::pb::MetadataTestArg &arg) {
   pb_error_t err;
 
   err = AddAttributes(arg.read(), bess::metadata::AccessMode::READ);

@@ -2,6 +2,7 @@
 #define __GENERIC_DECAP_H__
 
 #include "../module.h"
+#include "../module_msg.pb.h"
 
 class GenericDecap : public Module {
  public:
@@ -11,7 +12,7 @@ class GenericDecap : public Module {
   GenericDecap() : Module(), decap_size_() {}
 
   virtual struct snobj *Init(struct snobj *arg);
-  virtual pb_error_t Init(const google::protobuf::Any &arg);
+  virtual pb_error_t Init(const bess::pb::GenericDecapArg &arg);
 
   virtual void ProcessBatch(struct pkt_batch *batch);
 

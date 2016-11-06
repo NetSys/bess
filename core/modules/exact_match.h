@@ -142,14 +142,14 @@ class ExactMatch : public Module {
   static const Commands<Module> cmds;
   static const PbCommands<Module> pb_cmds;
 
-  pb_error_t Init(const google::protobuf::Any &arg);
-  bess::pb::ModuleCommandResponse CommandAdd(const google::protobuf::Any &arg);
-  bess::pb::ModuleCommandResponse CommandDelete(
-      const google::protobuf::Any &arg);
-  bess::pb::ModuleCommandResponse CommandClear(
-      const google::protobuf::Any &arg);
-  bess::pb::ModuleCommandResponse CommandSetDefaultGate(
-      const google::protobuf::Any &arg);
+  pb_error_t Init(const bess::pb::ExactMatchArg &arg);
+  bess::pb::ModuleCommandResponse CommandAddPb(
+      const bess::pb::ExactMatchCommandAddArg &arg);
+  bess::pb::ModuleCommandResponse CommandDeletePb(
+      const bess::pb::ExactMatchCommandDeleteArg &arg);
+  bess::pb::ModuleCommandResponse CommandClearPb(const bess::pb::EmptyArg &arg);
+  bess::pb::ModuleCommandResponse CommandSetDefaultGatePb(
+      const bess::pb::ExactMatchCommandSetDefaultGateArg &arg);
 
  private:
   struct snobj *AddFieldOne(struct snobj *field, struct EmField *f, int idx);

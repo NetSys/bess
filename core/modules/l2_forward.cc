@@ -1,7 +1,6 @@
 #include <rte_byteorder.h>
 #include <rte_hash_crc.h>
 
-#include "../module_msg.pb.h"
 #include "../utils/simd.h"
 #include "l2_forward.h"
 
@@ -517,11 +516,11 @@ const Commands<Module> L2Forward::cmds = {
 };
 
 const PbCommands<Module> L2Forward::pb_cmds = {
-    {"add", PB_MODULE_FUNC &L2Forward::CommandAdd, 0},
-    {"delete", PB_MODULE_FUNC &L2Forward::CommandDelete, 0},
-    {"set_default_gate", PB_MODULE_FUNC &L2Forward::CommandSetDefaultGate, 1},
-    {"lookup", PB_MODULE_FUNC &L2Forward::CommandLookup, 1},
-    {"populate", PB_MODULE_FUNC &L2Forward::CommandPopulate, 0},
+    {"add", PB_MODULE_FUNC(&L2Forward::CommandAdd), 0},
+    {"delete", PB_MODULE_FUNC(&L2Forward::CommandDelete), 0},
+    {"set_default_gate", PB_MODULE_FUNC(&L2Forward::CommandSetDefaultGate), 1},
+    {"lookup", PB_MODULE_FUNC(&L2Forward::CommandLookup), 1},
+    {"populate", PB_MODULE_FUNC(&L2Forward::CommandPopulate), 0},
 };
 
 struct snobj *L2Forward::Init(struct snobj *arg) {
@@ -550,10 +549,7 @@ struct snobj *L2Forward::Init(struct snobj *arg) {
   return nullptr;
 }
 
-pb_error_t L2Forward::Init(const google::protobuf::Any &arg_) {
-  bess::pb::L2ForwardArg arg;
-  arg_.UnpackTo(&arg);
-
+pb_error_t L2Forward::Init(const bess::pb::L2ForwardArg &arg) {
   int ret = 0;
   int size = arg.size();
   int bucket = arg.bucket();
@@ -599,11 +595,8 @@ void L2Forward::ProcessBatch(struct pkt_batch *batch) {
   RunSplit(out_gates, batch);
 }
 
-bess::pb::ModuleCommandResponse L2Forward::CommandAdd(
-    const google::protobuf::Any &arg_) {
-  bess::pb::L2ForwardCommandAddArg arg;
-  arg_.UnpackTo(&arg);
-
+bess::pb::ModuleCommandResponse L2Forward::CommandAddPb(
+    const bess::pb::L2ForwardCommandAddArg &arg) {
   bess::pb::ModuleCommandResponse response;
 
   for (int i = 0; i < arg.entries_size(); i++) {
@@ -648,11 +641,8 @@ bess::pb::ModuleCommandResponse L2Forward::CommandAdd(
   return response;
 }
 
-bess::pb::ModuleCommandResponse L2Forward::CommandDelete(
-    const google::protobuf::Any &arg_) {
-  bess::pb::L2ForwardCommandDeleteArg arg;
-  arg_.UnpackTo(&arg);
-
+bess::pb::ModuleCommandResponse L2Forward::CommandDeletePb(
+    const bess::pb::L2ForwardCommandDeleteArg &arg) {
   bess::pb::ModuleCommandResponse response;
 
   for (int i = 0; i < arg.addrs_size(); i++) {
@@ -692,11 +682,8 @@ bess::pb::ModuleCommandResponse L2Forward::CommandDelete(
   return response;
 }
 
-bess::pb::ModuleCommandResponse L2Forward::CommandSetDefaultGate(
-    const google::protobuf::Any &arg_) {
-  bess::pb::L2ForwardCommandSetDefaultGateArg arg;
-  arg_.UnpackTo(&arg);
-
+bess::pb::ModuleCommandResponse L2Forward::CommandSetDefaultGatePb(
+    const bess::pb::L2ForwardCommandSetDefaultGateArg &arg) {
   bess::pb::ModuleCommandResponse response;
 
   default_gate_ = arg.gate();
@@ -704,11 +691,8 @@ bess::pb::ModuleCommandResponse L2Forward::CommandSetDefaultGate(
   return response;
 }
 
-bess::pb::ModuleCommandResponse L2Forward::CommandLookup(
-    const google::protobuf::Any &arg_) {
-  bess::pb::L2ForwardCommandLookupArg arg;
-  arg_.UnpackTo(&arg);
-
+bess::pb::ModuleCommandResponse L2Forward::CommandLookupPb(
+    const bess::pb::L2ForwardCommandLookupArg &arg) {
   int i;
   bess::pb::ModuleCommandResponse response;
   bess::pb::L2ForwardCommandLookupResponse ret;
@@ -752,13 +736,9 @@ bess::pb::ModuleCommandResponse L2Forward::CommandLookup(
   return response;
 }
 
-bess::pb::ModuleCommandResponse L2Forward::CommandPopulate(
-    const google::protobuf::Any &arg_) {
-  bess::pb::L2ForwardCommandPopulateArg arg;
-  arg_.UnpackTo(&arg);
-
+bess::pb::ModuleCommandResponse L2Forward::CommandPopulatePb(
+    const bess::pb::L2ForwardCommandPopulateArg &arg) {
   bess::pb::ModuleCommandResponse response;
-
   const char *base;
   char base_str[6] = {0};
   uint64_t base_u64;

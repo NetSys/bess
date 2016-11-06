@@ -2,11 +2,12 @@
 #define __NOOP_H__
 
 #include "../module.h"
+#include "../module_msg.pb.h"
 
 class NoOP : public Module {
  public:
   virtual struct snobj *Init(struct snobj *arg);
-  virtual pb_error_t Init(const google::protobuf::Any &arg);
+  virtual pb_error_t Init(const bess::pb::EmptyArg &arg);
 
   virtual struct task_result RunTask(void *arg);
 

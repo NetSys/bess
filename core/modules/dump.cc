@@ -14,7 +14,7 @@ const Commands<Module> Dump::cmds = {
 };
 
 const PbCommands<Module> Dump::pb_cmds = {
-    {"set_interval", PB_MODULE_FUNC &Dump::CommandSetInterval, 0},
+    {"set_interval", PB_MODULE_FUNC(&Dump::CommandSetInterval), 0},
 };
 
 struct snobj *Dump::Init(struct snobj *arg) {
@@ -28,10 +28,10 @@ struct snobj *Dump::Init(struct snobj *arg) {
   }
 }
 
-pb_error_t Dump::Init(const google::protobuf::Any &arg) {
+pb_error_t Dump::Init(const bess::pb::DumpArg &arg) {
   min_interval_ns_ = DEFAULT_INTERVAL_NS;
   next_ns_ = ctx.current_tsc();
-  bess::pb::ModuleCommandResponse response = CommandSetInterval(arg);
+  bess::pb::ModuleCommandResponse response = CommandSetIntervalPb(arg);
   return response.error();
 }
 
@@ -61,11 +61,8 @@ struct snobj *Dump::CommandSetInterval(struct snobj *arg) {
   return nullptr;
 }
 
-bess::pb::ModuleCommandResponse Dump::CommandSetInterval(
-    const google::protobuf::Any &arg_) {
-  bess::pb::DumpArg arg;
-  arg_.UnpackTo(&arg);
-
+bess::pb::ModuleCommandResponse Dump::CommandSetIntervalPb(
+    const bess::pb::DumpArg &arg) {
   bess::pb::ModuleCommandResponse response;
 
   double sec = arg.interval();

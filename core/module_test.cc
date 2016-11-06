@@ -1,4 +1,5 @@
 #include "module.h"
+#include "module_msg.pb.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -26,7 +27,7 @@ class AcmeModule : public Module {
     return nullptr;
   }
 
-  bess::pb::ModuleCommandResponse Foo(const google::protobuf::Any &) {
+  bess::pb::ModuleCommandResponse FooPb(const bess::pb::EmptyArg &) {
     n += 1;
     return bess::pb::ModuleCommandResponse();
   }
@@ -38,7 +39,7 @@ const Commands<Module> AcmeModule::cmds = {
     {"foo", MODULE_FUNC &AcmeModule::Foo, 0}};
 
 const PbCommands<Module> AcmeModule::pb_cmds = {
-    {"foo", PB_MODULE_FUNC &AcmeModule::Foo, 0}};
+    {"foo", PB_MODULE_FUNC(&AcmeModule::FooPb), 0}};
 
 // Simple harness for testing the Module class.
 class ModuleTester : public ::testing::Test {

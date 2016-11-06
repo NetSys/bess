@@ -1,5 +1,6 @@
 #pragma once
 #include "../module.h"
+#include "../module_msg.pb.h"
 
 /*!
  * TODO: RoundRobin currently does not support multiple workers.
@@ -34,7 +35,7 @@ class RoundRobin : public Module {
       : Module(), gates_(), ngates_(), current_gate_(), per_packet_() {}
 
   virtual struct snobj *Init(struct snobj *arg);
-  virtual pb_error_t Init(const google::protobuf::Any &arg);
+  virtual pb_error_t Init(const bess::pb::RoundRobinArg &arg);
 
   virtual void ProcessBatch(struct pkt_batch *batch);
 
@@ -48,14 +49,14 @@ class RoundRobin : public Module {
    * Switches the RoundRobin module between "batch" vs "packet" scheduling.
    */
   struct snobj *CommandSetMode(struct snobj *arg);
-  bess::pb::ModuleCommandResponse CommandSetMode(
-      const google::protobuf::Any &arg);
+  bess::pb::ModuleCommandResponse CommandSetModePb(
+      const bess::pb::RoundRobinCommandSetModeArg &arg);
   /*!
    * Sets the number of output gates.
    */
   struct snobj *CommandSetGates(struct snobj *arg);
-  bess::pb::ModuleCommandResponse CommandSetGates(
-      const google::protobuf::Any &arg);
+  bess::pb::ModuleCommandResponse CommandSetGatesPb(
+      const bess::pb::RoundRobinCommandSetGatesArg &arg);
 
  private:
   // ID number for each egress gate.

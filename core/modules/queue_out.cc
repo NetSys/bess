@@ -5,10 +5,7 @@
 const Commands<Module> QueueOut::cmds = {};
 const PbCommands<Module> QueueOut::pb_cmds = {};
 
-pb_error_t QueueOut::Init(const google::protobuf::Any &arg_) {
-  bess::pb::QueueOutArg arg;
-  arg_.UnpackTo(&arg);
-
+pb_error_t QueueOut::Init(const bess::pb::QueueOutArg &arg) {
   const char *port_name;
   int ret;
 

@@ -3,13 +3,14 @@
 
 #include "../kmod/llring.h"
 #include "../module.h"
+#include "../module_msg.pb.h"
 
 class Queue : public Module {
  public:
   Queue() : Module(), queue_(), prefetch_(), burst_() {}
 
   virtual struct snobj *Init(struct snobj *arg);
-  virtual pb_error_t Init(const google::protobuf::Any &arg);
+  virtual pb_error_t Init(const bess::pb::QueueArg &arg);
 
   virtual void Deinit();
 
@@ -21,10 +22,10 @@ class Queue : public Module {
   struct snobj *CommandSetBurst(struct snobj *arg);
   struct snobj *CommandSetSize(struct snobj *arg);
 
-  bess::pb::ModuleCommandResponse CommandSetBurst(
-      const google::protobuf::Any &arg);
-  bess::pb::ModuleCommandResponse CommandSetSize(
-      const google::protobuf::Any &arg);
+  bess::pb::ModuleCommandResponse CommandSetBurstPb(
+      const bess::pb::QueueCommandSetBurstArg &arg);
+  bess::pb::ModuleCommandResponse CommandSetSizePb(
+      const bess::pb::QueueCommandSetSizeArg &arg);
 
   static const gate_idx_t kNumIGates = 1;
   static const gate_idx_t kNumOGates = 1;

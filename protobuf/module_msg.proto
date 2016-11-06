@@ -4,7 +4,7 @@ import "bess_msg.proto";
 
 package bess.pb;
 
-message BPFCommandClearArg {
+message EmptyArg {
 }
 
 message ExactMatchCommandAddArg {

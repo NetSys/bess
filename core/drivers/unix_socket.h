@@ -20,13 +20,13 @@
  */
 class UnixSocketPort : public Port {
  public:
-  UnixSocketPort() :
-      Port(),
-      recv_skip_cnt_(),
-      listen_fd_(),
-      addr_(),
-      client_fd_(),
-      old_client_fd_() {}
+  UnixSocketPort()
+      : Port(),
+        recv_skip_cnt_(),
+        listen_fd_(),
+        addr_(),
+        client_fd_(),
+        old_client_fd_() {}
 
   /*!
    * Initialize the port, ie, open the socket.
@@ -34,13 +34,13 @@ class UnixSocketPort : public Port {
    * PARAMETERS:
    * * string path : file name to bind the socket ti.
    */
-  virtual pb_error_t Init(const google::protobuf::Any &arg);
-  
+  virtual pb_error_t Init(const bess::pb::UnixSocketPortArg &arg);
+
   /*!
    * Deprecated. Don't use.
    */
   virtual struct snobj *Init(struct snobj *arg);
-  
+
   /*!
    * Close the socket / shut down the port.
    */
@@ -48,7 +48,7 @@ class UnixSocketPort : public Port {
 
   /*!
    * Receives packets from the device.
-   * 
+   *
    * PARAMETERS:
    * * queue_t quid : socket has no notion of queues so this is ignored.
    * * snb_array_t pkts   : buffer to store received packets in to.
@@ -60,13 +60,12 @@ class UnixSocketPort : public Port {
    *
    * RETURNS:
    * * Total number of packets received (<=cnt)
-   */ 
+   */
   virtual int RecvPackets(queue_t qid, snb_array_t pkts, int cnt);
-  
-  
+
   /*!
    * Sends packets out on the device.
-   * 
+   *
    * PARAMETERS:
    * * queue_t quid : PCAP has no notion of queues so this is ignored.
    * * snb_array_t pkts   : packets to transmit.
@@ -87,9 +86,8 @@ class UnixSocketPort : public Port {
   void AcceptNewClient();
 
  private:
-
   // Value for a disconnected socket.
-  static const int kNotConnectedFd = -1;  
+  static const int kNotConnectedFd = -1;
 
   /*!
    * Closes the client connection but does not shut down the listener fd.
@@ -102,24 +100,22 @@ class UnixSocketPort : public Port {
   * since we last called recv().
   * */
   uint32_t recv_skip_cnt_;
-  
+
   /*!
    * The listener fd -- listen for new connections here.
    */
   int listen_fd_;
-  
-  
+
   /*!
    * My socket address on the listener fd.
    */
   struct sockaddr_un addr_;
 
-  // NOTE: three threads (accept / recv / send) may race on this, so use volatile.
+  // NOTE: three threads (accept / recv / send) may race on this, so use
+  // volatile.
   /* FD for client connection.*/
   volatile int client_fd_;
   /* If client FD is not connected, what was the fd the last time we were
    * connected to a client? */
   int old_client_fd_;
 };
-
-

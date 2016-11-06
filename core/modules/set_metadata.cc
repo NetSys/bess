@@ -78,10 +78,7 @@ pb_error_t SetMetadata::AddAttrOne(
   return pb_errno(0);
 }
 
-pb_error_t SetMetadata::Init(const google::protobuf::Any &arg_) {
-  bess::pb::SetMetadataArg arg;
-  arg_.UnpackTo(&arg);
-
+pb_error_t SetMetadata::Init(const bess::pb::SetMetadataArg &arg) {
   if (!arg.attrs_size()) {
     return pb_error(EINVAL, "'attrs' must be specified");
   }

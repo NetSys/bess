@@ -2,6 +2,7 @@
 #define __WILDCARD_MATCH_H__
 
 #include "../module.h"
+#include "../module_msg.pb.h"
 #include "../port.h"
 #include "../utils/htable.h"
 
@@ -123,7 +124,7 @@ class WildcardMatch : public Module {
         next_table_id_() {}
 
   virtual struct snobj *Init(struct snobj *arg);
-  pb_error_t Init(const google::protobuf::Any &arg);
+  pb_error_t Init(const bess::pb::WildcardMatchArg &arg);
 
   virtual void Deinit();
 
@@ -137,13 +138,13 @@ class WildcardMatch : public Module {
   struct snobj *CommandClear(struct snobj *arg);
   struct snobj *CommandSetDefaultGate(struct snobj *arg);
 
-  bess::pb::ModuleCommandResponse CommandAdd(const google::protobuf::Any &arg);
-  bess::pb::ModuleCommandResponse CommandDelete(
-      const google::protobuf::Any &arg);
-  bess::pb::ModuleCommandResponse CommandClear(
-      const google::protobuf::Any &arg);
-  bess::pb::ModuleCommandResponse CommandSetDefaultGate(
-      const google::protobuf::Any &arg);
+  bess::pb::ModuleCommandResponse CommandAddPb(
+      const bess::pb::WildcardMatchCommandAddArg &arg);
+  bess::pb::ModuleCommandResponse CommandDeletePb(
+      const bess::pb::WildcardMatchCommandDeleteArg &arg);
+  bess::pb::ModuleCommandResponse CommandClearPb(const bess::pb::EmptyArg &arg);
+  bess::pb::ModuleCommandResponse CommandSetDefaultGatePb(
+      const bess::pb::WildcardMatchCommandSetDefaultGateArg &arg);
 
   static const gate_idx_t kNumIGates = 1;
   static const gate_idx_t kNumOGates = MAX_GATES;

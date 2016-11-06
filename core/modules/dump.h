@@ -7,13 +7,13 @@
 class Dump : public Module {
  public:
   virtual struct snobj *Init(struct snobj *arg);
-  pb_error_t Init(const google::protobuf::Any &arg);
+  pb_error_t Init(const bess::pb::DumpArg &arg);
 
   virtual void ProcessBatch(struct pkt_batch *batch);
 
   struct snobj *CommandSetInterval(struct snobj *arg);
-  bess::pb::ModuleCommandResponse CommandSetInterval(
-      const google::protobuf::Any &arg);
+  bess::pb::ModuleCommandResponse CommandSetIntervalPb(
+      const bess::pb::DumpArg &arg);
 
   static const gate_idx_t kNumIGates = 1;
   static const gate_idx_t kNumOGates = 1;

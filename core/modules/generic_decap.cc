@@ -1,13 +1,9 @@
 #include "generic_decap.h"
-#include "../module_msg.pb.h"
 
 const Commands<Module> GenericDecap::cmds = {};
 const PbCommands<Module> GenericDecap::pb_cmds = {};
 
-pb_error_t GenericDecap::Init(const google::protobuf::Any &arg_) {
-  bess::pb::GenericDecapArg arg;
-  arg_.UnpackTo(&arg);
-
+pb_error_t GenericDecap::Init(const bess::pb::GenericDecapArg &arg) {
   if (arg.bytes() == 0) {
     return pb_errno(0);
   }

@@ -22,7 +22,7 @@ class GenericEncap : public Module {
   GenericEncap() : Module(), encap_size_(), num_fields_(), fields_() {}
 
   struct snobj *Init(struct snobj *arg);
-  pb_error_t Init(const google::protobuf::Any &arg);
+  pb_error_t Init(const bess::pb::GenericEncapArg &arg);
 
   void ProcessBatch(struct pkt_batch *batch);
 

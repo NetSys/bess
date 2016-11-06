@@ -7,7 +7,7 @@
 class MetadataTest : public Module {
  public:
   struct snobj *Init(struct snobj *arg);
-  pb_error_t Init(const google::protobuf::Any &arg);
+  pb_error_t Init(const bess::pb::MetadataTestArg &arg);
 
   void ProcessBatch(struct pkt_batch *batch);
 
