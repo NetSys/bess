@@ -1,5 +1,4 @@
 #include "source.h"
-#include "../module_msg.pb.h"
 
 const Commands<Module> Source::cmds = {
     {"set_pkt_size", MODULE_FUNC &Source::command_set_pkt_size, 1},

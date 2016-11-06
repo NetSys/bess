@@ -1,4 +1,5 @@
 #include "port_out.h"
+
 #include "../module_msg.pb.h"
 
 const Commands<Module> PortOut::cmds = {};

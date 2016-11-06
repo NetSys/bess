@@ -1,4 +1,5 @@
 #include "generic_decap.h"
+
 #include "../module_msg.pb.h"
 
 const Commands<Module> GenericDecap::cmds = {};

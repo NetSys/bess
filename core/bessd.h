@@ -1,7 +1,7 @@
 // Utility routines for the main bess daemon.
 
-#ifndef BESS_CORE_BESSD_H_
-#define BESS_CORE_BESSD_H_
+#ifndef BESS_BESSD_H_
+#define BESS_BESSD_H_
 
 #include <tuple>
 
@@ -39,4 +39,4 @@ bool SetResourceLimit();
 }  // namespace bessd
 }  // namespace bess
 
-#endif  // BESS_CORE_BESSD_H_
+#endif  // BESS_BESSD_H_

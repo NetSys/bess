@@ -1,8 +1,7 @@
-#ifndef __MTTEST_H__
-#define __MTTEST_H__
+#ifndef BESS_MODULES_MTTEST_H_
+#define BESS_MODULES_MTTEST_H_
 
 #include "../module.h"
-#include "../module_msg.pb.h"
 
 class MetadataTest : public Module {
  public:
@@ -25,4 +24,4 @@ class MetadataTest : public Module {
       bess::metadata::AccessMode mode);
 };
 
-#endif
+#endif  // BESS_MODULES_MTTEST_H_

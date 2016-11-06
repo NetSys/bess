@@ -1,5 +1,5 @@
-#ifndef __PORT_OUT_H__
-#define __PORT_OUT_H__
+#ifndef BESS_MODULES_PORTOUT_H_
+#define BESS_MODULES_PORTOUT_H_
 
 #include "../module.h"
 #include "../port.h"
@@ -27,4 +27,4 @@ class PortOut : public Module {
   Port *port_;
 };
 
-#endif
+#endif  // BESS_MODULES_PORTOUT_H_

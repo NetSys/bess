@@ -1,10 +1,10 @@
-#pragma once
+#ifndef BESS_DRIVERS_PMD_H_
+#define BESS_DRIVERS_PMD_H_
+
 #include <rte_config.h>
 #include <rte_errno.h>
 #include <rte_ethdev.h>
 
-#include "../log.h"
-#include "../message.h"
 #include "../port.h"
 
 typedef uint8_t dpdk_port_t;
@@ -26,7 +26,7 @@ class PMDPort : public Port {
   /*!
    * Initialize the port. Doesn't actually bind to the device, just grabs all
    * the parameters. InitDriver() does the binding.
-   * 
+   *
    * PARAMETERS:
    * * bool loopback : Is this a loopback device?
    * * uint32 port_id : The DPDK port ID for the device to bind to.
@@ -43,7 +43,7 @@ class PMDPort : public Port {
    * Deprecated! Don't use me :-)
    */
   virtual struct snobj *Init(struct snobj *arg);
-  
+
   /*!
    * Release the device.
    */
@@ -60,7 +60,7 @@ class PMDPort : public Port {
 
   /*!
    * Receives packets from the device.
-   * 
+   *
    * PARAMETERS:
    * * queue_t quid : NIC queue to receive from.
    * * snb_array_t pkts   : buffer to store received packets in to.
@@ -72,13 +72,12 @@ class PMDPort : public Port {
    *
    * RETURNS:
    * * Total number of packets received (<=cnt)
-   */ 
+   */
   virtual int RecvPackets(queue_t qid, snb_array_t pkts, int cnt);
 
-  
   /*!
    * Sends packets out on the device.
-   * 
+   *
    * PARAMETERS:
    * * queue_t quid : NIC queue to transmit on.
    * * snb_array_t pkts   : packets to transmit.
@@ -94,14 +93,15 @@ class PMDPort : public Port {
   virtual int SendPackets(queue_t qid, snb_array_t pkts, int cnt);
 
  private:
-  /*! 
+  /*!
    * The DPDK port ID number (set after binding).
    */
   dpdk_port_t dpdk_port_id_;
 
-  /*! 
+  /*!
    * True if device did not exist when bessd started and was later patched in.
    */
   bool hot_plugged_;
 };
 
+#endif  // BESS_DRIVERS_PMD_H_

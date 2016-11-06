@@ -1,9 +1,10 @@
-#ifndef _TIME_H_
-#define _TIME_H_
+#ifndef BESS_UTILS_TIME_H_
+#define BESS_UTILS_TIME_H_
 
-#include <stdint.h>
-#include <stdlib.h>
-#include <time.h>
+#include <cstdint>
+#include <cstdlib>
+#include <ctime>
+
 #include <sys/time.h>
 
 extern uint64_t tsc_hz;
@@ -37,4 +38,4 @@ static inline double get_cpu_time() {
   }
 }
 
-#endif
+#endif  // BESS_UTILS_TIME_H_

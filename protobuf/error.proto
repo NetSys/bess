@@ -1,0 +1,9 @@
+syntax = "proto3";
+
+package bess.pb;
+
+message Error {
+  int32 err = 1;
+  string errmsg = 2;
+  string details = 3;
+}

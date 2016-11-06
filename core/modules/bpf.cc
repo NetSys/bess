@@ -31,13 +31,14 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <stdint.h>
-#include <stdlib.h>
-#include <string.h>
+#include "bpf.h"
+
+#include <pcap.h>
 #include <sys/mman.h>
 
-#include "bpf.h"
-#include <pcap.h>
+#include <cstdint>
+#include <cstdlib>
+#include <cstring>
 
 #include "../module_msg.pb.h"
 

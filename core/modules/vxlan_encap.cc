@@ -1,3 +1,5 @@
+#include "vxlan_encap.h"
+
 #include <netinet/in.h>
 
 #include <rte_byteorder.h>
@@ -6,9 +8,6 @@
 #include <rte_hash_crc.h>
 #include <rte_ip.h>
 #include <rte_udp.h>
-
-#include "../module_msg.pb.h"
-#include "vxlan_encap.h"
 
 enum {
   ATTR_R_TUN_IP_SRC,

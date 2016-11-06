@@ -1,8 +1,9 @@
-#ifndef _MESSAGE_H_
-#define _MESSAGE_H_
+#ifndef BESS_MESSAGE_H_
+#define BESS_MESSAGE_H_
 
-#include "bess_msg.pb.h"
-#include <stdarg.h>
+#include <cstdarg>
+
+#include "error.pb.h"
 
 typedef bess::pb::Error pb_error_t;
 
@@ -44,15 +45,11 @@ static inline int uint64_to_bin(uint8_t *ptr, int size, uint64_t val, int be) {
     }
   }
 
-  if (val)
+  if (val) {
     return -EINVAL; /* the value is too large for the size */
-  else
+  } else {
     return 0;
+  }
 }
 
-static inline void set_cmd_response_error(
-    bess::pb::ModuleCommandResponse *response, const pb_error_t &error) {
-  response->mutable_error()->CopyFrom(error);
-}
-
-#endif
+#endif  // BESS_MESSAGE_H_

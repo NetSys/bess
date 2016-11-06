@@ -1,5 +1,4 @@
 #include "port_inc.h"
-#include "../module_msg.pb.h"
 
 const Commands<Module> PortInc::cmds = {
     {"set_burst", MODULE_FUNC &PortInc::CommandSetBurst, 1},

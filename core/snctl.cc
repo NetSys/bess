@@ -1,25 +1,19 @@
-#include <assert.h>
-#include <errno.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
+#include "snctl.h"
 
-#include <sys/time.h>
-#include <sys/types.h>
+#include <cerrno>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
 
+#include <gflags/gflags.h>
 #include <rte_config.h>
 #include <rte_ether.h>
 
-#include <gflags/gflags.h>
-
-#include "utils/time.h"
-
-#include "master.h"
+#include "metadata.h"
 #include "module.h"
 #include "port.h"
 #include "tc.h"
-#include "time.h"
+#include "utils/time.h"
 #include "worker.h"
 
 // Capture the default core command line flag.
@@ -718,7 +712,7 @@ static struct snobj *handle_create_module(struct snobj *q) {
                                                   builder.name_template());
   }
 
-  m = builder.CreateModule(mod_name, &default_pipeline);
+  m = builder.CreateModule(mod_name, &bess::metadata::default_pipeline);
 
   err = m->Init(snobj_eval(q, "arg"));
   if (err != nullptr) {

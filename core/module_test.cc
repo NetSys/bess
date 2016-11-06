@@ -69,7 +69,7 @@ int create_acme(const char *name, Module **m) {
                                                   builder.name_template());
   }
 
-  *m = builder.CreateModule(mod_name, &default_pipeline);
+  *m = builder.CreateModule(mod_name, &bess::metadata::default_pipeline);
   builder.AddModule(*m);
 
   EXPECT_EQ("AcmeModule", builder.class_name());

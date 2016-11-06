@@ -11,6 +11,10 @@
 namespace bess {
 namespace metadata {
 
+// TODO: Once the rest of the code supports multiple pipelines, this ought to be
+// a collection of pipelines in bess::metadata a la Ports/Modules.
+Pipeline default_pipeline;
+
 // Helpers -----------------------------------------------------------------
 
 static mt_offset_t ComputeNextOffset(mt_offset_t curr_offset, int8_t size) {

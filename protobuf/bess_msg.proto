@@ -1,21 +1,11 @@
 syntax = "proto3";
 
 import "google/protobuf/any.proto";
+import "error.proto";
 
 package bess.pb;
 
-message Error {
-  int32 err = 1;
-  string errmsg = 2;
-  string details = 3;
-}
-
 message EmptyRequest {
-}
-
-message CreatePortResponse {
-  Error error = 1;
-  string name = 2;
 }
 
 message EmptyResponse {
@@ -128,53 +118,6 @@ message DestroyPortRequest {
   string name = 1;
 }
 
-message PCAPPortArg {
-  string dev = 1;
-}
-
-message PMDPortArg {
-  bool loopback = 1;
-  uint32 port_id = 2;
-  string pci = 3;
-  string vdev = 4;
-}
-
-message UnixSocketPortArg {
-  string path = 1;
-}
-
-message ZeroCopyVPortArg {
-
-}
-
-message VPortArg {
-  string ifname = 1;
-  string docker = 2;
-  int64 container_pid = 3;
-  string netns = 4;
-  repeated int64 rxq_cpus = 5;
-  uint64 tx_tci = 6;
-  uint64 tx_outer_tci = 7;
-  bool loopback = 8;
-  repeated string ip_addrs = 9;
-}
-
-message CreatePortRequest {
-  Port port = 1;
-  uint64 num_inc_q = 2;
-  uint64 num_out_q = 3;
-  uint64 size_inc_q = 4;
-  uint64 size_out_q = 5;
-  string mac_addr = 6;
-  oneof arg {
-    PCAPPortArg pcap_arg = 7;
-    PMDPortArg pmd_arg = 8;
-    UnixSocketPortArg socket_arg = 9;
-    ZeroCopyVPortArg zcvport_arg = 10;
-    VPortArg vport_arg = 11;
-  }
-}
-
 message Port {
   string name = 1;
   string driver = 2;
@@ -283,15 +226,4 @@ message CreateModuleRequest {
   string name = 1;
   string mclass = 2;
   google.protobuf.Any arg = 3;
-}
-
-message ModuleCommandRequest {
-  string name = 1;
-  string cmd = 2;
-  google.protobuf.Any arg = 3;
-}
-
-message ModuleCommandResponse {
-  Error error = 1;
-  google.protobuf.Any other = 2;
 }

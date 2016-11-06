@@ -1,7 +1,7 @@
-#ifndef _CDLIST_H_
-#define _CDLIST_H_
+#ifndef BESS_UTILS_CDLIST_H_
+#define BESS_UTILS_CDLIST_H_
 
-#include <stddef.h> /* offsetof */
+#include <cstddef> /* offsetof */
 
 #include "../common.h"
 
@@ -189,4 +189,4 @@ static inline int cdlist_count(struct cdlist_head *head) {
   return count;
 }
 
-#endif
+#endif  // BESS_UTILS_CDLIST_H_

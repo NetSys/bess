@@ -1,5 +1,5 @@
-#ifndef _LOG_H_
-#define _LOG_H_
+#ifndef BESS_LOG_H_
+#define BESS_LOG_H_
 
 #include <syslog.h>
 
@@ -28,4 +28,4 @@ void end_logger();
 #define log_info(fmt, ...) _log(LOG_INFO, fmt, ##__VA_ARGS__)
 #define log_debug(fmt, ...) _log(LOG_DEBUG, fmt, ##__VA_ARGS__)
 
-#endif
+#endif  // BESS_LOG_H_

@@ -1,4 +1,4 @@
-#include <string.h>
+#include "measure.h"
 
 #include <rte_config.h>
 #include <rte_ether.h>
@@ -7,8 +7,6 @@
 
 #include "../module_msg.pb.h"
 #include "../utils/time.h"
-
-#include "measure.h"
 
 inline int get_measure_packet(struct snbuf *pkt, uint64_t *time) {
   uint8_t *avail = (static_cast<uint8_t *>(snb_head_data(pkt)) +

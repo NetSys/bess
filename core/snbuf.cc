@@ -1,13 +1,13 @@
-#include <assert.h>
+#include "snbuf.h"
 
-#include <rte_errno.h>
+#include <cassert>
 
 #include <gflags/gflags.h>
+#include <rte_errno.h>
 
 #include "common.h"
-#include "log.h"
 #include "dpdk.h"
-#include "snbuf.h"
+#include "log.h"
 
 #define NUM_MEMPOOL_CACHE 512
 

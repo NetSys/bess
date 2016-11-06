@@ -1,8 +1,7 @@
-#ifndef _METADATA_H_
-#define _METADATA_H_
+#ifndef BESS_METADATA_H_
+#define BESS_METADATA_H_
 
-#include <stdint.h>
-
+#include <cstdint>
 #include <map>
 #include <set>
 #include <string>
@@ -174,7 +173,9 @@ class Pipeline {
   std::map<attr_id_t, const struct mt_attr *> attributes_;
 };
 
+extern bess::metadata::Pipeline default_pipeline;
+
 }  // namespace metadata
 }  // namespace bess
 
-#endif
+#endif  // BESS_METADATA_H_

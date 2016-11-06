@@ -1,7 +1,6 @@
-#include <rte_byteorder.h>
-
-#include "../module_msg.pb.h"
 #include "update.h"
+
+#include <rte_byteorder.h>
 
 const Commands<Module> Update::cmds = {
     {"add", MODULE_FUNC &Update::CommandAdd, 0},

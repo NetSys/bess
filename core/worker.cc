@@ -1,30 +1,26 @@
 #include "worker.h"
 
-#include <limits.h>
+#include <cassert>
+#include <climits>
+
 #include <sched.h>
 #include <unistd.h>
-
 #include <sys/eventfd.h>
 
+#include <glog/logging.h>
 #include <rte_config.h>
 #include <rte_lcore.h>
 
-#include <glog/logging.h>
-
-#include "utils/time.h"
-
-#include "common.h"
-#include "module.h"
+#include "metadata.h"
+#include "snbuf.h"
+#include "task.h"
 #include "tc.h"
+#include "utils/time.h"
 
 int num_workers = 0;
 std::thread worker_threads[MAX_WORKERS];
 Worker *volatile workers[MAX_WORKERS];
 thread_local Worker ctx;
-
-// TODO: Once the rest of the code supports multiple pipelines, this ought to be
-// a collection of pipelines in bess::metadata a la Ports/Modules.
-bess::metadata::Pipeline default_pipeline;
 
 struct thread_arg {
   int wid;
@@ -92,7 +88,7 @@ static void resume_worker(int wid) {
 }
 
 void resume_all_workers() {
-  default_pipeline.ComputeMetadataOffsets();
+  bess::metadata::default_pipeline.ComputeMetadataOffsets();
   process_orphan_tasks();
 
   for (int wid = 0; wid < MAX_WORKERS; wid++)

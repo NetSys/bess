@@ -5,8 +5,6 @@
 
 #include "pcap_handle.h"
 
-#include <string>
-
 #include <gtest/gtest.h>
 
 #include "pcap.h"

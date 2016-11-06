@@ -57,12 +57,16 @@ int HTableBase::expand_entries() {
   void *new_entries;
 
   new_entries = mem_realloc(entries_, new_size * entry_size_);
-  if (!new_entries) return -ENOMEM;
+  if (!new_entries) {
+    return -ENOMEM;
+  }
 
   num_entries_ = new_size;
   entries_ = new_entries;
 
-  for (KeyIndex i = new_size - 1; i-- > old_size;) push_free_keyidx(i);
+  for (KeyIndex i = new_size - 1; i-- > old_size;) {
+    push_free_keyidx(i);
+  }
 
   return 0;
 }

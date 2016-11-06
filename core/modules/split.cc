@@ -1,7 +1,6 @@
-#include <rte_byteorder.h>
-
-#include "../module_msg.pb.h"
 #include "split.h"
+
+#include <rte_byteorder.h>
 
 #define MAX_SIZE 8
 

@@ -1,8 +1,6 @@
-#include <string.h>
+#include "vlan_pop.h"
 
 #include <rte_byteorder.h>
-
-#include "vlan_pop.h"
 
 const Commands<Module> VLANPop::cmds = {};
 const PbCommands<Module> VLANPop::pb_cmds = {};

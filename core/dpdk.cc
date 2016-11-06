@@ -1,23 +1,21 @@
-#include <assert.h>
-#include <stdio.h>
-#include <stdlib.h>
+#include "dpdk.h"
+
 #include <unistd.h>
 #include <syslog.h>
 
-#include <rte_config.h>
-#include <rte_cycles.h>
-#include <rte_timer.h>
-#include <rte_ethdev.h>
-#include <rte_eal.h>
-
+#include <cassert>
+#include <cstdio>
+#include <cstdlib>
 #include <string>
 
 #include <glog/logging.h>
+#include <rte_config.h>
+#include <rte_cycles.h>
+#include <rte_eal.h>
+#include <rte_ethdev.h>
 
 #include "utils/time.h"
-
 #include "worker.h"
-#include "dpdk.h"
 
 static int get_numa_count() {
   FILE *fp;
@@ -136,16 +134,8 @@ static void init_eal(char *prog_name, int mb_per_socket, int multi_instance) {
   rte_openlog_stream(fopencookie(nullptr, "w", dpdk_log_funcs));
 }
 
-static void init_timer() { rte_timer_subsystem_init(); }
-
-#if DPDK_VER < DPDK_VER_NUM(2, 0, 0)
-#error DPDK 2.0.0 or higher is required
-#endif
-
 void init_dpdk(char *prog_name, int mb_per_socket, int multi_instance) {
   init_eal(prog_name, mb_per_socket, multi_instance);
 
   tsc_hz = rte_get_tsc_hz();
-
-  init_timer();
 }

@@ -1,8 +1,3 @@
-#include <rte_config.h>
-#include <rte_hash_crc.h>
-
-#include "../module_msg.pb.h"
-#include "../utils/htable.h"
 #include "wildcard_match.h"
 
 /* k1 = k2 & mask */

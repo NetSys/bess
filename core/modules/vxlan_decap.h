@@ -1,5 +1,5 @@
-#ifndef __VXLAN_DECAP_H__
-#define __VXLAN_DECAP_H__
+#ifndef BESS_MODULES_VXLANDECAP_H_
+#define BESS_MODULES_VXLANDECAP_H_
 
 #include "../module.h"
 
@@ -33,4 +33,4 @@ class VXLANDecap : public Module {
   static const PbCommands<Module> pb_cmds;
 };
 
-#endif
+#endif  // BESS_MODULES_VXLANDECAP_H_

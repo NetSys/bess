@@ -1,13 +1,12 @@
-#include <assert.h>
-#include <stdio.h>
-#include <errno.h>
-#include <stdarg.h>
-#include <stdint.h>
-#include <inttypes.h>
+#include "snobj.h"
+
+#include <cassert>
+#include <cstdio>
+#include <cerrno>
+#include <cstdarg>
+#include <cinttypes>
 
 #include "log.h"
-
-#include "snobj.h"
 
 #define DEF_LIST_SLOTS 4
 #define DEF_MAP_SLOTS 4

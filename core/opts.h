@@ -1,5 +1,5 @@
-#ifndef _OPTS_H_
-#define _OPTS_H_
+#ifndef BESS_OPTS_H_
+#define BESS_OPTS_H_
 
 #include <gflags/gflags.h>
 
@@ -15,4 +15,4 @@ DECLARE_int32(c);
 DECLARE_int32(p);
 DECLARE_int32(m);
 
-#endif
+#endif  // BESS_OPTS_H_

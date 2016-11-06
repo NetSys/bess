@@ -1,5 +1,5 @@
 #include "queue_out.h"
-#include "../module_msg.pb.h"
+
 #include "../port.h"
 
 const Commands<Module> QueueOut::cmds = {};

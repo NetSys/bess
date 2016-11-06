@@ -1,8 +1,6 @@
-#include <string.h>
+#include "vlan_split.h"
 
 #include <rte_byteorder.h>
-
-#include "vlan_split.h"
 
 const Commands<Module> VLANSplit::cmds = {};
 const PbCommands<Module> VLANSplit::pb_cmds = {};

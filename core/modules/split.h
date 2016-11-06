@@ -1,5 +1,5 @@
-#ifndef __SPLIT_H__
-#define __SPLIT_H__
+#ifndef BESS_MODULES_SPLIT_H_
+#define BESS_MODULES_SPLIT_H_
 
 #include "../module.h"
 
@@ -25,4 +25,4 @@ class Split : public Module {
   int size_;
 };
 
-#endif
+#endif  // BESS_MODULES_SPLIT_H_

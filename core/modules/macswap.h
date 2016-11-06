@@ -1,5 +1,5 @@
-#ifndef __MACSWAP_H__
-#define __MACSWAP_H__
+#ifndef BESS_MODULES_MACSWAP_H_
+#define BESS_MODULES_MACSWAP_H_
 
 #include "../module.h"
 
@@ -14,4 +14,4 @@ class MACSwap : public Module {
   static const PbCommands<Module> pb_cmds;
 };
 
-#endif
+#endif  // BESS_MODULES_MACSWAP_H_
