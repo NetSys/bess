@@ -191,4 +191,4 @@ class unique_fd {
   DISALLOW_COPY_AND_ASSIGN(unique_fd);
 };
 
-#endif  // BESS_COMMON_H_
+#endif  // BESS_UTILS_COMMON_H_
