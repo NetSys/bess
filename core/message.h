@@ -7,10 +7,6 @@
 
 typedef bess::pb::Error pb_error_t;
 
-const std::string string_vformat(const char *fmt, va_list ap);
-
-const std::string string_format(const char *fmt, ...);
-
 pb_error_t pb_error_details(int code, const char *details, const char *fmt,
                             ...);
 

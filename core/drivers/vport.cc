@@ -14,6 +14,7 @@
 
 #include "../log.h"
 #include "../message.h"
+#include "../utils/format.h"
 
 /* TODO: Unify vport and vport_native */
 
@@ -195,7 +196,7 @@ static pb_error_t docker_container_pid(const std::string &cid,
   fp = popen(buf, "r");
   if (!fp) {
     const std::string details =
-        string_format("popen() errno=%d (%s)", errno, strerror(errno));
+        bess::utils::Format("popen() errno=%d (%s)", errno, strerror(errno));
 
     return pb_error_details(
         ESRCH, details.c_str(),

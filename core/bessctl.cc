@@ -17,6 +17,7 @@
 #include "module.h"
 #include "port.h"
 #include "tc.h"
+#include "utils/format.h"
 #include "utils/time.h"
 #include "worker.h"
 
@@ -42,7 +43,7 @@ static inline Status return_with_error(T* response, int code, const char* fmt,
   va_list ap;
   va_start(ap, fmt);
   response->mutable_error()->set_err(code);
-  response->mutable_error()->set_errmsg(string_vformat(fmt, ap));
+  response->mutable_error()->set_errmsg(bess::utils::FormatVarg(fmt, ap));
   va_end(ap);
   return Status::OK;
 }
@@ -172,7 +173,8 @@ static ::Port* create_port(const std::string& name, const PortBuilder& driver,
   if (name.length() > 0) {
     if (PortBuilder::all_ports().count(name)) {
       perr->set_err(EEXIST);
-      perr->set_errmsg(string_format("Port '%s' already exists", name.c_str()));
+      perr->set_errmsg(
+          bess::utils::Format("Port '%s' already exists", name.c_str()));
       return nullptr;
     }
     port_name = name;
@@ -1084,7 +1086,7 @@ void RunControl() {
   ServerBuilder builder;
 
   if (FLAGS_p) {
-    server_address = string_format("127.0.0.1:%d", FLAGS_p);
+    server_address = bess::utils::Format("127.0.0.1:%d", FLAGS_p);
     builder.AddListeningPort(server_address, grpc::InsecureServerCredentials());
   }
 
