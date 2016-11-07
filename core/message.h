@@ -11,8 +11,8 @@ typedef bess::pb::Error pb_error_t;
                                                           const char *details,
                                                           const char *fmt, ...);
 
-[[gnu::format(printf, 2, 3)]] pb_error_t pb_error(int code, const char *fmt,
-                                                  ...);
+#define pb_error(code, fmt, ...) \
+  pb_error_details(code, nullptr, fmt, ##__VA_ARGS__)
 
 static inline pb_error_t pb_errno_details(int code, const char *details) {
   return pb_error_details(code, details, "%s", strerror(code));

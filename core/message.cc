@@ -22,11 +22,3 @@ pb_error_t pb_error_details(int code, const char *details, const char *fmt,
 
   return p;
 }
-
-pb_error_t pb_error(int code, const char *fmt, ...) {
-  va_list ap;
-  va_start(ap, fmt);
-  pb_error_t p = pb_error_details(code, nullptr, fmt, ap);
-  va_end(ap);
-  return p;
-}
