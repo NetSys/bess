@@ -180,7 +180,9 @@ void _tc_do_free(struct tc *c);
 void tc_join(struct tc *c);
 void tc_leave(struct tc *c);
 
-static inline void tc_inc_refcnt(struct tc *c) { c->refcnt++; }
+static inline void tc_inc_refcnt(struct tc *c) {
+  c->refcnt++;
+}
 
 static inline void tc_dec_refcnt(struct tc *c) {
   c->refcnt--;
@@ -197,9 +199,5 @@ void sched_free(struct sched *s);
 void schedule_once(struct sched *s);
 
 void sched_loop(struct sched *s);
-
-void sched_test_alloc();
-
-void print_last_stats(struct sched *s);
 
 #endif  // BESS_TC_H_
