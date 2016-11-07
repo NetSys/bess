@@ -1,16 +1,10 @@
 syntax = "proto3";
 
-import "google/protobuf/any.proto";
 import "error.proto";
 
 package bess.pb;
 
 // TODO: add something like PortCommandRequest
-
-// Added to suppress "unused" warning.
-message _DummyMessage {
-  google.protobuf.Any _dummy = 1;
-}
 
 message CreatePortRequest {
   string name = 1;
