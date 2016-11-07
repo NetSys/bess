@@ -4,7 +4,6 @@
 
 #include <rte_byteorder.h>
 
-#include "../module_msg.pb.h"
 #include "../utils/format.h"
 #include "../utils/simd.h"
 #include "vlan_push.h"

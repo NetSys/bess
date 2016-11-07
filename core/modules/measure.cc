@@ -5,7 +5,6 @@
 #include <rte_ip.h>
 #include <rte_tcp.h>
 
-#include "../module_msg.pb.h"
 #include "../utils/time.h"
 
 inline int get_measure_packet(struct snbuf *pkt, uint64_t *time) {

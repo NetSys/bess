@@ -2,7 +2,6 @@
 
 #include <rte_byteorder.h>
 
-#include "../module_msg.pb.h"
 #include "../utils/time.h"
 
 const Commands<Module> RandomUpdate::cmds = {

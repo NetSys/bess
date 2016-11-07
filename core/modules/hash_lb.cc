@@ -2,8 +2,6 @@
 
 #include <rte_hash_crc.h>
 
-#include "../module_msg.pb.h"
-
 const enum LbMode DEFAULT_MODE = LB_L4;
 
 static inline uint32_t hash_64(uint64_t val, uint32_t init_val) {

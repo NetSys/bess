@@ -2,7 +2,6 @@
 #define BESS_MODULES_MEASURE_H_
 
 #include "../module.h"
-#include "../module_msg.pb.h"
 #include "../utils/histogram.h"
 
 class Measure : public Module {

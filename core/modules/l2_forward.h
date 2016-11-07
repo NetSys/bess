@@ -2,7 +2,6 @@
 #define BESS_MODULES_L2FORWARD_H_
 
 #include "../module.h"
-#include "../module_msg.pb.h"
 
 struct l2_entry {
   union {

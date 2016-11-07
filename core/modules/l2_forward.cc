@@ -4,7 +4,6 @@
 #include <rte_byteorder.h>
 #include <rte_hash_crc.h>
 
-#include "../module_msg.pb.h"
 #include "../utils/simd.h"
 
 #define MAX_TABLE_SIZE (1048576 * 64)

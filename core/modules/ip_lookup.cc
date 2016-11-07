@@ -9,8 +9,6 @@
 #include <rte_ip.h>
 #include <rte_lpm.h>
 
-#include "../module_msg.pb.h"
-
 #define VECTOR_OPTIMIZATION 1
 
 static inline int is_valid_gate(gate_idx_t gate) {
