@@ -6,7 +6,7 @@
 namespace bess {
 namespace utils {
 
-const std::string Format(const char *fmt, ...) {
+std::string Format(const char *fmt, ...) {
   va_list ap;
   va_start(ap, fmt);
   const std::string s = FormatVarg(fmt, ap);
@@ -14,7 +14,7 @@ const std::string Format(const char *fmt, ...) {
   return s;
 }
 
-const std::string FormatVarg(const char *fmt, va_list ap) {
+std::string FormatVarg(const char *fmt, va_list ap) {
   const int init_bufsize = 128;
   std::unique_ptr<char[]> buf;
 

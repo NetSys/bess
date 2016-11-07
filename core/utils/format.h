@@ -9,8 +9,8 @@
 namespace bess {
 namespace utils {
 
-const std::string Format(const char *fmt, ...);
-const std::string FormatVarg(const char *fmt, va_list ap);
+std::string Format(const char *fmt, ...);
+std::string FormatVarg(const char *fmt, va_list ap);
 
 }  // namespace utils
 }  // namespace bess

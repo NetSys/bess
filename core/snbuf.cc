@@ -3,11 +3,11 @@
 #include <cassert>
 
 #include <gflags/gflags.h>
+#include <glog/logging.h>
 #include <rte_errno.h>
 
 #include "utils/common.h"
 #include "dpdk.h"
-#include "log.h"
 
 #define NUM_MEMPOOL_CACHE 512
 
@@ -56,21 +56,18 @@ again:
       &pool_priv, snbuf_pkt_init, (void *)(uintptr_t)sid, sid, 0);
 
   if (!pframe_pool[sid]) {
-    log_info("Allocating %d buffers on socket %d: Failed (%s)", current_try - 1,
-             sid, rte_strerror(rte_errno));
+    LOG(INFO) << "Allocating " << current_try - 1 << " buffers on socket "
+              << sid << ": Failed (" << rte_strerror(rte_errno) << ")";
     if (current_try > minimum_try) {
-      log_info(" - retrying...\n"), current_try /= 2;
+      current_try /= 2;
       goto again;
     }
 
-    log_info("\n");
-    log_crit("Packet buffer allocation failed on socket %d\n", sid);
-    exit(EXIT_FAILURE);
+    LOG(FATAL) << "Packet buffer allocation failed on socket " << sid;
   }
 
-  log_info("Allocating %d buffers on socket %d: OK\n", current_try - 1, sid);
-
-  if (FLAGS_d) rte_mempool_dump(stdout, pframe_pool[sid]);
+  LOG(INFO) << "Allocating " << current_try - 1 << " buffers on socket " << sid
+            << ": OK";
 }
 
 static void init_templates(void) {
@@ -152,11 +149,9 @@ struct snbuf *paddr_to_snb(phys_addr_t paddr) {
       if (!snb) continue;
 
       if (snb_to_paddr(snb) != paddr) {
-        log_err(
-            "snb->immutable.paddr corruption: "
-            "snb=%p, snb->immutable.paddr="
-            "%" PRIx64 " (!= %" PRIx64 ")\n",
-            snb, snb->paddr, paddr);
+        LOG(ERROR) << "snb->immutable.paddr corruption: snb=" << snb
+                   << ", snb->immutable.paddr=" << snb->paddr
+                   << " (!= " << paddr << ")";
         return nullptr;
       }
 

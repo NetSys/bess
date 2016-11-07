@@ -1,21 +1,19 @@
 #include "bessctl.h"
 
 #include <gflags/gflags.h>
-
-#include <rte_config.h>
-#include <rte_ether.h>
-
+#include <glog/logging.h>
 #include <grpc++/server.h>
 #include <grpc++/server_builder.h>
 #include <grpc++/server_context.h>
 #include <grpc/grpc.h>
-
-#include "service.grpc.pb.h"
+#include <rte_config.h>
+#include <rte_ether.h>
 
 #include "message.h"
 #include "metadata.h"
 #include "module.h"
 #include "port.h"
+#include "service.grpc.pb.h"
 #include "tc.h"
 #include "utils/format.h"
 #include "utils/time.h"
@@ -272,11 +270,11 @@ class BESSControlImpl final : public BESSControl::Service {
   }
   Status PauseAll(ClientContext*, const EmptyRequest&, EmptyResponse*) {
     pause_all_workers();
-    log_info("*** All workers have been paused ***\n");
+    LOG(INFO) << "*** All workers have been paused ***";
     return Status::OK;
   }
   Status ResumeAll(ClientContext*, const EmptyRequest&, EmptyResponse*) {
-    log_info("*** Resuming ***\n");
+    LOG(INFO) << "*** Resuming ***";
     resume_all_workers();
     return Status::OK;
   }
@@ -286,7 +284,7 @@ class BESSControlImpl final : public BESSControl::Service {
       return return_with_error(response, EBUSY, "There is a running worker");
     }
     destroy_all_workers();
-    log_info("*** All workers have been destroyed ***\n");
+    LOG(INFO) << "*** All workers have been destroyed ***";
     return Status::OK;
   }
   Status ListWorkers(ClientContext*, const EmptyRequest&,
@@ -555,7 +553,7 @@ class BESSControlImpl final : public BESSControl::Service {
       it = it_next;
     }
 
-    log_info("*** All ports have been destroyed ***\n");
+    LOG(INFO) << "*** All ports have been destroyed ***";
     return Status::OK;
   }
   Status ListPorts(ClientContext*, const EmptyRequest&,
@@ -689,7 +687,7 @@ class BESSControlImpl final : public BESSControl::Service {
     }
 
     ModuleBuilder::DestroyAllModules();
-    log_info("*** All modules have been destroyed ***\n");
+    LOG(INFO) << "*** All modules have been destroyed ***";
     return Status::OK;
   }
   Status ListModules(ClientContext*, const EmptyRequest&,
@@ -1001,7 +999,7 @@ class BESSControlImpl final : public BESSControl::Service {
     if (is_any_worker_running()) {
       return return_with_error(response, EBUSY, "There is a running worker");
     }
-    log_notice("Halt requested by a client\n");
+    LOG(WARNING) << "Halt requested by a client\n";
     exit(EXIT_SUCCESS);
 
     /* Never called */

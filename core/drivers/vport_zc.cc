@@ -9,7 +9,6 @@
 #include <rte_malloc.h>
 
 #include "../kmod/llring.h"
-#include "../log.h"
 #include "../message.h"
 #include "../port.h"
 
@@ -137,7 +136,7 @@ struct snobj *ZeroCopyVPort::Init(struct snobj *) {
   if (stat(port_dir, &sb) == 0) {
     assert((sb.st_mode & S_IFMT) == S_IFDIR);
   } else {
-    log_info("Creating directory %s\n", port_dir);
+    LOG(INFO) << "Creating directory " << port_dir;
     mkdir(port_dir, S_IRWXU | S_IRWXG | S_IRWXO);
   }
 
@@ -152,7 +151,7 @@ struct snobj *ZeroCopyVPort::Init(struct snobj *) {
 
   snprintf(file_name, PORT_NAME_LEN + 256, "%s/%s/%s", P_tmpdir,
            VPORT_DIR_PREFIX, name().c_str());
-  log_info("Writing port information to %s\n", file_name);
+  LOG(INFO) << "Writing port information to " << file_name;
   fp = fopen(file_name, "w");
   fwrite(&bar_address, 8, 1, fp);
   fclose(fp);
@@ -222,7 +221,7 @@ pb_error_t ZeroCopyVPort::Init(const google::protobuf::Any &) {
   if (stat(port_dir, &sb) == 0) {
     assert((sb.st_mode & S_IFMT) == S_IFDIR);
   } else {
-    log_info("Creating directory %s\n", port_dir);
+    LOG(INFO) << "Creating directory " << port_dir;
     mkdir(port_dir, S_IRWXU | S_IRWXG | S_IRWXO);
   }
 
@@ -237,7 +236,7 @@ pb_error_t ZeroCopyVPort::Init(const google::protobuf::Any &) {
 
   snprintf(file_name, PORT_NAME_LEN + 256, "%s/%s/%s", P_tmpdir,
            VPORT_DIR_PREFIX, name().c_str());
-  log_info("Writing port information to %s\n", file_name);
+  LOG(INFO) << "Writing port information to " << file_name;
   fp = fopen(file_name, "w");
   fwrite(&bar_address, 8, 1, fp);
   fclose(fp);
