@@ -42,7 +42,7 @@ const Commands<Module> AcmeModule::cmds = {
     {"foo", MODULE_FUNC &AcmeModule::Foo, 0}};
 
 const PbCommands AcmeModule::pb_cmds = {
-    {"foo", PB_MODULE_FUNC(&AcmeModule::FooPb), 0}};
+    {"foo", MODULE_CMD_FUNC(&AcmeModule::FooPb), 0}};
 
 // Simple harness for testing the Module class.
 class ModuleTester : public ::testing::Test {

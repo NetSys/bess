@@ -6,8 +6,8 @@ const Commands<Module> Source::cmds = {
 };
 
 const PbCommands Source::pb_cmds = {
-    {"set_pkt_size", PB_MODULE_FUNC(&Source::CommandSetPktSizePb), 1},
-    {"set_burst", PB_MODULE_FUNC(&Source::CommandSetBurstPb), 1},
+    {"set_pkt_size", MODULE_CMD_FUNC(&Source::CommandSetPktSizePb), 1},
+    {"set_burst", MODULE_CMD_FUNC(&Source::CommandSetBurstPb), 1},
 };
 
 pb_error_t Source::InitPb(const bess::pb::SourceArg &arg) {

@@ -24,7 +24,7 @@ const Commands<Module> Measure::cmds = {
 };
 
 const PbCommands Measure::pb_cmds = {
-    {"get_summary", PB_MODULE_FUNC(&Measure::CommandGetSummaryPb), 0},
+    {"get_summary", MODULE_CMD_FUNC(&Measure::CommandGetSummaryPb), 0},
 };
 
 struct snobj *Measure::Init(struct snobj *arg) {

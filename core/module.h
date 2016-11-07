@@ -40,7 +40,7 @@ static_assert(DROP_GATE <= MAX_GATES, "invalid macro value");
 template <typename T, typename M>
 static inline std::function<
     bess::pb::ModuleCommandResponse(Module *, const google::protobuf::Any &)>
-PB_MODULE_FUNC(bess::pb::ModuleCommandResponse (M::*fn)(const T &)) {
+MODULE_CMD_FUNC(bess::pb::ModuleCommandResponse (M::*fn)(const T &)) {
   return [=](Module *m,
              google::protobuf::Any arg) -> bess::pb::ModuleCommandResponse {
     T arg_;
@@ -53,7 +53,7 @@ PB_MODULE_FUNC(bess::pb::ModuleCommandResponse (M::*fn)(const T &)) {
 
 template <typename T, typename M>
 static inline std::function<pb_error_t(Module *, const google::protobuf::Any &)>
-PB_INIT_FUNC(pb_error_t (M::*fn)(const T &)) {
+MODULE_INIT_FUNC(pb_error_t (M::*fn)(const T &)) {
   return [=](Module *m, google::protobuf::Any arg) -> pb_error_t {
     T arg_;
     arg.UnpackTo(&arg_);
@@ -548,6 +548,6 @@ INSTANTIATE_MT_FOR_TYPE(uint64_t)
   bool __module__##_MOD = ModuleBuilder::RegisterModuleClass(                \
       std::function<Module *()>([]() { return new _MOD(); }), #_MOD,         \
       _NAME_TEMPLATE, _HELP, _MOD::kNumIGates, _MOD::kNumOGates, _MOD::cmds, \
-      _MOD::pb_cmds, PB_INIT_FUNC(&_MOD::InitPb));
+      _MOD::pb_cmds, MODULE_INIT_FUNC(&_MOD::InitPb));
 
 #endif  // BESS_MODULE_H_

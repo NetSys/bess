@@ -8,8 +8,8 @@ const Commands<Module> Update::cmds = {
 };
 
 const PbCommands Update::pb_cmds = {
-    {"add", PB_MODULE_FUNC(&Update::CommandAddPb), 0},
-    {"clear", PB_MODULE_FUNC(&Update::CommandClearPb), 0},
+    {"add", MODULE_CMD_FUNC(&Update::CommandAddPb), 0},
+    {"clear", MODULE_CMD_FUNC(&Update::CommandClearPb), 0},
 };
 
 struct snobj *Update::Init(struct snobj *arg) {

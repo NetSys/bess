@@ -18,10 +18,10 @@ const Commands<Module> ExactMatch::cmds = {
     {"set_default_gate", MODULE_FUNC &ExactMatch::CommandSetDefaultGate, 1}};
 
 const PbCommands ExactMatch::pb_cmds = {
-    {"add", PB_MODULE_FUNC(&ExactMatch::CommandAddPb), 0},
-    {"delete", PB_MODULE_FUNC(&ExactMatch::CommandDeletePb), 0},
-    {"clear", PB_MODULE_FUNC(&ExactMatch::CommandClearPb), 0},
-    {"set_default_gate", PB_MODULE_FUNC(&ExactMatch::CommandSetDefaultGatePb),
+    {"add", MODULE_CMD_FUNC(&ExactMatch::CommandAddPb), 0},
+    {"delete", MODULE_CMD_FUNC(&ExactMatch::CommandDeletePb), 0},
+    {"clear", MODULE_CMD_FUNC(&ExactMatch::CommandClearPb), 0},
+    {"set_default_gate", MODULE_CMD_FUNC(&ExactMatch::CommandSetDefaultGatePb),
      1}};
 
 pb_error_t ExactMatch::AddFieldOne(const bess::pb::ExactMatchArg_Field &field,

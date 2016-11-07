@@ -6,8 +6,8 @@ const Commands<Module> Rewrite::cmds = {
 };
 
 const PbCommands Rewrite::pb_cmds = {
-    {"add", PB_MODULE_FUNC(&Rewrite::CommandAddPb), 0},
-    {"clear", PB_MODULE_FUNC(&Rewrite::CommandClearPb), 0},
+    {"add", MODULE_CMD_FUNC(&Rewrite::CommandAddPb), 0},
+    {"clear", MODULE_CMD_FUNC(&Rewrite::CommandClearPb), 0},
 };
 
 struct snobj *Rewrite::Init(struct snobj *arg) {

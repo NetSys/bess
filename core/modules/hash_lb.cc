@@ -41,8 +41,8 @@ const Commands<Module> HashLB::cmds = {
 };
 
 const PbCommands HashLB::pb_cmds = {
-    {"set_mode", PB_MODULE_FUNC(&HashLB::CommandSetModePb), 0},
-    {"set_gates", PB_MODULE_FUNC(&HashLB::CommandSetGatesPb), 0}};
+    {"set_mode", MODULE_CMD_FUNC(&HashLB::CommandSetModePb), 0},
+    {"set_gates", MODULE_CMD_FUNC(&HashLB::CommandSetGatesPb), 0}};
 
 struct snobj *HashLB::CommandSetMode(struct snobj *arg) {
   const char *mode = snobj_str_get(arg);

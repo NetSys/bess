@@ -10,8 +10,8 @@ const Commands<Module> RandomUpdate::cmds = {
 };
 
 const PbCommands RandomUpdate::pb_cmds = {
-    {"add", PB_MODULE_FUNC(&RandomUpdate::CommandAddPb), 0},
-    {"clear", PB_MODULE_FUNC(&RandomUpdate::CommandClearPb), 0},
+    {"add", MODULE_CMD_FUNC(&RandomUpdate::CommandAddPb), 0},
+    {"clear", MODULE_CMD_FUNC(&RandomUpdate::CommandClearPb), 0},
 };
 
 struct snobj *RandomUpdate::CommandAdd(struct snobj *arg) {

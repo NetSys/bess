@@ -6,7 +6,7 @@ const Commands<Module> PortInc::cmds = {
 };
 
 const PbCommands PortInc::pb_cmds = {
-    {"set_burst", PB_MODULE_FUNC(&PortInc::CommandSetBurstPb), 1},
+    {"set_burst", MODULE_CMD_FUNC(&PortInc::CommandSetBurstPb), 1},
 };
 
 pb_error_t PortInc::InitPb(const bess::pb::PortIncArg &arg) {

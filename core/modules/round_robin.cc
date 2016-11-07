@@ -6,8 +6,8 @@ const Commands<Module> RoundRobin::cmds = {
 };
 
 const PbCommands RoundRobin::pb_cmds = {
-    {"set_mode", PB_MODULE_FUNC(&RoundRobin::CommandSetModePb), 0},
-    {"set_gates", PB_MODULE_FUNC(&RoundRobin::CommandSetGatesPb), 0},
+    {"set_mode", MODULE_CMD_FUNC(&RoundRobin::CommandSetModePb), 0},
+    {"set_gates", MODULE_CMD_FUNC(&RoundRobin::CommandSetGatesPb), 0},
 };
 
 pb_error_t RoundRobin::InitPb(const bess::pb::RoundRobinArg &arg) {

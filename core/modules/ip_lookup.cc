@@ -21,8 +21,8 @@ const Commands<Module> IPLookup::cmds = {
 };
 
 const PbCommands IPLookup::pb_cmds = {
-    {"add", PB_MODULE_FUNC(&IPLookup::CommandAddPb), 0},
-    {"clear", PB_MODULE_FUNC(&IPLookup::CommandAddPb), 0}};
+    {"add", MODULE_CMD_FUNC(&IPLookup::CommandAddPb), 0},
+    {"clear", MODULE_CMD_FUNC(&IPLookup::CommandAddPb), 0}};
 
 struct snobj *IPLookup::Init(struct snobj *) {
   struct rte_lpm_config conf = {
