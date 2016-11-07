@@ -110,8 +110,8 @@ GTEST_DIR = /usr/src/gtest
 all: $(EXEC) tests benchmarks
 
 clean:
-	rm -rf $(DEPDIR) $(EXEC) *_test */*_test *_bench */*_bench \
-		*.a *.pb.* *.o */*.o *.gcda *.gcno */*.gcda */*.gcno \
+	rm -rf $(EXEC) .deps/*.d .deps/*/*.d *_test */*_test *_bench */*_bench \
+		*.a *.pb.* *.o */*.o *.gcda *.gcno */*.gcda */*.gcno 
 		coverage.info coverage_html
 
 tags:
