@@ -337,7 +337,7 @@ pb_error_t ExactMatch::GatherKey(const RepeatedField<uint64_t> &fields,
 
     if (uint64_to_bin((uint8_t *)&f, field_size, f_obj,
                       force_be | is_be_system())) {
-      return pb_error(EINVAL, "idx %lu: not a correct %d-byte value", i,
+      return pb_error(EINVAL, "idx %d: not a correct %d-byte value", i,
                       field_size);
     }
 
