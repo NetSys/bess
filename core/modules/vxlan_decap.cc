@@ -1,9 +1,9 @@
+#include "vxlan_decap.h"
+
 #include <rte_config.h>
 #include <rte_ether.h>
 #include <rte_ip.h>
 #include <rte_udp.h>
-
-#include "vxlan_decap.h"
 
 /* TODO: Currently it decapulates the entire Ethernet/IP/UDP/VXLAN headers.
  *       Modularize. */

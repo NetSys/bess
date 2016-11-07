@@ -1,4 +1,6 @@
-#pragma once
+#ifndef BESS_DRIVERS_UNIXSOCKET_H_
+#define BESS_DRIVERS_UNIXSOCKET_H_
+
 #include <assert.h>
 #include <errno.h>
 #include <poll.h>
@@ -119,3 +121,5 @@ class UnixSocketPort : public Port {
    * connected to a client? */
   int old_client_fd_;
 };
+
+#endif  // BESS_DRIVERS_UNIXSOCKET_H_

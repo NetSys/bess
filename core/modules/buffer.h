@@ -1,5 +1,5 @@
-#ifndef __BUFFER_H__
-#define __BUFFER_H__
+#ifndef BESS_MODULES_BUFFER_H_
+#define BESS_MODULES_BUFFER_H_
 
 #include "../module.h"
 
@@ -22,4 +22,4 @@ class Buffer : public Module {
   struct pkt_batch buf_;
 };
 
-#endif
+#endif  // BESS_MODULES_BUFFER_H_

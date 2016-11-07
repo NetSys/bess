@@ -1,11 +1,11 @@
 #include "metadata.h"
-#include "module.h"
 
-#include <stdlib.h>
+#include <cstdlib>
+#include <vector>
 
 #include <gtest/gtest.h>
 
-#include <vector>
+#include "module.h"
 
 namespace {
 
@@ -27,7 +27,7 @@ Module *create_foo() {
   const std::string &mod_name = ModuleBuilder::GenerateDefaultName(
       builder.class_name(), builder.name_template());
 
-  Module *m = builder.CreateModule(mod_name, &default_pipeline);
+  Module *m = builder.CreateModule(mod_name, &bess::metadata::default_pipeline);
   builder.AddModule(m);
 
   return m;

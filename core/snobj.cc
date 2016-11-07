@@ -1,13 +1,14 @@
-#include <assert.h>
-#include <stdio.h>
-#include <errno.h>
-#include <stdarg.h>
-#include <stdint.h>
-#include <inttypes.h>
-
-#include "log.h"
-
 #include "snobj.h"
+
+#include <cassert>
+#include <cstdio>
+#include <cerrno>
+#include <cstdarg>
+#include <cinttypes>
+#include <sstream>
+#include <string>
+
+#include "utils/format.h"
 
 #define DEF_LIST_SLOTS 4
 #define DEF_MAP_SLOTS 4
@@ -400,14 +401,16 @@ struct snobj *snobj_eval(const struct snobj *m, const char *expr) {
   return (struct snobj *)m;
 }
 
-static void print_heading(int indent, int list_depth) {
-  log_debug("%*s", indent - list_depth * 2, "");
+static void print_heading(std::ostringstream *out, int indent, int list_depth) {
+  *out << bess::utils::Format("%*s", indent - list_depth * 2, "");
 
-  while (list_depth--) log_debug("- ");
+  while (list_depth--) {
+    *out << "- ";
+  }
 }
 
-static void snobj_dump_recur(const struct snobj *m, int indent,
-                             int list_depth) {
+static void snobj_dump_recur(std::ostringstream *out, const struct snobj *m,
+                             int indent, int list_depth) {
   const size_t blob_byte_limit = 16;
   const size_t list_item_limit = 8;
 
@@ -415,42 +418,53 @@ static void snobj_dump_recur(const struct snobj *m, int indent,
 
   switch (m->type) {
     case TYPE_NIL:
-      if (list_depth) print_heading(indent, list_depth);
+      if (list_depth) {
+        print_heading(out, indent, list_depth);
+      }
 
-      log_debug("<nil>\n");
+      *out << "<nil>" << std::endl;
       break;
 
     case TYPE_INT:
-      if (list_depth) print_heading(indent, list_depth);
+      if (list_depth) {
+        print_heading(out, indent, list_depth);
+      }
 
-      log_debug("%" PRId64 "\n", m->int_value);
+      *out << m->int_value << std::endl;
       break;
 
     case TYPE_DOUBLE:
-      if (list_depth) print_heading(indent, list_depth);
+      if (list_depth) {
+        print_heading(out, indent, list_depth);
+      }
 
-      log_debug("%f\n", m->double_value);
+      *out << m->double_value << std::endl;
       break;
 
     case TYPE_STR:
-      if (list_depth) print_heading(indent, list_depth);
+      if (list_depth) {
+        print_heading(out, indent, list_depth);
+      }
 
-      log_debug("'%s'\n", (char *)m->data);
+      *out << "'" << static_cast<char *>(m->data) << "'" << std::endl;
       break;
 
     case TYPE_BLOB:
-      if (list_depth) print_heading(indent, list_depth);
-
-      log_debug("ptr=%p, size=%u, data=", m->data, m->size);
-      for (i = 0; i < m->size; i++) {
-        if (i == blob_byte_limit) {
-          log_debug("...");
-          break;
-        }
-        log_debug("%02hhx ", ((char *)m->data)[i]);
+      if (list_depth) {
+        print_heading(out, indent, list_depth);
       }
 
-      log_debug("\n");
+      *out << "ptr=" << m->data << ", size=" << m->size << ", data=";
+      for (i = 0; i < m->size; i++) {
+        if (i == blob_byte_limit) {
+          *out << "...";
+          break;
+        }
+        *out << bess::utils::Format("%02hhx ",
+                                   (static_cast<char *>(m->data)[i]));
+      }
+
+      *out << std::endl;
       break;
 
     case TYPE_LIST:
@@ -458,11 +472,11 @@ static void snobj_dump_recur(const struct snobj *m, int indent,
         struct snobj *child = m->list.arr[i];
 
         if (i == list_item_limit) {
-          log_debug("(... %zu more)\n", m->size - list_item_limit);
+          *out << "(... " << m->size - list_item_limit << " more)" << std::endl;
           break;
         }
 
-        snobj_dump_recur(child, indent + 2, list_depth + 1);
+        snobj_dump_recur(out, child, indent + 2, list_depth + 1);
         list_depth = 0;
       }
       break;
@@ -472,28 +486,29 @@ static void snobj_dump_recur(const struct snobj *m, int indent,
         struct snobj *child = m->map.arr_v[i];
 
         if (list_depth) {
-          print_heading(indent, list_depth);
+          print_heading(out, indent, list_depth);
           list_depth = 0;
         } else
-          log_debug("%*s", indent, "");
+          *out << bess::utils::Format("%*s", indent, "");
 
-        log_debug("%s: ", m->map.arr_k[i]);
+        *out << m->map.arr_k[i] << ": ";
 
         if (child->type == TYPE_LIST || child->type == TYPE_MAP)
-          log_debug("\n");
+          *out << std::endl;
 
-        snobj_dump_recur(child, indent + 4, 0);
+        snobj_dump_recur(out, child, indent + 4, 0);
       }
       break;
 
     default:
-      log_debug("INVALID_TYPE\n");
+      *out << "INVALID_TYPE" << std::endl;
   }
 }
 
-void snobj_dump(const struct snobj *m) {
-  log_debug("--- (%p)\n", m);
-  snobj_dump_recur(m, 0, 0);
+std::string snobj_dump(const struct snobj *m) {
+  std::ostringstream out;
+  snobj_dump_recur(&out, m, 0, 0);
+  return out.str();
 }
 
 struct encode_state {

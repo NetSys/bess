@@ -1,4 +1,5 @@
 #include "port_inc.h"
+#include "../utils/format.h"
 
 const Commands<Module> PortInc::cmds = {
     {"set_burst", MODULE_FUNC &PortInc::CommandSetBurst, 1},
@@ -120,8 +121,8 @@ void PortInc::Deinit() {
 }
 
 std::string PortInc::GetDesc() const {
-  return string_format("%s/%s", port_->name().c_str(),
-                       port_->port_builder()->class_name().c_str());
+  return bess::utils::Format("%s/%s", port_->name().c_str(),
+                             port_->port_builder()->class_name().c_str());
 }
 
 struct task_result PortInc::RunTask(void *arg) {

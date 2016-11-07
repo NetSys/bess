@@ -1,4 +1,5 @@
 #include "port_out.h"
+#include "../utils/format.h"
 
 const Commands<Module> PortOut::cmds = {};
 const PbCommands PortOut::pb_cmds = {};
@@ -66,8 +67,8 @@ void PortOut::Deinit() {
 }
 
 std::string PortOut::GetDesc() {
-  return string_format("%s/%s", port_->name().c_str(),
-                       port_->port_builder()->class_name().c_str());
+  return bess::utils::Format("%s/%s", port_->name().c_str(),
+                             port_->port_builder()->class_name().c_str());
 }
 
 void PortOut::ProcessBatch(struct pkt_batch *batch) {

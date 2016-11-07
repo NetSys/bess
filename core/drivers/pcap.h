@@ -1,9 +1,11 @@
-#ifndef PCAP_PORT_H
-#define PCAP_PORT_H
+#ifndef BESS_DRIVERS_PCAP_H_
+#define BESS_DRIVERS_PCAP_H_
 
 #include "../port.h"
-#include "../utils/pcap_handle.h"
+
 #include <glog/logging.h>
+
+#include "../utils/pcap_handle.h"
 
 // Port to connect to a device via PCAP.
 // (Not recommended because PCAP is slow :-)
@@ -26,4 +28,5 @@ class PCAPPort : public Port {
   void GatherData(unsigned char *data, struct rte_mbuf *mbuf);
   PcapHandle pcap_handle_;
 };
-#endif
+
+#endif  // BESS_DRIVERS_PCAP_H_

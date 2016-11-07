@@ -1,5 +1,7 @@
 #include "queue_inc.h"
+
 #include "../port.h"
+#include "../utils/format.h"
 
 const Commands<Module> QueueInc::cmds = {
     {"set_burst", MODULE_FUNC &QueueInc::CommandSetBurst, 1}};
@@ -110,8 +112,8 @@ void QueueInc::Deinit() {
 }
 
 std::string QueueInc::GetDesc() const {
-  return string_format("%s:%hhu/%s", port_->name().c_str(), qid_,
-                       port_->port_builder()->class_name().c_str());
+  return bess::utils::Format("%s:%hhu/%s", port_->name().c_str(), qid_,
+                             port_->port_builder()->class_name().c_str());
 }
 
 struct task_result QueueInc::RunTask(void *arg) {

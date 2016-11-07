@@ -1,7 +1,6 @@
-#ifndef __BPF_H__
-#define __BPF_H__
+#ifndef BESS_MODULES_BPF_H_
+#define BESS_MODULES_BPF_H_
 
-#include "../message.h"
 #include "../module.h"
 #include "../module_msg.pb.h"
 
@@ -45,4 +44,4 @@ class BPF : public Module {
   inline void process_batch_1filter(struct pkt_batch *batch);
 };
 
-#endif
+#endif  // BESS_MODULES_BPF_H_

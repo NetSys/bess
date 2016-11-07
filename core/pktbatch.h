@@ -1,7 +1,5 @@
-#ifndef _PKTBATCH_H_
-#define _PKTBATCH_H_
-
-#include <string.h>
+#ifndef BESS_PKTBATCH_H_
+#define BESS_PKTBATCH_H_
 
 #include <rte_memcpy.h>
 
@@ -14,7 +12,9 @@ struct pkt_batch {
   struct snbuf *pkts[MAX_PKT_BURST];
 };
 
-static inline void batch_clear(struct pkt_batch *batch) { batch->cnt = 0; }
+static inline void batch_clear(struct pkt_batch *batch) {
+  batch->cnt = 0;
+}
 
 static inline void batch_add(struct pkt_batch *batch, struct snbuf *snb) {
   batch->pkts[batch->cnt++] = snb;
@@ -33,4 +33,4 @@ static inline void batch_copy(struct pkt_batch *dst,
              cnt * sizeof(struct snbuf *));
 }
 
-#endif
+#endif  // BESS_PKTBATCH_H_

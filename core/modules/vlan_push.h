@@ -1,5 +1,5 @@
-#ifndef __VLAN_PUSH_H__
-#define __VLAN_PUSH_H__
+#ifndef BESS_MODULES_VLANPUSH_H_
+#define BESS_MODULES_VLANPUSH_H_
 
 #include "../module.h"
 #include "../module_msg.pb.h"
@@ -31,4 +31,4 @@ class VLANPush : public Module {
   uint32_t qinq_tag_;
 };
 
-#endif
+#endif  // BESS_MODULES_VLANPUSH_H_

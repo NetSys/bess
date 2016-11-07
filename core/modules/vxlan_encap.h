@@ -1,5 +1,5 @@
-#ifndef __VXLAN_ENCAP_H__
-#define __VXLAN_ENCAP_H__
+#ifndef BESS_MODULES_VXLANENCAP_H_
+#define BESS_MODULES_VXLANENCAP_H_
 
 #include "../module.h"
 #include "../module_msg.pb.h"
@@ -54,4 +54,4 @@ class VXLANEncap : public Module {
   uint16_t dstport_;
 };
 
-#endif
+#endif  // BESS_MODULES_VXLANENCAP_H_

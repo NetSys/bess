@@ -1,31 +1,31 @@
-#include <assert.h>
+#include "debug.h"
+
 #include <execinfo.h>
-#include <signal.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#include <gnu/libc-version.h>
+#include <sys/syscall.h>
 #include <ucontext.h>
 #include <unistd.h>
-#include <stdint.h>
-#include <sys/syscall.h>
-#include <gnu/libc-version.h>
 
+#include <cassert>
+#include <csignal>
+#include <cstdint>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <sstream>
+#include <string>
+
+#include <glog/logging.h>
 #include <rte_config.h>
 #include <rte_version.h>
 
-#include "utils/htable.h"
-
-#include "tc.h"
 #include "module.h"
 #include "snobj.h"
 #include "snbuf.h"
+#include "tc.h"
+#include "utils/htable.h"
 
 #define STACK_DEPTH 64
-
-void oom_crash(void) {
-  log_crit("Fatal: out of memory for critical operations\n");
-  *((int *)nullptr) = 0;
-}
 
 static const char *si_code_to_str(int sig_num, int si_code) {
   /* See the manpage of sigaction() */
@@ -127,7 +127,8 @@ static const char *si_code_to_str(int sig_num, int si_code) {
 
 /* addr2line must be available.
  * prints out the code lines [lineno - context, lineno + context] */
-static void print_code(char *symbol, int context) {
+static std::string print_code(char *symbol, int context) {
+  std::ostringstream ret;
   char executable[1024];
   char addr[1024];
 
@@ -143,12 +144,13 @@ static void print_code(char *symbol, int context) {
   sprintf(cmd, "addr2line -i -f -p -e %s %s 2> /dev/null", executable, addr);
 
   proc = popen(cmd, "r");
-  if (!proc) return;
+  if (!proc) {
+    return "";
+  }
 
   for (;;) {
     char line[1024];
-
-    char *ret;
+    char *p;
 
     char *filename;
     int lineno;
@@ -156,65 +158,82 @@ static void print_code(char *symbol, int context) {
 
     FILE *fp;
 
-    ret = fgets(line, sizeof(line), proc);
+    p = fgets(line, sizeof(line), proc);
+    if (!p) {
+      break;
+    }
 
-    if (!ret) break;
-
-    if (line[strlen(line) - 1] != '\n') /* line is too long */
+    if (line[strlen(line) - 1] != '\n') {
+      // no LF found (line is too long?)
       continue;
+    }
 
-    /* addr2line examples:
-     * sched_free at /home/sangjin/.../tc.c:277 (discriminator 2)
-     * run_worker at /home/sangjin/bess/core/module.c:653 */
+    // addr2line examples:
+    // sched_free at /home/sangjin/.../tc.c:277 (discriminator 2)
+    // run_worker at /home/sangjin/bess/core/module.c:653
 
     line[strlen(line) - 1] = '\0';
 
-    log_crit("    %s\n", line);
+    ret << "    " << line << std::endl;
 
-    if (line[strlen(line) - 1] == ')')
+    if (line[strlen(line) - 1] == ')') {
       *(strstr(line, " (discriminator")) = '\0';
+    }
 
-    ret = strrchr(line, ' ');
-    if (!ret) continue;
+    p = strrchr(p, ' ');
+    if (!p) {
+      continue;
+    }
 
-    ret++; /* now it points to the last token */
+    p++;  // now p points to the last token (filename)
 
-    filename = strtok(ret, ":");
+    filename = strtok(p, ":");
 
-    if (strcmp(filename, "??") == 0) continue;
+    if (strcmp(filename, "??") == 0) {
+      continue;
+    }
 
-    ret = strtok(nullptr, "");
-    if (!ret) continue;
+    p = strtok(nullptr, "");
+    if (!p) {
+      continue;
+    }
 
-    lineno = atoi(ret);
+    lineno = atoi(p);
 
     fp = fopen(filename, "r");
     if (!fp) {
-      log_crit("        (file/line not available)\n");
+      ret << "        (file/line not available)" << std::endl;
       continue;
     }
 
     for (curr = 1; !feof(fp); curr++) {
-      int discard;
+      bool discard = true;
 
       if (abs(curr - lineno) <= context) {
-        log_crit("      %s %d: ", (curr == lineno) ? "->" : "  ", curr);
-        discard = 0;
-      } else {
-        if (curr > lineno + context) break;
-        discard = 1;
+        ret << "      " << (curr == lineno ? "->" : "  ") << " " << curr
+            << ": ";
+        discard = false;
+      } else if (curr > lineno + context) {
+        break;
       }
 
-      for (;;) {
-        ret = fgets(line, sizeof(line), fp);
-        if (!ret) break;
+      while (true) {
+        p = fgets(line, sizeof(line), fp);
+        if (!p) {
+          break;
+        }
 
-        if (!discard) log_crit("%s", line);
+        if (!discard) {
+          ret << line;
+        }
 
         if (line[strlen(line) - 1] != '\n') {
-          if (feof(fp)) log_crit("\n");
-        } else
+          if (feof(fp)) {
+            ret << std::endl;
+          }
+        } else {
           break;
+        }
       }
     }
 
@@ -222,9 +241,18 @@ static void print_code(char *symbol, int context) {
   }
 
   pclose(proc);
+
+  return ret.str();
 }
 
-static void trap_handler(int sig_num, siginfo_t *info, void *ucontext) {
+[[noreturn]] static void panic(const std::string &message) {
+  LOG(FATAL) << message;
+  exit(EXIT_FAILURE);
+}
+
+[[noreturn]] static void trap_handler(int sig_num, siginfo_t *info,
+                                      void *ucontext) {
+  std::ostringstream oops;
   void *addrs[STACK_DEPTH];
   void *ip;
   char **symbols;
@@ -243,20 +271,21 @@ static void trap_handler(int sig_num, siginfo_t *info, void *ucontext) {
 #elif __x86_64
   ip = (void *)uc->uc_mcontext.gregs[REG_RIP];
 #else
-#error neither x86 or x86-64
+#  error neither x86 or x86-64
 #endif
 
-  log_crit("A critical error has occured. Aborting... (pid=%d, tid=%d)\n",
-           getpid(), (pid_t)syscall(SYS_gettid));
-  log_crit("Signal: %d (%s), si_code: %d (%s), address: %p, IP: %p\n", sig_num,
-           strsignal(sig_num), info->si_code,
-           si_code_to_str(sig_num, info->si_code), info->si_addr, ip);
+  oops << "A critical error has occured. Aborting... (pid=" << getpid()
+             << ", tid=" << (pid_t)syscall(SYS_gettid) << ")" << std::endl;
+  oops << "Signal: " << sig_num << " (" << strsignal(sig_num)
+       << "), si_code: " << info->si_code << " ("
+       << si_code_to_str(sig_num, info->si_code)
+       << "), address: " << info->si_addr << ", IP: " << ip << std::endl;
 
   /* the linker requires -rdynamic for non-exported symbols */
   cnt = backtrace(addrs, STACK_DEPTH);
   if (cnt < 3) {
-    log_crit("ERROR: backtrace() failed\n");
-    exit(EXIT_FAILURE);
+    oops << "ERROR: backtrace() failed" << std::endl;
+    panic(oops.str());
   }
 
   /* addrs[0]: this function
@@ -278,18 +307,18 @@ static void trap_handler(int sig_num, siginfo_t *info, void *ucontext) {
   symbols = backtrace_symbols(addrs, cnt);
 
   if (symbols) {
-    log_crit("Backtrace (recent calls first) ---\n");
+    oops << "Backtrace (recent calls first) ---" << std::endl;
 
     for (i = skips; i < cnt; ++i) {
-      log_crit("(%d): %s\n", i - skips, symbols[i]);
-      print_code(symbols[i], (i == skips) ? 3 : 0);
+      oops << "(" << i - skips << "): " << symbols[i] << std::endl;
+      oops << print_code(symbols[i], (i == skips) ? 3 : 0);
     }
 
     free(symbols); /* required by backtrace_symbols() */
   } else
-    log_crit("ERROR: backtrace_symbols() failed\n");
+    oops << "ERROR: backtrace_symbols() failed\n";
 
-  exit(EXIT_FAILURE);
+  panic(oops.str());
 }
 
 __attribute__((constructor(101))) static void set_trap_handler() {

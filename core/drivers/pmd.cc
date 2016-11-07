@@ -1,5 +1,7 @@
 #include "pmd.h"
 
+#include "../utils/format.h"
+
 /*!
  * The following are deprecated. Ignore us.
  */
@@ -53,26 +55,26 @@ static const struct rte_eth_conf default_eth_conf = {
 void PMDPort::InitDriver() {
   dpdk_port_t num_dpdk_ports = rte_eth_dev_count();
 
-  log_info("%d DPDK PMD ports have been recognized:\n", num_dpdk_ports);
+  LOG(INFO) << num_dpdk_ports << " DPDK PMD ports have been recognized:";
 
   for (dpdk_port_t i = 0; i < num_dpdk_ports; i++) {
     struct rte_eth_dev_info dev_info;
+    std::string pci_info;
 
     memset(&dev_info, 0, sizeof(dev_info));
     rte_eth_dev_info_get(i, &dev_info);
 
-    log_info("DPDK port_id %d (%s)   RXQ %hu TXQ %hu  ", i,
-             dev_info.driver_name, dev_info.max_rx_queues,
-             dev_info.max_tx_queues);
-
     if (dev_info.pci_dev) {
-      log_info("%04hx:%02hhx:%02hhx.%02hhx %04hx:%04hx  ",
-               dev_info.pci_dev->addr.domain, dev_info.pci_dev->addr.bus,
-               dev_info.pci_dev->addr.devid, dev_info.pci_dev->addr.function,
-               dev_info.pci_dev->id.vendor_id, dev_info.pci_dev->id.device_id);
+      pci_info = bess::utils::Format(
+          "%04hx:%02hhx:%02hhx.%02hhx %04hx:%04hx  ",
+          dev_info.pci_dev->addr.domain, dev_info.pci_dev->addr.bus,
+          dev_info.pci_dev->addr.devid, dev_info.pci_dev->addr.function,
+          dev_info.pci_dev->id.vendor_id, dev_info.pci_dev->id.device_id);
     }
 
-    log_info("\n");
+    LOG(INFO) << "DPDK port_id " << i << " (" << dev_info.driver_name
+              << ")   RXQ " << dev_info.max_rx_queues << " TXQ "
+              << dev_info.max_tx_queues << "  " << pci_info;
   }
 }
 
@@ -426,8 +428,8 @@ void PMDPort::DeInit() {
     rte_eth_dev_close(dpdk_port_id_);
     ret = rte_eth_dev_detach(dpdk_port_id_, name);
     if (ret < 0) {
-      log_warn("rte_eth_dev_detach(%d) failed: %s\n", dpdk_port_id_,
-               rte_strerror(-ret));
+      LOG(WARNING) << "rte_eth_dev_detach(" << dpdk_port_id_
+                   << ") failed: " << rte_strerror(-ret);
     }
   }
 }
@@ -446,26 +448,17 @@ void PMDPort::CollectStats(bool reset) {
 
   ret = rte_eth_stats_get(dpdk_port_id_, &stats);
   if (ret < 0) {
-    log_err("rte_eth_stats_get() failed: %s\n", rte_strerror(-ret));
+    LOG(ERROR) << "rte_eth_stats_get(" << dpdk_port_id_
+               << ") failed: " << rte_strerror(-ret);
     return;
   }
 
-#if 0
-	log_debug("PMD port %d: "
-	       "ipackets %lu opackets %lu ibytes %lu obytes %lu "
-	       "imissed %lu ibadcrc %lu ibadlen %lu ierrors %lu oerrors %lu "
-	       "imcasts %lu rx_nombuf %lu fdirmatch %lu fdirmiss %lu "
-	       "tx_pause_xon %lu rx_pause_xon %lu "
-	       "tx_pause_xoff %lu rx_pause_xoff %lu\n",
-			priv->dpdk_port_id,
-			stats.ipackets, stats.opackets,
-			stats.ibytes, stats.obytes,
-			stats.imissed, stats.ibadcrc, stats.ibadlen,
-			stats.ierrors, stats.oerrors, stats.imcasts,
-			stats.rx_nombuf, stats.fdirmatch, stats.fdirmiss,
-			stats.tx_pause_xon, stats.rx_pause_xon,
-			stats.tx_pause_xoff, stats.rx_pause_xoff);
-#endif
+  VLOG(1) << bess::utils::Format(
+      "PMD port %d: ipackets %lu opackets %lu ibytes %lu obytes %lu "
+      "imissed %lu ierrors %lu oerrors %lu rx_nombuf %lu",
+      dpdk_port_id_, stats.ipackets, stats.opackets, stats.ibytes,
+      stats.obytes, stats.imissed, stats.ierrors,
+      stats.oerrors, stats.rx_nombuf);
 
   port_stats[PACKET_DIR_INC].dropped = stats.imissed;
 

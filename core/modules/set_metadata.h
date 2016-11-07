@@ -1,5 +1,5 @@
-#ifndef __SET_METADATA_H__
-#define __SET_METADATA_H__
+#ifndef BESS_MODULES_SETMETADATA_H_
+#define BESS_MODULES_SETMETADATA_H_
 
 #include "../module.h"
 #include "../module_msg.pb.h"
@@ -36,4 +36,4 @@ class SetMetadata : public Module {
   std::vector<struct Attr> attrs_;
 };
 
-#endif
+#endif  // BESS_MODULES_SETMETADATA_H_

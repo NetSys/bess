@@ -8,16 +8,29 @@
 
 #if MEM_ALLOC_PROVIDER == LIBC
 
-#include <stdlib.h>
-#include <string.h>
+#include <cstdlib>
+#include <cstring>
+
+#include <malloc.h>
 
 void *mem_alloc(size_t size) {
   return calloc(1, size);
 }
 
-void *mem_realloc(void *ptr, size_t size) { return realloc(ptr, size); }
+void *mem_realloc(void *ptr, size_t size) {
+  size_t old_size = malloc_usable_size(ptr);
+  char *new_ptr = static_cast<char *>(realloc(ptr, size));
 
-void mem_free(void *ptr) { free(ptr); }
+  if (new_ptr && size > old_size) {
+    memset(new_ptr + old_size, 0, size - old_size);
+  }
+
+  return new_ptr;
+}
+
+void mem_free(void *ptr) {
+  free(ptr);
+}
 
 #elif MEM_ALLOC_PROVIDER == DPDK
 

@@ -1,8 +1,6 @@
-#include <rte_config.h>
-#include <rte_hash_crc.h>
-
-#include "../utils/htable.h"
 #include "wildcard_match.h"
+
+#include "../utils/format.h"
 
 /* k1 = k2 & mask */
 static void mask(void *k1, const void *k2, const void *mask, int key_size) {
@@ -48,8 +46,8 @@ const PbCommands WildcardMatch::pb_cmds = {
     {"add", PB_MODULE_FUNC(&WildcardMatch::CommandAddPb), 0},
     {"delete", PB_MODULE_FUNC(&WildcardMatch::CommandDeletePb), 0},
     {"clear", PB_MODULE_FUNC(&WildcardMatch::CommandClearPb), 0},
-    {"set_default_gate", PB_MODULE_FUNC(&WildcardMatch::CommandSetDefaultGatePb),
-     1}};
+    {"set_default_gate",
+     PB_MODULE_FUNC(&WildcardMatch::CommandSetDefaultGatePb), 1}};
 
 struct snobj *WildcardMatch::AddFieldOne(struct snobj *field,
                                          struct WmField *f) {
@@ -295,7 +293,7 @@ std::string WildcardMatch::GetDesc() const {
     num_rules += tuples_[i].ht.Count();
   }
 
-  return string_format("%lu fields, %d rules", num_fields_, num_rules);
+  return bess::utils::Format("%lu fields, %d rules", num_fields_, num_rules);
 }
 
 struct snobj *WildcardMatch::GetDump() const {

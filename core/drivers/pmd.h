@@ -1,10 +1,10 @@
-#pragma once
+#ifndef BESS_DRIVERS_PMD_H_
+#define BESS_DRIVERS_PMD_H_
+
 #include <rte_config.h>
 #include <rte_errno.h>
 #include <rte_ethdev.h>
 
-#include "../log.h"
-#include "../message.h"
 #include "../port.h"
 
 typedef uint8_t dpdk_port_t;
@@ -103,3 +103,5 @@ class PMDPort : public Port {
    */
   bool hot_plugged_;
 };
+
+#endif  // BESS_DRIVERS_PMD_H_

@@ -1,28 +1,26 @@
-#include <assert.h>
-#include <errno.h>
-#include <limits.h>
-#include <sched.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
+#include "master.h"
+
+#include <cassert>
+#include <cerrno>
+#include <climits>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
 
 #include <netinet/tcp.h>
-
+#include <sched.h>
 #include <sys/epoll.h>
 #include <sys/socket.h>
-
-#include <rte_config.h>
-#include <rte_lcore.h>
+#include <unistd.h>
 
 #include <gflags/gflags.h>
 #include <glog/logging.h>
+#include <rte_config.h>
+#include <rte_lcore.h>
 
 #include "snctl.h"
 #include "snobj.h"
 #include "worker.h"
-
-#include "master.h"
 
 #define INIT_BUF_SIZE 4096
 #define MAX_BUF_SIZE (8 * 1048576)

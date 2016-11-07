@@ -1,12 +1,10 @@
-#include <cmath>
+#include "flowgen.h"
 
+#include <cmath>
 #include <functional>
 
-#include "../utils/random.h"
+#include "../utils/format.h"
 #include "../utils/time.h"
-
-#include "../module_msg.pb.h"
-#include "flowgen.h"
 
 #define MAX_TEMPLATE_SIZE 1536
 
@@ -568,7 +566,7 @@ struct task_result FlowGen::RunTask(void *) {
 }
 
 std::string FlowGen::GetDesc() const {
-  return string_format("%d flows", active_flows_);
+  return bess::utils::Format("%d flows", active_flows_);
 }
 
 struct snobj *FlowGen::GetDump() const {

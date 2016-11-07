@@ -1,10 +1,9 @@
-#ifndef __MEASURE_H__
-#define __MEASURE_H__
+#ifndef BESS_MODULES_MEASURE_H_
+#define BESS_MODULES_MEASURE_H_
 
 #include "../module.h"
-#include "../utils/histogram.h"
-
 #include "../module_msg.pb.h"
+#include "../utils/histogram.h"
 
 class Measure : public Module {
  public:
@@ -43,4 +42,4 @@ class Measure : public Module {
   uint64_t total_latency_;
 };
 
-#endif
+#endif  // BESS_MODULES_MEASURE_H_

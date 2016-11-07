@@ -1,24 +1,19 @@
-#include <assert.h>
-#include <stdio.h>
-#include <inttypes.h>
+#include "tc.h"
 
-#include <sys/time.h>
-
-#include <rte_config.h>
-#include <rte_cycles.h>
+#include <cassert>
+#include <cinttypes>
+#include <cstdio>
 
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 
+#include "debug.h"
+#include "mem_alloc.h"
+#include "worker.h"
+#include "task.h"
+#include "utils/common.h"
 #include "utils/time.h"
 #include "utils/random.h"
-
-#include "common.h"
-#include "debug.h"
-#include "worker.h"
-#include "module.h"
-
-#include "tc.h"
 
 // TODO(barath): move this global container of TCs to the TC class once it exists.
 namespace TCContainer {
@@ -48,7 +43,9 @@ static void tc_add_to_parent_pgroup(struct tc *c, int share_resource) {
 
 pgroup_init:
   g = (struct pgroup *)mem_alloc(sizeof(*g));
-  if (!g) oom_crash();
+  if (!g) {
+    abort();
+  }
 
   cdlist_add_before(next, &g->tc);
 
@@ -82,7 +79,9 @@ struct tc *tc_init(struct sched *s, const struct tc_params *params) {
   assert(params->share <= MAX_SHARE);
 
   c = (struct tc *)mem_alloc(sizeof(*c));
-  if (!c) oom_crash();
+  if (!c) {
+    abort();
+  }
 
   if (!TCContainer::tcs.insert({params->name, c}).second) {
     LOG(ERROR) << "Can't insert TC named " << params->name << "TCContainer::tcs.size()=" << TCContainer::tcs.size();
@@ -208,7 +207,9 @@ struct sched *sched_init() {
   struct sched *s;
 
   s = (struct sched *)mem_alloc(sizeof(*s));
-  if (!s) oom_crash();
+  if (!s) {
+    abort();
+  }
 
   s->root.refcnt = 1;
   cdlist_head_init(&s->root.tasks); /* this will be always empty */
@@ -682,56 +683,4 @@ void sched_loop(struct sched *s) {
 
     schedule_once(s);
   }
-}
-
-void sched_test_alloc() {
-  const int num_classes = 100000;
-
-  struct sched *s;
-  struct tc *classes[num_classes];
-
-  Random rng_;
-  int i;
-
-  s = sched_init();
-
-  /* generate a random tree */
-  for (i = 0; i < num_classes; i++) {
-    struct tc_params params = {};
-    int parent_id = rng_.Get() % (i + 1);
-
-    params.parent = parent_id ? classes[(parent_id - 1)] : nullptr;
-    params.priority = rng_.Get() % 8;
-    params.share = 1;
-
-    /* params.share_resource = rand_fast(&seed) % 2, should fail */
-    params.share_resource = params.priority % NUM_RESOURCES,
-
-    classes[i] = tc_init(s, &params);
-  }
-
-  assert(s->num_classes == num_classes);
-
-#if 1
-  /* shuffle */
-  for (i = num_classes - 1; i > 0; i--) {
-    struct tc *tmp;
-    int j;
-
-    j = rng_.Get() % (i + 1);
-    tmp = classes[j];
-    classes[j] = classes[i];
-    classes[i] = tmp;
-  }
-
-  for (i = 0; i < num_classes; i++) tc_dec_refcnt(classes[i]);
-
-  assert(s->root.refcnt == 1);
-  assert(s->num_classes == 0);
-  assert(cdlist_is_empty(&s->root.pgroups));
-#endif
-
-  sched_free(s);
-
-  DLOG(INFO) << "SCHED: test passed";
 }

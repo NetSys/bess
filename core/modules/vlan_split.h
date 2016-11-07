@@ -1,5 +1,5 @@
-#ifndef __VLAN_SPLIT_H__
-#define __VLAN_SPLIT_H__
+#ifndef BESS_MODULES_VLANSPLIT_H_
+#define BESS_MODULES_VLANSPLIT_H_
 
 #include "../module.h"
 
@@ -14,4 +14,4 @@ class VLANSplit : public Module {
   static const PbCommands pb_cmds;
 };
 
-#endif
+#endif  // BESS_MODULES_VLANSPLIT_H_

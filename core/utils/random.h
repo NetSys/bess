@@ -1,5 +1,5 @@
-#ifndef __RANDOM_H__
-#define __RANDOM_H__
+#ifndef BESS_UTILS_RANDOM_H_
+#define BESS_UTILS_RANDOM_H_
 
 #include <cstdint>
 
@@ -70,4 +70,4 @@ inline double Random::GetRealNonzero() {
   return 2.0 - tmp.d;
 }
 
-#endif
+#endif  // BESS_UTILS_RANDOM_H_

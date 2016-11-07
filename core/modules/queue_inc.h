@@ -1,5 +1,5 @@
-#ifndef __QUEUE_INC_H__
-#define __QUEUE_INC_H__
+#ifndef BESS_MODULES_QUEUEINC_H_
+#define BESS_MODULES_QUEUEINC_H_
 
 #include "../module.h"
 #include "../module_msg.pb.h"
@@ -35,4 +35,4 @@ class QueueInc : public Module {
   pb_error_t SetBurst(int64_t burst);
 };
 
-#endif
+#endif  // BESS_MODULES_QUEUEINC_H_

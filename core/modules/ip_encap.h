@@ -1,5 +1,5 @@
-#ifndef __IP_ENCAP_H__
-#define __IP_ENCAP_H__
+#ifndef BESS_MODULES_IPENCAP_H_
+#define BESS_MODULES_IPENCAP_H_
 
 #include "../module.h"
 
@@ -39,4 +39,4 @@ class IPEncap : public Module {
   static const PbCommands pb_cmds;
 };
 
-#endif
+#endif  // BESS_MODULES_IPENCAP_H_

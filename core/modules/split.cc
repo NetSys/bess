@@ -1,6 +1,6 @@
-#include <rte_byteorder.h>
-
 #include "split.h"
+
+#include <rte_byteorder.h>
 
 #define MAX_SIZE 8
 

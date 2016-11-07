@@ -1,8 +1,15 @@
 syntax = "proto3";
 
-import "bess_msg.proto";
+import "error.proto";
 
 package bess.pb;
+
+// Module-specific messages.
+// The header generated from this file should not be included in the BESS core
+// source code.
+
+message BPFCommandClearArg {
+}
 
 message ExactMatchCommandAddArg {
   uint64 gate = 1;

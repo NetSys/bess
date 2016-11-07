@@ -1,9 +1,8 @@
+#include "dump.h"
+
 #include <cmath>
 
 #include <rte_hexdump.h>
-
-#include "../module_msg.pb.h"
-#include "dump.h"
 
 #define NS_PER_SEC 1000000000ul
 

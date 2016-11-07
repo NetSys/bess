@@ -1,5 +1,5 @@
-#ifndef __GENERIC_DECAP_H__
-#define __GENERIC_DECAP_H__
+#ifndef BESS_MODULES_GENERICDECAP_H_
+#define BESS_MODULES_GENERICDECAP_H_
 
 #include "../module.h"
 #include "../module_msg.pb.h"
@@ -23,4 +23,4 @@ class GenericDecap : public Module {
   int decap_size_;
 };
 
-#endif
+#endif  // BESS_MODULES_GENERICDECAP_H_

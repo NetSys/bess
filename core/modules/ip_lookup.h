@@ -1,7 +1,8 @@
-#ifndef __IP_LOOKUP_H__
-#define __IP_LOOKUP_H__
+#ifndef BESS_MODULES_IPLOOKUP_H_
+#define BESS_MODULES_IPLOOKUP_H_
 
 #include "../module.h"
+#include "../module_msg.pb.h"
 
 class IPLookup : public Module {
  public:
@@ -32,4 +33,4 @@ class IPLookup : public Module {
   gate_idx_t default_gate_;
 };
 
-#endif
+#endif  // BESS_MODULES_IPLOOKUP_H_

@@ -1,3 +1,5 @@
+#include "ip_lookup.h"
+
 #include <arpa/inet.h>
 
 #include <rte_byteorder.h>
@@ -6,9 +8,6 @@
 #include <rte_ether.h>
 #include <rte_ip.h>
 #include <rte_lpm.h>
-
-#include "../module_msg.pb.h"
-#include "ip_lookup.h"
 
 #define VECTOR_OPTIMIZATION 1
 
@@ -217,7 +216,7 @@ bess::pb::ModuleCommandResponse IPLookup::CommandAddPb(
 
   if (prefix_len > 32) {
     set_cmd_response_error(
-        &response, pb_error(EINVAL, "Invalid prefix length: %d", prefix_len));
+        &response, pb_error(EINVAL, "Invalid prefix length: %lu", prefix_len));
     return response;
   }
 
@@ -226,7 +225,7 @@ bess::pb::ModuleCommandResponse IPLookup::CommandAddPb(
 
   if (ip_addr & ~netmask) {
     set_cmd_response_error(
-        &response, pb_error(EINVAL, "Invalid IP prefix %s/%d %x %x", prefix,
+        &response, pb_error(EINVAL, "Invalid IP prefix %s/%lu %x %x", prefix,
                             prefix_len, ip_addr, netmask));
     return response;
   }

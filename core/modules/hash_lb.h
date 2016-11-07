@@ -1,5 +1,5 @@
-#ifndef __HASH_LB_H__
-#define __HASH_LB_H__
+#ifndef BESS_MODULES_HASHLB_H_
+#define BESS_MODULES_HASHLB_H_
 
 #include "../module.h"
 #include "../module_msg.pb.h"
@@ -46,4 +46,4 @@ class HashLB : public Module {
   enum LbMode mode_;
 };
 
-#endif
+#endif  // BESS_MODULES_HASHLB_H_

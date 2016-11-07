@@ -1,5 +1,5 @@
-#ifndef __UPDATE_H__
-#define __UPDATE_H__
+#ifndef BESS_MODULES_UPDATE_H_
+#define BESS_MODULES_UPDATE_H_
 
 #include "../module.h"
 #include "../module_msg.pb.h"
@@ -37,4 +37,4 @@ class Update : public Module {
   } fields_[UPDATE_MAX_FIELDS];
 };
 
-#endif
+#endif  // BESS_MODULES_UPDATE_H_

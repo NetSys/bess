@@ -1,9 +1,9 @@
-#ifndef _MASTER_H_
-#define _MASTER_H_
-
-#include <stdint.h>
+#ifndef BESS_MASTER_H_
+#define BESS_MASTER_H_
 
 #include <arpa/inet.h>
+
+#include <cstdint>
 
 #include "utils/cdlist.h"
 
@@ -48,4 +48,4 @@ void SetupMaster();
 /* The main run loop of the channel thread. Never returns. */
 void RunMaster();
 
-#endif
+#endif  // BESS_MASTER_H_

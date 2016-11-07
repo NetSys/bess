@@ -1,19 +1,17 @@
-#ifndef _SNOBJ_H_
-#define _SNOBJ_H_
+#ifndef BESS_SNOBJ_H_
+#define BESS_SNOBJ_H_
 
 /* NOTE: this library is not thread-safe */
 
-#include <math.h>
-#include <stddef.h>
-#include <stdint.h>
-#include <stdlib.h>
-#include <string.h>
-
+#include <cmath>
+#include <cstdint>
+#include <cstdlib>
+#include <cstring>
 #include <string>
 
-#include "common.h"
 #include "debug.h"
 #include "mem_alloc.h"
+#include "utils/common.h"
 
 #define MAX_EXPR_LEN 128 /* including the trailing nullptr */
 
@@ -69,18 +67,18 @@ struct snobj {
 /* this function does not return (always succeeds) */
 static inline void *_ALLOC(size_t size) {
   void *ret = mem_alloc(size);
-
-  /* if memory allocation is fail, we are already screwed. Quit. */
-  if (!ret) oom_crash();
+  if (!ret) {
+    abort();
+  }
 
   return ret;
 }
 
 static inline void *_REALLOC(void *p, size_t new_size) {
   void *ret = mem_realloc(p, new_size);
-
-  /* if memory allocation is fail, we are already screwed. Quit. */
-  if (!ret) oom_crash();
+  if (!ret) {
+    abort();
+  }
 
   return ret;
 }
@@ -236,7 +234,7 @@ static inline int snobj_eval_exists(const struct snobj *m, const char *expr) {
   return snobj_eval(m, expr) != nullptr;
 }
 
-void snobj_dump(const struct snobj *m);
+std::string snobj_dump(const struct snobj *m);
 
 /* recursive encoding of TYPE(4B), SIZE(4B), DATA(variable)
  * DATA is 8-byte aligned by tail padding with zeroes.
@@ -258,4 +256,4 @@ struct snobj *snobj_errno(int err);
 
 struct snobj *snobj_errno_details(int err, struct snobj *details);
 
-#endif
+#endif  // BESS_SNOBJ_H_

@@ -1,14 +1,12 @@
-#ifndef _TC_H_
-#define _TC_H_
-
-#include <string.h>
+#ifndef BESS_TC_H_
+#define BESS_TC_H_
 
 #include <string>
 #include <unordered_map>
 
-#include "common.h"
-#include "utils/minheap.h"
 #include "utils/cdlist.h"
+#include "utils/common.h"
+#include "utils/minheap.h"
 #include "utils/simd.h"
 
 #define SCHED_DEBUG 0
@@ -34,14 +32,6 @@ enum {
 #define QUANTUM (1 << 10)
 
 typedef uint64_t resource_arr_t[NUM_RESOURCES] __ymm_aligned;
-
-// TODO(barath): This container is meant to be temporary, until we port the below TC code
-// to C++, at which point this container can be moved to the new TC class.
-//
-// A simple container to hold global TC members as was contained in namespace.h
-namespace TCContainer {
-extern std::unordered_map<std::string, struct tc *> tcs;
-}  // TCContainer
 
 /* pgroup is a collection of sibling classes with the same priority */
 struct pgroup {
@@ -156,6 +146,14 @@ struct tc {
   struct tc_stats last_stats;
 };
 
+// TODO(barath): This container is meant to be temporary, until we port the below TC code
+// to C++, at which point this container can be moved to the new TC class.
+//
+// A simple container to hold global TC members as was contained in namespace.h
+namespace TCContainer {
+extern std::unordered_map<std::string, struct tc *> tcs;
+}  // TCContainer
+
 struct sched_stats {
   resource_arr_t usage;
   uint64_t cnt_idle;
@@ -182,7 +180,9 @@ void _tc_do_free(struct tc *c);
 void tc_join(struct tc *c);
 void tc_leave(struct tc *c);
 
-static inline void tc_inc_refcnt(struct tc *c) { c->refcnt++; }
+static inline void tc_inc_refcnt(struct tc *c) {
+  c->refcnt++;
+}
 
 static inline void tc_dec_refcnt(struct tc *c) {
   c->refcnt--;
@@ -200,8 +200,4 @@ void schedule_once(struct sched *s);
 
 void sched_loop(struct sched *s);
 
-void sched_test_alloc();
-
-void print_last_stats(struct sched *s);
-
-#endif
+#endif  // BESS_TC_H_

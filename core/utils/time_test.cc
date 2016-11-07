@@ -9,7 +9,8 @@ TEST(RdtscTest, NonDecreasing) {
 }
 
 TEST(TscToUs, NonNegative) {
-  ASSERT_LE(0, tsc_to_us(0)) << "Conversion should never result in negative time.";
+  ASSERT_LE(0, tsc_to_us(0))
+      << "Conversion should never result in negative time.";
 }
 
 TEST(GetEpochTime, NonNegative) {

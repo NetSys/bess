@@ -1,12 +1,12 @@
 #include "unix_socket.h"
 
 // TODO(barath): Clarify these comments.
-// Only one client can be connected at the same time.
-// Polling sockets is quite exprensive, so we throttle the polling rate.  (by
-// checking
-// sockets once every RECV_TICKS schedules) TODO: Revise this once the interrupt
-// mode is
-// implemented.
+// Only one client can be connected at the same time.  Polling sockets is quite
+// exprensive, so we throttle the polling rate.  (by checking sockets once every
+// RECV_TICKS schedules)
+
+// TODO: Revise this once the interrupt mode is  implemented.
+
 #define RECV_SKIP_TICKS 256
 #define MAX_TX_FRAGS 8
 

@@ -1,7 +1,8 @@
+#include "random_update.h"
+
 #include <rte_byteorder.h>
 
 #include "../utils/time.h"
-#include "random_update.h"
 
 const Commands<Module> RandomUpdate::cmds = {
     {"add", MODULE_FUNC &RandomUpdate::CommandAdd, 0},

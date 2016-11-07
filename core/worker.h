@@ -1,12 +1,11 @@
-#ifndef _WORKER_H_
-#define _WORKER_H_
+#ifndef BESS_WORKER_H_
+#define BESS_WORKER_H_
 
-#include <stdint.h>
+#include <cstdint>
 #include <thread>
 
-#include "common.h"
-#include "metadata.h"
 #include "pktbatch.h"
+#include "utils/common.h"
 
 #define MAX_WORKERS 4
 
@@ -150,7 +149,6 @@ extern int num_workers;
 extern std::thread worker_threads[MAX_WORKERS];
 extern Worker *volatile workers[MAX_WORKERS];
 extern thread_local Worker ctx;
-extern bess::metadata::Pipeline default_pipeline;
 
 /* ------------------------------------------------------------------------
  * functions below are invoked by non-worker threads (the master)
@@ -176,4 +174,4 @@ static inline int is_worker_running(int wid) {
 /* arg (int) is the core id the worker should run on */
 void launch_worker(int wid, int core);
 
-#endif
+#endif  // BESS_WORKER_H_

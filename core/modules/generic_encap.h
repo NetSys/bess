@@ -1,5 +1,5 @@
-#ifndef __GENERIC_ENCAP_H__
-#define __GENERIC_ENCAP_H__
+#ifndef BESS_MODULES_GENERICENCAP_H_
+#define BESS_MODULES_GENERICENCAP_H_
 
 #include "../module.h"
 #include "../module_msg.pb.h"
@@ -41,4 +41,4 @@ class GenericEncap : public Module {
   struct Field fields_[MAX_FIELDS];
 };
 
-#endif
+#endif  // BESS_MODULES_GENERICENCAP_H_

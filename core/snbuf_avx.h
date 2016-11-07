@@ -1,7 +1,7 @@
-#ifndef _SNBUF_AVX_H_
-#define _SNBUF_AVX_H_
+#ifndef BESS_SNBUF_AVX_H_
+#define BESS_SNBUF_AVX_H_
 
-#ifndef _SNBUF_H_
+#ifndef BESS_SNBUF_H_
 #error "Do not directly include this file. Include snbuf.h instead."
 #endif
 
@@ -14,24 +14,13 @@ static inline int snb_alloc_bulk(snb_array_t snbs, int cnt, uint16_t len) {
   __m128i mbuf_template; /* 256-bit write was worse... */
   __m128i rxdesc_fields;
 
-#if DPDK_VER >= DPDK_VER_NUM(2, 1, 0)
-  /* DPDK 2.1
+  /* DPDK 2.1 or higher
    * packet_type		0 	(32 bits)
    * pkt_len 		len	(32 bits)
    * data_len 		len 	(16 bits)
    * vlan_tci 		0 	(16 bits)
    * rss 			0 	(32 bits) */
   rxdesc_fields = _mm_setr_epi32(0, len, len, 0);
-#else
-  /* DPDK 2.0
-   * packet_type 		0	(16 bits)
-   * data_len		len	(16 bits)
-   * pkt_len		len	(32 bits)
-   * vlan_tci		0	(16 bits)
-   * reserved		0	(16 bits)
-   * rss			0	(32 bits) */
-  rxdesc_fields = _mm_setr_epi32(len << 16, len, 0, 0);
-#endif
 
   ret = rte_mempool_get_bulk(ctx.pframe_pool(), (void **)snbs, cnt);
   if (ret != 0) return 0;
@@ -130,4 +119,4 @@ slow_path:
   for (i = 0; i < cnt; i++) snb_free(snbs[i]);
 }
 
-#endif
+#endif  // BESS_SNBUF_AVX_H_

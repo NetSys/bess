@@ -1,5 +1,7 @@
 #include "queue_out.h"
+
 #include "../port.h"
+#include "../utils/format.h"
 
 const Commands<Module> QueueOut::cmds = {};
 const PbCommands QueueOut::pb_cmds = {};
@@ -73,8 +75,8 @@ void QueueOut::Deinit() {
 }
 
 std::string QueueOut::GetDesc() const {
-  return string_format("%s/%s", port_->name().c_str(),
-                       port_->port_builder()->class_name().c_str());
+  return bess::utils::Format("%s/%s", port_->name().c_str(),
+                             port_->port_builder()->class_name().c_str());
 }
 
 void QueueOut::ProcessBatch(struct pkt_batch *batch) {

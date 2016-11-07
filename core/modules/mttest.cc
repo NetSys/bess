@@ -1,5 +1,7 @@
 #include "mttest.h"
 
+#include <glog/logging.h>
+
 const Commands<Module> MetadataTest::cmds = {};
 const PbCommands MetadataTest::pb_cmds = {};
 
@@ -19,16 +21,16 @@ pb_error_t MetadataTest::AddAttributes(
     /* check /var/log/syslog for log messages */
     switch (mode) {
       case bess::metadata::AccessMode::READ:
-        log_info("module %s: %s, %d bytes, read\n", name().c_str(), attr_name,
-                 attr_size);
+        LOG(INFO) << "module " << name() << ": " << attr_name << ", "
+                  << attr_size << " bytes, read" << std::endl;
         break;
       case bess::metadata::AccessMode::WRITE:
-        log_info("module %s: %s, %d bytes, write\n", name().c_str(), attr_name,
-                 attr_size);
+        LOG(INFO) << "module " << name() << ": " << attr_name << ", "
+                  << attr_size << " bytes, write" << std::endl;
         break;
       case bess::metadata::AccessMode::UPDATE:
-        log_info("module %s: %s, %d bytes, update\n", name().c_str(), attr_name,
-                 attr_size);
+        LOG(INFO) << "module " << name() << ": " << attr_name << ", "
+                  << attr_size << " bytes, update" << std::endl;
         break;
     }
   }
@@ -58,16 +60,16 @@ struct snobj *MetadataTest::AddAttributes(struct snobj *attributes,
     /* check /var/log/syslog for log messages */
     switch (mode) {
       case bess::metadata::AccessMode::READ:
-        log_info("module %s: %s, %d bytes, read\n", name().c_str(), attr_name,
-                 attr_size);
+        LOG(INFO) << "module " << name() << ": " << attr_name << ", "
+                  << attr_size << " bytes, read" << std::endl;
         break;
       case bess::metadata::AccessMode::WRITE:
-        log_info("module %s: %s, %d bytes, write\n", name().c_str(), attr_name,
-                 attr_size);
+        LOG(INFO) << "module " << name() << ": " << attr_name << ", "
+                  << attr_size << " bytes, write" << std::endl;
         break;
       case bess::metadata::AccessMode::UPDATE:
-        log_info("module %s: %s, %d bytes, update\n", name().c_str(), attr_name,
-                 attr_size);
+        LOG(INFO) << "module " << name() << ": " << attr_name << ", "
+                  << attr_size << " bytes, update" << std::endl;
         break;
     }
   }

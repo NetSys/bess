@@ -1,5 +1,8 @@
-#ifndef __ETHERENCAP_H__
-#define __ETHERENCAP_H__
+#ifndef BESS_MODULES_ETHERENCAP_H_
+#define BESS_MODULES_ETHERENCAP_H_
+
+#include <rte_config.h>
+#include <rte_ether.h>
 
 #include "../module.h"
 
@@ -33,4 +36,4 @@ class EtherEncap : public Module {
   static const PbCommands pb_cmds;
 };
 
-#endif
+#endif  // BESS_MODULES_ETHERENCAP_H_

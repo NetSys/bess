@@ -1,5 +1,5 @@
-#ifndef __PORT_INC_H__
-#define __PORT_INC_H__
+#ifndef BESS_MODULES_PORTINC_H_
+#define BESS_MODULES_PORTINC_H_
 
 #include "../module.h"
 #include "../module_msg.pb.h"
@@ -35,4 +35,4 @@ class PortInc : public Module {
   pb_error_t SetBurst(int64_t burst);
 };
 
-#endif
+#endif  // BESS_MODULES_PORTINC_H_

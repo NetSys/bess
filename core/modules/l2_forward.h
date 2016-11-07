@@ -1,5 +1,5 @@
-#ifndef __L2_FORWARD_H__
-#define __L2_FORWARD_H__
+#ifndef BESS_MODULES_L2FORWARD_H_
+#define BESS_MODULES_L2FORWARD_H_
 
 #include "../module.h"
 #include "../module_msg.pb.h"
@@ -62,4 +62,4 @@ class L2Forward : public Module {
   gate_idx_t default_gate_ = {};
 };
 
-#endif
+#endif  // BESS_MODULES_L2FORWARD_H_

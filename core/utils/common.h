@@ -1,13 +1,14 @@
-/* This header file contains general (not BESS specific) C definitions */
+/* This header file contains general (not BESS specific) C/C++ definitions */
 
-#ifndef _COMMON_H_
-#define _COMMON_H_
+#ifndef BESS_UTILS_COMMON_H_
+#define BESS_UTILS_COMMON_H_
 
-#include <stddef.h>
-#include <stdint.h>
 #include <unistd.h>
-
 #include <x86intrin.h>
+
+#include <cstddef>
+#include <cstdint>
+#include <string>
 
 #if __cplusplus < 201103L  // pre-C++11?
 # error The compiler does not support C++11
@@ -190,4 +191,4 @@ class unique_fd {
   DISALLOW_COPY_AND_ASSIGN(unique_fd);
 };
 
-#endif
+#endif  // BESS_UTILS_COMMON_H_

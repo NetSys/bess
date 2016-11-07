@@ -1,4 +1,6 @@
-#include <assert.h>
+#include "task.h"
+
+#include <cassert>
 
 #include <gflags/gflags.h>
 #include <glog/logging.h>
@@ -10,6 +12,10 @@
 DECLARE_int32(c);
 
 struct cdlist_head all_tasks = CDLIST_HEAD_INIT(all_tasks);
+
+struct task_result task_scheduled(struct task *t) {
+  return t->m->RunTask(t->arg);
+}
 
 struct task *task_create(Module *m, void *arg) {
   struct task *t;

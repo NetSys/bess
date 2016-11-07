@@ -1,20 +1,21 @@
+#include "bessctl.h"
+
 #include <gflags/gflags.h>
-
-#include <rte_config.h>
-#include <rte_ether.h>
-
+#include <glog/logging.h>
 #include <grpc++/server.h>
 #include <grpc++/server_builder.h>
 #include <grpc++/server_context.h>
 #include <grpc/grpc.h>
+#include <rte_config.h>
+#include <rte_ether.h>
 
-#include "service.grpc.pb.h"
-
-#include "bessctl.h"
 #include "message.h"
+#include "metadata.h"
 #include "module.h"
 #include "port.h"
+#include "service.grpc.pb.h"
 #include "tc.h"
+#include "utils/format.h"
 #include "utils/time.h"
 #include "worker.h"
 
@@ -40,7 +41,7 @@ static inline Status return_with_error(T* response, int code, const char* fmt,
   va_list ap;
   va_start(ap, fmt);
   response->mutable_error()->set_err(code);
-  response->mutable_error()->set_errmsg(string_vformat(fmt, ap));
+  response->mutable_error()->set_errmsg(bess::utils::FormatVarg(fmt, ap));
   va_end(ap);
   return Status::OK;
 }
@@ -170,7 +171,8 @@ static ::Port* create_port(const std::string& name, const PortBuilder& driver,
   if (name.length() > 0) {
     if (PortBuilder::all_ports().count(name)) {
       perr->set_err(EEXIST);
-      perr->set_errmsg(string_format("Port '%s' already exists", name.c_str()));
+      perr->set_errmsg(
+          bess::utils::Format("Port '%s' already exists", name.c_str()));
       return nullptr;
     }
     port_name = name;
@@ -223,7 +225,7 @@ static Module* create_module(const std::string& name,
                                                   builder.name_template());
   }
 
-  m = builder.CreateModule(mod_name, &default_pipeline);
+  m = builder.CreateModule(mod_name, &bess::metadata::default_pipeline);
 
   *perr = m->Init(arg);
   if (perr != nullptr) {
@@ -268,11 +270,11 @@ class BESSControlImpl final : public BESSControl::Service {
   }
   Status PauseAll(ClientContext*, const EmptyRequest&, EmptyResponse*) {
     pause_all_workers();
-    log_info("*** All workers have been paused ***\n");
+    LOG(INFO) << "*** All workers have been paused ***";
     return Status::OK;
   }
   Status ResumeAll(ClientContext*, const EmptyRequest&, EmptyResponse*) {
-    log_info("*** Resuming ***\n");
+    LOG(INFO) << "*** Resuming ***";
     resume_all_workers();
     return Status::OK;
   }
@@ -282,7 +284,7 @@ class BESSControlImpl final : public BESSControl::Service {
       return return_with_error(response, EBUSY, "There is a running worker");
     }
     destroy_all_workers();
-    log_info("*** All workers have been destroyed ***\n");
+    LOG(INFO) << "*** All workers have been destroyed ***";
     return Status::OK;
   }
   Status ListWorkers(ClientContext*, const EmptyRequest&,
@@ -551,7 +553,7 @@ class BESSControlImpl final : public BESSControl::Service {
       it = it_next;
     }
 
-    log_info("*** All ports have been destroyed ***\n");
+    LOG(INFO) << "*** All ports have been destroyed ***";
     return Status::OK;
   }
   Status ListPorts(ClientContext*, const EmptyRequest&,
@@ -571,10 +573,10 @@ class BESSControlImpl final : public BESSControl::Service {
     const char* driver_name;
     ::Port* port;
 
-    if (request.port().driver().length() == 0)
+    if (request.driver().length() == 0)
       return return_with_error(response, EINVAL, "Missing 'driver' field");
 
-    driver_name = request.port().driver().c_str();
+    driver_name = request.driver().c_str();
     const auto& builders = PortBuilder::all_port_builders();
     const auto& it = builders.find(driver_name);
     if (it == builders.end()) {
@@ -587,31 +589,31 @@ class BESSControlImpl final : public BESSControl::Service {
 
     switch (request.arg_case()) {
       case CreatePortRequest::kPcapArg:
-        port = create_port(request.port().name(), builder, request.num_inc_q(),
+        port = create_port(request.name(), builder, request.num_inc_q(),
                            request.num_out_q(), request.size_inc_q(),
                            request.size_out_q(), request.mac_addr(),
                            request.pcap_arg(), error);
         break;
       case CreatePortRequest::kPmdArg:
-        port = create_port(request.port().name(), builder, request.num_inc_q(),
+        port = create_port(request.name(), builder, request.num_inc_q(),
                            request.num_out_q(), request.size_inc_q(),
                            request.size_out_q(), request.mac_addr(),
                            request.pmd_arg(), error);
         break;
       case CreatePortRequest::kSocketArg:
-        port = create_port(request.port().name(), builder, request.num_inc_q(),
+        port = create_port(request.name(), builder, request.num_inc_q(),
                            request.num_out_q(), request.size_inc_q(),
                            request.size_out_q(), request.mac_addr(),
                            request.socket_arg(), error);
         break;
       case CreatePortRequest::kZcvportArg:
-        port = create_port(request.port().name(), builder, request.num_inc_q(),
+        port = create_port(request.name(), builder, request.num_inc_q(),
                            request.num_out_q(), request.size_inc_q(),
                            request.size_out_q(), request.mac_addr(),
                            request.zcvport_arg(), error);
         break;
       case CreatePortRequest::kVportArg:
-        port = create_port(request.port().name(), builder, request.num_inc_q(),
+        port = create_port(request.name(), builder, request.num_inc_q(),
                            request.num_out_q(), request.size_inc_q(),
                            request.size_out_q(), request.mac_addr(),
                            request.vport_arg(), error);
@@ -685,7 +687,7 @@ class BESSControlImpl final : public BESSControl::Service {
     }
 
     ModuleBuilder::DestroyAllModules();
-    log_info("*** All modules have been destroyed ***\n");
+    LOG(INFO) << "*** All modules have been destroyed ***";
     return Status::OK;
   }
   Status ListModules(ClientContext*, const EmptyRequest&,
@@ -997,7 +999,7 @@ class BESSControlImpl final : public BESSControl::Service {
     if (is_any_worker_running()) {
       return return_with_error(response, EBUSY, "There is a running worker");
     }
-    log_notice("Halt requested by a client\n");
+    LOG(WARNING) << "Halt requested by a client\n";
     exit(EXIT_SUCCESS);
 
     /* Never called */
@@ -1082,7 +1084,7 @@ void RunControl() {
   ServerBuilder builder;
 
   if (FLAGS_p) {
-    server_address = string_format("127.0.0.1:%d", FLAGS_p);
+    server_address = bess::utils::Format("127.0.0.1:%d", FLAGS_p);
     builder.AddListeningPort(server_address, grpc::InsecureServerCredentials());
   }
 

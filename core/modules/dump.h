@@ -1,8 +1,8 @@
-#ifndef __DUMP_H__
-#define __DUMP_H__
+#ifndef BESS_MODULES_DUMP_H_
+#define BESS_MODULES_DUMP_H_
 
-#include "../message.h"
 #include "../module.h"
+#include "../module_msg.pb.h"
 
 class Dump : public Module {
  public:
@@ -26,4 +26,4 @@ class Dump : public Module {
   uint64_t next_ns_;
 };
 
-#endif
+#endif  // BESS_MODULES_DUMP_H_

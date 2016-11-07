@@ -1,9 +1,9 @@
-#ifndef _CDLIST_H_
-#define _CDLIST_H_
+#ifndef BESS_UTILS_CDLIST_H_
+#define BESS_UTILS_CDLIST_H_
 
-#include <stddef.h> /* offsetof */
+#include <cstddef> /* offsetof */
 
-#include "../common.h"
+#include "common.h"
 
 /* Circular, doubly linked list implementation. The idea is very similar to
  * the one in Linux kernel, while we distinguish head and item types.
@@ -189,4 +189,4 @@ static inline int cdlist_count(struct cdlist_head *head) {
   return count;
 }
 
-#endif
+#endif  // BESS_UTILS_CDLIST_H_

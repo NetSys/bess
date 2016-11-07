@@ -1,5 +1,5 @@
-#ifndef __SINK_H__
-#define __SINK_H__
+#ifndef BESS_MODULES_SINK_H_
+#define BESS_MODULES_SINK_H_
 
 #include "../module.h"
 
@@ -14,4 +14,4 @@ class Sink : public Module {
   static const PbCommands pb_cmds;
 };
 
-#endif
+#endif  // BESS_MODULES_SINK_H_

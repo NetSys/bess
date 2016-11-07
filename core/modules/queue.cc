@@ -1,5 +1,7 @@
 #include "queue.h"
 
+#include "../utils/format.h"
+
 #define DEFAULT_QUEUE_SIZE 1024
 
 const Commands<Module> Queue::cmds = {
@@ -135,7 +137,7 @@ void Queue::Deinit() {
 std::string Queue::GetDesc() const {
   const struct llring *ring = queue_;
 
-  return string_format("%u/%u", llring_count(ring), ring->common.slots);
+  return bess::utils::Format("%u/%u", llring_count(ring), ring->common.slots);
 }
 
 /* from upstream */

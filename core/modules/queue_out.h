@@ -1,5 +1,5 @@
-#ifndef __QUEUE_OUT_H__
-#define __QUEUE_OUT_H__
+#ifndef BESS_MODULES_QUEUEOUT_H_
+#define BESS_MODULES_QUEUEOUT_H_
 
 #include "../module.h"
 #include "../module_msg.pb.h"
@@ -29,4 +29,4 @@ class QueueOut : public Module {
   queue_t qid_;
 };
 
-#endif
+#endif  // BESS_MODULES_QUEUEOUT_H_

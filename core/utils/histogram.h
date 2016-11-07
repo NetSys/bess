@@ -1,5 +1,5 @@
-#ifndef __HISTOGRAM_H__
-#define __HISTOGRAM_H__
+#ifndef BESS_UTILS_HISTOGRAM_H_
+#define BESS_UTILS_HISTOGRAM_H_
 
 #include "time.h"
 
@@ -144,4 +144,4 @@ static inline void record_latency(struct histogram* hist, uint64_t latency) {
   }
 }
 
-#endif
+#endif  // BESS_UTILS_HISTOGRAM_H_

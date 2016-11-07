@@ -1,5 +1,5 @@
-#ifndef __RANDOM_UPDATE_H__
-#define __RANDOM_UPDATE_H__
+#ifndef BESS_MODULES_RANDOMUPDATE_H_
+#define BESS_MODULES_RANDOMUPDATE_H_
 
 #include "../module.h"
 #include "../module_msg.pb.h"
@@ -42,4 +42,4 @@ class RandomUpdate : public Module {
   Random rng_;
 };
 
-#endif
+#endif  // BESS_MODULES_RANDOMUPDATE_H_

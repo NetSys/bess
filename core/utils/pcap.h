@@ -1,5 +1,5 @@
-#ifndef _PCAP_H_
-#define _PCAP_H_
+#ifndef BESS_UTILS_PCAP_H_
+#define BESS_UTILS_PCAP_H_
 
 #define PCAP_MAGIC_NUMBER 0xa1b2c3d4
 #define PCAP_VERSION_MAJOR 2
@@ -26,4 +26,4 @@ struct pcap_rec_hdr {
   uint32_t orig_len; /* actual length of packet */
 };
 
-#endif
+#endif  // BESS_UTILS_PCAP_H_

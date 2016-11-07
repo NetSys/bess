@@ -9,10 +9,9 @@
 
 #include <glog/logging.h>
 
+#include "mem_alloc.h"
 #include "utils/pcap.h"
 #include "utils/time.h"
-
-#include "mem_alloc.h"
 
 std::map<std::string, Module *> ModuleBuilder::all_modules_;
 

@@ -1,5 +1,5 @@
-#ifndef __REWRITE_H__
-#define __REWRITE_H__
+#ifndef BESS_MODULES_REWRITE_H_
+#define BESS_MODULES_REWRITE_H_
 
 #include "../module.h"
 #include "../module_msg.pb.h"
@@ -46,4 +46,4 @@ class Rewrite : public Module {
   unsigned char templates_[SLOTS][MAX_TEMPLATE_SIZE] __ymm_aligned;
 };
 
-#endif
+#endif  // BESS_MODULES_REWRITE_H_
