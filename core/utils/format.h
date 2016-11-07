@@ -9,7 +9,7 @@
 namespace bess {
 namespace utils {
 
-std::string Format(const char *fmt, ...);
+[[gnu::format(printf, 1, 2)]] std::string Format(const char *fmt, ...);
 std::string FormatVarg(const char *fmt, va_list ap);
 
 }  // namespace utils
