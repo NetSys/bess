@@ -11,7 +11,7 @@ class Update : public Module {
   Update() : Module(), num_fields_(), fields_() {}
 
   virtual struct snobj *Init(struct snobj *arg);
-  virtual pb_error_t Init(const bess::pb::UpdateArg &arg);
+  virtual pb_error_t InitPb(const bess::pb::UpdateArg &arg);
 
   virtual void ProcessBatch(struct pkt_batch *batch);
 
@@ -25,7 +25,7 @@ class Update : public Module {
   static const gate_idx_t kNumOGates = 1;
 
   static const Commands<Module> cmds;
-  static const PbCommands<Module> pb_cmds;
+  static const PbCommands pb_cmds;
 
  private:
   int num_fields_ = {};

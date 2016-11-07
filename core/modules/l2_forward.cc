@@ -515,12 +515,13 @@ const Commands<Module> L2Forward::cmds = {
     {"populate", MODULE_FUNC &L2Forward::CommandPopulate, 0},
 };
 
-const PbCommands<Module> L2Forward::pb_cmds = {
-    {"add", PB_MODULE_FUNC(&L2Forward::CommandAdd), 0},
-    {"delete", PB_MODULE_FUNC(&L2Forward::CommandDelete), 0},
-    {"set_default_gate", PB_MODULE_FUNC(&L2Forward::CommandSetDefaultGate), 1},
-    {"lookup", PB_MODULE_FUNC(&L2Forward::CommandLookup), 1},
-    {"populate", PB_MODULE_FUNC(&L2Forward::CommandPopulate), 0},
+const PbCommands L2Forward::pb_cmds = {
+    {"add", PB_MODULE_FUNC(&L2Forward::CommandAddPb), 0},
+    {"delete", PB_MODULE_FUNC(&L2Forward::CommandDeletePb), 0},
+    {"set_default_gate", PB_MODULE_FUNC(&L2Forward::CommandSetDefaultGatePb),
+     1},
+    {"lookup", PB_MODULE_FUNC(&L2Forward::CommandLookupPb), 1},
+    {"populate", PB_MODULE_FUNC(&L2Forward::CommandPopulatePb), 0},
 };
 
 struct snobj *L2Forward::Init(struct snobj *arg) {
@@ -549,7 +550,7 @@ struct snobj *L2Forward::Init(struct snobj *arg) {
   return nullptr;
 }
 
-pb_error_t L2Forward::Init(const bess::pb::L2ForwardArg &arg) {
+pb_error_t L2Forward::InitPb(const bess::pb::L2ForwardArg &arg) {
   int ret = 0;
   int size = arg.size();
   int bucket = arg.bucket();

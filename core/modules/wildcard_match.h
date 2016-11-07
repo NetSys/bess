@@ -124,7 +124,7 @@ class WildcardMatch : public Module {
         next_table_id_() {}
 
   virtual struct snobj *Init(struct snobj *arg);
-  pb_error_t Init(const bess::pb::WildcardMatchArg &arg);
+  pb_error_t InitPb(const bess::pb::WildcardMatchArg &arg);
 
   virtual void Deinit();
 
@@ -150,7 +150,7 @@ class WildcardMatch : public Module {
   static const gate_idx_t kNumOGates = MAX_GATES;
 
   static const Commands<Module> cmds;
-  static const PbCommands<Module> pb_cmds;
+  static const PbCommands pb_cmds;
 
  private:
   gate_idx_t LookupEntry(wm_hkey_t *key, gate_idx_t def_gate);

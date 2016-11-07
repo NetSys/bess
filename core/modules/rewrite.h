@@ -17,7 +17,7 @@ class Rewrite : public Module {
         templates_() {}
 
   virtual struct snobj *Init(struct snobj *arg);
-  virtual pb_error_t Init(const bess::pb::RewriteArg &arg);
+  virtual pb_error_t InitPb(const bess::pb::RewriteArg &arg);
 
   virtual void ProcessBatch(struct pkt_batch *batch);
 
@@ -31,7 +31,7 @@ class Rewrite : public Module {
   static const gate_idx_t kNumOGates = 1;
 
   static const Commands<Module> cmds;
-  static const PbCommands<Module> pb_cmds;
+  static const PbCommands pb_cmds;
 
  private:
   inline void DoRewrite(struct pkt_batch *batch);

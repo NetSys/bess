@@ -333,7 +333,7 @@ struct snobj *PMDPort::Init(struct snobj *conf) {
   return nullptr;
 }
 
-pb_error_t PMDPort::Init(const bess::pb::PMDPortArg &arg) {
+pb_error_t PMDPort::InitPb(const bess::pb::PMDPortArg &arg) {
   dpdk_port_t ret_port_id = -1;
 
   struct rte_eth_dev_info dev_info = {};

@@ -13,8 +13,8 @@ const Commands<Module> Dump::cmds = {
     {"set_interval", MODULE_FUNC &Dump::CommandSetInterval, 0},
 };
 
-const PbCommands<Module> Dump::pb_cmds = {
-    {"set_interval", PB_MODULE_FUNC(&Dump::CommandSetInterval), 0},
+const PbCommands Dump::pb_cmds = {
+    {"set_interval", PB_MODULE_FUNC(&Dump::CommandSetIntervalPb), 0},
 };
 
 struct snobj *Dump::Init(struct snobj *arg) {
@@ -28,7 +28,7 @@ struct snobj *Dump::Init(struct snobj *arg) {
   }
 }
 
-pb_error_t Dump::Init(const bess::pb::DumpArg &arg) {
+pb_error_t Dump::InitPb(const bess::pb::DumpArg &arg) {
   min_interval_ns_ = DEFAULT_INTERVAL_NS;
   next_ns_ = ctx.current_tsc();
   bess::pb::ModuleCommandResponse response = CommandSetIntervalPb(arg);

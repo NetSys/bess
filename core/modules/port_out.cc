@@ -1,10 +1,9 @@
 #include "port_out.h"
-#include "../module_msg.pb.h"
 
 const Commands<Module> PortOut::cmds = {};
-const PbCommands<Module> PortOut::pb_cmds = {};
+const PbCommands PortOut::pb_cmds = {};
 
-pb_error_t PortOut::Init(const bess::pb::PortOutArg &arg) {
+pb_error_t PortOut::InitPb(const bess::pb::PortOutArg &arg) {
   const char *port_name;
   int ret;
 

@@ -1,7 +1,7 @@
 #include "buffer.h"
 
 const Commands<Module> Buffer::cmds = {};
-const PbCommands<Module> Buffer::pb_cmds = {};
+const PbCommands Buffer::pb_cmds = {};
 
 void Buffer::Deinit() {
   struct pkt_batch *buf = &buf_;

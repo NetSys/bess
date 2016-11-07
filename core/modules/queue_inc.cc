@@ -4,10 +4,10 @@
 const Commands<Module> QueueInc::cmds = {
     {"set_burst", MODULE_FUNC &QueueInc::CommandSetBurst, 1}};
 
-const PbCommands<Module> QueueInc::pb_cmds = {
-    {"set_burst", PB_MODULE_FUNC(&QueueInc::CommandSetBurst), 1}};
+const PbCommands QueueInc::pb_cmds = {
+    {"set_burst", PB_MODULE_FUNC(&QueueInc::CommandSetBurstPb), 1}};
 
-pb_error_t QueueInc::Init(const bess::pb::QueueIncArg &arg) {
+pb_error_t QueueInc::InitPb(const bess::pb::QueueIncArg &arg) {
   const char *port_name;
   task_id_t tid;
   pb_error_t err;

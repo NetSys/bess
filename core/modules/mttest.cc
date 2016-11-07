@@ -1,7 +1,7 @@
 #include "mttest.h"
 
 const Commands<Module> MetadataTest::cmds = {};
-const PbCommands<Module> MetadataTest::pb_cmds = {};
+const PbCommands MetadataTest::pb_cmds = {};
 
 pb_error_t MetadataTest::AddAttributes(
     const google::protobuf::Map<std::string, int64_t> &attributes,
@@ -75,7 +75,7 @@ struct snobj *MetadataTest::AddAttributes(struct snobj *attributes,
   return nullptr;
 }
 
-pb_error_t MetadataTest::Init(const bess::pb::MetadataTestArg &arg) {
+pb_error_t MetadataTest::InitPb(const bess::pb::MetadataTestArg &arg) {
   pb_error_t err;
 
   err = AddAttributes(arg.read(), bess::metadata::AccessMode::READ);

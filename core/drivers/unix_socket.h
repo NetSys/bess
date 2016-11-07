@@ -34,7 +34,7 @@ class UnixSocketPort : public Port {
    * PARAMETERS:
    * * string path : file name to bind the socket ti.
    */
-  virtual pb_error_t Init(const bess::pb::UnixSocketPortArg &arg);
+  virtual pb_error_t InitPb(const bess::pb::UnixSocketPortArg &arg);
 
   /*!
    * Deprecated. Don't use.

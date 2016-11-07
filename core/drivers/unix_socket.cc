@@ -115,7 +115,7 @@ struct snobj *UnixSocketPort::Init(struct snobj *conf) {
   return nullptr;
 }
 
-pb_error_t UnixSocketPort::Init(const bess::pb::UnixSocketPortArg &arg) {
+pb_error_t UnixSocketPort::InitPb(const bess::pb::UnixSocketPortArg &arg) {
   const std::string path = arg.path();
   int num_txq = num_queues[PACKET_DIR_OUT];
   int num_rxq = num_queues[PACKET_DIR_INC];

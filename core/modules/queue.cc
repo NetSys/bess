@@ -7,9 +7,9 @@ const Commands<Module> Queue::cmds = {
     {"set_size", MODULE_FUNC &Queue::CommandSetSize, 0},
 };
 
-const PbCommands<Module> Queue::pb_cmds = {
-    {"set_burst", PB_MODULE_FUNC(&Queue::CommandSetBurst), 1},
-    {"set_size", PB_MODULE_FUNC(&Queue::CommandSetSize), 0},
+const PbCommands Queue::pb_cmds = {
+    {"set_burst", PB_MODULE_FUNC(&Queue::CommandSetBurstPb), 1},
+    {"set_size", PB_MODULE_FUNC(&Queue::CommandSetSizePb), 0},
 };
 
 int Queue::Resize(int slots) {
@@ -50,7 +50,7 @@ int Queue::Resize(int slots) {
   return 0;
 }
 
-pb_error_t Queue::Init(const bess::pb::QueueArg &arg) {
+pb_error_t Queue::InitPb(const bess::pb::QueueArg &arg) {
   task_id_t tid;
   pb_error_t err;
 

@@ -1,11 +1,10 @@
 #include "queue_out.h"
-#include "../module_msg.pb.h"
 #include "../port.h"
 
 const Commands<Module> QueueOut::cmds = {};
-const PbCommands<Module> QueueOut::pb_cmds = {};
+const PbCommands QueueOut::pb_cmds = {};
 
-pb_error_t QueueOut::Init(const bess::pb::QueueOutArg &arg) {
+pb_error_t QueueOut::InitPb(const bess::pb::QueueOutArg &arg) {
   const char *port_name;
   int ret;
 

@@ -1111,11 +1111,11 @@ const Commands<Module> BPF::cmds = {
     {"add", MODULE_FUNC &BPF::CommandAdd, 0},
     {"clear", MODULE_FUNC &BPF::CommandClear, 0}};
 
-const PbCommands<Module> BPF::pb_cmds = {
-    {"add", PB_MODULE_FUNC(&BPF::CommandAdd), 0},
-    {"clear", PB_MODULE_FUNC(&BPF::CommandClear), 0}};
+const PbCommands BPF::pb_cmds = {
+    {"add", PB_MODULE_FUNC(&BPF::CommandAddPb), 0},
+    {"clear", PB_MODULE_FUNC(&BPF::CommandClearPb), 0}};
 
-pb_error_t BPF::Init(const bess::pb::BPFArg &arg) {
+pb_error_t BPF::InitPb(const bess::pb::BPFArg &arg) {
   bess::pb::ModuleCommandResponse response = CommandAddPb(arg);
   return response.error();
 }

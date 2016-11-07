@@ -13,6 +13,9 @@ message Error {
 message EmptyRequest {
 }
 
+message EmptyArg {
+}
+
 message CreatePortResponse {
   Error error = 1;
   string name = 2;

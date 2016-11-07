@@ -9,7 +9,7 @@ class Source : public Module {
   Source() : Module(), pkt_size_(), burst_() {}
 
   virtual struct snobj *Init(struct snobj *arg);
-  pb_error_t Init(const bess::pb::SourceArg &arg);
+  pb_error_t InitPb(const bess::pb::SourceArg &arg);
 
   virtual struct task_result RunTask(void *arg);
 
@@ -25,7 +25,7 @@ class Source : public Module {
   static const gate_idx_t kNumOGates = 1;
 
   static const Commands<Module> cmds;
-  static const PbCommands<Module> pb_cmds;
+  static const PbCommands pb_cmds;
 
  private:
   int pkt_size_;

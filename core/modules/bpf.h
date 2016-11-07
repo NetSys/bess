@@ -21,7 +21,7 @@ struct filter {
 class BPF : public Module {
  public:
   virtual struct snobj *Init(struct snobj *arg);
-  virtual pb_error_t Init(const bess::pb::BPFArg &arg);
+  virtual pb_error_t InitPb(const bess::pb::BPFArg &arg);
   virtual void Deinit();
 
   virtual void ProcessBatch(struct pkt_batch *batch);
@@ -36,7 +36,7 @@ class BPF : public Module {
   static const gate_idx_t kNumOGates = MAX_GATES;
 
   static const Commands<Module> cmds;
-  static const PbCommands<Module> pb_cmds;
+  static const PbCommands pb_cmds;
 
  private:
   struct filter filters_[MAX_FILTERS + 1] = {};

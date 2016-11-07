@@ -5,12 +5,12 @@ const Commands<Module> RoundRobin::cmds = {
     {"set_gates", MODULE_FUNC &RoundRobin::CommandSetGates, 0},
 };
 
-const PbCommands<Module> RoundRobin::pb_cmds = {
-    {"set_mode", PB_MODULE_FUNC(&RoundRobin::CommandSetMode), 0},
-    {"set_gates", PB_MODULE_FUNC(&RoundRobin::CommandSetGates), 0},
+const PbCommands RoundRobin::pb_cmds = {
+    {"set_mode", PB_MODULE_FUNC(&RoundRobin::CommandSetModePb), 0},
+    {"set_gates", PB_MODULE_FUNC(&RoundRobin::CommandSetGatesPb), 0},
 };
 
-pb_error_t RoundRobin::Init(const bess::pb::RoundRobinArg &arg) {
+pb_error_t RoundRobin::InitPb(const bess::pb::RoundRobinArg &arg) {
   pb_error_t err;
   bess::pb::ModuleCommandResponse response;
 

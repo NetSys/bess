@@ -40,9 +40,9 @@ const Commands<Module> HashLB::cmds = {
     {"set_gates", MODULE_FUNC &HashLB::CommandSetGates, 0},
 };
 
-const PbCommands<Module> HashLB::pb_cmds = {
-    {"set_mode", PB_MODULE_FUNC(&HashLB::CommandSetMode), 0},
-    {"set_gates", PB_MODULE_FUNC(&HashLB::CommandSetGates), 0}};
+const PbCommands HashLB::pb_cmds = {
+    {"set_mode", PB_MODULE_FUNC(&HashLB::CommandSetModePb), 0},
+    {"set_gates", PB_MODULE_FUNC(&HashLB::CommandSetGatesPb), 0}};
 
 struct snobj *HashLB::CommandSetMode(struct snobj *arg) {
   const char *mode = snobj_str_get(arg);
@@ -180,7 +180,7 @@ struct snobj *HashLB::Init(struct snobj *arg) {
   return nullptr;
 }
 
-pb_error_t HashLB::Init(const bess::pb::HashLBArg &arg) {
+pb_error_t HashLB::InitPb(const bess::pb::HashLBArg &arg) {
   mode_ = DEFAULT_MODE;
 
   if (arg.has_gate_arg()) {

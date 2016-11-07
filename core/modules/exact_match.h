@@ -140,9 +140,9 @@ class ExactMatch : public Module {
   struct snobj *CommandSetDefaultGate(struct snobj *arg);
 
   static const Commands<Module> cmds;
-  static const PbCommands<Module> pb_cmds;
+  static const PbCommands pb_cmds;
 
-  pb_error_t Init(const bess::pb::ExactMatchArg &arg);
+  pb_error_t InitPb(const bess::pb::ExactMatchArg &arg);
   bess::pb::ModuleCommandResponse CommandAddPb(
       const bess::pb::ExactMatchCommandAddArg &arg);
   bess::pb::ModuleCommandResponse CommandDeletePb(

@@ -5,12 +5,12 @@ const Commands<Module> Source::cmds = {
     {"set_burst", MODULE_FUNC &Source::command_set_burst, 1},
 };
 
-const PbCommands<Module> Source::pb_cmds = {
-    {"set_pkt_size", PB_MODULE_FUNC(&Source::command_set_pkt_size), 1},
-    {"set_burst", PB_MODULE_FUNC(&Source::command_set_burst), 1},
+const PbCommands Source::pb_cmds = {
+    {"set_pkt_size", PB_MODULE_FUNC(&Source::CommandSetPktSizePb), 1},
+    {"set_burst", PB_MODULE_FUNC(&Source::CommandSetBurstPb), 1},
 };
 
-pb_error_t Source::Init(const bess::pb::SourceArg &arg) {
+pb_error_t Source::InitPb(const bess::pb::SourceArg &arg) {
   pb_error_t err;
   bess::pb::ModuleCommandResponse response;
 

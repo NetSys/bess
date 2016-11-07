@@ -4,11 +4,11 @@ const Commands<Module> PortInc::cmds = {
     {"set_burst", MODULE_FUNC &PortInc::CommandSetBurst, 1},
 };
 
-const PbCommands<Module> PortInc::pb_cmds = {
-    {"set_burst", PB_MODULE_FUNC(&PortInc::CommandSetBurst), 1},
+const PbCommands PortInc::pb_cmds = {
+    {"set_burst", PB_MODULE_FUNC(&PortInc::CommandSetBurstPb), 1},
 };
 
-pb_error_t PortInc::Init(const bess::pb::PortIncArg &arg) {
+pb_error_t PortInc::InitPb(const bess::pb::PortIncArg &arg) {
   const char *port_name;
   queue_t num_inc_q;
   int ret;

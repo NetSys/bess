@@ -44,11 +44,11 @@ const Commands<Module> WildcardMatch::cmds = {
     {"clear", MODULE_FUNC &WildcardMatch::CommandClear, 0},
     {"set_default_gate", MODULE_FUNC &WildcardMatch::CommandSetDefaultGate, 1}};
 
-const PbCommands<Module> WildcardMatch::pb_cmds = {
-    {"add", PB_MODULE_FUNC(&WildcardMatch::CommandAdd), 0},
-    {"delete", PB_MODULE_FUNC(&WildcardMatch::CommandDelete), 0},
-    {"clear", PB_MODULE_FUNC(&WildcardMatch::CommandClear), 0},
-    {"set_default_gate", PB_MODULE_FUNC(&WildcardMatch::CommandSetDefaultGate),
+const PbCommands WildcardMatch::pb_cmds = {
+    {"add", PB_MODULE_FUNC(&WildcardMatch::CommandAddPb), 0},
+    {"delete", PB_MODULE_FUNC(&WildcardMatch::CommandDeletePb), 0},
+    {"clear", PB_MODULE_FUNC(&WildcardMatch::CommandClearPb), 0},
+    {"set_default_gate", PB_MODULE_FUNC(&WildcardMatch::CommandSetDefaultGatePb),
      1}};
 
 struct snobj *WildcardMatch::AddFieldOne(struct snobj *field,
@@ -154,7 +154,7 @@ struct snobj *WildcardMatch::Init(struct snobj *arg) {
   return nullptr;
 }
 
-pb_error_t WildcardMatch::Init(const bess::pb::WildcardMatchArg &arg) {
+pb_error_t WildcardMatch::InitPb(const bess::pb::WildcardMatchArg &arg) {
   int size_acc = 0;
 
   for (int i = 0; i < arg.fields_size(); i++) {

@@ -18,7 +18,7 @@ class HashLB : public Module {
   HashLB() : Module(), gates_(), num_gates_(), mode_() {}
 
   virtual struct snobj *Init(struct snobj *arg);
-  virtual pb_error_t Init(const bess::pb::HashLBArg &arg);
+  virtual pb_error_t InitPb(const bess::pb::HashLBArg &arg);
 
   virtual void ProcessBatch(struct pkt_batch *batch);
 
@@ -34,7 +34,7 @@ class HashLB : public Module {
   static const gate_idx_t kNumOGates = MAX_GATES;
 
   static const Commands<Module> cmds;
-  static const PbCommands<Module> pb_cmds;
+  static const PbCommands pb_cmds;
 
  private:
   void LbL2(struct pkt_batch *batch, gate_idx_t *ogates);

@@ -7,9 +7,9 @@ const Commands<Module> Update::cmds = {
     {"clear", MODULE_FUNC &Update::CommandClear, 0},
 };
 
-const PbCommands<Module> Update::pb_cmds = {
-    {"add", PB_MODULE_FUNC(&Update::CommandAdd), 0},
-    {"clear", PB_MODULE_FUNC(&Update::CommandClear), 0},
+const PbCommands Update::pb_cmds = {
+    {"add", PB_MODULE_FUNC(&Update::CommandAddPb), 0},
+    {"clear", PB_MODULE_FUNC(&Update::CommandClearPb), 0},
 };
 
 struct snobj *Update::Init(struct snobj *arg) {
@@ -26,7 +26,7 @@ struct snobj *Update::Init(struct snobj *arg) {
   return CommandAdd(t);
 }
 
-pb_error_t Update::Init(const bess::pb::UpdateArg &arg) {
+pb_error_t Update::InitPb(const bess::pb::UpdateArg &arg) {
   bess::pb::ModuleCommandResponse response = CommandAddPb(arg);
   return response.error();
 }

@@ -56,7 +56,7 @@ struct vport_bar {
 
 class ZeroCopyVPort : public Port {
  public:
-  pb_error_t Init(const bess::pb::EmptyArg &arg);
+  pb_error_t InitPb(const bess::pb::EmptyArg &arg);
   struct snobj *Init(struct snobj *conf);
 
   void DeInit();
@@ -161,7 +161,7 @@ struct snobj *ZeroCopyVPort::Init(struct snobj *) {
   return nullptr;
 }
 
-pb_error_t ZeroCopyVPort::Init(const bess::pb::EmptyArg &) {
+pb_error_t ZeroCopyVPort::InitPb(const bess::pb::EmptyArg &) {
   struct vport_bar *bar = nullptr;
 
   int num_inc_q = num_queues[PACKET_DIR_INC];

@@ -16,11 +16,11 @@ const Commands<Module> ExactMatch::cmds = {
     {"clear", MODULE_FUNC &ExactMatch::CommandClear, 0},
     {"set_default_gate", MODULE_FUNC &ExactMatch::CommandSetDefaultGate, 1}};
 
-const PbCommands<Module> ExactMatch::pb_cmds = {
-    {"add", PB_MODULE_FUNC(&ExactMatch::CommandAdd), 0},
-    {"delete", PB_MODULE_FUNC(&ExactMatch::CommandDelete), 0},
-    {"clear", PB_MODULE_FUNC(&ExactMatch::CommandClear), 0},
-    {"set_default_gate", PB_MODULE_FUNC(&ExactMatch::CommandSetDefaultGate),
+const PbCommands ExactMatch::pb_cmds = {
+    {"add", PB_MODULE_FUNC(&ExactMatch::CommandAddPb), 0},
+    {"delete", PB_MODULE_FUNC(&ExactMatch::CommandDeletePb), 0},
+    {"clear", PB_MODULE_FUNC(&ExactMatch::CommandClearPb), 0},
+    {"set_default_gate", PB_MODULE_FUNC(&ExactMatch::CommandSetDefaultGatePb),
      1}};
 
 pb_error_t ExactMatch::AddFieldOne(const bess::pb::ExactMatchArg_Field &field,
@@ -157,7 +157,7 @@ struct snobj *ExactMatch::Init(struct snobj *arg) {
   return nullptr;
 }
 
-pb_error_t ExactMatch::Init(const bess::pb::ExactMatchArg &arg) {
+pb_error_t ExactMatch::InitPb(const bess::pb::ExactMatchArg &arg) {
   int size_acc = 0;
 
   for (auto i = 0; i < arg.fields_size(); ++i) {

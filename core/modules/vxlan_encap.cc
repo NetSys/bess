@@ -19,9 +19,9 @@ enum {
 };
 
 const Commands<Module> VXLANEncap::cmds = {};
-const PbCommands<Module> VXLANEncap::pb_cmds = {};
+const PbCommands VXLANEncap::pb_cmds = {};
 
-pb_error_t VXLANEncap::Init(const bess::pb::VXLANEncapArg &arg) {
+pb_error_t VXLANEncap::InitPb(const bess::pb::VXLANEncapArg &arg) {
   dstport_ = rte_cpu_to_be_16(4789);
 
   int dstport = arg.dstport();

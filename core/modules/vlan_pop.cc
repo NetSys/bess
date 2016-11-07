@@ -5,7 +5,7 @@
 #include "vlan_pop.h"
 
 const Commands<Module> VLANPop::cmds = {};
-const PbCommands<Module> VLANPop::pb_cmds = {};
+const PbCommands VLANPop::pb_cmds = {};
 
 void VLANPop::ProcessBatch(struct pkt_batch *batch) {
   int cnt = batch->cnt;

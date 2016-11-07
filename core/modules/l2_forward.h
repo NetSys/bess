@@ -28,7 +28,7 @@ class L2Forward : public Module {
   L2Forward() : Module(), l2_table_(), default_gate_() {}
 
   virtual struct snobj *Init(struct snobj *arg);
-  virtual pb_error_t Init(const bess::pb::L2ForwardArg &arg);
+  virtual pb_error_t InitPb(const bess::pb::L2ForwardArg &arg);
 
   virtual void Deinit();
 
@@ -55,7 +55,7 @@ class L2Forward : public Module {
   static const gate_idx_t kNumOGates = MAX_GATES;
 
   static const Commands<Module> cmds;
-  static const PbCommands<Module> pb_cmds;
+  static const PbCommands pb_cmds;
 
  private:
   struct l2_table l2_table_ = {};

@@ -4,9 +4,6 @@ import "bess_msg.proto";
 
 package bess.pb;
 
-message EmptyArg {
-}
-
 message ExactMatchCommandAddArg {
   uint64 gate = 1;
   repeated uint64 fields = 2;

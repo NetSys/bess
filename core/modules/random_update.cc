@@ -8,9 +8,9 @@ const Commands<Module> RandomUpdate::cmds = {
     {"clear", MODULE_FUNC &RandomUpdate::CommandClear, 0},
 };
 
-const PbCommands<Module> RandomUpdate::pb_cmds = {
-    {"add", PB_MODULE_FUNC(&RandomUpdate::CommandAdd), 0},
-    {"clear", PB_MODULE_FUNC(&RandomUpdate::CommandClear), 0},
+const PbCommands RandomUpdate::pb_cmds = {
+    {"add", PB_MODULE_FUNC(&RandomUpdate::CommandAddPb), 0},
+    {"clear", PB_MODULE_FUNC(&RandomUpdate::CommandClearPb), 0},
 };
 
 struct snobj *RandomUpdate::CommandAdd(struct snobj *arg) {
@@ -117,7 +117,7 @@ struct snobj *RandomUpdate::Init(struct snobj *arg) {
   return CommandAdd(t);
 }
 
-pb_error_t RandomUpdate::Init(const bess::pb::RandomUpdateArg &arg) {
+pb_error_t RandomUpdate::InitPb(const bess::pb::RandomUpdateArg &arg) {
   bess::pb::ModuleCommandResponse response = CommandAddPb(arg);
   return response.error();
 }

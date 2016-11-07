@@ -7,7 +7,7 @@
 class MetadataTest : public Module {
  public:
   struct snobj *Init(struct snobj *arg);
-  pb_error_t Init(const bess::pb::MetadataTestArg &arg);
+  pb_error_t InitPb(const bess::pb::MetadataTestArg &arg);
 
   void ProcessBatch(struct pkt_batch *batch);
 
@@ -15,7 +15,7 @@ class MetadataTest : public Module {
   static const gate_idx_t kNumOGates = MAX_GATES;
 
   static const Commands<Module> cmds;
-  static const PbCommands<Module> pb_cmds;
+  static const PbCommands pb_cmds;
 
  private:
   struct snobj *AddAttributes(struct snobj *attrs,

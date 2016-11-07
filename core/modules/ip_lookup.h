@@ -8,7 +8,7 @@ class IPLookup : public Module {
   IPLookup() : Module(), lpm_(), default_gate_() {}
 
   virtual struct snobj *Init(struct snobj *arg);
-  virtual pb_error_t Init(const bess::pb::EmptyArg &arg);
+  virtual pb_error_t InitPb(const bess::pb::EmptyArg &arg);
 
   virtual void Deinit();
 
@@ -25,7 +25,7 @@ class IPLookup : public Module {
   static const gate_idx_t kNumOGates = MAX_GATES;
 
   static const Commands<Module> cmds;
-  static const PbCommands<Module> pb_cmds;
+  static const PbCommands pb_cmds;
 
  private:
   struct rte_lpm *lpm_;

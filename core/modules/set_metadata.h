@@ -19,7 +19,7 @@ class SetMetadata : public Module {
   SetMetadata() : Module(), attrs_() {}
 
   struct snobj *Init(struct snobj *arg);
-  pb_error_t Init(const bess::pb::SetMetadataArg &arg);
+  pb_error_t InitPb(const bess::pb::SetMetadataArg &arg);
 
   void ProcessBatch(struct pkt_batch *batch);
 
@@ -27,7 +27,7 @@ class SetMetadata : public Module {
   static const gate_idx_t kNumOGates = 1;
 
   static const Commands<Module> cmds;
-  static const PbCommands<Module> pb_cmds;
+  static const PbCommands pb_cmds;
 
  private:
   struct snobj *AddAttrOne(struct snobj *attr);

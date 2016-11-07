@@ -13,7 +13,7 @@ enum {
 };
 
 const Commands<Module> IPEncap::cmds = {};
-const PbCommands<Module> IPEncap::pb_cmds = {};
+const PbCommands IPEncap::pb_cmds = {};
 
 void IPEncap::ProcessBatch(struct pkt_batch *batch) {
   int cnt = batch->cnt;

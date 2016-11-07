@@ -1,9 +1,9 @@
 #include "generic_decap.h"
 
 const Commands<Module> GenericDecap::cmds = {};
-const PbCommands<Module> GenericDecap::pb_cmds = {};
+const PbCommands GenericDecap::pb_cmds = {};
 
-pb_error_t GenericDecap::Init(const bess::pb::GenericDecapArg &arg) {
+pb_error_t GenericDecap::InitPb(const bess::pb::GenericDecapArg &arg) {
   if (arg.bytes() == 0) {
     return pb_errno(0);
   }

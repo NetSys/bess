@@ -26,8 +26,8 @@ const Commands<Module> Measure::cmds = {
     {"get_summary", MODULE_FUNC &Measure::CommandGetSummary, 0},
 };
 
-const PbCommands<Module> Measure::pb_cmds = {
-    {"get_summary", PB_MODULE_FUNC(&Measure::CommandGetSummary), 0},
+const PbCommands Measure::pb_cmds = {
+    {"get_summary", PB_MODULE_FUNC(&Measure::CommandGetSummaryPb), 0},
 };
 
 struct snobj *Measure::Init(struct snobj *arg) {
@@ -37,7 +37,7 @@ struct snobj *Measure::Init(struct snobj *arg) {
   return nullptr;
 }
 
-pb_error_t Measure::Init(const bess::pb::MeasureArg &arg) {
+pb_error_t Measure::InitPb(const bess::pb::MeasureArg &arg) {
   if (arg.warmup()) {
     warmup_ = arg.warmup();
   }

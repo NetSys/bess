@@ -3,7 +3,7 @@
 #include <rte_ether.h>
 
 const Commands<Module> MACSwap::cmds = {};
-const PbCommands<Module> MACSwap::pb_cmds = {};
+const PbCommands MACSwap::pb_cmds = {};
 
 void MACSwap::ProcessBatch(struct pkt_batch *batch) {
   int cnt = batch->cnt;

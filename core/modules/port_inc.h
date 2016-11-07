@@ -10,7 +10,7 @@ class PortInc : public Module {
   PortInc() : Module(), port_(), prefetch_(), burst_() {}
 
   virtual struct snobj *Init(struct snobj *arg);
-  virtual pb_error_t Init(const bess::pb::PortIncArg &arg);
+  virtual pb_error_t InitPb(const bess::pb::PortIncArg &arg);
 
   virtual void Deinit();
 
@@ -26,7 +26,7 @@ class PortInc : public Module {
   static const gate_idx_t kNumOGates = 1;
 
   static const Commands<Module> cmds;
-  static const PbCommands<Module> pb_cmds;
+  static const PbCommands pb_cmds;
 
  private:
   Port *port_ = {};

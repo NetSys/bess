@@ -1,14 +1,13 @@
 #include "rewrite.h"
-#include "../module_msg.pb.h"
 
 const Commands<Module> Rewrite::cmds = {
     {"add", MODULE_FUNC &Rewrite::CommandAdd, 0},
     {"clear", MODULE_FUNC &Rewrite::CommandClear, 0},
 };
 
-const PbCommands<Module> Rewrite::pb_cmds = {
-    {"add", PB_MODULE_FUNC(&Rewrite::CommandAdd), 0},
-    {"clear", PB_MODULE_FUNC(&Rewrite::CommandClear), 0},
+const PbCommands Rewrite::pb_cmds = {
+    {"add", PB_MODULE_FUNC(&Rewrite::CommandAddPb), 0},
+    {"clear", PB_MODULE_FUNC(&Rewrite::CommandClearPb), 0},
 };
 
 struct snobj *Rewrite::Init(struct snobj *arg) {
@@ -25,7 +24,7 @@ struct snobj *Rewrite::Init(struct snobj *arg) {
   return CommandAdd(t);
 }
 
-pb_error_t Rewrite::Init(const bess::pb::RewriteArg &arg) {
+pb_error_t Rewrite::InitPb(const bess::pb::RewriteArg &arg) {
   bess::pb::ModuleCommandResponse response = CommandAddPb(arg);
   return response.error();
 }
