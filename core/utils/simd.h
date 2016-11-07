@@ -1,11 +1,9 @@
 #ifndef BESS_UTILS_SIMD_H_
 #define BESS_UTILS_SIMD_H_
 
+#include <string>
+
 #include <x86intrin.h>
-
-#include <cstdio>
-
-#include "../log.h"
 
 #define __xmm_aligned __attribute__((aligned(16)))
 #define __ymm_aligned __attribute__((aligned(32)))
@@ -15,12 +13,7 @@
 #error CPU must be at least Core 2 or equivalent (SSSE3 required)
 #endif
 
-static inline void print_m128i(__m128i a) {
-  uint32_t b[4] __xmm_aligned;
-
-  *((__m128i *)b) = a;
-  log_debug("%08x %08x %08x %08x\n", b[0], b[1], b[2], b[3]);
-}
+std::string m128i_to_str(__m128i a);
 
 static inline __m128i gather_m128i(void *a, void *b) {
 #if 1
@@ -34,13 +27,7 @@ static inline __m128i gather_m128i(void *a, void *b) {
 
 #if __AVX__
 
-static inline void print_m256i(__m256i a) {
-  uint32_t b[8] __ymm_aligned;
-
-  *((__m256i *)b) = a;
-  log_debug("%08x %08x %08x %08x %08x %08x %08x %08x\n", b[0], b[1], b[2], b[3],
-            b[4], b[5], b[6], b[7]);
-}
+std::string m256i_to_str(__m256i a);
 
 static inline __m256d concat_two_m128d(__m128d lo, __m128d hi) {
 #if 1

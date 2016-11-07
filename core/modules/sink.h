@@ -14,4 +14,4 @@ class Sink : public Module {
   static const PbCommands<Module> pb_cmds;
 };
 
-#endif
+#endif  // BESS_MODULES_SINK_H_

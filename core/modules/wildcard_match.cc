@@ -1,5 +1,7 @@
 #include "wildcard_match.h"
 
+#include "../utils/format.h"
+
 /* k1 = k2 & mask */
 static void mask(void *k1, const void *k2, const void *mask, int key_size) {
   uint64_t *a = static_cast<uint64_t *>(k1);
@@ -294,7 +296,7 @@ std::string WildcardMatch::GetDesc() const {
     num_rules += tuples_[i].ht.Count();
   }
 
-  return string_format("%lu fields, %d rules", num_fields_, num_rules);
+  return bess::utils::Format("%lu fields, %d rules", num_fields_, num_rules);
 }
 
 struct snobj *WildcardMatch::GetDump() const {

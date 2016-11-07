@@ -40,8 +40,6 @@
 #include <cstdlib>
 #include <cstring>
 
-#include "../module_msg.pb.h"
-
 /*
  * Registers
  */

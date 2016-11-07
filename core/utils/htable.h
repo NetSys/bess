@@ -7,7 +7,7 @@
 #include <algorithm>
 #include <cstring>
 
-#include "../common.h"
+#include "common.h"
 
 class HTableBase {
  public:

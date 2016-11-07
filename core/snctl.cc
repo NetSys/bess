@@ -6,6 +6,7 @@
 #include <cstring>
 
 #include <gflags/gflags.h>
+#include <glog/logging.h>
 #include <rte_config.h>
 #include <rte_ether.h>
 
@@ -48,7 +49,7 @@ static struct snobj *handle_reset_workers(struct snobj *);
 static struct snobj *handle_reset_all(struct snobj *) {
   struct snobj *r;
 
-  log_info("*** reset_all requested ***\n");
+  LOG(INFO) << "*** reset_all requested ***";
 
   r = handle_reset_modules(nullptr);
   if (r)
@@ -71,19 +72,19 @@ static struct snobj *handle_reset_all(struct snobj *) {
 
 static struct snobj *handle_pause_all(struct snobj *) {
   pause_all_workers();
-  log_info("*** All workers have been paused ***\n");
+  LOG(INFO) << "*** All workers have been paused ***";
   return nullptr;
 }
 
 static struct snobj *handle_resume_all(struct snobj *) {
-  log_info("*** Resuming ***\n");
+  LOG(INFO) << "*** Resuming ***";
   resume_all_workers();
   return nullptr;
 }
 
 static struct snobj *handle_reset_workers(struct snobj *) {
   destroy_all_workers();
-  log_info("*** All workers have been destroyed ***\n");
+  LOG(INFO) << "*** All workers have been destroyed ***";
   return nullptr;
 }
 
@@ -395,7 +396,7 @@ static struct snobj *handle_reset_ports(struct snobj *) {
     it = it_next;
   }
 
-  log_info("*** All ports have been destroyed ***\n");
+  LOG(INFO) << "*** All ports have been destroyed ***";
   return nullptr;
 }
 
@@ -656,7 +657,7 @@ static struct snobj *handle_get_mclass_info(struct snobj *q) {
 
 static struct snobj *handle_reset_modules(struct snobj *) {
   ModuleBuilder::DestroyAllModules();
-  log_info("*** All modules have been destroyed ***\n");
+  LOG(INFO) << "*** All modules have been destroyed ***";
   return nullptr;
 }
 
@@ -1057,7 +1058,7 @@ static struct snobj *handle_disable_tcpdump(struct snobj *q) {
 
 /* Adding this mostly to provide a reasonable way to exit when daemonized */
 static struct snobj *handle_kill_bess(struct snobj *) {
-  log_notice("Halt requested by a client\n");
+  LOG(WARNING) << "Halt requested by a client";
   destroy_all_workers();
   exit(EXIT_SUCCESS);
 
@@ -1206,8 +1207,7 @@ struct snobj *handle_request(struct snobj *q) {
   const char *s;
 
   if (FLAGS_d) {
-    log_debug("Request:\n");
-    snobj_dump(q);
+    LOG(INFO) << "Request:" << std::endl << snobj_dump(q);
   }
 
   if (q->type != TYPE_MAP) {
@@ -1234,8 +1234,7 @@ reply:
     r = snobj_nil();
 
   if (FLAGS_d) {
-    log_debug("Response:\n");
-    snobj_dump(r);
+    LOG(INFO) << "Response:" << std::endl << snobj_dump(r);
   }
 
   return r;

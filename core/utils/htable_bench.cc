@@ -17,8 +17,8 @@
 #include <rte_hash.h>
 #include <rte_hash_crc.h>
 
+#include "common.h"
 #include "random.h"
-#include "../common.h"
 #include "../mem_alloc.h"
 
 typedef uint16_t value_t;

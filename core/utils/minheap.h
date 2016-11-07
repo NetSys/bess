@@ -4,7 +4,7 @@
 #include <cstdint>
 #include <cstdlib>
 
-#include "../common.h"
+#include "common.h"
 
 /* NOTE: The real index starts from 1.
  *       The first and tail elements will be used as sentinel values. */

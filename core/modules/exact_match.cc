@@ -1,8 +1,9 @@
+#include "exact_match.h"
+
 #include <string>
 #include <vector>
 
-#include "../module_msg.pb.h"
-#include "exact_match.h"
+#include "../utils/format.h"
 
 // XXX: this is repeated in many modules. get rid of them when converting .h to
 // .hh, etc... it's in defined in some old header
@@ -242,7 +243,7 @@ void ExactMatch::ProcessBatch(struct pkt_batch *batch) {
 }
 
 std::string ExactMatch::GetDesc() const {
-  return string_format("%d fields, %d rules", num_fields_, ht_.Count());
+  return bess::utils::Format("%d fields, %d rules", num_fields_, ht_.Count());
 }
 
 struct snobj *ExactMatch::GetDump() const {
@@ -336,7 +337,7 @@ pb_error_t ExactMatch::GatherKey(const RepeatedField<uint64_t> &fields,
 
     if (uint64_to_bin((uint8_t *)&f, field_size, f_obj,
                       force_be | is_be_system())) {
-      return pb_error(EINVAL, "idx %lu: not a correct %d-byte value", i,
+      return pb_error(EINVAL, "idx %d: not a correct %d-byte value", i,
                       field_size);
     }
 

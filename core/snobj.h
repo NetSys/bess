@@ -9,9 +9,9 @@
 #include <cstring>
 #include <string>
 
-#include "common.h"
 #include "debug.h"
 #include "mem_alloc.h"
+#include "utils/common.h"
 
 #define MAX_EXPR_LEN 128 /* including the trailing nullptr */
 
@@ -234,7 +234,7 @@ static inline int snobj_eval_exists(const struct snobj *m, const char *expr) {
   return snobj_eval(m, expr) != nullptr;
 }
 
-void snobj_dump(const struct snobj *m);
+std::string snobj_dump(const struct snobj *m);
 
 /* recursive encoding of TYPE(4B), SIZE(4B), DATA(variable)
  * DATA is 8-byte aligned by tail padding with zeroes.

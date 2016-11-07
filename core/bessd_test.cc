@@ -9,8 +9,8 @@
 #include <glog/logging.h>
 #include <gtest/gtest.h>
 
-#include "common.h"
 #include "opts.h"
+#include "utils/common.h"
 
 namespace bess {
 namespace bessd {

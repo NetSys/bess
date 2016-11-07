@@ -12,8 +12,8 @@
 #include <rte_config.h>
 #include <rte_malloc.h>
 
-#include "../log.h"
 #include "../message.h"
+#include "../utils/format.h"
 
 /* TODO: Unify vport and vport_native */
 
@@ -80,7 +80,7 @@ static void drain_sn_to_drv_q(struct llring *q) {
 
     snb = paddr_to_snb(paddr);
     if (!snb) {
-      log_err("paddr_to_snb(%" PRIxPTR ") failed\n", paddr);
+      LOG(ERROR) << "paddr_to_snb(" << paddr << ") failed";
       continue;
     }
 
@@ -195,7 +195,7 @@ static pb_error_t docker_container_pid(const std::string &cid,
   fp = popen(buf, "r");
   if (!fp) {
     const std::string details =
-        string_format("popen() errno=%d (%s)", errno, strerror(errno));
+        bess::utils::Format("popen() errno=%d (%s)", errno, strerror(errno));
 
     return pb_error_details(
         ESRCH, details.c_str(),
@@ -264,11 +264,9 @@ void *VPort::AllocBar(struct tx_queue_opts *txq_opts,
   total_bytes += num_queues[PACKET_DIR_OUT] *
                  (sizeof(struct sn_rxq_registers) + 2 * bytes_per_llring);
 
-  log_err("total_bytes = %d\n", total_bytes);
+  VLOG(1) << "BAR total_bytes = " << total_bytes;
   bar = rte_zmalloc(nullptr, total_bytes, 0);
   assert(bar);
-
-  /* log_debug("vport_host_sndrv: allocated %dB BAR\n", total_bytes); */
 
   conf = reinterpret_cast<struct sn_conf_space *>(bar);
 
@@ -338,9 +336,7 @@ void VPort::InitDriver() {
 
     char cmd[2048];
 
-    log_notice(
-        "vport: BESS kernel module is not loaded. "
-        "Loading...\n");
+    LOG(INFO) << "vport: BESS kernel module is not loaded. Loading...";
 
     ret = readlink("/proc/self/exe", exec_path, sizeof(exec_path));
     if (ret == -1 || ret >= static_cast<int>(sizeof(exec_path)))
@@ -351,11 +347,10 @@ void VPort::InitDriver() {
 
     sprintf(cmd, "insmod %s/kmod/bess.ko", exec_dir);
     ret = system(cmd);
-    if (WEXITSTATUS(ret) != 0)
-      log_err(
-          "Warning: cannot load kernel"
-          "module %s/kmod/bess.ko\n",
-          exec_dir);
+    if (WEXITSTATUS(ret) != 0) {
+      LOG(WARNING) << "Cannot load kernel module " << exec_dir
+                   << "/kmod/bess.ko";
+    }
   }
 }
 
@@ -407,7 +402,7 @@ pb_error_t VPort::SetIPAddr(const bess::pb::VPortArg &arg) {
         sprintf(buf, "/proc/%d/ns/net", container_pid_);
         fd = open(buf, O_RDONLY);
         if (fd < 0) {
-          log_perr("open(/proc/pid/ns/net)");
+          PLOG(ERROR) << "open(/proc/pid/ns/net)";
           exit(errno <= 255 ? errno : ENOMSG);
         }
       } else
@@ -415,11 +410,12 @@ pb_error_t VPort::SetIPAddr(const bess::pb::VPortArg &arg) {
 
       ret = setns(fd, 0);
       if (ret < 0) {
-        log_perr("setns()");
+        PLOG(ERROR) << "setns()";
         exit(errno <= 255 ? errno : ENOMSG);
       }
-    } else
+    } else {
       goto wait_child;
+    }
   }
 
   if (arg.ip_addrs_size() > 0) {
@@ -456,7 +452,7 @@ pb_error_t VPort::SetIPAddr(const bess::pb::VPortArg &arg) {
         assert(ret == child_pid);
         ret = -WEXITSTATUS(exit_status);
       } else
-        log_perr("waitpid()");
+        PLOG(ERROR) << "waitpid()";
     }
   }
 
@@ -474,7 +470,7 @@ void VPort::DeInit() {
 
   ret = ioctl(fd_, SN_IOC_RELEASE_HOSTNIC);
   if (ret < 0)
-    log_perr("SN_IOC_RELEASE_HOSTNIC");
+    PLOG(ERROR) << "ioctl(SN_IOC_RELEASE_HOSTNIC)";
 
   close(fd_);
   FreeBar();
@@ -559,7 +555,7 @@ pb_error_t VPort::Init(const google::protobuf::Any &arg_) {
 
   bar_ = AllocBar(&txq_opts, &rxq_opts);
 
-  log_err("%p %" PRIx64 "\n", bar_, rte_malloc_virt2phy(bar_));
+  VLOG(1) << "virt: " << bar_ << ", phys: " << rte_malloc_virt2phy(bar_);
   ret = ioctl(fd_, SN_IOC_CREATE_HOSTNIC, rte_malloc_virt2phy(bar_));
   if (ret < 0) {
     err = pb_errno_details(-ret, "SN_IOC_CREATE_HOSTNIC failure");
@@ -595,8 +591,9 @@ pb_error_t VPort::Init(const google::protobuf::Any &arg_) {
   }
 
   ret = ioctl(fd_, SN_IOC_SET_QUEUE_MAPPING, &map_);
-  if (ret < 0)
-    log_perr("ioctl(SN_IOC_SET_QUEUE_MAPPING)");
+  if (ret < 0) {
+    PLOG(ERROR) << "ioctl(SN_IOC_SET_QUEUE_MAPPING)";
+  }
 
   return pb_errno(0);
 
@@ -646,7 +643,7 @@ struct snobj *VPort::SetIPAddr(struct snobj *arg) {
         sprintf(buf, "/proc/%d/ns/net", container_pid_);
         fd = open(buf, O_RDONLY);
         if (fd < 0) {
-          log_perr("open(/proc/pid/ns/net)");
+          PLOG(ERROR) << "open(/proc/pid/ns/net)";
           exit(errno <= 255 ? errno : ENOMSG);
         }
       } else
@@ -654,7 +651,7 @@ struct snobj *VPort::SetIPAddr(struct snobj *arg) {
 
       ret = setns(fd, 0);
       if (ret < 0) {
-        log_perr("setns()");
+        PLOG(ERROR) << "setns()";
         exit(errno <= 255 ? errno : ENOMSG);
       }
     } else
@@ -713,8 +710,9 @@ struct snobj *VPort::SetIPAddr(struct snobj *arg) {
       if (ret >= 0) {
         assert(ret == child_pid);
         ret = -WEXITSTATUS(exit_status);
-      } else
-        log_perr("waitpid()");
+      } else {
+        PLOG(ERROR) << "waitpid()";
+      }
     }
   }
 
@@ -820,7 +818,7 @@ struct snobj *VPort::Init(struct snobj *conf) {
 
   bar_ = AllocBar(&txq_opts, &rxq_opts);
 
-  log_err("%p %" PRIx64 "\n", bar_, rte_malloc_virt2phy(bar_));
+  VLOG(1) << "virt: " << bar_ << ", phys: " << rte_malloc_virt2phy(bar_);
   ret = ioctl(fd_, SN_IOC_CREATE_HOSTNIC, rte_malloc_virt2phy(bar_));
   if (ret < 0) {
     err = snobj_errno_details(-ret, snobj_str("SN_IOC_CREATE_HOSTNIC failure"));
@@ -858,8 +856,9 @@ struct snobj *VPort::Init(struct snobj *conf) {
   }
 
   ret = ioctl(fd_, SN_IOC_SET_QUEUE_MAPPING, &map_);
-  if (ret < 0)
-    log_perr("ioctl(SN_IOC_SET_QUEUE_MAPPING)");
+  if (ret < 0) {
+    PLOG(ERROR) << "ioctl(SN_IOC_SET_QUEUE_MAPPING)";
+  }
 
   return nullptr;
 
@@ -961,8 +960,9 @@ int VPort::SendPackets(queue_t qid, snb_array_t pkts, int cnt) {
   /* TODO: generic notification architecture */
   if (__sync_bool_compare_and_swap(&rx_queue->rx_regs->irq_disabled, 0, 1)) {
     ret = ioctl(fd_, SN_IOC_KICK_RX, 1 << map_.rxq_to_cpu[qid]);
-    if (ret)
-      log_perr("ioctl(kick_rx)");
+    if (ret) {
+      PLOG(ERROR) << "ioctl(KICK_RX)";
+    }
   }
 
   return cnt;

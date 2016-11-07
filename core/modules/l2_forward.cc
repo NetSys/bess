@@ -1,9 +1,9 @@
 #include "l2_forward.h"
 
+#include <glog/logging.h>
 #include <rte_byteorder.h>
 #include <rte_hash_crc.h>
 
-#include "../module_msg.pb.h"
 #include "../utils/simd.h"
 
 #define MAX_TABLE_SIZE (1048576 * 64)
@@ -387,11 +387,11 @@ static void l2_forward_entry_test() {
   assert(!ret);
 
   ret = l2_add_entry(&l2tbl, addr1, index1);
-  log_debug("add entry: %" PRIu64 ", index: %hu\n", addr1, index1);
+  LOG(INFO) << "add entry: " << addr1 << ", index: " << index1;
   assert(!ret);
 
   ret = l2_find(&l2tbl, addr1, &gate_index);
-  log_debug("find entry: %" PRIu64 ", index: %hu\n", addr1, gate_index);
+  LOG(INFO) << "find entry: " << addr1 << ", index: " << gate_index;
   assert(!ret);
   assert(index1 == gate_index);
 
@@ -411,7 +411,7 @@ static void l2_forward_entry_test() {
   assert(!ret);
 }
 
-void l2_forward_flush_test() {
+static void l2_forward_flush_test() {
   int ret;
   struct l2_table l2tbl;
 
@@ -435,7 +435,7 @@ void l2_forward_flush_test() {
   assert(!ret);
 }
 
-void l2_forward_collision_test() {
+static void l2_forward_collision_test() {
   const int h_size = 4;
   const int b_size = 4;
   const int max_hb_cnt = h_size * b_size;
@@ -458,7 +458,7 @@ void l2_forward_collision_test() {
     idx[i] = random() % USHRT_MAX;
 
     ret = l2_add_entry(&l2tbl, addr[i], idx[i]);
-    log_debug("insert result:%" PRId64 " %d %d\n", addr[i], idx[i], ret);
+    LOG(INFO) << "insert result: " << addr[i] << " " << idx[i] << " " << ret;
     success[i] = (ret >= 0);
   }
 
@@ -470,8 +470,8 @@ void l2_forward_collision_test() {
 
     ret = l2_find(&l2tbl, addr[i], &gate_index);
 
-    log_debug("find result: %" PRId64 ", %d, %d\n", addr[i], gate_index,
-              offset);
+    LOG(INFO) << "find result: " << addr[i] << " " << gate_index << " "
+              << offset;
 
     if (success[i]) {
       assert(!ret);

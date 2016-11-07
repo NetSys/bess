@@ -7,20 +7,12 @@
 
 typedef bess::pb::Error pb_error_t;
 
-const std::string string_vformat(const char *fmt, va_list ap);
+[[gnu::format(printf, 3, 4)]] pb_error_t pb_error_details(int code,
+                                                          const char *details,
+                                                          const char *fmt, ...);
 
-const std::string string_format(const char *fmt, ...);
-
-pb_error_t pb_error_details(int code, const char *details, const char *fmt,
-                            ...);
-
-static inline pb_error_t pb_error(int code, const char *fmt, ...) {
-  va_list ap;
-  va_start(ap, fmt);
-  pb_error_t p = pb_error_details(code, nullptr, fmt, ap);
-  va_end(ap);
-  return p;
-}
+#define pb_error(code, fmt, ...) \
+  pb_error_details(code, nullptr, fmt, ##__VA_ARGS__)
 
 static inline pb_error_t pb_errno_details(int code, const char *details) {
   return pb_error_details(code, details, "%s", strerror(code));

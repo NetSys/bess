@@ -4,7 +4,7 @@
 
 #include <rte_byteorder.h>
 
-#include "../module_msg.pb.h"
+#include "../utils/format.h"
 #include "../utils/simd.h"
 #include "vlan_push.h"
 
@@ -91,8 +91,9 @@ void VLANPush::ProcessBatch(struct pkt_batch *batch) {
 std::string VLANPush::GetDesc() const {
   uint32_t vlan_tag_cpu = ntohl(vlan_tag_);
 
-  return string_format("PCP=%u DEI=%u VID=%u", (vlan_tag_cpu >> 13) & 0x0007,
-                       (vlan_tag_cpu >> 12) & 0x0001, vlan_tag_cpu & 0x0fff);
+  return bess::utils::Format(
+      "PCP=%u DEI=%u VID=%u", (vlan_tag_cpu >> 13) & 0x0007,
+      (vlan_tag_cpu >> 12) & 0x0001, vlan_tag_cpu & 0x0fff);
 }
 
 struct snobj *VLANPush::CommandSetTci(struct snobj *arg) {

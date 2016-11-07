@@ -52,7 +52,7 @@ pb_error_t SetMetadata::AddAttrOne(
   size = attr.size();
 
   if (size < 1 || size > bess::metadata::kMetadataAttrMaxSize) {
-    return pb_error(EINVAL, "'size' must be 1-%d",
+    return pb_error(EINVAL, "'size' must be 1-%zu",
                     bess::metadata::kMetadataAttrMaxSize);
   }
 
