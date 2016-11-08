@@ -1,7 +1,5 @@
 syntax = "proto3";
 
-import "error.proto";
-
 package bess.pb;
 
 message PCAPPortArg {

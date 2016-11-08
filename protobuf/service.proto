@@ -1,8 +1,6 @@
 syntax = "proto3";
 
 import "bess_msg.proto";
-import "port_msg.proto";
-import "module_msg.proto";
 
 package bess.pb;
 
