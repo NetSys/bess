@@ -115,8 +115,9 @@ VERBOSE ?= 0
 all: $(EXEC) tests benchmarks
 
 clean:
-	rm -f $(DEPS) $(EXEC) *_test */*_test *_bench */*_bench \
-		*.a *.pb.* *.o */*.o *.gcda *.gcno */*.gcda */*.gcno
+	rm -rf $(DEPS) $(EXEC) *_test */*_test *_bench */*_bench \
+		*.a *.pb.* *.o */*.o *.gcda *.gcno */*.gcda */*.gcno \
+		coverage.info coverage_html
 
 tags:
 	@ctags -R *
