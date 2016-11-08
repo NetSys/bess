@@ -253,15 +253,15 @@ pb_error_t Queue::SetSize(uint64_t size) {
   return pb_errno(0);
 }
 
-bess::pb::ModuleCommandResponse Queue::CommandSetBurstPb(
+pb_cmd_response_t Queue::CommandSetBurstPb(
     const bess::pb::QueueCommandSetBurstArg &arg) {
-  bess::pb::ModuleCommandResponse response;
+  pb_cmd_response_t response;
   set_cmd_response_error(&response, SetBurst(arg.burst()));
   return response;
 }
-bess::pb::ModuleCommandResponse Queue::CommandSetSizePb(
+pb_cmd_response_t Queue::CommandSetSizePb(
     const bess::pb::QueueCommandSetSizeArg &arg) {
-  bess::pb::ModuleCommandResponse response;
+  pb_cmd_response_t response;
   set_cmd_response_error(&response, SetSize(arg.size()));
   return response;
 }

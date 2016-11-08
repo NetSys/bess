@@ -1117,7 +1117,7 @@ const PbCommands BPF::pb_cmds = {
     {"clear", MODULE_CMD_FUNC(&BPF::CommandClearPb), 0}};
 
 pb_error_t BPF::InitPb(const bess::pb::BPFArg &arg) {
-  bess::pb::ModuleCommandResponse response = CommandAddPb(arg);
+  pb_cmd_response_t response = CommandAddPb(arg);
   return response.error();
 }
 
@@ -1134,8 +1134,8 @@ void BPF::Deinit() {
   n_filters_ = 0;
 }
 
-bess::pb::ModuleCommandResponse BPF::CommandAddPb(const bess::pb::BPFArg &arg) {
-  bess::pb::ModuleCommandResponse response;
+pb_cmd_response_t BPF::CommandAddPb(const bess::pb::BPFArg &arg) {
+  pb_cmd_response_t response;
 
   if (n_filters_ + arg.filters_size() > MAX_FILTERS) {
     set_cmd_response_error(&response, pb_error(EINVAL, "Too many filters"));
@@ -1248,10 +1248,9 @@ struct snobj *BPF::CommandAdd(struct snobj *arg) {
   return nullptr;
 }
 
-bess::pb::ModuleCommandResponse BPF::CommandClearPb(
-    const bess::pb::EmptyArg &) {
+pb_cmd_response_t BPF::CommandClearPb(const bess::pb::EmptyArg &) {
   Deinit();
-  bess::pb::ModuleCommandResponse response;
+  pb_cmd_response_t response;
   set_cmd_response_error(&response, pb_errno(0));
   return response;
 }

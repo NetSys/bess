@@ -18,7 +18,7 @@ class QueueInc : public Module {
   virtual std::string GetDesc() const;
 
   struct snobj *CommandSetBurst(struct snobj *arg);
-  bess::pb::ModuleCommandResponse CommandSetBurstPb(
+  pb_cmd_response_t CommandSetBurstPb(
       const bess::pb::QueueIncCommandSetBurstArg &arg);
 
   static const gate_idx_t kNumIGates = 0;

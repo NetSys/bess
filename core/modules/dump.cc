@@ -30,7 +30,7 @@ struct snobj *Dump::Init(struct snobj *arg) {
 pb_error_t Dump::InitPb(const bess::pb::DumpArg &arg) {
   min_interval_ns_ = DEFAULT_INTERVAL_NS;
   next_ns_ = ctx.current_tsc();
-  bess::pb::ModuleCommandResponse response = CommandSetIntervalPb(arg);
+  pb_cmd_response_t response = CommandSetIntervalPb(arg);
   return response.error();
 }
 
@@ -60,9 +60,9 @@ struct snobj *Dump::CommandSetInterval(struct snobj *arg) {
   return nullptr;
 }
 
-bess::pb::ModuleCommandResponse Dump::CommandSetIntervalPb(
+pb_cmd_response_t Dump::CommandSetIntervalPb(
     const bess::pb::DumpArg &arg) {
-  bess::pb::ModuleCommandResponse response;
+  pb_cmd_response_t response;
 
   double sec = arg.interval();
 

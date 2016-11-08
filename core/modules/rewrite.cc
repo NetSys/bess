@@ -25,13 +25,13 @@ struct snobj *Rewrite::Init(struct snobj *arg) {
 }
 
 pb_error_t Rewrite::InitPb(const bess::pb::RewriteArg &arg) {
-  bess::pb::ModuleCommandResponse response = CommandAddPb(arg);
+  pb_cmd_response_t response = CommandAddPb(arg);
   return response.error();
 }
 
-bess::pb::ModuleCommandResponse Rewrite::CommandAddPb(
+pb_cmd_response_t Rewrite::CommandAddPb(
     const bess::pb::RewriteArg &arg) {
-  bess::pb::ModuleCommandResponse response;
+  pb_cmd_response_t response;
 
   int curr = num_templates_;
   int i;
@@ -71,12 +71,12 @@ bess::pb::ModuleCommandResponse Rewrite::CommandAddPb(
   return response;
 }
 
-bess::pb::ModuleCommandResponse Rewrite::CommandClearPb(
+pb_cmd_response_t Rewrite::CommandClearPb(
     const bess::pb::EmptyArg &) {
   next_turn_ = 0;
   num_templates_ = 0;
 
-  bess::pb::ModuleCommandResponse response;
+  pb_cmd_response_t response;
 
   set_cmd_response_error(&response, pb_errno(0));
   return response;

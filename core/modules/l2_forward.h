@@ -40,15 +40,14 @@ class L2Forward : public Module {
   struct snobj *CommandLookup(struct snobj *arg);
   struct snobj *CommandPopulate(struct snobj *arg);
 
-  bess::pb::ModuleCommandResponse CommandAddPb(
-      const bess::pb::L2ForwardCommandAddArg &arg);
-  bess::pb::ModuleCommandResponse CommandDeletePb(
+  pb_cmd_response_t CommandAddPb(const bess::pb::L2ForwardCommandAddArg &arg);
+  pb_cmd_response_t CommandDeletePb(
       const bess::pb::L2ForwardCommandDeleteArg &arg);
-  bess::pb::ModuleCommandResponse CommandSetDefaultGatePb(
+  pb_cmd_response_t CommandSetDefaultGatePb(
       const bess::pb::L2ForwardCommandSetDefaultGateArg &arg);
-  bess::pb::ModuleCommandResponse CommandLookupPb(
+  pb_cmd_response_t CommandLookupPb(
       const bess::pb::L2ForwardCommandLookupArg &arg);
-  bess::pb::ModuleCommandResponse CommandPopulatePb(
+  pb_cmd_response_t CommandPopulatePb(
       const bess::pb::L2ForwardCommandPopulateArg &arg);
 
   static const gate_idx_t kNumIGates = 1;

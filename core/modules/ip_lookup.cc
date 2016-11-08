@@ -189,9 +189,9 @@ struct snobj *IPLookup::CommandClear(struct snobj *) {
   return nullptr;
 }
 
-bess::pb::ModuleCommandResponse IPLookup::CommandAddPb(
+pb_cmd_response_t IPLookup::CommandAddPb(
     const bess::pb::IPLookupCommandAddArg &arg) {
-  bess::pb::ModuleCommandResponse response;
+  pb_cmd_response_t response;
 
   struct in_addr ip_addr_be;
   uint32_t ip_addr; /* in cpu order */
@@ -250,9 +250,8 @@ bess::pb::ModuleCommandResponse IPLookup::CommandAddPb(
   return response;
 }
 
-bess::pb::ModuleCommandResponse IPLookup::CommandClearPb(
-    const bess::pb::EmptyArg &) {
-  bess::pb::ModuleCommandResponse response;
+pb_cmd_response_t IPLookup::CommandClearPb(const bess::pb::EmptyArg &) {
+  pb_cmd_response_t response;
 
   rte_lpm_delete_all(lpm_);
   default_gate_ = DROP_GATE;

@@ -22,8 +22,7 @@ class Measure : public Module {
   virtual void ProcessBatch(struct pkt_batch *batch);
 
   struct snobj *CommandGetSummary(struct snobj *arg);
-  bess::pb::ModuleCommandResponse CommandGetSummaryPb(
-      const bess::pb::EmptyArg &arg);
+  pb_cmd_response_t CommandGetSummaryPb(const bess::pb::EmptyArg &arg);
 
   static const gate_idx_t kNumIGates = 1;
   static const gate_idx_t kNumOGates = 1;
