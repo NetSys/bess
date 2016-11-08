@@ -30,9 +30,9 @@ class AcmeModule : public Module {
     return nullptr;
   }
 
-  bess::pb::ModuleCommandResponse FooPb(const bess::pb::EmptyArg &) {
+  pb_cmd_response_t FooPb(const bess::pb::EmptyArg &) {
     n += 1;
-    return bess::pb::ModuleCommandResponse();
+    return pb_cmd_response_t();
   }
 
   int n = {};
@@ -170,13 +170,20 @@ TEST_F(ModuleTester, RunCommandPb) {
 
   EXPECT_EQ(0, create_acme(nullptr, &m));
   ASSERT_NE(nullptr, m);
+  bess::pb::EmptyArg arg_;
+  google::protobuf::Any arg;
+  arg.PackFrom(arg_);
+
+  pb_cmd_response_t response;
+
   for (int i = 0; i < 10; i++) {
-    bess::pb::EmptyArg arg_;
-    google::protobuf::Any arg;
-    arg.PackFrom(arg_);
-    m->RunCommand("foo", arg);
+    response = m->RunCommand("foo", arg);
+    EXPECT_EQ(0, response.error().err());
   }
   EXPECT_EQ(10, ((AcmeModule *)m)->n);
+
+  response = m->RunCommand("bar", arg);
+  EXPECT_EQ(ENOTSUP, response.error().err());
 }
 
 TEST_F(ModuleTester, ConnectModules) {

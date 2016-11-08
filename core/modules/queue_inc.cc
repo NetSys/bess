@@ -191,9 +191,9 @@ pb_error_t QueueInc::SetBurst(int64_t burst) {
   return pb_errno(0);
 }
 
-bess::pb::ModuleCommandResponse QueueInc::CommandSetBurstPb(
+pb_cmd_response_t QueueInc::CommandSetBurstPb(
     const bess::pb::QueueIncCommandSetBurstArg &arg) {
-  bess::pb::ModuleCommandResponse response;
+  pb_cmd_response_t response;
   set_cmd_response_error(&response, SetBurst(arg.burst()));
   return response;
 }

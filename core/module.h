@@ -13,8 +13,8 @@
 #include "utils/cdlist.h"
 #include "utils/simd.h"
 
-static inline void set_cmd_response_error(
-    bess::pb::ModuleCommandResponse *response, const pb_error_t &error) {
+static inline void set_cmd_response_error(pb_cmd_response_t *response,
+                                          const pb_error_t &error) {
   response->mutable_error()->CopyFrom(error);
 }
 
@@ -37,23 +37,24 @@ static_assert(DROP_GATE <= MAX_GATES, "invalid macro value");
 #define INVALID_TASK_ID ((task_id_t)-1)
 #define MODULE_FUNC (struct snobj * (Module::*)(struct snobj *))
 
+using module_cmd_func_t = pb_func_t<pb_cmd_response_t, Module>;
+using module_init_func_t = pb_func_t<pb_error_t, Module>;
+
 template <typename T, typename M>
-static inline std::function<
-    bess::pb::ModuleCommandResponse(Module *, const google::protobuf::Any &)>
-MODULE_CMD_FUNC(bess::pb::ModuleCommandResponse (M::*fn)(const T &)) {
-  return [=](Module *m,
-             google::protobuf::Any arg) -> bess::pb::ModuleCommandResponse {
+static inline module_cmd_func_t MODULE_CMD_FUNC(
+    pb_cmd_response_t (M::*fn)(const T &)) {
+  return [=](Module *m, google::protobuf::Any arg) -> pb_cmd_response_t {
     T arg_;
     arg.UnpackTo(&arg_);
-    auto base_fn = reinterpret_cast<bess::pb::ModuleCommandResponse (Module::*)(
-        const T &)>(fn);
+    auto base_fn =
+        reinterpret_cast<pb_cmd_response_t (Module::*)(const T &)>(fn);
     return (*m.*(base_fn))(arg_);
   };
 }
 
 template <typename T, typename M>
-static inline std::function<pb_error_t(Module *, const google::protobuf::Any &)>
-MODULE_INIT_FUNC(pb_error_t (M::*fn)(const T &)) {
+static inline module_init_func_t MODULE_INIT_FUNC(
+    pb_error_t (M::*fn)(const T &)) {
   return [=](Module *m, google::protobuf::Any arg) -> pb_error_t {
     T arg_;
     arg.UnpackTo(&arg_);
@@ -123,9 +124,7 @@ using Commands = std::vector<struct Command<T> >;
 // TODO: Change type name to Command when removing snobj
 struct PbCommand {
   std::string cmd;
-  std::function<bess::pb::ModuleCommandResponse(Module *,
-                                                const google::protobuf::Any &)>
-      func;
+  module_cmd_func_t func;
   // if non-zero, workers don't need to be paused in order to
   // run this command
   int mt_safe;
@@ -172,8 +171,7 @@ class ModuleBuilder {
       const std::string &name_template, const std::string &help_text,
       const gate_idx_t igates, const gate_idx_t ogates,
       const Commands<Module> &cmds, const PbCommands &pb_cmds,
-      std::function<pb_error_t(Module *, const google::protobuf::Any &)>
-          init_func);
+      module_init_func_t init_func);
 
   static std::map<std::string, ModuleBuilder> &all_module_builders_holder(
       bool reset = false);
@@ -215,15 +213,14 @@ class ModuleBuilder {
                      class_name_.c_str(), user_cmd.c_str());
   }
 
-  bess::pb::ModuleCommandResponse RunCommand(
-      Module *m, const std::string &user_cmd,
-      const google::protobuf::Any &arg) const {
+  pb_cmd_response_t RunCommand(Module *m, const std::string &user_cmd,
+                               const google::protobuf::Any &arg) const {
     for (auto &cmd : pb_cmds_) {
       if (user_cmd == cmd.cmd) {
         return cmd.func(m, arg);
       }
     }
-    bess::pb::ModuleCommandResponse response;
+    pb_cmd_response_t response;
     set_cmd_response_error(
         &response, pb_error(ENOTSUP, "'%s' does not support command '%s'",
                             class_name_.c_str(), user_cmd.c_str()));
@@ -248,7 +245,7 @@ class ModuleBuilder {
   std::string help_text_;
   Commands<Module> cmds_;
   PbCommands pb_cmds_;
-  std::function<pb_error_t(Module *, const google::protobuf::Any &)> init_func_;
+  module_init_func_t init_func_;
 };
 
 class Module {
@@ -335,8 +332,8 @@ class Module {
     return module_builder_->RunCommand(this, cmd, arg);
   }
 
-  bess::pb::ModuleCommandResponse RunCommand(const std::string &cmd,
-                                             const google::protobuf::Any &arg) {
+  pb_cmd_response_t RunCommand(const std::string &cmd,
+                               const google::protobuf::Any &arg) {
     return module_builder_->RunCommand(this, cmd, arg);
   }
 

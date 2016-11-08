@@ -119,13 +119,13 @@ struct snobj *RandomUpdate::Init(struct snobj *arg) {
 }
 
 pb_error_t RandomUpdate::InitPb(const bess::pb::RandomUpdateArg &arg) {
-  bess::pb::ModuleCommandResponse response = CommandAddPb(arg);
+  pb_cmd_response_t response = CommandAddPb(arg);
   return response.error();
 }
 
-bess::pb::ModuleCommandResponse RandomUpdate::CommandAddPb(
+pb_cmd_response_t RandomUpdate::CommandAddPb(
     const bess::pb::RandomUpdateArg &arg) {
-  bess::pb::ModuleCommandResponse response;
+  pb_cmd_response_t response;
 
   int curr = num_vars_;
   if (curr + arg.fields_size() > MAX_VARS) {
@@ -208,11 +208,11 @@ bess::pb::ModuleCommandResponse RandomUpdate::CommandAddPb(
   return response;
 }
 
-bess::pb::ModuleCommandResponse RandomUpdate::CommandClearPb(
+pb_cmd_response_t RandomUpdate::CommandClearPb(
     const bess::pb::EmptyArg &) {
   num_vars_ = 0;
 
-  bess::pb::ModuleCommandResponse response;
+  pb_cmd_response_t response;
   set_cmd_response_error(&response, pb_errno(0));
   return response;
 }

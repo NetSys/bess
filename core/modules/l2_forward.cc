@@ -598,9 +598,9 @@ void L2Forward::ProcessBatch(struct pkt_batch *batch) {
   RunSplit(out_gates, batch);
 }
 
-bess::pb::ModuleCommandResponse L2Forward::CommandAddPb(
+pb_cmd_response_t L2Forward::CommandAddPb(
     const bess::pb::L2ForwardCommandAddArg &arg) {
-  bess::pb::ModuleCommandResponse response;
+  pb_cmd_response_t response;
 
   for (int i = 0; i < arg.entries_size(); i++) {
     const auto &entry = arg.entries(i);
@@ -644,9 +644,9 @@ bess::pb::ModuleCommandResponse L2Forward::CommandAddPb(
   return response;
 }
 
-bess::pb::ModuleCommandResponse L2Forward::CommandDeletePb(
+pb_cmd_response_t L2Forward::CommandDeletePb(
     const bess::pb::L2ForwardCommandDeleteArg &arg) {
-  bess::pb::ModuleCommandResponse response;
+  pb_cmd_response_t response;
 
   for (int i = 0; i < arg.addrs_size(); i++) {
     const auto &_addr = arg.addrs(i);
@@ -685,19 +685,19 @@ bess::pb::ModuleCommandResponse L2Forward::CommandDeletePb(
   return response;
 }
 
-bess::pb::ModuleCommandResponse L2Forward::CommandSetDefaultGatePb(
+pb_cmd_response_t L2Forward::CommandSetDefaultGatePb(
     const bess::pb::L2ForwardCommandSetDefaultGateArg &arg) {
-  bess::pb::ModuleCommandResponse response;
+  pb_cmd_response_t response;
 
   default_gate_ = arg.gate();
   set_cmd_response_error(&response, pb_errno(0));
   return response;
 }
 
-bess::pb::ModuleCommandResponse L2Forward::CommandLookupPb(
+pb_cmd_response_t L2Forward::CommandLookupPb(
     const bess::pb::L2ForwardCommandLookupArg &arg) {
   int i;
-  bess::pb::ModuleCommandResponse response;
+  pb_cmd_response_t response;
   bess::pb::L2ForwardCommandLookupResponse ret;
   for (i = 0; i < arg.addrs_size(); i++) {
     const auto &_addr = arg.addrs(i);
@@ -739,9 +739,9 @@ bess::pb::ModuleCommandResponse L2Forward::CommandLookupPb(
   return response;
 }
 
-bess::pb::ModuleCommandResponse L2Forward::CommandPopulatePb(
+pb_cmd_response_t L2Forward::CommandPopulatePb(
     const bess::pb::L2ForwardCommandPopulateArg &arg) {
-  bess::pb::ModuleCommandResponse response;
+  pb_cmd_response_t response;
   const char *base;
   char base_str[6] = {0};
   uint64_t base_u64;

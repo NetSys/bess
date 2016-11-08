@@ -25,9 +25,9 @@ class HashLB : public Module {
   struct snobj *CommandSetMode(struct snobj *arg);
   struct snobj *CommandSetGates(struct snobj *arg);
 
-  bess::pb::ModuleCommandResponse CommandSetModePb(
+  pb_cmd_response_t CommandSetModePb(
       const bess::pb::HashLBCommandSetModeArg &arg);
-  bess::pb::ModuleCommandResponse CommandSetGatesPb(
+  pb_cmd_response_t CommandSetGatesPb(
       const bess::pb::HashLBCommandSetGatesArg &arg);
 
   static const gate_idx_t kNumIGates = 1;

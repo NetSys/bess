@@ -27,7 +27,7 @@ struct snobj *Update::Init(struct snobj *arg) {
 }
 
 pb_error_t Update::InitPb(const bess::pb::UpdateArg &arg) {
-  bess::pb::ModuleCommandResponse response = CommandAddPb(arg);
+  pb_cmd_response_t response = CommandAddPb(arg);
   return response.error();
 }
 
@@ -54,9 +54,8 @@ void Update::ProcessBatch(struct pkt_batch *batch) {
   RunNextModule(batch);
 }
 
-bess::pb::ModuleCommandResponse Update::CommandAddPb(
-    const bess::pb::UpdateArg &arg) {
-  bess::pb::ModuleCommandResponse response;
+pb_cmd_response_t Update::CommandAddPb(const bess::pb::UpdateArg &arg) {
+  pb_cmd_response_t response;
 
   int curr = num_fields_;
 
@@ -110,11 +109,10 @@ bess::pb::ModuleCommandResponse Update::CommandAddPb(
   return response;
 }
 
-bess::pb::ModuleCommandResponse Update::CommandClearPb(
-    const bess::pb::EmptyArg &) {
+pb_cmd_response_t Update::CommandClearPb(const bess::pb::EmptyArg &) {
   num_fields_ = 0;
 
-  bess::pb::ModuleCommandResponse response;
+  pb_cmd_response_t response;
   set_cmd_response_error(&response, pb_errno(0));
   return response;
 }

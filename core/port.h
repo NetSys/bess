@@ -54,9 +54,10 @@ typedef struct packet_stats port_stats_t[PACKET_DIRS];
 class Port;
 class PortTest;
 
+using port_init_func_t = pb_func_t<pb_error_t, Port>;
+
 template <typename T, typename P>
-static inline std::function<pb_error_t(Port *, const google::protobuf::Any &)>
-PORT_INIT_FUNC(pb_error_t (P::*fn)(const T &)) {
+static inline port_init_func_t PORT_INIT_FUNC(pb_error_t (P::*fn)(const T &)) {
   return [=](Port *p, google::protobuf::Any arg) -> pb_error_t {
     T arg_;
     arg.UnpackTo(&arg_);
@@ -76,9 +77,7 @@ class PortBuilder {
 
   PortBuilder(std::function<Port *()> port_generator,
               const std::string &class_name, const std::string &name_template,
-              const std::string &help_text,
-              std::function<pb_error_t(Port *, const google::protobuf::Any &)>
-                  init_func)
+              const std::string &help_text, port_init_func_t init_func)
       : port_generator_(port_generator),
         class_name_(class_name),
         name_template_(name_template),
@@ -111,11 +110,11 @@ class PortBuilder {
 
   // Should be called via ADD_DRIVER (once per driver file) to register the
   // existence of this driver.  Always returns true;
-  static bool RegisterPortClass(
-      std::function<Port *()> port_generator, const std::string &class_name,
-      const std::string &name_template, const std::string &help_text,
-      std::function<pb_error_t(Port *, const google::protobuf::Any &)>
-          init_func);
+  static bool RegisterPortClass(std::function<Port *()> port_generator,
+                                const std::string &class_name,
+                                const std::string &name_template,
+                                const std::string &help_text,
+                                port_init_func_t init_func);
 
   static const std::map<std::string, PortBuilder> &all_port_builders();
 
@@ -150,8 +149,7 @@ class PortBuilder {
   std::string name_template_;  // The port default name prefix.
   std::string help_text_;      // Help text about this port type.
 
-  std::function<pb_error_t(Port *, const google::protobuf::Any &)>
-      init_func_;  // Initialization function of this Port class
+  port_init_func_t init_func_;  // Initialization function of this Port class
 
   bool initialized_;  // Has this port class been initialized via
                       // InitPortClass()?

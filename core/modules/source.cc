@@ -12,7 +12,7 @@ const PbCommands Source::pb_cmds = {
 
 pb_error_t Source::InitPb(const bess::pb::SourceArg &arg) {
   pb_error_t err;
-  bess::pb::ModuleCommandResponse response;
+  pb_cmd_response_t response;
 
   task_id_t tid = RegisterTask(nullptr);
   if (tid == INVALID_TASK_ID)
@@ -36,9 +36,9 @@ pb_error_t Source::InitPb(const bess::pb::SourceArg &arg) {
   return pb_errno(0);
 }
 
-bess::pb::ModuleCommandResponse Source::CommandSetBurstPb(
+pb_cmd_response_t Source::CommandSetBurstPb(
     const bess::pb::SourceCommandSetBurstArg &arg) {
-  bess::pb::ModuleCommandResponse response;
+  pb_cmd_response_t response;
 
   uint64_t val = arg.burst();
   if (val == 0 || val > MAX_PKT_BURST) {
@@ -52,9 +52,9 @@ bess::pb::ModuleCommandResponse Source::CommandSetBurstPb(
   return response;
 }
 
-bess::pb::ModuleCommandResponse Source::CommandSetPktSizePb(
+pb_cmd_response_t Source::CommandSetPktSizePb(
     const bess::pb::SourceCommandSetPktSizeArg &arg) {
-  bess::pb::ModuleCommandResponse response;
+  pb_cmd_response_t response;
 
   uint64_t val = arg.pkt_size();
   if (val == 0 || val > SNBUF_DATA) {
