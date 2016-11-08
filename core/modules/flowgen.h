@@ -51,7 +51,7 @@ class FlowGen : public Module {
         pareto_() {}
 
   virtual struct snobj *Init(struct snobj *arg);
-  virtual pb_error_t InitPb(const bess::pb::FlowGenArg &arg);
+  pb_error_t InitPb(const bess::pb::FlowGenArg &arg);
 
   virtual void Deinit();
 

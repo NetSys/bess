@@ -260,7 +260,7 @@ class Module {
   pb_error_t Init(const google::protobuf::Any &arg);
 
   virtual struct snobj *Init(struct snobj *arg);
-  virtual pb_error_t InitPb(const bess::pb::EmptyArg &arg);
+  pb_error_t InitPb(const bess::pb::EmptyArg &arg);
 
   virtual void Deinit() {}
 

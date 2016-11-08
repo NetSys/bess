@@ -12,9 +12,7 @@
 // Performs TC Scheduler init/deinit before/after each test.
 class TCFixture : public benchmark::Fixture {
  public:
-  TCFixture() : classes_(), s_() {
-    SetTscHz();
-  }
+  TCFixture() : classes_(), s_() { SetTscHz(); }
 
   static void SetTscHz() {
     // Compute our own approximate tsc_hz.
@@ -27,7 +25,7 @@ class TCFixture : public benchmark::Fixture {
     CHECK((tsc_hz >> 4) > 0) << "tsc_hz>>4=" << (tsc_hz >> 4);
   }
 
-  virtual void SetUp(benchmark::State &state) {
+  virtual void SetUp(benchmark::State &state) override {
     int num_classes = state.range(0);
 
     s_ = sched_init();
@@ -53,7 +51,7 @@ class TCFixture : public benchmark::Fixture {
     }
   }
 
-  virtual void TearDown(benchmark::State &) {
+  virtual void TearDown(benchmark::State &) override {
     // TODO(barath): This leaks memory at the moment, but it's easier than
     // proper cleanup.
     classes_.clear();
@@ -91,39 +89,39 @@ BENCHMARK_DEFINE_F(TCFixture, TCScheduleOnceCycle)(benchmark::State &state) {
 }
 
 BENCHMARK_REGISTER_F(TCFixture, TCScheduleOnceCount)
-    ->Args({4<<0, RESOURCE_CNT})
-    ->Args({4<<1, RESOURCE_CNT})
-    ->Args({4<<2, RESOURCE_CNT})
-    ->Args({4<<3, RESOURCE_CNT})
-    ->Args({4<<4, RESOURCE_CNT})
-    ->Args({4<<5, RESOURCE_CNT})
-    ->Args({4<<6, RESOURCE_CNT})
-    ->Args({4<<7, RESOURCE_CNT})
-    ->Args({4<<8, RESOURCE_CNT})
-    ->Args({4<<9, RESOURCE_CNT})
-    ->Args({4<<10, RESOURCE_CNT})
-    ->Args({4<<11, RESOURCE_CNT})
-    ->Args({4<<12, RESOURCE_CNT})
-    ->Args({4<<13, RESOURCE_CNT})
-    ->Args({4<<14, RESOURCE_CNT})
+    ->Args({4 << 0, RESOURCE_CNT})
+    ->Args({4 << 1, RESOURCE_CNT})
+    ->Args({4 << 2, RESOURCE_CNT})
+    ->Args({4 << 3, RESOURCE_CNT})
+    ->Args({4 << 4, RESOURCE_CNT})
+    ->Args({4 << 5, RESOURCE_CNT})
+    ->Args({4 << 6, RESOURCE_CNT})
+    ->Args({4 << 7, RESOURCE_CNT})
+    ->Args({4 << 8, RESOURCE_CNT})
+    ->Args({4 << 9, RESOURCE_CNT})
+    ->Args({4 << 10, RESOURCE_CNT})
+    ->Args({4 << 11, RESOURCE_CNT})
+    ->Args({4 << 12, RESOURCE_CNT})
+    ->Args({4 << 13, RESOURCE_CNT})
+    ->Args({4 << 14, RESOURCE_CNT})
     ->Complexity();
 
 BENCHMARK_REGISTER_F(TCFixture, TCScheduleOnceCycle)
-    ->Args({4<<0, RESOURCE_CYCLE})
-    ->Args({4<<1, RESOURCE_CYCLE})
-    ->Args({4<<2, RESOURCE_CYCLE})
-    ->Args({4<<3, RESOURCE_CYCLE})
-    ->Args({4<<4, RESOURCE_CYCLE})
-    ->Args({4<<5, RESOURCE_CYCLE})
-    ->Args({4<<6, RESOURCE_CYCLE})
-    ->Args({4<<7, RESOURCE_CYCLE})
-    ->Args({4<<8, RESOURCE_CYCLE})
-    ->Args({4<<9, RESOURCE_CYCLE})
-    ->Args({4<<10, RESOURCE_CYCLE})
-    ->Args({4<<11, RESOURCE_CYCLE})
-    ->Args({4<<12, RESOURCE_CYCLE})
-    ->Args({4<<13, RESOURCE_CYCLE})
-    ->Args({4<<14, RESOURCE_CYCLE})
+    ->Args({4 << 0, RESOURCE_CYCLE})
+    ->Args({4 << 1, RESOURCE_CYCLE})
+    ->Args({4 << 2, RESOURCE_CYCLE})
+    ->Args({4 << 3, RESOURCE_CYCLE})
+    ->Args({4 << 4, RESOURCE_CYCLE})
+    ->Args({4 << 5, RESOURCE_CYCLE})
+    ->Args({4 << 6, RESOURCE_CYCLE})
+    ->Args({4 << 7, RESOURCE_CYCLE})
+    ->Args({4 << 8, RESOURCE_CYCLE})
+    ->Args({4 << 9, RESOURCE_CYCLE})
+    ->Args({4 << 10, RESOURCE_CYCLE})
+    ->Args({4 << 11, RESOURCE_CYCLE})
+    ->Args({4 << 12, RESOURCE_CYCLE})
+    ->Args({4 << 13, RESOURCE_CYCLE})
+    ->Args({4 << 14, RESOURCE_CYCLE})
     ->Complexity();
 
 BENCHMARK_MAIN();

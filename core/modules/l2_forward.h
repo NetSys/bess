@@ -28,7 +28,7 @@ class L2Forward : public Module {
   L2Forward() : Module(), l2_table_(), default_gate_() {}
 
   virtual struct snobj *Init(struct snobj *arg);
-  virtual pb_error_t InitPb(const bess::pb::L2ForwardArg &arg);
+  pb_error_t InitPb(const bess::pb::L2ForwardArg &arg);
 
   virtual void Deinit();
 

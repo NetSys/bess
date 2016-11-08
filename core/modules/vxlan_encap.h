@@ -9,7 +9,7 @@ class VXLANEncap : public Module {
   VXLANEncap() : Module(), dstport_() {}
 
   virtual struct snobj *Init(struct snobj *arg);
-  virtual pb_error_t InitPb(const bess::pb::VXLANEncapArg &arg);
+  pb_error_t InitPb(const bess::pb::VXLANEncapArg &arg);
   virtual void ProcessBatch(struct pkt_batch *batch);
 
   size_t num_attrs = 6;

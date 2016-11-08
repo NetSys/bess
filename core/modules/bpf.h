@@ -20,7 +20,7 @@ struct filter {
 class BPF : public Module {
  public:
   virtual struct snobj *Init(struct snobj *arg);
-  virtual pb_error_t InitPb(const bess::pb::BPFArg &arg);
+  pb_error_t InitPb(const bess::pb::BPFArg &arg);
   virtual void Deinit();
 
   virtual void ProcessBatch(struct pkt_batch *batch);

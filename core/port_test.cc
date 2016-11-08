@@ -11,25 +11,20 @@ class DummyPort : public Port {
  public:
   DummyPort() : Port(), deinited_(nullptr) {}
 
-  virtual void InitDriver() {
-    initialized_ = true;
-  }
+  virtual void InitDriver() { initialized_ = true; }
+
+  pb_error_t InitPb(const google::protobuf::Any &) { return pb_errno(42); }
 
   virtual void Deinit() {
-    if (deinited_) *deinited_ = true;
+    if (deinited_)
+      *deinited_ = true;
   }
 
-  void set_deinited(bool *val) {
-    deinited_ = val;
-  }
+  void set_deinited(bool *val) { deinited_ = val; }
 
-  static void set_initialized(bool val) {
-    initialized_ = val;
-  }
+  static void set_initialized(bool val) { initialized_ = val; }
 
-  static bool initialized() {
-    return initialized_;
-  }
+  static bool initialized() { return initialized_; }
 
  private:
   bool *deinited_;
@@ -43,28 +38,29 @@ bool DummyPort::initialized_ = false;
 // builds Ports of type DummyPort.
 class PortTest : public ::testing::Test {
  protected:
-   virtual void SetUp() {
-     DummyPort::set_initialized(false);
+  virtual void SetUp() {
+    DummyPort::set_initialized(false);
 
-     ASSERT_TRUE(PortBuilder::all_port_builders().empty());
+    ASSERT_TRUE(PortBuilder::all_port_builders().empty());
 
-     ADD_DRIVER(DummyPort, "dummy_port", "dummy help");
-     ASSERT_TRUE(__driver__DummyPort);
+    ADD_DRIVER(DummyPort, "dummy_port", "dummy help");
+    ASSERT_TRUE(__driver__DummyPort);
 
-     ASSERT_EQ(1, PortBuilder::all_port_builders().size());
-     ASSERT_EQ(1, PortBuilder::all_port_builders().count("DummyPort"));
-     dummy_port_builder = &PortBuilder::all_port_builders().find("DummyPort")->second;
-     EXPECT_EQ("DummyPort", dummy_port_builder->class_name());
-     EXPECT_EQ("dummy_port", dummy_port_builder->name_template());
-     EXPECT_EQ("dummy help", dummy_port_builder->help_text());
-   }
+    ASSERT_EQ(1, PortBuilder::all_port_builders().size());
+    ASSERT_EQ(1, PortBuilder::all_port_builders().count("DummyPort"));
+    dummy_port_builder =
+        &PortBuilder::all_port_builders().find("DummyPort")->second;
+    EXPECT_EQ("DummyPort", dummy_port_builder->class_name());
+    EXPECT_EQ("dummy_port", dummy_port_builder->name_template());
+    EXPECT_EQ("dummy help", dummy_port_builder->help_text());
+  }
 
-   virtual void TearDown() {
-     PortBuilder::all_port_builders_holder(true);
-     PortBuilder::all_ports_.clear();
-   }
+  virtual void TearDown() {
+    PortBuilder::all_port_builders_holder(true);
+    PortBuilder::all_ports_.clear();
+  }
 
-   const PortBuilder *dummy_port_builder;
+  const PortBuilder *dummy_port_builder;
 };
 
 // Checks that when we create a port via the established PortBuilder, the right
@@ -75,6 +71,12 @@ TEST_F(PortTest, CreatePort) {
 
   EXPECT_EQ("port1", p->name());
   EXPECT_EQ(dummy_port_builder, p->port_builder());
+
+  bess::pb::EmptyArg arg_;
+  google::protobuf::Any arg;
+  arg.PackFrom(arg_);
+  pb_error_t err = p->Init(arg);
+  EXPECT_EQ(42, err.err());
 }
 
 // Checks that adding a port puts it into the global port collection.
@@ -105,7 +107,7 @@ TEST_F(PortTest, GetPortStats) {
 
   const auto &it = PortBuilder::all_ports().find("port1");
   ASSERT_NE(it, PortBuilder::all_ports().end());
-  
+
   port_stats_t stats;
   it->second->GetPortStats(&stats);
   EXPECT_EQ(0, stats[PACKET_DIR_INC].packets);
@@ -129,8 +131,8 @@ TEST_F(PortTest, AcquireAndReleaseQueues) {
 
   // Set up two dummy modules; this isn't safe, but the pointers shouldn't be
   // dereferenced by the called code so it should be fine for the test.
-  struct module *m1 = (struct module *) 1;
-  struct module *m2 = (struct module *) 2;
+  struct module *m1 = (struct module *)1;
+  struct module *m2 = (struct module *)2;
 
   // First don't specify a valid direction, shouldn't work.
   EXPECT_EQ(-EINVAL, p->AcquireQueues(m1, PACKET_DIRS, nullptr, 1));
@@ -239,12 +241,15 @@ TEST_F(PortTest, InitDrivers) {
 TEST(PortBuilderTest, RegisterPortClassDirectCall) {
   ASSERT_TRUE(PortBuilder::all_port_builders().empty());
 
-  PortBuilder::RegisterPortClass([]() { return new DummyPort(); }, "DummyPort", "dummy_port", "dummy help");
+  PortBuilder::RegisterPortClass([]() { return new DummyPort(); }, "DummyPort",
+                                 "dummy_port", "dummy help",
+                                 PORT_INIT_FUNC(&DummyPort::InitPb));
 
   ASSERT_EQ(1, PortBuilder::all_port_builders().size());
   ASSERT_EQ(1, PortBuilder::all_port_builders().count("DummyPort"));
 
-  const PortBuilder &b = PortBuilder::all_port_builders().find("DummyPort")->second;
+  const PortBuilder &b =
+      PortBuilder::all_port_builders().find("DummyPort")->second;
   EXPECT_EQ("DummyPort", b.class_name());
   EXPECT_EQ("dummy_port", b.name_template());
   EXPECT_EQ("dummy help", b.help_text());
@@ -263,7 +268,8 @@ TEST(PortBuilderTest, RegisterPortClassMacroCall) {
   ASSERT_EQ(1, PortBuilder::all_port_builders().size());
   ASSERT_EQ(1, PortBuilder::all_port_builders().count("DummyPort"));
 
-  const PortBuilder &b = PortBuilder::all_port_builders().find("DummyPort")->second;
+  const PortBuilder &b =
+      PortBuilder::all_port_builders().find("DummyPort")->second;
   EXPECT_EQ("DummyPort", b.class_name());
   EXPECT_EQ("dummy_port", b.name_template());
   EXPECT_EQ("dummy help", b.help_text());

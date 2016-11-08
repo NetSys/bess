@@ -54,6 +54,17 @@ typedef struct packet_stats port_stats_t[PACKET_DIRS];
 class Port;
 class PortTest;
 
+template <typename T, typename P>
+static inline std::function<pb_error_t(Port *, const google::protobuf::Any &)>
+PORT_INIT_FUNC(pb_error_t (P::*fn)(const T &)) {
+  return [=](Port *p, google::protobuf::Any arg) -> pb_error_t {
+    T arg_;
+    arg.UnpackTo(&arg_);
+    auto base_fn = reinterpret_cast<pb_error_t (Port::*)(const T &)>(fn);
+    return (*p.*(base_fn))(arg_);
+  };
+}
+
 // A class to generate new Port objects of specific types.  Each instance can
 // generate Port objects of a specific class and specification.  Represents a
 // "driver" of that port.
@@ -65,11 +76,14 @@ class PortBuilder {
 
   PortBuilder(std::function<Port *()> port_generator,
               const std::string &class_name, const std::string &name_template,
-              const std::string &help_text)
+              const std::string &help_text,
+              std::function<pb_error_t(Port *, const google::protobuf::Any &)>
+                  init_func)
       : port_generator_(port_generator),
         class_name_(class_name),
         name_template_(name_template),
         help_text_(help_text),
+        init_func_(init_func),
         initialized_(false) {}
 
   // Returns a new Port object of the type represented by this PortBuilder
@@ -97,10 +111,11 @@ class PortBuilder {
 
   // Should be called via ADD_DRIVER (once per driver file) to register the
   // existence of this driver.  Always returns true;
-  static bool RegisterPortClass(std::function<Port *()> port_generator,
-                                const std::string &class_name,
-                                const std::string &name_template,
-                                const std::string &help_text);
+  static bool RegisterPortClass(
+      std::function<Port *()> port_generator, const std::string &class_name,
+      const std::string &name_template, const std::string &help_text,
+      std::function<pb_error_t(Port *, const google::protobuf::Any &)>
+          init_func);
 
   static const std::map<std::string, PortBuilder> &all_port_builders();
 
@@ -110,6 +125,10 @@ class PortBuilder {
   const std::string &name_template() const { return name_template_; }
   const std::string &help_text() const { return help_text_; }
   bool initialized() const { return initialized_; }
+
+  pb_error_t RunInit(Port *p, const google::protobuf::Any &arg) const {
+    return init_func_(p, arg);
+  }
 
  private:
   // To avoid the static initialization ordering problem, this pseudo-getter
@@ -131,6 +150,9 @@ class PortBuilder {
   std::string name_template_;  // The port default name prefix.
   std::string help_text_;      // Help text about this port type.
 
+  std::function<pb_error_t(Port *, const google::protobuf::Any &)>
+      init_func_;  // Initialization function of this Port class
+
   bool initialized_;  // Has this port class been initialized via
                       // InitPortClass()?
 };
@@ -147,10 +169,10 @@ class Port {
         port_stats() {}
   virtual ~Port(){};
 
-  template <typename T>
-  pb_error_t Init(const T &arg);
+  pb_error_t Init(const google::protobuf::Any &arg);
 
   virtual struct snobj *Init(struct snobj *arg);
+  pb_error_t InitPb(const bess::pb::EmptyArg &arg);
 
   virtual void Deinit() {}
 
@@ -228,6 +250,6 @@ class Port {
 #define ADD_DRIVER(_DRIVER, _NAME_TEMPLATE, _HELP)                       \
   bool __driver__##_DRIVER = PortBuilder::RegisterPortClass(             \
       std::function<Port *()>([]() { return new _DRIVER(); }), #_DRIVER, \
-      _NAME_TEMPLATE, _HELP);
+      _NAME_TEMPLATE, _HELP, PORT_INIT_FUNC(&_DRIVER::InitPb));
 
 #endif  // BESS_PORT_H_

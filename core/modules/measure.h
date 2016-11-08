@@ -17,7 +17,7 @@ class Measure : public Module {
         total_latency_() {}
 
   virtual struct snobj *Init(struct snobj *arg);
-  virtual pb_error_t InitPb(const bess::pb::MeasureArg &arg);
+  pb_error_t InitPb(const bess::pb::MeasureArg &arg);
 
   virtual void ProcessBatch(struct pkt_batch *batch);
 

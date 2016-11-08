@@ -38,7 +38,7 @@ CXXFLAGS += -std=gnu++11 -g3 -ggdb3 -Ofast -march=native \
 	    -D_GNU_SOURCE
 
 HARDCORE = -Wextra -Wcast-align \
-	   -Wno-missing-field-initializers	# FIXME
+	   	-Wno-missing-field-initializers	# FIXME
 
 # -Wshadow should not be used for g++ 4.x, as it has too many false positives
 CXXVERSION_5_OR_HIGHER := $(shell expr $(CXXVERSION) \>= 50000)

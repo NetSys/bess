@@ -10,7 +10,7 @@ class Queue : public Module {
   Queue() : Module(), queue_(), prefetch_(), burst_() {}
 
   virtual struct snobj *Init(struct snobj *arg);
-  virtual pb_error_t InitPb(const bess::pb::QueueArg &arg);
+  pb_error_t InitPb(const bess::pb::QueueArg &arg);
 
   virtual void Deinit();
 

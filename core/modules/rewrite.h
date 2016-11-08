@@ -17,7 +17,7 @@ class Rewrite : public Module {
         templates_() {}
 
   virtual struct snobj *Init(struct snobj *arg);
-  virtual pb_error_t InitPb(const bess::pb::RewriteArg &arg);
+  pb_error_t InitPb(const bess::pb::RewriteArg &arg);
 
   virtual void ProcessBatch(struct pkt_batch *batch);
 

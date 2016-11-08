@@ -37,7 +37,7 @@ class RoundRobin : public Module {
       : Module(), gates_(), ngates_(), current_gate_(), per_packet_() {}
 
   virtual struct snobj *Init(struct snobj *arg);
-  virtual pb_error_t InitPb(const bess::pb::RoundRobinArg &arg);
+  pb_error_t InitPb(const bess::pb::RoundRobinArg &arg);
 
   virtual void ProcessBatch(struct pkt_batch *batch);
 

@@ -121,12 +121,11 @@ static int collect_metadata(Module* m, GetModuleInfoResponse* response) {
   return 0;
 }
 
-template <typename T>
 static ::Port* create_port(const std::string& name, const PortBuilder& driver,
                            queue_t num_inc_q, queue_t num_out_q,
                            size_t size_inc_q, size_t size_out_q,
-                           const std::string& mac_addr_str, const T& arg,
-                           pb_error_t* perr) {
+                           const std::string& mac_addr_str,
+                           const google::protobuf::Any& arg, pb_error_t* perr) {
   std::unique_ptr<::Port> p;
   int ret;
 
@@ -159,8 +158,7 @@ static ::Port* create_port(const std::string& name, const PortBuilder& driver,
     return nullptr;
   }
 
-  if (size_inc_q < 0 || size_inc_q > MAX_QUEUE_SIZE || size_out_q < 0 ||
-      size_out_q > MAX_QUEUE_SIZE) {
+  if (size_inc_q > MAX_QUEUE_SIZE || size_out_q > MAX_QUEUE_SIZE) {
     perr->set_err(EINVAL);
     perr->set_errmsg("Invalid queue size");
     return nullptr;
@@ -589,41 +587,10 @@ class BESSControlImpl final : public BESSControl::Service {
     const PortBuilder& builder = it->second;
     pb_error_t* error = response->mutable_error();
 
-    switch (request->arg_case()) {
-      case CreatePortRequest::kPcapArg:
-        port = create_port(request->name(), builder, request->num_inc_q(),
-                           request->num_out_q(), request->size_inc_q(),
-                           request->size_out_q(), request->mac_addr(),
-                           request->pcap_arg(), error);
-        break;
-      case CreatePortRequest::kPmdArg:
-        port = create_port(request->name(), builder, request->num_inc_q(),
-                           request->num_out_q(), request->size_inc_q(),
-                           request->size_out_q(), request->mac_addr(),
-                           request->pmd_arg(), error);
-        break;
-      case CreatePortRequest::kSocketArg:
-        port = create_port(request->name(), builder, request->num_inc_q(),
-                           request->num_out_q(), request->size_inc_q(),
-                           request->size_out_q(), request->mac_addr(),
-                           request->socket_arg(), error);
-        break;
-      case CreatePortRequest::kZcvportArg:
-        port = create_port(request->name(), builder, request->num_inc_q(),
-                           request->num_out_q(), request->size_inc_q(),
-                           request->size_out_q(), request->mac_addr(),
-                           request->zcvport_arg(), error);
-        break;
-      case CreatePortRequest::kVportArg:
-        port = create_port(request->name(), builder, request->num_inc_q(),
-                           request->num_out_q(), request->size_inc_q(),
-                           request->size_out_q(), request->mac_addr(),
-                           request->vport_arg(), error);
-        break;
-      case CreatePortRequest::ARG_NOT_SET:
-        return return_with_error(response, CreatePortRequest::ARG_NOT_SET,
-                                 "Missing argument");
-    }
+    port = create_port(request->name(), builder, request->num_inc_q(),
+                       request->num_out_q(), request->size_inc_q(),
+                       request->size_out_q(), request->mac_addr(),
+                       request->arg(), error);
 
     if (!port)
       return Status::OK;

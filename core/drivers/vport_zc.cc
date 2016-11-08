@@ -55,6 +55,7 @@ struct vport_bar {
 class ZeroCopyVPort : public Port {
  public:
   pb_error_t InitPb(const bess::pb::EmptyArg &arg);
+
   struct snobj *Init(struct snobj *conf);
 
   void DeInit();

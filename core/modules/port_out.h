@@ -10,13 +10,13 @@ class PortOut : public Module {
   PortOut() : Module(), port_() {}
 
   virtual struct snobj *Init(struct snobj *arg);
-  virtual pb_error_t InitPb(const bess::pb::PortOutArg &arg);
+  pb_error_t InitPb(const bess::pb::PortOutArg &arg);
 
   virtual void Deinit();
 
   virtual void ProcessBatch(struct pkt_batch *batch);
 
-  virtual std::string GetDesc();
+  virtual std::string GetDesc() const;
 
   static const gate_idx_t kNumIGates = 1;
   static const gate_idx_t kNumOGates = 0;

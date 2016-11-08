@@ -9,7 +9,7 @@ class IPLookup : public Module {
   IPLookup() : Module(), lpm_(), default_gate_() {}
 
   virtual struct snobj *Init(struct snobj *arg);
-  virtual pb_error_t InitPb(const bess::pb::EmptyArg &arg);
+  pb_error_t InitPb(const bess::pb::EmptyArg &arg);
 
   virtual void Deinit();
 

@@ -11,7 +11,7 @@ class Update : public Module {
   Update() : Module(), num_fields_(), fields_() {}
 
   virtual struct snobj *Init(struct snobj *arg);
-  virtual pb_error_t InitPb(const bess::pb::UpdateArg &arg);
+  pb_error_t InitPb(const bess::pb::UpdateArg &arg);
 
   virtual void ProcessBatch(struct pkt_batch *batch);
 

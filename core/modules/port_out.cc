@@ -66,7 +66,7 @@ void PortOut::Deinit() {
                        nullptr, 0);
 }
 
-std::string PortOut::GetDesc() {
+std::string PortOut::GetDesc() const {
   return bess::utils::Format("%s/%s", port_->name().c_str(),
                              port_->port_builder()->class_name().c_str());
 }

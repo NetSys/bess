@@ -10,7 +10,7 @@ class QueueInc : public Module {
   QueueInc() : Module(), port_(), qid_(), prefetch_(), burst_() {}
 
   virtual struct snobj *Init(struct snobj *arg);
-  virtual pb_error_t InitPb(const bess::pb::QueueIncArg &arg);
+  pb_error_t InitPb(const bess::pb::QueueIncArg &arg);
   virtual void Deinit();
 
   virtual struct task_result RunTask(void *arg);

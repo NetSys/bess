@@ -12,7 +12,7 @@ class RandomUpdate : public Module {
   RandomUpdate() : Module(), num_vars_(), vars_(), rng_() {}
 
   virtual struct snobj *Init(struct snobj *arg);
-  virtual pb_error_t InitPb(const bess::pb::RandomUpdateArg &arg);
+  pb_error_t InitPb(const bess::pb::RandomUpdateArg &arg);
 
   virtual void ProcessBatch(struct pkt_batch *batch);
 

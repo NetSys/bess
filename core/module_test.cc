@@ -23,7 +23,7 @@ class AcmeModule : public Module {
   static const PbCommands pb_cmds;
 
   virtual struct snobj *Init(struct snobj *) { return nullptr; }
-  virtual pb_error_t InitPb(const bess::pb::EmptyArg &) { return pb_errno(42); }
+  pb_error_t InitPb(const bess::pb::EmptyArg &) { return pb_errno(42); }
 
   struct snobj *Foo(struct snobj *) {
     n += 1;

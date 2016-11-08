@@ -95,14 +95,15 @@ void PortBuilder::InitDrivers() {
   }
 }
 
-bool PortBuilder::RegisterPortClass(std::function<Port *()> port_generator,
-                                    const std::string &class_name,
-                                    const std::string &name_template,
-                                    const std::string &help_text) {
+bool PortBuilder::RegisterPortClass(
+    std::function<Port *()> port_generator, const std::string &class_name,
+    const std::string &name_template, const std::string &help_text,
+    std::function<pb_error_t(Port *, const google::protobuf::Any &)>
+        init_func) {
   all_port_builders_holder().emplace(
       std::piecewise_construct, std::forward_as_tuple(class_name),
       std::forward_as_tuple(port_generator, class_name, name_template,
-                            help_text));
+                            help_text, init_func));
   return true;
 }
 
@@ -129,8 +130,11 @@ const std::map<std::string, Port *> &PortBuilder::all_ports() {
 
 void Port::CollectStats(bool) {}
 
-template <typename T>
-pb_error_t Port::Init(const T &arg) {
+pb_error_t Port::Init(const google::protobuf::Any &arg) {
+  return port_builder_->RunInit(this, arg);
+}
+
+pb_error_t Port::InitPb(const bess::pb::EmptyArg &) {
   return pb_errno(0);
 }
 

@@ -9,7 +9,7 @@ class VLANPush : public Module {
   VLANPush() : Module(), vlan_tag_(), qinq_tag_() {}
 
   virtual struct snobj *Init(struct snobj *arg);
-  virtual pb_error_t InitPb(const bess::pb::VLANPushArg &arg);
+  pb_error_t InitPb(const bess::pb::VLANPushArg &arg);
 
   virtual void ProcessBatch(struct pkt_batch *batch);
 

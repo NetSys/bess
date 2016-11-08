@@ -18,7 +18,7 @@ class HashLB : public Module {
   HashLB() : Module(), gates_(), num_gates_(), mode_() {}
 
   virtual struct snobj *Init(struct snobj *arg);
-  virtual pb_error_t InitPb(const bess::pb::HashLBArg &arg);
+  pb_error_t InitPb(const bess::pb::HashLBArg &arg);
 
   virtual void ProcessBatch(struct pkt_batch *batch);
 
