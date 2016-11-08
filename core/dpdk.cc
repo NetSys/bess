@@ -136,6 +136,4 @@ static void init_eal(char *prog_name, int mb_per_socket, int multi_instance) {
 
 void init_dpdk(char *prog_name, int mb_per_socket, int multi_instance) {
   init_eal(prog_name, mb_per_socket, multi_instance);
-
-  tsc_hz = rte_get_tsc_hz();
 }

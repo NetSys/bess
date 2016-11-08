@@ -12,18 +12,7 @@
 // Performs TC Scheduler init/deinit before/after each test.
 class TCFixture : public benchmark::Fixture {
  public:
-  TCFixture() : classes_(), s_() { SetTscHz(); }
-
-  static void SetTscHz() {
-    // Compute our own approximate tsc_hz.
-    // TODO(barath): Standarize this calculation elsewhere, such as in utils/
-    uint64_t start = rdtsc();
-    sleep(1);
-    tsc_hz = rdtsc() - start;
-
-    CHECK(tsc_hz > 0) << "tsc_hz=" << tsc_hz;
-    CHECK((tsc_hz >> 4) > 0) << "tsc_hz>>4=" << (tsc_hz >> 4);
-  }
+  TCFixture() : classes_(), s_() {}
 
   virtual void SetUp(benchmark::State &state) override {
     int num_classes = state.range(0);
