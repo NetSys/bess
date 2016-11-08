@@ -1,8 +1,18 @@
 # Disable all implicit Makefile rules
-.SUFFIXES:
+MAKEFLAGS += --no-builtin-rules
+.SUFFIXES: ;
 
 CXX ?= g++
 PROTOC ?= protoc
+
+VERBOSE ?= 0
+
+DEPDIR ?= .deps
+DEPFLAGS = -MT $@ -MMD -MP -MF $(DEPDIR)/$(@:.o=.d)
+$(shell mkdir -p $(DEPDIR) >/dev/null)
+$(shell mkdir -p $(DEPDIR)/utils >/dev/null)
+$(shell mkdir -p $(DEPDIR)/modules >/dev/null)
+$(shell mkdir -p $(DEPDIR)/drivers >/dev/null)
 
 # e.g., 4.9.3 -> 40903
 CXXVERSION := $(shell $(CXX) -dumpversion | sed -e 's/\.\([0-9][0-9]\)/\1/g' -e 's/\.\([0-9]\)/0\1/g' -e 's/^[0-9]\{3,4\}$$/&00/')
@@ -14,7 +24,7 @@ endif
 
 RTE_SDK ?= $(abspath ../deps/dpdk-16.07)
 RTE_TARGET ?= $(shell uname -m)-native-linuxapp-gcc
-DPDK_LIB = dpdk
+DPDK_LIB ?= dpdk
 
 ifneq ($(wildcard $(RTE_SDK)/$(RTE_TARGET)/*),)
     DPDK_INC_DIR = $(RTE_SDK)/$(RTE_TARGET)/include
@@ -92,37 +102,20 @@ SRCS = $(filter-out $(TEST_SRCS) $(BENCH_SRCS), $(ALL_SRCS)) $(PROTO_SRCS)
 OBJS = $(SRCS:.cc=.o)
 
 EXEC = bessd
-DEPS = .make.dep
 
 GTEST_DIR = /usr/src/gtest
 
-# if multiple targets are specified, do them one by one */
-ifneq ($(words $(MAKECMDGOALS)),1)
-
-.NOTPARALLEL:
-$(sort all $(MAKECMDGOALS)):
-	@$(MAKE) --no-print-directory -f $(firstword $(MAKEFILE_LIST)) $@
-
-else
-
-# parallel build by default
-CORES ?= $(shell nproc || echo 1)
-MAKEFLAGS += -j $(CORES)
-VERBOSE ?= 0
-
-.PHONY: all clean tags deps cscope tests benchmarks protobuf
+.PHONY: all clean tags cscope tests benchmarks protobuf
 
 all: $(EXEC) tests benchmarks
 
 clean:
-	rm -rf $(DEPS) $(EXEC) *_test */*_test *_bench */*_bench \
+	rm -rf $(EXEC) .deps/*.d .deps/*/*.d *_test */*_test *_bench */*_bench \
 		*.a *.pb.* *.o */*.o *.gcda *.gcno */*.gcda */*.gcno \
 		coverage.info coverage_html
 
 tags:
 	@ctags -R *
-
-deps: $(DEPS)
 
 cscope:
 	@rm -f cscope.*
@@ -146,9 +139,9 @@ $(2): $(3)
 	$$(eval _TYPE = $$(strip $(1)))
 	$$(eval _CMD = $$(strip $(4)))
 	@if [ $$(VERBOSE) -eq 0 ]; then \
-		printf "%-11s %s\n" [$$(_TYPE)] $$@; \
+		printf "%-11s %s\n" "[$$(_TYPE)]" "$$@"; \
 	else \
-		printf "%-11s %s\n" [$$(_TYPE)] $$(_CMD); \
+		printf "%-11s %s\n" "[$$(_TYPE)]" "$$(_CMD)"; \
 	fi
 	@if ! $$(_CMD); then \
 		echo "Error: \033[0;31m$$@"; \
@@ -164,22 +157,16 @@ $(eval $(call BUILD, \
 	$$(PROTOC) $$< $$(PROTOCFLAGS)))
 
 $(eval $(call BUILD, \
-	DEPS, \
-	$$(DEPS), \
-	$$(PROTO_HEADERS) $$(ALL_SRCS) $$(HEADERS), \
-	$$(CXX) $$(CXXFLAGS) -MM $$(ALL_SRCS) | sed 's|\(.*\)\.o: \(.*\)\.cc|\2.o: \2.cc|' > $$(DEPS)))
-
-$(eval $(call BUILD, \
 	CXX, \
 	%.pb.o, \
-	%.pb.cc, \
-	$$(CXX) -o $$@ -c $$< $$(CXXFLAGS)))
+	%.pb.cc $(DEPDIR)/$$@.d, \
+	$$(CXX) -o $$@ -c $$< $$(CXXFLAGS) $$(DEPFLAGS)))
 
 $(eval $(call BUILD, \
 	CXX, \
 	%.o, \
-	%.cc, \
-	$$(CXX) -o $$@ -c $$< $$(CXXFLAGS) $$(HARDCORE)))
+	%.cc $(PROTO_HEADERS) $(DEPDIR)/$$@.d, \
+	$$(CXX) -o $$@ -c $$< $$(CXXFLAGS) $$(HARDCORE) $$(DEPFLAGS)))
 
 $(eval $(call BUILD, \
 	LD, \
@@ -190,8 +177,8 @@ $(eval $(call BUILD, \
 $(eval $(call BUILD, \
 	TEST_CXX, \
 	%_test.o, \
-	%_test.cc, \
-	$$(CXX) -o $$@ -c $$< $$(CXXFLAGS) $$(HARDCORE)))
+	%_test.cc $(DEPDIR)/$$@.d, \
+	$$(CXX) -o $$@ -c $$< $$(CXXFLAGS) $$(HARDCORE) $$(DEPFLAGS)))
 
 $(eval $(call BUILD, \
 	TEST_LD, \
@@ -209,13 +196,13 @@ $(eval $(call BUILD, \
 	TEST_CXX, \
 	gtest-all.o, \
 	$$(GTEST_DIR)/src/gtest-all.cc, \
-	$$(CXX) -o $$@ -c $$< -I$$(GTEST_DIR) $$(CXXFLAGS) $$(HARDCORE)))
+	$$(CXX) -o $$@ -c $$< -I$$(GTEST_DIR) $$(CXXFLAGS) $$(HARDCORE) $$(DEPFLAGS)))
 
 $(eval $(call BUILD, \
 	BENCH_CXX, \
 	%_bench.o, \
-	%_bench.cc, \
-	$$(CXX) -o $$@ -c $$< $$(CXXFLAGS) $$(HARDCORE)))
+	%_bench.cc $(DEPDIR)/$$@.d, \
+	$$(CXX) -o $$@ -c $$< $$(CXXFLAGS) $$(HARDCORE) $$(DEPFLAGS)))
 
 $(eval $(call BUILD, \
 	BENCH_LD, \
@@ -231,8 +218,8 @@ $(eval $(call BUILD, \
 	$(CORE_OBJS), \
 	$$(AR) rcs $$@ $$^))
 
-ifneq ($(MAKECMDGOALS),clean)
-	-include $(DEPS)
-endif
+%.d: ;
 
-endif
+.PRECIOUS: %.d $(PROTO_HEADERS)
+
+-include $(patsubst %,$(DEPDIR)/%.d,$(basename $(ALL_SRCS)))
