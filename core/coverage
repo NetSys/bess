@@ -1,0 +1,30 @@
+#!/bin/sh -e
+
+args=${1:-"run serve"}
+
+for arg in $args;
+do
+    case $arg in
+        run)
+            # Run all tests
+            ./all_test
+
+            # Run gcov via lcov
+            lcov --capture --directory . --output-file coverage.info
+
+            # Generate output html
+            genhtml coverage.info --output-directory coverage_html
+            ;;
+
+        serve)
+            echo "Serving coverage UI at http://localhost:8000"
+            cd coverage_html
+	    python -m SimpleHTTPServer 8000
+            ;;
+        *)
+	    echo "Unknown command '$arg'" >&2
+            echo "Usage: $0 [run] [serve]" >&2
+	    exit 2
+            ;;
+    esac
+done
