@@ -380,7 +380,7 @@ int VPort::SetIPAddrSingle(const std::string &ip_addr) {
 }
 
 pb_error_t VPort::SetIPAddr(const bess::pb::VPortArg &arg) {
-  int child_pid;
+  int child_pid = 0;
 
   int ret = 0;
   int nspace = 0;
