@@ -530,9 +530,9 @@ int WildcardMatch::DelEntry(struct WmTuple *tuple, wm_hkey_t *key) {
   return 0;
 }
 
-bess::pb::ModuleCommandResponse WildcardMatch::CommandAddPb(
+pb_cmd_response_t WildcardMatch::CommandAddPb(
     const bess::pb::WildcardMatchCommandAddArg &arg) {
-  bess::pb::ModuleCommandResponse response;
+  pb_cmd_response_t response;
 
   gate_idx_t gate = arg.gate();
   int priority = arg.priority();
@@ -577,9 +577,9 @@ bess::pb::ModuleCommandResponse WildcardMatch::CommandAddPb(
   return response;
 }
 
-bess::pb::ModuleCommandResponse WildcardMatch::CommandDeletePb(
+pb_cmd_response_t WildcardMatch::CommandDeletePb(
     const bess::pb::WildcardMatchCommandDeleteArg &arg) {
-  bess::pb::ModuleCommandResponse response;
+  pb_cmd_response_t response;
 
   wm_hkey_t key;
   wm_hkey_t mask;
@@ -608,21 +608,20 @@ bess::pb::ModuleCommandResponse WildcardMatch::CommandDeletePb(
   return response;
 }
 
-bess::pb::ModuleCommandResponse WildcardMatch::CommandClearPb(
-    const bess::pb::EmptyArg &) {
+pb_cmd_response_t WildcardMatch::CommandClearPb(const bess::pb::EmptyArg &) {
   for (int i = 0; i < num_tuples_; i++) {
     tuples_[i].ht.Clear();
   }
 
-  bess::pb::ModuleCommandResponse response;
+  pb_cmd_response_t response;
 
   set_cmd_response_error(&response, pb_errno(0));
   return response;
 }
 
-bess::pb::ModuleCommandResponse WildcardMatch::CommandSetDefaultGatePb(
+pb_cmd_response_t WildcardMatch::CommandSetDefaultGatePb(
     const bess::pb::WildcardMatchCommandSetDefaultGateArg &arg) {
-  bess::pb::ModuleCommandResponse response;
+  pb_cmd_response_t response;
 
   int gate = arg.gate();
 

@@ -64,9 +64,9 @@ struct snobj *HashLB::CommandSetMode(struct snobj *arg) {
   return nullptr;
 }
 
-bess::pb::ModuleCommandResponse HashLB::CommandSetModePb(
+pb_cmd_response_t HashLB::CommandSetModePb(
     const bess::pb::HashLBCommandSetModeArg &arg) {
-  bess::pb::ModuleCommandResponse response;
+  pb_cmd_response_t response;
   switch (arg.mode()) {
     case bess::pb::HashLBCommandSetModeArg::L2:
       mode_ = LB_L2;
@@ -130,9 +130,9 @@ struct snobj *HashLB::CommandSetGates(struct snobj *arg) {
   return nullptr;
 }
 
-bess::pb::ModuleCommandResponse HashLB::CommandSetGatesPb(
+pb_cmd_response_t HashLB::CommandSetGatesPb(
     const bess::pb::HashLBCommandSetGatesArg &arg) {
-  bess::pb::ModuleCommandResponse response;
+  pb_cmd_response_t response;
 
   if (arg.gates_size() > MAX_HLB_GATES) {
     set_cmd_response_error(
@@ -184,8 +184,7 @@ pb_error_t HashLB::InitPb(const bess::pb::HashLBArg &arg) {
   mode_ = DEFAULT_MODE;
 
   if (arg.has_gate_arg()) {
-    bess::pb::ModuleCommandResponse response =
-        CommandSetGatesPb(arg.gate_arg());
+    pb_cmd_response_t response = CommandSetGatesPb(arg.gate_arg());
     pb_error_t err = response.error();
     if (err.err() != 0) {
       return err;
@@ -195,7 +194,7 @@ pb_error_t HashLB::InitPb(const bess::pb::HashLBArg &arg) {
   }
 
   if (arg.has_mode_arg()) {
-    bess::pb::ModuleCommandResponse response = CommandSetModePb(arg.mode_arg());
+    pb_cmd_response_t response = CommandSetModePb(arg.mode_arg());
     return response.error();
   }
 

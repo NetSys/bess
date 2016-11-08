@@ -12,7 +12,7 @@ const PbCommands RoundRobin::pb_cmds = {
 
 pb_error_t RoundRobin::InitPb(const bess::pb::RoundRobinArg &arg) {
   pb_error_t err;
-  bess::pb::ModuleCommandResponse response;
+  pb_cmd_response_t response;
 
   response = CommandSetGatesPb(arg.gate_arg());
   err = response.error();
@@ -29,9 +29,9 @@ pb_error_t RoundRobin::InitPb(const bess::pb::RoundRobinArg &arg) {
   return pb_errno(0);
 }
 
-bess::pb::ModuleCommandResponse RoundRobin::CommandSetModePb(
+pb_cmd_response_t RoundRobin::CommandSetModePb(
     const bess::pb::RoundRobinCommandSetModeArg &arg) {
-  bess::pb::ModuleCommandResponse response;
+  pb_cmd_response_t response;
 
   switch (arg.mode()) {
     case bess::pb::RoundRobinCommandSetModeArg::PACKET:
@@ -50,9 +50,9 @@ bess::pb::ModuleCommandResponse RoundRobin::CommandSetModePb(
   return response;
 }
 
-bess::pb::ModuleCommandResponse RoundRobin::CommandSetGatesPb(
+pb_cmd_response_t RoundRobin::CommandSetGatesPb(
     const bess::pb::RoundRobinCommandSetGatesArg &arg) {
-  bess::pb::ModuleCommandResponse response;
+  pb_cmd_response_t response;
 
   if (arg.gates_size() > MAX_RR_GATES) {
     set_cmd_response_error(

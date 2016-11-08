@@ -17,13 +17,12 @@ const PbCommands VLANPush::pb_cmds = {
 };
 
 pb_error_t VLANPush::InitPb(const bess::pb::VLANPushArg &arg) {
-  bess::pb::ModuleCommandResponse response = CommandSetTciPb(arg);
+  pb_cmd_response_t response = CommandSetTciPb(arg);
   return response.error();
 }
 
-bess::pb::ModuleCommandResponse VLANPush::CommandSetTciPb(
-    const bess::pb::VLANPushArg &arg) {
-  bess::pb::ModuleCommandResponse response;
+pb_cmd_response_t VLANPush::CommandSetTciPb(const bess::pb::VLANPushArg &arg) {
+  pb_cmd_response_t response;
 
   uint16_t tci;
   tci = arg.tci();

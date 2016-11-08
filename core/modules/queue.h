@@ -22,9 +22,9 @@ class Queue : public Module {
   struct snobj *CommandSetBurst(struct snobj *arg);
   struct snobj *CommandSetSize(struct snobj *arg);
 
-  bess::pb::ModuleCommandResponse CommandSetBurstPb(
+  pb_cmd_response_t CommandSetBurstPb(
       const bess::pb::QueueCommandSetBurstArg &arg);
-  bess::pb::ModuleCommandResponse CommandSetSizePb(
+  pb_cmd_response_t CommandSetSizePb(
       const bess::pb::QueueCommandSetSizeArg &arg);
 
   static const gate_idx_t kNumIGates = 1;

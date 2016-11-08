@@ -199,9 +199,9 @@ pb_error_t PortInc::SetBurst(int64_t burst) {
   return pb_errno(0);
 }
 
-bess::pb::ModuleCommandResponse PortInc::CommandSetBurstPb(
+pb_cmd_response_t PortInc::CommandSetBurstPb(
     const bess::pb::PortIncCommandSetBurstArg &arg) {
-  bess::pb::ModuleCommandResponse response;
+  pb_cmd_response_t response;
   set_cmd_response_error(&response, SetBurst(arg.burst()));
   return response;
 }

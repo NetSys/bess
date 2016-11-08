@@ -378,14 +378,14 @@ struct snobj *ExactMatch::CommandAdd(struct snobj *arg) {
   return nullptr;
 }
 
-bess::pb::ModuleCommandResponse ExactMatch::CommandAddPb(
+pb_cmd_response_t ExactMatch::CommandAddPb(
     const bess::pb::ExactMatchCommandAddArg &arg) {
   em_hkey_t key;
   gate_idx_t gate = arg.gate();
   pb_error_t err;
   int ret;
 
-  bess::pb::ModuleCommandResponse response;
+  pb_cmd_response_t response;
 
   if (!is_valid_gate(gate)) {
     set_cmd_response_error(&response,
@@ -436,9 +436,9 @@ struct snobj *ExactMatch::CommandDelete(struct snobj *arg) {
   return nullptr;
 }
 
-bess::pb::ModuleCommandResponse ExactMatch::CommandDeletePb(
+pb_cmd_response_t ExactMatch::CommandDeletePb(
     const bess::pb::ExactMatchCommandDeleteArg &arg) {
-  bess::pb::ModuleCommandResponse response;
+  pb_cmd_response_t response;
 
   em_hkey_t key;
 
@@ -472,11 +472,11 @@ struct snobj *ExactMatch::CommandClear(struct snobj *) {
   return nullptr;
 }
 
-bess::pb::ModuleCommandResponse ExactMatch::CommandClearPb(
+pb_cmd_response_t ExactMatch::CommandClearPb(
     const bess::pb::EmptyArg &) {
   ht_.Clear();
 
-  bess::pb::ModuleCommandResponse response;
+  pb_cmd_response_t response;
   set_cmd_response_error(&response, pb_errno(0));
   return response;
 }
@@ -489,9 +489,9 @@ struct snobj *ExactMatch::CommandSetDefaultGate(struct snobj *arg) {
   return nullptr;
 }
 
-bess::pb::ModuleCommandResponse ExactMatch::CommandSetDefaultGatePb(
+pb_cmd_response_t ExactMatch::CommandSetDefaultGatePb(
     const bess::pb::ExactMatchCommandSetDefaultGateArg &arg) {
-  bess::pb::ModuleCommandResponse response;
+  pb_cmd_response_t response;
   default_gate_ = arg.gate();
 
   set_cmd_response_error(&response, pb_errno(0));

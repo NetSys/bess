@@ -89,13 +89,13 @@ struct snobj *Measure::CommandGetSummary(struct snobj *) {
   return r;
 }
 
-bess::pb::ModuleCommandResponse Measure::CommandGetSummaryPb(
+pb_cmd_response_t Measure::CommandGetSummaryPb(
     const bess::pb::EmptyArg &) {
   uint64_t pkt_total = pkt_cnt_;
   uint64_t byte_total = bytes_cnt_;
   uint64_t bits = (byte_total + pkt_total * 24) * 8;
 
-  bess::pb::ModuleCommandResponse response;
+  pb_cmd_response_t response;
 
   bess::pb::MeasureCommandGetSummaryResponse r;
   r.set_timestamp(get_epoch_time());

@@ -142,12 +142,11 @@ class ExactMatch : public Module {
   static const PbCommands pb_cmds;
 
   pb_error_t InitPb(const bess::pb::ExactMatchArg &arg);
-  bess::pb::ModuleCommandResponse CommandAddPb(
-      const bess::pb::ExactMatchCommandAddArg &arg);
-  bess::pb::ModuleCommandResponse CommandDeletePb(
+  pb_cmd_response_t CommandAddPb(const bess::pb::ExactMatchCommandAddArg &arg);
+  pb_cmd_response_t CommandDeletePb(
       const bess::pb::ExactMatchCommandDeleteArg &arg);
-  bess::pb::ModuleCommandResponse CommandClearPb(const bess::pb::EmptyArg &arg);
-  bess::pb::ModuleCommandResponse CommandSetDefaultGatePb(
+  pb_cmd_response_t CommandClearPb(const bess::pb::EmptyArg &arg);
+  pb_cmd_response_t CommandSetDefaultGatePb(
       const bess::pb::ExactMatchCommandSetDefaultGateArg &arg);
 
  private:

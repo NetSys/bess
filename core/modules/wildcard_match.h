@@ -69,12 +69,12 @@ class WildcardMatch : public Module {
   struct snobj *CommandClear(struct snobj *arg);
   struct snobj *CommandSetDefaultGate(struct snobj *arg);
 
-  bess::pb::ModuleCommandResponse CommandAddPb(
+  pb_cmd_response_t CommandAddPb(
       const bess::pb::WildcardMatchCommandAddArg &arg);
-  bess::pb::ModuleCommandResponse CommandDeletePb(
+  pb_cmd_response_t CommandDeletePb(
       const bess::pb::WildcardMatchCommandDeleteArg &arg);
-  bess::pb::ModuleCommandResponse CommandClearPb(const bess::pb::EmptyArg &arg);
-  bess::pb::ModuleCommandResponse CommandSetDefaultGatePb(
+  pb_cmd_response_t CommandClearPb(const bess::pb::EmptyArg &arg);
+  pb_cmd_response_t CommandSetDefaultGatePb(
       const bess::pb::WildcardMatchCommandSetDefaultGateArg &arg);
 
   static const gate_idx_t kNumIGates = 1;

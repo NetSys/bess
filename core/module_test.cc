@@ -30,9 +30,9 @@ class AcmeModule : public Module {
     return nullptr;
   }
 
-  bess::pb::ModuleCommandResponse FooPb(const bess::pb::EmptyArg &) {
+  pb_cmd_response_t FooPb(const bess::pb::EmptyArg &) {
     n += 1;
-    return bess::pb::ModuleCommandResponse();
+    return pb_cmd_response_t();
   }
 
   int n = {};
