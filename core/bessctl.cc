@@ -279,7 +279,7 @@ class BESSControlImpl final : public BESSControl::Service {
     return Status::OK;
   }
   Status ResetWorkers(ServerContext*, const EmptyRequest*,
-                      EmptyResponse* response) {
+                      EmptyResponse* response) override {
     if (is_any_worker_running()) {
       return return_with_error(response, EBUSY, "There is a running worker");
     }
@@ -302,7 +302,7 @@ class BESSControlImpl final : public BESSControl::Service {
     return Status::OK;
   }
   Status AddWorker(ServerContext*, const AddWorkerRequest* request,
-                   EmptyResponse* response) {
+                   EmptyResponse* response) override {
     uint64_t wid = request->wid();
     if (wid >= MAX_WORKERS) {
       return return_with_error(response, EINVAL, "Missing 'wid' field");
@@ -345,7 +345,7 @@ class BESSControlImpl final : public BESSControl::Service {
     return Status::OK;
   }
   Status ListTcs(ServerContext*, const ListTcsRequest* request,
-                 ListTcsResponse* response) {
+                 ListTcsResponse* response) override {
     unsigned int wid_filter = MAX_WORKERS;
 
     wid_filter = request->wid();
@@ -660,7 +660,7 @@ class BESSControlImpl final : public BESSControl::Service {
     return Status::OK;
   }
   Status ListModules(ServerContext*, const EmptyRequest*,
-                     ListModulesResponse* response) {
+                     ListModulesResponse* response) override {
     int cnt = 1;
     int offset;
 
