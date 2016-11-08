@@ -17,11 +17,12 @@ const Commands<Module> ExactMatch::cmds = {
     {"clear", MODULE_FUNC &ExactMatch::CommandClear, 0},
     {"set_default_gate", MODULE_FUNC &ExactMatch::CommandSetDefaultGate, 1}};
 
-const PbCommands<Module> ExactMatch::pb_cmds = {
-    {"add", PB_MODULE_FUNC &ExactMatch::CommandAdd, 0},
-    {"delete", PB_MODULE_FUNC &ExactMatch::CommandDelete, 0},
-    {"clear", PB_MODULE_FUNC &ExactMatch::CommandClear, 0},
-    {"set_default_gate", PB_MODULE_FUNC &ExactMatch::CommandSetDefaultGate, 1}};
+const PbCommands ExactMatch::pb_cmds = {
+    {"add", MODULE_CMD_FUNC(&ExactMatch::CommandAddPb), 0},
+    {"delete", MODULE_CMD_FUNC(&ExactMatch::CommandDeletePb), 0},
+    {"clear", MODULE_CMD_FUNC(&ExactMatch::CommandClearPb), 0},
+    {"set_default_gate", MODULE_CMD_FUNC(&ExactMatch::CommandSetDefaultGatePb),
+     1}};
 
 pb_error_t ExactMatch::AddFieldOne(const bess::pb::ExactMatchArg_Field &field,
                                    struct EmField *f, int idx) {
@@ -157,10 +158,7 @@ struct snobj *ExactMatch::Init(struct snobj *arg) {
   return nullptr;
 }
 
-pb_error_t ExactMatch::Init(const google::protobuf::Any &arg_) {
-  bess::pb::ExactMatchArg arg;
-  arg_.UnpackTo(&arg);
-
+pb_error_t ExactMatch::InitPb(const bess::pb::ExactMatchArg &arg) {
   int size_acc = 0;
 
   for (auto i = 0; i < arg.fields_size(); ++i) {
@@ -380,11 +378,8 @@ struct snobj *ExactMatch::CommandAdd(struct snobj *arg) {
   return nullptr;
 }
 
-bess::pb::ModuleCommandResponse ExactMatch::CommandAdd(
-    const google::protobuf::Any &arg_) {
-  bess::pb::ExactMatchCommandAddArg arg;
-  arg_.UnpackTo(&arg);
-
+bess::pb::ModuleCommandResponse ExactMatch::CommandAddPb(
+    const bess::pb::ExactMatchCommandAddArg &arg) {
   em_hkey_t key;
   gate_idx_t gate = arg.gate();
   pb_error_t err;
@@ -441,11 +436,8 @@ struct snobj *ExactMatch::CommandDelete(struct snobj *arg) {
   return nullptr;
 }
 
-bess::pb::ModuleCommandResponse ExactMatch::CommandDelete(
-    const google::protobuf::Any &arg_) {
-  bess::pb::ExactMatchCommandDeleteArg arg;
-  arg_.UnpackTo(&arg);
-
+bess::pb::ModuleCommandResponse ExactMatch::CommandDeletePb(
+    const bess::pb::ExactMatchCommandDeleteArg &arg) {
   bess::pb::ModuleCommandResponse response;
 
   em_hkey_t key;
@@ -480,8 +472,8 @@ struct snobj *ExactMatch::CommandClear(struct snobj *) {
   return nullptr;
 }
 
-bess::pb::ModuleCommandResponse ExactMatch::CommandClear(
-    const google::protobuf::Any &) {
+bess::pb::ModuleCommandResponse ExactMatch::CommandClearPb(
+    const bess::pb::EmptyArg &) {
   ht_.Clear();
 
   bess::pb::ModuleCommandResponse response;
@@ -497,11 +489,8 @@ struct snobj *ExactMatch::CommandSetDefaultGate(struct snobj *arg) {
   return nullptr;
 }
 
-bess::pb::ModuleCommandResponse ExactMatch::CommandSetDefaultGate(
-    const google::protobuf::Any &arg_) {
-  bess::pb::ExactMatchCommandSetDefaultGateArg arg;
-  arg_.UnpackTo(&arg);
-
+bess::pb::ModuleCommandResponse ExactMatch::CommandSetDefaultGatePb(
+    const bess::pb::ExactMatchCommandSetDefaultGateArg &arg) {
   bess::pb::ModuleCommandResponse response;
   default_gate_ = arg.gate();
 

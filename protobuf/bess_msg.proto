@@ -8,6 +8,9 @@ package bess.pb;
 message EmptyRequest {
 }
 
+message EmptyArg {
+}
+
 message EmptyResponse {
   Error error = 1;
 }
@@ -227,3 +230,32 @@ message CreateModuleRequest {
   string mclass = 2;
   google.protobuf.Any arg = 3;
 }
+
+message ModuleCommandRequest {
+  string name = 1;
+  string cmd = 2;
+  google.protobuf.Any arg = 3;
+}
+
+message ModuleCommandResponse {
+  Error error = 1;
+  google.protobuf.Any other = 2;
+}
+
+message CreatePortRequest {
+  string name = 1;
+  string driver = 2;
+  uint64 num_inc_q = 3;
+  uint64 num_out_q = 4;
+  uint64 size_inc_q = 5;
+  uint64 size_out_q = 6;
+  string mac_addr = 7;
+  google.protobuf.Any arg = 8;
+}
+
+message CreatePortResponse {
+  Error error = 1;
+  string name = 2;
+}
+
+// TODO: add something like PortCommandRequest

@@ -2,13 +2,14 @@
 #define BESS_MODULES_IPLOOKUP_H_
 
 #include "../module.h"
+#include "../module_msg.pb.h"
 
 class IPLookup : public Module {
  public:
   IPLookup() : Module(), lpm_(), default_gate_() {}
 
   virtual struct snobj *Init(struct snobj *arg);
-  virtual pb_error_t Init(const google::protobuf::Any &arg);
+  pb_error_t InitPb(const bess::pb::EmptyArg &arg);
 
   virtual void Deinit();
 
@@ -17,15 +18,15 @@ class IPLookup : public Module {
   struct snobj *CommandAdd(struct snobj *arg);
   struct snobj *CommandClear(struct snobj *arg);
 
-  bess::pb::ModuleCommandResponse CommandAdd(const google::protobuf::Any &arg);
-  bess::pb::ModuleCommandResponse CommandClear(
-      const google::protobuf::Any &arg);
+  bess::pb::ModuleCommandResponse CommandAddPb(
+      const bess::pb::IPLookupCommandAddArg &arg);
+  bess::pb::ModuleCommandResponse CommandClearPb(const bess::pb::EmptyArg &arg);
 
   static const gate_idx_t kNumIGates = 1;
   static const gate_idx_t kNumOGates = MAX_GATES;
 
   static const Commands<Module> cmds;
-  static const PbCommands<Module> pb_cmds;
+  static const PbCommands pb_cmds;
 
  private:
   struct rte_lpm *lpm_;

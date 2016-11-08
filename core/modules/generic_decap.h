@@ -2,6 +2,7 @@
 #define BESS_MODULES_GENERICDECAP_H_
 
 #include "../module.h"
+#include "../module_msg.pb.h"
 
 class GenericDecap : public Module {
  public:
@@ -11,12 +12,12 @@ class GenericDecap : public Module {
   GenericDecap() : Module(), decap_size_() {}
 
   virtual struct snobj *Init(struct snobj *arg);
-  virtual pb_error_t Init(const google::protobuf::Any &arg);
+  pb_error_t InitPb(const bess::pb::GenericDecapArg &arg);
 
   virtual void ProcessBatch(struct pkt_batch *batch);
 
   static const Commands<Module> cmds;
-  static const PbCommands<Module> pb_cmds;
+  static const PbCommands pb_cmds;
 
  private:
   int decap_size_;

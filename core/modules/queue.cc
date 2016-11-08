@@ -9,9 +9,9 @@ const Commands<Module> Queue::cmds = {
     {"set_size", MODULE_FUNC &Queue::CommandSetSize, 0},
 };
 
-const PbCommands<Module> Queue::pb_cmds = {
-    {"set_burst", PB_MODULE_FUNC &Queue::CommandSetBurst, 1},
-    {"set_size", PB_MODULE_FUNC &Queue::CommandSetSize, 0},
+const PbCommands Queue::pb_cmds = {
+    {"set_burst", MODULE_CMD_FUNC(&Queue::CommandSetBurstPb), 1},
+    {"set_size", MODULE_CMD_FUNC(&Queue::CommandSetSizePb), 0},
 };
 
 int Queue::Resize(int slots) {
@@ -52,10 +52,7 @@ int Queue::Resize(int slots) {
   return 0;
 }
 
-pb_error_t Queue::Init(const google::protobuf::Any &arg_) {
-  bess::pb::QueueArg arg;
-  arg_.UnpackTo(&arg);
-
+pb_error_t Queue::InitPb(const bess::pb::QueueArg &arg) {
   task_id_t tid;
   pb_error_t err;
 
@@ -256,19 +253,15 @@ pb_error_t Queue::SetSize(uint64_t size) {
   return pb_errno(0);
 }
 
-bess::pb::ModuleCommandResponse Queue::CommandSetBurst(
-    const google::protobuf::Any &arg_) {
-  bess::pb::QueueCommandSetBurstArg arg;
+bess::pb::ModuleCommandResponse Queue::CommandSetBurstPb(
+    const bess::pb::QueueCommandSetBurstArg &arg) {
   bess::pb::ModuleCommandResponse response;
-  arg_.UnpackTo(&arg);
   set_cmd_response_error(&response, SetBurst(arg.burst()));
   return response;
 }
-bess::pb::ModuleCommandResponse Queue::CommandSetSize(
-    const google::protobuf::Any &arg_) {
-  bess::pb::QueueCommandSetSizeArg arg;
+bess::pb::ModuleCommandResponse Queue::CommandSetSizePb(
+    const bess::pb::QueueCommandSetSizeArg &arg) {
   bess::pb::ModuleCommandResponse response;
-  arg_.UnpackTo(&arg);
   set_cmd_response_error(&response, SetSize(arg.size()));
   return response;
 }

@@ -5,6 +5,7 @@
 #include <rte_hash_crc.h>
 
 #include "../module.h"
+#include "../module_msg.pb.h"
 #include "../utils/htable.h"
 
 #define MAX_FIELDS 8
@@ -138,16 +139,16 @@ class ExactMatch : public Module {
   struct snobj *CommandSetDefaultGate(struct snobj *arg);
 
   static const Commands<Module> cmds;
-  static const PbCommands<Module> pb_cmds;
+  static const PbCommands pb_cmds;
 
-  pb_error_t Init(const google::protobuf::Any &arg);
-  bess::pb::ModuleCommandResponse CommandAdd(const google::protobuf::Any &arg);
-  bess::pb::ModuleCommandResponse CommandDelete(
-      const google::protobuf::Any &arg);
-  bess::pb::ModuleCommandResponse CommandClear(
-      const google::protobuf::Any &arg);
-  bess::pb::ModuleCommandResponse CommandSetDefaultGate(
-      const google::protobuf::Any &arg);
+  pb_error_t InitPb(const bess::pb::ExactMatchArg &arg);
+  bess::pb::ModuleCommandResponse CommandAddPb(
+      const bess::pb::ExactMatchCommandAddArg &arg);
+  bess::pb::ModuleCommandResponse CommandDeletePb(
+      const bess::pb::ExactMatchCommandDeleteArg &arg);
+  bess::pb::ModuleCommandResponse CommandClearPb(const bess::pb::EmptyArg &arg);
+  bess::pb::ModuleCommandResponse CommandSetDefaultGatePb(
+      const bess::pb::ExactMatchCommandSetDefaultGateArg &arg);
 
  private:
   struct snobj *AddFieldOne(struct snobj *field, struct EmField *f, int idx);

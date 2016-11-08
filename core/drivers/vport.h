@@ -8,7 +8,7 @@ class VPort : public Port {
  public:
   virtual void InitDriver();
 
-  pb_error_t Init(const google::protobuf::Any &arg);
+  pb_error_t InitPb(const bess::pb::VPortArg &arg);
   struct snobj *Init(struct snobj *conf);
   void DeInit();
 

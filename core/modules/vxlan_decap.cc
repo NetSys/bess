@@ -15,7 +15,7 @@ enum {
 };
 
 const Commands<Module> VXLANDecap::cmds = {};
-const PbCommands<Module> VXLANDecap::pb_cmds = {};
+const PbCommands VXLANDecap::pb_cmds = {};
 
 void VXLANDecap::ProcessBatch(struct pkt_batch *batch) {
   int cnt = batch->cnt;

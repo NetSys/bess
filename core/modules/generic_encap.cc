@@ -10,7 +10,7 @@ static_assert(MAX_FIELD_SIZE <= sizeof(uint64_t),
 #endif
 
 const Commands<Module> GenericEncap::cmds = {};
-const PbCommands<Module> GenericEncap::pb_cmds = {};
+const PbCommands GenericEncap::pb_cmds = {};
 
 pb_error_t GenericEncap::AddFieldOne(
     const bess::pb::GenericEncapArg_Field &field, struct Field *f, int idx) {
@@ -123,10 +123,7 @@ struct snobj *GenericEncap::Init(struct snobj *arg) {
   return nullptr;
 }
 
-pb_error_t GenericEncap::Init(const google::protobuf::Any &arg_) {
-  bess::pb::GenericEncapArg arg;
-  arg_.UnpackTo(&arg);
-
+pb_error_t GenericEncap::InitPb(const bess::pb::GenericEncapArg &arg) {
   int size_acc = 0;
 
   for (int i = 0; i < arg.fields_size(); i++) {

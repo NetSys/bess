@@ -4,12 +4,9 @@
 #include "../utils/format.h"
 
 const Commands<Module> QueueOut::cmds = {};
-const PbCommands<Module> QueueOut::pb_cmds = {};
+const PbCommands QueueOut::pb_cmds = {};
 
-pb_error_t QueueOut::Init(const google::protobuf::Any &arg_) {
-  bess::pb::QueueOutArg arg;
-  arg_.UnpackTo(&arg);
-
+pb_error_t QueueOut::InitPb(const bess::pb::QueueOutArg &arg) {
   const char *port_name;
   int ret;
 
@@ -79,7 +76,7 @@ void QueueOut::Deinit() {
 
 std::string QueueOut::GetDesc() const {
   return bess::utils::Format("%s/%s", port_->name().c_str(),
-                       port_->port_builder()->class_name().c_str());
+                             port_->port_builder()->class_name().c_str());
 }
 
 void QueueOut::ProcessBatch(struct pkt_batch *batch) {

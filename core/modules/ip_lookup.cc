@@ -20,9 +20,9 @@ const Commands<Module> IPLookup::cmds = {
     {"clear", MODULE_FUNC &IPLookup::CommandClear, 0},
 };
 
-const PbCommands<Module> IPLookup::pb_cmds = {
-    {"add", PB_MODULE_FUNC &IPLookup::CommandAdd, 0},
-    {"clear", PB_MODULE_FUNC &IPLookup::CommandAdd, 0}};
+const PbCommands IPLookup::pb_cmds = {
+    {"add", MODULE_CMD_FUNC(&IPLookup::CommandAddPb), 0},
+    {"clear", MODULE_CMD_FUNC(&IPLookup::CommandAddPb), 0}};
 
 struct snobj *IPLookup::Init(struct snobj *) {
   struct rte_lpm_config conf = {
@@ -40,7 +40,7 @@ struct snobj *IPLookup::Init(struct snobj *) {
   return nullptr;
 }
 
-pb_error_t IPLookup::Init(const google::protobuf::Any &) {
+pb_error_t IPLookup::InitPb(const bess::pb::EmptyArg &) {
   struct rte_lpm_config conf = {
       .max_rules = 1024, .number_tbl8s = 128, .flags = 0,
   };
@@ -189,11 +189,8 @@ struct snobj *IPLookup::CommandClear(struct snobj *) {
   return nullptr;
 }
 
-bess::pb::ModuleCommandResponse IPLookup::CommandAdd(
-    const google::protobuf::Any &arg_) {
-  bess::pb::IPLookupCommandAddArg arg;
-  arg_.UnpackTo(&arg);
-
+bess::pb::ModuleCommandResponse IPLookup::CommandAddPb(
+    const bess::pb::IPLookupCommandAddArg &arg) {
   bess::pb::ModuleCommandResponse response;
 
   struct in_addr ip_addr_be;
@@ -253,8 +250,8 @@ bess::pb::ModuleCommandResponse IPLookup::CommandAdd(
   return response;
 }
 
-bess::pb::ModuleCommandResponse IPLookup::CommandClear(
-    const google::protobuf::Any &) {
+bess::pb::ModuleCommandResponse IPLookup::CommandClearPb(
+    const bess::pb::EmptyArg &) {
   bess::pb::ModuleCommandResponse response;
 
   rte_lpm_delete_all(lpm_);

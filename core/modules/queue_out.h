@@ -2,6 +2,7 @@
 #define BESS_MODULES_QUEUEOUT_H_
 
 #include "../module.h"
+#include "../module_msg.pb.h"
 #include "../port.h"
 
 class QueueOut : public Module {
@@ -9,7 +10,7 @@ class QueueOut : public Module {
   QueueOut() : Module(), port_(), qid_() {}
 
   virtual struct snobj *Init(struct snobj *arg);
-  virtual pb_error_t Init(const google::protobuf::Any &arg);
+  pb_error_t InitPb(const bess::pb::QueueOutArg &arg);
 
   virtual void Deinit();
 
@@ -21,7 +22,7 @@ class QueueOut : public Module {
   static const gate_idx_t kNumOGates = 0;
 
   static const Commands<Module> cmds;
-  static const PbCommands<Module> pb_cmds;
+  static const PbCommands pb_cmds;
 
  private:
   Port *port_;

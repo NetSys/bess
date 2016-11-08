@@ -2,6 +2,7 @@
 #define BESS_MODULES_QUEUEINC_H_
 
 #include "../module.h"
+#include "../module_msg.pb.h"
 #include "../port.h"
 
 class QueueInc : public Module {
@@ -9,7 +10,7 @@ class QueueInc : public Module {
   QueueInc() : Module(), port_(), qid_(), prefetch_(), burst_() {}
 
   virtual struct snobj *Init(struct snobj *arg);
-  virtual pb_error_t Init(const google::protobuf::Any &arg);
+  pb_error_t InitPb(const bess::pb::QueueIncArg &arg);
   virtual void Deinit();
 
   virtual struct task_result RunTask(void *arg);
@@ -17,14 +18,14 @@ class QueueInc : public Module {
   virtual std::string GetDesc() const;
 
   struct snobj *CommandSetBurst(struct snobj *arg);
-  bess::pb::ModuleCommandResponse CommandSetBurst(
-      const google::protobuf::Any &arg);
+  bess::pb::ModuleCommandResponse CommandSetBurstPb(
+      const bess::pb::QueueIncCommandSetBurstArg &arg);
 
   static const gate_idx_t kNumIGates = 0;
   static const gate_idx_t kNumOGates = 1;
 
   static const Commands<Module> cmds;
-  static const PbCommands<Module> pb_cmds;
+  static const PbCommands pb_cmds;
 
  private:
   Port *port_;

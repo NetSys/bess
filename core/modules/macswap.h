@@ -11,7 +11,7 @@ class MACSwap : public Module {
   static const gate_idx_t kNumOGates = 1;
 
   static const Commands<Module> cmds;
-  static const PbCommands<Module> pb_cmds;
+  static const PbCommands pb_cmds;
 };
 
 #endif  // BESS_MODULES_MACSWAP_H_

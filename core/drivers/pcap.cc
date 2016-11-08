@@ -7,10 +7,7 @@ struct snobj* PCAPPort::Init(struct snobj*) {
   return nullptr;
 }
 
-pb_error_t PCAPPort::Init(const google::protobuf::Any& arg_) {
-  bess::pb::PCAPPortArg arg;
-  arg_.UnpackTo(&arg);
-
+pb_error_t PCAPPort::InitPb(const bess::pb::PCAPPortArg& arg) {
   if (pcap_handle_.is_initialized()) {
     return pb_error(EINVAL, "Device already initialized.");
   }
@@ -97,7 +94,7 @@ int PCAPPort::SendPackets(queue_t, snb_array_t pkts, int cnt) {
 
     if (likely(sbuf->mbuf.nb_segs == 1)) {
       pcap_handle_.SendPacket((const u_char*)snb_head_data(sbuf),
-                                    sbuf->mbuf.pkt_len);
+                              sbuf->mbuf.pkt_len);
     } else if (sbuf->mbuf.pkt_len <= PCAP_SNAPLEN) {
       unsigned char tx_pcap_data[PCAP_SNAPLEN];
       GatherData(tx_pcap_data, &sbuf->mbuf);

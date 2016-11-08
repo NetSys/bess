@@ -4,6 +4,7 @@
 #include <queue>
 
 #include "../module.h"
+#include "../module_msg.pb.h"
 #include "../utils/random.h"
 
 typedef std::pair<uint64_t, struct flow *> Event;
@@ -50,7 +51,7 @@ class FlowGen : public Module {
         pareto_() {}
 
   virtual struct snobj *Init(struct snobj *arg);
-  virtual pb_error_t Init(const google::protobuf::Any &arg);
+  pb_error_t InitPb(const bess::pb::FlowGenArg &arg);
 
   virtual void Deinit();
 
@@ -60,7 +61,7 @@ class FlowGen : public Module {
   struct snobj *GetDump() const;
 
   static const Commands<Module> cmds;
-  static const PbCommands<Module> pb_cmds;
+  static const PbCommands pb_cmds;
 
  private:
   inline double NewFlowPkts();
@@ -75,7 +76,7 @@ class FlowGen : public Module {
   struct snobj *ProcessArguments(struct snobj *arg);
 
   pb_error_t InitFlowPool();
-  pb_error_t ProcessArguments(const google::protobuf::Any &arg);
+  pb_error_t ProcessArguments(const bess::pb::FlowGenArg &arg);
 
   int active_flows_;
   int allocated_flows_;

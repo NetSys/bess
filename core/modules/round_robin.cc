@@ -5,29 +5,22 @@ const Commands<Module> RoundRobin::cmds = {
     {"set_gates", MODULE_FUNC &RoundRobin::CommandSetGates, 0},
 };
 
-const PbCommands<Module> RoundRobin::pb_cmds = {
-    {"set_mode", PB_MODULE_FUNC &RoundRobin::CommandSetMode, 0},
-    {"set_gates", PB_MODULE_FUNC &RoundRobin::CommandSetGates, 0},
+const PbCommands RoundRobin::pb_cmds = {
+    {"set_mode", MODULE_CMD_FUNC(&RoundRobin::CommandSetModePb), 0},
+    {"set_gates", MODULE_CMD_FUNC(&RoundRobin::CommandSetGatesPb), 0},
 };
 
-pb_error_t RoundRobin::Init(const google::protobuf::Any &arg_) {
-  bess::pb::RoundRobinArg arg;
-  arg_.UnpackTo(&arg);
-
+pb_error_t RoundRobin::InitPb(const bess::pb::RoundRobinArg &arg) {
   pb_error_t err;
   bess::pb::ModuleCommandResponse response;
 
-  google::protobuf::Any gate_arg;
-  gate_arg.PackFrom(arg.gate_arg());
-  response = CommandSetGates(gate_arg);
+  response = CommandSetGatesPb(arg.gate_arg());
   err = response.error();
   if (err.err() != 0) {
     return err;
   }
 
-  google::protobuf::Any mode_arg;
-  mode_arg.PackFrom(arg.mode_arg());
-  response = CommandSetMode(mode_arg);
+  response = CommandSetModePb(arg.mode_arg());
   err = response.error();
   if (err.err() != 0) {
     return err;
@@ -36,11 +29,8 @@ pb_error_t RoundRobin::Init(const google::protobuf::Any &arg_) {
   return pb_errno(0);
 }
 
-bess::pb::ModuleCommandResponse RoundRobin::CommandSetMode(
-    const google::protobuf::Any &arg_) {
-  bess::pb::RoundRobinCommandSetModeArg arg;
-  arg_.UnpackTo(&arg);
-
+bess::pb::ModuleCommandResponse RoundRobin::CommandSetModePb(
+    const bess::pb::RoundRobinCommandSetModeArg &arg) {
   bess::pb::ModuleCommandResponse response;
 
   switch (arg.mode()) {
@@ -60,11 +50,8 @@ bess::pb::ModuleCommandResponse RoundRobin::CommandSetMode(
   return response;
 }
 
-bess::pb::ModuleCommandResponse RoundRobin::CommandSetGates(
-    const google::protobuf::Any &arg_) {
-  bess::pb::RoundRobinCommandSetGatesArg arg;
-  arg_.UnpackTo(&arg);
-
+bess::pb::ModuleCommandResponse RoundRobin::CommandSetGatesPb(
+    const bess::pb::RoundRobinCommandSetGatesArg &arg) {
   bess::pb::ModuleCommandResponse response;
 
   if (arg.gates_size() > MAX_RR_GATES) {

@@ -1,20 +1,12 @@
 syntax = "proto3";
 
-import "google/protobuf/any.proto";
 import "error.proto";
 
 package bess.pb;
 
-message ModuleCommandRequest {
-  string name = 1;
-  string cmd = 2;
-  google.protobuf.Any arg = 3;
-}
-
-message ModuleCommandResponse {
-  Error error = 1;
-  google.protobuf.Any other = 2;
-}
+// Module-specific messages.
+// The header generated from this file should not be included in the BESS core
+// source code.
 
 message BPFCommandClearArg {
 }

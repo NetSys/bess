@@ -2,29 +2,30 @@
 #define BESS_MODULES_FLOWGEN_H_
 
 #include "../module.h"
+#include "../module_msg.pb.h"
 
 class Source : public Module {
  public:
   Source() : Module(), pkt_size_(), burst_() {}
 
   virtual struct snobj *Init(struct snobj *arg);
-  pb_error_t Init(const google::protobuf::Any &arg);
+  pb_error_t InitPb(const bess::pb::SourceArg &arg);
 
   virtual struct task_result RunTask(void *arg);
 
   struct snobj *command_set_pkt_size(struct snobj *arg);
   struct snobj *command_set_burst(struct snobj *arg);
 
-  bess::pb::ModuleCommandResponse CommandSetBurst(
-      const google::protobuf::Any &arg);
-  bess::pb::ModuleCommandResponse CommandSetPktSize(
-      const google::protobuf::Any &arg);
+  bess::pb::ModuleCommandResponse CommandSetBurstPb(
+      const bess::pb::SourceCommandSetBurstArg &arg);
+  bess::pb::ModuleCommandResponse CommandSetPktSizePb(
+      const bess::pb::SourceCommandSetPktSizeArg &arg);
 
   static const gate_idx_t kNumIGates = 0;
   static const gate_idx_t kNumOGates = 1;
 
   static const Commands<Module> cmds;
-  static const PbCommands<Module> pb_cmds;
+  static const PbCommands pb_cmds;
 
  private:
   int pkt_size_;

@@ -15,12 +15,9 @@ static inline int is_valid_gate(gate_idx_t gate) {
 }
 
 const Commands<Module> Split::cmds = {};
-const PbCommands<Module> Split::pb_cmds = {};
+const PbCommands Split::pb_cmds = {};
 
-pb_error_t Split::Init(const google::protobuf::Any &arg_) {
-  bess::pb::SplitArg arg;
-  arg_.UnpackTo(&arg);
-
+pb_error_t Split::InitPb(const bess::pb::SplitArg &arg) {
   size_ = arg.size();
   if (size_ < 1 || size_ > MAX_SIZE) {
     return pb_error(EINVAL, "'size' must be 1-%d", MAX_SIZE);

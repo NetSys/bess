@@ -11,7 +11,7 @@ class VLANSplit : public Module {
   virtual void ProcessBatch(struct pkt_batch *batch);
 
   static const Commands<Module> cmds;
-  static const PbCommands<Module> pb_cmds;
+  static const PbCommands pb_cmds;
 };
 
 #endif  // BESS_MODULES_VLANSPLIT_H_

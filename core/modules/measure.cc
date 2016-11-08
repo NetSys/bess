@@ -23,8 +23,8 @@ const Commands<Module> Measure::cmds = {
     {"get_summary", MODULE_FUNC &Measure::CommandGetSummary, 0},
 };
 
-const PbCommands<Module> Measure::pb_cmds = {
-    {"get_summary", PB_MODULE_FUNC &Measure::CommandGetSummary, 0},
+const PbCommands Measure::pb_cmds = {
+    {"get_summary", MODULE_CMD_FUNC(&Measure::CommandGetSummaryPb), 0},
 };
 
 struct snobj *Measure::Init(struct snobj *arg) {
@@ -34,10 +34,7 @@ struct snobj *Measure::Init(struct snobj *arg) {
   return nullptr;
 }
 
-pb_error_t Measure::Init(const google::protobuf::Any &arg_) {
-  bess::pb::MeasureArg arg;
-  arg_.UnpackTo(&arg);
-
+pb_error_t Measure::InitPb(const bess::pb::MeasureArg &arg) {
   if (arg.warmup()) {
     warmup_ = arg.warmup();
   }
@@ -92,8 +89,8 @@ struct snobj *Measure::CommandGetSummary(struct snobj *) {
   return r;
 }
 
-bess::pb::ModuleCommandResponse Measure::CommandGetSummary(
-    const google::protobuf::Any &) {
+bess::pb::ModuleCommandResponse Measure::CommandGetSummaryPb(
+    const bess::pb::EmptyArg &) {
   uint64_t pkt_total = pkt_cnt_;
   uint64_t byte_total = bytes_cnt_;
   uint64_t bits = (byte_total + pkt_total * 24) * 8;

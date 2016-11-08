@@ -3,7 +3,7 @@
 #include <rte_byteorder.h>
 
 const Commands<Module> VLANSplit::cmds = {};
-const PbCommands<Module> VLANSplit::pb_cmds = {};
+const PbCommands VLANSplit::pb_cmds = {};
 
 void VLANSplit::ProcessBatch(struct pkt_batch *batch) {
   gate_idx_t vid[MAX_PKT_BURST];

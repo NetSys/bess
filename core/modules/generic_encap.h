@@ -2,6 +2,7 @@
 #define BESS_MODULES_GENERICENCAP_H_
 
 #include "../module.h"
+#include "../module_msg.pb.h"
 
 #define MAX_FIELDS 8
 #define MAX_FIELD_SIZE 8
@@ -21,12 +22,12 @@ class GenericEncap : public Module {
   GenericEncap() : Module(), encap_size_(), num_fields_(), fields_() {}
 
   struct snobj *Init(struct snobj *arg);
-  pb_error_t Init(const google::protobuf::Any &arg);
+  pb_error_t InitPb(const bess::pb::GenericEncapArg &arg);
 
   void ProcessBatch(struct pkt_batch *batch);
 
   static const Commands<Module> cmds;
-  static const PbCommands<Module> pb_cmds;
+  static const PbCommands pb_cmds;
 
  private:
   struct snobj *AddFieldOne(struct snobj *field, struct Field *f, int idx);

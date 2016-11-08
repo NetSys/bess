@@ -1,14 +1,10 @@
 #include "port_out.h"
-
 #include "../utils/format.h"
 
 const Commands<Module> PortOut::cmds = {};
-const PbCommands<Module> PortOut::pb_cmds = {};
+const PbCommands PortOut::pb_cmds = {};
 
-pb_error_t PortOut::Init(const google::protobuf::Any &arg_) {
-  bess::pb::PortOutArg arg;
-  arg_.UnpackTo(&arg);
-
+pb_error_t PortOut::InitPb(const bess::pb::PortOutArg &arg) {
   const char *port_name;
   int ret;
 
@@ -70,9 +66,9 @@ void PortOut::Deinit() {
                        nullptr, 0);
 }
 
-std::string PortOut::GetDesc() {
+std::string PortOut::GetDesc() const {
   return bess::utils::Format("%s/%s", port_->name().c_str(),
-                       port_->port_builder()->class_name().c_str());
+                             port_->port_builder()->class_name().c_str());
 }
 
 void PortOut::ProcessBatch(struct pkt_batch *batch) {

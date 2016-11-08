@@ -26,7 +26,7 @@ using grpc::ServerReader;
 using grpc::ServerReaderWriter;
 using grpc::ServerWriter;
 using grpc::Status;
-using grpc::ClientContext;
+using grpc::ServerContext;
 using grpc::ServerBuilder;
 
 using namespace bess::pb;
@@ -121,12 +121,11 @@ static int collect_metadata(Module* m, GetModuleInfoResponse* response) {
   return 0;
 }
 
-template <typename T>
 static ::Port* create_port(const std::string& name, const PortBuilder& driver,
                            queue_t num_inc_q, queue_t num_out_q,
                            size_t size_inc_q, size_t size_out_q,
-                           const std::string& mac_addr_str, const T& arg,
-                           pb_error_t* perr) {
+                           const std::string& mac_addr_str,
+                           const google::protobuf::Any& arg, pb_error_t* perr) {
   std::unique_ptr<::Port> p;
   int ret;
 
@@ -159,8 +158,7 @@ static ::Port* create_port(const std::string& name, const PortBuilder& driver,
     return nullptr;
   }
 
-  if (size_inc_q < 0 || size_inc_q > MAX_QUEUE_SIZE || size_out_q < 0 ||
-      size_out_q > MAX_QUEUE_SIZE) {
+  if (size_inc_q > MAX_QUEUE_SIZE || size_out_q > MAX_QUEUE_SIZE) {
     perr->set_err(EINVAL);
     perr->set_errmsg("Invalid queue size");
     return nullptr;
@@ -242,8 +240,8 @@ static Module* create_module(const std::string& name,
 
 class BESSControlImpl final : public BESSControl::Service {
  public:
-  Status ResetAll(ClientContext* context, const EmptyRequest& request,
-                  EmptyResponse* response) {
+  Status ResetAll(ServerContext* context, const EmptyRequest* request,
+                  EmptyResponse* response) override {
     Status status;
 
     if (is_any_worker_running()) {
@@ -268,17 +266,19 @@ class BESSControlImpl final : public BESSControl::Service {
     }
     return Status::OK;
   }
-  Status PauseAll(ClientContext*, const EmptyRequest&, EmptyResponse*) {
+  Status PauseAll(ServerContext*, const EmptyRequest*,
+                  EmptyResponse*) override {
     pause_all_workers();
     LOG(INFO) << "*** All workers have been paused ***";
     return Status::OK;
   }
-  Status ResumeAll(ClientContext*, const EmptyRequest&, EmptyResponse*) {
+  Status ResumeAll(ServerContext*, const EmptyRequest*,
+                   EmptyResponse*) override {
     LOG(INFO) << "*** Resuming ***";
     resume_all_workers();
     return Status::OK;
   }
-  Status ResetWorkers(ClientContext*, const EmptyRequest&,
+  Status ResetWorkers(ServerContext*, const EmptyRequest*,
                       EmptyResponse* response) {
     if (is_any_worker_running()) {
       return return_with_error(response, EBUSY, "There is a running worker");
@@ -287,8 +287,8 @@ class BESSControlImpl final : public BESSControl::Service {
     LOG(INFO) << "*** All workers have been destroyed ***";
     return Status::OK;
   }
-  Status ListWorkers(ClientContext*, const EmptyRequest&,
-                     ListWorkersResponse* response) {
+  Status ListWorkers(ServerContext*, const EmptyRequest*,
+                     ListWorkersResponse* response) override {
     for (int wid = 0; wid < MAX_WORKERS; wid++) {
       if (!is_worker_active(wid))
         continue;
@@ -301,13 +301,13 @@ class BESSControlImpl final : public BESSControl::Service {
     }
     return Status::OK;
   }
-  Status AddWorker(ClientContext*, const AddWorkerRequest& request,
+  Status AddWorker(ServerContext*, const AddWorkerRequest* request,
                    EmptyResponse* response) {
-    uint64_t wid = request.wid();
+    uint64_t wid = request->wid();
     if (wid >= MAX_WORKERS) {
       return return_with_error(response, EINVAL, "Missing 'wid' field");
     }
-    uint64_t core = request.core();
+    uint64_t core = request->core();
     if (!is_cpu_present(core)) {
       return return_with_error(response, EINVAL, "Invalid core %d", core);
     }
@@ -318,8 +318,8 @@ class BESSControlImpl final : public BESSControl::Service {
     launch_worker(wid, core);
     return Status::OK;
   }
-  Status ResetTcs(ClientContext*, const EmptyRequest&,
-                  EmptyResponse* response) {
+  Status ResetTcs(ServerContext*, const EmptyRequest*,
+                  EmptyResponse* response) override {
     if (is_any_worker_running()) {
       return return_with_error(response, EBUSY, "There is a running worker");
     }
@@ -344,11 +344,11 @@ class BESSControlImpl final : public BESSControl::Service {
 
     return Status::OK;
   }
-  Status ListTcs(ClientContext*, const ListTcsRequest& request,
+  Status ListTcs(ServerContext*, const ListTcsRequest* request,
                  ListTcsResponse* response) {
     unsigned int wid_filter = MAX_WORKERS;
 
-    wid_filter = request.wid();
+    wid_filter = request->wid();
     if (wid_filter >= MAX_WORKERS) {
       return return_with_error(
           response, EINVAL, "'wid' must be between 0 and %d", MAX_WORKERS - 1);
@@ -408,8 +408,8 @@ class BESSControlImpl final : public BESSControl::Service {
 
     return Status::OK;
   }
-  Status AddTc(ClientContext*, const AddTcRequest& request,
-               EmptyResponse* response) {
+  Status AddTc(ServerContext*, const AddTcRequest* request,
+               EmptyResponse* response) override {
     if (is_any_worker_running()) {
       return return_with_error(response, EBUSY, "There is a running worker");
     }
@@ -418,8 +418,8 @@ class BESSControlImpl final : public BESSControl::Service {
     struct tc_params params;
     struct tc* c;
 
-    const char* tc_name = request.class_().name().c_str();
-    if (request.class_().name().length() == 0) {
+    const char* tc_name = request->class_().name().c_str();
+    if (request->class_().name().length() == 0) {
       return return_with_error(response, EINVAL, "Missing 'name' field");
     }
 
@@ -428,7 +428,7 @@ class BESSControlImpl final : public BESSControl::Service {
                                tc_name);
     }
 
-    wid = request.class_().wid();
+    wid = request->class_().wid();
     if (wid >= MAX_WORKERS) {
       return return_with_error(
           response, EINVAL, "'wid' must be between 0 and %d", MAX_WORKERS - 1);
@@ -446,7 +446,7 @@ class BESSControlImpl final : public BESSControl::Service {
     memset(&params, 0, sizeof(params));
     params.name = tc_name;
 
-    params.priority = request.class_().priority();
+    params.priority = request->class_().priority();
     if (params.priority == DEFAULT_PRIORITY)
       return return_with_error(response, EINVAL, "Priority %d is reserved",
                                DEFAULT_PRIORITY);
@@ -455,18 +455,18 @@ class BESSControlImpl final : public BESSControl::Service {
     params.share = 1;
     params.share_resource = RESOURCE_CNT;
 
-    if (request.class_().has_limit()) {
-      params.limit[0] = request.class_().limit().schedules();
-      params.limit[1] = request.class_().limit().cycles();
-      params.limit[2] = request.class_().limit().packets();
-      params.limit[3] = request.class_().limit().bits();
+    if (request->class_().has_limit()) {
+      params.limit[0] = request->class_().limit().schedules();
+      params.limit[1] = request->class_().limit().cycles();
+      params.limit[2] = request->class_().limit().packets();
+      params.limit[3] = request->class_().limit().bits();
     }
 
-    if (request.class_().has_max_burst()) {
-      params.max_burst[0] = request.class_().max_burst().schedules();
-      params.max_burst[1] = request.class_().max_burst().cycles();
-      params.max_burst[2] = request.class_().max_burst().packets();
-      params.max_burst[3] = request.class_().max_burst().bits();
+    if (request->class_().has_max_burst()) {
+      params.max_burst[0] = request->class_().max_burst().schedules();
+      params.max_burst[1] = request->class_().max_burst().cycles();
+      params.max_burst[2] = request->class_().max_burst().packets();
+      params.max_burst[3] = request->class_().max_burst().bits();
     }
 
     c = tc_init(workers[wid]->s(), &params);
@@ -477,13 +477,13 @@ class BESSControlImpl final : public BESSControl::Service {
 
     return Status::OK;
   }
-  Status GetTcStats(ClientContext*, const GetTcStatsRequest& request,
-                    GetTcStatsResponse* response) {
-    const char* tc_name = request.name().c_str();
+  Status GetTcStats(ServerContext*, const GetTcStatsRequest* request,
+                    GetTcStatsResponse* response) override {
+    const char* tc_name = request->name().c_str();
 
     struct tc* c;
 
-    if (request.name().length() == 0)
+    if (request->name().length() == 0)
       return return_with_error(response, EINVAL,
                                "Argument must be a name in str");
 
@@ -501,8 +501,8 @@ class BESSControlImpl final : public BESSControl::Service {
 
     return Status::OK;
   }
-  Status ListDrivers(ClientContext*, const EmptyRequest&,
-                     ListDriversResponse* response) {
+  Status ListDrivers(ServerContext*, const EmptyRequest*,
+                     ListDriversResponse* response) override {
     for (const auto& pair : PortBuilder::all_port_builders()) {
       const PortBuilder& builder = pair.second;
       response->add_driver_names(builder.class_name());
@@ -510,18 +510,18 @@ class BESSControlImpl final : public BESSControl::Service {
 
     return Status::OK;
   }
-  Status GetDriverInfo(ClientContext*, const GetDriverInfoRequest& request,
-                       GetDriverInfoResponse* response) {
-    if (request.driver_name().length() == 0) {
+  Status GetDriverInfo(ServerContext*, const GetDriverInfoRequest* request,
+                       GetDriverInfoResponse* response) override {
+    if (request->driver_name().length() == 0) {
       return return_with_error(response, EINVAL,
                                "Argument must be a name in str");
     }
 
     const auto& it =
-        PortBuilder::all_port_builders().find(request.driver_name());
+        PortBuilder::all_port_builders().find(request->driver_name());
     if (it == PortBuilder::all_port_builders().end()) {
       return return_with_error(response, ENOENT, "No driver '%s' found",
-                               request.driver_name().c_str());
+                               request->driver_name().c_str());
     }
 
 #if 0
@@ -536,8 +536,8 @@ class BESSControlImpl final : public BESSControl::Service {
 
     return Status::OK;
   }
-  Status ResetPorts(ClientContext*, const EmptyRequest&,
-                    EmptyResponse* response) {
+  Status ResetPorts(ServerContext*, const EmptyRequest*,
+                    EmptyResponse* response) override {
     if (is_any_worker_running()) {
       return return_with_error(response, EBUSY, "There is a running worker");
     }
@@ -556,8 +556,8 @@ class BESSControlImpl final : public BESSControl::Service {
     LOG(INFO) << "*** All ports have been destroyed ***";
     return Status::OK;
   }
-  Status ListPorts(ClientContext*, const EmptyRequest&,
-                   ListPortsResponse* response) {
+  Status ListPorts(ServerContext*, const EmptyRequest*,
+                   ListPortsResponse* response) override {
     for (const auto& pair : PortBuilder::all_ports()) {
       const ::Port* p = pair.second;
       bess::pb::Port* port = response->add_ports();
@@ -568,15 +568,15 @@ class BESSControlImpl final : public BESSControl::Service {
 
     return Status::OK;
   }
-  Status CreatePort(ClientContext*, const CreatePortRequest& request,
-                    CreatePortResponse* response) {
+  Status CreatePort(ServerContext*, const CreatePortRequest* request,
+                    CreatePortResponse* response) override {
     const char* driver_name;
-    ::Port* port;
+    ::Port* port = nullptr;
 
-    if (request.driver().length() == 0)
+    if (request->driver().length() == 0)
       return return_with_error(response, EINVAL, "Missing 'driver' field");
 
-    driver_name = request.driver().c_str();
+    driver_name = request->driver().c_str();
     const auto& builders = PortBuilder::all_port_builders();
     const auto& it = builders.find(driver_name);
     if (it == builders.end()) {
@@ -587,41 +587,10 @@ class BESSControlImpl final : public BESSControl::Service {
     const PortBuilder& builder = it->second;
     pb_error_t* error = response->mutable_error();
 
-    switch (request.arg_case()) {
-      case CreatePortRequest::kPcapArg:
-        port = create_port(request.name(), builder, request.num_inc_q(),
-                           request.num_out_q(), request.size_inc_q(),
-                           request.size_out_q(), request.mac_addr(),
-                           request.pcap_arg(), error);
-        break;
-      case CreatePortRequest::kPmdArg:
-        port = create_port(request.name(), builder, request.num_inc_q(),
-                           request.num_out_q(), request.size_inc_q(),
-                           request.size_out_q(), request.mac_addr(),
-                           request.pmd_arg(), error);
-        break;
-      case CreatePortRequest::kSocketArg:
-        port = create_port(request.name(), builder, request.num_inc_q(),
-                           request.num_out_q(), request.size_inc_q(),
-                           request.size_out_q(), request.mac_addr(),
-                           request.socket_arg(), error);
-        break;
-      case CreatePortRequest::kZcvportArg:
-        port = create_port(request.name(), builder, request.num_inc_q(),
-                           request.num_out_q(), request.size_inc_q(),
-                           request.size_out_q(), request.mac_addr(),
-                           request.zcvport_arg(), error);
-        break;
-      case CreatePortRequest::kVportArg:
-        port = create_port(request.name(), builder, request.num_inc_q(),
-                           request.num_out_q(), request.size_inc_q(),
-                           request.size_out_q(), request.mac_addr(),
-                           request.vport_arg(), error);
-        break;
-      case CreatePortRequest::ARG_NOT_SET:
-        return return_with_error(response, CreatePortRequest::ARG_NOT_SET,
-                                 "Missing argument");
-    }
+    port = create_port(request->name(), builder, request->num_inc_q(),
+                       request->num_out_q(), request->size_inc_q(),
+                       request->size_out_q(), request->mac_addr(),
+                       request->arg(), error);
 
     if (!port)
       return Status::OK;
@@ -629,16 +598,16 @@ class BESSControlImpl final : public BESSControl::Service {
     response->set_name(port->name());
     return Status::OK;
   }
-  Status DestroyPort(ClientContext*, const DestroyPortRequest& request,
-                     EmptyResponse* response) {
+  Status DestroyPort(ServerContext*, const DestroyPortRequest* request,
+                     EmptyResponse* response) override {
     const char* port_name;
     int ret;
 
-    if (!request.name().length())
+    if (!request->name().length())
       return return_with_error(response, EINVAL,
                                "Argument must be a name in str");
 
-    port_name = request.name().c_str();
+    port_name = request->name().c_str();
     const auto& it = PortBuilder::all_ports().find(port_name);
     if (it == PortBuilder::all_ports().end())
       return return_with_error(response, ENOENT, "No port `%s' found",
@@ -651,15 +620,15 @@ class BESSControlImpl final : public BESSControl::Service {
 
     return Status::OK;
   }
-  Status GetPortStats(ClientContext*, const GetPortStatsRequest& request,
-                      GetPortStatsResponse* response) {
+  Status GetPortStats(ServerContext*, const GetPortStatsRequest* request,
+                      GetPortStatsResponse* response) override {
     const char* port_name;
     port_stats_t stats;
 
-    if (!request.name().length())
+    if (!request->name().length())
       return return_with_error(response, EINVAL,
                                "Argument must be a name in str");
-    port_name = request.name().c_str();
+    port_name = request->name().c_str();
 
     const auto& it = PortBuilder::all_ports().find(port_name);
     if (it == PortBuilder::all_ports().end()) {
@@ -680,8 +649,8 @@ class BESSControlImpl final : public BESSControl::Service {
 
     return Status::OK;
   }
-  Status ResetModules(ClientContext*, const EmptyRequest&,
-                      EmptyResponse* response) {
+  Status ResetModules(ServerContext*, const EmptyRequest*,
+                      EmptyResponse* response) override {
     if (is_any_worker_running()) {
       return return_with_error(response, EBUSY, "There is a running worker");
     }
@@ -690,7 +659,7 @@ class BESSControlImpl final : public BESSControl::Service {
     LOG(INFO) << "*** All modules have been destroyed ***";
     return Status::OK;
   }
-  Status ListModules(ClientContext*, const EmptyRequest&,
+  Status ListModules(ServerContext*, const EmptyRequest*,
                      ListModulesResponse* response) {
     int cnt = 1;
     int offset;
@@ -709,17 +678,17 @@ class BESSControlImpl final : public BESSControl::Service {
 
     return Status::OK;
   }
-  Status CreateModule(ClientContext*, const CreateModuleRequest& request,
-                      CreateModuleResponse* response) {
+  Status CreateModule(ServerContext*, const CreateModuleRequest* request,
+                      CreateModuleResponse* response) override {
     if (is_any_worker_running()) {
       return return_with_error(response, EBUSY, "There is a running worker");
     }
     const char* mclass_name;
     Module* module;
 
-    if (!request.mclass().length())
+    if (!request->mclass().length())
       return return_with_error(response, EINVAL, "Missing 'mclass' field");
-    mclass_name = request.mclass().c_str();
+    mclass_name = request->mclass().c_str();
 
     const auto& builders = ModuleBuilder::all_module_builders();
     const auto& it = builders.find(mclass_name);
@@ -730,7 +699,7 @@ class BESSControlImpl final : public BESSControl::Service {
     const ModuleBuilder& builder = it->second;
 
     pb_error_t* error = response->mutable_error();
-    module = create_module(request.name(), builder, request.arg(), error);
+    module = create_module(request->name(), builder, request->arg(), error);
 
     if (!module)
       return Status::OK;
@@ -738,40 +707,46 @@ class BESSControlImpl final : public BESSControl::Service {
     response->set_name(module->name());
     return Status::OK;
   }
-  Status DestroyModule(ClientContext*, const DestroyModuleRequest& request,
-                       EmptyResponse* response) {
+  Status DestroyModule(ServerContext*, const DestroyModuleRequest* request,
+                       EmptyResponse* response) override {
     if (is_any_worker_running()) {
       return return_with_error(response, EBUSY, "There is a running worker");
     }
     const char* m_name;
     Module* m;
 
-    if (!request.name().length())
+    if (!request->name().length())
       return return_with_error(response, EINVAL,
                                "Argument must be a name in str");
-    m_name = request.name().c_str();
+    m_name = request->name().c_str();
 
-    if (!ModuleBuilder::all_modules().count(m_name))
+    const auto& it = ModuleBuilder::all_modules().find(request->name());
+    if (it == ModuleBuilder::all_modules().end()) {
       return return_with_error(response, ENOENT, "No module '%s' found",
                                m_name);
+    }
+    m = it->second;
 
     ModuleBuilder::DestroyModule(m);
 
     return Status::OK;
   }
-  Status GetModuleInfo(ClientContext*, const GetModuleInfoRequest& request,
-                       GetModuleInfoResponse* response) {
+  Status GetModuleInfo(ServerContext*, const GetModuleInfoRequest* request,
+                       GetModuleInfoResponse* response) override {
     const char* m_name;
     Module* m;
 
-    if (!request.name().length())
+    if (!request->name().length())
       return return_with_error(response, EINVAL,
                                "Argument must be a name in str");
-    m_name = request.name().c_str();
+    m_name = request->name().c_str();
 
-    if (!ModuleBuilder::all_modules().count(m_name))
+    const auto& it = ModuleBuilder::all_modules().find(request->name());
+    if (it == ModuleBuilder::all_modules().end()) {
       return return_with_error(response, ENOENT, "No module '%s' found",
                                m_name);
+    }
+    m = it->second;
 
     response->set_name(m->name());
     response->set_mclass(m->module_builder()->class_name());
@@ -786,8 +761,8 @@ class BESSControlImpl final : public BESSControl::Service {
 
     return Status::OK;
   }
-  Status ConnectModules(ClientContext*, const ConnectModulesRequest& request,
-                        EmptyResponse* response) {
+  Status ConnectModules(ServerContext*, const ConnectModulesRequest* request,
+                        EmptyResponse* response) override {
     if (is_any_worker_running()) {
       return return_with_error(response, EBUSY, "There is a running worker");
     }
@@ -801,21 +776,28 @@ class BESSControlImpl final : public BESSControl::Service {
 
     int ret;
 
-    m1_name = request.m1().c_str();
-    m2_name = request.m2().c_str();
-    ogate = request.ogate();
-    igate = request.igate();
+    m1_name = request->m1().c_str();
+    m2_name = request->m2().c_str();
+    ogate = request->ogate();
+    igate = request->igate();
 
     if (!m1_name || !m2_name)
       return return_with_error(response, EINVAL, "Missing 'm1' or 'm2' field");
 
-    if (!ModuleBuilder::all_modules().count(m1_name))
+    const auto& it1 = ModuleBuilder::all_modules().find(request->m1());
+    if (it1 == ModuleBuilder::all_modules().end()) {
       return return_with_error(response, ENOENT, "No module '%s' found",
                                m1_name);
+    }
 
-    if (!ModuleBuilder::all_modules().count(m2_name))
+    m1 = it1->second;
+
+    const auto& it2 = ModuleBuilder::all_modules().find(request->m2());
+    if (it2 == ModuleBuilder::all_modules().end()) {
       return return_with_error(response, ENOENT, "No module '%s' found",
                                m2_name);
+    }
+    m2 = it2->second;
 
     ret = m1->ConnectModules(ogate, m2, igate);
     if (ret < 0)
@@ -824,28 +806,29 @@ class BESSControlImpl final : public BESSControl::Service {
 
     return Status::OK;
   }
-  Status DisconnectModules(ClientContext*,
-                           const DisconnectModulesRequest& request,
-                           EmptyResponse* response) {
+  Status DisconnectModules(ServerContext*,
+                           const DisconnectModulesRequest* request,
+                           EmptyResponse* response) override {
     if (is_any_worker_running()) {
       return return_with_error(response, EBUSY, "There is a running worker");
     }
     const char* m_name;
     gate_idx_t ogate;
 
-    Module* m;
-
     int ret;
 
-    m_name = request.name().c_str();
-    ogate = request.ogate();
+    m_name = request->name().c_str();
+    ogate = request->ogate();
 
-    if (!request.name().length())
+    if (!request->name().length())
       return return_with_error(response, EINVAL, "Missing 'name' field");
 
-    if (!ModuleBuilder::all_modules().count(m_name))
+    const auto& it = ModuleBuilder::all_modules().find(request->name());
+    if (it == ModuleBuilder::all_modules().end()) {
       return return_with_error(response, ENOENT, "No module '%s' found",
                                m_name);
+    }
+    Module* m = it->second;
 
     ret = m->DisconnectModules(ogate);
     if (ret < 0)
@@ -854,8 +837,8 @@ class BESSControlImpl final : public BESSControl::Service {
 
     return Status::OK;
   }
-  Status AttachTask(ClientContext*, const AttachTaskRequest& request,
-                    EmptyResponse* response) {
+  Status AttachTask(ServerContext*, const AttachTaskRequest* request,
+                    EmptyResponse* response) override {
     if (is_any_worker_running()) {
       return return_with_error(response, EBUSY, "There is a running worker");
     }
@@ -867,16 +850,19 @@ class BESSControlImpl final : public BESSControl::Service {
     Module* m;
     struct task* t;
 
-    m_name = request.name().c_str();
+    m_name = request->name().c_str();
 
-    if (!request.name().length())
+    if (!request->name().length())
       return return_with_error(response, EINVAL, "Missing 'name' field");
 
-    if (!ModuleBuilder::all_modules().count(m_name))
+    const auto& it = ModuleBuilder::all_modules().find(request->name());
+    if (it == ModuleBuilder::all_modules().end()) {
       return return_with_error(response, ENOENT, "No module '%s' found",
                                m_name);
+    }
+    m = it->second;
 
-    tid = request.taskid();
+    tid = request->taskid();
     if (tid >= MAX_TASKS_PER_MODULE)
       return return_with_error(response, EINVAL,
                                "'taskid' must be between 0 and %d",
@@ -886,16 +872,16 @@ class BESSControlImpl final : public BESSControl::Service {
       return return_with_error(response, ENOENT, "Task %s:%hu does not exist",
                                m_name, tid);
 
-    tc_name = request.tc().c_str();
+    tc_name = request->tc().c_str();
 
-    if (request.tc().length() > 0) {
+    if (request->tc().length() > 0) {
       struct tc* c;
 
-      const auto& it = TCContainer::tcs.find(tc_name);
-      if (it == TCContainer::tcs.end()) {
+      const auto& it2 = TCContainer::tcs.find(tc_name);
+      if (it2 == TCContainer::tcs.end()) {
         return return_with_error(response, ENOENT, "No TC '%s' found", tc_name);
       }
-      c = it->second;
+      c = it2->second;
 
       task_attach(t, c);
     } else {
@@ -907,7 +893,7 @@ class BESSControlImpl final : public BESSControl::Service {
                                  "attached to a TC",
                                  m_name, tid);
 
-      wid = request.wid();
+      wid = request->wid();
       if (wid >= MAX_WORKERS)
         return return_with_error(response, EINVAL,
                                  "'wid' must be between 0 and %d",
@@ -922,8 +908,8 @@ class BESSControlImpl final : public BESSControl::Service {
 
     return Status::OK;
   }
-  Status EnableTcpdump(ClientContext*, const EnableTcpdumpRequest& request,
-                       EmptyResponse* response) {
+  Status EnableTcpdump(ServerContext*, const EnableTcpdumpRequest* request,
+                       EmptyResponse* response) override {
     if (is_any_worker_running()) {
       return return_with_error(response, EBUSY, "There is a running worker");
     }
@@ -931,20 +917,21 @@ class BESSControlImpl final : public BESSControl::Service {
     const char* fifo;
     gate_idx_t ogate;
 
-    Module* m;
-
     int ret;
 
-    m_name = request.name().c_str();
-    ogate = request.ogate();
-    fifo = request.fifo().c_str();
+    m_name = request->name().c_str();
+    ogate = request->ogate();
+    fifo = request->fifo().c_str();
 
-    if (!request.name().length())
+    if (!request->name().length())
       return return_with_error(response, EINVAL, "Missing 'name' field");
 
-    if (!ModuleBuilder::all_modules().count(m_name))
+    const auto& it = ModuleBuilder::all_modules().find(request->name());
+    if (it == ModuleBuilder::all_modules().end()) {
       return return_with_error(response, ENOENT, "No module '%s' found",
                                m_name);
+    }
+    Module* m = it->second;
 
     if (ogate >= m->ogates.curr_size)
       return return_with_error(response, EINVAL,
@@ -959,31 +946,34 @@ class BESSControlImpl final : public BESSControl::Service {
 
     return Status::OK;
   }
-  Status DisableTcpdump(ClientContext*, const DisableTcpdumpRequest& request,
-                        EmptyResponse* response) {
+  Status DisableTcpdump(ServerContext*, const DisableTcpdumpRequest* request,
+                        EmptyResponse* response) override {
     if (is_any_worker_running()) {
       return return_with_error(response, EBUSY, "There is a running worker");
     }
     const char* m_name;
     gate_idx_t ogate;
 
-    Module* m;
-
     int ret;
 
-    m_name = request.name().c_str();
-    ogate = request.ogate();
+    m_name = request->name().c_str();
+    ogate = request->ogate();
 
-    if (!request.name().length())
+    if (!request->name().length()) {
       return return_with_error(response, EINVAL, "Missing 'name' field");
+    }
 
-    if (!ModuleBuilder::all_modules().count(m_name))
+    const auto& it = ModuleBuilder::all_modules().find(request->name());
+    if (it == ModuleBuilder::all_modules().end()) {
       return return_with_error(response, ENOENT, "No module '%s' found",
                                m_name);
+    }
 
-    if (ogate >= m->ogates.curr_size)
+    Module* m = it->second;
+    if (ogate >= m->ogates.curr_size) {
       return return_with_error(response, EINVAL,
                                "Output gate '%hu' does not exist", ogate);
+    }
 
     ret = m->DisableTcpDump(ogate);
 
@@ -994,8 +984,8 @@ class BESSControlImpl final : public BESSControl::Service {
     return Status::OK;
   }
 
-  Status KillBess(ClientContext*, const EmptyRequest&,
-                  EmptyResponse* response) {
+  Status KillBess(ServerContext*, const EmptyRequest*,
+                  EmptyResponse* response) override {
     if (is_any_worker_running()) {
       return return_with_error(response, EBUSY, "There is a running worker");
     }
@@ -1006,8 +996,8 @@ class BESSControlImpl final : public BESSControl::Service {
     return Status::OK;
   }
 
-  Status ListMclass(ClientContext*, const EmptyRequest&,
-                    ListMclassResponse* response) {
+  Status ListMclass(ServerContext*, const EmptyRequest*,
+                    ListMclassResponse* response) override {
     for (const auto& pair : ModuleBuilder::all_module_builders()) {
       const ModuleBuilder& builder = pair.second;
       response->add_name(builder.class_name());
@@ -1015,14 +1005,14 @@ class BESSControlImpl final : public BESSControl::Service {
     return Status::OK;
   }
 
-  Status GetMclassInfo(ClientContext*, const GetMclassInfoRequest& request,
-                       GetMclassInfoResponse* response) {
-    if (!request.name().length()) {
+  Status GetMclassInfo(ServerContext*, const GetMclassInfoRequest* request,
+                       GetMclassInfoResponse* response) override {
+    if (!request->name().length()) {
       return return_with_error(response, EINVAL,
                                "Argument must be a name in str");
     }
 
-    const std::string& cls_name = request.name();
+    const std::string& cls_name = request->name();
     const auto& it = ModuleBuilder::all_module_builders().find(cls_name);
     if (it == ModuleBuilder::all_module_builders().end()) {
       return return_with_error(response, ENOENT, "No module class '%s' found",
@@ -1038,19 +1028,19 @@ class BESSControlImpl final : public BESSControl::Service {
     return Status::OK;
   }
 
-  Status ModuleCommand(ClientContext*, const ModuleCommandRequest& request,
-                       ModuleCommandResponse* response) {
-    if (!request.name().length()) {
+  Status ModuleCommand(ServerContext*, const ModuleCommandRequest* request,
+                       ModuleCommandResponse* response) override {
+    if (!request->name().length()) {
       return return_with_error(response, EINVAL,
                                "Missing module name field 'name'");
     }
-    const auto& it = ModuleBuilder::all_modules().find(request.name());
+    const auto& it = ModuleBuilder::all_modules().find(request->name());
     if (it == ModuleBuilder::all_modules().end()) {
       return return_with_error(response, ENOENT, "No module '%s' found",
-                               request.name().c_str());
+                               request->name().c_str());
     }
     Module* m = it->second;
-    *response = m->RunCommand(request.cmd(), request.arg());
+    *response = m->RunCommand(request->cmd(), request->arg());
     return Status::OK;
   }
 };

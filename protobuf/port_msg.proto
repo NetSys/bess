@@ -1,38 +1,8 @@
 syntax = "proto3";
 
-import "google/protobuf/any.proto";
 import "error.proto";
 
 package bess.pb;
-
-// TODO: add something like PortCommandRequest
-
-// Added to suppress "unused" warning.
-message _DummyMessage {
-  google.protobuf.Any _dummy = 1;
-}
-
-message CreatePortRequest {
-  string name = 1;
-  string driver = 2;
-  uint64 num_inc_q = 3;
-  uint64 num_out_q = 4;
-  uint64 size_inc_q = 5;
-  uint64 size_out_q = 6;
-  string mac_addr = 7;
-  oneof arg {
-    PCAPPortArg pcap_arg = 8;
-    PMDPortArg pmd_arg = 9;
-    UnixSocketPortArg socket_arg = 10;
-    ZeroCopyVPortArg zcvport_arg = 11;
-    VPortArg vport_arg = 12;
-  }
-}
-
-message CreatePortResponse {
-  Error error = 1;
-  string name = 2;
-}
 
 message PCAPPortArg {
   string dev = 1;

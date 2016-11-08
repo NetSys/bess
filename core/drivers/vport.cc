@@ -476,10 +476,7 @@ void VPort::DeInit() {
   FreeBar();
 }
 
-pb_error_t VPort::Init(const google::protobuf::Any &arg_) {
-  bess::pb::VPortArg arg;
-  arg_.UnpackTo(&arg);
-
+pb_error_t VPort::InitPb(const bess::pb::VPortArg &arg) {
   int cpu;
   int rxq;
 

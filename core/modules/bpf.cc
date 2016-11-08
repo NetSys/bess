@@ -1112,12 +1112,12 @@ const Commands<Module> BPF::cmds = {
     {"add", MODULE_FUNC &BPF::CommandAdd, 0},
     {"clear", MODULE_FUNC &BPF::CommandClear, 0}};
 
-const PbCommands<Module> BPF::pb_cmds = {
-    {"add", PB_MODULE_FUNC &BPF::CommandAdd, 0},
-    {"clear", PB_MODULE_FUNC &BPF::CommandClear, 0}};
+const PbCommands BPF::pb_cmds = {
+    {"add", MODULE_CMD_FUNC(&BPF::CommandAddPb), 0},
+    {"clear", MODULE_CMD_FUNC(&BPF::CommandClearPb), 0}};
 
-pb_error_t BPF::Init(const google::protobuf::Any &arg) {
-  bess::pb::ModuleCommandResponse response = CommandAdd(arg);
+pb_error_t BPF::InitPb(const bess::pb::BPFArg &arg) {
+  bess::pb::ModuleCommandResponse response = CommandAddPb(arg);
   return response.error();
 }
 
@@ -1134,11 +1134,7 @@ void BPF::Deinit() {
   n_filters_ = 0;
 }
 
-bess::pb::ModuleCommandResponse BPF::CommandAdd(
-    const google::protobuf::Any &arg_) {
-  bess::pb::BPFArg arg;
-  arg_.UnpackTo(&arg);
-
+bess::pb::ModuleCommandResponse BPF::CommandAddPb(const bess::pb::BPFArg &arg) {
   bess::pb::ModuleCommandResponse response;
 
   if (n_filters_ + arg.filters_size() > MAX_FILTERS) {
@@ -1252,8 +1248,8 @@ struct snobj *BPF::CommandAdd(struct snobj *arg) {
   return nullptr;
 }
 
-bess::pb::ModuleCommandResponse BPF::CommandClear(
-    const google::protobuf::Any &) {
+bess::pb::ModuleCommandResponse BPF::CommandClearPb(
+    const bess::pb::EmptyArg &) {
   Deinit();
   bess::pb::ModuleCommandResponse response;
   set_cmd_response_error(&response, pb_errno(0));

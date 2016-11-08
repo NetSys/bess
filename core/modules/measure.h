@@ -2,6 +2,7 @@
 #define BESS_MODULES_MEASURE_H_
 
 #include "../module.h"
+#include "../module_msg.pb.h"
 #include "../utils/histogram.h"
 
 class Measure : public Module {
@@ -16,19 +17,19 @@ class Measure : public Module {
         total_latency_() {}
 
   virtual struct snobj *Init(struct snobj *arg);
-  virtual pb_error_t Init(const google::protobuf::Any &arg);
+  pb_error_t InitPb(const bess::pb::MeasureArg &arg);
 
   virtual void ProcessBatch(struct pkt_batch *batch);
 
   struct snobj *CommandGetSummary(struct snobj *arg);
-  bess::pb::ModuleCommandResponse CommandGetSummary(
-      const google::protobuf::Any &arg);
+  bess::pb::ModuleCommandResponse CommandGetSummaryPb(
+      const bess::pb::EmptyArg &arg);
 
   static const gate_idx_t kNumIGates = 1;
   static const gate_idx_t kNumOGates = 1;
 
   static const Commands<Module> cmds;
-  static const PbCommands<Module> pb_cmds;
+  static const PbCommands pb_cmds;
 
  private:
   struct histogram hist_ = {};

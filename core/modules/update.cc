@@ -7,9 +7,9 @@ const Commands<Module> Update::cmds = {
     {"clear", MODULE_FUNC &Update::CommandClear, 0},
 };
 
-const PbCommands<Module> Update::pb_cmds = {
-    {"add", PB_MODULE_FUNC &Update::CommandAdd, 0},
-    {"clear", PB_MODULE_FUNC &Update::CommandClear, 0},
+const PbCommands Update::pb_cmds = {
+    {"add", MODULE_CMD_FUNC(&Update::CommandAddPb), 0},
+    {"clear", MODULE_CMD_FUNC(&Update::CommandClearPb), 0},
 };
 
 struct snobj *Update::Init(struct snobj *arg) {
@@ -26,8 +26,8 @@ struct snobj *Update::Init(struct snobj *arg) {
   return CommandAdd(t);
 }
 
-pb_error_t Update::Init(const google::protobuf::Any &arg) {
-  bess::pb::ModuleCommandResponse response = CommandAdd(arg);
+pb_error_t Update::InitPb(const bess::pb::UpdateArg &arg) {
+  bess::pb::ModuleCommandResponse response = CommandAddPb(arg);
   return response.error();
 }
 
@@ -54,11 +54,8 @@ void Update::ProcessBatch(struct pkt_batch *batch) {
   RunNextModule(batch);
 }
 
-bess::pb::ModuleCommandResponse Update::CommandAdd(
-    const google::protobuf::Any &arg_) {
-  bess::pb::UpdateArg arg;
-  arg_.UnpackTo(&arg);
-
+bess::pb::ModuleCommandResponse Update::CommandAddPb(
+    const bess::pb::UpdateArg &arg) {
   bess::pb::ModuleCommandResponse response;
 
   int curr = num_fields_;
@@ -113,8 +110,8 @@ bess::pb::ModuleCommandResponse Update::CommandAdd(
   return response;
 }
 
-bess::pb::ModuleCommandResponse Update::CommandClear(
-    const google::protobuf::Any &) {
+bess::pb::ModuleCommandResponse Update::CommandClearPb(
+    const bess::pb::EmptyArg &) {
   num_fields_ = 0;
 
   bess::pb::ModuleCommandResponse response;

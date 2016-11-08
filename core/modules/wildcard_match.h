@@ -6,6 +6,7 @@
 #include <rte_config.h>
 #include <rte_hash_crc.h>
 
+#include "../module_msg.pb.h"
 #include "../utils/htable.h"
 
 #define MAX_TUPLES 8
@@ -54,7 +55,7 @@ class WildcardMatch : public Module {
         next_table_id_() {}
 
   virtual struct snobj *Init(struct snobj *arg);
-  pb_error_t Init(const google::protobuf::Any &arg);
+  pb_error_t InitPb(const bess::pb::WildcardMatchArg &arg);
 
   virtual void Deinit();
 
@@ -68,22 +69,23 @@ class WildcardMatch : public Module {
   struct snobj *CommandClear(struct snobj *arg);
   struct snobj *CommandSetDefaultGate(struct snobj *arg);
 
-  bess::pb::ModuleCommandResponse CommandAdd(const google::protobuf::Any &arg);
-  bess::pb::ModuleCommandResponse CommandDelete(
-      const google::protobuf::Any &arg);
-  bess::pb::ModuleCommandResponse CommandClear(
-      const google::protobuf::Any &arg);
-  bess::pb::ModuleCommandResponse CommandSetDefaultGate(
-      const google::protobuf::Any &arg);
+  bess::pb::ModuleCommandResponse CommandAddPb(
+      const bess::pb::WildcardMatchCommandAddArg &arg);
+  bess::pb::ModuleCommandResponse CommandDeletePb(
+      const bess::pb::WildcardMatchCommandDeleteArg &arg);
+  bess::pb::ModuleCommandResponse CommandClearPb(const bess::pb::EmptyArg &arg);
+  bess::pb::ModuleCommandResponse CommandSetDefaultGatePb(
+      const bess::pb::WildcardMatchCommandSetDefaultGateArg &arg);
 
   static const gate_idx_t kNumIGates = 1;
   static const gate_idx_t kNumOGates = MAX_GATES;
 
   static const Commands<Module> cmds;
-  static const PbCommands<Module> pb_cmds;
+  static const PbCommands pb_cmds;
 
  private:
-  static int wm_keycmp(const void *key, const void *key_stored, size_t key_len) {
+  static int wm_keycmp(const void *key, const void *key_stored,
+                       size_t key_len) {
     const uint64_t *a = ((wm_hkey_t *)key)->u64_arr;
     const uint64_t *b = ((wm_hkey_t *)key_stored)->u64_arr;
 
@@ -119,7 +121,8 @@ class WildcardMatch : public Module {
     return 0;
   }
 
-  static uint32_t wm_hash(const void *key, uint32_t key_len, uint32_t init_val) {
+  static uint32_t wm_hash(const void *key, uint32_t key_len,
+                          uint32_t init_val) {
 #if __SSE4_2__ && __x86_64
     const uint64_t *a = ((wm_hkey_t *)key)->u64_arr;
 
