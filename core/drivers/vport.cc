@@ -605,7 +605,7 @@ fail:
 }
 
 struct snobj *VPort::SetIPAddr(struct snobj *arg) {
-  int child_pid;
+  int child_pid = 0;
 
   int ret = 0;
   int nspace = 0;
