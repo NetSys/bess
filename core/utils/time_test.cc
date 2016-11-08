@@ -8,6 +8,12 @@ TEST(RdtscTest, NonDecreasing) {
   ASSERT_LE(a, b) << "Time stamp counter should not decrease.";
 }
 
+TEST(TscToUs, Frequency) {
+  ASSERT_NE(0, tsc_hz) << "tsc_hz has not been initialized";
+  EXPECT_LE(500000000, tsc_hz) << "tsc_hz < 500MHz?";
+  EXPECT_GE(10000000000, tsc_hz) << "tsc_hz > 10GHz?";
+}
+
 TEST(TscToUs, NonNegative) {
   ASSERT_LE(0, tsc_to_us(0))
       << "Conversion should never result in negative time.";
