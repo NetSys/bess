@@ -75,6 +75,7 @@ BENCHMARK_DEFINE_F(TCFixture, TCScheduleOnceCount)(benchmark::State &state) {
     // code.
     schedule_once(s_);
   }
+  state.SetItemsProcessed(state.iterations());
   state.SetComplexityN(state.range(0));
 }
 
@@ -85,6 +86,7 @@ BENCHMARK_DEFINE_F(TCFixture, TCScheduleOnceCycle)(benchmark::State &state) {
     // code.
     schedule_once(s_);
   }
+  state.SetItemsProcessed(state.iterations());
   state.SetComplexityN(state.range(0));
 }
 
