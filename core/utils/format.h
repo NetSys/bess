@@ -9,8 +9,12 @@
 namespace bess {
 namespace utils {
 
-[[gnu::format(printf, 1, 2)]] std::string Format(const char *fmt, ...);
 std::string FormatVarg(const char *fmt, va_list ap);
+[[gnu::format(printf, 1, 2)]] std::string Format(const char *fmt, ...);
+
+int ParseVarg(const std::string &s, const char *fmt, va_list ap);
+[[gnu::format(scanf, 2, 3)]] int Parse(const std::string &s, const char *fmt,
+                                       ...);
 
 }  // namespace utils
 }  // namespace bess
