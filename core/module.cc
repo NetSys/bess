@@ -4,13 +4,16 @@
 #include <sys/uio.h>
 #include <unistd.h>
 
+#include <algorithm>
 #include <sstream>
 
 #include <glog/logging.h>
 
+#include "gate.h"
+#include "hooks/tcpdump.h"
+#include "hooks/track.h"
 #include "mem_alloc.h"
 #include "utils/pcap.h"
-#include "utils/time.h"
 
 std::map<std::string, Module *> ModuleBuilder::all_modules_;
 
@@ -318,27 +321,28 @@ int Module::ConnectModules(gate_idx_t ogate_idx, Module *m_next,
 
   ogates.arr[ogate_idx] = ogate;
 
-  igate = m_next->igates.arr[igate_idx];
+  igate = (struct gate *)mem_alloc(sizeof(struct gate));
   if (!igate) {
-    igate = (struct gate *)mem_alloc(sizeof(struct gate));
     if (!igate) {
       mem_free(ogate);
       return -ENOMEM;
     }
-
-    m_next->igates.arr[igate_idx] = igate;
-
-    igate->m = m_next;
-    igate->gate_idx = igate_idx;
-    igate->arg = m_next;
-    cdlist_head_init(&igate->in.ogates_upstream);
   }
+  m_next->igates.arr[igate_idx] = igate;
+
+  igate->m = m_next;
+  igate->gate_idx = igate_idx;
+  igate->arg = m_next;
+  cdlist_head_init(&igate->in.ogates_upstream);
 
   ogate->m = this;
   ogate->gate_idx = ogate_idx;
   ogate->arg = m_next;
   ogate->out.igate = igate;
   ogate->out.igate_idx = igate_idx;
+
+  // Gate tracking is enabled by default
+  ogate->hooks.push_back(new TrackGate());
 
   cdlist_add_tail(&igate->in.ogates_upstream, &ogate->out.igate_upstream);
 
@@ -367,10 +371,18 @@ int Module::DisconnectModules(gate_idx_t ogate_idx) {
   if (cdlist_is_empty(&igate->in.ogates_upstream)) {
     Module *m_next = igate->m;
     m_next->igates.arr[igate->gate_idx] = nullptr;
+    for (auto &hook : igate->hooks) {
+      delete hook;
+    }
+    igate->hooks.clear();
     mem_free(igate);
   }
 
   ogates.arr[ogate_idx] = nullptr;
+  for (auto &hook : ogate->hooks) {
+    delete hook;
+  }
+  ogate->hooks.clear();
   mem_free(ogate);
 
   return 0;
@@ -396,10 +408,12 @@ int Module::DisconnectModulesUpstream(gate_idx_t igate_idx) {
                              out.igate_upstream) {
     Module *m_prev = ogate->m;
     m_prev->ogates.arr[ogate->gate_idx] = nullptr;
+    ogate->hooks.clear();
     mem_free(ogate);
   }
 
   igates.arr[igate_idx] = nullptr;
+  igate->hooks.clear();
   mem_free(igate);
 
   return 0;
@@ -525,7 +539,7 @@ void _trace_after_call(void) {
 }
 #endif
 
-#if TCPDUMP_GATES
+// TODO(melvin): Much of this belongs in the TcpDump constructor.
 int Module::EnableTcpDump(const char *fifo, gate_idx_t ogate) {
   static const struct pcap_hdr PCAP_FILE_HDR = {
       .magic_number = PCAP_MAGIC_NUMBER,
@@ -536,6 +550,7 @@ int Module::EnableTcpDump(const char *fifo, gate_idx_t ogate) {
       .snaplen = PCAP_SNAPLEN,
       .network = PCAP_NETWORK,
   };
+  struct gate *gate;
 
   int fd;
   int ret;
@@ -562,8 +577,21 @@ int Module::EnableTcpDump(const char *fifo, gate_idx_t ogate) {
     return -errno;
   }
 
-  ogates.arr[ogate]->fifo_fd = fd;
-  ogates.arr[ogate]->tcpdump = 1;
+  TcpDump *tcpdump = nullptr;
+  gate = ogates.arr[ogate];
+  for (const auto &hook : gate->hooks) {
+    if (hook->name() == kGateHookTcpDumpGate) {
+      tcpdump = reinterpret_cast<TcpDump *>(hook);
+      break;
+    }
+  }
+
+  if (!tcpdump) {
+    tcpdump = new TcpDump();
+    gate->hooks.push_back(tcpdump);
+    std::sort(gate->hooks.begin(), gate->hooks.end(), GateHookComp);
+  }
+  tcpdump->set_fifo_fd(fd);
 
   return 0;
 }
@@ -572,45 +600,15 @@ int Module::DisableTcpDump(gate_idx_t ogate) {
   if (!is_active_gate(&ogates, ogate))
     return -EINVAL;
 
-  if (!ogates.arr[ogate]->tcpdump)
-    return -EINVAL;
-
-  ogates.arr[ogate]->tcpdump = 0;
-  close(ogates.arr[ogate]->fifo_fd);
+  struct gate *gate = ogates.arr[ogate];
+  for (size_t i = 0; i < gate->hooks.size(); i++) {
+    GateHook *hook = gate->hooks[i];
+    if (hook->name() == kGateHookTcpDumpGate) {
+      delete hook;
+      gate->hooks.erase(gate->hooks.begin() + i);
+      break;
+    }
+  }
 
   return 0;
 }
-
-void Module::DumpPcapPkts(struct gate *gate, struct pkt_batch *batch) {
-  struct timeval tv;
-
-  int ret = 0;
-  int fd = gate->fifo_fd;
-
-  gettimeofday(&tv, nullptr);
-
-  for (int i = 0; i < batch->cnt; i++) {
-    struct snbuf *pkt = batch->pkts[i];
-    struct pcap_rec_hdr rec = {
-        .ts_sec = (uint32_t)tv.tv_sec,
-        .ts_usec = (uint32_t)tv.tv_usec,
-        .incl_len = pkt->mbuf.data_len,
-        .orig_len = pkt->mbuf.pkt_len,
-    };
-
-    struct iovec vec[2] = {{&rec, sizeof(rec)},
-                           {snb_head_data(pkt), (size_t)snb_head_len(pkt)}};
-
-    ret = writev(fd, vec, 2);
-    if (ret < 0) {
-      if (errno == EPIPE) {
-        DLOG(WARNING) << "Broken pipe: stopping tcpdump";
-        gate->tcpdump = 0;
-        gate->fifo_fd = 0;
-        close(fd);
-      }
-      return;
-    }
-  }
-}
-#endif
