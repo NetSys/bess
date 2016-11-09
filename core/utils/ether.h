@@ -1,5 +1,5 @@
-#ifndef BESS_UTILS_ETHER_H
-#define BESS_UTILS_ETHER_H
+#ifndef BESS_UTILS_ETHER_H_
+#define BESS_UTILS_ETHER_H_
 
 #include <cstdint>
 #include <string>
@@ -55,9 +55,9 @@ struct [[gnu::packed]] EthHeader {
 
 static_assert(std::is_pod<EthHeader>::value, "not a POD type");
 static_assert(std::is_pod<EthHeader::Address>::value, "not a POD type");
-static_assert(sizeof(EthHeader) == 14, "struct Ethernet is incorrect");
+static_assert(sizeof(EthHeader) == 14, "struct EthHeader is incorrect");
 
 }  // namespace utils
 }  // namespace bess
 
-#endif  // BESS_UTILS_ETHER_H
+#endif  // BESS_UTILS_ETHER_H_
