@@ -43,12 +43,10 @@ else
 endif
 
 CXXFLAGS += -std=gnu++11 -g3 -ggdb3 -Ofast -march=native \
-	    -Werror -Wall \
-	    -isystem $(DPDK_INC_DIR) \
-	    -D_GNU_SOURCE
+	    -Werror -isystem $(DPDK_INC_DIR) -D_GNU_SOURCE
 
-HARDCORE = -Wextra -Wcast-align \
-	   	-Wno-missing-field-initializers	# FIXME
+HARDCORE = -Wall -Wextra -Wcast-align \
+	   -Wno-missing-field-initializers	# FIXME
 
 # -Wshadow should not be used for g++ 4.x, as it has too many false positives
 CXXVERSION_5_OR_HIGHER := $(shell expr $(CXXVERSION) \>= 50000)
@@ -67,13 +65,14 @@ LIBS += -Wl,-non_shared \
 	-ldl
 
 ifdef SANITIZE
-    LDFLAGS += -fsanitize=address -static-libasan
     CXXFLAGS += -fsanitize=address -fno-omit-frame-pointer
+    LDFLAGS += -fsanitize=address -static-libasan
 endif
 
 ifdef COVERAGE
+    # override -Ofast with -Og for better results
+    CXXFLAGS += --coverage -Og
     LDFLAGS += --coverage
-    CXXFLAGS += --coverage
 endif
 
 
