@@ -1,5 +1,5 @@
-#ifndef BESS_UTILS_ENDIAN_H
-#define BESS_UTILS_ENDIAN_H
+#ifndef BESS_UTILS_ENDIAN_H_
+#define BESS_UTILS_ENDIAN_H_
 
 #include <cstdint>
 
@@ -73,4 +73,4 @@ static_assert(sizeof(be64_t) == 8, "be64_t is not 8 bytes");
 }  // namespace utils
 }  // namespace bess
 
-#endif  // BESS_UTILS_ENDIAN_H
+#endif  // BESS_UTILS_ENDIAN_H_
