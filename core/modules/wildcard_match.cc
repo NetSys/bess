@@ -1,5 +1,6 @@
 #include "wildcard_match.h"
 
+#include "../utils/endian.h"
 #include "../utils/format.h"
 
 /* k1 = k2 & mask */
@@ -380,11 +381,12 @@ pb_error_t WildcardMatch::ExtractKeyMask(const T &arg, wm_hkey_t *key,
     int force_be = (fields_[i].attr_id < 0);
 
     if (uint64_to_bin(reinterpret_cast<uint8_t *>(&v), field_size,
-                      arg.values(i), force_be || is_be_system())) {
+                      arg.values(i), force_be || bess::utils::is_be_system())) {
       return pb_error(EINVAL, "idx %lu: not a correct %d-byte value", i,
                       field_size);
     } else if (uint64_to_bin(reinterpret_cast<uint8_t *>(&m), field_size,
-                             arg.masks(i), force_be || is_be_system())) {
+                             arg.masks(i),
+                             force_be || bess::utils::is_be_system())) {
       return pb_error(EINVAL, "idx %lu: not a correct %d-byte mask", i,
                       field_size);
     }

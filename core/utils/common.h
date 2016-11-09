@@ -79,14 +79,6 @@ static inline int is_err_or_null(const void *ptr) {
   return !ptr || is_err(ptr);
 }
 
-static inline int is_be_system() {
-#if __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
-  return 1;
-#else
-  return 0;
-#endif
-}
-
 #define __cacheline_aligned __attribute__((aligned(64)))
 
 /* For x86_64. DMA operations are not safe with these macros */
