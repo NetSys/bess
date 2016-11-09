@@ -23,12 +23,15 @@ struct task_result task_scheduled(struct task *t) {
     gate *ogate = task.gate;
     struct pkt_batch *next_packets = &(task.batch);
 
-#if TRACK_GATES
-    ogate->cnt += 1;
-    ogate->pkts += next_packets->cnt;
-#endif
-
     ctx.push_igate(ogate->out.igate_idx);
+
+    for (const auto &hook : ogate->hooks) {
+      hook->ProcessBatch(next_packets);
+    }
+
+    for (const auto &hook : ogate->out.igate->hooks) {
+      hook->ProcessBatch(next_packets);
+    }
 
     ((Module *)ogate->arg)->ProcessBatch(next_packets);
 
@@ -42,7 +45,7 @@ struct task *task_create(Module *m, void *arg) {
   struct task *t;
 
   t = (struct task *)mem_alloc(sizeof(*t));
-  if (!t){
+  if (!t) {
     return nullptr;
   }
 
@@ -140,7 +143,7 @@ static int get_next_wid(int *wid) {
   if (num_workers == 0)
     return -1;
 
-  while (!is_worker_active(rr_next)){
+  while (!is_worker_active(rr_next)) {
     rr_next = (rr_next + 1) % MAX_WORKERS;
   }
 

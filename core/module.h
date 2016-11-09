@@ -238,8 +238,9 @@ class Module {
   void RunSplit(const gate_idx_t *ogates, struct pkt_batch *mixed_batch);
 
   /* returns -errno if fails */
-  int ConnectModules(gate_idx_t ogate_idx, Module *m_next,
-                     gate_idx_t igate_idx);
+  int ConnectModules(gate_idx_t ogate_idx, Module *m_next, gate_idx_t igate_idx,
+                     const std::vector<GateHook *> &input_hooks = kNoHooks,
+                     const std::vector<GateHook *> &output_hooks = kNoHooks);
   int DisconnectModulesUpstream(gate_idx_t igate_idx);
   int DisconnectModules(gate_idx_t ogate_idx);
   int GrowGates(struct gates *gates, gate_idx_t gate);
@@ -262,8 +263,6 @@ class Module {
   int EnableTcpDump(const char *fifo, gate_idx_t gate);
 
   int DisableTcpDump(gate_idx_t gate);
-
-  void DumpPcapPkts(struct gate *gate, struct pkt_batch *batch);
 #else
   /* Cannot enable tcpdump */
   inline int enable_tcpdump(const char *, gate_idx_t) { return -EINVAL; }

@@ -4,13 +4,17 @@
 #include <sys/uio.h>
 #include <unistd.h>
 
+#include <algorithm>
 #include <sstream>
 
 #include <glog/logging.h>
 
+#include "gate.h"
+#if TCPDUMP_GATES
+#include "hooks/tcpdump.h"
+#endif
 #include "mem_alloc.h"
 #include "utils/pcap.h"
-#include "utils/time.h"
 
 std::map<std::string, Module *> ModuleBuilder::all_modules_;
 
@@ -283,9 +287,15 @@ int Module::GrowGates(struct gates *gates, gate_idx_t gate) {
   return 0;
 }
 
+bool GateHookComp(const GateHook *lhs, const GateHook *rhs) {
+  return (lhs->priority() < rhs->priority());
+}
+
 /* returns -errno if fails */
 int Module::ConnectModules(gate_idx_t ogate_idx, Module *m_next,
-                           gate_idx_t igate_idx) {
+                           gate_idx_t igate_idx,
+                           const std::vector<GateHook *> &input_hooks,
+                           const std::vector<GateHook *> &output_hooks) {
   struct gate *ogate;
   struct gate *igate;
 
@@ -332,6 +342,11 @@ int Module::ConnectModules(gate_idx_t ogate_idx, Module *m_next,
     igate->gate_idx = igate_idx;
     igate->arg = m_next;
     cdlist_head_init(&igate->in.ogates_upstream);
+    for (auto &hook : input_hooks) {
+      hook->set_gate(igate);
+    }
+    igate->hooks = input_hooks;
+    std::sort(igate->hooks.begin(), igate->hooks.end(), GateHookComp);
   }
 
   ogate->m = this;
@@ -339,6 +354,11 @@ int Module::ConnectModules(gate_idx_t ogate_idx, Module *m_next,
   ogate->arg = m_next;
   ogate->out.igate = igate;
   ogate->out.igate_idx = igate_idx;
+  for (auto &hook : output_hooks) {
+    hook->set_gate(ogate);
+  }
+  ogate->hooks = output_hooks;
+  std::sort(ogate->hooks.begin(), ogate->hooks.end(), GateHookComp);
 
   cdlist_add_tail(&igate->in.ogates_upstream, &ogate->out.igate_upstream);
 
@@ -525,6 +545,7 @@ void _trace_after_call(void) {
 }
 #endif
 
+// XXX: try to lift this logic somewhere else
 #if TCPDUMP_GATES
 int Module::EnableTcpDump(const char *fifo, gate_idx_t ogate) {
   static const struct pcap_hdr PCAP_FILE_HDR = {
@@ -562,8 +583,14 @@ int Module::EnableTcpDump(const char *fifo, gate_idx_t ogate) {
     return -errno;
   }
 
-  ogates.arr[ogate]->fifo_fd = fd;
-  ogates.arr[ogate]->tcpdump = 1;
+  for (const auto &hook : ogates.arr[ogate]->hooks) {
+    if (hook->name() == kGateHookTcpDumpGate) {
+      TcpDump *t = reinterpret_cast<TcpDump *>(hook);
+      t->set_fifo_fd(fd);
+      t->set_tcpdump(1);
+      break;
+    }
+  }
 
   return 0;
 }
@@ -572,45 +599,19 @@ int Module::DisableTcpDump(gate_idx_t ogate) {
   if (!is_active_gate(&ogates, ogate))
     return -EINVAL;
 
-  if (!ogates.arr[ogate]->tcpdump)
-    return -EINVAL;
+  for (const auto &hook : ogates.arr[ogate]->hooks) {
+    if (hook->name() == kGateHookTcpDumpGate) {
+      TcpDump *t = reinterpret_cast<TcpDump *>(hook);
+      if (!t->tcpdump())
+        return -EINVAL;
 
-  ogates.arr[ogate]->tcpdump = 0;
-  close(ogates.arr[ogate]->fifo_fd);
+      t->set_tcpdump(0);
+      close(t->fifo_fd());
+      break;
+    }
+  }
 
   return 0;
 }
 
-void Module::DumpPcapPkts(struct gate *gate, struct pkt_batch *batch) {
-  struct timeval tv;
-
-  int ret = 0;
-  int fd = gate->fifo_fd;
-
-  gettimeofday(&tv, nullptr);
-
-  for (int i = 0; i < batch->cnt; i++) {
-    struct snbuf *pkt = batch->pkts[i];
-    struct pcap_rec_hdr rec = {
-        .ts_sec = (uint32_t)tv.tv_sec,
-        .ts_usec = (uint32_t)tv.tv_usec,
-        .incl_len = pkt->mbuf.data_len,
-        .orig_len = pkt->mbuf.pkt_len,
-    };
-
-    struct iovec vec[2] = {{&rec, sizeof(rec)},
-                           {snb_head_data(pkt), (size_t)snb_head_len(pkt)}};
-
-    ret = writev(fd, vec, 2);
-    if (ret < 0) {
-      if (errno == EPIPE) {
-        DLOG(WARNING) << "Broken pipe: stopping tcpdump";
-        gate->tcpdump = 0;
-        gate->fifo_fd = 0;
-        close(fd);
-      }
-      return;
-    }
-  }
-}
 #endif
