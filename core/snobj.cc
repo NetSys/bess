@@ -8,6 +8,7 @@
 #include <sstream>
 #include <string>
 
+#include "utils/endian.h"
 #include "utils/format.h"
 
 #define DEF_LIST_SLOTS 4
@@ -345,7 +346,7 @@ int snobj_binvalue_get(struct snobj *m, uint32_t size, void *dst,
 
     case TYPE_INT:
       return uint64_to_bin((uint8_t *)dst, size, snobj_uint_get(m),
-                           is_be_system() || force_be);
+                           bess::utils::is_be_system() || force_be);
 
     default:
       return -EINVAL;
