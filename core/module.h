@@ -64,6 +64,42 @@ static inline module_init_func_t MODULE_INIT_FUNC(
 
 class Module;
 
+struct gate;
+
+// Gate hooks allow you to run arbitrary code on the packets flowing through a
+// gate before they get delievered to the upstream module.
+// TODO(melvin): GateHooks should be structured like Modules/Drivers, so bessctl
+// can attach/detach them at runtime.
+class GateHook {
+ public:
+  GateHook(const std::string &name, uint16_t priority = 0,
+           struct gate *gate = nullptr)
+      : name_(name), priority_(priority), gate_(gate){};
+
+  virtual ~GateHook(){};
+
+  const std::string &name() const { return name_; }
+
+  void set_gate(struct gate *gate) { gate_ = gate; }
+
+  uint16_t priority() const { return priority_; }
+
+  /// The main
+  virtual void ProcessBatch(struct pkt_batch *){};
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(GateHook);
+
+  const std::string &name_;
+
+  const uint16_t priority_;
+
+ protected:
+  struct gate *gate_;
+};
+
+const std::vector<GateHook *> kNoHooks = {};
+
 struct gate {
   /* immutable values */
   Module *m;           /* the module this gate belongs to */
@@ -84,17 +120,11 @@ struct gate {
     } in;
   };
 
-/* TODO: generalize with gate hooks */
-#if TRACK_GATES
-  uint64_t cnt;
-  uint64_t pkts;
-#endif
-#if TCPDUMP_GATES
-  uint32_t tcpdump;
-  int fifo_fd;
-#endif
+  std::vector<GateHook *> hooks;
 };
 
+// TODO(melvin): not sure this necessary anymore. consider replacing with
+// std::vector
 struct gates {
   /* Resizable array of 'struct gate *'.
    * Unconnected elements are filled with nullptr */
@@ -292,8 +322,9 @@ class Module {
   void RunSplit(const gate_idx_t *ogates, struct pkt_batch *mixed_batch);
 
   /* returns -errno if fails */
-  int ConnectModules(gate_idx_t ogate_idx, Module *m_next,
-                     gate_idx_t igate_idx);
+  int ConnectModules(gate_idx_t ogate_idx, Module *m_next, gate_idx_t igate_idx,
+                     const std::vector<GateHook *> &input_hooks = kNoHooks,
+                     const std::vector<GateHook *> &output_hooks = kNoHooks);
   int DisconnectModulesUpstream(gate_idx_t igate_idx);
   int DisconnectModules(gate_idx_t ogate_idx);
   int GrowGates(struct gates *gates, gate_idx_t gate);
@@ -316,8 +347,6 @@ class Module {
   int EnableTcpDump(const char *fifo, gate_idx_t gate);
 
   int DisableTcpDump(gate_idx_t gate);
-
-  void DumpPcapPkts(struct gate *gate, struct pkt_batch *batch);
 #else
   /* Cannot enable tcpdump */
   inline int enable_tcpdump(const char *, gate_idx_t) { return -EINVAL; }
@@ -391,17 +420,15 @@ inline void Module::RunChooseModule(gate_idx_t ogate_idx,
   _trace_before_call(this, next, batch);
 #endif
 
-#if TRACK_GATES
-  ogate->cnt += 1;
-  ogate->pkts += batch->cnt;
-#endif
-
-#if TCPDUMP_GATES
-  if (unlikely(ogate->tcpdump))
-    DumpPcapPkts(ogate, batch);
-#endif
-
   ctx.push_igate(ogate->out.igate_idx);
+
+  for (const auto &hook : ogate->hooks) {
+    hook->ProcessBatch(batch);
+  }
+
+  for (const auto &hook : ogate->out.igate->hooks) {
+    hook->ProcessBatch(batch);
+  }
 
   // XXX
   ((Module *)ogate->arg)->ProcessBatch(batch);

@@ -12,6 +12,7 @@ DEPFLAGS = -MT $@ -MMD -MP -MF $(DEPDIR)/$(@:.o=.d)
 $(shell mkdir -p $(DEPDIR) >/dev/null)
 $(shell mkdir -p $(DEPDIR)/utils >/dev/null)
 $(shell mkdir -p $(DEPDIR)/modules >/dev/null)
+$(shell mkdir -p $(DEPDIR)/hooks >/dev/null)
 $(shell mkdir -p $(DEPDIR)/drivers >/dev/null)
 
 # e.g., 4.9.3 -> 40903
@@ -84,8 +85,8 @@ PROTO_SRCS += $(patsubst %.proto,%.grpc.pb.cc, $(notdir $(PROTOS)))
 PROTO_HEADERS = $(patsubst %.cc,%.h, $(PROTO_SRCS))
 PROTOCFLAGS += --proto_path=$(PROTO_DIR) --cpp_out=. --grpc_out=. --plugin=protoc-gen-grpc=`which grpc_cpp_plugin`
 
-ALL_SRCS = $(wildcard *.cc utils/*.cc modules/*.cc drivers/*.cc)
-HEADERS = $(wildcard *.h utils/*.h modules/*.h drivers/*.h)
+ALL_SRCS = $(wildcard *.cc utils/*.cc modules/*.cc hooks/*.cc drivers/*.cc)
+HEADERS = $(wildcard *.h utils/*.h modules/*.h hooks/*.h drivers/*.h)
 
 TEST_SRCS = $(filter %_test.cc gtest_main.cc, $(ALL_SRCS))
 TEST_OBJS = $(TEST_SRCS:.cc=.o)

@@ -15,6 +15,12 @@
 #include "utils/ether.h"
 #include "utils/time.h"
 #include "worker.h"
+#if TRACK_GATES
+#include "hooks/track.h"
+#endif
+#if TCPDUMP_GATES
+#include "hooks/tcpdump.h"
+#endif
 
 // Capture the default core command line flag.
 DECLARE_int32(c);
@@ -147,8 +153,8 @@ static struct snobj *handle_reset_tcs(struct snobj *) {
     struct tc *c = it.second;
 
     if (c->num_tasks) {
-      return snobj_err(EBUSY, "TC %s still has %d tasks", c->settings.name.c_str(),
-                       c->num_tasks);
+      return snobj_err(EBUSY, "TC %s still has %d tasks",
+                       c->settings.name.c_str(), c->num_tasks);
     }
 
     if (c->settings.auto_free)
@@ -785,9 +791,16 @@ static struct snobj *collect_ogates(Module *m) {
 
     snobj_map_set(ogate, "ogate", snobj_uint(i));
 #if TRACK_GATES
-    snobj_map_set(ogate, "cnt", snobj_uint(g->cnt));
-    snobj_map_set(ogate, "pkts", snobj_uint(g->pkts));
-    snobj_map_set(ogate, "timestamp", snobj_double(get_epoch_time()));
+    // TODO(melvin): refactor struct gate to avoid this ugliness
+    for (const auto &hook : g->hooks) {
+      if (hook->name() == kGateHookTrackGate) {
+        TrackGate *t = reinterpret_cast<TrackGate *>(hook);
+        snobj_map_set(ogate, "cnt", snobj_uint(t->cnt()));
+        snobj_map_set(ogate, "pkts", snobj_uint(t->pkts()));
+        snobj_map_set(ogate, "timestamp", snobj_double(get_epoch_time()));
+        break;
+      }
+    }
 #endif
     snobj_map_set(ogate, "name", snobj_str(g->out.igate->m->name()));
     snobj_map_set(ogate, "igate", snobj_uint(g->out.igate->gate_idx));
@@ -870,6 +883,8 @@ static struct snobj *handle_connect_modules(struct snobj *q) {
   Module *m1;
   Module *m2;
 
+  std::vector<GateHook *> o_hooks;
+
   int ret;
 
   m1_name = snobj_eval_str(q, "m1");
@@ -890,7 +905,16 @@ static struct snobj *handle_connect_modules(struct snobj *q) {
     return snobj_err(ENOENT, "No module '%s' found", m2_name);
   m2 = it2->second;
 
-  ret = m1->ConnectModules(ogate, m2, igate);
+#if TRACK_GATES
+  o_hooks.push_back(new TrackGate());
+#endif
+
+#if TCPDUMP_GATES
+  o_hooks.push_back(new TcpDump(m1));
+#endif
+
+  ret = m1->ConnectModules(ogate, m2, igate, kNoHooks, o_hooks);
+
   if (ret < 0)
     return snobj_err(-ret, "Connection %s:%d->%d:%s failed", m1_name, ogate,
                      igate, m2_name);

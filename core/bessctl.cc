@@ -17,6 +17,9 @@
 #include "utils/format.h"
 #include "utils/time.h"
 #include "worker.h"
+#if TRACK_GATES
+#include "hooks/track.h"
+#endif
 
 using grpc::Server;
 using grpc::ServerBuilder;
@@ -82,9 +85,15 @@ static int collect_ogates(Module* m, GetModuleInfoResponse* response) {
 
     ogate->set_ogate(i);
 #if TRACK_GATES
-    ogate->set_cnt(g->cnt);
-    ogate->set_pkts(g->pkts);
-    ogate->set_timestamp(get_epoch_time());
+    for (const auto& hook : g->hooks) {
+      if (hook->name() == kGateHookTrackGate) {
+        TrackGate* t = reinterpret_cast<TrackGate*>(hook);
+        ogate->set_cnt(t->cnt());
+        ogate->set_pkts(t->pkts());
+        ogate->set_timestamp(get_epoch_time());
+        break;
+      }
+    }
 #endif
     ogate->set_name(g->out.igate->m->name());
     ogate->set_igate(g->out.igate->gate_idx);
