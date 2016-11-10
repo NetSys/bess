@@ -9,6 +9,7 @@
 #define SN_HW_RXCSUM 0
 #define SN_HW_TXCSUM 0
 
+#if 0
 static const struct rte_eth_conf default_eth_conf = {
     .link_speeds = ETH_LINK_SPEED_AUTONEG,
     .rxmode =
@@ -51,6 +52,37 @@ static const struct rte_eth_conf default_eth_conf = {
             .lsc = 0,
         },
 };
+#endif
+
+static const struct rte_eth_conf default_eth_conf() {
+  struct rte_eth_conf ret = {};
+
+  ret.link_speeds = ETH_LINK_SPEED_AUTONEG;
+
+  ret.rxmode = {
+      .mq_mode = ETH_MQ_RX_RSS,       /* doesn't matter for 1-queue */
+      .max_rx_pkt_len = 0,            /* valid only if jumbo is on */
+      .split_hdr_size = 0,            /* valid only if HS is on */
+      .header_split = 0,              /* Header Split */
+      .hw_ip_checksum = SN_HW_RXCSUM, /* IP checksum offload */
+      .hw_vlan_filter = 0,            /* VLAN filtering */
+      .hw_vlan_strip = 0,             /* VLAN strip */
+      .hw_vlan_extend = 0,            /* Extended VLAN */
+      .jumbo_frame = 0,               /* Jumbo Frame support */
+      .hw_strip_crc = 1,              /* CRC stripped by hardware */
+      .enable_scatter = 0,            /* no scattered RX */
+      .enable_lro = 0,                /* no large receive offload */
+  };
+
+  ret.rx_adv_conf.rss_conf = {
+      .rss_key = nullptr,
+      .rss_key_len = 40,
+      /* TODO: query rte_eth_dev_info_get() to set this*/
+      .rss_hf = ETH_RSS_IP | ETH_RSS_UDP | ETH_RSS_TCP | ETH_RSS_SCTP,
+  };
+
+  return ret;
+}
 
 void PMDPort::InitDriver() {
   dpdk_port_t num_dpdk_ports = rte_eth_dev_count();
@@ -272,7 +304,7 @@ struct snobj *PMDPort::Init(struct snobj *conf) {
     return err;
   }
 
-  eth_conf = default_eth_conf;
+  eth_conf = default_eth_conf();
   if (snobj_eval_int(conf, "loopback")) {
     eth_conf.lpbk_mode = 1;
   }
@@ -356,7 +388,7 @@ pb_error_t PMDPort::InitPb(const bess::pb::PMDPortArg &arg) {
     return err;
   }
 
-  eth_conf = default_eth_conf;
+  eth_conf = default_eth_conf();
   if (arg.loopback()) {
     eth_conf.lpbk_mode = 1;
   }

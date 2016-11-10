@@ -61,10 +61,16 @@ class MetadataTest : public ::testing::Test {
 
 TEST(Metadata, RegisterSizeMismatchFails) {
   struct Attribute attr0_s1 = {
-      .name = "attr0", .size = 1, .mode = Attribute::AccessMode::kRead,
+      .name = "attr0",
+      .size = 1,
+      .mode = Attribute::AccessMode::kRead,
+      .scope_id = -1,
   };
   struct Attribute attr0_s2 = {
-      .name = "attr0", .size = 2, .mode = Attribute::AccessMode::kWrite,
+      .name = "attr0",
+      .size = 2,
+      .mode = Attribute::AccessMode::kWrite,
+      .scope_id = -1,
   };
 
   ASSERT_EQ(0, default_pipeline.RegisterAttribute(&attr0_s1));
