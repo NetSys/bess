@@ -1,5 +1,8 @@
 #include "ether_encap.h"
 
+#include <rte_config.h>
+#include <rte_ether.h>
+
 enum {
   ATTR_R_ETHER_SRC,
   ATTR_R_ETHER_DST,
@@ -8,6 +11,28 @@ enum {
 
 const Commands<Module> EtherEncap::cmds = {};
 const PbCommands EtherEncap::pb_cmds = {};
+
+struct snobj *EtherEncap::Init(struct snobj *arg [[maybe_unused]]) {
+  using AccessMode = bess::metadata::Attribute::AccessMode;
+
+  AddMetadataAttr("ether_src", ETHER_ADDR_LEN, AccessMode::kRead);
+  AddMetadataAttr("ether_dst", ETHER_ADDR_LEN, AccessMode::kRead);
+  AddMetadataAttr("ether_type", 2, AccessMode::kRead);
+
+  return nullptr;
+};
+
+pb_error_t EtherEncap::InitPb(
+    const bess::pb::EtherEncapArg &arg[[maybe_unused]]) {
+  using AccessMode = bess::metadata::Attribute::AccessMode;
+
+  AddMetadataAttr("ether_src", ETHER_ADDR_LEN, AccessMode::kRead);
+  AddMetadataAttr("ether_dst", ETHER_ADDR_LEN, AccessMode::kRead);
+  AddMetadataAttr("ether_type", 2, AccessMode::kRead);
+
+  return pb_errno(0);
+};
+
 
 void EtherEncap::ProcessBatch(struct pkt_batch *batch) {
   int cnt = batch->cnt;

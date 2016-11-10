@@ -15,6 +15,30 @@ enum {
 const Commands<Module> IPEncap::cmds = {};
 const PbCommands IPEncap::pb_cmds = {};
 
+struct snobj *IPEncap::Init(struct snobj *arg [[maybe_unused]]) {
+  using AccessMode = bess::metadata::Attribute::AccessMode;
+
+  AddMetadataAttr("ip_src", 4, AccessMode::kRead);
+  AddMetadataAttr("ip_dst", 4, AccessMode::kRead);
+  AddMetadataAttr("ip_proto", 1, AccessMode::kRead);
+  AddMetadataAttr("ip_nexthop", 4, AccessMode::kWrite);
+  AddMetadataAttr("ether_type", 2, AccessMode::kWrite);
+
+  return nullptr;
+};
+
+pb_error_t IPEncap::InitPb(const bess::pb::IPEncapArg &arg [[maybe_unused]]) {
+  using AccessMode = bess::metadata::Attribute::AccessMode;
+
+  AddMetadataAttr("ip_src", 4, AccessMode::kRead);
+  AddMetadataAttr("ip_dst", 4, AccessMode::kRead);
+  AddMetadataAttr("ip_proto", 1, AccessMode::kRead);
+  AddMetadataAttr("ip_nexthop", 4, AccessMode::kWrite);
+  AddMetadataAttr("ether_type", 2, AccessMode::kWrite);
+
+  return pb_errno(0);
+}
+
 void IPEncap::ProcessBatch(struct pkt_batch *batch) {
   int cnt = batch->cnt;
 

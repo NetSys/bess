@@ -2,37 +2,14 @@
 #define BESS_MODULES_IPENCAP_H_
 
 #include "../module.h"
-
-using bess::metadata::Attribute;
+#include "../module_msg.pb.h"
 
 class IPEncap : public Module {
  public:
-  virtual void ProcessBatch(struct pkt_batch *batch);
+  struct snobj *Init(struct snobj *arg);
+  pb_error_t InitPb(const bess::pb::IPEncapArg &arg);
 
-  size_t num_attrs = 5;
-  struct Attribute attrs[bess::metadata::kMaxAttrsPerModule] = {
-      {
-          .name = "ip_src", .size = 4, .mode = Attribute::AccessMode::kRead,
-      },
-      {
-          .name = "ip_dst", .size = 4, .mode = Attribute::AccessMode::kRead,
-      },
-      {
-          .name = "ip_proto",
-          .size = 1,
-          .mode = Attribute::AccessMode::kRead,
-      },
-      {
-          .name = "ip_nexthop",
-          .size = 4,
-          .mode = Attribute::AccessMode::kRead,
-      },
-      {
-          .name = "ether_type",
-          .size = 2,
-          .mode = Attribute::AccessMode::kWrite,
-      },
-  };
+  virtual void ProcessBatch(struct pkt_batch *batch);
 
   static const gate_idx_t kNumIGates = 1;
   static const gate_idx_t kNumOGates = 1;
