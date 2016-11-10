@@ -41,6 +41,7 @@ class MetadataTest : public ::testing::Test {
  protected:
   virtual void SetUp() {
     default_pipeline.CleanupMetadataComputation();
+    default_pipeline.attributes_.clear();
     ADD_MODULE(Foo, "foo", "bip")
     ASSERT_TRUE(__module__Foo);
     m0 = ::create_foo();
@@ -108,10 +109,8 @@ TEST_F(MetadataTest, SingleAttrSimplePipeBackwardsFails) {
 TEST_F(MetadataTest, MultipleAttrSimplePipeNoSpaceFails) {
   size_t sz = kMetadataAttrMaxSize;
   size_t n = kMetadataTotalSize / sz;
-  for (size_t i = 0; i < n + 1; i++) {
-    std::ostringstream os;
-    os << "attr" << i;
-    std::string s = os.str();
+  for (size_t i = 0; i <= n ; i++) {
+    std::string s = "attr" + std::to_string(i);
     ASSERT_EQ(i, m0->AddMetadataAttr(s, sz, Attribute::AccessMode::kWrite));
     ASSERT_EQ(i, m1->AddMetadataAttr(s, sz, Attribute::AccessMode::kRead));
   }
@@ -137,20 +136,21 @@ TEST_F(MetadataTest, MultipeAttrSimplePipe) {
 
   ASSERT_EQ(0, default_pipeline.ComputeMetadataOffsets());
 
-  for (size_t i = 0; i < m0->num_attrs; i++) {
+  size_t i = 0;
+  for (const auto &attr : m0->all_attrs()) {
     // Check that m1 is reading from where m0 is writing
     ASSERT_EQ(m1->attr_offsets[i], m0->attr_offsets[i]);
 
-    if (m0->attrs[i].mode == Attribute::AccessMode::kRead)
-      continue;
-
-    // Check that m0 was assigned non-overlapping offsets for writes
-    mt_offset_t offset = m0->attr_offsets[i];
-    ASSERT_LE(0, offset);
-    for (size_t j = 0; j < m0->attrs[i].size; j++) {
-      ASSERT_FALSE(dummy_meta[offset + j]);
-      dummy_meta[offset + j] = true;
+    if (attr.mode != Attribute::AccessMode::kRead) {
+      // Check that m0 was assigned non-overlapping offsets for writes
+      mt_offset_t offset = m0->attr_offsets[i];
+      ASSERT_LE(0, offset);
+      for (size_t j = 0; j < attr.size; j++) {
+        ASSERT_FALSE(dummy_meta[offset + j]);
+        dummy_meta[offset + j] = true;
+      }
     }
+    i++;
   }
 }
 
@@ -189,24 +189,24 @@ TEST_F(MetadataTest, MultipeAttrComplexPipe) {
   ASSERT_EQ(0, default_pipeline.ComputeMetadataOffsets());
 
   // Check that every module was assigned valid, non-overlapping offsets
-  for (const auto &it : mods) {
+  for (const auto &m : mods) {
     bool dummy_meta[kMetadataTotalSize] = {};
-    for (size_t i = 0; i < it->num_attrs; i++) {
-      if (it->attrs[i].mode == Attribute::AccessMode::kRead)
-        continue;
-
-      mt_offset_t offset = it->attr_offsets[i];
-      if (offset < 0) {
-        EXPECT_EQ(it, mods[6]);
-        EXPECT_EQ(1, i);
-        EXPECT_STREQ("foo", it->attrs[i].name.c_str());
-        continue;
+    size_t i = 0;
+    for (const auto &attr : m->all_attrs()) {
+      if (attr.mode != Attribute::AccessMode::kRead) {
+        mt_offset_t offset = m->attr_offsets[i];
+        if (offset < 0) {
+          EXPECT_EQ(m, mods[6]);
+          EXPECT_EQ(1, i);
+          EXPECT_STREQ("foo", attr.name.c_str());
+        } else {
+          for (size_t j = 0; j < attr.size; j++) {
+            ASSERT_FALSE(dummy_meta[offset + j]);
+            dummy_meta[offset + j] = true;
+          }
+        }
       }
-
-      for (size_t j = 0; j < it->attrs[i].size; j++) {
-        ASSERT_FALSE(dummy_meta[offset + j]);
-        dummy_meta[offset + j] = true;
-      }
+      i++;
     }
   }
 

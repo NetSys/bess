@@ -314,7 +314,7 @@ struct snobj *WildcardMatch::GetDump() const {
       snobj_map_set(f_obj, "offset", snobj_uint(f->offset));
     } else {
       snobj_map_set(f_obj, "name",
-                    snobj_str(WildcardMatch::attrs[f->attr_id].name));
+                    snobj_str(WildcardMatch::all_attrs()[f->attr_id].name));
     }
 
     snobj_list_add(fields, f_obj);

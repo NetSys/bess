@@ -55,7 +55,7 @@ struct Attribute {
     kWrite,
     kUpdate
   } mode;
-  int scope_id;
+  mutable int scope_id;
 };
 
 typedef std::string attr_id_t;
@@ -119,9 +119,6 @@ class Pipeline {
  public:
   Pipeline() : scope_components_(), module_scopes_(){};
 
-  // Debugging tool.
-  void LogAllScopesPerModule();
-
   // Main entry point for calculating metadata offsets.
   int ComputeMetadataOffsets();
 
@@ -139,25 +136,28 @@ class Pipeline {
 
   void CleanupMetadataComputation();
 
+  // Debugging tool.
+  void LogAllScopes();
+
   // Add a module to the current scope component.
-  void AddModuleToComponent(Module *m, struct Attribute *attr);
+  void AddModuleToComponent(Module *m, const struct Attribute *attr);
 
   // Returns a pointer to an attribute if it's contained within a module.
-  struct Attribute *FindAttr(Module *m, struct Attribute *attr);
+  const struct Attribute *FindAttr(Module *m, const struct Attribute *attr) const;
 
   // Traverses module graph upstream to help identify a scope component.
-  void TraverseUpstream(Module *m, struct Attribute *attr);
+  void TraverseUpstream(Module *m, const struct Attribute *attr);
 
   // Traverses module graph downstream to help identify a scope component.
   // Returns 0 if module is part of the scope component, -1 if not.
-  int TraverseDownstream(Module *m, struct Attribute *attr);
+  int TraverseDownstream(Module *m, const struct Attribute *attr);
 
   // Wrapper for identifying scope components.
-  void IdentifySingleScopeComponent(Module *m, struct Attribute *attr);
+  void IdentifySingleScopeComponent(Module *m, const struct Attribute *attr);
 
   // Given a module that writes an attr, identifies the corresponding scope
   // component.
-  void IdentifyScopeComponent(Module *m, struct Attribute *attr);
+  void IdentifyScopeComponent(Module *m, const struct Attribute *attr);
 
   void FillOffsetArrays();
   void AssignOffsets();

@@ -225,10 +225,9 @@ void Module::DestroyAllTasks() {
 
 int Module::AddMetadataAttr(const std::string &name, size_t size,
                             bess::metadata::Attribute::AccessMode mode) {
-  size_t n = num_attrs;
   int ret;
 
-  if (n >= bess::metadata::kMaxAttrsPerModule)
+  if (attrs.size() >= bess::metadata::kMaxAttrsPerModule)
     return -ENOSPC;
 
   if (name.empty())
@@ -237,17 +236,19 @@ int Module::AddMetadataAttr(const std::string &name, size_t size,
   if (size < 1 || size > bess::metadata::kMetadataAttrMaxSize)
     return -EINVAL;
 
-  attrs[n].name = name;
-  attrs[n].size = size;
-  attrs[n].mode = mode;
-  attrs[n].scope_id = -1;
-  if ((ret = pipeline_->RegisterAttribute(&attrs[n]))) {
+  bess::metadata::Attribute attr;
+  attr.name = name;
+  attr.size = size;
+  attr.mode = mode;
+  attr.scope_id = -1;
+
+  if ((ret = pipeline_->RegisterAttribute(&attr))) {
     return ret;
   }
 
-  num_attrs++;
+  attrs.push_back(attr);
 
-  return n;
+  return attrs.size() - 1;
 }
 
 int Module::GrowGates(struct gates *gates, gate_idx_t gate) {
