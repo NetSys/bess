@@ -12,39 +12,8 @@ class VXLANEncap : public Module {
 
   virtual struct snobj *Init(struct snobj *arg);
   pb_error_t InitPb(const bess::pb::VXLANEncapArg &arg);
-  virtual void ProcessBatch(struct pkt_batch *batch);
 
-  size_t num_attrs = 6;
-  struct bess::metadata::Attribute attrs[bess::metadata::kMaxAttrsPerModule] = {
-      {
-          .name = "tun_ip_src",
-          .size = 4,
-          .mode = Attribute::AccessMode::kRead,
-      },
-      {
-          .name = "tun_ip_dst",
-          .size = 4,
-          .mode = Attribute::AccessMode::kRead,
-      },
-      {
-          .name = "tun_id", .size = 4, .mode = Attribute::AccessMode::kRead,
-      },
-      {
-          .name = "ip_src",
-          .size = 4,
-          .mode = Attribute::AccessMode::kWrite,
-      },
-      {
-          .name = "ip_dst",
-          .size = 4,
-          .mode = Attribute::AccessMode::kWrite,
-      },
-      {
-          .name = "ip_proto",
-          .size = 1,
-          .mode = Attribute::AccessMode::kWrite,
-      },
-  };
+  virtual void ProcessBatch(struct pkt_batch *batch);
 
   static const gate_idx_t kNumIGates = 1;
   static const gate_idx_t kNumOGates = 1;
