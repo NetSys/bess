@@ -3,32 +3,34 @@
 
 #include "../module.h"
 
+using bess::metadata::Attribute;
+
 class IPEncap : public Module {
  public:
   virtual void ProcessBatch(struct pkt_batch *batch);
 
   size_t num_attrs = 5;
-  struct bess::metadata::mt_attr attrs[bess::metadata::kMaxAttrsPerModule] = {
+  struct Attribute attrs[bess::metadata::kMaxAttrsPerModule] = {
       {
-          .name = "ip_src", .size = 4, .mode = bess::metadata::AccessMode::READ,
+          .name = "ip_src", .size = 4, .mode = Attribute::AccessMode::kRead,
       },
       {
-          .name = "ip_dst", .size = 4, .mode = bess::metadata::AccessMode::READ,
+          .name = "ip_dst", .size = 4, .mode = Attribute::AccessMode::kRead,
       },
       {
           .name = "ip_proto",
           .size = 1,
-          .mode = bess::metadata::AccessMode::READ,
+          .mode = Attribute::AccessMode::kRead,
       },
       {
           .name = "ip_nexthop",
           .size = 4,
-          .mode = bess::metadata::AccessMode::WRITE,
+          .mode = Attribute::AccessMode::kRead,
       },
       {
           .name = "ether_type",
           .size = 2,
-          .mode = bess::metadata::AccessMode::WRITE,
+          .mode = Attribute::AccessMode::kWrite,
       },
   };
 

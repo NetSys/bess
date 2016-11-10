@@ -6,26 +6,28 @@
 
 #include "../module.h"
 
+using bess::metadata::Attribute;
+
 class EtherEncap : public Module {
  public:
   void ProcessBatch(struct pkt_batch *batch);
 
   size_t num_attrs = 5;
-  struct bess::metadata::mt_attr attrs[bess::metadata::kMaxAttrsPerModule] = {
+  struct bess::metadata::Attribute attrs[bess::metadata::kMaxAttrsPerModule] = {
       {
           .name = "ether_src",
           .size = ETHER_ADDR_LEN,
-          .mode = bess::metadata::AccessMode::READ,
+          .mode = Attribute::AccessMode::kRead,
       },
       {
           .name = "ether_dst",
           .size = ETHER_ADDR_LEN,
-          .mode = bess::metadata::AccessMode::READ,
+          .mode = Attribute::AccessMode::kRead,
       },
       {
           .name = "ether_type",
           .size = 2,
-          .mode = bess::metadata::AccessMode::READ,
+          .mode = Attribute::AccessMode::kRead,
       },
   };
 

@@ -8,21 +8,21 @@ class VXLANDecap : public Module {
   void ProcessBatch(struct pkt_batch *batch);
 
   size_t num_attrs = 3;
-  struct bess::metadata::mt_attr attrs[bess::metadata::kMaxAttrsPerModule] = {
+  struct bess::metadata::Attribute attrs[bess::metadata::kMaxAttrsPerModule] = {
       {
           .name = "tun_ip_src",
           .size = 4,
-          .mode = bess::metadata::AccessMode::WRITE,
+          .mode = bess::metadata::Attribute::AccessMode::kWrite,
       },
       {
           .name = "tun_ip_dst",
           .size = 4,
-          .mode = bess::metadata::AccessMode::WRITE,
+          .mode = bess::metadata::Attribute::AccessMode::kWrite,
       },
       {
           .name = "tun_id",
           .size = 4,
-          .mode = bess::metadata::AccessMode::WRITE,
+          .mode = bess::metadata::Attribute::AccessMode::kWrite,
       },
   };
 

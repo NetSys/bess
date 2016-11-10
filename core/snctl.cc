@@ -808,13 +808,13 @@ static struct snobj *collect_metadata(Module *m) {
     snobj_map_set(attr, "size", snobj_uint(m->attrs[i].size));
 
     switch (m->attrs[i].mode) {
-      case bess::metadata::AccessMode::READ:
+      case bess::metadata::Attribute::AccessMode::kRead:
         snobj_map_set(attr, "mode", snobj_str("read"));
         break;
-      case bess::metadata::AccessMode::WRITE:
+      case bess::metadata::Attribute::AccessMode::kWrite:
         snobj_map_set(attr, "mode", snobj_str("write"));
         break;
-      case bess::metadata::AccessMode::UPDATE:
+      case bess::metadata::Attribute::AccessMode::kUpdate:
         snobj_map_set(attr, "mode", snobj_str("update"));
         break;
       default:
