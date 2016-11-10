@@ -362,8 +362,6 @@ class Module {
  public:
   struct task *tasks[MAX_TASKS_PER_MODULE] = {};
 
-  int curr_scope = 0;
-
   bess::metadata::mt_offset_t attr_offsets[bess::metadata::kMaxAttrsPerModule] =
       {};
   struct gates igates = {};
