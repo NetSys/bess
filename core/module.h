@@ -335,6 +335,10 @@ class Module {
     return module_builder_->RunCommand(this, cmd, arg);
   }
 
+  const std::vector<bess::metadata::Attribute> &all_attrs() const {
+    return attrs;
+  }
+
  private:
   void set_name(const std::string &name) { name_ = name; }
   void set_module_builder(const ModuleBuilder *builder) {
@@ -350,14 +354,13 @@ class Module {
 
   bess::metadata::Pipeline *pipeline_;
 
+  std::vector<bess::metadata::Attribute> attrs;
+
   DISALLOW_COPY_AND_ASSIGN(Module);
 
   // FIXME: porting in progress ----------------------------
  public:
   struct task *tasks[MAX_TASKS_PER_MODULE] = {};
-
-  size_t num_attrs = 0;
-  struct bess::metadata::Attribute attrs[bess::metadata::kMaxAttrsPerModule] = {};
 
   int curr_scope = 0;
 
