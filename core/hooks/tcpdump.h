@@ -8,13 +8,10 @@ const std::string kGateHookTcpDumpGate = "tcpdump";
 // TcpDump dumps copies of the packets seen by a gate. Useful for debugging.
 class TcpDump : public GateHook {
  public:
-  TcpDump(Module *module, uint16_t priority = 0)
+  TcpDump(uint16_t priority = 0)
       : GateHook(kGateHookTcpDumpGate, priority),
-        module_(module),
         tcpdump_(),
         fifo_fd_(){};
-
-  const Module *module() const { return module_; }
 
   uint32_t tcpdump() const { return tcpdump_; }
   void set_tcpdump(uint32_t tcpdump) { tcpdump_ = tcpdump; }
@@ -25,7 +22,6 @@ class TcpDump : public GateHook {
   void ProcessBatch(struct pkt_batch *batch);
 
  private:
-  Module *module_;
   uint32_t tcpdump_;
   int fifo_fd_;
 };

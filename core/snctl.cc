@@ -910,7 +910,7 @@ static struct snobj *handle_connect_modules(struct snobj *q) {
 #endif
 
 #if TCPDUMP_GATES
-  o_hooks.push_back(new TcpDump(m1));
+  o_hooks.push_back(new TcpDump());
 #endif
 
   ret = m1->ConnectModules(ogate, m2, igate, kNoHooks, o_hooks);
