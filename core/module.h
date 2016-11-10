@@ -311,7 +311,7 @@ class Module {
    * 'instance'
    * need this function.
    * Returns its allocated ID (>= 0), or a negative number for error */
-  int AddMetadataAttr(const std::string &name, int size,
+  int AddMetadataAttr(const std::string &name, int bytes,
                       bess::metadata::Attribute::AccessMode mode);
 
 #if TCPDUMP_GATES
@@ -415,16 +415,6 @@ inline void Module::RunChooseModule(gate_idx_t ogate_idx,
 
 inline void Module::RunNextModule(struct pkt_batch *batch) {
   RunChooseModule(0, batch);
-}
-
-static inline int is_valid_attr(const std::string &name, size_t size) {
-  if (name.empty())
-    return 0;
-
-  if (size < 1 || size > bess::metadata::kMetadataAttrMaxSize)
-    return 0;
-
-  return 1;
 }
 
 /* run all per-thread initializers */
