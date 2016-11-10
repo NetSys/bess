@@ -24,7 +24,9 @@ pb_error_t NoOP::InitPb(const bess::pb::EmptyArg &) {
 }
 
 struct task_result NoOP::RunTask(void *) {
-  return {};
+  return {
+      .packets = 0, .bits = 0,
+  };
 }
 
 ADD_MODULE(NoOP, "noop", "creates a task that does nothing")

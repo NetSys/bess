@@ -6,6 +6,7 @@
 
 class VPort : public Port {
  public:
+  VPort() : fd_(), bar_(), map_(), netns_fd_(), container_pid_() {}
   virtual void InitDriver();
 
   pb_error_t InitPb(const bess::pb::VPortArg &arg);
@@ -32,18 +33,18 @@ class VPort : public Port {
   pb_error_t SetIPAddr(const bess::pb::VPortArg &arg);
   struct snobj *SetIPAddr(struct snobj *arg);
 
-  int fd_ = {};
+  int fd_;
 
-  char ifname_[IFNAMSIZ] = {}; /* could be different from Name() */
-  void *bar_ = {};
+  char ifname_[IFNAMSIZ]; /* could be different from Name() */
+  void *bar_;
 
   struct queue inc_qs_[MAX_QUEUES_PER_DIR];
   struct queue out_qs_[MAX_QUEUES_PER_DIR];
 
-  struct sn_ioc_queue_mapping map_ = {};
+  struct sn_ioc_queue_mapping map_;
 
-  int netns_fd_ = {};
-  int container_pid_ = {};
+  int netns_fd_;
+  int container_pid_;
 };
 
 #endif  // BESS_DRIVERS_VPORT_H_

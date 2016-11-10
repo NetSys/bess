@@ -364,8 +364,9 @@ class Module {
 
   bess::metadata::mt_offset_t attr_offsets[bess::metadata::kMaxAttrsPerModule] =
       {};
-  struct gates igates = {};
-  struct gates ogates = {};
+
+  struct gates igates;
+  struct gates ogates;
 };
 
 void deadend(struct pkt_batch *batch);
@@ -469,10 +470,9 @@ inline T *ptr_attr_with_offset(bess::metadata::mt_offset_t offset,
 template <typename T>
 inline T get_attr_with_offset(bess::metadata::mt_offset_t offset,
                               struct snbuf *pkt) {
-  T _zeroed = {};
   return bess::metadata::IsValidOffset(offset)
              ? _get_attr_with_offset<T>(offset, pkt)
-             : _zeroed;
+             : T();
 }
 
 template <typename T>

@@ -20,7 +20,7 @@ class TCFixture : public benchmark::Fixture {
     s_ = sched_init();
 
     for (int i = 0; i < num_classes; i++) {
-      struct tc_params params = {};
+      struct tc_params params = tc_params();
 
       params.name = "class_" + std::to_string(i);
       params.parent = nullptr;

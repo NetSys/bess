@@ -55,7 +55,7 @@ static const struct rte_eth_conf default_eth_conf = {
 #endif
 
 static const struct rte_eth_conf default_eth_conf() {
-  struct rte_eth_conf ret = {};
+  struct rte_eth_conf ret = rte_eth_conf();
 
   ret.link_speeds = ETH_LINK_SPEED_AUTONEG;
 
@@ -93,7 +93,6 @@ void PMDPort::InitDriver() {
     struct rte_eth_dev_info dev_info;
     std::string pci_info;
 
-    memset(&dev_info, 0, sizeof(dev_info));
     rte_eth_dev_info_get(i, &dev_info);
 
     if (dev_info.pci_dev) {
@@ -285,7 +284,7 @@ static pb_error_t find_dpdk_port(dpdk_port_t port_id, const std::string &pci,
 struct snobj *PMDPort::Init(struct snobj *conf) {
   dpdk_port_t port_id = -1;
 
-  struct rte_eth_dev_info dev_info = {};
+  struct rte_eth_dev_info dev_info;
   struct rte_eth_conf eth_conf;
   struct rte_eth_rxconf eth_rxconf;
   struct rte_eth_txconf eth_txconf;
@@ -370,7 +369,7 @@ struct snobj *PMDPort::Init(struct snobj *conf) {
 pb_error_t PMDPort::InitPb(const bess::pb::PMDPortArg &arg) {
   dpdk_port_t ret_port_id = -1;
 
-  struct rte_eth_dev_info dev_info = {};
+  struct rte_eth_dev_info dev_info;
   struct rte_eth_conf eth_conf;
   struct rte_eth_rxconf eth_rxconf;
   struct rte_eth_txconf eth_txconf;

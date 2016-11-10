@@ -57,8 +57,8 @@ class L2Forward : public Module {
   static const PbCommands pb_cmds;
 
  private:
-  struct l2_table l2_table_ = {};
-  gate_idx_t default_gate_ = {};
+  struct l2_table l2_table_;
+  gate_idx_t default_gate_;
 };
 
 #endif  // BESS_MODULES_L2FORWARD_H_
