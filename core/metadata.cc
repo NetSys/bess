@@ -124,8 +124,6 @@ void Pipeline::CleanupMetadataComputation() {
   module_components_.clear();
   module_scopes_.clear();
 
-  attributes_.clear();
-
   for (auto &c : scope_components_) {
     c.clear_modules();
   }
@@ -458,6 +456,8 @@ int Pipeline::ComputeMetadataOffsets() {
   return 0;
 }
 
+// TODO: We need to keep track of the number of modules that registered each
+// attribute. Then RegisterAttribute does +1 while Deregister one dpes -1
 int Pipeline::RegisterAttribute(const struct Attribute *attr) {
   attr_id_t id = get_attr_id(attr);
   const auto &it = attributes_.find(id);
