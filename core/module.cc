@@ -232,7 +232,10 @@ int Module::AddMetadataAttr(const std::string &name, int size,
   if (n >= bess::metadata::kMaxAttrsPerModule)
     return -ENOSPC;
 
-  if (!is_valid_attr(name.c_str(), size))
+  if (name.empty())
+    return -EINVAL;
+
+  if (size < 1 || size > bess::metadata::kMetadataAttrMaxSize)
     return -EINVAL;
 
   attrs[n].name = name;
