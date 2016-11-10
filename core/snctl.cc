@@ -8,6 +8,8 @@
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 
+#include "hooks/tcpdump.h"
+#include "hooks/track.h"
 #include "metadata.h"
 #include "module.h"
 #include "port.h"
@@ -15,12 +17,6 @@
 #include "utils/ether.h"
 #include "utils/time.h"
 #include "worker.h"
-#if TRACK_GATES
-#include "hooks/track.h"
-#endif
-#if TCPDUMP_GATES
-#include "hooks/tcpdump.h"
-#endif
 
 // Capture the default core command line flag.
 DECLARE_int32(c);
