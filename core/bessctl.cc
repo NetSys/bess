@@ -6,8 +6,6 @@
 #include <grpc++/server_builder.h>
 #include <grpc++/server_context.h>
 #include <grpc/grpc.h>
-#include <rte_config.h>
-#include <rte_ether.h>
 
 #include "message.h"
 #include "metadata.h"
@@ -15,6 +13,7 @@
 #include "port.h"
 #include "service.grpc.pb.h"
 #include "tc.h"
+#include "utils/ether.h"
 #include "utils/format.h"
 #include "utils/time.h"
 #include "worker.h"
@@ -127,21 +126,16 @@ static ::Port* create_port(const std::string& name, const PortBuilder& driver,
                            const std::string& mac_addr_str,
                            const google::protobuf::Any& arg, pb_error_t* perr) {
   std::unique_ptr<::Port> p;
-  int ret;
 
   if (num_inc_q == 0)
     num_inc_q = 1;
   if (num_out_q == 0)
     num_out_q = 1;
 
-  uint8_t mac_addr[ETH_ALEN];
+  bess::utils::EthHeader::Address mac_addr;
 
   if (mac_addr_str.length() > 0) {
-    ret = sscanf(mac_addr_str.c_str(), "%2hhx:%2hhx:%2hhx:%2hhx:%2hhx:%2hhx",
-                 &mac_addr[0], &mac_addr[1], &mac_addr[2], &mac_addr[3],
-                 &mac_addr[4], &mac_addr[5]);
-
-    if (ret != 6) {
+    if (!mac_addr.FromString(mac_addr_str)) {
       perr->set_err(EINVAL);
       perr->set_errmsg(
           "MAC address should be "
@@ -150,7 +144,7 @@ static ::Port* create_port(const std::string& name, const PortBuilder& driver,
       return nullptr;
     }
   } else
-    eth_random_addr(mac_addr);
+    mac_addr.Randomize();
 
   if (num_inc_q > MAX_QUEUES_PER_DIR || num_out_q > MAX_QUEUES_PER_DIR) {
     perr->set_err(EINVAL);
@@ -187,7 +181,7 @@ static ::Port* create_port(const std::string& name, const PortBuilder& driver,
   if (size_out_q == 0)
     size_out_q = p->DefaultOutQueueSize();
 
-  memcpy(p->mac_addr, mac_addr, ETH_ALEN);
+  memcpy(p->mac_addr, mac_addr.bytes, ETH_ALEN);
   p->num_queues[PACKET_DIR_INC] = num_inc_q;
   p->num_queues[PACKET_DIR_OUT] = num_out_q;
   p->queue_size[PACKET_DIR_INC] = size_inc_q;

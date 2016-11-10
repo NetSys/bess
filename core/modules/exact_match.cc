@@ -3,6 +3,7 @@
 #include <string>
 #include <vector>
 
+#include "../utils/endian.h"
 #include "../utils/format.h"
 
 // XXX: this is repeated in many modules. get rid of them when converting .h to
@@ -55,7 +56,7 @@ pb_error_t ExactMatch::AddFieldOne(const bess::pb::ExactMatchArg_Field &field,
     f->mask = ((uint64_t)1 << (f->size * 8)) - 1;
   } else {
     if (uint64_to_bin((uint8_t *)&f->mask, f->size, field.mask(),
-                      is_be_system() | force_be))
+                      bess::utils::is_be_system() | force_be))
       return pb_error(EINVAL, "idx %d: not a correct %d-byte mask", idx,
                       f->size);
   }
@@ -334,7 +335,7 @@ pb_error_t ExactMatch::GatherKey(const RepeatedField<uint64_t> &fields,
     uint64_t f_obj = fields.Get(i);
 
     if (uint64_to_bin((uint8_t *)&f, field_size, f_obj,
-                      force_be | is_be_system())) {
+                      bess::utils::is_be_system() | force_be)) {
       return pb_error(EINVAL, "idx %d: not a correct %d-byte value", i,
                       field_size);
     }

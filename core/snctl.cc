@@ -7,13 +7,12 @@
 
 #include <gflags/gflags.h>
 #include <glog/logging.h>
-#include <rte_config.h>
-#include <rte_ether.h>
 
 #include "metadata.h"
 #include "module.h"
 #include "port.h"
 #include "tc.h"
+#include "utils/ether.h"
 #include "utils/time.h"
 #include "worker.h"
 
@@ -424,7 +423,6 @@ static struct snobj *handle_list_ports(struct snobj *) {
 static Port *create_port(const char *name, const PortBuilder *driver,
                          struct snobj *arg, struct snobj **perr) {
   std::unique_ptr<Port> p;
-  int ret;
 
   queue_t num_inc_q = 1;
   queue_t num_out_q = 1;
@@ -434,7 +432,7 @@ static Port *create_port(const char *name, const PortBuilder *driver,
   size_t size_inc_q = 0;
   size_t size_out_q = 0;
 
-  uint8_t mac_addr[ETH_ALEN];
+  bess::utils::EthHeader::Address mac_addr;
 
   *perr = nullptr;
 
@@ -457,11 +455,7 @@ static Port *create_port(const char *name, const PortBuilder *driver,
   if (snobj_eval_exists(arg, "mac_addr")) {
     char *v = snobj_eval_str(arg, "mac_addr");
 
-    ret = sscanf(v, "%2hhx:%2hhx:%2hhx:%2hhx:%2hhx:%2hhx", &mac_addr[0],
-                 &mac_addr[1], &mac_addr[2], &mac_addr[3], &mac_addr[4],
-                 &mac_addr[5]);
-
-    if (ret != 6) {
+    if (!mac_addr.FromString(v)) {
       *perr = snobj_err(EINVAL,
                         "MAC address should be "
                         "formatted as a string "
@@ -469,7 +463,7 @@ static Port *create_port(const char *name, const PortBuilder *driver,
       return nullptr;
     }
   } else
-    eth_random_addr(mac_addr);
+    mac_addr.Randomize();
 
   if (num_inc_q > MAX_QUEUES_PER_DIR || num_out_q > MAX_QUEUES_PER_DIR) {
     *perr = snobj_err(EINVAL, "Invalid number of queues");
@@ -498,7 +492,7 @@ static Port *create_port(const char *name, const PortBuilder *driver,
   // Try to create and initialize the port.
   p.reset(driver->CreatePort(port_name));
 
-  memcpy(p->mac_addr, mac_addr, ETH_ALEN);
+  memcpy(p->mac_addr, mac_addr.bytes, ETH_ALEN);
   p->num_queues[PACKET_DIR_INC] = num_inc_q;
   p->num_queues[PACKET_DIR_OUT] = num_out_q;
 
