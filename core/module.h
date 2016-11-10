@@ -233,7 +233,6 @@ class ModuleBuilder {
  private:
   std::function<Module *()> module_generator_;
 
-  static std::map<std::string, ModuleBuilder> &all_module_builders_;
   static std::map<std::string, Module *> all_modules_;
 
   gate_idx_t kNumIGates;
