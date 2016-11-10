@@ -9,9 +9,7 @@
 
 #include <glog/logging.h>
 
-#if TCPDUMP_GATES
 #include "hooks/tcpdump.h"
-#endif
 #include "mem_alloc.h"
 #include "utils/pcap.h"
 
@@ -590,7 +588,7 @@ int Module::EnableTcpDump(const char *fifo, gate_idx_t ogate) {
     if (hook->name() == kGateHookTcpDumpGate) {
       TcpDump *t = reinterpret_cast<TcpDump *>(hook);
       t->set_fifo_fd(fd);
-      t->set_tcpdump(1);
+      t->enable();
       break;
     }
   }
@@ -605,10 +603,10 @@ int Module::DisableTcpDump(gate_idx_t ogate) {
   for (const auto &hook : ogates.arr[ogate]->hooks) {
     if (hook->name() == kGateHookTcpDumpGate) {
       TcpDump *t = reinterpret_cast<TcpDump *>(hook);
-      if (!t->tcpdump())
+      if (!t->enabled())
         return -EINVAL;
 
-      t->set_tcpdump(0);
+      t->disable();
       close(t->fifo_fd());
       break;
     }
