@@ -11,7 +11,6 @@
 #include "snobj.h"
 #include "task.h"
 #include "utils/cdlist.h"
-#include "utils/simd.h"
 
 static inline void set_cmd_response_error(pb_cmd_response_t *response,
                                           const pb_error_t &error) {

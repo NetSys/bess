@@ -4,7 +4,6 @@
 #include <sys/uio.h>
 #include <unistd.h>
 
-#include <initializer_list>
 #include <sstream>
 
 #include <glog/logging.h>
