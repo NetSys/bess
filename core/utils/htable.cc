@@ -289,7 +289,7 @@ int HTableBase::InitEx(struct ht_params *params) {
 }
 
 int HTableBase::Init(size_t key_size, size_t value_size) {
-  struct ht_params params = {};
+  struct ht_params params;
 
   params.key_size = key_size;
   params.value_size = value_size;

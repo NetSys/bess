@@ -6,6 +6,7 @@
 #include <cassert>
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
 #include <string>
 
 #include <glog/logging.h>
@@ -112,8 +113,11 @@ static void init_eal(char *prog_name, int mb_per_socket, int multi_instance) {
 
   /* DPDK creates duplicated outputs (stdout and syslog).
    * We temporarily disable syslog, then set our log handler */
-  cookie_io_functions_t dpdk_log_init_funcs = {};
-  cookie_io_functions_t dpdk_log_funcs = {};
+  cookie_io_functions_t dpdk_log_init_funcs;
+  cookie_io_functions_t dpdk_log_funcs;
+
+  std::memset(&dpdk_log_init_funcs, 0, sizeof(dpdk_log_init_funcs));
+  std::memset(&dpdk_log_funcs, 0, sizeof(dpdk_log_funcs));
 
   dpdk_log_init_funcs.write = &dpdk_log_init_writer;
   dpdk_log_funcs.write = &dpdk_log_writer;

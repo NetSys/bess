@@ -484,8 +484,8 @@ pb_error_t VPort::InitPb(const bess::pb::VPortArg &arg) {
 
   pb_error_t err;
 
-  struct tx_queue_opts txq_opts = {};
-  struct rx_queue_opts rxq_opts = {};
+  struct tx_queue_opts txq_opts = tx_queue_opts();
+  struct rx_queue_opts rxq_opts = rx_queue_opts();
 
   fd_ = -1;
   netns_fd_ = -1;
@@ -739,8 +739,8 @@ struct snobj *VPort::Init(struct snobj *conf) {
 
   struct snobj *err = nullptr;
 
-  struct tx_queue_opts txq_opts = {};
-  struct rx_queue_opts rxq_opts = {};
+  struct tx_queue_opts txq_opts = tx_queue_opts();
+  struct rx_queue_opts rxq_opts = rx_queue_opts();
 
   fd_ = -1;
   netns_fd_ = -1;
@@ -931,7 +931,7 @@ int VPort::SendPackets(queue_t qid, snb_array_t pkts, int cnt) {
     rx_desc->seg = snb_dma_addr(snb);
     rx_desc->next = 0;
 
-    rx_desc->meta = {};
+    rx_desc->meta = sn_rx_metadata();
 
     for (struct rte_mbuf *seg = mbuf->next; seg; seg = seg->next) {
       struct sn_rx_desc *next_desc;

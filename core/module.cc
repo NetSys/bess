@@ -39,6 +39,8 @@ Module *ModuleBuilder::CreateModule(const std::string &name,
   m->set_name(name);
   m->set_module_builder(this);
   m->set_pipeline(pipeline);
+  m->igates = gates();
+  m->ogates = gates();
   return m;
 }
 

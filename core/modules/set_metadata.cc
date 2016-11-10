@@ -41,7 +41,7 @@ pb_error_t SetMetadata::AddAttrOne(
   std::string name;
   size_t size = 0;
   int offset = -1;
-  value_t value = {};
+  value_t value = value_t();
 
   int ret;
 
@@ -102,7 +102,7 @@ struct snobj *SetMetadata::AddAttrOne(struct snobj *attr) {
   std::string name;
   size_t size = 0;
   int offset = -1;
-  value_t value = {};
+  value_t value = value_t();
 
   struct snobj *t;
 
