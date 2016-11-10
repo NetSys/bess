@@ -225,14 +225,14 @@ void Module::DestroyAllTasks() {
 }
 
 int Module::AddMetadataAttr(const std::string &name, int size,
-                            bess::metadata::AccessMode mode) {
+                            bess::metadata::Attribute::AccessMode mode) {
   size_t n = num_attrs;
   int ret;
 
   if (n >= bess::metadata::kMaxAttrsPerModule)
     return -ENOSPC;
 
-  if (!is_valid_attr(name.c_str(), size, mode))
+  if (!is_valid_attr(name.c_str(), size))
     return -EINVAL;
 
   attrs[n].name = name;

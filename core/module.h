@@ -312,7 +312,7 @@ class Module {
    * need this function.
    * Returns its allocated ID (>= 0), or a negative number for error */
   int AddMetadataAttr(const std::string &name, int size,
-                      bess::metadata::AccessMode mode);
+                      bess::metadata::Attribute::AccessMode mode);
 
 #if TCPDUMP_GATES
   int EnableTcpDump(const char *fifo, gate_idx_t gate);
@@ -359,7 +359,7 @@ class Module {
   struct task *tasks[MAX_TASKS_PER_MODULE] = {};
 
   size_t num_attrs = 0;
-  struct bess::metadata::mt_attr attrs[bess::metadata::kMaxAttrsPerModule] = {};
+  struct bess::metadata::Attribute attrs[bess::metadata::kMaxAttrsPerModule] = {};
 
   int curr_scope = 0;
 
@@ -417,17 +417,11 @@ inline void Module::RunNextModule(struct pkt_batch *batch) {
   RunChooseModule(0, batch);
 }
 
-static inline int is_valid_attr(const std::string &name, size_t size,
-                                bess::metadata::AccessMode mode) {
+static inline int is_valid_attr(const std::string &name, size_t size) {
   if (name.empty())
     return 0;
 
   if (size < 1 || size > bess::metadata::kMetadataAttrMaxSize)
-    return 0;
-
-  if (mode != bess::metadata::AccessMode::READ &&
-      mode != bess::metadata::AccessMode::WRITE &&
-      mode != bess::metadata::AccessMode::UPDATE)
     return 0;
 
   return 1;
@@ -453,7 +447,7 @@ static inline int is_active_gate(struct gates *gates, gate_idx_t idx) {
 typedef struct snobj *(*mod_cmd_func_t)(struct module *, const char *,
                                         struct snobj *);
 
-// Unsafe, but faster version. for offset use mt_attr_offset().
+// Unsafe, but faster version. for offset use Attribute_offset().
 template <typename T>
 inline T *_ptr_attr_with_offset(bess::metadata::mt_offset_t offset,
                                 struct snbuf *pkt) {

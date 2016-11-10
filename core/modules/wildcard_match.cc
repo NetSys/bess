@@ -3,6 +3,8 @@
 #include "../utils/endian.h"
 #include "../utils/format.h"
 
+using bess::metadata::Attribute;
+
 /* k1 = k2 & mask */
 static void mask(void *k1, const void *k2, const void *mask, int key_size) {
   uint64_t *a = static_cast<uint64_t *>(k1);
@@ -76,7 +78,7 @@ struct snobj *WildcardMatch::AddFieldOne(struct snobj *field,
     return snobj_err(EINVAL, "specify 'offset' or 'attr'");
   }
 
-  f->attr_id = AddMetadataAttr(attr, f->size, bess::metadata::AccessMode::READ);
+  f->attr_id = AddMetadataAttr(attr, f->size, Attribute::AccessMode::kRead);
   if (f->attr_id < 0) {
     return snobj_err(-f->attr_id, "add_metadata_attr() failed");
   }
@@ -102,7 +104,7 @@ pb_error_t WildcardMatch::AddFieldOne(
              bess::pb::WildcardMatchArg_Field::kAttribute) {
     const char *attr = field.attribute().c_str();
     f->attr_id =
-        AddMetadataAttr(attr, f->size, bess::metadata::AccessMode::READ);
+        AddMetadataAttr(attr, f->size, Attribute::AccessMode::kRead);
     if (f->attr_id < 0) {
       return pb_error(-f->attr_id, "add_metadata_attr() failed");
     }

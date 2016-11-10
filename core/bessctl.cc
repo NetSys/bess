@@ -101,13 +101,13 @@ static int collect_metadata(Module* m, GetModuleInfoResponse* response) {
     attr->set_size(m->attrs[i].size);
 
     switch (m->attrs[i].mode) {
-      case bess::metadata::AccessMode::READ:
+      case bess::metadata::Attribute::AccessMode::kRead:
         attr->set_mode("read");
         break;
-      case bess::metadata::AccessMode::WRITE:
+      case bess::metadata::Attribute::AccessMode::kWrite:
         attr->set_mode("write");
         break;
-      case bess::metadata::AccessMode::UPDATE:
+      case bess::metadata::Attribute::AccessMode::kUpdate:
         attr->set_mode("update");
         break;
       default:
