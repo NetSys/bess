@@ -386,10 +386,12 @@ int Module::DisconnectModules(gate_idx_t ogate_idx) {
   if (cdlist_is_empty(&igate->in.ogates_upstream)) {
     Module *m_next = igate->m;
     m_next->igates.arr[igate->gate_idx] = nullptr;
+    igate->hooks.clear();
     mem_free(igate);
   }
 
   ogates.arr[ogate_idx] = nullptr;
+  ogate->hooks.clear();
   mem_free(ogate);
 
   return 0;
@@ -415,10 +417,12 @@ int Module::DisconnectModulesUpstream(gate_idx_t igate_idx) {
                              out.igate_upstream) {
     Module *m_prev = ogate->m;
     m_prev->ogates.arr[ogate->gate_idx] = nullptr;
+    ogate->hooks.clear();
     mem_free(ogate);
   }
 
   igates.arr[igate_idx] = nullptr;
+  igate->hooks.clear();
   mem_free(igate);
 
   return 0;
