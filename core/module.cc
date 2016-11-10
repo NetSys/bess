@@ -224,7 +224,7 @@ void Module::DestroyAllTasks() {
   }
 }
 
-int Module::AddMetadataAttr(const std::string &name, int size,
+int Module::AddMetadataAttr(const std::string &name, size_t size,
                             bess::metadata::Attribute::AccessMode mode) {
   size_t n = num_attrs;
   int ret;
