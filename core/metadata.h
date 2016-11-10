@@ -49,7 +49,7 @@ static inline int IsValidOffset(mt_offset_t offset) {
 
 struct Attribute {
   std::string name;
-  int size;
+  size_t size;  // in bytes
   enum class AccessMode {
     kRead = 0,
     kWrite,

@@ -311,7 +311,7 @@ class Module {
    * 'instance'
    * need this function.
    * Returns its allocated ID (>= 0), or a negative number for error */
-  int AddMetadataAttr(const std::string &name, int bytes,
+  int AddMetadataAttr(const std::string &name, size_t size,
                       bess::metadata::Attribute::AccessMode mode);
 
 #if TCPDUMP_GATES

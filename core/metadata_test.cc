@@ -146,8 +146,8 @@ TEST_F(MetadataTest, MultipeAttrSimplePipe) {
 
     // Check that m0 was assigned non-overlapping offsets for writes
     mt_offset_t offset = m0->attr_offsets[i];
-    ASSERT_TRUE(offset >= 0);
-    for (mt_offset_t j = 0; j < m0->attrs[i].size; j++) {
+    ASSERT_LE(0, offset);
+    for (size_t j = 0; j < m0->attrs[i].size; j++) {
       ASSERT_FALSE(dummy_meta[offset + j]);
       dummy_meta[offset + j] = true;
     }
@@ -196,12 +196,22 @@ TEST_F(MetadataTest, MultipeAttrComplexPipe) {
         continue;
 
       mt_offset_t offset = it->attr_offsets[i];
-      for (mt_offset_t j = 0; j < it->attrs[i].size; j++) {
+      if (offset < 0) {
+        EXPECT_EQ(it, mods[6]);
+        EXPECT_EQ(1, i);
+        EXPECT_STREQ("foo", it->attrs[i].name.c_str());
+        continue;
+      }
+
+      for (size_t j = 0; j < it->attrs[i].size; j++) {
         ASSERT_FALSE(dummy_meta[offset + j]);
         dummy_meta[offset + j] = true;
       }
     }
   }
+
+  // This write is never read by anyone
+  ASSERT_EQ(kMetadataOffsetNoWrite, mods[6]->attr_offsets[1]);
 
   // Check that those assignments conform to the way the modules are connected
   ASSERT_NE(mods[0]->attr_offsets[0], mods[1]->attr_offsets[0]);
