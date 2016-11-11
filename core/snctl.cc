@@ -749,17 +749,17 @@ static struct snobj *handle_destroy_module(struct snobj *q) {
 static struct snobj *collect_igates(Module *m) {
   struct snobj *igates = snobj_list();
 
-  for (size_t i = 0; i < m->igates.size(); i++) {
-    if (!is_active_gate(m->igates, i))
+  for (const auto &g : m->igates) {
+    if (!g) {
       continue;
+    }
 
     struct snobj *igate = snobj_map();
-    struct gate *g = m->igates[i];
 
     struct snobj *ogates = snobj_list();
     struct gate *og;
 
-    snobj_map_set(igate, "igate", snobj_uint(i));
+    snobj_map_set(igate, "igate", snobj_uint(g->gate_idx));
 
     for (const auto &hook : g->hooks) {
       if (hook->name() == kGateHookTrackGate) {
@@ -789,14 +789,14 @@ static struct snobj *collect_igates(Module *m) {
 static struct snobj *collect_ogates(Module *m) {
   struct snobj *ogates = snobj_list();
 
-  for (size_t i = 0; i < m->ogates.size(); i++) {
-    if (!is_active_gate(m->ogates, i))
+  for (const auto &g : m->ogates) {
+    if (!g) {
       continue;
+    }
 
     struct snobj *ogate = snobj_map();
-    struct gate *g = m->ogates[i];
 
-    snobj_map_set(ogate, "ogate", snobj_uint(i));
+    snobj_map_set(ogate, "ogate", snobj_uint(g->gate_idx));
 
     for (const auto &hook : g->hooks) {
       if (hook->name() == kGateHookTrackGate) {

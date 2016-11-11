@@ -30,7 +30,7 @@ class GateHook {
  public:
   GateHook(const std::string &name, uint16_t priority = 0,
            struct gate *gate = nullptr)
-      : name_(name), priority_(priority), gate_(gate){};
+      : gate_(gate), name_(name), priority_(priority){};
 
   virtual ~GateHook(){};
 
@@ -42,21 +42,23 @@ class GateHook {
 
   virtual void ProcessBatch(const struct pkt_batch *){};
 
+ protected:
+  struct gate *gate_;
+
  private:
   DISALLOW_COPY_AND_ASSIGN(GateHook);
 
   const std::string &name_;
 
   const uint16_t priority_;
-
- protected:
-  struct gate *gate_;
 };
 
 inline bool GateHookComp(const GateHook *lhs, const GateHook *rhs) {
   return (lhs->priority() < rhs->priority());
 }
 
+// Save devs some typing when calling functions that deal with gate hooks.
+// e.g., Module::ConnectModules().
 const std::vector<GateHook *> kNoHooks = {};
 
 struct gate {
