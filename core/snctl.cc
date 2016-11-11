@@ -761,6 +761,16 @@ static struct snobj *collect_igates(Module *m) {
 
     snobj_map_set(igate, "igate", snobj_uint(g->gate_idx));
 
+    for (const auto &hook : g->hooks) {
+      if (hook->name() == kGateHookTrackGate) {
+        TrackGate *t = reinterpret_cast<TrackGate *>(hook);
+        snobj_map_set(igate, "cnt", snobj_uint(t->cnt()));
+        snobj_map_set(igate, "pkts", snobj_uint(t->pkts()));
+        snobj_map_set(igate, "timestamp", snobj_double(get_epoch_time()));
+        break;
+      }
+    }
+
     cdlist_for_each_entry(og, &g->in.ogates_upstream, out.igate_upstream) {
       struct snobj *ogate = snobj_map();
       snobj_map_set(ogate, "ogate", snobj_uint(og->gate_idx));
@@ -788,7 +798,6 @@ static struct snobj *collect_ogates(Module *m) {
 
     snobj_map_set(ogate, "ogate", snobj_uint(g->gate_idx));
 
-    // TODO(melvin): refactor struct gate to avoid this ugliness
     for (const auto &hook : g->hooks) {
       if (hook->name() == kGateHookTrackGate) {
         TrackGate *t = reinterpret_cast<TrackGate *>(hook);
