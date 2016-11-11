@@ -40,8 +40,7 @@ class GateHook {
 
   uint16_t priority() const { return priority_; }
 
-  /// The main
-  virtual void ProcessBatch(struct pkt_batch *){};
+  virtual void ProcessBatch(const struct pkt_batch *){};
 
  private:
   DISALLOW_COPY_AND_ASSIGN(GateHook);

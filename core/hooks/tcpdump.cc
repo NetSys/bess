@@ -8,7 +8,7 @@
 #include "../utils/pcap.h"
 #include "../utils/time.h"
 
-void TcpDump::ProcessBatch(struct pkt_batch *batch) {
+void TcpDump::ProcessBatch(const struct pkt_batch *batch) {
   if (likely(!enabled_)) {
     return;
   }
