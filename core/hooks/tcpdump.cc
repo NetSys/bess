@@ -9,10 +9,6 @@
 #include "../utils/time.h"
 
 void TcpDump::ProcessBatch(const struct pkt_batch *batch) {
-  if (likely(!enabled_)) {
-    return;
-  }
-
   struct timeval tv;
 
   int ret = 0;
@@ -35,7 +31,6 @@ void TcpDump::ProcessBatch(const struct pkt_batch *batch) {
     if (ret < 0) {
       if (errno == EPIPE) {
         DLOG(WARNING) << "Broken pipe: stopping tcpdump";
-        enabled_ = false;
         close(fifo_fd_);
         fifo_fd_ = 0;
       }
