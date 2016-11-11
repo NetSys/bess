@@ -6,7 +6,6 @@
 #include <rte_config.h>
 #include <rte_mbuf.h>
 
-#include "debug.h"
 #include "worker.h"
 #include "metadata.h"
 
