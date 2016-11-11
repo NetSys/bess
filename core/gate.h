@@ -83,16 +83,4 @@ struct gate {
   std::vector<GateHook *> hooks;
 };
 
-// TODO(melvin): not sure this necessary anymore. consider replacing with
-// std::vector
-struct gates {
-  /* Resizable array of 'struct gate *'.
-   * Unconnected elements are filled with nullptr */
-  struct gate **arr;
-
-  /* The current size of the array.
-   * Always <= m->mclass->num_[i|o]gates */
-  gate_idx_t curr_size;
-};
-
 #endif
