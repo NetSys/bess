@@ -53,7 +53,7 @@ again:
       &pool_priv, snbuf_pkt_init, (void *)(uintptr_t)sid, sid, 0);
 
   if (!pframe_pool[sid]) {
-    LOG(INFO) << "Allocating " << current_try - 1 << " buffers on socket "
+    LOG(WARN) << "Allocating " << current_try - 1 << " buffers on socket "
               << sid << ": Failed (" << rte_strerror(rte_errno) << ")";
     if (current_try > minimum_try) {
       current_try /= 2;

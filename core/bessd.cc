@@ -14,6 +14,7 @@
 
 #include <glog/logging.h>
 
+#include "debug.h"
 #include "opts.h"
 #include "port.h"
 
@@ -24,7 +25,7 @@ void ProcessCommandLineArgs() {
   // TODO(barath): Eliminate this sequence of ifs once we directly use FLAGS
   // from other components in BESS.
   if (FLAGS_t) {
-    dump_types();
+    bess::debug::dump_types();
     exit(EXIT_SUCCESS);
   }
   if (FLAGS_f && !FLAGS_s) {
@@ -37,7 +38,8 @@ void CheckRunningAsRoot() {
 
   euid = geteuid();
   if (euid != 0) {
-    LOG(FATAL) << "You need root privilege to run the BESS daemon";
+    LOG(ERROR) << "You need root privilege to run the BESS daemon";
+    exit(EXIT_FAILURE);
   }
 
   // Great power comes with great responsibility.
@@ -126,8 +128,9 @@ void CheckUniqueInstance(const std::string &pidfile_path) {
       break;
     } else {
       if (!FLAGS_k) {
-        LOG(FATAL) << "You cannot run more than one BESS instance at a time "
+        LOG(ERROR) << "You cannot run more than one BESS instance at a time "
                    << "(add -k option?)";
+        exit(EXIT_FAILURE);
       }
 
       if (trials == 0) {
@@ -188,7 +191,8 @@ int StartDaemon() {
       LOG(INFO) << "Done (PID=" << pid << ")";
       exit(EXIT_SUCCESS);
     } else {
-      PLOG(FATAL) << "Failed. (syslog may have details)";
+      LOG(ERROR) << "Failed to launch a daemon process";
+      exit(EXIT_FAILURE);
     }
   } else {
     // Child process.
@@ -198,7 +202,7 @@ int StartDaemon() {
 
   // Start a new session.
   if (setsid() < 0) {
-    PLOG(FATAL) << "setsid()";
+    PLOG(WARNING) << "setsid()";
   }
 
   return pipe_fds[write_end];

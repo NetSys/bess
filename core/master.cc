@@ -72,11 +72,13 @@ static int init_listen_fd(uint16_t port) {
   }
 
   if (setsockopt(listen_fd, SOL_SOCKET, SO_REUSEADDR, &one, sizeof(one)) < 0) {
-    PLOG(FATAL) << "setsockopt(SO_REUSEADDR)";
+    PLOG(ERROR) << "setsockopt(SO_REUSEADDR)";
+    // error, but we can keep going
   }
 
   if (setsockopt(listen_fd, SOL_SOCKET, SO_LINGER, &l, sizeof(l)) < 0) {
-    PLOG(FATAL) << "setsockopt(SO_LINGER)";
+    PLOG(ERROR) << "setsockopt(SO_LINGER)";
+    // error, but we can keep going
   }
 
   memset(&s_addr, 0, sizeof(s_addr));
@@ -87,7 +89,9 @@ static int init_listen_fd(uint16_t port) {
 
   if (bind(listen_fd, (struct sockaddr *)&s_addr, sizeof(s_addr)) < 0) {
     if (errno == EADDRINUSE) {
-      LOG(FATAL) << "Error: port " << port << " is already in use";
+      LOG(ERROR) << "Error: TCP port " << port << " is already in use. "
+                 << "You can specify another port number with -p option.";
+      exit(EXIT_FAILURE);
     } else {
       PLOG(FATAL) << "bind()";
     }
