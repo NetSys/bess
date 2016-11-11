@@ -285,10 +285,6 @@ int Module::GrowGates(struct gates *gates, gate_idx_t gate) {
   return 0;
 }
 
-bool GateHookComp(const GateHook *lhs, const GateHook *rhs) {
-  return (lhs->priority() < rhs->priority());
-}
-
 /* returns -errno if fails */
 int Module::ConnectModules(gate_idx_t ogate_idx, Module *m_next,
                            gate_idx_t igate_idx,
@@ -385,11 +381,17 @@ int Module::DisconnectModules(gate_idx_t ogate_idx) {
   if (cdlist_is_empty(&igate->in.ogates_upstream)) {
     Module *m_next = igate->m;
     m_next->igates.arr[igate->gate_idx] = nullptr;
+    for (auto &hook : igate->hooks) {
+      delete hook;
+    }
     igate->hooks.clear();
     mem_free(igate);
   }
 
   ogates.arr[ogate_idx] = nullptr;
+  for (auto &hook : ogate->hooks) {
+    delete hook;
+  }
   ogate->hooks.clear();
   mem_free(ogate);
 
@@ -547,8 +549,7 @@ void _trace_after_call(void) {
 }
 #endif
 
-// XXX: try to lift this logic somewhere else
-#if TCPDUMP_GATES
+// TODO(melvin): Much of this belongs in the TcpDump constructor.
 int Module::EnableTcpDump(const char *fifo, gate_idx_t ogate) {
   static const struct pcap_hdr PCAP_FILE_HDR = {
       .magic_number = PCAP_MAGIC_NUMBER,
@@ -559,6 +560,7 @@ int Module::EnableTcpDump(const char *fifo, gate_idx_t ogate) {
       .snaplen = PCAP_SNAPLEN,
       .network = PCAP_NETWORK,
   };
+  struct gate *gate;
 
   int fd;
   int ret;
@@ -585,14 +587,22 @@ int Module::EnableTcpDump(const char *fifo, gate_idx_t ogate) {
     return -errno;
   }
 
-  for (const auto &hook : ogates.arr[ogate]->hooks) {
+  TcpDump *tcpdump = nullptr;
+  gate = ogates.arr[ogate];
+  for (const auto &hook : gate->hooks) {
     if (hook->name() == kGateHookTcpDumpGate) {
-      TcpDump *t = reinterpret_cast<TcpDump *>(hook);
-      t->set_fifo_fd(fd);
-      t->enable();
+      tcpdump = reinterpret_cast<TcpDump *>(hook);
       break;
     }
   }
+
+  if (!tcpdump) {
+    tcpdump = new TcpDump();
+    gate->hooks.push_back(tcpdump);
+    std::sort(gate->hooks.begin(), gate->hooks.end(), GateHookComp);
+  }
+  tcpdump->set_fifo_fd(fd);
+  tcpdump->enable();
 
   return 0;
 }
@@ -601,19 +611,15 @@ int Module::DisableTcpDump(gate_idx_t ogate) {
   if (!is_active_gate(&ogates, ogate))
     return -EINVAL;
 
-  for (const auto &hook : ogates.arr[ogate]->hooks) {
+  struct gate *gate = ogates.arr[ogate];
+  for (size_t i = 0; i < gate->hooks.size(); i++) {
+    GateHook *hook = gate->hooks[i];
     if (hook->name() == kGateHookTcpDumpGate) {
-      TcpDump *t = reinterpret_cast<TcpDump *>(hook);
-      if (!t->enabled())
-        return -EINVAL;
-
-      t->disable();
-      close(t->fifo_fd());
+      delete hook;
+      gate->hooks.erase(gate->hooks.begin() + i);
       break;
     }
   }
 
   return 0;
 }
-
-#endif

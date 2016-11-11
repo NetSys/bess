@@ -54,6 +54,10 @@ class GateHook {
   struct gate *gate_;
 };
 
+inline bool GateHookComp(const GateHook *lhs, const GateHook *rhs) {
+  return (lhs->priority() < rhs->priority());
+}
+
 const std::vector<GateHook *> kNoHooks = {};
 
 struct gate {
@@ -76,6 +80,9 @@ struct gate {
     } in;
   };
 
+  // TODO(melvin): Consider using a map here instead. It gets rid of the need to
+  // scan to find modules for queries. Not sure how priority would work in a
+  // map, though.
   std::vector<GateHook *> hooks;
 };
 
