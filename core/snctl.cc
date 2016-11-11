@@ -5,6 +5,7 @@
 #include <cstdlib>
 #include <cstring>
 
+#include <algorithm>
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 
@@ -786,7 +787,7 @@ static struct snobj *collect_ogates(Module *m) {
     struct gate *g = m->ogates.arr[i];
 
     snobj_map_set(ogate, "ogate", snobj_uint(i));
-#if TRACK_GATES
+
     // TODO(melvin): refactor struct gate to avoid this ugliness
     for (const auto &hook : g->hooks) {
       if (hook->name() == kGateHookTrackGate) {
@@ -797,7 +798,7 @@ static struct snobj *collect_ogates(Module *m) {
         break;
       }
     }
-#endif
+
     snobj_map_set(ogate, "name", snobj_str(g->out.igate->m->name()));
     snobj_map_set(ogate, "igate", snobj_uint(g->out.igate->gate_idx));
 
@@ -879,8 +880,6 @@ static struct snobj *handle_connect_modules(struct snobj *q) {
   Module *m1;
   Module *m2;
 
-  std::vector<GateHook *> o_hooks;
-
   int ret;
 
   m1_name = snobj_eval_str(q, "m1");
@@ -901,15 +900,7 @@ static struct snobj *handle_connect_modules(struct snobj *q) {
     return snobj_err(ENOENT, "No module '%s' found", m2_name);
   m2 = it2->second;
 
-#if TRACK_GATES
-  o_hooks.push_back(new TrackGate());
-#endif
-
-#if TCPDUMP_GATES
-  o_hooks.push_back(new TcpDump());
-#endif
-
-  ret = m1->ConnectModules(ogate, m2, igate, kNoHooks, o_hooks);
+  ret = m1->ConnectModules(ogate, m2, igate);
 
   if (ret < 0)
     return snobj_err(-ret, "Connection %s:%d->%d:%s failed", m1_name, ogate,
@@ -1071,6 +1062,102 @@ static struct snobj *handle_disable_tcpdump(struct snobj *q) {
   return nullptr;
 }
 
+static struct snobj *handle_enable_track(struct snobj *q) {
+  const char *m_name;
+  gate_idx_t gate_idx;
+  struct gate *gate;
+  uint16_t priority;
+  int is_igate;
+
+  Module *m;
+
+  m_name = snobj_eval_str(q, "name");
+  gate_idx = snobj_eval_uint(q, "gate");
+  priority = snobj_eval_uint(q, "priority");
+  is_igate = snobj_eval_int(q, "is_igate");
+
+  if (!m_name)
+    return snobj_err(EINVAL, "Missing 'name' field");
+
+  const auto &it = ModuleBuilder::all_modules().find(m_name);
+  if (it == ModuleBuilder::all_modules().end())
+    return snobj_err(ENOENT, "No module '%s' found", m_name);
+  m = it->second;
+
+  if (!is_igate && gate_idx >= m->ogates.curr_size) {
+    return snobj_err(EINVAL, "Output gate '%hu' does not exist", gate_idx);
+  }
+
+  if (is_igate && gate_idx >= m->igates.curr_size) {
+    return snobj_err(EINVAL, "Input gate '%hu' does not exist", gate_idx);
+  }
+
+  if (is_igate) {
+    gate = m->igates.arr[gate_idx];
+  } else {
+    gate = m->ogates.arr[gate_idx];
+  }
+
+  for (const auto &hook : gate->hooks) {
+    if (hook->name() == kGateHookTrackGate) {
+      return nullptr;
+    }
+  }
+
+  // TODO(melvin): consider refactoring struct gate and exposing a method like
+  // AddHook(...) to replace this
+  gate->hooks.push_back(new TrackGate(priority));
+  std::sort(gate->hooks.begin(), gate->hooks.end(), GateHookComp);
+
+  return nullptr;
+}
+
+static struct snobj *handle_disable_track(struct snobj *q) {
+  const char *m_name;
+  gate_idx_t gate_idx;
+  struct gate *gate;
+  int is_igate;
+
+  Module *m;
+
+  m_name = snobj_eval_str(q, "name");
+  gate_idx = snobj_eval_uint(q, "gate");
+  is_igate = snobj_eval_int(q, "is_igate");
+
+  if (!m_name)
+    return snobj_err(EINVAL, "Missing 'name' field");
+
+  const auto &it = ModuleBuilder::all_modules().find(m_name);
+  if (it == ModuleBuilder::all_modules().end())
+    return snobj_err(ENOENT, "No module '%s' found", m_name);
+  m = it->second;
+
+  if (!is_igate && gate_idx >= m->ogates.curr_size) {
+    return snobj_err(EINVAL, "Output gate '%hu' does not exist", gate_idx);
+  }
+
+  if (is_igate && gate_idx >= m->igates.curr_size) {
+    return snobj_err(EINVAL, "Input gate '%hu' does not exist", gate_idx);
+  }
+
+  if (is_igate) {
+    gate = m->igates.arr[gate_idx];
+  } else {
+    gate = m->ogates.arr[gate_idx];
+  }
+
+  for (size_t i = 0; i < gate->hooks.size(); i++) {
+    GateHook *hook = gate->hooks[i];
+    if (hook->name() == kGateHookTrackGate) {
+      delete hook;
+      gate->hooks.erase(gate->hooks.begin() + i);
+      return nullptr;
+    }
+  }
+
+  return nullptr;
+}
+
 /* Adding this mostly to provide a reasonable way to exit when daemonized */
 static struct snobj *handle_kill_bess(struct snobj *) {
   LOG(WARNING) << "Halt requested by a client";
@@ -1129,6 +1216,9 @@ static struct handler_map sn_handlers[] = {
 
     {"enable_tcpdump", 1, handle_enable_tcpdump},
     {"disable_tcpdump", 1, handle_disable_tcpdump},
+
+    {"enable_track", 1, handle_enable_track},
+    {"disable_track", 1, handle_disable_track},
 
     {"kill_bess", 1, handle_kill_bess},
 

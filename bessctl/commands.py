@@ -194,6 +194,19 @@ def get_var_attrs(cli, var_token, partial_word):
             var_desc = 'configuration filename'
             var_candidates = complete_filename(partial_word)
 
+        if var_token == '[DIRECTION]':
+            var_type = 'name'
+            var_desc = 'gate direction discriminator (default "out")'
+            var_candidates = ['in', 'out']
+
+        if var_token == '[PRIORITY]':
+            var_type = 'int'
+            var_desc = 'gate hook priority (default 0)'
+
+        elif var_token == '[GATE]':
+            var_type = 'gate'
+            var_desc = 'gate index (default 0)'
+
         elif var_token == '[OGATE]':
             var_type = 'gate'
             var_desc = 'output gate of a module (default 0)'
@@ -1333,6 +1346,33 @@ def tcpdump_module(cli, module_name, ogate, opts):
             os.system('stty sane')  # more/less may have screwed the terminal
         except:
             pass
+
+@cmd('track MODULE [DIRECTION] [GATE] [PRIORITY]',
+     'Count the packets and batches on a gate')
+def track_module(cli, module_name, direction, gate, priority):
+    if direction is None:
+        direction = 'out'
+
+    if gate is None:
+        gate = 0
+
+    if priority is None:
+        priority = 0
+
+    cli.bess.pause_all()
+    try:
+        cli.bess.enable_track(module_name, direction, gate, priority)
+    finally:
+        cli.bess.resume_all()
+
+@cmd('untrack MODULE [DIRECTION] [GATE]',
+     'Stop counting the packets and batches on a gate')
+def untrack_module(cli, module_name, direction, gate):
+    cli.bess.pause_all()
+    try:
+        cli.bess.disable_track(module_name, direction, gate)
+    finally:
+        cli.bess.resume_all()
 
 @cmd('interactive', 'Switch to interactive mode')
 def interactive(cli):

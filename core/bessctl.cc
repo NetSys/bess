@@ -7,6 +7,7 @@
 #include <grpc++/server_context.h>
 #include <grpc/grpc.h>
 
+#include "hooks/track.h"
 #include "message.h"
 #include "metadata.h"
 #include "module.h"
@@ -17,9 +18,6 @@
 #include "utils/format.h"
 #include "utils/time.h"
 #include "worker.h"
-#if TRACK_GATES
-#include "hooks/track.h"
-#endif
 
 using grpc::Server;
 using grpc::ServerBuilder;
@@ -84,7 +82,6 @@ static int collect_ogates(Module* m, GetModuleInfoResponse* response) {
     struct gate* g = m->ogates.arr[i];
 
     ogate->set_ogate(i);
-#if TRACK_GATES
     for (const auto& hook : g->hooks) {
       if (hook->name() == kGateHookTrackGate) {
         TrackGate* t = reinterpret_cast<TrackGate*>(hook);
@@ -94,7 +91,6 @@ static int collect_ogates(Module* m, GetModuleInfoResponse* response) {
         break;
       }
     }
-#endif
     ogate->set_name(g->out.igate->m->name());
     ogate->set_igate(g->out.igate->gate_idx);
   }

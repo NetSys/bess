@@ -29,9 +29,6 @@ static_assert(DROP_GATE <= MAX_GATES, "invalid macro value");
 
 #define MODULE_NAME_LEN 128
 
-#define TRACK_GATES 1
-#define TCPDUMP_GATES 1
-
 #define MAX_TASKS_PER_MODULE 32
 #define INVALID_TASK_ID ((task_id_t)-1)
 #define MODULE_FUNC (struct snobj * (Module::*)(struct snobj *))
@@ -98,6 +95,10 @@ class GateHook {
   struct gate *gate_;
 };
 
+inline bool GateHookComp(const GateHook *lhs, const GateHook *rhs) {
+  return (lhs->priority() < rhs->priority());
+}
+
 const std::vector<GateHook *> kNoHooks = {};
 
 struct gate {
@@ -120,6 +121,9 @@ struct gate {
     } in;
   };
 
+  // TODO(melvin): Consider using a map here instead. It gets rid of the need to
+  // scan to find modules for queries. Not sure how priority would work in a
+  // map, though.
   std::vector<GateHook *> hooks;
 };
 
@@ -343,17 +347,9 @@ class Module {
   int AddMetadataAttr(const std::string &name, size_t size,
                       bess::metadata::Attribute::AccessMode mode);
 
-#if TCPDUMP_GATES
   int EnableTcpDump(const char *fifo, gate_idx_t gate);
 
   int DisableTcpDump(gate_idx_t gate);
-#else
-  /* Cannot enable tcpdump */
-  inline int enable_tcpdump(const char *, gate_idx_t) { return -EINVAL; }
-
-  /* Cannot disable tcpdump */
-  inline int disable_tcpdump(Module *, int) { return -EINVAL; }
-#endif
 
   struct snobj *RunCommand(const std::string &cmd, struct snobj *arg) {
     return module_builder_->RunCommand(this, cmd, arg);
