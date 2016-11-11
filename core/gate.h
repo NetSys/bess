@@ -46,11 +46,11 @@ class GateHook {
   struct gate *gate_;
 
  private:
-  DISALLOW_COPY_AND_ASSIGN(GateHook);
-
   const std::string &name_;
 
   const uint16_t priority_;
+
+  DISALLOW_COPY_AND_ASSIGN(GateHook);
 };
 
 inline bool GateHookComp(const GateHook *lhs, const GateHook *rhs) {
