@@ -54,15 +54,15 @@ static inline Status return_with_errno(T* response, int code) {
 }
 
 static int collect_igates(Module* m, GetModuleInfoResponse* response) {
-  for (size_t i = 0; i < m->igates.size(); i++) {
-    if (!is_active_gate(m->igates, i))
+  for (const auto& g : m->igates) {
+    if (!g) {
       continue;
+    }
 
     GetModuleInfoResponse_IGate* igate = response->add_igates();
-    struct gate* g = m->igates[i];
     struct gate* og;
 
-    igate->set_igate(i);
+    igate->set_igate(g->gate_idx);
 
     cdlist_for_each_entry(og, &g->in.ogates_upstream, out.igate_upstream) {
       GetModuleInfoResponse_IGate_OGate* ogate = igate->add_ogates();
@@ -75,13 +75,14 @@ static int collect_igates(Module* m, GetModuleInfoResponse* response) {
 }
 
 static int collect_ogates(Module* m, GetModuleInfoResponse* response) {
-  for (size_t i = 0; i < m->ogates.size(); i++) {
-    if (!is_active_gate(m->ogates, i))
+  for (const auto& g : m->ogates) {
+    if (!g) {
       continue;
-    GetModuleInfoResponse_OGate* ogate = response->add_ogates();
-    struct gate* g = m->ogates[i];
+    }
 
-    ogate->set_ogate(i);
+    GetModuleInfoResponse_OGate* ogate = response->add_ogates();
+
+    ogate->set_ogate(g->gate_idx);
     for (const auto& hook : g->hooks) {
       if (hook->name() == kGateHookTrackGate) {
         TrackGate* t = reinterpret_cast<TrackGate*>(hook);

@@ -176,8 +176,7 @@ void Pipeline::TraverseUpstream(Module *m, const struct Attribute *attr) {
   }
   module_scopes_[m] = static_cast<int>(scope_components_.size());
 
-  for (size_t i = 0; i < m->igates.size(); i++) {
-    struct gate *g = m->igates[i];
+  for (const auto &g : m->igates) {
     struct gate *og;
 
     cdlist_for_each_entry(og, &g->in.ogates_upstream, out.igate_upstream) {
@@ -191,7 +190,6 @@ void Pipeline::TraverseUpstream(Module *m, const struct Attribute *attr) {
 }
 
 int Pipeline::TraverseDownstream(Module *m, const struct Attribute *attr) {
-  struct gate *ogate;
   const struct Attribute *found_attr;
   int8_t in_scope = 0;
 
@@ -208,8 +206,7 @@ int Pipeline::TraverseDownstream(Module *m, const struct Attribute *attr) {
     AddModuleToComponent(m, found_attr);
     found_attr->scope_id = scope_components_.size();
 
-    for (size_t i = 0; i < m->ogates.size(); i++) {
-      ogate = m->ogates[i];
+    for (const auto &ogate : m->ogates) {
       if (!ogate) {
         continue;
       }
@@ -227,8 +224,7 @@ int Pipeline::TraverseDownstream(Module *m, const struct Attribute *attr) {
     return -1;
   }
 
-  for (size_t i = 0; i < m->ogates.size(); i++) {
-    ogate = m->ogates[i];
+  for (const auto &ogate : m->ogates) {
     if (!ogate) {
       continue;
     }
@@ -255,16 +251,13 @@ void Pipeline::IdentifySingleScopeComponent(Module *m,
 }
 
 void Pipeline::IdentifyScopeComponent(Module *m, const struct Attribute *attr) {
-  struct gate *ogate;
-
   AddModuleToComponent(m, attr);
   attr->scope_id = scope_components_.size();
 
   /* cycle detection */
   module_scopes_[m] = static_cast<int>(scope_components_.size());
 
-  for (size_t i = 0; i < m->ogates.size(); i++) {
-    ogate = m->ogates[i];
+  for (const auto &ogate : m->ogates) {
     if (!ogate) {
       continue;
     }

@@ -54,21 +54,24 @@ int ModuleBuilder::DestroyModule(Module *m, bool erase) {
   // disconnect from upstream modules.
   for (size_t i = 0; i < m->igates.size(); i++) {
     ret = m->DisconnectModulesUpstream(i);
-    if (ret)
+    if (ret) {
       return ret;
+    }
   }
 
   // disconnect downstream modules
-  for (gate_idx_t i = 0; i < m->ogates.size(); i++) {
+  for (size_t i = 0; i < m->ogates.size(); i++) {
     ret = m->DisconnectModules(i);
-    if (ret)
+    if (ret) {
       return ret;
+    }
   }
 
   m->DestroyAllTasks();
 
-  if (erase)
+  if (erase) {
     all_modules_.erase(m->name());
+  }
 
   m->ogates.clear();
   m->igates.clear();
@@ -260,16 +263,19 @@ int Module::ConnectModules(gate_idx_t ogate_idx, Module *m_next,
   struct gate *ogate;
   struct gate *igate;
 
-  if (ogate_idx >= module_builder_->NumOGates() || ogate_idx >= MAX_GATES)
+  if (ogate_idx >= module_builder_->NumOGates() || ogate_idx >= MAX_GATES) {
     return -EINVAL;
+  }
 
   if (igate_idx >= m_next->module_builder()->NumIGates() ||
-      igate_idx >= MAX_GATES)
+      igate_idx >= MAX_GATES) {
     return -EINVAL;
+  }
 
   /* already being used? */
-  if (is_active_gate(ogates, ogate_idx))
+  if (is_active_gate(ogates, ogate_idx)) {
     return -EBUSY;
+  }
 
   if (ogate_idx >= ogates.size()) {
     ogates.emplace_back();
@@ -320,16 +326,19 @@ int Module::DisconnectModules(gate_idx_t ogate_idx) {
   struct gate *ogate;
   struct gate *igate;
 
-  if (ogate_idx >= module_builder_->NumOGates())
+  if (ogate_idx >= module_builder_->NumOGates()) {
     return -EINVAL;
+  }
 
   /* no error even if the ogate is unconnected already */
-  if (!is_active_gate(ogates, ogate_idx))
+  if (!is_active_gate(ogates, ogate_idx)) {
     return 0;
+  }
 
   ogate = ogates[ogate_idx];
-  if (!ogate)
+  if (!ogate) {
     return 0;
+  }
 
   igate = ogate->out.igate;
 
@@ -360,16 +369,19 @@ int Module::DisconnectModulesUpstream(gate_idx_t igate_idx) {
   struct gate *ogate;
   struct gate *ogate_next;
 
-  if (igate_idx >= module_builder_->NumIGates())
+  if (igate_idx >= module_builder_->NumIGates()) {
     return -EINVAL;
+  }
 
   /* no error even if the igate is unconnected already */
-  if (!is_active_gate(igates, igate_idx))
+  if (!is_active_gate(igates, igate_idx)) {
     return 0;
+  }
 
   igate = igates[igate_idx];
-  if (!igate)
+  if (!igate) {
     return 0;
+  }
 
   cdlist_for_each_entry_safe(ogate, ogate_next, &igate->in.ogates_upstream,
                              out.igate_upstream) {
@@ -566,11 +578,11 @@ int Module::DisableTcpDump(gate_idx_t ogate) {
     return -EINVAL;
 
   struct gate *gate = ogates[ogate];
-  for (size_t i = 0; i < gate->hooks.size(); i++) {
-    GateHook *hook = gate->hooks[i];
+  for (auto it = gate->hooks.begin(); it != gate->hooks.end(); ++it) {
+    GateHook *hook = *it;
     if (hook->name() == kGateHookTcpDumpGate) {
       delete hook;
-      gate->hooks.erase(gate->hooks.begin() + i);
+      gate->hooks.erase(it);
       break;
     }
   }
