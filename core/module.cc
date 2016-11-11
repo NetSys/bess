@@ -558,7 +558,6 @@ int Module::EnableTcpDump(const char *fifo, gate_idx_t ogate) {
     std::sort(gate->hooks.begin(), gate->hooks.end(), GateHookComp);
   }
   tcpdump->set_fifo_fd(fd);
-  tcpdump->enable();
 
   return 0;
 }
