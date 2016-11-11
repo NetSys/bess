@@ -749,12 +749,12 @@ static struct snobj *handle_destroy_module(struct snobj *q) {
 static struct snobj *collect_igates(Module *m) {
   struct snobj *igates = snobj_list();
 
-  for (int i = 0; i < m->igates.curr_size; i++) {
-    if (!is_active_gate(&m->igates, i))
+  for (size_t i = 0; i < m->igates.size(); i++) {
+    if (!is_active_gate(m->igates, i))
       continue;
 
     struct snobj *igate = snobj_map();
-    struct gate *g = m->igates.arr[i];
+    struct gate *g = m->igates[i];
 
     struct snobj *ogates = snobj_list();
     struct gate *og;
@@ -779,12 +779,12 @@ static struct snobj *collect_igates(Module *m) {
 static struct snobj *collect_ogates(Module *m) {
   struct snobj *ogates = snobj_list();
 
-  for (int i = 0; i < m->ogates.curr_size; i++) {
-    if (!is_active_gate(&m->ogates, i))
+  for (size_t i = 0; i < m->ogates.size(); i++) {
+    if (!is_active_gate(m->ogates, i))
       continue;
 
     struct snobj *ogate = snobj_map();
-    struct gate *g = m->ogates.arr[i];
+    struct gate *g = m->ogates[i];
 
     snobj_map_set(ogate, "ogate", snobj_uint(i));
 
@@ -1020,7 +1020,7 @@ static struct snobj *handle_enable_tcpdump(struct snobj *q) {
     return snobj_err(ENOENT, "No module '%s' found", m_name);
   m = it->second;
 
-  if (ogate >= m->ogates.curr_size)
+  if (ogate >= m->ogates.size())
     return snobj_err(EINVAL, "Output gate '%hu' does not exist", ogate);
 
   ret = m->EnableTcpDump(fifo, ogate);
@@ -1051,7 +1051,7 @@ static struct snobj *handle_disable_tcpdump(struct snobj *q) {
     return snobj_err(ENOENT, "No module '%s' found", m_name);
   m = it->second;
 
-  if (ogate >= m->ogates.curr_size)
+  if (ogate >= m->ogates.size())
     return snobj_err(EINVAL, "Output gate '%hu' does not exist", ogate);
 
   ret = m->DisableTcpDump(ogate);
@@ -1084,18 +1084,18 @@ static struct snobj *handle_enable_track(struct snobj *q) {
     return snobj_err(ENOENT, "No module '%s' found", m_name);
   m = it->second;
 
-  if (!is_igate && gate_idx >= m->ogates.curr_size) {
+  if (!is_igate && gate_idx >= m->ogates.size()) {
     return snobj_err(EINVAL, "Output gate '%hu' does not exist", gate_idx);
   }
 
-  if (is_igate && gate_idx >= m->igates.curr_size) {
+  if (is_igate && gate_idx >= m->igates.size()) {
     return snobj_err(EINVAL, "Input gate '%hu' does not exist", gate_idx);
   }
 
   if (is_igate) {
-    gate = m->igates.arr[gate_idx];
+    gate = m->igates[gate_idx];
   } else {
-    gate = m->ogates.arr[gate_idx];
+    gate = m->ogates[gate_idx];
   }
 
   for (const auto &hook : gate->hooks) {
@@ -1132,18 +1132,18 @@ static struct snobj *handle_disable_track(struct snobj *q) {
     return snobj_err(ENOENT, "No module '%s' found", m_name);
   m = it->second;
 
-  if (!is_igate && gate_idx >= m->ogates.curr_size) {
+  if (!is_igate && gate_idx >= m->ogates.size()) {
     return snobj_err(EINVAL, "Output gate '%hu' does not exist", gate_idx);
   }
 
-  if (is_igate && gate_idx >= m->igates.curr_size) {
+  if (is_igate && gate_idx >= m->igates.size()) {
     return snobj_err(EINVAL, "Input gate '%hu' does not exist", gate_idx);
   }
 
   if (is_igate) {
-    gate = m->igates.arr[gate_idx];
+    gate = m->igates[gate_idx];
   } else {
-    gate = m->ogates.arr[gate_idx];
+    gate = m->ogates[gate_idx];
   }
 
   for (size_t i = 0; i < gate->hooks.size(); i++) {

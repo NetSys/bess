@@ -146,7 +146,8 @@ void Pipeline::AddModuleToComponent(Module *m, const struct Attribute *attr) {
   component.add_module(m);
 }
 
-const struct Attribute *Pipeline::FindAttr(Module *m, const struct Attribute *attr) const {
+const struct Attribute *Pipeline::FindAttr(Module *m,
+                                           const struct Attribute *attr) const {
   for (const auto &it : m->all_attrs()) {
     if (get_attr_id(&it) == get_attr_id(attr)) {
       return &it;
@@ -175,8 +176,8 @@ void Pipeline::TraverseUpstream(Module *m, const struct Attribute *attr) {
   }
   module_scopes_[m] = static_cast<int>(scope_components_.size());
 
-  for (int i = 0; i < m->igates.curr_size; i++) {
-    struct gate *g = m->igates.arr[i];
+  for (size_t i = 0; i < m->igates.size(); i++) {
+    struct gate *g = m->igates[i];
     struct gate *og;
 
     cdlist_for_each_entry(og, &g->in.ogates_upstream, out.igate_upstream) {
@@ -184,7 +185,7 @@ void Pipeline::TraverseUpstream(Module *m, const struct Attribute *attr) {
     }
   }
 
-  if (m->igates.curr_size == 0) {
+  if (m->igates.size() == 0) {
     scope_components_.back().set_invalid(true);
   }
 }
@@ -207,8 +208,8 @@ int Pipeline::TraverseDownstream(Module *m, const struct Attribute *attr) {
     AddModuleToComponent(m, found_attr);
     found_attr->scope_id = scope_components_.size();
 
-    for (int i = 0; i < m->ogates.curr_size; i++) {
-      ogate = m->ogates.arr[i];
+    for (size_t i = 0; i < m->ogates.size(); i++) {
+      ogate = m->ogates[i];
       if (!ogate) {
         continue;
       }
@@ -226,8 +227,8 @@ int Pipeline::TraverseDownstream(Module *m, const struct Attribute *attr) {
     return -1;
   }
 
-  for (int i = 0; i < m->ogates.curr_size; i++) {
-    ogate = m->ogates.arr[i];
+  for (size_t i = 0; i < m->ogates.size(); i++) {
+    ogate = m->ogates[i];
     if (!ogate) {
       continue;
     }
@@ -246,7 +247,8 @@ int Pipeline::TraverseDownstream(Module *m, const struct Attribute *attr) {
   return in_scope ? 0 : -1;
 }
 
-void Pipeline::IdentifySingleScopeComponent(Module *m, const struct Attribute *attr) {
+void Pipeline::IdentifySingleScopeComponent(Module *m,
+                                            const struct Attribute *attr) {
   scope_components_.emplace_back();
   IdentifyScopeComponent(m, attr);
   scope_components_.back().set_scope_id(scope_components_.size());
@@ -261,8 +263,8 @@ void Pipeline::IdentifyScopeComponent(Module *m, const struct Attribute *attr) {
   /* cycle detection */
   module_scopes_[m] = static_cast<int>(scope_components_.size());
 
-  for (int i = 0; i < m->ogates.curr_size; i++) {
-    ogate = m->ogates.arr[i];
+  for (size_t i = 0; i < m->ogates.size(); i++) {
+    ogate = m->ogates[i];
     if (!ogate) {
       continue;
     }
@@ -318,8 +320,8 @@ void Pipeline::AssignOffsets() {
   const ScopeComponent *comp2;
 
   for (size_t i = 0; i < scope_components_.size(); i++) {
-    std::priority_queue<const ScopeComponent *, std::vector<const ScopeComponent *>,
-                        ScopeComponentComp>
+    std::priority_queue<const ScopeComponent *,
+                        std::vector<const ScopeComponent *>, ScopeComponentComp>
         h;
     comp1 = &scope_components_[i];
 
@@ -374,8 +376,8 @@ void Pipeline::AssignOffsets() {
 void Pipeline::LogAllScopes() {
   for (size_t i = 0; i < scope_components_.size(); i++) {
     VLOG(1) << "scope component for " << scope_components_[i].size()
-              << "-byte attr " << scope_components_[i].attr_id() << "at offset "
-              << scope_components_[i].offset() << ": {";
+            << "-byte attr " << scope_components_[i].attr_id() << "at offset "
+            << scope_components_[i].offset() << ": {";
 
     for (const auto &it : scope_components_[i].modules()) {
       VLOG(1) << it->name();

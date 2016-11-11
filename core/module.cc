@@ -40,8 +40,6 @@ Module *ModuleBuilder::CreateModule(const std::string &name,
   m->set_name(name);
   m->set_module_builder(this);
   m->set_pipeline(pipeline);
-  m->igates = gates();
-  m->ogates = gates();
   return m;
 }
 
@@ -54,14 +52,14 @@ int ModuleBuilder::DestroyModule(Module *m, bool erase) {
   m->Deinit();
 
   // disconnect from upstream modules.
-  for (int i = 0; i < m->igates.curr_size; i++) {
+  for (size_t i = 0; i < m->igates.size(); i++) {
     ret = m->DisconnectModulesUpstream(i);
     if (ret)
       return ret;
   }
 
   // disconnect downstream modules
-  for (gate_idx_t i = 0; i < m->ogates.curr_size; i++) {
+  for (gate_idx_t i = 0; i < m->ogates.size(); i++) {
     ret = m->DisconnectModules(i);
     if (ret)
       return ret;
@@ -72,8 +70,8 @@ int ModuleBuilder::DestroyModule(Module *m, bool erase) {
   if (erase)
     all_modules_.erase(m->name());
 
-  mem_free(m->ogates.arr);
-  mem_free(m->igates.arr);
+  m->ogates.clear();
+  m->igates.clear();
   delete m;
   return 0;
 }
@@ -254,36 +252,6 @@ int Module::AddMetadataAttr(const std::string &name, size_t size,
   return attrs.size() - 1;
 }
 
-int Module::GrowGates(struct gates *gates, gate_idx_t gate) {
-  struct gate **new_arr;
-  gate_idx_t old_size;
-  gate_idx_t new_size;
-
-  new_size = gates->curr_size ?: 1;
-
-  while (new_size <= gate)
-    new_size *= 2;
-
-  if (new_size > MAX_GATES)
-    new_size = MAX_GATES;
-
-  new_arr =
-      (struct gate **)mem_realloc(gates->arr, sizeof(struct gate *) * new_size);
-  if (!new_arr)
-    return -ENOMEM;
-
-  gates->arr = new_arr;
-
-  old_size = gates->curr_size;
-  gates->curr_size = new_size;
-
-  /* initialize the newly created gates */
-  memset(&gates->arr[old_size], 0,
-         sizeof(struct gate *) * (new_size - old_size));
-
-  return 0;
-}
-
 /* returns -errno if fails */
 int Module::ConnectModules(gate_idx_t ogate_idx, Module *m_next,
                            gate_idx_t igate_idx,
@@ -299,48 +267,38 @@ int Module::ConnectModules(gate_idx_t ogate_idx, Module *m_next,
       igate_idx >= MAX_GATES)
     return -EINVAL;
 
-  if (ogate_idx >= ogates.curr_size) {
-    int ret = GrowGates(&ogates, ogate_idx);
-    if (ret)
-      return ret;
-  }
-
   /* already being used? */
-  if (is_active_gate(&ogates, ogate_idx))
+  if (is_active_gate(ogates, ogate_idx))
     return -EBUSY;
 
-  if (igate_idx >= m_next->igates.curr_size) {
-    int ret = m_next->GrowGates(&m_next->igates, igate_idx);
-    if (ret)
-      return ret;
+  if (ogate_idx >= ogates.size()) {
+    ogates.emplace_back();
   }
-
   ogate = (struct gate *)mem_alloc(sizeof(struct gate));
-  if (!ogate)
+  if (!ogate) {
     return -ENOMEM;
-
-  ogates.arr[ogate_idx] = ogate;
-
-  igate = m_next->igates.arr[igate_idx];
-  if (!igate) {
-    igate = (struct gate *)mem_alloc(sizeof(struct gate));
-    if (!igate) {
-      mem_free(ogate);
-      return -ENOMEM;
-    }
-
-    m_next->igates.arr[igate_idx] = igate;
-
-    igate->m = m_next;
-    igate->gate_idx = igate_idx;
-    igate->arg = m_next;
-    cdlist_head_init(&igate->in.ogates_upstream);
-    for (auto &hook : input_hooks) {
-      hook->set_gate(igate);
-    }
-    igate->hooks = input_hooks;
-    std::sort(igate->hooks.begin(), igate->hooks.end(), GateHookComp);
   }
+  ogates[ogate_idx] = ogate;
+
+  if (igate_idx >= m_next->igates.size()) {
+    m_next->igates.emplace_back();
+  }
+  igate = (struct gate *)mem_alloc(sizeof(struct gate));
+  if (!igate) {
+    mem_free(ogate);
+    return -ENOMEM;
+  }
+  m_next->igates[igate_idx] = igate;
+
+  igate->m = m_next;
+  igate->gate_idx = igate_idx;
+  igate->arg = m_next;
+  cdlist_head_init(&igate->in.ogates_upstream);
+  for (auto &hook : input_hooks) {
+    hook->set_gate(igate);
+  }
+  igate->hooks = input_hooks;
+  std::sort(igate->hooks.begin(), igate->hooks.end(), GateHookComp);
 
   ogate->m = this;
   ogate->gate_idx = ogate_idx;
@@ -366,10 +324,10 @@ int Module::DisconnectModules(gate_idx_t ogate_idx) {
     return -EINVAL;
 
   /* no error even if the ogate is unconnected already */
-  if (!is_active_gate(&ogates, ogate_idx))
+  if (!is_active_gate(ogates, ogate_idx))
     return 0;
 
-  ogate = ogates.arr[ogate_idx];
+  ogate = ogates[ogate_idx];
   if (!ogate)
     return 0;
 
@@ -379,7 +337,7 @@ int Module::DisconnectModules(gate_idx_t ogate_idx) {
   cdlist_del(&ogate->out.igate_upstream);
   if (cdlist_is_empty(&igate->in.ogates_upstream)) {
     Module *m_next = igate->m;
-    m_next->igates.arr[igate->gate_idx] = nullptr;
+    m_next->igates[igate->gate_idx] = nullptr;
     for (auto &hook : igate->hooks) {
       delete hook;
     }
@@ -387,7 +345,7 @@ int Module::DisconnectModules(gate_idx_t ogate_idx) {
     mem_free(igate);
   }
 
-  ogates.arr[ogate_idx] = nullptr;
+  ogates[ogate_idx] = nullptr;
   for (auto &hook : ogate->hooks) {
     delete hook;
   }
@@ -406,24 +364,22 @@ int Module::DisconnectModulesUpstream(gate_idx_t igate_idx) {
     return -EINVAL;
 
   /* no error even if the igate is unconnected already */
-  if (!is_active_gate(&igates, igate_idx))
+  if (!is_active_gate(igates, igate_idx))
     return 0;
 
-  igate = igates.arr[igate_idx];
+  igate = igates[igate_idx];
   if (!igate)
     return 0;
 
   cdlist_for_each_entry_safe(ogate, ogate_next, &igate->in.ogates_upstream,
                              out.igate_upstream) {
     Module *m_prev = ogate->m;
-    m_prev->ogates.arr[ogate->gate_idx] = nullptr;
+    m_prev->ogates[ogate->gate_idx] = nullptr;
     ogate->hooks.clear();
-    mem_free(ogate);
   }
 
-  igates.arr[igate_idx] = nullptr;
+  igates[igate_idx] = nullptr;
   igate->hooks.clear();
-  mem_free(igate);
 
   return 0;
 }
@@ -565,7 +521,7 @@ int Module::EnableTcpDump(const char *fifo, gate_idx_t ogate) {
   int ret;
 
   /* Don't allow tcpdump to be attached to gates that are not active */
-  if (!is_active_gate(&ogates, ogate))
+  if (!is_active_gate(ogates, ogate))
     return -EINVAL;
 
   fd = open(fifo, O_WRONLY | O_NONBLOCK);
@@ -587,7 +543,7 @@ int Module::EnableTcpDump(const char *fifo, gate_idx_t ogate) {
   }
 
   TcpDump *tcpdump = nullptr;
-  gate = ogates.arr[ogate];
+  gate = ogates[ogate];
   for (const auto &hook : gate->hooks) {
     if (hook->name() == kGateHookTcpDumpGate) {
       tcpdump = reinterpret_cast<TcpDump *>(hook);
@@ -607,10 +563,10 @@ int Module::EnableTcpDump(const char *fifo, gate_idx_t ogate) {
 }
 
 int Module::DisableTcpDump(gate_idx_t ogate) {
-  if (!is_active_gate(&ogates, ogate))
+  if (!is_active_gate(ogates, ogate))
     return -EINVAL;
 
-  struct gate *gate = ogates.arr[ogate];
+  struct gate *gate = ogates[ogate];
   for (size_t i = 0; i < gate->hooks.size(); i++) {
     GateHook *hook = gate->hooks[i];
     if (hook->name() == kGateHookTcpDumpGate) {

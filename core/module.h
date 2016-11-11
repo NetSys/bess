@@ -127,18 +127,6 @@ struct gate {
   std::vector<GateHook *> hooks;
 };
 
-// TODO(melvin): not sure this necessary anymore. consider replacing with
-// std::vector
-struct gates {
-  /* Resizable array of 'struct gate *'.
-   * Unconnected elements are filled with nullptr */
-  struct gate **arr;
-
-  /* The current size of the array.
-   * Always <= m->mclass->num_[i|o]gates */
-  gate_idx_t curr_size;
-};
-
 #define CALL_MEMBER_FN(obj, ptr_to_member_func) ((obj).*(ptr_to_member_func))
 
 template <typename T>
@@ -331,7 +319,6 @@ class Module {
                      const std::vector<GateHook *> &output_hooks = kNoHooks);
   int DisconnectModulesUpstream(gate_idx_t igate_idx);
   int DisconnectModules(gate_idx_t ogate_idx);
-  int GrowGates(struct gates *gates, gate_idx_t gate);
 
   int NumTasks();
   task_id_t RegisterTask(void *arg);
@@ -390,8 +377,8 @@ class Module {
   bess::metadata::mt_offset_t attr_offsets[bess::metadata::kMaxAttrsPerModule] =
       {};
 
-  struct gates igates;
-  struct gates ogates;
+  std::vector<struct gate *> igates;
+  std::vector<struct gate *> ogates;
 };
 
 void deadend(struct pkt_batch *batch);
@@ -400,12 +387,12 @@ inline void Module::RunChooseModule(gate_idx_t ogate_idx,
                                     struct pkt_batch *batch) {
   struct gate *ogate;
 
-  if (unlikely(ogate_idx >= ogates.curr_size)) {
+  if (unlikely(ogate_idx >= ogates.size())) {
     deadend(batch);
     return;
   }
 
-  ogate = ogates.arr[ogate_idx];
+  ogate = ogates[ogate_idx];
 
   if (unlikely(!ogate)) {
     deadend(batch);
@@ -453,8 +440,9 @@ static inline gate_idx_t get_igate() {
   return ctx.igate_stack_top();
 }
 
-static inline int is_active_gate(struct gates *gates, gate_idx_t idx) {
-  return idx < gates->curr_size && gates->arr && gates->arr[idx] != nullptr;
+static inline int is_active_gate(const std::vector<struct gate *> &gates,
+                                 gate_idx_t idx) {
+  return idx < gates.size() && gates.size() && gates[idx];
 }
 
 typedef struct snobj *(*mod_cmd_func_t)(struct module *, const char *,
