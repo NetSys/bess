@@ -17,7 +17,7 @@ class TrackGate : public GateHook {
   uint64_t pkts() const { return pkts_; }
   void incr_pkts(uint64_t n) { pkts_ += n; }
 
-  void ProcessBatch(struct pkt_batch *batch);
+  void ProcessBatch(const struct pkt_batch *batch);
 
  private:
   uint64_t cnt_;
