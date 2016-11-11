@@ -4,6 +4,7 @@
 #include <glog/logging.h>
 
 #include "bessd.h"
+#include "debug.h"
 #include "dpdk.h"
 #include "master.h"
 #include "opts.h"
@@ -12,6 +13,7 @@
 
 int main(int argc, char *argv[]) {
   google::InitGoogleLogging(argv[0]);
+  google::InstallFailureFunction(bess::debug::dump_stack);
 
   google::SetUsageMessage("BESS Command Line Options:");
   google::ParseCommandLineFlags(&argc, &argv, true);
