@@ -94,20 +94,21 @@ static int collect_ogates(Module* m, GetModuleInfoResponse* response) {
 }
 
 static int collect_metadata(Module* m, GetModuleInfoResponse* response) {
-  for (size_t i = 0; i < m->num_attrs; i++) {
+  size_t i = 0;
+  for (const auto &it : m->all_attrs()) {
     GetModuleInfoResponse_Attribute* attr = response->add_metadata();
 
-    attr->set_name(m->attrs[i].name);
-    attr->set_size(m->attrs[i].size);
+    attr->set_name(it.name);
+    attr->set_size(it.size);
 
-    switch (m->attrs[i].mode) {
-      case bess::metadata::AccessMode::READ:
+    switch (it.mode) {
+      case bess::metadata::Attribute::AccessMode::kRead:
         attr->set_mode("read");
         break;
-      case bess::metadata::AccessMode::WRITE:
+      case bess::metadata::Attribute::AccessMode::kWrite:
         attr->set_mode("write");
         break;
-      case bess::metadata::AccessMode::UPDATE:
+      case bess::metadata::Attribute::AccessMode::kUpdate:
         attr->set_mode("update");
         break;
       default:
@@ -115,6 +116,7 @@ static int collect_metadata(Module* m, GetModuleInfoResponse* response) {
     }
 
     attr->set_offset(m->attr_offsets[i]);
+    i++;
   }
 
   return 0;

@@ -47,13 +47,15 @@ static inline int IsValidOffset(mt_offset_t offset) {
   return (offset >= 0);
 }
 
-enum class AccessMode { READ = 0, WRITE, UPDATE };
-
-struct mt_attr {
+struct Attribute {
   std::string name;
-  int size;
-  AccessMode mode;
-  int scope_id;
+  size_t size;  // in bytes
+  enum class AccessMode {
+    kRead = 0,
+    kWrite,
+    kUpdate
+  } mode;
+  mutable int scope_id;
 };
 
 typedef std::string attr_id_t;
@@ -117,16 +119,13 @@ class Pipeline {
  public:
   Pipeline() : scope_components_(), module_scopes_(){};
 
-  // Debugging tool.
-  void LogAllScopesPerModule();
-
   // Main entry point for calculating metadata offsets.
   int ComputeMetadataOffsets();
 
   // Registers attr and returns 0 if no attribute named attr->name with size
   // other than attr->size has already been registered for this pipeline.
   // Returns -errno on error.
-  int RegisterAttribute(const struct mt_attr *attr);
+  int RegisterAttribute(const struct Attribute *attr);
 
  private:
   friend class MetadataTest;
@@ -137,25 +136,28 @@ class Pipeline {
 
   void CleanupMetadataComputation();
 
+  // Debugging tool.
+  void LogAllScopes();
+
   // Add a module to the current scope component.
-  void AddModuleToComponent(Module *m, struct mt_attr *attr);
+  void AddModuleToComponent(Module *m, const struct Attribute *attr);
 
   // Returns a pointer to an attribute if it's contained within a module.
-  struct mt_attr *FindAttr(Module *m, struct mt_attr *attr);
+  const struct Attribute *FindAttr(Module *m, const struct Attribute *attr) const;
 
   // Traverses module graph upstream to help identify a scope component.
-  void TraverseUpstream(Module *m, struct mt_attr *attr);
+  void TraverseUpstream(Module *m, const struct Attribute *attr);
 
   // Traverses module graph downstream to help identify a scope component.
   // Returns 0 if module is part of the scope component, -1 if not.
-  int TraverseDownstream(Module *m, struct mt_attr *attr);
+  int TraverseDownstream(Module *m, const struct Attribute *attr);
 
   // Wrapper for identifying scope components.
-  void IdentifySingleScopeComponent(Module *m, struct mt_attr *attr);
+  void IdentifySingleScopeComponent(Module *m, const struct Attribute *attr);
 
   // Given a module that writes an attr, identifies the corresponding scope
   // component.
-  void IdentifyScopeComponent(Module *m, struct mt_attr *attr);
+  void IdentifyScopeComponent(Module *m, const struct Attribute *attr);
 
   void FillOffsetArrays();
   void AssignOffsets();
@@ -170,7 +172,7 @@ class Pipeline {
   std::map<const Module *, scope_id_t *> module_components_;
 
   // Keeps track of the attributes used by modules in this pipeline
-  std::map<attr_id_t, const struct mt_attr *> attributes_;
+  std::map<attr_id_t, const struct Attribute *> attributes_;
 };
 
 extern bess::metadata::Pipeline default_pipeline;

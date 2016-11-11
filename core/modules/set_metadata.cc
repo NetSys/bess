@@ -41,7 +41,7 @@ pb_error_t SetMetadata::AddAttrOne(
   std::string name;
   size_t size = 0;
   int offset = -1;
-  value_t value = {};
+  value_t value = value_t();
 
   int ret;
 
@@ -65,7 +65,8 @@ pb_error_t SetMetadata::AddAttrOne(
     }
   }
 
-  ret = AddMetadataAttr(name, size, bess::metadata::AccessMode::WRITE);
+  ret = AddMetadataAttr(name, size,
+                        bess::metadata::Attribute::AccessMode::kWrite);
   if (ret < 0)
     return pb_error(-ret, "add_metadata_attr() failed");
 
@@ -101,7 +102,7 @@ struct snobj *SetMetadata::AddAttrOne(struct snobj *attr) {
   std::string name;
   size_t size = 0;
   int offset = -1;
-  value_t value = {};
+  value_t value = value_t();
 
   struct snobj *t;
 
@@ -142,7 +143,8 @@ struct snobj *SetMetadata::AddAttrOne(struct snobj *attr) {
     }
   }
 
-  ret = AddMetadataAttr(name, size, bess::metadata::AccessMode::WRITE);
+  ret = AddMetadataAttr(name, size,
+                        bess::metadata::Attribute::AccessMode::kWrite);
   if (ret < 0)
     return snobj_err(-ret, "add_metadata_attr() failed");
 

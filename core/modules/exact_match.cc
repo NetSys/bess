@@ -34,8 +34,8 @@ pb_error_t ExactMatch::AddFieldOne(const bess::pb::ExactMatchArg_Field &field,
 
   if (field.position_case() == bess::pb::ExactMatchArg_Field::kName) {
     const char *attr = field.name().c_str();
-    f->attr_id =
-        AddMetadataAttr(attr, f->size, bess::metadata::AccessMode::READ);
+    f->attr_id = AddMetadataAttr(attr, f->size,
+                                 bess::metadata::Attribute::AccessMode::kRead);
     if (f->attr_id < 0) {
       return pb_error(-f->attr_id, "idx %d: add_metadata_attr() failed", idx);
     }
@@ -83,8 +83,8 @@ struct snobj *ExactMatch::AddFieldOne(struct snobj *field, struct EmField *f,
   const char *attr = static_cast<char *>(snobj_eval_str(field, "attr"));
 
   if (attr) {
-    f->attr_id =
-        AddMetadataAttr(attr, f->size, bess::metadata::AccessMode::READ);
+    f->attr_id = AddMetadataAttr(attr, f->size,
+                                 bess::metadata::Attribute::AccessMode::kRead);
     if (f->attr_id < 0) {
       return snobj_err(-f->attr_id, "idx %d: add_metadata_attr() failed", idx);
     }
@@ -261,7 +261,7 @@ struct snobj *ExactMatch::GetDump() const {
       snobj_map_set(f_obj, "offset", snobj_uint(f->offset));
     } else {
       snobj_map_set(f_obj, "name",
-                    snobj_str(ExactMatch::attrs[f->attr_id].name));
+                    snobj_str(all_attrs()[f->attr_id].name));
     }
 
     snobj_list_add(fields, f_obj);

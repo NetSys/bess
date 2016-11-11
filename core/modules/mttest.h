@@ -4,6 +4,8 @@
 #include "../module.h"
 #include "../module_msg.pb.h"
 
+using bess::metadata::Attribute;
+
 class MetadataTest : public Module {
  public:
   struct snobj *Init(struct snobj *arg);
@@ -19,10 +21,10 @@ class MetadataTest : public Module {
 
  private:
   struct snobj *AddAttributes(struct snobj *attrs,
-                              bess::metadata::AccessMode mode);
+                              Attribute::AccessMode mode);
   pb_error_t AddAttributes(
       const google::protobuf::Map<std::string, int64_t> &attrs,
-      bess::metadata::AccessMode mode);
+      Attribute::AccessMode mode);
 };
 
 #endif  // BESS_MODULES_MTTEST_H_

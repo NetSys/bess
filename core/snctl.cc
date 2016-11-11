@@ -800,21 +800,22 @@ static struct snobj *collect_ogates(Module *m) {
 
 static struct snobj *collect_metadata(Module *m) {
   struct snobj *metadata = snobj_list();
+  size_t i = 0;
 
-  for (size_t i = 0; i < m->num_attrs; i++) {
+  for (const auto &it : m->all_attrs()) {
     struct snobj *attr = snobj_map();
 
-    snobj_map_set(attr, "name", snobj_str(m->attrs[i].name));
-    snobj_map_set(attr, "size", snobj_uint(m->attrs[i].size));
+    snobj_map_set(attr, "name", snobj_str(it.name));
+    snobj_map_set(attr, "size", snobj_uint(it.size));
 
-    switch (m->attrs[i].mode) {
-      case bess::metadata::AccessMode::READ:
+    switch (it.mode) {
+      case bess::metadata::Attribute::AccessMode::kRead:
         snobj_map_set(attr, "mode", snobj_str("read"));
         break;
-      case bess::metadata::AccessMode::WRITE:
+      case bess::metadata::Attribute::AccessMode::kWrite:
         snobj_map_set(attr, "mode", snobj_str("write"));
         break;
-      case bess::metadata::AccessMode::UPDATE:
+      case bess::metadata::Attribute::AccessMode::kUpdate:
         snobj_map_set(attr, "mode", snobj_str("update"));
         break;
       default:
@@ -822,8 +823,8 @@ static struct snobj *collect_metadata(Module *m) {
     }
 
     snobj_map_set(attr, "offset", snobj_int(m->attr_offsets[i]));
-
     snobj_list_add(metadata, attr);
+    i++;
   }
 
   return metadata;

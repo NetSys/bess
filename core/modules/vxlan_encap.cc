@@ -22,12 +22,23 @@ const Commands<Module> VXLANEncap::cmds = {};
 const PbCommands VXLANEncap::pb_cmds = {};
 
 pb_error_t VXLANEncap::InitPb(const bess::pb::VXLANEncapArg &arg) {
-  dstport_ = rte_cpu_to_be_16(4789);
+  auto dstport = arg.dstport();
+  if (dstport == 0) {
+    dstport_ = rte_cpu_to_be_16(4789);
+  } else {
+    if (dstport >= 65536)
+      return pb_error(EINVAL, "invalid 'dstport' field");
+    dstport_ = rte_cpu_to_be_16(dstport);
+  }
 
-  int dstport = arg.dstport();
-  if (dstport <= 0 || dstport >= 65536)
-    return pb_error(EINVAL, "invalid 'dstport' field");
-  dstport_ = rte_cpu_to_be_16(dstport);
+  using AccessMode = bess::metadata::Attribute::AccessMode;
+
+  AddMetadataAttr("tun_ip_src", 4, AccessMode::kRead);
+  AddMetadataAttr("tun_ip_dst", 4, AccessMode::kRead);
+  AddMetadataAttr("tun_id", 4, AccessMode::kRead);
+  AddMetadataAttr("ip_src", 4, AccessMode::kWrite);
+  AddMetadataAttr("ip_dst", 4, AccessMode::kWrite);
+  AddMetadataAttr("ip_proto", 1, AccessMode::kWrite);
 
   return pb_errno(0);
 }
@@ -41,6 +52,15 @@ struct snobj *VXLANEncap::Init(struct snobj *arg) {
       return snobj_err(EINVAL, "invalid 'dstport' field");
     dstport_ = rte_cpu_to_be_16(dstport);
   }
+
+  using AccessMode = bess::metadata::Attribute::AccessMode;
+
+  AddMetadataAttr("tun_ip_src", 4, AccessMode::kRead);
+  AddMetadataAttr("tun_ip_dst", 4, AccessMode::kRead);
+  AddMetadataAttr("tun_id", 4, AccessMode::kRead);
+  AddMetadataAttr("ip_src", 4, AccessMode::kWrite);
+  AddMetadataAttr("ip_dst", 4, AccessMode::kWrite);
+  AddMetadataAttr("ip_proto", 1, AccessMode::kWrite);
 
   return nullptr;
 }

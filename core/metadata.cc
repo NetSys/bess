@@ -40,19 +40,19 @@ static void CheckOrphanReaders() {
       break;
     }
 
-    for (size_t i = 0; i < m->num_attrs; i++) {
-      if (m->attr_offsets[i] != kMetadataOffsetNoRead) {
-        continue;
+    size_t i = 0;
+    for (const auto &attr : m->all_attrs()) {
+      if (m->attr_offsets[i] == kMetadataOffsetNoRead) {
+        LOG(WARNING) << "Metadata attr " << attr.name << "/" << attr.size
+                     << " of module " << m->name() << " has "
+                     << "no upstream module that sets the value!";
       }
-
-      LOG(WARNING) << "Metadata attr " << m->attrs[i].name << "/"
-                   << m->attrs[i].size << " of module " << m->name() << " has "
-                   << "no upstream module that sets the value!";
+      i++;
     }
   }
 }
 
-static inline attr_id_t get_attr_id(const struct mt_attr *attr) {
+static inline attr_id_t get_attr_id(const struct Attribute *attr) {
   return attr->name;
 }
 
@@ -110,8 +110,8 @@ int Pipeline::PrepareMetadataComputation() {
     module_scopes_[m] = -1;
     memset(module_components_[m], -1, sizeof(scope_id_t) * kMetadataTotalSize);
 
-    for (size_t i = 0; i < m->num_attrs; i++) {
-      m->attrs[i].scope_id = -1;
+    for (const auto &attr : m->all_attrs()) {
+      attr.scope_id = -1;
     }
   }
   return 0;
@@ -124,15 +124,13 @@ void Pipeline::CleanupMetadataComputation() {
   module_components_.clear();
   module_scopes_.clear();
 
-  attributes_.clear();
-
   for (auto &c : scope_components_) {
     c.clear_modules();
   }
   scope_components_.clear();
 }
 
-void Pipeline::AddModuleToComponent(Module *m, struct mt_attr *attr) {
+void Pipeline::AddModuleToComponent(Module *m, const struct Attribute *attr) {
   ScopeComponent &component = scope_components_.back();
 
   // Module has already been added to current scope component.
@@ -148,27 +146,24 @@ void Pipeline::AddModuleToComponent(Module *m, struct mt_attr *attr) {
   component.add_module(m);
 }
 
-struct mt_attr *Pipeline::FindAttr(Module *m, struct mt_attr *attr) {
-  struct mt_attr *curr_attr;
-
-  for (size_t i = 0; i < m->num_attrs; i++) {
-    curr_attr = &m->attrs[i];
-    if (get_attr_id(curr_attr) == get_attr_id(attr)) {
-      return curr_attr;
+const struct Attribute *Pipeline::FindAttr(Module *m, const struct Attribute *attr) const {
+  for (const auto &it : m->all_attrs()) {
+    if (get_attr_id(&it) == get_attr_id(attr)) {
+      return &it;
     }
   }
 
   return nullptr;
 }
 
-void Pipeline::TraverseUpstream(Module *m, struct mt_attr *attr) {
-  struct mt_attr *found_attr;
+void Pipeline::TraverseUpstream(Module *m, const struct Attribute *attr) {
+  const struct Attribute *found_attr;
 
   AddModuleToComponent(m, attr);
   found_attr = FindAttr(m, attr);
 
   /* end of scope component */
-  if (found_attr && found_attr->mode == AccessMode::WRITE) {
+  if (found_attr && found_attr->mode == Attribute::AccessMode::kWrite) {
     if (found_attr->scope_id == -1)
       IdentifyScopeComponent(m, found_attr);
     return;
@@ -194,9 +189,9 @@ void Pipeline::TraverseUpstream(Module *m, struct mt_attr *attr) {
   }
 }
 
-int Pipeline::TraverseDownstream(Module *m, struct mt_attr *attr) {
+int Pipeline::TraverseDownstream(Module *m, const struct Attribute *attr) {
   struct gate *ogate;
-  struct mt_attr *found_attr;
+  const struct Attribute *found_attr;
   int8_t in_scope = 0;
 
   // cycle detection
@@ -207,8 +202,8 @@ int Pipeline::TraverseDownstream(Module *m, struct mt_attr *attr) {
 
   found_attr = FindAttr(m, attr);
 
-  if (found_attr && (found_attr->mode == AccessMode::READ ||
-                     found_attr->mode == AccessMode::UPDATE)) {
+  if (found_attr && (found_attr->mode == Attribute::AccessMode::kRead ||
+                     found_attr->mode == Attribute::AccessMode::kUpdate)) {
     AddModuleToComponent(m, found_attr);
     found_attr->scope_id = scope_components_.size();
 
@@ -251,13 +246,13 @@ int Pipeline::TraverseDownstream(Module *m, struct mt_attr *attr) {
   return in_scope ? 0 : -1;
 }
 
-void Pipeline::IdentifySingleScopeComponent(Module *m, struct mt_attr *attr) {
+void Pipeline::IdentifySingleScopeComponent(Module *m, const struct Attribute *attr) {
   scope_components_.emplace_back();
   IdentifyScopeComponent(m, attr);
   scope_components_.back().set_scope_id(scope_components_.size());
 }
 
-void Pipeline::IdentifyScopeComponent(Module *m, struct mt_attr *attr) {
+void Pipeline::IdentifyScopeComponent(Module *m, const struct Attribute *attr) {
   struct gate *ogate;
 
   AddModuleToComponent(m, attr);
@@ -291,17 +286,21 @@ void Pipeline::FillOffsetArrays() {
     }
 
     for (Module *m : modules) {
-      for (size_t k = 0; k < m->num_attrs; k++) {
-        if (get_attr_id(&m->attrs[k]) == id) {
-          if (invalid && m->attrs[k].mode == AccessMode::READ) {
-            m->attr_offsets[k] = kMetadataOffsetNoRead;
-          } else if (invalid) {
-            m->attr_offsets[k] = kMetadataOffsetNoWrite;
+      size_t k = 0;
+      for (const auto &attr : m->all_attrs()) {
+        if (get_attr_id(&attr) == id) {
+          if (invalid) {
+            if (attr.mode == Attribute::AccessMode::kRead) {
+              m->attr_offsets[k] = kMetadataOffsetNoRead;
+            } else {
+              m->attr_offsets[k] = kMetadataOffsetNoWrite;
+            }
           } else {
             m->attr_offsets[k] = offset;
           }
           break;
         }
+        k++;
       }
 
       if (!invalid && offset >= 0) {
@@ -372,7 +371,19 @@ void Pipeline::AssignOffsets() {
   FillOffsetArrays();
 }
 
-void Pipeline::LogAllScopesPerModule() {
+void Pipeline::LogAllScopes() {
+  for (size_t i = 0; i < scope_components_.size(); i++) {
+    VLOG(1) << "scope component for " << scope_components_[i].size()
+              << "-byte attr " << scope_components_[i].attr_id() << "at offset "
+              << scope_components_[i].offset() << ": {";
+
+    for (const auto &it : scope_components_[i].modules()) {
+      VLOG(1) << it->name();
+    }
+
+    VLOG(1) << "}";
+  }
+
   for (const auto &it : ModuleBuilder::all_modules()) {
     const Module *m = it.second;
     if (!m) {
@@ -417,18 +428,18 @@ int Pipeline::ComputeMetadataOffsets() {
       break;
     }
 
-    for (size_t i = 0; i < m->num_attrs; i++) {
-      struct mt_attr *attr = &m->attrs[i];
-
-      if (attr->mode == AccessMode::READ || attr->mode == AccessMode::UPDATE) {
+    size_t i = 0;
+    for (const auto &attr : m->all_attrs()) {
+      if (attr.mode == Attribute::AccessMode::kRead ||
+          attr.mode == Attribute::AccessMode::kUpdate) {
         m->attr_offsets[i] = kMetadataOffsetNoRead;
-      } else if (attr->mode == AccessMode::WRITE) {
+      } else if (attr.mode == Attribute::AccessMode::kWrite) {
         m->attr_offsets[i] = kMetadataOffsetNoWrite;
+        if (attr.scope_id == -1) {
+          IdentifySingleScopeComponent(m, &attr);
+        }
       }
-
-      if (attr->mode == AccessMode::WRITE && attr->scope_id == -1) {
-        IdentifySingleScopeComponent(m, attr);
-      }
+      i++;
     }
   }
 
@@ -436,20 +447,9 @@ int Pipeline::ComputeMetadataOffsets() {
   std::sort(scope_components_.begin(), scope_components_.end(), DegreeComp);
   AssignOffsets();
 
-  for (size_t i = 0; i < scope_components_.size(); i++) {
-    LOG(INFO) << "scope component for " << scope_components_[i].size()
-              << "-byte"
-              << "attr " << scope_components_[i].attr_id() << "at offset "
-              << scope_components_[i].offset() << ": {";
-
-    for (const auto &it : scope_components_[i].modules()) {
-      LOG(INFO) << it->name();
-    }
-
-    LOG(INFO) << "}";
+  if (VLOG_IS_ON(1)) {
+    LogAllScopes();
   }
-
-  LogAllScopesPerModule();
 
   CheckOrphanReaders();
 
@@ -457,7 +457,9 @@ int Pipeline::ComputeMetadataOffsets() {
   return 0;
 }
 
-int Pipeline::RegisterAttribute(const struct mt_attr *attr) {
+// TODO: We need to keep track of the number of modules that registered each
+// attribute. Then RegisterAttribute does +1 while Deregister one does -1
+int Pipeline::RegisterAttribute(const struct Attribute *attr) {
   attr_id_t id = get_attr_id(attr);
   const auto &it = attributes_.find(id);
   if (it == attributes_.end()) {

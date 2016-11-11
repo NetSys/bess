@@ -76,19 +76,19 @@ void assign_default_tc(int wid, struct task *t) {
 
   struct tc *c_def;
 
-  struct tc_params params = {};
-
-  params.parent = nullptr;
-  params.auto_free = 1; /* when no task is left, this TC is freed */
-  params.priority = DEFAULT_PRIORITY;
-  params.share = 1;
-  params.share_resource = RESOURCE_CNT;
+  struct tc_params params = tc_params();
 
   if (t->m->NumTasks() == 1) {
     params.name = "_tc_" + t->m->name();
   } else {
     params.name = "_tc_" + t->m->name() + std::to_string(task_to_tid(t));
   }
+
+  params.parent = nullptr;
+  params.auto_free = 1; /* when no task is left, this TC is freed */
+  params.priority = DEFAULT_PRIORITY;
+  params.share = 1;
+  params.share_resource = RESOURCE_CNT;
 
   c_def = tc_init(workers[wid]->s(), &params);
 
