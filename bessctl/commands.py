@@ -1007,18 +1007,29 @@ def _show_module(cli, module_name):
     if info.igates:
         cli.fout.write('    Input gates:\n')
         for gate in info.igates:
-            cli.fout.write('      %5d: %s\n' % \
-                    (gate.igate,
+            track_str = 'batches N/A packets N/A'
+            try:
+                track_str = 'batches %-16d packets %-16d' % (gate.cnt,
+                        gate.pkts)
+            except:
+                pass
+            cli.fout.write('      %5d: %s %s\n' % \
+                    (gate.igate, track_str,
                      ', '.join('%s:%d ->' % (g.name, g.ogate) \
                              for g in gate.ogates)))
 
     if info.ogates:
         cli.fout.write('    Output gates:\n')
         for gate in info.ogates:
+            track_str = 'batches N/A packets N/A'
+            try:
+                track_str = 'batches %-16d packets %-16d' % (gate.cnt,
+                        gate.pkts)
+            except:
+                pass
             cli.fout.write(
-                    '      %5d: batches %-16d packets %-16d -> %d:%s\n' % \
-                    (gate.ogate, gate.cnt, gate.pkts,
-                     gate.igate, gate.name))
+                    '      %5d: %s -> %d:%s\n' % \
+                    (gate.ogate, track_str, gate.igate, gate.name))
 
     if 'dump' in info:
         dump_str = pprint.pformat(info.dump, width=74)
