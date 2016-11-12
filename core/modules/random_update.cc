@@ -208,8 +208,7 @@ pb_cmd_response_t RandomUpdate::CommandAddPb(
   return response;
 }
 
-pb_cmd_response_t RandomUpdate::CommandClearPb(
-    const bess::pb::EmptyArg &) {
+pb_cmd_response_t RandomUpdate::CommandClearPb(const bess::pb::EmptyArg &) {
   num_vars_ = 0;
 
   pb_cmd_response_t response;

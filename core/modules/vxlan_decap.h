@@ -7,8 +7,8 @@
 class VXLANDecap : public Module {
  public:
   virtual struct snobj *Init(struct snobj *arg);
-  pb_error_t InitPb(const bess::pb::VXLANDecapArg &arg);
- 
+  pb_error_t InitPb(const bess::pb::EmptyArg &arg);
+
   void ProcessBatch(struct pkt_batch *batch);
 
   static const gate_idx_t kNumIGates = 1;

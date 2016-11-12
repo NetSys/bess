@@ -8,9 +8,6 @@ package bess.pb;
 // The header generated from this file should not be included in the BESS core
 // source code.
 
-message BPFCommandClearArg {
-}
-
 message ExactMatchCommandAddArg {
   uint64 gate = 1;
   repeated uint64 fields = 2;
@@ -18,9 +15,6 @@ message ExactMatchCommandAddArg {
 
 message ExactMatchCommandDeleteArg {
   repeated uint64 fields = 2;
-}
-
-message ExactMatchCommandClearArg {
 }
 
 message ExactMatchCommandSetDefaultGateArg {
@@ -44,9 +38,6 @@ message IPLookupCommandAddArg {
   string prefix = 1;
   uint64 prefix_len = 2;
   uint64 gate = 3;
-}
-
-message IPLookupCommandClearArg {
 }
 
 message L2ForwardCommandAddArg {
@@ -80,9 +71,6 @@ message L2ForwardCommandPopulateArg {
   int64 gate_count = 3;
 }
 
-message MeasureCommandGetSummaryArg {
-}
-
 message MeasureCommandGetSummaryResponse {
   Error error = 1;
   double timestamp = 2;
@@ -105,15 +93,6 @@ message QueueCommandSetBurstArg {
 
 message QueueCommandSetSizeArg {
   uint64 size = 1;
-}
-
-message RandomUpdateCommandClearArg {
-}
-
-message RewriteCommandClearArg {
-}
-
-message UpdateCommandClearArg {
 }
 
 message WildcardMatchCommandAddArg {
@@ -142,12 +121,6 @@ message BPFArg {
     int64 gate = 3;
   }
   repeated Filter filters = 1;
-}
-
-message BufferArg {
-}
-
-message BypassArg {
 }
 
 message DumpArg {
@@ -204,34 +177,19 @@ message HashLBArg {
   HashLBCommandSetModeArg mode_arg = 2;
 }
 
-message IPEncapArg {
-}
-
-message IPLookupArg {
-}
-
 message L2ForwardArg {
   int64 size = 1;
   int64 bucket = 2;
-}
-
-message MACSwapArg {
 }
 
 message MeasureArg {
   int64 warmup = 1;
 }
 
-message MergeArg {
-}
-
 message MetadataTestArg {
   map<string, int64> read = 1;
   map<string, int64> write = 2;
   map<string, int64> update = 3;
-}
-
-message NoOpArg {
 }
 
 message PortIncArg {
@@ -303,9 +261,6 @@ message SetMetadataArg {
   repeated Attribute attrs = 1;
 }
 
-message SinkArg {
-}
-
 message SourceCommandSetBurstArg {
   uint64 burst = 1;
 }
@@ -325,9 +280,6 @@ message SplitArg {
   int64 offset = 3;
 }
 
-message TimestampArg {
-}
-
 message UpdateArg {
   message Field {
     int64 offset = 1;
@@ -337,17 +289,8 @@ message UpdateArg {
   repeated Field fields = 1;
 }
 
-message VLANPopArg {
-}
-
 message VLANPushArg {
   uint64 tci = 1;
-}
-
-message VLANSplitArg {
-}
-
-message VXLANDecapArg {
 }
 
 message VXLANEncapArg {
