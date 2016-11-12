@@ -1071,42 +1071,7 @@ static struct snobj *handle_disable_tcpdump(struct snobj *q) {
   return nullptr;
 }
 
-static struct snobj *handle_enable_track(struct snobj *q) {
-  const char *m_name;
-  gate_idx_t gate_idx;
-  struct gate *gate;
-  uint16_t priority;
-  int is_igate;
-
-  Module *m;
-
-  m_name = snobj_eval_str(q, "name");
-  gate_idx = snobj_eval_uint(q, "gate");
-  priority = snobj_eval_uint(q, "priority");
-  is_igate = snobj_eval_int(q, "is_igate");
-
-  if (!m_name)
-    return snobj_err(EINVAL, "Missing 'name' field");
-
-  const auto &it = ModuleBuilder::all_modules().find(m_name);
-  if (it == ModuleBuilder::all_modules().end())
-    return snobj_err(ENOENT, "No module '%s' found", m_name);
-  m = it->second;
-
-  if (!is_igate && gate_idx >= m->ogates.size()) {
-    return snobj_err(EINVAL, "Output gate '%hu' does not exist", gate_idx);
-  }
-
-  if (is_igate && gate_idx >= m->igates.size()) {
-    return snobj_err(EINVAL, "Input gate '%hu' does not exist", gate_idx);
-  }
-
-  if (is_igate) {
-    gate = m->igates[gate_idx];
-  } else {
-    gate = m->ogates[gate_idx];
-  }
-
+static struct snobj *enable_track(struct gate *gate) {
   for (const auto &hook : gate->hooks) {
     if (hook->name() == kGateHookTrackGate) {
       return nullptr;
@@ -1115,54 +1080,155 @@ static struct snobj *handle_enable_track(struct snobj *q) {
 
   // TODO(melvin): consider refactoring struct gate and exposing a method like
   // AddHook(...) to replace this
-  gate->hooks.push_back(new TrackGate(priority));
+  gate->hooks.push_back(new TrackGate());
   std::sort(gate->hooks.begin(), gate->hooks.end(), GateHookComp);
-
   return nullptr;
 }
 
-static struct snobj *handle_disable_track(struct snobj *q) {
+static struct snobj *enable_track_for_module(const Module *m,
+                                             struct snobj *gate_idx_,
+                                             int is_igate) {
+  struct snobj *ret;
+
+  if (gate_idx_) {
+    gate_idx_t gate_idx = snobj_uint_get(gate_idx_);
+
+    if (!is_igate && gate_idx >= m->ogates.size()) {
+      return snobj_err(EINVAL, "Output gate '%hu' does not exist", gate_idx);
+    }
+
+    if (is_igate && gate_idx >= m->igates.size()) {
+      return snobj_err(EINVAL, "Input gate '%hu' does not exist", gate_idx);
+    }
+
+    if (is_igate) {
+      return enable_track(m->igates[gate_idx]);
+    }
+    return enable_track(m->ogates[gate_idx]);
+  }
+
+  // XXX: ewwwwww
+  if (is_igate) {
+    for (auto &gate : m->igates) {
+      ret = enable_track(gate);
+      if (ret) {
+        return ret;
+      }
+    }
+  } else {
+    for (auto &gate : m->ogates) {
+      ret = enable_track(gate);
+      if (ret) {
+        return ret;
+      }
+    }
+  }
+  return nullptr;
+}
+
+static struct snobj *handle_enable_track(struct snobj *q) {
+  struct snobj *ret;
   const char *m_name;
-  gate_idx_t gate_idx;
-  struct gate *gate;
   int is_igate;
 
-  Module *m;
-
   m_name = snobj_eval_str(q, "name");
-  gate_idx = snobj_eval_uint(q, "gate");
   is_igate = snobj_eval_int(q, "is_igate");
 
-  if (!m_name)
-    return snobj_err(EINVAL, "Missing 'name' field");
+  if (!m_name) {
+    for (const auto &it : ModuleBuilder::all_modules()) {
+      ret = enable_track_for_module(it.second, snobj_map_get(q, "gate"),
+                                    is_igate);
+      if (ret) {
+        return ret;  // XXX: would it be better to just log here?
+      }
+    }
+    return nullptr;
+  }
 
   const auto &it = ModuleBuilder::all_modules().find(m_name);
   if (it == ModuleBuilder::all_modules().end())
     return snobj_err(ENOENT, "No module '%s' found", m_name);
-  m = it->second;
+  return enable_track_for_module(it->second, snobj_map_get(q, "gate"),
+                                 is_igate);
+}
 
-  if (!is_igate && gate_idx >= m->ogates.size()) {
-    return snobj_err(EINVAL, "Output gate '%hu' does not exist", gate_idx);
-  }
-
-  if (is_igate && gate_idx >= m->igates.size()) {
-    return snobj_err(EINVAL, "Input gate '%hu' does not exist", gate_idx);
-  }
-
-  if (is_igate) {
-    gate = m->igates[gate_idx];
-  } else {
-    gate = m->ogates[gate_idx];
-  }
-
-  for (size_t i = 0; i < gate->hooks.size(); i++) {
-    GateHook *hook = gate->hooks[i];
+static struct snobj *disable_track(struct gate *gate) {
+  for (auto it = gate->hooks.begin(); it != gate->hooks.end(); ++it) {
+    GateHook *hook = *it;
     if (hook->name() == kGateHookTrackGate) {
       delete hook;
-      gate->hooks.erase(gate->hooks.begin() + i);
+      gate->hooks.erase(it);
       return nullptr;
     }
   }
+  return nullptr;
+}
+
+static struct snobj *disable_track_for_module(const Module *m,
+                                              struct snobj *gate_idx_,
+                                              int is_igate) {
+  struct snobj *ret;
+
+  if (gate_idx_) {
+    gate_idx_t gate_idx = snobj_uint_get(gate_idx_);
+
+    if (!is_igate && gate_idx >= m->ogates.size()) {
+      return snobj_err(EINVAL, "Output gate '%hu' does not exist", gate_idx);
+    }
+
+    if (is_igate && gate_idx >= m->igates.size()) {
+      return snobj_err(EINVAL, "Input gate '%hu' does not exist", gate_idx);
+    }
+
+    if (is_igate) {
+      return disable_track(m->igates[gate_idx]);
+    }
+    return disable_track(m->ogates[gate_idx]);
+  }
+
+  // XXX: ewwwwww
+  if (is_igate) {
+    for (auto &gate : m->igates) {
+      ret = disable_track(gate);
+      if (ret) {
+        return ret;
+      }
+    }
+  } else {
+    for (auto &gate : m->ogates) {
+      ret = disable_track(gate);
+      if (ret) {
+        return ret;
+      }
+    }
+  }
+  return nullptr;
+}
+
+static struct snobj *handle_disable_track(struct snobj *q) {
+  struct snobj *ret;
+  const char *m_name;
+  int is_igate;
+
+  m_name = snobj_eval_str(q, "name");
+  is_igate = snobj_eval_int(q, "is_igate");
+
+  if (!m_name) {
+    for (const auto &it : ModuleBuilder::all_modules()) {
+      ret = disable_track_for_module(it.second, snobj_map_get(q, "gate"),
+                                     is_igate);
+      if (ret) {
+        return ret;  // XXX: would it be better to just log here?
+      }
+    }
+    return nullptr;
+  }
+
+  const auto &it = ModuleBuilder::all_modules().find(m_name);
+  if (it == ModuleBuilder::all_modules().end())
+    return snobj_err(ENOENT, "No module '%s' found", m_name);
+  return disable_track_for_module(it->second, snobj_map_get(q, "gate"),
+                                  is_igate);
 
   return nullptr;
 }
