@@ -4,12 +4,15 @@
 #include "../module.h"
 
 const std::string kGateHookTrackGate = "track_gate";
+const uint16_t kGateHookPriorityTrackGate = 0;
 
 // TrackGate counts the number of packets and batches seen by a gate.
 class TrackGate : public GateHook {
  public:
-  TrackGate(uint16_t priority = 0)
-      : GateHook(kGateHookTrackGate, priority), cnt_(), pkts_(){};
+  TrackGate()
+      : GateHook(kGateHookTrackGate, kGateHookPriorityTrackGate),
+        cnt_(),
+        pkts_(){};
 
   uint64_t cnt() const { return cnt_; }
   void incr_cnt(uint64_t n) { cnt_ += n; }

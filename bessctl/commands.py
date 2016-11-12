@@ -199,10 +199,6 @@ def get_var_attrs(cli, var_token, partial_word):
             var_desc = 'gate direction discriminator (default "out")'
             var_candidates = ['in', 'out']
 
-        if var_token == '[PRIORITY]':
-            var_type = 'int'
-            var_desc = 'gate hook priority (default 0)'
-
         elif var_token == '[GATE]':
             var_type = 'gate'
             var_desc = 'gate index (default all)'
@@ -1358,19 +1354,16 @@ def tcpdump_module(cli, module_name, direction, gate, opts):
         except:
             pass
 
-@cmd('track ENABLE_DISABLE [MODULE] [DIRECTION] [GATE] [PRIORITY]',
+@cmd('track ENABLE_DISABLE [MODULE] [DIRECTION] [GATE]',
      'Count the packets and batches on a gate')
-def track_module(cli, flag, module_name, direction, gate, priority):
+def track_module(cli, flag, module_name, direction, gate):
     if direction is None:
         direction = 'out'
-
-    if priority is None:
-        priority = 0
 
     cli.bess.pause_all()
     try:
         if flag == 'enable':
-            cli.bess.enable_track(module_name, direction, gate, priority)
+            cli.bess.enable_track(module_name, direction, gate)
         else:
             cli.bess.disable_track(module_name, direction, gate)
     finally:

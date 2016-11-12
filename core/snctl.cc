@@ -1071,7 +1071,7 @@ static struct snobj *handle_disable_tcpdump(struct snobj *q) {
   return nullptr;
 }
 
-static struct snobj *enable_track(struct gate *gate, uint16_t priority) {
+static struct snobj *enable_track(struct gate *gate) {
   for (const auto &hook : gate->hooks) {
     if (hook->name() == kGateHookTrackGate) {
       return nullptr;
@@ -1080,14 +1080,14 @@ static struct snobj *enable_track(struct gate *gate, uint16_t priority) {
 
   // TODO(melvin): consider refactoring struct gate and exposing a method like
   // AddHook(...) to replace this
-  gate->hooks.push_back(new TrackGate(priority));
+  gate->hooks.push_back(new TrackGate());
   std::sort(gate->hooks.begin(), gate->hooks.end(), GateHookComp);
   return nullptr;
 }
 
 static struct snobj *enable_track_for_module(const Module *m,
                                              struct snobj *gate_idx_,
-                                             int is_igate, uint16_t priority) {
+                                             int is_igate) {
   struct snobj *ret;
 
   if (gate_idx_) {
@@ -1102,22 +1102,22 @@ static struct snobj *enable_track_for_module(const Module *m,
     }
 
     if (is_igate) {
-      return enable_track(m->igates[gate_idx], priority);
+      return enable_track(m->igates[gate_idx]);
     }
-    return enable_track(m->ogates[gate_idx], priority);
+    return enable_track(m->ogates[gate_idx]);
   }
 
   // XXX: ewwwwww
   if (is_igate) {
     for (auto &gate : m->igates) {
-      ret = enable_track(gate, priority);
+      ret = enable_track(gate);
       if (ret) {
         return ret;
       }
     }
   } else {
     for (auto &gate : m->ogates) {
-      ret = enable_track(gate, priority);
+      ret = enable_track(gate);
       if (ret) {
         return ret;
       }
@@ -1129,17 +1129,15 @@ static struct snobj *enable_track_for_module(const Module *m,
 static struct snobj *handle_enable_track(struct snobj *q) {
   struct snobj *ret;
   const char *m_name;
-  uint16_t priority;
   int is_igate;
 
   m_name = snobj_eval_str(q, "name");
-  priority = snobj_eval_uint(q, "priority");
   is_igate = snobj_eval_int(q, "is_igate");
 
   if (!m_name) {
     for (const auto &it : ModuleBuilder::all_modules()) {
       ret = enable_track_for_module(it.second, snobj_map_get(q, "gate"),
-                                    is_igate, priority);
+                                    is_igate);
       if (ret) {
         return ret;  // XXX: would it be better to just log here?
       }
@@ -1150,8 +1148,8 @@ static struct snobj *handle_enable_track(struct snobj *q) {
   const auto &it = ModuleBuilder::all_modules().find(m_name);
   if (it == ModuleBuilder::all_modules().end())
     return snobj_err(ENOENT, "No module '%s' found", m_name);
-  return enable_track_for_module(it->second, snobj_map_get(q, "gate"), is_igate,
-                                 priority);
+  return enable_track_for_module(it->second, snobj_map_get(q, "gate"),
+                                 is_igate);
 }
 
 static struct snobj *disable_track(struct gate *gate) {

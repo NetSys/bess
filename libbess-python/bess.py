@@ -211,9 +211,8 @@ class BESS(object):
         args = {'name': m, 'ogate': ogate}
         return self._request_bess('disable_tcpdump', args)
 
-    def enable_track(self, m, direction='out', gate=None, priority=0):
-        args = {'name': m, 'gate_idx': gate, 'is_igate': int(direction == 'in'),
-                'priority': priority}
+    def enable_track(self, m, direction='out', gate=None):
+        args = {'name': m, 'gate_idx': gate, 'is_igate': int(direction == 'in')}
         return self._request_bess('enable_track', args)
 
     def disable_track(self, m, direction='out', gate=None):
