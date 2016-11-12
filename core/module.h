@@ -5,6 +5,7 @@
 #include <string>
 #include <vector>
 
+#include "gate.h"
 #include "message.h"
 #include "metadata.h"
 #include "snbuf.h"
@@ -16,21 +17,7 @@ static inline void set_cmd_response_error(pb_cmd_response_t *response,
                                           const pb_error_t &error) {
   response->mutable_error()->CopyFrom(error);
 }
-
-typedef uint16_t gate_idx_t;
-
-#define INVALID_GATE UINT16_MAX
-
-/* A module may have up to MAX_GATES input/output gates (separately). */
-#define MAX_GATES 8192
-#define DROP_GATE MAX_GATES
-static_assert(MAX_GATES < INVALID_GATE, "invalid macro value");
-static_assert(DROP_GATE <= MAX_GATES, "invalid macro value");
-
 #define MODULE_NAME_LEN 128
-
-#define TRACK_GATES 1
-#define TCPDUMP_GATES 1
 
 #define MAX_TASKS_PER_MODULE 32
 #define INVALID_TASK_ID ((task_id_t)-1)
@@ -63,47 +50,6 @@ static inline module_init_func_t MODULE_INIT_FUNC(
 }
 
 class Module;
-
-struct gate {
-  /* immutable values */
-  Module *m;           /* the module this gate belongs to */
-  gate_idx_t gate_idx; /* input/output gate index of itself */
-
-  /* mutable values below */
-  void *arg;
-
-  union {
-    struct {
-      struct cdlist_item igate_upstream;
-      struct gate *igate;
-      gate_idx_t igate_idx; /* cache for igate->gate_idx */
-    } out;
-
-    struct {
-      struct cdlist_head ogates_upstream;
-    } in;
-  };
-
-/* TODO: generalize with gate hooks */
-#if TRACK_GATES
-  uint64_t cnt;
-  uint64_t pkts;
-#endif
-#if TCPDUMP_GATES
-  uint32_t tcpdump;
-  int fifo_fd;
-#endif
-};
-
-struct gates {
-  /* Resizable array of 'struct gate *'.
-   * Unconnected elements are filled with nullptr */
-  struct gate **arr;
-
-  /* The current size of the array.
-   * Always <= m->mclass->num_[i|o]gates */
-  gate_idx_t curr_size;
-};
 
 #define CALL_MEMBER_FN(obj, ptr_to_member_func) ((obj).*(ptr_to_member_func))
 
@@ -387,30 +333,12 @@ inline void Module::RunChooseModule(gate_idx_t ogate_idx,
     return;
   }
 
-#if SN_TRACE_MODULES
-  _trace_before_call(this, next, batch);
-#endif
-
-#if TRACK_GATES
-  ogate->cnt += 1;
-  ogate->pkts += batch->cnt;
-#endif
-
-#if TCPDUMP_GATES
-  if (unlikely(ogate->tcpdump))
-    DumpPcapPkts(ogate, batch);
-#endif
-
-  ctx.push_igate(ogate->out.igate_idx);
-
-  // XXX
-  ((Module *)ogate->arg)->ProcessBatch(batch);
-
-  ctx.pop_igate();
-
-#if SN_TRACE_MODULES
-  _trace_after_call();
-#endif
+  // Place packets into buffer so they can be run later
+  if (!ctx.push_ogate_and_packets(ogate, batch)) {
+    // This really shouldn't happen.
+    deadend(batch);
+    return;
+  }
 }
 
 inline void Module::RunNextModule(struct pkt_batch *batch) {

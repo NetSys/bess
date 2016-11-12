@@ -7,6 +7,7 @@
 
 #include "module.h"
 #include "tc.h"
+#include "worker.h"
 
 // Capture the default core command line flag.
 DECLARE_int32(c);
@@ -14,14 +15,35 @@ DECLARE_int32(c);
 struct cdlist_head all_tasks = CDLIST_HEAD_INIT(all_tasks);
 
 struct task_result task_scheduled(struct task *t) {
-  return t->m->RunTask(t->arg);
+  struct task_result ret = t->m->RunTask(t->arg);
+
+  // Depth first goes through all pending modules and services
+  while (ctx.gates_pending()) {
+    struct gate_task task = ctx.pop_ogate_and_packets();
+    gate *ogate = task.gate;
+    struct pkt_batch *next_packets = &(task.batch);
+
+#if TRACK_GATES
+    ogate->cnt += 1;
+    ogate->pkts += next_packets->cnt;
+#endif
+
+    ctx.push_igate(ogate->out.igate_idx);
+
+    ((Module *)ogate->arg)->ProcessBatch(next_packets);
+
+    ctx.pop_igate();
+  }
+
+  return ret;
 }
 
 struct task *task_create(Module *m, void *arg) {
   struct task *t;
 
   t = (struct task *)mem_alloc(sizeof(*t));
-  if (!t) return nullptr;
+  if (!t)
+    return nullptr;
 
   cdlist_item_init(&t->tc);
   cdlist_add_tail(&all_tasks, &t->all_tasks);
@@ -33,7 +55,8 @@ struct task *task_create(Module *m, void *arg) {
 }
 
 void task_destroy(struct task *t) {
-  if (task_is_attached(t)) task_detach(t);
+  if (task_is_attached(t))
+    task_detach(t);
 
   cdlist_del(&t->all_tasks);
   mem_free(t);
@@ -56,7 +79,8 @@ void task_attach(struct task *t, struct tc *c) {
 void task_detach(struct task *t) {
   struct tc *c = t->c;
 
-  if (!task_is_attached(t)) return;
+  if (!task_is_attached(t))
+    return;
 
   t->c = nullptr;
   cdlist_del(&t->tc);
@@ -112,9 +136,11 @@ void assign_default_tc(int wid, struct task *t) {
 static int get_next_wid(int *wid) {
   static int rr_next = 0;
 
-  if (num_workers == 0) return -1;
+  if (num_workers == 0)
+    return -1;
 
-  while (!is_worker_active(rr_next)) rr_next = (rr_next + 1) % MAX_WORKERS;
+  while (!is_worker_active(rr_next))
+    rr_next = (rr_next + 1) % MAX_WORKERS;
 
   *wid = rr_next;
   rr_next = (rr_next + 1) % MAX_WORKERS;
@@ -129,7 +155,8 @@ void process_orphan_tasks() {
   cdlist_for_each_entry(t, &all_tasks, all_tasks) {
     int wid;
 
-    if (task_is_attached(t)) continue;
+    if (task_is_attached(t))
+      continue;
 
     if (get_next_wid(&wid) < 0) {
       wid = 0;
