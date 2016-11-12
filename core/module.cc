@@ -510,7 +510,7 @@ void _trace_after_call(void) {
 #endif
 
 // TODO(melvin): Much of this belongs in the TcpDump constructor.
-int Module::EnableTcpDump(const char *fifo, gate_idx_t ogate) {
+int Module::EnableTcpDump(const char *fifo, int is_igate, gate_idx_t gate_idx) {
   static const struct pcap_hdr PCAP_FILE_HDR = {
       .magic_number = PCAP_MAGIC_NUMBER,
       .version_major = PCAP_VERSION_MAJOR,
@@ -526,7 +526,10 @@ int Module::EnableTcpDump(const char *fifo, gate_idx_t ogate) {
   int ret;
 
   /* Don't allow tcpdump to be attached to gates that are not active */
-  if (!is_active_gate(ogates, ogate))
+  if (!is_igate && !is_active_gate(ogates, gate_idx))
+    return -EINVAL;
+
+  if (is_igate && !is_active_gate(igates, gate_idx))
     return -EINVAL;
 
   fd = open(fifo, O_WRONLY | O_NONBLOCK);
@@ -548,7 +551,12 @@ int Module::EnableTcpDump(const char *fifo, gate_idx_t ogate) {
   }
 
   TcpDump *tcpdump = nullptr;
-  gate = ogates[ogate];
+  if (is_igate) {
+    gate = igates[gate_idx];
+  } else {
+    gate = ogates[gate_idx];
+  }
+
   for (const auto &hook : gate->hooks) {
     if (hook->name() == kGateHookTcpDumpGate) {
       tcpdump = reinterpret_cast<TcpDump *>(hook);
@@ -566,11 +574,20 @@ int Module::EnableTcpDump(const char *fifo, gate_idx_t ogate) {
   return 0;
 }
 
-int Module::DisableTcpDump(gate_idx_t ogate) {
-  if (!is_active_gate(ogates, ogate))
+int Module::DisableTcpDump(int is_igate, gate_idx_t gate_idx) {
+  if (!is_igate && !is_active_gate(ogates, gate_idx))
     return -EINVAL;
 
-  struct gate *gate = ogates[ogate];
+  if (is_igate && !is_active_gate(igates, gate_idx))
+    return -EINVAL;
+
+  struct gate *gate;
+  if (is_igate) {
+    gate = igates[gate_idx];
+  } else {
+    gate = ogates[gate_idx];
+  }
+
   for (auto it = gate->hooks.begin(); it != gate->hooks.end(); ++it) {
     GateHook *hook = *it;
     if (hook->name() == kGateHookTcpDumpGate) {

@@ -939,7 +939,8 @@ class BESSControlImpl final : public BESSControl::Service {
       return return_with_error(response, EINVAL,
                                "Output gate '%hu' does not exist", ogate);
 
-    ret = m->EnableTcpDump(fifo, ogate);
+    // TODO(melvin): actually change protobufs when new bessctl arrives
+    ret = m->EnableTcpDump(fifo, 0, ogate);
 
     if (ret < 0) {
       return return_with_error(response, -ret, "Enabling tcpdump %s:%d failed",
@@ -977,7 +978,8 @@ class BESSControlImpl final : public BESSControl::Service {
                                "Output gate '%hu' does not exist", ogate);
     }
 
-    ret = m->DisableTcpDump(ogate);
+    // TODO(melvin): actually change protobufs when new bessctl arrives
+    ret = m->DisableTcpDump(0, ogate);
 
     if (ret < 0) {
       return return_with_error(response, -ret, "Disabling tcpdump %s:%d failed",
