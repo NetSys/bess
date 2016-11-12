@@ -17,7 +17,7 @@ enum {
 const Commands<Module> VXLANDecap::cmds = {};
 const PbCommands VXLANDecap::pb_cmds = {};
 
-struct snobj *VXLANDecap::Init(struct snobj *arg [[maybe_unused]]) {
+struct snobj *VXLANDecap::Init(struct snobj *) {
   using AccessMode = bess::metadata::Attribute::AccessMode;
 
   AddMetadataAttr("tun_ip_src", 4, AccessMode::kWrite);
@@ -27,7 +27,7 @@ struct snobj *VXLANDecap::Init(struct snobj *arg [[maybe_unused]]) {
   return nullptr;
 };
 
-pb_error_t VXLANDecap::InitPb(const bess::pb::VXLANDecapArg &arg [[maybe_unused]]) {
+pb_error_t VXLANDecap::InitPb(const bess::pb::EmptyArg &) {
   using AccessMode = bess::metadata::Attribute::AccessMode;
 
   AddMetadataAttr("tun_ip_src", 4, AccessMode::kWrite);
