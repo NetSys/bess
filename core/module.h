@@ -29,9 +29,6 @@ static_assert(DROP_GATE <= MAX_GATES, "invalid macro value");
 
 #define MODULE_NAME_LEN 128
 
-#define TRACK_GATES 1
-#define TCPDUMP_GATES 1
-
 #define MAX_TASKS_PER_MODULE 32
 #define INVALID_TASK_ID ((task_id_t)-1)
 #define MODULE_FUNC (struct snobj * (Module::*)(struct snobj *))
@@ -64,6 +61,43 @@ static inline module_init_func_t MODULE_INIT_FUNC(
 
 class Module;
 
+struct gate;
+
+// Gate hooks allow you to run arbitrary code on the packets flowing through a
+// gate before they get delievered to the upstream module.
+// TODO(melvin): GateHooks should be structured like Modules/Drivers, so bessctl
+// can attach/detach them at runtime.
+class GateHook {
+ public:
+  GateHook(const std::string &name, uint16_t priority = 0,
+           struct gate *gate = nullptr)
+      : gate_(gate), name_(name), priority_(priority){};
+
+  virtual ~GateHook(){};
+
+  const std::string &name() const { return name_; }
+
+  void set_gate(struct gate *gate) { gate_ = gate; }
+
+  uint16_t priority() const { return priority_; }
+
+  virtual void ProcessBatch(const struct pkt_batch *){};
+
+ protected:
+  struct gate *gate_;
+
+ private:
+  const std::string &name_;
+
+  const uint16_t priority_;
+
+  DISALLOW_COPY_AND_ASSIGN(GateHook);
+};
+
+inline bool GateHookComp(const GateHook *lhs, const GateHook *rhs) {
+  return (lhs->priority() < rhs->priority());
+}
+
 struct gate {
   /* immutable values */
   Module *m;           /* the module this gate belongs to */
@@ -84,25 +118,10 @@ struct gate {
     } in;
   };
 
-/* TODO: generalize with gate hooks */
-#if TRACK_GATES
-  uint64_t cnt;
-  uint64_t pkts;
-#endif
-#if TCPDUMP_GATES
-  uint32_t tcpdump;
-  int fifo_fd;
-#endif
-};
-
-struct gates {
-  /* Resizable array of 'struct gate *'.
-   * Unconnected elements are filled with nullptr */
-  struct gate **arr;
-
-  /* The current size of the array.
-   * Always <= m->mclass->num_[i|o]gates */
-  gate_idx_t curr_size;
+  // TODO(melvin): Consider using a map here instead. It gets rid of the need to
+  // scan to find modules for queries. Not sure how priority would work in a
+  // map, though.
+  std::vector<GateHook *> hooks;
 };
 
 #define CALL_MEMBER_FN(obj, ptr_to_member_func) ((obj).*(ptr_to_member_func))
@@ -296,7 +315,6 @@ class Module {
                      gate_idx_t igate_idx);
   int DisconnectModulesUpstream(gate_idx_t igate_idx);
   int DisconnectModules(gate_idx_t ogate_idx);
-  int GrowGates(struct gates *gates, gate_idx_t gate);
 
   int NumTasks();
   task_id_t RegisterTask(void *arg);
@@ -312,19 +330,9 @@ class Module {
   int AddMetadataAttr(const std::string &name, size_t size,
                       bess::metadata::Attribute::AccessMode mode);
 
-#if TCPDUMP_GATES
   int EnableTcpDump(const char *fifo, gate_idx_t gate);
 
   int DisableTcpDump(gate_idx_t gate);
-
-  void DumpPcapPkts(struct gate *gate, struct pkt_batch *batch);
-#else
-  /* Cannot enable tcpdump */
-  inline int enable_tcpdump(const char *, gate_idx_t) { return -EINVAL; }
-
-  /* Cannot disable tcpdump */
-  inline int disable_tcpdump(Module *, int) { return -EINVAL; }
-#endif
 
   struct snobj *RunCommand(const std::string &cmd, struct snobj *arg) {
     return module_builder_->RunCommand(this, cmd, arg);
@@ -365,8 +373,8 @@ class Module {
   bess::metadata::mt_offset_t attr_offsets[bess::metadata::kMaxAttrsPerModule] =
       {};
 
-  struct gates igates;
-  struct gates ogates;
+  std::vector<struct gate *> igates;
+  std::vector<struct gate *> ogates;
 };
 
 void deadend(struct pkt_batch *batch);
@@ -375,12 +383,12 @@ inline void Module::RunChooseModule(gate_idx_t ogate_idx,
                                     struct pkt_batch *batch) {
   struct gate *ogate;
 
-  if (unlikely(ogate_idx >= ogates.curr_size)) {
+  if (unlikely(ogate_idx >= ogates.size())) {
     deadend(batch);
     return;
   }
 
-  ogate = ogates.arr[ogate_idx];
+  ogate = ogates[ogate_idx];
 
   if (unlikely(!ogate)) {
     deadend(batch);
@@ -391,17 +399,15 @@ inline void Module::RunChooseModule(gate_idx_t ogate_idx,
   _trace_before_call(this, next, batch);
 #endif
 
-#if TRACK_GATES
-  ogate->cnt += 1;
-  ogate->pkts += batch->cnt;
-#endif
-
-#if TCPDUMP_GATES
-  if (unlikely(ogate->tcpdump))
-    DumpPcapPkts(ogate, batch);
-#endif
-
   ctx.push_igate(ogate->out.igate_idx);
+
+  for (const auto &hook : ogate->hooks) {
+    hook->ProcessBatch(batch);
+  }
+
+  for (const auto &hook : ogate->out.igate->hooks) {
+    hook->ProcessBatch(batch);
+  }
 
   // XXX
   ((Module *)ogate->arg)->ProcessBatch(batch);
@@ -430,8 +436,9 @@ static inline gate_idx_t get_igate() {
   return ctx.igate_stack_top();
 }
 
-static inline int is_active_gate(struct gates *gates, gate_idx_t idx) {
-  return idx < gates->curr_size && gates->arr && gates->arr[idx] != nullptr;
+static inline int is_active_gate(const std::vector<struct gate *> &gates,
+                                 gate_idx_t idx) {
+  return idx < gates.size() && gates.size() && gates[idx];
 }
 
 typedef struct snobj *(*mod_cmd_func_t)(struct module *, const char *,
