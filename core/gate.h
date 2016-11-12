@@ -57,10 +57,6 @@ inline bool GateHookComp(const GateHook *lhs, const GateHook *rhs) {
   return (lhs->priority() < rhs->priority());
 }
 
-// Save devs some typing when calling functions that deal with gate hooks.
-// e.g., Module::ConnectModules().
-const std::vector<GateHook *> kNoHooks = {};
-
 struct gate {
   /* immutable values */
   Module *m;           /* the module this gate belongs to */

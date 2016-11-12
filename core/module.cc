@@ -11,6 +11,7 @@
 
 #include "gate.h"
 #include "hooks/tcpdump.h"
+#include "hooks/track.h"
 #include "mem_alloc.h"
 #include "utils/pcap.h"
 
@@ -258,9 +259,7 @@ int Module::AddMetadataAttr(const std::string &name, size_t size,
 
 /* returns -errno if fails */
 int Module::ConnectModules(gate_idx_t ogate_idx, Module *m_next,
-                           gate_idx_t igate_idx,
-                           const std::vector<GateHook *> &input_hooks,
-                           const std::vector<GateHook *> &output_hooks) {
+                           gate_idx_t igate_idx) {
   struct gate *ogate;
   struct gate *igate;
 
@@ -301,22 +300,15 @@ int Module::ConnectModules(gate_idx_t ogate_idx, Module *m_next,
   igate->gate_idx = igate_idx;
   igate->arg = m_next;
   cdlist_head_init(&igate->in.ogates_upstream);
-  for (auto &hook : input_hooks) {
-    hook->set_gate(igate);
-  }
-  igate->hooks = input_hooks;
-  std::sort(igate->hooks.begin(), igate->hooks.end(), GateHookComp);
 
   ogate->m = this;
   ogate->gate_idx = ogate_idx;
   ogate->arg = m_next;
   ogate->out.igate = igate;
   ogate->out.igate_idx = igate_idx;
-  for (auto &hook : output_hooks) {
-    hook->set_gate(ogate);
-  }
-  ogate->hooks = output_hooks;
-  std::sort(ogate->hooks.begin(), ogate->hooks.end(), GateHookComp);
+
+  // Gate tracking is enabled by default
+  ogate->hooks.push_back(new TrackGate());
 
   cdlist_add_tail(&igate->in.ogates_upstream, &ogate->out.igate_upstream);
 
