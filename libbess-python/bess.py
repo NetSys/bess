@@ -203,12 +203,13 @@ class BESS(object):
     def run_module_command(self, name, cmd, arg):
         return self._request_module(name, cmd, arg)
 
-    def enable_tcpdump(self, fifo, m, ogate=0):
-        args = {'name': m, 'ogate': ogate, 'fifo': fifo}
+    def enable_tcpdump(self, fifo, m, direction='out', gate=0):
+        args = {'name': m, 'is_igate': int(direction == 'in'), 'gate': gate,
+                'fifo': fifo}
         return self._request_bess('enable_tcpdump', args)
 
-    def disable_tcpdump(self, m, ogate=0):
-        args = {'name': m, 'ogate': ogate}
+    def disable_tcpdump(self, m, direction='out', gate=0):
+        args = {'name': m, 'is_igate': int(direction == 'in'), 'gate': gate}
         return self._request_bess('disable_tcpdump', args)
 
     def enable_track(self, m, direction='out', gate=None):

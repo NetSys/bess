@@ -1011,14 +1011,16 @@ static struct snobj *handle_attach_task(struct snobj *q) {
 static struct snobj *handle_enable_tcpdump(struct snobj *q) {
   const char *m_name;
   const char *fifo;
-  gate_idx_t ogate;
+  gate_idx_t gate;
+  int is_igate;
 
   Module *m;
 
   int ret;
 
   m_name = snobj_eval_str(q, "name");
-  ogate = snobj_eval_uint(q, "ogate");
+  gate = snobj_eval_uint(q, "gate");
+  is_igate = snobj_eval_int(q, "is_igate");
   fifo = snobj_eval_str(q, "fifo");
 
   if (!m_name)
@@ -1029,13 +1031,16 @@ static struct snobj *handle_enable_tcpdump(struct snobj *q) {
     return snobj_err(ENOENT, "No module '%s' found", m_name);
   m = it->second;
 
-  if (ogate >= m->ogates.size())
-    return snobj_err(EINVAL, "Output gate '%hu' does not exist", ogate);
+  if (!is_igate && gate >= m->ogates.size())
+    return snobj_err(EINVAL, "Output gate '%hu' does not exist", gate);
 
-  ret = m->EnableTcpDump(fifo, ogate);
+  if (is_igate && gate >= m->igates.size())
+    return snobj_err(EINVAL, "Input gate '%hu' does not exist", gate);
+
+  ret = m->EnableTcpDump(fifo, is_igate, gate);
 
   if (ret < 0) {
-    return snobj_err(-ret, "Enabling tcpdump %s:%d failed", m_name, ogate);
+    return snobj_err(-ret, "Enabling tcpdump %s:%d failed", m_name, gate);
   }
 
   return nullptr;
@@ -1043,14 +1048,16 @@ static struct snobj *handle_enable_tcpdump(struct snobj *q) {
 
 static struct snobj *handle_disable_tcpdump(struct snobj *q) {
   const char *m_name;
-  gate_idx_t ogate;
+  gate_idx_t gate;
+  int is_igate;
 
   Module *m;
 
   int ret;
 
   m_name = snobj_eval_str(q, "name");
-  ogate = snobj_eval_uint(q, "ogate");
+  gate = snobj_eval_uint(q, "gate");
+  is_igate = snobj_eval_int(q, "is_igate");
 
   if (!m_name)
     return snobj_err(EINVAL, "Missing 'name' field");
@@ -1060,13 +1067,16 @@ static struct snobj *handle_disable_tcpdump(struct snobj *q) {
     return snobj_err(ENOENT, "No module '%s' found", m_name);
   m = it->second;
 
-  if (ogate >= m->ogates.size())
-    return snobj_err(EINVAL, "Output gate '%hu' does not exist", ogate);
+  if (!is_igate && gate >= m->ogates.size())
+    return snobj_err(EINVAL, "Output gate '%hu' does not exist", gate);
 
-  ret = m->DisableTcpDump(ogate);
+  if (is_igate && gate >= m->igates.size())
+    return snobj_err(EINVAL, "Input gate '%hu' does not exist", gate);
+
+  ret = m->DisableTcpDump(is_igate, gate);
 
   if (ret < 0) {
-    return snobj_err(-ret, "Disabling tcpdump %s:%d failed", m_name, ogate);
+    return snobj_err(-ret, "Disabling tcpdump %s:%d failed", m_name, gate);
   }
   return nullptr;
 }

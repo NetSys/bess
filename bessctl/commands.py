@@ -1308,13 +1308,16 @@ def monitor_tc_all(cli, tcs):
     _monitor_tcs(cli, *tcs)
 
 # tcpdump can write pcap files, so we don't need to support it separately
-@cmd('tcpdump MODULE [OGATE] [TCPDUMP_OPTS...]', 'Capture packets on a gate')
+@cmd('tcpdump MODULE [DIRECTION] [OGATE] [TCPDUMP_OPTS...]', 'Capture packets on a gate')
 def tcpdump_module(cli, module_name, direction, gate, opts):
-    if ogate is None:
-        ogate = 0
+    if gate is None:
+        gate = 0
 
     if opts is None:
         opts = []
+
+    if direction is None:
+        direction = 'out'
 
     fifo = tempfile.mktemp()
     os.mkfifo(fifo, 0600)   # random people should not see packets...
@@ -1331,7 +1334,7 @@ def tcpdump_module(cli, module_name, direction, gate, opts):
 
     cli.bess.pause_all()
     try:
-        cli.bess.enable_tcpdump(fifo, module_name, ogate)
+        cli.bess.enable_tcpdump(fifo, module_name, direction, gate)
     finally:
         cli.bess.resume_all()
 
@@ -1343,7 +1346,7 @@ def tcpdump_module(cli, module_name, direction, gate, opts):
     finally:
         cli.bess.pause_all()
         try:
-            cli.bess.disable_tcpdump(module_name, ogate)
+            cli.bess.disable_tcpdump(module_name, direction, gate)
         finally:
             cli.bess.resume_all()
 

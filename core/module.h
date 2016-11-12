@@ -257,9 +257,9 @@ class Module {
   int AddMetadataAttr(const std::string &name, size_t size,
                       bess::metadata::Attribute::AccessMode mode);
 
-  int EnableTcpDump(const char *fifo, gate_idx_t gate);
+  int EnableTcpDump(const char *fifo, int is_igate, gate_idx_t gate_idx);
 
-  int DisableTcpDump(gate_idx_t gate);
+  int DisableTcpDump(int is_igate, gate_idx_t gate_idx);
 
   struct snobj *RunCommand(const std::string &cmd, struct snobj *arg) {
     return module_builder_->RunCommand(this, cmd, arg);
