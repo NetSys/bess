@@ -121,6 +121,7 @@ class Worker {
   }
 
   // Store gate+packets into tasks for worker to service.
+  // Returns true on success.
   inline bool push_ogate_and_packets(gate *gate, pkt_batch *batch) {
     if (pending_gates_ > MAX_MODULES_PER_PATH * BRANCH_FACTOR) {
       LOG(ERROR) << "Gate servicing stack overrun -- loop in execution?";

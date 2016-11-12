@@ -1,5 +1,5 @@
-#ifndef BESS_CORE_GATE_H
-#define BESS_CORE_GATE_H
+#ifndef BESS_GATE_H_
+#define BESS_GATE_H_
 
 #include "utils/cdlist.h"
 

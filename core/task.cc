@@ -42,8 +42,9 @@ struct task *task_create(Module *m, void *arg) {
   struct task *t;
 
   t = (struct task *)mem_alloc(sizeof(*t));
-  if (!t)
+  if (!t){
     return nullptr;
+  }
 
   cdlist_item_init(&t->tc);
   cdlist_add_tail(&all_tasks, &t->all_tasks);
@@ -139,8 +140,9 @@ static int get_next_wid(int *wid) {
   if (num_workers == 0)
     return -1;
 
-  while (!is_worker_active(rr_next))
+  while (!is_worker_active(rr_next)){
     rr_next = (rr_next + 1) % MAX_WORKERS;
+  }
 
   *wid = rr_next;
   rr_next = (rr_next + 1) % MAX_WORKERS;
