@@ -205,7 +205,7 @@ def get_var_attrs(cli, var_token, partial_word):
 
         elif var_token == '[GATE]':
             var_type = 'gate'
-            var_desc = 'gate index (default 0)'
+            var_desc = 'gate index (default all)'
 
         elif var_token == '[OGATE]':
             var_type = 'gate'
@@ -1313,7 +1313,7 @@ def monitor_tc_all(cli, tcs):
 
 # tcpdump can write pcap files, so we don't need to support it separately
 @cmd('tcpdump MODULE [OGATE] [TCPDUMP_OPTS...]', 'Capture packets on a gate')
-def tcpdump_module(cli, module_name, ogate, opts):
+def tcpdump_module(cli, module_name, direction, gate, opts):
     if ogate is None:
         ogate = 0
 
@@ -1358,30 +1358,21 @@ def tcpdump_module(cli, module_name, ogate, opts):
         except:
             pass
 
-@cmd('track MODULE [DIRECTION] [GATE] [PRIORITY]',
+@cmd('track ENABLE_DISABLE [MODULE] [DIRECTION] [GATE] [PRIORITY]',
      'Count the packets and batches on a gate')
-def track_module(cli, module_name, direction, gate, priority):
+def track_module(cli, flag, module_name, direction, gate, priority):
     if direction is None:
         direction = 'out'
-
-    if gate is None:
-        gate = 0
 
     if priority is None:
         priority = 0
 
     cli.bess.pause_all()
     try:
-        cli.bess.enable_track(module_name, direction, gate, priority)
-    finally:
-        cli.bess.resume_all()
-
-@cmd('untrack MODULE [DIRECTION] [GATE]',
-     'Stop counting the packets and batches on a gate')
-def untrack_module(cli, module_name, direction, gate):
-    cli.bess.pause_all()
-    try:
-        cli.bess.disable_track(module_name, direction, gate)
+        if flag == 'enable':
+            cli.bess.enable_track(module_name, direction, gate, priority)
+        else:
+            cli.bess.disable_track(module_name, direction, gate)
     finally:
         cli.bess.resume_all()
 
