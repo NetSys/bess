@@ -2,17 +2,14 @@
 
 #include <cassert>
 
-#include <gflags/gflags.h>
 #include <glog/logging.h>
 #include <rte_errno.h>
 
-#include "utils/common.h"
 #include "dpdk.h"
+#include "opts.h"
+#include "utils/common.h"
 
 #define NUM_MEMPOOL_CACHE 512
-
-// Capture the "debug mode" command line flag.
-DECLARE_bool(d);
 
 struct rte_mbuf pframe_template;
 

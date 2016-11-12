@@ -1,6 +1,5 @@
 #include "bessctl.h"
 
-#include <gflags/gflags.h>
 #include <glog/logging.h>
 #include <grpc++/server.h>
 #include <grpc++/server_builder.h>
@@ -12,6 +11,7 @@
 #include "message.h"
 #include "metadata.h"
 #include "module.h"
+#include "opts.h"
 #include "port.h"
 #include "service.grpc.pb.h"
 #include "tc.h"
@@ -31,10 +31,6 @@ using grpc::ServerContext;
 using grpc::ServerBuilder;
 
 using namespace bess::pb;
-
-DECLARE_int32(c);
-// Capture the port command line flag.
-DECLARE_int32(p);
 
 template <typename T>
 static inline Status return_with_error(T* response, int code, const char* fmt,

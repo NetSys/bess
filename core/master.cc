@@ -13,20 +13,17 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
-#include <gflags/gflags.h>
 #include <glog/logging.h>
 #include <rte_config.h>
 #include <rte_lcore.h>
 
+#include "opts.h"
 #include "snctl.h"
 #include "snobj.h"
 #include "worker.h"
 
 #define INIT_BUF_SIZE 4096
 #define MAX_BUF_SIZE (8 * 1048576)
-
-// Capture the port command line flag.
-DECLARE_int32(p);
 
 static struct {
   int listen_fd;

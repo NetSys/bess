@@ -1,6 +1,5 @@
 #include <rte_launch.h>
 
-#include <gflags/gflags.h>
 #include <glog/logging.h>
 
 #include "bessd.h"
