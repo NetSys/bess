@@ -17,7 +17,7 @@ enum {
 const Commands<Module> VXLANDecap::cmds = {};
 const PbCommands VXLANDecap::pb_cmds = {};
 
-struct snobj *VXLANDecap::Init(struct snobj *arg[[maybe_unused]]) {
+struct snobj *VXLANDecap::Init(struct snobj *) {
   using AccessMode = bess::metadata::Attribute::AccessMode;
 
   AddMetadataAttr("tun_ip_src", 4, AccessMode::kWrite);

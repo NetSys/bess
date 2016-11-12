@@ -15,7 +15,7 @@ enum {
 const Commands<Module> IPEncap::cmds = {};
 const PbCommands IPEncap::pb_cmds = {};
 
-struct snobj *IPEncap::Init(struct snobj *arg[[maybe_unused]]) {
+struct snobj *IPEncap::Init(struct snobj *) {
   using AccessMode = bess::metadata::Attribute::AccessMode;
 
   AddMetadataAttr("ip_src", 4, AccessMode::kRead);
