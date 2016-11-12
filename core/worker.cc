@@ -4,8 +4,8 @@
 #include <climits>
 
 #include <sched.h>
-#include <unistd.h>
 #include <sys/eventfd.h>
+#include <unistd.h>
 
 #include <glog/logging.h>
 #include <rte_config.h>

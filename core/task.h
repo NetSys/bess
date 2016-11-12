@@ -1,6 +1,7 @@
 #ifndef BESS_TASK_H_
 #define BESS_TASK_H_
 
+#include "gate.h"
 #include <cstdint>
 
 #include "utils/cdlist.h"
@@ -43,6 +44,5 @@ void assign_default_tc(int wid, struct task *t);
 void process_orphan_tasks();
 
 task_id_t task_to_tid(struct task *t);
-
 
 #endif  // BESS_TASK_H_

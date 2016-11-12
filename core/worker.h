@@ -2,8 +2,10 @@
 #define BESS_WORKER_H_
 
 #include <cstdint>
+#include <glog/logging.h>
 #include <thread>
 
+#include "gate.h"
 #include "pktbatch.h"
 #include "utils/common.h"
 
@@ -14,6 +16,7 @@
 // XXX
 typedef uint16_t gate_idx_t;
 #define MAX_GATES 8192
+#define BRANCH_FACTOR 3
 
 /* 	TODO: worker threads doesn't necessarily be pinned to 1 core
  *
@@ -34,6 +37,11 @@ typedef enum {
   WORKER_RUNNING,
   WORKER_FINISHED,
 } worker_status_t;
+
+struct gate_task {
+  struct gate *gate;
+  struct pkt_batch batch;
+};
 
 class Worker {
  public:
@@ -112,6 +120,29 @@ class Worker {
     return igate_stack_[stack_depth_];
   }
 
+  // Store gate+packets into tasks for worker to service.
+  // Returns true on success.
+  inline bool push_ogate_and_packets(gate *gate, pkt_batch *batch) {
+    if (pending_gates_ > MAX_MODULES_PER_PATH * BRANCH_FACTOR) {
+      LOG(ERROR) << "Gate servicing stack overrun -- loop in execution?";
+      return false;
+    }
+    struct gate_task *new_task = &(gate_servicing_stack_[pending_gates_]);
+    new_task->gate = gate;     // store pointer
+    new_task->batch = *batch;  // store value
+    pending_gates_++;
+    return true;
+  }
+
+  // Retrieve next gate that this worker should serve packets to.
+  // Do not call without checking gates_pending() first.
+  inline struct gate_task pop_ogate_and_packets() {
+    pending_gates_--;
+    return gate_servicing_stack_[pending_gates_];  // return value
+  }
+
+  inline bool gates_pending() { return !(pending_gates_ == 0); }
+
   /* better be the last field. it's huge */
   struct pkt_batch *splits() {
     return splits_;
@@ -140,6 +171,10 @@ class Worker {
    * Modules should use get_igate() for access */
   gate_idx_t igate_stack_[MAX_MODULES_PER_PATH];
   int stack_depth_;
+
+  // Gates and packets that this worker should serve next.
+  struct gate_task gate_servicing_stack_[MAX_MODULES_PER_PATH * BRANCH_FACTOR];
+  int pending_gates_;
 
   /* better be the last field. it's huge */
   struct pkt_batch splits_[MAX_GATES + 1];
