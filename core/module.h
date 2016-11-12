@@ -98,10 +98,6 @@ inline bool GateHookComp(const GateHook *lhs, const GateHook *rhs) {
   return (lhs->priority() < rhs->priority());
 }
 
-// Save devs some typing when calling functions that deal with gate hooks.
-// e.g., Module::ConnectModules().
-const std::vector<GateHook *> kNoHooks = {};
-
 struct gate {
   /* immutable values */
   Module *m;           /* the module this gate belongs to */
@@ -315,9 +311,8 @@ class Module {
   void RunSplit(const gate_idx_t *ogates, struct pkt_batch *mixed_batch);
 
   /* returns -errno if fails */
-  int ConnectModules(gate_idx_t ogate_idx, Module *m_next, gate_idx_t igate_idx,
-                     const std::vector<GateHook *> &input_hooks = kNoHooks,
-                     const std::vector<GateHook *> &output_hooks = kNoHooks);
+  int ConnectModules(gate_idx_t ogate_idx, Module *m_next,
+                     gate_idx_t igate_idx);
   int DisconnectModulesUpstream(gate_idx_t igate_idx);
   int DisconnectModules(gate_idx_t ogate_idx);
 
