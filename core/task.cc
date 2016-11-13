@@ -20,20 +20,20 @@ struct task_result task_scheduled(struct task *t) {
   // Depth first goes through all pending modules and services
   while (ctx.gates_pending()) {
     struct gate_task task = ctx.pop_ogate_and_packets();
-    gate *ogate = task.gate;
+    OGate *ogate = reinterpret_cast<OGate *>(task.gate);
     struct pkt_batch *next_packets = &(task.batch);
 
-    ctx.push_igate(ogate->out.igate_idx);
+    ctx.push_igate(ogate->igate_idx());
 
-    for (const auto &hook : ogate->hooks) {
+    for (auto &hook : ogate->hooks()) {
       hook->ProcessBatch(next_packets);
     }
 
-    for (const auto &hook : ogate->out.igate->hooks) {
+    for (auto &hook : ogate->igate()->hooks()) {
       hook->ProcessBatch(next_packets);
     }
 
-    ((Module *)ogate->arg)->ProcessBatch(next_packets);
+    ((Module *)ogate->arg())->ProcessBatch(next_packets);
 
     ctx.pop_igate();
   }

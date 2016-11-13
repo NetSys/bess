@@ -11,7 +11,6 @@
 #include "snbuf.h"
 #include "snobj.h"
 #include "task.h"
-#include "utils/cdlist.h"
 
 static inline void set_cmd_response_error(pb_cmd_response_t *response,
                                           const pb_error_t &error) {
@@ -300,15 +299,15 @@ class Module {
   bess::metadata::mt_offset_t attr_offsets[bess::metadata::kMaxAttrsPerModule] =
       {};
 
-  std::vector<struct gate *> igates;
-  std::vector<struct gate *> ogates;
+  std::vector<IGate *> igates;
+  std::vector<OGate *> ogates;
 };
 
 void deadend(struct pkt_batch *batch);
 
 inline void Module::RunChooseModule(gate_idx_t ogate_idx,
                                     struct pkt_batch *batch) {
-  struct gate *ogate;
+  Gate *ogate;
 
   if (unlikely(ogate_idx >= ogates.size())) {
     deadend(batch);
@@ -347,7 +346,8 @@ static inline gate_idx_t get_igate() {
   return ctx.igate_stack_top();
 }
 
-static inline int is_active_gate(const std::vector<struct gate *> &gates,
+template <typename T>
+static inline int is_active_gate(const std::vector<T *> &gates,
                                  gate_idx_t idx) {
   return idx < gates.size() && gates.size() && gates[idx];
 }

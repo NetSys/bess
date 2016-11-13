@@ -3,7 +3,7 @@
 
 #include <vector>
 
-#include "utils/cdlist.h"
+#include "utils/common.h"
 
 class Module;
 
@@ -20,7 +20,7 @@ typedef uint16_t gate_idx_t;
 static_assert(MAX_GATES < INVALID_GATE, "invalid macro value");
 static_assert(DROP_GATE <= MAX_GATES, "invalid macro value");
 
-struct gate;
+class Gate;
 
 // Gate hooks allow you to run arbitrary code on the packets flowing through a
 // gate before they get delievered to the upstream module.
@@ -28,22 +28,21 @@ struct gate;
 // can attach/detach them at runtime.
 class GateHook {
  public:
-  GateHook(const std::string &name, uint16_t priority = 0,
-           struct gate *gate = nullptr)
+  GateHook(const std::string &name, uint16_t priority = 0, Gate *gate = nullptr)
       : gate_(gate), name_(name), priority_(priority){};
 
   virtual ~GateHook(){};
 
   const std::string &name() const { return name_; }
 
-  void set_gate(struct gate *gate) { gate_ = gate; }
+  void set_gate(Gate *gate) { gate_ = gate; }
 
   uint16_t priority() const { return priority_; }
 
   virtual void ProcessBatch(const struct pkt_batch *){};
 
  protected:
-  struct gate *gate_;
+  Gate *gate_;
 
  private:
   const std::string &name_;
@@ -57,30 +56,78 @@ inline bool GateHookComp(const GateHook *lhs, const GateHook *rhs) {
   return (lhs->priority() < rhs->priority());
 }
 
-struct gate {
+class Gate {
+ public:
+  Gate(Module *m, gate_idx_t idx, void *arg)
+      : module_(m), gate_idx_(idx), arg_(arg){};
+
+  virtual ~Gate(){};
+
+  Module *module() const { return module_; }
+
+  gate_idx_t gate_idx() const { return gate_idx_; }
+
+  void *arg() const { return arg_; }
+
+  const std::vector<GateHook *> &hooks() const { return hooks_; }
+
+  // Inserts hook in priority order and returns 0 on success.
+  int AddHook(GateHook *hook);
+
+  GateHook *FindHook(const std::string &name);
+
+  void RemoveHook(const std::string &name);
+
+  void ClearHooks();
+
+ private:
   /* immutable values */
-  Module *m;           /* the module this gate belongs to */
-  gate_idx_t gate_idx; /* input/output gate index of itself */
+  Module *module_;      /* the module this gate belongs to */
+  gate_idx_t gate_idx_; /* input/output gate index of itself */
 
   /* mutable values below */
-  void *arg;
-
-  union {
-    struct {
-      struct cdlist_item igate_upstream;
-      struct gate *igate;
-      gate_idx_t igate_idx; /* cache for igate->gate_idx */
-    } out;
-
-    struct {
-      struct cdlist_head ogates_upstream;
-    } in;
-  };
+  void *arg_;
 
   // TODO(melvin): Consider using a map here instead. It gets rid of the need to
   // scan to find modules for queries. Not sure how priority would work in a
   // map, though.
-  std::vector<GateHook *> hooks;
+  std::vector<GateHook *> hooks_;
+
+  DISALLOW_COPY_AND_ASSIGN(Gate);
 };
 
-#endif
+class IGate;
+
+class OGate : public Gate {
+ public:
+  OGate(Module *m, gate_idx_t idx, void *arg)
+      : Gate(m, idx, arg), igate_(), igate_idx_(){};
+
+  void set_igate(IGate *ig) { igate_ = ig; }
+  IGate *igate() const { return igate_; }
+
+  void set_igate_idx(gate_idx_t idx) { igate_idx_ = idx; }
+  gate_idx_t igate_idx() const { return igate_idx_; }
+
+ private:
+  IGate *igate_;
+  gate_idx_t igate_idx_; /* cache for igate->gate_idx */
+};
+
+class IGate : public Gate {
+ public:
+  IGate(Module *m, gate_idx_t idx, void *arg) : Gate(m, idx, arg){};
+
+  const std::vector<OGate *> &ogates_upstream() const {
+    return ogates_upstream_;
+  }
+
+  void PushOgate(OGate *og) { ogates_upstream_.push_back(og); }
+
+  void RemoveOgate(const OGate *og);
+
+ private:
+  std::vector<OGate *> ogates_upstream_;
+};
+
+#endif // BESS_GATE_H_

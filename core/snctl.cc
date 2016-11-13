@@ -757,24 +757,21 @@ static struct snobj *collect_igates(Module *m) {
     struct snobj *igate = snobj_map();
 
     struct snobj *ogates = snobj_list();
-    struct gate *og;
 
-    snobj_map_set(igate, "igate", snobj_uint(g->gate_idx));
+    snobj_map_set(igate, "igate", snobj_uint(g->gate_idx()));
 
-    for (const auto &hook : g->hooks) {
-      if (hook->name() == kGateHookTrackGate) {
-        TrackGate *t = reinterpret_cast<TrackGate *>(hook);
-        snobj_map_set(igate, "cnt", snobj_uint(t->cnt()));
-        snobj_map_set(igate, "pkts", snobj_uint(t->pkts()));
-        snobj_map_set(igate, "timestamp", snobj_double(get_epoch_time()));
-        break;
-      }
+    TrackGate *t =
+        reinterpret_cast<TrackGate *>(g->FindHook(kGateHookTrackGate));
+    if (t) {
+      snobj_map_set(igate, "cnt", snobj_uint(t->cnt()));
+      snobj_map_set(igate, "pkts", snobj_uint(t->pkts()));
+      snobj_map_set(igate, "timestamp", snobj_double(get_epoch_time()));
     }
 
-    cdlist_for_each_entry(og, &g->in.ogates_upstream, out.igate_upstream) {
+    for (const auto &og : g->ogates_upstream()) {
       struct snobj *ogate = snobj_map();
-      snobj_map_set(ogate, "ogate", snobj_uint(og->gate_idx));
-      snobj_map_set(ogate, "name", snobj_str(og->m->name()));
+      snobj_map_set(ogate, "ogate", snobj_uint(og->gate_idx()));
+      snobj_map_set(ogate, "name", snobj_str(og->module()->name()));
       snobj_list_add(ogates, ogate);
     }
 
@@ -796,20 +793,18 @@ static struct snobj *collect_ogates(Module *m) {
 
     struct snobj *ogate = snobj_map();
 
-    snobj_map_set(ogate, "ogate", snobj_uint(g->gate_idx));
+    snobj_map_set(ogate, "ogate", snobj_uint(g->gate_idx()));
 
-    for (const auto &hook : g->hooks) {
-      if (hook->name() == kGateHookTrackGate) {
-        TrackGate *t = reinterpret_cast<TrackGate *>(hook);
-        snobj_map_set(ogate, "cnt", snobj_uint(t->cnt()));
-        snobj_map_set(ogate, "pkts", snobj_uint(t->pkts()));
-        snobj_map_set(ogate, "timestamp", snobj_double(get_epoch_time()));
-        break;
-      }
+    TrackGate *t =
+        reinterpret_cast<TrackGate *>(g->FindHook(kGateHookTrackGate));
+    if (t) {
+      snobj_map_set(ogate, "cnt", snobj_uint(t->cnt()));
+      snobj_map_set(ogate, "pkts", snobj_uint(t->pkts()));
+      snobj_map_set(ogate, "timestamp", snobj_double(get_epoch_time()));
     }
 
-    snobj_map_set(ogate, "name", snobj_str(g->out.igate->m->name()));
-    snobj_map_set(ogate, "igate", snobj_uint(g->out.igate->gate_idx));
+    snobj_map_set(ogate, "name", snobj_str(g->igate()->module()->name()));
+    snobj_map_set(ogate, "igate", snobj_uint(g->igate()->gate_idx()));
 
     snobj_list_add(ogates, ogate);
   }
@@ -1081,24 +1076,10 @@ static struct snobj *handle_disable_tcpdump(struct snobj *q) {
   return nullptr;
 }
 
-static struct snobj *enable_track(struct gate *gate) {
-  for (const auto &hook : gate->hooks) {
-    if (hook->name() == kGateHookTrackGate) {
-      return nullptr;
-    }
-  }
-
-  // TODO(melvin): consider refactoring struct gate and exposing a method like
-  // AddHook(...) to replace this
-  gate->hooks.push_back(new TrackGate());
-  std::sort(gate->hooks.begin(), gate->hooks.end(), GateHookComp);
-  return nullptr;
-}
-
 static struct snobj *enable_track_for_module(const Module *m,
                                              struct snobj *gate_idx_,
                                              int is_igate) {
-  struct snobj *ret;
+  int ret;
 
   if (gate_idx_) {
     gate_idx_t gate_idx = snobj_uint_get(gate_idx_);
@@ -1111,25 +1092,28 @@ static struct snobj *enable_track_for_module(const Module *m,
       return snobj_err(EINVAL, "Input gate '%hu' does not exist", gate_idx);
     }
 
-    if (is_igate) {
-      return enable_track(m->igates[gate_idx]);
+    if (is_igate && (ret = m->igates[gate_idx]->AddHook(new TrackGate()))) {
+      return snobj_err(ret, "Failed to track input gate '%hu'", gate_idx);
     }
-    return enable_track(m->ogates[gate_idx]);
+
+    if ((ret = m->ogates[gate_idx]->AddHook(new TrackGate()))) {
+      return snobj_err(ret, "Failed to track output gate '%hu'", gate_idx);
+    }
   }
 
   // XXX: ewwwwww
   if (is_igate) {
     for (auto &gate : m->igates) {
-      ret = enable_track(gate);
-      if (ret) {
-        return ret;
+      if ((ret = gate->AddHook(new TrackGate()))) {
+        return snobj_err(ret, "Failed to track input gate '%hu'",
+                         gate->gate_idx());
       }
     }
   } else {
     for (auto &gate : m->ogates) {
-      ret = enable_track(gate);
-      if (ret) {
-        return ret;
+      if ((ret = gate->AddHook(new TrackGate()))) {
+        return snobj_err(ret, "Failed to track output gate '%hu'",
+                         gate->gate_idx());
       }
     }
   }
@@ -1162,23 +1146,9 @@ static struct snobj *handle_enable_track(struct snobj *q) {
                                  is_igate);
 }
 
-static struct snobj *disable_track(struct gate *gate) {
-  for (auto it = gate->hooks.begin(); it != gate->hooks.end(); ++it) {
-    GateHook *hook = *it;
-    if (hook->name() == kGateHookTrackGate) {
-      delete hook;
-      gate->hooks.erase(it);
-      return nullptr;
-    }
-  }
-  return nullptr;
-}
-
 static struct snobj *disable_track_for_module(const Module *m,
                                               struct snobj *gate_idx_,
                                               int is_igate) {
-  struct snobj *ret;
-
   if (gate_idx_) {
     gate_idx_t gate_idx = snobj_uint_get(gate_idx_);
 
@@ -1191,25 +1161,21 @@ static struct snobj *disable_track_for_module(const Module *m,
     }
 
     if (is_igate) {
-      return disable_track(m->igates[gate_idx]);
+      m->igates[gate_idx]->RemoveHook(kGateHookTrackGate);
+      return nullptr;
     }
-    return disable_track(m->ogates[gate_idx]);
+    m->ogates[gate_idx]->RemoveHook(kGateHookTrackGate);
+    return nullptr;
   }
 
   // XXX: ewwwwww
   if (is_igate) {
     for (auto &gate : m->igates) {
-      ret = disable_track(gate);
-      if (ret) {
-        return ret;
-      }
+      gate->RemoveHook(kGateHookTrackGate);
     }
   } else {
     for (auto &gate : m->ogates) {
-      ret = disable_track(gate);
-      if (ret) {
-        return ret;
-      }
+      gate->RemoveHook(kGateHookTrackGate);
     }
   }
   return nullptr;

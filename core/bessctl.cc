@@ -7,6 +7,7 @@
 #include <grpc++/server_context.h>
 #include <grpc/grpc.h>
 
+#include "gate.h"
 #include "hooks/track.h"
 #include "message.h"
 #include "metadata.h"
@@ -60,14 +61,13 @@ static int collect_igates(Module* m, GetModuleInfoResponse* response) {
     }
 
     GetModuleInfoResponse_IGate* igate = response->add_igates();
-    struct gate* og;
 
-    igate->set_igate(g->gate_idx);
+    igate->set_igate(g->gate_idx());
 
-    cdlist_for_each_entry(og, &g->in.ogates_upstream, out.igate_upstream) {
+    for (const auto& og : g->ogates_upstream()) {
       GetModuleInfoResponse_IGate_OGate* ogate = igate->add_ogates();
-      ogate->set_ogate(og->gate_idx);
-      ogate->set_name(og->m->name());
+      ogate->set_ogate(og->gate_idx());
+      ogate->set_name(og->module()->name());
     }
   }
 
@@ -82,18 +82,16 @@ static int collect_ogates(Module* m, GetModuleInfoResponse* response) {
 
     GetModuleInfoResponse_OGate* ogate = response->add_ogates();
 
-    ogate->set_ogate(g->gate_idx);
-    for (const auto& hook : g->hooks) {
-      if (hook->name() == kGateHookTrackGate) {
-        TrackGate* t = reinterpret_cast<TrackGate*>(hook);
-        ogate->set_cnt(t->cnt());
-        ogate->set_pkts(t->pkts());
-        ogate->set_timestamp(get_epoch_time());
-        break;
-      }
+    ogate->set_ogate(g->gate_idx());
+    TrackGate* t =
+        reinterpret_cast<TrackGate*>(g->FindHook(kGateHookTrackGate));
+    if (t) {
+      ogate->set_cnt(t->cnt());
+      ogate->set_pkts(t->pkts());
+      ogate->set_timestamp(get_epoch_time());
     }
-    ogate->set_name(g->out.igate->m->name());
-    ogate->set_igate(g->out.igate->gate_idx);
+    ogate->set_name(g->igate()->module()->name());
+    ogate->set_igate(g->igate()->gate_idx());
   }
 
   return 0;
