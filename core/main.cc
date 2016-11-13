@@ -23,10 +23,8 @@ int main(int argc, char *argv[]) {
   bess::bessd::CheckRunningAsRoot();
 
   int signal_fd = -1;
-  if (FLAGS_f) {
-    LOG(INFO) << "Launching BESS daemon in process mode...";
-  } else {
-    signal_fd = bess::bessd::StartDaemon();
+  if (!FLAGS_f) {
+    signal_fd = bess::bessd::Daemonize();
   }
 
   bess::bessd::CheckUniqueInstance(FLAGS_i);

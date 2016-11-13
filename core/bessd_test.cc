@@ -261,10 +261,10 @@ TEST(CheckUniqueInstance, HeldKillCurrentHolder) {
 }
 
 // Checks that we can do a basic call to start the daemon.
-TEST(StartDaemon, BasicRun) {
+TEST(Daemonize, BasicRun) {
   DO_MULTI_PROCESS_TEST({
     int signal_fd = -1;
-    ASSERT_NO_FATAL_FAILURE(signal_fd = StartDaemon(););
+    ASSERT_NO_FATAL_FAILURE(signal_fd = Daemonize(););
     ASSERT_NE(-1, signal_fd);
 
     uint64_t one = 1;

@@ -31,7 +31,7 @@ std::tuple<bool, pid_t> TryAcquirePidfileLock(int fd);
 void CheckUniqueInstance(const std::string &pidfile_path);
 
 // Starts BESS as a daemon running in the background.
-int StartDaemon();
+int Daemonize();
 
 // Sets BESS's resource limit.  Returns true upon success.
 bool SetResourceLimit();
