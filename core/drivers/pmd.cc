@@ -87,7 +87,8 @@ static const struct rte_eth_conf default_eth_conf() {
 void PMDPort::InitDriver() {
   dpdk_port_t num_dpdk_ports = rte_eth_dev_count();
 
-  LOG(INFO) << num_dpdk_ports << " DPDK PMD ports have been recognized:";
+  LOG(INFO) << static_cast<int>(num_dpdk_ports)
+            << " DPDK PMD ports have been recognized:";
 
   for (dpdk_port_t i = 0; i < num_dpdk_ports; i++) {
     struct rte_eth_dev_info dev_info;
@@ -103,9 +104,9 @@ void PMDPort::InitDriver() {
           dev_info.pci_dev->id.vendor_id, dev_info.pci_dev->id.device_id);
     }
 
-    LOG(INFO) << "DPDK port_id " << i << " (" << dev_info.driver_name
-              << ")   RXQ " << dev_info.max_rx_queues << " TXQ "
-              << dev_info.max_tx_queues << "  " << pci_info;
+    LOG(INFO) << "DPDK port_id " << static_cast<int>(i) << " ("
+              << dev_info.driver_name << ")   RXQ " << dev_info.max_rx_queues
+              << " TXQ " << dev_info.max_tx_queues << "  " << pci_info;
   }
 }
 
@@ -459,7 +460,7 @@ void PMDPort::DeInit() {
     rte_eth_dev_close(dpdk_port_id_);
     ret = rte_eth_dev_detach(dpdk_port_id_, name);
     if (ret < 0) {
-      LOG(WARNING) << "rte_eth_dev_detach(" << dpdk_port_id_
+      LOG(WARNING) << "rte_eth_dev_detach(" << static_cast<int>(dpdk_port_id_)
                    << ") failed: " << rte_strerror(-ret);
     }
   }
@@ -479,7 +480,7 @@ void PMDPort::CollectStats(bool reset) {
 
   ret = rte_eth_stats_get(dpdk_port_id_, &stats);
   if (ret < 0) {
-    LOG(ERROR) << "rte_eth_stats_get(" << dpdk_port_id_
+    LOG(ERROR) << "rte_eth_stats_get(" << static_cast<int>(dpdk_port_id_)
                << ") failed: " << rte_strerror(-ret);
     return;
   }
