@@ -260,8 +260,8 @@ int Module::AddMetadataAttr(const std::string &name, size_t size,
 /* returns -errno if fails */
 int Module::ConnectModules(gate_idx_t ogate_idx, Module *m_next,
                            gate_idx_t igate_idx) {
-  OGate *ogate;
-  IGate *igate;
+  bess::OGate *ogate;
+  bess::IGate *igate;
 
   if (ogate_idx >= module_builder_->NumOGates() || ogate_idx >= MAX_GATES) {
     return -EINVAL;
@@ -273,7 +273,7 @@ int Module::ConnectModules(gate_idx_t ogate_idx, Module *m_next,
   }
 
   /* already being used? */
-  if (is_active_gate<OGate>(ogates, ogate_idx)) {
+  if (is_active_gate<bess::OGate>(ogates, ogate_idx)) {
     return -EBUSY;
   }
 
@@ -281,7 +281,7 @@ int Module::ConnectModules(gate_idx_t ogate_idx, Module *m_next,
     ogates.emplace_back();
   }
 
-  ogate = new OGate(this, ogate_idx, m_next);
+  ogate = new bess::OGate(this, ogate_idx, m_next);
   if (!ogate) {
     return -ENOMEM;
   }
@@ -291,7 +291,7 @@ int Module::ConnectModules(gate_idx_t ogate_idx, Module *m_next,
     m_next->igates.emplace_back();
   }
 
-  igate = new IGate(m_next, igate_idx, m_next);
+  igate = new bess::IGate(m_next, igate_idx, m_next);
   if (!igate) {
     delete ogate;
     return -ENOMEM;
@@ -310,15 +310,15 @@ int Module::ConnectModules(gate_idx_t ogate_idx, Module *m_next,
 }
 
 int Module::DisconnectModules(gate_idx_t ogate_idx) {
-  OGate *ogate;
-  IGate *igate;
+  bess::OGate *ogate;
+  bess::IGate *igate;
 
   if (ogate_idx >= module_builder_->NumOGates()) {
     return -EINVAL;
   }
 
   /* no error even if the ogate is unconnected already */
-  if (!is_active_gate<OGate>(ogates, ogate_idx)) {
+  if (!is_active_gate<bess::OGate>(ogates, ogate_idx)) {
     return 0;
   }
 
@@ -346,14 +346,14 @@ int Module::DisconnectModules(gate_idx_t ogate_idx) {
 }
 
 int Module::DisconnectModulesUpstream(gate_idx_t igate_idx) {
-  IGate *igate;
+  bess::IGate *igate;
 
   if (igate_idx >= module_builder_->NumIGates()) {
     return -EINVAL;
   }
 
   /* no error even if the igate is unconnected already */
-  if (!is_active_gate<IGate>(igates, igate_idx)) {
+  if (!is_active_gate<bess::IGate>(igates, igate_idx)) {
     return 0;
   }
 
@@ -505,16 +505,16 @@ int Module::EnableTcpDump(const char *fifo, int is_igate, gate_idx_t gate_idx) {
       .snaplen = PCAP_SNAPLEN,
       .network = PCAP_NETWORK,
   };
-  Gate *gate;
+  bess::Gate *gate;
 
   int fd;
   int ret;
 
   /* Don't allow tcpdump to be attached to gates that are not active */
-  if (!is_igate && !is_active_gate<OGate>(ogates, gate_idx))
+  if (!is_igate && !is_active_gate<bess::OGate>(ogates, gate_idx))
     return -EINVAL;
 
-  if (is_igate && !is_active_gate<IGate>(igates, gate_idx))
+  if (is_igate && !is_active_gate<bess::IGate>(igates, gate_idx))
     return -EINVAL;
 
   fd = open(fifo, O_WRONLY | O_NONBLOCK);
@@ -552,13 +552,13 @@ int Module::EnableTcpDump(const char *fifo, int is_igate, gate_idx_t gate_idx) {
 }
 
 int Module::DisableTcpDump(int is_igate, gate_idx_t gate_idx) {
-  if (!is_igate && !is_active_gate<OGate>(ogates, gate_idx))
+  if (!is_igate && !is_active_gate<bess::OGate>(ogates, gate_idx))
     return -EINVAL;
 
-  if (is_igate && !is_active_gate<IGate>(igates, gate_idx))
+  if (is_igate && !is_active_gate<bess::IGate>(igates, gate_idx))
     return -EINVAL;
 
-  Gate *gate;
+  bess::Gate *gate;
   if (is_igate) {
     gate = igates[gate_idx];
   } else {

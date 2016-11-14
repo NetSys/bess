@@ -2,6 +2,8 @@
 
 #include <algorithm>
 
+namespace bess {
+
 int Gate::AddHook(GateHook *hook) {
   for (const auto &h : hooks_) {
     if (h->name() == hook->name()) {
@@ -48,4 +50,5 @@ void IGate::RemoveOgate(const OGate *og) {
       return;
     }
   }
+}
 }

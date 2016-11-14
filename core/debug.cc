@@ -375,7 +375,9 @@ void dump_types(void) {
   printf("sizeof(task)=%zu\n", sizeof(struct task));
 
   printf("sizeof(Module)=%zu\n", sizeof(Module));
-  printf("sizeof(gate)=%zu\n", sizeof(Gate));
+  printf("sizeof(Gate)=%zu\n", sizeof(bess::Gate));
+  printf("sizeof(IGate)=%zu\n", sizeof(bess::IGate));
+  printf("sizeof(OGate)=%zu\n", sizeof(bess::OGate));
 
   printf("sizeof(worker_context)=%zu\n", sizeof(Worker));
 

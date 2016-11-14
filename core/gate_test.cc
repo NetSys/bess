@@ -7,7 +7,7 @@
 #include "module.h"
 #include "pktbatch.h"
 
-namespace {
+namespace bess {
 
 class GateTest : public ::testing::Test {
  protected:

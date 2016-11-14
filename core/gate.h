@@ -3,9 +3,12 @@
 
 #include <vector>
 
+#include "pktbatch.h"
 #include "utils/common.h"
 
 class Module;
+
+namespace bess {
 
 typedef uint16_t gate_idx_t;
 
@@ -29,9 +32,9 @@ class Gate;
 class GateHook {
  public:
   GateHook(const std::string &name, uint16_t priority = 0, Gate *gate = nullptr)
-      : gate_(gate), name_(name), priority_(priority){};
+      : gate_(gate), name_(name), priority_(priority){}
 
-  virtual ~GateHook(){};
+  virtual ~GateHook(){}
 
   const std::string &name() const { return name_; }
 
@@ -39,7 +42,7 @@ class GateHook {
 
   uint16_t priority() const { return priority_; }
 
-  virtual void ProcessBatch(const struct pkt_batch *){};
+  virtual void ProcessBatch(const struct pkt_batch *) {}
 
  protected:
   Gate *gate_;
@@ -59,9 +62,9 @@ inline bool GateHookComp(const GateHook *lhs, const GateHook *rhs) {
 class Gate {
  public:
   Gate(Module *m, gate_idx_t idx, void *arg)
-      : module_(m), gate_idx_(idx), arg_(arg){};
+      : module_(m), gate_idx_(idx), arg_(arg){}
 
-  virtual ~Gate(){};
+  virtual ~Gate(){}
 
   Module *module() const { return module_; }
 
@@ -101,7 +104,7 @@ class IGate;
 class OGate : public Gate {
  public:
   OGate(Module *m, gate_idx_t idx, void *arg)
-      : Gate(m, idx, arg), igate_(), igate_idx_(){};
+      : Gate(m, idx, arg), igate_(), igate_idx_(){}
 
   void set_igate(IGate *ig) { igate_ = ig; }
   IGate *igate() const { return igate_; }
@@ -116,7 +119,7 @@ class OGate : public Gate {
 
 class IGate : public Gate {
  public:
-  IGate(Module *m, gate_idx_t idx, void *arg) : Gate(m, idx, arg){};
+  IGate(Module *m, gate_idx_t idx, void *arg) : Gate(m, idx, arg){}
 
   const std::vector<OGate *> &ogates_upstream() const {
     return ogates_upstream_;
@@ -129,5 +132,6 @@ class IGate : public Gate {
  private:
   std::vector<OGate *> ogates_upstream_;
 };
+}
 
-#endif // BESS_GATE_H_
+#endif  // BESS_GATE_H_

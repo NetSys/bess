@@ -299,15 +299,15 @@ class Module {
   bess::metadata::mt_offset_t attr_offsets[bess::metadata::kMaxAttrsPerModule] =
       {};
 
-  std::vector<IGate *> igates;
-  std::vector<OGate *> ogates;
+  std::vector<bess::IGate *> igates;
+  std::vector<bess::OGate *> ogates;
 };
 
 void deadend(struct pkt_batch *batch);
 
 inline void Module::RunChooseModule(gate_idx_t ogate_idx,
                                     struct pkt_batch *batch) {
-  Gate *ogate;
+  bess::Gate *ogate;
 
   if (unlikely(ogate_idx >= ogates.size())) {
     deadend(batch);
