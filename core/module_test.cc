@@ -6,8 +6,6 @@
 
 #include <gtest/gtest.h>
 
-#include "utils/cdlist.h"
-
 namespace {
 
 // Mocking out misc things  ------------------------------------------------
@@ -188,7 +186,6 @@ TEST_F(ModuleTester, RunCommandPb) {
 
 TEST_F(ModuleTester, ConnectModules) {
   Module *m1, *m2;
-  struct gate *og;
 
   EXPECT_EQ(0, create_acme("m1", &m1));
   ASSERT_NE(nullptr, m1);
@@ -196,14 +193,13 @@ TEST_F(ModuleTester, ConnectModules) {
   ASSERT_NE(nullptr, m2);
 
   EXPECT_EQ(0, m1->ConnectModules(0, m2, 0));
-  EXPECT_EQ(1, m1->ogates.curr_size);
-  EXPECT_EQ(m2, m1->ogates.arr[0]->out.igate->m);
-  EXPECT_EQ(1, m2->igates.curr_size);
+  EXPECT_EQ(1, m1->ogates.size());
+  EXPECT_EQ(m2, m1->ogates[0]->igate()->module());
+  EXPECT_EQ(1, m2->igates.size());
 
-  cdlist_for_each_entry(og, &m2->igates.arr[0]->in.ogates_upstream,
-                        out.igate_upstream) {
+  for (const auto &og : m2->igates[0]->ogates_upstream()) {
     ASSERT_NE(nullptr, og);
-    EXPECT_EQ(m1, og->m);
+    EXPECT_EQ(m1, og->module());
   }
 }
 

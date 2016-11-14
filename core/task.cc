@@ -20,17 +20,20 @@ struct task_result task_scheduled(struct task *t) {
   // Depth first goes through all pending modules and services
   while (ctx.gates_pending()) {
     struct gate_task task = ctx.pop_ogate_and_packets();
-    gate *ogate = task.gate;
+    bess::OGate *ogate = reinterpret_cast<bess::OGate *>(task.gate);
     struct pkt_batch *next_packets = &(task.batch);
 
-#if TRACK_GATES
-    ogate->cnt += 1;
-    ogate->pkts += next_packets->cnt;
-#endif
+    ctx.push_igate(ogate->igate_idx());
 
-    ctx.push_igate(ogate->out.igate_idx);
+    for (auto &hook : ogate->hooks()) {
+      hook->ProcessBatch(next_packets);
+    }
 
-    ((Module *)ogate->arg)->ProcessBatch(next_packets);
+    for (auto &hook : ogate->igate()->hooks()) {
+      hook->ProcessBatch(next_packets);
+    }
+
+    ((Module *)ogate->arg())->ProcessBatch(next_packets);
 
     ctx.pop_igate();
   }
@@ -42,7 +45,7 @@ struct task *task_create(Module *m, void *arg) {
   struct task *t;
 
   t = (struct task *)mem_alloc(sizeof(*t));
-  if (!t){
+  if (!t) {
     return nullptr;
   }
 
@@ -140,7 +143,7 @@ static int get_next_wid(int *wid) {
   if (num_workers == 0)
     return -1;
 
-  while (!is_worker_active(rr_next)){
+  while (!is_worker_active(rr_next)) {
     rr_next = (rr_next + 1) % MAX_WORKERS;
   }
 

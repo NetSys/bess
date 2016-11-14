@@ -20,8 +20,8 @@
 #include <rte_version.h>
 
 #include "module.h"
-#include "snobj.h"
 #include "snbuf.h"
+#include "snobj.h"
 #include "tc.h"
 #include "utils/htable.h"
 
@@ -271,11 +271,11 @@ static std::string print_code(char *symbol, int context) {
 #elif __x86_64
   ip = (void *)uc->uc_mcontext.gregs[REG_RIP];
 #else
-#  error neither x86 or x86-64
+#error neither x86 or x86-64
 #endif
 
   oops << "A critical error has occured. Aborting... (pid=" << getpid()
-             << ", tid=" << (pid_t)syscall(SYS_gettid) << ")" << std::endl;
+       << ", tid=" << (pid_t)syscall(SYS_gettid) << ")" << std::endl;
   oops << "Signal: " << sig_num << " (" << strsignal(sig_num)
        << "), si_code: " << info->si_code << " ("
        << si_code_to_str(sig_num, info->si_code)
@@ -375,7 +375,9 @@ void dump_types(void) {
   printf("sizeof(task)=%zu\n", sizeof(struct task));
 
   printf("sizeof(Module)=%zu\n", sizeof(Module));
-  printf("sizeof(gate)=%zu\n", sizeof(struct gate));
+  printf("sizeof(Gate)=%zu\n", sizeof(bess::Gate));
+  printf("sizeof(IGate)=%zu\n", sizeof(bess::IGate));
+  printf("sizeof(OGate)=%zu\n", sizeof(bess::OGate));
 
   printf("sizeof(worker_context)=%zu\n", sizeof(Worker));
 

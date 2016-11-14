@@ -7,6 +7,8 @@
 #include <grpc++/server_context.h>
 #include <grpc/grpc.h>
 
+#include "gate.h"
+#include "hooks/track.h"
 #include "message.h"
 #include "metadata.h"
 #include "module.h"
@@ -53,20 +55,19 @@ static inline Status return_with_errno(T* response, int code) {
 }
 
 static int collect_igates(Module* m, GetModuleInfoResponse* response) {
-  for (int i = 0; i < m->igates.curr_size; i++) {
-    if (!is_active_gate(&m->igates, i))
+  for (const auto& g : m->igates) {
+    if (!g) {
       continue;
+    }
 
     GetModuleInfoResponse_IGate* igate = response->add_igates();
-    struct gate* g = m->igates.arr[i];
-    struct gate* og;
 
-    igate->set_igate(i);
+    igate->set_igate(g->gate_idx());
 
-    cdlist_for_each_entry(og, &g->in.ogates_upstream, out.igate_upstream) {
+    for (const auto& og : g->ogates_upstream()) {
       GetModuleInfoResponse_IGate_OGate* ogate = igate->add_ogates();
-      ogate->set_ogate(og->gate_idx);
-      ogate->set_name(og->m->name());
+      ogate->set_ogate(og->gate_idx());
+      ogate->set_name(og->module()->name());
     }
   }
 
@@ -74,20 +75,23 @@ static int collect_igates(Module* m, GetModuleInfoResponse* response) {
 }
 
 static int collect_ogates(Module* m, GetModuleInfoResponse* response) {
-  for (int i = 0; i < m->ogates.curr_size; i++) {
-    if (!is_active_gate(&m->ogates, i))
+  for (const auto& g : m->ogates) {
+    if (!g) {
       continue;
-    GetModuleInfoResponse_OGate* ogate = response->add_ogates();
-    struct gate* g = m->ogates.arr[i];
+    }
 
-    ogate->set_ogate(i);
-#if TRACK_GATES
-    ogate->set_cnt(g->cnt);
-    ogate->set_pkts(g->pkts);
-    ogate->set_timestamp(get_epoch_time());
-#endif
-    ogate->set_name(g->out.igate->m->name());
-    ogate->set_igate(g->out.igate->gate_idx);
+    GetModuleInfoResponse_OGate* ogate = response->add_ogates();
+
+    ogate->set_ogate(g->gate_idx());
+    TrackGate* t =
+        reinterpret_cast<TrackGate*>(g->FindHook(kGateHookTrackGate));
+    if (t) {
+      ogate->set_cnt(t->cnt());
+      ogate->set_pkts(t->pkts());
+      ogate->set_timestamp(get_epoch_time());
+    }
+    ogate->set_name(g->igate()->module()->name());
+    ogate->set_igate(g->igate()->gate_idx());
   }
 
   return 0;
@@ -95,7 +99,7 @@ static int collect_ogates(Module* m, GetModuleInfoResponse* response) {
 
 static int collect_metadata(Module* m, GetModuleInfoResponse* response) {
   size_t i = 0;
-  for (const auto &it : m->all_attrs()) {
+  for (const auto& it : m->all_attrs()) {
     GetModuleInfoResponse_Attribute* attr = response->add_metadata();
 
     attr->set_name(it.name);
@@ -929,11 +933,12 @@ class BESSControlImpl final : public BESSControl::Service {
     }
     Module* m = it->second;
 
-    if (ogate >= m->ogates.curr_size)
+    if (ogate >= m->ogates.size())
       return return_with_error(response, EINVAL,
                                "Output gate '%hu' does not exist", ogate);
 
-    ret = m->EnableTcpDump(fifo, ogate);
+    // TODO(melvin): actually change protobufs when new bessctl arrives
+    ret = m->EnableTcpDump(fifo, 0, ogate);
 
     if (ret < 0) {
       return return_with_error(response, -ret, "Enabling tcpdump %s:%d failed",
@@ -966,12 +971,13 @@ class BESSControlImpl final : public BESSControl::Service {
     }
 
     Module* m = it->second;
-    if (ogate >= m->ogates.curr_size) {
+    if (ogate >= m->ogates.size()) {
       return return_with_error(response, EINVAL,
                                "Output gate '%hu' does not exist", ogate);
     }
 
-    ret = m->DisableTcpDump(ogate);
+    // TODO(melvin): actually change protobufs when new bessctl arrives
+    ret = m->DisableTcpDump(0, ogate);
 
     if (ret < 0) {
       return return_with_error(response, -ret, "Disabling tcpdump %s:%d failed",

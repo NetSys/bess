@@ -194,6 +194,15 @@ def get_var_attrs(cli, var_token, partial_word):
             var_desc = 'configuration filename'
             var_candidates = complete_filename(partial_word)
 
+        if var_token == '[DIRECTION]':
+            var_type = 'name'
+            var_desc = 'gate direction discriminator (default "out")'
+            var_candidates = ['in', 'out']
+
+        elif var_token == '[GATE]':
+            var_type = 'gate'
+            var_desc = 'gate index (default all)'
+
         elif var_token == '[OGATE]':
             var_type = 'gate'
             var_desc = 'output gate of a module (default 0)'
@@ -994,18 +1003,29 @@ def _show_module(cli, module_name):
     if info.igates:
         cli.fout.write('    Input gates:\n')
         for gate in info.igates:
-            cli.fout.write('      %5d: %s\n' % \
-                    (gate.igate,
+            track_str = 'batches N/A packets N/A'
+            try:
+                track_str = 'batches %-16d packets %-16d' % (gate.cnt,
+                        gate.pkts)
+            except:
+                pass
+            cli.fout.write('      %5d: %s %s\n' % \
+                    (gate.igate, track_str,
                      ', '.join('%s:%d ->' % (g.name, g.ogate) \
                              for g in gate.ogates)))
 
     if info.ogates:
         cli.fout.write('    Output gates:\n')
         for gate in info.ogates:
+            track_str = 'batches N/A packets N/A'
+            try:
+                track_str = 'batches %-16d packets %-16d' % (gate.cnt,
+                        gate.pkts)
+            except:
+                pass
             cli.fout.write(
-                    '      %5d: batches %-16d packets %-16d -> %d:%s\n' % \
-                    (gate.ogate, gate.cnt, gate.pkts,
-                     gate.igate, gate.name))
+                    '      %5d: %s -> %d:%s\n' % \
+                    (gate.ogate, track_str, gate.igate, gate.name))
 
     if 'dump' in info:
         dump_str = pprint.pformat(info.dump, width=74)
@@ -1288,13 +1308,16 @@ def monitor_tc_all(cli, tcs):
     _monitor_tcs(cli, *tcs)
 
 # tcpdump can write pcap files, so we don't need to support it separately
-@cmd('tcpdump MODULE [OGATE] [TCPDUMP_OPTS...]', 'Capture packets on a gate')
-def tcpdump_module(cli, module_name, ogate, opts):
-    if ogate is None:
-        ogate = 0
+@cmd('tcpdump MODULE [DIRECTION] [OGATE] [TCPDUMP_OPTS...]', 'Capture packets on a gate')
+def tcpdump_module(cli, module_name, direction, gate, opts):
+    if gate is None:
+        gate = 0
 
     if opts is None:
         opts = []
+
+    if direction is None:
+        direction = 'out'
 
     fifo = tempfile.mktemp()
     os.mkfifo(fifo, 0600)   # random people should not see packets...
@@ -1311,7 +1334,7 @@ def tcpdump_module(cli, module_name, ogate, opts):
 
     cli.bess.pause_all()
     try:
-        cli.bess.enable_tcpdump(fifo, module_name, ogate)
+        cli.bess.enable_tcpdump(fifo, module_name, direction, gate)
     finally:
         cli.bess.resume_all()
 
@@ -1323,7 +1346,7 @@ def tcpdump_module(cli, module_name, ogate, opts):
     finally:
         cli.bess.pause_all()
         try:
-            cli.bess.disable_tcpdump(module_name, ogate)
+            cli.bess.disable_tcpdump(module_name, direction, gate)
         finally:
             cli.bess.resume_all()
 
@@ -1333,6 +1356,21 @@ def tcpdump_module(cli, module_name, ogate, opts):
             os.system('stty sane')  # more/less may have screwed the terminal
         except:
             pass
+
+@cmd('track ENABLE_DISABLE [MODULE] [DIRECTION] [GATE]',
+     'Count the packets and batches on a gate')
+def track_module(cli, flag, module_name, direction, gate):
+    if direction is None:
+        direction = 'out'
+
+    cli.bess.pause_all()
+    try:
+        if flag == 'enable':
+            cli.bess.enable_track(module_name, direction, gate)
+        else:
+            cli.bess.disable_track(module_name, direction, gate)
+    finally:
+        cli.bess.resume_all()
 
 @cmd('interactive', 'Switch to interactive mode')
 def interactive(cli):

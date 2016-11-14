@@ -11,7 +11,6 @@
 #include "snbuf.h"
 #include "snobj.h"
 #include "task.h"
-#include "utils/cdlist.h"
 
 static inline void set_cmd_response_error(pb_cmd_response_t *response,
                                           const pb_error_t &error) {
@@ -242,7 +241,6 @@ class Module {
                      gate_idx_t igate_idx);
   int DisconnectModulesUpstream(gate_idx_t igate_idx);
   int DisconnectModules(gate_idx_t ogate_idx);
-  int GrowGates(struct gates *gates, gate_idx_t gate);
 
   int NumTasks();
   task_id_t RegisterTask(void *arg);
@@ -258,19 +256,9 @@ class Module {
   int AddMetadataAttr(const std::string &name, size_t size,
                       bess::metadata::Attribute::AccessMode mode);
 
-#if TCPDUMP_GATES
-  int EnableTcpDump(const char *fifo, gate_idx_t gate);
+  int EnableTcpDump(const char *fifo, int is_igate, gate_idx_t gate_idx);
 
-  int DisableTcpDump(gate_idx_t gate);
-
-  void DumpPcapPkts(struct gate *gate, struct pkt_batch *batch);
-#else
-  /* Cannot enable tcpdump */
-  inline int enable_tcpdump(const char *, gate_idx_t) { return -EINVAL; }
-
-  /* Cannot disable tcpdump */
-  inline int disable_tcpdump(Module *, int) { return -EINVAL; }
-#endif
+  int DisableTcpDump(int is_igate, gate_idx_t gate_idx);
 
   struct snobj *RunCommand(const std::string &cmd, struct snobj *arg) {
     return module_builder_->RunCommand(this, cmd, arg);
@@ -311,22 +299,22 @@ class Module {
   bess::metadata::mt_offset_t attr_offsets[bess::metadata::kMaxAttrsPerModule] =
       {};
 
-  struct gates igates;
-  struct gates ogates;
+  std::vector<bess::IGate *> igates;
+  std::vector<bess::OGate *> ogates;
 };
 
 void deadend(struct pkt_batch *batch);
 
 inline void Module::RunChooseModule(gate_idx_t ogate_idx,
                                     struct pkt_batch *batch) {
-  struct gate *ogate;
+  bess::Gate *ogate;
 
-  if (unlikely(ogate_idx >= ogates.curr_size)) {
+  if (unlikely(ogate_idx >= ogates.size())) {
     deadend(batch);
     return;
   }
 
-  ogate = ogates.arr[ogate_idx];
+  ogate = ogates[ogate_idx];
 
   if (unlikely(!ogate)) {
     deadend(batch);
@@ -358,8 +346,10 @@ static inline gate_idx_t get_igate() {
   return ctx.igate_stack_top();
 }
 
-static inline int is_active_gate(struct gates *gates, gate_idx_t idx) {
-  return idx < gates->curr_size && gates->arr && gates->arr[idx] != nullptr;
+template <typename T>
+static inline int is_active_gate(const std::vector<T *> &gates,
+                                 gate_idx_t idx) {
+  return idx < gates.size() && gates.size() && gates[idx];
 }
 
 typedef struct snobj *(*mod_cmd_func_t)(struct module *, const char *,

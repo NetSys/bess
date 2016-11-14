@@ -4,13 +4,16 @@
 #include <sys/uio.h>
 #include <unistd.h>
 
+#include <algorithm>
 #include <sstream>
 
 #include <glog/logging.h>
 
+#include "gate.h"
+#include "hooks/tcpdump.h"
+#include "hooks/track.h"
 #include "mem_alloc.h"
 #include "utils/pcap.h"
-#include "utils/time.h"
 
 std::map<std::string, Module *> ModuleBuilder::all_modules_;
 
@@ -39,8 +42,6 @@ Module *ModuleBuilder::CreateModule(const std::string &name,
   m->set_name(name);
   m->set_module_builder(this);
   m->set_pipeline(pipeline);
-  m->igates = gates();
-  m->ogates = gates();
   return m;
 }
 
@@ -53,26 +54,29 @@ int ModuleBuilder::DestroyModule(Module *m, bool erase) {
   m->Deinit();
 
   // disconnect from upstream modules.
-  for (int i = 0; i < m->igates.curr_size; i++) {
+  for (size_t i = 0; i < m->igates.size(); i++) {
     ret = m->DisconnectModulesUpstream(i);
-    if (ret)
+    if (ret) {
       return ret;
+    }
   }
 
   // disconnect downstream modules
-  for (gate_idx_t i = 0; i < m->ogates.curr_size; i++) {
+  for (size_t i = 0; i < m->ogates.size(); i++) {
     ret = m->DisconnectModules(i);
-    if (ret)
+    if (ret) {
       return ret;
+    }
   }
 
   m->DestroyAllTasks();
 
-  if (erase)
+  if (erase) {
     all_modules_.erase(m->name());
+  }
 
-  mem_free(m->ogates.arr);
-  mem_free(m->igates.arr);
+  m->ogates.clear();
+  m->igates.clear();
   delete m;
   return 0;
 }
@@ -253,154 +257,119 @@ int Module::AddMetadataAttr(const std::string &name, size_t size,
   return attrs.size() - 1;
 }
 
-int Module::GrowGates(struct gates *gates, gate_idx_t gate) {
-  struct gate **new_arr;
-  gate_idx_t old_size;
-  gate_idx_t new_size;
-
-  new_size = gates->curr_size ?: 1;
-
-  while (new_size <= gate)
-    new_size *= 2;
-
-  if (new_size > MAX_GATES)
-    new_size = MAX_GATES;
-
-  new_arr =
-      (struct gate **)mem_realloc(gates->arr, sizeof(struct gate *) * new_size);
-  if (!new_arr)
-    return -ENOMEM;
-
-  gates->arr = new_arr;
-
-  old_size = gates->curr_size;
-  gates->curr_size = new_size;
-
-  /* initialize the newly created gates */
-  memset(&gates->arr[old_size], 0,
-         sizeof(struct gate *) * (new_size - old_size));
-
-  return 0;
-}
-
 /* returns -errno if fails */
 int Module::ConnectModules(gate_idx_t ogate_idx, Module *m_next,
                            gate_idx_t igate_idx) {
-  struct gate *ogate;
-  struct gate *igate;
+  bess::OGate *ogate;
+  bess::IGate *igate;
 
-  if (ogate_idx >= module_builder_->NumOGates() || ogate_idx >= MAX_GATES)
+  if (ogate_idx >= module_builder_->NumOGates() || ogate_idx >= MAX_GATES) {
     return -EINVAL;
+  }
 
   if (igate_idx >= m_next->module_builder()->NumIGates() ||
-      igate_idx >= MAX_GATES)
+      igate_idx >= MAX_GATES) {
     return -EINVAL;
-
-  if (ogate_idx >= ogates.curr_size) {
-    int ret = GrowGates(&ogates, ogate_idx);
-    if (ret)
-      return ret;
   }
 
   /* already being used? */
-  if (is_active_gate(&ogates, ogate_idx))
+  if (is_active_gate<bess::OGate>(ogates, ogate_idx)) {
     return -EBUSY;
-
-  if (igate_idx >= m_next->igates.curr_size) {
-    int ret = m_next->GrowGates(&m_next->igates, igate_idx);
-    if (ret)
-      return ret;
   }
 
-  ogate = (struct gate *)mem_alloc(sizeof(struct gate));
-  if (!ogate)
+  if (ogate_idx >= ogates.size()) {
+    ogates.emplace_back();
+  }
+
+  ogate = new bess::OGate(this, ogate_idx, m_next);
+  if (!ogate) {
     return -ENOMEM;
+  }
+  ogates[ogate_idx] = ogate;
 
-  ogates.arr[ogate_idx] = ogate;
-
-  igate = m_next->igates.arr[igate_idx];
-  if (!igate) {
-    igate = (struct gate *)mem_alloc(sizeof(struct gate));
-    if (!igate) {
-      mem_free(ogate);
-      return -ENOMEM;
-    }
-
-    m_next->igates.arr[igate_idx] = igate;
-
-    igate->m = m_next;
-    igate->gate_idx = igate_idx;
-    igate->arg = m_next;
-    cdlist_head_init(&igate->in.ogates_upstream);
+  if (igate_idx >= m_next->igates.size()) {
+    m_next->igates.emplace_back();
   }
 
-  ogate->m = this;
-  ogate->gate_idx = ogate_idx;
-  ogate->arg = m_next;
-  ogate->out.igate = igate;
-  ogate->out.igate_idx = igate_idx;
+  igate = new bess::IGate(m_next, igate_idx, m_next);
+  if (!igate) {
+    delete ogate;
+    return -ENOMEM;
+  }
+  m_next->igates[igate_idx] = igate;
 
-  cdlist_add_tail(&igate->in.ogates_upstream, &ogate->out.igate_upstream);
+  ogate->set_igate(igate);
+  ogate->set_igate_idx(igate_idx);
+
+  // Gate tracking is enabled by default
+  ogate->AddHook(new TrackGate());
+
+  igate->PushOgate(ogate);
 
   return 0;
 }
 
 int Module::DisconnectModules(gate_idx_t ogate_idx) {
-  struct gate *ogate;
-  struct gate *igate;
+  bess::OGate *ogate;
+  bess::IGate *igate;
 
-  if (ogate_idx >= module_builder_->NumOGates())
+  if (ogate_idx >= module_builder_->NumOGates()) {
     return -EINVAL;
+  }
 
   /* no error even if the ogate is unconnected already */
-  if (!is_active_gate(&ogates, ogate_idx))
+  if (!is_active_gate<bess::OGate>(ogates, ogate_idx)) {
     return 0;
+  }
 
-  ogate = ogates.arr[ogate_idx];
-  if (!ogate)
+  ogate = ogates[ogate_idx];
+  if (!ogate) {
     return 0;
+  }
 
-  igate = ogate->out.igate;
+  igate = ogate->igate();
 
   /* Does the igate become inactive as well? */
-  cdlist_del(&ogate->out.igate_upstream);
-  if (cdlist_is_empty(&igate->in.ogates_upstream)) {
-    Module *m_next = igate->m;
-    m_next->igates.arr[igate->gate_idx] = nullptr;
+  igate->RemoveOgate(ogate);
+  if (igate->ogates_upstream().empty()) {
+    Module *m_next = igate->module();
+    m_next->igates[igate->gate_idx()] = nullptr;
+    igate->ClearHooks();
     mem_free(igate);
   }
 
-  ogates.arr[ogate_idx] = nullptr;
+  ogates[ogate_idx] = nullptr;
+  ogate->ClearHooks();
   mem_free(ogate);
 
   return 0;
 }
 
 int Module::DisconnectModulesUpstream(gate_idx_t igate_idx) {
-  struct gate *igate;
-  struct gate *ogate;
-  struct gate *ogate_next;
+  bess::IGate *igate;
 
-  if (igate_idx >= module_builder_->NumIGates())
+  if (igate_idx >= module_builder_->NumIGates()) {
     return -EINVAL;
-
-  /* no error even if the igate is unconnected already */
-  if (!is_active_gate(&igates, igate_idx))
-    return 0;
-
-  igate = igates.arr[igate_idx];
-  if (!igate)
-    return 0;
-
-  cdlist_for_each_entry_safe(ogate, ogate_next, &igate->in.ogates_upstream,
-                             out.igate_upstream) {
-    Module *m_prev = ogate->m;
-    m_prev->ogates.arr[ogate->gate_idx] = nullptr;
-    mem_free(ogate);
   }
 
-  igates.arr[igate_idx] = nullptr;
-  mem_free(igate);
+  /* no error even if the igate is unconnected already */
+  if (!is_active_gate<bess::IGate>(igates, igate_idx)) {
+    return 0;
+  }
+
+  igate = igates[igate_idx];
+  if (!igate) {
+    return 0;
+  }
+
+  for (const auto &ogate : igate->ogates_upstream()) {
+    Module *m_prev = ogate->module();
+    m_prev->ogates[ogate->gate_idx()] = nullptr;
+    ogate->ClearHooks();
+  }
+
+  igates[igate_idx] = nullptr;
+  igate->ClearHooks();
 
   return 0;
 }
@@ -525,8 +494,8 @@ void _trace_after_call(void) {
 }
 #endif
 
-#if TCPDUMP_GATES
-int Module::EnableTcpDump(const char *fifo, gate_idx_t ogate) {
+// TODO(melvin): Much of this belongs in the TcpDump constructor.
+int Module::EnableTcpDump(const char *fifo, int is_igate, gate_idx_t gate_idx) {
   static const struct pcap_hdr PCAP_FILE_HDR = {
       .magic_number = PCAP_MAGIC_NUMBER,
       .version_major = PCAP_VERSION_MAJOR,
@@ -536,12 +505,16 @@ int Module::EnableTcpDump(const char *fifo, gate_idx_t ogate) {
       .snaplen = PCAP_SNAPLEN,
       .network = PCAP_NETWORK,
   };
+  bess::Gate *gate;
 
   int fd;
   int ret;
 
   /* Don't allow tcpdump to be attached to gates that are not active */
-  if (!is_active_gate(&ogates, ogate))
+  if (!is_igate && !is_active_gate<bess::OGate>(ogates, gate_idx))
+    return -EINVAL;
+
+  if (is_igate && !is_active_gate<bess::IGate>(igates, gate_idx))
     return -EINVAL;
 
   fd = open(fifo, O_WRONLY | O_NONBLOCK);
@@ -562,55 +535,37 @@ int Module::EnableTcpDump(const char *fifo, gate_idx_t ogate) {
     return -errno;
   }
 
-  ogates.arr[ogate]->fifo_fd = fd;
-  ogates.arr[ogate]->tcpdump = 1;
-
-  return 0;
-}
-
-int Module::DisableTcpDump(gate_idx_t ogate) {
-  if (!is_active_gate(&ogates, ogate))
-    return -EINVAL;
-
-  if (!ogates.arr[ogate]->tcpdump)
-    return -EINVAL;
-
-  ogates.arr[ogate]->tcpdump = 0;
-  close(ogates.arr[ogate]->fifo_fd);
-
-  return 0;
-}
-
-void Module::DumpPcapPkts(struct gate *gate, struct pkt_batch *batch) {
-  struct timeval tv;
-
-  int ret = 0;
-  int fd = gate->fifo_fd;
-
-  gettimeofday(&tv, nullptr);
-
-  for (int i = 0; i < batch->cnt; i++) {
-    struct snbuf *pkt = batch->pkts[i];
-    struct pcap_rec_hdr rec = {
-        .ts_sec = (uint32_t)tv.tv_sec,
-        .ts_usec = (uint32_t)tv.tv_usec,
-        .incl_len = pkt->mbuf.data_len,
-        .orig_len = pkt->mbuf.pkt_len,
-    };
-
-    struct iovec vec[2] = {{&rec, sizeof(rec)},
-                           {snb_head_data(pkt), (size_t)snb_head_len(pkt)}};
-
-    ret = writev(fd, vec, 2);
-    if (ret < 0) {
-      if (errno == EPIPE) {
-        DLOG(WARNING) << "Broken pipe: stopping tcpdump";
-        gate->tcpdump = 0;
-        gate->fifo_fd = 0;
-        close(fd);
-      }
-      return;
-    }
+  if (is_igate) {
+    gate = igates[gate_idx];
+  } else {
+    gate = ogates[gate_idx];
   }
+
+  TcpDump *tcpdump = new TcpDump();
+  if (!gate->AddHook(tcpdump)) {
+    tcpdump->set_fifo_fd(fd);
+  } else {
+    delete tcpdump;
+  }
+
+  return 0;
 }
-#endif
+
+int Module::DisableTcpDump(int is_igate, gate_idx_t gate_idx) {
+  if (!is_igate && !is_active_gate<bess::OGate>(ogates, gate_idx))
+    return -EINVAL;
+
+  if (is_igate && !is_active_gate<bess::IGate>(igates, gate_idx))
+    return -EINVAL;
+
+  bess::Gate *gate;
+  if (is_igate) {
+    gate = igates[gate_idx];
+  } else {
+    gate = ogates[gate_idx];
+  }
+
+  gate->RemoveHook(kGateHookTcpDumpGate);
+
+  return 0;
+}

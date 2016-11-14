@@ -5,9 +5,12 @@
 #include <cstdlib>
 #include <cstring>
 
+#include <algorithm>
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 
+#include "hooks/tcpdump.h"
+#include "hooks/track.h"
 #include "metadata.h"
 #include "module.h"
 #include "port.h"
@@ -147,8 +150,8 @@ static struct snobj *handle_reset_tcs(struct snobj *) {
     struct tc *c = it.second;
 
     if (c->num_tasks) {
-      return snobj_err(EBUSY, "TC %s still has %d tasks", c->settings.name.c_str(),
-                       c->num_tasks);
+      return snobj_err(EBUSY, "TC %s still has %d tasks",
+                       c->settings.name.c_str(), c->num_tasks);
     }
 
     if (c->settings.auto_free)
@@ -746,22 +749,29 @@ static struct snobj *handle_destroy_module(struct snobj *q) {
 static struct snobj *collect_igates(Module *m) {
   struct snobj *igates = snobj_list();
 
-  for (int i = 0; i < m->igates.curr_size; i++) {
-    if (!is_active_gate(&m->igates, i))
+  for (const auto &g : m->igates) {
+    if (!g) {
       continue;
+    }
 
     struct snobj *igate = snobj_map();
-    struct gate *g = m->igates.arr[i];
 
     struct snobj *ogates = snobj_list();
-    struct gate *og;
 
-    snobj_map_set(igate, "igate", snobj_uint(i));
+    snobj_map_set(igate, "igate", snobj_uint(g->gate_idx()));
 
-    cdlist_for_each_entry(og, &g->in.ogates_upstream, out.igate_upstream) {
+    TrackGate *t =
+        reinterpret_cast<TrackGate *>(g->FindHook(kGateHookTrackGate));
+    if (t) {
+      snobj_map_set(igate, "cnt", snobj_uint(t->cnt()));
+      snobj_map_set(igate, "pkts", snobj_uint(t->pkts()));
+      snobj_map_set(igate, "timestamp", snobj_double(get_epoch_time()));
+    }
+
+    for (const auto &og : g->ogates_upstream()) {
       struct snobj *ogate = snobj_map();
-      snobj_map_set(ogate, "ogate", snobj_uint(og->gate_idx));
-      snobj_map_set(ogate, "name", snobj_str(og->m->name()));
+      snobj_map_set(ogate, "ogate", snobj_uint(og->gate_idx()));
+      snobj_map_set(ogate, "name", snobj_str(og->module()->name()));
       snobj_list_add(ogates, ogate);
     }
 
@@ -776,21 +786,25 @@ static struct snobj *collect_igates(Module *m) {
 static struct snobj *collect_ogates(Module *m) {
   struct snobj *ogates = snobj_list();
 
-  for (int i = 0; i < m->ogates.curr_size; i++) {
-    if (!is_active_gate(&m->ogates, i))
+  for (const auto &g : m->ogates) {
+    if (!g) {
       continue;
+    }
 
     struct snobj *ogate = snobj_map();
-    struct gate *g = m->ogates.arr[i];
 
-    snobj_map_set(ogate, "ogate", snobj_uint(i));
-#if TRACK_GATES
-    snobj_map_set(ogate, "cnt", snobj_uint(g->cnt));
-    snobj_map_set(ogate, "pkts", snobj_uint(g->pkts));
-    snobj_map_set(ogate, "timestamp", snobj_double(get_epoch_time()));
-#endif
-    snobj_map_set(ogate, "name", snobj_str(g->out.igate->m->name()));
-    snobj_map_set(ogate, "igate", snobj_uint(g->out.igate->gate_idx));
+    snobj_map_set(ogate, "ogate", snobj_uint(g->gate_idx()));
+
+    TrackGate *t =
+        reinterpret_cast<TrackGate *>(g->FindHook(kGateHookTrackGate));
+    if (t) {
+      snobj_map_set(ogate, "cnt", snobj_uint(t->cnt()));
+      snobj_map_set(ogate, "pkts", snobj_uint(t->pkts()));
+      snobj_map_set(ogate, "timestamp", snobj_double(get_epoch_time()));
+    }
+
+    snobj_map_set(ogate, "name", snobj_str(g->igate()->module()->name()));
+    snobj_map_set(ogate, "igate", snobj_uint(g->igate()->gate_idx()));
 
     snobj_list_add(ogates, ogate);
   }
@@ -891,6 +905,7 @@ static struct snobj *handle_connect_modules(struct snobj *q) {
   m2 = it2->second;
 
   ret = m1->ConnectModules(ogate, m2, igate);
+
   if (ret < 0)
     return snobj_err(-ret, "Connection %s:%d->%d:%s failed", m1_name, ogate,
                      igate, m2_name);
@@ -991,14 +1006,16 @@ static struct snobj *handle_attach_task(struct snobj *q) {
 static struct snobj *handle_enable_tcpdump(struct snobj *q) {
   const char *m_name;
   const char *fifo;
-  gate_idx_t ogate;
+  gate_idx_t gate;
+  int is_igate;
 
   Module *m;
 
   int ret;
 
   m_name = snobj_eval_str(q, "name");
-  ogate = snobj_eval_uint(q, "ogate");
+  gate = snobj_eval_uint(q, "gate");
+  is_igate = snobj_eval_int(q, "is_igate");
   fifo = snobj_eval_str(q, "fifo");
 
   if (!m_name)
@@ -1009,13 +1026,16 @@ static struct snobj *handle_enable_tcpdump(struct snobj *q) {
     return snobj_err(ENOENT, "No module '%s' found", m_name);
   m = it->second;
 
-  if (ogate >= m->ogates.curr_size)
-    return snobj_err(EINVAL, "Output gate '%hu' does not exist", ogate);
+  if (!is_igate && gate >= m->ogates.size())
+    return snobj_err(EINVAL, "Output gate '%hu' does not exist", gate);
 
-  ret = m->EnableTcpDump(fifo, ogate);
+  if (is_igate && gate >= m->igates.size())
+    return snobj_err(EINVAL, "Input gate '%hu' does not exist", gate);
+
+  ret = m->EnableTcpDump(fifo, is_igate, gate);
 
   if (ret < 0) {
-    return snobj_err(-ret, "Enabling tcpdump %s:%d failed", m_name, ogate);
+    return snobj_err(-ret, "Enabling tcpdump %s:%d failed", m_name, gate);
   }
 
   return nullptr;
@@ -1023,14 +1043,16 @@ static struct snobj *handle_enable_tcpdump(struct snobj *q) {
 
 static struct snobj *handle_disable_tcpdump(struct snobj *q) {
   const char *m_name;
-  gate_idx_t ogate;
+  gate_idx_t gate;
+  int is_igate;
 
   Module *m;
 
   int ret;
 
   m_name = snobj_eval_str(q, "name");
-  ogate = snobj_eval_uint(q, "ogate");
+  gate = snobj_eval_uint(q, "gate");
+  is_igate = snobj_eval_int(q, "is_igate");
 
   if (!m_name)
     return snobj_err(EINVAL, "Missing 'name' field");
@@ -1040,14 +1062,150 @@ static struct snobj *handle_disable_tcpdump(struct snobj *q) {
     return snobj_err(ENOENT, "No module '%s' found", m_name);
   m = it->second;
 
-  if (ogate >= m->ogates.curr_size)
-    return snobj_err(EINVAL, "Output gate '%hu' does not exist", ogate);
+  if (!is_igate && gate >= m->ogates.size())
+    return snobj_err(EINVAL, "Output gate '%hu' does not exist", gate);
 
-  ret = m->DisableTcpDump(ogate);
+  if (is_igate && gate >= m->igates.size())
+    return snobj_err(EINVAL, "Input gate '%hu' does not exist", gate);
+
+  ret = m->DisableTcpDump(is_igate, gate);
 
   if (ret < 0) {
-    return snobj_err(-ret, "Disabling tcpdump %s:%d failed", m_name, ogate);
+    return snobj_err(-ret, "Disabling tcpdump %s:%d failed", m_name, gate);
   }
+  return nullptr;
+}
+
+static struct snobj *enable_track_for_module(const Module *m,
+                                             struct snobj *gate_idx_,
+                                             int is_igate) {
+  int ret;
+
+  if (gate_idx_) {
+    gate_idx_t gate_idx = snobj_uint_get(gate_idx_);
+
+    if (!is_igate && gate_idx >= m->ogates.size()) {
+      return snobj_err(EINVAL, "Output gate '%hu' does not exist", gate_idx);
+    }
+
+    if (is_igate && gate_idx >= m->igates.size()) {
+      return snobj_err(EINVAL, "Input gate '%hu' does not exist", gate_idx);
+    }
+
+    if (is_igate && (ret = m->igates[gate_idx]->AddHook(new TrackGate()))) {
+      return snobj_err(ret, "Failed to track input gate '%hu'", gate_idx);
+    }
+
+    if ((ret = m->ogates[gate_idx]->AddHook(new TrackGate()))) {
+      return snobj_err(ret, "Failed to track output gate '%hu'", gate_idx);
+    }
+  }
+
+  // XXX: ewwwwww
+  if (is_igate) {
+    for (auto &gate : m->igates) {
+      if ((ret = gate->AddHook(new TrackGate()))) {
+        return snobj_err(ret, "Failed to track input gate '%hu'",
+                         gate->gate_idx());
+      }
+    }
+  } else {
+    for (auto &gate : m->ogates) {
+      if ((ret = gate->AddHook(new TrackGate()))) {
+        return snobj_err(ret, "Failed to track output gate '%hu'",
+                         gate->gate_idx());
+      }
+    }
+  }
+  return nullptr;
+}
+
+static struct snobj *handle_enable_track(struct snobj *q) {
+  struct snobj *ret;
+  const char *m_name;
+  int is_igate;
+
+  m_name = snobj_eval_str(q, "name");
+  is_igate = snobj_eval_int(q, "is_igate");
+
+  if (!m_name) {
+    for (const auto &it : ModuleBuilder::all_modules()) {
+      ret = enable_track_for_module(it.second, snobj_map_get(q, "gate"),
+                                    is_igate);
+      if (ret) {
+        return ret;  // XXX: would it be better to just log here?
+      }
+    }
+    return nullptr;
+  }
+
+  const auto &it = ModuleBuilder::all_modules().find(m_name);
+  if (it == ModuleBuilder::all_modules().end())
+    return snobj_err(ENOENT, "No module '%s' found", m_name);
+  return enable_track_for_module(it->second, snobj_map_get(q, "gate"),
+                                 is_igate);
+}
+
+static struct snobj *disable_track_for_module(const Module *m,
+                                              struct snobj *gate_idx_,
+                                              int is_igate) {
+  if (gate_idx_) {
+    gate_idx_t gate_idx = snobj_uint_get(gate_idx_);
+
+    if (!is_igate && gate_idx >= m->ogates.size()) {
+      return snobj_err(EINVAL, "Output gate '%hu' does not exist", gate_idx);
+    }
+
+    if (is_igate && gate_idx >= m->igates.size()) {
+      return snobj_err(EINVAL, "Input gate '%hu' does not exist", gate_idx);
+    }
+
+    if (is_igate) {
+      m->igates[gate_idx]->RemoveHook(kGateHookTrackGate);
+      return nullptr;
+    }
+    m->ogates[gate_idx]->RemoveHook(kGateHookTrackGate);
+    return nullptr;
+  }
+
+  // XXX: ewwwwww
+  if (is_igate) {
+    for (auto &gate : m->igates) {
+      gate->RemoveHook(kGateHookTrackGate);
+    }
+  } else {
+    for (auto &gate : m->ogates) {
+      gate->RemoveHook(kGateHookTrackGate);
+    }
+  }
+  return nullptr;
+}
+
+static struct snobj *handle_disable_track(struct snobj *q) {
+  struct snobj *ret;
+  const char *m_name;
+  int is_igate;
+
+  m_name = snobj_eval_str(q, "name");
+  is_igate = snobj_eval_int(q, "is_igate");
+
+  if (!m_name) {
+    for (const auto &it : ModuleBuilder::all_modules()) {
+      ret = disable_track_for_module(it.second, snobj_map_get(q, "gate"),
+                                     is_igate);
+      if (ret) {
+        return ret;  // XXX: would it be better to just log here?
+      }
+    }
+    return nullptr;
+  }
+
+  const auto &it = ModuleBuilder::all_modules().find(m_name);
+  if (it == ModuleBuilder::all_modules().end())
+    return snobj_err(ENOENT, "No module '%s' found", m_name);
+  return disable_track_for_module(it->second, snobj_map_get(q, "gate"),
+                                  is_igate);
+
   return nullptr;
 }
 
@@ -1109,6 +1267,9 @@ static struct handler_map sn_handlers[] = {
 
     {"enable_tcpdump", 1, handle_enable_tcpdump},
     {"disable_tcpdump", 1, handle_disable_tcpdump},
+
+    {"enable_track", 1, handle_enable_track},
+    {"disable_track", 1, handle_disable_track},
 
     {"kill_bess", 1, handle_kill_bess},
 
