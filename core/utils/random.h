@@ -7,8 +7,8 @@
 
 class Random {
  public:
-  Random() { SetSeed(rdtsc()); }
-  Random(uint64_t seed) { SetSeed(seed); }
+  Random() : seed_(rdtsc()) {}
+  Random(uint64_t seed) : seed_(seed) {}
 
   void SetSeed(uint64_t seed) { this->seed_ = seed; };
 

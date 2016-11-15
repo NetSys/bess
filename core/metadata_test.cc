@@ -39,6 +39,8 @@ namespace metadata {
 
 class MetadataTest : public ::testing::Test {
  protected:
+  MetadataTest() : m0(), m1() {}
+
   virtual void SetUp() {
     default_pipeline.CleanupMetadataComputation();
     default_pipeline.attributes_.clear();
@@ -57,21 +59,23 @@ class MetadataTest : public ::testing::Test {
 
   Module *m0;
   Module *m1;
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(MetadataTest);
 };
 
 TEST(Metadata, RegisterSizeMismatchFails) {
-  struct Attribute attr0_s1 = {
-      .name = "attr0",
-      .size = 1,
-      .mode = Attribute::AccessMode::kRead,
-      .scope_id = -1,
-  };
-  struct Attribute attr0_s2 = {
-      .name = "attr0",
-      .size = 2,
-      .mode = Attribute::AccessMode::kWrite,
-      .scope_id = -1,
-  };
+  struct Attribute attr0_s1;
+  attr0_s1.name = "attr0";
+  attr0_s1.size = 1;
+  attr0_s1.mode = Attribute::AccessMode::kRead;
+  attr0_s1.scope_id = -1;
+
+  struct Attribute attr0_s2;
+  attr0_s2.name = "attr0";
+  attr0_s2.size = 2;
+  attr0_s2.mode = Attribute::AccessMode::kWrite;
+  attr0_s2.scope_id = -1;
 
   ASSERT_EQ(0, default_pipeline.RegisterAttribute(&attr0_s1));
   ASSERT_EQ(-EEXIST, default_pipeline.RegisterAttribute(&attr0_s2));

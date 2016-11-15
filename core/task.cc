@@ -98,13 +98,12 @@ void task_detach(struct task *t) {
   }
 }
 
-#include <iostream>
 void assign_default_tc(int wid, struct task *t) {
   static int next_default_tc_id;
 
   struct tc *c_def;
 
-  struct tc_params params = tc_params();
+  struct tc_params params;
 
   if (t->m->NumTasks() == 1) {
     params.name = "_tc_" + t->m->name();
@@ -112,19 +111,18 @@ void assign_default_tc(int wid, struct task *t) {
     params.name = "_tc_" + t->m->name() + std::to_string(task_to_tid(t));
   }
 
-  params.parent = nullptr;
   params.auto_free = 1; /* when no task is left, this TC is freed */
   params.priority = DEFAULT_PRIORITY;
   params.share = 1;
   params.share_resource = RESOURCE_CNT;
 
-  c_def = tc_init(workers[wid]->s(), &params);
+  c_def = tc_init(workers[wid]->s(), &params, nullptr);
 
   /* maybe the default name is too long, or already occupied */
   if (is_err_or_null(c_def)) {
     do {
       params.name = "_tc_noname" + std::to_string(next_default_tc_id++);
-      c_def = tc_init(workers[wid]->s(), &params);
+      c_def = tc_init(workers[wid]->s(), &params, nullptr);
     } while (ptr_to_err(c_def) == -EEXIST);
   }
 

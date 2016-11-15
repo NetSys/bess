@@ -60,7 +60,7 @@ static inline attr_id_t get_attr_id(const struct Attribute *attr) {
 
 class ScopeComponentComp {
  public:
-  ScopeComponentComp(const bool &revparam = false) { reverse_ = revparam; }
+  ScopeComponentComp(const bool &revparam = false) : reverse_(revparam) {}
 
   bool operator()(const ScopeComponent *lhs, const ScopeComponent *rhs) const {
     if (reverse_) {
@@ -364,7 +364,7 @@ void Pipeline::AssignOffsets() {
   FillOffsetArrays();
 }
 
-void Pipeline::LogAllScopes() {
+void Pipeline::LogAllScopes() const {
   for (size_t i = 0; i < scope_components_.size(); i++) {
     VLOG(1) << "scope component for " << scope_components_[i].size()
             << "-byte attr " << scope_components_[i].attr_id() << "at offset "
@@ -383,11 +383,13 @@ void Pipeline::LogAllScopes() {
       break;
     }
 
+    const scope_id_t *scope_arr = module_components_.find(m)->second;
+
     LOG(INFO) << "Module " << m->name()
               << " part of the following scope components: ";
     for (size_t i = 0; i < kMetadataTotalSize; i++) {
-      if (module_components_[m][i] != -1) {
-        LOG(INFO) << "scope " << module_components_[m][i] << " at offset " << i;
+      if (scope_arr[i] != -1) {
+        LOG(INFO) << "scope " << scope_arr[i] << " at offset " << i;
       }
     }
   }

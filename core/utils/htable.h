@@ -35,8 +35,21 @@ class HTableBase {
     KeyCmpFunc keycmp_func;
   };
 
-  HTableBase() = default;
-  ~HTableBase() { Close(); };
+  HTableBase()
+      : key_size_(),
+        value_size_(),
+        value_offset_(),
+        entry_size_(),
+        bucket_mask_(),
+        buckets_(),
+        entries_(),
+        cnt_(),
+        num_entries_(),
+        free_keyidx_(),
+        hash_func_(),
+        keycmp_func_() {}
+
+  virtual ~HTableBase() { Close(); };
 
   // not allowing copying for now
   HTableBase(HTableBase &) = delete;
@@ -79,10 +92,10 @@ class HTableBase {
 
   static const int kEntriesPerBucket = 4; /* 4-way set associative */
 
-  struct Bucket {
+  struct alignas(32) Bucket {
     uint32_t hv[kEntriesPerBucket];
     KeyIndex keyidx[kEntriesPerBucket];
-  } __ymm_aligned;
+  };
 
   static uint32_t make_nonzero(uint32_t v) {
     /* Set the MSB and unset the 2nd MSB (NOTE: must be idempotent).
@@ -106,10 +119,10 @@ class HTableBase {
   }
 
   /* in bytes */
-  size_t key_size_ = {};
-  size_t value_size_ = {};
-  size_t value_offset_ = {};
-  size_t entry_size_ = {};
+  size_t key_size_;
+  size_t value_size_;
+  size_t value_offset_;
+  size_t entry_size_;
 
  private:
   /* tunable macros */
@@ -149,17 +162,17 @@ class HTableBase {
   KeyIndex _get_keyidx(uint32_t pri) const;
 
   /* # of buckets == mask + 1 */
-  uint32_t bucket_mask_ = {};
+  uint32_t bucket_mask_;
 
   /* bucket and entry arrays grow independently */
-  Bucket *buckets_ = nullptr;
-  void *entries_ = nullptr; /* entry_size * num_entries bytes */
+  Bucket *buckets_;
+  void *entries_;   /* entry_size * num_entries bytes */
 
-  int cnt_ = 0;              /* current number of entries */
-  KeyIndex num_entries_ = 0; /* current array size (# entries) */
+  int cnt_;              /* current number of entries */
+  KeyIndex num_entries_; /* current array size (# entries) */
 
   /* Linked list head for empty key slots (LIFO). kInvalidKeyIdx if empty */
-  KeyIndex free_keyidx_ = {};
+  KeyIndex free_keyidx_;
 
   HashFunc hash_func_;
   KeyCmpFunc keycmp_func_;

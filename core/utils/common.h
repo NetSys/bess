@@ -147,9 +147,8 @@ class unique_fd {
   // Constructs a unique fd that owns the given fd.
   unique_fd(int fd) : fd_(fd) {}
 
-  // Move constructor 
-  unique_fd(unique_fd &&other) {
-    fd_ = other.fd_;
+  // Move constructor
+  unique_fd(unique_fd &&other) : fd_(other.fd_) {
     other.fd_ = -1;
   }
 

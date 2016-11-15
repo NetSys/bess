@@ -443,7 +443,6 @@ class BESSControlImpl final : public BESSControl::Service {
       }
     }
 
-    memset(&params, 0, sizeof(params));
     params.name = tc_name;
 
     params.priority = request->class_().priority();
@@ -469,7 +468,7 @@ class BESSControlImpl final : public BESSControl::Service {
       params.max_burst[3] = request->class_().max_burst().bits();
     }
 
-    c = tc_init(workers[wid]->s(), &params);
+    c = tc_init(workers[wid]->s(), &params, nullptr);
     if (is_err(c))
       return return_with_error(response, -ptr_to_err(c), "tc_init() failed");
 

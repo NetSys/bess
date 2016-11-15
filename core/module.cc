@@ -233,7 +233,7 @@ int Module::AddMetadataAttr(const std::string &name, size_t size,
                             bess::metadata::Attribute::AccessMode mode) {
   int ret;
 
-  if (attrs.size() >= bess::metadata::kMaxAttrsPerModule)
+  if (attrs_.size() >= bess::metadata::kMaxAttrsPerModule)
     return -ENOSPC;
 
   if (name.empty())
@@ -252,9 +252,9 @@ int Module::AddMetadataAttr(const std::string &name, size_t size,
     return ret;
   }
 
-  attrs.push_back(attr);
+  attrs_.push_back(attr);
 
-  return attrs.size() - 1;
+  return attrs_.size() - 1;
 }
 
 /* returns -errno if fails */
