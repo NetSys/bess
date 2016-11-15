@@ -87,15 +87,14 @@ class ModuleBuilder {
       std::function<pb_error_t(Module *, const google::protobuf::Any &)>
           init_func)
       : module_generator_(module_generator),
+        kNumIGates(igates),
+        kNumOGates(ogates),
         class_name_(class_name),
         name_template_(name_template),
         help_text_(help_text),
         cmds_(cmds),
         pb_cmds_(pb_cmds),
-        init_func_(init_func) {
-    kNumIGates = igates;
-    kNumOGates = ogates;
-  }
+        init_func_(init_func) {}
 
   /* returns a pointer to the created module.
    * if error, returns nullptr and *perr is set */
@@ -194,8 +193,16 @@ class ModuleBuilder {
 class Module {
   // overide this section to create a new module -----------------------------
  public:
-  Module() = default;
-  virtual ~Module(){};
+  Module()
+      : name_(),
+        module_builder_(),
+        pipeline_(),
+        attrs_(),
+        tasks(),
+        attr_offsets(),
+        igates(),
+        ogates() {}
+  virtual ~Module() {}
 
   pb_error_t Init(const google::protobuf::Any &arg);
 
@@ -270,7 +277,7 @@ class Module {
   }
 
   const std::vector<bess::metadata::Attribute> &all_attrs() const {
-    return attrs;
+    return attrs_;
   }
 
  private:
@@ -288,16 +295,15 @@ class Module {
 
   bess::metadata::Pipeline *pipeline_;
 
-  std::vector<bess::metadata::Attribute> attrs;
+  std::vector<bess::metadata::Attribute> attrs_;
 
   DISALLOW_COPY_AND_ASSIGN(Module);
 
   // FIXME: porting in progress ----------------------------
  public:
-  struct task *tasks[MAX_TASKS_PER_MODULE] = {};
+  struct task *tasks[MAX_TASKS_PER_MODULE];
 
-  bess::metadata::mt_offset_t attr_offsets[bess::metadata::kMaxAttrsPerModule] =
-      {};
+  bess::metadata::mt_offset_t attr_offsets[bess::metadata::kMaxAttrsPerModule];
 
   std::vector<bess::IGate *> igates;
   std::vector<bess::OGate *> ogates;

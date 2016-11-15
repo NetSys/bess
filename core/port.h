@@ -159,13 +159,15 @@ class Port {
   // overide this section to create a new driver -----------------------------
  public:
   Port()
-      : port_builder_(),
+      : name_(),
+        port_builder_(),
         num_queues(),
         queue_size(),
         users(),
         queue_stats(),
         port_stats() {}
-  virtual ~Port(){};
+
+  virtual ~Port() {}
 
   pb_error_t Init(const google::protobuf::Any &arg);
 

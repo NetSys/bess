@@ -251,7 +251,6 @@ static struct snobj *handle_add_tc(struct snobj *q) {
       return snobj_err(EINVAL, "worker:%d does not exist", wid);
   }
 
-  memset(&params, 0, sizeof(params));
   params.name = tc_name;
 
   params.priority = snobj_eval_int(q, "priority");
@@ -294,7 +293,7 @@ static struct snobj *handle_add_tc(struct snobj *q) {
     }
   }
 
-  c = tc_init(workers[wid]->s(), &params);
+  c = tc_init(workers[wid]->s(), &params, nullptr);
   if (is_err(c))
     return snobj_err(-ptr_to_err(c), "tc_init() failed");
 

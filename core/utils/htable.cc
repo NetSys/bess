@@ -385,7 +385,7 @@ int HTableBase::clone_table(HTableBase *t_old, uint32_t num_buckets,
 
 /* may be called recursively */
 int HTableBase::expand_buckets() {
-  HTableBase *t = new HTableBase;
+  HTableBase *t = new HTableBase();
   uint32_t num_buckets = (bucket_mask_ + 1) * 2;
 
   assert(num_buckets == align_ceil_pow2(num_buckets));

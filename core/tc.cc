@@ -62,7 +62,8 @@ pgroup_add:
 }
 
 /* TODO: separate tc creation and association with scheduler */
-struct tc *tc_init(struct sched *s, const struct tc_params *params) {
+struct tc *tc_init(struct sched *s, const struct tc_params *params,
+                   struct tc *parent) {
   struct tc *c;
 
   int i;
@@ -93,7 +94,7 @@ struct tc *tc_init(struct sched *s, const struct tc_params *params) {
   c->s = s;
   s->num_classes++;
 
-  c->parent = params->parent ?: &s->root;
+  c->parent = parent ?: &s->root;
   tc_inc_refcnt(c->parent);
 
   c->last_tsc = rdtsc();

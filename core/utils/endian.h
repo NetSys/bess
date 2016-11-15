@@ -41,7 +41,7 @@ class EndianBase<uint64_t> {
 };
 
 template <typename T>
-class [[gnu::packed]] BigEndian : public EndianBase<T> {
+class [[gnu::packed]] BigEndian final : public EndianBase<T> {
  public:
   BigEndian() = default;
   BigEndian(const T &value) : value_(value) {}
@@ -62,6 +62,8 @@ using be16_t = BigEndian<uint16_t>;
 using be32_t = BigEndian<uint32_t>;
 using be64_t = BigEndian<uint64_t>;
 
+// POD means trivial (no special constructor/destructor) and
+// standard layout (i.e., binary compatible with C struct)
 static_assert(std::is_pod<be16_t>::value, "not a POD type");
 static_assert(std::is_pod<be32_t>::value, "not a POD type");
 static_assert(std::is_pod<be64_t>::value, "not a POD type");

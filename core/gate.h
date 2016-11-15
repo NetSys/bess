@@ -32,9 +32,9 @@ class Gate;
 class GateHook {
  public:
   GateHook(const std::string &name, uint16_t priority = 0, Gate *gate = nullptr)
-      : gate_(gate), name_(name), priority_(priority){}
+      : gate_(gate), name_(name), priority_(priority) {}
 
-  virtual ~GateHook(){}
+  virtual ~GateHook() {}
 
   const std::string &name() const { return name_; }
 
@@ -62,9 +62,9 @@ inline bool GateHookComp(const GateHook *lhs, const GateHook *rhs) {
 class Gate {
  public:
   Gate(Module *m, gate_idx_t idx, void *arg)
-      : module_(m), gate_idx_(idx), arg_(arg){}
+      : module_(m), gate_idx_(idx), arg_(arg), hooks_() {}
 
-  virtual ~Gate(){}
+  virtual ~Gate() {}
 
   Module *module() const { return module_; }
 
@@ -104,7 +104,7 @@ class IGate;
 class OGate : public Gate {
  public:
   OGate(Module *m, gate_idx_t idx, void *arg)
-      : Gate(m, idx, arg), igate_(), igate_idx_(){}
+      : Gate(m, idx, arg), igate_(), igate_idx_() {}
 
   void set_igate(IGate *ig) { igate_ = ig; }
   IGate *igate() const { return igate_; }
@@ -115,11 +115,14 @@ class OGate : public Gate {
  private:
   IGate *igate_;
   gate_idx_t igate_idx_; /* cache for igate->gate_idx */
+
+  DISALLOW_COPY_AND_ASSIGN(OGate);
 };
 
 class IGate : public Gate {
  public:
-  IGate(Module *m, gate_idx_t idx, void *arg) : Gate(m, idx, arg){}
+  IGate(Module *m, gate_idx_t idx, void *arg)
+      : Gate(m, idx, arg), ogates_upstream_() {}
 
   const std::vector<OGate *> &ogates_upstream() const {
     return ogates_upstream_;
@@ -132,6 +135,7 @@ class IGate : public Gate {
  private:
   std::vector<OGate *> ogates_upstream_;
 };
-}
+
+}  // namespace bess
 
 #endif  // BESS_GATE_H_

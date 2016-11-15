@@ -48,6 +48,8 @@ static inline int IsValidOffset(mt_offset_t offset) {
 }
 
 struct Attribute {
+  Attribute() : name(), size(), mode(), scope_id() {}
+
   std::string name;
   size_t size;  // in bytes
   enum class AccessMode {
@@ -117,7 +119,11 @@ class ScopeComponent {
 
 class Pipeline {
  public:
-  Pipeline() : scope_components_(), module_scopes_(){};
+  Pipeline()
+      : scope_components_(),
+        module_scopes_(),
+        module_components_(),
+        attributes_() {}
 
   // Main entry point for calculating metadata offsets.
   int ComputeMetadataOffsets();
@@ -137,13 +143,14 @@ class Pipeline {
   void CleanupMetadataComputation();
 
   // Debugging tool.
-  void LogAllScopes();
+  void LogAllScopes() const;
 
   // Add a module to the current scope component.
   void AddModuleToComponent(Module *m, const struct Attribute *attr);
 
   // Returns a pointer to an attribute if it's contained within a module.
-  const struct Attribute *FindAttr(Module *m, const struct Attribute *attr) const;
+  const struct Attribute *FindAttr(Module *m,
+                                   const struct Attribute *attr) const;
 
   // Traverses module graph upstream to help identify a scope component.
   void TraverseUpstream(Module *m, const struct Attribute *attr);

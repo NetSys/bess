@@ -46,7 +46,8 @@ struct gate_task {
 class Worker {
  public:
   Worker()
-      : wid_(),
+      : status_(),
+        wid_(),
         core_(),
         socket_(),
         fd_event_(),
@@ -57,9 +58,10 @@ class Worker {
         current_ns_(),
         igate_stack_(),
         stack_depth_(),
+        pending_gates_(),
         splits_() {}
 
-  ~Worker() {}
+  virtual ~Worker() {}
 
   /* ----------------------------------------------------------------------
    * functions below are invoked by non-worker threads (the master)
@@ -149,8 +151,6 @@ class Worker {
   }
 
  private:
-  DISALLOW_COPY_AND_ASSIGN(Worker);
-
   volatile worker_status_t status_;
 
   int wid_;  /* always [0, MAX_WORKERS - 1] */
@@ -178,6 +178,8 @@ class Worker {
 
   /* better be the last field. it's huge */
   struct pkt_batch splits_[MAX_GATES + 1];
+
+  DISALLOW_COPY_AND_ASSIGN(Worker);
 };
 
 extern int num_workers;
