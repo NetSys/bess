@@ -251,7 +251,6 @@ class Module {
 
   int NumTasks();
   task_id_t RegisterTask(void *arg);
-  void DestroyAllTasks();
 
   /* Modules should call this function to declare additional metadata
    * attributes at initialization time.
@@ -281,6 +280,9 @@ class Module {
   }
 
  private:
+  void DestroyAllTasks();
+  void DeregisterAllAttributes();
+
   void set_name(const std::string &name) { name_ = name; }
   void set_module_builder(const ModuleBuilder *builder) {
     module_builder_ = builder;
