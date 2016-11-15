@@ -2,15 +2,12 @@
 
 #include <cassert>
 
-#include <gflags/gflags.h>
 #include <glog/logging.h>
 
 #include "module.h"
+#include "opts.h"
 #include "tc.h"
 #include "worker.h"
-
-// Capture the default core command line flag.
-DECLARE_int32(c);
 
 struct cdlist_head all_tasks = CDLIST_HEAD_INIT(all_tasks);
 

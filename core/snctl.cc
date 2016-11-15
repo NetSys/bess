@@ -5,25 +5,18 @@
 #include <cstdlib>
 #include <cstring>
 
-#include <algorithm>
-#include <gflags/gflags.h>
 #include <glog/logging.h>
 
 #include "hooks/tcpdump.h"
 #include "hooks/track.h"
 #include "metadata.h"
 #include "module.h"
+#include "opts.h"
 #include "port.h"
 #include "tc.h"
 #include "utils/ether.h"
 #include "utils/time.h"
 #include "worker.h"
-
-// Capture the default core command line flag.
-DECLARE_int32(c);
-
-// Capture the "debug mode" command line flag.
-DECLARE_bool(d);
 
 struct handler_map {
   const char *cmd;

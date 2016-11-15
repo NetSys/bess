@@ -128,7 +128,8 @@ static void init_eal(char *prog_name, int mb_per_socket, int multi_instance) {
   disable_syslog();
   ret = rte_eal_init(rte_argc, const_cast<char **>(rte_argv));
   if (ret < 0) {
-    LOG(FATAL) << "rte_eal_init() failed: ret = " << ret;
+    LOG(ERROR) << "rte_eal_init() failed: ret = " << ret;
+    exit(EXIT_FAILURE);
   }
 
   enable_syslog();

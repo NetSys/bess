@@ -10,34 +10,115 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
+#include <iostream>
 #include <tuple>
 
 #include <glog/logging.h>
 
+#include "debug.h"
 #include "opts.h"
 #include "port.h"
+
+// How log messages are processed in BESS?
+// - In daemon mode:
+//   - via Google glog (recommended)
+//     - LOG(*) -> /tmp/bessd.*
+//     - Note that any log messages are routed to stderr, regardless of glog
+//       command-line flags, such as "stderrthreshold"
+//   - via libc stdout/stderr: e.g., printf(...) , fprintf(stderr, ...)
+//     - stdout -> stdout_funcs -> LOG(INFO) -> /tmp/bessd.INFO
+//     - stderr -> stderr_funcs -> LOG(WARNING) -> /tmp/bessd.[INFO|WARNING]
+//   - via libstdc++ cout/cerr
+//     - cout -> stdout_buf -> LOG(INFO) -> /tmp/bessd.INFO
+//     - cerr -> stderr_buf -> LOG(WARNING) -> /tmp/bessd.INFO
+// - In process mode (foreground; -f option):
+//   - via Google glog (recommended)
+//     - LOG(*) -> standard error (colored, if applicable)
+//   - via libc/libstdc++
+//     - stdout/cout -> standard output
+//     - stderr/cerr -> standard error (colored, currently always)
+
+namespace {
+
+// Intercepts all output messages to an ostream-based class and redirect them
+// to glog, with a specified log severity level. This behavior lasts as long as
+// the object is alive, and afterwards the original behavior is restored.
+class StreambufLogger : public std::streambuf {
+ public:
+  StreambufLogger(std::ostream &stream, google::LogSeverity severity)
+      : stream_(stream), log_level_(severity) {
+    org_streambuf_ = stream_.rdbuf(this);
+  };
+
+  // Restores the original streambuf
+  virtual ~StreambufLogger() { stream_.rdbuf(org_streambuf_); }
+
+  // Redirects all << operands to glog
+  std::streamsize xsputn(const char_type *s, std::streamsize count) {
+    WriteToGlog(s, count);
+    return count;
+  }
+
+  // NOTE: This function is never going to be called for std::cout and
+  // std::cerr, but implemented for general streams, for completeness)
+  int_type overflow(int_type v) {
+    char_type c = traits_type::to_char_type(v);
+    WriteToGlog(&c, 1);
+    return traits_type::not_eof(v);
+  }
+
+ private:
+  void WriteToGlog(const char_type *s, std::streamsize count) {
+    // prevent glog from creating an empty line even with no message
+    if (count <= 0) {
+      return;
+    }
+
+    // same as above. ignore << std::endl
+    if (count == 1 && s[0] == '\n') {
+      return;
+    }
+
+    // ignore trailing '\n', since glog will append it automatically
+    if (s[count - 1] == '\n') {
+      count--;
+    }
+
+    // since this is not an macro, we do not have __FILE__, and __LINE__ of
+    // the caller.
+    google::LogMessage("<unknown>", 0, log_level_).stream()
+        << std::string(s, count);
+  }
+
+  std::ostream &stream_;
+  std::streambuf *org_streambuf_;
+  google::LogSeverity log_level_;
+};
+
+}  // namespace (unnamed)
 
 namespace bess {
 namespace bessd {
 
 void ProcessCommandLineArgs() {
-  // TODO(barath): Eliminate this sequence of ifs once we directly use FLAGS
-  // from other components in BESS.
   if (FLAGS_t) {
-    dump_types();
+    bess::debug::DumpTypes();
     exit(EXIT_SUCCESS);
   }
-  if (FLAGS_f && !FLAGS_s) {
-    LOG(INFO) << "TC statistics output is disabled (add -s option?)";
+
+  if (FLAGS_f) {
+    google::LogToStderr();
+    if (!FLAGS_s) {
+      VLOG(1) << "TC statistics output is disabled (add -s option?)";
+    }
   }
 }
 
 void CheckRunningAsRoot() {
-  uid_t euid;
-
-  euid = geteuid();
+  uid_t euid = geteuid();
   if (euid != 0) {
-    LOG(FATAL) << "You need root privilege to run the BESS daemon";
+    LOG(ERROR) << "You need root privilege to run the BESS daemon";
+    exit(EXIT_FAILURE);
   }
 
   // Great power comes with great responsibility.
@@ -52,7 +133,7 @@ void WritePidfile(int fd, pid_t pid) {
     PLOG(FATAL) << "lseek(pidfile, 0, SEEK_SET)";
   }
 
-  char buf[1024];
+  char buf[BUFSIZ];
   int pidlen = sprintf(buf, "%d\n", pid);
   if (write(fd, buf, pidlen) < 0) {
     PLOG(FATAL) << "write(pidfile, pid)";
@@ -65,7 +146,7 @@ std::tuple<bool, pid_t> ReadPidfile(int fd) {
     PLOG(FATAL) << "lseek(pidfile, 0, SEEK_SET)";
   }
 
-  char buf[1024];
+  char buf[BUFSIZ];
   int readlen = read(fd, buf, sizeof(buf) - 1);
   if (readlen <= 0) {
     if (readlen < 0) {
@@ -93,7 +174,7 @@ std::tuple<bool, pid_t> TryAcquirePidfileLock(int fd) {
     if (errno != EWOULDBLOCK) {
       PLOG(FATAL) << "flock(pidfile=" << FLAGS_i << ")";
     } else {
-      PLOG(INFO) << "flock";
+      VLOG(1) << "flock";
     }
 
     // Try to read the pid of the other process.
@@ -109,7 +190,7 @@ std::tuple<bool, pid_t> TryAcquirePidfileLock(int fd) {
   return std::make_tuple(lockacquired, pid);
 }
 
-void CheckUniqueInstance(const std::string &pidfile_path) {
+int CheckUniqueInstance(const std::string &pidfile_path) {
   static const int kMaxPidfileLockTrials = 5;
 
   int fd = open(pidfile_path.c_str(), O_RDWR | O_CREAT, 0644);
@@ -124,34 +205,33 @@ void CheckUniqueInstance(const std::string &pidfile_path) {
     std::tie(lockacquired, pid) = TryAcquirePidfileLock(fd);
     if (lockacquired) {
       break;
-    } else {
-      if (!FLAGS_k) {
-        LOG(FATAL) << "You cannot run more than one BESS instance at a time "
-                   << "(add -k option?)";
-      }
-
-      if (trials == 0) {
-        LOG(INFO) << "There is another BESS daemon running (PID=" << pid << ")";
-      }
-
-      if (trials < 3) {
-        LOG(INFO) << "Sending SIGTERM signal...";
-        if (kill(pid, SIGTERM) < 0) {
-          PLOG(FATAL) << "kill(pid, SIGTERM)";
-        }
-
-        usleep(trials * 100000);
-      } else if (trials < 5) {
-        LOG(INFO) << "Sending SIGKILL signal...";
-        if (kill(pid, SIGKILL) < 0) {
-          PLOG(FATAL) << "kill(pid, SIGKILL)";
-        }
-
-        usleep(trials * 100000);
-      } else {
-        LOG(FATAL) << "ERROR: Cannot kill the process";
-      }
     }
+
+    if (!FLAGS_k) {
+      LOG(ERROR) << "You cannot run more than one BESS instance at a time "
+                 << "(add -k option?)";
+      exit(EXIT_FAILURE);
+    }
+
+    if (trials == 0) {
+      LOG(INFO) << "There is another BESS daemon running (PID=" << pid << ")";
+    }
+
+    if (trials < 3) {
+      LOG(INFO) << "Sending SIGTERM signal...";
+      if (kill(pid, SIGTERM) < 0) {
+        PLOG(FATAL) << "kill(pid, SIGTERM)";
+      }
+    } else if (trials < 5) {
+      LOG(INFO) << "Sending SIGKILL signal...";
+      if (kill(pid, SIGKILL) < 0) {
+        PLOG(FATAL) << "kill(pid, SIGKILL)";
+      }
+    } else {
+      LOG(FATAL) << "ERROR: Cannot kill the process";
+    }
+
+    usleep((trials + 1) * 100000);
   }
 
   // We now have the pidfile lock.
@@ -159,18 +239,73 @@ void CheckUniqueInstance(const std::string &pidfile_path) {
     LOG(INFO) << "Old instance has been successfully terminated.";
   }
 
-  // Store our PID in the file.
-  WritePidfile(fd, getpid());
-
-  // Keep the file descriptor open, to maintain the lock.
+  return fd;
 }
 
-int StartDaemon() {
+static void CloseStdStreams() {
+	int fd = open("/dev/null", O_RDWR, 0);
+  if (fd < 0) {
+    PLOG(ERROR) << "Cannot open /dev/null";
+    return;
+  }
+
+  // do not log to stderr anymore.
+  FLAGS_stderrthreshold = google::FATAL + 1;
+
+  // Replace standard input/output/error with /dev/null
+  dup2(fd, STDIN_FILENO);
+  dup2(fd, STDOUT_FILENO);
+  dup2(fd, STDERR_FILENO);
+
+  cookie_io_functions_t stdout_funcs = {
+      .read = nullptr,
+      .write = [](void *, const char *data, size_t len) -> ssize_t {
+				LOG(INFO) << std::string(data, len);
+				return len;
+			},
+      .seek = nullptr,
+      .close = nullptr,
+  };
+
+  cookie_io_functions_t stderr_funcs = {
+      .read = nullptr,
+      .write = [](void *, const char *data, size_t len) -> ssize_t {
+				LOG(WARNING) << std::string(data, len);
+				return len;
+			},
+      .seek = nullptr,
+      .close = nullptr,
+  };
+
+  /* NOTE: although we replace stdout with our handler,
+   *   printf() statements that are transformed to puts()
+   *   will not be redirected to syslog,
+   *   since puts() does not use stdout, but _IO_stdout.
+   *   gcc automatically "optimizes" printf() only with
+   *   a format string that ends with '\n'.
+   *   In that case, the message will go to /dev/null
+   *   (see dup2 above). */
+  stdout = fopencookie(NULL, "w", stdout_funcs);
+  setvbuf(stdout, NULL, _IOLBF, 0);
+
+  stderr = fopencookie(NULL, "w", stderr_funcs);
+  setvbuf(stderr, NULL, _IOLBF, 0);
+
+  // Redirect stdout output to LOG(INFO) and stderr output to LOG(WARNING)
+	static StreambufLogger stdout_buf(std::cout, google::GLOG_INFO);
+	static StreambufLogger stderr_buf(std::cerr, google::GLOG_WARNING);
+
+  // For whatever reason if fd happens to be assigned 0, 1, or 2, do not close
+  // it since it now points to our custom handler
+  if (fd > 2) {
+    close(fd);
+  }
+}
+
+int Daemonize() {
   int pipe_fds[2];
   const int read_end = 0;
   const int write_end = 1;
-
-  LOG(INFO) << "Launching BESS daemon in background...";
 
   if (pipe(pipe_fds) < 0) {
     PLOG(FATAL) << "pipe()";
@@ -188,7 +323,8 @@ int StartDaemon() {
       LOG(INFO) << "Done (PID=" << pid << ")";
       exit(EXIT_SUCCESS);
     } else {
-      PLOG(FATAL) << "Failed. (syslog may have details)";
+      LOG(ERROR) << "Failed to launch a daemon process";
+      exit(EXIT_FAILURE);
     }
   } else {
     // Child process.
@@ -198,8 +334,10 @@ int StartDaemon() {
 
   // Start a new session.
   if (setsid() < 0) {
-    PLOG(FATAL) << "setsid()";
+    PLOG(WARNING) << "setsid()";
   }
+
+  CloseStdStreams();
 
   return pipe_fds[write_end];
 }

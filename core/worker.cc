@@ -105,7 +105,8 @@ static void destroy_worker(int wid) {
     ret = write(workers[wid]->fd_event(), &sig, sizeof(sig));
     assert(ret == sizeof(uint64_t));
 
-    worker_threads[wid].join();
+    while (workers[wid]->status() == WORKER_PAUSED)
+      ; /* spin */
 
     workers[wid] = nullptr;
 
@@ -163,7 +164,7 @@ int Worker::Block() {
   }
 
   if (t == worker_signal::quit) {
-    status_ = WORKER_RUNNING;
+    status_ = WORKER_FINISHED;
     return 1;
   }
 
@@ -230,6 +231,7 @@ void *run_worker(void *_arg) {
 void launch_worker(int wid, int core) {
   struct thread_arg arg = {.wid = wid, .core = core};
   worker_threads[wid] = std::thread(run_worker, &arg);
+  worker_threads[wid].detach();
 
   INST_BARRIER();
 

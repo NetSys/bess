@@ -2,17 +2,14 @@
 
 #include <cassert>
 
-#include <gflags/gflags.h>
 #include <glog/logging.h>
 #include <rte_errno.h>
 
-#include "utils/common.h"
 #include "dpdk.h"
+#include "opts.h"
+#include "utils/common.h"
 
 #define NUM_MEMPOOL_CACHE 512
-
-// Capture the "debug mode" command line flag.
-DECLARE_bool(d);
 
 struct rte_mbuf pframe_template;
 
@@ -56,8 +53,8 @@ again:
       &pool_priv, snbuf_pkt_init, (void *)(uintptr_t)sid, sid, 0);
 
   if (!pframe_pool[sid]) {
-    LOG(INFO) << "Allocating " << current_try - 1 << " buffers on socket "
-              << sid << ": Failed (" << rte_strerror(rte_errno) << ")";
+    LOG(WARNING) << "Allocating " << current_try - 1 << " buffers on socket "
+                 << sid << ": Failed (" << rte_strerror(rte_errno) << ")";
     if (current_try > minimum_try) {
       current_try /= 2;
       goto again;

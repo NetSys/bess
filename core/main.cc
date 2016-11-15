@@ -1,9 +1,9 @@
 #include <rte_launch.h>
 
-#include <gflags/gflags.h>
 #include <glog/logging.h>
 
 #include "bessd.h"
+#include "debug.h"
 #include "dpdk.h"
 #include "master.h"
 #include "opts.h"
@@ -11,7 +11,11 @@
 #include "snbuf.h"
 
 int main(int argc, char *argv[]) {
+  FLAGS_logbuflevel = -1;
+  FLAGS_colorlogtostderr = true;
   google::InitGoogleLogging(argv[0]);
+  google::InstallFailureFunction(bess::debug::GoPanic);
+  bess::debug::SetTrapHandler();
 
   google::SetUsageMessage("BESS Command Line Options:");
   google::ParseCommandLineFlags(&argc, &argv, true);
@@ -19,15 +23,19 @@ int main(int argc, char *argv[]) {
 
   bess::bessd::CheckRunningAsRoot();
 
+  int pidfile_fd = bess::bessd::CheckUniqueInstance(FLAGS_i);
+  ignore_result(bess::bessd::SetResourceLimit());
+
   int signal_fd = -1;
   if (FLAGS_f) {
     LOG(INFO) << "Launching BESS daemon in process mode...";
   } else {
-    signal_fd = bess::bessd::StartDaemon();
+    LOG(INFO) << "Launching BESS daemon in background...";
+    signal_fd = bess::bessd::Daemonize();
   }
 
-  bess::bessd::CheckUniqueInstance(FLAGS_i);
-  ignore_result(bess::bessd::SetResourceLimit());
+  // Store our PID (child's, if daemonized) in the PID file.
+  bess::bessd::WritePidfile(pidfile_fd, getpid());
 
   // TODO(barath): Make these DPDK calls generic, so as to not be so tied to
   // DPDK.

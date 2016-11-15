@@ -46,7 +46,7 @@ class BESS(object):
             if e.errno not in [errno.EAGAIN, errno.EWOULDBLOCK]:
                 self.s.close()
                 self.s = None
-                return False
+                raise e
 
         return True
 
@@ -67,8 +67,11 @@ class BESS(object):
                     % (host, port))
 
     def disconnect(self):
-        if self.is_connected():
+        try:
             self.s.close()
+        except:
+            pass
+        finally:
             self.s = None
 
     def set_debug(self, flag):

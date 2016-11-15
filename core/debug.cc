@@ -12,6 +12,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <fstream>
 #include <sstream>
 #include <string>
 
@@ -25,7 +26,8 @@
 #include "tc.h"
 #include "utils/htable.h"
 
-#define STACK_DEPTH 64
+namespace bess {
+namespace debug {
 
 static const char *si_code_to_str(int sig_num, int si_code) {
   /* See the manpage of sigaction() */
@@ -141,7 +143,7 @@ static std::string print_code(char *symbol, int context) {
   /* ./bessd() [0x4149d8] */
   sscanf(symbol, "%[^(](%*s [%[^]]]", executable, addr);
 
-  sprintf(cmd, "addr2line -i -f -p -e %s %s 2> /dev/null", executable, addr);
+  sprintf(cmd, "addr2line -C -i -f -p -e %s %s 2> /dev/null", executable, addr);
 
   proc = popen(cmd, "r");
   if (!proc) {
@@ -245,95 +247,141 @@ static std::string print_code(char *symbol, int context) {
   return ret.str();
 }
 
-[[noreturn]] static void panic(const std::string &message) {
-  LOG(FATAL) << message;
-  exit(EXIT_FAILURE);
-}
+static void *trap_ip;
+static std::string oops_msg;
 
-[[noreturn]] static void trap_handler(int sig_num, siginfo_t *info,
-                                      void *ucontext) {
-  std::ostringstream oops;
-  void *addrs[STACK_DEPTH];
-  void *ip;
+static std::string DumpStack() {
+  const size_t max_stack_depth = 64;
+  void *addrs[max_stack_depth];
+
+  std::ostringstream stack;
+
   char **symbols;
-
-  int cnt;
-  int i;
-
-  struct ucontext *uc;
-
   int skips;
 
-  uc = (struct ucontext *)ucontext;
-
-#if __i386
-  ip = (void *)uc->uc_mcontext.gregs[REG_EIP];
-#elif __x86_64
-  ip = (void *)uc->uc_mcontext.gregs[REG_RIP];
-#else
-#error neither x86 or x86-64
-#endif
-
-  oops << "A critical error has occured. Aborting... (pid=" << getpid()
-       << ", tid=" << (pid_t)syscall(SYS_gettid) << ")" << std::endl;
-  oops << "Signal: " << sig_num << " (" << strsignal(sig_num)
-       << "), si_code: " << info->si_code << " ("
-       << si_code_to_str(sig_num, info->si_code)
-       << "), address: " << info->si_addr << ", IP: " << ip << std::endl;
-
   /* the linker requires -rdynamic for non-exported symbols */
-  cnt = backtrace(addrs, STACK_DEPTH);
+  int cnt = backtrace(addrs, max_stack_depth);
   if (cnt < 3) {
-    oops << "ERROR: backtrace() failed" << std::endl;
-    panic(oops.str());
+    stack << "ERROR: backtrace() failed" << std::endl;
+    return stack.str();
   }
 
   /* addrs[0]: this function
    * addrs[1]: sigaction in glibc
    * addrs[2]: the trigerring instruction pointer *or* its caller
    *           (depending on the kernel behavior?) */
-  if (addrs[2] == ip) {
+  if (addrs[2] == trap_ip) {
     skips = 2;
   } else {
-    addrs[1] = ip;
+    if (trap_ip != nullptr)
+      addrs[1] = trap_ip;
     skips = 1;
   }
 
-  /* The return addresses point to the next instruction
-   * after its call, so adjust. */
-  for (i = skips + 1; i < cnt; i++)
+  // The return addresses point to the next instruction after its call,
+  // so adjust them by -1
+  for (int i = skips + 1; i < cnt; i++)
     addrs[i] = (void *)((uintptr_t)addrs[i] - 1);
 
   symbols = backtrace_symbols(addrs, cnt);
 
   if (symbols) {
-    oops << "Backtrace (recent calls first) ---" << std::endl;
+    stack << "Backtrace (recent calls first) ---" << std::endl;
 
-    for (i = skips; i < cnt; ++i) {
-      oops << "(" << i - skips << "): " << symbols[i] << std::endl;
-      oops << print_code(symbols[i], (i == skips) ? 3 : 0);
+    for (int i = skips; i < cnt; ++i) {
+      stack << "(" << i - skips << "): " << symbols[i] << std::endl;
+      stack << print_code(symbols[i], (i == skips) ? 3 : 0);
     }
 
-    free(symbols); /* required by backtrace_symbols() */
+    free(symbols); // required by backtrace_symbols()
   } else
-    oops << "ERROR: backtrace_symbols() failed\n";
+    stack << "ERROR: backtrace_symbols() failed\n";
 
-  panic(oops.str());
+  return stack.str();
 }
 
-__attribute__((constructor(101))) static void set_trap_handler() {
+[[noreturn]] static void exit_failure() {
+  exit(EXIT_FAILURE);
+}
+
+[[noreturn]] void GoPanic() {
+  if (oops_msg == "")
+    oops_msg = DumpStack();
+
+  // Create a crash log file
+  try {
+    std::ofstream fp(P_tmpdir "/bessd_crash.log");
+    fp << oops_msg;
+    fp.close();
+  } catch (...) {
+    // Ignore any errors.
+  }
+
+  // The default failure function of glog calls abort(), which causes SIGABRT
+  google::InstallFailureFunction(exit_failure);
+  LOG(FATAL) << oops_msg;
+}
+
+// SIGUSR1 is used to examine the current callstack, without aborting.
+// (useful when the process seems stuck)
+// TODO: Only use async-signal-safe operations in the signal handler.
+static void TrapHandler(int sig_num, siginfo_t *info, void *ucontext) {
+  std::ostringstream oops;
+  struct ucontext *uc;
+  bool is_fatal = (sig_num != SIGUSR1);
+  static volatile bool already_trapped = false;
+
+  // avoid recursive traps
+  if (is_fatal && !__sync_bool_compare_and_swap(&already_trapped, false, true))
+    return;
+
+  uc = (struct ucontext *)ucontext;
+
+#if __i386
+  trap_ip = (void *)uc->uc_mcontext.gregs[REG_EIP];
+#elif __x86_64
+  trap_ip = (void *)uc->uc_mcontext.gregs[REG_RIP];
+#else
+#  error neither x86 or x86-64
+#endif
+
+  if (is_fatal) {
+    oops << "A critical error has occured. Aborting..." << std::endl;
+  } else
+
+  oops << "Signal: " << sig_num << " (" << strsignal(sig_num)
+       << "), si_code: " << info->si_code << " ("
+       << si_code_to_str(sig_num, info->si_code) << ")" << std::endl;
+  oops << "pid: " << getpid() << ", tid: " << (pid_t)syscall(SYS_gettid)
+       << ", address: " << info->si_addr << ", IP: " << trap_ip << std::endl;
+
+  if (is_fatal) {
+    oops << DumpStack();
+    oops_msg = oops.str();
+    GoPanic();
+    // Never reaches here. LOG(FATAL) will terminate the process.
+  } else {
+    LOG(INFO) << oops.str() << DumpStack();
+  }
+}
+
+void SetTrapHandler() {
   const int signals[] = {
-      SIGSEGV, SIGBUS,  SIGILL,
-      SIGFPE,  SIGABRT, SIGUSR1, /* for users to trigger */
+      SIGSEGV, SIGBUS, SIGILL, SIGFPE, SIGABRT,
+      // SIGUSR1 is special in that it is triggered by user and does not abort
+      SIGUSR1,
   };
 
   const int ignored_signals[] = {
       SIGPIPE,
   };
+
   struct sigaction sigact;
   size_t i;
 
-  sigact.sa_sigaction = trap_handler;
+  unlink(P_tmpdir "/bessd_crash.log");
+
+  sigact.sa_sigaction = TrapHandler;
   sigact.sa_flags = SA_RESTART | SA_SIGINFO;
 
   for (i = 0; i < sizeof(signals) / sizeof(int); i++) {
@@ -346,7 +394,7 @@ __attribute__((constructor(101))) static void set_trap_handler() {
   }
 }
 
-void dump_types(void) {
+void DumpTypes(void) {
   printf("gcc: %d.%d.%d\n", __GNUC__, __GNUC_MINOR__, __GNUC_PATCHLEVEL__);
   printf("glibc: %s-%s\n", gnu_get_libc_version(), gnu_get_libc_release());
   printf("DPDK: %s\n", rte_version());
@@ -383,3 +431,6 @@ void dump_types(void) {
 
   printf("sizeof(snobj)=%zu\n", sizeof(struct snobj));
 }
+
+}  // namespace debug
+}  // namespace bess
