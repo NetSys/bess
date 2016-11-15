@@ -466,6 +466,8 @@ int Pipeline::RegisterAttribute(const std::string &attr_name, size_t size) {
     count++;
     return 0;
   } else {
+    LOG(ERROR) << "Attribute '" << attr_name << "' has size mismatch: registered("
+               << registered_size << ") vs new(" << size << ")";
     return -EINVAL;
   }
 }
@@ -473,8 +475,8 @@ int Pipeline::RegisterAttribute(const std::string &attr_name, size_t size) {
 void Pipeline::DeregisterAttribute(const std::string &attr_name) {
   const auto &it = registered_attrs_.find(attr_name);
   if (it == registered_attrs_.end()) {
-    LOG(ERROR) << "ReregisteredAttribute() called, but " << attr_name
-             << " was not registered";
+    LOG(ERROR) << "ReregisteredAttribute() called, but '" << attr_name
+             << "' was not registered";
     return;
   }
 
