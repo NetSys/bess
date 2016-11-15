@@ -67,8 +67,11 @@ class BESS(object):
                     % (host, port))
 
     def disconnect(self):
-        if self.is_connected():
+        try:
             self.s.close()
+        except:
+            pass
+        finally:
             self.s = None
 
     def set_debug(self, flag):
