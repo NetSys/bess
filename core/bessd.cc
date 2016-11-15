@@ -40,6 +40,9 @@
 
 namespace {
 
+// Intercepts all output messages to an ostream-based class and redirect them
+// to glog, with a specified log severity level. This behavior lasts as long as
+// the object is alive, and afterwards the original behavior is restored.
 class StreambufLogger : public std::streambuf {
  public:
   StreambufLogger(std::ostream &stream, google::LogSeverity severity)
@@ -47,13 +50,17 @@ class StreambufLogger : public std::streambuf {
     org_streambuf_ = stream_.rdbuf(this);
   };
 
-  ~StreambufLogger() { stream_.rdbuf(org_streambuf_); }
+  // Restores the original streambuf
+  virtual ~StreambufLogger() { stream_.rdbuf(org_streambuf_); }
 
+  // Redirects all << operands to glog
   std::streamsize xsputn(const char_type *s, std::streamsize count) {
     WriteToGlog(s, count);
     return count;
   }
 
+  // NOTE: This function is never going to be called for std::cout and
+  // std::cerr, but implemented for general streams, for completeness)
   int_type overflow(int_type v) {
     char_type c = traits_type::to_char_type(v);
     WriteToGlog(&c, 1);
@@ -61,25 +68,31 @@ class StreambufLogger : public std::streambuf {
   }
 
  private:
-  std::ostream &stream_;
-  std::streambuf *org_streambuf_;
-  google::LogSeverity log_level_;
-
   void WriteToGlog(const char_type *s, std::streamsize count) {
-    if (count <= 0)
+    // prevent glog from creating an empty line even with no message
+    if (count <= 0) {
       return;
+    }
 
-    // ignore << std::endl;
-    if (count == 1 && s[0] == '\n')
+    // same as above. ignore << std::endl
+    if (count == 1 && s[0] == '\n') {
       return;
+    }
 
-    // ignore trailing '\n'
-    if (s[count - 1] == '\n')
+    // ignore trailing '\n', since glog will append it automatically
+    if (s[count - 1] == '\n') {
       count--;
+    }
 
+    // since this is not an macro, we do not have __FILE__, and __LINE__ of
+    // the caller.
     google::LogMessage("<unknown>", 0, log_level_).stream()
         << std::string(s, count);
   }
+
+  std::ostream &stream_;
+  std::streambuf *org_streambuf_;
+  google::LogSeverity log_level_;
 };
 
 }  // namespace (unnamed)
