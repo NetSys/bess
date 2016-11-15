@@ -46,7 +46,7 @@ class BESS(object):
             if e.errno not in [errno.EAGAIN, errno.EWOULDBLOCK]:
                 self.s.close()
                 self.s = None
-                return False
+                raise e
 
         return True
 
