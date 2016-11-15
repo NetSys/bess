@@ -379,6 +379,8 @@ void SetTrapHandler() {
   struct sigaction sigact;
   size_t i;
 
+  unlink(P_tmpdir "/bessd_crash.log");
+
   sigact.sa_sigaction = TrapHandler;
   sigact.sa_flags = SA_RESTART | SA_SIGINFO;
 
