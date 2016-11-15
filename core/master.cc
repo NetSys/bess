@@ -102,7 +102,7 @@ static int init_listen_fd(uint16_t port) {
   }
 
   LOG(INFO) << "Master: listening on " << inet_ntoa(s_addr.sin_addr) << ":"
-            << std::hex << port;
+            << port;
 
   return listen_fd;
 }
@@ -138,7 +138,7 @@ static struct client *init_client(int fd, struct sockaddr_in c_addr) {
 
 static void close_client(struct client *c) {
   LOG(INFO) << "Master: client " << inet_ntoa(c->addr.sin_addr) << ":"
-            << std::hex << c->addr.sin_port << " disconnected";
+            << c->addr.sin_port << " disconnected";
 
   close(c->fd);
 
@@ -435,7 +435,7 @@ again:
       goto again;
 
     LOG(INFO) << "Master: a new client from " << inet_ntoa(c->addr.sin_addr)
-              << ":" << std::hex << c->addr.sin_port;
+              << ":" << c->addr.sin_port;
   } else {
     c = (struct client *)ev.data.ptr;
 
