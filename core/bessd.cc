@@ -95,7 +95,6 @@ void ProcessCommandLineArgs() {
 
   if (FLAGS_f) {
     google::LogToStderr();
-    LOG(INFO) << "Launching BESS daemon in process mode...";
     if (!FLAGS_s) {
       VLOG(1) << "TC statistics output is disabled (add -s option?)";
     }
@@ -178,7 +177,7 @@ std::tuple<bool, pid_t> TryAcquirePidfileLock(int fd) {
   return std::make_tuple(lockacquired, pid);
 }
 
-void CheckUniqueInstance(const std::string &pidfile_path) {
+int CheckUniqueInstance(const std::string &pidfile_path) {
   static const int kMaxPidfileLockTrials = 5;
 
   int fd = open(pidfile_path.c_str(), O_RDWR | O_CREAT, 0644);
@@ -210,18 +209,16 @@ void CheckUniqueInstance(const std::string &pidfile_path) {
       if (kill(pid, SIGTERM) < 0) {
         PLOG(FATAL) << "kill(pid, SIGTERM)";
       }
-
-      usleep(trials * 100000);
     } else if (trials < 5) {
       LOG(INFO) << "Sending SIGKILL signal...";
       if (kill(pid, SIGKILL) < 0) {
         PLOG(FATAL) << "kill(pid, SIGKILL)";
       }
-
-      usleep(trials * 100000);
     } else {
       LOG(FATAL) << "ERROR: Cannot kill the process";
     }
+
+    usleep((trials + 1) * 100000);
   }
 
   // We now have the pidfile lock.
@@ -229,18 +226,18 @@ void CheckUniqueInstance(const std::string &pidfile_path) {
     LOG(INFO) << "Old instance has been successfully terminated.";
   }
 
-  // Store our PID in the file.
-  WritePidfile(fd, getpid());
-
-  // Keep the file descriptor open, to maintain the lock.
+  return fd;
 }
 
-void CloseStdStreams() {
+static void CloseStdStreams() {
 	int fd = open("/dev/null", O_RDWR, 0);
   if (fd < 0) {
     PLOG(ERROR) << "Cannot open /dev/null";
     return;
   }
+
+  // do not log to stderr anymore.
+  FLAGS_stderrthreshold = google::FATAL + 1;
 
   // Replace standard input/output/error with /dev/null
   dup2(fd, STDIN_FILENO);
@@ -296,10 +293,6 @@ int Daemonize() {
   const int read_end = 0;
   const int write_end = 1;
 
-  LOG(INFO) << "Launching BESS daemon in background...";
-
-  CloseStdStreams();
-
   if (pipe(pipe_fds) < 0) {
     PLOG(FATAL) << "pipe()";
   }
@@ -329,6 +322,8 @@ int Daemonize() {
   if (setsid() < 0) {
     PLOG(WARNING) << "setsid()";
   }
+
+  CloseStdStreams();
 
   return pipe_fds[write_end];
 }

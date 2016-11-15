@@ -12,6 +12,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <fstream>
 #include <sstream>
 #include <string>
 
@@ -255,9 +256,19 @@ static void *trap_ip;
 }
 
 [[noreturn]] static void panic() {
-  // The default failure function calls abort(), which causes SIGABRT
+  const std::string oops_msg = oops.str();
+
+  try {
+    std::ofstream fp(P_tmpdir "/bessd_crash.log");
+    fp << oops_msg;
+    fp.close();
+  } catch (...) {
+    // Ignore any errors.
+  }
+
+  // The default failure function of glog calls abort(), which causes SIGABRT
   google::InstallFailureFunction(exit_failure);
-  LOG(FATAL) << oops.str();
+  LOG(FATAL) << oops_msg;
 }
 
 [[noreturn]] void dump_stack() {
@@ -281,7 +292,8 @@ static void *trap_ip;
   if (addrs[2] == trap_ip) {
     skips = 2;
   } else {
-    addrs[1] = trap_ip;
+    if (trap_ip != nullptr)
+      addrs[1] = trap_ip;
     skips = 1;
   }
 
@@ -325,13 +337,12 @@ static void trap_handler(int sig_num, siginfo_t *info,
 #  error neither x86 or x86-64
 #endif
 
-  oops << "A critical error has occured. Aborting... (pid=" << getpid()
-             << ", tid=" << (pid_t)syscall(SYS_gettid) << ")" << std::endl;
+  oops << "A critical error has occured. Aborting..." << std::endl;
   oops << "Signal: " << sig_num << " (" << strsignal(sig_num)
        << "), si_code: " << info->si_code << " ("
-       << si_code_to_str(sig_num, info->si_code)
-       << "), address: " << info->si_addr << ", IP: " << trap_ip << std::endl;
-
+       << si_code_to_str(sig_num, info->si_code) << ")" << std::endl;
+  oops << "pid: " << getpid() << ", tid: " << (pid_t)syscall(SYS_gettid)
+       << ", address: " << info->si_addr << ", IP: " << trap_ip << std::endl;
 
   dump_stack();
 }

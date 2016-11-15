@@ -253,7 +253,8 @@ TEST(CheckUniqueInstance, HeldKillCurrentHolder) {
     signal(SIGTERM, SIG_IGN);
 
     // Child process.
-    CheckUniqueInstance(kTestLockFilePath);
+    int pidfile_fd = CheckUniqueInstance(kTestLockFilePath);
+    WritePidfile(pidfile_fd, getpid());
   }, {
     ASSERT_NO_FATAL_FAILURE(CheckUniqueInstance(kTestLockFilePath));
     unlink(kTestLockFilePath);

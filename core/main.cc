@@ -22,13 +22,19 @@ int main(int argc, char *argv[]) {
 
   bess::bessd::CheckRunningAsRoot();
 
+  int pidfile_fd = bess::bessd::CheckUniqueInstance(FLAGS_i);
+  ignore_result(bess::bessd::SetResourceLimit());
+
   int signal_fd = -1;
-  if (!FLAGS_f) {
+  if (FLAGS_f) {
+    LOG(INFO) << "Launching BESS daemon in process mode...";
+  } else {
+    LOG(INFO) << "Launching BESS daemon in background...";
     signal_fd = bess::bessd::Daemonize();
   }
 
-  bess::bessd::CheckUniqueInstance(FLAGS_i);
-  ignore_result(bess::bessd::SetResourceLimit());
+  // Store our PID (child's, if daemonized) in the PID file.
+  bess::bessd::WritePidfile(pidfile_fd, getpid());
 
   // TODO(barath): Make these DPDK calls generic, so as to not be so tied to
   // DPDK.
