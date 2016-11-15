@@ -4,6 +4,7 @@ import os
 import os.path
 import pprint
 import cStringIO
+import tempfile
 
 import cli
 import commands
@@ -16,7 +17,7 @@ except ImportError:
     print >> sys.stderr, 'Cannot import the API module (libbess-python)'
 
 class BESSCLI(cli.CLI):
-    def __init__(self, bess, cmd_db, fin=sys.stdin, 
+    def __init__(self, bess, cmd_db, fin=sys.stdin,
                  fout=sys.stdout, history_file=None):
         self.bess = bess
         self.cmd_db = cmd_db
@@ -24,7 +25,7 @@ class BESSCLI(cli.CLI):
 
         super(BESSCLI, self).__init__(self.cmd_db.cmdlist, \
                 fin=fin, fout=fout, history_file=history_file)
-    
+
     def get_var_attrs(self, var_token, partial_word):
         return self.cmd_db.get_var_attrs(self, var_token, partial_word)
 
@@ -67,7 +68,7 @@ class BESSCLI(cli.CLI):
                 details = pprint.pformat(e.details)
                 initial_indent = '  error details: '
                 subsequent_indent = ' ' * len(initial_indent)
-                
+
                 for i, line in enumerate(details.splitlines()):
                     if i == 0:
                         self.fout.write('%s%s\n' % (initial_indent, line))
@@ -75,6 +76,14 @@ class BESSCLI(cli.CLI):
                         self.fout.write('%s%s\n' % (subsequent_indent, line))
 
             raise self.HandledError()
+
+    def print_crashlog(self):
+        try:
+            log_path = tempfile.gettempdir() + '/bessd_crash.log'
+            log = open(log_path).read()
+            self.fout.write(log)
+        except:
+            pass
 
     def loop(self):
         try:
@@ -91,11 +100,7 @@ class BESSCLI(cli.CLI):
                     (e.errno, err_code, os.strerror(e.errno)))
 
             if self.bess.peer[0] == 'localhost':
-                try:
-                    log = open('/tmp/bess_crash.log').read()
-                    self.fout.write(log)
-                except:
-                    pass
+                self.print_crashlog()
 
             self.bess.disconnect()
 
