@@ -297,8 +297,9 @@ static void CloseStdStreams() {
 
   // For whatever reason if fd happens to be assigned 0, 1, or 2, do not close
   // it since it now points to our custom handler
-  if (fd > 2)
+  if (fd > 2) {
     close(fd);
+  }
 }
 
 int Daemonize() {
