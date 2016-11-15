@@ -14,7 +14,8 @@ int main(int argc, char *argv[]) {
   FLAGS_logbuflevel = -1;
   FLAGS_colorlogtostderr = true;
   google::InitGoogleLogging(argv[0]);
-  google::InstallFailureFunction(bess::debug::dump_stack);
+  google::InstallFailureFunction(bess::debug::GoPanic);
+  bess::debug::SetTrapHandler();
 
   google::SetUsageMessage("BESS Command Line Options:");
   google::ParseCommandLineFlags(&argc, &argv, true);

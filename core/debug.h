@@ -4,8 +4,9 @@
 namespace bess {
 namespace debug {
 
-void dump_types(void);
-void dump_stack(void);
+void SetTrapHandler(void);
+void GoPanic(void);
+void DumpTypes(void);
 
 }  // namespace debug
 }  // namespace bess

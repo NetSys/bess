@@ -89,7 +89,7 @@ namespace bessd {
 
 void ProcessCommandLineArgs() {
   if (FLAGS_t) {
-    bess::debug::dump_types();
+    bess::debug::DumpTypes();
     exit(EXIT_SUCCESS);
   }
 
