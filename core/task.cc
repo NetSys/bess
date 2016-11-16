@@ -20,8 +20,6 @@ struct task_result task_scheduled(struct task *t) {
     bess::OGate *ogate = reinterpret_cast<bess::OGate *>(task.gate);
     struct pkt_batch *next_packets = &(task.batch);
 
-    ctx.push_igate(ogate->igate_idx());
-
     for (auto &hook : ogate->hooks()) {
       hook->ProcessBatch(next_packets);
     }
@@ -30,9 +28,8 @@ struct task_result task_scheduled(struct task *t) {
       hook->ProcessBatch(next_packets);
     }
 
+    ctx.set_current_igate(ogate->igate_idx());
     ((Module *)ogate->arg())->ProcessBatch(next_packets);
-
-    ctx.pop_igate();
   }
 
   return ret;
