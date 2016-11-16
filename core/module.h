@@ -217,6 +217,12 @@ class Module {
   virtual std::string GetDesc() const { return ""; };
   virtual struct snobj *GetDump() const { return snobj_nil(); }
 
+  static const gate_idx_t kNumIGates = 1;
+  static const gate_idx_t kNumOGates = 1;
+
+  static const Commands<Module> cmds;
+  static const PbCommands pb_cmds;
+
   // -------------------------------------------------------------------------
 
  public:

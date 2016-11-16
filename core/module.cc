@@ -15,6 +15,9 @@
 #include "mem_alloc.h"
 #include "utils/pcap.h"
 
+const Commands<Module> Module::cmds;
+const PbCommands Module::pb_cmds;
+
 std::map<std::string, Module *> ModuleBuilder::all_modules_;
 
 // FIXME: move somewhere else?
