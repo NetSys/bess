@@ -1,6 +1,6 @@
 # To test a container vport, use this instead
 # v = VPort(docker=<name or CID>, ip_addr='192.168.10.1/24')
-v = VPort()
+v = VPort(container_pid=0)
 
 p = PMDPort(port_id=0)
 

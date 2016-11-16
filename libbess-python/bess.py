@@ -170,7 +170,7 @@ class BESS(object):
             'Bypass': bess_msg.EmptyArg,
             'Dump': module_msg.DumpArg,
             'EtherEncap': bess_msg.EmptyArg,
-            'ExactMatch': bess_msg.EmptyArg,
+            'ExactMatch': module_msg.ExactMatchArg,
             'FlowGen': module_msg.FlowGenArg,
             'GenericDecap': module_msg.GenericDecapArg,
             'GenericEncap': module_msg.GenericEncapArg,

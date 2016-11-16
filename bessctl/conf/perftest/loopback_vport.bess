@@ -67,7 +67,7 @@ def measure():
     print
 
 for cpu in range(CORE_START, CORE_END, CORE_STEP):
-    v = VPort(loopback=1, rxq_cpu=cpu)
+    v = VPort(loopback=1, rxq_cpus=[cpu], container_pid=0)
 
     cpu_set.append(cpu)
     ports.append(v)

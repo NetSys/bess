@@ -3,7 +3,7 @@ import time
 # latency will be high, since the queue builds up
 # as the Linux network stack is the bottleneck
 
-v = VPort(loopback=1, rxq_cpu=1)
+v = VPort(loopback=1, rxq_cpus=[1], container_pid)
 
 Source() -> Timestamp() -> PortOut(port=v)
 PortInc(port=v) -> m::Measure() -> Sink()

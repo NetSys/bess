@@ -11,9 +11,9 @@ def gen_packet(proto, src_ip, dst_ip):
     udp = proto(sport=10001, dport=10002)
     payload = 'helloworld'
     pkt = eth/ip/udp/payload
-    return bytearray(str(pkt))
+    return str(pkt)
 
-packets = [gen_packet(scapy.UDP, '172.16.100.1', '10.0.0.1'), 
+packets = [gen_packet(scapy.UDP, '172.16.100.1', '10.0.0.1'),
            gen_packet(scapy.UDP, '172.12.55.99', '12.34.56.78'),
            gen_packet(scapy.UDP, '172.12.55.99', '10.0.0.1'),
            gen_packet(scapy.UDP, '172.16.100.1', '12.34.56.78'),
@@ -22,10 +22,9 @@ packets = [gen_packet(scapy.UDP, '172.16.100.1', '10.0.0.1'),
           ]
 
 # L4 protocol and source/destination IP addresses
-em::ExactMatch(fields=[{'offset':23, 'size':1}, 
+em::ExactMatch(fields=[{'offset':23, 'size':1},
                        {'offset':26, 'size':4},
-                       {'offset':30, 'size':4}],
-               size=4096)
+                       {'offset':30, 'size':4}])
 
 Source() -> Rewrite(templates=packets) -> em
 
@@ -40,6 +39,6 @@ em.add(fields=[chr(17), aton('172.12.55.99'), aton('12.34.56.78')], gate=2)
 
 # delete test
 em.add(fields=[chr(17), aton('192.168.1.123'), aton('12.34.56.78')], gate=3)
-em.delete([chr(17), aton('192.168.1.123'), aton('12.34.56.78')])
+em.delete(fields=[chr(17), aton('192.168.1.123'), aton('12.34.56.78')])
 
-em.set_default_gate(5)
+em.set_default_gate(gate=5)
