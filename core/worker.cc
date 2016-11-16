@@ -20,7 +20,9 @@
 int num_workers = 0;
 std::thread worker_threads[MAX_WORKERS];
 Worker *volatile workers[MAX_WORKERS];
-thread_local Worker ctx;
+
+// See worker.h
+__thread Worker ctx;
 
 struct thread_arg {
   int wid;

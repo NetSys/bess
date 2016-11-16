@@ -45,24 +45,6 @@ struct gate_task {
 
 class Worker {
  public:
-  Worker()
-      : status_(),
-        wid_(),
-        core_(),
-        socket_(),
-        fd_event_(),
-        pframe_pool_(),
-        s_(),
-        silent_drops_(),
-        current_tsc_(),
-        current_ns_(),
-        igate_stack_(),
-        stack_depth_(),
-        pending_gates_(),
-        splits_() {}
-
-  virtual ~Worker() {}
-
   /* ----------------------------------------------------------------------
    * functions below are invoked by non-worker threads (the master)
    * ---------------------------------------------------------------------- */
@@ -96,35 +78,21 @@ class Worker {
   }
 
   uint64_t silent_drops() { return silent_drops_; }
-  inline void set_silent_drops(uint64_t drops) { silent_drops_ = drops; }
-  inline void incr_silent_drops(uint64_t drops) { silent_drops_ += drops; }
+  void set_silent_drops(uint64_t drops) { silent_drops_ = drops; }
+  void incr_silent_drops(uint64_t drops) { silent_drops_ += drops; }
 
-  uint64_t current_tsc() { return current_tsc_; }
-  inline void set_current_tsc(uint64_t tsc) { current_tsc_ = tsc; }
+  uint64_t current_tsc() const { return current_tsc_; }
+  void set_current_tsc(uint64_t tsc) { current_tsc_ = tsc; }
 
-  uint64_t current_ns() { return current_ns_; }
-  inline void set_current_ns(uint64_t ns) { current_ns_ = ns; }
+  uint64_t current_ns() const { return current_ns_; }
+  void set_current_ns(uint64_t ns) { current_ns_ = ns; }
 
-  /* The current input gate index is not given as a function parameter.
-   * Modules should use get_igate() for access */
-  gate_idx_t *igate_stack() { return igate_stack_; }
-  int stack_depth() { return stack_depth_; }
-
-  inline gate_idx_t igate_stack_top() { return igate_stack_[stack_depth_ - 1]; }
-
-  inline void push_igate(gate_idx_t gate) {
-    igate_stack_[stack_depth_] = gate;
-    stack_depth_++;
-  }
-
-  inline gate_idx_t pop_igate() {
-    stack_depth_--;
-    return igate_stack_[stack_depth_];
-  }
+  gate_idx_t current_igate() const { return current_igate_; }
+  void set_current_igate(gate_idx_t idx) { current_igate_ = idx; }
 
   // Store gate+packets into tasks for worker to service.
   // Returns true on success.
-  inline bool push_ogate_and_packets(bess::Gate *gate, pkt_batch *batch) {
+  bool push_ogate_and_packets(bess::Gate *gate, pkt_batch *batch) {
     if (pending_gates_ > MAX_MODULES_PER_PATH * BRANCH_FACTOR) {
       LOG(ERROR) << "Gate servicing stack overrun -- loop in execution?";
       return false;
@@ -138,12 +106,12 @@ class Worker {
 
   // Retrieve next gate that this worker should serve packets to.
   // Do not call without checking gates_pending() first.
-  inline struct gate_task pop_ogate_and_packets() {
+  struct gate_task pop_ogate_and_packets() {
     pending_gates_--;
     return gate_servicing_stack_[pending_gates_];  // return value
   }
 
-  inline bool gates_pending() { return !(pending_gates_ == 0); }
+  bool gates_pending() { return !(pending_gates_ == 0); }
 
   /* better be the last field. it's huge */
   struct pkt_batch *splits() {
@@ -167,25 +135,26 @@ class Worker {
   uint64_t current_tsc_;
   uint64_t current_ns_;
 
-  /* The current input gate index is not given as a function parameter.
-   * Modules should use get_igate() for access */
-  gate_idx_t igate_stack_[MAX_MODULES_PER_PATH];
-  int stack_depth_;
-
   // Gates and packets that this worker should serve next.
   struct gate_task gate_servicing_stack_[MAX_MODULES_PER_PATH * BRANCH_FACTOR];
   int pending_gates_;
 
+  /* The current input gate index is not given as a function parameter.
+   * Modules should use get_igate() for access */
+  gate_idx_t current_igate_;
+
   /* better be the last field. it's huge */
   struct pkt_batch splits_[MAX_GATES + 1];
-
-  DISALLOW_COPY_AND_ASSIGN(Worker);
 };
 
 extern int num_workers;
 extern std::thread worker_threads[MAX_WORKERS];
 extern Worker *volatile workers[MAX_WORKERS];
-extern thread_local Worker ctx;
+
+// NOTE: Do not use "thread_local" here. It requires a function call every time
+// it is accessed. Use __thread instead, which incurs minimal runtime overhead.
+// Worker must be "trivial" type.
+extern __thread Worker ctx;
 
 /* ------------------------------------------------------------------------
  * functions below are invoked by non-worker threads (the master)
