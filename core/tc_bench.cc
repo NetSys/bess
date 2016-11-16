@@ -7,8 +7,6 @@
 #include <benchmark/benchmark.h>
 #include <glog/logging.h>
 
-#include "utils/time.h"
-
 // Performs TC Scheduler init/deinit before/after each test.
 class TCFixture : public benchmark::Fixture {
  public:
