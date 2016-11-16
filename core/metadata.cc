@@ -452,16 +452,43 @@ int Pipeline::ComputeMetadataOffsets() {
   return 0;
 }
 
-// TODO: We need to keep track of the number of modules that registered each
-// attribute. Then RegisterAttribute does +1 while Deregister one does -1
-int Pipeline::RegisterAttribute(const struct Attribute *attr) {
-  attr_id_t id = get_attr_id(attr);
-  const auto &it = attributes_.find(id);
-  if (it == attributes_.end()) {
-    attributes_.emplace(id, attr);
+int Pipeline::RegisterAttribute(const std::string &attr_name, size_t size) {
+  const auto &it = registered_attrs_.find(attr_name);
+  if (it == registered_attrs_.end()) {
+    registered_attrs_.emplace(attr_name, std::make_tuple(size, 1));
     return 0;
   }
-  return (it->second->size == attr->size) ? 0 : -EEXIST;
+
+  size_t registered_size = std::get<0>(it->second);
+  int &count = std::get<1>(it->second);
+
+  if (registered_size == size) {
+    count++;
+    return 0;
+  } else {
+    LOG(ERROR) << "Attribute '" << attr_name << "' has size mismatch: registered("
+               << registered_size << ") vs new(" << size << ")";
+    return -EINVAL;
+  }
+}
+
+void Pipeline::DeregisterAttribute(const std::string &attr_name) {
+  const auto &it = registered_attrs_.find(attr_name);
+  if (it == registered_attrs_.end()) {
+    LOG(ERROR) << "ReregisteredAttribute() called, but '" << attr_name
+             << "' was not registered";
+    return;
+  }
+
+  int &count = std::get<1>(it->second);
+
+  count--;
+  assert(count >= 0);
+
+  if (count == 0) {
+    // No more modules are using the attribute. Remove it from the map.
+    registered_attrs_.erase(it);
+  }
 }
 
 }  // namespace metadata

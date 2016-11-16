@@ -70,6 +70,7 @@ int ModuleBuilder::DestroyModule(Module *m, bool erase) {
   }
 
   m->DestroyAllTasks();
+  m->DeregisterAllAttributes();
 
   if (erase) {
     all_modules_.erase(m->name());
@@ -229,6 +230,12 @@ void Module::DestroyAllTasks() {
   }
 }
 
+void Module::DeregisterAllAttributes() {
+  for (const auto &it : attrs_) {
+    pipeline_->DeregisterAttribute(it.name);
+  }
+}
+
 int Module::AddMetadataAttr(const std::string &name, size_t size,
                             bess::metadata::Attribute::AccessMode mode) {
   int ret;
@@ -242,15 +249,22 @@ int Module::AddMetadataAttr(const std::string &name, size_t size,
   if (size < 1 || size > bess::metadata::kMetadataAttrMaxSize)
     return -EINVAL;
 
+  // We do not allow a module to have multiple attributes with the same name
+  for (const auto &it : attrs_) {
+    if (it.name == name) {
+      return -EEXIST;
+    }
+  }
+
+  if ((ret = pipeline_->RegisterAttribute(name, size))) {
+    return ret;
+  }
+
   bess::metadata::Attribute attr;
   attr.name = name;
   attr.size = size;
   attr.mode = mode;
   attr.scope_id = -1;
-
-  if ((ret = pipeline_->RegisterAttribute(&attr))) {
-    return ret;
-  }
 
   attrs_.push_back(attr);
 

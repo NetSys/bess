@@ -123,15 +123,16 @@ class Pipeline {
       : scope_components_(),
         module_scopes_(),
         module_components_(),
-        attributes_() {}
+        registered_attrs_() {}
 
   // Main entry point for calculating metadata offsets.
   int ComputeMetadataOffsets();
 
-  // Registers attr and returns 0 if no attribute named attr->name with size
-  // other than attr->size has already been registered for this pipeline.
-  // Returns -errno on error.
-  int RegisterAttribute(const struct Attribute *attr);
+  // Registers attr and returns 0 if no attribute named @attr_name with size
+  // other than @size has already been registered for this pipeline.
+  // Returns -EINVAL on error.
+  int RegisterAttribute(const std::string &attr_name, size_t size);
+  void DeregisterAttribute(const std::string &attr_name);
 
  private:
   friend class MetadataTest;
@@ -179,7 +180,11 @@ class Pipeline {
   std::map<const Module *, scope_id_t *> module_components_;
 
   // Keeps track of the attributes used by modules in this pipeline
-  std::map<attr_id_t, const struct Attribute *> attributes_;
+  // count(=int) represents how many modules registered the attribute, and the
+  // attribute is deregistered once it reaches back to 0.
+  // Those modules should agree on the same size(=size_t).
+  std::map<std::string, std::tuple<size_t, int> >
+      registered_attrs_;
 };
 
 extern bess::metadata::Pipeline default_pipeline;
