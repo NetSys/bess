@@ -2,8 +2,10 @@
 #define BESS_WORKER_H_
 
 #include <cstdint>
-#include <glog/logging.h>
 #include <thread>
+#include <type_traits>
+
+#include <glog/logging.h>
 
 #include "gate.h"
 #include "pktbatch.h"
@@ -147,14 +149,18 @@ class Worker {
   struct pkt_batch splits_[MAX_GATES + 1];
 };
 
+// NOTE: Do not use "thread_local" here. It requires a function call every time
+// it is accessed. Use __thread instead, which incurs minimal runtime overhead.
+// For this, g++ requires Worker to have a trivial constructor and destructor.
+extern __thread Worker ctx;
+static_assert(std::is_trivially_constructible<Worker>::value,
+              "not trivially constructible");
+static_assert(std::is_trivially_destructible<Worker>::value,
+              "not trivially destructible");
+
 extern int num_workers;
 extern std::thread worker_threads[MAX_WORKERS];
 extern Worker *volatile workers[MAX_WORKERS];
-
-// NOTE: Do not use "thread_local" here. It requires a function call every time
-// it is accessed. Use __thread instead, which incurs minimal runtime overhead.
-// Worker must be "trivial" type.
-extern __thread Worker ctx;
 
 /* ------------------------------------------------------------------------
  * functions below are invoked by non-worker threads (the master)
