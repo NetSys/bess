@@ -518,12 +518,16 @@ const Commands<Module> L2Forward::cmds = {
 };
 
 const PbCommands L2Forward::pb_cmds = {
-    {"add", MODULE_CMD_FUNC(&L2Forward::CommandAddPb), 0},
-    {"delete", MODULE_CMD_FUNC(&L2Forward::CommandDeletePb), 0},
-    {"set_default_gate", MODULE_CMD_FUNC(&L2Forward::CommandSetDefaultGatePb),
-     1},
-    {"lookup", MODULE_CMD_FUNC(&L2Forward::CommandLookupPb), 1},
-    {"populate", MODULE_CMD_FUNC(&L2Forward::CommandPopulatePb), 0},
+    {"add", "L2ForwardCommandAddArg", MODULE_CMD_FUNC(&L2Forward::CommandAddPb),
+     0},
+    {"delete", "L2ForwardCommandDeleteArg",
+     MODULE_CMD_FUNC(&L2Forward::CommandDeletePb), 0},
+    {"set_default_gate", "L2ForwardCommandSetDefaultGateArg",
+     MODULE_CMD_FUNC(&L2Forward::CommandSetDefaultGatePb), 1},
+    {"lookup", "L2ForwardCommandLookupArg",
+     MODULE_CMD_FUNC(&L2Forward::CommandLookupPb), 1},
+    {"populate", "L2ForwardCommandPopulateArg",
+     MODULE_CMD_FUNC(&L2Forward::CommandPopulatePb), 0},
 };
 
 struct snobj *L2Forward::Init(struct snobj *arg) {

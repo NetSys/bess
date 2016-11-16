@@ -41,8 +41,10 @@ const Commands<Module> HashLB::cmds = {
 };
 
 const PbCommands HashLB::pb_cmds = {
-    {"set_mode", MODULE_CMD_FUNC(&HashLB::CommandSetModePb), 0},
-    {"set_gates", MODULE_CMD_FUNC(&HashLB::CommandSetGatesPb), 0}};
+    {"set_mode", "HashLBCommandSetModeArg",
+     MODULE_CMD_FUNC(&HashLB::CommandSetModePb), 0},
+    {"set_gates", "HashLBCommandSetGatesArg",
+     MODULE_CMD_FUNC(&HashLB::CommandSetGatesPb), 0}};
 
 struct snobj *HashLB::CommandSetMode(struct snobj *arg) {
   const char *mode = snobj_str_get(arg);
@@ -67,22 +69,16 @@ struct snobj *HashLB::CommandSetMode(struct snobj *arg) {
 pb_cmd_response_t HashLB::CommandSetModePb(
     const bess::pb::HashLBCommandSetModeArg &arg) {
   pb_cmd_response_t response;
-  switch (arg.mode()) {
-    case bess::pb::HashLBCommandSetModeArg::L2:
-      mode_ = LB_L2;
-      break;
-    case bess::pb::HashLBCommandSetModeArg::L3:
-      mode_ = LB_L3;
-      break;
-    case bess::pb::HashLBCommandSetModeArg::L4:
-      mode_ = LB_L4;
-      break;
-    default:
-      set_cmd_response_error(
-          &response, pb_error(EINVAL, "available LB modes: l2, l3, l4"));
-      return response;
+  if (arg.mode() == "l2") {
+    mode_ = LB_L2;
+  } else if (arg.mode() == "l3") {
+    mode_ = LB_L3;
+  } else if (arg.mode() == "l4") {
+    mode_ = LB_L4;
+  } else {
+    set_cmd_response_error(&response,
+                           pb_error(EINVAL, "available LB modes: l2, l3, l4"));
   }
-  set_cmd_response_error(&response, pb_errno(0));
   return response;
 }
 
@@ -183,19 +179,27 @@ struct snobj *HashLB::Init(struct snobj *arg) {
 pb_error_t HashLB::InitPb(const bess::pb::HashLBArg &arg) {
   mode_ = DEFAULT_MODE;
 
-  if (arg.has_gate_arg()) {
-    pb_cmd_response_t response = CommandSetGatesPb(arg.gate_arg());
-    pb_error_t err = response.error();
-    if (err.err() != 0) {
-      return err;
-    }
-  } else {
-    return pb_error(EINVAL, "'gates' must be specified");
+  if (arg.gates_size() > MAX_HLB_GATES) {
+    return pb_error(EINVAL, "no more than %d gates", MAX_HLB_GATES);
   }
 
-  if (arg.has_mode_arg()) {
-    pb_cmd_response_t response = CommandSetModePb(arg.mode_arg());
-    return response.error();
+  for (int i = 0; i < arg.gates_size(); i++) {
+    gates_[i] = arg.gates(i);
+    if (!is_valid_gate(gates_[i])) {
+      return pb_error(EINVAL, "invalid gate %d", gates_[i]);
+    }
+  }
+
+  num_gates_ = arg.gates_size();
+
+  if (arg.mode() == "l2") {
+    mode_ = LB_L2;
+  } else if (arg.mode() == "l3") {
+    mode_ = LB_L3;
+  } else if (arg.mode() == "l4") {
+    mode_ = LB_L4;
+  } else {
+    return pb_error(EINVAL, "available LB modes: l2, l3, l4");
   }
 
   return pb_errno(0);

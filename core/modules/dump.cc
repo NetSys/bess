@@ -13,7 +13,8 @@ const Commands<Module> Dump::cmds = {
 };
 
 const PbCommands Dump::pb_cmds = {
-    {"set_interval", MODULE_CMD_FUNC(&Dump::CommandSetIntervalPb), 0},
+    {"set_interval", "DumpArg", MODULE_CMD_FUNC(&Dump::CommandSetIntervalPb),
+     0},
 };
 
 struct snobj *Dump::Init(struct snobj *arg) {
@@ -60,8 +61,7 @@ struct snobj *Dump::CommandSetInterval(struct snobj *arg) {
   return nullptr;
 }
 
-pb_cmd_response_t Dump::CommandSetIntervalPb(
-    const bess::pb::DumpArg &arg) {
+pb_cmd_response_t Dump::CommandSetIntervalPb(const bess::pb::DumpArg &arg) {
   pb_cmd_response_t response;
 
   double sec = arg.interval();

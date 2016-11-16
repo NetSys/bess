@@ -3,6 +3,7 @@
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 
+#include "bessctl.h"
 #include "bessd.h"
 #include "dpdk.h"
 #include "master.h"
@@ -36,7 +37,7 @@ int main(int argc, char *argv[]) {
 
   PortBuilder::InitDrivers();
 
-  SetupMaster();
+  SetupControl();
 
   // Signal the parent that all initialization has been finished.
   if (!FLAGS_f) {
@@ -47,7 +48,7 @@ int main(int argc, char *argv[]) {
     close(signal_fd);
   }
 
-  RunMaster();
+  RunControl();
 
   rte_eal_mp_wait_lcore();
   close_mempool();

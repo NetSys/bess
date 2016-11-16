@@ -477,12 +477,8 @@ void VPort::DeInit() {
 }
 
 pb_error_t VPort::InitPb(const bess::pb::VPortArg &arg) {
-  int cpu;
-  int rxq;
-
-  int ret;
-
   pb_error_t err;
+  int ret;
 
   struct tx_queue_opts txq_opts = tx_queue_opts();
   struct rx_queue_opts rxq_opts = rx_queue_opts();
@@ -499,33 +495,19 @@ pb_error_t VPort::InitPb(const bess::pb::VPortArg &arg) {
     goto fail;
   }
 
-  strcpy(ifname_,
-         (arg.ifname().length() == 0) ? name().c_str() : arg.ifname().c_str());
+  if (arg.ifname().length()) {
+    strcpy(ifname_, arg.ifname().c_str());
+  } else {
+    strcpy(ifname_, name().c_str());
+  }
 
-  if (arg.docker().length() > 0) {
+  if (arg.cpid_case() == bess::pb::VPortArg::kDocker) {
     err = docker_container_pid(arg.docker(), &container_pid_);
-
     if (err.err() != 0)
       goto fail;
-  }
-
-  if (arg.container_pid() != -1) {
-    if (container_pid_) {
-      err = pb_error(EINVAL,
-                     "You cannot specify both "
-                     "'docker' and 'container_pid'");
-      goto fail;
-    }
+  } else if (arg.cpid_case() == bess::pb::VPortArg::kContainerPid) {
     container_pid_ = arg.container_pid();
-  }
-
-  if (arg.netns().length() > 0) {
-    if (container_pid_) {
-      return pb_error(EINVAL,
-                      "You should specify only "
-                      "one of 'docker', 'container_pid', "
-                      "or 'netns'");
-    }
+  } else if (arg.cpid_case() == bess::pb::VPortArg::kNetns) {
     netns_fd_ = open(arg.netns().c_str(), O_RDONLY);
     if (netns_fd_ < 0) {
       err =
@@ -553,6 +535,7 @@ pb_error_t VPort::InitPb(const bess::pb::VPortArg &arg) {
   bar_ = AllocBar(&txq_opts, &rxq_opts);
 
   VLOG(1) << "virt: " << bar_ << ", phys: " << rte_malloc_virt2phy(bar_);
+
   ret = ioctl(fd_, SN_IOC_CREATE_HOSTNIC, rte_malloc_virt2phy(bar_));
   if (ret < 0) {
     err = pb_errno_details(-ret, "SN_IOC_CREATE_HOSTNIC failure");
@@ -573,15 +556,16 @@ pb_error_t VPort::InitPb(const bess::pb::VPortArg &arg) {
     netns_fd_ = -1;
   }
 
-  for (cpu = 0; cpu < SN_MAX_CPU; cpu++)
+  for (int cpu = 0; cpu < SN_MAX_CPU; cpu++) {
     map_.cpu_to_txq[cpu] = cpu % num_queues[PACKET_DIR_INC];
+  }
 
   if (arg.rxq_cpus_size() > 0) {
-    for (rxq = 0; rxq < num_queues[PACKET_DIR_OUT]; rxq++) {
+    for (int rxq = 0; rxq < num_queues[PACKET_DIR_OUT]; rxq++) {
       map_.rxq_to_cpu[rxq] = arg.rxq_cpus(rxq);
     }
   } else {
-    for (rxq = 0; rxq < num_queues[PACKET_DIR_OUT]; rxq++) {
+    for (int rxq = 0; rxq < num_queues[PACKET_DIR_OUT]; rxq++) {
       next_cpu = find_next_nonworker_cpu(next_cpu);
       map_.rxq_to_cpu[rxq] = next_cpu;
     }

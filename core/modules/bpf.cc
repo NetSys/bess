@@ -1113,8 +1113,8 @@ const Commands<Module> BPF::cmds = {
     {"clear", MODULE_FUNC &BPF::CommandClear, 0}};
 
 const PbCommands BPF::pb_cmds = {
-    {"add", MODULE_CMD_FUNC(&BPF::CommandAddPb), 0},
-    {"clear", MODULE_CMD_FUNC(&BPF::CommandClearPb), 0}};
+    {"add", "BPFArg", MODULE_CMD_FUNC(&BPF::CommandAddPb), 0},
+    {"clear", "EmptyArg", MODULE_CMD_FUNC(&BPF::CommandClearPb), 0}};
 
 pb_error_t BPF::InitPb(const bess::pb::BPFArg &arg) {
   pb_cmd_response_t response = CommandAddPb(arg);

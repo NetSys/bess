@@ -24,7 +24,8 @@ const Commands<Module> Measure::cmds = {
 };
 
 const PbCommands Measure::pb_cmds = {
-    {"get_summary", MODULE_CMD_FUNC(&Measure::CommandGetSummaryPb), 0},
+    {"get_summary", "EmptyArg", MODULE_CMD_FUNC(&Measure::CommandGetSummaryPb),
+     0},
 };
 
 struct snobj *Measure::Init(struct snobj *arg) {
@@ -89,8 +90,7 @@ struct snobj *Measure::CommandGetSummary(struct snobj *) {
   return r;
 }
 
-pb_cmd_response_t Measure::CommandGetSummaryPb(
-    const bess::pb::EmptyArg &) {
+pb_cmd_response_t Measure::CommandGetSummaryPb(const bess::pb::EmptyArg &) {
   uint64_t pkt_total = pkt_cnt_;
   uint64_t byte_total = bytes_cnt_;
   uint64_t bits = (byte_total + pkt_total * 24) * 8;

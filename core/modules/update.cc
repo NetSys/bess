@@ -1,5 +1,5 @@
 #include "update.h"
-
+#include "../utils/endian.h"
 #include <rte_byteorder.h>
 
 const Commands<Module> Update::cmds = {
@@ -8,8 +8,8 @@ const Commands<Module> Update::cmds = {
 };
 
 const PbCommands Update::pb_cmds = {
-    {"add", MODULE_CMD_FUNC(&Update::CommandAddPb), 0},
-    {"clear", MODULE_CMD_FUNC(&Update::CommandClearPb), 0},
+    {"add", "UpdateArg", MODULE_CMD_FUNC(&Update::CommandAddPb), 0},
+    {"clear", "EmptyArg", MODULE_CMD_FUNC(&Update::CommandClearPb), 0},
 };
 
 struct snobj *Update::Init(struct snobj *arg) {
@@ -83,8 +83,14 @@ pb_cmd_response_t Update::CommandAddPb(const bess::pb::UpdateArg &arg) {
       return response;
     }
 
-    const char *t = field.value().c_str();
-    memcpy(&value, t, size);
+    if (uint64_to_bin((uint8_t *)&value, size, field.value(),
+                      bess::utils::is_be_system())) {
+      set_cmd_response_error(&response, pb_error(EINVAL,
+                                                 "'value' field has not a "
+                                                 "correct %d-byte value",
+                                                 size));
+      return response;
+    }
 
     if (offset < 0) {
       set_cmd_response_error(&response, pb_error(EINVAL, "too small 'offset'"));

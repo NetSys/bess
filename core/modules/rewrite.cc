@@ -6,8 +6,8 @@ const Commands<Module> Rewrite::cmds = {
 };
 
 const PbCommands Rewrite::pb_cmds = {
-    {"add", MODULE_CMD_FUNC(&Rewrite::CommandAddPb), 0},
-    {"clear", MODULE_CMD_FUNC(&Rewrite::CommandClearPb), 0},
+    {"add", "RewriteArg", MODULE_CMD_FUNC(&Rewrite::CommandAddPb), 0},
+    {"clear", "EmptyArg", MODULE_CMD_FUNC(&Rewrite::CommandClearPb), 0},
 };
 
 struct snobj *Rewrite::Init(struct snobj *arg) {
@@ -25,12 +25,15 @@ struct snobj *Rewrite::Init(struct snobj *arg) {
 }
 
 pb_error_t Rewrite::InitPb(const bess::pb::RewriteArg &arg) {
-  pb_cmd_response_t response = CommandAddPb(arg);
-  return response.error();
+  if (arg.templates_size() > 0) {
+    pb_cmd_response_t response = CommandAddPb(arg);
+    return response.error();
+  } else {
+    return pb_errno(0);
+  }
 }
 
-pb_cmd_response_t Rewrite::CommandAddPb(
-    const bess::pb::RewriteArg &arg) {
+pb_cmd_response_t Rewrite::CommandAddPb(const bess::pb::RewriteArg &arg) {
   pb_cmd_response_t response;
 
   int curr = num_templates_;
@@ -71,8 +74,7 @@ pb_cmd_response_t Rewrite::CommandAddPb(
   return response;
 }
 
-pb_cmd_response_t Rewrite::CommandClearPb(
-    const bess::pb::EmptyArg &) {
+pb_cmd_response_t Rewrite::CommandClearPb(const bess::pb::EmptyArg &) {
   next_turn_ = 0;
   num_templates_ = 0;
 

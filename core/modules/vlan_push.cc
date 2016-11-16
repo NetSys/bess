@@ -13,7 +13,7 @@ const Commands<Module> VLANPush::cmds = {
 };
 
 const PbCommands VLANPush::pb_cmds = {
-    {"set_tci", MODULE_CMD_FUNC(&VLANPush::CommandSetTciPb), 0},
+    {"set_tci", "VLANPushArg", MODULE_CMD_FUNC(&VLANPush::CommandSetTciPb), 0},
 };
 
 pb_error_t VLANPush::InitPb(const bess::pb::VLANPushArg &arg) {

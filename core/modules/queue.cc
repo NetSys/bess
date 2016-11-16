@@ -10,8 +10,10 @@ const Commands<Module> Queue::cmds = {
 };
 
 const PbCommands Queue::pb_cmds = {
-    {"set_burst", MODULE_CMD_FUNC(&Queue::CommandSetBurstPb), 1},
-    {"set_size", MODULE_CMD_FUNC(&Queue::CommandSetSizePb), 0},
+    {"set_burst", "QueueCommandSetBurstArg",
+     MODULE_CMD_FUNC(&Queue::CommandSetBurstPb), 1},
+    {"set_size", "QueueCommandSetSizeArg",
+     MODULE_CMD_FUNC(&Queue::CommandSetSizePb), 0},
 };
 
 int Queue::Resize(int slots) {

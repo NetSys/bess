@@ -6,24 +6,36 @@ const Commands<Module> RoundRobin::cmds = {
 };
 
 const PbCommands RoundRobin::pb_cmds = {
-    {"set_mode", MODULE_CMD_FUNC(&RoundRobin::CommandSetModePb), 0},
-    {"set_gates", MODULE_CMD_FUNC(&RoundRobin::CommandSetGatesPb), 0},
+    {"set_mode", "RoundRobinCommandSetModeArg",
+     MODULE_CMD_FUNC(&RoundRobin::CommandSetModePb), 0},
+    {"set_gates", "RoundRobinCommandSetGatesArg",
+     MODULE_CMD_FUNC(&RoundRobin::CommandSetGatesPb), 0},
 };
 
 pb_error_t RoundRobin::InitPb(const bess::pb::RoundRobinArg &arg) {
   pb_error_t err;
-  pb_cmd_response_t response;
 
-  response = CommandSetGatesPb(arg.gate_arg());
-  err = response.error();
-  if (err.err() != 0) {
-    return err;
+  if (arg.gates_size() > MAX_RR_GATES) {
+    return pb_error(EINVAL, "no more than %d gates", MAX_RR_GATES);
   }
 
-  response = CommandSetModePb(arg.mode_arg());
-  err = response.error();
-  if (err.err() != 0) {
-    return err;
+  for (int i = 0; i < arg.gates_size(); i++) {
+    int elem = arg.gates(i);
+    gates_[i] = elem;
+    if (!is_valid_gate(gates_[i])) {
+      return pb_error(EINVAL, "invalid gate %d", gates_[i]);
+    }
+  }
+  ngates_ = arg.gates_size();
+
+  if (arg.mode().length()) {
+    if (arg.mode() == "packet") {
+      per_packet_ = 1;
+    } else if (arg.mode() == "batch") {
+      per_packet_ = 0;
+    } else {
+      return pb_error(EINVAL, "argument must be either 'packet' or 'batch'");
+    }
   }
 
   return pb_errno(0);
@@ -33,18 +45,15 @@ pb_cmd_response_t RoundRobin::CommandSetModePb(
     const bess::pb::RoundRobinCommandSetModeArg &arg) {
   pb_cmd_response_t response;
 
-  switch (arg.mode()) {
-    case bess::pb::RoundRobinCommandSetModeArg::PACKET:
-      per_packet_ = 1;
-      break;
-    case bess::pb::RoundRobinCommandSetModeArg::BATCH:
-      per_packet_ = 0;
-      break;
-    default:
-      set_cmd_response_error(
-          &response,
-          pb_error(EINVAL, "argument must be either 'packet' or 'batch'"));
-      return response;
+  if (arg.mode() == "packet") {
+    per_packet_ = 1;
+  } else if (arg.mode() == "batch") {
+    per_packet_ = 0;
+  } else {
+    set_cmd_response_error(
+        &response,
+        pb_error(EINVAL, "argument must be either 'packet' or 'batch'"));
+    return response;
   }
   set_cmd_response_error(&response, pb_errno(0));
   return response;

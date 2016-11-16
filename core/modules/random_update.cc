@@ -10,8 +10,8 @@ const Commands<Module> RandomUpdate::cmds = {
 };
 
 const PbCommands RandomUpdate::pb_cmds = {
-    {"add", MODULE_CMD_FUNC(&RandomUpdate::CommandAddPb), 0},
-    {"clear", MODULE_CMD_FUNC(&RandomUpdate::CommandClearPb), 0},
+    {"add", "RandomUpdateArg", MODULE_CMD_FUNC(&RandomUpdate::CommandAddPb), 0},
+    {"clear", "EmptyArg", MODULE_CMD_FUNC(&RandomUpdate::CommandClearPb), 0},
 };
 
 struct snobj *RandomUpdate::CommandAdd(struct snobj *arg) {
@@ -208,8 +208,7 @@ pb_cmd_response_t RandomUpdate::CommandAddPb(
   return response;
 }
 
-pb_cmd_response_t RandomUpdate::CommandClearPb(
-    const bess::pb::EmptyArg &) {
+pb_cmd_response_t RandomUpdate::CommandClearPb(const bess::pb::EmptyArg &) {
   num_vars_ = 0;
 
   pb_cmd_response_t response;
