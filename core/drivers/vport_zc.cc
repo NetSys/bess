@@ -60,8 +60,8 @@ class ZeroCopyVPort : public Port {
 
   void DeInit();
 
-  int RecvPackets(queue_t qid, snb_array_t pkts, int cnt);
-  int SendPackets(queue_t qid, snb_array_t pkts, int cnt);
+  int RecvPackets(queue_t qid, bess::PacketArray pkts, int cnt);
+  int SendPackets(queue_t qid, bess::PacketArray pkts, int cnt);
 
  private:
   struct vport_bar *bar_ = {};
@@ -265,7 +265,7 @@ void ZeroCopyVPort::DeInit() {
   rte_free(bar_);
 }
 
-int ZeroCopyVPort::SendPackets(queue_t qid, snb_array_t pkts, int cnt) {
+int ZeroCopyVPort::SendPackets(queue_t qid, bess::PacketArray pkts, int cnt) {
   struct llring *q = out_qs_[qid];
   int ret;
 
@@ -281,7 +281,7 @@ int ZeroCopyVPort::SendPackets(queue_t qid, snb_array_t pkts, int cnt) {
   return cnt;
 }
 
-int ZeroCopyVPort::RecvPackets(queue_t qid, snb_array_t pkts, int cnt) {
+int ZeroCopyVPort::RecvPackets(queue_t qid, bess::PacketArray pkts, int cnt) {
   struct llring *q = inc_qs_[qid];
   int ret;
 

@@ -10,10 +10,10 @@ class Buffer : public Module {
 
   virtual void Deinit();
 
-  virtual void ProcessBatch(struct pkt_batch *batch);
+  virtual void ProcessBatch(struct bess::pkt_batch *batch);
 
  private:
-  struct pkt_batch buf_;
+  struct bess::pkt_batch buf_;
 };
 
 #endif  // BESS_MODULES_BUFFER_H_

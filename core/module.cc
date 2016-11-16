@@ -21,9 +21,9 @@ const PbCommands Module::pb_cmds;
 std::map<std::string, Module *> ModuleBuilder::all_modules_;
 
 // FIXME: move somewhere else?
-void deadend(struct pkt_batch *batch) {
+void deadend(struct bess::pkt_batch *batch) {
   ctx.incr_silent_drops(batch->cnt);
-  snb_free_bulk(batch->pkts, batch->cnt);
+  bess::Packet::free_bulk(batch->pkts, batch->cnt);
 }
 
 // FIXME: move somewhere else?
@@ -163,11 +163,6 @@ const std::map<std::string, ModuleBuilder>
   return all_module_builders_holder();
 }
 
-void deadend(Module *, struct pkt_batch *batch) {
-  ctx.incr_silent_drops(batch->cnt);
-  snb_free_bulk(batch->pkts, batch->cnt);
-}
-
 const std::map<std::string, Module *> &ModuleBuilder::all_modules() {
   return all_modules_;
 }
@@ -189,7 +184,7 @@ struct task_result Module::RunTask(void *) {
   assert(0);  // You must override this function
 }
 
-void Module::ProcessBatch(struct pkt_batch *) {
+void Module::ProcessBatch(struct bess::pkt_batch *) {
   assert(0);  // You must override this function
 }
 
@@ -392,20 +387,20 @@ int Module::DisconnectModulesUpstream(gate_idx_t igate_idx) {
 }
 
 void Module::RunSplit(const gate_idx_t *out_gates,
-                      struct pkt_batch *mixed_batch) {
+                      struct bess::pkt_batch *mixed_batch) {
   int cnt = mixed_batch->cnt;
   int num_pending = 0;
 
-  snb_array_t p_pkt = &mixed_batch->pkts[0];
+  bess::PacketArray p_pkt = &mixed_batch->pkts[0];
 
   gate_idx_t pending[MAX_PKT_BURST];
-  struct pkt_batch batches[MAX_PKT_BURST];
+  struct bess::pkt_batch batches[MAX_PKT_BURST];
 
-  struct pkt_batch *splits = ctx.splits();
+  struct bess::pkt_batch *splits = ctx.splits();
 
   /* phase 1: collect unique ogates into pending[] */
   for (int i = 0; i < cnt; i++) {
-    struct pkt_batch *batch;
+    struct bess::pkt_batch *batch;
     gate_idx_t ogate;
 
     ogate = out_gates[i];
@@ -419,7 +414,7 @@ void Module::RunSplit(const gate_idx_t *out_gates,
 
   /* phase 2: move batches to local stack, since it may be reentrant */
   for (int i = 0; i < num_pending; i++) {
-    struct pkt_batch *batch;
+    struct bess::pkt_batch *batch;
 
     batch = &splits[pending[i]];
     batch_copy(&batches[i], batch);
@@ -472,7 +467,8 @@ void _trace_end(int print_out) {
   }
 }
 
-void _trace_before_call(Module *mod, Module *next, struct pkt_batch *batch) {
+void _trace_before_call(Module *mod, Module *next,
+                        struct bess::pkt_batch *batch) {
   struct callstack *s = &worker_callstack;
   int len;
 

@@ -5,19 +5,21 @@
 
 #define MAX_PKT_BURST 32
 
-struct snbuf;
+namespace bess {
+
+class Packet;
 
 struct pkt_batch {
   int cnt;
-  struct snbuf *pkts[MAX_PKT_BURST];
+  Packet *pkts[MAX_PKT_BURST];
 };
 
 static inline void batch_clear(struct pkt_batch *batch) {
   batch->cnt = 0;
 }
 
-static inline void batch_add(struct pkt_batch *batch, struct snbuf *snb) {
-  batch->pkts[batch->cnt++] = snb;
+static inline void batch_add(struct pkt_batch *batch, Packet *pkt) {
+  batch->pkts[batch->cnt++] = pkt;
 }
 
 static inline int batch_full(struct pkt_batch *batch) {
@@ -29,8 +31,9 @@ static inline void batch_copy(struct pkt_batch *dst,
   int cnt = src->cnt;
 
   dst->cnt = cnt;
-  rte_memcpy((void *)dst->pkts, (void *)src->pkts,
-             cnt * sizeof(struct snbuf *));
+  rte_memcpy((void *)dst->pkts, (void *)src->pkts, cnt * sizeof(Packet *));
 }
+
+}  // namespace bess
 
 #endif  // BESS_PKTBATCH_H_

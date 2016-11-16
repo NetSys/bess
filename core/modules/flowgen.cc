@@ -458,27 +458,27 @@ void FlowGen::Deinit() {
   delete templ_;
 }
 
-struct snbuf *FlowGen::FillPacket(struct flow *f) {
-  struct snbuf *pkt;
+bess::Packet *FlowGen::FillPacket(struct flow *f) {
+  bess::Packet *pkt;
   char *p;
 
   uint8_t tcp_flags;
 
   int size = template_size_;
 
-  if (!(pkt = snb_alloc())) {
+  if (!(pkt = bess::Packet::alloc())) {
     return nullptr;
   }
 
-  p = reinterpret_cast<char *>(pkt->mbuf.buf_addr) +
+  p = reinterpret_cast<char *>(pkt->mbuf().buf_addr) +
       static_cast<size_t>(SNBUF_HEADROOM);
   if (!p) {
     return nullptr;
   }
 
-  pkt->mbuf.data_off = SNBUF_HEADROOM;
-  pkt->mbuf.pkt_len = size;
-  pkt->mbuf.data_len = size;
+  pkt->set_mbuf_data_off(SNBUF_HEADROOM);
+  pkt->set_mbuf_pkt_len(size);
+  pkt->set_mbuf_data_len(size);
 
   memcpy_sloppy(p, templ_, size);
 
@@ -493,7 +493,7 @@ struct snbuf *FlowGen::FillPacket(struct flow *f) {
   return pkt;
 }
 
-void FlowGen::GeneratePackets(struct pkt_batch *batch) {
+void FlowGen::GeneratePackets(struct bess::pkt_batch *batch) {
   uint64_t now = ctx.current_ns();
 
   batch_clear(batch);
@@ -501,7 +501,7 @@ void FlowGen::GeneratePackets(struct pkt_batch *batch) {
   while (!batch_full(batch)) {
     uint64_t t;
     struct flow *f;
-    struct snbuf *pkt;
+    bess::Packet *pkt;
 
     t = events_.top().first;
     f = events_.top().second;
@@ -544,7 +544,7 @@ void FlowGen::GeneratePackets(struct pkt_batch *batch) {
 }
 
 struct task_result FlowGen::RunTask(void *) {
-  struct pkt_batch batch;
+  struct bess::pkt_batch batch;
   struct task_result ret;
 
   const int pkt_overhead = 24;

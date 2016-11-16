@@ -161,7 +161,7 @@ struct snobj *RoundRobin::CommandSetGates(struct snobj *arg) {
   return nullptr;
 }
 
-void RoundRobin::ProcessBatch(struct pkt_batch *batch) {
+void RoundRobin::ProcessBatch(struct bess::pkt_batch *batch) {
   gate_idx_t out_gates[MAX_PKT_BURST];
 
   if (per_packet_) {

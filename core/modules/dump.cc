@@ -34,14 +34,14 @@ pb_error_t Dump::InitPb(const bess::pb::DumpArg &arg) {
   return response.error();
 }
 
-void Dump::ProcessBatch(struct pkt_batch *batch) {
+void Dump::ProcessBatch(struct bess::pkt_batch *batch) {
   if (unlikely(ctx.current_ns() >= next_ns_)) {
-    struct snbuf *pkt = batch->pkts[0];
+    bess::Packet *pkt = batch->pkts[0];
 
     printf("----------------------------------------\n");
     printf("%s: packet dump\n", name().c_str());
-    snb_dump(stdout, pkt);
-    rte_hexdump(stdout, "Metadata buffer", pkt->_metadata, SNBUF_METADATA);
+    pkt->Dump(stdout);
+    rte_hexdump(stdout, "Metadata buffer", pkt->metadata(), SNBUF_METADATA);
     next_ns_ = ctx.current_ns() + min_interval_ns_;
   }
 
@@ -60,8 +60,7 @@ struct snobj *Dump::CommandSetInterval(struct snobj *arg) {
   return nullptr;
 }
 
-pb_cmd_response_t Dump::CommandSetIntervalPb(
-    const bess::pb::DumpArg &arg) {
+pb_cmd_response_t Dump::CommandSetIntervalPb(const bess::pb::DumpArg &arg) {
   pb_cmd_response_t response;
 
   double sec = arg.interval();

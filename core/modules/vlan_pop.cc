@@ -2,12 +2,12 @@
 
 #include <rte_byteorder.h>
 
-void VLANPop::ProcessBatch(struct pkt_batch *batch) {
+void VLANPop::ProcessBatch(struct bess::pkt_batch *batch) {
   int cnt = batch->cnt;
 
   for (int i = 0; i < cnt; i++) {
-    struct snbuf *pkt = batch->pkts[i];
-    char *old_head = static_cast<char *>(snb_head_data(pkt));
+    bess::Packet *pkt = batch->pkts[i];
+    char *old_head = pkt->head_data<char *>();
     __m128i ethh;
     uint16_t tpid;
     int tagged;
@@ -18,7 +18,7 @@ void VLANPop::ProcessBatch(struct pkt_batch *batch) {
     tagged = (tpid == rte_cpu_to_be_16(0x8100)) ||
              (tpid == rte_cpu_to_be_16(0x88a8));
 
-    if (tagged && snb_adj(pkt, 4)) {
+    if (tagged && pkt->adj(4)) {
       ethh = _mm_slli_si128(ethh, 4);
       _mm_storeu_si128((__m128i *)old_head, ethh);
     }

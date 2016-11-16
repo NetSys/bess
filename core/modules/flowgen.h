@@ -66,8 +66,8 @@ class FlowGen : public Module {
   inline struct flow *ScheduleFlow(uint64_t time_ns);
   void MeasureParetoMean();
   void PopulateInitialFlows();
-  struct snbuf *FillPacket(struct flow *f);
-  void GeneratePackets(struct pkt_batch *batch);
+  bess::Packet *FillPacket(struct flow *f);
+  void GeneratePackets(struct bess::pkt_batch *batch);
   struct snobj *InitFlowPoolOld();
   struct snobj *ProcessArguments(struct snobj *arg);
 

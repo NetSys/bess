@@ -8,7 +8,7 @@
 #include "gate.h"
 #include "message.h"
 #include "metadata.h"
-#include "snbuf.h"
+#include "packet.h"
 #include "snobj.h"
 #include "task.h"
 
@@ -212,7 +212,7 @@ class Module {
   virtual void Deinit() {}
 
   virtual struct task_result RunTask(void *arg);
-  virtual void ProcessBatch(struct pkt_batch *batch);
+  virtual void ProcessBatch(struct bess::pkt_batch *batch);
 
   virtual std::string GetDesc() const { return ""; };
   virtual struct snobj *GetDump() const { return snobj_nil(); }
@@ -236,10 +236,11 @@ class Module {
 
   /* Pass packets to the next module.
    * Packet deallocation is callee's responsibility. */
-  inline void RunChooseModule(gate_idx_t ogate_idx, struct pkt_batch *batch);
+  inline void RunChooseModule(gate_idx_t ogate_idx,
+                              struct bess::pkt_batch *batch);
 
   /* Wrapper for single-output modules */
-  inline void RunNextModule(struct pkt_batch *batch);
+  inline void RunNextModule(struct bess::pkt_batch *batch);
 
   /*
    * Split a batch into several, one for each ogate
@@ -247,7 +248,7 @@ class Module {
    *   1. Order is preserved for packets with the same gate.
    *   2. No ordering guarantee for packets with different gates.
    */
-  void RunSplit(const gate_idx_t *ogates, struct pkt_batch *mixed_batch);
+  void RunSplit(const gate_idx_t *ogates, struct bess::pkt_batch *mixed_batch);
 
   /* returns -errno if fails */
   int ConnectModules(gate_idx_t ogate_idx, Module *m_next,
@@ -317,10 +318,10 @@ class Module {
   std::vector<bess::OGate *> ogates;
 };
 
-void deadend(struct pkt_batch *batch);
+void deadend(struct bess::pkt_batch *batch);
 
 inline void Module::RunChooseModule(gate_idx_t ogate_idx,
-                                    struct pkt_batch *batch) {
+                                    struct bess::pkt_batch *batch) {
   bess::Gate *ogate;
 
   if (unlikely(ogate_idx >= ogates.size())) {
@@ -343,7 +344,7 @@ inline void Module::RunChooseModule(gate_idx_t ogate_idx,
   }
 }
 
-inline void Module::RunNextModule(struct pkt_batch *batch) {
+inline void Module::RunNextModule(struct bess::pkt_batch *batch) {
   RunChooseModule(0, batch);
 }
 
@@ -351,7 +352,8 @@ inline void Module::RunNextModule(struct pkt_batch *batch) {
 void init_module_worker(void);
 
 #if SN_TRACE_MODULES
-void _trace_before_call(Module *mod, Module *next, struct pkt_batch *batch);
+void _trace_before_call(Module *mod, Module *next,
+                        struct bess::pkt_batch *batch);
 
 void _trace_after_call(void);
 #endif
@@ -372,28 +374,28 @@ typedef struct snobj *(*mod_cmd_func_t)(struct module *, const char *,
 // Unsafe, but faster version. for offset use Attribute_offset().
 template <typename T>
 inline T *_ptr_attr_with_offset(bess::metadata::mt_offset_t offset,
-                                struct snbuf *pkt) {
+                                bess::Packet *pkt) {
   promise(offset >= 0);
-  uintptr_t addr = (uintptr_t)(pkt->_metadata + offset);
+  uintptr_t addr = (uintptr_t)(pkt->metadata() + offset);
   return reinterpret_cast<T *>(addr);
 }
 
 template <typename T>
 inline T _get_attr_with_offset(bess::metadata::mt_offset_t offset,
-                               struct snbuf *pkt) {
+                               bess::Packet *pkt) {
   return *_ptr_attr_with_offset<T>(offset, pkt);
 }
 
 template <typename T>
 inline void _set_attr_with_offset(bess::metadata::mt_offset_t offset,
-                                  struct snbuf *pkt, T val) {
+                                  bess::Packet *pkt, T val) {
   *(_ptr_attr_with_offset<T>(offset, pkt)) = val;
 }
 
 // Safe version.
 template <typename T>
 inline T *ptr_attr_with_offset(bess::metadata::mt_offset_t offset,
-                               struct snbuf *pkt) {
+                               bess::Packet *pkt) {
   return bess::metadata::IsValidOffset(offset)
              ? _ptr_attr_with_offset<T>(offset, pkt)
              : nullptr;
@@ -401,7 +403,7 @@ inline T *ptr_attr_with_offset(bess::metadata::mt_offset_t offset,
 
 template <typename T>
 inline T get_attr_with_offset(bess::metadata::mt_offset_t offset,
-                              struct snbuf *pkt) {
+                              bess::Packet *pkt) {
   return bess::metadata::IsValidOffset(offset)
              ? _get_attr_with_offset<T>(offset, pkt)
              : T();
@@ -409,7 +411,7 @@ inline T get_attr_with_offset(bess::metadata::mt_offset_t offset,
 
 template <typename T>
 inline void set_attr_with_offset(bess::metadata::mt_offset_t offset,
-                                 struct snbuf *pkt, T val) {
+                                 bess::Packet *pkt, T val) {
   if (bess::metadata::IsValidOffset(offset)) {
     _set_attr_with_offset<T>(offset, pkt, val);
   }
@@ -418,37 +420,37 @@ inline void set_attr_with_offset(bess::metadata::mt_offset_t offset,
 // Slowest but easiest.
 // TODO(melvin): These ought to be members of Module
 template <typename T>
-inline T *ptr_attr(Module *m, int attr_id, struct snbuf *pkt) {
+inline T *ptr_attr(Module *m, int attr_id, bess::Packet *pkt) {
   return ptr_attr_with_offset<T>(m->attr_offsets[attr_id], pkt);
 }
 
 template <typename T>
-inline T get_attr(Module *m, int attr_id, struct snbuf *pkt) {
+inline T get_attr(Module *m, int attr_id, bess::Packet *pkt) {
   return get_attr_with_offset<T>(m->attr_offsets[attr_id], pkt);
 }
 
 template <typename T>
-inline void set_attr(Module *m, int attr_id, struct snbuf *pkt, T val) {
+inline void set_attr(Module *m, int attr_id, bess::Packet *pkt, T val) {
   set_attr_with_offset(m->attr_offsets[attr_id], pkt, val);
 }
 
 // Define some common versions of the above functions
 #define INSTANTIATE_MT_FOR_TYPE(type)                                        \
   template type *_ptr_attr_with_offset(bess::metadata::mt_offset_t offset,   \
-                                       struct snbuf *pkt);                   \
+                                       bess::Packet *pkt);                   \
   template type _get_attr_with_offset(bess::metadata::mt_offset_t offset,    \
-                                      struct snbuf *pkt);                    \
+                                      bess::Packet *pkt);                    \
   template void _set_attr_with_offset(bess::metadata::mt_offset_t offset,    \
-                                      struct snbuf *pkt, type val);          \
+                                      bess::Packet *pkt, type val);          \
   template type *ptr_attr_with_offset(bess::metadata::mt_offset_t offset,    \
-                                      struct snbuf *pkt);                    \
+                                      bess::Packet *pkt);                    \
   template type get_attr_with_offset(bess::metadata::mt_offset_t offset,     \
-                                     struct snbuf *pkt);                     \
+                                     bess::Packet *pkt);                     \
   template void set_attr_with_offset(bess::metadata::mt_offset_t offset,     \
-                                     struct snbuf *pkt, type val);           \
-  template type *ptr_attr<type>(Module * m, int attr_id, struct snbuf *pkt); \
-  template type get_attr<type>(Module * m, int attr_id, struct snbuf *pkt);  \
-  template void set_attr<>(Module * m, int attr_id, struct snbuf *pkt,       \
+                                     bess::Packet *pkt, type val);           \
+  template type *ptr_attr<type>(Module * m, int attr_id, bess::Packet *pkt); \
+  template type get_attr<type>(Module * m, int attr_id, bess::Packet *pkt);  \
+  template void set_attr<>(Module * m, int attr_id, bess::Packet *pkt,       \
                            type val);
 
 INSTANTIATE_MT_FOR_TYPE(uint8_t)

@@ -582,16 +582,16 @@ void L2Forward::Deinit() {
   l2_deinit(&l2_table_);
 }
 
-void L2Forward::ProcessBatch(struct pkt_batch *batch) {
+void L2Forward::ProcessBatch(struct bess::pkt_batch *batch) {
   gate_idx_t default_gate = ACCESS_ONCE(default_gate_);
   gate_idx_t out_gates[MAX_PKT_BURST];
 
   for (int i = 0; i < batch->cnt; i++) {
-    struct snbuf *snb = batch->pkts[i];
+    bess::Packet *snb = batch->pkts[i];
 
     out_gates[i] = default_gate;
 
-    l2_find(&l2_table_, l2_addr_to_u64(static_cast<char *>(snb_head_data(snb))),
+    l2_find(&l2_table_, l2_addr_to_u64(snb->head_data<char *>()),
             &out_gates[i]);
   }
 

@@ -103,8 +103,7 @@ pb_error_t WildcardMatch::AddFieldOne(
   } else if (field.length_case() ==
              bess::pb::WildcardMatchArg_Field::kAttribute) {
     const char *attr = field.attribute().c_str();
-    f->attr_id =
-        AddMetadataAttr(attr, f->size, Attribute::AccessMode::kRead);
+    f->attr_id = AddMetadataAttr(attr, f->size, Attribute::AccessMode::kRead);
     if (f->attr_id < 0) {
       return pb_error(-f->attr_id, "add_metadata_attr() failed");
     }
@@ -213,7 +212,7 @@ gate_idx_t WildcardMatch::LookupEntry(wm_hkey_t *key, gate_idx_t def_gate) {
   return result.ogate;
 }
 
-void WildcardMatch::ProcessBatch(struct pkt_batch *batch) {
+void WildcardMatch::ProcessBatch(struct bess::pkt_batch *batch) {
   gate_idx_t default_gate;
   gate_idx_t out_gates[MAX_PKT_BURST];
 
@@ -231,18 +230,18 @@ void WildcardMatch::ProcessBatch(struct pkt_batch *batch) {
     if (attr_id < 0) {
       offset = fields_[i].offset;
     } else {
-      offset =
-          mt_offset_to_databuf_offset(WildcardMatch::attr_offsets[attr_id]);
+      offset = bess::Packet::mt_offset_to_databuf_offset(
+          WildcardMatch::attr_offsets[attr_id]);
     }
 
     char *key = keys[0] + pos;
 
     for (int j = 0; j < cnt; j++, key += HASH_KEY_SIZE) {
-      char *buf_addr = (char *)batch->pkts[j]->mbuf.buf_addr;
+      char *buf_addr = (char *)batch->pkts[j]->mbuf().buf_addr;
 
       /* for offset-based attrs we use relative offset */
       if (attr_id < 0) {
-        buf_addr += batch->pkts[j]->mbuf.data_off;
+        buf_addr += batch->pkts[j]->mbuf().data_off;
       }
 
       *(uint64_t *)key = *(uint64_t *)(buf_addr + offset);

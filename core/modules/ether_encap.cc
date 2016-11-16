@@ -30,12 +30,11 @@ pb_error_t EtherEncap::InitPb(
   return pb_errno(0);
 };
 
-
-void EtherEncap::ProcessBatch(struct pkt_batch *batch) {
+void EtherEncap::ProcessBatch(struct bess::pkt_batch *batch) {
   int cnt = batch->cnt;
 
   for (int i = 0; i < cnt; i++) {
-    struct snbuf *pkt = batch->pkts[i];
+    bess::Packet *pkt = batch->pkts[i];
 
     struct ether_addr ether_src;
     struct ether_addr ether_dst;
@@ -46,7 +45,7 @@ void EtherEncap::ProcessBatch(struct pkt_batch *batch) {
     ether_type = get_attr<uint16_t>(this, ATTR_R_ETHER_TYPE, pkt);
 
     struct ether_hdr *ethh =
-        static_cast<struct ether_hdr *>(snb_prepend(pkt, sizeof(*ethh)));
+        static_cast<struct ether_hdr *>(pkt->prepend(sizeof(*ethh)));
 
     if (unlikely(!ethh)) {
       continue;

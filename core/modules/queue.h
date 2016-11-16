@@ -18,7 +18,7 @@ class Queue : public Module {
   virtual void Deinit();
 
   virtual struct task_result RunTask(void *arg);
-  virtual void ProcessBatch(struct pkt_batch *batch);
+  virtual void ProcessBatch(struct bess::pkt_batch *batch);
 
   virtual std::string GetDesc() const;
 

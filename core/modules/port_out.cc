@@ -68,7 +68,7 @@ std::string PortOut::GetDesc() const {
                              port_->port_builder()->class_name().c_str());
 }
 
-void PortOut::ProcessBatch(struct pkt_batch *batch) {
+void PortOut::ProcessBatch(struct bess::pkt_batch *batch) {
   Port *p = port_;
 
   /* TODO: choose appropriate out queue */
@@ -83,7 +83,7 @@ void PortOut::ProcessBatch(struct pkt_batch *batch) {
     const packet_dir_t dir = PACKET_DIR_OUT;
 
     for (int i = 0; i < sent_pkts; i++)
-      sent_bytes += snb_total_len(batch->pkts[i]);
+      sent_bytes += batch->pkts[i]->total_len();
 
     p->queue_stats[dir][qid].packets += sent_pkts;
     p->queue_stats[dir][qid].dropped += (batch->cnt - sent_pkts);
@@ -91,7 +91,7 @@ void PortOut::ProcessBatch(struct pkt_batch *batch) {
   }
 
   if (sent_pkts < batch->cnt) {
-    snb_free_bulk(batch->pkts + sent_pkts, batch->cnt - sent_pkts);
+    bess::Packet::free_bulk(batch->pkts + sent_pkts, batch->cnt - sent_pkts);
   }
 }
 

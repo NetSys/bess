@@ -64,7 +64,7 @@ TEST_F(GateTest, RemoveHook) {
 
 TEST(HookTest, TrackGate) {
   TrackGate t;
-  struct pkt_batch b;
+  struct bess::pkt_batch b;
   b.cnt = 32;
   t.ProcessBatch(&b);
   ASSERT_EQ(1, t.cnt());

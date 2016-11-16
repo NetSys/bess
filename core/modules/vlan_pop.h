@@ -5,7 +5,7 @@
 
 class VLANPop : public Module {
  public:
-  virtual void ProcessBatch(struct pkt_batch *batch);
+  virtual void ProcessBatch(struct bess::pkt_batch *batch);
 };
 
 #endif  // BESS_MODULES_VLANPOP_H_

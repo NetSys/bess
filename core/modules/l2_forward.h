@@ -37,7 +37,7 @@ class L2Forward : public Module {
 
   virtual void Deinit();
 
-  virtual void ProcessBatch(struct pkt_batch *batch);
+  virtual void ProcessBatch(struct bess::pkt_batch *batch);
 
   struct snobj *CommandAdd(struct snobj *arg);
   struct snobj *CommandDelete(struct snobj *arg);

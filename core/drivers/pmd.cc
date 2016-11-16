@@ -340,8 +340,9 @@ struct snobj *PMDPort::Init(struct snobj *conf) {
       sid = 0;
     }
 
-    ret = rte_eth_rx_queue_setup(port_id, i, queue_size[PACKET_DIR_INC], sid,
-                                 &eth_rxconf, get_pframe_pool_socket(sid));
+    ret =
+        rte_eth_rx_queue_setup(port_id, i, queue_size[PACKET_DIR_INC], sid,
+                               &eth_rxconf, bess::get_pframe_pool_socket(sid));
     if (ret != 0) {
       return snobj_err(-ret, "rte_eth_rx_queue_setup() failed");
     }
@@ -423,8 +424,9 @@ pb_error_t PMDPort::InitPb(const bess::pb::PMDPortArg &arg) {
       sid = 0;
     }
 
-    ret = rte_eth_rx_queue_setup(ret_port_id, i, queue_size[PACKET_DIR_INC],
-                                 sid, &eth_rxconf, get_pframe_pool_socket(sid));
+    ret =
+        rte_eth_rx_queue_setup(ret_port_id, i, queue_size[PACKET_DIR_INC], sid,
+                               &eth_rxconf, bess::get_pframe_pool_socket(sid));
     if (ret != 0) {
       return pb_error(-ret, "rte_eth_rx_queue_setup() failed");
     }
@@ -488,9 +490,8 @@ void PMDPort::CollectStats(bool reset) {
   VLOG(1) << bess::utils::Format(
       "PMD port %d: ipackets %lu opackets %lu ibytes %lu obytes %lu "
       "imissed %lu ierrors %lu oerrors %lu rx_nombuf %lu",
-      dpdk_port_id_, stats.ipackets, stats.opackets, stats.ibytes,
-      stats.obytes, stats.imissed, stats.ierrors,
-      stats.oerrors, stats.rx_nombuf);
+      dpdk_port_id_, stats.ipackets, stats.opackets, stats.ibytes, stats.obytes,
+      stats.imissed, stats.ierrors, stats.oerrors, stats.rx_nombuf);
 
   port_stats[PACKET_DIR_INC].dropped = stats.imissed;
 
@@ -508,11 +509,11 @@ void PMDPort::CollectStats(bool reset) {
   }
 }
 
-int PMDPort::RecvPackets(queue_t qid, snb_array_t pkts, int cnt) {
+int PMDPort::RecvPackets(queue_t qid, bess::PacketArray pkts, int cnt) {
   return rte_eth_rx_burst(dpdk_port_id_, qid, (struct rte_mbuf **)pkts, cnt);
 }
 
-int PMDPort::SendPackets(queue_t qid, snb_array_t pkts, int cnt) {
+int PMDPort::SendPackets(queue_t qid, bess::PacketArray pkts, int cnt) {
   int sent =
       rte_eth_tx_burst(dpdk_port_id_, qid, (struct rte_mbuf **)pkts, cnt);
 

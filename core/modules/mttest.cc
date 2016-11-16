@@ -123,7 +123,7 @@ struct snobj *MetadataTest::Init(struct snobj *arg) {
   return nullptr;
 }
 
-void MetadataTest::ProcessBatch(struct pkt_batch *batch) {
+void MetadataTest::ProcessBatch(struct bess::pkt_batch *batch) {
   /* This module simply passes packets from input gate X down
    * to output gate X (the same gate index) */
   RunChooseModule(get_igate(), batch);

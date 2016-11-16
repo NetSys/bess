@@ -1260,31 +1260,31 @@ struct snobj *BPF::CommandClear(struct snobj *) {
   return nullptr;
 }
 
-inline void BPF::process_batch_1filter(struct pkt_batch *batch) {
+inline void BPF::process_batch_1filter(struct bess::pkt_batch *batch) {
   struct filter *filter = &filters_[0];
 
-  struct pkt_batch out_batches[2];
-  struct snbuf **ptrs[2];
+  struct bess::pkt_batch out_batches[2];
+  bess::Packet **ptrs[2];
 
-  ptrs[0] = (struct snbuf **)&out_batches[0].pkts;
-  ptrs[1] = (struct snbuf **)&out_batches[1].pkts;
+  ptrs[0] = (bess::Packet **)&out_batches[0].pkts;
+  ptrs[1] = (bess::Packet **)&out_batches[1].pkts;
 
   int cnt = batch->cnt;
 
   for (int i = 0; i < cnt; i++) {
-    struct snbuf *pkt = batch->pkts[i];
+    bess::Packet *pkt = batch->pkts[i];
     int ret;
     int idx;
 
-    ret = filter->func((uint8_t *)snb_head_data(pkt), snb_total_len(pkt),
-                       snb_head_len(pkt));
+    ret = filter->func(pkt->head_data<uint8_t *>(), pkt->total_len(),
+                       pkt->head_len());
 
     idx = ret & 1;
     *(ptrs[idx]++) = pkt;
   }
 
-  out_batches[0].cnt = ptrs[0] - (struct snbuf **)&out_batches[0].pkts;
-  out_batches[1].cnt = ptrs[1] - (struct snbuf **)&out_batches[1].pkts;
+  out_batches[0].cnt = ptrs[0] - (bess::Packet **)&out_batches[0].pkts;
+  out_batches[1].cnt = ptrs[1] - (bess::Packet **)&out_batches[1].pkts;
 
   if (out_batches[0].cnt)
     RunChooseModule(0, &out_batches[0]);
@@ -1294,7 +1294,7 @@ inline void BPF::process_batch_1filter(struct pkt_batch *batch) {
     RunChooseModule(filter->gate, &out_batches[1]);
 }
 
-void BPF::ProcessBatch(struct pkt_batch *batch) {
+void BPF::ProcessBatch(struct bess::pkt_batch *batch) {
   gate_idx_t out_gates[MAX_PKT_BURST];
   int n_filters = n_filters_;
   int cnt;
@@ -1313,13 +1313,13 @@ void BPF::ProcessBatch(struct pkt_batch *batch) {
 
   /* slow version for general cases */
   for (int i = 0; i < cnt; i++) {
-    struct snbuf *pkt = batch->pkts[i];
+    bess::Packet *pkt = batch->pkts[i];
     struct filter *filter = &filters_[0];
     gate_idx_t gate = 0; /* default gate for unmatched pkts */
 
     for (int j = 0; j < n_filters; j++, filter++) {
-      if (filter->func((uint8_t *)snb_head_data(pkt), snb_total_len(pkt),
-                       snb_head_len(pkt)) != 0) {
+      if (filter->func(pkt->head_data<uint8_t *>(), pkt->total_len(),
+                       pkt->head_len()) != 0) {
         gate = filter->gate;
         break;
       }

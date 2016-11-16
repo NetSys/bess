@@ -12,19 +12,20 @@ class DummySourceModule : public Module {
 
 [[gnu::noinline]] struct task_result DummySourceModule::RunTask(void *arg) {
   const size_t batch_size = reinterpret_cast<size_t>(arg);
-  struct pkt_batch batch;
+  struct bess::pkt_batch batch;
 
-  struct snbuf pkts[MAX_PKT_BURST];
+  bess::Packet pkts[MAX_PKT_BURST];
 
   batch_clear(&batch);
   for (size_t i = 0; i < batch_size; i++) {
-    struct snbuf *pkt = &pkts[i];
+    bess::Packet *pkt = &pkts[i];
 
     // this fake packet must not be freed
-    rte_mbuf_refcnt_set(&pkt->mbuf, 2);  
+    rte_mbuf_refcnt_set(&pkt->mbuf(), 2);  
 
     // not chained
-    pkt->mbuf.next = nullptr;
+    struct rte_mbuf &m = pkt->mbuf();
+    m.next = nullptr;
 
     batch_add(&batch, pkt);
   }
@@ -36,10 +37,10 @@ class DummySourceModule : public Module {
 
 class DummyRelayModule : public Module {
  public:
-   virtual void ProcessBatch(struct pkt_batch *batch) override;
+   virtual void ProcessBatch(struct bess::pkt_batch *batch) override;
 };
 
-[[gnu::noinline]] void DummyRelayModule::ProcessBatch(struct pkt_batch *batch) {
+[[gnu::noinline]] void DummyRelayModule::ProcessBatch(struct bess::pkt_batch *batch) {
   RunNextModule(batch);
 }
 

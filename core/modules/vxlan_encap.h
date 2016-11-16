@@ -13,7 +13,7 @@ class VXLANEncap : public Module {
   virtual struct snobj *Init(struct snobj *arg);
   pb_error_t InitPb(const bess::pb::VXLANEncapArg &arg);
 
-  virtual void ProcessBatch(struct pkt_batch *batch);
+  virtual void ProcessBatch(struct bess::pkt_batch *batch);
 
  private:
   uint16_t dstport_;

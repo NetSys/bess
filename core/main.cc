@@ -7,8 +7,8 @@
 #include "dpdk.h"
 #include "master.h"
 #include "opts.h"
+#include "packet.h"
 #include "port.h"
-#include "snbuf.h"
 
 int main(int argc, char *argv[]) {
   FLAGS_logbuflevel = -1;
@@ -40,7 +40,7 @@ int main(int argc, char *argv[]) {
   // TODO(barath): Make these DPDK calls generic, so as to not be so tied to
   // DPDK.
   init_dpdk(argv[0], FLAGS_m, FLAGS_a);
-  init_mempool();
+  bess::init_mempool();
 
   PortBuilder::InitDrivers();
 
@@ -58,7 +58,7 @@ int main(int argc, char *argv[]) {
   RunMaster();
 
   rte_eal_mp_wait_lcore();
-  close_mempool();
+  bess::close_mempool();
 
   return 0;
 }

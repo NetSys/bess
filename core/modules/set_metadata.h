@@ -21,7 +21,7 @@ class SetMetadata : public Module {
   struct snobj *Init(struct snobj *arg);
   pb_error_t InitPb(const bess::pb::SetMetadataArg &arg);
 
-  void ProcessBatch(struct pkt_batch *batch);
+  void ProcessBatch(struct bess::pkt_batch *batch);
 
  private:
   struct snobj *AddAttrOne(struct snobj *attr);

@@ -7,9 +7,9 @@
 
 #include "../utils/time.h"
 
-inline int get_measure_packet(struct snbuf *pkt, uint64_t *time) {
-  uint8_t *avail = (static_cast<uint8_t *>(snb_head_data(pkt)) +
-                    sizeof(struct ether_hdr) + sizeof(struct ipv4_hdr)) +
+inline int get_measure_packet(bess::Packet *pkt, uint64_t *time) {
+  uint8_t *avail = (pkt->head_data<uint8_t *>() + sizeof(struct ether_hdr) +
+                    sizeof(struct ipv4_hdr)) +
                    sizeof(struct tcp_hdr);
   uint64_t *ts = reinterpret_cast<uint64_t *>(avail + 1);
   uint8_t available = *avail;
@@ -41,7 +41,7 @@ pb_error_t Measure::InitPb(const bess::pb::MeasureArg &arg) {
   return pb_errno(0);
 }
 
-void Measure::ProcessBatch(struct pkt_batch *batch) {
+void Measure::ProcessBatch(struct bess::pkt_batch *batch) {
   uint64_t time = get_time();
 
   if (start_time_ == 0) {
@@ -66,7 +66,7 @@ void Measure::ProcessBatch(struct pkt_batch *batch) {
         continue;
       }
 
-      bytes_cnt_ += batch->pkts[i]->mbuf.pkt_len;
+      bytes_cnt_ += batch->pkts[i]->mbuf().pkt_len;
       total_latency_ += diff;
 
       record_latency(&hist_, diff);
@@ -89,8 +89,7 @@ struct snobj *Measure::CommandGetSummary(struct snobj *) {
   return r;
 }
 
-pb_cmd_response_t Measure::CommandGetSummaryPb(
-    const bess::pb::EmptyArg &) {
+pb_cmd_response_t Measure::CommandGetSummaryPb(const bess::pb::EmptyArg &) {
   uint64_t pkt_total = pkt_cnt_;
   uint64_t byte_total = bytes_cnt_;
   uint64_t bits = (byte_total + pkt_total * 24) * 8;

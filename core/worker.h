@@ -42,7 +42,7 @@ typedef enum {
 
 struct gate_task {
   bess::Gate *gate;
-  struct pkt_batch batch;
+  struct bess::pkt_batch batch;
 };
 
 class Worker {
@@ -94,7 +94,7 @@ class Worker {
 
   // Store gate+packets into tasks for worker to service.
   // Returns true on success.
-  bool push_ogate_and_packets(bess::Gate *gate, pkt_batch *batch) {
+  bool push_ogate_and_packets(bess::Gate *gate, struct bess::pkt_batch *batch) {
     if (pending_gates_ > MAX_MODULES_PER_PATH * BRANCH_FACTOR) {
       LOG(ERROR) << "Gate servicing stack overrun -- loop in execution?";
       return false;
@@ -116,7 +116,7 @@ class Worker {
   bool gates_pending() { return !(pending_gates_ == 0); }
 
   /* better be the last field. it's huge */
-  struct pkt_batch *splits() {
+  struct bess::pkt_batch *splits() {
     return splits_;
   }
 
@@ -146,7 +146,7 @@ class Worker {
   gate_idx_t current_igate_;
 
   /* better be the last field. it's huge */
-  struct pkt_batch splits_[MAX_GATES + 1];
+  struct bess::pkt_batch splits_[MAX_GATES + 1];
 };
 
 // NOTE: Do not use "thread_local" here. It requires a function call every time

@@ -8,7 +8,7 @@
 #include "../utils/pcap.h"
 #include "../utils/time.h"
 
-void TcpDump::ProcessBatch(const struct pkt_batch *batch) {
+void TcpDump::ProcessBatch(const struct bess::pkt_batch *batch) {
   struct timeval tv;
 
   int ret = 0;
@@ -16,16 +16,16 @@ void TcpDump::ProcessBatch(const struct pkt_batch *batch) {
   gettimeofday(&tv, nullptr);
 
   for (int i = 0; i < batch->cnt; i++) {
-    struct snbuf *pkt = batch->pkts[i];
+    bess::Packet *pkt = batch->pkts[i];
     struct pcap_rec_hdr rec = {
         .ts_sec = (uint32_t)tv.tv_sec,
         .ts_usec = (uint32_t)tv.tv_usec,
-        .incl_len = pkt->mbuf.data_len,
-        .orig_len = pkt->mbuf.pkt_len,
+        .incl_len = pkt->mbuf().data_len,
+        .orig_len = pkt->mbuf().pkt_len,
     };
 
     struct iovec vec[2] = {{&rec, sizeof(rec)},
-                           {snb_head_data(pkt), (size_t)snb_head_len(pkt)}};
+                           {pkt->head_data(), (size_t)pkt->total_len()}};
 
     ret = writev(fifo_fd_, vec, 2);
     if (ret < 0) {

@@ -35,12 +35,12 @@ int Queue::Resize(int slots) {
 
   /* migrate packets from the old queue */
   if (old_queue) {
-    struct snbuf *pkt;
+    bess::Packet *pkt;
 
     while (llring_sc_dequeue(old_queue, (void **)&pkt) == 0) {
       ret = llring_sp_enqueue(new_queue, pkt);
       if (ret == -LLRING_ERR_NOBUF) {
-        snb_free(pkt);
+        bess::Packet::free(pkt);
       }
     }
 
@@ -125,10 +125,10 @@ struct snobj *Queue::Init(struct snobj *arg) {
 }
 
 void Queue::Deinit() {
-  struct snbuf *pkt;
+  bess::Packet *pkt;
 
   while (llring_sc_dequeue(queue_, (void **)&pkt) == 0) {
-    snb_free(pkt);
+    bess::Packet::free(pkt);
   }
 
   mem_free(queue_);
@@ -141,18 +141,18 @@ std::string Queue::GetDesc() const {
 }
 
 /* from upstream */
-void Queue::ProcessBatch(struct pkt_batch *batch) {
+void Queue::ProcessBatch(struct bess::pkt_batch *batch) {
   int queued =
       llring_mp_enqueue_burst(queue_, (void **)batch->pkts, batch->cnt);
 
   if (queued < batch->cnt) {
-    snb_free_bulk(batch->pkts + queued, batch->cnt - queued);
+    bess::Packet::free_bulk(batch->pkts + queued, batch->cnt - queued);
   }
 }
 
 /* to downstream */
 struct task_result Queue::RunTask(void *) {
-  struct pkt_batch batch;
+  struct bess::pkt_batch batch;
   struct task_result ret;
 
   const int burst = ACCESS_ONCE(burst_);
@@ -169,12 +169,12 @@ struct task_result Queue::RunTask(void *) {
 
   if (prefetch_) {
     for (uint64_t i = 0; i < cnt; i++) {
-      total_bytes += snb_total_len(batch.pkts[i]);
-      rte_prefetch0(snb_head_data(batch.pkts[i]));
+      total_bytes += batch.pkts[i]->total_len();
+      rte_prefetch0(batch.pkts[i]->head_data());
     }
   } else {
     for (uint64_t i = 0; i < cnt; i++)
-      total_bytes += snb_total_len(batch.pkts[i]);
+      total_bytes += batch.pkts[i]->total_len();
   }
 
   ret = (struct task_result){

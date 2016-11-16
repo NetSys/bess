@@ -9,7 +9,7 @@ class IPEncap : public Module {
   struct snobj *Init(struct snobj *arg);
   pb_error_t InitPb(const bess::pb::IPEncapArg &arg);
 
-  virtual void ProcessBatch(struct pkt_batch *batch);
+  virtual void ProcessBatch(struct bess::pkt_batch *batch);
 };
 
 #endif  // BESS_MODULES_IPENCAP_H_

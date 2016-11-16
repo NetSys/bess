@@ -201,10 +201,10 @@ pb_error_t HashLB::InitPb(const bess::pb::HashLBArg &arg) {
   return pb_errno(0);
 }
 
-void HashLB::LbL2(struct pkt_batch *batch, gate_idx_t *out_gates) {
+void HashLB::LbL2(struct bess::pkt_batch *batch, gate_idx_t *out_gates) {
   for (int i = 0; i < batch->cnt; i++) {
-    struct snbuf *snb = batch->pkts[i];
-    char *head = static_cast<char *>(snb_head_data(snb));
+    bess::Packet *snb = batch->pkts[i];
+    char *head = snb->head_data<char *>();
 
     uint64_t v0 = *(reinterpret_cast<uint64_t *>(head));
     uint32_t v1 = *(reinterpret_cast<uint32_t *>(head + 8));
@@ -215,13 +215,13 @@ void HashLB::LbL2(struct pkt_batch *batch, gate_idx_t *out_gates) {
   }
 }
 
-void HashLB::LbL3(struct pkt_batch *batch, gate_idx_t *out_gates) {
+void HashLB::LbL3(struct bess::pkt_batch *batch, gate_idx_t *out_gates) {
   /* assumes untagged packets */
   const int ip_offset = 14;
 
   for (int i = 0; i < batch->cnt; i++) {
-    struct snbuf *snb = batch->pkts[i];
-    char *head = static_cast<char *>(snb_head_data(snb));
+    bess::Packet *snb = batch->pkts[i];
+    char *head = snb->head_data<char *>();
 
     uint32_t hash_val;
     uint64_t v = *(reinterpret_cast<uint64_t *>(head + ip_offset + 12));
@@ -232,14 +232,14 @@ void HashLB::LbL3(struct pkt_batch *batch, gate_idx_t *out_gates) {
   }
 }
 
-void HashLB::LbL4(struct pkt_batch *batch, gate_idx_t *out_gates) {
+void HashLB::LbL4(struct bess::pkt_batch *batch, gate_idx_t *out_gates) {
   /* assumes untagged packets without IP options */
   const int ip_offset = 14;
   const int l4_offset = ip_offset + 20;
 
   for (int i = 0; i < batch->cnt; i++) {
-    struct snbuf *snb = batch->pkts[i];
-    char *head = static_cast<char *>(snb_head_data(snb));
+    bess::Packet *snb = batch->pkts[i];
+    char *head = snb->head_data<char *>();
 
     uint32_t hash_val;
     uint64_t v0 = *(reinterpret_cast<uint64_t *>(head + ip_offset + 12));
@@ -253,7 +253,7 @@ void HashLB::LbL4(struct pkt_batch *batch, gate_idx_t *out_gates) {
   }
 }
 
-void HashLB::ProcessBatch(struct pkt_batch *batch) {
+void HashLB::ProcessBatch(struct bess::pkt_batch *batch) {
   gate_idx_t out_gates[MAX_PKT_BURST];
 
   switch (mode_) {

@@ -99,7 +99,7 @@ struct snobj *Source::Init(struct snobj *arg) {
 }
 
 struct task_result Source::RunTask(void *) {
-  struct pkt_batch batch;
+  struct bess::pkt_batch batch;
   struct task_result ret;
 
   const int pkt_overhead = 24;
@@ -109,7 +109,7 @@ struct task_result Source::RunTask(void *) {
 
   uint64_t total_bytes = pkt_size * burst;
 
-  int cnt = snb_alloc_bulk(batch.pkts, burst, pkt_size);
+  int cnt = bess::Packet::alloc_bulk(batch.pkts, burst, pkt_size);
 
   if (cnt > 0) {
     batch.cnt = cnt;

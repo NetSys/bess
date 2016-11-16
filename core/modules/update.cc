@@ -31,7 +31,7 @@ pb_error_t Update::InitPb(const bess::pb::UpdateArg &arg) {
   return response.error();
 }
 
-void Update::ProcessBatch(struct pkt_batch *batch) {
+void Update::ProcessBatch(struct bess::pkt_batch *batch) {
   int cnt = batch->cnt;
 
   for (int i = 0; i < num_fields_; i++) {
@@ -42,8 +42,8 @@ void Update::ProcessBatch(struct pkt_batch *batch) {
     int16_t offset = field->offset;
 
     for (int j = 0; j < cnt; j++) {
-      struct snbuf *snb = batch->pkts[j];
-      char *head = static_cast<char *>(snb_head_data(snb));
+      bess::Packet *snb = batch->pkts[j];
+      char *head = snb->head_data<char *>();
 
       uint64_t *p = reinterpret_cast<uint64_t *>(head) + offset;
 

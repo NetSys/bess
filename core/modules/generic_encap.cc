@@ -144,7 +144,7 @@ pb_error_t GenericEncap::InitPb(const bess::pb::GenericEncapArg &arg) {
   return pb_errno(0);
 }
 
-void GenericEncap::ProcessBatch(struct pkt_batch *batch) {
+void GenericEncap::ProcessBatch(struct bess::pkt_batch *batch) {
   int cnt = batch->cnt;
 
   int encap_size = encap_size_;
@@ -160,7 +160,7 @@ void GenericEncap::ProcessBatch(struct pkt_batch *batch) {
     char *header = headers[0] + fields_[i].pos;
 
     for (int j = 0; j < cnt; j++, header += MAX_HEADER_SIZE) {
-      struct snbuf *pkt = batch->pkts[j];
+      bess::Packet *pkt = batch->pkts[j];
 
       *(uint64_t *)header =
           (attr_id < 0) ? value : get_attr_with_offset<uint64_t>(offset, pkt);
@@ -168,9 +168,9 @@ void GenericEncap::ProcessBatch(struct pkt_batch *batch) {
   }
 
   for (int i = 0; i < cnt; i++) {
-    struct snbuf *pkt = batch->pkts[i];
+    bess::Packet *pkt = batch->pkts[i];
 
-    char *p = static_cast<char *>(snb_prepend(pkt, encap_size));
+    char *p = static_cast<char *>(pkt->prepend(encap_size));
 
     if (unlikely(!p)) {
       continue;

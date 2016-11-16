@@ -142,11 +142,11 @@ struct snobj *Port::Init(struct snobj *) {
   return nullptr;
 }
 
-int Port::RecvPackets(queue_t, snb_array_t, int) {
+int Port::RecvPackets(queue_t, bess::PacketArray, int) {
   return 0;
 }
 
-int Port::SendPackets(queue_t, snb_array_t, int) {
+int Port::SendPackets(queue_t, bess::PacketArray, int) {
   return 0;
 }
 

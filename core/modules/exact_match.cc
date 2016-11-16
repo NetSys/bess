@@ -191,7 +191,7 @@ void ExactMatch::Deinit() {
   ht_.Close();
 }
 
-void ExactMatch::ProcessBatch(struct pkt_batch *batch) {
+void ExactMatch::ProcessBatch(struct bess::pkt_batch *batch) {
   gate_idx_t default_gate;
   gate_idx_t out_gates[MAX_PKT_BURST];
 
@@ -215,17 +215,18 @@ void ExactMatch::ProcessBatch(struct pkt_batch *batch) {
     if (attr_id < 0) {
       offset = fields_[i].offset;
     } else {
-      offset = mt_offset_to_databuf_offset(attr_offsets[attr_id]);
+      offset = bess::Packet::mt_offset_to_databuf_offset(attr_offsets[attr_id]);
     }
 
     char *key = keys[0] + pos;
 
     for (int j = 0; j < cnt; j++, key += HASH_KEY_SIZE) {
-      char *buf_addr = reinterpret_cast<char *>(batch->pkts[j]->mbuf.buf_addr);
+      char *buf_addr =
+          reinterpret_cast<char *>(batch->pkts[j]->mbuf().buf_addr);
 
       /* for offset-based attrs we use relative offset */
       if (attr_id < 0) {
-        buf_addr += batch->pkts[j]->mbuf.data_off;
+        buf_addr += batch->pkts[j]->mbuf().data_off;
       }
 
       *(uint64_t *)key = *(uint64_t *)(buf_addr + offset) & mask;
@@ -260,8 +261,7 @@ struct snobj *ExactMatch::GetDump() const {
     if (f->attr_id < 0) {
       snobj_map_set(f_obj, "offset", snobj_uint(f->offset));
     } else {
-      snobj_map_set(f_obj, "name",
-                    snobj_str(all_attrs()[f->attr_id].name));
+      snobj_map_set(f_obj, "name", snobj_str(all_attrs()[f->attr_id].name));
     }
 
     snobj_list_add(fields, f_obj);
@@ -473,8 +473,7 @@ struct snobj *ExactMatch::CommandClear(struct snobj *) {
   return nullptr;
 }
 
-pb_cmd_response_t ExactMatch::CommandClearPb(
-    const bess::pb::EmptyArg &) {
+pb_cmd_response_t ExactMatch::CommandClearPb(const bess::pb::EmptyArg &) {
   ht_.Clear();
 
   pb_cmd_response_t response;

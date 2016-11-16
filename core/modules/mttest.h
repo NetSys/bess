@@ -14,11 +14,10 @@ class MetadataTest : public Module {
   struct snobj *Init(struct snobj *arg);
   pb_error_t InitPb(const bess::pb::MetadataTestArg &arg);
 
-  void ProcessBatch(struct pkt_batch *batch);
+  void ProcessBatch(struct bess::pkt_batch *batch);
 
  private:
-  struct snobj *AddAttributes(struct snobj *attrs,
-                              Attribute::AccessMode mode);
+  struct snobj *AddAttributes(struct snobj *attrs, Attribute::AccessMode mode);
   pb_error_t AddAttributes(
       const google::protobuf::Map<std::string, int64_t> &attrs,
       Attribute::AccessMode mode);

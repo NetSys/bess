@@ -130,7 +130,7 @@ struct task_result PortInc::RunTask(void *arg) {
 
   const queue_t qid = (queue_t)(uintptr_t)arg;
 
-  struct pkt_batch batch;
+  struct bess::pkt_batch batch;
   struct task_result ret;
 
   uint64_t received_bytes = 0;
@@ -151,12 +151,12 @@ struct task_result PortInc::RunTask(void *arg) {
   /* NOTE: we cannot skip this step since it might be used by scheduler */
   if (prefetch_) {
     for (uint64_t i = 0; i < cnt; i++) {
-      received_bytes += snb_total_len(batch.pkts[i]);
-      rte_prefetch0(snb_head_data(batch.pkts[i]));
+      received_bytes += batch.pkts[i]->total_len();
+      rte_prefetch0(batch.pkts[i]->head_data());
     }
   } else {
     for (uint64_t i = 0; i < cnt; i++)
-      received_bytes += snb_total_len(batch.pkts[i]);
+      received_bytes += batch.pkts[i]->total_len();
   }
 
   ret = (struct task_result){

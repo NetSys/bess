@@ -62,12 +62,12 @@ struct snobj *VXLANEncap::Init(struct snobj *arg) {
   return nullptr;
 }
 
-void VXLANEncap::ProcessBatch(struct pkt_batch *batch) {
+void VXLANEncap::ProcessBatch(struct bess::pkt_batch *batch) {
   uint16_t dstport = dstport_;
   int cnt = batch->cnt;
 
   for (int i = 0; i < cnt; i++) {
-    struct snbuf *pkt = batch->pkts[i];
+    bess::Packet *pkt = batch->pkts[i];
 
     uint32_t ip_src = get_attr<uint32_t>(this, ATTR_R_TUN_IP_SRC, pkt);
     uint32_t ip_dst = get_attr<uint32_t>(this, ATTR_R_TUN_IP_DST, pkt);
@@ -77,11 +77,11 @@ void VXLANEncap::ProcessBatch(struct pkt_batch *batch) {
     struct udp_hdr *udph;
     struct vxlan_hdr *vh;
 
-    int inner_frame_len = snb_total_len(pkt) + sizeof(*udph);
+    int inner_frame_len = pkt->total_len() + sizeof(*udph);
 
-    inner_ethh = static_cast<struct ether_hdr *>(snb_head_data(pkt));
+    inner_ethh = pkt->head_data<struct ether_hdr *>();
     udph = static_cast<struct udp_hdr *>(
-        snb_prepend(pkt, sizeof(*udph) + sizeof(*vh)));
+        pkt->prepend(sizeof(*udph) + sizeof(*vh)));
 
     if (unlikely(!udph)) {
       continue;

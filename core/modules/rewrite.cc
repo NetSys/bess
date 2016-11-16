@@ -29,8 +29,7 @@ pb_error_t Rewrite::InitPb(const bess::pb::RewriteArg &arg) {
   return response.error();
 }
 
-pb_cmd_response_t Rewrite::CommandAddPb(
-    const bess::pb::RewriteArg &arg) {
+pb_cmd_response_t Rewrite::CommandAddPb(const bess::pb::RewriteArg &arg) {
   pb_cmd_response_t response;
 
   int curr = num_templates_;
@@ -71,8 +70,7 @@ pb_cmd_response_t Rewrite::CommandAddPb(
   return response;
 }
 
-pb_cmd_response_t Rewrite::CommandClearPb(
-    const bess::pb::EmptyArg &) {
+pb_cmd_response_t Rewrite::CommandClearPb(const bess::pb::EmptyArg &) {
   next_turn_ = 0;
   num_templates_ = 0;
 
@@ -82,35 +80,35 @@ pb_cmd_response_t Rewrite::CommandClearPb(
   return response;
 }
 
-inline void Rewrite::DoRewriteSingle(struct pkt_batch *batch) {
+inline void Rewrite::DoRewriteSingle(struct bess::pkt_batch *batch) {
   const int cnt = batch->cnt;
   uint16_t size = template_size_[0];
   void *templ = templates_[0];
 
   for (int i = 0; i < cnt; i++) {
-    struct snbuf *pkt = batch->pkts[i];
-    char *ptr = static_cast<char *>(pkt->mbuf.buf_addr) + SNBUF_HEADROOM;
+    bess::Packet *pkt = batch->pkts[i];
+    char *ptr = static_cast<char *>(pkt->mbuf().buf_addr) + SNBUF_HEADROOM;
 
-    pkt->mbuf.data_off = SNBUF_HEADROOM;
-    pkt->mbuf.pkt_len = size;
-    pkt->mbuf.data_len = size;
+    pkt->set_mbuf_data_off(SNBUF_HEADROOM);
+    pkt->set_mbuf_pkt_len(size);
+    pkt->set_mbuf_data_len(size);
 
     memcpy_sloppy(ptr, templ, size);
   }
 }
 
-inline void Rewrite::DoRewrite(struct pkt_batch *batch) {
+inline void Rewrite::DoRewrite(struct bess::pkt_batch *batch) {
   int start = next_turn_;
   const int cnt = batch->cnt;
 
   for (int i = 0; i < cnt; i++) {
     uint16_t size = template_size_[start + i];
-    struct snbuf *pkt = batch->pkts[i];
-    char *ptr = static_cast<char *>(pkt->mbuf.buf_addr) + SNBUF_HEADROOM;
+    bess::Packet *pkt = batch->pkts[i];
+    char *ptr = static_cast<char *>(pkt->mbuf().buf_addr) + SNBUF_HEADROOM;
 
-    pkt->mbuf.data_off = SNBUF_HEADROOM;
-    pkt->mbuf.pkt_len = size;
-    pkt->mbuf.data_len = size;
+    pkt->set_mbuf_data_off(SNBUF_HEADROOM);
+    pkt->set_mbuf_pkt_len(size);
+    pkt->set_mbuf_data_len(size);
 
     memcpy_sloppy(ptr, templates_[start + i], size);
   }
@@ -118,7 +116,7 @@ inline void Rewrite::DoRewrite(struct pkt_batch *batch) {
   next_turn_ = (start + cnt) % num_templates_;
 }
 
-void Rewrite::ProcessBatch(struct pkt_batch *batch) {
+void Rewrite::ProcessBatch(struct bess::pkt_batch *batch) {
   if (num_templates_ == 1) {
     DoRewriteSingle(batch);
   } else if (num_templates_ > 1) {

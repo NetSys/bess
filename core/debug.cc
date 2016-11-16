@@ -21,7 +21,7 @@
 #include <rte_version.h>
 
 #include "module.h"
-#include "snbuf.h"
+#include "packet.h"
 #include "snobj.h"
 #include "tc.h"
 #include "utils/htable.h"
@@ -293,7 +293,7 @@ static std::string DumpStack() {
       stack << print_code(symbols[i], (i == skips) ? 3 : 0);
     }
 
-    free(symbols); // required by backtrace_symbols()
+    free(symbols);  // required by backtrace_symbols()
   } else
     stack << "ERROR: backtrace_symbols() failed\n";
 
@@ -342,16 +342,16 @@ static void TrapHandler(int sig_num, siginfo_t *info, void *ucontext) {
 #elif __x86_64
   trap_ip = (void *)uc->uc_mcontext.gregs[REG_RIP];
 #else
-#  error neither x86 or x86-64
+#error neither x86 or x86-64
 #endif
 
   if (is_fatal) {
     oops << "A critical error has occured. Aborting..." << std::endl;
   } else
 
-  oops << "Signal: " << sig_num << " (" << strsignal(sig_num)
-       << "), si_code: " << info->si_code << " ("
-       << si_code_to_str(sig_num, info->si_code) << ")" << std::endl;
+    oops << "Signal: " << sig_num << " (" << strsignal(sig_num)
+         << "), si_code: " << info->si_code << " ("
+         << si_code_to_str(sig_num, info->si_code) << ")" << std::endl;
   oops << "pid: " << getpid() << ", tid: " << (pid_t)syscall(SYS_gettid)
        << ", address: " << info->si_addr << ", IP: " << trap_ip << std::endl;
 
@@ -414,8 +414,8 @@ void DumpTypes(void) {
          sizeof(struct cdlist_head), sizeof(struct cdlist_item));
 
   printf("sizeof(rte_mbuf)=%zu\n", sizeof(struct rte_mbuf));
-  printf("sizeof(snbuf)=%zu\n", sizeof(struct snbuf));
-  printf("sizeof(pkt_batch)=%zu\n", sizeof(struct pkt_batch));
+  printf("sizeof(Packet)=%zu\n", sizeof(Packet));
+  printf("sizeof(pkt_batch)=%zu\n", sizeof(struct bess::pkt_batch));
   printf("sizeof(sched)=%zu sizeof(sched_stats)=%zu\n", sizeof(struct sched),
          sizeof(struct sched_stats));
   printf("sizeof(tc)=%zu sizeof(tc_stats)=%zu\n", sizeof(struct tc),

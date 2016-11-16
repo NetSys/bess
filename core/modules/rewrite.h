@@ -22,7 +22,7 @@ class Rewrite : public Module {
   virtual struct snobj *Init(struct snobj *arg);
   pb_error_t InitPb(const bess::pb::RewriteArg &arg);
 
-  virtual void ProcessBatch(struct pkt_batch *batch);
+  virtual void ProcessBatch(struct bess::pkt_batch *batch);
 
   struct snobj *CommandAdd(struct snobj *arg);
   struct snobj *CommandClear(struct snobj *arg);
@@ -31,8 +31,8 @@ class Rewrite : public Module {
   pb_cmd_response_t CommandClearPb(const bess::pb::EmptyArg &arg);
 
  private:
-  inline void DoRewrite(struct pkt_batch *batch);
-  inline void DoRewriteSingle(struct pkt_batch *batch);
+  inline void DoRewrite(struct bess::pkt_batch *batch);
+  inline void DoRewriteSingle(struct bess::pkt_batch *batch);
 
   /* For fair round robin we remember the next index for later.
    * [0, num_templates - 1] */
