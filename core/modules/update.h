@@ -8,6 +8,9 @@
 
 class Update : public Module {
  public:
+  static const Commands<Module> cmds;
+  static const PbCommands pb_cmds;
+
   Update() : Module(), num_fields_(), fields_() {}
 
   virtual struct snobj *Init(struct snobj *arg);
@@ -21,14 +24,8 @@ class Update : public Module {
   pb_cmd_response_t CommandAddPb(const bess::pb::UpdateArg &arg);
   pb_cmd_response_t CommandClearPb(const bess::pb::EmptyArg &arg);
 
-  static const gate_idx_t kNumIGates = 1;
-  static const gate_idx_t kNumOGates = 1;
-
-  static const Commands<Module> cmds;
-  static const PbCommands pb_cmds;
-
  private:
-  int num_fields_ = {};
+  int num_fields_;
 
   struct {
     uint64_t mask;  /* bits with 1 won't be updated */

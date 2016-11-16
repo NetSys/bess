@@ -9,6 +9,9 @@
 
 class RandomUpdate : public Module {
  public:
+  static const Commands<Module> cmds;
+  static const PbCommands pb_cmds;
+
   RandomUpdate() : Module(), num_vars_(), vars_(), rng_() {}
 
   virtual struct snobj *Init(struct snobj *arg);
@@ -23,14 +26,8 @@ class RandomUpdate : public Module {
       const bess::pb::RandomUpdateArg &arg);
   pb_cmd_response_t CommandClearPb(const bess::pb::EmptyArg &arg);
 
-  static const gate_idx_t kNumIGates = 1;
-  static const gate_idx_t kNumOGates = 1;
-
-  static const Commands<Module> cmds;
-  static const PbCommands pb_cmds;
-
  private:
-  int num_vars_ = {};
+  int num_vars_;
 
   struct {
     uint32_t mask; /* bits with 1 won't be updated */

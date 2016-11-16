@@ -13,9 +13,6 @@ class NoOP : public Module {
 
   static const gate_idx_t kNumIGates = 0;
   static const gate_idx_t kNumOGates = 0;
-
-  static const Commands<Module> cmds;
-  static const PbCommands pb_cmds;
 };
 
 #endif  // BESS_MODULES_NOOP_H_

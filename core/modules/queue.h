@@ -7,6 +7,9 @@
 
 class Queue : public Module {
  public:
+  static const Commands<Module> cmds;
+  static const PbCommands pb_cmds;
+
   Queue() : Module(), queue_(), prefetch_(), burst_() {}
 
   virtual struct snobj *Init(struct snobj *arg);
@@ -26,12 +29,6 @@ class Queue : public Module {
       const bess::pb::QueueCommandSetBurstArg &arg);
   pb_cmd_response_t CommandSetSizePb(
       const bess::pb::QueueCommandSetSizeArg &arg);
-
-  static const gate_idx_t kNumIGates = 1;
-  static const gate_idx_t kNumOGates = 1;
-
-  static const Commands<Module> cmds;
-  static const PbCommands pb_cmds;
 
  private:
   int Resize(int slots);

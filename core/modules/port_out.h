@@ -7,6 +7,8 @@
 
 class PortOut : public Module {
  public:
+  static const gate_idx_t kNumOGates = 0;
+
   PortOut() : Module(), port_() {}
 
   virtual struct snobj *Init(struct snobj *arg);
@@ -17,12 +19,6 @@ class PortOut : public Module {
   virtual void ProcessBatch(struct pkt_batch *batch);
 
   virtual std::string GetDesc() const;
-
-  static const gate_idx_t kNumIGates = 1;
-  static const gate_idx_t kNumOGates = 0;
-
-  static const Commands<Module> cmds;
-  static const PbCommands pb_cmds;
 
  private:
   Port *port_;

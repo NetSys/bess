@@ -2,9 +2,6 @@
 
 #include <glog/logging.h>
 
-const Commands<Module> MetadataTest::cmds = {};
-const PbCommands MetadataTest::pb_cmds = {};
-
 pb_error_t MetadataTest::AddAttributes(
     const google::protobuf::Map<std::string, int64_t> &attributes,
     Attribute::AccessMode mode) {

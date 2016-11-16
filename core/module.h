@@ -87,8 +87,8 @@ class ModuleBuilder {
       std::function<pb_error_t(Module *, const google::protobuf::Any &)>
           init_func)
       : module_generator_(module_generator),
-        kNumIGates(igates),
-        kNumOGates(ogates),
+        num_igates_(igates),
+        num_ogates_(ogates),
         class_name_(class_name),
         name_template_(name_template),
         help_text_(help_text),
@@ -122,8 +122,8 @@ class ModuleBuilder {
 
   static const std::map<std::string, Module *> &all_modules();
 
-  gate_idx_t NumIGates() const { return kNumIGates; }
-  gate_idx_t NumOGates() const { return kNumOGates; }
+  gate_idx_t NumIGates() const { return num_igates_; }
+  gate_idx_t NumOGates() const { return num_ogates_; }
 
   const std::string &class_name() const { return class_name_; };
   const std::string &name_template() const { return name_template_; };
@@ -175,19 +175,19 @@ class ModuleBuilder {
   }
 
  private:
-  std::function<Module *()> module_generator_;
+  const std::function<Module *()> module_generator_;
 
   static std::map<std::string, Module *> all_modules_;
 
-  gate_idx_t kNumIGates;
-  gate_idx_t kNumOGates;
+  const gate_idx_t num_igates_;
+  const gate_idx_t num_ogates_;
 
-  std::string class_name_;
-  std::string name_template_;
-  std::string help_text_;
-  Commands<Module> cmds_;
-  PbCommands pb_cmds_;
-  module_init_func_t init_func_;
+  const std::string class_name_;
+  const std::string name_template_;
+  const std::string help_text_;
+  const Commands<Module> cmds_;
+  const PbCommands pb_cmds_;
+  const module_init_func_t init_func_;
 };
 
 class Module {
@@ -216,6 +216,12 @@ class Module {
 
   virtual std::string GetDesc() const { return ""; };
   virtual struct snobj *GetDump() const { return snobj_nil(); }
+
+  static const gate_idx_t kNumIGates = 1;
+  static const gate_idx_t kNumOGates = 1;
+
+  static const Commands<Module> cmds;
+  static const PbCommands pb_cmds;
 
   // -------------------------------------------------------------------------
 

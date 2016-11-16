@@ -8,13 +8,10 @@
 
 class Bypass : public Module {
  public:
-  virtual void ProcessBatch(struct pkt_batch *batch);
-
   static const gate_idx_t kNumIGates = MAX_GATES;
   static const gate_idx_t kNumOGates = MAX_GATES;
 
-  static const Commands<Module> cmds;
-  static const PbCommands pb_cmds;
+  virtual void ProcessBatch(struct pkt_batch *batch);
 };
 
 #endif  // BESS_MODULES_BYPASS_H_

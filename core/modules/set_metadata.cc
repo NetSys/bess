@@ -33,9 +33,6 @@ static void CopyFromValue(struct pkt_batch *batch, const struct Attr *attr,
   }
 }
 
-const Commands<Module> SetMetadata::cmds = {};
-const PbCommands SetMetadata::pb_cmds = {};
-
 pb_error_t SetMetadata::AddAttrOne(
     const bess::pb::SetMetadataArg_Attribute &attr) {
   std::string name;

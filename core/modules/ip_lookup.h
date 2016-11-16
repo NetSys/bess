@@ -6,6 +6,11 @@
 
 class IPLookup : public Module {
  public:
+  static const gate_idx_t kNumOGates = MAX_GATES;
+
+  static const Commands<Module> cmds;
+  static const PbCommands pb_cmds;
+
   IPLookup() : Module(), lpm_(), default_gate_() {}
 
   virtual struct snobj *Init(struct snobj *arg);
@@ -20,12 +25,6 @@ class IPLookup : public Module {
 
   pb_cmd_response_t CommandAddPb(const bess::pb::IPLookupCommandAddArg &arg);
   pb_cmd_response_t CommandClearPb(const bess::pb::EmptyArg &arg);
-
-  static const gate_idx_t kNumIGates = 1;
-  static const gate_idx_t kNumOGates = MAX_GATES;
-
-  static const Commands<Module> cmds;
-  static const PbCommands pb_cmds;
 
  private:
   struct rte_lpm *lpm_;

@@ -1,8 +1,5 @@
 #include "noop.h"
 
-const Commands<Module> NoOP::cmds = {};
-const PbCommands NoOP::pb_cmds = {};
-
 struct snobj *NoOP::Init(struct snobj *) {
   task_id_t tid;
 

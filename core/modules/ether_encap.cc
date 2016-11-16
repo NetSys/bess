@@ -9,9 +9,6 @@ enum {
   ATTR_R_ETHER_TYPE,
 };
 
-const Commands<Module> EtherEncap::cmds = {};
-const PbCommands EtherEncap::pb_cmds = {};
-
 struct snobj *EtherEncap::Init(struct snobj *arg [[maybe_unused]]) {
   using AccessMode = bess::metadata::Attribute::AccessMode;
 
