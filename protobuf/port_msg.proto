@@ -7,8 +7,8 @@ message PCAPPortArg {
 }
 
 message PMDPortArg {
-  bool loopback = 1;
-  uint32 port_id = 2;
+  uint64 loopback = 1;
+  uint64 port_id = 2;
   string pci = 3;
   string vdev = 4;
 }
@@ -23,12 +23,14 @@ message ZeroCopyVPortArg {
 
 message VPortArg {
   string ifname = 1;
-  string docker = 2;
-  int64 container_pid = 3;
-  string netns = 4;
+  oneof cpid {
+    string docker = 2;
+    int64 container_pid = 3;
+    string netns = 4;
+  }
   repeated int64 rxq_cpus = 5;
   uint64 tx_tci = 6;
   uint64 tx_outer_tci = 7;
-  bool loopback = 8;
+  uint64 loopback = 8;
   repeated string ip_addrs = 9;
 }

@@ -29,8 +29,10 @@ message EnableTcpdumpRequest {
 message AttachTaskRequest {
   string name = 1;
   uint64 taskid = 2;
-  string tc = 3;
-  uint64 wid = 4;
+  oneof identifier {
+    string tc = 3;
+    uint64 wid = 4;
+  }
 }
 
 message DisconnectModulesRequest {
@@ -211,7 +213,7 @@ message GetDriverInfoResponse {
 
 message ListMclassResponse {
   Error error = 1;
-  repeated string name = 2;
+  repeated string names = 2;
 }
 
 message GetMclassInfoRequest {
@@ -223,6 +225,7 @@ message GetMclassInfoResponse {
   string name = 2;
   string help = 3;
   repeated string cmds = 4;
+  repeated string cmd_args = 5;
 }
 
 message CreateModuleRequest {
