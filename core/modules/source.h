@@ -6,6 +6,11 @@
 
 class Source : public Module {
  public:
+  static const gate_idx_t kNumIGates = 0;
+
+  static const Commands<Module> cmds;
+  static const PbCommands pb_cmds;
+
   Source() : Module(), pkt_size_(), burst_() {}
 
   virtual struct snobj *Init(struct snobj *arg);
@@ -20,12 +25,6 @@ class Source : public Module {
       const bess::pb::SourceCommandSetBurstArg &arg);
   pb_cmd_response_t CommandSetPktSizePb(
       const bess::pb::SourceCommandSetPktSizeArg &arg);
-
-  static const gate_idx_t kNumIGates = 0;
-  static const gate_idx_t kNumOGates = 1;
-
-  static const Commands<Module> cmds;
-  static const PbCommands pb_cmds;
 
  private:
   int pkt_size_;

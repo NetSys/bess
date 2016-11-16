@@ -7,6 +7,11 @@
 
 class QueueInc : public Module {
  public:
+  static const gate_idx_t kNumIGates = 0;
+
+  static const Commands<Module> cmds;
+  static const PbCommands pb_cmds;
+
   QueueInc() : Module(), port_(), qid_(), prefetch_(), burst_() {}
 
   virtual struct snobj *Init(struct snobj *arg);
@@ -20,12 +25,6 @@ class QueueInc : public Module {
   struct snobj *CommandSetBurst(struct snobj *arg);
   pb_cmd_response_t CommandSetBurstPb(
       const bess::pb::QueueIncCommandSetBurstArg &arg);
-
-  static const gate_idx_t kNumIGates = 0;
-  static const gate_idx_t kNumOGates = 1;
-
-  static const Commands<Module> cmds;
-  static const PbCommands pb_cmds;
 
  private:
   Port *port_;

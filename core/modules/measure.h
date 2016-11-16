@@ -7,6 +7,9 @@
 
 class Measure : public Module {
  public:
+  static const Commands<Module> cmds;
+  static const PbCommands pb_cmds;
+
   Measure()
       : Module(),
         hist_(),
@@ -23,12 +26,6 @@ class Measure : public Module {
 
   struct snobj *CommandGetSummary(struct snobj *arg);
   pb_cmd_response_t CommandGetSummaryPb(const bess::pb::EmptyArg &arg);
-
-  static const gate_idx_t kNumIGates = 1;
-  static const gate_idx_t kNumOGates = 1;
-
-  static const Commands<Module> cmds;
-  static const PbCommands pb_cmds;
 
  private:
   struct histogram hist_;

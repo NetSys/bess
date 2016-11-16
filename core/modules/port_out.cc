@@ -1,9 +1,6 @@
 #include "port_out.h"
 #include "../utils/format.h"
 
-const Commands<Module> PortOut::cmds = {};
-const PbCommands PortOut::pb_cmds = {};
-
 pb_error_t PortOut::InitPb(const bess::pb::PortOutArg &arg) {
   const char *port_name;
   int ret;

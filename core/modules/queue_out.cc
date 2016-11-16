@@ -3,9 +3,6 @@
 #include "../port.h"
 #include "../utils/format.h"
 
-const Commands<Module> QueueOut::cmds = {};
-const PbCommands QueueOut::pb_cmds = {};
-
 pb_error_t QueueOut::InitPb(const bess::pb::QueueOutArg &arg) {
   const char *port_name;
   int ret;

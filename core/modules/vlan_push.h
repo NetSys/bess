@@ -6,6 +6,9 @@
 
 class VLANPush : public Module {
  public:
+  static const Commands<Module> cmds;
+  static const PbCommands pb_cmds;
+
   VLANPush() : Module(), vlan_tag_(), qinq_tag_() {}
 
   virtual struct snobj *Init(struct snobj *arg);
@@ -17,12 +20,6 @@ class VLANPush : public Module {
 
   struct snobj *CommandSetTci(struct snobj *arg);
   pb_cmd_response_t CommandSetTciPb(const bess::pb::VLANPushArg &arg);
-
-  static const gate_idx_t kNumIGates = 1;
-  static const gate_idx_t kNumOGates = 1;
-
-  static const Commands<Module> cmds;
-  static const PbCommands pb_cmds;
 
  private:
   /* network order */

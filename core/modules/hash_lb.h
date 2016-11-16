@@ -15,6 +15,11 @@ enum LbMode {
 
 class HashLB : public Module {
  public:
+  static const gate_idx_t kNumOGates = MAX_GATES;
+
+  static const Commands<Module> cmds;
+  static const PbCommands pb_cmds;
+
   HashLB() : Module(), gates_(), num_gates_(), mode_() {}
 
   virtual struct snobj *Init(struct snobj *arg);
@@ -29,12 +34,6 @@ class HashLB : public Module {
       const bess::pb::HashLBCommandSetModeArg &arg);
   pb_cmd_response_t CommandSetGatesPb(
       const bess::pb::HashLBCommandSetGatesArg &arg);
-
-  static const gate_idx_t kNumIGates = 1;
-  static const gate_idx_t kNumOGates = MAX_GATES;
-
-  static const Commands<Module> cmds;
-  static const PbCommands pb_cmds;
 
  private:
   void LbL2(struct pkt_batch *batch, gate_idx_t *ogates);
