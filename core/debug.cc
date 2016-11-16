@@ -347,11 +347,12 @@ static void TrapHandler(int sig_num, siginfo_t *info, void *ucontext) {
 
   if (is_fatal) {
     oops << "A critical error has occured. Aborting..." << std::endl;
-  } else
+  }
 
-    oops << "Signal: " << sig_num << " (" << strsignal(sig_num)
-         << "), si_code: " << info->si_code << " ("
-         << si_code_to_str(sig_num, info->si_code) << ")" << std::endl;
+  oops << "Signal: " << sig_num << " (" << strsignal(sig_num)
+       << "), si_code: " << info->si_code << " ("
+       << si_code_to_str(sig_num, info->si_code) << ")" << std::endl;
+
   oops << "pid: " << getpid() << ", tid: " << (pid_t)syscall(SYS_gettid)
        << ", address: " << info->si_addr << ", IP: " << trap_ip << std::endl;
 
