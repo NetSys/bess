@@ -1,7 +1,5 @@
 syntax = "proto3";
 
-import "error.proto";
-
 package bess.pb;
 
 // Module-specific messages.
@@ -13,11 +11,11 @@ message BPFCommandClearArg {
 
 message ExactMatchCommandAddArg {
   uint64 gate = 1;
-  repeated uint64 fields = 2;
+  repeated bytes fields = 2;
 }
 
 message ExactMatchCommandDeleteArg {
-  repeated uint64 fields = 2;
+  repeated bytes fields = 2;
 }
 
 message ExactMatchCommandClearArg {
@@ -28,12 +26,7 @@ message ExactMatchCommandSetDefaultGateArg {
 }
 
 message HashLBCommandSetModeArg {
-  enum Mode {
-    L2 = 0;
-    L3 = 1;
-    L4 = 2;
-  }
-  Mode mode = 1;
+  string mode = 1;
 }
 
 message HashLBCommandSetGatesArg {
@@ -70,8 +63,7 @@ message L2ForwardCommandLookupArg {
 }
 
 message L2ForwardCommandLookupResponse {
-  Error error = 1;
-  repeated uint64 gates = 2;
+  repeated uint64 gates = 1;
 }
 
 message L2ForwardCommandPopulateArg {
@@ -84,11 +76,10 @@ message MeasureCommandGetSummaryArg {
 }
 
 message MeasureCommandGetSummaryResponse {
-  Error error = 1;
-  double timestamp = 2;
-  uint64 packets = 3;
-  uint64 bits = 4;
-  uint64 total_latency_ns = 5;
+  double timestamp = 1;
+  uint64 packets = 2;
+  uint64 bits = 3;
+  uint64 total_latency_ns = 4;
 }
 
 message PortIncCommandSetBurstArg {
@@ -174,13 +165,8 @@ message FlowGenArg {
   double pps = 2;
   double flow_rate = 3;
   double flow_duration = 4;
-  enum Dist {
-    UNIFORM = 0;
-    EXPONENTIAL = 1;
-    PARETO = 2;
-  }
-  Dist arrival = 5;
-  Dist duration = 6;
+  string arrival = 5;
+  string duration = 6;
   bool quick_rampup = 7;
 }
 
@@ -192,7 +178,7 @@ message GenericEncapArg {
   message Field {
     uint64 size = 1;
     oneof attribute {
-      string name = 2;
+      string attr_name = 2;
       uint64 value = 3;
     }
   }
@@ -200,8 +186,8 @@ message GenericEncapArg {
 }
 
 message HashLBArg {
-  HashLBCommandSetGatesArg gate_arg = 1;
-  HashLBCommandSetModeArg mode_arg = 2;
+  repeated int64 gates = 1;
+  string mode = 2;
 }
 
 message IPEncapArg {
@@ -281,23 +267,19 @@ message RoundRobinCommandSetGatesArg {
 }
 
 message RoundRobinCommandSetModeArg {
-  enum Mode {
-    PACKET = 0;
-    BATCH = 1;
-  }
-  Mode mode = 1;
+  string mode = 1;
 }
 
 message RoundRobinArg {
-  RoundRobinCommandSetGatesArg gate_arg = 1;
-  RoundRobinCommandSetModeArg mode_arg = 2;
+  repeated int64 gates = 1;
+  string mode = 2;
 }
 
 message SetMetadataArg {
   message Attribute {
     string name = 1;
     uint64 size = 2;
-    bytes value = 3;
+    uint64 value = 3;
     int64 offset = 4;
   }
   repeated Attribute attrs = 1;
@@ -332,7 +314,7 @@ message UpdateArg {
   message Field {
     int64 offset = 1;
     uint64 size = 2;
-    bytes value = 3;
+    uint64 value = 3;
   }
   repeated Field fields = 1;
 }
