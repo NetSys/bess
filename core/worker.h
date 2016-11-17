@@ -153,10 +153,14 @@ class Worker {
 // it is accessed. Use __thread instead, which incurs minimal runtime overhead.
 // For this, g++ requires Worker to have a trivial constructor and destructor.
 extern __thread Worker ctx;
+
+// the following traits are not supported in g++ 4.x
+#if __GNUC__ >= 5
 static_assert(std::is_trivially_constructible<Worker>::value,
               "not trivially constructible");
 static_assert(std::is_trivially_destructible<Worker>::value,
               "not trivially destructible");
+#endif
 
 extern int num_workers;
 extern std::thread worker_threads[MAX_WORKERS];
