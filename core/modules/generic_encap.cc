@@ -9,9 +9,6 @@ static_assert(MAX_FIELD_SIZE <= sizeof(uint64_t),
 #error this code assumes little endian architecture (x86)
 #endif
 
-const Commands<Module> GenericEncap::cmds = {};
-const PbCommands GenericEncap::pb_cmds = {};
-
 pb_error_t GenericEncap::AddFieldOne(
     const bess::pb::GenericEncapArg_Field &field, struct Field *f, int idx) {
   f->size = field.size();

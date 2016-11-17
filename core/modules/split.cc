@@ -14,9 +14,6 @@ static inline int is_valid_gate(gate_idx_t gate) {
   return (gate < MAX_GATES || gate == DROP_GATE);
 }
 
-const Commands<Module> Split::cmds = {};
-const PbCommands Split::pb_cmds = {};
-
 pb_error_t Split::InitPb(const bess::pb::SplitArg &arg) {
   size_ = arg.size();
   if (size_ < 1 || size_ > MAX_SIZE) {

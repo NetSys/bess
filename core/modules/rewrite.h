@@ -9,6 +9,9 @@
 
 class Rewrite : public Module {
  public:
+  static const Commands<Module> cmds;
+  static const PbCommands pb_cmds;
+
   Rewrite()
       : Module(),
         next_turn_(),
@@ -26,12 +29,6 @@ class Rewrite : public Module {
 
   pb_cmd_response_t CommandAddPb(const bess::pb::RewriteArg &arg);
   pb_cmd_response_t CommandClearPb(const bess::pb::EmptyArg &arg);
-
-  static const gate_idx_t kNumIGates = 1;
-  static const gate_idx_t kNumOGates = 1;
-
-  static const Commands<Module> cmds;
-  static const PbCommands pb_cmds;
 
  private:
   inline void DoRewrite(struct pkt_batch *batch);

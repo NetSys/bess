@@ -247,18 +247,28 @@ class BESS(object):
 
         return self._request(self.stub.ModuleCommand, request)
 
-    def enable_tcpdump(self, fifo, m, ogate=0):
+    def enable_tcpdump(self, fifo, m, direction='out', gate=0):
         request = bess_msg.EnableTcpdumpRequest()
         request.name = m
-        request.ogate = ogate
+        request.is_igate = int(direction == 'in')
+        request.gate = gate
         request.fifo = fifo
         return self._request(self.stub.EnableTcpdump, request)
 
-    def disable_tcpdump(self, m, ogate=0):
+    def disable_tcpdump(self, m, direction='out', gate=0):
         request = bess_msg.DisableTcpdumpRequest()
         request.name = m
-        request.ogate = ogate
+        request.is_igate = int(direction == 'in')
+        request.gate = gate
         return self._request(self.stub.DisableTcpdump, request)
+
+    def enable_track(self, m, direction='out', gate=None):
+        args = {'name': m, 'gate_idx': gate, 'is_igate': int(direction == 'in')}
+        return self._request_bess('enable_track', args)
+
+    def disable_track(self, m, direction='out', gate=None):
+        args = {'name': m, 'gate_idx': gate, 'is_igate': int(direction == 'in')}
+        return self._request_bess('disable_track', args)
 
     def list_workers(self):
         return self._request(self.stub.ListWorkers)

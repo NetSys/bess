@@ -44,6 +44,11 @@ struct wm_hkey_t {
 
 class WildcardMatch : public Module {
  public:
+  static const gate_idx_t kNumOGates = MAX_GATES;
+
+  static const Commands<Module> cmds;
+  static const PbCommands pb_cmds;
+
   WildcardMatch()
       : Module(),
         default_gate_(),
@@ -76,12 +81,6 @@ class WildcardMatch : public Module {
   pb_cmd_response_t CommandClearPb(const bess::pb::EmptyArg &arg);
   pb_cmd_response_t CommandSetDefaultGatePb(
       const bess::pb::WildcardMatchCommandSetDefaultGateArg &arg);
-
-  static const gate_idx_t kNumIGates = 1;
-  static const gate_idx_t kNumOGates = MAX_GATES;
-
-  static const Commands<Module> cmds;
-  static const PbCommands pb_cmds;
 
  private:
   static int wm_keycmp(const void *key, const void *key_stored,

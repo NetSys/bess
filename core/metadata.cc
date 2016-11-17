@@ -60,7 +60,7 @@ static inline attr_id_t get_attr_id(const struct Attribute *attr) {
 
 class ScopeComponentComp {
  public:
-  ScopeComponentComp(const bool &revparam = false) { reverse_ = revparam; }
+  ScopeComponentComp(const bool &revparam = false) : reverse_(revparam) {}
 
   bool operator()(const ScopeComponent *lhs, const ScopeComponent *rhs) const {
     if (reverse_) {
@@ -146,7 +146,8 @@ void Pipeline::AddModuleToComponent(Module *m, const struct Attribute *attr) {
   component.add_module(m);
 }
 
-const struct Attribute *Pipeline::FindAttr(Module *m, const struct Attribute *attr) const {
+const struct Attribute *Pipeline::FindAttr(Module *m,
+                                           const struct Attribute *attr) const {
   for (const auto &it : m->all_attrs()) {
     if (get_attr_id(&it) == get_attr_id(attr)) {
       return &it;
@@ -175,22 +176,18 @@ void Pipeline::TraverseUpstream(Module *m, const struct Attribute *attr) {
   }
   module_scopes_[m] = static_cast<int>(scope_components_.size());
 
-  for (int i = 0; i < m->igates.curr_size; i++) {
-    struct gate *g = m->igates.arr[i];
-    struct gate *og;
-
-    cdlist_for_each_entry(og, &g->in.ogates_upstream, out.igate_upstream) {
-      TraverseUpstream(og->m, attr);
+  for (const auto &g : m->igates) {
+    for (const auto &og : g->ogates_upstream()) {
+      TraverseUpstream(og->module(), attr);
     }
   }
 
-  if (m->igates.curr_size == 0) {
+  if (m->igates.size() == 0) {
     scope_components_.back().set_invalid(true);
   }
 }
 
 int Pipeline::TraverseDownstream(Module *m, const struct Attribute *attr) {
-  struct gate *ogate;
   const struct Attribute *found_attr;
   int8_t in_scope = 0;
 
@@ -207,13 +204,12 @@ int Pipeline::TraverseDownstream(Module *m, const struct Attribute *attr) {
     AddModuleToComponent(m, found_attr);
     found_attr->scope_id = scope_components_.size();
 
-    for (int i = 0; i < m->ogates.curr_size; i++) {
-      ogate = m->ogates.arr[i];
+    for (const auto &ogate : m->ogates) {
       if (!ogate) {
         continue;
       }
 
-      TraverseDownstream(ogate->out.igate->m, attr);
+      TraverseDownstream(ogate->igate()->module(), attr);
     }
 
     module_scopes_[m] = -1;
@@ -226,13 +222,12 @@ int Pipeline::TraverseDownstream(Module *m, const struct Attribute *attr) {
     return -1;
   }
 
-  for (int i = 0; i < m->ogates.curr_size; i++) {
-    ogate = m->ogates.arr[i];
+  for (const auto &ogate : m->ogates) {
     if (!ogate) {
       continue;
     }
 
-    if (TraverseDownstream(ogate->out.igate->m, attr) != -1) {
+    if (TraverseDownstream(ogate->igate()->module(), attr) != -1) {
       in_scope = 1;
     }
   }
@@ -246,28 +241,26 @@ int Pipeline::TraverseDownstream(Module *m, const struct Attribute *attr) {
   return in_scope ? 0 : -1;
 }
 
-void Pipeline::IdentifySingleScopeComponent(Module *m, const struct Attribute *attr) {
+void Pipeline::IdentifySingleScopeComponent(Module *m,
+                                            const struct Attribute *attr) {
   scope_components_.emplace_back();
   IdentifyScopeComponent(m, attr);
   scope_components_.back().set_scope_id(scope_components_.size());
 }
 
 void Pipeline::IdentifyScopeComponent(Module *m, const struct Attribute *attr) {
-  struct gate *ogate;
-
   AddModuleToComponent(m, attr);
   attr->scope_id = scope_components_.size();
 
   /* cycle detection */
   module_scopes_[m] = static_cast<int>(scope_components_.size());
 
-  for (int i = 0; i < m->ogates.curr_size; i++) {
-    ogate = m->ogates.arr[i];
+  for (const auto &ogate : m->ogates) {
     if (!ogate) {
       continue;
     }
 
-    TraverseDownstream(ogate->out.igate->m, attr);
+    TraverseDownstream(ogate->igate()->module(), attr);
   }
 }
 
@@ -318,8 +311,8 @@ void Pipeline::AssignOffsets() {
   const ScopeComponent *comp2;
 
   for (size_t i = 0; i < scope_components_.size(); i++) {
-    std::priority_queue<const ScopeComponent *, std::vector<const ScopeComponent *>,
-                        ScopeComponentComp>
+    std::priority_queue<const ScopeComponent *,
+                        std::vector<const ScopeComponent *>, ScopeComponentComp>
         h;
     comp1 = &scope_components_[i];
 
@@ -371,11 +364,11 @@ void Pipeline::AssignOffsets() {
   FillOffsetArrays();
 }
 
-void Pipeline::LogAllScopes() {
+void Pipeline::LogAllScopes() const {
   for (size_t i = 0; i < scope_components_.size(); i++) {
     VLOG(1) << "scope component for " << scope_components_[i].size()
-              << "-byte attr " << scope_components_[i].attr_id() << "at offset "
-              << scope_components_[i].offset() << ": {";
+            << "-byte attr " << scope_components_[i].attr_id() << "at offset "
+            << scope_components_[i].offset() << ": {";
 
     for (const auto &it : scope_components_[i].modules()) {
       VLOG(1) << it->name();
@@ -390,11 +383,13 @@ void Pipeline::LogAllScopes() {
       break;
     }
 
+    const scope_id_t *scope_arr = module_components_.find(m)->second;
+
     LOG(INFO) << "Module " << m->name()
               << " part of the following scope components: ";
     for (size_t i = 0; i < kMetadataTotalSize; i++) {
-      if (module_components_[m][i] != -1) {
-        LOG(INFO) << "scope " << module_components_[m][i] << " at offset " << i;
+      if (scope_arr[i] != -1) {
+        LOG(INFO) << "scope " << scope_arr[i] << " at offset " << i;
       }
     }
   }
@@ -457,16 +452,43 @@ int Pipeline::ComputeMetadataOffsets() {
   return 0;
 }
 
-// TODO: We need to keep track of the number of modules that registered each
-// attribute. Then RegisterAttribute does +1 while Deregister one does -1
-int Pipeline::RegisterAttribute(const struct Attribute *attr) {
-  attr_id_t id = get_attr_id(attr);
-  const auto &it = attributes_.find(id);
-  if (it == attributes_.end()) {
-    attributes_.emplace(id, attr);
+int Pipeline::RegisterAttribute(const std::string &attr_name, size_t size) {
+  const auto &it = registered_attrs_.find(attr_name);
+  if (it == registered_attrs_.end()) {
+    registered_attrs_.emplace(attr_name, std::make_tuple(size, 1));
     return 0;
   }
-  return (it->second->size == attr->size) ? 0 : -EEXIST;
+
+  size_t registered_size = std::get<0>(it->second);
+  int &count = std::get<1>(it->second);
+
+  if (registered_size == size) {
+    count++;
+    return 0;
+  } else {
+    LOG(ERROR) << "Attribute '" << attr_name << "' has size mismatch: registered("
+               << registered_size << ") vs new(" << size << ")";
+    return -EINVAL;
+  }
+}
+
+void Pipeline::DeregisterAttribute(const std::string &attr_name) {
+  const auto &it = registered_attrs_.find(attr_name);
+  if (it == registered_attrs_.end()) {
+    LOG(ERROR) << "ReregisteredAttribute() called, but '" << attr_name
+             << "' was not registered";
+    return;
+  }
+
+  int &count = std::get<1>(it->second);
+
+  count--;
+  assert(count >= 0);
+
+  if (count == 0) {
+    // No more modules are using the attribute. Remove it from the map.
+    registered_attrs_.erase(it);
+  }
 }
 
 }  // namespace metadata

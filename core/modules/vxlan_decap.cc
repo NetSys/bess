@@ -14,9 +14,6 @@ enum {
   ATTR_W_TUN_ID,
 };
 
-const Commands<Module> VXLANDecap::cmds = {};
-const PbCommands VXLANDecap::pb_cmds = {};
-
 struct snobj *VXLANDecap::Init(struct snobj *arg [[maybe_unused]]) {
   using AccessMode = bess::metadata::Attribute::AccessMode;
 

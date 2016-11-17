@@ -2,15 +2,12 @@
 
 #include <cassert>
 
-#include <gflags/gflags.h>
 #include <glog/logging.h>
 
 #include "module.h"
+#include "opts.h"
 #include "tc.h"
 #include "worker.h"
-
-// Capture the default core command line flag.
-DECLARE_int32(c);
 
 struct cdlist_head all_tasks = CDLIST_HEAD_INIT(all_tasks);
 
@@ -20,19 +17,19 @@ struct task_result task_scheduled(struct task *t) {
   // Depth first goes through all pending modules and services
   while (ctx.gates_pending()) {
     struct gate_task task = ctx.pop_ogate_and_packets();
-    gate *ogate = task.gate;
+    bess::OGate *ogate = reinterpret_cast<bess::OGate *>(task.gate);
     struct pkt_batch *next_packets = &(task.batch);
 
-#if TRACK_GATES
-    ogate->cnt += 1;
-    ogate->pkts += next_packets->cnt;
-#endif
+    for (auto &hook : ogate->hooks()) {
+      hook->ProcessBatch(next_packets);
+    }
 
-    ctx.push_igate(ogate->out.igate_idx);
+    for (auto &hook : ogate->igate()->hooks()) {
+      hook->ProcessBatch(next_packets);
+    }
 
-    ((Module *)ogate->arg)->ProcessBatch(next_packets);
-
-    ctx.pop_igate();
+    ctx.set_current_igate(ogate->igate_idx());
+    ((Module *)ogate->arg())->ProcessBatch(next_packets);
   }
 
   return ret;
@@ -42,7 +39,7 @@ struct task *task_create(Module *m, void *arg) {
   struct task *t;
 
   t = (struct task *)mem_alloc(sizeof(*t));
-  if (!t){
+  if (!t) {
     return nullptr;
   }
 
@@ -95,13 +92,12 @@ void task_detach(struct task *t) {
   }
 }
 
-#include <iostream>
 void assign_default_tc(int wid, struct task *t) {
   static int next_default_tc_id;
 
   struct tc *c_def;
 
-  struct tc_params params = tc_params();
+  struct tc_params params;
 
   if (t->m->NumTasks() == 1) {
     params.name = "_tc_" + t->m->name();
@@ -109,19 +105,18 @@ void assign_default_tc(int wid, struct task *t) {
     params.name = "_tc_" + t->m->name() + std::to_string(task_to_tid(t));
   }
 
-  params.parent = nullptr;
   params.auto_free = 1; /* when no task is left, this TC is freed */
   params.priority = DEFAULT_PRIORITY;
   params.share = 1;
   params.share_resource = RESOURCE_CNT;
 
-  c_def = tc_init(workers[wid]->s(), &params);
+  c_def = tc_init(workers[wid]->s(), &params, nullptr);
 
   /* maybe the default name is too long, or already occupied */
   if (is_err_or_null(c_def)) {
     do {
       params.name = "_tc_noname" + std::to_string(next_default_tc_id++);
-      c_def = tc_init(workers[wid]->s(), &params);
+      c_def = tc_init(workers[wid]->s(), &params, nullptr);
     } while (ptr_to_err(c_def) == -EEXIST);
   }
 
@@ -140,7 +135,7 @@ static int get_next_wid(int *wid) {
   if (num_workers == 0)
     return -1;
 
-  while (!is_worker_active(rr_next)){
+  while (!is_worker_active(rr_next)) {
     rr_next = (rr_next + 1) % MAX_WORKERS;
   }
 

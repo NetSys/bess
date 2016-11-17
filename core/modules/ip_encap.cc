@@ -12,9 +12,6 @@ enum {
   ATTR_W_ETHER_TYPE,
 };
 
-const Commands<Module> IPEncap::cmds = {};
-const PbCommands IPEncap::pb_cmds = {};
-
 struct snobj *IPEncap::Init(struct snobj *arg [[maybe_unused]]) {
   using AccessMode = bess::metadata::Attribute::AccessMode;
 

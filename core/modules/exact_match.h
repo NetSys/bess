@@ -113,8 +113,10 @@ struct EmField {
 
 class ExactMatch : public Module {
  public:
-  static const gate_idx_t kNumIGates = 1;
   static const gate_idx_t kNumOGates = MAX_GATES;
+
+  static const Commands<Module> cmds;
+  static const PbCommands pb_cmds;
 
   ExactMatch()
       : Module(),
@@ -137,9 +139,6 @@ class ExactMatch : public Module {
   struct snobj *CommandDelete(struct snobj *arg);
   struct snobj *CommandClear(struct snobj *arg);
   struct snobj *CommandSetDefaultGate(struct snobj *arg);
-
-  static const Commands<Module> cmds;
-  static const PbCommands pb_cmds;
 
   pb_error_t InitPb(const bess::pb::ExactMatchArg &arg);
   pb_cmd_response_t CommandAddPb(const bess::pb::ExactMatchCommandAddArg &arg);

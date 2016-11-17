@@ -1,8 +1,14 @@
 #ifndef BESS_DEBUG_H_
 #define BESS_DEBUG_H_
 
-/* #define RTE_LIBRTE_MBUF_DEBUG */
+namespace bess {
+namespace debug {
 
-void dump_types(void);
+void SetTrapHandler(void);
+void GoPanic(void);
+void DumpTypes(void);
+
+}  // namespace debug
+}  // namespace bess
 
 #endif  // BESS_DEBUG_H_

@@ -39,9 +39,11 @@ namespace metadata {
 
 class MetadataTest : public ::testing::Test {
  protected:
+  MetadataTest() : m0(), m1() {}
+
   virtual void SetUp() {
     default_pipeline.CleanupMetadataComputation();
-    default_pipeline.attributes_.clear();
+    default_pipeline.registered_attrs_.clear();
     ADD_MODULE(Foo, "foo", "bip")
     ASSERT_TRUE(__module__Foo);
     m0 = ::create_foo();
@@ -57,24 +59,39 @@ class MetadataTest : public ::testing::Test {
 
   Module *m0;
   Module *m1;
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(MetadataTest);
 };
 
 TEST(Metadata, RegisterSizeMismatchFails) {
-  struct Attribute attr0_s1 = {
-      .name = "attr0",
-      .size = 1,
-      .mode = Attribute::AccessMode::kRead,
-      .scope_id = -1,
-  };
-  struct Attribute attr0_s2 = {
-      .name = "attr0",
-      .size = 2,
-      .mode = Attribute::AccessMode::kWrite,
-      .scope_id = -1,
-  };
+  ASSERT_EQ(0, default_pipeline.RegisterAttribute("attr0", 1));
+  ASSERT_EQ(-EINVAL, default_pipeline.RegisterAttribute("attr0", 2));
 
-  ASSERT_EQ(0, default_pipeline.RegisterAttribute(&attr0_s1));
-  ASSERT_EQ(-EEXIST, default_pipeline.RegisterAttribute(&attr0_s2));
+  default_pipeline.DeregisterAttribute("attr0");
+  ASSERT_EQ(0, default_pipeline.RegisterAttribute("attr0", 2));
+
+  default_pipeline.DeregisterAttribute("attr0");
+}
+
+TEST(Metadata, RegisterCount) {
+  ASSERT_EQ(0, default_pipeline.RegisterAttribute("a", 4));
+  ASSERT_EQ(0, default_pipeline.RegisterAttribute("a", 4));
+  ASSERT_EQ(0, default_pipeline.RegisterAttribute("a", 4));
+  // here the count should be 3
+
+  ASSERT_EQ(-EINVAL, default_pipeline.RegisterAttribute("a", 8));
+  default_pipeline.DeregisterAttribute("a");
+
+  ASSERT_EQ(-EINVAL, default_pipeline.RegisterAttribute("a", 8));
+  default_pipeline.DeregisterAttribute("a");
+
+  ASSERT_EQ(-EINVAL, default_pipeline.RegisterAttribute("a", 8));
+  default_pipeline.DeregisterAttribute("a");
+
+  // now the count should be 0
+  ASSERT_EQ(0, default_pipeline.RegisterAttribute("a", 8));
+  default_pipeline.DeregisterAttribute("a");
 }
 
 TEST_F(MetadataTest, DisconnectedFails) {

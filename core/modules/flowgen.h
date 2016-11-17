@@ -14,9 +14,6 @@ typedef std::priority_queue<Event, std::vector<Event>,
 
 class FlowGen : public Module {
  public:
-  static const gate_idx_t kNumIGates = 0;
-  static const gate_idx_t kNumOGates = 1;
-
   enum Arrival {
     ARRIVAL_UNIFORM = 0,
     ARRIVAL_EXPONENTIAL,
@@ -26,6 +23,8 @@ class FlowGen : public Module {
     DURATION_UNIFORM = 0,
     DURATION_PARETO,
   };
+
+  static const gate_idx_t kNumIGates = 0;
 
   FlowGen()
       : Module(),
@@ -59,9 +58,6 @@ class FlowGen : public Module {
 
   std::string GetDesc() const;
   struct snobj *GetDump() const;
-
-  static const Commands<Module> cmds;
-  static const PbCommands pb_cmds;
 
  private:
   inline double NewFlowPkts();

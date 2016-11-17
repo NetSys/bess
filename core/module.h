@@ -11,7 +11,6 @@
 #include "snbuf.h"
 #include "snobj.h"
 #include "task.h"
-#include "utils/cdlist.h"
 
 static inline void set_cmd_response_error(pb_cmd_response_t *response,
                                           const pb_error_t &error) {
@@ -89,15 +88,14 @@ class ModuleBuilder {
       std::function<pb_error_t(Module *, const google::protobuf::Any &)>
           init_func)
       : module_generator_(module_generator),
+        num_igates_(igates),
+        num_ogates_(ogates),
         class_name_(class_name),
         name_template_(name_template),
         help_text_(help_text),
         cmds_(cmds),
         pb_cmds_(pb_cmds),
-        init_func_(init_func) {
-    kNumIGates = igates;
-    kNumOGates = ogates;
-  }
+        init_func_(init_func) {}
 
   /* returns a pointer to the created module.
    * if error, returns nullptr and *perr is set */
@@ -125,8 +123,8 @@ class ModuleBuilder {
 
   static const std::map<std::string, Module *> &all_modules();
 
-  gate_idx_t NumIGates() const { return kNumIGates; }
-  gate_idx_t NumOGates() const { return kNumOGates; }
+  gate_idx_t NumIGates() const { return num_igates_; }
+  gate_idx_t NumOGates() const { return num_ogates_; }
 
   const std::string &class_name() const { return class_name_; };
   const std::string &name_template() const { return name_template_; };
@@ -178,26 +176,34 @@ class ModuleBuilder {
   }
 
  private:
-  std::function<Module *()> module_generator_;
+  const std::function<Module *()> module_generator_;
 
   static std::map<std::string, Module *> all_modules_;
 
-  gate_idx_t kNumIGates;
-  gate_idx_t kNumOGates;
+  const gate_idx_t num_igates_;
+  const gate_idx_t num_ogates_;
 
-  std::string class_name_;
-  std::string name_template_;
-  std::string help_text_;
-  Commands<Module> cmds_;
-  PbCommands pb_cmds_;
-  module_init_func_t init_func_;
+  const std::string class_name_;
+  const std::string name_template_;
+  const std::string help_text_;
+  const Commands<Module> cmds_;
+  const PbCommands pb_cmds_;
+  const module_init_func_t init_func_;
 };
 
 class Module {
   // overide this section to create a new module -----------------------------
  public:
-  Module() = default;
-  virtual ~Module(){};
+  Module()
+      : name_(),
+        module_builder_(),
+        pipeline_(),
+        attrs_(),
+        tasks(),
+        attr_offsets(),
+        igates(),
+        ogates() {}
+  virtual ~Module() {}
 
   pb_error_t Init(const google::protobuf::Any &arg);
 
@@ -211,6 +217,12 @@ class Module {
 
   virtual std::string GetDesc() const { return ""; };
   virtual struct snobj *GetDump() const { return snobj_nil(); }
+
+  static const gate_idx_t kNumIGates = 1;
+  static const gate_idx_t kNumOGates = 1;
+
+  static const Commands<Module> cmds;
+  static const PbCommands pb_cmds;
 
   // -------------------------------------------------------------------------
 
@@ -243,11 +255,9 @@ class Module {
                      gate_idx_t igate_idx);
   int DisconnectModulesUpstream(gate_idx_t igate_idx);
   int DisconnectModules(gate_idx_t ogate_idx);
-  int GrowGates(struct gates *gates, gate_idx_t gate);
 
   int NumTasks();
   task_id_t RegisterTask(void *arg);
-  void DestroyAllTasks();
 
   /* Modules should call this function to declare additional metadata
    * attributes at initialization time.
@@ -259,19 +269,9 @@ class Module {
   int AddMetadataAttr(const std::string &name, size_t size,
                       bess::metadata::Attribute::AccessMode mode);
 
-#if TCPDUMP_GATES
-  int EnableTcpDump(const char *fifo, gate_idx_t gate);
+  int EnableTcpDump(const char *fifo, int is_igate, gate_idx_t gate_idx);
 
-  int DisableTcpDump(gate_idx_t gate);
-
-  void DumpPcapPkts(struct gate *gate, struct pkt_batch *batch);
-#else
-  /* Cannot enable tcpdump */
-  inline int enable_tcpdump(const char *, gate_idx_t) { return -EINVAL; }
-
-  /* Cannot disable tcpdump */
-  inline int disable_tcpdump(Module *, int) { return -EINVAL; }
-#endif
+  int DisableTcpDump(int is_igate, gate_idx_t gate_idx);
 
   struct snobj *RunCommand(const std::string &cmd, struct snobj *arg) {
     return module_builder_->RunCommand(this, cmd, arg);
@@ -283,10 +283,13 @@ class Module {
   }
 
   const std::vector<bess::metadata::Attribute> &all_attrs() const {
-    return attrs;
+    return attrs_;
   }
 
  private:
+  void DestroyAllTasks();
+  void DeregisterAllAttributes();
+
   void set_name(const std::string &name) { name_ = name; }
   void set_module_builder(const ModuleBuilder *builder) {
     module_builder_ = builder;
@@ -301,33 +304,32 @@ class Module {
 
   bess::metadata::Pipeline *pipeline_;
 
-  std::vector<bess::metadata::Attribute> attrs;
+  std::vector<bess::metadata::Attribute> attrs_;
 
   DISALLOW_COPY_AND_ASSIGN(Module);
 
   // FIXME: porting in progress ----------------------------
  public:
-  struct task *tasks[MAX_TASKS_PER_MODULE] = {};
+  struct task *tasks[MAX_TASKS_PER_MODULE];
 
-  bess::metadata::mt_offset_t attr_offsets[bess::metadata::kMaxAttrsPerModule] =
-      {};
+  bess::metadata::mt_offset_t attr_offsets[bess::metadata::kMaxAttrsPerModule];
 
-  struct gates igates;
-  struct gates ogates;
+  std::vector<bess::IGate *> igates;
+  std::vector<bess::OGate *> ogates;
 };
 
 void deadend(struct pkt_batch *batch);
 
 inline void Module::RunChooseModule(gate_idx_t ogate_idx,
                                     struct pkt_batch *batch) {
-  struct gate *ogate;
+  bess::Gate *ogate;
 
-  if (unlikely(ogate_idx >= ogates.curr_size)) {
+  if (unlikely(ogate_idx >= ogates.size())) {
     deadend(batch);
     return;
   }
 
-  ogate = ogates.arr[ogate_idx];
+  ogate = ogates[ogate_idx];
 
   if (unlikely(!ogate)) {
     deadend(batch);
@@ -356,11 +358,13 @@ void _trace_after_call(void);
 #endif
 
 static inline gate_idx_t get_igate() {
-  return ctx.igate_stack_top();
+  return ctx.current_igate();
 }
 
-static inline int is_active_gate(struct gates *gates, gate_idx_t idx) {
-  return idx < gates->curr_size && gates->arr && gates->arr[idx] != nullptr;
+template <typename T>
+static inline int is_active_gate(const std::vector<T *> &gates,
+                                 gate_idx_t idx) {
+  return idx < gates.size() && gates.size() && gates[idx];
 }
 
 typedef struct snobj *(*mod_cmd_func_t)(struct module *, const char *,

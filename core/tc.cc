@@ -4,24 +4,21 @@
 #include <cinttypes>
 #include <cstdio>
 
-#include <gflags/gflags.h>
 #include <glog/logging.h>
 
 #include "debug.h"
 #include "mem_alloc.h"
-#include "worker.h"
+#include "opts.h"
 #include "task.h"
 #include "utils/common.h"
 #include "utils/time.h"
 #include "utils/random.h"
+#include "worker.h"
 
 // TODO(barath): move this global container of TCs to the TC class once it exists.
 namespace TCContainer {
 std::unordered_map<std::string, struct tc *> tcs;
 }  // TCContainer
-
-// Capture the "print TC stats" command line flag.
-DECLARE_bool(s);
 
 /* this library is not thread safe */
 
@@ -65,7 +62,8 @@ pgroup_add:
 }
 
 /* TODO: separate tc creation and association with scheduler */
-struct tc *tc_init(struct sched *s, const struct tc_params *params) {
+struct tc *tc_init(struct sched *s, const struct tc_params *params,
+                   struct tc *parent) {
   struct tc *c;
 
   int i;
@@ -96,7 +94,7 @@ struct tc *tc_init(struct sched *s, const struct tc_params *params) {
   c->s = s;
   s->num_classes++;
 
-  c->parent = params->parent ?: &s->root;
+  c->parent = parent ?: &s->root;
   tc_inc_refcnt(c->parent);
 
   c->last_tsc = rdtsc();

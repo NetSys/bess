@@ -18,9 +18,6 @@ enum {
   ATTR_W_IP_PROTO,
 };
 
-const Commands<Module> VXLANEncap::cmds = {};
-const PbCommands VXLANEncap::pb_cmds = {};
-
 pb_error_t VXLANEncap::InitPb(const bess::pb::VXLANEncapArg &arg) {
   auto dstport = arg.dstport();
   if (dstport == 0) {

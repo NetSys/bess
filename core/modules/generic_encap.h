@@ -16,18 +16,12 @@ struct Field {
 
 class GenericEncap : public Module {
  public:
-  static const gate_idx_t kNumIGates = 1;
-  static const gate_idx_t kNumOGates = 1;
-
   GenericEncap() : Module(), encap_size_(), num_fields_(), fields_() {}
 
   struct snobj *Init(struct snobj *arg);
   pb_error_t InitPb(const bess::pb::GenericEncapArg &arg);
 
   void ProcessBatch(struct pkt_batch *batch);
-
-  static const Commands<Module> cmds;
-  static const PbCommands pb_cmds;
 
  private:
   struct snobj *AddFieldOne(struct snobj *field, struct Field *f, int idx);

@@ -19,6 +19,11 @@ struct filter {
 
 class BPF : public Module {
  public:
+  static const gate_idx_t kNumOGates = MAX_GATES;
+
+  static const Commands<Module> cmds;
+  static const PbCommands pb_cmds;
+
   virtual struct snobj *Init(struct snobj *arg);
   pb_error_t InitPb(const bess::pb::BPFArg &arg);
   virtual void Deinit();
@@ -30,12 +35,6 @@ class BPF : public Module {
 
   pb_cmd_response_t CommandAddPb(const bess::pb::BPFArg &arg);
   pb_cmd_response_t CommandClearPb(const bess::pb::EmptyArg &arg);
-
-  static const gate_idx_t kNumIGates = 1;
-  static const gate_idx_t kNumOGates = MAX_GATES;
-
-  static const Commands<Module> cmds;
-  static const PbCommands pb_cmds;
 
  private:
   struct filter filters_[MAX_FILTERS + 1] = {};

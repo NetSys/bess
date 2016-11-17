@@ -7,8 +7,6 @@
 #include <benchmark/benchmark.h>
 #include <glog/logging.h>
 
-#include "utils/time.h"
-
 // Performs TC Scheduler init/deinit before/after each test.
 class TCFixture : public benchmark::Fixture {
  public:
@@ -20,15 +18,14 @@ class TCFixture : public benchmark::Fixture {
     s_ = sched_init();
 
     for (int i = 0; i < num_classes; i++) {
-      struct tc_params params = tc_params();
+      struct tc_params params;
 
       params.name = "class_" + std::to_string(i);
-      params.parent = nullptr;
       params.priority = 0;
       params.share = 1;
       params.share_resource = state.range(1);
 
-      struct tc *c = tc_init(s_, &params);
+      struct tc *c = tc_init(s_, &params, nullptr);
       CHECK(!c->state.queued) << "c->state.queued=" << c->state.queued;
       CHECK(!c->state.runnable) << "c->state.runnable=" << c->state.runnable;
 

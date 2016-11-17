@@ -5,6 +5,7 @@ import os.path
 import pprint
 import cStringIO
 import time
+import tempfile
 
 import cli
 import commands
@@ -77,6 +78,14 @@ class BESSCLI(cli.CLI):
 
             raise self.HandledError()
 
+    def print_crashlog(self):
+        try:
+            log_path = tempfile.gettempdir() + '/bessd_crash.log'
+            log = open(log_path).read()
+            self.fout.write(log)
+        except:
+            pass
+
     def loop(self):
         super(BESSCLI, self).loop()
 
@@ -93,11 +102,7 @@ class BESSCLI(cli.CLI):
                     (e.errno, err_code, os.strerror(e.errno)))
 
             if self.bess.peer[0] == 'localhost':
-                try:
-                    log = open('/tmp/bess_crash.log').read()
-                    self.fout.write(log)
-                except:
-                    pass
+                self.print_crashlog()
 
             self.bess.disconnect()
         '''

@@ -13,20 +13,17 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
-#include <gflags/gflags.h>
 #include <glog/logging.h>
 #include <rte_config.h>
 #include <rte_lcore.h>
 
+#include "opts.h"
 #include "snctl.h"
 #include "snobj.h"
 #include "worker.h"
 
 #define INIT_BUF_SIZE 4096
 #define MAX_BUF_SIZE (8 * 1048576)
-
-// Capture the port command line flag.
-DECLARE_int32(p);
 
 static struct {
   int listen_fd;
@@ -75,11 +72,13 @@ static int init_listen_fd(uint16_t port) {
   }
 
   if (setsockopt(listen_fd, SOL_SOCKET, SO_REUSEADDR, &one, sizeof(one)) < 0) {
-    PLOG(FATAL) << "setsockopt(SO_REUSEADDR)";
+    PLOG(ERROR) << "setsockopt(SO_REUSEADDR)";
+    // error, but we can keep going
   }
 
   if (setsockopt(listen_fd, SOL_SOCKET, SO_LINGER, &l, sizeof(l)) < 0) {
-    PLOG(FATAL) << "setsockopt(SO_LINGER)";
+    PLOG(ERROR) << "setsockopt(SO_LINGER)";
+    // error, but we can keep going
   }
 
   memset(&s_addr, 0, sizeof(s_addr));
@@ -90,7 +89,9 @@ static int init_listen_fd(uint16_t port) {
 
   if (bind(listen_fd, (struct sockaddr *)&s_addr, sizeof(s_addr)) < 0) {
     if (errno == EADDRINUSE) {
-      LOG(FATAL) << "Error: port " << port << " is already in use";
+      LOG(ERROR) << "Error: TCP port " << port << " is already in use. "
+                 << "You can specify another port number with -p option.";
+      exit(EXIT_FAILURE);
     } else {
       PLOG(FATAL) << "bind()";
     }
@@ -101,7 +102,7 @@ static int init_listen_fd(uint16_t port) {
   }
 
   LOG(INFO) << "Master: listening on " << inet_ntoa(s_addr.sin_addr) << ":"
-            << std::hex << port;
+            << port;
 
   return listen_fd;
 }
@@ -137,7 +138,7 @@ static struct client *init_client(int fd, struct sockaddr_in c_addr) {
 
 static void close_client(struct client *c) {
   LOG(INFO) << "Master: client " << inet_ntoa(c->addr.sin_addr) << ":"
-            << std::hex << c->addr.sin_port << " disconnected";
+            << c->addr.sin_port << " disconnected";
 
   close(c->fd);
 
@@ -434,7 +435,7 @@ again:
       goto again;
 
     LOG(INFO) << "Master: a new client from " << inet_ntoa(c->addr.sin_addr)
-              << ":" << std::hex << c->addr.sin_port;
+              << ":" << c->addr.sin_port;
   } else {
     c = (struct client *)ev.data.ptr;
 

@@ -46,9 +46,16 @@ struct pgroup {
 };
 
 struct tc_params {
-  std::string name;
+  tc_params()
+      : name(),
+        auto_free(),
+        priority(),
+        share(),
+        share_resource(RESOURCE_CNT),
+        limit(),
+        max_burst() {}
 
-  struct tc *parent;
+  std::string name;
 
   /* Used for auto-generated TCs.
    * (if its last task is detached, free the tc as well) */
@@ -174,7 +181,8 @@ struct sched {
   struct cdlist_head tcs_all;
 };
 
-struct tc *tc_init(struct sched *s, const struct tc_params *prof);
+struct tc *tc_init(struct sched *s, const struct tc_params *prof,
+                   struct tc *parent);
 void _tc_do_free(struct tc *c);
 
 void tc_join(struct tc *c);

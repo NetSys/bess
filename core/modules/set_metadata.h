@@ -23,12 +23,6 @@ class SetMetadata : public Module {
 
   void ProcessBatch(struct pkt_batch *batch);
 
-  static const gate_idx_t kNumIGates = 1;
-  static const gate_idx_t kNumOGates = 1;
-
-  static const Commands<Module> cmds;
-  static const PbCommands pb_cmds;
-
  private:
   struct snobj *AddAttrOne(struct snobj *attr);
   pb_error_t AddAttrOne(const bess::pb::SetMetadataArg_Attribute &attr);

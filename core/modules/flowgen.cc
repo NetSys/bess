@@ -41,9 +41,6 @@ static inline double scaled_pareto_variate(double inversed_alpha, double mean,
   return 1.0 + (x - 1.0) / (mean - 1.0) * (desired_mean - 1.0);
 }
 
-const Commands<Module> FlowGen::cmds = {};
-const PbCommands FlowGen::pb_cmds = {};
-
 inline double FlowGen::NewFlowPkts() {
   switch (duration_) {
     case DURATION_UNIFORM:
