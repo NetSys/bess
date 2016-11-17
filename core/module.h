@@ -357,7 +357,7 @@ void _trace_after_call(void);
 #endif
 
 static inline gate_idx_t get_igate() {
-  return ctx.igate_stack_top();
+  return ctx.current_igate();
 }
 
 template <typename T>
