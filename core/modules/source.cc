@@ -14,7 +14,6 @@ const PbCommands Source::pb_cmds = {
 
 pb_error_t Source::InitPb(const bess::pb::SourceArg &arg) {
   pb_error_t err;
-  pb_cmd_response_t response;
 
   task_id_t tid = RegisterTask(nullptr);
   if (tid == INVALID_TASK_ID)
@@ -23,20 +22,18 @@ pb_error_t Source::InitPb(const bess::pb::SourceArg &arg) {
   pkt_size_ = 60;
   burst_ = MAX_PKT_BURST;
 
-  if (arg.pkt_size_arg().pkt_size() > 0) {
-    response = CommandSetPktSizePb(arg.pkt_size_arg());
-    err = response.error();
-    if (err.err() != 0) {
-      return err;
+  if (arg.pkt_size() > 0) {
+    if (arg.pkt_size() > SNBUF_DATA) {
+      return pb_error(EINVAL, "Invalid packet size");
     }
+    pkt_size_ = arg.pkt_size();
   }
 
-  if (arg.burst_arg().burst() > 0) {
-    response = CommandSetBurstPb(arg.burst_arg());
-    err = response.error();
-    if (err.err() != 0) {
-      return err;
+  if (arg.burst() > 0) {
+    if (arg.burst() > MAX_PKT_BURST) {
+      return pb_error(EINVAL, "burst size must be [1,%d]", MAX_PKT_BURST);
     }
+    burst_ = arg.burst();
   }
 
   return pb_errno(0);

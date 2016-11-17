@@ -297,8 +297,8 @@ message SourceCommandSetPktSizeArg {
 }
 
 message SourceArg {
-  SourceCommandSetBurstArg burst_arg = 1;
-  SourceCommandSetPktSizeArg pkt_size_arg = 2;
+  uint64 pkt_size = 1;
+  uint64 burst = 2;
 }
 
 message SplitArg {
