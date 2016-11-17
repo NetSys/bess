@@ -47,7 +47,7 @@ int PCAPPort::RecvPackets(queue_t qid, bess::PacketArray pkts, int cnt) {
       break;
     }
 
-    sbuf = bess::Packet::alloc();
+    sbuf = bess::Packet::Alloc();
     if (!sbuf) {
       break;
     }
@@ -66,13 +66,13 @@ int PCAPPort::RecvPackets(queue_t qid, bess::PacketArray pkts, int cnt) {
               packet,
               caplen) == -1)) {
         //drop all the mbufs.
-        bess::Packet::free(sbuf);
+        bess::Packet::Free(sbuf);
         break;
       }
 #else
       RTE_LOG(ERR, PMD, "Dropping PCAP packet: Size (%d) > max size (%d).\n",
-              sbuf->mbuf().pkt_len, SNBUF_DATA);
-      bess::Packet::free(sbuf);
+              sbuf->total_len(), SNBUF_DATA);
+      bess::Packet::Free(sbuf);
       break;
 #endif
     }
@@ -106,7 +106,7 @@ int PCAPPort::SendPackets(queue_t, bess::PacketArray pkts, int cnt) {
     sent++;
   }
 
-  bess::Packet::free_bulk(pkts, sent);
+  bess::Packet::Free(pkts, sent);
   return sent;
 }
 

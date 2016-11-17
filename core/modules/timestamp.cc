@@ -15,11 +15,11 @@ static inline void timestamp_packet(bess::Packet *pkt, uint64_t time) {
   *ts = time;
 }
 
-void Timestamp::ProcessBatch(struct bess::pkt_batch *batch) {
+void Timestamp::ProcessBatch(bess::PacketBatch *batch) {
   uint64_t time = get_time();
 
-  for (int i = 0; i < batch->cnt; i++) {
-    timestamp_packet(batch->pkts[i], time);
+  for (int i = 0; i < batch->cnt(); i++) {
+    timestamp_packet(batch->pkts()[i], time);
   }
 
   RunNextModule(batch);

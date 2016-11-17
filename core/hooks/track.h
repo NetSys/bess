@@ -20,7 +20,7 @@ class TrackGate : public bess::GateHook {
   uint64_t pkts() const { return pkts_; }
   void incr_pkts(uint64_t n) { pkts_ += n; }
 
-  void ProcessBatch(const struct bess::pkt_batch *batch);
+  void ProcessBatch(const bess::PacketBatch *batch);
 
  private:
   uint64_t cnt_;

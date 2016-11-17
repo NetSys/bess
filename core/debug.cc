@@ -416,7 +416,7 @@ void DumpTypes(void) {
 
   printf("sizeof(rte_mbuf)=%zu\n", sizeof(struct rte_mbuf));
   printf("sizeof(Packet)=%zu\n", sizeof(Packet));
-  printf("sizeof(pkt_batch)=%zu\n", sizeof(struct bess::pkt_batch));
+  printf("sizeof(pkt_batch)=%zu\n", sizeof(bess::PacketBatch));
   printf("sizeof(sched)=%zu sizeof(sched_stats)=%zu\n", sizeof(struct sched),
          sizeof(struct sched_stats));
   printf("sizeof(tc)=%zu sizeof(tc_stats)=%zu\n", sizeof(struct tc),

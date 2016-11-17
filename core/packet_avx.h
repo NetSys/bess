@@ -7,7 +7,7 @@
 
 #include "utils/simd.h"
 
-int Packet::alloc_bulk(PacketArray pkts, int cnt, uint16_t len) {
+int Packet::Alloc(PacketArray pkts, int cnt, uint16_t len) {
   int ret;
   int i;
 
@@ -59,7 +59,7 @@ int Packet::alloc_bulk(PacketArray pkts, int cnt, uint16_t len) {
  * 4. the data buffer is embedded in the mbuf
  *    (Do not use RTE_MBUF_(IN)DIRECT, since there is a difference
  *     between DPDK 1.8 and 2.0) */
-void Packet::free_bulk(PacketArray pkts, int cnt) {
+void Packet::Free(PacketArray pkts, int cnt) {
   struct rte_mempool *_pool = pkts[0]->mbuf_.pool;
 
   /* broadcast */
@@ -119,7 +119,7 @@ void Packet::free_bulk(PacketArray pkts, int cnt) {
 
 slow_path:
   for (i = 0; i < cnt; i++)
-    free(pkts[i]);
+    Free(pkts[i]);
 }
 
 #endif  // BESS_SNBUF_AVX_H_

@@ -212,7 +212,7 @@ class Module {
   virtual void Deinit() {}
 
   virtual struct task_result RunTask(void *arg);
-  virtual void ProcessBatch(struct bess::pkt_batch *batch);
+  virtual void ProcessBatch(bess::PacketBatch *batch);
 
   virtual std::string GetDesc() const { return ""; };
   virtual struct snobj *GetDump() const { return snobj_nil(); }
@@ -236,11 +236,10 @@ class Module {
 
   /* Pass packets to the next module.
    * Packet deallocation is callee's responsibility. */
-  inline void RunChooseModule(gate_idx_t ogate_idx,
-                              struct bess::pkt_batch *batch);
+  inline void RunChooseModule(gate_idx_t ogate_idx, bess::PacketBatch *batch);
 
   /* Wrapper for single-output modules */
-  inline void RunNextModule(struct bess::pkt_batch *batch);
+  inline void RunNextModule(bess::PacketBatch *batch);
 
   /*
    * Split a batch into several, one for each ogate
@@ -248,7 +247,7 @@ class Module {
    *   1. Order is preserved for packets with the same gate.
    *   2. No ordering guarantee for packets with different gates.
    */
-  void RunSplit(const gate_idx_t *ogates, struct bess::pkt_batch *mixed_batch);
+  void RunSplit(const gate_idx_t *ogates, bess::PacketBatch *mixed_batch);
 
   /* returns -errno if fails */
   int ConnectModules(gate_idx_t ogate_idx, Module *m_next,
@@ -318,10 +317,10 @@ class Module {
   std::vector<bess::OGate *> ogates;
 };
 
-void deadend(struct bess::pkt_batch *batch);
+void deadend(bess::PacketBatch *batch);
 
 inline void Module::RunChooseModule(gate_idx_t ogate_idx,
-                                    struct bess::pkt_batch *batch) {
+                                    bess::PacketBatch *batch) {
   bess::Gate *ogate;
 
   if (unlikely(ogate_idx >= ogates.size())) {
@@ -344,7 +343,7 @@ inline void Module::RunChooseModule(gate_idx_t ogate_idx,
   }
 }
 
-inline void Module::RunNextModule(struct bess::pkt_batch *batch) {
+inline void Module::RunNextModule(bess::PacketBatch *batch) {
   RunChooseModule(0, batch);
 }
 
@@ -352,8 +351,7 @@ inline void Module::RunNextModule(struct bess::pkt_batch *batch) {
 void init_module_worker(void);
 
 #if SN_TRACE_MODULES
-void _trace_before_call(Module *mod, Module *next,
-                        struct bess::pkt_batch *batch);
+void _trace_before_call(Module *mod, Module *next, bess::PacketBatch *batch);
 
 void _trace_after_call(void);
 #endif
@@ -376,7 +374,7 @@ template <typename T>
 inline T *_ptr_attr_with_offset(bess::metadata::mt_offset_t offset,
                                 bess::Packet *pkt) {
   promise(offset >= 0);
-  uintptr_t addr = (uintptr_t)(pkt->metadata() + offset);
+  uintptr_t addr = reinterpret_cast<uintptr_t>(pkt->metadata()) + offset;
   return reinterpret_cast<T *>(addr);
 }
 

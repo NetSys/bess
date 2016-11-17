@@ -5,7 +5,7 @@
 
 class MACSwap : public Module {
  public:
-  virtual void ProcessBatch(struct bess::pkt_batch *batch);
+  virtual void ProcessBatch(bess::PacketBatch *batch);
 };
 
 #endif  // BESS_MODULES_MACSWAP_H_

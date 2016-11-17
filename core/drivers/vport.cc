@@ -56,7 +56,7 @@ static void refill_tx_bufs(struct llring *r) {
 
   deficit = REFILL_HIGH - curr_cnt;
 
-  ret = bess::Packet::alloc_bulk((bess::PacketArray)pkts, deficit, 0);
+  ret = bess::Packet::Alloc((bess::PacketArray)pkts, deficit, 0);
   if (ret == 0)
     return;
 
@@ -84,7 +84,7 @@ static void drain_sn_to_drv_q(struct llring *q) {
       continue;
     }
 
-    bess::Packet::free(bess::Packet::from_paddr(paddr));
+    bess::Packet::Free(bess::Packet::from_paddr(paddr));
   }
 }
 
@@ -98,20 +98,20 @@ static void drain_drv_to_sn_q(struct llring *q) {
     if (ret)
       break;
 
-    bess::Packet::free(snb);
+    bess::Packet::Free(snb);
   }
 }
 
 static void reclaim_packets(struct llring *ring) {
-  void *objs[MAX_PKT_BURST];
+  void *objs[bess::PacketBatch::kMaxBurst];
   int ret;
 
   for (;;) {
-    ret = llring_mc_dequeue_burst(ring, objs, MAX_PKT_BURST);
+    ret = llring_mc_dequeue_burst(ring, objs, bess::PacketBatch::kMaxBurst);
     if (ret == 0)
       break;
 
-    bess::Packet::free_bulk((bess::PacketArray)objs, ret);
+    bess::Packet::Free((bess::PacketArray)objs, ret);
   }
 }
 
@@ -900,7 +900,7 @@ int VPort::RecvPackets(queue_t qid, bess::PacketArray pkts, int max_cnt) {
 int VPort::SendPackets(queue_t qid, bess::PacketArray pkts, int cnt) {
   struct queue *rx_queue = &out_qs_[qid];
 
-  paddr_t paddr[MAX_PKT_BURST];
+  paddr_t paddr[bess::PacketBatch::kMaxBurst];
 
   int ret;
 

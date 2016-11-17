@@ -28,7 +28,7 @@ class BPF : public Module {
   pb_error_t InitPb(const bess::pb::BPFArg &arg);
   virtual void Deinit();
 
-  virtual void ProcessBatch(struct bess::pkt_batch *batch);
+  virtual void ProcessBatch(bess::PacketBatch *batch);
 
   struct snobj *CommandAdd(struct snobj *arg);
   struct snobj *CommandClear(struct snobj *arg);
@@ -40,7 +40,7 @@ class BPF : public Module {
   struct filter filters_[MAX_FILTERS + 1] = {};
   int n_filters_ = {};
 
-  inline void process_batch_1filter(struct bess::pkt_batch *batch);
+  inline void process_batch_1filter(bess::PacketBatch *batch);
 };
 
 #endif  // BESS_MODULES_BPF_H_

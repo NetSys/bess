@@ -14,7 +14,7 @@ class VLANPush : public Module {
   virtual struct snobj *Init(struct snobj *arg);
   pb_error_t InitPb(const bess::pb::VLANPushArg &arg);
 
-  virtual void ProcessBatch(struct bess::pkt_batch *batch);
+  virtual void ProcessBatch(bess::PacketBatch *batch);
 
   virtual std::string GetDesc() const;
 

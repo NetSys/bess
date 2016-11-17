@@ -41,7 +41,7 @@ pb_error_t Measure::InitPb(const bess::pb::MeasureArg &arg) {
   return pb_errno(0);
 }
 
-void Measure::ProcessBatch(struct bess::pkt_batch *batch) {
+void Measure::ProcessBatch(bess::PacketBatch *batch) {
   uint64_t time = get_time();
 
   if (start_time_ == 0) {
@@ -53,11 +53,11 @@ void Measure::ProcessBatch(struct bess::pkt_batch *batch) {
     return;
   }
 
-  pkt_cnt_ += batch->cnt;
+  pkt_cnt_ += batch->cnt();
 
-  for (int i = 0; i < batch->cnt; i++) {
+  for (int i = 0; i < batch->cnt(); i++) {
     uint64_t pkt_time;
-    if (get_measure_packet(batch->pkts[i], &pkt_time)) {
+    if (get_measure_packet(batch->pkts()[i], &pkt_time)) {
       uint64_t diff;
 
       if (time >= pkt_time) {
@@ -66,7 +66,7 @@ void Measure::ProcessBatch(struct bess::pkt_batch *batch) {
         continue;
       }
 
-      bytes_cnt_ += batch->pkts[i]->mbuf().pkt_len;
+      bytes_cnt_ += batch->pkts()[i]->mbuf().pkt_len;
       total_latency_ += diff;
 
       record_latency(&hist_, diff);

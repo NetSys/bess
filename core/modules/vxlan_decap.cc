@@ -14,7 +14,7 @@ enum {
   ATTR_W_TUN_ID,
 };
 
-struct snobj *VXLANDecap::Init(struct snobj *arg [[maybe_unused]]) {
+struct snobj *VXLANDecap::Init(struct snobj *arg[[maybe_unused]]) {
   using AccessMode = bess::metadata::Attribute::AccessMode;
 
   AddMetadataAttr("tun_ip_src", 4, AccessMode::kWrite);
@@ -35,11 +35,11 @@ pb_error_t VXLANDecap::InitPb(
   return pb_errno(0);
 }
 
-void VXLANDecap::ProcessBatch(struct bess::pkt_batch *batch) {
-  int cnt = batch->cnt;
+void VXLANDecap::ProcessBatch(bess::PacketBatch *batch) {
+  int cnt = batch->cnt();
 
   for (int i = 0; i < cnt; i++) {
-    bess::Packet *pkt = batch->pkts[i];
+    bess::Packet *pkt = batch->pkts()[i];
     struct ether_hdr *ethh = pkt->head_data<struct ether_hdr *>();
     struct ipv4_hdr *iph = reinterpret_cast<struct ipv4_hdr *>(ethh + 1);
     int iph_bytes = (iph->version_ihl & 0xf) << 2;

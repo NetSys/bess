@@ -1,6 +1,6 @@
 #include "merge.h"
 
-void Merge::ProcessBatch(struct bess::pkt_batch *batch) {
+void Merge::ProcessBatch(bess::PacketBatch *batch) {
   RunNextModule(batch);
 }
 

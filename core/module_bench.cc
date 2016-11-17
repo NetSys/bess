@@ -1,5 +1,7 @@
 #include "module.h"
 
+#include <array>
+
 #include <benchmark/benchmark.h>
 #include <glog/logging.h>
 
@@ -7,27 +9,27 @@ namespace {
 
 class DummySourceModule : public Module {
  public:
-   virtual struct task_result RunTask(void *arg) override;
+  virtual struct task_result RunTask(void *arg) override;
 };
 
 [[gnu::noinline]] struct task_result DummySourceModule::RunTask(void *arg) {
   const size_t batch_size = reinterpret_cast<size_t>(arg);
-  struct bess::pkt_batch batch;
+  bess::PacketBatch batch;
 
-  bess::Packet pkts[MAX_PKT_BURST];
+  bess::Packet pkts[bess::PacketBatch::kMaxBurst];
 
-  batch_clear(&batch);
+  batch.clear();
   for (size_t i = 0; i < batch_size; i++) {
     bess::Packet *pkt = &pkts[i];
 
     // this fake packet must not be freed
-    rte_mbuf_refcnt_set(&pkt->mbuf(), 2);  
+    rte_mbuf_refcnt_set(&pkt->mbuf(), 2);
 
     // not chained
     struct rte_mbuf &m = pkt->mbuf();
     m.next = nullptr;
 
-    batch_add(&batch, pkt);
+    batch.add(pkt);
   }
 
   RunNextModule(&batch);
@@ -37,10 +39,11 @@ class DummySourceModule : public Module {
 
 class DummyRelayModule : public Module {
  public:
-   virtual void ProcessBatch(struct bess::pkt_batch *batch) override;
+  virtual void ProcessBatch(bess::PacketBatch *batch) override;
 };
 
-[[gnu::noinline]] void DummyRelayModule::ProcessBatch(struct bess::pkt_batch *batch) {
+[[gnu::noinline]] void DummyRelayModule::ProcessBatch(
+    bess::PacketBatch *batch) {
   RunNextModule(batch);
 }
 
@@ -64,8 +67,8 @@ class ModuleFixture : public benchmark::Fixture {
     last = src_;
 
     for (int i = 0; i < chain_length; i++) {
-      Module *relay = builder_relay.CreateModule("relay" + std::to_string(i),
-          &bess::metadata::default_pipeline);
+      Module *relay = builder_relay.CreateModule(
+          "relay" + std::to_string(i), &bess::metadata::default_pipeline);
       relays.push_back(relay);
       int ret = last->ConnectModules(0, relay, 0);
       assert(ret == 0);
@@ -78,14 +81,14 @@ class ModuleFixture : public benchmark::Fixture {
     ModuleBuilder::all_module_builders_holder(true);
   }
 
-   Module *src_;
-   std::vector<Module *> relays;
+  Module *src_;
+  std::vector<Module *> relays;
 };
 
 }  // namespace (unnamed)
 
 BENCHMARK_DEFINE_F(ModuleFixture, Chain)(benchmark::State &state) {
-  const size_t batch_size = MAX_PKT_BURST;
+  const size_t batch_size = bess::PacketBatch::kMaxBurst;
 
   struct task t;
   t.m = src_;

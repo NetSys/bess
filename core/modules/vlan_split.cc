@@ -2,12 +2,12 @@
 
 #include <rte_byteorder.h>
 
-void VLANSplit::ProcessBatch(struct bess::pkt_batch *batch) {
-  gate_idx_t vid[MAX_PKT_BURST];
-  int cnt = batch->cnt;
+void VLANSplit::ProcessBatch(bess::PacketBatch *batch) {
+  gate_idx_t vid[bess::PacketBatch::kMaxBurst];
+  int cnt = batch->cnt();
 
   for (int i = 0; i < cnt; i++) {
-    bess::Packet *pkt = batch->pkts[i];
+    bess::Packet *pkt = batch->pkts()[i];
     char *old_head = pkt->head_data<char *>();
     __m128i ethh;
     uint16_t tpid;

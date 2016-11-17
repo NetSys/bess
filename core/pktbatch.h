@@ -3,36 +3,42 @@
 
 #include <rte_memcpy.h>
 
-#define MAX_PKT_BURST 32
-
 namespace bess {
 
 class Packet;
 
-struct pkt_batch {
-  int cnt;
-  Packet *pkts[MAX_PKT_BURST];
+class PacketBatch {
+ public:
+  int cnt() const { return cnt_; }
+  void set_cnt(int cnt) { cnt_ = cnt; }
+  void incr_cnt(int n = 1) { cnt_ += n; }
+
+  Packet *const *pkts() const { return pkts_; }
+  Packet **pkts() { return pkts_; }
+
+  void clear() { cnt_ = 0; }
+
+  void add(Packet *pkt) { pkts_[cnt_++] = pkt; }
+
+  bool empty() { return (cnt_ == 0); }
+
+  bool full() { return (cnt_ == kMaxBurst); }
+
+  void Copy(const PacketBatch *src) {
+    int cnt = src->cnt_;
+
+    cnt_ = cnt;
+    rte_memcpy((void *)pkts_, (void *)src->pkts_, cnt * sizeof(Packet *));
+  }
+
+  static const size_t kMaxBurst = 32;
+
+ private:
+  int cnt_;
+  Packet *pkts_[kMaxBurst];
 };
 
-static inline void batch_clear(struct pkt_batch *batch) {
-  batch->cnt = 0;
-}
-
-static inline void batch_add(struct pkt_batch *batch, Packet *pkt) {
-  batch->pkts[batch->cnt++] = pkt;
-}
-
-static inline int batch_full(struct pkt_batch *batch) {
-  return (batch->cnt == MAX_PKT_BURST);
-}
-
-static inline void batch_copy(struct pkt_batch *dst,
-                              const struct pkt_batch *src) {
-  int cnt = src->cnt;
-
-  dst->cnt = cnt;
-  rte_memcpy((void *)dst->pkts, (void *)src->pkts, cnt * sizeof(Packet *));
-}
+static_assert(std::is_pod<PacketBatch>::value, "PacketBatch is not a POD Type");
 
 }  // namespace bess
 

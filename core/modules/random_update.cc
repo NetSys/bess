@@ -216,8 +216,8 @@ pb_cmd_response_t RandomUpdate::CommandClearPb(const bess::pb::EmptyArg &) {
   return response;
 }
 
-void RandomUpdate::ProcessBatch(struct bess::pkt_batch *batch) {
-  int cnt = batch->cnt;
+void RandomUpdate::ProcessBatch(bess::PacketBatch *batch) {
+  int cnt = batch->cnt();
 
   for (int i = 0; i < num_vars_; i++) {
     const auto var = &vars_[i];
@@ -228,7 +228,7 @@ void RandomUpdate::ProcessBatch(struct bess::pkt_batch *batch) {
     int16_t offset = var->offset;
 
     for (int j = 0; j < cnt; j++) {
-      bess::Packet *snb = batch->pkts[j];
+      bess::Packet *snb = batch->pkts()[j];
       char *head = snb->head_data<char *>();
 
       uint32_t *p = (uint32_t *)(head + offset);

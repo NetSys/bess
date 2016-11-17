@@ -194,7 +194,7 @@ int UnixSocketPort::RecvPackets(queue_t qid, bess::PacketArray pkts, int cnt) {
 
   int received = 0;
   while (received < cnt) {
-    bess::Packet *pkt = static_cast<bess::Packet *>(bess::Packet::alloc());
+    bess::Packet *pkt = static_cast<bess::Packet *>(bess::Packet::Alloc());
     int ret;
 
     if (!pkt) {
@@ -210,7 +210,7 @@ int UnixSocketPort::RecvPackets(queue_t qid, bess::PacketArray pkts, int cnt) {
       continue;
     }
 
-    bess::Packet::free(pkt);
+    bess::Packet::Free(pkt);
 
     if (ret < 0) {
       if (errno == EAGAIN || errno == EWOULDBLOCK) {
@@ -267,7 +267,7 @@ int UnixSocketPort::SendPackets(queue_t qid, bess::PacketArray pkts, int cnt) {
   }
 
   if (sent) {
-    bess::Packet::free_bulk(pkts, sent);
+    bess::Packet::Free(pkts, sent);
   }
 
   return sent;

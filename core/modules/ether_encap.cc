@@ -9,7 +9,7 @@ enum {
   ATTR_R_ETHER_TYPE,
 };
 
-struct snobj *EtherEncap::Init(struct snobj *arg [[maybe_unused]]) {
+struct snobj *EtherEncap::Init(struct snobj *arg[[maybe_unused]]) {
   using AccessMode = bess::metadata::Attribute::AccessMode;
 
   AddMetadataAttr("ether_src", ETHER_ADDR_LEN, AccessMode::kRead);
@@ -30,11 +30,11 @@ pb_error_t EtherEncap::InitPb(
   return pb_errno(0);
 };
 
-void EtherEncap::ProcessBatch(struct bess::pkt_batch *batch) {
-  int cnt = batch->cnt;
+void EtherEncap::ProcessBatch(bess::PacketBatch *batch) {
+  int cnt = batch->cnt();
 
   for (int i = 0; i < cnt; i++) {
-    bess::Packet *pkt = batch->pkts[i];
+    bess::Packet *pkt = batch->pkts()[i];
 
     struct ether_addr ether_src;
     struct ether_addr ether_dst;

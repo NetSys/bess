@@ -69,15 +69,15 @@ struct snobj *Split::Init(struct snobj *arg) {
   return nullptr;
 }
 
-void Split::ProcessBatch(struct bess::pkt_batch *batch) {
-  gate_idx_t ogate[MAX_PKT_BURST];
-  int cnt = batch->cnt;
+void Split::ProcessBatch(bess::PacketBatch *batch) {
+  gate_idx_t ogate[bess::PacketBatch::kMaxBurst];
+  int cnt = batch->cnt();
 
   if (attr_id_ >= 0) {
     int attr_id = attr_id_;
 
     for (int i = 0; i < cnt; i++) {
-      bess::Packet *pkt = batch->pkts[i];
+      bess::Packet *pkt = batch->pkts()[i];
 
       uint64_t val = get_attr<uint64_t>(this, attr_id, pkt);
       val &= mask_;
@@ -92,7 +92,7 @@ void Split::ProcessBatch(struct bess::pkt_batch *batch) {
     int offset = offset_;
 
     for (int i = 0; i < cnt; i++) {
-      bess::Packet *pkt = batch->pkts[i];
+      bess::Packet *pkt = batch->pkts()[i];
       char *head = pkt->head_data<char *>();
 
       uint64_t val = *(uint64_t *)(head + offset);

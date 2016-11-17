@@ -144,12 +144,12 @@ pb_error_t GenericEncap::InitPb(const bess::pb::GenericEncapArg &arg) {
   return pb_errno(0);
 }
 
-void GenericEncap::ProcessBatch(struct bess::pkt_batch *batch) {
-  int cnt = batch->cnt;
+void GenericEncap::ProcessBatch(bess::PacketBatch *batch) {
+  int cnt = batch->cnt();
 
   int encap_size = encap_size_;
 
-  char headers[MAX_PKT_BURST][MAX_HEADER_SIZE] __ymm_aligned;
+  char headers[bess::PacketBatch::kMaxBurst][MAX_HEADER_SIZE] __ymm_aligned;
 
   for (int i = 0; i < num_fields_; i++) {
     uint64_t value = fields_[i].value;
@@ -160,7 +160,7 @@ void GenericEncap::ProcessBatch(struct bess::pkt_batch *batch) {
     char *header = headers[0] + fields_[i].pos;
 
     for (int j = 0; j < cnt; j++, header += MAX_HEADER_SIZE) {
-      bess::Packet *pkt = batch->pkts[j];
+      bess::Packet *pkt = batch->pkts()[j];
 
       *(uint64_t *)header =
           (attr_id < 0) ? value : get_attr_with_offset<uint64_t>(offset, pkt);
@@ -168,7 +168,7 @@ void GenericEncap::ProcessBatch(struct bess::pkt_batch *batch) {
   }
 
   for (int i = 0; i < cnt; i++) {
-    bess::Packet *pkt = batch->pkts[i];
+    bess::Packet *pkt = batch->pkts()[i];
 
     char *p = static_cast<char *>(pkt->prepend(encap_size));
 

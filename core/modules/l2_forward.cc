@@ -582,12 +582,12 @@ void L2Forward::Deinit() {
   l2_deinit(&l2_table_);
 }
 
-void L2Forward::ProcessBatch(struct bess::pkt_batch *batch) {
+void L2Forward::ProcessBatch(bess::PacketBatch *batch) {
   gate_idx_t default_gate = ACCESS_ONCE(default_gate_);
-  gate_idx_t out_gates[MAX_PKT_BURST];
+  gate_idx_t out_gates[bess::PacketBatch::kMaxBurst];
 
-  for (int i = 0; i < batch->cnt; i++) {
-    bess::Packet *snb = batch->pkts[i];
+  for (int i = 0; i < batch->cnt(); i++) {
+    bess::Packet *snb = batch->pkts()[i];
 
     out_gates[i] = default_gate;
 

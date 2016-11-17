@@ -62,12 +62,12 @@ struct snobj *VXLANEncap::Init(struct snobj *arg) {
   return nullptr;
 }
 
-void VXLANEncap::ProcessBatch(struct bess::pkt_batch *batch) {
+void VXLANEncap::ProcessBatch(bess::PacketBatch *batch) {
   uint16_t dstport = dstport_;
-  int cnt = batch->cnt;
+  int cnt = batch->cnt();
 
   for (int i = 0; i < cnt; i++) {
-    bess::Packet *pkt = batch->pkts[i];
+    bess::Packet *pkt = batch->pkts()[i];
 
     uint32_t ip_src = get_attr<uint32_t>(this, ATTR_R_TUN_IP_SRC, pkt);
     uint32_t ip_dst = get_attr<uint32_t>(this, ATTR_R_TUN_IP_DST, pkt);

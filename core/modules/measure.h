@@ -22,7 +22,7 @@ class Measure : public Module {
   virtual struct snobj *Init(struct snobj *arg);
   pb_error_t InitPb(const bess::pb::MeasureArg &arg);
 
-  virtual void ProcessBatch(struct bess::pkt_batch *batch);
+  virtual void ProcessBatch(bess::PacketBatch *batch);
 
   struct snobj *CommandGetSummary(struct snobj *arg);
   pb_cmd_response_t CommandGetSummaryPb(const bess::pb::EmptyArg &arg);

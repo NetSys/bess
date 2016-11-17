@@ -68,7 +68,7 @@ std::string PortOut::GetDesc() const {
                              port_->port_builder()->class_name().c_str());
 }
 
-void PortOut::ProcessBatch(struct bess::pkt_batch *batch) {
+void PortOut::ProcessBatch(bess::PacketBatch *batch) {
   Port *p = port_;
 
   /* TODO: choose appropriate out queue */
@@ -77,21 +77,21 @@ void PortOut::ProcessBatch(struct bess::pkt_batch *batch) {
   uint64_t sent_bytes = 0;
   int sent_pkts;
 
-  sent_pkts = p->SendPackets(qid, batch->pkts, batch->cnt);
+  sent_pkts = p->SendPackets(qid, batch->pkts(), batch->cnt());
 
   if (!(p->GetFlags() & DRIVER_FLAG_SELF_OUT_STATS)) {
     const packet_dir_t dir = PACKET_DIR_OUT;
 
     for (int i = 0; i < sent_pkts; i++)
-      sent_bytes += batch->pkts[i]->total_len();
+      sent_bytes += batch->pkts()[i]->total_len();
 
     p->queue_stats[dir][qid].packets += sent_pkts;
-    p->queue_stats[dir][qid].dropped += (batch->cnt - sent_pkts);
+    p->queue_stats[dir][qid].dropped += (batch->cnt() - sent_pkts);
     p->queue_stats[dir][qid].bytes += sent_bytes;
   }
 
-  if (sent_pkts < batch->cnt) {
-    bess::Packet::free_bulk(batch->pkts + sent_pkts, batch->cnt - sent_pkts);
+  if (sent_pkts < batch->cnt()) {
+    bess::Packet::Free(batch->pkts() + sent_pkts, batch->cnt() - sent_pkts);
   }
 }
 

@@ -18,7 +18,7 @@ struct task_result task_scheduled(struct task *t) {
   while (ctx.gates_pending()) {
     struct gate_task task = ctx.pop_ogate_and_packets();
     bess::OGate *ogate = reinterpret_cast<bess::OGate *>(task.gate);
-    struct bess::pkt_batch *next_packets = &(task.batch);
+    bess::PacketBatch *next_packets = &(task.batch);
 
     for (auto &hook : ogate->hooks()) {
       hook->ProcessBatch(next_packets);

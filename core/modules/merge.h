@@ -7,7 +7,7 @@ class Merge : public Module {
  public:
   static const gate_idx_t kNumIGates = MAX_GATES;
 
-  virtual void ProcessBatch(struct bess::pkt_batch *batch);
+  virtual void ProcessBatch(bess::PacketBatch *batch);
 };
 
 #endif  // BESS_MODULES_MERGE_H_

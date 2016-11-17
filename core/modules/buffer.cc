@@ -1,37 +1,37 @@
 #include "buffer.h"
 
 void Buffer::Deinit() {
-  struct bess::pkt_batch *buf = &buf_;
+  bess::PacketBatch *buf = &buf_;
 
-  if (buf->cnt) {
-    bess::Packet::free_bulk(buf->pkts, buf->cnt);
+  if (buf->cnt()) {
+    bess::Packet::Free(buf);
   }
 }
 
-void Buffer::ProcessBatch(struct bess::pkt_batch *batch) {
-  struct bess::pkt_batch *buf = &buf_;
+void Buffer::ProcessBatch(bess::PacketBatch *batch) {
+  bess::PacketBatch *buf = &buf_;
 
-  int free_slots = MAX_PKT_BURST - buf->cnt;
-  int left = batch->cnt;
+  int free_slots = bess::PacketBatch::kMaxBurst - buf->cnt();
+  int left = batch->cnt();
 
-  bess::PacketArray p_buf = &buf->pkts[buf->cnt];
-  bess::PacketArray p_batch = &batch->pkts[0];
+  bess::PacketArray p_buf = &buf->pkts()[buf->cnt()];
+  bess::PacketArray p_batch = &batch->pkts()[0];
 
   if (left >= free_slots) {
-    buf->cnt = MAX_PKT_BURST;
+    buf->set_cnt(bess::PacketBatch::kMaxBurst);
     rte_memcpy(reinterpret_cast<void *>(p_buf),
                reinterpret_cast<void *>(p_batch),
                free_slots * sizeof(bess::Packet *));
 
-    p_buf = &buf->pkts[0];
+    p_buf = &buf->pkts()[0];
     p_batch += free_slots;
     left -= free_slots;
 
     RunNextModule(buf);
-    batch_clear(buf);
+    buf->clear();
   }
 
-  buf->cnt += left;
+  buf->incr_cnt(left);
   rte_memcpy(reinterpret_cast<void *>(p_buf), reinterpret_cast<void *>(p_batch),
              left * sizeof(bess::Packet *));
 }

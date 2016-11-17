@@ -1260,19 +1260,19 @@ struct snobj *BPF::CommandClear(struct snobj *) {
   return nullptr;
 }
 
-inline void BPF::process_batch_1filter(struct bess::pkt_batch *batch) {
+inline void BPF::process_batch_1filter(bess::PacketBatch *batch) {
   struct filter *filter = &filters_[0];
 
-  struct bess::pkt_batch out_batches[2];
+  bess::PacketBatch out_batches[2];
   bess::Packet **ptrs[2];
 
-  ptrs[0] = (bess::Packet **)&out_batches[0].pkts;
-  ptrs[1] = (bess::Packet **)&out_batches[1].pkts;
+  ptrs[0] = out_batches[0].pkts();
+  ptrs[1] = out_batches[1].pkts();
 
-  int cnt = batch->cnt;
+  int cnt = batch->cnt();
 
   for (int i = 0; i < cnt; i++) {
-    bess::Packet *pkt = batch->pkts[i];
+    bess::Packet *pkt = batch->pkts()[i];
     int ret;
     int idx;
 
@@ -1283,19 +1283,19 @@ inline void BPF::process_batch_1filter(struct bess::pkt_batch *batch) {
     *(ptrs[idx]++) = pkt;
   }
 
-  out_batches[0].cnt = ptrs[0] - (bess::Packet **)&out_batches[0].pkts;
-  out_batches[1].cnt = ptrs[1] - (bess::Packet **)&out_batches[1].pkts;
+  out_batches[0].set_cnt(ptrs[0] - out_batches[0].pkts());
+  out_batches[1].set_cnt(ptrs[1] - out_batches[1].pkts());
 
-  if (out_batches[0].cnt)
+  if (out_batches[0].cnt())
     RunChooseModule(0, &out_batches[0]);
 
   /* matched packets */
-  if (out_batches[1].cnt)
+  if (out_batches[1].cnt())
     RunChooseModule(filter->gate, &out_batches[1]);
 }
 
-void BPF::ProcessBatch(struct bess::pkt_batch *batch) {
-  gate_idx_t out_gates[MAX_PKT_BURST];
+void BPF::ProcessBatch(bess::PacketBatch *batch) {
+  gate_idx_t out_gates[bess::PacketBatch::kMaxBurst];
   int n_filters = n_filters_;
   int cnt;
 
@@ -1309,11 +1309,11 @@ void BPF::ProcessBatch(struct bess::pkt_batch *batch) {
     return;
   }
 
-  cnt = batch->cnt;
+  cnt = batch->cnt();
 
   /* slow version for general cases */
   for (int i = 0; i < cnt; i++) {
-    bess::Packet *pkt = batch->pkts[i];
+    bess::Packet *pkt = batch->pkts()[i];
     struct filter *filter = &filters_[0];
     gate_idx_t gate = 0; /* default gate for unmatched pkts */
 

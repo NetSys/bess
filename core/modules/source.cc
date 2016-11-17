@@ -19,7 +19,7 @@ pb_error_t Source::InitPb(const bess::pb::SourceArg &arg) {
     return pb_error(ENOMEM, "Task creation failed");
 
   pkt_size_ = 60;
-  burst_ = MAX_PKT_BURST;
+  burst_ = bess::PacketBatch::kMaxBurst;
 
   response = CommandSetPktSizePb(arg.pkt_size_arg());
   err = response.error();
@@ -41,10 +41,10 @@ pb_cmd_response_t Source::CommandSetBurstPb(
   pb_cmd_response_t response;
 
   uint64_t val = arg.burst();
-  if (val == 0 || val > MAX_PKT_BURST) {
-    set_cmd_response_error(
-        &response,
-        pb_error(EINVAL, "burst size must be [1,%d]", MAX_PKT_BURST));
+  if (val == 0 || val > bess::PacketBatch::kMaxBurst) {
+    set_cmd_response_error(&response,
+                           pb_error(EINVAL, "burst size must be [1,%lu]",
+                                    bess::PacketBatch::kMaxBurst));
     return response;
   }
   burst_ = val;
@@ -75,7 +75,7 @@ struct snobj *Source::Init(struct snobj *arg) {
     return snobj_err(ENOMEM, "Task creation failed");
 
   pkt_size_ = 60;
-  burst_ = MAX_PKT_BURST;
+  burst_ = bess::PacketBatch::kMaxBurst;
 
   if (!arg) {
     return nullptr;
@@ -99,7 +99,7 @@ struct snobj *Source::Init(struct snobj *arg) {
 }
 
 struct task_result Source::RunTask(void *) {
-  struct bess::pkt_batch batch;
+  bess::PacketBatch batch;
   struct task_result ret;
 
   const int pkt_overhead = 24;
@@ -109,10 +109,10 @@ struct task_result Source::RunTask(void *) {
 
   uint64_t total_bytes = pkt_size * burst;
 
-  int cnt = bess::Packet::alloc_bulk(batch.pkts, burst, pkt_size);
+  int cnt = bess::Packet::Alloc(batch.pkts(), burst, pkt_size);
 
   if (cnt > 0) {
-    batch.cnt = cnt;
+    batch.set_cnt(cnt);
     RunNextModule(&batch);
   }
 
@@ -151,8 +151,9 @@ struct snobj *Source::command_set_burst(struct snobj *arg) {
 
   val = snobj_uint_get(arg);
 
-  if (val == 0 || val > MAX_PKT_BURST) {
-    return snobj_err(EINVAL, "burst size must be [1,%d]", MAX_PKT_BURST);
+  if (val == 0 || val > bess::PacketBatch::kMaxBurst) {
+    return snobj_err(EINVAL, "burst size must be [1,%lu]",
+                     bess::PacketBatch::kMaxBurst);
   }
 
   burst_ = val;

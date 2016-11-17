@@ -94,15 +94,15 @@ class Packet {
     return reinterpret_cast<T>(scratchpad_);
   }
 
-  int head_len() { return rte_pktmbuf_data_len(&mbuf_); }
+  int head_len() const { return rte_pktmbuf_data_len(&mbuf_); }
 
-  int total_len() { return rte_pktmbuf_pkt_len(&mbuf_); }
+  int total_len() const { return rte_pktmbuf_pkt_len(&mbuf_); }
 
   // single segment?
-  int is_linear() { return rte_pktmbuf_is_contiguous(&mbuf_); }
+  int is_linear() const { return rte_pktmbuf_is_contiguous(&mbuf_); }
 
   // single segment and direct?
-  int is_simple() { return is_linear() && RTE_MBUF_DIRECT(&mbuf_); }
+  int is_simple() const { return is_linear() && RTE_MBUF_DIRECT(&mbuf_); }
 
   void *prepend(uint16_t len) {
     if (unlikely(mbuf_.data_off < len))
@@ -155,27 +155,26 @@ class Packet {
 
   // TODO: stream operator
 
-  void Dump(FILE *file);
+  std::string Dump();
 
   static Packet *from_paddr(phys_addr_t paddr);
 
-  static inline int mt_offset_to_databuf_offset(
-      bess::metadata::mt_offset_t offset) {
+  static int mt_offset_to_databuf_offset(bess::metadata::mt_offset_t offset) {
     return offset + offsetof(Packet, metadata_) - offsetof(Packet, headroom_);
   }
 
-  static inline Packet *alloc() {
+  static Packet *Alloc() {
     Packet *pkt = __packet_alloc();
 
     return pkt;
   }
+  static inline int Alloc(PacketArray pkts, int cnt, uint16_t len);
 
-  static inline void free(Packet *pkt) {
+  static void Free(Packet *pkt) {
     rte_pktmbuf_free(reinterpret_cast<struct rte_mbuf *>(pkt));
   }
-
-  static inline int alloc_bulk(PacketArray pkts, int cnt, uint16_t len);
-  static inline void free_bulk(PacketArray pkts, int cnt);
+  static inline void Free(PacketArray pkts, int cnt);
+  static void Free(PacketBatch *batch) { Free(batch->pkts(), batch->cnt()); }
 
  private:
   union {
@@ -217,12 +216,14 @@ class Packet {
   char data_[SNBUF_DATA];
 };
 
+static_assert(std::is_pod<Packet>::value, "Packet is not a POD Type");
+
 extern struct rte_mbuf pframe_template;
 
 #if __AVX__
 #include "packet_avx.h"
 #else
-int Packet::alloc_bulk(PacketArray pkts, int cnt, uint16_t len) {
+int Packet::Alloc(PacketArray pkts, int cnt, uint16_t len) {
   int ret;
   int i;
 
@@ -242,7 +243,7 @@ int Packet::alloc_bulk(PacketArray pkts, int cnt, uint16_t len) {
   return cnt;
 }
 
-void Packet::free_bulk(PacketArray pkts, int cnt) {
+void Packet::Free(PacketArray pkts, int cnt) {
   struct rte_mempool *pool = pkts[0]->mbuf_.pool;
 
   int i;
@@ -263,11 +264,9 @@ void Packet::free_bulk(PacketArray pkts, int cnt) {
 
 slow_path:
   for (i = 0; i < cnt; i++)
-    free(pkts[i]);
+    Free(pkts[i]);
 }
 #endif
-
-static_assert(std::is_pod<Packet>::value, "Packet is not a POD Type");
 
 }  // namespace bess
 

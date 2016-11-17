@@ -48,14 +48,14 @@ struct snobj *VLANPush::Init(struct snobj *arg) {
 }
 
 /* the behavior is undefined if a packet is already double tagged */
-void VLANPush::ProcessBatch(struct bess::pkt_batch *batch) {
-  int cnt = batch->cnt;
+void VLANPush::ProcessBatch(bess::PacketBatch *batch) {
+  int cnt = batch->cnt();
 
   uint32_t vlan_tag = vlan_tag_;
   uint32_t qinq_tag = qinq_tag_;
 
   for (int i = 0; i < cnt; i++) {
-    bess::Packet *pkt = batch->pkts[i];
+    bess::Packet *pkt = batch->pkts()[i];
     char *new_head;
     uint16_t tpid;
 

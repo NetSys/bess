@@ -2,11 +2,11 @@
 
 #include <rte_byteorder.h>
 
-void VLANPop::ProcessBatch(struct bess::pkt_batch *batch) {
-  int cnt = batch->cnt;
+void VLANPop::ProcessBatch(bess::PacketBatch *batch) {
+  int cnt = batch->cnt();
 
   for (int i = 0; i < cnt; i++) {
-    bess::Packet *pkt = batch->pkts[i];
+    bess::Packet *pkt = batch->pkts()[i];
     char *old_head = pkt->head_data<char *>();
     __m128i ethh;
     uint16_t tpid;

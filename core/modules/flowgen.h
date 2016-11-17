@@ -67,7 +67,7 @@ class FlowGen : public Module {
   void MeasureParetoMean();
   void PopulateInitialFlows();
   bess::Packet *FillPacket(struct flow *f);
-  void GeneratePackets(struct bess::pkt_batch *batch);
+  void GeneratePackets(bess::PacketBatch *batch);
   struct snobj *InitFlowPoolOld();
   struct snobj *ProcessArguments(struct snobj *arg);
 

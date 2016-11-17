@@ -161,11 +161,11 @@ struct snobj *RoundRobin::CommandSetGates(struct snobj *arg) {
   return nullptr;
 }
 
-void RoundRobin::ProcessBatch(struct bess::pkt_batch *batch) {
-  gate_idx_t out_gates[MAX_PKT_BURST];
+void RoundRobin::ProcessBatch(bess::PacketBatch *batch) {
+  gate_idx_t out_gates[bess::PacketBatch::kMaxBurst];
 
   if (per_packet_) {
-    for (int i = 0; i < batch->cnt; i++) {
+    for (int i = 0; i < batch->cnt(); i++) {
       out_gates[i] = gates_[current_gate_];
       current_gate_ = (current_gate_ + 1) % ngates_;
     }

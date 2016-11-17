@@ -13,7 +13,7 @@ pb_error_t QueueInc::InitPb(const bess::pb::QueueIncArg &arg) {
   const char *port_name;
   task_id_t tid;
   pb_error_t err;
-  burst_ = MAX_PKT_BURST;
+  burst_ = bess::PacketBatch::kMaxBurst;
   if (!arg.port().length()) {
     return pb_error(EINVAL, "Field 'port' must be specified");
   }
@@ -59,7 +59,7 @@ struct snobj *QueueInc::Init(struct snobj *arg) {
 
   int ret;
 
-  burst_ = MAX_PKT_BURST;
+  burst_ = bess::PacketBatch::kMaxBurst;
 
   if (!arg || snobj_type(arg) != TYPE_MAP) {
     return snobj_err(EINVAL, "Argument must be a map");
@@ -121,7 +121,7 @@ struct task_result QueueInc::RunTask(void *arg) {
 
   const queue_t qid = (queue_t)(uintptr_t)arg;
 
-  struct bess::pkt_batch batch;
+  bess::PacketBatch batch;
   struct task_result ret;
 
   uint64_t received_bytes = 0;
@@ -130,8 +130,8 @@ struct task_result QueueInc::RunTask(void *arg) {
   const int pkt_overhead = 24;
 
   uint64_t cnt;
-
-  cnt = batch.cnt = p->RecvPackets(qid, batch.pkts, burst);
+  batch.set_cnt(p->RecvPackets(qid, batch.pkts(), burst));
+  cnt = batch.cnt();
 
   if (cnt == 0) {
     ret.packets = 0;
@@ -142,12 +142,12 @@ struct task_result QueueInc::RunTask(void *arg) {
   /* NOTE: we cannot skip this step since it might be used by scheduler */
   if (prefetch_) {
     for (uint64_t i = 0; i < cnt; i++) {
-      received_bytes += batch.pkts[i]->total_len();
-      rte_prefetch0(batch.pkts[i]->head_data());
+      received_bytes += batch.pkts()[i]->total_len();
+      rte_prefetch0(batch.pkts()[i]->head_data());
     }
   } else {
     for (uint64_t i = 0; i < cnt; i++) {
-      received_bytes += batch.pkts[i]->total_len();
+      received_bytes += batch.pkts()[i]->total_len();
     }
   }
 
@@ -174,8 +174,9 @@ struct snobj *QueueInc::CommandSetBurst(struct snobj *arg) {
 
   val = snobj_uint_get(arg);
 
-  if (val == 0 || val > MAX_PKT_BURST) {
-    return snobj_err(EINVAL, "burst size must be [1,%d]", MAX_PKT_BURST);
+  if (val == 0 || val > bess::PacketBatch::kMaxBurst) {
+    return snobj_err(EINVAL, "burst size must be [1,%lu]",
+                     bess::PacketBatch::kMaxBurst);
   }
 
   burst_ = val;
@@ -184,8 +185,10 @@ struct snobj *QueueInc::CommandSetBurst(struct snobj *arg) {
 }
 
 pb_error_t QueueInc::SetBurst(int64_t burst) {
-  if (burst == 0 || burst > MAX_PKT_BURST) {
-    return pb_error(EINVAL, "burst size must be [1,%d]", MAX_PKT_BURST);
+  if (burst == 0 ||
+      burst > static_cast<int64_t>(bess::PacketBatch::kMaxBurst)) {
+    return pb_error(EINVAL, "burst size must be [1,%lu]",
+                    bess::PacketBatch::kMaxBurst);
   }
   burst_ = burst;
   return pb_errno(0);

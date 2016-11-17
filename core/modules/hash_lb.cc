@@ -201,9 +201,9 @@ pb_error_t HashLB::InitPb(const bess::pb::HashLBArg &arg) {
   return pb_errno(0);
 }
 
-void HashLB::LbL2(struct bess::pkt_batch *batch, gate_idx_t *out_gates) {
-  for (int i = 0; i < batch->cnt; i++) {
-    bess::Packet *snb = batch->pkts[i];
+void HashLB::LbL2(bess::PacketBatch *batch, gate_idx_t *out_gates) {
+  for (int i = 0; i < batch->cnt(); i++) {
+    bess::Packet *snb = batch->pkts()[i];
     char *head = snb->head_data<char *>();
 
     uint64_t v0 = *(reinterpret_cast<uint64_t *>(head));
@@ -215,12 +215,12 @@ void HashLB::LbL2(struct bess::pkt_batch *batch, gate_idx_t *out_gates) {
   }
 }
 
-void HashLB::LbL3(struct bess::pkt_batch *batch, gate_idx_t *out_gates) {
+void HashLB::LbL3(bess::PacketBatch *batch, gate_idx_t *out_gates) {
   /* assumes untagged packets */
   const int ip_offset = 14;
 
-  for (int i = 0; i < batch->cnt; i++) {
-    bess::Packet *snb = batch->pkts[i];
+  for (int i = 0; i < batch->cnt(); i++) {
+    bess::Packet *snb = batch->pkts()[i];
     char *head = snb->head_data<char *>();
 
     uint32_t hash_val;
@@ -232,13 +232,13 @@ void HashLB::LbL3(struct bess::pkt_batch *batch, gate_idx_t *out_gates) {
   }
 }
 
-void HashLB::LbL4(struct bess::pkt_batch *batch, gate_idx_t *out_gates) {
+void HashLB::LbL4(bess::PacketBatch *batch, gate_idx_t *out_gates) {
   /* assumes untagged packets without IP options */
   const int ip_offset = 14;
   const int l4_offset = ip_offset + 20;
 
-  for (int i = 0; i < batch->cnt; i++) {
-    bess::Packet *snb = batch->pkts[i];
+  for (int i = 0; i < batch->cnt(); i++) {
+    bess::Packet *snb = batch->pkts()[i];
     char *head = snb->head_data<char *>();
 
     uint32_t hash_val;
@@ -253,8 +253,8 @@ void HashLB::LbL4(struct bess::pkt_batch *batch, gate_idx_t *out_gates) {
   }
 }
 
-void HashLB::ProcessBatch(struct bess::pkt_batch *batch) {
-  gate_idx_t out_gates[MAX_PKT_BURST];
+void HashLB::ProcessBatch(bess::PacketBatch *batch) {
+  gate_idx_t out_gates[bess::PacketBatch::kMaxBurst];
 
   switch (mode_) {
     case LB_L2:

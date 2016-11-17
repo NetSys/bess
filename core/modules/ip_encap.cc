@@ -12,7 +12,7 @@ enum {
   ATTR_W_ETHER_TYPE,
 };
 
-struct snobj *IPEncap::Init(struct snobj *arg [[maybe_unused]]) {
+struct snobj *IPEncap::Init(struct snobj *arg[[maybe_unused]]) {
   using AccessMode = bess::metadata::Attribute::AccessMode;
 
   AddMetadataAttr("ip_src", 4, AccessMode::kRead);
@@ -36,11 +36,11 @@ pb_error_t IPEncap::InitPb(const bess::pb::IPEncapArg &arg[[maybe_unused]]) {
   return pb_errno(0);
 }
 
-void IPEncap::ProcessBatch(struct bess::pkt_batch *batch) {
-  int cnt = batch->cnt;
+void IPEncap::ProcessBatch(bess::PacketBatch *batch) {
+  int cnt = batch->cnt();
 
   for (int i = 0; i < cnt; i++) {
-    bess::Packet *pkt = batch->pkts[i];
+    bess::Packet *pkt = batch->pkts()[i];
 
     uint32_t ip_src = get_attr<uint32_t>(this, ATTR_R_IP_SRC, pkt);
     uint32_t ip_dst = get_attr<uint32_t>(this, ATTR_R_IP_DST, pkt);

@@ -1,6 +1,9 @@
 #include "packet.h"
 
 #include <cassert>
+#include <cstdio>
+#include <fstream>
+#include <sstream>
 
 #include <glog/logging.h>
 #include <rte_errno.h>
@@ -14,8 +17,6 @@ namespace bess {
 struct rte_mbuf pframe_template;
 
 static struct rte_mempool *pframe_pool[RTE_MAX_NUMA_NODES];
-
-#define NUM_MEMPOOL_CACHE 512
 
 static void packet_init(struct rte_mempool *mp, void *opaque_arg, void *_m,
                         unsigned i) {
@@ -37,6 +38,7 @@ static void init_mempool_socket(int sid) {
   struct rte_pktmbuf_pool_private pool_priv;
   char name[256];
 
+  const int num_mempool_cache = 512;
   const int initial_try = 524288;
   const int minimum_try = 16384;
   int current_try = initial_try;
@@ -49,7 +51,7 @@ again:
 
   /* 2^n - 1 is optimal according to the DPDK manual */
   pframe_pool[sid] = rte_mempool_create(
-      name, current_try - 1, sizeof(Packet), NUM_MEMPOOL_CACHE,
+      name, current_try - 1, sizeof(Packet), num_mempool_cache,
       sizeof(struct rte_pktmbuf_pool_private), rte_pktmbuf_pool_init,
       &pool_priv, packet_init, (void *)(uintptr_t)sid, sid, 0);
 
@@ -74,7 +76,8 @@ static void init_templates(void) {
   for (i = 0; i < RTE_MAX_NUMA_NODES; i++) {
     struct rte_mbuf *mbuf;
 
-    if (!pframe_pool[i]) continue;
+    if (!pframe_pool[i])
+      continue;
 
     mbuf = rte_pktmbuf_alloc(pframe_pool[i]);
     pframe_template = *mbuf;
@@ -91,9 +94,11 @@ void init_mempool(void) {
   assert(SNBUF_METADATA_OFF == 192);
   assert(SNBUF_SCRATCHPAD_OFF == 320);
 
-  if (FLAGS_d) rte_dump_physmem_layout(stdout);
+  if (FLAGS_d)
+    rte_dump_physmem_layout(stdout);
 
-  for (i = 0; i < RTE_MAX_NUMA_NODES; i++) initialized[i] = 0;
+  for (i = 0; i < RTE_MAX_NUMA_NODES; i++)
+    initialized[i] = 0;
 
   for (i = 0; i < RTE_MAX_LCORE; i++) {
     int sid = rte_lcore_to_socket_id(i);
@@ -121,8 +126,9 @@ struct rte_mempool *get_pframe_pool_socket(int socket) {
 
 #if DPDK_VER >= DPDK_VER_NUM(16, 7, 0)
 static Packet *paddr_to_snb_memchunk(struct rte_mempool_memhdr *chunk,
-    phys_addr_t paddr) {
-  if (chunk->phys_addr == RTE_BAD_PHYS_ADDR) return nullptr;
+                                     phys_addr_t paddr) {
+  if (chunk->phys_addr == RTE_BAD_PHYS_ADDR)
+    return nullptr;
 
   if (chunk->phys_addr <= paddr && paddr < chunk->phys_addr + chunk->len) {
     uintptr_t vaddr;
@@ -140,16 +146,18 @@ Packet *Packet::from_paddr(phys_addr_t paddr) {
     struct rte_mempool_memhdr *chunk;
 
     pool = pframe_pool[i];
-    if (!pool) continue;
+    if (!pool)
+      continue;
 
     STAILQ_FOREACH(chunk, &pool->mem_list, next) {
       Packet *pkt = paddr_to_snb_memchunk(chunk, paddr);
-      if (!pkt) continue;
+      if (!pkt)
+        continue;
 
       if (pkt->paddr() != paddr) {
         LOG(ERROR) << "pkt->immutable.paddr corruption: pkt=" << pkt
-          << ", pkt->immutable.paddr=" << pkt->paddr()
-          << " (!= " << paddr << ")";
+                   << ", pkt->immutable.paddr=" << pkt->paddr()
+                   << " (!= " << paddr << ")";
         return nullptr;
       }
 
@@ -171,7 +179,8 @@ Packet *Packet::from_paddr(phys_addr_t paddr) {
     uintptr_t size;
 
     pool = pframe_pool[i];
-    if (!pool) continue;
+    if (!pool)
+      continue;
 
     assert(pool->pg_num == 1);
 
@@ -198,29 +207,38 @@ Packet *Packet::from_paddr(phys_addr_t paddr) {
 }
 #endif
 
-void Packet::Dump(FILE *file) {
+std::string Packet::Dump() {
+  std::ostringstream dump;
+  std::string tmp_path = std::tmpnam(nullptr);
+  std::FILE *tmp = std::fopen(tmp_path.c_str(), "w+");
   struct rte_mbuf *mbuf;
 
-  fprintf(file, "refcnt chain: ");
-  for (mbuf = (struct rte_mbuf *)this; mbuf; mbuf = mbuf->next)
-    fprintf(file, "%hu ", mbuf->refcnt);
-  fprintf(file, "\n");
+  dump << "refcnt chain: ";
+  for (mbuf = (struct rte_mbuf *)this; mbuf; mbuf = mbuf->next) {
+    dump << mbuf->refcnt;
+  }
+  dump << std::endl;
 
-  fprintf(file, "pool chain: ");
+  dump << "pool chain: ";
   for (mbuf = (struct rte_mbuf *)this; mbuf; mbuf = mbuf->next) {
     int i;
 
-    fprintf(file, "%p(", mbuf->pool);
+    dump << mbuf->pool << "(";
 
     for (i = 0; i < RTE_MAX_NUMA_NODES; i++) {
-      if (pframe_pool[i] == mbuf->pool) fprintf(file, "P%d", i);
+      if (pframe_pool[i] == mbuf->pool) {
+        dump << "P" << i;
+      }
     }
-    fprintf(file, ") ");
+    dump << ") ";
   }
-  fprintf(file, "\n");
+  dump << std::endl;
 
-  mbuf = (struct rte_mbuf *)this;
-  rte_pktmbuf_dump(file, mbuf, total_len());
+  mbuf = reinterpret_cast<struct rte_mbuf *>(this);
+  rte_pktmbuf_dump(tmp, mbuf, total_len());
+  std::fclose(tmp);
+  dump << std::ifstream(tmp_path).rdbuf();
+  return dump.str();
 }
 
-} // namespace bess
+}  // namespace bess

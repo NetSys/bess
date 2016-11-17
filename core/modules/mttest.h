@@ -14,7 +14,7 @@ class MetadataTest : public Module {
   struct snobj *Init(struct snobj *arg);
   pb_error_t InitPb(const bess::pb::MetadataTestArg &arg);
 
-  void ProcessBatch(struct bess::pkt_batch *batch);
+  void ProcessBatch(bess::PacketBatch *batch);
 
  private:
   struct snobj *AddAttributes(struct snobj *attrs, Attribute::AccessMode mode);

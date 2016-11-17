@@ -9,7 +9,7 @@ class VXLANDecap : public Module {
   virtual struct snobj *Init(struct snobj *arg);
   pb_error_t InitPb(const bess::pb::VXLANDecapArg &arg);
 
-  void ProcessBatch(struct bess::pkt_batch *batch);
+  void ProcessBatch(bess::PacketBatch *batch);
 };
 
 #endif  // BESS_MODULES_VXLANDECAP_H_

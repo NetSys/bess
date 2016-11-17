@@ -64,11 +64,11 @@ TEST_F(GateTest, RemoveHook) {
 
 TEST(HookTest, TrackGate) {
   TrackGate t;
-  struct bess::pkt_batch b;
-  b.cnt = 32;
+  bess::PacketBatch b;
+  b.set_cnt(32);
   t.ProcessBatch(&b);
   ASSERT_EQ(1, t.cnt());
-  ASSERT_EQ(b.cnt, t.pkts());
+  ASSERT_EQ(b.cnt(), t.pkts());
 }
 
 TEST_F(IOGateTest, OGate) {
