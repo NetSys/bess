@@ -470,15 +470,15 @@ bess::Packet *FlowGen::FillPacket(struct flow *f) {
     return nullptr;
   }
 
-  p = reinterpret_cast<char *>(pkt->mbuf().buf_addr) +
+  p = reinterpret_cast<char *>(pkt->buffer()) +
       static_cast<size_t>(SNBUF_HEADROOM);
   if (!p) {
     return nullptr;
   }
 
-  pkt->set_mbuf_data_off(SNBUF_HEADROOM);
-  pkt->set_mbuf_pkt_len(size);
-  pkt->set_mbuf_data_len(size);
+  pkt->set_data_off(SNBUF_HEADROOM);
+  pkt->set_total_len(size);
+  pkt->set_data_len(size);
 
   memcpy_sloppy(p, templ_, size);
 

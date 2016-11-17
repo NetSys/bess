@@ -221,12 +221,11 @@ void ExactMatch::ProcessBatch(bess::PacketBatch *batch) {
     char *key = keys[0] + pos;
 
     for (int j = 0; j < cnt; j++, key += HASH_KEY_SIZE) {
-      char *buf_addr =
-          reinterpret_cast<char *>(batch->pkts()[j]->mbuf().buf_addr);
+      char *buf_addr = reinterpret_cast<char *>(batch->pkts()[j]->buffer());
 
       /* for offset-based attrs we use relative offset */
       if (attr_id < 0) {
-        buf_addr += batch->pkts()[j]->mbuf().data_off;
+        buf_addr += batch->pkts()[j]->data_off();
       }
 
       *(uint64_t *)key = *(uint64_t *)(buf_addr + offset) & mask;

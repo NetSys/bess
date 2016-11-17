@@ -7,9 +7,9 @@
 
 #include "utils/simd.h"
 
-int Packet::Alloc(PacketArray pkts, int cnt, uint16_t len) {
+int Packet::Alloc(PacketArray pkts, size_t cnt, uint16_t len) {
   int ret;
-  int i;
+  size_t i;
 
   __m128i mbuf_template; /* 256-bit write was worse... */
   __m128i rxdesc_fields;

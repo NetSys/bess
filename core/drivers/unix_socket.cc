@@ -242,7 +242,7 @@ int UnixSocketPort::SendPackets(queue_t qid, bess::PacketArray pkts, int cnt) {
   for (int i = 0; i < cnt; i++) {
     bess::Packet *pkt = pkts[i];
 
-    int nb_segs = pkt->mbuf().nb_segs;
+    int nb_segs = pkt->nb_segs();
     struct iovec iov[nb_segs];
 
     struct msghdr msg;

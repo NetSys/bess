@@ -887,9 +887,9 @@ int VPort::RecvPackets(queue_t qid, bess::PacketArray pkts, int max_cnt) {
     tx_desc = pkt->scratchpad<struct sn_tx_desc *>();
     len = tx_desc->total_len;
 
-    pkt->set_mbuf_data_off(SNBUF_HEADROOM);
-    pkt->set_mbuf_pkt_len(len);
-    pkt->set_mbuf_data_len(len);
+    pkt->set_data_off(SNBUF_HEADROOM);
+    pkt->set_total_len(len);
+    pkt->set_data_len(len);
 
     /* TODO: process sn_tx_metadata */
   }
@@ -933,7 +933,7 @@ int VPort::SendPackets(queue_t qid, bess::PacketArray pkts, int cnt) {
 
     rx_desc->meta = sn_rx_metadata();
 
-    seg = reinterpret_cast<bess::Packet *>(snb->mbuf().next);
+    seg = reinterpret_cast<bess::Packet *>(snb->next());
     while (seg) {
       struct sn_rx_desc *next_desc;
       bess::Packet *seg_snb;
@@ -947,7 +947,7 @@ int VPort::SendPackets(queue_t qid, bess::PacketArray pkts, int cnt) {
 
       rx_desc->next = seg_snb->paddr();
       rx_desc = next_desc;
-      seg = reinterpret_cast<bess::Packet *>(snb->mbuf().next);
+      seg = reinterpret_cast<bess::Packet *>(snb->next());
     }
   }
 

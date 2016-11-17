@@ -92,13 +92,13 @@ int PCAPPort::SendPackets(queue_t, bess::PacketArray pkts, int cnt) {
   while (sent < cnt) {
     bess::Packet* sbuf = pkts[sent];
 
-    if (likely(sbuf->mbuf().nb_segs == 1)) {
+    if (likely(sbuf->nb_segs() == 1)) {
       pcap_handle_.SendPacket(sbuf->head_data<const u_char*>(),
-                              sbuf->mbuf().pkt_len);
-    } else if (sbuf->mbuf().pkt_len <= PCAP_SNAPLEN) {
+                              sbuf->total_len());
+    } else if (sbuf->total_len() <= PCAP_SNAPLEN) {
       unsigned char tx_pcap_data[PCAP_SNAPLEN];
       GatherData(tx_pcap_data, sbuf);
-      pcap_handle_.SendPacket(tx_pcap_data, sbuf->mbuf().pkt_len);
+      pcap_handle_.SendPacket(tx_pcap_data, sbuf->total_len());
     }
 
     sent++;
@@ -113,7 +113,7 @@ void PCAPPort::GatherData(unsigned char* data, bess::Packet* pkt) {
     rte_memcpy(data, pkt->head_data(), pkt->head_len());
 
     data += pkt->head_len();
-    pkt = reinterpret_cast<bess::Packet*>(pkt->mbuf().next);
+    pkt = reinterpret_cast<bess::Packet*>(pkt->next());
   }
 }
 

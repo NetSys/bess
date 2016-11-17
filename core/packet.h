@@ -50,12 +50,12 @@ void close_mempool(void);
 // For the layout of snbuf, see snbuf_layout.h
 class Packet {
  public:
+  // TODO: delete constructor/destructor w/o breaking module_bench
+
+  // TODO: get rid of me
   struct rte_mbuf &mbuf() {
     return mbuf_;
   }
-  void set_mbuf_data_off(uint16_t offset) { mbuf_.data_off = offset; }
-  void set_mbuf_data_len(uint16_t len) { mbuf_.data_len = len; }
-  void set_mbuf_pkt_len(uint32_t len) { mbuf_.pkt_len = len; }
 
   Packet *vaddr() const { return vaddr_; }
   void set_vaddr(Packet *addr) { vaddr_ = addr; }
@@ -94,9 +94,29 @@ class Packet {
     return reinterpret_cast<T>(scratchpad_);
   }
 
+  template <typename T = void *>
+  T buffer() {
+    return reinterpret_cast<T>(mbuf_.buf_addr);
+  }
+
+  int nb_segs() const { return mbuf_.nb_segs; }
+  void set_nb_segs(int n) { mbuf_.nb_segs = n; }
+
+  Packet *next() const { return reinterpret_cast<Packet *>(mbuf_.next); }
+  void set_next(Packet *next) {
+    mbuf_.next = reinterpret_cast<struct rte_mbuf *>(next);
+  }
+
+  uint16_t data_off() { return mbuf_.data_off; }
+  void set_data_off(uint16_t offset) { mbuf_.data_off = offset; }
+
+  uint16_t data_len() { return mbuf_.data_len; }
+  void set_data_len(uint16_t len) { mbuf_.data_len = len; }
+
   int head_len() const { return rte_pktmbuf_data_len(&mbuf_); }
 
   int total_len() const { return rte_pktmbuf_pkt_len(&mbuf_); }
+  void set_total_len(uint32_t len) { mbuf_.pkt_len = len; }
 
   // single segment?
   int is_linear() const { return rte_pktmbuf_is_contiguous(&mbuf_); }
@@ -168,7 +188,7 @@ class Packet {
 
     return pkt;
   }
-  static inline int Alloc(PacketArray pkts, int cnt, uint16_t len);
+  static inline int Alloc(PacketArray pkts, size_t cnt, uint16_t len);
 
   static void Free(Packet *pkt) {
     rte_pktmbuf_free(reinterpret_cast<struct rte_mbuf *>(pkt));
@@ -223,9 +243,9 @@ extern struct rte_mbuf pframe_template;
 #if __AVX__
 #include "packet_avx.h"
 #else
-int Packet::Alloc(PacketArray pkts, int cnt, uint16_t len) {
+int Packet::Alloc(PacketArray pkts, size_t cnt, uint16_t len) {
   int ret;
-  int i;
+  size_t i;
 
   ret = rte_mempool_get_bulk(ctx.pframe_pool(), (void **)pkts, cnt);
   if (ret != 0)

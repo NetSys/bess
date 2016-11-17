@@ -1,7 +1,5 @@
 #include "module.h"
 
-#include <array>
-
 #include <benchmark/benchmark.h>
 #include <glog/logging.h>
 
@@ -23,11 +21,10 @@ class DummySourceModule : public Module {
     bess::Packet *pkt = &pkts[i];
 
     // this fake packet must not be freed
-    rte_mbuf_refcnt_set(&pkt->mbuf(), 2);
+    rte_mbuf_refcnt_set(reinterpret_cast<struct rte_mbuf *>(pkt), 2);
 
     // not chained
-    struct rte_mbuf &m = pkt->mbuf();
-    m.next = nullptr;
+    pkt->set_next(nullptr);
 
     batch.add(pkt);
   }

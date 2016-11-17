@@ -66,7 +66,7 @@ void Measure::ProcessBatch(bess::PacketBatch *batch) {
         continue;
       }
 
-      bytes_cnt_ += batch->pkts()[i]->mbuf().pkt_len;
+      bytes_cnt_ += batch->pkts()[i]->total_len();
       total_latency_ += diff;
 
       record_latency(&hist_, diff);

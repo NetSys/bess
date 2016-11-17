@@ -86,11 +86,11 @@ inline void Rewrite::DoRewriteSingle(bess::PacketBatch *batch) {
 
   for (int i = 0; i < cnt; i++) {
     bess::Packet *pkt = batch->pkts()[i];
-    char *ptr = static_cast<char *>(pkt->mbuf().buf_addr) + SNBUF_HEADROOM;
+    char *ptr = static_cast<char *>(pkt->buffer()) + SNBUF_HEADROOM;
 
-    pkt->set_mbuf_data_off(SNBUF_HEADROOM);
-    pkt->set_mbuf_pkt_len(size);
-    pkt->set_mbuf_data_len(size);
+    pkt->set_data_off(SNBUF_HEADROOM);
+    pkt->set_total_len(size);
+    pkt->set_data_len(size);
 
     memcpy_sloppy(ptr, templ, size);
   }
@@ -103,11 +103,11 @@ inline void Rewrite::DoRewrite(bess::PacketBatch *batch) {
   for (int i = 0; i < cnt; i++) {
     uint16_t size = template_size_[start + i];
     bess::Packet *pkt = batch->pkts()[i];
-    char *ptr = static_cast<char *>(pkt->mbuf().buf_addr) + SNBUF_HEADROOM;
+    char *ptr = static_cast<char *>(pkt->buffer()) + SNBUF_HEADROOM;
 
-    pkt->set_mbuf_data_off(SNBUF_HEADROOM);
-    pkt->set_mbuf_pkt_len(size);
-    pkt->set_mbuf_data_len(size);
+    pkt->set_data_off(SNBUF_HEADROOM);
+    pkt->set_total_len(size);
+    pkt->set_data_len(size);
 
     memcpy_sloppy(ptr, templates_[start + i], size);
   }
