@@ -25,7 +25,7 @@ class PCAPPort : public Port {
   virtual int RecvPackets(queue_t qid, bess::PacketArray pkts, int cnt);
 
  private:
-  void GatherData(unsigned char *data, struct rte_mbuf *mbuf);
+  void GatherData(unsigned char *data, bess::Packet *pkt);
   PcapHandle pcap_handle_;
 };
 

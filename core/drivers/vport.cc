@@ -920,7 +920,7 @@ int VPort::SendPackets(queue_t qid, bess::PacketArray pkts, int cnt) {
 
   for (int i = 0; i < cnt; i++) {
     bess::Packet *snb = pkts[i];
-    struct rte_mbuf *mbuf = reinterpret_cast<struct rte_mbuf *>(&snb);
+    bess::Packet *seg;
 
     struct sn_rx_desc *rx_desc;
 
@@ -933,19 +933,21 @@ int VPort::SendPackets(queue_t qid, bess::PacketArray pkts, int cnt) {
 
     rx_desc->meta = sn_rx_metadata();
 
-    for (struct rte_mbuf *seg = mbuf->next; seg; seg = seg->next) {
+    seg = reinterpret_cast<bess::Packet *>(snb->mbuf().next);
+    while (seg) {
       struct sn_rx_desc *next_desc;
       bess::Packet *seg_snb;
 
       seg_snb = (bess::Packet *)seg;
       next_desc = seg_snb->scratchpad<struct sn_rx_desc *>();
 
-      next_desc->seg_len = rte_pktmbuf_data_len(seg);
-      next_desc->seg = bess::seg_dma_addr(seg);
+      next_desc->seg_len = seg->head_len();
+      next_desc->seg = seg->dma_addr();
       next_desc->next = 0;
 
       rx_desc->next = seg_snb->paddr();
       rx_desc = next_desc;
+      seg = reinterpret_cast<bess::Packet *>(snb->mbuf().next);
     }
   }
 

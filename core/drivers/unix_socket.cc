@@ -241,9 +241,8 @@ int UnixSocketPort::SendPackets(queue_t qid, bess::PacketArray pkts, int cnt) {
 
   for (int i = 0; i < cnt; i++) {
     bess::Packet *pkt = pkts[i];
-    struct rte_mbuf *mbuf = reinterpret_cast<struct rte_mbuf *>(&pkt);
 
-    int nb_segs = mbuf->nb_segs;
+    int nb_segs = pkt->mbuf().nb_segs;
     struct iovec iov[nb_segs];
 
     struct msghdr msg;
@@ -253,9 +252,8 @@ int UnixSocketPort::SendPackets(queue_t qid, bess::PacketArray pkts, int cnt) {
     ssize_t ret;
 
     for (int j = 0; j < nb_segs; j++) {
-      iov[j].iov_base = rte_pktmbuf_mtod(mbuf, void *);
-      iov[j].iov_len = rte_pktmbuf_data_len(mbuf);
-      mbuf = mbuf->next;
+      iov[j].iov_base = pkt->head_data();
+      iov[j].iov_len = pkt->head_len();
     }
 
     ret = sendmsg(client_fd_, &msg, 0);

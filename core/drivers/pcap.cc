@@ -54,9 +54,7 @@ int PCAPPort::RecvPackets(queue_t qid, bess::PacketArray pkts, int cnt) {
 
     if (caplen <= SNBUF_DATA) {
       // pcap packet will fit in the mbuf, go ahead and copy.
-      rte_memcpy(
-          rte_pktmbuf_append(reinterpret_cast<struct rte_mbuf*>(&sbuf), caplen),
-          packet, caplen);
+      rte_memcpy(sbuf->append(caplen), packet, caplen);
     } else {
 /* FIXME: no support for chained mbuf for now */
 #if 0
@@ -99,7 +97,7 @@ int PCAPPort::SendPackets(queue_t, bess::PacketArray pkts, int cnt) {
                               sbuf->mbuf().pkt_len);
     } else if (sbuf->mbuf().pkt_len <= PCAP_SNAPLEN) {
       unsigned char tx_pcap_data[PCAP_SNAPLEN];
-      GatherData(tx_pcap_data, reinterpret_cast<struct rte_mbuf*>(&sbuf));
+      GatherData(tx_pcap_data, sbuf);
       pcap_handle_.SendPacket(tx_pcap_data, sbuf->mbuf().pkt_len);
     }
 
@@ -110,12 +108,12 @@ int PCAPPort::SendPackets(queue_t, bess::PacketArray pkts, int cnt) {
   return sent;
 }
 
-void PCAPPort::GatherData(unsigned char* data, struct rte_mbuf* mbuf) {
-  while (mbuf) {
-    rte_memcpy(data, rte_pktmbuf_mtod(mbuf, void*), mbuf->data_len);
+void PCAPPort::GatherData(unsigned char* data, bess::Packet* pkt) {
+  while (pkt) {
+    rte_memcpy(data, pkt->head_data(), pkt->head_len());
 
-    data += mbuf->data_len;
-    mbuf = mbuf->next;
+    data += pkt->head_len();
+    pkt = reinterpret_cast<bess::Packet*>(pkt->mbuf().next);
   }
 }
 
