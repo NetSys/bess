@@ -190,6 +190,7 @@ static ::Port* create_port(const std::string& name, const PortBuilder& driver,
   p->queue_size[PACKET_DIR_INC] = size_inc_q;
   p->queue_size[PACKET_DIR_OUT] = size_out_q;
 
+  ctx.SetNonWorker();
   *perr = p->Init(arg);
   if (perr->err() != 0) {
     return nullptr;
@@ -208,6 +209,7 @@ static Module* create_module(const std::string& name,
                              pb_error_t* perr) {
   Module* m = builder.CreateModule(name, &bess::metadata::default_pipeline);
 
+  ctx.SetNonWorker();
   *perr = m->Init(arg);
   if (perr->err() != 0) {
     ModuleBuilder::DestroyModule(m);  // XXX: fix me
