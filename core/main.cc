@@ -6,7 +6,6 @@
 #include "bessd.h"
 #include "debug.h"
 #include "dpdk.h"
-#include "master.h"
 #include "opts.h"
 #include "port.h"
 #include "snbuf.h"
