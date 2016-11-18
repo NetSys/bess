@@ -519,23 +519,6 @@ def daemon_stop(cli):
     else:
         warn(cli, 'BESS daemon will be killed.', _do_stop)
 
-@staticmethod
-def _choose_arg(arg, kwargs):
-    if kwargs:
-        if arg:
-            raise TypeError('You cannot specify both arg and keyword args')
-
-        for key in kwargs:
-            if isinstance(kwargs[key], (Module, Port)):
-                kwargs[key] = kwargs[key].name
-
-        return kwargs
-
-    if isinstance(arg, (Module, Port)):
-        return arg.name
-    else:
-        return arg
-
 def _clear_pipeline(cli):
     cli.bess.pause_all()
     cli.bess.reset_all()
@@ -565,7 +548,7 @@ def _do_run_file(cli, conf_file):
             raise cli.InternalError('Invalid driver name: %s' % name)
 
         new_globals[name] = type(str(name), (Port,),
-                {'bess': cli.bess, 'choose_arg': _choose_arg})
+                {'bess': cli.bess})
 
     # Add BESS module classes
     for name in class_names:
@@ -573,7 +556,7 @@ def _do_run_file(cli, conf_file):
             raise cli.InternalError('Invalid module class name: %s' % name)
 
         new_globals[name] = type(str(name), (Module,),
-                {'bess': cli.bess, 'choose_arg': _choose_arg})
+                {'bess': cli.bess})
 
     code = compile(xformed, conf_file, 'exec')
 

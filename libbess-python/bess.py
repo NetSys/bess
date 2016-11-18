@@ -247,23 +247,17 @@ class BESS(object):
 
         response = self._request(self.stub.ModuleCommand, request)
         if response.HasField('other'):
-            if response.other.Is(module_msg.L2ForwardCommandLookupResponse.DESCRIPTOR):
-                result = module_msg.L2ForwardCommandLookupResponse()
-                response.other.Unpack(result)
-                return result
-            elif response.other.Is(module_msg.MeasureCommandGetSummaryResponse.DESCRIPTOR):
-                result = module_msg.MeasureCommandGetSummaryResponse()
-                response.other.Unpack(result)
-                return result
-            else:
-                raise self.APIError('Unknown message type: %s' % response.other.type_url)
+            type_str = response.other.type_url.split('.')[-1]
+            type_class = arg_classes[type_str]
+            result = type_class()
+            response.other.Unpack(result)
         else:
             return response
 
     def enable_tcpdump(self, fifo, m, direction='out', gate=0):
         request = bess_msg.EnableTcpdumpRequest()
         request.name = m
-        request.is_igate = int(direction == 'in')
+        request.is_igate = (direction == 'in')
         request.gate = gate
         request.fifo = fifo
         return self._request(self.stub.EnableTcpdump, request)
@@ -271,7 +265,7 @@ class BESS(object):
     def disable_tcpdump(self, m, direction='out', gate=0):
         request = bess_msg.DisableTcpdumpRequest()
         request.name = m
-        request.is_igate = int(direction == 'in')
+        request.is_igate = (direction == 'in')
         request.gate = gate
         return self._request(self.stub.DisableTcpdump, request)
 

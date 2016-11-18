@@ -87,6 +87,10 @@ class BESSCLI(cli.CLI):
 
     def loop(self):
         super(BESSCLI, self).loop()
+        # TODO: raise an exception when gRPC abnormaly disconnects
+        # Then use self.print_crashlog() to print out the call stack trace
+        # when the bessd daemon process aborts
+        self.bess.disconnect()
 
     def get_prompt(self):
         if self.bess.is_connected():

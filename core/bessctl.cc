@@ -665,7 +665,7 @@ class BESSControlImpl final : public BESSControl::Service {
       return return_with_error(response, EBUSY, "There is a running worker");
     }
 
-    LOG(INFO) << "Request from client: \n" << request->DebugString();
+    LOG(INFO) << "Request from client:" << std::endl << request->DebugString();
 
     if (!request->mclass().length()) {
       return return_with_error(response, EINVAL, "Missing 'mclass' field");
@@ -906,7 +906,7 @@ class BESSControlImpl final : public BESSControl::Service {
     const char* m_name;
     const char* fifo;
     gate_idx_t gate;
-    int is_igate;
+    bool is_igate;
 
     int ret;
 
@@ -950,7 +950,7 @@ class BESSControlImpl final : public BESSControl::Service {
     }
     const char* m_name;
     gate_idx_t gate;
-    int is_igate;
+    bool is_igate;
 
     int ret;
 

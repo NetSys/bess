@@ -68,29 +68,29 @@ class TestBESS(unittest.TestCase):
         client = bess.BESS()
         client.connect()
 
-        response = client.create_port('pcap_port', 'p0', {'dev': 'rnd'})
+        response = client.create_port('PCAPPort', 'p0', {'dev': 'rnd'})
         self.assertEqual(0, response.error.err)
         self.assertEqual('p0', response.name)
 
-        response = client.create_port('pmd_port', 'p0', {
+        response = client.create_port('PMDPort', 'p0', {
             'loopback': True,
             'port_id': 14325,
             'pci': 'akshdkashf'})
         self.assertEqual(0, response.error.err)
         self.assertEqual('p0', response.name)
 
-        response = client.create_port('unix_port', 'p0', {'path': '/ajksd/dd'})
+        response = client.create_port('UnixSocketPort', 'p0', {'path': '/ajksd/dd'})
         self.assertEqual(0, response.error.err)
         self.assertEqual('p0', response.name)
 
-        response = client.create_port('vport', 'p0', {
+        response = client.create_port('VPort', 'p0', {
             'ifname': 'veth0',
             'container_pid': 23124,
             'rxq_cpus': [1,2,3],
             'tx_tci': 123,
             'tx_outer_tci':123,
             'loopback': False,
-            'ip_addrs': ['1.1.1.1', '2.2.2.2']
+            'ip_addrs': ['1.2.3.4', '255.254.253.252']
             })
         self.assertEqual(0, response.error.err)
         self.assertEqual('p0', response.name)

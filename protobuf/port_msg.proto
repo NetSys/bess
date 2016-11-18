@@ -7,7 +7,7 @@ message PCAPPortArg {
 }
 
 message PMDPortArg {
-  uint64 loopback = 1;
+  bool loopback = 1;
   uint64 port_id = 2;
   string pci = 3;
   string vdev = 4;
@@ -31,6 +31,6 @@ message VPortArg {
   repeated int64 rxq_cpus = 5;
   uint64 tx_tci = 6;
   uint64 tx_outer_tci = 7;
-  uint64 loopback = 8;
+  bool loopback = 8;
   repeated string ip_addrs = 9;
 }

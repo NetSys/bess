@@ -2,8 +2,7 @@ import types
 
 def _callback_factory(self, cmd, arg_type):
     return lambda mod, arg=None, **kwargs: \
-        self.bess.run_module_command(self.name, cmd,arg_type,
-                self.choose_arg(arg, kwargs))
+        self.bess.run_module_command(self.name, cmd, arg_type, kwargs)
 
 class Module(object):
     def __init__(self, **kwargs):
@@ -19,8 +18,7 @@ class Module(object):
         else:
             name = None
 
-        ret = self.bess.create_module(self.__class__.__name__, name,
-                self.choose_arg(None, kwargs))
+        ret = self.bess.create_module(self.__class__.__name__, name, kwargs)
 
         self.name = ret.name
         print 'Module %s created' % self
@@ -28,9 +26,9 @@ class Module(object):
         # add mclass-specific methods
         cls = self.bess.get_mclass_info(self.__class__.__name__)
         assert len(cls.cmds) == len(cls.cmd_args)
-        for i in range(len(cls.cmds)):
-            func = _callback_factory(self, cls.cmds[i], cls.cmd_args[i])
-            setattr(self, cls.cmds[i], types.MethodType(func, self))
+        for i, cmd in enumerate(cls.cmds):
+            func = _callback_factory(self, cmd, cls.cmd_args[i])
+            setattr(self, cmd, types.MethodType(func, self))
 
         self.ogate = None
         self.igate = None

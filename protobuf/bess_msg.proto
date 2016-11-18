@@ -18,14 +18,14 @@ message EmptyResponse {
 message DisableTcpdumpRequest {
   string name = 1;
   uint64 gate = 2;
-  uint64 is_igate = 3;
+  bool is_igate = 3;
 }
 
 message EnableTcpdumpRequest {
   string name = 1;
   uint64 gate = 2;
   string fifo = 3;
-  uint64 is_igate = 4;
+  bool is_igate = 4;
 }
 
 message AttachTaskRequest {

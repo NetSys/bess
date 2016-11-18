@@ -269,6 +269,7 @@ def do_clean():
     cmd('make -C core clean')
     cmd('rm -f bin/bessd')
     cmd('make -C core/kmod clean')
+    cmd('rm -rf libbess-python/*_pb2.py')
 
 def do_dist_clean():
     do_clean()
