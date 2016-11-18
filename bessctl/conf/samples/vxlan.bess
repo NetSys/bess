@@ -44,8 +44,8 @@ os.system('docker pull ubuntu > /dev/null')
 os.system('docker run -i -d --net=none --name=vxlan_test ubuntu /bin/bash > /dev/null')
 
 # Alice live outside the container, wanting to talk to Bob in the container
-v_bob = VPort(ifname='eth_bob', docker='vxlan_test', ip_addr='172.16.100.33/28')
-v_alice = VPort(ifname='eth_alice', ip_addr='10.0.10.2/24', mac_addr='02:0a:0b:0c:0d:0e')
+v_bob = VPort(ifname='eth_bob', docker='vxlan_test', ip_addrs=['172.16.100.33/28'])
+v_alice = VPort(ifname='eth_alice', ip_addrs=['10.0.10.2/24'], mac_addr='02:0a:0b:0c:0d:0e')
 
 # Alice -> Bob
 PortInc(port=v_alice) -> bpf::BPF():1 -> VXLANDecap() -> PortOut(port=v_bob)
