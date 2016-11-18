@@ -238,14 +238,26 @@ class BESS(object):
         request.cmd = cmd
 
         all_classes = inspect.getmembers(module_msg, lambda c: inspect.isclass(c))
-        arg_classes = filter(lambda c: c[0].endswith('Arg'), all_classes)
-        arg_classes = dict(arg_classes)
+        arg_classes = dict(all_classes)
         arg_classes['EmptyArg'] = bess_msg.EmptyArg
 
         arg_msg = proto_conv.dict_to_protobuf(arg, arg_classes[arg_type])
         request.arg.Pack(arg_msg)
 
-        return self._request(self.stub.ModuleCommand, request)
+        response = self._request(self.stub.ModuleCommand, request)
+        if response.HasField('other'):
+            if response.other.Is(module_msg.L2ForwardCommandLookupResponse.DESCRIPTOR):
+                result = module_msg.L2ForwardCommandLookupResponse()
+                response.other.Unpack(result)
+                return result
+            elif response.other.Is(module_msg.MeasureCommandGetSummaryResponse.DESCRIPTOR):
+                result = module_msg.MeasureCommandGetSummaryResponse()
+                response.other.Unpack(result)
+                return result
+            else:
+                raise self.APIError('Unknown message type: %s' % response.other.type_url)
+        else:
+            return response
 
     def enable_tcpdump(self, fifo, m, direction='out', gate=0):
         request = bess_msg.EnableTcpdumpRequest()
@@ -304,20 +316,21 @@ class BESS(object):
 
     def add_tc(self, name, wid=0, priority=0, limit=None, max_burst=None):
         request = bess_msg.AddTcRequest()
-        request.class_.name = name
-        request.class_.wid = wid
-        request.class_.priority = priority
+        class_ = getattr(request, 'class')
+        class_.name = name
+        class_.wid = wid
+        class_.priority = priority
         if limit:
-            request.class_.limit.schedules = limit['schedules']
-            request.class_.limit.cycles = limit['cycles']
-            request.class_.limit.packets = limit['packets']
-            request.class_.limit.bits = limit['bits']
+            class_.limit.schedules = limit['schedules'] if 'schedules' in limit else 0
+            class_.limit.cycles = limit['cycles'] if 'cycles' in limit else 0
+            class_.limit.packets = limit['packets'] if 'packets' in limit else 0
+            class_.limit.bits = limit['bits'] if 'bits' in limit else 0
 
         if max_burst:
-            request.class_.max_burst.schedules = max_burst['schedules']
-            request.class_.max_burst.cycles = max_burst['cycles']
-            request.class_.max_burst.packets = max_burst['packets']
-            request.class_.max_burst.bits = max_burst['bits']
+            class_.max_burst.schedules = max_burst['schedules'] if 'schedules' in max_burst else 0
+            class_.max_burst.cycles = max_burst['cycles'] if 'cycles' in max_burst else 0
+            class_.max_burst.packets = max_burst['packets'] if 'packets' in max_burst else 0
+            class_.max_burst.bits = max_burst['bits'] if 'bits' in max_burst else 0
 
         return self._request(self.stub.AddTc, request)
 
