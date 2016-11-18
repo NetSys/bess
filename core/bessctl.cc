@@ -312,9 +312,8 @@ class BESSControlImpl final : public BESSControl::Service {
     if (is_any_worker_running()) {
       return return_with_error(response, EBUSY, "There is a running worker");
     }
-    for (auto it = TCContainer::tcs.begin(); it != TCContainer::tcs.end();) {
-      auto it_next = std::next(it);
-      struct tc* c = it->second;
+    for (const auto& it : TCContainer::tcs) {
+      struct tc* c = it.second;
 
       if (c->num_tasks) {
         return return_with_error(response, EBUSY, "TC %s still has %d tasks",
@@ -327,8 +326,6 @@ class BESSControlImpl final : public BESSControl::Service {
 
       tc_leave(c);
       tc_dec_refcnt(c);
-
-      it = it_next;
     }
 
     return Status::OK;
