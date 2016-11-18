@@ -58,15 +58,17 @@ pb_error_t Queue::InitPb(const bess::pb::QueueArg &arg) {
   task_id_t tid;
   pb_error_t err;
 
-  burst_ = MAX_PKT_BURST;
-
   tid = RegisterTask(nullptr);
   if (tid == INVALID_TASK_ID)
     return pb_error(ENOMEM, "Task creation failed");
 
-  err = SetBurst(arg.burst());
-  if (err.err() != 0) {
-    return err;
+  if (arg.burst() != 0) {
+    err = SetBurst(arg.burst());
+    if (err.err() != 0) {
+      return err;
+    }
+  } else {
+    burst_ = MAX_PKT_BURST;
   }
 
   if (arg.size() != 0) {
@@ -129,11 +131,13 @@ struct snobj *Queue::Init(struct snobj *arg) {
 void Queue::Deinit() {
   struct snbuf *pkt;
 
-  while (llring_sc_dequeue(queue_, (void **)&pkt) == 0) {
-    snb_free(pkt);
-  }
+  if (queue_) {
+    while (llring_sc_dequeue(queue_, (void **)&pkt) == 0) {
+      snb_free(pkt);
+    }
 
-  mem_free(queue_);
+    mem_free(queue_);
+  }
 }
 
 std::string Queue::GetDesc() const {
