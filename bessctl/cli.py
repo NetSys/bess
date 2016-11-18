@@ -118,6 +118,7 @@ class CLI(object):
                 line_word = remainder.split()[0]
             else:
                 line_word = ''
+
             attrs = self.get_var_attrs(syntax_token, line_word)
             if attrs:
                 var_type, var_desc, var_candidates = attrs
