@@ -13,9 +13,9 @@ class Port(object):
             name = None
 
         ret = self.bess.create_port(self.driver, name, \
-                self.choose_arg(None, kwargs))
+                self.choose_arg({}, kwargs))
 
-        self.name = ret['name']
+        self.name = ret.name
         #print 'Port %s created' % self
 
     def __str__(self):
