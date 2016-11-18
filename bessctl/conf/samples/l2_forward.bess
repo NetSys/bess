@@ -20,8 +20,7 @@ def test_lookup():
 
     print '3. Querying entry'
     ret = l2fib.lookup(addrs=['aa:bb:cc:dd:ee:ff', '00:01:02:03:04:05'])
-    assert ret.error.err == 0, 'Incorrect response'
-    #assert ret.gates == [1, 64], 'Incorrect response'
+    assert ret.gates == [1, 64], 'Incorrect response'
     print '  OK. Response:', ret
 
     print '4. Removing Entry'
