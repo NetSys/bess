@@ -4,7 +4,7 @@ import errno
 import sys
 import os
 import inspect
-
+import time
 import grpc
 
 import service_pb2
@@ -57,6 +57,7 @@ class BESS(object):
         self.channel = grpc.insecure_channel('%s:%d' % (host, port))
         self.channel.subscribe(self._update_status, try_to_connect=True)
         self.stub = service_pb2.BESSControlStub(self.channel)
+        time.sleep(0.1) # Hack: Wait for gRPC to connect
 
     def disconnect(self):
         if self.is_connected():

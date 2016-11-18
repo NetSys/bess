@@ -4,7 +4,6 @@ import os
 import os.path
 import pprint
 import cStringIO
-import time
 import tempfile
 
 import cli
@@ -89,24 +88,6 @@ class BESSCLI(cli.CLI):
     def loop(self):
         super(BESSCLI, self).loop()
 
-        '''
-        except socket.error as e:
-            self.fout.write('\n')
-
-            if e.errno in errno.errorcode:
-                err_code = errno.errorcode[e.errno]
-            else:
-                err_code = '<unknown>'
-
-            self.err('Disconnected from BESS daemon - errno=%d (%s: %s)' % \
-                    (e.errno, err_code, os.strerror(e.errno)))
-
-            if self.bess.peer[0] == 'localhost':
-                self.print_crashlog()
-
-            self.bess.disconnect()
-        '''
-
     def get_prompt(self):
         if self.bess.is_connected():
             return '%s:%d $ ' % self.bess.peer
@@ -117,7 +98,6 @@ def connect_bess():
     s = BESS()
     try:
         s.connect()
-        time.sleep(0.1)
     except s.APIError as e:
         print >> sys.stderr, e.message
     return s
