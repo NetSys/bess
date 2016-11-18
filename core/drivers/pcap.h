@@ -20,9 +20,9 @@ class PCAPPort : public Port {
 
   virtual void DeInit();
   // PCAP has no notion of queue so unlike parent (port.cc) quid is ignored.
-  virtual int SendPackets(queue_t qid, bess::PacketArray pkts, int cnt);
+  virtual int SendPackets(queue_t qid, bess::Packet ** pkts, int cnt);
   // Ditto above: quid is ignored.
-  virtual int RecvPackets(queue_t qid, bess::PacketArray pkts, int cnt);
+  virtual int RecvPackets(queue_t qid, bess::Packet ** pkts, int cnt);
 
  private:
   void GatherData(unsigned char *data, bess::Packet *pkt);

@@ -180,7 +180,7 @@ void UnixSocketPort::DeInit() {
   }
 }
 
-int UnixSocketPort::RecvPackets(queue_t qid, bess::PacketArray pkts, int cnt) {
+int UnixSocketPort::RecvPackets(queue_t qid, bess::Packet ** pkts, int cnt) {
   assert(qid == 0);
 
   if (client_fd_ == kNotConnectedFd) {
@@ -234,7 +234,7 @@ int UnixSocketPort::RecvPackets(queue_t qid, bess::PacketArray pkts, int cnt) {
   return received;
 }
 
-int UnixSocketPort::SendPackets(queue_t qid, bess::PacketArray pkts, int cnt) {
+int UnixSocketPort::SendPackets(queue_t qid, bess::Packet ** pkts, int cnt) {
   int sent = 0;
 
   assert(qid == 0);

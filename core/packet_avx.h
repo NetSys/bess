@@ -7,7 +7,7 @@
 
 #include "utils/simd.h"
 
-int Packet::Alloc(PacketArray pkts, size_t cnt, uint16_t len) {
+int Packet::Alloc(Packet **pkts, size_t cnt, uint16_t len) {
   int ret;
   size_t i;
 
@@ -59,7 +59,7 @@ int Packet::Alloc(PacketArray pkts, size_t cnt, uint16_t len) {
  * 4. the data buffer is embedded in the mbuf
  *    (Do not use RTE_MBUF_(IN)DIRECT, since there is a difference
  *     between DPDK 1.8 and 2.0) */
-void Packet::Free(PacketArray pkts, int cnt) {
+void Packet::Free(Packet **pkts, int cnt) {
   struct rte_mempool *_pool = pkts[0]->pool_;
 
   /* broadcast */

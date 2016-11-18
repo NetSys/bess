@@ -23,7 +23,6 @@ static_assert(SNBUF_HEADROOM == RTE_PKTMBUF_HEADROOM,
 namespace bess {
 
 class Packet;
-typedef Packet **PacketArray;
 
 static inline Packet *__packet_alloc_pool(struct rte_mempool *pool) {
   struct rte_mbuf *mbuf;
@@ -201,12 +200,12 @@ class Packet {
 
     return pkt;
   }
-  static inline int Alloc(PacketArray pkts, size_t cnt, uint16_t len);
+  static inline int Alloc(Packet **pkts, size_t cnt, uint16_t len);
 
   static void Free(Packet *pkt) {
     rte_pktmbuf_free(reinterpret_cast<struct rte_mbuf *>(pkt));
   }
-  static inline void Free(PacketArray pkts, int cnt);
+  static inline void Free(Packet **pkts, int cnt);
   static void Free(PacketBatch *batch) { Free(batch->pkts(), batch->cnt()); }
 
  private:
@@ -355,7 +354,7 @@ extern Packet pframe_template;
 #if __AVX__
 #include "packet_avx.h"
 #else
-int Packet::Alloc(PacketArray pkts, size_t cnt, uint16_t len) {
+int Packet::Alloc(Packet **pkts, size_t cnt, uint16_t len) {
   int ret;
   size_t i;
 
@@ -375,7 +374,7 @@ int Packet::Alloc(PacketArray pkts, size_t cnt, uint16_t len) {
   return cnt;
 }
 
-void Packet::Free(PacketArray pkts, int cnt) {
+void Packet::Free(Packet **pkts, int cnt) {
   struct rte_mempool *pool = pkts[0]->pool_;
 
   int i;

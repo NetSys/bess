@@ -30,7 +30,7 @@ void PCAPPort::DeInit() {
   pcap_handle_.Reset();
 }
 
-int PCAPPort::RecvPackets(queue_t qid, bess::PacketArray pkts, int cnt) {
+int PCAPPort::RecvPackets(queue_t qid, bess::Packet ** pkts, int cnt) {
   if (!pcap_handle_.is_initialized()) {
     return 0;
   }
@@ -82,7 +82,7 @@ int PCAPPort::RecvPackets(queue_t qid, bess::PacketArray pkts, int cnt) {
   return recv_cnt;
 }
 
-int PCAPPort::SendPackets(queue_t, bess::PacketArray pkts, int cnt) {
+int PCAPPort::SendPackets(queue_t, bess::Packet ** pkts, int cnt) {
   if (!pcap_handle_.is_initialized()) {
     return 0;  // TODO: Would like to raise an error here...
   }

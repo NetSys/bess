@@ -181,8 +181,8 @@ class Port {
 
   virtual void CollectStats(bool reset);
 
-  virtual int RecvPackets(queue_t qid, bess::PacketArray pkts, int cnt);
-  virtual int SendPackets(queue_t qid, bess::PacketArray pkts, int cnt);
+  virtual int RecvPackets(queue_t qid, bess::Packet ** pkts, int cnt);
+  virtual int SendPackets(queue_t qid, bess::Packet ** pkts, int cnt);
 
   // For custom incoming / outgoing queue sizes (optional).
   virtual size_t DefaultIncQueueSize() const { return kDefaultIncQueueSize; }

@@ -13,8 +13,8 @@ class VPort : public Port {
   struct snobj *Init(struct snobj *conf);
   void DeInit();
 
-  int RecvPackets(queue_t qid, bess::PacketArray pkts, int max_cnt);
-  int SendPackets(queue_t qid, bess::PacketArray pkts, int cnt);
+  int RecvPackets(queue_t qid, bess::Packet ** pkts, int max_cnt);
+  int SendPackets(queue_t qid, bess::Packet ** pkts, int cnt);
 
  private:
   struct queue {

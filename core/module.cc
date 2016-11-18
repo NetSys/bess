@@ -391,7 +391,7 @@ void Module::RunSplit(const gate_idx_t *out_gates,
   int cnt = mixed_batch->cnt();
   int num_pending = 0;
 
-  bess::PacketArray p_pkt = &mixed_batch->pkts()[0];
+  bess::Packet ** p_pkt = &mixed_batch->pkts()[0];
 
   gate_idx_t pending[bess::PacketBatch::kMaxBurst];
   bess::PacketBatch batches[bess::PacketBatch::kMaxBurst];

@@ -14,8 +14,8 @@ void Buffer::ProcessBatch(bess::PacketBatch *batch) {
   int free_slots = bess::PacketBatch::kMaxBurst - buf->cnt();
   int left = batch->cnt();
 
-  bess::PacketArray p_buf = &buf->pkts()[buf->cnt()];
-  bess::PacketArray p_batch = &batch->pkts()[0];
+  bess::Packet ** p_buf = &buf->pkts()[buf->cnt()];
+  bess::Packet ** p_batch = &batch->pkts()[0];
 
   if (left >= free_slots) {
     buf->set_cnt(bess::PacketBatch::kMaxBurst);

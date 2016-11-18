@@ -63,7 +63,7 @@ class PMDPort : public Port {
    *
    * PARAMETERS:
    * * queue_t quid : NIC queue to receive from.
-   * * bess::PacketArray pkts   : buffer to store received packets in to.
+   * * bess::Packet **pkts   : buffer to store received packets in to.
    * * int cnt  : max number of packets to pull.
    *
    * EXPECTS:
@@ -73,14 +73,14 @@ class PMDPort : public Port {
    * RETURNS:
    * * Total number of packets received (<=cnt)
    */
-  virtual int RecvPackets(queue_t qid, bess::PacketArray pkts, int cnt);
+  virtual int RecvPackets(queue_t qid, bess::Packet ** pkts, int cnt);
 
   /*!
    * Sends packets out on the device.
    *
    * PARAMETERS:
    * * queue_t quid : NIC queue to transmit on.
-   * * bess::PacketArray pkts   : packets to transmit.
+   * * bess::Packet ** pkts   : packets to transmit.
    * * int cnt  : number of packets in pkts to transmit.
    *
    * EXPECTS:
@@ -90,7 +90,7 @@ class PMDPort : public Port {
    * RETURNS:
    * * Total number of packets sent (<=cnt).
    */
-  virtual int SendPackets(queue_t qid, bess::PacketArray pkts, int cnt);
+  virtual int SendPackets(queue_t qid, bess::Packet ** pkts, int cnt);
 
  private:
   /*!
