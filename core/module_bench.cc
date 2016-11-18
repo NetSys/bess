@@ -21,7 +21,7 @@ class DummySourceModule : public Module {
     bess::Packet *pkt = &pkts[i];
 
     // this fake packet must not be freed
-    rte_mbuf_refcnt_set(reinterpret_cast<struct rte_mbuf *>(pkt), 2);
+    pkt->set_refcnt(2);
 
     // not chained
     pkt->set_next(nullptr);

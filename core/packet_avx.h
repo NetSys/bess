@@ -26,7 +26,7 @@ int Packet::Alloc(PacketArray pkts, size_t cnt, uint16_t len) {
   if (ret != 0)
     return 0;
 
-  mbuf_template = *((__m128i *)&pframe_template.buf_len);
+  mbuf_template = *((__m128i *)&pframe_template.buf_len_);
 
   /* 4 at a time didn't help */
   for (i = 0; i < (cnt & (~0x1)); i += 2) {
@@ -35,18 +35,18 @@ int Packet::Alloc(PacketArray pkts, size_t cnt, uint16_t len) {
     Packet *pkt0 = pkts[i];
     Packet *pkt1 = pkts[i + 1];
 
-    _mm_storeu_si128((__m128i *)&pkt0->mbuf_.buf_len, mbuf_template);
-    _mm_storeu_si128((__m128i *)&pkt0->mbuf_.packet_type, rxdesc_fields);
+    _mm_storeu_si128((__m128i *)&pkt0->buf_len_, mbuf_template);
+    _mm_storeu_si128((__m128i *)&pkt0->packet_type_, rxdesc_fields);
 
-    _mm_storeu_si128((__m128i *)&pkt1->mbuf_.buf_len, mbuf_template);
-    _mm_storeu_si128((__m128i *)&pkt1->mbuf_.packet_type, rxdesc_fields);
+    _mm_storeu_si128((__m128i *)&pkt1->buf_len_, mbuf_template);
+    _mm_storeu_si128((__m128i *)&pkt1->packet_type_, rxdesc_fields);
   }
 
   if (cnt & 0x1) {
     Packet *pkt = pkts[i];
 
-    _mm_storeu_si128((__m128i *)&pkt->mbuf_.buf_len, mbuf_template);
-    _mm_storeu_si128((__m128i *)&pkt->mbuf_.packet_type, rxdesc_fields);
+    _mm_storeu_si128((__m128i *)&pkt->buf_len_, mbuf_template);
+    _mm_storeu_si128((__m128i *)&pkt->packet_type_, rxdesc_fields);
   }
 
   return cnt;
@@ -60,7 +60,7 @@ int Packet::Alloc(PacketArray pkts, size_t cnt, uint16_t len) {
  *    (Do not use RTE_MBUF_(IN)DIRECT, since there is a difference
  *     between DPDK 1.8 and 2.0) */
 void Packet::Free(PacketArray pkts, int cnt) {
-  struct rte_mempool *_pool = pkts[0]->mbuf_.pool;
+  struct rte_mempool *_pool = pkts[0]->pool_;
 
   /* broadcast */
   __m128i offset = _mm_set1_epi64x(SNBUF_HEADROOM_OFF);
@@ -105,9 +105,9 @@ void Packet::Free(PacketArray pkts, int cnt) {
   if (i < cnt) {
     Packet *pkt = pkts[i];
 
-    if (unlikely(pkt->mbuf_.pool != _pool || pkt->mbuf_.next != nullptr ||
-                 rte_mbuf_refcnt_read(&pkt->mbuf_) != 1 ||
-                 pkt->mbuf_.buf_addr != pkt->headroom_)) {
+    if (unlikely(pkt->pool_ != _pool || pkt->next_ != nullptr ||
+                 rte_mbuf_refcnt_read(&pkt->as_rte_mbuf()) != 1 ||
+                 pkt->buf_addr_ != pkt->headroom_)) {
       goto slow_path;
     }
   }

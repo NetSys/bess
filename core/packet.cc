@@ -14,7 +14,7 @@
 
 namespace bess {
 
-struct rte_mbuf pframe_template;
+Packet pframe_template;
 
 static struct rte_mempool *pframe_pool[RTE_MAX_NUMA_NODES];
 
@@ -74,14 +74,14 @@ static void init_templates(void) {
   int i;
 
   for (i = 0; i < RTE_MAX_NUMA_NODES; i++) {
-    struct rte_mbuf *mbuf;
+    Packet *pkt;
 
     if (!pframe_pool[i])
       continue;
 
-    mbuf = rte_pktmbuf_alloc(pframe_pool[i]);
-    pframe_template = *mbuf;
-    rte_pktmbuf_free(mbuf);
+    pkt = reinterpret_cast<Packet *>(rte_pktmbuf_alloc(pframe_pool[i]));
+    pframe_template = *pkt;
+    Packet::Free(pkt);
   }
 }
 
