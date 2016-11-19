@@ -6,7 +6,6 @@ print 'RX/TX queue size: %d packets per queue' % qsize
 print 'NOTE: not all DPDK ports support lookback mode'
 
 for i in range(dpdk_ports):
-	p = PMDPort(port_id=i, loopback=1, size_inc_q=qsize, size_out_q=qsize)
-
-  Source() -> PortOut(port=p)
-  PortInc(port=p) -> Sink()
+		p = PMDPort(port_id=i, loopback=1, size_inc_q=qsize, size_out_q=qsize)
+		Source() -> PortOut(port='p')
+		PortInc(port=p.name) -> Sink()

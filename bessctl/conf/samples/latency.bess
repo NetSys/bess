@@ -5,8 +5,8 @@ import time
 
 v = VPort(loopback=1, rxq_cpus=[1])
 
-Source() -> Timestamp() -> PortOut(port=v)
-PortInc(port=v) -> m::Measure() -> Sink()
+Source() -> Timestamp() -> PortOut(port=v.name)
+PortInc(port=v.name) -> m::Measure() -> Sink()
 
 last = m.get_summary()
 
