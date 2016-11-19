@@ -6,12 +6,8 @@ class Port(object):
         assert self.driver != 'Port', \
                 "do not instantiate 'Port' directly"
 
-        if 'name' in kwargs:
-            name = kwargs['name']
-            del kwargs['name']
-        else:
-            name = None
-
+        name = kwargs.pop('name', None)
+        
         ret = self.bess.create_port(self.driver, name, kwargs)
 
         self.name = ret.name

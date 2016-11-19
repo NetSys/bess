@@ -112,14 +112,20 @@ class BESS(object):
         return self._request(self.stub.ListPorts)
 
     def create_port(self, driver, name, arg):
+        num_inc_q = arg.pop('num_inc_q', 0)
+        num_out_q = arg.pop('num_out_q', 0)
+        size_inc_q = arg.pop('size_inc_q', 0)
+        size_out_q = arg.pop('size_out_q', 0)
+        mac_addr = arg.pop('mac_addr', '')
+
         kv = {
             'name': name,
             'driver': driver,
-            'num_inc_q': arg['num_inc_q'] if 'num_inc_q' in arg else 0,
-            'num_out_q': arg['num_out_q'] if 'num_out_q' in arg else 0,
-            'size_inc_q': arg['size_inc_q'] if 'size_inc_q' in arg else 0,
-            'size_out_q': arg['size_out_q'] if 'size_out_q' in arg else 0,
-            'mac_addr': arg['mac_addr'] if 'mac_addr' in arg else '',
+            'num_inc_q': num_inc_q,
+            'num_out_q': num_out_q,
+            'size_inc_q': size_inc_q,
+            'size_out_q': size_out_q,
+            'mac_addr': mac_addr,
         }
 
         request = proto_conv.dict_to_protobuf(kv, bess_msg.CreatePortRequest)
@@ -251,6 +257,7 @@ class BESS(object):
             type_class = arg_classes[type_str]
             result = type_class()
             response.other.Unpack(result)
+            return result
         else:
             return response
 
