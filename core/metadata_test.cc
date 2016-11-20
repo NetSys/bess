@@ -20,14 +20,20 @@ class Foo : public Module {
 const Commands<Module> Foo::cmds = {};
 const PbCommands Foo::pb_cmds = {};
 
-Module *create_foo() {
+Module *create_foo(const std::string name = "") {
   const ModuleBuilder &builder =
       ModuleBuilder::all_module_builders().find("Foo")->second;
 
-  const std::string &mod_name = ModuleBuilder::GenerateDefaultName(
-      builder.class_name(), builder.name_template());
+  Module *m;
+  if (name.size() == 0) {
+    const std::string &mod_name = ModuleBuilder::GenerateDefaultName(
+        builder.class_name(), builder.name_template());
 
-  Module *m = builder.CreateModule(mod_name, &bess::metadata::default_pipeline);
+    m = builder.CreateModule(mod_name, &bess::metadata::default_pipeline);
+  } else {
+    m = builder.CreateModule(std::string(name),
+                             &bess::metadata::default_pipeline);
+  }
   builder.AddModule(m);
 
   return m;
@@ -132,7 +138,7 @@ TEST_F(MetadataTest, SingleAttrSimplePipeBackwardsFails) {
 TEST_F(MetadataTest, MultipleAttrSimplePipeNoSpaceFails) {
   size_t sz = kMetadataAttrMaxSize;
   size_t n = kMetadataTotalSize / sz;
-  for (size_t i = 0; i <= n ; i++) {
+  for (size_t i = 0; i <= n; i++) {
     std::string s = "attr" + std::to_string(i);
     ASSERT_EQ(i, m0->AddMetadataAttr(s, sz, Attribute::AccessMode::kWrite));
     ASSERT_EQ(i, m1->AddMetadataAttr(s, sz, Attribute::AccessMode::kRead));
@@ -249,6 +255,68 @@ TEST_F(MetadataTest, MultipeAttrComplexPipe) {
   ASSERT_NE(mods[7]->attr_offsets[0], mods[8]->attr_offsets[0]);
   ASSERT_EQ(mods[7]->attr_offsets[0], mods[9]->attr_offsets[1]);
   ASSERT_EQ(mods[8]->attr_offsets[0], mods[9]->attr_offsets[0]);
+}
+
+// In this strange edge case, m4 should not clobber m3's write of attribute "h".
+// We force a strange ordering of lexographic ordering of modules so to yield a
+// non-monotonic ordering of the degrees of the scope componenets corresponding
+// to each metadata attribute. ComputeMetadataOffsets() should sort them before
+// handing them to AssignOffsets(). If it doesn't, bad things happen.
+TEST_F(MetadataTest, ScopeComponentDegreeOrder) {
+  ModuleBuilder::DestroyAllModules();
+  m0 = create_foo("foo5");
+  m1 = create_foo("foo3");
+  Module *m2 = create_foo("foo6");
+  Module *m3 = create_foo("foo2");
+  Module *m4 = create_foo("foo4");
+  Module *m5 = create_foo("foo1");
+  ASSERT_NE(nullptr, m0);
+  ASSERT_NE(nullptr, m1);
+  ASSERT_NE(nullptr, m2);
+  ASSERT_NE(nullptr, m3);
+  ASSERT_NE(nullptr, m4);
+  ASSERT_NE(nullptr, m5);
+
+  m0->AddMetadataAttr("a", 4, Attribute::AccessMode::kWrite);
+  m0->AddMetadataAttr("b", 4, Attribute::AccessMode::kWrite);
+  m0->AddMetadataAttr("c", 4, Attribute::AccessMode::kWrite);
+  m0->ConnectModules(0, m1, 0);
+
+  m1->AddMetadataAttr("a", 4, Attribute::AccessMode::kWrite);
+  m1->AddMetadataAttr("b", 4, Attribute::AccessMode::kWrite);
+  m1->AddMetadataAttr("c", 4, Attribute::AccessMode::kWrite);
+  m1->ConnectModules(0, m2, 0);
+
+  m2->AddMetadataAttr("a", 4, Attribute::AccessMode::kRead);
+  m2->AddMetadataAttr("b", 4, Attribute::AccessMode::kRead);
+  m2->AddMetadataAttr("c", 4, Attribute::AccessMode::kRead);
+  m2->AddMetadataAttr("d", 4, Attribute::AccessMode::kWrite);
+  m2->AddMetadataAttr("e", 4, Attribute::AccessMode::kWrite);
+  m2->AddMetadataAttr("f", 1, Attribute::AccessMode::kWrite);
+  m2->ConnectModules(0, m3, 0);
+
+  m3->AddMetadataAttr("d", 4, Attribute::AccessMode::kRead);
+  m3->AddMetadataAttr("e", 4, Attribute::AccessMode::kRead);
+  m3->AddMetadataAttr("f", 1, Attribute::AccessMode::kRead);
+  m3->AddMetadataAttr("g", 4, Attribute::AccessMode::kWrite);
+  m3->AddMetadataAttr("h", 2, Attribute::AccessMode::kWrite);
+  m3->ConnectModules(0, m4, 0);
+
+  m4->AddMetadataAttr("i", 6, Attribute::AccessMode::kWrite);
+  m4->AddMetadataAttr("j", 6, Attribute::AccessMode::kWrite);
+  m4->ConnectModules(0, m5, 0);
+
+  m5->AddMetadataAttr("i", 6, Attribute::AccessMode::kRead);
+  m5->AddMetadataAttr("j", 6, Attribute::AccessMode::kRead);
+  m5->AddMetadataAttr("h", 2, Attribute::AccessMode::kRead);
+
+  ASSERT_EQ(0, default_pipeline.ComputeMetadataOffsets());
+
+  ASSERT_TRUE((m4->attr_offsets[0] >= m3->attr_offsets[4] + 2) ||
+              (m4->attr_offsets[0] + 6 <= m3->attr_offsets[4]));
+
+  ASSERT_TRUE((m4->attr_offsets[1] >= m3->attr_offsets[4] + 2) ||
+              (m4->attr_offsets[1] + 6 <= m3->attr_offsets[4]));
 }
 
 }  // namespace metadata
