@@ -1099,8 +1099,15 @@ def monitor_pipeline_batch(cli):
 def _monitor_ports(cli, *ports):
 
     def get_delta(old, new):
+        result = dict()
         sec_diff = new.timestamp - old.timestamp
-        return (new - old) / sec_diff
+        result['inc_packets'] = (new.inc.packets - old.inc.packets) / sec_diff
+        result['inc_dropped'] = (new.inc.dropped - old.inc.dropped) / sec_diff
+        result['inc_bytes'] = (new.inc.bytes - old.inc.bytes) / sec_diff
+        result['out_packets'] = (new.out.packets - old.out.packets) / sec_diff
+        result['out_dropped'] = (new.out.dropped - old.out.dropped) / sec_diff
+        result['out_bytes'] = (new.out.bytes - old.out.bytes) / sec_diff
+        return result
 
     def print_header(timestamp):
         cli.fout.write('\n')
@@ -1117,19 +1124,22 @@ def _monitor_ports(cli, *ports):
     def print_delta(port, delta):
         cli.fout.write('%-20s%14.1f%10.3f%10d        %14.1f%10.3f%10d\n' % \
                 (port,
-                 (delta.inc.bytes + delta.inc.packets * 24) * 8 / 1e6,
-                 delta.inc.packets / 1e6,
-                 delta.inc.dropped,
-                 (delta.out.bytes + delta.out.packets * 24) * 8 / 1e6,
-                 delta.out.packets / 1e6,
-                 delta.out.dropped))
+                 (delta['inc_bytes'] + delta['inc_packets'] * 24) * 8 / 1e6,
+                 delta['inc_packets'] / 1e6,
+                 delta['inc_dropped'],
+                 (delta['out_bytes'] + delta['out_packets'] * 24) * 8 / 1e6,
+                 delta['out_packets'] / 1e6,
+                 delta['out_dropped']))
 
     def get_total(arr):
         total = copy.deepcopy(arr[0])
         for stat in arr[1:]:
-            for pdir in ('inc', 'out'):
-                for key in total[pdir]:
-                    total[pdir][key] += stat[pdir][key]
+            total.inc.packets += stat.inc.packets
+            total.inc.dropped += stat.inc.dropped
+            total.inc.bytes += stat.inc.bytes
+            total.out.packets += stat.out.packets
+            total.out.dropped += stat.out.dropped
+            total.out.bytes += stat.out.bytes
         return total
 
     all_ports = sorted(cli.bess.list_ports().ports, key=lambda x: x.name)
