@@ -136,6 +136,11 @@ def get_var_attrs(cli, var_token, partial_word):
             var_desc = 'name of a port driver'
             var_candidates = cli.bess.list_drivers().driver_names
 
+        elif var_token == 'DRIVER...':
+            var_type = 'name'
+            var_desc = 'one or more port driver names'
+            var_candidates = cli.bess.list_drivers().driver_names
+
         elif var_token == 'MCLASS':
             var_type = 'name'
             var_desc = 'name of a module class'
@@ -761,10 +766,10 @@ def _limit_to_str(limit):
         return 'unlimited'
 
 def _show_tc_list(cli, tcs):
-    wids = sorted(list(set(map(lambda tc: tc.class_.wid, tcs))))
+    wids = sorted(list(set(map(lambda tc: getattr(tc, 'class').wid, tcs))))
 
     for wid in wids:
-        matched = filter(lambda tc: tc.class_.wid == wid, tcs)
+        matched = filter(lambda tc: getattr(tc, 'class').wid == wid, tcs)
 
         if wid == -1:
             cli.fout.write('  Unattached (%d classes)\n' % len(matched))
@@ -775,11 +780,11 @@ def _show_tc_list(cli, tcs):
             cli.fout.write('    %-16s  ' \
                            'parent %-10s  priority %-3d  tasks %-3d ' \
                            '%s\n' % \
-                    (tc.class_.name,
+                    (getattr(tc, 'class').name,
                      tc.parent if tc.parent else 'none',
-                     tc.class_.priority,
+                     getattr(tc, 'class').priority,
                      tc.tasks,
-                     _limit_to_str(tc.class_.limit)))
+                     _limit_to_str(getattr(tc, 'class').limit)))
 
 
 @cmd('show tc', 'Show the list of traffic classes')
@@ -831,11 +836,8 @@ def show_status(cli):
     if modules:
         module_list = []
         for m in modules:
-            if 'desc' in m:
-                module_list.append('%s::%s(%s)' % \
-                        (m.name, m.mclass, m.desc))
-            else:
-                module_list.append('%s::%s' % (m.name, m.mclass))
+            module_list.append('%s::%s(%s)' % \
+                               (m.name, m.mclass, m.desc))
 
         cli.fout.write('%s\n' % ', '.join(module_list))
     else:
@@ -852,10 +854,7 @@ def _draw_pipeline(cli, field, last_stats = None):
         mclass = m.mclass
         names.append(name)
         node_labels[name] = '%s\\n%s' % (name, mclass)
-        if 'desc' in m:
-            node_labels[name] += '\\n%s' % m.desc
-        else:
-            node_labels[name] += '\\n-'
+        node_labels[name] += '\\n%s' % m.desc
 
     port_inc_list = []
 
@@ -960,10 +959,7 @@ def _show_module(cli, module_name):
 
     cli.fout.write('  %s::%s' % (info.name, info.mclass))
 
-    if 'desc' in info:
-        cli.fout.write(' (%s)\n' % info.desc)
-    else:
-        cli.fout.write('\n')
+    cli.fout.write(' (%s)\n' % info.desc)
 
     if len(info.metadata) > 0:
         cli.fout.write('    Per-packet metadata fields:\n')
