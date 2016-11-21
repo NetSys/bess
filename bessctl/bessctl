@@ -5,6 +5,7 @@ import os.path
 import pprint
 import cStringIO
 import tempfile
+import socket
 
 import cli
 import commands
@@ -100,10 +101,15 @@ class BESSCLI(cli.CLI):
 
 def connect_bess():
     s = BESS()
+
     try:
+        sock = socket.socket()
+        sock.connect(('localhost', BESS.DEF_PORT))
+        sock.close()
         s.connect()
-    except s.APIError as e:
-        print >> sys.stderr, e.message
+    except socket.error as e:
+        print >> sys.stderr, e
+        
     return s
 
 def run_cli():

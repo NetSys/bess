@@ -6,6 +6,7 @@ import os
 import inspect
 import time
 import grpc
+import threading
 
 import service_pb2
 import proto_conv
@@ -41,11 +42,12 @@ class BESS(object):
         self.debug = False
         self.stub = None
         self.channel = None
-        self.status = None
         self.peer = None
 
+        self.status = None
+
     def is_connected(self):
-        return self.status == grpc.ChannelConnectivity.READY
+        return (self.status == grpc.ChannelConnectivity.READY)
 
     def _update_status(self, connectivity):
         self.status = connectivity
@@ -57,15 +59,23 @@ class BESS(object):
         self.channel = grpc.insecure_channel('%s:%d' % (host, port))
         self.channel.subscribe(self._update_status, try_to_connect=True)
         self.stub = service_pb2.BESSControlStub(self.channel)
-        time.sleep(0.1) # Hack: Wait for gRPC to connect
+
+        while not self.is_connected():
+            time.sleep(0.1)
+
+    def clear_connection(self):
+        self.channel.unsubscribe(self._update_status)
+        self.status = None
+        self.stub = None
+        self.channel = None
+        self.peer = None
 
     def disconnect(self):
         if self.is_connected():
-            self.channel.unsubscribe(self._update_status)
-            self.status = None
-            self.stub = None
-            self.channel = None
-            self.peer = None
+            self.clear_connection()
+
+        while self.is_connected():
+            time.sleep(0.1)
 
     def set_debug(self, flag):
         self.debug = flag
@@ -87,6 +97,11 @@ class BESS(object):
             self._request(self.stub.KillBess)
         except grpc._channel._Rendezvous:
             pass
+
+        while self.is_connected():
+            time.sleep(0.1)
+
+        self.clear_connection()
 
     def reset_all(self):
         return self._request(self.stub.ResetAll)
