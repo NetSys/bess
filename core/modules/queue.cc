@@ -58,8 +58,6 @@ pb_error_t Queue::InitPb(const bess::pb::QueueArg &arg) {
   task_id_t tid;
   pb_error_t err;
 
-  burst_ = bess::PacketBatch::kMaxBurst;
-
   tid = RegisterTask(nullptr);
   if (tid == INVALID_TASK_ID)
     return pb_error(ENOMEM, "Task creation failed");
@@ -70,7 +68,7 @@ pb_error_t Queue::InitPb(const bess::pb::QueueArg &arg) {
       return err;
     }
   } else {
-    burst_ = MAX_PKT_BURST;
+    burst_ = bess::PacketBatch::kMaxBurst;
   }
 
   if (arg.size() != 0) {
