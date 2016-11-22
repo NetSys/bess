@@ -57,6 +57,9 @@ message GetModuleInfoResponse {
     }
     uint64 igate = 1;
     repeated OGate ogates = 2;
+    uint64 cnt = 3;
+    uint64 pkts = 4;
+    double timestamp = 5;
   }
   message OGate {
     uint64 ogate = 1;
@@ -261,6 +264,20 @@ message CreatePortRequest {
 message CreatePortResponse {
   Error error = 1;
   string name = 2;
+}
+
+message EnableTrackRequest {
+  string name = 1;
+  int64 gate = 2;
+  bool is_igate = 3;
+  bool use_gate = 4;
+}
+
+message DisableTrackRequest {
+  string name = 1;
+  int64 gate = 2;
+  bool is_igate = 3;
+  bool use_gate = 4;
 }
 
 // TODO: add something like PortCommandRequest

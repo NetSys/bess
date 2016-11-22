@@ -47,6 +47,9 @@ service BESSControl {
   rpc EnableTcpdump (EnableTcpdumpRequest) returns (EmptyResponse) {}
   rpc DisableTcpdump (DisableTcpdumpRequest) returns (EmptyResponse) {}
 
+  rpc EnableTrack (EnableTrackRequest) returns (EmptyResponse) {}
+  rpc DisableTrack (DisableTrackRequest) returns (EmptyResponse) {}
+
   rpc KillBess (EmptyRequest) returns (EmptyResponse) {}
 
   rpc ModuleCommand (ModuleCommandRequest) returns (ModuleCommandResponse) {}

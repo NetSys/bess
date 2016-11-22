@@ -50,6 +50,79 @@ static inline Status return_with_errno(T* response, int code) {
   return Status::OK;
 }
 
+static pb_error_t enable_track_for_module(const Module* m, gate_idx_t gate_idx,
+                                          bool is_igate, bool use_gate) {
+  int ret;
+
+  if (use_gate) {
+    if (!is_igate && gate_idx >= m->ogates.size()) {
+      return pb_error(EINVAL, "Output gate '%hu' does not exist", gate_idx);
+    }
+
+    if (is_igate && gate_idx >= m->igates.size()) {
+      return pb_error(EINVAL, "Input gate '%hu' does not exist", gate_idx);
+    }
+
+    if (is_igate && (ret = m->igates[gate_idx]->AddHook(new TrackGate()))) {
+      return pb_error(ret, "Failed to track input gate '%hu'", gate_idx);
+    }
+
+    if ((ret = m->ogates[gate_idx]->AddHook(new TrackGate()))) {
+      return pb_error(ret, "Failed to track output gate '%hu'", gate_idx);
+    }
+  }
+
+  // XXX: ewwwwww
+  if (is_igate) {
+    for (auto& gate : m->igates) {
+      if ((ret = gate->AddHook(new TrackGate()))) {
+        return pb_error(ret, "Failed to track input gate '%hu'",
+                        gate->gate_idx());
+      }
+    }
+  } else {
+    for (auto& gate : m->ogates) {
+      if ((ret = gate->AddHook(new TrackGate()))) {
+        return pb_error(ret, "Failed to track output gate '%hu'",
+                        gate->gate_idx());
+      }
+    }
+  }
+  return pb_errno(0);
+}
+
+static pb_error_t disable_track_for_module(const Module* m, gate_idx_t gate_idx,
+                                           bool is_igate, bool use_gate) {
+  if (use_gate) {
+    if (!is_igate && gate_idx >= m->ogates.size()) {
+      return pb_error(EINVAL, "Output gate '%hu' does not exist", gate_idx);
+    }
+
+    if (is_igate && gate_idx >= m->igates.size()) {
+      return pb_error(EINVAL, "Input gate '%hu' does not exist", gate_idx);
+    }
+
+    if (is_igate) {
+      m->igates[gate_idx]->RemoveHook(kGateHookTrackGate);
+      return pb_errno(0);
+    }
+    m->ogates[gate_idx]->RemoveHook(kGateHookTrackGate);
+    return pb_errno(0);
+  }
+
+  // XXX: ewwwwww
+  if (is_igate) {
+    for (auto& gate : m->igates) {
+      gate->RemoveHook(kGateHookTrackGate);
+    }
+  } else {
+    for (auto& gate : m->ogates) {
+      gate->RemoveHook(kGateHookTrackGate);
+    }
+  }
+  return pb_errno(0);
+}
+
 static int collect_igates(Module* m, GetModuleInfoResponse* response) {
   for (const auto& g : m->igates) {
     if (!g) {
@@ -58,8 +131,16 @@ static int collect_igates(Module* m, GetModuleInfoResponse* response) {
 
     GetModuleInfoResponse_IGate* igate = response->add_igates();
 
-    igate->set_igate(g->gate_idx());
+    TrackGate* t =
+        reinterpret_cast<TrackGate*>(g->FindHook(kGateHookTrackGate));
 
+    if (t) {
+      igate->set_cnt(t->cnt());
+      igate->set_pkts(t->pkts());
+      igate->set_timestamp(get_epoch_time());
+    }
+
+    igate->set_igate(g->gate_idx());
     for (const auto& og : g->ogates_upstream()) {
       GetModuleInfoResponse_IGate_OGate* ogate = igate->add_ogates();
       ogate->set_ogate(og->gate_idx());
@@ -987,6 +1068,64 @@ class BESSControlImpl final : public BESSControl::Service {
                                m_name, gate);
     }
     return Status::OK;
+  }
+
+  Status EnableTrack(ServerContext*, const EnableTrackRequest* request,
+                     EmptyResponse* response) override {
+    if (is_any_worker_running()) {
+      return return_with_error(response, EBUSY, "There is a running worker");
+    }
+    pb_error_t* error = response->mutable_error();
+    if (!request->name().length()) {
+      for (const auto& it : ModuleBuilder::all_modules()) {
+        *error =
+            enable_track_for_module(it.second, request->gate(),
+                                    request->is_igate(), request->use_gate());
+        if (error->err() != 0) {
+          return Status::OK;
+        }
+      }
+      return Status::OK;
+    } else {
+      const auto& it = ModuleBuilder::all_modules().find(request->name());
+      if (it == ModuleBuilder::all_modules().end()) {
+        *error =
+            pb_error(ENOENT, "No module '%s' found", request->name().c_str());
+      }
+      *error =
+          enable_track_for_module(it->second, request->gate(),
+                                  request->is_igate(), request->use_gate());
+      return Status::OK;
+    }
+  }
+
+  Status DisableTrack(ServerContext*, const DisableTrackRequest* request,
+                      EmptyResponse* response) override {
+    if (is_any_worker_running()) {
+      return return_with_error(response, EBUSY, "There is a running worker");
+    }
+    pb_error_t* error = response->mutable_error();
+    if (!request->name().length()) {
+      for (const auto& it : ModuleBuilder::all_modules()) {
+        *error =
+            disable_track_for_module(it.second, request->gate(),
+                                     request->is_igate(), request->use_gate());
+        if (error->err() != 0) {
+          return Status::OK;
+        }
+      }
+      return Status::OK;
+    } else {
+      const auto& it = ModuleBuilder::all_modules().find(request->name());
+      if (it == ModuleBuilder::all_modules().end()) {
+        *error =
+            pb_error(ENOENT, "No module '%s' found", request->name().c_str());
+      }
+      *error =
+          disable_track_for_module(it->second, request->gate(),
+                                   request->is_igate(), request->use_gate());
+      return Status::OK;
+    }
   }
 
   Status KillBess(ServerContext*, const EmptyRequest*,
