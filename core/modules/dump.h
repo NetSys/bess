@@ -9,7 +9,7 @@ class Dump : public Module {
   virtual struct snobj *Init(struct snobj *arg);
   pb_error_t InitPb(const bess::pb::DumpArg &arg);
 
-  virtual void ProcessBatch(struct pkt_batch *batch);
+  virtual void ProcessBatch(bess::PacketBatch *batch);
 
   struct snobj *CommandSetInterval(struct snobj *arg);
   pb_cmd_response_t CommandSetIntervalPb(const bess::pb::DumpArg &arg);

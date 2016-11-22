@@ -31,13 +31,13 @@ struct snobj *GenericDecap::Init(struct snobj *arg) {
   return nullptr;
 }
 
-void GenericDecap::ProcessBatch(struct pkt_batch *batch) {
-  int cnt = batch->cnt;
+void GenericDecap::ProcessBatch(bess::PacketBatch *batch) {
+  int cnt = batch->cnt();
 
   int decap_size = decap_size_;
 
   for (int i = 0; i < cnt; i++) {
-    snb_adj(batch->pkts[i], decap_size);
+    batch->pkts()[i]->adj(decap_size);
   }
 
   RunNextModule(batch);

@@ -1,6 +1,6 @@
 #include "bypass.h"
 
-void Bypass::ProcessBatch(struct pkt_batch *batch) {
+void Bypass::ProcessBatch(bess::PacketBatch *batch) {
   RunChooseModule(get_igate(), batch);
 }
 

@@ -36,36 +36,35 @@ pb_error_t Rewrite::InitPb(const bess::pb::RewriteArg &arg) {
 pb_cmd_response_t Rewrite::CommandAddPb(const bess::pb::RewriteArg &arg) {
   pb_cmd_response_t response;
 
-  int curr = num_templates_;
-  int i;
+  size_t curr = num_templates_;
 
-  if (curr + arg.templates_size() > MAX_PKT_BURST) {
-    set_cmd_response_error(&response,
-                           pb_error(EINVAL,
-                                    "max %d packet templates "
-                                    "can be used %d %d",
-                                    MAX_PKT_BURST, curr, arg.templates_size()));
+  if (curr + arg.templates_size() > bess::PacketBatch::kMaxBurst) {
+    set_cmd_response_error(&response, pb_error(EINVAL,
+                                               "max %lu packet templates "
+                                               "can be used %lu %d",
+                                               bess::PacketBatch::kMaxBurst,
+                                               curr, arg.templates_size()));
     return response;
   }
 
-  for (i = 0; i < arg.templates_size(); i++) {
+  for (int i = 0; i < arg.templates_size(); i++) {
     const auto &templ = arg.templates(i);
 
-    if (templ.length() > MAX_TEMPLATE_SIZE) {
+    if (templ.length() > kMaxTemplateSize) {
       set_cmd_response_error(&response,
                              pb_error(EINVAL, "template is too big"));
       return response;
     }
 
-    memset(templates_[curr + i], 0, MAX_TEMPLATE_SIZE);
+    memset(templates_[curr + i], 0, kMaxTemplateSize);
     memcpy(templates_[curr + i], templ.c_str(), templ.length());
     template_size_[curr + i] = templ.length();
   }
 
   num_templates_ = curr + arg.templates_size();
 
-  for (i = num_templates_; i < SLOTS; i++) {
-    int j = i % num_templates_;
+  for (size_t i = num_templates_; i < kNumSlots; i++) {
+    size_t j = i % num_templates_;
     memcpy(templates_[i], templates_[j], template_size_[j]);
     template_size_[i] = template_size_[j];
   }
@@ -84,35 +83,35 @@ pb_cmd_response_t Rewrite::CommandClearPb(const bess::pb::EmptyArg &) {
   return response;
 }
 
-inline void Rewrite::DoRewriteSingle(struct pkt_batch *batch) {
-  const int cnt = batch->cnt;
+inline void Rewrite::DoRewriteSingle(bess::PacketBatch *batch) {
+  const int cnt = batch->cnt();
   uint16_t size = template_size_[0];
   void *templ = templates_[0];
 
   for (int i = 0; i < cnt; i++) {
-    struct snbuf *pkt = batch->pkts[i];
-    char *ptr = static_cast<char *>(pkt->mbuf.buf_addr) + SNBUF_HEADROOM;
+    bess::Packet *pkt = batch->pkts()[i];
+    char *ptr = static_cast<char *>(pkt->buffer()) + SNBUF_HEADROOM;
 
-    pkt->mbuf.data_off = SNBUF_HEADROOM;
-    pkt->mbuf.pkt_len = size;
-    pkt->mbuf.data_len = size;
+    pkt->set_data_off(SNBUF_HEADROOM);
+    pkt->set_total_len(size);
+    pkt->set_data_len(size);
 
     memcpy_sloppy(ptr, templ, size);
   }
 }
 
-inline void Rewrite::DoRewrite(struct pkt_batch *batch) {
+inline void Rewrite::DoRewrite(bess::PacketBatch *batch) {
   int start = next_turn_;
-  const int cnt = batch->cnt;
+  const int cnt = batch->cnt();
 
   for (int i = 0; i < cnt; i++) {
     uint16_t size = template_size_[start + i];
-    struct snbuf *pkt = batch->pkts[i];
-    char *ptr = static_cast<char *>(pkt->mbuf.buf_addr) + SNBUF_HEADROOM;
+    bess::Packet *pkt = batch->pkts()[i];
+    char *ptr = static_cast<char *>(pkt->buffer()) + SNBUF_HEADROOM;
 
-    pkt->mbuf.data_off = SNBUF_HEADROOM;
-    pkt->mbuf.pkt_len = size;
-    pkt->mbuf.data_len = size;
+    pkt->set_data_off(SNBUF_HEADROOM);
+    pkt->set_total_len(size);
+    pkt->set_data_len(size);
 
     memcpy_sloppy(ptr, templates_[start + i], size);
   }
@@ -120,7 +119,7 @@ inline void Rewrite::DoRewrite(struct pkt_batch *batch) {
   next_turn_ = (start + cnt) % num_templates_;
 }
 
-void Rewrite::ProcessBatch(struct pkt_batch *batch) {
+void Rewrite::ProcessBatch(bess::PacketBatch *batch) {
   if (num_templates_ == 1) {
     DoRewriteSingle(batch);
   } else if (num_templates_ > 1) {
@@ -131,21 +130,21 @@ void Rewrite::ProcessBatch(struct pkt_batch *batch) {
 }
 
 struct snobj *Rewrite::CommandAdd(struct snobj *arg) {
-  int curr = num_templates_;
-  int i;
+  size_t curr = num_templates_;
+  size_t i;
 
   if (snobj_type(arg) != TYPE_LIST) {
     return snobj_err(EINVAL, "argument must be a list");
   }
 
-  if (curr + arg->size > MAX_PKT_BURST) {
+  if (curr + arg->size > bess::PacketBatch::kMaxBurst) {
     return snobj_err(EINVAL,
-                     "max %d packet templates "
-                     "can be used %d %d",
-                     MAX_PKT_BURST, curr, arg->size);
+                     "max %lu packet templates "
+                     "can be used %lu %d",
+                     bess::PacketBatch::kMaxBurst, curr, arg->size);
   }
 
-  for (i = 0; i < static_cast<int>(arg->size); i++) {
+  for (i = 0; i < arg->size; i++) {
     struct snobj *templ = snobj_list_get(arg, i);
 
     if (templ->type != TYPE_BLOB) {
@@ -154,18 +153,18 @@ struct snobj *Rewrite::CommandAdd(struct snobj *arg) {
                        "should be BLOB type");
     }
 
-    if (templ->size > MAX_TEMPLATE_SIZE) {
+    if (templ->size > kMaxTemplateSize) {
       return snobj_err(EINVAL, "template is too big");
     }
 
-    memset(templates_[curr + i], 0, MAX_TEMPLATE_SIZE);
+    memset(templates_[curr + i], 0, kMaxTemplateSize);
     memcpy(templates_[curr + i], snobj_blob_get(templ), templ->size);
     template_size_[curr + i] = templ->size;
   }
 
   num_templates_ = curr + arg->size;
 
-  for (i = num_templates_; i < SLOTS; i++) {
+  for (i = num_templates_; i < kNumSlots; i++) {
     int j = i % num_templates_;
     memcpy(templates_[i], templates_[j], template_size_[j]);
     template_size_[i] = template_size_[j];

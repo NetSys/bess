@@ -43,7 +43,7 @@ static inline int find_next_nonworker_cpu(int cpu) {
 }
 
 static void refill_tx_bufs(struct llring *r) {
-  struct snbuf *pkts[REFILL_HIGH];
+  bess::Packet *pkts[REFILL_HIGH];
   void *objs[REFILL_HIGH];
 
   int deficit;
@@ -56,12 +56,12 @@ static void refill_tx_bufs(struct llring *r) {
 
   deficit = REFILL_HIGH - curr_cnt;
 
-  ret = snb_alloc_bulk((snb_array_t)pkts, deficit, 0);
+  ret = bess::Packet::Alloc((bess::Packet **)pkts, deficit, 0);
   if (ret == 0)
     return;
 
   for (int i = 0; i < ret; i++)
-    objs[i] = (void *)(uintptr_t)snb_to_paddr(pkts[i]);
+    objs[i] = (void *)(uintptr_t)pkts[i]->paddr();
 
   ret = llring_mp_enqueue_bulk(r, objs, ret);
   assert(ret == 0);
@@ -71,47 +71,47 @@ static void drain_sn_to_drv_q(struct llring *q) {
   /* sn_to_drv queues contain physical address of packet buffers */
   for (;;) {
     paddr_t paddr;
-    struct snbuf *snb;
+    bess::Packet *snb;
     int ret;
 
     ret = llring_mc_dequeue(q, (void **)&paddr);
     if (ret)
       break;
 
-    snb = paddr_to_snb(paddr);
+    snb = bess::Packet::from_paddr(paddr);
     if (!snb) {
       LOG(ERROR) << "paddr_to_snb(" << paddr << ") failed";
       continue;
     }
 
-    snb_free(paddr_to_snb(paddr));
+    bess::Packet::Free(bess::Packet::from_paddr(paddr));
   }
 }
 
 static void drain_drv_to_sn_q(struct llring *q) {
   /* sn_to_drv queues contain virtual address of packet buffers */
   for (;;) {
-    struct snbuf *snb;
+    bess::Packet *snb;
     int ret;
 
     ret = llring_mc_dequeue(q, (void **)&snb);
     if (ret)
       break;
 
-    snb_free(snb);
+    bess::Packet::Free(snb);
   }
 }
 
 static void reclaim_packets(struct llring *ring) {
-  void *objs[MAX_PKT_BURST];
+  void *objs[bess::PacketBatch::kMaxBurst];
   int ret;
 
   for (;;) {
-    ret = llring_mc_dequeue_burst(ring, objs, MAX_PKT_BURST);
+    ret = llring_mc_dequeue_burst(ring, objs, bess::PacketBatch::kMaxBurst);
     if (ret == 0)
       break;
 
-    snb_free_bulk((snb_array_t)objs, ret);
+    bess::Packet::Free((bess::Packet **)objs, ret);
   }
 }
 
@@ -853,7 +853,7 @@ fail:
   return err;
 }
 
-int VPort::RecvPackets(queue_t qid, snb_array_t pkts, int max_cnt) {
+int VPort::RecvPackets(queue_t qid, bess::Packet ** pkts, int max_cnt) {
   struct queue *tx_queue = &inc_qs_[qid];
 
   int cnt;
@@ -864,16 +864,16 @@ int VPort::RecvPackets(queue_t qid, snb_array_t pkts, int max_cnt) {
   refill_tx_bufs(tx_queue->sn_to_drv);
 
   for (i = 0; i < cnt; i++) {
-    struct snbuf *pkt = pkts[i];
+    bess::Packet *pkt = pkts[i];
     struct sn_tx_desc *tx_desc;
     uint16_t len;
 
-    tx_desc = (struct sn_tx_desc *)pkt->_scratchpad;
+    tx_desc = pkt->scratchpad<struct sn_tx_desc *>();
     len = tx_desc->total_len;
 
-    pkt->mbuf.data_off = SNBUF_HEADROOM;
-    pkt->mbuf.pkt_len = len;
-    pkt->mbuf.data_len = len;
+    pkt->set_data_off(SNBUF_HEADROOM);
+    pkt->set_total_len(len);
+    pkt->set_data_len(len);
 
     /* TODO: process sn_tx_metadata */
   }
@@ -881,55 +881,57 @@ int VPort::RecvPackets(queue_t qid, snb_array_t pkts, int max_cnt) {
   return cnt;
 }
 
-int VPort::SendPackets(queue_t qid, snb_array_t pkts, int cnt) {
+int VPort::SendPackets(queue_t qid, bess::Packet ** pkts, int cnt) {
   struct queue *rx_queue = &out_qs_[qid];
 
-  paddr_t paddr[MAX_PKT_BURST];
+  paddr_t paddr[bess::PacketBatch::kMaxBurst];
 
   int ret;
 
   reclaim_packets(rx_queue->drv_to_sn);
 
   for (int i = 0; i < cnt; i++) {
-    struct snbuf *snb = pkts[i];
+    bess::Packet *snb = pkts[i];
 
     struct sn_rx_desc *rx_desc;
 
-    rx_desc = (struct sn_rx_desc *)snb->_scratchpad;
+    rx_desc = snb->scratchpad<struct sn_rx_desc *>();
 
     rte_prefetch0(rx_desc);
 
-    paddr[i] = snb_to_paddr(snb);
+    paddr[i] = snb->paddr();
   }
 
   for (int i = 0; i < cnt; i++) {
-    struct snbuf *snb = pkts[i];
-    struct rte_mbuf *mbuf = &snb->mbuf;
+    bess::Packet *snb = pkts[i];
+    bess::Packet *seg;
 
     struct sn_rx_desc *rx_desc;
 
-    rx_desc = (struct sn_rx_desc *)snb->_scratchpad;
+    rx_desc = snb->scratchpad<struct sn_rx_desc *>();
 
-    rx_desc->total_len = snb_total_len(snb);
-    rx_desc->seg_len = snb_head_len(snb);
-    rx_desc->seg = snb_dma_addr(snb);
+    rx_desc->total_len = snb->total_len();
+    rx_desc->seg_len = snb->head_len();
+    rx_desc->seg = snb->dma_addr();
     rx_desc->next = 0;
 
     rx_desc->meta = sn_rx_metadata();
 
-    for (struct rte_mbuf *seg = mbuf->next; seg; seg = seg->next) {
+    seg = reinterpret_cast<bess::Packet *>(snb->next());
+    while (seg) {
       struct sn_rx_desc *next_desc;
-      struct snbuf *seg_snb;
+      bess::Packet *seg_snb;
 
-      seg_snb = (struct snbuf *)seg;
-      next_desc = (struct sn_rx_desc *)seg_snb->_scratchpad;
+      seg_snb = (bess::Packet *)seg;
+      next_desc = seg_snb->scratchpad<struct sn_rx_desc *>();
 
-      next_desc->seg_len = rte_pktmbuf_data_len(seg);
-      next_desc->seg = snb_seg_dma_addr(seg);
+      next_desc->seg_len = seg->head_len();
+      next_desc->seg = seg->dma_addr();
       next_desc->next = 0;
 
-      rx_desc->next = snb_to_paddr(seg_snb);
+      rx_desc->next = seg_snb->paddr();
       rx_desc = next_desc;
+      seg = reinterpret_cast<bess::Packet *>(snb->next());
     }
   }
 

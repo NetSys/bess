@@ -7,20 +7,19 @@
 
 #include "../utils/histogram.h"
 
-static inline void timestamp_packet(struct snbuf *pkt, uint64_t time) {
-  uint8_t *avail = static_cast<uint8_t *>(snb_head_data(pkt)) +
-                   sizeof(struct ether_hdr) + sizeof(struct ipv4_hdr) +
-                   sizeof(struct tcp_hdr);
+static inline void timestamp_packet(bess::Packet *pkt, uint64_t time) {
+  uint8_t *avail = pkt->head_data<uint8_t *>() + sizeof(struct ether_hdr) +
+                   sizeof(struct ipv4_hdr) + sizeof(struct tcp_hdr);
   *avail = 1;
   uint64_t *ts = (uint64_t *)(avail + 1);
   *ts = time;
 }
 
-void Timestamp::ProcessBatch(struct pkt_batch *batch) {
+void Timestamp::ProcessBatch(bess::PacketBatch *batch) {
   uint64_t time = get_time();
 
-  for (int i = 0; i < batch->cnt; i++) {
-    timestamp_packet(batch->pkts[i], time);
+  for (int i = 0; i < batch->cnt(); i++) {
+    timestamp_packet(batch->pkts()[i], time);
   }
 
   RunNextModule(batch);

@@ -30,13 +30,13 @@ void PCAPPort::DeInit() {
   pcap_handle_.Reset();
 }
 
-int PCAPPort::RecvPackets(queue_t qid, snb_array_t pkts, int cnt) {
+int PCAPPort::RecvPackets(queue_t qid, bess::Packet ** pkts, int cnt) {
   if (!pcap_handle_.is_initialized()) {
     return 0;
   }
 
   int recv_cnt = 0;
-  struct snbuf* sbuf;
+  bess::Packet* sbuf;
 
   assert(qid == 0);
 
@@ -47,14 +47,14 @@ int PCAPPort::RecvPackets(queue_t qid, snb_array_t pkts, int cnt) {
       break;
     }
 
-    sbuf = snb_alloc();
+    sbuf = bess::Packet::Alloc();
     if (!sbuf) {
       break;
     }
 
     if (caplen <= SNBUF_DATA) {
       // pcap packet will fit in the mbuf, go ahead and copy.
-      rte_memcpy(rte_pktmbuf_append(&sbuf->mbuf, caplen), packet, caplen);
+      rte_memcpy(sbuf->append(caplen), packet, caplen);
     } else {
 /* FIXME: no support for chained mbuf for now */
 #if 0
@@ -64,13 +64,13 @@ int PCAPPort::RecvPackets(queue_t qid, snb_array_t pkts, int cnt) {
               packet,
               caplen) == -1)) {
         //drop all the mbufs.
-        snb_free(sbuf);
+        bess::Packet::Free(sbuf);
         break;
       }
 #else
       RTE_LOG(ERR, PMD, "Dropping PCAP packet: Size (%d) > max size (%d).\n",
-              sbuf->mbuf.pkt_len, SNBUF_DATA);
-      snb_free(sbuf);
+              sbuf->total_len(), SNBUF_DATA);
+      bess::Packet::Free(sbuf);
       break;
 #endif
     }
@@ -82,7 +82,7 @@ int PCAPPort::RecvPackets(queue_t qid, snb_array_t pkts, int cnt) {
   return recv_cnt;
 }
 
-int PCAPPort::SendPackets(queue_t, snb_array_t pkts, int cnt) {
+int PCAPPort::SendPackets(queue_t, bess::Packet ** pkts, int cnt) {
   if (!pcap_handle_.is_initialized()) {
     return 0;  // TODO: Would like to raise an error here...
   }
@@ -90,30 +90,30 @@ int PCAPPort::SendPackets(queue_t, snb_array_t pkts, int cnt) {
   int sent = 0;
 
   while (sent < cnt) {
-    struct snbuf* sbuf = pkts[sent];
+    bess::Packet* sbuf = pkts[sent];
 
-    if (likely(sbuf->mbuf.nb_segs == 1)) {
-      pcap_handle_.SendPacket((const u_char*)snb_head_data(sbuf),
-                              sbuf->mbuf.pkt_len);
-    } else if (sbuf->mbuf.pkt_len <= PCAP_SNAPLEN) {
+    if (likely(sbuf->nb_segs() == 1)) {
+      pcap_handle_.SendPacket(sbuf->head_data<const u_char*>(),
+                              sbuf->total_len());
+    } else if (sbuf->total_len() <= PCAP_SNAPLEN) {
       unsigned char tx_pcap_data[PCAP_SNAPLEN];
-      GatherData(tx_pcap_data, &sbuf->mbuf);
-      pcap_handle_.SendPacket(tx_pcap_data, sbuf->mbuf.pkt_len);
+      GatherData(tx_pcap_data, sbuf);
+      pcap_handle_.SendPacket(tx_pcap_data, sbuf->total_len());
     }
 
     sent++;
   }
 
-  snb_free_bulk(pkts, sent);
+  bess::Packet::Free(pkts, sent);
   return sent;
 }
 
-void PCAPPort::GatherData(unsigned char* data, struct rte_mbuf* mbuf) {
-  while (mbuf) {
-    rte_memcpy(data, rte_pktmbuf_mtod(mbuf, void*), mbuf->data_len);
+void PCAPPort::GatherData(unsigned char* data, bess::Packet* pkt) {
+  while (pkt) {
+    rte_memcpy(data, pkt->head_data(), pkt->head_len());
 
-    data += mbuf->data_len;
-    mbuf = mbuf->next;
+    data += pkt->head_len();
+    pkt = reinterpret_cast<bess::Packet*>(pkt->next());
   }
 }
 

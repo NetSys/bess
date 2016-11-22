@@ -53,7 +53,7 @@ class UnixSocketPort : public Port {
    *
    * PARAMETERS:
    * * queue_t quid : socket has no notion of queues so this is ignored.
-   * * snb_array_t pkts   : buffer to store received packets in to.
+   * * bess::Packet ** pkts   : buffer to store received packets in to.
    * * int cnt  : max number of packets to pull.
    *
    * EXPECTS:
@@ -63,14 +63,14 @@ class UnixSocketPort : public Port {
    * RETURNS:
    * * Total number of packets received (<=cnt)
    */
-  virtual int RecvPackets(queue_t qid, snb_array_t pkts, int cnt);
+  virtual int RecvPackets(queue_t qid, bess::Packet ** pkts, int cnt);
 
   /*!
    * Sends packets out on the device.
    *
    * PARAMETERS:
    * * queue_t quid : PCAP has no notion of queues so this is ignored.
-   * * snb_array_t pkts   : packets to transmit.
+   * * bess::Packet ** pkts   : packets to transmit.
    * * int cnt  : number of packets in pkts to transmit.
    *
    * EXPECTS:
@@ -80,7 +80,7 @@ class UnixSocketPort : public Port {
    * RETURNS:
    * * Total number of packets sent (<=cnt).
    */
-  virtual int SendPackets(queue_t qid, snb_array_t pkts, int cnt);
+  virtual int SendPackets(queue_t qid, bess::Packet ** pkts, int cnt);
 
   /*!
    * Waits for a client to connect to the socket.

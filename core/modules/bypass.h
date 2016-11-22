@@ -11,7 +11,7 @@ class Bypass : public Module {
   static const gate_idx_t kNumIGates = MAX_GATES;
   static const gate_idx_t kNumOGates = MAX_GATES;
 
-  virtual void ProcessBatch(struct pkt_batch *batch);
+  virtual void ProcessBatch(bess::PacketBatch *batch);
 };
 
 #endif  // BESS_MODULES_BYPASS_H_

@@ -1,16 +1,16 @@
 #include "set_metadata.h"
 #include "../utils/endian.h"
 
-static void CopyFromPacket(struct pkt_batch *batch, const struct Attr *attr,
+static void CopyFromPacket(bess::PacketBatch *batch, const struct Attr *attr,
                            bess::metadata::mt_offset_t mt_off) {
-  int cnt = batch->cnt;
+  int cnt = batch->cnt();
   int size = attr->size;
 
   int pkt_off = attr->offset;
 
   for (int i = 0; i < cnt; i++) {
-    struct snbuf *pkt = batch->pkts[i];
-    char *head = static_cast<char *>(snb_head_data(pkt));
+    bess::Packet *pkt = batch->pkts()[i];
+    char *head = pkt->head_data<char *>();
     void *mt_ptr;
 
     mt_ptr = _ptr_attr_with_offset<value_t>(mt_off, pkt);
@@ -18,15 +18,15 @@ static void CopyFromPacket(struct pkt_batch *batch, const struct Attr *attr,
   }
 }
 
-static void CopyFromValue(struct pkt_batch *batch, const struct Attr *attr,
+static void CopyFromValue(bess::PacketBatch *batch, const struct Attr *attr,
                           bess::metadata::mt_offset_t mt_off) {
-  int cnt = batch->cnt;
+  int cnt = batch->cnt();
   int size = attr->size;
 
   const void *val_ptr = &attr->value;
 
   for (int i = 0; i < cnt; i++) {
-    struct snbuf *pkt = batch->pkts[i];
+    bess::Packet *pkt = batch->pkts()[i];
     void *mt_ptr;
 
     mt_ptr = _ptr_attr_with_offset<value_t>(mt_off, pkt);
@@ -185,7 +185,7 @@ struct snobj *SetMetadata::Init(struct snobj *arg) {
   return nullptr;
 }
 
-void SetMetadata::ProcessBatch(struct pkt_batch *batch) {
+void SetMetadata::ProcessBatch(bess::PacketBatch *batch) {
   for (size_t i = 0; i < attrs_.size(); i++) {
     const struct Attr *attr = &attrs_[i];
 

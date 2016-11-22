@@ -458,27 +458,27 @@ void FlowGen::Deinit() {
   delete templ_;
 }
 
-struct snbuf *FlowGen::FillPacket(struct flow *f) {
-  struct snbuf *pkt;
+bess::Packet *FlowGen::FillPacket(struct flow *f) {
+  bess::Packet *pkt;
   char *p;
 
   uint8_t tcp_flags;
 
   int size = template_size_;
 
-  if (!(pkt = snb_alloc())) {
+  if (!(pkt = bess::Packet::Alloc())) {
     return nullptr;
   }
 
-  p = reinterpret_cast<char *>(pkt->mbuf.buf_addr) +
+  p = reinterpret_cast<char *>(pkt->buffer()) +
       static_cast<size_t>(SNBUF_HEADROOM);
   if (!p) {
     return nullptr;
   }
 
-  pkt->mbuf.data_off = SNBUF_HEADROOM;
-  pkt->mbuf.pkt_len = size;
-  pkt->mbuf.data_len = size;
+  pkt->set_data_off(SNBUF_HEADROOM);
+  pkt->set_total_len(size);
+  pkt->set_data_len(size);
 
   memcpy_sloppy(p, templ_, size);
 
@@ -493,15 +493,15 @@ struct snbuf *FlowGen::FillPacket(struct flow *f) {
   return pkt;
 }
 
-void FlowGen::GeneratePackets(struct pkt_batch *batch) {
+void FlowGen::GeneratePackets(bess::PacketBatch *batch) {
   uint64_t now = ctx.current_ns();
 
-  batch_clear(batch);
+  batch->clear();
 
-  while (!batch_full(batch)) {
+  while (!batch->full()) {
     uint64_t t;
     struct flow *f;
-    struct snbuf *pkt;
+    bess::Packet *pkt;
 
     t = events_.top().first;
     f = events_.top().second;
@@ -538,25 +538,25 @@ void FlowGen::GeneratePackets(struct pkt_batch *batch) {
         std::pair<uint64_t, struct flow *>(t + (uint64_t)(1e9 / flow_pps_), f));
 
     if (pkt) {
-      batch_add(batch, pkt);
+      batch->add(pkt);
     }
   }
 }
 
 struct task_result FlowGen::RunTask(void *) {
-  struct pkt_batch batch;
+  bess::PacketBatch batch;
   struct task_result ret;
 
   const int pkt_overhead = 24;
 
   GeneratePackets(&batch);
-  if (batch.cnt > 0)
+  if (!batch.empty())
     RunNextModule(&batch);
 
   ret = (struct task_result){
-      .packets = static_cast<uint64_t>(batch.cnt),
+      .packets = static_cast<uint64_t>(batch.cnt()),
       .bits = static_cast<uint64_t>(
-          ((template_size_ + pkt_overhead) * batch.cnt) * 8),
+          ((template_size_ + pkt_overhead) * batch.cnt()) * 8),
   };
 
   return ret;

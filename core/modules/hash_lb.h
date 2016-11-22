@@ -25,7 +25,7 @@ class HashLB : public Module {
   virtual struct snobj *Init(struct snobj *arg);
   pb_error_t InitPb(const bess::pb::HashLBArg &arg);
 
-  virtual void ProcessBatch(struct pkt_batch *batch);
+  virtual void ProcessBatch(bess::PacketBatch *batch);
 
   struct snobj *CommandSetMode(struct snobj *arg);
   struct snobj *CommandSetGates(struct snobj *arg);
@@ -36,9 +36,9 @@ class HashLB : public Module {
       const bess::pb::HashLBCommandSetGatesArg &arg);
 
  private:
-  void LbL2(struct pkt_batch *batch, gate_idx_t *ogates);
-  void LbL3(struct pkt_batch *batch, gate_idx_t *ogates);
-  void LbL4(struct pkt_batch *batch, gate_idx_t *ogates);
+  void LbL2(bess::PacketBatch *batch, gate_idx_t *ogates);
+  void LbL3(bess::PacketBatch *batch, gate_idx_t *ogates);
+  void LbL4(bess::PacketBatch *batch, gate_idx_t *ogates);
 
   gate_idx_t gates_[MAX_HLB_GATES];
   int num_gates_;

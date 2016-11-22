@@ -16,7 +16,7 @@ class PortOut : public Module {
 
   virtual void Deinit();
 
-  virtual void ProcessBatch(struct pkt_batch *batch);
+  virtual void ProcessBatch(bess::PacketBatch *batch);
 
   virtual std::string GetDesc() const;
 

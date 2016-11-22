@@ -4,11 +4,10 @@
 #include "../module.h"
 #include "../module_msg.pb.h"
 
-#define SLOTS (MAX_PKT_BURST * 2 - 1)
-#define MAX_TEMPLATE_SIZE 1536
-
 class Rewrite : public Module {
  public:
+  static const size_t kNumSlots = bess::PacketBatch::kMaxBurst * 2 - 1;
+  static const size_t kMaxTemplateSize = 1536;
   static const Commands<Module> cmds;
   static const PbCommands pb_cmds;
 
@@ -22,7 +21,7 @@ class Rewrite : public Module {
   virtual struct snobj *Init(struct snobj *arg);
   pb_error_t InitPb(const bess::pb::RewriteArg &arg);
 
-  virtual void ProcessBatch(struct pkt_batch *batch);
+  virtual void ProcessBatch(bess::PacketBatch *batch);
 
   struct snobj *CommandAdd(struct snobj *arg);
   struct snobj *CommandClear(struct snobj *arg);
@@ -31,16 +30,16 @@ class Rewrite : public Module {
   pb_cmd_response_t CommandClearPb(const bess::pb::EmptyArg &arg);
 
  private:
-  inline void DoRewrite(struct pkt_batch *batch);
-  inline void DoRewriteSingle(struct pkt_batch *batch);
+  inline void DoRewrite(bess::PacketBatch *batch);
+  inline void DoRewriteSingle(bess::PacketBatch *batch);
 
   /* For fair round robin we remember the next index for later.
    * [0, num_templates - 1] */
   int next_turn_;
 
   int num_templates_;
-  uint16_t template_size_[SLOTS];
-  unsigned char templates_[SLOTS][MAX_TEMPLATE_SIZE] __ymm_aligned;
+  uint16_t template_size_[kNumSlots];
+  unsigned char templates_[kNumSlots][kMaxTemplateSize] __ymm_aligned;
 };
 
 #endif  // BESS_MODULES_REWRITE_H_

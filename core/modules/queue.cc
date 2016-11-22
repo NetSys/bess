@@ -37,12 +37,12 @@ int Queue::Resize(int slots) {
 
   /* migrate packets from the old queue */
   if (old_queue) {
-    struct snbuf *pkt;
+    bess::Packet *pkt;
 
     while (llring_sc_dequeue(old_queue, (void **)&pkt) == 0) {
       ret = llring_sp_enqueue(new_queue, pkt);
       if (ret == -LLRING_ERR_NOBUF) {
-        snb_free(pkt);
+        bess::Packet::Free(pkt);
       }
     }
 
@@ -57,6 +57,8 @@ int Queue::Resize(int slots) {
 pb_error_t Queue::InitPb(const bess::pb::QueueArg &arg) {
   task_id_t tid;
   pb_error_t err;
+
+  burst_ = bess::PacketBatch::kMaxBurst;
 
   tid = RegisterTask(nullptr);
   if (tid == INVALID_TASK_ID)
@@ -96,7 +98,7 @@ struct snobj *Queue::Init(struct snobj *arg) {
   struct snobj *t;
   struct snobj *err;
 
-  burst_ = MAX_PKT_BURST;
+  burst_ = bess::PacketBatch::kMaxBurst;
 
   tid = RegisterTask(nullptr);
   if (tid == INVALID_TASK_ID)
@@ -129,13 +131,12 @@ struct snobj *Queue::Init(struct snobj *arg) {
 }
 
 void Queue::Deinit() {
-  struct snbuf *pkt;
+  bess::Packet *pkt;
 
   if (queue_) {
     while (llring_sc_dequeue(queue_, (void **)&pkt) == 0) {
-      snb_free(pkt);
+      bess::Packet::Free(pkt);
     }
-
     mem_free(queue_);
   }
 }
@@ -147,18 +148,18 @@ std::string Queue::GetDesc() const {
 }
 
 /* from upstream */
-void Queue::ProcessBatch(struct pkt_batch *batch) {
+void Queue::ProcessBatch(bess::PacketBatch *batch) {
   int queued =
-      llring_mp_enqueue_burst(queue_, (void **)batch->pkts, batch->cnt);
+      llring_mp_enqueue_burst(queue_, (void **)batch->pkts(), batch->cnt());
 
-  if (queued < batch->cnt) {
-    snb_free_bulk(batch->pkts + queued, batch->cnt - queued);
+  if (queued < batch->cnt()) {
+    bess::Packet::Free(batch->pkts() + queued, batch->cnt() - queued);
   }
 }
 
 /* to downstream */
 struct task_result Queue::RunTask(void *) {
-  struct pkt_batch batch;
+  bess::PacketBatch batch;
   struct task_result ret;
 
   const int burst = ACCESS_ONCE(burst_);
@@ -166,21 +167,21 @@ struct task_result Queue::RunTask(void *) {
 
   uint64_t total_bytes = 0;
 
-  uint64_t cnt = llring_sc_dequeue_burst(queue_, (void **)batch.pkts, burst);
+  uint64_t cnt = llring_sc_dequeue_burst(queue_, (void **)batch.pkts(), burst);
 
   if (cnt > 0) {
-    batch.cnt = cnt;
+    batch.set_cnt(cnt);
     RunNextModule(&batch);
   }
 
   if (prefetch_) {
     for (uint64_t i = 0; i < cnt; i++) {
-      total_bytes += snb_total_len(batch.pkts[i]);
-      rte_prefetch0(snb_head_data(batch.pkts[i]));
+      total_bytes += batch.pkts()[i]->total_len();
+      rte_prefetch0(batch.pkts()[i]->head_data());
     }
   } else {
     for (uint64_t i = 0; i < cnt; i++)
-      total_bytes += snb_total_len(batch.pkts[i]);
+      total_bytes += batch.pkts()[i]->total_len();
   }
 
   ret = (struct task_result){
@@ -199,8 +200,9 @@ struct snobj *Queue::CommandSetBurst(struct snobj *arg) {
 
   val = snobj_uint_get(arg);
 
-  if (val == 0 || val > MAX_PKT_BURST) {
-    return snobj_err(EINVAL, "burst size must be [1,%d]", MAX_PKT_BURST);
+  if (val == 0 || val > bess::PacketBatch::kMaxBurst) {
+    return snobj_err(EINVAL, "burst size must be [1,%lu]",
+                     bess::PacketBatch::kMaxBurst);
   }
 
   burst_ = val;
@@ -235,8 +237,10 @@ struct snobj *Queue::CommandSetSize(struct snobj *arg) {
 }
 
 pb_error_t Queue::SetBurst(int64_t burst) {
-  if (burst == 0 || burst > MAX_PKT_BURST) {
-    return pb_error(EINVAL, "burst size must be [1,%d]", MAX_PKT_BURST);
+  if (burst == 0 ||
+      burst > static_cast<int64_t>(bess::PacketBatch::kMaxBurst)) {
+    return pb_error(EINVAL, "burst size must be [1,%lu]",
+                    bess::PacketBatch::kMaxBurst);
   }
 
   burst_ = burst;

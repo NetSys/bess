@@ -73,8 +73,8 @@ class ScopeComponentComp {
   bool reverse_;
 };
 
-static int DegreeComp(const ScopeComponent &a, const ScopeComponent &b) {
-  return b.degree() - a.degree();
+static bool DegreeComp(const ScopeComponent &a, const ScopeComponent &b) {
+  return a.degree() > b.degree();
 }
 
 bool ScopeComponent::DisjointFrom(const ScopeComponent &rhs) {
@@ -367,8 +367,8 @@ void Pipeline::AssignOffsets() {
 void Pipeline::LogAllScopes() const {
   for (size_t i = 0; i < scope_components_.size(); i++) {
     VLOG(1) << "scope component for " << scope_components_[i].size()
-            << "-byte attr " << scope_components_[i].attr_id() << "at offset "
-            << scope_components_[i].offset() << ": {";
+            << "-byte attr " << scope_components_[i].attr_id() << " at offset "
+            << (int)scope_components_[i].offset() << ": {";
 
     for (const auto &it : scope_components_[i].modules()) {
       VLOG(1) << it->name();
@@ -466,8 +466,9 @@ int Pipeline::RegisterAttribute(const std::string &attr_name, size_t size) {
     count++;
     return 0;
   } else {
-    LOG(ERROR) << "Attribute '" << attr_name << "' has size mismatch: registered("
-               << registered_size << ") vs new(" << size << ")";
+    LOG(ERROR) << "Attribute '" << attr_name
+               << "' has size mismatch: registered(" << registered_size
+               << ") vs new(" << size << ")";
     return -EINVAL;
   }
 }
@@ -476,7 +477,7 @@ void Pipeline::DeregisterAttribute(const std::string &attr_name) {
   const auto &it = registered_attrs_.find(attr_name);
   if (it == registered_attrs_.end()) {
     LOG(ERROR) << "ReregisteredAttribute() called, but '" << attr_name
-             << "' was not registered";
+               << "' was not registered";
     return;
   }
 

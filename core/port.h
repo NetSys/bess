@@ -10,8 +10,8 @@
 #include <gtest/gtest_prod.h>
 
 #include "message.h"
+#include "packet.h"
 #include "port_msg.pb.h"
-#include "snbuf.h"
 #include "snobj.h"
 #include "utils/common.h"
 
@@ -181,8 +181,8 @@ class Port {
 
   virtual void CollectStats(bool reset);
 
-  virtual int RecvPackets(queue_t qid, snb_array_t pkts, int cnt);
-  virtual int SendPackets(queue_t qid, snb_array_t pkts, int cnt);
+  virtual int RecvPackets(queue_t qid, bess::Packet ** pkts, int cnt);
+  virtual int SendPackets(queue_t qid, bess::Packet ** pkts, int cnt);
 
   // For custom incoming / outgoing queue sizes (optional).
   virtual size_t DefaultIncQueueSize() const { return kDefaultIncQueueSize; }

@@ -12,7 +12,7 @@
 #include <rte_lcore.h>
 
 #include "metadata.h"
-#include "snbuf.h"
+#include "packet.h"
 #include "task.h"
 #include "tc.h"
 #include "utils/time.h"
@@ -145,7 +145,7 @@ void Worker::SetNonWorker() {
 
   /* Packet pools should be available to non-worker threads */
   for (socket = 0; socket < RTE_MAX_NUMA_NODES; socket++) {
-    struct rte_mempool *pool = get_pframe_pool_socket(socket);
+    struct rte_mempool *pool = bess::get_pframe_pool_socket(socket);
     if (pool)
       pframe_pool_ = pool;
   }
@@ -201,7 +201,7 @@ void *Worker::Run(void *_arg) {
 
   current_tsc_ = rdtsc();
 
-  pframe_pool_ = get_pframe_pool();
+  pframe_pool_ = bess::get_pframe_pool();
   assert(pframe_pool_);
 
   status_ = WORKER_PAUSING;

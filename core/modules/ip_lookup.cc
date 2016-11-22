@@ -61,11 +61,11 @@ void IPLookup::Deinit() {
   rte_lpm_free(lpm_);
 }
 
-void IPLookup::ProcessBatch(struct pkt_batch *batch) {
-  gate_idx_t out_gates[MAX_PKT_BURST];
+void IPLookup::ProcessBatch(bess::PacketBatch *batch) {
+  gate_idx_t out_gates[bess::PacketBatch::kMaxBurst];
   gate_idx_t default_gate = default_gate_;
 
-  int cnt = batch->cnt;
+  int cnt = batch->cnt();
   int i;
 
 #if VECTOR_OPTIMIZATION
@@ -82,19 +82,19 @@ void IPLookup::ProcessBatch(struct pkt_batch *batch) {
 
     __m128i ip_addr;
 
-    eth = (struct ether_hdr *)snb_head_data(batch->pkts[i + 0]);
+    eth = batch->pkts()[i]->head_data<struct ether_hdr *>();
     ip = (struct ipv4_hdr *)(eth + 1);
     a0 = ip->dst_addr;
 
-    eth = (struct ether_hdr *)snb_head_data(batch->pkts[i + 1]);
+    eth = batch->pkts()[i + 1]->head_data<struct ether_hdr *>();
     ip = (struct ipv4_hdr *)(eth + 1);
     a1 = ip->dst_addr;
 
-    eth = (struct ether_hdr *)snb_head_data(batch->pkts[i + 2]);
+    eth = batch->pkts()[i + 2]->head_data<struct ether_hdr *>();
     ip = (struct ipv4_hdr *)(eth + 1);
     a2 = ip->dst_addr;
 
-    eth = (struct ether_hdr *)snb_head_data(batch->pkts[i + 3]);
+    eth = batch->pkts()[i + 3]->head_data<struct ether_hdr *>();
     ip = (struct ipv4_hdr *)(eth + 1);
     a3 = ip->dst_addr;
 
@@ -118,7 +118,7 @@ void IPLookup::ProcessBatch(struct pkt_batch *batch) {
     uint32_t next_hop;
     int ret;
 
-    eth = (struct ether_hdr *)snb_head_data(batch->pkts[i]);
+    eth = batch->pkts()[i]->head_data<struct ether_hdr *>();
     ip = (struct ipv4_hdr *)(eth + 1);
 
     ret = rte_lpm_lookup(lpm_, rte_be_to_cpu_32(ip->dst_addr), &next_hop);

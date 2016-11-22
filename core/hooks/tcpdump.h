@@ -17,7 +17,7 @@ class TcpDump : public bess::GateHook {
   int fifo_fd() const { return fifo_fd_; }
   void set_fifo_fd(int fifo_fd) { fifo_fd_ = fifo_fd; }
 
-  void ProcessBatch(const struct pkt_batch *batch);
+  void ProcessBatch(const bess::PacketBatch *batch);
 
  private:
   int fifo_fd_;

@@ -14,7 +14,7 @@ enum {
   ATTR_W_TUN_ID,
 };
 
-struct snobj *VXLANDecap::Init(struct snobj *arg [[maybe_unused]]) {
+struct snobj *VXLANDecap::Init(struct snobj *arg[[maybe_unused]]) {
   using AccessMode = bess::metadata::Attribute::AccessMode;
 
   AddMetadataAttr("tun_ip_src", 4, AccessMode::kWrite);
@@ -24,7 +24,8 @@ struct snobj *VXLANDecap::Init(struct snobj *arg [[maybe_unused]]) {
   return nullptr;
 };
 
-pb_error_t VXLANDecap::InitPb(const bess::pb::VXLANDecapArg &arg [[maybe_unused]]) {
+pb_error_t VXLANDecap::InitPb(
+    const bess::pb::VXLANDecapArg &arg[[maybe_unused]]) {
   using AccessMode = bess::metadata::Attribute::AccessMode;
 
   AddMetadataAttr("tun_ip_src", 4, AccessMode::kWrite);
@@ -34,13 +35,12 @@ pb_error_t VXLANDecap::InitPb(const bess::pb::VXLANDecapArg &arg [[maybe_unused]
   return pb_errno(0);
 }
 
-void VXLANDecap::ProcessBatch(struct pkt_batch *batch) {
-  int cnt = batch->cnt;
+void VXLANDecap::ProcessBatch(bess::PacketBatch *batch) {
+  int cnt = batch->cnt();
 
   for (int i = 0; i < cnt; i++) {
-    struct snbuf *pkt = batch->pkts[i];
-    struct ether_hdr *ethh =
-        static_cast<struct ether_hdr *>(snb_head_data(pkt));
+    bess::Packet *pkt = batch->pkts()[i];
+    struct ether_hdr *ethh = pkt->head_data<struct ether_hdr *>();
     struct ipv4_hdr *iph = reinterpret_cast<struct ipv4_hdr *>(ethh + 1);
     int iph_bytes = (iph->version_ihl & 0xf) << 2;
     struct udp_hdr *udph = reinterpret_cast<struct udp_hdr *>(
@@ -52,7 +52,7 @@ void VXLANDecap::ProcessBatch(struct pkt_batch *batch) {
     set_attr<uint32_t>(this, ATTR_W_TUN_ID, pkt,
                        rte_be_to_cpu_32(vh->vx_vni) >> 8);
 
-    snb_adj(pkt, sizeof(*ethh) + iph_bytes + sizeof(*udph) + sizeof(*vh));
+    pkt->adj(sizeof(*ethh) + iph_bytes + sizeof(*udph) + sizeof(*vh));
   }
 
   RunNextModule(batch);

@@ -214,13 +214,13 @@ gate_idx_t WildcardMatch::LookupEntry(wm_hkey_t *key, gate_idx_t def_gate) {
   return result.ogate;
 }
 
-void WildcardMatch::ProcessBatch(struct pkt_batch *batch) {
+void WildcardMatch::ProcessBatch(bess::PacketBatch *batch) {
   gate_idx_t default_gate;
-  gate_idx_t out_gates[MAX_PKT_BURST];
+  gate_idx_t out_gates[bess::PacketBatch::kMaxBurst];
 
-  char keys[MAX_PKT_BURST][HASH_KEY_SIZE] __ymm_aligned;
+  char keys[bess::PacketBatch::kMaxBurst][HASH_KEY_SIZE] __ymm_aligned;
 
-  int cnt = batch->cnt;
+  int cnt = batch->cnt();
 
   default_gate = ACCESS_ONCE(default_gate_);
 
@@ -232,18 +232,18 @@ void WildcardMatch::ProcessBatch(struct pkt_batch *batch) {
     if (attr_id < 0) {
       offset = fields_[i].offset;
     } else {
-      offset =
-          mt_offset_to_databuf_offset(WildcardMatch::attr_offsets[attr_id]);
+      offset = bess::Packet::mt_offset_to_databuf_offset(
+          WildcardMatch::attr_offsets[attr_id]);
     }
 
     char *key = keys[0] + pos;
 
     for (int j = 0; j < cnt; j++, key += HASH_KEY_SIZE) {
-      char *buf_addr = (char *)batch->pkts[j]->mbuf.buf_addr;
+      char *buf_addr = batch->pkts()[j]->buffer<char *>();
 
       /* for offset-based attrs we use relative offset */
       if (attr_id < 0) {
-        buf_addr += batch->pkts[j]->mbuf.data_off;
+        buf_addr += batch->pkts()[j]->data_off();
       }
 
       *(uint64_t *)key = *(uint64_t *)(buf_addr + offset);
@@ -258,7 +258,7 @@ void WildcardMatch::ProcessBatch(struct pkt_batch *batch) {
   /* A version with an outer loop for tuples and an inner loop for pkts.
    * Significantly slower. */
 
-  int priorities[MAX_PKT_BURST];
+  int priorities[bess::PacketBatch::kMaxBurst];
   const int key_size = total_key_size_;
 
   for (int i = 0; i < cnt; i++) {

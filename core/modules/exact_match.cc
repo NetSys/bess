@@ -193,14 +193,14 @@ void ExactMatch::Deinit() {
   ht_.Close();
 }
 
-void ExactMatch::ProcessBatch(struct pkt_batch *batch) {
+void ExactMatch::ProcessBatch(bess::PacketBatch *batch) {
   gate_idx_t default_gate;
-  gate_idx_t out_gates[MAX_PKT_BURST];
+  gate_idx_t out_gates[bess::PacketBatch::kMaxBurst];
 
   int key_size = total_key_size_;
-  char keys[MAX_PKT_BURST][HASH_KEY_SIZE] __ymm_aligned;
+  char keys[bess::PacketBatch::kMaxBurst][HASH_KEY_SIZE] __ymm_aligned;
 
-  int cnt = batch->cnt;
+  int cnt = batch->cnt();
 
   default_gate = ACCESS_ONCE(default_gate_);
 
@@ -217,17 +217,17 @@ void ExactMatch::ProcessBatch(struct pkt_batch *batch) {
     if (attr_id < 0) {
       offset = fields_[i].offset;
     } else {
-      offset = mt_offset_to_databuf_offset(attr_offsets[attr_id]);
+      offset = bess::Packet::mt_offset_to_databuf_offset(attr_offsets[attr_id]);
     }
 
     char *key = keys[0] + pos;
 
     for (int j = 0; j < cnt; j++, key += HASH_KEY_SIZE) {
-      char *buf_addr = reinterpret_cast<char *>(batch->pkts[j]->mbuf.buf_addr);
+      char *buf_addr = reinterpret_cast<char *>(batch->pkts()[j]->buffer());
 
       /* for offset-based attrs we use relative offset */
       if (attr_id < 0) {
-        buf_addr += batch->pkts[j]->mbuf.data_off;
+        buf_addr += batch->pkts()[j]->data_off();
       }
 
       *(uint64_t *)key = *(uint64_t *)(buf_addr + offset) & mask;

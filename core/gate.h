@@ -42,7 +42,7 @@ class GateHook {
 
   uint16_t priority() const { return priority_; }
 
-  virtual void ProcessBatch(const struct pkt_batch *) {}
+  virtual void ProcessBatch(const bess::PacketBatch *) {}
 
  protected:
   Gate *gate_;

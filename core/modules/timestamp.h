@@ -5,7 +5,7 @@
 
 class Timestamp : public Module {
  public:
-  virtual void ProcessBatch(struct pkt_batch *batch);
+  virtual void ProcessBatch(bess::PacketBatch *batch);
 };
 
 #endif  // BESS_MODULES_TIMESTAMP_H_

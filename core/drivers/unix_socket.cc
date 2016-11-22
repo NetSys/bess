@@ -180,7 +180,7 @@ void UnixSocketPort::DeInit() {
   }
 }
 
-int UnixSocketPort::RecvPackets(queue_t qid, snb_array_t pkts, int cnt) {
+int UnixSocketPort::RecvPackets(queue_t qid, bess::Packet ** pkts, int cnt) {
   assert(qid == 0);
 
   if (client_fd_ == kNotConnectedFd) {
@@ -194,7 +194,7 @@ int UnixSocketPort::RecvPackets(queue_t qid, snb_array_t pkts, int cnt) {
 
   int received = 0;
   while (received < cnt) {
-    struct snbuf *pkt = static_cast<struct snbuf *>(snb_alloc());
+    bess::Packet *pkt = static_cast<bess::Packet *>(bess::Packet::Alloc());
     int ret;
 
     if (!pkt) {
@@ -202,15 +202,15 @@ int UnixSocketPort::RecvPackets(queue_t qid, snb_array_t pkts, int cnt) {
     }
 
     // Datagrams larger than 2KB will be truncated.
-    ret = recv(client_fd_, pkt->_data, SNBUF_DATA, 0);
+    ret = recv(client_fd_, pkt->data(), SNBUF_DATA, 0);
 
     if (ret > 0) {
-      snb_append(pkt, ret);
+      pkt->append(ret);
       pkts[received++] = pkt;
       continue;
     }
 
-    snb_free(pkt);
+    bess::Packet::Free(pkt);
 
     if (ret < 0) {
       if (errno == EAGAIN || errno == EWOULDBLOCK) {
@@ -234,16 +234,15 @@ int UnixSocketPort::RecvPackets(queue_t qid, snb_array_t pkts, int cnt) {
   return received;
 }
 
-int UnixSocketPort::SendPackets(queue_t qid, snb_array_t pkts, int cnt) {
+int UnixSocketPort::SendPackets(queue_t qid, bess::Packet ** pkts, int cnt) {
   int sent = 0;
 
   assert(qid == 0);
 
   for (int i = 0; i < cnt; i++) {
-    struct snbuf *pkt = pkts[i];
-    struct rte_mbuf *mbuf = &pkt->mbuf;
+    bess::Packet *pkt = pkts[i];
 
-    int nb_segs = mbuf->nb_segs;
+    int nb_segs = pkt->nb_segs();
     struct iovec iov[nb_segs];
 
     struct msghdr msg;
@@ -253,9 +252,8 @@ int UnixSocketPort::SendPackets(queue_t qid, snb_array_t pkts, int cnt) {
     ssize_t ret;
 
     for (int j = 0; j < nb_segs; j++) {
-      iov[j].iov_base = rte_pktmbuf_mtod(mbuf, void *);
-      iov[j].iov_len = rte_pktmbuf_data_len(mbuf);
-      mbuf = mbuf->next;
+      iov[j].iov_base = pkt->head_data();
+      iov[j].iov_len = pkt->head_len();
     }
 
     ret = sendmsg(client_fd_, &msg, 0);
@@ -267,7 +265,7 @@ int UnixSocketPort::SendPackets(queue_t qid, snb_array_t pkts, int cnt) {
   }
 
   if (sent) {
-    snb_free_bulk(pkts, sent);
+    bess::Packet::Free(pkts, sent);
   }
 
   return sent;

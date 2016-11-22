@@ -12,7 +12,7 @@ enum {
   ATTR_W_ETHER_TYPE,
 };
 
-struct snobj *IPEncap::Init(struct snobj *arg [[maybe_unused]]) {
+struct snobj *IPEncap::Init(struct snobj *arg[[maybe_unused]]) {
   using AccessMode = bess::metadata::Attribute::AccessMode;
 
   AddMetadataAttr("ip_src", 4, AccessMode::kRead);
@@ -24,7 +24,7 @@ struct snobj *IPEncap::Init(struct snobj *arg [[maybe_unused]]) {
   return nullptr;
 };
 
-pb_error_t IPEncap::InitPb(const bess::pb::IPEncapArg &arg [[maybe_unused]]) {
+pb_error_t IPEncap::InitPb(const bess::pb::IPEncapArg &arg[[maybe_unused]]) {
   using AccessMode = bess::metadata::Attribute::AccessMode;
 
   AddMetadataAttr("ip_src", 4, AccessMode::kRead);
@@ -36,11 +36,11 @@ pb_error_t IPEncap::InitPb(const bess::pb::IPEncapArg &arg [[maybe_unused]]) {
   return pb_errno(0);
 }
 
-void IPEncap::ProcessBatch(struct pkt_batch *batch) {
-  int cnt = batch->cnt;
+void IPEncap::ProcessBatch(bess::PacketBatch *batch) {
+  int cnt = batch->cnt();
 
   for (int i = 0; i < cnt; i++) {
-    struct snbuf *pkt = batch->pkts[i];
+    bess::Packet *pkt = batch->pkts()[i];
 
     uint32_t ip_src = get_attr<uint32_t>(this, ATTR_R_IP_SRC, pkt);
     uint32_t ip_dst = get_attr<uint32_t>(this, ATTR_R_IP_DST, pkt);
@@ -48,9 +48,9 @@ void IPEncap::ProcessBatch(struct pkt_batch *batch) {
 
     struct ipv4_hdr *iph;
 
-    uint16_t total_len = snb_total_len(pkt) + sizeof(*iph);
+    uint16_t total_len = pkt->total_len() + sizeof(*iph);
 
-    iph = static_cast<struct ipv4_hdr *>(snb_prepend(pkt, sizeof(*iph)));
+    iph = static_cast<struct ipv4_hdr *>(pkt->prepend(sizeof(*iph)));
 
     if (unlikely(!iph)) {
       continue;
