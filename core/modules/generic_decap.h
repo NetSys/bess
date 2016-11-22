@@ -4,7 +4,7 @@
 #include "../module.h"
 #include "../module_msg.pb.h"
 
-class GenericDecap : public Module {
+class GenericDecap final : public Module {
  public:
   GenericDecap() : Module(), decap_size_() {}
 

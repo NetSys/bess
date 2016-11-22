@@ -4,7 +4,7 @@
 #include "../module.h"
 #include "../module_msg.pb.h"
 
-class VLANPush : public Module {
+class VLANPush final : public Module {
  public:
   static const Commands<Module> cmds;
   static const PbCommands pb_cmds;

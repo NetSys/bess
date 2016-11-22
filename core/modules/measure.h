@@ -5,7 +5,7 @@
 #include "../module_msg.pb.h"
 #include "../utils/histogram.h"
 
-class Measure : public Module {
+class Measure final : public Module {
  public:
   static const Commands<Module> cmds;
   static const PbCommands pb_cmds;

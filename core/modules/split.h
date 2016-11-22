@@ -4,7 +4,7 @@
 #include "../module.h"
 #include "../module_msg.pb.h"
 
-class Split : public Module {
+class Split final : public Module {
  public:
   static const gate_idx_t kNumOGates = MAX_GATES;
 

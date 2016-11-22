@@ -3,7 +3,7 @@
 
 #include "../module.h"
 
-class Timestamp : public Module {
+class Timestamp final : public Module {
  public:
   virtual void ProcessBatch(bess::PacketBatch *batch);
 };

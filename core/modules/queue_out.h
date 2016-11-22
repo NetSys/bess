@@ -5,7 +5,7 @@
 #include "../module_msg.pb.h"
 #include "../port.h"
 
-class QueueOut : public Module {
+class QueueOut final : public Module {
  public:
   static const gate_idx_t kNumOGates = 0;
 

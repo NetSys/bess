@@ -5,7 +5,7 @@
 #include "../module.h"
 #include "../module_msg.pb.h"
 
-class Queue : public Module {
+class Queue final : public Module {
  public:
   static const Commands<Module> cmds;
   static const PbCommands pb_cmds;

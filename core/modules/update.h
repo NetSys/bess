@@ -6,7 +6,7 @@
 
 #define UPDATE_MAX_FIELDS 16
 
-class Update : public Module {
+class Update final : public Module {
  public:
   static const Commands<Module> cmds;
   static const PbCommands pb_cmds;

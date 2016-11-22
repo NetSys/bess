@@ -4,7 +4,7 @@
 #include "../module.h"
 #include "../module_msg.pb.h"
 
-class Rewrite : public Module {
+class Rewrite final : public Module {
  public:
   static const size_t kNumSlots = bess::PacketBatch::kMaxBurst * 2 - 1;
   static const size_t kMaxTemplateSize = 1536;

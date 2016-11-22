@@ -4,7 +4,7 @@
 #include "../module.h"
 #include "../module_msg.pb.h"
 
-class NoOP : public Module {
+class NoOP final : public Module {
  public:
   virtual struct snobj *Init(struct snobj *arg);
   pb_error_t InitPb(const bess::pb::EmptyArg &arg);

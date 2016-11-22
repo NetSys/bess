@@ -4,7 +4,7 @@
 #include "../module.h"
 
 /* TODO: timer-triggered flush */
-class Buffer : public Module {
+class Buffer final : public Module {
  public:
   Buffer() : Module(), buf_() {}
 

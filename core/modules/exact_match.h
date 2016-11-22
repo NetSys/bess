@@ -111,7 +111,7 @@ struct EmField {
   int size; /* in bytes. 1 <= size <= MAX_FIELD_SIZE */
 };
 
-class ExactMatch : public Module {
+class ExactMatch final : public Module {
  public:
   static const gate_idx_t kNumOGates = MAX_GATES;
 

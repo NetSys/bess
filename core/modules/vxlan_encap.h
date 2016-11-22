@@ -6,7 +6,7 @@
 
 using bess::metadata::Attribute;
 
-class VXLANEncap : public Module {
+class VXLANEncap final : public Module {
  public:
   VXLANEncap() : Module(), dstport_() {}
 

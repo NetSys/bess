@@ -13,7 +13,7 @@ enum LbMode {
   LB_L4  /* L4 proto + src IP + dst IP + src port + dst port */
 };
 
-class HashLB : public Module {
+class HashLB final : public Module {
  public:
   static const gate_idx_t kNumOGates = MAX_GATES;
 

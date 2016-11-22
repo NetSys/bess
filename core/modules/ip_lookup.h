@@ -4,7 +4,7 @@
 #include "../module.h"
 #include "../module_msg.pb.h"
 
-class IPLookup : public Module {
+class IPLookup final : public Module {
  public:
   static const gate_idx_t kNumOGates = MAX_GATES;
 
