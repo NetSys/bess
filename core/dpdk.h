@@ -3,6 +3,7 @@
 
 /* rte_version.h depends on this but has no #include :( */
 #include <cstdio>
+#include <string>
 
 #include <rte_version.h>
 
@@ -22,6 +23,7 @@
 #error DPDK version is not available
 #endif
 
-void init_dpdk(char *prog_name, int mb_per_socket, int multi_instance);
+void init_dpdk(const ::std::string &prog_name, int mb_per_socket,
+               int multi_instance, bool no_huge);
 
 #endif  // BESS_DPDK_H_
