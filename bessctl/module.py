@@ -1,9 +1,8 @@
 import types
 
-def _callback_factory(self, cmd):
+def _callback_factory(self, cmd, arg_type):
     return lambda mod, arg=None, **kwargs: \
-        self.bess.run_module_command(self.name, cmd,
-                self.choose_arg(arg, kwargs))
+        self.bess.run_module_command(self.name, cmd, arg_type, kwargs)
 
 class Module(object):
     def __init__(self, **kwargs):
@@ -19,16 +18,16 @@ class Module(object):
         else:
             name = None
 
-        ret = self.bess.create_module(self.__class__.__name__, name,
-                self.choose_arg(None, kwargs))
+        ret = self.bess.create_module(self.__class__.__name__, name, kwargs)
 
         self.name = ret.name
-        #print 'Module %s created' % self
+        print 'Module %s created' % self
 
         # add mclass-specific methods
         cls = self.bess.get_mclass_info(self.__class__.__name__)
-        for cmd in cls.commands:
-            func = _callback_factory(self, cmd)
+        assert len(cls.cmds) == len(cls.cmd_args)
+        for i, cmd in enumerate(cls.cmds):
+            func = _callback_factory(self, cmd, cls.cmd_args[i])
             setattr(self, cmd, types.MethodType(func, self))
 
         self.ogate = None
@@ -78,8 +77,8 @@ class Module(object):
         if not isinstance(next_mod, Module):
             assert False, '%s is not a module' % next_mod
 
-        #print 'Connecting %s:%d -> %d:%s' % \
-        #        (self.name, ogate, igate, next_mod.name)
+        print 'Connecting %s:%d -> %d:%s' % \
+                (self.name, ogate, igate, next_mod.name)
 
         self.bess.connect_modules(self.name, next_mod.name, ogate, igate)
 

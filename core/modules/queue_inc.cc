@@ -7,7 +7,8 @@ const Commands<Module> QueueInc::cmds = {
     {"set_burst", MODULE_FUNC &QueueInc::CommandSetBurst, 1}};
 
 const PbCommands QueueInc::pb_cmds = {
-    {"set_burst", MODULE_CMD_FUNC(&QueueInc::CommandSetBurstPb), 1}};
+    {"set_burst", "QueueIncCommandSetBurstArg",
+     MODULE_CMD_FUNC(&QueueInc::CommandSetBurstPb), 1}};
 
 pb_error_t QueueInc::InitPb(const bess::pb::QueueIncArg &arg) {
   const char *port_name;

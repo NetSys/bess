@@ -20,7 +20,7 @@ static_assert(MAX_FIELD_SIZE <= sizeof(uint64_t),
 #error this code assumes little endian architecture (x86)
 #endif
 
-using google::protobuf::RepeatedField;
+using google::protobuf::RepeatedPtrField;
 
 struct em_hkey_t {
   uint64_t u64_arr[MAX_FIELDS];
@@ -154,7 +154,8 @@ class ExactMatch : public Module {
 
   pb_error_t AddFieldOne(const bess::pb::ExactMatchArg_Field &field,
                          struct EmField *f, int idx);
-  pb_error_t GatherKey(const RepeatedField<uint64_t> &fields, em_hkey_t *key);
+  pb_error_t GatherKey(const RepeatedPtrField<std::string> &fields,
+                       em_hkey_t *key);
 
   gate_idx_t default_gate_;
 

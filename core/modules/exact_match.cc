@@ -19,11 +19,13 @@ const Commands<Module> ExactMatch::cmds = {
     {"set_default_gate", MODULE_FUNC &ExactMatch::CommandSetDefaultGate, 1}};
 
 const PbCommands ExactMatch::pb_cmds = {
-    {"add", MODULE_CMD_FUNC(&ExactMatch::CommandAddPb), 0},
-    {"delete", MODULE_CMD_FUNC(&ExactMatch::CommandDeletePb), 0},
-    {"clear", MODULE_CMD_FUNC(&ExactMatch::CommandClearPb), 0},
-    {"set_default_gate", MODULE_CMD_FUNC(&ExactMatch::CommandSetDefaultGatePb),
-     1}};
+    {"add", "ExactMatchCommandAddArg",
+     MODULE_CMD_FUNC(&ExactMatch::CommandAddPb), 0},
+    {"delete", "ExactMatchCommandDeleteArg",
+     MODULE_CMD_FUNC(&ExactMatch::CommandDeletePb), 0},
+    {"clear", "EmptyArg", MODULE_CMD_FUNC(&ExactMatch::CommandClearPb), 0},
+    {"set_default_gate", "ExactMatchCommandSetDefaultGateArg",
+     MODULE_CMD_FUNC(&ExactMatch::CommandSetDefaultGatePb), 1}};
 
 pb_error_t ExactMatch::AddFieldOne(const bess::pb::ExactMatchArg_Field &field,
                                    struct EmField *f, int idx) {
@@ -51,7 +53,7 @@ pb_error_t ExactMatch::AddFieldOne(const bess::pb::ExactMatchArg_Field &field,
 
   int force_be = (f->attr_id < 0);
 
-  if (!field.mask()) {
+  if (field.mask() == 0) {
     /* by default all bits are considered */
     f->mask = ((uint64_t)1 << (f->size * 8)) - 1;
   } else {
@@ -315,7 +317,7 @@ struct snobj *ExactMatch::GatherKey(struct snobj *fields, em_hkey_t *key) {
   return nullptr;
 }
 
-pb_error_t ExactMatch::GatherKey(const RepeatedField<uint64_t> &fields,
+pb_error_t ExactMatch::GatherKey(const RepeatedPtrField<std::string> &fields,
                                  em_hkey_t *key) {
   if (fields.size() != num_fields_) {
     return pb_error(EINVAL, "must specify %d fields", num_fields_);
@@ -327,19 +329,15 @@ pb_error_t ExactMatch::GatherKey(const RepeatedField<uint64_t> &fields,
     int field_size = fields_[i].size;
     int field_pos = fields_[i].pos;
 
-    uint64_t f;
+    const std::string &f_obj = fields.Get(i);
 
-    int force_be = (fields_[i].attr_id < 0);
-
-    uint64_t f_obj = fields.Get(i);
-
-    if (uint64_to_bin((uint8_t *)&f, field_size, f_obj,
-                      bess::utils::is_be_system() | force_be)) {
+    if (static_cast<size_t>(field_size) != f_obj.length()) {
       return pb_error(EINVAL, "idx %d: not a correct %d-byte value", i,
                       field_size);
     }
 
-    memcpy(reinterpret_cast<uint8_t *>(key) + field_pos, &f, field_size);
+    memcpy(reinterpret_cast<uint8_t *>(key) + field_pos, f_obj.c_str(),
+           field_size);
   }
 
   return pb_errno(0);

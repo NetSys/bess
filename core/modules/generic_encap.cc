@@ -16,8 +16,8 @@ pb_error_t GenericEncap::AddFieldOne(
     return pb_error(EINVAL, "idx %d: 'size' must be 1-%d", idx, MAX_FIELD_SIZE);
   }
 
-  if (field.attribute_case() == bess::pb::GenericEncapArg_Field::kName) {
-    const char *attr = field.name().c_str();
+  if (field.attribute_case() == bess::pb::GenericEncapArg_Field::kAttrName) {
+    const char *attr = field.attr_name().c_str();
     f->attr_id = AddMetadataAttr(attr, f->size,
                                  bess::metadata::Attribute::AccessMode::kRead);
     if (f->attr_id < 0) {
@@ -34,7 +34,7 @@ pb_error_t GenericEncap::AddFieldOne(
                       idx, f->size);
     }
   } else {
-    return pb_error(EINVAL, "idx %d: must specify 'value' or 'attr'", idx);
+    return pb_error(EINVAL, "idx %d: must specify 'value' or 'attr_name'", idx);
   }
 
   return pb_errno(0);

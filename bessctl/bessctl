@@ -5,6 +5,7 @@ import os.path
 import pprint
 import cStringIO
 import tempfile
+import socket
 
 import cli
 import commands
@@ -86,23 +87,11 @@ class BESSCLI(cli.CLI):
             pass
 
     def loop(self):
-        try:
-            super(BESSCLI, self).loop()
-        except socket.error as e:
-            self.fout.write('\n')
-
-            if e.errno in errno.errorcode:
-                err_code = errno.errorcode[e.errno]
-            else:
-                err_code = '<unknown>'
-
-            self.err('Disconnected from BESS daemon - errno=%d (%s: %s)' % \
-                    (e.errno, err_code, os.strerror(e.errno)))
-
-            if self.bess.peer[0] == 'localhost':
-                self.print_crashlog()
-
-            self.bess.disconnect()
+        super(BESSCLI, self).loop()
+        # TODO: raise an exception when gRPC abnormaly disconnects
+        # Then use self.print_crashlog() to print out the call stack trace
+        # when the bessd daemon process aborts
+        self.bess.disconnect()
 
     def get_prompt(self):
         if self.bess.is_connected():
@@ -112,10 +101,15 @@ class BESSCLI(cli.CLI):
 
 def connect_bess():
     s = BESS()
+
     try:
+        sock = socket.socket()
+        sock.connect(('localhost', BESS.DEF_PORT))
+        sock.close()
         s.connect()
-    except s.APIError as e:
-        print >> sys.stderr, e.message
+    except socket.error as e:
+        print >> sys.stderr, e
+        
     return s
 
 def run_cli():

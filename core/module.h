@@ -22,29 +22,29 @@ static inline void set_cmd_response_error(pb_cmd_response_t *response,
 #define INVALID_TASK_ID ((task_id_t)-1)
 #define MODULE_FUNC (struct snobj * (Module::*)(struct snobj *))
 
-using module_cmd_func_t = pb_func_t<pb_cmd_response_t, Module>;
-using module_init_func_t = pb_func_t<pb_error_t, Module>;
+using module_cmd_func_t =
+    pb_func_t<pb_cmd_response_t, Module, google::protobuf::Any>;
+using module_init_func_t = pb_func_t<pb_error_t, Module, google::protobuf::Any>;
 
 template <typename T, typename M>
 static inline module_cmd_func_t MODULE_CMD_FUNC(
     pb_cmd_response_t (M::*fn)(const T &)) {
-  return [=](Module *m, google::protobuf::Any arg) -> pb_cmd_response_t {
+  return [=](Module *m, const google::protobuf::Any &arg) -> pb_cmd_response_t {
     T arg_;
     arg.UnpackTo(&arg_);
-    auto base_fn =
-        reinterpret_cast<pb_cmd_response_t (Module::*)(const T &)>(fn);
-    return (*m.*(base_fn))(arg_);
+    auto base_fn = std::mem_fn(fn);
+    return base_fn(static_cast<M *>(m), arg_);
   };
 }
 
 template <typename T, typename M>
 static inline module_init_func_t MODULE_INIT_FUNC(
     pb_error_t (M::*fn)(const T &)) {
-  return [=](Module *m, google::protobuf::Any arg) -> pb_error_t {
+  return [=](Module *m, const google::protobuf::Any &arg) -> pb_error_t {
     T arg_;
     arg.UnpackTo(&arg_);
-    auto base_fn = reinterpret_cast<pb_error_t (Module::*)(const T &)>(fn);
-    return (*m.*(base_fn))(arg_);
+    auto base_fn = std::mem_fn(fn);
+    return base_fn(static_cast<M *>(m), arg_);
   };
 }
 
@@ -63,11 +63,12 @@ struct Command {
 };
 
 template <typename T>
-using Commands = std::vector<struct Command<T> >;
+using Commands = std::vector<struct Command<T>>;
 
 // TODO: Change type name to Command when removing snobj
 struct PbCommand {
   std::string cmd;
+  std::string arg_type;
   module_cmd_func_t func;
   // if non-zero, workers don't need to be paused in order to
   // run this command
@@ -135,10 +136,10 @@ class ModuleBuilder {
     return ret;
   }
 
-  const std::vector<std::string> pb_cmds() const {
-    std::vector<std::string> ret;
+  const std::vector<std::pair<std::string, std::string>> pb_cmds() const {
+    std::vector<std::pair<std::string, std::string>> ret;
     for (auto &cmd : pb_cmds_)
-      ret.push_back(cmd.cmd);
+      ret.push_back(std::make_pair(cmd.cmd, cmd.arg_type));
     return ret;
   }
 

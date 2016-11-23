@@ -3,8 +3,16 @@ import struct
 import errno
 import sys
 import os
+import inspect
+import time
+import grpc
+import threading
 
-import message
+import service_pb2
+import proto_conv
+import bess_msg_pb2 as bess_msg
+import module_msg_pb2 as module_msg
+import port_msg_pb2 as port_msg
 
 class BESS(object):
 
@@ -32,232 +40,332 @@ class BESS(object):
 
     def __init__(self):
         self.debug = False
-        self.s = None
+        self.stub = None
+        self.channel = None
         self.peer = None
 
+        self.status = None
+
     def is_connected(self):
-        if self.s is None:
-            return False
+        return (self.status == grpc.ChannelConnectivity.READY)
 
-        try:
-            tmp = self.s.recv(1, socket.MSG_DONTWAIT)
-            assert len(tmp) == 0, 'Bogus data from BESS daemon'
-        except socket.error as e:
-            if e.errno not in [errno.EAGAIN, errno.EWOULDBLOCK]:
-                self.s.close()
-                self.s = None
-                raise e
-
-        return True
+    def _update_status(self, connectivity):
+        self.status = connectivity
 
     def connect(self, host='localhost', port=DEF_PORT):
         if self.is_connected():
             raise self.APIError('Already connected')
+        self.peer = (host, port)
+        self.channel = grpc.insecure_channel('%s:%d' % (host, port))
+        self.channel.subscribe(self._update_status, try_to_connect=True)
+        self.stub = service_pb2.BESSControlStub(self.channel)
 
-        try:
-            self.s = socket.socket()
-            self.s.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
-            self.s.connect((host, port))
-            self.peer = (host, port)
-        except socket.error:
-            self.s = None
-            self.peer = None
-            raise self.APIError('Cannot connect to %s:%d ' \
-                    '(BESS daemon not running?)' \
-                    % (host, port))
+        while not self.is_connected():
+            time.sleep(0.1)
+
+    def clear_connection(self):
+        self.channel.unsubscribe(self._update_status)
+        self.status = None
+        self.stub = None
+        self.channel = None
+        self.peer = None
 
     def disconnect(self):
-        try:
-            self.s.close()
-        except:
-            pass
-        finally:
-            self.s = None
+        if self.is_connected():
+            self.clear_connection()
+
+        while self.is_connected():
+            time.sleep(0.1)
 
     def set_debug(self, flag):
         self.debug = flag
 
-    # (de)serialization only happens in this private method
-    def _request(self, obj):
-        if not self.is_connected():
-            raise self.APIError('Not connected to BESS daemon')
-
-        if self.debug:
-            print >> sys.stderr, '\t---> %s' % repr(obj)
-
-        try:
-            q = message.encode(obj)
-        except:
-            print >> sys.stderr, 'Encoding error, object: %s' % repr(obj)
-            raise
-
-        self.s.sendall(struct.pack('<L', len(q)) + q)
-
-        total, = struct.unpack('<L', self.s.recv(4))
-        buf = []
-        received = 0
-        while received < total:
-            frag = self.s.recv(total - received)
-            buf.append(frag)
-            received += len(frag)
-
-        obj = message.decode(''.join(buf))
-
-        if self.debug:
-            print >> sys.stderr, '\t<--- %s' % repr(obj)
-
-        if isinstance(obj, message.SNObjDict) and 'err' in obj:
-            err = obj['err']
-            errmsg = obj['errmsg'] if 'errmsg' in obj else \
-                    '(error message is not given)'
-            details = obj['details'] if 'details' in obj else None
+    def _request(self, req_fn, request=None):
+        if request is None: request = bess_msg.EmptyRequest()
+        response = req_fn(request)
+        if response.error.err != 0:
+            err = response.error.err
+            errmsg = response.error.errmsg
+            if errmsg == '': errmsg = '(error message is not given)'
+            details = response.error.details
+            if details == '': details = None
             raise self.Error(err, errmsg, details)
-
-        return obj
-
-    def _request_bess(self, cmd, arg=None):
-        if arg is not None:
-            return self._request({'to': 'bess', 'cmd': cmd, 'arg': arg})
-        else:
-            return self._request({'to': 'bess', 'cmd': cmd})
-
-    def _request_module(self, name, cmd, arg=None):
-        if arg is not None:
-            return self._request({'to': 'module', 'name': name, 'cmd': cmd,
-                    'arg': arg})
-        else:
-            return self._request({'to': 'module', 'name': name, 'cmd': cmd})
+        return response
 
     def kill(self):
         try:
-            return self._request_bess('kill_bess')
-        except socket.error:
-            self.disconnect()
+            self._request(self.stub.KillBess)
+        except grpc._channel._Rendezvous:
+            pass
+
+        while self.is_connected():
+            time.sleep(0.1)
+
+        self.clear_connection()
 
     def reset_all(self):
-        return self._request_bess('reset_all')
+        return self._request(self.stub.ResetAll)
 
     def pause_all(self):
-        return self._request_bess('pause_all')
+        return self._request(self.stub.PauseAll)
 
     def resume_all(self):
-        return self._request_bess('resume_all')
+        return self._request(self.stub.ResumeAll)
 
     def list_drivers(self):
-        return self._request_bess('list_drivers')
+        return self._request(self.stub.ListDrivers)
 
     def get_driver_info(self, name):
-        return self._request_bess('get_driver_info', name)
+        request = bess_msg.GetDriverInfoRequest()
+        request.driver_name = name
+        return self._request(self.stub.GetDriverInfo, request)
 
     def reset_ports(self):
-        return self._request_bess('reset_ports')
+        return self._request(self.stub.ResetPorts)
 
     def list_ports(self):
-        return self._request_bess('list_ports')
+        return self._request(self.stub.ListPorts)
 
-    def create_port(self, driver, name=None, arg=None):
-        kv = {'driver': driver}
+    def create_port(self, driver, name, arg):
+        num_inc_q = arg.pop('num_inc_q', 0)
+        num_out_q = arg.pop('num_out_q', 0)
+        size_inc_q = arg.pop('size_inc_q', 0)
+        size_out_q = arg.pop('size_out_q', 0)
+        mac_addr = arg.pop('mac_addr', '')
 
-        if name is not None:    kv['name'] = name
-        if arg is not None:     kv['arg'] = arg
+        kv = {
+            'name': name,
+            'driver': driver,
+            'num_inc_q': num_inc_q,
+            'num_out_q': num_out_q,
+            'size_inc_q': size_inc_q,
+            'size_out_q': size_out_q,
+            'mac_addr': mac_addr,
+        }
 
-        return self._request_bess('create_port', kv)
+        request = proto_conv.dict_to_protobuf(kv, bess_msg.CreatePortRequest)
+        message_map = {
+            'PCAPPort': port_msg.PCAPPortArg,
+            'PMDPort': port_msg.PMDPortArg,
+            'UnixSocketPort': port_msg.UnixSocketPortArg,
+            'ZeroCopyVPort': port_msg.ZeroCopyVPortArg,
+            'VPort': port_msg.VPortArg,
+        }
+        arg_msg = proto_conv.dict_to_protobuf(arg, message_map[driver])
+        request.arg.Pack(arg_msg)
+
+        return self._request(self.stub.CreatePort, request)
 
     def destroy_port(self, name):
-        return self._request_bess('destroy_port', name)
+        request = bess_msg.DestroyPortRequest()
+        request.name = name
+        return self._request(self.stub.DestroyPort, request)
 
-    def get_port_stats(self, port):
-        return self._request_bess('get_port_stats', port)
+    def get_port_stats(self, name):
+        request = bess_msg.GetPortStatsRequest()
+        request.name = name
+        return self._request(self.stub.GetPortStats, request)
 
     def list_mclasses(self):
-        return self._request_bess('list_mclasses')
+        return self._request(self.stub.ListMclass)
 
     def list_modules(self):
-        return self._request_bess('list_modules')
+        return self._request(self.stub.ListModules)
 
     def get_mclass_info(self, name):
-        return self._request_bess('get_mclass_info', name)
+        request = bess_msg.GetMclassInfoRequest()
+        request.name = name
+        return self._request(self.stub.GetMclassInfo, request)
 
     def reset_modules(self):
-        return self._request_bess('reset_modules')
+        return self._request(self.stub.ResetModules)
 
-    def create_module(self, mclass, name=None, arg=None):
-        kv = {'mclass': mclass}
-
-        if name is not None:    kv['name'] = name
-        if arg is not None:     kv['arg'] = arg
-
-        return self._request_bess('create_module', kv)
+    def create_module(self, mclass, name, arg):
+        kv = {
+            'name': name,
+            'mclass': mclass,
+        }
+        request = proto_conv.dict_to_protobuf(kv, bess_msg.CreateModuleRequest)
+        message_map = {
+            'BPF': module_msg.BPFArg,
+            'Buffer': bess_msg.EmptyArg,
+            'Bypass': bess_msg.EmptyArg,
+            'Dump': module_msg.DumpArg,
+            'EtherEncap': bess_msg.EmptyArg,
+            'ExactMatch': module_msg.ExactMatchArg,
+            'FlowGen': module_msg.FlowGenArg,
+            'GenericDecap': module_msg.GenericDecapArg,
+            'GenericEncap': module_msg.GenericEncapArg,
+            'HashLB': module_msg.HashLBArg,
+            'IPEncap': bess_msg.EmptyArg,
+            'IPLookup': bess_msg.EmptyArg,
+            'L2Forward': module_msg.L2ForwardArg,
+            'MACSwap': bess_msg.EmptyArg,
+            'Measure': module_msg.MeasureArg,
+            'Merge': bess_msg.EmptyArg,
+            'MetadataTest': module_msg.MetadataTestArg,
+            'NoOP': bess_msg.EmptyArg,
+            'PortInc': module_msg.PortIncArg,
+            'PortOut': module_msg.PortOutArg,
+            'QueueInc': module_msg.QueueIncArg,
+            'QueueOut': module_msg.QueueOutArg,
+            'Queue': module_msg.QueueArg,
+            'RandomUpdate': module_msg.RandomUpdateArg,
+            'Rewrite': module_msg.RewriteArg,
+            'RoundRobin': module_msg.RoundRobinArg,
+            'SetMetadata': module_msg.SetMetadataArg,
+            'Sink': bess_msg.EmptyArg,
+            'Source': module_msg.SourceArg,
+            'Split': module_msg.SplitArg,
+            'Timestamp': bess_msg.EmptyArg,
+            'Update': module_msg.UpdateArg,
+            'VLANPop': bess_msg.EmptyArg,
+            'VLANPush': module_msg.VLANPushArg,
+            'VLANSplit': bess_msg.EmptyArg,
+            'VXLANDecap': bess_msg.EmptyArg,
+            'VXLANEncap': module_msg.VXLANEncapArg,
+            'WildcardMatch': module_msg.WildcardMatchArg,
+        }
+        arg_msg = proto_conv.dict_to_protobuf(arg, message_map[mclass])
+        request.arg.Pack(arg_msg)
+        return self._request(self.stub.CreateModule, request)
 
     def destroy_module(self, name):
-        return self._request_bess('destroy_module', name)
+        request = bess_msg.DestroyModuleRequest()
+        request.name = name
+        return self._request(self.stub.DestroyModule, request)
 
     def get_module_info(self, name):
-        return self._request_bess('get_module_info', name)
+        request = bess_msg.GetModuleInfoRequest()
+        request.name = name
+        return self._request(self.stub.GetModuleInfo, request)
 
     def connect_modules(self, m1, m2, ogate=0, igate=0):
-        return self._request_bess('connect_modules',
-                {'m1': m1, 'm2': m2, 'ogate': ogate, 'igate': igate})
+        request = bess_msg.ConnectModulesRequest()
+        request.m1 = m1
+        request.m2 = m2
+        request.ogate = ogate
+        request.igate = igate
+        return self._request(self.stub.ConnectModules, request)
 
     def disconnect_modules(self, name, ogate = 0):
-        return self._request_bess('disconnect_modules',
-                {'name': name, 'ogate': ogate})
+        request = bess_msg.DisconnectModulesRequest()
+        request.name = name
+        request.ogate = ogate
+        return self._request(self.stub.DisconnectModules, request)
 
-    def run_module_command(self, name, cmd, arg):
-        return self._request_module(name, cmd, arg)
+    def run_module_command(self, name, cmd, arg_type, arg):
+        request = bess_msg.ModuleCommandRequest()
+        request.name = name
+        request.cmd = cmd
+
+        all_classes = inspect.getmembers(module_msg, lambda c: inspect.isclass(c))
+        arg_classes = dict(all_classes)
+        arg_classes['EmptyArg'] = bess_msg.EmptyArg
+
+        arg_msg = proto_conv.dict_to_protobuf(arg, arg_classes[arg_type])
+        request.arg.Pack(arg_msg)
+
+        response = self._request(self.stub.ModuleCommand, request)
+        if response.HasField('other'):
+            type_str = response.other.type_url.split('.')[-1]
+            type_class = arg_classes[type_str]
+            result = type_class()
+            response.other.Unpack(result)
+            return result
+        else:
+            return response
 
     def enable_tcpdump(self, fifo, m, direction='out', gate=0):
-        args = {'name': m, 'is_igate': int(direction == 'in'), 'gate': gate,
-                'fifo': fifo}
-        return self._request_bess('enable_tcpdump', args)
+        request = bess_msg.EnableTcpdumpRequest()
+        request.name = m
+        request.is_igate = (direction == 'in')
+        request.gate = gate
+        request.fifo = fifo
+        return self._request(self.stub.EnableTcpdump, request)
 
     def disable_tcpdump(self, m, direction='out', gate=0):
-        args = {'name': m, 'is_igate': int(direction == 'in'), 'gate': gate}
-        return self._request_bess('disable_tcpdump', args)
+        request = bess_msg.DisableTcpdumpRequest()
+        request.name = m
+        request.is_igate = (direction == 'in')
+        request.gate = gate
+        return self._request(self.stub.DisableTcpdump, request)
 
     def enable_track(self, m, direction='out', gate=None):
-        args = {'name': m, 'gate_idx': gate, 'is_igate': int(direction == 'in')}
-        return self._request_bess('enable_track', args)
+        request = bess_msg.EnableTrackRequest()
+        request.name = m
+        if gate is None:
+            request.use_gate = False
+        else:
+            request.use_gate = True
+            request.gate = gate
+        request.is_igate = (direction == 'in')
+        return self._request(self.stub.EnableTrack, request)
 
     def disable_track(self, m, direction='out', gate=None):
-        args = {'name': m, 'gate_idx': gate, 'is_igate': int(direction == 'in')}
-        return self._request_bess('disable_track', args)
+        request = bess_msg.DisableTrackRequest()
+        request.name = m
+        if gate is None:
+            request.use_gate = False
+        else:
+            request.use_gate = True
+            request.gate = gate
+        request.is_igate = (direction == 'in')
+        return self._request(self.stub.DisableTrack, request)
 
     def list_workers(self):
-        return self._request_bess('list_workers')
+        return self._request(self.stub.ListWorkers)
 
     def add_worker(self, wid, core):
-        args = {'wid': wid, 'core': core}
-        return self._request_bess('add_worker', args)
+        request = bess_msg.AddWorkerRequest()
+        request.wid = wid
+        request.core = core
+        return self._request(self.stub.AddWorker, request)
 
     def attach_task(self, m, tid=0, tc=None, wid=None):
         if (tc is None) == (wid is None):
             raise self.APIError('You should specify either "tc" or "wid"' \
                     ', but not both')
 
-        if tc is not None:
-            args = {'name': m, 'taskid': tid, 'tc': tc}
-        else:
-            args = {'name': m, 'taskid': tid, 'wid': wid}
+        request = bess_msg.AttachTaskRequest()
+        request.name = m
+        request.taskid = tid
 
-        return self._request_bess('attach_task', args)
+        if tc is not None:
+            request.tc = tc
+        else:
+            request.wid = wid
+
+        return self._request(self.stub.AttachTask, request)
 
     def list_tcs(self, wid = None):
-        args = None
+        request = bess_msg.ListTcsRequest()
         if wid is not None:
-            args = {'wid': wid}
+            request.wid = wid
 
-        return self._request_bess('list_tcs', args)
+        return self._request(self.stub.ListTcs, request)
 
     def add_tc(self, name, wid=0, priority=0, limit=None, max_burst=None):
-        args = {'name': name, 'wid': wid, 'priority': priority}
+        request = bess_msg.AddTcRequest()
+        class_ = getattr(request, 'class')
+        class_.name = name
+        class_.wid = wid
+        class_.priority = priority
         if limit:
-            args['limit'] = limit
+            class_.limit.schedules = limit['schedules'] if 'schedules' in limit else 0
+            class_.limit.cycles = limit['cycles'] if 'cycles' in limit else 0
+            class_.limit.packets = limit['packets'] if 'packets' in limit else 0
+            class_.limit.bits = limit['bits'] if 'bits' in limit else 0
 
         if max_burst:
-            args['max_burst'] = max_burst
+            class_.max_burst.schedules = max_burst['schedules'] if 'schedules' in max_burst else 0
+            class_.max_burst.cycles = max_burst['cycles'] if 'cycles' in max_burst else 0
+            class_.max_burst.packets = max_burst['packets'] if 'packets' in max_burst else 0
+            class_.max_burst.bits = max_burst['bits'] if 'bits' in max_burst else 0
 
-        return self._request_bess('add_tc', args)
+        return self._request(self.stub.AddTc, request)
 
     def get_tc_stats(self, name):
-        return self._request_bess('get_tc_stats', name)
+        request = bess_msg.GetTcStatsRequest()
+        request.name = name
+        return self._request(self.stub.GetTcStats, request)

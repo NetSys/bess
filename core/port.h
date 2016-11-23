@@ -54,15 +54,15 @@ typedef struct packet_stats port_stats_t[PACKET_DIRS];
 class Port;
 class PortTest;
 
-using port_init_func_t = pb_func_t<pb_error_t, Port>;
+using port_init_func_t = pb_func_t<pb_error_t, Port, google::protobuf::Any>;
 
 template <typename T, typename P>
 static inline port_init_func_t PORT_INIT_FUNC(pb_error_t (P::*fn)(const T &)) {
-  return [=](Port *p, google::protobuf::Any arg) -> pb_error_t {
+  return [=](Port *p, const google::protobuf::Any &arg) -> pb_error_t {
     T arg_;
     arg.UnpackTo(&arg_);
-    auto base_fn = reinterpret_cast<pb_error_t (Port::*)(const T &)>(fn);
-    return (*p.*(base_fn))(arg_);
+    auto base_fn = std::mem_fn(fn);
+    return base_fn(static_cast<P *>(p), arg_);
   };
 }
 

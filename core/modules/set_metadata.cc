@@ -1,4 +1,5 @@
 #include "set_metadata.h"
+#include "../utils/endian.h"
 
 static void CopyFromPacket(bess::PacketBatch *batch, const struct Attr *attr,
                            bess::metadata::mt_offset_t mt_off) {
@@ -53,8 +54,14 @@ pb_error_t SetMetadata::AddAttrOne(
                     bess::metadata::kMetadataAttrMaxSize);
   }
 
-  if (attr.value().length()) {
-    memcpy(&value, attr.value().c_str(), size);
+  if (attr.value() != 0) {
+    if (uint64_to_bin((uint8_t *)&value, size, attr.value(),
+                      bess::utils::is_be_system())) {
+      return pb_error(EINVAL,
+                      "'value' field has not a "
+                      "correct %lu-byte value",
+                      size);
+    }
   } else {
     offset = attr.offset();
     if (offset < 0 || offset + size >= SNBUF_DATA) {

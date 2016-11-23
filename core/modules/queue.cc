@@ -10,8 +10,10 @@ const Commands<Module> Queue::cmds = {
 };
 
 const PbCommands Queue::pb_cmds = {
-    {"set_burst", MODULE_CMD_FUNC(&Queue::CommandSetBurstPb), 1},
-    {"set_size", MODULE_CMD_FUNC(&Queue::CommandSetSizePb), 0},
+    {"set_burst", "QueueCommandSetBurstArg",
+     MODULE_CMD_FUNC(&Queue::CommandSetBurstPb), 1},
+    {"set_size", "QueueCommandSetSizeArg",
+     MODULE_CMD_FUNC(&Queue::CommandSetSizePb), 0},
 };
 
 int Queue::Resize(int slots) {
@@ -56,15 +58,17 @@ pb_error_t Queue::InitPb(const bess::pb::QueueArg &arg) {
   task_id_t tid;
   pb_error_t err;
 
-  burst_ = bess::PacketBatch::kMaxBurst;
-
   tid = RegisterTask(nullptr);
   if (tid == INVALID_TASK_ID)
     return pb_error(ENOMEM, "Task creation failed");
 
-  err = SetBurst(arg.burst());
-  if (err.err() != 0) {
-    return err;
+  if (arg.burst() != 0) {
+    err = SetBurst(arg.burst());
+    if (err.err() != 0) {
+      return err;
+    }
+  } else {
+    burst_ = bess::PacketBatch::kMaxBurst;
   }
 
   if (arg.size() != 0) {
@@ -127,11 +131,12 @@ struct snobj *Queue::Init(struct snobj *arg) {
 void Queue::Deinit() {
   bess::Packet *pkt;
 
-  while (llring_sc_dequeue(queue_, (void **)&pkt) == 0) {
-    bess::Packet::Free(pkt);
+  if (queue_) {
+    while (llring_sc_dequeue(queue_, (void **)&pkt) == 0) {
+      bess::Packet::Free(pkt);
+    }
+    mem_free(queue_);
   }
-
-  mem_free(queue_);
 }
 
 std::string Queue::GetDesc() const {

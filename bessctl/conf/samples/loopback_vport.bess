@@ -3,6 +3,6 @@ num_ports = int($SN_PORTS!'1')
 print 'Using %d virtual ports... (envvar "SN_PORTS")' % num_ports
 
 for i in range(num_ports):
-	v = VPort(loopback=1)
-	Source() -> PortOut(port=v)
-	PortInc(port=v) -> Sink()
+	v = VPort(loopback=True)
+	Source() -> PortOut(port=v.name)
+	PortInc(port=v.name) -> Sink()

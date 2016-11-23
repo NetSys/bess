@@ -255,9 +255,9 @@ pb_error_t FlowGen::ProcessArguments(const bess::pb::FlowGenArg &arg) {
     return pb_error(EINVAL, "invalid 'flow_duration'");
   }
 
-  if (arg.arrival() == bess::pb::FlowGenArg::UNIFORM) {
+  if (arg.arrival() == "uniform") {
     arrival_ = ARRIVAL_UNIFORM;
-  } else if (arg.arrival() == bess::pb::FlowGenArg::EXPONENTIAL) {
+  } else if (arg.arrival() == "exponential") {
     arrival_ = ARRIVAL_EXPONENTIAL;
   } else {
     return pb_error(EINVAL,
@@ -265,9 +265,9 @@ pb_error_t FlowGen::ProcessArguments(const bess::pb::FlowGenArg &arg) {
                     "'uniform' or 'exponential'");
   }
 
-  if (arg.duration() == bess::pb::FlowGenArg::UNIFORM) {
+  if (arg.duration() == "uniform") {
     duration_ = DURATION_UNIFORM;
-  } else if (arg.duration() == bess::pb::FlowGenArg::PARETO) {
+  } else if (arg.duration() == "pareto") {
     duration_ = DURATION_PARETO;
   } else {
     return pb_error(EINVAL,

@@ -25,9 +25,9 @@ else:
     p = UnixSocketPort(name='p', path=SOCKET_PATH)
 
 # Randomize source IP addresses
-PortInc(port=p) -> \
+PortInc(port='p') -> \
         RandomUpdate(fields=[{'offset': 26, 'size': 4, 'min': 0, 'max': 0xffffffff}]) -> \
-        PortOut(port=p)
+        PortOut(port='p')
 
 bess.resume_all()
 

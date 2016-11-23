@@ -46,10 +46,12 @@ const Commands<Module> WildcardMatch::cmds = {
     {"set_default_gate", MODULE_FUNC &WildcardMatch::CommandSetDefaultGate, 1}};
 
 const PbCommands WildcardMatch::pb_cmds = {
-    {"add", MODULE_CMD_FUNC(&WildcardMatch::CommandAddPb), 0},
-    {"delete", MODULE_CMD_FUNC(&WildcardMatch::CommandDeletePb), 0},
-    {"clear", MODULE_CMD_FUNC(&WildcardMatch::CommandClearPb), 0},
-    {"set_default_gate",
+    {"add", "WildcardMatchCommandAddArg",
+     MODULE_CMD_FUNC(&WildcardMatch::CommandAddPb), 0},
+    {"delete", "WildcardMatchCommandDeleteArg",
+     MODULE_CMD_FUNC(&WildcardMatch::CommandDeletePb), 0},
+    {"clear", "EmptyArg", MODULE_CMD_FUNC(&WildcardMatch::CommandClearPb), 0},
+    {"set_default_gate", "WildcardMatchCommandSetDefaultGateArg",
      MODULE_CMD_FUNC(&WildcardMatch::CommandSetDefaultGatePb), 1}};
 
 struct snobj *WildcardMatch::AddFieldOne(struct snobj *field,

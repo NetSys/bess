@@ -9,8 +9,8 @@
 typedef bess::pb::Error pb_error_t;
 typedef bess::pb::ModuleCommandResponse pb_cmd_response_t;
 
-template <typename T, typename M>
-using pb_func_t = std::function<T(M *, const google::protobuf::Any &)>;
+template <typename T, typename M, typename A>
+using pb_func_t = std::function<T(M *, const A &)>;
 
 [[gnu::format(printf, 3, 4)]] pb_error_t pb_error_details(int code,
                                                           const char *details,

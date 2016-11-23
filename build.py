@@ -229,6 +229,12 @@ def build_bess():
     if not os.path.exists('%s/build' % DPDK_DIR):
         build_dpdk()
 
+    print 'Generating protobuf codes for libbess-python...'
+    cmd('protoc protobuf/*.proto \
+        --proto_path=protobuf --python_out=libbess-python \
+        --grpc_out=libbess-python \
+        --plugin=protoc-gen-grpc=`which grpc_python_plugin`')
+
     print 'Building BESS daemon...'
     cmd('bin/bessctl daemon stop 2> /dev/null || true')
     cmd('rm -f core/bessd')     # force relink as DPDK might have been rebuilt
@@ -263,6 +269,7 @@ def do_clean():
     cmd('make -C core clean')
     cmd('rm -f bin/bessd')
     cmd('make -C core/kmod clean')
+    cmd('rm -rf libbess-python/*_pb2.py')
 
 def do_dist_clean():
     do_clean()
