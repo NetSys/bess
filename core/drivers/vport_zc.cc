@@ -52,7 +52,7 @@ struct vport_bar {
   struct llring *out_qs[MAX_QUEUES_PER_DIR];
 };
 
-class ZeroCopyVPort : public Port {
+class ZeroCopyVPort final : public Port {
  public:
   pb_error_t InitPb(const bess::pb::EmptyArg &arg);
 

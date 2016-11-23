@@ -11,7 +11,7 @@
 // (Not recommended because PCAP is slow :-)
 // This driver is experimental. Currently does not support mbuf chaining and
 // needs more tests!
-class PCAPPort : public Port {
+class PCAPPort final : public Port {
  public:
   pb_error_t InitPb(const bess::pb::PCAPPortArg &arg);
 

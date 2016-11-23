@@ -14,7 +14,7 @@ typedef uint8_t dpdk_port_t;
  * This driver binds a port to a device using DPDK.
  * This is the recommended driver for performance.
  */
-class PMDPort : public Port {
+class PMDPort final : public Port {
  public:
   PMDPort() : Port(), dpdk_port_id_(DPDK_PORT_UNKNOWN), hot_plugged_(false) {}
 

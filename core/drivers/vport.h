@@ -4,7 +4,7 @@
 #include "../kmod/sn_common.h"
 #include "../port.h"
 
-class VPort : public Port {
+class VPort final : public Port {
  public:
   VPort() : fd_(), bar_(), map_(), netns_fd_(), container_pid_() {}
   virtual void InitDriver();
