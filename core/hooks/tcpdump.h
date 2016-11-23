@@ -8,7 +8,7 @@ const std::string kGateHookTcpDumpGate = "tcpdump";
 const uint16_t kGateHookPriorityTcpDump = 1;
 
 // TcpDump dumps copies of the packets seen by a gate. Useful for debugging.
-class TcpDump : public bess::GateHook {
+class TcpDump final : public bess::GateHook {
  public:
   TcpDump()
       : bess::GateHook(kGateHookTcpDumpGate, kGateHookPriorityTcpDump),
