@@ -3,7 +3,7 @@
 
 #include "../module.h"
 
-class VLANSplit : public Module {
+class VLANSplit final : public Module {
  public:
   static const gate_idx_t kNumOGates = 4096;
 

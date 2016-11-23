@@ -17,7 +17,7 @@ struct filter {
   char *exp;        /* original filter expression string */
 };
 
-class BPF : public Module {
+class BPF final : public Module {
  public:
   static const gate_idx_t kNumOGates = MAX_GATES;
 

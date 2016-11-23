@@ -4,7 +4,7 @@
 #include "../module.h"
 #include "../module_msg.pb.h"
 
-class IPEncap : public Module {
+class IPEncap final : public Module {
  public:
   struct snobj *Init(struct snobj *arg);
   pb_error_t InitPb(const bess::pb::IPEncapArg &arg);

@@ -6,7 +6,7 @@
 /* This module simply passes packets from input gate X down to output gate X
  * (the same gate index) */
 
-class Bypass : public Module {
+class Bypass final : public Module {
  public:
   static const gate_idx_t kNumIGates = MAX_GATES;
   static const gate_idx_t kNumOGates = MAX_GATES;

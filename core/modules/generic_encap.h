@@ -14,7 +14,7 @@ struct Field {
   int size;       /* in bytes. 1 <= size <= MAX_FIELD_SIZE */
 };
 
-class GenericEncap : public Module {
+class GenericEncap final : public Module {
  public:
   GenericEncap() : Module(), encap_size_(), num_fields_(), fields_() {}
 

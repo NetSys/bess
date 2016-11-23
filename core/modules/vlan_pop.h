@@ -3,7 +3,7 @@
 
 #include "../module.h"
 
-class VLANPop : public Module {
+class VLANPop final : public Module {
  public:
   virtual void ProcessBatch(bess::PacketBatch *batch);
 };

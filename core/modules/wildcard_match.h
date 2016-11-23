@@ -42,7 +42,7 @@ struct wm_hkey_t {
   uint64_t u64_arr[MAX_FIELDS];
 };
 
-class WildcardMatch : public Module {
+class WildcardMatch final : public Module {
  public:
   static const gate_idx_t kNumOGates = MAX_GATES;
 

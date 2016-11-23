@@ -23,7 +23,7 @@ struct l2_table {
   uint64_t count;
 };
 
-class L2Forward : public Module {
+class L2Forward final : public Module {
  public:
   static const gate_idx_t kNumOGates = MAX_GATES;
 

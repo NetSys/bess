@@ -3,7 +3,7 @@
 
 #include "../module.h"
 
-class Merge : public Module {
+class Merge final : public Module {
  public:
   static const gate_idx_t kNumIGates = MAX_GATES;
 

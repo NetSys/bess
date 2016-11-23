@@ -7,7 +7,7 @@
 
 #define MAX_VARS 16
 
-class RandomUpdate : public Module {
+class RandomUpdate final : public Module {
  public:
   static const Commands<Module> cmds;
   static const PbCommands pb_cmds;

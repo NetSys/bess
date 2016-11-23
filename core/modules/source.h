@@ -4,7 +4,7 @@
 #include "../module.h"
 #include "../module_msg.pb.h"
 
-class Source : public Module {
+class Source final : public Module {
  public:
   static const gate_idx_t kNumIGates = 0;
 

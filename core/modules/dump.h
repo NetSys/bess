@@ -4,7 +4,7 @@
 #include "../module.h"
 #include "../module_msg.pb.h"
 
-class Dump : public Module {
+class Dump final : public Module {
  public:
   virtual struct snobj *Init(struct snobj *arg);
   pb_error_t InitPb(const bess::pb::DumpArg &arg);

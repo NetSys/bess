@@ -12,7 +12,7 @@ typedef std::priority_queue<Event, std::vector<Event>,
                             std::function<bool(Event, Event)>>
     EventQueue;
 
-class FlowGen : public Module {
+class FlowGen final : public Module {
  public:
   enum Arrival {
     ARRIVAL_UNIFORM = 0,

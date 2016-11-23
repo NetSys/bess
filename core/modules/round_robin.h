@@ -31,7 +31,7 @@
  * options
  *    are "packet" or "batch".
 */
-class RoundRobin : public Module {
+class RoundRobin final : public Module {
  public:
   static const gate_idx_t kNumOGates = MAX_GATES;
 

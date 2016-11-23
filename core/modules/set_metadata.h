@@ -14,7 +14,7 @@ struct Attr {
   int size;
 };
 
-class SetMetadata : public Module {
+class SetMetadata final : public Module {
  public:
   SetMetadata() : Module(), attrs_() {}
 

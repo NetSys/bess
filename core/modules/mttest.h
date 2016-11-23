@@ -6,7 +6,7 @@
 
 using bess::metadata::Attribute;
 
-class MetadataTest : public Module {
+class MetadataTest final : public Module {
  public:
   static const gate_idx_t kNumIGates = MAX_GATES;
   static const gate_idx_t kNumOGates = MAX_GATES;

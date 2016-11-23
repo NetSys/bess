@@ -3,7 +3,7 @@
 
 #include "../module.h"
 
-class MACSwap : public Module {
+class MACSwap final : public Module {
  public:
   virtual void ProcessBatch(bess::PacketBatch *batch);
 };

@@ -3,7 +3,7 @@
 
 #include "../module.h"
 
-class Sink : public Module {
+class Sink final : public Module {
  public:
   static const gate_idx_t kNumOGates = 0;
 
