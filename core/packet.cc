@@ -2,7 +2,7 @@
 
 #include <cassert>
 #include <cstdio>
-#include <fstream>
+#include <iomanip>
 #include <sstream>
 
 #include <glog/logging.h>
@@ -207,26 +207,56 @@ Packet *Packet::from_paddr(phys_addr_t paddr) {
 }
 #endif
 
+// basically rte_hexdump() from eal_common_hexdump.c
+static std::string HexDump(const void *buffer, size_t len) {
+  std::ostringstream dump;
+  size_t i, ofs;
+  const char *data = reinterpret_cast<const char *>(buffer);
+
+  dump << "Dump data at [" << buffer << "], len=" << len << std::endl;
+  ofs = 0;
+  while (ofs < len) {
+    dump << std::setfill('0') << std::setw(8) << std::hex << ofs << ":";
+    for (i = 0; ((ofs + i) < len) && (i < 16); i++) {
+      dump << " " << std::setfill('0') << std::setw(2) << std::hex
+           << (data[ofs + i] & 0xFF);
+    }
+    for (; i <= 16; i++) {
+      dump << " | ";
+    }
+    for (i = 0; (ofs < len) && (i < 16); i++, ofs++) {
+      char c = data[ofs];
+      if ((c < ' ') || (c > '~')) {
+        c = '.';
+      }
+      dump << c;
+    }
+    dump << std::endl;
+  }
+  return dump.str();
+}
+
 std::string Packet::Dump() {
   std::ostringstream dump;
-  std::string tmp_path = std::tmpnam(nullptr);
-  std::FILE *tmp = std::fopen(tmp_path.c_str(), "w+");
-  struct rte_mbuf *mbuf;
+  Packet *pkt;
+  uint32_t dump_len = total_len();
+  uint32_t nb_segs;
+  uint32_t len;
 
   dump << "refcnt chain: ";
-  for (mbuf = (struct rte_mbuf *)this; mbuf; mbuf = mbuf->next) {
-    dump << mbuf->refcnt;
+  for (pkt = this; pkt; pkt = pkt->next_) {
+    dump << pkt->refcnt_;
   }
   dump << std::endl;
 
   dump << "pool chain: ";
-  for (mbuf = (struct rte_mbuf *)this; mbuf; mbuf = mbuf->next) {
+  for (pkt = this; pkt; pkt = pkt->next_) {
     int i;
 
-    dump << mbuf->pool << "(";
+    dump << pkt->pool_ << "(";
 
     for (i = 0; i < RTE_MAX_NUMA_NODES; i++) {
-      if (pframe_pool[i] == mbuf->pool) {
+      if (pframe_pool[i] == pkt->pool_) {
         dump << "P" << i;
       }
     }
@@ -234,10 +264,34 @@ std::string Packet::Dump() {
   }
   dump << std::endl;
 
-  mbuf = reinterpret_cast<struct rte_mbuf *>(this);
-  rte_pktmbuf_dump(tmp, mbuf, total_len());
-  std::fclose(tmp);
-  dump << std::ifstream(tmp_path).rdbuf();
+  dump << "dump packet at " << this << ", phys=" << buf_physaddr_
+       << ", buf_len=" << buf_len_ << std::endl;
+  dump << "  pkt_len=" << pkt_len_ << ", ol_flags=" << std::hex
+       << offload_flags_ << ", nb_segs=" << std::dec << unsigned{nb_segs_}
+       << ", in_port=" << unsigned{port_} << std::endl;
+
+  nb_segs = nb_segs_;
+  pkt = this;
+  while (pkt && nb_segs != 0) {
+    __rte_mbuf_sanity_check(&pkt->as_rte_mbuf(), 0);
+
+    dump << "  segment at " << pkt << ", data=" << pkt->head_data()
+         << ", data_len=" << std::dec << unsigned{data_len_} << std::endl;
+
+    len = total_len();
+    if (len > data_len_) {
+      len = data_len_;
+    }
+
+    if (len != 0) {
+      dump << HexDump(head_data(), len);
+    }
+
+    dump_len -= len;
+    pkt = pkt->next_;
+    nb_segs--;
+  }
+
   return dump.str();
 }
 
