@@ -7,7 +7,7 @@ const std::string kGateHookTrackGate = "track_gate";
 const uint16_t kGateHookPriorityTrackGate = 0;
 
 // TrackGate counts the number of packets and batches seen by a gate.
-class TrackGate : public bess::GateHook {
+class TrackGate final : public bess::GateHook {
  public:
   TrackGate()
       : bess::GateHook(kGateHookTrackGate, kGateHookPriorityTrackGate),

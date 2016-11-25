@@ -20,7 +20,7 @@
  * This driver binds a port to a UNIX socket to communicate with a local
  * process.
  */
-class UnixSocketPort : public Port {
+class UnixSocketPort final : public Port {
  public:
   UnixSocketPort()
       : Port(),
