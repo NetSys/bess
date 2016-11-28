@@ -245,7 +245,7 @@ int UnixSocketPort::SendPackets(queue_t qid, bess::Packet ** pkts, int cnt) {
     int nb_segs = pkt->nb_segs();
     struct iovec iov[nb_segs];
 
-    struct msghdr msg;
+    struct msghdr msg = msghdr();
     msg.msg_iov = iov;
     msg.msg_iovlen = nb_segs;
 
@@ -254,6 +254,7 @@ int UnixSocketPort::SendPackets(queue_t qid, bess::Packet ** pkts, int cnt) {
     for (int j = 0; j < nb_segs; j++) {
       iov[j].iov_base = pkt->head_data();
       iov[j].iov_len = pkt->head_len();
+      pkt = pkt->next();
     }
 
     ret = sendmsg(client_fd_, &msg, 0);
