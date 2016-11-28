@@ -35,13 +35,11 @@ class RoundRobin final : public Module {
  public:
   static const gate_idx_t kNumOGates = MAX_GATES;
 
-  static const Commands<Module> cmds;
   static const PbCommands pb_cmds;
 
   RoundRobin()
       : Module(), gates_(), ngates_(), current_gate_(), per_packet_() {}
 
-  virtual struct snobj *Init(struct snobj *arg);
   pb_error_t InitPb(const bess::pb::RoundRobinArg &arg);
 
   virtual void ProcessBatch(bess::PacketBatch *batch);
@@ -49,13 +47,11 @@ class RoundRobin final : public Module {
   /*!
    * Switches the RoundRobin module between "batch" vs "packet" scheduling.
    */
-  struct snobj *CommandSetMode(struct snobj *arg);
   pb_cmd_response_t CommandSetModePb(
       const bess::pb::RoundRobinCommandSetModeArg &arg);
   /*!
    * Sets the number of output gates.
    */
-  struct snobj *CommandSetGates(struct snobj *arg);
   pb_cmd_response_t CommandSetGatesPb(
       const bess::pb::RoundRobinCommandSetGatesArg &arg);
 

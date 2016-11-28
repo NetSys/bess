@@ -29,43 +29,6 @@ pb_error_t QueueOut::InitPb(const bess::pb::QueueOutArg &arg) {
   return pb_errno(0);
 }
 
-struct snobj *QueueOut::Init(struct snobj *arg) {
-  struct snobj *t;
-
-  const char *port_name;
-
-  int ret;
-
-  if (!arg || snobj_type(arg) != TYPE_MAP) {
-    return snobj_err(EINVAL, "Argument must be a map");
-  }
-
-  t = snobj_eval(arg, "port");
-  if (!t || !(port_name = snobj_str_get(t))) {
-    return snobj_err(EINVAL, "Field 'port' must be specified");
-  }
-
-  t = snobj_eval(arg, "qid");
-  if (!t || snobj_type(t) != TYPE_INT) {
-    return snobj_err(EINVAL, "Field 'qid' must be specified");
-  }
-  qid_ = snobj_uint_get(t);
-
-  const auto &it = PortBuilder::all_ports().find(port_name);
-  if (it == PortBuilder::all_ports().end()) {
-    return snobj_err(ENODEV, "Port %s not found", port_name);
-  }
-  port_ = it->second;
-
-  ret = port_->AcquireQueues(reinterpret_cast<const module *>(this),
-                             PACKET_DIR_OUT, &qid_, 1);
-  if (ret < 0) {
-    return snobj_errno(-ret);
-  }
-
-  return nullptr;
-}
-
 void QueueOut::Deinit() {
   port_->ReleaseQueues(reinterpret_cast<const module *>(this), PACKET_DIR_OUT,
                        &qid_, 1);

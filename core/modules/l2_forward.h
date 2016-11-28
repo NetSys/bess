@@ -27,23 +27,15 @@ class L2Forward final : public Module {
  public:
   static const gate_idx_t kNumOGates = MAX_GATES;
 
-  static const Commands<Module> cmds;
   static const PbCommands pb_cmds;
 
   L2Forward() : Module(), l2_table_(), default_gate_() {}
 
-  virtual struct snobj *Init(struct snobj *arg);
   pb_error_t InitPb(const bess::pb::L2ForwardArg &arg);
 
   virtual void Deinit();
 
   virtual void ProcessBatch(bess::PacketBatch *batch);
-
-  struct snobj *CommandAdd(struct snobj *arg);
-  struct snobj *CommandDelete(struct snobj *arg);
-  struct snobj *CommandSetDefaultGate(struct snobj *arg);
-  struct snobj *CommandLookup(struct snobj *arg);
-  struct snobj *CommandPopulate(struct snobj *arg);
 
   pb_cmd_response_t CommandAddPb(const bess::pb::L2ForwardCommandAddArg &arg);
   pb_cmd_response_t CommandDeletePb(

@@ -1,10 +1,6 @@
 #include "port_inc.h"
 #include "../utils/format.h"
 
-const Commands<Module> PortInc::cmds = {
-    {"set_burst", MODULE_FUNC &PortInc::CommandSetBurst, 1},
-};
-
 const PbCommands PortInc::pb_cmds = {
     {"set_burst", "PortIncCommandSetBurstArg",
      MODULE_CMD_FUNC(&PortInc::CommandSetBurstPb), 1},
@@ -60,60 +56,6 @@ pb_error_t PortInc::InitPb(const bess::pb::PortIncArg &arg) {
   }
 
   return pb_errno(0);
-}
-
-struct snobj *PortInc::Init(struct snobj *arg) {
-  const char *port_name;
-  queue_t num_inc_q;
-
-  int ret;
-
-  struct snobj *t;
-  struct snobj *err;
-
-  burst_ = bess::PacketBatch::kMaxBurst;
-
-  if (!arg || !(port_name = snobj_eval_str(arg, "port"))) {
-    return snobj_err(EINVAL, "'port' must be given as a string");
-  }
-
-  const auto &it = PortBuilder::all_ports().find(port_name);
-  if (it == PortBuilder::all_ports().end()) {
-    return snobj_err(ENODEV, "Port %s not found", port_name);
-  }
-  port_ = it->second;
-
-  if ((t = snobj_eval(arg, "burst")) != nullptr) {
-    err = CommandSetBurst(t);
-    if (err) {
-      return err;
-    }
-  }
-
-  num_inc_q = port_->num_queues[PACKET_DIR_INC];
-  if (num_inc_q == 0) {
-    return snobj_err(ENODEV, "Port %s has no incoming queue", port_name);
-  }
-
-  for (queue_t qid = 0; qid < num_inc_q; qid++) {
-    task_id_t tid = RegisterTask((void *)(uintptr_t)qid);
-
-    if (tid == INVALID_TASK_ID) {
-      return snobj_err(ENOMEM, "Task creation failed");
-    }
-  }
-
-  if (snobj_eval_int(arg, "prefetch")) {
-    prefetch_ = 1;
-  }
-
-  ret = port_->AcquireQueues(reinterpret_cast<const module *>(this),
-                             PACKET_DIR_INC, nullptr, 0);
-  if (ret < 0) {
-    return snobj_errno(-ret);
-  }
-
-  return nullptr;
 }
 
 void PortInc::Deinit() {
@@ -172,25 +114,6 @@ struct task_result PortInc::RunTask(void *arg) {
   RunNextModule(&batch);
 
   return ret;
-}
-
-struct snobj *PortInc::CommandSetBurst(struct snobj *arg) {
-  uint64_t val;
-
-  if (snobj_type(arg) != TYPE_INT) {
-    return snobj_err(EINVAL, "burst must be an integer");
-  }
-
-  val = snobj_uint_get(arg);
-
-  if (val == 0 || val > bess::PacketBatch::kMaxBurst) {
-    return snobj_err(EINVAL, "burst size must be [1,%lu]",
-                     bess::PacketBatch::kMaxBurst);
-  }
-
-  burst_ = val;
-
-  return nullptr;
 }
 
 pb_error_t PortInc::SetBurst(int64_t burst) {

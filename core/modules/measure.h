@@ -7,7 +7,6 @@
 
 class Measure final : public Module {
  public:
-  static const Commands<Module> cmds;
   static const PbCommands pb_cmds;
 
   Measure()
@@ -19,12 +18,10 @@ class Measure final : public Module {
         bytes_cnt_(),
         total_latency_() {}
 
-  virtual struct snobj *Init(struct snobj *arg);
   pb_error_t InitPb(const bess::pb::MeasureArg &arg);
 
   virtual void ProcessBatch(bess::PacketBatch *batch);
 
-  struct snobj *CommandGetSummary(struct snobj *arg);
   pb_cmd_response_t CommandGetSummaryPb(const bess::pb::EmptyArg &arg);
 
  private:

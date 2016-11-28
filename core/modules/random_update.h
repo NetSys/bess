@@ -9,18 +9,13 @@
 
 class RandomUpdate final : public Module {
  public:
-  static const Commands<Module> cmds;
   static const PbCommands pb_cmds;
 
   RandomUpdate() : Module(), num_vars_(), vars_(), rng_() {}
 
-  virtual struct snobj *Init(struct snobj *arg);
   pb_error_t InitPb(const bess::pb::RandomUpdateArg &arg);
 
   virtual void ProcessBatch(bess::PacketBatch *batch);
-
-  struct snobj *CommandAdd(struct snobj *arg);
-  struct snobj *CommandClear(struct snobj *arg);
 
   pb_cmd_response_t CommandAddPb(const bess::pb::RandomUpdateArg &arg);
   pb_cmd_response_t CommandClearPb(const bess::pb::EmptyArg &arg);

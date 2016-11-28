@@ -1,13 +1,9 @@
 #include "queue.h"
 
+#include "../mem_alloc.h"
 #include "../utils/format.h"
 
 #define DEFAULT_QUEUE_SIZE 1024
-
-const Commands<Module> Queue::cmds = {
-    {"set_burst", MODULE_FUNC &Queue::CommandSetBurst, 1},
-    {"set_size", MODULE_FUNC &Queue::CommandSetSize, 0},
-};
 
 const PbCommands Queue::pb_cmds = {
     {"set_burst", "QueueCommandSetBurstArg",
@@ -90,44 +86,6 @@ pb_error_t Queue::InitPb(const bess::pb::QueueArg &arg) {
   return pb_errno(0);
 }
 
-struct snobj *Queue::Init(struct snobj *arg) {
-  task_id_t tid;
-
-  struct snobj *t;
-  struct snobj *err;
-
-  burst_ = bess::PacketBatch::kMaxBurst;
-
-  tid = RegisterTask(nullptr);
-  if (tid == INVALID_TASK_ID)
-    return snobj_err(ENOMEM, "Task creation failed");
-
-  if ((t = snobj_eval(arg, "burst")) != nullptr) {
-    err = CommandSetBurst(t);
-    if (err) {
-      return err;
-    }
-  }
-
-  if ((t = snobj_eval(arg, "size")) != nullptr) {
-    err = CommandSetSize(t);
-    if (err) {
-      return err;
-    }
-  } else {
-    int ret = Resize(DEFAULT_QUEUE_SIZE);
-    if (ret) {
-      return snobj_errno(-ret);
-    }
-  }
-
-  if (snobj_eval_int(arg, "prefetch")) {
-    prefetch_ = true;
-  }
-
-  return nullptr;
-}
-
 void Queue::Deinit() {
   bess::Packet *pkt;
 
@@ -187,51 +145,6 @@ struct task_result Queue::RunTask(void *) {
   };
 
   return ret;
-}
-
-struct snobj *Queue::CommandSetBurst(struct snobj *arg) {
-  uint64_t val;
-
-  if (snobj_type(arg) != TYPE_INT) {
-    return snobj_err(EINVAL, "burst must be an integer");
-  }
-
-  val = snobj_uint_get(arg);
-
-  if (val == 0 || val > bess::PacketBatch::kMaxBurst) {
-    return snobj_err(EINVAL, "burst size must be [1,%lu]",
-                     bess::PacketBatch::kMaxBurst);
-  }
-
-  burst_ = val;
-
-  return nullptr;
-}
-
-struct snobj *Queue::CommandSetSize(struct snobj *arg) {
-  uint64_t val;
-  int ret;
-
-  if (snobj_type(arg) != TYPE_INT) {
-    return snobj_err(EINVAL, "argument must be an integer");
-  }
-
-  val = snobj_uint_get(arg);
-
-  if (val < 4 || val > 16384) {
-    return snobj_err(EINVAL, "must be in [4, 16384]");
-  }
-
-  if (val & (val - 1)) {
-    return snobj_err(EINVAL, "must be a power of 2");
-  }
-
-  ret = Resize(val);
-  if (ret) {
-    return snobj_errno(-ret);
-  }
-
-  return nullptr;
 }
 
 pb_error_t Queue::SetBurst(int64_t burst) {

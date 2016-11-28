@@ -36,39 +36,6 @@ pb_error_t Split::InitPb(const bess::pb::SplitArg &arg) {
   return pb_errno(0);
 }
 
-struct snobj *Split::Init(struct snobj *arg) {
-  if (!arg || snobj_type(arg) != TYPE_MAP) {
-    return snobj_err(EINVAL, "specify 'offset'/'name' and 'size'");
-  }
-
-  size_ = snobj_eval_uint(arg, "size");
-  if (size_ < 1 || size_ > MAX_SIZE) {
-    return snobj_err(EINVAL, "'size' must be 1-%d", MAX_SIZE);
-  }
-
-  mask_ = ((uint64_t)1 << (size_ * 8)) - 1;
-
-  const char *name = snobj_eval_str(arg, "name");
-
-  if (name) {
-    attr_id_ = AddMetadataAttr(name, size_,
-                               bess::metadata::Attribute::AccessMode::kRead);
-    if (attr_id_ < 0)
-      return snobj_err(-attr_id_, "add_metadata_attr() failed");
-  } else if (snobj_eval_exists(arg, "offset")) {
-    attr_id_ = -1;
-    offset_ = snobj_eval_int(arg, "offset");
-    if (offset_ < 0 || offset_ > 1024) {
-      return snobj_err(EINVAL, "invalid 'offset'");
-    }
-    offset_ -= (8 - size_);
-  } else {
-    return snobj_err(EINVAL, "must specify 'offset' or 'name'");
-  }
-
-  return nullptr;
-}
-
 void Split::ProcessBatch(bess::PacketBatch *batch) {
   gate_idx_t ogate[bess::PacketBatch::kMaxBurst];
   int cnt = batch->cnt();

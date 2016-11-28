@@ -9,12 +9,10 @@ class QueueInc final : public Module {
  public:
   static const gate_idx_t kNumIGates = 0;
 
-  static const Commands<Module> cmds;
   static const PbCommands pb_cmds;
 
   QueueInc() : Module(), port_(), qid_(), prefetch_(), burst_() {}
 
-  virtual struct snobj *Init(struct snobj *arg);
   pb_error_t InitPb(const bess::pb::QueueIncArg &arg);
   virtual void Deinit();
 
@@ -22,7 +20,6 @@ class QueueInc final : public Module {
 
   virtual std::string GetDesc() const;
 
-  struct snobj *CommandSetBurst(struct snobj *arg);
   pb_cmd_response_t CommandSetBurstPb(
       const bess::pb::QueueIncCommandSetBurstArg &arg);
 

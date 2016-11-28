@@ -8,18 +8,13 @@ class Source final : public Module {
  public:
   static const gate_idx_t kNumIGates = 0;
 
-  static const Commands<Module> cmds;
   static const PbCommands pb_cmds;
 
   Source() : Module(), pkt_size_(), burst_() {}
 
-  virtual struct snobj *Init(struct snobj *arg);
   pb_error_t InitPb(const bess::pb::SourceArg &arg);
 
   virtual struct task_result RunTask(void *arg);
-
-  struct snobj *command_set_pkt_size(struct snobj *arg);
-  struct snobj *command_set_burst(struct snobj *arg);
 
   pb_cmd_response_t CommandSetBurstPb(
       const bess::pb::SourceCommandSetBurstArg &arg);

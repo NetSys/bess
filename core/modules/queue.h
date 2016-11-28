@@ -7,12 +7,10 @@
 
 class Queue final : public Module {
  public:
-  static const Commands<Module> cmds;
   static const PbCommands pb_cmds;
 
   Queue() : Module(), queue_(), prefetch_(), burst_() {}
 
-  virtual struct snobj *Init(struct snobj *arg);
   pb_error_t InitPb(const bess::pb::QueueArg &arg);
 
   virtual void Deinit();
@@ -21,9 +19,6 @@ class Queue final : public Module {
   virtual void ProcessBatch(bess::PacketBatch *batch);
 
   virtual std::string GetDesc() const;
-
-  struct snobj *CommandSetBurst(struct snobj *arg);
-  struct snobj *CommandSetSize(struct snobj *arg);
 
   pb_cmd_response_t CommandSetBurstPb(
       const bess::pb::QueueCommandSetBurstArg &arg);

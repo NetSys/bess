@@ -40,28 +40,6 @@ pb_error_t VXLANEncap::InitPb(const bess::pb::VXLANEncapArg &arg) {
   return pb_errno(0);
 }
 
-struct snobj *VXLANEncap::Init(struct snobj *arg) {
-  dstport_ = rte_cpu_to_be_16(4789);
-
-  if (arg) {
-    int dstport = snobj_eval_uint(arg, "dstport");
-    if (dstport <= 0 || dstport >= 65536)
-      return snobj_err(EINVAL, "invalid 'dstport' field");
-    dstport_ = rte_cpu_to_be_16(dstport);
-  }
-
-  using AccessMode = bess::metadata::Attribute::AccessMode;
-
-  AddMetadataAttr("tun_ip_src", 4, AccessMode::kRead);
-  AddMetadataAttr("tun_ip_dst", 4, AccessMode::kRead);
-  AddMetadataAttr("tun_id", 4, AccessMode::kRead);
-  AddMetadataAttr("ip_src", 4, AccessMode::kWrite);
-  AddMetadataAttr("ip_dst", 4, AccessMode::kWrite);
-  AddMetadataAttr("ip_proto", 1, AccessMode::kWrite);
-
-  return nullptr;
-}
-
 void VXLANEncap::ProcessBatch(bess::PacketBatch *batch) {
   uint16_t dstport = dstport_;
   int cnt = batch->cnt();

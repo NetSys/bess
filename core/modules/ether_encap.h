@@ -6,7 +6,6 @@
 
 class EtherEncap final : public Module {
  public:
-  struct snobj *Init(struct snobj *arg);
   pb_error_t InitPb(const bess::pb::EtherEncapArg &arg);
 
   void ProcessBatch(bess::PacketBatch *batch);

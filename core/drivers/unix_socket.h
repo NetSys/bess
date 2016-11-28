@@ -39,11 +39,6 @@ class UnixSocketPort final : public Port {
   pb_error_t InitPb(const bess::pb::UnixSocketPortArg &arg);
 
   /*!
-   * Deprecated. Don't use.
-   */
-  virtual struct snobj *Init(struct snobj *arg);
-
-  /*!
    * Close the socket / shut down the port.
    */
   virtual void DeInit();
@@ -63,7 +58,7 @@ class UnixSocketPort final : public Port {
    * RETURNS:
    * * Total number of packets received (<=cnt)
    */
-  virtual int RecvPackets(queue_t qid, bess::Packet ** pkts, int cnt);
+  virtual int RecvPackets(queue_t qid, bess::Packet **pkts, int cnt);
 
   /*!
    * Sends packets out on the device.
@@ -80,7 +75,7 @@ class UnixSocketPort final : public Port {
    * RETURNS:
    * * Total number of packets sent (<=cnt).
    */
-  virtual int SendPackets(queue_t qid, bess::Packet ** pkts, int cnt);
+  virtual int SendPackets(queue_t qid, bess::Packet **pkts, int cnt);
 
   /*!
    * Waits for a client to connect to the socket.

@@ -9,16 +9,6 @@ enum {
   ATTR_R_ETHER_TYPE,
 };
 
-struct snobj *EtherEncap::Init(struct snobj *arg[[maybe_unused]]) {
-  using AccessMode = bess::metadata::Attribute::AccessMode;
-
-  AddMetadataAttr("ether_src", ETHER_ADDR_LEN, AccessMode::kRead);
-  AddMetadataAttr("ether_dst", ETHER_ADDR_LEN, AccessMode::kRead);
-  AddMetadataAttr("ether_type", 2, AccessMode::kRead);
-
-  return nullptr;
-};
-
 pb_error_t EtherEncap::InitPb(
     const bess::pb::EtherEncapArg &arg[[maybe_unused]]) {
   using AccessMode = bess::metadata::Attribute::AccessMode;

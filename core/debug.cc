@@ -22,7 +22,6 @@
 
 #include "module.h"
 #include "packet.h"
-#include "snobj.h"
 #include "tc.h"
 #include "utils/htable.h"
 
@@ -429,8 +428,6 @@ void DumpTypes(void) {
   printf("sizeof(OGate)=%zu\n", sizeof(bess::OGate));
 
   printf("sizeof(worker_context)=%zu\n", sizeof(Worker));
-
-  printf("sizeof(snobj)=%zu\n", sizeof(struct snobj));
 }
 
 }  // namespace debug

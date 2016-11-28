@@ -17,18 +17,13 @@ class HashLB final : public Module {
  public:
   static const gate_idx_t kNumOGates = MAX_GATES;
 
-  static const Commands<Module> cmds;
   static const PbCommands pb_cmds;
 
   HashLB() : Module(), gates_(), num_gates_(), mode_() {}
 
-  virtual struct snobj *Init(struct snobj *arg);
   pb_error_t InitPb(const bess::pb::HashLBArg &arg);
 
   virtual void ProcessBatch(bess::PacketBatch *batch);
-
-  struct snobj *CommandSetMode(struct snobj *arg);
-  struct snobj *CommandSetGates(struct snobj *arg);
 
   pb_cmd_response_t CommandSetModePb(
       const bess::pb::HashLBCommandSetModeArg &arg);

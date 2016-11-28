@@ -18,13 +18,11 @@ class GenericEncap final : public Module {
  public:
   GenericEncap() : Module(), encap_size_(), num_fields_(), fields_() {}
 
-  struct snobj *Init(struct snobj *arg);
   pb_error_t InitPb(const bess::pb::GenericEncapArg &arg);
 
   void ProcessBatch(bess::PacketBatch *batch);
 
  private:
-  struct snobj *AddFieldOne(struct snobj *field, struct Field *f, int idx);
   pb_error_t AddFieldOne(const bess::pb::GenericEncapArg_Field &field,
                          struct Field *f, int idx);
 

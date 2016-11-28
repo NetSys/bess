@@ -138,10 +138,6 @@ pb_error_t Port::InitPb(const bess::pb::EmptyArg &) {
   return pb_errno(0);
 }
 
-struct snobj *Port::Init(struct snobj *) {
-  return nullptr;
-}
-
 int Port::RecvPackets(queue_t, bess::Packet **, int) {
   return 0;
 }

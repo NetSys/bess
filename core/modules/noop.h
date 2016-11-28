@@ -6,7 +6,6 @@
 
 class NoOP final : public Module {
  public:
-  virtual struct snobj *Init(struct snobj *arg);
   pb_error_t InitPb(const bess::pb::EmptyArg &arg);
 
   virtual struct task_result RunTask(void *arg);

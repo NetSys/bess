@@ -1,28 +1,9 @@
 #include "rewrite.h"
 
-const Commands<Module> Rewrite::cmds = {
-    {"add", MODULE_FUNC &Rewrite::CommandAdd, 0},
-    {"clear", MODULE_FUNC &Rewrite::CommandClear, 0},
-};
-
 const PbCommands Rewrite::pb_cmds = {
     {"add", "RewriteArg", MODULE_CMD_FUNC(&Rewrite::CommandAddPb), 0},
     {"clear", "EmptyArg", MODULE_CMD_FUNC(&Rewrite::CommandClearPb), 0},
 };
-
-struct snobj *Rewrite::Init(struct snobj *arg) {
-  struct snobj *t;
-
-  if (!arg) {
-    return nullptr;
-  }
-
-  if (!(t = snobj_eval(arg, "templates"))) {
-    return snobj_err(EINVAL, "'templates' must be specified");
-  }
-
-  return CommandAdd(t);
-}
 
 pb_error_t Rewrite::InitPb(const bess::pb::RewriteArg &arg) {
   if (arg.templates_size() > 0) {
@@ -127,57 +108,6 @@ void Rewrite::ProcessBatch(bess::PacketBatch *batch) {
   }
 
   RunNextModule(batch);
-}
-
-struct snobj *Rewrite::CommandAdd(struct snobj *arg) {
-  size_t curr = num_templates_;
-  size_t i;
-
-  if (snobj_type(arg) != TYPE_LIST) {
-    return snobj_err(EINVAL, "argument must be a list");
-  }
-
-  if (curr + arg->size > bess::PacketBatch::kMaxBurst) {
-    return snobj_err(EINVAL,
-                     "max %lu packet templates "
-                     "can be used %lu %d",
-                     bess::PacketBatch::kMaxBurst, curr, arg->size);
-  }
-
-  for (i = 0; i < arg->size; i++) {
-    struct snobj *templ = snobj_list_get(arg, i);
-
-    if (templ->type != TYPE_BLOB) {
-      return snobj_err(EINVAL,
-                       "packet template "
-                       "should be BLOB type");
-    }
-
-    if (templ->size > kMaxTemplateSize) {
-      return snobj_err(EINVAL, "template is too big");
-    }
-
-    memset(templates_[curr + i], 0, kMaxTemplateSize);
-    memcpy(templates_[curr + i], snobj_blob_get(templ), templ->size);
-    template_size_[curr + i] = templ->size;
-  }
-
-  num_templates_ = curr + arg->size;
-
-  for (i = num_templates_; i < kNumSlots; i++) {
-    int j = i % num_templates_;
-    memcpy(templates_[i], templates_[j], template_size_[j]);
-    template_size_[i] = template_size_[j];
-  }
-
-  return nullptr;
-}
-
-struct snobj *Rewrite::CommandClear(struct snobj *) {
-  next_turn_ = 0;
-  num_templates_ = 0;
-
-  return nullptr;
 }
 
 ADD_MODULE(Rewrite, "rewrite", "replaces entire packet data")

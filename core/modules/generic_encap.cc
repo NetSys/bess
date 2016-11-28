@@ -40,43 +40,6 @@ pb_error_t GenericEncap::AddFieldOne(
   return pb_errno(0);
 }
 
-struct snobj *GenericEncap::AddFieldOne(struct snobj *field, struct Field *f,
-                                        int idx) {
-  if (field->type != TYPE_MAP) {
-    return snobj_err(EINVAL, "'fields' must be a list of maps");
-  }
-
-  f->size = snobj_eval_uint(field, "size");
-  if (f->size < 1 || f->size > MAX_FIELD_SIZE) {
-    return snobj_err(EINVAL, "idx %d: 'size' must be 1-%d", idx,
-                     MAX_FIELD_SIZE);
-  }
-
-  const char *attr = snobj_eval_str(field, "attr");
-
-  struct snobj *t;
-
-  if (attr) {
-    f->attr_id = AddMetadataAttr(attr, f->size,
-                                 bess::metadata::Attribute::AccessMode::kRead);
-    if (f->attr_id < 0) {
-      return snobj_err(-f->attr_id, "idx %d: add_metadata_attr() failed", idx);
-    }
-  } else if ((t = snobj_eval(field, "value"))) {
-    f->attr_id = -1;
-    if (snobj_binvalue_get(t, f->size, &f->value, 1)) {
-      return snobj_err(EINVAL,
-                       "idx %d: "
-                       "not a correct %d-byte value",
-                       idx, f->size);
-    }
-  } else {
-    return snobj_err(EINVAL, "idx %d: must specify 'value' or 'attr'", idx);
-  }
-
-  return nullptr;
-}
-
 /* Takes a list of fields. Each field is either:
  *
  *  1. {'size': X, 'value': Y}		(for constant values)
@@ -90,35 +53,6 @@ struct snobj *GenericEncap::AddFieldOne(struct snobj *field, struct Field *f,
  * where the 2-byte <xx> <xx> comes from the value of metadata arribute 'foo'
  * for each packet.
  */
-struct snobj *GenericEncap::Init(struct snobj *arg) {
-  int size_acc = 0;
-
-  struct snobj *fields = snobj_eval(arg, "fields");
-
-  if (snobj_type(fields) != TYPE_LIST) {
-    return snobj_err(EINVAL, "'fields' must be a list of maps");
-  }
-
-  for (size_t i = 0; i < fields->size; i++) {
-    struct snobj *field = snobj_list_get(fields, i);
-    struct snobj *err;
-    struct Field *f = &fields_[i];
-
-    f->pos = size_acc;
-
-    err = AddFieldOne(field, f, i);
-    if (err) {
-      return err;
-    }
-
-    size_acc += f->size;
-  }
-
-  encap_size_ = size_acc;
-  num_fields_ = fields->size;
-
-  return nullptr;
-}
 
 pb_error_t GenericEncap::InitPb(const bess::pb::GenericEncapArg &arg) {
   int size_acc = 0;

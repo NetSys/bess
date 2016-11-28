@@ -12,7 +12,6 @@
 #include "message.h"
 #include "packet.h"
 #include "port_msg.pb.h"
-#include "snobj.h"
 #include "utils/common.h"
 
 typedef uint8_t queue_t;
@@ -171,7 +170,6 @@ class Port {
 
   pb_error_t Init(const google::protobuf::Any &arg);
 
-  virtual struct snobj *Init(struct snobj *arg);
   pb_error_t InitPb(const bess::pb::EmptyArg &arg);
 
   virtual void Deinit() {}
@@ -181,8 +179,8 @@ class Port {
 
   virtual void CollectStats(bool reset);
 
-  virtual int RecvPackets(queue_t qid, bess::Packet ** pkts, int cnt);
-  virtual int SendPackets(queue_t qid, bess::Packet ** pkts, int cnt);
+  virtual int RecvPackets(queue_t qid, bess::Packet **pkts, int cnt);
+  virtual int SendPackets(queue_t qid, bess::Packet **pkts, int cnt);
 
   // For custom incoming / outgoing queue sizes (optional).
   virtual size_t DefaultIncQueueSize() const { return kDefaultIncQueueSize; }
@@ -208,8 +206,6 @@ class Port {
   const std::string &name() const { return name_; };
 
   const PortBuilder *port_builder() const { return port_builder_; }
-
-  struct snobj *RunCommand(const std::string &user_cmd, struct snobj *arg);
 
  private:
   // Private methods, for use by PortBuilder.

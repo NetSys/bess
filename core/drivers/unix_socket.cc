@@ -57,64 +57,6 @@ void UnixSocketPort::CloseConnection() {
   accept_thread.detach();
 }
 
-struct snobj *UnixSocketPort::Init(struct snobj *conf) {
-  int num_txq = num_queues[PACKET_DIR_OUT];
-  int num_rxq = num_queues[PACKET_DIR_INC];
-
-  const char *path;
-  size_t addrlen;
-
-  int ret;
-
-  client_fd_ = kNotConnectedFd;
-  old_client_fd_ = kNotConnectedFd;
-
-  if (num_txq > 1 || num_rxq > 1) {
-    return snobj_err(EINVAL, "Cannot have more than 1 queue per RX/TX");
-  }
-
-  listen_fd_ = socket(AF_UNIX, SOCK_SEQPACKET, 0);
-  if (listen_fd_ < 0) {
-    return snobj_err(errno, "socket(AF_UNIX) failed");
-  }
-
-  addr_.sun_family = AF_UNIX;
-
-  path = snobj_eval_str(conf, "path");
-  if (path) {
-    snprintf(addr_.sun_path, sizeof(addr_.sun_path), "%s", path);
-  } else {
-    snprintf(addr_.sun_path, sizeof(addr_.sun_path), "%s/bess_unix_%s",
-             P_tmpdir, name().c_str());
-  }
-
-  /* This doesn't include the trailing null character */
-  addrlen = sizeof(addr_.sun_family) + strlen(addr_.sun_path);
-
-  /* non-abstract socket address? */
-  if (addr_.sun_path[0] != '@') {
-    /* remove existing socket file, if any */
-    unlink(addr_.sun_path);
-  } else {
-    addr_.sun_path[0] = '\0';
-  }
-
-  ret = bind(listen_fd_, reinterpret_cast<struct sockaddr *>(&addr_), addrlen);
-  if (ret < 0) {
-    return snobj_err(errno, "bind(%s) failed", addr_.sun_path);
-  }
-
-  ret = listen(listen_fd_, 1);
-  if (ret < 0) {
-    return snobj_err(errno, "listen() failed");
-  }
-
-  std::thread accept_thread(AcceptThreadMain, reinterpret_cast<void *>(this));
-  accept_thread.detach();
-
-  return nullptr;
-}
-
 pb_error_t UnixSocketPort::InitPb(const bess::pb::UnixSocketPortArg &arg) {
   const std::string path = arg.path();
   int num_txq = num_queues[PACKET_DIR_OUT];
@@ -180,7 +122,7 @@ void UnixSocketPort::DeInit() {
   }
 }
 
-int UnixSocketPort::RecvPackets(queue_t qid, bess::Packet ** pkts, int cnt) {
+int UnixSocketPort::RecvPackets(queue_t qid, bess::Packet **pkts, int cnt) {
   assert(qid == 0);
 
   if (client_fd_ == kNotConnectedFd) {
@@ -234,7 +176,7 @@ int UnixSocketPort::RecvPackets(queue_t qid, bess::Packet ** pkts, int cnt) {
   return received;
 }
 
-int UnixSocketPort::SendPackets(queue_t qid, bess::Packet ** pkts, int cnt) {
+int UnixSocketPort::SendPackets(queue_t qid, bess::Packet **pkts, int cnt) {
   int sent = 0;
 
   assert(qid == 0);

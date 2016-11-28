@@ -1,10 +1,5 @@
 #include "source.h"
 
-const Commands<Module> Source::cmds = {
-    {"set_pkt_size", MODULE_FUNC &Source::command_set_pkt_size, 1},
-    {"set_burst", MODULE_FUNC &Source::command_set_burst, 1},
-};
-
 const PbCommands Source::pb_cmds = {
     {"set_pkt_size", "SourceCommandSetPktSizeArg",
      MODULE_CMD_FUNC(&Source::CommandSetPktSizePb), 1},
@@ -70,38 +65,6 @@ pb_cmd_response_t Source::CommandSetPktSizePb(
   return response;
 }
 
-struct snobj *Source::Init(struct snobj *arg) {
-  struct snobj *t;
-  struct snobj *err;
-
-  task_id_t tid = RegisterTask(nullptr);
-  if (tid == INVALID_TASK_ID)
-    return snobj_err(ENOMEM, "Task creation failed");
-
-  pkt_size_ = 60;
-  burst_ = bess::PacketBatch::kMaxBurst;
-
-  if (!arg) {
-    return nullptr;
-  }
-
-  if ((t = snobj_eval(arg, "pkt_size")) != nullptr) {
-    err = command_set_pkt_size(t);
-    if (err) {
-      return err;
-    }
-  }
-
-  if ((t = snobj_eval(arg, "burst")) != nullptr) {
-    err = command_set_burst(t);
-    if (err) {
-      return err;
-    }
-  }
-
-  return nullptr;
-}
-
 struct task_result Source::RunTask(void *) {
   bess::PacketBatch batch;
   struct task_result ret;
@@ -126,43 +89,6 @@ struct task_result Source::RunTask(void *) {
   };
 
   return ret;
-}
-
-struct snobj *Source::command_set_pkt_size(struct snobj *arg) {
-  uint64_t val;
-
-  if (snobj_type(arg) != TYPE_INT) {
-    return snobj_err(EINVAL, "pkt_size must be an integer");
-  }
-
-  val = snobj_uint_get(arg);
-
-  if (val == 0 || val > SNBUF_DATA) {
-    return snobj_err(EINVAL, "Invalid packet size");
-  }
-
-  pkt_size_ = val;
-
-  return nullptr;
-}
-
-struct snobj *Source::command_set_burst(struct snobj *arg) {
-  uint64_t val;
-
-  if (snobj_type(arg) != TYPE_INT) {
-    return snobj_err(EINVAL, "burst must be an integer");
-  }
-
-  val = snobj_uint_get(arg);
-
-  if (val == 0 || val > bess::PacketBatch::kMaxBurst) {
-    return snobj_err(EINVAL, "burst size must be [1,%lu]",
-                     bess::PacketBatch::kMaxBurst);
-  }
-
-  burst_ = val;
-
-  return nullptr;
 }
 
 ADD_MODULE(Source, "source",

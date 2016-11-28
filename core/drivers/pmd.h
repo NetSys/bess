@@ -40,11 +40,6 @@ class PMDPort final : public Port {
   pb_error_t InitPb(const bess::pb::PMDPortArg &arg);
 
   /*!
-   * Deprecated! Don't use me :-)
-   */
-  virtual struct snobj *Init(struct snobj *arg);
-
-  /*!
    * Release the device.
    */
   virtual void DeInit();
@@ -73,7 +68,7 @@ class PMDPort final : public Port {
    * RETURNS:
    * * Total number of packets received (<=cnt)
    */
-  virtual int RecvPackets(queue_t qid, bess::Packet ** pkts, int cnt);
+  virtual int RecvPackets(queue_t qid, bess::Packet **pkts, int cnt);
 
   /*!
    * Sends packets out on the device.
@@ -90,7 +85,7 @@ class PMDPort final : public Port {
    * RETURNS:
    * * Total number of packets sent (<=cnt).
    */
-  virtual int SendPackets(queue_t qid, bess::Packet ** pkts, int cnt);
+  virtual int SendPackets(queue_t qid, bess::Packet **pkts, int cnt);
 
  private:
   /*!

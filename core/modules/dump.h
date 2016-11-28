@@ -6,15 +6,13 @@
 
 class Dump final : public Module {
  public:
-  virtual struct snobj *Init(struct snobj *arg);
   pb_error_t InitPb(const bess::pb::DumpArg &arg);
 
   virtual void ProcessBatch(bess::PacketBatch *batch);
 
-  struct snobj *CommandSetInterval(struct snobj *arg);
   pb_cmd_response_t CommandSetIntervalPb(const bess::pb::DumpArg &arg);
 
-  static const Commands<Module> cmds;
+  
   static const PbCommands pb_cmds;
 
  private:
