@@ -1,6 +1,6 @@
 #include "generic_decap.h"
 
-pb_error_t GenericDecap::InitPb(const bess::pb::GenericDecapArg &arg) {
+pb_error_t GenericDecap::Init(const bess::pb::GenericDecapArg &arg) {
   if (arg.bytes() == 0) {
     return pb_errno(0);
   }

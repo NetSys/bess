@@ -8,16 +8,16 @@
 
 class Update final : public Module {
  public:
-  static const PbCommands pb_cmds;
+  static const Commands cmds;
 
   Update() : Module(), num_fields_(), fields_() {}
 
-  pb_error_t InitPb(const bess::pb::UpdateArg &arg);
+  pb_error_t Init(const bess::pb::UpdateArg &arg);
 
   virtual void ProcessBatch(bess::PacketBatch *batch);
 
-  pb_cmd_response_t CommandAddPb(const bess::pb::UpdateArg &arg);
-  pb_cmd_response_t CommandClearPb(const bess::pb::EmptyArg &arg);
+  pb_cmd_response_t CommandAdd(const bess::pb::UpdateArg &arg);
+  pb_cmd_response_t CommandClear(const bess::pb::EmptyArg &arg);
 
  private:
   int num_fields_;

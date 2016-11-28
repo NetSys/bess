@@ -4,17 +4,17 @@
 
 #include "../utils/time.h"
 
-const PbCommands RandomUpdate::pb_cmds = {
-    {"add", "RandomUpdateArg", MODULE_CMD_FUNC(&RandomUpdate::CommandAddPb), 0},
-    {"clear", "EmptyArg", MODULE_CMD_FUNC(&RandomUpdate::CommandClearPb), 0},
+const Commands RandomUpdate::cmds = {
+    {"add", "RandomUpdateArg", MODULE_CMD_FUNC(&RandomUpdate::CommandAdd), 0},
+    {"clear", "EmptyArg", MODULE_CMD_FUNC(&RandomUpdate::CommandClear), 0},
 };
 
-pb_error_t RandomUpdate::InitPb(const bess::pb::RandomUpdateArg &arg) {
-  pb_cmd_response_t response = CommandAddPb(arg);
+pb_error_t RandomUpdate::Init(const bess::pb::RandomUpdateArg &arg) {
+  pb_cmd_response_t response = CommandAdd(arg);
   return response.error();
 }
 
-pb_cmd_response_t RandomUpdate::CommandAddPb(
+pb_cmd_response_t RandomUpdate::CommandAdd(
     const bess::pb::RandomUpdateArg &arg) {
   pb_cmd_response_t response;
 
@@ -99,7 +99,7 @@ pb_cmd_response_t RandomUpdate::CommandAddPb(
   return response;
 }
 
-pb_cmd_response_t RandomUpdate::CommandClearPb(const bess::pb::EmptyArg &) {
+pb_cmd_response_t RandomUpdate::CommandClear(const bess::pb::EmptyArg &) {
   num_vars_ = 0;
 
   pb_cmd_response_t response;

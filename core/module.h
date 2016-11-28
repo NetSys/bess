@@ -50,20 +50,8 @@ class Module;
 
 #define CALL_MEMBER_FN(obj, ptr_to_member_func) ((obj).*(ptr_to_member_func))
 
-template <typename T>
-struct Command {
-  std::string cmd;
-
-  // if non-zero, workers don't need to be paused in order to
-  // run this command
-  int mt_safe;
-};
-
-template <typename T>
-using Commands = std::vector<struct Command<T>>;
-
 // TODO: Change type name to Command when removing snobj
-struct PbCommand {
+struct Command {
   std::string cmd;
   std::string arg_type;
   module_cmd_func_t func;
@@ -72,7 +60,7 @@ struct PbCommand {
   int mt_safe;
 };
 
-using PbCommands = std::vector<struct PbCommand>;
+using Commands = std::vector<struct Command>;
 
 // A class for generating new Modules of a particular type.
 class ModuleBuilder {
@@ -80,8 +68,7 @@ class ModuleBuilder {
   ModuleBuilder(
       std::function<Module *()> module_generator, const std::string &class_name,
       const std::string &name_template, const std::string &help_text,
-      const gate_idx_t igates, const gate_idx_t ogates,
-      const PbCommands &pb_cmds,
+      const gate_idx_t igates, const gate_idx_t ogates, const Commands &cmds,
       std::function<pb_error_t(Module *, const google::protobuf::Any &)>
           init_func)
       : module_generator_(module_generator),
@@ -90,7 +77,7 @@ class ModuleBuilder {
         class_name_(class_name),
         name_template_(name_template),
         help_text_(help_text),
-        pb_cmds_(pb_cmds),
+        cmds_(cmds),
         init_func_(init_func) {}
 
   /* returns a pointer to the created module.
@@ -106,11 +93,13 @@ class ModuleBuilder {
   static int DestroyModule(Module *m, bool erase = true);
   static void DestroyAllModules();
 
-  static bool RegisterModuleClass(
-      std::function<Module *()> module_generator, const std::string &class_name,
-      const std::string &name_template, const std::string &help_text,
-      const gate_idx_t igates, const gate_idx_t ogates,
-      const PbCommands &pb_cmds, module_init_func_t init_func);
+  static bool RegisterModuleClass(std::function<Module *()> module_generator,
+                                  const std::string &class_name,
+                                  const std::string &name_template,
+                                  const std::string &help_text,
+                                  const gate_idx_t igates,
+                                  const gate_idx_t ogates, const Commands &cmds,
+                                  module_init_func_t init_func);
 
   static std::map<std::string, ModuleBuilder> &all_module_builders_holder(
       bool reset = false);
@@ -125,9 +114,9 @@ class ModuleBuilder {
   const std::string &name_template() const { return name_template_; };
   const std::string &help_text() const { return help_text_; };
 
-  const std::vector<std::pair<std::string, std::string>> pb_cmds() const {
+  const std::vector<std::pair<std::string, std::string>> cmds() const {
     std::vector<std::pair<std::string, std::string>> ret;
-    for (auto &cmd : pb_cmds_)
+    for (auto &cmd : cmds_)
       ret.push_back(std::make_pair(cmd.cmd, cmd.arg_type));
     return ret;
   }
@@ -137,7 +126,7 @@ class ModuleBuilder {
 
   pb_cmd_response_t RunCommand(Module *m, const std::string &user_cmd,
                                const google::protobuf::Any &arg) const {
-    for (auto &cmd : pb_cmds_) {
+    for (auto &cmd : cmds_) {
       if (user_cmd == cmd.cmd) {
         return cmd.func(m, arg);
       }
@@ -164,7 +153,7 @@ class ModuleBuilder {
   const std::string class_name_;
   const std::string name_template_;
   const std::string help_text_;
-  const PbCommands pb_cmds_;
+  const Commands cmds_;
   const module_init_func_t init_func_;
 };
 
@@ -182,9 +171,9 @@ class Module {
         ogates() {}
   virtual ~Module() {}
 
-  pb_error_t Init(const google::protobuf::Any &arg);
+  pb_error_t RunInit(const google::protobuf::Any &arg);
 
-  pb_error_t InitPb(const bess::pb::EmptyArg &arg);
+  pb_error_t Init(const bess::pb::EmptyArg &arg);
 
   virtual void Deinit() {}
 
@@ -197,7 +186,7 @@ class Module {
   static const gate_idx_t kNumIGates = 1;
   static const gate_idx_t kNumOGates = 1;
 
-  static const PbCommands pb_cmds;
+  static const Commands cmds;
 
   // -------------------------------------------------------------------------
 
@@ -425,10 +414,10 @@ INSTANTIATE_MT_FOR_TYPE(uint16_t)
 INSTANTIATE_MT_FOR_TYPE(uint32_t)
 INSTANTIATE_MT_FOR_TYPE(uint64_t)
 
-#define ADD_MODULE(_MOD, _NAME_TEMPLATE, _HELP)                      \
-  bool __module__##_MOD = ModuleBuilder::RegisterModuleClass(        \
-      std::function<Module *()>([]() { return new _MOD(); }), #_MOD, \
-      _NAME_TEMPLATE, _HELP, _MOD::kNumIGates, _MOD::kNumOGates,     \
-      _MOD::pb_cmds, MODULE_INIT_FUNC(&_MOD::InitPb));
+#define ADD_MODULE(_MOD, _NAME_TEMPLATE, _HELP)                              \
+  bool __module__##_MOD = ModuleBuilder::RegisterModuleClass(                \
+      std::function<Module *()>([]() { return new _MOD(); }), #_MOD,         \
+      _NAME_TEMPLATE, _HELP, _MOD::kNumIGates, _MOD::kNumOGates, _MOD::cmds, \
+      MODULE_INIT_FUNC(&_MOD::Init));
 
 #endif  // BESS_MODULE_H_

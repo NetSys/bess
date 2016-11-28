@@ -510,20 +510,20 @@ static int parse_mac_addr(const char *str, char *addr) {
 
 /******************************************************************************/
 
-const PbCommands L2Forward::pb_cmds = {
-    {"add", "L2ForwardCommandAddArg", MODULE_CMD_FUNC(&L2Forward::CommandAddPb),
+const Commands L2Forward::cmds = {
+    {"add", "L2ForwardCommandAddArg", MODULE_CMD_FUNC(&L2Forward::CommandAdd),
      0},
     {"delete", "L2ForwardCommandDeleteArg",
-     MODULE_CMD_FUNC(&L2Forward::CommandDeletePb), 0},
+     MODULE_CMD_FUNC(&L2Forward::CommandDelete), 0},
     {"set_default_gate", "L2ForwardCommandSetDefaultGateArg",
-     MODULE_CMD_FUNC(&L2Forward::CommandSetDefaultGatePb), 1},
+     MODULE_CMD_FUNC(&L2Forward::CommandSetDefaultGate), 1},
     {"lookup", "L2ForwardCommandLookupArg",
-     MODULE_CMD_FUNC(&L2Forward::CommandLookupPb), 1},
+     MODULE_CMD_FUNC(&L2Forward::CommandLookup), 1},
     {"populate", "L2ForwardCommandPopulateArg",
-     MODULE_CMD_FUNC(&L2Forward::CommandPopulatePb), 0},
+     MODULE_CMD_FUNC(&L2Forward::CommandPopulate), 0},
 };
 
-pb_error_t L2Forward::InitPb(const bess::pb::L2ForwardArg &arg) {
+pb_error_t L2Forward::Init(const bess::pb::L2ForwardArg &arg) {
   int ret = 0;
   int size = arg.size();
   int bucket = arg.bucket();
@@ -569,7 +569,7 @@ void L2Forward::ProcessBatch(bess::PacketBatch *batch) {
   RunSplit(out_gates, batch);
 }
 
-pb_cmd_response_t L2Forward::CommandAddPb(
+pb_cmd_response_t L2Forward::CommandAdd(
     const bess::pb::L2ForwardCommandAddArg &arg) {
   pb_cmd_response_t response;
 
@@ -615,7 +615,7 @@ pb_cmd_response_t L2Forward::CommandAddPb(
   return response;
 }
 
-pb_cmd_response_t L2Forward::CommandDeletePb(
+pb_cmd_response_t L2Forward::CommandDelete(
     const bess::pb::L2ForwardCommandDeleteArg &arg) {
   pb_cmd_response_t response;
 
@@ -656,7 +656,7 @@ pb_cmd_response_t L2Forward::CommandDeletePb(
   return response;
 }
 
-pb_cmd_response_t L2Forward::CommandSetDefaultGatePb(
+pb_cmd_response_t L2Forward::CommandSetDefaultGate(
     const bess::pb::L2ForwardCommandSetDefaultGateArg &arg) {
   pb_cmd_response_t response;
 
@@ -665,7 +665,7 @@ pb_cmd_response_t L2Forward::CommandSetDefaultGatePb(
   return response;
 }
 
-pb_cmd_response_t L2Forward::CommandLookupPb(
+pb_cmd_response_t L2Forward::CommandLookup(
     const bess::pb::L2ForwardCommandLookupArg &arg) {
   int i;
   pb_cmd_response_t response;
@@ -710,7 +710,7 @@ pb_cmd_response_t L2Forward::CommandLookupPb(
   return response;
 }
 
-pb_cmd_response_t L2Forward::CommandPopulatePb(
+pb_cmd_response_t L2Forward::CommandPopulate(
     const bess::pb::L2ForwardCommandPopulateArg &arg) {
   pb_cmd_response_t response;
   const char *base;

@@ -8,7 +8,7 @@ class GenericDecap final : public Module {
  public:
   GenericDecap() : Module(), decap_size_() {}
 
-  pb_error_t InitPb(const bess::pb::GenericDecapArg &arg);
+  pb_error_t Init(const bess::pb::GenericDecapArg &arg);
 
   virtual void ProcessBatch(bess::PacketBatch *batch);
 

@@ -8,18 +8,18 @@ class IPLookup final : public Module {
  public:
   static const gate_idx_t kNumOGates = MAX_GATES;
 
-  static const PbCommands pb_cmds;
+  static const Commands cmds;
 
   IPLookup() : Module(), lpm_(), default_gate_() {}
 
-  pb_error_t InitPb(const bess::pb::EmptyArg &arg);
+  pb_error_t Init(const bess::pb::EmptyArg &arg);
 
   virtual void Deinit();
 
   virtual void ProcessBatch(bess::PacketBatch *batch);
 
-  pb_cmd_response_t CommandAddPb(const bess::pb::IPLookupCommandAddArg &arg);
-  pb_cmd_response_t CommandClearPb(const bess::pb::EmptyArg &arg);
+  pb_cmd_response_t CommandAdd(const bess::pb::IPLookupCommandAddArg &arg);
+  pb_cmd_response_t CommandClear(const bess::pb::EmptyArg &arg);
 
  private:
   struct rte_lpm *lpm_;

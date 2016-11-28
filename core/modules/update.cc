@@ -2,13 +2,13 @@
 #include "../utils/endian.h"
 #include <rte_byteorder.h>
 
-const PbCommands Update::pb_cmds = {
-    {"add", "UpdateArg", MODULE_CMD_FUNC(&Update::CommandAddPb), 0},
-    {"clear", "EmptyArg", MODULE_CMD_FUNC(&Update::CommandClearPb), 0},
+const Commands Update::cmds = {
+    {"add", "UpdateArg", MODULE_CMD_FUNC(&Update::CommandAdd), 0},
+    {"clear", "EmptyArg", MODULE_CMD_FUNC(&Update::CommandClear), 0},
 };
 
-pb_error_t Update::InitPb(const bess::pb::UpdateArg &arg) {
-  pb_cmd_response_t response = CommandAddPb(arg);
+pb_error_t Update::Init(const bess::pb::UpdateArg &arg) {
+  pb_cmd_response_t response = CommandAdd(arg);
   return response.error();
 }
 
@@ -35,7 +35,7 @@ void Update::ProcessBatch(bess::PacketBatch *batch) {
   RunNextModule(batch);
 }
 
-pb_cmd_response_t Update::CommandAddPb(const bess::pb::UpdateArg &arg) {
+pb_cmd_response_t Update::CommandAdd(const bess::pb::UpdateArg &arg) {
   pb_cmd_response_t response;
 
   int curr = num_fields_;
@@ -96,7 +96,7 @@ pb_cmd_response_t Update::CommandAddPb(const bess::pb::UpdateArg &arg) {
   return response;
 }
 
-pb_cmd_response_t Update::CommandClearPb(const bess::pb::EmptyArg &) {
+pb_cmd_response_t Update::CommandClear(const bess::pb::EmptyArg &) {
   num_fields_ = 0;
 
   pb_cmd_response_t response;

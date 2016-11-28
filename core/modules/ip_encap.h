@@ -6,7 +6,7 @@
 
 class IPEncap final : public Module {
  public:
-  pb_error_t InitPb(const bess::pb::IPEncapArg &arg);
+  pb_error_t Init(const bess::pb::IPEncapArg &arg);
 
   virtual void ProcessBatch(bess::PacketBatch *batch);
 };

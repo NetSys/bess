@@ -235,7 +235,7 @@ pb_error_t FlowGen::InitFlowPool() {
   return pb_errno(0);
 }
 
-pb_error_t FlowGen::InitPb(const bess::pb::FlowGenArg &arg) {
+pb_error_t FlowGen::Init(const bess::pb::FlowGenArg &arg) {
   task_id_t tid;
   pb_error_t err;
 

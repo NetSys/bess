@@ -1,12 +1,12 @@
 #include "port_inc.h"
 #include "../utils/format.h"
 
-const PbCommands PortInc::pb_cmds = {
+const Commands PortInc::cmds = {
     {"set_burst", "PortIncCommandSetBurstArg",
-     MODULE_CMD_FUNC(&PortInc::CommandSetBurstPb), 1},
+     MODULE_CMD_FUNC(&PortInc::CommandSetBurst), 1},
 };
 
-pb_error_t PortInc::InitPb(const bess::pb::PortIncArg &arg) {
+pb_error_t PortInc::Init(const bess::pb::PortIncArg &arg) {
   const char *port_name;
   queue_t num_inc_q;
   int ret;
@@ -126,7 +126,7 @@ pb_error_t PortInc::SetBurst(int64_t burst) {
   return pb_errno(0);
 }
 
-pb_cmd_response_t PortInc::CommandSetBurstPb(
+pb_cmd_response_t PortInc::CommandSetBurst(
     const bess::pb::PortIncCommandSetBurstArg &arg) {
   pb_cmd_response_t response;
   set_cmd_response_error(&response, SetBurst(arg.burst()));

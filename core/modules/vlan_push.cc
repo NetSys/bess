@@ -8,16 +8,16 @@
 #include "../utils/simd.h"
 #include "vlan_push.h"
 
-const PbCommands VLANPush::pb_cmds = {
-    {"set_tci", "VLANPushArg", MODULE_CMD_FUNC(&VLANPush::CommandSetTciPb), 0},
+const Commands VLANPush::cmds = {
+    {"set_tci", "VLANPushArg", MODULE_CMD_FUNC(&VLANPush::CommandSetTci), 0},
 };
 
-pb_error_t VLANPush::InitPb(const bess::pb::VLANPushArg &arg) {
-  pb_cmd_response_t response = CommandSetTciPb(arg);
+pb_error_t VLANPush::Init(const bess::pb::VLANPushArg &arg) {
+  pb_cmd_response_t response = CommandSetTci(arg);
   return response.error();
 }
 
-pb_cmd_response_t VLANPush::CommandSetTciPb(const bess::pb::VLANPushArg &arg) {
+pb_cmd_response_t VLANPush::CommandSetTci(const bess::pb::VLANPushArg &arg) {
   pb_cmd_response_t response;
 
   uint16_t tci;

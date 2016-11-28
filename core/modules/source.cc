@@ -1,13 +1,13 @@
 #include "source.h"
 
-const PbCommands Source::pb_cmds = {
+const Commands Source::cmds = {
     {"set_pkt_size", "SourceCommandSetPktSizeArg",
-     MODULE_CMD_FUNC(&Source::CommandSetPktSizePb), 1},
+     MODULE_CMD_FUNC(&Source::CommandSetPktSize), 1},
     {"set_burst", "SourceCommandSetBurstArg",
-     MODULE_CMD_FUNC(&Source::CommandSetBurstPb), 1},
+     MODULE_CMD_FUNC(&Source::CommandSetBurst), 1},
 };
 
-pb_error_t Source::InitPb(const bess::pb::SourceArg &arg) {
+pb_error_t Source::Init(const bess::pb::SourceArg &arg) {
   pb_error_t err;
 
   task_id_t tid = RegisterTask(nullptr);
@@ -35,7 +35,7 @@ pb_error_t Source::InitPb(const bess::pb::SourceArg &arg) {
   return pb_errno(0);
 }
 
-pb_cmd_response_t Source::CommandSetBurstPb(
+pb_cmd_response_t Source::CommandSetBurst(
     const bess::pb::SourceCommandSetBurstArg &arg) {
   pb_cmd_response_t response;
 
@@ -51,7 +51,7 @@ pb_cmd_response_t Source::CommandSetBurstPb(
   return response;
 }
 
-pb_cmd_response_t Source::CommandSetPktSizePb(
+pb_cmd_response_t Source::CommandSetPktSize(
     const bess::pb::SourceCommandSetPktSizeArg &arg) {
   pb_cmd_response_t response;
 

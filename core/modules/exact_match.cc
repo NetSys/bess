@@ -12,14 +12,14 @@ static inline int is_valid_gate(gate_idx_t gate) {
   return (gate < MAX_GATES || gate == DROP_GATE);
 }
 
-const PbCommands ExactMatch::pb_cmds = {
-    {"add", "ExactMatchCommandAddArg",
-     MODULE_CMD_FUNC(&ExactMatch::CommandAddPb), 0},
+const Commands ExactMatch::cmds = {
+    {"add", "ExactMatchCommandAddArg", MODULE_CMD_FUNC(&ExactMatch::CommandAdd),
+     0},
     {"delete", "ExactMatchCommandDeleteArg",
-     MODULE_CMD_FUNC(&ExactMatch::CommandDeletePb), 0},
-    {"clear", "EmptyArg", MODULE_CMD_FUNC(&ExactMatch::CommandClearPb), 0},
+     MODULE_CMD_FUNC(&ExactMatch::CommandDelete), 0},
+    {"clear", "EmptyArg", MODULE_CMD_FUNC(&ExactMatch::CommandClear), 0},
     {"set_default_gate", "ExactMatchCommandSetDefaultGateArg",
-     MODULE_CMD_FUNC(&ExactMatch::CommandSetDefaultGatePb), 1}};
+     MODULE_CMD_FUNC(&ExactMatch::CommandSetDefaultGate), 1}};
 
 pb_error_t ExactMatch::AddFieldOne(const bess::pb::ExactMatchArg_Field &field,
                                    struct EmField *f, int idx) {
@@ -64,7 +64,7 @@ pb_error_t ExactMatch::AddFieldOne(const bess::pb::ExactMatchArg_Field &field,
   return pb_errno(0);
 }
 
-pb_error_t ExactMatch::InitPb(const bess::pb::ExactMatchArg &arg) {
+pb_error_t ExactMatch::Init(const bess::pb::ExactMatchArg &arg) {
   int size_acc = 0;
 
   for (auto i = 0; i < arg.fields_size(); ++i) {
@@ -176,7 +176,7 @@ pb_error_t ExactMatch::GatherKey(const RepeatedPtrField<std::string> &fields,
   return pb_errno(0);
 }
 
-pb_cmd_response_t ExactMatch::CommandAddPb(
+pb_cmd_response_t ExactMatch::CommandAdd(
     const bess::pb::ExactMatchCommandAddArg &arg) {
   em_hkey_t key;
   gate_idx_t gate = arg.gate();
@@ -212,7 +212,7 @@ pb_cmd_response_t ExactMatch::CommandAddPb(
   return response;
 }
 
-pb_cmd_response_t ExactMatch::CommandDeletePb(
+pb_cmd_response_t ExactMatch::CommandDelete(
     const bess::pb::ExactMatchCommandDeleteArg &arg) {
   pb_cmd_response_t response;
 
@@ -242,7 +242,7 @@ pb_cmd_response_t ExactMatch::CommandDeletePb(
   return response;
 }
 
-pb_cmd_response_t ExactMatch::CommandClearPb(const bess::pb::EmptyArg &) {
+pb_cmd_response_t ExactMatch::CommandClear(const bess::pb::EmptyArg &) {
   ht_.Clear();
 
   pb_cmd_response_t response;
@@ -250,7 +250,7 @@ pb_cmd_response_t ExactMatch::CommandClearPb(const bess::pb::EmptyArg &) {
   return response;
 }
 
-pb_cmd_response_t ExactMatch::CommandSetDefaultGatePb(
+pb_cmd_response_t ExactMatch::CommandSetDefaultGate(
     const bess::pb::ExactMatchCommandSetDefaultGateArg &arg) {
   pb_cmd_response_t response;
   default_gate_ = arg.gate();

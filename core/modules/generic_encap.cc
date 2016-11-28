@@ -54,7 +54,7 @@ pb_error_t GenericEncap::AddFieldOne(
  * for each packet.
  */
 
-pb_error_t GenericEncap::InitPb(const bess::pb::GenericEncapArg &arg) {
+pb_error_t GenericEncap::Init(const bess::pb::GenericEncapArg &arg) {
   int size_acc = 0;
 
   for (int i = 0; i < arg.fields_size(); i++) {

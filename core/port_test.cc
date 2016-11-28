@@ -13,7 +13,7 @@ class DummyPort : public Port {
 
   virtual void InitDriver() { initialized_ = true; }
 
-  pb_error_t InitPb(const google::protobuf::Any &) { return pb_errno(42); }
+  pb_error_t Init(const google::protobuf::Any &) { return pb_errno(42); }
 
   virtual void Deinit() {
     if (deinited_)
@@ -243,7 +243,7 @@ TEST(PortBuilderTest, RegisterPortClassDirectCall) {
 
   PortBuilder::RegisterPortClass([]() { return new DummyPort(); }, "DummyPort",
                                  "dummy_port", "dummy help",
-                                 PORT_INIT_FUNC(&DummyPort::InitPb));
+                                 PORT_INIT_FUNC(&DummyPort::Init));
 
   ASSERT_EQ(1, PortBuilder::all_port_builders().size());
   ASSERT_EQ(1, PortBuilder::all_port_builders().count("DummyPort"));

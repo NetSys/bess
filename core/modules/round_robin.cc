@@ -1,13 +1,13 @@
 #include "round_robin.h"
 
-const PbCommands RoundRobin::pb_cmds = {
+const Commands RoundRobin::cmds = {
     {"set_mode", "RoundRobinCommandSetModeArg",
-     MODULE_CMD_FUNC(&RoundRobin::CommandSetModePb), 0},
+     MODULE_CMD_FUNC(&RoundRobin::CommandSetMode), 0},
     {"set_gates", "RoundRobinCommandSetGatesArg",
-     MODULE_CMD_FUNC(&RoundRobin::CommandSetGatesPb), 0},
+     MODULE_CMD_FUNC(&RoundRobin::CommandSetGates), 0},
 };
 
-pb_error_t RoundRobin::InitPb(const bess::pb::RoundRobinArg &arg) {
+pb_error_t RoundRobin::Init(const bess::pb::RoundRobinArg &arg) {
   pb_error_t err;
 
   if (arg.gates_size() > MAX_RR_GATES) {
@@ -36,7 +36,7 @@ pb_error_t RoundRobin::InitPb(const bess::pb::RoundRobinArg &arg) {
   return pb_errno(0);
 }
 
-pb_cmd_response_t RoundRobin::CommandSetModePb(
+pb_cmd_response_t RoundRobin::CommandSetMode(
     const bess::pb::RoundRobinCommandSetModeArg &arg) {
   pb_cmd_response_t response;
 
@@ -54,7 +54,7 @@ pb_cmd_response_t RoundRobin::CommandSetModePb(
   return response;
 }
 
-pb_cmd_response_t RoundRobin::CommandSetGatesPb(
+pb_cmd_response_t RoundRobin::CommandSetGates(
     const bess::pb::RoundRobinCommandSetGatesArg &arg) {
   pb_cmd_response_t response;
 

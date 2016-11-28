@@ -170,7 +170,7 @@ class Port {
 
   pb_error_t Init(const google::protobuf::Any &arg);
 
-  pb_error_t InitPb(const bess::pb::EmptyArg &arg);
+  pb_error_t Init(const bess::pb::EmptyArg &arg);
 
   virtual void Deinit() {}
 
@@ -246,6 +246,6 @@ class Port {
 #define ADD_DRIVER(_DRIVER, _NAME_TEMPLATE, _HELP)                       \
   bool __driver__##_DRIVER = PortBuilder::RegisterPortClass(             \
       std::function<Port *()>([]() { return new _DRIVER(); }), #_DRIVER, \
-      _NAME_TEMPLATE, _HELP, PORT_INIT_FUNC(&_DRIVER::InitPb));
+      _NAME_TEMPLATE, _HELP, PORT_INIT_FUNC(&_DRIVER::Init));
 
 #endif  // BESS_PORT_H_

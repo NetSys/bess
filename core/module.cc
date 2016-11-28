@@ -15,7 +15,7 @@
 #include "mem_alloc.h"
 #include "utils/pcap.h"
 
-const PbCommands Module::pb_cmds;
+const Commands Module::cmds;
 
 std::map<std::string, Module *> ModuleBuilder::all_modules_;
 
@@ -102,12 +102,12 @@ void ModuleBuilder::DestroyAllModules() {
 bool ModuleBuilder::RegisterModuleClass(
     std::function<Module *()> module_generator, const std::string &class_name,
     const std::string &name_template, const std::string &help_text,
-    const gate_idx_t igates, const gate_idx_t ogates, const PbCommands &pb_cmds,
+    const gate_idx_t igates, const gate_idx_t ogates, const Commands &cmds,
     module_init_func_t init_func) {
   all_module_builders_holder().emplace(
       std::piecewise_construct, std::forward_as_tuple(class_name),
       std::forward_as_tuple(module_generator, class_name, name_template,
-                            help_text, igates, ogates, pb_cmds, init_func));
+                            help_text, igates, ogates, cmds, init_func));
   return true;
 }
 
@@ -165,11 +165,11 @@ const std::map<std::string, Module *> &ModuleBuilder::all_modules() {
 }
 
 // -------------------------------------------------------------------------
-pb_error_t Module::Init(const google::protobuf::Any &arg) {
+pb_error_t Module::RunInit(const google::protobuf::Any &arg) {
   return module_builder_->RunInit(this, arg);
 }
 
-pb_error_t Module::InitPb(const bess::pb::EmptyArg &) {
+pb_error_t Module::Init(const bess::pb::EmptyArg &) {
   return pb_errno(0);
 }
 

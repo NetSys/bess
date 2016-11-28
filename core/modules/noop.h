@@ -6,7 +6,7 @@
 
 class NoOP final : public Module {
  public:
-  pb_error_t InitPb(const bess::pb::EmptyArg &arg);
+  pb_error_t Init(const bess::pb::EmptyArg &arg);
 
   virtual struct task_result RunTask(void *arg);
 

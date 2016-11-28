@@ -14,7 +14,7 @@ enum {
   ATTR_W_TUN_ID,
 };
 
-pb_error_t VXLANDecap::InitPb(
+pb_error_t VXLANDecap::Init(
     const bess::pb::VXLANDecapArg &arg[[maybe_unused]]) {
   using AccessMode = bess::metadata::Attribute::AccessMode;
 

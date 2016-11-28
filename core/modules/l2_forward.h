@@ -27,24 +27,24 @@ class L2Forward final : public Module {
  public:
   static const gate_idx_t kNumOGates = MAX_GATES;
 
-  static const PbCommands pb_cmds;
+  static const Commands cmds;
 
   L2Forward() : Module(), l2_table_(), default_gate_() {}
 
-  pb_error_t InitPb(const bess::pb::L2ForwardArg &arg);
+  pb_error_t Init(const bess::pb::L2ForwardArg &arg);
 
   virtual void Deinit();
 
   virtual void ProcessBatch(bess::PacketBatch *batch);
 
-  pb_cmd_response_t CommandAddPb(const bess::pb::L2ForwardCommandAddArg &arg);
-  pb_cmd_response_t CommandDeletePb(
+  pb_cmd_response_t CommandAdd(const bess::pb::L2ForwardCommandAddArg &arg);
+  pb_cmd_response_t CommandDelete(
       const bess::pb::L2ForwardCommandDeleteArg &arg);
-  pb_cmd_response_t CommandSetDefaultGatePb(
+  pb_cmd_response_t CommandSetDefaultGate(
       const bess::pb::L2ForwardCommandSetDefaultGateArg &arg);
-  pb_cmd_response_t CommandLookupPb(
+  pb_cmd_response_t CommandLookup(
       const bess::pb::L2ForwardCommandLookupArg &arg);
-  pb_cmd_response_t CommandPopulatePb(
+  pb_cmd_response_t CommandPopulate(
       const bess::pb::L2ForwardCommandPopulateArg &arg);
 
  private:

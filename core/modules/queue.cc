@@ -5,11 +5,11 @@
 
 #define DEFAULT_QUEUE_SIZE 1024
 
-const PbCommands Queue::pb_cmds = {
+const Commands Queue::cmds = {
     {"set_burst", "QueueCommandSetBurstArg",
-     MODULE_CMD_FUNC(&Queue::CommandSetBurstPb), 1},
+     MODULE_CMD_FUNC(&Queue::CommandSetBurst), 1},
     {"set_size", "QueueCommandSetSizeArg",
-     MODULE_CMD_FUNC(&Queue::CommandSetSizePb), 0},
+     MODULE_CMD_FUNC(&Queue::CommandSetSize), 0},
 };
 
 int Queue::Resize(int slots) {
@@ -50,7 +50,7 @@ int Queue::Resize(int slots) {
   return 0;
 }
 
-pb_error_t Queue::InitPb(const bess::pb::QueueArg &arg) {
+pb_error_t Queue::Init(const bess::pb::QueueArg &arg) {
   task_id_t tid;
   pb_error_t err;
 
@@ -174,13 +174,13 @@ pb_error_t Queue::SetSize(uint64_t size) {
   return pb_errno(0);
 }
 
-pb_cmd_response_t Queue::CommandSetBurstPb(
+pb_cmd_response_t Queue::CommandSetBurst(
     const bess::pb::QueueCommandSetBurstArg &arg) {
   pb_cmd_response_t response;
   set_cmd_response_error(&response, SetBurst(arg.burst()));
   return response;
 }
-pb_cmd_response_t Queue::CommandSetSizePb(
+pb_cmd_response_t Queue::CommandSetSize(
     const bess::pb::QueueCommandSetSizeArg &arg) {
   pb_cmd_response_t response;
   set_cmd_response_error(&response, SetSize(arg.size()));

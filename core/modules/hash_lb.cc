@@ -35,13 +35,12 @@ static inline int is_valid_gate(gate_idx_t gate) {
   return (gate < MAX_GATES || gate == DROP_GATE);
 }
 
-const PbCommands HashLB::pb_cmds = {
-    {"set_mode", "HashLBCommandSetModeArg",
-     MODULE_CMD_FUNC(&HashLB::CommandSetModePb), 0},
-    {"set_gates", "HashLBCommandSetGatesArg",
-     MODULE_CMD_FUNC(&HashLB::CommandSetGatesPb), 0}};
+const Commands HashLB::cmds = {{"set_mode", "HashLBCommandSetModeArg",
+                                MODULE_CMD_FUNC(&HashLB::CommandSetMode), 0},
+                               {"set_gates", "HashLBCommandSetGatesArg",
+                                MODULE_CMD_FUNC(&HashLB::CommandSetGates), 0}};
 
-pb_cmd_response_t HashLB::CommandSetModePb(
+pb_cmd_response_t HashLB::CommandSetMode(
     const bess::pb::HashLBCommandSetModeArg &arg) {
   pb_cmd_response_t response;
   if (arg.mode() == "l2") {
@@ -57,7 +56,7 @@ pb_cmd_response_t HashLB::CommandSetModePb(
   return response;
 }
 
-pb_cmd_response_t HashLB::CommandSetGatesPb(
+pb_cmd_response_t HashLB::CommandSetGates(
     const bess::pb::HashLBCommandSetGatesArg &arg) {
   pb_cmd_response_t response;
 
@@ -82,7 +81,7 @@ pb_cmd_response_t HashLB::CommandSetGatesPb(
   return response;
 }
 
-pb_error_t HashLB::InitPb(const bess::pb::HashLBArg &arg) {
+pb_error_t HashLB::Init(const bess::pb::HashLBArg &arg) {
   mode_ = DEFAULT_MODE;
 
   if (arg.gates_size() > MAX_HLB_GATES) {

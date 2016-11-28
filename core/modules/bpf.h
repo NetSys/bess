@@ -22,15 +22,15 @@ class BPF final : public Module {
   static const gate_idx_t kNumOGates = MAX_GATES;
 
   
-  static const PbCommands pb_cmds;
+  static const Commands cmds;
 
-  pb_error_t InitPb(const bess::pb::BPFArg &arg);
+  pb_error_t Init(const bess::pb::BPFArg &arg);
   virtual void Deinit();
 
   virtual void ProcessBatch(bess::PacketBatch *batch);
 
-  pb_cmd_response_t CommandAddPb(const bess::pb::BPFArg &arg);
-  pb_cmd_response_t CommandClearPb(const bess::pb::EmptyArg &arg);
+  pb_cmd_response_t CommandAdd(const bess::pb::BPFArg &arg);
+  pb_cmd_response_t CommandClear(const bess::pb::EmptyArg &arg);
 
  private:
   struct filter filters_[MAX_FILTERS + 1] = {};

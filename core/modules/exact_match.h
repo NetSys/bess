@@ -116,7 +116,7 @@ class ExactMatch final : public Module {
   static const gate_idx_t kNumOGates = MAX_GATES;
 
   
-  static const PbCommands pb_cmds;
+  static const Commands cmds;
 
   ExactMatch()
       : Module(),
@@ -132,12 +132,12 @@ class ExactMatch final : public Module {
 
   virtual std::string GetDesc() const;
 
-  pb_error_t InitPb(const bess::pb::ExactMatchArg &arg);
-  pb_cmd_response_t CommandAddPb(const bess::pb::ExactMatchCommandAddArg &arg);
-  pb_cmd_response_t CommandDeletePb(
+  pb_error_t Init(const bess::pb::ExactMatchArg &arg);
+  pb_cmd_response_t CommandAdd(const bess::pb::ExactMatchCommandAddArg &arg);
+  pb_cmd_response_t CommandDelete(
       const bess::pb::ExactMatchCommandDeleteArg &arg);
-  pb_cmd_response_t CommandClearPb(const bess::pb::EmptyArg &arg);
-  pb_cmd_response_t CommandSetDefaultGatePb(
+  pb_cmd_response_t CommandClear(const bess::pb::EmptyArg &arg);
+  pb_cmd_response_t CommandSetDefaultGate(
       const bess::pb::ExactMatchCommandSetDefaultGateArg &arg);
 
  private:

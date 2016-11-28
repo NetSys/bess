@@ -18,7 +18,7 @@ enum {
   ATTR_W_IP_PROTO,
 };
 
-pb_error_t VXLANEncap::InitPb(const bess::pb::VXLANEncapArg &arg) {
+pb_error_t VXLANEncap::Init(const bess::pb::VXLANEncapArg &arg) {
   auto dstport = arg.dstport();
   if (dstport == 0) {
     dstport_ = rte_cpu_to_be_16(4789);

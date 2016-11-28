@@ -9,7 +9,7 @@ enum {
   ATTR_R_ETHER_TYPE,
 };
 
-pb_error_t EtherEncap::InitPb(
+pb_error_t EtherEncap::Init(
     const bess::pb::EtherEncapArg &arg[[maybe_unused]]) {
   using AccessMode = bess::metadata::Attribute::AccessMode;
 

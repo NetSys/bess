@@ -1108,12 +1108,12 @@ static int compare_filter(const void *filter1, const void *filter2) {
     return 0;
 }
 
-const PbCommands BPF::pb_cmds = {
-    {"add", "BPFArg", MODULE_CMD_FUNC(&BPF::CommandAddPb), 0},
-    {"clear", "EmptyArg", MODULE_CMD_FUNC(&BPF::CommandClearPb), 0}};
+const Commands BPF::cmds = {
+    {"add", "BPFArg", MODULE_CMD_FUNC(&BPF::CommandAdd), 0},
+    {"clear", "EmptyArg", MODULE_CMD_FUNC(&BPF::CommandClear), 0}};
 
-pb_error_t BPF::InitPb(const bess::pb::BPFArg &arg) {
-  pb_cmd_response_t response = CommandAddPb(arg);
+pb_error_t BPF::Init(const bess::pb::BPFArg &arg) {
+  pb_cmd_response_t response = CommandAdd(arg);
   return response.error();
 }
 
@@ -1126,7 +1126,7 @@ void BPF::Deinit() {
   n_filters_ = 0;
 }
 
-pb_cmd_response_t BPF::CommandAddPb(const bess::pb::BPFArg &arg) {
+pb_cmd_response_t BPF::CommandAdd(const bess::pb::BPFArg &arg) {
   pb_cmd_response_t response;
 
   if (n_filters_ + arg.filters_size() > MAX_FILTERS) {
@@ -1172,7 +1172,7 @@ pb_cmd_response_t BPF::CommandAddPb(const bess::pb::BPFArg &arg) {
   return response;
 }
 
-pb_cmd_response_t BPF::CommandClearPb(const bess::pb::EmptyArg &) {
+pb_cmd_response_t BPF::CommandClear(const bess::pb::EmptyArg &) {
   Deinit();
   pb_cmd_response_t response;
   set_cmd_response_error(&response, pb_errno(0));

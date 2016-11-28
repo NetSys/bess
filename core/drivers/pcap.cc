@@ -2,7 +2,7 @@
 
 #include "../utils/pcap.h"
 
-pb_error_t PCAPPort::InitPb(const bess::pb::PCAPPortArg& arg) {
+pb_error_t PCAPPort::Init(const bess::pb::PCAPPortArg& arg) {
   if (pcap_handle_.is_initialized()) {
     return pb_error(EINVAL, "Device already initialized.");
   }

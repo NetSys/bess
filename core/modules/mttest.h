@@ -11,7 +11,7 @@ class MetadataTest final : public Module {
   static const gate_idx_t kNumIGates = MAX_GATES;
   static const gate_idx_t kNumOGates = MAX_GATES;
 
-  pb_error_t InitPb(const bess::pb::MetadataTestArg &arg);
+  pb_error_t Init(const bess::pb::MetadataTestArg &arg);
 
   void ProcessBatch(bess::PacketBatch *batch);
 

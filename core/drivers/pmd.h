@@ -37,7 +37,7 @@ class PMDPort final : public Port {
    * EXPECTS:
    * * Must specify exactly one of port_id or PCI or vdev.
    */
-  pb_error_t InitPb(const bess::pb::PMDPortArg &arg);
+  pb_error_t Init(const bess::pb::PMDPortArg &arg);
 
   /*!
    * Release the device.

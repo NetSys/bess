@@ -9,15 +9,14 @@
 
 static const uint64_t DEFAULT_INTERVAL_NS = 1 * NS_PER_SEC; /* 1 sec */
 
-const PbCommands Dump::pb_cmds = {
-    {"set_interval", "DumpArg", MODULE_CMD_FUNC(&Dump::CommandSetIntervalPb),
-     0},
+const Commands Dump::cmds = {
+    {"set_interval", "DumpArg", MODULE_CMD_FUNC(&Dump::CommandSetInterval), 0},
 };
 
-pb_error_t Dump::InitPb(const bess::pb::DumpArg &arg) {
+pb_error_t Dump::Init(const bess::pb::DumpArg &arg) {
   min_interval_ns_ = DEFAULT_INTERVAL_NS;
   next_ns_ = ctx.current_tsc();
-  pb_cmd_response_t response = CommandSetIntervalPb(arg);
+  pb_cmd_response_t response = CommandSetInterval(arg);
   return response.error();
 }
 
@@ -35,7 +34,7 @@ void Dump::ProcessBatch(bess::PacketBatch *batch) {
   RunChooseModule(get_igate(), batch);
 }
 
-pb_cmd_response_t Dump::CommandSetIntervalPb(const bess::pb::DumpArg &arg) {
+pb_cmd_response_t Dump::CommandSetInterval(const bess::pb::DumpArg &arg) {
   pb_cmd_response_t response;
 
   double sec = arg.interval();

@@ -35,7 +35,7 @@ pb_error_t MetadataTest::AddAttributes(
   return pb_errno(0);
 }
 
-pb_error_t MetadataTest::InitPb(const bess::pb::MetadataTestArg &arg) {
+pb_error_t MetadataTest::Init(const bess::pb::MetadataTestArg &arg) {
   pb_error_t err;
 
   err = AddAttributes(arg.read(), Attribute::AccessMode::kRead);

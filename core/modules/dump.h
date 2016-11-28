@@ -6,14 +6,14 @@
 
 class Dump final : public Module {
  public:
-  pb_error_t InitPb(const bess::pb::DumpArg &arg);
+  pb_error_t Init(const bess::pb::DumpArg &arg);
 
   virtual void ProcessBatch(bess::PacketBatch *batch);
 
-  pb_cmd_response_t CommandSetIntervalPb(const bess::pb::DumpArg &arg);
+  pb_cmd_response_t CommandSetInterval(const bess::pb::DumpArg &arg);
 
   
-  static const PbCommands pb_cmds;
+  static const Commands cmds;
 
  private:
   uint64_t min_interval_ns_;

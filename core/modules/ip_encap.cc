@@ -12,7 +12,7 @@ enum {
   ATTR_W_ETHER_TYPE,
 };
 
-pb_error_t IPEncap::InitPb(const bess::pb::IPEncapArg &arg[[maybe_unused]]) {
+pb_error_t IPEncap::Init(const bess::pb::IPEncapArg &arg[[maybe_unused]]) {
   using AccessMode = bess::metadata::Attribute::AccessMode;
 
   AddMetadataAttr("ip_src", 4, AccessMode::kRead);

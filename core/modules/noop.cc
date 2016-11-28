@@ -1,6 +1,6 @@
 #include "noop.h"
 
-pb_error_t NoOP::InitPb(const bess::pb::EmptyArg &) {
+pb_error_t NoOP::Init(const bess::pb::EmptyArg &) {
   task_id_t tid;
 
   tid = RegisterTask(nullptr);

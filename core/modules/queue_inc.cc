@@ -3,11 +3,11 @@
 #include "../port.h"
 #include "../utils/format.h"
 
-const PbCommands QueueInc::pb_cmds = {
-    {"set_burst", "QueueIncCommandSetBurstArg",
-     MODULE_CMD_FUNC(&QueueInc::CommandSetBurstPb), 1}};
+const Commands QueueInc::cmds = {{"set_burst", "QueueIncCommandSetBurstArg",
+                                  MODULE_CMD_FUNC(&QueueInc::CommandSetBurst),
+                                  1}};
 
-pb_error_t QueueInc::InitPb(const bess::pb::QueueIncArg &arg) {
+pb_error_t QueueInc::Init(const bess::pb::QueueIncArg &arg) {
   const char *port_name;
   task_id_t tid;
   pb_error_t err;
@@ -117,7 +117,7 @@ pb_error_t QueueInc::SetBurst(int64_t burst) {
   return pb_errno(0);
 }
 
-pb_cmd_response_t QueueInc::CommandSetBurstPb(
+pb_cmd_response_t QueueInc::CommandSetBurst(
     const bess::pb::QueueIncCommandSetBurstArg &arg) {
   pb_cmd_response_t response;
   set_cmd_response_error(&response, SetBurst(arg.burst()));

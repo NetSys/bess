@@ -39,14 +39,14 @@ static inline int is_valid_gate(gate_idx_t gate) {
   return (gate < MAX_GATES || gate == DROP_GATE);
 }
 
-const PbCommands WildcardMatch::pb_cmds = {
+const Commands WildcardMatch::cmds = {
     {"add", "WildcardMatchCommandAddArg",
-     MODULE_CMD_FUNC(&WildcardMatch::CommandAddPb), 0},
+     MODULE_CMD_FUNC(&WildcardMatch::CommandAdd), 0},
     {"delete", "WildcardMatchCommandDeleteArg",
-     MODULE_CMD_FUNC(&WildcardMatch::CommandDeletePb), 0},
-    {"clear", "EmptyArg", MODULE_CMD_FUNC(&WildcardMatch::CommandClearPb), 0},
+     MODULE_CMD_FUNC(&WildcardMatch::CommandDelete), 0},
+    {"clear", "EmptyArg", MODULE_CMD_FUNC(&WildcardMatch::CommandClear), 0},
     {"set_default_gate", "WildcardMatchCommandSetDefaultGateArg",
-     MODULE_CMD_FUNC(&WildcardMatch::CommandSetDefaultGatePb), 1}};
+     MODULE_CMD_FUNC(&WildcardMatch::CommandSetDefaultGate), 1}};
 
 pb_error_t WildcardMatch::AddFieldOne(
     const bess::pb::WildcardMatchArg_Field &field, struct WmField *f) {
@@ -85,7 +85,7 @@ pb_error_t WildcardMatch::AddFieldOne(
  * You can also specify metadata attributes
  * e.g.: WildcardMatch([{'name': 'nexthop', 'size': 4}, ...] */
 
-pb_error_t WildcardMatch::InitPb(const bess::pb::WildcardMatchArg &arg) {
+pb_error_t WildcardMatch::Init(const bess::pb::WildcardMatchArg &arg) {
   int size_acc = 0;
 
   for (int i = 0; i < arg.fields_size(); i++) {
@@ -342,7 +342,7 @@ int WildcardMatch::DelEntry(struct WmTuple *tuple, wm_hkey_t *key) {
   return 0;
 }
 
-pb_cmd_response_t WildcardMatch::CommandAddPb(
+pb_cmd_response_t WildcardMatch::CommandAdd(
     const bess::pb::WildcardMatchCommandAddArg &arg) {
   pb_cmd_response_t response;
 
@@ -389,7 +389,7 @@ pb_cmd_response_t WildcardMatch::CommandAddPb(
   return response;
 }
 
-pb_cmd_response_t WildcardMatch::CommandDeletePb(
+pb_cmd_response_t WildcardMatch::CommandDelete(
     const bess::pb::WildcardMatchCommandDeleteArg &arg) {
   pb_cmd_response_t response;
 
@@ -420,7 +420,7 @@ pb_cmd_response_t WildcardMatch::CommandDeletePb(
   return response;
 }
 
-pb_cmd_response_t WildcardMatch::CommandClearPb(const bess::pb::EmptyArg &) {
+pb_cmd_response_t WildcardMatch::CommandClear(const bess::pb::EmptyArg &) {
   for (int i = 0; i < num_tuples_; i++) {
     tuples_[i].ht.Clear();
   }
@@ -431,7 +431,7 @@ pb_cmd_response_t WildcardMatch::CommandClearPb(const bess::pb::EmptyArg &) {
   return response;
 }
 
-pb_cmd_response_t WildcardMatch::CommandSetDefaultGatePb(
+pb_cmd_response_t WildcardMatch::CommandSetDefaultGate(
     const bess::pb::WildcardMatchCommandSetDefaultGateArg &arg) {
   pb_cmd_response_t response;
 

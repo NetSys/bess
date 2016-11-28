@@ -6,17 +6,17 @@
 
 class VLANPush final : public Module {
  public:
-  static const PbCommands pb_cmds;
+  static const Commands cmds;
 
   VLANPush() : Module(), vlan_tag_(), qinq_tag_() {}
 
-  pb_error_t InitPb(const bess::pb::VLANPushArg &arg);
+  pb_error_t Init(const bess::pb::VLANPushArg &arg);
 
   virtual void ProcessBatch(bess::PacketBatch *batch);
 
   virtual std::string GetDesc() const;
 
-  pb_cmd_response_t CommandSetTciPb(const bess::pb::VLANPushArg &arg);
+  pb_cmd_response_t CommandSetTci(const bess::pb::VLANPushArg &arg);
 
  private:
   /* network order */

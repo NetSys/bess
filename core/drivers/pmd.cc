@@ -186,7 +186,7 @@ static pb_error_t find_dpdk_port(dpdk_port_t port_id, const std::string &pci,
   return pb_errno(0);
 }
 
-pb_error_t PMDPort::InitPb(const bess::pb::PMDPortArg &arg) {
+pb_error_t PMDPort::Init(const bess::pb::PMDPortArg &arg) {
   dpdk_port_t ret_port_id = -1;
 
   struct rte_eth_dev_info dev_info;

@@ -83,7 +83,7 @@ pb_error_t SetMetadata::AddAttrOne(
   return pb_errno(0);
 }
 
-pb_error_t SetMetadata::InitPb(const bess::pb::SetMetadataArg &arg) {
+pb_error_t SetMetadata::Init(const bess::pb::SetMetadataArg &arg) {
   if (!arg.attrs_size()) {
     return pb_error(EINVAL, "'attrs' must be specified");
   }

@@ -18,7 +18,7 @@ class SetMetadata final : public Module {
  public:
   SetMetadata() : Module(), attrs_() {}
 
-  pb_error_t InitPb(const bess::pb::SetMetadataArg &arg);
+  pb_error_t Init(const bess::pb::SetMetadataArg &arg);
 
   void ProcessBatch(bess::PacketBatch *batch);
 

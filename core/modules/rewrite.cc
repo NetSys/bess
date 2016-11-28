@@ -1,20 +1,20 @@
 #include "rewrite.h"
 
-const PbCommands Rewrite::pb_cmds = {
-    {"add", "RewriteArg", MODULE_CMD_FUNC(&Rewrite::CommandAddPb), 0},
-    {"clear", "EmptyArg", MODULE_CMD_FUNC(&Rewrite::CommandClearPb), 0},
+const Commands Rewrite::cmds = {
+    {"add", "RewriteArg", MODULE_CMD_FUNC(&Rewrite::CommandAdd), 0},
+    {"clear", "EmptyArg", MODULE_CMD_FUNC(&Rewrite::CommandClear), 0},
 };
 
-pb_error_t Rewrite::InitPb(const bess::pb::RewriteArg &arg) {
+pb_error_t Rewrite::Init(const bess::pb::RewriteArg &arg) {
   if (arg.templates_size() > 0) {
-    pb_cmd_response_t response = CommandAddPb(arg);
+    pb_cmd_response_t response = CommandAdd(arg);
     return response.error();
   } else {
     return pb_errno(0);
   }
 }
 
-pb_cmd_response_t Rewrite::CommandAddPb(const bess::pb::RewriteArg &arg) {
+pb_cmd_response_t Rewrite::CommandAdd(const bess::pb::RewriteArg &arg) {
   pb_cmd_response_t response;
 
   size_t curr = num_templates_;
@@ -54,7 +54,7 @@ pb_cmd_response_t Rewrite::CommandAddPb(const bess::pb::RewriteArg &arg) {
   return response;
 }
 
-pb_cmd_response_t Rewrite::CommandClearPb(const bess::pb::EmptyArg &) {
+pb_cmd_response_t Rewrite::CommandClear(const bess::pb::EmptyArg &) {
   next_turn_ = 0;
   num_templates_ = 0;
 

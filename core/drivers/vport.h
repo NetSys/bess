@@ -9,7 +9,7 @@ class VPort final : public Port {
   VPort() : fd_(), bar_(), map_(), netns_fd_(), container_pid_() {}
   virtual void InitDriver();
 
-  pb_error_t InitPb(const bess::pb::VPortArg &arg);
+  pb_error_t Init(const bess::pb::VPortArg &arg);
   void DeInit();
 
   int RecvPackets(queue_t qid, bess::Packet **pkts, int max_cnt);

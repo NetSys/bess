@@ -9,11 +9,11 @@ class PortInc final : public Module {
  public:
   static const gate_idx_t kNumIGates = 0;
 
-  static const PbCommands pb_cmds;
+  static const Commands cmds;
 
   PortInc() : Module(), port_(), prefetch_(), burst_() {}
 
-  pb_error_t InitPb(const bess::pb::PortIncArg &arg);
+  pb_error_t Init(const bess::pb::PortIncArg &arg);
 
   virtual void Deinit();
 
@@ -21,7 +21,7 @@ class PortInc final : public Module {
 
   virtual std::string GetDesc() const;
 
-  pb_cmd_response_t CommandSetBurstPb(
+  pb_cmd_response_t CommandSetBurst(
       const bess::pb::PortIncCommandSetBurstArg &arg);
 
  private:

@@ -422,7 +422,7 @@ void VPort::DeInit() {
   FreeBar();
 }
 
-pb_error_t VPort::InitPb(const bess::pb::VPortArg &arg) {
+pb_error_t VPort::Init(const bess::pb::VPortArg &arg) {
   pb_error_t err;
   int ret;
 

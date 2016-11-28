@@ -49,7 +49,7 @@ class FlowGen final : public Module {
         flow_gap_ns_(),
         pareto_() {}
 
-  pb_error_t InitPb(const bess::pb::FlowGenArg &arg);
+  pb_error_t Init(const bess::pb::FlowGenArg &arg);
 
   virtual void Deinit();
 

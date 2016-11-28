@@ -17,17 +17,17 @@ class HashLB final : public Module {
  public:
   static const gate_idx_t kNumOGates = MAX_GATES;
 
-  static const PbCommands pb_cmds;
+  static const Commands cmds;
 
   HashLB() : Module(), gates_(), num_gates_(), mode_() {}
 
-  pb_error_t InitPb(const bess::pb::HashLBArg &arg);
+  pb_error_t Init(const bess::pb::HashLBArg &arg);
 
   virtual void ProcessBatch(bess::PacketBatch *batch);
 
-  pb_cmd_response_t CommandSetModePb(
+  pb_cmd_response_t CommandSetMode(
       const bess::pb::HashLBCommandSetModeArg &arg);
-  pb_cmd_response_t CommandSetGatesPb(
+  pb_cmd_response_t CommandSetGates(
       const bess::pb::HashLBCommandSetGatesArg &arg);
 
  private:

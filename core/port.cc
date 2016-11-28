@@ -134,7 +134,7 @@ pb_error_t Port::Init(const google::protobuf::Any &arg) {
   return port_builder_->RunInit(this, arg);
 }
 
-pb_error_t Port::InitPb(const bess::pb::EmptyArg &) {
+pb_error_t Port::Init(const bess::pb::EmptyArg &) {
   return pb_errno(0);
 }
 

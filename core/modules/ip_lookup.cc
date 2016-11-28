@@ -15,12 +15,11 @@ static inline int is_valid_gate(gate_idx_t gate) {
   return (gate < MAX_GATES || gate == DROP_GATE);
 }
 
-const PbCommands IPLookup::pb_cmds = {
-    {"add", "IPLookupCommandAddArg", MODULE_CMD_FUNC(&IPLookup::CommandAddPb),
-     0},
-    {"clear", "EmptyArg", MODULE_CMD_FUNC(&IPLookup::CommandAddPb), 0}};
+const Commands IPLookup::cmds = {
+    {"add", "IPLookupCommandAddArg", MODULE_CMD_FUNC(&IPLookup::CommandAdd), 0},
+    {"clear", "EmptyArg", MODULE_CMD_FUNC(&IPLookup::CommandAdd), 0}};
 
-pb_error_t IPLookup::InitPb(const bess::pb::EmptyArg &) {
+pb_error_t IPLookup::Init(const bess::pb::EmptyArg &) {
   struct rte_lpm_config conf = {
       .max_rules = 1024, .number_tbl8s = 128, .flags = 0,
   };
@@ -112,7 +111,7 @@ void IPLookup::ProcessBatch(bess::PacketBatch *batch) {
   RunSplit(out_gates, batch);
 }
 
-pb_cmd_response_t IPLookup::CommandAddPb(
+pb_cmd_response_t IPLookup::CommandAdd(
     const bess::pb::IPLookupCommandAddArg &arg) {
   pb_cmd_response_t response;
 
@@ -173,7 +172,7 @@ pb_cmd_response_t IPLookup::CommandAddPb(
   return response;
 }
 
-pb_cmd_response_t IPLookup::CommandClearPb(const bess::pb::EmptyArg &) {
+pb_cmd_response_t IPLookup::CommandClear(const bess::pb::EmptyArg &) {
   pb_cmd_response_t response;
 
   rte_lpm_delete_all(lpm_);

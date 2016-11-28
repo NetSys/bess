@@ -3,7 +3,7 @@
 #include "../port.h"
 #include "../utils/format.h"
 
-pb_error_t QueueOut::InitPb(const bess::pb::QueueOutArg &arg) {
+pb_error_t QueueOut::Init(const bess::pb::QueueOutArg &arg) {
   const char *port_name;
   int ret;
 

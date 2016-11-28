@@ -18,7 +18,7 @@ class GenericEncap final : public Module {
  public:
   GenericEncap() : Module(), encap_size_(), num_fields_(), fields_() {}
 
-  pb_error_t InitPb(const bess::pb::GenericEncapArg &arg);
+  pb_error_t Init(const bess::pb::GenericEncapArg &arg);
 
   void ProcessBatch(bess::PacketBatch *batch);
 

@@ -46,7 +46,7 @@ class WildcardMatch final : public Module {
  public:
   static const gate_idx_t kNumOGates = MAX_GATES;
 
-  static const PbCommands pb_cmds;
+  static const Commands cmds;
 
   WildcardMatch()
       : Module(),
@@ -58,7 +58,7 @@ class WildcardMatch final : public Module {
         tuples_(),
         next_table_id_() {}
 
-  pb_error_t InitPb(const bess::pb::WildcardMatchArg &arg);
+  pb_error_t Init(const bess::pb::WildcardMatchArg &arg);
 
   virtual void Deinit();
 
@@ -66,12 +66,12 @@ class WildcardMatch final : public Module {
 
   virtual std::string GetDesc() const;
 
-  pb_cmd_response_t CommandAddPb(
+  pb_cmd_response_t CommandAdd(
       const bess::pb::WildcardMatchCommandAddArg &arg);
-  pb_cmd_response_t CommandDeletePb(
+  pb_cmd_response_t CommandDelete(
       const bess::pb::WildcardMatchCommandDeleteArg &arg);
-  pb_cmd_response_t CommandClearPb(const bess::pb::EmptyArg &arg);
-  pb_cmd_response_t CommandSetDefaultGatePb(
+  pb_cmd_response_t CommandClear(const bess::pb::EmptyArg &arg);
+  pb_cmd_response_t CommandSetDefaultGate(
       const bess::pb::WildcardMatchCommandSetDefaultGateArg &arg);
 
  private:
