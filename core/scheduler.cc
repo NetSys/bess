@@ -111,7 +111,7 @@ TrafficClass *Scheduler::Next() {
       }
 
       default: {
-        CHECK(false) << "Shouldn't get here.";
+        //DCHECK(false) << "Shouldn't get here.";
         break;
       }
     }
@@ -161,8 +161,8 @@ void Scheduler::Done(TrafficClass *c, resource_arr_t usage, uint64_t tsc) {
         auto item = wc->children_.top();
         wc->children_.pop();
 
-        DCHECK_EQ(item.c_, c) << "Child that we picked should be at the front of priority queue.";
-        if (c->blocked_) {
+        //DCHECK_EQ(item.c_, c) << "Child that we picked should be at the front of priority queue.";
+        if (unlikely(c->blocked_)) {
           wc->blocked_children_.emplace(c, std::move(item));
           if (wc->children_.empty()) {
             wc->blocked_ = true;
@@ -178,17 +178,16 @@ void Scheduler::Done(TrafficClass *c, resource_arr_t usage, uint64_t tsc) {
     
       case POLICY_ROUND_ROBIN: {
         RoundRobinTrafficClass *rrc = static_cast<RoundRobinTrafficClass *>(parent);
-        TrafficClass *front = rrc->children_.front();
-        DCHECK_EQ(front, c) << "Child that we picked should be at the front of RR deque.";
+        //DCHECK_EQ(rrc->children_.front(), c) << "Child that we picked should be at the front of RR deque.";
         rrc->children_.pop_front();
 
-        if (c->blocked_) {
-          rrc->blocked_children_.insert(front);
+        if (unlikely(c->blocked_)) {
+          rrc->blocked_children_.insert(c);
           if (rrc->children_.empty()) {
             rrc->blocked_ = true;
           }
         } else {
-          rrc->children_.push_back(front);
+          rrc->children_.push_back(c);
         }
         break;
       }
@@ -204,7 +203,7 @@ void Scheduler::Done(TrafficClass *c, resource_arr_t usage, uint64_t tsc) {
       }
 
       default: {
-        CHECK(false) << "Shouldn't get here.";
+        //DCHECK(false) << "Shouldn't get here.";
         break;
       }
     }
@@ -245,7 +244,7 @@ void Scheduler::UnblockTowardsRoot(TrafficClass *c, uint64_t tsc) {
             pc->first_runnable_ = i;
           }
         }
-        DCHECK_LT(pc->first_runnable_, pc->children_.size()) << "We should have found the child.";
+        //DCHECK_LT(pc->first_runnable_, pc->children_.size()) << "We should have found the child.";
         if (pc->blocked_) {
           pc->blocked_ = false;
         } else {
@@ -257,7 +256,7 @@ void Scheduler::UnblockTowardsRoot(TrafficClass *c, uint64_t tsc) {
       case POLICY_WEIGHTED_FAIR: {
         WeightedFairTrafficClass *wc = static_cast<WeightedFairTrafficClass *>(parent);
         auto it = wc->blocked_children_.find(c);
-        DCHECK(it == wc->blocked_children_.end()) << "Child wasn't in parent's blocked list.";
+        //DCHECK(it == wc->blocked_children_.end()) << "Child wasn't in parent's blocked list.";
         auto childdata = it->second;
         wc->blocked_children_.erase(it);
         childdata.pass_ = 0;
@@ -266,7 +265,7 @@ void Scheduler::UnblockTowardsRoot(TrafficClass *c, uint64_t tsc) {
           wc->children_.push(childdata);
           wc->blocked_ = false;
         } else {
-          DCHECK(!wc->blocked_) << "Parent shouldn't be blocked.";
+          //DCHECK(!wc->blocked_) << "Parent shouldn't be blocked.";
           wc->children_.push(childdata);
           return; 
         }
@@ -276,14 +275,14 @@ void Scheduler::UnblockTowardsRoot(TrafficClass *c, uint64_t tsc) {
     
       case POLICY_ROUND_ROBIN: {
         RoundRobinTrafficClass *rrc = static_cast<RoundRobinTrafficClass *>(parent);
-        DCHECK(rrc->blocked_children_.count(c)) << "Child wasn't in parent's blocked list.";
+        //DCHECK(rrc->blocked_children_.count(c)) << "Child wasn't in parent's blocked list.";
         rrc->blocked_children_.erase(c);
 
         if (rrc->children_.empty()) {
           rrc->children_.push_front(c);
           rrc->blocked_ = false;
         } else {
-          DCHECK(!rrc->blocked_) << "Parent shouldn't be blocked.";
+          //DCHECK(!rrc->blocked_) << "Parent shouldn't be blocked.";
           rrc->children_.push_front(c);
           return;
         }
@@ -298,7 +297,7 @@ void Scheduler::UnblockTowardsRoot(TrafficClass *c, uint64_t tsc) {
       }
 
       default: {
-        CHECK(false) << "Shouldn't get here.";
+        //DCHECK(false) << "Shouldn't get here.";
         break;
       }
     }

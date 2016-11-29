@@ -13,6 +13,7 @@ using bess::TrafficClass;
 
 using bess::LeafTrafficClass;
 using bess::PriorityTrafficClass;
+using bess::RoundRobinTrafficClass;
 using bess::WeightedFairTrafficClass;
 
 using bess::resource_t;
@@ -27,22 +28,24 @@ class TCFixture : public benchmark::Fixture {
 
   virtual void SetUp(benchmark::State &state) override {
     int num_classes = state.range(0);
-    resource_t resource = (resource_t) state.range(1);
+    //resource_t resource = (resource_t) state.range(1);
 
     s_ = new Scheduler();
     PriorityTrafficClass *pc = s_->root();
 
     // The main weighted traffic class we attach everything to.
-    WeightedFairTrafficClass *wc = new WeightedFairTrafficClass("weighted", resource);
-    pc->AddChild(wc, 0);
-    classes_.push_back(wc);
+    //WeightedFairTrafficClass *parent = new WeightedFairTrafficClass("weighted", resource);
+    RoundRobinTrafficClass *parent = new RoundRobinTrafficClass("rr");
+    pc->AddChild(parent, 0);
+    classes_.push_back(parent);
 
     for (int i = 0; i < num_classes; i++) {
       std::string name("class_" + std::to_string(i));
       LeafTrafficClass *c = new LeafTrafficClass(name);
 
-      resource_share_t share = 1;
-      wc->AddChild(c, share);
+      //resource_share_t share = 1;
+      //parent->AddChild(c, share);
+      parent->AddChild(c);
 
       classes_.push_back(c);
     }
