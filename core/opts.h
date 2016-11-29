@@ -14,5 +14,6 @@ DECLARE_bool(a);
 DECLARE_int32(c);
 DECLARE_int32(p);
 DECLARE_int32(m);
+DECLARE_bool(no_huge);
 
 #endif  // BESS_OPTS_H_

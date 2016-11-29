@@ -41,6 +41,7 @@ class PortTest : public ::testing::Test {
   virtual void SetUp() {
     DummyPort::set_initialized(false);
 
+    PortBuilder::all_port_builders_holder(true);
     ASSERT_TRUE(PortBuilder::all_port_builders().empty());
 
     ADD_DRIVER(DummyPort, "dummy_port", "dummy help");

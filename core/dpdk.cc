@@ -1,7 +1,7 @@
 #include "dpdk.h"
 
-#include <unistd.h>
 #include <syslog.h>
+#include <unistd.h>
 
 #include <cassert>
 #include <cstdio>
@@ -25,13 +25,19 @@ static int get_numa_count() {
   int cnt;
 
   fp = fopen("/sys/devices/system/node/possible", "r");
-  if (!fp) goto fail;
+  if (!fp) {
+    goto fail;
+  }
 
   matched = fscanf(fp, "0-%d", &cnt);
-  if (matched == 1) return cnt + 1;
+  if (matched == 1) {
+    return cnt + 1;
+  }
 
 fail:
-  if (fp) fclose(fp);
+  if (fp) {
+    fclose(fp);
+  }
 
   LOG(INFO) << "/sys/devices/system/node/possible not available. "
             << "Assuming a single-node system...";
@@ -47,8 +53,7 @@ static void enable_syslog() {
 }
 
 /* for log messages during rte_eal_init() */
-static ssize_t dpdk_log_init_writer(void *, const char *data,
-                                    size_t len) {
+static ssize_t dpdk_log_init_writer(void *, const char *data, size_t len) {
   enable_syslog();
   LOG(INFO) << std::string(data, len);
   disable_syslog();
@@ -60,7 +65,8 @@ static ssize_t dpdk_log_writer(void *, const char *data, size_t len) {
   return len;
 }
 
-static void init_eal(char *prog_name, int mb_per_socket, int multi_instance) {
+static void init_eal(const char *prog_name, int mb_per_socket,
+                     int multi_instance, bool no_huge) {
   int rte_argc = 0;
   const char *rte_argv[16];
 
@@ -79,11 +85,14 @@ static void init_eal(char *prog_name, int mb_per_socket, int multi_instance) {
   sprintf(opt_master_lcore, "%d", RTE_MAX_LCORE - 1);
   sprintf(opt_lcore_bitmap, "%d@%d", RTE_MAX_LCORE - 1, 0);
 
-  if (mb_per_socket <= 0) mb_per_socket = 2048;
+  if (mb_per_socket <= 0) {
+    mb_per_socket = 2048;
+  }
 
   sprintf(opt_socket_mem, "%d", mb_per_socket);
-  for (i = 1; i < numa_count; i++)
+  for (i = 1; i < numa_count; i++) {
     sprintf(opt_socket_mem + strlen(opt_socket_mem), ",%d", mb_per_socket);
+  }
 
   rte_argv[rte_argc++] = prog_name;
   rte_argv[rte_argc++] = "--master-lcore";
@@ -92,13 +101,13 @@ static void init_eal(char *prog_name, int mb_per_socket, int multi_instance) {
   rte_argv[rte_argc++] = opt_lcore_bitmap;
   rte_argv[rte_argc++] = "-n";
   rte_argv[rte_argc++] = "4"; /* number of memory channels (Sandy Bridge) */
-#if 1
-  rte_argv[rte_argc++] = "--socket-mem";
-  rte_argv[rte_argc++] = opt_socket_mem;
-#else
-  rte_argv[rte_argc++] = "--no-huge";
-#endif
-  if (multi_instance) {
+  if (no_huge) {
+    rte_argv[rte_argc++] = "--no-huge";
+  } else {
+    rte_argv[rte_argc++] = "--socket-mem";
+    rte_argv[rte_argc++] = opt_socket_mem;
+  }
+  if (!no_huge && multi_instance) {
     sprintf(opt_file_prefix, "rte%lld", (long long)getpid());
     /* Casting to long long isn't guaranteed by POSIX to not lose
      * any information, but should be okay for Linux and BSDs for
@@ -139,6 +148,7 @@ static void init_eal(char *prog_name, int mb_per_socket, int multi_instance) {
   rte_openlog_stream(fopencookie(nullptr, "w", dpdk_log_funcs));
 }
 
-void init_dpdk(char *prog_name, int mb_per_socket, int multi_instance) {
-  init_eal(prog_name, mb_per_socket, multi_instance);
+void init_dpdk(const ::std::string &prog_name, int mb_per_socket,
+               int multi_instance, bool no_huge) {
+  init_eal(prog_name.c_str(), mb_per_socket, multi_instance, no_huge);
 }
