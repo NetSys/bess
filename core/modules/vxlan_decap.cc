@@ -14,17 +14,7 @@ enum {
   ATTR_W_TUN_ID,
 };
 
-struct snobj *VXLANDecap::Init(struct snobj *arg[[maybe_unused]]) {
-  using AccessMode = bess::metadata::Attribute::AccessMode;
-
-  AddMetadataAttr("tun_ip_src", 4, AccessMode::kWrite);
-  AddMetadataAttr("tun_ip_dst", 4, AccessMode::kWrite);
-  AddMetadataAttr("tun_id", 4, AccessMode::kWrite);
-
-  return nullptr;
-};
-
-pb_error_t VXLANDecap::InitPb(
+pb_error_t VXLANDecap::Init(
     const bess::pb::VXLANDecapArg &arg[[maybe_unused]]) {
   using AccessMode = bess::metadata::Attribute::AccessMode;
 

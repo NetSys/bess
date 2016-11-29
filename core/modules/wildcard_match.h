@@ -46,8 +46,7 @@ class WildcardMatch final : public Module {
  public:
   static const gate_idx_t kNumOGates = MAX_GATES;
 
-  static const Commands<Module> cmds;
-  static const PbCommands pb_cmds;
+  static const Commands cmds;
 
   WildcardMatch()
       : Module(),
@@ -59,27 +58,20 @@ class WildcardMatch final : public Module {
         tuples_(),
         next_table_id_() {}
 
-  virtual struct snobj *Init(struct snobj *arg);
-  pb_error_t InitPb(const bess::pb::WildcardMatchArg &arg);
+  pb_error_t Init(const bess::pb::WildcardMatchArg &arg);
 
   virtual void Deinit();
 
   virtual void ProcessBatch(bess::PacketBatch *batch);
 
   virtual std::string GetDesc() const;
-  virtual struct snobj *GetDump() const;
 
-  struct snobj *CommandAdd(struct snobj *arg);
-  struct snobj *CommandDelete(struct snobj *arg);
-  struct snobj *CommandClear(struct snobj *arg);
-  struct snobj *CommandSetDefaultGate(struct snobj *arg);
-
-  pb_cmd_response_t CommandAddPb(
+  pb_cmd_response_t CommandAdd(
       const bess::pb::WildcardMatchCommandAddArg &arg);
-  pb_cmd_response_t CommandDeletePb(
+  pb_cmd_response_t CommandDelete(
       const bess::pb::WildcardMatchCommandDeleteArg &arg);
-  pb_cmd_response_t CommandClearPb(const bess::pb::EmptyArg &arg);
-  pb_cmd_response_t CommandSetDefaultGatePb(
+  pb_cmd_response_t CommandClear(const bess::pb::EmptyArg &arg);
+  pb_cmd_response_t CommandSetDefaultGate(
       const bess::pb::WildcardMatchCommandSetDefaultGateArg &arg);
 
  private:
@@ -159,14 +151,8 @@ class WildcardMatch final : public Module {
 
   gate_idx_t LookupEntry(wm_hkey_t *key, gate_idx_t def_gate);
 
-  struct snobj *AddFieldOne(struct snobj *field, struct WmField *f);
   pb_error_t AddFieldOne(const bess::pb::WildcardMatchArg_Field &field,
                          struct WmField *f);
-
-  void CollectRules(const struct WmTuple *tuple, struct snobj *rules) const;
-
-  struct snobj *ExtractKeyMask(struct snobj *arg, wm_hkey_t *key,
-                               wm_hkey_t *mask);
 
   template <typename T>
   pb_error_t ExtractKeyMask(const T &arg, wm_hkey_t *key, wm_hkey_t *mask);

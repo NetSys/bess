@@ -7,13 +7,11 @@
 
 class Queue final : public Module {
  public:
-  static const Commands<Module> cmds;
-  static const PbCommands pb_cmds;
+  static const Commands cmds;
 
   Queue() : Module(), queue_(), prefetch_(), burst_() {}
 
-  virtual struct snobj *Init(struct snobj *arg);
-  pb_error_t InitPb(const bess::pb::QueueArg &arg);
+  pb_error_t Init(const bess::pb::QueueArg &arg);
 
   virtual void Deinit();
 
@@ -22,13 +20,9 @@ class Queue final : public Module {
 
   virtual std::string GetDesc() const;
 
-  struct snobj *CommandSetBurst(struct snobj *arg);
-  struct snobj *CommandSetSize(struct snobj *arg);
-
-  pb_cmd_response_t CommandSetBurstPb(
+  pb_cmd_response_t CommandSetBurst(
       const bess::pb::QueueCommandSetBurstArg &arg);
-  pb_cmd_response_t CommandSetSizePb(
-      const bess::pb::QueueCommandSetSizeArg &arg);
+  pb_cmd_response_t CommandSetSize(const bess::pb::QueueCommandSetSizeArg &arg);
 
  private:
   int Resize(int slots);

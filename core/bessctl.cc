@@ -291,7 +291,7 @@ static Module* create_module(const std::string& name,
   Module* m = builder.CreateModule(name, &bess::metadata::default_pipeline);
 
   ctx.SetNonWorker();
-  *perr = m->Init(arg);
+  *perr = m->InitWithGenericArg(arg);
   if (perr->err() != 0) {
     LOG(INFO) << perr->DebugString();
     ModuleBuilder::DestroyModule(m);  // XXX: fix me
@@ -1166,7 +1166,7 @@ class BESSControlImpl final : public BESSControl::Service {
 
     response->set_name(cls->class_name());
     response->set_help(cls->help_text());
-    for (const auto& cmd : cls->pb_cmds()) {
+    for (const auto& cmd : cls->cmds()) {
       response->add_cmds(cmd.first);
       response->add_cmd_args(cmd.second);
     }

@@ -13,16 +13,13 @@
 // needs more tests!
 class PCAPPort final : public Port {
  public:
-  pb_error_t InitPb(const bess::pb::PCAPPortArg &arg);
-
-  // DEPRECATED DONT USE
-  virtual struct snobj *Init(struct snobj *arg);
+  pb_error_t Init(const bess::pb::PCAPPortArg &arg);
 
   virtual void DeInit();
   // PCAP has no notion of queue so unlike parent (port.cc) quid is ignored.
-  virtual int SendPackets(queue_t qid, bess::Packet ** pkts, int cnt);
+  virtual int SendPackets(queue_t qid, bess::Packet **pkts, int cnt);
   // Ditto above: quid is ignored.
-  virtual int RecvPackets(queue_t qid, bess::Packet ** pkts, int cnt);
+  virtual int RecvPackets(queue_t qid, bess::Packet **pkts, int cnt);
 
  private:
   void GatherData(unsigned char *data, bess::Packet *pkt);

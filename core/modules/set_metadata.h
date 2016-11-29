@@ -18,13 +18,11 @@ class SetMetadata final : public Module {
  public:
   SetMetadata() : Module(), attrs_() {}
 
-  struct snobj *Init(struct snobj *arg);
-  pb_error_t InitPb(const bess::pb::SetMetadataArg &arg);
+  pb_error_t Init(const bess::pb::SetMetadataArg &arg);
 
   void ProcessBatch(bess::PacketBatch *batch);
 
  private:
-  struct snobj *AddAttrOne(struct snobj *attr);
   pb_error_t AddAttrOne(const bess::pb::SetMetadataArg_Attribute &attr);
 
   std::vector<struct Attr> attrs_;

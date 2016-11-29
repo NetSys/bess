@@ -19,23 +19,12 @@ inline int get_measure_packet(bess::Packet *pkt, uint64_t *time) {
 
 /* XXX: currently doesn't support multiple workers */
 
-const Commands<Module> Measure::cmds = {
-    {"get_summary", MODULE_FUNC &Measure::CommandGetSummary, 0},
-};
-
-const PbCommands Measure::pb_cmds = {
-    {"get_summary", "EmptyArg", MODULE_CMD_FUNC(&Measure::CommandGetSummaryPb),
+const Commands Measure::cmds = {
+    {"get_summary", "EmptyArg", MODULE_CMD_FUNC(&Measure::CommandGetSummary),
      0},
 };
 
-struct snobj *Measure::Init(struct snobj *arg) {
-  if (arg) {
-    warmup_ = snobj_eval_int(arg, "warmup");
-  }
-  return nullptr;
-}
-
-pb_error_t Measure::InitPb(const bess::pb::MeasureArg &arg) {
+pb_error_t Measure::Init(const bess::pb::MeasureArg &arg) {
   if (arg.warmup()) {
     warmup_ = arg.warmup();
   }
@@ -75,22 +64,7 @@ void Measure::ProcessBatch(bess::PacketBatch *batch) {
   }
 }
 
-struct snobj *Measure::CommandGetSummary(struct snobj *) {
-  uint64_t pkt_total = pkt_cnt_;
-  uint64_t byte_total = bytes_cnt_;
-  uint64_t bits = (byte_total + pkt_total * 24) * 8;
-
-  struct snobj *r = snobj_map();
-
-  snobj_map_set(r, "timestamp", snobj_double(get_epoch_time()));
-  snobj_map_set(r, "packets", snobj_uint(pkt_total));
-  snobj_map_set(r, "bits", snobj_uint(bits));
-  snobj_map_set(r, "total_latency_ns", snobj_uint(total_latency_ * 100));
-
-  return r;
-}
-
-pb_cmd_response_t Measure::CommandGetSummaryPb(const bess::pb::EmptyArg &) {
+pb_cmd_response_t Measure::CommandGetSummary(const bess::pb::EmptyArg &) {
   uint64_t pkt_total = pkt_cnt_;
   uint64_t byte_total = bytes_cnt_;
   uint64_t bits = (byte_total + pkt_total * 24) * 8;

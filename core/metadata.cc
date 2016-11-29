@@ -6,6 +6,7 @@
 
 #include <glog/logging.h>
 
+#include "mem_alloc.h"
 #include "module.h"
 
 namespace bess {

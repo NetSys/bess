@@ -11,8 +11,7 @@ class PortOut final : public Module {
 
   PortOut() : Module(), port_() {}
 
-  virtual struct snobj *Init(struct snobj *arg);
-  pb_error_t InitPb(const bess::pb::PortOutArg &arg);
+  pb_error_t Init(const bess::pb::PortOutArg &arg);
 
   virtual void Deinit();
 

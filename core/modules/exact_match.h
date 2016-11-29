@@ -115,8 +115,8 @@ class ExactMatch final : public Module {
  public:
   static const gate_idx_t kNumOGates = MAX_GATES;
 
-  static const Commands<Module> cmds;
-  static const PbCommands pb_cmds;
+  
+  static const Commands cmds;
 
   ExactMatch()
       : Module(),
@@ -126,32 +126,21 @@ class ExactMatch final : public Module {
         fields_(),
         ht_() {}
 
-  virtual struct snobj *Init(struct snobj *arg);
-
   virtual void Deinit();
 
   virtual void ProcessBatch(bess::PacketBatch *batch);
 
   virtual std::string GetDesc() const;
-  virtual struct snobj *GetDump() const;
 
-  struct snobj *CommandAdd(struct snobj *arg);
-  struct snobj *CommandDelete(struct snobj *arg);
-  struct snobj *CommandClear(struct snobj *arg);
-  struct snobj *CommandSetDefaultGate(struct snobj *arg);
-
-  pb_error_t InitPb(const bess::pb::ExactMatchArg &arg);
-  pb_cmd_response_t CommandAddPb(const bess::pb::ExactMatchCommandAddArg &arg);
-  pb_cmd_response_t CommandDeletePb(
+  pb_error_t Init(const bess::pb::ExactMatchArg &arg);
+  pb_cmd_response_t CommandAdd(const bess::pb::ExactMatchCommandAddArg &arg);
+  pb_cmd_response_t CommandDelete(
       const bess::pb::ExactMatchCommandDeleteArg &arg);
-  pb_cmd_response_t CommandClearPb(const bess::pb::EmptyArg &arg);
-  pb_cmd_response_t CommandSetDefaultGatePb(
+  pb_cmd_response_t CommandClear(const bess::pb::EmptyArg &arg);
+  pb_cmd_response_t CommandSetDefaultGate(
       const bess::pb::ExactMatchCommandSetDefaultGateArg &arg);
 
  private:
-  struct snobj *AddFieldOne(struct snobj *field, struct EmField *f, int idx);
-  struct snobj *GatherKey(struct snobj *fields, em_hkey_t *key);
-
   pb_error_t AddFieldOne(const bess::pb::ExactMatchArg_Field &field,
                          struct EmField *f, int idx);
   pb_error_t GatherKey(const RepeatedPtrField<std::string> &fields,

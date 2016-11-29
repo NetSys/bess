@@ -9,12 +9,11 @@ class VPort final : public Port {
   VPort() : fd_(), bar_(), map_(), netns_fd_(), container_pid_() {}
   virtual void InitDriver();
 
-  pb_error_t InitPb(const bess::pb::VPortArg &arg);
-  struct snobj *Init(struct snobj *conf);
+  pb_error_t Init(const bess::pb::VPortArg &arg);
   void DeInit();
 
-  int RecvPackets(queue_t qid, bess::Packet ** pkts, int max_cnt);
-  int SendPackets(queue_t qid, bess::Packet ** pkts, int cnt);
+  int RecvPackets(queue_t qid, bess::Packet **pkts, int max_cnt);
+  int SendPackets(queue_t qid, bess::Packet **pkts, int cnt);
 
  private:
   struct queue {
@@ -31,7 +30,6 @@ class VPort final : public Port {
                  struct rx_queue_opts *rxq_opts);
   int SetIPAddrSingle(const std::string &ip_addr);
   pb_error_t SetIPAddr(const bess::pb::VPortArg &arg);
-  struct snobj *SetIPAddr(struct snobj *arg);
 
   int fd_;
 

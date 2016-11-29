@@ -39,54 +39,14 @@ static inline int is_valid_gate(gate_idx_t gate) {
   return (gate < MAX_GATES || gate == DROP_GATE);
 }
 
-const Commands<Module> WildcardMatch::cmds = {
-    {"add", MODULE_FUNC &WildcardMatch::CommandAdd, 0},
-    {"delete", MODULE_FUNC &WildcardMatch::CommandDelete, 0},
-    {"clear", MODULE_FUNC &WildcardMatch::CommandClear, 0},
-    {"set_default_gate", MODULE_FUNC &WildcardMatch::CommandSetDefaultGate, 1}};
-
-const PbCommands WildcardMatch::pb_cmds = {
+const Commands WildcardMatch::cmds = {
     {"add", "WildcardMatchCommandAddArg",
-     MODULE_CMD_FUNC(&WildcardMatch::CommandAddPb), 0},
+     MODULE_CMD_FUNC(&WildcardMatch::CommandAdd), 0},
     {"delete", "WildcardMatchCommandDeleteArg",
-     MODULE_CMD_FUNC(&WildcardMatch::CommandDeletePb), 0},
-    {"clear", "EmptyArg", MODULE_CMD_FUNC(&WildcardMatch::CommandClearPb), 0},
+     MODULE_CMD_FUNC(&WildcardMatch::CommandDelete), 0},
+    {"clear", "EmptyArg", MODULE_CMD_FUNC(&WildcardMatch::CommandClear), 0},
     {"set_default_gate", "WildcardMatchCommandSetDefaultGateArg",
-     MODULE_CMD_FUNC(&WildcardMatch::CommandSetDefaultGatePb), 1}};
-
-struct snobj *WildcardMatch::AddFieldOne(struct snobj *field,
-                                         struct WmField *f) {
-  if (field->type != TYPE_MAP) {
-    return snobj_err(EINVAL, "'fields' must be a list of maps");
-  }
-
-  f->size = snobj_eval_uint(field, "size");
-
-  if (f->size < 1 || f->size > MAX_FIELD_SIZE) {
-    return snobj_err(EINVAL, "'size' must be 1-%d", MAX_FIELD_SIZE);
-  }
-
-  if (snobj_eval_exists(field, "offset")) {
-    f->attr_id = -1;
-    f->offset = snobj_eval_int(field, "offset");
-    if (f->offset < 0 || f->offset > 1024) {
-      return snobj_err(EINVAL, "too small 'offset'");
-    }
-    return nullptr;
-  }
-
-  const char *attr = snobj_eval_str(field, "attr");
-  if (!attr) {
-    return snobj_err(EINVAL, "specify 'offset' or 'attr'");
-  }
-
-  f->attr_id = AddMetadataAttr(attr, f->size, Attribute::AccessMode::kRead);
-  if (f->attr_id < 0) {
-    return snobj_err(-f->attr_id, "add_metadata_attr() failed");
-  }
-
-  return nullptr;
-}
+     MODULE_CMD_FUNC(&WildcardMatch::CommandSetDefaultGate), 1}};
 
 pb_error_t WildcardMatch::AddFieldOne(
     const bess::pb::WildcardMatchArg_Field &field, struct WmField *f) {
@@ -124,39 +84,8 @@ pb_error_t WildcardMatch::AddFieldOne(
  *
  * You can also specify metadata attributes
  * e.g.: WildcardMatch([{'name': 'nexthop', 'size': 4}, ...] */
-struct snobj *WildcardMatch::Init(struct snobj *arg) {
-  int size_acc = 0;
 
-  struct snobj *fields = snobj_eval(arg, "fields");
-
-  if (snobj_type(fields) != TYPE_LIST) {
-    return snobj_err(EINVAL, "'fields' must be a list of maps");
-  }
-
-  for (size_t i = 0; i < fields->size; i++) {
-    struct snobj *field = snobj_list_get(fields, i);
-    struct snobj *err;
-    struct WmField f;
-
-    f.pos = size_acc;
-
-    err = AddFieldOne(field, &f);
-    if (err) {
-      return err;
-    }
-
-    size_acc += f.size;
-    fields_[i] = f;
-  }
-
-  default_gate_ = DROP_GATE;
-  num_fields_ = fields->size;
-  total_key_size_ = align_ceil(size_acc, sizeof(uint64_t));
-
-  return nullptr;
-}
-
-pb_error_t WildcardMatch::InitPb(const bess::pb::WildcardMatchArg &arg) {
+pb_error_t WildcardMatch::Init(const bess::pb::WildcardMatchArg &arg) {
   int size_acc = 0;
 
   for (int i = 0; i < arg.fields_size(); i++) {
@@ -300,68 +229,6 @@ std::string WildcardMatch::GetDesc() const {
   return bess::utils::Format("%lu fields, %d rules", num_fields_, num_rules);
 }
 
-struct snobj *WildcardMatch::GetDump() const {
-  struct snobj *r = snobj_map();
-  struct snobj *fields = snobj_list();
-  struct snobj *rules = snobj_list();
-
-  for (size_t i = 0; i < num_fields_; i++) {
-    struct snobj *f_obj = snobj_map();
-    const struct WmField *f = &fields_[i];
-
-    snobj_map_set(f_obj, "size", snobj_uint(f->size));
-
-    if (f->attr_id < 0) {
-      snobj_map_set(f_obj, "offset", snobj_uint(f->offset));
-    } else {
-      snobj_map_set(f_obj, "name",
-                    snobj_str(WildcardMatch::all_attrs()[f->attr_id].name));
-    }
-
-    snobj_list_add(fields, f_obj);
-  }
-
-  for (int k = 0; k < num_tuples_; k++) {
-    const struct WmTuple *tuple = &tuples_[k];
-
-    CollectRules(tuple, rules);
-  }
-
-  snobj_map_set(r, "fields", fields);
-  snobj_map_set(r, "rules", rules);
-
-  return r;
-}
-
-void WildcardMatch::CollectRules(const struct WmTuple *tuple,
-                                 struct snobj *rules) const {
-  uint32_t next = 0;
-  void *key;
-  const void *mask = &tuple->mask;
-
-  while ((key = tuple->ht.Iterate(&next))) {
-    struct snobj *rule = snobj_map();
-    struct snobj *values = snobj_list();
-    struct snobj *masks = snobj_list();
-
-    for (size_t i = 0; i < num_fields_; i++) {
-      const struct WmField *f = &fields_[i];
-      int pos = f->pos;
-      int size = f->size;
-
-      snobj_list_add(values,
-                     snobj_blob(static_cast<uint8_t *>(key) + pos, size));
-      snobj_list_add(
-          masks,
-          snobj_blob(reinterpret_cast<const uint8_t *>(mask) + pos, size));
-    }
-
-    snobj_map_set(rule, "values", values);
-    snobj_map_set(rule, "masks", masks);
-    snobj_list_add(rules, rule);
-  }
-}
-
 template <typename T>
 pb_error_t WildcardMatch::ExtractKeyMask(const T &arg, wm_hkey_t *key,
                                          wm_hkey_t *mask) {
@@ -408,66 +275,6 @@ pb_error_t WildcardMatch::ExtractKeyMask(const T &arg, wm_hkey_t *key,
   }
 
   return pb_errno(0);
-}
-
-struct snobj *WildcardMatch::ExtractKeyMask(struct snobj *arg, wm_hkey_t *key,
-                                            wm_hkey_t *mask) {
-  struct snobj *values;
-  struct snobj *masks;
-
-  if (snobj_type(arg) != TYPE_MAP) {
-    return snobj_err(EINVAL, "argument must be a map");
-  }
-
-  values = snobj_eval(arg, "values");
-  masks = snobj_eval(arg, "masks");
-
-  if (!values || snobj_type(values) != TYPE_LIST || !snobj_size(values)) {
-    return snobj_err(EINVAL, "'values' must be a list");
-  } else if (values->size != num_fields_) {
-    return snobj_err(EINVAL, "must specify %lu values", num_fields_);
-  } else if (!masks || snobj_type(masks) != TYPE_LIST) {
-    return snobj_err(EINVAL, "'masks' must be a list");
-  } else if (masks->size != num_fields_) {
-    return snobj_err(EINVAL, "must specify %lu masks", num_fields_);
-  }
-
-  memset(key, 0, sizeof(*key));
-  memset(mask, 0, sizeof(*mask));
-
-  for (size_t i = 0; i < values->size; i++) {
-    int field_size = fields_[i].size;
-    int field_pos = fields_[i].pos;
-
-    struct snobj *v_obj = snobj_list_get(values, i);
-    struct snobj *m_obj = snobj_list_get(masks, i);
-    uint64_t v = 0;
-    uint64_t m = 0;
-
-    int force_be = (fields_[i].attr_id < 0);
-
-    if (snobj_binvalue_get(v_obj, field_size, &v, force_be)) {
-      return snobj_err(EINVAL, "idx %lu: not a correct %d-byte value", i,
-                       field_size);
-    } else if (snobj_binvalue_get(m_obj, field_size, &m, force_be)) {
-      return snobj_err(EINVAL, "idx %lu: not a correct %d-byte mask", i,
-                       field_size);
-    }
-
-    if (v & ~m) {
-      return snobj_err(EINVAL,
-                       "idx %lu: invalid pair of "
-                       "value 0x%0*" PRIx64
-                       " and "
-                       "mask 0x%0*" PRIx64,
-                       i, field_size * 2, v, field_size * 2, m);
-    }
-
-    memcpy(reinterpret_cast<uint8_t *>(key) + field_pos, &v, field_size);
-    memcpy(reinterpret_cast<uint8_t *>(mask) + field_pos, &m, field_size);
-  }
-
-  return nullptr;
 }
 
 int WildcardMatch::FindTuple(wm_hkey_t *mask) {
@@ -535,7 +342,7 @@ int WildcardMatch::DelEntry(struct WmTuple *tuple, wm_hkey_t *key) {
   return 0;
 }
 
-pb_cmd_response_t WildcardMatch::CommandAddPb(
+pb_cmd_response_t WildcardMatch::CommandAdd(
     const bess::pb::WildcardMatchCommandAddArg &arg) {
   pb_cmd_response_t response;
 
@@ -582,7 +389,7 @@ pb_cmd_response_t WildcardMatch::CommandAddPb(
   return response;
 }
 
-pb_cmd_response_t WildcardMatch::CommandDeletePb(
+pb_cmd_response_t WildcardMatch::CommandDelete(
     const bess::pb::WildcardMatchCommandDeleteArg &arg) {
   pb_cmd_response_t response;
 
@@ -613,7 +420,7 @@ pb_cmd_response_t WildcardMatch::CommandDeletePb(
   return response;
 }
 
-pb_cmd_response_t WildcardMatch::CommandClearPb(const bess::pb::EmptyArg &) {
+pb_cmd_response_t WildcardMatch::CommandClear(const bess::pb::EmptyArg &) {
   for (int i = 0; i < num_tuples_; i++) {
     tuples_[i].ht.Clear();
   }
@@ -624,7 +431,7 @@ pb_cmd_response_t WildcardMatch::CommandClearPb(const bess::pb::EmptyArg &) {
   return response;
 }
 
-pb_cmd_response_t WildcardMatch::CommandSetDefaultGatePb(
+pb_cmd_response_t WildcardMatch::CommandSetDefaultGate(
     const bess::pb::WildcardMatchCommandSetDefaultGateArg &arg) {
   pb_cmd_response_t response;
 
@@ -634,85 +441,6 @@ pb_cmd_response_t WildcardMatch::CommandSetDefaultGatePb(
 
   set_cmd_response_error(&response, pb_errno(0));
   return response;
-}
-
-struct snobj *WildcardMatch::CommandAdd(struct snobj *arg) {
-  gate_idx_t gate = snobj_eval_uint(arg, "gate");
-  int priority = snobj_eval_int(arg, "priority");
-
-  wm_hkey_t key;
-  wm_hkey_t mask;
-
-  struct WmData data;
-
-  struct snobj *err = ExtractKeyMask(arg, &key, &mask);
-  if (err) {
-    return err;
-  }
-
-  if (!snobj_eval_exists(arg, "gate")) {
-    return snobj_err(EINVAL, "'gate' must be specified");
-  }
-
-  if (!is_valid_gate(gate)) {
-    return snobj_err(EINVAL, "Invalid gate: %hu", gate);
-  }
-
-  data.priority = priority;
-  data.ogate = gate;
-
-  int idx = FindTuple(&mask);
-  if (idx < 0) {
-    idx = AddTuple(&mask);
-    if (idx < 0) {
-      return snobj_err(-idx, "failed to add a new wildcard pattern");
-    }
-  }
-
-  int ret = AddEntry(&tuples_[idx], &key, &data);
-  if (ret < 0) {
-    return snobj_err(-ret, "failed to add a rule");
-  }
-
-  return nullptr;
-}
-
-struct snobj *WildcardMatch::CommandDelete(struct snobj *arg) {
-  wm_hkey_t key;
-  wm_hkey_t mask;
-
-  struct snobj *err = ExtractKeyMask(arg, &key, &mask);
-  if (err) {
-    return err;
-  }
-
-  int idx = FindTuple(&mask);
-  if (idx < 0) {
-    return snobj_err(-idx, "failed to delete a rule");
-  }
-
-  int ret = DelEntry(&tuples_[idx], &key);
-  if (ret < 0) {
-    return snobj_err(-ret, "failed to delete a rule");
-  }
-
-  return nullptr;
-}
-
-struct snobj *WildcardMatch::CommandClear(struct snobj *) {
-  for (int i = 0; i < num_tuples_; i++) {
-    tuples_[i].ht.Clear();
-  }
-
-  return nullptr;
-}
-
-struct snobj *WildcardMatch::CommandSetDefaultGate(struct snobj *arg) {
-  int gate = snobj_int_get(arg);
-
-  default_gate_ = gate;
-
-  return nullptr;
 }
 
 ADD_MODULE(WildcardMatch, "wm",

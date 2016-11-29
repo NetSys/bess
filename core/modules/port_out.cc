@@ -1,7 +1,7 @@
 #include "port_out.h"
 #include "../utils/format.h"
 
-pb_error_t PortOut::InitPb(const bess::pb::PortOutArg &arg) {
+pb_error_t PortOut::Init(const bess::pb::PortOutArg &arg) {
   const char *port_name;
   int ret;
 
@@ -28,34 +28,6 @@ pb_error_t PortOut::InitPb(const bess::pb::PortOutArg &arg) {
   }
 
   return pb_errno(0);
-}
-
-struct snobj *PortOut::Init(struct snobj *arg) {
-  const char *port_name;
-
-  int ret;
-
-  if (!arg || !(port_name = snobj_eval_str(arg, "port"))) {
-    return snobj_err(EINVAL, "'port' must be given as a string");
-  }
-
-  const auto &it = PortBuilder::all_ports().find(port_name);
-  if (it == PortBuilder::all_ports().end()) {
-    return snobj_err(ENODEV, "Port %s not found", port_name);
-  }
-  port_ = it->second;
-
-  if (port_->num_queues[PACKET_DIR_OUT] == 0) {
-    return snobj_err(ENODEV, "Port %s has no outgoing queue", port_name);
-  }
-
-  ret = port_->AcquireQueues(reinterpret_cast<const module *>(this),
-                             PACKET_DIR_OUT, nullptr, 0);
-  if (ret < 0) {
-    return snobj_errno(-ret);
-  }
-
-  return nullptr;
 }
 
 void PortOut::Deinit() {

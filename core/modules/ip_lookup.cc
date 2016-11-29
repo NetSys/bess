@@ -15,33 +15,11 @@ static inline int is_valid_gate(gate_idx_t gate) {
   return (gate < MAX_GATES || gate == DROP_GATE);
 }
 
-const Commands<Module> IPLookup::cmds = {
-    {"add", MODULE_FUNC &IPLookup::CommandAdd, 0},
-    {"clear", MODULE_FUNC &IPLookup::CommandClear, 0},
-};
+const Commands IPLookup::cmds = {
+    {"add", "IPLookupCommandAddArg", MODULE_CMD_FUNC(&IPLookup::CommandAdd), 0},
+    {"clear", "EmptyArg", MODULE_CMD_FUNC(&IPLookup::CommandAdd), 0}};
 
-const PbCommands IPLookup::pb_cmds = {
-    {"add", "IPLookupCommandAddArg", MODULE_CMD_FUNC(&IPLookup::CommandAddPb),
-     0},
-    {"clear", "EmptyArg", MODULE_CMD_FUNC(&IPLookup::CommandAddPb), 0}};
-
-struct snobj *IPLookup::Init(struct snobj *) {
-  struct rte_lpm_config conf = {
-      .max_rules = 1024, .number_tbl8s = 128, .flags = 0,
-  };
-
-  default_gate_ = DROP_GATE;
-
-  lpm_ = rte_lpm_create(name().c_str(), /* socket_id = */ 0, &conf);
-
-  if (!lpm_) {
-    return snobj_err(rte_errno, "DPDK error: %s", rte_strerror(rte_errno));
-  }
-
-  return nullptr;
-}
-
-pb_error_t IPLookup::InitPb(const bess::pb::EmptyArg &) {
+pb_error_t IPLookup::Init(const bess::pb::EmptyArg &) {
   struct rte_lpm_config conf = {
       .max_rules = 1024, .number_tbl8s = 128, .flags = 0,
   };
@@ -133,64 +111,7 @@ void IPLookup::ProcessBatch(bess::PacketBatch *batch) {
   RunSplit(out_gates, batch);
 }
 
-struct snobj *IPLookup::CommandAdd(struct snobj *arg) {
-  char *prefix = snobj_eval_str(arg, "prefix");
-  uint32_t prefix_len = snobj_eval_uint(arg, "prefix_len");
-  gate_idx_t gate = snobj_eval_uint(arg, "gate");
-
-  struct in_addr ip_addr_be;
-  uint32_t ip_addr; /* in cpu order */
-  uint32_t netmask;
-  int ret;
-
-  if (!prefix || !snobj_eval_exists(arg, "prefix_len")) {
-    return snobj_err(EINVAL, "'prefix' or 'prefix_len' is missing");
-  }
-
-  ret = inet_aton(prefix, &ip_addr_be);
-  if (!ret) {
-    return snobj_err(EINVAL, "Invalid IP prefix: %s", prefix);
-  }
-
-  if (prefix_len > 32) {
-    return snobj_err(EINVAL, "Invalid prefix length: %d", prefix_len);
-  }
-
-  ip_addr = rte_be_to_cpu_32(ip_addr_be.s_addr);
-  netmask = ~0 ^ ((1 << (32 - prefix_len)) - 1);
-
-  if (ip_addr & ~netmask) {
-    return snobj_err(EINVAL, "Invalid IP prefix %s/%d %x %x", prefix,
-                     prefix_len, ip_addr, netmask);
-  }
-
-  if (!snobj_eval_exists(arg, "gate")) {
-    return snobj_err(EINVAL, "'gate' must be specified");
-  }
-
-  if (!is_valid_gate(gate)) {
-    return snobj_err(EINVAL, "Invalid gate: %hu", gate);
-  }
-
-  if (prefix_len == 0) {
-    default_gate_ = gate;
-  } else {
-    ret = rte_lpm_add(lpm_, ip_addr, prefix_len, gate);
-    if (ret) {
-      return snobj_err(-ret, "rpm_lpm_add() failed");
-    }
-  }
-
-  return nullptr;
-}
-
-struct snobj *IPLookup::CommandClear(struct snobj *) {
-  rte_lpm_delete_all(lpm_);
-  default_gate_ = DROP_GATE;
-  return nullptr;
-}
-
-pb_cmd_response_t IPLookup::CommandAddPb(
+pb_cmd_response_t IPLookup::CommandAdd(
     const bess::pb::IPLookupCommandAddArg &arg) {
   pb_cmd_response_t response;
 
@@ -251,7 +172,7 @@ pb_cmd_response_t IPLookup::CommandAddPb(
   return response;
 }
 
-pb_cmd_response_t IPLookup::CommandClearPb(const bess::pb::EmptyArg &) {
+pb_cmd_response_t IPLookup::CommandClear(const bess::pb::EmptyArg &) {
   pb_cmd_response_t response;
 
   rte_lpm_delete_all(lpm_);

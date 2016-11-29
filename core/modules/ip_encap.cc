@@ -12,19 +12,7 @@ enum {
   ATTR_W_ETHER_TYPE,
 };
 
-struct snobj *IPEncap::Init(struct snobj *arg[[maybe_unused]]) {
-  using AccessMode = bess::metadata::Attribute::AccessMode;
-
-  AddMetadataAttr("ip_src", 4, AccessMode::kRead);
-  AddMetadataAttr("ip_dst", 4, AccessMode::kRead);
-  AddMetadataAttr("ip_proto", 1, AccessMode::kRead);
-  AddMetadataAttr("ip_nexthop", 4, AccessMode::kWrite);
-  AddMetadataAttr("ether_type", 2, AccessMode::kWrite);
-
-  return nullptr;
-};
-
-pb_error_t IPEncap::InitPb(const bess::pb::IPEncapArg &arg[[maybe_unused]]) {
+pb_error_t IPEncap::Init(const bess::pb::IPEncapArg &arg[[maybe_unused]]) {
   using AccessMode = bess::metadata::Attribute::AccessMode;
 
   AddMetadataAttr("ip_src", 4, AccessMode::kRead);

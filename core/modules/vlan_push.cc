@@ -8,20 +8,16 @@
 #include "../utils/simd.h"
 #include "vlan_push.h"
 
-const Commands<Module> VLANPush::cmds = {
-    {"set_tci", MODULE_FUNC &VLANPush::CommandSetTci, 0},
+const Commands VLANPush::cmds = {
+    {"set_tci", "VLANPushArg", MODULE_CMD_FUNC(&VLANPush::CommandSetTci), 0},
 };
 
-const PbCommands VLANPush::pb_cmds = {
-    {"set_tci", "VLANPushArg", MODULE_CMD_FUNC(&VLANPush::CommandSetTciPb), 0},
-};
-
-pb_error_t VLANPush::InitPb(const bess::pb::VLANPushArg &arg) {
-  pb_cmd_response_t response = CommandSetTciPb(arg);
+pb_error_t VLANPush::Init(const bess::pb::VLANPushArg &arg) {
+  pb_cmd_response_t response = CommandSetTci(arg);
   return response.error();
 }
 
-pb_cmd_response_t VLANPush::CommandSetTciPb(const bess::pb::VLANPushArg &arg) {
+pb_cmd_response_t VLANPush::CommandSetTci(const bess::pb::VLANPushArg &arg) {
   pb_cmd_response_t response;
 
   uint16_t tci;
@@ -31,20 +27,6 @@ pb_cmd_response_t VLANPush::CommandSetTciPb(const bess::pb::VLANPushArg &arg) {
   qinq_tag_ = htonl((0x88a8 << 16) | tci);
   set_cmd_response_error(&response, pb_errno(0));
   return response;
-}
-
-struct snobj *VLANPush::Init(struct snobj *arg) {
-  struct snobj *t;
-
-  if (!arg || snobj_type(arg) != TYPE_MAP) {
-    return snobj_err(EINVAL, "empty argument");
-  }
-
-  if ((t = snobj_eval(arg, "tci"))) {
-    return CommandSetTci(t);
-  } else {
-    return snobj_err(EINVAL, "'tci' must be specified");
-  }
 }
 
 /* the behavior is undefined if a packet is already double tagged */
@@ -90,20 +72,6 @@ std::string VLANPush::GetDesc() const {
   return bess::utils::Format(
       "PCP=%u DEI=%u VID=%u", (vlan_tag_cpu >> 13) & 0x0007,
       (vlan_tag_cpu >> 12) & 0x0001, vlan_tag_cpu & 0x0fff);
-}
-
-struct snobj *VLANPush::CommandSetTci(struct snobj *arg) {
-  uint16_t tci;
-
-  if (!arg || snobj_type(arg) != TYPE_INT) {
-    return snobj_err(EINVAL, "argument must be an integer");
-  }
-
-  tci = snobj_uint_get(arg);
-  vlan_tag_ = htonl((0x8100 << 16) | tci);
-  qinq_tag_ = htonl((0x88a8 << 16) | tci);
-
-  return nullptr;
 }
 
 ADD_MODULE(VLANPush, "vlan_push", "adds 802.1Q/802.11ad VLAN tag")

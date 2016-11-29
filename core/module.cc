@@ -15,8 +15,7 @@
 #include "mem_alloc.h"
 #include "utils/pcap.h"
 
-const Commands<Module> Module::cmds;
-const PbCommands Module::pb_cmds;
+const Commands Module::cmds;
 
 std::map<std::string, Module *> ModuleBuilder::all_modules_;
 
@@ -103,14 +102,12 @@ void ModuleBuilder::DestroyAllModules() {
 bool ModuleBuilder::RegisterModuleClass(
     std::function<Module *()> module_generator, const std::string &class_name,
     const std::string &name_template, const std::string &help_text,
-    const gate_idx_t igates, const gate_idx_t ogates,
-    const Commands<Module> &cmds, const PbCommands &pb_cmds,
+    const gate_idx_t igates, const gate_idx_t ogates, const Commands &cmds,
     module_init_func_t init_func) {
   all_module_builders_holder().emplace(
       std::piecewise_construct, std::forward_as_tuple(class_name),
       std::forward_as_tuple(module_generator, class_name, name_template,
-                            help_text, igates, ogates, cmds, pb_cmds,
-                            init_func));
+                            help_text, igates, ogates, cmds, init_func));
   return true;
 }
 
@@ -167,17 +164,43 @@ const std::map<std::string, Module *> &ModuleBuilder::all_modules() {
   return all_modules_;
 }
 
+pb_cmd_response_t ModuleBuilder::RunCommand(
+    Module *m, const std::string &user_cmd,
+    const google::protobuf::Any &arg) const {
+  pb_cmd_response_t response;
+  for (auto &cmd : cmds_) {
+    if (user_cmd == cmd.cmd) {
+      if (!cmd.mt_safe && is_any_worker_running()) {
+        set_cmd_response_error(&response,
+                               pb_error(EBUSY,
+                                        "There is a running worker "
+                                        "and command '%s' is not MT safe",
+                                        cmd.cmd.c_str()));
+        return response;
+      }
+
+      return cmd.func(m, arg);
+    }
+  }
+
+  set_cmd_response_error(&response,
+                         pb_error(ENOTSUP, "'%s' does not support command '%s'",
+                                  class_name_.c_str(), user_cmd.c_str()));
+  return response;
+}
+
+pb_error_t ModuleBuilder::RunInit(Module *m,
+                                  const google::protobuf::Any &arg) const {
+  return init_func_(m, arg);
+}
+
 // -------------------------------------------------------------------------
-pb_error_t Module::Init(const google::protobuf::Any &arg) {
+pb_error_t Module::InitWithGenericArg(const google::protobuf::Any &arg) {
   return module_builder_->RunInit(this, arg);
 }
 
-pb_error_t Module::InitPb(const bess::pb::EmptyArg &) {
+pb_error_t Module::Init(const bess::pb::EmptyArg &) {
   return pb_errno(0);
-}
-
-struct snobj *Module::Init(struct snobj *) {
-  return nullptr;
 }
 
 struct task_result Module::RunTask(void *) {
@@ -391,7 +414,7 @@ void Module::RunSplit(const gate_idx_t *out_gates,
   int cnt = mixed_batch->cnt();
   int num_pending = 0;
 
-  bess::Packet ** p_pkt = &mixed_batch->pkts()[0];
+  bess::Packet **p_pkt = &mixed_batch->pkts()[0];
 
   gate_idx_t pending[bess::PacketBatch::kMaxBurst];
   bess::PacketBatch batches[bess::PacketBatch::kMaxBurst];

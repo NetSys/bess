@@ -83,7 +83,7 @@ pb_error_t SetMetadata::AddAttrOne(
   return pb_errno(0);
 }
 
-pb_error_t SetMetadata::InitPb(const bess::pb::SetMetadataArg &arg) {
+pb_error_t SetMetadata::Init(const bess::pb::SetMetadataArg &arg) {
   if (!arg.attrs_size()) {
     return pb_error(EINVAL, "'attrs' must be specified");
   }
@@ -99,90 +99,6 @@ pb_error_t SetMetadata::InitPb(const bess::pb::SetMetadataArg &arg) {
   }
 
   return pb_errno(0);
-}
-
-struct snobj *SetMetadata::AddAttrOne(struct snobj *attr) {
-  const char *name_c;
-  std::string name;
-  size_t size = 0;
-  int offset = -1;
-  value_t value = value_t();
-
-  struct snobj *t;
-
-  int ret;
-
-  if (attr->type != TYPE_MAP) {
-    return snobj_err(EINVAL, "argument must be a map or a list of maps");
-  }
-
-  name_c = snobj_eval_str(attr, "name");
-  if (!name_c) {
-    return snobj_err(EINVAL, "'name' field is missing");
-  }
-  name = std::string(name_c);
-
-  size = snobj_eval_uint(attr, "size");
-
-  if (size < 1 || size > bess::metadata::kMetadataAttrMaxSize) {
-    return snobj_err(EINVAL, "'size' must be 1-%lu",
-                     bess::metadata::kMetadataAttrMaxSize);
-  }
-
-  if ((t = snobj_eval(attr, "value"))) {
-    if (snobj_binvalue_get(t, size, &value, 0)) {
-      return snobj_err(EINVAL,
-                       "'value' field has not a "
-                       "correct %lu-byte value",
-                       size);
-    }
-  } else if ((t = snobj_eval(attr, "offset"))) {
-    if (snobj_type(t) != TYPE_INT) {
-      return snobj_err(EINVAL, "'offset' must be an integer");
-    }
-
-    offset = snobj_int_get(t);
-    if (offset < 0 || offset + size >= SNBUF_DATA) {
-      return snobj_err(EINVAL, "invalid packet offset");
-    }
-  }
-
-  ret = AddMetadataAttr(name, size,
-                        bess::metadata::Attribute::AccessMode::kWrite);
-  if (ret < 0)
-    return snobj_err(-ret, "add_metadata_attr() failed");
-
-  attrs_.emplace_back();
-  attrs_.back().name = name;
-  attrs_.back().size = size;
-  attrs_.back().offset = offset;
-  attrs_.back().value = value;
-
-  return nullptr;
-}
-
-struct snobj *SetMetadata::Init(struct snobj *arg) {
-  struct snobj *list;
-
-  if (!arg || !(list = snobj_eval(arg, "attrs"))) {
-    return snobj_err(EINVAL, "'attrs' must be specified");
-  }
-
-  if (snobj_type(list) != TYPE_LIST) {
-    return snobj_err(EINVAL, "'attrs' must be a map or a list of maps");
-  }
-
-  for (size_t i = 0; i < list->size; i++) {
-    struct snobj *attr = snobj_list_get(list, i);
-    struct snobj *err;
-
-    err = AddAttrOne(attr);
-    if (err) {
-      return err;
-    }
-  }
-
-  return nullptr;
 }
 
 void SetMetadata::ProcessBatch(bess::PacketBatch *batch) {

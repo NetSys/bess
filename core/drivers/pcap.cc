@@ -2,12 +2,7 @@
 
 #include "../utils/pcap.h"
 
-// don't use
-struct snobj* PCAPPort::Init(struct snobj*) {
-  return nullptr;
-}
-
-pb_error_t PCAPPort::InitPb(const bess::pb::PCAPPortArg& arg) {
+pb_error_t PCAPPort::Init(const bess::pb::PCAPPortArg& arg) {
   if (pcap_handle_.is_initialized()) {
     return pb_error(EINVAL, "Device already initialized.");
   }
@@ -30,7 +25,7 @@ void PCAPPort::DeInit() {
   pcap_handle_.Reset();
 }
 
-int PCAPPort::RecvPackets(queue_t qid, bess::Packet ** pkts, int cnt) {
+int PCAPPort::RecvPackets(queue_t qid, bess::Packet** pkts, int cnt) {
   if (!pcap_handle_.is_initialized()) {
     return 0;
   }
@@ -82,7 +77,7 @@ int PCAPPort::RecvPackets(queue_t qid, bess::Packet ** pkts, int cnt) {
   return recv_cnt;
 }
 
-int PCAPPort::SendPackets(queue_t, bess::Packet ** pkts, int cnt) {
+int PCAPPort::SendPackets(queue_t, bess::Packet** pkts, int cnt) {
   if (!pcap_handle_.is_initialized()) {
     return 0;  // TODO: Would like to raise an error here...
   }

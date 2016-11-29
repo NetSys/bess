@@ -49,15 +49,13 @@ class FlowGen final : public Module {
         flow_gap_ns_(),
         pareto_() {}
 
-  virtual struct snobj *Init(struct snobj *arg);
-  pb_error_t InitPb(const bess::pb::FlowGenArg &arg);
+  pb_error_t Init(const bess::pb::FlowGenArg &arg);
 
   virtual void Deinit();
 
   virtual struct task_result RunTask(void *arg);
 
   std::string GetDesc() const;
-  struct snobj *GetDump() const;
 
  private:
   inline double NewFlowPkts();
@@ -68,8 +66,6 @@ class FlowGen final : public Module {
   void PopulateInitialFlows();
   bess::Packet *FillPacket(struct flow *f);
   void GeneratePackets(bess::PacketBatch *batch);
-  struct snobj *InitFlowPoolOld();
-  struct snobj *ProcessArguments(struct snobj *arg);
 
   pb_error_t InitFlowPool();
   pb_error_t ProcessArguments(const bess::pb::FlowGenArg &arg);

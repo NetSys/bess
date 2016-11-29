@@ -3,14 +3,11 @@
 #include "../port.h"
 #include "../utils/format.h"
 
-const Commands<Module> QueueInc::cmds = {
-    {"set_burst", MODULE_FUNC &QueueInc::CommandSetBurst, 1}};
+const Commands QueueInc::cmds = {{"set_burst", "QueueIncCommandSetBurstArg",
+                                  MODULE_CMD_FUNC(&QueueInc::CommandSetBurst),
+                                  1}};
 
-const PbCommands QueueInc::pb_cmds = {
-    {"set_burst", "QueueIncCommandSetBurstArg",
-     MODULE_CMD_FUNC(&QueueInc::CommandSetBurstPb), 1}};
-
-pb_error_t QueueInc::InitPb(const bess::pb::QueueIncArg &arg) {
+pb_error_t QueueInc::Init(const bess::pb::QueueIncArg &arg) {
   const char *port_name;
   task_id_t tid;
   pb_error_t err;
@@ -49,62 +46,6 @@ pb_error_t QueueInc::InitPb(const bess::pb::QueueIncArg &arg) {
   }
 
   return pb_errno(0);
-}
-
-struct snobj *QueueInc::Init(struct snobj *arg) {
-  struct snobj *t;
-  struct snobj *err;
-
-  const char *port_name;
-  task_id_t tid;
-
-  int ret;
-
-  burst_ = bess::PacketBatch::kMaxBurst;
-
-  if (!arg || snobj_type(arg) != TYPE_MAP) {
-    return snobj_err(EINVAL, "Argument must be a map");
-  }
-
-  t = snobj_eval(arg, "port");
-  if (!t || !(port_name = snobj_str_get(t))) {
-    return snobj_err(EINVAL, "Field 'port' must be specified");
-  }
-
-  t = snobj_eval(arg, "qid");
-  if (!t || snobj_type(t) != TYPE_INT) {
-    return snobj_err(EINVAL, "Field 'qid' must be specified");
-  }
-  qid_ = snobj_uint_get(t);
-
-  const auto &it = PortBuilder::all_ports().find(port_name);
-  if (it == PortBuilder::all_ports().end()) {
-    return snobj_err(ENODEV, "Port %s not found", port_name);
-  }
-  port_ = it->second;
-
-  if ((t = snobj_eval(arg, "burst")) != nullptr) {
-    err = CommandSetBurst(t);
-    if (err) {
-      return err;
-    }
-  }
-
-  if (snobj_eval_int(arg, "prefetch")) {
-    prefetch_ = 1;
-  }
-
-  tid = RegisterTask((void *)(uintptr_t)qid_);
-  if (tid == INVALID_TASK_ID)
-    return snobj_err(ENOMEM, "Task creation failed");
-
-  ret = port_->AcquireQueues(reinterpret_cast<const module *>(this),
-                             PACKET_DIR_INC, &qid_, 1);
-  if (ret < 0) {
-    return snobj_errno(-ret);
-  }
-
-  return nullptr;
 }
 
 void QueueInc::Deinit() {
@@ -166,25 +107,6 @@ struct task_result QueueInc::RunTask(void *arg) {
   return ret;
 }
 
-struct snobj *QueueInc::CommandSetBurst(struct snobj *arg) {
-  uint64_t val;
-
-  if (snobj_type(arg) != TYPE_INT) {
-    return snobj_err(EINVAL, "burst must be an integer");
-  }
-
-  val = snobj_uint_get(arg);
-
-  if (val == 0 || val > bess::PacketBatch::kMaxBurst) {
-    return snobj_err(EINVAL, "burst size must be [1,%lu]",
-                     bess::PacketBatch::kMaxBurst);
-  }
-
-  burst_ = val;
-
-  return nullptr;
-}
-
 pb_error_t QueueInc::SetBurst(int64_t burst) {
   if (burst == 0 ||
       burst > static_cast<int64_t>(bess::PacketBatch::kMaxBurst)) {
@@ -195,7 +117,7 @@ pb_error_t QueueInc::SetBurst(int64_t burst) {
   return pb_errno(0);
 }
 
-pb_cmd_response_t QueueInc::CommandSetBurstPb(
+pb_cmd_response_t QueueInc::CommandSetBurst(
     const bess::pb::QueueIncCommandSetBurstArg &arg) {
   pb_cmd_response_t response;
   set_cmd_response_error(&response, SetBurst(arg.burst()));

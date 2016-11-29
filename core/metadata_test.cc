@@ -13,12 +13,11 @@ class Foo : public Module {
  public:
   static const gate_idx_t kNumIGates = MAX_GATES;
   static const gate_idx_t kNumOGates = MAX_GATES;
-  static const Commands<Module> cmds;
-  static const PbCommands pb_cmds;
+
+  static const Commands cmds;
 };
 
-const Commands<Module> Foo::cmds = {};
-const PbCommands Foo::pb_cmds = {};
+const Commands Foo::cmds = {};
 
 Module *create_foo(const std::string name = "") {
   const ModuleBuilder &builder =

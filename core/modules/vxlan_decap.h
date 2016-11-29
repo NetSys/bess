@@ -6,8 +6,7 @@
 
 class VXLANDecap final : public Module {
  public:
-  virtual struct snobj *Init(struct snobj *arg);
-  pb_error_t InitPb(const bess::pb::VXLANDecapArg &arg);
+  pb_error_t Init(const bess::pb::VXLANDecapArg &arg);
 
   void ProcessBatch(bess::PacketBatch *batch);
 };

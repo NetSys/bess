@@ -9,30 +9,14 @@
 
 static const uint64_t DEFAULT_INTERVAL_NS = 1 * NS_PER_SEC; /* 1 sec */
 
-const Commands<Module> Dump::cmds = {
-    {"set_interval", MODULE_FUNC &Dump::CommandSetInterval, 0},
+const Commands Dump::cmds = {
+    {"set_interval", "DumpArg", MODULE_CMD_FUNC(&Dump::CommandSetInterval), 0},
 };
 
-const PbCommands Dump::pb_cmds = {
-    {"set_interval", "DumpArg", MODULE_CMD_FUNC(&Dump::CommandSetIntervalPb),
-     0},
-};
-
-struct snobj *Dump::Init(struct snobj *arg) {
+pb_error_t Dump::Init(const bess::pb::DumpArg &arg) {
   min_interval_ns_ = DEFAULT_INTERVAL_NS;
   next_ns_ = ctx.current_tsc();
-
-  if (arg && (arg = snobj_eval(arg, "interval"))) {
-    return CommandSetInterval(arg);
-  } else {
-    return nullptr;
-  }
-}
-
-pb_error_t Dump::InitPb(const bess::pb::DumpArg &arg) {
-  min_interval_ns_ = DEFAULT_INTERVAL_NS;
-  next_ns_ = ctx.current_tsc();
-  pb_cmd_response_t response = CommandSetIntervalPb(arg);
+  pb_cmd_response_t response = CommandSetInterval(arg);
   return response.error();
 }
 
@@ -50,19 +34,7 @@ void Dump::ProcessBatch(bess::PacketBatch *batch) {
   RunChooseModule(get_igate(), batch);
 }
 
-struct snobj *Dump::CommandSetInterval(struct snobj *arg) {
-  double sec = snobj_number_get(arg);
-
-  if (std::isnan(sec) || sec < 0.0) {
-    return snobj_err(EINVAL, "invalid interval");
-  }
-
-  min_interval_ns_ = static_cast<uint64_t>(sec * NS_PER_SEC);
-
-  return nullptr;
-}
-
-pb_cmd_response_t Dump::CommandSetIntervalPb(const bess::pb::DumpArg &arg) {
+pb_cmd_response_t Dump::CommandSetInterval(const bess::pb::DumpArg &arg) {
   pb_cmd_response_t response;
 
   double sec = arg.interval();

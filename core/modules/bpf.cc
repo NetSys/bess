@@ -1108,21 +1108,13 @@ static int compare_filter(const void *filter1, const void *filter2) {
     return 0;
 }
 
-const Commands<Module> BPF::cmds = {
-    {"add", MODULE_FUNC &BPF::CommandAdd, 0},
-    {"clear", MODULE_FUNC &BPF::CommandClear, 0}};
+const Commands BPF::cmds = {
+    {"add", "BPFArg", MODULE_CMD_FUNC(&BPF::CommandAdd), 0},
+    {"clear", "EmptyArg", MODULE_CMD_FUNC(&BPF::CommandClear), 0}};
 
-const PbCommands BPF::pb_cmds = {
-    {"add", "BPFArg", MODULE_CMD_FUNC(&BPF::CommandAddPb), 0},
-    {"clear", "EmptyArg", MODULE_CMD_FUNC(&BPF::CommandClearPb), 0}};
-
-pb_error_t BPF::InitPb(const bess::pb::BPFArg &arg) {
-  pb_cmd_response_t response = CommandAddPb(arg);
+pb_error_t BPF::Init(const bess::pb::BPFArg &arg) {
+  pb_cmd_response_t response = CommandAdd(arg);
   return response.error();
-}
-
-struct snobj *BPF::Init(struct snobj *arg) {
-  return arg ? CommandAdd(arg) : nullptr;
 }
 
 void BPF::Deinit() {
@@ -1134,7 +1126,7 @@ void BPF::Deinit() {
   n_filters_ = 0;
 }
 
-pb_cmd_response_t BPF::CommandAddPb(const bess::pb::BPFArg &arg) {
+pb_cmd_response_t BPF::CommandAdd(const bess::pb::BPFArg &arg) {
   pb_cmd_response_t response;
 
   if (n_filters_ + arg.filters_size() > MAX_FILTERS) {
@@ -1180,84 +1172,11 @@ pb_cmd_response_t BPF::CommandAddPb(const bess::pb::BPFArg &arg) {
   return response;
 }
 
-struct snobj *BPF::CommandAdd(struct snobj *arg) {
-  struct filter *filter;
-
-  if (snobj_type(arg) != TYPE_LIST)
-    return snobj_err(EINVAL, "Argument must be a list");
-
-  if (n_filters_ + arg->size > MAX_FILTERS)
-    return snobj_err(EINVAL, "Too many filters");
-
-  filter = &filters_[n_filters_];
-
-  for (size_t i = 0; i < arg->size; i++) {
-    struct snobj *f = snobj_list_get(arg, i);
-    int priority;
-    char *exp;
-    int gate;
-
-    struct bpf_program il_code;
-
-    if (snobj_type(f) != TYPE_MAP)
-      return snobj_err(EINVAL, "Each filter must be a map");
-
-    // 0 if unspecified
-    priority = snobj_eval_int(f, "priority");
-
-    if (!(exp = snobj_eval_str(f, "filter")))
-      return snobj_err(EINVAL,
-                       "Must specify a filter "
-                       "expression");
-
-    if (!snobj_eval(f, "gate"))
-      return snobj_err(EINVAL,
-                       "Each filter must specify an "
-                       "ouput gate");
-
-    gate = snobj_eval_int(f, "gate");
-    if (gate < 0 || gate >= MAX_GATES)
-      return snobj_err(EINVAL, "Invalid gate");
-
-    if (pcap_compile_nopcap(SNAPLEN, DLT_EN10MB,  // Ethernet
-                            &il_code, exp, 1,     // optimize (IL only)
-                            PCAP_NETMASK_UNKNOWN) == -1) {
-      return snobj_err(EINVAL, "BPF compilation error");
-    }
-
-    filter->priority = priority;
-    filter->gate = gate;
-    filter->exp = strdup(exp);
-
-    filter->func =
-        bpf_jit_compile(il_code.bf_insns, il_code.bf_len, &filter->mmap_size);
-
-    pcap_freecode(&il_code);
-
-    if (!filter->func) {
-      free(filter->exp);
-      return snobj_err(ENOMEM, "BPF JIT compilation error");
-    }
-
-    n_filters_++;
-    qsort(filters_, n_filters_, sizeof(struct filter), &compare_filter);
-
-    filter++;
-  }
-
-  return nullptr;
-}
-
-pb_cmd_response_t BPF::CommandClearPb(const bess::pb::EmptyArg &) {
+pb_cmd_response_t BPF::CommandClear(const bess::pb::EmptyArg &) {
   Deinit();
   pb_cmd_response_t response;
   set_cmd_response_error(&response, pb_errno(0));
   return response;
-}
-
-struct snobj *BPF::CommandClear(struct snobj *) {
-  Deinit();
-  return nullptr;
 }
 
 inline void BPF::process_batch_1filter(bess::PacketBatch *batch) {

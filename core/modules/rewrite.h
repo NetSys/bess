@@ -8,8 +8,8 @@ class Rewrite final : public Module {
  public:
   static const size_t kNumSlots = bess::PacketBatch::kMaxBurst * 2 - 1;
   static const size_t kMaxTemplateSize = 1536;
-  static const Commands<Module> cmds;
-  static const PbCommands pb_cmds;
+
+  static const Commands cmds;
 
   Rewrite()
       : Module(),
@@ -18,16 +18,12 @@ class Rewrite final : public Module {
         template_size_(),
         templates_() {}
 
-  virtual struct snobj *Init(struct snobj *arg);
-  pb_error_t InitPb(const bess::pb::RewriteArg &arg);
+  pb_error_t Init(const bess::pb::RewriteArg &arg);
 
   virtual void ProcessBatch(bess::PacketBatch *batch);
 
-  struct snobj *CommandAdd(struct snobj *arg);
-  struct snobj *CommandClear(struct snobj *arg);
-
-  pb_cmd_response_t CommandAddPb(const bess::pb::RewriteArg &arg);
-  pb_cmd_response_t CommandClearPb(const bess::pb::EmptyArg &arg);
+  pb_cmd_response_t CommandAdd(const bess::pb::RewriteArg &arg);
+  pb_cmd_response_t CommandClear(const bess::pb::EmptyArg &arg);
 
  private:
   inline void DoRewrite(bess::PacketBatch *batch);

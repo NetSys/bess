@@ -17,16 +17,9 @@ class AcmeModule : public Module {
   static const gate_idx_t kNumIGates = 1;
   static const gate_idx_t kNumOGates = 1;
 
-  static const Commands<Module> cmds;
-  static const PbCommands pb_cmds;
+  static const Commands cmds;
 
-  virtual struct snobj *Init(struct snobj *) { return nullptr; }
-  pb_error_t InitPb(const bess::pb::EmptyArg &) { return pb_errno(42); }
-
-  struct snobj *Foo(struct snobj *) {
-    n += 1;
-    return nullptr;
-  }
+  pb_error_t Init(const bess::pb::EmptyArg &) { return pb_errno(42); }
 
   pb_cmd_response_t FooPb(const bess::pb::EmptyArg &) {
     n += 1;
@@ -36,10 +29,7 @@ class AcmeModule : public Module {
   int n = {};
 };
 
-const Commands<Module> AcmeModule::cmds = {
-    {"foo", MODULE_FUNC &AcmeModule::Foo, 0}};
-
-const PbCommands AcmeModule::pb_cmds = {
+const Commands AcmeModule::cmds = {
     {"foo", "EmptyArg", MODULE_CMD_FUNC(&AcmeModule::FooPb), 0}};
 
 // Simple harness for testing the Module class.
@@ -76,7 +66,7 @@ int create_acme(const char *name, Module **m) {
   bess::pb::EmptyArg arg_;
   google::protobuf::Any arg;
   arg.PackFrom(arg_);
-  pb_error_t err = (*m)->Init(arg);
+  pb_error_t err = (*m)->InitWithGenericArg(arg);
   EXPECT_EQ(42, err.err());
 
   builder.AddModule(*m);
@@ -85,7 +75,6 @@ int create_acme(const char *name, Module **m) {
   EXPECT_EQ("acme_module", builder.name_template());
   EXPECT_EQ("foo bar", builder.help_text());
   EXPECT_EQ(1, builder.cmds().size());
-  EXPECT_EQ(1, builder.pb_cmds().size());
 
   return 0;
 }
@@ -109,7 +98,6 @@ TEST(ModuleBuilderTest, RegisterModuleClass) {
   EXPECT_EQ(1, builder.NumIGates());
   EXPECT_EQ(1, builder.NumOGates());
   EXPECT_EQ(1, builder.cmds().size());
-  EXPECT_EQ(1, builder.pb_cmds().size());
 
   ModuleBuilder::all_module_builders_holder(true);
 }
@@ -153,17 +141,6 @@ TEST_F(ModuleTester, CreateModuleGenerateName) {
 }
 
 TEST_F(ModuleTester, RunCommand) {
-  Module *m;
-
-  EXPECT_EQ(0, create_acme(nullptr, &m));
-  ASSERT_NE(nullptr, m);
-  for (int i = 0; i < 10; i++) {
-    m->RunCommand("foo", nullptr);
-  }
-  EXPECT_EQ(10, ((AcmeModule *)m)->n);
-}
-
-TEST_F(ModuleTester, RunCommandPb) {
   Module *m;
 
   EXPECT_EQ(0, create_acme(nullptr, &m));

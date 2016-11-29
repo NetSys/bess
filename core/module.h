@@ -9,7 +9,6 @@
 #include "message.h"
 #include "metadata.h"
 #include "packet.h"
-#include "snobj.h"
 #include "task.h"
 
 static inline void set_cmd_response_error(pb_cmd_response_t *response,
@@ -20,7 +19,6 @@ static inline void set_cmd_response_error(pb_cmd_response_t *response,
 
 #define MAX_TASKS_PER_MODULE 32
 #define INVALID_TASK_ID ((task_id_t)-1)
-#define MODULE_FUNC (struct snobj * (Module::*)(struct snobj *))
 
 using module_cmd_func_t =
     pb_func_t<pb_cmd_response_t, Module, google::protobuf::Any>;
@@ -52,21 +50,7 @@ class Module;
 
 #define CALL_MEMBER_FN(obj, ptr_to_member_func) ((obj).*(ptr_to_member_func))
 
-template <typename T>
 struct Command {
-  std::string cmd;
-  struct snobj *(T::*func)(struct snobj *);
-
-  // if non-zero, workers don't need to be paused in order to
-  // run this command
-  int mt_safe;
-};
-
-template <typename T>
-using Commands = std::vector<struct Command<T>>;
-
-// TODO: Change type name to Command when removing snobj
-struct PbCommand {
   std::string cmd;
   std::string arg_type;
   module_cmd_func_t func;
@@ -75,7 +59,7 @@ struct PbCommand {
   int mt_safe;
 };
 
-using PbCommands = std::vector<struct PbCommand>;
+using Commands = std::vector<struct Command>;
 
 // A class for generating new Modules of a particular type.
 class ModuleBuilder {
@@ -83,8 +67,7 @@ class ModuleBuilder {
   ModuleBuilder(
       std::function<Module *()> module_generator, const std::string &class_name,
       const std::string &name_template, const std::string &help_text,
-      const gate_idx_t igates, const gate_idx_t ogates,
-      const Commands<Module> &cmds, const PbCommands &pb_cmds,
+      const gate_idx_t igates, const gate_idx_t ogates, const Commands &cmds,
       std::function<pb_error_t(Module *, const google::protobuf::Any &)>
           init_func)
       : module_generator_(module_generator),
@@ -94,7 +77,6 @@ class ModuleBuilder {
         name_template_(name_template),
         help_text_(help_text),
         cmds_(cmds),
-        pb_cmds_(pb_cmds),
         init_func_(init_func) {}
 
   /* returns a pointer to the created module.
@@ -110,12 +92,13 @@ class ModuleBuilder {
   static int DestroyModule(Module *m, bool erase = true);
   static void DestroyAllModules();
 
-  static bool RegisterModuleClass(
-      std::function<Module *()> module_generator, const std::string &class_name,
-      const std::string &name_template, const std::string &help_text,
-      const gate_idx_t igates, const gate_idx_t ogates,
-      const Commands<Module> &cmds, const PbCommands &pb_cmds,
-      module_init_func_t init_func);
+  static bool RegisterModuleClass(std::function<Module *()> module_generator,
+                                  const std::string &class_name,
+                                  const std::string &name_template,
+                                  const std::string &help_text,
+                                  const gate_idx_t igates,
+                                  const gate_idx_t ogates, const Commands &cmds,
+                                  module_init_func_t init_func);
 
   static std::map<std::string, ModuleBuilder> &all_module_builders_holder(
       bool reset = false);
@@ -129,16 +112,10 @@ class ModuleBuilder {
   const std::string &class_name() const { return class_name_; };
   const std::string &name_template() const { return name_template_; };
   const std::string &help_text() const { return help_text_; };
-  const std::vector<std::string> cmds() const {
-    std::vector<std::string> ret;
-    for (auto &cmd : cmds_)
-      ret.push_back(cmd.cmd);
-    return ret;
-  }
 
-  const std::vector<std::pair<std::string, std::string>> pb_cmds() const {
+  const std::vector<std::pair<std::string, std::string>> cmds() const {
     std::vector<std::pair<std::string, std::string>> ret;
-    for (auto &cmd : pb_cmds_)
+    for (auto &cmd : cmds_)
       ret.push_back(std::make_pair(cmd.cmd, cmd.arg_type));
     return ret;
   }
@@ -146,34 +123,10 @@ class ModuleBuilder {
   static std::string GenerateDefaultName(const std::string &class_name,
                                          const std::string &default_template);
 
-  struct snobj *RunCommand(Module *m, const std::string &user_cmd,
-                           struct snobj *arg) const {
-    for (auto &cmd : cmds_) {
-      if (user_cmd == cmd.cmd)
-        return (*m.*(cmd.func))(arg);
-    }
-
-    return snobj_err(ENOTSUP, "'%s' does not support command '%s'",
-                     class_name_.c_str(), user_cmd.c_str());
-  }
-
   pb_cmd_response_t RunCommand(Module *m, const std::string &user_cmd,
-                               const google::protobuf::Any &arg) const {
-    for (auto &cmd : pb_cmds_) {
-      if (user_cmd == cmd.cmd) {
-        return cmd.func(m, arg);
-      }
-    }
-    pb_cmd_response_t response;
-    set_cmd_response_error(
-        &response, pb_error(ENOTSUP, "'%s' does not support command '%s'",
-                            class_name_.c_str(), user_cmd.c_str()));
-    return response;
-  }
+                               const google::protobuf::Any &arg) const;
 
-  pb_error_t RunInit(Module *m, const google::protobuf::Any &arg) const {
-    return init_func_(m, arg);
-  }
+  pb_error_t RunInit(Module *m, const google::protobuf::Any &arg) const;
 
  private:
   const std::function<Module *()> module_generator_;
@@ -186,8 +139,7 @@ class ModuleBuilder {
   const std::string class_name_;
   const std::string name_template_;
   const std::string help_text_;
-  const Commands<Module> cmds_;
-  const PbCommands pb_cmds_;
+  const Commands cmds_;
   const module_init_func_t init_func_;
 };
 
@@ -205,29 +157,26 @@ class Module {
         ogates() {}
   virtual ~Module() {}
 
-  pb_error_t Init(const google::protobuf::Any &arg);
-
-  virtual struct snobj *Init(struct snobj *arg);
-  pb_error_t InitPb(const bess::pb::EmptyArg &arg);
-
+  pb_error_t Init(const bess::pb::EmptyArg &arg);
   virtual void Deinit() {}
 
   virtual struct task_result RunTask(void *arg);
   virtual void ProcessBatch(bess::PacketBatch *batch);
 
   virtual std::string GetDesc() const { return ""; };
-  virtual struct snobj *GetDump() const { return snobj_nil(); }
+  virtual std::string GetDump() const { return ""; }
 
   static const gate_idx_t kNumIGates = 1;
   static const gate_idx_t kNumOGates = 1;
 
-  static const Commands<Module> cmds;
-  static const PbCommands pb_cmds;
+  static const Commands cmds;
 
   // -------------------------------------------------------------------------
 
  public:
   friend class ModuleBuilder;
+
+  pb_error_t InitWithGenericArg(const google::protobuf::Any &arg);
 
   const ModuleBuilder *module_builder() const { return module_builder_; }
 
@@ -272,10 +221,6 @@ class Module {
   int EnableTcpDump(const char *fifo, int is_igate, gate_idx_t gate_idx);
 
   int DisableTcpDump(int is_igate, gate_idx_t gate_idx);
-
-  struct snobj *RunCommand(const std::string &cmd, struct snobj *arg) {
-    return module_builder_->RunCommand(this, cmd, arg);
-  }
 
   pb_cmd_response_t RunCommand(const std::string &cmd,
                                const google::protobuf::Any &arg) {
@@ -366,9 +311,6 @@ static inline int is_active_gate(const std::vector<T *> &gates,
                                  gate_idx_t idx) {
   return idx < gates.size() && gates.size() && gates[idx];
 }
-
-typedef struct snobj *(*mod_cmd_func_t)(struct module *, const char *,
-                                        struct snobj *);
 
 // Unsafe, but faster version. for offset use Attribute_offset().
 template <typename T>
@@ -461,6 +403,6 @@ INSTANTIATE_MT_FOR_TYPE(uint64_t)
   bool __module__##_MOD = ModuleBuilder::RegisterModuleClass(                \
       std::function<Module *()>([]() { return new _MOD(); }), #_MOD,         \
       _NAME_TEMPLATE, _HELP, _MOD::kNumIGates, _MOD::kNumOGates, _MOD::cmds, \
-      _MOD::pb_cmds, MODULE_INIT_FUNC(&_MOD::InitPb));
+      MODULE_INIT_FUNC(&_MOD::Init));
 
 #endif  // BESS_MODULE_H_

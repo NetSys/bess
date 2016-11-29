@@ -4,6 +4,7 @@
 #include <rte_byteorder.h>
 #include <rte_hash_crc.h>
 
+#include "../mem_alloc.h"
 #include "../utils/simd.h"
 
 #define MAX_TABLE_SIZE (1048576 * 64)
@@ -509,54 +510,20 @@ static int parse_mac_addr(const char *str, char *addr) {
 
 /******************************************************************************/
 
-const Commands<Module> L2Forward::cmds = {
-    {"add", MODULE_FUNC &L2Forward::CommandAdd, 0},
-    {"delete", MODULE_FUNC &L2Forward::CommandDelete, 0},
-    {"set_default_gate", MODULE_FUNC &L2Forward::CommandSetDefaultGate, 1},
-    {"lookup", MODULE_FUNC &L2Forward::CommandLookup, 1},
-    {"populate", MODULE_FUNC &L2Forward::CommandPopulate, 0},
-};
-
-const PbCommands L2Forward::pb_cmds = {
-    {"add", "L2ForwardCommandAddArg", MODULE_CMD_FUNC(&L2Forward::CommandAddPb),
+const Commands L2Forward::cmds = {
+    {"add", "L2ForwardCommandAddArg", MODULE_CMD_FUNC(&L2Forward::CommandAdd),
      0},
     {"delete", "L2ForwardCommandDeleteArg",
-     MODULE_CMD_FUNC(&L2Forward::CommandDeletePb), 0},
+     MODULE_CMD_FUNC(&L2Forward::CommandDelete), 0},
     {"set_default_gate", "L2ForwardCommandSetDefaultGateArg",
-     MODULE_CMD_FUNC(&L2Forward::CommandSetDefaultGatePb), 1},
+     MODULE_CMD_FUNC(&L2Forward::CommandSetDefaultGate), 1},
     {"lookup", "L2ForwardCommandLookupArg",
-     MODULE_CMD_FUNC(&L2Forward::CommandLookupPb), 1},
+     MODULE_CMD_FUNC(&L2Forward::CommandLookup), 1},
     {"populate", "L2ForwardCommandPopulateArg",
-     MODULE_CMD_FUNC(&L2Forward::CommandPopulatePb), 0},
+     MODULE_CMD_FUNC(&L2Forward::CommandPopulate), 0},
 };
 
-struct snobj *L2Forward::Init(struct snobj *arg) {
-  int ret = 0;
-  int size = snobj_eval_int(arg, "size");
-  int bucket = snobj_eval_int(arg, "bucket");
-
-  default_gate_ = DROP_GATE;
-
-  if (size == 0) {
-    size = DEFAULT_TABLE_SIZE;
-  }
-  if (bucket == 0) {
-    bucket = MAX_BUCKET_SIZE;
-  }
-
-  ret = l2_init(&l2_table_, size, bucket);
-
-  if (ret != 0) {
-    return snobj_err(-ret,
-                     "initialization failed with argument "
-                     "size: '%d' bucket: '%d'",
-                     size, bucket);
-  }
-
-  return nullptr;
-}
-
-pb_error_t L2Forward::InitPb(const bess::pb::L2ForwardArg &arg) {
+pb_error_t L2Forward::Init(const bess::pb::L2ForwardArg &arg) {
   int ret = 0;
   int size = arg.size();
   int bucket = arg.bucket();
@@ -602,7 +569,7 @@ void L2Forward::ProcessBatch(bess::PacketBatch *batch) {
   RunSplit(out_gates, batch);
 }
 
-pb_cmd_response_t L2Forward::CommandAddPb(
+pb_cmd_response_t L2Forward::CommandAdd(
     const bess::pb::L2ForwardCommandAddArg &arg) {
   pb_cmd_response_t response;
 
@@ -648,7 +615,7 @@ pb_cmd_response_t L2Forward::CommandAddPb(
   return response;
 }
 
-pb_cmd_response_t L2Forward::CommandDeletePb(
+pb_cmd_response_t L2Forward::CommandDelete(
     const bess::pb::L2ForwardCommandDeleteArg &arg) {
   pb_cmd_response_t response;
 
@@ -689,7 +656,7 @@ pb_cmd_response_t L2Forward::CommandDeletePb(
   return response;
 }
 
-pb_cmd_response_t L2Forward::CommandSetDefaultGatePb(
+pb_cmd_response_t L2Forward::CommandSetDefaultGate(
     const bess::pb::L2ForwardCommandSetDefaultGateArg &arg) {
   pb_cmd_response_t response;
 
@@ -698,7 +665,7 @@ pb_cmd_response_t L2Forward::CommandSetDefaultGatePb(
   return response;
 }
 
-pb_cmd_response_t L2Forward::CommandLookupPb(
+pb_cmd_response_t L2Forward::CommandLookup(
     const bess::pb::L2ForwardCommandLookupArg &arg) {
   int i;
   pb_cmd_response_t response;
@@ -743,7 +710,7 @@ pb_cmd_response_t L2Forward::CommandLookupPb(
   return response;
 }
 
-pb_cmd_response_t L2Forward::CommandPopulatePb(
+pb_cmd_response_t L2Forward::CommandPopulate(
     const bess::pb::L2ForwardCommandPopulateArg &arg) {
   pb_cmd_response_t response;
   const char *base;
@@ -782,187 +749,6 @@ pb_cmd_response_t L2Forward::CommandPopulatePb(
 
   set_cmd_response_error(&response, pb_errno(0));
   return response;
-}
-
-struct snobj *L2Forward::CommandAdd(struct snobj *arg) {
-  if (snobj_type(arg) != TYPE_LIST) {
-    return snobj_err(EINVAL, "argument must be a list of map");
-  }
-
-  for (size_t i = 0; i < arg->size; i++) {
-    struct snobj *entry = snobj_list_get(arg, i);
-    if (snobj_type(entry) != TYPE_MAP) {
-      return snobj_err(EINVAL, "argument must be a list of map");
-    }
-
-    struct snobj *_addr = snobj_map_get(entry, "addr");
-    struct snobj *_gate = snobj_map_get(entry, "gate");
-
-    if (!_addr || snobj_type(_addr) != TYPE_STR) {
-      return snobj_err(EINVAL,
-                       "add list item map must contain addr"
-                       " as a string");
-    }
-
-    if (!_gate || snobj_type(_gate) != TYPE_INT) {
-      return snobj_err(EINVAL,
-                       "add list item map must contain gate"
-                       " as an integer");
-    }
-
-    char *str_addr = snobj_str_get(_addr);
-    int gate = snobj_int_get(_gate);
-    char addr[6];
-
-    if (parse_mac_addr(str_addr, addr) != 0) {
-      return snobj_err(EINVAL, "%s is not a proper mac address", str_addr);
-    }
-
-    int r = l2_add_entry(&l2_table_, l2_addr_to_u64(addr), gate);
-
-    if (r == -EEXIST) {
-      return snobj_err(EEXIST, "MAC address '%s' already exist", str_addr);
-    } else if (r == -ENOMEM) {
-      return snobj_err(ENOMEM, "Not enough space");
-    } else if (r != 0) {
-      return snobj_errno(-r);
-    }
-  }
-
-  return nullptr;
-}
-
-struct snobj *L2Forward::CommandDelete(struct snobj *arg) {
-  if (snobj_type(arg) != TYPE_LIST) {
-    return snobj_err(EINVAL, "lookup must be given as a list");
-  }
-
-  for (size_t i = 0; i < arg->size; i++) {
-    struct snobj *_addr = snobj_list_get(arg, i);
-
-    if (!_addr || snobj_type(_addr) != TYPE_STR) {
-      return snobj_err(EINVAL, "lookup must be list of string");
-    }
-
-    char *str_addr = snobj_str_get(_addr);
-    char addr[6];
-
-    if (parse_mac_addr(str_addr, addr) != 0) {
-      return snobj_err(EINVAL, "%s is not a proper mac address", str_addr);
-    }
-
-    int r = l2_del_entry(&l2_table_, l2_addr_to_u64(addr));
-
-    if (r == -ENOENT) {
-      return snobj_err(ENOENT, "MAC address '%s' does not exist", str_addr);
-    } else if (r != 0) {
-      return snobj_err(EINVAL, "Unknown Error: %d\n", r);
-    }
-  }
-
-  return nullptr;
-}
-
-struct snobj *L2Forward::CommandSetDefaultGate(struct snobj *arg) {
-  int gate = snobj_int_get(arg);
-
-  default_gate_ = gate;
-
-  return nullptr;
-}
-
-struct snobj *L2Forward::CommandLookup(struct snobj *arg) {
-  size_t i;
-
-  if (snobj_type(arg) != TYPE_LIST) {
-    return snobj_err(EINVAL, "lookup must be given as a list");
-  }
-
-  struct snobj *ret = snobj_list();
-  for (i = 0; i < arg->size; i++) {
-    struct snobj *_addr = snobj_list_get(arg, i);
-
-    if (!_addr || snobj_type(_addr) != TYPE_STR) {
-      return snobj_err(EINVAL, "lookup must be list of string");
-    }
-
-    char *str_addr = snobj_str_get(_addr);
-    char addr[6];
-
-    if (parse_mac_addr(str_addr, addr) != 0) {
-      snobj_free(ret);
-      return snobj_err(EINVAL, "%s is not a proper mac address", str_addr);
-    }
-
-    gate_idx_t gate;
-    int r = l2_find(&l2_table_, l2_addr_to_u64(addr), &gate);
-
-    if (r == -ENOENT) {
-      snobj_free(ret);
-      return snobj_err(ENOENT, "MAC address '%s' does not exist", str_addr);
-    } else if (r != 0) {
-      snobj_free(ret);
-      return snobj_err(EINVAL, "Unknown Error: %d\n", r);
-    }
-
-    snobj_list_add(ret, snobj_int(gate));
-  }
-
-  return ret;
-}
-
-struct snobj *L2Forward::CommandPopulate(struct snobj *arg) {
-  struct snobj *t;
-  char *base;
-  char base_str[6];
-  uint64_t base_u64;
-
-  if (snobj_type(arg) != TYPE_MAP) {
-    return snobj_err(EINVAL, "gen must be given as a map");
-  }
-
-  // parse base addr
-  base = snobj_eval_str(arg, "base");
-  if (base == nullptr) {
-    return snobj_err(EINVAL, "base must exist in gen, and must be string");
-  }
-
-  if (parse_mac_addr(base, base_str) != 0) {
-    return snobj_err(EINVAL, "%s is not a proper mac address", base_str);
-  }
-
-  base_u64 = l2_addr_to_u64(base_str);
-
-  t = snobj_eval(arg, "count");
-  if (t == nullptr) {
-    return snobj_err(EINVAL, "count must exist in gen, and must be int");
-  }
-
-  if (snobj_type(t) != TYPE_INT)
-    return snobj_err(EINVAL, "count must be int");
-
-  t = snobj_eval(arg, "gate_count");
-  if (t == nullptr) {
-    return snobj_err(EINVAL, "gate_count must exist in gen, and must be int");
-  }
-
-  if (snobj_type(t) != TYPE_INT) {
-    return snobj_err(EINVAL, "gate_count must be int");
-  }
-
-  int cnt = snobj_eval_int(arg, "count");
-  int gate_cnt = snobj_eval_int(arg, "gate_count");
-
-  base_u64 = rte_be_to_cpu_64(base_u64);
-  base_u64 = base_u64 >> 16;
-
-  for (int i = 0; i < cnt; i++) {
-    l2_add_entry(&l2_table_, rte_cpu_to_be_64(base_u64 << 16), i % gate_cnt);
-
-    base_u64++;
-  }
-
-  return nullptr;
 }
 
 ADD_MODULE(L2Forward, "l2_forward",

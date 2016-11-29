@@ -11,8 +11,7 @@ class QueueOut final : public Module {
 
   QueueOut() : Module(), port_(), qid_() {}
 
-  virtual struct snobj *Init(struct snobj *arg);
-  pb_error_t InitPb(const bess::pb::QueueOutArg &arg);
+  pb_error_t Init(const bess::pb::QueueOutArg &arg);
 
   virtual void Deinit();
 

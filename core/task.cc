@@ -4,6 +4,7 @@
 
 #include <glog/logging.h>
 
+#include "mem_alloc.h"
 #include "module.h"
 #include "opts.h"
 #include "tc.h"

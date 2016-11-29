@@ -1,16 +1,6 @@
 #include "noop.h"
 
-struct snobj *NoOP::Init(struct snobj *) {
-  task_id_t tid;
-
-  tid = RegisterTask(nullptr);
-  if (tid == INVALID_TASK_ID)
-    return snobj_err(ENOMEM, "Task creation failed");
-
-  return nullptr;
-}
-
-pb_error_t NoOP::InitPb(const bess::pb::EmptyArg &) {
+pb_error_t NoOP::Init(const bess::pb::EmptyArg &) {
   task_id_t tid;
 
   tid = RegisterTask(nullptr);

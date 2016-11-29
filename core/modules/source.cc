@@ -1,18 +1,13 @@
 #include "source.h"
 
-const Commands<Module> Source::cmds = {
-    {"set_pkt_size", MODULE_FUNC &Source::command_set_pkt_size, 1},
-    {"set_burst", MODULE_FUNC &Source::command_set_burst, 1},
-};
-
-const PbCommands Source::pb_cmds = {
+const Commands Source::cmds = {
     {"set_pkt_size", "SourceCommandSetPktSizeArg",
-     MODULE_CMD_FUNC(&Source::CommandSetPktSizePb), 1},
+     MODULE_CMD_FUNC(&Source::CommandSetPktSize), 1},
     {"set_burst", "SourceCommandSetBurstArg",
-     MODULE_CMD_FUNC(&Source::CommandSetBurstPb), 1},
+     MODULE_CMD_FUNC(&Source::CommandSetBurst), 1},
 };
 
-pb_error_t Source::InitPb(const bess::pb::SourceArg &arg) {
+pb_error_t Source::Init(const bess::pb::SourceArg &arg) {
   pb_error_t err;
 
   task_id_t tid = RegisterTask(nullptr);
@@ -40,7 +35,7 @@ pb_error_t Source::InitPb(const bess::pb::SourceArg &arg) {
   return pb_errno(0);
 }
 
-pb_cmd_response_t Source::CommandSetBurstPb(
+pb_cmd_response_t Source::CommandSetBurst(
     const bess::pb::SourceCommandSetBurstArg &arg) {
   pb_cmd_response_t response;
 
@@ -56,7 +51,7 @@ pb_cmd_response_t Source::CommandSetBurstPb(
   return response;
 }
 
-pb_cmd_response_t Source::CommandSetPktSizePb(
+pb_cmd_response_t Source::CommandSetPktSize(
     const bess::pb::SourceCommandSetPktSizeArg &arg) {
   pb_cmd_response_t response;
 
@@ -68,38 +63,6 @@ pb_cmd_response_t Source::CommandSetPktSizePb(
   pkt_size_ = val;
   set_cmd_response_error(&response, pb_errno(0));
   return response;
-}
-
-struct snobj *Source::Init(struct snobj *arg) {
-  struct snobj *t;
-  struct snobj *err;
-
-  task_id_t tid = RegisterTask(nullptr);
-  if (tid == INVALID_TASK_ID)
-    return snobj_err(ENOMEM, "Task creation failed");
-
-  pkt_size_ = 60;
-  burst_ = bess::PacketBatch::kMaxBurst;
-
-  if (!arg) {
-    return nullptr;
-  }
-
-  if ((t = snobj_eval(arg, "pkt_size")) != nullptr) {
-    err = command_set_pkt_size(t);
-    if (err) {
-      return err;
-    }
-  }
-
-  if ((t = snobj_eval(arg, "burst")) != nullptr) {
-    err = command_set_burst(t);
-    if (err) {
-      return err;
-    }
-  }
-
-  return nullptr;
 }
 
 struct task_result Source::RunTask(void *) {
@@ -126,43 +89,6 @@ struct task_result Source::RunTask(void *) {
   };
 
   return ret;
-}
-
-struct snobj *Source::command_set_pkt_size(struct snobj *arg) {
-  uint64_t val;
-
-  if (snobj_type(arg) != TYPE_INT) {
-    return snobj_err(EINVAL, "pkt_size must be an integer");
-  }
-
-  val = snobj_uint_get(arg);
-
-  if (val == 0 || val > SNBUF_DATA) {
-    return snobj_err(EINVAL, "Invalid packet size");
-  }
-
-  pkt_size_ = val;
-
-  return nullptr;
-}
-
-struct snobj *Source::command_set_burst(struct snobj *arg) {
-  uint64_t val;
-
-  if (snobj_type(arg) != TYPE_INT) {
-    return snobj_err(EINVAL, "burst must be an integer");
-  }
-
-  val = snobj_uint_get(arg);
-
-  if (val == 0 || val > bess::PacketBatch::kMaxBurst) {
-    return snobj_err(EINVAL, "burst size must be [1,%lu]",
-                     bess::PacketBatch::kMaxBurst);
-  }
-
-  burst_ = val;
-
-  return nullptr;
 }
 
 ADD_MODULE(Source, "source",
