@@ -5,6 +5,7 @@
 
 #include "../module.h"
 #include "../module_msg.pb.h"
+#include "../utils/cdlist.h"
 #include "../utils/random.h"
 
 typedef std::pair<uint64_t, struct flow *> Event;
