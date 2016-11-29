@@ -11,11 +11,12 @@
 #include "opts.h"
 #include "task.h"
 #include "utils/common.h"
-#include "utils/time.h"
 #include "utils/random.h"
+#include "utils/time.h"
 #include "worker.h"
 
-// TODO(barath): move this global container of TCs to the TC class once it exists.
+// TODO(barath): move this global container of TCs to the TC class once it
+// exists.
 namespace TCContainer {
 std::unordered_map<std::string, struct tc *> tcs;
 }  // TCContainer
@@ -32,8 +33,9 @@ static void tc_add_to_parent_pgroup(struct tc *c, int share_resource) {
     if (c->settings.priority > g->priority) {
       next = &g->tc;
       goto pgroup_init;
-    } else if (c->settings.priority == g->priority)
+    } else if (c->settings.priority == g->priority) {
       goto pgroup_add;
+    }
   }
 
   next = (struct cdlist_item *)&parent->pgroups;
@@ -55,7 +57,7 @@ pgroup_init:
 
 pgroup_add:
   /* all classes in the pgroup have the same share_resource */
-  assert(g->resource == share_resource);
+  DCHECK_EQ(g->resource, share_resource);
 
   g->num_children++;
   c->ss.my_pgroup = g;
@@ -68,13 +70,13 @@ struct tc *tc_init(struct sched *s, const struct tc_params *params,
 
   int i;
 
-  assert(!s->current);
+  DCHECK(!s->current);
 
-  assert(0 <= params->share_resource);
-  assert(params->share_resource < NUM_RESOURCES);
+  DCHECK_LE(0, params->share_resource);
+  DCHECK_LT(params->share_resource, NUM_RESOURCES);
 
-  assert(params->share > 0);
-  assert(params->share <= MAX_SHARE);
+  DCHECK_GT(params->share, 0);
+  DCHECK_LE(params->share, MAX_SHARE);
 
   c = (struct tc *)mem_alloc(sizeof(*c));
   if (!c) {
@@ -82,7 +84,8 @@ struct tc *tc_init(struct sched *s, const struct tc_params *params,
   }
 
   if (!TCContainer::tcs.insert({params->name, c}).second) {
-    LOG(ERROR) << "Can't insert TC named " << params->name << "TCContainer::tcs.size()=" << TCContainer::tcs.size();
+    LOG(ERROR) << "Can't insert TC named " << params->name
+               << "TCContainer::tcs.size()=" << TCContainer::tcs.size();
     mem_free(c);
     return (struct tc *)err_to_ptr(-EEXIST);
   }
@@ -100,13 +103,13 @@ struct tc *tc_init(struct sched *s, const struct tc_params *params,
   c->last_tsc = rdtsc();
 
   for (i = 0; i < NUM_RESOURCES; i++) {
-    assert(params->limit[i] < ((uint64_t)1 << MAX_LIMIT_POW));
+    DCHECK_LT(params->limit[i], ((uint64_t)1 << MAX_LIMIT_POW));
 
     c->tb[i].limit =
         (params->limit[i] << (USAGE_AMPLIFIER_POW - 4)) / (tsc_hz >> 4);
 
     if (c->tb[i].limit) {
-      assert(params->max_burst[i] < ((uint64_t)1 << MAX_LIMIT_POW));
+      DCHECK_LT(params->max_burst[i], ((uint64_t)1 << MAX_LIMIT_POW));
       c->tb[i].max_burst =
           (params->max_burst[i] << (USAGE_AMPLIFIER_POW - 4)) / (tsc_hz >> 4);
       c->has_limit = 1;
@@ -132,13 +135,13 @@ void _tc_do_free(struct tc *c) {
   struct pgroup *g = c->ss.my_pgroup;
   struct tc *parent = c->parent;
 
-  assert(c->refcnt == 0);
+  DCHECK_EQ(c->refcnt, 0);
 
-  assert(!c->state.queued);
-  assert(!c->state.throttled);
+  DCHECK(!c->state.queued);
+  DCHECK(!c->state.throttled);
 
-  assert(cdlist_is_empty(&c->pgroups));
-  assert(cdlist_is_empty(&c->tasks));
+  DCHECK(cdlist_is_empty(&c->pgroups));
+  DCHECK(cdlist_is_empty(&c->tasks));
 
   if (g) {
     g->num_children--;
@@ -153,29 +156,34 @@ void _tc_do_free(struct tc *c) {
   }
 
   if (parent) {
-    assert(TCContainer::tcs.erase(c->settings.name));
+    DCHECK(TCContainer::tcs.erase(c->settings.name));
   }
 
   memset(c, 0, sizeof(*c)); /* zero out to detect potential bugs */
   mem_free(c);              /* Note: c is struct sched, if root */
 
-  if (parent) tc_dec_refcnt(parent);
+  if (parent) {
+    tc_dec_refcnt(parent);
+  }
 }
 
-static inline int tc_is_root(struct tc *c) { return c->parent == nullptr; }
+static inline int tc_is_root(struct tc *c) {
+  return c->parent == nullptr;
+}
 
 static inline int64_t next_pass(struct heap *pq) {
   struct tc *next = (struct tc *)heap_peek(pq);
 
-  if (next)
+  if (next) {
     return next->ss.pass;
-  else
+  } else {
     return 0;
+  }
 }
 
 void tc_join(struct tc *c) {
-  assert(!c->state.queued);
-  assert(!c->state.runnable);
+  DCHECK(!c->state.queued);
+  DCHECK(!c->state.runnable);
 
   c->state.runnable = 1;
 
@@ -255,7 +263,9 @@ static void resume_throttled(struct sched *s, uint64_t tsc) {
 
     heap_peek_valdata(&s->pq, &event_tsc, (void **)&c);
 
-    if ((uint64_t)event_tsc > tsc) break;
+    if ((uint64_t)event_tsc > tsc) {
+      break;
+    }
 
     heap_pop(&s->pq);
 
@@ -278,18 +288,24 @@ static struct tc *pick(struct tc *c) {
 
 again:
   /* found a leaf? */
-  if (cdlist_is_empty(&c->pgroups)) return c;
+  if (cdlist_is_empty(&c->pgroups)) {
+    return c;
+  }
 
   cdlist_for_each_entry(g, &c->pgroups, tc) {
     struct heap *pq = &g->pq;
     struct tc *child;
 
     child = (struct tc *)heap_peek(pq);
-    if (!child) continue;
+    if (!child) {
+      continue;
+    }
 
-    assert(child->state.queued);
+    DCHECK(child->state.queued);
 
-    if (!child->state.runnable) return child;
+    if (!child->state.runnable) {
+      return child;
+    }
 
     c = child;
     goto again;
@@ -301,7 +317,7 @@ again:
 static struct tc *sched_next(struct sched *s, uint64_t tsc) {
   struct tc *c;
 
-  assert(!s->current);
+  DCHECK(!s->current);
 
   resume_throttled(s, tsc);
 
@@ -309,7 +325,9 @@ again:
   c = pick(&s->root);
 
   /* empty tree? */
-  if (c == &s->root) c = nullptr;
+  if (c == &s->root) {
+    c = nullptr;
+  }
 
   if (c) {
     if (!c->state.runnable) {
@@ -340,7 +358,9 @@ static inline void accumulate(resource_arr_t acc, resource_arr_t x) {
   *((__m128i *)p1 + 1) =
       _mm_add_epi64(*((__m128i *)p1 + 1), *((__m128i *)p2 + 1));
 #else
-  for (int i = 0; i < NUM_RESOURCES; i++) p1[i] += p2[i];
+  for (int i = 0; i < NUM_RESOURCES; i++) {
+    p1[i] += p2[i];
+  }
 #endif
 }
 
@@ -373,7 +393,9 @@ static int tc_account(struct sched *s, struct tc *c, resource_arr_t usage,
 
     const uint64_t limit = c->tb[i].limit;
 
-    if (!limit) continue;
+    if (!limit) {
+      continue;
+    }
 
     consumed = usage[i] << USAGE_AMPLIFIER_POW;
     tokens = c->tb[i].tokens + limit * elapsed_cycles;
@@ -385,13 +407,18 @@ static int tc_account(struct sched *s, struct tc *c, resource_arr_t usage,
 
       throttled = 1;
 
-      if (wait_tsc > max_wait_tsc) max_wait_tsc = wait_tsc;
-    } else
+      if (wait_tsc > max_wait_tsc) {
+        max_wait_tsc = wait_tsc;
+      }
+    } else {
       c->tb[i].tokens = std::min(tokens - consumed, c->tb[i].max_burst);
+    }
   }
 
   if (throttled) {
-    for (i = 0; i < NUM_RESOURCES; i++) c->tb[i].tokens = 0;
+    for (i = 0; i < NUM_RESOURCES; i++) {
+      c->tb[i].tokens = 0;
+    }
 
     c->state.throttled = 1;
     c->stats.cnt_throttled++;
@@ -410,10 +437,12 @@ static void sched_done(struct sched *s, struct tc *c, resource_arr_t usage,
                        int reschedule, uint64_t tsc) {
   accumulate(s->stats.usage, usage);
 
-  assert(s->current);
+  DCHECK(s->current);
   s->current = nullptr;
 
-  if (!reschedule) c->state.runnable = 0;
+  if (!reschedule) {
+    c->state.runnable = 0;
+  }
 
   /* upwards from the leaf, skipping the root class */
   do {
@@ -424,11 +453,13 @@ static void sched_done(struct sched *s, struct tc *c, resource_arr_t usage,
 
     int throttled;
 
-    assert(c->state.queued);
+    DCHECK(c->state.queued);
     c->ss.pass += c->ss.stride * consumed / QUANTUM;
 
     throttled = tc_account(s, c, usage, tsc);
-    if (throttled) reschedule = 0;
+    if (throttled) {
+      reschedule = 0;
+    }
 
     if (reschedule) {
       heap_replace(pq, c->ss.pass, c);
@@ -463,7 +494,9 @@ static char *print_tc_stats_detail(struct sched *s, char *p, int max_cnt) {
 
   p += sprintf(p, "\n");
 
-  if (cdlist_is_empty(&s->tcs_all)) return p;
+  if (cdlist_is_empty(&s->tcs_all)) {
+    return p;
+  }
 
   p += sprintf(p, "%-10s ", "TC");
   num_printed = 0;
@@ -602,7 +635,9 @@ static inline struct task_result tc_scheduled(struct tc *c) {
     t = container_of(cdlist_rotate_left(&c->tasks), struct task, tc);
 
     ret = task_scheduled(t);
-    if (ret.packets) return ret;
+    if (ret.packets) {
+      return ret;
+    }
   }
 
   return (struct task_result){.packets = 0, .bits = 0};
@@ -653,8 +688,8 @@ void schedule_once(struct sched *s) {
 
 void sched_loop(struct sched *s) {
   // How many rounds to go before we do accounting.
-  const uint64_t accounting_mask = 0xff; 
-  static_assert(((accounting_mask+1) & (accounting_mask)) == 0,
+  const uint64_t accounting_mask = 0xff;
+  static_assert(((accounting_mask + 1) & (accounting_mask)) == 0,
                 "Accounting mask must be a (2^n)-1");
 
   last_stats = s->stats;

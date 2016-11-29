@@ -169,13 +169,13 @@ class Packet {
     int ret;
 
     ret = rte_pktmbuf_trim(&as_rte_mbuf(), to_remove);
-    assert(ret == 0);
+    DCHECK_EQ(ret, 0);
   }
 
   Packet *copy(Packet *src) {
     Packet *dst;
 
-    assert(src->is_linear());
+    DCHECK(src->is_linear());
 
     dst = __packet_alloc_pool(src->pool_);
 

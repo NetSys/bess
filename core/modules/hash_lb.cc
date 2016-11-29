@@ -179,7 +179,7 @@ void HashLB::ProcessBatch(bess::PacketBatch *batch) {
       break;
 
     default:
-      assert(0);
+      DCHECK(0);
   }
 
   RunSplit(out_gates, batch);

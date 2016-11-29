@@ -33,7 +33,7 @@ int PCAPPort::RecvPackets(queue_t qid, bess::Packet** pkts, int cnt) {
   int recv_cnt = 0;
   bess::Packet* sbuf;
 
-  assert(qid == 0);
+  DCHECK_EQ(qid, 0);
 
   while (recv_cnt < cnt) {
     int caplen = 0;

@@ -35,7 +35,9 @@ static inline uint32_t inlined_hash(const void *key, uint32_t key_size,
 #endif
 }
 
-static inline value_t derive_val(uint32_t key) { return (value_t)(key + 3); }
+static inline value_t derive_val(uint32_t key) {
+  return (value_t)(key + 3);
+}
 
 static Random rng;
 
@@ -47,8 +49,9 @@ static inline uint32_t rand_fast() {
 static inline uint32_t rand_fast_nonzero() {
   while (true) {
     uint32_t ret = rand_fast();
-    if (likely(ret))
+    if (likely(ret)) {
       return ret;
+    }
   }
 }
 
@@ -64,10 +67,11 @@ static void *bess_init(int entries) {
     value_t val = derive_val(key);
 
     int ret = t->Set(&key, &val);
-    if (ret == -ENOMEM)
+    if (ret == -ENOMEM) {
       return nullptr;
-    else
-      assert(ret == 0 || ret == 1);
+    } else {
+      DCHECK(ret == 0 || ret == 1);
+    }
   }
 
   return t;
@@ -83,7 +87,7 @@ static void bess_get(void *arg, int iteration, int entries) {
       value_t *val;
 
       val = (value_t *)t->Get(&key);
-      assert(val && *val == derive_val(key));
+      DCHECK(val && *val == derive_val(key));
     }
   }
 }
@@ -99,7 +103,7 @@ static void bess_inlined_get(void *arg, int iteration, int entries) {
       value_t *val;
 
       val = (value_t *)t->Get(&key);
-      assert(val && *val == derive_val(key));
+      DCHECK(val && *val == derive_val(key));
     }
   }
 }
@@ -134,7 +138,9 @@ static void *dpdk_discrete_init(int entries) {
   };
 
   t = rte_hash_create(&params);
-  if (!t) return nullptr;
+  if (!t) {
+    return nullptr;
+  }
 
   value_arr = (value_t *)mem_alloc(sizeof(value_t) * entries);
   if (!value_arr) {
@@ -156,7 +162,7 @@ static void *dpdk_discrete_init(int entries) {
     value_t val = derive_val(key);
 
     int ret = rte_hash_add_key(t, &key);
-    assert(ret >= 0);
+    DCHECK_GE(ret, 0);
     value_arr[ret] = val;
   }
 
@@ -182,7 +188,9 @@ static void *dpdk_embedded_init(int entries) {
   };
 
   t = rte_hash_create(&params);
-  if (!t) return nullptr;
+  if (!t) {
+    return nullptr;
+  }
 
   rng.SetSeed(0);
 
@@ -191,7 +199,7 @@ static void *dpdk_embedded_init(int entries) {
     uintptr_t val = derive_val(key);
 
     int ret = rte_hash_add_key_data(t, &key, (void *)val);
-    assert(ret == 0);
+    DCHECK_EQ(ret, 0);
   }
 
   return t;
@@ -208,7 +216,7 @@ static void dpdk_(void *arg, int iteration, int entries) {
       uint32_t key = rand_fast_nonzero();
 
       int ret = rte_hash_lookup(t, &key);
-      assert(ret >= 0 && value_arr[ret] == derive_val(key));
+      DCHECK(ret >= 0 && value_arr[ret] == derive_val(key));
     }
   }
 }
@@ -225,7 +233,7 @@ static void dpdk_hash(void *arg, int iteration, int entries) {
 
       int ret =
           rte_hash_lookup_with_hash(t, &key, crc32c_sse42_u32(key, UINT32_MAX));
-      assert(ret >= 0 && value_arr[ret] == derive_val(key));
+      DCHECK(ret >= 0 && value_arr[ret] == derive_val(key));
     }
   }
 }
@@ -253,7 +261,7 @@ static void dpdk_bulk(void *arg, int iteration, int entries) {
 
       for (int j = 0; j < size; j++) {
         int idx = positions[j];
-        assert(idx >= 0 && value_arr[idx] == derive_val(keys[j]));
+        DCHECK(idx >= 0 && value_arr[idx] == derive_val(keys[j]));
       }
     }
   }
@@ -269,7 +277,7 @@ static void dpdk_data(void *arg, int iteration, int entries) {
       uintptr_t val;
 
       rte_hash_lookup_data(t, &key, (void **)&val);
-      assert((value_t)val == derive_val(key));
+      DCHECK_EQ(value_t{val}, derive_val(key));
     }
   }
 }
@@ -285,7 +293,7 @@ static void dpdk_data_hash(void *arg, int iteration, int entries) {
 
       rte_hash_lookup_with_hash_data(t, &key, crc32c_sse42_u32(key, UINT32_MAX),
                                      (void **)&val);
-      assert((value_t)val == derive_val(key));
+      DCHECK_EQ(value_t{val}, derive_val(key));
     }
   }
 }
@@ -311,9 +319,9 @@ static void dpdk_data_bulk(void *arg, int iteration, int entries) {
       rte_hash_lookup_bulk_data(t, (const void **)key_ptrs, size, &hit_mask,
                                 (void **)&data);
 
-      assert(hit_mask == ((uint64_t)1 << size) - 1);
+      DCHECK_EQ(hit_mask, ((uint64_t)1 << size) - 1);
       for (int j = 0; j < size; j++)
-        assert((value_t)data[j] == derive_val(keys[j]));
+        DCHECK_EQ(value_t{data[j]}, derive_val(keys[j]));
     }
   }
 }
@@ -408,7 +416,9 @@ static void perftest() {
       double elapsed = NAN;
 
       arg = p->init(entries);
-      if (!arg) break;
+      if (!arg) {
+        break;
+      }
 
       fflush(stdout);
 
@@ -444,10 +454,11 @@ static void functest() {
     int ret;
 
     ret = t.Set(&key, &val);
-    if (ret == 1)
+    if (ret == 1) {
       num_updates++;
-    else
-      assert(ret == 0);
+    } else {
+      DCHECK_EQ(ret, 0);
+    }
   }
 
   rng.SetSeed(0);
@@ -456,8 +467,8 @@ static void functest() {
     uint16_t *val;
 
     val = (uint16_t *)t.Get(&key);
-    assert(val != nullptr);
-    assert(*val == derive_val(key));
+    DCHECK_NE(val, nullptr);
+    DCHECK_EQ(*val, derive_val(key));
   }
 
   rng.SetSeed(0);
@@ -466,14 +477,15 @@ static void functest() {
     int ret;
 
     ret = t.Del(&key);
-    if (ret == -ENOENT)
+    if (ret == -ENOENT) {
       num_updates--;
-    else
-      assert(ret == 0);
+    } else {
+      DCHECK_EQ(ret, 0);
+    }
   }
 
-  assert(num_updates == 0);
-  assert(t.Count() == 0);
+  DCHECK_EQ(num_updates, 0);
+  DCHECK_EQ(t.Count(), 0);
 }
 
 ADD_TEST(perftest, "hash table performance comparison")

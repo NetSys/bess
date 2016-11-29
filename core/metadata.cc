@@ -485,7 +485,7 @@ void Pipeline::DeregisterAttribute(const std::string &attr_name) {
   int &count = std::get<1>(it->second);
 
   count--;
-  assert(count >= 0);
+  DCHECK_GE(count, 0);
 
   if (count == 0) {
     // No more modules are using the attribute. Remove it from the map.

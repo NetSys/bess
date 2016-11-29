@@ -386,7 +386,7 @@ void SetTrapHandler() {
 
   for (i = 0; i < sizeof(signals) / sizeof(int); i++) {
     int ret = sigaction(signals[i], &sigact, nullptr);
-    assert(ret != 1);
+    DCHECK_NE(ret, 1);
   }
 
   for (i = 0; i < sizeof(ignored_signals) / sizeof(int); i++) {

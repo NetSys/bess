@@ -17,9 +17,9 @@
 #include <rte_hash.h>
 #include <rte_hash_crc.h>
 
+#include "../mem_alloc.h"
 #include "common.h"
 #include "random.h"
-#include "../mem_alloc.h"
 
 typedef uint16_t value_t;
 
@@ -74,7 +74,7 @@ class BessFixture : public benchmark::Fixture {
 
   virtual void TearDown(benchmark::State &) {
     HTable<uint32_t, value_t, inlined_keycmp, inlined_hash> *t =
-        (HTable<uint32_t, value_t, inlined_keycmp, inlined_hash> *) arg_;
+        (HTable<uint32_t, value_t, inlined_keycmp, inlined_hash> *)arg_;
     t->Close();
   }
 
@@ -83,7 +83,7 @@ class BessFixture : public benchmark::Fixture {
 };
 
 // Benchmarks the Get() method in HTableBase.
-BENCHMARK_DEFINE_F(BessFixture, BessGet)(benchmark::State& state) {
+BENCHMARK_DEFINE_F(BessFixture, BessGet)(benchmark::State &state) {
   HTableBase *t = static_cast<HTableBase *>(arg_);
 
   while (true) {
@@ -95,7 +95,8 @@ BENCHMARK_DEFINE_F(BessFixture, BessGet)(benchmark::State& state) {
       value_t *val;
 
       val = (value_t *)t->Get(&key);
-      assert(val && *val == derive_val(key));
+      DCHECK(val);
+      DCHECK_EQ(*val, derive_val(key));
 
       if (!state.KeepRunning()) {
         state.SetItemsProcessed(state.iterations());
@@ -110,7 +111,7 @@ BENCHMARK_REGISTER_F(BessFixture, BessGet)
     ->Range(4, 4 << 20);
 
 // Benchmarks the Get() method in HTable, which is inlined.
-BENCHMARK_DEFINE_F(BessFixture, BessInlinedGet)(benchmark::State& state) {
+BENCHMARK_DEFINE_F(BessFixture, BessInlinedGet)(benchmark::State &state) {
   HTable<uint32_t, value_t, inlined_keycmp, inlined_hash> *t =
       (HTable<uint32_t, value_t, inlined_keycmp, inlined_hash> *)arg_;
 
@@ -123,7 +124,8 @@ BENCHMARK_DEFINE_F(BessFixture, BessInlinedGet)(benchmark::State& state) {
       value_t *val;
 
       val = (value_t *)t->Get(&key);
-      assert(val && *val == derive_val(key));
+      DCHECK(val);
+      DCHECK_EQ(*val, derive_val(key));
 
       if (!state.KeepRunning()) {
         state.SetItemsProcessed(state.iterations());

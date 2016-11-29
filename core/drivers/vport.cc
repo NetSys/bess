@@ -64,7 +64,7 @@ static void refill_tx_bufs(struct llring *r) {
     objs[i] = (void *)(uintptr_t)pkts[i]->paddr();
 
   ret = llring_mp_enqueue_bulk(r, objs, ret);
-  assert(ret == 0);
+  DCHECK_EQ(ret, 0);
 }
 
 static void drain_sn_to_drv_q(struct llring *q) {
@@ -212,7 +212,7 @@ void *VPort::AllocBar(struct tx_queue_opts *txq_opts,
 
   VLOG(1) << "BAR total_bytes = " << total_bytes;
   bar = rte_zmalloc(nullptr, total_bytes, 0);
-  assert(bar);
+  DCHECK(bar);
 
   conf = reinterpret_cast<struct sn_conf_space *>(bar);
 
@@ -371,14 +371,14 @@ pb_error_t VPort::SetIPAddr(const bess::pb::VPortArg &arg) {
       if (ret < 0) {
         if (nspace) {
           /* it must be the child */
-          assert(child_pid == 0);
+          DCHECK_EQ(child_pid, 0);
           exit(errno <= 255 ? errno : ENOMSG);
         } else
           break;
       }
     }
   } else {
-    assert(0);
+    DCHECK(0);
   }
 
   if (nspace) {
@@ -395,7 +395,7 @@ pb_error_t VPort::SetIPAddr(const bess::pb::VPortArg &arg) {
       ret = waitpid(child_pid, &exit_status, 0);
 
       if (ret >= 0) {
-        assert(ret == child_pid);
+        DCHECK_EQ(ret, child_pid);
         ret = -WEXITSTATUS(exit_status);
       } else
         PLOG(ERROR) << "waitpid()";

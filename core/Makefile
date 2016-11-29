@@ -76,6 +76,9 @@ ifdef COVERAGE
     LDFLAGS += --coverage
 endif
 
+ifndef DEBUG
+		CXXFLAGS += -DNDEBUG
+endif
 
 -include extra.mk
 

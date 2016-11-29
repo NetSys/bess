@@ -6,8 +6,8 @@
 #include <rte_config.h>
 #include <rte_mbuf.h>
 
-#include "worker.h"
 #include "metadata.h"
+#include "worker.h"
 
 #include "snbuf_layout.h"
 
@@ -115,7 +115,9 @@ static inline int snb_alloc_bulk(snb_array_t snbs, int cnt, uint16_t len) {
   int i;
 
   ret = rte_mempool_get_bulk(ctx.pframe_pool(), (void **)snbs, cnt);
-  if (ret != 0) return 0;
+  if (ret != 0) {
+    return 0;
+  }
 
   for (i = 0; i < cnt; i++) {
     struct snbuf *snb = snbs[i];
@@ -149,13 +151,17 @@ static inline void snb_free_bulk(snb_array_t snbs, int cnt) {
   return;
 
 slow_path:
-  for (i = 0; i < cnt; i++) snb_free(snbs[i]);
+  for (i = 0; i < cnt; i++) {
+    snb_free(snbs[i]);
+  }
 }
 #endif
 
 /* add bytes to the beginning */
 static inline void *snb_prepend(struct snbuf *snb, uint16_t len) {
-  if (unlikely(snb->mbuf.data_off < len)) return nullptr;
+  if (unlikely(snb->mbuf.data_off < len)) {
+    return nullptr;
+  }
 
   snb->mbuf.data_off -= len;
   snb->mbuf.data_len += len;
@@ -166,7 +172,9 @@ static inline void *snb_prepend(struct snbuf *snb, uint16_t len) {
 
 /* remove bytes from the beginning */
 static inline void *snb_adj(struct snbuf *snb, uint16_t len) {
-  if (unlikely(snb->mbuf.data_len < len)) return nullptr;
+  if (unlikely(snb->mbuf.data_len < len)) {
+    return nullptr;
+  }
 
   snb->mbuf.data_off += len;
   snb->mbuf.data_len -= len;
@@ -185,13 +193,13 @@ static inline void snb_trim(struct snbuf *snb, uint16_t to_remove) {
   int ret;
 
   ret = rte_pktmbuf_trim(&snb->mbuf, to_remove);
-  assert(ret == 0);
+  DCHECK(ret == 0);
 }
 
 static inline struct snbuf *snb_copy(struct snbuf *src) {
   struct snbuf *dst;
 
-  assert(snb_is_linear(src));
+  DCHECK(snb_is_linear(src));
 
   dst = __snb_alloc_pool(src->mbuf.pool);
 
@@ -212,7 +220,9 @@ static inline phys_addr_t snb_dma_addr(struct snbuf *snb) {
 struct rte_mempool *get_pframe_pool();
 struct rte_mempool *get_pframe_pool_socket(int socket);
 
-static inline phys_addr_t snb_to_paddr(struct snbuf *snb) { return snb->paddr; }
+static inline phys_addr_t snb_to_paddr(struct snbuf *snb) {
+  return snb->paddr;
+}
 
 static inline int mt_offset_to_databuf_offset(
     bess::metadata::mt_offset_t offset) {
