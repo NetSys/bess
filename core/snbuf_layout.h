@@ -40,10 +40,4 @@
 
 #define SNBUF_DATA_OFF (SNBUF_HEADROOM_OFF + SNBUF_HEADROOM)
 
-static_assert(SNBUF_IMMUTABLE_OFF == 128,
-              "Packet immbutable offset must be 128");
-static_assert(SNBUF_METADATA_OFF == 192, "Packet metadata offset must by 192");
-static_assert(SNBUF_SCRATCHPAD_OFF == 320,
-              "Packet scratchpad offset must be 320");
-
 #endif  // BESS_SNBUFLAYOUT_H_

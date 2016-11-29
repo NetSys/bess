@@ -88,6 +88,10 @@ void init_mempool(void) {
 
   int i;
 
+  assert(SNBUF_IMMUTABLE_OFF == 128);
+  assert(SNBUF_METADATA_OFF == 192);
+  assert(SNBUF_SCRATCHPAD_OFF == 320);
+
   if (FLAGS_d) {
     rte_dump_physmem_layout(stdout);
   }
