@@ -30,7 +30,7 @@ From an individual module's viewpoint, packet processing happens in three simple
 
 Once a module takes packets from upstream, the module takes over the "ownership" of the packets, i.e., *the module becomes responsible for the lifetime of the packets*. This rule has several implications:
 
-* A module (**predecessor**) must not pass the same packet to multiple downstream modules (**successors**). 
+* A module (**predecessor**) must not pass the same packet to multiple downstream modules (**successors**).
   * As a result, each successor will work on a disjoint subset of packets.
 * A packet must be either stored (queued), deallocated (dropped), or passed to a downstream module. Otherwise, it is a memory (packet) leak.
 * Deallocated packets must not be passed to successors.
@@ -73,9 +73,9 @@ Each module instance has a private memory to maintain its internal state. The me
 
 > NOTE: For memory shared by all instances of a kind, you can simply use global variable.
 
-BESS supports two different types of module private space: per-instance and per-worker memory. Both are filled with zero (`\x00`) when the module is initialized. 
+BESS supports two different types of module private space: per-instance and per-worker memory. Both are filled with zero (`\x00`) when the module is initialized.
 
-The per-instance memory area can be used by all master/worker threads. Since the master thread does not concurrently run with worker threads, no particular synchronization is needed. However, as multiple worker threads may run simultaneously, any per-instance memory access from worker threads must be thread-safe. 
+The per-instance memory area can be used by all master/worker threads. Since the master thread does not concurrently run with worker threads, no particular synchronization is needed. However, as multiple worker threads may run simultaneously, any per-instance memory access from worker threads must be thread-safe.
 
 In contrast, per-worker memory is allocated for each worker thread. Since its use is exclusive, worker threads do not need synchronization for this memory area. For example, per-worker memory can be used for storing per-core statistics. If updating statistics counters is frequent and reading their values is not, maintaining worker-thread statistics in per-core storage would be a good idea; stat counters can be updated by worker threads without locking, while the master thread can gather the values when queried by an external controller.
 
@@ -84,65 +84,55 @@ In contrast, per-worker memory is allocated for each worker thread. Since its us
 
 There are four methods for an external controller to interact with modules in the BESS datapath pipeline:
 
-1. **Intiailization**: When the controller creates a module, it can provide configuration options to the module. The `->init()` virtual function takes the options as an [`snobj`](snobj.md).
-2. **Query interface**: This is a request/response interface for modules. Controllers can make a request to a module, then the module returns a response to the controller. The requests and responses are `snobj` instances, and their format and semantics are module specific. Potential use cases of the query interface can be dynamic configuration change, querying stat counters, flow table updates, etc. The `->query()` virtual function takes an snobj as a request, and returns another snobj as a response.
-3. **Event channel**: This is an one-way channel between a controller and a module instance. It can be either controller-to-module or module-to-controller. The channel carries messages, each of which is an `snobj` instance.
+1. **Intiailization**: When the controller creates a module, it can provide configuration options to the module. The `->init()` virtual function takes the options as an `protobuf` message.
+2. **Query interface**: This is a request/response interface for modules. Controllers can make a request to a module, then the module returns a response to the controller. The requests and responses are `protobuf` messages, and their format and semantics are module specific.
+3. **Event channel**: This is an one-way channel between a controller and a module instance. It can be either controller-to-module or module-to-controller. The channel carries messages, each of which is an `protobuf` message.
 
 > NOTE: Event channel is not implemented yet.
 
 
 ### Task
 
-There are two ways module code can run in BESS. We already saw the first way earlier; a predecessor module passes packets to a successor, by calling its `process_batch()` callback function. In this case, execution of module code is triggered by another module. 
+There are two ways module code can run in BESS. We already saw the first way earlier; a predecessor module passes packets to a successor, by calling its `process_batch()` callback function. In this case, execution of module code is triggered by another module.
 
 The other way is using tasks. Optionally, modules can register a task. When the BESS framework schedules the task, its associated code will be executed as a callback function, `->run_task()`. The following code snippet from the `Source` module, which generates dummy packets and pass them to its downstream module, illustrates how to use tasks:
 
 ```c
-static struct snobj *source_init(struct module *m, struct snobj *arg)
+pb_error_t Source::Init(const bess::pb::SourceArg &arg) {
 {
 	...
-	tid = register_task(m, NULL);
+	task_id_t tid = RegisterTask(nullptr);
 	if (tid == INVALID_TASK_ID)
-		return snobj_err(ENOMEM, "Task creation failed");
+		return pb_error(ENOMEM, "Task creation failed");
 	...
 }
 
 ...
 
-static struct task_result
-source_run_task(struct module *m, void *arg)
+struct task_result Source::RunTask(void *) {
 {
 	...
-	const int cnt = snb_alloc_bulk(batch.pkts, MAX_PKT_BURST,
-			priv->pkt_size);
+	int cnt = bess::Packet::Alloc(batch.pkts(), burst, pkt_size);
 
-	if (cnt > 0) {
-		batch.cnt = cnt;
-		run_next_module(m, &batch);
-	}
+  if (cnt > 0) {
+    batch.set_cnt(cnt);
+    RunNextModule(&batch);
+  }
 
-	ret = (struct task_result) {
-		.packets = cnt,
-		.bits = (total_bytes + cnt * pkt_overhead) * 8,
-	};
+  ret = (struct task_result){
+    .packets = static_cast<uint64_t>(cnt),
+    .bits = (total_bytes + cnt * pkt_overhead) * 8,
+  };
 
 	return ret;
 }
 
-static const struct mclass source = {
-	.name 		= "Source",
-	.priv_size	= sizeof(struct source_priv),
-	.init 		= source_init,
-	.query		= source_query,
-	.run_task 	= source_run_task,
-};
-
 ADD_MCLASS(source)
 ```
 
-In `->init()`, it creates a task. Unlike other modules, the `Source` module declares `->run_task()`, not `->process_batch()`. This is because the module is not triggered by an upstream module. Instead, the module creates a task, and whenever the scheduler picks the task `source_run_task()` function will be invoked. Then the function executes downstream modules by calling the `run_next_module()` function, which will invoke the `->process_batch()` function of its downstream module.
+In `Init()`, it creates a task. Unlike other modules, the `Source` module declares `RunTask()`, not `ProcessBatch()`. This is because the module is not triggered by an upstream module. Instead, the module creates a task, and whenever the scheduler picks the task `RunTask()` function will be invoked. Then the function executes downstream modules by calling the `RunNextModule()` function, which will invoke the `->ProcessBatch()` function of its downstream module.
 
-You can see the return type of `->run_task()` function is `struct task_result`. The module is expected to report how much traffic is processed by the task. This information will be used by the scheduler for accounting the resource usage of the traffic class to which the task belongs. See [here](tc.md) for more details.
+You can see the return type of `RunTask()` function is `struct task_result`. The module is expected to report how much traffic is processed by the task. This information will be used by the scheduler for accounting the resource usage of the traffic class to which the task belongs. See [here](tc.md) for more details.
 
 A module can register multiple tasks. For example, the `PortInc` module creates a task for each RX queue of the port. Then each task polls its own queue, and if packets are received, passes them to the downstream module.
 
