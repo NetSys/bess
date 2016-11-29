@@ -350,7 +350,6 @@ int HTableBase::Init(size_t key_size, size_t value_size) {
 void HTableBase::Close() {
   mem_free(buckets_);
   mem_free(entries_);
-  memset((void *)this, 0, sizeof(*this));
 }
 
 void HTableBase::Clear() {
