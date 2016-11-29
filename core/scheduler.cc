@@ -72,10 +72,13 @@ void Scheduler::ScheduleOnce() {
 TrafficClass *Scheduler::Next() {
   // Before we select the next class to run, resume any classes that were
   // throttled whose throttle time has expired so that they are available.
-  ResumeThrottled(now_);
+  if (have_throttled_) {
+    ResumeThrottled(now_);
+  }
 
   TrafficClass *c = &root_;
   while (c->policy_ != POLICY_LEAF) {
+    c = c->ScheduleNext();
     switch (c->policy_) {
       case POLICY_PRIORITY: {
         PriorityTrafficClass *pc = static_cast<PriorityTrafficClass *>(c);
@@ -226,6 +229,7 @@ void Scheduler::HandleRateLimit(RateLimitTrafficClass *rc, uint64_t consumed, ui
     rc->throttle_expiration_ = tsc+wait_tsc;
 
     throttled_cache_.push(rc);
+    have_throttled_ = true;
   } else {
     // Still has some tokens, unthrottled.
     rc->tokens_ = std::min(tokens - consumed, rc->max_burst_);
@@ -319,6 +323,8 @@ void Scheduler::ResumeThrottled(uint64_t tsc) {
       break;
     }
   }
+
+  have_throttled_ = !throttled_cache_.empty();
 }
 
 }  // namespace bess
