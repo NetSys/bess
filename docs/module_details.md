@@ -84,7 +84,7 @@ In contrast, per-worker memory is allocated for each worker thread. Since its us
 
 There are four methods for an external controller to interact with modules in the BESS datapath pipeline:
 
-1. **Intiailization**: When the controller creates a module, it can provide configuration options to the module. The `->init()` virtual function takes the options as an `protobuf` message.
+1. **Intiailization**: When the controller creates a module, it can provide configuration options to the module. The `Init()` virtual function takes the options as an `protobuf` message.
 2. **Query interface**: This is a request/response interface for modules. Controllers can make a request to a module, then the module returns a response to the controller. The requests and responses are `protobuf` messages, and their format and semantics are module specific.
 3. **Event channel**: This is an one-way channel between a controller and a module instance. It can be either controller-to-module or module-to-controller. The channel carries messages, each of which is an `protobuf` message.
 
@@ -93,9 +93,9 @@ There are four methods for an external controller to interact with modules in th
 
 ### Task
 
-There are two ways module code can run in BESS. We already saw the first way earlier; a predecessor module passes packets to a successor, by calling its `process_batch()` callback function. In this case, execution of module code is triggered by another module.
+There are two ways module code can run in BESS. We already saw the first way earlier; a predecessor module passes packets to a successor, by calling its `ProcessBatch()` callback function. In this case, execution of module code is triggered by another module.
 
-The other way is using tasks. Optionally, modules can register a task. When the BESS framework schedules the task, its associated code will be executed as a callback function, `->run_task()`. The following code snippet from the `Source` module, which generates dummy packets and pass them to its downstream module, illustrates how to use tasks:
+The other way is using tasks. Optionally, modules can register a task. When the BESS framework schedules the task, its associated code will be executed as a callback function, `RunTask()`. The following code snippet from the `Source` module, which generates dummy packets and pass them to its downstream module, illustrates how to use tasks:
 
 ```c
 pb_error_t Source::Init(const bess::pb::SourceArg &arg) {
