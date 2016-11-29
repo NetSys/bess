@@ -100,20 +100,19 @@ The other way is using tasks. Optionally, modules can register a task. When the 
 ```c
 pb_error_t Source::Init(const bess::pb::SourceArg &arg) {
 {
-	...
-	task_id_t tid = RegisterTask(nullptr);
-	if (tid == INVALID_TASK_ID)
-		return pb_error(ENOMEM, "Task creation failed");
-	...
+  ...
+  task_id_t tid = RegisterTask(nullptr);
+  if (tid == INVALID_TASK_ID)
+    return pb_error(ENOMEM, "Task creation failed");
+  ...
 }
 
 ...
 
 struct task_result Source::RunTask(void *) {
 {
-	...
-	int cnt = bess::Packet::Alloc(batch.pkts(), burst, pkt_size);
-
+  ...
+  int cnt = bess::Packet::Alloc(batch.pkts(), burst, pkt_size);
   if (cnt > 0) {
     batch.set_cnt(cnt);
     RunNextModule(&batch);
@@ -121,10 +120,10 @@ struct task_result Source::RunTask(void *) {
 
   ret = (struct task_result){
     .packets = static_cast<uint64_t>(cnt),
-    .bits = (total_bytes + cnt * pkt_overhead) * 8,
+    .bits = (total_bytes + cnt * pkt_overhead) * 8;
   };
 
-	return ret;
+  return ret;
 }
 
 ADD_MCLASS(source)
