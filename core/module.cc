@@ -164,6 +164,36 @@ const std::map<std::string, Module *> &ModuleBuilder::all_modules() {
   return all_modules_;
 }
 
+pb_cmd_response_t ModuleBuilder::RunCommand(
+    Module *m, const std::string &user_cmd,
+    const google::protobuf::Any &arg) const {
+  pb_cmd_response_t response;
+  for (auto &cmd : cmds_) {
+    if (user_cmd == cmd.cmd) {
+      if (!cmd.mt_safe && is_any_worker_running()) {
+        set_cmd_response_error(&response,
+                               pb_error(EBUSY,
+                                        "There is a running worker "
+                                        "and command '%s' is not MT safe",
+                                        cmd.cmd.c_str()));
+        return response;
+      }
+
+      return cmd.func(m, arg);
+    }
+  }
+
+  set_cmd_response_error(&response,
+                         pb_error(ENOTSUP, "'%s' does not support command '%s'",
+                                  class_name_.c_str(), user_cmd.c_str()));
+  return response;
+}
+
+pb_error_t ModuleBuilder::RunInit(Module *m,
+                                  const google::protobuf::Any &arg) const {
+  return init_func_(m, arg);
+}
+
 // -------------------------------------------------------------------------
 pb_error_t Module::InitWithGenericArg(const google::protobuf::Any &arg) {
   return module_builder_->RunInit(this, arg);

@@ -124,22 +124,9 @@ class ModuleBuilder {
                                          const std::string &default_template);
 
   pb_cmd_response_t RunCommand(Module *m, const std::string &user_cmd,
-                               const google::protobuf::Any &arg) const {
-    for (auto &cmd : cmds_) {
-      if (user_cmd == cmd.cmd) {
-        return cmd.func(m, arg);
-      }
-    }
-    pb_cmd_response_t response;
-    set_cmd_response_error(
-        &response, pb_error(ENOTSUP, "'%s' does not support command '%s'",
-                            class_name_.c_str(), user_cmd.c_str()));
-    return response;
-  }
+                               const google::protobuf::Any &arg) const;
 
-  pb_error_t RunInit(Module *m, const google::protobuf::Any &arg) const {
-    return init_func_(m, arg);
-  }
+  pb_error_t RunInit(Module *m, const google::protobuf::Any &arg) const;
 
  private:
   const std::function<Module *()> module_generator_;
