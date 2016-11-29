@@ -66,7 +66,7 @@ int create_acme(const char *name, Module **m) {
   bess::pb::EmptyArg arg_;
   google::protobuf::Any arg;
   arg.PackFrom(arg_);
-  pb_error_t err = (*m)->RunInit(arg);
+  pb_error_t err = (*m)->InitWithGenericArg(arg);
   EXPECT_EQ(42, err.err());
 
   builder.AddModule(*m);

@@ -165,7 +165,7 @@ const std::map<std::string, Module *> &ModuleBuilder::all_modules() {
 }
 
 // -------------------------------------------------------------------------
-pb_error_t Module::RunInit(const google::protobuf::Any &arg) {
+pb_error_t Module::InitWithGenericArg(const google::protobuf::Any &arg) {
   return module_builder_->RunInit(this, arg);
 }
 

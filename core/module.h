@@ -170,10 +170,7 @@ class Module {
         ogates() {}
   virtual ~Module() {}
 
-  pb_error_t RunInit(const google::protobuf::Any &arg);
-
   pb_error_t Init(const bess::pb::EmptyArg &arg);
-
   virtual void Deinit() {}
 
   virtual struct task_result RunTask(void *arg);
@@ -191,6 +188,8 @@ class Module {
 
  public:
   friend class ModuleBuilder;
+
+  pb_error_t InitWithGenericArg(const google::protobuf::Any &arg);
 
   const ModuleBuilder *module_builder() const { return module_builder_; }
 

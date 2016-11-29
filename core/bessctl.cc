@@ -291,7 +291,7 @@ static Module* create_module(const std::string& name,
   Module* m = builder.CreateModule(name, &bess::metadata::default_pipeline);
 
   ctx.SetNonWorker();
-  *perr = m->RunInit(arg);
+  *perr = m->InitWithGenericArg(arg);
   if (perr->err() != 0) {
     LOG(INFO) << perr->DebugString();
     ModuleBuilder::DestroyModule(m);  // XXX: fix me
