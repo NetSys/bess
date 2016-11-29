@@ -29,6 +29,7 @@ class Scheduler {
   // scheduler object, for debugging convenience.
   Scheduler()
       : root_([](Scheduler *s){std::stringstream ss; ss << s; return ss.str();}(this)),
+        have_throttled_(),
         throttled_cache_(ThrottledComp()),
         stats_(),
         last_stats_(),
@@ -69,6 +70,7 @@ class Scheduler {
   PriorityTrafficClass root_;
 
   // A cache of throttled TrafficClasses.
+  bool have_throttled_;
   std::priority_queue<RateLimitTrafficClass *, std::vector<RateLimitTrafficClass *>, ThrottledComp> throttled_cache_;
 
   struct sched_stats stats_;
