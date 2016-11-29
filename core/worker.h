@@ -9,7 +9,10 @@
 
 #include "gate.h"
 #include "pktbatch.h"
+#include "scheduler.h"
 #include "utils/common.h"
+
+using bess::Scheduler;
 
 #define MAX_WORKERS 4
 
@@ -69,7 +72,7 @@ class Worker {
     return pframe_pool_;
   }
 
-  struct sched *s() {
+  Scheduler *s() {
     return s_;
   }
 
@@ -99,7 +102,7 @@ class Worker {
 
   struct rte_mempool *pframe_pool_;
 
-  struct sched *s_;
+  Scheduler *s_;
 
   uint64_t silent_drops_; /* packets that have been sent to a deadend */
 

@@ -91,12 +91,10 @@ class ModuleFixture : public benchmark::Fixture {
 BENCHMARK_DEFINE_F(ModuleFixture, Chain)(benchmark::State &state) {
   const size_t batch_size = bess::PacketBatch::kMaxBurst;
 
-  struct task t;
-  t.m = src_;
-  t.arg = reinterpret_cast<void *>(batch_size);
+  Task t(src_, reinterpret_cast<void *>(batch_size), nullptr);
 
   while (state.KeepRunning()) {
-    struct task_result ret = task_scheduled(&t);
+    struct task_result ret = t.Scheduled();
     DCHECK_EQ(ret.packets, batch_size);
   }
 

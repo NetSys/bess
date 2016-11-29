@@ -11,6 +11,8 @@
 #include "packet.h"
 #include "task.h"
 
+using bess::gate_idx_t;
+
 static inline void set_cmd_response_error(pb_cmd_response_t *response,
                                           const pb_error_t &error) {
   response->mutable_error()->CopyFrom(error);
@@ -255,7 +257,7 @@ class Module {
 
   // FIXME: porting in progress ----------------------------
  public:
-  struct task *tasks[MAX_TASKS_PER_MODULE];
+  Task *tasks[MAX_TASKS_PER_MODULE];
 
   bess::metadata::mt_offset_t attr_offsets[bess::metadata::kMaxAttrsPerModule];
 

@@ -7,73 +7,36 @@
 #include "mem_alloc.h"
 #include "module.h"
 #include "opts.h"
-#include "tc.h"
+#include "traffic_class.h"
 #include "worker.h"
 
-struct cdlist_head all_tasks = CDLIST_HEAD_INIT(all_tasks);
+Task::Task(Module *m, void *arg, bess::LeafTrafficClass *c) : m_(m), arg_(arg), c_(c) {
+  // TODO(barath): Require that the class c be not null.
+  if (c_) {
+    c_->AddTask(this);
+  }
+}
 
-struct task_result task_scheduled(struct task *t) {
-  struct task_result ret = t->m->RunTask(t->arg);
+Task::~Task() {
+  if (c_) {
+    c_->RemoveTask(this);
+  }
+}
+
+void Task::Attach(bess::LeafTrafficClass *c) {
+  if (c_) {
+    c_->RemoveTask(this);
+  }
+  c_ = c;
+  c_->AddTask(this);
+}
+
+struct task_result Task::Scheduled() {
+  struct task_result ret = m_->RunTask(arg_);
   return ret;
 }
 
-struct task *task_create(Module *m, void *arg) {
-  struct task *t;
-
-  t = (struct task *)mem_alloc(sizeof(*t));
-  if (!t) {
-    return nullptr;
-  }
-
-  cdlist_item_init(&t->tc);
-  cdlist_add_tail(&all_tasks, &t->all_tasks);
-
-  t->m = m;
-  t->arg = arg;
-
-  return t;
-}
-
-void task_destroy(struct task *t) {
-  if (task_is_attached(t))
-    task_detach(t);
-
-  cdlist_del(&t->all_tasks);
-  mem_free(t);
-}
-
-void task_attach(struct task *t, struct tc *c) {
-  if (t->c) {
-    if (t->c == c) /* already attached to TC c? */
-      return;
-
-    task_detach(t);
-  }
-
-  t->c = c;
-  cdlist_add_tail(&c->tasks, &t->tc);
-  tc_inc_refcnt(c);
-  c->num_tasks++;
-}
-
-void task_detach(struct task *t) {
-  struct tc *c = t->c;
-
-  if (!task_is_attached(t))
-    return;
-
-  t->c = nullptr;
-  cdlist_del(&t->tc);
-  tc_dec_refcnt(c);
-  c->num_tasks--;
-
-  /* c is up for autofree, and the task t was the last one standing? */
-  if (cdlist_is_empty(&c->tasks) && c->settings.auto_free) {
-    tc_leave(c);      /* stop scheduling this TC */
-    tc_dec_refcnt(c); /* release my reference */
-  }
-}
-
+/*
 void assign_default_tc(int wid, struct task *t) {
   static int next_default_tc_id;
 
@@ -87,14 +50,14 @@ void assign_default_tc(int wid, struct task *t) {
     params.name = "_tc_" + t->m->name() + std::to_string(task_to_tid(t));
   }
 
-  params.auto_free = 1; /* when no task is left, this TC is freed */
+  params.auto_free = 1; // when no task is left, this TC is freed
   params.priority = DEFAULT_PRIORITY;
   params.share = 1;
   params.share_resource = RESOURCE_CNT;
 
   c_def = tc_init(workers[wid]->s(), &params, nullptr);
 
-  /* maybe the default name is too long, or already occupied */
+  // maybe the default name is too long, or already occupied
   if (is_err_or_null(c_def)) {
     do {
       params.name = "_tc_noname" + std::to_string(next_default_tc_id++);
@@ -127,7 +90,7 @@ static int get_next_wid(int *wid) {
   return 0;
 }
 
-/* Spread all orphan tasks across workers with round robin */
+// Spread all orphan tasks across workers with round robin
 void process_orphan_tasks() {
   struct task *t;
 
@@ -139,10 +102,11 @@ void process_orphan_tasks() {
 
     if (get_next_wid(&wid) < 0) {
       wid = 0;
-      /* There is no active worker. Create one. */
+      // There is no active worker. Create one.
       launch_worker(wid, FLAGS_c);
     }
 
     assign_default_tc(wid, t);
   }
 }
+*/

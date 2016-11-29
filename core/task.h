@@ -4,45 +4,37 @@
 #include "gate.h"
 #include <cstdint>
 
-#include "utils/cdlist.h"
-
 typedef uint16_t task_id_t;
 
-struct tc;
 class Module;
 
-struct task {
-  struct tc *c;
-
-  Module *m;
-  void *arg;
-
-  struct cdlist_item tc;
-  struct cdlist_item all_tasks;
-};
+namespace bess {
+class LeafTrafficClass;
+}  // namespace bess
 
 struct task_result {
   uint64_t packets;
   uint64_t bits;
 };
 
-struct task *task_create(Module *m, void *arg);
+class Task {
+ public:
+  Task(Module *m, void *arg, bess::LeafTrafficClass *c);
 
-void task_destroy(struct task *t);
+  virtual ~Task();
 
-static inline int task_is_attached(struct task *t) {
-  return (t->c != nullptr);
-}
+  struct task_result Scheduled();
 
-void task_attach(struct task *t, struct tc *c);
-void task_detach(struct task *t);
+  void Attach(bess::LeafTrafficClass *c);
 
-// FIXME: make this inline, once breaking task -> module dependency
-struct task_result task_scheduled(struct task *t);
+  inline const Module *m() const { return m_; }
 
-void assign_default_tc(int wid, struct task *t);
-void process_orphan_tasks();
+  inline const bess::LeafTrafficClass *c() const { return c_; }
 
-task_id_t task_to_tid(struct task *t);
+ private:
+  Module *m_;
+  void *arg_;
+  bess::LeafTrafficClass *c_;
+};
 
 #endif  // BESS_TASK_H_

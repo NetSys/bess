@@ -50,9 +50,9 @@ else
     endif
 endif
 
-CXXFLAGS += -std=gnu++11 -g3 -ggdb3 -Ofast -march=native \
-            -Werror -isystem $(DPDK_INC_DIR) -D_GNU_SOURCE \
-            -Wall -Wextra -Wcast-align
+CXXFLAGS += -std=gnu++11 -g3 -ggdb3 -Og -march=native \
+	    -Werror -isystem $(DPDK_INC_DIR) -D_GNU_SOURCE \
+	    -Wall -Wextra -Wcast-align -flto -ffat-lto-objects -finline-limit=1000
 
 PERMISSIVE = -Wno-unused-parameter -Wno-missing-field-initializers \
              -Wno-unused-private-field
@@ -68,14 +68,14 @@ else
 endif
 
 LDFLAGS += -rdynamic -L$(DPDK_LIB_DIR) -Wl,-rpath=$(DPDK_LIB_DIR) -pthread \
-           -static-libstdc++
+					 -static-libstdc++ -flto -ffat-lto-objects -finline-limit=1000
 
 LIBS += -Wl,-non_shared \
 	-Wl,--whole-archive -l$(DPDK_LIB) -Wl,--no-whole-archive \
 	-lglog -lgflags -lprotobuf -lgrpc++ -lgrpc \
 	-lssl -lcrypto -lunwind -llzma -lpcap -lz \
 	-Wl,-call_shared \
-	-ldl
+	-ldl 
 
 ifdef SANITIZE
     CXXFLAGS += -fsanitize=address -fsanitize=undefined -fno-omit-frame-pointer
