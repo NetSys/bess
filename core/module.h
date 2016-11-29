@@ -50,7 +50,6 @@ class Module;
 
 #define CALL_MEMBER_FN(obj, ptr_to_member_func) ((obj).*(ptr_to_member_func))
 
-// TODO: Change type name to Command when removing snobj
 struct Command {
   std::string cmd;
   std::string arg_type;
