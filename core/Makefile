@@ -12,15 +12,18 @@ DEPFLAGS = -MT $@ -MMD -MP -MF $(DEPDIR)/$(@:.o=.d)
 $(shell mkdir -p $(DEPDIR) >/dev/null)
 $(shell mkdir -p $(DEPDIR)/utils >/dev/null)
 $(shell mkdir -p $(DEPDIR)/modules >/dev/null)
-$(shell mkdir -p $(DEPDIR)/hooks >/dev/null)
 $(shell mkdir -p $(DEPDIR)/drivers >/dev/null)
 
 # e.g., 4.9.3 -> 40903
 CXXVERSION := $(shell $(CXX) -dumpversion | sed -e 's/\.\([0-9][0-9]\)/\1/g' -e 's/\.\([0-9]\)/0\1/g' -e 's/^[0-9]\{3,4\}$$/&00/')
-
 CXXVERSION_4_8_OR_HIGHER := $(shell expr $(CXXVERSION) \>= 40800)
-ifeq "$(CXXVERSION_4_8_OR_HIGHER)" "0"
-  $(error g++ 4.8 or higher is required)
+
+IS_GCC := $(shell expr "$(shell $(CXX) --version)" : "g++")
+
+ifeq "$(IS_GCC)" "3"
+		ifeq "$(CXXVERSION_4_8_OR_HIGHER)" "0"
+  			$(error g++ 4.8 or higher is required)
+		endif
 endif
 
 RTE_SDK ?= $(abspath ../deps/dpdk-16.07)
@@ -43,16 +46,16 @@ else
     endif
 endif
 
-PROTOCXXFLAGS = -std=gnu++11 -O0
-
 CXXFLAGS += -std=gnu++11 -g3 -ggdb3 -Ofast -march=native \
-	    -Werror -isystem $(DPDK_INC_DIR) -D_GNU_SOURCE \
-	    -Wall -Wextra -Wcast-align
+	    -Werror -isystem $(DPDK_INC_DIR) -D_GNU_SOURCE
+
+HARDCORE = -Wall -Wextra -Wcast-align \
+	   -Wno-missing-field-initializers	# FIXME
 
 # -Wshadow should not be used for g++ 4.x, as it has too many false positives
 CXXVERSION_5_OR_HIGHER := $(shell expr $(CXXVERSION) \>= 50000)
 ifeq "$(CXXVERSION_5_OR_HIGHER)" "1"
-  CXXFLAGS += -Wshadow
+  HARDCORE += -Wshadow
 endif
 
 LDFLAGS += -rdynamic -L$(DPDK_LIB_DIR) -Wl,-rpath=$(DPDK_LIB_DIR) -pthread \
@@ -86,8 +89,8 @@ PROTO_SRCS += $(patsubst %.proto,%.grpc.pb.cc, $(notdir $(PROTOS)))
 PROTO_HEADERS = $(patsubst %.cc,%.h, $(PROTO_SRCS))
 PROTOCFLAGS += --proto_path=$(PROTO_DIR) --cpp_out=. --grpc_out=. --plugin=protoc-gen-grpc=`which grpc_cpp_plugin`
 
-ALL_SRCS = $(wildcard *.cc utils/*.cc modules/*.cc hooks/*.cc drivers/*.cc)
-HEADERS = $(wildcard *.h utils/*.h modules/*.h hooks/*.h drivers/*.h)
+ALL_SRCS = $(wildcard *.cc utils/*.cc modules/*.cc drivers/*.cc)
+HEADERS = $(wildcard *.h utils/*.h modules/*.h drivers/*.h)
 
 TEST_SRCS = $(filter %_test.cc gtest_main.cc, $(ALL_SRCS))
 TEST_OBJS = $(TEST_SRCS:.cc=.o)
@@ -160,13 +163,13 @@ $(eval $(call BUILD, \
 	CXX, \
 	%.pb.o, \
 	%.pb.cc $(DEPDIR)/$$@.d, \
-	$$(CXX) -o $$@ -c $$< $$(PROTOCXXFLAGS) $$(DEPFLAGS)))
+	$$(CXX) -o $$@ -c $$< $$(CXXFLAGS) $$(DEPFLAGS)))
 
 $(eval $(call BUILD, \
 	CXX, \
 	%.o, \
 	%.cc $(PROTO_HEADERS) $(DEPDIR)/$$@.d, \
-	$$(CXX) -o $$@ -c $$< $$(CXXFLAGS) $$(DEPFLAGS)))
+	$$(CXX) -o $$@ -c $$< $$(CXXFLAGS) $$(HARDCORE) $$(DEPFLAGS)))
 
 $(eval $(call BUILD, \
 	LD, \
@@ -178,7 +181,7 @@ $(eval $(call BUILD, \
 	TEST_CXX, \
 	%_test.o, \
 	%_test.cc $(DEPDIR)/$$@.d, \
-	$$(CXX) -o $$@ -c $$< $$(CXXFLAGS) $$(DEPFLAGS)))
+	$$(CXX) -o $$@ -c $$< $$(CXXFLAGS) $$(HARDCORE) $$(DEPFLAGS)))
 
 $(eval $(call BUILD, \
 	TEST_LD, \
@@ -196,13 +199,13 @@ $(eval $(call BUILD, \
 	TEST_CXX, \
 	gtest-all.o, \
 	$$(GTEST_DIR)/src/gtest-all.cc, \
-	$$(CXX) -o $$@ -c $$< -I$$(GTEST_DIR) $$(CXXFLAGS) $$(DEPFLAGS)))
+	$$(CXX) -o $$@ -c $$< -I$$(GTEST_DIR) $$(CXXFLAGS) $$(HARDCORE) $$(DEPFLAGS)))
 
 $(eval $(call BUILD, \
 	BENCH_CXX, \
 	%_bench.o, \
 	%_bench.cc $(DEPDIR)/$$@.d, \
-	$$(CXX) -o $$@ -c $$< $$(CXXFLAGS) $$(DEPFLAGS)))
+	$$(CXX) -o $$@ -c $$< $$(CXXFLAGS) $$(HARDCORE) $$(DEPFLAGS)))
 
 $(eval $(call BUILD, \
 	BENCH_LD, \
