@@ -204,7 +204,8 @@ pb_error_t Module::Init(const bess::pb::EmptyArg &) {
 }
 
 struct task_result Module::RunTask(void *) {
-  CHECK(0);  // You must override this function
+  DCHECK(0);  // You must override this function
+  return task_result();
 }
 
 void Module::ProcessBatch(bess::PacketBatch *) {

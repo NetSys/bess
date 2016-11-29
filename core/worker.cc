@@ -170,7 +170,8 @@ int Worker::Block() {
     return 1;
   }
 
-  CHECK(0);
+  DCHECK(0);
+  return 0;
 }
 
 /* The entry point of worker threads */
