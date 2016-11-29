@@ -14,8 +14,9 @@
 #include "metadata.h"
 #include "packet.h"
 #include "task.h"
-#include "tc.h"
 #include "utils/time.h"
+
+using bess::Scheduler;
 
 int num_workers = 0;
 std::thread worker_threads[MAX_WORKERS];
@@ -91,7 +92,8 @@ static void resume_worker(int wid) {
 
 void resume_all_workers() {
   bess::metadata::default_pipeline.ComputeMetadataOffsets();
-  process_orphan_tasks();
+  // TODO(barath): Handle orphan tasks somehow.
+  // process_orphan_tasks();
 
   for (int wid = 0; wid < MAX_WORKERS; wid++)
     resume_worker(wid);
@@ -198,7 +200,7 @@ void *Worker::Run(void *_arg) {
   fd_event_ = eventfd(0, 0);
   DCHECK_GE(fd_event_, 0);
 
-  s_ = sched_init();
+  s_ = new Scheduler();
 
   current_tsc_ = rdtsc();
 
@@ -216,13 +218,13 @@ void *Worker::Run(void *_arg) {
             << "is running on core " << core_ << " (socket " << socket_ << ")";
 
   CPU_ZERO(&set);
-  sched_loop(s_);
+  s_->ScheduleLoop();
 
   LOG(INFO) << "Worker " << wid_ << "(" << this << ") "
             << "is quitting... (core " << core_ << ", socket " << socket_
             << ")";
 
-  sched_free(s_);
+  delete s_;
 
   return nullptr;
 }

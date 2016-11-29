@@ -185,4 +185,22 @@ class unique_fd {
   DISALLOW_COPY_AND_ASSIGN(unique_fd);
 };
 
+// Inserts the given item into the container in sorted order.  Starts from the
+// end of the container and swaps forward.  Assumes the container is already
+// sorted.
+template <typename T, typename U>
+inline void InsertSorted(T &container, U &item) {
+  container.push_back(item);
+
+  for (size_t i = container.size()-1; i > 0; --i) {
+    auto &prev = container[i-1];
+    auto &cur = container[i];
+    if (cur < prev) {
+      std::swap(prev, cur);
+    } else {
+      break;
+    }
+  }
+}
+
 #endif  // BESS_UTILS_COMMON_H_
