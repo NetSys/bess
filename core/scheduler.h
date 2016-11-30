@@ -47,6 +47,10 @@ class Scheduler {
   // Runs the scheduler once.
   void ScheduleOnce();
 
+  // Adds the given rate limit traffic class to those that are considered
+  // throttled (and need resuming later).
+  void AddThrottled(RateLimitTrafficClass *rc);
+
   PriorityTrafficClass *root() { return &root_; }
 
  private:
@@ -65,7 +69,7 @@ class Scheduler {
   void UnblockTowardsRoot(TrafficClass *c, uint64_t tsc);
 
   // Unthrottles any TrafficClasses that were throttled whose time has passed.
-  void ResumeThrottled(uint64_t tsc);
+  inline void ResumeThrottled(uint64_t tsc);
 
   PriorityTrafficClass root_;
 

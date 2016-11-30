@@ -42,13 +42,16 @@ class TCFixture : public benchmark::Fixture {
     for (int i = 0; i < num_classes; i++) {
       std::string name("class_" + std::to_string(i));
       LeafTrafficClass *c = new LeafTrafficClass(name);
+      c->set_blocked(false);
 
       //resource_share_t share = 1;
       //parent->AddChild(c, share);
-      parent->AddChild(c);
+      CHECK(parent->AddChild(c));
 
       classes_.push_back(c);
     }
+    CHECK(!parent->blocked());
+    CHECK(!pc->blocked());
   }
 
   virtual void TearDown(benchmark::State &) override {
