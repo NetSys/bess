@@ -82,14 +82,14 @@ class TrafficClass {
 
   inline TrafficClass *parent() const { return parent_; }
 
-  const std::string &name() const { return name_; }
+  inline const std::string &name() const { return name_; }
 
   inline const struct tc_stats &stats() const { return stats_; }
 
   inline bool blocked() const { return blocked_; }
 
   // For testing / debugging only.
-  void set_blocked(bool blocked) { blocked_ = blocked; }
+  inline void set_blocked(bool blocked) { blocked_ = blocked; }
 
   inline TrafficPolicy policy() const { return policy_; }
 
