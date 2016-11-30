@@ -8,6 +8,8 @@
 
 namespace bess {
 
+// Extends std::priority_queue to support decreasing the key of the top element
+// directly.
 template <class T>
 class extended_priority_queue : public std::priority_queue<T> {
  public:
