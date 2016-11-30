@@ -338,9 +338,9 @@ int WildcardMatch::DelEntry(struct WmTuple *tuple, wm_hkey_t *key) {
 
     num_tuples_--;
 
-    // TODO: Do not use memmove for the class object.
-    // vtable pointer will be overwritten
-    memmove((void *)&tuples_[idx], (void *)&tuples_[idx + 1],
+    // shift remaing tuples to the left
+    memmove(reinterpret_cast<void*>(&tuples_[idx]),
+            reinterpret_cast<void*>(&tuples_[idx + 1]),
             sizeof(*tuple) * (num_tuples_ - idx));
   }
 
