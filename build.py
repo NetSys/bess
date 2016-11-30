@@ -101,7 +101,7 @@ def check_c_lib(lib):
             fp.write(textwrap.dedent(src))
 
         return cmd_success('gcc %s -l%s %s %s -o %s' % \
-                (test_c_file, lib, cxx_flags, ld_flags, test_e_file))
+                (test_c_file, lib, ' '.join(cxx_flags), ' '.join(ld_flags), test_e_file))
     finally:
         cmd('rm -f %s %s' % (test_c_file, test_e_file))
 
@@ -168,10 +168,18 @@ def check_mlx():
 
 def generate_extra_mk():
     global extra_libs
+    global cxx_flags
+    global ld_flags
 
     with open('core/extra.mk', 'w') as fp:
-        fp.write('LIBS += %s ' % \
+        fp.write('LIBS += %s\n' % \
                 ' '.join(map(lambda lib: '-l' + lib, extra_libs)))
+        fp.write('CFLAGS += %s\n' % \
+                ' '.join(cxx_flags))
+        fp.write('CXXFLAGS += %s\n' % \
+                ' '.join(cxx_flags))
+        fp.write('LD_FLAGS += %s\n' % \
+                ' '.join(cxx_flags))
 
 def download_dpdk():
     try:
@@ -241,9 +249,7 @@ def build_bess():
     print 'Building BESS daemon...'
     cmd('bin/bessctl daemon stop 2> /dev/null || true')
     cmd('rm -f core/bessd')     # force relink as DPDK might have been rebuilt
-    if cxx_flags or ld_flags:
-        cmd('make -C core CXXFLAGS=%s CFLAGS=%s LDFLAGS=%s' %\
-                (' '.join(cxx_flags), ' '.join(cxx_flags), ' '.join(ld_flags)))
+    cmd('make -C core')
     cmd('ln -f -s ../core/bessd bin/bessd')
 
 def build_kmod():
@@ -288,6 +294,7 @@ def print_usage(parser):
 def update_benchmark_path(path):
     print 'Specified benchmark path %s' % path
     cxx_flags.extend(['-I', '%s/include'%(path)])
+    ld_flags.extend(['-L', '%s/lib'%(path)])
 
 
 def main():
