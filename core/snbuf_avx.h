@@ -23,9 +23,10 @@ static inline int snb_alloc_bulk(snb_array_t snbs, int cnt, uint16_t len) {
   rxdesc_fields = _mm_setr_epi32(0, len, len, 0);
 
   ret = rte_mempool_get_bulk(ctx.pframe_pool(), (void **)snbs, cnt);
-  if (ret != 0) return 0;
+  if (ret != 0)
+    return 0;
 
-  mbuf_template = *((__m128i *)&pframe_template.buf_len);
+  mbuf_template = *(reinterpret_cast<__m128i *>(&pframe_template.buf_len));
 
   /* 4 at a time didn't help */
   for (i = 0; i < (cnt & (~0x1)); i += 2) {
@@ -34,18 +35,24 @@ static inline int snb_alloc_bulk(snb_array_t snbs, int cnt, uint16_t len) {
     struct snbuf *snb0 = snbs[i];
     struct snbuf *snb1 = snbs[i + 1];
 
-    _mm_storeu_si128((__m128i *)&snb0->mbuf.buf_len, mbuf_template);
-    _mm_storeu_si128((__m128i *)&snb0->mbuf.packet_type, rxdesc_fields);
+    _mm_storeu_si128(reinterpret_cast<__m128i *>(&snb0->mbuf.buf_len),
+                     mbuf_template);
+    _mm_storeu_si128(reinterpret_cast<__m128i *>(&snb0->mbuf.packet_type),
+                     rxdesc_fields);
 
-    _mm_storeu_si128((__m128i *)&snb1->mbuf.buf_len, mbuf_template);
-    _mm_storeu_si128((__m128i *)&snb1->mbuf.packet_type, rxdesc_fields);
+    _mm_storeu_si128(reinterpret_cast<__m128i *>(&snb1->mbuf.buf_len),
+                     mbuf_template);
+    _mm_storeu_si128(reinterpret_cast<__m128i *>(&snb1->mbuf.packet_type),
+                     rxdesc_fields);
   }
 
   if (cnt & 0x1) {
     struct snbuf *snb = snbs[i];
 
-    _mm_storeu_si128((__m128i *)&snb->mbuf.buf_len, mbuf_template);
-    _mm_storeu_si128((__m128i *)&snb->mbuf.packet_type, rxdesc_fields);
+    _mm_storeu_si128(reinterpret_cast<__m128i *>(&snb->mbuf.buf_len),
+                     mbuf_template);
+    _mm_storeu_si128(reinterpret_cast<__m128i *>(&snb->mbuf.packet_type),
+                     rxdesc_fields);
   }
 
   return cnt;
@@ -97,7 +104,8 @@ static inline void snb_free_bulk(snb_array_t snbs, int cnt) {
     vcmp1 = _mm_and_si128(vcmp1, vcmp2);
     vcmp1 = _mm_and_si128(vcmp1, vcmp3);
 
-    if (unlikely(_mm_movemask_epi8(vcmp1) != 0xffff)) goto slow_path;
+    if (unlikely(_mm_movemask_epi8(vcmp1) != 0xffff))
+      goto slow_path;
   }
 
   if (i < cnt) {
@@ -116,7 +124,8 @@ static inline void snb_free_bulk(snb_array_t snbs, int cnt) {
   return;
 
 slow_path:
-  for (i = 0; i < cnt; i++) snb_free(snbs[i]);
+  for (i = 0; i < cnt; i++)
+    snb_free(snbs[i]);
 }
 
 #endif  // BESS_SNBUF_AVX_H_

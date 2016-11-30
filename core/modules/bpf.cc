@@ -541,12 +541,13 @@ static void emit_code(bpf_bin_stream *stream, u_int value, u_int len) {
       break;
 
     case 2:
-      *((u_short *)(stream->ibuf + stream->cur_ip)) = (u_short)value;
+      *(reinterpret_cast<u_short *>(stream->ibuf + stream->cur_ip)) =
+          (u_short)value;
       stream->cur_ip += 2;
       break;
 
     case 4:
-      *((u_int *)(stream->ibuf + stream->cur_ip)) = value;
+      *(reinterpret_cast<u_int *>(stream->ibuf + stream->cur_ip)) = value;
       stream->cur_ip += 4;
       break;
   }
@@ -1085,7 +1086,7 @@ static bpf_filter_func_t bpf_jit_compile(struct bpf_insn *prog, u_int nins,
     stream.ibuf = nullptr;
   }
 
-  return ((bpf_filter_func_t)stream.ibuf);
+  return (reinterpret_cast<bpf_filter_func_t>(stream.ibuf));
 }
 
 /* -------------------------------------------------------------------------

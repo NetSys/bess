@@ -5,7 +5,7 @@ namespace bess {
 namespace debug {
 
 void SetTrapHandler(void);
-void GoPanic(void);
+[[noreturn]] void GoPanic(void);
 void DumpTypes(void);
 
 }  // namespace debug

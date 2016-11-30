@@ -11,7 +11,7 @@ static inline void timestamp_packet(bess::Packet *pkt, uint64_t time) {
   uint8_t *avail = pkt->head_data<uint8_t *>() + sizeof(struct ether_hdr) +
                    sizeof(struct ipv4_hdr) + sizeof(struct tcp_hdr);
   *avail = 1;
-  uint64_t *ts = (uint64_t *)(avail + 1);
+  uint64_t *ts = reinterpret_cast<uint64_t *>(avail + 1);
   *ts = time;
 }
 

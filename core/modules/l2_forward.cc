@@ -92,16 +92,6 @@ static uint32_t l2_alt_index(uint32_t hash, uint32_t size_power,
   return (index ^ tag) & ((0x1lu << (size_power - 1)) - 1);
 }
 
-static inline int find_index_basic(uint64_t addr, uint64_t *table) {
-  for (int i = 0; i < 4; i++) {
-    if ((addr | ((uint64_t)1 << 63)) == (table[i] & 0x8000ffffFFFFffffUL)) {
-      return i + 1;
-    }
-  }
-
-  return 0;
-}
-
 #if __AVX__
 const union {
   uint64_t val[4];
@@ -116,6 +106,16 @@ static inline int find_index_avx(uint64_t addr, uint64_t *table) {
   __m256d cmp = _mm256_cmp_pd(_addr, _table, _CMP_EQ_OQ);
 
   return __builtin_ffs(_mm256_movemask_pd(cmp));
+}
+#else
+static inline int find_index_basic(uint64_t addr, uint64_t *table) {
+  for (int i = 0; i < 4; i++) {
+    if ((addr | ((uint64_t)1 << 63)) == (table[i] & 0x8000ffffFFFFffffUL)) {
+      return i + 1;
+    }
+  }
+
+  return 0;
 }
 #endif
 
@@ -324,7 +324,7 @@ static int l2_flush(struct l2_table *l2tbl) {
 }
 
 static uint64_t l2_addr_to_u64(char *addr) {
-  uint64_t *addrp = (uint64_t *)addr;
+  uint64_t *addrp = reinterpret_cast<uint64_t *>(addr);
 
   return (*addrp & 0x0000FFffFFffFFfflu);
 }

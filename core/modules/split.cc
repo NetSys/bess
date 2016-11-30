@@ -62,7 +62,7 @@ void Split::ProcessBatch(bess::PacketBatch *batch) {
       bess::Packet *pkt = batch->pkts()[i];
       char *head = pkt->head_data<char *>();
 
-      uint64_t val = *(uint64_t *)(head + offset);
+      uint64_t val = *reinterpret_cast<uint64_t *>(head + offset);
       val = rte_be_to_cpu_64(val) & mask_;
 
       if (is_valid_gate(val)) {

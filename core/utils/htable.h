@@ -7,6 +7,10 @@
 #include <algorithm>
 #include <cstring>
 
+#include <rte_config.h>
+#include <rte_hash_crc.h>
+
+#include "../mem_alloc.h"
 #include "common.h"
 
 class HTableBase {
@@ -18,9 +22,6 @@ class HTableBase {
   /* if the keys are identical, should return 0 */
   typedef int (*KeyCmpFunc)(const void *key, const void *key_stored,
                             size_t key_size);
-
-  static const KeyCmpFunc kDefaultKeyCmpFunc;
-  static const HashFunc kDefaultHashFunc;
 
   struct ht_params {
     size_t key_size;
@@ -92,6 +93,9 @@ class HTableBase {
 
   static const int kEntriesPerBucket = 4; /* 4-way set associative */
 
+  /* non-tunable macros */
+  static const uint32_t kHashInitval = UINT32_MAX;
+
   struct alignas(32) Bucket {
     uint32_t hv[kEntriesPerBucket];
     KeyIndex keyidx[kEntriesPerBucket];
@@ -136,7 +140,6 @@ class HTableBase {
   static const int kMaxCuckooPath = 3;
 
   /* non-tunable macros */
-  static const uint32_t kHashInitval = UINT32_MAX;
   static const KeyIndex kInvalidKeyIdx = std::numeric_limits<KeyIndex>::max();
 
   int count_entries_in_pri_bucket() const;
@@ -166,7 +169,7 @@ class HTableBase {
 
   /* bucket and entry arrays grow independently */
   Bucket *buckets_;
-  void *entries_;   /* entry_size * num_entries bytes */
+  void *entries_; /* entry_size * num_entries bytes */
 
   int cnt_;              /* current number of entries */
   KeyIndex num_entries_; /* current array size (# entries) */
@@ -178,9 +181,15 @@ class HTableBase {
   KeyCmpFunc keycmp_func_;
 };
 
-template <typename K, typename V,
-          HTableBase::KeyCmpFunc C = HTableBase::kDefaultKeyCmpFunc,
-          HTableBase::HashFunc H = HTableBase::kDefaultHashFunc>
+// TODO: clang does not allow pointers to be used as non-type template arguments
+//       other than of the form &identifier, as specified in C++11 standard.
+//       http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2014/n4268.html
+
+static constexpr HTableBase::KeyCmpFunc kDefaultKeyCmpFunc = memcmp;
+static constexpr HTableBase::HashFunc kDefaultHashFunc = rte_hash_crc;
+
+template <typename K, typename V, HTableBase::KeyCmpFunc C = memcmp,
+          HTableBase::HashFunc H = rte_hash_crc>
 class HTable : public HTableBase {
  public:
   /* returns nullptr or the pointer to the data */
@@ -208,7 +217,8 @@ inline V *HTable<K, V, C, H>::GetHash(uint32_t pri, const K *key) const {
 
   /* check primary bucket */
   V *ret = get_from_bucket(pri, pri, key);
-  if (ret) return ret;
+  if (ret)
+    return ret;
 
   /* check secondary bucket */
   return get_from_bucket(pri, hash_secondary(pri), key);
@@ -224,7 +234,8 @@ inline V *HTable<K, V, C, H>::get_from_bucket(uint32_t pri, uint32_t hv,
     KeyIndex k_idx;
     void *key_stored;
 
-    if (pri != bucket->hv[i]) continue;
+    if (pri != bucket->hv[i])
+      continue;
 
     k_idx = bucket->keyidx[i];
     key_stored = keyidx_to_ptr(k_idx);
