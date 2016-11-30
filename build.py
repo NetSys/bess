@@ -281,10 +281,8 @@ def do_dist_clean():
     print 'Removing 3rd-party libraries...'
     cmd('rm -rf %s %s' % (DPDK_FILE, DPDK_DIR))
 
-def print_usage():
-    print >> sys.stderr, \
-            'Usage: %s [all|dpdk|bess|kmod|clean|dist_clean|help]' % \
-            sys.argv[0]
+def print_usage(parser):
+    parser.print_help(file=sys.stderr)
     sys.exit(2)
 
 def update_benchmark_path(path):
@@ -316,10 +314,10 @@ def main():
     elif args.action == 'dist_clean':
         do_dist_clean()
     elif args.action == 'help':
-        print_usage()
+        print_usage(parser)
     else:
         print >> sys.stderr, 'Error - unknown command "%s".' % sys.argv[1]
-        print_usage()
+        print_usage(parser)
 
 if __name__ == '__main__':
     main()
