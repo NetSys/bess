@@ -170,7 +170,7 @@ int Worker::Block() {
     return 1;
   }
 
-  DCHECK(0);
+  CHECK(0);
   return 0;
 }
 

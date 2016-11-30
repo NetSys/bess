@@ -204,7 +204,7 @@ pb_error_t Module::Init(const bess::pb::EmptyArg &) {
 }
 
 struct task_result Module::RunTask(void *) {
-  DCHECK(0);  // You must override this function
+  CHECK(0);  // You must override this function
   return task_result();
 }
 

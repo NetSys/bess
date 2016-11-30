@@ -50,7 +50,7 @@ inline double FlowGen::NewFlowPkts() {
       return scaled_pareto_variate(pareto_.inversed_alpha, pareto_.mean,
                                    flow_pkts_, rng_.GetReal());
     default:
-      DCHECK(0);
+      CHECK(0);
   }
   return 0;
 }
@@ -63,7 +63,7 @@ inline double FlowGen::MaxFlowPkts() const {
       return scaled_pareto_variate(pareto_.inversed_alpha, pareto_.mean,
                                    flow_pkts_, 1.0);
     default:
-      DCHECK(0);
+      CHECK(0);
   }
   return 0;
 }
@@ -77,7 +77,7 @@ inline uint64_t FlowGen::NextFlowArrival() {
       return -log(rng_.GetRealNonzero()) * flow_gap_ns_;
       break;
     default:
-      DCHECK(0);
+      CHECK(0);
   }
   return 0;
 }
