@@ -7,6 +7,7 @@ import time
 import urllib
 import subprocess
 import textwrap
+import argparse
 
 BESS_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -32,6 +33,8 @@ DPDK_BASE_CONFIG = '%s/%s_common_linuxapp' % (DEPS_DIR, DPDK_VER)
 DPDK_FINAL_CONFIG = '%s/%s_common_linuxapp_final' % (DEPS_DIR, DPDK_VER)
 
 extra_libs = set()
+cxx_flags = []
+ld_flags = []
 
 def download_hook(count, block_size, total_size):
     sys.stdout.write('\x08' + ['-', '\\', '|', '/'][int(time.time() * 3) % 4])
@@ -78,7 +81,7 @@ def check_header(header_file, compiler):
         with open(test_c_file, 'w') as fp:
             fp.write(textwrap.dedent(src))
 
-        return cmd_success('%s -c %s -o %s' % (compiler, test_c_file, test_o_file))
+        return cmd_success('%s %s -c %s -o %s' % (compiler, ' '.join(cxx_flags), test_c_file, test_o_file))
     finally:
         cmd('rm -f %s %s' % (test_c_file, test_o_file))
 
@@ -97,8 +100,8 @@ def check_c_lib(lib):
         with open(test_c_file, 'w') as fp:
             fp.write(textwrap.dedent(src))
 
-        return cmd_success('gcc %s -l%s -o %s' % \
-                (test_c_file, lib, test_e_file))
+        return cmd_success('gcc %s -l%s %s %s -o %s' % \
+                (test_c_file, lib, cxx_flags, ld_flags, test_e_file))
     finally:
         cmd('rm -f %s %s' % (test_c_file, test_e_file))
 
@@ -238,7 +241,9 @@ def build_bess():
     print 'Building BESS daemon...'
     cmd('bin/bessctl daemon stop 2> /dev/null || true')
     cmd('rm -f core/bessd')     # force relink as DPDK might have been rebuilt
-    cmd('make -C core')
+    if cxx_flags or ld_flags:
+        cmd('make -C core CXXFLAGS=%s CFLAGS=%s LDFLAGS=%s' %\
+                (' '.join(cxx_flags), ' '.join(cxx_flags), ' '.join(ld_flags)))
     cmd('ln -f -s ../core/bessd bin/bessd')
 
 def build_kmod():
@@ -282,30 +287,38 @@ def print_usage():
             sys.argv[0]
     sys.exit(2)
 
+def update_benchmark_path(path):
+    print 'Specified benchmark path %s' % path
+    cxx_flags.extend(['-I', '%s/include'%(path)])
+
+
 def main():
     os.chdir(BESS_DIR)
+    parser = argparse.ArgumentParser(description = 'Build Bess')
+    parser.add_argument('action', metavar='action', nargs='?', default='all', \
+            help='Action is one of all, dpdk, bess, kmod, clean, dist_clean, help')
+    parser.add_argument('--with-benchmark', dest='benchmark_path', nargs=1, help='Location of benchmark library')
+    args = parser.parse_args()
 
-    if len(sys.argv) == 1:
+    if args.benchmark_path:
+        update_benchmark_path(args.benchmark_path[0])
+
+    if args.action == 'all':
         build_all()
-    elif len(sys.argv) == 2:
-        if sys.argv[1] == 'all':
-            build_all()
-        elif sys.argv[1] == 'dpdk':
-            build_dpdk()
-        elif sys.argv[1] == 'bess':
-            build_bess()
-        elif sys.argv[1] == 'kmod':
-            build_kmod()
-        elif sys.argv[1] == 'clean':
-            do_clean()
-        elif sys.argv[1] == 'dist_clean':
-            do_dist_clean()
-        elif sys.argv[1] == 'help':
-            print_usage()
-        else:
-            print >> sys.stderr, 'Error - unknown command "%s".' % sys.argv[1]
-            print_usage()
+    elif args.action == 'dpdk':
+        build_dpdk()
+    elif args.action == 'bess':
+        build_bess()
+    elif args.action == 'kmod':
+        build_kmod()
+    elif args.action == 'clean':
+        do_clean()
+    elif args.action == 'dist_clean':
+        do_dist_clean()
+    elif args.action == 'help':
+        print_usage()
     else:
+        print >> sys.stderr, 'Error - unknown command "%s".' % sys.argv[1]
         print_usage()
 
 if __name__ == '__main__':
