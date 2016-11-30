@@ -2,6 +2,7 @@
 #define BESS_TC_H_
 
 #include <deque>
+#include <list>
 #include <queue>
 #include <string>
 #include <unordered_map>
@@ -74,7 +75,6 @@ enum TrafficPolicy {
 // schedulable task units.
 class TrafficClass {
  public:
-
   virtual ~TrafficClass() {
     // TODO(barath): Clean up pointers to parents, children, etc.
   }
@@ -86,6 +86,9 @@ class TrafficClass {
   inline const struct tc_stats &stats() const { return stats_; }
 
   inline bool blocked() const { return blocked_; }
+
+  // For testing / debugging only.
+  void set_blocked(bool blocked) { blocked_ = blocked; }
 
   inline TrafficPolicy policy() const { return policy_; }
 
@@ -101,8 +104,38 @@ class TrafficClass {
       name_(name),
       last_tsc_(),
       stats_(),
-      blocked_(false),
+      blocked_(true),
       policy_(policy) {}
+
+  // Sets blocked status to nowblocked and recurses towards root if our blocked
+  // status changed.
+  inline void UnblockTowardsRootSetBlocked(uint64_t tsc, bool nowblocked) {
+    bool became_unblocked = !nowblocked && blocked_;
+    blocked_ = nowblocked;
+
+    if (!parent_ || !became_unblocked) {
+      return;
+    }
+
+    parent_->UnblockTowardsRoot(tsc);
+  }
+
+  // Returns the next schedulable child of this traffic class.
+  virtual TrafficClass *PickNextChild() = 0;
+
+  // Starts from the current node and attempts to recursively unblock (if
+  // eligible) all nodes from this node to the root.
+  virtual void UnblockTowardsRoot(uint64_t tsc) = 0;
+
+  // Starts from the current node and accounts for the usage of the given child
+  // after execution and finishes any data structure reorganization required
+  // after execution has finished.  The scheduler is the scheduler that owns
+  // these classes.
+  virtual void FinishAndAccountTowardsRoot(
+      Scheduler *sched,
+      TrafficClass *child,
+      resource_arr_t usage,
+      uint64_t tsc) = 0;
 
   // Parent of this class; nullptr for root.
   TrafficClass *parent_;
@@ -136,6 +169,16 @@ class PriorityTrafficClass final : public TrafficClass {
   // Returns true if child was added successfully.
   bool AddChild(TrafficClass *child, priority_t priority);
 
+  TrafficClass *PickNextChild() override;
+
+  void UnblockTowardsRoot(uint64_t tsc) override;
+
+  void FinishAndAccountTowardsRoot(
+      Scheduler *sched,
+      TrafficClass *child,
+      resource_arr_t usage,
+      uint64_t tsc) override;
+
  private:
   friend Scheduler;
 
@@ -163,6 +206,16 @@ class WeightedFairTrafficClass final : public TrafficClass {
   // Returns true if child was added successfully.
   bool AddChild(TrafficClass *child, resource_share_t share);
 
+  TrafficClass *PickNextChild() override;
+
+  void UnblockTowardsRoot(uint64_t tsc) override;
+
+  void FinishAndAccountTowardsRoot(
+      Scheduler *sched,
+      TrafficClass *child,
+      resource_arr_t usage,
+      uint64_t tsc) override;
+
  private:
   friend Scheduler;
 
@@ -182,7 +235,7 @@ class WeightedFairTrafficClass final : public TrafficClass {
   };
 
   std::priority_queue<ChildData> children_;
-  std::unordered_map<TrafficClass *, ChildData> blocked_children_;
+  std::list<ChildData> blocked_children_;
 };
 
 class RoundRobinTrafficClass final : public TrafficClass {
@@ -195,15 +248,26 @@ class RoundRobinTrafficClass final : public TrafficClass {
   // Returns true if child was added successfully.
   bool AddChild(TrafficClass *child);
 
+  TrafficClass *PickNextChild() override;
+
+  void UnblockTowardsRoot(uint64_t tsc) override;
+
+  void FinishAndAccountTowardsRoot(
+      Scheduler *sched,
+      TrafficClass *child,
+      resource_arr_t usage,
+      uint64_t tsc) override;
+
  private:
   friend Scheduler;
 
   std::deque<TrafficClass *> children_;
-  std::unordered_set<TrafficClass *> blocked_children_;
+  std::list<TrafficClass *> blocked_children_;
 };
 
 // Performs rate limiting on a single child class (which could implement some
-// other policy with many children).
+// other policy with many children).  Rate limit policy is special, because it
+// can block and because there is a one-to-one parent-child relationship.
 class RateLimitTrafficClass final : public TrafficClass {
  public:
   RateLimitTrafficClass(const std::string &name, resource_t resource,
@@ -225,6 +289,16 @@ class RateLimitTrafficClass final : public TrafficClass {
   bool AddChild(TrafficClass *child);
 
   inline uint64_t throttle_expiration() const { return throttle_expiration_; }
+
+  TrafficClass *PickNextChild() override;
+
+  void UnblockTowardsRoot(uint64_t tsc) override;
+
+  void FinishAndAccountTowardsRoot(
+      Scheduler *sched,
+      TrafficClass *child,
+      resource_arr_t usage,
+      uint64_t tsc) override;
 
  private:
   friend Scheduler;
@@ -281,6 +355,25 @@ class LeafTrafficClass final : public TrafficClass {
 
   // Removes the task from this class; returns true upon success.
   bool RemoveTask(Task *t);
+
+  TrafficClass *PickNextChild() override;
+
+  void UnblockTowardsRoot([[maybe_unused]] uint64_t tsc) override {
+    // TODO(barath): Change this so that we actually look to see if we have
+    // tasks to execute and unblock if so.
+    return;
+  }
+
+  void FinishAndAccountTowardsRoot(
+      [[maybe_unused]] Scheduler *sched,
+      [[maybe_unused]] TrafficClass *child,
+      [[maybe_unused]] resource_arr_t usage,
+      uint64_t tsc) override {
+    last_tsc_ = tsc;
+    // TODO(barath): Consider if there is any accounting to be done for leaf
+    // classes.
+    return;
+  }
 
  private:
   friend Scheduler;
