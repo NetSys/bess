@@ -28,14 +28,14 @@ class TCFixture : public benchmark::Fixture {
 
   virtual void SetUp(benchmark::State &state) override {
     int num_classes = state.range(0);
-    //resource_t resource = (resource_t) state.range(1);
+    resource_t resource = (resource_t) state.range(1);
 
     s_ = new Scheduler();
     PriorityTrafficClass *pc = s_->root();
 
     // The main weighted traffic class we attach everything to.
-    //WeightedFairTrafficClass *parent = new WeightedFairTrafficClass("weighted", resource);
-    RoundRobinTrafficClass *parent = new RoundRobinTrafficClass("rr");
+    WeightedFairTrafficClass *parent = new WeightedFairTrafficClass("weighted", resource);
+    //RoundRobinTrafficClass *parent = new RoundRobinTrafficClass("rr");
     pc->AddChild(parent, 0);
     classes_.push_back(parent);
 
@@ -44,9 +44,9 @@ class TCFixture : public benchmark::Fixture {
       LeafTrafficClass *c = new LeafTrafficClass(name);
       c->set_blocked(false);
 
-      //resource_share_t share = 1;
-      //parent->AddChild(c, share);
-      CHECK(parent->AddChild(c));
+      resource_share_t share = 1;
+      CHECK(parent->AddChild(c, share));
+      //CHECK(parent->AddChild(c));
 
       classes_.push_back(c);
     }
