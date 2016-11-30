@@ -16,7 +16,10 @@ class GateTest : public ::testing::Test {
     ASSERT_EQ(nullptr, g->arg());
   }
 
-  virtual void TearDown() { delete g; }
+  virtual void TearDown() {
+    g->ClearHooks();
+    delete g;
+  }
 
   Gate *g;
 };
@@ -31,6 +34,8 @@ class IOGateTest : public ::testing::Test {
   }
 
   virtual void TearDown() {
+    og->ClearHooks();
+    ig->ClearHooks();
     delete og;
     delete ig;
   }
@@ -41,7 +46,9 @@ class IOGateTest : public ::testing::Test {
 
 TEST_F(GateTest, AddExistingHookFails) {
   ASSERT_EQ(0, g->AddHook(new TrackGate()));
-  ASSERT_EQ(EEXIST, g->AddHook(new TrackGate()));
+  GateHook *hook = new TrackGate();
+  ASSERT_EQ(EEXIST, g->AddHook(hook));
+  delete hook;
 }
 
 TEST_F(GateTest, HookPriority) {
