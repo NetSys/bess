@@ -116,19 +116,19 @@ void WeightedFairTrafficClass::FinishAndAccountTowardsRoot(
     uint64_t tsc) {
   last_tsc_ = tsc;
 
-  auto item = children_.top();
-  children_.pop();
-
   //DCHECK_EQ(item.c_, child) << "Child that we picked should be at the front of priority queue.";
   if (child->blocked_) {
+    auto item = children_.top();
+    children_.pop();
     blocked_children_.emplace_back(std::move(item));
     if (children_.empty()) {
       blocked_ = true;
     }
   } else {
+    auto &item = children_.mutable_top();
     uint64_t consumed = usage[resource_];
     item.pass_ += item.stride_ * consumed / QUANTUM;
-    children_.emplace(std::move(item));
+    children_.decrease_key_top();
   }
 
   if (!parent_) {
