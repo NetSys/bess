@@ -294,8 +294,9 @@ def main():
     os.chdir(BESS_DIR)
     parser = argparse.ArgumentParser(description = 'Build Bess')
     parser.add_argument('action', metavar='action', nargs='?', default='all', \
-            help='Action is one of all, dpdk, bess, kmod, clean, dist_clean, help')
-    parser.add_argument('--with-benchmark', dest='benchmark_path', nargs=1, help='Location of benchmark library')
+        help='Action is one of all, dpdk, bess, kmod, clean, dist_clean, help')
+    parser.add_argument('--with-benchmark', dest='benchmark_path', nargs=1, \
+            help='Location of benchmark library')
     args = parser.parse_args()
 
     if args.benchmark_path:
