@@ -49,8 +49,7 @@ endif
 CXXFLAGS += -std=gnu++11 -g3 -ggdb3 -Ofast -march=native \
 	    -Werror -isystem $(DPDK_INC_DIR) -Wall -Wextra -Wcast-align -D_GNU_SOURCE
 
-PERMISSIVE = -Wno-missing-field-initializers \
-		 -Wno-unused-parameter -Wno-dynamic-class-memaccess # FIXME
+PERMISSIVE = -Wno-missing-field-initializers -Wno-unused-parameter # FIXME
 
 # -Wshadow should not be used for g++ 4.x, as it has too many false positives
 CXXVERSION_5_OR_HIGHER := $(shell expr $(CXXVERSION) \>= 50000)
@@ -172,7 +171,7 @@ $(eval $(call BUILD, \
 $(eval $(call BUILD, \
 	CXX, \
 	bessctl.o, \
-	bessctl.cc $(DEPDIR)/$$@.d, \
+	bessctl.cc $(PROTO_HEADERS) $(DEPDIR)/$$@.d, \
 	$$(CXX) -o $$@ -c $$< $$(CXXFLAGS) $$(PERMISSIVE) $$(DEPFLAGS)))
 
 $(eval $(call BUILD, \
