@@ -45,7 +45,7 @@ endif
 
 PROTOCXXFLAGS = -std=gnu++11 -O0
 
-CXXFLAGS += -std=gnu++11 -g3 -ggdb3 -Ofast -march=native \
+CXXFLAGS += -std=gnu++11 -g3 -ggdb3 -Og -march=native \
 	    -Werror -isystem $(DPDK_INC_DIR) -D_GNU_SOURCE \
 	    -Wall -Wextra -Wcast-align
 
@@ -76,6 +76,10 @@ ifdef COVERAGE
     LDFLAGS += --coverage
 endif
 
+ifndef DEBUG
+    CXXFLAGS += -Ofast -DNDEBUG
+    LDFLAGS += -flto -ffat-lto-objects -finline-limit=1000
+endif
 
 -include extra.mk
 

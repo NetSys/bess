@@ -73,7 +73,9 @@ static void init_templates(void) {
   for (i = 0; i < RTE_MAX_NUMA_NODES; i++) {
     struct rte_mbuf *mbuf;
 
-    if (!pframe_pool[i]) continue;
+    if (!pframe_pool[i]) {
+      continue;
+    }
 
     mbuf = rte_pktmbuf_alloc(pframe_pool[i]);
     pframe_template = *mbuf;
@@ -90,9 +92,13 @@ void init_mempool(void) {
   assert(SNBUF_METADATA_OFF == 192);
   assert(SNBUF_SCRATCHPAD_OFF == 320);
 
-  if (FLAGS_d) rte_dump_physmem_layout(stdout);
+  if (FLAGS_d) {
+    rte_dump_physmem_layout(stdout);
+  }
 
-  for (i = 0; i < RTE_MAX_NUMA_NODES; i++) initialized[i] = 0;
+  for (i = 0; i < RTE_MAX_NUMA_NODES; i++) {
+    initialized[i] = 0;
+  }
 
   for (i = 0; i < RTE_MAX_LCORE; i++) {
     int sid = rte_lcore_to_socket_id(i);
@@ -121,7 +127,9 @@ struct rte_mempool *get_pframe_pool_socket(int socket) {
 #if DPDK_VER >= DPDK_VER_NUM(16, 7, 0)
 static struct snbuf *paddr_to_snb_memchunk(struct rte_mempool_memhdr *chunk,
                                            phys_addr_t paddr) {
-  if (chunk->phys_addr == RTE_BAD_PHYS_ADDR) return nullptr;
+  if (chunk->phys_addr == RTE_BAD_PHYS_ADDR) {
+    return nullptr;
+  }
 
   if (chunk->phys_addr <= paddr && paddr < chunk->phys_addr + chunk->len) {
     uintptr_t vaddr;
@@ -139,11 +147,15 @@ struct snbuf *paddr_to_snb(phys_addr_t paddr) {
     struct rte_mempool_memhdr *chunk;
 
     pool = pframe_pool[i];
-    if (!pool) continue;
+    if (!pool) {
+      continue;
+    }
 
     STAILQ_FOREACH(chunk, &pool->mem_list, next) {
       struct snbuf *snb = paddr_to_snb_memchunk(chunk, paddr);
-      if (!snb) continue;
+      if (!snb) {
+        continue;
+      }
 
       if (snb_to_paddr(snb) != paddr) {
         LOG(ERROR) << "snb->immutable.paddr corruption: snb=" << snb
@@ -170,9 +182,11 @@ struct snbuf *paddr_to_snb(phys_addr_t paddr) {
     uintptr_t size;
 
     pool = pframe_pool[i];
-    if (!pool) continue;
+    if (!pool) {
+      continue;
+    }
 
-    assert(pool->pg_num == 1);
+    DCHECK(pool->pg_num == 1);
 
     pg_start = pool->elt_pa[0];
     size = pool->elt_va_end - pool->elt_va_start;
@@ -184,10 +198,11 @@ struct snbuf *paddr_to_snb(phys_addr_t paddr) {
       offset = paddr - pg_start;
       ret = (struct snbuf *)(pool->elt_va_start + offset);
 
-      if (snb_to_paddr(ret) != paddr)
+      if (snb_to_paddr(ret) != paddr) {
         log_err(
             "snb->immutable.paddr "
             "corruption detected\n");
+      }
 
       break;
     }
@@ -201,8 +216,9 @@ void snb_dump(FILE *file, struct snbuf *pkt) {
   struct rte_mbuf *mbuf;
 
   fprintf(file, "refcnt chain: ");
-  for (mbuf = (struct rte_mbuf *)pkt; mbuf; mbuf = mbuf->next)
+  for (mbuf = (struct rte_mbuf *)pkt; mbuf; mbuf = mbuf->next) {
     fprintf(file, "%hu ", mbuf->refcnt);
+  }
   fprintf(file, "\n");
 
   fprintf(file, "pool chain: ");
@@ -212,7 +228,9 @@ void snb_dump(FILE *file, struct snbuf *pkt) {
     fprintf(file, "%p(", mbuf->pool);
 
     for (i = 0; i < RTE_MAX_NUMA_NODES; i++) {
-      if (pframe_pool[i] == mbuf->pool) fprintf(file, "P%d", i);
+      if (pframe_pool[i] == mbuf->pool) {
+        fprintf(file, "P%d", i);
+      }
     }
     fprintf(file, ") ");
   }

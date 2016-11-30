@@ -50,8 +50,9 @@ inline double FlowGen::NewFlowPkts() {
       return scaled_pareto_variate(pareto_.inversed_alpha, pareto_.mean,
                                    flow_pkts_, rng_.GetReal());
     default:
-      assert(0);
+      CHECK(0);
   }
+  return 0;
 }
 
 inline double FlowGen::MaxFlowPkts() const {
@@ -62,8 +63,9 @@ inline double FlowGen::MaxFlowPkts() const {
       return scaled_pareto_variate(pareto_.inversed_alpha, pareto_.mean,
                                    flow_pkts_, 1.0);
     default:
-      assert(0);
+      CHECK(0);
   }
+  return 0;
 }
 
 inline uint64_t FlowGen::NextFlowArrival() {
@@ -75,8 +77,9 @@ inline uint64_t FlowGen::NextFlowArrival() {
       return -log(rng_.GetRealNonzero()) * flow_gap_ns_;
       break;
     default:
-      assert(0);
+      CHECK(0);
   }
+  return 0;
 }
 
 inline struct flow *FlowGen::ScheduleFlow(uint64_t time_ns) {
@@ -122,7 +125,7 @@ void FlowGen::PopulateInitialFlows() {
   struct flow *f;
 
   f = ScheduleFlow(now_ns);
-  assert(f);
+  DCHECK(f);
 
   if (!quick_rampup_) {
     return;

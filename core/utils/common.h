@@ -11,28 +11,29 @@
 #include <string>
 
 #if __cplusplus < 201103L  // pre-C++11?
-# error The compiler does not support C++11
+#error The compiler does not support C++11
 #endif
 
 // [[maybe_unused]] is a c++17 feature,
 // but g++ (>= 4.8) has its own [[gnu::unused]]
 #if __cplusplus <= 201402L  // C++14 or older?
-#  define maybe_unused gnu::unused
+#define maybe_unused gnu::unused
 #endif
 
-/* Hint for performance optimization. Same as _nassert() of TI compilers */
-#define promise(cond)                     \
-  ({                                      \
-    if (!(cond)) __builtin_unreachable(); \
+/* Hint for performance optimization. Same as _nDCHECK() of TI compilers */
+#define promise(cond)          \
+  ({                           \
+    if (!(cond))               \
+      __builtin_unreachable(); \
   })
 #define promise_unreachable() __builtin_unreachable();
 
 #ifndef likely
-#  define likely(x) __builtin_expect((x), 1)
+#define likely(x) __builtin_expect((x), 1)
 #endif
 
 #ifndef unlikely
-#  define unlikely(x) __builtin_expect((x), 0)
+#define unlikely(x) __builtin_expect((x), 0)
 #endif
 
 #define member_type(type, member) typeof(((type *)0)->member)
@@ -66,9 +67,13 @@ static inline uint64_t align_ceil_pow2(uint64_t v) {
 }
 
 /* err is defined as -errno,  */
-static inline intptr_t ptr_to_err(const void *ptr) { return (intptr_t)ptr; }
+static inline intptr_t ptr_to_err(const void *ptr) {
+  return (intptr_t)ptr;
+}
 
-static inline void *err_to_ptr(intptr_t err) { return (void *)err; }
+static inline void *err_to_ptr(intptr_t err) {
+  return (void *)err;
+}
 
 static inline int is_err(const void *ptr) {
   const int max_errno = 4095;
@@ -106,16 +111,14 @@ static inline void memcpy_sloppy(void *__restrict__ dst,
 }
 
 // Put this in the declarations for a class to be uncopyable.
-#define DISALLOW_COPY(TypeName) \
-  TypeName(const TypeName&) = delete
+#define DISALLOW_COPY(TypeName) TypeName(const TypeName &) = delete
 // Put this in the declarations for a class to be unassignable.
-#define DISALLOW_ASSIGN(TypeName) \
-  void operator=(const TypeName&) = delete
+#define DISALLOW_ASSIGN(TypeName) void operator=(const TypeName &) = delete
 // A macro to disallow the copy constructor and operator= functions.
 // This should be used in the private: declarations for a class.
 #define DISALLOW_COPY_AND_ASSIGN(TypeName) \
-  TypeName(const TypeName&) = delete;      \
-  void operator=(const TypeName&) = delete
+  TypeName(const TypeName &) = delete;     \
+  void operator=(const TypeName &) = delete
 // A macro to disallow all the implicit constructors, namely the
 // default constructor, copy constructor and operator= functions.
 //
@@ -134,13 +137,15 @@ static inline void memcpy_sloppy(void *__restrict__ dst,
 //   if (TakeOwnership(my_var.get()) == SUCCESS)
 //     ignore_result(my_var.release());
 //
-template<typename T>
-inline void ignore_result(const T&) {
-}
+template <typename T>
+inline void ignore_result(const T &) {}
 
-// An RAII holder for file descriptors.  When initialized with a file desciptor, takes
-// ownership of the fd, meaning that when this holder instance is destroyed the fd is
-// closed.  Primarily useful in unit tests where we want to ensure that previous tests
+// An RAII holder for file descriptors.  When initialized with a file desciptor,
+// takes
+// ownership of the fd, meaning that when this holder instance is destroyed the
+// fd is
+// closed.  Primarily useful in unit tests where we want to ensure that previous
+// tests
 // have been cleaned up before starting new ones.
 class unique_fd {
  public:
@@ -148,9 +153,7 @@ class unique_fd {
   unique_fd(int fd) : fd_(fd) {}
 
   // Move constructor
-  unique_fd(unique_fd &&other) : fd_(other.fd_) {
-    other.fd_ = -1;
-  }
+  unique_fd(unique_fd &&other) : fd_(other.fd_) { other.fd_ = -1; }
 
   // Destructor, which closes the fd if not -1.
   ~unique_fd() {

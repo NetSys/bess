@@ -342,37 +342,37 @@ static void l2_forward_init_test() {
   struct l2_table l2tbl;
 
   ret = l2_init(&l2tbl, 0, 0);
-  assert(ret < 0);
+  DCHECK_LT(ret, 0);
 
   ret = l2_init(&l2tbl, 4, 0);
-  assert(ret < 0);
+  DCHECK_LT(ret, 0);
 
   ret = l2_init(&l2tbl, 0, 2);
-  assert(ret < 0);
+  DCHECK_LT(ret, 0);
 
   ret = l2_init(&l2tbl, 4, 2);
-  assert(!ret);
+  DCHECK(!ret);
   ret = l2_deinit(&l2tbl);
-  assert(!ret);
+  DCHECK_EQ(ret, 0);
 
   ret = l2_init(&l2tbl, 4, 4);
-  assert(!ret);
+  DCHECK(!ret);
   ret = l2_deinit(&l2tbl);
-  assert(!ret);
+  DCHECK_EQ(ret, 0);
 
   ret = l2_init(&l2tbl, 4, 8);
-  assert(ret < 0);
+  DCHECK_LT(ret, 0);
 
   ret = l2_init(&l2tbl, 6, 4);
-  assert(ret < 0);
+  DCHECK_LT(ret, 0);
 
   ret = l2_init(&l2tbl, 2 << 10, 2);
-  assert(!ret);
+  DCHECK_EQ(ret, 0);
   ret = l2_deinit(&l2tbl);
-  assert(!ret);
+  DCHECK_EQ(ret, 0);
 
   ret = l2_init(&l2tbl, 2 << 10, 3);
-  assert(ret < 0);
+  DCHECK_EQ(ret, 0);
 }
 
 static void l2_forward_entry_test() {
@@ -385,31 +385,31 @@ static void l2_forward_entry_test() {
   uint16_t gate_index = -1;
 
   ret = l2_init(&l2tbl, 4, 4);
-  assert(!ret);
+  DCHECK_EQ(ret, 0);
 
   ret = l2_add_entry(&l2tbl, addr1, index1);
   LOG(INFO) << "add entry: " << addr1 << ", index: " << index1;
-  assert(!ret);
+  DCHECK_EQ(ret, 0);
 
   ret = l2_find(&l2tbl, addr1, &gate_index);
   LOG(INFO) << "find entry: " << addr1 << ", index: " << gate_index;
-  assert(!ret);
-  assert(index1 == gate_index);
+  DCHECK_EQ(ret, 0);
+  DCHECK_EQ(index1, gate_index);
 
   ret = l2_find(&l2tbl, addr2, &gate_index);
-  assert(ret < 0);
+  DCHECK_LT(ret, 0);
 
   ret = l2_del_entry(&l2tbl, addr1);
-  assert(!ret);
+  DCHECK_EQ(ret, 0);
 
   ret = l2_del_entry(&l2tbl, addr2);
-  assert(ret < 0);
+  DCHECK_LT(ret, 0);
 
   ret = l2_find(&l2tbl, addr1, &gate_index);
-  assert(ret < 0);
+  DCHECK_LT(ret, 0);
 
   ret = l2_deinit(&l2tbl);
-  assert(!ret);
+  DCHECK_EQ(ret, 0);
 }
 
 static void l2_forward_flush_test() {
@@ -421,19 +421,19 @@ static void l2_forward_flush_test() {
   uint16_t gate_index;
 
   ret = l2_init(&l2tbl, 4, 4);
-  assert(!ret);
+  DCHECK_EQ(ret, 0);
 
   ret = l2_add_entry(&l2tbl, addr1, index1);
-  assert(!ret);
+  DCHECK_EQ(ret, 0);
 
   ret = l2_flush(&l2tbl);
-  assert(!ret);
+  DCHECK_EQ(ret, 0);
 
   ret = l2_find(&l2tbl, addr1, &gate_index);
-  assert(ret < 0);
+  DCHECK_LT(ret, 0);
 
   ret = l2_deinit(&l2tbl);
-  assert(!ret);
+  DCHECK_EQ(ret, 0);
 }
 
 static void l2_forward_collision_test() {
@@ -451,7 +451,7 @@ static void l2_forward_collision_test() {
   uint32_t offset;
 
   ret = l2_init(&l2tbl, h_size, b_size);
-  assert(!ret);
+  DCHECK_EQ(ret, 0);
 
   /* collision happens */
   for (i = 0; i < max_hb_cnt; i++) {
@@ -475,15 +475,15 @@ static void l2_forward_collision_test() {
               << offset;
 
     if (success[i]) {
-      assert(!ret);
-      assert(idx[i] == gate_index);
+      DCHECK_EQ(ret, 0);
+      DCHECK_EQ(idx[i], gate_index);
     } else {
-      assert(ret);
+      DCHECK_NE(ret, 0);
     }
   }
 
   ret = l2_deinit(&l2tbl);
-  assert(!ret);
+  DCHECK_EQ(ret, 0);
 }
 
 int test_all() {

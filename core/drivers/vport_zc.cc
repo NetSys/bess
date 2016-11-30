@@ -34,7 +34,7 @@ pb_error_t ZeroCopyVPort::Init(const bess::pb::EmptyArg &) {
 
   bar = static_cast<struct vport_bar *>(rte_zmalloc(nullptr, total_bytes, 0));
   bar_address = (size_t)bar;
-  assert(bar != nullptr);
+  DCHECK(bar);
   bar_ = bar;
 
   strncpy(bar->name, name().c_str(), PORT_NAME_LEN);
@@ -70,7 +70,7 @@ pb_error_t ZeroCopyVPort::Init(const bess::pb::EmptyArg &) {
   snprintf(port_dir, PORT_NAME_LEN + 256, "%s/%s", P_tmpdir, VPORT_DIR_PREFIX);
 
   if (stat(port_dir, &sb) == 0) {
-    assert((sb.st_mode & S_IFMT) == S_IFDIR);
+    DCHECK_EQ((sb.st_mode & S_IFMT), S_IFDIR);
   } else {
     LOG(INFO) << "Creating directory " << port_dir;
     mkdir(port_dir, S_IRWXU | S_IRWXG | S_IRWXO);

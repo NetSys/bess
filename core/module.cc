@@ -204,11 +204,12 @@ pb_error_t Module::Init(const bess::pb::EmptyArg &) {
 }
 
 struct task_result Module::RunTask(void *) {
-  assert(0);  // You must override this function
+  CHECK(0);  // You must override this function
+  return task_result();
 }
 
 void Module::ProcessBatch(bess::PacketBatch *) {
-  assert(0);  // You must override this function
+  CHECK(0);  // You must override this function
 }
 
 task_id_t Module::RegisterTask(void *arg) {
@@ -469,8 +470,8 @@ __thread struct callstack worker_callstack;
 void _trace_start(Module *mod, char *type) {
   struct callstack *s = &worker_callstack;
 
-  assert(s->depth == 0);
-  assert(s->buflen == 0);
+  DCHECK_EQ(s->depth, 0);
+  DCHECK_EQ(s->buflen, 0);
 
   s->buflen = snprintf(s->buf + s->buflen, MAX_TRACE_BUFSIZE - s->buflen,
                        "Worker %d %-8s | %s", current_wid, type, mod->name());
@@ -481,7 +482,7 @@ void _trace_start(Module *mod, char *type) {
 void _trace_end(int print_out) {
   struct callstack *s = &worker_callstack;
 
-  assert(s->depth == 0);
+  DCHECK_EQ(s->depth, 0);
   s->buflen = 0;
   s->newlined = 0;
 
@@ -508,7 +509,7 @@ void _trace_before_call(Module *mod, Module *next, bess::PacketBatch *batch) {
   s->curr_indent += len;
 
   s->depth++;
-  assert(s->depth < MAX_TRACE_DEPTH);
+  DCHECK_LT(s->depth, MAX_TRACE_DEPTH);
 
   s->newlined = 0;
 }

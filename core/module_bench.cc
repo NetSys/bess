@@ -52,8 +52,8 @@ class ModuleFixture : public benchmark::Fixture {
 
     ADD_MODULE(DummySourceModule, "src", "the most sophisticated modue ever");
     ADD_MODULE(DummyRelayModule, "relay", "the most sophisticated modue ever");
-    assert(__module__DummySourceModule);
-    assert(__module__DummyRelayModule);
+    DCHECK(__module__DummySourceModule);
+    DCHECK(__module__DummyRelayModule);
 
     const auto &builders = ModuleBuilder::all_module_builders();
     const auto &builder_src = builders.find("DummySourceModule")->second;
@@ -68,7 +68,7 @@ class ModuleFixture : public benchmark::Fixture {
           "relay" + std::to_string(i), &bess::metadata::default_pipeline);
       relays.push_back(relay);
       int ret = last->ConnectModules(0, relay, 0);
-      assert(ret == 0);
+      DCHECK_EQ(ret, 0);
       last = relay;
     }
   }
@@ -93,7 +93,7 @@ BENCHMARK_DEFINE_F(ModuleFixture, Chain)(benchmark::State &state) {
 
   while (state.KeepRunning()) {
     struct task_result ret = task_scheduled(&t);
-    assert(ret.packets == batch_size);
+    DCHECK_EQ(ret.packets, batch_size);
   }
 
   state.SetItemsProcessed(state.iterations() * batch_size);
