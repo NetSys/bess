@@ -47,15 +47,19 @@ else
 endif
 
 CXXFLAGS += -std=gnu++11 -g3 -ggdb3 -Ofast -march=native \
-	    -Werror -isystem $(DPDK_INC_DIR) -D_GNU_SOURCE
+	    -Werror -isystem $(DPDK_INC_DIR) -Wall -Wextra -Wcast-align -D_GNU_SOURCE
 
-HARDCORE = -Wall -Wextra -Wcast-align \
-	   -Wno-missing-field-initializers	# FIXME
+PERMISSIVE = -Wno-missing-field-initializers \
+		 -Wno-unused-parameter -Wno-dynamic-class-memaccess # FIXME
 
 # -Wshadow should not be used for g++ 4.x, as it has too many false positives
 CXXVERSION_5_OR_HIGHER := $(shell expr $(CXXVERSION) \>= 50000)
-ifeq "$(CXXVERSION_5_OR_HIGHER)" "1"
-  HARDCORE += -Wshadow
+ifeq "$(IS_GCC)" "3"
+	ifeq "$(CXXVERSION_5_OR_HIGHER)" "1"
+		CXXFLAGS += -Wshadow
+	endif
+else
+	CXXFLAGS += -Wshadow
 endif
 
 LDFLAGS += -rdynamic -L$(DPDK_LIB_DIR) -Wl,-rpath=$(DPDK_LIB_DIR) -pthread \
@@ -69,8 +73,8 @@ LIBS += -Wl,-non_shared \
 	-ldl
 
 ifdef SANITIZE
-    CXXFLAGS += -fsanitize=address -fno-omit-frame-pointer
-    LDFLAGS += -fsanitize=address -static-libasan
+    CXXFLAGS += -fsanitize=address -fsanitize=undefined -fno-omit-frame-pointer
+    LDFLAGS += -fsanitize=address -fsanitize=undefined
 endif
 
 ifdef COVERAGE
@@ -89,8 +93,8 @@ PROTO_SRCS += $(patsubst %.proto,%.grpc.pb.cc, $(notdir $(PROTOS)))
 PROTO_HEADERS = $(patsubst %.cc,%.h, $(PROTO_SRCS))
 PROTOCFLAGS += --proto_path=$(PROTO_DIR) --cpp_out=. --grpc_out=. --plugin=protoc-gen-grpc=`which grpc_cpp_plugin`
 
-ALL_SRCS = $(wildcard *.cc utils/*.cc modules/*.cc drivers/*.cc)
-HEADERS = $(wildcard *.h utils/*.h modules/*.h drivers/*.h)
+ALL_SRCS = $(wildcard *.cc utils/*.cc modules/*.cc drivers/*.cc hooks/*.cc)
+HEADERS = $(wildcard *.h utils/*.h modules/*.h drivers/*.h hooks/*.h)
 
 TEST_SRCS = $(filter %_test.cc gtest_main.cc, $(ALL_SRCS))
 TEST_OBJS = $(TEST_SRCS:.cc=.o)
@@ -163,13 +167,19 @@ $(eval $(call BUILD, \
 	CXX, \
 	%.pb.o, \
 	%.pb.cc $(DEPDIR)/$$@.d, \
-	$$(CXX) -o $$@ -c $$< $$(CXXFLAGS) $$(DEPFLAGS)))
+	$$(CXX) -o $$@ -c $$< $$(CXXFLAGS) $$(PERMISSIVE) $$(DEPFLAGS)))
+
+$(eval $(call BUILD, \
+	CXX, \
+	bessctl.o, \
+	bessctl.cc $(DEPDIR)/$$@.d, \
+	$$(CXX) -o $$@ -c $$< $$(CXXFLAGS) $$(PERMISSIVE) $$(DEPFLAGS)))
 
 $(eval $(call BUILD, \
 	CXX, \
 	%.o, \
 	%.cc $(PROTO_HEADERS) $(DEPDIR)/$$@.d, \
-	$$(CXX) -o $$@ -c $$< $$(CXXFLAGS) $$(HARDCORE) $$(DEPFLAGS)))
+	$$(CXX) -o $$@ -c $$< $$(CXXFLAGS) $$(DEPFLAGS)))
 
 $(eval $(call BUILD, \
 	LD, \
@@ -181,7 +191,7 @@ $(eval $(call BUILD, \
 	TEST_CXX, \
 	%_test.o, \
 	%_test.cc $(DEPDIR)/$$@.d, \
-	$$(CXX) -o $$@ -c $$< $$(CXXFLAGS) $$(HARDCORE) $$(DEPFLAGS)))
+	$$(CXX) -o $$@ -c $$< $$(CXXFLAGS) $$(DEPFLAGS)))
 
 $(eval $(call BUILD, \
 	TEST_LD, \
@@ -199,13 +209,13 @@ $(eval $(call BUILD, \
 	TEST_CXX, \
 	gtest-all.o, \
 	$$(GTEST_DIR)/src/gtest-all.cc, \
-	$$(CXX) -o $$@ -c $$< -I$$(GTEST_DIR) $$(CXXFLAGS) $$(HARDCORE) $$(DEPFLAGS)))
+	$$(CXX) -o $$@ -c $$< -I$$(GTEST_DIR) $$(CXXFLAGS) $$(PERMISSIVE) $$(DEPFLAGS)))
 
 $(eval $(call BUILD, \
 	BENCH_CXX, \
 	%_bench.o, \
 	%_bench.cc $(DEPDIR)/$$@.d, \
-	$$(CXX) -o $$@ -c $$< $$(CXXFLAGS) $$(HARDCORE) $$(DEPFLAGS)))
+	$$(CXX) -o $$@ -c $$< $$(CXXFLAGS) $$(DEPFLAGS)))
 
 $(eval $(call BUILD, \
 	BENCH_LD, \
