@@ -370,12 +370,12 @@ int Module::DisconnectModules(gate_idx_t ogate_idx) {
     Module *m_next = igate->module();
     m_next->igates[igate->gate_idx()] = nullptr;
     igate->ClearHooks();
-    mem_free(igate);
+    delete igate;
   }
 
   ogates[ogate_idx] = nullptr;
   ogate->ClearHooks();
-  mem_free(ogate);
+  delete ogate;
 
   return 0;
 }
