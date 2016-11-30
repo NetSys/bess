@@ -11,6 +11,7 @@
 
 #include "task.h"
 #include "utils/common.h"
+#include "utils/extended_priority_queue.h"
 #include "utils/simd.h"
 #include "utils/time.h"
 
@@ -234,7 +235,7 @@ class WeightedFairTrafficClass final : public TrafficClass {
     TrafficClass *c_;
   };
 
-  std::priority_queue<ChildData> children_;
+  extended_priority_queue<ChildData> children_;
   std::list<ChildData> blocked_children_;
 };
 
