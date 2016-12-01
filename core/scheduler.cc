@@ -1,10 +1,59 @@
 #include "scheduler.h"
 
 #include "opts.h"
+#include "traffic_class.h"
 #include "utils/common.h"
 #include "worker.h"
 
 namespace bess {
+
+Scheduler::Scheduler(int worker_id)
+    : Scheduler(worker_id, POLICY_PRIORITY, NUM_RESOURCES, 0, 0) {
+  const priority_t kDefaultPriority = 10;
+  std::string name = kDefaultLeafClassNamePrefix + std::to_string(worker_id);
+  default_leaf_class_ =
+      TrafficClassBuilder::CreateTrafficClass<LeafTrafficClass>(name);
+  static_cast<PriorityTrafficClass *>(root_)->AddChild(default_leaf_class_, kDefaultPriority);
+}
+
+Scheduler::Scheduler(int worker_id,
+                     TrafficPolicy root_policy,
+                     [[maybe_unused]] resource_t resource,
+                     [[maybe_unused]] uint64_t limit,
+                     [[maybe_unused]] uint64_t max_burst)
+    : root_(),
+    default_leaf_class_(),
+    have_throttled_(),
+    throttled_cache_(ThrottledComp()),
+    stats_(),
+    last_stats_(),
+    last_print_tsc_(),
+    checkpoint_(),
+    now_(),
+    ns_per_cycle_(1e9 / tsc_hz) {
+  std::string root_name = kRootClassNamePrefix + std::to_string(worker_id);
+  switch (root_policy) {
+    case POLICY_PRIORITY:
+      root_ = new PriorityTrafficClass(root_name);
+      break;
+    case POLICY_WEIGHTED_FAIR:
+      CHECK_LT(resource, NUM_RESOURCES);
+      CHECK_GE(resource, 0);
+      root_ = new WeightedFairTrafficClass(root_name, resource);
+      break;
+    case POLICY_ROUND_ROBIN:
+      root_ = new RoundRobinTrafficClass(root_name);
+      break;
+    case POLICY_RATE_LIMIT:
+      CHECK_LT(resource, NUM_RESOURCES);
+      CHECK_GE(resource, 0);
+      root_ = new RateLimitTrafficClass(root_name, resource, limit, max_burst);
+      break;
+    default:
+      CHECK(false) << "Policy " << root_policy << " invalid.";
+      break;
+  }
+}
 
 void Scheduler::ScheduleLoop() {
   // How many rounds to go before we do accounting.
@@ -74,7 +123,7 @@ TrafficClass *Scheduler::Next() {
   // throttled whose throttle time has expired so that they are available.
   ResumeThrottled(now_);
 
-  TrafficClass *c = &root_;
+  TrafficClass *c = root_;
   while (c->policy_ != POLICY_LEAF) {
     c = c->PickNextChild();
   }

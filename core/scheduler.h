@@ -25,21 +25,25 @@ struct ThrottledComp {
 
 class Scheduler {
  public:
-  // By default names for schedulers' root classes are the pointer of the
-  // scheduler object, for debugging convenience.
-  Scheduler()
-      : root_([](Scheduler *s){std::stringstream ss; ss << s; return ss.str();}(this)),
-        have_throttled_(),
-        throttled_cache_(ThrottledComp()),
-        stats_(),
-        last_stats_(),
-        last_print_tsc_(),
-        checkpoint_(),
-        now_(),
-        ns_per_cycle_(1e9 / tsc_hz) {}
+  const std::string kRootClassNamePrefix = "root_";
+  const std::string kDefaultLeafClassNamePrefix = "defaultleaf_";
+
+  // The pseudo-default scheduler constructor.  Constructs a round robin root
+  // class with a default leaf class attached to it.
+  Scheduler(int worker_id);
+
+  // An explicit constructor where the caller specifies the root policy and any
+  // parameters needed for that policy.
+  Scheduler(int worker_id,
+            TrafficPolicy root_policy,
+            [[maybe_unused]] resource_t resource,
+            [[maybe_unused]] uint64_t limit,
+            [[maybe_unused]] uint64_t max_burst);
 
   // TODO(barath): Do real cleanup, akin to sched_free() from the old impl.
-  virtual ~Scheduler() {}
+  virtual ~Scheduler() {
+    delete root_;
+  }
 
   // Runs the scheduler loop forever.
   void ScheduleLoop();
@@ -51,7 +55,19 @@ class Scheduler {
   // throttled (and need resuming later).
   void AddThrottled(RateLimitTrafficClass *rc);
 
-  PriorityTrafficClass *root() { return &root_; }
+  TrafficClass *root() { return root_; }
+
+  LeafTrafficClass *default_leaf_class() { return default_leaf_class_; }
+
+  // Sets the default leaf class, if it's unset. Returns true upon success.
+  bool set_default_leaf_class(LeafTrafficClass *c) {
+    if (default_leaf_class_) {
+      return false;
+    }
+
+    default_leaf_class_ = c;
+    return true;
+  }
 
  private:
   // Selects the next TrafficClass to run.
@@ -71,7 +87,9 @@ class Scheduler {
   // Unthrottles any TrafficClasses that were throttled whose time has passed.
   inline void ResumeThrottled(uint64_t tsc);
 
-  PriorityTrafficClass root_;
+  TrafficClass *root_;
+
+  LeafTrafficClass *default_leaf_class_;
 
   // A cache of throttled TrafficClasses.
   bool have_throttled_;
