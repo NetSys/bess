@@ -7,8 +7,12 @@
 
 namespace bess {
 
+const std::string Scheduler::kRootClassNamePrefix = "root_";
+const std::string Scheduler::kDefaultLeafClassNamePrefix = "defaultleaf_";
+const TrafficPolicy Scheduler::kDefaultRootPolicy = POLICY_PRIORITY;
+
 Scheduler::Scheduler(int worker_id)
-    : Scheduler(worker_id, POLICY_PRIORITY, NUM_RESOURCES, 0, 0) {
+    : Scheduler(worker_id, kDefaultRootPolicy, NUM_RESOURCES, 0, 0) {
   const priority_t kDefaultPriority = 10;
   std::string name = kDefaultLeafClassNamePrefix + std::to_string(worker_id);
   default_leaf_class_ =
@@ -57,7 +61,7 @@ Scheduler::Scheduler(int worker_id,
 
 void Scheduler::ScheduleLoop() {
   // How many rounds to go before we do accounting.
-  const uint64_t accounting_mask = 0xff; 
+  const uint64_t accounting_mask = 0xffff; 
   static_assert(((accounting_mask+1) & accounting_mask) == 0,
                 "Accounting mask must be (2^n)-1");
 
@@ -69,7 +73,7 @@ void Scheduler::ScheduleLoop() {
     // Periodic check, to mitigate expensive operations.
     if ((round & accounting_mask) == 0) {
       if (unlikely(ctx.is_pause_requested())) {
-        if (unlikely(ctx.Block())) {
+        if (ctx.BlockWorker()) {
           // TODO(barath): Add log message here?
           break;
         }
