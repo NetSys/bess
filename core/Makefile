@@ -48,7 +48,7 @@ else
 endif
 
 CXXFLAGS += -std=gnu++11 -g3 -ggdb3 -Ofast -march=native \
-	    -Werror -isystem $(DPDK_INC_DIR) -D_GNU_SOURCE \
+			-Werror -isystem $(DPDK_INC_DIR) -D_GNU_SOURCE \
 			-Wall -Wextra -Wcast-align
 
 PERMISSIVE = -Wno-missing-field-initializers -Wno-unused-parameter # FIXME

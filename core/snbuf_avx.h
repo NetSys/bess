@@ -104,8 +104,9 @@ static inline void snb_free_bulk(snb_array_t snbs, int cnt) {
     vcmp1 = _mm_and_si128(vcmp1, vcmp2);
     vcmp1 = _mm_and_si128(vcmp1, vcmp3);
 
-    if (unlikely(_mm_movemask_epi8(vcmp1) != 0xffff))
+    if (unlikely(_mm_movemask_epi8(vcmp1) != 0xffff)) {
       goto slow_path;
+    }
   }
 
   if (i < cnt) {
@@ -124,8 +125,9 @@ static inline void snb_free_bulk(snb_array_t snbs, int cnt) {
   return;
 
 slow_path:
-  for (i = 0; i < cnt; i++)
+  for (i = 0; i < cnt; i++) {
     snb_free(snbs[i]);
+  }
 }
 
 #endif  // BESS_SNBUF_AVX_H_

@@ -217,8 +217,9 @@ inline V *HTable<K, V, C, H>::GetHash(uint32_t pri, const K *key) const {
 
   /* check primary bucket */
   V *ret = get_from_bucket(pri, pri, key);
-  if (ret)
+  if (ret) {
     return ret;
+  }
 
   /* check secondary bucket */
   return get_from_bucket(pri, hash_secondary(pri), key);
@@ -234,8 +235,9 @@ inline V *HTable<K, V, C, H>::get_from_bucket(uint32_t pri, uint32_t hv,
     KeyIndex k_idx;
     void *key_stored;
 
-    if (pri != bucket->hv[i])
+    if (pri != bucket->hv[i]) {
       continue;
+    }
 
     k_idx = bucket->keyidx[i];
     key_stored = keyidx_to_ptr(k_idx);
