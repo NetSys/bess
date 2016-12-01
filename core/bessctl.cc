@@ -518,13 +518,13 @@ class BESSControlImpl final : public BESSControl::Service {
     // uint64_t max_burst = request->class_().has_max_burst() ? request->class_().max_burst().schedules() : 0;
 
     // TODO(barath): Generalize to all types of traffic classes.
-    PriorityTrafficClass *c = TrafficClassBuilder::CreateTrafficClass<PriorityTrafficClass>(tc_name);
-    if (!c) {
-      return return_with_error(response, EINVAL, "CreateTrafficClass failed");
-    }
+    // auto *c = TrafficClassBuilder::CreateTrafficClass<RoundRobinTrafficClass>(tc_name);
+    // if (!c) {
+    //   return return_with_error(response, EINVAL, "CreateTrafficClass failed");
+    // }
 
     // TODO(barath): Expose ability to configure choice of parent.
-    workers[wid]->s()->root()->AddChild(c, priority);
+    // workers[wid]->s()->root()->AddChild(c);
 
     return Status::OK;
   }

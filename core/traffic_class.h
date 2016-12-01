@@ -38,7 +38,7 @@ enum resource_t {
   RESOURCE_CYCLE,     // CPU cycles
   RESOURCE_PACKET,    // Packets set
   RESOURCE_BIT,       // Bits sent
-  NUM_RESOURCES,      // Sentinel. Do not use.
+  NUM_RESOURCES,      // Sentinel. Also used to indicate "no resource".
 };
 
 // An array of counters for all resource types.
