@@ -180,7 +180,7 @@ def generate_extra_mk():
         fp.write('CXXFLAGS += %s\n' % \
                 ' '.join(cxx_flags))
         fp.write('LDFLAGS += %s\n' % \
-                ' '.join(cxx_flags))
+                ' '.join(ld_flags))
 
 def download_dpdk():
     try:
