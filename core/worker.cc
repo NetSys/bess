@@ -82,7 +82,7 @@ static void resume_worker(int wid) {
     worker_signal sig = worker_signal::unblock;
 
     ret = write(workers[wid]->fd_event(), &sig, sizeof(sig));
-    assert(ret == sizeof(uint64_t));
+    DCHECK_EQ(ret, sizeof(uint64_t));
 
     while (workers[wid]->status() == WORKER_PAUSED)
       ; /* spin */
@@ -105,7 +105,7 @@ static void destroy_worker(int wid) {
     worker_signal sig = worker_signal::quit;
 
     ret = write(workers[wid]->fd_event(), &sig, sizeof(sig));
-    assert(ret == sizeof(uint64_t));
+    DCHECK_EQ(ret, sizeof(uint64_t));
 
     while (workers[wid]->status() == WORKER_PAUSED)
       ; /* spin */
@@ -158,7 +158,7 @@ int Worker::Block() {
   status_ = WORKER_PAUSED;
 
   ret = read(fd_event_, &t, sizeof(t));
-  assert(ret == sizeof(t));
+  DCHECK_EQ(ret, sizeof(t));
 
   if (t == worker_signal::unblock) {
     status_ = WORKER_RUNNING;
@@ -170,7 +170,8 @@ int Worker::Block() {
     return 1;
   }
 
-  assert(0);
+  CHECK(0);
+  return 0;
 }
 
 /* The entry point of worker threads */
@@ -193,16 +194,16 @@ void *Worker::Run(void *_arg) {
   wid_ = arg->wid;
   core_ = arg->core;
   socket_ = rte_socket_id();
-  assert(socket_ >= 0); /* shouldn't be SOCKET_ID_ANY (-1) */
+  DCHECK_GE(socket_, 0); /* shouldn't be SOCKET_ID_ANY (-1) */
   fd_event_ = eventfd(0, 0);
-  assert(fd_event_ >= 0);
+  DCHECK_GE(fd_event_, 0);
 
   s_ = sched_init();
 
   current_tsc_ = rdtsc();
 
   pframe_pool_ = bess::get_pframe_pool();
-  assert(pframe_pool_);
+  DCHECK(pframe_pool_);
 
   status_ = WORKER_PAUSING;
 

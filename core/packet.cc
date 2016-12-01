@@ -76,8 +76,9 @@ static void init_templates(void) {
   for (i = 0; i < RTE_MAX_NUMA_NODES; i++) {
     Packet *pkt;
 
-    if (!pframe_pool[i])
+    if (!pframe_pool[i]) {
       continue;
+    }
 
     pkt = reinterpret_cast<Packet *>(rte_pktmbuf_alloc(pframe_pool[i]));
     pframe_template = *pkt;
@@ -90,15 +91,13 @@ void init_mempool(void) {
 
   int i;
 
-  assert(SNBUF_IMMUTABLE_OFF == 128);
-  assert(SNBUF_METADATA_OFF == 192);
-  assert(SNBUF_SCRATCHPAD_OFF == 320);
-
-  if (FLAGS_d)
+  if (FLAGS_d) {
     rte_dump_physmem_layout(stdout);
+  }
 
-  for (i = 0; i < RTE_MAX_NUMA_NODES; i++)
+  for (i = 0; i < RTE_MAX_NUMA_NODES; i++) {
     initialized[i] = 0;
+  }
 
   for (i = 0; i < RTE_MAX_LCORE; i++) {
     int sid = rte_lcore_to_socket_id(i);
@@ -127,8 +126,9 @@ struct rte_mempool *get_pframe_pool_socket(int socket) {
 #if DPDK_VER >= DPDK_VER_NUM(16, 7, 0)
 static Packet *paddr_to_snb_memchunk(struct rte_mempool_memhdr *chunk,
                                      phys_addr_t paddr) {
-  if (chunk->phys_addr == RTE_BAD_PHYS_ADDR)
+  if (chunk->phys_addr == RTE_BAD_PHYS_ADDR) {
     return nullptr;
+  }
 
   if (chunk->phys_addr <= paddr && paddr < chunk->phys_addr + chunk->len) {
     uintptr_t vaddr;
@@ -146,13 +146,15 @@ Packet *Packet::from_paddr(phys_addr_t paddr) {
     struct rte_mempool_memhdr *chunk;
 
     pool = pframe_pool[i];
-    if (!pool)
+    if (!pool) {
       continue;
+    }
 
     STAILQ_FOREACH(chunk, &pool->mem_list, next) {
       Packet *pkt = paddr_to_snb_memchunk(chunk, paddr);
-      if (!pkt)
+      if (!pkt) {
         continue;
+      }
 
       if (pkt->paddr() != paddr) {
         LOG(ERROR) << "pkt->immutable.paddr corruption: pkt=" << pkt
@@ -179,10 +181,11 @@ Packet *Packet::from_paddr(phys_addr_t paddr) {
     uintptr_t size;
 
     pool = pframe_pool[i];
-    if (!pool)
+    if (!pool) {
       continue;
+    }
 
-    assert(pool->pg_num == 1);
+    DCHECK_EQ(pool->pg_num, 1);
 
     pg_start = pool->elt_pa[0];
     size = pool->elt_va_end - pool->elt_va_start;
@@ -194,10 +197,11 @@ Packet *Packet::from_paddr(phys_addr_t paddr) {
       offset = paddr - pg_start;
       ret = (Packet *)(pool->elt_va_start + offset);
 
-      if (ret->paddr() != paddr)
+      if (ret->paddr() != paddr) {
         log_err(
             "snb->immutable.paddr "
             "corruption detected\n");
+      }
 
       break;
     }

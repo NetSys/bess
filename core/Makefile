@@ -48,7 +48,8 @@ else
 endif
 
 CXXFLAGS += -std=gnu++11 -g3 -ggdb3 -Ofast -march=native \
-	    -Werror -isystem $(DPDK_INC_DIR) -Wall -Wextra -Wcast-align -D_GNU_SOURCE
+	    -Werror -isystem $(DPDK_INC_DIR) -D_GNU_SOURCE \
+			-Wall -Wextra -Wcast-align
 
 PERMISSIVE = -Wno-missing-field-initializers -Wno-unused-parameter # FIXME
 
@@ -83,6 +84,10 @@ ifdef COVERAGE
     LDFLAGS += --coverage
 endif
 
+ifndef DEBUG
+    CXXFLAGS += -Ofast -DNDEBUG
+    LDFLAGS += -flto -ffat-lto-objects -finline-limit=1000
+endif
 
 -include extra.mk
 

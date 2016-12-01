@@ -20,6 +20,12 @@ static_assert(SNBUF_MBUF == sizeof(struct rte_mbuf),
 static_assert(SNBUF_HEADROOM == RTE_PKTMBUF_HEADROOM,
               "DPDK compatibility check failed");
 
+static_assert(SNBUF_IMMUTABLE_OFF == 128,
+              "Packet immbutable offset must be 128");
+static_assert(SNBUF_METADATA_OFF == 192, "Packet metadata offset must by 192");
+static_assert(SNBUF_SCRATCHPAD_OFF == 320,
+              "Packet scratchpad offset must be 320");
+
 namespace bess {
 
 class Packet;
@@ -169,13 +175,13 @@ class Packet {
     int ret;
 
     ret = rte_pktmbuf_trim(&as_rte_mbuf(), to_remove);
-    assert(ret == 0);
+    DCHECK_EQ(ret, 0);
   }
 
   Packet *copy(Packet *src) {
     Packet *dst;
 
-    assert(src->is_linear());
+    DCHECK(src->is_linear());
 
     dst = __packet_alloc_pool(src->pool_);
 

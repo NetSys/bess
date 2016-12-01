@@ -20,7 +20,7 @@
 #define maybe_unused gnu::unused
 #endif
 
-/* Hint for performance optimization. Same as _nassert() of TI compilers */
+/* Hint for performance optimization. Same as _nDCHECK() of TI compilers */
 #define promise(cond)          \
   ({                           \
     if (!(cond))               \

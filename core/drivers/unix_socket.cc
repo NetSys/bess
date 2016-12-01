@@ -123,7 +123,7 @@ void UnixSocketPort::DeInit() {
 }
 
 int UnixSocketPort::RecvPackets(queue_t qid, bess::Packet **pkts, int cnt) {
-  assert(qid == 0);
+  DCHECK_EQ(qid, 0);
 
   if (client_fd_ == kNotConnectedFd) {
     return 0;
@@ -179,7 +179,7 @@ int UnixSocketPort::RecvPackets(queue_t qid, bess::Packet **pkts, int cnt) {
 int UnixSocketPort::SendPackets(queue_t qid, bess::Packet **pkts, int cnt) {
   int sent = 0;
 
-  assert(qid == 0);
+  DCHECK_EQ(qid, 0);
 
   for (int i = 0; i < cnt; i++) {
     bess::Packet *pkt = pkts[i];

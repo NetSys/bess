@@ -193,7 +193,7 @@ static int collect_metadata(Module* m, GetModuleInfoResponse* response) {
         attr->set_mode("update");
         break;
       default:
-        assert(0);
+        DCHECK(0);
     }
 
     attr->set_offset(m->attr_offsets[i]);

@@ -96,7 +96,8 @@ BENCHMARK_DEFINE_F(BessFixture, BessGet)(benchmark::State &state) {
       value_t *val;
 
       val = (value_t *)t->Get(&key);
-      assert(val && *val == derive_val(key));
+      DCHECK(val);
+      DCHECK_EQ(*val, derive_val(key));
 
       if (!state.KeepRunning()) {
         state.SetItemsProcessed(state.iterations());
@@ -124,7 +125,8 @@ BENCHMARK_DEFINE_F(BessFixture, BessInlinedGet)(benchmark::State &state) {
       value_t *val;
 
       val = (value_t *)t->Get(&key);
-      assert(val && *val == derive_val(key));
+      DCHECK(val);
+      DCHECK_EQ(*val, derive_val(key));
 
       if (!state.KeepRunning()) {
         state.SetItemsProcessed(state.iterations());
