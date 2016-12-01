@@ -23,10 +23,11 @@ struct ThrottledComp {
   }
 };
 
-class Scheduler {
+class Scheduler final {
  public:
-  const std::string kRootClassNamePrefix = "root_";
-  const std::string kDefaultLeafClassNamePrefix = "defaultleaf_";
+  static const std::string kRootClassNamePrefix;
+  static const std::string kDefaultLeafClassNamePrefix;
+  static const TrafficPolicy kDefaultRootPolicy;
 
   // The pseudo-default scheduler constructor.  Constructs a round robin root
   // class with a default leaf class attached to it.
