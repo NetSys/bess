@@ -91,7 +91,8 @@ pb_error_t WildcardMatch::Init(const bess::pb::WildcardMatchArg &arg) {
   for (int i = 0; i < arg.fields_size(); i++) {
     const auto &field = arg.fields(i);
     pb_error_t err;
-    struct WmField f;
+    fields_.emplace_back();
+    struct WmField &f = fields_.back();
 
     f.pos = size_acc;
 
@@ -101,11 +102,9 @@ pb_error_t WildcardMatch::Init(const bess::pb::WildcardMatchArg &arg) {
     }
 
     size_acc += f.size;
-    fields_[i] = f;
   }
 
   default_gate_ = DROP_GATE;
-  num_fields_ = (size_t)arg.fields_size();
   total_key_size_ = align_ceil(size_acc, sizeof(uint64_t));
 
   return pb_errno(0);
@@ -153,13 +152,13 @@ void WildcardMatch::ProcessBatch(bess::PacketBatch *batch) {
 
   default_gate = ACCESS_ONCE(default_gate_);
 
-  for (size_t i = 0; i < num_fields_; i++) {
+  for (const auto &field : fields_) {
     int offset;
-    int pos = fields_[i].pos;
-    int attr_id = fields_[i].attr_id;
+    int pos = field.pos;
+    int attr_id = field.attr_id;
 
     if (attr_id < 0) {
-      offset = fields_[i].offset;
+      offset = field.offset;
     } else {
       offset = bess::Packet::mt_offset_to_databuf_offset(
           WildcardMatch::attr_offsets[attr_id]);
@@ -228,22 +227,22 @@ std::string WildcardMatch::GetDesc() const {
     num_rules += tuples_[i].ht.Count();
   }
 
-  return bess::utils::Format("%lu fields, %d rules", num_fields_, num_rules);
+  return bess::utils::Format("%lu fields, %d rules", fields_.size(), num_rules);
 }
 
 template <typename T>
 pb_error_t WildcardMatch::ExtractKeyMask(const T &arg, wm_hkey_t *key,
                                          wm_hkey_t *mask) {
-  if ((size_t)arg.values_size() != num_fields_) {
-    return pb_error(EINVAL, "must specify %lu values", num_fields_);
-  } else if ((size_t)arg.masks_size() != num_fields_) {
-    return pb_error(EINVAL, "must specify %lu masks", num_fields_);
+  if ((size_t)arg.values_size() != fields_.size()) {
+    return pb_error(EINVAL, "must specify %lu values", fields_.size());
+  } else if ((size_t)arg.masks_size() != fields_.size()) {
+    return pb_error(EINVAL, "must specify %lu masks", fields_.size());
   }
 
   memset(key, 0, sizeof(*key));
   memset(mask, 0, sizeof(*mask));
 
-  for (size_t i = 0; i < num_fields_; i++) {
+  for (size_t i = 0; i < fields_.size(); i++) {
     int field_size = fields_[i].size;
     int field_pos = fields_[i].pos;
 
