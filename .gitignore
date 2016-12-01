@@ -4,6 +4,7 @@
 cscope.*
 *.vim
 core/extra.mk
+core/extra.dpdk.mk
 
 # VM images
 *.img

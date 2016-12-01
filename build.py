@@ -166,19 +166,20 @@ def check_mlx():
         set_config(DPDK_FINAL_CONFIG, 'CONFIG_RTE_LIBRTE_MLX4_PMD', 'n')
         set_config(DPDK_FINAL_CONFIG, 'CONFIG_RTE_LIBRTE_MLX5_PMD', 'n')
 
-def generate_extra_mk():
+def generate_dpdk_extra_mk():
     global extra_libs
-    global cxx_flags
-    global ld_flags
 
-    with open('core/extra.mk', 'w') as fp:
+    with open('core/extra.dpdk.mk', 'w') as fp:
         fp.write('LIBS += %s\n' % \
                 ' '.join(map(lambda lib: '-l' + lib, extra_libs)))
-        fp.write('CFLAGS += %s\n' % \
-                ' '.join(cxx_flags))
+
+def generate_extra_mk():
+    global cxx_flags
+    global ld_flags
+    with open('core/extra.mk', 'w') as fp:
         fp.write('CXXFLAGS += %s\n' % \
                 ' '.join(cxx_flags))
-        fp.write('LD_FLAGS += %s\n' % \
+        fp.write('LDFLAGS += %s\n' % \
                 ' '.join(cxx_flags))
 
 def download_dpdk():
@@ -201,7 +202,7 @@ def configure_dpdk():
 
         check_mlx()
 
-        generate_extra_mk()
+        generate_dpdk_extra_mk()
 
         cmd('cp -f %s %s' % (DPDK_FINAL_CONFIG, DPDK_ORIG_CONFIG))
         cmd('make -C %s config T=%s' % (DPDK_DIR, DPDK_TARGET))
@@ -239,6 +240,8 @@ def build_bess():
 
     if not os.path.exists('%s/build' % DPDK_DIR):
         build_dpdk()
+
+    generate_extra_mk()
 
     print 'Generating protobuf codes for libbess-python...'
     cmd('protoc protobuf/*.proto \
@@ -293,8 +296,8 @@ def print_usage(parser):
 
 def update_benchmark_path(path):
     print 'Specified benchmark path %s' % path
-    cxx_flags.extend(['-I', '%s/include'%(path)])
-    ld_flags.extend(['-L', '%s/lib'%(path)])
+    cxx_flags.extend(['-I%s/include'%(path)])
+    ld_flags.extend(['-L%s/lib'%(path)])
 
 
 def main():

@@ -77,6 +77,7 @@ ifdef COVERAGE
 endif
 
 
+-include extra.dpdk.mk
 -include extra.mk
 
 PROTO_DIR = ../protobuf
