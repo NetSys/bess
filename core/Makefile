@@ -18,9 +18,13 @@ $(shell mkdir -p $(DEPDIR)/hooks >/dev/null)
 # e.g., 4.9.3 -> 40903
 CXXVERSION := $(shell $(CXX) -dumpversion | sed -e 's/\.\([0-9][0-9]\)/\1/g' -e 's/\.\([0-9]\)/0\1/g' -e 's/^[0-9]\{3,4\}$$/&00/')
 CXXVERSION_4_8_OR_HIGHER := $(shell expr $(CXXVERSION) \>= 40800)
-CXXCOMPILER := $(word 1, $(shell $(CXX) --version))
 
-ifeq "$(CXXCOMPILER)" "g++"
+IS_CLANG := $(word 3, $(shell $(CXX) -dM -E -x c /dev/null | grep __clang__))
+ifeq "$(IS_CLANG)" ""
+    IS_CLANG := "0"
+endif
+
+ifeq "$(IS_CLANG)" "0"
     ifeq "$(CXXVERSION_4_8_OR_HIGHER)" "0"
         $(error g++ 4.8 or higher is required)
     endif
@@ -54,7 +58,7 @@ PERMISSIVE = -Wno-missing-field-initializers -Wno-unused-parameter # FIXME
 
 # -Wshadow should not be used for g++ 4.x, as it has too many false positives
 CXXVERSION_5_OR_HIGHER := $(shell expr $(CXXVERSION) \>= 50000)
-ifeq "$(CXXCOMPILER)" "g++"
+ifeq "$(IS_CLANG)" "0"
     ifeq "$(CXXVERSION_5_OR_HIGHER)" "1"
         CXXFLAGS += -Wshadow
     endif
@@ -87,7 +91,7 @@ ifndef DEBUG
     CXXFLAGS += -Ofast -DNDEBUG
     LDFLAGS += -ffat-lto-objects -finline-limit=1000
 
-    ifeq "$(CXXCOMPILER)" "g++"
+    ifeq "$(IS_CLANG)" "0"
         LDFLAGS += -flto # -flto requires LLVMgold when building with Clang
     endif
 endif
