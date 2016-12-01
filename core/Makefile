@@ -21,7 +21,7 @@ CXXVERSION_4_8_OR_HIGHER := $(shell expr $(CXXVERSION) \>= 40800)
 
 IS_CLANG := $(word 3, $(shell $(CXX) -dM -E -x c /dev/null | grep __clang__))
 ifeq "$(IS_CLANG)" ""
-    IS_CLANG := "0"
+    IS_CLANG := 0
 endif
 
 ifeq "$(IS_CLANG)" "0"
