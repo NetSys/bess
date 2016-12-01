@@ -51,10 +51,12 @@ class HTableBase {
 
   // not allowing copying for now
   HTableBase(HTableBase &) = delete;
-  HTableBase(HTableBase &&) = delete;
+
+  // allow move
+  HTableBase(HTableBase &&other);
 
   HTableBase &operator=(HTableBase &) = default;
-  HTableBase &operator=(HTableBase &&) = default;
+  HTableBase &operator=(HTableBase &&other);
 
   /* -errno, or 0 for success */
   int Init(size_t key_size, size_t value_size);
