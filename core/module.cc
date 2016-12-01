@@ -329,10 +329,6 @@ int Module::ConnectModules(gate_idx_t ogate_idx, Module *m_next,
 
   if (m_next->igates[igate_idx] == nullptr) {
     igate = new bess::IGate(m_next, igate_idx, m_next);
-    if (!igate) {
-      delete ogate;
-      return -ENOMEM;
-    }
     m_next->igates[igate_idx] = igate;
   } else {
     igate = m_next->igates[igate_idx];

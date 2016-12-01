@@ -16,10 +16,7 @@ class GateTest : public ::testing::Test {
     ASSERT_EQ(nullptr, g->arg());
   }
 
-  virtual void TearDown() {
-    g->ClearHooks();
-    delete g;
-  }
+  virtual void TearDown() { delete g; }
 
   Gate *g;
 };

@@ -7,9 +7,6 @@
 #include <algorithm>
 #include <cstring>
 
-#include <rte_config.h>
-#include <rte_hash_crc.h>
-
 #include "../mem_alloc.h"
 #include "common.h"
 
@@ -181,15 +178,12 @@ class HTableBase {
   KeyCmpFunc keycmp_func_;
 };
 
-// TODO: clang does not allow pointers to be used as non-type template arguments
+// NOTE: clang does not allow pointers to be used as non-type template arguments
 //       other than of the form &identifier, as specified in C++11 standard.
 //       http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2014/n4268.html
 
-static constexpr HTableBase::KeyCmpFunc kDefaultKeyCmpFunc = memcmp;
-static constexpr HTableBase::HashFunc kDefaultHashFunc = rte_hash_crc;
-
-template <typename K, typename V, HTableBase::KeyCmpFunc C = memcmp,
-          HTableBase::HashFunc H = rte_hash_crc>
+template <typename K, typename V, HTableBase::KeyCmpFunc C,
+          HTableBase::HashFunc H>
 class HTable : public HTableBase {
  public:
   /* returns nullptr or the pointer to the data */

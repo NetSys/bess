@@ -3,7 +3,13 @@
 #include <cassert>
 #include <cstdio>
 
+#include <rte_config.h>
+#include <rte_hash_crc.h>
+
 #include <glog/logging.h>
+
+static const HTableBase::HashFunc kDefaultHashFunc = rte_hash_crc;
+static const HTableBase::KeyCmpFunc kDefaultKeyCmpFunc = memcmp;
 
 /* from the stored key pointer, return its value pointer */
 void *HTableBase::key_to_value(const void *key) const {
@@ -369,7 +375,6 @@ void *HTableBase::GetHash(uint32_t pri, const void *key) const {
 
   /* check primary bucket */
   ret = get_from_bucket(pri, pri, key);
-
   if (ret) {
     return ret;
   }

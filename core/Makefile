@@ -18,13 +18,12 @@ $(shell mkdir -p $(DEPDIR)/hooks >/dev/null)
 # e.g., 4.9.3 -> 40903
 CXXVERSION := $(shell $(CXX) -dumpversion | sed -e 's/\.\([0-9][0-9]\)/\1/g' -e 's/\.\([0-9]\)/0\1/g' -e 's/^[0-9]\{3,4\}$$/&00/')
 CXXVERSION_4_8_OR_HIGHER := $(shell expr $(CXXVERSION) \>= 40800)
+CXXCOMPILER := $(word 1, $(shell $(CXX) --version))
 
-IS_GCC := $(shell expr "$(shell $(CXX) --version)" : "g++")
-
-ifeq "$(IS_GCC)" "3"
-		ifeq "$(CXXVERSION_4_8_OR_HIGHER)" "0"
-  			$(error g++ 4.8 or higher is required)
-		endif
+ifeq "$(CXXCOMPILER)" "g++"
+    ifeq "$(CXXVERSION_4_8_OR_HIGHER)" "0"
+        $(error g++ 4.8 or higher is required)
+    endif
 endif
 
 RTE_SDK ?= $(abspath ../deps/dpdk-16.07)
@@ -48,23 +47,23 @@ else
 endif
 
 CXXFLAGS += -std=gnu++11 -g3 -ggdb3 -Ofast -march=native \
-			-Werror -isystem $(DPDK_INC_DIR) -D_GNU_SOURCE \
-			-Wall -Wextra -Wcast-align
+            -Werror -isystem $(DPDK_INC_DIR) -D_GNU_SOURCE \
+            -Wall -Wextra -Wcast-align
 
 PERMISSIVE = -Wno-missing-field-initializers -Wno-unused-parameter # FIXME
 
 # -Wshadow should not be used for g++ 4.x, as it has too many false positives
 CXXVERSION_5_OR_HIGHER := $(shell expr $(CXXVERSION) \>= 50000)
-ifeq "$(IS_GCC)" "3"
-	ifeq "$(CXXVERSION_5_OR_HIGHER)" "1"
-		CXXFLAGS += -Wshadow
-	endif
+ifeq "$(CXXCOMPILER)" "g++"
+    ifeq "$(CXXVERSION_5_OR_HIGHER)" "1"
+        CXXFLAGS += -Wshadow
+    endif
 else
-	CXXFLAGS += -Wshadow
+    CXXFLAGS += -Wshadow
 endif
 
 LDFLAGS += -rdynamic -L$(DPDK_LIB_DIR) -Wl,-rpath=$(DPDK_LIB_DIR) -pthread \
-	   -static-libstdc++
+           -static-libstdc++
 
 LIBS += -Wl,-non_shared \
 	-Wl,--whole-archive -l$(DPDK_LIB) -Wl,--no-whole-archive \
@@ -86,7 +85,11 @@ endif
 
 ifndef DEBUG
     CXXFLAGS += -Ofast -DNDEBUG
-    LDFLAGS += -flto -ffat-lto-objects -finline-limit=1000
+    LDFLAGS += -ffat-lto-objects -finline-limit=1000
+
+    ifeq "$(CXXCOMPILER)" "g++"
+        LDFLAGS += -flto # -flto requires LLVMgold when building with Clang
+    endif
 endif
 
 -include extra.mk
@@ -174,10 +177,12 @@ $(eval $(call BUILD, \
 	%.pb.cc $(DEPDIR)/$$@.d, \
 	$$(CXX) -o $$@ -c $$< $$(CXXFLAGS) $$(PERMISSIVE) $$(DEPFLAGS)))
 
+# NOTE: gRPC headers included by bessctl.cc will trigger compiler warning about
+# unused parameters. Add -Wno-unused-parameter for this file.
 $(eval $(call BUILD, \
 	CXX, \
 	bessctl.o, \
-	bessctl.cc $(PROTO_HEADERS) $(DEPDIR)/$$@.d, \
+	bessctl.cc $(PROTO_HEADERS), \
 	$$(CXX) -o $$@ -c $$< $$(CXXFLAGS) $$(PERMISSIVE) $$(DEPFLAGS)))
 
 $(eval $(call BUILD, \
