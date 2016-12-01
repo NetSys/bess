@@ -153,7 +153,7 @@ void Worker::SetNonWorker() {
   }
 }
 
-int Worker::Block() {
+int Worker::BlockWorker() {
   worker_signal t;
   int ret;
 

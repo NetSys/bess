@@ -217,6 +217,8 @@ class WeightedFairTrafficClass final : public TrafficClass {
       resource_arr_t usage,
       uint64_t tsc) override;
 
+  inline resource_t resource() const { return resource_; }
+
  private:
   friend Scheduler;
 
@@ -300,6 +302,8 @@ class RateLimitTrafficClass final : public TrafficClass {
       TrafficClass *child,
       resource_arr_t usage,
       uint64_t tsc) override;
+
+  inline resource_t resource() const { return resource_; }
 
  private:
   friend Scheduler;

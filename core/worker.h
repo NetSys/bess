@@ -61,7 +61,7 @@ class Worker {
   inline int is_pause_requested() { return status_ == WORKER_PAUSING; }
 
   /* Block myself. Return nonzero if the worker needs to die */
-  int Block();
+  int BlockWorker();
 
   /* The entry point of worker threads */
   void *Run(void *_arg);
