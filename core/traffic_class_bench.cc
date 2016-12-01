@@ -30,8 +30,8 @@ class TCFixture : public benchmark::Fixture {
     int num_classes = state.range(0);
     resource_t resource = (resource_t) state.range(1);
 
-    s_ = new Scheduler();
-    PriorityTrafficClass *pc = s_->root();
+    s_ = new Scheduler(0, bess::POLICY_PRIORITY, resource, 0, 0);
+    PriorityTrafficClass *pc = static_cast<PriorityTrafficClass *>(s_->root());
 
     // The main weighted traffic class we attach everything to.
     WeightedFairTrafficClass *parent = new WeightedFairTrafficClass("weighted", resource);

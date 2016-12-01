@@ -11,7 +11,7 @@
 #include "worker.h"
 
 Task::Task(Module *m, void *arg, bess::LeafTrafficClass *c) : m_(m), arg_(arg), c_(c) {
-  // TODO(barath): Require that the class c be not null.
+  CHECK(c) << "Tasks must always be attached to a leaf traffic class.";
   if (c_) {
     c_->AddTask(this);
   }

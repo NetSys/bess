@@ -197,7 +197,7 @@ void *Worker::Run(void *_arg) {
   fd_event_ = eventfd(0, 0);
   DCHECK_GE(fd_event_, 0);
 
-  s_ = new Scheduler();
+  s_ = new Scheduler(wid_);
 
   current_tsc_ = rdtsc();
 
