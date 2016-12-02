@@ -288,5 +288,90 @@ TEST(ScheduleOnce, TwoLeavesWeightedFair) {
   TrafficClassBuilder::ClearAll();
 }
 
+// Tess that we can create a simple tree and have the scheduler pick the best
+// (lowest) priority leaf that is unblocked at that time.
+TEST(ScheduleOnce, TwoLeavesPriority) {
+  Scheduler s(CT("root", {PRIORITY},
+              {{PRIORITY, 0, CT("leaf_1", {LEAF})},
+               {PRIORITY, 1, CT("leaf_2", {LEAF})}}));
+
+  LeafTrafficClass *leaf_1 = static_cast<LeafTrafficClass *>(TrafficClassBuilder::Find("leaf_1"));
+  ASSERT_TRUE(leaf_1 != nullptr);
+  ASSERT_TRUE(leaf_1->blocked());
+
+  LeafTrafficClass *leaf_2 = static_cast<LeafTrafficClass *>(TrafficClassBuilder::Find("leaf_2"));
+  ASSERT_TRUE(leaf_2 != nullptr);
+  ASSERT_TRUE(leaf_2->blocked());
+
+  EXPECT_EQ(nullptr, s.Next());
+
+  // Unblock the second leaf.
+  leaf_2->AddTask((Task *) 1);
+  ASSERT_FALSE(leaf_2->blocked());
+  leaf_2->tasks().clear();
+
+  ASSERT_EQ(leaf_2, s.Next());
+  s.ScheduleOnce();
+  ASSERT_EQ(leaf_2, s.Next());
+  s.ScheduleOnce();
+  ASSERT_EQ(leaf_2, s.Next());
+
+  // Unblock the first leaf, which should now get picked.
+  leaf_1->AddTask((Task *) 1);
+  ASSERT_FALSE(leaf_1->blocked());
+  leaf_1->tasks().clear();
+
+  ASSERT_EQ(leaf_1, s.Next());
+  s.ScheduleOnce();
+  ASSERT_EQ(leaf_1, s.Next());
+  s.ScheduleOnce();
+  ASSERT_EQ(leaf_1, s.Next());
+
+  TrafficClassBuilder::ClearAll();
+}
+
+// Tess that we can create a simple tree and have the scheduler pick the
+// leaves round robin.
+TEST(ScheduleOnce, TwoLeavesRoundRobin) {
+  Scheduler s(CT("root", {ROUND_ROBIN},
+              {{ROUND_ROBIN, CT("leaf_1", {LEAF})},
+               {ROUND_ROBIN, CT("leaf_2", {LEAF})}}));
+
+  LeafTrafficClass *leaf_1 = static_cast<LeafTrafficClass *>(TrafficClassBuilder::Find("leaf_1"));
+  ASSERT_TRUE(leaf_1 != nullptr);
+  ASSERT_TRUE(leaf_1->blocked());
+
+  LeafTrafficClass *leaf_2 = static_cast<LeafTrafficClass *>(TrafficClassBuilder::Find("leaf_2"));
+  ASSERT_TRUE(leaf_2 != nullptr);
+  ASSERT_TRUE(leaf_2->blocked());
+
+  EXPECT_EQ(nullptr, s.Next());
+
+  // Unblock both leaves.
+  leaf_1->AddTask((Task *) 1);
+  ASSERT_FALSE(leaf_1->blocked());
+  leaf_2->AddTask((Task *) 1);
+  ASSERT_FALSE(leaf_2->blocked());
+
+  // Clear out the tasks so that they don't get called during execution.
+  leaf_1->tasks().clear();
+  leaf_2->tasks().clear();
+
+  RoundRobinTrafficClass *root = static_cast<RoundRobinTrafficClass *>(s.root());
+  ASSERT_EQ(2, root->children().size());
+
+  ASSERT_EQ(leaf_1, s.Next());
+  s.ScheduleOnce();
+  ASSERT_EQ(leaf_2, s.Next());
+  s.ScheduleOnce();
+  ASSERT_EQ(leaf_1, s.Next());
+  s.ScheduleOnce();
+  ASSERT_EQ(leaf_2, s.Next());
+  s.ScheduleOnce();
+  ASSERT_EQ(leaf_1, s.Next());
+
+  TrafficClassBuilder::ClearAll();
+}
+
 
 }  // namespace bess
