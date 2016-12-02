@@ -350,31 +350,23 @@ class BESS(object):
 
         return self._request(self.stub.ListTcs, request)
 
-    def add_tc(self, name, wid=0, priority=0, limit=None, max_burst=None):
+    def add_tc(self, name, wid=0, priority_share=0, limit=None, max_burst=None,
+            policy='priority', resource=None):
         request = bess_msg.AddTcRequest()
         class_ = getattr(request, 'class')
         class_.name = name
         class_.wid = wid
-        class_.priority = priority
-        if limit:
-            class_.limit.schedules = limit['schedules'] \
-                if 'schedules' in limit else 0
-            class_.limit.cycles = limit['cycles'] \
-                if 'cycles' in limit else 0
-            class_.limit.packets = limit['packets'] \
-                if 'packets' in limit else 0
-            class_.limit.bits = limit['bits'] \
-                if 'bits' in limit else 0
+        class_.policy = policy
+        class_.priority_share = priority_share
 
-        if max_burst:
-            class_.max_burst.schedules = max_burst['schedules'] \
-                if 'schedules' in max_burst else 0
-            class_.max_burst.cycles = max_burst['cycles'] \
-                if 'cycles' in max_burst else 0
-            class_.max_burst.packets = max_burst['packets'] \
-                if 'packets' in max_burst else 0
-            class_.max_burst.bits = max_burst['bits'] \
-                if 'bits' in max_burst else 0
+        if resource:
+            class_.resource = resource
+
+        for k in limit:
+            class_.limit[k] = limit[k]
+
+        for k in max_burst:
+            class_.max_burst[k] = limit[k]
 
         return self._request(self.stub.AddTc, request)
 

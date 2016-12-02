@@ -12,6 +12,7 @@
 #include <rte_lcore.h>
 
 #include "metadata.h"
+#include "opts.h"
 #include "packet.h"
 #include "task.h"
 #include "utils/time.h"
@@ -215,7 +216,7 @@ void *Worker::Run(void *_arg) {
   PriorityTrafficClass *root = TrafficClassBuilder::CreateTrafficClass<PriorityTrafficClass>(root_name);
   LeafTrafficClass *leaf = TrafficClassBuilder::CreateTrafficClass<LeafTrafficClass>(leaf_name);
   root->AddChild(leaf, kDefaultPriority);
-  s_ = new Scheduler(root);
+  s_ = new Scheduler(root, leaf);
 
   current_tsc_ = rdtsc();
 
@@ -261,4 +262,20 @@ void launch_worker(int wid, int core) {
     continue;
 
   num_workers++;
+}
+
+Worker *get_next_active_worker() {
+  static int prev_wid = 0;
+  if (num_workers == 0) {
+    launch_worker(0, FLAGS_c);
+    return workers[0];
+  }
+
+  while (!is_worker_active(prev_wid)) {
+    prev_wid = (prev_wid + 1) % MAX_WORKERS;
+  }
+
+  Worker *ret = workers[prev_wid];
+  prev_wid = (prev_wid + 1) % MAX_WORKERS;
+  return ret;
 }

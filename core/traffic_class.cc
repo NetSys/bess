@@ -60,12 +60,19 @@ void PriorityTrafficClass::FinishAndAccountTowardsRoot(
       first_runnable_++;
     }
     blocked_ = (first_runnable_ >= num_children);
-  }
-
+  } 
   if (!parent_) {
     return;
   }
   parent_->FinishAndAccountTowardsRoot(sched, this, usage, tsc);
+}
+
+size_t PriorityTrafficClass::Size() const {
+  size_t sz = 1;
+  for (const auto &child : children_) {
+    sz += child.c_->Size();
+  }
+  return sz;
 }
 
 bool WeightedFairTrafficClass::AddChild(TrafficClass *child, resource_share_t share) {
@@ -141,6 +148,18 @@ void WeightedFairTrafficClass::FinishAndAccountTowardsRoot(
   parent_->FinishAndAccountTowardsRoot(sched, this, usage, tsc);
 }
 
+size_t WeightedFairTrafficClass::Size() const {
+  size_t sz = 1;
+  const auto *childs = reinterpret_cast<const std::vector<ChildData>*>(&children_);
+  for (auto child = childs->cbegin(); child != childs->cend(); ++child) {
+    sz += child->c_->Size();
+  }
+  for (const auto &child : blocked_children_) {
+    sz += child.c_->Size();
+  }
+  return sz;
+}
+
 bool RoundRobinTrafficClass::AddChild(TrafficClass *child) {
   if (child->parent_) {
     return false;
@@ -202,6 +221,18 @@ void RoundRobinTrafficClass::FinishAndAccountTowardsRoot(
   parent_->FinishAndAccountTowardsRoot(sched, this, usage, tsc);
 }
 
+size_t RoundRobinTrafficClass::Size() const {
+  size_t sz = 1;
+  const auto *childs = reinterpret_cast<const std::vector<TrafficClass*>*>(&children_);
+  for (auto child = childs->cbegin(); child != childs->cend(); ++child) {
+    sz += (*child)->Size();
+  }
+  for (const auto &child : blocked_children_) {
+    sz += child->Size();
+  }
+  return sz;
+}
+
 bool RateLimitTrafficClass::AddChild(TrafficClass *child) {
   if (child->parent_ || child_ != nullptr) {
     return false;
@@ -260,6 +291,10 @@ void RateLimitTrafficClass::FinishAndAccountTowardsRoot(
     return;
   }
   parent_->FinishAndAccountTowardsRoot(sched, this, usage, tsc);
+}
+
+size_t RateLimitTrafficClass::Size() const {
+  return 1 + child_->Size();
 }
 
 void LeafTrafficClass::AddTask(Task *t) {

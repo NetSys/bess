@@ -82,6 +82,24 @@ namespace traffic_class_initializer_types {
 
 using namespace traffic_class_initializer_types;
 
+const std::string TrafficPolicyName[NUM_POLICIES] = {
+  "priority", "weighted_fair", "round_robin", "rate_limit", "leaf"};
+
+const std::unordered_map<std::string, enum TrafficPolicy> TrafficPolicyMap = {
+  {TrafficPolicyName[POLICY_PRIORITY], POLICY_PRIORITY},
+  {TrafficPolicyName[POLICY_WEIGHTED_FAIR], POLICY_WEIGHTED_FAIR},
+  {TrafficPolicyName[POLICY_ROUND_ROBIN], POLICY_ROUND_ROBIN},
+  {TrafficPolicyName[POLICY_RATE_LIMIT], POLICY_RATE_LIMIT},
+  {TrafficPolicyName[POLICY_LEAF], POLICY_LEAF}
+};
+
+const std::unordered_map<std::string, enum resource_t> ResourceMap = {
+  {"count", RESOURCE_COUNT},
+  {"cycle", RESOURCE_CYCLE},
+  {"packet", RESOURCE_PACKET},
+  {"bit", RESOURCE_BIT}
+};
+
 // A TrafficClass represents a hierarchy of TrafficClasses which contain
 // schedulable task units.
 class TrafficClass {
@@ -97,6 +115,8 @@ class TrafficClass {
   inline bool blocked() const { return blocked_; }
 
   inline TrafficPolicy policy() const { return policy_; }
+
+  size_t Size() const { return 1; };
 
  protected:
   friend PriorityTrafficClass;
@@ -202,6 +222,8 @@ class PriorityTrafficClass final : public TrafficClass {
 
   const std::vector<ChildData> &children() const { return children_; }
 
+  size_t Size() const;
+
  private:
   friend Scheduler;
 
@@ -258,6 +280,8 @@ class WeightedFairTrafficClass final : public TrafficClass {
 
   const std::list<ChildData> &blocked_children() const { return blocked_children_; }
 
+  size_t Size() const;
+
  private:
   friend Scheduler;
 
@@ -300,6 +324,8 @@ class RoundRobinTrafficClass final : public TrafficClass {
   const std::deque<TrafficClass *> &children() const { return children_; }
 
   const std::list<TrafficClass *> &blocked_children() const { return blocked_children_; }
+
+  size_t Size() const;
 
  private:
   friend Scheduler;
@@ -357,6 +383,8 @@ class RateLimitTrafficClass final : public TrafficClass {
   inline uint64_t max_burst() const { return max_burst_; }
 
   TrafficClass *child() const { return child_; }
+
+  size_t Size() const;
 
  private:
   friend Scheduler;
@@ -438,6 +466,8 @@ class LeafTrafficClass final : public TrafficClass {
     // classes.
     return;
   }
+
+  size_t Size() const;
 
  private:
   friend Scheduler;
