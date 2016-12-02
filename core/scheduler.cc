@@ -80,6 +80,11 @@ TrafficClass *Scheduler::Next() {
   // throttled whose throttle time has expired so that they are available.
   ResumeThrottled(now_);
 
+  if (root_->blocked()) {
+    // Nothing to schedule anywhere.
+    return nullptr;
+  }
+
   TrafficClass *c = root_;
   while (c->policy_ != POLICY_LEAF) {
     c = c->PickNextChild();

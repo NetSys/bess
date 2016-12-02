@@ -15,6 +15,8 @@ class extended_priority_queue : public std::priority_queue<T> {
  public:
    T &mutable_top() { return this->c.front(); }
 
+   const std::vector<T> &container() const { return this->c; }
+
   // Notifies the priority queue that the key of the top element may have been
   // decreased, necessitating a reorganization of the heap structure.
   inline void decrease_key_top() {

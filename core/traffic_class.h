@@ -86,9 +86,7 @@ using namespace traffic_class_initializer_types;
 // schedulable task units.
 class TrafficClass {
  public:
-  virtual ~TrafficClass() {
-    // TODO(barath): Clean up pointers to parents, children, etc.
-  }
+  virtual ~TrafficClass() {}
 
   inline TrafficClass *parent() const { return parent_; }
 
@@ -97,9 +95,6 @@ class TrafficClass {
   inline const struct tc_stats &stats() const { return stats_; }
 
   inline bool blocked() const { return blocked_; }
-
-  // For testing / debugging only.
-  inline void set_blocked(bool blocked) { blocked_ = blocked; }
 
   inline TrafficPolicy policy() const { return policy_; }
 
@@ -186,6 +181,12 @@ class PriorityTrafficClass final : public TrafficClass {
       first_runnable_(0),
       children_() {}
 
+  ~PriorityTrafficClass() {
+    for (auto &c : children_) {
+      delete c.c_;
+    }
+  }
+
   // Returns true if child was added successfully.
   bool AddChild(TrafficClass *child, priority_t priority);
 
@@ -228,6 +229,16 @@ class WeightedFairTrafficClass final : public TrafficClass {
       children_(),
       blocked_children_() {}
 
+  ~WeightedFairTrafficClass() {
+    while (!children_.empty()) {
+      delete children_.top().c_;
+      children_.pop();
+    }
+    for (auto &c : blocked_children_) {
+      delete c.c_;
+    }
+  }
+
   // Returns true if child was added successfully.
   bool AddChild(TrafficClass *child, resource_share_t share);
 
@@ -263,6 +274,15 @@ class RoundRobinTrafficClass final : public TrafficClass {
     : TrafficClass(name, POLICY_ROUND_ROBIN),
       children_(),
       blocked_children_() {}
+
+  ~RoundRobinTrafficClass() {
+    for (TrafficClass *c : children_) {
+      delete c;
+    }
+    for (TrafficClass *c : blocked_children_) {
+      delete c;
+    }
+  }
 
   // Returns true if child was added successfully.
   bool AddChild(TrafficClass *child);
@@ -308,6 +328,13 @@ class RateLimitTrafficClass final : public TrafficClass {
     }
   }
 
+  ~RateLimitTrafficClass() {
+    // TODO(barath): Ensure that when this destructor is called this instance is
+    // also cleared out of the throttled_cache_ in Scheduler if it is present
+    // there.
+    delete child_;
+  }
+
   // Returns true if child was added successfully.
   bool AddChild(TrafficClass *child);
 
@@ -324,6 +351,10 @@ class RateLimitTrafficClass final : public TrafficClass {
       uint64_t tsc) override;
 
   inline resource_t resource() const { return resource_; }
+
+  inline uint64_t limit() const { return limit_; }
+
+  inline uint64_t max_burst() const { return max_burst_; }
 
   TrafficClass *child() const { return child_; }
 
@@ -356,6 +387,10 @@ class LeafTrafficClass final : public TrafficClass {
       task_index_(),
       tasks_() {}
 
+  ~LeafTrafficClass() {
+    // TODO(barath): Determin whether tasks should be deleted here or elsewhere.
+  }
+
   // Executes tasks for a leaf TrafficClass.
   inline struct task_result RunTasks() {
     size_t start = task_index_;
@@ -386,8 +421,7 @@ class LeafTrafficClass final : public TrafficClass {
   TrafficClass *PickNextChild() override;
 
   void UnblockTowardsRoot([[maybe_unused]] uint64_t tsc) override {
-    // TODO(barath): Change this so that we actually look to see if we have
-    // tasks to execute and unblock if so.
+    TrafficClass::UnblockTowardsRootSetBlocked(tsc, tasks_.empty());
     return;
   }
 
@@ -412,6 +446,7 @@ class LeafTrafficClass final : public TrafficClass {
   std::vector<Task *> tasks_;
 };
 
+// Responsible for creating and destroying all traffic classes.
 class TrafficClassBuilder {
  public:
   template<typename T, typename... TArgs>
@@ -534,8 +569,11 @@ class TrafficClassBuilder {
     return CreateTrafficClass<LeafTrafficClass>(name);
   }
   
-  // Attempts to destroy all classes.  Returns true upon success.
-  static bool DestroyAll();
+  // Attempts to clear knowledge of all classes.  Returns true upon success.
+  static bool ClearAll();
+
+  // Attempts to clear knowledge of given class.  Returns true upon success.
+  static bool Clear(TrafficClass *c);
 
   static inline const std::unordered_map<std::string, TrafficClass *> &all_tcs() {
     return all_tcs_;

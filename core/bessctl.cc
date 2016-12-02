@@ -402,7 +402,7 @@ class BESSControlImpl final : public BESSControl::Service {
       return return_with_error(response, EBUSY, "There is a running worker");
     }
 
-    if (!TrafficClassBuilder::DestroyAll()) {
+    if (!TrafficClassBuilder::ClearAll()) {
       return return_with_error(response, EBUSY, "TCs still have tasks");
     }
 

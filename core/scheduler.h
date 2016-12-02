@@ -39,6 +39,7 @@ class Scheduler final {
 
   // TODO(barath): Do real cleanup, akin to sched_free() from the old impl.
   virtual ~Scheduler() {
+    TrafficClassBuilder::Clear(root_);
     delete root_;
   }
 
@@ -51,6 +52,12 @@ class Scheduler final {
   // Adds the given rate limit traffic class to those that are considered
   // throttled (and need resuming later).
   void AddThrottled(RateLimitTrafficClass *rc);
+
+  // Selects the next TrafficClass to run.
+  TrafficClass *Next();
+
+  // Unthrottles any TrafficClasses that were throttled whose time has passed.
+  inline void ResumeThrottled(uint64_t tsc);
 
   TrafficClass *root() { return root_; }
 
@@ -67,8 +74,6 @@ class Scheduler final {
   }
 
  private:
-  // Selects the next TrafficClass to run.
-  TrafficClass *Next();
 
   // Finishes the scheduling of a TrafficClass, to be called after Next() to
   // clean up.
@@ -80,9 +85,6 @@ class Scheduler final {
   // Starts at the given class and attempts to unblock classes on the path
   // towards the root.
   void UnblockTowardsRoot(TrafficClass *c, uint64_t tsc);
-
-  // Unthrottles any TrafficClasses that were throttled whose time has passed.
-  inline void ResumeThrottled(uint64_t tsc);
 
   TrafficClass *root_;
 
