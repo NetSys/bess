@@ -24,8 +24,10 @@ TYPE_CALLABLE_MAP = {
     FieldDescriptor.TYPE_ENUM: int,
 }
 
+
 def repeated(type_callable):
     return lambda value_list: [type_callable(value) for value in value_list]
+
 
 def field_value_adaptor(field):
     if field.type == FieldDescriptor.TYPE_MESSAGE:
@@ -38,6 +40,7 @@ def field_value_adaptor(field):
     raise TypeError("Field %s has unrecognised type id %d" %
                     (field.name, field.type))
 
+
 def protobuf_to_dict(pb):
     result_dict = {}
     for field, value in pb.ListFields():
@@ -46,6 +49,7 @@ def protobuf_to_dict(pb):
             type_callable = repeated(type_callable)
         result_dict[field.name] = type_callable(value)
     return result_dict
+
 
 def parse_list(values, message):
     if values is None:
@@ -57,6 +61,7 @@ def parse_list(values, message):
             parse_dict(v, cmd)
     else:
         message.extend(values)
+
 
 def parse_dict(values, message):
     if values is None:
@@ -71,9 +76,11 @@ def parse_dict(values, message):
             if hasattr(message, k):
                 setattr(message, k, v)
             else:
-                raise KeyError("%s does not have a field called %s" % (message, k))
+                raise KeyError("%s does not have a field called %s" % (message,
+                                                                       k))
         else:
             pass
+
 
 def dict_to_protobuf(values, msg_type):
     print values

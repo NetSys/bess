@@ -1,8 +1,10 @@
 import types
 
+
 def _callback_factory(self, cmd, arg_type):
     return lambda mod, arg=None, **kwargs: \
         self.bess.run_module_command(self.name, cmd, arg_type, kwargs)
+
 
 class Module(object):
     def __init__(self, **kwargs):
@@ -10,7 +12,7 @@ class Module(object):
         self.mclass = self.__class__.__name__
 
         assert self.__class__.__name__ != 'Module', \
-                "do not instantiate 'Module' directly"
+            "Should not instantiate 'Module' directly"
 
         if 'name' in kwargs:
             name = kwargs['name']
@@ -73,12 +75,12 @@ class Module(object):
 
         return self.connect(next_mod, ogate, igate)
 
-    def connect(self, next_mod, ogate = 0, igate = 0):
+    def connect(self, next_mod, ogate=0, igate=0):
         if not isinstance(next_mod, Module):
             assert False, '%s is not a module' % next_mod
 
-        print 'Connecting %s:%d -> %d:%s' % \
-                (self.name, ogate, igate, next_mod.name)
+        print 'Connecting %s:%d -> %d:%s' % (
+            self.name, ogate, igate, next_mod.name)
 
         self.bess.connect_modules(self.name, next_mod.name, ogate, igate)
 

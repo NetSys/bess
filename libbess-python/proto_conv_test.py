@@ -3,6 +3,7 @@ import bess_msg_pb2 as bess_msg
 import error_pb2 as error_msg
 import proto_conv
 
+
 class TestProtobufConvert(unittest.TestCase):
     def test_protobuf_to_dict(self):
         pb = bess_msg.CreatePortResponse()
@@ -36,7 +37,8 @@ class TestProtobufConvert(unittest.TestCase):
             'name': 'foo'
         }
 
-        msg = proto_conv.dict_to_protobuf(msg_dict, bess_msg.CreatePortResponse)
+        msg = proto_conv.dict_to_protobuf(msg_dict,
+                                          bess_msg.CreatePortResponse)
         self.assertEqual(msg, pb)
 
         pb = bess_msg.CreateModuleRequest()
