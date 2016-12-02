@@ -8,27 +8,120 @@
 
 #include <gtest/gtest.h>
 
-#define TC TrafficClassBuilder::CreateTree
+#define CT TrafficClassBuilder::CreateTree
 
 namespace bess {
 
 using namespace traffic_class_initializer_types;
 
+// Tests that we can create and fetch a priority root node with a leaf under it.
 TEST(CreateTree, PriorityRootAndLeaf) {
-  TrafficClass *tree = TC("root", {PRIORITY}, {{PRIORITY, 10, TC("leaf", {LEAF})}});
+  std::unique_ptr<TrafficClass> tree(CT("root", {PRIORITY}, {{PRIORITY, 10, CT("leaf", {LEAF})}}));
 
   ASSERT_TRUE(tree != nullptr);
   EXPECT_EQ(POLICY_PRIORITY, tree->policy());
 
-  PriorityTrafficClass *pc = static_cast<PriorityTrafficClass *>(tree);
-  ASSERT_TRUE(pc != nullptr);
-  ASSERT_EQ(1, pc->children().size());
-  EXPECT_EQ(10, pc->children()[0].priority_);
+  PriorityTrafficClass *c = static_cast<PriorityTrafficClass *>(tree.get());
+  ASSERT_TRUE(c != nullptr);
+  ASSERT_EQ(1, c->children().size());
+  EXPECT_EQ(10, c->children()[0].priority_);
 
-  LeafTrafficClass *leaf = static_cast<LeafTrafficClass *>(pc->children()[0].c_);
+  LeafTrafficClass *leaf = static_cast<LeafTrafficClass *>(c->children()[0].c_);
   ASSERT_TRUE(leaf != nullptr);
-  EXPECT_EQ(leaf->parent(), pc);
+  EXPECT_EQ(leaf->parent(), c);
+
+  TrafficClassBuilder::ClearAll();
 }
 
+// Tests that we can create and fetch a weighted fair root node with a leaf under it.
+TEST(CreateTree, WeightedFairRootAndLeaf) {
+  std::unique_ptr<TrafficClass> tree(CT("root", {WEIGHTED_FAIR, RESOURCE_CYCLE}, {{WEIGHTED_FAIR, 10, CT("leaf", {LEAF})}}));
+
+  ASSERT_TRUE(tree != nullptr);
+  EXPECT_EQ(POLICY_WEIGHTED_FAIR, tree->policy());
+
+  WeightedFairTrafficClass *c = static_cast<WeightedFairTrafficClass *>(tree.get());
+  ASSERT_TRUE(c != nullptr);
+  EXPECT_EQ(RESOURCE_CYCLE, c->resource());
+  ASSERT_EQ(1, c->children().size());
+  EXPECT_EQ(STRIDE1 / 10, c->children().top().stride_);
+
+  LeafTrafficClass *leaf = static_cast<LeafTrafficClass *>(c->children().top().c_);
+  ASSERT_TRUE(leaf != nullptr);
+  EXPECT_EQ(leaf->parent(), c);
+
+  TrafficClassBuilder::ClearAll();
+}
+
+// Tests that we can create and fetch a round robin root node with a leaf under it.
+TEST(CreateTree, RoundRobinRootAndLeaf) {
+  std::unique_ptr<TrafficClass> tree(CT("root", {ROUND_ROBIN}, {{ROUND_ROBIN, CT("leaf", {LEAF})}}));
+
+  ASSERT_TRUE(tree != nullptr);
+  EXPECT_EQ(POLICY_ROUND_ROBIN, tree->policy());
+
+  RoundRobinTrafficClass *c = static_cast<RoundRobinTrafficClass *>(tree.get());
+  ASSERT_TRUE(c != nullptr);
+  ASSERT_EQ(1, c->children().size());
+
+  LeafTrafficClass *leaf = static_cast<LeafTrafficClass *>(c->children()[0]);
+  ASSERT_TRUE(leaf != nullptr);
+  EXPECT_EQ(leaf->parent(), c);
+
+  TrafficClassBuilder::ClearAll();
+}
+
+// Tests that we can create and fetch a rate limit root node with a leaf under it.
+TEST(CreateTree, RateLimitRootAndLeaf) {
+  std::unique_ptr<TrafficClass> tree(CT("root", {RATE_LIMIT, RESOURCE_CYCLE, 10, 15}, {RATE_LIMIT, CT("leaf", {LEAF})}));
+
+  ASSERT_TRUE(tree != nullptr);
+  EXPECT_EQ(POLICY_RATE_LIMIT, tree->policy());
+
+  RateLimitTrafficClass *c = static_cast<RateLimitTrafficClass *>(tree.get());
+  ASSERT_TRUE(c != nullptr);
+  EXPECT_EQ(RESOURCE_CYCLE, c->resource());
+
+  LeafTrafficClass *leaf = static_cast<LeafTrafficClass *>(c->child());
+  ASSERT_TRUE(leaf != nullptr);
+  EXPECT_EQ(leaf->parent(), c);
+
+  TrafficClassBuilder::ClearAll();
+}
+
+// Tess that we can create a simple tree and have the scheduler pick the leaf
+// repeatedly.
+TEST(SchedulerNext, BasicTree) {
+  Scheduler s(CT("root", {PRIORITY}, {{PRIORITY, 10, CT("leaf", {LEAF})}}));
+
+  ASSERT_TRUE(s.root() != nullptr);
+  EXPECT_EQ(POLICY_PRIORITY, s.root()->policy());
+
+  PriorityTrafficClass *c = static_cast<PriorityTrafficClass *>(s.root());
+  ASSERT_TRUE(c != nullptr);
+  ASSERT_EQ(1, c->children().size());
+  EXPECT_EQ(10, c->children()[0].priority_);
+
+  LeafTrafficClass *leaf = static_cast<LeafTrafficClass *>(c->children()[0].c_);
+  ASSERT_TRUE(leaf != nullptr);
+  EXPECT_EQ(leaf->parent(), c);
+
+  // Leaf should be blocked until there is a task.
+  ASSERT_TRUE(leaf->blocked());
+  EXPECT_EQ(nullptr, s.Next());
+
+  // Adding a take task should unblock the whole tree.
+  leaf->AddTask((Task *) 1);
+  ASSERT_FALSE(leaf->blocked());
+
+  EXPECT_EQ(leaf, s.Next());
+  EXPECT_EQ(leaf, s.Next());
+  EXPECT_EQ(leaf, s.Next());
+  EXPECT_EQ(leaf, s.Next());
+  EXPECT_EQ(leaf, s.Next());
+
+  EXPECT_TRUE(leaf->RemoveTask((Task *) 1));
+  TrafficClassBuilder::ClearAll();
+}
 
 }  // namespace bess
