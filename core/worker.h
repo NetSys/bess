@@ -44,6 +44,10 @@ typedef enum {
 
 class Worker {
  public:
+  static const bess::TrafficPolicy kDefaultRootPolicy;
+  static const std::string kRootClassNamePrefix;
+  static const std::string kDefaultLeafClassNamePrefix;
+
   /* ----------------------------------------------------------------------
    * functions below are invoked by non-worker threads (the master)
    * ---------------------------------------------------------------------- */

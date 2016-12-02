@@ -72,6 +72,16 @@ enum TrafficPolicy {
   NUM_POLICIES,  // sentinel
 };
 
+namespace traffic_class_initializer_types {
+  enum PriorityFakeType { PRIORITY = 0, };
+  enum WeightedFairFakeType { WEIGHTED_FAIR = 0, };
+  enum RoundRobinFakeType { ROUND_ROBIN = 0, };
+  enum RateLimitFakeType { RATE_LIMIT = 0, };
+  enum LeafFakeType { LEAF = 0, };
+}  // namespace traffic_class_initializer_types
+
+using namespace traffic_class_initializer_types;
+
 // A TrafficClass represents a hierarchy of TrafficClasses which contain
 // schedulable task units.
 class TrafficClass {
@@ -162,6 +172,15 @@ class TrafficClass {
 
 class PriorityTrafficClass final : public TrafficClass {
  public:
+  struct ChildData {
+    inline bool operator<(const ChildData &right) const {
+      return priority_ < right.priority_;
+    }
+
+    priority_t priority_;
+    TrafficClass *c_;
+  };
+
   PriorityTrafficClass(const std::string &name)
     : TrafficClass(name, POLICY_PRIORITY),
       first_runnable_(0),
@@ -180,17 +199,10 @@ class PriorityTrafficClass final : public TrafficClass {
       resource_arr_t usage,
       uint64_t tsc) override;
 
+  const std::vector<ChildData> &children() const { return children_; }
+
  private:
   friend Scheduler;
-
-  struct ChildData {
-    inline bool operator<(const ChildData &right) const {
-      return priority_ < right.priority_;
-    }
-
-    priority_t priority_;
-    TrafficClass *c_;
-  };
 
   size_t first_runnable_;  // Index of first member of children_ that is runnable.
   std::vector<ChildData> children_;
@@ -198,6 +210,18 @@ class PriorityTrafficClass final : public TrafficClass {
 
 class WeightedFairTrafficClass final : public TrafficClass {
  public:
+  struct ChildData {
+    inline bool operator<(const ChildData &right) const {
+      // Reversed so that priority_queue is a min priority queue.
+      return right.pass_ < pass_;
+    }
+
+    int64_t stride_;
+    int64_t pass_;
+
+    TrafficClass *c_;
+  };
+
   WeightedFairTrafficClass(const std::string &name, resource_t resource)
     : TrafficClass(name, POLICY_WEIGHTED_FAIR),
       resource_(resource),
@@ -219,23 +243,15 @@ class WeightedFairTrafficClass final : public TrafficClass {
 
   inline resource_t resource() const { return resource_; }
 
+  const extended_priority_queue<ChildData> &children() const { return children_; }
+
+  const std::list<ChildData> &blocked_children() const { return blocked_children_; }
+
  private:
   friend Scheduler;
 
   // The resource that we are sharing.
   resource_t resource_;
-
-  struct ChildData {
-    inline bool operator<(const ChildData &right) const {
-      // Reversed so that priority_queue is a min priority queue.
-      return right.pass_ < pass_;
-    }
-
-    int64_t stride_;
-    int64_t pass_;
-
-    TrafficClass *c_;
-  };
 
   extended_priority_queue<ChildData> children_;
   std::list<ChildData> blocked_children_;
@@ -260,6 +276,10 @@ class RoundRobinTrafficClass final : public TrafficClass {
       TrafficClass *child,
       resource_arr_t usage,
       uint64_t tsc) override;
+
+  const std::deque<TrafficClass *> &children() const { return children_; }
+
+  const std::list<TrafficClass *> &blocked_children() const { return blocked_children_; }
 
  private:
   friend Scheduler;
@@ -304,6 +324,8 @@ class RateLimitTrafficClass final : public TrafficClass {
       uint64_t tsc) override;
 
   inline resource_t resource() const { return resource_; }
+
+  TrafficClass *child() const { return child_; }
 
  private:
   friend Scheduler;
@@ -392,8 +414,8 @@ class LeafTrafficClass final : public TrafficClass {
 
 class TrafficClassBuilder {
  public:
-  template<typename T, typename... Args>
-  static T *CreateTrafficClass(const std::string &name, Args... args) {
+  template<typename T, typename... TArgs>
+  static T *CreateTrafficClass(const std::string &name, TArgs... args) {
     if (all_tcs_.count(name)) {
       return nullptr;
     }
@@ -403,6 +425,115 @@ class TrafficClassBuilder {
     return c;
   }
 
+  struct PriorityArgs {
+    PriorityFakeType dummy;
+  };
+  struct PriorityChildArgs {
+    PriorityFakeType dummy;
+    priority_t priority;
+    TrafficClass *c;
+  };
+
+  struct WeightedFairArgs {
+    WeightedFairFakeType dummy;
+    resource_t resource;
+  };
+  struct WeightedFairChildArgs {
+    WeightedFairFakeType dummy;
+    resource_share_t share;
+    TrafficClass *c;
+  };
+
+  struct RoundRobinArgs {
+    RoundRobinFakeType dummy;
+  };
+  struct RoundRobinChildArgs {
+    RoundRobinFakeType dummy;
+    TrafficClass *c;
+  };
+
+  struct RateLimitArgs {
+    RateLimitFakeType dummy;
+    resource_t resource;
+    uint64_t limit;
+    uint64_t max_burst;
+  };
+  struct RateLimitChildArgs {
+    RateLimitFakeType dummy;
+    TrafficClass *c;
+  };
+
+  struct LeafArgs {
+    LeafFakeType dummy;
+  };
+
+  // These CreateTree(...) functions enable brace-initialized construction of a
+  // traffic class hierarchy.  For example,
+  //
+  //   CreateTree("foo", {PRIORITY}, {{PRIORITY, 10, ...}, {PRIORITY, 15, ...}})
+  //
+  // creates a tree with a priority root and two children, one of priority 10
+  // and one of priority 15, where the ... can contain a similar call to
+  // CreateTree to construct any similar subtree.  Classes that require
+  // arguments can be constructed as well; for example,
+  //
+  //   CreateTree("bar", {WEIGHTED_FAIR, RESOURCE_CYCLE}, {{WEIGHTED_FAIR, 3, ...}})
+  //
+  // creates a tree with a weighted fair root sharing cycles and one child with
+  // a share of 3, with ... being additional calls to CreateTree.
+  //
+  // No checking is done on the tree to ensure any sort of validity.
+  //
+  // All classes constructed via these routines are created through calls to
+  // CreateTrafficClass above.
+  static TrafficClass *CreateTree(
+      const std::string &name,
+      [[maybe_unused]] PriorityArgs args,
+      std::vector<PriorityChildArgs> children) {
+    PriorityTrafficClass *p = CreateTrafficClass<PriorityTrafficClass>(name);
+    for (auto &c : children) {
+      p->AddChild(c.c, c.priority);
+    }
+    return p;
+  }
+
+  static TrafficClass *CreateTree(
+      const std::string &name,
+      WeightedFairArgs args,
+      std::vector<WeightedFairChildArgs> children) {
+    WeightedFairTrafficClass *p = CreateTrafficClass<WeightedFairTrafficClass>(name, args.resource);
+    for (auto &c : children) {
+      p->AddChild(c.c, c.share);
+    }
+    return p;
+  }
+
+  static TrafficClass *CreateTree(
+      const std::string &name,
+      [[maybe_unused]] RoundRobinArgs args,
+      std::vector<RoundRobinChildArgs> children) {
+    RoundRobinTrafficClass *p = CreateTrafficClass<RoundRobinTrafficClass>(name);
+    for (auto &c : children) {
+      p->AddChild(c.c);
+    }
+    return p;
+  }
+
+  static TrafficClass *CreateTree(
+      const std::string &name,
+      RateLimitArgs args,
+      RateLimitChildArgs child) {
+    RateLimitTrafficClass *p = CreateTrafficClass<RateLimitTrafficClass>(name, args.resource, args.limit, args.max_burst);
+    p->AddChild(child.c);
+    return p;
+  }
+
+  static TrafficClass *CreateTree(
+      const std::string &name,
+      [[maybe_unused]] LeafArgs args) {
+    return CreateTrafficClass<LeafTrafficClass>(name);
+  }
+  
   // Attempts to destroy all classes.  Returns true upon success.
   static bool DestroyAll();
 
