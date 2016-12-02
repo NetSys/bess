@@ -167,10 +167,14 @@ message TrafficClass {
     int64 bits = 4;
   }
   string name = 1;
-  int64 priority = 2;
-  int64 wid = 3;
-  Resource limit = 4;
-  Resource max_burst = 5;
+  bool blocked = 2;
+  string policy = 3;
+  string resource = 4;
+  int64 priority_share = 5;
+  int64 wid = 6;
+  Resource usage = 7;
+  map<string, int64> limit = 8;
+  map<string, int64> max_burst = 9;
 }
 
 message GetTcStatsResponse {

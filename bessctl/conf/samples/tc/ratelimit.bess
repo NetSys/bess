@@ -2,22 +2,38 @@
 
 # for every second, src0 is scheduled 100000 times 
 src0::Source() -> Sink()
-bess.add_tc('schedule_limit', limit={'schedules': 100000})
+bess.add_tc('schedule_limit',
+            limit={'count': 100000},
+            max_burst={'count': 1000000000},
+            policy='rate_limit',
+            resource='count')
 bess.attach_task(src0.name, tc='schedule_limit')
 
 # up to 100Mhz
 src1::Source() -> Sink()
-bess.add_tc('cycle_limit', limit={'cycles': 100000000})
+bess.add_tc('cycle_limit',
+            limit={'cycle': 100000000},
+            max_burst={'cycle': 1000000000},
+            policy='rate_limit',
+            resource='cycle')
 bess.attach_task(src1.name, tc='cycle_limit')
 
 # 10M packets / sec
 src2::Source() -> Sink()
-bess.add_tc('packet_limit', limit={'packets': 10000000})
+bess.add_tc('packet_limit',
+            limit={'packet': 10000000},
+            max_burst={'packet': 1000000000},
+            policy='rate_limit',
+            resource='packet')
 bess.attach_task(src2.name, tc='packet_limit')
 
 # Gigabits per second
 src3::Source() -> Sink()
-bess.add_tc('bit_limit', limit={'bits': 1000000000})
+bess.add_tc('bit_limit',
+            limit={'bit': 1000000000},
+            max_burst={'bit': 1000000000},
+            policy='rate_limit',
+            resource='bit')
 bess.attach_task(src3.name, tc='bit_limit')
 
 src4::Source() -> Sink()
