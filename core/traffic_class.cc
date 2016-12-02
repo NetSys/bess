@@ -257,6 +257,8 @@ void RateLimitTrafficClass::FinishAndAccountTowardsRoot(
 
 void LeafTrafficClass::AddTask(Task *t) {
   tasks_.push_back(t);
+
+  UnblockTowardsRoot(0);
 }
 
 bool LeafTrafficClass::RemoveTask(Task *t) {
@@ -274,7 +276,7 @@ TrafficClass *LeafTrafficClass::PickNextChild() {
 
 std::unordered_map<std::string, TrafficClass *> TrafficClassBuilder::all_tcs_;
 
-bool TrafficClassBuilder::DestroyAll() {
+bool TrafficClassBuilder::ClearAll() {
   for (const auto &it : all_tcs_) {
     TrafficClass *c = it.second;
 
@@ -286,12 +288,12 @@ bool TrafficClassBuilder::DestroyAll() {
     }
   }
 
-  for (const auto &it : all_tcs_) {
-    delete it.second;
-  }
-
   all_tcs_.clear();
   return true;
+}
+
+bool TrafficClassBuilder::Clear(TrafficClass *c) {
+  return all_tcs_.erase(c->name());
 }
 
 }  // namespace bess
