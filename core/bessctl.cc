@@ -1,5 +1,7 @@
 #include "bessctl.h"
 
+#include <map>
+
 #include <glog/logging.h>
 #include <grpc++/server.h>
 #include <grpc++/server_builder.h>
@@ -13,8 +15,8 @@
 #include "module.h"
 #include "opts.h"
 #include "port.h"
-#include "service.grpc.pb.h"
 #include "scheduler.h"
+#include "service.grpc.pb.h"
 #include "traffic_class.h"
 #include "utils/ether.h"
 #include "utils/format.h"
@@ -374,7 +376,7 @@ class BESSControlImpl final : public BESSControl::Service {
       status->set_running(is_worker_running(wid));
       status->set_core(workers[wid]->core());
       // TODO(barath): Re-enable this line or similar functionality.
-      // status->set_num_tcs(workers[wid]->s()->num_classes);
+      status->set_num_tcs(workers[wid]->s()->root()->Size() - 1);
       status->set_silent_drops(workers[wid]->silent_drops());
     }
     return Status::OK;
@@ -424,43 +426,37 @@ class BESSControlImpl final : public BESSControl::Service {
     }
 
     for (const auto& pair : TrafficClassBuilder::all_tcs()) {
-      bess::TrafficClass *c = pair.second;
+      bess::TrafficClass* c = pair.second;
 
       ListTcsResponse_TrafficClassStatus* status =
           response->add_classes_status();
 
       status->set_parent(c->parent()->name());
       status->mutable_class_()->set_name(c->name());
+      status->mutable_class_()->set_blocked(c->blocked());
+
+      if (c->policy() >= 0 && c->policy() < bess::NUM_POLICIES) {
+        status->mutable_class_()->set_policy(
+            bess::TrafficPolicyName[c->policy()]);
+      } else {
+        status->mutable_class_()->set_policy("invalid");
+      }
+
+      status->mutable_class_()->set_wid(wid_filter);
+
+      status->mutable_class_()->mutable_usage()->set_schedules(
+          c->stats().usage[bess::RESOURCE_COUNT]);
+      status->mutable_class_()->mutable_usage()->set_cycles(
+          c->stats().usage[bess::RESOURCE_CYCLE]);
+      status->mutable_class_()->mutable_usage()->set_packets(
+          c->stats().usage[bess::RESOURCE_PACKET]);
+      status->mutable_class_()->mutable_usage()->set_bits(
+          c->stats().usage[bess::RESOURCE_BIT]);
 
       // TODO(barath): Rewrite this once we have new appropriate protobufs to
       // convey new traffic class data.
-      // int wid;
 
-      // if (wid_filter < MAX_WORKERS) {
-      //   if (workers[wid_filter]->s() != c->s)
-      //     continue;
-      //   wid = wid_filter;
-      // } else {
-      //   for (wid = 0; wid < MAX_WORKERS; wid++)
-      //     if (is_worker_active(wid) && workers[wid]->s() == c->s)
-      //       break;
-      // }
-
-      // status->mutable_class_()->set_priority(c->settings.priority);
-
-      // if (wid < MAX_WORKERS)
-      //   status->mutable_class_()->set_wid(wid);
-      // else
-      //   status->mutable_class_()->set_wid(-1);
-
-      // status->mutable_class_()->mutable_limit()->set_schedules(
-      //     c->settings.limit[0]);
-      // status->mutable_class_()->mutable_limit()->set_cycles(
-      //     c->settings.limit[1]);
-      // status->mutable_class_()->mutable_limit()->set_packets(
-      //     c->settings.limit[2]);
-      // status->mutable_class_()->mutable_limit()->set_bits(c->settings.limit[3]);
-
+      // XXX: if RateLimitTC
       // status->mutable_class_()->mutable_max_burst()->set_schedules(
       //     c->settings.max_burst[0]);
       // status->mutable_class_()->mutable_max_burst()->set_cycles(
@@ -505,26 +501,84 @@ class BESSControlImpl final : public BESSControl::Service {
       }
     }
 
-    priority_t priority = request->class_().priority();
-    if (priority == DEFAULT_PRIORITY) {
-      return return_with_error(response, EINVAL, "Priority %d is reserved",
-                               DEFAULT_PRIORITY);
+    const std::string& policy = request->class_().policy();
+
+    bess::TrafficClass* c = nullptr;
+    if (policy == bess::TrafficPolicyName[bess::POLICY_PRIORITY]) {
+      c = reinterpret_cast<bess::TrafficClass*>(
+          TrafficClassBuilder::CreateTrafficClass<bess::PriorityTrafficClass>(
+              tc_name));
+    } else if (policy == bess::TrafficPolicyName[bess::POLICY_WEIGHTED_FAIR]) {
+      const std::string& resource = request->class_().resource();
+      if (bess::ResourceMap.count(resource) == 0) {
+        return return_with_error(response, EINVAL, "Invalid resource");
+      }
+      c = reinterpret_cast<bess::TrafficClass*>(
+          TrafficClassBuilder::CreateTrafficClass<
+              bess::WeightedFairTrafficClass>(tc_name,
+                                              bess::ResourceMap.at(resource)));
+    } else if (policy == bess::TrafficPolicyName[bess::POLICY_ROUND_ROBIN]) {
+      c = reinterpret_cast<bess::TrafficClass*>(
+          TrafficClassBuilder::CreateTrafficClass<bess::RoundRobinTrafficClass>(
+              tc_name));
+    } else if (policy == bess::TrafficPolicyName[bess::POLICY_RATE_LIMIT]) {
+      const std::string& resource = request->class_().resource();
+      const auto& limits = request->class_().limit();
+      const auto& max_bursts = request->class_().max_burst();
+      if (bess::ResourceMap.count(resource) == 0) {
+        return return_with_error(response, EINVAL, "Invalid resource");
+      }
+      if (limits.count(resource) == 0) {
+        return return_with_error(
+            response, EINVAL, "No limit specified for resource %s", resource.c_str());
+      }
+      if (max_bursts.count(resource) == 0) {
+        return return_with_error(response, EINVAL,
+                                 "No max_burst specified for resource %s",
+                                 resource.c_str());
+      }
+      c = reinterpret_cast<bess::TrafficClass*>(
+          TrafficClassBuilder::CreateTrafficClass<bess::RateLimitTrafficClass>(
+              tc_name, bess::ResourceMap.at(resource), limits.at(resource),
+              max_bursts.at(resource)));
+    } else if (policy == bess::TrafficPolicyName[bess::POLICY_LEAF]) {
+      c = reinterpret_cast<bess::TrafficClass*>(
+          TrafficClassBuilder::CreateTrafficClass<bess::LeafTrafficClass>(
+              tc_name));
+    } else {
+      return return_with_error(response, EINVAL, "Invalid traffic policy");
     }
 
-    // TODO(barath): Expose ability to set share and resource.
-    // const resource_share_t kShare = 1;
-    // const resource_t kResource = bess::RESOURCE_COUNT;
-    // uint64_t limit = request->class_().has_limit() ? request->class_().limit().schedules() : 0;
-    // uint64_t max_burst = request->class_().has_max_burst() ? request->class_().max_burst().schedules() : 0;
-
-    // TODO(barath): Generalize to all types of traffic classes.
-    // auto *c = TrafficClassBuilder::CreateTrafficClass<RoundRobinTrafficClass>(tc_name);
-    // if (!c) {
-    //   return return_with_error(response, EINVAL, "CreateTrafficClass failed");
-    // }
+    if (!c) {
+      return return_with_error(response, ENOMEM, "CreateTrafficClass failed");
+    }
 
     // TODO(barath): Expose ability to configure choice of parent.
-    // workers[wid]->s()->root()->AddChild(c);
+    bess::TrafficClass* root = workers[wid]->s()->root();
+    switch (root->policy()) {
+      case bess::POLICY_PRIORITY: {
+        priority_t pri = request->class_().priority_share();
+        if (pri == DEFAULT_PRIORITY) {
+          return return_with_error(response, EINVAL, "Priority %d is reserved",
+              DEFAULT_PRIORITY);
+        }
+        reinterpret_cast<bess::PriorityTrafficClass*>(root)->AddChild(c, pri);
+        break;
+      }
+      case bess::POLICY_WEIGHTED_FAIR:
+        reinterpret_cast<bess::WeightedFairTrafficClass*>(root)->AddChild(c,
+            request->class_().priority_share());
+        break;
+      case bess::POLICY_ROUND_ROBIN:
+        reinterpret_cast<bess::RoundRobinTrafficClass*>(root)->AddChild(c);
+        break;
+      case bess::POLICY_RATE_LIMIT:
+        reinterpret_cast<bess::RateLimitTrafficClass*>(root)->AddChild(c);
+        break;
+      default:
+        return return_with_error(response, EPERM,
+                                 "Root tc doens't support children");
+    }
 
     return Status::OK;
   }
@@ -532,14 +586,14 @@ class BESSControlImpl final : public BESSControl::Service {
                     GetTcStatsResponse* response) override {
     const char* tc_name = request->name().c_str();
 
-    bess::TrafficClass *c;
+    bess::TrafficClass* c;
 
     if (request->name().length() == 0)
       return return_with_error(response, EINVAL,
                                "Argument must be a name in str");
 
-    const auto &tcs = TrafficClassBuilder::all_tcs();
-    const auto &it = tcs.find(tc_name);
+    const auto& tcs = TrafficClassBuilder::all_tcs();
+    const auto& it = tcs.find(tc_name);
     if (it == tcs.end()) {
       return return_with_error(response, ENOENT, "No TC '%s' found", tc_name);
     }
@@ -923,22 +977,22 @@ class BESSControlImpl final : public BESSControl::Service {
                                MAX_TASKS_PER_MODULE - 1);
     }
 
-    Task *t;
+    Task* t;
     if ((t = m->tasks[tid]) == nullptr) {
       return return_with_error(response, ENOENT, "Task %s:%hu does not exist",
                                request->name().c_str(), tid);
     }
 
     if (request->identifier_case() == bess::pb::AttachTaskRequest::kTc) {
-      const auto &tcs = TrafficClassBuilder::all_tcs();
-      const auto &it2 = tcs.find(request->tc());
+      const auto& tcs = TrafficClassBuilder::all_tcs();
+      const auto& it2 = tcs.find(request->tc());
       if (it2 == tcs.end()) {
         return return_with_error(response, ENOENT, "No TC '%s' found",
                                  request->tc().c_str());
       }
-      bess::TrafficClass *c = it2->second;
-      if (c->policy() != bess::POLICY_LEAF) {
-        t->Attach(static_cast<bess::LeafTrafficClass *>(c));
+      bess::TrafficClass* c = it2->second;
+      if (c->policy() == bess::POLICY_LEAF) {
+        t->Attach(static_cast<bess::LeafTrafficClass*>(c));
       } else {
         return return_with_error(response, EINVAL, "TC must be a leaf class");
       }
@@ -963,8 +1017,13 @@ class BESSControlImpl final : public BESSControl::Service {
                                  wid);
       }
 
-      // TODO(barath): Fix the assignment of default TCs.
-      // assign_default_tc(wid, t);
+      bess::LeafTrafficClass *tc = workers[wid]->s()->default_leaf_class();
+      if (!tc) {
+        return return_with_error(response, ENOENT,
+                                 "Worker %d has no default leaf tc", wid);
+      }
+      tc->AddTask(t);
+
     } else {
       return return_with_error(response, EINVAL, "Both tc and wid are not set");
     }

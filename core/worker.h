@@ -162,4 +162,6 @@ static inline int is_worker_running(int wid) {
 /* arg (int) is the core id the worker should run on */
 void launch_worker(int wid, int core);
 
+Worker *get_next_active_worker();
+
 #endif  // BESS_WORKER_H_
