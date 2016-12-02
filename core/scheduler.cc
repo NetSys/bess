@@ -118,9 +118,10 @@ void Scheduler::AddThrottled(RateLimitTrafficClass *rc) {
 inline void Scheduler::ResumeThrottled(uint64_t tsc) {
   while (!throttled_cache_.empty()) {
     RateLimitTrafficClass *rc = throttled_cache_.top();
-    if (rc->throttle_expiration() < tsc) {
+    if (rc->throttle_expiration_ < tsc) {
       throttled_cache_.pop();
       rc->blocked_ = false;
+      rc->throttle_expiration_ = 0;
 
       // Traverse upward toward root to unblock any blocked parents.
       rc->UnblockTowardsRoot(tsc);
