@@ -7,58 +7,6 @@
 
 namespace bess {
 
-const std::string Scheduler::kRootClassNamePrefix = "root_";
-const std::string Scheduler::kDefaultLeafClassNamePrefix = "defaultleaf_";
-const TrafficPolicy Scheduler::kDefaultRootPolicy = POLICY_PRIORITY;
-
-Scheduler::Scheduler(int worker_id)
-    : Scheduler(worker_id, kDefaultRootPolicy, NUM_RESOURCES, 0, 0) {
-  const priority_t kDefaultPriority = 10;
-  std::string name = kDefaultLeafClassNamePrefix + std::to_string(worker_id);
-  default_leaf_class_ =
-      TrafficClassBuilder::CreateTrafficClass<LeafTrafficClass>(name);
-  static_cast<PriorityTrafficClass *>(root_)->AddChild(default_leaf_class_, kDefaultPriority);
-}
-
-Scheduler::Scheduler(int worker_id,
-                     TrafficPolicy root_policy,
-                     [[maybe_unused]] resource_t resource,
-                     [[maybe_unused]] uint64_t limit,
-                     [[maybe_unused]] uint64_t max_burst)
-    : root_(),
-    default_leaf_class_(),
-    have_throttled_(),
-    throttled_cache_(ThrottledComp()),
-    stats_(),
-    last_stats_(),
-    last_print_tsc_(),
-    checkpoint_(),
-    now_(),
-    ns_per_cycle_(1e9 / tsc_hz) {
-  std::string root_name = kRootClassNamePrefix + std::to_string(worker_id);
-  switch (root_policy) {
-    case POLICY_PRIORITY:
-      root_ = new PriorityTrafficClass(root_name);
-      break;
-    case POLICY_WEIGHTED_FAIR:
-      CHECK_LT(resource, NUM_RESOURCES);
-      CHECK_GE(resource, 0);
-      root_ = new WeightedFairTrafficClass(root_name, resource);
-      break;
-    case POLICY_ROUND_ROBIN:
-      root_ = new RoundRobinTrafficClass(root_name);
-      break;
-    case POLICY_RATE_LIMIT:
-      CHECK_LT(resource, NUM_RESOURCES);
-      CHECK_GE(resource, 0);
-      root_ = new RateLimitTrafficClass(root_name, resource, limit, max_burst);
-      break;
-    default:
-      CHECK(false) << "Policy " << root_policy << " invalid.";
-      break;
-  }
-}
-
 void Scheduler::ScheduleLoop() {
   // How many rounds to go before we do accounting.
   const uint64_t accounting_mask = 0xffff; 
@@ -71,7 +19,7 @@ void Scheduler::ScheduleLoop() {
   // The main scheduling, running, accounting loop.
   for (uint64_t round = 0;; round++) {
     // Periodic check, to mitigate expensive operations.
-    if ((round & accounting_mask) == 0) {
+    if (unlikely((round & accounting_mask) == 0)) {
       if (unlikely(ctx.is_pause_requested())) {
         if (ctx.BlockWorker()) {
           // TODO(barath): Add log message here?
@@ -113,6 +61,11 @@ void Scheduler::ScheduleOnce() {
 
     Done(c, usage, now_);
   } else {
+    // TODO(barath): Ideally, we wouldn't spin in this case but rather take the
+    // fact that Next() returned nullptr as an indication that everything is
+    // blocked, so we could wait until something is added that unblocks us.  We
+    // currently have no functionality to support such whole-scheduler
+    // blocking/unblocking.
     now_ = rdtsc();
 
     stats_.cnt_idle++;

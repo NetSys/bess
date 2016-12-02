@@ -22,6 +22,17 @@ int num_workers = 0;
 std::thread worker_threads[MAX_WORKERS];
 Worker *volatile workers[MAX_WORKERS];
 
+using bess::TrafficClassBuilder;
+using namespace bess::traffic_class_initializer_types;
+using bess::PriorityTrafficClass;
+using bess::WeightedFairTrafficClass;
+using bess::RoundRobinTrafficClass;
+using bess::RateLimitTrafficClass;
+using bess::LeafTrafficClass;
+
+const std::string Worker::kRootClassNamePrefix = "root_";
+const std::string Worker::kDefaultLeafClassNamePrefix = "defaultleaf_";
+
 // See worker.h
 __thread Worker ctx;
 
@@ -200,7 +211,14 @@ void *Worker::Run(void *_arg) {
   fd_event_ = eventfd(0, 0);
   DCHECK_GE(fd_event_, 0);
 
-  s_ = new Scheduler(wid_);
+  // By default create a root node of default policy with a single leaf.
+  std::string root_name = kRootClassNamePrefix + std::to_string(wid_);
+  std::string leaf_name = kDefaultLeafClassNamePrefix + std::to_string(wid_);
+  const bess::priority_t kDefaultPriority = 10;
+  PriorityTrafficClass *root = TrafficClassBuilder::CreateTrafficClass<PriorityTrafficClass>(root_name);
+  LeafTrafficClass *leaf = TrafficClassBuilder::CreateTrafficClass<LeafTrafficClass>(leaf_name);
+  root->AddChild(leaf, kDefaultPriority);
+  s_ = new Scheduler(root);
 
   current_tsc_ = rdtsc();
 

@@ -25,21 +25,17 @@ struct ThrottledComp {
 
 class Scheduler final {
  public:
-  static const std::string kRootClassNamePrefix;
-  static const std::string kDefaultLeafClassNamePrefix;
-  static const TrafficPolicy kDefaultRootPolicy;
-
-  // The pseudo-default scheduler constructor.  Constructs a round robin root
-  // class with a default leaf class attached to it.
-  Scheduler(int worker_id);
-
-  // An explicit constructor where the caller specifies the root policy and any
-  // parameters needed for that policy.
-  Scheduler(int worker_id,
-            TrafficPolicy root_policy,
-            [[maybe_unused]] resource_t resource,
-            [[maybe_unused]] uint64_t limit,
-            [[maybe_unused]] uint64_t max_burst);
+  Scheduler(TrafficClass *root, LeafTrafficClass *leaf = nullptr)
+      : root_(root),
+        default_leaf_class_(leaf),
+        have_throttled_(),
+        throttled_cache_(ThrottledComp()),
+        stats_(),
+        last_stats_(),
+        last_print_tsc_(),
+        checkpoint_(),
+        now_(),
+        ns_per_cycle_(1e9 / tsc_hz) {}
 
   // TODO(barath): Do real cleanup, akin to sched_free() from the old impl.
   virtual ~Scheduler() {
