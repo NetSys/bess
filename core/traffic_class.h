@@ -391,6 +391,9 @@ class LeafTrafficClass final : public TrafficClass {
     // TODO(barath): Determin whether tasks should be deleted here or elsewhere.
   }
 
+  // Direct access to the tasks vector, for testing only.
+  std::vector<Task *> &tasks() { return tasks_; }
+
   // Executes tasks for a leaf TrafficClass.
   inline struct task_result RunTasks() {
     size_t start = task_index_;
@@ -577,6 +580,15 @@ class TrafficClassBuilder {
 
   static inline const std::unordered_map<std::string, TrafficClass *> &all_tcs() {
     return all_tcs_;
+  }
+
+  // Returns the TrafficClass * with the given name or nullptr if not found.
+  static TrafficClass *Find(const std::string &name) {
+    auto it = all_tcs_.find(name);
+    if (it != all_tcs_.end()) {
+      return it->second;
+    }
+    return nullptr;
   }
 
  private:

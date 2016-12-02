@@ -78,10 +78,14 @@ bool WeightedFairTrafficClass::AddChild(TrafficClass *child, resource_share_t sh
     pass = children_.top().pass_;
   }
 
-  children_.emplace(WeightedFairTrafficClass::ChildData{STRIDE1 / share, pass, child});
   child->parent_ = this;
-
-  UnblockTowardsRoot(0);
+  WeightedFairTrafficClass::ChildData child_data{STRIDE1 / share, pass, child};
+  if (child->blocked_) {
+    blocked_children_.push_back(child_data);
+  } else {
+    children_.push(child_data);
+    UnblockTowardsRoot(0);
+  }
 
   return true;
 }
@@ -106,7 +110,7 @@ void WeightedFairTrafficClass::UnblockTowardsRoot(uint64_t tsc) {
     }
   }
 
-  UnblockTowardsRootSetBlocked(tsc, children_.empty());
+  TrafficClass::UnblockTowardsRootSetBlocked(tsc, children_.empty());
 }
 
 void WeightedFairTrafficClass::FinishAndAccountTowardsRoot(
@@ -142,7 +146,12 @@ bool RoundRobinTrafficClass::AddChild(TrafficClass *child) {
     return false;
   }
   child->parent_ = this;
-  children_.push_front(child);
+
+  if (child->blocked_) {
+    blocked_children_.push_back(child);
+  } else {
+    children_.push_front(child);
+  }
 
   UnblockTowardsRoot(0);
 
@@ -168,7 +177,7 @@ void RoundRobinTrafficClass::UnblockTowardsRoot(uint64_t tsc) {
     }
   }
 
-  UnblockTowardsRootSetBlocked(tsc, children_.empty());
+  TrafficClass::UnblockTowardsRootSetBlocked(tsc, children_.empty());
 }
 
 void RoundRobinTrafficClass::FinishAndAccountTowardsRoot(
@@ -201,7 +210,6 @@ bool RateLimitTrafficClass::AddChild(TrafficClass *child) {
   child_ = child;
   child->parent_ = this;
 
-  blocked_ = false;
   UnblockTowardsRoot(0);
 
   return true;
@@ -216,9 +224,8 @@ void RateLimitTrafficClass::UnblockTowardsRoot(uint64_t tsc) {
     last_tsc_ = tsc;
   }
 
-  if (parent_ && !child_->blocked_ && !blocked_) {
-    parent_->UnblockTowardsRoot(tsc);
-  }
+  bool blocked = throttle_expiration_ || child_->blocked_;
+  TrafficClass::UnblockTowardsRootSetBlocked(tsc, blocked);
 }
 
 void RateLimitTrafficClass::FinishAndAccountTowardsRoot(
@@ -262,6 +269,8 @@ void LeafTrafficClass::AddTask(Task *t) {
 }
 
 bool LeafTrafficClass::RemoveTask(Task *t) {
+  // TODO(barath): When removing a task, consider whether that makes tasks_
+  // empty, and if so, causing this leaf to block (and recurse up the tree.
   auto it = std::find(tasks_.begin(), tasks_.end(), t);
   if (it != tasks_.end()) {
     tasks_.erase(it);
