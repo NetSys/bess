@@ -85,14 +85,6 @@ using namespace traffic_class_initializer_types;
 const std::string TrafficPolicyName[NUM_POLICIES] = {
   "priority", "weighted_fair", "round_robin", "rate_limit", "leaf"};
 
-const std::unordered_map<std::string, enum TrafficPolicy> TrafficPolicyMap = {
-  {TrafficPolicyName[POLICY_PRIORITY], POLICY_PRIORITY},
-  {TrafficPolicyName[POLICY_WEIGHTED_FAIR], POLICY_WEIGHTED_FAIR},
-  {TrafficPolicyName[POLICY_ROUND_ROBIN], POLICY_ROUND_ROBIN},
-  {TrafficPolicyName[POLICY_RATE_LIMIT], POLICY_RATE_LIMIT},
-  {TrafficPolicyName[POLICY_LEAF], POLICY_LEAF}
-};
-
 const std::unordered_map<std::string, enum resource_t> ResourceMap = {
   {"count", RESOURCE_COUNT},
   {"cycle", RESOURCE_CYCLE},
