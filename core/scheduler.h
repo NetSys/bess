@@ -25,9 +25,9 @@ struct ThrottledComp {
 
 class Scheduler final {
  public:
-  Scheduler(TrafficClass *root, LeafTrafficClass *leaf = nullptr)
+  Scheduler(TrafficClass *root, const std::string &leaf_name = "")
       : root_(root),
-        default_leaf_class_(leaf),
+        default_leaf_class_(),
         have_throttled_(),
         throttled_cache_(ThrottledComp()),
         stats_(),
@@ -35,7 +35,14 @@ class Scheduler final {
         last_print_tsc_(),
         checkpoint_(),
         now_(),
-        ns_per_cycle_(1e9 / tsc_hz) {}
+        ns_per_cycle_(1e9 / tsc_hz) {
+    if (!leaf_name.empty()) {
+      TrafficClass *c = TrafficClassBuilder::Find(leaf_name);
+      CHECK(c);
+      CHECK(c->policy() == POLICY_LEAF);
+      default_leaf_class_ = static_cast<LeafTrafficClass *>(c);
+    }
+  }
 
   // TODO(barath): Do real cleanup, akin to sched_free() from the old impl.
   virtual ~Scheduler() {
