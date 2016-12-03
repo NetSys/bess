@@ -216,8 +216,8 @@ TEST(SchedulerNext, BasicTreeRateLimit) {
 // unblocked leaf repeatedly if one of the leaves is blocked.
 TEST(SchedulerNext, TwoLeavesWeightedFairOneBlocked) {
   Scheduler s(CT("root", {WEIGHTED_FAIR, RESOURCE_COUNT},
-              {{WEIGHTED_FAIR, 1, CT("leaf_1", {LEAF})},
-               {WEIGHTED_FAIR, 2, CT("leaf_2", {LEAF})}}));
+                 {{WEIGHTED_FAIR, 1, CT("leaf_1", {LEAF})},
+                  {WEIGHTED_FAIR, 2, CT("leaf_2", {LEAF})}}));
 
   LeafTrafficClass *leaf_1 = static_cast<LeafTrafficClass *>(TrafficClassBuilder::Find("leaf_1"));
   ASSERT_TRUE(leaf_1 != nullptr);

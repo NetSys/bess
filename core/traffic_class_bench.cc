@@ -8,64 +8,47 @@
 #include <benchmark/benchmark.h>
 #include <glog/logging.h>
 
-using bess::Scheduler;
-using bess::TrafficClass;
+#define CT TrafficClassBuilder::CreateTree
 
-using bess::LeafTrafficClass;
-using bess::PriorityTrafficClass;
-using bess::RoundRobinTrafficClass;
-using bess::WeightedFairTrafficClass;
-
-using bess::resource_t;
-using bess::resource_share_t;
+using namespace bess;
+using namespace bess::traffic_class_initializer_types;
 
 namespace {
 
 // Performs TC Scheduler init/deinit before/after each test.
 class TCFixture : public benchmark::Fixture {
  public:
-  TCFixture() : classes_(), s_() {}
+  TCFixture() : s_() {}
 
   virtual void SetUp(benchmark::State &state) override {
     int num_classes = state.range(0);
     resource_t resource = (resource_t) state.range(1);
 
-    s_ = new Scheduler("root", bess::POLICY_PRIORITY);
-    PriorityTrafficClass *pc = static_cast<PriorityTrafficClass *>(s_->root());
-
-    // The main weighted traffic class we attach everything to.
-    WeightedFairTrafficClass *parent = new WeightedFairTrafficClass("weighted", resource);
-    //RoundRobinTrafficClass *parent = new RoundRobinTrafficClass("rr");
-    pc->AddChild(parent, 0);
-    classes_.push_back(parent);
-
+    TrafficClass *root = CT("root", {PRIORITY},
+                            {{PRIORITY, 0, CT("weighted", {WEIGHTED_FAIR, resource}, {})}});
+    s_ = new Scheduler(root);
+    WeightedFairTrafficClass *weighted = static_cast<WeightedFairTrafficClass *>(TrafficClassBuilder::Find("weighted"));
     for (int i = 0; i < num_classes; i++) {
       std::string name("class_" + std::to_string(i));
       LeafTrafficClass *c = new LeafTrafficClass(name);
-      c->set_blocked(false);
+      c->AddTask((Task *) 1);  // A fake task.
 
       resource_share_t share = 1;
-      CHECK(parent->AddChild(c, share));
-      //CHECK(parent->AddChild(c));
-
-      classes_.push_back(c);
+      CHECK(weighted->AddChild(c, share));
+      c->tasks().clear();
     }
-    CHECK(!parent->blocked());
-    CHECK(!pc->blocked());
+    CHECK(!root->blocked());
+    CHECK(!weighted->blocked());
   }
 
   virtual void TearDown(benchmark::State &) override {
-    for (TrafficClass *c : classes_) {
-      delete c;
-    }
-    classes_.clear();
-
     delete s_;
     s_ = nullptr;
+
+    TrafficClassBuilder::ClearAll();
   }
 
  protected:
-  std::vector<TrafficClass *> classes_;
   Scheduler *s_;
 };
 

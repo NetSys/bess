@@ -216,7 +216,7 @@ void *Worker::Run(void *_arg) {
   PriorityTrafficClass *root = TrafficClassBuilder::CreateTrafficClass<PriorityTrafficClass>(root_name);
   LeafTrafficClass *leaf = TrafficClassBuilder::CreateTrafficClass<LeafTrafficClass>(leaf_name);
   root->AddChild(leaf, kDefaultPriority);
-  s_ = new Scheduler(root, leaf);
+  s_ = new Scheduler(root, leaf_name);
 
   current_tsc_ = rdtsc();
 
