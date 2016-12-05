@@ -52,7 +52,7 @@ endif
 
 CXXFLAGS += -std=gnu++11 -g3 -ggdb3 -Og -march=native \
 	    -Werror -isystem $(DPDK_INC_DIR) -D_GNU_SOURCE \
-	    -Wall -Wextra -Wcast-align -flto -ffat-lto-objects -finline-limit=1000
+	    -Wall -Wextra -Wcast-align
 
 PERMISSIVE = -Wno-unused-parameter -Wno-missing-field-initializers \
              -Wno-unused-private-field
