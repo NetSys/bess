@@ -31,6 +31,12 @@ TEST(CreateTree, PriorityRootAndLeaf) {
   ASSERT_TRUE(leaf != nullptr);
   EXPECT_EQ(leaf->parent(), c);
 
+  // We shouldn't be able to add a child with a duplicate priority.
+  EXPECT_FALSE(c->AddChild(CT("leaf_2", {LEAF}), 10));
+
+  // A different priority should be fine.
+  EXPECT_TRUE(c->AddChild(CT("leaf_3", {LEAF}), 2));
+
   TrafficClassBuilder::ClearAll();
 }
 

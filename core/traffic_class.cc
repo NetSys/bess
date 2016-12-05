@@ -18,6 +18,13 @@ bool PriorityTrafficClass::AddChild(TrafficClass *child, priority_t priority) {
     return false;
   }
 
+  // Ensure that no child already has the given priority.
+  for (const auto &c : children_) {
+    if (c.priority_ == priority) {
+      return false;
+    }
+  }
+
   ChildData d{priority, child};
   InsertSorted(children_, d);
   child->parent_ = this;
