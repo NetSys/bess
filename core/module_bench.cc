@@ -3,6 +3,8 @@
 #include <benchmark/benchmark.h>
 #include <glog/logging.h>
 
+#include "traffic_class.h"
+
 namespace {
 
 class DummySourceModule : public Module {
@@ -91,7 +93,10 @@ class ModuleFixture : public benchmark::Fixture {
 BENCHMARK_DEFINE_F(ModuleFixture, Chain)(benchmark::State &state) {
   const size_t batch_size = bess::PacketBatch::kMaxBurst;
 
-  Task t(src_, reinterpret_cast<void *>(batch_size), nullptr);
+  std::string leaf_name = "leaf";
+  bess::LeafTrafficClass *leaf = new bess::LeafTrafficClass(leaf_name);
+
+  Task t(src_, reinterpret_cast<void *>(batch_size), leaf);
 
   while (state.KeepRunning()) {
     struct task_result ret = t.Scheduled();
@@ -99,6 +104,7 @@ BENCHMARK_DEFINE_F(ModuleFixture, Chain)(benchmark::State &state) {
   }
 
   state.SetItemsProcessed(state.iterations() * batch_size);
+  delete leaf;
 }
 
 BENCHMARK_REGISTER_F(ModuleFixture, Chain)
