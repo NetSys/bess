@@ -375,7 +375,6 @@ class BESSControlImpl final : public BESSControl::Service {
       status->set_wid(wid);
       status->set_running(is_worker_running(wid));
       status->set_core(workers[wid]->core());
-      // TODO(barath): Re-enable this line or similar functionality.
       status->set_num_tcs(workers[wid]->s()->root()->Size() - 1);
       status->set_silent_drops(workers[wid]->silent_drops());
     }
@@ -529,8 +528,9 @@ class BESSControlImpl final : public BESSControl::Service {
         return return_with_error(response, EINVAL, "Invalid resource");
       }
       if (limits.count(resource) == 0) {
-        return return_with_error(
-            response, EINVAL, "No limit specified for resource %s", resource.c_str());
+        return return_with_error(response, EINVAL,
+                                 "No limit specified for resource %s",
+                                 resource.c_str());
       }
       if (max_bursts.count(resource) == 0) {
         return return_with_error(response, EINVAL,
@@ -553,21 +553,32 @@ class BESSControlImpl final : public BESSControl::Service {
       return return_with_error(response, ENOMEM, "CreateTrafficClass failed");
     }
 
-    // TODO(barath): Expose ability to configure choice of parent.
-    bess::TrafficClass* root = workers[wid]->s()->root();
+    bess::TrafficClass* root;
+    if (request->class_().parent().length() == 0) {
+      root = workers[wid]->s()->root();
+    } else {
+      const auto& tcs = TrafficClassBuilder::all_tcs();
+      const auto& it = tcs.find(request->class_().parent());
+      if (it == tcs.end()) {
+        return return_with_error(response, ENOENT, "Parent TC '%s' not found",
+                                 tc_name);
+      }
+      root = it->second;
+    }
+
     switch (root->policy()) {
       case bess::POLICY_PRIORITY: {
         priority_t pri = request->class_().priority_share();
         if (pri == DEFAULT_PRIORITY) {
           return return_with_error(response, EINVAL, "Priority %d is reserved",
-              DEFAULT_PRIORITY);
+                                   DEFAULT_PRIORITY);
         }
         reinterpret_cast<bess::PriorityTrafficClass*>(root)->AddChild(c, pri);
         break;
       }
       case bess::POLICY_WEIGHTED_FAIR:
-        reinterpret_cast<bess::WeightedFairTrafficClass*>(root)->AddChild(c,
-            request->class_().priority_share());
+        reinterpret_cast<bess::WeightedFairTrafficClass*>(root)->AddChild(
+            c, request->class_().priority_share());
         break;
       case bess::POLICY_ROUND_ROBIN:
         reinterpret_cast<bess::RoundRobinTrafficClass*>(root)->AddChild(c);
@@ -1017,7 +1028,7 @@ class BESSControlImpl final : public BESSControl::Service {
                                  wid);
       }
 
-      bess::LeafTrafficClass *tc = workers[wid]->s()->default_leaf_class();
+      bess::LeafTrafficClass* tc = workers[wid]->s()->default_leaf_class();
       if (!tc) {
         return return_with_error(response, ENOENT,
                                  "Worker %d has no default leaf tc", wid);
