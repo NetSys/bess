@@ -111,6 +111,16 @@ class TrafficClass {
 
   inline const struct tc_stats &stats() const { return stats_; }
 
+  // stats_.usage += x
+  inline void increment_usage(resource_arr_t x) {
+    uint64_t *p1 = stats_.usage;
+    uint64_t *p2 = x;
+
+    for (int i = 0; i < NUM_RESOURCES; i++) {
+      p1[i] += p2[i];
+    }
+  }
+
   inline bool blocked() const { return blocked_; }
 
   inline TrafficPolicy policy() const { return policy_; }

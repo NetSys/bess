@@ -594,9 +594,10 @@ class BESSControlImpl final : public BESSControl::Service {
 
     bess::TrafficClass* c;
 
-    if (request->name().length() == 0)
+    if (request->name().length() == 0) {
       return return_with_error(response, EINVAL,
                                "Argument must be a name in str");
+    }
 
     const auto& tcs = TrafficClassBuilder::all_tcs();
     const auto& it = tcs.find(tc_name);

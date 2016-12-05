@@ -186,7 +186,7 @@ def get_var_attrs(cli, var_token, partial_word):
         elif var_token == 'TC...':
             var_type = 'name+'
             var_desc = 'one or more traffic class names'
-            var_candidates = [c.class_.name for c in cli.bess.list_tcs().classes_status]
+            var_candidates = [getattr(c, 'class').name for c in cli.bess.list_tcs().classes_status]
 
         elif var_token == 'CONF':
             var_type = 'confname'
@@ -1195,8 +1195,19 @@ def monitor_port_all(cli, ports):
 
 def _monitor_tcs(cli, *tcs):
     def get_delta(old, new):
+        delta = copy.deepcopy(new)
         sec_diff = new.timestamp - old.timestamp
-        return (new - old) / sec_diff
+        try:
+            delta.count = long((new.count - old.count) / sec_diff)
+            delta.cycles = long((new.cycles - old.cycles) / sec_diff)
+            delta.bits = long((new.bits - old.bits) / sec_diff)
+            delta.packets = long((new.packets - old.packets) / sec_diff)
+        except:
+            delta.count = 0
+            delta.cycles = 0
+            delta.bits = 0
+            delta.packets = 0
+        return delta
 
     def print_header(timestamp):
         cli.fout.write('\n')
@@ -1235,19 +1246,21 @@ def _monitor_tcs(cli, *tcs):
         total = copy.deepcopy(arr[0])
 
         for stat in arr[1:]:
-            for key in total._keys():
-                if key != 'timestamp':
-                    total[key] += stat[key]
+            total.count + stat.count
+            total.cycles + stat.cycles
+            total.packets + stat.packets
+            total.bits + stat.bits
 
         return total
 
     all_tcs = cli.bess.list_tcs().classes_status
     wids = {}
     for tc in all_tcs:
-        wids[tc.class_.name] = tc.class_.wid
+        class_ = getattr(tc, 'class')
+        wids[class_.name] = class_.wid
 
     if not tcs:
-        tcs = [tc.class_.name for tc in all_tcs]
+        tcs = [getattr(tc, 'class').name for tc in all_tcs]
         if not tcs:
             raise cli.CommandError('No traffic class to monitor')
 
