@@ -105,6 +105,7 @@ static inline void accumulate(resource_arr_t acc, resource_arr_t x) {
 
 void Scheduler::Done(TrafficClass *c, resource_arr_t usage, uint64_t tsc) {
   accumulate(stats_.usage, usage);
+  c->increment_usage(usage);
 
   // The picked class can never be the root, so we are guaranteed that c has a
   // parent.
