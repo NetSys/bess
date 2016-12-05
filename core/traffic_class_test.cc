@@ -3,6 +3,7 @@
 #include "scheduler.h"
 #include "traffic_class.h"
 
+#include <map>
 #include <memory>
 #include <string>
 
@@ -369,6 +370,68 @@ TEST(ScheduleOnce, TwoLeavesRoundRobin) {
   ASSERT_EQ(leaf_2, s.Next());
   s.ScheduleOnce();
   ASSERT_EQ(leaf_1, s.Next());
+
+  TrafficClassBuilder::ClearAll();
+}
+
+// Tess that we can create a more complex tree and have the scheduler pick the
+// leaves in proportion to their weights even when they are multiple levels down
+// in the hierarchy.
+TEST(ScheduleOnce, LeavesWeightedFairAndRoundRobin) {
+  Scheduler s(CT("root", {WEIGHTED_FAIR, RESOURCE_COUNT},
+              {{WEIGHTED_FAIR, 2, CT("rr_1", {ROUND_ROBIN}, {
+                                                             {ROUND_ROBIN, CT("leaf_1a", {LEAF})},
+                                                             {ROUND_ROBIN, CT("leaf_1b", {LEAF})}
+                                                            }
+                                    )
+               },
+               {WEIGHTED_FAIR, 5, CT("rr_2", {ROUND_ROBIN}, {
+                                                             {ROUND_ROBIN, CT("leaf_2a", {LEAF})},
+                                                             {ROUND_ROBIN, CT("leaf_2b", {LEAF})},
+                                                            }
+                                    )
+               }
+              }));
+
+  std::map<std::string, LeafTrafficClass *> leaves;
+  for (auto &leaf_name : {"leaf_1a", "leaf_1b", "leaf_2a", "leaf_2b"}) {
+    LeafTrafficClass *leaf = static_cast<LeafTrafficClass *>(TrafficClassBuilder::Find(leaf_name));
+    ASSERT_TRUE(leaf != nullptr);
+    leaves[leaf_name] = leaf;
+
+    ASSERT_TRUE(leaf->blocked());
+
+    // Unblock leaf by adding a fake task.
+    leaf->AddTask((Task *) 1);
+    ASSERT_FALSE(leaf->blocked());
+
+    // Clear out the task so that it doesn't get called during execution.
+    leaf->tasks().clear();
+  }
+
+  WeightedFairTrafficClass *root = static_cast<WeightedFairTrafficClass *>(s.root());
+  ASSERT_EQ(2, root->children().size());
+  RoundRobinTrafficClass *rr_1 = static_cast<RoundRobinTrafficClass *>(TrafficClassBuilder::Find("rr_1"));
+  ASSERT_EQ(2, rr_1->children().size());
+  RoundRobinTrafficClass *rr_2 = static_cast<RoundRobinTrafficClass *>(TrafficClassBuilder::Find("rr_2"));
+  ASSERT_EQ(2, rr_2->children().size());
+
+
+  // There's no guarantee which will run first because they will tie, so this is
+  // a guess based upon the heap's behavior.
+  ASSERT_EQ(leaves["leaf_1a"], s.Next());
+  s.ScheduleOnce();
+  ASSERT_EQ(leaves["leaf_2a"], s.Next());
+  s.ScheduleOnce();
+  ASSERT_EQ(leaves["leaf_2b"], s.Next());
+  s.ScheduleOnce();
+  ASSERT_EQ(leaves["leaf_2a"], s.Next());
+  s.ScheduleOnce();
+  ASSERT_EQ(leaves["leaf_1b"], s.Next());
+  s.ScheduleOnce();
+  ASSERT_EQ(leaves["leaf_2b"], s.Next());
+  s.ScheduleOnce();
+  ASSERT_EQ(leaves["leaf_2a"], s.Next());
 
   TrafficClassBuilder::ClearAll();
 }
