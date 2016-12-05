@@ -346,9 +346,10 @@ class BESS(object):
         return self._request(self.stub.ListTcs, request)
 
     def add_tc(self, name, wid=0, priority_share=0, limit=None, max_burst=None,
-            policy='priority', resource=None):
+            policy='priority', resource=None, parent=''):
         request = bess_msg.AddTcRequest()
         class_ = getattr(request, 'class')
+        class_.parent = parent
         class_.name = name
         class_.wid = wid
         class_.policy = policy
@@ -357,11 +358,13 @@ class BESS(object):
         if resource:
             class_.resource = resource
 
-        for k in limit:
-            class_.limit[k] = limit[k]
+        if limit:
+            for k in limit:
+                class_.limit[k] = limit[k]
 
-        for k in max_burst:
-            class_.max_burst[k] = limit[k]
+        if max_burst:
+            for k in max_burst:
+                class_.max_burst[k] = limit[k]
 
         return self._request(self.stub.AddTc, request)
 
