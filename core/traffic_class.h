@@ -92,6 +92,13 @@ const std::unordered_map<std::string, enum resource_t> ResourceMap = {
   {"bit", RESOURCE_BIT}
 };
 
+const std::unordered_map<int, std::string> ResourceName = {
+  {RESOURCE_COUNT, "count"},
+  {RESOURCE_CYCLE, "cycle"},
+  {RESOURCE_PACKET, "packet"},
+  {RESOURCE_BIT, "bit"}
+};
+
 // A TrafficClass represents a hierarchy of TrafficClasses which contain
 // schedulable task units.
 class TrafficClass {

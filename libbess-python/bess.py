@@ -364,7 +364,7 @@ class BESS(object):
 
         if max_burst:
             for k in max_burst:
-                class_.max_burst[k] = limit[k]
+                class_.max_burst[k] = max_burst[k]
 
         return self._request(self.stub.AddTc, request)
 

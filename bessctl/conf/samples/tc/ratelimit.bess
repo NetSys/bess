@@ -1,41 +1,47 @@
 # Check out "show tc" and "monitor tc" commands
 
+bess.add_tc('rr', policy='round_robin')
+
 # for every second, src0 is scheduled 100000 times 
 src0::Source() -> Sink()
 bess.add_tc('schedule_limit',
             limit={'count': 100000},
-            max_burst={'count': 1000000000},
             policy='rate_limit',
+            parent='rr',
             resource='count')
-bess.attach_task(src0.name, tc='schedule_limit')
+bess.add_tc('schedule_leaf', policy='leaf', parent='schedule_limit')
+bess.attach_task(src0.name, tc='schedule_leaf')
 
 # up to 100Mhz
 src1::Source() -> Sink()
 bess.add_tc('cycle_limit',
             limit={'cycle': 100000000},
-            max_burst={'cycle': 1000000000},
             policy='rate_limit',
+            parent='rr',
             resource='cycle')
-bess.attach_task(src1.name, tc='cycle_limit')
+bess.add_tc('cycle_leaf', policy='leaf', parent='cycle_limit')
+bess.attach_task(src1.name, tc='cycle_leaf')
 
 # 10M packets / sec
 src2::Source() -> Sink()
 bess.add_tc('packet_limit',
             limit={'packet': 10000000},
-            max_burst={'packet': 1000000000},
             policy='rate_limit',
+            parent='rr',
             resource='packet')
-bess.attach_task(src2.name, tc='packet_limit')
+bess.add_tc('packet_leaf', policy='leaf', parent='packet_limit')
+bess.attach_task(src2.name, tc='packet_leaf')
 
 # Gigabits per second
 src3::Source() -> Sink()
 bess.add_tc('bit_limit',
             limit={'bit': 1000000000},
-            max_burst={'bit': 1000000000},
             policy='rate_limit',
+            parent='rr',
             resource='bit')
-bess.attach_task(src3.name, tc='bit_limit')
+bess.add_tc('bit_leaf', policy='leaf', parent='bit_limit')
+bess.attach_task(src3.name, tc='bit_leaf')
 
 src4::Source() -> Sink()
-bess.add_tc('unlimited')
+bess.add_tc('unlimited', parent='rr', policy='leaf')
 bess.attach_task(src4.name, tc='unlimited')

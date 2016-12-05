@@ -738,27 +738,27 @@ def show_worker_list(cli, worker_ids):
 def _limit_to_str(limit):
     buf = []
 
-    if limit.schedules:
-        buf.append('%d times' % limit.schedules)
+    if 'count' in limit:
+        buf.append('%d times' % limit['count'])
 
-    if limit.cycles:
-        buf.append('%.3f Mhz' % (limit.cycles / 1e6))
+    if 'cycle' in limit:
+        buf.append('%.3f Mhz' % (limit['cycle'] / 1e6))
 
-    if limit.packets:
-        if limit.packets < 1e3:
-            buf.append('%.d pps' % limit.packets)
-        elif limit.packets < 1e6:
-            buf.append('%.3f kpps' % (limit.packets / 1e3))
+    if 'packet' in limit:
+        if limit['packet'] < 1e3:
+            buf.append('%.d pps' % limit['packet'])
+        elif limit['packet'] < 1e6:
+            buf.append('%.3f kpps' % (limit['packet'] / 1e3))
         else:
-            buf.append('%.3f Mpps' % (limit.packets / 1e6))
+            buf.append('%.3f Mpps' % (limit['packet'] / 1e6))
 
-    if limit.bits:
-        if limit.bits < 1e3:
-            buf.append('%.d bps' % limit.bits)
-        elif limit.bits < 1e6:
-            buf.append('%.3f kbps' % (limit.bits / 1e3))
+    if limit['bit']:
+        if limit['bit'] < 1e3:
+            buf.append('%.d bps' % limit['bit'])
+        elif limit['bit'] < 1e6:
+            buf.append('%.3f kbps' % (limit['bit'] / 1e3))
         else:
-            buf.append('%.3f Mbps' % (limit.bits / 1e6))
+            buf.append('%.3f Mbps' % (limit['bit'] / 1e6))
 
     if buf:
         return 'limits: ' + ', '.join(buf)
@@ -782,7 +782,7 @@ def _show_tc_list(cli, tcs):
                            '%s\n' % \
                     (getattr(tc, 'class').name,
                      tc.parent if tc.parent else 'none',
-                     getattr(tc, 'class').priority,
+                     getattr(tc, 'class').priority_share,
                      tc.tasks,
                      _limit_to_str(getattr(tc, 'class').limit)))
 
