@@ -7,8 +7,8 @@ from StringIO import StringIO
 '''
 <Ringo language>
 - Providing a click-like module connection semantics
-- All these syntactic sugars must be able to coexist with original Python syntax.
-e.g.,
+- All these syntactic sugars must be able to coexist with original Python synta
+x. e.g.,
     print 'hello %s' % (%ENV!'Anynomous')
 
 --------------------------------------------------------------------------------
@@ -77,7 +77,7 @@ Ringo:
 Python:
     __bess_module__('a', 'Foo')*3 + b
 
-5. 
+5.
 a::Foo():1 -> 2:b::Foo()
 - Connecting output gate 1 of a to input gate 2 of b
 '''
@@ -89,43 +89,45 @@ STRING_SHORT = r'\'.*?\'|\".*?\"'
 STRING_LONG = r'\'\'\'.*?\'\'\'|""".*?"""'
 STRING_ALL = STRING_LONG + '|' + STRING_SHORT
 
+
 def replace_envvar(s):
     environment = r'\$(' + NAME + ')'\
             r'(!(' + STRING_SHORT + '|' + NAME + '))?' \
             r'(!\()?'
-    
+
     # first group: # leading COMMENT -> skip
     # second group: single / double /triple quoted strings -> skip
     # third group: dollar sign with NAME -> $var!assignment
     # third group consists of
     #   fourth group: environment variable
-    #   fifth group: 
+    #   fifth group:
     #   e.g., $ENV!'100'
     #       third group  "$ENV!'100'"
     #       fourth group 'ENV'
     #       fifth group '!' or not
-    
-    pattern = '(' + COMMENT + ')|('+ STRING_ALL + ')|(' + environment + ')'
-    regex = re.compile(pattern, re.MULTILINE|re.DOTALL)
-   
+
+    pattern = '(' + COMMENT + ')|(' + STRING_ALL + ')|(' + environment + ')'
+    regex = re.compile(pattern, re.MULTILINE | re.DOTALL)
+
     def _replacer(match):
         if match.group(3) is not None:
-            # from our definition of pattern 
+            # from our definition of pattern
             # if match.group(3) is not None, match.group(4) is not None
             # if match.group(5) is not None, then there is a parameter
-            if match.group(5) is  None and match.group(7) is None:
+            if match.group(5) is None and match.group(7) is None:
                 return "__bess_env__('" + match.group(4) + "')"
             elif match.group(5) is not None:
                 return "__bess_env__('" + match.group(4) + "', " + \
-                        match.group(6) + ")" 
-            else: 
+                        match.group(6) + ")"
+            else:
                 return "__bess_env__('" + match.group(4) + "', "
-            
+
         else:
             return match.group()
 
     s = regex.sub(_replacer, s)
     return s
+
 
 def is_gate_expr(exp, is_ogate):
     # check if the leading/trailing whitespace characters contains '\n'
@@ -145,6 +147,7 @@ def is_gate_expr(exp, is_ogate):
         return False
     else:
         return True
+
 
 def replace_rarrows(s):
     # if the gate expression is not trivial, add parenthesis
@@ -187,7 +190,7 @@ def replace_rarrows(s):
         line = lines[line_idx]
 
         if arrow_idx < len(arrows):
-            row, col = arrows[arrow_idx] 
+            row, col = arrows[arrow_idx]
         else:
             row, col = None, None
 
@@ -238,43 +241,46 @@ def replace_rarrows(s):
 
     return '+'.join(segments)
 
+
 def create_module_string(s):
 
     # single module -> return a module name string
     if s.find(',') < 0:
-        return "'" + s + "'" 
+        return "'" + s + "'"
 
     # multiple module -> return a tuple of module name string
     mstr = '('
     for module in s.split(','):
-       mstr += "'"+module.strip()+"', "
+        mstr += "'"+module.strip()+"', "
     mstr += ')'
     return mstr
 
+
 def replace_module_assignment(s):
     target = '(' + NAME + '(, *' + NAME + ')*' + ')::(' + NAME + ')\('
-            
+
     # first group: # leading COMMENT -> skip
     # second group: single / double /triple quoted strings -> skip
     # third group: replace target  'NAME::NAME'
-    pattern = '(' + COMMENT + ')|('+ STRING_ALL + ')|(' + target + ')'
-    regex = re.compile(pattern, re.MULTILINE|re.DOTALL)
-    
+    pattern = '(' + COMMENT + ')|(' + STRING_ALL + ')|(' + target + ')'
+    regex = re.compile(pattern, re.MULTILINE | re.DOTALL)
+
     def _replacer(match):
         if match.group(3) is not None:
-            # if match.group(3) is not None, 
+            # if match.group(3) is not None,
             # match.group(4), match.group(6) is not None
             # match.group(4) -> module NAMEs
             # match.group(6) -> module class NAME
             modules = create_module_string(match.group(4))
-            f_str = "__bess_module__("+ modules + ", '" + \
+            f_str = "__bess_module__(" + modules + ", '" + \
                     match.group(6) + "', "
             return f_str
 
         else:
             return match.group()
 
-    return regex.sub(_replacer,s)
+    return regex.sub(_replacer, s)
+
 
 def xform_str(s):
     s = replace_envvar(s)
@@ -282,9 +288,11 @@ def xform_str(s):
     s = replace_rarrows(s)
     return s
 
+
 def xform_file(filename):
     with open(filename) as f:
         return xform_str(f.read())
+
 
 def _test(suite):
     def escape(s):
@@ -295,8 +303,8 @@ def _test(suite):
         str_input, str_expected = case
         str_output = xform_str(str_input)
 
-        print 'Testcase %2d: %-30s %s' % \
-                (i + 1, escape(str_input), escape(str_output))
+        print 'Testcase %2d: %-30s %s' % (
+            i + 1, escape(str_input), escape(str_output))
         if str_output != str_expected:
             print '%s !! Expected: %s' % (' ' * 30, escape(str_expected))
             failed += 1
@@ -305,6 +313,7 @@ def _test(suite):
         print 'OK'
     else:
         print '%d test cases failed' % failed
+
 
 def _run_tests():
     env_suite = [
@@ -322,26 +331,26 @@ def _run_tests():
     mod_suite = [
         ('a::SomeModule()',         "__bess_module__('a', 'SomeModule', )"),
         ('a::SomeModule(b, c, d)',  "__bess_module__('a', 'SomeModule', b, c, d)"),
-        ('a > b',                   "a > b"), 
-        ('a >- b',                  "a >- b"), 
-        ('a -> b',                  "a + b"), 
-        ('ab->cd',                  "ab+cd"), 
+        ('a > b',                   "a > b"),
+        ('a >- b',                  "a >- b"),
+        ('a -> b',                  "a + b"),
+        ('ab->cd',                  "ab+cd"),
         ('abc:2 -> def',            "abc*2 + def"),
         ('abc -> 3:def',            "abc + 3*def"),
-        ('a1 -> b1 -> c1',          "a1 + b1 + c1"), 
+        ('a1 -> b1 -> c1',          "a1 + b1 + c1"),
         ('xx ->yy :0-> zz',         "xx +yy *0+ zz"),
         ('aa:0 -> 1:bb:23 -> 4:cc', "aa*0 + 1*bb*23 + 4*cc"),
         ('a:i+1 -> b',              "a*(i+1) + b"),
         ('a -> j+1:b',            "a + (j+1)*b"),
         ('a -> hello:b',            "a + hello*b"),
-        ('a -> b -> c',             "a + b + c"), 
-        ('a::Foo() -> b::Bar()', 
+        ('a -> b -> c',             "a + b + c"),
+        ('a::Foo() -> b::Bar()',
             "__bess_module__('a', 'Foo', ) + __bess_module__('b', 'Bar', )"),
-        ('a::Foo(b, c, d) -> b::Bar()', 
+        ('a::Foo(b, c, d) -> b::Bar()',
             "__bess_module__('a', 'Foo', b, c, d) + __bess_module__('b', 'Bar', )"),
-        ('a::Foo():xxx -> b::Bar()', 
+        ('a::Foo():xxx -> b::Bar()',
             "__bess_module__('a', 'Foo', )*xxx + __bess_module__('b', 'Bar', )"),
-        ('a::Foo(b, c, d):3->2:b::Bar()', 
+        ('a::Foo(b, c, d):3->2:b::Bar()',
             "__bess_module__('a', 'Foo', b, c, d)*3+2*__bess_module__('b', 'Bar', )"),
         ('Foo() -> Bar()',         'Foo() + Bar()'),
         ('Foo():0 -> Bar()',       'Foo()*0 + Bar()'),
@@ -365,4 +374,4 @@ def _run_tests():
     _test(mod_suite)
 
 if __name__ == '__main__':
-    _run_tests();
+    _run_tests()

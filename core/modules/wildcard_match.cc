@@ -175,13 +175,15 @@ void WildcardMatch::ProcessBatch(bess::PacketBatch *batch) {
         buf_addr += batch->pkts()[j]->data_off();
       }
 
-      *(uint64_t *)key = *(uint64_t *)(buf_addr + offset);
+      *(reinterpret_cast<uint64_t *>(key)) =
+          *(reinterpret_cast<uint64_t *>(buf_addr + offset));
     }
   }
 
 #if 1
   for (int i = 0; i < cnt; i++) {
-    out_gates[i] = LookupEntry((wm_hkey_t *)keys[i], default_gate);
+    out_gates[i] =
+        LookupEntry(reinterpret_cast<wm_hkey_t *>(keys[i]), default_gate);
   }
 #else
   /* A version with an outer loop for tuples and an inner loop for pkts.
@@ -335,7 +337,10 @@ int WildcardMatch::DelEntry(struct WmTuple *tuple, wm_hkey_t *key) {
     tuple->ht.Close();
 
     num_tuples_--;
-    memmove(&tuples_[idx], &tuples_[idx + 1],
+
+    // TODO: Do not use memmove for the class object.
+    // vtable pointer will be overwritten
+    memmove((void *)&tuples_[idx], (void *)&tuples_[idx + 1],
             sizeof(*tuple) * (num_tuples_ - idx));
   }
 

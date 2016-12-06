@@ -41,12 +41,12 @@ class EndianBase<uint64_t> {
 };
 
 template <typename T>
-class [[gnu::packed]] BigEndian final : public EndianBase<T> {
+class[[gnu::packed]] BigEndian final : public EndianBase<T> {
  public:
   BigEndian() = default;
   BigEndian(const T &value) : value_(value) {}
 
-  constexpr T to_cpu() {
+  constexpr T to_cpu() const {
     return is_be_system() ? value_ : EndianBase<T>::swap(value_);
   }
 

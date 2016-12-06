@@ -1,6 +1,7 @@
 import sys
 import os
 
+
 class CLI(object):
 
     # general command errors
@@ -33,7 +34,8 @@ class CLI(object):
         self.maybe_go_interactive()
 
     def maybe_go_interactive(self):
-        if self.interactive: return
+        if self.interactive:
+            return
 
         self.interactive = self.fin.isatty() and self.fout.isatty()
 
@@ -59,11 +61,11 @@ class CLI(object):
                     if self.history_file and os.path.exists(self.history_file):
                         self.rl.read_history_file(self.history_file)
                 except:
-                    self.err('Cannot read from history file "%s"' % \
-                            self.history_file)
+                    self.err('Cannot read from history file "%s"' %
+                             self.history_file)
 
     def err(self, msg):
-        self.fout.write('*** Error: %s\n' % msg);
+        self.fout.write('*** Error: %s\n' % msg)
 
     # If not a variable, simply return None
     # Otherwise, return (var_type, desc, candidates):
@@ -139,8 +141,8 @@ class CLI(object):
                         return 'full', candidates, syntax_token, score
                     return 'partial', candidates, syntax_token, score
 
-                return 'partial', candidates, syntax_tokens[max(0, i - 1)], \
-                        score
+                return 'partial', candidates, \
+                    syntax_tokens[max(0, i - 1)], score
 
             token, remainder = self.split_var(var_type, remainder)
             remainder = remainder.lstrip()
@@ -212,8 +214,8 @@ class CLI(object):
 
         for cmd in self.cmdlist:
             syntax = cmd[0]
-            match_type, sub_candidates, syntax_token, score = \
-                    self.match(syntax, line)
+            match_type, sub_candidates, \
+                syntax_token, score = self.match(syntax, line)
 
             if match_type in ['full', 'partial']:
                 possible_cmds.append((cmd, match_type, syntax_token))
@@ -265,8 +267,8 @@ class CLI(object):
                 attrs = self.get_var_attrs(syntax_token, partial_word)
                 if attrs:
                     var_type, var_desc, var_candidates = attrs
-                    buf.append('    %s (%s): %s\n' % \
-                            (syntax_token, var_type, var_desc))
+                    buf.append('    %s (%s): %s\n' %
+                               (syntax_token, var_type, var_desc))
 
                     eligible = []
                     for var in var_candidates:
@@ -344,8 +346,8 @@ class CLI(object):
                     args.append(None)
                     continue
 
-                raise self.InternalError('Partial match on "%s"? line: "%s"' % \
-                        (syntax, line))
+                raise self.InternalError('Partial match on "%s"? line: "%s"' %
+                                         (syntax, line))
 
             attrs = self.get_var_attrs(syntax_token, remainder.split()[0])
             if attrs:
@@ -411,8 +413,8 @@ class CLI(object):
             try:
                 self.rl.write_history_file(self.history_file)
             except:
-                self.err('Cannot write to history file "%s"' % \
-                        self.history_file)
+                self.err('Cannot write to history file "%s"' %
+                         self.history_file)
 
     def disable_echoctl(self):
         try:

@@ -95,8 +95,7 @@ void GenericEncap::ProcessBatch(bess::PacketBatch *batch) {
 
     for (int j = 0; j < cnt; j++, header += MAX_HEADER_SIZE) {
       bess::Packet *pkt = batch->pkts()[j];
-
-      *(uint64_t *)header =
+      *(reinterpret_cast<uint64_t *>(header)) =
           (attr_id < 0) ? value : get_attr_with_offset<uint64_t>(offset, pkt);
     }
   }

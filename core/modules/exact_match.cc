@@ -133,7 +133,8 @@ void ExactMatch::ProcessBatch(bess::PacketBatch *batch) {
         buf_addr += batch->pkts()[j]->data_off();
       }
 
-      *(uint64_t *)key = *(uint64_t *)(buf_addr + offset) & mask;
+      *(reinterpret_cast<uint64_t *>(key)) =
+          *(reinterpret_cast<uint64_t *>(buf_addr + offset)) & mask;
     }
   }
 

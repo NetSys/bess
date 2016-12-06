@@ -298,7 +298,7 @@ static Module* create_module(const std::string& name,
     return nullptr;
   }
 
-  if (!builder.AddModule(m)) {
+  if (!ModuleBuilder::AddModule(m)) {
     *perr = pb_errno(ENOMEM);
     return nullptr;
   }

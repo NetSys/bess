@@ -46,13 +46,13 @@ void VLANPush::ProcessBatch(bess::PacketBatch *batch) {
 #if __SSE4_1__
       __m128i ethh;
 
-      ethh = _mm_loadu_si128((__m128i *)(new_head + 4));
+      ethh = _mm_loadu_si128(reinterpret_cast<__m128i *>(new_head + 4));
       tpid = _mm_extract_epi16(ethh, 6);
 
       ethh = _mm_insert_epi32(
           ethh, (tpid == rte_cpu_to_be_16(0x8100)) ? qinq_tag : vlan_tag, 3);
 
-      _mm_storeu_si128((__m128i *)new_head, ethh);
+      _mm_storeu_si128(reinterpret_cast<__m128i *>(new_head), ethh);
 #else
       tpid = *(uint16_t *)(new_head + 16);
       memmove(new_head, new_head + 4, 12);

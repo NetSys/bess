@@ -242,30 +242,34 @@ void *VPort::AllocBar(struct tx_queue_opts *txq_opts,
 
   for (i = 0; i < conf->num_txq; i++) {
     /* Driver -> BESS */
-    llring_init((struct llring *)ptr, SLOTS_PER_LLRING, SINGLE_P, SINGLE_C);
-    inc_qs_[i].drv_to_sn = (struct llring *)ptr;
+    llring_init(reinterpret_cast<struct llring *>(ptr), SLOTS_PER_LLRING,
+                SINGLE_P, SINGLE_C);
+    inc_qs_[i].drv_to_sn = reinterpret_cast<struct llring *>(ptr);
     ptr += ROUND_TO_64(bytes_per_llring);
 
     /* BESS -> Driver */
-    llring_init((struct llring *)ptr, SLOTS_PER_LLRING, SINGLE_P, SINGLE_C);
-    refill_tx_bufs((struct llring *)ptr);
-    inc_qs_[i].sn_to_drv = (struct llring *)ptr;
+    llring_init(reinterpret_cast<struct llring *>(ptr), SLOTS_PER_LLRING,
+                SINGLE_P, SINGLE_C);
+    refill_tx_bufs(reinterpret_cast<struct llring *>(ptr));
+    inc_qs_[i].sn_to_drv = reinterpret_cast<struct llring *>(ptr);
     ptr += ROUND_TO_64(bytes_per_llring);
   }
 
   for (i = 0; i < conf->num_rxq; i++) {
     /* RX queue registers */
-    out_qs_[i].rx_regs = (struct sn_rxq_registers *)ptr;
+    out_qs_[i].rx_regs = reinterpret_cast<struct sn_rxq_registers *>(ptr);
     ptr += ROUND_TO_64(sizeof(struct sn_rxq_registers));
 
     /* Driver -> BESS */
-    llring_init((struct llring *)ptr, SLOTS_PER_LLRING, SINGLE_P, SINGLE_C);
-    out_qs_[i].drv_to_sn = (struct llring *)ptr;
+    llring_init(reinterpret_cast<struct llring *>(ptr), SLOTS_PER_LLRING,
+                SINGLE_P, SINGLE_C);
+    out_qs_[i].drv_to_sn = reinterpret_cast<struct llring *>(ptr);
     ptr += ROUND_TO_64(bytes_per_llring);
 
     /* BESS -> Driver */
-    llring_init((struct llring *)ptr, SLOTS_PER_LLRING, SINGLE_P, SINGLE_C);
-    out_qs_[i].sn_to_drv = (struct llring *)ptr;
+    llring_init(reinterpret_cast<struct llring *>(ptr), SLOTS_PER_LLRING,
+                SINGLE_P, SINGLE_C);
+    out_qs_[i].sn_to_drv = reinterpret_cast<struct llring *>(ptr);
     ptr += ROUND_TO_64(bytes_per_llring);
   }
 

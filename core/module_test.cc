@@ -69,7 +69,7 @@ int create_acme(const char *name, Module **m) {
   pb_error_t err = (*m)->InitWithGenericArg(arg);
   EXPECT_EQ(42, err.err());
 
-  builder.AddModule(*m);
+  ModuleBuilder::AddModule(*m);
 
   EXPECT_EQ("AcmeModule", builder.class_name());
   EXPECT_EQ("acme_module", builder.name_template());

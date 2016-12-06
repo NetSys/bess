@@ -23,9 +23,11 @@ from module import *
 # extention for configuration files.
 CONF_EXT = 'bess'
 
+
 # errors in configuration file
 class ConfError(Exception):
     pass
+
 
 def __bess_env__(key, default=None):
     try:
@@ -34,9 +36,10 @@ def __bess_env__(key, default=None):
         if default is None:
             raise ConfError('Environment variable "%s" must be set.')
 
-        print 'Environment variable "%s" is not set. Using default value "%s"' \
-                % (key, default)
+        print 'Environment variable "%s" is not set. \
+            Using default value "%s"' % (key, default)
         return default
+
 
 def __bess_module__(module_names, mclass_name, *args, **kwargs):
     caller_globals = inspect.stack()[1][0].f_globals
@@ -78,6 +81,7 @@ def is_allowed_filename(basename):
 
     return True
 
+
 def complete_filename(partial_word, start_dir='', suffix=''):
     try:
         sub_dir, partial_basename = os.path.split(partial_word)
@@ -115,6 +119,7 @@ def complete_filename(partial_word, start_dir='', suffix=''):
         # ignore failure of os.listdir()
         return []
 
+
 def get_var_attrs(cli, var_token, partial_word):
     var_type = None
     var_desc = ''
@@ -129,7 +134,8 @@ def get_var_attrs(cli, var_token, partial_word):
         elif var_token == 'WORKER_ID...':
             var_type = 'wid+'
             var_desc = 'one or more worker IDs'
-            var_candidates = [str(m.wid) for m in cli.bess.list_workers().workers_status]
+            var_candidates = [str(m.wid)
+                              for m in cli.bess.list_workers().workers_status]
 
         elif var_token == 'DRIVER':
             var_type = 'name'
@@ -186,13 +192,15 @@ def get_var_attrs(cli, var_token, partial_word):
         elif var_token == 'TC...':
             var_type = 'name+'
             var_desc = 'one or more traffic class names'
-            var_candidates = [c.class_.name for c in cli.bess.list_tcs().classes_status]
+            var_candidates = [c.class_.name
+                              for c in cli.bess.list_tcs().classes_status]
 
         elif var_token == 'CONF':
             var_type = 'confname'
             var_desc = 'configuration name in "conf/" directory'
             var_candidates = complete_filename(partial_word,
-                    '%s/conf' % cli.this_dir, '.' + CONF_EXT)
+                                               '%s/conf' % cli.this_dir,
+                                               '.' + CONF_EXT)
 
         elif var_token == 'CONF_FILE':
             var_type = 'filename'
@@ -234,7 +242,8 @@ def get_var_attrs(cli, var_token, partial_word):
 
         elif var_token == '[TCPDUMP_OPTS...]':
             var_type = 'opts'
-            var_desc = 'tcpdump(1) command-line options (e.g., "-ne tcp port 22")'
+            var_desc = 'tcpdump(1) command-line options ' \
+                '(e.g., "-ne tcp port 22")'
 
         elif var_token == '[BESSD_OPTS...]':
             var_type = 'opts'
@@ -257,10 +266,11 @@ def get_var_attrs(cli, var_token, partial_word):
     except cli.bess.APIError:
         pass
 
-    if var_type == None:
+    if var_type is None:
         return None
     else:
         return var_type, var_desc, var_candidates
+
 
 # Return (head, tail)
 #   head: consumed string portion
@@ -285,8 +295,10 @@ def split_var(cli, var_type, line):
 
     return head, tail
 
+
 def _parse_map(**kwargs):
     return kwargs
+
 
 # Return (mapped_value, tail)
 #   mapped_value: Python value/object from the consumed token(s)
@@ -325,7 +337,7 @@ def bind_var(cli, var_type, line):
             raise cli.BindError('"gate" must be a positive number')
 
     elif var_type == 'name+':
-        val = sorted(list(set(head.split()))) # collect unique items
+        val = sorted(list(set(head.split())))  # collect unique items
         for name in val:
             if re.match(r'^[_a-zA-Z][\w]*$', name) is None:
                 raise cli.BindError('"name" must be [_a-zA-Z][_a-zA-Z0-9]*')
@@ -351,8 +363,9 @@ def bind_var(cli, var_type, line):
             else:
                 val = eval(head)
         except:
-            raise cli.BindError('"pyobj" should be an object in python syntax' \
-                    ' (e.g., 42, "foo", ["hello", "world"], {"bar": "baz"})')
+            raise cli.BindError(
+                '"pyobj" should be an object in python syntax'
+                ' (e.g., 42, "foo", ["hello", "world"], {"bar": "baz"})')
 
     elif var_type == 'opts':
         val = val.split()
@@ -363,15 +376,16 @@ def bind_var(cli, var_type, line):
         except Exception:
             raise cli.BindError('Expected an integer')
 
-
     return val, remainder
 
 cmdlist = []
+
 
 def cmd(syntax, desc=''):
     def cmd_decorator(func):
         cmdlist.append((syntax, desc, func))
     return cmd_decorator
+
 
 @cmd('help', 'List available commands')
 def help(cli):
@@ -379,9 +393,11 @@ def help(cli):
         cli.fout.write('  %-50s%s\n' % (syntax, desc))
     cli.fout.flush()
 
+
 @cmd('quit', 'Quit CLI')
 def help(cli):
     raise EOFError()
+
 
 @cmd('history', 'Show command history')
 def history(cli):
@@ -393,10 +409,11 @@ def history(cli):
     else:
         cli.err('"readline" not available')
 
-@cmd('debug ENABLE_DISABLE',
-        'Enable/disable debug messages')
+
+@cmd('debug ENABLE_DISABLE', 'Enable/disable debug messages')
 def debug(cli, flag):
-    cli.bess.set_debug(flag== 'enable')
+    cli.bess.set_debug(flag == 'enable')
+
 
 @cmd('daemon connect [HOST] [TCP_PORT]', 'Connect to BESS daemon')
 def daemon_connect(cli, host, port):
@@ -410,9 +427,11 @@ def daemon_connect(cli, host, port):
 
     cli.bess.connect(**kwargs)
 
+
 @cmd('daemon disconnect', 'Disconnect from BESS daemon')
 def daemon_disconnect(cli):
     cli.bess.disconnect()
+
 
 # return False iff canceled.
 def warn(cli, msg, func, *args):
@@ -445,12 +464,13 @@ def warn(cli, msg, func, *args):
 
     return True
 
+
 def _do_start(cli, opts):
     if opts is None:
         opts = []
 
-    cmd = 'sudo %s/core/bessd -k %s' % \
-            (os.path.dirname(cli.this_dir), ' '.join(opts))
+    cmd = 'sudo %s/core/bessd -k %s' % (os.path.dirname(cli.this_dir),
+                                        ' '.join(opts))
 
     cli.bess.disconnect()
 
@@ -458,7 +478,8 @@ def _do_start(cli, opts):
         ret = os.system('sudo -n echo -n 2> /dev/null')
         if os.WEXITSTATUS(ret) != 0:
             cli.fout.write('You need root privilege to launch BESS daemon, '
-                    'but "sudo" requires a password for this account.\n')
+                           'but "sudo" requires a password for this account.'
+                           '\n')
         subprocess.check_call(cmd, shell='True')
     except subprocess.CalledProcessError:
         try:
@@ -468,6 +489,7 @@ def _do_start(cli, opts):
         raise cli.CommandError('Cannot start BESS daemon')
     else:
         cli.bess.connect()
+
 
 @cmd('daemon start [BESSD_OPTS...]', 'Start BESS daemon in the local machine')
 def daemon_start(cli, opts):
@@ -491,11 +513,13 @@ def daemon_start(cli, opts):
     else:
         _do_start(cli, opts)
 
+
 def is_pipeline_empty(cli):
     workers = cli.bess.list_workers().workers_status
     modules = cli.bess.list_modules().modules
     ports = cli.bess.list_ports().ports
     return len(workers) == 0 and len(modules) == 0 and len(ports) == 0
+
 
 def _do_reset(cli):
     cli.bess.pause_all()
@@ -504,6 +528,7 @@ def _do_reset(cli):
     if cli.interactive:
         cli.fout.write('Done.\n')
 
+
 @cmd('daemon reset', 'Remove all ports and modules in the pipeline')
 def daemon_reset(cli):
     if is_pipeline_empty(cli):
@@ -511,11 +536,13 @@ def daemon_reset(cli):
     else:
         warn(cli, 'The entire pipeline will be cleared.', _do_reset)
 
+
 def _do_stop(cli):
     cli.bess.pause_all()
     cli.bess.kill()
     if cli.interactive:
         cli.fout.write('Done.\n')
+
 
 @cmd('daemon stop', 'Stop BESS daemon')
 def daemon_stop(cli):
@@ -524,9 +551,11 @@ def daemon_stop(cli):
     else:
         warn(cli, 'BESS daemon will be killed.', _do_stop)
 
+
 def _clear_pipeline(cli):
     cli.bess.pause_all()
     cli.bess.reset_all()
+
 
 # NOTE: the name of this function is used below
 def _do_run_file(cli, conf_file):
@@ -553,7 +582,7 @@ def _do_run_file(cli, conf_file):
             raise cli.InternalError('Invalid driver name: %s' % name)
 
         new_globals[name] = type(str(name), (Port,),
-                {'bess': cli.bess})
+                                 {'bess': cli.bess})
 
     # Add BESS module classes
     for name in class_names:
@@ -561,7 +590,7 @@ def _do_run_file(cli, conf_file):
             raise cli.InternalError('Invalid module class name: %s' % name)
 
         new_globals[name] = type(str(name), (Module,),
-                {'bess': cli.bess})
+                                 {'bess': cli.bess})
 
     code = compile(xformed, conf_file, 'exec')
 
@@ -598,6 +627,7 @@ def _do_run_file(cli, conf_file):
     finally:
         cli.bess.resume_all()
 
+
 def _run_file(cli, conf_file, env_map):
     if env_map:
         try:
@@ -614,6 +644,7 @@ def _run_file(cli, conf_file, env_map):
     else:
             _do_run_file(cli, conf_file)
 
+
 @cmd('run CONF [ENV_VARS...]', 'Run a *.bess configuration in "conf/"')
 def run_conf(cli, conf, env_map):
     target_dir = '%s/conf' % cli.this_dir
@@ -621,9 +652,11 @@ def run_conf(cli, conf, env_map):
     conf_file = os.path.join(target_dir, basename)
     _run_file(cli, conf_file, env_map)
 
+
 @cmd('run file CONF_FILE [ENV_VARS...]', 'Run a configuration file')
 def run_file(cli, conf_file, env_map):
     _run_file(cli, os.path.expanduser(conf_file), env_map)
+
 
 @cmd('add port DRIVER [NEW_PORT] [PORT_ARGS...]', 'Add a new port')
 def add_port(cli, driver, port, args):
@@ -631,6 +664,7 @@ def add_port(cli, driver, port, args):
 
     if port is None:
         cli.fout.write('  The new port "%s" has been created\n' % ret.name)
+
 
 @cmd('add module MCLASS [NEW_MODULE] [MODULE_ARGS...]', 'Add a new module')
 def add_module(cli, mclass, module, args):
@@ -643,8 +677,9 @@ def add_module(cli, mclass, module, args):
     if module is None:
         cli.fout.write('  The new module "%s" has been created\n' % ret.name)
 
+
 @cmd('add connection MODULE MODULE [OGATE] [IGATE]',
-        'Add a connection between two modules')
+     'Add a connection between two modules')
 def add_connection(cli, m1, m2, ogate, igate):
     if ogate is None:
         ogate = 0
@@ -658,8 +693,9 @@ def add_connection(cli, m1, m2, ogate, igate):
     finally:
         cli.bess.resume_all()
 
+
 @cmd('command module MODULE MODULE_CMD ARG_TYPE [CMD_ARGS...]',
-        'Send a command to a module')
+     'Send a command to a module')
 def command_module(cli, module, cmd, arg_type, args):
     cli.bess.pause_all()
     try:
@@ -668,9 +704,11 @@ def command_module(cli, module, cmd, arg_type, args):
     finally:
         cli.bess.resume_all()
 
+
 @cmd('delete port PORT', 'Delete a port')
 def delete_port(cli, port):
     cli.bess.destroy_port(port)
+
 
 @cmd('delete module MODULE', 'Delete a module')
 def delete_module(cli, module):
@@ -680,8 +718,9 @@ def delete_module(cli, module):
     finally:
         cli.bess.resume_all()
 
+
 @cmd('delete connection MODULE ogate [OGATE]',
-    'Delete a connection between two modules')
+     'Delete a connection between two modules')
 def delete_connection(cli, module, ogate):
     if ogate is None:
         ogate = 0
@@ -692,21 +731,24 @@ def delete_connection(cli, module, ogate):
     finally:
         cli.bess.resume_all()
 
+
 def _show_worker_header(cli):
-    cli.fout.write('  %10s%10s%10s%10s%16s\n' % \
-            ('Worker ID',
-             'Status',
-             'CPU core',
-             '# of TCs',
-             'Deadend pkts'))
+    cli.fout.write('  %10s%10s%10s%10s%16s\n' % (
+        'Worker ID',
+        'Status',
+        'CPU core',
+        '# of TCs',
+        'Deadend pkts'))
+
 
 def _show_worker(cli, w):
-    cli.fout.write('  %10d%10s%10d%10d%16d\n' % \
-            (w.wid,
-             'RUNNING' if w.running else 'PAUSED',
-             w.core,
-             w.num_tcs,
-             w.silent_drops))
+    cli.fout.write('  %10d%10s%10d%10d%16d\n' % (
+            w.wid,
+            'RUNNING' if w.running else 'PAUSED',
+            w.core,
+            w.num_tcs,
+            w.silent_drops))
+
 
 @cmd('show worker', 'Show the status of all worker threads')
 def show_worker_all(cli):
@@ -719,6 +761,7 @@ def show_worker_all(cli):
     for worker in workers:
         _show_worker(cli, worker)
 
+
 @cmd('show worker WORKER_ID...', 'Show the status of specified worker threads')
 def show_worker_list(cli, worker_ids):
     workers = cli.bess.list_workers().workers_status
@@ -726,7 +769,7 @@ def show_worker_list(cli, worker_ids):
     for wid in worker_ids:
         for worker in workers:
             if worker.wid == wid:
-                break;
+                break
         else:
             raise cli.CommandError('Worker ID %d does not exist' % wid)
 
@@ -734,6 +777,7 @@ def show_worker_list(cli, worker_ids):
     for worker in workers:
         if worker.wid in worker_ids:
             _show_worker(cli, worker)
+
 
 def _limit_to_str(limit):
     buf = []
@@ -765,6 +809,7 @@ def _limit_to_str(limit):
     else:
         return 'unlimited'
 
+
 def _show_tc_list(cli, tcs):
     wids = sorted(list(set(map(lambda tc: getattr(tc, 'class').wid, tcs))))
 
@@ -777,19 +822,20 @@ def _show_tc_list(cli, tcs):
             cli.fout.write('  worker %d (%d classes)\n' % (wid, len(matched)))
 
         for tc in matched:
-            cli.fout.write('    %-16s  ' \
-                           'parent %-10s  priority %-3d  tasks %-3d ' \
-                           '%s\n' % \
-                    (getattr(tc, 'class').name,
-                     tc.parent if tc.parent else 'none',
-                     getattr(tc, 'class').priority,
-                     tc.tasks,
-                     _limit_to_str(getattr(tc, 'class').limit)))
+            cli.fout.write('    %-16s  '
+                           'parent %-10s  priority %-3d  tasks %-3d '
+                           '%s\n' %
+                           (getattr(tc, 'class').name,
+                            tc.parent if tc.parent else 'none',
+                            getattr(tc, 'class').priority,
+                            tc.tasks,
+                            _limit_to_str(getattr(tc, 'class').limit)))
 
 
 @cmd('show tc', 'Show the list of traffic classes')
 def show_tc_all(cli):
     _show_tc_list(cli, cli.bess.list_tcs().classes_status)
+
 
 @cmd('show tc worker WORKER_ID...', 'Show the list of traffic classes')
 def show_tc_workers(cli, wids):
@@ -797,9 +843,11 @@ def show_tc_workers(cli, wids):
     for wid in wids:
         _show_tc_list(cli, cli.bess.list_tcs(wid).classes_status)
 
+
 @cmd('show status', 'Show the overall status')
 def show_status(cli):
-    workers = sorted(cli.bess.list_workers().workers_status, key=lambda x: x.wid)
+    workers = sorted(cli.bess.list_workers().workers_status,
+                     key=lambda x: x.wid)
     drivers = sorted(cli.bess.list_drivers().driver_names)
     mclasses = sorted(cli.bess.list_mclasses().names)
     modules = sorted(cli.bess.list_modules().modules, key=lambda x: x.name)
@@ -807,8 +855,8 @@ def show_status(cli):
 
     cli.fout.write('  Active worker threads: ')
     if workers:
-        worker_list = ['worker%d (cpu %d)' % \
-                (worker.wid, worker.core) for worker in workers]
+        worker_list = ['worker%d (cpu %d)' %
+                       (worker.wid, worker.core) for worker in workers]
         cli.fout.write('%s\n' % ', '.join(worker_list))
     else:
         cli.fout.write('(none)\n')
@@ -836,15 +884,15 @@ def show_status(cli):
     if modules:
         module_list = []
         for m in modules:
-            module_list.append('%s::%s(%s)' % \
-                               (m.name, m.mclass, m.desc))
+            module_list.append('%s::%s(%s)' % (m.name, m.mclass, m.desc))
 
         cli.fout.write('%s\n' % ', '.join(module_list))
     else:
         cli.fout.write('(none)\n')
 
+
 # last_stats: a map of (node name, gateid) -> (timestamp, counter value)
-def _draw_pipeline(cli, field, last_stats = None):
+def _draw_pipeline(cli, field, last_stats=None):
     modules = sorted(cli.bess.list_modules().modules, key=lambda x: x.name)
     names = []
     node_labels = {}
@@ -860,9 +908,9 @@ def _draw_pipeline(cli, field, last_stats = None):
 
     try:
         f = subprocess.Popen('graph-easy', shell=True,
-                stdin=subprocess.PIPE,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE)
+                             stdin=subprocess.PIPE,
+                             stdout=subprocess.PIPE,
+                             stderr=subprocess.PIPE)
 
         for m in modules:
             print >> f.stdin, '[%s]' % node_labels[m.name]
@@ -880,33 +928,36 @@ def _draw_pipeline(cli, field, last_stats = None):
                 else:
                     val = getattr(gate, field)
 
-                edge_attr = '{label::%d  %d  %d:;}' % \
-                        (gate.ogate, val, gate.igate)
+                edge_attr = '{label::%d  %d  %d:;}' % (
+                    gate.ogate, val, gate.igate)
 
                 print >> f.stdin, '[%s] ->%s [%s]' % (
-                        node_labels[name],
-                        edge_attr,
-                        node_labels[gate.name],
-                    )
+                    node_labels[name],
+                    edge_attr,
+                    node_labels[gate.name])
         output, error = f.communicate()
         f.wait()
         return output
 
     except IOError as e:
         if e.errno == errno.EPIPE:
-            raise cli.CommandError('"graph-easy" program is not availabe? ' \
-                    'Check if the package "libgraph-easy-perl" is installed.')
+            raise cli.CommandError('"graph-easy" program is not availabe? '
+                                   'Check if the package "libgraph-easy-perl" '
+                                   'is installed.')
         else:
             raise
+
 
 @cmd('show pipeline', 'Show the current datapath pipeline')
 def show_pipeline(cli):
     cli.fout.write(_draw_pipeline(cli, 'pkts'))
 
+
 @cmd('show pipeline batch',
-        'Show the current datapath pipeline with batch counters')
+     'Show the current datapath pipeline with batch counters')
 def show_pipeline_batch(cli):
     cli.fout.write(_draw_pipeline(cli, 'cnt'))
+
 
 def _group(number):
     s = str(number)
@@ -915,6 +966,7 @@ def _group(number):
         groups.append(s[-3:])
         s = s[:-3]
     return s + ','.join(reversed(groups))
+
 
 def _show_port(cli, port):
     cli.fout.write('  %s/%s\n' % (port.name, port.driver))
@@ -931,6 +983,7 @@ def _show_port(cli, port):
     cli.fout.write('      dropped: %s\n' % _group(port_stats.out.dropped))
     cli.fout.write('      bytes  : %s\n' % _group(port_stats.out.bytes))
 
+
 @cmd('show port', 'Show the status of all ports')
 def show_port_all(cli):
     ports = cli.bess.list_ports().ports
@@ -940,6 +993,7 @@ def show_port_all(cli):
     else:
         for port in ports:
             _show_port(cli, port)
+
 
 @cmd('show port PORT...', 'Show the status of spcified ports')
 def show_port_list(cli, port_names):
@@ -954,6 +1008,7 @@ def show_port_list(cli, port_names):
         else:
             raise cli.CommandError('Port "%s" doest not exist' % port_name)
 
+
 def _show_module(cli, module_name):
     info = cli.bess.get_module_info(module_name)
 
@@ -964,8 +1019,8 @@ def _show_module(cli, module_name):
     if len(info.metadata) > 0:
         cli.fout.write('    Per-packet metadata fields:\n')
         for field in info.metadata:
-            cli.fout.write('%16s %-6s%2d bytes ' % \
-                    (field.name + ':', field.mode, field.size))
+            cli.fout.write('%16s %-6s%2d bytes ' %
+                           (field.name + ':', field.mode, field.size))
 
             if field.offset >= 0:
                 cli.fout.write('at offset %d\n' % field.offset)
@@ -982,13 +1037,13 @@ def _show_module(cli, module_name):
             track_str = 'batches N/A packets N/A'
             try:
                 track_str = 'batches %-16d packets %-16d' % (gate.cnt,
-                        gate.pkts)
+                                                             gate.pkts)
             except:
                 pass
-            cli.fout.write('      %5d: %s %s\n' % \
-                    (gate.igate, track_str,
-                     ', '.join('%s:%d ->' % (g.name, g.ogate) \
-                             for g in gate.ogates)))
+            cli.fout.write('      %5d: %s %s\n' %
+                           (gate.igate, track_str,
+                            ', '.join('%s:%d ->' % (g.name, g.ogate)
+                                      for g in gate.ogates)))
 
     if len(info.ogates) > 0:
         cli.fout.write('    Output gates:\n')
@@ -996,11 +1051,11 @@ def _show_module(cli, module_name):
             track_str = 'batches N/A packets N/A'
             try:
                 track_str = 'batches %-16d packets %-16d' % (gate.cnt,
-                        gate.pkts)
+                                                             gate.pkts)
             except:
                 pass
             cli.fout.write(
-                    '      %5d: %s -> %d:%s\n' % \
+                    '      %5d: %s -> %d:%s\n' %
                     (gate.ogate, track_str, gate.igate, gate.name))
 
     if hasattr(info, 'dump'):
@@ -1008,6 +1063,7 @@ def _show_module(cli, module_name):
         dump_str = '\n      '.join(dump_str.split('\n'))
         cli.fout.write('    Dump:\n')
         cli.fout.write('      %s\n' % dump_str)
+
 
 @cmd('show module', 'Show the status of all modules')
 def show_module_all(cli):
@@ -1019,15 +1075,16 @@ def show_module_all(cli):
     for module in modules:
         _show_module(cli, module.name)
 
+
 @cmd('show module MODULE...', 'Show the status of specified modules')
 def show_module_list(cli, module_names):
     for module_name in module_names:
         _show_module(cli, module_name)
 
+
 def _show_mclass(cli, cls_name, detail):
     info = cli.bess.get_mclass_info(cls_name)
-
-    cli.fout.write( '%-16s %s\n' % (info.name, info.help))
+    cli.fout.write('%-16s %s\n' % (info.name, info.help))
 
     if detail:
         if len(info.cmds) > 0:
@@ -1035,27 +1092,30 @@ def _show_mclass(cli, cls_name, detail):
         else:
             cli.fout.write('\t\t (no commands)\n')
 
+
 @cmd('show mclass', 'Show all module classes')
 def show_mclass_all(cli):
     mclasses = cli.bess.list_mclasses().names
     for cls_name in mclasses:
         _show_mclass(cli, cls_name, False)
 
+
 @cmd('show mclass MCLASS...', 'Show the details of specified module classes')
 def show_mclass_list(cli, cls_names):
     for cls_name in cls_names:
         _show_mclass(cli, cls_name, True)
 
+
 def _show_driver(cli, drv_name, detail):
     info = cli.bess.get_driver_info(drv_name)
-
-    cli.fout.write( '%-16s %s\n' % (info.name, info.help))
+    cli.fout.write('%-16s %s\n' % (info.name, info.help))
 
     if detail:
         if info.commands:
             cli.fout.write('\t\t commands: %s\n' % (', '.join(info.commands)))
         else:
             cli.fout.write('\t\t (no commands)\n')
+
 
 @cmd('show driver', 'Show all port drivers')
 def show_driver_all(cli):
@@ -1064,10 +1124,12 @@ def show_driver_all(cli):
     for drv_name in drivers:
         _show_driver(cli, drv_name, False)
 
+
 @cmd('show driver DRIVER...', 'Show the details of specified drivers')
 def show_driver_list(cli, drv_names):
     for drv_name in drv_names:
         _show_driver(cli, drv_name, True)
+
 
 def _monitor_pipeline(cli, field):
     modules = sorted(cli.bess.list_modules().modules, key=lambda x: x.name)
@@ -1088,13 +1150,17 @@ def _monitor_pipeline(cli, field):
     except KeyboardInterrupt:
         pass
 
+
 @cmd('monitor pipeline', 'Monitor packet counters in the datapath pipeline')
 def monitor_pipeline(cli):
     _monitor_pipeline(cli, 'pkts')
 
-@cmd('monitor pipeline batch', 'Monitor batch counters in the datapath pipeline')
+
+@cmd('monitor pipeline batch',
+     'Monitor batch counters in the datapath pipeline')
 def monitor_pipeline_batch(cli):
     _monitor_pipeline(cli, 'cnt')
+
 
 def _monitor_ports(cli, *ports):
 
@@ -1111,10 +1177,10 @@ def _monitor_ports(cli, *ports):
 
     def print_header(timestamp):
         cli.fout.write('\n')
-        cli.fout.write('%-20s%14s%10s%10s        %14s%10s%10s\n' % \
-                (time.strftime('%X') + str(timestamp % 1)[1:8], \
-                 'INC     Mbps', 'Mpps', 'dropped', \
-                 'OUT     Mbps', 'Mpps', 'dropped'))
+        cli.fout.write('%-20s%14s%10s%10s        %14s%10s%10s\n' %
+                       (time.strftime('%X') + str(timestamp % 1)[1:8],
+                        'INC     Mbps', 'Mpps', 'dropped',
+                        'OUT     Mbps', 'Mpps', 'dropped'))
 
         cli.fout.write('%s\n' % ('-' * 96))
 
@@ -1122,14 +1188,16 @@ def _monitor_ports(cli, *ports):
         cli.fout.write('%s\n' % ('-' * 96))
 
     def print_delta(port, delta):
-        cli.fout.write('%-20s%14.1f%10.3f%10d        %14.1f%10.3f%10d\n' % \
-                (port,
-                 (delta['inc_bytes'] + delta['inc_packets'] * 24) * 8 / 1e6,
-                 delta['inc_packets'] / 1e6,
-                 delta['inc_dropped'],
-                 (delta['out_bytes'] + delta['out_packets'] * 24) * 8 / 1e6,
-                 delta['out_packets'] / 1e6,
-                 delta['out_dropped']))
+        cli.fout.write('%-20s%14.1f%10.3f%10d        %14.1f%10.3f%10d\n' %
+                       (port,
+                        (delta['inc_bytes'] +
+                         delta['inc_packets'] * 24) * 8 / 1e6,
+                        delta['inc_packets'] / 1e6,
+                        delta['inc_dropped'],
+                        (delta['out_bytes'] +
+                         delta['out_packets'] * 24) * 8 / 1e6,
+                        delta['out_packets'] / 1e6,
+                        delta['out_dropped']))
 
     def get_total(arr):
         total = copy.deepcopy(arr[0])
@@ -1171,7 +1239,7 @@ def _monitor_ports(cli, *ports):
 
             for port in ports:
                 print_delta('%s/%s' % (port, drivers[port]),
-                        get_delta(last[port], now[port]))
+                            get_delta(last[port], now[port]))
 
             print_footer()
 
@@ -1185,13 +1253,16 @@ def _monitor_ports(cli, *ports):
     except KeyboardInterrupt:
         pass
 
+
 @cmd('monitor port', 'Monitor the current traffic of all ports')
 def monitor_port_all(cli):
     _monitor_ports(cli)
 
+
 @cmd('monitor port PORT...', 'Monitor the current traffic of specified ports')
 def monitor_port_all(cli, ports):
     _monitor_ports(cli, *ports)
+
 
 def _monitor_tcs(cli, *tcs):
     def get_delta(old, new):
@@ -1200,10 +1271,10 @@ def _monitor_tcs(cli, *tcs):
 
     def print_header(timestamp):
         cli.fout.write('\n')
-        cli.fout.write('%-20s%12s%12s%12s%12s%12s%12s\n' % \
-                (time.strftime('%X') + str(timestamp % 1)[1:8], \
-                 'CPU MHz', 'scheduled', 'Mpps', 'Mbps',
-                 'pkts/sched', 'cycles/p'))
+        cli.fout.write('%-20s%12s%12s%12s%12s%12s%12s\n' %
+                       (time.strftime('%X') + str(timestamp % 1)[1:8],
+                        'CPU MHz', 'scheduled', 'Mpps', 'Mbps',
+                        'pkts/sched', 'cycles/p'))
 
         cli.fout.write('%s\n' % ('-' * 92))
 
@@ -1221,15 +1292,14 @@ def _monitor_tcs(cli, *tcs):
         else:
             cpp = 0
 
-        cli.fout.write('%-20s%12.3f%12d%12.3f%12.3f%12.3f%12.3f\n' % \
-                (tc,
-                 delta.cycles / 1e6,
-                 delta.count,
-                 delta.packets / 1e6,
-                 delta.bits / 1e6,
-                 ppb,
-                 cpp))
-
+        cli.fout.write('%-20s%12.3f%12d%12.3f%12.3f%12.3f%12.3f\n' %
+                       (tc,
+                        delta.cycles / 1e6,
+                        delta.count,
+                        delta.packets / 1e6,
+                        delta.bits / 1e6,
+                        ppb,
+                        cpp))
 
     def get_total(arr):
         total = copy.deepcopy(arr[0])
@@ -1270,7 +1340,7 @@ def _monitor_tcs(cli, *tcs):
 
             for tc in tcs:
                 print_delta('W%d %s' % (wids[tc], tc),
-                        get_delta(last[tc], now[tc]))
+                            get_delta(last[tc], now[tc]))
 
             print_footer()
 
@@ -1284,16 +1354,20 @@ def _monitor_tcs(cli, *tcs):
     except KeyboardInterrupt:
         pass
 
+
 @cmd('monitor tc', 'Monitor the statistics of all traffic classes')
 def monitor_tc_all(cli):
     _monitor_tcs(cli)
+
 
 @cmd('monitor tc TC...', 'Monitor the statistics of specified traffic classes')
 def monitor_tc_all(cli, tcs):
     _monitor_tcs(cli, *tcs)
 
+
 # tcpdump can write pcap files, so we don't need to support it separately
-@cmd('tcpdump MODULE [DIRECTION] [OGATE] [TCPDUMP_OPTS...]', 'Capture packets on a gate')
+@cmd('tcpdump MODULE [DIRECTION] [OGATE] [TCPDUMP_OPTS...]',
+     'Capture packets on a gate')
 def tcpdump_module(cli, module_name, direction, gate, opts):
     if gate is None:
         gate = 0
@@ -1315,7 +1389,7 @@ def tcpdump_module(cli, module_name, direction, gate, opts):
     tcpdump_cmd = ' '.join(tcpdump_cmd)
 
     cli.fout.write('  Running: %s\n' % tcpdump_cmd)
-    proc = subprocess.Popen(tcpdump_cmd, shell=True, preexec_fn = os.setsid)
+    proc = subprocess.Popen(tcpdump_cmd, shell=True, preexec_fn=os.setsid)
 
     cli.bess.pause_all()
     try:
@@ -1342,6 +1416,7 @@ def tcpdump_module(cli, module_name, direction, gate, opts):
         except:
             pass
 
+
 @cmd('track ENABLE_DISABLE [MODULE] [DIRECTION] [GATE]',
      'Count the packets and batches on a gate')
 def track_module(cli, flag, module_name, direction, gate):
@@ -1357,8 +1432,9 @@ def track_module(cli, flag, module_name, direction, gate):
     finally:
         cli.bess.resume_all()
 
+
 @cmd('interactive', 'Switch to interactive mode')
 def interactive(cli):
-   cli.fin = sys.stdin
-   cli.fout = sys.stdout
-   cli.maybe_go_interactive()
+    cli.fin = sys.stdin
+    cli.fout = sys.stdout
+    cli.maybe_go_interactive()

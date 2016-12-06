@@ -12,7 +12,7 @@ void VLANPop::ProcessBatch(bess::PacketBatch *batch) {
     uint16_t tpid;
     int tagged;
 
-    ethh = _mm_loadu_si128((__m128i *)old_head);
+    ethh = _mm_loadu_si128(reinterpret_cast<__m128i *>(old_head));
     tpid = _mm_extract_epi16(ethh, 6);
 
     tagged = (tpid == rte_cpu_to_be_16(0x8100)) ||
@@ -20,7 +20,7 @@ void VLANPop::ProcessBatch(bess::PacketBatch *batch) {
 
     if (tagged && pkt->adj(4)) {
       ethh = _mm_slli_si128(ethh, 4);
-      _mm_storeu_si128((__m128i *)old_head, ethh);
+      _mm_storeu_si128(reinterpret_cast<__m128i *>(old_head), ethh);
     }
   }
 

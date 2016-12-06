@@ -13,6 +13,7 @@
 
 #include <benchmark/benchmark.h>
 #include <glog/logging.h>
+
 #include <rte_config.h>
 #include <rte_hash.h>
 #include <rte_hash_crc.h>

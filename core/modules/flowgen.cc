@@ -334,8 +334,9 @@ bess::Packet *FlowGen::FillPacket(struct flow *f) {
   if (f->packets_left <= 1)
     tcp_flags |= 0x01; /* FIN */
 
-  *(uint32_t *)(p + 14 + /* IP dst */ 16) = f->flow_id;
-  *(uint8_t *)(p + 14 + /* IP */ 20 + /* TCP flags */ 13) = tcp_flags;
+  *(reinterpret_cast<uint32_t *>(p + 14 + /* IP dst */ 16)) = f->flow_id;
+  *(reinterpret_cast<uint8_t *>(p + 14 + /* IP */ 20 + /* TCP flags */ 13)) =
+      tcp_flags;
 
   return pkt;
 }

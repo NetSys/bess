@@ -8,6 +8,7 @@ import bess
 import time
 from concurrent import futures
 
+
 class TestServiceImpl(service_pb2.BESSControlServicer):
     def __init__(self):
         pass
@@ -27,6 +28,7 @@ class TestServiceImpl(service_pb2.BESSControlServicer):
     def ListModules(self, request, context):
         response = bess_msg.ListModulesResponse()
         return response
+
 
 class TestBESS(unittest.TestCase):
     def setUp(self):
@@ -79,16 +81,17 @@ class TestBESS(unittest.TestCase):
         self.assertEqual(0, response.error.err)
         self.assertEqual('p0', response.name)
 
-        response = client.create_port('UnixSocketPort', 'p0', {'path': '/ajksd/dd'})
+        response = client.create_port('UnixSocketPort', 'p0',
+                                      {'path': '/ajksd/dd'})
         self.assertEqual(0, response.error.err)
         self.assertEqual('p0', response.name)
 
         response = client.create_port('VPort', 'p0', {
             'ifname': 'veth0',
             'container_pid': 23124,
-            'rxq_cpus': [1,2,3],
+            'rxq_cpus': [1, 2, 3],
             'tx_tci': 123,
-            'tx_outer_tci':123,
+            'tx_outer_tci': 123,
             'loopback': False,
             'ip_addrs': ['1.2.3.4', '255.254.253.252']
             })
@@ -102,5 +105,6 @@ class TestBESS(unittest.TestCase):
         response = client.run_module_command('m1',
                                              'add',
                                              'ExactMatchCommandAddArg',
-                                             {'gate': 0, 'fields': [0x11, 0x22]})
+                                             {'gate': 0,
+                                              'fields': [0x11, 0x22]})
         self.assertEqual(0, response.error.err)

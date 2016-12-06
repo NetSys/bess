@@ -3,15 +3,13 @@
 #include <cassert>
 #include <cstdio>
 
-#include <glog/logging.h>
-
 #include <rte_config.h>
 #include <rte_hash_crc.h>
 
-#include "../mem_alloc.h"
+#include <glog/logging.h>
 
-const HTableBase::KeyCmpFunc HTableBase::kDefaultKeyCmpFunc = memcmp;
-const HTableBase::HashFunc HTableBase::kDefaultHashFunc = rte_hash_crc;
+static const HTableBase::HashFunc kDefaultHashFunc = rte_hash_crc;
+static const HTableBase::KeyCmpFunc kDefaultKeyCmpFunc = memcmp;
 
 /* from the stored key pointer, return its value pointer */
 void *HTableBase::key_to_value(const void *key) const {
@@ -303,6 +301,7 @@ int HTableBase::InitEx(struct ht_params *params) {
   entry_size_ = align_ceil(value_offset_ + value_size_, params->key_align);
 
   buckets_ = (Bucket *)mem_alloc((bucket_mask_ + 1) * sizeof(Bucket));
+
   if (!buckets_) {
     return -ENOMEM;
   }
@@ -351,7 +350,7 @@ int HTableBase::Init(size_t key_size, size_t value_size) {
 void HTableBase::Close() {
   mem_free(buckets_);
   mem_free(entries_);
-  memset(this, 0, sizeof(*this));
+  memset((void *)this, 0, sizeof(*this));
 }
 
 void HTableBase::Clear() {
@@ -392,6 +391,7 @@ int HTableBase::clone_table(HTableBase *t_old, uint32_t num_buckets,
   *this = *t_old;
 
   buckets_ = (Bucket *)mem_alloc(num_buckets * sizeof(Bucket));
+
   if (!buckets_) {
     return -ENOMEM;
   }
