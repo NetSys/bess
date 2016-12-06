@@ -16,6 +16,8 @@ void Scheduler::ScheduleLoop() {
   last_stats_ = stats_;
   last_print_tsc_ = checkpoint_ = now_ = rdtsc();
 
+  ApplyToAllClasses([=](TrafficClass *c){c->set_last_tsc(now_);});
+
   // The main scheduling, running, accounting loop.
   for (uint64_t round = 0;; round++) {
     // Periodic check, to mitigate expensive operations.
@@ -41,7 +43,7 @@ void Scheduler::ScheduleLoop() {
 
 void Scheduler::ScheduleOnce() {
   // Schedule.
-  TrafficClass *c = Next();
+  TrafficClass *c = Next(now_);
 
   if (c) {
     ctx.set_current_tsc(now_);  // Tasks see updated tsc.
@@ -75,10 +77,10 @@ void Scheduler::ScheduleOnce() {
   checkpoint_ = now_;
 }
 
-TrafficClass *Scheduler::Next() {
+TrafficClass *Scheduler::Next(uint64_t tsc) {
   // Before we select the next class to run, resume any classes that were
   // throttled whose throttle time has expired so that they are available.
-  ResumeThrottled(now_);
+  ResumeThrottled(tsc);
 
   if (root_->blocked()) {
     // Nothing to schedule anywhere.
@@ -104,8 +106,11 @@ static inline void accumulate(resource_arr_t acc, resource_arr_t x) {
 }
 
 void Scheduler::Done(TrafficClass *c, resource_arr_t usage, uint64_t tsc) {
-  accumulate(stats_.usage, usage);
-  c->increment_usage(usage);
+  // TODO(barath): Re-enable scheduler-wide stats accumulation.
+  // accumulate(stats_.usage, usage);
+
+  // Accumulate per-TC stats.
+  accumulate(c->stats_.usage, usage);
 
   // The picked class can never be the root, so we are guaranteed that c has a
   // parent.
@@ -128,6 +133,15 @@ inline void Scheduler::ResumeThrottled(uint64_t tsc) {
       rc->UnblockTowardsRoot(tsc);
     } else {
       break;
+    }
+  }
+}
+
+template <typename Func>
+void Scheduler::ApplyToAllClasses(Func func) {
+  for (const auto &i : TrafficClassBuilder::all_tcs()) {
+    if (i.second->Root() == root_) {
+      func(i.second);
     }
   }
 }

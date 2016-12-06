@@ -105,27 +105,29 @@ class TrafficClass {
  public:
   virtual ~TrafficClass() {}
 
+  size_t Size() const { return 1; };
+
+  // Returns the root of the tree this class belongs to.
+  // Expensive in that it is recursive, so do not call from
+  // performance-sensitive code.
+  TrafficClass *Root() {
+    if (!parent_) {
+      return this;
+    }
+    return parent_->Root();
+  }
+
   inline TrafficClass *parent() const { return parent_; }
 
   inline const std::string &name() const { return name_; }
 
   inline const struct tc_stats &stats() const { return stats_; }
 
-  // stats_.usage += x
-  inline void increment_usage(resource_arr_t x) {
-    uint64_t *p1 = stats_.usage;
-    uint64_t *p2 = x;
-
-    for (int i = 0; i < NUM_RESOURCES; i++) {
-      p1[i] += p2[i];
-    }
-  }
-
   inline bool blocked() const { return blocked_; }
 
   inline TrafficPolicy policy() const { return policy_; }
 
-  size_t Size() const { return 1; };
+  inline void set_last_tsc(uint64_t tsc) { last_tsc_ = tsc; }
 
  protected:
   friend PriorityTrafficClass;
@@ -359,7 +361,11 @@ class RateLimitTrafficClass final : public TrafficClass {
       child_() {
     limit_ = (limit << (USAGE_AMPLIFIER_POW - 4)) / (tsc_hz >> 4);
     if (limit_) {
-      max_burst_ = (max_burst << (USAGE_AMPLIFIER_POW - 4)) / (tsc_hz >> 4);
+      if (max_burst_) {
+        max_burst_ = (max_burst << (USAGE_AMPLIFIER_POW - 4)) / (tsc_hz >> 4);
+      } else {
+        max_burst_ = UINT64_MAX;
+      }
     }
   }
 
