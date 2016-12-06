@@ -1315,10 +1315,10 @@ def _monitor_tcs(cli, *tcs):
         total = copy.deepcopy(arr[0])
 
         for stat in arr[1:]:
-            total.count + stat.count
-            total.cycles + stat.cycles
-            total.packets + stat.packets
-            total.bits + stat.bits
+            total.count += stat.count
+            total.cycles += stat.cycles
+            total.packets += stat.packets
+            total.bits += stat.bits
 
         return total
 
