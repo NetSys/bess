@@ -327,19 +327,18 @@ int Module::ConnectModules(gate_idx_t ogate_idx, Module *m_next,
     m_next->igates.resize(igate_idx + 1, nullptr);
   }
 
-  igate = new bess::IGate(m_next, igate_idx, m_next);
-  if (!igate) {
-    delete ogate;
-    return -ENOMEM;
+  if (m_next->igates[igate_idx] == nullptr) {
+    igate = new bess::IGate(m_next, igate_idx, m_next);
+    m_next->igates[igate_idx] = igate;
+  } else {
+    igate = m_next->igates[igate_idx];
   }
-  m_next->igates[igate_idx] = igate;
 
   ogate->set_igate(igate);
   ogate->set_igate_idx(igate_idx);
 
   // Gate tracking is enabled by default
   ogate->AddHook(new TrackGate());
-
   igate->PushOgate(ogate);
 
   return 0;
@@ -371,12 +370,12 @@ int Module::DisconnectModules(gate_idx_t ogate_idx) {
     Module *m_next = igate->module();
     m_next->igates[igate->gate_idx()] = nullptr;
     igate->ClearHooks();
-    mem_free(igate);
+    delete igate;
   }
 
   ogates[ogate_idx] = nullptr;
   ogate->ClearHooks();
-  mem_free(ogate);
+  delete ogate;
 
   return 0;
 }
@@ -402,10 +401,12 @@ int Module::DisconnectModulesUpstream(gate_idx_t igate_idx) {
     Module *m_prev = ogate->module();
     m_prev->ogates[ogate->gate_idx()] = nullptr;
     ogate->ClearHooks();
+    delete ogate;
   }
 
   igates[igate_idx] = nullptr;
   igate->ClearHooks();
+  delete igate;
 
   return 0;
 }

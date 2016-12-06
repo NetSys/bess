@@ -122,7 +122,7 @@ void RandomUpdate::ProcessBatch(bess::PacketBatch *batch) {
       bess::Packet *snb = batch->pkts()[j];
       char *head = snb->head_data<char *>();
 
-      uint32_t *p = (uint32_t *)(head + offset);
+      uint32_t *p = reinterpret_cast<uint32_t *>(head + offset);
       uint32_t rand_val = min + rng_.GetRange(range);
 
       *p = (*p & mask) | rte_cpu_to_be_32(rand_val);

@@ -55,8 +55,7 @@ class WildcardMatch final : public Module {
         num_fields_(),
         fields_(),
         num_tuples_(),
-        tuples_(),
-        next_table_id_() {}
+        tuples_() {}
 
   pb_error_t Init(const bess::pb::WildcardMatchArg &arg);
 
@@ -66,8 +65,7 @@ class WildcardMatch final : public Module {
 
   virtual std::string GetDesc() const;
 
-  pb_cmd_response_t CommandAdd(
-      const bess::pb::WildcardMatchCommandAddArg &arg);
+  pb_cmd_response_t CommandAdd(const bess::pb::WildcardMatchCommandAddArg &arg);
   pb_cmd_response_t CommandDelete(
       const bess::pb::WildcardMatchCommandDeleteArg &arg);
   pb_cmd_response_t CommandClear(const bess::pb::EmptyArg &arg);
@@ -171,8 +169,6 @@ class WildcardMatch final : public Module {
 
   int num_tuples_;
   struct WmTuple tuples_[MAX_TUPLES];
-
-  int next_table_id_;
 };
 
 #endif  // BESS_MODULES_WILDCARDMATCH_H_

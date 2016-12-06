@@ -14,7 +14,7 @@ void VLANSplit::ProcessBatch(bess::PacketBatch *batch) {
     uint16_t tci;
     int tagged;
 
-    ethh = _mm_loadu_si128((__m128i *)old_head);
+    ethh = _mm_loadu_si128(reinterpret_cast<__m128i *>(old_head));
     tpid = _mm_extract_epi16(ethh, 6);
 
     tagged = (tpid == rte_cpu_to_be_16(0x8100)) ||
@@ -23,7 +23,7 @@ void VLANSplit::ProcessBatch(bess::PacketBatch *batch) {
     if (tagged && pkt->adj(4)) {
       tci = _mm_extract_epi16(ethh, 7);
       ethh = _mm_slli_si128(ethh, 4);
-      _mm_storeu_si128((__m128i *)old_head, ethh);
+      _mm_storeu_si128(reinterpret_cast<__m128i *>(old_head), ethh);
       vid[i] = rte_be_to_cpu_16(tci) & 0x0fff;
     } else {
       vid[i] = 0; /* untagged packets go to gate 0 */

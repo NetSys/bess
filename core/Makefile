@@ -12,15 +12,22 @@ DEPFLAGS = -MT $@ -MMD -MP -MF $(DEPDIR)/$(@:.o=.d)
 $(shell mkdir -p $(DEPDIR) >/dev/null)
 $(shell mkdir -p $(DEPDIR)/utils >/dev/null)
 $(shell mkdir -p $(DEPDIR)/modules >/dev/null)
-$(shell mkdir -p $(DEPDIR)/hooks >/dev/null)
 $(shell mkdir -p $(DEPDIR)/drivers >/dev/null)
+$(shell mkdir -p $(DEPDIR)/hooks >/dev/null)
 
 # e.g., 4.9.3 -> 40903
 CXXVERSION := $(shell $(CXX) -dumpversion | sed -e 's/\.\([0-9][0-9]\)/\1/g' -e 's/\.\([0-9]\)/0\1/g' -e 's/^[0-9]\{3,4\}$$/&00/')
-
 CXXVERSION_4_8_OR_HIGHER := $(shell expr $(CXXVERSION) \>= 40800)
-ifeq "$(CXXVERSION_4_8_OR_HIGHER)" "0"
-  $(error g++ 4.8 or higher is required)
+
+IS_CLANG := $(word 3, $(shell $(CXX) -dM -E -x c /dev/null | grep __clang__))
+ifeq "$(IS_CLANG)" ""
+    IS_CLANG := 0
+endif
+
+ifeq "$(IS_CLANG)" "0"
+    ifeq "$(CXXVERSION_4_8_OR_HIGHER)" "0"
+        $(error g++ 4.8 or higher is required)
+    endif
 endif
 
 RTE_SDK ?= $(abspath ../deps/dpdk-16.07)
@@ -43,20 +50,24 @@ else
     endif
 endif
 
-PROTOCXXFLAGS = -std=gnu++11 -O0
+CXXFLAGS += -std=gnu++11 -g3 -ggdb3 -Ofast -march=native \
+            -Werror -isystem $(DPDK_INC_DIR) -D_GNU_SOURCE \
+            -Wall -Wextra -Wcast-align
 
-CXXFLAGS += -std=gnu++11 -g3 -ggdb3 -Og -march=native \
-	    -Werror -isystem $(DPDK_INC_DIR) -D_GNU_SOURCE \
-	    -Wall -Wextra -Wcast-align
+PERMISSIVE = -Wno-unused-parameter
 
 # -Wshadow should not be used for g++ 4.x, as it has too many false positives
 CXXVERSION_5_OR_HIGHER := $(shell expr $(CXXVERSION) \>= 50000)
-ifeq "$(CXXVERSION_5_OR_HIGHER)" "1"
-  CXXFLAGS += -Wshadow
+ifeq "$(IS_CLANG)" "0"
+    ifeq "$(CXXVERSION_5_OR_HIGHER)" "1"
+        CXXFLAGS += -Wshadow
+    endif
+else
+    CXXFLAGS += -Wshadow
 endif
 
 LDFLAGS += -rdynamic -L$(DPDK_LIB_DIR) -Wl,-rpath=$(DPDK_LIB_DIR) -pthread \
-	   -static-libstdc++
+           -static-libstdc++
 
 LIBS += -Wl,-non_shared \
 	-Wl,--whole-archive -l$(DPDK_LIB) -Wl,--no-whole-archive \
@@ -66,8 +77,8 @@ LIBS += -Wl,-non_shared \
 	-ldl
 
 ifdef SANITIZE
-    CXXFLAGS += -fsanitize=address -fno-omit-frame-pointer
-    LDFLAGS += -fsanitize=address -static-libasan
+    CXXFLAGS += -fsanitize=address -fsanitize=undefined -fno-omit-frame-pointer
+    LDFLAGS += -fsanitize=address -fsanitize=undefined
 endif
 
 ifdef COVERAGE
@@ -78,7 +89,11 @@ endif
 
 ifndef DEBUG
     CXXFLAGS += -Ofast -DNDEBUG
-    LDFLAGS += -flto -ffat-lto-objects -finline-limit=1000
+    LDFLAGS += -ffat-lto-objects -finline-limit=1000
+
+    ifeq "$(IS_CLANG)" "0"
+        LDFLAGS += -flto # -flto requires LLVMgold when building with Clang
+    endif
 endif
 
 -include extra.mk
@@ -90,8 +105,8 @@ PROTO_SRCS += $(patsubst %.proto,%.grpc.pb.cc, $(notdir $(PROTOS)))
 PROTO_HEADERS = $(patsubst %.cc,%.h, $(PROTO_SRCS))
 PROTOCFLAGS += --proto_path=$(PROTO_DIR) --cpp_out=. --grpc_out=. --plugin=protoc-gen-grpc=`which grpc_cpp_plugin`
 
-ALL_SRCS = $(wildcard *.cc utils/*.cc modules/*.cc hooks/*.cc drivers/*.cc)
-HEADERS = $(wildcard *.h utils/*.h modules/*.h hooks/*.h drivers/*.h)
+ALL_SRCS = $(wildcard *.cc utils/*.cc modules/*.cc drivers/*.cc hooks/*.cc)
+HEADERS = $(wildcard *.h utils/*.h modules/*.h drivers/*.h hooks/*.h)
 
 TEST_SRCS = $(filter %_test.cc gtest_main.cc, $(ALL_SRCS))
 TEST_OBJS = $(TEST_SRCS:.cc=.o)
@@ -164,7 +179,15 @@ $(eval $(call BUILD, \
 	CXX, \
 	%.pb.o, \
 	%.pb.cc $(DEPDIR)/$$@.d, \
-	$$(CXX) -o $$@ -c $$< $$(PROTOCXXFLAGS) $$(DEPFLAGS)))
+	$$(CXX) -o $$@ -c $$< $$(CXXFLAGS) $$(PERMISSIVE) $$(DEPFLAGS)))
+
+# NOTE: gRPC headers included by bessctl.cc will trigger compiler warning about
+# unused parameters. Add -Wno-unused-parameter for this file.
+$(eval $(call BUILD, \
+	CXX, \
+	bessctl.o, \
+	bessctl.cc $(PROTO_HEADERS), \
+	$$(CXX) -o $$@ -c $$< $$(CXXFLAGS) $$(PERMISSIVE) $$(DEPFLAGS)))
 
 $(eval $(call BUILD, \
 	CXX, \
@@ -200,7 +223,7 @@ $(eval $(call BUILD, \
 	TEST_CXX, \
 	gtest-all.o, \
 	$$(GTEST_DIR)/src/gtest-all.cc, \
-	$$(CXX) -o $$@ -c $$< -I$$(GTEST_DIR) $$(CXXFLAGS) $$(DEPFLAGS)))
+	$$(CXX) -o $$@ -c $$< -I$$(GTEST_DIR) $$(CXXFLAGS) $$(PERMISSIVE) $$(DEPFLAGS)))
 
 $(eval $(call BUILD, \
 	BENCH_CXX, \

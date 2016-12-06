@@ -33,7 +33,7 @@ Module *create_foo(const std::string name = "") {
     m = builder.CreateModule(std::string(name),
                              &bess::metadata::default_pipeline);
   }
-  builder.AddModule(m);
+  ModuleBuilder::AddModule(m);
 
   return m;
 }

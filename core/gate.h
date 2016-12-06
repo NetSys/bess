@@ -64,7 +64,7 @@ class Gate {
   Gate(Module *m, gate_idx_t idx, void *arg)
       : module_(m), gate_idx_(idx), arg_(arg), hooks_() {}
 
-  virtual ~Gate() {}
+  ~Gate() { ClearHooks(); }
 
   Module *module() const { return module_; }
 

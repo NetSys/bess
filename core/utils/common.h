@@ -38,9 +38,9 @@
 
 #define member_type(type, member) typeof(((type *)0)->member)
 
-#define container_of(ptr, type, member)                  \
-  ((type *)((char *)(member_type(type, member) *){ptr} - \
-            offsetof(type, member)))
+#define container_of(ptr, type, member)                                  \
+  (reinterpret_cast<type *>((char *)(member_type(type, member) *){ptr} - \
+                            offsetof(type, member)))
 
 #define ARR_SIZE(arr) (sizeof(arr) / sizeof(arr[0]))
 
