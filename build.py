@@ -7,6 +7,7 @@ import time
 import urllib
 import subprocess
 import textwrap
+import argparse
 
 BESS_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -32,6 +33,8 @@ DPDK_BASE_CONFIG = '%s/%s_common_linuxapp' % (DEPS_DIR, DPDK_VER)
 DPDK_FINAL_CONFIG = '%s/%s_common_linuxapp_final' % (DEPS_DIR, DPDK_VER)
 
 extra_libs = set()
+cxx_flags = []
+ld_flags = []
 
 def download_hook(count, block_size, total_size):
     sys.stdout.write('\x08' + ['-', '\\', '|', '/'][int(time.time() * 3) % 4])
@@ -78,7 +81,7 @@ def check_header(header_file, compiler):
         with open(test_c_file, 'w') as fp:
             fp.write(textwrap.dedent(src))
 
-        return cmd_success('%s -c %s -o %s' % (compiler, test_c_file, test_o_file))
+        return cmd_success('%s %s -c %s -o %s' % (compiler, ' '.join(cxx_flags), test_c_file, test_o_file))
     finally:
         cmd('rm -f %s %s' % (test_c_file, test_o_file))
 
@@ -97,8 +100,8 @@ def check_c_lib(lib):
         with open(test_c_file, 'w') as fp:
             fp.write(textwrap.dedent(src))
 
-        return cmd_success('gcc %s -l%s -o %s' % \
-                (test_c_file, lib, test_e_file))
+        return cmd_success('gcc %s -l%s %s %s -o %s' % \
+                (test_c_file, lib, ' '.join(cxx_flags), ' '.join(ld_flags), test_e_file))
     finally:
         cmd('rm -f %s %s' % (test_c_file, test_e_file))
 
@@ -163,12 +166,21 @@ def check_mlx():
         set_config(DPDK_FINAL_CONFIG, 'CONFIG_RTE_LIBRTE_MLX4_PMD', 'n')
         set_config(DPDK_FINAL_CONFIG, 'CONFIG_RTE_LIBRTE_MLX5_PMD', 'n')
 
-def generate_extra_mk():
+def generate_dpdk_extra_mk():
     global extra_libs
 
-    with open('core/extra.mk', 'w') as fp:
-        fp.write('LIBS += %s ' % \
+    with open('core/extra.dpdk.mk', 'w') as fp:
+        fp.write('LIBS += %s\n' % \
                 ' '.join(map(lambda lib: '-l' + lib, extra_libs)))
+
+def generate_extra_mk():
+    global cxx_flags
+    global ld_flags
+    with open('core/extra.mk', 'w') as fp:
+        fp.write('CXXFLAGS += %s\n' % \
+                ' '.join(cxx_flags))
+        fp.write('LDFLAGS += %s\n' % \
+                ' '.join(ld_flags))
 
 def download_dpdk():
     try:
@@ -190,7 +202,7 @@ def configure_dpdk():
 
         check_mlx()
 
-        generate_extra_mk()
+        generate_dpdk_extra_mk()
 
         cmd('cp -f %s %s' % (DPDK_FINAL_CONFIG, DPDK_ORIG_CONFIG))
         cmd('make -C %s config T=%s' % (DPDK_DIR, DPDK_TARGET))
@@ -228,6 +240,8 @@ def build_bess():
 
     if not os.path.exists('%s/build' % DPDK_DIR):
         build_dpdk()
+
+    generate_extra_mk()
 
     print 'Generating protobuf codes for libbess-python...'
     cmd('protoc protobuf/*.proto \
@@ -276,37 +290,45 @@ def do_dist_clean():
     print 'Removing 3rd-party libraries...'
     cmd('rm -rf %s %s' % (DPDK_FILE, DPDK_DIR))
 
-def print_usage():
-    print >> sys.stderr, \
-            'Usage: %s [all|dpdk|bess|kmod|clean|dist_clean|help]' % \
-            sys.argv[0]
+def print_usage(parser):
+    parser.print_help(file=sys.stderr)
     sys.exit(2)
+
+def update_benchmark_path(path):
+    print 'Specified benchmark path %s' % path
+    cxx_flags.extend(['-I%s/include'%(path)])
+    ld_flags.extend(['-L%s/lib'%(path)])
+
 
 def main():
     os.chdir(BESS_DIR)
+    parser = argparse.ArgumentParser(description = 'Build Bess')
+    parser.add_argument('action', metavar='action', nargs='?', default='all', \
+        help='Action is one of all, dpdk, bess, kmod, clean, dist_clean, help')
+    parser.add_argument('--with-benchmark', dest='benchmark_path', nargs=1, \
+            help='Location of benchmark library')
+    args = parser.parse_args()
 
-    if len(sys.argv) == 1:
+    if args.benchmark_path:
+        update_benchmark_path(args.benchmark_path[0])
+
+    if args.action == 'all':
         build_all()
-    elif len(sys.argv) == 2:
-        if sys.argv[1] == 'all':
-            build_all()
-        elif sys.argv[1] == 'dpdk':
-            build_dpdk()
-        elif sys.argv[1] == 'bess':
-            build_bess()
-        elif sys.argv[1] == 'kmod':
-            build_kmod()
-        elif sys.argv[1] == 'clean':
-            do_clean()
-        elif sys.argv[1] == 'dist_clean':
-            do_dist_clean()
-        elif sys.argv[1] == 'help':
-            print_usage()
-        else:
-            print >> sys.stderr, 'Error - unknown command "%s".' % sys.argv[1]
-            print_usage()
+    elif args.action == 'dpdk':
+        build_dpdk()
+    elif args.action == 'bess':
+        build_bess()
+    elif args.action == 'kmod':
+        build_kmod()
+    elif args.action == 'clean':
+        do_clean()
+    elif args.action == 'dist_clean':
+        do_dist_clean()
+    elif args.action == 'help':
+        print_usage(parser)
     else:
-        print_usage()
+        print >> sys.stderr, 'Error - unknown command "%s".' % sys.argv[1]
+        print_usage(parser)
 
 if __name__ == '__main__':
     main()
