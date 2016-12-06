@@ -95,16 +95,6 @@ TrafficClass *Scheduler::Next(uint64_t tsc) {
   return c;
 }
 
-/* acc += x */
-static inline void accumulate(resource_arr_t acc, resource_arr_t x) {
-  uint64_t *p1 = acc;
-  uint64_t *p2 = x;
-
-  for (int i = 0; i < NUM_RESOURCES; i++) {
-    p1[i] += p2[i];
-  }
-}
-
 void Scheduler::Done(TrafficClass *c, resource_arr_t usage, uint64_t tsc) {
   // TODO(barath): Re-enable scheduler-wide stats accumulation.
   // accumulate(stats_.usage, usage);

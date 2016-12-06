@@ -57,6 +57,7 @@ void PriorityTrafficClass::FinishAndAccountTowardsRoot(
     TrafficClass *child,
     resource_arr_t usage,
     uint64_t tsc) {
+  accumulate(stats_.usage, usage);
   last_tsc_ = tsc;
 
   if (child->blocked_) {
@@ -132,6 +133,7 @@ void WeightedFairTrafficClass::FinishAndAccountTowardsRoot(
     TrafficClass *child,
     resource_arr_t usage,
     uint64_t tsc) {
+  accumulate(stats_.usage, usage);
   last_tsc_ = tsc;
 
   //DCHECK_EQ(item.c_, child) << "Child that we picked should be at the front of priority queue.";
@@ -211,6 +213,7 @@ void RoundRobinTrafficClass::FinishAndAccountTowardsRoot(
     TrafficClass *child,
     resource_arr_t usage,
     uint64_t tsc) {
+  accumulate(stats_.usage, usage);
   last_tsc_ = tsc;
   children_.pop_front();
   if (child->blocked_) {
@@ -271,6 +274,7 @@ void RateLimitTrafficClass::FinishAndAccountTowardsRoot(
     TrafficClass *child,
     resource_arr_t usage,
     uint64_t tsc) {
+  accumulate(stats_.usage, usage);
   last_tsc_ = tsc;
   uint64_t elapsed_cycles = tsc - last_tsc_;
 
