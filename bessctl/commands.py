@@ -824,11 +824,11 @@ def _show_tc_list(cli, tcs):
             cli.fout.write('    %-16s  ' \
                            'parent %-10s  priority %-3d  tasks %-3d ' \
                            '%s\n' % \
-                    (getattr(tc, 'class').name,
-                     tc.parent if tc.parent else 'none',
-                     getattr(tc, 'class').priority_share,
-                     tc.tasks,
-                     _limit_to_str(getattr(tc, 'class').limit)))
+                           (getattr(tc, 'class').name,
+                           tc.parent if tc.parent else 'none',
+                           getattr(tc, 'class').priority_share,
+                           tc.tasks,
+                           _limit_to_str(getattr(tc, 'class').limit)))
 
 
 @cmd('show tc', 'Show the list of traffic classes')
