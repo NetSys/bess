@@ -3,15 +3,13 @@ class Port(object):
         self.name = '<uninitialized>'
         self.driver = self.__class__.__name__
 
-        assert self.driver != 'Port', \
-                "do not instantiate 'Port' directly"
+        assert self.driver != 'Port', "Do not instantiate 'Port' directly"
 
         name = kwargs.pop('name', None)
-        
+
         ret = self.bess.create_port(self.driver, name, kwargs)
 
         self.name = ret.name
-        #print 'Port %s created' % self
 
     def __str__(self):
         return '%s/%s' % (self.name, self.driver)

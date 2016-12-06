@@ -14,6 +14,7 @@ import bess_msg_pb2 as bess_msg
 import module_msg_pb2 as module_msg
 import port_msg_pb2 as port_msg
 
+
 class BESS(object):
 
     # errors from BESS daemon
@@ -28,9 +29,9 @@ class BESS(object):
                 err_code = errno.errorcode[self.err]
             else:
                 err_code = '<unknown>'
-            return 'errno: %d (%s: %s), %s, details: %s' % \
-                    (self.err, err_code, os.strerror(self.err),
-                            self.errmsg, repr(self.details))
+            return 'errno: %d (%s: %s), %s, details: %s' % (
+                self.err, err_code, os.strerror(self.err), self.errmsg,
+                repr(self.details))
 
     # errors from this class itself
     class APIError(Exception):
@@ -81,14 +82,17 @@ class BESS(object):
         self.debug = flag
 
     def _request(self, req_fn, request=None):
-        if request is None: request = bess_msg.EmptyRequest()
+        if request is None:
+            request = bess_msg.EmptyRequest()
         response = req_fn(request)
         if response.error.err != 0:
             err = response.error.err
             errmsg = response.error.errmsg
-            if errmsg == '': errmsg = '(error message is not given)'
+            if errmsg == '':
+                errmsg = '(error message is not given)'
             details = response.error.details
-            if details == '': details = None
+            if details == '':
+                details = None
             raise self.Error(err, errmsg, details)
         return response
 
@@ -248,7 +252,7 @@ class BESS(object):
         request.igate = igate
         return self._request(self.stub.ConnectModules, request)
 
-    def disconnect_modules(self, name, ogate = 0):
+    def disconnect_modules(self, name, ogate=0):
         request = bess_msg.DisconnectModulesRequest()
         request.name = name
         request.ogate = ogate
@@ -259,7 +263,8 @@ class BESS(object):
         request.name = name
         request.cmd = cmd
 
-        all_classes = inspect.getmembers(module_msg, lambda c: inspect.isclass(c))
+        all_classes = inspect.getmembers(module_msg,
+                                         lambda c: inspect.isclass(c))
         arg_classes = dict(all_classes)
         arg_classes['EmptyArg'] = bess_msg.EmptyArg
 
@@ -324,8 +329,8 @@ class BESS(object):
 
     def attach_task(self, m, tid=0, tc=None, wid=None):
         if (tc is None) == (wid is None):
-            raise self.APIError('You should specify either "tc" or "wid"' \
-                    ', but not both')
+            raise self.APIError('You should specify either "tc" or "wid"'
+                                ', but not both')
 
         request = bess_msg.AttachTaskRequest()
         request.name = m
@@ -338,7 +343,7 @@ class BESS(object):
 
         return self._request(self.stub.AttachTask, request)
 
-    def list_tcs(self, wid = None):
+    def list_tcs(self, wid=None):
         request = bess_msg.ListTcsRequest()
         if wid is not None:
             request.wid = wid
@@ -352,16 +357,24 @@ class BESS(object):
         class_.wid = wid
         class_.priority = priority
         if limit:
-            class_.limit.schedules = limit['schedules'] if 'schedules' in limit else 0
-            class_.limit.cycles = limit['cycles'] if 'cycles' in limit else 0
-            class_.limit.packets = limit['packets'] if 'packets' in limit else 0
-            class_.limit.bits = limit['bits'] if 'bits' in limit else 0
+            class_.limit.schedules = limit['schedules'] \
+                if 'schedules' in limit else 0
+            class_.limit.cycles = limit['cycles'] \
+                if 'cycles' in limit else 0
+            class_.limit.packets = limit['packets'] \
+                if 'packets' in limit else 0
+            class_.limit.bits = limit['bits'] \
+                if 'bits' in limit else 0
 
         if max_burst:
-            class_.max_burst.schedules = max_burst['schedules'] if 'schedules' in max_burst else 0
-            class_.max_burst.cycles = max_burst['cycles'] if 'cycles' in max_burst else 0
-            class_.max_burst.packets = max_burst['packets'] if 'packets' in max_burst else 0
-            class_.max_burst.bits = max_burst['bits'] if 'bits' in max_burst else 0
+            class_.max_burst.schedules = max_burst['schedules'] \
+                if 'schedules' in max_burst else 0
+            class_.max_burst.cycles = max_burst['cycles'] \
+                if 'cycles' in max_burst else 0
+            class_.max_burst.packets = max_burst['packets'] \
+                if 'packets' in max_burst else 0
+            class_.max_burst.bits = max_burst['bits'] \
+                if 'bits' in max_burst else 0
 
         return self._request(self.stub.AddTc, request)
 

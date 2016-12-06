@@ -17,6 +17,7 @@ try:
 except ImportError:
     print >> sys.stderr, 'Cannot import the API module (libbess-python)'
 
+
 class BESSCLI(cli.CLI):
     def __init__(self, bess, cmd_db, fin=sys.stdin,
                  fout=sys.stdout, history_file=None):
@@ -24,8 +25,8 @@ class BESSCLI(cli.CLI):
         self.cmd_db = cmd_db
         self.this_dir = this_dir
 
-        super(BESSCLI, self).__init__(self.cmd_db.cmdlist, \
-                fin=fin, fout=fout, history_file=history_file)
+        super(BESSCLI, self).__init__(self.cmd_db.cmdlist, fin=fin, fout=fout,
+                                      history_file=history_file)
 
     def get_var_attrs(self, var_token, partial_word):
         return self.cmd_db.get_var_attrs(self, var_token, partial_word)
@@ -62,8 +63,8 @@ class BESSCLI(cli.CLI):
             else:
                 err_code = '<unknown>'
 
-            self.fout.write('  BESS daemon response - errno=%d (%s: %s)\n' % \
-                    (e.err, err_code, os.strerror(e.err)))
+            self.fout.write('  BESS daemon response - errno=%d (%s: %s)\n' %
+                            (e.err, err_code, os.strerror(e.err)))
 
             if e.details:
                 details = pprint.pformat(e.details)
@@ -99,6 +100,7 @@ class BESSCLI(cli.CLI):
         else:
             return '<disconnected> $ '
 
+
 def connect_bess():
     s = BESS()
 
@@ -109,8 +111,9 @@ def connect_bess():
         s.connect()
     except socket.error as e:
         print >> sys.stderr, e
-        
+
     return s
+
 
 def run_cli():
     try:
@@ -124,6 +127,7 @@ def run_cli():
     s = connect_bess()
     cli = BESSCLI(s, commands, history_file=hist_file)
     cli.loop()
+
 
 def run_cmds(instream):
     s = connect_bess()
