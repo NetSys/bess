@@ -449,6 +449,9 @@ TEST(RateLimit, BasicBlockUnblock) {
          {ROUND_ROBIN, CT("limit_1", {RATE_LIMIT, RESOURCE_COUNT, 1, 0}, {RATE_LIMIT, CT("leaf_1", {LEAF})})},
          {ROUND_ROBIN, CT("limit_2", {RATE_LIMIT, RESOURCE_COUNT, 1, 0}, {RATE_LIMIT, CT("leaf_2", {LEAF})})}
         }));
+  RoundRobinTrafficClass *rr = static_cast<RoundRobinTrafficClass *>(TrafficClassBuilder::Find("root"));
+  ASSERT_TRUE(rr != nullptr);
+
   LeafTrafficClass *leaf_1 = static_cast<LeafTrafficClass *>(TrafficClassBuilder::Find("leaf_1"));
   leaf_1->AddTask((Task *) 1);
   ASSERT_FALSE(leaf_1->blocked());
@@ -485,6 +488,11 @@ TEST(RateLimit, BasicBlockUnblock) {
   s.Done(c, usage, now);
   ASSERT_TRUE(limit_2->blocked());
 
+  // The leaves should be unaffected by the rate limiters, but the root
+  ASSERT_FALSE(leaf_1->blocked());
+  ASSERT_FALSE(leaf_2->blocked());
+  ASSERT_TRUE(rr->blocked());
+
   // Fake a quarter second delay, schedule again.
   now += tsc_hz/4;
   c = s.Next(now);
@@ -493,8 +501,17 @@ TEST(RateLimit, BasicBlockUnblock) {
   // Fake a second delay, schedule again and expect unblocking.
   now += tsc_hz*2;
   c = s.Next(now);
+  ASSERT_FALSE(leaf_1->blocked());
+  ASSERT_FALSE(leaf_2->blocked());
   ASSERT_FALSE(limit_1->blocked()) << "tsc=" << now << ", limit_1 expiration=" << limit_1->throttle_expiration();
   ASSERT_FALSE(limit_2->blocked()) << "tsc=" << now << ", limit_2 expiration=" << limit_2->throttle_expiration();
+  ASSERT_FALSE(rr->blocked());
+
+  EXPECT_EQ(c, leaf_1);
+  s.Done(c, usage, now);
+  now += tsc_hz/4;
+  c = s.Next(now);
+  ASSERT_EQ(c, leaf_2);
 
   TrafficClassBuilder::ClearAll();
 }

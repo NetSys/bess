@@ -126,7 +126,6 @@ inline void Scheduler::ResumeThrottled(uint64_t tsc) {
     RateLimitTrafficClass *rc = throttled_cache_.top();
     if (rc->throttle_expiration_ < tsc) {
       throttled_cache_.pop();
-      rc->blocked_ = false;
       rc->throttle_expiration_ = 0;
 
       // Traverse upward toward root to unblock any blocked parents.
