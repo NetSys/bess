@@ -18,7 +18,6 @@
 // XXX
 typedef uint16_t gate_idx_t;
 #define MAX_GATES 8192
-#define BRANCH_FACTOR 3
 
 /* 	TODO: worker threads doesn't necessarily be pinned to 1 core
  *
@@ -39,11 +38,6 @@ typedef enum {
   WORKER_RUNNING,
   WORKER_FINISHED,
 } worker_status_t;
-
-struct gate_task {
-  bess::Gate *gate;
-  bess::PacketBatch batch;
-};
 
 class Worker {
  public:
@@ -92,29 +86,6 @@ class Worker {
   gate_idx_t current_igate() const { return current_igate_; }
   void set_current_igate(gate_idx_t idx) { current_igate_ = idx; }
 
-  // Store gate+packets into tasks for worker to service.
-  // Returns true on success.
-  bool push_ogate_and_packets(bess::Gate *gate, bess::PacketBatch *batch) {
-    if (pending_gates_ > MAX_MODULES_PER_PATH * BRANCH_FACTOR) {
-      LOG(ERROR) << "Gate servicing stack overrun -- loop in execution?";
-      return false;
-    }
-    struct gate_task *new_task = &(gate_servicing_stack_[pending_gates_]);
-    new_task->gate = gate;     // store pointer
-    new_task->batch = *batch;  // store value
-    pending_gates_++;
-    return true;
-  }
-
-  // Retrieve next gate that this worker should serve packets to.
-  // Do not call without checking gates_pending() first.
-  struct gate_task pop_ogate_and_packets() {
-    pending_gates_--;
-    return gate_servicing_stack_[pending_gates_];  // return value
-  }
-
-  bool gates_pending() { return !(pending_gates_ == 0); }
-
   /* better be the last field. it's huge */
   bess::PacketBatch *splits() { return splits_; }
 
@@ -134,10 +105,6 @@ class Worker {
 
   uint64_t current_tsc_;
   uint64_t current_ns_;
-
-  // Gates and packets that this worker should serve next.
-  struct gate_task gate_servicing_stack_[MAX_MODULES_PER_PATH * BRANCH_FACTOR];
-  int pending_gates_;
 
   /* The current input gate index is not given as a function parameter.
    * Modules should use get_igate() for access */
