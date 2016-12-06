@@ -31,6 +31,8 @@
 #define SINGLE_P 0
 #define SINGLE_C 0
 
+#define ROUND_TO_64(x) ((x + 32) & (~0x3f))
+
 /* We cannot directly use phys_addr_t on 32bit machines,
  * since it may be sizeof(phys_addr_t) != sizeof(void *) */
 typedef uintptr_t paddr_t;
@@ -205,13 +207,14 @@ void *VPort::AllocBar(struct tx_queue_opts *txq_opts,
 
   bytes_per_llring = llring_bytes_with_slots(SLOTS_PER_LLRING);
 
-  total_bytes = sizeof(struct sn_conf_space);
-  total_bytes += num_queues[PACKET_DIR_INC] * 2 * bytes_per_llring;
+  total_bytes = ROUND_TO_64(sizeof(struct sn_conf_space));
+  total_bytes += num_queues[PACKET_DIR_INC] * 2 * ROUND_TO_64(bytes_per_llring);
   total_bytes += num_queues[PACKET_DIR_OUT] *
-                 (sizeof(struct sn_rxq_registers) + 2 * bytes_per_llring);
+                 (ROUND_TO_64(sizeof(struct sn_rxq_registers)) +
+                  2 * ROUND_TO_64(bytes_per_llring));
 
   VLOG(1) << "BAR total_bytes = " << total_bytes;
-  bar = rte_zmalloc(nullptr, total_bytes, 0);
+  bar = rte_zmalloc(nullptr, total_bytes, 64);
   DCHECK(bar);
 
   conf = reinterpret_cast<struct sn_conf_space *>(bar);
@@ -232,7 +235,8 @@ void *VPort::AllocBar(struct tx_queue_opts *txq_opts,
   conf->txq_opts = *txq_opts;
   conf->rxq_opts = *rxq_opts;
 
-  ptr = (char *)(conf + 1);
+  ptr = (char *)(conf);
+  ptr += ROUND_TO_64(sizeof(struct sn_conf_space));
 
   /* See sn_common.h for the llring usage */
 
@@ -241,32 +245,32 @@ void *VPort::AllocBar(struct tx_queue_opts *txq_opts,
     llring_init(reinterpret_cast<struct llring *>(ptr), SLOTS_PER_LLRING,
                 SINGLE_P, SINGLE_C);
     inc_qs_[i].drv_to_sn = reinterpret_cast<struct llring *>(ptr);
-    ptr += bytes_per_llring;
+    ptr += ROUND_TO_64(bytes_per_llring);
 
     /* BESS -> Driver */
     llring_init(reinterpret_cast<struct llring *>(ptr), SLOTS_PER_LLRING,
                 SINGLE_P, SINGLE_C);
     refill_tx_bufs(reinterpret_cast<struct llring *>(ptr));
     inc_qs_[i].sn_to_drv = reinterpret_cast<struct llring *>(ptr);
-    ptr += bytes_per_llring;
+    ptr += ROUND_TO_64(bytes_per_llring);
   }
 
   for (i = 0; i < conf->num_rxq; i++) {
     /* RX queue registers */
     out_qs_[i].rx_regs = reinterpret_cast<struct sn_rxq_registers *>(ptr);
-    ptr += sizeof(struct sn_rxq_registers);
+    ptr += ROUND_TO_64(sizeof(struct sn_rxq_registers));
 
     /* Driver -> BESS */
     llring_init(reinterpret_cast<struct llring *>(ptr), SLOTS_PER_LLRING,
                 SINGLE_P, SINGLE_C);
     out_qs_[i].drv_to_sn = reinterpret_cast<struct llring *>(ptr);
-    ptr += bytes_per_llring;
+    ptr += ROUND_TO_64(bytes_per_llring);
 
     /* BESS -> Driver */
     llring_init(reinterpret_cast<struct llring *>(ptr), SLOTS_PER_LLRING,
                 SINGLE_P, SINGLE_C);
     out_qs_[i].sn_to_drv = reinterpret_cast<struct llring *>(ptr);
-    ptr += bytes_per_llring;
+    ptr += ROUND_TO_64(bytes_per_llring);
   }
 
   return bar;

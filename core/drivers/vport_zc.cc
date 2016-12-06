@@ -10,6 +10,8 @@
 #include <rte_config.h>
 #include <rte_malloc.h>
 
+#define ROUND_TO_64(x) ((x + 32) & (~0x3f))
+
 pb_error_t ZeroCopyVPort::Init(const bess::pb::EmptyArg &) {
   struct vport_bar *bar = nullptr;
 
@@ -27,12 +29,12 @@ pb_error_t ZeroCopyVPort::Init(const bess::pb::EmptyArg &) {
   size_t bar_address;
 
   bytes_per_llring = llring_bytes_with_slots(SLOTS_PER_LLRING);
-  total_bytes = sizeof(struct vport_bar) +
-                (bytes_per_llring * (num_inc_q + num_out_q)) +
-                (sizeof(struct vport_inc_regs) * (num_inc_q)) +
-                (sizeof(struct vport_out_regs) * (num_out_q));
+  total_bytes = ROUND_TO_64(sizeof(struct vport_bar)) +
+                ROUND_TO_64(bytes_per_llring) * (num_inc_q + num_out_q) +
+                ROUND_TO_64(sizeof(struct vport_inc_regs)) * num_inc_q +
+                ROUND_TO_64(sizeof(struct vport_out_regs)) * num_out_q;
 
-  bar = static_cast<struct vport_bar *>(rte_zmalloc(nullptr, total_bytes, 0));
+  bar = static_cast<struct vport_bar *>(rte_zmalloc(nullptr, total_bytes, 64));
   bar_address = (size_t)bar;
   DCHECK(bar);
   bar_ = bar;
@@ -41,13 +43,14 @@ pb_error_t ZeroCopyVPort::Init(const bess::pb::EmptyArg &) {
   bar->num_inc_q = num_inc_q;
   bar->num_out_q = num_out_q;
 
-  ptr = (uint8_t *)(bar + 1);
+  ptr = (uint8_t *)(bar);
+  ptr += ROUND_TO_64(sizeof(struct vport_bar));
 
   /* Set up inc llrings */
   for (i = 0; i < num_inc_q; i++) {
     inc_regs_[i] = bar->inc_regs[i] =
         reinterpret_cast<struct vport_inc_regs *>(ptr);
-    ptr += sizeof(struct vport_inc_regs);
+    ptr += ROUND_TO_64(sizeof(struct vport_inc_regs));
 
     llring_init(reinterpret_cast<struct llring *>(ptr), SLOTS_PER_LLRING,
                 SINGLE_P, SINGLE_C);
@@ -55,14 +58,14 @@ pb_error_t ZeroCopyVPort::Init(const bess::pb::EmptyArg &) {
                           SLOTS_WATERMARK);
     bar->inc_qs[i] = reinterpret_cast<struct llring *>(ptr);
     inc_qs_[i] = bar->inc_qs[i];
-    ptr += bytes_per_llring;
+    ptr += ROUND_TO_64(bytes_per_llring);
   }
 
   /* Set up out llrings */
   for (i = 0; i < num_out_q; i++) {
     out_regs_[i] = bar->out_regs[i] =
         reinterpret_cast<struct vport_out_regs *>(ptr);
-    ptr += sizeof(struct vport_out_regs);
+    ptr += ROUND_TO_64(sizeof(struct vport_out_regs));
 
     llring_init(reinterpret_cast<struct llring *>(ptr), SLOTS_PER_LLRING,
                 SINGLE_P, SINGLE_C);
@@ -70,7 +73,7 @@ pb_error_t ZeroCopyVPort::Init(const bess::pb::EmptyArg &) {
                           SLOTS_WATERMARK);
     bar->out_qs[i] = reinterpret_cast<struct llring *>(ptr);
     out_qs_[i] = bar->out_qs[i];
-    ptr += bytes_per_llring;
+    ptr += ROUND_TO_64(bytes_per_llring);
   }
 
   snprintf(port_dir, PORT_NAME_LEN + 256, "%s/%s", P_tmpdir, VPORT_DIR_PREFIX);
