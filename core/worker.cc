@@ -184,9 +184,6 @@ void *Worker::Run(void *_arg) {
   CPU_SET(arg->core, &set);
   rte_thread_set_affinity(&set);
 
-  /* just in case */
-  memset(this, 0, sizeof(*this));  // FIXME
-
   /* DPDK lcore ID == worker ID (0, 1, 2, 3, ...) */
   RTE_PER_LCORE(_lcore_id) = arg->wid;
 
@@ -228,6 +225,7 @@ void *Worker::Run(void *_arg) {
 }
 
 void *run_worker(void *_arg) {
+  CHECK_EQ(memcmp(&ctx, new Worker(), sizeof(Worker)), 0);
   return ctx.Run(_arg);
 }
 

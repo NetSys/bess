@@ -52,9 +52,7 @@ class WildcardMatch final : public Module {
       : Module(),
         default_gate_(),
         total_key_size_(),
-        num_fields_(),
         fields_(),
-        num_tuples_(),
         tuples_() {}
 
   pb_error_t Init(const bess::pb::WildcardMatchArg &arg);
@@ -157,18 +155,15 @@ class WildcardMatch final : public Module {
 
   int FindTuple(wm_hkey_t *mask);
   int AddTuple(wm_hkey_t *mask);
-  int AddEntry(struct WmTuple *tuple, wm_hkey_t *key, struct WmData *data);
-  int DelEntry(struct WmTuple *tuple, wm_hkey_t *key);
+  int DelEntry(int idx, wm_hkey_t *key);
 
   gate_idx_t default_gate_;
 
   int total_key_size_; /* a multiple of sizeof(uint64_t) */
 
-  size_t num_fields_;
-  struct WmField fields_[MAX_FIELDS];
+  std::vector<struct WmField> fields_;
 
-  int num_tuples_;
-  struct WmTuple tuples_[MAX_TUPLES];
+  std::vector<struct WmTuple> tuples_;
 };
 
 #endif  // BESS_MODULES_WILDCARDMATCH_H_

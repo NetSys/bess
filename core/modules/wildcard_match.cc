@@ -91,7 +91,8 @@ pb_error_t WildcardMatch::Init(const bess::pb::WildcardMatchArg &arg) {
   for (int i = 0; i < arg.fields_size(); i++) {
     const auto &field = arg.fields(i);
     pb_error_t err;
-    struct WmField f;
+    fields_.emplace_back();
+    struct WmField &f = fields_.back();
 
     f.pos = size_acc;
 
@@ -101,19 +102,17 @@ pb_error_t WildcardMatch::Init(const bess::pb::WildcardMatchArg &arg) {
     }
 
     size_acc += f.size;
-    fields_[i] = f;
   }
 
   default_gate_ = DROP_GATE;
-  num_fields_ = (size_t)arg.fields_size();
   total_key_size_ = align_ceil(size_acc, sizeof(uint64_t));
 
   return pb_errno(0);
 }
 
 void WildcardMatch::Deinit() {
-  for (int i = 0; i < num_tuples_; i++) {
-    tuples_[i].ht.Close();
+  for (auto &tuple : tuples_) {
+    tuple.ht.Close();
   }
 }
 
@@ -123,17 +122,15 @@ gate_idx_t WildcardMatch::LookupEntry(wm_hkey_t *key, gate_idx_t def_gate) {
   };
 
   const int key_size = total_key_size_;
-  const int num_tuples = num_tuples_;
 
   wm_hkey_t key_masked;
 
-  for (int i = 0; i < num_tuples; i++) {
-    struct WmTuple *tuple = &tuples_[i];
+  for (const auto &tuple : tuples_) {
     struct WmData *cand;
 
-    mask(&key_masked, key, &tuple->mask, key_size);
+    mask(&key_masked, key, &tuple.mask, key_size);
 
-    cand = static_cast<struct WmData *>(tuple->ht.Get(&key_masked));
+    cand = static_cast<struct WmData *>(tuple.ht.Get(&key_masked));
 
     if (cand && cand->priority >= result.priority) {
       result = *cand;
@@ -153,13 +150,13 @@ void WildcardMatch::ProcessBatch(bess::PacketBatch *batch) {
 
   default_gate = ACCESS_ONCE(default_gate_);
 
-  for (size_t i = 0; i < num_fields_; i++) {
+  for (const auto &field : fields_) {
     int offset;
-    int pos = fields_[i].pos;
-    int attr_id = fields_[i].attr_id;
+    int pos = field.pos;
+    int attr_id = field.attr_id;
 
     if (attr_id < 0) {
-      offset = fields_[i].offset;
+      offset = field.offset;
     } else {
       offset = bess::Packet::mt_offset_to_databuf_offset(
           WildcardMatch::attr_offsets[attr_id]);
@@ -197,10 +194,8 @@ void WildcardMatch::ProcessBatch(bess::PacketBatch *batch) {
     out_gates[i] = default_gate;
   }
 
-  for (int i = 0; i < num_tuples_; i++) {
-    const struct WmTuple *tuple = &tuples_[i];
-    const struct htable *ht = &tuple->ht;
-    const wm_hkey_t *tuple_mask = &tuple->mask;
+  for (const auto &tuple : tuples_) {
+    const wm_hkey_t *tuple_mask = &tuple.mask;
 
     for (int j = 0; j < cnt; j++) {
       wm_hkey_t key_masked;
@@ -208,7 +203,7 @@ void WildcardMatch::ProcessBatch(bess::PacketBatch *batch) {
 
       mask(&key_masked, keys[j], tuple_mask, key_size);
 
-      cand = ht->Get(&key_masked);
+      cand = tuple.ht.Get(&key_masked);
 
       if (cand && cand->priority >= priorities[j]) {
         out_gates[j] = cand->ogate;
@@ -224,26 +219,26 @@ void WildcardMatch::ProcessBatch(bess::PacketBatch *batch) {
 std::string WildcardMatch::GetDesc() const {
   int num_rules = 0;
 
-  for (int i = 0; i < num_tuples_; i++) {
-    num_rules += tuples_[i].ht.Count();
+  for (const auto &tuple : tuples_) {
+    num_rules += tuple.ht.Count();
   }
 
-  return bess::utils::Format("%lu fields, %d rules", num_fields_, num_rules);
+  return bess::utils::Format("%lu fields, %d rules", fields_.size(), num_rules);
 }
 
 template <typename T>
 pb_error_t WildcardMatch::ExtractKeyMask(const T &arg, wm_hkey_t *key,
                                          wm_hkey_t *mask) {
-  if ((size_t)arg.values_size() != num_fields_) {
-    return pb_error(EINVAL, "must specify %lu values", num_fields_);
-  } else if ((size_t)arg.masks_size() != num_fields_) {
-    return pb_error(EINVAL, "must specify %lu masks", num_fields_);
+  if ((size_t)arg.values_size() != fields_.size()) {
+    return pb_error(EINVAL, "must specify %lu values", fields_.size());
+  } else if ((size_t)arg.masks_size() != fields_.size()) {
+    return pb_error(EINVAL, "must specify %lu masks", fields_.size());
   }
 
   memset(key, 0, sizeof(*key));
   memset(mask, 0, sizeof(*mask));
 
-  for (size_t i = 0; i < num_fields_; i++) {
+  for (size_t i = 0; i < fields_.size(); i++) {
     int field_size = fields_[i].size;
     int field_pos = fields_[i].pos;
 
@@ -281,67 +276,46 @@ pb_error_t WildcardMatch::ExtractKeyMask(const T &arg, wm_hkey_t *key,
 
 int WildcardMatch::FindTuple(wm_hkey_t *mask) {
   int key_size = total_key_size_;
+  int i = 0;
 
-  for (int i = 0; i < num_tuples_; i++) {
-    struct WmTuple *tuple = &tuples_[i];
-
-    if (memcmp(&tuple->mask, mask, key_size) == 0) {
+  for (const auto &tuple : tuples_) {
+    if (memcmp(&tuple.mask, mask, key_size) == 0) {
       return i;
     }
+    i++;
   }
 
   return -ENOENT;
 }
 
 int WildcardMatch::AddTuple(wm_hkey_t *mask) {
-  struct WmTuple *tuple;
-
   int ret;
 
-  if (num_tuples_ >= MAX_TUPLES) {
+  if (tuples_.size() >= MAX_TUPLES) {
     return -ENOSPC;
   }
 
-  tuple = &tuples_[num_tuples_++];
-  memcpy(&tuple->mask, mask, sizeof(*mask));
-
-  ret = tuple->ht.Init(total_key_size_, sizeof(struct WmData));
+  tuples_.emplace_back();
+  struct WmTuple &tuple = tuples_.back();
+  memcpy(&tuple.mask, mask, sizeof(*mask));
+  ret = tuple.ht.Init(total_key_size_, sizeof(struct WmData));
   if (ret < 0) {
+    tuple.ht.Close();
     return ret;
   }
 
-  return tuple - tuples_;
+  return int(tuples_.size() - 1);
 }
 
-int WildcardMatch::AddEntry(struct WmTuple *tuple, wm_hkey_t *key,
-                            struct WmData *data) {
-  int ret;
-
-  ret = tuple->ht.Set(key, data);
-  if (ret < 0) {
-    return ret;
-  }
-
-  return 0;
-}
-
-int WildcardMatch::DelEntry(struct WmTuple *tuple, wm_hkey_t *key) {
-  int ret = tuple->ht.Del(key);
+int WildcardMatch::DelEntry(int idx, wm_hkey_t *key) {
+  struct WmTuple &tuple = tuples_[idx];
+  int ret = tuple.ht.Del(key);
   if (ret) {
     return ret;
   }
 
-  if (tuple->ht.Count() == 0) {
-    int idx = tuple - tuples_;
-
-    tuple->ht.Close();
-
-    num_tuples_--;
-
-    // TODO: Do not use memmove for the class object.
-    // vtable pointer will be overwritten
-    memmove((void *)&tuples_[idx], (void *)&tuples_[idx + 1],
-            sizeof(*tuple) * (num_tuples_ - idx));
+  if (tuple.ht.Count() == 0) {
+    tuples_.erase(tuples_.begin() + idx);
   }
 
   return 0;
@@ -384,7 +358,7 @@ pb_cmd_response_t WildcardMatch::CommandAdd(
     }
   }
 
-  int ret = AddEntry(&tuples_[idx], &key, &data);
+  int ret = tuples_[idx].ht.Set(&key, &data);
   if (ret < 0) {
     set_cmd_response_error(&response, pb_error(-ret, "failed to add a rule"));
     return response;
@@ -414,7 +388,7 @@ pb_cmd_response_t WildcardMatch::CommandDelete(
     return response;
   }
 
-  int ret = DelEntry(&tuples_[idx], &key);
+  int ret = DelEntry(idx, &key);
   if (ret < 0) {
     set_cmd_response_error(&response,
                            pb_error(-ret, "failed to delete a rule"));
@@ -426,8 +400,8 @@ pb_cmd_response_t WildcardMatch::CommandDelete(
 }
 
 pb_cmd_response_t WildcardMatch::CommandClear(const bess::pb::EmptyArg &) {
-  for (int i = 0; i < num_tuples_; i++) {
-    tuples_[i].ht.Clear();
+  for (auto &tuple : tuples_) {
+    tuple.ht.Clear();
   }
 
   pb_cmd_response_t response;

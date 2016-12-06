@@ -11,6 +11,21 @@
 static const HTableBase::HashFunc kDefaultHashFunc = rte_hash_crc;
 static const HTableBase::KeyCmpFunc kDefaultKeyCmpFunc = memcmp;
 
+HTableBase::HTableBase(HTableBase &&other) {
+  *this = other;
+  other.buckets_ = nullptr;
+  other.entries_ = nullptr;
+}
+
+HTableBase &HTableBase::operator=(HTableBase &&other) {
+  if (this != &other) {
+    *this = other;
+    other.buckets_ = nullptr;
+    other.entries_ = nullptr;
+  }
+  return *this;
+}
+
 /* from the stored key pointer, return its value pointer */
 void *HTableBase::key_to_value(const void *key) const {
   return (void *)((char *)key + value_offset_);
@@ -348,9 +363,14 @@ int HTableBase::Init(size_t key_size, size_t value_size) {
 }
 
 void HTableBase::Close() {
-  mem_free(buckets_);
-  mem_free(entries_);
-  memset((void *)this, 0, sizeof(*this));
+  if (buckets_) {
+    mem_free(buckets_);
+    buckets_ = nullptr;
+  }
+  if (entries_) {
+    mem_free(entries_);
+    entries_ = nullptr;
+  }
 }
 
 void HTableBase::Clear() {
