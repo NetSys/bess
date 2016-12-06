@@ -10,6 +10,8 @@ env:
     - "IMAGE=nefelinetworks/bess_build:latest"
     - GCOV_PREFIX_STRIP=2
   matrix:
+    - VER_CXX=clang++ VER_CC=clang
+    - VER_CXX=clang++ VER_CC=clang SANITIZE=1
     - VER_CXX=g++-4.8 VER_CC=gcc-4.8
     - VER_CXX=g++-4.8 VER_CC=gcc-4.8 DEBUG=1
     - VER_CXX=g++-5 VER_CC=gcc-5
