@@ -28,7 +28,6 @@ class Scheduler final {
   Scheduler(TrafficClass *root, const std::string &leaf_name = "")
       : root_(root),
         default_leaf_class_(),
-        have_throttled_(),
         throttled_cache_(ThrottledComp()),
         stats_(),
         last_stats_(),
@@ -61,10 +60,14 @@ class Scheduler final {
   void AddThrottled(RateLimitTrafficClass *rc);
 
   // Selects the next TrafficClass to run.
-  TrafficClass *Next();
+  TrafficClass *Next(uint64_t tsc);
 
   // Unthrottles any TrafficClasses that were throttled whose time has passed.
   inline void ResumeThrottled(uint64_t tsc);
+
+  // Finishes the scheduling of a TrafficClass, to be called after Next() to
+  // clean up.
+  void Done(TrafficClass *c, resource_arr_t usage, uint64_t tsc);
 
   TrafficClass *root() { return root_; }
 
@@ -81,10 +84,10 @@ class Scheduler final {
   }
 
  private:
-
-  // Finishes the scheduling of a TrafficClass, to be called after Next() to
-  // clean up.
-  void Done(TrafficClass *c, resource_arr_t usage, uint64_t tsc);
+  // Executes the given function on all TrafficClasses belonging to this
+  // Scheduler.  Slow; should not be used in performance-sensitive code.
+  template <typename Func>
+  void ApplyToAllClasses(Func func);
 
   // Handles a rate limiter class's usage, and blocks it if needed.
   void HandleRateLimit(RateLimitTrafficClass *rc, uint64_t consumed, uint64_t tsc);
@@ -98,7 +101,6 @@ class Scheduler final {
   LeafTrafficClass *default_leaf_class_;
 
   // A cache of throttled TrafficClasses.
-  bool have_throttled_;
   std::priority_queue<RateLimitTrafficClass *, std::vector<RateLimitTrafficClass *>, ThrottledComp> throttled_cache_;
 
   struct sched_stats stats_;
