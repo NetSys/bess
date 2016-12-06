@@ -56,7 +56,7 @@ ifeq "$(CXXVERSION_5_OR_HIGHER)" "1"
 endif
 
 LDFLAGS += -rdynamic -L$(DPDK_LIB_DIR) -Wl,-rpath=$(DPDK_LIB_DIR) -pthread \
-	   -static-libstdc++ -flto -ffat-lto-objects -finline-limit=1000
+	   -static-libstdc++ 
 
 LIBS += -Wl,-non_shared \
 	-Wl,--whole-archive -l$(DPDK_LIB) -Wl,--no-whole-archive \
@@ -77,7 +77,7 @@ ifdef COVERAGE
 endif
 
 ifndef DEBUG
-    CXXFLAGS += -Ofast -DNDEBUG
+    CXXFLAGS += -Ofast -DNDEBUG -flto -ffat-lto-objects -finline-limit=1000
     LDFLAGS += -flto -ffat-lto-objects -finline-limit=1000
 endif
 
