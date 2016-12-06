@@ -68,7 +68,7 @@ else
 endif
 
 LDFLAGS += -rdynamic -L$(DPDK_LIB_DIR) -Wl,-rpath=$(DPDK_LIB_DIR) -pthread \
-					 -static-libstdc++ -flto -ffat-lto-objects -finline-limit=1000
+					 -static-libstdc++ 
 
 LIBS += -Wl,-non_shared \
 	-Wl,--whole-archive -l$(DPDK_LIB) -Wl,--no-whole-archive \
@@ -89,8 +89,8 @@ ifdef COVERAGE
 endif
 
 ifndef DEBUG
-    CXXFLAGS += -Ofast -DNDEBUG
-    LDFLAGS += -ffat-lto-objects -finline-limit=1000
+    CXXFLAGS += -Ofast -DNDEBUG -flto -ffat-lto-objects -finline-limit=1000
+    LDFLAGS += -flto -ffat-lto-objects -finline-limit=1000
 
     ifeq "$(IS_CLANG)" "0"
         LDFLAGS += -flto # -flto requires LLVMgold when building with Clang
