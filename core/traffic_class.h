@@ -357,6 +357,7 @@ class RateLimitTrafficClass final : public TrafficClass {
       max_burst_(),
       tokens_(),
       throttle_expiration_(),
+      last_tsc_(),
       child_() {
     limit_ = (limit << (USAGE_AMPLIFIER_POW - 4)) / (tsc_hz >> 4);
     if (limit_) {
