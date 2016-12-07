@@ -216,7 +216,7 @@ void *Worker::Run(void *_arg) {
   PriorityTrafficClass *root = TrafficClassBuilder::CreateTrafficClass<PriorityTrafficClass>(root_name);
   LeafTrafficClass *leaf = TrafficClassBuilder::CreateTrafficClass<LeafTrafficClass>(leaf_name);
   root->AddChild(leaf, kDefaultPriority);
-  s_ = new Scheduler(root, leaf_name);
+  scheduler_ = new Scheduler(root, leaf_name);
 
   current_tsc_ = rdtsc();
 
@@ -234,13 +234,13 @@ void *Worker::Run(void *_arg) {
             << "is running on core " << core_ << " (socket " << socket_ << ")";
 
   CPU_ZERO(&set);
-  s_->ScheduleLoop();
+  scheduler_->ScheduleLoop();
 
   LOG(INFO) << "Worker " << wid_ << "(" << this << ") "
             << "is quitting... (core " << core_ << ", socket " << socket_
             << ")";
 
-  delete s_;
+  delete scheduler_;
 
   return nullptr;
 }

@@ -214,7 +214,7 @@ void Module::ProcessBatch(bess::PacketBatch *) {
 
 task_id_t Module::RegisterTask(void *arg) {
   Worker *w = get_next_active_worker();
-  auto *c = w->s()->default_leaf_class();
+  bess::LeafTrafficClass *c = w->scheduler()->default_leaf_class();
 
   for (task_id_t id = 0; id < MAX_TASKS_PER_MODULE; id++) {
     if (tasks[id] == nullptr) {

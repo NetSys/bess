@@ -375,7 +375,7 @@ class BESSControlImpl final : public BESSControl::Service {
       status->set_wid(wid);
       status->set_running(is_worker_running(wid));
       status->set_core(workers[wid]->core());
-      status->set_num_tcs(workers[wid]->s()->root()->Size() - 1);
+      status->set_num_tcs(workers[wid]->scheduler()->NumTcs());
       status->set_silent_drops(workers[wid]->silent_drops());
     }
     return Status::OK;
@@ -445,18 +445,21 @@ class BESSControlImpl final : public BESSControl::Service {
       }
 
       if (c->policy() == bess::POLICY_LEAF) {
-        status->set_tasks(reinterpret_cast<bess::LeafTrafficClass*>(c)->tasks().size());
+        status->set_tasks(
+            reinterpret_cast<bess::LeafTrafficClass*>(c)->tasks().size());
       }
 
       status->mutable_class_()->set_wid(wid_filter);
 
       if (c->policy() == bess::POLICY_RATE_LIMIT) {
-        bess::RateLimitTrafficClass *rl = reinterpret_cast<bess::RateLimitTrafficClass*>(c);
+        bess::RateLimitTrafficClass* rl =
+            reinterpret_cast<bess::RateLimitTrafficClass*>(c);
         std::string resource = bess::ResourceName.at(rl->resource());
         int64_t limit = rl->limit();
         int64_t max_burst = rl->max_burst();
         status->mutable_class_()->mutable_limit()->insert({resource, limit});
-        status->mutable_class_()->mutable_max_burst()->insert({resource, max_burst});
+        status->mutable_class_()->mutable_max_burst()->insert(
+            {resource, max_burst});
       }
     }
 
@@ -546,7 +549,7 @@ class BESSControlImpl final : public BESSControl::Service {
 
     bess::TrafficClass* root;
     if (request->class_().parent().length() == 0) {
-      root = workers[wid]->s()->root();
+      root = workers[wid]->scheduler()->root();
     } else {
       const auto& tcs = TrafficClassBuilder::all_tcs();
       const auto& it = tcs.find(request->class_().parent());
@@ -568,28 +571,32 @@ class BESSControlImpl final : public BESSControl::Service {
           return return_with_error(response, EINVAL, "Priority %d is reserved",
                                    DEFAULT_PRIORITY);
         }
-        fail = !reinterpret_cast<bess::PriorityTrafficClass*>(root)->AddChild(c, pri);
+        fail = !reinterpret_cast<bess::PriorityTrafficClass*>(root)->AddChild(
+            c, pri);
         break;
       }
       case bess::POLICY_WEIGHTED_FAIR:
         if (request->class_().arg_case() != bess::pb::TrafficClass::kShare) {
           return return_with_error(response, EINVAL, "No share specified");
         }
-        fail = !reinterpret_cast<bess::WeightedFairTrafficClass*>(root)->AddChild(
-            c, request->class_().share());
+        fail =
+            !reinterpret_cast<bess::WeightedFairTrafficClass*>(root)->AddChild(
+                c, request->class_().share());
         break;
       case bess::POLICY_ROUND_ROBIN:
-        fail = !reinterpret_cast<bess::RoundRobinTrafficClass*>(root)->AddChild(c);
+        fail =
+            !reinterpret_cast<bess::RoundRobinTrafficClass*>(root)->AddChild(c);
         break;
       case bess::POLICY_RATE_LIMIT:
-        fail = !reinterpret_cast<bess::RateLimitTrafficClass*>(root)->AddChild(c);
+        fail =
+            !reinterpret_cast<bess::RateLimitTrafficClass*>(root)->AddChild(c);
         break;
       default:
         return return_with_error(response, EPERM,
                                  "Root tc doens't support children");
     }
     if (fail) {
-        return return_with_error(response, EINVAL, "AddChild() failed");
+      return return_with_error(response, EINVAL, "AddChild() failed");
     }
 
     return Status::OK;
@@ -1030,13 +1037,13 @@ class BESSControlImpl final : public BESSControl::Service {
                                  wid);
       }
 
-      bess::LeafTrafficClass* tc = workers[wid]->s()->default_leaf_class();
+      bess::LeafTrafficClass* tc =
+          workers[wid]->scheduler()->default_leaf_class();
       if (!tc) {
         return return_with_error(response, ENOENT,
                                  "Worker %d has no default leaf tc", wid);
       }
       tc->AddTask(t);
-
     } else {
       return return_with_error(response, EINVAL, "Both tc and wid are not set");
     }

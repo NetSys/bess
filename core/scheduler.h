@@ -76,6 +76,12 @@ class Scheduler final {
     return true;
   }
 
+  // Return the number of traffic classes, excluding the root, managed by this
+  // scheduler.
+  size_t NumTcs() const {
+    return root_->Size() - 1;
+  }
+
  private:
   // Handles a rate limiter class's usage, and blocks it if needed.
   void HandleRateLimit(RateLimitTrafficClass *rc, uint64_t consumed, uint64_t tsc);
