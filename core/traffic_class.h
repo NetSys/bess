@@ -46,8 +46,8 @@ typedef uint32_t priority_t;
 // The amount of a resource allocated to a class.
 typedef int32_t resource_share_t;
 
-struct alignas(16) tc_stats {
-  resource_arr_t usage;
+struct tc_stats {
+  alignas(32) resource_arr_t usage;
   uint64_t cnt_throttled;
 };
 
