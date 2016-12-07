@@ -8,14 +8,15 @@
 namespace bess {
 
 void Scheduler::ScheduleLoop() {
+  uint64_t now;
   // How many rounds to go before we do accounting.
   const uint64_t accounting_mask = 0xffff;
   static_assert(((accounting_mask + 1) & accounting_mask) == 0,
                 "Accounting mask must be (2^n)-1");
 
-  checkpoint_ = now_ = rdtsc();
+  checkpoint_ = now = rdtsc();
 
-  ApplyToAllClasses([=](TrafficClass *c){c->set_last_tsc(now_);});
+  ApplyToAllClasses([=](TrafficClass *c){c->set_last_tsc(now);});
 
   // The main scheduling, running, accounting loop.
   for (uint64_t round = 0;; ++round) {
@@ -23,10 +24,8 @@ void Scheduler::ScheduleLoop() {
     if ((round & accounting_mask) == 0) {
       if (ctx.is_pause_requested()) {
         if (ctx.BlockWorker()) {
-          // TODO(barath): Add log message here?
           break;
         }
-        checkpoint_ = now_ = rdtsc();
       }
     }
 
@@ -36,14 +35,14 @@ void Scheduler::ScheduleLoop() {
 
 void Scheduler::ScheduleOnce() {
   resource_arr_t usage;
+  uint64_t now = rdtsc();
 
   // Schedule.
-  now_ = rdtsc();
-  TrafficClass *c = Next(now_);
+  TrafficClass *c = Next(now);
 
   if (c) {
-    ctx.set_current_tsc(now_);  // Tasks see updated tsc.
-    ctx.set_current_ns(now_ * ns_per_cycle_);
+    ctx.set_current_tsc(now);  // Tasks see updated tsc.
+    ctx.set_current_ns(now * ns_per_cycle_);
 
     // Run.
     LeafTrafficClass *leaf = static_cast<LeafTrafficClass *>(c);
@@ -51,14 +50,14 @@ void Scheduler::ScheduleOnce() {
 
     // Account.
     usage[RESOURCE_COUNT] = 1;
-    usage[RESOURCE_CYCLE] = now_ - checkpoint_;
+    usage[RESOURCE_CYCLE] = now - checkpoint_;
     usage[RESOURCE_PACKET] = ret.packets;
     usage[RESOURCE_BIT] = ret.bits;
 
     // TODO(barath): Re-enable scheduler-wide stats accumulation.
     // accumulate(stats_.usage, usage);
 
-    leaf->FinishAndAccountTowardsRoot(this, nullptr, usage, now_);
+    leaf->FinishAndAccountTowardsRoot(this, nullptr, usage, now);
   } else {
     // TODO(barath): Ideally, we wouldn't spin in this case but rather take the
     // fact that Next() returned nullptr as an indication that everything is
@@ -66,10 +65,10 @@ void Scheduler::ScheduleOnce() {
     // currently have no functionality to support such whole-scheduler
     // blocking/unblocking.
     ++stats_.cnt_idle;
-    stats_.cycles_idle += (now_ - checkpoint_);
+    stats_.cycles_idle += (now - checkpoint_);
   }
 
-  checkpoint_ = now_;
+  checkpoint_ = now;
 }
 
 TrafficClass *Scheduler::Next(uint64_t tsc) {
