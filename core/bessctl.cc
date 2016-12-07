@@ -560,7 +560,10 @@ class BESSControlImpl final : public BESSControl::Service {
     bool fail = false;
     switch (root->policy()) {
       case bess::POLICY_PRIORITY: {
-        priority_t pri = request->class_().priority_share();
+        if (request->class_().arg_case() != bess::pb::TrafficClass::kPriority) {
+          return return_with_error(response, EINVAL, "No priority specified");
+        }
+        priority_t pri = request->class_().priority();
         if (pri == DEFAULT_PRIORITY) {
           return return_with_error(response, EINVAL, "Priority %d is reserved",
                                    DEFAULT_PRIORITY);
@@ -569,8 +572,11 @@ class BESSControlImpl final : public BESSControl::Service {
         break;
       }
       case bess::POLICY_WEIGHTED_FAIR:
+        if (request->class_().arg_case() != bess::pb::TrafficClass::kShare) {
+          return return_with_error(response, EINVAL, "No share specified");
+        }
         fail = !reinterpret_cast<bess::WeightedFairTrafficClass*>(root)->AddChild(
-            c, request->class_().priority_share());
+            c, request->class_().share());
         break;
       case bess::POLICY_ROUND_ROBIN:
         fail = !reinterpret_cast<bess::RoundRobinTrafficClass*>(root)->AddChild(c);

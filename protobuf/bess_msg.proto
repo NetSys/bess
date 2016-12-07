@@ -171,10 +171,13 @@ message TrafficClass {
   bool blocked = 3;
   string policy = 4;
   string resource = 5;
-  int64 priority_share = 6;
-  int64 wid = 7;
-  map<string, int64> limit = 8;
-  map<string, int64> max_burst = 9;
+  oneof arg {
+    int64 priority = 6;
+    int64 share = 7;
+  }
+  int64 wid = 8;
+  map<string, int64> limit = 9;
+  map<string, int64> max_burst = 10;
 }
 
 message GetTcStatsResponse {
