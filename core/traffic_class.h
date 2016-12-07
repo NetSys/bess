@@ -50,7 +50,7 @@ typedef uint32_t priority_t;
 // The amount of a resource allocated to a class.
 typedef int32_t resource_share_t;
 
-struct tc_stats {
+struct alignas(16) tc_stats {
   resource_arr_t usage;
   uint64_t cnt_throttled;
 };
@@ -99,6 +99,15 @@ const std::unordered_map<int, std::string> ResourceName = {
   {RESOURCE_BIT, "bit"}
 };
 
+/* acc += x */
+#define ACCUMULATE(acc, x) { \
+  uint64_t *p1 = acc; \
+  uint64_t *p2 = x; \
+  for (int index = 0; index < NUM_RESOURCES; ++index) { \
+    p1[index] += p2[index]; \
+  } \
+}
+
 // A TrafficClass represents a hierarchy of TrafficClasses which contain
 // schedulable task units.
 class TrafficClass {
@@ -116,6 +125,16 @@ class TrafficClass {
     }
     return parent_->Root();
   }
+
+  // Starts from the current node and accounts for the usage of the given child
+  // after execution and finishes any data structure reorganization required
+  // after execution has finished.  The scheduler is the scheduler that owns
+  // these classes.
+  virtual void FinishAndAccountTowardsRoot(
+      Scheduler *sched,
+      TrafficClass *child,
+      resource_arr_t usage,
+      uint64_t tsc) = 0;
 
   inline TrafficClass *parent() const { return parent_; }
 
@@ -146,7 +165,7 @@ class TrafficClass {
 
   // Sets blocked status to nowblocked and recurses towards root if our blocked
   // status changed.
-  inline void UnblockTowardsRootSetBlocked(uint64_t tsc, bool nowblocked) {
+  void UnblockTowardsRootSetBlocked(uint64_t tsc, bool nowblocked) __attribute__((always_inline)) {
     bool became_unblocked = !nowblocked && blocked_;
     blocked_ = nowblocked;
 
@@ -163,16 +182,6 @@ class TrafficClass {
   // Starts from the current node and attempts to recursively unblock (if
   // eligible) all nodes from this node to the root.
   virtual void UnblockTowardsRoot(uint64_t tsc) = 0;
-
-  // Starts from the current node and accounts for the usage of the given child
-  // after execution and finishes any data structure reorganization required
-  // after execution has finished.  The scheduler is the scheduler that owns
-  // these classes.
-  virtual void FinishAndAccountTowardsRoot(
-      Scheduler *sched,
-      TrafficClass *child,
-      resource_arr_t usage,
-      uint64_t tsc) = 0;
 
   // Parent of this class; nullptr for root.
   TrafficClass *parent_;
@@ -472,14 +481,13 @@ class LeafTrafficClass final : public TrafficClass {
   }
 
   void FinishAndAccountTowardsRoot(
-      [[maybe_unused]] Scheduler *sched,
+      Scheduler *sched,
       [[maybe_unused]] TrafficClass *child,
-      [[maybe_unused]] resource_arr_t usage,
+      resource_arr_t usage,
       uint64_t tsc) override {
+    ACCUMULATE(stats_.usage, usage);
     last_tsc_ = tsc;
-    // TODO(barath): Consider if there is any accounting to be done for leaf
-    // classes.
-    return;
+    parent_->FinishAndAccountTowardsRoot(sched, this, usage, tsc);
   }
 
   size_t Size() const;

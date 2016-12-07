@@ -9,7 +9,7 @@ namespace bess {
 
 void Scheduler::ScheduleLoop() {
   // How many rounds to go before we do accounting.
-  const uint64_t accounting_mask = 0xffff; 
+  const uint64_t accounting_mask = 0xfffff;
   static_assert(((accounting_mask+1) & accounting_mask) == 0,
                 "Accounting mask must be (2^n)-1");
 
@@ -21,15 +21,15 @@ void Scheduler::ScheduleLoop() {
   // The main scheduling, running, accounting loop.
   for (uint64_t round = 0;; ++round) {
     // Periodic check, to mitigate expensive operations.
-    if (unlikely((round & accounting_mask) == 0)) {
-      if (unlikely(ctx.is_pause_requested())) {
+    if ((round & accounting_mask) == 0) {
+      if (ctx.is_pause_requested()) {
         if (ctx.BlockWorker()) {
           // TODO(barath): Add log message here?
           break;
         }
         last_stats_ = stats_;
         last_print_tsc_ = checkpoint_ = now_ = rdtsc();
-      } else if (unlikely(FLAGS_s && now_ - last_print_tsc_ >= tsc_hz)) {
+      } else if (FLAGS_s && now_ - last_print_tsc_ >= tsc_hz) {
         // TODO(barath): Re-add stats printing.
         // PrintStats(last_stats_);
         last_stats_ = stats_;
@@ -42,7 +42,10 @@ void Scheduler::ScheduleLoop() {
 }
 
 void Scheduler::ScheduleOnce() {
+  resource_arr_t usage;
+
   // Schedule.
+  now_ = rdtsc();
   TrafficClass *c = Next(now_);
 
   if (c) {
@@ -54,22 +57,21 @@ void Scheduler::ScheduleOnce() {
     struct task_result ret = leaf->RunTasks();
 
     // Account.
-    now_ = rdtsc();
-    resource_arr_t usage;
     usage[RESOURCE_COUNT] = 1;
     usage[RESOURCE_CYCLE] = now_ - checkpoint_;
     usage[RESOURCE_PACKET] = ret.packets;
     usage[RESOURCE_BIT] = ret.bits;
 
-    Done(c, usage, now_);
+    // TODO(barath): Re-enable scheduler-wide stats accumulation.
+    // accumulate(stats_.usage, usage);
+
+    leaf->FinishAndAccountTowardsRoot(this, nullptr, usage, now_);
   } else {
     // TODO(barath): Ideally, we wouldn't spin in this case but rather take the
     // fact that Next() returned nullptr as an indication that everything is
     // blocked, so we could wait until something is added that unblocks us.  We
     // currently have no functionality to support such whole-scheduler
     // blocking/unblocking.
-    now_ = rdtsc();
-
     ++stats_.cnt_idle;
     stats_.cycles_idle += (now_ - checkpoint_);
   }
@@ -93,18 +95,6 @@ TrafficClass *Scheduler::Next(uint64_t tsc) {
   }
 
   return c;
-}
-
-void Scheduler::Done(TrafficClass *c, resource_arr_t usage, uint64_t tsc) {
-  // TODO(barath): Re-enable scheduler-wide stats accumulation.
-  // accumulate(stats_.usage, usage);
-
-  // Accumulate per-TC stats.
-  accumulate(c->stats_.usage, usage);
-
-  // The picked class can never be the root, so we are guaranteed that c has a
-  // parent.
-  c->parent_->FinishAndAccountTowardsRoot(this, c, usage, tsc);
 }
 
 void Scheduler::AddThrottled(RateLimitTrafficClass *rc) {
