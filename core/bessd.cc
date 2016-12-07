@@ -108,9 +108,6 @@ void ProcessCommandLineArgs() {
 
   if (FLAGS_f) {
     google::LogToStderr();
-    if (!FLAGS_s) {
-      VLOG(1) << "TC statistics output is disabled (add -s option?)";
-    }
   }
 }
 
