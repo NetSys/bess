@@ -9,7 +9,7 @@ namespace bess {
 
 void Scheduler::ScheduleLoop() {
   // How many rounds to go before we do accounting.
-  const uint64_t accounting_mask = 0xfffff;
+  const uint64_t accounting_mask = 0xffff;
   static_assert(((accounting_mask+1) & accounting_mask) == 0,
                 "Accounting mask must be (2^n)-1");
 
