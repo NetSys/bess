@@ -50,7 +50,7 @@ else
     endif
 endif
 
-CXXFLAGS += -std=gnu++11 -g3 -ggdb3 -Ofast -march=native \
+CXXFLAGS += -std=gnu++11 -g3 -ggdb3 -Og -march=native \
             -Werror -isystem $(DPDK_INC_DIR) -D_GNU_SOURCE \
             -Wall -Wextra -Wcast-align
 
@@ -67,14 +67,14 @@ else
 endif
 
 LDFLAGS += -rdynamic -L$(DPDK_LIB_DIR) -Wl,-rpath=$(DPDK_LIB_DIR) -pthread \
-					 -static-libstdc++ 
+           -static-libstdc++
 
 LIBS += -Wl,-non_shared \
 	-Wl,--whole-archive -l$(DPDK_LIB) -Wl,--no-whole-archive \
 	-lglog -lgflags -lprotobuf -lgrpc++ -lgrpc \
 	-lssl -lcrypto -lunwind -llzma -lpcap -lz \
 	-Wl,-call_shared \
-	-ldl 
+	-ldl
 
 ifdef SANITIZE
     CXXFLAGS += -fsanitize=address -fsanitize=undefined -fno-omit-frame-pointer
@@ -91,8 +91,8 @@ ifndef DEBUG
     CXXFLAGS += -Ofast -DNDEBUG
 
     ifeq "$(IS_CLANG)" "0"
-				CXXFLAGS += -flto -ffat-lto-objects
-				LDFLAGS += -flto -ffat-lto-objects
+        CXXFLAGS += -flto -ffat-lto-objects
+        LDFLAGS += -flto -ffat-lto-objects
     endif
 endif
 
