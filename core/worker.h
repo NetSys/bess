@@ -76,8 +76,8 @@ class Worker {
     return pframe_pool_;
   }
 
-  Scheduler *s() {
-    return s_;
+  Scheduler *scheduler() {
+    return scheduler_;
   }
 
   uint64_t silent_drops() { return silent_drops_; }
@@ -106,7 +106,7 @@ class Worker {
 
   struct rte_mempool *pframe_pool_;
 
-  Scheduler *s_;
+  Scheduler *scheduler_;
 
   uint64_t silent_drops_; /* packets that have been sent to a deadend */
 
