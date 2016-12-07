@@ -30,8 +30,6 @@ class Scheduler final {
         default_leaf_class_(),
         throttled_cache_(ThrottledComp()),
         stats_(),
-        last_stats_(),
-        last_print_tsc_(),
         checkpoint_(),
         now_(),
         ns_per_cycle_(1e9 / tsc_hz) {
@@ -100,8 +98,6 @@ class Scheduler final {
   std::priority_queue<RateLimitTrafficClass *, std::vector<RateLimitTrafficClass *>, ThrottledComp> throttled_cache_;
 
   struct sched_stats stats_;
-  struct sched_stats last_stats_;
-  uint64_t last_print_tsc_;
   uint64_t checkpoint_;
   uint64_t now_;
 

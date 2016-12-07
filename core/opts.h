@@ -8,7 +8,6 @@ DECLARE_bool(t);
 DECLARE_string(i);
 DECLARE_bool(f);
 DECLARE_bool(k);
-DECLARE_bool(s);
 DECLARE_bool(d);
 DECLARE_bool(a);
 DECLARE_int32(c);

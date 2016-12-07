@@ -10,11 +10,10 @@ namespace bess {
 void Scheduler::ScheduleLoop() {
   // How many rounds to go before we do accounting.
   const uint64_t accounting_mask = 0xffff;
-  static_assert(((accounting_mask+1) & accounting_mask) == 0,
+  static_assert(((accounting_mask + 1) & accounting_mask) == 0,
                 "Accounting mask must be (2^n)-1");
 
-  last_stats_ = stats_;
-  last_print_tsc_ = checkpoint_ = now_ = rdtsc();
+  checkpoint_ = now_ = rdtsc();
 
   ApplyToAllClasses([=](TrafficClass *c){c->set_last_tsc(now_);});
 
@@ -27,13 +26,7 @@ void Scheduler::ScheduleLoop() {
           // TODO(barath): Add log message here?
           break;
         }
-        last_stats_ = stats_;
-        last_print_tsc_ = checkpoint_ = now_ = rdtsc();
-      } else if (FLAGS_s && now_ - last_print_tsc_ >= tsc_hz) {
-        // TODO(barath): Re-add stats printing.
-        // PrintStats(last_stats_);
-        last_stats_ = stats_;
-        last_print_tsc_ = checkpoint_ = now_ = rdtsc();
+        checkpoint_ = now_ = rdtsc();
       }
     }
 
