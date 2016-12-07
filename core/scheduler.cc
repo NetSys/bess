@@ -16,8 +16,6 @@ void Scheduler::ScheduleLoop() {
 
   checkpoint_ = now = rdtsc();
 
-  ApplyToAllClasses([=](TrafficClass *c){c->set_last_tsc(now);});
-
   // The main scheduling, running, accounting loop.
   for (uint64_t round = 0;; ++round) {
     // Periodic check, to mitigate expensive operations.
@@ -104,15 +102,6 @@ inline void Scheduler::ResumeThrottled(uint64_t tsc) {
       rc->UnblockTowardsRoot(tsc);
     } else {
       break;
-    }
-  }
-}
-
-template <typename Func>
-void Scheduler::ApplyToAllClasses(Func func) {
-  for (const auto &i : TrafficClassBuilder::all_tcs()) {
-    if (i.second->Root() == root_) {
-      func(i.second);
     }
   }
 }

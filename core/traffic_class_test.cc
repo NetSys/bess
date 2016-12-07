@@ -468,8 +468,6 @@ TEST(RateLimit, BasicBlockUnblock) {
   RateLimitTrafficClass *limit_2 = static_cast<RateLimitTrafficClass *>(TrafficClassBuilder::Find("limit_2"));
 
   uint64_t now = rdtsc();
-  limit_1->set_last_tsc(now);
-  limit_2->set_last_tsc(now);
   ASSERT_FALSE(limit_1->blocked());
   ASSERT_FALSE(limit_2->blocked());
 

@@ -39,8 +39,6 @@ TrafficClass *PriorityTrafficClass::PickNextChild() {
 }
 
 void PriorityTrafficClass::UnblockTowardsRoot(uint64_t tsc) {
-  last_tsc_ = tsc;
-
   size_t num_children = children_.size();
   for (first_runnable_ = 0; first_runnable_ < num_children; ++first_runnable_) {
     if (!children_[first_runnable_].c_->blocked_) {
@@ -56,7 +54,6 @@ void PriorityTrafficClass::FinishAndAccountTowardsRoot(
     resource_arr_t usage,
     uint64_t tsc) {
   ACCUMULATE(stats_.usage, usage);
-  last_tsc_ = tsc;
 
   if (child->blocked_) {
     // Find the next child that isn't blocked, if there is one.
@@ -108,8 +105,6 @@ TrafficClass *WeightedFairTrafficClass::PickNextChild() {
 }
 
 void WeightedFairTrafficClass::UnblockTowardsRoot(uint64_t tsc) {
-  last_tsc_ = tsc;
-
   // TODO(barath): Optimize this unblocking behavior.
   for (auto it = blocked_children_.begin(); it != blocked_children_.end();) {
     if (!it->c_->blocked_) {
@@ -130,7 +125,6 @@ void WeightedFairTrafficClass::FinishAndAccountTowardsRoot(
     resource_arr_t usage,
     uint64_t tsc) {
   ACCUMULATE(stats_.usage, usage);
-  last_tsc_ = tsc;
 
   //DCHECK_EQ(item.c_, child) << "Child that we picked should be at the front of priority queue.";
   if (child->blocked_) {
@@ -187,8 +181,6 @@ TrafficClass *RoundRobinTrafficClass::PickNextChild() {
 }
 
 void RoundRobinTrafficClass::UnblockTowardsRoot(uint64_t tsc) {
-  last_tsc_ = tsc;
-
   // TODO(barath): Optimize this unblocking behavior.
   for (auto it = blocked_children_.begin(); it != blocked_children_.end();) {
     if (!(*it)->blocked_) {
@@ -208,7 +200,6 @@ void RoundRobinTrafficClass::FinishAndAccountTowardsRoot(
     resource_arr_t usage,
     uint64_t tsc) {
   ACCUMULATE(stats_.usage, usage);
-  last_tsc_ = tsc;
   children_.pop_front();
   if (child->blocked_) {
     blocked_children_.push_back(child);
