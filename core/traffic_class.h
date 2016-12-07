@@ -198,7 +198,7 @@ class TrafficClass {
 class PriorityTrafficClass final : public TrafficClass {
  public:
   struct ChildData {
-    inline bool operator<(const ChildData &right) const {
+    bool operator<(const ChildData &right) const __attribute__((always_inline)) {
       return priority_ < right.priority_;
     }
 
@@ -244,7 +244,7 @@ class PriorityTrafficClass final : public TrafficClass {
 class WeightedFairTrafficClass final : public TrafficClass {
  public:
   struct ChildData {
-    inline bool operator<(const ChildData &right) const {
+    bool operator<(const ChildData &right) const __attribute__((always_inline)) {
       // Reversed so that priority_queue is a min priority queue.
       return right.pass_ < pass_;
     }
