@@ -142,8 +142,6 @@ class TrafficClass {
 
   inline TrafficPolicy policy() const { return policy_; }
 
-  inline void set_last_tsc(uint64_t tsc) { last_tsc_ = tsc; }
-
  protected:
   friend PriorityTrafficClass;
   friend WeightedFairTrafficClass;
@@ -154,7 +152,6 @@ class TrafficClass {
   TrafficClass(const std::string &name, const TrafficPolicy &policy)
     : parent_(),
       name_(name),
-      last_tsc_(),
       stats_(),
       blocked_(true),
       policy_(policy) {}
@@ -184,9 +181,6 @@ class TrafficClass {
 
   // The name given to this class.
   std::string name_;
-
-  // Last time this class was scheduled.
-  uint64_t last_tsc_;
 
   struct tc_stats stats_;
 
@@ -425,6 +419,9 @@ class RateLimitTrafficClass final : public TrafficClass {
 
   uint64_t throttle_expiration_;
 
+  // Last time this TC was scheduled.
+  uint64_t last_tsc_;
+
   TrafficClass *child_;
 };
 
@@ -482,7 +479,6 @@ class LeafTrafficClass final : public TrafficClass {
       resource_arr_t usage,
       uint64_t tsc) override {
     ACCUMULATE(stats_.usage, usage);
-    last_tsc_ = tsc;
     parent_->FinishAndAccountTowardsRoot(sched, this, usage, tsc);
   }
 

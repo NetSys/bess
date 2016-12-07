@@ -77,11 +77,6 @@ class Scheduler final {
   }
 
  private:
-  // Executes the given function on all TrafficClasses belonging to this
-  // Scheduler.  Slow; should not be used in performance-sensitive code.
-  template <typename Func>
-  void ApplyToAllClasses(Func func);
-
   // Handles a rate limiter class's usage, and blocks it if needed.
   void HandleRateLimit(RateLimitTrafficClass *rc, uint64_t consumed, uint64_t tsc);
 
