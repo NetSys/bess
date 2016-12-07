@@ -478,14 +478,14 @@ TEST(RateLimit, BasicBlockUnblock) {
   ASSERT_EQ(c, leaf_1);
   resource_arr_t usage;
   usage[RESOURCE_COUNT] = 1;
-  s.Done(c, usage, now);
+  c->FinishAndAccountTowardsRoot(&s, nullptr, usage, now);
   ASSERT_TRUE(limit_1->blocked());
 
   // Fake quarter second delay, schedule again.
   now += tsc_hz/4;
   c = s.Next(now);
   ASSERT_EQ(c, leaf_2);
-  s.Done(c, usage, now);
+  c->FinishAndAccountTowardsRoot(&s, nullptr, usage, now);
   ASSERT_TRUE(limit_2->blocked());
 
   // The leaves should be unaffected by the rate limiters, but the root
@@ -508,7 +508,7 @@ TEST(RateLimit, BasicBlockUnblock) {
   ASSERT_FALSE(rr->blocked());
 
   EXPECT_EQ(c, leaf_1);
-  s.Done(c, usage, now);
+  c->FinishAndAccountTowardsRoot(&s, nullptr, usage, now);
   now += tsc_hz/4;
   c = s.Next(now);
   ASSERT_EQ(c, leaf_2);

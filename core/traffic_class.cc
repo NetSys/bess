@@ -29,7 +29,7 @@ bool PriorityTrafficClass::AddChild(TrafficClass *child, priority_t priority) {
   InsertSorted(children_, d);
   child->parent_ = this;
 
-  UnblockTowardsRoot(0);
+  UnblockTowardsRoot(rdtsc());
 
   return true;
 }
@@ -39,9 +39,7 @@ TrafficClass *PriorityTrafficClass::PickNextChild() {
 }
 
 void PriorityTrafficClass::UnblockTowardsRoot(uint64_t tsc) {
-  if (tsc) {
-    last_tsc_ = tsc;
-  }
+  last_tsc_ = tsc;
 
   size_t num_children = children_.size();
   for (first_runnable_ = 0; first_runnable_ < num_children; ++first_runnable_) {
@@ -57,7 +55,7 @@ void PriorityTrafficClass::FinishAndAccountTowardsRoot(
     TrafficClass *child,
     resource_arr_t usage,
     uint64_t tsc) {
-  accumulate(stats_.usage, usage);
+  ACCUMULATE(stats_.usage, usage);
   last_tsc_ = tsc;
 
   if (child->blocked_) {
@@ -67,7 +65,7 @@ void PriorityTrafficClass::FinishAndAccountTowardsRoot(
            children_[first_runnable_].c_->blocked_) {
       ++first_runnable_;
     }
-    blocked_ = (first_runnable_ >= num_children);
+    blocked_ = (first_runnable_ == num_children);
   } 
   if (!parent_) {
     return;
@@ -99,7 +97,7 @@ bool WeightedFairTrafficClass::AddChild(TrafficClass *child, resource_share_t sh
     blocked_children_.push_back(child_data);
   } else {
     children_.push(child_data);
-    UnblockTowardsRoot(0);
+    UnblockTowardsRoot(rdtsc());
   }
 
   return true;
@@ -110,9 +108,7 @@ TrafficClass *WeightedFairTrafficClass::PickNextChild() {
 }
 
 void WeightedFairTrafficClass::UnblockTowardsRoot(uint64_t tsc) {
-  if (tsc) {
-    last_tsc_ = tsc;
-  }
+  last_tsc_ = tsc;
 
   // TODO(barath): Optimize this unblocking behavior.
   for (auto it = blocked_children_.begin(); it != blocked_children_.end();) {
@@ -133,7 +129,7 @@ void WeightedFairTrafficClass::FinishAndAccountTowardsRoot(
     TrafficClass *child,
     resource_arr_t usage,
     uint64_t tsc) {
-  accumulate(stats_.usage, usage);
+  ACCUMULATE(stats_.usage, usage);
   last_tsc_ = tsc;
 
   //DCHECK_EQ(item.c_, child) << "Child that we picked should be at the front of priority queue.";
@@ -181,7 +177,7 @@ bool RoundRobinTrafficClass::AddChild(TrafficClass *child) {
     children_.push_front(child);
   }
 
-  UnblockTowardsRoot(0);
+  UnblockTowardsRoot(rdtsc());
 
   return true;
 }
@@ -191,9 +187,7 @@ TrafficClass *RoundRobinTrafficClass::PickNextChild() {
 }
 
 void RoundRobinTrafficClass::UnblockTowardsRoot(uint64_t tsc) {
-  if (tsc) {
-    last_tsc_ = tsc;
-  }
+  last_tsc_ = tsc;
 
   // TODO(barath): Optimize this unblocking behavior.
   for (auto it = blocked_children_.begin(); it != blocked_children_.end();) {
@@ -213,11 +207,12 @@ void RoundRobinTrafficClass::FinishAndAccountTowardsRoot(
     TrafficClass *child,
     resource_arr_t usage,
     uint64_t tsc) {
-  accumulate(stats_.usage, usage);
+  ACCUMULATE(stats_.usage, usage);
   last_tsc_ = tsc;
   children_.pop_front();
   if (child->blocked_) {
     blocked_children_.push_back(child);
+    blocked_ = children_.empty();
     if (children_.empty()) {
       blocked_ = true;
     }
@@ -251,7 +246,7 @@ bool RateLimitTrafficClass::AddChild(TrafficClass *child) {
   child_ = child;
   child->parent_ = this;
 
-  UnblockTowardsRoot(0);
+  UnblockTowardsRoot(rdtsc());
 
   return true;
 }
@@ -261,9 +256,7 @@ TrafficClass *RateLimitTrafficClass::PickNextChild() {
 }
 
 void RateLimitTrafficClass::UnblockTowardsRoot(uint64_t tsc) {
-  if (tsc) {
-    last_tsc_ = tsc;
-  }
+  last_tsc_ = tsc;
 
   bool blocked = throttle_expiration_ || child_->blocked_;
   TrafficClass::UnblockTowardsRootSetBlocked(tsc, blocked);
@@ -274,7 +267,7 @@ void RateLimitTrafficClass::FinishAndAccountTowardsRoot(
     TrafficClass *child,
     resource_arr_t usage,
     uint64_t tsc) {
-  accumulate(stats_.usage, usage);
+  ACCUMULATE(stats_.usage, usage);
   last_tsc_ = tsc;
   uint64_t elapsed_cycles = tsc - last_tsc_;
 
@@ -311,7 +304,7 @@ size_t RateLimitTrafficClass::Size() const {
 void LeafTrafficClass::AddTask(Task *t) {
   tasks_.push_back(t);
 
-  UnblockTowardsRoot(0);
+  UnblockTowardsRoot(rdtsc());
 }
 
 bool LeafTrafficClass::RemoveTask(Task *t) {

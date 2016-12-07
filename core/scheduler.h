@@ -23,16 +23,6 @@ struct ThrottledComp {
   }
 };
 
-/* acc += x */
-inline void accumulate(resource_arr_t acc, resource_arr_t x) {
-  uint64_t *p1 = acc;
-  uint64_t *p2 = x;
-
-  for (int i = 0; i < NUM_RESOURCES; ++i) {
-    p1[i] += p2[i];
-  }
-}
-
 class Scheduler final {
  public:
   Scheduler(TrafficClass *root, const std::string &leaf_name = "")
@@ -74,10 +64,6 @@ class Scheduler final {
 
   // Unthrottles any TrafficClasses that were throttled whose time has passed.
   inline void ResumeThrottled(uint64_t tsc);
-
-  // Finishes the scheduling of a TrafficClass, to be called after Next() to
-  // clean up.
-  void Done(TrafficClass *c, resource_arr_t usage, uint64_t tsc);
 
   TrafficClass *root() { return root_; }
 
