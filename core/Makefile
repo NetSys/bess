@@ -89,11 +89,6 @@ endif
 
 ifndef DEBUG
     CXXFLAGS += -Ofast -DNDEBUG
-
-    ifeq "$(IS_CLANG)" "0"
-        CXXFLAGS += -flto -ffat-lto-objects
-        LDFLAGS += -flto -ffat-lto-objects
-    endif
 endif
 
 -include extra.dpdk.mk
