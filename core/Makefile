@@ -54,7 +54,8 @@ CXXFLAGS += -std=gnu++11 -g3 -ggdb3 -Ofast -march=native \
             -Werror -isystem $(DPDK_INC_DIR) -D_GNU_SOURCE \
             -Wall -Wextra -Wcast-align
 
-PERMISSIVE = -Wno-unused-parameter -Wno-missing-field-initializers
+PERMISSIVE = -Wno-unused-parameter -Wno-missing-field-initializers \
+             -Wno-unused-private-field
 
 # -Wshadow should not be used for g++ 4.x, as it has too many false positives
 CXXVERSION_5_OR_HIGHER := $(shell expr $(CXXVERSION) \>= 50000)
