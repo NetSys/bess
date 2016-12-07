@@ -350,17 +350,22 @@ class BESS(object):
 
         return self._request(self.stub.ListTcs, request)
 
-    def add_tc(self, name, wid=0, priority_share=0, limit=None, max_burst=None,
-            policy='priority', resource=None, parent=''):
+    def add_tc(self, name, wid=0, parent='', policy='priority', resource=None,
+               priority=None, share=None, limit=None, max_burst=None):
         request = bess_msg.AddTcRequest()
         class_ = getattr(request, 'class')
         class_.parent = parent
         class_.name = name
         class_.wid = wid
         class_.policy = policy
-        class_.priority_share = priority_share
 
-        if resource:
+        if priority is not None:
+            class_.priority = priority
+
+        if share is not None:
+            class_.share = share
+
+        if resource is not None:
             class_.resource = resource
 
         if limit:
