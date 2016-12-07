@@ -47,7 +47,7 @@ typedef uint32_t priority_t;
 typedef int32_t resource_share_t;
 
 struct tc_stats {
-  alignas(32) resource_arr_t usage;
+  resource_arr_t usage;
   uint64_t cnt_throttled;
 };
 
