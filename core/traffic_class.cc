@@ -65,7 +65,7 @@ void PriorityTrafficClass::FinishAndAccountTowardsRoot(
     size_t num_children = children_.size();
     while (first_runnable_ < num_children &&
            children_[first_runnable_].c_->blocked_) {
-      first_runnable_++;
+      ++first_runnable_;
     }
     blocked_ = (first_runnable_ >= num_children);
   } 
@@ -285,7 +285,7 @@ void RateLimitTrafficClass::FinishAndAccountTowardsRoot(
     uint64_t wait_tsc = (consumed - tokens) / limit_;
     tokens_ = 0;
     blocked_ = true;
-    stats_.cnt_throttled++;
+    ++stats_.cnt_throttled;
     throttle_expiration_ = tsc+wait_tsc;
 
     sched->AddThrottled(this);

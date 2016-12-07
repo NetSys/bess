@@ -19,7 +19,7 @@ void Scheduler::ScheduleLoop() {
   ApplyToAllClasses([=](TrafficClass *c){c->set_last_tsc(now_);});
 
   // The main scheduling, running, accounting loop.
-  for (uint64_t round = 0;; round++) {
+  for (uint64_t round = 0;; ++round) {
     // Periodic check, to mitigate expensive operations.
     if (unlikely((round & accounting_mask) == 0)) {
       if (unlikely(ctx.is_pause_requested())) {
@@ -70,7 +70,7 @@ void Scheduler::ScheduleOnce() {
     // blocking/unblocking.
     now_ = rdtsc();
 
-    stats_.cnt_idle++;
+    ++stats_.cnt_idle;
     stats_.cycles_idle += (now_ - checkpoint_);
   }
 

@@ -28,7 +28,7 @@ inline void accumulate(resource_arr_t acc, resource_arr_t x) {
   uint64_t *p1 = acc;
   uint64_t *p2 = x;
 
-  for (int i = 0; i < NUM_RESOURCES; i++) {
+  for (int i = 0; i < NUM_RESOURCES; ++i) {
     p1[i] += p2[i];
   }
 }

@@ -89,11 +89,11 @@ ifdef COVERAGE
 endif
 
 ifndef DEBUG
-    CXXFLAGS += -Ofast -DNDEBUG -flto -ffat-lto-objects -finline-limit=1000
-    LDFLAGS += -flto -ffat-lto-objects -finline-limit=1000
+    CXXFLAGS += -Ofast -DNDEBUG
 
     ifeq "$(IS_CLANG)" "0"
-        LDFLAGS += -flto # -flto requires LLVMgold when building with Clang
+				CXXFLAGS += -flto -ffat-lto-objects
+				LDFLAGS += -flto -ffat-lto-objects
     endif
 endif
 
