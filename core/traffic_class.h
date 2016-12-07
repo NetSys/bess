@@ -1,5 +1,5 @@
-#ifndef BESS_TC_H_
-#define BESS_TC_H_
+#ifndef BESS_TRAFFICCLASS_H_
+#define BESS_TRAFFICCLASS_H_
 
 #include <deque>
 #include <list>
@@ -17,19 +17,15 @@
 
 namespace bess {
 
-#define SCHED_DEBUG 0
-
 // A large default priority.
 #define DEFAULT_PRIORITY 0xFFFFFFFFu
 
-#define MAX_LIMIT_POW 36
 #define USAGE_AMPLIFIER_POW 32
 
-/* share is defined relatively, so 1024 should be large enough */
-#define MAX_SHARE (1 << 10)
+// Share is defined relatively, so 1024 should be large enough
 #define STRIDE1 (1 << 20)
 
-/* this doesn't mean anything, other than avoiding int64 overflow */
+// This doesn't mean anything, other than avoiding int64 overflow
 #define QUANTUM (1 << 10)
 
 // Resource types that can be accounted for.
@@ -650,4 +646,4 @@ class TrafficClassBuilder {
 
 }  // namespace bess
 
-#endif  // BESS_TC_H_
+#endif  // BESS_TRAFFICCLASS_H_
