@@ -1,5 +1,5 @@
-#ifndef BESS_TRAFFIC_CLASS_H_
-#define BESS_TRAFFIC_CLASS_H_
+#ifndef BESS_TRAFFICCLASS_H_
+#define BESS_TRAFFICCLASS_H_
 
 #include <deque>
 #include <list>
@@ -638,4 +638,4 @@ class TrafficClassBuilder {
 
 }  // namespace bess
 
-#endif  // BESS_TRAFFIC_CLASS_H_
+#endif  // BESS_TRAFFICCLASS_H_
