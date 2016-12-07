@@ -31,7 +31,6 @@ class Scheduler final {
         throttled_cache_(ThrottledComp()),
         stats_(),
         checkpoint_(),
-        now_(),
         ns_per_cycle_(1e9 / tsc_hz) {
     if (!leaf_name.empty()) {
       TrafficClass *c = TrafficClassBuilder::Find(leaf_name);
@@ -99,7 +98,6 @@ class Scheduler final {
 
   struct sched_stats stats_;
   uint64_t checkpoint_;
-  uint64_t now_;
 
   double ns_per_cycle_;
 
