@@ -11,6 +11,7 @@ BESS_DIR_HOST = os.path.dirname(os.path.abspath(__file__))
 BESS_DIR_CONTAINER = '/build/bess'
 BUILD_SCRIPT = './build.py'
 
+
 def run_cmd(cmd):
     proc = subprocess.Popen(cmd, shell=True)
 
@@ -21,19 +22,24 @@ def run_cmd(cmd):
         print >> sys.stderr, 'Error has occured running host command: %s' % cmd
         sys.exit(proc.returncode)
 
+
 def shell_quote(cmd):
         return "'" + cmd.replace("'", "'\\''") + "'"
 
+
 def run_docker_cmd(cmd):
-    run_cmd('docker run -e CC -e CXX -e COVERAGE --rm -t -v %s:%s %s sh -c %s' % \
+    run_cmd('docker run -e CC -e CXX -e COVERAGE --rm -t -v %s:%s %s sh -c %s' %
             (BESS_DIR_HOST, BESS_DIR_CONTAINER, IMAGE, shell_quote(cmd)))
 
+
 def run_shell():
-    run_cmd('docker run -e CC -e CXX -e COVERAGE --rm -it -v %s:%s %s' % \
+    run_cmd('docker run -e CC -e CXX -e COVERAGE --rm -it -v %s:%s %s' %
             (BESS_DIR_HOST, BESS_DIR_CONTAINER, IMAGE))
+
 
 def build_bess():
     run_docker_cmd('%s bess' % BUILD_SCRIPT)
+
 
 def build_kmod():
     kernel_ver = subprocess.check_output('uname -r', shell=True).strip()
@@ -43,28 +49,34 @@ def build_kmod():
     except:
         print >> sys.stderr, '*** module build has failed.'
 
+
 def build_kmod_buildtest():
     kernels_to_test = '/lib/modules/*/build'
     kmod_build = 'KERNELDIR=$0 %s kmod' % BUILD_SCRIPT
 
-    run_docker_cmd('ls -x -d %s | xargs -n 1 sh -c %s' % \
-            (kernels_to_test, shell_quote(kmod_build)))
+    run_docker_cmd('ls -x -d %s | xargs -n 1 sh -c %s' %
+                   (kernels_to_test, shell_quote(kmod_build)))
+
 
 def build_all():
     build_bess()
     build_kmod()
 
+
 def do_clean():
     run_docker_cmd('%s clean' % BUILD_SCRIPT)
 
+
 def do_dist_clean():
     run_docker_cmd('%s dist_clean' % BUILD_SCRIPT)
+
 
 def print_usage():
     print >> sys.stderr, \
             'Usage: %s ' \
             '[all|bess|kmod|kmod_buildtest|clean|dist_clean|shell||help]' % \
             sys.argv[0]
+
 
 def main():
     os.chdir(BESS_DIR_HOST)
@@ -97,6 +109,7 @@ def main():
     else:
         print_usage()
         sys.exit(2)
+
 
 if __name__ == '__main__':
     try:

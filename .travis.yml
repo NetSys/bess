@@ -10,14 +10,14 @@ env:
     - "IMAGE=nefelinetworks/bess_build:latest"
     - GCOV_PREFIX_STRIP=2
   matrix:
+    - VER_CXX=clang++-3.8 VER_CC=clang-3.8
+    - VER_CXX=clang++-3.8 VER_CC=clang-3.8 SANITIZE=1
     - VER_CXX=g++-4.8 VER_CC=gcc-4.8
     - VER_CXX=g++-4.8 VER_CC=gcc-4.8 DEBUG=1
     - VER_CXX=g++-5 VER_CC=gcc-5
     - VER_CXX=g++-5 VER_CC=gcc-5 DEBUG=1
-    - VER_CXX=g++-6 VER_CC=gcc-6
-    - VER_CXX=g++-6 VER_CC=gcc-6 DEBUG=1
-    - VER_CXX=g++ VER_CC=gcc COVERAGE=1
-    - VER_CXX=g++ VER_CC=gcc COVERAGE=1 DEBUG=1
+    - VER_CXX=g++-6 VER_CC=gcc-6 COVERAGE=1
+    - VER_CXX=g++-6 VER_CC=gcc-6 COVERAGE=1 DEBUG=1
 
 before_install:
   - sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
@@ -42,6 +42,7 @@ script:
 
 after_success:
   - "[[ ${COVERAGE:-0} != 0 ]] && bash <(curl -s https://codecov.io/bash)"
+  - for bench in core/*_bench; do ./$bench; done
 
 notifications:
   slack: nefeli:x5udJ7nDIKjCaCrRYprGc4mw
