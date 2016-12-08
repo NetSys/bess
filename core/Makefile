@@ -63,7 +63,7 @@ ifeq "$(IS_CLANG)" "0"
     ifeq "$(CXXVERSION_5_OR_HIGHER)" "1"
         CXXFLAGS += -Wshadow
     endif
-		CXXFLAGS += -Og
+    CXXFLAGS += -Og
 else
     CXXFLAGS += -Wshadow
 endif
