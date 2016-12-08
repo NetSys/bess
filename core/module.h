@@ -269,7 +269,7 @@ void deadend(bess::PacketBatch *batch);
 
 inline void Module::RunChooseModule(gate_idx_t ogate_idx,
                                     bess::PacketBatch *batch) {
-  bess::Gate *ogate;
+  bess::OGate *ogate;
 
   if (unlikely(ogate_idx >= ogates.size())) {
     deadend(batch);
@@ -282,13 +282,16 @@ inline void Module::RunChooseModule(gate_idx_t ogate_idx,
     deadend(batch);
     return;
   }
-
-  // Place packets into buffer so they can be run later
-  if (!ctx.push_ogate_and_packets(ogate, batch)) {
-    // This really shouldn't happen.
-    deadend(batch);
-    return;
+  for (auto &hook : ogate->hooks()) {
+    hook->ProcessBatch(batch);
   }
+
+  for (auto &hook : ogate->igate()->hooks()) {
+    hook->ProcessBatch(batch);
+  }
+
+  ctx.set_current_igate(ogate->igate_idx());
+  ((Module *)ogate->arg())->ProcessBatch(batch);
 }
 
 inline void Module::RunNextModule(bess::PacketBatch *batch) {

@@ -33,24 +33,5 @@ void Task::Attach(bess::LeafTrafficClass *c) {
 
 struct task_result Task::Scheduled() {
   struct task_result ret = m_->RunTask(arg_);
-
-  // Depth first goes through all pending modules and services
-  while (ctx.gates_pending()) {
-    struct gate_task task = ctx.pop_ogate_and_packets();
-    bess::OGate *ogate = reinterpret_cast<bess::OGate *>(task.gate);
-    bess::PacketBatch *next_packets = &(task.batch);
-
-    for (auto &hook : ogate->hooks()) {
-      hook->ProcessBatch(next_packets);
-    }
-
-    for (auto &hook : ogate->igate()->hooks()) {
-      hook->ProcessBatch(next_packets);
-    }
-
-    ctx.set_current_igate(ogate->igate_idx());
-    ((Module *)ogate->arg())->ProcessBatch(next_packets);
-  }
-
   return ret;
 }

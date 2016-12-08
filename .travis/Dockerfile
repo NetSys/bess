@@ -9,6 +9,7 @@ RUN apt-get -q update
 # The minimum required version of g++ is 4.8
 # (for gbenchmark, gcc function multiversioning, and better C++ support)
 RUN apt-get install -y g++-4.8 g++-5 g++-6 g++ \
+		clang++-3.8 clang-3.8 \
 		autoconf libtool make cmake \
 		libpthread-stubs0-dev libunwind8-dev \
 		zlib1g-dev liblzma-dev libpcap-dev libssl-dev \
