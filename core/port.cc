@@ -138,6 +138,8 @@ pb_error_t Port::Init(const bess::pb::EmptyArg &) {
   return pb_errno(0);
 }
 
+void Port::DeInit() {}
+
 int Port::RecvPackets(queue_t, bess::Packet **, int) {
   return 0;
 }

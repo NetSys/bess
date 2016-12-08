@@ -171,7 +171,7 @@ class Port {
 
   pb_error_t Init(const bess::pb::EmptyArg &arg);
 
-  virtual void DeInit() {}
+  virtual void DeInit();
 
   // For one-time initialization of the port's "driver" (optional).
   virtual void InitDriver() {}
