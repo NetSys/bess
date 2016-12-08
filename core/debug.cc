@@ -22,7 +22,8 @@
 
 #include "module.h"
 #include "packet.h"
-#include "tc.h"
+#include "scheduler.h"
+#include "traffic_class.h"
 #include "utils/htable.h"
 
 namespace bess {
@@ -408,19 +409,16 @@ void DumpTypes(void) {
   printf("sizeof(void *)=%zu\n", sizeof(void *));
   printf("sizeof(size_t)=%zu\n", sizeof(size_t));
 
-  printf("sizeof(heap)=%zu\n", sizeof(struct heap));
   printf("sizeof(HTableBase)=%zu\n", sizeof(HTableBase));
-  printf("sizeof(clist_head)=%zu sizeof(cdlist_item)=%zu\n",
-         sizeof(struct cdlist_head), sizeof(struct cdlist_item));
 
   printf("sizeof(rte_mbuf)=%zu\n", sizeof(struct rte_mbuf));
   printf("sizeof(Packet)=%zu\n", sizeof(Packet));
   printf("sizeof(pkt_batch)=%zu\n", sizeof(bess::PacketBatch));
-  printf("sizeof(sched)=%zu sizeof(sched_stats)=%zu\n", sizeof(struct sched),
+  printf("sizeof(Scheduler)=%zu sizeof(sched_stats)=%zu\n", sizeof(Scheduler),
          sizeof(struct sched_stats));
-  printf("sizeof(tc)=%zu sizeof(tc_stats)=%zu\n", sizeof(struct tc),
+  printf("sizeof(TrafficClass)=%zu sizeof(tc_stats)=%zu\n", sizeof(TrafficClass),
          sizeof(struct tc_stats));
-  printf("sizeof(task)=%zu\n", sizeof(struct task));
+  printf("sizeof(Task)=%zu\n", sizeof(Task));
 
   printf("sizeof(Module)=%zu\n", sizeof(Module));
   printf("sizeof(Gate)=%zu\n", sizeof(bess::Gate));

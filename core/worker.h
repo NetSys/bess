@@ -9,6 +9,7 @@
 
 #include "gate.h"
 #include "pktbatch.h"
+#include "traffic_class.h"
 #include "utils/common.h"
 
 #define MAX_WORKERS 4
@@ -39,8 +40,17 @@ typedef enum {
   WORKER_FINISHED,
 } worker_status_t;
 
+
+namespace bess {
+class Scheduler;
+}  // namespace bess
+
 class Worker {
  public:
+  static const bess::TrafficPolicy kDefaultRootPolicy;
+  static const std::string kRootClassNamePrefix;
+  static const std::string kDefaultLeafClassNamePrefix;
+
   /* ----------------------------------------------------------------------
    * functions below are invoked by non-worker threads (the master)
    * ---------------------------------------------------------------------- */
@@ -52,7 +62,7 @@ class Worker {
   inline int is_pause_requested() { return status_ == WORKER_PAUSING; }
 
   /* Block myself. Return nonzero if the worker needs to die */
-  int Block();
+  int BlockWorker();
 
   /* The entry point of worker threads */
   void *Run(void *_arg);
@@ -69,8 +79,8 @@ class Worker {
     return pframe_pool_;
   }
 
-  struct sched *s() {
-    return s_;
+  bess::Scheduler *scheduler() {
+    return scheduler_;
   }
 
   uint64_t silent_drops() { return silent_drops_; }
@@ -99,7 +109,7 @@ class Worker {
 
   struct rte_mempool *pframe_pool_;
 
-  struct sched *s_;
+  bess::Scheduler *scheduler_;
 
   uint64_t silent_drops_; /* packets that have been sent to a deadend */
 
@@ -154,5 +164,7 @@ static inline int is_worker_running(int wid) {
 
 /* arg (int) is the core id the worker should run on */
 void launch_worker(int wid, int core);
+
+Worker *get_next_active_worker();
 
 #endif  // BESS_WORKER_H_

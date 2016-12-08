@@ -50,7 +50,7 @@ else
     endif
 endif
 
-CXXFLAGS += -std=gnu++11 -g3 -ggdb3 -Ofast -march=native \
+CXXFLAGS += -std=gnu++11 -g3 -ggdb3 -Og -march=native \
             -Werror -isystem $(DPDK_INC_DIR) -D_GNU_SOURCE \
             -Wall -Wextra -Wcast-align
 
@@ -90,11 +90,6 @@ endif
 
 ifndef DEBUG
     CXXFLAGS += -Ofast -DNDEBUG
-    LDFLAGS += -ffat-lto-objects -finline-limit=1000
-
-    ifeq "$(IS_CLANG)" "0"
-        LDFLAGS += -flto # -flto requires LLVMgold when building with Clang
-    endif
 endif
 
 -include extra.dpdk.mk

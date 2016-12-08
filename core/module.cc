@@ -13,6 +13,7 @@
 #include "hooks/tcpdump.h"
 #include "hooks/track.h"
 #include "mem_alloc.h"
+#include "scheduler.h"
 #include "utils/pcap.h"
 
 const Commands Module::cmds;
@@ -26,8 +27,8 @@ void deadend(bess::PacketBatch *batch) {
 }
 
 // FIXME: move somewhere else?
-task_id_t task_to_tid(struct task *t) {
-  Module *m = t->m;
+task_id_t task_to_tid(Task *t) {
+  const Module *m = t->m();
 
   for (task_id_t id = 0; id < MAX_TASKS_PER_MODULE; id++)
     if (m->tasks[id] == t)
@@ -213,24 +214,19 @@ void Module::ProcessBatch(bess::PacketBatch *) {
 }
 
 task_id_t Module::RegisterTask(void *arg) {
-  task_id_t id;
-  struct task *t;
+  Worker *w = get_next_active_worker();
+  bess::LeafTrafficClass *c = w->scheduler()->default_leaf_class();
 
-  for (id = 0; id < MAX_TASKS_PER_MODULE; id++)
-    if (tasks[id] == nullptr)
-      goto found;
+  for (task_id_t id = 0; id < MAX_TASKS_PER_MODULE; id++) {
+    if (tasks[id] == nullptr) {
+      Task *t = new Task(this, arg, c);
+      tasks[id] = t;
+      return id;
+    }
+  }
 
-  /* cannot find an empty slot */
+  // cannot find an empty slot.
   return INVALID_TASK_ID;
-
-found:
-  t = task_create(this, arg);
-  if (!t)
-    return INVALID_TASK_ID;
-
-  tasks[id] = t;
-
-  return id;
 }
 
 int Module::NumTasks() {
@@ -246,7 +242,7 @@ int Module::NumTasks() {
 void Module::DestroyAllTasks() {
   for (task_id_t i = 0; i < MAX_TASKS_PER_MODULE; i++) {
     if (tasks[i]) {
-      task_destroy(tasks[i]);
+      delete tasks[i];
       tasks[i] = nullptr; /* just in case */
     }
   }

@@ -192,8 +192,7 @@ def get_var_attrs(cli, var_token, partial_word):
         elif var_token == 'TC...':
             var_type = 'name+'
             var_desc = 'one or more traffic class names'
-            var_candidates = [c.class_.name
-                              for c in cli.bess.list_tcs().classes_status]
+            var_candidates = [getattr(c, 'class').name for c in cli.bess.list_tcs().classes_status]
 
         elif var_token == 'CONF':
             var_type = 'confname'
@@ -782,27 +781,27 @@ def show_worker_list(cli, worker_ids):
 def _limit_to_str(limit):
     buf = []
 
-    if limit.schedules:
-        buf.append('%d times' % limit.schedules)
+    if 'count' in limit:
+        buf.append('%d times' % limit['count'])
 
-    if limit.cycles:
-        buf.append('%.3f Mhz' % (limit.cycles / 1e6))
+    if 'cycle' in limit:
+        buf.append('%.3f Mhz' % (limit['cycle'] / 1e6))
 
-    if limit.packets:
-        if limit.packets < 1e3:
-            buf.append('%.d pps' % limit.packets)
-        elif limit.packets < 1e6:
-            buf.append('%.3f kpps' % (limit.packets / 1e3))
+    if 'packet' in limit:
+        if limit['packet'] < 1e3:
+            buf.append('%.d pps' % limit['packet'])
+        elif limit['packet'] < 1e6:
+            buf.append('%.3f kpps' % (limit['packet'] / 1e3))
         else:
-            buf.append('%.3f Mpps' % (limit.packets / 1e6))
+            buf.append('%.3f Mpps' % (limit['packet'] / 1e6))
 
-    if limit.bits:
-        if limit.bits < 1e3:
-            buf.append('%.d bps' % limit.bits)
-        elif limit.bits < 1e6:
-            buf.append('%.3f kbps' % (limit.bits / 1e3))
+    if limit['bit']:
+        if limit['bit'] < 1e3:
+            buf.append('%.d bps' % limit['bit'])
+        elif limit['bit'] < 1e6:
+            buf.append('%.3f kbps' % (limit['bit'] / 1e3))
         else:
-            buf.append('%.3f Mbps' % (limit.bits / 1e6))
+            buf.append('%.3f Mbps' % (limit['bit'] / 1e6))
 
     if buf:
         return 'limits: ' + ', '.join(buf)
@@ -822,14 +821,14 @@ def _show_tc_list(cli, tcs):
             cli.fout.write('  worker %d (%d classes)\n' % (wid, len(matched)))
 
         for tc in matched:
-            cli.fout.write('    %-16s  '
-                           'parent %-10s  priority %-3d  tasks %-3d '
-                           '%s\n' %
+            cli.fout.write('    %-16s  ' \
+                           'parent %-10s  priority %-3d  tasks %-3d ' \
+                           '%s\n' % \
                            (getattr(tc, 'class').name,
-                            tc.parent if tc.parent else 'none',
-                            getattr(tc, 'class').priority,
-                            tc.tasks,
-                            _limit_to_str(getattr(tc, 'class').limit)))
+                           tc.parent if tc.parent else 'none',
+                           getattr(tc, 'class').priority_share,
+                           tc.tasks,
+                           _limit_to_str(getattr(tc, 'class').limit)))
 
 
 @cmd('show tc', 'Show the list of traffic classes')
@@ -1266,8 +1265,19 @@ def monitor_port_all(cli, ports):
 
 def _monitor_tcs(cli, *tcs):
     def get_delta(old, new):
+        delta = copy.deepcopy(new)
         sec_diff = new.timestamp - old.timestamp
-        return (new - old) / sec_diff
+        try:
+            delta.count = long((new.count - old.count) / sec_diff)
+            delta.cycles = long((new.cycles - old.cycles) / sec_diff)
+            delta.bits = long((new.bits - old.bits) / sec_diff)
+            delta.packets = long((new.packets - old.packets) / sec_diff)
+        except:
+            delta.count = 0
+            delta.cycles = 0
+            delta.bits = 0
+            delta.packets = 0
+        return delta
 
     def print_header(timestamp):
         cli.fout.write('\n')
@@ -1305,19 +1315,21 @@ def _monitor_tcs(cli, *tcs):
         total = copy.deepcopy(arr[0])
 
         for stat in arr[1:]:
-            for key in total._keys():
-                if key != 'timestamp':
-                    total[key] += stat[key]
+            total.count += stat.count
+            total.cycles += stat.cycles
+            total.packets += stat.packets
+            total.bits += stat.bits
 
         return total
 
     all_tcs = cli.bess.list_tcs().classes_status
     wids = {}
     for tc in all_tcs:
-        wids[tc.class_.name] = tc.class_.wid
+        class_ = getattr(tc, 'class')
+        wids[class_.name] = class_.wid
 
     if not tcs:
-        tcs = [tc.class_.name for tc in all_tcs]
+        tcs = [getattr(tc, 'class').name for tc in all_tcs]
         if not tcs:
             raise cli.CommandError('No traffic class to monitor')
 
