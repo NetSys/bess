@@ -13,6 +13,7 @@
 #include "hooks/tcpdump.h"
 #include "hooks/track.h"
 #include "mem_alloc.h"
+#include "scheduler.h"
 #include "utils/pcap.h"
 
 const Commands Module::cmds;
