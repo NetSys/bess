@@ -1,17 +1,22 @@
 #ifndef BESS_MODULES_FLOWGEN_H_
 #define BESS_MODULES_FLOWGEN_H_
 
+#include <deque>
 #include <queue>
 
 #include "../module.h"
 #include "../module_msg.pb.h"
-#include "../utils/cdlist.h"
 #include "../utils/random.h"
 
 typedef std::pair<uint64_t, struct flow *> Event;
 typedef std::priority_queue<Event, std::vector<Event>,
-                            std::function<bool(Event, Event)>>
-    EventQueue;
+                            std::function<bool(Event, Event)>> EventQueue;
+
+struct flow {
+  uint32_t flow_id;
+  int packets_left;
+  int first;
+};
 
 class FlowGen final : public Module {
  public:
@@ -75,7 +80,7 @@ class FlowGen final : public Module {
   int allocated_flows_;
   uint64_t generated_flows_;
   struct flow *flows_;
-  struct cdlist_head flows_free_;
+  std::deque<struct flow *> flows_free_;
 
   EventQueue events_;
 
