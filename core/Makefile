@@ -50,7 +50,7 @@ else
     endif
 endif
 
-CXXFLAGS += -std=gnu++11 -g3 -ggdb3 -Og -march=native \
+CXXFLAGS += -std=gnu++11 -g3 -ggdb3 -march=native \
             -Werror -isystem $(DPDK_INC_DIR) -D_GNU_SOURCE \
             -Wall -Wextra -Wcast-align
 
@@ -63,6 +63,7 @@ ifeq "$(IS_CLANG)" "0"
     ifeq "$(CXXVERSION_5_OR_HIGHER)" "1"
         CXXFLAGS += -Wshadow
     endif
+		CXXFLAGS += -Og
 else
     CXXFLAGS += -Wshadow
 endif

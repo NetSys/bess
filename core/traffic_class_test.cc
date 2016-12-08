@@ -15,6 +15,15 @@ using namespace bess::traffic_class_initializer_types;
 
 namespace bess {
 
+// Tests that we can create a leaf node.
+TEST(CreateTree, Leaf) {
+  TrafficClass *c = CT("leaf", {LEAF});
+  ASSERT_TRUE(c != nullptr);
+  EXPECT_EQ(POLICY_LEAF, c->policy());
+
+  TrafficClassBuilder::ClearAll();
+}
+
 // Tests that we can create and fetch a priority root node with a leaf under it.
 TEST(CreateTree, PriorityRootAndLeaf) {
   std::unique_ptr<TrafficClass> tree(CT("root", {PRIORITY}, {{PRIORITY, 10, CT("leaf", {LEAF})}}));
