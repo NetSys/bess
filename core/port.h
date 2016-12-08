@@ -169,8 +169,6 @@ class Port {
 
   virtual ~Port() {}
 
-  pb_error_t Init(const google::protobuf::Any &arg);
-
   pb_error_t Init(const bess::pb::EmptyArg &arg);
 
   virtual void DeInit() {}
@@ -193,6 +191,8 @@ class Port {
 
  public:
   friend class PortBuilder;
+
+  pb_error_t InitWithGenericArg(const google::protobuf::Any &arg);
 
   // Fills in pointed-to structure with this port's stats.
   void GetPortStats(port_stats_t *stats);

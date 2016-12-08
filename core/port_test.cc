@@ -76,7 +76,7 @@ TEST_F(PortTest, CreatePort) {
   bess::pb::EmptyArg arg_;
   google::protobuf::Any arg;
   arg.PackFrom(arg_);
-  pb_error_t err = p->Init(arg);
+  pb_error_t err = p->InitWithGenericArg(arg);
   EXPECT_EQ(42, err.err());
 }
 
