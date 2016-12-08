@@ -250,7 +250,7 @@ def build_dpdk():
 
     print 'Building DPDK...'
     nproc = int(subprocess.check_output('nproc'))
-    cmd('make -j%d -C %s EXTRA_CFLAGS=%s' % nproc, DPDK_DIR, DPDK_CFLAGS)
+    cmd('make -j%d -C %s EXTRA_CFLAGS=%s' % (nproc, DPDK_DIR, DPDK_CFLAGS))
 
 
 def build_bess():
