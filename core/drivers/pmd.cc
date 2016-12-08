@@ -201,8 +201,9 @@ pb_error_t PMDPort::Init(const bess::pb::PMDPortArg &arg) {
 
   int i;
 
-  pb_error_t err = find_dpdk_port(arg.port_id(), arg.pci(), arg.vdev(),
-                                  &ret_port_id, &hot_plugged_);
+  pb_error_t err = find_dpdk_port(
+      arg.pci().length() != 0 ? DPDK_PORT_UNKNOWN : arg.port_id(), arg.pci(),
+      arg.vdev(), &ret_port_id, &hot_plugged_);
   if (err.err() != 0) {
     return err;
   }

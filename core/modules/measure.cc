@@ -38,30 +38,28 @@ void Measure::ProcessBatch(bess::PacketBatch *batch) {
     start_time_ = get_time();
   }
 
-  if (static_cast<int>(HISTO_TIME_TO_SEC(time - start_time_)) < warmup_) {
-    RunNextModule(batch);
-    return;
-  }
+  if (static_cast<int>(HISTO_TIME_TO_SEC(time - start_time_)) >= warmup_) {
+    pkt_cnt_ += batch->cnt();
 
-  pkt_cnt_ += batch->cnt();
+    for (int i = 0; i < batch->cnt(); i++) {
+      uint64_t pkt_time;
+      if (get_measure_packet(batch->pkts()[i], &pkt_time)) {
+        uint64_t diff;
 
-  for (int i = 0; i < batch->cnt(); i++) {
-    uint64_t pkt_time;
-    if (get_measure_packet(batch->pkts()[i], &pkt_time)) {
-      uint64_t diff;
+        if (time >= pkt_time) {
+          diff = time - pkt_time;
+        } else {
+          continue;
+        }
 
-      if (time >= pkt_time) {
-        diff = time - pkt_time;
-      } else {
-        continue;
+        bytes_cnt_ += batch->pkts()[i]->total_len();
+        total_latency_ += diff;
+
+        record_latency(&hist_, diff);
       }
-
-      bytes_cnt_ += batch->pkts()[i]->total_len();
-      total_latency_ += diff;
-
-      record_latency(&hist_, diff);
     }
   }
+  RunNextModule(batch);
 }
 
 pb_cmd_response_t Measure::CommandGetSummary(const bess::pb::EmptyArg &) {
