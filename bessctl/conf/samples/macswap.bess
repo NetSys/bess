@@ -3,4 +3,4 @@ print 'Using %d DPDK ports... (envvar "SN_PORTS")' % dpdk_ports
 
 for i in range(dpdk_ports):
     p = PMDPort(port_id=i)
-    PortInc(port=p) -> MACSwap() -> PortOut(port=p)
+    PortInc(port=p.name) -> MACSwap() -> PortOut(port=p.name)

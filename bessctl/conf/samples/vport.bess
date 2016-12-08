@@ -4,5 +4,5 @@ v = VPort()
 
 p = PMDPort(port_id=0)
 
-PortInc(port=p) -> PortOut(port=v)
-PortInc(port=v) -> PortOut(port=p)
+PortInc(port=p.name) -> PortOut(port=v.name)
+PortInc(port=v.name) -> PortOut(port=p.name)
