@@ -306,6 +306,7 @@ class RoundRobinTrafficClass final : public TrafficClass {
  public:
   RoundRobinTrafficClass(const std::string &name)
     : TrafficClass(name, POLICY_ROUND_ROBIN),
+      next_child_(),
       children_(),
       blocked_children_() {}
 
@@ -331,7 +332,7 @@ class RoundRobinTrafficClass final : public TrafficClass {
       resource_arr_t usage,
       uint64_t tsc) override;
 
-  const std::deque<TrafficClass *> &children() const { return children_; }
+  const std::vector<TrafficClass *> &children() const { return children_; }
 
   const std::list<TrafficClass *> &blocked_children() const { return blocked_children_; }
 
@@ -340,7 +341,8 @@ class RoundRobinTrafficClass final : public TrafficClass {
  private:
   friend Scheduler;
 
-  std::deque<TrafficClass *> children_;
+  size_t next_child_;
+  std::vector<TrafficClass *> children_;
   std::list<TrafficClass *> blocked_children_;
 };
 

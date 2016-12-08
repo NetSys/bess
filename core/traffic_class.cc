@@ -131,9 +131,7 @@ void WeightedFairTrafficClass::FinishAndAccountTowardsRoot(
     auto item = children_.top();
     children_.pop();
     blocked_children_.emplace_back(std::move(item));
-    if (children_.empty()) {
-      blocked_ = true;
-    }
+    blocked_ = children_.empty();
   } else {
     auto &item = children_.mutable_top();
     uint64_t consumed = usage[resource_];
@@ -168,7 +166,7 @@ bool RoundRobinTrafficClass::AddChild(TrafficClass *child) {
   if (child->blocked_) {
     blocked_children_.push_back(child);
   } else {
-    children_.push_front(child);
+    children_.push_back(child);
   }
 
   UnblockTowardsRoot(rdtsc());
@@ -177,7 +175,7 @@ bool RoundRobinTrafficClass::AddChild(TrafficClass *child) {
 }
 
 TrafficClass *RoundRobinTrafficClass::PickNextChild() {
-  return children_.front();
+  return children_[next_child_];
 }
 
 void RoundRobinTrafficClass::UnblockTowardsRoot(uint64_t tsc) {
@@ -200,15 +198,17 @@ void RoundRobinTrafficClass::FinishAndAccountTowardsRoot(
     resource_arr_t usage,
     uint64_t tsc) {
   ACCUMULATE(stats_.usage, usage);
-  children_.pop_front();
   if (child->blocked_) {
+    children_.erase(children_.begin() + next_child_);
     blocked_children_.push_back(child);
     blocked_ = children_.empty();
-    if (children_.empty()) {
-      blocked_ = true;
-    }
   } else {
-    children_.push_back(child);
+    ++next_child_;
+  }
+
+  // Wrap around for round robin.
+  if (next_child_ >= children_.size()) {
+    next_child_ = 0;
   }
 
   if (!parent_) {
