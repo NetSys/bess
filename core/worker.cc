@@ -14,6 +14,7 @@
 #include "metadata.h"
 #include "opts.h"
 #include "packet.h"
+#include "scheduler.h"
 #include "task.h"
 #include "utils/time.h"
 

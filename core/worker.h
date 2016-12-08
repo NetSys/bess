@@ -9,10 +9,8 @@
 
 #include "gate.h"
 #include "pktbatch.h"
-#include "scheduler.h"
+#include "traffic_class.h"
 #include "utils/common.h"
-
-using bess::Scheduler;
 
 #define MAX_WORKERS 4
 
@@ -48,6 +46,10 @@ struct gate_task {
   bess::PacketBatch batch;
 };
 
+namespace bess {
+class Scheduler;
+}  // namespace bess
+
 class Worker {
  public:
   static const bess::TrafficPolicy kDefaultRootPolicy;
@@ -82,7 +84,7 @@ class Worker {
     return pframe_pool_;
   }
 
-  Scheduler *scheduler() {
+  bess::Scheduler *scheduler() {
     return scheduler_;
   }
 
@@ -135,7 +137,7 @@ class Worker {
 
   struct rte_mempool *pframe_pool_;
 
-  Scheduler *scheduler_;
+  bess::Scheduler *scheduler_;
 
   uint64_t silent_drops_; /* packets that have been sent to a deadend */
 

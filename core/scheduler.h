@@ -7,6 +7,7 @@
 #include <sstream>
 
 #include "traffic_class.h"
+#include "worker.h"
 
 namespace bess {
 
@@ -50,17 +51,84 @@ class Scheduler final {
   void ScheduleLoop();
 
   // Runs the scheduler once.
-  void ScheduleOnce();
+  void ScheduleOnce() __attribute__((always_inline)) {
+    resource_arr_t usage;
+    uint64_t now = rdtsc();
+
+    // Schedule.
+    TrafficClass *c = Next(now);
+
+    if (c) {
+      ctx.set_current_tsc(now);  // Tasks see updated tsc.
+      ctx.set_current_ns(now * ns_per_cycle_);
+
+      // Run.
+      LeafTrafficClass *leaf = static_cast<LeafTrafficClass *>(c);
+      struct task_result ret = leaf->RunTasks();
+
+      // Account.
+      usage[RESOURCE_COUNT] = 1;
+      usage[RESOURCE_CYCLE] = now - checkpoint_;
+      usage[RESOURCE_PACKET] = ret.packets;
+      usage[RESOURCE_BIT] = ret.bits;
+
+      // TODO(barath): Re-enable scheduler-wide stats accumulation.
+      // accumulate(stats_.usage, usage);
+
+      leaf->FinishAndAccountTowardsRoot(this, nullptr, usage, now);
+    } else {
+      // TODO(barath): Ideally, we wouldn't spin in this case but rather take the
+      // fact that Next() returned nullptr as an indication that everything is
+      // blocked, so we could wait until something is added that unblocks us.  We
+      // currently have no functionality to support such whole-scheduler
+      // blocking/unblocking.
+      ++stats_.cnt_idle;
+      stats_.cycles_idle += (now - checkpoint_);
+    }
+
+    checkpoint_ = now;
+  }
 
   // Adds the given rate limit traffic class to those that are considered
   // throttled (and need resuming later).
-  void AddThrottled(RateLimitTrafficClass *rc);
+  void AddThrottled(RateLimitTrafficClass *rc) __attribute__((always_inline)) {
+    throttled_cache_.push(rc);
+  }
 
   // Selects the next TrafficClass to run.
-  TrafficClass *Next(uint64_t tsc);
+  TrafficClass *Next(uint64_t tsc) __attribute__((always_inline)) {
+    // Before we select the next class to run, resume any classes that were
+    // throttled whose throttle time has expired so that they are available.
+    ResumeThrottled(tsc);
+
+    if (root_->blocked()) {
+      // Nothing to schedule anywhere.
+      return nullptr;
+    }
+
+    TrafficClass *c = root_;
+    while (c->policy_ != POLICY_LEAF) {
+      c = c->PickNextChild();
+    }
+
+    return c;
+  }
 
   // Unthrottles any TrafficClasses that were throttled whose time has passed.
-  inline void ResumeThrottled(uint64_t tsc);
+  void ResumeThrottled(uint64_t tsc) __attribute__((always_inline)) {
+    while (!throttled_cache_.empty()) {
+      RateLimitTrafficClass *rc = throttled_cache_.top();
+      if (rc->throttle_expiration_ < tsc) {
+        throttled_cache_.pop();
+        rc->throttle_expiration_ = 0;
+
+        // Traverse upward toward root to unblock any blocked parents.
+        rc->UnblockTowardsRoot(tsc);
+      } else {
+        break;
+      }
+    }
+  }
 
   TrafficClass *root() { return root_; }
 
