@@ -39,7 +39,6 @@ void Measure::ProcessBatch(bess::PacketBatch *batch) {
   }
 
   if (static_cast<int>(HISTO_TIME_TO_SEC(time - start_time_)) >= warmup_) {
-    RunNextModule(batch);
     pkt_cnt_ += batch->cnt();
 
     for (int i = 0; i < batch->cnt(); i++) {
@@ -59,27 +58,28 @@ void Measure::ProcessBatch(bess::PacketBatch *batch) {
         record_latency(&hist_, diff);
       }
     }
-    RunNextModule(batch);
   }
+  RunNextModule(batch);
+}
 
-  pb_cmd_response_t Measure::CommandGetSummary(const bess::pb::EmptyArg &) {
-    uint64_t pkt_total = pkt_cnt_;
-    uint64_t byte_total = bytes_cnt_;
-    uint64_t bits = (byte_total + pkt_total * 24) * 8;
+pb_cmd_response_t Measure::CommandGetSummary(const bess::pb::EmptyArg &) {
+  uint64_t pkt_total = pkt_cnt_;
+  uint64_t byte_total = bytes_cnt_;
+  uint64_t bits = (byte_total + pkt_total * 24) * 8;
 
-    pb_cmd_response_t response;
+  pb_cmd_response_t response;
 
-    bess::pb::MeasureCommandGetSummaryResponse r;
-    r.set_timestamp(get_epoch_time());
-    r.set_packets(pkt_total);
-    r.set_bits(bits);
-    r.set_total_latency_ns(total_latency_ * 100);
+  bess::pb::MeasureCommandGetSummaryResponse r;
+  r.set_timestamp(get_epoch_time());
+  r.set_packets(pkt_total);
+  r.set_bits(bits);
+  r.set_total_latency_ns(total_latency_ * 100);
 
-    response.mutable_error()->set_err(0);
-    response.mutable_other()->PackFrom(r);
+  response.mutable_error()->set_err(0);
+  response.mutable_other()->PackFrom(r);
 
-    return response;
-  }
+  return response;
+}
 
 ADD_MODULE(Measure, "measure",
            "measures packet latency (paired with Timestamp module)")
