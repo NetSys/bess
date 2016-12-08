@@ -1,4 +1,6 @@
 #include "rewrite.h"
+#include <cstdio>
+#include <rte_memcpy.h>
 
 const Commands Rewrite::cmds = {
     {"add", "RewriteArg", MODULE_CMD_FUNC(&Rewrite::CommandAdd), 0},
@@ -71,13 +73,12 @@ inline void Rewrite::DoRewriteSingle(bess::PacketBatch *batch) {
 
   for (int i = 0; i < cnt; i++) {
     bess::Packet *pkt = batch->pkts()[i];
-    char *ptr = static_cast<char *>(pkt->buffer()) + SNBUF_HEADROOM;
+    char *ptr = pkt->head_data<char *>();
 
-    pkt->set_data_off(SNBUF_HEADROOM);
     pkt->set_total_len(size);
     pkt->set_data_len(size);
 
-    memcpy_sloppy(ptr, templ, size);
+    rte_memcpy(ptr, templ, size);
   }
 }
 
