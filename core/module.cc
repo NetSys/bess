@@ -54,7 +54,7 @@ bool ModuleBuilder::AddModule(Module *m) {
 
 int ModuleBuilder::DestroyModule(Module *m, bool erase) {
   int ret;
-  m->Deinit();
+  m->DeInit();
 
   // disconnect from upstream modules.
   for (size_t i = 0; i < m->igates.size(); i++) {
@@ -203,6 +203,8 @@ pb_error_t Module::InitWithGenericArg(const google::protobuf::Any &arg) {
 pb_error_t Module::Init(const bess::pb::EmptyArg &) {
   return pb_errno(0);
 }
+
+void Module::DeInit() {}
 
 struct task_result Module::RunTask(void *) {
   CHECK(0);  // You must override this function

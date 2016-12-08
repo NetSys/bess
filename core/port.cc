@@ -37,7 +37,7 @@ int PortBuilder::DestroyPort(Port *p) {
   }
 
   all_ports_.erase(p->name());
-  p->Deinit();
+  p->DeInit();
   delete p;
 
   return 0;

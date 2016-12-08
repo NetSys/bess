@@ -126,7 +126,7 @@ class ExactMatch final : public Module {
         fields_(),
         ht_() {}
 
-  virtual void Deinit();
+  virtual void DeInit();
 
   virtual void ProcessBatch(bess::PacketBatch *batch);
 

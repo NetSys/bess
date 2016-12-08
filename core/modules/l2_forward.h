@@ -33,7 +33,7 @@ class L2Forward final : public Module {
 
   pb_error_t Init(const bess::pb::L2ForwardArg &arg);
 
-  virtual void Deinit();
+  virtual void DeInit();
 
   virtual void ProcessBatch(bess::PacketBatch *batch);
 

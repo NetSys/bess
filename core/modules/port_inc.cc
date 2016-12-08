@@ -58,7 +58,7 @@ pb_error_t PortInc::Init(const bess::pb::PortIncArg &arg) {
   return pb_errno(0);
 }
 
-void PortInc::Deinit() {
+void PortInc::DeInit() {
   port_->ReleaseQueues(reinterpret_cast<const module *>(this), PACKET_DIR_INC,
                        nullptr, 0);
 }

@@ -8,7 +8,7 @@ class Buffer final : public Module {
  public:
   Buffer() : Module(), buf_() {}
 
-  virtual void Deinit();
+  virtual void DeInit();
 
   virtual void ProcessBatch(bess::PacketBatch *batch);
 

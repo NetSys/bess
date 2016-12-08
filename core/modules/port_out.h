@@ -13,7 +13,7 @@ class PortOut final : public Module {
 
   pb_error_t Init(const bess::pb::PortOutArg &arg);
 
-  virtual void Deinit();
+  virtual void DeInit();
 
   virtual void ProcessBatch(bess::PacketBatch *batch);
 

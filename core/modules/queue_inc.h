@@ -14,7 +14,7 @@ class QueueInc final : public Module {
   QueueInc() : Module(), port_(), qid_(), prefetch_(), burst_() {}
 
   pb_error_t Init(const bess::pb::QueueIncArg &arg);
-  virtual void Deinit();
+  virtual void DeInit();
 
   virtual struct task_result RunTask(void *arg);
 

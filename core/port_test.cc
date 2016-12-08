@@ -15,7 +15,7 @@ class DummyPort : public Port {
 
   pb_error_t Init(const google::protobuf::Any &) { return pb_errno(42); }
 
-  virtual void Deinit() {
+  virtual void DeInit() {
     if (deinited_)
       *deinited_ = true;
   }

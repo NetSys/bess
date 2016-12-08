@@ -14,7 +14,7 @@ class IPLookup final : public Module {
 
   pb_error_t Init(const bess::pb::EmptyArg &arg);
 
-  virtual void Deinit();
+  virtual void DeInit();
 
   virtual void ProcessBatch(bess::PacketBatch *batch);
 

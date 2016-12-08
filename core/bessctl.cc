@@ -323,6 +323,8 @@ class BESSControlImpl final : public BESSControl::Service {
       return return_with_error(response, EBUSY, "There is a running worker");
     }
 
+    LOG(INFO) << "*** ResetAll requested ***";
+
     status = ResetModules(context, request, response);
     if (response->error().err() != 0) {
       return status;

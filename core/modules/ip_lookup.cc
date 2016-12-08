@@ -35,7 +35,7 @@ pb_error_t IPLookup::Init(const bess::pb::EmptyArg &) {
   return pb_errno(0);
 }
 
-void IPLookup::Deinit() {
+void IPLookup::DeInit() {
   rte_lpm_free(lpm_);
 }
 

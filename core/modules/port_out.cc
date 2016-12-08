@@ -30,7 +30,7 @@ pb_error_t PortOut::Init(const bess::pb::PortOutArg &arg) {
   return pb_errno(0);
 }
 
-void PortOut::Deinit() {
+void PortOut::DeInit() {
   port_->ReleaseQueues(reinterpret_cast<const module *>(this), PACKET_DIR_OUT,
                        nullptr, 0);
 }
