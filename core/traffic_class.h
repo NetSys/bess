@@ -38,7 +38,7 @@ enum resource_t {
 };
 
 // An array of counters for all resource types.
-typedef uint64_t resource_arr_t[NUM_RESOURCES] __ymm_aligned;
+typedef uint64_t resource_arr_t[NUM_RESOURCES];
 
 // The priority of a traffic class.
 typedef uint32_t priority_t;
