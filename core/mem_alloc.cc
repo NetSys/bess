@@ -8,10 +8,10 @@
 
 #if MEM_ALLOC_PROVIDER == LIBC
 
+#include <malloc.h>
+
 #include <cstdlib>
 #include <cstring>
-
-#include <malloc.h>
 
 void *mem_alloc(size_t size) {
   return calloc(1, size);
@@ -45,7 +45,9 @@ void *mem_realloc(void *ptr, size_t size) {
   return rte_realloc(ptr, size, /* align= */ 0);
 }
 
-void mem_free(void *ptr) { rte_free(ptr); }
+void mem_free(void *ptr) {
+  rte_free(ptr);
+}
 
 #else
 

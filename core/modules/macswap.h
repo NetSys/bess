@@ -5,7 +5,7 @@
 
 class MACSwap final : public Module {
  public:
-  virtual void ProcessBatch(bess::PacketBatch *batch) override;
+  void ProcessBatch(bess::PacketBatch *batch) override;
 };
 
 #endif  // BESS_MODULES_MACSWAP_H_

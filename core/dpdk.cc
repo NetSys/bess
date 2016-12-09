@@ -3,17 +3,17 @@
 #include <syslog.h>
 #include <unistd.h>
 
-#include <cassert>
-#include <cstdio>
-#include <cstdlib>
-#include <cstring>
-#include <string>
-
 #include <glog/logging.h>
 #include <rte_config.h>
 #include <rte_cycles.h>
 #include <rte_eal.h>
 #include <rte_ethdev.h>
+
+#include <cassert>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <string>
 
 #include "utils/time.h"
 #include "worker.h"
@@ -82,16 +82,19 @@ static void init_eal(const char *prog_name, int mb_per_socket,
 
   FILE *org_stdout;
 
-  sprintf(opt_master_lcore, "%d", RTE_MAX_LCORE - 1);
-  sprintf(opt_lcore_bitmap, "%d@%d", RTE_MAX_LCORE - 1, 0);
+  snprintf(opt_master_lcore, sizeof(opt_master_lcore), "%d", RTE_MAX_LCORE - 1);
+  snprintf(opt_lcore_bitmap, sizeof(opt_lcore_bitmap), "%d@%d",
+           RTE_MAX_LCORE - 1, 0);
 
   if (mb_per_socket <= 0) {
     mb_per_socket = 2048;
   }
 
-  sprintf(opt_socket_mem, "%d", mb_per_socket);
+  snprintf(opt_socket_mem, sizeof(opt_socket_mem), "%d", mb_per_socket);
   for (i = 1; i < numa_count; i++) {
-    sprintf(opt_socket_mem + strlen(opt_socket_mem), ",%d", mb_per_socket);
+    auto len = strlen(opt_socket_mem);
+    snprintf(opt_socket_mem + len, sizeof(opt_socket_mem) - len, ",%d",
+             mb_per_socket);
   }
 
   rte_argv[rte_argc++] = prog_name;
@@ -108,7 +111,8 @@ static void init_eal(const char *prog_name, int mb_per_socket,
     rte_argv[rte_argc++] = opt_socket_mem;
   }
   if (!no_huge && multi_instance) {
-    sprintf(opt_file_prefix, "rte%lld", (long long)getpid());
+    snprintf(opt_file_prefix, sizeof(opt_file_prefix), "rte%lld",
+             (long long)getpid());
     /* Casting to long long isn't guaranteed by POSIX to not lose
      * any information, but should be okay for Linux and BSDs for
      * the foreseeable future. */

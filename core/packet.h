@@ -1,12 +1,14 @@
 #ifndef BESS_PACKET_H_
 #define BESS_PACKET_H_
 
-#include <cassert>
-#include <type_traits>
-
 #include <rte_atomic.h>
 #include <rte_config.h>
 #include <rte_mbuf.h>
+
+#include <algorithm>
+#include <cassert>
+#include <string>
+#include <type_traits>
 
 #include "metadata.h"
 #include "worker.h"
@@ -364,7 +366,8 @@ int Packet::Alloc(Packet **pkts, size_t cnt, uint16_t len) {
   int ret;
   size_t i;
 
-  ret = rte_mempool_get_bulk(ctx.pframe_pool(), (void **)pkts, cnt);
+  ret = rte_mempool_get_bulk(ctx.pframe_pool(), reinterpret_cast<void **>(pkts),
+                             cnt);
   if (ret != 0)
     return 0;
 
@@ -396,7 +399,7 @@ void Packet::Free(Packet **pkts, int cnt) {
 
   /* NOTE: it seems that zeroing the refcnt of mbufs is not necessary.
    *   (allocators will reset them) */
-  rte_mempool_put_bulk(pool, (void **)pkts, cnt);
+  rte_mempool_put_bulk(pool, reinterpret_cast<void **>(pkts), cnt);
   return;
 
 slow_path:

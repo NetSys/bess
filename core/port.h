@@ -1,13 +1,14 @@
 #ifndef BESS_PORT_H_
 #define BESS_PORT_H_
 
+#include <glog/logging.h>
+#include <gtest/gtest_prod.h>
+
 #include <cstdint>
 #include <functional>
 #include <map>
 #include <memory>
-
-#include <glog/logging.h>
-#include <gtest/gtest_prod.h>
+#include <string>
 
 #include "message.h"
 #include "packet.h"
@@ -57,7 +58,7 @@ using port_init_func_t = pb_func_t<pb_error_t, Port, google::protobuf::Any>;
 
 template <typename T, typename P>
 static inline port_init_func_t PORT_INIT_FUNC(pb_error_t (P::*fn)(const T &)) {
-  return [=](Port *p, const google::protobuf::Any &arg) -> pb_error_t {
+  return [fn](Port *p, const google::protobuf::Any &arg) {
     T arg_;
     arg.UnpackTo(&arg_);
     auto base_fn = std::mem_fn(fn);
@@ -204,7 +205,7 @@ class Port {
   void ReleaseQueues(const struct module *m, packet_dir_t dir,
                      const queue_t *queues, int num);
 
-  const std::string &name() const { return name_; };
+  const std::string &name() const { return name_; }
 
   const PortBuilder *port_builder() const { return port_builder_; }
 

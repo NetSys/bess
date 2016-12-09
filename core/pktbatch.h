@@ -28,7 +28,9 @@ class PacketBatch {
     int cnt = src->cnt_;
 
     cnt_ = cnt;
-    rte_memcpy((void *)pkts_, (void *)src->pkts_, cnt * sizeof(Packet *));
+    rte_memcpy(reinterpret_cast<void *>(pkts_),
+               reinterpret_cast<const void *>(src->pkts_),
+               cnt * sizeof(Packet *));
   }
 
   static const size_t kMaxBurst = 32;

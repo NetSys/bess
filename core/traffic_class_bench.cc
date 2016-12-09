@@ -1,12 +1,12 @@
 // Benchmarks for TC / scheduler.
 
-#include "scheduler.h"
-#include "traffic_class.h"
+#include <benchmark/benchmark.h>
+#include <glog/logging.h>
 
 #include <vector>
 
-#include <benchmark/benchmark.h>
-#include <glog/logging.h>
+#include "scheduler.h"
+#include "traffic_class.h"
 
 #define CT TrafficClassBuilder::CreateTree
 
@@ -21,18 +21,21 @@ class TCWeightedFair : public benchmark::Fixture {
  public:
   TCWeightedFair() : s_() {}
 
-  virtual void SetUp(benchmark::State &state) override {
+  void SetUp(benchmark::State &state) override {
     int num_classes = state.range(0);
-    resource_t resource = (resource_t) state.range(1);
+    resource_t resource = (resource_t)state.range(1);
 
-    TrafficClass *root = CT("root", {PRIORITY},
-                            {{PRIORITY, 0, CT("weighted", {WEIGHTED_FAIR, resource}, {})}});
+    TrafficClass *root =
+        CT("root", {PRIORITY},
+           {{PRIORITY, 0, CT("weighted", {WEIGHTED_FAIR, resource}, {})}});
     s_ = new Scheduler(root);
-    WeightedFairTrafficClass *weighted = static_cast<WeightedFairTrafficClass *>(TrafficClassBuilder::Find("weighted"));
+    WeightedFairTrafficClass *weighted =
+        static_cast<WeightedFairTrafficClass *>(
+            TrafficClassBuilder::Find("weighted"));
     for (int i = 0; i < num_classes; i++) {
       std::string name("class_" + std::to_string(i));
       LeafTrafficClass *c = new LeafTrafficClass(name);
-      c->AddTask((Task *) 1);  // A fake task.
+      c->AddTask(reinterpret_cast<Task *>(1));  // A fake task.
 
       resource_share_t share = 1;
       CHECK(weighted->AddChild(c, share));
@@ -42,7 +45,7 @@ class TCWeightedFair : public benchmark::Fixture {
     CHECK(!weighted->blocked());
   }
 
-  virtual void TearDown(benchmark::State &) override {
+  void TearDown(benchmark::State &) override {
     delete s_;
     s_ = nullptr;
 
@@ -54,7 +57,8 @@ class TCWeightedFair : public benchmark::Fixture {
 };
 
 // Benchmarks the schedule_once() routine in TC.  For RESOURCE_CNT.
-BENCHMARK_DEFINE_F(TCWeightedFair, TCScheduleOnceCount)(benchmark::State &state) {
+BENCHMARK_DEFINE_F(TCWeightedFair, TCScheduleOnceCount)
+(benchmark::State &state) {
   while (state.KeepRunning()) {
     s_->ScheduleOnce();
   }
@@ -63,7 +67,8 @@ BENCHMARK_DEFINE_F(TCWeightedFair, TCScheduleOnceCount)(benchmark::State &state)
 }
 
 // Benchmarks the schedule_once() routine in TC.  For RESOURCE_CYCLE.
-BENCHMARK_DEFINE_F(TCWeightedFair, TCScheduleOnceCycle)(benchmark::State &state) {
+BENCHMARK_DEFINE_F(TCWeightedFair, TCScheduleOnceCycle)
+(benchmark::State &state) {
   while (state.KeepRunning()) {
     s_->ScheduleOnce();
   }
@@ -112,16 +117,17 @@ class TCRoundRobin : public benchmark::Fixture {
  public:
   TCRoundRobin() : s_() {}
 
-  virtual void SetUp(benchmark::State &state) override {
+  void SetUp(benchmark::State &state) override {
     int num_classes = state.range(0);
 
     TrafficClass *root = CT("rr", {ROUND_ROBIN}, {});
     s_ = new Scheduler(root);
-    RoundRobinTrafficClass *rr = static_cast<RoundRobinTrafficClass *>(TrafficClassBuilder::Find("rr"));
+    RoundRobinTrafficClass *rr =
+        static_cast<RoundRobinTrafficClass *>(TrafficClassBuilder::Find("rr"));
     for (int i = 0; i < num_classes; i++) {
       std::string name("class_" + std::to_string(i));
       LeafTrafficClass *c = new LeafTrafficClass(name);
-      c->AddTask((Task *) 1);  // A fake task.
+      c->AddTask(reinterpret_cast<Task *>(1));  // A fake task.
 
       CHECK(rr->AddChild(c));
       c->tasks().clear();
@@ -129,7 +135,7 @@ class TCRoundRobin : public benchmark::Fixture {
     CHECK(!rr->blocked());
   }
 
-  virtual void TearDown(benchmark::State &) override {
+  void TearDown(benchmark::State &) override {
     delete s_;
     s_ = nullptr;
 

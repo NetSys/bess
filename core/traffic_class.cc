@@ -45,14 +45,14 @@ void PriorityTrafficClass::UnblockTowardsRoot(uint64_t tsc) {
       break;
     }
   }
-  TrafficClass::UnblockTowardsRootSetBlocked(tsc, first_runnable_ >= num_children);
+  TrafficClass::UnblockTowardsRootSetBlocked(tsc,
+                                             first_runnable_ >= num_children);
 }
 
-void PriorityTrafficClass::FinishAndAccountTowardsRoot(
-    Scheduler *sched,
-    TrafficClass *child,
-    resource_arr_t usage,
-    uint64_t tsc) {
+void PriorityTrafficClass::FinishAndAccountTowardsRoot(Scheduler *sched,
+                                                       TrafficClass *child,
+                                                       resource_arr_t usage,
+                                                       uint64_t tsc) {
   ACCUMULATE(stats_.usage, usage);
 
   if (child->blocked_) {
@@ -63,7 +63,7 @@ void PriorityTrafficClass::FinishAndAccountTowardsRoot(
       ++first_runnable_;
     }
     blocked_ = (first_runnable_ == num_children);
-  } 
+  }
   if (!parent_) {
     return;
   }
@@ -78,7 +78,8 @@ size_t PriorityTrafficClass::Size() const {
   return sz;
 }
 
-bool WeightedFairTrafficClass::AddChild(TrafficClass *child, resource_share_t share) {
+bool WeightedFairTrafficClass::AddChild(TrafficClass *child,
+                                        resource_share_t share) {
   if (child->parent_) {
     return false;
   }
@@ -119,14 +120,14 @@ void WeightedFairTrafficClass::UnblockTowardsRoot(uint64_t tsc) {
   TrafficClass::UnblockTowardsRootSetBlocked(tsc, children_.empty());
 }
 
-void WeightedFairTrafficClass::FinishAndAccountTowardsRoot(
-    Scheduler *sched,
-    TrafficClass *child,
-    resource_arr_t usage,
-    uint64_t tsc) {
+void WeightedFairTrafficClass::FinishAndAccountTowardsRoot(Scheduler *sched,
+                                                           TrafficClass *child,
+                                                           resource_arr_t usage,
+                                                           uint64_t tsc) {
   ACCUMULATE(stats_.usage, usage);
 
-  //DCHECK_EQ(item.c_, child) << "Child that we picked should be at the front of priority queue.";
+  // DCHECK_EQ(item.c_, child) << "Child that we picked should be at the front
+  // of priority queue.";
   if (child->blocked_) {
     auto item = children_.top();
     children_.pop();
@@ -147,7 +148,8 @@ void WeightedFairTrafficClass::FinishAndAccountTowardsRoot(
 
 size_t WeightedFairTrafficClass::Size() const {
   size_t sz = 1;
-  const auto *childs = reinterpret_cast<const std::vector<ChildData>*>(&children_);
+  const auto *childs =
+      reinterpret_cast<const std::vector<ChildData> *>(&children_);
   for (auto child = childs->cbegin(); child != childs->cend(); ++child) {
     sz += child->c_->Size();
   }
@@ -192,11 +194,10 @@ void RoundRobinTrafficClass::UnblockTowardsRoot(uint64_t tsc) {
   TrafficClass::UnblockTowardsRootSetBlocked(tsc, children_.empty());
 }
 
-void RoundRobinTrafficClass::FinishAndAccountTowardsRoot(
-    Scheduler *sched,
-    TrafficClass *child,
-    resource_arr_t usage,
-    uint64_t tsc) {
+void RoundRobinTrafficClass::FinishAndAccountTowardsRoot(Scheduler *sched,
+                                                         TrafficClass *child,
+                                                         resource_arr_t usage,
+                                                         uint64_t tsc) {
   ACCUMULATE(stats_.usage, usage);
   if (child->blocked_) {
     children_.erase(children_.begin() + next_child_);
@@ -219,7 +220,8 @@ void RoundRobinTrafficClass::FinishAndAccountTowardsRoot(
 
 size_t RoundRobinTrafficClass::Size() const {
   size_t sz = 1;
-  const auto *childs = reinterpret_cast<const std::vector<TrafficClass*>*>(&children_);
+  const auto *childs =
+      reinterpret_cast<const std::vector<TrafficClass *> *>(&children_);
   for (auto child = childs->cbegin(); child != childs->cend(); ++child) {
     sz += (*child)->Size();
   }
@@ -253,11 +255,10 @@ void RateLimitTrafficClass::UnblockTowardsRoot(uint64_t tsc) {
   TrafficClass::UnblockTowardsRootSetBlocked(tsc, blocked);
 }
 
-void RateLimitTrafficClass::FinishAndAccountTowardsRoot(
-    Scheduler *sched,
-    TrafficClass *child,
-    resource_arr_t usage,
-    uint64_t tsc) {
+void RateLimitTrafficClass::FinishAndAccountTowardsRoot(Scheduler *sched,
+                                                        TrafficClass *child,
+                                                        resource_arr_t usage,
+                                                        uint64_t tsc) {
   ACCUMULATE(stats_.usage, usage);
   last_tsc_ = tsc;
   uint64_t elapsed_cycles = tsc - last_tsc_;
@@ -270,7 +271,7 @@ void RateLimitTrafficClass::FinishAndAccountTowardsRoot(
     tokens_ = 0;
     blocked_ = true;
     ++stats_.cnt_throttled;
-    throttle_expiration_ = tsc+wait_tsc;
+    throttle_expiration_ = tsc + wait_tsc;
 
     sched->AddThrottled(this);
   } else {

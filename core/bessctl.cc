@@ -1,12 +1,13 @@
 #include "bessctl.h"
 
-#include <map>
-
 #include <glog/logging.h>
 #include <grpc++/server.h>
 #include <grpc++/server_builder.h>
 #include <grpc++/server_context.h>
 #include <grpc/grpc.h>
+
+#include <map>
+#include <string>
 
 #include "gate.h"
 #include "hooks/track.h"
@@ -491,9 +492,9 @@ class BESSControlImpl final : public BESSControl::Service {
     }
 
     if (!is_worker_active(wid)) {
-      if (num_workers == 0 && wid == 0)
+      if (num_workers == 0 && wid == 0) {
         launch_worker(wid, FLAGS_c);
-      else {
+      } else {
         return return_with_error(response, EINVAL, "worker:%d does not exist",
                                  wid);
       }
@@ -891,7 +892,7 @@ class BESSControlImpl final : public BESSControl::Service {
 
     response->set_desc(m->GetDesc());
 
-    // TODO: Dump!
+    // TODO(clan): Dump!
 
     collect_igates(m, response);
     collect_ogates(m, response);

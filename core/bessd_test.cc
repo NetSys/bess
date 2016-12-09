@@ -4,10 +4,11 @@
 #include <sys/select.h>
 #include <unistd.h>
 
-#include <csignal>
-
 #include <glog/logging.h>
 #include <gtest/gtest.h>
+
+#include <csignal>
+#include <string>
 
 #include "opts.h"
 #include "utils/common.h"
@@ -89,7 +90,8 @@ static const char *kTestLockFilePath = "/tmp/tryacquirepidfilelocktest.log";
 // Checks that FLAGS_t causes types to dump.
 TEST(ProcessCommandLineArgs, DumpTypes) {
   FLAGS_t = true;
-  EXPECT_EXIT(ProcessCommandLineArgs(), ::testing::ExitedWithCode(EXIT_SUCCESS), "");
+  EXPECT_EXIT(ProcessCommandLineArgs(), ::testing::ExitedWithCode(EXIT_SUCCESS),
+              "");
 }
 
 // Checks that running as non-root causes termination.
@@ -171,44 +173,53 @@ TEST(TryAcquirePidfileLock, GoodFd) {
 
 // Checks that file locking fails when another process is holding the lock.
 TEST(TryAcquirePidfileLock, AlreadyHeld) {
-  DO_MULTI_PROCESS_TEST({
-    {
-      pid_t pid = getpid();
-      unique_fd fd(open(kTestLockFilePath, O_RDWR | O_CREAT, 0644));
+  DO_MULTI_PROCESS_TEST(
+      {
+        {
+          pid_t pid = getpid();
+          unique_fd fd(open(kTestLockFilePath, O_RDWR | O_CREAT, 0644));
 
-      WritePidfile(fd.get(), pid);
-    }
+          WritePidfile(fd.get(), pid);
+        }
 
-    int fd = open(kTestLockFilePath, O_RDWR | O_CREAT, 0644);
-    ASSERT_EQ(0, flock(fd, LOCK_EX | LOCK_NB)) << "Couldn't acquire file lock for test.";
-  }, {
-    unique_fd fd(open(kTestLockFilePath, O_RDWR | O_CREAT, 0644));
+        int fd = open(kTestLockFilePath, O_RDWR | O_CREAT, 0644);
+        ASSERT_EQ(0, flock(fd, LOCK_EX | LOCK_NB))
+            << "Couldn't acquire file lock for test.";
+      },
+      {
+        unique_fd fd(open(kTestLockFilePath, O_RDWR | O_CREAT, 0644));
 
-    bool lockacquired;
-    pid_t pid;
-    std::tie(lockacquired, pid) = TryAcquirePidfileLock(fd.get());
+        bool lockacquired;
+        pid_t pid;
+        std::tie(lockacquired, pid) = TryAcquirePidfileLock(fd.get());
 
-    EXPECT_FALSE(lockacquired);
-    EXPECT_EQ(childpid, pid);
+        EXPECT_FALSE(lockacquired);
+        EXPECT_EQ(childpid, pid);
 
-    unlink(kTestLockFilePath);
-  }, 0);
+        unlink(kTestLockFilePath);
+      },
+      0);
 }
 
 // Checks that file locking dies when another process is holding the lock but
 // we're not able to read the pid.
 TEST(TryAcquirePidfileLock, AlreadyHeldPidReadFails) {
-  DO_MULTI_PROCESS_TEST({
-    int fd = open(kTestLockFilePath, O_RDWR | O_CREAT, 0644);
-    ASSERT_EQ(0, flock(fd, LOCK_EX | LOCK_NB)) << "Couldn't acquire file lock for test.";
-  }, {
-    unique_fd fd(open(kTestLockFilePath, O_RDWR | O_CREAT, 0644));
+  DO_MULTI_PROCESS_TEST(
+      {
+        int fd = open(kTestLockFilePath, O_RDWR | O_CREAT, 0644);
+        ASSERT_EQ(0, flock(fd, LOCK_EX | LOCK_NB))
+            << "Couldn't acquire file lock for test.";
+      },
+      {
+        unique_fd fd(open(kTestLockFilePath, O_RDWR | O_CREAT, 0644));
 
-    bool lockacquired;
-    pid_t pid;
-    EXPECT_DEATH(std::tie(lockacquired, pid) = TryAcquirePidfileLock(fd.get()), "");
-    unlink(kTestLockFilePath);
-  }, 0);
+        bool lockacquired;
+        pid_t pid;
+        EXPECT_DEATH(
+            std::tie(lockacquired, pid) = TryAcquirePidfileLock(fd.get()), "");
+        unlink(kTestLockFilePath);
+      },
+      0);
 }
 
 // Checks that trying to check for a unique instance with a bad pidfile path
@@ -234,12 +245,13 @@ TEST(CheckUniqueInstance, NotHeld) {
 // Checks that the combined routine to check for a unique instance fails
 // properly when the lock is already held.
 TEST(CheckUniqueInstance, Held) {
-  DO_MULTI_PROCESS_TEST({
-    CheckUniqueInstance(kTestLockFilePath);
-  }, {
-    EXPECT_DEATH(CheckUniqueInstance(kTestLockFilePath), "");
-    unlink(kTestLockFilePath);
-  }, 0);
+  DO_MULTI_PROCESS_TEST({ CheckUniqueInstance(kTestLockFilePath); },
+                        {
+                          EXPECT_DEATH(CheckUniqueInstance(kTestLockFilePath),
+                                       "");
+                          unlink(kTestLockFilePath);
+                        },
+                        0);
 }
 
 // Checks that the combined routine to check for a unique instance attempts to
@@ -248,32 +260,36 @@ TEST(CheckUniqueInstance, HeldKillCurrentHolder) {
   // Set the command-line arg for -k.
   FLAGS_k = true;
 
-  DO_MULTI_PROCESS_TEST({
-    // Ignore SIGTERM, to force parent to kill us.
-    signal(SIGTERM, SIG_IGN);
+  DO_MULTI_PROCESS_TEST(
+      {
+        // Ignore SIGTERM, to force parent to kill us.
+        signal(SIGTERM, SIG_IGN);
 
-    // Child process.
-    int pidfile_fd = CheckUniqueInstance(kTestLockFilePath);
-    WritePidfile(pidfile_fd, getpid());
-  }, {
-    ASSERT_NO_FATAL_FAILURE(CheckUniqueInstance(kTestLockFilePath));
-    unlink(kTestLockFilePath);
-  }, SIGKILL);
+        // Child process.
+        int pidfile_fd = CheckUniqueInstance(kTestLockFilePath);
+        WritePidfile(pidfile_fd, getpid());
+      },
+      {
+        ASSERT_NO_FATAL_FAILURE(CheckUniqueInstance(kTestLockFilePath));
+        unlink(kTestLockFilePath);
+      },
+      SIGKILL);
 }
 
 // Checks that we can do a basic call to start the daemon.
 TEST(Daemonize, BasicRun) {
-  DO_MULTI_PROCESS_TEST({
-    int signal_fd = -1;
-    ASSERT_NO_FATAL_FAILURE(signal_fd = Daemonize(););
-    ASSERT_NE(-1, signal_fd);
+  DO_MULTI_PROCESS_TEST(
+      {
+        int signal_fd = -1;
+        ASSERT_NO_FATAL_FAILURE(signal_fd = Daemonize(););
+        ASSERT_NE(-1, signal_fd);
 
-    uint64_t one = 1;
-    ASSERT_LT(-1, write(signal_fd, &one, sizeof(one)) < 0) <<
-        "Couldn't write out to fd that communicates with parent process";
-    close(signal_fd);
-  }, {
-  }, 0);
+        uint64_t one = 1;
+        ASSERT_LT(-1, write(signal_fd, &one, sizeof(one)) < 0)
+            << "Couldn't write out to fd that communicates with parent process";
+        close(signal_fd);
+      },
+      {}, 0);
 }
 
 // Checks that we can do a basic call to set resource limits.

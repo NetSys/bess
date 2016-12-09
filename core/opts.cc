@@ -1,8 +1,8 @@
 #include "opts.h"
 
-#include <cstdint>
-
 #include <glog/logging.h>
+
+#include <cstdint>
 
 #include "worker.h"
 

@@ -7,14 +7,14 @@
 class VPort final : public Port {
  public:
   VPort() : fd_(), bar_(), map_(), netns_fd_(), container_pid_() {}
-  virtual void InitDriver() override;
+  void InitDriver() override;
 
   pb_error_t Init(const bess::pb::VPortArg &arg);
-  virtual void DeInit() override;
+  void DeInit() override;
 
   virtual int RecvPackets(queue_t qid, bess::Packet **pkts,
                           int max_cnt) override;
-  virtual int SendPackets(queue_t qid, bess::Packet **pkts, int cnt) override;
+  int SendPackets(queue_t qid, bess::Packet **pkts, int cnt) override;
 
  private:
   struct queue {

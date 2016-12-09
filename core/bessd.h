@@ -3,6 +3,7 @@
 #ifndef BESS_BESSD_H_
 #define BESS_BESSD_H_
 
+#include <string>
 #include <tuple>
 
 namespace bess {

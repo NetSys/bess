@@ -3,6 +3,7 @@
 
 #include <map>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "gate.h"
@@ -29,7 +30,7 @@ using module_init_func_t = pb_func_t<pb_error_t, Module, google::protobuf::Any>;
 template <typename T, typename M>
 static inline module_cmd_func_t MODULE_CMD_FUNC(
     pb_cmd_response_t (M::*fn)(const T &)) {
-  return [=](Module *m, const google::protobuf::Any &arg) -> pb_cmd_response_t {
+  return [fn](Module *m, const google::protobuf::Any &arg) {
     T arg_;
     arg.UnpackTo(&arg_);
     auto base_fn = std::mem_fn(fn);
@@ -40,7 +41,7 @@ static inline module_cmd_func_t MODULE_CMD_FUNC(
 template <typename T, typename M>
 static inline module_init_func_t MODULE_INIT_FUNC(
     pb_error_t (M::*fn)(const T &)) {
-  return [=](Module *m, const google::protobuf::Any &arg) -> pb_error_t {
+  return [fn](Module *m, const google::protobuf::Any &arg) {
     T arg_;
     arg.UnpackTo(&arg_);
     auto base_fn = std::mem_fn(fn);
@@ -111,9 +112,9 @@ class ModuleBuilder {
   gate_idx_t NumIGates() const { return num_igates_; }
   gate_idx_t NumOGates() const { return num_ogates_; }
 
-  const std::string &class_name() const { return class_name_; };
-  const std::string &name_template() const { return name_template_; };
-  const std::string &help_text() const { return help_text_; };
+  const std::string &class_name() const { return class_name_; }
+  const std::string &name_template() const { return name_template_; }
+  const std::string &help_text() const { return help_text_; }
 
   const std::vector<std::pair<std::string, std::string>> cmds() const {
     std::vector<std::pair<std::string, std::string>> ret;
@@ -165,7 +166,7 @@ class Module {
   virtual struct task_result RunTask(void *arg);
   virtual void ProcessBatch(bess::PacketBatch *batch);
 
-  virtual std::string GetDesc() const { return ""; };
+  virtual std::string GetDesc() const { return ""; }
   virtual std::string GetDump() const { return ""; }
 
   static const gate_idx_t kNumIGates = 1;
@@ -291,7 +292,7 @@ inline void Module::RunChooseModule(gate_idx_t ogate_idx,
   }
 
   ctx.set_current_igate(ogate->igate_idx());
-  ((Module *)ogate->arg())->ProcessBatch(batch);
+  (reinterpret_cast<Module *>(ogate->arg()))->ProcessBatch(batch);
 }
 
 inline void Module::RunNextModule(bess::PacketBatch *batch) {

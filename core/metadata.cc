@@ -1,10 +1,10 @@
 #include "metadata.h"
 
+#include <glog/logging.h>
+
 #include <algorithm>
 #include <functional>
 #include <queue>
-
-#include <glog/logging.h>
 
 #include "mem_alloc.h"
 #include "module.h"
@@ -61,7 +61,8 @@ static inline attr_id_t get_attr_id(const struct Attribute *attr) {
 
 class ScopeComponentComp {
  public:
-  ScopeComponentComp(const bool &revparam = false) : reverse_(revparam) {}
+  explicit ScopeComponentComp(const bool &revparam = false)
+      : reverse_(revparam) {}
 
   bool operator()(const ScopeComponent *lhs, const ScopeComponent *rhs) const {
     if (reverse_) {
@@ -369,7 +370,7 @@ void Pipeline::LogAllScopes() const {
   for (size_t i = 0; i < scope_components_.size(); i++) {
     VLOG(1) << "scope component for " << scope_components_[i].size()
             << "-byte attr " << scope_components_[i].attr_id() << " at offset "
-            << (int)scope_components_[i].offset() << ": {";
+            << static_cast<int>(scope_components_[i].offset()) << ": {";
 
     for (const auto &it : scope_components_[i].modules()) {
       VLOG(1) << it->name();

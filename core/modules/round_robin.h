@@ -42,7 +42,7 @@ class RoundRobin final : public Module {
 
   pb_error_t Init(const bess::pb::RoundRobinArg &arg);
 
-  virtual void ProcessBatch(bess::PacketBatch *batch) override;
+  void ProcessBatch(bess::PacketBatch *batch) override;
 
   /*!
    * Switches the RoundRobin module between "batch" vs "packet" scheduling.

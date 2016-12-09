@@ -6,6 +6,10 @@
 #include <ucontext.h>
 #include <unistd.h>
 
+#include <glog/logging.h>
+#include <rte_config.h>
+#include <rte_version.h>
+
 #include <cassert>
 #include <csignal>
 #include <cstdint>
@@ -14,11 +18,8 @@
 #include <cstring>
 #include <fstream>
 #include <sstream>
+#include <stack>
 #include <string>
-
-#include <glog/logging.h>
-#include <rte_config.h>
-#include <rte_version.h>
 
 #include "module.h"
 #include "packet.h"
@@ -114,15 +115,17 @@ static const char *si_code_to_str(int sig_num, int si_code) {
         case BUS_OBJERR:
           return "BUS_OBJERR: object-specific hardware error";
 #if 0
-		case BUS_MCEERR_AR:
-			return "BUS_MCEERR_AR: Hardware memory error consumed on a machine check";
-		case BUS_MCEERR_AO:
-			return "BUS_MCEERR_AO: Hardware memory error detected in process but not consumed";
+        case BUS_MCEERR_AR:
+          return "BUS_MCEERR_AR: Hardware memory error consumed on a machine "
+                 "check";
+        case BUS_MCEERR_AO:
+          return "BUS_MCEERR_AO: Hardware memory error detected in process but "
+                 "not consumed";
 #endif
         default:
           return "unknown";
       }
-  };
+  }
 
   return "si_code unavailable for unknown signal";
 }
@@ -143,7 +146,8 @@ static std::string print_code(char *symbol, int context) {
   /* ./bessd() [0x4149d8] */
   sscanf(symbol, "%[^(](%*s [%[^]]]", executable, addr);
 
-  sprintf(cmd, "addr2line -C -i -f -p -e %s %s 2> /dev/null", executable, addr);
+  snprintf(cmd, sizeof(cmd), "addr2line -C -i -f -p -e %s %s 2> /dev/null",
+           executable, addr);
 
   proc = popen(cmd, "r");
   if (!proc) {
@@ -188,14 +192,15 @@ static std::string print_code(char *symbol, int context) {
     }
 
     p++;  // now p points to the last token (filename)
+    char *rest;
 
-    filename = strtok(p, ":");
+    filename = strtok_r(p, ":", &rest);
 
     if (strcmp(filename, "??") == 0) {
       continue;
     }
 
-    p = strtok(nullptr, "");
+    p = strtok_r(nullptr, "", &rest);
     if (!p) {
       continue;
     }
@@ -281,7 +286,7 @@ static std::string DumpStack() {
   // The return addresses point to the next instruction after its call,
   // so adjust them by -1
   for (int i = skips + 1; i < cnt; i++)
-    addrs[i] = (void *)((uintptr_t)addrs[i] - 1);
+    addrs[i] = reinterpret_cast<void *>((uintptr_t)addrs[i] - 1);
 
   symbols = backtrace_symbols(addrs, cnt);
 
@@ -294,8 +299,9 @@ static std::string DumpStack() {
     }
 
     free(symbols);  // required by backtrace_symbols()
-  } else
+  } else {
     stack << "ERROR: backtrace_symbols() failed\n";
+  }
 
   return stack.str();
 }
@@ -338,9 +344,9 @@ static void TrapHandler(int sig_num, siginfo_t *info, void *ucontext) {
   uc = (struct ucontext *)ucontext;
 
 #if __i386
-  trap_ip = (void *)uc->uc_mcontext.gregs[REG_EIP];
+  trap_ip = reinterpret_cast<void *>(uc->uc_mcontext.gregs[REG_EIP]);
 #elif __x86_64
-  trap_ip = (void *)uc->uc_mcontext.gregs[REG_RIP];
+  trap_ip = reinterpret_cast<void *>(uc->uc_mcontext.gregs[REG_RIP]);
 #else
 #error neither x86 or x86-64
 #endif
@@ -416,8 +422,8 @@ void DumpTypes(void) {
   printf("sizeof(pkt_batch)=%zu\n", sizeof(bess::PacketBatch));
   printf("sizeof(Scheduler)=%zu sizeof(sched_stats)=%zu\n", sizeof(Scheduler),
          sizeof(struct sched_stats));
-  printf("sizeof(TrafficClass)=%zu sizeof(tc_stats)=%zu\n", sizeof(TrafficClass),
-         sizeof(struct tc_stats));
+  printf("sizeof(TrafficClass)=%zu sizeof(tc_stats)=%zu\n",
+         sizeof(TrafficClass), sizeof(struct tc_stats));
   printf("sizeof(Task)=%zu\n", sizeof(Task));
 
   printf("sizeof(Module)=%zu\n", sizeof(Module));

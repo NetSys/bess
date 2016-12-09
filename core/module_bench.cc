@@ -9,7 +9,7 @@ namespace {
 
 class DummySourceModule : public Module {
  public:
-  virtual struct task_result RunTask(void *arg) override;
+  struct task_result RunTask(void *arg) override;
 };
 
 [[gnu::noinline]] struct task_result DummySourceModule::RunTask(void *arg) {
@@ -38,7 +38,7 @@ class DummySourceModule : public Module {
 
 class DummyRelayModule : public Module {
  public:
-  virtual void ProcessBatch(bess::PacketBatch *batch) override;
+  void ProcessBatch(bess::PacketBatch *batch) override;
 };
 
 [[gnu::noinline]] void DummyRelayModule::ProcessBatch(
@@ -49,7 +49,7 @@ class DummyRelayModule : public Module {
 // Simple harness for testing the Module class.
 class ModuleFixture : public benchmark::Fixture {
  protected:
-  virtual void SetUp(benchmark::State &state) override {
+  void SetUp(benchmark::State &state) override {
     const int chain_length = state.range(0);
 
     ADD_MODULE(DummySourceModule, "src", "the most sophisticated modue ever");
@@ -79,7 +79,7 @@ class ModuleFixture : public benchmark::Fixture {
     }
   }
 
-  virtual void TearDown(benchmark::State &) override {
+  void TearDown(benchmark::State &) override {
     ModuleBuilder::DestroyAllModules();
     ModuleBuilder::all_module_builders_holder(true);
   }

@@ -1,5 +1,7 @@
 #include "message.h"
 
+#include <string>
+
 #include "utils/format.h"
 
 pb_error_t pb_error_details(int code, const char *details, const char *fmt,

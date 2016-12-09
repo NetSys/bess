@@ -13,11 +13,11 @@ class QueueOut final : public Module {
 
   pb_error_t Init(const bess::pb::QueueOutArg &arg);
 
-  virtual void DeInit() override;
+  void DeInit() override;
 
-  virtual void ProcessBatch(bess::PacketBatch *batch) override;
+  void ProcessBatch(bess::PacketBatch *batch) override;
 
-  virtual std::string GetDesc() const override;
+  std::string GetDesc() const override;
 
  private:
   Port *port_;

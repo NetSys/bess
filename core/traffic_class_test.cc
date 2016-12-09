@@ -1,13 +1,13 @@
 // Unit tests traffic class and scheduler routines.
 
-#include "scheduler.h"
-#include "traffic_class.h"
+#include <gtest/gtest.h>
 
 #include <map>
 #include <memory>
 #include <string>
 
-#include <gtest/gtest.h>
+#include "scheduler.h"
+#include "traffic_class.h"
 
 #define CT TrafficClassBuilder::CreateTree
 
@@ -26,7 +26,8 @@ TEST(CreateTree, Leaf) {
 
 // Tests that we can create and fetch a priority root node with a leaf under it.
 TEST(CreateTree, PriorityRootAndLeaf) {
-  std::unique_ptr<TrafficClass> tree(CT("root", {PRIORITY}, {{PRIORITY, 10, CT("leaf", {LEAF})}}));
+  std::unique_ptr<TrafficClass> tree(
+      CT("root", {PRIORITY}, {{PRIORITY, 10, CT("leaf", {LEAF})}}));
 
   ASSERT_TRUE(tree != nullptr);
   EXPECT_EQ(POLICY_PRIORITY, tree->policy());
@@ -49,30 +50,37 @@ TEST(CreateTree, PriorityRootAndLeaf) {
   TrafficClassBuilder::ClearAll();
 }
 
-// Tests that we can create and fetch a weighted fair root node with a leaf under it.
+// Tests that we can create and fetch a weighted fair root node with a leaf
+// under it.
 TEST(CreateTree, WeightedFairRootAndLeaf) {
-  std::unique_ptr<TrafficClass> tree(CT("root", {WEIGHTED_FAIR, RESOURCE_CYCLE}, {{WEIGHTED_FAIR, 10, CT("leaf", {LEAF})}}));
+  std::unique_ptr<TrafficClass> tree(
+      CT("root", {WEIGHTED_FAIR, RESOURCE_CYCLE},
+         {{WEIGHTED_FAIR, 10, CT("leaf", {LEAF})}}));
 
   ASSERT_TRUE(tree != nullptr);
   EXPECT_EQ(POLICY_WEIGHTED_FAIR, tree->policy());
 
-  WeightedFairTrafficClass *c = static_cast<WeightedFairTrafficClass *>(tree.get());
+  WeightedFairTrafficClass *c =
+      static_cast<WeightedFairTrafficClass *>(tree.get());
   ASSERT_TRUE(c != nullptr);
   EXPECT_EQ(RESOURCE_CYCLE, c->resource());
   ASSERT_EQ(0, c->children().size());
   ASSERT_EQ(1, c->blocked_children().size());
   EXPECT_EQ(STRIDE1 / 10, c->blocked_children().front().stride_);
 
-  LeafTrafficClass *leaf = static_cast<LeafTrafficClass *>(c->blocked_children().front().c_);
+  LeafTrafficClass *leaf =
+      static_cast<LeafTrafficClass *>(c->blocked_children().front().c_);
   ASSERT_TRUE(leaf != nullptr);
   EXPECT_EQ(leaf->parent(), c);
 
   TrafficClassBuilder::ClearAll();
 }
 
-// Tests that we can create and fetch a round robin root node with a leaf under it.
+// Tests that we can create and fetch a round robin root node with a leaf under
+// it.
 TEST(CreateTree, RoundRobinRootAndLeaf) {
-  std::unique_ptr<TrafficClass> tree(CT("root", {ROUND_ROBIN}, {{ROUND_ROBIN, CT("leaf", {LEAF})}}));
+  std::unique_ptr<TrafficClass> tree(
+      CT("root", {ROUND_ROBIN}, {{ROUND_ROBIN, CT("leaf", {LEAF})}}));
 
   ASSERT_TRUE(tree != nullptr);
   EXPECT_EQ(POLICY_ROUND_ROBIN, tree->policy());
@@ -82,16 +90,20 @@ TEST(CreateTree, RoundRobinRootAndLeaf) {
   ASSERT_EQ(0, c->children().size());
   ASSERT_EQ(1, c->blocked_children().size());
 
-  LeafTrafficClass *leaf = static_cast<LeafTrafficClass *>(c->blocked_children().front());
+  LeafTrafficClass *leaf =
+      static_cast<LeafTrafficClass *>(c->blocked_children().front());
   ASSERT_TRUE(leaf != nullptr);
   EXPECT_EQ(leaf->parent(), c);
 
   TrafficClassBuilder::ClearAll();
 }
 
-// Tests that we can create and fetch a rate limit root node with a leaf under it.
+// Tests that we can create and fetch a rate limit root node with a leaf under
+// it.
 TEST(CreateTree, RateLimitRootAndLeaf) {
-  std::unique_ptr<TrafficClass> tree(CT("root", {RATE_LIMIT, RESOURCE_CYCLE, 10, 15}, {RATE_LIMIT, CT("leaf", {LEAF})}));
+  std::unique_ptr<TrafficClass> tree(CT("root",
+                                        {RATE_LIMIT, RESOURCE_CYCLE, 10, 15},
+                                        {RATE_LIMIT, CT("leaf", {LEAF})}));
 
   ASSERT_TRUE(tree != nullptr);
   EXPECT_EQ(POLICY_RATE_LIMIT, tree->policy());
@@ -129,29 +141,32 @@ TEST(SchedulerNext, BasicTreePriority) {
   EXPECT_EQ(nullptr, s.Next(rdtsc()));
 
   // Adding a fake task should unblock the whole tree.
-  leaf->AddTask((Task *) 1);
+  leaf->AddTask(reinterpret_cast<Task *>(1));
   ASSERT_FALSE(leaf->blocked());
 
   EXPECT_EQ(leaf, s.Next(rdtsc()));
 
-  EXPECT_TRUE(leaf->RemoveTask((Task *) 1));
+  EXPECT_TRUE(leaf->RemoveTask(reinterpret_cast<Task *>(1)));
   TrafficClassBuilder::ClearAll();
 }
 
 // Tess that we can create a simple tree and have the scheduler pick the leaf
 // repeatedly.
 TEST(SchedulerNext, BasicTreeWeightedFair) {
-  Scheduler s(CT("root", {WEIGHTED_FAIR, RESOURCE_COUNT}, {{WEIGHTED_FAIR, 2, CT("leaf", {LEAF})}}));
+  Scheduler s(CT("root", {WEIGHTED_FAIR, RESOURCE_COUNT},
+                 {{WEIGHTED_FAIR, 2, CT("leaf", {LEAF})}}));
 
   ASSERT_TRUE(s.root() != nullptr);
   EXPECT_EQ(POLICY_WEIGHTED_FAIR, s.root()->policy());
 
-  WeightedFairTrafficClass *c = static_cast<WeightedFairTrafficClass *>(s.root());
+  WeightedFairTrafficClass *c =
+      static_cast<WeightedFairTrafficClass *>(s.root());
   ASSERT_TRUE(c != nullptr);
   ASSERT_EQ(0, c->children().size());
   ASSERT_EQ(1, c->blocked_children().size());
 
-  LeafTrafficClass *leaf = static_cast<LeafTrafficClass *>(c->blocked_children().front().c_);
+  LeafTrafficClass *leaf =
+      static_cast<LeafTrafficClass *>(c->blocked_children().front().c_);
   ASSERT_TRUE(leaf != nullptr);
   EXPECT_EQ(leaf->parent(), c);
 
@@ -160,12 +175,12 @@ TEST(SchedulerNext, BasicTreeWeightedFair) {
   EXPECT_EQ(nullptr, s.Next(rdtsc()));
 
   // Adding a fake task should unblock the whole tree.
-  leaf->AddTask((Task *) 1);
+  leaf->AddTask(reinterpret_cast<Task *>(1));
   ASSERT_FALSE(leaf->blocked());
 
   EXPECT_EQ(leaf, s.Next(rdtsc()));
 
-  EXPECT_TRUE(leaf->RemoveTask((Task *) 1));
+  EXPECT_TRUE(leaf->RemoveTask(reinterpret_cast<Task *>(1)));
   TrafficClassBuilder::ClearAll();
 }
 
@@ -181,7 +196,8 @@ TEST(SchedulerNext, BasicTreeRoundRobin) {
   ASSERT_TRUE(c != nullptr);
   ASSERT_EQ(1, c->blocked_children().size());
 
-  LeafTrafficClass *leaf = static_cast<LeafTrafficClass *>(c->blocked_children().front());
+  LeafTrafficClass *leaf =
+      static_cast<LeafTrafficClass *>(c->blocked_children().front());
   ASSERT_TRUE(leaf != nullptr);
   EXPECT_EQ(leaf->parent(), c);
 
@@ -190,19 +206,20 @@ TEST(SchedulerNext, BasicTreeRoundRobin) {
   EXPECT_EQ(nullptr, s.Next(rdtsc()));
 
   // Adding a fake task should unblock the whole tree.
-  leaf->AddTask((Task *) 1);
+  leaf->AddTask(reinterpret_cast<Task *>(1));
   ASSERT_FALSE(leaf->blocked());
 
   EXPECT_EQ(leaf, s.Next(rdtsc()));
 
-  EXPECT_TRUE(leaf->RemoveTask((Task *) 1));
+  EXPECT_TRUE(leaf->RemoveTask(reinterpret_cast<Task *>(1)));
   TrafficClassBuilder::ClearAll();
 }
 
 // Tess that we can create a simple tree and have the scheduler pick the leaf
 // repeatedly.
 TEST(SchedulerNext, BasicTreeRateLimit) {
-  Scheduler s(CT("root", {RATE_LIMIT, RESOURCE_COUNT, 50, 100}, {RATE_LIMIT, CT("leaf", {LEAF})}));
+  Scheduler s(CT("root", {RATE_LIMIT, RESOURCE_COUNT, 50, 100},
+                 {RATE_LIMIT, CT("leaf", {LEAF})}));
 
   ASSERT_TRUE(s.root() != nullptr);
   EXPECT_EQ(POLICY_RATE_LIMIT, s.root()->policy());
@@ -219,12 +236,12 @@ TEST(SchedulerNext, BasicTreeRateLimit) {
   EXPECT_EQ(nullptr, s.Next(rdtsc()));
 
   // Adding a fake task should unblock the whole tree.
-  leaf->AddTask((Task *) 1);
+  leaf->AddTask(reinterpret_cast<Task *>(1));
   ASSERT_FALSE(leaf->blocked());
 
   EXPECT_EQ(leaf, s.Next(rdtsc()));
 
-  EXPECT_TRUE(leaf->RemoveTask((Task *) 1));
+  EXPECT_TRUE(leaf->RemoveTask(reinterpret_cast<Task *>(1)));
   TrafficClassBuilder::ClearAll();
 }
 
@@ -235,23 +252,25 @@ TEST(SchedulerNext, TwoLeavesWeightedFairOneBlocked) {
                  {{WEIGHTED_FAIR, 1, CT("leaf_1", {LEAF})},
                   {WEIGHTED_FAIR, 2, CT("leaf_2", {LEAF})}}));
 
-  LeafTrafficClass *leaf_1 = static_cast<LeafTrafficClass *>(TrafficClassBuilder::Find("leaf_1"));
+  LeafTrafficClass *leaf_1 =
+      static_cast<LeafTrafficClass *>(TrafficClassBuilder::Find("leaf_1"));
   ASSERT_TRUE(leaf_1 != nullptr);
   ASSERT_TRUE(leaf_1->blocked());
 
-  LeafTrafficClass *leaf_2 = static_cast<LeafTrafficClass *>(TrafficClassBuilder::Find("leaf_2"));
+  LeafTrafficClass *leaf_2 =
+      static_cast<LeafTrafficClass *>(TrafficClassBuilder::Find("leaf_2"));
   ASSERT_TRUE(leaf_2 != nullptr);
   ASSERT_TRUE(leaf_2->blocked());
 
   EXPECT_EQ(nullptr, s.Next(rdtsc()));
 
   // Adding a fake task should unblock the whole tree.
-  leaf_1->AddTask((Task *) 1);
+  leaf_1->AddTask(reinterpret_cast<Task *>(1));
   ASSERT_FALSE(leaf_1->blocked());
 
   EXPECT_EQ(leaf_1, s.Next(rdtsc()));
 
-  EXPECT_TRUE(leaf_1->RemoveTask((Task *) 1));
+  EXPECT_TRUE(leaf_1->RemoveTask(reinterpret_cast<Task *>(1)));
   TrafficClassBuilder::ClearAll();
 }
 
@@ -259,30 +278,33 @@ TEST(SchedulerNext, TwoLeavesWeightedFairOneBlocked) {
 // leaves in proportion to their weights.
 TEST(ScheduleOnce, TwoLeavesWeightedFair) {
   Scheduler s(CT("root", {WEIGHTED_FAIR, RESOURCE_COUNT},
-              {{WEIGHTED_FAIR, 2, CT("leaf_1", {LEAF})},
-               {WEIGHTED_FAIR, 5, CT("leaf_2", {LEAF})}}));
+                 {{WEIGHTED_FAIR, 2, CT("leaf_1", {LEAF})},
+                  {WEIGHTED_FAIR, 5, CT("leaf_2", {LEAF})}}));
 
-  LeafTrafficClass *leaf_1 = static_cast<LeafTrafficClass *>(TrafficClassBuilder::Find("leaf_1"));
+  LeafTrafficClass *leaf_1 =
+      static_cast<LeafTrafficClass *>(TrafficClassBuilder::Find("leaf_1"));
   ASSERT_TRUE(leaf_1 != nullptr);
   ASSERT_TRUE(leaf_1->blocked());
 
-  LeafTrafficClass *leaf_2 = static_cast<LeafTrafficClass *>(TrafficClassBuilder::Find("leaf_2"));
+  LeafTrafficClass *leaf_2 =
+      static_cast<LeafTrafficClass *>(TrafficClassBuilder::Find("leaf_2"));
   ASSERT_TRUE(leaf_2 != nullptr);
   ASSERT_TRUE(leaf_2->blocked());
 
   EXPECT_EQ(nullptr, s.Next(rdtsc()));
 
   // Unblock both leaves.
-  leaf_2->AddTask((Task *) 1);
+  leaf_2->AddTask(reinterpret_cast<Task *>(1));
   ASSERT_FALSE(leaf_2->blocked());
-  leaf_1->AddTask((Task *) 1);
+  leaf_1->AddTask(reinterpret_cast<Task *>(1));
   ASSERT_FALSE(leaf_1->blocked());
 
   // Clear out the tasks so that they don't get called during execution.
   leaf_1->tasks().clear();
   leaf_2->tasks().clear();
 
-  WeightedFairTrafficClass *root = static_cast<WeightedFairTrafficClass *>(s.root());
+  WeightedFairTrafficClass *root =
+      static_cast<WeightedFairTrafficClass *>(s.root());
   ASSERT_EQ(2, root->children().size());
 
   // There's no guarantee which will run first because they will tie, so this is
@@ -307,22 +329,23 @@ TEST(ScheduleOnce, TwoLeavesWeightedFair) {
 // Tess that we can create a simple tree and have the scheduler pick the best
 // (lowest) priority leaf that is unblocked at that time.
 TEST(ScheduleOnce, TwoLeavesPriority) {
-  Scheduler s(CT("root", {PRIORITY},
-              {{PRIORITY, 0, CT("leaf_1", {LEAF})},
-               {PRIORITY, 1, CT("leaf_2", {LEAF})}}));
+  Scheduler s(CT("root", {PRIORITY}, {{PRIORITY, 0, CT("leaf_1", {LEAF})},
+                                      {PRIORITY, 1, CT("leaf_2", {LEAF})}}));
 
-  LeafTrafficClass *leaf_1 = static_cast<LeafTrafficClass *>(TrafficClassBuilder::Find("leaf_1"));
+  LeafTrafficClass *leaf_1 =
+      static_cast<LeafTrafficClass *>(TrafficClassBuilder::Find("leaf_1"));
   ASSERT_TRUE(leaf_1 != nullptr);
   ASSERT_TRUE(leaf_1->blocked());
 
-  LeafTrafficClass *leaf_2 = static_cast<LeafTrafficClass *>(TrafficClassBuilder::Find("leaf_2"));
+  LeafTrafficClass *leaf_2 =
+      static_cast<LeafTrafficClass *>(TrafficClassBuilder::Find("leaf_2"));
   ASSERT_TRUE(leaf_2 != nullptr);
   ASSERT_TRUE(leaf_2->blocked());
 
   EXPECT_EQ(nullptr, s.Next(rdtsc()));
 
   // Unblock the second leaf.
-  leaf_2->AddTask((Task *) 1);
+  leaf_2->AddTask(reinterpret_cast<Task *>(1));
   ASSERT_FALSE(leaf_2->blocked());
   leaf_2->tasks().clear();
 
@@ -333,7 +356,7 @@ TEST(ScheduleOnce, TwoLeavesPriority) {
   ASSERT_EQ(leaf_2, s.Next(rdtsc()));
 
   // Unblock the first leaf, which should now get picked.
-  leaf_1->AddTask((Task *) 1);
+  leaf_1->AddTask(reinterpret_cast<Task *>(1));
   ASSERT_FALSE(leaf_1->blocked());
   leaf_1->tasks().clear();
 
@@ -349,31 +372,33 @@ TEST(ScheduleOnce, TwoLeavesPriority) {
 // Tess that we can create a simple tree and have the scheduler pick the
 // leaves round robin.
 TEST(ScheduleOnce, TwoLeavesRoundRobin) {
-  Scheduler s(CT("root", {ROUND_ROBIN},
-              {{ROUND_ROBIN, CT("leaf_1", {LEAF})},
-               {ROUND_ROBIN, CT("leaf_2", {LEAF})}}));
+  Scheduler s(CT("root", {ROUND_ROBIN}, {{ROUND_ROBIN, CT("leaf_1", {LEAF})},
+                                         {ROUND_ROBIN, CT("leaf_2", {LEAF})}}));
 
-  LeafTrafficClass *leaf_1 = static_cast<LeafTrafficClass *>(TrafficClassBuilder::Find("leaf_1"));
+  LeafTrafficClass *leaf_1 =
+      static_cast<LeafTrafficClass *>(TrafficClassBuilder::Find("leaf_1"));
   ASSERT_TRUE(leaf_1 != nullptr);
   ASSERT_TRUE(leaf_1->blocked());
 
-  LeafTrafficClass *leaf_2 = static_cast<LeafTrafficClass *>(TrafficClassBuilder::Find("leaf_2"));
+  LeafTrafficClass *leaf_2 =
+      static_cast<LeafTrafficClass *>(TrafficClassBuilder::Find("leaf_2"));
   ASSERT_TRUE(leaf_2 != nullptr);
   ASSERT_TRUE(leaf_2->blocked());
 
   EXPECT_EQ(nullptr, s.Next(rdtsc()));
 
   // Unblock both leaves.
-  leaf_1->AddTask((Task *) 1);
+  leaf_1->AddTask(reinterpret_cast<Task *>(1));
   ASSERT_FALSE(leaf_1->blocked());
-  leaf_2->AddTask((Task *) 1);
+  leaf_2->AddTask(reinterpret_cast<Task *>(1));
   ASSERT_FALSE(leaf_2->blocked());
 
   // Clear out the tasks so that they don't get called during execution.
   leaf_1->tasks().clear();
   leaf_2->tasks().clear();
 
-  RoundRobinTrafficClass *root = static_cast<RoundRobinTrafficClass *>(s.root());
+  RoundRobinTrafficClass *root =
+      static_cast<RoundRobinTrafficClass *>(s.root());
   ASSERT_EQ(2, root->children().size());
 
   ASSERT_EQ(leaf_1, s.Next(rdtsc()));
@@ -393,44 +418,43 @@ TEST(ScheduleOnce, TwoLeavesRoundRobin) {
 // leaves in proportion to their weights even when they are multiple levels down
 // in the hierarchy.
 TEST(ScheduleOnce, LeavesWeightedFairAndRoundRobin) {
-  Scheduler s(CT("root", {WEIGHTED_FAIR, RESOURCE_COUNT},
-              {{WEIGHTED_FAIR, 2, CT("rr_1", {ROUND_ROBIN}, {
-                                                             {ROUND_ROBIN, CT("leaf_1a", {LEAF})},
-                                                             {ROUND_ROBIN, CT("leaf_1b", {LEAF})}
-                                                            }
-                                    )
-               },
-               {WEIGHTED_FAIR, 5, CT("rr_2", {ROUND_ROBIN}, {
-                                                             {ROUND_ROBIN, CT("leaf_2a", {LEAF})},
-                                                             {ROUND_ROBIN, CT("leaf_2b", {LEAF})},
-                                                            }
-                                    )
-               }
-              }));
+  Scheduler s(
+      CT("root", {WEIGHTED_FAIR, RESOURCE_COUNT},
+         {{WEIGHTED_FAIR, 2,
+           CT("rr_1", {ROUND_ROBIN}, {{ROUND_ROBIN, CT("leaf_1a", {LEAF})},
+                                      {ROUND_ROBIN, CT("leaf_1b", {LEAF})}})},
+          {WEIGHTED_FAIR, 5,
+           CT("rr_2", {ROUND_ROBIN}, {
+                                         {ROUND_ROBIN, CT("leaf_2a", {LEAF})},
+                                         {ROUND_ROBIN, CT("leaf_2b", {LEAF})},
+                                     })}}));
 
   std::map<std::string, LeafTrafficClass *> leaves;
   for (auto &leaf_name : {"leaf_1a", "leaf_1b", "leaf_2a", "leaf_2b"}) {
-    LeafTrafficClass *leaf = static_cast<LeafTrafficClass *>(TrafficClassBuilder::Find(leaf_name));
+    LeafTrafficClass *leaf =
+        static_cast<LeafTrafficClass *>(TrafficClassBuilder::Find(leaf_name));
     ASSERT_TRUE(leaf != nullptr);
     leaves[leaf_name] = leaf;
 
     ASSERT_TRUE(leaf->blocked());
 
     // Unblock leaf by adding a fake task.
-    leaf->AddTask((Task *) 1);
+    leaf->AddTask(reinterpret_cast<Task *>(1));
     ASSERT_FALSE(leaf->blocked());
 
     // Clear out the task so that it doesn't get called during execution.
     leaf->tasks().clear();
   }
 
-  WeightedFairTrafficClass *root = static_cast<WeightedFairTrafficClass *>(s.root());
+  WeightedFairTrafficClass *root =
+      static_cast<WeightedFairTrafficClass *>(s.root());
   ASSERT_EQ(2, root->children().size());
-  RoundRobinTrafficClass *rr_1 = static_cast<RoundRobinTrafficClass *>(TrafficClassBuilder::Find("rr_1"));
+  RoundRobinTrafficClass *rr_1 =
+      static_cast<RoundRobinTrafficClass *>(TrafficClassBuilder::Find("rr_1"));
   ASSERT_EQ(2, rr_1->children().size());
-  RoundRobinTrafficClass *rr_2 = static_cast<RoundRobinTrafficClass *>(TrafficClassBuilder::Find("rr_2"));
+  RoundRobinTrafficClass *rr_2 =
+      static_cast<RoundRobinTrafficClass *>(TrafficClassBuilder::Find("rr_2"));
   ASSERT_EQ(2, rr_2->children().size());
-
 
   // There's no guarantee which will run first because they will tie, so this is
   // a guess based upon the heap's behavior.
@@ -453,28 +477,34 @@ TEST(ScheduleOnce, LeavesWeightedFairAndRoundRobin) {
 
 // Tests that rate limit nodes get properly blocked and unblocked.
 TEST(RateLimit, BasicBlockUnblock) {
-  Scheduler s(CT("root", {ROUND_ROBIN},
-        {
-         {ROUND_ROBIN, CT("limit_1", {RATE_LIMIT, RESOURCE_COUNT, 1, 0}, {RATE_LIMIT, CT("leaf_1", {LEAF})})},
-         {ROUND_ROBIN, CT("limit_2", {RATE_LIMIT, RESOURCE_COUNT, 1, 0}, {RATE_LIMIT, CT("leaf_2", {LEAF})})}
-        }));
-  RoundRobinTrafficClass *rr = static_cast<RoundRobinTrafficClass *>(TrafficClassBuilder::Find("root"));
+  Scheduler s(
+      CT("root", {ROUND_ROBIN},
+         {{ROUND_ROBIN, CT("limit_1", {RATE_LIMIT, RESOURCE_COUNT, 1, 0},
+                           {RATE_LIMIT, CT("leaf_1", {LEAF})})},
+          {ROUND_ROBIN, CT("limit_2", {RATE_LIMIT, RESOURCE_COUNT, 1, 0},
+                           {RATE_LIMIT, CT("leaf_2", {LEAF})})}}));
+  RoundRobinTrafficClass *rr =
+      static_cast<RoundRobinTrafficClass *>(TrafficClassBuilder::Find("root"));
   ASSERT_TRUE(rr != nullptr);
 
-  LeafTrafficClass *leaf_1 = static_cast<LeafTrafficClass *>(TrafficClassBuilder::Find("leaf_1"));
-  leaf_1->AddTask((Task *) 1);
+  LeafTrafficClass *leaf_1 =
+      static_cast<LeafTrafficClass *>(TrafficClassBuilder::Find("leaf_1"));
+  leaf_1->AddTask(reinterpret_cast<Task *>(1));
   ASSERT_FALSE(leaf_1->blocked());
   leaf_1->tasks().clear();
   ASSERT_FALSE(leaf_1->blocked());
 
-  LeafTrafficClass *leaf_2 = static_cast<LeafTrafficClass *>(TrafficClassBuilder::Find("leaf_2"));
-  leaf_2->AddTask((Task *) 1);
+  LeafTrafficClass *leaf_2 =
+      static_cast<LeafTrafficClass *>(TrafficClassBuilder::Find("leaf_2"));
+  leaf_2->AddTask(reinterpret_cast<Task *>(1));
   ASSERT_FALSE(leaf_2->blocked());
   leaf_2->tasks().clear();
   ASSERT_FALSE(leaf_2->blocked());
 
-  RateLimitTrafficClass *limit_1 = static_cast<RateLimitTrafficClass *>(TrafficClassBuilder::Find("limit_1"));
-  RateLimitTrafficClass *limit_2 = static_cast<RateLimitTrafficClass *>(TrafficClassBuilder::Find("limit_2"));
+  RateLimitTrafficClass *limit_1 = static_cast<RateLimitTrafficClass *>(
+      TrafficClassBuilder::Find("limit_1"));
+  RateLimitTrafficClass *limit_2 = static_cast<RateLimitTrafficClass *>(
+      TrafficClassBuilder::Find("limit_2"));
 
   uint64_t now = rdtsc();
   ASSERT_FALSE(limit_1->blocked());
@@ -489,7 +519,7 @@ TEST(RateLimit, BasicBlockUnblock) {
   ASSERT_TRUE(limit_1->blocked());
 
   // Fake quarter second delay, schedule again.
-  now += tsc_hz/4;
+  now += tsc_hz / 4;
   c = s.Next(now);
   ASSERT_EQ(c, leaf_2);
   c->FinishAndAccountTowardsRoot(&s, nullptr, usage, now);
@@ -501,22 +531,26 @@ TEST(RateLimit, BasicBlockUnblock) {
   ASSERT_TRUE(rr->blocked());
 
   // Fake a quarter second delay, schedule again.
-  now += tsc_hz/4;
+  now += tsc_hz / 4;
   c = s.Next(now);
   ASSERT_EQ(c, nullptr);
 
   // Fake a second delay, schedule again and expect unblocking.
-  now += tsc_hz*2;
+  now += tsc_hz * 2;
   c = s.Next(now);
   ASSERT_FALSE(leaf_1->blocked());
   ASSERT_FALSE(leaf_2->blocked());
-  ASSERT_FALSE(limit_1->blocked()) << "tsc=" << now << ", limit_1 expiration=" << limit_1->throttle_expiration();
-  ASSERT_FALSE(limit_2->blocked()) << "tsc=" << now << ", limit_2 expiration=" << limit_2->throttle_expiration();
+  ASSERT_FALSE(limit_1->blocked())
+      << "tsc=" << now
+      << ", limit_1 expiration=" << limit_1->throttle_expiration();
+  ASSERT_FALSE(limit_2->blocked())
+      << "tsc=" << now
+      << ", limit_2 expiration=" << limit_2->throttle_expiration();
   ASSERT_FALSE(rr->blocked());
 
   EXPECT_EQ(c, leaf_1);
   c->FinishAndAccountTowardsRoot(&s, nullptr, usage, now);
-  now += tsc_hz/4;
+  now += tsc_hz / 4;
   c = s.Next(now);
   ASSERT_EQ(c, leaf_2);
 

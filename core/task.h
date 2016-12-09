@@ -1,8 +1,9 @@
 #ifndef BESS_TASK_H_
 #define BESS_TASK_H_
 
-#include "gate.h"
 #include <cstdint>
+
+#include "gate.h"
 
 typedef uint16_t task_id_t;
 
