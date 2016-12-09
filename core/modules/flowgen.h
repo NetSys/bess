@@ -52,11 +52,11 @@ class FlowGen final : public Module {
 
   pb_error_t Init(const bess::pb::FlowGenArg &arg);
 
-  virtual void DeInit();
+  virtual void DeInit() override;
 
-  virtual struct task_result RunTask(void *arg);
+  virtual struct task_result RunTask(void *arg) override;
 
-  std::string GetDesc() const;
+  virtual std::string GetDesc() const override;
 
  private:
   inline double NewFlowPkts();

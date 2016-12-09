@@ -14,9 +14,9 @@ class IPLookup final : public Module {
 
   pb_error_t Init(const bess::pb::EmptyArg &arg);
 
-  virtual void DeInit();
+  virtual void DeInit() override;
 
-  virtual void ProcessBatch(bess::PacketBatch *batch);
+  virtual void ProcessBatch(bess::PacketBatch *batch) override;
 
   pb_cmd_response_t CommandAdd(const bess::pb::IPLookupCommandAddArg &arg);
   pb_cmd_response_t CommandClear(const bess::pb::EmptyArg &arg);

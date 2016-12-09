@@ -20,7 +20,7 @@ class Measure final : public Module {
 
   pb_error_t Init(const bess::pb::MeasureArg &arg);
 
-  virtual void ProcessBatch(bess::PacketBatch *batch);
+  virtual void ProcessBatch(bess::PacketBatch *batch) override;
 
   pb_cmd_response_t CommandGetSummary(const bess::pb::EmptyArg &arg);
 

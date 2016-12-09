@@ -15,11 +15,11 @@ class PortInc final : public Module {
 
   pb_error_t Init(const bess::pb::PortIncArg &arg);
 
-  virtual void DeInit();
+  virtual void DeInit() override;
 
-  virtual struct task_result RunTask(void *arg);
+  virtual struct task_result RunTask(void *arg) override;
 
-  virtual std::string GetDesc() const;
+  virtual std::string GetDesc() const override;
 
   pb_cmd_response_t CommandSetBurst(
       const bess::pb::PortIncCommandSetBurstArg &arg);

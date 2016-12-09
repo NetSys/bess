@@ -12,7 +12,7 @@ class VXLANEncap final : public Module {
 
   pb_error_t Init(const bess::pb::VXLANEncapArg &arg);
 
-  virtual void ProcessBatch(bess::PacketBatch *batch);
+  virtual void ProcessBatch(bess::PacketBatch *batch) override;
 
  private:
   uint16_t dstport_;

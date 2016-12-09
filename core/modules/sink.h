@@ -7,7 +7,7 @@ class Sink final : public Module {
  public:
   static const gate_idx_t kNumOGates = 0;
 
-  virtual void ProcessBatch(bess::PacketBatch *batch);
+  virtual void ProcessBatch(bess::PacketBatch *batch) override;
 };
 
 #endif  // BESS_MODULES_SINK_H_

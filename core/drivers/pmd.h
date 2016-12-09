@@ -21,7 +21,7 @@ class PMDPort final : public Port {
   /*!
   * Binds to device; call this after Init()
   */
-  virtual void InitDriver();
+  virtual void InitDriver() override;
 
   /*!
    * Initialize the port. Doesn't actually bind to the device, just grabs all
@@ -42,7 +42,7 @@ class PMDPort final : public Port {
   /*!
    * Release the device.
    */
-  virtual void DeInit();
+  virtual void DeInit() override;
 
   /*!
    * Copies rte port statistics into queue_stats datastructure (see port.h).
@@ -51,7 +51,7 @@ class PMDPort final : public Port {
    * * bool reset : if true, reset DPDK local statistics and return (do not
    * collect stats).
    */
-  virtual void CollectStats(bool reset);
+  virtual void CollectStats(bool reset) override;
 
   /*!
    * Receives packets from the device.
@@ -68,7 +68,7 @@ class PMDPort final : public Port {
    * RETURNS:
    * * Total number of packets received (<=cnt)
    */
-  virtual int RecvPackets(queue_t qid, bess::Packet **pkts, int cnt);
+  virtual int RecvPackets(queue_t qid, bess::Packet **pkts, int cnt) override;
 
   /*!
    * Sends packets out on the device.
@@ -85,7 +85,7 @@ class PMDPort final : public Port {
    * RETURNS:
    * * Total number of packets sent (<=cnt).
    */
-  virtual int SendPackets(queue_t qid, bess::Packet **pkts, int cnt);
+  virtual int SendPackets(queue_t qid, bess::Packet **pkts, int cnt) override;
 
  private:
   /*!
