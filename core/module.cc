@@ -20,25 +20,6 @@ const Commands Module::cmds;
 
 std::map<std::string, Module *> ModuleBuilder::all_modules_;
 
-// FIXME: move somewhere else?
-void deadend(bess::PacketBatch *batch) {
-  ctx.incr_silent_drops(batch->cnt());
-  bess::Packet::Free(batch);
-}
-
-// FIXME: move somewhere else?
-task_id_t task_to_tid(Task *t) {
-  const Module *m = t->m();
-
-  for (task_id_t id = 0; id < MAX_TASKS_PER_MODULE; id++)
-    if (m->tasks()[id] == t)
-      return id;
-
-  return INVALID_TASK_ID;
-}
-
-// -------------------------------------------------------------------------
-
 Module *ModuleBuilder::CreateModule(const std::string &name,
                                     bess::metadata::Pipeline *pipeline) const {
   Module *m = module_generator_();

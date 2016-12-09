@@ -282,7 +282,10 @@ class Module {
   DISALLOW_COPY_AND_ASSIGN(Module);
 };
 
-void deadend(bess::PacketBatch *batch);
+static inline void deadend(bess::PacketBatch *batch) {
+  ctx.incr_silent_drops(batch->cnt());
+  bess::Packet::Free(batch);
+}
 
 inline void Module::RunChooseModule(gate_idx_t ogate_idx,
                                     bess::PacketBatch *batch) {
