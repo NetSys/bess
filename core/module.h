@@ -237,8 +237,10 @@ class Module {
     return tasks_;
   }
 
-  bess::metadata::mt_offset_t *all_attr_offsets() {
-    return attr_offsets_;
+  void set_attr_offset(size_t idx, bess::metadata::mt_offset_t offset) {
+    if (idx < bess::metadata::kMaxAttrsPerModule) {
+      attr_offsets_[idx] = offset;
+    }
   }
 
   const bess::metadata::mt_offset_t *all_attr_offsets() const {

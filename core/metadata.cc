@@ -282,17 +282,16 @@ void Pipeline::FillOffsetArrays() {
 
     for (Module *m : modules) {
       size_t k = 0;
-      mt_offset_t *offsets = m->all_attr_offsets();
       for (const auto &attr : m->all_attrs()) {
         if (get_attr_id(&attr) == id) {
           if (invalid) {
             if (attr.mode == Attribute::AccessMode::kRead) {
-              offsets[k] = kMetadataOffsetNoRead;
+              m->set_attr_offset(k, kMetadataOffsetNoRead);
             } else {
-              offsets[k] = kMetadataOffsetNoWrite;
+              m->set_attr_offset(k, kMetadataOffsetNoWrite);
             }
           } else {
-            offsets[k] = offset;
+            m->set_attr_offset(k, offset);
           }
           break;
         }
@@ -430,9 +429,9 @@ int Pipeline::ComputeMetadataOffsets() {
     for (const auto &attr : m->all_attrs()) {
       if (attr.mode == Attribute::AccessMode::kRead ||
           attr.mode == Attribute::AccessMode::kUpdate) {
-        m->all_attr_offsets()[i] = kMetadataOffsetNoRead;
+        m->set_attr_offset(i, kMetadataOffsetNoRead);
       } else if (attr.mode == Attribute::AccessMode::kWrite) {
-        m->all_attr_offsets()[i] = kMetadataOffsetNoWrite;
+        m->set_attr_offset(i, kMetadataOffsetNoWrite);
         if (attr.scope_id == -1) {
           IdentifySingleScopeComponent(m, &attr);
         }
