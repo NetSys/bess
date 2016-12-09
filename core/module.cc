@@ -31,7 +31,7 @@ task_id_t task_to_tid(Task *t) {
   const Module *m = t->m();
 
   for (task_id_t id = 0; id < MAX_TASKS_PER_MODULE; id++)
-    if (m->tasks[id] == t)
+    if (m->tasks()[id] == t)
       return id;
 
   return INVALID_TASK_ID;
@@ -57,7 +57,7 @@ int ModuleBuilder::DestroyModule(Module *m, bool erase) {
   m->DeInit();
 
   // disconnect from upstream modules.
-  for (size_t i = 0; i < m->igates.size(); i++) {
+  for (size_t i = 0; i < m->igates_.size(); i++) {
     ret = m->DisconnectModulesUpstream(i);
     if (ret) {
       return ret;
@@ -65,7 +65,7 @@ int ModuleBuilder::DestroyModule(Module *m, bool erase) {
   }
 
   // disconnect downstream modules
-  for (size_t i = 0; i < m->ogates.size(); i++) {
+  for (size_t i = 0; i < m->ogates_.size(); i++) {
     ret = m->DisconnectModules(i);
     if (ret) {
       return ret;
@@ -79,8 +79,8 @@ int ModuleBuilder::DestroyModule(Module *m, bool erase) {
     all_modules_.erase(m->name());
   }
 
-  m->ogates.clear();
-  m->igates.clear();
+  m->ogates_.clear();
+  m->igates_.clear();
   delete m;
   return 0;
 }
@@ -219,35 +219,15 @@ task_id_t Module::RegisterTask(void *arg) {
   Worker *w = get_next_active_worker();
   bess::LeafTrafficClass *c = w->scheduler()->default_leaf_class();
 
-  for (task_id_t id = 0; id < MAX_TASKS_PER_MODULE; id++) {
-    if (tasks[id] == nullptr) {
-      Task *t = new Task(this, arg, c);
-      tasks[id] = t;
-      return id;
-    }
-  }
-
-  // cannot find an empty slot.
-  return INVALID_TASK_ID;
-}
-
-int Module::NumTasks() {
-  int cnt = 0;
-
-  for (task_id_t id = 0; id < MAX_TASKS_PER_MODULE; id++)
-    if (tasks[id])
-      cnt++;
-
-  return cnt;
+  tasks_.push_back(new Task(this, arg, c));
+  return tasks_.size() - 1;
 }
 
 void Module::DestroyAllTasks() {
-  for (task_id_t i = 0; i < MAX_TASKS_PER_MODULE; i++) {
-    if (tasks[i]) {
-      delete tasks[i];
-      tasks[i] = nullptr; /* just in case */
-    }
+  for (auto task : tasks_) {
+    delete task;
   }
+  tasks_.clear();
 }
 
 void Module::DeregisterAllAttributes() {
@@ -307,29 +287,29 @@ int Module::ConnectModules(gate_idx_t ogate_idx, Module *m_next,
   }
 
   /* already being used? */
-  if (is_active_gate<bess::OGate>(ogates, ogate_idx)) {
+  if (is_active_gate<bess::OGate>(ogates_, ogate_idx)) {
     return -EBUSY;
   }
 
-  if (ogate_idx >= ogates.size()) {
-    ogates.resize(ogate_idx + 1, nullptr);
+  if (ogate_idx >= ogates_.size()) {
+    ogates_.resize(ogate_idx + 1, nullptr);
   }
 
   ogate = new bess::OGate(this, ogate_idx, m_next);
   if (!ogate) {
     return -ENOMEM;
   }
-  ogates[ogate_idx] = ogate;
+  ogates_[ogate_idx] = ogate;
 
-  if (igate_idx >= m_next->igates.size()) {
-    m_next->igates.resize(igate_idx + 1, nullptr);
+  if (igate_idx >= m_next->igates_.size()) {
+    m_next->igates_.resize(igate_idx + 1, nullptr);
   }
 
-  if (m_next->igates[igate_idx] == nullptr) {
+  if (m_next->igates_[igate_idx] == nullptr) {
     igate = new bess::IGate(m_next, igate_idx, m_next);
-    m_next->igates[igate_idx] = igate;
+    m_next->igates_[igate_idx] = igate;
   } else {
-    igate = m_next->igates[igate_idx];
+    igate = m_next->igates_[igate_idx];
   }
 
   ogate->set_igate(igate);
@@ -351,11 +331,11 @@ int Module::DisconnectModules(gate_idx_t ogate_idx) {
   }
 
   /* no error even if the ogate is unconnected already */
-  if (!is_active_gate<bess::OGate>(ogates, ogate_idx)) {
+  if (!is_active_gate<bess::OGate>(ogates_, ogate_idx)) {
     return 0;
   }
 
-  ogate = ogates[ogate_idx];
+  ogate = ogates_[ogate_idx];
   if (!ogate) {
     return 0;
   }
@@ -366,12 +346,12 @@ int Module::DisconnectModules(gate_idx_t ogate_idx) {
   igate->RemoveOgate(ogate);
   if (igate->ogates_upstream().empty()) {
     Module *m_next = igate->module();
-    m_next->igates[igate->gate_idx()] = nullptr;
+    m_next->igates_[igate->gate_idx()] = nullptr;
     igate->ClearHooks();
     delete igate;
   }
 
-  ogates[ogate_idx] = nullptr;
+  ogates_[ogate_idx] = nullptr;
   ogate->ClearHooks();
   delete ogate;
 
@@ -386,23 +366,23 @@ int Module::DisconnectModulesUpstream(gate_idx_t igate_idx) {
   }
 
   /* no error even if the igate is unconnected already */
-  if (!is_active_gate<bess::IGate>(igates, igate_idx)) {
+  if (!is_active_gate<bess::IGate>(igates_, igate_idx)) {
     return 0;
   }
 
-  igate = igates[igate_idx];
+  igate = igates_[igate_idx];
   if (!igate) {
     return 0;
   }
 
   for (const auto &ogate : igate->ogates_upstream()) {
     Module *m_prev = ogate->module();
-    m_prev->ogates[ogate->gate_idx()] = nullptr;
+    m_prev->ogates_[ogate->gate_idx()] = nullptr;
     ogate->ClearHooks();
     delete ogate;
   }
 
-  igates[igate_idx] = nullptr;
+  igates_[igate_idx] = nullptr;
   igate->ClearHooks();
   delete igate;
 
@@ -546,10 +526,10 @@ int Module::EnableTcpDump(const char *fifo, int is_igate, gate_idx_t gate_idx) {
   int ret;
 
   /* Don't allow tcpdump to be attached to gates that are not active */
-  if (!is_igate && !is_active_gate<bess::OGate>(ogates, gate_idx))
+  if (!is_igate && !is_active_gate<bess::OGate>(ogates_, gate_idx))
     return -EINVAL;
 
-  if (is_igate && !is_active_gate<bess::IGate>(igates, gate_idx))
+  if (is_igate && !is_active_gate<bess::IGate>(igates_, gate_idx))
     return -EINVAL;
 
   fd = open(fifo, O_WRONLY | O_NONBLOCK);
@@ -571,9 +551,9 @@ int Module::EnableTcpDump(const char *fifo, int is_igate, gate_idx_t gate_idx) {
   }
 
   if (is_igate) {
-    gate = igates[gate_idx];
+    gate = igates_[gate_idx];
   } else {
-    gate = ogates[gate_idx];
+    gate = ogates_[gate_idx];
   }
 
   TcpDump *tcpdump = new TcpDump();
@@ -587,17 +567,17 @@ int Module::EnableTcpDump(const char *fifo, int is_igate, gate_idx_t gate_idx) {
 }
 
 int Module::DisableTcpDump(int is_igate, gate_idx_t gate_idx) {
-  if (!is_igate && !is_active_gate<bess::OGate>(ogates, gate_idx))
+  if (!is_igate && !is_active_gate<bess::OGate>(ogates_, gate_idx))
     return -EINVAL;
 
-  if (is_igate && !is_active_gate<bess::IGate>(igates, gate_idx))
+  if (is_igate && !is_active_gate<bess::IGate>(igates_, gate_idx))
     return -EINVAL;
 
   bess::Gate *gate;
   if (is_igate) {
-    gate = igates[gate_idx];
+    gate = igates_[gate_idx];
   } else {
-    gate = ogates[gate_idx];
+    gate = ogates_[gate_idx];
   }
 
   gate->RemoveHook(kGateHookTcpDumpGate);

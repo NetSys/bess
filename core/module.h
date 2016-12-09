@@ -154,10 +154,10 @@ class Module {
         module_builder_(),
         pipeline_(),
         attrs_(),
-        tasks(),
-        attr_offsets(),
-        igates(),
-        ogates() {}
+        attr_offsets_(),
+        tasks_(),
+        igates_(),
+        ogates_() {}
   virtual ~Module() {}
 
   pb_error_t Init(const bess::pb::EmptyArg &arg);
@@ -208,7 +208,6 @@ class Module {
   int DisconnectModulesUpstream(gate_idx_t igate_idx);
   int DisconnectModules(gate_idx_t ogate_idx);
 
-  int NumTasks();
   task_id_t RegisterTask(void *arg);
 
   /* Modules should call this function to declare additional metadata
@@ -234,6 +233,26 @@ class Module {
     return attrs_;
   }
 
+  const std::vector<Task *> tasks() const {
+    return tasks_;
+  }
+
+  bess::metadata::mt_offset_t *all_attr_offsets() {
+    return attr_offsets_;
+  }
+
+  const bess::metadata::mt_offset_t *all_attr_offsets() const {
+    return attr_offsets_;
+  }
+
+  const std::vector<bess::IGate *> &igates() const {
+    return igates_;
+  };
+
+  const std::vector<bess::OGate *> &ogates() const {
+    return ogates_;
+  };
+
  private:
   void DestroyAllTasks();
   void DeregisterAllAttributes();
@@ -253,17 +272,14 @@ class Module {
   bess::metadata::Pipeline *pipeline_;
 
   std::vector<bess::metadata::Attribute> attrs_;
+  bess::metadata::mt_offset_t attr_offsets_[bess::metadata::kMaxAttrsPerModule];
+
+  std::vector<Task *> tasks_;
+
+  std::vector<bess::IGate *> igates_;
+  std::vector<bess::OGate *> ogates_;
 
   DISALLOW_COPY_AND_ASSIGN(Module);
-
-  // FIXME: porting in progress ----------------------------
- public:
-  Task *tasks[MAX_TASKS_PER_MODULE];
-
-  bess::metadata::mt_offset_t attr_offsets[bess::metadata::kMaxAttrsPerModule];
-
-  std::vector<bess::IGate *> igates;
-  std::vector<bess::OGate *> ogates;
 };
 
 void deadend(bess::PacketBatch *batch);
@@ -272,12 +288,12 @@ inline void Module::RunChooseModule(gate_idx_t ogate_idx,
                                     bess::PacketBatch *batch) {
   bess::OGate *ogate;
 
-  if (unlikely(ogate_idx >= ogates.size())) {
+  if (unlikely(ogate_idx >= ogates_.size())) {
     deadend(batch);
     return;
   }
 
-  ogate = ogates[ogate_idx];
+  ogate = ogates_[ogate_idx];
 
   if (unlikely(!ogate)) {
     deadend(batch);
@@ -368,17 +384,17 @@ inline void set_attr_with_offset(bess::metadata::mt_offset_t offset,
 // TODO(melvin): These ought to be members of Module
 template <typename T>
 inline T *ptr_attr(Module *m, int attr_id, bess::Packet *pkt) {
-  return ptr_attr_with_offset<T>(m->attr_offsets[attr_id], pkt);
+  return ptr_attr_with_offset<T>(m->all_attr_offsets()[attr_id], pkt);
 }
 
 template <typename T>
 inline T get_attr(Module *m, int attr_id, bess::Packet *pkt) {
-  return get_attr_with_offset<T>(m->attr_offsets[attr_id], pkt);
+  return get_attr_with_offset<T>(m->all_attr_offsets()[attr_id], pkt);
 }
 
 template <typename T>
 inline void set_attr(Module *m, int attr_id, bess::Packet *pkt, T val) {
-  set_attr_with_offset(m->attr_offsets[attr_id], pkt, val);
+  set_attr_with_offset(m->all_attr_offsets()[attr_id], pkt, val);
 }
 
 // Define some common versions of the above functions

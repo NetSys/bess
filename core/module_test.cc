@@ -170,11 +170,11 @@ TEST_F(ModuleTester, ConnectModules) {
   ASSERT_NE(nullptr, m2);
 
   EXPECT_EQ(0, m1->ConnectModules(0, m2, 0));
-  EXPECT_EQ(1, m1->ogates.size());
-  EXPECT_EQ(m2, m1->ogates[0]->igate()->module());
-  EXPECT_EQ(1, m2->igates.size());
+  EXPECT_EQ(1, m1->ogates().size());
+  EXPECT_EQ(m2, m1->ogates()[0]->igate()->module());
+  EXPECT_EQ(1, m2->igates().size());
 
-  for (const auto &og : m2->igates[0]->ogates_upstream()) {
+  for (const auto &og : m2->igates()[0]->ogates_upstream()) {
     ASSERT_NE(nullptr, og);
     EXPECT_EQ(m1, og->module());
   }

@@ -89,7 +89,7 @@ void GenericEncap::ProcessBatch(bess::PacketBatch *batch) {
     uint64_t value = fields_[i].value;
 
     int attr_id = fields_[i].attr_id;
-    int offset = (attr_id >= 0) ? GenericEncap::attr_offsets[attr_id] : 0;
+    int offset = (attr_id >= 0) ? all_attr_offsets()[attr_id] : 0;
 
     char *header = headers[0] + fields_[i].pos;
 
