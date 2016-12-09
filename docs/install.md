@@ -31,8 +31,14 @@ To build BESS on your Linux machine, you will need the following software packag
 - `build-essential`: for gcc, make, and libc-dev
 - `python`: Python 2.7 required (Python 3 support is planned)
 - `libpcap-dev`
+- `libunwind8-dev`
+- `liblzma-dev`: XZ-format compression library
+- `libssl-dev`: OpenSSL library
 - `libgoogle-glog-dev`: Google glog logging library
 - `libgflags-dev`: Google gflags command-line argument library
+- `libgtest-dev`: Google gtest C++ testing library
+- [gRPC](https://github.com/grpc/grpc/blob/master/INSTALL.md): Google RPC library and framework
+- [benchmark](https://github.com/google/benchmark/releases/tag/v1.1.0): Google microbenchmark library
 
 > NOTE: These package names are from Ubuntu. Other Linux distributions may have different package names.
 
