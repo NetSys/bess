@@ -11,13 +11,6 @@
 
 #define RETRY_NS 1000000ul /* 1 ms */
 
-struct flow {
-  uint32_t flow_id;
-  int packets_left;
-  int first;
-  struct cdlist_item free;
-};
-
 typedef std::pair<uint64_t, struct flow *> Event;
 typedef std::priority_queue<Event, std::vector<Event>,
                             std::function<bool(Event, Event)>>
@@ -83,15 +76,13 @@ inline uint64_t FlowGen::NextFlowArrival() {
 }
 
 inline struct flow *FlowGen::ScheduleFlow(uint64_t time_ns) {
-  struct cdlist_item *item;
-  struct flow *f;
-
-  item = cdlist_pop_head(&flows_free_);
-  if (!item) {
+  if (flows_free_.empty()) {
     return nullptr;
   }
 
-  f = container_of(item, struct flow, free);
+  struct flow *f = flows_free_.front();
+  flows_free_.pop_front();
+
   f->first = 1;
   f->flow_id = rng_.Get();
 
@@ -228,11 +219,9 @@ pb_error_t FlowGen::InitFlowPool() {
                     allocated_flows_);
   }
 
-  cdlist_head_init(&flows_free_);
-
   for (int i = 0; i < allocated_flows_; i++) {
     struct flow *f = &flows_[i];
-    cdlist_add_tail(&flows_free_, &f->free);
+    flows_free_.push_back(f);
   }
 
   return pb_errno(0);
@@ -359,7 +348,7 @@ void FlowGen::GeneratePackets(bess::PacketBatch *batch) {
     events_.pop();
 
     if (f->packets_left <= 0) {
-      cdlist_add_head(&flows_free_, &f->free);
+      flows_free_.push_back(f);
       active_flows_--;
       continue;
     }
