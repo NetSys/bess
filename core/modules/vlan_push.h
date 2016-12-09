@@ -12,9 +12,9 @@ class VLANPush final : public Module {
 
   pb_error_t Init(const bess::pb::VLANPushArg &arg);
 
-  virtual void ProcessBatch(bess::PacketBatch *batch);
+  virtual void ProcessBatch(bess::PacketBatch *batch) override;
 
-  virtual std::string GetDesc() const;
+  virtual std::string GetDesc() const override;
 
   pb_cmd_response_t CommandSetTci(const bess::pb::VLANPushArg &arg);
 

@@ -15,11 +15,11 @@ class PCAPPort final : public Port {
  public:
   pb_error_t Init(const bess::pb::PCAPPortArg &arg);
 
-  virtual void DeInit();
+  virtual void DeInit() override;
   // PCAP has no notion of queue so unlike parent (port.cc) quid is ignored.
-  virtual int SendPackets(queue_t qid, bess::Packet **pkts, int cnt);
+  virtual int SendPackets(queue_t qid, bess::Packet **pkts, int cnt) override;
   // Ditto above: quid is ignored.
-  virtual int RecvPackets(queue_t qid, bess::Packet **pkts, int cnt);
+  virtual int RecvPackets(queue_t qid, bess::Packet **pkts, int cnt) override;
 
  private:
   void GatherData(unsigned char *data, bess::Packet *pkt);

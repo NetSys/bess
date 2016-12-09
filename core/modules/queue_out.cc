@@ -29,7 +29,7 @@ pb_error_t QueueOut::Init(const bess::pb::QueueOutArg &arg) {
   return pb_errno(0);
 }
 
-void QueueOut::Deinit() {
+void QueueOut::DeInit() {
   port_->ReleaseQueues(reinterpret_cast<const module *>(this), PACKET_DIR_OUT,
                        &qid_, 1);
 }

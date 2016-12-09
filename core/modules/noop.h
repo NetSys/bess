@@ -8,7 +8,7 @@ class NoOP final : public Module {
  public:
   pb_error_t Init(const bess::pb::EmptyArg &arg);
 
-  virtual struct task_result RunTask(void *arg);
+  virtual struct task_result RunTask(void *arg) override;
 
   static const gate_idx_t kNumIGates = 0;
   static const gate_idx_t kNumOGates = 0;

@@ -86,7 +86,7 @@ pb_error_t Queue::Init(const bess::pb::QueueArg &arg) {
   return pb_errno(0);
 }
 
-void Queue::Deinit() {
+void Queue::DeInit() {
   bess::Packet *pkt;
 
   if (queue_) {

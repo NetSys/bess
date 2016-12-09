@@ -126,11 +126,11 @@ class ExactMatch final : public Module {
         fields_(),
         ht_() {}
 
-  virtual void Deinit();
+  virtual void DeInit() override;
 
-  virtual void ProcessBatch(bess::PacketBatch *batch);
+  virtual void ProcessBatch(bess::PacketBatch *batch) override;
 
-  virtual std::string GetDesc() const;
+  virtual std::string GetDesc() const override;
 
   pb_error_t Init(const bess::pb::ExactMatchArg &arg);
   pb_cmd_response_t CommandAdd(const bess::pb::ExactMatchCommandAddArg &arg);

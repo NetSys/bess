@@ -5,7 +5,7 @@
 
 class VLANPop final : public Module {
  public:
-  virtual void ProcessBatch(bess::PacketBatch *batch);
+  virtual void ProcessBatch(bess::PacketBatch *batch) override;
 };
 
 #endif  // BESS_MODULES_VLANPOP_H_

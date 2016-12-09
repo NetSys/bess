@@ -14,7 +14,7 @@ class Source final : public Module {
 
   pb_error_t Init(const bess::pb::SourceArg &arg);
 
-  virtual struct task_result RunTask(void *arg);
+  virtual struct task_result RunTask(void *arg) override;
 
   pb_cmd_response_t CommandSetBurst(
       const bess::pb::SourceCommandSetBurstArg &arg);

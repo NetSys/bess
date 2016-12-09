@@ -280,7 +280,7 @@ static ::Port* create_port(const std::string& name, const PortBuilder& driver,
   p->queue_size[PACKET_DIR_OUT] = size_out_q;
 
   ctx.SetNonWorker();
-  *perr = p->Init(arg);
+  *perr = p->InitWithGenericArg(arg);
   if (perr->err() != 0) {
     return nullptr;
   }
@@ -322,6 +322,8 @@ class BESSControlImpl final : public BESSControl::Service {
     if (is_any_worker_running()) {
       return return_with_error(response, EBUSY, "There is a running worker");
     }
+
+    LOG(INFO) << "*** ResetAll requested ***";
 
     status = ResetModules(context, request, response);
     if (response->error().err() != 0) {

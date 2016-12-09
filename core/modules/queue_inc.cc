@@ -48,7 +48,7 @@ pb_error_t QueueInc::Init(const bess::pb::QueueIncArg &arg) {
   return pb_errno(0);
 }
 
-void QueueInc::Deinit() {
+void QueueInc::DeInit() {
   port_->ReleaseQueues(reinterpret_cast<const module *>(this), PACKET_DIR_INC,
                        &qid_, 1);
 }

@@ -37,7 +37,7 @@ int PortBuilder::DestroyPort(Port *p) {
   }
 
   all_ports_.erase(p->name());
-  p->Deinit();
+  p->DeInit();
   delete p;
 
   return 0;
@@ -130,13 +130,15 @@ const std::map<std::string, Port *> &PortBuilder::all_ports() {
 
 void Port::CollectStats(bool) {}
 
-pb_error_t Port::Init(const google::protobuf::Any &arg) {
+pb_error_t Port::InitWithGenericArg(const google::protobuf::Any &arg) {
   return port_builder_->RunInit(this, arg);
 }
 
 pb_error_t Port::Init(const bess::pb::EmptyArg &) {
   return pb_errno(0);
 }
+
+void Port::DeInit() {}
 
 int Port::RecvPackets(queue_t, bess::Packet **, int) {
   return 0;

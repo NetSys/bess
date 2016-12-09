@@ -1,6 +1,6 @@
 #include "buffer.h"
 
-void Buffer::Deinit() {
+void Buffer::DeInit() {
   bess::PacketBatch *buf = &buf_;
 
   if (buf->cnt()) {

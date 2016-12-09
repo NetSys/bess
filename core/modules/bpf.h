@@ -21,13 +21,12 @@ class BPF final : public Module {
  public:
   static const gate_idx_t kNumOGates = MAX_GATES;
 
-  
   static const Commands cmds;
 
   pb_error_t Init(const bess::pb::BPFArg &arg);
-  virtual void Deinit();
+  virtual void DeInit() override;
 
-  virtual void ProcessBatch(bess::PacketBatch *batch);
+  virtual void ProcessBatch(bess::PacketBatch *batch) override;
 
   pb_cmd_response_t CommandAdd(const bess::pb::BPFArg &arg);
   pb_cmd_response_t CommandClear(const bess::pb::EmptyArg &arg);

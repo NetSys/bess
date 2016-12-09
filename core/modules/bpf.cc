@@ -1118,7 +1118,7 @@ pb_error_t BPF::Init(const bess::pb::BPFArg &arg) {
   return response.error();
 }
 
-void BPF::Deinit() {
+void BPF::DeInit() {
   for (int i = 0; i < n_filters_; i++) {
     munmap(reinterpret_cast<void *>(filters_[i].func), filters_[i].mmap_size);
     free(filters_[i].exp);
@@ -1174,7 +1174,7 @@ pb_cmd_response_t BPF::CommandAdd(const bess::pb::BPFArg &arg) {
 }
 
 pb_cmd_response_t BPF::CommandClear(const bess::pb::EmptyArg &) {
-  Deinit();
+  DeInit();
   pb_cmd_response_t response;
   set_cmd_response_error(&response, pb_errno(0));
   return response;

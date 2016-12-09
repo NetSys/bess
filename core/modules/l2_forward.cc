@@ -549,7 +549,7 @@ pb_error_t L2Forward::Init(const bess::pb::L2ForwardArg &arg) {
   return pb_errno(0);
 }
 
-void L2Forward::Deinit() {
+void L2Forward::DeInit() {
   l2_deinit(&l2_table_);
 }
 

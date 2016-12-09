@@ -92,7 +92,7 @@ pb_error_t ExactMatch::Init(const bess::pb::ExactMatchArg &arg) {
   return pb_errno(0);
 }
 
-void ExactMatch::Deinit() {
+void ExactMatch::DeInit() {
   ht_.Close();
 }
 

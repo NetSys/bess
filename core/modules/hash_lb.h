@@ -23,7 +23,7 @@ class HashLB final : public Module {
 
   pb_error_t Init(const bess::pb::HashLBArg &arg);
 
-  virtual void ProcessBatch(bess::PacketBatch *batch);
+  virtual void ProcessBatch(bess::PacketBatch *batch) override;
 
   pb_cmd_response_t CommandSetMode(
       const bess::pb::HashLBCommandSetModeArg &arg);

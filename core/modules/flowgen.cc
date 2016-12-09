@@ -289,7 +289,7 @@ pb_error_t FlowGen::Init(const bess::pb::FlowGenArg &arg) {
   return pb_errno(0);
 }
 
-void FlowGen::Deinit() {
+void FlowGen::DeInit() {
   mem_free(flows_);
   delete templ_;
 }

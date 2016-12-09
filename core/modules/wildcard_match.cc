@@ -110,7 +110,7 @@ pb_error_t WildcardMatch::Init(const bess::pb::WildcardMatchArg &arg) {
   return pb_errno(0);
 }
 
-void WildcardMatch::Deinit() {
+void WildcardMatch::DeInit() {
   for (auto &tuple : tuples_) {
     tuple.ht.Close();
   }
