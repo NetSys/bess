@@ -43,7 +43,7 @@ static void CheckOrphanReaders() {
 
     size_t i = 0;
     for (const auto &attr : m->all_attrs()) {
-      if (m->attr_offsets[i] == kMetadataOffsetNoRead) {
+      if (m->all_attr_offsets()[i] == kMetadataOffsetNoRead) {
         LOG(WARNING) << "Metadata attr " << attr.name << "/" << attr.size
                      << " of module " << m->name() << " has "
                      << "no upstream module that sets the value!";
@@ -178,13 +178,13 @@ void Pipeline::TraverseUpstream(Module *m, const struct Attribute *attr) {
   }
   module_scopes_[m] = static_cast<int>(scope_components_.size());
 
-  for (const auto &g : m->igates) {
+  for (const auto &g : m->igates()) {
     for (const auto &og : g->ogates_upstream()) {
       TraverseUpstream(og->module(), attr);
     }
   }
 
-  if (m->igates.size() == 0) {
+  if (m->igates().size() == 0) {
     scope_components_.back().set_invalid(true);
   }
 }
@@ -206,7 +206,7 @@ int Pipeline::TraverseDownstream(Module *m, const struct Attribute *attr) {
     AddModuleToComponent(m, found_attr);
     found_attr->scope_id = scope_components_.size();
 
-    for (const auto &ogate : m->ogates) {
+    for (const auto &ogate : m->ogates()) {
       if (!ogate) {
         continue;
       }
@@ -224,7 +224,7 @@ int Pipeline::TraverseDownstream(Module *m, const struct Attribute *attr) {
     return -1;
   }
 
-  for (const auto &ogate : m->ogates) {
+  for (const auto &ogate : m->ogates()) {
     if (!ogate) {
       continue;
     }
@@ -257,7 +257,7 @@ void Pipeline::IdentifyScopeComponent(Module *m, const struct Attribute *attr) {
   /* cycle detection */
   module_scopes_[m] = static_cast<int>(scope_components_.size());
 
-  for (const auto &ogate : m->ogates) {
+  for (const auto &ogate : m->ogates()) {
     if (!ogate) {
       continue;
     }
@@ -286,12 +286,12 @@ void Pipeline::FillOffsetArrays() {
         if (get_attr_id(&attr) == id) {
           if (invalid) {
             if (attr.mode == Attribute::AccessMode::kRead) {
-              m->attr_offsets[k] = kMetadataOffsetNoRead;
+              m->set_attr_offset(k, kMetadataOffsetNoRead);
             } else {
-              m->attr_offsets[k] = kMetadataOffsetNoWrite;
+              m->set_attr_offset(k, kMetadataOffsetNoWrite);
             }
           } else {
-            m->attr_offsets[k] = offset;
+            m->set_attr_offset(k, offset);
           }
           break;
         }
@@ -429,9 +429,9 @@ int Pipeline::ComputeMetadataOffsets() {
     for (const auto &attr : m->all_attrs()) {
       if (attr.mode == Attribute::AccessMode::kRead ||
           attr.mode == Attribute::AccessMode::kUpdate) {
-        m->attr_offsets[i] = kMetadataOffsetNoRead;
+        m->set_attr_offset(i, kMetadataOffsetNoRead);
       } else if (attr.mode == Attribute::AccessMode::kWrite) {
-        m->attr_offsets[i] = kMetadataOffsetNoWrite;
+        m->set_attr_offset(i, kMetadataOffsetNoWrite);
         if (attr.scope_id == -1) {
           IdentifySingleScopeComponent(m, &attr);
         }

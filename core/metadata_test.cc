@@ -103,7 +103,7 @@ TEST_F(MetadataTest, DisconnectedFails) {
   ASSERT_EQ(0, m0->AddMetadataAttr("a", 1, Attribute::AccessMode::kWrite));
   ASSERT_EQ(0, m1->AddMetadataAttr("a", 1, Attribute::AccessMode::kRead));
   ASSERT_EQ(0, default_pipeline.ComputeMetadataOffsets());
-  ASSERT_LT(m1->attr_offsets[0], 0);
+  ASSERT_LT(m1->all_attr_offsets()[0], 0);
 }
 
 TEST_F(MetadataTest, SingleAttrSimplePipe) {
@@ -114,10 +114,10 @@ TEST_F(MetadataTest, SingleAttrSimplePipe) {
   ASSERT_EQ(0, default_pipeline.ComputeMetadataOffsets());
 
   // Check that m0 was assigned a valid offset
-  ASSERT_GE(m1->attr_offsets[0], 0);
+  ASSERT_GE(m1->all_attr_offsets()[0], 0);
 
   // Check that m0 and m1 agree on where to read/write a
-  ASSERT_EQ(m0->attr_offsets[0], m1->attr_offsets[0]);
+  ASSERT_EQ(m0->all_attr_offsets()[0], m1->all_attr_offsets()[0]);
 }
 
 // Check that the "error" offsets arre assigned correctly
@@ -129,8 +129,8 @@ TEST_F(MetadataTest, SingleAttrSimplePipeBackwardsFails) {
 
   ASSERT_EQ(0, default_pipeline.ComputeMetadataOffsets());
 
-  ASSERT_EQ(kMetadataOffsetNoRead, m0->attr_offsets[0]);
-  ASSERT_EQ(kMetadataOffsetNoWrite, m1->attr_offsets[0]);
+  ASSERT_EQ(kMetadataOffsetNoRead, m0->all_attr_offsets()[0]);
+  ASSERT_EQ(kMetadataOffsetNoWrite, m1->all_attr_offsets()[0]);
 }
 
 // Check that offsets are properly assigned when there are too many attributes.
@@ -146,8 +146,8 @@ TEST_F(MetadataTest, MultipleAttrSimplePipeNoSpaceFails) {
 
   ASSERT_EQ(0, default_pipeline.ComputeMetadataOffsets());
 
-  ASSERT_EQ(kMetadataOffsetNoSpace, m0->attr_offsets[n]);
-  ASSERT_EQ(kMetadataOffsetNoSpace, m1->attr_offsets[n]);
+  ASSERT_EQ(kMetadataOffsetNoSpace, m0->all_attr_offsets()[n]);
+  ASSERT_EQ(kMetadataOffsetNoSpace, m1->all_attr_offsets()[n]);
 }
 
 TEST_F(MetadataTest, MultipeAttrSimplePipe) {
@@ -167,11 +167,11 @@ TEST_F(MetadataTest, MultipeAttrSimplePipe) {
   size_t i = 0;
   for (const auto &attr : m0->all_attrs()) {
     // Check that m1 is reading from where m0 is writing
-    ASSERT_EQ(m1->attr_offsets[i], m0->attr_offsets[i]);
+    ASSERT_EQ(m1->all_attr_offsets()[i], m0->all_attr_offsets()[i]);
 
     if (attr.mode != Attribute::AccessMode::kRead) {
       // Check that m0 was assigned non-overlapping offsets for writes
-      mt_offset_t offset = m0->attr_offsets[i];
+      mt_offset_t offset = m0->all_attr_offsets()[i];
       ASSERT_LE(0, offset);
       for (size_t j = 0; j < attr.size; j++) {
         ASSERT_FALSE(dummy_meta[offset + j]);
@@ -222,7 +222,7 @@ TEST_F(MetadataTest, MultipeAttrComplexPipe) {
     size_t i = 0;
     for (const auto &attr : m->all_attrs()) {
       if (attr.mode != Attribute::AccessMode::kRead) {
-        mt_offset_t offset = m->attr_offsets[i];
+        mt_offset_t offset = m->all_attr_offsets()[i];
         if (offset < 0) {
           EXPECT_EQ(m, mods[6]);
           EXPECT_EQ(1, i);
@@ -239,21 +239,21 @@ TEST_F(MetadataTest, MultipeAttrComplexPipe) {
   }
 
   // This write is never read by anyone
-  ASSERT_EQ(kMetadataOffsetNoWrite, mods[6]->attr_offsets[1]);
+  ASSERT_EQ(kMetadataOffsetNoWrite, mods[6]->all_attr_offsets()[1]);
 
   // Check that those assignments conform to the way the modules are connected
-  ASSERT_NE(mods[0]->attr_offsets[0], mods[1]->attr_offsets[0]);
-  ASSERT_EQ(mods[0]->attr_offsets[0], mods[2]->attr_offsets[0]);
-  ASSERT_NE(mods[1]->attr_offsets[0], mods[4]->attr_offsets[0]);
-  ASSERT_EQ(mods[0]->attr_offsets[0], mods[4]->attr_offsets[0]);
-  ASSERT_EQ(mods[3]->attr_offsets[0], mods[4]->attr_offsets[0]);
-  ASSERT_EQ(mods[5]->attr_offsets[0], mods[6]->attr_offsets[0]);
-  ASSERT_NE(mods[5]->attr_offsets[0], mods[6]->attr_offsets[1]);
-  ASSERT_EQ(mods[7]->attr_offsets[0], mods[6]->attr_offsets[0]);
-  ASSERT_NE(mods[7]->attr_offsets[0], mods[6]->attr_offsets[1]);
-  ASSERT_NE(mods[7]->attr_offsets[0], mods[8]->attr_offsets[0]);
-  ASSERT_EQ(mods[7]->attr_offsets[0], mods[9]->attr_offsets[1]);
-  ASSERT_EQ(mods[8]->attr_offsets[0], mods[9]->attr_offsets[0]);
+  ASSERT_NE(mods[0]->all_attr_offsets()[0], mods[1]->all_attr_offsets()[0]);
+  ASSERT_EQ(mods[0]->all_attr_offsets()[0], mods[2]->all_attr_offsets()[0]);
+  ASSERT_NE(mods[1]->all_attr_offsets()[0], mods[4]->all_attr_offsets()[0]);
+  ASSERT_EQ(mods[0]->all_attr_offsets()[0], mods[4]->all_attr_offsets()[0]);
+  ASSERT_EQ(mods[3]->all_attr_offsets()[0], mods[4]->all_attr_offsets()[0]);
+  ASSERT_EQ(mods[5]->all_attr_offsets()[0], mods[6]->all_attr_offsets()[0]);
+  ASSERT_NE(mods[5]->all_attr_offsets()[0], mods[6]->all_attr_offsets()[1]);
+  ASSERT_EQ(mods[7]->all_attr_offsets()[0], mods[6]->all_attr_offsets()[0]);
+  ASSERT_NE(mods[7]->all_attr_offsets()[0], mods[6]->all_attr_offsets()[1]);
+  ASSERT_NE(mods[7]->all_attr_offsets()[0], mods[8]->all_attr_offsets()[0]);
+  ASSERT_EQ(mods[7]->all_attr_offsets()[0], mods[9]->all_attr_offsets()[1]);
+  ASSERT_EQ(mods[8]->all_attr_offsets()[0], mods[9]->all_attr_offsets()[0]);
 }
 
 // In this strange edge case, m4 should not clobber m3's write of attribute "h".
@@ -311,11 +311,11 @@ TEST_F(MetadataTest, ScopeComponentDegreeOrder) {
 
   ASSERT_EQ(0, default_pipeline.ComputeMetadataOffsets());
 
-  ASSERT_TRUE((m4->attr_offsets[0] >= m3->attr_offsets[4] + 2) ||
-              (m4->attr_offsets[0] + 6 <= m3->attr_offsets[4]));
+  ASSERT_TRUE((m4->all_attr_offsets()[0] >= m3->all_attr_offsets()[4] + 2) ||
+              (m4->all_attr_offsets()[0] + 6 <= m3->all_attr_offsets()[4]));
 
-  ASSERT_TRUE((m4->attr_offsets[1] >= m3->attr_offsets[4] + 2) ||
-              (m4->attr_offsets[1] + 6 <= m3->attr_offsets[4]));
+  ASSERT_TRUE((m4->all_attr_offsets()[1] >= m3->all_attr_offsets()[4] + 2) ||
+              (m4->all_attr_offsets()[1] + 6 <= m3->all_attr_offsets()[4]));
 }
 
 }  // namespace metadata

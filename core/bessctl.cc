@@ -64,33 +64,32 @@ static pb_error_t enable_track_for_module(const Module* m, gate_idx_t gate_idx,
   int ret;
 
   if (use_gate) {
-    if (!is_igate && gate_idx >= m->ogates.size()) {
+    if (!is_igate && gate_idx >= m->ogates().size()) {
       return pb_error(EINVAL, "Output gate '%hu' does not exist", gate_idx);
     }
 
-    if (is_igate && gate_idx >= m->igates.size()) {
+    if (is_igate && gate_idx >= m->igates().size()) {
       return pb_error(EINVAL, "Input gate '%hu' does not exist", gate_idx);
     }
 
-    if (is_igate && (ret = m->igates[gate_idx]->AddHook(new TrackGate()))) {
+    if (is_igate && (ret = m->igates()[gate_idx]->AddHook(new TrackGate()))) {
       return pb_error(ret, "Failed to track input gate '%hu'", gate_idx);
     }
 
-    if ((ret = m->ogates[gate_idx]->AddHook(new TrackGate()))) {
+    if ((ret = m->ogates()[gate_idx]->AddHook(new TrackGate()))) {
       return pb_error(ret, "Failed to track output gate '%hu'", gate_idx);
     }
   }
 
-  // XXX: ewwwwww
   if (is_igate) {
-    for (auto& gate : m->igates) {
+    for (auto& gate : m->igates()) {
       if ((ret = gate->AddHook(new TrackGate()))) {
         return pb_error(ret, "Failed to track input gate '%hu'",
                         gate->gate_idx());
       }
     }
   } else {
-    for (auto& gate : m->ogates) {
+    for (auto& gate : m->ogates()) {
       if ((ret = gate->AddHook(new TrackGate()))) {
         return pb_error(ret, "Failed to track output gate '%hu'",
                         gate->gate_idx());
@@ -103,29 +102,28 @@ static pb_error_t enable_track_for_module(const Module* m, gate_idx_t gate_idx,
 static pb_error_t disable_track_for_module(const Module* m, gate_idx_t gate_idx,
                                            bool is_igate, bool use_gate) {
   if (use_gate) {
-    if (!is_igate && gate_idx >= m->ogates.size()) {
+    if (!is_igate && gate_idx >= m->ogates().size()) {
       return pb_error(EINVAL, "Output gate '%hu' does not exist", gate_idx);
     }
 
-    if (is_igate && gate_idx >= m->igates.size()) {
+    if (is_igate && gate_idx >= m->igates().size()) {
       return pb_error(EINVAL, "Input gate '%hu' does not exist", gate_idx);
     }
 
     if (is_igate) {
-      m->igates[gate_idx]->RemoveHook(kGateHookTrackGate);
+      m->igates()[gate_idx]->RemoveHook(kGateHookTrackGate);
       return pb_errno(0);
     }
-    m->ogates[gate_idx]->RemoveHook(kGateHookTrackGate);
+    m->ogates()[gate_idx]->RemoveHook(kGateHookTrackGate);
     return pb_errno(0);
   }
 
-  // XXX: ewwwwww
   if (is_igate) {
-    for (auto& gate : m->igates) {
+    for (auto& gate : m->igates()) {
       gate->RemoveHook(kGateHookTrackGate);
     }
   } else {
-    for (auto& gate : m->ogates) {
+    for (auto& gate : m->ogates()) {
       gate->RemoveHook(kGateHookTrackGate);
     }
   }
@@ -133,7 +131,7 @@ static pb_error_t disable_track_for_module(const Module* m, gate_idx_t gate_idx,
 }
 
 static int collect_igates(Module* m, GetModuleInfoResponse* response) {
-  for (const auto& g : m->igates) {
+  for (const auto& g : m->igates()) {
     if (!g) {
       continue;
     }
@@ -161,7 +159,7 @@ static int collect_igates(Module* m, GetModuleInfoResponse* response) {
 }
 
 static int collect_ogates(Module* m, GetModuleInfoResponse* response) {
-  for (const auto& g : m->ogates) {
+  for (const auto& g : m->ogates()) {
     if (!g) {
       continue;
     }
@@ -205,7 +203,7 @@ static int collect_metadata(Module* m, GetModuleInfoResponse* response) {
         DCHECK(0);
     }
 
-    attr->set_offset(m->attr_offsets[i]);
+    attr->set_offset(m->all_attr_offsets()[i]);
     i++;
   }
 
@@ -1001,7 +999,7 @@ class BESSControlImpl final : public BESSControl::Service {
     }
 
     Task* t;
-    if ((t = m->tasks[tid]) == nullptr) {
+    if ((t = m->tasks()[tid]) == nullptr) {
       return return_with_error(response, ENOENT, "Task %s:%hu does not exist",
                                request->name().c_str(), tid);
     }
@@ -1080,11 +1078,11 @@ class BESSControlImpl final : public BESSControl::Service {
     }
     Module* m = it->second;
 
-    if (!is_igate && gate >= m->ogates.size())
+    if (!is_igate && gate >= m->ogates().size())
       return return_with_error(response, EINVAL,
                                "Output gate '%hu' does not exist", gate);
 
-    if (is_igate && gate >= m->igates.size())
+    if (is_igate && gate >= m->igates().size())
       return return_with_error(response, EINVAL,
                                "Input gate '%hu' does not exist", gate);
 
@@ -1124,11 +1122,11 @@ class BESSControlImpl final : public BESSControl::Service {
     }
 
     Module* m = it->second;
-    if (!is_igate && gate >= m->ogates.size())
+    if (!is_igate && gate >= m->ogates().size())
       return return_with_error(response, EINVAL,
                                "Output gate '%hu' does not exist", gate);
 
-    if (is_igate && gate >= m->igates.size())
+    if (is_igate && gate >= m->igates().size())
       return return_with_error(response, EINVAL,
                                "Input gate '%hu' does not exist", gate);
 
