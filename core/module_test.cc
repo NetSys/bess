@@ -155,7 +155,7 @@ TEST_F(ModuleTester, RunCommand) {
     response = m->RunCommand("foo", arg);
     EXPECT_EQ(0, response.error().err());
   }
-  EXPECT_EQ(10, (reinterpret_cast<AcmeModule *>(m))->n);
+  EXPECT_EQ(10, (static_cast<AcmeModule *>(m))->n);
 
   response = m->RunCommand("bar", arg);
   EXPECT_EQ(ENOTSUP, response.error().err());

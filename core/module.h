@@ -292,7 +292,7 @@ inline void Module::RunChooseModule(gate_idx_t ogate_idx,
   }
 
   ctx.set_current_igate(ogate->igate_idx());
-  (reinterpret_cast<Module *>(ogate->arg()))->ProcessBatch(batch);
+  (static_cast<Module *>(ogate->arg()))->ProcessBatch(batch);
 }
 
 inline void Module::RunNextModule(bess::PacketBatch *batch) {

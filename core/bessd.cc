@@ -132,9 +132,8 @@ void WritePidfile(int fd, pid_t pid) {
     PLOG(FATAL) << "lseek(pidfile, 0, SEEK_SET)";
   }
 
-  char buf[BUFSIZ];
-  int pidlen = snprintf(buf, BUFSIZ, "%d\n", pid);
-  if (write(fd, buf, pidlen) < 0) {
+  std::string pid_str = std::to_string(pid) + "\n";
+  if (write(fd, pid_str.data(), pid_str.size() + 1) < 0) {
     PLOG(FATAL) << "write(pidfile, pid)";
   }
   fsync(fd);
