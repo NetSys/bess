@@ -1,10 +1,10 @@
 #ifndef BESS_SNBUF_H_
 #define BESS_SNBUF_H_
 
-#include <cassert>
-
 #include <rte_config.h>
 #include <rte_mbuf.h>
+
+#include <cassert>
 
 #include "metadata.h"
 #include "worker.h"
@@ -114,7 +114,8 @@ static inline int snb_alloc_bulk(snb_array_t snbs, int cnt, uint16_t len) {
   int ret;
   int i;
 
-  ret = rte_mempool_get_bulk(ctx.pframe_pool(), (void **)snbs, cnt);
+  ret = rte_mempool_get_bulk(ctx.pframe_pool(), reinterpret_cast<void **>(snbs),
+                             cnt);
   if (ret != 0) {
     return 0;
   }
@@ -147,7 +148,7 @@ static inline void snb_free_bulk(snb_array_t snbs, int cnt) {
 
   /* NOTE: it seems that zeroing the refcnt of mbufs is not necessary.
    *   (allocators will reset them) */
-  rte_mempool_put_bulk(pool, (void **)snbs, cnt);
+  rte_mempool_put_bulk(pool, reinterpret_cast<void **>(snbs), cnt);
   return;
 
 slow_path:
@@ -193,7 +194,7 @@ static inline void snb_trim(struct snbuf *snb, uint16_t to_remove) {
   int ret;
 
   ret = rte_pktmbuf_trim(&snb->mbuf, to_remove);
-  DCHECK(ret == 0);
+  DCHECK_EQ(ret, 0);
 }
 
 static inline struct snbuf *snb_copy(struct snbuf *src) {

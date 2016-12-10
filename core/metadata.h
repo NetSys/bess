@@ -52,11 +52,7 @@ struct Attribute {
 
   std::string name;
   size_t size;  // in bytes
-  enum class AccessMode {
-    kRead = 0,
-    kWrite,
-    kUpdate
-  } mode;
+  enum class AccessMode { kRead = 0, kWrite, kUpdate } mode;
   mutable int scope_id;
 };
 
@@ -74,32 +70,32 @@ class ScopeComponent {
         modules_(),
         degree_() {}
 
-  ~ScopeComponent(){};
+  ~ScopeComponent() {}
 
-  const attr_id_t &attr_id() const { return attr_id_; };
-  void set_attr_id(attr_id_t id) { attr_id_ = id; };
+  const attr_id_t &attr_id() const { return attr_id_; }
+  void set_attr_id(attr_id_t id) { attr_id_ = id; }
 
-  int size() const { return size_; };
-  void set_size(int size) { size_ = size; };
+  int size() const { return size_; }
+  void set_size(int size) { size_ = size; }
 
-  mt_offset_t offset() const { return offset_; };
-  void set_offset(mt_offset_t offset) { offset_ = offset; };
+  mt_offset_t offset() const { return offset_; }
+  void set_offset(mt_offset_t offset) { offset_ = offset; }
 
-  scope_id_t scope_id() const { return scope_id_; };
-  void set_scope_id(scope_id_t id) { scope_id_ = id; };
+  scope_id_t scope_id() const { return scope_id_; }
+  void set_scope_id(scope_id_t id) { scope_id_ = id; }
 
-  bool assigned() const { return assigned_; };
-  void set_assigned(bool assigned) { assigned_ = assigned; };
+  bool assigned() const { return assigned_; }
+  void set_assigned(bool assigned) { assigned_ = assigned; }
 
-  bool invalid() const { return invalid_; };
-  void set_invalid(bool invalid) { invalid_ = invalid; };
+  bool invalid() const { return invalid_; }
+  void set_invalid(bool invalid) { invalid_ = invalid; }
 
-  const std::set<Module *> &modules() const { return modules_; };
-  void add_module(Module *m) { modules_.insert(m); };
-  void clear_modules() { modules_.clear(); };
+  const std::set<Module *> &modules() const { return modules_; }
+  void add_module(Module *m) { modules_.insert(m); }
+  void clear_modules() { modules_.clear(); }
 
-  int degree() const { return degree_; };
-  void incr_degree() { degree_++; };
+  int degree() const { return degree_; }
+  void incr_degree() { degree_++; }
 
   bool DisjointFrom(const ScopeComponent &rhs);
 
@@ -183,8 +179,7 @@ class Pipeline {
   // count(=int) represents how many modules registered the attribute, and the
   // attribute is deregistered once it reaches back to 0.
   // Those modules should agree on the same size(=size_t).
-  std::map<std::string, std::tuple<size_t, int> >
-      registered_attrs_;
+  std::map<std::string, std::tuple<size_t, int> > registered_attrs_;
 };
 
 extern bess::metadata::Pipeline default_pipeline;

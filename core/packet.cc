@@ -1,12 +1,13 @@
 #include "packet.h"
 
+#include <glog/logging.h>
+#include <rte_errno.h>
+
 #include <cassert>
 #include <cstdio>
 #include <iomanip>
 #include <sstream>
-
-#include <glog/logging.h>
-#include <rte_errno.h>
+#include <string>
 
 #include "dpdk.h"
 #include "opts.h"
@@ -47,13 +48,14 @@ static void init_mempool_socket(int sid) {
   pool_priv.mbuf_priv_size = SNBUF_RESERVE;
 
 again:
-  sprintf(name, "pframe%d_%dk", sid, (current_try + 1) / 1024);
+  snprintf(name, sizeof(name), "pframe%d_%dk", sid, (current_try + 1) / 1024);
 
   /* 2^n - 1 is optimal according to the DPDK manual */
   pframe_pool[sid] = rte_mempool_create(
       name, current_try - 1, sizeof(Packet), num_mempool_cache,
       sizeof(struct rte_pktmbuf_pool_private), rte_pktmbuf_pool_init,
-      &pool_priv, packet_init, (void *)(uintptr_t)sid, sid, 0);
+      &pool_priv, packet_init, reinterpret_cast<void *>((uintptr_t)sid), sid,
+      0);
 
   if (!pframe_pool[sid]) {
     LOG(WARNING) << "Allocating " << current_try - 1 << " buffers on socket "
@@ -134,7 +136,7 @@ static Packet *paddr_to_snb_memchunk(struct rte_mempool_memhdr *chunk,
     uintptr_t vaddr;
 
     vaddr = (uintptr_t)chunk->addr + paddr - chunk->phys_addr;
-    return (Packet *)vaddr;
+    return reinterpret_cast<Packet *>(vaddr);
   }
 
   return nullptr;
@@ -195,7 +197,7 @@ Packet *Packet::from_paddr(phys_addr_t paddr) {
       uintptr_t offset;
 
       offset = paddr - pg_start;
-      ret = (Packet *)(pool->elt_va_start + offset);
+      ret = reinterpret_cast<Packet *>(pool->elt_va_start + offset);
 
       if (ret->paddr() != paddr) {
         log_err(

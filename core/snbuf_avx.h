@@ -22,7 +22,8 @@ static inline int snb_alloc_bulk(snb_array_t snbs, int cnt, uint16_t len) {
    * rss 			0 	(32 bits) */
   rxdesc_fields = _mm_setr_epi32(0, len, len, 0);
 
-  ret = rte_mempool_get_bulk(ctx.pframe_pool(), (void **)snbs, cnt);
+  ret = rte_mempool_get_bulk(ctx.pframe_pool(), reinterpret_cast<void **>(snbs),
+                             cnt);
   if (ret != 0) {
     return 0;
   }
@@ -122,7 +123,7 @@ static inline void snb_free_bulk(snb_array_t snbs, int cnt) {
 
   /* NOTE: it seems that zeroing the refcnt of mbufs is not necessary.
    *   (allocators will reset them) */
-  rte_mempool_put_bulk(_pool, (void **)snbs, cnt);
+  rte_mempool_put_bulk(_pool, reinterpret_cast<void **>(snbs), cnt);
   return;
 
 slow_path:

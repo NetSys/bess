@@ -24,9 +24,9 @@ class BPF final : public Module {
   static const Commands cmds;
 
   pb_error_t Init(const bess::pb::BPFArg &arg);
-  virtual void DeInit() override;
+  void DeInit() override;
 
-  virtual void ProcessBatch(bess::PacketBatch *batch) override;
+  void ProcessBatch(bess::PacketBatch *batch) override;
 
   pb_cmd_response_t CommandAdd(const bess::pb::BPFArg &arg);
   pb_cmd_response_t CommandClear(const bess::pb::EmptyArg &arg);

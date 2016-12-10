@@ -1,9 +1,9 @@
 #include "snbuf.h"
 
-#include <cassert>
-
 #include <glog/logging.h>
 #include <rte_errno.h>
+
+#include <cassert>
 
 #include "dpdk.h"
 #include "opts.h"
@@ -44,13 +44,14 @@ static void init_mempool_socket(int sid) {
   pool_priv.mbuf_priv_size = SNBUF_RESERVE;
 
 again:
-  sprintf(name, "pframe%d_%dk", sid, (current_try + 1) / 1024);
+  snprintf(name, sizeof(name), "pframe%d_%dk", sid, (current_try + 1) / 1024);
 
   /* 2^n - 1 is optimal according to the DPDK manual */
   pframe_pool[sid] = rte_mempool_create(
       name, current_try - 1, sizeof(struct snbuf), NUM_MEMPOOL_CACHE,
       sizeof(struct rte_pktmbuf_pool_private), rte_pktmbuf_pool_init,
-      &pool_priv, snbuf_pkt_init, (void *)(uintptr_t)sid, sid, 0);
+      &pool_priv, snbuf_pkt_init, reinterpret_cast<void *>((uintptr_t)sid), sid,
+      0);
 
   if (!pframe_pool[sid]) {
     LOG(WARNING) << "Allocating " << current_try - 1 << " buffers on socket "
@@ -186,7 +187,7 @@ struct snbuf *paddr_to_snb(phys_addr_t paddr) {
       continue;
     }
 
-    DCHECK(pool->pg_num == 1);
+    DCHECK_EQ(pool->pg_num, 1);
 
     pg_start = pool->elt_pa[0];
     size = pool->elt_va_end - pool->elt_va_start;

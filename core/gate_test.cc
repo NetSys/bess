@@ -88,4 +88,4 @@ TEST_F(IOGateTest, IGate) {
   ig->RemoveOgate(og);
   ASSERT_EQ(0, ig->ogates_upstream().size());
 }
-}
+}  // namespace bess

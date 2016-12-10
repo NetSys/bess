@@ -3,8 +3,9 @@
 
 #include <iostream>
 #include <queue>
-#include <string>
 #include <sstream>
+#include <string>
+#include <vector>
 
 #include "traffic_class.h"
 #include "worker.h"
@@ -18,7 +19,8 @@ struct sched_stats {
 };
 
 struct ThrottledComp {
-  inline bool operator()(const RateLimitTrafficClass *left, const RateLimitTrafficClass *right) const {
+  inline bool operator()(const RateLimitTrafficClass *left,
+                         const RateLimitTrafficClass *right) const {
     // Reversed so that priority_queue is a min priority queue.
     return right->throttle_expiration() < left->throttle_expiration();
   }
@@ -26,7 +28,7 @@ struct ThrottledComp {
 
 class Scheduler final {
  public:
-  Scheduler(TrafficClass *root, const std::string &leaf_name = "")
+  explicit Scheduler(TrafficClass *root, const std::string &leaf_name = "")
       : root_(root),
         default_leaf_class_(),
         throttled_cache_(ThrottledComp()),
@@ -77,9 +79,10 @@ class Scheduler final {
 
       leaf->FinishAndAccountTowardsRoot(this, nullptr, usage, now);
     } else {
-      // TODO(barath): Ideally, we wouldn't spin in this case but rather take the
+      // TODO(barath): Ideally, we wouldn't spin in this case but rather take
+      // the
       // fact that Next() returned nullptr as an indication that everything is
-      // blocked, so we could wait until something is added that unblocks us.  We
+      // blocked, so we could wait until something is added that unblocks us. We
       // currently have no functionality to support such whole-scheduler
       // blocking/unblocking.
       ++stats_.cnt_idle;
@@ -146,13 +149,12 @@ class Scheduler final {
 
   // Return the number of traffic classes, excluding the root, managed by this
   // scheduler.
-  size_t NumTcs() const {
-    return root_->Size() - 1;
-  }
+  size_t NumTcs() const { return root_->Size() - 1; }
 
  private:
   // Handles a rate limiter class's usage, and blocks it if needed.
-  void HandleRateLimit(RateLimitTrafficClass *rc, uint64_t consumed, uint64_t tsc);
+  void HandleRateLimit(RateLimitTrafficClass *rc, uint64_t consumed,
+                       uint64_t tsc);
 
   // Starts at the given class and attempts to unblock classes on the path
   // towards the root.
@@ -163,7 +165,9 @@ class Scheduler final {
   LeafTrafficClass *default_leaf_class_;
 
   // A cache of throttled TrafficClasses.
-  std::priority_queue<RateLimitTrafficClass *, std::vector<RateLimitTrafficClass *>, ThrottledComp> throttled_cache_;
+  std::priority_queue<RateLimitTrafficClass *,
+                      std::vector<RateLimitTrafficClass *>, ThrottledComp>
+      throttled_cache_;
 
   struct sched_stats stats_;
   uint64_t checkpoint_;

@@ -1,6 +1,7 @@
 #ifndef BESS_GATE_H_
 #define BESS_GATE_H_
 
+#include <string>
 #include <vector>
 
 #include "pktbatch.h"
@@ -31,7 +32,8 @@ class Gate;
 // can attach/detach them at runtime.
 class GateHook {
  public:
-  GateHook(const std::string &name, uint16_t priority = 0, Gate *gate = nullptr)
+  explicit GateHook(const std::string &name, uint16_t priority = 0,
+                    Gate *gate = nullptr)
       : gate_(gate), name_(name), priority_(priority) {}
 
   virtual ~GateHook() {}

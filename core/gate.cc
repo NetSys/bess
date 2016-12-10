@@ -1,6 +1,7 @@
 #include "gate.h"
 
 #include <algorithm>
+#include <string>
 
 namespace bess {
 
@@ -51,4 +52,4 @@ void IGate::RemoveOgate(const OGate *og) {
     }
   }
 }
-}
+}  // namespace bess

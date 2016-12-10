@@ -41,7 +41,7 @@ class UnixSocketPort final : public Port {
   /*!
    * Close the socket / shut down the port.
    */
-  virtual void DeInit() override;
+  void DeInit() override;
 
   /*!
    * Receives packets from the device.
@@ -58,7 +58,7 @@ class UnixSocketPort final : public Port {
    * RETURNS:
    * * Total number of packets received (<=cnt)
    */
-  virtual int RecvPackets(queue_t qid, bess::Packet **pkts, int cnt) override;
+  int RecvPackets(queue_t qid, bess::Packet **pkts, int cnt) override;
 
   /*!
    * Sends packets out on the device.
@@ -75,7 +75,7 @@ class UnixSocketPort final : public Port {
    * RETURNS:
    * * Total number of packets sent (<=cnt).
    */
-  virtual int SendPackets(queue_t qid, bess::Packet **pkts, int cnt) override;
+  int SendPackets(queue_t qid, bess::Packet **pkts, int cnt) override;
 
   /*!
    * Waits for a client to connect to the socket.

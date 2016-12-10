@@ -1,9 +1,9 @@
 #include "metadata.h"
 
+#include <gtest/gtest.h>
+
 #include <cstdlib>
 #include <vector>
-
-#include <gtest/gtest.h>
 
 #include "module.h"
 
@@ -37,7 +37,7 @@ Module *create_foo(const std::string name = "") {
 
   return m;
 }
-}
+}  // namespace
 
 namespace bess {
 namespace metadata {
@@ -103,7 +103,7 @@ TEST_F(MetadataTest, DisconnectedFails) {
   ASSERT_EQ(0, m0->AddMetadataAttr("a", 1, Attribute::AccessMode::kWrite));
   ASSERT_EQ(0, m1->AddMetadataAttr("a", 1, Attribute::AccessMode::kRead));
   ASSERT_EQ(0, default_pipeline.ComputeMetadataOffsets());
-  ASSERT_TRUE(m1->attr_offsets[0] < 0);
+  ASSERT_LT(m1->attr_offsets[0], 0);
 }
 
 TEST_F(MetadataTest, SingleAttrSimplePipe) {
@@ -114,7 +114,7 @@ TEST_F(MetadataTest, SingleAttrSimplePipe) {
   ASSERT_EQ(0, default_pipeline.ComputeMetadataOffsets());
 
   // Check that m0 was assigned a valid offset
-  ASSERT_TRUE(m1->attr_offsets[0] >= 0);
+  ASSERT_GE(m1->attr_offsets[0], 0);
 
   // Check that m0 and m1 agree on where to read/write a
   ASSERT_EQ(m0->attr_offsets[0], m1->attr_offsets[0]);

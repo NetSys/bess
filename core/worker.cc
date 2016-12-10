@@ -1,8 +1,5 @@
 #include "worker.h"
 
-#include <cassert>
-#include <climits>
-
 #include <sched.h>
 #include <sys/eventfd.h>
 #include <unistd.h>
@@ -10,6 +7,10 @@
 #include <glog/logging.h>
 #include <rte_config.h>
 #include <rte_lcore.h>
+
+#include <cassert>
+#include <climits>
+#include <string>
 
 #include "metadata.h"
 #include "opts.h"
@@ -32,8 +33,8 @@ using bess::RoundRobinTrafficClass;
 using bess::RateLimitTrafficClass;
 using bess::LeafTrafficClass;
 
-const std::string Worker::kRootClassNamePrefix = "root_";
-const std::string Worker::kDefaultLeafClassNamePrefix = "defaultleaf_";
+const char *Worker::kRootClassNamePrefix = "root_";
+const char *Worker::kDefaultLeafClassNamePrefix = "defaultleaf_";
 
 // See worker.h
 __thread Worker ctx;
@@ -75,8 +76,8 @@ static void pause_worker(int wid) {
 
     FULL_BARRIER();
 
-    while (workers[wid]->status() == WORKER_PAUSING)
-      ; /* spin */
+    while (workers[wid]->status() == WORKER_PAUSING) {
+    } /* spin */
   }
 }
 
@@ -98,8 +99,8 @@ static void resume_worker(int wid) {
     ret = write(workers[wid]->fd_event(), &sig, sizeof(sig));
     DCHECK_EQ(ret, sizeof(uint64_t));
 
-    while (workers[wid]->status() == WORKER_PAUSED)
-      ; /* spin */
+    while (workers[wid]->status() == WORKER_PAUSED) {
+    } /* spin */
   }
 }
 
@@ -122,8 +123,8 @@ static void destroy_worker(int wid) {
     ret = write(workers[wid]->fd_event(), &sig, sizeof(sig));
     DCHECK_EQ(ret, sizeof(uint64_t));
 
-    while (workers[wid]->status() == WORKER_PAUSED)
-      ; /* spin */
+    while (workers[wid]->status() == WORKER_PAUSED) {
+    } /* spin */
 
     workers[wid] = nullptr;
 
@@ -214,8 +215,10 @@ void *Worker::Run(void *_arg) {
   std::string root_name = kRootClassNamePrefix + std::to_string(wid_);
   std::string leaf_name = kDefaultLeafClassNamePrefix + std::to_string(wid_);
   const bess::priority_t kDefaultPriority = 10;
-  PriorityTrafficClass *root = TrafficClassBuilder::CreateTrafficClass<PriorityTrafficClass>(root_name);
-  LeafTrafficClass *leaf = TrafficClassBuilder::CreateTrafficClass<LeafTrafficClass>(leaf_name);
+  PriorityTrafficClass *root =
+      TrafficClassBuilder::CreateTrafficClass<PriorityTrafficClass>(root_name);
+  LeafTrafficClass *leaf =
+      TrafficClassBuilder::CreateTrafficClass<LeafTrafficClass>(leaf_name);
   root->AddChild(leaf, kDefaultPriority);
   scheduler_ = new Scheduler(root, leaf_name);
 

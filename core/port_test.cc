@@ -2,10 +2,10 @@
 
 #include "port.h"
 
+#include <gtest/gtest.h>
+
 #include <memory>
 #include <string>
-
-#include <gtest/gtest.h>
 
 class DummyPort : public Port {
  public:

@@ -1,11 +1,12 @@
 #ifndef BESS_WORKER_H_
 #define BESS_WORKER_H_
 
+#include <glog/logging.h>
+
 #include <cstdint>
+#include <string>
 #include <thread>
 #include <type_traits>
-
-#include <glog/logging.h>
 
 #include "gate.h"
 #include "pktbatch.h"
@@ -40,7 +41,6 @@ typedef enum {
   WORKER_FINISHED,
 } worker_status_t;
 
-
 namespace bess {
 class Scheduler;
 }  // namespace bess
@@ -48,8 +48,8 @@ class Scheduler;
 class Worker {
  public:
   static const bess::TrafficPolicy kDefaultRootPolicy;
-  static const std::string kRootClassNamePrefix;
-  static const std::string kDefaultLeafClassNamePrefix;
+  static const char *kRootClassNamePrefix;
+  static const char *kDefaultLeafClassNamePrefix;
 
   /* ----------------------------------------------------------------------
    * functions below are invoked by non-worker threads (the master)
@@ -79,9 +79,7 @@ class Worker {
     return pframe_pool_;
   }
 
-  bess::Scheduler *scheduler() {
-    return scheduler_;
-  }
+  bess::Scheduler *scheduler() { return scheduler_; }
 
   uint64_t silent_drops() { return silent_drops_; }
   void set_silent_drops(uint64_t drops) { silent_drops_ = drops; }

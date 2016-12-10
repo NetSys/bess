@@ -5,15 +5,17 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
+#include <glog/logging.h>
+
+#include <algorithm>
 #include <cerrno>
 #include <csignal>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <iostream>
+#include <string>
 #include <tuple>
-
-#include <glog/logging.h>
 
 #include "debug.h"
 #include "opts.h"
@@ -48,7 +50,7 @@ class StreambufLogger : public std::streambuf {
   StreambufLogger(std::ostream &stream, google::LogSeverity severity)
       : stream_(stream), log_level_(severity) {
     org_streambuf_ = stream_.rdbuf(this);
-  };
+  }
 
   // Restores the original streambuf
   virtual ~StreambufLogger() { stream_.rdbuf(org_streambuf_); }
@@ -130,9 +132,8 @@ void WritePidfile(int fd, pid_t pid) {
     PLOG(FATAL) << "lseek(pidfile, 0, SEEK_SET)";
   }
 
-  char buf[BUFSIZ];
-  int pidlen = sprintf(buf, "%d\n", pid);
-  if (write(fd, buf, pidlen) < 0) {
+  std::string pid_str = std::to_string(pid) + "\n";
+  if (write(fd, pid_str.data(), pid_str.size() + 1) < 0) {
     PLOG(FATAL) << "write(pidfile, pid)";
   }
   fsync(fd);
@@ -149,7 +150,8 @@ std::tuple<bool, pid_t> ReadPidfile(int fd) {
     if (readlen < 0) {
       PLOG(ERROR) << "read(pidfile=" << FLAGS_i << ")";
     } else {
-      LOG(ERROR) << "read(pidfile=" << FLAGS_i << ")" << " at EOF";
+      LOG(ERROR) << "read(pidfile=" << FLAGS_i << ")"
+                 << " at EOF";
     }
 
     return std::make_tuple(false, 0);
@@ -240,7 +242,7 @@ int CheckUniqueInstance(const std::string &pidfile_path) {
 }
 
 static void CloseStdStreams() {
-	int fd = open("/dev/null", O_RDWR, 0);
+  int fd = open("/dev/null", O_RDWR, 0);
   if (fd < 0) {
     PLOG(ERROR) << "Cannot open /dev/null";
     return;
@@ -257,9 +259,9 @@ static void CloseStdStreams() {
   cookie_io_functions_t stdout_funcs = {
       .read = nullptr,
       .write = [](void *, const char *data, size_t len) -> ssize_t {
-				LOG(INFO) << std::string(data, len);
-				return len;
-			},
+        LOG(INFO) << std::string(data, len);
+        return len;
+      },
       .seek = nullptr,
       .close = nullptr,
   };
@@ -267,9 +269,9 @@ static void CloseStdStreams() {
   cookie_io_functions_t stderr_funcs = {
       .read = nullptr,
       .write = [](void *, const char *data, size_t len) -> ssize_t {
-				LOG(WARNING) << std::string(data, len);
-				return len;
-			},
+        LOG(WARNING) << std::string(data, len);
+        return len;
+      },
       .seek = nullptr,
       .close = nullptr,
   };
@@ -289,8 +291,8 @@ static void CloseStdStreams() {
   setvbuf(stderr, NULL, _IOLBF, 0);
 
   // Redirect stdout output to LOG(INFO) and stderr output to LOG(WARNING)
-	static StreambufLogger stdout_buf(std::cout, google::GLOG_INFO);
-	static StreambufLogger stderr_buf(std::cerr, google::GLOG_WARNING);
+  static StreambufLogger stdout_buf(std::cout, google::GLOG_INFO);
+  static StreambufLogger stderr_buf(std::cerr, google::GLOG_WARNING);
 
   // For whatever reason if fd happens to be assigned 0, 1, or 2, do not close
   // it since it now points to our custom handler

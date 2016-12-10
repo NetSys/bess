@@ -1,8 +1,8 @@
 #include "task.h"
 
-#include <cassert>
-
 #include <glog/logging.h>
+
+#include <cassert>
 
 #include "mem_alloc.h"
 #include "module.h"
@@ -10,7 +10,8 @@
 #include "traffic_class.h"
 #include "worker.h"
 
-Task::Task(Module *m, void *arg, bess::LeafTrafficClass *c) : m_(m), arg_(arg), c_(c) {
+Task::Task(Module *m, void *arg, bess::LeafTrafficClass *c)
+    : m_(m), arg_(arg), c_(c) {
   CHECK(c) << "Tasks must always be attached to a leaf traffic class.";
   if (c_) {
     c_->AddTask(this);

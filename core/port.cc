@@ -1,5 +1,7 @@
 #include "port.h"
 
+#include <glog/logging.h>
+
 #include <cassert>
 #include <cctype>
 #include <cerrno>
@@ -8,8 +10,6 @@
 #include <memory>
 #include <sstream>
 #include <string>
-
-#include <glog/logging.h>
 
 #include "mem_alloc.h"
 #include "message.h"

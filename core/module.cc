@@ -4,10 +4,10 @@
 #include <sys/uio.h>
 #include <unistd.h>
 
+#include <glog/logging.h>
+
 #include <algorithm>
 #include <sstream>
-
-#include <glog/logging.h>
 
 #include "gate.h"
 #include "hooks/tcpdump.h"

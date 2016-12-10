@@ -8,7 +8,7 @@ class Dump final : public Module {
  public:
   pb_error_t Init(const bess::pb::DumpArg &arg);
 
-  virtual void ProcessBatch(bess::PacketBatch *batch) override;
+  void ProcessBatch(bess::PacketBatch *batch) override;
 
   pb_cmd_response_t CommandSetInterval(const bess::pb::DumpArg &arg);
 

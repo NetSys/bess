@@ -13,12 +13,12 @@ class Queue final : public Module {
 
   pb_error_t Init(const bess::pb::QueueArg &arg);
 
-  virtual void DeInit() override;
+  void DeInit() override;
 
-  virtual struct task_result RunTask(void *arg) override;
-  virtual void ProcessBatch(bess::PacketBatch *batch) override;
+  struct task_result RunTask(void *arg) override;
+  void ProcessBatch(bess::PacketBatch *batch) override;
 
-  virtual std::string GetDesc() const override;
+  std::string GetDesc() const override;
 
   pb_cmd_response_t CommandSetBurst(
       const bess::pb::QueueCommandSetBurstArg &arg);
