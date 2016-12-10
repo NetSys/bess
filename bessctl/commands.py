@@ -1311,17 +1311,6 @@ def _monitor_tcs(cli, *tcs):
                         ppb,
                         cpp))
 
-    def get_total(arr):
-        total = copy.deepcopy(arr[0])
-
-        for stat in arr[1:]:
-            total.count += stat.count
-            total.cycles += stat.cycles
-            total.packets += stat.packets
-            total.bits += stat.bits
-
-        return total
-
     all_tcs = cli.bess.list_tcs().classes_status
     wids = {}
     for tc in all_tcs:
@@ -1355,11 +1344,6 @@ def _monitor_tcs(cli, *tcs):
                             get_delta(last[tc], now[tc]))
 
             print_footer()
-
-            if len(tcs) > 1:
-                print_delta('Total', get_delta(
-                        get_total(last.values()),
-                        get_total(now.values())))
 
             for tc in tcs:
                 last[tc] = now[tc]
