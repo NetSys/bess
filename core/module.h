@@ -244,7 +244,7 @@ class Module {
   }
 
   bess::metadata::mt_offset_t attr_offset(size_t idx) const {
-    CHECK_LT(idx, bess::metadata::kMaxAttrsPerModule);
+    DCHECK_LT(idx, bess::metadata::kMaxAttrsPerModule);
     return attr_offsets_[idx];
   }
 
