@@ -105,7 +105,7 @@ void SetMetadata::ProcessBatch(bess::PacketBatch *batch) {
   for (size_t i = 0; i < attrs_.size(); i++) {
     const struct Attr *attr = &attrs_[i];
 
-    bess::metadata::mt_offset_t mt_offset = all_attr_offsets()[i];
+    bess::metadata::mt_offset_t mt_offset = attr_offset(i);
 
     if (!bess::metadata::IsValidOffset(mt_offset)) {
       continue;

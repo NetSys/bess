@@ -243,6 +243,11 @@ class Module {
     }
   }
 
+  bess::metadata::mt_offset_t attr_offset(size_t idx) const {
+    CHECK_LT(idx, bess::metadata::kMaxAttrsPerModule);
+    return attr_offsets_[idx];
+  }
+
   const bess::metadata::mt_offset_t *all_attr_offsets() const {
     return attr_offsets_;
   }
@@ -389,17 +394,17 @@ inline void set_attr_with_offset(bess::metadata::mt_offset_t offset,
 // TODO(melvin): These ought to be members of Module
 template <typename T>
 inline T *ptr_attr(Module *m, int attr_id, bess::Packet *pkt) {
-  return ptr_attr_with_offset<T>(m->all_attr_offsets()[attr_id], pkt);
+  return ptr_attr_with_offset<T>(m->attr_offset(attr_id), pkt);
 }
 
 template <typename T>
 inline T get_attr(Module *m, int attr_id, bess::Packet *pkt) {
-  return get_attr_with_offset<T>(m->all_attr_offsets()[attr_id], pkt);
+  return get_attr_with_offset<T>(m->attr_offset(attr_id), pkt);
 }
 
 template <typename T>
 inline void set_attr(Module *m, int attr_id, bess::Packet *pkt, T val) {
-  set_attr_with_offset(m->all_attr_offsets()[attr_id], pkt, val);
+  set_attr_with_offset(m->attr_offset(attr_id), pkt, val);
 }
 
 // Define some common versions of the above functions
