@@ -1013,9 +1013,7 @@ def show_port_list(cli, port_names):
 def _show_module(cli, module_name):
     info = cli.bess.get_module_info(module_name)
 
-    cli.fout.write('  %s::%s' % (info.name, info.mclass))
-
-    cli.fout.write(' (%s)\n' % info.desc)
+    cli.fout.write('  %s::%s(%s)\n' % (info.name, info.mclass, info.desc))
 
     if len(info.metadata) > 0:
         cli.fout.write('    Per-packet metadata fields:\n')

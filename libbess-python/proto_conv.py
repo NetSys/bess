@@ -83,7 +83,6 @@ def parse_dict(values, message):
 
 
 def dict_to_protobuf(values, msg_type):
-    print values
     message = msg_type()
     parse_dict(values, message)
     return message
