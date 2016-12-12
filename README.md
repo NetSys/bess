@@ -3,7 +3,7 @@
 
 ## BESS (Berkeley Extensible Software Switch)
 
-> NOTE: We are currently porting BESS to C++. You will need to modify your custom modules/drivers once the change is merged soon.
+> NOTE: We recently ported BESS to C++.  Active development of this code is ongoing in the 'develop' branch.
 
 BESS is a modular framework for software switches. BESS itself is *not* a virtual switch; it is neither pre-configured or hardcoded to perform particular functionality, such as Ethernet bridging or OpenFlow switching. Instead, you (or an external controller) can *configure* your own packet processing datapath by composing small "modules". While the basic concept is similar to [Click](http://read.cs.ucla.edu/click/click), BESS does not sacrifice performance for programmability.
 
