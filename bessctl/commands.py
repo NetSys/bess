@@ -821,14 +821,16 @@ def _show_tc_list(cli, tcs):
             cli.fout.write('  worker %d (%d classes)\n' % (wid, len(matched)))
 
         for tc in matched:
+            c_ = getattr(tc, 'class')
             cli.fout.write('    %-16s  ' \
-                           'parent %-10s  priority %-3d  tasks %-3d ' \
+                           'parent %-10s  %s %-3d  tasks %-3d ' \
                            '%s\n' % \
-                           (getattr(tc, 'class').name,
+                           (c_.name,
                            tc.parent if tc.parent else 'none',
-                           getattr(tc, 'class').priority_share,
+                           'priority' if c_.HasField('priority') else 'share',
+                           c_.priority if c_.HasField('priority') else c_.share,
                            tc.tasks,
-                           _limit_to_str(getattr(tc, 'class').limit)))
+                           _limit_to_str(c_.limit)))
 
 
 @cmd('show tc', 'Show the list of traffic classes')
