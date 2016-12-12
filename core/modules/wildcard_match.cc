@@ -158,8 +158,7 @@ void WildcardMatch::ProcessBatch(bess::PacketBatch *batch) {
     if (attr_id < 0) {
       offset = field.offset;
     } else {
-      offset = bess::Packet::mt_offset_to_databuf_offset(
-          all_attr_offsets()[attr_id]);
+      offset = bess::Packet::mt_offset_to_databuf_offset(attr_offset(attr_id));
     }
 
     char *key = keys[0] + pos;

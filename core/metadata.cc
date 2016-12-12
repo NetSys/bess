@@ -43,7 +43,7 @@ static void CheckOrphanReaders() {
 
     size_t i = 0;
     for (const auto &attr : m->all_attrs()) {
-      if (m->all_attr_offsets()[i] == kMetadataOffsetNoRead) {
+      if (m->attr_offset(i) == kMetadataOffsetNoRead) {
         LOG(WARNING) << "Metadata attr " << attr.name << "/" << attr.size
                      << " of module " << m->name() << " has "
                      << "no upstream module that sets the value!";

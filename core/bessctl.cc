@@ -203,7 +203,7 @@ static int collect_metadata(Module* m, GetModuleInfoResponse* response) {
         DCHECK(0);
     }
 
-    attr->set_offset(m->all_attr_offsets()[i]);
+    attr->set_offset(m->attr_offset(i));
     i++;
   }
 
