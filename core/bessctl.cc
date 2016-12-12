@@ -1019,13 +1019,6 @@ class BESSControlImpl final : public BESSControl::Service {
       }
     } else if (request->identifier_case() ==
                bess::pb::AttachTaskRequest::kWid) {
-      if (t->c()) {
-        return return_with_error(response, EBUSY,
-                                 "Task %s:%hu is already "
-                                 "attached to a TC",
-                                 request->name().c_str(), tid);
-      }
-
       int wid = request->wid(); /* TODO: worker_id_t */
       if (wid >= MAX_WORKERS) {
         return return_with_error(response, EINVAL,
