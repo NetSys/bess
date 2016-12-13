@@ -114,7 +114,7 @@ static pb_error_t find_dpdk_port(dpdk_port_t port_id, const std::string &pci,
                                  const std::string &vdev,
                                  dpdk_port_t *ret_port_id,
                                  bool *ret_hot_plugged) {
-  if (pci.length() == 0) {
+  if (port_id != DPDK_PORT_UNKNOWN) {
     if (port_id >= RTE_MAX_ETHPORTS) {
       return pb_error(EINVAL, "Invalid port id %d", port_id);
     }
@@ -122,46 +122,48 @@ static pb_error_t find_dpdk_port(dpdk_port_t port_id, const std::string &pci,
       return pb_error(ENODEV, "Port id %d is not available", port_id);
     }
   } else {
-    struct rte_pci_addr addr;
-    if (port_id != DPDK_PORT_UNKNOWN) {
-      return pb_error(EINVAL,
-                      "You cannot specify both "
-                      "'port_id' and 'pci' fields");
-    }
-    if (eal_parse_pci_DomBDF(pci.c_str(), &addr) != 0 &&
-        eal_parse_pci_BDF(pci.c_str(), &addr) != 0) {
-      return pb_error(EINVAL,
-                      "PCI address must be like "
-                      "dddd:bb:dd.ff or bb:dd.ff");
-    }
-    for (int i = 0; i < RTE_MAX_ETHPORTS; i++) {
-      if (!rte_eth_devices[i].attached || !rte_eth_devices[i].pci_dev ||
-          rte_eal_compare_pci_addr(&addr, &rte_eth_devices[i].pci_dev->addr)) {
-        continue;
+    if (pci.length() != 0) {
+      struct rte_pci_addr addr;
+      if (port_id != DPDK_PORT_UNKNOWN) {
+        return pb_error(EINVAL,
+                        "You cannot specify both "
+                        "'port_id' and 'pci' fields");
+      }
+      if (eal_parse_pci_DomBDF(pci.c_str(), &addr) != 0 &&
+          eal_parse_pci_BDF(pci.c_str(), &addr) != 0) {
+        return pb_error(EINVAL,
+                        "PCI address must be like "
+                        "dddd:bb:dd.ff or bb:dd.ff");
+      }
+      for (int i = 0; i < RTE_MAX_ETHPORTS; i++) {
+        if (!rte_eth_devices[i].attached || !rte_eth_devices[i].pci_dev ||
+            rte_eal_compare_pci_addr(&addr, &rte_eth_devices[i].pci_dev->addr)) {
+          continue;
+        }
+
+        port_id = i;
+        break;
       }
 
-      port_id = i;
-      break;
-    }
+      /* If not found, maybe the device has not been attached yet */
+      if (port_id == DPDK_PORT_UNKNOWN) {
+        char name[RTE_ETH_NAME_MAX_LEN];
+        int ret;
 
-    /* If not found, maybe the device has not been attached yet */
-    if (port_id == DPDK_PORT_UNKNOWN) {
-      char name[RTE_ETH_NAME_MAX_LEN];
-      int ret;
+        snprintf(name, RTE_ETH_NAME_MAX_LEN, "%04x:%02x:%02x.%02x", addr.domain,
+                 addr.bus, addr.devid, addr.function);
 
-      snprintf(name, RTE_ETH_NAME_MAX_LEN, "%04x:%02x:%02x.%02x", addr.domain,
-               addr.bus, addr.devid, addr.function);
+        ret = rte_eth_dev_attach(name, &port_id);
 
-      ret = rte_eth_dev_attach(name, &port_id);
+        if (ret < 0) {
+          return pb_error(ENODEV,
+                          "Cannot attach PCI "
+                          "device %s",
+                          name);
+        }
 
-      if (ret < 0) {
-        return pb_error(ENODEV,
-                        "Cannot attach PCI "
-                        "device %s",
-                        name);
+        *ret_hot_plugged = true;
       }
-
-      *ret_hot_plugged = true;
     }
   }
 
@@ -202,8 +204,9 @@ pb_error_t PMDPort::Init(const bess::pb::PMDPortArg &arg) {
   int i;
 
   pb_error_t err = find_dpdk_port(
-      arg.pci().length() != 0 ? DPDK_PORT_UNKNOWN : arg.port_id(), arg.pci(),
-      arg.vdev(), &ret_port_id, &hot_plugged_);
+      (arg.pci().length() != 0 || arg.vdev().length() != 0) ? DPDK_PORT_UNKNOWN
+                                                            : arg.port_id(),
+      arg.pci(), arg.vdev(), &ret_port_id, &hot_plugged_);
   if (err.err() != 0) {
     return err;
   }
