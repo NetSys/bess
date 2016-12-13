@@ -12,6 +12,7 @@ class Measure final : public Module {
   Measure()
       : Module(),
         hist_(),
+        summary_(),
         start_time_(),
         warmup_(),
         pkt_cnt_(),
@@ -26,6 +27,7 @@ class Measure final : public Module {
 
  private:
   struct histogram hist_;
+  struct hist_summary summary_;
 
   uint64_t start_time_;
   int warmup_; /* second */

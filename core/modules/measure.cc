@@ -70,10 +70,18 @@ pb_cmd_response_t Measure::CommandGetSummary(const bess::pb::EmptyArg &) {
   pb_cmd_response_t response;
 
   bess::pb::MeasureCommandGetSummaryResponse r;
+  summarize_hist(&hist_, &summary_);
+  reset_hist(&hist_);
+
   r.set_timestamp(get_epoch_time());
   r.set_packets(pkt_total);
   r.set_bits(bits);
   r.set_total_latency_ns(total_latency_ * 100);
+  r.set_latency_min_ns(summary_.min);
+  r.set_latency_avg_ns(summary_.avg);
+  r.set_latency_max_ns(summary_.max);
+  r.set_latency_50_ns(summary_.latencies[1]);
+  r.set_latency_99_ns(summary_.latencies[2]);
 
   response.mutable_error()->set_err(0);
   response.mutable_other()->PackFrom(r);
