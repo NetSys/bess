@@ -1037,7 +1037,7 @@ class BESSControlImpl final : public BESSControl::Service {
         return return_with_error(response, ENOENT,
                                  "Worker %d has no default leaf tc", wid);
       }
-      tc->AddTask(t);
+      t->Attach(tc);
     } else {
       return return_with_error(response, EINVAL, "Both tc and wid are not set");
     }
