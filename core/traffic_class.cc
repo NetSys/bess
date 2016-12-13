@@ -260,19 +260,19 @@ void RateLimitTrafficClass::FinishAndAccountTowardsRoot(Scheduler *sched,
                                                         resource_arr_t usage,
                                                         uint64_t tsc) {
   ACCUMULATE(stats_.usage, usage);
-  last_tsc_ = tsc;
   uint64_t elapsed_cycles = tsc - last_tsc_;
+  last_tsc_ = tsc;
 
   uint64_t tokens = tokens_ + limit_ * elapsed_cycles;
   uint64_t consumed = usage[resource_] << USAGE_AMPLIFIER_POW;
   if (tokens < consumed) {
     // Exceeded limit, throttled.
-    uint64_t wait_tsc = (consumed - tokens) / limit_;
     tokens_ = 0;
     blocked_ = true;
     ++stats_.cnt_throttled;
-    throttle_expiration_ = tsc + wait_tsc;
 
+    uint64_t wait_tsc = (consumed - tokens) / limit_;
+    throttle_expiration_ = tsc + wait_tsc;
     sched->AddThrottled(this);
   } else {
     // Still has some tokens, unthrottled.
