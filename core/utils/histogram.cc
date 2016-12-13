@@ -1,6 +1,10 @@
 #include "histogram.h"
+
+#include <glog/logging.h>
+
 #include <inttypes.h>
 #include <stdio.h>
+
 static const char* choose_unit_str(int TIMEUNIT) {
   if (TIMEUNIT <= 1)
     return "sec";
@@ -46,8 +50,9 @@ struct histogram* combine_histograms(struct histogram* a, struct histogram* b) {
   return a;
 }
 
-void print_summary(struct histogram* hist) {
-  // NOTE: This is destructive.
+void summarize_hist(struct histogram* hist, struct hist_summary *summary) {
+  CHECK(hist);
+  CHECK(summary);
   uint64_t total = 0;
   uint64_t count = 0;
   uint64_t min = 0;
@@ -55,10 +60,6 @@ void print_summary(struct histogram* hist) {
   int max_bucket = 0;
   int found_min = 0;
   const int timeunit_mult = choose_unit_mult(HISTO_TIMEUNIT_MULT);
-  const char* timeunit_name = choose_unit_str(HISTO_TIMEUNIT_MULT);
-  printf("   Unit: %lu %s\n", HISTO_TIME * timeunit_mult, timeunit_name);
-  printf("\n\nSummary Statistics\n");
-  printf("-----------------------------------------------------------\n");
   histo_count_t* arr = hist->arr;
   for (int i = 0; i < HISTO_BUCKETS; i++) {
     size_t current_size = HISTO_BUCKET_VAL(arr + i);
@@ -83,7 +84,7 @@ void print_summary(struct histogram* hist) {
     return;
   }
 
-  uint64_t counts[] = {count / 100,
+  uint64_t counts[HISTO_SUMMARY_POINTS] = {count / 100,
                        count / 2,
                        (count * 99) / 100,
                        (count * 999) / 1000,
@@ -91,7 +92,7 @@ void print_summary(struct histogram* hist) {
                        (uint64_t)((double)count * (0.99999)),
                        (uint64_t)((double)count * (0.999999))};
 
-  uint64_t latencies[] = {0, 0, 0, 0, 0, 0, 0};
+  uint64_t latencies[HISTO_SUMMARY_POINTS] = {0, 0, 0, 0, 0, 0, 0};
 
   for (int i = 0; i < max_bucket; i++) {
     uint64_t latency = (i + 1) * HISTO_TIME * timeunit_mult;
@@ -102,15 +103,33 @@ void print_summary(struct histogram* hist) {
     }
   }
 
-  printf("##   Min: %" PRIu64 " %s\n", min, timeunit_name);
-  printf("##   Avg: %" PRIu64 " %s\n", (total / count), timeunit_name);
-  printf("##   Max: %" PRIu64 " %s\n", max, timeunit_name);
-  printf("##   1%%ile: %" PRIu64 " %s\n", latencies[0], timeunit_name);
-  printf("##   50%%ile: %" PRIu64 " %s\n", latencies[1], timeunit_name);
-  printf("##   99%%ile: %" PRIu64 " %s\n", latencies[2], timeunit_name);
-  printf("##   99.9%%ile: %" PRIu64 " %s\n", latencies[3], timeunit_name);
-  printf("##   99.99%%ile: %" PRIu64 " %s\n", latencies[4], timeunit_name);
-  printf("##   99.999%%ile: %" PRIu64 " %s\n", latencies[5], timeunit_name);
-  printf("##   99.9999%%ile: %" PRIu64 " %s\n", latencies[6], timeunit_name);
-  printf("##   Total: %" PRIu64 "\n", count);
+  summary->min = min;
+  summary->avg = total / count;
+  summary->max = max;
+  summary->count = count;
+  memcpy(summary->latencies,
+         latencies, sizeof(uint64_t) * HISTO_SUMMARY_POINTS);
+}
+
+void print_summary(struct hist_summary* s) {
+  const int timeunit_mult = choose_unit_mult(HISTO_TIMEUNIT_MULT);
+  const char* timeunit_name = choose_unit_str(HISTO_TIMEUNIT_MULT);
+  printf("   Unit: %lu %s\n", HISTO_TIME * timeunit_mult, timeunit_name);
+  printf("\n\nSummary Statistics\n");
+  printf("-----------------------------------------------------------\n");
+  printf("##   Min: %" PRIu64 " %s\n", s->min, timeunit_name);
+  printf("##   Avg: %" PRIu64 " %s\n", s->avg, timeunit_name);
+  printf("##   Max: %" PRIu64 " %s\n", s->max, timeunit_name);
+  printf("##   1%%ile: %" PRIu64 " %s\n", s->latencies[0], timeunit_name);
+  printf("##   50%%ile: %" PRIu64 " %s\n", s->latencies[1], timeunit_name);
+  printf("##   99%%ile: %" PRIu64 " %s\n", s->latencies[2], timeunit_name);
+  printf("##   99.9%%ile: %" PRIu64 " %s\n", s->latencies[3], timeunit_name);
+  printf("##   99.99%%ile: %" PRIu64 " %s\n", s->latencies[4], timeunit_name);
+  printf("##   99.999%%ile: %" PRIu64 " %s\n", s->latencies[5], timeunit_name);
+  printf("##   99.9999%%ile: %" PRIu64 " %s\n", s->latencies[6], timeunit_name);
+  printf("##   Total: %" PRIu64 "\n", s->count);
+}
+
+void reset_hist(struct histogram *hist) {
+  memset(hist, 0, sizeof(struct histogram));
 }
