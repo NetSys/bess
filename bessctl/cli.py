@@ -66,6 +66,8 @@ class CLI(object):
 
     def err(self, msg):
         self.fout.write('*** Error: %s\n' % msg)
+        if not self.interactive:
+            sys.exit(2)
 
     # If not a variable, simply return None
     # Otherwise, return (var_type, desc, candidates):
