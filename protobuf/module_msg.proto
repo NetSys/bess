@@ -279,8 +279,11 @@ message SetMetadataArg {
   message Attribute {
     string name = 1;
     uint64 size = 2;
-    uint64 value = 3;
-    int64 offset = 4;
+    oneof value {
+      uint64 value_int = 3;
+      bytes value_hex = 4;
+    }
+    int64 offset = 5;
   }
   repeated Attribute attrs = 1;
 }
