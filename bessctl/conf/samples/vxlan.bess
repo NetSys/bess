@@ -41,18 +41,18 @@ import struct
 def atoh(ip):
     return struct.unpack("!L", socket.inet_aton(ip))[0]
 
-os.system('sudo docker pull ubuntu > /dev/null')
-os.system('sudo docker run -i -d --net=none --name=vxlan_test ubuntu /bin/bash > /dev/null')
+os.system('docker pull ubuntu > /dev/null')
+os.system('docker run -i -d --net=none --name=vxlan_test ubuntu /bin/bash > /dev/null')
 
 # Alice live outside the container, wanting to talk to Bob in the container
 v_bob = VPort(ifname='eth_bob', docker='vxlan_test', ip_addrs=['172.16.100.33/28'])
 v_alice = VPort(ifname='eth_alice', ip_addrs=['10.0.10.2/24'], mac_addr='02:0a:0b:0c:0d:0e')
 
 # Alice -> Bob
-PortInc(port=v_alice.name) -> bpf::BPF():1 -> VXLANDecap() -> PortOut(port=v_bob.name)
+PortInc(port=v_alice) -> bpf::BPF():1 -> VXLANDecap() -> PortOut(port=v_bob)
 
 # Bob -> Alice
-PortInc(port=v_bob.name) \
+PortInc(port=v_bob) \
     -> SetMetadata(attrs=
             [{'name': 'tun_ip_src', 'size': 4, 'value': atoh('10.0.10.1')},
              {'name': 'tun_ip_dst', 'size': 4, 'value': atoh('10.0.10.2')},
@@ -63,7 +63,7 @@ PortInc(port=v_bob.name) \
             [{'name': 'ether_src', 'size': 6, 'value': 0x050403020102},
              {'name': 'ether_dst', 'size': 6, 'value': 0x0e0d0c0b0a02}]) \
     -> EtherEncap() \
-    -> PortOut(port=v_alice.name)
+    -> PortOut(port=v_alice)
 
 bpf.add([{'filter':'ip and udp dst port 4789', 'gate':1}])
 
@@ -78,7 +78,7 @@ os.system('ping -W 1.0 -c 64 -i 0.2 172.16.100.33')
 
 bess.pause_all()
 
-os.system('sudo docker kill vxlan_test > /dev/null')
-os.system('sudo docker rm vxlan_test > /dev/null')
+os.system('docker kill vxlan_test > /dev/null')
+os.system('docker rm vxlan_test > /dev/null')
 
 bess.reset_all()

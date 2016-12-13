@@ -29,6 +29,23 @@ class ConfError(Exception):
     pass
 
 
+@staticmethod
+def _choose_arg(arg, kwargs):
+    if kwargs:
+        if arg:
+            raise TypeError('You cannot specify both arg and keyword args')
+
+        for key in kwargs:
+            if isinstance(kwargs[key], (Module, Port)):
+                kwargs[key] = kwargs[key].name
+
+        return kwargs
+
+    if isinstance(arg, (Module, Port)):
+        return arg.name
+    else:
+        return arg
+
 def __bess_env__(key, default=None):
     try:
         return os.environ[key]
@@ -593,7 +610,7 @@ def _do_run_file(cli, conf_file):
             raise cli.InternalError('Invalid driver name: %s' % name)
 
         new_globals[name] = type(str(name), (Port,),
-                                 {'bess': cli.bess})
+                                 {'bess': cli.bess, 'choose_arg': _choose_arg})
 
     # Add BESS module classes
     for name in class_names:
@@ -601,7 +618,7 @@ def _do_run_file(cli, conf_file):
             raise cli.InternalError('Invalid module class name: %s' % name)
 
         new_globals[name] = type(str(name), (Module,),
-                                 {'bess': cli.bess})
+                                 {'bess': cli.bess, 'choose_arg': _choose_arg})
 
     code = compile(xformed, conf_file, 'exec')
 
