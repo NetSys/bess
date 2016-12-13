@@ -301,7 +301,7 @@ static Module* create_module(const std::string& name,
   ctx.SetNonWorker();
   *perr = m->InitWithGenericArg(arg);
   if (perr->err() != 0) {
-    LOG(INFO) << perr->DebugString();
+    VLOG(1) << perr->DebugString();
     ModuleBuilder::DestroyModule(m);  // XXX: fix me
     return nullptr;
   }
@@ -701,8 +701,8 @@ class BESSControlImpl final : public BESSControl::Service {
     const char* driver_name;
     ::Port* port = nullptr;
 
-    LOG(INFO) << "CreatePortRequest from client:" << std::endl
-              << request->DebugString();
+    VLOG(1) << "CreatePortRequest from client:" << std::endl
+            << request->DebugString();
 
     if (request->driver().length() == 0)
       return return_with_error(response, EINVAL, "Missing 'driver' field");
@@ -808,8 +808,8 @@ class BESSControlImpl final : public BESSControl::Service {
       return return_with_error(response, EBUSY, "There is a running worker");
     }
 
-    LOG(INFO) << "CreateModuleRequest from client:" << std::endl
-              << request->DebugString();
+    VLOG(1) << "CreateModuleRequest from client:" << std::endl
+            << request->DebugString();
 
     if (!request->mclass().length()) {
       return return_with_error(response, EINVAL, "Missing 'mclass' field");
