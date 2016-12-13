@@ -110,8 +110,8 @@ def connect_bess():
         sock.close()
         s.connect()
     except socket.error as e:
-        print >> sys.stderr, e
-
+        pass
+        
     return s
 
 
