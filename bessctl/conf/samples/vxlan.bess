@@ -36,10 +36,9 @@ Container Bob  |    (regular Ethernet port)    |
 
 import os
 import socket
-import struct
 
-def atoh(ip):
-    return struct.unpack("!L", socket.inet_aton(ip))[0]
+def aton(ip):
+    return socket.inet_aton(ip)
 
 os.system('docker pull ubuntu > /dev/null')
 os.system('docker run -i -d --net=none --name=vxlan_test ubuntu /bin/bash > /dev/null')
@@ -54,9 +53,9 @@ PortInc(port=v_alice) -> bpf::BPF():1 -> VXLANDecap() -> PortOut(port=v_bob)
 # Bob -> Alice
 PortInc(port=v_bob) \
     -> SetMetadata(attrs=
-            [{'name': 'tun_ip_src', 'size': 4, 'value_int': atoh('10.0.10.1')},
-             {'name': 'tun_ip_dst', 'size': 4, 'value_int': atoh('10.0.10.2')},
-             {'name': 'tun_id', 'size': 4, 'value': 999}]) \
+            [{'name': 'tun_ip_src', 'size': 4, 'value_hex': aton('10.0.10.1')},
+             {'name': 'tun_ip_dst', 'size': 4, 'value_hex': aton('10.0.10.2')},
+             {'name': 'tun_id', 'size': 4, 'value_int': 999}]) \
     -> VXLANEncap(dstport=4789) \
     -> IPEncap() \
     -> SetMetadata(attrs=
