@@ -127,10 +127,11 @@ class Scheduler final {
       RateLimitTrafficClass *rc = throttled_cache_.top();
       if (rc->throttle_expiration_ < tsc) {
         throttled_cache_.pop();
+        uint64_t expiration = rc->throttle_expiration_;
         rc->throttle_expiration_ = 0;
 
         // Traverse upward toward root to unblock any blocked parents.
-        rc->UnblockTowardsRoot(tsc);
+        rc->UnblockTowardsRoot(expiration);
       } else {
         break;
       }
