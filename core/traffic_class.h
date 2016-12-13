@@ -21,7 +21,7 @@ namespace bess {
 #define DEFAULT_PRIORITY 0xFFFFFFFFu
 
 #define USAGE_AMPLIFIER_POW 32
-
+ 
 // Share is defined relatively, so 1024 should be large enough
 #define STRIDE1 (1 << 20)
 
@@ -366,11 +366,7 @@ class RateLimitTrafficClass final : public TrafficClass {
         child_() {
     limit_ = (limit << (USAGE_AMPLIFIER_POW - 4)) / (tsc_hz >> 4);
     if (limit_) {
-      if (max_burst_) {
-        max_burst_ = (max_burst << (USAGE_AMPLIFIER_POW - 4)) / (tsc_hz >> 4);
-      } else {
-        max_burst_ = UINT64_MAX;
-      }
+      max_burst_ = (max_burst << (USAGE_AMPLIFIER_POW - 4)) / (tsc_hz >> 4);
     }
   }
 
