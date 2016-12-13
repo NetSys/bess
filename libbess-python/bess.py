@@ -1,12 +1,13 @@
+import errno
+import grpc
+import inspect
+import os
+import pprint
 import socket
 import struct
-import errno
 import sys
-import os
-import inspect
-import time
-import grpc
 import threading
+import time
 
 import service_pb2
 import proto_conv
@@ -94,6 +95,18 @@ class BESS(object):
             if details == '':
                 details = None
             raise self.Error(err, errmsg, details)
+
+        if self.debug:
+            req = proto_conv.protobuf_to_dict(request)
+            res = proto_conv.protobuf_to_dict(response)
+            print '====',  req_fn._method
+            print '--->', type(request).__name__
+            if req:
+                pprint.pprint(req)
+            print '<---', type(response).__name__
+            if res:
+                pprint.pprint(res)
+
         return response
 
     def kill(self):
