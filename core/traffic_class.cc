@@ -249,7 +249,7 @@ TrafficClass *RateLimitTrafficClass::PickNextChild() {
 }
 
 void RateLimitTrafficClass::UnblockTowardsRoot(uint64_t tsc) {
-  //last_tsc_ = tsc;
+  last_tsc_ = tsc;
 
   bool blocked = throttle_expiration_ || child_->blocked_;
   TrafficClass::UnblockTowardsRootSetBlocked(tsc, blocked);
