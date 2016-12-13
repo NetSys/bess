@@ -184,7 +184,7 @@ class BESS(object):
     def reset_modules(self):
         return self._request(self.stub.ResetModules)
 
-    def create_module(self, mclass, name, arg):
+    def create_module(self, mclass, name=None, arg=None):
         kv = {
             'name': name,
             'mclass': mclass,
