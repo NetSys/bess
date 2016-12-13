@@ -59,7 +59,7 @@ PortInc(port=v_bob) \
     -> VXLANEncap(dstport=4789) \
     -> IPEncap() \
     -> SetMetadata(attrs=
-            [{'name': 'ether_src', 'size': 6, 'value_hex': '\x02\x0a\x0b\x0c\x0d\x0e'},
+            [{'name': 'ether_src', 'size': 6, 'value_hex': '\x02\x01\x02\x03\x04\x05'},
              {'name': 'ether_dst', 'size': 6, 'value_hex': '\x02\x0a\x0b\x0c\x0d\x0e'}]) \
     -> EtherEncap() \
     -> PortOut(port=v_alice)
