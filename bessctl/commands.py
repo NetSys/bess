@@ -513,6 +513,10 @@ def daemon_start(cli, opts):
         _do_start(cli, opts)
 
 
+def is_bess_connected(cli):
+    return cli.bess.is_connected()
+
+
 def is_pipeline_empty(cli):
     workers = cli.bess.list_workers().workers_status
     modules = cli.bess.list_modules().modules
@@ -530,6 +534,10 @@ def _do_reset(cli):
 
 @cmd('daemon reset', 'Remove all ports and modules in the pipeline')
 def daemon_reset(cli):
+    if not is_bess_connected(cli):
+        cli.err('BESS daemon is not connected')
+        return
+
     if is_pipeline_empty(cli):
         _do_reset(cli)
     else:
@@ -545,6 +553,10 @@ def _do_stop(cli):
 
 @cmd('daemon stop', 'Stop BESS daemon')
 def daemon_stop(cli):
+    if not is_bess_connected(cli):
+        cli.err('BESS daemon is not connected')
+        return
+
     if is_pipeline_empty(cli):
         _do_stop(cli)
     else:
@@ -646,6 +658,10 @@ def _run_file(cli, conf_file, env_map):
 
 @cmd('run CONF [ENV_VARS...]', 'Run a *.bess configuration in "conf/"')
 def run_conf(cli, conf, env_map):
+    if not is_bess_connected(cli):
+        cli.err('BESS daemon is not connected')
+        return
+
     target_dir = '%s/conf' % cli.this_dir
     basename = os.path.expanduser('%s.%s' % (conf, CONF_EXT))
     conf_file = os.path.join(target_dir, basename)
@@ -654,11 +670,19 @@ def run_conf(cli, conf, env_map):
 
 @cmd('run file CONF_FILE [ENV_VARS...]', 'Run a configuration file')
 def run_file(cli, conf_file, env_map):
+    if not is_bess_connected(cli):
+        cli.err('BESS daemon is not connected')
+        return
+
     _run_file(cli, os.path.expanduser(conf_file), env_map)
 
 
 @cmd('add port DRIVER [NEW_PORT] [PORT_ARGS...]', 'Add a new port')
 def add_port(cli, driver, port, args):
+    if not is_bess_connected(cli):
+        cli.err('BESS daemon is not connected')
+        return
+
     ret = cli.bess.create_port(driver, port, args)
 
     if port is None:
@@ -667,6 +691,10 @@ def add_port(cli, driver, port, args):
 
 @cmd('add module MCLASS [NEW_MODULE] [MODULE_ARGS...]', 'Add a new module')
 def add_module(cli, mclass, module, args):
+    if not is_bess_connected(cli):
+        cli.err('BESS daemon is not connected')
+        return
+
     cli.bess.pause_all()
     try:
         ret = cli.bess.create_module(mclass, module, args)
@@ -680,6 +708,10 @@ def add_module(cli, mclass, module, args):
 @cmd('add connection MODULE MODULE [OGATE] [IGATE]',
      'Add a connection between two modules')
 def add_connection(cli, m1, m2, ogate, igate):
+    if not is_bess_connected(cli):
+        cli.err('BESS daemon is not connected')
+        return
+
     if ogate is None:
         ogate = 0
 
@@ -696,6 +728,10 @@ def add_connection(cli, m1, m2, ogate, igate):
 @cmd('command module MODULE MODULE_CMD ARG_TYPE [CMD_ARGS...]',
      'Send a command to a module')
 def command_module(cli, module, cmd, arg_type, args):
+    if not is_bess_connected(cli):
+        cli.err('BESS daemon is not connected')
+        return
+
     cli.bess.pause_all()
     try:
         ret = cli.bess.run_module_command(module, cmd, arg_type, args)
@@ -706,11 +742,19 @@ def command_module(cli, module, cmd, arg_type, args):
 
 @cmd('delete port PORT', 'Delete a port')
 def delete_port(cli, port):
+    if not is_bess_connected(cli):
+        cli.err('BESS daemon is not connected')
+        return
+
     cli.bess.destroy_port(port)
 
 
 @cmd('delete module MODULE', 'Delete a module')
 def delete_module(cli, module):
+    if not is_bess_connected(cli):
+        cli.err('BESS daemon is not connected')
+        return
+
     cli.bess.pause_all()
     try:
         cli.bess.destroy_module(module)
@@ -721,6 +765,10 @@ def delete_module(cli, module):
 @cmd('delete connection MODULE ogate [OGATE]',
      'Delete a connection between two modules')
 def delete_connection(cli, module, ogate):
+    if not is_bess_connected(cli):
+        cli.err('BESS daemon is not connected')
+        return
+
     if ogate is None:
         ogate = 0
 
@@ -751,6 +799,10 @@ def _show_worker(cli, w):
 
 @cmd('show worker', 'Show the status of all worker threads')
 def show_worker_all(cli):
+    if not is_bess_connected(cli):
+        cli.err('BESS daemon is not connected')
+        return
+
     workers = cli.bess.list_workers().workers_status
 
     if len(workers) == 0:
@@ -763,6 +815,10 @@ def show_worker_all(cli):
 
 @cmd('show worker WORKER_ID...', 'Show the status of specified worker threads')
 def show_worker_list(cli, worker_ids):
+    if not is_bess_connected(cli):
+        cli.err('BESS daemon is not connected')
+        return
+
     workers = cli.bess.list_workers().workers_status
 
     for wid in worker_ids:
@@ -835,11 +891,19 @@ def _show_tc_list(cli, tcs):
 
 @cmd('show tc', 'Show the list of traffic classes')
 def show_tc_all(cli):
+    if not is_bess_connected(cli):
+        cli.err('BESS daemon is not connected')
+        return
+
     _show_tc_list(cli, cli.bess.list_tcs().classes_status)
 
 
 @cmd('show tc worker WORKER_ID...', 'Show the list of traffic classes')
 def show_tc_workers(cli, wids):
+    if not is_bess_connected(cli):
+        cli.err('BESS daemon is not connected')
+        return
+
     wids = sorted(list(set(wids)))
     for wid in wids:
         _show_tc_list(cli, cli.bess.list_tcs(wid).classes_status)
@@ -847,6 +911,10 @@ def show_tc_workers(cli, wids):
 
 @cmd('show status', 'Show the overall status')
 def show_status(cli):
+    if not is_bess_connected(cli):
+        cli.err('BESS daemon is not connected')
+        return
+
     workers = sorted(cli.bess.list_workers().workers_status,
                      key=lambda x: x.wid)
     drivers = sorted(cli.bess.list_drivers().driver_names)
@@ -951,12 +1019,20 @@ def _draw_pipeline(cli, field, last_stats=None):
 
 @cmd('show pipeline', 'Show the current datapath pipeline')
 def show_pipeline(cli):
+    if not is_bess_connected(cli):
+        cli.err('BESS daemon is not connected')
+        return
+
     cli.fout.write(_draw_pipeline(cli, 'pkts'))
 
 
 @cmd('show pipeline batch',
      'Show the current datapath pipeline with batch counters')
 def show_pipeline_batch(cli):
+    if not is_bess_connected(cli):
+        cli.err('BESS daemon is not connected')
+        return
+
     cli.fout.write(_draw_pipeline(cli, 'cnt'))
 
 
@@ -987,6 +1063,10 @@ def _show_port(cli, port):
 
 @cmd('show port', 'Show the status of all ports')
 def show_port_all(cli):
+    if not is_bess_connected(cli):
+        cli.err('BESS daemon is not connected')
+        return
+
     ports = cli.bess.list_ports().ports
 
     if len(ports) == 0:
@@ -998,6 +1078,10 @@ def show_port_all(cli):
 
 @cmd('show port PORT...', 'Show the status of spcified ports')
 def show_port_list(cli, port_names):
+    if not is_bess_connected(cli):
+        cli.err('BESS daemon is not connected')
+        return
+
     ports = cli.bess.list_ports().ports
 
     port_names = list(set(port_names))
@@ -1068,6 +1152,10 @@ def _show_module(cli, module_name):
 
 @cmd('show module', 'Show the status of all modules')
 def show_module_all(cli):
+    if not is_bess_connected(cli):
+        cli.err('BESS daemon is not connected')
+        return
+
     modules = cli.bess.list_modules().modules
 
     if not modules:
@@ -1079,6 +1167,10 @@ def show_module_all(cli):
 
 @cmd('show module MODULE...', 'Show the status of specified modules')
 def show_module_list(cli, module_names):
+    if not is_bess_connected(cli):
+        cli.err('BESS daemon is not connected')
+        return
+
     for module_name in module_names:
         _show_module(cli, module_name)
 
@@ -1096,6 +1188,10 @@ def _show_mclass(cli, cls_name, detail):
 
 @cmd('show mclass', 'Show all module classes')
 def show_mclass_all(cli):
+    if not is_bess_connected(cli):
+        cli.err('BESS daemon is not connected')
+        return
+
     mclasses = cli.bess.list_mclasses().names
     for cls_name in mclasses:
         _show_mclass(cli, cls_name, False)
@@ -1103,6 +1199,10 @@ def show_mclass_all(cli):
 
 @cmd('show mclass MCLASS...', 'Show the details of specified module classes')
 def show_mclass_list(cli, cls_names):
+    if not is_bess_connected(cli):
+        cli.err('BESS daemon is not connected')
+        return
+
     for cls_name in cls_names:
         _show_mclass(cli, cls_name, True)
 
@@ -1120,6 +1220,10 @@ def _show_driver(cli, drv_name, detail):
 
 @cmd('show driver', 'Show all port drivers')
 def show_driver_all(cli):
+    if not is_bess_connected(cli):
+        cli.err('BESS daemon is not connected')
+        return
+
     drivers = cli.bess.list_drivers().driver_names
 
     for drv_name in drivers:
@@ -1128,6 +1232,10 @@ def show_driver_all(cli):
 
 @cmd('show driver DRIVER...', 'Show the details of specified drivers')
 def show_driver_list(cli, drv_names):
+    if not is_bess_connected(cli):
+        cli.err('BESS daemon is not connected')
+        return
+
     for drv_name in drv_names:
         _show_driver(cli, drv_name, True)
 
@@ -1154,12 +1262,20 @@ def _monitor_pipeline(cli, field):
 
 @cmd('monitor pipeline', 'Monitor packet counters in the datapath pipeline')
 def monitor_pipeline(cli):
+    if not is_bess_connected(cli):
+        cli.err('BESS daemon is not connected')
+        return
+
     _monitor_pipeline(cli, 'pkts')
 
 
 @cmd('monitor pipeline batch',
      'Monitor batch counters in the datapath pipeline')
 def monitor_pipeline_batch(cli):
+    if not is_bess_connected(cli):
+        cli.err('BESS daemon is not connected')
+        return
+
     _monitor_pipeline(cli, 'cnt')
 
 
@@ -1257,11 +1373,19 @@ def _monitor_ports(cli, *ports):
 
 @cmd('monitor port', 'Monitor the current traffic of all ports')
 def monitor_port_all(cli):
+    if not is_bess_connected(cli):
+        cli.err('BESS daemon is not connected')
+        return
+
     _monitor_ports(cli)
 
 
 @cmd('monitor port PORT...', 'Monitor the current traffic of specified ports')
 def monitor_port_all(cli, ports):
+    if not is_bess_connected(cli):
+        cli.err('BESS daemon is not connected')
+        return
+
     _monitor_ports(cli, *ports)
 
 
@@ -1355,11 +1479,19 @@ def _monitor_tcs(cli, *tcs):
 
 @cmd('monitor tc', 'Monitor the statistics of all traffic classes')
 def monitor_tc_all(cli):
+    if not is_bess_connected(cli):
+        cli.err('BESS daemon is not connected')
+        return
+
     _monitor_tcs(cli)
 
 
 @cmd('monitor tc TC...', 'Monitor the statistics of specified traffic classes')
 def monitor_tc_all(cli, tcs):
+    if not is_bess_connected(cli):
+        cli.err('BESS daemon is not connected')
+        return
+
     _monitor_tcs(cli, *tcs)
 
 
@@ -1367,6 +1499,10 @@ def monitor_tc_all(cli, tcs):
 @cmd('tcpdump MODULE [DIRECTION] [OGATE] [TCPDUMP_OPTS...]',
      'Capture packets on a gate')
 def tcpdump_module(cli, module_name, direction, gate, opts):
+    if not is_bess_connected(cli):
+        cli.err('BESS daemon is not connected')
+        return
+
     if gate is None:
         gate = 0
 
@@ -1418,6 +1554,10 @@ def tcpdump_module(cli, module_name, direction, gate, opts):
 @cmd('track ENABLE_DISABLE [MODULE] [DIRECTION] [GATE]',
      'Count the packets and batches on a gate')
 def track_module(cli, flag, module_name, direction, gate):
+    if not is_bess_connected(cli):
+        cli.err('BESS daemon is not connected')
+        return
+
     if direction is None:
         direction = 'out'
 
