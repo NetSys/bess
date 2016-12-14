@@ -246,8 +246,6 @@ class PriorityTrafficClass final : public TrafficClass {
 
   void Traverse(TravereseTcFn f, void *arg) const override;
 
-  size_t Size() const;
-
  private:
   friend Scheduler;
 
@@ -309,8 +307,6 @@ class WeightedFairTrafficClass final : public TrafficClass {
 
   void Traverse(TravereseTcFn f, void *arg) const override;
 
-  size_t Size() const;
-
  private:
   friend Scheduler;
 
@@ -355,8 +351,6 @@ class RoundRobinTrafficClass final : public TrafficClass {
   }
 
   void Traverse(TravereseTcFn f, void *arg) const override;
-
-  size_t Size() const;
 
  private:
   friend Scheduler;
@@ -415,8 +409,6 @@ class RateLimitTrafficClass final : public TrafficClass {
   TrafficClass *child() const { return child_; }
 
   void Traverse(TravereseTcFn f, void *arg) const override;
-
-  size_t Size() const;
 
  private:
   friend Scheduler;
