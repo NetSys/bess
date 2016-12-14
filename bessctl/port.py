@@ -7,7 +7,8 @@ class Port(object):
 
         name = kwargs.pop('name', None)
 
-        ret = self.bess.create_port(self.driver, name, kwargs)
+        ret = self.bess.create_port(self.driver, name,
+                                    self.choose_arg(None, kwargs))
 
         self.name = ret.name
 

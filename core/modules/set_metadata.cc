@@ -54,14 +54,27 @@ pb_error_t SetMetadata::AddAttrOne(
                     bess::metadata::kMetadataAttrMaxSize);
   }
 
-  if (attr.value() != 0) {
-    if (uint64_to_bin((uint8_t *)&value, size, attr.value(),
+  if (attr.value_case() == bess::pb::SetMetadataArg_Attribute::kValueInt) {
+    if (uint64_to_bin((uint8_t *)&value, size, attr.value_int(),
                       bess::utils::is_be_system())) {
       return pb_error(EINVAL,
-                      "'value' field has not a "
+                      "'value_int' field has not a "
                       "correct %lu-byte value",
                       size);
     }
+  } else if (attr.value_case() ==
+             bess::pb::SetMetadataArg_Attribute::kValueHex) {
+    if (attr.value_hex().length() != size) {
+      return pb_error(EINVAL,
+                      "'value_hex' field has not a "
+                      "correct %lu-byte value",
+                      size);
+    }
+    std::string value_hex(attr.value_hex());
+    if (!bess::utils::is_be_system()) {
+      std::reverse(value_hex.begin(), value_hex.end());
+    }
+    memcpy(&value, value_hex.data(), size);
   } else {
     offset = attr.offset();
     if (offset < 0 || offset + size >= SNBUF_DATA) {
