@@ -8,9 +8,11 @@ message PCAPPortArg {
 
 message PMDPortArg {
   bool loopback = 1;
-  uint64 port_id = 2;
-  string pci = 3;
-  string vdev = 4;
+  oneof port {
+    uint64 port_id = 2;
+    string pci = 3;
+    string vdev = 4;
+  }
 }
 
 message UnixSocketPortArg {
