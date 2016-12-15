@@ -110,6 +110,10 @@ void PMDPort::InitDriver() {
   }
 }
 
+// Find a port attached to DPDK by its integral id.
+// returns 0 and sets *ret_port_id to "port_id" if the port is valid and
+// available.
+// returns > 0 on error.
 static pb_error_t find_dpdk_port_by_id(dpdk_port_t port_id,
                                        dpdk_port_t *ret_port_id) {
   if (port_id >= RTE_MAX_ETHPORTS) {
@@ -123,6 +127,11 @@ static pb_error_t find_dpdk_port_by_id(dpdk_port_t port_id,
   return pb_errno(0);
 }
 
+// Find a port attached to DPDK by its PCI address.
+// returns 0 and sets *ret_port_id to the port_id of the port at PCI address
+// "pci" if it is valid and available. *ret_hot_plugged is set to true if the
+// device was attached to DPDK as a result of calling this function.
+// returns > 0 on error.
 static pb_error_t find_dpdk_port_by_pci_addr(const std::string &pci,
                                              dpdk_port_t *ret_port_id,
                                              bool *ret_hot_plugged) {
@@ -173,6 +182,11 @@ static pb_error_t find_dpdk_port_by_pci_addr(const std::string &pci,
   return pb_errno(0);
 }
 
+// Find a DPDK vdev by name.
+// returns 0 and sets *ret_port_id to the port_id of "vdev" if it is valid and
+// available. *ret_hot_plugged is set to true if the device was attached to
+// DPDK as a result of calling this function.
+// returns > 0 on error.
 static pb_error_t find_dpdk_vdev(const std::string &vdev,
                                  dpdk_port_t *ret_port_id,
                                  bool *ret_hot_plugged) {
