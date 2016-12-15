@@ -356,10 +356,9 @@ class BESS(object):
 
         return self._request(self.stub.AttachTask, request)
 
-    def list_tcs(self, wid=None):
+    def list_tcs(self, wid=-1):
         request = bess_msg.ListTcsRequest()
-        if wid is not None:
-            request.wid = wid
+        request.wid = wid
 
         return self._request(self.stub.ListTcs, request)
 

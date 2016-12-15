@@ -412,56 +412,80 @@ class BESSControlImpl final : public BESSControl::Service {
   }
   Status ListTcs(ServerContext*, const ListTcsRequest* request,
                  ListTcsResponse* response) override {
-    unsigned int wid_filter = MAX_WORKERS;
+    int wid_filter;
+    int i;
 
     wid_filter = request->wid();
-    if (wid_filter >= MAX_WORKERS) {
+    if (wid_filter >= num_workers) {
       return return_with_error(
-          response, EINVAL, "'wid' must be between 0 and %d", MAX_WORKERS - 1);
+          response, EINVAL, "'wid' must be between 0 and %d", num_workers - 1);
     }
 
-    if (!is_worker_active(wid_filter)) {
-      return return_with_error(response, EINVAL, "worker:%d does not exist",
-                               wid_filter);
+    if (wid_filter < 0) {
+      i = 0;
+      wid_filter = num_workers - 1;
+    } else {
+      i = wid_filter;
     }
 
-    for (const auto& pair : TrafficClassBuilder::all_tcs()) {
-      bess::TrafficClass* c = pair.second;
+    struct traverse_arg {
+      ListTcsResponse* response;
+      int wid;
+    };
 
-      ListTcsResponse_TrafficClassStatus* status =
-          response->add_classes_status();
-
-      if (c->parent()) {
-        status->set_parent(c->parent()->name());
+    for (; i <= wid_filter; i++) {
+      const bess::TrafficClass* root = workers[i]->scheduler()->root();
+      if (!root) {
+        return return_with_error(response, ENOENT, "worker:%d has no root tc",
+                                 i);
       }
 
-      status->mutable_class_()->set_name(c->name());
-      status->mutable_class_()->set_blocked(c->blocked());
+      struct traverse_arg arg__ = {response, i};
 
-      if (c->policy() >= 0 && c->policy() < bess::NUM_POLICIES) {
-        status->mutable_class_()->set_policy(
-            bess::TrafficPolicyName[c->policy()]);
-      } else {
-        status->mutable_class_()->set_policy("invalid");
-      }
+      root->Traverse(
+          [](const bess::TrafficClass* c, void* arg) {
+            struct traverse_arg* arg_ =
+                reinterpret_cast<struct traverse_arg*>(arg);
 
-      if (c->policy() == bess::POLICY_LEAF) {
-        status->set_tasks(
-            reinterpret_cast<bess::LeafTrafficClass*>(c)->tasks().size());
-      }
+            ListTcsResponse_TrafficClassStatus* status =
+                arg_->response->add_classes_status();
 
-      status->mutable_class_()->set_wid(wid_filter);
+            if (c->parent()) {
+              status->set_parent(c->parent()->name());
+            }
 
-      if (c->policy() == bess::POLICY_RATE_LIMIT) {
-        bess::RateLimitTrafficClass* rl =
-            reinterpret_cast<bess::RateLimitTrafficClass*>(c);
-        std::string resource = bess::ResourceName.at(rl->resource());
-        int64_t limit = rl->limit();
-        int64_t max_burst = rl->max_burst();
-        status->mutable_class_()->mutable_limit()->insert({resource, limit});
-        status->mutable_class_()->mutable_max_burst()->insert(
-            {resource, max_burst});
-      }
+            status->mutable_class_()->set_name(c->name());
+            status->mutable_class_()->set_blocked(c->blocked());
+
+            if (c->policy() >= 0 && c->policy() < bess::NUM_POLICIES) {
+              status->mutable_class_()->set_policy(
+                  bess::TrafficPolicyName[c->policy()]);
+            } else {
+              status->mutable_class_()->set_policy("invalid");
+            }
+
+            if (c->policy() == bess::POLICY_LEAF) {
+              status->set_tasks(
+                  reinterpret_cast<const bess::LeafTrafficClass*>(c)
+                      ->tasks()
+                      .size());
+            }
+
+            status->mutable_class_()->set_wid(arg_->wid);
+
+            if (c->policy() == bess::POLICY_RATE_LIMIT) {
+              const bess::RateLimitTrafficClass* rl =
+                  reinterpret_cast<const bess::RateLimitTrafficClass*>(c);
+              std::string resource = bess::ResourceName.at(rl->resource());
+              int64_t limit = rl->limit();
+              int64_t max_burst = rl->max_burst();
+              status->mutable_class_()->mutable_limit()->insert(
+                  {resource, limit});
+              status->mutable_class_()->mutable_max_burst()->insert(
+                  {resource, max_burst});
+            }
+          },
+          static_cast<void*>(&arg__));
     }
 
     return Status::OK;

@@ -21,7 +21,7 @@ namespace bess {
 #define DEFAULT_PRIORITY 0xFFFFFFFFu
 
 #define USAGE_AMPLIFIER_POW 32
- 
+
 // Share is defined relatively, so 1024 should be large enough
 #define STRIDE1 (1 << 20)
 
@@ -58,6 +58,9 @@ class WeightedFairTrafficClass;
 class RoundRobinTrafficClass;
 class RateLimitTrafficClass;
 class LeafTrafficClass;
+class TrafficClass;
+
+typedef void (*TravereseTcFn)(const TrafficClass *, void *);
 
 enum TrafficPolicy {
   POLICY_PRIORITY = 0,
@@ -119,7 +122,15 @@ class TrafficClass {
  public:
   virtual ~TrafficClass() {}
 
-  size_t Size() const { return 1; }
+  virtual void Traverse(TravereseTcFn f, void *arg) const { f(this, arg); }
+
+  size_t Size() const {
+    size_t sz = 0;
+    Traverse([](const TrafficClass *,
+                void *arg) { *reinterpret_cast<size_t *>(arg) += 1; },
+             static_cast<void *>(&sz));
+    return sz;
+  }
 
   // Returns the root of the tree this class belongs to.
   // Expensive in that it is recursive, so do not call from
@@ -233,7 +244,7 @@ class PriorityTrafficClass final : public TrafficClass {
 
   const std::vector<ChildData> &children() const { return children_; }
 
-  size_t Size() const;
+  void Traverse(TravereseTcFn f, void *arg) const override;
 
  private:
   friend Scheduler;
@@ -294,7 +305,7 @@ class WeightedFairTrafficClass final : public TrafficClass {
     return blocked_children_;
   }
 
-  size_t Size() const;
+  void Traverse(TravereseTcFn f, void *arg) const override;
 
  private:
   friend Scheduler;
@@ -339,7 +350,7 @@ class RoundRobinTrafficClass final : public TrafficClass {
     return blocked_children_;
   }
 
-  size_t Size() const;
+  void Traverse(TravereseTcFn f, void *arg) const override;
 
  private:
   friend Scheduler;
@@ -397,7 +408,7 @@ class RateLimitTrafficClass final : public TrafficClass {
 
   TrafficClass *child() const { return child_; }
 
-  size_t Size() const;
+  void Traverse(TravereseTcFn f, void *arg) const override;
 
  private:
   friend Scheduler;
@@ -435,6 +446,9 @@ class LeafTrafficClass final : public TrafficClass {
 
   // Direct access to the tasks vector, for testing only.
   std::vector<Task *> &tasks() { return tasks_; }
+
+  // Regular accessor for everyone else
+  const std::vector<Task *> &tasks() const { return tasks_; }
 
   // Executes tasks for a leaf TrafficClass.
   inline struct task_result RunTasks() {
@@ -477,8 +491,6 @@ class LeafTrafficClass final : public TrafficClass {
     ACCUMULATE(stats_.usage, usage);
     parent_->FinishAndAccountTowardsRoot(sched, this, usage, tsc);
   }
-
-  size_t Size() const;
 
  private:
   friend Scheduler;

@@ -70,12 +70,11 @@ void PriorityTrafficClass::FinishAndAccountTowardsRoot(Scheduler *sched,
   parent_->FinishAndAccountTowardsRoot(sched, this, usage, tsc);
 }
 
-size_t PriorityTrafficClass::Size() const {
-  size_t sz = 1;
+void PriorityTrafficClass::Traverse(TravereseTcFn f, void *arg) const {
+  f(this, arg);
   for (const auto &child : children_) {
-    sz += child.c_->Size();
+    child.c_->Traverse(f, arg);
   }
-  return sz;
 }
 
 bool WeightedFairTrafficClass::AddChild(TrafficClass *child,
@@ -146,17 +145,16 @@ void WeightedFairTrafficClass::FinishAndAccountTowardsRoot(Scheduler *sched,
   parent_->FinishAndAccountTowardsRoot(sched, this, usage, tsc);
 }
 
-size_t WeightedFairTrafficClass::Size() const {
-  size_t sz = 1;
+void WeightedFairTrafficClass::Traverse(TravereseTcFn f, void *arg) const {
   const auto *childs =
       reinterpret_cast<const std::vector<ChildData> *>(&children_);
+  f(this, arg);
   for (auto child = childs->cbegin(); child != childs->cend(); ++child) {
-    sz += child->c_->Size();
+    child->c_->Traverse(f, arg);
   }
   for (const auto &child : blocked_children_) {
-    sz += child.c_->Size();
+    child.c_->Traverse(f, arg);
   }
-  return sz;
 }
 
 bool RoundRobinTrafficClass::AddChild(TrafficClass *child) {
@@ -218,17 +216,16 @@ void RoundRobinTrafficClass::FinishAndAccountTowardsRoot(Scheduler *sched,
   parent_->FinishAndAccountTowardsRoot(sched, this, usage, tsc);
 }
 
-size_t RoundRobinTrafficClass::Size() const {
-  size_t sz = 1;
+void RoundRobinTrafficClass::Traverse(TravereseTcFn f, void *arg) const {
   const auto *childs =
       reinterpret_cast<const std::vector<TrafficClass *> *>(&children_);
+  f(this, arg);
   for (auto child = childs->cbegin(); child != childs->cend(); ++child) {
-    sz += (*child)->Size();
+    (*child)->Traverse(f, arg);
   }
   for (const auto &child : blocked_children_) {
-    sz += child->Size();
+    child->Traverse(f, arg);
   }
-  return sz;
 }
 
 bool RateLimitTrafficClass::AddChild(TrafficClass *child) {
@@ -289,8 +286,9 @@ void RateLimitTrafficClass::FinishAndAccountTowardsRoot(Scheduler *sched,
   parent_->FinishAndAccountTowardsRoot(sched, this, usage, tsc);
 }
 
-size_t RateLimitTrafficClass::Size() const {
-  return 1 + child_->Size();
+void RateLimitTrafficClass::Traverse(TravereseTcFn f, void *arg) const {
+  f(this, arg);
+  child_->Traverse(f, arg);
 }
 
 void LeafTrafficClass::AddTask(Task *t) {
