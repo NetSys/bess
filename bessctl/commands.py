@@ -1443,7 +1443,7 @@ def _monitor_tcs(cli, *tcs):
         else:
             cpp = 0
 
-        cli.fout.write('%-20s%12.3f%12d%12.3f%12.3f%12.3f%12.3f\n' %
+        cli.fout.write('%-20s%12.3f%12d%12.3f%12.3f%12d%12d\n' %
                        (tc,
                         delta.cycles / 1e6,
                         delta.count,
