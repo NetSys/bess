@@ -151,28 +151,43 @@ def get_var_attrs(cli, var_token, partial_word):
         elif var_token == 'WORKER_ID...':
             var_type = 'wid+'
             var_desc = 'one or more worker IDs'
-            var_candidates = [str(m.wid)
-                              for m in cli.bess.list_workers().workers_status]
+            try:
+                var_candidates = [str(m.wid) for m in \
+                                  cli.bess.list_workers().workers_status]
+            except:
+                pass
 
         elif var_token == 'DRIVER':
             var_type = 'name'
             var_desc = 'name of a port driver'
-            var_candidates = cli.bess.list_drivers().driver_names
+            try:
+                var_candidates = cli.bess.list_drivers().driver_names
+            except:
+                pass
 
         elif var_token == 'DRIVER...':
             var_type = 'name'
             var_desc = 'one or more port driver names'
-            var_candidates = cli.bess.list_drivers().driver_names
+            try:
+                var_candidates = cli.bess.list_drivers().driver_names
+            except:
+                pass
 
         elif var_token == 'MCLASS':
             var_type = 'name'
             var_desc = 'name of a module class'
-            var_candidates = cli.bess.list_mclasses().names
+            try:
+                var_candidates = cli.bess.list_mclasses().names
+            except:
+                pass
 
         elif var_token == 'MCLASS...':
             var_type = 'name+'
             var_desc = 'one or more module class names'
-            var_candidates = cli.bess.list_mclasses().names
+            try:
+                var_candidates = cli.bess.list_mclasses().names
+            except:
+                pass
 
         elif var_token == '[NEW_MODULE]':
             var_type = 'name'
@@ -181,12 +196,20 @@ def get_var_attrs(cli, var_token, partial_word):
         elif var_token == 'MODULE':
             var_type = 'name'
             var_desc = 'name of an existing module instance'
-            var_candidates = [m.name for m in cli.bess.list_modules().modules]
+            try:
+                var_candidates = [m.name for m in \
+                                  cli.bess.list_modules().modules]
+            except:
+                pass
 
         elif var_token == 'MODULE...':
             var_type = 'name+'
             var_desc = 'one or more module names'
-            var_candidates = [m.name for m in cli.bess.list_modules().modules]
+            try:
+                var_candidates = [m.name for m in \
+                                  cli.bess.list_modules().modules]
+            except:
+                pass
 
         elif var_token == 'MODULE_CMD':
             var_type = 'name'
@@ -199,17 +222,27 @@ def get_var_attrs(cli, var_token, partial_word):
         elif var_token == 'PORT':
             var_type = 'name'
             var_desc = 'name of a port'
-            var_candidates = [p.name for p in cli.bess.list_ports().ports]
+            try:
+                var_candidates = [p.name for p in cli.bess.list_ports().ports]
+            except:
+                pass
 
         elif var_token == 'PORT...':
             var_type = 'name+'
             var_desc = 'one or more port names'
-            var_candidates = [p.name for p in cli.bess.list_ports().ports]
+            try:
+                var_candidates = [p.name for p in cli.bess.list_ports().ports]
+            except:
+                pass
 
         elif var_token == 'TC...':
             var_type = 'name+'
             var_desc = 'one or more traffic class names'
-            var_candidates = [getattr(c, 'class').name for c in cli.bess.list_tcs().classes_status]
+            try:
+                var_candidates = [getattr(c, 'class').name \
+                                  for c in cli.bess.list_tcs().classes_status]
+            except:
+                pass
 
         elif var_token == 'CONF':
             var_type = 'confname'
