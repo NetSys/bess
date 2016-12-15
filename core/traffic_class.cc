@@ -320,9 +320,10 @@ bool TrafficClassBuilder::ClearAll() {
 
     if (c->policy_ == POLICY_LEAF) {
       LeafTrafficClass *l = static_cast<LeafTrafficClass *>(c);
-      if (!l->tasks_.empty()) {
-        return false;
+      for (const auto *task : l->tasks_) {
+        delete task; // XXX: module writer responsible for freeing task->arg_?
       }
+      l->tasks_.clear();
     }
   }
 
