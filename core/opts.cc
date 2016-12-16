@@ -28,7 +28,7 @@ static bool ValidateCoreID(const char *, int32_t value) {
 
   return true;
 }
-DEFINE_int32(c, 0, "Core ID for the default worker thread");
+DEFINE_int32(c, 1, "Core ID for the default worker thread");
 static const bool _c_dummy[[maybe_unused]] =
     google::RegisterFlagValidator(&FLAGS_c, &ValidateCoreID);
 

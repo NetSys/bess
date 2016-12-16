@@ -15,6 +15,7 @@
 #include <cstring>
 #include <string>
 
+#include "opts.h"
 #include "utils/time.h"
 #include "worker.h"
 
@@ -155,4 +156,9 @@ static void init_eal(const char *prog_name, int mb_per_socket,
 void init_dpdk(const ::std::string &prog_name, int mb_per_socket,
                int multi_instance, bool no_huge) {
   init_eal(prog_name.c_str(), mb_per_socket, multi_instance, no_huge);
+  if (FLAGS_c == rte_lcore_index(rte_get_master_lcore())) {
+    LOG(WARNING) << "Specified default worker core (core " << FLAGS_c
+                 << ") is being used by the master thread. This may lead to "
+                 << "degraded performance.";
+  }
 }

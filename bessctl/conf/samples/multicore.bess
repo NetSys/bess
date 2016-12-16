@@ -9,8 +9,8 @@
 #bind worker:0 => core:0
 #bind worker:1 => core:1
 
-bess.add_worker(0, 0)
-bess.add_worker(1, 1)
+bess.add_worker(0, 1)
+bess.add_worker(1, 2)
 
 sink::Sink()
 src0::Source() -> sink
