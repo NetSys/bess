@@ -64,17 +64,17 @@ pb_error_t SetMetadata::AddAttrOne(
     }
   } else if (attr.value_case() ==
              bess::pb::SetMetadataArg_Attribute::kValueHex) {
-    if (attr.value_hex().length() != size) {
+    if (attr.value_bin().length() != size) {
       return pb_error(EINVAL,
-                      "'value_hex' field has not a "
+                      "'value_bin' field has not a "
                       "correct %lu-byte value",
                       size);
     }
-    std::string value_hex(attr.value_hex());
+    std::string value_bin(attr.value_bin());
     if (!bess::utils::is_be_system()) {
-      std::reverse(value_hex.begin(), value_hex.end());
+      std::reverse(value_bin.begin(), value_bin.end());
     }
-    memcpy(&value, value_hex.data(), size);
+    memcpy(&value, value_bin.data(), size);
   } else {
     offset = attr.offset();
     if (offset < 0 || offset + size >= SNBUF_DATA) {

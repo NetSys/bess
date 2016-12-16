@@ -286,7 +286,7 @@ message SetMetadataArg {
     uint64 size = 2;
     oneof value {
       uint64 value_int = 3;
-      bytes value_hex = 4;
+      bytes value_bin = 4;
     }
     int64 offset = 5;
   }
