@@ -5,7 +5,6 @@ SCRIPTS='./bessctl/conf/samples'
 OUTFILE='sanity_check.out'
 
 TESTS='exactmatch.bess
-	flowgen.bess
 	generic_encap.bess
 	hash_lb.bess
 	igate.bess
@@ -17,14 +16,22 @@ TESTS='exactmatch.bess
 	s2s.bess
 	unix_port.bess
 	update.bess
-	vlantest.bess
-	wildcardmatch.bess'
+	vlantest.bess'
 
 function fail
 {
   echo "Test failed. Sorry."
   $BESSCTL daemon stop
+  cat $OUTFILE
+  cat /tmp/bessd.*
   exit 2
+}
+
+trap ctrl_c INT
+
+function ctrl_c {
+  echo "** Trapped CTRL-C"
+  fail
 }
 
 echo "This script runs a collection of BESS sample scripts and makes sure \
@@ -40,6 +47,7 @@ do
   then
     fail
   fi
+  echo "-- Successfully loaded bessd."
   sleep 25
   $BESSCTL daemon stop
   success=$?
@@ -47,6 +55,7 @@ do
   then
     fail
   fi
+  echo "-- Successfully stopped bessd."
 done
 
 echo "Tests complete!"
