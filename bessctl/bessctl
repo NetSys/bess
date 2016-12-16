@@ -16,7 +16,8 @@ try:
     from bess import *
 except ImportError:
     print >> sys.stderr, 'Cannot import the API module (libbess-python)'
-
+    print >> sys.stderr, this_dir
+    return 2
 
 class BESSCLI(cli.CLI):
     def __init__(self, bess, cmd_db, fin=sys.stdin,
