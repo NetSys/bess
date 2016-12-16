@@ -10,8 +10,8 @@
 namespace bess {
 namespace utils {
 
-struct [[gnu::packed]] EthHeader {
-  struct [[gnu::packed]] Address {
+struct[[gnu::packed]] EthHeader {
+  struct[[gnu::packed]] Address {
     Address() = default;
     Address(const std::string &str);
 
@@ -27,7 +27,7 @@ struct [[gnu::packed]] EthHeader {
 
     void Randomize();
 
-    bool operator == (const Address &o) const {
+    bool operator==(const Address &o) const {
       for (size_t i = 0; i < kSize; i++) {
         if (bytes[i] != o.bytes[i]) {
           return false;
@@ -36,7 +36,7 @@ struct [[gnu::packed]] EthHeader {
       return true;
     }
 
-    bool operator !=(const Address &o) const {
+    bool operator!=(const Address &o) const {
       for (size_t i = 0; i < kSize; i++) {
         if (bytes[i] != o.bytes[i]) {
           return true;

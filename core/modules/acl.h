@@ -1,18 +1,26 @@
 #ifndef BESS_MODULES_ACL_H_
 #define BESS_MODULES_ACL_H_
 
-#include <utility>
 #include <vector>
 
 #include "../module.h"
 #include "../module_msg.pb.h"
+#include "../utils/ip.h"
 
-typedef uint32_t IPAddress;
-typedef std::pair<IPAddress, IPAddress> CIDRNetwork;
+using bess::utils::IPAddress;
+using bess::utils::CIDRNetwork;
 
 class ACL final : public Module {
  public:
   struct ACLRule {
+    bool Match(IPAddress sip, IPAddress dip, uint16_t sport,
+               uint16_t dport) const {
+      return ((src_ip.addr != 0 && src_ip.Match(sip)) &&
+              (dst_ip.addr != 0 && dst_ip.Match(dip)) &&
+              (src_port != 0 && src_port == sport) &&
+              (dst_port != 0 && dst_port == dport));
+    }
+
     CIDRNetwork src_ip;
     CIDRNetwork dst_ip;
     uint16_t src_port;
