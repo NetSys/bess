@@ -24,6 +24,7 @@ function fail
 {
   echo "Test failed. Sorry."
   $BESSCTL daemon stop
+  cat $OUTFILE
   exit 2
 }
 
