@@ -1,0 +1,23 @@
+import scapy.all as scapy
+import struct
+
+num_entries = int($SN_ENTRIES!'1000')
+use_exactmatch = bool(int(($SN_EXACTMATCH!'0')))
+
+assert num_entries >= 1
+
+def i2mac(x):
+    return ':'.join(['%02x' % struct.unpack("h", i+'\x00') for i in struct.pack('Ixx', x)])
+
+if use_exactmatch:
+    fib = ExactMatch(fields=[{'offset':0, 'size':6}])
+    for i in range(num_entries):
+        fib.add(fields=[struct.pack('Ixx', i)], gate=i)
+else:
+    fib = L2Forward()
+    fib.add(entries=[{'addr':i2mac(i + 1), 'gate':i + 1} for i in range(num_entries)])
+
+pkt = scapy.Ether(src=i2mac(num_entries), dst=i2mac(num_entries - 1))
+pkt_bytes = str(pkt)
+
+Source() -> Rewrite(templates=[pkt_bytes]) -> fib -> Sink()
