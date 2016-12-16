@@ -63,7 +63,7 @@ pb_error_t SetMetadata::AddAttrOne(
                       size);
     }
   } else if (attr.value_case() ==
-             bess::pb::SetMetadataArg_Attribute::kValueHex) {
+             bess::pb::SetMetadataArg_Attribute::kValueBin) {
     if (attr.value_bin().length() != size) {
       return pb_error(EINVAL,
                       "'value_bin' field has not a "
