@@ -131,6 +131,18 @@ message WildcardMatchCommandSetDefaultGateArg {
   uint64 gate = 1;
 }
 
+message ACLArg {
+  message Rule {
+    string src_ip = 1;
+    string dst_ip = 2;
+    uint32 src_port = 3;
+    uint32 dst_port = 4;
+    bool established = 5;
+    bool drop = 6;
+  }
+  repeated Rule rules = 1;
+}
+
 message BPFArg {
   message Filter {
     int64 priority = 1;
