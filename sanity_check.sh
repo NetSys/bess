@@ -22,10 +22,16 @@ TESTS='exactmatch.bess
 
 function fail
 {
-  cat $OUTFILE
   echo "Test failed. Sorry."
   $BESSCTL daemon stop
   exit 2
+}
+
+trap ctrl_c INT
+
+function ctrl_c {
+  echo "** Trapped CTRL-C"
+  fail
 }
 
 echo "This script runs a collection of BESS sample scripts and makes sure \

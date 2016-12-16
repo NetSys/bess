@@ -32,6 +32,7 @@ before_script:
   - sudo sysctl -w vm.nr_hugepages=1024
   - sudo mkdir -p /mnt/huge
   - sudo mount -t hugetlbfs nodev /mnt/huge
+  - pip install grpcio
   - export CXX=$VER_CXX
   - export CC=$VER_CC
 
