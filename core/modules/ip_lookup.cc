@@ -17,7 +17,7 @@ static inline int is_valid_gate(gate_idx_t gate) {
 
 const Commands IPLookup::cmds = {
     {"add", "IPLookupCommandAddArg", MODULE_CMD_FUNC(&IPLookup::CommandAdd), 0},
-    {"clear", "EmptyArg", MODULE_CMD_FUNC(&IPLookup::CommandAdd), 0}};
+    {"clear", "EmptyArg", MODULE_CMD_FUNC(&IPLookup::CommandClear), 0}};
 
 pb_error_t IPLookup::Init(const bess::pb::EmptyArg &) {
   struct rte_lpm_config conf = {
