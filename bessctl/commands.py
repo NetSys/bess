@@ -761,7 +761,7 @@ def command_module(cli, module, cmd, arg_type, args):
 
 @cmd('delete port PORT', 'Delete a port')
 def delete_port(cli, port):
-        cli.bess.destroy_port(port)
+    cli.bess.destroy_port(port)
 
 
 @cmd('delete module MODULE', 'Delete a module')
@@ -1007,13 +1007,13 @@ def _draw_pipeline(cli, field, last_stats=None):
 
 @cmd('show pipeline', 'Show the current datapath pipeline')
 def show_pipeline(cli):
-        cli.fout.write(_draw_pipeline(cli, 'pkts'))
+    cli.fout.write(_draw_pipeline(cli, 'pkts'))
 
 
 @cmd('show pipeline batch',
      'Show the current datapath pipeline with batch counters')
 def show_pipeline_batch(cli):
-        cli.fout.write(_draw_pipeline(cli, 'cnt'))
+    cli.fout.write(_draw_pipeline(cli, 'cnt'))
 
 
 def _group(number):
@@ -1208,13 +1208,13 @@ def _monitor_pipeline(cli, field):
 
 @cmd('monitor pipeline', 'Monitor packet counters in the datapath pipeline')
 def monitor_pipeline(cli):
-        _monitor_pipeline(cli, 'pkts')
+    _monitor_pipeline(cli, 'pkts')
 
 
 @cmd('monitor pipeline batch',
      'Monitor batch counters in the datapath pipeline')
 def monitor_pipeline_batch(cli):
-        _monitor_pipeline(cli, 'cnt')
+    _monitor_pipeline(cli, 'cnt')
 
 
 def _monitor_ports(cli, *ports):
@@ -1311,12 +1311,12 @@ def _monitor_ports(cli, *ports):
 
 @cmd('monitor port', 'Monitor the current traffic of all ports')
 def monitor_port_all(cli):
-        _monitor_ports(cli)
+    _monitor_ports(cli)
 
 
 @cmd('monitor port PORT...', 'Monitor the current traffic of specified ports')
 def monitor_port_all(cli, ports):
-        _monitor_ports(cli, *ports)
+    _monitor_ports(cli, *ports)
 
 
 def _monitor_tcs(cli, *tcs):
@@ -1409,12 +1409,12 @@ def _monitor_tcs(cli, *tcs):
 
 @cmd('monitor tc', 'Monitor the statistics of all traffic classes')
 def monitor_tc_all(cli):
-        _monitor_tcs(cli)
+    _monitor_tcs(cli)
 
 
 @cmd('monitor tc TC...', 'Monitor the statistics of specified traffic classes')
 def monitor_tc_all(cli, tcs):
-        _monitor_tcs(cli, *tcs)
+    _monitor_tcs(cli, *tcs)
 
 
 # tcpdump can write pcap files, so we don't need to support it separately
