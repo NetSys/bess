@@ -22,6 +22,7 @@ TESTS='exactmatch.bess
 
 function fail
 {
+  cat $OUTFILE
   echo "Test failed. Sorry."
   $BESSCTL daemon stop
   exit 2
