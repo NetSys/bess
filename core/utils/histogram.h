@@ -13,10 +13,20 @@
 #define HISTO_BUCKET_VAL(ptr) ((*(ptr)))
 #define HISTO_BUCKET_INC(ptr) ((*(ptr))++)
 
+#define HISTO_SUMMARY_POINTS (7)
+
 typedef uint64_t histo_count_t;
 struct histogram {
   histo_count_t arr[HISTO_BUCKETS];
   histo_count_t above_threshold;
+};
+
+struct hist_summary {
+  uint64_t min;
+  uint64_t avg;
+  uint64_t max;
+  uint64_t count;
+  uint64_t latencies[HISTO_SUMMARY_POINTS];
 };
 
 static inline uint64_t get_time() {
@@ -34,6 +44,12 @@ static inline void record_latency(struct histogram* hist, uint64_t latency) {
 }
 void print_hist(struct histogram* hist);
 struct histogram* combine_histograms(struct histogram* a, struct histogram* b);
-void print_summary(struct histogram* hist);
+
+// Dump summary statistics for "hist" into "summary". This is destructive.
+void summarize_hist(struct histogram* hist, struct hist_summary *summary);
+void print_summary(struct hist_summary* s);
+
+// It's a good idea to call this after summarize_hist().
+void reset_hist(struct histogram *hist);
 
 #endif  // BESS_UTILS_HISTOGRAM_H_

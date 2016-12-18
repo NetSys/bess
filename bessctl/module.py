@@ -20,7 +20,8 @@ class Module(object):
         else:
             name = None
 
-        ret = self.bess.create_module(self.__class__.__name__, name, kwargs)
+        ret = self.bess.create_module(self.__class__.__name__, name,
+                                      self.choose_arg(None, kwargs))
 
         self.name = ret.name
         print 'Module %s created' % self

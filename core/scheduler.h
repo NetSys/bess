@@ -55,18 +55,20 @@ class Scheduler final {
   // Runs the scheduler once.
   void ScheduleOnce() __attribute__((always_inline)) {
     resource_arr_t usage;
-    uint64_t now = rdtsc();
 
     // Schedule.
-    TrafficClass *c = Next(now);
+    TrafficClass *c = Next(checkpoint_);
 
+    uint64_t now;
     if (c) {
-      ctx.set_current_tsc(now);  // Tasks see updated tsc.
-      ctx.set_current_ns(now * ns_per_cycle_);
+      ctx.set_current_tsc(checkpoint_);  // Tasks see updated tsc.
+      ctx.set_current_ns(checkpoint_ * ns_per_cycle_);
 
       // Run.
       LeafTrafficClass *leaf = static_cast<LeafTrafficClass *>(c);
       struct task_result ret = leaf->RunTasks();
+
+      now = rdtsc();
 
       // Account.
       usage[RESOURCE_COUNT] = 1;
@@ -86,6 +88,8 @@ class Scheduler final {
       // currently have no functionality to support such whole-scheduler
       // blocking/unblocking.
       ++stats_.cnt_idle;
+
+      now = rdtsc();
       stats_.cycles_idle += (now - checkpoint_);
     }
 
@@ -123,10 +127,11 @@ class Scheduler final {
       RateLimitTrafficClass *rc = throttled_cache_.top();
       if (rc->throttle_expiration_ < tsc) {
         throttled_cache_.pop();
+        uint64_t expiration = rc->throttle_expiration_;
         rc->throttle_expiration_ = 0;
 
         // Traverse upward toward root to unblock any blocked parents.
-        rc->UnblockTowardsRoot(tsc);
+        rc->UnblockTowardsRoot(expiration);
       } else {
         break;
       }

@@ -53,14 +53,14 @@ PortInc(port=v_alice) -> bpf::BPF():1 -> VXLANDecap() -> PortOut(port=v_bob)
 # Bob -> Alice
 PortInc(port=v_bob) \
     -> SetMetadata(attrs=
-            [{'name': 'tun_ip_src', 'size': 4, 'value': aton('10.0.10.1')},
-             {'name': 'tun_ip_dst', 'size': 4, 'value': aton('10.0.10.2')},
-             {'name': 'tun_id', 'size': 4, 'value': 999}]) \
+            [{'name': 'tun_ip_src', 'size': 4, 'value_hex': aton('10.0.10.1')},
+             {'name': 'tun_ip_dst', 'size': 4, 'value_hex': aton('10.0.10.2')},
+             {'name': 'tun_id', 'size': 4, 'value_int': 999}]) \
     -> VXLANEncap(dstport=4789) \
     -> IPEncap() \
     -> SetMetadata(attrs=
-            [{'name': 'ether_src', 'size': 6, 'value': '\x02\x01\x02\x03\x04\x05'},
-             {'name': 'ether_dst', 'size': 6, 'value': '\x02\x0a\x0b\x0c\x0d\x0e'}]) \
+            [{'name': 'ether_src', 'size': 6, 'value_hex': '\x02\x01\x02\x03\x04\x05'},
+             {'name': 'ether_dst', 'size': 6, 'value_hex': '\x02\x0a\x0b\x0c\x0d\x0e'}]) \
     -> EtherEncap() \
     -> PortOut(port=v_alice)
 

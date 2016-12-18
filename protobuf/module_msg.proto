@@ -80,6 +80,11 @@ message MeasureCommandGetSummaryResponse {
   uint64 packets = 2;
   uint64 bits = 3;
   uint64 total_latency_ns = 4;
+  uint64 latency_min_ns = 5;
+  uint64 latency_avg_ns = 6;
+  uint64 latency_max_ns = 7;
+  uint64 latency_50_ns = 8;
+  uint64 latency_99_ns = 9;
 }
 
 message PortIncCommandSetBurstArg {
@@ -279,8 +284,11 @@ message SetMetadataArg {
   message Attribute {
     string name = 1;
     uint64 size = 2;
-    uint64 value = 3;
-    int64 offset = 4;
+    oneof value {
+      uint64 value_int = 3;
+      bytes value_hex = 4;
+    }
+    int64 offset = 5;
   }
   repeated Attribute attrs = 1;
 }

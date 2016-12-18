@@ -10,7 +10,7 @@ payload = 'Hello World'
 test_packet = str(eth/ip/udp/payload)
 
 Source() \
-        -> SetMetadata(attrs=[{'name': 'ether_type', 'size': 2, 'value': 0x9999}]) \
+        -> SetMetadata(attrs=[{'name': 'ether_type', 'size': 2, 'value_int': 0x9999}]) \
         -> Rewrite(templates=[test_packet]) \
         -> GenericEncap(fields=[ \
             {'size': 6, 'value': 0x020000000001},

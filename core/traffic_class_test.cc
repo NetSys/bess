@@ -19,6 +19,7 @@ namespace bess {
 TEST(CreateTree, Leaf) {
   TrafficClass *c = CT("leaf", {LEAF});
   ASSERT_TRUE(c != nullptr);
+  ASSERT_EQ(1, c->Size());
   EXPECT_EQ(POLICY_LEAF, c->policy());
 
   TrafficClassBuilder::ClearAll();
@@ -28,6 +29,7 @@ TEST(CreateTree, Leaf) {
 TEST(CreateTree, PriorityRootAndLeaf) {
   std::unique_ptr<TrafficClass> tree(
       CT("root", {PRIORITY}, {{PRIORITY, 10, CT("leaf", {LEAF})}}));
+  ASSERT_EQ(2, TrafficClassBuilder::Find("root")->Size());
 
   ASSERT_TRUE(tree != nullptr);
   EXPECT_EQ(POLICY_PRIORITY, tree->policy());
@@ -56,6 +58,7 @@ TEST(CreateTree, WeightedFairRootAndLeaf) {
   std::unique_ptr<TrafficClass> tree(
       CT("root", {WEIGHTED_FAIR, RESOURCE_CYCLE},
          {{WEIGHTED_FAIR, 10, CT("leaf", {LEAF})}}));
+  ASSERT_EQ(2, TrafficClassBuilder::Find("root")->Size());
 
   ASSERT_TRUE(tree != nullptr);
   EXPECT_EQ(POLICY_WEIGHTED_FAIR, tree->policy());
@@ -81,6 +84,7 @@ TEST(CreateTree, WeightedFairRootAndLeaf) {
 TEST(CreateTree, RoundRobinRootAndLeaf) {
   std::unique_ptr<TrafficClass> tree(
       CT("root", {ROUND_ROBIN}, {{ROUND_ROBIN, CT("leaf", {LEAF})}}));
+  ASSERT_EQ(2, TrafficClassBuilder::Find("root")->Size());
 
   ASSERT_TRUE(tree != nullptr);
   EXPECT_EQ(POLICY_ROUND_ROBIN, tree->policy());
@@ -104,6 +108,7 @@ TEST(CreateTree, RateLimitRootAndLeaf) {
   std::unique_ptr<TrafficClass> tree(CT("root",
                                         {RATE_LIMIT, RESOURCE_CYCLE, 10, 15},
                                         {RATE_LIMIT, CT("leaf", {LEAF})}));
+  ASSERT_EQ(2, TrafficClassBuilder::Find("root")->Size());
 
   ASSERT_TRUE(tree != nullptr);
   EXPECT_EQ(POLICY_RATE_LIMIT, tree->policy());
@@ -123,6 +128,7 @@ TEST(CreateTree, RateLimitRootAndLeaf) {
 // repeatedly.
 TEST(SchedulerNext, BasicTreePriority) {
   Scheduler s(CT("root", {PRIORITY}, {{PRIORITY, 10, CT("leaf", {LEAF})}}));
+  ASSERT_EQ(2, TrafficClassBuilder::Find("root")->Size());
 
   ASSERT_TRUE(s.root() != nullptr);
   EXPECT_EQ(POLICY_PRIORITY, s.root()->policy());
@@ -155,6 +161,7 @@ TEST(SchedulerNext, BasicTreePriority) {
 TEST(SchedulerNext, BasicTreeWeightedFair) {
   Scheduler s(CT("root", {WEIGHTED_FAIR, RESOURCE_COUNT},
                  {{WEIGHTED_FAIR, 2, CT("leaf", {LEAF})}}));
+  ASSERT_EQ(2, TrafficClassBuilder::Find("root")->Size());
 
   ASSERT_TRUE(s.root() != nullptr);
   EXPECT_EQ(POLICY_WEIGHTED_FAIR, s.root()->policy());
@@ -188,6 +195,7 @@ TEST(SchedulerNext, BasicTreeWeightedFair) {
 // repeatedly.
 TEST(SchedulerNext, BasicTreeRoundRobin) {
   Scheduler s(CT("root", {ROUND_ROBIN}, {{ROUND_ROBIN, CT("leaf", {LEAF})}}));
+  ASSERT_EQ(2, TrafficClassBuilder::Find("root")->Size());
 
   ASSERT_TRUE(s.root() != nullptr);
   EXPECT_EQ(POLICY_ROUND_ROBIN, s.root()->policy());
@@ -220,6 +228,7 @@ TEST(SchedulerNext, BasicTreeRoundRobin) {
 TEST(SchedulerNext, BasicTreeRateLimit) {
   Scheduler s(CT("root", {RATE_LIMIT, RESOURCE_COUNT, 50, 100},
                  {RATE_LIMIT, CT("leaf", {LEAF})}));
+  ASSERT_EQ(2, TrafficClassBuilder::Find("root")->Size());
 
   ASSERT_TRUE(s.root() != nullptr);
   EXPECT_EQ(POLICY_RATE_LIMIT, s.root()->policy());
@@ -251,6 +260,7 @@ TEST(SchedulerNext, TwoLeavesWeightedFairOneBlocked) {
   Scheduler s(CT("root", {WEIGHTED_FAIR, RESOURCE_COUNT},
                  {{WEIGHTED_FAIR, 1, CT("leaf_1", {LEAF})},
                   {WEIGHTED_FAIR, 2, CT("leaf_2", {LEAF})}}));
+  ASSERT_EQ(3, TrafficClassBuilder::Find("root")->Size());
 
   LeafTrafficClass *leaf_1 =
       static_cast<LeafTrafficClass *>(TrafficClassBuilder::Find("leaf_1"));
@@ -280,6 +290,7 @@ TEST(ScheduleOnce, TwoLeavesWeightedFair) {
   Scheduler s(CT("root", {WEIGHTED_FAIR, RESOURCE_COUNT},
                  {{WEIGHTED_FAIR, 2, CT("leaf_1", {LEAF})},
                   {WEIGHTED_FAIR, 5, CT("leaf_2", {LEAF})}}));
+  ASSERT_EQ(3, TrafficClassBuilder::Find("root")->Size());
 
   LeafTrafficClass *leaf_1 =
       static_cast<LeafTrafficClass *>(TrafficClassBuilder::Find("leaf_1"));
@@ -331,6 +342,7 @@ TEST(ScheduleOnce, TwoLeavesWeightedFair) {
 TEST(ScheduleOnce, TwoLeavesPriority) {
   Scheduler s(CT("root", {PRIORITY}, {{PRIORITY, 0, CT("leaf_1", {LEAF})},
                                       {PRIORITY, 1, CT("leaf_2", {LEAF})}}));
+  ASSERT_EQ(3, TrafficClassBuilder::Find("root")->Size());
 
   LeafTrafficClass *leaf_1 =
       static_cast<LeafTrafficClass *>(TrafficClassBuilder::Find("leaf_1"));
@@ -374,6 +386,7 @@ TEST(ScheduleOnce, TwoLeavesPriority) {
 TEST(ScheduleOnce, TwoLeavesRoundRobin) {
   Scheduler s(CT("root", {ROUND_ROBIN}, {{ROUND_ROBIN, CT("leaf_1", {LEAF})},
                                          {ROUND_ROBIN, CT("leaf_2", {LEAF})}}));
+  ASSERT_EQ(3, TrafficClassBuilder::Find("root")->Size());
 
   LeafTrafficClass *leaf_1 =
       static_cast<LeafTrafficClass *>(TrafficClassBuilder::Find("leaf_1"));
@@ -428,6 +441,7 @@ TEST(ScheduleOnce, LeavesWeightedFairAndRoundRobin) {
                                          {ROUND_ROBIN, CT("leaf_2a", {LEAF})},
                                          {ROUND_ROBIN, CT("leaf_2b", {LEAF})},
                                      })}}));
+  ASSERT_EQ(7, TrafficClassBuilder::Find("root")->Size());
 
   std::map<std::string, LeafTrafficClass *> leaves;
   for (auto &leaf_name : {"leaf_1a", "leaf_1b", "leaf_2a", "leaf_2b"}) {
@@ -483,6 +497,7 @@ TEST(RateLimit, BasicBlockUnblock) {
                            {RATE_LIMIT, CT("leaf_1", {LEAF})})},
           {ROUND_ROBIN, CT("limit_2", {RATE_LIMIT, RESOURCE_COUNT, 1, 0},
                            {RATE_LIMIT, CT("leaf_2", {LEAF})})}}));
+  ASSERT_EQ(5, TrafficClassBuilder::Find("root")->Size());
   RoundRobinTrafficClass *rr =
       static_cast<RoundRobinTrafficClass *>(TrafficClassBuilder::Find("root"));
   ASSERT_TRUE(rr != nullptr);
