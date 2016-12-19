@@ -82,10 +82,15 @@ class BESS(object):
     def set_debug(self, flag):
         self.debug = flag
 
-    def _request(self, req_fn, request=None):
+    def _request(self, name, request=None):
+        if not self.is_connected():
+            raise self.APIError('BESS daemon not connected')
+
+        req_fn = getattr(self.stub, name)
         if request is None:
             request = bess_msg.EmptyRequest()
         response = req_fn(request)
+
         if response.error.err != 0:
             err = response.error.err
             errmsg = response.error.errmsg
@@ -111,7 +116,7 @@ class BESS(object):
 
     def kill(self):
         try:
-            self._request(self.stub.KillBess)
+            self._request('KillBess')
         except grpc._channel._Rendezvous:
             pass
 
@@ -121,27 +126,27 @@ class BESS(object):
         self.clear_connection()
 
     def reset_all(self):
-        return self._request(self.stub.ResetAll)
+        return self._request('ResetAll')
 
     def pause_all(self):
-        return self._request(self.stub.PauseAll)
+        return self._request('PauseAll')
 
     def resume_all(self):
-        return self._request(self.stub.ResumeAll)
+        return self._request('ResumeAll')
 
     def list_drivers(self):
-        return self._request(self.stub.ListDrivers)
+        return self._request('ListDrivers')
 
     def get_driver_info(self, name):
         request = bess_msg.GetDriverInfoRequest()
         request.driver_name = name
-        return self._request(self.stub.GetDriverInfo, request)
+        return self._request('GetDriverInfo', request)
 
     def reset_ports(self):
-        return self._request(self.stub.ResetPorts)
+        return self._request('ResetPorts')
 
     def list_ports(self):
-        return self._request(self.stub.ListPorts)
+        return self._request('ListPorts')
 
     def create_port(self, driver, name, arg):
         num_inc_q = arg.pop('num_inc_q', 0)
@@ -171,31 +176,31 @@ class BESS(object):
         arg_msg = proto_conv.dict_to_protobuf(arg, message_map[driver])
         request.arg.Pack(arg_msg)
 
-        return self._request(self.stub.CreatePort, request)
+        return self._request('CreatePort', request)
 
     def destroy_port(self, name):
         request = bess_msg.DestroyPortRequest()
         request.name = name
-        return self._request(self.stub.DestroyPort, request)
+        return self._request('DestroyPort', request)
 
     def get_port_stats(self, name):
         request = bess_msg.GetPortStatsRequest()
         request.name = name
-        return self._request(self.stub.GetPortStats, request)
+        return self._request('GetPortStats', request)
 
     def list_mclasses(self):
-        return self._request(self.stub.ListMclass)
+        return self._request('ListMclass')
 
     def list_modules(self):
-        return self._request(self.stub.ListModules)
+        return self._request('ListModules')
 
     def get_mclass_info(self, name):
         request = bess_msg.GetMclassInfoRequest()
         request.name = name
-        return self._request(self.stub.GetMclassInfo, request)
+        return self._request('GetMclassInfo', request)
 
     def reset_modules(self):
-        return self._request(self.stub.ResetModules)
+        return self._request('ResetModules')
 
     def create_module(self, mclass, name=None, arg=None):
         kv = {
@@ -245,17 +250,17 @@ class BESS(object):
         }
         arg_msg = proto_conv.dict_to_protobuf(arg, message_map[mclass])
         request.arg.Pack(arg_msg)
-        return self._request(self.stub.CreateModule, request)
+        return self._request('CreateModule', request)
 
     def destroy_module(self, name):
         request = bess_msg.DestroyModuleRequest()
         request.name = name
-        return self._request(self.stub.DestroyModule, request)
+        return self._request('DestroyModule', request)
 
     def get_module_info(self, name):
         request = bess_msg.GetModuleInfoRequest()
         request.name = name
-        return self._request(self.stub.GetModuleInfo, request)
+        return self._request('GetModuleInfo', request)
 
     def connect_modules(self, m1, m2, ogate=0, igate=0):
         request = bess_msg.ConnectModulesRequest()
@@ -263,13 +268,13 @@ class BESS(object):
         request.m2 = m2
         request.ogate = ogate
         request.igate = igate
-        return self._request(self.stub.ConnectModules, request)
+        return self._request('ConnectModules', request)
 
     def disconnect_modules(self, name, ogate=0):
         request = bess_msg.DisconnectModulesRequest()
         request.name = name
         request.ogate = ogate
-        return self._request(self.stub.DisconnectModules, request)
+        return self._request('DisconnectModules', request)
 
     def run_module_command(self, name, cmd, arg_type, arg):
         request = bess_msg.ModuleCommandRequest()
@@ -284,7 +289,7 @@ class BESS(object):
         arg_msg = proto_conv.dict_to_protobuf(arg, arg_classes[arg_type])
         request.arg.Pack(arg_msg)
 
-        response = self._request(self.stub.ModuleCommand, request)
+        response = self._request('ModuleCommand', request)
         if response.HasField('other'):
             type_str = response.other.type_url.split('.')[-1]
             type_class = arg_classes[type_str]
@@ -300,14 +305,14 @@ class BESS(object):
         request.is_igate = (direction == 'in')
         request.gate = gate
         request.fifo = fifo
-        return self._request(self.stub.EnableTcpdump, request)
+        return self._request('EnableTcpdump', request)
 
     def disable_tcpdump(self, m, direction='out', gate=0):
         request = bess_msg.DisableTcpdumpRequest()
         request.name = m
         request.is_igate = (direction == 'in')
         request.gate = gate
-        return self._request(self.stub.DisableTcpdump, request)
+        return self._request('DisableTcpdump', request)
 
     def enable_track(self, m, direction='out', gate=None):
         request = bess_msg.EnableTrackRequest()
@@ -318,7 +323,7 @@ class BESS(object):
             request.use_gate = True
             request.gate = gate
         request.is_igate = (direction == 'in')
-        return self._request(self.stub.EnableTrack, request)
+        return self._request('EnableTrack', request)
 
     def disable_track(self, m, direction='out', gate=None):
         request = bess_msg.DisableTrackRequest()
@@ -329,16 +334,16 @@ class BESS(object):
             request.use_gate = True
             request.gate = gate
         request.is_igate = (direction == 'in')
-        return self._request(self.stub.DisableTrack, request)
+        return self._request('DisableTrack', request)
 
     def list_workers(self):
-        return self._request(self.stub.ListWorkers)
+        return self._request('ListWorkers')
 
     def add_worker(self, wid, core):
         request = bess_msg.AddWorkerRequest()
         request.wid = wid
         request.core = core
-        return self._request(self.stub.AddWorker, request)
+        return self._request('AddWorker', request)
 
     def attach_task(self, m, tid=0, tc=None, wid=None):
         if (tc is None) == (wid is None):
@@ -354,13 +359,13 @@ class BESS(object):
         else:
             request.wid = wid
 
-        return self._request(self.stub.AttachTask, request)
+        return self._request('AttachTask', request)
 
     def list_tcs(self, wid=-1):
         request = bess_msg.ListTcsRequest()
         request.wid = wid
 
-        return self._request(self.stub.ListTcs, request)
+        return self._request('ListTcs', request)
 
     def add_tc(self, name, wid=0, parent='', policy='priority', resource=None,
                priority=None, share=None, limit=None, max_burst=None):
@@ -388,9 +393,9 @@ class BESS(object):
             for k in max_burst:
                 class_.max_burst[k] = max_burst[k]
 
-        return self._request(self.stub.AddTc, request)
+        return self._request('AddTc', request)
 
     def get_tc_stats(self, name):
         request = bess_msg.GetTcStatsRequest()
         request.name = name
-        return self._request(self.stub.GetTcStats, request)
+        return self._request('GetTcStats', request)
