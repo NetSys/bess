@@ -255,6 +255,11 @@ void *run_worker(void *_arg) {
 }
 
 void launch_worker(int wid, int core) {
+  if (core == rte_lcore_index(rte_get_master_lcore())) {
+    LOG(WARNING) << "Launching a worker on core (core " << core
+                 << ") used by the master thread. This may lead to degraded "
+                 << "performance.";
+  }
   struct thread_arg arg = {.wid = wid, .core = core};
   worker_threads[wid] = std::thread(run_worker, &arg);
   worker_threads[wid].detach();
