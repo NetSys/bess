@@ -24,7 +24,8 @@ before_install:
   - sudo apt-get -q update
 
 install:
-  - sudo apt-get install -y python linux-headers-generic
+  - sudo apt-get install -y python linux-headers-generic gcc-5 g++-5
+  - sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-5 60 --slave /usr/bin/g++ g++ /usr/bin/g++-5
   - ln -s /build/dpdk-16.07 deps
   - docker pull $IMAGE
 
