@@ -152,7 +152,11 @@ def get_var_attrs(cli, var_token, partial_word):
             var_type = 'wid+'
             var_desc = 'one or more worker IDs'
             try:
+<<<<<<< HEAD
                 var_candidates = [str(m.wid) for m in \
+=======
+                var_candidates = [str(m.wid) for m in
+>>>>>>> develop
                                   cli.bess.list_workers().workers_status]
             except:
                 pass
@@ -197,7 +201,11 @@ def get_var_attrs(cli, var_token, partial_word):
             var_type = 'name'
             var_desc = 'name of an existing module instance'
             try:
+<<<<<<< HEAD
                 var_candidates = [m.name for m in \
+=======
+                var_candidates = [m.name for m in
+>>>>>>> develop
                                   cli.bess.list_modules().modules]
             except:
                 pass
@@ -206,7 +214,11 @@ def get_var_attrs(cli, var_token, partial_word):
             var_type = 'name+'
             var_desc = 'one or more module names'
             try:
+<<<<<<< HEAD
                 var_candidates = [m.name for m in \
+=======
+                var_candidates = [m.name for m in
+>>>>>>> develop
                                   cli.bess.list_modules().modules]
             except:
                 pass
@@ -239,7 +251,11 @@ def get_var_attrs(cli, var_token, partial_word):
             var_type = 'name+'
             var_desc = 'one or more traffic class names'
             try:
+<<<<<<< HEAD
                 var_candidates = [getattr(c, 'class').name \
+=======
+                var_candidates = [getattr(c, 'class').name
+>>>>>>> develop
                                   for c in cli.bess.list_tcs().classes_status]
             except:
                 pass
@@ -928,6 +944,7 @@ def _show_tc_list(cli, tcs):
 
         for tc in matched:
             c_ = getattr(tc, 'class')
+<<<<<<< HEAD
             cli.fout.write('    %-16s  ' \
                            'parent %-10s  %s %-3d  tasks %-3d ' \
                            '%s\n' % \
@@ -937,15 +954,31 @@ def _show_tc_list(cli, tcs):
                            c_.priority if c_.HasField('priority') else c_.share,
                            tc.tasks,
                            _limit_to_str(c_.limit)))
+=======
+            has_priority = c_.HasField('priority')
+            cli.fout.write('    %-16s  '
+                           'parent %-10s  %s %-3d  tasks %-3d '
+                           '%s\n' %
+                           (c_.name,
+                            tc.parent if tc.parent else 'none',
+                            'priority' if has_priority else 'share',
+                            c_.priority if has_priority else c_.share,
+                            tc.tasks,
+                            _limit_to_str(c_.limit)))
+>>>>>>> develop
 
 
 @cmd('show tc', 'Show the list of traffic classes')
 def show_tc_all(cli):
+<<<<<<< HEAD
     if not is_bess_connected(cli):
         cli.err('BESS daemon is not connected')
         return
 
     _show_tc_list(cli, cli.bess.list_tcs().classes_status)
+=======
+        _show_tc_list(cli, cli.bess.list_tcs().classes_status)
+>>>>>>> develop
 
 
 @cmd('show tc worker WORKER_ID...', 'Show the list of traffic classes')
