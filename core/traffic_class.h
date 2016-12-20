@@ -21,7 +21,7 @@ namespace bess {
 #define DEFAULT_PRIORITY 0xFFFFFFFFu
 
 #define USAGE_AMPLIFIER_POW 32
-
+ 
 // Share is defined relatively, so 1024 should be large enough
 #define STRIDE1 (1 << 20)
 
