@@ -43,7 +43,6 @@ def build_bess():
 
 def build_kmod():
     kernel_ver = subprocess.check_output('uname -r', shell=True).strip()
-
     try:
         run_docker_cmd('%s kmod' % BUILD_SCRIPT)
     except:

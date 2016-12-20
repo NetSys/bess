@@ -12,11 +12,14 @@ import commands
 
 try:
     this_dir = os.path.dirname(os.path.realpath(__file__))
-    sys.path.insert(1, '%s/../libbess-python' % this_dir)
+    new_dir = this_dir.replace("bessctl", "libbess-python") 
+    sys.path.insert(1, new_dir)
     from bess import *
 except ImportError:
     print >> sys.stderr, 'Cannot import the API module (libbess-python)'
-
+    print >> sys.stderr, this_dir
+    print >> sys.stderr, sys.path
+    sys.exit(2)
 
 class BESSCLI(cli.CLI):
     def __init__(self, bess, cmd_db, fin=sys.stdin,

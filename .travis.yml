@@ -24,7 +24,8 @@ before_install:
   - sudo apt-get -q update
 
 install:
-  - sudo apt-get install -y python
+  - sudo apt-get install -y python linux-headers-generic gcc-5 g++-5
+  - sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-5 60 --slave /usr/bin/g++ g++ /usr/bin/g++-5
   - ln -s /build/dpdk-16.07 deps
   - docker pull $IMAGE
 
@@ -32,6 +33,7 @@ before_script:
   - sudo sysctl -w vm.nr_hugepages=1024
   - sudo mkdir -p /mnt/huge
   - sudo mount -t hugetlbfs nodev /mnt/huge
+  - pip install grpcio scapy
   - export CXX=$VER_CXX
   - export CC=$VER_CC
 
@@ -39,6 +41,8 @@ script:
   - ./container_build.py bess
   - ./container_build.py kmod_buildtest
   - core/all_test
+  - ./container_build.py 
+  - ./sanity_check.sh
 
 after_success:
   - "[[ ${COVERAGE:-0} != 0 ]] && bash <(curl -s https://codecov.io/bash)"

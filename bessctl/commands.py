@@ -668,10 +668,9 @@ def _do_run_file(cli, conf_file):
         while len(stack) > 0 and stack.pop(0)[2] != cur_func:
             pass
 
-        errmsg = 'Unhandled exception in the configuration script'
-
-        cli.err('%s (most recent call last)' % errmsg)
         cli.fout.write(''.join(traceback.format_list(stack)))
+        errmsg = 'Unhandled exception in the configuration script'
+        cli.err('%s (most recent call last)' % errmsg)
 
         if isinstance(v, cli.bess.Error):
             raise
