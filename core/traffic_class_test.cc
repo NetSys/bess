@@ -17,8 +17,8 @@ namespace bess {
 
 // Tests that we can create a leaf node.
 TEST(CreateTree, Leaf) {
-  TrafficClass *c = CT("leaf", {LEAF});
-  ASSERT_TRUE(c != nullptr);
+  std::unique_ptr<TrafficClass> c(CT("leaf", {LEAF}));
+  ASSERT_TRUE(c.get() != nullptr);
   ASSERT_EQ(1, c->Size());
   EXPECT_EQ(POLICY_LEAF, c->policy());
 
@@ -44,10 +44,13 @@ TEST(CreateTree, PriorityRootAndLeaf) {
   EXPECT_EQ(leaf->parent(), c);
 
   // We shouldn't be able to add a child with a duplicate priority.
-  EXPECT_FALSE(c->AddChild(CT("leaf_2", {LEAF}), 10));
+  TrafficClass *leaf2 = CT("leaf_2", {LEAF});
+  ASSERT_FALSE(c->AddChild(leaf2, 10));
+  delete leaf2;
 
   // A different priority should be fine.
-  EXPECT_TRUE(c->AddChild(CT("leaf_3", {LEAF}), 2));
+  TrafficClass *leaf3 = CT("leaf_3", {LEAF});
+  ASSERT_TRUE(c->AddChild(leaf3, 2));
 
   TrafficClassBuilder::ClearAll();
 }
