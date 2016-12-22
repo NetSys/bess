@@ -13,6 +13,13 @@
 
 namespace bess {
 
+PriorityTrafficClass::~PriorityTrafficClass() {
+  for (auto &c : children_) {
+    delete c.c_;
+  }
+  TrafficClassBuilder::Clear(this);
+}
+
 bool PriorityTrafficClass::AddChild(TrafficClass *child, priority_t priority) {
   if (child->parent_) {
     return false;
@@ -75,6 +82,17 @@ void PriorityTrafficClass::Traverse(TravereseTcFn f, void *arg) const {
   for (const auto &child : children_) {
     child.c_->Traverse(f, arg);
   }
+}
+
+WeightedFairTrafficClass::~WeightedFairTrafficClass() {
+  while (!children_.empty()) {
+    delete children_.top().c_;
+    children_.pop();
+  }
+  for (auto &c : blocked_children_) {
+    delete c.c_;
+  }
+  TrafficClassBuilder::Clear(this);
 }
 
 bool WeightedFairTrafficClass::AddChild(TrafficClass *child,
@@ -157,6 +175,16 @@ void WeightedFairTrafficClass::Traverse(TravereseTcFn f, void *arg) const {
   }
 }
 
+RoundRobinTrafficClass::~RoundRobinTrafficClass() {
+  for (TrafficClass *c : children_) {
+    delete c;
+  }
+  for (TrafficClass *c : blocked_children_) {
+    delete c;
+  }
+  TrafficClassBuilder::Clear(this);
+}
+
 bool RoundRobinTrafficClass::AddChild(TrafficClass *child) {
   if (child->parent_) {
     return false;
@@ -228,6 +256,14 @@ void RoundRobinTrafficClass::Traverse(TravereseTcFn f, void *arg) const {
   }
 }
 
+RateLimitTrafficClass::~RateLimitTrafficClass() {
+  // TODO(barath): Ensure that when this destructor is called this instance is
+  // also cleared out of the throttled_cache_ in Scheduler if it is present
+  // there.
+  delete child_;
+  TrafficClassBuilder::Clear(this);
+}
+
 bool RateLimitTrafficClass::AddChild(TrafficClass *child) {
   if (child->parent_ || child_ != nullptr) {
     return false;
@@ -289,6 +325,11 @@ void RateLimitTrafficClass::FinishAndAccountTowardsRoot(Scheduler *sched,
 void RateLimitTrafficClass::Traverse(TravereseTcFn f, void *arg) const {
   f(this, arg);
   child_->Traverse(f, arg);
+}
+
+LeafTrafficClass::~LeafTrafficClass() {
+  // TODO(barath): Determin whether tasks should be deleted here or elsewhere.
+  TrafficClassBuilder::Clear(this);
 }
 
 void LeafTrafficClass::AddTask(Task *t) {

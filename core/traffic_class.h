@@ -226,11 +226,7 @@ class PriorityTrafficClass final : public TrafficClass {
   explicit PriorityTrafficClass(const std::string &name)
       : TrafficClass(name, POLICY_PRIORITY), first_runnable_(0), children_() {}
 
-  ~PriorityTrafficClass() {
-    for (auto &c : children_) {
-      delete c.c_;
-    }
-  }
+  ~PriorityTrafficClass();
 
   // Returns true if child was added successfully.
   bool AddChild(TrafficClass *child, priority_t priority);
@@ -275,15 +271,7 @@ class WeightedFairTrafficClass final : public TrafficClass {
         children_(),
         blocked_children_() {}
 
-  ~WeightedFairTrafficClass() {
-    while (!children_.empty()) {
-      delete children_.top().c_;
-      children_.pop();
-    }
-    for (auto &c : blocked_children_) {
-      delete c.c_;
-    }
-  }
+  ~WeightedFairTrafficClass();
 
   // Returns true if child was added successfully.
   bool AddChild(TrafficClass *child, resource_share_t share);
@@ -325,14 +313,7 @@ class RoundRobinTrafficClass final : public TrafficClass {
         children_(),
         blocked_children_() {}
 
-  ~RoundRobinTrafficClass() {
-    for (TrafficClass *c : children_) {
-      delete c;
-    }
-    for (TrafficClass *c : blocked_children_) {
-      delete c;
-    }
-  }
+  ~RoundRobinTrafficClass();
 
   // Returns true if child was added successfully.
   bool AddChild(TrafficClass *child);
@@ -381,12 +362,7 @@ class RateLimitTrafficClass final : public TrafficClass {
     }
   }
 
-  ~RateLimitTrafficClass() {
-    // TODO(barath): Ensure that when this destructor is called this instance is
-    // also cleared out of the throttled_cache_ in Scheduler if it is present
-    // there.
-    delete child_;
-  }
+  ~RateLimitTrafficClass();
 
   // Returns true if child was added successfully.
   bool AddChild(TrafficClass *child);
@@ -440,9 +416,7 @@ class LeafTrafficClass final : public TrafficClass {
   explicit LeafTrafficClass(const std::string &name)
       : TrafficClass(name, POLICY_LEAF), task_index_(), tasks_() {}
 
-  ~LeafTrafficClass() {
-    // TODO(barath): Determin whether tasks should be deleted here or elsewhere.
-  }
+  ~LeafTrafficClass();
 
   // Direct access to the tasks vector, for testing only.
   std::vector<Task *> &tasks() { return tasks_; }
@@ -624,6 +598,7 @@ class TrafficClassBuilder {
   }
 
   // Attempts to clear knowledge of all classes.  Returns true upon success.
+  // Frees all TrafficClass objects that were created by this builder.
   static bool ClearAll();
 
   // Attempts to clear knowledge of given class.  Returns true upon success.
