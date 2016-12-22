@@ -11,8 +11,7 @@ class Measure final : public Module {
 
   Measure()
       : Module(),
-        hist_(),
-        summary_(),
+        hist_(Histogram<uint64_t>(kBuckets, kBuckets, kBucketWidth)),
         start_time_(),
         warmup_(),
         pkt_cnt_(),
@@ -26,8 +25,7 @@ class Measure final : public Module {
   pb_cmd_response_t CommandGetSummary(const bess::pb::EmptyArg &arg);
 
  private:
-  struct histogram hist_;
-  struct hist_summary summary_;
+  Histogram<uint64_t> hist_;
 
   uint64_t start_time_;
   int warmup_; /* second */
@@ -35,6 +33,9 @@ class Measure final : public Module {
   uint64_t pkt_cnt_;
   uint64_t bytes_cnt_;
   uint64_t total_latency_;
+
+  static const uint64_t kBucketWidth = 100;  // Measure in 100 ns units
+  static const uint64_t kBuckets = 1000000;
 };
 
 #endif  // BESS_MODULES_MEASURE_H_
