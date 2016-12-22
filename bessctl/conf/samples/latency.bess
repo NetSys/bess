@@ -20,8 +20,6 @@ while True:
     diff_pkts = (last.packets - now.packets) / diff_ts
     diff_bits = (last.bits - now.bits) / diff_ts
     diff_total_latency_ns = (last.total_latency_ns - now.total_latency_ns) / diff_ts
-    diff_latency_50_ns = (last.latency_50_ns - now.latency_50_ns) / diff_ts
-    diff_latency_99_ns = (last.latency_99_ns - now.latency_99_ns) / diff_ts
     last = now
 
     if diff_pkts >= 1.0:
@@ -35,4 +33,4 @@ while True:
              diff_bits / 1e6,
              ns_per_packet / 1e3,
              last.latency_50_ns / 1e3,
-             now.latency_50_ns / 1e3)
+             last.latency_99_ns / 1e3)

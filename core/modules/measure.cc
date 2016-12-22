@@ -7,6 +7,9 @@
 
 #include "../utils/time.h"
 
+#define MEASURE_ONE_NS (1000lu * 1000 * 1000)
+#define MEASURE_TIME_TO_SEC(t) ((t) / (MEASURE_ONE_NS))
+
 inline int get_measure_packet(bess::Packet *pkt, uint64_t *time) {
   uint8_t *avail = (pkt->head_data<uint8_t *>() + sizeof(struct ether_hdr) +
                     sizeof(struct ipv4_hdr)) +
@@ -32,13 +35,13 @@ pb_error_t Measure::Init(const bess::pb::MeasureArg &arg) {
 }
 
 void Measure::ProcessBatch(bess::PacketBatch *batch) {
-  uint64_t time = get_time();
+  uint64_t time = tsc_to_ns(rdtsc());
 
   if (start_time_ == 0) {
-    start_time_ = get_time();
+    start_time_ = tsc_to_ns(rdtsc());
   }
 
-  if (static_cast<int>(HISTO_TIME_TO_SEC(time - start_time_)) >= warmup_) {
+  if (static_cast<int>(MEASURE_TIME_TO_SEC(time - start_time_)) >= warmup_) {
     pkt_cnt_ += batch->cnt();
 
     for (int i = 0; i < batch->cnt(); i++) {

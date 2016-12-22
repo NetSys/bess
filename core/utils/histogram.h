@@ -7,19 +7,6 @@
 #include <string>
 #include <vector>
 
-#include <glog/logging.h>
-
-#include "time.h"
-
-#define HISTO_TIMEUNIT_MULT (1000lu * 1000 * 1000)  // Nano seconds
-#define HISTO_TIME (100lu)  // We measure in 100 ns units
-#define HISTO_TIME_TO_SEC(t) ((t) / (HISTO_TIMEUNIT_MULT / HISTO_TIME))
-
-static inline uint64_t get_time() {
-  double t = rdtsc();
-  return (uint64_t)(t * (HISTO_TIMEUNIT_MULT / HISTO_TIME) / tsc_hz);
-}
-
 static const std::vector<double> quartiles = {0.25f, 0.5f, 0.75f, 1.0f};
 
 // A general purpose histogram. A bin b_i is labeled by its upper edge
