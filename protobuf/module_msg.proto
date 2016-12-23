@@ -131,6 +131,18 @@ message WildcardMatchCommandSetDefaultGateArg {
   uint64 gate = 1;
 }
 
+message ACLArg {
+  message Rule {
+    string src_ip = 1;    // Source IP block in CIDR. Wildcard if "".
+    string dst_ip = 2;    // Destination IP block in CIDR. Wildcard if "".
+    uint32 src_port = 3;  // Source port: 80. Wildcard if 0.
+    uint32 dst_port = 4;  // Destination port. Wildcard if 0.
+    bool established = 5; // Not implemented
+    bool drop = 6;        // Drop matched packets if true.
+  }
+  repeated Rule rules = 1;
+}
+
 message BPFArg {
   message Filter {
     int64 priority = 1;
