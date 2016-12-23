@@ -2,7 +2,6 @@
 
 #include <rte_ether.h>
 #include <rte_ip.h>
-#include <rte_lpm.h>
 #include <rte_udp.h>
 
 #include <string>
@@ -13,12 +12,13 @@ const Commands ACL::cmds = {
 
 pb_error_t ACL::Init(const bess::pb::ACLArg &arg) {
   for (const auto &rule : arg.rules()) {
-    ACLRule new_rule = {.src_ip = CIDRNetwork(rule.src_ip()),
-                        .dst_ip = CIDRNetwork(rule.dst_ip()),
-                        .src_port = static_cast<uint16_t>(rule.src_port()),
-                        .dst_port = static_cast<uint16_t>(rule.dst_port()),
-                        .established = rule.established(),
-                        .drop = rule.drop()};
+    ACLRule new_rule = {
+        .src_ip = CIDRNetwork(rule.src_ip()),
+        .dst_ip = CIDRNetwork(rule.dst_ip()),
+        .src_port = htons(static_cast<uint16_t>(rule.src_port())),
+        .dst_port = htons(static_cast<uint16_t>(rule.dst_port())),
+        .established = rule.established(),
+        .drop = rule.drop()};
     rules_.push_back(new_rule);
   }
   return pb_errno(0);
@@ -43,12 +43,14 @@ void ACL::ProcessBatch(bess::PacketBatch *batch) {
 
     struct ether_hdr *eth = pkt->head_data<struct ether_hdr *>();
     struct ipv4_hdr *ip = reinterpret_cast<struct ipv4_hdr *>(eth + 1);
-    struct udp_hdr *udp = reinterpret_cast<struct udp_hdr *>(ip + 1);
+    int ip_bytes = (ip->version_ihl & 0xf) << 2;
+    struct udp_hdr *udp = reinterpret_cast<struct udp_hdr *>(
+        reinterpret_cast<uint8_t *>(ip) + ip_bytes);
 
-    IPAddress src_ip = ntohl(ip->src_addr);
-    IPAddress dst_ip = ntohl(ip->dst_addr);
-    uint16_t src_port = ntohs(udp->src_port);
-    uint16_t dst_port = ntohs(udp->dst_port);
+    IPAddress src_ip = ip->src_addr;
+    IPAddress dst_ip = ip->dst_addr;
+    uint16_t src_port = udp->src_port;
+    uint16_t dst_port = udp->dst_port;
 
     out_gates[i] = DROP_GATE;  // By default, drop unmatched packets
 

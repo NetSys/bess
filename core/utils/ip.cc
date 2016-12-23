@@ -19,7 +19,6 @@ CIDRNetwork::CIDRNetwork(const std::string &cidr) {
   DCHECK_LT(delim_pos, cidr.length());
 
   inet_pton(AF_INET, cidr.substr(0, delim_pos).c_str(), &addr);
-  addr = ntohl(addr);
 
   const int len = std::stoi(cidr.substr(delim_pos + 1));
   if (len <= 0) {
@@ -29,6 +28,7 @@ CIDRNetwork::CIDRNetwork(const std::string &cidr) {
   } else {
     mask = ~((1 << (32 - len)) - 1);
   }
+  mask = htonl(mask);
 }
 
 }  // namespace utils
