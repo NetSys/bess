@@ -55,7 +55,7 @@ void ACL::ProcessBatch(bess::PacketBatch *batch) {
     for (const auto &rule : rules_) {
       if (rule.Match(src_ip, dst_ip, src_port, dst_port)) {
         if (!rule.drop) {
-          out_gates[i] = 1 - get_igate();
+          out_gates[i] = get_igate();  // If from igate k, then send to ogate k
         }
         break;  // Stop matching other rules
       }
