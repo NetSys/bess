@@ -9,9 +9,13 @@ namespace utils {
 typedef uint32_t IPAddress;
 
 struct CIDRNetwork {
-  CIDRNetwork() = default;
+  // Implicit default constructor is not allowed
+  CIDRNetwork() = delete;
+
+  // Construct CIDRNetwork from a string like "192.168.0.1/24"
   explicit CIDRNetwork(const std::string& cidr);
 
+  // Returns true if ip is within the range of CIDRNetwork
   bool Match(const IPAddress& ip) const { return (addr & mask) == (ip & mask); }
 
   IPAddress addr;

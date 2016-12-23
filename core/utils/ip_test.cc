@@ -7,6 +7,7 @@ namespace {
 
 using bess::utils::CIDRNetwork;
 
+// Check if CIDRNetwork can be correctly constructed from strings
 TEST(IPTest, CIDRInStr) {
   CIDRNetwork cidr_1("192.168.0.1/24");
 
@@ -18,9 +19,9 @@ TEST(IPTest, CIDRInStr) {
   EXPECT_EQ(htonl(0x0), cidr_2.mask);
 }
 
+// Check if CIDRNetwork::Match() behaves correctly
 TEST(IPTest, CIDRMatch) {
   CIDRNetwork cidr_1("192.168.0.1/24");
-
   EXPECT_TRUE(cidr_1.Match(htonl((192 << 24) + (168 << 16) + 254)));
   EXPECT_FALSE(cidr_1.Match(htonl((192 << 24) + (168 << 16) + (2 << 8) + 1)));
 
