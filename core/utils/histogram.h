@@ -30,6 +30,8 @@ class Histogram {
     reset();
   }
 
+  ~Histogram() { delete[] buckets_; }
+
   // Insert x into the histogram.
   void insert(T x) {
     if (count_) {
@@ -143,7 +145,25 @@ class Histogram {
 
   // Convert the histogram into a cummulative histogram. Called by min(), max(),
   // avg(), count(), total() and percentile().
-  void summarize();
+  void summarize() {
+    bool found_min = false;
+    count_ = 0;
+    total_ = 0;
+    max_bucket_ = 0;
+    for (size_t i = 0; i < num_buckets_; i++) {
+      size_t samples = buckets_[i];
+      if (!found_min && samples > 0) {
+        min_bucket_ = i;
+        found_min = true;
+      }
+      if (samples > 0) {
+        max_bucket_ = i;
+      }
+      count_ += samples;
+      buckets_[i] = count_;
+      total_ += (samples * (i + 1) * bucket_width_);
+    }
+  }
 
   size_t num_buckets_;
   T bucket_width_;
@@ -155,26 +175,5 @@ class Histogram {
   size_t min_bucket_;
   size_t max_bucket_;
 };
-
-template <typename T>
-void Histogram<T>::summarize() {
-  bool found_min = false;
-  count_ = 0;
-  total_ = 0;
-  max_bucket_ = 0;
-  for (size_t i = 0; i < num_buckets_; i++) {
-    size_t samples = buckets_[i];
-    if (!found_min && samples > 0) {
-      min_bucket_ = i;
-      found_min = true;
-    }
-    if (samples > 0) {
-      max_bucket_ = i;
-    }
-    count_ += samples;
-    buckets_[i] = count_;
-    total_ += (samples * (i + 1) * bucket_width_);
-  }
-}
 
 #endif  // BESS_UTILS_HISTOGRAM_H_
