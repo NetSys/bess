@@ -81,8 +81,8 @@ pb_cmd_response_t Measure::CommandGetSummary(const bess::pb::EmptyArg &) {
   r.set_latency_min_ns(hist_.min());
   r.set_latency_avg_ns(hist_.avg());
   r.set_latency_max_ns(hist_.max());
-  r.set_latency_50_ns(hist_.percentile(0.5));
-  r.set_latency_99_ns(hist_.percentile(0.99));
+  r.set_latency_50_ns(hist_.percentile(50));
+  r.set_latency_99_ns(hist_.percentile(99));
 
   response.mutable_error()->set_err(0);
   response.mutable_other()->PackFrom(r);
