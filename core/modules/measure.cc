@@ -38,7 +38,7 @@ void Measure::ProcessBatch(bess::PacketBatch *batch) {
   uint64_t time = tsc_to_ns(rdtsc());
 
   if (start_time_ == 0) {
-    start_time_ = tsc_to_ns(rdtsc());
+    start_time_ = time;
   }
 
   if (static_cast<int>(MEASURE_TIME_TO_SEC(time - start_time_)) >= warmup_) {
