@@ -9,25 +9,28 @@
 
 static const std::vector<double> quartiles = {0.25f, 0.5f, 0.75f, 1.0f};
 
-// A general purpose histogram. A bin b_i is labeled by its upper edge
+// A general purpose histogram. A bin b_i is labeled by (i+1) * bucket_width_.
 // T must be an arithmetic type
 template <typename T>
 class Histogram {
  public:
-  Histogram(size_t num_buckets, T threshold, T bucket_width)
+  // Construct a new histogram with "num_buckets" buckets of width
+  // "bucket_width".
+  Histogram(size_t num_buckets, T bucket_width)
       : num_buckets_(num_buckets),
         bucket_width_(bucket_width),
-        threshold_(threshold),
+        threshold_((num_buckets_ + 1) * bucket_width_),
         buckets_(),
         above_threshold_(),
         count_(),
         total_(),
         min_bucket_(),
         max_bucket_() {
-    buckets_ = static_cast<size_t *>(malloc(num_buckets_ * sizeof(size_t)));
+    buckets_ = new size_t[num_buckets_];
     reset();
   }
 
+  // Insert x into the histogram.
   void insert(T x) {
     if (count_) {
       reset();
@@ -40,8 +43,14 @@ class Histogram {
     (*bucket(x))++;
   }
 
+  // Returns the number of inserted values that were >= (num_buckets_ + 1) *
+  // bucket_width_
   size_t above_threshold() { return above_threshold_; }
 
+  // Return the bucket with the lowest frequency.
+  // NOTE: This function s destructive, i.e. it turns the histogram into a
+  // cummulative histogram. Any calls to insert() after calls to this function
+  // will result in a call to reset().
   T min() {
     if (!count_) {
       summarize();
@@ -49,6 +58,10 @@ class Histogram {
     return (min_bucket_ + 1) * bucket_width_;
   }
 
+  // Return the bucket with the highest frequency.
+  // NOTE: This function s destructive, i.e. it turns the histogram into a
+  // cummulative histogram. Any calls to insert() after calls to this function
+  // will result in a call to reset().
   T max() {
     if (!count_) {
       summarize();
@@ -56,6 +69,10 @@ class Histogram {
     return (max_bucket_ + 1) * bucket_width_;
   }
 
+  // Return the average value in the histogram.
+  // NOTE: This function s destructive, i.e. it turns the histogram into a
+  // cummulative histogram. Any calls to insert() after calls to this function
+  // will result in a call to reset().
   T avg() {
     if (!count_) {
       summarize();
@@ -66,6 +83,10 @@ class Histogram {
     return 0;
   }
 
+  // Return the sum of the frequencies of each bucket.
+  // NOTE: This function s destructive, i.e. it turns the histogram into a
+  // cummulative histogram. Any calls to insert() after calls to this function
+  // will result in a call to reset().
   size_t count() {
     if (!count_) {
       summarize();
@@ -73,6 +94,11 @@ class Histogram {
     return count_;
   }
 
+  // Return the total of values inserted into the histogram, i.e. the sum of
+  // (i+1) * bucket_width_ * count(b_i) for each bucket b_i
+  // NOTE: This function s destructive, i.e. it turns the histogram into a
+  // cummulative histogram. Any calls to insert() after calls to this function
+  // will result in a call to reset().
   T total() {
     if (!count_) {
       summarize();
@@ -80,7 +106,13 @@ class Histogram {
     return total_;
   }
 
+  // Return the largest bucket b_i for which the cummulative frequency is less
+  // than p % of the total. p should be in [0, 100].
+  // NOTE: This function s destructive, i.e. it turns the histogram into a
+  // cummulative histogram. Any calls to insert() after calls to this function
+  // will result in a call to reset().
   T percentile(double p) {
+    p /= 100.0;
     if (!count_) {
       summarize();
     }
@@ -95,6 +127,7 @@ class Histogram {
     return ret * bucket_width_;
   }
 
+  // Zero out the histogram.
   void reset() {
     count_ = 0;
     total_ = 0;
@@ -108,6 +141,8 @@ class Histogram {
   // TODO(melvin): add support for logarithmic binning
   size_t *bucket(T x) { return buckets_ + (uintptr_t)(x / bucket_width_); }
 
+  // Convert the histogram into a cummulative histogram. Called by min(), max(),
+  // avg(), count(), total() and percentile().
   void summarize();
 
   size_t num_buckets_;

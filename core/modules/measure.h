@@ -11,7 +11,7 @@ class Measure final : public Module {
 
   Measure()
       : Module(),
-        hist_(Histogram<uint64_t>(kBuckets, kBuckets, kBucketWidth)),
+        hist_(Histogram<uint64_t>(kBuckets, kBucketWidth)),
         start_time_(),
         warmup_(),
         pkt_cnt_(),
