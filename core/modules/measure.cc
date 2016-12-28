@@ -7,6 +7,9 @@
 
 #include "../utils/time.h"
 
+#define MEASURE_ONE_NS (1000lu * 1000 * 1000)
+#define MEASURE_TIME_TO_SEC(t) ((t) / (MEASURE_ONE_NS))
+
 inline int get_measure_packet(bess::Packet *pkt, uint64_t *time) {
   uint8_t *avail = (pkt->head_data<uint8_t *>() + sizeof(struct ether_hdr) +
                     sizeof(struct ipv4_hdr)) +
@@ -32,13 +35,13 @@ pb_error_t Measure::Init(const bess::pb::MeasureArg &arg) {
 }
 
 void Measure::ProcessBatch(bess::PacketBatch *batch) {
-  uint64_t time = get_time();
+  uint64_t time = tsc_to_ns(rdtsc());
 
   if (start_time_ == 0) {
-    start_time_ = get_time();
+    start_time_ = time;
   }
 
-  if (static_cast<int>(HISTO_TIME_TO_SEC(time - start_time_)) >= warmup_) {
+  if (static_cast<int>(MEASURE_TIME_TO_SEC(time - start_time_)) >= warmup_) {
     pkt_cnt_ += batch->cnt();
 
     for (int i = 0; i < batch->cnt(); i++) {
@@ -55,7 +58,7 @@ void Measure::ProcessBatch(bess::PacketBatch *batch) {
         bytes_cnt_ += batch->pkts()[i]->total_len();
         total_latency_ += diff;
 
-        record_latency(&hist_, diff);
+        hist_.insert(diff);
       }
     }
   }
@@ -70,18 +73,16 @@ pb_cmd_response_t Measure::CommandGetSummary(const bess::pb::EmptyArg &) {
   pb_cmd_response_t response;
 
   bess::pb::MeasureCommandGetSummaryResponse r;
-  summarize_hist(&hist_, &summary_);
-  reset_hist(&hist_);
 
   r.set_timestamp(get_epoch_time());
   r.set_packets(pkt_total);
   r.set_bits(bits);
-  r.set_total_latency_ns(total_latency_ * 100);
-  r.set_latency_min_ns(summary_.min);
-  r.set_latency_avg_ns(summary_.avg);
-  r.set_latency_max_ns(summary_.max);
-  r.set_latency_50_ns(summary_.latencies[1]);
-  r.set_latency_99_ns(summary_.latencies[2]);
+  r.set_total_latency_ns(total_latency_);
+  r.set_latency_min_ns(hist_.min());
+  r.set_latency_avg_ns(hist_.avg());
+  r.set_latency_max_ns(hist_.max());
+  r.set_latency_50_ns(hist_.percentile(50));
+  r.set_latency_99_ns(hist_.percentile(99));
 
   response.mutable_error()->set_err(0);
   response.mutable_other()->PackFrom(r);
