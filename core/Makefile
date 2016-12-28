@@ -179,14 +179,6 @@ $(eval $(call BUILD, \
 	%.pb.cc $(DEPDIR)/$$@.d, \
 	$$(CXX) -o $$@ -c $$< $$(CXXFLAGS) $$(PERMISSIVE) $$(DEPFLAGS)))
 
-# NOTE: gRPC headers included by bessctl.cc will trigger compiler warning about
-# unused parameters. Add -Wno-unused-parameter for this file.
-$(eval $(call BUILD, \
-	CXX, \
-	bessctl.o, \
-	bessctl.cc $(PROTO_HEADERS), \
-	$$(CXX) -o $$@ -c $$< $$(CXXFLAGS) $$(PERMISSIVE) $$(DEPFLAGS)))
-
 $(eval $(call BUILD, \
 	CXX, \
 	%.o, \
