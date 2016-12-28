@@ -63,7 +63,6 @@ ifeq "$(IS_CLANG)" "0"
     ifeq "$(CXXVERSION_5_OR_HIGHER)" "1"
         CXXFLAGS += -Wshadow
     endif
-    CXXFLAGS += -Og
 else
     CXXFLAGS += -Wshadow
 endif
@@ -83,14 +82,11 @@ ifdef SANITIZE
     LDFLAGS += -fsanitize=address -fsanitize=undefined
 endif
 
-ifdef COVERAGE
-    # override -Ofast with -Og for better results
-    CXXFLAGS += --coverage -Og
+ifdef DEBUG
+    CXXFLAGS += --coverage -DNDEBUG -O0
     LDFLAGS += --coverage
-endif
-
-ifndef DEBUG
-    CXXFLAGS += -Ofast -DNDEBUG
+else
+    CXXFLAGS += -Ofast
 endif
 
 -include extra.dpdk.mk
