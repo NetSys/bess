@@ -9,6 +9,11 @@
 #include <map>
 #include <string>
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-parameter"
+#include "service.grpc.pb.h"
+#pragma GCC diagnostic pop
+
 #include "gate.h"
 #include "hooks/track.h"
 #include "message.h"
@@ -17,7 +22,6 @@
 #include "opts.h"
 #include "port.h"
 #include "scheduler.h"
-#include "service.grpc.pb.h"
 #include "traffic_class.h"
 #include "utils/ether.h"
 #include "utils/format.h"
