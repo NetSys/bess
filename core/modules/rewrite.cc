@@ -99,7 +99,7 @@ inline void Rewrite::DoRewrite(bess::PacketBatch *batch) {
     pkt->set_total_len(size);
     pkt->set_data_len(size);
 
-    memcpy_sloppy(ptr, templates_[start + i], size);
+    rte_memcpy(ptr, templates_[start + i], size);
   }
 
   next_turn_ = (start + cnt) % num_templates_;

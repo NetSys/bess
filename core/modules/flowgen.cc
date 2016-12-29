@@ -316,7 +316,7 @@ bess::Packet *FlowGen::FillPacket(struct flow *f) {
   pkt->set_total_len(size);
   pkt->set_data_len(size);
 
-  memcpy_sloppy(p, templ_, size);
+  rte_memcpy(p, templ_, size);
 
   tcp_flags = f->first ? /* SYN */ 0x02 : /* ACK */ 0x10;
 
