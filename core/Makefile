@@ -73,7 +73,7 @@ ifdef SANITIZE
 endif
 
 ifdef DEBUG
-    CXXFLAGS += --coverage -DNDEBUG -O0
+    CXXFLAGS += --coverage -DNDEBUG -O1
     LDFLAGS += --coverage
 else
     CXXFLAGS += -Ofast
