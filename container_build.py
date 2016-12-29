@@ -28,12 +28,12 @@ def shell_quote(cmd):
 
 
 def run_docker_cmd(cmd):
-    run_cmd('docker run -e CC -e CXX -e COVERAGE --rm -t -v %s:%s %s sh -c %s' %
+    run_cmd('docker run -e CC -e CXX -e DEBUG --rm -t -v %s:%s %s sh -c %s' %
             (BESS_DIR_HOST, BESS_DIR_CONTAINER, IMAGE, shell_quote(cmd)))
 
 
 def run_shell():
-    run_cmd('docker run -e CC -e CXX -e COVERAGE --rm -it -v %s:%s %s' %
+    run_cmd('docker run -e CC -e CXX -e DEBUG --rm -it -v %s:%s %s' %
             (BESS_DIR_HOST, BESS_DIR_CONTAINER, IMAGE))
 
 
