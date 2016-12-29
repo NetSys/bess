@@ -92,24 +92,6 @@ static inline int is_err_or_null(const void *ptr) {
 #define STORE_BARRIER() INST_BARRIER()
 #define FULL_BARRIER() asm volatile("mfence" ::: "memory")
 
-/* src/dst addresses and their sizes must be a multiple of SIMD register size */
-static inline void memcpy_sloppy(void *__restrict__ dst,
-                                 const void *__restrict__ src, size_t n) {
-#if __AVX2__
-  typedef __m256i block_t;
-#else
-  typedef __m128i block_t;
-#endif
-  block_t *__restrict__ d = (block_t *)dst;
-  const block_t *__restrict__ s = (const block_t *)src;
-
-  int bytes_left = n;
-  while (bytes_left > 0) {
-    *d++ = *s++;
-    bytes_left -= sizeof(block_t);
-  }
-}
-
 // Put this in the declarations for a class to be uncopyable.
 #define DISALLOW_COPY(TypeName) TypeName(const TypeName &) = delete
 // Put this in the declarations for a class to be unassignable.
