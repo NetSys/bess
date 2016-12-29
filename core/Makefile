@@ -15,19 +15,14 @@ $(shell mkdir -p $(DEPDIR)/modules >/dev/null)
 $(shell mkdir -p $(DEPDIR)/drivers >/dev/null)
 $(shell mkdir -p $(DEPDIR)/hooks >/dev/null)
 
-# e.g., 4.9.3 -> 40903
+# 'clang' or 'g++'
+CXXCOMPILER := $(shell expr $(word 1, $(shell $(CXX) --version)) : '\(clang\|g++\)')
+
+# e.g., 4.9.3 -> 40903. For clang it is always 40201
 CXXVERSION := $(shell $(CXX) -dumpversion | sed -e 's/\.\([0-9][0-9]\)/\1/g' -e 's/\.\([0-9]\)/0\1/g' -e 's/^[0-9]\{3,4\}$$/&00/')
-CXXVERSION_4_8_OR_HIGHER := $(shell expr $(CXXVERSION) \>= 40800)
 
-IS_CLANG := $(word 3, $(shell $(CXX) -dM -E -x c /dev/null | grep __clang__))
-ifeq "$(IS_CLANG)" ""
-    IS_CLANG := 0
-endif
-
-ifeq "$(IS_CLANG)" "0"
-    ifeq "$(CXXVERSION_4_8_OR_HIGHER)" "0"
-        $(error g++ 4.8 or higher is required)
-    endif
+ifeq "$(shell expr $(CXXCOMPILER) = g++ \& $(CXXVERSION) \< 40800)" "1"
+    $(error g++ 4.8 or higher is required)
 endif
 
 RTE_SDK ?= $(abspath ../deps/dpdk-16.07)
@@ -58,12 +53,7 @@ PERMISSIVE = -Wno-unused-parameter -Wno-missing-field-initializers \
              -Wno-unused-private-field
 
 # -Wshadow should not be used for g++ 4.x, as it has too many false positives
-CXXVERSION_5_OR_HIGHER := $(shell expr $(CXXVERSION) \>= 50000)
-ifeq "$(IS_CLANG)" "0"
-    ifeq "$(CXXVERSION_5_OR_HIGHER)" "1"
-        CXXFLAGS += -Wshadow
-    endif
-else
+ifeq "$(shell expr $(CXXCOMPILER) = g++ \& $(CXXVERSION) \< 50000)" "0"
     CXXFLAGS += -Wshadow
 endif
 
