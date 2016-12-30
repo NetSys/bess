@@ -39,6 +39,7 @@ To build BESS on your Linux machine, you will need the following software packag
 - `libgtest-dev`: Google gtest C++ testing library
 - [gRPC](https://github.com/grpc/grpc/blob/master/INSTALL.md): Google RPC library and framework
 - [benchmark](https://github.com/google/benchmark/releases/tag/v1.1.0): Google microbenchmark library
+- `grpcio`: gRPC Python binding (`pip` package)
 
 > NOTE: These package names are from Ubuntu. Other Linux distributions may have different package names.
 
