@@ -24,7 +24,9 @@ void *mem_alloc_ex(size_t size, size_t align, int) {
 
   ret = posix_memalign(&ptr, align, size);
   if (ret)
-    return NULL;
+    return nullptr;
+
+  memset(ptr, 0, size);
 
   return ptr;
 }
