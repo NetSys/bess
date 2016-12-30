@@ -28,9 +28,10 @@ class Queue final : public Module {
   int Resize(int slots);
   pb_error_t SetBurst(int64_t burst);
   pb_error_t SetSize(uint64_t size);
-  struct llring *queue_ = {};
-  int prefetch_ = {};
-  int burst_ = {};
+
+  struct llring *queue_;
+  bool prefetch_;
+  int burst_;
 };
 
 #endif  // BESS_MODULES_QUEUE_H_

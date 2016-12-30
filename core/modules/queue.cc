@@ -20,7 +20,7 @@ int Queue::Resize(int slots) {
 
   int ret;
 
-  new_queue = static_cast<llring *>(mem_alloc(bytes));
+  new_queue = static_cast<llring *>(mem_alloc_ex(bytes, alignof(llring), 0));
   if (!new_queue) {
     return -ENOMEM;
   }
