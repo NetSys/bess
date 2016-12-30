@@ -30,7 +30,7 @@ class Queue final : public Module {
   pb_error_t SetSize(uint64_t size);
 
   struct llring *queue_;
-  int prefetch_;
+  bool prefetch_;
   int burst_;
 };
 
