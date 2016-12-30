@@ -17,6 +17,18 @@ void *mem_alloc(size_t size) {
   return calloc(1, size);
 }
 
+/* TODO: socket is ignored for now */
+void *mem_alloc_ex(size_t size, size_t align, int) {
+  void *ptr;
+  int ret;
+
+  ret = posix_memalign(&ptr, align, size);
+  if (ret)
+    return NULL;
+
+  return ptr;
+}
+
 void *mem_realloc(void *ptr, size_t size) {
   size_t old_size = malloc_usable_size(ptr);
   char *new_ptr = static_cast<char *>(realloc(ptr, size));
