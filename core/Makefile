@@ -75,7 +75,9 @@ endif
 ifdef DEBUG
     CXXFLAGS += --coverage -DNDEBUG -O1
     LDFLAGS += --coverage
-else
+else ifeq "$(CXX)" "g++-6"
+    CXXFLAGS += -O2
+else 
     CXXFLAGS += -Ofast
 endif
 
