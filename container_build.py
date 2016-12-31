@@ -33,8 +33,8 @@ def run_docker_cmd(cmd):
 
 
 def run_shell():
-    run_cmd('docker run -e CXX -e DEBUG --rm -u %d:%d -it -v %s:%s %s' %
-            (os.getuid(), os.getgid(), BESS_DIR_HOST, BESS_DIR_CONTAINER, IMAGE))
+    run_cmd('docker run -e CXX -e DEBUG --rm -it -v %s:%s %s' %
+            (BESS_DIR_HOST, BESS_DIR_CONTAINER, IMAGE))
 
 
 def build_bess():
