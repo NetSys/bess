@@ -5,6 +5,7 @@ cscope.*
 *.vim
 core/extra.mk
 core/extra.dpdk.mk
+sanity_check.out
 
 # VM images
 *.img
