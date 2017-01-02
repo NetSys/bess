@@ -26,10 +26,10 @@ RUN cd /build && \
 	git clone -b $(curl -s -L http://grpc.io/release) https://github.com/grpc/grpc && \
 	cd /build/grpc && \
 	git submodule update --init && \
-	make -j && \
+	make -j4 && \
 	make install && \
 	cd /build/grpc/third_party/protobuf && \
-	make -j && \
+	make -j4 && \
 	make install && \
 	rm -rf /build/grpc
 
