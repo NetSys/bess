@@ -563,6 +563,9 @@ def daemon_start(cli, opts):
     else:
         _do_start(cli, opts)
 
+    if cli.interactive:
+        cli.fout.write('Done.\n')
+
 
 def is_pipeline_empty(cli):
     workers = cli.bess.list_workers().workers_status
