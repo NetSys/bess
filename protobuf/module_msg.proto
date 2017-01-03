@@ -234,6 +234,14 @@ message MetadataTestArg {
   map<string, int64> update = 3;
 }
 
+message NATArg {
+  message Rule {
+    string internal_addr_block = 1; // Internal IP block in CIDR.
+    string external_addr_block = 2; // External IP block in CIDR.
+  }
+  repeated Rule rules = 1;
+}
+
 message NoOpArg {
 }
 
