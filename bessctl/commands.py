@@ -15,6 +15,7 @@ import inspect
 import traceback
 import tempfile
 import signal
+import collections
 
 import sugar
 from port import *
@@ -1318,20 +1319,16 @@ def monitor_port_all(cli, ports):
     _monitor_ports(cli, *ports)
 
 
+TcCounterRate = collections.namedtuple('TcCounterRate',
+                                       ['count', 'cycles', 'bits', 'packets'])
+
 def _monitor_tcs(cli, *tcs):
     def get_delta(old, new):
-        delta = copy.deepcopy(new)
         sec_diff = new.timestamp - old.timestamp
-        try:
-            delta.count = long((new.count - old.count) / sec_diff)
-            delta.cycles = long((new.cycles - old.cycles) / sec_diff)
-            delta.bits = long((new.bits - old.bits) / sec_diff)
-            delta.packets = long((new.packets - old.packets) / sec_diff)
-        except:
-            delta.count = 0
-            delta.cycles = 0
-            delta.bits = 0
-            delta.packets = 0
+        delta = TcCounterRate(count = (new.count - old.count) / sec_diff,
+                              cycles = (new.cycles - old.cycles) / sec_diff,
+                              bits = (new.bits - old.bits) / sec_diff,
+                              packets = (new.packets - old.packets) / sec_diff)
         return delta
 
     def print_header(timestamp):
@@ -1357,7 +1354,7 @@ def _monitor_tcs(cli, *tcs):
         else:
             cpp = 0
 
-        cli.fout.write('%-20s%12.3f%12d%12.3f%12.3f%12d%12d\n' %
+        cli.fout.write('%-20s%12.3f%12d%12.3f%12.3f%12.3f%12.3f\n' %
                        (tc,
                         delta.cycles / 1e6,
                         delta.count,
