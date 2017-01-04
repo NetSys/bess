@@ -1216,19 +1216,22 @@ def monitor_pipeline(cli):
 def monitor_pipeline_batch(cli):
     _monitor_pipeline(cli, 'cnt')
 
+PortRate = collections.namedtuple('PortRate',
+                                  ['inc_packets', 'inc_dropped', 'inc_bytes',
+                                   'out_packets', 'out_dropped', 'out_bytes'])
 
 def _monitor_ports(cli, *ports):
 
     def get_delta(old, new):
-        result = dict()
         sec_diff = new.timestamp - old.timestamp
-        result['inc_packets'] = (new.inc.packets - old.inc.packets) / sec_diff
-        result['inc_dropped'] = (new.inc.dropped - old.inc.dropped) / sec_diff
-        result['inc_bytes'] = (new.inc.bytes - old.inc.bytes) / sec_diff
-        result['out_packets'] = (new.out.packets - old.out.packets) / sec_diff
-        result['out_dropped'] = (new.out.dropped - old.out.dropped) / sec_diff
-        result['out_bytes'] = (new.out.bytes - old.out.bytes) / sec_diff
-        return result
+        delta = PortRate(
+            inc_packets = (new.inc.packets - old.inc.packets) / sec_diff,
+            inc_dropped = (new.inc.dropped - old.inc.dropped) / sec_diff,
+            inc_bytes = (new.inc.bytes - old.inc.bytes) / sec_diff,
+            out_packets = (new.out.packets - old.out.packets) / sec_diff,
+            out_dropped = (new.out.dropped - old.out.dropped) / sec_diff,
+            out_bytes = (new.out.bytes - old.out.bytes) / sec_diff)
+        return delta
 
     def print_header(timestamp):
         cli.fout.write('\n')
@@ -1245,14 +1248,12 @@ def _monitor_ports(cli, *ports):
     def print_delta(port, delta):
         cli.fout.write('%-20s%14.1f%10.3f%10d        %14.1f%10.3f%10d\n' %
                        (port,
-                        (delta['inc_bytes'] +
-                         delta['inc_packets'] * 24) * 8 / 1e6,
-                        delta['inc_packets'] / 1e6,
-                        delta['inc_dropped'],
-                        (delta['out_bytes'] +
-                         delta['out_packets'] * 24) * 8 / 1e6,
-                        delta['out_packets'] / 1e6,
-                        delta['out_dropped']))
+                        (delta.inc_bytes + delta.inc_packets * 24) * 8 / 1e6,
+                        delta.inc_packets / 1e6,
+                        delta.inc_dropped,
+                        (delta.out_bytes + delta.out_packets * 24) * 8 / 1e6,
+                        delta.out_packets / 1e6,
+                        delta.out_dropped))
 
     def get_total(arr):
         total = copy.deepcopy(arr[0])
