@@ -15,10 +15,10 @@ class ACL final : public Module {
   struct ACLRule {
     bool Match(IPAddress sip, IPAddress dip, uint16_t sport,
                uint16_t dport) const {
-      return ((src_ip.addr != 0 && src_ip.Match(sip)) &&
-              (dst_ip.addr != 0 && dst_ip.Match(dip)) &&
-              (src_port != 0 && src_port == sport) &&
-              (dst_port != 0 && dst_port == dport));
+      return (src_ip.addr == 0 || (src_ip.addr != 0 && src_ip.Match(sip))) &&
+             (dst_ip.addr == 0 || (dst_ip.addr != 0 && dst_ip.Match(dip))) &&
+             (src_port == 0 || (src_port != 0 && src_port == sport)) &&
+             (dst_port == 0 || (dst_port != 0 && dst_port == dport));
     }
 
     CIDRNetwork src_ip;
