@@ -65,3 +65,5 @@ void ACL::ProcessBatch(bess::PacketBatch *batch) {
   }
   RunSplit(out_gates, batch);
 }
+
+ADD_MODULE(ACL, "acl", "ACL module from NetBricks")
