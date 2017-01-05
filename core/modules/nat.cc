@@ -1,7 +1,9 @@
 #include "nat.h"
 
 #include <rte_ether.h>
+#include <rte_icmp.h>
 #include <rte_ip.h>
+#include <rte_tcp.h>
 #include <rte_udp.h>
 
 #include <numeric>
@@ -48,6 +50,29 @@ pb_cmd_response_t NAT::CommandClear(const bess::pb::EmptyArg &) {
   return pb_cmd_response_t();
 }
 
+inline static void compute_cksum(struct ipv4_hdr *ip, void *l4) {
+  struct tcp_hdr *tcp = reinterpret_cast<struct tcp_hdr *>(l4);
+  struct udp_hdr *udp = reinterpret_cast<struct udp_hdr *>(l4);
+  struct icmp_hdr *icmp = reinterpret_cast<struct icmp_hdr *>(l4);
+
+  ip->hdr_checksum = 0;
+  switch (ip->next_proto_id) {
+    case 0x06:
+      tcp->cksum = 0;
+      tcp->cksum = rte_ipv4_udptcp_cksum(ip, tcp);
+      break;
+    case 0x11:
+      udp->dgram_cksum = 0;
+      udp->dgram_cksum = rte_ipv4_udptcp_cksum(ip, udp);
+      break;
+    case 0x01:
+      icmp->icmp_cksum = 0;
+      icmp->icmp_cksum = rte_ipv4_udptcp_cksum(ip, icmp);
+      break;
+  }
+  ip->hdr_checksum = rte_ipv4_cksum(ip);
+}
+
 void NAT::ProcessBatch(bess::PacketBatch *batch) {
   gate_idx_t out_gates[bess::PacketBatch::kMaxBurst];
   gate_idx_t incoming_gate = get_igate();
@@ -57,14 +82,20 @@ void NAT::ProcessBatch(bess::PacketBatch *batch) {
   for (int i = 0; i < cnt; i++) {
     bess::Packet *pkt = batch->pkts()[i];
 
-    // By default, packets from igate k are sent to ogate k
-    out_gates[i] = incoming_gate;
+    // By default, drop packet
+    out_gates[i] = DROP_GATE;
 
     struct ether_hdr *eth = pkt->head_data<struct ether_hdr *>();
     struct ipv4_hdr *ip = reinterpret_cast<struct ipv4_hdr *>(eth + 1);
     int ip_bytes = (ip->version_ihl & 0xf) << 2;
     struct udp_hdr *udp = reinterpret_cast<struct udp_hdr *>(
         reinterpret_cast<uint8_t *>(ip) + ip_bytes);
+
+    // L4 protocol must be TCP, UDP, or ICMP
+    if (ip->next_proto_id != 0x06 && ip->next_proto_id != 0x11 &&
+        ip->next_proto_id != 0x01) {
+      out_gates[i] = DROP_GATE;
+    }
 
     NAT::Flow flow = {.src_ip = ip->src_addr,
                       .src_port = udp->src_port,
@@ -84,7 +115,8 @@ void NAT::ProcessBatch(bess::PacketBatch *batch) {
       ip->dst_addr = rev_flow.dst_ip;
       udp->src_port = rev_flow.src_port;
       udp->dst_port = rev_flow.dst_port;
-      ip->hdr_checksum = rte_ipv4_cksum(ip);
+      ip->hdr_checksum = 0;
+      compute_cksum(ip, udp);
     } else {
       // Reclaim expired record
       if (hash_it != flow_hash_.end() &&
@@ -127,8 +159,10 @@ void NAT::ProcessBatch(bess::PacketBatch *batch) {
       ip->dst_addr = ext_flow.dst_ip;
       udp->src_port = ext_flow.src_port;
       udp->dst_port = ext_flow.dst_port;
-      ip->hdr_checksum = rte_ipv4_cksum(ip);
+      compute_cksum(ip, udp);
     }
   }
   RunSplit(out_gates, batch);
 }
+
+ADD_MODULE(NAT, "nat", "Network address translator")

@@ -226,6 +226,7 @@ class BESS(object):
             'Measure': module_msg.MeasureArg,
             'Merge': bess_msg.EmptyArg,
             'MetadataTest': module_msg.MetadataTestArg,
+            'NAT': module_msg.NATArg,
             'NoOP': bess_msg.EmptyArg,
             'PortInc': module_msg.PortIncArg,
             'PortOut': module_msg.PortOutArg,
