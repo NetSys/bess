@@ -26,39 +26,46 @@ inline void hash_combine(std::size_t &seed, const T &v) {
 class NAT final : public Module {
  public:
   struct Flow {
+    uint8_t proto;
     IPAddress src_ip;
     uint16_t src_port;
     IPAddress dst_ip;
     uint16_t dst_port;
+    uint16_t icmp_ident;
 
-    Flow reverse_flow() {
-      return {.src_ip = dst_ip,
+    Flow reverse_flow() const {
+      return {.proto = proto,
+              .src_ip = dst_ip,
               .src_port = dst_port,
               .dst_ip = src_ip,
-              .dst_port = src_port};
+              .dst_port = src_port,
+              .icmp_ident = icmp_ident};
     }
 
     bool operator==(const Flow &other) const {
-      return src_ip == other.src_ip && src_port == other.src_port &&
-             dst_ip == other.dst_ip && dst_port == other.dst_port;
+      return proto == other.proto && src_ip == other.src_ip &&
+             src_port == other.src_port && dst_ip == other.dst_ip &&
+             dst_port == other.dst_port && icmp_ident == other.icmp_ident;
     }
   };
 
   struct FlowHash {
     std::size_t operator()(const Flow &f) const {
       std::size_t seed = 0;
+      hash_combine(seed, f.proto);
       hash_combine(seed, f.src_ip);
       hash_combine(seed, f.src_port);
       hash_combine(seed, f.dst_ip);
       hash_combine(seed, f.dst_port);
+      hash_combine(seed, f.icmp_ident);
       return seed;
     }
   };
 
   struct FlowRecord {
     uint16_t port;
-    Flow forward_flow;
-    Flow reverse_flow;
+    Flow internal_flow;
+    Flow external_flow;
     uint64_t time;
     FlowRecord() : port(0), time(0) {}
   };
