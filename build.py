@@ -27,7 +27,7 @@ else:
 DPDK_DIR = '%s/%s' % (DEPS_DIR, DPDK_VER)
 DPDK_URL = '%s/%s.tar.gz' % (DPDK_REPO, DPDK_VER)
 DPDK_FILE = '%s/%s.tar.gz' % (DEPS_DIR, DPDK_VER)
-DPDK_CFLAGS = '"-g -w"'
+DPDK_CFLAGS = '"-g -w -fPIC"'
 DPDK_ORIG_CONFIG = '%s/config/common_linuxapp' % DPDK_DIR
 DPDK_BASE_CONFIG = '%s/%s_common_linuxapp' % (DEPS_DIR, DPDK_VER)
 DPDK_FINAL_CONFIG = '%s/%s_common_linuxapp_final' % (DEPS_DIR, DPDK_VER)
