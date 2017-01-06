@@ -21,6 +21,6 @@ packets = [gen_packet(scapy.UDP, '172.16.100.1', '10.0.0.1'),
            gen_packet(scapy.UDP, '192.168.1.123', '12.34.56.78'),
           ]
 
-fw::ACL(rules=[{'src_ip': '172.12.1.1/16', 'drop': False}])
+fw::ACL(rules=[{'src_ip': '172.12.0.0/16', 'drop': False}])
 
 Source() -> Rewrite(templates=packets) -> fw -> Sink()
