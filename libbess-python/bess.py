@@ -209,6 +209,7 @@ class BESS(object):
         }
         request = proto_conv.dict_to_protobuf(kv, bess_msg.CreateModuleRequest)
         message_map = {
+            'ACL': module_msg.ACLArg,
             'BPF': module_msg.BPFArg,
             'Buffer': bess_msg.EmptyArg,
             'Bypass': bess_msg.EmptyArg,
