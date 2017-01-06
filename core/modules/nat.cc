@@ -153,7 +153,7 @@ void NAT::ProcessBatch(bess::PacketBatch *batch) {
   for (int i = 0; i < cnt; i++) {
     bess::Packet *pkt = batch->pkts()[i];
 
-    // By default, drop packet
+    // By default, pass packet
     out_gates[i] = incoming_gate;
 
     struct ether_hdr *eth = pkt->head_data<struct ether_hdr *>();
