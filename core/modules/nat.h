@@ -71,6 +71,8 @@ class NAT final : public Module {
   };
 
   static const Commands cmds;
+  static const gate_idx_t kNumIGates = 2;
+  static const gate_idx_t kNumOGates = 2;
 
   pb_error_t Init(const bess::pb::NATArg &arg);
 

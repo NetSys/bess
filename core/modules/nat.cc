@@ -24,11 +24,11 @@ pb_error_t NAT::Init(const bess::pb::NATArg &arg) {
     rules_.push_back(std::make_pair(int_net, ext_net));
   }
 
-  available_ports_.reserve(MAX_PORT - MIN_PORT + 1);
+  available_ports_.resize(MAX_PORT - MIN_PORT + 1);
   std::iota(available_ports_.begin(), available_ports_.end(), MIN_PORT);
+  std::random_shuffle(available_ports_.begin(), available_ports_.end());
 
-  flow_vec_.reserve(MAX_PORT - MIN_PORT + 1);
-
+  flow_vec_.resize(MAX_PORT - MIN_PORT + 1);
   return pb_errno(0);
 }
 
@@ -44,9 +44,13 @@ pb_cmd_response_t NAT::CommandAdd(const bess::pb::NATArg &arg) {
 pb_cmd_response_t NAT::CommandClear(const bess::pb::EmptyArg &) {
   rules_.clear();
   flow_hash_.clear();
-  flow_vec_.clear();
-  available_ports_.reserve(MAX_PORT - MIN_PORT + 1);
+
+  available_ports_.resize(MAX_PORT - MIN_PORT + 1);
   std::iota(available_ports_.begin(), available_ports_.end(), MIN_PORT);
+  std::random_shuffle(available_ports_.begin(), available_ports_.end());
+
+  flow_vec_.resize(MAX_PORT - MIN_PORT + 1);
+
   return pb_cmd_response_t();
 }
 
@@ -63,7 +67,6 @@ inline static void compute_cksum(struct ipv4_hdr *ip, void *l4) {
       break;
     case 0x11:
       udp->dgram_cksum = 0;
-      udp->dgram_cksum = rte_ipv4_udptcp_cksum(ip, udp);
       break;
     case 0x01:
       icmp->icmp_cksum = 0;
