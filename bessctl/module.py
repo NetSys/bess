@@ -1,5 +1,5 @@
+import copy
 import types
-
 
 def _callback_factory(self, cmd, arg_type):
     return lambda mod, arg=None, **kwargs: \
@@ -44,10 +44,12 @@ class Module(object):
             assert False, 'Gate ID must be an integer'
 
         if self.ogate is not None:
+            print self, self.ogate, ogate
             assert False, 'Output gate is already bound'
 
-        self.ogate = ogate
-        return self
+        ret = copy.copy(self)
+        ret.ogate = ogate
+        return ret
 
     def __rmul__(self, igate):
         if not isinstance(igate, int):
@@ -56,8 +58,9 @@ class Module(object):
         if self.igate is not None:
             assert False, 'Input gate is already bound'
 
-        self.igate = igate
-        return self
+        ret = copy.copy(self)
+        ret.igate = igate
+        return ret
 
     def __add__(self, next_mod):
         if not isinstance(next_mod, Module):
