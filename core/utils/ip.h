@@ -1,6 +1,7 @@
 #ifndef BESS_UTILS_IP_H_
 #define BESS_UTILS_IP_H_
 
+#include <arpa/inet.h>
 #include <string>
 
 namespace bess {
@@ -20,6 +21,28 @@ struct CIDRNetwork {
 
   IPAddress addr;
   IPAddress mask;
+};
+
+// An IPv4 header definition loosely based on the BSD version.
+struct [[gnu::packed]] Ipv4Header {
+#if __BYTE_ORDER == __LITTLE_ENDIAN
+  unsigned int header_length:4;  // Header length.
+  unsigned int version:4;        // Version.
+#elif __BYTE_ORDER == __BIG_ENDIAN
+  unsigned int version:4;        // Version.
+  unsigned int header_length:4;  // Header length.
+#else 
+#error __BYTE_ORDER must be defined.
+#endif
+  uint8_t type_of_service;       // Type of service.
+  uint16_t length;               // Length.
+  uint16_t id;                   // ID.
+  uint16_t fragment_offset;      // Fragment offset.
+  uint8_t ttl;                   // Time to live.
+  uint8_t protocol;              // Protocol.
+  uint16_t checksum;             // Checksum.
+  struct in_addr src;            // Source address.
+  struct in_addr dst;            // Destination address.
 };
 
 }  // namespace utils
