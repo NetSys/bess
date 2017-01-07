@@ -221,6 +221,7 @@ class BESS(object):
             'HashLB': module_msg.HashLBArg,
             'IPEncap': bess_msg.EmptyArg,
             'IPLookup': bess_msg.EmptyArg,
+            'IPSwap': bess_msg.EmptyArg,
             'L2Forward': module_msg.L2ForwardArg,
             'MACSwap': bess_msg.EmptyArg,
             'Measure': module_msg.MeasureArg,
