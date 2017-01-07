@@ -60,5 +60,7 @@ int main(int argc, char *argv[]) {
   rte_eal_mp_wait_lcore();
   bess::close_mempool();
 
+  LOG(INFO) << "BESS daemon has been gracefully shut down";
+
   return 0;
 }

@@ -1,0 +1,26 @@
+import scapy.all as scapy
+import socket
+
+def aton(ip):
+    return socket.inet_aton(ip)
+
+# Craft a packet with the specified IP addresses
+def gen_packet(proto, src_ip, dst_ip):
+    eth = scapy.Ether(src='02:1e:67:9f:4d:ae', dst='06:16:3e:1b:72:32')
+    ip = scapy.IP(src=src_ip, dst=dst_ip)
+    udp = proto(sport=10001, dport=10002)
+    payload = 'helloworld'
+    pkt = eth/ip/udp/payload
+    return str(pkt)
+
+packets = [gen_packet(scapy.UDP, '172.16.100.1', '10.0.0.1'),
+           gen_packet(scapy.UDP, '172.12.55.99', '12.34.56.78'),
+           gen_packet(scapy.UDP, '172.12.55.99', '10.0.0.1'),
+           gen_packet(scapy.UDP, '172.16.100.1', '12.34.56.78'),
+           gen_packet(scapy.TCP, '172.12.55.99', '12.34.56.78'),
+           gen_packet(scapy.UDP, '192.168.1.123', '12.34.56.78'),
+          ]
+
+fw::ACL(rules=[{'src_ip': '172.12.0.0/16', 'drop': False}])
+
+Source() -> Rewrite(templates=packets) -> fw -> Sink()

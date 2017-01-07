@@ -51,7 +51,7 @@ void init_mempool(void);
 void close_mempool(void);
 
 // For the layout of snbuf, see snbuf_layout.h
-class Packet {
+class alignas(64) Packet {
  public:
   // TODO: delete constructor/destructor w/o breaking module_bench
 
@@ -105,6 +105,7 @@ class Packet {
   T buffer() {
     return reinterpret_cast<T>(buf_addr_);
   }
+  void set_buffer(void *addr) { buf_addr_ = addr; }
 
   int nb_segs() const { return nb_segs_; }
   void set_nb_segs(int n) { nb_segs_ = n; }

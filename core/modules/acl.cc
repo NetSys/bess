@@ -37,6 +37,8 @@ pb_cmd_response_t ACL::CommandClear(const bess::pb::EmptyArg &) {
 
 void ACL::ProcessBatch(bess::PacketBatch *batch) {
   gate_idx_t out_gates[bess::PacketBatch::kMaxBurst];
+  gate_idx_t incoming_gate = get_igate();
+
   int cnt = batch->cnt();
   for (int i = 0; i < cnt; i++) {
     bess::Packet *pkt = batch->pkts()[i];
@@ -57,7 +59,7 @@ void ACL::ProcessBatch(bess::PacketBatch *batch) {
     for (const auto &rule : rules_) {
       if (rule.Match(src_ip, dst_ip, src_port, dst_port)) {
         if (!rule.drop) {
-          out_gates[i] = get_igate();  // If from igate k, then send to ogate k
+          out_gates[i] = incoming_gate;
         }
         break;  // Stop matching other rules
       }
@@ -65,3 +67,5 @@ void ACL::ProcessBatch(bess::PacketBatch *batch) {
   }
   RunSplit(out_gates, batch);
 }
+
+ADD_MODULE(ACL, "acl", "ACL module from NetBricks")

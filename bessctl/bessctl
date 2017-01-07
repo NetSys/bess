@@ -5,7 +5,6 @@ import os.path
 import pprint
 import cStringIO
 import tempfile
-import socket
 
 import cli
 import commands
@@ -16,7 +15,7 @@ try:
     from bess import *
 except ImportError:
     print >> sys.stderr, 'Cannot import the API module (libbess-python)'
-
+    raise
 
 class BESSCLI(cli.CLI):
     def __init__(self, bess, cmd_db, fin=sys.stdin,
@@ -101,20 +100,6 @@ class BESSCLI(cli.CLI):
             return '<disconnected> $ '
 
 
-def connect_bess():
-    s = BESS()
-
-    try:
-        sock = socket.socket()
-        sock.connect(('localhost', BESS.DEF_PORT))
-        sock.close()
-        s.connect()
-    except socket.error as e:
-        pass
-        
-    return s
-
-
 def run_cli():
     try:
         hist_file = os.path.expanduser('~/.bess_history')
@@ -124,15 +109,27 @@ def run_cli():
         hist_file = None
         raise
 
-    s = connect_bess()
+    try:
+        s = BESS()
+        s.connect()
+    except BESS.APIError as e:
+        print >> sys.stderr, e.message, '(bessd daemon is not running?)'
+
     cli = BESSCLI(s, commands, history_file=hist_file)
     cli.loop()
 
 
 def run_cmds(instream):
-    s = connect_bess()
+    try:
+        s = BESS()
+        s.connect()
+    except BESS.APIError as e:
+        # show no error msg, since user might be about to launch the daemon
+        pass
+
     cli = BESSCLI(s, commands, fin=instream, history_file=None)
     cli.loop()
+
 
 if __name__ == '__main__':
     if len(sys.argv) == 1:

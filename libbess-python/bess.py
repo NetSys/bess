@@ -57,27 +57,27 @@ class BESS(object):
     def connect(self, host='localhost', port=DEF_PORT):
         if self.is_connected():
             raise self.APIError('Already connected')
+
         self.peer = (host, port)
         self.channel = grpc.insecure_channel('%s:%d' % (host, port))
         self.channel.subscribe(self._update_status, try_to_connect=True)
         self.stub = service_pb2.BESSControlStub(self.channel)
 
         while not self.is_connected():
+            if self.status in [grpc.ChannelConnectivity.TRANSIENT_FAILURE,
+                    grpc.ChannelConnectivity.SHUTDOWN]:
+                self.disconnect()
+                raise self.APIError('Connection to %s:%d failed' % (host, port))
             time.sleep(0.1)
 
-    def clear_connection(self):
-        self.channel.unsubscribe(self._update_status)
+    def disconnect(self):
+        if self.is_connected():
+            self.channel.unsubscribe(self._update_status)
+
         self.status = None
         self.stub = None
         self.channel = None
         self.peer = None
-
-    def disconnect(self):
-        if self.is_connected():
-            self.clear_connection()
-
-        while self.is_connected():
-            time.sleep(0.1)
 
     def set_debug(self, flag):
         self.debug = flag
@@ -123,7 +123,7 @@ class BESS(object):
         while self.is_connected():
             time.sleep(0.1)
 
-        self.clear_connection()
+        self.disconnect()
 
     def reset_all(self):
         return self._request('ResetAll')
@@ -209,6 +209,7 @@ class BESS(object):
         }
         request = proto_conv.dict_to_protobuf(kv, bess_msg.CreateModuleRequest)
         message_map = {
+            'ACL': module_msg.ACLArg,
             'BPF': module_msg.BPFArg,
             'Buffer': bess_msg.EmptyArg,
             'Bypass': bess_msg.EmptyArg,

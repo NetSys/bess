@@ -1,13 +1,15 @@
 #include "bessctl.h"
 
+#include <future>
+#include <map>
+#include <string>
+#include <thread>
+
 #include <glog/logging.h>
 #include <grpc++/server.h>
 #include <grpc++/server_builder.h>
 #include <grpc++/server_context.h>
 #include <grpc/grpc.h>
-
-#include <map>
-#include <string>
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-parameter"
@@ -44,6 +46,8 @@ using bess::resource_share_t;
 using bess::PriorityTrafficClass;
 using bess::TrafficClassBuilder;
 using namespace bess::pb;
+
+static std::promise<void> exit_requested;
 
 template <typename T>
 static inline Status return_with_error(T* response, int code, const char* fmt,
@@ -1229,9 +1233,8 @@ class BESSControlImpl final : public BESSControl::Service {
       return return_with_error(response, EBUSY, "There is a running worker");
     }
     LOG(WARNING) << "Halt requested by a client\n";
-    exit(EXIT_SUCCESS);
+    exit_requested.set_value();
 
-    /* Never called */
     return Status::OK;
   }
 
@@ -1291,11 +1294,11 @@ static void reset_core_affinity() {
 
   CPU_ZERO(&set);
 
-  /* set all cores... */
+  // set all cores...
   for (i = 0; i < rte_lcore_count(); i++)
     CPU_SET(i, &set);
 
-  /* ...and then unset the ones where workers run */
+  // ...and then unset the ones where workers run
   for (i = 0; i < MAX_WORKERS; i++)
     if (is_worker_active(i))
       CPU_CLR(workers[i]->core(), &set);
@@ -1303,24 +1306,39 @@ static void reset_core_affinity() {
   rte_thread_set_affinity(&set);
 }
 
-void SetupControl() {
-  reset_core_affinity();
-  ctx.SetNonWorker();
-}
+// TODO: C++-ify
+static std::unique_ptr<Server> server;
+static BESSControlImpl service;
 
-void RunControl() {
-  BESSControlImpl service;
-  std::string server_address;
+void SetupControl() {
   ServerBuilder builder;
 
+  reset_core_affinity();
+  ctx.SetNonWorker();
+
   if (FLAGS_p) {
-    server_address = bess::utils::Format("127.0.0.1:%d", FLAGS_p);
+    std::string server_address = bess::utils::Format("127.0.0.1:%d", FLAGS_p);
+    LOG(INFO) << "Server listening on " << server_address;
     builder.AddListeningPort(server_address, grpc::InsecureServerCredentials());
   }
 
   builder.RegisterService(&service);
-  std::unique_ptr<Server> server(builder.BuildAndStart());
+  server = builder.BuildAndStart();
+}
 
-  LOG(INFO) << "Server listening on " << server_address;
-  server->Wait();
+void RunControl() {
+  auto serve_func = []() {
+    server->Wait();
+    LOG(INFO) << "Terminating gRPC server";
+  };
+
+  std::thread grpc_server_thread(serve_func);
+
+  auto f = exit_requested.get_future();
+  f.wait();
+
+  server->Shutdown();
+  grpc_server_thread.join();
+
+  delete server.release();
 }
