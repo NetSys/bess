@@ -1,3 +1,5 @@
+# Dummy NAT example with UDP/TCP packets
+
 import scapy.all as scapy
 import socket
 
@@ -22,7 +24,11 @@ packets = [gen_packet(scapy.UDP, '172.16.100.1', '10.0.0.1'),
           ]
 
 nat::NAT(rules=[{'internal_addr_block':'0.0.0.0/0', 'external_addr_block':'192.168.1.1/32'}])
+
+# Swap src/dst MAC
 mac::MACSwap()
+
+# Swap src/dst IP addresses / ports
 ip::IPSwap()
 
 Source() -> Rewrite(templates=packets) -> 0:nat:0 -> mac -> ip -> 1:nat:1 -> Sink()

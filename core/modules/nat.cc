@@ -13,6 +13,12 @@ const uint16_t MIN_PORT = 1024;
 const uint16_t MAX_PORT = 65535;
 const uint64_t TIME_OUT = 12e10;
 
+enum Protocol {
+  ICMP = 0x01,
+  TCP = 0x06,
+  UDP = 0x11,
+};
+
 const Commands NAT::cmds = {
     {"add", "NATArg", MODULE_CMD_FUNC(&NAT::CommandAdd), 0},
     {"clear", "EmptyArg", MODULE_CMD_FUNC(&NAT::CommandClear), 0}};
@@ -54,6 +60,7 @@ pb_cmd_response_t NAT::CommandClear(const bess::pb::EmptyArg &) {
   return pb_cmd_response_t();
 }
 
+// Recompute IP and TCP/UDP/ICMP checksum
 inline static void compute_cksum(struct ipv4_hdr *ip, void *l4) {
   struct tcp_hdr *tcp = reinterpret_cast<struct tcp_hdr *>(l4);
   struct udp_hdr *udp = reinterpret_cast<struct udp_hdr *>(l4);
@@ -61,14 +68,14 @@ inline static void compute_cksum(struct ipv4_hdr *ip, void *l4) {
 
   ip->hdr_checksum = 0;
   switch (ip->next_proto_id) {
-    case 0x06:
+    case TCP:
       tcp->cksum = 0;
       tcp->cksum = rte_ipv4_udptcp_cksum(ip, tcp);
       break;
-    case 0x11:
+    case UDP:
       udp->dgram_cksum = 0;
       break;
-    case 0x01:
+    case ICMP:
       icmp->icmp_cksum = 0;
       icmp->icmp_cksum = rte_ipv4_udptcp_cksum(ip, icmp);
       break;
@@ -78,23 +85,24 @@ inline static void compute_cksum(struct ipv4_hdr *ip, void *l4) {
   ip->hdr_checksum = rte_ipv4_cksum(ip);
 }
 
-inline static NAT::Flow parse_flow(struct ipv4_hdr *ip, void *l4) {
+// Extract a Flow object from IP header ip and L4 header l4
+inline static Flow parse_flow(struct ipv4_hdr *ip, void *l4) {
   struct udp_hdr *udp = reinterpret_cast<struct udp_hdr *>(l4);
   struct icmp_hdr *icmp = reinterpret_cast<struct icmp_hdr *>(l4);
-  NAT::Flow flow;
+  Flow flow;
 
   flow.proto = ip->next_proto_id;
   flow.src_ip = ip->src_addr;
   flow.dst_ip = ip->dst_addr;
 
   switch (ip->next_proto_id) {
-    case 0x06:
-    case 0x11:
+    case UDP:
+    case TCP:
       flow.src_port = udp->src_port;
       flow.dst_port = udp->dst_port;
       flow.icmp_ident = 0;
       break;
-    case 0x01:
+    case ICMP:
       switch (icmp->icmp_type) {
         case 0:
         case 8:
@@ -115,8 +123,8 @@ inline static NAT::Flow parse_flow(struct ipv4_hdr *ip, void *l4) {
   return flow;
 }
 
-inline static void stamp_flow(struct ipv4_hdr *ip, void *l4,
-                              const NAT::Flow &flow) {
+// Rewrite IP header and L4 header using flow
+inline static void stamp_flow(struct ipv4_hdr *ip, void *l4, const Flow &flow) {
   struct udp_hdr *udp = reinterpret_cast<struct udp_hdr *>(l4);
   struct icmp_hdr *icmp = reinterpret_cast<struct icmp_hdr *>(l4);
 
@@ -124,12 +132,12 @@ inline static void stamp_flow(struct ipv4_hdr *ip, void *l4,
   ip->dst_addr = flow.dst_ip;
 
   switch (flow.proto) {
-    case 0x06:
-    case 0x11:
+    case UDP:
+    case TCP:
       udp->src_port = flow.src_port;
       udp->dst_port = flow.dst_port;
       break;
-    case 0x01:
+    case ICMP:
       switch (icmp->icmp_type) {
         case 0:
         case 8:
@@ -172,15 +180,15 @@ void NAT::ProcessBatch(bess::PacketBatch *batch) {
       continue;
     }
 
-    NAT::Flow flow = parse_flow(ip, udp);
+    Flow flow = parse_flow(ip, udp);
     uint64_t now = tsc_to_ns(rdtsc());
 
     auto hash_it = flow_hash_.find(flow);
 
     if (hash_it != flow_hash_.end()) {
-      const NAT::Flow &translated_flow = (incoming_gate == 0)
-                                             ? hash_it->second.external_flow
-                                             : hash_it->second.internal_flow;
+      const Flow &translated_flow = (incoming_gate == 0)
+                                        ? hash_it->second.external_flow
+                                        : hash_it->second.internal_flow;
 
       if (now - hash_it->second.time < TIME_OUT) {
         // Entry exists and does not exceed timeout
@@ -191,7 +199,7 @@ void NAT::ProcessBatch(bess::PacketBatch *batch) {
         // Reclaim expired record
         available_ports_.push_back(hash_it->second.port);
         flow_hash_.erase(hash_it);
-        flow_hash_.erase(translated_flow.reverse_flow());
+        flow_hash_.erase(translated_flow.ReverseFlow());
       }
     }
 
@@ -214,7 +222,7 @@ void NAT::ProcessBatch(bess::PacketBatch *batch) {
     available_ports_.pop_back();
     FlowRecord &record = flow_vec_[new_port - MIN_PORT];
 
-    NAT::Flow ext_flow = flow;
+    Flow ext_flow = flow;
     ext_flow.src_ip = RandomIP(rule_it->second);
 
     if (ext_flow.icmp_ident == 0) {
@@ -229,7 +237,7 @@ void NAT::ProcessBatch(bess::PacketBatch *batch) {
     record.external_flow = ext_flow;
 
     flow_hash_.insert({flow, record});
-    flow_hash_.insert({ext_flow.reverse_flow(), record});
+    flow_hash_.insert({ext_flow.ReverseFlow(), record});
 
     stamp_flow(ip, udp, ext_flow);
   }

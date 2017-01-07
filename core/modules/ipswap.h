@@ -3,6 +3,7 @@
 
 #include "../module.h"
 
+// Swap source and destination IP addresses and UDP/TCP ports
 class IPSwap final : public Module {
  public:
   void ProcessBatch(bess::PacketBatch *batch) override;
