@@ -98,6 +98,7 @@ class NAT final : public Module {
   }
 
   std::vector<NATRule> rules_;
+  // TODO(clan): Do not share ports across entire NAT
   std::vector<uint16_t> available_ports_;
   std::unordered_map<Flow, FlowRecord &, FlowHash> flow_hash_;
   std::vector<FlowRecord> flow_vec_;
