@@ -3,7 +3,7 @@
 namespace bess {
 namespace utils {
 
-// A basic UDP header definition loosely based on the BSD version.
+// A basic ICMP header definition.
 struct[[gnu::packed]] IcmpHeader {
   uint16_t type;      // ICMP packet type.
   uint16_t code;      // ICMP packet type.

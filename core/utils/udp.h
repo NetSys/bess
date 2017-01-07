@@ -3,7 +3,7 @@
 namespace bess {
 namespace utils {
 
-// A basic UDP header definition loosely based on the BSD version.
+// A basic UDP header definition.
 struct[[gnu::packed]] UdpHeader {
   uint16_t src_port;  // Source port.
   uint16_t dst_port;  // Destination port.
