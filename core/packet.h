@@ -389,7 +389,7 @@ void Packet::Free(Packet **pkts, int cnt) {
   int i;
 
   for (i = 0; i < cnt; i++) {
-    Packet *pkt = &pkts[i];
+    Packet *pkt = pkts[i];
 
     if (unlikely(pkt->pool_ != pool || pkt->is_simple() ||
                  pkt->refcnt() != 1)) {
