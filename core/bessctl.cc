@@ -931,6 +931,10 @@ class BESSControlImpl final : public BESSControl::Service {
     if (is_any_worker_running()) {
       return return_with_error(response, EBUSY, "There is a running worker");
     }
+
+    VLOG(1) << "ConnectModulesRequest from client:" << std::endl
+            << request->DebugString();
+
     const char* m1_name;
     const char* m2_name;
     gate_idx_t ogate;
