@@ -1,13 +1,21 @@
 #include "nat.h"
 
-#include <rte_ether.h>
-#include <rte_icmp.h>
 #include <rte_ip.h>
-#include <rte_tcp.h>
-#include <rte_udp.h>
 
 #include <numeric>
 #include <string>
+
+#include "../utils/ether.h"
+#include "../utils/icmp.h"
+#include "../utils/ip.h"
+#include "../utils/tcp.h"
+#include "../utils/udp.h"
+
+using bess::utils::EthHeader;
+using bess::utils::Ipv4Header;
+using bess::utils::UdpHeader;
+using bess::utils::TcpHeader;
+using bess::utils::IcmpHeader;
 
 const uint16_t MIN_PORT = 1024;
 const uint16_t MAX_PORT = 65535;
@@ -61,41 +69,43 @@ pb_cmd_response_t NAT::CommandClear(const bess::pb::EmptyArg &) {
 }
 
 // Recompute IP and TCP/UDP/ICMP checksum
-inline static void compute_cksum(struct ipv4_hdr *ip, void *l4) {
-  struct tcp_hdr *tcp = reinterpret_cast<struct tcp_hdr *>(l4);
-  struct udp_hdr *udp = reinterpret_cast<struct udp_hdr *>(l4);
-  struct icmp_hdr *icmp = reinterpret_cast<struct icmp_hdr *>(l4);
+inline static void compute_cksum(struct Ipv4Header *ip, void *l4) {
+  struct TcpHeader *tcp = reinterpret_cast<struct TcpHeader *>(l4);
+  struct UdpHeader *udp = reinterpret_cast<struct UdpHeader *>(l4);
+  struct IcmpHeader *icmp = reinterpret_cast<struct IcmpHeader *>(l4);
 
-  ip->hdr_checksum = 0;
-  switch (ip->next_proto_id) {
+  ip->checksum = 0;
+  switch (ip->protocol) {
     case TCP:
-      tcp->cksum = 0;
-      tcp->cksum = rte_ipv4_udptcp_cksum(ip, tcp);
+      tcp->checksum = 0;
+      tcp->checksum =
+          rte_ipv4_udptcp_cksum(reinterpret_cast<const ipv4_hdr *>(ip), tcp);
       break;
     case UDP:
-      udp->dgram_cksum = 0;
+      udp->checksum = 0;
       break;
     case ICMP:
-      icmp->icmp_cksum = 0;
-      icmp->icmp_cksum = rte_ipv4_udptcp_cksum(ip, icmp);
+      icmp->checksum = 0;
+      icmp->checksum =
+          rte_ipv4_udptcp_cksum(reinterpret_cast<const ipv4_hdr *>(ip), icmp);
       break;
     default:
-      VLOG(1) << "Unknown next_proto_id: " << ip->next_proto_id;
+      VLOG(1) << "Unknown protocol: " << ip->protocol;
   }
-  ip->hdr_checksum = rte_ipv4_cksum(ip);
+  ip->checksum = rte_ipv4_cksum(reinterpret_cast<const ipv4_hdr *>(ip));
 }
 
 // Extract a Flow object from IP header ip and L4 header l4
-inline static Flow parse_flow(struct ipv4_hdr *ip, void *l4) {
-  struct udp_hdr *udp = reinterpret_cast<struct udp_hdr *>(l4);
-  struct icmp_hdr *icmp = reinterpret_cast<struct icmp_hdr *>(l4);
+inline static Flow parse_flow(struct Ipv4Header *ip, void *l4) {
+  struct UdpHeader *udp = reinterpret_cast<struct UdpHeader *>(l4);
+  struct IcmpHeader *icmp = reinterpret_cast<struct IcmpHeader *>(l4);
   Flow flow;
 
-  flow.proto = ip->next_proto_id;
-  flow.src_ip = ip->src_addr;
-  flow.dst_ip = ip->dst_addr;
+  flow.proto = ip->protocol;
+  flow.src_ip = ip->src;
+  flow.dst_ip = ip->dst;
 
-  switch (ip->next_proto_id) {
+  switch (ip->protocol) {
     case UDP:
     case TCP:
       flow.src_port = udp->src_port;
@@ -103,7 +113,7 @@ inline static Flow parse_flow(struct ipv4_hdr *ip, void *l4) {
       flow.icmp_ident = 0;
       break;
     case ICMP:
-      switch (icmp->icmp_type) {
+      switch (icmp->type) {
         case 0:
         case 8:
         case 13:
@@ -111,25 +121,26 @@ inline static Flow parse_flow(struct ipv4_hdr *ip, void *l4) {
         case 16:
           flow.src_port = 0;
           flow.dst_port = 0;
-          flow.icmp_ident = icmp->icmp_ident;
+          flow.icmp_ident = icmp->ident;
           break;
         default:
-          VLOG(1) << "Unknown icmp_type: " << icmp->icmp_type;
+          VLOG(1) << "Unknown icmp_type: " << icmp->type;
       }
       break;
     default:
-      VLOG(1) << "Unknown next_proto_id: " << ip->next_proto_id;
+      VLOG(1) << "Unknown protocol: " << ip->protocol;
   }
   return flow;
 }
 
 // Rewrite IP header and L4 header using flow
-inline static void stamp_flow(struct ipv4_hdr *ip, void *l4, const Flow &flow) {
-  struct udp_hdr *udp = reinterpret_cast<struct udp_hdr *>(l4);
-  struct icmp_hdr *icmp = reinterpret_cast<struct icmp_hdr *>(l4);
+inline static void stamp_flow(struct Ipv4Header *ip, void *l4,
+                              const Flow &flow) {
+  struct UdpHeader *udp = reinterpret_cast<struct UdpHeader *>(l4);
+  struct IcmpHeader *icmp = reinterpret_cast<struct IcmpHeader *>(l4);
 
-  ip->src_addr = flow.src_ip;
-  ip->dst_addr = flow.dst_ip;
+  ip->src = flow.src_ip;
+  ip->dst = flow.dst_ip;
 
   switch (flow.proto) {
     case UDP:
@@ -138,19 +149,19 @@ inline static void stamp_flow(struct ipv4_hdr *ip, void *l4, const Flow &flow) {
       udp->dst_port = flow.dst_port;
       break;
     case ICMP:
-      switch (icmp->icmp_type) {
+      switch (icmp->type) {
         case 0:
         case 8:
         case 13:
         case 15:
         case 16:
-          icmp->icmp_ident = flow.icmp_ident;
+          icmp->ident = flow.icmp_ident;
           break;
         default:
-          VLOG(1) << "Unknown icmp_type: " << icmp->icmp_type;
+          VLOG(1) << "Unknown icmp_type: " << icmp->type;
       }
     default:
-      VLOG(1) << "Unknown next_proto_id: " << ip->next_proto_id;
+      VLOG(1) << "Unknown protocol: " << ip->protocol;
   }
   compute_cksum(ip, l4);
 }
@@ -167,24 +178,22 @@ void NAT::ProcessBatch(bess::PacketBatch *batch) {
     // By default, pass packet
     out_gates[i] = incoming_gate;
 
-    struct ether_hdr *eth = pkt->head_data<struct ether_hdr *>();
-    struct ipv4_hdr *ip = reinterpret_cast<struct ipv4_hdr *>(eth + 1);
-    int ip_bytes = (ip->version_ihl & 0xf) << 2;
-    struct udp_hdr *udp = reinterpret_cast<struct udp_hdr *>(
-        reinterpret_cast<uint8_t *>(ip) + ip_bytes);
+    struct EthHeader *eth = pkt->head_data<struct EthHeader *>();
+    struct Ipv4Header *ip = reinterpret_cast<struct Ipv4Header *>(eth + 1);
+    int ip_bytes = (ip->header_length) << 2;
+
+    void *l4 = reinterpret_cast<uint8_t *>(ip) + ip_bytes;
 
     // L4 protocol must be TCP, UDP, or ICMP
-    if (ip->next_proto_id != 0x06 && ip->next_proto_id != 0x11 &&
-        ip->next_proto_id != 0x01) {
+    if (ip->protocol != TCP && ip->protocol != UDP && ip->protocol != ICMP) {
       out_gates[i] = DROP_GATE;
       continue;
     }
 
-    Flow flow = parse_flow(ip, udp);
+    Flow flow = parse_flow(ip, l4);
     uint64_t now = tsc_to_ns(rdtsc());
 
     auto hash_it = flow_hash_.find(flow);
-
     if (hash_it != flow_hash_.end()) {
       const Flow &translated_flow = (incoming_gate == 0)
                                         ? hash_it->second.external_flow
@@ -193,7 +202,7 @@ void NAT::ProcessBatch(bess::PacketBatch *batch) {
       if (now - hash_it->second.time < TIME_OUT) {
         // Entry exists and does not exceed timeout
         hash_it->second.time = now;
-        stamp_flow(ip, udp, translated_flow);
+        stamp_flow(ip, l4, translated_flow);
         continue;
       } else {
         // Reclaim expired record
@@ -211,7 +220,7 @@ void NAT::ProcessBatch(bess::PacketBatch *batch) {
 
     const auto rule_it = std::find_if(
         rules_.begin(), rules_.end(),
-        [&ip](const NATRule &rule) { return rule.first.Match(ip->src_addr); });
+        [&ip](const NATRule &rule) { return rule.first.Match(ip->src); });
     if (rule_it == rules_.end()) {
       // No rules found for this source IP address, drop.
       out_gates[i] = DROP_GATE;
@@ -239,7 +248,7 @@ void NAT::ProcessBatch(bess::PacketBatch *batch) {
     flow_hash_.insert({flow, record});
     flow_hash_.insert({ext_flow.ReverseFlow(), record});
 
-    stamp_flow(ip, udp, ext_flow);
+    stamp_flow(ip, l4, ext_flow);
   }
   RunSplit(out_gates, batch);
 }
