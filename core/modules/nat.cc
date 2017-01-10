@@ -195,20 +195,26 @@ void NAT::ProcessBatch(bess::PacketBatch *batch) {
 
     auto hash_it = flow_hash_.find(flow);
     if (hash_it != flow_hash_.end()) {
-      const Flow &translated_flow = (incoming_gate == 0)
-                                        ? hash_it->second.external_flow
-                                        : hash_it->second.internal_flow;
-
       if (now - hash_it->second.time < TIME_OUT) {
         // Entry exists and does not exceed timeout
         hash_it->second.time = now;
-        stamp_flow(ip, l4, translated_flow);
+        if (incoming_gate == 0) {
+          stamp_flow(ip, l4, hash_it->second.external_flow);
+        } else {
+          stamp_flow(ip, l4, hash_it->second.internal_flow.ReverseFlow());
+        }
         continue;
       } else {
         // Reclaim expired record
         available_ports_.push_back(hash_it->second.port);
-        flow_hash_.erase(hash_it);
-        flow_hash_.erase(translated_flow.ReverseFlow());
+        hash_it->second.time = 0;
+        if (incoming_gate == 0) {
+          flow_hash_.erase(hash_it);
+          flow_hash_.erase(hash_it->second.external_flow.ReverseFlow());
+        } else {
+          flow_hash_.erase(hash_it);
+          flow_hash_.erase(hash_it->second.internal_flow);
+        }
       }
     }
 
@@ -227,8 +233,22 @@ void NAT::ProcessBatch(bess::PacketBatch *batch) {
       continue;
     }
 
+    // Garbage collect
+    if (available_ports_.empty()) {
+      for (auto &record : flow_vec_) {
+        if (record.time != 0 && now - record.time >= TIME_OUT) {
+          available_ports_.push_back(record.port);
+          record.time = 0;
+          flow_hash_.erase(record.internal_flow);
+          flow_hash_.erase(record.external_flow.ReverseFlow());
+        }
+      }
+    }
+
     uint16_t new_port = available_ports_.back();
     available_ports_.pop_back();
+
+    // Invariant: record.port == new_port == index + MIN_PORT
     FlowRecord &record = flow_vec_[new_port - MIN_PORT];
 
     Flow ext_flow = flow;
