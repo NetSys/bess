@@ -347,6 +347,14 @@ message UpdateArg {
   repeated Field fields = 1;
 }
 
+message UrlFilterArg {
+  message Url {
+    string host = 1;  // Host field, e.g. "www.google.com"
+    string path = 2;  // Path prefix, e.g. "/"
+  }
+  repeated Url blacklist = 1;
+}
+
 message VLANPopArg {
 }
 
