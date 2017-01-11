@@ -49,8 +49,8 @@ for i in range(num_cores):
     rw = Rewrite(templates=packet_templates_bytes)
 
     src \
-    -> rw \
-    -> RandomUpdate(fields=[{'offset': 13, 'size': 2, 'min': 10002, 'max': 10002 + num_flows - 1}]) \
+    -> rw \ #rewrite the last two octets of the source IP.
+    -> RandomUpdate(fields=[{'offset': 14, 'size': 2, 'min': 1, 'max': num_flows}]) \
     -> rr
 
     for j in range(num_ports):
