@@ -1,5 +1,4 @@
 import scapy.all as scapy
-from scapy.layers import http
 
 #Check shell variables for values, if not set to defaults.
 num_ports = int($SN_PORTS!'1')
@@ -48,8 +47,9 @@ for i in range(num_cores):
     rr = RoundRobin(gates=range(num_ports), mode="batch")
     rw = Rewrite(templates=packet_templates_bytes)
 
+    #rewrite the last two octets of the source IP.
     src \
-    -> rw \ #rewrite the last two octets of the source IP.
+    -> rw \
     -> RandomUpdate(fields=[{'offset': 14, 'size': 2, 'min': 1, 'max': num_flows}]) \
     -> rr
 
