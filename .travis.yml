@@ -36,11 +36,11 @@ before_script:
 script:
   - ./container_build.py bess
   - ./container_build.py kmod_buildtest
-  - cd core; all_test; cd ..
+  - cd core && ./all_test && cd ..
   - ./sanity_check.sh
 
 after_success:
-  - "[[ ${COVERAGE:-0} != 0 ]] && bash <(curl -s https://codecov.io/bash)"
+  - "[[ ${DEBUG:-0} != 0 ]] && bash <(curl -s https://codecov.io/bash)"
   - for bench in core/*_bench; do ./$bench; done
 
 notifications:
