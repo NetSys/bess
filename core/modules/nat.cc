@@ -2,6 +2,7 @@
 
 #include <rte_ip.h>
 
+#include <algorithm>
 #include <numeric>
 #include <string>
 
@@ -215,6 +216,7 @@ void NAT::ProcessBatch(bess::PacketBatch *batch) {
           flow_hash_.erase(hash_it);
           flow_hash_.erase(hash_it->second.internal_flow);
         }
+        next_expiry_ = now;
       }
     }
 
@@ -234,13 +236,16 @@ void NAT::ProcessBatch(bess::PacketBatch *batch) {
     }
 
     // Garbage collect
-    if (available_ports_.empty()) {
+    if (available_ports_.empty() && now >= next_expiry_) {
+      next_expiry_ = UINT64_MAX;
       for (auto &record : flow_vec_) {
         if (record.time != 0 && now - record.time >= TIME_OUT) {
           available_ports_.push_back(record.port);
           record.time = 0;
           flow_hash_.erase(record.internal_flow);
           flow_hash_.erase(record.external_flow.ReverseFlow());
+        } else if (record.time != 0) {
+          next_expiry_ = std::min(next_expiry_, record.time + TIME_OUT);
         }
       }
     }
