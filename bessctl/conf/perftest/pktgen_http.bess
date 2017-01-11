@@ -2,11 +2,9 @@ import scapy.all as scapy
 from scapy.layers import http
 
 #Check shell variables for values, if not set to defaults.
-pkt_size = int($SN_PKT_SIZE!'1000')
 num_ports = int($SN_PORTS!'1')
 num_cores = int($SN_CORES!'1')
 
-assert(250 <= pkt_size <= 1522)
 assert(1 <= num_ports <= 16)
 assert(1 <= num_cores <= 4)
 
@@ -14,12 +12,17 @@ assert(1 <= num_cores <= 4)
 num_flows = int($SN_FLOWS!'1')
 assert(1 <= num_flows <= 10000)
 
+src_ether=str($BESS_SRC_ETHER!'02:1e:67:9f:4d:aa')
+dst_ether=str($BESS_DST_ETHER!'02:1e:67:9f:4d:bb')
 # Random ethernet address
-eth = scapy.Ether(src='02:1e:67:9f:4d:ae', dst='06:16:3e:1b:72:32')
+eth = scapy.Ether(src=src_ether, dst=dst_ether)
 # Increment this value
-ip = scapy.IP(src='192.168.0.1', dst='10.0.0.1')
+src_ip=str($BESS_SRC_IP!'192.168.0.1')
+dst_ip=str($BESS_DST_IP!'10.0.0.1')
+ip = scapy.IP(src=src_ip, dst=dst_ip)
 # HTTP flows, dst must be 80, src can be anything
-udp = scapy.TCP(sport=10001, dport=80)
+src_port = int($BESS_SRC_PORT!'10001')
+tcp = scapy.TCP(sport=src_port, dport=80)
 
 packet_templates = []
 packet_templates_bytes = []
@@ -28,7 +31,7 @@ for i in range(10):
     host = 'http://www.' + chr(i + 97) * 3 + '.com'
     payload = 'GET /pub/WWW/TheProject.html HTTP/1.1 \nHost: ' + host + '\n\n'
     payload = payload + (10) * "melvin"
-    pkt = eth/ip/udp/payload
+    pkt = eth/ip/tcp/payload
     packet_templates.append(pkt)
     packet_templates_bytes.append(str(pkt))
 
