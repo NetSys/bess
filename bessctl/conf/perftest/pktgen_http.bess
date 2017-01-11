@@ -1,0 +1,58 @@
+import scapy.all as scapy
+from scapy.layers import http
+
+#Check shell variables for values, if not set to defaults.
+num_ports = int($SN_PORTS!'1')
+num_cores = int($SN_CORES!'1')
+
+assert(1 <= num_ports <= 16)
+assert(1 <= num_cores <= 4)
+
+# generate flows by varying IP dst 
+num_flows = int($SN_FLOWS!'1')
+assert(1 <= num_flows <= 10000)
+
+src_ether=str($BESS_SRC_ETHER!'02:1e:67:9f:4d:aa')
+dst_ether=str($BESS_DST_ETHER!'02:1e:67:9f:4d:bb')
+# Random ethernet address
+eth = scapy.Ether(src=src_ether, dst=dst_ether)
+# Increment this value
+src_ip=str($BESS_SRC_IP!'192.168.0.1')
+dst_ip=str($BESS_DST_IP!'10.0.0.1')
+ip = scapy.IP(src=src_ip, dst=dst_ip)
+# HTTP flows, dst must be 80, src can be anything
+src_port = int($BESS_SRC_PORT!'10001')
+tcp = scapy.TCP(sport=src_port, dport=80)
+
+packet_templates = []
+packet_templates_bytes = []
+
+for i in range(10):
+    host = 'http://www.' + chr(i + 97) * 3 + '.com'
+    payload = 'GET /pub/WWW/TheProject.html HTTP/1.1 \nHost: ' + host + '\n\n'
+    payload = payload + (10) * "melvin"
+    pkt = eth/ip/tcp/payload
+    packet_templates.append(pkt)
+    packet_templates_bytes.append(str(pkt))
+
+
+ports = [PMDPort(port_id=i, num_inc_q=num_cores, num_out_q=num_cores) \
+         for i in range(num_ports)]
+
+for i in range(num_cores):
+    bess.add_worker(wid=i, core=i)
+
+    src = Source()
+    bess.attach_task(src.name, 0, wid=i)
+
+    rr = RoundRobin(gates=range(num_ports), mode="batch")
+    rw = Rewrite(templates=packet_templates_bytes)
+
+    src \
+    -> rw \ #rewrite the last two octets of the source IP.
+    -> RandomUpdate(fields=[{'offset': 14, 'size': 2, 'min': 1, 'max': num_flows}]) \
+    -> rr
+
+    for j in range(num_ports):
+        rr:j->QueueOut(port=ports[j], qid=i)
+        QueueInc(port=ports[j], qid=i) -> Sink()
