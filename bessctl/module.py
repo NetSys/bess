@@ -1,6 +1,7 @@
 import copy
 import types
 
+
 def _callback_factory(self, cmd, arg_type):
     return lambda mod, arg=None, **kwargs: \
         self.bess.run_module_command(self.name, cmd, arg_type, kwargs)
@@ -44,7 +45,6 @@ class Module(object):
             assert False, 'Gate ID must be an integer'
 
         if self.ogate is not None:
-            print self, self.ogate, ogate
             assert False, 'Output gate is already bound'
 
         ret = copy.copy(self)
