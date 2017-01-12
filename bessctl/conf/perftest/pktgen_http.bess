@@ -28,7 +28,7 @@ packet_templates_bytes = []
 
 for i in range(10):
     host = 'http://www.' + chr(i + 97) * 3 + '.com'
-    payload = 'GET /pub/WWW/TheProject.html HTTP/1.1 \r\nHost: ' + host + '\r\n\n'
+    payload = 'GET /pub/WWW/TheProject.html HTTP/1.1 \r\nHost: ' + host + '\r\n\r\n'
     payload = payload + (10) * "melvin"
     pkt = eth/ip/tcp/payload
     packet_templates.append(pkt)
