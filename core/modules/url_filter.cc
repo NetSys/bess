@@ -30,7 +30,7 @@ struct[[gnu::packed]] PacketTemplate {
     ip.version = 4;
     ip.header_length = 5;
     ip.type_of_service = 0;
-    ip.length = 20;
+    ip.length = 40;
     ip.id = 0;
     ip.fragment_offset = 0;
     ip.ttl = 0x40;
@@ -44,7 +44,7 @@ struct[[gnu::packed]] PacketTemplate {
     tcp.ack_num = 0;   // To fill in
     tcp.reserved = 0;
     tcp.offset = 5;
-    tcp.flags = 0x14;
+    tcp.flags = 0x14;  // RST-ACK
     tcp.window = 0;
     tcp.checksum = 0;  // To fill in
     tcp.urgent_ptr = 0;
@@ -52,6 +52,81 @@ struct[[gnu::packed]] PacketTemplate {
 };
 
 static PacketTemplate rst_template;
+static const char *HTTP_HEADER_HOST = "Host";
+static const char *HTTP_403_BODY =
+    "HTTP/1.1 403 Bad Forbidden\r\nConnection: Closed\r\n\r\n";
+
+inline static bess::Packet *Generate403Packet(const EthHeader::Address &src_eth,
+                                              const EthHeader::Address &dst_eth,
+                                              uint32_t src_ip, uint32_t dst_ip,
+                                              uint16_t src_port,
+                                              uint16_t dst_port, uint32_t seq,
+                                              uint32_t ack) {
+  bess::Packet *pkt = bess::Packet::Alloc();
+  char *ptr = static_cast<char *>(pkt->buffer()) + SNBUF_HEADROOM;
+  pkt->set_data_off(SNBUF_HEADROOM);
+
+  size_t len = strlen(HTTP_403_BODY);
+  pkt->set_total_len(sizeof(rst_template) + len);
+  pkt->set_data_len(sizeof(rst_template) + len);
+
+  rte_memcpy(ptr, &rst_template, sizeof(rst_template));
+  rte_memcpy(ptr + sizeof(rst_template), HTTP_403_BODY, len);
+
+  EthHeader *eth = reinterpret_cast<EthHeader *>(ptr);
+  Ipv4Header *ip = reinterpret_cast<Ipv4Header *>(eth + 1);
+  // We know there is no IP option
+  TcpHeader *tcp = reinterpret_cast<TcpHeader *>(ip + 1);
+
+  eth->dst_addr = dst_eth;
+  eth->src_addr = src_eth;
+  ip->src = src_ip;
+  ip->dst = dst_ip;
+  ip->length = 40 + len;
+  tcp->src_port = src_port;
+  tcp->dst_port = dst_port;
+  tcp->seq_num = seq;
+  tcp->ack_num = ack;
+  tcp->flags = 0x10;  // ACK
+
+  tcp->checksum =
+      rte_ipv4_udptcp_cksum(reinterpret_cast<const ipv4_hdr *>(ip), tcp);
+  ip->checksum = rte_ipv4_cksum(reinterpret_cast<const ipv4_hdr *>(ip));
+
+  return pkt;
+}
+
+inline static bess::Packet *GenerateResetPacket(
+    const EthHeader::Address &src_eth, const EthHeader::Address &dst_eth,
+    uint32_t src_ip, uint32_t dst_ip, uint16_t src_port, uint16_t dst_port,
+    uint32_t seq, uint32_t ack) {
+  bess::Packet *pkt = bess::Packet::Alloc();
+  char *ptr = static_cast<char *>(pkt->buffer()) + SNBUF_HEADROOM;
+  pkt->set_data_off(SNBUF_HEADROOM);
+  pkt->set_total_len(sizeof(rst_template));
+  pkt->set_data_len(sizeof(rst_template));
+
+  rte_memcpy(ptr, &rst_template, sizeof(rst_template));
+
+  EthHeader *eth = reinterpret_cast<EthHeader *>(ptr);
+  Ipv4Header *ip = reinterpret_cast<Ipv4Header *>(eth + 1);
+  // We know there is no IP option
+  TcpHeader *tcp = reinterpret_cast<TcpHeader *>(ip + 1);
+
+  eth->dst_addr = dst_eth;
+  eth->src_addr = src_eth;
+  ip->src = src_ip;
+  ip->dst = dst_ip;
+  tcp->src_port = src_port;
+  tcp->dst_port = dst_port;
+  tcp->seq_num = seq;
+  tcp->ack_num = ack;
+  tcp->checksum =
+      rte_ipv4_udptcp_cksum(reinterpret_cast<const ipv4_hdr *>(ip), tcp);
+  ip->checksum = rte_ipv4_cksum(reinterpret_cast<const ipv4_hdr *>(ip));
+
+  return pkt;
+}
 
 pb_error_t UrlFilter::Init(const bess::pb::UrlFilterArg &arg) {
   // XXX: Radix tree
@@ -150,7 +225,8 @@ void UrlFilter::ProcessBatch(bess::PacketBatch *batch) {
 
       // Look for the Host header
       for (size_t j = 0; j < num_headers; ++j) {
-        if (strncmp(headers[j].name, "Host", headers[j].name_len) == 0) {
+        if (strncmp(headers[j].name, HTTP_HEADER_HOST, headers[j].name_len) ==
+            0) {
           const std::string host(headers[j].value, headers[j].value_len);
 
           // XXX: Use radix tree instead
@@ -177,56 +253,20 @@ void UrlFilter::ProcessBatch(bess::PacketBatch *batch) {
       // Drop the packet
       bess::Packet::Free(pkt);
 
-      // XXX: Inject 403
-      // Inject RST to destination
-      {
-        rst_template.eth.dst_addr = eth->dst_addr;
-        rst_template.eth.src_addr = eth->src_addr;
-        rst_template.ip.src = ip->src;
-        rst_template.ip.dst = ip->dst;
-        rst_template.tcp.src_port = tcp->src_port;
-        rst_template.tcp.dst_port = tcp->dst_port;
-        rst_template.tcp.seq_num = tcp->seq_num;
-        rst_template.tcp.ack_num = tcp->ack_num;
-        rst_template.tcp.checksum = rte_ipv4_udptcp_cksum(
-            reinterpret_cast<const ipv4_hdr *>(&rst_template.ip),
-            &rst_template.tcp);
-        rst_template.ip.checksum = rte_ipv4_cksum(
-            reinterpret_cast<const ipv4_hdr *>(&rst_template.ip));
+      // Inject 403 to source
+      out_batches[1].add(Generate403Packet(
+          eth->dst_addr, eth->src_addr, ip->dst, ip->src, tcp->dst_port,
+          tcp->src_port, tcp->ack_num, tcp->seq_num));
 
-        bess::Packet *rst = bess::Packet::Alloc();
-        char *ptr = static_cast<char *>(rst->buffer()) + SNBUF_HEADROOM;
-        rst->set_data_off(SNBUF_HEADROOM);
-        rst->set_total_len(sizeof(rst_template));
-        rst->set_data_len(sizeof(rst_template));
-        rte_memcpy(ptr, &rst_template, sizeof(rst_template));
-        out_batches[0].add(rst);
-      }
+      // Inject RST to destination
+      out_batches[0].add(GenerateResetPacket(
+          eth->src_addr, eth->dst_addr, ip->src, ip->dst, tcp->src_port,
+          tcp->dst_port, tcp->seq_num, tcp->ack_num));
 
       // Inject RST to source
-      {
-        rst_template.eth.dst_addr = eth->src_addr;
-        rst_template.eth.src_addr = eth->dst_addr;
-        rst_template.ip.src = ip->dst;
-        rst_template.ip.dst = ip->src;
-        rst_template.tcp.src_port = tcp->dst_port;
-        rst_template.tcp.dst_port = tcp->src_port;
-        rst_template.tcp.seq_num = tcp->ack_num;
-        rst_template.tcp.ack_num = tcp->seq_num;
-        rst_template.tcp.checksum = rte_ipv4_udptcp_cksum(
-            reinterpret_cast<const ipv4_hdr *>(&rst_template.ip),
-            &rst_template.tcp);
-        rst_template.ip.checksum = rte_ipv4_cksum(
-            reinterpret_cast<const ipv4_hdr *>(&rst_template.ip));
-
-        bess::Packet *rst = bess::Packet::Alloc();
-        char *ptr = static_cast<char *>(rst->buffer()) + SNBUF_HEADROOM;
-        rst->set_data_off(SNBUF_HEADROOM);
-        rst->set_total_len(sizeof(rst_template));
-        rst->set_data_len(sizeof(rst_template));
-        rte_memcpy(ptr, &rst_template, sizeof(rst_template));
-        out_batches[1].add(rst);
-      }
+      out_batches[1].add(GenerateResetPacket(
+          eth->dst_addr, eth->src_addr, ip->dst, ip->src, tcp->dst_port,
+          tcp->src_port, tcp->ack_num + strlen(HTTP_403_BODY), tcp->seq_num));
     }
   }
 
