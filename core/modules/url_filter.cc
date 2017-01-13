@@ -12,7 +12,7 @@ using bess::utils::EthHeader;
 using bess::utils::Ipv4Header;
 using bess::utils::TcpHeader;
 
-const uint64_t TIME_OUT = 12e10;
+const uint64_t TIME_OUT_NS = 10L * 1000 * 1000 * 1000;  // 10 seconds
 
 const Commands UrlFilter::cmds = {
     {"add", "UrlFilterArg", MODULE_CMD_FUNC(&UrlFilter::CommandAdd), 0},
@@ -189,11 +189,12 @@ void UrlFilter::ProcessBatch(bess::PacketBatch *batch) {
     flow.src_port = tcp->src_port;
     flow.src_port = tcp->dst_port;
 
+    uint64_t now = ctx.current_ns();
+
     // Check if the flow is already blocked
     std::unordered_map<Flow, uint64_t, FlowHash>::iterator it;
     if ((it = blocked_flows_.find(flow)) != blocked_flows_.end()) {
-      uint64_t now = tsc_to_ns(rdtsc());
-      if (now - it->second < TIME_OUT) {
+      if (now - it->second < TIME_OUT_NS) {
         bess::Packet::Free(pkt);
         continue;
       } else {
@@ -244,7 +245,7 @@ void UrlFilter::ProcessBatch(bess::PacketBatch *batch) {
     if (!matched) {
       out_batches[0].add(pkt);
     } else {
-      blocked_flows_.emplace(flow, tsc_to_ns(rdtsc()));
+      blocked_flows_.emplace(flow, now);
       flow_cache_.erase(flow);
 
       // Drop the packet
