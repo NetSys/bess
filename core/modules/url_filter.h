@@ -9,8 +9,10 @@
 #include "../module.h"
 #include "../module_msg.pb.h"
 #include "../utils/tcp_flow_reconstruct.h"
+#include "../utils/trie.h"
 
 using bess::utils::TcpFlowReconstruct;
+using bess::utils::Trie;
 
 template <class T>
 inline void hash_combine(std::size_t &seed, const T &v) {
@@ -63,7 +65,7 @@ class UrlFilter final : public Module {
   pb_cmd_response_t CommandClear(const bess::pb::EmptyArg &arg);
 
  private:
-  std::vector<Url> blacklist_;
+  std::unordered_map<std::string, Trie> blacklist_;
   std::unordered_map<Flow, TcpFlowReconstruct, FlowHash> flow_cache_;
   std::unordered_map<Flow, uint64_t, FlowHash> blocked_flows_;
 };

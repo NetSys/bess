@@ -51,10 +51,11 @@ struct[[gnu::packed]] PacketTemplate {
   }
 };
 
-static PacketTemplate rst_template;
 static const char *HTTP_HEADER_HOST = "Host";
 static const char *HTTP_403_BODY =
     "HTTP/1.1 403 Bad Forbidden\r\nConnection: Closed\r\n\r\n";
+
+static PacketTemplate rst_template;
 
 inline static bess::Packet *Generate403Packet(const EthHeader::Address &src_eth,
                                               const EthHeader::Address &dst_eth,
@@ -129,9 +130,12 @@ inline static bess::Packet *GenerateResetPacket(
 }
 
 pb_error_t UrlFilter::Init(const bess::pb::UrlFilterArg &arg) {
-  // XXX: Radix tree
   for (const auto &url : arg.blacklist()) {
-    blacklist_.push_back(std::make_pair(url.host(), url.path()));
+    if (blacklist_.find(url.host()) == blacklist_.end()) {
+      blacklist_.emplace(url.host(), Trie());
+    }
+    Trie &trie = blacklist_.at(url.host());
+    trie.Insert(url.path());
   }
   return pb_errno(0);
 }
@@ -145,12 +149,6 @@ pb_cmd_response_t UrlFilter::CommandAdd(const bess::pb::UrlFilterArg &arg) {
 pb_cmd_response_t UrlFilter::CommandClear(const bess::pb::EmptyArg &) {
   blacklist_.clear();
   return pb_cmd_response_t();
-}
-
-inline static bool IsStartsWith(const std::string &s,
-                                const std::string &prefix) {
-  return std::mismatch(prefix.begin(), prefix.end(), s.begin()).first ==
-         prefix.end();
 }
 
 void UrlFilter::ProcessBatch(bess::PacketBatch *batch) {
@@ -228,14 +226,10 @@ void UrlFilter::ProcessBatch(bess::PacketBatch *batch) {
         if (strncmp(headers[j].name, HTTP_HEADER_HOST, headers[j].name_len) ==
             0) {
           const std::string host(headers[j].value, headers[j].value_len);
+          const auto rule_iterator = blacklist_.find(host);
 
-          // XXX: Use radix tree instead
-          const auto url_it = std::find_if(
-              blacklist_.begin(), blacklist_.end(),
-              [&host](const Url &url) { return url.first == host; });
-
-          if (url_it != blacklist_.end() &&
-              IsStartsWith(path_str, url_it->second)) {
+          if (rule_iterator != blacklist_.end() &&
+              rule_iterator->second.LookupKey(path_str)) {
             // found a match
             matched = true;
             break;
@@ -270,8 +264,13 @@ void UrlFilter::ProcessBatch(bess::PacketBatch *batch) {
     }
   }
 
-  RunChooseModule(0, &out_batches[0]);
-  RunChooseModule(1, &out_batches[1]);
+  if (!out_batches[0].empty()) {
+    RunChooseModule(0, &out_batches[0]);
+  }
+
+  if (!out_batches[1].empty()) {
+    RunChooseModule(1, &out_batches[1]);
+  }
 }
 
 ADD_MODULE(UrlFilter, "url-filter", "Filter HTTP connection")
