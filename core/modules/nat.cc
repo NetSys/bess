@@ -181,7 +181,7 @@ void NAT::ProcessBatch(bess::PacketBatch *batch) {
 
     struct EthHeader *eth = pkt->head_data<struct EthHeader *>();
     struct Ipv4Header *ip = reinterpret_cast<struct Ipv4Header *>(eth + 1);
-    int ip_bytes = (ip->header_length) << 2;
+    size_t ip_bytes = (ip->header_length) << 2;
 
     void *l4 = reinterpret_cast<uint8_t *>(ip) + ip_bytes;
 
@@ -248,6 +248,12 @@ void NAT::ProcessBatch(bess::PacketBatch *batch) {
           next_expiry_ = std::min(next_expiry_, record.time + TIME_OUT_NS);
         }
       }
+    }
+
+    // Still not available ports, then drop
+    if (available_ports_.empty()) {
+      out_gates[i] = DROP_GATE;
+      continue;
     }
 
     uint16_t new_port = available_ports_.back();
