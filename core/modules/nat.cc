@@ -270,8 +270,8 @@ void NAT::ProcessBatch(bess::PacketBatch *batch) {
     record.internal_flow = flow;
     record.external_flow = ext_flow;
 
-    flow_hash_.insert({flow, record});
-    flow_hash_.insert({ext_flow.ReverseFlow(), record});
+    flow_hash_.emplace(flow, record);
+    flow_hash_.emplace(ext_flow.ReverseFlow(), record);
 
     stamp_flow(ip, l4, ext_flow);
   }
