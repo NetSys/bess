@@ -20,7 +20,7 @@ using bess::utils::IcmpHeader;
 
 const uint16_t MIN_PORT = 1024;
 const uint16_t MAX_PORT = 65535;
-const uint64_t TIME_OUT = 12e10;
+const uint64_t TIME_OUT_NS = 120L * 1000 * 1000 * 1000;
 
 enum Protocol {
   ICMP = 0x01,
@@ -192,11 +192,11 @@ void NAT::ProcessBatch(bess::PacketBatch *batch) {
     }
 
     Flow flow = parse_flow(ip, l4);
-    uint64_t now = tsc_to_ns(rdtsc());
+    uint64_t now = ctx.current_ns();
 
     auto hash_it = flow_hash_.find(flow);
     if (hash_it != flow_hash_.end()) {
-      if (now - hash_it->second.time < TIME_OUT) {
+      if (now - hash_it->second.time < TIME_OUT_NS) {
         // Entry exists and does not exceed timeout
         hash_it->second.time = now;
         if (incoming_gate == 0) {
@@ -239,13 +239,13 @@ void NAT::ProcessBatch(bess::PacketBatch *batch) {
     if (available_ports_.empty() && now >= next_expiry_) {
       next_expiry_ = UINT64_MAX;
       for (auto &record : flow_vec_) {
-        if (record.time != 0 && now - record.time >= TIME_OUT) {
+        if (record.time != 0 && now - record.time >= TIME_OUT_NS) {
           available_ports_.push_back(record.port);
           record.time = 0;
           flow_hash_.erase(record.internal_flow);
           flow_hash_.erase(record.external_flow.ReverseFlow());
         } else if (record.time != 0) {
-          next_expiry_ = std::min(next_expiry_, record.time + TIME_OUT);
+          next_expiry_ = std::min(next_expiry_, record.time + TIME_OUT_NS);
         }
       }
     }
