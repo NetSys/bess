@@ -6,6 +6,7 @@ using bess::utils::Trie;
 
 namespace {
 
+// Whether Lookup function matches the prefix correctly
 TEST(TrieTest, Lookup) {
   Trie trie;
 
@@ -22,6 +23,7 @@ TEST(TrieTest, Lookup) {
   EXPECT_TRUE(trie.Lookup("123456"));
 }
 
+// Whether LookupKey function matches the key against prefixes correctly
 TEST(TrieTest, LookupKey) {
   Trie trie;
 
@@ -38,6 +40,7 @@ TEST(TrieTest, LookupKey) {
   EXPECT_TRUE(trie.LookupKey("123456"));
 }
 
+// Whether an empty Trie behaves correctly with LookupKey and Lookup
 TEST(TrieTest, Empty) {
   Trie trie;
 
@@ -47,6 +50,12 @@ TEST(TrieTest, Empty) {
   EXPECT_FALSE(trie.Lookup("H"));
 
   EXPECT_TRUE(trie.Lookup(""));
+
+  EXPECT_FALSE(trie.LookupKey("234"));
+  EXPECT_FALSE(trie.LookupKey("ello"));
+  EXPECT_FALSE(trie.LookupKey("Hello"));
+  EXPECT_FALSE(trie.LookupKey("H"));
+  EXPECT_FALSE(trie.LookupKey(""));
 }
 
 }  // namespace (unnamed)

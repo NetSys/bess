@@ -34,6 +34,7 @@ class Flow {
   }
 };
 
+// Hash function for std::unordered_map
 struct FlowHash {
   std::size_t operator()(const Flow &f) const {
     std::size_t seed = 0;

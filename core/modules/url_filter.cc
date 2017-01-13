@@ -18,6 +18,7 @@ const Commands UrlFilter::cmds = {
     {"add", "UrlFilterArg", MODULE_CMD_FUNC(&UrlFilter::CommandAdd), 0},
     {"clear", "EmptyArg", MODULE_CMD_FUNC(&UrlFilter::CommandClear), 0}};
 
+// Template for generating TCP packets without data
 struct[[gnu::packed]] PacketTemplate {
   EthHeader eth;
   Ipv4Header ip;
@@ -57,6 +58,7 @@ static const char *HTTP_403_BODY =
 
 static PacketTemplate rst_template;
 
+// Generate an HTTP 403 packet
 inline static bess::Packet *Generate403Packet(const EthHeader::Address &src_eth,
                                               const EthHeader::Address &dst_eth,
                                               uint32_t src_ip, uint32_t dst_ip,
@@ -97,6 +99,7 @@ inline static bess::Packet *Generate403Packet(const EthHeader::Address &src_eth,
   return pkt;
 }
 
+// Generate a TCP RST packet
 inline static bess::Packet *GenerateResetPacket(
     const EthHeader::Address &src_eth, const EthHeader::Address &dst_eth,
     uint32_t src_ip, uint32_t dst_ip, uint16_t src_port, uint16_t dst_port,
