@@ -50,7 +50,7 @@ for i in range(num_cores):
     #rewrite the last two octets of the source IP.
     src \
     -> rw \
-    -> RandomUpdate(fields=[{'offset': 14, 'size': 2, 'min': 1, 'max': num_flows}]) \
+    -> RandomUpdate(fields=[{'offset': 30, 'size': 2, 'min': 1, 'max': num_flows}]) \
     -> rr
 
     for j in range(num_ports):
