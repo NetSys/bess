@@ -62,7 +62,7 @@ class BESSCLI(cli.CLI):
             else:
                 err_code = '<unknown>'
 
-            self.fout.write('  BESS daemon response - errno=%d (%s: %s)\n' %
+            self.ferr.write('  BESS daemon response - errno=%d (%s: %s)\n' %
                             (e.err, err_code, os.strerror(e.err)))
 
             if e.details:
@@ -129,6 +129,12 @@ def run_cmds(instream):
 
     cli = BESSCLI(s, commands, fin=instream, history_file=None)
     cli.loop()
+
+    # end of loop due to error?
+    if cli.stop_loop:
+        if cli.last_cmd:
+            cli.ferr.write('  Command failed: %s\n' % cli.last_cmd)
+        sys.exit(1)
 
 
 if __name__ == '__main__':
