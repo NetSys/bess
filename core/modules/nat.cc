@@ -20,7 +20,7 @@ using bess::utils::IcmpHeader;
 
 const uint16_t MIN_PORT = 1024;
 const uint16_t MAX_PORT = 65535;
-const uint64_t TIME_OUT = 12e10;
+const uint64_t TIME_OUT_NS = 120L * 1000 * 1000 * 1000;
 
 enum Protocol {
   ICMP = 0x01,
@@ -181,7 +181,7 @@ void NAT::ProcessBatch(bess::PacketBatch *batch) {
 
     struct EthHeader *eth = pkt->head_data<struct EthHeader *>();
     struct Ipv4Header *ip = reinterpret_cast<struct Ipv4Header *>(eth + 1);
-    int ip_bytes = (ip->header_length) << 2;
+    size_t ip_bytes = (ip->header_length) << 2;
 
     void *l4 = reinterpret_cast<uint8_t *>(ip) + ip_bytes;
 
@@ -192,11 +192,11 @@ void NAT::ProcessBatch(bess::PacketBatch *batch) {
     }
 
     Flow flow = parse_flow(ip, l4);
-    uint64_t now = tsc_to_ns(rdtsc());
+    uint64_t now = ctx.current_ns();
 
     auto hash_it = flow_hash_.find(flow);
     if (hash_it != flow_hash_.end()) {
-      if (now - hash_it->second.time < TIME_OUT) {
+      if (now - hash_it->second.time < TIME_OUT_NS) {
         // Entry exists and does not exceed timeout
         hash_it->second.time = now;
         if (incoming_gate == 0) {
@@ -239,15 +239,21 @@ void NAT::ProcessBatch(bess::PacketBatch *batch) {
     if (available_ports_.empty() && now >= next_expiry_) {
       next_expiry_ = UINT64_MAX;
       for (auto &record : flow_vec_) {
-        if (record.time != 0 && now - record.time >= TIME_OUT) {
+        if (record.time != 0 && now - record.time >= TIME_OUT_NS) {
           available_ports_.push_back(record.port);
           record.time = 0;
           flow_hash_.erase(record.internal_flow);
           flow_hash_.erase(record.external_flow.ReverseFlow());
         } else if (record.time != 0) {
-          next_expiry_ = std::min(next_expiry_, record.time + TIME_OUT);
+          next_expiry_ = std::min(next_expiry_, record.time + TIME_OUT_NS);
         }
       }
+    }
+
+    // Still not available ports, then drop
+    if (available_ports_.empty()) {
+      out_gates[i] = DROP_GATE;
+      continue;
     }
 
     uint16_t new_port = available_ports_.back();
@@ -270,8 +276,8 @@ void NAT::ProcessBatch(bess::PacketBatch *batch) {
     record.internal_flow = flow;
     record.external_flow = ext_flow;
 
-    flow_hash_.insert({flow, record});
-    flow_hash_.insert({ext_flow.ReverseFlow(), record});
+    flow_hash_.emplace(flow, record);
+    flow_hash_.emplace(ext_flow.ReverseFlow(), record);
 
     stamp_flow(ip, l4, ext_flow);
   }
