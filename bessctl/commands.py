@@ -670,12 +670,12 @@ def _do_run_file(cli, conf_file):
         errmsg = 'Unhandled exception in the configuration script'
 
         cli.err('%s (most recent call last)' % errmsg)
-        cli.fout.write(''.join(traceback.format_list(stack)))
+        cli.ferr.write(''.join(traceback.format_list(stack)))
 
         if isinstance(v, cli.bess.Error):
             raise
         else:
-            cli.fout.write(''.join(traceback.format_exception_only(t, v)))
+            cli.ferr.write(''.join(traceback.format_exception_only(t, v)))
             raise cli.HandledError()
     finally:
         cli.bess.resume_all()
