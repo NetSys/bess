@@ -209,34 +209,38 @@ void UrlFilter::ProcessBatch(bess::PacketBatch *batch) {
     }
 
     TcpFlowReconstruct &buffer = flow_cache_.at(flow);
-    buffer.InsertPacket(pkt);
 
-    struct phr_header headers[16];
-    size_t num_headers = 16, method_len, path_len;
-    int minor_version;
-    const char *method, *path;
-    int parse_result = phr_parse_request(
-        buffer.buf(), buffer.contiguous_len(), &method, &method_len, &path,
-        &path_len, &minor_version, headers, &num_headers, 0);
+    // If the reconstruct code indicates failure, treat it as a flow to drop.
+    bool matched = !buffer.InsertPacket(pkt);
 
-    bool matched = false;
+    // No need to parse the headers if the reconstruct code tells us it failed.
+    if (!matched) {
+      struct phr_header headers[16];
+      size_t num_headers = 16, method_len, path_len;
+      int minor_version;
+      const char *method, *path;
+      int parse_result = phr_parse_request(
+          buffer.buf(), buffer.contiguous_len(), &method, &method_len, &path,
+          &path_len, &minor_version, headers, &num_headers, 0);
 
-    // -2 means incomplete
-    if (parse_result > 0 || parse_result == -2) {
-      const std::string path_str(path, path_len);
 
-      // Look for the Host header
-      for (size_t j = 0; j < num_headers; ++j) {
-        if (strncmp(headers[j].name, HTTP_HEADER_HOST, headers[j].name_len) ==
-            0) {
-          const std::string host(headers[j].value, headers[j].value_len);
-          const auto rule_iterator = blacklist_.find(host);
+      // -2 means incomplete
+      if (parse_result > 0 || parse_result == -2) {
+        const std::string path_str(path, path_len);
 
-          if (rule_iterator != blacklist_.end() &&
-              rule_iterator->second.LookupKey(path_str)) {
-            // found a match
-            matched = true;
-            break;
+        // Look for the Host header
+        for (size_t j = 0; j < num_headers; ++j) {
+          if (strncmp(headers[j].name, HTTP_HEADER_HOST, headers[j].name_len) ==
+              0) {
+            const std::string host(headers[j].value, headers[j].value_len);
+            const auto rule_iterator = blacklist_.find(host);
+
+            if (rule_iterator != blacklist_.end() &&
+                rule_iterator->second.LookupKey(path_str)) {
+              // found a match
+              matched = true;
+              break;
+            }
           }
         }
       }
