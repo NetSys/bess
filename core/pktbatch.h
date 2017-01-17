@@ -18,6 +18,9 @@ class PacketBatch {
 
   void clear() { cnt_ = 0; }
 
+  //WARNING: this function has no bounds checks and so it's possible to
+  //overrun the buffer by calling this. We are not adding boundschecks begause we 
+  //want maximum GOFAST.
   void add(Packet *pkt) { pkts_[cnt_++] = pkt; }
 
   bool empty() { return (cnt_ == 0); }
