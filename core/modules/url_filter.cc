@@ -164,9 +164,16 @@ void UrlFilter::ProcessBatch(bess::PacketBatch *batch) {
   }
 
   // Otherwise
-  bess::PacketBatch out_batches[2];
+  bess::PacketBatch out_batches[4];
+  // Data to destination
   out_batches[0].clear();
+  // RST to destination
   out_batches[1].clear();
+  // RST to source
+  out_batches[2].clear();
+  // HTTP 403 to source
+  out_batches[3].clear();
+
   int cnt = batch->cnt();
 
   for (int i = 0; i < cnt; i++) {
@@ -252,23 +259,23 @@ void UrlFilter::ProcessBatch(bess::PacketBatch *batch) {
       blocked_flows_.emplace(flow, now);
       flow_cache_.erase(flow);
 
-      // Drop the packet
+      // Drop the data packet
       bess::Packet::Free(pkt);
 
-      // Inject 403 to source
-      out_batches[1].add(Generate403Packet(
-          eth->dst_addr, eth->src_addr, ip->dst, ip->src, tcp->dst_port,
-          tcp->src_port, tcp->ack_num, tcp->seq_num));
-
       // Inject RST to destination
-      out_batches[0].add(GenerateResetPacket(
+      out_batches[1].add(GenerateResetPacket(
           eth->src_addr, eth->dst_addr, ip->src, ip->dst, tcp->src_port,
           tcp->dst_port, tcp->seq_num, tcp->ack_num));
 
       // Inject RST to source
-      out_batches[1].add(GenerateResetPacket(
+      out_batches[2].add(GenerateResetPacket(
           eth->dst_addr, eth->src_addr, ip->dst, ip->src, tcp->dst_port,
           tcp->src_port, tcp->ack_num + strlen(HTTP_403_BODY), tcp->seq_num));
+
+      // Inject 403 to source
+      out_batches[3].add(Generate403Packet(
+          eth->dst_addr, eth->src_addr, ip->dst, ip->src, tcp->dst_port,
+          tcp->src_port, tcp->ack_num, tcp->seq_num));
     }
   }
 
@@ -277,7 +284,15 @@ void UrlFilter::ProcessBatch(bess::PacketBatch *batch) {
   }
 
   if (!out_batches[1].empty()) {
-    RunChooseModule(1, &out_batches[1]);
+    RunChooseModule(0, &out_batches[1]);
+  }
+
+  if (!out_batches[2].empty()) {
+    RunChooseModule(1, &out_batches[2]);
+  }
+
+  if (!out_batches[3].empty()) {
+    RunChooseModule(1, &out_batches[3]);
   }
 }
 
