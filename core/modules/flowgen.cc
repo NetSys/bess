@@ -16,8 +16,9 @@ typedef std::priority_queue<Event, std::vector<Event>,
                             std::function<bool(Event, Event)>>
     EventQueue;
 
+//Priority queue must be a *min* heap -> next upcoming event first.
 bool EventLess(const Event &a, const Event &b) {
-  return a.first < b.first;
+  return a.first > b.first;
 }
 
 /* we ignore the last 1% tail to make the variance finite */
