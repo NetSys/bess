@@ -183,6 +183,7 @@ void UrlFilter::ProcessBatch(bess::PacketBatch *batch) {
     struct Ipv4Header *ip = reinterpret_cast<struct Ipv4Header *>(eth + 1);
 
     if (ip->protocol != 0x06) {
+      out_batches[0].add(pkt);
       continue;
     }
 
