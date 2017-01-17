@@ -75,7 +75,7 @@ TEST_F(TcpFlowReconstructTest, StandardReconstruction) {
   TcpFlowReconstruct t(1);
 
   for (Packet *p : pkts_) {
-    t.InsertPacket(p);
+    ASSERT_TRUE(t.InsertPacket(p));
   }
 
   ASSERT_EQ(data_len_, t.contiguous_len());
@@ -94,16 +94,26 @@ TEST_F(TcpFlowReconstructTest, ReorderedReconstruction) {
 
   do {
     TcpFlowReconstruct t(1);
-    t.InsertPacket(syn);
+    ASSERT_TRUE(t.InsertPacket(syn));
 
     for (Packet *p : pkt_rotation) {
-      t.InsertPacket(p);
+      ASSERT_TRUE(t.InsertPacket(p));
     }
 
     ASSERT_EQ(data_len_, t.contiguous_len());
     EXPECT_EQ(0, memcmp(t.buf(), data_, data_len_));
   } while (std::next_permutation(pkt_rotation.begin(), pkt_rotation.end()));
+}
 
+// Tests that we reject packet insertion without the SYN.
+TEST_F(TcpFlowReconstructTest, MissingSyn) {
+  Packet *syn = pkts_[0]; 
+  Packet *nonsyn = pkts_[1]; 
+
+  TcpFlowReconstruct t(1);
+  ASSERT_FALSE(t.InsertPacket(nonsyn));
+  ASSERT_TRUE(t.InsertPacket(syn));
+  ASSERT_TRUE(t.InsertPacket(nonsyn));
 }
 
 }  // namespace
