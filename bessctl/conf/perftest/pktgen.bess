@@ -57,6 +57,7 @@ for i in range(num_cores):
     src \
     -> Rewrite(templates=pkt_templates) \
     -> RandomUpdate(fields=[{'offset': 30, 'size': 4, 'min': 0x0a000001, 'max': 0x0a000001 + num_flows - 1}]) \
+    -> IPChecksum() \
     -> rr
 
     if(rate_limit != 0):
