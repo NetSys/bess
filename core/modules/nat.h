@@ -2,6 +2,8 @@
 #define BESS_MODULES_NAT_H_
 
 #include <arpa/inet.h>
+#include <rte_config.h>
+#include <rte_hash_crc.h>
 
 #include <map>
 #include <utility>
@@ -46,10 +48,17 @@ class Flow {
 
 struct FlowHash {
   std::size_t operator()(const Flow &f) const {
-    static_assert(sizeof(Flow) == 2 * sizeof(uint64_t), "Flow must be 16 bytes.");
+    static_assert(sizeof(Flow) == 2 * sizeof(uint64_t),
+                  "Flow must be 16 bytes.");
     const uint64_t *flowdata = reinterpret_cast<const uint64_t *>(&f);
-    uint64_t flowdata_xor = *flowdata ^ *(flowdata + 1);
-    return std::hash<uint64_t>{}(flowdata_xor);
+    uint32_t init_val = 0;
+#if __SSE4_2__ && __x86_64
+    init_val = crc32c_sse42_u64(*flowdata++, init_val);
+    init_val = crc32c_sse42_u64(*flowdata++, init_val);
+#else
+    init_val = rte_hash_crc(flowdata, sizeof(Flow), init_val);
+#endif
+    return init_val;
   }
 };
 
