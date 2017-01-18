@@ -26,7 +26,7 @@ class Flow {
   uint16_t dst_port;
   uint32_t padding;
 
-  Flow() : padding(0) {}
+  Flow() : src_ip(0), dst_ip(0), src_port(0), dst_port(0), padding(0) {}
 
   bool operator==(const Flow &other) const {
     return src_ip == other.src_ip && src_port == other.src_port &&
