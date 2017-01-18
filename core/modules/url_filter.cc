@@ -195,7 +195,7 @@ void UrlFilter::ProcessBatch(bess::PacketBatch *batch) {
     flow.src_ip = ip->src;
     flow.dst_ip = ip->dst;
     flow.src_port = tcp->src_port;
-    flow.src_port = tcp->dst_port;
+    flow.dst_port = tcp->dst_port;
 
     uint64_t now = ctx.current_ns();
 
@@ -213,7 +213,7 @@ void UrlFilter::ProcessBatch(bess::PacketBatch *batch) {
     // Reconstruct this flow
     if (flow_cache_.find(flow) == flow_cache_.end()) {
       flow_cache_.emplace(std::piecewise_construct, std::make_tuple(flow),
-                          std::make_tuple(1));
+                          std::make_tuple(128));
     }
 
     TcpFlowReconstruct &buffer = flow_cache_.at(flow);
