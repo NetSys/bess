@@ -220,6 +220,7 @@ class BESS(object):
             'GenericDecap': module_msg.GenericDecapArg,
             'GenericEncap': module_msg.GenericEncapArg,
             'HashLB': module_msg.HashLBArg,
+            'IPChecksum': bess_msg.EmptyArg,
             'IPEncap': bess_msg.EmptyArg,
             'IPLookup': bess_msg.EmptyArg,
             'IPSwap': bess_msg.EmptyArg,
