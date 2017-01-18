@@ -32,7 +32,7 @@ class Trie {
   Node* root_;
 };
 
-void Trie::Insert(const std::string& key) {
+inline void Trie::Insert(const std::string& key) {
   Node* cur = root_;
   for (const char& c : key) {
     size_t idx = c;
@@ -44,7 +44,7 @@ void Trie::Insert(const std::string& key) {
   cur->leaf = true;
 }
 
-bool Trie::Lookup(const std::string& prefix) {
+inline bool Trie::Lookup(const std::string& prefix) {
   Node* cur = root_;
   for (const char& c : prefix) {
     size_t idx = c;
@@ -56,7 +56,7 @@ bool Trie::Lookup(const std::string& prefix) {
   return true;
 }
 
-bool Trie::LookupKey(const std::string& key) {
+inline bool Trie::LookupKey(const std::string& key) {
   Node* cur = root_;
   for (const char& c : key) {
     size_t idx = c;
