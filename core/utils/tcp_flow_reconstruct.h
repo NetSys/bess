@@ -21,7 +21,8 @@ class TcpFlowReconstruct {
   // bytes to start with.  If initial_buflen is zero, it is automatically set to
   // 1.
   TcpFlowReconstruct(uint32_t initial_buflen)
-      : init_seq_(0),
+      : initialized_(false),
+        init_seq_(0),
         buflen_(initial_buflen),
         received_map_(initial_buflen),
         contiguous_len_(0) {
@@ -56,9 +57,11 @@ class TcpFlowReconstruct {
   // the packet is a SYN then we use the SYN to set the initial sequence number
   // offset.
   //
-  // Behavior is undefined if the first packet is not the SYN or the packet is
-  // no a TCP packet.
-  void InsertPacket(Packet *p) {
+  // Returns true upon success.  Returns false if the given packet is not a SYN
+  // but if we have not been given a SYN previously.
+  //
+  // Behavior is undefined the packet is not a TCP packet.
+  bool InsertPacket(Packet *p) {
     struct EthHeader *eth = p->head_data<struct EthHeader *>();
     struct Ipv4Header *ip = (struct Ipv4Header *) (eth + 1);
     struct TcpHeader *tcp = (struct TcpHeader *) (((char *) ip) + (ip->header_length * 4));
@@ -67,7 +70,12 @@ class TcpFlowReconstruct {
     // for any reason.  Also assumes we have no data in the SYN.
     if (tcp->flags & TCP_FLAG_SYN) {
      init_seq_ = ntohl(tcp->seq_num) + 1;
-     return;
+     initialized_ = true;
+     return true;
+    }
+
+    if (!initialized_) {
+      return false;
     }
 
     uint32_t buf_offset = ntohl(tcp->seq_num) - init_seq_;
@@ -92,14 +100,28 @@ class TcpFlowReconstruct {
     while (received_map_[contiguous_len_]) {
       ++contiguous_len_;
     }
+
+    return true;
   }
 
  private:
-  uint32_t init_seq_;  // The initial sequence number of data bytes in the TCP flow.
-  char *buf_;  // A buffer (potentially with holes) of received data.
-  uint32_t buflen_;  // The length of the buffer.
-  std::vector<bool> received_map_;  // A bitmap of which bytes have already been received in buf_.
-  size_t contiguous_len_;  // The length of contiguous received data starting from buf_[0].
+  // Tracks whether the init_seq_ (and thus this object) has been initialized with a SYN.
+  bool initialized_;  
+
+  // The initial sequence number of data bytes in the TCP flow.
+  uint32_t init_seq_;  
+
+  // A buffer (potentially with holes) of received data.
+  char *buf_;
+
+  // The length of the buffer.
+  uint32_t buflen_;
+
+  // A bitmap of which bytes have already been received in buf_.
+  std::vector<bool> received_map_;
+
+  // The length of contiguous received data starting from buf_[0].
+  size_t contiguous_len_;
 
   DISALLOW_COPY_AND_ASSIGN(TcpFlowReconstruct);
 };

@@ -17,30 +17,24 @@ using bess::utils::CIDRNetwork;
 
 typedef std::pair<CIDRNetwork, CIDRNetwork> NATRule;
 
-template <class T>
-inline void hash_combine(std::size_t &seed, const T &v) {
-  std::hash<T> hasher;
-  seed ^= hasher(v) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
-}
-
 // 5 tuple for TCP/UDP packets with an additional icmp_ident for ICMP query pkts
 class Flow {
  public:
-  uint8_t proto;
   IPAddress src_ip;
-  uint16_t src_port;
   IPAddress dst_ip;
+  uint16_t src_port;
   uint16_t dst_port;
   uint16_t icmp_ident;  // identifier of ICMP query
+  uint8_t proto;
 
   // Returns a new instance of reserse flow
   Flow ReverseFlow() const {
-    return {.proto = proto,
-            .src_ip = dst_ip,
-            .src_port = dst_port,
+    return {.src_ip = dst_ip,
             .dst_ip = src_ip,
+            .src_port = dst_port,
             .dst_port = src_port,
-            .icmp_ident = icmp_ident};
+            .icmp_ident = icmp_ident,
+            .proto = proto};
   }
 
   bool operator==(const Flow &other) const {
@@ -52,14 +46,10 @@ class Flow {
 
 struct FlowHash {
   std::size_t operator()(const Flow &f) const {
-    std::size_t seed = 0;
-    hash_combine(seed, f.proto);
-    hash_combine(seed, f.src_ip);
-    hash_combine(seed, f.src_port);
-    hash_combine(seed, f.dst_ip);
-    hash_combine(seed, f.dst_port);
-    hash_combine(seed, f.icmp_ident);
-    return seed;
+    static_assert(sizeof(Flow) == 2 * sizeof(uint64_t), "Flow must be 16 bytes.");
+    const uint64_t *flowdata = reinterpret_cast<const uint64_t *>(&f);
+    uint64_t flowdata_xor = *flowdata ^ *(flowdata + 1);
+    return std::hash<uint64_t>{}(flowdata_xor);
   }
 };
 

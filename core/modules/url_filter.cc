@@ -164,9 +164,16 @@ void UrlFilter::ProcessBatch(bess::PacketBatch *batch) {
   }
 
   // Otherwise
-  bess::PacketBatch out_batches[2];
+  bess::PacketBatch out_batches[4];
+  // Data to destination
   out_batches[0].clear();
+  // RST to destination
   out_batches[1].clear();
+  // HTTP 403 to source
+  out_batches[2].clear();
+  // RST to source
+  out_batches[3].clear();
+
   int cnt = batch->cnt();
 
   for (int i = 0; i < cnt; i++) {
@@ -176,6 +183,7 @@ void UrlFilter::ProcessBatch(bess::PacketBatch *batch) {
     struct Ipv4Header *ip = reinterpret_cast<struct Ipv4Header *>(eth + 1);
 
     if (ip->protocol != 0x06) {
+      out_batches[0].add(pkt);
       continue;
     }
 
@@ -187,7 +195,7 @@ void UrlFilter::ProcessBatch(bess::PacketBatch *batch) {
     flow.src_ip = ip->src;
     flow.dst_ip = ip->dst;
     flow.src_port = tcp->src_port;
-    flow.src_port = tcp->dst_port;
+    flow.dst_port = tcp->dst_port;
 
     uint64_t now = ctx.current_ns();
 
@@ -205,38 +213,41 @@ void UrlFilter::ProcessBatch(bess::PacketBatch *batch) {
     // Reconstruct this flow
     if (flow_cache_.find(flow) == flow_cache_.end()) {
       flow_cache_.emplace(std::piecewise_construct, std::make_tuple(flow),
-                          std::make_tuple(1));
+                          std::make_tuple(128));
     }
 
     TcpFlowReconstruct &buffer = flow_cache_.at(flow);
-    buffer.InsertPacket(pkt);
 
-    struct phr_header headers[16];
-    size_t num_headers = 16, method_len, path_len;
-    int minor_version;
-    const char *method, *path;
-    int parse_result = phr_parse_request(
-        buffer.buf(), buffer.contiguous_len(), &method, &method_len, &path,
-        &path_len, &minor_version, headers, &num_headers, 0);
+    // If the reconstruct code indicates failure, treat it as a flow to drop.
+    bool matched = !buffer.InsertPacket(pkt);
 
-    bool matched = false;
+    // No need to parse the headers if the reconstruct code tells us it failed.
+    if (!matched) {
+      struct phr_header headers[16];
+      size_t num_headers = 16, method_len, path_len;
+      int minor_version;
+      const char *method, *path;
+      int parse_result = phr_parse_request(
+          buffer.buf(), buffer.contiguous_len(), &method, &method_len, &path,
+          &path_len, &minor_version, headers, &num_headers, 0);
 
-    // -2 means incomplete
-    if (parse_result > 0 || parse_result == -2) {
-      const std::string path_str(path, path_len);
+      // -2 means incomplete
+      if (parse_result > 0 || parse_result == -2) {
+        const std::string path_str(path, path_len);
 
-      // Look for the Host header
-      for (size_t j = 0; j < num_headers; ++j) {
-        if (strncmp(headers[j].name, HTTP_HEADER_HOST, headers[j].name_len) ==
-            0) {
-          const std::string host(headers[j].value, headers[j].value_len);
-          const auto rule_iterator = blacklist_.find(host);
+        // Look for the Host header
+        for (size_t j = 0; j < num_headers; ++j) {
+          if (strncmp(headers[j].name, HTTP_HEADER_HOST, headers[j].name_len) ==
+              0) {
+            const std::string host(headers[j].value, headers[j].value_len);
+            const auto rule_iterator = blacklist_.find(host);
 
-          if (rule_iterator != blacklist_.end() &&
-              rule_iterator->second.LookupKey(path_str)) {
-            // found a match
-            matched = true;
-            break;
+            if (rule_iterator != blacklist_.end() &&
+                rule_iterator->second.LookupKey(path_str)) {
+              // found a match
+              matched = true;
+              break;
+            }
           }
         }
       }
@@ -248,21 +259,21 @@ void UrlFilter::ProcessBatch(bess::PacketBatch *batch) {
       blocked_flows_.emplace(flow, now);
       flow_cache_.erase(flow);
 
-      // Drop the packet
+      // Drop the data packet
       bess::Packet::Free(pkt);
 
-      // Inject 403 to source
-      out_batches[1].add(Generate403Packet(
-          eth->dst_addr, eth->src_addr, ip->dst, ip->src, tcp->dst_port,
-          tcp->src_port, tcp->ack_num, tcp->seq_num));
-
       // Inject RST to destination
-      out_batches[0].add(GenerateResetPacket(
+      out_batches[1].add(GenerateResetPacket(
           eth->src_addr, eth->dst_addr, ip->src, ip->dst, tcp->src_port,
           tcp->dst_port, tcp->seq_num, tcp->ack_num));
 
+      // Inject 403 to source. 403 should arrive earlier than RST.
+      out_batches[2].add(Generate403Packet(
+          eth->dst_addr, eth->src_addr, ip->dst, ip->src, tcp->dst_port,
+          tcp->src_port, tcp->ack_num, tcp->seq_num));
+
       // Inject RST to source
-      out_batches[1].add(GenerateResetPacket(
+      out_batches[3].add(GenerateResetPacket(
           eth->dst_addr, eth->src_addr, ip->dst, ip->src, tcp->dst_port,
           tcp->src_port, tcp->ack_num + strlen(HTTP_403_BODY), tcp->seq_num));
     }
@@ -273,7 +284,15 @@ void UrlFilter::ProcessBatch(bess::PacketBatch *batch) {
   }
 
   if (!out_batches[1].empty()) {
-    RunChooseModule(1, &out_batches[1]);
+    RunChooseModule(0, &out_batches[1]);
+  }
+
+  if (!out_batches[2].empty()) {
+    RunChooseModule(1, &out_batches[2]);
+  }
+
+  if (!out_batches[3].empty()) {
+    RunChooseModule(1, &out_batches[3]);
   }
 }
 

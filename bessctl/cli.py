@@ -23,11 +23,14 @@ class CLI(object):
         pass
 
     def __init__(self, cmdlist, fin=sys.stdin,
-                 fout=sys.stdout, history_file=None):
+                 fout=sys.stdout, ferr=sys.stderr, history_file=None):
         self.cmdlist = cmdlist
         self.fin = fin
         self.fout = fout
+        self.ferr = ferr
         self.history_file = history_file
+
+        self.last_cmd = ''
 
         self.interactive = False
         self.rl = None
@@ -65,7 +68,7 @@ class CLI(object):
                              self.history_file)
 
     def err(self, msg):
-        self.fout.write('*** Error: %s\n' % msg)
+        self.ferr.write('*** Error: %s\n' % msg)
         if not self.interactive:
             self.stop_loop = True
 
@@ -321,14 +324,14 @@ class CLI(object):
         elif len(matched) >= 2:
             self.err('Ambiguous command "%s". Candidates:' % line.strip())
             for cmd, desc, _ in matched + matched_low:
-                self.fout.write('  %-50s%s\n' % (cmd, desc))
+                self.ferr.write('  %-50s%s\n' % (cmd, desc))
 
         elif len(matched) == 0:
             matched, matched_low = self.list_matched(line, ['partial'])
             if len(matched) > 0:
                 self.err('Incomplete command "%s". Candidates:' % line.strip())
                 for cmd, desc, _ in matched + matched_low:
-                    self.fout.write('  %-50s%s\n' % (cmd, desc))
+                    self.ferr.write('  %-50s%s\n' % (cmd, desc))
             else:
                 self.err('Unknown command "%s".' % line.strip())
 
@@ -388,6 +391,7 @@ class CLI(object):
         line = line.strip()
 
         if line:
+            self.last_cmd = line
             try:
                 try:
                     cmd = self.find_cmd(line + ' ')

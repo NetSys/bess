@@ -14,18 +14,12 @@
 using bess::utils::TcpFlowReconstruct;
 using bess::utils::Trie;
 
-template <class T>
-inline void hash_combine(std::size_t &seed, const T &v) {
-  std::hash<T> hasher;
-  seed ^= hasher(v) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
-}
-
 // A helper class that defines a TCP flow
 class Flow {
  public:
   uint32_t src_ip;
-  uint16_t src_port;
   uint32_t dst_ip;
+  uint16_t src_port;
   uint16_t dst_port;
 
   bool operator==(const Flow &other) const {
@@ -37,12 +31,10 @@ class Flow {
 // Hash function for std::unordered_map
 struct FlowHash {
   std::size_t operator()(const Flow &f) const {
-    std::size_t seed = 0;
-    hash_combine(seed, f.src_ip);
-    hash_combine(seed, f.src_port);
-    hash_combine(seed, f.dst_ip);
-    hash_combine(seed, f.dst_port);
-    return seed;
+    static_assert(sizeof(Flow) == 3 * sizeof(uint32_t), "Flow must be 12 bytes.");
+    const uint32_t *flowdata = reinterpret_cast<const uint32_t *>(&f);
+    uint32_t flowdata_xor = *flowdata ^ *(flowdata + 1) ^ *(flowdata + 2);
+    return std::hash<uint32_t>{}(flowdata_xor);
   }
 };
 
