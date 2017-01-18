@@ -12,6 +12,7 @@ static void BM_FlowHash(benchmark::State& state) {
   while (state.KeepRunning()) {
     benchmark::DoNotOptimize(h(f));
   }
+  state.SetItemsProcessed(state.iterations());
 }
 
 BENCHMARK(BM_FlowHash);
