@@ -168,16 +168,14 @@ inline static void stamp_flow(struct Ipv4Header *ip, void *l4,
 }
 
 void NAT::ProcessBatch(bess::PacketBatch *batch) {
-  gate_idx_t out_gates[bess::PacketBatch::kMaxBurst];
   gate_idx_t incoming_gate = get_igate();
 
+  bess::PacketBatch out_batch;
+  out_batch.clear();
   int cnt = batch->cnt();
 
   for (int i = 0; i < cnt; i++) {
     bess::Packet *pkt = batch->pkts()[i];
-
-    // By default, pass packet
-    out_gates[i] = incoming_gate;
 
     struct EthHeader *eth = pkt->head_data<struct EthHeader *>();
     struct Ipv4Header *ip = reinterpret_cast<struct Ipv4Header *>(eth + 1);
@@ -187,7 +185,7 @@ void NAT::ProcessBatch(bess::PacketBatch *batch) {
 
     // L4 protocol must be TCP, UDP, or ICMP
     if (ip->protocol != TCP && ip->protocol != UDP && ip->protocol != ICMP) {
-      out_gates[i] = DROP_GATE;
+      bess::Packet::Free(pkt);
       continue;
     }
 
@@ -204,6 +202,7 @@ void NAT::ProcessBatch(bess::PacketBatch *batch) {
         } else {
           stamp_flow(ip, l4, hash_it->second.internal_flow.ReverseFlow());
         }
+        out_batch.add(pkt);
         continue;
       } else {
         // Reclaim expired record
@@ -222,7 +221,7 @@ void NAT::ProcessBatch(bess::PacketBatch *batch) {
 
     if (incoming_gate == 1) {
       // Flow from external network, drop.
-      out_gates[i] = DROP_GATE;
+      bess::Packet::Free(pkt);
       continue;
     }
 
@@ -231,7 +230,7 @@ void NAT::ProcessBatch(bess::PacketBatch *batch) {
         [&ip](const NATRule &rule) { return rule.first.Match(ip->src); });
     if (rule_it == rules_.end()) {
       // No rules found for this source IP address, drop.
-      out_gates[i] = DROP_GATE;
+      bess::Packet::Free(pkt);
       continue;
     }
 
@@ -252,7 +251,7 @@ void NAT::ProcessBatch(bess::PacketBatch *batch) {
 
     // Still not available ports, then drop
     if (available_ports_.empty()) {
-      out_gates[i] = DROP_GATE;
+      bess::Packet::Free(pkt);
       continue;
     }
 
@@ -280,8 +279,9 @@ void NAT::ProcessBatch(bess::PacketBatch *batch) {
     flow_hash_.emplace(ext_flow.ReverseFlow(), record);
 
     stamp_flow(ip, l4, ext_flow);
+    out_batch.add(pkt);
   }
-  RunSplit(out_gates, batch);
+  RunChooseModule(incoming_gate, &out_batch);
 }
 
 ADD_MODULE(NAT, "nat", "Network address translator")
