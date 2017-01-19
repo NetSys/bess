@@ -7,7 +7,7 @@ num_cores = int($SN_CORES!'1')
 assert(1 <= num_ports <= 16)
 assert(1 <= num_cores <= 4)
 
-# generate flows by varying IP dst 
+# generate flows by varying IP dst
 num_flows = int($SN_FLOWS!'1')
 assert(1 <= num_flows <= 10000)
 
@@ -23,9 +23,7 @@ ip = scapy.IP(src=src_ip, dst=dst_ip)
 src_port = int($BESS_SRC_PORT!'10001')
 tcp = scapy.TCP(sport=src_port, dport=80, seq=12345)
 
-host = 'aaa'
-payload_prefix = 'GET /pub/WWW/TheProject.html HTTP/1.1 \r\nHost: http://www.' 
-payload = payload_prefix +  host + '\r\n\r\n'
+payload = 'GET /pub/WWW/TheProject.html HTTP/1.1\r\nHost: www.aaa.com\r\n\r\n'
 #payload = payload + (10) * "melvin"
 pkt_headers = eth/ip/tcp
 pkt_template = str(eth/ip/tcp/payload)
