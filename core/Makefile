@@ -73,10 +73,10 @@ ifdef SANITIZE
 endif
 
 ifdef DEBUG
-    CXXFLAGS += --coverage -DNDEBUG -O1
+    CXXFLAGS += --coverage -O1
     LDFLAGS += --coverage
 else
-    CXXFLAGS += -Ofast
+    CXXFLAGS += -Ofast -DNDEBUG 
 endif
 
 -include extra.dpdk.mk

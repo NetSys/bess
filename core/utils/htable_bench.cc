@@ -10,6 +10,7 @@
 #include <cmath>
 #include <cstdio>
 #include <functional>
+#include <unordered_map>
 
 #include <benchmark/benchmark.h>
 #include <glog/logging.h>
@@ -44,14 +45,15 @@ static inline value_t derive_val(uint32_t key) {
 
 static Random rng;
 
-// Performs BESS init/close before/after each test.
-class BessFixture : public benchmark::Fixture {
+// Performs HTable setup / teardown.
+class HTableFixture : public benchmark::Fixture {
  public:
-  BessFixture() : arg_() {}
+  HTableFixture() : arg_(), stl_map_() {}
 
   virtual void SetUp(benchmark::State &state) {
     HTable<uint32_t, value_t, inlined_keycmp, inlined_hash> *t =
         new HTable<uint32_t, value_t, inlined_keycmp, inlined_hash>();
+    stl_map_ = new std::unordered_map<uint32_t, value_t>();
 
     if (t->Init(sizeof(uint32_t), sizeof(value_t)) == -ENOMEM) {
       CHECK(false) << "Out of memory.";
@@ -68,6 +70,8 @@ class BessFixture : public benchmark::Fixture {
       } else {
         CHECK(ret == 0 || ret == 1);
       }
+
+      (*stl_map_)[key] = val;
     }
 
     arg_ = static_cast<HTableBase *>(t);
@@ -77,14 +81,17 @@ class BessFixture : public benchmark::Fixture {
     HTable<uint32_t, value_t, inlined_keycmp, inlined_hash> *t =
         (HTable<uint32_t, value_t, inlined_keycmp, inlined_hash> *)arg_;
     t->Close();
+
+    delete stl_map_;
   }
 
  protected:
   HTableBase *arg_;
+  std::unordered_map<uint32_t, value_t> *stl_map_;
 };
 
 // Benchmarks the Get() method in HTableBase.
-BENCHMARK_DEFINE_F(BessFixture, BessGet)(benchmark::State &state) {
+BENCHMARK_DEFINE_F(HTableFixture, BessGet)(benchmark::State &state) {
   HTableBase *t = static_cast<HTableBase *>(arg_);
 
   while (true) {
@@ -107,12 +114,12 @@ BENCHMARK_DEFINE_F(BessFixture, BessGet)(benchmark::State &state) {
   }
 }
 
-BENCHMARK_REGISTER_F(BessFixture, BessGet)
+BENCHMARK_REGISTER_F(HTableFixture, BessGet)
     ->RangeMultiplier(4)
     ->Range(4, 4 << 20);
 
 // Benchmarks the Get() method in HTable, which is inlined.
-BENCHMARK_DEFINE_F(BessFixture, BessInlinedGet)(benchmark::State &state) {
+BENCHMARK_DEFINE_F(HTableFixture, BessInlinedGet)(benchmark::State &state) {
   HTable<uint32_t, value_t, inlined_keycmp, inlined_hash> *t =
       (HTable<uint32_t, value_t, inlined_keycmp, inlined_hash> *)arg_;
 
@@ -136,7 +143,32 @@ BENCHMARK_DEFINE_F(BessFixture, BessInlinedGet)(benchmark::State &state) {
   }
 }
 
-BENCHMARK_REGISTER_F(BessFixture, BessInlinedGet)
+BENCHMARK_REGISTER_F(HTableFixture, BessInlinedGet)
+    ->RangeMultiplier(4)
+    ->Range(4, 4 << 20);
+
+// Benchmarks the find method on the STL unordered_map.
+BENCHMARK_DEFINE_F(HTableFixture, STLUnorderedMapGet)(benchmark::State &state) {
+  while (true) {
+    const size_t n = state.range(0);
+    rng.SetSeed(0);
+
+    for (size_t i = 0; i < n; i++) {
+      uint32_t key = rng.Get();
+      value_t val;
+
+      val = (*stl_map_)[key];
+      DCHECK_EQ(val, derive_val(key));
+
+      if (!state.KeepRunning()) {
+        state.SetItemsProcessed(state.iterations());
+        return;
+      }
+    }
+  }
+}
+
+BENCHMARK_REGISTER_F(HTableFixture, STLUnorderedMapGet)
     ->RangeMultiplier(4)
     ->Range(4, 4 << 20);
 
