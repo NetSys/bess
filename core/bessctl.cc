@@ -1035,7 +1035,7 @@ class BESSControlImpl final : public BESSControl::Service {
     }
 
     Task* t;
-    if ((t = m->tasks()[tid]) == nullptr) {
+    if (tid >= m->tasks().size() || (t = m->tasks()[tid]) == nullptr) {
       return return_with_error(response, ENOENT, "Task %s:%hu does not exist",
                                request->name().c_str(), tid);
     }
