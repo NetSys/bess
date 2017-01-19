@@ -1,6 +1,9 @@
 #ifndef BESS_MODULES_URL_FILTER_H_
 #define BESS_MODULES_URL_FILTER_H_
 
+#include <rte_config.h>
+#include <rte_hash_crc.h>
+
 #include <map>
 #include <string>
 #include <utility>
@@ -21,6 +24,9 @@ class Flow {
   uint32_t dst_ip;
   uint16_t src_port;
   uint16_t dst_port;
+  uint32_t padding;
+
+  Flow() : src_ip(0), dst_ip(0), src_port(0), dst_port(0), padding(0) {}
 
   bool operator==(const Flow &other) const {
     return src_ip == other.src_ip && src_port == other.src_port &&
@@ -31,10 +37,17 @@ class Flow {
 // Hash function for std::unordered_map
 struct FlowHash {
   std::size_t operator()(const Flow &f) const {
-    static_assert(sizeof(Flow) == 3 * sizeof(uint32_t), "Flow must be 12 bytes.");
-    const uint32_t *flowdata = reinterpret_cast<const uint32_t *>(&f);
-    uint32_t flowdata_xor = *flowdata ^ *(flowdata + 1) ^ *(flowdata + 2);
-    return std::hash<uint32_t>{}(flowdata_xor);
+    static_assert(sizeof(Flow) == 2 * sizeof(uint64_t),
+                  "Flow must be 16 bytes.");
+    const uint64_t *flowdata = reinterpret_cast<const uint64_t *>(&f);
+    uint32_t init_val = 0;
+#if __SSE4_2__ && __x86_64
+    init_val = crc32c_sse42_u64(*flowdata++, init_val);
+    init_val = crc32c_sse42_u64(*flowdata++, init_val);
+#else
+    init_val = rte_hash_crc(flowdata, sizeof(Flow), init_val);
+#endif
+    return init_val;
   }
 };
 

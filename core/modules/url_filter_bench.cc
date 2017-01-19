@@ -1,9 +1,9 @@
-// Benchmark for NAT module.
+// Benchmark for UrlFilter module.
 
 #include <benchmark/benchmark.h>
 #include <glog/logging.h>
 
-#include "nat.h"
+#include "url_filter.h"
 
 // Benchmarks the NAT flow hash.
 static void BM_FlowHash(benchmark::State& state) {
