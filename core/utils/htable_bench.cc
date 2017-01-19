@@ -102,7 +102,7 @@ BENCHMARK_DEFINE_F(HTableFixture, BessGet)(benchmark::State &state) {
       uint32_t key = rng.Get();
       value_t *val;
 
-      val = (value_t *)t->Get(&key);
+      benchmark::DoNotOptimize(val = (value_t *)t->Get(&key));
       DCHECK(val);
       DCHECK_EQ(*val, derive_val(key));
 
@@ -131,7 +131,7 @@ BENCHMARK_DEFINE_F(HTableFixture, BessInlinedGet)(benchmark::State &state) {
       uint32_t key = rng.Get();
       value_t *val;
 
-      val = (value_t *)t->Get(&key);
+      benchmark::DoNotOptimize(val = (value_t *)t->Get(&key));
       DCHECK(val);
       DCHECK_EQ(*val, derive_val(key));
 
@@ -157,7 +157,7 @@ BENCHMARK_DEFINE_F(HTableFixture, STLUnorderedMapGet)(benchmark::State &state) {
       uint32_t key = rng.Get();
       value_t val;
 
-      val = (*stl_map_)[key];
+      benchmark::DoNotOptimize(val = (*stl_map_)[key]);
       DCHECK_EQ(val, derive_val(key));
 
       if (!state.KeepRunning()) {
