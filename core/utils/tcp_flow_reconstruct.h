@@ -3,12 +3,13 @@
 
 #include <arpa/inet.h>
 
+#include <cassert>
 #include <vector>
 
-#include "ether.h"
-#include "ip.h"
 #include "../mem_alloc.h"
 #include "../packet.h"
+#include "ether.h"
+#include "ip.h"
 #include "tcp.h"
 
 namespace bess {
@@ -31,12 +32,11 @@ class TcpFlowReconstruct {
       received_map_.resize(buflen_);
     }
 
-    buf_ = (char *) mem_alloc(buflen_);
+    buf_ = (char *)mem_alloc(buflen_);
+    assert(buf_ != nullptr);
   }
 
-  ~TcpFlowReconstruct() {
-    free(buf_);
-  }
+  ~TcpFlowReconstruct() { free(buf_); }
 
   // Returns the underlying buffer of reconstructed flow bytes.  Not guaranteed
   // to return the same pointer between calls to InsertPacket().
@@ -62,31 +62,43 @@ class TcpFlowReconstruct {
   //
   // Behavior is undefined the packet is not a TCP packet.
   bool InsertPacket(Packet *p) {
-    struct EthHeader *eth = p->head_data<struct EthHeader *>();
-    struct Ipv4Header *ip = (struct Ipv4Header *) (eth + 1);
-    struct TcpHeader *tcp = (struct TcpHeader *) (((char *) ip) + (ip->header_length * 4));
+    const struct EthHeader *eth = p->head_data<const struct EthHeader *>();
+    const struct Ipv4Header *ip = (const struct Ipv4Header *)(eth + 1);
+    const struct TcpHeader *tcp =
+        (const struct TcpHeader *)(((const char *)ip) +
+                                   (ip->header_length * 4));
 
+    uint32_t seq = ntohl(tcp->seq_num);
     // Assumes we only get one SYN and the sequence number of it doesn't change
     // for any reason.  Also assumes we have no data in the SYN.
     if (tcp->flags & TCP_FLAG_SYN) {
-     init_seq_ = ntohl(tcp->seq_num) + 1;
-     initialized_ = true;
-     return true;
+      init_seq_ = seq + 1;
+      initialized_ = true;
+      return true;
     }
 
     if (!initialized_) {
       return false;
     }
 
-    uint32_t buf_offset = ntohl(tcp->seq_num) - init_seq_;
-    char *datastart = ((char *) tcp) + (tcp->offset * 4);
-    uint32_t datalen = ntohs(ip->length) - (tcp->offset * 4) -
-                       (ip->header_length * 4);
+    // Check if the sequence number is greater than SYN + 1. Wraparound is
+    // possible.
+    if ((int32_t)(seq - init_seq_) < 0) {
+      return false;
+    }
+
+    // Wraparound is possible.
+    uint32_t buf_offset = seq - init_seq_;
+
+    const char *datastart = ((const char *)tcp) + (tcp->offset * 4);
+    uint32_t datalen =
+        ntohs(ip->length) - (tcp->offset * 4) - (ip->header_length * 4);
 
     // If we will run out of space, make more room.
     while ((buf_offset + datalen) > buflen_) {
       buflen_ *= 2;
-      buf_ = (char *) mem_realloc(buf_, buflen_);
+      buf_ = (char *)mem_realloc(buf_, buflen_);
+      assert(buf_ != nullptr);
       received_map_.resize(buflen_);
     }
 
@@ -105,11 +117,12 @@ class TcpFlowReconstruct {
   }
 
  private:
-  // Tracks whether the init_seq_ (and thus this object) has been initialized with a SYN.
-  bool initialized_;  
+  // Tracks whether the init_seq_ (and thus this object) has been initialized
+  // with a SYN.
+  bool initialized_;
 
   // The initial sequence number of data bytes in the TCP flow.
-  uint32_t init_seq_;  
+  uint32_t init_seq_;
 
   // A buffer (potentially with holes) of received data.
   char *buf_;
