@@ -258,6 +258,8 @@ pb_error_t PMDPort::Init(const bess::pb::PMDPortArg &arg) {
    * with minor tweaks */
   rte_eth_dev_info_get(ret_port_id, &dev_info);
 
+  driver_ = dev_info.driver_name;
+
   eth_rxconf = dev_info.default_rxconf;
 
   /* #36: em driver does not allow rx_drop_en enabled */
@@ -355,17 +357,26 @@ void PMDPort::CollectStats(bool reset) {
 
   port_stats[PACKET_DIR_INC].dropped = stats.imissed;
 
-  dir = PACKET_DIR_INC;
-  for (qid = 0; qid < num_queues[dir]; qid++) {
-    queue_stats[dir][qid].packets = stats.q_ipackets[qid];
-    queue_stats[dir][qid].bytes = stats.q_ibytes[qid];
-    queue_stats[dir][qid].dropped = stats.q_errors[qid];
-  }
+  // i40e PMD driver doesn't support per-queue stats
+  if (driver_ == "rte_i40e_pmd") {
+    // NOTE: if link is down, tx bytes won't increase
+    port_stats[PACKET_DIR_INC].packets = stats.ipackets;
+    port_stats[PACKET_DIR_INC].bytes = stats.ibytes;
+    port_stats[PACKET_DIR_OUT].packets = stats.opackets;
+    port_stats[PACKET_DIR_OUT].bytes = stats.obytes;
+  } else {
+    dir = PACKET_DIR_INC;
+    for (qid = 0; qid < num_queues[dir]; qid++) {
+      queue_stats[dir][qid].packets = stats.q_ipackets[qid];
+      queue_stats[dir][qid].bytes = stats.q_ibytes[qid];
+      queue_stats[dir][qid].dropped = stats.q_errors[qid];
+    }
 
-  dir = PACKET_DIR_OUT;
-  for (qid = 0; qid < num_queues[dir]; qid++) {
-    queue_stats[dir][qid].packets = stats.q_opackets[qid];
-    queue_stats[dir][qid].bytes = stats.q_obytes[qid];
+    dir = PACKET_DIR_OUT;
+    for (qid = 0; qid < num_queues[dir]; qid++) {
+      queue_stats[dir][qid].packets = stats.q_opackets[qid];
+      queue_stats[dir][qid].bytes = stats.q_obytes[qid];
+    }
   }
 }
 

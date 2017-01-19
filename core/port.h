@@ -186,7 +186,7 @@ class Port {
   virtual size_t DefaultIncQueueSize() const { return kDefaultIncQueueSize; }
   virtual size_t DefaultOutQueueSize() const { return kDefaultOutQueueSize; }
 
-  virtual size_t GetFlags() const { return kFlags; }
+  virtual uint64_t GetFlags() const { return 0; }
 
   // -------------------------------------------------------------------------
 
@@ -223,8 +223,6 @@ class Port {
 
   static const size_t kDefaultIncQueueSize = 256;
   static const size_t kDefaultOutQueueSize = 256;
-
-  static const uint32_t kFlags = 0;
 
   DISALLOW_COPY_AND_ASSIGN(Port);
 
