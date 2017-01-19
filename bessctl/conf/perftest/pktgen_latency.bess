@@ -1,7 +1,7 @@
 import scapy.all as scapy
 import time
 
-pkt_size = int($SN_PKT_SIZE!'60')
+pkt_size = int($SN_PKT_SIZE!'100')
 num_ports = int($SN_PORTS!'1')
 num_cores = int($SN_CORES!num_ports)
 burst = int($SN_BURST!'32')
