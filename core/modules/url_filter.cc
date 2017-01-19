@@ -255,12 +255,19 @@ void UrlFilter::ProcessBatch(bess::PacketBatch *batch) {
 
     if (!matched) {
       out_batches[0].add(pkt);
-    } else {
-      blocked_flows_.emplace(flow, now);
-      flow_cache_.erase(flow);
 
-      // Drop the data packet
-      bess::Packet::Free(pkt);
+      // If FIN is observed, no need to reconstruct this flow
+      // NOTE: if FIN is lost on its way to destination, this will simply pass
+      // the retransmitted packet
+      if (tcp->flags & TCP_FLAG_FIN) {
+        flow_cache_.erase(flow);
+      }
+    } else {
+      // Block this flow for TIME_OUT_NS nanoseconds
+      blocked_flows_.emplace(flow, now);
+
+      // No need to reconstruct this flow, so clear the cache
+      flow_cache_.erase(flow);
 
       // Inject RST to destination
       out_batches[1].add(GenerateResetPacket(
@@ -276,10 +283,9 @@ void UrlFilter::ProcessBatch(bess::PacketBatch *batch) {
       out_batches[3].add(GenerateResetPacket(
           eth->dst_addr, eth->src_addr, ip->dst, ip->src, tcp->dst_port,
           tcp->src_port, tcp->ack_num + strlen(HTTP_403_BODY), tcp->seq_num));
-    }
 
-    if (tcp->flags & TCP_FLAG_FIN) {
-      flow_cache_.erase(flow);
+      // Drop the data packet
+      bess::Packet::Free(pkt);
     }
   }
 
