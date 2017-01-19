@@ -3,7 +3,7 @@
 
 #include "../module.h"
 
-// Swap source and destination IP addresses and UDP/TCP ports
+// Calculate IP Checksum
 class IPChecksum final : public Module {
  public:
   void ProcessBatch(bess::PacketBatch *batch) override;
