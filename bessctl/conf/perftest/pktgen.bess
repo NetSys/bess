@@ -11,7 +11,7 @@ assert(1 <= num_ports <= 16)
 assert(1 <= num_cores <= 4)
 
 # generate flows by varying dst IP addr
-num_flows = int($SN_FLOWS!'1')
+num_flows = int($SN_FLOWS!'4000')
 assert(1 <= num_flows <= 256 ** 3)
 
 def build_pkt(size):
@@ -44,28 +44,32 @@ else:
 ports = [PMDPort(port_id=i, num_inc_q=num_cores, num_out_q=num_cores) \
          for i in range(num_ports)]
 
-if(rate_limit != 0):
-    bess.add_tc('rr', policy='round_robin', priority=0)
-
 for i in range(num_cores):
-    if(rate_limit == 0):
-        print("starting up worker: " + str(i))
-        bess.add_worker(wid=i, core=i)
+    print("starting up worker: " + str(i))
+    bess.add_worker(wid=i, core=i)
+
+    if(rate_limit != 0):
+      bess.add_tc('rr' + str(i), policy='round_robin', priority=0, wid=i)
+
 
     src = Source()
     rr = RoundRobin(gates=range(num_ports))
     src \
     -> Rewrite(templates=pkt_templates) \
     -> RandomUpdate(fields=[{'offset': 30, 'size': 4, 'min': 0x0a000001, 'max': 0x0a000001 + num_flows - 1}]) \
+    -> RandomUpdate(fields=[{'offset': 26, 'size': 4, 'min': 0x0a000001, 'max': 0x0a000001 + num_flows - 1}]) \
     -> IPChecksum() \
     -> rr
 
     if(rate_limit != 0):
-        bess.add_tc('bit_limit', parent='rr', policy='rate_limit', resource='bit', limit={'bit': rate_limit * 1000000})
-        bess.add_tc('bit_leaf', policy='leaf', parent='bit_limit')
-        bess.attach_task(src.name, tc='bit_leaf')
+        bess.add_tc('bit_limit' + str(i), parent='rr' + str(i), policy='rate_limit', resource='bit', limit={'bit': rate_limit * 1000000})
+        bess.add_tc('bit_leaf' + str(i), policy='leaf', parent='bit_limit' + str(i))
+        bess.attach_task(src.name, tc='bit_leaf' + str(i))
 
     for j in range(num_ports):
         rr:j -> Update(fields=[{'offset': 29, 'size': 1, 'value': j+1}]) -> QueueOut(port=ports[j].name, qid=i)
-        QueueInc(port=ports[j].name, qid=i) -> Sink()
-
+        qi = QueueInc(port=ports[j].name, qid=i)
+        qi->Sink()
+        if(rate_limit != 0):
+          bess.add_tc('inc_port_leaf' + str(i), policy='leaf', parent='rr' + str(i))
+          bess.attach_task(qi.name, tc=('inc_port_leaf' + str(i)))
