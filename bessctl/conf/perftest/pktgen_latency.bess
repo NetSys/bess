@@ -1,13 +1,13 @@
 import scapy.all as scapy
 import time
 
-pkt_size = int($SN_PKT_SIZE!'60')
+pkt_size = int($SN_PKT_SIZE!'100')
 num_ports = int($SN_PORTS!'1')
 num_cores = int($SN_CORES!num_ports)
 burst = int($SN_BURST!'32')
 mbps = int($SN_MBPS!'100')
 
-assert(60 <= pkt_size <= 1522)
+assert(63 <= pkt_size <= 1522)
 assert(1 <= num_ports <= 16)
 assert(1 <= num_cores <= 4)
 
