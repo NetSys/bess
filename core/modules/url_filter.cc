@@ -277,6 +277,10 @@ void UrlFilter::ProcessBatch(bess::PacketBatch *batch) {
           eth->dst_addr, eth->src_addr, ip->dst, ip->src, tcp->dst_port,
           tcp->src_port, tcp->ack_num + strlen(HTTP_403_BODY), tcp->seq_num));
     }
+
+    if (tcp->flags & TCP_FLAG_FIN) {
+      flow_cache_.erase(flow);
+    }
   }
 
   if (!out_batches[0].empty()) {
