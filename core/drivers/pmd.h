@@ -1,6 +1,8 @@
 #ifndef BESS_DRIVERS_PMD_H_
 #define BESS_DRIVERS_PMD_H_
 
+#include <string>
+
 #include <rte_config.h>
 #include <rte_errno.h>
 #include <rte_ethdev.h>
@@ -97,6 +99,8 @@ class PMDPort final : public Port {
    * True if device did not exist when bessd started and was later patched in.
    */
   bool hot_plugged_;
+
+  std::string driver_;    // ixgbe, i40e, ...
 };
 
 #endif  // BESS_DRIVERS_PMD_H_
