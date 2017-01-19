@@ -45,7 +45,10 @@ for i in range(num_ports):
         'size': 4,
         'min': 0x0a000001,
         'max': 0x0a000001 + num_flows - 1}]) \
-    -> Queue() -> Timestamp() -> PortOut(port=p.name)
+    -> IPChecksum() \
+    -> Queue() \
+    -> Timestamp() \
+    -> PortOut(port=p.name)
     bess.attach_task(s.name, tc=leaf_out)
 
     m = Measure()

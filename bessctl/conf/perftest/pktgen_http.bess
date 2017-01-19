@@ -47,6 +47,7 @@ for i in range(num_cores):
     src \
     -> RandomUpdate(fields=[{'offset': len(pkt_headers)  + len(payload_prefix), 'size': 1, 'min': 97, 'max': 172}]) \
     -> RandomUpdate(fields=[{'offset': len(pkt_headers)  + len(payload_prefix) + 1, 'size': 1, 'min': 97, 'max': 172}]) \
+    -> IPChecksum() \
     -> rr
 
     for j in range(num_ports):
