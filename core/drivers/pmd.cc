@@ -359,6 +359,7 @@ void PMDPort::CollectStats(bool reset) {
 
   // i40e PMD driver doesn't support per-queue stats
   if (driver_ == "rte_i40e_pmd") {
+    // NOTE: if link is down, tx bytes won't increase
     port_stats[PACKET_DIR_INC].packets = stats.ipackets;
     port_stats[PACKET_DIR_INC].bytes = stats.ibytes;
     port_stats[PACKET_DIR_OUT].packets = stats.opackets;
