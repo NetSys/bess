@@ -23,6 +23,9 @@
 #include "common.h"
 #include "random.h"
 
+using bess::utils::HTable;
+using bess::utils::HTableBase;
+
 typedef uint16_t value_t;
 
 static inline int inlined_keycmp(const void *key, const void *key_stored,

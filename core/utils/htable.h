@@ -10,6 +10,9 @@
 #include "../mem_alloc.h"
 #include "common.h"
 
+namespace bess {
+namespace utils {
+
 class HTableBase {
  public:
   /* compatible with DPDK's */
@@ -244,5 +247,8 @@ inline V *HTable<K, V, C, H>::get_from_bucket(uint32_t pri, uint32_t hv,
 
   return nullptr;
 }
+
+}  // namespace utils
+}  // namespace bess
 
 #endif  // BESS_UTILS_HTABLE_H_

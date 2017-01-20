@@ -415,7 +415,7 @@ void DumpTypes(void) {
   printf("sizeof(void *)=%zu\n", sizeof(void *));
   printf("sizeof(size_t)=%zu\n", sizeof(size_t));
 
-  printf("sizeof(HTableBase)=%zu\n", sizeof(HTableBase));
+  printf("sizeof(HTableBase)=%zu\n", sizeof(bess::utils::HTableBase));
 
   printf("sizeof(rte_mbuf)=%zu\n", sizeof(struct rte_mbuf));
   printf("sizeof(Packet)=%zu\n", sizeof(Packet));

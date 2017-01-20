@@ -39,12 +39,18 @@ pb_error_t NAT::Init(const bess::pb::NATArg &arg) {
     rules_.push_back(std::make_pair(int_net, ext_net));
   }
 
+  flow_hash_.Init(sizeof(Flow), sizeof(FlowRecord *));
+
   available_ports_.resize(MAX_PORT - MIN_PORT + 1);
   std::iota(available_ports_.begin(), available_ports_.end(), MIN_PORT);
   std::random_shuffle(available_ports_.begin(), available_ports_.end());
 
   flow_vec_.resize(MAX_PORT - MIN_PORT + 1);
   return pb_errno(0);
+}
+
+void NAT::DeInit() {
+  flow_hash_.Close();
 }
 
 pb_cmd_response_t NAT::CommandAdd(const bess::pb::NATArg &arg) {
@@ -58,14 +64,13 @@ pb_cmd_response_t NAT::CommandAdd(const bess::pb::NATArg &arg) {
 
 pb_cmd_response_t NAT::CommandClear(const bess::pb::EmptyArg &) {
   rules_.clear();
-  flow_hash_.clear();
+  flow_hash_.Clear();
 
   available_ports_.resize(MAX_PORT - MIN_PORT + 1);
   std::iota(available_ports_.begin(), available_ports_.end(), MIN_PORT);
   std::random_shuffle(available_ports_.begin(), available_ports_.end());
 
   flow_vec_.resize(MAX_PORT - MIN_PORT + 1);
-
   return pb_cmd_response_t();
 }
 
@@ -161,8 +166,9 @@ inline static void stamp_flow(struct Ipv4Header *ip, void *l4,
         default:
           VLOG(1) << "Unknown icmp_type: " << icmp->type;
       }
+      break;
     default:
-      VLOG(1) << "Unknown protocol: " << ip->protocol;
+      VLOG(1) << "Unknown protocol: " << flow.proto;
   }
   compute_cksum(ip, l4);
 }
@@ -192,28 +198,30 @@ void NAT::ProcessBatch(bess::PacketBatch *batch) {
     Flow flow = parse_flow(ip, l4);
     uint64_t now = ctx.current_ns();
 
-    auto hash_it = flow_hash_.find(flow);
-    if (hash_it != flow_hash_.end()) {
-      if (now - hash_it->second.time < TIME_OUT_NS) {
+    FlowRecord **res = flow_hash_.Get(&flow);
+    if (res != nullptr) {
+      FlowRecord *record_ptr = *res;
+      if (now - record_ptr->time < TIME_OUT_NS) {
         // Entry exists and does not exceed timeout
-        hash_it->second.time = now;
+        record_ptr->time = now;
         if (incoming_gate == 0) {
-          stamp_flow(ip, l4, hash_it->second.external_flow);
+          stamp_flow(ip, l4, record_ptr->external_flow);
         } else {
-          stamp_flow(ip, l4, hash_it->second.internal_flow.ReverseFlow());
+          stamp_flow(ip, l4, record_ptr->internal_flow.ReverseFlow());
         }
         out_batch.add(pkt);
         continue;
       } else {
         // Reclaim expired record
-        available_ports_.push_back(hash_it->second.port);
-        hash_it->second.time = 0;
+        available_ports_.push_back(record_ptr->port);
+        record_ptr->time = 0;
         if (incoming_gate == 0) {
-          flow_hash_.erase(hash_it);
-          flow_hash_.erase(hash_it->second.external_flow.ReverseFlow());
+          flow_hash_.Del(&flow);
+          Flow rev_flow = record_ptr->external_flow.ReverseFlow();
+          flow_hash_.Del(&rev_flow);
         } else {
-          flow_hash_.erase(hash_it);
-          flow_hash_.erase(hash_it->second.internal_flow);
+          flow_hash_.Del(&flow);
+          flow_hash_.Del(&(record_ptr->internal_flow));
         }
         next_expiry_ = now;
       }
@@ -241,8 +249,9 @@ void NAT::ProcessBatch(bess::PacketBatch *batch) {
         if (record.time != 0 && now - record.time >= TIME_OUT_NS) {
           available_ports_.push_back(record.port);
           record.time = 0;
-          flow_hash_.erase(record.internal_flow);
-          flow_hash_.erase(record.external_flow.ReverseFlow());
+          flow_hash_.Del(&(record.internal_flow));
+          Flow rev_flow = record.external_flow.ReverseFlow();
+          flow_hash_.Del(&rev_flow);
         } else if (record.time != 0) {
           next_expiry_ = std::min(next_expiry_, record.time + TIME_OUT_NS);
         }
@@ -259,26 +268,24 @@ void NAT::ProcessBatch(bess::PacketBatch *batch) {
     available_ports_.pop_back();
 
     // Invariant: record.port == new_port == index + MIN_PORT
-    FlowRecord &record = flow_vec_[new_port - MIN_PORT];
+    FlowRecord *record = &flow_vec_[new_port - MIN_PORT];
 
-    Flow ext_flow = flow;
-    ext_flow.src_ip = RandomIP(rule_it->second);
+    record->port = new_port;
+    record->time = now;
+    record->internal_flow = flow;    // Copy
+    flow_hash_.Set(&flow, &record);  // Copy
 
-    if (ext_flow.icmp_ident == 0) {
-      ext_flow.src_port = new_port;
+    flow.src_ip = RandomIP(rule_it->second);
+    if (flow.icmp_ident == 0) {
+      flow.src_port = new_port;
     } else {
-      ext_flow.icmp_ident = new_port;
+      flow.icmp_ident = new_port;
     }
+    record->external_flow = flow;
+    Flow rev_flow = flow.ReverseFlow();  // Copy
+    flow_hash_.Set(&rev_flow, &record);  // Copy
 
-    record.port = new_port;
-    record.time = now;
-    record.internal_flow = flow;
-    record.external_flow = ext_flow;
-
-    flow_hash_.emplace(flow, record);
-    flow_hash_.emplace(ext_flow.ReverseFlow(), record);
-
-    stamp_flow(ip, l4, ext_flow);
+    stamp_flow(ip, l4, flow);
     out_batch.add(pkt);
   }
   RunChooseModule(incoming_gate, &out_batch);
