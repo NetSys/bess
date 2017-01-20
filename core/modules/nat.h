@@ -25,35 +25,38 @@ const uint16_t MAX_PORT = 65535;
 const uint64_t TIME_OUT_NS = 120L * 1000 * 1000 * 1000;
 
 // 5 tuple for TCP/UDP packets with an additional icmp_ident for ICMP query pkts
-class Flow {
+class alignas(16) Flow {
  public:
-  uint32_t src_ip;
-  uint32_t dst_ip;
-  uint16_t src_port;
-  uint16_t dst_port;
-  uint16_t icmp_ident;  // identifier of ICMP query
-  uint8_t proto;
+  union {
+    struct {
+      uint32_t src_ip;
+      uint32_t dst_ip;
+      union {
+        uint16_t src_port;
+        uint16_t icmp_ident;  // identifier of ICMP query
+      };
+      uint16_t dst_port;
+      uint8_t proto;
+    };
 
-  Flow()
-      : src_ip(0),
-        dst_ip(0),
-        src_port(0),
-        dst_port(0),
-        icmp_ident(0),
-        proto(0) {}
+    struct {
+      uint64_t e1;
+      uint64_t e2;
+    };
+  };
 
-  Flow(uint32_t sip, uint32_t dip, uint16_t sp, uint16_t dp, uint16_t ident,
-       uint8_t protocol)
+  Flow() : e1(0), e2(0) {}
+
+  Flow(uint32_t sip, uint32_t dip, uint16_t sp, uint16_t dp, uint8_t protocol)
       : src_ip(sip),
         dst_ip(dip),
         src_port(sp),
         dst_port(dp),
-        icmp_ident(ident),
         proto(protocol) {}
 
   // Returns a new instance of reserse flow
   Flow ReverseFlow() const {
-    return Flow(dst_ip, src_ip, dst_port, src_port, icmp_ident, proto);
+    return Flow(dst_ip, src_ip, dst_port, src_port, proto);
   }
 
   bool operator!=(const Flow &other) const {
@@ -183,9 +186,9 @@ class NAT final : public Module {
   static inline uint32_t flow_hash(const void *key, uint32_t,
                                    uint32_t init_val) {
 #if __SSE4_2__ && __x86_64
-    const uint64_t *flowdata = reinterpret_cast<const uint64_t *>(key);
-    init_val = crc32c_sse42_u64(*flowdata++, init_val);
-    init_val = crc32c_sse42_u64(*flowdata, init_val);
+    const Flow *flow = reinterpret_cast<const Flow *>(key);
+    init_val = crc32c_sse42_u64(flow->e1, init_val);
+    init_val = crc32c_sse42_u64(flow->e2, init_val);
 #else
     init_val = rte_hash_crc(key, sizeof(Flow), init_val);
 #endif

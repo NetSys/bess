@@ -154,8 +154,12 @@ void NAT::ProcessBatch(bess::PacketBatch *batch) {
   gate_idx_t incoming_gate = get_igate();
 
   bess::PacketBatch out_batch;
+  bess::PacketBatch free_batch;
   out_batch.clear();
+  free_batch.clear();
+
   int cnt = batch->cnt();
+  uint64_t now = ctx.current_ns();
 
   for (int i = 0; i < cnt; i++) {
     bess::Packet *pkt = batch->pkts()[i];
@@ -168,7 +172,7 @@ void NAT::ProcessBatch(bess::PacketBatch *batch) {
 
     // L4 protocol must be TCP, UDP, or ICMP
     if (ip->protocol != TCP && ip->protocol != UDP && ip->protocol != ICMP) {
-      bess::Packet::Free(pkt);
+      free_batch.add(pkt);
       continue;
     }
 
@@ -177,7 +181,6 @@ void NAT::ProcessBatch(bess::PacketBatch *batch) {
         [&ip](const std::pair<CIDRNetwork, AvailablePorts> &rule) { return rule.first.Match(ip->src); });
 
     Flow flow = parse_flow(ip, l4);
-    uint64_t now = ctx.current_ns();
 
     {
       FlowRecord **res = flow_hash_.Get(&flow);
@@ -216,7 +219,7 @@ void NAT::ProcessBatch(bess::PacketBatch *batch) {
     // allow external flows entry through the NAT.
     if (incoming_gate == 1) {
       // Flow from external network, drop.
-      bess::Packet::Free(pkt);
+      free_batch.add(pkt);
       continue;
     }
 
@@ -224,9 +227,10 @@ void NAT::ProcessBatch(bess::PacketBatch *batch) {
     // rule that tells us what external prefix this packet's flow maps to.
     if (rule_it == rules_.end()) {
       // No rules found for this source IP address, drop.
-      bess::Packet::Free(pkt);
+      free_batch.add(pkt);
       continue;
     }
+
     AvailablePorts &available_ports = rule_it->second;
 
     // Garbage collect.
@@ -259,7 +263,7 @@ void NAT::ProcessBatch(bess::PacketBatch *batch) {
 
     // Still no available ports, so drop.
     if (available_ports.Empty()) {
-      bess::Packet::Free(pkt);
+      free_batch.add(pkt);
       continue;
     }
 
@@ -274,11 +278,8 @@ void NAT::ProcessBatch(bess::PacketBatch *batch) {
     flow_hash_.Set(&flow, &record);  // Copy
 
     flow.src_ip = new_ip;
-    if (flow.icmp_ident == 0) {
-      flow.src_port = new_port;
-    } else {
-      flow.icmp_ident = new_port;
-    }
+    flow.src_port = new_port;
+
     record->external_flow = flow;
     Flow rev_flow = flow.ReverseFlow();  // Copy
     flow_hash_.Set(&rev_flow, &record);  // Copy
@@ -286,7 +287,14 @@ void NAT::ProcessBatch(bess::PacketBatch *batch) {
     stamp_flow(ip, l4, flow);
     out_batch.add(pkt);
   }
-  RunChooseModule(incoming_gate, &out_batch);
+
+  if (!free_batch.empty()) {
+    bess::Packet::Free(&free_batch);
+  }
+
+  if (!out_batch.empty()) {
+    RunChooseModule(incoming_gate, &out_batch);
+  }
 }
 
 ADD_MODULE(NAT, "nat", "Network address translator")
