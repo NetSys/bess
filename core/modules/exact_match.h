@@ -21,6 +21,7 @@ static_assert(MAX_FIELD_SIZE <= sizeof(uint64_t),
 #endif
 
 using google::protobuf::RepeatedPtrField;
+using bess::utils::HTable;
 
 struct em_hkey_t {
   uint64_t u64_arr[MAX_FIELDS];
@@ -115,7 +116,6 @@ class ExactMatch final : public Module {
  public:
   static const gate_idx_t kNumOGates = MAX_GATES;
 
-  
   static const Commands cmds;
 
   ExactMatch()

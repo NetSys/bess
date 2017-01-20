@@ -8,6 +8,9 @@
 
 #include <glog/logging.h>
 
+namespace bess {
+namespace utils {
+
 static const HTableBase::HashFunc kDefaultHashFunc = rte_hash_crc;
 static const HTableBase::KeyCmpFunc kDefaultKeyCmpFunc = memcmp;
 
@@ -595,3 +598,6 @@ void HTableBase::Dump(bool detail) const {
   printf("entry_size = %zu\n", entry_size_);
   printf("\n");
 }
+
+}  // namespace utils
+}  // namespace bess

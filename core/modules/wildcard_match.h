@@ -9,6 +9,8 @@
 #include "../module_msg.pb.h"
 #include "../utils/htable.h"
 
+using bess::utils::HTable;
+
 #define MAX_TUPLES 8
 #define MAX_FIELDS 8
 #define MAX_FIELD_SIZE 8
@@ -49,11 +51,7 @@ class WildcardMatch final : public Module {
   static const Commands cmds;
 
   WildcardMatch()
-      : Module(),
-        default_gate_(),
-        total_key_size_(),
-        fields_(),
-        tuples_() {}
+      : Module(), default_gate_(), total_key_size_(), fields_(), tuples_() {}
 
   pb_error_t Init(const bess::pb::WildcardMatchArg &arg);
 
