@@ -12,17 +12,18 @@
 #define RETRY_NS 1000000ul /* 1 ms */
 
 const uint64_t BENCHMARK_UPDATE_INTERVAL_S = 10L;
-const uint64_t BENCHMARK_UPDATE_INTERVAL_NS = (BENCHMARK_UPDATE_INTERVAL_S * 1000 * 1000 * 1000);
+const uint64_t BENCHMARK_UPDATE_INTERVAL_NS =
+    (BENCHMARK_UPDATE_INTERVAL_S * 1000 * 1000 * 1000);
 
 typedef std::pair<uint64_t, struct flow *> Event;
 typedef std::priority_queue<Event, std::vector<Event>,
-        std::function<bool(Event, Event)>>
-        EventQueue;
+                            std::function<bool(Event, Event)>>
+    EventQueue;
 
-        //Priority queue must be a *min* heap -> next upcoming event first.
-        bool EventLess(const Event &a, const Event &b) {
-          return a.first > b.first;
-        }
+// Priority queue must be a *min* heap -> next upcoming event first.
+bool EventLess(const Event &a, const Event &b) {
+  return a.first > b.first;
+}
 
 /* we ignore the last 1% tail to make the variance finite */
 const double PARETO_TAIL_LIMIT = 0.99;
@@ -33,7 +34,7 @@ static inline double pareto_variate(double inversed_alpha, double y) {
 }
 
 static inline double scaled_pareto_variate(double inversed_alpha, double mean,
-    double desired_mean, double y) {
+                                           double desired_mean, double y) {
   double x = pareto_variate(inversed_alpha, y);
 
   return 1.0 + (x - 1.0) / (mean - 1.0) * (desired_mean - 1.0);
@@ -45,7 +46,7 @@ inline double FlowGen::NewFlowPkts() {
       return flow_pkts_;
     case DURATION_PARETO:
       return scaled_pareto_variate(pareto_.inversed_alpha, pareto_.mean,
-          flow_pkts_, rng_.GetReal());
+                                   flow_pkts_, rng_.GetReal());
     default:
       CHECK(0);
   }
@@ -58,7 +59,7 @@ inline double FlowGen::MaxFlowPkts() const {
       return flow_pkts_;
     case DURATION_PARETO:
       return scaled_pareto_variate(pareto_.inversed_alpha, pareto_.mean,
-          flow_pkts_, 1.0);
+                                   flow_pkts_, 1.0);
     default:
       CHECK(0);
   }
@@ -188,8 +189,8 @@ pb_error_t FlowGen::ProcessArguments(const bess::pb::FlowGenArg &arg) {
     arrival_ = ARRIVAL_EXPONENTIAL;
   } else {
     return pb_error(EINVAL,
-        "'arrival' must be either "
-        "'uniform' or 'exponential'");
+                    "'arrival' must be either "
+                    "'uniform' or 'exponential'");
   }
 
   if (arg.duration() == "uniform") {
@@ -198,15 +199,15 @@ pb_error_t FlowGen::ProcessArguments(const bess::pb::FlowGenArg &arg) {
     duration_ = DURATION_PARETO;
   } else {
     return pb_error(EINVAL,
-        "'duration' must be either "
-        "'uniform' or 'pareto'");
+                    "'duration' must be either "
+                    "'uniform' or 'pareto'");
   }
 
   if (arg.quick_rampup()) {
     quick_rampup_ = 1;
   }
 
-  if (arg.scale_to_benchmark()){
+  if (arg.scale_to_benchmark()) {
     scale_to_benchmark_ = 1;
   }
 
@@ -224,7 +225,7 @@ pb_error_t FlowGen::InitFlowPool() {
       mem_alloc(allocated_flows_ * sizeof(struct flow)));
   if (!flows_) {
     return pb_error(ENOMEM, "memory allocation failed (%d flows)",
-        allocated_flows_);
+                    allocated_flows_);
   }
 
   for (int i = 0; i < allocated_flows_; i++) {
@@ -282,11 +283,10 @@ pb_error_t FlowGen::Init(const bess::pb::FlowGenArg &arg) {
   /* add a seed flow (and background flows if necessary) */
   PopulateInitialFlows();
 
-
   return pb_errno(0);
 }
 
-void FlowGen::UpdateDerivedVariables(){
+void FlowGen::UpdateDerivedVariables() {
   pareto_.inversed_alpha = 1.0 / pareto_.alpha;
 
   if (duration_ == DURATION_PARETO) {
@@ -303,7 +303,6 @@ void FlowGen::UpdateDerivedVariables(){
     flow_gap_ns_ = 1e9 / flow_rate_;
   }
 }
-
 
 void FlowGen::DeInit() {
   mem_free(flows_);
@@ -323,7 +322,7 @@ bess::Packet *FlowGen::FillPacket(struct flow *f) {
   }
 
   p = reinterpret_cast<char *>(pkt->buffer()) +
-    static_cast<size_t>(SNBUF_HEADROOM);
+      static_cast<size_t>(SNBUF_HEADROOM);
   if (!p) {
     return nullptr;
   }
@@ -341,7 +340,7 @@ bess::Packet *FlowGen::FillPacket(struct flow *f) {
 
   *(reinterpret_cast<uint32_t *>(p + 14 + /* IP dst */ 16)) = f->flow_id;
   *(reinterpret_cast<uint8_t *>(p + 14 + /* IP */ 20 + /* TCP flags */ 13)) =
-    tcp_flags;
+      tcp_flags;
 
   return pkt;
 }
@@ -407,7 +406,7 @@ struct task_result FlowGen::RunTask(void *) {
     RunNextModule(&batch);
 
   ret = (struct task_result){
-    .packets = static_cast<uint64_t>(batch.cnt()),
+      .packets = static_cast<uint64_t>(batch.cnt()),
       .bits = static_cast<uint64_t>(
           ((template_size_ + pkt_overhead) * batch.cnt()) * 8),
   };
@@ -415,30 +414,28 @@ struct task_result FlowGen::RunTask(void *) {
   return ret;
 }
 
-
 void FlowGen::ProcessBatch(bess::PacketBatch *batch) {
-  if(scale_to_benchmark_){
+  if (scale_to_benchmark_) {
     interval_packet_count_ += batch->cnt();
-    if(ctx.current_ns() - last_interval_start_ >= BENCHMARK_UPDATE_INTERVAL_NS){
-
-      if(last_interval_start_ == 0){
+    if (ctx.current_ns() - last_interval_start_ >=
+        BENCHMARK_UPDATE_INTERVAL_NS) {
+      if (last_interval_start_ == 0) {
         last_interval_start_ = ctx.current_ns();
-      }else{
-
-        double interval_pps = interval_packet_count_ / BENCHMARK_UPDATE_INTERVAL_S;
+      } else {
+        double interval_pps =
+            interval_packet_count_ / BENCHMARK_UPDATE_INTERVAL_S;
 
         LOG(INFO) << "PKTGEN LAST INTERVAL RECEIVED " << interval_pps << " pps";
-        
-        //be a little aggressive -- try to increase.
+
+        // be a little aggressive -- try to increase.
         total_pps_ = 1.1 * interval_pps;
 
-        //At low line rates traffic becomes burstier; harder to measure.
-        if(total_pps_ <= 1e5){
+        // At low line rates traffic becomes burstier; harder to measure.
+        if (total_pps_ <= 1e5) {
           total_pps_ = 1e5;
         }
 
-
-        //flow_rate_ = ratio * flow_rate_; //Scale flows proportionally
+        // flow_rate_ = ratio * flow_rate_; //Scale flows proportionally
         UpdateDerivedVariables();
 
         last_interval_start_ = ctx.current_ns();
