@@ -11,6 +11,7 @@
 
 #include "../module.h"
 #include "../module_msg.pb.h"
+#include "../packet.h"
 #include "../utils/tcp_flow_reconstruct.h"
 #include "../utils/trie.h"
 
@@ -58,6 +59,19 @@ struct FlowHash {
   }
 };
 
+class FlowRecord {
+ public:
+  FlowRecord() : buffer_(128), expiry_time_(0) {}
+
+  TcpFlowReconstruct &GetBuffer() { return buffer_; }
+  uint64_t ExpiryTime() { return expiry_time_; }
+  void SetExpiryTime(uint64_t time) { expiry_time_ = time; }
+
+ private:
+  TcpFlowReconstruct buffer_;
+  uint64_t expiry_time_;
+};
+
 // A module of HTTP URL filtering. Ends an HTTP connection if the Host field
 // matches the blacklist.
 // igate/ogate 0: traffic from internal network to external network
@@ -79,8 +93,7 @@ class UrlFilter final : public Module {
 
  private:
   std::unordered_map<std::string, Trie> blacklist_;
-  std::unordered_map<Flow, TcpFlowReconstruct, FlowHash> flow_cache_;
-  std::unordered_map<Flow, uint64_t, FlowHash> blocked_flows_;
+  std::unordered_map<Flow, FlowRecord, FlowHash> flow_cache_;
 };
 
 #endif  // BESS_MODULES_URL_FILTER_H_

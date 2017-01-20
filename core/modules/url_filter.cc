@@ -203,23 +203,23 @@ void UrlFilter::ProcessBatch(bess::PacketBatch *batch) {
     uint64_t now = ctx.current_ns();
 
     // Check if the flow is already blocked
-    std::unordered_map<Flow, uint64_t, FlowHash>::iterator it;
-    if ((it = blocked_flows_.find(flow)) != blocked_flows_.end()) {
-      if (now - it->second < TIME_OUT_NS) {
+    std::unordered_map<Flow, FlowRecord, FlowHash>::iterator it =
+        flow_cache_.find(flow);
+
+    if (it != flow_cache_.end()) {
+      if (now < it->second.ExpiryTime()) {
         free_batch.add(pkt);
         continue;
       } else {
-        blocked_flows_.erase(it);
+        flow_cache_.erase(it);
       }
     }
 
-    // Reconstruct this flow
-    if (flow_cache_.find(flow) == flow_cache_.end()) {
-      flow_cache_.emplace(std::piecewise_construct, std::make_tuple(flow),
-                          std::make_tuple(128));
-    }
+    std::tie(it, std::ignore) = flow_cache_.emplace(
+        std::piecewise_construct, std::make_tuple(flow), std::make_tuple());
 
-    TcpFlowReconstruct &buffer = flow_cache_.at(flow);
+    FlowRecord &record = it->second;
+    TcpFlowReconstruct &buffer = record.GetBuffer();
 
     // If the reconstruct code indicates failure, treat it as a flow to pass.
     // No need to parse the headers if the reconstruct code tells us it failed.
@@ -262,14 +262,11 @@ void UrlFilter::ProcessBatch(bess::PacketBatch *batch) {
       // NOTE: if FIN is lost on its way to destination, this will simply pass
       // the retransmitted packet
       if (tcp->flags & TCP_FLAG_FIN) {
-        flow_cache_.erase(flow);
+        flow_cache_.erase(it);
       }
     } else {
       // Block this flow for TIME_OUT_NS nanoseconds
-      blocked_flows_.emplace(flow, now);
-
-      // No need to reconstruct this flow, so clear the cache
-      flow_cache_.erase(flow);
+      record.SetExpiryTime(now + TIME_OUT_NS);
 
       // Inject RST to destination
       out_batches[1].add(GenerateResetPacket(
