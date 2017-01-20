@@ -164,6 +164,9 @@ void UrlFilter::ProcessBatch(bess::PacketBatch *batch) {
   }
 
   // Otherwise
+  bess::PacketBatch free_batch;
+  free_batch.clear();
+
   bess::PacketBatch out_batches[4];
   // Data to destination
   out_batches[0].clear();
@@ -203,7 +206,7 @@ void UrlFilter::ProcessBatch(bess::PacketBatch *batch) {
     std::unordered_map<Flow, uint64_t, FlowHash>::iterator it;
     if ((it = blocked_flows_.find(flow)) != blocked_flows_.end()) {
       if (now - it->second < TIME_OUT_NS) {
-        bess::Packet::Free(pkt);
+        free_batch.add(pkt);
         continue;
       } else {
         blocked_flows_.erase(it);
@@ -241,18 +244,13 @@ void UrlFilter::ProcessBatch(bess::PacketBatch *batch) {
       const std::string path_str(path, path_len);
 
       // Look for the Host header
-      for (size_t j = 0; j < num_headers; ++j) {
+      for (size_t j = 0; j < num_headers && !matched; ++j) {
         if (strncmp(headers[j].name, HTTP_HEADER_HOST, headers[j].name_len) ==
             0) {
           const std::string host(headers[j].value, headers[j].value_len);
           const auto rule_iterator = blacklist_.find(host);
-
-          if (rule_iterator != blacklist_.end() &&
-              rule_iterator->second.LookupKey(path_str)) {
-            // found a match
-            matched = true;
-            break;
-          }
+          matched = rule_iterator != blacklist_.end() &&
+                    rule_iterator->second.LookupKey(path_str);
         }
       }
     }
@@ -289,8 +287,12 @@ void UrlFilter::ProcessBatch(bess::PacketBatch *batch) {
           tcp->src_port, tcp->ack_num + strlen(HTTP_403_BODY), tcp->seq_num));
 
       // Drop the data packet
-      bess::Packet::Free(pkt);
+      free_batch.add(pkt);
     }
+  }
+
+  if (!free_batch.empty()) {
+    bess::Packet::Free(&free_batch);
   }
 
   if (!out_batches[0].empty()) {
