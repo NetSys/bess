@@ -20,7 +20,7 @@ struct flow {
   int first;
 };
 
-class FlowGen : public Module {
+class FlowGen final : public Module {
  public:
   enum Arrival {
     ARRIVAL_UNIFORM = 0,
