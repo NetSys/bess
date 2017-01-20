@@ -61,7 +61,7 @@ class FlowGen final : public Module {
 
   struct task_result RunTask(void *arg) override;
 
-  void ProcessBatch(bess::PacketBatch *batch);
+  void ProcessBatch(bess::PacketBatch *batch) override;
   
   std::string GetDesc() const override;
 
