@@ -60,9 +60,7 @@ class alignas(16) Flow {
   }
 
   bool operator!=(const Flow &other) const {
-    return proto != other.proto || src_ip != other.src_ip ||
-           src_port != other.src_port || dst_ip != other.dst_ip ||
-           dst_port != other.dst_port || icmp_ident != other.icmp_ident;
+    return e1 != other.e1 || e2 != other.e2;
   }
 };
 
