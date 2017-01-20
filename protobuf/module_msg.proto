@@ -185,6 +185,7 @@ message FlowGenArg {
   string arrival = 5;
   string duration = 6;
   bool quick_rampup = 7;
+  bool scale_to_benchmark = 8;
 }
 
 message GenericDecapArg {
