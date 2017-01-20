@@ -18,10 +18,6 @@ using bess::utils::UdpHeader;
 using bess::utils::TcpHeader;
 using bess::utils::IcmpHeader;
 
-const uint16_t MIN_PORT = 1024;
-const uint16_t MAX_PORT = 65535;
-const uint64_t TIME_OUT_NS = 120L * 1000 * 1000 * 1000;
-
 enum Protocol {
   ICMP = 0x01,
   TCP = 0x06,
@@ -33,19 +29,9 @@ const Commands NAT::cmds = {
     {"clear", "EmptyArg", MODULE_CMD_FUNC(&NAT::CommandClear), 0}};
 
 pb_error_t NAT::Init(const bess::pb::NATArg &arg) {
-  for (const auto &rule : arg.rules()) {
-    CIDRNetwork int_net(rule.internal_addr_block());
-    CIDRNetwork ext_net(rule.external_addr_block());
-    rules_.push_back(std::make_pair(int_net, ext_net));
-  }
-
   flow_hash_.Init(sizeof(Flow), sizeof(FlowRecord *));
 
-  available_ports_.resize(MAX_PORT - MIN_PORT + 1);
-  std::iota(available_ports_.begin(), available_ports_.end(), MIN_PORT);
-  std::random_shuffle(available_ports_.begin(), available_ports_.end());
-
-  flow_vec_.resize(MAX_PORT - MIN_PORT + 1);
+  InitRules(arg);
   return pb_errno(0);
 }
 
@@ -54,11 +40,7 @@ void NAT::DeInit() {
 }
 
 pb_cmd_response_t NAT::CommandAdd(const bess::pb::NATArg &arg) {
-  for (const auto &rule : arg.rules()) {
-    CIDRNetwork int_net(rule.internal_addr_block());
-    CIDRNetwork ext_net(rule.external_addr_block());
-    rules_.push_back(std::make_pair(int_net, ext_net));
-  }
+  InitRules(arg);
   return pb_cmd_response_t();
 }
 
@@ -66,11 +48,6 @@ pb_cmd_response_t NAT::CommandClear(const bess::pb::EmptyArg &) {
   rules_.clear();
   flow_hash_.Clear();
 
-  available_ports_.resize(MAX_PORT - MIN_PORT + 1);
-  std::iota(available_ports_.begin(), available_ports_.end(), MIN_PORT);
-  std::random_shuffle(available_ports_.begin(), available_ports_.end());
-
-  flow_vec_.resize(MAX_PORT - MIN_PORT + 1);
   return pb_cmd_response_t();
 }
 
@@ -195,87 +172,108 @@ void NAT::ProcessBatch(bess::PacketBatch *batch) {
       continue;
     }
 
+    const auto rule_it = std::find_if(
+        rules_.begin(), rules_.end(),
+        [&ip](const std::pair<CIDRNetwork, AvailablePorts> &rule) { return rule.first.Match(ip->src); });
+
     Flow flow = parse_flow(ip, l4);
     uint64_t now = ctx.current_ns();
 
-    FlowRecord **res = flow_hash_.Get(&flow);
-    if (res != nullptr) {
-      FlowRecord *record_ptr = *res;
-      if (now - record_ptr->time < TIME_OUT_NS) {
-        // Entry exists and does not exceed timeout
-        record_ptr->time = now;
-        if (incoming_gate == 0) {
-          stamp_flow(ip, l4, record_ptr->external_flow);
+    {
+      FlowRecord **res = flow_hash_.Get(&flow);
+      if (res != nullptr) {
+        FlowRecord *record = *res;
+        DCHECK_EQ(record->external_flow.src_port, record->port);
+        if (now - record->time < TIME_OUT_NS) {
+          // Entry exists and does not exceed timeout
+          record->time = now;
+          if (incoming_gate == 0) {
+            stamp_flow(ip, l4, record->external_flow);
+          } else {
+            stamp_flow(ip, l4, record->internal_flow.ReverseFlow());
+          }
+          out_batch.add(pkt);
+          continue;
         } else {
-          stamp_flow(ip, l4, record_ptr->internal_flow.ReverseFlow());
+          // Reclaim expired record
+          record->time = 0;
+          if (incoming_gate == 0) {
+            flow_hash_.Del(&flow);
+            Flow rev_flow = record->external_flow.ReverseFlow();
+            flow_hash_.Del(&rev_flow);
+          } else {
+            flow_hash_.Del(&flow);
+            flow_hash_.Del(&(record->internal_flow));
+          }
+          AvailablePorts &available_ports = rule_it->second;
+          available_ports.FreeAllocated(
+              std::make_tuple(record->external_flow.src_ip, record->port, record));
         }
-        out_batch.add(pkt);
-        continue;
-      } else {
-        // Reclaim expired record
-        available_ports_.push_back(record_ptr->port);
-        record_ptr->time = 0;
-        if (incoming_gate == 0) {
-          flow_hash_.Del(&flow);
-          Flow rev_flow = record_ptr->external_flow.ReverseFlow();
-          flow_hash_.Del(&rev_flow);
-        } else {
-          flow_hash_.Del(&flow);
-          flow_hash_.Del(&(record_ptr->internal_flow));
-        }
-        next_expiry_ = now;
       }
     }
 
+    // The flow didn't match, and we currently don't support any mechanisms to
+    // allow external flows entry through the NAT.
     if (incoming_gate == 1) {
       // Flow from external network, drop.
       bess::Packet::Free(pkt);
       continue;
     }
 
-    const auto rule_it = std::find_if(
-        rules_.begin(), rules_.end(),
-        [&ip](const NATRule &rule) { return rule.first.Match(ip->src); });
+    // The flow must be a new flow if we have gotten this far.  So look for a
+    // rule that tells us what external prefix this packet's flow maps to.
     if (rule_it == rules_.end()) {
       // No rules found for this source IP address, drop.
       bess::Packet::Free(pkt);
       continue;
     }
+    AvailablePorts &available_ports = rule_it->second;
 
-    // Garbage collect
-    if (available_ports_.empty() && now >= next_expiry_) {
-      next_expiry_ = UINT64_MAX;
-      for (auto &record : flow_vec_) {
-        if (record.time != 0 && now - record.time >= TIME_OUT_NS) {
-          available_ports_.push_back(record.port);
-          record.time = 0;
-          flow_hash_.Del(&(record.internal_flow));
-          Flow rev_flow = record.external_flow.ReverseFlow();
+    // Garbage collect.
+    if (available_ports.Empty() && now >= available_ports.next_expiry()) {
+      uint64_t expiry = UINT64_MAX;
+
+      uint32_t next = 0;
+      void *key;
+      while ((key = flow_hash_.Iterate(&next))) {
+        FlowRecord **res = flow_hash_.Get((Flow *) key);
+        if (res == nullptr) {
+          continue;
+        }
+        FlowRecord *record = *res;
+        if (record->time != 0 && (now - record->time) >= TIME_OUT_NS) {
+          // Found expired flow entry.
+          record->time = 0;
+          flow_hash_.Del(&(record->internal_flow));
+          Flow rev_flow = record->external_flow.ReverseFlow();
           flow_hash_.Del(&rev_flow);
-        } else if (record.time != 0) {
-          next_expiry_ = std::min(next_expiry_, record.time + TIME_OUT_NS);
+          available_ports.FreeAllocated(
+              std::make_tuple(record->external_flow.src_ip, record->external_flow.src_port, record));
+        } else if (record->time != 0) {
+          expiry = std::min(expiry, record->time + TIME_OUT_NS);
         }
       }
+
+      available_ports.set_next_expiry(expiry);
     }
 
-    // Still not available ports, then drop
-    if (available_ports_.empty()) {
+    // Still no available ports, so drop.
+    if (available_ports.Empty()) {
       bess::Packet::Free(pkt);
       continue;
     }
 
-    uint16_t new_port = available_ports_.back();
-    available_ports_.pop_back();
-
-    // Invariant: record.port == new_port == index + MIN_PORT
-    FlowRecord *record = &flow_vec_[new_port - MIN_PORT];
+    IPAddress new_ip;
+    uint16_t new_port;
+    FlowRecord *record;
+    std::tie(new_ip, new_port, record) = available_ports.RandomFreeIPAndPort();
 
     record->port = new_port;
     record->time = now;
     record->internal_flow = flow;    // Copy
     flow_hash_.Set(&flow, &record);  // Copy
 
-    flow.src_ip = RandomIP(rule_it->second);
+    flow.src_ip = new_ip;
     if (flow.icmp_ident == 0) {
       flow.src_port = new_port;
     } else {

@@ -8,6 +8,7 @@
 #include <map>
 #include <utility>
 #include <vector>
+#include <tuple>
 
 #include "../module.h"
 #include "../module_msg.pb.h"
@@ -19,7 +20,9 @@ using bess::utils::IPAddress;
 using bess::utils::CIDRNetwork;
 using bess::utils::HTable;
 
-typedef std::pair<CIDRNetwork, CIDRNetwork> NATRule;
+const uint16_t MIN_PORT = 1024;
+const uint16_t MAX_PORT = 65535;
+const uint64_t TIME_OUT_NS = 120L * 1000 * 1000 * 1000;
 
 // 5 tuple for TCP/UDP packets with an additional icmp_ident for ICMP query pkts
 class Flow {
@@ -60,6 +63,7 @@ class Flow {
   }
 };
 
+
 // Stores flow information
 class FlowRecord {
  public:
@@ -68,7 +72,63 @@ class FlowRecord {
   Flow external_flow;
   uint64_t time;
 
-  FlowRecord() : port(0), time(0) {}
+  FlowRecord() : port(), internal_flow(), external_flow(), time() {}
+};
+
+// A data structure to track available ports for a given subnet of external IPs
+// for the NAT.  Encapsulates the subnet and the mapping from IPs in that subnet
+// to free ports.
+class AvailablePorts {
+ public:
+  // Tracks available ports within the given IP prefix.
+  explicit AvailablePorts(const CIDRNetwork &prefix) : prefix_(prefix), free_list_(), next_expiry_() {
+    uint32_t min = ntohl(prefix_.addr & prefix_.mask);
+    uint32_t max = ntohl(prefix_.addr | (~prefix_.mask));
+
+    for (uint32_t ip = min; ip <= max; ip++) {
+      for (uint32_t port = MIN_PORT; port <= MAX_PORT; port++) {
+        free_list_.emplace_back(htonl(ip), htons((uint16_t) port), new FlowRecord());
+      }
+    }
+    std::random_shuffle(free_list_.begin(), free_list_.end());
+  }
+
+  ~AvailablePorts() {
+    for (auto &i : free_list_) {
+      FlowRecord *r = std::get<2>(i);
+      delete r;
+    }
+  }
+
+  // Returns a random free IP/port pair within the network and removes it from
+  // the free list.
+  std::tuple<IPAddress, uint16_t, FlowRecord *> RandomFreeIPAndPort() {
+    std::tuple<IPAddress, uint16_t, FlowRecord *> r = free_list_.back();
+    free_list_.pop_back();
+    return r;
+  }
+
+  // Adds the given IP/port pair back to the list of available ports.  Takes
+  // back ownership of the tuple and the FlowRecord object in it.
+  void FreeAllocated(const std::tuple<IPAddress, uint16_t, FlowRecord *> &a) {
+    free_list_.push_back(a);
+  }
+
+  // Returns true if there are no free remaining IP/port pairs.
+  bool Empty() const {
+    return free_list_.empty();
+  }
+
+  const CIDRNetwork &prefix() const { return prefix_; }
+
+  uint64_t next_expiry() const { return next_expiry_; }
+
+  void set_next_expiry(uint64_t next_expiry) { next_expiry_ = next_expiry; }
+
+ private:
+  CIDRNetwork prefix_;
+  std::vector<std::tuple<IPAddress, uint16_t, FlowRecord *>> free_list_;
+  uint64_t next_expiry_;
 };
 
 struct FlowHash {
@@ -105,10 +165,14 @@ class NAT final : public Module {
   pb_cmd_response_t CommandClear(const bess::pb::EmptyArg &arg);
 
  private:
-  IPAddress RandomIP(const CIDRNetwork &net) {
-    uint32_t min = ntohl(net.addr & net.mask);
-    uint32_t max = ntohl(net.addr | (~net.mask));
-    return htonl(rng_.GetRange(max - min) + min);
+  void InitRules(const bess::pb::NATArg &arg) {
+    for (const auto &rule : arg.rules()) {
+      CIDRNetwork int_net(rule.internal_addr_block());
+      CIDRNetwork ext_net(rule.external_addr_block());
+      rules_.emplace_back(std::piecewise_construct,
+                          std::forward_as_tuple(int_net),
+                          std::forward_as_tuple(ext_net));
+    }
   }
 
   static inline int flow_keycmp(const void *key, const void *key_stored,
@@ -128,12 +192,8 @@ class NAT final : public Module {
     return init_val;
   }
 
-  std::vector<NATRule> rules_;
-  // TODO(clan): Do not share ports across entire NAT
-  std::vector<uint16_t> available_ports_;
+  std::vector<std::pair<CIDRNetwork, AvailablePorts>> rules_;
   HTable<Flow, FlowRecord *, flow_keycmp, flow_hash> flow_hash_;
-  std::vector<FlowRecord> flow_vec_;
-  uint64_t next_expiry_;
   Random rng_;
 };
 
