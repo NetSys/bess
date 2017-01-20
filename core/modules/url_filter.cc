@@ -218,8 +218,14 @@ void UrlFilter::ProcessBatch(bess::PacketBatch *batch) {
 
     TcpFlowReconstruct &buffer = flow_cache_.at(flow);
 
-    // If the reconstruct code indicates failure, treat it as a flow to drop.
-    bool matched = !buffer.InsertPacket(pkt);
+    // If the reconstruct code indicates failure, treat it as a flow to pass.
+    // No need to parse the headers if the reconstruct code tells us it failed.
+    bool success = buffer.InsertPacket(pkt);
+    if (!success) {
+      DLOG(WARNING) << "Reconstruction failure";
+      out_batches[0].add(pkt);
+      continue;
+    }
 
     // No need to parse the headers if the reconstruct code tells us it failed.
     if (!matched) {
