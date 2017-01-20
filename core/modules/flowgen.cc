@@ -3,6 +3,7 @@
 #include <cmath>
 #include <functional>
 
+#include <arpa/inet.h>
 #include "../mem_alloc.h"
 #include "../utils/format.h"
 #include "../utils/time.h"
@@ -85,6 +86,7 @@ inline struct flow *FlowGen::ScheduleFlow(uint64_t time_ns) {
   flows_free_.pop_front();
 
   f->first = 1;
+  f->next_seq_no = 12345;
   f->flow_id = rng_.Get();
 
   /* compensate the fraction part by adding [0.0, 1.0) */
@@ -145,6 +147,7 @@ void FlowGen::PopulateInitialFlows() {
 
       /* overwrite with a emulated pre-existing flow */
       f->first = 0;
+      f->next_seq_no = 56789;
       f->packets_left = flow_pkts - pre_consumed_pkts;
     }
   }
@@ -327,6 +330,9 @@ bess::Packet *FlowGen::FillPacket(struct flow *f) {
   *(reinterpret_cast<uint32_t *>(p + 14 + /* IP dst */ 16)) = f->flow_id;
   *(reinterpret_cast<uint8_t *>(p + 14 + /* IP */ 20 + /* TCP flags */ 13)) =
       tcp_flags;
+  *(reinterpret_cast<uint32_t *>(p + 14 + /* IP */ 20  + /* Seq No*/ 4)) = htonl(f->next_seq_no);
+
+  f->next_seq_no += f->first ? 1 : size - (14 + 20 + 20); /* eth + ip + tcp*/
 
   return pkt;
 }
@@ -340,7 +346,7 @@ void FlowGen::GeneratePackets(bess::PacketBatch *batch) {
     uint64_t t;
     struct flow *f;
     bess::Packet *pkt;
-
+    
     t = events_.top().first;
     f = events_.top().second;
     if (!f || now < t)
@@ -388,6 +394,7 @@ struct task_result FlowGen::RunTask(void *) {
   const int pkt_overhead = 24;
 
   GeneratePackets(&batch);
+  
   if (!batch.empty())
     RunNextModule(&batch);
 

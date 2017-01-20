@@ -16,6 +16,7 @@ struct flow {
   uint32_t flow_id;
   int packets_left;
   int first;
+  uint32_t next_seq_no;
 };
 
 class FlowGen final : public Module {
