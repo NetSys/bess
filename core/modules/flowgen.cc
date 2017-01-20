@@ -435,7 +435,6 @@ void FlowGen::ProcessBatch(bess::PacketBatch *batch) {
           total_pps_ = 1e5;
         }
 
-        // flow_rate_ = ratio * flow_rate_; //Scale flows proportionally
         UpdateDerivedVariables();
 
         last_interval_start_ = ctx.current_ns();

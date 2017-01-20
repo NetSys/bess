@@ -8,8 +8,6 @@
 #include "../module_msg.pb.h"
 #include "../utils/random.h"
 
-//30 seconds * ms * micros * nanos
-
 typedef std::pair<uint64_t, struct flow *> Event;
 typedef std::priority_queue<Event, std::vector<Event>,
                             std::function<bool(Event, Event)>> EventQueue;
