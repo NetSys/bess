@@ -11,6 +11,7 @@
 #include "../utils/ip.h"
 #include "../utils/tcp.h"
 #include "../utils/udp.h"
+#include "../utils/format.h"
 
 using bess::utils::EthHeader;
 using bess::utils::Ipv4Header;
@@ -18,15 +19,14 @@ using bess::utils::UdpHeader;
 using bess::utils::TcpHeader;
 using bess::utils::IcmpHeader;
 
-enum Protocol {
-  ICMP = 0x01,
-  TCP = 0x06,
-  UDP = 0x11,
-};
-
 const Commands NAT::cmds = {
     {"add", "NATArg", MODULE_CMD_FUNC(&NAT::CommandAdd), 0},
     {"clear", "EmptyArg", MODULE_CMD_FUNC(&NAT::CommandClear), 0}};
+
+std::string Flow::ToString() const {
+  return bess::utils::Format("%d %08x:%d -> %08x:%d", proto, src_ip, src_port,
+                             dst_ip, dst_port);
+}
 
 pb_error_t NAT::Init(const bess::pb::NATArg &arg) {
   flow_hash_.Init(sizeof(Flow), sizeof(FlowRecord *));
@@ -93,7 +93,6 @@ inline static Flow parse_flow(struct Ipv4Header *ip, void *l4) {
     case TCP:
       flow.src_port = udp->src_port;
       flow.dst_port = udp->dst_port;
-      flow.icmp_ident = 0;
       break;
     case ICMP:
       switch (icmp->type) {
@@ -102,8 +101,6 @@ inline static Flow parse_flow(struct Ipv4Header *ip, void *l4) {
         case 13:
         case 15:
         case 16:
-          flow.src_port = 0;
-          flow.dst_port = 0;
           flow.icmp_ident = icmp->ident;
           break;
         default:
@@ -170,17 +167,19 @@ void NAT::ProcessBatch(bess::PacketBatch *batch) {
 
     void *l4 = reinterpret_cast<uint8_t *>(ip) + ip_bytes;
 
+    Flow flow = parse_flow(ip, l4);
+
     // L4 protocol must be TCP, UDP, or ICMP
     if (ip->protocol != TCP && ip->protocol != UDP && ip->protocol != ICMP) {
       free_batch.add(pkt);
       continue;
     }
 
-    const auto rule_it = std::find_if(
-        rules_.begin(), rules_.end(),
-        [&ip](const std::pair<CIDRNetwork, AvailablePorts> &rule) { return rule.first.Match(ip->src); });
-
-    Flow flow = parse_flow(ip, l4);
+    const auto rule_it =
+        std::find_if(rules_.begin(), rules_.end(),
+                     [&ip](const std::pair<CIDRNetwork, AvailablePorts> &rule) {
+                       return rule.first.Match(ip->src);
+                     });
 
     {
       FlowRecord **res = flow_hash_.Get(&flow);

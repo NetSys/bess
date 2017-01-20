@@ -6,9 +6,10 @@
 #include <rte_hash_crc.h>
 
 #include <map>
+#include <string>
+#include <tuple>
 #include <utility>
 #include <vector>
-#include <tuple>
 
 #include "../module.h"
 #include "../module_msg.pb.h"
@@ -24,13 +25,19 @@ const uint16_t MIN_PORT = 1024;
 const uint16_t MAX_PORT = 65535;
 const uint64_t TIME_OUT_NS = 120L * 1000 * 1000 * 1000;
 
+enum Protocol : uint8_t {
+  ICMP = 0x01,
+  TCP = 0x06,
+  UDP = 0x11,
+};
+
 // 5 tuple for TCP/UDP packets with an additional icmp_ident for ICMP query pkts
 class alignas(16) Flow {
  public:
   union {
     struct {
-      uint32_t src_ip;
-      uint32_t dst_ip;
+      IPAddress src_ip;
+      IPAddress dst_ip;
       union {
         uint16_t src_port;
         uint16_t icmp_ident;  // identifier of ICMP query
@@ -48,22 +55,30 @@ class alignas(16) Flow {
   Flow() : e1(0), e2(0) {}
 
   Flow(uint32_t sip, uint32_t dip, uint16_t sp, uint16_t dp, uint8_t protocol)
-      : src_ip(sip),
-        dst_ip(dip),
-        src_port(sp),
-        dst_port(dp),
-        proto(protocol) {}
+      : src_ip(sip), dst_ip(dip) {
+    e2 = 0;
+    src_port = sp;
+    dst_port = dp;
+    proto = protocol;
+  }
 
   // Returns a new instance of reserse flow
   Flow ReverseFlow() const {
-    return Flow(dst_ip, src_ip, dst_port, src_port, proto);
+    if (proto == ICMP) {
+      return Flow(dst_ip, src_ip, icmp_ident, 0, ICMP);
+    } else {
+      return Flow(dst_ip, src_ip, dst_port, src_port, proto);
+    }
   }
 
   bool operator!=(const Flow &other) const {
     return e1 != other.e1 || e2 != other.e2;
   }
+
+  std::string ToString() const;
 };
 
+static_assert(sizeof(Flow) == 2 * sizeof(uint64_t), "Flow must be 16 bytes.");
 
 // Stores flow information
 class FlowRecord {
@@ -130,22 +145,6 @@ class AvailablePorts {
   CIDRNetwork prefix_;
   std::vector<std::tuple<IPAddress, uint16_t, FlowRecord *>> free_list_;
   uint64_t next_expiry_;
-};
-
-struct FlowHash {
-  std::size_t operator()(const Flow &f) const {
-    static_assert(sizeof(Flow) == 2 * sizeof(uint64_t),
-                  "Flow must be 16 bytes.");
-    const uint64_t *flowdata = reinterpret_cast<const uint64_t *>(&f);
-    uint32_t init_val = 0;
-#if __SSE4_2__ && __x86_64
-    init_val = crc32c_sse42_u64(*flowdata++, init_val);
-    init_val = crc32c_sse42_u64(*flowdata++, init_val);
-#else
-    init_val = rte_hash_crc(flowdata, sizeof(Flow), init_val);
-#endif
-    return init_val;
-  }
 };
 
 // NAT module. 2 igates and 2 ogates
