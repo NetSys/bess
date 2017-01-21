@@ -54,7 +54,8 @@ class alignas(16) Flow {
 
   Flow() : e1(0), e2(0) {}
 
-  Flow(uint32_t sip, uint32_t dip, uint16_t sp, uint16_t dp, uint8_t protocol)
+  Flow(uint32_t sip, uint32_t dip, uint16_t sp = 0, uint16_t dp = 0,
+       uint8_t protocol = 0)
       : src_ip(sip), dst_ip(dip) {
     e2 = 0;
     src_port = sp;
@@ -83,12 +84,12 @@ static_assert(sizeof(Flow) == 2 * sizeof(uint64_t), "Flow must be 16 bytes.");
 // Stores flow information
 class FlowRecord {
  public:
-  uint16_t port;
   Flow internal_flow;
   Flow external_flow;
   uint64_t time;
+  uint16_t port;
 
-  FlowRecord() : port(), internal_flow(), external_flow(), time() {}
+  FlowRecord() : internal_flow(), external_flow(), time(), port() {}
 };
 
 // A data structure to track available ports for a given subnet of external IPs
@@ -131,7 +132,7 @@ class AvailablePorts {
   }
 
   // Returns true if there are no free remaining IP/port pairs.
-  bool Empty() const {
+  bool empty() const {
     return free_list_.empty();
   }
 
@@ -145,6 +146,19 @@ class AvailablePorts {
   CIDRNetwork prefix_;
   std::vector<std::tuple<IPAddress, uint16_t, FlowRecord *>> free_list_;
   uint64_t next_expiry_;
+};
+
+struct FlowHash {
+  std::size_t operator()(const Flow &f) const {
+    uint32_t init_val = 0;
+#if __SSE4_2__ &&__x86_64
+    init_val = crc32c_sse42_u64(f.e1, init_val);
+    init_val = crc32c_sse42_u64(f.e2, init_val);
+#else
+    init_val = rte_hash_crc(&flow, sizeof(Flow), init_val);
+#endif
+    return init_val;
+  }
 };
 
 // NAT module. 2 igates and 2 ogates

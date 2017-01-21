@@ -52,7 +52,7 @@ pb_cmd_response_t NAT::CommandClear(const bess::pb::EmptyArg &) {
 }
 
 // Recompute IP and TCP/UDP/ICMP checksum
-inline static void compute_cksum(struct Ipv4Header *ip, void *l4) {
+static inline void compute_cksum(struct Ipv4Header *ip, void *l4) {
   struct TcpHeader *tcp = reinterpret_cast<struct TcpHeader *>(l4);
   struct UdpHeader *udp = reinterpret_cast<struct UdpHeader *>(l4);
   struct IcmpHeader *icmp = reinterpret_cast<struct IcmpHeader *>(l4);
@@ -79,7 +79,7 @@ inline static void compute_cksum(struct Ipv4Header *ip, void *l4) {
 }
 
 // Extract a Flow object from IP header ip and L4 header l4
-inline static Flow parse_flow(struct Ipv4Header *ip, void *l4) {
+static inline Flow parse_flow(struct Ipv4Header *ip, void *l4) {
   struct UdpHeader *udp = reinterpret_cast<struct UdpHeader *>(l4);
   struct IcmpHeader *icmp = reinterpret_cast<struct IcmpHeader *>(l4);
   Flow flow;
@@ -88,7 +88,7 @@ inline static Flow parse_flow(struct Ipv4Header *ip, void *l4) {
   flow.src_ip = ip->src;
   flow.dst_ip = ip->dst;
 
-  switch (ip->protocol) {
+  switch (flow.proto) {
     case UDP:
     case TCP:
       flow.src_port = udp->src_port;
@@ -107,14 +107,12 @@ inline static Flow parse_flow(struct Ipv4Header *ip, void *l4) {
           VLOG(1) << "Unknown icmp_type: " << icmp->type;
       }
       break;
-    default:
-      VLOG(1) << "Unknown protocol: " << ip->protocol;
   }
   return flow;
 }
 
 // Rewrite IP header and L4 header using flow
-inline static void stamp_flow(struct Ipv4Header *ip, void *l4,
+static inline void stamp_flow(struct Ipv4Header *ip, void *l4,
                               const Flow &flow) {
   struct UdpHeader *udp = reinterpret_cast<struct UdpHeader *>(l4);
   struct IcmpHeader *icmp = reinterpret_cast<struct IcmpHeader *>(l4);
@@ -141,8 +139,6 @@ inline static void stamp_flow(struct Ipv4Header *ip, void *l4,
           VLOG(1) << "Unknown icmp_type: " << icmp->type;
       }
       break;
-    default:
-      VLOG(1) << "Unknown protocol: " << flow.proto;
   }
   compute_cksum(ip, l4);
 }
@@ -233,7 +229,7 @@ void NAT::ProcessBatch(bess::PacketBatch *batch) {
     AvailablePorts &available_ports = rule_it->second;
 
     // Garbage collect.
-    if (available_ports.Empty() && now >= available_ports.next_expiry()) {
+    if (available_ports.empty() && now >= available_ports.next_expiry()) {
       uint64_t expiry = UINT64_MAX;
 
       uint32_t next = 0;
@@ -261,7 +257,7 @@ void NAT::ProcessBatch(bess::PacketBatch *batch) {
     }
 
     // Still no available ports, so drop.
-    if (available_ports.Empty()) {
+    if (available_ports.empty()) {
       free_batch.add(pkt);
       continue;
     }
