@@ -164,6 +164,9 @@ void UrlFilter::ProcessBatch(bess::PacketBatch *batch) {
   }
 
   // Otherwise
+  bess::PacketBatch free_batch;
+  free_batch.clear();
+
   bess::PacketBatch out_batches[4];
   // Data to destination
   out_batches[0].clear();
@@ -200,55 +203,54 @@ void UrlFilter::ProcessBatch(bess::PacketBatch *batch) {
     uint64_t now = ctx.current_ns();
 
     // Check if the flow is already blocked
-    std::unordered_map<Flow, uint64_t, FlowHash>::iterator it;
-    if ((it = blocked_flows_.find(flow)) != blocked_flows_.end()) {
-      if (now - it->second < TIME_OUT_NS) {
-        bess::Packet::Free(pkt);
+    std::unordered_map<Flow, FlowRecord, FlowHash>::iterator it =
+        flow_cache_.find(flow);
+
+    if (it != flow_cache_.end()) {
+      if (now < it->second.ExpiryTime()) {
+        free_batch.add(pkt);
         continue;
       } else {
-        blocked_flows_.erase(it);
+        flow_cache_.erase(it);
       }
     }
 
-    // Reconstruct this flow
-    if (flow_cache_.find(flow) == flow_cache_.end()) {
-      flow_cache_.emplace(std::piecewise_construct, std::make_tuple(flow),
-                          std::make_tuple(128));
+    std::tie(it, std::ignore) = flow_cache_.emplace(
+        std::piecewise_construct, std::make_tuple(flow), std::make_tuple());
+
+    FlowRecord &record = it->second;
+    TcpFlowReconstruct &buffer = record.GetBuffer();
+
+    // If the reconstruct code indicates failure, treat it as a flow to pass.
+    // No need to parse the headers if the reconstruct code tells us it failed.
+    bool success = buffer.InsertPacket(pkt);
+    if (!success) {
+      DLOG(WARNING) << "Reconstruction failure";
+      out_batches[0].add(pkt);
+      continue;
     }
 
-    TcpFlowReconstruct &buffer = flow_cache_.at(flow);
+    bool matched = false;
+    struct phr_header headers[16];
+    size_t num_headers = 16, method_len, path_len;
+    int minor_version;
+    const char *method, *path;
+    int parse_result = phr_parse_request(
+        buffer.buf(), buffer.contiguous_len(), &method, &method_len, &path,
+        &path_len, &minor_version, headers, &num_headers, 0);
 
-    // If the reconstruct code indicates failure, treat it as a flow to drop.
-    bool matched = !buffer.InsertPacket(pkt);
+    // -2 means incomplete
+    if (parse_result > 0 || parse_result == -2) {
+      const std::string path_str(path, path_len);
 
-    // No need to parse the headers if the reconstruct code tells us it failed.
-    if (!matched) {
-      struct phr_header headers[16];
-      size_t num_headers = 16, method_len, path_len;
-      int minor_version;
-      const char *method, *path;
-      int parse_result = phr_parse_request(
-          buffer.buf(), buffer.contiguous_len(), &method, &method_len, &path,
-          &path_len, &minor_version, headers, &num_headers, 0);
-
-      // -2 means incomplete
-      if (parse_result > 0 || parse_result == -2) {
-        const std::string path_str(path, path_len);
-
-        // Look for the Host header
-        for (size_t j = 0; j < num_headers; ++j) {
-          if (strncmp(headers[j].name, HTTP_HEADER_HOST, headers[j].name_len) ==
-              0) {
-            const std::string host(headers[j].value, headers[j].value_len);
-            const auto rule_iterator = blacklist_.find(host);
-
-            if (rule_iterator != blacklist_.end() &&
-                rule_iterator->second.LookupKey(path_str)) {
-              // found a match
-              matched = true;
-              break;
-            }
-          }
+      // Look for the Host header
+      for (size_t j = 0; j < num_headers && !matched; ++j) {
+        if (strncmp(headers[j].name, HTTP_HEADER_HOST, headers[j].name_len) ==
+            0) {
+          const std::string host(headers[j].value, headers[j].value_len);
+          const auto rule_iterator = blacklist_.find(host);
+          matched = rule_iterator != blacklist_.end() &&
+                    rule_iterator->second.LookupKey(path_str);
         }
       }
     }
@@ -260,14 +262,11 @@ void UrlFilter::ProcessBatch(bess::PacketBatch *batch) {
       // NOTE: if FIN is lost on its way to destination, this will simply pass
       // the retransmitted packet
       if (tcp->flags & TCP_FLAG_FIN) {
-        flow_cache_.erase(flow);
+        flow_cache_.erase(it);
       }
     } else {
       // Block this flow for TIME_OUT_NS nanoseconds
-      blocked_flows_.emplace(flow, now);
-
-      // No need to reconstruct this flow, so clear the cache
-      flow_cache_.erase(flow);
+      record.SetExpiryTime(now + TIME_OUT_NS);
 
       // Inject RST to destination
       out_batches[1].add(GenerateResetPacket(
@@ -285,8 +284,12 @@ void UrlFilter::ProcessBatch(bess::PacketBatch *batch) {
           tcp->src_port, tcp->ack_num + strlen(HTTP_403_BODY), tcp->seq_num));
 
       // Drop the data packet
-      bess::Packet::Free(pkt);
+      free_batch.add(pkt);
     }
+  }
+
+  if (!free_batch.empty()) {
+    bess::Packet::Free(&free_batch);
   }
 
   if (!out_batches[0].empty()) {

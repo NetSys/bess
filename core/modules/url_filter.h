@@ -11,6 +11,7 @@
 
 #include "../module.h"
 #include "../module_msg.pb.h"
+#include "../packet.h"
 #include "../utils/tcp_flow_reconstruct.h"
 #include "../utils/trie.h"
 
@@ -18,19 +19,26 @@ using bess::utils::TcpFlowReconstruct;
 using bess::utils::Trie;
 
 // A helper class that defines a TCP flow
-class Flow {
+class alignas(16) Flow {
  public:
-  uint32_t src_ip;
-  uint32_t dst_ip;
-  uint16_t src_port;
-  uint16_t dst_port;
-  uint32_t padding;
+  union {
+    struct {
+      uint32_t src_ip;
+      uint32_t dst_ip;
+      uint16_t src_port;
+      uint16_t dst_port;
+    };
 
-  Flow() : src_ip(0), dst_ip(0), src_port(0), dst_port(0), padding(0) {}
+    struct {
+      uint64_t e1;
+      uint64_t e2;
+    };
+  };
+
+  Flow() : e1(0), e2(0) {}
 
   bool operator==(const Flow &other) const {
-    return src_ip == other.src_ip && src_port == other.src_port &&
-           dst_ip == other.dst_ip && dst_port == other.dst_port;
+    return e1 == other.e1 && e2 == other.e2;
   }
 };
 
@@ -39,16 +47,29 @@ struct FlowHash {
   std::size_t operator()(const Flow &f) const {
     static_assert(sizeof(Flow) == 2 * sizeof(uint64_t),
                   "Flow must be 16 bytes.");
-    const uint64_t *flowdata = reinterpret_cast<const uint64_t *>(&f);
+    const Flow *flow = reinterpret_cast<const Flow *>(&f);
     uint32_t init_val = 0;
 #if __SSE4_2__ && __x86_64
-    init_val = crc32c_sse42_u64(*flowdata++, init_val);
-    init_val = crc32c_sse42_u64(*flowdata++, init_val);
+    init_val = crc32c_sse42_u64(flow->e1, init_val);
+    init_val = crc32c_sse42_u64(flow->e2, init_val);
 #else
-    init_val = rte_hash_crc(flowdata, sizeof(Flow), init_val);
+    init_val = rte_hash_crc(flow, sizeof(Flow), init_val);
 #endif
     return init_val;
   }
+};
+
+class FlowRecord {
+ public:
+  FlowRecord() : buffer_(128), expiry_time_(0) {}
+
+  TcpFlowReconstruct &GetBuffer() { return buffer_; }
+  uint64_t ExpiryTime() { return expiry_time_; }
+  void SetExpiryTime(uint64_t time) { expiry_time_ = time; }
+
+ private:
+  TcpFlowReconstruct buffer_;
+  uint64_t expiry_time_;
 };
 
 // A module of HTTP URL filtering. Ends an HTTP connection if the Host field
@@ -72,8 +93,7 @@ class UrlFilter final : public Module {
 
  private:
   std::unordered_map<std::string, Trie> blacklist_;
-  std::unordered_map<Flow, TcpFlowReconstruct, FlowHash> flow_cache_;
-  std::unordered_map<Flow, uint64_t, FlowHash> blocked_flows_;
+  std::unordered_map<Flow, FlowRecord, FlowHash> flow_cache_;
 };
 
 #endif  // BESS_MODULES_URL_FILTER_H_
