@@ -1,5 +1,8 @@
 ## This ansible script will set up an Ubuntu 16.04 installation so that it is ready to build BESS.
 ## Note: This has only been tested on *fresh* Ubuntu 16.04 installations.
+# Usage:
+#   sudo apt-get install ansible
+#   ansible-playbook --ask-become-pass ansible-playbook.yml
 ---
 - hosts: localhost
   environment:
