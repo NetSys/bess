@@ -23,8 +23,8 @@ pb_cmd_response_t Rewrite::CommandAdd(const bess::pb::RewriteArg &arg) {
 
   if (curr + arg.templates_size() > bess::PacketBatch::kMaxBurst) {
     set_cmd_response_error(&response, pb_error(EINVAL,
-                                               "max %lu packet templates "
-                                               "can be used %lu %d",
+                                               "max %zu packet templates "
+                                               "can be used %zu %d",
                                                bess::PacketBatch::kMaxBurst,
                                                curr, arg.templates_size()));
     return response;

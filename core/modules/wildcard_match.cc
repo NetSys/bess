@@ -174,16 +174,16 @@ std::string WildcardMatch::GetDesc() const {
     num_rules += tuple.ht.Count();
   }
 
-  return bess::utils::Format("%lu fields, %d rules", fields_.size(), num_rules);
+  return bess::utils::Format("%zu fields, %d rules", fields_.size(), num_rules);
 }
 
 template <typename T>
 pb_error_t WildcardMatch::ExtractKeyMask(const T &arg, wm_hkey_t *key,
                                          wm_hkey_t *mask) {
   if ((size_t)arg.values_size() != fields_.size()) {
-    return pb_error(EINVAL, "must specify %lu values", fields_.size());
+    return pb_error(EINVAL, "must specify %zu values", fields_.size());
   } else if ((size_t)arg.masks_size() != fields_.size()) {
-    return pb_error(EINVAL, "must specify %lu masks", fields_.size());
+    return pb_error(EINVAL, "must specify %zu masks", fields_.size());
   }
 
   memset(key, 0, sizeof(*key));
@@ -200,18 +200,18 @@ pb_error_t WildcardMatch::ExtractKeyMask(const T &arg, wm_hkey_t *key,
 
     if (uint64_to_bin(reinterpret_cast<uint8_t *>(&v), field_size,
                       arg.values(i), force_be || bess::utils::is_be_system())) {
-      return pb_error(EINVAL, "idx %lu: not a correct %d-byte value", i,
+      return pb_error(EINVAL, "idx %zu: not a correct %d-byte value", i,
                       field_size);
     } else if (uint64_to_bin(reinterpret_cast<uint8_t *>(&m), field_size,
                              arg.masks(i),
                              force_be || bess::utils::is_be_system())) {
-      return pb_error(EINVAL, "idx %lu: not a correct %d-byte mask", i,
+      return pb_error(EINVAL, "idx %zu: not a correct %d-byte mask", i,
                       field_size);
     }
 
     if (v & ~m) {
       return pb_error(EINVAL,
-                      "idx %lu: invalid pair of "
+                      "idx %zu: invalid pair of "
                       "value 0x%0*" PRIx64
                       " and "
                       "mask 0x%0*" PRIx64,

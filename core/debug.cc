@@ -215,7 +215,8 @@ static std::string PrintCode(std::string symbol, int context) {
   uintptr_t obj_addr = GetRelativeAddress(sym_addr);
 
   std::string cmd = bess::utils::Format(
-      "addr2line -C -i -f -p -e %s 0x%lx 2> /dev/null", objfile, obj_addr);
+      "addr2line -C -i -f -p -e %s 0x%" PRIxPTR " 2> /dev/null", objfile,
+      obj_addr);
 
   std::istringstream result(RunCommand(cmd));
   std::string line;

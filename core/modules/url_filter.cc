@@ -12,7 +12,7 @@ using bess::utils::EthHeader;
 using bess::utils::Ipv4Header;
 using bess::utils::TcpHeader;
 
-const uint64_t TIME_OUT_NS = 10L * 1000 * 1000 * 1000;  // 10 seconds
+const uint64_t TIME_OUT_NS = (uint64_t)10 * 1000 * 1000 * 1000;  // 10 seconds
 
 const Commands UrlFilter::cmds = {
     {"add", "UrlFilterArg", MODULE_CMD_FUNC(&UrlFilter::CommandAdd), 0},

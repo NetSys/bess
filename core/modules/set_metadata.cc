@@ -65,7 +65,7 @@ pb_error_t SetMetadata::AddAttrOne(
                       bess::utils::is_be_system())) {
       return pb_error(EINVAL,
                       "'value_int' field has not a "
-                      "correct %lu-byte value",
+                      "correct %zu-byte value",
                       size);
     }
   } else if (attr.value_case() ==
@@ -73,7 +73,7 @@ pb_error_t SetMetadata::AddAttrOne(
     if (attr.value_bin().length() != size) {
       return pb_error(EINVAL,
                       "'value_bin' field has not a "
-                      "correct %lu-byte value",
+                      "correct %zu-byte value",
                       size);
     }
     memcpy(&value, attr.value_bin().data(), size);

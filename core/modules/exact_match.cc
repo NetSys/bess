@@ -140,7 +140,7 @@ void ExactMatch::ProcessBatch(bess::PacketBatch *batch) {
 }
 
 std::string ExactMatch::GetDesc() const {
-  return bess::utils::Format("%d fields, %ld rules", num_fields_, ht_.Count());
+  return bess::utils::Format("%d fields, %zu rules", num_fields_, ht_.Count());
 }
 
 pb_error_t ExactMatch::GatherKey(const RepeatedPtrField<std::string> &fields,

@@ -26,7 +26,7 @@ pb_error_t Source::Init(const bess::pb::SourceArg &arg) {
 
   if (arg.burst() > 0) {
     if (arg.burst() > bess::PacketBatch::kMaxBurst) {
-      return pb_error(EINVAL, "burst size must be [0,%ld]",
+      return pb_error(EINVAL, "burst size must be [0,%zu]",
                       bess::PacketBatch::kMaxBurst);
     }
     burst_ = arg.burst();
@@ -41,7 +41,7 @@ pb_cmd_response_t Source::CommandSetBurst(
 
   if (arg.burst() > bess::PacketBatch::kMaxBurst) {
     set_cmd_response_error(&response,
-                           pb_error(EINVAL, "burst size must be [0,%lu]",
+                           pb_error(EINVAL, "burst size must be [0,%zu]",
                                     bess::PacketBatch::kMaxBurst));
     return response;
   }
