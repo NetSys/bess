@@ -2,7 +2,7 @@
 ## Note: This has only been tested on *fresh* Ubuntu 16.04 installations.
 ## Usage:
 ##   sudo apt-get install ansible
-##   sudo ansible-playbook ansible-playbook.yml
+##   ansible-playbook -K ansible-playbook.yml
 ---
 - hosts: localhost
   environment:
@@ -55,8 +55,9 @@
         - python-scapy
         - clang
 
+    #Pip is buggy with askbecomepass so have to call shell instead.
     - name: Install list of Python packages
-      pip: name={{item}}
+      shell: sudo -H pip install {{item}}
       become: true
       with_items:
         - protobuf
