@@ -2,7 +2,7 @@
 ## Note: This has only been tested on *fresh* Ubuntu 16.04 installations.
 ## Usage:
 ##   sudo apt-get install ansible
-##   ansible-playbook -K ansible-playbook.yml
+##   sudo ansible-playbook ansible-playbook.yml
 ---
 - hosts: localhost
   environment:
@@ -57,6 +57,7 @@
 
     - name: Install list of Python packages
       pip: name={{item}}
+      become: true
       with_items:
         - protobuf
         - grpcio
