@@ -21,22 +21,9 @@ class TcpFlowReconstruct {
   // Constructs a TCP flow reconstruction object that can hold initial_buflen
   // bytes to start with.  If initial_buflen is zero, it is automatically set to
   // 1.
-  TcpFlowReconstruct(uint32_t initial_buflen)
-      : initialized_(false),
-        init_seq_(0),
-        buflen_(initial_buflen),
-        received_map_(initial_buflen),
-        contiguous_len_(0) {
-    if (buflen_ <= 0) {
-      buflen_ = 1;
-      received_map_.resize(buflen_);
-    }
+  TcpFlowReconstruct(uint32_t initial_buflen);
 
-    buf_ = (char *)mem_alloc(buflen_);
-    assert(buf_ != nullptr);
-  }
-
-  ~TcpFlowReconstruct() { free(buf_); }
+  ~TcpFlowReconstruct();
 
   // Returns the underlying buffer of reconstructed flow bytes.  Not guaranteed
   // to return the same pointer between calls to InsertPacket().
