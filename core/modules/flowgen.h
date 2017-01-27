@@ -59,7 +59,9 @@ class FlowGen final : public Module {
         flow_gap_ns_(),
         pareto_() {}
 
+  static const Commands cmds;
   pb_error_t Init(const bess::pb::FlowGenArg &arg);
+  pb_cmd_response_t CommandUpdate(const bess::pb::FlowGenArg &arg);
 
   void DeInit() override;
 
@@ -68,6 +70,7 @@ class FlowGen final : public Module {
   std::string GetDesc() const override;
 
  private:
+  void UpdateDerivedParameters();
   inline double NewFlowPkts();
   inline double MaxFlowPkts() const;
   inline uint64_t NextFlowArrival();
