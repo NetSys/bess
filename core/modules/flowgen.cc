@@ -1,11 +1,14 @@
 #include "flowgen.h"
 
+#include <arpa/inet.h>
 #include <cmath>
 #include <functional>
 
-#include <arpa/inet.h>
 #include "../mem_alloc.h"
+#include "../utils/ether.h"
 #include "../utils/format.h"
+#include "../utils/ip.h"
+#include "../utils/tcp.h"
 #include "../utils/time.h"
 
 #define MAX_TEMPLATE_SIZE 1536
@@ -17,7 +20,7 @@ typedef std::priority_queue<Event, std::vector<Event>,
                             std::function<bool(Event, Event)>>
     EventQueue;
 
-//Priority queue must be a *min* heap -> next upcoming event first.
+// Priority queue must be a *min* heap -> next upcoming event first.
 bool EventLess(const Event &a, const Event &b) {
   return a.first > b.first;
 }
@@ -87,7 +90,10 @@ inline struct flow *FlowGen::ScheduleFlow(uint64_t time_ns) {
 
   f->first = 1;
   f->next_seq_no = 12345;
-  f->flow_id = rng_.Get();
+  f->src_ip = htonl(ip_src_base_ + rng_.GetRange(ip_src_range_));
+  f->dst_ip = htonl(ip_dst_base_ + rng_.GetRange(ip_dst_range_));
+  f->src_port = htons(port_src_base_ + rng_.GetRange(port_src_range_));
+  f->dst_port = htons(port_src_base_ + rng_.GetRange(port_dst_range_));
 
   /* compensate the fraction part by adding [0.0, 1.0) */
   f->packets_left = NewFlowPkts() + rng_.GetReal();
@@ -166,6 +172,10 @@ pb_error_t FlowGen::ProcessArguments(const bess::pb::FlowGenArg &arg) {
 
   memset(templ_, 0, MAX_TEMPLATE_SIZE);
   memcpy(templ_, arg.template_().c_str(), template_size_);
+  pb_error_t err = UpdateBaseAddresses();
+  if(err.err() != 0){
+    return err;
+  }
 
   total_pps_ = arg.pps();
   if (std::isnan(total_pps_) || total_pps_ < 0.0) {
@@ -204,6 +214,23 @@ pb_error_t FlowGen::ProcessArguments(const bess::pb::FlowGenArg &arg) {
 
   if (arg.quick_rampup()) {
     quick_rampup_ = 1;
+  }
+
+  ip_src_range_ = arg.ip_src_range();
+  ip_dst_range_ = arg.ip_dst_range();
+
+  if (arg.port_src_range() > 65535 || arg.port_dst_range() > 65535) {
+    return pb_error(EINVAL, "portrang must be e <= 65535");
+  }
+
+  port_src_range_ = (uint16_t)arg.port_src_range();
+  port_dst_range_ = (uint16_t)arg.port_dst_range();
+
+  if (ip_src_range_ == 0 && ip_dst_range_ == 0 && port_src_range_ == 0 &&
+      port_dst_range_ == 0) {
+    /*randomize ports anyway*/
+    port_dst_range_ = 20000;
+    port_src_range_ = 20000;
   }
 
   return pb_errno(0);
@@ -298,6 +325,27 @@ void FlowGen::DeInit() {
   delete templ_;
 }
 
+pb_error_t FlowGen::UpdateBaseAddresses(){
+
+  char* p = reinterpret_cast<char *>(templ_);
+  if (!p) {
+    return pb_error(EINVAL, "must specify 'template'");
+  }
+
+  bess::utils::Ipv4Header *ipheader =
+      reinterpret_cast<bess::utils::Ipv4Header *>(
+          p + sizeof(bess::utils::EthHeader));
+  bess::utils::TcpHeader *tcpheader =
+      reinterpret_cast<bess::utils::TcpHeader *>(
+          p + sizeof(bess::utils::EthHeader) + sizeof(bess::utils::Ipv4Header));
+
+  ip_src_base_ = ntohl(ipheader->src);
+  ip_dst_base_ = ntohl(ipheader->dst);
+  port_src_base_ = ntohs(tcpheader->src_port);
+  port_dst_base_ = ntohs(tcpheader->dst_port);
+  return pb_errno(0);
+}
+
 bess::Packet *FlowGen::FillPacket(struct flow *f) {
   bess::Packet *pkt;
   char *p;
@@ -316,27 +364,44 @@ bess::Packet *FlowGen::FillPacket(struct flow *f) {
     return nullptr;
   }
 
-  pkt->set_data_off(SNBUF_HEADROOM);
-  pkt->set_total_len(size);
-  pkt->set_data_len(size);
+  // bess::utils::EthHeader* ethheader =
+  // reinterpret_cast<bess::utils::EthHeader*>(p);
+  bess::utils::Ipv4Header *ipheader =
+      reinterpret_cast<bess::utils::Ipv4Header *>(
+          p + sizeof(bess::utils::EthHeader));
+  bess::utils::TcpHeader *tcpheader =
+      reinterpret_cast<bess::utils::TcpHeader *>(
+          p + sizeof(bess::utils::EthHeader) + sizeof(bess::utils::Ipv4Header));
 
-  rte_memcpy(p, templ_, size);
+  if (f->first || f->packets_left <= 1) {  // syn or fin
+    pkt->set_total_len(60);                /*eth + ip + tcp*/
+    pkt->set_data_len(60);                 /*eth + ip + tcp*/
+    ipheader->length = (uint16_t)htons(40);
+  } else {
+    pkt->set_data_off(SNBUF_HEADROOM);
+    pkt->set_total_len(size);
+    pkt->set_data_len(size);
+
+    rte_memcpy(p, templ_, size);
+  }
 
   tcp_flags = f->first ? /* SYN */ 0x02 : /* ACK */ 0x10;
 
   if (f->packets_left <= 1)
     tcp_flags |= 0x01; /* FIN */
 
-  *(reinterpret_cast<uint32_t *>(p + 14 + /* IP dst */ 16)) = f->flow_id;
-  *(reinterpret_cast<uint8_t *>(p + 14 + /* IP */ 20 + /* TCP flags */ 13)) =
-      tcp_flags;
-  *(reinterpret_cast<uint32_t *>(p + 14 + /* IP */ 20  + /* Seq No*/ 4)) = htonl(f->next_seq_no);
+  ipheader->src = f->src_ip;
+  ipheader->dst = f->dst_ip;
+  tcpheader->src_port = f->src_port;
+  tcpheader->dst_port = f->dst_port;
+
+  tcpheader->flags = tcp_flags;
+  tcpheader->seq_num = htonl(f->next_seq_no);
 
   f->next_seq_no += f->first ? 1 : size - (14 + 20 + 20); /* eth + ip + tcp*/
 
   return pkt;
 }
-
 void FlowGen::GeneratePackets(bess::PacketBatch *batch) {
   uint64_t now = ctx.current_ns();
 
@@ -346,7 +411,7 @@ void FlowGen::GeneratePackets(bess::PacketBatch *batch) {
     uint64_t t;
     struct flow *f;
     bess::Packet *pkt;
-    
+
     t = events_.top().first;
     f = events_.top().second;
     if (!f || now < t)
@@ -394,7 +459,7 @@ struct task_result FlowGen::RunTask(void *) {
   const int pkt_overhead = 24;
 
   GeneratePackets(&batch);
-  
+
   if (!batch.empty())
     RunNextModule(&batch);
 

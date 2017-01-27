@@ -10,13 +10,16 @@
 
 typedef std::pair<uint64_t, struct flow *> Event;
 typedef std::priority_queue<Event, std::vector<Event>,
-                            std::function<bool(Event, Event)>> EventQueue;
+                            std::function<bool(Event, Event)>>
+    EventQueue;
 
 struct flow {
-  uint32_t flow_id;
   int packets_left;
   int first;
   uint32_t next_seq_no;
+  /* Note that these are in NETWORK ORDER */
+  uint32_t src_ip, dst_ip;
+  uint16_t src_port, dst_port;
 };
 
 class FlowGen final : public Module {
@@ -71,6 +74,8 @@ class FlowGen final : public Module {
   inline struct flow *ScheduleFlow(uint64_t time_ns);
   void MeasureParetoMean();
   void PopulateInitialFlows();
+  
+  pb_error_t UpdateBaseAddresses();
   bess::Packet *FillPacket(struct flow *f);
   void GeneratePackets(bess::PacketBatch *batch);
 
@@ -106,6 +111,20 @@ class FlowGen final : public Module {
   double flow_pps_;         /* packets/s/flow */
   double flow_pkts_;        /* flow_pps * flow_duration */
   double flow_gap_ns_;      /* == 10^9 / flow_rate */
+
+  /* ranges over which to vary ips and ports */
+  uint32_t ip_src_range_;
+  uint32_t ip_dst_range_;
+  uint16_t port_src_range_;
+  uint16_t port_dst_range_;
+
+  /* base ip and ports IN HOST ORDER */
+  uint32_t ip_src_base_;
+  uint32_t ip_dst_base_;
+  uint16_t port_src_base_;
+  uint16_t port_dst_base_;
+
+
 
   struct {
     double alpha;
