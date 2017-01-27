@@ -6,9 +6,10 @@
 #include <rte_hash_crc.h>
 
 #include <map>
+#include <string>
+#include <tuple>
 #include <utility>
 #include <vector>
-#include <tuple>
 
 #include "../module.h"
 #include "../module_msg.pb.h"
@@ -24,55 +25,71 @@ const uint16_t MIN_PORT = 1024;
 const uint16_t MAX_PORT = 65535;
 const uint64_t TIME_OUT_NS = 120L * 1000 * 1000 * 1000;
 
+enum Protocol : uint8_t {
+  ICMP = 0x01,
+  TCP = 0x06,
+  UDP = 0x11,
+};
+
 // 5 tuple for TCP/UDP packets with an additional icmp_ident for ICMP query pkts
-class Flow {
+class alignas(16) Flow {
  public:
-  uint32_t src_ip;
-  uint32_t dst_ip;
-  uint16_t src_port;
-  uint16_t dst_port;
-  uint16_t icmp_ident;  // identifier of ICMP query
-  uint8_t proto;
+  union {
+    struct {
+      IPAddress src_ip;
+      IPAddress dst_ip;
+      union {
+        uint16_t src_port;
+        uint16_t icmp_ident;  // identifier of ICMP query
+      };
+      uint16_t dst_port;
+      uint8_t proto;
+    };
 
-  Flow()
-      : src_ip(0),
-        dst_ip(0),
-        src_port(0),
-        dst_port(0),
-        icmp_ident(0),
-        proto(0) {}
+    struct {
+      uint64_t e1;
+      uint64_t e2;
+    };
+  };
 
-  Flow(uint32_t sip, uint32_t dip, uint16_t sp, uint16_t dp, uint16_t ident,
-       uint8_t protocol)
-      : src_ip(sip),
-        dst_ip(dip),
-        src_port(sp),
-        dst_port(dp),
-        icmp_ident(ident),
-        proto(protocol) {}
+  Flow() : e1(0), e2(0) {}
+
+  Flow(uint32_t sip, uint32_t dip, uint16_t sp = 0, uint16_t dp = 0,
+       uint8_t protocol = 0)
+      : src_ip(sip), dst_ip(dip) {
+    e2 = 0;
+    src_port = sp;
+    dst_port = dp;
+    proto = protocol;
+  }
 
   // Returns a new instance of reserse flow
   Flow ReverseFlow() const {
-    return Flow(dst_ip, src_ip, dst_port, src_port, icmp_ident, proto);
+    if (proto == ICMP) {
+      return Flow(dst_ip, src_ip, icmp_ident, 0, ICMP);
+    } else {
+      return Flow(dst_ip, src_ip, dst_port, src_port, proto);
+    }
   }
 
   bool operator!=(const Flow &other) const {
-    return proto != other.proto || src_ip != other.src_ip ||
-           src_port != other.src_port || dst_ip != other.dst_ip ||
-           dst_port != other.dst_port || icmp_ident != other.icmp_ident;
+    return e1 != other.e1 || e2 != other.e2;
   }
+
+  std::string ToString() const;
 };
 
+static_assert(sizeof(Flow) == 2 * sizeof(uint64_t), "Flow must be 16 bytes.");
 
 // Stores flow information
 class FlowRecord {
  public:
-  uint16_t port;
   Flow internal_flow;
   Flow external_flow;
   uint64_t time;
+  uint16_t port;
 
-  FlowRecord() : port(), internal_flow(), external_flow(), time() {}
+  FlowRecord() : internal_flow(), external_flow(), time(), port() {}
 };
 
 // A data structure to track available ports for a given subnet of external IPs
@@ -115,7 +132,7 @@ class AvailablePorts {
   }
 
   // Returns true if there are no free remaining IP/port pairs.
-  bool Empty() const {
+  bool empty() const {
     return free_list_.empty();
   }
 
@@ -133,15 +150,12 @@ class AvailablePorts {
 
 struct FlowHash {
   std::size_t operator()(const Flow &f) const {
-    static_assert(sizeof(Flow) == 2 * sizeof(uint64_t),
-                  "Flow must be 16 bytes.");
-    const uint64_t *flowdata = reinterpret_cast<const uint64_t *>(&f);
     uint32_t init_val = 0;
-#if __SSE4_2__ && __x86_64
-    init_val = crc32c_sse42_u64(*flowdata++, init_val);
-    init_val = crc32c_sse42_u64(*flowdata++, init_val);
+#if __SSE4_2__ &&__x86_64
+    init_val = crc32c_sse42_u64(f.e1, init_val);
+    init_val = crc32c_sse42_u64(f.e2, init_val);
 #else
-    init_val = rte_hash_crc(flowdata, sizeof(Flow), init_val);
+    init_val = rte_hash_crc(&flow, sizeof(Flow), init_val);
 #endif
     return init_val;
   }
@@ -183,9 +197,9 @@ class NAT final : public Module {
   static inline uint32_t flow_hash(const void *key, uint32_t,
                                    uint32_t init_val) {
 #if __SSE4_2__ && __x86_64
-    const uint64_t *flowdata = reinterpret_cast<const uint64_t *>(key);
-    init_val = crc32c_sse42_u64(*flowdata++, init_val);
-    init_val = crc32c_sse42_u64(*flowdata, init_val);
+    const Flow *flow = reinterpret_cast<const Flow *>(key);
+    init_val = crc32c_sse42_u64(flow->e1, init_val);
+    init_val = crc32c_sse42_u64(flow->e2, init_val);
 #else
     init_val = rte_hash_crc(key, sizeof(Flow), init_val);
 #endif
