@@ -307,7 +307,7 @@ static std::string DumpStack() {
 }
 
 [[noreturn]] static void exit_failure() {
-  exit(EXIT_FAILURE);
+  _exit(EXIT_FAILURE);
 }
 
 [[noreturn]] void GoPanic() {
