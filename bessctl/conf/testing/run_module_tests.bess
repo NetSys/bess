@@ -1,0 +1,156 @@
+import scapy.all as scapy
+import sys
+import os
+import glob
+import socket
+import time
+import sugar
+from time import gmtime, strftime
+
+## HANDY UTILS AND GLOBAL VARS ##
+SOCKET_PATH = '/tmp/bess_unix_'
+SCRIPT_STARTTIME = strftime("%Y-%m-%d-%H-%M-%S", gmtime())
+
+# Generate a UnixSocketPort and a Socket to talk to it
+def gen_socket_and_port(sockname):
+    socket_port = UnixSocketPort(
+        name=sockname,
+        path='@' +
+        SOCKET_PATH +
+        sockname)
+
+    s = socket.socket(socket.AF_UNIX, socket.SOCK_SEQPACKET)
+    s.settimeout(5)  # five second timeout
+    s.connect('\0' + SOCKET_PATH + sockname)
+    return socket_port, s
+
+# Craft a packet with the specified IP addresses
+# All the other fields -- Ether, ports -- are dummy values.
+def gen_packet(proto, src_ip, dst_ip):
+    eth = scapy.Ether(src='02:1e:67:9f:4d:ae', dst='06:16:3e:1b:72:32')
+    ip = scapy.IP(src=src_ip, dst=dst_ip)
+    udp = proto(sport=10001, dport=10002)
+    payload = 'helloworld'
+    pkt = eth / ip / udp / payload
+    return str(pkt)
+
+# Quick turn a packet into a string even if it is None
+def pkt_str(pkt):
+    if(pkt is None):
+        return "None"
+    else:
+        return pkt.summary()
+
+# These are just for the crash test
+crash_test_packets = [
+    gen_packet(scapy.UDP, '172.16.100.1', '10.0.0.1'),
+    gen_packet(scapy.UDP, '172.12.55.99', '12.34.56.78'),
+    gen_packet(scapy.UDP, '172.12.55.99', '10.0.0.1'),
+    gen_packet(scapy.UDP, '172.16.100.1', '12.34.56.78'),
+    gen_packet(scapy.TCP, '172.12.55.99', '12.34.56.78'),
+    gen_packet(scapy.UDP, '192.168.1.123', '12.34.56.78')
+]
+
+## TEST FUNCTIONS ##
+
+# All this does is subject a module to load and make sure it
+# doesn't crash
+def crash_test(module, num_input_ports, num_output_ports):
+    for i in range(num_input_ports):
+        Source() -> Rewrite(templates=crash_test_packets) -> i:module
+    for i in range(num_output_ports):
+        module:i -> Sink()
+
+    time.sleep(5)
+
+# Can't just call exec() in the middle of mane loop because
+# variables will leak into main script scope
+def load_test(filename):
+    CRASH_TEST_INPUTS = []
+    OUTPUT_TEST_INPUTS = []
+    CUSTOM_TEST_FUNCTIONS = []
+
+    exec(sugar.xform_file(filename))
+
+    return [CRASH_TEST_INPUTS,
+            OUTPUT_TEST_INPUTS,
+            CUSTOM_TEST_FUNCTIONS]
+
+## RUN TEST LOOP ##
+path = os.path.dirname(os.path.realpath(sys.argv[0]))
+for filename in glob.glob(path + "/conf/testing/module_tests/*.py"):
+    bess.reset_all()
+
+    print("-- Running Module Tests for %s --\n" % filename)
+
+   # Wrap in a function to make sure scope doesn't leak.
+    CRASH_TEST_INPUTS, OUTPUT_TEST_INPUTS, CUSTOM_TEST_FUNCTIONS = load_test(
+        filename)
+
+    crash_testid = 1
+    for module, input_port_cnt, output_port_cnt in CRASH_TEST_INPUTS:
+        crash_test(module, input_port_cnt, output_port_cnt)
+        print("   %s crash test %s: PASS\n" % (str(module), str(crash_testid)))
+        crash_testid += 1
+
+    output_testid = 1
+    for module, input_port_cnt, output_port_cnt, test_cases in OUTPUT_TEST_INPUTS:
+        input_ports = []
+        output_ports = []
+        sockets = []
+
+        for port_num in range(max(input_port_cnt, output_port_cnt)):
+            sockname = str(output_testid) + "moduletesting-" + \
+                SCRIPT_STARTTIME + str(port_num)
+            socket_port, mysocket = gen_socket_and_port(sockname)
+            input_ports.append(PortInc(port=sockname))
+            output_ports.append(PortOut(port=sockname))
+            sockets.append(mysocket)
+            if (port_num < input_port_cnt):
+                input_ports[port_num] -> port_num:module
+            if (port_num < output_port_cnt):
+                module:port_num -> output_ports[port_num]
+
+        bess.resume_all()
+
+        for test_case in test_cases:
+            input_port = test_case["input_port"]
+            output_port = test_case["output_port"]
+            input_pkt = test_case["input_packet"]
+            output_pkt = test_case["output_packet"]
+            if(input_pkt is not None):
+                sockets[input_port].send(str(input_pkt))
+            try:
+                return_pkt = scapy.Ether(sockets[output_port].recv(2048))
+            except socket.timeout:
+                return_pkt = None
+            if(not ((return_pkt is None and output_pkt is None) or
+                    (return_pkt == scapy.Ether(output_pkt)))):
+                sys.stderr.write("Test failed!\n")
+                sys.stderr.write("Input packet: %s\n" %
+                      pkt_str(input_pkt))
+                sys.stderr.write("Expected: %s\n" % pkt_str(output_pkt))
+                sys.stderr.write("Received: %s\n" % pkt_str(return_pkt))
+                for sock in sockets:
+                    sock.close()
+                sys.exit(1)
+            print("   %s output test %s: PASS\n" %
+                  (str(module), str(output_testid)))
+            output_testid += 1
+        # tests passed!
+        for sock in sockets:
+            sock.close()
+        bess.pause_all()
+
+    for test in CUSTOM_TEST_FUNCTIONS:
+        try:
+            test()
+        except Error:
+            sys.stderr.write("Test failed!\n")
+            sys.stderr.write("Return value: %s\n" % sys.exc_info()[0])
+            sys.exit(1)
+        print("   %s  custom test: PASS" % str(test))
+    # All done!
+    print "\n\n"
+
+bess.reset_all()
