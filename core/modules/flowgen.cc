@@ -173,7 +173,7 @@ pb_error_t FlowGen::ProcessArguments(const bess::pb::FlowGenArg &arg) {
   memset(templ_, 0, MAX_TEMPLATE_SIZE);
   memcpy(templ_, arg.template_().c_str(), template_size_);
   pb_error_t err = UpdateBaseAddresses();
-  if(err.err() != 0){
+  if (err.err() != 0) {
     return err;
   }
 
@@ -325,9 +325,8 @@ void FlowGen::DeInit() {
   delete templ_;
 }
 
-pb_error_t FlowGen::UpdateBaseAddresses(){
-
-  char* p = reinterpret_cast<char *>(templ_);
+pb_error_t FlowGen::UpdateBaseAddresses() {
+  char *p = reinterpret_cast<char *>(templ_);
   if (!p) {
     return pb_error(EINVAL, "must specify 'template'");
   }

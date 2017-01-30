@@ -74,7 +74,7 @@ class FlowGen final : public Module {
   inline struct flow *ScheduleFlow(uint64_t time_ns);
   void MeasureParetoMean();
   void PopulateInitialFlows();
-  
+
   pb_error_t UpdateBaseAddresses();
   bess::Packet *FillPacket(struct flow *f);
   void GeneratePackets(bess::PacketBatch *batch);
@@ -123,8 +123,6 @@ class FlowGen final : public Module {
   uint32_t ip_dst_base_;
   uint16_t port_src_base_;
   uint16_t port_dst_base_;
-
-
 
   struct {
     double alpha;
