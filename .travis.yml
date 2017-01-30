@@ -38,6 +38,7 @@ script:
   - ./container_build.py kmod_buildtest
   - cd core && ./all_test && cd ..
   - ./sanity_check.sh
+  - ./bessctl/bessctl -- daemon start -- run testing/run_module_tests
 
 after_success:
   - "[[ ${DEBUG:-0} != 0 ]] && bash <(curl -s https://codecov.io/bash)"
