@@ -98,13 +98,15 @@ class FlowRecord {
 class AvailablePorts {
  public:
   // Tracks available ports within the given IP prefix.
-  explicit AvailablePorts(const CIDRNetwork &prefix) : prefix_(prefix), free_list_(), next_expiry_() {
+  explicit AvailablePorts(const CIDRNetwork &prefix)
+      : prefix_(prefix), free_list_(), next_expiry_() {
     uint32_t min = ntohl(prefix_.addr & prefix_.mask);
     uint32_t max = ntohl(prefix_.addr | (~prefix_.mask));
 
     for (uint32_t ip = min; ip <= max; ip++) {
       for (uint32_t port = MIN_PORT; port <= MAX_PORT; port++) {
-        free_list_.emplace_back(htonl(ip), htons((uint16_t) port), new FlowRecord());
+        free_list_.emplace_back(htonl(ip), htons((uint16_t)port),
+                                new FlowRecord());
       }
     }
     std::random_shuffle(free_list_.begin(), free_list_.end());
@@ -132,9 +134,7 @@ class AvailablePorts {
   }
 
   // Returns true if there are no free remaining IP/port pairs.
-  bool empty() const {
-    return free_list_.empty();
-  }
+  bool empty() const { return free_list_.empty(); }
 
   const CIDRNetwork &prefix() const { return prefix_; }
 
@@ -151,7 +151,7 @@ class AvailablePorts {
 struct FlowHash {
   std::size_t operator()(const Flow &f) const {
     uint32_t init_val = 0;
-#if __SSE4_2__ &&__x86_64
+#if __SSE4_2__ && __x86_64
     init_val = crc32c_sse42_u64(f.e1, init_val);
     init_val = crc32c_sse42_u64(f.e2, init_val);
 #else

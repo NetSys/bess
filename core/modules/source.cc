@@ -27,7 +27,7 @@ pb_error_t Source::Init(const bess::pb::SourceArg &arg) {
   if (arg.burst() > 0) {
     if (arg.burst() > bess::PacketBatch::kMaxBurst) {
       return pb_error(EINVAL, "burst size must be [0,%ld]",
-          bess::PacketBatch::kMaxBurst);
+                      bess::PacketBatch::kMaxBurst);
     }
     burst_ = arg.burst();
   }

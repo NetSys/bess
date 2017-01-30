@@ -12,7 +12,6 @@ class Dump final : public Module {
 
   pb_cmd_response_t CommandSetInterval(const bess::pb::DumpArg &arg);
 
-  
   static const Commands cmds;
 
  private:
