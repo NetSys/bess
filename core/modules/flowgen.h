@@ -31,8 +31,6 @@ class FlowGen final : public Module {
     DURATION_PARETO,
   };
 
-  static const gate_idx_t kNumIGates = 0;
-
   FlowGen()
       : Module(),
         active_flows_(),
@@ -62,11 +60,14 @@ class FlowGen final : public Module {
 
   struct task_result RunTask(void *arg) override;
 
+  void ProcessBatch(bess::PacketBatch *batch) override;
+  
   std::string GetDesc() const override;
 
  private:
   inline double NewFlowPkts();
   inline double MaxFlowPkts() const;
+  void UpdateDerivedVariables();
   inline uint64_t NextFlowArrival();
   inline struct flow *ScheduleFlow(uint64_t time_ns);
   void MeasureParetoMean();
@@ -95,6 +96,7 @@ class FlowGen final : public Module {
 
   /* behavior parameters */
   int quick_rampup_;
+  int scale_to_benchmark_;
 
   /* load parameters */
   double total_pps_;
@@ -106,6 +108,10 @@ class FlowGen final : public Module {
   double flow_pps_;         /* packets/s/flow */
   double flow_pkts_;        /* flow_pps * flow_duration */
   double flow_gap_ns_;      /* == 10^9 / flow_rate */
+
+  /* for scaling benchmarks */
+  uint64_t interval_packet_count_;
+  uint64_t last_interval_start_;
 
   struct {
     double alpha;

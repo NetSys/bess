@@ -12,12 +12,16 @@
 
 #define RETRY_NS 1000000ul /* 1 ms */
 
+const uint64_t BENCHMARK_UPDATE_INTERVAL_S = 10L;
+const uint64_t BENCHMARK_UPDATE_INTERVAL_NS =
+    (BENCHMARK_UPDATE_INTERVAL_S * 1000 * 1000 * 1000);
+
 typedef std::pair<uint64_t, struct flow *> Event;
 typedef std::priority_queue<Event, std::vector<Event>,
                             std::function<bool(Event, Event)>>
     EventQueue;
 
-//Priority queue must be a *min* heap -> next upcoming event first.
+// Priority queue must be a *min* heap -> next upcoming event first.
 bool EventLess(const Event &a, const Event &b) {
   return a.first > b.first;
 }
@@ -206,6 +210,10 @@ pb_error_t FlowGen::ProcessArguments(const bess::pb::FlowGenArg &arg) {
     quick_rampup_ = 1;
   }
 
+  if (arg.scale_to_benchmark()) {
+    scale_to_benchmark_ = 1;
+  }
+
   return pb_errno(0);
 }
 
@@ -244,6 +252,9 @@ pb_error_t FlowGen::Init(const bess::pb::FlowGenArg &arg) {
   arrival_ = ARRIVAL_UNIFORM;
   duration_ = DURATION_UNIFORM;
   pareto_.alpha = 1.3;
+  scale_to_benchmark_ = 0;
+  interval_packet_count_ = 0;
+  last_interval_start_ = 0;
 
   /* register task */
   tid = RegisterTask(nullptr);
@@ -261,7 +272,24 @@ pb_error_t FlowGen::Init(const bess::pb::FlowGenArg &arg) {
     return err;
   }
 
-  /* calculate derived variables */
+  UpdateDerivedVariables();
+
+  /* initialize flow pool */
+  err = InitFlowPool();
+  if (err.err() != 0) {
+    return err;
+  }
+
+  /* initialize time-sorted priority queue */
+  events_ = EventQueue(EventLess);
+
+  /* add a seed flow (and background flows if necessary) */
+  PopulateInitialFlows();
+
+  return pb_errno(0);
+}
+
+void FlowGen::UpdateDerivedVariables() {
   pareto_.inversed_alpha = 1.0 / pareto_.alpha;
 
   if (duration_ == DURATION_PARETO) {
@@ -277,20 +305,6 @@ pb_error_t FlowGen::Init(const bess::pb::FlowGenArg &arg) {
   if (flow_rate_ > 0.0) {
     flow_gap_ns_ = 1e9 / flow_rate_;
   }
-
-  /* initialize flow pool */
-  err = InitFlowPool();
-  if (err.err() != 0) {
-    return err;
-  }
-
-  /* initialize time-sorted priority queue */
-  events_ = EventQueue(EventLess);
-
-  /* add a seed flow (and background flows if necessary) */
-  PopulateInitialFlows();
-
-  return pb_errno(0);
 }
 
 void FlowGen::DeInit() {
@@ -405,6 +419,37 @@ struct task_result FlowGen::RunTask(void *) {
   };
 
   return ret;
+}
+
+void FlowGen::ProcessBatch(bess::PacketBatch *batch) {
+  if (scale_to_benchmark_) {
+    interval_packet_count_ += batch->cnt();
+    if (ctx.current_ns() - last_interval_start_ >=
+        BENCHMARK_UPDATE_INTERVAL_NS) {
+      if (last_interval_start_ == 0) {
+        last_interval_start_ = ctx.current_ns();
+      } else {
+        double interval_pps =
+            interval_packet_count_ / BENCHMARK_UPDATE_INTERVAL_S;
+
+        LOG(INFO) << "PKTGEN LAST INTERVAL RECEIVED " << interval_pps << " pps";
+
+        // be a little aggressive -- try to increase.
+        total_pps_ = 1.1 * interval_pps;
+
+        // At low line rates traffic becomes burstier; harder to measure.
+        if (total_pps_ <= 1e5) {
+          total_pps_ = 1e5;
+        }
+
+        UpdateDerivedVariables();
+
+        last_interval_start_ = ctx.current_ns();
+        interval_packet_count_ = 0;
+      }
+    }
+  }
+  bess::Packet::Free(batch);
 }
 
 std::string FlowGen::GetDesc() const {
