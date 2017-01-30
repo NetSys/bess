@@ -369,6 +369,7 @@ static void TrapHandler(int sig_num, siginfo_t *info, void *ucontext) {
     // Never reaches here. LOG(FATAL) will terminate the process.
   } else {
     LOG(INFO) << oops.str() << DumpStack();
+    trap_ip = nullptr;
   }
 }
 
