@@ -102,6 +102,14 @@ static const char *si_code_to_str(int sig_num, int si_code) {
           return "SEGV_MAPERR: address not mapped to object";
         case SEGV_ACCERR:
           return "SEGV_ACCERR: invalid permissions for mapped object";
+#if defined(SEGV_BNDERR)
+        case SEGV_BNDERR:
+          return "SEGV_BNDERR: failed address bound checks";
+#endif
+#if defined(SEGV_PKUERR)
+        case SEGV_PKUERR:
+          return "SEGV_PKUERR: failed protection key checks";
+#endif
         default:
           return "unknown";
       }
@@ -114,10 +122,12 @@ static const char *si_code_to_str(int sig_num, int si_code) {
           return "BUS_ADRERR: nonexistent physical address";
         case BUS_OBJERR:
           return "BUS_OBJERR: object-specific hardware error";
-#if 0
+#if defined(BUS_MCEERR_AR)
         case BUS_MCEERR_AR:
           return "BUS_MCEERR_AR: Hardware memory error consumed on a machine "
                  "check";
+#endif
+#if defined(BUS_MCEERR_AO)
         case BUS_MCEERR_AO:
           return "BUS_MCEERR_AO: Hardware memory error detected in process but "
                  "not consumed";
