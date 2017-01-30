@@ -673,13 +673,14 @@ def _do_run_file(cli, conf_file):
         cli.err('%s (most recent call last)' % errmsg)
         cli.ferr.write(''.join(traceback.format_list(stack)))
 
-        if isinstance(v, cli.bess.Error):
+        if isinstance(v, (cli.bess.Error, cli.bess.RPCError)):
             raise
         else:
             cli.ferr.write(''.join(traceback.format_exception_only(t, v)))
             raise cli.HandledError()
     finally:
-        cli.bess.resume_all()
+        if cli.bess.is_connected():
+            cli.bess.resume_all()
 
 
 def _run_file(cli, conf_file, env_map):
