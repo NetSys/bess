@@ -34,6 +34,10 @@ class BESS(object):
                 self.err, err_code, os.strerror(self.err), self.errmsg,
                 repr(self.details))
 
+    # abnormal RPC failure
+    class RPCError(Exception):
+        pass
+
     # errors from this class itself
     class APIError(Exception):
         pass
@@ -89,7 +93,11 @@ class BESS(object):
         req_fn = getattr(self.stub, name)
         if request is None:
             request = bess_msg.EmptyRequest()
-        response = req_fn(request)
+
+        try:
+            response = req_fn(request)
+        except grpc._channel._Rendezvous as e:
+            raise self.RPCError(str(e))
 
         if response.error.err != 0:
             err = response.error.err

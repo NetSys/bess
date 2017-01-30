@@ -5,6 +5,7 @@ import os.path
 import pprint
 import cStringIO
 import tempfile
+import time
 
 import cli
 import commands
@@ -17,7 +18,9 @@ except ImportError:
     print >> sys.stderr, 'Cannot import the API module (libbess-python)'
     raise
 
+
 class BESSCLI(cli.CLI):
+
     def __init__(self, bess, cmd_db, fin=sys.stdin,
                  fout=sys.stdout, history_file=None):
         self.bess = bess
@@ -51,9 +54,21 @@ class BESSCLI(cli.CLI):
     def call_func(self, func, args):
         try:
             super(BESSCLI, self).call_func(func, args)
+
         except self.bess.APIError as e:
             self.err(e)
             raise self.HandledError()
+
+        except self.bess.RPCError as e:
+            self.err('RPC failed to {}:{} - {}'.format(
+                    self.bess.peer[0], self.bess.peer[1], e.message))
+
+            host = self.bess.peer[0]
+            if host == 'localhost' or self.bess.peer[0].startswith('127.'):
+                self.print_crashlog()
+
+            raise self.HandledError()
+
         except self.bess.Error as e:
             self.err(e.errmsg)
 
@@ -82,15 +97,13 @@ class BESSCLI(cli.CLI):
         try:
             log_path = tempfile.gettempdir() + '/bessd_crash.log'
             log = open(log_path).read()
-            self.fout.write(log)
-        except:
-            pass
+            ctime = time.ctime(os.path.getmtime(log_path))
+            self.ferr.write('From {} ({}):\n{}'.format(log_path, ctime, log))
+        except Exception as e:
+            self.ferr.write('%s is not available: %s' % (log_path, str(e)))
 
     def loop(self):
         super(BESSCLI, self).loop()
-        # TODO: raise an exception when gRPC abnormaly disconnects
-        # Then use self.print_crashlog() to print out the call stack trace
-        # when the bessd daemon process aborts
         self.bess.disconnect()
 
     def get_prompt(self):
@@ -123,7 +136,7 @@ def run_cmds(instream):
     try:
         s = BESS()
         s.connect()
-    except BESS.APIError as e:
+    except BESS.APIError:
         # show no error msg, since user might be about to launch the daemon
         pass
 
