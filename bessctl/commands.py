@@ -541,6 +541,9 @@ def _do_start(cli, opts):
     else:
         cli.bess.connect()
 
+    if cli.interactive:
+        cli.fout.write('Done.\n')
+
 
 @cmd('daemon start [BESSD_OPTS...]', 'Start BESS daemon in the local machine')
 def daemon_start(cli, opts):
@@ -563,9 +566,6 @@ def daemon_start(cli, opts):
         warn(cli, 'Existing BESS daemon will be killed.', _do_start, opts)
     else:
         _do_start(cli, opts)
-
-    if cli.interactive:
-        cli.fout.write('Done.\n')
 
 
 def is_pipeline_empty(cli):
