@@ -117,10 +117,23 @@ class BESS(object):
         if request is None:
             request = bess_msg.EmptyRequest()
 
+        if self.debug:
+            print '====',  req_fn._method
+            req = proto_conv.protobuf_to_dict(request)
+            print '--->', type(request).__name__
+            if req:
+                pprint.pprint(req)
+
         try:
             response = req_fn(request)
         except grpc._channel._Rendezvous as e:
             raise self.RPCError(str(e))
+
+        if self.debug:
+            print '<---', type(response).__name__
+            res = proto_conv.protobuf_to_dict(response)
+            if res:
+                pprint.pprint(res)
 
         if response.error.err != 0:
             err = response.error.err
@@ -131,17 +144,6 @@ class BESS(object):
             if details == '':
                 details = None
             raise self.Error(err, errmsg, details)
-
-        if self.debug:
-            req = proto_conv.protobuf_to_dict(request)
-            res = proto_conv.protobuf_to_dict(response)
-            print '====',  req_fn._method
-            print '--->', type(request).__name__
-            if req:
-                pprint.pprint(req)
-            print '<---', type(response).__name__
-            if res:
-                pprint.pprint(res)
 
         return response
 
