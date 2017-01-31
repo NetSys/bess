@@ -45,9 +45,9 @@ pb_cmd_response_t Rewrite::CommandAdd(const bess::pb::RewriteArg &arg) {
   }
 
   num_templates_ = curr + arg.templates_size();
-  if(num_templates_ == 0){
-     set_cmd_response_error(&response, pb_errno(0));
-     return response;
+  if (num_templates_ == 0) {
+    set_cmd_response_error(&response, pb_errno(0));
+    return response;
   }
 
   for (size_t i = num_templates_; i < kNumSlots; i++) {

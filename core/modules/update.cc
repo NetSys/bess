@@ -20,7 +20,7 @@ void Update::ProcessBatch(bess::PacketBatch *batch) {
 
     uint64_t mask = field->mask;
     uint64_t value = field->value;
-    int16_t offset = field->offset;   // could be < 0
+    int16_t offset = field->offset;  // could be < 0
 
     for (int j = 0; j < cnt; j++) {
       bess::Packet *snb = batch->pkts()[j];

@@ -7,11 +7,11 @@
 #include <string>
 
 #include "../utils/ether.h"
+#include "../utils/format.h"
 #include "../utils/icmp.h"
 #include "../utils/ip.h"
 #include "../utils/tcp.h"
 #include "../utils/udp.h"
-#include "../utils/format.h"
 
 using bess::utils::EthHeader;
 using bess::utils::Ipv4Header;
@@ -204,8 +204,8 @@ void NAT::ProcessBatch(bess::PacketBatch *batch) {
             flow_hash_.Del(&(record->internal_flow));
           }
           AvailablePorts &available_ports = rule_it->second;
-          available_ports.FreeAllocated(
-              std::make_tuple(record->external_flow.src_ip, record->port, record));
+          available_ports.FreeAllocated(std::make_tuple(
+              record->external_flow.src_ip, record->port, record));
         }
       }
     }
@@ -235,7 +235,7 @@ void NAT::ProcessBatch(bess::PacketBatch *batch) {
       uint32_t next = 0;
       void *key;
       while ((key = flow_hash_.Iterate(&next))) {
-        FlowRecord **res = flow_hash_.Get((Flow *) key);
+        FlowRecord **res = flow_hash_.Get((Flow *)key);
         if (res == nullptr) {
           continue;
         }
@@ -247,7 +247,8 @@ void NAT::ProcessBatch(bess::PacketBatch *batch) {
           Flow rev_flow = record->external_flow.ReverseFlow();
           flow_hash_.Del(&rev_flow);
           available_ports.FreeAllocated(
-              std::make_tuple(record->external_flow.src_ip, record->external_flow.src_port, record));
+              std::make_tuple(record->external_flow.src_ip,
+                              record->external_flow.src_port, record));
         } else if (record->time != 0) {
           expiry = std::min(expiry, record->time + TIME_OUT_NS);
         }
