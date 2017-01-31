@@ -3,6 +3,7 @@
 // TODO(barath): Add dpdk benchmarks from oldtests/htable.cc once we re-enable
 // dpdk memory allocation.
 
+#include "cuckoo_map.h"
 #include "htable.h"
 
 #include <algorithm>
@@ -25,6 +26,7 @@
 
 using bess::utils::HTable;
 using bess::utils::HTableBase;
+using bess::utils::CuckooMap;
 
 typedef uint16_t value_t;
 
@@ -57,6 +59,7 @@ class HTableFixture : public benchmark::Fixture {
     HTable<uint32_t, value_t, inlined_keycmp, inlined_hash> *t =
         new HTable<uint32_t, value_t, inlined_keycmp, inlined_hash>();
     stl_map_ = new std::unordered_map<uint32_t, value_t>();
+    cuckoo_ = new CuckooMap<uint32_t, value_t>();
 
     if (t->Init(sizeof(uint32_t), sizeof(value_t)) == -ENOMEM) {
       CHECK(false) << "Out of memory.";
@@ -75,6 +78,7 @@ class HTableFixture : public benchmark::Fixture {
       }
 
       (*stl_map_)[key] = val;
+      cuckoo_->Insert(key, val);
     }
 
     arg_ = static_cast<HTableBase *>(t);
@@ -86,10 +90,12 @@ class HTableFixture : public benchmark::Fixture {
     t->Close();
 
     delete stl_map_;
+    delete cuckoo_;
   }
 
  protected:
   HTableBase *arg_;
+  CuckooMap<uint32_t, value_t> *cuckoo_;
   std::unordered_map<uint32_t, value_t> *stl_map_;
 };
 
@@ -147,6 +153,33 @@ BENCHMARK_DEFINE_F(HTableFixture, BessInlinedGet)(benchmark::State &state) {
 }
 
 BENCHMARK_REGISTER_F(HTableFixture, BessInlinedGet)
+    ->RangeMultiplier(4)
+    ->Range(4, 4 << 20);
+
+// Benchmarks the Find() method in CuckooMap, which is inlined.
+BENCHMARK_DEFINE_F(HTableFixture, CuckooMapInlinedGet)
+(benchmark::State &state) {
+  while (true) {
+    const size_t n = state.range(0);
+    rng.SetSeed(0);
+
+    for (size_t i = 0; i < n; i++) {
+      uint32_t key = rng.Get();
+      std::pair<uint32_t, value_t> *val;
+
+      benchmark::DoNotOptimize(val = cuckoo_->Find(key));
+      DCHECK(val);
+      DCHECK_EQ(val->second, derive_val(key));
+
+      if (!state.KeepRunning()) {
+        state.SetItemsProcessed(state.iterations());
+        return;
+      }
+    }
+  }
+}
+
+BENCHMARK_REGISTER_F(HTableFixture, CuckooMapInlinedGet)
     ->RangeMultiplier(4)
     ->Range(4, 4 << 20);
 
