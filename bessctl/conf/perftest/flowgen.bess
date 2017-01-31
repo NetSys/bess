@@ -1,0 +1,59 @@
+import scapy.all as scapy
+import time
+
+## This script generates a number of flows at a specified packet rate;
+## it then scales the rate of packets being transmitted to achieve
+## maximum available throughput.
+
+num_cores=int($BESS_CORES!'4')
+num_flows=int($BESS_FLOWS!'4000')
+init_pps=int($BESS_INIT_RATE!'1000000')
+
+flow_time = 5 #five seconds long
+
+## Create a "template" packet to use for generated flows.
+## All packets in flow will follow this formula; flowgen
+## changes dst IP to generate new connections.
+src_ether=($BESS_SRC_ETHER!'02:1e:67:9f:4d:aa')
+dst_ether=($BESS_DST_ETHER!'02:1e:67:9f:4d:bb')
+eth = scapy.Ether(src=src_ether, dst=dst_ether)
+src_ip=($BESS_SRC_IP!'10.0.0.1')
+dst_ip=($BESS_DST_IP!'192.0.0.1')
+ip = scapy.IP(src=src_ip, dst=dst_ip)
+src_port = int($BESS_SRC_PORT!'10001')
+tcp = scapy.TCP(sport=src_port, dport=12345, seq=12345)
+payload = "BESS is the Queen of Packet Processing."
+pkt_template = str(eth/ip/tcp/payload)
+
+# This script is multi threaded but connects to a single port.
+myport = PMDPort(port_id=0, num_inc_q=num_cores, num_out_q=num_cores)
+
+flowgens = []
+for i in range(num_cores):
+    bess.add_worker(wid=i, core=i)
+    pkt_src = FlowGen(template = pkt_template, pps = init_pps / num_cores, flow_rate = num_flows / flow_time, flow_duration = flow_time, \
+        arrival = 'uniform', duration='uniform', quick_rampup = True)
+    flowgens.append(pkt_src)
+    bess.attach_task(pkt_src.name, 0, wid=i)
+
+    pkt_src -> IPChecksum() -> QueueOut(port=myport, qid = i)
+
+    QueueInc(port=myport, qid=i) -> Sink()
+
+bess.resume_all()
+
+sleeptime = flow_time * 3 #seconds, wait for three rounds of flows to die out
+prev_portstats = myport.get_port_stats().inc.packets
+while True:
+    time.sleep(sleeptime)
+    portstats = myport.get_port_stats().inc.packets
+    delta = portstats - prev_portstats
+    nextround = max(1e6, 1.1 * delta / sleeptime)
+    print("Received " + str(delta / sleeptime) + " pps. Ramping up to: " + str(nextround))
+    bess.pause_all()
+    for pkt_src in flowgens:
+        pkt_src.update(pps = nextround / num_cores)
+    bess.resume_all()
+    time.sleep(sleeptime) # give it some time to warm up to the new rate
+    prev_portstats = myport.get_port_stats().inc.packets
+
