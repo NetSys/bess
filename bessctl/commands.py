@@ -892,7 +892,12 @@ def _show_tc_list(cli, tcs):
 
 @cmd('show tc', 'Show the list of traffic classes')
 def show_tc_all(cli):
-    _show_tc_list(cli, cli.bess.list_tcs().classes_status)
+    classes = cli.bess.list_tcs().classes_status
+
+    if len(classes) == 0:
+        raise cli.CommandError('There is no traffic class tho show.')
+    else:
+        _show_tc_list(cli, classes)
 
 
 @cmd('show tc worker WORKER_ID...', 'Show the list of traffic classes')
