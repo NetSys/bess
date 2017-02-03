@@ -87,6 +87,20 @@ message MeasureCommandGetSummaryResponse {
   uint64 latency_99_ns = 9;
 }
 
+message MlfqArg {
+  uint32 num_lvls = 1;
+  uint32 batch_size = 2;
+  float init_load = 3;
+}
+
+message MlfqLvlArg {
+  uint32 num_lvls = 1;
+}
+
+message MlfqBatchArg {
+  uint32 batch_size = 1;
+}
+
 message PortIncCommandSetBurstArg {
   int64 burst = 1;
 }
