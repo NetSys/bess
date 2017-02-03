@@ -1,8 +1,8 @@
 #ifndef BESS_MODULES_FLOWGEN_H_
 #define BESS_MODULES_FLOWGEN_H_
 
-#include <deque>
 #include <queue>
+#include <stack>
 
 #include "../module.h"
 #include "../module_msg.pb.h"
@@ -89,7 +89,7 @@ class FlowGen final : public Module {
   int allocated_flows_;
   uint64_t generated_flows_;
   struct flow *flows_;
-  std::deque<struct flow *> flows_free_;
+  std::stack<struct flow *> flows_free_;
 
   EventQueue events_;
 

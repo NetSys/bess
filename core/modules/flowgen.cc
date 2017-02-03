@@ -84,12 +84,16 @@ inline uint64_t FlowGen::NextFlowArrival() {
 }
 
 inline struct flow *FlowGen::ScheduleFlow(uint64_t time_ns) {
-  if (flows_free_.empty()) {
-    return nullptr;
-  }
+  struct flow *f;
 
-  struct flow *f = flows_free_.front();
-  flows_free_.pop_front();
+  if (flows_free_.empty()) {
+    f = new flow();
+    if (!f)
+      return nullptr;
+  } else {
+    f = flows_free_.top();
+    flows_free_.pop();
+  }
 
   f->first = 1;
   f->next_seq_no = 12345;
@@ -239,28 +243,6 @@ pb_error_t FlowGen::ProcessArguments(const bess::pb::FlowGenArg &arg) {
   return pb_errno(0);
 }
 
-pb_error_t FlowGen::InitFlowPool() {
-  /* allocate 20% more in case of temporal overflow */
-  allocated_flows_ = (int)(concurrent_flows_ * 1.2);
-  if (allocated_flows_ < 128) {
-    allocated_flows_ = 128;
-  }
-
-  flows_ = static_cast<struct flow *>(
-      mem_alloc(allocated_flows_ * sizeof(struct flow)));
-  if (!flows_) {
-    return pb_error(ENOMEM, "memory allocation failed (%d flows)",
-                    allocated_flows_);
-  }
-
-  for (int i = 0; i < allocated_flows_; i++) {
-    struct flow *f = &flows_[i];
-    flows_free_.push_back(f);
-  }
-
-  return pb_errno(0);
-}
-
 void FlowGen::UpdateDerivedParameters() {
   /* calculate derived variables */
   pareto_.inversed_alpha = 1.0 / pareto_.alpha;
@@ -400,12 +382,6 @@ pb_error_t FlowGen::Init(const bess::pb::FlowGenArg &arg) {
 
   UpdateDerivedParameters();
 
-  /* initialize flow pool */
-  err = InitFlowPool();
-  if (err.err() != 0) {
-    return err;
-  }
-
   /* initialize time-sorted priority queue */
   events_ = EventQueue(EventLess);
 
@@ -416,6 +392,11 @@ pb_error_t FlowGen::Init(const bess::pb::FlowGenArg &arg) {
 }
 
 void FlowGen::DeInit() {
+  while (!flows_free_.empty()) {
+    delete flows_free_.top();
+    flows_free_.pop();
+  }
+
   mem_free(flows_);
   delete templ_;
 }
@@ -501,7 +482,7 @@ void FlowGen::GeneratePackets(bess::PacketBatch *batch) {
 
   batch->clear();
 
-  while (!batch->full()) {
+  while (!batch->full() && !events_.empty()) {
     uint64_t t;
     struct flow *f;
     bess::Packet *pkt;
@@ -514,7 +495,7 @@ void FlowGen::GeneratePackets(bess::PacketBatch *batch) {
     events_.pop();
 
     if (f->packets_left <= 0) {
-      flows_free_.push_back(f);
+      flows_free_.push(f);
       active_flows_--;
       continue;
     }
