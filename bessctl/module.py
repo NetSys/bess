@@ -25,7 +25,6 @@ class Module(object):
                                       self.choose_arg(None, kwargs))
 
         self.name = ret.name
-        print 'Module %s created' % self
 
         # add mclass-specific methods
         cls = self.bess.get_mclass_info(self.__class__.__name__)
@@ -82,9 +81,6 @@ class Module(object):
     def connect(self, next_mod, ogate=0, igate=0):
         if not isinstance(next_mod, Module):
             assert False, '%s is not a module' % next_mod
-
-        print 'Connecting %s:%d -> %d:%s' % (
-            self.name, ogate, igate, next_mod.name)
 
         self.bess.connect_modules(self.name, next_mod.name, ogate, igate)
 

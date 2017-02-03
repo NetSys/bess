@@ -102,6 +102,14 @@ static const char *si_code_to_str(int sig_num, int si_code) {
           return "SEGV_MAPERR: address not mapped to object";
         case SEGV_ACCERR:
           return "SEGV_ACCERR: invalid permissions for mapped object";
+#if defined(SEGV_BNDERR)
+        case SEGV_BNDERR:
+          return "SEGV_BNDERR: failed address bound checks";
+#endif
+#if defined(SEGV_PKUERR)
+        case SEGV_PKUERR:
+          return "SEGV_PKUERR: failed protection key checks";
+#endif
         default:
           return "unknown";
       }
@@ -114,10 +122,12 @@ static const char *si_code_to_str(int sig_num, int si_code) {
           return "BUS_ADRERR: nonexistent physical address";
         case BUS_OBJERR:
           return "BUS_OBJERR: object-specific hardware error";
-#if 0
+#if defined(BUS_MCEERR_AR)
         case BUS_MCEERR_AR:
           return "BUS_MCEERR_AR: Hardware memory error consumed on a machine "
                  "check";
+#endif
+#if defined(BUS_MCEERR_AO)
         case BUS_MCEERR_AO:
           return "BUS_MCEERR_AO: Hardware memory error detected in process but "
                  "not consumed";
@@ -255,62 +265,91 @@ static std::string print_code(char *symbol, int context) {
 static void *trap_ip;
 static std::string oops_msg;
 
-static std::string DumpStack() {
+static bool SkipSymbol(char *symbol) {
+  static const char *blacklist[] = {"(_ZN6google10LogMessage",
+                                    "(_ZN6google15LogMessageFatal"};
+
+  for (auto prefix : blacklist) {
+    if (strstr(symbol, prefix)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+[[gnu::noinline]] static std::string DumpStack() {
   const size_t max_stack_depth = 64;
-  void *addrs[max_stack_depth];
+  void *addrs[max_stack_depth] = {};
 
   std::ostringstream stack;
 
   char **symbols;
-  int skips;
+  int skips = 0;
 
-  /* the linker requires -rdynamic for non-exported symbols */
+  // the linker requires -rdynamic for non-exported symbols
   int cnt = backtrace(addrs, max_stack_depth);
-  if (cnt < 3) {
-    stack << "ERROR: backtrace() failed" << std::endl;
-    return stack.str();
-  }
 
-  /* addrs[0]: this function
-   * addrs[1]: sigaction in glibc
-   * addrs[2]: the trigerring instruction pointer *or* its caller
-   *           (depending on the kernel behavior?) */
-  if (addrs[2] == trap_ip) {
-    skips = 2;
-  } else {
-    if (trap_ip != nullptr)
-      addrs[1] = trap_ip;
-    skips = 1;
+  // in some cases the bottom of the stack is NULL - not useful at all, remove.
+  while (cnt > 0 && !addrs[cnt - 1]) {
+    cnt--;
   }
 
   // The return addresses point to the next instruction after its call,
   // so adjust them by -1
-  for (int i = skips + 1; i < cnt; i++)
-    addrs[i] = reinterpret_cast<void *>((uintptr_t)addrs[i] - 1);
+  for (int i = 0; i < cnt; i++) {
+    if (addrs[i] != trap_ip) {
+      addrs[i] =
+          reinterpret_cast<void *>(reinterpret_cast<uintptr_t>(addrs[i]) - 1);
+    }
+  }
 
   symbols = backtrace_symbols(addrs, cnt);
-
-  if (symbols) {
-    stack << "Backtrace (recent calls first) ---" << std::endl;
-
-    for (int i = skips; i < cnt; ++i) {
-      stack << "(" << i - skips << "): " << symbols[i] << std::endl;
-      stack << print_code(symbols[i], (i == skips) ? 3 : 0);
-    }
-
-    free(symbols);  // required by backtrace_symbols()
-  } else {
-    stack << "ERROR: backtrace_symbols() failed\n";
+  if (!symbols) {
+    return "ERROR: backtrace_symbols() failed\n";
   }
+
+  // Triggered by a signal? (trap_ip is set)
+  if (trap_ip) {
+    // addrs[0]: DumpStack() <- this function calling backtrace()
+    // addrs[1]: TrapHandler()
+    // addrs[2]: sigaction in glibc, or pthread signal handler
+    // addrs[3]: the trigerring instruction pointer *or* its caller
+    //           (depending on the kernel behavior?)
+    if (addrs[3] == trap_ip) {
+      skips = 3;
+    } else {
+      skips = 2;
+      addrs[2] = trap_ip;
+    }
+  } else {
+    // LOG(FATAL) or CHECK() failed
+    // addrs[0]: DumpStack() <- this function calling backtrace()
+    // addrs[1]: GoPanic()
+    // addrs[2]: caller of GoPanic()
+    skips = 2;
+    while (skips < cnt && SkipSymbol(symbols[skips])) {
+      skips++;
+    }
+  }
+
+  stack << "Backtrace (recent calls first) ---" << std::endl;
+
+  for (int i = skips; i < cnt; i++) {
+    stack << "(" << i - skips << "): " << symbols[i] << std::endl;
+    stack << print_code(symbols[i], (i == skips) ? 3 : 0);
+  }
+
+  free(symbols);  // required by backtrace_symbols()
 
   return stack.str();
 }
 
 [[noreturn]] static void exit_failure() {
-  exit(EXIT_FAILURE);
+  _exit(EXIT_FAILURE);
 }
 
-[[noreturn]] void GoPanic() {
+[[gnu::noinline, noreturn]] void GoPanic() {
   if (oops_msg == "")
     oops_msg = DumpStack();
 
@@ -369,6 +408,7 @@ static void TrapHandler(int sig_num, siginfo_t *info, void *ucontext) {
     // Never reaches here. LOG(FATAL) will terminate the process.
   } else {
     LOG(INFO) << oops.str() << DumpStack();
+    trap_ip = nullptr;
   }
 }
 

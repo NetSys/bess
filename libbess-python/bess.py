@@ -34,11 +34,16 @@ class BESS(object):
                 self.err, err_code, os.strerror(self.err), self.errmsg,
                 repr(self.details))
 
+    # abnormal RPC failure
+    class RPCError(Exception):
+        pass
+
     # errors from this class itself
     class APIError(Exception):
         pass
 
     DEF_PORT = 10514
+    BROKEN_CHANNEL = "AbnormalDisconnection"
 
     def __init__(self):
         self.debug = False
@@ -51,13 +56,28 @@ class BESS(object):
     def is_connected(self):
         return (self.status == grpc.ChannelConnectivity.READY)
 
+    def is_connection_broken(self):
+        return self.status == self.BROKEN_CHANNEL
+
     def _update_status(self, connectivity):
-        self.status = connectivity
+        if self.debug:
+            print "Channel status: {} -> {}".format(self.status, connectivity)
+
+        # do not update status if previous disconnection is not reported yet
+        if self.is_connection_broken():
+            return
+
+        if self.status == grpc.ChannelConnectivity.READY and \
+                connectivity == grpc.ChannelConnectivity.TRANSIENT_FAILURE:
+            self.status = self.BROKEN_CHANNEL
+        else:
+            self.status = connectivity
 
     def connect(self, host='localhost', port=DEF_PORT):
         if self.is_connected():
             raise self.APIError('Already connected')
 
+        self.status = None
         self.peer = (host, port)
         self.channel = grpc.insecure_channel('%s:%d' % (host, port))
         self.channel.subscribe(self._update_status, try_to_connect=True)
@@ -65,31 +85,55 @@ class BESS(object):
 
         while not self.is_connected():
             if self.status in [grpc.ChannelConnectivity.TRANSIENT_FAILURE,
-                    grpc.ChannelConnectivity.SHUTDOWN]:
+                    grpc.ChannelConnectivity.SHUTDOWN, self.BROKEN_CHANNEL]:
                 self.disconnect()
                 raise self.APIError('Connection to %s:%d failed' % (host, port))
             time.sleep(0.1)
 
+    # returns no error if already disconnected
     def disconnect(self):
-        if self.is_connected():
-            self.channel.unsubscribe(self._update_status)
-
-        self.status = None
-        self.stub = None
-        self.channel = None
-        self.peer = None
+        try:
+            if self.is_connected():
+                self.channel.unsubscribe(self._update_status)
+        finally:
+            self.status = None
+            self.stub = None
+            self.channel = None
+            self.peer = None
 
     def set_debug(self, flag):
         self.debug = flag
 
     def _request(self, name, request=None):
         if not self.is_connected():
-            raise self.APIError('BESS daemon not connected')
+            if self.is_connection_broken():
+                # The channel got abnormally (and asynchronously) disconnected,
+                # but RPCError has not been raised yet?
+                raise self.RPCError('Broken RPC channel')
+            else:
+                raise self.APIError('BESS daemon not connected')
 
         req_fn = getattr(self.stub, name)
         if request is None:
             request = bess_msg.EmptyRequest()
-        response = req_fn(request)
+
+        if self.debug:
+            print '====',  req_fn._method
+            req = proto_conv.protobuf_to_dict(request)
+            print '--->', type(request).__name__
+            if req:
+                pprint.pprint(req)
+
+        try:
+            response = req_fn(request)
+        except grpc._channel._Rendezvous as e:
+            raise self.RPCError(str(e))
+
+        if self.debug:
+            print '<---', type(response).__name__
+            res = proto_conv.protobuf_to_dict(response)
+            if res:
+                pprint.pprint(res)
 
         if response.error.err != 0:
             err = response.error.err
@@ -100,17 +144,6 @@ class BESS(object):
             if details == '':
                 details = None
             raise self.Error(err, errmsg, details)
-
-        if self.debug:
-            req = proto_conv.protobuf_to_dict(request)
-            res = proto_conv.protobuf_to_dict(response)
-            print '====',  req_fn._method
-            print '--->', type(request).__name__
-            if req:
-                pprint.pprint(req)
-            print '<---', type(response).__name__
-            if res:
-                pprint.pprint(res)
 
         return response
 

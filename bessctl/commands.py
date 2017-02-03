@@ -541,6 +541,9 @@ def _do_start(cli, opts):
     else:
         cli.bess.connect()
 
+    if cli.interactive:
+        cli.fout.write('Done.\n')
+
 
 @cmd('daemon start [BESSD_OPTS...]', 'Start BESS daemon in the local machine')
 def daemon_start(cli, opts):
@@ -563,9 +566,6 @@ def daemon_start(cli, opts):
         warn(cli, 'Existing BESS daemon will be killed.', _do_start, opts)
     else:
         _do_start(cli, opts)
-
-    if cli.interactive:
-        cli.fout.write('Done.\n')
 
 
 def is_pipeline_empty(cli):
@@ -673,13 +673,14 @@ def _do_run_file(cli, conf_file):
         cli.err('%s (most recent call last)' % errmsg)
         cli.ferr.write(''.join(traceback.format_list(stack)))
 
-        if isinstance(v, cli.bess.Error):
+        if isinstance(v, (cli.bess.Error, cli.bess.RPCError)):
             raise
         else:
             cli.ferr.write(''.join(traceback.format_exception_only(t, v)))
             raise cli.HandledError()
     finally:
-        cli.bess.resume_all()
+        if cli.bess.is_connected():
+            cli.bess.resume_all()
 
 
 def _run_file(cli, conf_file, env_map):
@@ -891,7 +892,12 @@ def _show_tc_list(cli, tcs):
 
 @cmd('show tc', 'Show the list of traffic classes')
 def show_tc_all(cli):
-    _show_tc_list(cli, cli.bess.list_tcs().classes_status)
+    classes = cli.bess.list_tcs().classes_status
+
+    if len(classes) == 0:
+        raise cli.CommandError('There is no traffic class tho show.')
+    else:
+        _show_tc_list(cli, classes)
 
 
 @cmd('show tc worker WORKER_ID...', 'Show the list of traffic classes')
