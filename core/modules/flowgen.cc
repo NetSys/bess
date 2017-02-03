@@ -280,7 +280,7 @@ pb_cmd_response_t FlowGen::CommandUpdate(const bess::pb::FlowGenArg &arg) {
 
   double prev_pps = 0;
   if (!(std::isnan(arg.pps()) || arg.pps() == 0.0)) {
-    if(arg.pps() < 0){
+    if (arg.pps() < 0) {
       set_cmd_response_error(&response,
                              pb_error(EINVAL, "pps cannot be negative"));
       return response;
@@ -293,7 +293,7 @@ pb_cmd_response_t FlowGen::CommandUpdate(const bess::pb::FlowGenArg &arg) {
 
   double prev_flowrate = 0;
   if (!(std::isnan(arg.flow_rate()) || arg.flow_rate() == 0.0)) {
-    if(arg.flow_rate() < 0){
+    if (arg.flow_rate() < 0) {
       set_cmd_response_error(&response,
                              pb_error(EINVAL, "flow rate cannot be negative"));
       return response;
@@ -305,18 +305,18 @@ pb_cmd_response_t FlowGen::CommandUpdate(const bess::pb::FlowGenArg &arg) {
     flow_rate_ = arg.flow_rate();
   }
 
-  if (flow_rate_ > total_pps_){
-      flow_rate_ = prev_flowrate;
-      total_pps_ = prev_pps;
-      set_cmd_response_error(&response,
-                             pb_error(EINVAL, "flow rate cannot be more than pps"));
-      return response;
+  if (flow_rate_ > total_pps_) {
+    flow_rate_ = prev_flowrate;
+    total_pps_ = prev_pps;
+    set_cmd_response_error(
+        &response, pb_error(EINVAL, "flow rate cannot be more than pps"));
+    return response;
   }
 
   if (!(std::isnan(arg.flow_duration()) || arg.flow_duration() == 0.0)) {
-    if(arg.flow_duration() < 0){
-      set_cmd_response_error(&response,
-                             pb_error(EINVAL, "flow duration cannot be negative"));
+    if (arg.flow_duration() < 0) {
+      set_cmd_response_error(
+          &response, pb_error(EINVAL, "flow duration cannot be negative"));
       return response;
     }
 
@@ -329,9 +329,10 @@ pb_cmd_response_t FlowGen::CommandUpdate(const bess::pb::FlowGenArg &arg) {
   } else if (arg.arrival() == "exponential") {
     arrival_ = ARRIVAL_EXPONENTIAL;
   } else if (arg.arrival() != "") {
-      set_cmd_response_error(&response,
-                             pb_error(EINVAL, "arrival must be 'uniform' or 'exponential'"));
-      return response;
+    set_cmd_response_error(
+        &response,
+        pb_error(EINVAL, "arrival must be 'uniform' or 'exponential'"));
+    return response;
   }
 
   if (arg.duration() == "uniform") {
@@ -339,9 +340,11 @@ pb_cmd_response_t FlowGen::CommandUpdate(const bess::pb::FlowGenArg &arg) {
   } else if (arg.duration() == "pareto") {
     duration_ = DURATION_PARETO;
   } else if (arg.duration() != "") {
-      set_cmd_response_error(&response,
-                             pb_error(EINVAL, "duration must be 'uniform' or 'pareto' {%s}", arg.duration().c_str()));
-      return response;
+    set_cmd_response_error(
+        &response,
+        pb_error(EINVAL, "duration must be 'uniform' or 'pareto' {%s}",
+                 arg.duration().c_str()));
+    return response;
   }
 
   UpdateDerivedParameters();
