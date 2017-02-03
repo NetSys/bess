@@ -15,21 +15,16 @@
 
 #define RETRY_NS 1000000ul /* 1 ms */
 
-typedef std::pair<uint64_t, struct flow *> Event;
-typedef std::priority_queue<Event, std::vector<Event>,
-                            std::function<bool(Event, Event)>>
-    EventQueue;
+/* we ignore the last 1% tail to make the variance finite */
+const double PARETO_TAIL_LIMIT = 0.99;
 
 const Commands FlowGen::cmds = {
     {"update", "FlowGenArg", MODULE_CMD_FUNC(&FlowGen::CommandUpdate), 0}};
 
 // Priority queue must be a *min* heap -> next upcoming event first.
-bool EventLess(const Event &a, const Event &b) {
+static inline bool EventLess(const Event &a, const Event &b) {
   return a.first > b.first;
 }
-
-/* we ignore the last 1% tail to make the variance finite */
-const double PARETO_TAIL_LIMIT = 0.99;
 
 /* find x from CDF of pareto distribution from given y in [0.0, 1.0) */
 static inline double pareto_variate(double inversed_alpha, double y) {
@@ -45,9 +40,9 @@ static inline double scaled_pareto_variate(double inversed_alpha, double mean,
 
 inline double FlowGen::NewFlowPkts() {
   switch (duration_) {
-    case DURATION_UNIFORM:
+    case Duration::kUniform:
       return flow_pkts_;
-    case DURATION_PARETO:
+    case Duration::kPareto:
       return scaled_pareto_variate(pareto_.inversed_alpha, pareto_.mean,
                                    flow_pkts_, rng_.GetReal());
     default:
@@ -58,9 +53,9 @@ inline double FlowGen::NewFlowPkts() {
 
 inline double FlowGen::MaxFlowPkts() const {
   switch (duration_) {
-    case DURATION_UNIFORM:
+    case Duration::kUniform:
       return flow_pkts_;
-    case DURATION_PARETO:
+    case Duration::kPareto:
       return scaled_pareto_variate(pareto_.inversed_alpha, pareto_.mean,
                                    flow_pkts_, 1.0);
     default:
@@ -71,10 +66,10 @@ inline double FlowGen::MaxFlowPkts() const {
 
 inline uint64_t FlowGen::NextFlowArrival() {
   switch (arrival_) {
-    case ARRIVAL_UNIFORM:
+    case Arrival::kUniform:
       return flow_gap_ns_;
       break;
-    case ARRIVAL_EXPONENTIAL:
+    case Arrival::kExponential:
       return -log(rng_.GetRealNonzero()) * flow_gap_ns_;
       break;
     default:
@@ -200,9 +195,9 @@ pb_error_t FlowGen::ProcessArguments(const bess::pb::FlowGenArg &arg) {
   }
 
   if (arg.arrival() == "uniform") {
-    arrival_ = ARRIVAL_UNIFORM;
+    arrival_ = Arrival::kUniform;
   } else if (arg.arrival() == "exponential") {
-    arrival_ = ARRIVAL_EXPONENTIAL;
+    arrival_ = Arrival::kExponential;
   } else {
     return pb_error(EINVAL,
                     "'arrival' must be either "
@@ -210,9 +205,9 @@ pb_error_t FlowGen::ProcessArguments(const bess::pb::FlowGenArg &arg) {
   }
 
   if (arg.duration() == "uniform") {
-    duration_ = DURATION_UNIFORM;
+    duration_ = Duration::kUniform;
   } else if (arg.duration() == "pareto") {
-    duration_ = DURATION_PARETO;
+    duration_ = Duration::kPareto;
   } else {
     return pb_error(EINVAL,
                     "'duration' must be either "
@@ -247,7 +242,7 @@ void FlowGen::UpdateDerivedParameters() {
   /* calculate derived variables */
   pareto_.inversed_alpha = 1.0 / pareto_.alpha;
 
-  if (duration_ == DURATION_PARETO) {
+  if (duration_ == Duration::kPareto) {
     MeasureParetoMean();
   }
 
@@ -325,9 +320,9 @@ pb_cmd_response_t FlowGen::CommandUpdate(const bess::pb::FlowGenArg &arg) {
   }
 
   if (arg.arrival() == "uniform") {
-    arrival_ = ARRIVAL_UNIFORM;
+    arrival_ = Arrival::kUniform;
   } else if (arg.arrival() == "exponential") {
-    arrival_ = ARRIVAL_EXPONENTIAL;
+    arrival_ = Arrival::kExponential;
   } else if (arg.arrival() != "") {
     set_cmd_response_error(
         &response,
@@ -336,9 +331,9 @@ pb_cmd_response_t FlowGen::CommandUpdate(const bess::pb::FlowGenArg &arg) {
   }
 
   if (arg.duration() == "uniform") {
-    duration_ = DURATION_UNIFORM;
+    duration_ = Duration::kUniform;
   } else if (arg.duration() == "pareto") {
-    duration_ = DURATION_PARETO;
+    duration_ = Duration::kPareto;
   } else if (arg.duration() != "") {
     set_cmd_response_error(
         &response,
@@ -363,8 +358,8 @@ pb_error_t FlowGen::Init(const bess::pb::FlowGenArg &arg) {
   total_pps_ = 1000.0;
   flow_rate_ = 10.0;
   flow_duration_ = 10.0;
-  arrival_ = ARRIVAL_UNIFORM;
-  duration_ = DURATION_UNIFORM;
+  arrival_ = Arrival::kUniform;
+  duration_ = Duration::kUniform;
   pareto_.alpha = 1.3;
 
   /* register task */
@@ -400,7 +395,6 @@ void FlowGen::DeInit() {
     flows_free_.pop();
   }
 
-  mem_free(flows_);
   delete templ_;
 }
 

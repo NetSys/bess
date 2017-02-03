@@ -24,14 +24,14 @@ struct flow {
 
 class FlowGen final : public Module {
  public:
-  enum Arrival {
-    ARRIVAL_UNIFORM = 0,
-    ARRIVAL_EXPONENTIAL,
+  enum class Arrival {
+    kUniform = 0,
+    kExponential,
   };
 
-  enum Duration {
-    DURATION_UNIFORM = 0,
-    DURATION_PARETO,
+  enum class Duration {
+    kUniform = 0,
+    kPareto,
   };
 
   static const gate_idx_t kNumIGates = 0;
@@ -39,9 +39,7 @@ class FlowGen final : public Module {
   FlowGen()
       : Module(),
         active_flows_(),
-        allocated_flows_(),
         generated_flows_(),
-        flows_(),
         flows_free_(),
         events_(),
         templ_(),
@@ -82,15 +80,16 @@ class FlowGen final : public Module {
   bess::Packet *FillPacket(struct flow *f);
   void GeneratePackets(bess::PacketBatch *batch);
 
-  pb_error_t InitFlowPool();
   pb_error_t ProcessArguments(const bess::pb::FlowGenArg &arg);
 
+  // the number of concurrent flows
   int active_flows_;
-  int allocated_flows_;
+  // the total number of flows generated so far (statistics only)
   uint64_t generated_flows_;
-  struct flow *flows_;
+  // pool of free flow structs. LIFO for temporal locality.
   std::stack<struct flow *> flows_free_;
 
+  // Priority queue of future events
   EventQueue events_;
 
   char *templ_;
