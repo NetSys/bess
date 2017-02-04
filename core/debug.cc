@@ -25,7 +25,6 @@
 #include "packet.h"
 #include "scheduler.h"
 #include "traffic_class.h"
-#include "utils/htable.h"
 
 namespace bess {
 namespace debug {
@@ -454,8 +453,6 @@ void DumpTypes(void) {
   printf("sizeof(intmax_t)=%zu\n", sizeof(intmax_t));
   printf("sizeof(void *)=%zu\n", sizeof(void *));
   printf("sizeof(size_t)=%zu\n", sizeof(size_t));
-
-  printf("sizeof(HTableBase)=%zu\n", sizeof(bess::utils::HTableBase));
 
   printf("sizeof(rte_mbuf)=%zu\n", sizeof(struct rte_mbuf));
   printf("sizeof(Packet)=%zu\n", sizeof(Packet));

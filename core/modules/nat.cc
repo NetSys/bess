@@ -29,14 +29,8 @@ std::string Flow::ToString() const {
 }
 
 pb_error_t NAT::Init(const bess::pb::NATArg &arg) {
-  flow_hash_.Init(sizeof(Flow), sizeof(FlowRecord *));
-
   InitRules(arg);
   return pb_errno(0);
-}
-
-void NAT::DeInit() {
-  flow_hash_.Close();
 }
 
 pb_cmd_response_t NAT::CommandAdd(const bess::pb::NATArg &arg) {
@@ -178,9 +172,9 @@ void NAT::ProcessBatch(bess::PacketBatch *batch) {
                      });
 
     {
-      FlowRecord **res = flow_hash_.Get(&flow);
+      auto *res = flow_hash_.Find(flow);
       if (res != nullptr) {
-        FlowRecord *record = *res;
+        FlowRecord *record = res->second;
         DCHECK_EQ(record->external_flow.src_port, record->port);
         if (now - record->time < TIME_OUT_NS) {
           // Entry exists and does not exceed timeout
@@ -196,12 +190,12 @@ void NAT::ProcessBatch(bess::PacketBatch *batch) {
           // Reclaim expired record
           record->time = 0;
           if (incoming_gate == 0) {
-            flow_hash_.Del(&flow);
+            flow_hash_.Remove(flow);
             Flow rev_flow = record->external_flow.ReverseFlow();
-            flow_hash_.Del(&rev_flow);
+            flow_hash_.Remove(rev_flow);
           } else {
-            flow_hash_.Del(&flow);
-            flow_hash_.Del(&(record->internal_flow));
+            flow_hash_.Remove(flow);
+            flow_hash_.Remove(record->internal_flow);
           }
           AvailablePorts &available_ports = rule_it->second;
           available_ports.FreeAllocated(std::make_tuple(
@@ -232,20 +226,14 @@ void NAT::ProcessBatch(bess::PacketBatch *batch) {
     if (available_ports.empty() && now >= available_ports.next_expiry()) {
       uint64_t expiry = UINT64_MAX;
 
-      uint32_t next = 0;
-      void *key;
-      while ((key = flow_hash_.Iterate(&next))) {
-        FlowRecord **res = flow_hash_.Get((Flow *)key);
-        if (res == nullptr) {
-          continue;
-        }
-        FlowRecord *record = *res;
+      for (auto it = flow_hash_.begin(); it != flow_hash_.end(); ++it) {
+        FlowRecord *record = it->second;
         if (record->time != 0 && (now - record->time) >= TIME_OUT_NS) {
           // Found expired flow entry.
           record->time = 0;
-          flow_hash_.Del(&(record->internal_flow));
+          flow_hash_.Remove(record->internal_flow);
           Flow rev_flow = record->external_flow.ReverseFlow();
-          flow_hash_.Del(&rev_flow);
+          flow_hash_.Remove(rev_flow);
           available_ports.FreeAllocated(
               std::make_tuple(record->external_flow.src_ip,
                               record->external_flow.src_port, record));
@@ -253,7 +241,6 @@ void NAT::ProcessBatch(bess::PacketBatch *batch) {
           expiry = std::min(expiry, record->time + TIME_OUT_NS);
         }
       }
-
       available_ports.set_next_expiry(expiry);
     }
 
@@ -270,15 +257,15 @@ void NAT::ProcessBatch(bess::PacketBatch *batch) {
 
     record->port = new_port;
     record->time = now;
-    record->internal_flow = flow;    // Copy
-    flow_hash_.Set(&flow, &record);  // Copy
+    record->internal_flow = flow;     // Copy
+    flow_hash_.Insert(flow, record);  // Copy
 
     flow.src_ip = new_ip;
     flow.src_port = new_port;
 
     record->external_flow = flow;
-    Flow rev_flow = flow.ReverseFlow();  // Copy
-    flow_hash_.Set(&rev_flow, &record);  // Copy
+    Flow rev_flow = flow.ReverseFlow();   // Copy
+    flow_hash_.Insert(rev_flow, record);  // Copy
 
     stamp_flow(ip, l4, flow);
     out_batch.add(pkt);

@@ -72,4 +72,41 @@ TEST(CuckooMapTest, Count) {
   EXPECT_EQ(cuckoo.Count(), 0);
 }
 
+// Test Clear function
+TEST(CuckooMapTest, Clear) {
+  CuckooMap<uint32_t, value_t> cuckoo;
+
+  EXPECT_EQ(cuckoo.Count(), 0);
+
+  cuckoo.Insert(1, 99);
+  cuckoo.Insert(2, 99);
+  EXPECT_EQ(cuckoo.Count(), 2);
+
+  cuckoo.Clear();
+  EXPECT_EQ(cuckoo.Count(), 0);
+
+  EXPECT_FALSE(cuckoo.Remove(1));
+  EXPECT_FALSE(cuckoo.Remove(2));
+}
+
+// Test iterators
+TEST(CuckooMapTest, Iterator) {
+  CuckooMap<uint32_t, value_t> cuckoo;
+
+  EXPECT_EQ(cuckoo.begin(), cuckoo.end());
+
+  cuckoo.Insert(1, 99);
+  cuckoo.Insert(2, 99);
+  auto it = cuckoo.begin();
+  EXPECT_EQ(it->first, 1);
+  EXPECT_EQ(it->second, 99);
+
+  ++it;
+  EXPECT_EQ(it->first, 2);
+  EXPECT_EQ(it->second, 99);
+
+  it++;
+  EXPECT_EQ(it, cuckoo.end());
+}
+
 }  // namespace (unnamed)
