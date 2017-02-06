@@ -16,9 +16,10 @@ using bess::utils::CIDRNetwork;
 
 #define DEFAULT_BATCH_SIZE 20 //the batch size used if non specified
 #define DEFAULT_NUM_LVLS 10 //the priority levels used if non specified
-#define FLOW_QUEUE_FACTOR 200 //multiplier on batch_size for initial queue size for a flow
+#define FLOW_QUEUE_FACTOR 100 //multiplier on batch_size for initial queue size for a flow
 #define QUEUE_GROWTH_FACTOR 2 //the scale at which the flow's queue size grows
-#define INITIAL_LOAD 50 //the packet load used if non specified
+#define FLOW_QUEUE_MAX 200000//the max flow queue size if non-specified
+#define INITIAL_LOAD 50 //the initial packet load used if non specified
 #define TTL 300 //time to live for flow entries
 
 // bool LessThanCIDR(const CIDRNetwork &ip1, const CIDRNetwork &ip2) {
@@ -32,10 +33,13 @@ class MLFQueue final : public Module {
 
   pb_error_t Init(const bess::pb::MlfqArg &arg);
 
+  void DeInit();
+
   void ProcessBatch(bess::PacketBatch *batch) override;
 
   pb_cmd_response_t CommandNumPriorityLevels(const bess::pb::MlfqLvlArg &arg);
   pb_cmd_response_t CommandBatchSize(const bess::pb::MlfqBatchArg &arg);
+  pb_cmd_response_t CommandMaxFlowQueueSize(const bess::pb::MlfqMaxFlowQueueSizeArg &arg);
 
   struct Q_Id {
     uint32_t src_ip;
@@ -56,8 +60,9 @@ class MLFQueue final : public Module {
  private:
    pb_error_t SetNumPriorityLevels(uint32_t num_lvls);
    pb_error_t SetBatchSize(uint32_t batch_size);
+   pb_error_t SetMaxFlowQueueSize(uint32_t queue_size);
    void Resize(uint8_t num_lvls);
-   int Enqueue(Flow* f, void* pkt);
+   int Enqueue(Flow* f, bess::Packet* pkt);
 
    Q_Id GetId(bess::Packet* p);
    int FindTopLevel();
@@ -75,6 +80,7 @@ class MLFQueue final : public Module {
    float load_avg_;
    int ready_flows_;
    uint32_t batch_size_;
+   uint32_t max_queue_size_;
    std::map<Q_Id, Flow> flows_;
    std::vector<std::vector<Flow*>> levels_;
 

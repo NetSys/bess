@@ -6,8 +6,12 @@
 #include <rte_udp.h>
 #include <time.h>
 
+#include <glog/logging.h>
+
 #include <string>
 #include <cmath>
+#include <iostream>
+#include <fstream>
 
 bool operator==(const MLFQueue::Q_Id &id1, const MLFQueue::Q_Id &id2) {
   bool ips = id1.src_ip == id2.src_ip && id1.dst_ip == id2.dst_ip;
@@ -20,9 +24,15 @@ bool operator<(const MLFQueue::Q_Id &id1, const MLFQueue::Q_Id &id2)  {
   return ips && ports && id1.protocol < id2.protocol;
 }
 
+int RoundToPowerTwo(int val) {
+ return pow(2, ceil(log2(val)));
+}
+
 const Commands MLFQueue::cmds = {
     {"set_num_lvls", "MlfqLvlArg", MODULE_CMD_FUNC(&MLFQueue::CommandNumPriorityLevels), 0},
-    {"set_batch_Size", "MlfqBatchArg", MODULE_CMD_FUNC(&MLFQueue::CommandBatchSize), 0}};
+    {"set_batch_Size", "MlfqBatchArg", MODULE_CMD_FUNC(&MLFQueue::CommandBatchSize), 0},
+    {"set_max_flow_queue_size", "MlfqMaxFlowQueueSizeArg",
+          MODULE_CMD_FUNC(&MLFQueue::CommandMaxFlowQueueSize), 0}};
 
 pb_error_t MLFQueue::Init(const bess::pb::MlfqArg &arg) {
   pb_error_t err;
@@ -34,6 +44,18 @@ pb_error_t MLFQueue::Init(const bess::pb::MlfqArg &arg) {
     }
   } else {
     err = SetNumPriorityLevels(DEFAULT_NUM_LVLS);
+    if (err.err() != 0) {
+      return err;
+    }
+  }
+
+  if (arg.max_flow_queue_size() != 0) {
+    err = SetMaxFlowQueueSize(arg.max_flow_queue_size());
+    if (err.err() != 0) {
+      return err;
+    }
+  } else {
+    err = SetMaxFlowQueueSize(FLOW_QUEUE_MAX);
     if (err.err() != 0) {
       return err;
     }
@@ -60,6 +82,20 @@ pb_error_t MLFQueue::Init(const bess::pb::MlfqArg &arg) {
   return pb_errno(0);
 }
 
+void MLFQueue::DeInit() {
+  bess::Packet *pkt;
+
+  for (std::map<Q_Id, Flow>::iterator it=flows_.begin(); it!=flows_.end(); ) {
+    Flow *f = &it->second;
+    if (f->queue) {
+      while (llring_sc_dequeue(f->queue, (void **)&pkt) == 0) {
+        bess::Packet::Free(pkt);
+      }
+      mem_free(f->queue);
+    }
+  }
+}
+
 pb_cmd_response_t MLFQueue::CommandNumPriorityLevels(const bess::pb::MlfqLvlArg &arg) {
   pb_cmd_response_t response;
   set_cmd_response_error(&response, SetNumPriorityLevels(arg.num_lvls()));
@@ -72,8 +108,15 @@ pb_cmd_response_t MLFQueue::CommandBatchSize(const bess::pb::MlfqBatchArg &arg) 
   return response;
 }
 
-void MLFQueue::ProcessBatch(bess::PacketBatch *batch) {
+pb_cmd_response_t MLFQueue::CommandMaxFlowQueueSize(const bess::pb::MlfqMaxFlowQueueSizeArg &arg) {
+  pb_cmd_response_t response;
+  set_cmd_response_error(&response, SetMaxFlowQueueSize(arg.max_queue_size()));
+  return response;
+}
 
+void MLFQueue::ProcessBatch(bess::PacketBatch *batch) {
+  google::SetLogDestination(google::GLOG_INFO,"/vagrant/batch.log");
+  LOG(INFO)<< std::to_string(batch->cnt());
   //insert packets in the batch into their corresponding flows
   for (int i = 0; i < batch->cnt(); i++) {
     bess::Packet *pkt = batch->pkts()[i];
@@ -84,13 +127,17 @@ void MLFQueue::ProcessBatch(bess::PacketBatch *batch) {
     //and add the packet to the new Flow
     if (it == flows_.end()) {
       Flow f = {(float) max_lvl_, 0, 0, 0};
-      assert(MLFQueue::AddQueue(&f, FLOW_QUEUE_FACTOR*batch_size_) == 0);
+      int slots = RoundToPowerTwo(FLOW_QUEUE_FACTOR*batch_size_);
+      int err = MLFQueue::AddQueue(&f, slots);
+      assert(err == 0);
+      assert(f->queue);
+      err += 1;
 
-      Enqueue(&f, (void*) pkt);
+      Enqueue(&f, pkt);
       InsertFlow(&f);
       ready_flows_ += 1;
     } else {
-      Enqueue(&it->second, (void*)pkt);
+      Enqueue(&it->second, pkt);
     }
   }
   bess::PacketBatch next_batch = GetNextBatch();
@@ -104,7 +151,7 @@ bess::PacketBatch MLFQueue::GetNextBatch() {
 
   //the highest priority level with flows.
   int lvl = FindTopLevel();
-
+  if(levels_[lvl].size() == 0) return batch;
   //the current allocated section of the batch per each flow
   int flow_max = batch_size_/levels_[lvl].size();
   int enqueued = 0;
@@ -130,8 +177,9 @@ bess::PacketBatch MLFQueue::GetNextBatch() {
 //dequeues from the specified slots from the flow f into the Packetbatch
 int MLFQueue::AddtoBatch(bess::PacketBatch *batch, Flow* f, int slots) {
   int prev = batch->cnt();
-  llring_dequeue_bulk(f->queue, (void **)batch->pkts(), slots);
-  return batch->cnt() - prev;
+  int cnt = llring_dequeue_burst(f->queue, (void **)batch->pkts(), slots);
+  if(cnt > 0) batch->set_cnt(prev+cnt);
+  return cnt;
 }
 
 //Find the first priority level with Flows in ascending order
@@ -161,7 +209,7 @@ int MLFQueue::AddQueue(Flow* f, int slots) {
   struct llring *new_queue;
 
   int bytes = llring_bytes_with_slots(slots);
-  int ret;
+  volatile int ret;
 
   new_queue = static_cast<llring *>(mem_alloc_ex(bytes, alignof(llring), 0));
   if (!new_queue) {
@@ -177,12 +225,16 @@ int MLFQueue::AddQueue(Flow* f, int slots) {
   return 0;
 }
 
-int MLFQueue::Enqueue(Flow* f, void* newpkt) {
+int MLFQueue::Enqueue(Flow* f, bess::Packet* newpkt) {
   int ret;
 
   //creates a new queue if there is not enough space for the new packet
   //in the old queue
   if(llring_full(f->queue)) {
+    if(llring_count(f->queue)*QUEUE_GROWTH_FACTOR > max_queue_size_) {
+      bess::Packet::Free(newpkt);
+      return 0;
+    }
     struct llring *old_queue = f->queue;
     ret = AddQueue(f, llring_count(f->queue)*QUEUE_GROWTH_FACTOR);
     if(ret != 0) {
@@ -283,5 +335,12 @@ pb_error_t MLFQueue::SetBatchSize(uint32_t size) {
   return pb_errno(0);
 }
 
+pb_error_t MLFQueue::SetMaxFlowQueueSize(uint32_t queue_size) {
+  if(queue_size == 0) {
+    return pb_error(EINVAL, "max queue size must be atleast 1");
+  }
+  max_queue_size_ = queue_size;
+  return pb_errno(0);
+}
 
 ADD_MODULE(MLFQueue, "MLFQueue", "Multi-Level Feedback Queue")

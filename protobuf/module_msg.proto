@@ -91,6 +91,7 @@ message MlfqArg {
   uint32 num_lvls = 1;
   uint32 batch_size = 2;
   float init_load = 3;
+  uint32 max_flow_queue_size = 4;
 }
 
 message MlfqLvlArg {
@@ -99,6 +100,10 @@ message MlfqLvlArg {
 
 message MlfqBatchArg {
   uint32 batch_size = 1;
+}
+
+message MlfqMaxFlowQueueSizeArg {
+  uint32 max_queue_size = 1;
 }
 
 message PortIncCommandSetBurstArg {
