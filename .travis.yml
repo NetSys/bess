@@ -42,7 +42,6 @@ script:
 
 after_success:
   - "[[ ${DEBUG:-0} != 0 ]] && bash <(curl -s https://codecov.io/bash)"
-  - for bench in core/*_bench; do ./$bench; done
 
 notifications:
   slack: nefeli:x5udJ7nDIKjCaCrRYprGc4mw
