@@ -1,5 +1,4 @@
 #include "module.h"
-#include "module_msg.pb.h"
 
 #include <stdlib.h>
 #include <string.h>
