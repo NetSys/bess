@@ -30,35 +30,33 @@ RTE_TARGET ?= $(shell uname -m)-native-linuxapp-gcc
 DPDK_LIB ?= dpdk
 
 ifneq ($(wildcard $(RTE_SDK)/$(RTE_TARGET)/*),)
-    DPDK_INC_DIR = $(RTE_SDK)/$(RTE_TARGET)/include
-    DPDK_LIB_DIR = $(RTE_SDK)/$(RTE_TARGET)/lib
+	DPDK_INC_DIR := $(RTE_SDK)/$(RTE_TARGET)/include
+	DPDK_LIB_DIR := $(RTE_SDK)/$(RTE_TARGET)/lib
 else ifneq ($(wildcard $(RTE_SDK)/build/*),)
-    # if the user didn't do "make install" for DPDK
-    DPDK_INC_DIR = $(RTE_SDK)/build/include
-    DPDK_LIB_DIR = $(RTE_SDK)/build/lib
-else
-    ifeq ($(words $(MAKECMDGOALS)),1)
-        ifneq ($(MAKECMDGOALS),clean)
-            $(error DPDK is not available. \
-                    Make sure $(abspath $(RTE_SDK)) is available and built)
-        endif
-    endif
+	# if the user didn't do "make install" for DPDK
+	DPDK_INC_DIR := $(RTE_SDK)/build/include
+	DPDK_LIB_DIR := $(RTE_SDK)/build/lib
+else ifeq ($(words $(MAKECMDGOALS)),1)
+	ifneq ($(MAKECMDGOALS),clean)
+	$(error DPDK is not available. \
+		Make sure $(abspath $(RTE_SDK)) is available and built)
+	endif
 endif
 
 CXXFLAGS += -std=gnu++11 -g3 -ggdb3 -march=native \
-            -Werror -isystem $(DPDK_INC_DIR) -D_GNU_SOURCE \
-            -Wall -Wextra -Wcast-align
+	    -Werror -isystem $(DPDK_INC_DIR) -D_GNU_SOURCE \
+	    -Wall -Wextra -Wcast-align
 
-PERMISSIVE = -Wno-unused-parameter -Wno-missing-field-initializers \
-             -Wno-unused-private-field
+PERMISSIVE := -Wno-unused-parameter -Wno-missing-field-initializers \
+	      -Wno-unused-private-field
 
 # -Wshadow should not be used for g++ 4.x, as it has too many false positives
 ifeq "$(shell expr $(CXXCOMPILER) = g++ \& $(CXXVERSION) \< 50000)" "0"
-    CXXFLAGS += -Wshadow
+	CXXFLAGS += -Wshadow
 endif
 
 LDFLAGS += -rdynamic -L$(DPDK_LIB_DIR) -Wl,-rpath=$(DPDK_LIB_DIR) -pthread \
-           -static-libstdc++
+	   -static-libstdc++
 
 LIBS += -Wl,-non_shared \
 	-Wl,--whole-archive -l$(DPDK_LIB) -Wl,--no-whole-archive \
@@ -68,45 +66,45 @@ LIBS += -Wl,-non_shared \
 	-ldl
 
 ifdef SANITIZE
-    CXXFLAGS += -fsanitize=address -fsanitize=undefined -fno-omit-frame-pointer
-    LDFLAGS += -fsanitize=address -fsanitize=undefined
+	CXXFLAGS += -fsanitize=address -fsanitize=undefined -fno-omit-frame-pointer
+	LDFLAGS += -fsanitize=address -fsanitize=undefined
 endif
 
 ifdef DEBUG
-    CXXFLAGS += --coverage -O1
-    LDFLAGS += --coverage
+	CXXFLAGS += --coverage -O1
+	LDFLAGS += --coverage
 else
-    CXXFLAGS += -Ofast -DNDEBUG 
+	CXXFLAGS += -Ofast -DNDEBUG
 endif
 
 -include extra.dpdk.mk
 -include extra.mk
 
-PROTO_DIR = ../protobuf
-PROTOS = $(wildcard $(PROTO_DIR)/*.proto)
-PROTO_SRCS = $(patsubst %.proto,%.pb.cc, $(notdir $(PROTOS)))
+PROTO_DIR := $(abspath ../protobuf)
+PROTOS := $(wildcard $(PROTO_DIR)/*.proto)
+PROTO_SRCS := $(patsubst %.proto,%.pb.cc, $(notdir $(PROTOS)))
 PROTO_SRCS += $(patsubst %.proto,%.grpc.pb.cc, $(notdir $(PROTOS)))
-PROTO_HEADERS = $(patsubst %.cc,%.h, $(PROTO_SRCS))
+PROTO_HEADERS := $(patsubst %.cc,%.h, $(PROTO_SRCS))
 PROTOCFLAGS += --proto_path=$(PROTO_DIR) --cpp_out=. --grpc_out=. --plugin=protoc-gen-grpc=`which grpc_cpp_plugin`
 
-ALL_SRCS = $(wildcard *.cc utils/*.cc modules/*.cc drivers/*.cc hooks/*.cc)
-HEADERS = $(wildcard *.h utils/*.h modules/*.h drivers/*.h hooks/*.h)
+ALL_SRCS := $(wildcard *.cc utils/*.cc modules/*.cc drivers/*.cc hooks/*.cc)
+HEADERS := $(wildcard *.h utils/*.h modules/*.h drivers/*.h hooks/*.h)
 
-TEST_SRCS = $(filter %_test.cc gtest_main.cc, $(ALL_SRCS))
-TEST_OBJS = $(TEST_SRCS:.cc=.o)
-TEST_EXEC = $(filter-out gtest_main, $(TEST_OBJS:%.o=%))
-TEST_ALL_EXEC = all_test
+TEST_SRCS := $(filter %_test.cc gtest_main.cc, $(ALL_SRCS))
+TEST_OBJS := $(TEST_SRCS:.cc=.o)
+TEST_EXEC := $(filter-out gtest_main, $(TEST_OBJS:%.o=%))
+TEST_ALL_EXEC := all_test
 
-BENCH_SRCS = $(filter %_bench.cc, $(ALL_SRCS))
-BENCH_OBJS = $(BENCH_SRCS:.cc=.o)
-BENCH_EXEC = $(BENCH_OBJS:%.o=%)
+BENCH_SRCS := $(filter %_bench.cc, $(ALL_SRCS))
+BENCH_OBJS := $(BENCH_SRCS:.cc=.o)
+BENCH_EXEC := $(BENCH_OBJS:%.o=%)
 
-SRCS = $(filter-out $(TEST_SRCS) $(BENCH_SRCS), $(ALL_SRCS)) $(PROTO_SRCS)
-OBJS = $(SRCS:.cc=.o)
+SRCS := $(filter-out $(TEST_SRCS) $(BENCH_SRCS), $(ALL_SRCS)) $(PROTO_SRCS)
+OBJS := $(SRCS:.cc=.o)
 
-EXEC = bessd
+EXEC := bessd
 
-GTEST_DIR = /usr/src/gtest
+GTEST_DIR := /usr/src/gtest
 
 .PHONY: all clean tags cscope tests benchmarks protobuf
 
@@ -139,8 +137,8 @@ protobuf: $(PROTO_SRCS)
 # $(4): command
 define BUILD
 $(2): $(3)
-	$$(eval _TYPE = $$(strip $(1)))
-	$$(eval _CMD = $$(strip $(4)))
+	$$(eval _TYPE := $$(strip $(1)))
+	$$(eval _CMD := $$(strip $(4)))
 	@if [ $$(VERBOSE) -eq 0 ]; then \
 		printf "%-11s %s\n" "[$$(_TYPE)]" "$$@"; \
 	else \
@@ -156,72 +154,70 @@ endef
 $(eval $(call BUILD, \
 	PROTOC, \
 	%.pb.cc %.pb.h %.grpc.pb.cc %.grpc.pb.h, \
-	$$(PROTO_DIR)/%.proto, \
-	$$(PROTOC) $$< $$(PROTOCFLAGS)))
+	$(PROTO_DIR)/%.proto, \
+	$(PROTOC) $$< $(PROTOCFLAGS)))
 
 $(eval $(call BUILD, \
 	CXX, \
 	%.pb.o, \
-	%.pb.cc $(DEPDIR)/$$@.d, \
-	$$(CXX) -o $$@ -c $$< $$(CXXFLAGS) $$(PERMISSIVE) $$(DEPFLAGS)))
+	%.pb.cc, \
+	$(CXX) -o $$@ -c $$< $(CXXFLAGS) $(PERMISSIVE) $$(DEPFLAGS)))
 
 $(eval $(call BUILD, \
 	CXX, \
 	%.o, \
-	%.cc $(PROTO_HEADERS) $(DEPDIR)/$$@.d, \
-	$$(CXX) -o $$@ -c $$< $$(CXXFLAGS) $$(DEPFLAGS)))
+	%.cc $(PROTO_HEADERS), \
+	$(CXX) -o $$@ -c $$< $(CXXFLAGS) $$(DEPFLAGS)))
 
 $(eval $(call BUILD, \
 	LD, \
-	$$(EXEC), \
-	$$(OBJS), \
-	$$(CXX) -o $$@ $$^ $$(LDFLAGS) $$(LIBS)))
+	$(EXEC), \
+	$(OBJS), \
+	$(CXX) -o $$@ $$^ $(LDFLAGS) $(LIBS)))
 
 $(eval $(call BUILD, \
 	TEST_CXX, \
 	%_test.o, \
-	%_test.cc $(DEPDIR)/$$@.d, \
-	$$(CXX) -o $$@ -c $$< $$(CXXFLAGS) $$(DEPFLAGS)))
+	%_test.cc, \
+	$(CXX) -o $$@ -c $$< $(CXXFLAGS) $$(DEPFLAGS)))
 
 $(eval $(call BUILD, \
 	TEST_LD, \
 	%_test, \
 	%_test.o gtest-all.o gtest_main.o bess.a, \
-	$$(CXX) -o $$@ $$^ $$(LDFLAGS) $(LIBS)))
+	$(CXX) -o $$@ $$^ $(LDFLAGS) $(LIBS)))
 
 $(eval $(call BUILD, \
 	TEST_LD, \
-	$$(TEST_ALL_EXEC), \
-	$$(TEST_OBJS) gtest-all.o bess.a, \
-	$$(CXX) -o $$@ $$^ $$(LDFLAGS) $(LIBS)))
+	$(TEST_ALL_EXEC), \
+	$(TEST_OBJS) gtest-all.o bess.a, \
+	$(CXX) -o $$@ $$^ $(LDFLAGS) $(LIBS)))
 
 $(eval $(call BUILD, \
 	TEST_CXX, \
 	gtest-all.o, \
-	$$(GTEST_DIR)/src/gtest-all.cc, \
-	$$(CXX) -o $$@ -c $$< -isystem $$(GTEST_DIR) $$(CXXFLAGS) $$(DEPFLAGS)))
+	$(GTEST_DIR)/src/gtest-all.cc, \
+	$(CXX) -o $$@ -c $$< -isystem $(GTEST_DIR) $(CXXFLAGS) $$(DEPFLAGS)))
 
 $(eval $(call BUILD, \
 	BENCH_CXX, \
 	%_bench.o, \
-	%_bench.cc $(DEPDIR)/$$@.d, \
-	$$(CXX) -o $$@ -c $$< $$(CXXFLAGS) $$(DEPFLAGS)))
+	%_bench.cc, \
+	$(CXX) -o $$@ -c $$< $(CXXFLAGS) $$(DEPFLAGS)))
 
 $(eval $(call BUILD, \
 	BENCH_LD, \
 	%_bench, \
-	%_bench.o %.o bess.a, \
-	$$(CXX) -o $$@ $$^ $$(LDFLAGS) -lbenchmark $(LIBS)))
+	%_bench.o bess.a, \
+	$(CXX) -o $$@ $$^ $(LDFLAGS) -lbenchmark $(LIBS)))
 
-CORE_OBJS = $(filter-out main.o %_bench.o, $(OBJS))
+LIB_OBJS := $(filter-out main.o, $(OBJS))
 
 $(eval $(call BUILD, \
 	AR, \
 	bess.a, \
-	$(CORE_OBJS), \
-	$$(AR) rcs $$@ $$^))
-
-%.d: ;
+	$(LIB_OBJS), \
+	$(AR) rcs $$@ $$^))
 
 .PRECIOUS: %.d $(PROTO_HEADERS)
 
