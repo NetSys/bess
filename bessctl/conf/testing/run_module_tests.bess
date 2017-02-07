@@ -128,8 +128,8 @@ for filename in glob.glob(path + "/conf/testing/module_tests/*.py"):
                     (return_pkt == scapy.Ether(output_pkt)))):
                 sys.stderr.write("Test failed!\n")
                 sys.stderr.write("Input packet: %s\n" %
-                      pkt_str(input_pkt))
-                sys.stderr.write("Expected: %s\n" % pkt_str(output_pkt))
+                      pkt_str(scapy.Ether(input_pkt)))
+                sys.stderr.write("Expected: %s\n" % pkt_str(scapy.Ether(output_pkt)))
                 sys.stderr.write("Received: %s\n" % pkt_str(return_pkt))
                 for sock in sockets:
                     sock.close()
