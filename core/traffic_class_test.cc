@@ -229,6 +229,8 @@ TEST(SchedulerNext, BasicTreeRoundRobin) {
 // Tess that we can create a simple tree and have the scheduler pick the leaf
 // repeatedly.
 TEST(SchedulerNext, BasicTreeRateLimit) {
+  uint64_t new_limit = 25;
+  uint64_t new_burst = 50;
   Scheduler s(CT("root", {RATE_LIMIT, RESOURCE_COUNT, 50, 100},
                  {RATE_LIMIT, CT("leaf", {LEAF})}));
   ASSERT_EQ(2, TrafficClassBuilder::Find("root")->Size());
@@ -238,6 +240,22 @@ TEST(SchedulerNext, BasicTreeRateLimit) {
 
   RateLimitTrafficClass *c = static_cast<RateLimitTrafficClass *>(s.root());
   ASSERT_NE(nullptr, c);
+
+  ASSERT_EQ(RESOURCE_COUNT, c->resource());
+  ASSERT_EQ(50, c->limit_arg());
+  ASSERT_EQ(RateLimitTrafficClass::to_work_units(50), c->limit());
+  ASSERT_EQ(100, c->max_burst_arg());
+  ASSERT_EQ(RateLimitTrafficClass::to_work_units(100), c->max_burst());
+
+  c->set_resource(RESOURCE_PACKET);
+  c->set_limit(new_limit);
+  c->set_max_burst(new_burst);
+
+  ASSERT_EQ(RESOURCE_PACKET, c->resource());
+  ASSERT_EQ(new_limit, c->limit_arg());
+  ASSERT_EQ(RateLimitTrafficClass::to_work_units(new_limit), c->limit());
+  ASSERT_EQ(new_burst, c->max_burst_arg());
+  ASSERT_EQ(RateLimitTrafficClass::to_work_units(new_burst), c->max_burst());
 
   LeafTrafficClass *leaf = static_cast<LeafTrafficClass *>(c->child());
   ASSERT_NE(nullptr, leaf);
@@ -439,11 +457,11 @@ TEST(ScheduleOnce, LeavesWeightedFairAndRoundRobin) {
          {{WEIGHTED_FAIR, 2,
            CT("rr_1", {ROUND_ROBIN}, {{ROUND_ROBIN, CT("leaf_1a", {LEAF})},
                                       {ROUND_ROBIN, CT("leaf_1b", {LEAF})}})},
-          {WEIGHTED_FAIR, 5,
-           CT("rr_2", {ROUND_ROBIN}, {
-                                         {ROUND_ROBIN, CT("leaf_2a", {LEAF})},
-                                         {ROUND_ROBIN, CT("leaf_2b", {LEAF})},
-                                     })}}));
+          {WEIGHTED_FAIR, 5, CT("rr_2", {ROUND_ROBIN},
+                                {
+                                    {ROUND_ROBIN, CT("leaf_2a", {LEAF})},
+                                    {ROUND_ROBIN, CT("leaf_2b", {LEAF})},
+                                })}}));
   ASSERT_EQ(7, TrafficClassBuilder::Find("root")->Size());
 
   std::map<std::string, LeafTrafficClass *> leaves;
