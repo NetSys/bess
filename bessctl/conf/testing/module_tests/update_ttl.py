@@ -12,7 +12,7 @@ CRASH_TEST_INPUTS.append([m0, 1, 1])
 # Decrement Test
 m1 = UpdateTTL()
 in_packet = gen_packet(scapy.TCP, '22.22.22.22', '22.22.22.22', ip_ttl=2)
-out_packet= scapy.Ether(in_packet);
+out_packet = scapy.Ether(in_packet)
 out_packet.ttl -= 1
 out_packet = str(out_packet)
 OUTPUT_TEST_INPUTS.append([m1, 1, 1,
