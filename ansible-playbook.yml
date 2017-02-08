@@ -98,7 +98,7 @@
       become: true
 
     - name: Install linux-headers
-      shell: apt-get install linux-headers-`uname -r`
+      shell: apt-get -y install linux-headers-`uname -r`
       become: true
 
     - name: Update submodules
