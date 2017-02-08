@@ -100,7 +100,7 @@ for filename in glob.glob(path + "/conf/testing/module_tests/*.py"):
         sockets = []
 
         for port_num in range(max(input_port_cnt, output_port_cnt)):
-            sockname = str(output_testid) + "moduletesting-" + \
+            sockname= module.name +"_" + str(output_testid) + "_moduletesting_" + \
                 SCRIPT_STARTTIME + str(port_num)
             socket_port, mysocket = gen_socket_and_port(sockname)
             input_ports.append(PortInc(port=sockname))
