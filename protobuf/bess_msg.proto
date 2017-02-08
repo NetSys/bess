@@ -203,6 +203,10 @@ message AddTcRequest {
   TrafficClass class = 1;
 }
 
+message UpdateTcRequest {
+  TrafficClass class = 1;
+}
+
 message GetTcStatsRequest {
   string name = 1;
 }
