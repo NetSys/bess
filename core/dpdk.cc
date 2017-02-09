@@ -66,7 +66,7 @@ static ssize_t dpdk_log_writer(void *, const char *data, size_t len) {
 }
 
 static void init_eal(const char *prog_name, int mb_per_socket,
-                     int multi_instance, bool no_huge) {
+                     int multi_instance, bool no_huge, int default_core) {
   int rte_argc = 0;
   const char *rte_argv[16];
 
@@ -84,7 +84,7 @@ static void init_eal(const char *prog_name, int mb_per_socket,
 
   snprintf(opt_master_lcore, sizeof(opt_master_lcore), "%d", RTE_MAX_LCORE - 1);
   snprintf(opt_lcore_bitmap, sizeof(opt_lcore_bitmap), "%d@%d",
-           RTE_MAX_LCORE - 1, 0);
+           RTE_MAX_LCORE - 1, default_core);
 
   if (mb_per_socket <= 0) {
     mb_per_socket = 2048;
@@ -152,7 +152,40 @@ static void init_eal(const char *prog_name, int mb_per_socket,
   rte_openlog_stream(fopencookie(nullptr, "w", dpdk_log_funcs));
 }
 
+// Returns the last core ID of all cores, as the default core all threads will
+// run on. If the process was run with a limited set of cores (by `taskset`),
+// the last one among them will be picked.
+static int determine_default_core() {
+  cpu_set_t set;
+
+  int ret = pthread_getaffinity_np(pthread_self(), sizeof(set), &set);
+  if (ret < 0) {
+    PLOG(WARNING) << "pthread_getaffinity_np()";
+    return 0; // Core 0 as a fallback
+  }
+
+  // Choose the last core available
+  for (int i = CPU_SETSIZE; i >= 0; i--) {
+    if (CPU_ISSET(i, &set)) {
+      return i;
+    }
+  }
+
+  // This will never happen, but just in case.
+  PLOG(WARNING) << "No core is allowed for the process?";
+  return 0;
+}
+
 void init_dpdk(const ::std::string &prog_name, int mb_per_socket,
                int multi_instance, bool no_huge) {
-  init_eal(prog_name.c_str(), mb_per_socket, multi_instance, no_huge);
+  // Isolate all background threads in a separate core.
+  // All non-worker threads will be scheduled on default_core,
+  // including threads spawned by DPDK and gRPC.
+  // FIXME: This is a temporary fix. If a new worker thread is allocated on the
+  //        same core, background threads should migrate to another core.
+  int default_core = determine_default_core();
+  ctx.SetNonWorker();
+
+  init_eal(prog_name.c_str(), mb_per_socket, multi_instance, no_huge,
+           default_core);
 }

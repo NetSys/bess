@@ -286,7 +286,9 @@ static ::Port* create_port(const std::string& name, const PortBuilder& driver,
   p->queue_size[PACKET_DIR_INC] = size_inc_q;
   p->queue_size[PACKET_DIR_OUT] = size_out_q;
 
+  // DPDK functions may be called, so be prepared
   ctx.SetNonWorker();
+
   *perr = p->InitWithGenericArg(arg);
   if (perr->err() != 0) {
     return nullptr;
@@ -305,6 +307,7 @@ static Module* create_module(const std::string& name,
                              pb_error_t* perr) {
   Module* m = builder.CreateModule(name, &bess::metadata::default_pipeline);
 
+  // DPDK functions may be called, so be prepared
   ctx.SetNonWorker();
   *perr = m->InitWithGenericArg(arg);
   if (perr->err() != 0) {
@@ -1326,29 +1329,15 @@ class BESSControlImpl final : public BESSControl::Service {
       return return_with_error(response, ENOENT, "No module '%s' found",
                                request->name().c_str());
     }
+
+    // DPDK functions may be called, so be prepared
+    ctx.SetNonWorker();
+
     Module* m = it->second;
     *response = m->RunCommand(request->cmd(), request->arg());
     return Status::OK;
   }
 };
-
-static void reset_core_affinity() {
-  cpu_set_t set;
-  unsigned int i;
-
-  CPU_ZERO(&set);
-
-  // set all cores...
-  for (i = 0; i < rte_lcore_count(); i++)
-    CPU_SET(i, &set);
-
-  // ...and then unset the ones where workers run
-  for (i = 0; i < MAX_WORKERS; i++)
-    if (is_worker_active(i))
-      CPU_CLR(workers[i]->core(), &set);
-
-  rte_thread_set_affinity(&set);
-}
 
 // TODO: C++-ify
 static std::unique_ptr<Server> server;
@@ -1356,9 +1345,6 @@ static BESSControlImpl service;
 
 void SetupControl() {
   ServerBuilder builder;
-
-  reset_core_affinity();
-  ctx.SetNonWorker();
 
   if (FLAGS_p) {
     std::string server_address = bess::utils::Format("127.0.0.1:%d", FLAGS_p);
