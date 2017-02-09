@@ -1032,7 +1032,7 @@ def _group(number):
 
 
 def _show_port(cli, port):
-    cli.fout.write('  %s/%s\n' % (port.name, port.driver))
+    cli.fout.write('  %s/%s/%s\n' % (port.name, port.mac_addr, port.driver))
 
     port_stats = cli.bess.get_port_stats(port.name)
 
