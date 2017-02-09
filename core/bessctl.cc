@@ -485,8 +485,8 @@ class BESSControlImpl final : public BESSControl::Service {
               const bess::RateLimitTrafficClass* rl =
                   reinterpret_cast<const bess::RateLimitTrafficClass*>(c);
               std::string resource = bess::ResourceName.at(rl->resource());
-              int64_t limit = rl->limit();
-              int64_t max_burst = rl->max_burst();
+              int64_t limit = rl->limit_arg();
+              int64_t max_burst = rl->max_burst_arg();
               status->mutable_class_()->mutable_limit()->insert(
                   {resource, limit});
               status->mutable_class_()->mutable_max_burst()->insert(
@@ -630,6 +630,50 @@ class BESSControlImpl final : public BESSControl::Service {
     }
     if (fail) {
       return return_with_error(response, EINVAL, "AddChild() failed");
+    }
+
+    return Status::OK;
+  }
+  Status UpdateTc(ServerContext*, const UpdateTcRequest* request,
+                  EmptyResponse* response) override {
+    if (is_any_worker_running()) {
+      return return_with_error(response, EBUSY, "There is a running worker");
+    }
+
+    const char* tc_name = request->class_().name().c_str();
+    if (request->class_().name().length() == 0) {
+      return return_with_error(response, EINVAL, "Missing 'name' field");
+    }
+
+    const auto all_tcs = TrafficClassBuilder::all_tcs();
+    auto it = all_tcs.find(tc_name);
+    if (it == all_tcs.end()) {
+      return return_with_error(response, ENOENT, "Name '%s' doesn't exist",
+                               tc_name);
+    }
+
+    bess::TrafficClass* c = it->second;
+
+    if (c->policy() == bess::POLICY_RATE_LIMIT) {
+      bess::RateLimitTrafficClass* tc =
+          reinterpret_cast<bess::RateLimitTrafficClass*>(c);
+      const std::string& resource = request->class_().resource();
+      const auto& limits = request->class_().limit();
+      const auto& max_bursts = request->class_().max_burst();
+      if (bess::ResourceMap.count(resource) == 0) {
+        return return_with_error(response, EINVAL, "Invalid resource");
+      }
+      tc->set_resource(bess::ResourceMap.at(resource));
+      if (limits.find(resource) != limits.end()) {
+        tc->set_limit(limits.at(resource));
+      }
+      if (max_bursts.find(resource) != max_bursts.end()) {
+        tc->set_max_burst(max_bursts.at(resource));
+      }
+    } else {
+      return return_with_error(response, EINVAL,
+                               "Can only update RateLimit "
+                               "TCs");
     }
 
     return Status::OK;

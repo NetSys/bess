@@ -18,6 +18,7 @@ service BESSControl {
   rpc ResetTcs (EmptyRequest) returns (EmptyResponse) {}
   rpc ListTcs (ListTcsRequest) returns (ListTcsResponse) {}
   rpc AddTc (AddTcRequest) returns (EmptyResponse) {}
+  rpc UpdateTc (UpdateTcRequest) returns (EmptyResponse) {}
   rpc GetTcStats (GetTcStatsRequest) returns (GetTcStatsResponse) {}
 
   rpc ListDrivers (EmptyRequest) returns (ListDriversResponse) {}

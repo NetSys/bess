@@ -434,6 +434,22 @@ class BESS(object):
 
         return self._request('AddTc', request)
 
+    def update_tc(self, name, resource=None, limit=None, max_burst=None):
+        request = bess_msg.UpdateTcRequest()
+        class_ = getattr(request, 'class')
+        class_.name = name
+        class_.resource = resource
+
+        if limit:
+            for k in limit:
+                class_.limit[k] = limit[k]
+
+        if max_burst:
+            for k in max_burst:
+                class_.max_burst[k] = max_burst[k]
+
+        return self._request('UpdateTc', request)
+
     def get_tc_stats(self, name):
         request = bess_msg.GetTcStatsRequest()
         request.name = name
