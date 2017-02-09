@@ -412,6 +412,15 @@ class BESSControlImpl final : public BESSControl::Service {
     launch_worker(wid, core);
     return Status::OK;
   }
+  Status DestroyWorker(ServerContext*, const DestroyWorkerRequest* request,
+                       EmptyResponse* response) override {
+    uint64_t wid = request->wid();
+    if (wid >= MAX_WORKERS) {
+      return return_with_error(response, EINVAL, "Missing 'wid' field");
+    }
+    destroy_worker(wid);
+    return Status::OK;
+  }
   Status ResetTcs(ServerContext*, const EmptyRequest*,
                   EmptyResponse* response) override {
     if (is_any_worker_running()) {

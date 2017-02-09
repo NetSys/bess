@@ -113,7 +113,7 @@ void resume_all_workers() {
     resume_worker(wid);
 }
 
-static void destroy_worker(int wid) {
+void destroy_worker(int wid) {
   pause_worker(wid);
 
   if (workers[wid] && workers[wid]->status() == WORKER_PAUSED) {

@@ -760,6 +760,13 @@ def command_module(cli, module, cmd, arg_type, args):
         cli.bess.resume_all()
 
 
+@cmd('delete worker WORKER_ID...', 'Delete a worker')
+def delete_worker(cli, wids):
+    wids = sorted(list(set(wids)))
+    for wid in wids:
+        cli.bess.destroy_worker(wid)
+
+
 @cmd('delete port PORT', 'Delete a port')
 def delete_port(cli, port):
     cli.bess.destroy_port(port)
