@@ -25,14 +25,89 @@ def gen_socket_and_port(sockname):
     return socket_port, s
 
 # Craft a packet with the specified IP addresses
-# All the other fields -- Ether, ports -- are dummy values.
-def gen_packet(proto, src_ip, dst_ip):
-    eth = scapy.Ether(src='02:1e:67:9f:4d:ae', dst='06:16:3e:1b:72:32')
-    ip = scapy.IP(src=src_ip, dst=dst_ip)
-    udp = proto(sport=10001, dport=10002)
+# Ether is dummy, ports -- dummy if non-specified.
+def gen_packet(proto, src_ip, dst_ip, src_port=1001, dest_port=1002, ip_ttl=64):
+    eth = scapy.Ether(src='02:1e:67:9f:4d:ae', dst='06:16:3e:1b:72:32', )
+    ip = scapy.IP(src=src_ip, dst=dst_ip, ttl=ip_ttl)
+    udp = proto(sport=src_port, dport=dest_port)
     payload = 'helloworld'
     pkt = eth / ip / udp / payload
     return str(pkt)
+
+#generates a batch of identical packets from gen_packet
+def gen_batch(num_pkts, protocol, input_ip, output_ip, src_port=1001, dest_port=1002):
+    batch = ""
+    for i in range(num_pkts):
+         batch += gen_packet(protocol, input_ip, output_ip, src_port, dest_port)
+
+    return batch
+
+def set_up_module_ports(module, input_port_cnt, output_port_cnt):
+    input_ports = []
+    output_ports = []
+    sockets = []
+
+    for port_num in range(max(input_port_cnt, output_port_cnt)):
+        sockname= module.name + "_moduletesting_" + \
+            strftime("%Y-%m-%d-%H-%M-%S", gmtime()) + str(port_num)
+        socket_port, mysocket = gen_socket_and_port(sockname)
+        input_ports.append(PortInc(port=sockname))
+        output_ports.append(PortOut(port=sockname))
+        sockets.append(mysocket)
+        if (port_num < input_port_cnt):
+          input_ports[port_num] -> port_num:module
+        if (port_num < output_port_cnt):
+          module:port_num -> output_ports[port_num]
+
+    bess.resume_all()
+
+    return sockets, [input_ports, output_ports]
+
+
+#sends batches to the specified modules. should be used in conjunction with
+#receive_batches_tests for testing.
+def send_batches(sockets, batches):
+
+    for batch in batches:
+        input_port = batch['input_port']
+        input_batch = batch['input_batch']
+        if(input_batch is not None):
+          sockets[input_port].send(input_batch)
+
+#tests to make sure that the packets outputted from module are correct
+#should be used in conjunction with send_batches for testing.
+def test_output_batches(module, sockets, test_cases):
+  testid = 0;
+
+  for test_case in test_cases:
+      output_port = test_case["output_port"]
+      output_batch = test_case["output_batch"]
+
+      for output_pkt in output_batch:
+
+        try:
+            return_pkt = scapy.Ether(sockets[output_port].recv(2048))
+        except socket.timeout:
+            return_pkt = None
+        if(not ((return_pkt is None and output_pkt is None) or
+                (return_pkt == scapy.Ether(output_pkt)))):
+            sys.stderr.write("Test failed!\n")
+            sys.stderr.write("Expected: %s\n" % pkt_str(scapy.Ether(output_pkt)))
+            sys.stderr.write("Received: %s\n" % pkt_str(return_pkt))
+            for sock in sockets:
+                sock.close()
+            return;
+
+      print("   %s receive batch test %s: PASS\n" %
+            (str(module), str(testid)))
+      testid += 1
+  # tests passed!
+  for sock in sockets:
+      sock.close()
+  bess.pause_all()
+
+def MonitorTask(module, wid):
+  bess.attach_task(module.name, 0, wid=wid)
 
 # Quick turn a packet into a string even if it is None
 def pkt_str(pkt):
@@ -100,7 +175,7 @@ for filename in glob.glob(path + "/conf/testing/module_tests/*.py"):
         sockets = []
 
         for port_num in range(max(input_port_cnt, output_port_cnt)):
-            sockname = str(output_testid) + "moduletesting-" + \
+            sockname= module.name +"_" + str(output_testid) + "_moduletesting_" + \
                 SCRIPT_STARTTIME + str(port_num)
             socket_port, mysocket = gen_socket_and_port(sockname)
             input_ports.append(PortInc(port=sockname))
@@ -145,7 +220,7 @@ for filename in glob.glob(path + "/conf/testing/module_tests/*.py"):
     for test in CUSTOM_TEST_FUNCTIONS:
         try:
             test()
-        except Error:
+        except:
             sys.stderr.write("Test failed!\n")
             sys.stderr.write("Return value: %s\n" % sys.exc_info()[0])
             sys.exit(1)

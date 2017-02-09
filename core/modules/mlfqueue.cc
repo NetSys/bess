@@ -1,49 +1,57 @@
 #include "mlfqueue.h"
-#include "../mem_alloc.h"
 
 #include <rte_ether.h>
 #include <rte_ip.h>
 #include <rte_udp.h>
+
 #include <time.h>
-
-#include <glog/logging.h>
-
 #include <string>
 #include <cmath>
 #include <iostream>
 #include <fstream>
 
-bool operator==(const MLFQueue::Q_Id &id1, const MLFQueue::Q_Id &id2) {
+#include <glog/logging.h>
+
+#include "../mem_alloc.h"
+
+bool operator==(const MLFQueue::Flow_Id &id1, const MLFQueue::Flow_Id &id2) {
   bool ips = id1.src_ip == id2.src_ip && id1.dst_ip == id2.dst_ip;
   bool ports = id1.src_port == id2.src_port && id1.dst_port == id2.dst_port;
   return ips && ports && id1.protocol == id2.protocol;
 }
-bool operator<(const MLFQueue::Q_Id &id1, const MLFQueue::Q_Id &id2)  {
+bool operator<(const MLFQueue::Flow_Id &id1, const MLFQueue::Flow_Id &id2)  {
   bool ips = id1.src_ip < id2.src_ip && id1.dst_ip < id2.dst_ip;
   bool ports = id1.src_port < id2.src_port && id1.dst_port < id2.dst_port;
   return ips && ports && id1.protocol < id2.protocol;
 }
 
-int RoundToPowerTwo(int val) {
- return pow(2, ceil(log2(val)));
+int RoundToPowerTwo(uint32_t v) {
+  v--;
+  v |= v >> 1;
+  v |= v >> 2;
+  v |= v >> 4;
+  v |= v >> 8;
+  v |= v >> 16;
+  v++;
+  return v;
 }
 
 const Commands MLFQueue::cmds = {
-    {"set_num_lvls", "MlfqLvlArg", MODULE_CMD_FUNC(&MLFQueue::CommandNumPriorityLevels), 0},
+    {"set_num_levels", "MlfqLevelArg", MODULE_CMD_FUNC(&MLFQueue::CommandNumPriorityLevels), 0},
     {"set_batch_Size", "MlfqBatchArg", MODULE_CMD_FUNC(&MLFQueue::CommandBatchSize), 0},
     {"set_max_flow_queue_size", "MlfqMaxFlowQueueSizeArg",
           MODULE_CMD_FUNC(&MLFQueue::CommandMaxFlowQueueSize), 0}};
 
 pb_error_t MLFQueue::Init(const bess::pb::MlfqArg &arg) {
   pb_error_t err;
-
-  if (arg.num_lvls() != 0) {
-    err = SetNumPriorityLevels(arg.num_lvls());
-    if (err.err() != 0) {
+  task_id_t tid;
+  if (arg.num_levels() != 0) {
+    err = SetNumPriorityLevels(arg.num_levels());
+    if (err.err() != 0)  {
       return err;
     }
   } else {
-    err = SetNumPriorityLevels(DEFAULT_NUM_LVLS);
+    err = SetNumPriorityLevels(kDEFAULT_NUM_LEVELS);
     if (err.err() != 0) {
       return err;
     }
@@ -55,7 +63,7 @@ pb_error_t MLFQueue::Init(const bess::pb::MlfqArg &arg) {
       return err;
     }
   } else {
-    err = SetMaxFlowQueueSize(FLOW_QUEUE_MAX);
+    err = SetMaxFlowQueueSize(kFLOW_QUEUE_MAX);
     if (err.err() != 0) {
       return err;
     }
@@ -67,7 +75,7 @@ pb_error_t MLFQueue::Init(const bess::pb::MlfqArg &arg) {
       return err;
     }
   } else {
-    err = SetBatchSize(DEFAULT_BATCH_SIZE);
+    err = SetBatchSize(kDEFAULT_BATCH_SIZE);
     if (err.err() != 0) {
       return err;
     }
@@ -76,8 +84,16 @@ pb_error_t MLFQueue::Init(const bess::pb::MlfqArg &arg) {
   if(arg.init_load() != 0) {
     load_avg_ = arg.init_load();
   } else {
-    load_avg_ = INITIAL_LOAD;
+    load_avg_ = kINITIAL_LOAD;
   }
+
+  /* register task */
+  tid = RegisterTask(nullptr);
+  if (tid == INVALID_TASK_ID) {
+    return pb_error(ENOMEM, "task creation failed");
+  }
+
+  init_flow_size_ =  RoundToPowerTwo(kFLOW_QUEUE_FACTOR*batch_size_);
   ready_flows_ = 0;
   return pb_errno(0);
 }
@@ -85,7 +101,7 @@ pb_error_t MLFQueue::Init(const bess::pb::MlfqArg &arg) {
 void MLFQueue::DeInit() {
   bess::Packet *pkt;
 
-  for (std::map<Q_Id, Flow>::iterator it=flows_.begin(); it!=flows_.end(); ) {
+  for (auto it=flows_.begin(); it!=flows_.end(); ) {
     Flow *f = &it->second;
     if (f->queue) {
       while (llring_sc_dequeue(f->queue, (void **)&pkt) == 0) {
@@ -93,12 +109,13 @@ void MLFQueue::DeInit() {
       }
       mem_free(f->queue);
     }
+    it++;
   }
 }
 
-pb_cmd_response_t MLFQueue::CommandNumPriorityLevels(const bess::pb::MlfqLvlArg &arg) {
+pb_cmd_response_t MLFQueue::CommandNumPriorityLevels(const bess::pb::MlfqLevelArg &arg) {
   pb_cmd_response_t response;
-  set_cmd_response_error(&response, SetNumPriorityLevels(arg.num_lvls()));
+  set_cmd_response_error(&response, SetNumPriorityLevels(arg.num_levels()));
   return response;
 }
 
@@ -115,23 +132,20 @@ pb_cmd_response_t MLFQueue::CommandMaxFlowQueueSize(const bess::pb::MlfqMaxFlowQ
 }
 
 void MLFQueue::ProcessBatch(bess::PacketBatch *batch) {
-  google::SetLogDestination(google::GLOG_INFO,"/vagrant/batch.log");
-  LOG(INFO)<< std::to_string(batch->cnt());
   //insert packets in the batch into their corresponding flows
   for (int i = 0; i < batch->cnt(); i++) {
     bess::Packet *pkt = batch->pkts()[i];
-    Q_Id id = MLFQueue::GetId(pkt);//doesn't handle fragmented packets
-    std::map<Q_Id, Flow>::iterator it = flows_.find(id);
+    Flow_Id id = MLFQueue::GetId(pkt);// TODO(joshua): Add support for fragmented packets.
+    auto it = flows_.find(id);
 
     //if the Flow doesn't exist create one
     //and add the packet to the new Flow
     if (it == flows_.end()) {
-      Flow f = {(float) max_lvl_, 0, 0, 0};
-      int slots = RoundToPowerTwo(FLOW_QUEUE_FACTOR*batch_size_);
-      int err = MLFQueue::AddQueue(&f, slots);
+      Flow f = {(float) max_level_, 0, 0, 0};
+      int err = MLFQueue::AddQueue(&f, init_flow_size_);//TODO(joshua) do proper error checking
       assert(err == 0);
-      assert(f->queue);
-      err += 1;
+      assert(f.queue);
+      err++;
 
       Enqueue(&f, pkt);
       InsertFlow(&f);
@@ -140,71 +154,77 @@ void MLFQueue::ProcessBatch(bess::PacketBatch *batch) {
       Enqueue(&it->second, pkt);
     }
   }
-  bess::PacketBatch next_batch = GetNextBatch();
-  RunNextModule(&next_batch);
 }
 
-//obtain the next batch of packets from the highest priority level's Flows.
-bess::PacketBatch MLFQueue::GetNextBatch() {
+struct task_result MLFQueue::RunTask(void *) {
   bess::PacketBatch batch;
-  batch.clear();
+  struct task_result ret;
 
   //the highest priority level with flows.
-  int lvl = FindTopLevel();
-  if(levels_[lvl].size() == 0) return batch;
-  //the current allocated section of the batch per each flow
-  int flow_max = batch_size_/levels_[lvl].size();
-  int enqueued = 0;
+  GetNextBatch(&batch);
 
-  //iterate through the highest priority level's flows
-  //and dequeue packets for batch
-  for(unsigned int i= 0; i < levels_[lvl].size(); i++) {
-    int num_pkts = AddtoBatch(&batch, levels_[lvl][i], flow_max);
-    enqueued += num_pkts;
+  uint64_t cnt = batch.cnt();
+  if (cnt > 0) {
+    RunNextModule(&batch);
+    //after processing a getbatch call, updates flows
+    //and their priority location
+    UpdateAllFlows();
+  }
 
-    if (num_pkts < flow_max) {
-      flow_max = (batch_size_-enqueued)/(levels_[lvl].size()-i + 1);
+  uint64_t total_bytes = 0;
+  for (uint32_t i = 0; i < cnt; i++)
+    total_bytes += batch.pkts()[i]->total_len();
+  ret = (struct task_result){
+      .packets = cnt, .bits = (total_bytes + cnt * kPACKET_OVERHEAD) * 8,
+  };
+
+  return ret;
+}
+
+void MLFQueue::GetNextBatch(bess::PacketBatch* batch) {
+  batch->clear();
+
+  int batch_left = batch_size_;
+  int level = max_level_;
+
+  //iterate through the priority levels starting at the top_level
+  //and dequeue packets for batch equally across each level.
+  while(batch_left > 0 && level >= 0) {
+    if(levels_[level].empty()) {
+      level--;
+      continue;
     }
-    levels_[lvl][i]->throughput += num_pkts;
+
+    int flow_max = (batch_left)/levels_[level].size();
+    for(unsigned int i= 0; i < levels_[level].size(); i++) {
+      int prev = batch->cnt();
+      int num_pkts = llring_dequeue_burst(levels_[level][i]->queue, (void **)batch->pkts(), flow_max);
+      if(num_pkts > 0) {
+        batch->set_cnt(prev+num_pkts);
+      }
+      batch_left -= num_pkts;
+
+      if (num_pkts < flow_max) {
+        flow_max = (batch_left)/(levels_[level].size()-i + 1);
+      }
+      levels_[level][i]->throughput += num_pkts;
+    }
+    level--;
   }
-
-  //after processing a batch calls for an update flows
-  //and update their priority location
-  UpdateAllFlows(false, lvl);
-  return batch;
 }
 
-//dequeues from the specified slots from the flow f into the Packetbatch
-int MLFQueue::AddtoBatch(bess::PacketBatch *batch, Flow* f, int slots) {
-  int prev = batch->cnt();
-  int cnt = llring_dequeue_burst(f->queue, (void **)batch->pkts(), slots);
-  if(cnt > 0) batch->set_cnt(prev+cnt);
-  return cnt;
+MLFQueue::Flow_Id MLFQueue::GetId(bess::Packet* pkt) {
+  struct ether_hdr *eth = pkt->head_data<struct ether_hdr *>();
+  struct ipv4_hdr *ip = reinterpret_cast<struct ipv4_hdr *>(eth + 1);
+  int ip_bytes = (ip->version_ihl & 0xf) << 2;
+  struct udp_hdr *udp = reinterpret_cast<struct udp_hdr *>(
+      reinterpret_cast<uint8_t *>(ip) + ip_bytes);// Assumes a l-4 header
+  //TODO(joshua): handle packet fragmentation
+  struct Flow_Id id = {ip->src_addr, ip->dst_addr, udp->src_port,
+      udp->dst_port, ip->next_proto_id};
+  return id;
 }
 
-//Find the first priority level with Flows in ascending order
-int MLFQueue::FindTopLevel() {
-  for(int i = max_lvl_; i >= 0; i--) {
-    if(!levels_[i].empty()) return i;
-  }
-  return 0;
-}
-
-// gets the 5 element identifier for a flow given a packet
-MLFQueue::Q_Id MLFQueue::GetId(bess::Packet* pkt) {
-      struct ether_hdr *eth = pkt->head_data<struct ether_hdr *>();
-      struct ipv4_hdr *ip = reinterpret_cast<struct ipv4_hdr *>(eth + 1);
-      int ip_bytes = (ip->version_ihl & 0xf) << 2;
-      struct udp_hdr *udp = reinterpret_cast<struct udp_hdr *>(
-          reinterpret_cast<uint8_t *>(ip) + ip_bytes);// Assumes a l-4 header
-      //TO-DO: handle packet fragmentation
-      struct Q_Id id = {ip->src_addr, ip->dst_addr, udp->src_port,
-          udp->dst_port, ip->next_proto_id};
-      return id;
-}
-
-//allocates llring queue space and adds the queue to the specified flow with
-//size indicated by slots
 int MLFQueue::AddQueue(Flow* f, int slots) {
   struct llring *new_queue;
 
@@ -231,12 +251,12 @@ int MLFQueue::Enqueue(Flow* f, bess::Packet* newpkt) {
   //creates a new queue if there is not enough space for the new packet
   //in the old queue
   if(llring_full(f->queue)) {
-    if(llring_count(f->queue)*QUEUE_GROWTH_FACTOR > max_queue_size_) {
+    if(llring_count(f->queue)*kQUEUE_GROWTH_FACTOR > max_queue_size_) {
       bess::Packet::Free(newpkt);
       return 0;
     }
     struct llring *old_queue = f->queue;
-    ret = AddQueue(f, llring_count(f->queue)*QUEUE_GROWTH_FACTOR);
+    ret = AddQueue(f, llring_count(f->queue)*kQUEUE_GROWTH_FACTOR);
     if(ret != 0) {
       return ret;
     }
@@ -255,72 +275,68 @@ int MLFQueue::Enqueue(Flow* f, bess::Packet* newpkt) {
       mem_free(old_queue);
     }
   }
+  if(llring_empty(f->queue)) {
+    ready_flows_++;
+  }
   ret = llring_sp_enqueue(f->queue, newpkt);
   time(&f->timer);
   return ret;
 }
 
-/*updates the metrics that determine the priority level of the flow
-*update_pkts is set to false in the case of recently
-* forwarded packets that have already resulted in a throughput update
-*/
-void MLFQueue::UpdateFlow(Flow* f, bool update_pkts=true) {
-  if(update_pkts) {
-    f->throughput = ((2.0*load_avg_)/(2.0*load_avg_ + 1))*f->throughput;
-  }
-  f->priority = max_lvl_ - f->throughput/4.0;
+void MLFQueue::UpdateFlow(Flow* f) {
+  f->throughput = ((2.0*load_avg_)/(2.0*load_avg_ + 1))*f->throughput;
+  f->priority = max_level_ - f->throughput/4.0;
 }
 
-//top_lvl is the location of the highest priority flows and update_pkts
-//indicates whether these flows still need their throughput updated in UpdateFlow
-void MLFQueue::UpdateAllFlows(bool update_pkts=true, int top_lvl=0) {
+void MLFQueue::UpdateAllFlows() {
   levels_.clear();
-  levels_.resize(max_lvl_+1);
+  levels_.resize(max_level_+1);
   time_t now;
   time(&now);
+
   // iterate through all flows and recalculate their priority
   //and assign them to the corresponding priority level
-  for (std::map<Q_Id, Flow>::iterator it=flows_.begin(); it!=flows_.end(); ) {
+  for (auto it=flows_.begin(); it!=flows_.end(); ) {
       Flow *f = &it->second;
 
       if(llring_empty(f->queue)) {
         ready_flows_ -= 1;
 
         //if the flow expired, remove it
-        if(difftime(f->timer, now) > TTL) {
+        if(difftime(f->timer, now) > kTTL) {
           mem_free(f->queue);
           flows_.erase(it++);
           continue;
         }
       }
-
-      if(top_lvl == (int)f->priority) UpdateFlow(f, update_pkts);
       else UpdateFlow(f);
       InsertFlow(f);
       ++it;
   }
   //having a newly calibrated ready flows, updates the load average
-  load_avg_ = (max_lvl_ -1)/((float) max_lvl_) + (1.0/max_lvl_)*ready_flows_;
+  load_avg_ = (max_level_ -1)/((float) max_level_) + (1.0/max_level_)*ready_flows_;
 }
 
 void MLFQueue::InsertFlow(Flow* f) {
-  int lvl = (int) f->priority;
-  levels_[lvl].push_back(f);
+  int level = (int) f->priority;
+  levels_[level].push_back(f);
 }
 
-void MLFQueue::Resize(uint8_t num_lvls) {
-  if(num_lvls - 1 == max_lvl_) { return; }
-  max_lvl_ = num_lvls - 1;
+void MLFQueue::Resize(uint8_t num_levels) {
+  if(num_levels - 1 == max_level_) {
+     return;
+  }
+  max_level_ = num_levels - 1;
   UpdateAllFlows();
 
 }
 
-pb_error_t MLFQueue::SetNumPriorityLevels(uint32_t num_lvls) {
-  if (num_lvls == 0 || num_lvls > 255) {
+pb_error_t MLFQueue::SetNumPriorityLevels(uint32_t num_levels) {
+  if (num_levels == 0 || num_levels > 255) {
     return pb_error(EINVAL, "must be in [1, 255]");
   }
 
-  Resize(num_lvls);
+  Resize(num_levels);
   return pb_errno(0);
 }
 
@@ -332,12 +348,13 @@ pb_error_t MLFQueue::SetBatchSize(uint32_t size) {
   }
 
   batch_size_ = size;
+  init_flow_size_ = RoundToPowerTwo(kFLOW_QUEUE_FACTOR*batch_size_);
   return pb_errno(0);
 }
 
 pb_error_t MLFQueue::SetMaxFlowQueueSize(uint32_t queue_size) {
   if(queue_size == 0) {
-    return pb_error(EINVAL, "max queue size must be atleast 1");
+    return pb_error(EINVAL, "max queue size must be at least 1");
   }
   max_queue_size_ = queue_size;
   return pb_errno(0);
