@@ -11,6 +11,7 @@ class Port(object):
                                     self.choose_arg(None, kwargs))
 
         self.name = ret.name
+        self.mac_addr = ret.mac_addr
 
     def __str__(self):
         return '%s/%s' % (self.name, self.driver)

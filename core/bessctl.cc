@@ -225,10 +225,13 @@ static ::Port* create_port(const std::string& name, const PortBuilder& driver,
                            const google::protobuf::Any& arg, pb_error_t* perr) {
   std::unique_ptr<::Port> p;
 
-  if (num_inc_q == 0)
+  if (num_inc_q == 0) {
     num_inc_q = 1;
-  if (num_out_q == 0)
+  }
+
+  if (num_out_q == 0) {
     num_out_q = 1;
+  }
 
   bess::utils::EthHeader::Address mac_addr;
 
@@ -275,10 +278,13 @@ static ::Port* create_port(const std::string& name, const PortBuilder& driver,
   // Try to create and initialize the port.
   p.reset(driver.CreatePort(port_name));
 
-  if (size_inc_q == 0)
+  if (size_inc_q == 0) {
     size_inc_q = p->DefaultIncQueueSize();
-  if (size_out_q == 0)
+  }
+
+  if (size_out_q == 0) {
     size_out_q = p->DefaultOutQueueSize();
+  }
 
   memcpy(p->mac_addr, mac_addr.bytes, ETH_ALEN);
   p->num_queues[PACKET_DIR_INC] = num_inc_q;
@@ -767,6 +773,10 @@ class BESSControlImpl final : public BESSControl::Service {
 
       port->set_name(p->name());
       port->set_driver(p->port_builder()->class_name());
+
+      bess::utils::EthHeader::Address mac_addr;
+      memcpy(mac_addr.bytes, p->mac_addr, ETH_ALEN);
+      port->set_mac_addr(mac_addr.ToString());
     }
 
     return Status::OK;
@@ -802,6 +812,11 @@ class BESSControlImpl final : public BESSControl::Service {
       return Status::OK;
 
     response->set_name(port->name());
+
+    bess::utils::EthHeader::Address mac_addr;
+    memcpy(mac_addr.bytes, port->mac_addr, ETH_ALEN);
+    response->set_mac_addr(mac_addr.ToString());
+
     return Status::OK;
   }
   Status DestroyPort(ServerContext*, const DestroyPortRequest* request,
