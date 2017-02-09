@@ -344,6 +344,8 @@ bool LeafTrafficClass::RemoveTask(Task *t) {
   auto it = std::find(tasks_.begin(), tasks_.end(), t);
   if (it != tasks_.end()) {
     tasks_.erase(it);
+    // Avoid out-of-bounds access in RunTasks()
+    task_index_ = 0;
     return true;
   }
   return false;
