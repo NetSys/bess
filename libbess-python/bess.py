@@ -263,7 +263,7 @@ class BESS(object):
             'Merge': bess_msg.EmptyArg,
             'MetadataTest': module_msg.MetadataTestArg,
             'MLFQueue': module_msg.MlfqArg,
-	    'NAT': module_msg.NATArg,
+	        'NAT': module_msg.NATArg,
             'NoOP': bess_msg.EmptyArg,
             'PortInc': module_msg.PortIncArg,
             'PortOut': module_msg.PortOutArg,

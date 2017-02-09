@@ -88,22 +88,23 @@ message MeasureCommandGetSummaryResponse {
 }
 
 message MlfqArg {
-  uint32 num_lvls = 1;
-  uint32 batch_size = 2;
-  float init_load = 3;
-  uint32 max_flow_queue_size = 4;
+  uint32 num_levels = 1;//Number of levels in the Multi-Level Queue
+  uint32 batch_size = 2;//the size of the output batches
+  float init_load = 3;//the predicted average flow load of the module
+  uint32 max_flow_queue_size = 4;//the max size that any Flows queue can get
 }
 
-message MlfqLvlArg {
-  uint32 num_lvls = 1;
+
+message MlfqLevelArg {
+  uint32 num_levels = 1;//Number of levels in the Multi-Level Queue
 }
 
 message MlfqBatchArg {
-  uint32 batch_size = 1;
+  uint32 batch_size = 1;//the size of the output batches
 }
 
 message MlfqMaxFlowQueueSizeArg {
-  uint32 max_queue_size = 1;
+  uint32 max_queue_size = 1;//the max size that any Flows queue can get
 }
 
 message PortIncCommandSetBurstArg {
