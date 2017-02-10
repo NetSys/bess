@@ -21,17 +21,17 @@
 typedef uint16_t gate_idx_t;
 #define MAX_GATES 8192
 
-/* 	TODO: worker threads doesn't necessarily be pinned to 1 core
+/*  TODO: worker threads doesn't necessarily be pinned to 1 core
  *
- *  	n: MAX_WORKERS
+ *  n: MAX_WORKERS
  *
- *  	Role		DPDK lcore ID		Hardware core(s)
- *  	--------------------------------------------------------
- *  	worker 0	0			1 specified core
- *	worker 1	1			1 specified core
- *	...
- *	worker n-1	n-1			1 specified core
- *	master		RTE_MAX_LCORE-1		all other cores
+ *  Role              DPDK lcore ID      Hardware core(s)
+ *  --------------------------------------------------------
+ *  worker 0                      0      1 specified core
+ *  worker 1                      1      1 specified core
+ *  ...
+ *  worker n-1                  n-1      1 specified core
+ *  master          RTE_MAX_LCORE-1      all other cores that are allowed
  */
 
 typedef enum {
