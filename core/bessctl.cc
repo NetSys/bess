@@ -399,7 +399,7 @@ class BESSControlImpl final : public BESSControl::Service {
                    EmptyResponse* response) override {
     uint64_t wid = request->wid();
     if (wid >= MAX_WORKERS) {
-      return return_with_error(response, EINVAL, "Missing 'wid' field");
+      return return_with_error(response, EINVAL, "Invalid worker id");
     }
     uint64_t core = request->core();
     if (!is_cpu_present(core)) {
@@ -410,6 +410,41 @@ class BESSControlImpl final : public BESSControl::Service {
                                wid);
     }
     launch_worker(wid, core);
+    return Status::OK;
+  }
+  Status DestroyWorker(ServerContext*, const DestroyWorkerRequest* request,
+                       EmptyResponse* response) override {
+    uint64_t wid = request->wid();
+    if (wid >= MAX_WORKERS) {
+      return return_with_error(response, EINVAL, "Invalid worker id");
+    }
+    Worker* worker = workers[wid];
+    if (!worker) {
+      return return_with_error(response, ENOENT, "Worker %d is not active",
+                               wid);
+    }
+
+    bess::TrafficClass* root = workers[wid]->scheduler()->root();
+    if (root) {
+      bool has_tasks = false;
+      root->Traverse(
+          [](const bess::TrafficClass* c, void* arg) {
+            bool have_tasks = false;
+            if (c->policy() == bess::POLICY_LEAF) {
+              have_tasks = reinterpret_cast<const bess::LeafTrafficClass*>(c)
+                               ->tasks()
+                               .size() > 0;
+            }
+            *reinterpret_cast<bool*>(arg) |= have_tasks;
+          },
+          static_cast<void*>(&has_tasks));
+      if (has_tasks) {
+        return return_with_error(response, EBUSY, "Worker %d has active tasks ",
+                                 wid);
+      }
+    }
+
+    destroy_worker(wid);
     return Status::OK;
   }
   Status ResetTcs(ServerContext*, const EmptyRequest*,

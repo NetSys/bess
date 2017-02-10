@@ -156,6 +156,10 @@ message AddWorkerRequest {
   int64 core = 2;
 }
 
+message DestroyWorkerRequest {
+  int64 wid = 1;
+}
+
 message ListTcsRequest {
   int64 wid = 1;
 }

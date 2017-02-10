@@ -383,6 +383,11 @@ class BESS(object):
         request.core = core
         return self._request('AddWorker', request)
 
+    def destroy_worker(self, wid):
+        request = bess_msg.DestroyWorkerRequest()
+        request.wid = wid
+        return self._request('DestroyWorker', request)
+
     def attach_task(self, m, tid=0, tc=None, wid=None):
         if (tc is None) == (wid is None):
             raise self.APIError('You should specify either "tc" or "wid"'

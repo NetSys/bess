@@ -13,7 +13,7 @@ service BESSControl {
   rpc ResetWorkers (EmptyRequest) returns (EmptyResponse) {}
   rpc ListWorkers (EmptyRequest) returns (ListWorkersResponse) {}
   rpc AddWorker (AddWorkerRequest) returns (EmptyResponse) {}
-  // TODO: delete_worker()
+  rpc DestroyWorker (DestroyWorkerRequest) returns (EmptyResponse) {}
 
   rpc ResetTcs (EmptyRequest) returns (EmptyResponse) {}
   rpc ListTcs (ListTcsRequest) returns (ListTcsResponse) {}
