@@ -1,0 +1,129 @@
+## This ansible script will set up an Ubuntu 16.04 installation so that it is ready to build BESS.
+## Note: This has only been tested on *fresh* Ubuntu 16.04 installations.
+## Usage:
+##   sudo apt-get install ansible
+##   ansible-playbook -K ansible-playbook.yml
+---
+- hosts: localhost
+  environment:
+    GOPATH: "{{ lookup('env','HOME') }}/.go"
+  tasks:
+    - name: Enable huge pages
+      sysctl: name=vm.nr_hugepages value=2048 sysctl_set=yes
+      become: true
+
+    - name: Mount up /mnt/huge
+      mount: name=/mnt/huge fstype=hugetlbfs src=none state=mounted
+      become: true
+
+    - name: Install list of packages
+      apt: name={{item}} state=latest update_cache=yes
+      become: true
+      with_items:
+        - build-essential
+        - cmake
+        - autoconf
+        - automake
+        - libtool
+        - make
+        - unzip
+        - dkms
+        - python
+        - python-pip
+        - ruby
+        - lcov
+        - libnuma-dev
+        - libnuma-dbg
+        - libunwind8-dev
+        - libpcap-dev
+        - libgflags-dev
+        - libgoogle-glog-dev
+        - libgraph-easy-perl
+        - libgtest-dev
+        - libssl-dev
+        - libunwind-dev
+        - google-mock
+        - linux-virtual
+        - linux-tools-common
+        - linux-tools-generic
+        - linux-headers-generic
+        - linux-image-extra-virtual
+        - liblzma-dev
+        - zlib1g-dev
+        - gdb
+        - gdbserver
+        - python-scapy
+        - clang
+
+    #Pip is buggy with askbecomepass so have to call shell instead.
+    - name: Install list of Python packages
+      shell: sudo -H pip install {{item}}
+      become: true
+      with_items:
+        - protobuf
+        - grpcio
+
+    - name: Set PATH
+      lineinfile: dest={{ ansible_env.HOME }}/.profile line='PATH="$GOPATH/bin:$HOME/bin:$HOME/.local/bin:$PATH"'
+
+    - name: Clone libbenchmark
+      git: repo=https://github.com/google/benchmark dest=/tmp/benchmark accept_hostkey=yes
+
+    - name: Generate makefile for libbenchmark
+      shell: cmake . chdir=/tmp/benchmark
+
+    - name: Compile libbenchmark
+      shell: make chdir=/tmp/benchmark
+
+    - name: Install libbenchmark
+      shell: make install chdir=/tmp/benchmark
+      become: true
+
+    - name: Download cpplint.py
+      get_url:
+        url: https://raw.githubusercontent.com/google/styleguide/gh-pages/cpplint/cpplint.py
+        dest: /usr/local/bin/cpplint
+        mode: 0755
+      become: true
+
+
+    - name: Clean gRPC repo
+      file: path=/tmp/grpc state=absent
+
+    - name: Clone gRPC
+      git: repo=https://github.com/grpc/grpc dest=/tmp/grpc accept_hostkey=yes version=v1.0.1
+
+    - name: Wipe prior protobuf installs to avoid conflicts
+      shell: apt-get remove -y -f libprotobuf* protobuf-* protoc; sudo rm -f `which protoc` warn=no
+      become: true
+
+    - name: Install linux-headers
+      shell: apt-get -y install linux-headers-`uname -r`
+      become: true
+
+    - name: Update submodules
+      shell: git submodule update --init chdir=/tmp/grpc
+
+    - name: Compile protobuf
+      shell: ./autogen.sh && ./configure && make chdir=/tmp/grpc/third_party/protobuf
+
+    - name: Install protobuf
+      shell: make install chdir=/tmp/grpc/third_party/protobuf
+      become: true
+
+    - name: sudo ldconfig
+      shell: ldconfig
+      become: true
+
+    - name: Compile gRPC
+      shell: make chdir=/tmp/grpc
+
+    - name: Install gRPC
+      shell: make install chdir=/tmp/grpc
+      become: true
+
+    - name: Clone BESS repository
+      git: repo=https://github.com/NetSys/bess.git dest={{ ansible_env.HOME }}/bess accept_hostkey=yes
+
+    - name: Build BESS
+      shell: ./build.py chdir={{ ansible_env.HOME }}/bess 
