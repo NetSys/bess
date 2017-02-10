@@ -399,7 +399,7 @@ class BESSControlImpl final : public BESSControl::Service {
                    EmptyResponse* response) override {
     uint64_t wid = request->wid();
     if (wid >= MAX_WORKERS) {
-      return return_with_error(response, EINVAL, "Missing 'wid' field");
+      return return_with_error(response, EINVAL, "Invalid worker id");
     }
     uint64_t core = request->core();
     if (!is_cpu_present(core)) {

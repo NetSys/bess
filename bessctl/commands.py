@@ -150,6 +150,17 @@ def get_var_attrs(cli, var_token, partial_word):
             var_desc = 'one or more worker IDs'
             var_candidates = ['enable', 'disable']
 
+        elif var_token == 'CORE':
+            var_type = 'int'
+
+        elif var_token == 'WORKER_ID':
+            var_type = 'int'
+            try:
+                var_candidates = [str(m.wid) for m in
+                                  cli.bess.list_workers().workers_status]
+            except:
+                pass
+
         elif var_token == 'WORKER_ID...':
             var_type = 'wid+'
             var_desc = 'one or more worker IDs'
@@ -711,6 +722,11 @@ def run_conf(cli, conf, env_map):
 @cmd('run file CONF_FILE [ENV_VARS...]', 'Run a configuration file')
 def run_file(cli, conf_file, env_map):
     _run_file(cli, os.path.expanduser(conf_file), env_map)
+
+
+@cmd('add worker WORKER_ID CORE', 'Create a worker')
+def add_worker(cli, wid, core):
+    cli.bess.add_worker(wid, core)
 
 
 @cmd('add port DRIVER [NEW_PORT] [PORT_ARGS...]', 'Add a new port')
