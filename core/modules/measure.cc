@@ -10,10 +10,9 @@
 #define MEASURE_ONE_NS (1000lu * 1000 * 1000)
 #define MEASURE_TIME_TO_SEC(t) ((t) / (MEASURE_ONE_NS))
 
-inline int get_measure_packet(bess::Packet *pkt, uint64_t *time) {
-  uint8_t *avail = (pkt->head_data<uint8_t *>() + sizeof(struct ether_hdr) +
-                    sizeof(struct ipv4_hdr)) +
-                   sizeof(struct tcp_hdr);
+inline int get_measure_packet(bess::Packet *pkt, size_t offset,
+                              uint64_t *time) {
+  uint8_t *avail = pkt->head_data<uint8_t *>() + offset;
   uint64_t *ts = reinterpret_cast<uint64_t *>(avail + 1);
   uint8_t available = *avail;
   *time = *ts;
@@ -31,11 +30,18 @@ pb_error_t Measure::Init(const bess::pb::MeasureArg &arg) {
   if (arg.warmup()) {
     warmup_ = arg.warmup();
   }
+  if (arg.offset()) {
+    offset_ = arg.offset();
+  } else {
+    offset_ = sizeof(struct ether_hdr) + sizeof(struct ipv4_hdr) +
+              sizeof(struct tcp_hdr);
+  }
   return pb_errno(0);
 }
 
 void Measure::ProcessBatch(bess::PacketBatch *batch) {
   uint64_t time = tsc_to_ns(rdtsc());
+  size_t offset = offset_;
 
   if (start_time_ == 0) {
     start_time_ = time;
@@ -46,7 +52,7 @@ void Measure::ProcessBatch(bess::PacketBatch *batch) {
 
     for (int i = 0; i < batch->cnt(); i++) {
       uint64_t pkt_time;
-      if (get_measure_packet(batch->pkts()[i], &pkt_time)) {
+      if (get_measure_packet(batch->pkts()[i], offset, &pkt_time)) {
         uint64_t diff;
 
         if (time >= pkt_time) {

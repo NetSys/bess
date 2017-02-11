@@ -227,6 +227,7 @@ message MACSwapArg {
 
 message MeasureArg {
   int64 warmup = 1;
+  uint64 offset = 2;
 }
 
 message MergeArg {
@@ -340,6 +341,7 @@ message SplitArg {
 }
 
 message TimestampArg {
+  uint64 offset = 1;
 }
 
 message UpdateArg {

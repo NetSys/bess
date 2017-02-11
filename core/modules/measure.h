@@ -28,7 +28,8 @@ class Measure final : public Module {
   Histogram<uint64_t> hist_;
 
   uint64_t start_time_;
-  int warmup_; /* second */
+  int warmup_;     // in seconds
+  size_t offset_;  // in bytes
 
   uint64_t pkt_cnt_;
   uint64_t bytes_cnt_;
