@@ -26,17 +26,19 @@ CalculateSum(const void *buf, size_t len, uint16_t sum16 = 0) {
       uint64_t sumb64[4];
       uint32_t sumb32[8];
     };
-    sum256 = _mm256_loadu_si256((const __m256i *)u64);
+    sum256 = _mm256_loadu_si256(reinterpret_cast<const __m256i *>(u64));
     u64 += 4;
     len -= sizeof(uint64_t) * 4;
 
     union {
-      __m256i overflow256 = _mm256_setzero_si256();
+      __m256i overflow256;
       uint64_t ofb[4];
     };
+    overflow256 = _mm256_setzero_si256();
 
     while (len >= sizeof(uint64_t) * 4) {
-      __m256i temp256 = _mm256_loadu_si256((const __m256i *)u64);
+      __m256i temp256 =
+          _mm256_loadu_si256(reinterpret_cast<const __m256i *>(u64));
       sum256 = _mm256_add_epi64(sum256, temp256);
 
       // handling carry flags:
@@ -47,7 +49,6 @@ CalculateSum(const void *buf, size_t len, uint16_t sum16 = 0) {
           // results of temp256 >= sum256, meaning overflow
           _mm256_cmpgt_epi64(_mm256_xor_si256(temp256, mask64),
                              _mm256_xor_si256(sum256, mask64)));
-
       len -= sizeof(uint64_t) * 4;
       u64 += 4;
     }
@@ -74,11 +75,10 @@ CalculateSum(const void *buf, size_t len, uint16_t sum16 = 0) {
           "adcq %[u6], %[sum]	\n\t"
           "adcq %[u7], %[sum]	\n\t"
           "adcq $0, %[sum]"
-          : [sum] "+r"(sum64)
-          : [u0] "r"(u64[0]), [u1] "r"(u64[1]), [u2] "r"(u64[2]),
-            [u3] "r"(u64[3]), [u4] "r"(u64[4]), [u5] "r"(u64[5]),
-            [u6] "r"(u64[6]), [u7] "r"(u64[7])
-          : "memory");
+          : [sum] "+rm"(sum64)
+          : "r"(u64), [u0] "rm"(u64[0]), [u1] "rm"(u64[1]), [u2] "rm"(u64[2]),
+            [u3] "rm"(u64[3]), [u4] "rm"(u64[4]), [u5] "rm"(u64[5]),
+            [u6] "rm"(u64[6]), [u7] "rm"(u64[7]));
       len -= sizeof(uint64_t) * 8;
       u64 += 8;
     }
@@ -89,9 +89,8 @@ CalculateSum(const void *buf, size_t len, uint16_t sum16 = 0) {
     asm("addq %[u0], %[sum]	\n\t"
         "adcq %[u1], %[sum]	\n\t"
         "adcq $0, %[sum]"
-        : [sum] "+r"(sum64)
-        : [u0] "r"(u64[0]), [u1] "r"(u64[1])
-        : "memory");
+        : [sum] "+rm"(sum64)
+        : "r"(u64), [u0] "rm"(u64[0]), [u1] "rm"(u64[1]));
     len -= sizeof(uint64_t) * 2;
     u64 += 2;
   }
@@ -148,9 +147,9 @@ static inline bool VerifyIpv4NoOptChecksum(const Ipv4Header &iph) {
       "addw %w[temp], %w[sum]	\n\t"
       "adcl $0, %[sum]			\n\t"
       "notl %[sum]					\n\t"
-      : [sum] "+r"(sum), [temp] "=&r"(temp)
-      : [u321] "r"(u32[1]), [u322] "r"(u32[2]), [u323] "r"(u32[3]),
-        [u324] "r"(u32[4]));
+      : [sum] "+rm"(sum), [temp] "=&r"(temp)
+      : "r"(u32), [u321] "rm"(u32[1]), [u322] "rm"(u32[2]), [u323] "rm"(u32[3]),
+        [u324] "rm"(u32[4]));
 
   return (static_cast<uint16_t>(sum) == 0x0000);
 }
@@ -170,10 +169,10 @@ static inline uint16_t CalculateIpv4NoOptChecksum(const Ipv4Header &iph) {
       "addw %w[temp], %w[sum]	\n\t"
       "adcl $0, %[sum]			\n\t"
       "notl %[sum]					\n\t"
-      : [sum] "+r"(sum), [temp] "=&r"(temp)
-      : [u321] "r"(u32[1]),
-        [u322] "r"(u32[2] & 0xFFFF),  // skip checksum fields
-        [u323] "r"(u32[3]), [u324] "r"(u32[4]));
+      : [sum] "+rm"(sum), [temp] "=&r"(temp)
+      : "r"(u32), [u321] "rm"(u32[1]),
+        [u322] "rm"(u32[2] & 0xFFFF),  // skip checksum fields
+        [u323] "rm"(u32[3]), [u324] "rm"(u32[4]));
 
   return static_cast<uint16_t>(sum);
 }
@@ -203,11 +202,11 @@ static inline bool VerifyIpv4TcpChecksum(
       "addw %w[temp], %w[sum]	\n\t"
       "adcl $0, %[sum]			\n\t"
       "notl %[sum]					\n\t"
-      : [sum] "+r"(sum), [temp] "=&r"(temp)
-      : [u1] "r"(u32[1]), [u2] "r"(u32[2]), [u3] "r"(u32[3]), [u4] "r"(u32[4]),
-        [src] "r"(src), [dst] "r"(dst),
-        [len] "r"(static_cast<uint32_t>(htons(tcp_len))),
-        [protocol] "r"(protocol));
+      : [sum] "+rm"(sum), [temp] "=&r"(temp)
+      : "r"(u32), [u1] "rm"(u32[1]), [u2] "rm"(u32[2]), [u3] "rm"(u32[3]),
+        [u4] "rm"(u32[4]), [src] "rm"(src), [dst] "rm"(dst),
+        [len] "rm"(static_cast<uint32_t>(htons(tcp_len))),
+        [protocol] "rm"(protocol));
 
   return (static_cast<uint16_t>(sum) == 0x0000);
 }
@@ -243,12 +242,12 @@ static inline uint16_t CalculateIpv4TcpChecksum(
       "addw %w[temp], %w[sum]	\n\t"
       "adcl $0, %[sum]			\n\t"
       "notl %[sum]					\n\t"
-      : [sum] "+r"(sum), [temp] "=&r"(temp)
-      : [u1] "r"(u32[1]), [u2] "r"(u32[2]), [u3] "r"(u32[3]),
-        [u4] "r"(u32[4] >> 16),  // skip checksum field
-        [src] "r"(src), [dst] "r"(dst),
-        [len] "r"(static_cast<uint32_t>(htons(tcp_len))),
-        [protocol] "r"(protocol));
+      : [sum] "+rm"(sum), [temp] "=&r"(temp)
+      : "r"(u32), [u1] "rm"(u32[1]), [u2] "rm"(u32[2]), [u3] "rm"(u32[3]),
+        [u4] "rm"(u32[4] >> 16),  // skip checksum field
+        [src] "rm"(src), [dst] "r"(dst),
+        [len] "rm"(static_cast<uint32_t>(htons(tcp_len))),
+        [protocol] "rm"(protocol));
 
   return static_cast<uint16_t>(sum);
 }
