@@ -13,7 +13,6 @@
 
 #include <glog/logging.h>
 
-#include "../mem_alloc.h"
 #include "common.h"
 
 namespace bess {
@@ -112,13 +111,17 @@ class CuckooMap {
     size_t slot_idx_;
   };
 
-  CuckooMap()
-      : bucket_mask_(kInitNumBucket - 1),
+  CuckooMap(size_t reserve_buckets = kInitNumBucket,
+            size_t reserve_entries = kInitNumEntries)
+      : bucket_mask_(reserve_buckets - 1),
         num_entries_(0),
-        buckets_(kInitNumBucket),
-        entries_(kInitNumEntries),
+        buckets_(reserve_buckets),
+        entries_(reserve_entries),
         free_entry_indices_() {
-    for (int i = kInitNumEntries - 1; i >= 0; --i) {
+    // the number of buckets must be a power of 2
+    CHECK_EQ(align_ceil_pow2(reserve_buckets), reserve_buckets);
+
+    for (int i = reserve_entries - 1; i >= 0; --i) {
       free_entry_indices_.push(i);
     }
   }
@@ -151,7 +154,7 @@ class CuckooMap {
     while ((entry = AddEntry(primary, secondary, key, value, hasher)) ==
            nullptr) {
       // expand the table as the last resort
-      ExpandBuckets();
+      ExpandBuckets(hasher, eq);
     }
     return entry;
   }
@@ -399,18 +402,18 @@ class CuckooMap {
     return primary ^ ((tag + 1) * 0x5bd1e995);
   }
 
-  // Primary hash value
-  HashResult Hash(const K& key, const H& hasher) const {
+  // Primary hash value. Should always be non-zero (= not empty)
+  static HashResult Hash(const K& key, const H& hasher) {
     return hasher(key) | (1u << 31);
   }
 
-  bool Eq(const K& lhs, const K& rhs, const E& eq) const {
+  static bool Eq(const K& lhs, const K& rhs, const E& eq) {
     return eq(lhs, rhs);
   }
 
   // Resize the space of entries. Grow less aggressively than buckets.
   void ExpandEntries() {
-    size_t old_size = num_entries_;
+    size_t old_size = entries_.size();
     size_t new_size = old_size + old_size / 2;
 
     entries_.resize(new_size);
@@ -420,11 +423,16 @@ class CuckooMap {
     }
   }
 
-  // Resize the space of buckets.
-  void ExpandBuckets() {
-    size_t new_size = (bucket_mask_ + 1) * 2;
-    buckets_.resize(new_size);
-    bucket_mask_ = new_size - 1;
+  // Resize the space of buckets, and rehash existing entries
+  void ExpandBuckets(const H& hasher, const E& eq) {
+    CuckooMap<K, V, H, E> bigger(buckets_.size() * 2, entries_.size());
+
+    for (const auto& e : *this) {
+      // While very unlikely, this insert() may cause recursive expansion
+      bigger.Insert(e.first, e.second, hasher, eq);
+    }
+
+    *this = std::move(bigger);
   }
 
   // # of buckets == mask + 1
