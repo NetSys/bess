@@ -50,7 +50,9 @@ class wm_eq {
   explicit wm_eq(size_t len) : len_(len) {}
 
   bool operator()(const wm_hkey_t &lhs, const wm_hkey_t &rhs) const {
-    promise(len_ > 0);
+    promise(len_ >= sizeof(uint64_t));
+    promise(len_ <= sizeof(wm_hkey_t));
+
     for (size_t i = 0; i < len_ / 8; i++) {
 // Disable uninitialized variable checking in GCC due to false positives
 #if !defined(__clang__)
@@ -78,7 +80,10 @@ class wm_hash {
 
   HashResult operator()(const wm_hkey_t &key) const {
     HashResult init_val = 0;
-    promise(len_ > 0);
+
+    promise(len_ >= sizeof(uint64_t));
+    promise(len_ <= sizeof(wm_hkey_t));
+
 #if __SSE4_2__ && __x86_64
     for (size_t i = 0; i < len_ / 8; i++) {
       init_val = crc32c_sse42_u64(key.u64_arr[i], init_val);

@@ -11,7 +11,9 @@ using bess::metadata::Attribute;
 // dst = src & mask. len must be a multiple of sizeof(uint64_t)
 static inline void mask(wm_hkey_t *dst, const wm_hkey_t &src,
                         const wm_hkey_t &mask, size_t len) {
-  promise(len > 0);
+  promise(len >= sizeof(uint64_t));
+  promise(len <= sizeof(wm_hkey_t));
+
   for (size_t i = 0; i < len / 8; i++) {
     dst->u64_arr[i] = src.u64_arr[i] & mask.u64_arr[i];
   }
@@ -100,13 +102,14 @@ inline gate_idx_t WildcardMatch::LookupEntry(const wm_hkey_t &key,
       .priority = INT_MIN, .ogate = def_gate,
   };
 
-  wm_hkey_t key_masked;
-
   for (auto &tuple : tuples_) {
+    const auto &ht = tuple.ht;
+    wm_hkey_t key_masked;
+
     mask(&key_masked, key, tuple.mask, total_key_size_);
 
-    auto *entry = tuple.ht.Find(key_masked, wm_hash(total_key_size_),
-                                wm_eq(total_key_size_));
+    const auto *entry =
+        ht.Find(key_masked, wm_hash(total_key_size_), wm_eq(total_key_size_));
 
     if (entry && entry->second.priority >= result.priority) {
       result = entry->second;
@@ -123,6 +126,11 @@ void WildcardMatch::ProcessBatch(bess::PacketBatch *batch) {
   wm_hkey_t keys[bess::PacketBatch::kMaxBurst] __ymm_aligned;
 
   int cnt = batch->cnt();
+
+  // Initialize the padding with zero
+  for (int i = 0; i < cnt; i++) {
+    keys[i].u64_arr[(total_key_size_ - 1) / 8] = 0;
+  }
 
   default_gate = ACCESS_ONCE(default_gate_);
 

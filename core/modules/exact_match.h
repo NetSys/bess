@@ -33,7 +33,9 @@ class em_eq {
   explicit em_eq(size_t len) : len_(len) {}
 
   bool operator()(const em_hkey_t &lhs, const em_hkey_t &rhs) const {
-    promise(len_ > 0);
+    promise(len_ >= sizeof(uint64_t));
+    promise(len_ <= sizeof(em_hkey_t));
+
     for (size_t i = 0; i < len_ / 8; i++) {
       if (lhs.u64_arr[i] != rhs.u64_arr[i]) {
         return false;
@@ -52,7 +54,10 @@ class em_hash {
 
   HashResult operator()(const em_hkey_t &key) const {
     HashResult init_val = 0;
-    promise(len_ > 0);
+
+    promise(len_ >= sizeof(uint64_t));
+    promise(len_ <= sizeof(em_hkey_t));
+
 #if __SSE4_2__ && __x86_64
     for (size_t i = 0; i < len_ / 8; i++) {
       init_val = crc32c_sse42_u64(key.u64_arr[i], init_val);

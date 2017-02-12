@@ -90,13 +90,14 @@ pb_error_t ExactMatch::Init(const bess::pb::ExactMatchArg &arg) {
 void ExactMatch::ProcessBatch(bess::PacketBatch *batch) {
   gate_idx_t default_gate;
   gate_idx_t out_gates[bess::PacketBatch::kMaxBurst];
+
   em_hkey_t keys[bess::PacketBatch::kMaxBurst] __ymm_aligned;
 
   int cnt = batch->cnt();
 
+  // Initialize the padding with zero
   for (int i = 0; i < cnt; i++) {
-    char *p = reinterpret_cast<char *>(&keys[i]);
-    memset(p + total_key_size_ - 8, 0, sizeof(uint64_t));
+    keys[i].u64_arr[(total_key_size_ - 1) / 8] = 0;
   }
 
   default_gate = ACCESS_ONCE(default_gate_);
@@ -129,8 +130,9 @@ void ExactMatch::ProcessBatch(bess::PacketBatch *batch) {
   }
 
   for (int i = 0; i < cnt; i++) {
-    auto *entry =
-        ht_.Find(keys[i], em_hash(total_key_size_), em_eq(total_key_size_));
+    const auto &ht = ht_;
+    const auto *entry =
+        ht.Find(keys[i], em_hash(total_key_size_), em_eq(total_key_size_));
     out_gates[i] = entry ? entry->second : default_gate;
   }
 
