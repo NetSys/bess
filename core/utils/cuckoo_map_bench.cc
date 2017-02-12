@@ -15,7 +15,6 @@
 #include <benchmark/benchmark.h>
 #include <glog/logging.h>
 
-#include "../mem_alloc.h"
 #include "common.h"
 #include "random.h"
 
@@ -84,7 +83,7 @@ BENCHMARK_DEFINE_F(CuckooMapFixture, CuckooMapInlinedGet)
 
 BENCHMARK_REGISTER_F(CuckooMapFixture, CuckooMapInlinedGet)
     ->RangeMultiplier(4)
-    ->Range(4, 4 << 18);
+    ->Range(4, 4 << 20);
 
 // Benchmarks the find method on the STL unordered_map.
 BENCHMARK_DEFINE_F(CuckooMapFixture, STLUnorderedMapGet)
@@ -110,6 +109,6 @@ BENCHMARK_DEFINE_F(CuckooMapFixture, STLUnorderedMapGet)
 
 BENCHMARK_REGISTER_F(CuckooMapFixture, STLUnorderedMapGet)
     ->RangeMultiplier(4)
-    ->Range(4, 4 << 18);
+    ->Range(4, 4 << 20);
 
 BENCHMARK_MAIN();
