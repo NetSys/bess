@@ -13,8 +13,8 @@ using namespace bess::utils;
 class ChecksumFixture : public benchmark::Fixture {
  public:
   virtual void SetUp(benchmark::State &) {
-    for (size_t i = 0; i < sizeof(buf_); i += sizeof(uint32_t)) {
-      *reinterpret_cast<uint32_t *>(buf_ + i) = rd_.Get();
+    for (auto &t : buf_) {
+      t = rd_.Get();
     }
   }
 
@@ -26,7 +26,7 @@ class ChecksumFixture : public benchmark::Fixture {
   uint32_t GetRandom() { return rd_.Get(); }
 
  private:
-  char buf_[2048];
+  uint32_t buf_[2048];
   Random rd_;
 };
 
