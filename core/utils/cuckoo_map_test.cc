@@ -105,6 +105,31 @@ TEST(CuckooMapTest, Iterator) {
   EXPECT_EQ(it, cuckoo.end());
 }
 
+// Test different keys with the same hash value
+TEST(CuckooMapTest, CollisionTest) {
+  class BrokenHash {
+   public:
+    bess::utils::HashResult operator()(const uint32_t) const {
+      return 9999999;
+    }
+  };
+
+  CuckooMap<int, int, BrokenHash> cuckoo;
+
+  // Up to 8 (2 * slots/bucket) hash collision should be acceptable
+  const int n = 8;
+  for (int i = 0; i < n; i++) {
+    EXPECT_TRUE(cuckoo.Insert(i, i + 100));
+  }
+  EXPECT_EQ(nullptr, cuckoo.Insert(n, n + 100));
+
+  for (int i = 0; i < n; i++) {
+    auto *ret = cuckoo.Find(i);
+    CHECK_NOTNULL(ret);
+    EXPECT_EQ(i + 100, ret->second);
+  }
+}
+
 // RandomTest
 TEST(CuckooMapTest, RandomTest) {
   typedef uint32_t key_t;
