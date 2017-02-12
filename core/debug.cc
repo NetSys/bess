@@ -277,7 +277,7 @@ static bool SkipSymbol(char *symbol) {
   return false;
 }
 
-[[gnu::noinline]] static std::string DumpStack() {
+[[gnu::noinline]] std::string DumpStack() {
   const size_t max_stack_depth = 64;
   void *addrs[max_stack_depth] = {};
 
