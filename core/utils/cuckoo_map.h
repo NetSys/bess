@@ -1,5 +1,9 @@
-/* Streamlined hash table implementation, with emphasis on lookup performance.
- * Key and value sizes are fixed. Lookup is thread-safe, but update is not. */
+// Streamlined hash table implementation, with emphasis on lookup performance.
+// Key and value sizes are fixed. Lookup is thread-safe, but update is not.
+//
+// Note: If you want to use a custom hash function, it should be a reasonably
+// good one. If more than 8 (2 * kEntriesPerBucket) key values collide with
+// the same hash value, Insert() may fail returning nullptr.
 
 #ifndef BESS_UTILS_CUCKOOMAP_H_
 #define BESS_UTILS_CUCKOOMAP_H_
@@ -13,6 +17,7 @@
 
 #include <glog/logging.h>
 
+#include "../debug.h"
 #include "common.h"
 
 namespace bess {
@@ -141,18 +146,29 @@ class CuckooMap {
   // Return the pointer to the inserted entry
   Entry* Insert(const K& key, const V& value, const H& hasher = H(),
                 const E& eq = E()) {
+    Entry* entry;
     HashResult primary = Hash(key, hasher);
 
-    Entry* entry = FindWithHash(primary, key, eq);
-    if (entry) {
+    EntryIndex idx = FindWithHash(primary, key, eq);
+    if (idx != kInvalidEntryIdx) {
+      entry = &entries_[idx];
       entry->second = value;
       return entry;
     }
 
     HashResult secondary = HashSecondary(primary);
 
+    int trials = 0;
+
     while ((entry = AddEntry(primary, secondary, key, value, hasher)) ==
            nullptr) {
+      if (++trials >= 3) {
+        LOG_FIRST_N(WARNING, 1)
+            << "CuckooMap: Excessive hash colision detected:\n"
+            << bess::debug::DumpStack();
+        return nullptr;
+      }
+
       // expand the table as the last resort
       ExpandBuckets(hasher, eq);
     }
@@ -162,7 +178,22 @@ class CuckooMap {
   // Find the pointer to the stored value by the key.
   // Return nullptr if not exist.
   Entry* Find(const K& key, const H& hasher = H(), const E& eq = E()) {
-    return FindWithHash(Hash(key, hasher), key, eq);
+    // Blame Effective C++ for this
+    return const_cast<Entry*>(
+        static_cast<const typeof(*this)&>(*this).Find(key, hasher, eq));
+  }
+
+  // const version of Find()
+  const Entry* Find(const K& key, const H& hasher = H(),
+                    const E& eq = E()) const {
+    EntryIndex idx = FindWithHash(Hash(key, hasher), key, eq);
+    if (idx == kInvalidEntryIdx) {
+      return nullptr;
+    }
+
+    const Entry* ret = &entries_[idx];
+    promise(ret != nullptr);
+    return ret;
   }
 
   // Remove the stored entry by the key
@@ -213,6 +244,10 @@ class CuckooMap {
   // of insertion will grow exponentially, so be careful.
   static const int kMaxCuckooPath = 3;
 
+  /* non-tunable macros */
+  static const EntryIndex kInvalidEntryIdx =
+      std::numeric_limits<EntryIndex>::max();
+
   struct Bucket {
     HashResult hash_values[kEntriesPerBucket];
     EntryIndex entry_indices[kEntriesPerBucket];
@@ -238,8 +273,7 @@ class CuckooMap {
   Entry* AddToBucket(HashResult bucket_idx, const K& key, const V& value,
                      const H& hasher) {
     Bucket& bucket = buckets_[bucket_idx];
-    int slot_idx = FindSlot(bucket, 0);
-
+    int slot_idx = FindEmptySlot(bucket);
     if (slot_idx == -1) {
       return nullptr;
     }
@@ -263,41 +297,36 @@ class CuckooMap {
                         const E& eq) {
     Bucket& bucket = buckets_[bucket_idx];
 
-    int slot_idx = FindSlot(bucket, primary);
+    int slot_idx = FindSlot(bucket, primary, key, eq);
     if (slot_idx == -1) {
       return false;
     }
 
-    EntryIndex idx = bucket.entry_indices[slot_idx];
-    Entry& entry = entries_[idx];
-    if (Eq(entry.first, key, eq)) {
-      bucket.hash_values[slot_idx] = 0;
-      entry = Entry();
-      PushFreeEntryIndex(idx);
-      num_entries_--;
-      return true;
-    }
+    bucket.hash_values[slot_idx] = 0;
 
-    return false;
+    EntryIndex idx = bucket.entry_indices[slot_idx];
+    entries_[idx] = Entry();
+    PushFreeEntryIndex(idx);
+
+    num_entries_--;
+    return true;
   }
 
-  // Remove key from the bucket indexed by bucket_idx
-  // Return the pointer to the entry if success. Otherwise return nullptr.
-  Entry* GetFromBucket(HashResult primary, HashResult bucket_idx, const K& key,
-                       const E& eq) {
+  // Find key from the bucket indexed by bucket_idx
+  // Return the index of the entry if success. Otherwise return nullptr.
+  EntryIndex GetFromBucket(HashResult primary, HashResult bucket_idx,
+                           const K& key, const E& eq) const {
     const Bucket& bucket = buckets_[bucket_idx];
 
-    int slot_idx = FindSlot(bucket, primary);
+    int slot_idx = FindSlot(bucket, primary, key, eq);
     if (slot_idx == -1) {
-      return nullptr;
+      return kInvalidEntryIdx;
     }
 
+    // this promise gains 5% performance improvement
     EntryIndex idx = bucket.entry_indices[slot_idx];
-    if (Eq(entries_[idx].first, key, eq)) {
-      return &entries_[idx];
-    }
-
-    return nullptr;
+    promise(idx != kInvalidEntryIdx);
+    return idx;
   }
 
   // Try to add the entry (key, value)
@@ -330,12 +359,28 @@ class CuckooMap {
     return nullptr;
   }
 
-  // Return the slot index in the bucket that matches the hash_value
-  // -1 if not found.
-  int FindSlot(const Bucket& bucket, HashResult hash_value) const {
+  // Return an empty slot index in the bucket
+  int FindEmptySlot(const Bucket& bucket) const {
     for (int i = 0; i < kEntriesPerBucket; i++) {
-      if (bucket.hash_values[i] == hash_value) {
+      if (bucket.hash_values[i] == 0) {
         return i;
+      }
+    }
+    return -1;
+  }
+
+  // Return the slot index in the bucket that matches the primary hash_value
+  // and the actual key. Return -1 if not found.
+  int FindSlot(const Bucket& bucket, HashResult primary, const K& key,
+               const E& eq) const {
+    for (int i = 0; i < kEntriesPerBucket; i++) {
+      if (bucket.hash_values[i] == primary) {
+        EntryIndex idx = bucket.entry_indices[i];
+        const Entry& entry = entries_[idx];
+
+        if (likely(Eq(entry.first, key, eq))) {
+          return i;
+        }
       }
     }
     return -1;
@@ -368,8 +413,7 @@ class CuckooMap {
         return -1;
       }
 
-      // Find empty slot
-      int j = FindSlot(buckets_[alt_index], 0);
+      int j = FindEmptySlot(buckets_[alt_index]);
       if (j == -1) {
         j = MakeSpace(alt_index, depth + 1, hasher);
       }
@@ -387,9 +431,9 @@ class CuckooMap {
 
   // Get the entry given the primary hash value of the key.
   // Returns the pointer to the entry or nullptr if failed.
-  Entry* FindWithHash(HashResult primary, const K& key, const E& eq) {
-    Entry* ret = GetFromBucket(primary, primary & bucket_mask_, key, eq);
-    if (ret) {
+  EntryIndex FindWithHash(HashResult primary, const K& key, const E& eq) const {
+    EntryIndex ret = GetFromBucket(primary, primary & bucket_mask_, key, eq);
+    if (ret != kInvalidEntryIdx) {
       return ret;
     }
     return GetFromBucket(primary, HashSecondary(primary) & bucket_mask_, key,
@@ -429,7 +473,10 @@ class CuckooMap {
 
     for (const auto& e : *this) {
       // While very unlikely, this insert() may cause recursive expansion
-      bigger.Insert(e.first, e.second, hasher, eq);
+      bool ret = bigger.Insert(e.first, e.second, hasher, eq);
+      if (!ret) {
+        return;
+      }
     }
 
     *this = std::move(bigger);
