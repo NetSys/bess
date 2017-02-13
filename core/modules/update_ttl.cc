@@ -20,12 +20,9 @@ void UpdateTTL::ProcessBatch(bess::PacketBatch *batch) {
     struct Ipv4Header *ip = reinterpret_cast<struct Ipv4Header *>(eth + 1);
 
     if (ip->ttl > 1) {
-      // Additional code for efficient checksum update for  changing TTL by an
-      // amount n
-      // TODO: Integration - add a check to identify an existing checksum?
-      // WARNING: though this code is efficient it can only update an already
-      // calculated checksum
-      // this code cannot calculate a checksum from scratch like ip_checksum.cc
+      // Current design choice: implement a checksum at a downstream module 
+      // instead of updating here. If efficent code for checksumming at each module
+      // is a future change, RFC 1624 will be helpful for implementation in this module.
 
       ip->ttl -= 1;  // TODO: make this a customizable parameter
       out_batch.add(pkt);
