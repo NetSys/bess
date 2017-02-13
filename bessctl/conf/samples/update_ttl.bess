@@ -8,6 +8,10 @@ pkt_bytes = str(eth/ip/udp/payload)
 
 Source() -> Rewrite(templates=[pkt_bytes]) -> rr::RoundRobin(gates=[1, 2, 3])
 
+# UpdateTTL is a module that takes in no parameters
+# it modifies a batch of packets by decrementing their TTL by 1 or
+# dropping packets if their TTL is <= 1
+
 rr:1 \
     -> UpdateTTL() \
     -> Sink()
