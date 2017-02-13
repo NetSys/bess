@@ -43,5 +43,8 @@ script:
 after_success:
   - "[[ ${DEBUG:-0} != 0 ]] && bash <(curl -s https://codecov.io/bash)"
 
+after_failure:
+  - cat /tmp/bessd.INFO
+
 notifications:
   slack: nefeli:x5udJ7nDIKjCaCrRYprGc4mw
