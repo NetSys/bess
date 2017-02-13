@@ -278,6 +278,7 @@ class BESS(object):
             'Split': module_msg.SplitArg,
             'Timestamp': bess_msg.EmptyArg,
             'Update': module_msg.UpdateArg,
+            'UpdateTTL': bess_msg.EmptyArg,
             'UrlFilter': module_msg.UrlFilterArg,
             'VLANPop': bess_msg.EmptyArg,
             'VLANPush': module_msg.VLANPushArg,
