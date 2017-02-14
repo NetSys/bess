@@ -3,7 +3,7 @@
 #include <rte_config.h>
 #include <rte_ether.h>
 #include <rte_ip.h>
-#include <rte_tcp.h>
+#include <rte_udp.h>
 
 #include "../utils/time.h"
 
@@ -26,7 +26,7 @@ pb_error_t Timestamp::Init(const bess::pb::TimestampArg &arg) {
     offset_ = arg.offset();
   } else {
     offset_ = sizeof(struct ether_hdr) + sizeof(struct ipv4_hdr) +
-              sizeof(struct tcp_hdr);
+              sizeof(struct udp_hdr);
   }
   return pb_errno(0);
 }
