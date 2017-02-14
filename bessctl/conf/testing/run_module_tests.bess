@@ -25,10 +25,11 @@ def gen_socket_and_port(sockname):
     return socket_port, s
 
 # Craft a packet with the specified IP addresses
+<<<<<<< HEAD
 # Ether is dummy, ports -- dummy if non-specified.
-def gen_packet(proto, src_ip, dst_ip, src_port=1001, dest_port=1002):
-    eth = scapy.Ether(src='02:1e:67:9f:4d:ae', dst='06:16:3e:1b:72:32')
-    ip = scapy.IP(src=src_ip, dst=dst_ip)
+def gen_packet(proto, src_ip, dst_ip, src_port=1001, dest_port=1002, ip_ttl=64):
+    eth = scapy.Ether(src='02:1e:67:9f:4d:ae', dst='06:16:3e:1b:72:32', )
+    ip = scapy.IP(src=src_ip, dst=dst_ip, ttl=ip_ttl)
     udp = proto(sport=src_port, dport=dest_port)
     payload = 'helloworld'
     pkt = eth / ip / udp / payload

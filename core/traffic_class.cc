@@ -77,7 +77,7 @@ void PriorityTrafficClass::FinishAndAccountTowardsRoot(Scheduler *sched,
   parent_->FinishAndAccountTowardsRoot(sched, this, usage, tsc);
 }
 
-void PriorityTrafficClass::Traverse(TravereseTcFn f, void *arg) const {
+void PriorityTrafficClass::Traverse(TraverseTcFn f, void *arg) const {
   f(this, arg);
   for (const auto &child : children_) {
     child.c_->Traverse(f, arg);
@@ -163,12 +163,10 @@ void WeightedFairTrafficClass::FinishAndAccountTowardsRoot(Scheduler *sched,
   parent_->FinishAndAccountTowardsRoot(sched, this, usage, tsc);
 }
 
-void WeightedFairTrafficClass::Traverse(TravereseTcFn f, void *arg) const {
-  const auto *childs =
-      reinterpret_cast<const std::vector<ChildData> *>(&children_);
+void WeightedFairTrafficClass::Traverse(TraverseTcFn f, void *arg) const {
   f(this, arg);
-  for (auto child = childs->cbegin(); child != childs->cend(); ++child) {
-    child->c_->Traverse(f, arg);
+  for (const auto &child : children_.container()) {
+    child.c_->Traverse(f, arg);
   }
   for (const auto &child : blocked_children_) {
     child.c_->Traverse(f, arg);
@@ -244,12 +242,10 @@ void RoundRobinTrafficClass::FinishAndAccountTowardsRoot(Scheduler *sched,
   parent_->FinishAndAccountTowardsRoot(sched, this, usage, tsc);
 }
 
-void RoundRobinTrafficClass::Traverse(TravereseTcFn f, void *arg) const {
-  const auto *childs =
-      reinterpret_cast<const std::vector<TrafficClass *> *>(&children_);
+void RoundRobinTrafficClass::Traverse(TraverseTcFn f, void *arg) const {
   f(this, arg);
-  for (auto child = childs->cbegin(); child != childs->cend(); ++child) {
-    (*child)->Traverse(f, arg);
+  for (const auto &child : children_) {
+    child->Traverse(f, arg);
   }
   for (const auto &child : blocked_children_) {
     child->Traverse(f, arg);
@@ -322,7 +318,7 @@ void RateLimitTrafficClass::FinishAndAccountTowardsRoot(Scheduler *sched,
   parent_->FinishAndAccountTowardsRoot(sched, this, usage, tsc);
 }
 
-void RateLimitTrafficClass::Traverse(TravereseTcFn f, void *arg) const {
+void RateLimitTrafficClass::Traverse(TraverseTcFn f, void *arg) const {
   f(this, arg);
   child_->Traverse(f, arg);
 }
@@ -344,6 +340,8 @@ bool LeafTrafficClass::RemoveTask(Task *t) {
   auto it = std::find(tasks_.begin(), tasks_.end(), t);
   if (it != tasks_.end()) {
     tasks_.erase(it);
+    // Avoid out-of-bounds access in RunTasks()
+    task_index_ = 0;
     return true;
   }
   return false;

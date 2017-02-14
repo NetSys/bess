@@ -84,32 +84,23 @@ pb_error_t ExactMatch::Init(const bess::pb::ExactMatchArg &arg) {
   num_fields_ = arg.fields_size();
   total_key_size_ = align_ceil(size_acc, sizeof(uint64_t));
 
-  int ret = ht_.Init(total_key_size_, sizeof(gate_idx_t));
-  if (ret < 0) {
-    return pb_error(-ret, "hash table creation failed");
-  }
-
   return pb_errno(0);
-}
-
-void ExactMatch::DeInit() {
-  ht_.Close();
 }
 
 void ExactMatch::ProcessBatch(bess::PacketBatch *batch) {
   gate_idx_t default_gate;
   gate_idx_t out_gates[bess::PacketBatch::kMaxBurst];
 
-  int key_size = total_key_size_;
-  char keys[bess::PacketBatch::kMaxBurst][HASH_KEY_SIZE] __ymm_aligned;
+  em_hkey_t keys[bess::PacketBatch::kMaxBurst] __ymm_aligned;
 
   int cnt = batch->cnt();
 
-  default_gate = ACCESS_ONCE(default_gate_);
-
+  // Initialize the padding with zero
   for (int i = 0; i < cnt; i++) {
-    memset(&keys[i][key_size - 8], 0, sizeof(uint64_t));
+    keys[i].u64_arr[(total_key_size_ - 1) / 8] = 0;
   }
+
+  default_gate = ACCESS_ONCE(default_gate_);
 
   for (int i = 0; i < num_fields_; i++) {
     uint64_t mask = fields_[i].mask;
@@ -123,9 +114,7 @@ void ExactMatch::ProcessBatch(bess::PacketBatch *batch) {
       offset = bess::Packet::mt_offset_to_databuf_offset(attr_offset(attr_id));
     }
 
-    char *key = keys[0] + pos;
-
-    for (int j = 0; j < cnt; j++, key += HASH_KEY_SIZE) {
+    for (int j = 0; j < cnt; j++) {
       char *buf_addr = reinterpret_cast<char *>(batch->pkts()[j]->buffer());
 
       /* for offset-based attrs we use relative offset */
@@ -133,22 +122,25 @@ void ExactMatch::ProcessBatch(bess::PacketBatch *batch) {
         buf_addr += batch->pkts()[j]->data_off();
       }
 
+      char *key = reinterpret_cast<char *>(keys[j].u64_arr) + pos;
+
       *(reinterpret_cast<uint64_t *>(key)) =
           *(reinterpret_cast<uint64_t *>(buf_addr + offset)) & mask;
     }
   }
 
   for (int i = 0; i < cnt; i++) {
-    gate_idx_t *ret = static_cast<gate_idx_t *>(
-        ht_.Get(reinterpret_cast<em_hkey_t *>(keys[i])));
-    out_gates[i] = ret ? *ret : default_gate;
+    const auto &ht = ht_;
+    const auto *entry =
+        ht.Find(keys[i], em_hash(total_key_size_), em_eq(total_key_size_));
+    out_gates[i] = entry ? entry->second : default_gate;
   }
 
   RunSplit(out_gates, batch);
 }
 
 std::string ExactMatch::GetDesc() const {
-  return bess::utils::Format("%d fields, %d rules", num_fields_, ht_.Count());
+  return bess::utils::Format("%d fields, %ld rules", num_fields_, ht_.Count());
 }
 
 pb_error_t ExactMatch::GatherKey(const RepeatedPtrField<std::string> &fields,
@@ -182,7 +174,6 @@ pb_cmd_response_t ExactMatch::CommandAdd(
   em_hkey_t key;
   gate_idx_t gate = arg.gate();
   pb_error_t err;
-  int ret;
 
   pb_cmd_response_t response;
 
@@ -203,11 +194,7 @@ pb_cmd_response_t ExactMatch::CommandAdd(
     return response;
   }
 
-  ret = ht_.Set(&key, &gate);
-  if (ret) {
-    set_cmd_response_error(&response, pb_error(-ret, "ht_set() failed"));
-    return response;
-  }
+  ht_.Insert(key, gate, em_hash(total_key_size_), em_eq(total_key_size_));
 
   set_cmd_response_error(&response, pb_errno(0));
   return response;
@@ -220,7 +207,6 @@ pb_cmd_response_t ExactMatch::CommandDelete(
   em_hkey_t key;
 
   pb_error_t err;
-  int ret;
 
   if (arg.fields_size() == 0) {
     set_cmd_response_error(&response,
@@ -233,9 +219,9 @@ pb_cmd_response_t ExactMatch::CommandDelete(
     return response;
   }
 
-  ret = ht_.Del(&key);
-  if (ret < 0) {
-    set_cmd_response_error(&response, pb_error(-ret, "ht_del() failed"));
+  bool ret = ht_.Remove(key, em_hash(total_key_size_), em_eq(total_key_size_));
+  if (!ret) {
+    set_cmd_response_error(&response, pb_error(-1, "ht_del() failed"));
     return response;
   }
 

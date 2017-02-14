@@ -311,6 +311,8 @@ pb_error_t PMDPort::Init(const bess::pb::PMDPortArg &arg) {
 
   dpdk_port_id_ = ret_port_id;
 
+  rte_eth_macaddr_get(dpdk_port_id_, reinterpret_cast<ether_addr *>(&mac_addr));
+
   return pb_errno(0);
 }
 

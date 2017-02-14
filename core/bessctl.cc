@@ -225,10 +225,13 @@ static ::Port* create_port(const std::string& name, const PortBuilder& driver,
                            const google::protobuf::Any& arg, pb_error_t* perr) {
   std::unique_ptr<::Port> p;
 
-  if (num_inc_q == 0)
+  if (num_inc_q == 0) {
     num_inc_q = 1;
-  if (num_out_q == 0)
+  }
+
+  if (num_out_q == 0) {
     num_out_q = 1;
+  }
 
   bess::utils::EthHeader::Address mac_addr;
 
@@ -275,10 +278,13 @@ static ::Port* create_port(const std::string& name, const PortBuilder& driver,
   // Try to create and initialize the port.
   p.reset(driver.CreatePort(port_name));
 
-  if (size_inc_q == 0)
+  if (size_inc_q == 0) {
     size_inc_q = p->DefaultIncQueueSize();
-  if (size_out_q == 0)
+  }
+
+  if (size_out_q == 0) {
     size_out_q = p->DefaultOutQueueSize();
+  }
 
   memcpy(p->mac_addr, mac_addr.bytes, ETH_ALEN);
   p->num_queues[PACKET_DIR_INC] = num_inc_q;
@@ -286,7 +292,9 @@ static ::Port* create_port(const std::string& name, const PortBuilder& driver,
   p->queue_size[PACKET_DIR_INC] = size_inc_q;
   p->queue_size[PACKET_DIR_OUT] = size_out_q;
 
+  // DPDK functions may be called, so be prepared
   ctx.SetNonWorker();
+
   *perr = p->InitWithGenericArg(arg);
   if (perr->err() != 0) {
     return nullptr;
@@ -305,6 +313,7 @@ static Module* create_module(const std::string& name,
                              pb_error_t* perr) {
   Module* m = builder.CreateModule(name, &bess::metadata::default_pipeline);
 
+  // DPDK functions may be called, so be prepared
   ctx.SetNonWorker();
   *perr = m->InitWithGenericArg(arg);
   if (perr->err() != 0) {
@@ -393,7 +402,7 @@ class BESSControlImpl final : public BESSControl::Service {
                    EmptyResponse* response) override {
     uint64_t wid = request->wid();
     if (wid >= MAX_WORKERS) {
-      return return_with_error(response, EINVAL, "Missing 'wid' field");
+      return return_with_error(response, EINVAL, "Invalid worker id");
     }
     uint64_t core = request->core();
     if (!is_cpu_present(core)) {
@@ -404,6 +413,41 @@ class BESSControlImpl final : public BESSControl::Service {
                                wid);
     }
     launch_worker(wid, core);
+    return Status::OK;
+  }
+  Status DestroyWorker(ServerContext*, const DestroyWorkerRequest* request,
+                       EmptyResponse* response) override {
+    uint64_t wid = request->wid();
+    if (wid >= MAX_WORKERS) {
+      return return_with_error(response, EINVAL, "Invalid worker id");
+    }
+    Worker* worker = workers[wid];
+    if (!worker) {
+      return return_with_error(response, ENOENT, "Worker %d is not active",
+                               wid);
+    }
+
+    bess::TrafficClass* root = workers[wid]->scheduler()->root();
+    if (root) {
+      bool has_tasks = false;
+      root->Traverse(
+          [](const bess::TrafficClass* c, void* arg) {
+            bool have_tasks = false;
+            if (c->policy() == bess::POLICY_LEAF) {
+              have_tasks = reinterpret_cast<const bess::LeafTrafficClass*>(c)
+                               ->tasks()
+                               .size() > 0;
+            }
+            *reinterpret_cast<bool*>(arg) |= have_tasks;
+          },
+          static_cast<void*>(&has_tasks));
+      if (has_tasks) {
+        return return_with_error(response, EBUSY, "Worker %d has active tasks ",
+                                 wid);
+      }
+    }
+
+    destroy_worker(wid);
     return Status::OK;
   }
   Status ResetTcs(ServerContext*, const EmptyRequest*,
@@ -767,6 +811,10 @@ class BESSControlImpl final : public BESSControl::Service {
 
       port->set_name(p->name());
       port->set_driver(p->port_builder()->class_name());
+
+      bess::utils::EthHeader::Address mac_addr;
+      memcpy(mac_addr.bytes, p->mac_addr, ETH_ALEN);
+      port->set_mac_addr(mac_addr.ToString());
     }
 
     return Status::OK;
@@ -802,6 +850,11 @@ class BESSControlImpl final : public BESSControl::Service {
       return Status::OK;
 
     response->set_name(port->name());
+
+    bess::utils::EthHeader::Address mac_addr;
+    memcpy(mac_addr.bytes, port->mac_addr, ETH_ALEN);
+    response->set_mac_addr(mac_addr.ToString());
+
     return Status::OK;
   }
   Status DestroyPort(ServerContext*, const DestroyPortRequest* request,
@@ -1326,29 +1379,15 @@ class BESSControlImpl final : public BESSControl::Service {
       return return_with_error(response, ENOENT, "No module '%s' found",
                                request->name().c_str());
     }
+
+    // DPDK functions may be called, so be prepared
+    ctx.SetNonWorker();
+
     Module* m = it->second;
     *response = m->RunCommand(request->cmd(), request->arg());
     return Status::OK;
   }
 };
-
-static void reset_core_affinity() {
-  cpu_set_t set;
-  unsigned int i;
-
-  CPU_ZERO(&set);
-
-  // set all cores...
-  for (i = 0; i < rte_lcore_count(); i++)
-    CPU_SET(i, &set);
-
-  // ...and then unset the ones where workers run
-  for (i = 0; i < MAX_WORKERS; i++)
-    if (is_worker_active(i))
-      CPU_CLR(workers[i]->core(), &set);
-
-  rte_thread_set_affinity(&set);
-}
 
 // TODO: C++-ify
 static std::unique_ptr<Server> server;
@@ -1356,9 +1395,6 @@ static BESSControlImpl service;
 
 void SetupControl() {
   ServerBuilder builder;
-
-  reset_core_affinity();
-  ctx.SetNonWorker();
 
   if (FLAGS_p) {
     std::string server_address = bess::utils::Format("127.0.0.1:%d", FLAGS_p);

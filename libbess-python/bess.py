@@ -279,6 +279,7 @@ class BESS(object):
             'Split': module_msg.SplitArg,
             'Timestamp': bess_msg.EmptyArg,
             'Update': module_msg.UpdateArg,
+            'UpdateTTL': bess_msg.EmptyArg,
             'UrlFilter': module_msg.UrlFilterArg,
             'VLANPop': bess_msg.EmptyArg,
             'VLANPush': module_msg.VLANPushArg,
@@ -383,6 +384,11 @@ class BESS(object):
         request.wid = wid
         request.core = core
         return self._request('AddWorker', request)
+
+    def destroy_worker(self, wid):
+        request = bess_msg.DestroyWorkerRequest()
+        request.wid = wid
+        return self._request('DestroyWorker', request)
 
     def attach_task(self, m, tid=0, tc=None, wid=None):
         if (tc is None) == (wid is None):
