@@ -60,7 +60,7 @@ class RateLimitTrafficClass;
 class LeafTrafficClass;
 class TrafficClass;
 
-typedef void (*TravereseTcFn)(const TrafficClass *, void *);
+typedef void (*TraverseTcFn)(const TrafficClass *, void *);
 
 enum TrafficPolicy {
   POLICY_PRIORITY = 0,
@@ -122,7 +122,7 @@ class TrafficClass {
  public:
   virtual ~TrafficClass() {}
 
-  virtual void Traverse(TravereseTcFn f, void *arg) const { f(this, arg); }
+  virtual void Traverse(TraverseTcFn f, void *arg) const { f(this, arg); }
 
   size_t Size() const {
     size_t sz = 0;
@@ -240,7 +240,7 @@ class PriorityTrafficClass final : public TrafficClass {
 
   const std::vector<ChildData> &children() const { return children_; }
 
-  void Traverse(TravereseTcFn f, void *arg) const override;
+  void Traverse(TraverseTcFn f, void *arg) const override;
 
  private:
   friend Scheduler;
@@ -293,7 +293,7 @@ class WeightedFairTrafficClass final : public TrafficClass {
     return blocked_children_;
   }
 
-  void Traverse(TravereseTcFn f, void *arg) const override;
+  void Traverse(TraverseTcFn f, void *arg) const override;
 
  private:
   friend Scheduler;
@@ -331,7 +331,7 @@ class RoundRobinTrafficClass final : public TrafficClass {
     return blocked_children_;
   }
 
-  void Traverse(TravereseTcFn f, void *arg) const override;
+  void Traverse(TraverseTcFn f, void *arg) const override;
 
  private:
   friend Scheduler;
@@ -410,7 +410,7 @@ class RateLimitTrafficClass final : public TrafficClass {
 
   TrafficClass *child() const { return child_; }
 
-  void Traverse(TravereseTcFn f, void *arg) const override;
+  void Traverse(TraverseTcFn f, void *arg) const override;
 
   // Convert resource units to work units
   static uint64_t to_work_units(uint64_t x) {
