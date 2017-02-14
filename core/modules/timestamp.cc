@@ -9,9 +9,15 @@
 
 static inline void timestamp_packet(bess::Packet *pkt, size_t offset,
                                     uint64_t time) {
-  uint8_t *avail = pkt->head_data<uint8_t *>() + offset;
-  *avail = 1;
-  uint64_t *ts = reinterpret_cast<uint64_t *>(avail + 1);
+  const uint16_t kMarker = 0x54C5;
+  const size_t kStampSize = sizeof(uint16_t) + sizeof(uint64_t);
+  size_t sz = pkt->data_len() - offset;
+  if (unlikely(sz < kStampSize)) {
+    pkt->append(kStampSize);
+  }
+  uint16_t *marker = reinterpret_cast<uint16_t*>(pkt->head_data<uint8_t *>() + offset);
+  *marker = kMarker;
+  uint64_t *ts = reinterpret_cast<uint64_t*>(marker + 1);
   *ts = time;
 }
 

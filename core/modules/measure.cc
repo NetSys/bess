@@ -10,13 +10,15 @@
 #define MEASURE_ONE_NS (1000lu * 1000 * 1000)
 #define MEASURE_TIME_TO_SEC(t) ((t) / (MEASURE_ONE_NS))
 
-inline int get_measure_packet(bess::Packet *pkt, size_t offset,
+inline bool get_measure_packet(bess::Packet *pkt, size_t offset,
                               uint64_t *time) {
-  uint8_t *avail = pkt->head_data<uint8_t *>() + offset;
-  uint64_t *ts = reinterpret_cast<uint64_t *>(avail + 1);
-  uint8_t available = *avail;
-  *time = *ts;
-  return available;
+  const uint16_t kMarker = 0x54C5;
+  uint16_t *marker = reinterpret_cast<uint16_t*>(pkt->head_data<uint8_t *>() + offset);
+  if (*marker == kMarker) {
+    *time = *reinterpret_cast<uint64_t*>(marker + 1);
+    return true;
+  }
+  return false;
 }
 
 /* XXX: currently doesn't support multiple workers */
