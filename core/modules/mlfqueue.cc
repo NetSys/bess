@@ -44,7 +44,7 @@ const Commands MLFQueue::cmds = {
 
 pb_error_t MLFQueue::Init(const bess::pb::MlfqArg &arg) {
   pb_error_t err;
-
+  task_id_t tid;
   if (arg.num_levels() != 0) {
     err = SetNumPriorityLevels(arg.num_levels());
     if (err.err() != 0)  {
@@ -85,6 +85,12 @@ pb_error_t MLFQueue::Init(const bess::pb::MlfqArg &arg) {
     load_avg_ = arg.init_load();
   } else {
     load_avg_ = kINITIAL_LOAD;
+  }
+
+  /* register task */
+  tid = RegisterTask(nullptr);
+  if (tid == INVALID_TASK_ID) {
+    return pb_error(ENOMEM, "task creation failed");
   }
 
   init_flow_size_ =  RoundToPowerTwo(kFLOW_QUEUE_FACTOR*batch_size_);
@@ -160,19 +166,18 @@ struct task_result MLFQueue::RunTask(void *) {
   uint64_t cnt = batch.cnt();
   if (cnt > 0) {
     RunNextModule(&batch);
+    //after processing a getbatch call, updates flows
+    //and their priority location
+    UpdateAllFlows();
   }
 
   uint64_t total_bytes = 0;
   for (uint32_t i = 0; i < cnt; i++)
     total_bytes += batch.pkts()[i]->total_len();
-
   ret = (struct task_result){
       .packets = cnt, .bits = (total_bytes + cnt * kPACKET_OVERHEAD) * 8,
   };
 
-  //after processing a getbatch call, updates flows
-  //and their priority location
-  UpdateAllFlows();
   return ret;
 }
 
@@ -275,6 +280,9 @@ int MLFQueue::Enqueue(Flow* f, bess::Packet* newpkt) {
 
       mem_free(old_queue);
     }
+  }
+  if(llring_empty(f->queue)) {
+    ready_flows_++;
   }
   ret = llring_sp_enqueue(f->queue, newpkt);
   time(&f->timer);
