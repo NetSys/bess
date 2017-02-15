@@ -276,7 +276,7 @@ class BESS(object):
             'Sink': bess_msg.EmptyArg,
             'Source': module_msg.SourceArg,
             'Split': module_msg.SplitArg,
-            'Timestamp': bess_msg.EmptyArg,
+            'Timestamp': module_msg.TimestampArg,
             'Update': module_msg.UpdateArg,
             'UpdateTTL': bess_msg.EmptyArg,
             'UrlFilter': module_msg.UrlFilterArg,
