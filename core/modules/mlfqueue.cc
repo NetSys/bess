@@ -146,7 +146,7 @@ void MLFQueue::ProcessBatch(bess::PacketBatch *batch) {
       assert(err == 0);
       assert(f.queue);
       err++;
-
+      flows_.insert(std::pair<Flow_Id, Flow>(id, f));
       Enqueue(&f, pkt);
       InsertFlow(&f);
       ready_flows_ += 1;

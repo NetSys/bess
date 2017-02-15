@@ -26,19 +26,19 @@ def gen_socket_and_port(sockname):
 
 # Craft a packet with the specified IP addresses
 # Ether is dummy, ports -- dummy if non-specified.
-def gen_packet(proto, src_ip, dst_ip, src_port=1001, dest_port=1002, ip_ttl=64):
+def gen_packet(proto, src_ip, dst_ip, ip_ttl=64):
     eth = scapy.Ether(src='02:1e:67:9f:4d:ae', dst='06:16:3e:1b:72:32', )
     ip = scapy.IP(src=src_ip, dst=dst_ip, ttl=ip_ttl)
-    udp = proto(sport=src_port, dport=dest_port)
+    udp = proto(sport=10001, dport=10002)
     payload = 'helloworld'
     pkt = eth / ip / udp / payload
     return str(pkt)
 
 #generates a batch of identical packets from gen_packet
-def gen_batch(num_pkts, protocol, input_ip, output_ip, src_port=1001, dest_port=1002):
-    batch = ""
+def gen_batch(num_pkts, protocol, input_ip, output_ip):
+    batch = []
     for i in range(num_pkts):
-         batch += gen_packet(protocol, input_ip, output_ip, src_port, dest_port)
+         batch += [gen_packet(protocol, input_ip, output_ip)]
 
     return batch
 
@@ -51,7 +51,7 @@ def set_up_module_ports(module, input_port_cnt, output_port_cnt):
         sockname= module.name + "_moduletesting_" + \
             strftime("%Y-%m-%d-%H-%M-%S", gmtime()) + str(port_num)
         socket_port, mysocket = gen_socket_and_port(sockname)
-        input_ports.append(PortInc(port=sockname))
+        input_ports.append(PortInc(port=sockname, burst=5))
         output_ports.append(PortOut(port=sockname))
         sockets.append(mysocket)
         if (port_num < input_port_cnt):
@@ -72,7 +72,9 @@ def send_batches(sockets, batches):
         input_port = batch['input_port']
         input_batch = batch['input_batch']
         if(input_batch is not None):
-          sockets[input_port].send(input_batch)
+          #input_str = ''.join(input_batch)
+          for input_pkt in input_batch:
+            sockets[input_port].send(input_pkt)
 
 #tests to make sure that the packets outputted from module are correct
 #should be used in conjunction with send_batches for testing.
@@ -81,23 +83,24 @@ def test_output_batches(module, sockets, test_cases):
 
   for test_case in test_cases:
       output_port = test_case["output_port"]
-      output_batch = test_case["output_batch"]
+      output_batch = list(test_case["output_batch"])
 
-      for output_pkt in output_batch:
+      while len(output_batch) > 0:
 
         try:
-            return_pkt = scapy.Ether(sockets[output_port].recv(2048))
+            return_pkt = sockets[output_port].recv(2048)
         except socket.timeout:
             return_pkt = None
-        if(not ((return_pkt is None and output_pkt is None) or
-                (return_pkt == scapy.Ether(output_pkt)))):
+        if return_pkt not in output_batch:
             sys.stderr.write("Test failed!\n")
-            sys.stderr.write("Expected: %s\n" % pkt_str(scapy.Ether(output_pkt)))
-            sys.stderr.write("Received: %s\n" % pkt_str(return_pkt))
+            sys.stderr.write("Expected: %s\n" % output_batch)
+            sys.stderr.write("Received: %s\n" % [return_pkt])
+            # sys.stderr.write("Received: %s\n" % pkt_str(scapy.Ether(return_pkt)))
             for sock in sockets:
                 sock.close()
             return;
-
+        else:
+            output_batch.remove(return_pkt)
       print("   %s receive batch test %s: PASS\n" %
             (str(module), str(testid)))
       testid += 1
@@ -218,12 +221,12 @@ for filename in glob.glob(path + "/conf/testing/module_tests/*.py"):
         bess.pause_all()
 
     for test in CUSTOM_TEST_FUNCTIONS:
-        try:
-            test()
-        except:
-            sys.stderr.write("Test failed!\n")
-            sys.stderr.write("Return value: %s\n" % sys.exc_info()[0])
-            sys.exit(1)
+        # try:
+        test()
+        # except:
+            # sys.stderr.write("Test failed!\n")
+            # sys.stderr.write("Return value: %s\n" % sys.exc_info()[0])
+            # sys.exit(1)
         print("   %s  custom test: PASS" % str(test))
     # All done!
     print "\n\n"
