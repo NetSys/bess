@@ -37,11 +37,6 @@ cxx_flags = []
 ld_flags = []
 
 
-def download_hook(count, block_size, total_size):
-    sys.stdout.write('\x08' + ['-', '\\', '|', '/'][int(time.time() * 3) % 4])
-    sys.stdout.flush()
-
-
 def cmd(cmd):
     proc = subprocess.Popen(cmd,
                             stdout=subprocess.PIPE,
@@ -199,13 +194,9 @@ def generate_extra_mk():
 
 def download_dpdk():
     try:
-        print 'Downloading %s ...  ' % DPDK_URL,
-        if sys.stdout.isatty():
-            urllib.urlretrieve(DPDK_URL, DPDK_FILE, reporthook=download_hook)
-            print
-        else:
-            print
-            urllib.urlretrieve(DPDK_URL, DPDK_FILE)
+        print 'Downloading %s ...  ' % DPDK_URL
+        cmd('curl -s -L %s -o %s' % (DPDK_URL, DPDK_FILE))
+
     except:
         cmd('rm -f %s' % (DPDK_FILE))
         raise

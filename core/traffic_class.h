@@ -60,7 +60,7 @@ class RateLimitTrafficClass;
 class LeafTrafficClass;
 class TrafficClass;
 
-typedef void (*TravereseTcFn)(const TrafficClass *, void *);
+typedef void (*TraverseTcFn)(const TrafficClass *, void *);
 
 enum TrafficPolicy {
   POLICY_PRIORITY = 0,
@@ -122,7 +122,7 @@ class TrafficClass {
  public:
   virtual ~TrafficClass() {}
 
-  virtual void Traverse(TravereseTcFn f, void *arg) const { f(this, arg); }
+  virtual void Traverse(TraverseTcFn f, void *arg) const { f(this, arg); }
 
   size_t Size() const {
     size_t sz = 0;
@@ -240,7 +240,7 @@ class PriorityTrafficClass final : public TrafficClass {
 
   const std::vector<ChildData> &children() const { return children_; }
 
-  void Traverse(TravereseTcFn f, void *arg) const override;
+  void Traverse(TraverseTcFn f, void *arg) const override;
 
  private:
   friend Scheduler;
@@ -283,7 +283,7 @@ class WeightedFairTrafficClass final : public TrafficClass {
   void FinishAndAccountTowardsRoot(Scheduler *sched, TrafficClass *child,
                                    resource_arr_t usage, uint64_t tsc) override;
 
-  inline resource_t resource() const { return resource_; }
+  resource_t resource() const { return resource_; }
 
   const extended_priority_queue<ChildData> &children() const {
     return children_;
@@ -293,7 +293,7 @@ class WeightedFairTrafficClass final : public TrafficClass {
     return blocked_children_;
   }
 
-  void Traverse(TravereseTcFn f, void *arg) const override;
+  void Traverse(TraverseTcFn f, void *arg) const override;
 
  private:
   friend Scheduler;
@@ -331,7 +331,7 @@ class RoundRobinTrafficClass final : public TrafficClass {
     return blocked_children_;
   }
 
-  void Traverse(TravereseTcFn f, void *arg) const override;
+  void Traverse(TraverseTcFn f, void *arg) const override;
 
  private:
   friend Scheduler;
@@ -351,14 +351,18 @@ class RateLimitTrafficClass final : public TrafficClass {
       : TrafficClass(name, POLICY_RATE_LIMIT),
         resource_(resource),
         limit_(),
+        limit_arg_(),
         max_burst_(),
+        max_burst_arg_(),
         tokens_(),
         throttle_expiration_(),
         last_tsc_(),
         child_() {
-    limit_ = (limit << (USAGE_AMPLIFIER_POW - 4)) / (tsc_hz >> 4);
+    limit_arg_ = limit;
+    limit_ = to_work_units(limit);
     if (limit_) {
-      max_burst_ = (max_burst << (USAGE_AMPLIFIER_POW - 4)) / (tsc_hz >> 4);
+      max_burst_arg_ = max_burst;
+      max_burst_ = to_work_units(max_burst);
     }
   }
 
@@ -376,15 +380,42 @@ class RateLimitTrafficClass final : public TrafficClass {
   void FinishAndAccountTowardsRoot(Scheduler *sched, TrafficClass *child,
                                    resource_arr_t usage, uint64_t tsc) override;
 
-  inline resource_t resource() const { return resource_; }
+  resource_t resource() const { return resource_; }
 
-  inline uint64_t limit() const { return limit_; }
+  // Return the configured limit, in work units
+  uint64_t limit() const { return limit_; }
 
-  inline uint64_t max_burst() const { return max_burst_; }
+  // Return the configured max burst, in work units
+  uint64_t max_burst() const { return max_burst_; }
+
+  // Return the configured limit, in resource units
+  uint64_t limit_arg() const { return limit_arg_; }
+
+  // Return the configured max burst, in resource units
+  uint64_t max_burst_arg() const { return max_burst_arg_; }
+
+  void set_resource(resource_t res) { resource_ = res; }
+
+  // Set the limit to `limit`, which is in units of the resource type
+  void set_limit(uint64_t limit) {
+    limit_arg_ = limit;
+    limit_ = to_work_units(limit);
+  }
+
+  // Set the max burst to `burst`, which is in units of the resource type
+  void set_max_burst(uint64_t burst) {
+    max_burst_arg_ = burst;
+    max_burst_ = to_work_units(burst);
+  }
 
   TrafficClass *child() const { return child_; }
 
-  void Traverse(TravereseTcFn f, void *arg) const override;
+  void Traverse(TraverseTcFn f, void *arg) const override;
+
+  // Convert resource units to work units
+  static uint64_t to_work_units(uint64_t x) {
+    return (x << (USAGE_AMPLIFIER_POW - 4)) / (tsc_hz >> 4);
+  }
 
  private:
   friend Scheduler;
@@ -399,9 +430,11 @@ class RateLimitTrafficClass final : public TrafficClass {
   // prof->limit < 2^36 (~64 Tbps)
   // 2^24 < tsc_hz < 2^34 (16 Mhz - 16 GHz)
   // tb->limit < 2^36
-  uint64_t limit_;      // In bits/pkts/cycles per sec. (0 if unlimited).
-  uint64_t max_burst_;  // In work units.
-  uint64_t tokens_;     // In work units.
+  uint64_t limit_;          // In work units per cycle (0 if unlimited).
+  uint64_t limit_arg_;      // In resource units per second.
+  uint64_t max_burst_;      // In work units per cycle (0 if unlimited).
+  uint64_t max_burst_arg_;  // In resource units per second.
+  uint64_t tokens_;         // In work units.
 
   uint64_t throttle_expiration_;
 

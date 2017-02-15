@@ -19,3 +19,6 @@ These people have contributed to BESS codebase (add your name to the end):
   * Barath Raghavan
   * Justine Sherry
   * Chaitanya Lala
+  * Tony Situ
+  * Vivian Fang
+  * Joshua Stone

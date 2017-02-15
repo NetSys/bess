@@ -131,6 +131,7 @@ message DestroyPortRequest {
 message Port {
   string name = 1;
   string driver = 2;
+  string mac_addr = 3;
 }
 
 message ListPortsResponse {
@@ -153,6 +154,10 @@ message ListWorkersResponse {
 message AddWorkerRequest {
   int64 wid = 1;
   int64 core = 2;
+}
+
+message DestroyWorkerRequest {
+  int64 wid = 1;
 }
 
 message ListTcsRequest {
@@ -200,6 +205,10 @@ message ListTcsResponse {
 }
 
 message AddTcRequest {
+  TrafficClass class = 1;
+}
+
+message UpdateTcRequest {
   TrafficClass class = 1;
 }
 
@@ -271,6 +280,7 @@ message CreatePortRequest {
 message CreatePortResponse {
   Error error = 1;
   string name = 2;
+  string mac_addr = 3;
 }
 
 message EnableTrackRequest {
