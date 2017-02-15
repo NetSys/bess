@@ -7,13 +7,12 @@
 
 class Measure final : public Module {
  public:
-  static const Commands cmds;
-
   Measure()
       : Module(),
         hist_(Histogram<uint64_t>(kBuckets, kBucketWidth)),
-        start_time_(),
-        warmup_(),
+        start_ns_(),
+        warmup_ns_(),
+        offset_(),
         pkt_cnt_(),
         bytes_cnt_(),
         total_latency_() {}
@@ -24,19 +23,21 @@ class Measure final : public Module {
 
   pb_cmd_response_t CommandGetSummary(const bess::pb::EmptyArg &arg);
 
+  static const Commands cmds;
+
  private:
+  static const uint64_t kBucketWidth = 100;  // Measure in 100 ns units
+  static const uint64_t kBuckets = 1000000;
+
   Histogram<uint64_t> hist_;
 
-  uint64_t start_time_;
-  int warmup_;     // in seconds
-  size_t offset_;  // in bytes
+  uint64_t start_ns_;
+  uint64_t warmup_ns_;  // no measurement for this warmup period
+  size_t offset_;       // in bytes
 
   uint64_t pkt_cnt_;
   uint64_t bytes_cnt_;
   uint64_t total_latency_;
-
-  static const uint64_t kBucketWidth = 100;  // Measure in 100 ns units
-  static const uint64_t kBuckets = 1000000;
 };
 
 #endif  // BESS_MODULES_MEASURE_H_

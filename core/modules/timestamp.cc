@@ -5,19 +5,34 @@
 #include <rte_ip.h>
 #include <rte_udp.h>
 
+#include "../utils/ether.h"
+#include "../utils/ip.h"
 #include "../utils/time.h"
+#include "../utils/udp.h"
+
+using bess::utils::EthHeader;
+using bess::utils::Ipv4Header;
+using bess::utils::UdpHeader;
 
 static inline void timestamp_packet(bess::Packet *pkt, size_t offset,
                                     uint64_t time) {
-  const uint16_t kMarker = 0x54C5;
-  const size_t kStampSize = sizeof(uint16_t) + sizeof(uint64_t);
-  size_t sz = pkt->data_len() - offset;
-  if (unlikely(sz < kStampSize)) {
-    pkt->append(kStampSize);
+  Timestamp::MarkerType *marker;
+  uint64_t *ts;
+
+  const size_t kStampSize = sizeof(*marker) + sizeof(*ts);
+  size_t room = pkt->data_len() - offset;
+
+  if (room < kStampSize) {
+    void *ret = pkt->append(kStampSize - room);
+    if (!ret) {
+      // not enough tailroom for timestamp. give up
+      return;
+    }
   }
-  uint16_t *marker = reinterpret_cast<uint16_t*>(pkt->head_data<uint8_t *>() + offset);
-  *marker = kMarker;
-  uint64_t *ts = reinterpret_cast<uint64_t*>(marker + 1);
+
+  marker = pkt->head_data<Timestamp::MarkerType *>(offset);
+  *marker = Timestamp::kMarker;
+  ts = reinterpret_cast<uint64_t *>(marker + 1);
   *ts = time;
 }
 
@@ -25,18 +40,19 @@ pb_error_t Timestamp::Init(const bess::pb::TimestampArg &arg) {
   if (arg.offset()) {
     offset_ = arg.offset();
   } else {
-    offset_ = sizeof(struct ether_hdr) + sizeof(struct ipv4_hdr) +
-              sizeof(struct udp_hdr);
+    offset_ = sizeof(struct EthHeader) + sizeof(struct Ipv4Header) +
+              sizeof(struct UdpHeader);
   }
   return pb_errno(0);
 }
 
 void Timestamp::ProcessBatch(bess::PacketBatch *batch) {
-  uint64_t time = tsc_to_ns(rdtsc());
+  // We don't use ctx->current_ns here for better accuracy
+  uint64_t now_ns = tsc_to_ns(rdtsc());
   size_t offset = offset_;
 
   for (int i = 0; i < batch->cnt(); i++) {
-    timestamp_packet(batch->pkts()[i], offset, time);
+    timestamp_packet(batch->pkts()[i], offset, now_ns);
   }
 
   RunNextModule(batch);

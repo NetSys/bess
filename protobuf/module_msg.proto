@@ -226,7 +226,7 @@ message MACSwapArg {
 }
 
 message MeasureArg {
-  int64 warmup = 1;
+  uint32 warmup = 1;
   uint64 offset = 2;
 }
 

@@ -1,21 +1,20 @@
 #include "measure.h"
 
-#include <rte_config.h>
-#include <rte_ether.h>
-#include <rte_ip.h>
-#include <rte_udp.h>
-
+#include "../utils/ether.h"
+#include "../utils/ip.h"
 #include "../utils/time.h"
+#include "../utils/udp.h"
+#include "timestamp.h"
 
-#define MEASURE_ONE_NS (1000lu * 1000 * 1000)
-#define MEASURE_TIME_TO_SEC(t) ((t) / (MEASURE_ONE_NS))
+using bess::utils::EthHeader;
+using bess::utils::Ipv4Header;
+using bess::utils::UdpHeader;
 
-inline bool get_measure_packet(bess::Packet *pkt, size_t offset,
-                              uint64_t *time) {
-  const uint16_t kMarker = 0x54C5;
-  uint16_t *marker = reinterpret_cast<uint16_t*>(pkt->head_data<uint8_t *>() + offset);
-  if (*marker == kMarker) {
-    *time = *reinterpret_cast<uint64_t*>(marker + 1);
+static bool IsTimestamped(bess::Packet *pkt, size_t offset, uint64_t *time) {
+  auto *marker = pkt->head_data<Timestamp::MarkerType *>(offset);
+
+  if (*marker == Timestamp::kMarker) {
+    *time = *reinterpret_cast<uint64_t *>(marker + 1);
     return true;
   }
   return false;
@@ -29,37 +28,38 @@ const Commands Measure::cmds = {
 };
 
 pb_error_t Measure::Init(const bess::pb::MeasureArg &arg) {
-  if (arg.warmup()) {
-    warmup_ = arg.warmup();
-  }
+  // seconds from nanoseconds
+  warmup_ns_ = arg.warmup() * 1000000000ul;
+
   if (arg.offset()) {
     offset_ = arg.offset();
   } else {
-    offset_ = sizeof(struct ether_hdr) + sizeof(struct ipv4_hdr) +
-              sizeof(struct udp_hdr);
+    offset_ = sizeof(struct EthHeader) + sizeof(struct Ipv4Header) +
+              sizeof(struct UdpHeader);
   }
+
+  start_ns_ = tsc_to_ns(rdtsc());
+
   return pb_errno(0);
 }
 
 void Measure::ProcessBatch(bess::PacketBatch *batch) {
-  uint64_t time = tsc_to_ns(rdtsc());
+  // We don't use ctx->current_ns here for better accuracy
+  uint64_t now_ns = tsc_to_ns(rdtsc());
   size_t offset = offset_;
 
-  if (start_time_ == 0) {
-    start_time_ = time;
-  }
-
-  if (static_cast<int>(MEASURE_TIME_TO_SEC(time - start_time_)) >= warmup_) {
+  if (now_ns - start_ns_ >= warmup_ns_) {
     pkt_cnt_ += batch->cnt();
 
     for (int i = 0; i < batch->cnt(); i++) {
       uint64_t pkt_time;
-      if (get_measure_packet(batch->pkts()[i], offset, &pkt_time)) {
+      if (IsTimestamped(batch->pkts()[i], offset, &pkt_time)) {
         uint64_t diff;
 
-        if (time >= pkt_time) {
-          diff = time - pkt_time;
+        if (now_ns >= pkt_time) {
+          diff = now_ns - pkt_time;
         } else {
+          // The magic number matched, but timestamp doesn't seem correct
           continue;
         }
 
