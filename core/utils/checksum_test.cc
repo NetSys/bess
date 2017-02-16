@@ -15,6 +15,7 @@ namespace {
 Random rd;
 static int TestLoopCount = 100000;
 
+// Tests generic checksum
 TEST(ChecksumTest, GenericChecksum) {
   uint32_t buf[40] = {
       0x45000032, 0x00010000, 0x40060000, 0x0c22384e, 0xac0c3763, 0x45000032,
@@ -25,6 +26,7 @@ TEST(ChecksumTest, GenericChecksum) {
       0x45000032, 0x00010000, 0x40060000, 0x0c22384e, 0xac0c3763, 0x45000032,
       0x00010000, 0x40060000, 0x0c22384e, 0xac0c3763};
 
+  // choose byte size 159, 160 to enter the all loops in the test functions
   uint16_t cksum_bess = CalculateGenericChecksum(buf, 160);
   uint16_t cksum_dpdk = ~rte_raw_cksum(buf, 160);  // take the complement
   EXPECT_EQ(cksum_dpdk, cksum_bess);
@@ -49,6 +51,7 @@ TEST(ChecksumTest, GenericChecksum) {
   }
 }
 
+// Tests IP checksum
 TEST(ChecksumTest, Ipv4NoOptChecksum) {
   char buf[20] = {0};  // ipv4 header w/o options
 
@@ -96,6 +99,7 @@ TEST(ChecksumTest, Ipv4NoOptChecksum) {
   }
 }
 
+// Tests TCP checksum
 TEST(ChecksumTest, TcpChecksum) {
   char buf[40] = {0};  // ipv4 header + tcp header
 
@@ -160,6 +164,7 @@ TEST(ChecksumTest, TcpChecksum) {
   }
 }
 
+// Tests incremental checksum update for unsigned 16-bit integer
 TEST(ChecksumTest, IncrementalUpdateChecksum16) {
   uint16_t old16 = 0x4500;
   uint16_t new16 = 0x1234;
@@ -187,6 +192,7 @@ TEST(ChecksumTest, IncrementalUpdateChecksum16) {
   }
 }
 
+// Tests incremental checksum update for unsigned 32-bit integer
 TEST(ChecksumTest, IncrementalUpdateChecksum32) {
   uint32_t old32 = 0x45000032;
   uint32_t new32 = 0x12341234;
@@ -216,7 +222,8 @@ TEST(ChecksumTest, IncrementalUpdateChecksum32) {
   }
 }
 
-TEST(ChecksumTest, IncrementalUpdateIpSrcPort) {
+// Tests incremental checksum update with source IP/port update
+TEST(ChecksumTest, IncrementalUpdateSrcIpPort) {
   char buf[40] = {0};  // ipv4 header + tcp header
 
   bess::utils::Ipv4Header *ip =

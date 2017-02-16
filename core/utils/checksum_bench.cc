@@ -19,7 +19,7 @@ class ChecksumFixture : public benchmark::Fixture {
   }
 
   void *get_buffer(uint16_t size) {
-    CHECK(size <= sizeof(buf_));
+    CHECK_LE(size, sizeof(buf_));
     return buf_;
   }
 
@@ -30,6 +30,7 @@ class ChecksumFixture : public benchmark::Fixture {
   Random rd_;
 };
 
+// Benchmarks DPDK generic checksum
 BENCHMARK_DEFINE_F(ChecksumFixture, BmGenericChecksumDpdk)
 (benchmark::State &state) {
   size_t buf_len = state.range(0);
@@ -38,7 +39,8 @@ BENCHMARK_DEFINE_F(ChecksumFixture, BmGenericChecksumDpdk)
   while (state.KeepRunning()) {
     buf = get_buffer(buf_len);
 
-    // take the complement for dpdk raw sum
+    // DPDK raw cksum does not return the negative of the sum
+    // so we take the negative here
     benchmark::DoNotOptimize(~rte_raw_cksum(buf, buf_len));
   }
 
@@ -46,6 +48,7 @@ BENCHMARK_DEFINE_F(ChecksumFixture, BmGenericChecksumDpdk)
   state.SetBytesProcessed(buf_len * state.iterations());
 }
 
+// Benchmarks BESS generic checksum
 BENCHMARK_DEFINE_F(ChecksumFixture, BmGenericChecksumBess)
 (benchmark::State &state) {
   size_t buf_len = state.range(0);
@@ -75,6 +78,7 @@ BENCHMARK_REGISTER_F(ChecksumFixture, BmGenericChecksumBess)
     ->Arg(1024)
     ->Arg(2048);
 
+// Benchmarks DPDK IP checksum
 BENCHMARK_DEFINE_F(ChecksumFixture, BmIpv4NoOptChecksumDpdk)
 (benchmark::State &state) {
   char pkt[20] = {0};  // ipv4 header w/o options
@@ -102,6 +106,7 @@ BENCHMARK_DEFINE_F(ChecksumFixture, BmIpv4NoOptChecksumDpdk)
   state.SetItemsProcessed(state.iterations());
 }
 
+// Benchmarks BESS IP checksum
 BENCHMARK_DEFINE_F(ChecksumFixture, BmIpv4NoOptChecksumBess)
 (benchmark::State &state) {
   char pkt[20] = {0};  // ipv4 header w/o options
@@ -131,6 +136,7 @@ BENCHMARK_DEFINE_F(ChecksumFixture, BmIpv4NoOptChecksumBess)
 BENCHMARK_REGISTER_F(ChecksumFixture, BmIpv4NoOptChecksumDpdk);
 BENCHMARK_REGISTER_F(ChecksumFixture, BmIpv4NoOptChecksumBess);
 
+// Benchmarks DPDK TCP checksum
 BENCHMARK_DEFINE_F(ChecksumFixture, BmTcpChecksumDpdk)
 (benchmark::State &state) {
   void *pkt;
@@ -158,6 +164,7 @@ BENCHMARK_DEFINE_F(ChecksumFixture, BmTcpChecksumDpdk)
   state.SetBytesProcessed(buf_len * state.iterations());
 }
 
+// Benchmarks BESS TCP checksum
 BENCHMARK_DEFINE_F(ChecksumFixture, BmTcpChecksumBess)
 (benchmark::State &state) {
   void *pkt;
@@ -193,6 +200,7 @@ BENCHMARK_REGISTER_F(ChecksumFixture, BmTcpChecksumBess)
     ->Arg(787)
     ->Arg(1514);
 
+// Benchmarks BESS incremental checksum update for 16-bit data update
 BENCHMARK_DEFINE_F(ChecksumFixture, BmIncrementalUpdate16)
 (benchmark::State &state) {
   void *pkt = get_buffer(60);  // min ethernet pkt size except FCS
@@ -222,6 +230,7 @@ BENCHMARK_DEFINE_F(ChecksumFixture, BmIncrementalUpdate16)
   state.SetItemsProcessed(state.iterations());
 }
 
+// Benchmarks BESS incremental checksum update for 32-bit data update
 BENCHMARK_DEFINE_F(ChecksumFixture, BmIncrementalUpdate32)
 (benchmark::State &state) {
   void *pkt = get_buffer(60);  // min ethernet pkt size except FCS
@@ -254,6 +263,7 @@ BENCHMARK_DEFINE_F(ChecksumFixture, BmIncrementalUpdate32)
 BENCHMARK_REGISTER_F(ChecksumFixture, BmIncrementalUpdate16);
 BENCHMARK_REGISTER_F(ChecksumFixture, BmIncrementalUpdate32);
 
+// Benchmarks DPDK Source IP/port update (Simulating NAT)
 BENCHMARK_DEFINE_F(ChecksumFixture, BmSrcIpPortUpdateDpdk)
 (benchmark::State &state) {
   void *pkt = get_buffer(60);  // min ethernet pkt size except FCS
@@ -283,6 +293,7 @@ BENCHMARK_DEFINE_F(ChecksumFixture, BmSrcIpPortUpdateDpdk)
   state.SetItemsProcessed(state.iterations());
 }
 
+// Benchmarks BESS Source IP/port update (Simulating NAT)
 BENCHMARK_DEFINE_F(ChecksumFixture, BmSrcIpPortUpdateBess)
 (benchmark::State &state) {
   void *pkt = get_buffer(60);  // min ethernet pkt size except FCS
