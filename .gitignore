@@ -6,6 +6,7 @@ cscope.*
 core/extra.mk
 core/extra.dpdk.mk
 sanity_check.out
+*.retry
 
 # VM images
 *.img
