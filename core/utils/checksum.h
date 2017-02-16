@@ -185,7 +185,7 @@ static inline bool VerifyIpv4NoOptChecksum(const Ipv4Header &iph) {
 }
 
 // Return IP checksum of the ip header 'iph' without ip options
-// The checksum field does not include to calculation 
+// It skips the checksum field into the calculation
 // It does not set the checksum field in ip header
 static inline uint16_t CalculateIpv4NoOptChecksum(const Ipv4Header &iph) {
   const uint32_t *buf32 = reinterpret_cast<const uint32_t *>(&iph);
@@ -264,12 +264,14 @@ static inline bool VerifyIpv4TcpChecksum(const Ipv4Header &iph,
 }
 
 // Return TCP (on IPv4) checksum of the tcp header 'tcph' with pseudo header
-// informations - source ip, destiniation ip, and tcp byte stream length
-// The checksum field does not include to calculation 
+// informations - source ip ('src'), destiniation ip ('dst'),
+// and tcp byte stream length ('tcp_len', tcp_header + data len)
+// 'tcp_len' is in host-order, and the others are in network-order
+// It skips the checksum field into the calculation
 // It does not set the checksum field in TCP header
-static inline uint16_t CalculateIpv4TcpChecksum(
-    const TcpHeader &tcph, uint32_t src, uint32_t dst,
-    uint16_t tcp_len /* host-order: tcp header + data */) {
+static inline uint16_t CalculateIpv4TcpChecksum(const TcpHeader &tcph,
+                                                uint32_t src, uint32_t dst,
+                                                uint16_t tcp_len) {
   static const uint32_t TCP = htons(0x06);  // TCP
   const uint32_t *buf32 = reinterpret_cast<const uint32_t *>(&tcph);
   uint32_t sum = buf32[0];
