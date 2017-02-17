@@ -1,5 +1,5 @@
-#ifndef BESS_TRAFFICCLASS_H_
-#define BESS_TRAFFICCLASS_H_
+#ifndef BESS_TRAFFIC_CLASS_H_
+#define BESS_TRAFFIC_CLASS_H_
 
 #include <deque>
 #include <list>
@@ -124,13 +124,9 @@ class TrafficClass {
 
   virtual void Traverse(TraverseTcFn f, void *arg) const { f(this, arg); }
 
-  size_t Size() const {
-    size_t sz = 0;
-    Traverse([](const TrafficClass *,
-                void *arg) { *reinterpret_cast<size_t *>(arg) += 1; },
-             static_cast<void *>(&sz));
-    return sz;
-  }
+  // Returns the number of TCs in the TC subtree rooted at this, including this
+  // TC.  Returns 0 upon error.
+  size_t Size() const;
 
   // Returns the root of the tree this class belongs to.
   // Expensive in that it is recursive, so do not call from
@@ -184,6 +180,9 @@ class TrafficClass {
 
     parent_->UnblockTowardsRoot(tsc);
   }
+
+  // Increments the TC count from this up towards the root.
+  void IncrementTcCountTowardsRoot(int increment);
 
   // Returns the next schedulable child of this traffic class.
   virtual TrafficClass *PickNextChild() = 0;
@@ -520,6 +519,7 @@ class TrafficClassBuilder {
 
     T *c = new T(name, args...);
     all_tcs_.emplace(name, c);
+    tc_count_[c] = 1;
     return c;
   }
 
@@ -637,9 +637,13 @@ class TrafficClassBuilder {
   // Attempts to clear knowledge of given class.  Returns true upon success.
   static bool Clear(TrafficClass *c);
 
-  static inline const std::unordered_map<std::string, TrafficClass *>
+  static const std::unordered_map<std::string, TrafficClass *>
       &all_tcs() {
     return all_tcs_;
+  }
+
+  static std::unordered_map<const TrafficClass *, int> &tc_count() {
+    return tc_count_;
   }
 
   // Returns the TrafficClass * with the given name or nullptr if not found.
@@ -652,9 +656,13 @@ class TrafficClassBuilder {
   }
 
  private:
+  // A collection of all TCs in the system, mapped from their textual name.
   static std::unordered_map<std::string, TrafficClass *> all_tcs_;
+
+  // A mapping from each TC to the count of TCs in its subtree, including itself.
+  static std::unordered_map<const TrafficClass *, int> tc_count_;
 };
 
 }  // namespace bess
 
-#endif  // BESS_TRAFFICCLASS_H_
+#endif  // BESS_TRAFFIC_CLASS_H_
