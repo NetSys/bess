@@ -30,6 +30,7 @@ service BESSControl {
   rpc CreatePort (CreatePortRequest) returns (CreatePortResponse) {}
   rpc DestroyPort (DestroyPortRequest) returns (EmptyResponse) {}
   rpc GetPortStats (GetPortStatsRequest) returns (GetPortStatsResponse) {}
+  rpc GetLinkStatus (GetLinkStatusRequest) returns (GetLinkStatusResponse) {}
 
   rpc ListMclass (EmptyRequest) returns (ListMclassResponse) {}
   rpc GetMclassInfo (GetMclassInfoRequest) returns (GetMclassInfoResponse) {}

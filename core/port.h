@@ -157,8 +157,15 @@ class PortBuilder {
 };
 
 class Port {
-  // overide this section to create a new driver -----------------------------
  public:
+  struct LinkStatus {
+    uint32_t speed;    // speed in mbps: 1000, 40000, etc. 0 for vports
+    bool full_duplex;  // full-duplex enabled?
+    bool autoneg;      // auto-negotiated speed and duplex?
+    bool link_up;      // link up?
+  };
+
+  // overide this section to create a new driver -----------------------------
   Port()
       : name_(),
         port_builder_(),
@@ -187,6 +194,12 @@ class Port {
   virtual size_t DefaultOutQueueSize() const { return kDefaultOutQueueSize; }
 
   virtual uint64_t GetFlags() const { return 0; }
+
+  virtual LinkStatus GetLinkStatus() {
+    return LinkStatus{
+        .speed = 10, .full_duplex = true, .autoneg = true, .link_up = true,
+    };
+  }
 
   // -------------------------------------------------------------------------
 

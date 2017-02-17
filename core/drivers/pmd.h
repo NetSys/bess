@@ -20,9 +20,6 @@ class PMDPort final : public Port {
  public:
   PMDPort() : Port(), dpdk_port_id_(DPDK_PORT_UNKNOWN), hot_plugged_(false) {}
 
-  /*!
-  * Binds to device; call this after Init()
-  */
   void InitDriver() override;
 
   /*!
@@ -92,6 +89,8 @@ class PMDPort final : public Port {
   virtual uint64_t GetFlags() const override {
     return DRIVER_FLAG_SELF_INC_STATS | DRIVER_FLAG_SELF_OUT_STATS;
   }
+
+  LinkStatus GetLinkStatus() override;
 
  private:
   /*!

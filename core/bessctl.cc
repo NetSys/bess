@@ -363,18 +363,21 @@ class BESSControlImpl final : public BESSControl::Service {
 
     return Status::OK;
   }
+
   Status PauseAll(ServerContext*, const EmptyRequest*,
                   EmptyResponse*) override {
     pause_all_workers();
     LOG(INFO) << "*** All workers have been paused ***";
     return Status::OK;
   }
+
   Status ResumeAll(ServerContext*, const EmptyRequest*,
                    EmptyResponse*) override {
     LOG(INFO) << "*** Resuming ***";
     resume_all_workers();
     return Status::OK;
   }
+
   Status ResetWorkers(ServerContext*, const EmptyRequest*,
                       EmptyResponse* response) override {
     if (is_any_worker_running()) {
@@ -384,6 +387,7 @@ class BESSControlImpl final : public BESSControl::Service {
     LOG(INFO) << "*** All workers have been destroyed ***";
     return Status::OK;
   }
+
   Status ListWorkers(ServerContext*, const EmptyRequest*,
                      ListWorkersResponse* response) override {
     for (int wid = 0; wid < MAX_WORKERS; wid++) {
@@ -398,6 +402,7 @@ class BESSControlImpl final : public BESSControl::Service {
     }
     return Status::OK;
   }
+
   Status AddWorker(ServerContext*, const AddWorkerRequest* request,
                    EmptyResponse* response) override {
     uint64_t wid = request->wid();
@@ -415,6 +420,7 @@ class BESSControlImpl final : public BESSControl::Service {
     launch_worker(wid, core);
     return Status::OK;
   }
+
   Status DestroyWorker(ServerContext*, const DestroyWorkerRequest* request,
                        EmptyResponse* response) override {
     uint64_t wid = request->wid();
@@ -450,6 +456,7 @@ class BESSControlImpl final : public BESSControl::Service {
     destroy_worker(wid);
     return Status::OK;
   }
+
   Status ResetTcs(ServerContext*, const EmptyRequest*,
                   EmptyResponse* response) override {
     if (is_any_worker_running()) {
@@ -462,6 +469,7 @@ class BESSControlImpl final : public BESSControl::Service {
 
     return Status::OK;
   }
+
   Status ListTcs(ServerContext*, const ListTcsRequest* request,
                  ListTcsResponse* response) override {
     int wid_filter;
@@ -542,6 +550,7 @@ class BESSControlImpl final : public BESSControl::Service {
 
     return Status::OK;
   }
+
   Status AddTc(ServerContext*, const AddTcRequest* request,
                EmptyResponse* response) override {
     if (is_any_worker_running()) {
@@ -678,6 +687,7 @@ class BESSControlImpl final : public BESSControl::Service {
 
     return Status::OK;
   }
+
   Status UpdateTc(ServerContext*, const UpdateTcRequest* request,
                   EmptyResponse* response) override {
     if (is_any_worker_running()) {
@@ -722,6 +732,7 @@ class BESSControlImpl final : public BESSControl::Service {
 
     return Status::OK;
   }
+
   Status GetTcStats(ServerContext*, const GetTcStatsRequest* request,
                     GetTcStatsResponse* response) override {
     const char* tc_name = request->name().c_str();
@@ -748,6 +759,7 @@ class BESSControlImpl final : public BESSControl::Service {
 
     return Status::OK;
   }
+
   Status ListDrivers(ServerContext*, const EmptyRequest*,
                      ListDriversResponse* response) override {
     for (const auto& pair : PortBuilder::all_port_builders()) {
@@ -757,6 +769,7 @@ class BESSControlImpl final : public BESSControl::Service {
 
     return Status::OK;
   }
+
   Status GetDriverInfo(ServerContext*, const GetDriverInfoRequest* request,
                        GetDriverInfoResponse* response) override {
     if (request->driver_name().length() == 0) {
@@ -783,6 +796,7 @@ class BESSControlImpl final : public BESSControl::Service {
 
     return Status::OK;
   }
+
   Status ResetPorts(ServerContext*, const EmptyRequest*,
                     EmptyResponse* response) override {
     if (is_any_worker_running()) {
@@ -803,6 +817,7 @@ class BESSControlImpl final : public BESSControl::Service {
     LOG(INFO) << "*** All ports have been destroyed ***";
     return Status::OK;
   }
+
   Status ListPorts(ServerContext*, const EmptyRequest*,
                    ListPortsResponse* response) override {
     for (const auto& pair : PortBuilder::all_ports()) {
@@ -819,6 +834,7 @@ class BESSControlImpl final : public BESSControl::Service {
 
     return Status::OK;
   }
+
   Status CreatePort(ServerContext*, const CreatePortRequest* request,
                     CreatePortResponse* response) override {
     const char* driver_name;
@@ -857,6 +873,7 @@ class BESSControlImpl final : public BESSControl::Service {
 
     return Status::OK;
   }
+
   Status DestroyPort(ServerContext*, const DestroyPortRequest* request,
                      EmptyResponse* response) override {
     const char* port_name;
@@ -879,6 +896,7 @@ class BESSControlImpl final : public BESSControl::Service {
 
     return Status::OK;
   }
+
   Status GetPortStats(ServerContext*, const GetPortStatsRequest* request,
                       GetPortStatsResponse* response) override {
     const char* port_name;
@@ -908,6 +926,33 @@ class BESSControlImpl final : public BESSControl::Service {
 
     return Status::OK;
   }
+
+  Status GetLinkStatus(ServerContext*, const GetLinkStatusRequest* request,
+                       GetLinkStatusResponse* response) override {
+    const char* port_name;
+    ::Port::LinkStatus status;
+
+    if (!request->name().length())
+      return return_with_error(response, EINVAL,
+                               "Argument must be a name in str");
+    port_name = request->name().c_str();
+
+    const auto& it = PortBuilder::all_ports().find(port_name);
+    if (it == PortBuilder::all_ports().end()) {
+      return return_with_error(response, ENOENT, "No port '%s' found",
+                               port_name);
+    }
+
+    status = it->second->GetLinkStatus();
+
+    response->set_speed(status.speed);
+    response->set_full_duplex(status.full_duplex);
+    response->set_autoneg(status.autoneg);
+    response->set_link_up(status.link_up);
+
+    return Status::OK;
+  }
+
   Status ResetModules(ServerContext*, const EmptyRequest*,
                       EmptyResponse* response) override {
     if (is_any_worker_running()) {
@@ -918,6 +963,7 @@ class BESSControlImpl final : public BESSControl::Service {
     LOG(INFO) << "*** All modules have been destroyed ***";
     return Status::OK;
   }
+
   Status ListModules(ServerContext*, const EmptyRequest*,
                      ListModulesResponse* response) override {
     for (const auto& pair : ModuleBuilder::all_modules()) {
@@ -930,6 +976,7 @@ class BESSControlImpl final : public BESSControl::Service {
     }
     return Status::OK;
   }
+
   Status CreateModule(ServerContext*, const CreateModuleRequest* request,
                       CreateModuleResponse* response) override {
     if (is_any_worker_running()) {
@@ -973,6 +1020,7 @@ class BESSControlImpl final : public BESSControl::Service {
 
     return Status::OK;
   }
+
   Status DestroyModule(ServerContext*, const DestroyModuleRequest* request,
                        EmptyResponse* response) override {
     if (is_any_worker_running()) {
@@ -997,6 +1045,7 @@ class BESSControlImpl final : public BESSControl::Service {
 
     return Status::OK;
   }
+
   Status GetModuleInfo(ServerContext*, const GetModuleInfoRequest* request,
                        GetModuleInfoResponse* response) override {
     const char* m_name;
@@ -1027,6 +1076,7 @@ class BESSControlImpl final : public BESSControl::Service {
 
     return Status::OK;
   }
+
   Status ConnectModules(ServerContext*, const ConnectModulesRequest* request,
                         EmptyResponse* response) override {
     if (is_any_worker_running()) {
@@ -1076,6 +1126,7 @@ class BESSControlImpl final : public BESSControl::Service {
 
     return Status::OK;
   }
+
   Status DisconnectModules(ServerContext*,
                            const DisconnectModulesRequest* request,
                            EmptyResponse* response) override {
@@ -1107,6 +1158,7 @@ class BESSControlImpl final : public BESSControl::Service {
 
     return Status::OK;
   }
+
   Status AttachTask(ServerContext*, const AttachTaskRequest* request,
                     EmptyResponse* response) override {
     if (is_any_worker_running()) {
@@ -1177,6 +1229,7 @@ class BESSControlImpl final : public BESSControl::Service {
 
     return Status::OK;
   }
+
   Status EnableTcpdump(ServerContext*, const EnableTcpdumpRequest* request,
                        EmptyResponse* response) override {
     if (is_any_worker_running()) {
@@ -1222,6 +1275,7 @@ class BESSControlImpl final : public BESSControl::Service {
 
     return Status::OK;
   }
+
   Status DisableTcpdump(ServerContext*, const DisableTcpdumpRequest* request,
                         EmptyResponse* response) override {
     if (is_any_worker_running()) {
