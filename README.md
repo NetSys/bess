@@ -13,3 +13,14 @@ If you are new to BESS, we recommend you start here:
 2. [Build and Install BESS] (https://github.com/NetSys/bess/wiki/Build-and-Install-BESS)
 3. [Write a BESS Configuration Script] (https://github.com/NetSys/bess/wiki/Writing-a-BESS-Configuration-Script)
 4. [Connect BESS to a Network Interface, VM, or Container](https://github.com/NetSys/bess/wiki/Hooking-up-BESS-Ports)
+
+To configure and install BESS on Linux quickly, you can run the provided ansible script (ansible-playbook.yml):
+
+    git clone https://github.com/NetSys/bess.git
+    cd bess/
+    sudo apt-get install -y software-properties-common
+    sudo apt-add-repository -y ppa:ansible/ansible
+    sudo apt-get update
+    sudo apt-get install -y ansible
+    ansible-playbook ansible-playbook.yml
+    sudo reboot
