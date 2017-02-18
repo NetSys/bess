@@ -10,12 +10,12 @@ bpf:2 -> Sink()      # for matched packets (by the second filter)
 
 def run_testcase(exps, test_pkts):
     rewrite.clear()
-    rewrite.add({'templates': map(lambda x: str(x), test_pkts)})
+    rewrite.add(templates=map(lambda x: str(x), test_pkts))
 
     # the higher number, the higher priority.
     bpf.clear()
-    bpf.add({'filters': [{'priority': -i, 'filter': exp, 'gate': i + 1} \
-            for i, exp in enumerate(exps)]})
+    bpf.add(filters=[{'priority': -i, 'filter': exp, 'gate': i + 1} \
+            for i, exp in enumerate(exps)])
 
     bess.resume_all()
 
