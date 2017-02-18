@@ -14,7 +14,7 @@ if not plugins_to_install.empty?
 end
 
 Vagrant.configure("2") do |config|
-  config.vm.box = "ubuntu/trusty64"
+  config.vm.box = "bento/ubuntu-16.04"
   config.vm.hostname = "bessvm"
   config.vm.synced_folder "..", "/opt/bess"
 
@@ -22,11 +22,11 @@ Vagrant.configure("2") do |config|
     config.cache.scope = "machine"
   end
 
-  config.vm.provision "shell", path: "init.sh"
-  config.vm.provision "shell", path: "packages.sh"
-  config.vm.provision "reload"
-  config.vm.provision "shell", path: "build.sh"
-  config.vm.provision "shell", inline: "/opt/bess/bin/bessd -k"
+  config.vm.provision "ansible_local" do |ansible|
+    ansible.playbook = "bess.yml"
+  end
+
+  config.vm.provision :reload
 
   config.vm.network "private_network", ip: "10.248.0.100", auto_config: false, adapter: 2
   config.vm.network "private_network", ip: "10.248.1.100", auto_config: false, adapter: 3
@@ -37,11 +37,8 @@ Vagrant.configure("2") do |config|
     vb.name = "BESS dev VM"
 
     # Customize below. At least two or more vCPUs are recommended.
-    vb.cpus = 4
+    vb.cpus = 2
     vb.memory = 4096
-
-    # enable SMP on 32-bit guests
-    vb.customize ["modifyvm", :id, "--ioapic", "on"]
 
     vb.customize ["modifyvm", :id, "--nic1", "nat"]
     vb.customize ["modifyvm", :id, "--nictype1", "virtio"]
