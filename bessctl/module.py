@@ -3,7 +3,7 @@ import types
 
 
 def _callback_factory(self, cmd, arg_type):
-    return lambda mod, arg=None, **kwargs: \
+    return lambda mod, **kwargs: \
         self.bess.run_module_command(self.name, cmd, arg_type, kwargs)
 
 
