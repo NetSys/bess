@@ -357,7 +357,7 @@ pb_error_t VPort::SetIPAddr(const bess::pb::VPortArg &arg) {
         fd = open(buf, O_RDONLY);
         if (fd < 0) {
           PLOG(ERROR) << "open(/proc/pid/ns/net)";
-          exit(errno <= 255 ? errno : ENOMSG);
+          _exit(errno <= 255 ? errno : ENOMSG);
         }
       } else
         fd = netns_fd_;
@@ -365,7 +365,7 @@ pb_error_t VPort::SetIPAddr(const bess::pb::VPortArg &arg) {
       ret = setns(fd, 0);
       if (ret < 0) {
         PLOG(ERROR) << "setns()";
-        exit(errno <= 255 ? errno : ENOMSG);
+        _exit(errno <= 255 ? errno : ENOMSG);
       }
     } else {
       goto wait_child;
@@ -380,7 +380,7 @@ pb_error_t VPort::SetIPAddr(const bess::pb::VPortArg &arg) {
         if (nspace) {
           /* it must be the child */
           DCHECK_EQ(child_pid, 0);
-          exit(errno <= 255 ? errno : ENOMSG);
+          _exit(errno <= 255 ? errno : ENOMSG);
         } else
           break;
       }
@@ -393,9 +393,9 @@ pb_error_t VPort::SetIPAddr(const bess::pb::VPortArg &arg) {
     if (child_pid == 0) {
       if (ret < 0) {
         ret = -ret;
-        exit(ret <= 255 ? ret : ENOMSG);
+        _exit(ret <= 255 ? ret : ENOMSG);
       } else
-        exit(0);
+        _exit(0);
     } else {
       int exit_status;
 
