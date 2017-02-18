@@ -42,6 +42,7 @@ TEST(CreateTree, PriorityRootAndLeaf) {
   LeafTrafficClass *leaf = static_cast<LeafTrafficClass *>(c->children()[0].c_);
   ASSERT_NE(nullptr, leaf);
   EXPECT_EQ(leaf->parent(), c);
+  ASSERT_EQ(1, TrafficClassBuilder::Find("leaf")->Size());
 
   // We shouldn't be able to add a child with a duplicate priority.
   TrafficClass *leaf2 = CT("leaf_2", {LEAF});
@@ -51,6 +52,9 @@ TEST(CreateTree, PriorityRootAndLeaf) {
   // A different priority should be fine.
   TrafficClass *leaf3 = CT("leaf_3", {LEAF});
   ASSERT_TRUE(c->AddChild(leaf3, 2));
+  ASSERT_EQ(1, TrafficClassBuilder::Find("leaf_3")->Size());
+
+  ASSERT_EQ(3, TrafficClassBuilder::Find("root")->Size());
 
   TrafficClassBuilder::ClearAll();
 }
