@@ -64,7 +64,7 @@ PortInc(port=v_bob) \
     -> EtherEncap() \
     -> PortOut(port=v_alice)
 
-bpf.add([{'filter':'ip and udp dst port 4789', 'gate':1}])
+bpf.add(filters=[{'filter':'ip and udp dst port 4789', 'gate':1}])
 
 os.system('sudo ip neigh replace 10.0.10.1 lladdr 02:01:02:03:04:05 dev eth_alice')
 os.system('sudo ip link add vxlan0 type vxlan id 999 group 239.1.1.1 dev eth_alice dstport 4789')
