@@ -23,9 +23,7 @@ void TrafficClass::IncrementTcCountTowardsRoot(int increment) {
 size_t TrafficClass::Size() const {
   const auto &tc_count = TrafficClassBuilder::tc_count();
   auto it = tc_count.find(this);
-  if (it == tc_count.end()) {
-    return 0;
-  }
+  CHECK(it != tc_count.end());
   return it->second;
 }
 

@@ -124,8 +124,8 @@ class TrafficClass {
 
   virtual void Traverse(TraverseTcFn f, void *arg) const { f(this, arg); }
 
-  // Returns the number of TCs in the TC subtree rooted at this, including this
-  // TC.  Returns 0 upon error.
+  // Returns the number of TCs in the TC subtree rooted at this, including
+  // this TC.
   size_t Size() const;
 
   // Returns the root of the tree this class belongs to.
