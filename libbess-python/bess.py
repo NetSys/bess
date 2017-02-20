@@ -85,7 +85,8 @@ class BESS(object):
 
         while not self.is_connected():
             if self.status in [grpc.ChannelConnectivity.TRANSIENT_FAILURE,
-                    grpc.ChannelConnectivity.SHUTDOWN, self.BROKEN_CHANNEL]:
+                               grpc.ChannelConnectivity.SHUTDOWN,
+                               self.BROKEN_CHANNEL]:
                 self.disconnect()
                 raise self.APIError('Connection to %s:%d failed' % (host, port))
             time.sleep(0.1)
@@ -202,14 +203,8 @@ class BESS(object):
         }
 
         request = proto_conv.dict_to_protobuf(kv, bess_msg.CreatePortRequest)
-        message_map = {
-            'PCAPPort': port_msg.PCAPPortArg,
-            'PMDPort': port_msg.PMDPortArg,
-            'UnixSocketPort': port_msg.UnixSocketPortArg,
-            'ZeroCopyVPort': port_msg.ZeroCopyVPortArg,
-            'VPort': port_msg.VPortArg,
-        }
-        arg_msg = proto_conv.dict_to_protobuf(arg, message_map[driver])
+        message_type = getattr(port_msg, driver + 'Arg', bess_msg.EmptyArg)
+        arg_msg = proto_conv.dict_to_protobuf(arg, message_type)
         request.arg.Pack(arg_msg)
 
         return self._request('CreatePort', request)
@@ -249,54 +244,8 @@ class BESS(object):
             'mclass': mclass,
         }
         request = proto_conv.dict_to_protobuf(kv, bess_msg.CreateModuleRequest)
-        message_map = {
-            'ACL': module_msg.ACLArg,
-            'BPF': module_msg.BPFArg,
-            'Buffer': bess_msg.EmptyArg,
-            'Bypass': bess_msg.EmptyArg,
-            'Dump': module_msg.DumpArg,
-            'EtherEncap': bess_msg.EmptyArg,
-            'ExactMatch': module_msg.ExactMatchArg,
-            'FlowGen': module_msg.FlowGenArg,
-            'GenericDecap': module_msg.GenericDecapArg,
-            'GenericEncap': module_msg.GenericEncapArg,
-            'HashLB': module_msg.HashLBArg,
-            'IPChecksum': bess_msg.EmptyArg,
-            'IPEncap': bess_msg.EmptyArg,
-            'IPLookup': bess_msg.EmptyArg,
-            'IPSwap': bess_msg.EmptyArg,
-            'L2Forward': module_msg.L2ForwardArg,
-            'MACSwap': bess_msg.EmptyArg,
-            'Measure': module_msg.MeasureArg,
-            'Merge': bess_msg.EmptyArg,
-            'MetadataTest': module_msg.MetadataTestArg,
-            'NAT': module_msg.NATArg,
-            'NoOP': bess_msg.EmptyArg,
-            'PortInc': module_msg.PortIncArg,
-            'PortOut': module_msg.PortOutArg,
-            'QueueInc': module_msg.QueueIncArg,
-            'QueueOut': module_msg.QueueOutArg,
-            'Queue': module_msg.QueueArg,
-            'RandomDrop': module_msg.RandomDropArg,
-            'RandomUpdate': module_msg.RandomUpdateArg,
-            'Rewrite': module_msg.RewriteArg,
-            'RoundRobin': module_msg.RoundRobinArg,
-            'SetMetadata': module_msg.SetMetadataArg,
-            'Sink': bess_msg.EmptyArg,
-            'Source': module_msg.SourceArg,
-            'Split': module_msg.SplitArg,
-            'Timestamp': module_msg.TimestampArg,
-            'Update': module_msg.UpdateArg,
-            'UpdateTTL': bess_msg.EmptyArg,
-            'UrlFilter': module_msg.UrlFilterArg,
-            'VLANPop': bess_msg.EmptyArg,
-            'VLANPush': module_msg.VLANPushArg,
-            'VLANSplit': bess_msg.EmptyArg,
-            'VXLANDecap': bess_msg.EmptyArg,
-            'VXLANEncap': module_msg.VXLANEncapArg,
-            'WildcardMatch': module_msg.WildcardMatchArg,
-        }
-        arg_msg = proto_conv.dict_to_protobuf(arg, message_map[mclass])
+        message_type = getattr(module_msg, mclass + 'Arg', bess_msg.EmptyArg)
+        arg_msg = proto_conv.dict_to_protobuf(arg, message_type)
         request.arg.Pack(arg_msg)
         return self._request('CreateModule', request)
 
@@ -329,19 +278,17 @@ class BESS(object):
         request.name = name
         request.cmd = cmd
 
-        all_classes = inspect.getmembers(module_msg,
-                                         lambda c: inspect.isclass(c))
-        arg_classes = dict(all_classes)
-        arg_classes['EmptyArg'] = bess_msg.EmptyArg
+        message_type = getattr(module_msg, arg_type, bess_msg.EmptyArg)
+        arg_msg = proto_conv.dict_to_protobuf(arg, message_type)
 
-        arg_msg = proto_conv.dict_to_protobuf(arg, arg_classes[arg_type])
         request.arg.Pack(arg_msg)
 
         response = self._request('ModuleCommand', request)
         if response.HasField('other'):
-            type_str = response.other.type_url.split('.')[-1]
-            type_class = arg_classes[type_str]
-            result = type_class()
+            response_type_str = response.other.type_url.split('.')[-1]
+            response_type = getattr(module_msg, response_type_str,
+                                    bess_msg.EmptyArg)
+            result = response_type()
             response.other.Unpack(result)
             return result
         else:
