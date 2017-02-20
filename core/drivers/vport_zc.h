@@ -18,6 +18,8 @@
 #define SINGLE_P 0
 #define SINGLE_C 0
 
+#define PORT_NAME_LEN 128
+
 #define VPORT_DIR_PREFIX "sn_vports"
 
 struct vport_inc_regs {

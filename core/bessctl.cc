@@ -899,28 +899,21 @@ class BESSControlImpl final : public BESSControl::Service {
 
   Status GetPortStats(ServerContext*, const GetPortStatsRequest* request,
                       GetPortStatsResponse* response) override {
-    const char* port_name;
-    port_stats_t stats;
-
-    if (!request->name().length())
-      return return_with_error(response, EINVAL,
-                               "Argument must be a name in str");
-    port_name = request->name().c_str();
-
-    const auto& it = PortBuilder::all_ports().find(port_name);
+    const auto& it = PortBuilder::all_ports().find(request->name());
     if (it == PortBuilder::all_ports().end()) {
       return return_with_error(response, ENOENT, "No port '%s' found",
-                               port_name);
+                               request->name().c_str());
     }
-    it->second->GetPortStats(&stats);
 
-    response->mutable_inc()->set_packets(stats[PACKET_DIR_INC].packets);
-    response->mutable_inc()->set_dropped(stats[PACKET_DIR_INC].dropped);
-    response->mutable_inc()->set_bytes(stats[PACKET_DIR_INC].bytes);
+    ::Port::PortStats stats = it->second->GetPortStats();
 
-    response->mutable_out()->set_packets(stats[PACKET_DIR_OUT].packets);
-    response->mutable_out()->set_dropped(stats[PACKET_DIR_OUT].dropped);
-    response->mutable_out()->set_bytes(stats[PACKET_DIR_OUT].bytes);
+    response->mutable_inc()->set_packets(stats.inc.packets);
+    response->mutable_inc()->set_dropped(stats.inc.dropped);
+    response->mutable_inc()->set_bytes(stats.inc.bytes);
+
+    response->mutable_out()->set_packets(stats.out.packets);
+    response->mutable_out()->set_dropped(stats.out.dropped);
+    response->mutable_out()->set_bytes(stats.out.bytes);
 
     response->set_timestamp(get_epoch_time());
 
@@ -929,21 +922,13 @@ class BESSControlImpl final : public BESSControl::Service {
 
   Status GetLinkStatus(ServerContext*, const GetLinkStatusRequest* request,
                        GetLinkStatusResponse* response) override {
-    const char* port_name;
-    ::Port::LinkStatus status;
-
-    if (!request->name().length())
-      return return_with_error(response, EINVAL,
-                               "Argument must be a name in str");
-    port_name = request->name().c_str();
-
-    const auto& it = PortBuilder::all_ports().find(port_name);
+    const auto& it = PortBuilder::all_ports().find(request->name());
     if (it == PortBuilder::all_ports().end()) {
       return return_with_error(response, ENOENT, "No port '%s' found",
-                               port_name);
+                               request->name().c_str());
     }
 
-    status = it->second->GetLinkStatus();
+    ::Port::LinkStatus status= it->second->GetLinkStatus();
 
     response->set_speed(status.speed);
     response->set_full_duplex(status.full_duplex);

@@ -312,15 +312,15 @@ void PMDPort::CollectStats(bool reset) {
       dpdk_port_id_, stats.ipackets, stats.opackets, stats.ibytes, stats.obytes,
       stats.imissed, stats.ierrors, stats.oerrors, stats.rx_nombuf);
 
-  port_stats[PACKET_DIR_INC].dropped = stats.imissed;
+  port_stats_.inc.dropped = stats.imissed;
 
   // i40e PMD driver doesn't support per-queue stats
   if (driver_ == "rte_i40e_pmd") {
     // NOTE: if link is down, tx bytes won't increase
-    port_stats[PACKET_DIR_INC].packets = stats.ipackets;
-    port_stats[PACKET_DIR_INC].bytes = stats.ibytes;
-    port_stats[PACKET_DIR_OUT].packets = stats.opackets;
-    port_stats[PACKET_DIR_OUT].bytes = stats.obytes;
+    port_stats_.inc.packets = stats.ipackets;
+    port_stats_.inc.bytes = stats.ibytes;
+    port_stats_.out.packets = stats.opackets;
+    port_stats_.out.bytes = stats.obytes;
   } else {
     dir = PACKET_DIR_INC;
     for (qid = 0; qid < num_queues[dir]; qid++) {
@@ -345,7 +345,7 @@ int PMDPort::SendPackets(queue_t qid, bess::Packet **pkts, int cnt) {
   int sent =
       rte_eth_tx_burst(dpdk_port_id_, qid, (struct rte_mbuf **)pkts, cnt);
 
-  port_stats[PACKET_DIR_OUT].dropped += (cnt - sent);
+  queue_stats[PACKET_DIR_OUT][qid].dropped += (cnt - sent);
 
   return sent;
 }

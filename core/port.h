@@ -17,15 +17,10 @@
 
 typedef uint8_t queue_t;
 
-#define QUEUE_UNKNOWN 255
 #define MAX_QUEUES_PER_DIR 32 /* [0, 31] (for each RX/TX) */
-
-static_assert(MAX_QUEUES_PER_DIR < QUEUE_UNKNOWN, "too many queues");
 
 #define DRIVER_FLAG_SELF_INC_STATS 0x0001
 #define DRIVER_FLAG_SELF_OUT_STATS 0x0002
-
-#define PORT_NAME_LEN 128
 
 #define MAX_QUEUE_SIZE 4096
 
@@ -40,16 +35,6 @@ typedef enum {
   PACKET_DIR_OUT = 1,
   PACKET_DIRS
 } packet_dir_t;
-
-struct packet_stats {
-  packet_stats() : packets(), dropped(), bytes() {}
-
-  uint64_t packets;
-  uint64_t dropped; /* Not all drivers support this for inc dir */
-  uint64_t bytes;   /* doesn't include Ethernet overhead */
-};
-
-typedef struct packet_stats port_stats_t[PACKET_DIRS];
 
 class Port;
 class PortTest;
@@ -156,6 +141,12 @@ class PortBuilder {
                       // InitPortClass()?
 };
 
+struct QueueStats {
+  uint64_t packets;
+  uint64_t dropped;  // Not all drivers support this for INC direction
+  uint64_t bytes;    // It doesn't include Ethernet overhead
+};
+
 class Port {
  public:
   struct LinkStatus {
@@ -165,15 +156,20 @@ class Port {
     bool link_up;      // link up?
   };
 
+  struct PortStats {
+    QueueStats inc;
+    QueueStats out;
+  };
+
   // overide this section to create a new driver -----------------------------
   Port()
-      : name_(),
+      : port_stats_(),
+        name_(),
         port_builder_(),
         num_queues(),
         queue_size(),
         users(),
-        queue_stats(),
-        port_stats() {}
+        queue_stats() {}
 
   virtual ~Port() {}
 
@@ -208,8 +204,7 @@ class Port {
 
   pb_error_t InitWithGenericArg(const google::protobuf::Any &arg);
 
-  // Fills in pointed-to structure with this port's stats.
-  void GetPortStats(port_stats_t *stats);
+  PortStats GetPortStats();
 
   /* queues == nullptr if _all_ queues are being acquired/released */
   int AcquireQueues(const struct module *m, packet_dir_t dir,
@@ -222,7 +217,14 @@ class Port {
 
   const PortBuilder *port_builder() const { return port_builder_; }
 
+ protected:
+  /* for stats that do NOT belong to any queues */
+  PortStats port_stats_;
+
  private:
+  static const size_t kDefaultIncQueueSize = 256;
+  static const size_t kDefaultOutQueueSize = 256;
+
   // Private methods, for use by PortBuilder.
   void set_name(const std::string &name) { name_ = name; }
   void set_port_builder(const PortBuilder *port_builder) {
@@ -233,9 +235,6 @@ class Port {
 
   // Class-wide spec of this type of port.  Non-owning.
   const PortBuilder *port_builder_;
-
-  static const size_t kDefaultIncQueueSize = 256;
-  static const size_t kDefaultOutQueueSize = 256;
 
   DISALLOW_COPY_AND_ASSIGN(Port);
 
@@ -250,10 +249,7 @@ class Port {
    * TODO: more robust gate keeping */
   const struct module *users[PACKET_DIRS][MAX_QUEUES_PER_DIR];
 
-  struct packet_stats queue_stats[PACKET_DIRS][MAX_QUEUES_PER_DIR];
-
-  /* for stats that do NOT belong to any queues */
-  port_stats_t port_stats;
+  struct QueueStats queue_stats[PACKET_DIRS][MAX_QUEUES_PER_DIR];
 };
 
 #define ADD_DRIVER(_DRIVER, _NAME_TEMPLATE, _HELP)                       \
