@@ -101,7 +101,8 @@ class BESSCLI(cli.CLI):
             ctime = time.ctime(os.path.getmtime(log_path))
             self.ferr.write('From {} ({}):\n{}'.format(log_path, ctime, log))
         except Exception as e:
-            self.ferr.write('%s is not available: %s' % (log_path, str(e)))
+            self.ferr.write('Abruptly disconnected from bessd, but crashlog is '
+                            'not available:\n%s\n' % (str(e)))
 
     def loop(self):
         super(BESSCLI, self).loop()
