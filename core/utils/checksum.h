@@ -68,30 +68,26 @@ static inline uint32_t CalculateSum(const void *buf, size_t len,
         static_cast<uint64_t>(sumb32[4]) + static_cast<uint64_t>(sumb32[5]) +
         static_cast<uint64_t>(sumb32[6]) + static_cast<uint64_t>(sumb32[7]);
   }
-#else
-  if (len >= sizeof(uint64_t) * 8) {
-    // Repeat 64-bit one's complement sum (at sum64) including carrys
-    // 8 additions in a loop
-    while (len >= sizeof(uint64_t) * 8) {
-      asm(
-          "addq %[u0], %[sum] \n\t"
-          "adcq %[u1], %[sum] \n\t"
-          "adcq %[u2], %[sum] \n\t"
-          "adcq %[u3], %[sum] \n\t"
-          "adcq %[u4], %[sum] \n\t"
-          "adcq %[u5], %[sum] \n\t"
-          "adcq %[u6], %[sum] \n\t"
-          "adcq %[u7], %[sum] \n\t"
-          "adcq $0, %[sum]"
-          : [sum] "+rm"(sum64)
-          : "r"(buf64), [u0] "rm"(buf64[0]), [u1] "rm"(buf64[1]),
-            [u2] "rm"(buf64[2]), [u3] "rm"(buf64[3]), [u4] "rm"(buf64[4]),
-            [u5] "rm"(buf64[5]), [u6] "rm"(buf64[6]), [u7] "rm"(buf64[7]));
-      len -= sizeof(uint64_t) * 8;
-      buf64 += 8;
-    }
-  }
 #endif
+
+  // Repeat 64-bit one's complement sum (at sum64) including carrys
+  // 8 additions in a loop
+  while (len >= sizeof(uint64_t) * 8) {
+    asm(
+        "addq 0*8(%[src]), %[sum] \n\t"
+        "adcq 1*8(%[src]), %[sum] \n\t"
+        "adcq 2*8(%[src]), %[sum] \n\t"
+        "adcq 3*8(%[src]), %[sum] \n\t"
+        "adcq 4*8(%[src]), %[sum] \n\t"
+        "adcq 5*8(%[src]), %[sum] \n\t"
+        "adcq 6*8(%[src]), %[sum] \n\t"
+        "adcq 7*8(%[src]), %[sum] \n\t"
+        "adcq $0, %[sum]"
+        : [sum] "+r"(sum64)
+        : [src] "r"(buf64));
+    len -= sizeof(uint64_t) * 8;
+    buf64 += 8;
+  }
 
   while (len >= sizeof(uint64_t) * 2) {
     // Repeat 64-bit one's complement sum (at sum64) including carrys
