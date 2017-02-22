@@ -269,6 +269,7 @@ class BESS(object):
             'QueueInc': module_msg.QueueIncArg,
             'QueueOut': module_msg.QueueOutArg,
             'Queue': module_msg.QueueArg,
+            'RandomDrop': module_msg.RandomDropArg,
             'RandomUpdate': module_msg.RandomUpdateArg,
             'Rewrite': module_msg.RewriteArg,
             'RoundRobin': module_msg.RoundRobinArg,
