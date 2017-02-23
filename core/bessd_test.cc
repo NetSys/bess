@@ -297,5 +297,10 @@ TEST(SetResourceLimit, BasicRun) {
   EXPECT_TRUE(SetResourceLimit());
 }
 
+// Checks that we can get the executable's own directory.
+TEST(GetCurrentDirectory, BasicRun) {
+  EXPECT_NE(GetCurrentDirectory(), "");
+}
+
 }  // namespace bessd
 }  // namespace bess

@@ -1,5 +1,7 @@
 #include "bessd.h"
 
+#include <dirent.h>
+#include <dlfcn.h>
 #include <sys/file.h>
 #include <sys/resource.h>
 #include <sys/stat.h>
@@ -358,6 +360,51 @@ bool SetResourceLimit() {
     LOG(WARNING) << "setrlimit() failed";
     return false;
   }
+}
+
+// Return true if string s has specified suffix.
+static inline bool HasSuffix(const std::string &s, const std::string &suffix) {
+  return (s.size() >= suffix.size()) &&
+         std::equal(suffix.rbegin(), suffix.rend(), s.rbegin());
+}
+
+bool LoadModule(const std::string &module_path) {
+  return (dlopen(module_path.c_str(), RTLD_NOW) != nullptr);
+}
+
+bool LoadModules(const std::string &directory) {
+  DIR *dir = opendir(directory.c_str());
+  if (!dir) {
+    return false;
+  }
+  dirent *entry;
+  while ((entry = readdir(dir)) != nullptr) {
+    if (entry->d_type == DT_REG && HasSuffix(entry->d_name, ".so")) {
+      const std::string full_path = directory + "/" + entry->d_name;
+      LOG(INFO) << "Loading module: " << full_path;
+      if (!LoadModule(full_path)) {
+        LOG(WARNING) << "Cannot load module " << full_path;
+        closedir(dir);
+        return false;
+      }
+    }
+  }
+  closedir(dir);
+  return true;
+}
+
+std::string GetCurrentDirectory() {
+  char dest[PATH_MAX + 1];
+  ssize_t res = readlink("/proc/self/exe", dest, PATH_MAX);
+  if (res == -1) {
+    PLOG(FATAL) << "readlink()";
+  }
+  dest[res] = '\0';
+  const char *slash = strrchr(dest, '/');
+  if (slash == nullptr) {
+    PLOG(FATAL) << "strrchr()";
+  }
+  return std::string(dest, slash - dest + 1);
 }
 
 }  // namespace bessd
