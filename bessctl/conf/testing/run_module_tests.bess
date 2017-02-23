@@ -145,7 +145,7 @@ for filename in glob.glob(path + "/conf/testing/module_tests/*.py"):
     for test in CUSTOM_TEST_FUNCTIONS:
         try:
             test()
-        except Error:
+        except:
             sys.stderr.write("Test failed!\n")
             sys.stderr.write("Return value: %s\n" % sys.exc_info()[0])
             sys.exit(1)
