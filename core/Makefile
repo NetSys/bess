@@ -99,7 +99,11 @@ BENCH_SRCS := $(filter %_bench.cc, $(ALL_SRCS))
 BENCH_OBJS := $(BENCH_SRCS:.cc=.o)
 BENCH_EXEC := $(BENCH_OBJS:%.o=%)
 
-SRCS := $(filter-out $(TEST_SRCS) $(BENCH_SRCS), $(ALL_SRCS)) $(PROTO_SRCS)
+MODULE_SRCS := $(filter-out $(TEST_SRCS) $(BENCH_SRCS), $(filter modules/%.cc, $(ALL_SRCS)))
+MODULE_OBJS := $(MODULE_SRCS:.cc=.o)
+MODULE_LIBS := $(MODULE_OBJS:.o=.so)
+
+SRCS := $(filter-out $(TEST_SRCS) $(BENCH_SRCS) $(MODULE_SRCS), $(ALL_SRCS)) $(PROTO_SRCS)
 OBJS := $(SRCS:.cc=.o)
 
 EXEC := bessd
@@ -108,7 +112,7 @@ GTEST_DIR := /usr/src/gtest
 
 .PHONY: all clean tags cscope tests benchmarks protobuf
 
-all: $(EXEC) tests benchmarks
+all: $(EXEC) modules tests benchmarks
 
 clean:
 	rm -rf $(EXEC) .deps/*.d .deps/*/*.d *_test */*_test *_bench */*_bench \
@@ -129,6 +133,8 @@ tests: $(TEST_OBJS) $(TEST_EXEC) $(TEST_ALL_EXEC)
 benchmarks: $(BENCH_OBJS) $(BENCH_EXEC)
 
 protobuf: $(PROTO_SRCS)
+
+modules: $(MODULE_OBJS) $(MODULE_LIBS)
 
 # This build wrapper takes 4 parameters:
 # $(1): build type (CXX, LD, ...)
@@ -164,6 +170,30 @@ $(eval $(call BUILD, \
 	$(CXX) -o $$@ -c $$< $(CXXFLAGS) $(PERMISSIVE) $$(DEPFLAGS)))
 
 $(eval $(call BUILD, \
+	MODULE_CXX, \
+	modules/%.o, \
+	modules/%.cc, \
+	$(CXX) -o $$@ -c $$< $(CXXFLAGS) $$(DEPFLAGS) -fPIC))
+
+$(eval $(call BUILD, \
+	MODULE_LD, \
+	%.so, \
+	%.o, \
+	$(CXX) -shared -o $$@ $$^ $(LDFLAGS)))
+
+$(eval $(call BUILD, \
+	MODULE_TEST_LD, \
+	modules/%_test, \
+	modules/%_test.o modules/%.o gtest-all.o gtest_main.o bess.a, \
+	$(CXX) -o $$@ $$^ $(LDFLAGS) $(LIBS)))
+
+$(eval $(call BUILD, \
+	MODULE_BENCH_LD, \
+	modules/%_bench, \
+	modules/%_bench.o modules/%.o bess.a, \
+	$(CXX) -o $$@ $$^ $(LDFLAGS) $(LIBS) -lbenchmark))
+
+$(eval $(call BUILD, \
 	CXX, \
 	%.o, \
 	%.cc $(PROTO_HEADERS), \
@@ -190,7 +220,7 @@ $(eval $(call BUILD, \
 $(eval $(call BUILD, \
 	TEST_LD, \
 	$(TEST_ALL_EXEC), \
-	$(TEST_OBJS) gtest-all.o bess.a, \
+	$(TEST_OBJS) $(MODULE_OBJS) gtest-all.o bess.a, \
 	$(CXX) -o $$@ $$^ $(LDFLAGS) $(LIBS)))
 
 $(eval $(call BUILD, \

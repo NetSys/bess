@@ -21,6 +21,11 @@ int main(int argc, char *argv[]) {
   google::ParseCommandLineFlags(&argc, &argv, true);
   bess::bessd::ProcessCommandLineArgs();
 
+  if (!bess::bessd::LoadModules(bess::bessd::GetCurrentDirectory() +
+                                "modules")) {
+    PLOG(FATAL) << "LoadModules() failed";
+  }
+
   bess::bessd::CheckRunningAsRoot();
 
   int pidfile_fd = bess::bessd::CheckUniqueInstance(FLAGS_i);
