@@ -9,51 +9,6 @@
 #define SN_HW_RXCSUM 0
 #define SN_HW_TXCSUM 0
 
-#if 0
-static const struct rte_eth_conf default_eth_conf = {
-    .link_speeds = ETH_LINK_SPEED_AUTONEG,
-    .rxmode =
-        {
-            .mq_mode = ETH_MQ_RX_RSS,       /* doesn't matter for 1-queue */
-            .max_rx_pkt_len = 0,            /* valid only if jumbo is on */
-            .split_hdr_size = 0,            /* valid only if HS is on */
-            .header_split = 0,              /* Header Split */
-            .hw_ip_checksum = SN_HW_RXCSUM, /* IP checksum offload */
-            .hw_vlan_filter = 0,            /* VLAN filtering */
-            .hw_vlan_strip = 0,             /* VLAN strip */
-            .hw_vlan_extend = 0,            /* Extended VLAN */
-            .jumbo_frame = 0,               /* Jumbo Frame support */
-            .hw_strip_crc = 1,              /* CRC stripped by hardware */
-        },
-    .txmode =
-        {
-            .mq_mode = ETH_MQ_TX_NONE,
-        },
-    .lpbk_mode = 0,
-    .rx_adv_conf =
-        {
-            .rss_conf =
-                {
-                    .rss_key = nullptr,
-                    .rss_key_len = 40,
-                    /* TODO: query rte_eth_dev_info_get() to set this*/
-                    .rss_hf =
-                        ETH_RSS_IP | ETH_RSS_UDP | ETH_RSS_TCP | ETH_RSS_SCTP,
-                },
-        },
-    .tx_adv_conf = {},
-    .dcb_capability_en = 0,
-    .fdir_conf =
-        {
-            .mode = RTE_FDIR_MODE_NONE,
-        },
-    .intr_conf =
-        {
-            .lsc = 0,
-        },
-};
-#endif
-
 static const struct rte_eth_conf default_eth_conf() {
   struct rte_eth_conf ret = rte_eth_conf();
 
@@ -357,15 +312,15 @@ void PMDPort::CollectStats(bool reset) {
       dpdk_port_id_, stats.ipackets, stats.opackets, stats.ibytes, stats.obytes,
       stats.imissed, stats.ierrors, stats.oerrors, stats.rx_nombuf);
 
-  port_stats[PACKET_DIR_INC].dropped = stats.imissed;
+  port_stats_.inc.dropped = stats.imissed;
 
   // i40e PMD driver doesn't support per-queue stats
   if (driver_ == "rte_i40e_pmd") {
     // NOTE: if link is down, tx bytes won't increase
-    port_stats[PACKET_DIR_INC].packets = stats.ipackets;
-    port_stats[PACKET_DIR_INC].bytes = stats.ibytes;
-    port_stats[PACKET_DIR_OUT].packets = stats.opackets;
-    port_stats[PACKET_DIR_OUT].bytes = stats.obytes;
+    port_stats_.inc.packets = stats.ipackets;
+    port_stats_.inc.bytes = stats.ibytes;
+    port_stats_.out.packets = stats.opackets;
+    port_stats_.out.bytes = stats.obytes;
   } else {
     dir = PACKET_DIR_INC;
     for (qid = 0; qid < num_queues[dir]; qid++) {
@@ -390,9 +345,20 @@ int PMDPort::SendPackets(queue_t qid, bess::Packet **pkts, int cnt) {
   int sent =
       rte_eth_tx_burst(dpdk_port_id_, qid, (struct rte_mbuf **)pkts, cnt);
 
-  port_stats[PACKET_DIR_OUT].dropped += (cnt - sent);
+  queue_stats[PACKET_DIR_OUT][qid].dropped += (cnt - sent);
 
   return sent;
+}
+
+Port::LinkStatus PMDPort::GetLinkStatus() {
+  struct rte_eth_link status;
+  // rte_eth_link_get() may block up to 9 seconds, so use _nowait() variant.
+  rte_eth_link_get_nowait(dpdk_port_id_, &status);
+
+  return LinkStatus{.speed = status.link_speed,
+                    .full_duplex = static_cast<bool>(status.link_duplex),
+                    .autoneg = static_cast<bool>(status.link_autoneg),
+                    .link_up = static_cast<bool>(status.link_status)};
 }
 
 ADD_DRIVER(PMDPort, "pmd_port", "DPDK poll mode driver")

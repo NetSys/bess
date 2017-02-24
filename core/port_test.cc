@@ -109,11 +109,13 @@ TEST_F(PortTest, GetPortStats) {
   const auto &it = PortBuilder::all_ports().find("port1");
   ASSERT_NE(it, PortBuilder::all_ports().end());
 
-  port_stats_t stats;
-  it->second->GetPortStats(&stats);
-  EXPECT_EQ(0, stats[PACKET_DIR_INC].packets);
-  EXPECT_EQ(0, stats[PACKET_DIR_INC].dropped);
-  EXPECT_EQ(0, stats[PACKET_DIR_INC].bytes);
+  Port::PortStats stats = it->second->GetPortStats();
+  EXPECT_EQ(0, stats.inc.packets);
+  EXPECT_EQ(0, stats.inc.dropped);
+  EXPECT_EQ(0, stats.inc.bytes);
+  EXPECT_EQ(0, stats.out.packets);
+  EXPECT_EQ(0, stats.out.dropped);
+  EXPECT_EQ(0, stats.out.bytes);
 }
 
 // Checks that we can acquire and release queues.

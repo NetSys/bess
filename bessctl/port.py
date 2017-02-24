@@ -18,3 +18,6 @@ class Port(object):
 
     def get_port_stats(self):
         return self.bess.get_port_stats(self.name)
+
+    def get_link_status(self):
+        return self.bess.get_link_status(self.name)

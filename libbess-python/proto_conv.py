@@ -43,7 +43,10 @@ def field_value_adaptor(field):
 
 def protobuf_to_dict(pb):
     result_dict = {}
-    for field, value in pb.ListFields():
+    # Since pb.ListFields() does not return fields with default value,
+    # use pb.DESCRIPTOR.fields instead.
+    for field in pb.DESCRIPTOR.fields:
+        value = getattr(pb, field.name)
         type_callable = field_value_adaptor(field)
         if field.label == FieldDescriptor.LABEL_REPEATED:
             type_callable = repeated(type_callable)

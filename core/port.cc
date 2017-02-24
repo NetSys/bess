@@ -148,20 +148,27 @@ int Port::SendPackets(queue_t, bess::Packet **, int) {
   return 0;
 }
 
-void Port::GetPortStats(port_stats_t *stats) {
+Port::PortStats Port::GetPortStats() {
   CollectStats(false);
 
-  memcpy(stats, &port_stats, sizeof(port_stats_t));
+  PortStats ret = port_stats_;
 
-  for (packet_dir_t dir : {PACKET_DIR_INC, PACKET_DIR_OUT}) {
-    for (queue_t qid = 0; qid < num_queues[dir]; qid++) {
-      const struct packet_stats *qs = &queue_stats[dir][qid];
+  for (queue_t qid = 0; qid < num_queues[PACKET_DIR_INC]; qid++) {
+    const QueueStats &inc = queue_stats[PACKET_DIR_INC][qid];
 
-      (*stats)[dir].packets += qs->packets;
-      (*stats)[dir].dropped += qs->dropped;
-      (*stats)[dir].bytes += qs->bytes;
-    }
+    ret.inc.packets += inc.packets;
+    ret.inc.dropped += inc.dropped;
+    ret.inc.bytes += inc.bytes;
   }
+
+  for (queue_t qid = 0; qid < num_queues[PACKET_DIR_OUT]; qid++) {
+    const QueueStats &out = queue_stats[PACKET_DIR_OUT][qid];
+    ret.out.packets += out.packets;
+    ret.out.dropped += out.dropped;
+    ret.out.bytes += out.bytes;
+  }
+
+  return ret;
 }
 
 int Port::AcquireQueues(const struct module *m, packet_dir_t dir,

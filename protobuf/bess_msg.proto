@@ -151,6 +151,18 @@ message ListWorkersResponse {
   repeated WorkerStatus workers_status = 2;
 }
 
+message GetLinkStatusRequest {
+  string name = 1;       /// name of the port to query
+}
+
+message GetLinkStatusResponse {
+  Error error = 1;
+  uint32 speed = 2;      /// speed in mbps: 1000, 40000, etc. 0 for vports
+  bool full_duplex = 3;  /// full-duplex enabled?
+  bool autoneg = 4;      /// auto-negotiated speed and duplex?
+  bool link_up = 5;      /// link up?
+}
+
 message AddWorkerRequest {
   int64 wid = 1;
   int64 core = 2;

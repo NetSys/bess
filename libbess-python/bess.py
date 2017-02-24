@@ -182,6 +182,9 @@ class BESS(object):
         return self._request('ListPorts')
 
     def create_port(self, driver, name, arg):
+        if arg == None:
+            arg = {}
+
         num_inc_q = arg.pop('num_inc_q', 0)
         num_out_q = arg.pop('num_out_q', 0)
         size_inc_q = arg.pop('size_inc_q', 0)
@@ -220,6 +223,11 @@ class BESS(object):
         request = bess_msg.GetPortStatsRequest()
         request.name = name
         return self._request('GetPortStats', request)
+
+    def get_link_status(self, name):
+        request = bess_msg.GetLinkStatusRequest()
+        request.name = name
+        return proto_conv.protobuf_to_dict(self._request('GetLinkStatus', request))
 
     def list_mclasses(self):
         return self._request('ListMclass')
