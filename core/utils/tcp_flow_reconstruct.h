@@ -3,10 +3,8 @@
 
 #include <arpa/inet.h>
 
-#include <cassert>
 #include <vector>
 
-#include "../mem_alloc.h"
 #include "../packet.h"
 #include "ether.h"
 #include "ip.h"
