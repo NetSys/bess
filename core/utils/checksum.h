@@ -147,7 +147,7 @@ static inline uint16_t CalculateGenericChecksum(const void *buf, size_t len) {
 static inline bool VerifyGenericChecksum(const void *buf, size_t len,
                                          uint16_t cksum) {
   uint16_t ret = CalculateGenericChecksum(buf, len);
-  return (ret == cksum);
+  return ret == cksum;
 }
 
 // Return true if the 'len' bytes from 'buf' is correct
@@ -278,8 +278,8 @@ static inline uint16_t CalculateIpv4TcpChecksum(const Ipv4Header &iph,
                                   ntohs(iph.length) - (iph.header_length << 2));
 }
 
-// Return incrementally updated internet checksum of old_checksum
-// when 'old_value' changes to 'new_value' e.g., changed IP address
+// Return incrementally updated checksum from old_checksum
+// when 32-bit 'old_value' changes to 'new_value' e.g., changed IPv4 address
 static inline uint16_t CalculateChecksumIncremental32(uint16_t old_checksum,
                                                       uint32_t old_value,
                                                       uint32_t new_value) {
@@ -291,8 +291,8 @@ static inline uint16_t CalculateChecksumIncremental32(uint16_t old_checksum,
   return FoldChecksum(sum);
 }
 
-// Return incrementally updated internet checksum of old_checksum
-// when 'old_value' changes to 'new_value' e.g., changed port number
+// Return incrementally updated checksum from old_checksum
+// when 16-bit 'old_value' changes to 'new_value' e.g., changed port number
 static inline uint16_t CalculateChecksumIncremental16(uint16_t old_checksum,
                                                       uint16_t old_value,
                                                       uint16_t new_value) {
