@@ -31,8 +31,10 @@ pb_error_t PortOut::Init(const bess::pb::PortOutArg &arg) {
 }
 
 void PortOut::DeInit() {
-  port_->ReleaseQueues(reinterpret_cast<const module *>(this), PACKET_DIR_OUT,
-                       nullptr, 0);
+  if (port_) {
+    port_->ReleaseQueues(reinterpret_cast<const module *>(this), PACKET_DIR_OUT,
+                         nullptr, 0);
+  }
 }
 
 std::string PortOut::GetDesc() const {

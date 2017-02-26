@@ -59,8 +59,10 @@ pb_error_t PortInc::Init(const bess::pb::PortIncArg &arg) {
 }
 
 void PortInc::DeInit() {
-  port_->ReleaseQueues(reinterpret_cast<const module *>(this), PACKET_DIR_INC,
-                       nullptr, 0);
+  if (port_) {
+    port_->ReleaseQueues(reinterpret_cast<const module *>(this), PACKET_DIR_INC,
+                         nullptr, 0);
+  }
 }
 
 std::string PortInc::GetDesc() const {
