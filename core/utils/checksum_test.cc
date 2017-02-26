@@ -42,8 +42,9 @@ TEST(ChecksumTest, GenericChecksum) {
   EXPECT_TRUE(VerifyGenericChecksum(buf, 159, cksum_dpdk));
 
   for (int i = 0; i < TestLoopCount; i++) {
-    for (int j = 0; j < 40; j++)
+    for (int j = 0; j < 40; j++) {
       buf[j] = rd.Get();
+    }
 
     cksum_bess = CalculateGenericChecksum(buf, 160);
     cksum_dpdk = ~rte_raw_cksum(buf, 160);  // take the complement
@@ -53,7 +54,7 @@ TEST(ChecksumTest, GenericChecksum) {
 
 // Tests IP checksum
 TEST(ChecksumTest, Ipv4NoOptChecksum) {
-  char buf[20] = {0};  // ipv4 header w/o options
+  char buf[1514] = {0};  // ipv4 header w/o options
 
   bess::utils::Ipv4Header *ip =
       reinterpret_cast<bess::utils::Ipv4Header *>(buf);
@@ -101,7 +102,7 @@ TEST(ChecksumTest, Ipv4NoOptChecksum) {
 
 // Tests TCP checksum
 TEST(ChecksumTest, TcpChecksum) {
-  char buf[40] = {0};  // ipv4 header + tcp header
+  char buf[1514] = {0};  // ipv4 header + tcp header
 
   bess::utils::Ipv4Header *ip =
       reinterpret_cast<bess::utils::Ipv4Header *>(buf);
@@ -174,7 +175,7 @@ TEST(ChecksumTest, IncrementalUpdateChecksum16) {
   buf[0] = new16;
   uint16_t cksum_new = CalculateGenericChecksum(buf, 10);
   uint16_t cksum_update =
-      CalculateChecksumIncrementalUpdate(cksum_old, old16, new16);
+      CalculateChecksumIncremental16(cksum_old, old16, new16);
 
   EXPECT_EQ(cksum_new, cksum_update);
 
@@ -187,7 +188,7 @@ TEST(ChecksumTest, IncrementalUpdateChecksum16) {
     old16 = buf[0];
     new16 = buf[0] = rd.Get() >> 16;
     cksum_new = CalculateGenericChecksum(buf, 10);
-    cksum_update = CalculateChecksumIncrementalUpdate(cksum_old, old16, new16);
+    cksum_update = CalculateChecksumIncremental16(cksum_old, old16, new16);
     EXPECT_EQ(cksum_new, cksum_update);
   }
 }
@@ -204,27 +205,28 @@ TEST(ChecksumTest, IncrementalUpdateChecksum32) {
   buf[0] = new32;
   uint16_t cksum_new = CalculateGenericChecksum(buf, 20);
   uint16_t cksum_update =
-      CalculateChecksumIncrementalUpdate(cksum_old, old32, new32);
+      CalculateChecksumIncremental32(cksum_old, old32, new32);
 
   EXPECT_EQ(cksum_new, cksum_update);
 
   for (int i = 0; i < TestLoopCount; i++) {
-    for (int j = 0; j < 5; j++)
+    for (int j = 0; j < 5; j++) {
       buf[j] = rd.Get();
+    }
 
     cksum_old = CalculateGenericChecksum(buf, 20);
 
     old32 = buf[0];
     new32 = buf[0] = rd.Get();
     cksum_new = CalculateGenericChecksum(buf, 20);
-    cksum_update = CalculateChecksumIncrementalUpdate(cksum_old, old32, new32);
+    cksum_update = CalculateChecksumIncremental32(cksum_old, old32, new32);
     EXPECT_EQ(cksum_new, cksum_update);
   }
 }
 
 // Tests incremental checksum update with source IP/port update
 TEST(ChecksumTest, IncrementalUpdateSrcIpPort) {
-  char buf[40] = {0};  // ipv4 header + tcp header
+  char buf[1514] = {0};
 
   bess::utils::Ipv4Header *ip =
       reinterpret_cast<bess::utils::Ipv4Header *>(buf);
@@ -264,15 +266,14 @@ TEST(ChecksumTest, IncrementalUpdateSrcIpPort) {
     }
 
     ip->checksum =
-        CalculateChecksumIncrementalUpdate(ip_cksum_old, src_ip_old, ip->src);
+        CalculateChecksumIncremental32(ip_cksum_old, src_ip_old, ip->src);
     EXPECT_TRUE(VerifyIpv4NoOptChecksum(*ip));
 
     tcp->checksum =
-        CalculateChecksumIncrementalUpdate(tcp_cksum_old, src_ip_old, ip->src);
-    tcp->checksum = CalculateChecksumIncrementalUpdate(
-        tcp->checksum, src_port_old, tcp->src_port);
+        CalculateChecksumIncremental32(tcp_cksum_old, src_ip_old, ip->src);
+    tcp->checksum = CalculateChecksumIncremental16(tcp->checksum, src_port_old,
+                                                   tcp->src_port);
     EXPECT_TRUE(VerifyIpv4TcpChecksum(*ip, *tcp));
   }
 }
-
 }  // namespace (unnamed)

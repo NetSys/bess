@@ -34,10 +34,9 @@ class ChecksumFixture : public benchmark::Fixture {
 BENCHMARK_DEFINE_F(ChecksumFixture, BmGenericChecksumDpdk)
 (benchmark::State &state) {
   size_t buf_len = state.range(0);
-  void *buf;
 
   while (state.KeepRunning()) {
-    buf = get_buffer(buf_len);
+    const void *buf = get_buffer(buf_len);
 
     // DPDK raw cksum does not return the negative of the sum
     // so we take the negative here
@@ -52,13 +51,11 @@ BENCHMARK_DEFINE_F(ChecksumFixture, BmGenericChecksumDpdk)
 BENCHMARK_DEFINE_F(ChecksumFixture, BmGenericChecksumBess)
 (benchmark::State &state) {
   size_t buf_len = state.range(0);
-  void *buf;
 
   while (state.KeepRunning()) {
-    buf = get_buffer(buf_len);
+    const void *buf = get_buffer(buf_len);
 
-    benchmark::DoNotOptimize(
-        CalculateGenericChecksum(reinterpret_cast<const void *>(buf), buf_len));
+    benchmark::DoNotOptimize(CalculateGenericChecksum(buf, buf_len));
   }
 
   state.SetItemsProcessed(state.iterations());
@@ -222,7 +219,7 @@ BENCHMARK_DEFINE_F(ChecksumFixture, BmIncrementalUpdate16)
 
     tcp->src_port = GetRandom();
 
-    benchmark::DoNotOptimize(cksum_update = CalculateChecksumIncrementalUpdate(
+    benchmark::DoNotOptimize(cksum_update = CalculateChecksumIncremental32(
                                  cksum, src_port_old, tcp->src_port));
     cksum = cksum_update;
   }
@@ -252,7 +249,7 @@ BENCHMARK_DEFINE_F(ChecksumFixture, BmIncrementalUpdate32)
 
     ip->src = GetRandom();
 
-    benchmark::DoNotOptimize(cksum_update = CalculateChecksumIncrementalUpdate(
+    benchmark::DoNotOptimize(cksum_update = CalculateChecksumIncremental32(
                                  cksum, src_ip_old, ip->src));
     cksum = cksum_update;
   }
@@ -320,11 +317,11 @@ BENCHMARK_DEFINE_F(ChecksumFixture, BmSrcIpPortUpdateBess)
     // NAT simulation
     // - one update for ip checksum recalcuation
     // - two for tcp checksum
-    benchmark::DoNotOptimize(ip->checksum = CalculateChecksumIncrementalUpdate(
+    benchmark::DoNotOptimize(ip->checksum = CalculateChecksumIncremental32(
                                  ip->checksum, src_ip_old, ip->src));
-    benchmark::DoNotOptimize(tcp->checksum = CalculateChecksumIncrementalUpdate(
+    benchmark::DoNotOptimize(tcp->checksum = CalculateChecksumIncremental32(
                                  tcp->checksum, src_ip_old, ip->src));
-    benchmark::DoNotOptimize(tcp->checksum = CalculateChecksumIncrementalUpdate(
+    benchmark::DoNotOptimize(tcp->checksum = CalculateChecksumIncremental16(
                                  tcp->checksum, src_port_old, tcp->src_port));
   }
 
