@@ -36,7 +36,9 @@ pb_error_t IPLookup::Init(const bess::pb::EmptyArg &) {
 }
 
 void IPLookup::DeInit() {
-  rte_lpm_free(lpm_);
+  if (!lpm_) {
+    rte_lpm_free(lpm_);
+  }
 }
 
 void IPLookup::ProcessBatch(bess::PacketBatch *batch) {

@@ -318,7 +318,7 @@ static Module* create_module(const std::string& name,
   *perr = m->InitWithGenericArg(arg);
   if (perr->err() != 0) {
     VLOG(1) << perr->DebugString();
-    ModuleBuilder::DestroyModule(m);  // XXX: fix me
+    ModuleBuilder::DestroyModule(m);
     return nullptr;
   }
 

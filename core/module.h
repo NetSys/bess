@@ -161,6 +161,8 @@ class Module {
   virtual ~Module() {}
 
   pb_error_t Init(const bess::pb::EmptyArg &arg);
+
+  // NOTE: this function will be called even if Init() has failed.
   virtual void DeInit();
 
   virtual struct task_result RunTask(void *arg);

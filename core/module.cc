@@ -60,8 +60,6 @@ int ModuleBuilder::DestroyModule(Module *m, bool erase) {
     all_modules_.erase(m->name());
   }
 
-  m->ogates_.clear();
-  m->igates_.clear();
   delete m;
   return 0;
 }

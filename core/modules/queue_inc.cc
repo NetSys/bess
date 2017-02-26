@@ -49,8 +49,10 @@ pb_error_t QueueInc::Init(const bess::pb::QueueIncArg &arg) {
 }
 
 void QueueInc::DeInit() {
-  port_->ReleaseQueues(reinterpret_cast<const module *>(this), PACKET_DIR_INC,
-                       &qid_, 1);
+  if (port_) {
+    port_->ReleaseQueues(reinterpret_cast<const module *>(this), PACKET_DIR_INC,
+                         &qid_, 1);
+  }
 }
 
 std::string QueueInc::GetDesc() const {

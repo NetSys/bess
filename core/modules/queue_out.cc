@@ -30,8 +30,10 @@ pb_error_t QueueOut::Init(const bess::pb::QueueOutArg &arg) {
 }
 
 void QueueOut::DeInit() {
-  port_->ReleaseQueues(reinterpret_cast<const module *>(this), PACKET_DIR_OUT,
-                       &qid_, 1);
+  if (port_) {
+    port_->ReleaseQueues(reinterpret_cast<const module *>(this), PACKET_DIR_OUT,
+                         &qid_, 1);
+  }
 }
 
 std::string QueueOut::GetDesc() const {
