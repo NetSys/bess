@@ -18,11 +18,11 @@ class TcpFlowReconstructTest : public ::testing::TestWithParam<const char *> {
     // TODO(barath): Due to a problem with some versions of gtest when using the
     //               TEST_P macro, for the moment we just use a single tracefile
     //               for now.
-    std::string tracefile_prefix("testdata/test-pktcaptures/tcpflow-http-3");
+    std::string tracefile_prefix = "testdata/test-pktcaptures/tcpflow-http-3";
 
     char errbuf[PCAP_ERRBUF_SIZE];
-    pcap_t *handle = pcap_open_offline(
-        (tracefile_prefix + std::string(".pcap")).c_str(), errbuf);
+    pcap_t *handle =
+        pcap_open_offline((tracefile_prefix + ".pcap").c_str(), errbuf);
     ASSERT_TRUE(handle != nullptr);
 
     const u_char *pcap_pkt;
@@ -39,31 +39,25 @@ class TcpFlowReconstructTest : public ::testing::TestWithParam<const char *> {
     }
 
     // Read in file with good reconstruction.
-    std::ifstream f(tracefile_prefix + std::string(".bytes"),
-                    std::ios::binary | std::ios::ate);
+    std::ifstream f(tracefile_prefix + ".bytes", std::ios::binary);
     ASSERT_FALSE(f.bad());
-    std::streamsize size = f.tellg();
-    f.seekg(0, std::ios::beg);
 
-    data_len_ = size;
-    data_ = (char *)malloc(data_len_);
-    f.read(data_, data_len_);
+    f >> std::noskipws;
+    std::istream_iterator<char> start(f), end;
+    std::copy(start, end, std::back_inserter(bytestream_));
   }
 
   virtual void TearDown() {
     for (Packet *p : pkts_) {
       delete p;
     }
-
-    free(data_);
   }
 
   // The packets of the pcap trace file.
   std::vector<Packet *> pkts_;
 
   // The correctly reconstructed raw TCP byte stream.
-  char *data_;
-  size_t data_len_;
+  std::vector<char> bytestream_;
 };
 
 // Tests that the constructor initializes the underlying buffers to the
@@ -82,8 +76,8 @@ TEST_F(TcpFlowReconstructTest, StandardReconstruction) {
     ASSERT_TRUE(t.InsertPacket(p));
   }
 
-  ASSERT_EQ(data_len_, t.contiguous_len());
-  EXPECT_EQ(0, memcmp(t.buf(), data_, data_len_));
+  ASSERT_EQ(bytestream_.size(), t.contiguous_len());
+  EXPECT_EQ(0, memcmp(t.buf(), bytestream_.data(), bytestream_.size()));
 }
 
 // Tests that reordering packets doesn't affect the reconstruction.
@@ -108,8 +102,8 @@ TEST_F(TcpFlowReconstructTest, ReorderedReconstruction) {
       ASSERT_TRUE(t.InsertPacket(p));
     }
 
-    ASSERT_EQ(data_len_, t.contiguous_len());
-    EXPECT_EQ(0, memcmp(t.buf(), data_, data_len_));
+    ASSERT_EQ(bytestream_.size(), t.contiguous_len());
+    EXPECT_EQ(0, memcmp(t.buf(), bytestream_.data(), bytestream_.size()));
   } while (std::next_permutation(pkt_rotation.begin(), pkt_rotation.end()));
 }
 
