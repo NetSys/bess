@@ -106,12 +106,14 @@ class TcpFlowReconstruct {
     // existing segments with a hole   |---A---|   |--B--|-C-|
     //                                             ^
     //                                             lower_bound(start)
-    {auto it = received_map_.lower_bound(start);
+    auto it = received_map_.lower_bound(start);
     if (it != received_map_.begin()) {
       auto it_prev = it;
       it_prev--;
       if (it_prev->second >= start) {
-        // case A. include it.
+        // The segment right before the lower_bound(start) may partially overlap
+        // with the new segment (e.g., segment A in the above figure).
+        // Include the segment for merging
         start = it_prev->first;
         it = it_prev;
       }
@@ -121,7 +123,6 @@ class TcpFlowReconstruct {
     while (it != received_map_.end() && it->first <= end) {
       end = std::max(end, it->second);
       it = received_map_.erase(it);
-    }
     }
 
     // Insert the merged segment
