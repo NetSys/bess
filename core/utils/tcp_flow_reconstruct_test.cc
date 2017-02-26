@@ -2,7 +2,6 @@
 
 #include <algorithm>
 #include <fstream>
-#include <iostream>
 
 #include <gtest/gtest.h>
 #include <pcap/pcap.h>
@@ -13,7 +12,7 @@ namespace {
 
 // A parameterized test fixture for testing TCP flows that specifies a PCAP file
 // from which to read packets.
-class TcpFlowReconstructTest : public ::testing::TestWithParam<const char*> {
+class TcpFlowReconstructTest : public ::testing::TestWithParam<const char *> {
  protected:
   virtual void SetUp() {
     // TODO(barath): Due to a problem with some versions of gtest when using the
@@ -21,28 +20,33 @@ class TcpFlowReconstructTest : public ::testing::TestWithParam<const char*> {
     //               for now.
     std::string tracefile_prefix("testdata/test-pktcaptures/tcpflow-http-3");
 
-    char errbuf[2048];
-    pcap_t *handle = pcap_open_offline((tracefile_prefix + std::string(".pcap")).c_str(), errbuf);
+    char errbuf[PCAP_ERRBUF_SIZE];
+    pcap_t *handle = pcap_open_offline(
+        (tracefile_prefix + std::string(".pcap")).c_str(), errbuf);
     ASSERT_TRUE(handle != nullptr);
 
     const u_char *pcap_pkt;
     struct pcap_pkthdr pcap_hdr;
     while ((pcap_pkt = pcap_next(handle, &pcap_hdr)) != nullptr) {
-      ASSERT_EQ(pcap_hdr.caplen, pcap_hdr.len) << "Didn't capture the full packet.";
+      ASSERT_EQ(pcap_hdr.caplen, pcap_hdr.len)
+          << "Didn't capture the full packet.";
       Packet *p = new Packet();
       p->set_buffer(p->data());
       memcpy(p->data(), pcap_pkt, pcap_hdr.caplen);
+      p->set_data_len(pcap_hdr.caplen);
+      p->set_total_len(pcap_hdr.caplen);
       pkts_.push_back(p);
     }
 
     // Read in file with good reconstruction.
-    std::ifstream f(tracefile_prefix + std::string(".bytes"), std::ios::binary | std::ios::ate);
+    std::ifstream f(tracefile_prefix + std::string(".bytes"),
+                    std::ios::binary | std::ios::ate);
     ASSERT_FALSE(f.bad());
     std::streamsize size = f.tellg();
     f.seekg(0, std::ios::beg);
 
     data_len_ = size;
-    data_ = (char *) malloc(data_len_);
+    data_ = (char *)malloc(data_len_);
     f.read(data_, data_len_);
   }
 
@@ -65,9 +69,9 @@ class TcpFlowReconstructTest : public ::testing::TestWithParam<const char*> {
 // Tests that the constructor initializes the underlying buffers to the
 // specified initial size.
 TEST(TcpFlowReconstruct, Constructor) {
-  TcpFlowReconstruct t1(0), t2(7);
-  EXPECT_EQ(1, t1.received_map().size());
-  EXPECT_EQ(7, t2.received_map().size());
+  TcpFlowReconstruct t1, t2(7);
+  EXPECT_EQ(1024, t1.buf_size());
+  EXPECT_EQ(7, t2.buf_size());
 }
 
 // Tests that reconstructed flows contain the right data when done in order.
@@ -84,16 +88,20 @@ TEST_F(TcpFlowReconstructTest, StandardReconstruction) {
 
 // Tests that reordering packets doesn't affect the reconstruction.
 TEST_F(TcpFlowReconstructTest, ReorderedReconstruction) {
-  Packet *syn = pkts_[0]; 
+  Packet *syn = pkts_[0];
 
   std::vector<Packet *> pkt_rotation;
   for (size_t i = 1; i < pkts_.size(); ++i) {
-    pkt_rotation.push_back(pkts_[i]);
+    int ack_size = sizeof(EthHeader) + sizeof(Ipv4Header) + sizeof(TcpHeader);
+    // Skip pure ACK packets for the permutations
+    if (pkts_[i]->head_len() > ack_size) {
+      pkt_rotation.push_back(pkts_[i]);
+    }
   }
   std::sort(pkt_rotation.begin(), pkt_rotation.end());
 
   do {
-    TcpFlowReconstruct t(1);
+    TcpFlowReconstruct t;
     ASSERT_TRUE(t.InsertPacket(syn));
 
     for (Packet *p : pkt_rotation) {
@@ -107,8 +115,8 @@ TEST_F(TcpFlowReconstructTest, ReorderedReconstruction) {
 
 // Tests that we reject packet insertion without the SYN.
 TEST_F(TcpFlowReconstructTest, MissingSyn) {
-  Packet *syn = pkts_[0]; 
-  Packet *nonsyn = pkts_[1]; 
+  Packet *syn = pkts_[0];
+  Packet *nonsyn = pkts_[1];
 
   TcpFlowReconstruct t(1);
   ASSERT_FALSE(t.InsertPacket(nonsyn));
