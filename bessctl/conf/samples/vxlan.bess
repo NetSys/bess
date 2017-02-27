@@ -3,8 +3,9 @@ Simple VXLAN example. The tunnel is established between eth_alice and BESS,
 and Bob is a tenant on the overlay network.
 
                +-------------------------------+
-               |                               |
-               |                               |
+               |             ping              |
+               |              |                |
+               |              V                |
                |            vxlan0             |   IP: 172.16.100.34/28
                |              +                |
                |              |                |
@@ -13,7 +14,7 @@ root container |          eth_alice            |   IP: 10.0.10.2/24
                +--------------+----------------+      (02:0a:0b:0c:0d:0e)
                               |
                               |
-			      | (tunneled traffic w/ VNI 999)
+                              | (tunneled traffic w/ VNI 999)
                               |
                               | vport_alice
                   +------+----+----+------+           (02:01:02:03:04:05)
@@ -27,7 +28,7 @@ BESS              |           |           |
                               |
                               | (non-tunneled traffic)
                               |
-			      |
+                              |
                +--------------+----------------+   IP: 172.16.100.33/28
                |           eth_bob             |
 Container Bob  |    (regular Ethernet port)    |
