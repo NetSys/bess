@@ -1,8 +1,11 @@
 #include "ip_encap.h"
 
-#include <rte_config.h>
-#include <rte_ether.h>
-#include <rte_ip.h>
+#include "../utils/checksum.h"
+#include "../utils/ether.h"
+#include "../utils/ip.h"
+
+using bess::utils::EthHeader;
+using bess::utils::Ipv4Header;
 
 enum {
   ATTR_R_IP_SRC,
@@ -34,29 +37,31 @@ void IPEncap::ProcessBatch(bess::PacketBatch *batch) {
     uint32_t ip_dst = get_attr<uint32_t>(this, ATTR_R_IP_DST, pkt);
     uint8_t ip_proto = get_attr<uint8_t>(this, ATTR_R_IP_PROTO, pkt);
 
-    struct ipv4_hdr *iph;
+    Ipv4Header *iph;
 
     uint16_t total_len = pkt->total_len() + sizeof(*iph);
 
-    iph = static_cast<struct ipv4_hdr *>(pkt->prepend(sizeof(*iph)));
+    iph = static_cast<Ipv4Header *>(pkt->prepend(sizeof(*iph)));
 
     if (unlikely(!iph)) {
       continue;
     }
 
-    iph->version_ihl = 0x45;
-    iph->total_length = rte_cpu_to_be_16(total_len);
-    iph->fragment_offset = rte_cpu_to_be_16(IPV4_HDR_DF_FLAG);
-    iph->time_to_live = 64;
-    iph->next_proto_id = ip_proto;
-    iph->src_addr = ip_src;
-    iph->dst_addr = ip_dst;
+    iph->version = 0x4;
+    iph->header_length = sizeof(*iph) / 4;
+    iph->type_of_service = 0;
+    iph->length = __builtin_bswap16(total_len);
+    iph->fragment_offset = __builtin_bswap16(Ipv4Header::Flag::kDF);
+    iph->ttl = 64;
+    iph->protocol = ip_proto;
+    iph->src = ip_src;
+    iph->dst = ip_dst;
 
-    iph->hdr_checksum = rte_ipv4_cksum(iph);
+    iph->checksum = bess::utils::CalculateIpv4NoOptChecksum(*iph);
 
     set_attr<uint32_t>(this, ATTR_W_IP_NEXTHOP, pkt, ip_dst);
     set_attr<uint16_t>(this, ATTR_W_ETHER_TYPE, pkt,
-                       rte_cpu_to_be_16(ETHER_TYPE_IPv4));
+                       __builtin_bswap16(EthHeader::Type::kIpv4));
   }
 
   RunNextModule(batch);
