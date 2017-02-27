@@ -7,6 +7,10 @@ import cStringIO
 import tempfile
 import time
 
+# Suppress scapy IPv6 warning (must be done before importing scapy module)
+import logging
+logging.getLogger("scapy.runtime").setLevel(logging.ERROR)
+
 import cli
 import commands
 
@@ -153,7 +157,9 @@ def run_cli():
         s = BESS()
         s.connect()
     except BESS.APIError as e:
-        print >> stderr, e.message, '(bessd daemon is not running?)'
+        print >> stderr, e.message
+        print >> stderr, 'Perhaps bessd daemon is not running locally? ' \
+                         'Try "daemon start".'
 
     cli = BESSCLI(s, commands, ferr=stderr, interactive=interactive,
                   history_file=hist_file)
