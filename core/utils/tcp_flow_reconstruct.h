@@ -3,10 +3,8 @@
 
 #include <arpa/inet.h>
 
-#include <cassert>
 #include <vector>
 
-#include "../mem_alloc.h"
 #include "../packet.h"
 #include "ether.h"
 #include "ip.h"
@@ -19,39 +17,30 @@ namespace utils {
 class TcpFlowReconstruct {
  public:
   // Constructs a TCP flow reconstruction object that can hold initial_buflen
-  // bytes to start with.  If initial_buflen is zero, it is automatically set to
-  // 1.
-  TcpFlowReconstruct(uint32_t initial_buflen)
+  // bytes to start with.
+  explicit TcpFlowReconstruct(size_t initial_buflen = 1024)
       : initialized_(false),
         init_seq_(0),
-        buflen_(initial_buflen),
-        received_map_(initial_buflen),
-        contiguous_len_(0) {
-    if (buflen_ <= 0) {
-      buflen_ = 1;
-      received_map_.resize(buflen_);
-    }
+        buf_(initial_buflen) {}
 
-    buf_ = (char *)mem_alloc(buflen_);
-    assert(buf_ != nullptr);
-  }
-
-  ~TcpFlowReconstruct() { free(buf_); }
+  virtual ~TcpFlowReconstruct() {}
 
   // Returns the underlying buffer of reconstructed flow bytes.  Not guaranteed
   // to return the same pointer between calls to InsertPacket().
-  const char *buf() const { return buf_; }
+  const char *buf() const { return buf_.data(); }
 
-  // Returns the underlying bitmap of which bytes in buf have been received.
-  // Contents are updated by each call to InsertPacket().
-  const std::vector<bool> &received_map() const { return received_map_; }
+  // Returns the size of the underlying buffer
+  size_t buf_size() const { return buf_.size(); }
 
   // Returns the initial data sequence number extracted from the SYN.
   uint32_t init_seq() const { return init_seq_; }
 
   // Returns the length of contiguous data available in the buffer starting from
   // the beginning.  Updated every time InsertPacket() is called.
-  size_t contiguous_len() const { return contiguous_len_; }
+  size_t contiguous_len() const {
+    const auto it = received_map_.begin();
+    return (it == received_map_.end()) ? 0 : (it->second - it->first);
+  }
 
   // Adds the data of the given packet based upon its TCP sequence number.  If
   // the packet is a SYN then we use the SYN to set the initial sequence number
@@ -62,11 +51,10 @@ class TcpFlowReconstruct {
   //
   // Behavior is undefined the packet is not a TCP packet.
   bool InsertPacket(Packet *p) {
-    const struct EthHeader *eth = p->head_data<const struct EthHeader *>();
-    const struct Ipv4Header *ip = (const struct Ipv4Header *)(eth + 1);
-    const struct TcpHeader *tcp =
-        (const struct TcpHeader *)(((const char *)ip) +
-                                   (ip->header_length * 4));
+    const EthHeader *eth = p->head_data<const EthHeader *>();
+    const Ipv4Header *ip = (const Ipv4Header *)(eth + 1);
+    const TcpHeader *tcp =
+        (const TcpHeader *)(((const char *)ip) + (ip->header_length * 4));
 
     uint32_t seq = ntohl(tcp->seq_num);
     // Assumes we only get one SYN and the sequence number of it doesn't change
@@ -97,24 +85,48 @@ class TcpFlowReconstruct {
     uint32_t datalen =
         ntohs(ip->length) - (tcp->offset * 4) - (ip->header_length * 4);
 
+    // pure-ACK packets?
+    if (datalen == 0) {
+      return true;
+    }
+
     // If we will run out of space, make more room.
-    while ((buf_offset + datalen) > buflen_) {
-      buflen_ *= 2;
-      buf_ = (char *)mem_realloc(buf_, buflen_);
-      assert(buf_ != nullptr);
-      received_map_.resize(buflen_);
+    if ((buf_offset + datalen) > buf_.size()) {
+      size_t new_buflen = (buf_offset + datalen) * 2;
+      buf_.resize(new_buflen);
     }
 
-    memcpy(buf_ + buf_offset, datastart, datalen);
+    memcpy(buf_.data() + buf_offset, datastart, datalen);
 
-    // Mark that we've received the specified bits.
-    for (size_t i = buf_offset; i < datalen + buf_offset; ++i) {
-      received_map_[i] = true;
+    uint32_t start = buf_offset;
+    uint32_t end = buf_offset + datalen;
+
+    // Merge the new new data with existing segments
+    // new segment                           |-------------|
+    // existing segments with a hole   |---A---|   |--B--|-C-|
+    //                                             ^
+    //                                             lower_bound(start)
+    auto it = received_map_.lower_bound(start);
+    if (it != received_map_.begin()) {
+      auto it_prev = it;
+      it_prev--;
+      if (it_prev->second >= start) {
+        // The segment right before the lower_bound(start) may partially overlap
+        // with the new segment (e.g., segment A in the above figure).
+        // Include the segment for merging
+        start = it_prev->first;
+        it = it_prev;
+      }
     }
 
-    while (received_map_[contiguous_len_]) {
-      ++contiguous_len_;
+    // Remove all ovlerapping segments
+    while (it != received_map_.end() && it->first <= end) {
+      end = std::max(end, it->second);
+      it = received_map_.erase(it);
     }
+
+    // Insert the merged segment
+    received_map_.emplace(start, end);
 
     return true;
   }
@@ -128,16 +140,12 @@ class TcpFlowReconstruct {
   uint32_t init_seq_;
 
   // A buffer (potentially with holes) of received data.
-  char *buf_;
+  std::vector<char> buf_;
 
-  // The length of the buffer.
-  uint32_t buflen_;
-
-  // A bitmap of which bytes have already been received in buf_.
-  std::vector<bool> received_map_;
-
-  // The length of contiguous received data starting from buf_[0].
-  size_t contiguous_len_;
+  // Sorted list of received segments. Segments are merged as necessary.
+  // Key: offset from init_seq_
+  // T: end offset of the segment
+  std::map<uint32_t, uint32_t> received_map_;
 
   DISALLOW_COPY_AND_ASSIGN(TcpFlowReconstruct);
 };
