@@ -104,8 +104,9 @@ static pb_error_t find_dpdk_port_by_pci_addr(const std::string &pci,
                     "dddd:bb:dd.ff or bb:dd.ff");
   }
   for (int i = 0; i < RTE_MAX_ETHPORTS; i++) {
-    if (!rte_eth_devices[i].attached || !rte_eth_devices[i].pci_dev ||
-        rte_eal_compare_pci_addr(&addr, &rte_eth_devices[i].pci_dev->addr)) {
+    struct rte_eth_dev *dev = &rte_eth_devices[i];
+    if (!dev || !dev->attached || !dev->device || !dev->device->devargs ||
+        rte_eal_compare_pci_addr(&addr, &dev->device->devargs->pci.addr)) {
       continue;
     }
 
