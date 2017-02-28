@@ -34,7 +34,7 @@ service BESSControl {
 
   rpc ListMclass (EmptyRequest) returns (ListMclassResponse) {}
   rpc GetMclassInfo (GetMclassInfoRequest) returns (GetMclassInfoResponse) {}
-  // TODO: import_mclass()
+  rpc ImportMclass (ImportMclassRequest) returns (EmptyResponse) {}
 
   rpc ResetModules (EmptyRequest) returns (EmptyResponse) {}
   rpc ListModules (EmptyRequest) returns (ListModulesResponse) {}

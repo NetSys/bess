@@ -16,6 +16,7 @@
 #include "service.grpc.pb.h"
 #pragma GCC diagnostic pop
 
+#include "bessd.h"
 #include "gate.h"
 #include "hooks/track.h"
 #include "message.h"
@@ -928,7 +929,7 @@ class BESSControlImpl final : public BESSControl::Service {
                                request->name().c_str());
     }
 
-    ::Port::LinkStatus status= it->second->GetLinkStatus();
+    ::Port::LinkStatus status = it->second->GetLinkStatus();
 
     response->set_speed(status.speed);
     response->set_full_duplex(status.full_duplex);
@@ -1371,6 +1372,16 @@ class BESSControlImpl final : public BESSControl::Service {
     LOG(WARNING) << "Halt requested by a client\n";
     exit_requested.set_value();
 
+    return Status::OK;
+  }
+
+  Status ImportMclass(ServerContext*, const ImportMclassRequest* request,
+                      EmptyResponse* response) override {
+    VLOG(1) << "Loading module: " << request->path();
+    if (!bess::bessd::LoadModule(request->path())) {
+      return return_with_error(response, -1, "Failed loading module %s",
+                               request->path().c_str());
+    }
     return Status::OK;
   }
 
