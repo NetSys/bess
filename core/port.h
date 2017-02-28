@@ -193,7 +193,7 @@ class Port {
 
   virtual LinkStatus GetLinkStatus() {
     return LinkStatus{
-        .speed = 10, .full_duplex = true, .autoneg = true, .link_up = true,
+        .speed = 0, .full_duplex = true, .autoneg = true, .link_up = true,
     };
   }
 
