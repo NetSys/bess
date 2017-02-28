@@ -268,6 +268,9 @@ pb_error_t PMDPort::Init(const bess::pb::PMDPortArg &arg) {
 
   rte_eth_macaddr_get(dpdk_port_id_, reinterpret_cast<ether_addr *>(&mac_addr));
 
+  // Reset hardware stat counters, as they may still contain previous data
+  CollectStats(true);
+
   return pb_errno(0);
 }
 
