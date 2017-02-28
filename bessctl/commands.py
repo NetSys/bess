@@ -1303,14 +1303,23 @@ def _monitor_ports(cli, *ports):
         cli.fout.write('%s\n' % ('-' * 96))
 
     def print_delta(port, delta):
+        # If inc/out_bytes == 0 and inc_packets != 0, it means the
+        # driver does not account packet bytes.
+        # Use 0 rather than inaccurate numbers from Ethernet overheads.
+        if delta.inc_bytes:
+            inc_mbps = (delta.inc_bytes + delta.inc_packets * 24) * 8 / 1e6
+        else:
+            inc_mbps = 0
+
+        if delta.out_bytes:
+            out_mbps = (delta.out_bytes + delta.out_packets * 24) * 8 / 1e6
+        else:
+            out_mbps = 0
+
         cli.fout.write('%-20s%14.1f%10.3f%10d        %14.1f%10.3f%10d\n' %
                        (port,
-                        (delta.inc_bytes + delta.inc_packets * 24) * 8 / 1e6,
-                        delta.inc_packets / 1e6,
-                        delta.inc_dropped,
-                        (delta.out_bytes + delta.out_packets * 24) * 8 / 1e6,
-                        delta.out_packets / 1e6,
-                        delta.out_dropped))
+                        inc_mbps, delta.inc_packets / 1e6, delta.inc_dropped,
+                        out_mbps, delta.out_packets / 1e6, delta.out_dropped))
 
     def get_total(arr):
         total = copy.deepcopy(arr[0])
