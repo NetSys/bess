@@ -309,4 +309,8 @@ message DisableTrackRequest {
   bool use_gate = 4;
 }
 
+message ImportMclassRequest {
+  string path = 1;    /// Path to the module library
+}
+
 // TODO: add something like PortCommandRequest

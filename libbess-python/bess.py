@@ -224,6 +224,11 @@ class BESS(object):
         request.name = name
         return proto_conv.protobuf_to_dict(self._request('GetLinkStatus', request))
 
+    def import_mclass(self, path):
+        request = bess_msg.ImportMclassRequest()
+        request.path = path
+        return self._request('ImportMclass', request)
+
     def list_mclasses(self):
         return self._request('ListMclass')
 

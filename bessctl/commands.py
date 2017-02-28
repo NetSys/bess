@@ -101,7 +101,7 @@ def is_allowed_filename(basename):
     return True
 
 
-def complete_filename(partial_word, start_dir='', suffix=''):
+def complete_filename(partial_word, start_dir='', suffix='', skip_suffix=False):
     try:
         sub_dir, partial_basename = os.path.split(partial_word)
         pattern = '%s*%s' % (partial_basename, suffix)
@@ -125,7 +125,7 @@ def complete_filename(partial_word, start_dir='', suffix=''):
                 candidates.append(basename + '/')
             else:
                 if fnmatch.fnmatch(basename, pattern):
-                    if suffix:
+                    if suffix and not skip_suffix:
                         basename = basename[:-len(suffix)]
                     candidates.append(basename)
 
@@ -268,6 +268,12 @@ def get_var_attrs(cli, var_token, partial_word):
             var_type = 'filename'
             var_desc = 'configuration filename'
             var_candidates = complete_filename(partial_word)
+
+        elif var_token == 'PLUGIN_FILE':
+            var_type = 'filename'
+            var_desc = 'plugin filename (*.so)'
+            var_candidates = complete_filename(partial_word, suffix='.so',
+                                               skip_suffix=True)
 
         if var_token == '[DIRECTION]':
             var_type = 'name'
@@ -1189,6 +1195,10 @@ def show_mclass_list(cli, cls_names):
     for cls_name in cls_names:
         _show_mclass(cli, cls_name, True)
 
+
+@cmd('import plugin PLUGIN_FILE', 'Import the specified plugin (*.so)')
+def import_plugin(cli, plugin):
+    cli.bess.import_mclass(plugin)
 
 def _show_driver(cli, drv_name, detail):
     info = cli.bess.get_driver_info(drv_name)
