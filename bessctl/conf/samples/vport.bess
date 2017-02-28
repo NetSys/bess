@@ -7,6 +7,4 @@ p = PMDPort(port_id=0)
 PortInc(port=p.name) -> PortOut(port=v.name)
 PortInc(port=v.name) -> PortOut(port=p.name)
 
-print 'These two ports have been spliced:'
-print 'Port {}: {}'.format(p, p.get_link_status())
-print 'Port {}: {}'.format(v, v.get_link_status())
+print 'Two ports have been spliced: {} <-> {}'.format(p, v)
