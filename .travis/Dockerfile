@@ -10,7 +10,7 @@ RUN apt-get -q update
 RUN apt-get install -y ansible
 
 COPY bess.yml /tmp/bess.yml
-RUN ansible-playbook /tmp/bess.yml -i "localhost," -c local --tags "package"
+RUN ansible-playbook /tmp/bess.yml -i "localhost," -c local --tags "package" && rm -rf /tmp/*
 
 RUN mkdir -p /build
 
@@ -20,7 +20,7 @@ RUN cd /build && \
 	git clone -b ${BESS_DPDK_BRANCH} https://github.com/netsys/bess && \
 	cd /build/bess && \
 	./build.py dpdk && \
-	mv /build/bess/deps/dpdk-16.07 /build/dpdk-16.07 && \
+	mv /build/bess/deps/dpdk-17.02 /build/dpdk-17.02 && \
 	rm -rf /build/bess
 
 WORKDIR /build/bess

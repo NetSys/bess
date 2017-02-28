@@ -103,31 +103,31 @@ static pb_error_t find_dpdk_port_by_pci_addr(const std::string &pci,
                     "PCI address must be like "
                     "dddd:bb:dd.ff or bb:dd.ff");
   }
-  for (int i = 0; i < RTE_MAX_ETHPORTS; i++) {
-    if (!rte_eth_devices[i].attached || !rte_eth_devices[i].pci_dev ||
-        rte_eal_compare_pci_addr(&addr, &rte_eth_devices[i].pci_dev->addr)) {
-      continue;
-    }
 
-    port_id = i;
-    break;
+  dpdk_port_t num_dpdk_ports = rte_eth_dev_count();
+  for (dpdk_port_t i = 0; i < num_dpdk_ports; i++) {
+    struct rte_eth_dev_info dev_info;
+    rte_eth_dev_info_get(i, &dev_info);
+
+    if (dev_info.pci_dev) {
+        if (rte_eal_compare_pci_addr(&addr, &dev_info.pci_dev->addr) == 0) {
+          port_id = i;
+          break;
+        }
+    }
   }
 
-  /* If not found, maybe the device has not been attached yet */
+  // If still not found, maybe the device has not been attached yet
   if (port_id == DPDK_PORT_UNKNOWN) {
-    char name[RTE_ETH_NAME_MAX_LEN];
     int ret;
-
+    char name[RTE_ETH_NAME_MAX_LEN];
     snprintf(name, RTE_ETH_NAME_MAX_LEN, "%04x:%02x:%02x.%02x", addr.domain,
              addr.bus, addr.devid, addr.function);
 
     ret = rte_eth_dev_attach(name, &port_id);
 
     if (ret < 0) {
-      return pb_error(ENODEV,
-                      "Cannot attach PCI "
-                      "device %s",
-                      name);
+      return pb_error(ENODEV, "Cannot attach PCI device %s", name);
     }
 
     *ret_hot_plugged = true;
@@ -315,7 +315,7 @@ void PMDPort::CollectStats(bool reset) {
   port_stats_.inc.dropped = stats.imissed;
 
   // i40e PMD driver doesn't support per-queue stats
-  if (driver_ == "rte_i40e_pmd") {
+  if (driver_ == "net_i40e") {
     // NOTE: if link is down, tx bytes won't increase
     port_stats_.inc.packets = stats.ipackets;
     port_stats_.inc.bytes = stats.ibytes;

@@ -14,7 +14,7 @@ BESS_DIR = os.path.dirname(os.path.abspath(__file__))
 DEPS_DIR = '%s/deps' % BESS_DIR
 
 DPDK_REPO = 'http://dpdk.org/browse/dpdk/snapshot'
-DPDK_VER = 'dpdk-16.07'
+DPDK_VER = 'dpdk-17.02'
 
 arch = subprocess.check_output('uname -m', shell=True).strip()
 if arch == 'x86_64':
