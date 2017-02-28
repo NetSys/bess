@@ -10,7 +10,7 @@ RUN apt-get -q update
 RUN apt-get install -y ansible
 
 COPY bess.yml /tmp/bess.yml
-RUN ansible-playbook /tmp/bess.yml -i "localhost," -c local --tags "package"
+RUN ansible-playbook /tmp/bess.yml -i "localhost," -c local --tags "package" && rm -rf /tmp/*
 
 RUN mkdir -p /build
 
