@@ -1,7 +1,9 @@
 #include "debug.h"
 
+#include <dlfcn.h>
 #include <execinfo.h>
 #include <gnu/libc-version.h>
+#include <link.h>
 #include <sys/syscall.h>
 #include <ucontext.h>
 #include <unistd.h>
@@ -14,17 +16,15 @@
 #include <csignal>
 #include <cstdint>
 #include <cstdio>
-#include <cstdlib>
-#include <cstring>
 #include <fstream>
 #include <sstream>
-#include <stack>
 #include <string>
 
 #include "module.h"
 #include "packet.h"
 #include "scheduler.h"
 #include "traffic_class.h"
+#include "utils/format.h"
 
 namespace bess {
 namespace debug {
@@ -139,124 +139,112 @@ static const char *si_code_to_str(int sig_num, int si_code) {
   return "si_code unavailable for unknown signal";
 }
 
-/* addr2line must be available.
- * prints out the code lines [lineno - context, lineno + context] */
-static std::string print_code(char *symbol, int context) {
+//
+static std::string FetchLine(std::string filename, int lineno, int context) {
   std::ostringstream ret;
-  char executable[1024];
-  char addr[1024];
+  std::string line;
 
-  char cmd[1024];
-
-  FILE *proc;
-
-  /* Symbol examples:
-   * ./bessd(run_worker+0x8e) [0x419d0e]" */
-  /* ./bessd() [0x4149d8] */
-  sscanf(symbol, "%[^(](%*s [%[^]]]", executable, addr);
-
-  snprintf(cmd, sizeof(cmd), "addr2line -C -i -f -p -e %s %s 2> /dev/null",
-           executable, addr);
-
-  proc = popen(cmd, "r");
-  if (!proc) {
-    return "";
+  std::ifstream f(filename);
+  if (!f) {
+    return "        (file/line not available)\n";
   }
 
-  for (;;) {
-    char line[1024];
-    char *p;
-
-    char *filename;
-    int lineno;
-    int curr;
-
-    FILE *fp;
-
-    p = fgets(line, sizeof(line), proc);
-    if (!p) {
-      break;
+  for (int curr = 1; std::getline(f, line) && curr <= lineno + context;
+       curr++) {
+    if (std::abs(curr - lineno) <= context) {
+      ret << "      " << (curr == lineno ? "->" : "  ") << " " << curr << ": "
+          << line << std::endl;
     }
+  }
 
-    if (line[strlen(line) - 1] != '\n') {
-      // no LF found (line is too long?)
-      continue;
+  return ret.str();
+}
+
+// Run an external command and return its standard output.
+static std::string RunCommand(std::string cmd) {
+  std::ostringstream ret;
+
+  FILE *proc = popen(cmd.c_str(), "r");
+  if (proc) {
+    while (!feof(proc)) {
+      char buf[PIPE_BUF];
+      size_t bytes = fread(buf, 1, sizeof(buf), proc);
+      ret.write(buf, bytes);
     }
+    pclose(proc);
+  }
 
+  return ret.str();
+}
+
+// If mmap is used (as for shared objects), code address at runtime can be
+// arbitrary. This function translates an absolute address into a relative
+// address to the object file it belongs to, based on the current memory
+// mapping of this process.
+static uintptr_t GetRelativeAddress(uintptr_t abs_addr) {
+  Dl_info info;
+  struct link_map *map;
+
+  if (dladdr1(reinterpret_cast<void *>(abs_addr), &info,
+              reinterpret_cast<void **>(&map), RTLD_DL_LINKMAP) != 0) {
+    // Normally the base_addr of the executable will be just 0x0
+    uintptr_t base_addr = reinterpret_cast<uintptr_t>(map->l_addr);
+    return abs_addr - base_addr;
+  } else {
+    // Error happend. Use the absolute address as a fallback, hoping the address
+    // is from the main executable.
+    return abs_addr;
+  }
+}
+
+// addr2line must be available.
+// Returns the code lines [lineno - context, lineno + context] */
+static std::string PrintCode(std::string symbol, int context) {
+  std::ostringstream ret;
+  char objfile[PATH_MAX];
+  char addr[1024];
+
+  // Symbol examples:
+  // ./bessd(run_worker+0x8e) [0x419d0e]
+  // ./bessd() [0x4149d8]
+  // /home/foo/.../source.so(_ZN6Source7RunTaskEPv+0x55) [0x7f09e912c7b5]
+  //sscanf(symbol.c_str(), "%[^(](%*s [%[^]]]", objfile, addr);
+  bess::utils::Parse(symbol, "%[^(](%*s [%[^]]]", objfile, addr);
+
+  uintptr_t sym_addr = std::strtoull(addr, nullptr, 16);
+  uintptr_t obj_addr = GetRelativeAddress(sym_addr);
+
+  std::string cmd = bess::utils::Format(
+      "addr2line -C -i -f -p -e %s 0x%lx 2> /dev/null", objfile, obj_addr);
+
+  std::istringstream result(RunCommand(cmd));
+  std::string line;
+
+  while (std::getline(result, line)) {
     // addr2line examples:
     // sched_free at /home/sangjin/.../tc.c:277 (discriminator 2)
     // run_worker at /home/sangjin/bess/core/module.c:653
 
-    line[strlen(line) - 1] = '\0';
-
     ret << "    " << line << std::endl;
 
-    if (line[strlen(line) - 1] == ')') {
-      *(strstr(line, " (discriminator")) = '\0';
-    }
-
-    p = strrchr(p, ' ');
-    if (!p) {
+    auto pos = line.find(" at ");
+    if (pos == std::string::npos) {
+      // failed to parse the line
       continue;
     }
 
-    p++;  // now p points to the last token (filename)
-    char *rest;
+    // Remove unnecessary characters (up to " at ", including itself)
+    line.erase(0, pos + 4);
 
-    filename = strtok_r(p, ":", &rest);
+    char filename[PATH_MAX];
+    int lineno;
 
-    if (strcmp(filename, "??") == 0) {
-      continue;
-    }
-
-    p = strtok_r(nullptr, "", &rest);
-    if (!p) {
-      continue;
-    }
-
-    lineno = atoi(p);
-
-    fp = fopen(filename, "r");
-    if (!fp) {
-      ret << "        (file/line not available)" << std::endl;
-      continue;
-    }
-
-    for (curr = 1; !feof(fp); curr++) {
-      bool discard = true;
-
-      if (abs(curr - lineno) <= context) {
-        ret << "      " << (curr == lineno ? "->" : "  ") << " " << curr
-            << ": ";
-        discard = false;
-      } else if (curr > lineno + context) {
-        break;
-      }
-
-      while (true) {
-        p = fgets(line, sizeof(line), fp);
-        if (!p) {
-          break;
-        }
-
-        if (!discard) {
-          ret << line;
-        }
-
-        if (line[strlen(line) - 1] != '\n') {
-          if (feof(fp)) {
-            ret << std::endl;
-          }
-        } else {
-          break;
-        }
+    if (bess::utils::Parse(line, "%[^:]:%d", filename, &lineno) == 2) {
+      if (std::string(filename) != "??" && lineno != 0) {
+        ret << FetchLine(filename, lineno, context);
       }
     }
-
-    fclose(fp);
   }
-
-  pclose(proc);
 
   return ret.str();
 }
@@ -336,7 +324,7 @@ static bool SkipSymbol(char *symbol) {
 
   for (int i = skips; i < cnt; i++) {
     stack << "(" << i - skips << "): " << symbols[i] << std::endl;
-    stack << print_code(symbols[i], (i == skips) ? 3 : 0);
+    stack << PrintCode(symbols[i], (i == skips) ? 3 : 0);
   }
 
   free(symbols);  // required by backtrace_symbols()
