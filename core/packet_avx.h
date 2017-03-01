@@ -7,27 +7,23 @@
 
 #include "utils/simd.h"
 
-int Packet::Alloc(Packet **pkts, size_t cnt, uint16_t len) {
-  int ret;
-  size_t i;
-
-  __m128i mbuf_template; /* 256-bit write was worse... */
-  __m128i rxdesc_fields;
-
-  /* DPDK 2.1 or higher
-   * packet_type		0 	(32 bits)
-   * pkt_len 		len	(32 bits)
-   * data_len 		len 	(16 bits)
-   * vlan_tci 		0 	(16 bits)
-   * rss 			0 	(32 bits) */
-  rxdesc_fields = _mm_setr_epi32(0, len, len, 0);
-
-  ret = rte_mempool_get_bulk(ctx.pframe_pool(), reinterpret_cast<void **>(pkts),
-                             cnt);
-  if (ret != 0)
+inline size_t Packet::Alloc(Packet **pkts, size_t cnt, uint16_t len) {
+  // rte_mempool_get_bulk() is all (cnt) or nothing (0)
+  if (rte_mempool_get_bulk(ctx.pframe_pool(), reinterpret_cast<void **>(pkts),
+                             cnt) < 0) {
     return 0;
+  }
 
-  mbuf_template = *(reinterpret_cast<__m128i *>(&pframe_template.buf_len_));
+  // DPDK 2.1 or higher:
+  // packet_type     0   (32 bits)
+  // pkt_len       len   (32 bits)
+  // data_len      len   (16 bits)
+  // vlan_tci        0   (16 bits)
+  // rss             0   (32 bits)
+  __m128i rxdesc_fields = _mm_setr_epi32(0, len, len, 0);
+  __m128i mbuf_template = *(reinterpret_cast<__m128i *>(&pframe_template.buf_len_));
+
+  size_t i;
 
   /* 4 at a time didn't help */
   for (i = 0; i < (cnt & (~0x1)); i += 2) {
@@ -66,20 +62,27 @@ int Packet::Alloc(Packet **pkts, size_t cnt, uint16_t len) {
  * 4. the data buffer is embedded in the mbuf
  *    (Do not use RTE_MBUF_(IN)DIRECT, since there is a difference
  *     between DPDK 1.8 and 2.0) */
-void Packet::Free(Packet **pkts, int cnt) {
+inline void Packet::Free(Packet **pkts, size_t cnt) {
+  DCHECK(cnt <= PacketBatch::kMaxBurst);
+
+  // rte_mempool_put_bulk() crashes when called with cnt == 0
+  if (unlikely(cnt <= 0)) {
+    return;
+  }
+
   struct rte_mempool *_pool = pkts[0]->pool_;
 
-  /* broadcast */
+  // broadcast
   __m128i offset = _mm_set1_epi64x(SNBUF_HEADROOM_OFF);
   __m128i info_mask = _mm_set1_epi64x(0x00ffffff00000000UL);
   __m128i info_simple = _mm_set1_epi64x(0x0001000100000000UL);
   __m128i pool = _mm_set1_epi64x((uintptr_t)_pool);
 
-  int i;
+  size_t i;
 
   for (i = 0; i < (cnt & ~1); i += 2) {
-    struct rte_mbuf *mbuf0 = (struct rte_mbuf *)pkts[i];
-    struct rte_mbuf *mbuf1 = (struct rte_mbuf *)pkts[i + 1];
+    auto *mbuf0 = reinterpret_cast<struct rte_mbuf *>(pkts[i]);
+    auto *mbuf1 = reinterpret_cast<struct rte_mbuf *>(pkts[i + 1]);
 
     __m128i buf_addrs_derived;
     __m128i buf_addrs_actual;
@@ -110,7 +113,7 @@ void Packet::Free(Packet **pkts, int cnt) {
   }
 
   if (i < cnt) {
-    Packet *pkt = pkts[i];
+    const Packet *pkt = pkts[i];
 
     if (unlikely(pkt->pool_ != _pool || pkt->next_ != nullptr ||
                  rte_mbuf_refcnt_read(&pkt->as_rte_mbuf()) != 1 ||
@@ -125,8 +128,9 @@ void Packet::Free(Packet **pkts, int cnt) {
   return;
 
 slow_path:
-  for (i = 0; i < cnt; i++)
+  for (i = 0; i < cnt; i++) {
     Free(pkts[i]);
+  }
 }
 
-#endif  // BESS_SNBUF_AVX_H_
+#endif  // BESS_PACKET_AVX_H_
