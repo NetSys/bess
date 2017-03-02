@@ -385,6 +385,7 @@ int Packet::Alloc(Packet **pkts, size_t cnt, uint16_t len) {
 }
 
 void Packet::Free(Packet **pkts, int cnt) {
+  if(cnt == 0) return;
   struct rte_mempool *pool = pkts[0]->pool_;
 
   int i;
