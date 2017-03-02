@@ -13,6 +13,19 @@ TEST(LockFreeQueueTest, SinglePushSinglePop) {
   ASSERT_EQ(y, &x);
 }
 
+TEST(LockFreeQueueTest, CapcitySizeTest) {
+  LockFreeQueue<int> q(64);
+  ASSERT_EQ(64, q.Capacity());
+  int x = 0xDEADBEEF;
+  int *y = nullptr;
+  q.Push(&x);
+  ASSERT_EQ(1, q.Size());
+  ASSERT_FALSE(q.Empty());
+  q.Pop(&y);
+  ASSERT_EQ(0, q.Size());
+  ASSERT_EQ(y, &x);
+}
+
 TEST(LockFreeQueueTest, BulkPushSinglePop) {
   LockFreeQueue<int> q;
   int arr[2] = {0xDEAD, 0xBEEF};
