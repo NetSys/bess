@@ -3,8 +3,6 @@
 
 #include <glog/logging.h>
 
-#include <rte_malloc.h>
-
 #include "../kmod/llring.h"
 #include "common.h"
 
