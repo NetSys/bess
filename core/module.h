@@ -300,6 +300,10 @@ inline void Module::RunChooseModule(gate_idx_t ogate_idx,
                                     bess::PacketBatch *batch) {
   bess::OGate *ogate;
 
+  if (unlikely(batch->cnt() <= 0)) {
+    return;
+  }
+
   if (unlikely(ogate_idx >= ogates_.size())) {
     deadend(batch);
     return;
