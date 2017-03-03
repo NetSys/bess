@@ -211,13 +211,16 @@ class alignas(64) Packet {
   // cnt must be [0, PacketBatch::kMaxBurst]
   static inline size_t Alloc(Packet **pkts, size_t cnt, uint16_t len);
 
+  // pkt may be nullptr
   static void Free(Packet *pkt) {
     rte_pktmbuf_free(reinterpret_cast<struct rte_mbuf *>(pkt));
   }
 
+  // All pointers in pkts must not be nullptr.
   // cnt must be [0, PacketBatch::kMaxBurst]
   static inline void Free(Packet **pkts, size_t cnt);
 
+  // batch must not be nullptr
   static void Free(PacketBatch *batch) { Free(batch->pkts(), batch->cnt()); }
 
  private:
