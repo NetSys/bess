@@ -11,9 +11,11 @@
 #include "../utils/tcp.h"
 #include "../utils/time.h"
 
-#define MAX_TEMPLATE_SIZE 1536
+using bess::utils::EthHeader;
+using bess::utils::Ipv4Header;
+using bess::utils::TcpHeader;
 
-#define RETRY_NS 1000000ul /* 1 ms */
+#define MAX_TEMPLATE_SIZE 1536
 
 /* we ignore the last 1% tail to make the variance finite */
 const double PARETO_TAIL_LIMIT = 0.99;
@@ -68,29 +70,26 @@ inline uint64_t FlowGen::NextFlowArrival() {
   switch (arrival_) {
     case Arrival::kUniform:
       return flow_gap_ns_;
-      break;
     case Arrival::kExponential:
       return -log(rng_.GetRealNonzero()) * flow_gap_ns_;
-      break;
     default:
       CHECK(0);
   }
   return 0;
 }
 
-inline struct flow *FlowGen::ScheduleFlow(uint64_t time_ns) {
+// should never fail, always returning a non-null pointer
+inline flow *FlowGen::ScheduleFlow(uint64_t time_ns) {
   struct flow *f;
 
   if (flows_free_.empty()) {
     f = new flow();
-    if (!f)
-      return nullptr;
   } else {
     f = flows_free_.top();
     flows_free_.pop();
   }
 
-  f->first = 1;
+  f->first_pkt = true;
   f->next_seq_no = 12345;
   f->src_ip = htonl(ip_src_base_ + rng_.GetRange(ip_src_range_));
   f->dst_ip = htonl(ip_dst_base_ + rng_.GetRange(ip_dst_range_));
@@ -124,16 +123,10 @@ void FlowGen::MeasureParetoMean() {
 void FlowGen::PopulateInitialFlows() {
   /* cannot use ctx.current_ns in the master thread... */
   uint64_t now_ns = rdtsc() / tsc_hz * 1e9;
-  struct flow *f;
 
-  f = ScheduleFlow(now_ns);
-  DCHECK(f);
+  ScheduleFlow(now_ns);
 
-  if (!quick_rampup_) {
-    return;
-  }
-
-  if (flow_pps_ < 1.0 || flow_rate_ < 1.0) {
+  if (!quick_rampup_ || flow_pps_ < 1.0 || flow_rate_ < 1.0) {
     return;
   }
 
@@ -148,13 +141,10 @@ void FlowGen::PopulateInitialFlows() {
     if (flow_pkts > pre_consumed_pkts) {
       uint64_t jitter = 1e9 * rng_.GetReal() / flow_pps_;
 
-      f = ScheduleFlow(now_ns + jitter);
-      if (!f) {
-        break;
-      }
+      struct flow *f = ScheduleFlow(now_ns + jitter);
 
       /* overwrite with a emulated pre-existing flow */
-      f->first = 0;
+      f->first_pkt = false;
       f->next_seq_no = 56789;
       f->packets_left = flow_pkts - pre_consumed_pkts;
     }
@@ -200,8 +190,7 @@ pb_error_t FlowGen::ProcessArguments(const bess::pb::FlowGenArg &arg) {
     arrival_ = Arrival::kExponential;
   } else {
     return pb_error(EINVAL,
-                    "'arrival' must be either "
-                    "'uniform' or 'exponential'");
+                    "'arrival' must be either 'uniform' or 'exponential'");
   }
 
   if (arg.duration() == "uniform") {
@@ -209,9 +198,7 @@ pb_error_t FlowGen::ProcessArguments(const bess::pb::FlowGenArg &arg) {
   } else if (arg.duration() == "pareto") {
     duration_ = Duration::kPareto;
   } else {
-    return pb_error(EINVAL,
-                    "'duration' must be either "
-                    "'uniform' or 'pareto'");
+    return pb_error(EINVAL, "'duration' must be either 'uniform' or 'pareto'");
   }
 
   if (arg.quick_rampup()) {
@@ -404,12 +391,9 @@ pb_error_t FlowGen::UpdateBaseAddresses() {
     return pb_error(EINVAL, "must specify 'template'");
   }
 
-  bess::utils::Ipv4Header *ipheader =
-      reinterpret_cast<bess::utils::Ipv4Header *>(
-          p + sizeof(bess::utils::EthHeader));
-  bess::utils::TcpHeader *tcpheader =
-      reinterpret_cast<bess::utils::TcpHeader *>(
-          p + sizeof(bess::utils::EthHeader) + sizeof(bess::utils::Ipv4Header));
+  Ipv4Header *ipheader = reinterpret_cast<Ipv4Header *>(p + sizeof(EthHeader));
+  TcpHeader *tcpheader =
+      reinterpret_cast<TcpHeader *>(p + sizeof(EthHeader) + sizeof(Ipv4Header));
 
   ip_src_base_ = ntohl(ipheader->src);
   ip_dst_base_ = ntohl(ipheader->dst);
@@ -420,9 +404,6 @@ pb_error_t FlowGen::UpdateBaseAddresses() {
 
 bess::Packet *FlowGen::FillPacket(struct flow *f) {
   bess::Packet *pkt;
-  char *p;
-
-  uint8_t tcp_flags;
 
   int size = template_size_;
 
@@ -430,25 +411,21 @@ bess::Packet *FlowGen::FillPacket(struct flow *f) {
     return nullptr;
   }
 
-  p = reinterpret_cast<char *>(pkt->buffer()) +
-      static_cast<size_t>(SNBUF_HEADROOM);
+  char *p = reinterpret_cast<char *>(pkt->buffer()) +
+            static_cast<size_t>(SNBUF_HEADROOM);
   if (!p) {
     return nullptr;
   }
 
-  // bess::utils::EthHeader* ethheader =
-  // reinterpret_cast<bess::utils::EthHeader*>(p);
-  bess::utils::Ipv4Header *ipheader =
-      reinterpret_cast<bess::utils::Ipv4Header *>(
-          p + sizeof(bess::utils::EthHeader));
-  bess::utils::TcpHeader *tcpheader =
-      reinterpret_cast<bess::utils::TcpHeader *>(
-          p + sizeof(bess::utils::EthHeader) + sizeof(bess::utils::Ipv4Header));
+  EthHeader *eth = reinterpret_cast<EthHeader *>(p);
+  Ipv4Header *ip = reinterpret_cast<Ipv4Header *>(eth + 1);
+  TcpHeader *tcp = reinterpret_cast<TcpHeader *>(ip + 1);
 
-  if (f->first || f->packets_left <= 1) {  // syn or fin
-    pkt->set_total_len(60);                /*eth + ip + tcp*/
-    pkt->set_data_len(60);                 /*eth + ip + tcp*/
-    ipheader->length = (uint16_t)htons(40);
+  // SYN or FIN?
+  if (f->first_pkt || f->packets_left <= 1) {
+    pkt->set_total_len(60);  // eth + ip + tcp
+    pkt->set_data_len(60);   // eth + ip + tcp
+    ip->length = htons(40);
   } else {
     pkt->set_data_off(SNBUF_HEADROOM);
     pkt->set_total_len(size);
@@ -457,35 +434,34 @@ bess::Packet *FlowGen::FillPacket(struct flow *f) {
     rte_memcpy(p, templ_, size);
   }
 
-  tcp_flags = f->first ? /* SYN */ 0x02 : /* ACK */ 0x10;
+  uint8_t tcp_flags = f->first_pkt ? /* SYN */ 0x02 : /* ACK */ 0x10;
 
-  if (f->packets_left <= 1)
+  if (f->packets_left <= 1) {
     tcp_flags |= 0x01; /* FIN */
+  }
 
-  ipheader->src = f->src_ip;
-  ipheader->dst = f->dst_ip;
-  tcpheader->src_port = f->src_port;
-  tcpheader->dst_port = f->dst_port;
+  ip->src = f->src_ip;
+  ip->dst = f->dst_ip;
+  tcp->src_port = f->src_port;
+  tcp->dst_port = f->dst_port;
 
-  tcpheader->flags = tcp_flags;
-  tcpheader->seq_num = htonl(f->next_seq_no);
+  tcp->flags = tcp_flags;
+  tcp->seq_num = htonl(f->next_seq_no);
 
-  f->next_seq_no += f->first ? 1 : size - (14 + 20 + 20); /* eth + ip + tcp*/
+  f->next_seq_no +=
+      f->first_pkt ? 1 : size - (sizeof(*eth) + sizeof(*ip) + sizeof(*tcp));
 
   return pkt;
 }
+
 void FlowGen::GeneratePackets(bess::PacketBatch *batch) {
   uint64_t now = ctx.current_ns();
 
   batch->clear();
 
   while (!batch->full() && !events_.empty()) {
-    uint64_t t;
-    struct flow *f;
-    bess::Packet *pkt;
-
-    t = events_.top().first;
-    f = events_.top().second;
+    uint64_t t = events_.top().first;
+    struct flow *f = events_.top().second;
     if (!f || now < t)
       return;
 
@@ -497,30 +473,19 @@ void FlowGen::GeneratePackets(bess::PacketBatch *batch) {
       continue;
     }
 
-    pkt = FillPacket(f);
+    bess::Packet *pkt = FillPacket(f);
+    if (pkt) {
+      batch->add(pkt);
+    }
 
-    if (f->first) {
-      uint64_t delay_ns = NextFlowArrival();
-      struct flow *new_f;
-
-      new_f = ScheduleFlow(t + delay_ns);
-      if (!new_f) {
-        /* temporarily out of free flow data. retry. */
-        events_.push(std::pair<uint64_t, struct flow *>(t + RETRY_NS, f));
-        continue;
-      }
-
-      f->first = 0;
+    if (f->first_pkt) {
+      ScheduleFlow(t + NextFlowArrival());
+      f->first_pkt = false;
     }
 
     f->packets_left--;
 
-    events_.push(
-        std::pair<uint64_t, struct flow *>(t + (uint64_t)(1e9 / flow_pps_), f));
-
-    if (pkt) {
-      batch->add(pkt);
-    }
+    events_.push({t + static_cast<uint64_t>(1e9 / flow_pps_), f});
   }
 }
 
@@ -531,9 +496,7 @@ struct task_result FlowGen::RunTask(void *) {
   const int pkt_overhead = 24;
 
   GeneratePackets(&batch);
-
-  if (!batch.empty())
-    RunNextModule(&batch);
+  RunNextModule(&batch);
 
   ret = (struct task_result){
       .packets = static_cast<uint64_t>(batch.cnt()),
