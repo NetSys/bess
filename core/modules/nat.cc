@@ -271,13 +271,9 @@ void NAT::ProcessBatch(bess::PacketBatch *batch) {
     out_batch.add(pkt);
   }
 
-  if (!free_batch.empty()) {
-    bess::Packet::Free(&free_batch);
-  }
+  bess::Packet::Free(&free_batch);
 
-  if (!out_batch.empty()) {
-    RunChooseModule(incoming_gate, &out_batch);
-  }
+  RunChooseModule(incoming_gate, &out_batch);
 }
 
 ADD_MODULE(NAT, "nat", "Network address translator")

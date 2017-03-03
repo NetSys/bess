@@ -27,12 +27,8 @@ void RandomDrop::ProcessBatch(bess::PacketBatch *batch) {
     }
   }
 
-  if (!free_batch.empty()) {
-    bess::Packet::Free(&free_batch);
-  }
-  if (!out_batch.empty()) {
-    RunNextModule(&out_batch);
-  }
+  bess::Packet::Free(&free_batch);
+  RunNextModule(&out_batch);
 }
 
 ADD_MODULE(RandomDrop, "random_drop", "randomly drops packets")
