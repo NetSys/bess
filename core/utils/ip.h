@@ -25,6 +25,11 @@ struct CIDRNetwork {
 
 // An IPv4 header definition loosely based on the BSD version.
 struct[[gnu::packed]] Ipv4Header {
+  enum Flag : uint16_t {
+    kMF = 1 << 13,  // More fragments
+    kDF = 1 << 14,  // Do not fragment
+  };
+
 #if __BYTE_ORDER == __LITTLE_ENDIAN
   unsigned int header_length : 4;  // Header length.
   unsigned int version : 4;        // Version.

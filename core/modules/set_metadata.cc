@@ -54,6 +54,12 @@ pb_error_t SetMetadata::AddAttrOne(
                     bess::metadata::kMetadataAttrMaxSize);
   }
 
+  // All metadata values are stored in a reserved area of packet data.
+  // Note they are stored in network order. This does not mean that you need
+  // to pass endian-swapped values in value_int to the module. Value is just
+  // value, and it has nothing to do with endianness (how an integer value is
+  // stored in memory). value_bin is a short stream of bytes, which means that
+  // its data will never be reordered.
   if (attr.value_case() == bess::pb::SetMetadataArg_Attribute::kValueInt) {
     if (uint64_to_bin((uint8_t *)&value, size, attr.value_int(),
                       bess::utils::is_be_system())) {
@@ -70,11 +76,7 @@ pb_error_t SetMetadata::AddAttrOne(
                       "correct %lu-byte value",
                       size);
     }
-    std::string value_bin(attr.value_bin());
-    if (!bess::utils::is_be_system()) {
-      std::reverse(value_bin.begin(), value_bin.end());
-    }
-    memcpy(&value, value_bin.data(), size);
+    memcpy(&value, attr.value_bin().data(), size);
   } else {
     offset = attr.offset();
     if (offset < 0 || offset + size >= SNBUF_DATA) {
