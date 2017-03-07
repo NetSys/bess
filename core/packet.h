@@ -370,7 +370,7 @@ extern Packet pframe_template;
 #include "packet_avx.h"
 #else
 inline size_t Packet::Alloc(Packet **pkts, size_t cnt, uint16_t len) {
-  DCHECK(cnt <= PacketBatch::kMaxBurst);
+  DCHECK_LE(cnt, PacketBatch::kMaxBurst);
 
   // rte_mempool_get_bulk() is all (cnt) or nothing (0)
   if (rte_mempool_get_bulk(ctx.pframe_pool(), reinterpret_cast<void **>(pkts),
@@ -390,7 +390,7 @@ inline size_t Packet::Alloc(Packet **pkts, size_t cnt, uint16_t len) {
 }
 
 inline void Packet::Free(Packet **pkts, size_t cnt) {
-  DCHECK(cnt <= PacketBatch::kMaxBurst);
+  DCHECK_LE(cnt, PacketBatch::kMaxBurst);
 
   // rte_mempool_put_bulk() crashes when called with cnt == 0
   if (unlikely(cnt <= 0)) {
