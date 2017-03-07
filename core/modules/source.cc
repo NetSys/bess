@@ -67,28 +67,21 @@ pb_cmd_response_t Source::CommandSetPktSize(
 
 struct task_result Source::RunTask(void *) {
   bess::PacketBatch batch;
-  struct task_result ret;
 
   const int pkt_overhead = 24;
 
   const int pkt_size = ACCESS_ONCE(pkt_size_);
   const int burst = ACCESS_ONCE(burst_);
 
-  uint64_t total_bytes = pkt_size * burst;
-
   int cnt = bess::Packet::Alloc(batch.pkts(), burst, pkt_size);
 
-  if (cnt > 0) {
-    batch.set_cnt(cnt);
-    RunNextModule(&batch);
-  }
+  batch.set_cnt(cnt);
+  RunNextModule(&batch);  // it's fine to call this function with cnt==0
 
-  ret = (struct task_result){
+  return (struct task_result){
       .packets = static_cast<uint64_t>(cnt),
-      .bits = (total_bytes + cnt * pkt_overhead) * 8,
+      .bits = static_cast<uint64_t>(pkt_size + pkt_overhead) * cnt * 8,
   };
-
-  return ret;
 }
 
 ADD_MODULE(Source, "source",

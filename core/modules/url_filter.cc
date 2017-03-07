@@ -288,25 +288,12 @@ void UrlFilter::ProcessBatch(bess::PacketBatch *batch) {
     }
   }
 
-  if (!free_batch.empty()) {
-    bess::Packet::Free(&free_batch);
-  }
+  bess::Packet::Free(&free_batch);
 
-  if (!out_batches[0].empty()) {
-    RunChooseModule(0, &out_batches[0]);
-  }
-
-  if (!out_batches[1].empty()) {
-    RunChooseModule(0, &out_batches[1]);
-  }
-
-  if (!out_batches[2].empty()) {
-    RunChooseModule(1, &out_batches[2]);
-  }
-
-  if (!out_batches[3].empty()) {
-    RunChooseModule(1, &out_batches[3]);
-  }
+  RunChooseModule(0, &out_batches[0]);
+  RunChooseModule(0, &out_batches[1]);
+  RunChooseModule(1, &out_batches[2]);
+  RunChooseModule(1, &out_batches[3]);
 }
 
 ADD_MODULE(UrlFilter, "url-filter", "Filter HTTP connection")

@@ -2,10 +2,7 @@
 
 void Buffer::DeInit() {
   bess::PacketBatch *buf = &buf_;
-
-  if (buf->cnt()) {
-    bess::Packet::Free(buf);
-  }
+  bess::Packet::Free(buf);
 }
 
 void Buffer::ProcessBatch(bess::PacketBatch *batch) {

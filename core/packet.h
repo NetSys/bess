@@ -205,16 +205,22 @@ class alignas(64) Packet {
   }
 
   static Packet *Alloc() {
-    Packet *pkt = __packet_alloc();
-
-    return pkt;
+    return __packet_alloc();
   }
-  static inline int Alloc(Packet **pkts, size_t cnt, uint16_t len);
 
+  // cnt must be [0, PacketBatch::kMaxBurst]
+  static inline size_t Alloc(Packet **pkts, size_t cnt, uint16_t len);
+
+  // pkt may be nullptr
   static void Free(Packet *pkt) {
     rte_pktmbuf_free(reinterpret_cast<struct rte_mbuf *>(pkt));
   }
-  static inline void Free(Packet **pkts, int cnt);
+
+  // All pointers in pkts must not be nullptr.
+  // cnt must be [0, PacketBatch::kMaxBurst]
+  static inline void Free(Packet **pkts, size_t cnt);
+
+  // batch must not be nullptr
   static void Free(PacketBatch *batch) { Free(batch->pkts(), batch->cnt()); }
 
  private:
@@ -363,34 +369,38 @@ extern Packet pframe_template;
 #if __AVX__
 #include "packet_avx.h"
 #else
-int Packet::Alloc(Packet **pkts, size_t cnt, uint16_t len) {
-  int ret;
-  size_t i;
+inline size_t Packet::Alloc(Packet **pkts, size_t cnt, uint16_t len) {
+  DCHECK_LE(cnt, PacketBatch::kMaxBurst);
 
-  ret = rte_mempool_get_bulk(ctx.pframe_pool(), reinterpret_cast<void **>(pkts),
-                             cnt);
-  if (ret != 0)
+  // rte_mempool_get_bulk() is all (cnt) or nothing (0)
+  if (rte_mempool_get_bulk(ctx.pframe_pool(), reinterpret_cast<void **>(pkts),
+                           cnt) < 0) {
     return 0;
+  }
 
-  for (i = 0; i < cnt; i++) {
+  for (size_t i = 0; i < cnt; i++) {
     Packet *pkt = pkts[i];
 
     pkt->set_refcnt(1);
     pkt->reset();
-
     pkt->pkt_len_ = pkt->data_len_ = len;
   }
 
   return cnt;
 }
 
-void Packet::Free(Packet **pkts, int cnt) {
+inline void Packet::Free(Packet **pkts, size_t cnt) {
+  DCHECK_LE(cnt, PacketBatch::kMaxBurst);
+
+  // rte_mempool_put_bulk() crashes when called with cnt == 0
+  if (unlikely(cnt <= 0)) {
+    return;
+  }
+
   struct rte_mempool *pool = pkts[0]->pool_;
 
-  int i;
-
-  for (i = 0; i < cnt; i++) {
-    Packet *pkt = pkts[i];
+  for (size_t i = 0; i < cnt; i++) {
+    const Packet *pkt = pkts[i];
 
     if (unlikely(pkt->pool_ != pool || pkt->is_simple() ||
                  pkt->refcnt() != 1)) {
@@ -404,8 +414,10 @@ void Packet::Free(Packet **pkts, int cnt) {
   return;
 
 slow_path:
-  for (i = 0; i < cnt; i++)
+  // slow path: packets are not homogeneous or simple enough
+  for (size_t i = 0; i < cnt; i++) {
     Free(pkts[i]);
+  }
 }
 #endif
 

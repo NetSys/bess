@@ -10,12 +10,12 @@
 
 typedef std::pair<uint64_t, struct flow *> Event;
 typedef std::priority_queue<Event, std::vector<Event>,
-                            std::function<bool(Event, Event)>>
+                            std::function<bool(const Event &, const Event &)>>
     EventQueue;
 
 struct flow {
   int packets_left;
-  int first;
+  bool first_pkt;
   uint32_t next_seq_no;
   /* Note that these are in NETWORK ORDER */
   uint32_t src_ip, dst_ip;
@@ -69,10 +69,10 @@ class FlowGen final : public Module {
 
  private:
   void UpdateDerivedParameters();
-  inline double NewFlowPkts();
-  inline double MaxFlowPkts() const;
-  inline uint64_t NextFlowArrival();
-  inline struct flow *ScheduleFlow(uint64_t time_ns);
+  double NewFlowPkts();
+  double MaxFlowPkts() const;
+  uint64_t NextFlowArrival();
+  struct flow *ScheduleFlow(uint64_t time_ns);
   void MeasureParetoMean();
   void PopulateInitialFlows();
 
