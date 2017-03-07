@@ -40,6 +40,8 @@ bool PriorityTrafficClass::AddChild(TrafficClass *child, priority_t priority) {
   }
 
   // Ensure that no child already has the given priority.
+  // FIXME: Allow having multiple TCs with the same priority.
+  //        (However, who gets scheduled first among them is not guaranteed)
   for (const auto &c : children_) {
     if (c.priority_ == priority) {
       return false;
