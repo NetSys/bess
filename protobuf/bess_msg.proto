@@ -3,214 +3,108 @@ syntax = "proto3";
 import "google/protobuf/any.proto";
 import "error.proto";
 
-package bess.pb;
+/// - "timestamp" represents the current time in seconds since the Epoch.
+/// (in the same manner as gettimeofday() in C and time.time() in Python)
+///
+/// - All Responses (including EmptyResponse) messages have an "Error"-type
+///   field. Upon a successful RPC the message has the default value
+///   (with error code 0). Otherwise the error code has a non-zero value.
 
-message EmptyRequest {
-}
+package bess.pb;
 
 message EmptyArg {
 }
 
+message EmptyRequest {
+}
+
 message EmptyResponse {
+  /// Contains a non-zero error code and a non-empty message if and only if
+  /// there has been an error
   Error error = 1;
 }
 
-message DisableTcpdumpRequest {
-  string name = 1;
-  uint64 gate = 2;
-  bool is_igate = 3;
-}
-
-message EnableTcpdumpRequest {
-  string name = 1;
-  uint64 gate = 2;
-  string fifo = 3;
-  bool is_igate = 4;
-}
-
-message AttachTaskRequest {
-  string name = 1;
-  uint64 taskid = 2;
-  oneof identifier {
-    string tc = 3;
-    uint64 wid = 4;
-  }
-}
-
-message DisconnectModulesRequest {
-  string name = 1;
-  uint64 ogate = 2;
-}
-
-message ConnectModulesRequest {
-  string m1 = 1;
-  string m2 = 2;
-  uint64 ogate = 3;
-  uint64 igate = 4;
-}
-
-message GetModuleInfoResponse {
-  message IGate {
-    message OGate {
-      uint64 ogate = 1;
-      string name = 2;
-    }
-    uint64 igate = 1;
-    repeated OGate ogates = 2;
-    uint64 cnt = 3;
-    uint64 pkts = 4;
-    double timestamp = 5;
-  }
-  message OGate {
-    uint64 ogate = 1;
-    uint64 cnt = 2;
-    uint64 pkts = 3;
-    double timestamp = 4;
-    string name = 5;
-    uint64 igate = 6;
-  }
-  message Attribute {
-    string name = 1;
-    uint64 size = 2;
-    string mode = 3;
-    int64 offset = 4;
-  }
-  Error error = 1;
-  string name = 2;
-  string mclass = 3;
-  string desc = 4;
-  // TODO: string dump = 4;
-  repeated IGate igates = 6;
-  repeated OGate ogates = 7;
-  repeated Attribute metadata = 8;
-}
-
-message GetModuleInfoRequest {
-  string name = 1;
-}
-
-message DestroyModuleRequest {
-  string name = 1;
-}
-
-message CreateModuleResponse {
-  Error error = 1;
-  string name = 2;
-}
-
-message ListModulesResponse {
-  message Module {
-    string name = 1;
-    string mclass = 2;
-    string desc = 3;
-  }
-  Error error = 1;
-  repeated Module modules = 2;
-}
-
-message GetPortStatsResponse {
-  message Stat {
-    uint64 packets = 1;
-    uint64 dropped = 2;
-    uint64 bytes = 3;
-  }
-  Error error = 1;
-  Stat inc = 2;
-  Stat out = 3;
-  double timestamp = 4;
-}
-
-message GetPortStatsRequest {
-  string name = 1;
-}
-
-message DestroyPortRequest {
-  string name = 1;
-}
-
-message Port {
-  string name = 1;
-  string driver = 2;
-  string mac_addr = 3;
-}
-
-message ListPortsResponse {
-  Error error = 1;
-  repeated Port ports = 2;
+message ImportMclassRequest {
+  string path = 1;  /// Path to the module library (*.so file)
 }
 
 message ListWorkersResponse {
   message WorkerStatus {
-    int64 wid = 1;
-    int64 core = 2;
-    int64 running = 3;
+    int64 wid = 1;      /// Worker ID, starting from 0
+    int64 core = 2;     /// CPU core ID on which the worker is pinned
+    int64 running = 3;  /// 1 if running, or 0. TODO: bool
+
+    /// Number of traffic classes running on the worker
     int64 num_tcs = 4;
+
+    /// Total number of packets that have been silently dropped on the worker.
+    /// Silent drops happen when a module transmit packets via disconnected
+    /// output gates.
     int64 silent_drops = 5;
   }
-  Error error = 1;
-  repeated WorkerStatus workers_status = 2;
-}
 
-message GetLinkStatusRequest {
-  string name = 1;       /// name of the port to query
-}
-
-message GetLinkStatusResponse {
   Error error = 1;
-  uint32 speed = 2;      /// speed in mbps: 1000, 40000, etc. 0 for vports
-  bool full_duplex = 3;  /// full-duplex enabled?
-  bool autoneg = 4;      /// auto-negotiated speed and duplex?
-  bool link_up = 5;      /// link up?
+  repeated WorkerStatus workers_status = 2;  /// List of all existing workers
 }
 
 message AddWorkerRequest {
-  int64 wid = 1;
-  int64 core = 2;
+  int64 wid = 1;   /// Worker ID to be added
+  int64 core = 2;  /// CPU core ID on which the worker would run
 }
 
 message DestroyWorkerRequest {
-  int64 wid = 1;
-}
-
-message ListTcsRequest {
-  int64 wid = 1;
+  int64 wid = 1;  /// Worker ID
 }
 
 message TrafficClass {
-  message Resource {
-    int64 schedules = 1;
-    int64 cycles = 2;
-    int64 packets = 3;
-    int64 bits = 4;
-  }
-  string parent = 1;
-  string name = 2;
-  bool blocked = 3;
+  string parent = 1;    /// Name of paraent TC
+  string name = 2;      /// Name of TC
+  bool blocked = 3;     /// Is it running or ready to run at the moment?
+
+  /// One of "priority", "weighted_fair", "round_robin", "rate_limit", "leaf"
   string policy = 4;
+
+  /// Type of resource to regulate. Only used for traffic classes of
+  /// weighted_fair and rate_limit types.
+  /// Should be one of resource types: "count", "cycle", "packet", "bit"
   string resource = 5;
+
   oneof arg {
+    /// Used by "priority". Lower number == high priority.
+    //  FIXME: should be higher number == higher priority, to be consistent
+    //         other uses of "priority" in BESS
     int64 priority = 6;
+
+    /// Relative weight (share), used by "weighted_fair".
+    /// 1 <= share <= 1024 is recommended. Higher number will result in
+    /// lower scheduling accuracy.
     int64 share = 7;
   }
-  int64 wid = 8;
+
+  int64 wid = 8;  /// Worker ID that this TC belongs to
+
+  //  FIXME: If one can specify limit for only one resource type per TC,
+  //         these two fields shouldn't be a map.
+
+  /// Long-term average of resource limit, in cycles/s, packets/s, ...
   map<string, int64> limit = 9;
+
+  /// Burst allowance of resource limit, in cycles, packets, bits, ...
+  /// If set to 0, no extra tokens will be saved.
   map<string, int64> max_burst = 10;
 }
 
-message GetTcStatsResponse {
-  Error error = 1;
-  double timestamp = 2;
-  uint64 count = 3;
-  uint64 cycles = 4;
-  uint64 packets = 5;
-  uint64 bits = 6;
+message ListTcsRequest {
+  /// Specify a worker thrread to fetch traffic claees.
+  /// To include all traffic classes on every worker, specify -1.
+  int64 wid = 1;
 }
 
 message ListTcsResponse {
   message TrafficClassStatus {
     TrafficClass class = 1;
-    string parent = 2;
-    int64 tasks = 3;
+    string parent = 2;  /// Name of its parent TC
+    int64 tasks = 3;    /// How many tasks belong to this TC?
   }
   Error error = 1;
   repeated TrafficClassStatus classes_status = 2;
@@ -225,92 +119,291 @@ message UpdateTcRequest {
 }
 
 message GetTcStatsRequest {
-  string name = 1;
+  string name = 1;  /// Name of TC
+}
+
+message GetTcStatsResponse {
+  Error error = 1;
+  double timestamp = 2;  /// The time that stat counters were read
+
+  /// THe following counters represent the total amount of accumulated resource
+  /// usage of a module since its creation.
+  uint64 count = 3;    /// # of scheduled times
+  uint64 cycles = 4;   /// CPU cycles
+  uint64 packets = 5;  /// # of packets
+  uint64 bits = 6;     /// # of bits
+}
+
+message AttachTaskRequest {
+  string name = 1;    /// Name of module
+  uint64 taskid = 2;  /// Task ID, starting from 0
+  oneof identifier {
+    string tc = 3;    /// Name of TC to bind
+    uint64 wid = 4;   /// Worker ID, starting from 0
+  }
 }
 
 message ListDriversResponse {
   Error error = 1;
-  repeated string driver_names = 2;
+  repeated string driver_names = 2;  /// List of availabe port drivers
 }
 
 message GetDriverInfoRequest {
-  string driver_name = 1;
+  string driver_name = 1;  /// Name of port driver
 }
 
 message GetDriverInfoResponse {
   Error error = 1;
-  string name = 2;
-  string help = 3;
-  repeated string commands = 4;
+  string name = 2;  /// Name of port driver
+  string help = 3;  /// 1-line description of the driver
+  repeated string commands = 4;  /// List of supported commands (TODO)
 }
 
-message ListMclassResponse {
+message ListPortsResponse {
+  message Port {
+    string name = 1;      /// Name of port
+    string driver = 2;    /// Name of port driver.
+    string mac_addr = 3;  /// MAC address of the port
+  }
+
   Error error = 1;
-  repeated string names = 2;
-}
-
-message GetMclassInfoRequest {
-  string name = 1;
-}
-
-message GetMclassInfoResponse {
-  Error error = 1;
-  string name = 2;
-  string help = 3;
-  repeated string cmds = 4;
-  repeated string cmd_args = 5;
-}
-
-message CreateModuleRequest {
-  string name = 1;
-  string mclass = 2;
-  google.protobuf.Any arg = 3;
-}
-
-message ModuleCommandRequest {
-  string name = 1;
-  string cmd = 2;
-  google.protobuf.Any arg = 3;
-}
-
-message ModuleCommandResponse {
-  Error error = 1;
-  google.protobuf.Any other = 2;
+  repeated Port ports = 2;  /// List of all existing ports
 }
 
 message CreatePortRequest {
+  /// Name of the port to create. Every port must have a unique name.
+  /// If not specified, a default name will be assigned
+  /// (returned via CreatePortResponse for future reference).
   string name = 1;
+
+  /// Name of port driver. Must be specified.
   string driver = 2;
+
+  /// Number of incoming/RX queues (Ext -> BESS). Default is 1
   uint64 num_inc_q = 3;
+  /// Number of outgoind/TX queues (BESS -> Ext). Default is 1
   uint64 num_out_q = 4;
+
+  /// Size of each incoming queue (# of packets).
+  /// If not set (0), a driver-specific default value will be used.
   uint64 size_inc_q = 5;
+  /// Size of each incoming queue (# of packets).
+  /// If not set (0), a driver-specific default value will be used.
   uint64 size_out_q = 6;
+
+  /// MAC address for the new port. Should be "xx:xx:xx:xx:xx:xx" format.
   string mac_addr = 7;
+
+  /// Driver specific argument for port initialization. See port_msg.proto
   google.protobuf.Any arg = 8;
 }
 
 message CreatePortResponse {
   Error error = 1;
-  string name = 2;
-  string mac_addr = 3;
+  string name = 2;      /// Name of the created port (specified or default one)
+  string mac_addr = 3;  /// Port MAC address (specified or default one)
 }
 
-message EnableTrackRequest {
+message DestroyPortRequest {
+  string name = 1;  /// Name of port
+}
+
+message GetPortStatsRequest {
+  string name = 1;  /// Name of port
+}
+
+message GetPortStatsResponse {
+  message Stat {
+    /// Number of objects that have been successfully sent/received.
+    /// All counters shows the accumulated value since port initialization.
+    uint64 packets = 1;
+
+    /// Number of dropped packets.
+    /// For incoming direction, it implies BESS is not picking up fast enough.
+    /// For outgoing direction, non-zero drop counter indicates that the "peer"
+    /// of this port is the performance bottleneck: namely, VMs/containers/apps
+    /// for virtual ports, or PCIe/NIC/link for physical port.
+    uint64 dropped = 2;
+
+    /// Total number of bytes, not including Frame CRC or Ethernet overheads
+    uint64 bytes = 3;
+  }
+  Error error = 1;
+  Stat inc = 2;          /// Port stats for incoming (Ext -> BESS) direction.
+  Stat out = 3;          /// Port stats for outgoing (BESS -> Ext) direction.
+  double timestamp = 4;  /// Time that stat counters were read.
+}
+
+message GetLinkStatusRequest {
+  string name = 1;       /// name of the port to query
+}
+
+message GetLinkStatusResponse {
+  Error error = 1;
+  uint32 speed = 2;      /// speed in mbps: 1000, 40000, etc. 0 for vports
+  bool full_duplex = 3;  /// full-duplex enabled?
+  bool autoneg = 4;      /// auto-negotiated speed and duplex?
+  bool link_up = 5;      /// link up?
+}
+
+
+
+
+
+message ListMclassResponse {
+  Error error = 1;
+  repeated string names = 2;  /// List of module types
+}
+
+message GetMclassInfoRequest {
+  string name = 1;  /// Name of module type
+}
+
+message GetMclassInfoResponse {
+  Error error = 1;
+  string name = 2;               /// Name of module type
+  string help = 3;               /// 1=line description of the module type
+  repeated string cmds = 4;      /// List of commands supported by the module
+  repeated string cmd_args = 5;  /// Corresponding Protobuf message types
+
+  /// FIXME; Should be "repeated ModuleCommand cmds", with the above two grouped
+}
+
+message ListModulesResponse {
+  message Module {
+    string name = 1;    /// Name of module
+    string mclass = 2;  /// Module type
+    string desc = 3;    /// Current status of module as a short, 1-line string
+  }
+  Error error = 1;
+  repeated Module modules = 2;  /// List of all existing modules
+}
+
+message CreateModuleRequest {
+  /// Name of the module to create. Every module must have a unique name.
+  /// If not specified, a default name will be assigned
+  /// (returned via CreateModuleResponse for future reference).
   string name = 1;
-  int64 gate = 2;
-  bool is_igate = 3;
-  bool use_gate = 4;
+
+  /// Name of module type. Must be specified.
+  string mclass = 2;
+
+  /// Protobuf message to be used for module initialization.
+  /// See module_msg.proto for the argument message types.
+  google.protobuf.Any arg = 3;
+}
+
+message CreateModuleResponse {
+  Error error = 1;
+  string name = 2;  /// Name of the created module (specified or default one)
+}
+
+message DestroyModuleRequest {
+  string name = 1;  /// Name of module to remove
+}
+
+message GetModuleInfoRequest {
+  string name = 1;  /// Name of module to query
+}
+
+message GetModuleInfoResponse {
+  message IGate {
+    message OGate {
+      uint64 ogate = 1;  /// Output gate of "previous" module
+      string name = 2;   /// Name of "previous" module
+    }
+    uint64 igate = 1;           /// Input gate ID
+    repeated OGate ogates = 2;  /// The list of upstream output gates
+    uint64 cnt = 3;             /// # of packet batches seen
+    uint64 pkts = 4;            /// # of packets seen
+    double timestamp = 5;       /// The time that cnt/pkts counters were read
+  }
+  message OGate {
+    uint64 ogate = 1;      /// Output gate ID
+    uint64 cnt = 2;        /// # of packet batches seen
+    uint64 pkts = 3;       /// # of packets seen
+    double timestamp = 4;  /// The time thatcnt/pkts counters were read
+    string name = 5;       /// Name of the "next" module it connects to
+    uint64 igate = 6;      /// Input gate ID of the "next" module
+  }
+  message Attribute {
+    string name = 1;   /// Name of per-packet metadata attribute
+    uint64 size = 2;   /// Size of attribute (in bytes)
+    string mode = 3;   /// "read", "write", or "update"
+    int64 offset = 4;  /// (internal debugging purpose only)
+  }
+  Error error = 1;
+  string name = 2;    /// Name of module
+  string mclass = 3;  /// Module type
+  string desc = 4;    /// Current status of module as a short, 1-line string
+
+  // TODO: string dump = 4;
+  repeated IGate igates = 6;        /// List of connected input gates
+  repeated OGate ogates = 7;        /// List of connected output gates
+  repeated Attribute metadata = 8;  /// List of metadata used by the module
+}
+
+message ConnectModulesRequest {
+  string m1 = 1;      /// Name of "previous" module name
+  string m2 = 2;      /// name of "next" module name
+  uint64 ogate = 3;   /// m1's output gate ID
+  uint64 igate = 4;   /// m2's input gate ID
+}
+
+message DisconnectModulesRequest {
+  string name = 1;   /// Name of previous module
+  uint64 ogate = 2;  /// Output gate ID of previous module
+}
+
+message ModuleCommandRequest {
+  string name = 1;              /// Name of module to handle this command
+  string cmd = 2;               /// Name of command
+  google.protobuf.Any arg = 3;  /// Command argument (see module_msg.proto)
+}
+
+message ModuleCommandResponse {
+  Error error = 1;
+  google.protobuf.Any other = 2;  /// Command response (see module_msg.proto)
+}
+
+
+//  -------------------------------------------------------------------------
+//  Module hook
+//  -------------------------------------------------------------------------
+
+message EnableTrackRequest {
+  string name = 1;    /// Name of module
+  int64 gate = 2;     /// Gate ID, starting from 0
+  bool is_igate = 3;  /// Either input gate (True) or output gate (False)
+  bool use_gate = 4;  /// If False, the hook is installed on all igates & ogates
+
+  // FIXME: use oneof {igate, ogate)
+  // FIXME: get rid of use_gate (e.g., gate == -1)
 }
 
 message DisableTrackRequest {
-  string name = 1;
-  int64 gate = 2;
-  bool is_igate = 3;
-  bool use_gate = 4;
+  string name = 1;    /// Name of module
+  int64 gate = 2;     /// Gate ID, starting from 0
+  bool is_igate = 3;  /// Either input gate (True) or output gate (False)
+  bool use_gate = 4;  /// If False, the hook is installed on all igates & ogates
+
+  // FIXME: use oneof {igate, ogate)
+  // FIXME: get rid of use_gate (e.g., gate == -1)
 }
 
-message ImportMclassRequest {
-  string path = 1;    /// Path to the module library
+message EnableTcpdumpRequest {
+  string name = 1;    /// Name of module
+  uint64 gate = 2;    /// Gate ID, starting from 0
+  string fifo = 3;    /// Path to the FIFO file.
+  bool is_igate = 4;  /// Either input gate (True) or output gate (False)
+
+  // FIXME: use oneof {igate, ogate)
 }
 
-// TODO: add something like PortCommandRequest
+message DisableTcpdumpRequest {
+  string name = 1;    /// Name of module
+  uint64 gate = 2;    /// Gate ID, starting from 0
+  bool is_igate = 3;  /// Either input gate (True) or output gate (False)
+
+  // FIXME: use oneof {igate, ogate)
+}

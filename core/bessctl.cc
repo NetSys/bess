@@ -823,7 +823,7 @@ class BESSControlImpl final : public BESSControl::Service {
                    ListPortsResponse* response) override {
     for (const auto& pair : PortBuilder::all_ports()) {
       const ::Port* p = pair.second;
-      bess::pb::Port* port = response->add_ports();
+      bess::pb::ListPortsResponse::Port* port = response->add_ports();
 
       port->set_name(p->name());
       port->set_driver(p->port_builder()->class_name());
