@@ -102,7 +102,7 @@ inline flow *FlowGen::ScheduleFlow(uint64_t time_ns) {
   active_flows_++;
   generated_flows_++;
 
-  events_.push(Event(time_ns, f));
+  events_.emplace(time_ns, f);
 
   return f;
 }
@@ -485,7 +485,7 @@ void FlowGen::GeneratePackets(bess::PacketBatch *batch) {
 
     f->packets_left--;
 
-    events_.push({t + static_cast<uint64_t>(1e9 / flow_pps_), f});
+    events_.emplace(t + static_cast<uint64_t>(1e9 / flow_pps_), f);
   }
 }
 
