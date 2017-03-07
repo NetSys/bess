@@ -5,54 +5,265 @@ import "bess_msg.proto";
 package bess.pb;
 
 service BESSControl {
+
+  //  -------------------------------------------------------------------------
+  //  System
+  //  -------------------------------------------------------------------------
+
+  /// Reset the current packet processing datapath to the initial state.
+  ///
+  /// This command is identical to the following sequence:
+  ///   ResetModules()
+  ///   ResetPorts()
+  ///   ResetTcs()
+  ///   ResetWorkers()
+  /// As it clears everything, BESS should appear as if the daemon has freshly
+  /// started (if not, it is a bug; please report).
+  ///
+  /// NOTE: There should be no running worker to run this command.
   rpc ResetAll (EmptyRequest) returns (EmptyResponse) {}
 
-  rpc PauseAll (EmptyRequest) returns (EmptyResponse) {}
-  rpc ResumeAll (EmptyRequest) returns (EmptyResponse) {}
-
-  rpc ResetWorkers (EmptyRequest) returns (EmptyResponse) {}
-  rpc ListWorkers (EmptyRequest) returns (ListWorkersResponse) {}
-  rpc AddWorker (AddWorkerRequest) returns (EmptyResponse) {}
-  rpc DestroyWorker (DestroyWorkerRequest) returns (EmptyResponse) {}
-
-  rpc ResetTcs (EmptyRequest) returns (EmptyResponse) {}
-  rpc ListTcs (ListTcsRequest) returns (ListTcsResponse) {}
-  rpc AddTc (AddTcRequest) returns (EmptyResponse) {}
-  rpc UpdateTc (UpdateTcRequest) returns (EmptyResponse) {}
-  rpc GetTcStats (GetTcStatsRequest) returns (GetTcStatsResponse) {}
-
-  rpc ListDrivers (EmptyRequest) returns (ListDriversResponse) {}
-  rpc GetDriverInfo(GetDriverInfoRequest) returns (GetDriverInfoResponse) {}
-  // TODO: import_driver()
-
-  rpc ResetPorts (EmptyRequest) returns (EmptyResponse) {}
-  rpc ListPorts (EmptyRequest) returns (ListPortsResponse) {}
-  rpc CreatePort (CreatePortRequest) returns (CreatePortResponse) {}
-  rpc DestroyPort (DestroyPortRequest) returns (EmptyResponse) {}
-  rpc GetPortStats (GetPortStatsRequest) returns (GetPortStatsResponse) {}
-  rpc GetLinkStatus (GetLinkStatusRequest) returns (GetLinkStatusResponse) {}
-
-  rpc ListMclass (EmptyRequest) returns (ListMclassResponse) {}
-  rpc GetMclassInfo (GetMclassInfoRequest) returns (GetMclassInfoResponse) {}
-  rpc ImportMclass (ImportMclassRequest) returns (EmptyResponse) {}
-
-  rpc ResetModules (EmptyRequest) returns (EmptyResponse) {}
-  rpc ListModules (EmptyRequest) returns (ListModulesResponse) {}
-  rpc CreateModule (CreateModuleRequest) returns (CreateModuleResponse) {}
-  rpc DestroyModule (DestroyModuleRequest) returns (EmptyResponse) {}
-  rpc GetModuleInfo (GetModuleInfoRequest) returns (GetModuleInfoResponse) {}
-  rpc ConnectModules (ConnectModulesRequest) returns (EmptyResponse) {}
-  rpc DisconnectModules (DisconnectModulesRequest) returns (EmptyResponse) {}
-
-  rpc AttachTask (AttachTaskRequest) returns (EmptyResponse) {}
-
-  rpc EnableTcpdump (EnableTcpdumpRequest) returns (EmptyResponse) {}
-  rpc DisableTcpdump (DisableTcpdumpRequest) returns (EmptyResponse) {}
-
-  rpc EnableTrack (EnableTrackRequest) returns (EmptyResponse) {}
-  rpc DisableTrack (DisableTrackRequest) returns (EmptyResponse) {}
-
+  /// Terminate the BESS daemon.
+  ///
+  /// BESS daemon shuts off in a graceful manner. Note that this command is
+  /// "asynchronous": this command doesn't block until the BESS daemon has
+  /// shut off.
+  ///
+  /// NOTE: There should be no running worker to run this command.
+  /// FIXME: rename (e.g., Terminate)
   rpc KillBess (EmptyRequest) returns (EmptyResponse) {}
 
+  /// Import a plugin
+  ///
+  /// At the moment plugins can only contain module types,
+  /// but might also support drivers/hooks/schedulers in the future.
+  /// FIXME: rename (e.g., ImportPlugin)
+  rpc ImportMclass (ImportMclassRequest) returns (EmptyResponse) {}
+
+
+  //  -------------------------------------------------------------------------
+  //  Worker
+  //  -------------------------------------------------------------------------
+
+  /// Pause all running workers temporarily
+  ///
+  /// Some RPC commands to BESS or individual modules/ports require that
+  /// threads must be inactive, to avoid race conditions.
+  /// For such commands, use PauseALl at the beginning and ResumeAll at the end.
+  ///  PauseAll()
+  ///   SomeCommand1()
+  ///   SomeCommand2()
+  ///   ...
+  ///  ResumeAll()
+  /// Keep the duration as short as possible, to avoid packet drops.
+  rpc PauseAll (EmptyRequest) returns (EmptyResponse) {}
+
+  /// Resume all paused workers
+  rpc ResumeAll (EmptyRequest) returns (EmptyResponse) {}
+
+  /// Remove all existing workers
+  ///
+  /// NOTE: There should be no running worker to run this command.
+  rpc ResetWorkers (EmptyRequest) returns (EmptyResponse) {}
+
+  /// Enumerate all existing workers
+  rpc ListWorkers (EmptyRequest) returns (ListWorkersResponse) {}
+
+  /// Create a new worker
+  ///
+  /// NOTE: There should be no running worker to run this command.
+  rpc AddWorker (AddWorkerRequest) returns (EmptyResponse) {}
+
+  /// Remove a single worker
+  ///
+  /// NOTE: There should be no running worker to run this command.
+  rpc DestroyWorker (DestroyWorkerRequest) returns (EmptyResponse) {}
+
+
+  //  -------------------------------------------------------------------------
+  //  Traffic classe & task
+  //  -------------------------------------------------------------------------
+
+  /// Remove all existing traffic classes
+  ///
+  /// NOTE: There should be no running worker to run this command.
+  rpc ResetTcs (EmptyRequest) returns (EmptyResponse) {}
+
+  /// Enumerate all existing workers
+  rpc ListTcs (ListTcsRequest) returns (ListTcsResponse) {}
+
+  /// Create a new traffic class
+  ///
+  /// NOTE: There should be no running worker to run this command.
+  rpc AddTc (AddTcRequest) returns (EmptyResponse) {}
+
+  /// Update parameters of an existing traffic class
+  ///
+  /// NOTE: There should be no running worker to run this command.
+  rpc UpdateTc (UpdateTcRequest) returns (EmptyResponse) {}
+
+  /// Collect statistics of a traffic class
+  rpc GetTcStats (GetTcStatsRequest) returns (GetTcStatsResponse) {}
+
+  /// Attach a task to the specified traffic class (TC)
+  ///
+  /// Some modules (PortInc/QueueInc/Source/Queue/etc) create schedulable tasks.
+  /// By attaching tasks to a traffic class, their resource usage (e.g., link
+  /// bandwidth or CPU cycles) can be measured and policed.
+  /// If wid is given instead of tc, the task will be attached to a default TC
+  /// running on the specified worker
+  /// If there are tasks that are not attached to any TC when BESS resumes,
+  /// BESS will assign tasks across TCs on all existing workers in an
+  /// arbitrary manner.
+  ///
+  /// NOTE: There should be no running worker to run this command.
+  rpc AttachTask (AttachTaskRequest) returns (EmptyResponse) {}
+
+
+  //  -------------------------------------------------------------------------
+  //  Port
+  //  -------------------------------------------------------------------------
+
+  /// Enumerate all port drivers available
+  rpc ListDrivers (EmptyRequest) returns (ListDriversResponse) {}
+
+  /// Query detailed information of a port driver
+  rpc GetDriverInfo(GetDriverInfoRequest) returns (GetDriverInfoResponse) {}
+
+  /// Remove all initialized ports
+  ///
+  /// Will fail if there are modules that are still using ports.
+  /// (e.g., PortInc, PortOut, QueueInc, QueueOut)
+  ///
+  /// NOTE: There should be no running worker to run this command.
+  rpc ResetPorts (EmptyRequest) returns (EmptyResponse) {}
+
+  /// Enumerate all initialized ports
+  rpc ListPorts (EmptyRequest) returns (ListPortsResponse) {}
+
+  /// Create a new port from the specified driver
+  rpc CreatePort (CreatePortRequest) returns (CreatePortResponse) {}
+
+  /// Remove a port
+  ///
+  /// The port should not be being used by a port-related module.
+  /// (e.g., PortInc, PortOut, QueueInc, QueueOut)
+  rpc DestroyPort (DestroyPortRequest) returns (EmptyResponse) {}
+
+  /// Collect port statistics
+  ///
+  /// At the moment, per-queue stats are not supported.
+  rpc GetPortStats (GetPortStatsRequest) returns (GetPortStatsResponse) {}
+
+  /// Query link status
+  rpc GetLinkStatus (GetLinkStatusRequest) returns (GetLinkStatusResponse) {}
+
+  // TODO: Add PortCommand, like ModuleCommand, which performs driver-specific
+  //       actions on a port.
+
+
+  //  -------------------------------------------------------------------------
+  //  Module
+  //  -------------------------------------------------------------------------
+
+  /// Enumerate all module types available
+  rpc ListMclass (EmptyRequest) returns (ListMclassResponse) {}
+
+  /// Query detailed information of a module type
+  rpc GetMclassInfo (GetMclassInfoRequest) returns (GetMclassInfoResponse) {}
+
+  /// Remove all modules.
+  ///
+  /// This RPC will always succeed (unless there is a running worker)
+  ///
+  /// NOTE: There should be no running worker to run this command.
+  rpc ResetModules (EmptyRequest) returns (EmptyResponse) {}
+
+  /// Enumerate all initialized modules
+  rpc ListModules (EmptyRequest) returns (ListModulesResponse) {}
+
+  /// Create a new module instance from the given module type
+  ///
+  /// NOTE: There should be no running worker to run this command.
+  rpc CreateModule (CreateModuleRequest) returns (CreateModuleResponse) {}
+
+  /// Destroy an exsting module
+  ///
+  /// If the module is connected to other modules' input/output gate, they are
+  /// disconnected first. All tasks created by the module will also be destoyed.
+  ///
+  /// NOTE: There should be no running worker to run this command.
+  rpc DestroyModule (DestroyModuleRequest) returns (EmptyResponse) {}
+
+  /// Fetch detailed information of an module instance
+  rpc GetModuleInfo (GetModuleInfoRequest) returns (GetModuleInfoResponse) {}
+
+  /// Connect two modules.
+  ///
+  /// Connect between m1's ogate and n2's igate (i.e., ackets sent to m1's ogate
+  /// will be fed to m2's igate). The oate can be connected to only one igate,
+  /// while the igate can be connected to multiple output gates.
+  ///
+  /// NOTE: There should be no running worker to run this command.
+  rpc ConnectModules (ConnectModulesRequest) returns (EmptyResponse) {}
+
+  /// Disconnect two modules.
+  ///
+  /// It removes a connection between two modules (you specify the previous one
+  /// and its output gate). All packets coming out from the ogate will be
+  /// dropped. Once disconnected, the ogate can be connected
+  /// to any input gate.
+  ///
+  /// NOTE: There should be no running worker to run this command.
+  rpc DisconnectModules (DisconnectModulesRequest) returns (EmptyResponse) {}
+
+  /// Send a command to the specified module instance.
+  ///
+  /// Each module type defines a list of modyle-specific commands, which
+  /// allow external programs to communicate with the module at runtime.
+  /// See module_msg.proto for details.
+  ///
+  /// NOTE: Some commands cannot be used if there are running workers.
+  ///       For those commands you must pause all workers first.
   rpc ModuleCommand (ModuleCommandRequest) returns (ModuleCommandResponse) {}
+
+
+  //  -------------------------------------------------------------------------
+  //  Module hook
+  //  -------------------------------------------------------------------------
+
+  /// Enable "track" hook on a gate (or all gates)
+  ///
+  /// "track" hook accumulates the number of total packets & batches passing
+  /// through a gate. This incurs some amount of CPU overheads. While the cost
+  /// is very small, remember that the delay adds up at every gate.
+  ///
+  /// NOTE: There should be no running worker to run this command.
+  rpc EnableTrack (EnableTrackRequest) returns (EmptyResponse) {}
+
+  /// Disable "track" hook on a gate (or all gates)
+  ///
+  /// You may want to disable the hook to squeeze out CPU cycles
+  /// as much as you can.
+  ///
+  /// NOTE: There should be no running worker to run this command.
+  rpc DisableTrack (DisableTrackRequest) returns (EmptyResponse) {}
+
+  /// Enable tcpdump tapping at an input/output gate.
+  ///
+  /// Once the tap is installed, all packets going through the gate will be
+  /// captured and sent in PCAP format to the specified named pipe (FIFO).
+  /// Thus you can run `tcpdump -r <path to FIFO>` or save the stream in a file.
+  /// This feature may afffect performance.
+  ///
+  /// NOTE: There should be no running worker to run this command.
+  rpc EnableTcpdump (EnableTcpdumpRequest) returns (EmptyResponse) {}
+
+  /// Disable tcpdump tapping at an input/output gate.
+  ///
+  /// Stop mirroring packets and Close the FIFO. Also see EnableTcpdumpRequest.
+  /// Once disabled the performance overhead will be gone.
+  ///
+  /// NOTE: There should be no running worker to run this command.
+  rpc DisableTcpdump (DisableTcpdumpRequest) returns (EmptyResponse) {}
 }
