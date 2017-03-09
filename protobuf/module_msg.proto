@@ -85,6 +85,11 @@ message MeasureCommandGetSummaryResponse {
   uint64 latency_max_ns = 7;
   uint64 latency_50_ns = 8;
   uint64 latency_99_ns = 9;
+  uint64 jitter_min_ns = 10;
+  uint64 jitter_avg_ns = 11;
+  uint64 jitter_max_ns = 12;
+  uint64 jitter_50_ns = 13;
+  uint64 jitter_99_ns = 14;
 }
 
 message PortIncCommandSetBurstArg {
@@ -228,6 +233,7 @@ message MACSwapArg {
 message MeasureArg {
   uint32 warmup = 1;
   uint64 offset = 2;
+  double jitter_sample_prob = 3;
 }
 
 message MergeArg {

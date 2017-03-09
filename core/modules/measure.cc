@@ -1,5 +1,7 @@
 #include "measure.h"
 
+#include <cmath>
+
 #include "../utils/ether.h"
 #include "../utils/ip.h"
 #include "../utils/time.h"
@@ -38,6 +40,12 @@ pb_error_t Measure::Init(const bess::pb::MeasureArg &arg) {
               sizeof(struct UdpHeader);
   }
 
+  if (arg.jitter_sample_prob()) {
+    jitter_sample_prob_ = arg.jitter_sample_prob();
+  } else {
+    jitter_sample_prob_ = kDefaultIpDvSampleProb;
+  }
+
   start_ns_ = tsc_to_ns(rdtsc());
 
   return pb_errno(0);
@@ -66,7 +74,16 @@ void Measure::ProcessBatch(bess::PacketBatch *batch) {
         bytes_cnt_ += batch->pkts()[i]->total_len();
         total_latency_ += diff;
 
-        hist_.insert(diff);
+        rtt_hist_.insert(diff);
+        if (rand_.GetRealNonzero() <= jitter_sample_prob_) {
+          if (unlikely(!last_rtt_ns_)) {
+            last_rtt_ns_ = diff;
+            continue;
+          }
+          uint64_t jitter = std::abs(diff - last_rtt_ns_);
+          jitter_hist_.insert(jitter);
+          last_rtt_ns_ = diff;
+        }
       }
     }
   }
@@ -86,11 +103,16 @@ pb_cmd_response_t Measure::CommandGetSummary(const bess::pb::EmptyArg &) {
   r.set_packets(pkt_total);
   r.set_bits(bits);
   r.set_total_latency_ns(total_latency_);
-  r.set_latency_min_ns(hist_.min());
-  r.set_latency_avg_ns(hist_.avg());
-  r.set_latency_max_ns(hist_.max());
-  r.set_latency_50_ns(hist_.percentile(50));
-  r.set_latency_99_ns(hist_.percentile(99));
+  r.set_latency_min_ns(rtt_hist_.min());
+  r.set_latency_avg_ns(rtt_hist_.avg());
+  r.set_latency_max_ns(rtt_hist_.max());
+  r.set_latency_50_ns(rtt_hist_.percentile(50));
+  r.set_latency_99_ns(rtt_hist_.percentile(99));
+  r.set_jitter_min_ns(jitter_hist_.min());
+  r.set_jitter_avg_ns(jitter_hist_.avg());
+  r.set_jitter_max_ns(jitter_hist_.max());
+  r.set_jitter_50_ns(jitter_hist_.percentile(50));
+  r.set_jitter_99_ns(jitter_hist_.percentile(99));
 
   response.mutable_error()->set_err(0);
   response.mutable_other()->PackFrom(r);
