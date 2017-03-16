@@ -213,12 +213,14 @@ pb_error_t PMDPort::Init(const bess::pb::PMDPortArg &arg) {
    * with minor tweaks */
   rte_eth_dev_info_get(ret_port_id, &dev_info);
 
-  driver_ = dev_info.driver_name;
+  if (dev_info.driver_name) {
+    driver_ = dev_info.driver_name;
+  }
 
   eth_rxconf = dev_info.default_rxconf;
 
   /* #36: em driver does not allow rx_drop_en enabled */
-  if (strcmp(dev_info.driver_name, "rte_em_pmd") != 0) {
+  if (driver_ != "rte_em_pmd") {
     eth_rxconf.rx_drop_en = 1;
   }
 
