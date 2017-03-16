@@ -1051,29 +1051,45 @@ def show_pipeline_batch(cli):
     cli.fout.write(_draw_pipeline(cli, 'cnt'))
 
 
-def _group(number):
-    s = str(number)
-    groups = []
-    while s and s[-1].isdigit():
-        groups.append(s[-3:])
-        s = s[:-3]
-    return s + ','.join(reversed(groups))
-
-
 def _show_port(cli, port):
-    cli.fout.write('  %s/%s (%s)\n' % (port.name, port.driver, port.mac_addr))
+    link_status = cli.bess.get_link_status(port.name)
 
-    port_stats = cli.bess.get_port_stats(port.name)
+    if link_status.speed == 0:
+        speed = 'UNKNOWN'
+    else:
+        speed = '{:,}Mbps'.format(link_status.speed)
 
-    cli.fout.write('    Incoming (external -> BESS):\n')
-    cli.fout.write('      packets: %s\n' % _group(port_stats.inc.packets))
-    cli.fout.write('      dropped: %s\n' % _group(port_stats.inc.dropped))
-    cli.fout.write('      bytes  : %s\n' % _group(port_stats.inc.bytes))
+    if link_status.link_up:
+        link = 'UP'
+    else:
+        link = 'DOWN'
 
-    cli.fout.write('    Outgoing (BESS -> external):\n')
-    cli.fout.write('      packets: %s\n' % _group(port_stats.out.packets))
-    cli.fout.write('      dropped: %s\n' % _group(port_stats.out.dropped))
-    cli.fout.write('      bytes  : %s\n' % _group(port_stats.out.bytes))
+    if link_status.full_duplex:
+        duplex = 'FULL'
+    else:
+        duplex = 'HALF'
+
+    if link_status.autoneg:
+        autoneg = 'ON'
+    else:
+        autoneg = 'OFF'
+
+
+    cli.fout.write('  %-12s Driver %-10s HWaddr %s\n' % \
+                   (port.name, port.driver, port.mac_addr))
+    cli.fout.write('  %-12s Speed %-11s Link %-5s Duplex %-5s Autoneg %-5s\n' % \
+                   ('', speed, link, duplex, autoneg))
+    stats = cli.bess.get_port_stats(port.name)
+
+    cli.fout.write('       Inc/RX  ')
+    cli.fout.write('packets: {:<20,}'.format(stats.inc.packets))
+    cli.fout.write('bytes: {:<20,}\n'.format(stats.inc.bytes))
+    cli.fout.write('{:<14} dropped: {:<20,}\n'.format('', stats.inc.dropped))
+
+    cli.fout.write('       Out/TX  ')
+    cli.fout.write('packets: {:<20,}'.format(stats.out.packets))
+    cli.fout.write('bytes: {:<20,}\n'.format(stats.out.bytes))
+    cli.fout.write('{:<14} dropped: {:<20,}\n'.format('', stats.out.dropped))
 
 
 @cmd('show port', 'Show the status of all ports')
@@ -1083,7 +1099,9 @@ def show_port_all(cli):
     if len(ports) == 0:
         raise cli.CommandError('There is no active port to show.')
     else:
-        for port in ports:
+        for i, port in enumerate(ports):
+            if i > 0:
+                cli.fout.write('\n')    # add a separator line between ports
             _show_port(cli, port)
 
 
@@ -1285,14 +1303,23 @@ def _monitor_ports(cli, *ports):
         cli.fout.write('%s\n' % ('-' * 96))
 
     def print_delta(port, delta):
+        # If inc/out_bytes == 0 and inc_packets != 0, it means the
+        # driver does not account packet bytes.
+        # Use 0 rather than inaccurate numbers from Ethernet overheads.
+        if delta.inc_bytes:
+            inc_mbps = (delta.inc_bytes + delta.inc_packets * 24) * 8 / 1e6
+        else:
+            inc_mbps = 0
+
+        if delta.out_bytes:
+            out_mbps = (delta.out_bytes + delta.out_packets * 24) * 8 / 1e6
+        else:
+            out_mbps = 0
+
         cli.fout.write('%-20s%14.1f%10.3f%10d        %14.1f%10.3f%10d\n' %
                        (port,
-                        (delta.inc_bytes + delta.inc_packets * 24) * 8 / 1e6,
-                        delta.inc_packets / 1e6,
-                        delta.inc_dropped,
-                        (delta.out_bytes + delta.out_packets * 24) * 8 / 1e6,
-                        delta.out_packets / 1e6,
-                        delta.out_dropped))
+                        inc_mbps, delta.inc_packets / 1e6, delta.inc_dropped,
+                        out_mbps, delta.out_packets / 1e6, delta.out_dropped))
 
     def get_total(arr):
         total = copy.deepcopy(arr[0])
