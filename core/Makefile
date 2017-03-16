@@ -44,7 +44,7 @@ else ifeq ($(words $(MAKECMDGOALS)),1)
 endif
 
 CXXFLAGS += -std=gnu++11 -g3 -ggdb3 -march=native \
-	    -Werror -isystem $(DPDK_INC_DIR) -D_GNU_SOURCE \
+	    -Werror -isystem $(DPDK_INC_DIR) -isystem . -D_GNU_SOURCE \
 	    -Wall -Wextra -Wcast-align
 
 PERMISSIVE := -Wno-unused-parameter -Wno-missing-field-initializers \
@@ -134,7 +134,7 @@ benchmarks: $(BENCH_OBJS) $(BENCH_EXEC)
 
 protobuf: $(PROTO_SRCS)
 
-modules: $(MODULE_OBJS) $(MODULE_LIBS)
+modules: protobuf $(MODULE_OBJS) $(MODULE_LIBS)
 
 # This build wrapper takes 4 parameters:
 # $(1): build type (CXX, LD, ...)
