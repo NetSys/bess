@@ -72,7 +72,12 @@ def parse_dict(values, message):
 
     for k, v in values.iteritems():
         if isinstance(v, dict):
-            parse_dict(v, getattr(message, k))
+            try:
+                parse_dict(v, getattr(message, k))
+            except TypeError:
+                parse_dict(v, message[k])
+            except:
+                raise
         elif isinstance(v, list):
             parse_list(v, getattr(message, k))
         elif v is not None:
