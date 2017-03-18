@@ -11,10 +11,10 @@ import time
 
 import service_pb2
 import proto_conv
-import bess_msg_pb2 as bess_msg
-import module_msg_pb2 as module_msg
-import port_msg_pb2 as port_msg
 
+import module_msg
+import bess_msg_pb2 as bess_msg
+import port_msg_pb2 as port_msg
 
 class BESS(object):
 
