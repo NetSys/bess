@@ -439,13 +439,13 @@ class CLI(object):
         self.interactive = sys.stdin.isatty() and sys.stdout.isatty()
 
         # Colorize output to standard error
-        stderr = ColorizedOutput(sys.stderr, '\033[31m')  # red (not bright)
+        self.ferr = ColorizedOutput(sys.stderr, '\033[31m')  # red (not bright)
 
         try:
             hist_file = os.path.expanduser('~/.bess_history')
             open(hist_file, 'a+').close()
         except:
-            print >> stderr, 'Error: Cannot open ~/.bess_history'
+            print >> self.ferr, 'Error: Cannot open ~/.bess_history'
             hist_file = None
             raise
         self.history_file = hist_file
