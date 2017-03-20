@@ -42,14 +42,12 @@ class CLI(object):
         self.fout = fout
         self.ferr = ferr
         self.history_file = None
-
+        self.interactive = False
         self.last_cmd = ''
-
-        self.interactive = interactive
         self.rl = None
 
         if(interactive):
-            self.go_interactive()
+            self.maybe_go_interactive()
 
     def err(self, msg):
         self.ferr.write('*** Error: %s\n' % msg)
@@ -430,13 +428,16 @@ class CLI(object):
         except:
             pass
 
-    def go_interactive(self):
+    def maybe_go_interactive(self):
         if self.interactive:
             return
 
         self.fin = sys.stdin
         self.fout = sys.stdout
         self.interactive = sys.stdin.isatty() and sys.stdout.isatty()
+        if not self.interactive:
+            print >> self.ferr, 'Error: no TTY, cannot go interactive'
+            return
 
         # Colorize output to standard error
         self.ferr = ColorizedOutput(sys.stderr, '\033[31m')  # red (not bright)

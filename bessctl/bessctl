@@ -132,7 +132,8 @@ def run_cli():
                          'Try "daemon start".'
 
     cli = BESSCLI(s, commands, ferr=sys.stderr, interactive=True)
-    cli.loop()
+    if cli.interactive:
+        cli.loop()
 
 
 def run_cmds(instream):
