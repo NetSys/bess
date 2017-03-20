@@ -54,9 +54,9 @@ class[[gnu::packed]] BigEndian final : public EndianBase<T> {
     return is_be_system() ? v : EndianBase<T>::swap(v);
   }
 
-  bool operator==(const BigEndian &other) { return value_ == other.value_; }
+  bool operator==(const BigEndian &other) const { return value_ == other.value_; }
 
-  bool operator!=(const BigEndian &other) { return value_ != other.value_; }
+  bool operator!=(const BigEndian &other) const { return value_ != other.value_; }
 
  protected:
   T value_;
