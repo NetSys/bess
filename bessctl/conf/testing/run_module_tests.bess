@@ -76,6 +76,9 @@ def load_test(filename):
             OUTPUT_TEST_INPUTS,
             CUSTOM_TEST_FUNCTIONS]
 
+def monitor_task(module, wid):
+  bess.attach_task(module.name, 0, wid=wid)
+
 ## RUN TEST LOOP ##
 path = os.path.dirname(os.path.realpath(sys.argv[0]))
 for filename in glob.glob(path + "/conf/testing/module_tests/*.py"):

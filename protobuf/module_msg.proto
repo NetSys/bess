@@ -191,6 +191,36 @@ message MeasureCommandGetSummaryResponse {
   uint64 jitter_99_ns = 14; /// The 99th percentile of jitter.
 }
 
+
+/**
+ * The Module DRR provides fair scheduling of flows based on a quantum which is
+ * number of bytes allocated to each flow on each round of going through all flows.
+ * Examples can be found [./bessctl/conf/samples/drr.bess]
+ * __Input_Gates__: 1
+ * __Output_Gates__:  1
+ */
+message DRRArg {
+  uint32 num_flows = 1;  /// Number of flows to handle in module
+  uint64 quantum = 2;  /// the number of bytes to allocate to each on every round
+  uint32 max_flow_queue_size = 3; /// the max size that any Flows queue can get
+}
+
+/**
+ * the SetQuantumSize function sets a new quantum for DRR module to operate on. 
+ */
+message DRRQuantumArg {
+  uint32 quantum = 1;  /// the number of bytes to allocate to each on every round
+}
+
+/**
+ * The SetMaxQueueSize function sets a new maximum flow queue size for DRR module.
+ * If the flow's queue gets to this size, the module starts dropping packets to 
+ * that flow until the queue is below this size.  
+ */
+message DRRMaxFlowQueueSizeArg {
+  uint32 max_queue_size = 1;  /// the max size that any Flows queue can get
+}
+
 /**
  * The module PortInc has a function SetBurst that allows you to specify the maximum number of packets to be stored in a single PacketBatch released by the module.
  */

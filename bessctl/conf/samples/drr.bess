@@ -1,0 +1,36 @@
+import scapy.all as scapy
+
+eth = scapy.Ether(src='02:1e:67:9f:4d:ae', dst='06:16:3e:1b:72:32')
+ip1 = scapy.IP(src='192.168.1.1', dst='10.0.0.1')
+ip2 = scapy.IP(src='192.168.2.2', dst= '10.0.0.2')
+udp = scapy.UDP(sport=10001, dport=10002)
+payload = 'helloworld'
+pkt_bytes1 = str(eth/ip1/udp/payload)
+pkt_bytes2 = str(eth/ip2/udp/payload)
+
+# Create the pipeline from two sources rewriting each to have their own 
+# source port and destination port respectively, the pushing them into
+# the DRR such that they are two disinct flows. (flows are identified based
+# on the five tuple)
+src1::Source() -> Rewrite(templates=[pkt_bytes1]) \
+  -> q::DRR(num_flows=4, quantum=1000) -> Sink()
+src2::Source() ->Rewrite(templates=[pkt_bytes2]) \
+  -> q
+
+# drr and source uses tasks to forward packets. to throttle the forwarding rate,
+# once can put a rate a limiter on the tasks associated with these modules.
+# as a result of the throttle on drr, drr will fairly distribute the throughput across
+# all of the flows. (In order to maximize fairness, the quantum should be tweaked) 
+bess.add_tc('rr', policy='round_robin', priority=0)
+bess.add_tc('fast', policy='rate_limit', resource='packet', limit={'packet': 90000}, parent='rr')
+bess.add_tc('fast_leaf', policy='leaf', parent='fast')
+
+bess.add_tc('slow', policy='rate_limit', resource='packet', limit={'packet': 40000}, parent='rr')
+bess.add_tc('slow_leaf', policy='leaf', parent='slow')
+
+bess.add_tc('medium', policy='rate_limit', resource='packet', limit={'packet': 50000}, parent='rr')
+bess.add_tc('medium_leaf', policy='leaf', parent='medium')
+
+bess.attach_task(q.name, tc= "medium_leaf")
+bess.attach_task(src1.name, tc='fast_leaf')
+bess.attach_task(src2.name, tc='slow_leaf')
