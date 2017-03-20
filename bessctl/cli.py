@@ -47,7 +47,7 @@ class CLI(object):
 
         self.interactive = interactive
         self.rl = None
-        
+
         if(interactive):
             self.go_interactive()
 
@@ -436,10 +436,7 @@ class CLI(object):
         self.interactive = sys.stdin.isatty() and sys.stdout.isatty()
 
         # Colorize output to standard error
-        if self.interactive and sys.stderr.isatty():
-            stderr = ColorizedOutput(sys.stderr, '\033[31m')  # red (not bright)
-        else:
-            stderr = sys.stderr
+        stderr = ColorizedOutput(sys.stderr, '\033[31m')  # red (not bright)
 
         try:
             hist_file = os.path.expanduser('~/.bess_history')
@@ -474,7 +471,6 @@ class CLI(object):
 
         self.print_banner()
         self.fout.flush()
-    
 
     def loop(self):
         self.disable_echoctl()
