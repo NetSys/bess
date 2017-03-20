@@ -127,9 +127,9 @@ def run_cli():
         s = BESS()
         s.connect()
     except BESS.APIError as e:
-        print >> stderr, e.message
-        print >> stderr, 'Perhaps bessd daemon is not running locally? ' \
-                         'Try "daemon start".'
+        print >> sys.stderr, e.message
+        print >> sys.stderr, 'Perhaps bessd daemon is not running locally? ' \
+                             'Try "daemon start".'
 
     cli = BESSCLI(s, commands, ferr=sys.stderr, interactive=True)
     if cli.interactive:
