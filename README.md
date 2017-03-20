@@ -9,9 +9,9 @@ BESS is developed at the University of California, Berkeley and at Nefeli Networ
 
 If you are new to BESS, we recommend you start here:
 
-1. [BESS Overview] (https://github.com/NetSys/bess/wiki/BESS-Overview)
-2. [Build and Install BESS] (https://github.com/NetSys/bess/wiki/Build-and-Install-BESS)
-3. [Write a BESS Configuration Script] (https://github.com/NetSys/bess/wiki/Writing-a-BESS-Configuration-Script)
+1. [BESS Overview](https://github.com/NetSys/bess/wiki/BESS-Overview)
+2. [Build and Install BESS](https://github.com/NetSys/bess/wiki/Build-and-Install-BESS)
+3. [Write a BESS Configuration Script](https://github.com/NetSys/bess/wiki/Writing-a-BESS-Configuration-Script)
 4. [Connect BESS to a Network Interface, VM, or Container](https://github.com/NetSys/bess/wiki/Hooking-up-BESS-Ports)
 
 To configure and install BESS on Linux quickly, you can run the provided ansible script (vagrant/bess.yml):
