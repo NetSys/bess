@@ -431,6 +431,9 @@ class CLI(object):
             pass
 
     def go_interactive(self):
+        if self.interactive:
+            return
+
         self.fin = sys.stdin
         self.fout = sys.stdout
         self.interactive = sys.stdin.isatty() and sys.stdout.isatty()
