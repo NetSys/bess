@@ -34,20 +34,39 @@ class CLI(object):
     class InternalError(Exception):
         pass
 
-    def __init__(self, cmdlist, fin=sys.stdin, fout=sys.stdout, ferr=sys.stderr,
-                 interactive=True):
+    def __init__(self, cmdlist, fin=sys.stdin, fout=sys.stdout, ferr=None,
+                 interactive=None, history_file=None):
         self.cmdlist = cmdlist
 
         self.fin = fin
         self.fout = fout
-        self.ferr = ferr
-        self.history_file = None
-        self.interactive = False
         self.last_cmd = ''
         self.rl = None
 
-        if(interactive):
-            self.maybe_go_interactive()
+        if history_file is None:
+            try:
+                self.history_file = os.path.expanduser('~/.bess_history')
+            except:
+                self.history_file = None
+        else:
+            self.history_file = history_file
+
+        # Colorize output to standard error
+        if ferr is None:
+            if sys.stderr.isatty():
+                self.ferr = ColorizedOutput(sys.stderr, '\033[31m')  # dark red
+            else:
+                self.ferr = sys.stderr
+        else:
+            self.ferr = ferr
+
+        if interactive is None:
+            self.interactive = fin.isatty() and fout.isatty()
+        else:
+            self.interactive = interactive
+
+        if self.interactive:
+            self.go_interactive()
 
     def err(self, msg):
         self.ferr.write('*** Error: %s\n' % msg)
@@ -428,29 +447,7 @@ class CLI(object):
         except:
             pass
 
-    def maybe_go_interactive(self):
-        if self.interactive:
-            return
-
-        self.fin = sys.stdin
-        self.fout = sys.stdout
-        self.interactive = sys.stdin.isatty() and sys.stdout.isatty()
-        if not self.interactive:
-            print >> self.ferr, 'Error: no TTY, cannot go interactive'
-            return
-
-        # Colorize output to standard error
-        self.ferr = ColorizedOutput(sys.stderr, '\033[31m')  # red (not bright)
-
-        try:
-            hist_file = os.path.expanduser('~/.bess_history')
-            open(hist_file, 'a+').close()
-        except:
-            print >> self.ferr, 'Error: Cannot open ~/.bess_history'
-            hist_file = None
-            raise
-        self.history_file = hist_file
-
+    def go_interactive(self):
         try:
             import readline
             self.rl = readline

@@ -122,39 +122,28 @@ class BESSCLI(cli.CLI):
         return '<disconnected> $ '
 
 
-def run_cli():
+def run_cli(instream=sys.stdin):
+    s = BESS()
+    cli = BESSCLI(s, commands, fin=instream)
+
     try:
-        s = BESS()
         s.connect()
     except BESS.APIError as e:
-        print >> sys.stderr, e.message
-        print >> sys.stderr, 'Perhaps bessd daemon is not running locally? ' \
-                             'Try "daemon start".'
+        if cli.interactive:
+            cli.ferr.write(e.message + '\n')
+            cli.ferr.write('Perhaps bessd daemon is not running locally? ' \
+                        'Try "daemon start".\n')
 
-    cli = BESSCLI(s, commands, ferr=sys.stderr, interactive=True)
-    if cli.interactive:
-        cli.loop()
-
-
-def run_cmds(instream):
-    try:
-        s = BESS()
-        s.connect()
-    except BESS.APIError:
-        # show no error msg, since user might be about to launch the daemon
-        pass
-
-    cli = BESSCLI(s, commands, fin=instream, interactive=False)
     cli.loop()
 
-    # end of loop due to error?
+    # end of loop due to error? let them know which command failed.
     if cli.stop_loop:
         if cli.last_cmd:
             cli.ferr.write('  Command failed: %s\n' % cli.last_cmd)
         sys.exit(1)
 
 
-if __name__ == '__main__':
+def main():
     if len(sys.argv) == 1:
         run_cli()
     else:
@@ -169,4 +158,7 @@ if __name__ == '__main__':
                 line_buf.append(arg)
 
         cmds.append(' '.join(line_buf))
-        run_cmds(cStringIO.StringIO('\n'.join(cmds)))
+        run_cli(cStringIO.StringIO('\n'.join(cmds)))
+
+if __name__ == '__main__':
+    main()

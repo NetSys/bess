@@ -317,7 +317,7 @@ def update_benchmark_path(path):
 
 def main():
     os.chdir(BESS_DIR)
-    parser = argparse.ArgumentParser(description='Build Bess')
+    parser = argparse.ArgumentParser(description='Build BESS')
     parser.add_argument('action', metavar='action', nargs='?', default='all',
                         help='Action is one of all, dpdk, bess, kmod, clean'
                              ' dist_clean, help')
