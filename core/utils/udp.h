@@ -1,4 +1,5 @@
 #ifndef BESS_UTILS_UDP_H_
+#define BESS_UTILS_UDP_H_
 
 namespace bess {
 namespace utils {
