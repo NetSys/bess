@@ -22,3 +22,4 @@ These people have contributed to BESS codebase (add your name to the end):
   * Tony Situ
   * Vivian Fang
   * Joshua Stone
+  * Daniele di Proietto
