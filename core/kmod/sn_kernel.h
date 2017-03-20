@@ -33,11 +33,8 @@
 
 #ifdef __KERNEL__
 
-#include <linux/pci.h>
 #include <linux/netdevice.h>
 #include <linux/miscdevice.h>
-
-#include "sn_stack.h"
 
 #define MODULE_NAME "bess"
 
@@ -56,11 +53,6 @@
 DECLARE_PER_CPU(int, in_batched_polling);
 
 struct sn_device;
-
-enum sn_dev_type {
-	sn_dev_type_host,
-	sn_dev_type_pci,
-};
 
 #define SN_NET_XMIT_BUFFERED -1
 
@@ -106,7 +98,6 @@ struct sn_queue {
 	};
 } ____cacheline_aligned_in_smp;
 
-/* host/guest-specific packet TX/RX operations */
 struct sn_ops {
 	/* Returns NET_XMIT_SUCCESS, NET_XMIT_CN, or NET_XMIT_DROP.
 	 * The caller sets tx_meta, and the callee is responsible to
@@ -146,9 +137,7 @@ struct sn_device {
 	/* cpu -> rxq array terminating with -1 */
 	int cpu_to_rxqs[NR_CPUS][MAX_QUEUES + 1];
 
-	enum sn_dev_type type;
 	struct sn_ops *ops;
-	struct pci_dev *pdev; /* NULL in host mode */
 };
 
 /* function prototypes defined in sn_netdev.c */

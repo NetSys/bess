@@ -172,17 +172,9 @@ struct sn_rx_desc {
  * ...
  */
 
-/* NOTE: The host mode and guest mode behave differently,
- * since there are differences in who has access whose packet buffer
- * (thus who can perform the copy).
- * For host mode, the driver is the copier.
- * For guest mode, BESS is the copier. */
-
-/* Current host mode operation:
- *
- * TX:
+/* TX:
  * BESS feeds buffers to the driver via the sn_to_drv llring, in this order:
- *   1. Cookie  2. Address of the buffer (host physical)
+ *   1. Cookie  2. Address of the buffer (physical)
  * The buffer must be at least as big as sizeof(sn_tx_metadata) + SNBUF_DATA.
  *
  * Then the driver will copy (metedata + packet data) _into_ those buffers
@@ -193,7 +185,7 @@ struct sn_rx_desc {
  * RX:
  * BESS feeds received packet buffers to the driver via the sn_to_drv llring,
  * in this order:
- *   1. Cookie  2. Address of the buffer (host physical)
+ *   1. Cookie  2. Address of the buffer (physical)
  * The buffer must be at least as big as sizeof(sn_tx_metadata) + packet size
  *
  * Then the driver will copy (metadata + packet data) _from_ those buffers,
