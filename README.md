@@ -1,5 +1,5 @@
 [![Build Status](https://travis-ci.org/NetSys/bess.svg?branch=develop)](https://travis-ci.org/NetSys/bess)
-[![codecov](https://codecov.io/gh/NetSys/bess/branch/c++/graph/badge.svg)](https://codecov.io/gh/NetSys/bess)
+[![codecov](https://codecov.io/gh/NetSys/bess/graph/badge.svg)](https://codecov.io/gh/NetSys/bess)
 
 ## BESS (Berkeley Extensible Software Switch)
 
@@ -14,7 +14,7 @@ If you are new to BESS, we recommend you start here:
 3. [Write a BESS Configuration Script](https://github.com/NetSys/bess/wiki/Writing-a-BESS-Configuration-Script)
 4. [Connect BESS to a Network Interface, VM, or Container](https://github.com/NetSys/bess/wiki/Hooking-up-BESS-Ports)
 
-To configure and install BESS on Linux quickly, you can run the provided ansible script (vagrant/bess.yml):
+To configure and install BESS on Linux quickly, you can run the provided Ansible script (`vagrant/bess.yml`):
 
     git clone https://github.com/NetSys/bess.git
     cd bess/
