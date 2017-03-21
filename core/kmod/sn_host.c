@@ -401,9 +401,6 @@ static bool sn_host_pending_rx(struct sn_queue *queue)
 
 static struct sn_ops sn_host_ops = {
 	.do_tx 		= sn_host_do_tx,
-#if 0
-	.do_rx 		= sn_host_do_rx,
-#endif
 	.do_rx_batch	= sn_host_do_rx_batch,
 	.pending_rx 	= sn_host_pending_rx,
 	.flush_tx	= sn_host_flush_tx,
@@ -473,9 +470,7 @@ static int sn_host_ioctl_create_netdev(phys_addr_t bar_phys,
 	if (ret)
 		return ret;
 
-	(*dev_ret)->type = sn_dev_type_host;
 	(*dev_ret)->ops = &sn_host_ops;
-	(*dev_ret)->pdev = NULL;
 
 	ret = sn_register_netdev(bar, *dev_ret);
 	if (ret)

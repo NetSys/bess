@@ -756,29 +756,12 @@ static void sn_set_default_queue_mapping(struct sn_device *dev)
 static void sn_netdev_destructor(struct net_device *netdev)
 {
 	struct sn_device *dev = netdev_priv(netdev);
-
 	sn_free_queues(dev);
-
-	switch (dev->type) {
-	case sn_dev_type_host:
-		/* TODO: do something */
-		break;
-
-	case sn_dev_type_pci:
-		/* TODO: do something with dev->pdev */
-		break;
-
-	default:
-		log_err("unknown device type %d\n", dev->type);
-	}
-
 	log_info("%s: releasing netdev...\n", netdev->name);
-
 	free_netdev(netdev);
 }
 
-/* bar must be a virtual address (whether it's host or guest),
- * where the kernel can directly access to */
+/* bar must be a virtual address that kernel has direct access */
 int sn_create_netdev(void *bar, struct sn_device **dev_ret)
 {
 	struct sn_conf_space *conf = bar;
