@@ -34,7 +34,8 @@ class TCWeightedFair : public benchmark::Fixture {
             TrafficClassBuilder::Find("weighted"));
     for (int i = 0; i < num_classes; i++) {
       std::string name("class_" + std::to_string(i));
-      LeafTrafficClass *c = new LeafTrafficClass(name);
+      LeafTrafficClass *c =
+          TrafficClassBuilder::CreateTrafficClass<LeafTrafficClass>(name);
       c->AddTask(reinterpret_cast<Task *>(1));  // A fake task.
 
       resource_share_t share = 1;
@@ -126,7 +127,8 @@ class TCRoundRobin : public benchmark::Fixture {
         static_cast<RoundRobinTrafficClass *>(TrafficClassBuilder::Find("rr"));
     for (int i = 0; i < num_classes; i++) {
       std::string name("class_" + std::to_string(i));
-      LeafTrafficClass *c = new LeafTrafficClass(name);
+      LeafTrafficClass *c =
+          TrafficClassBuilder::CreateTrafficClass<LeafTrafficClass>(name);
       c->AddTask(reinterpret_cast<Task *>(1));  // A fake task.
 
       CHECK(rr->AddChild(c));
