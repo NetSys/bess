@@ -1,9 +1,21 @@
 import sys
 import os
 
+#for pretty printing
+class ColorizedOutput(object):
+    def __init__(self, orig_out, color):
+        self.orig_out = orig_out
+        self.color = color
+
+    def __getattr__(self, attr):
+        def_color = '\033[0;0m'  # resets all terminal attributes
+
+        if attr == 'write':
+            return lambda x: self.orig_out.write(self.color + x + def_color)
+        else:
+            return getattr(self.orig_out, attr)
 
 class CLI(object):
-
     # general command errors
     class CommandError(Exception):
         pass
@@ -22,45 +34,39 @@ class CLI(object):
     class InternalError(Exception):
         pass
 
-    def __init__(self, cmdlist, fin=sys.stdin, fout=sys.stdout, ferr=sys.stderr,
-                 interactive=True, history_file=None):
+    def __init__(self, cmdlist, fin=sys.stdin, fout=sys.stdout, ferr=None,
+                 interactive=None, history_file=None):
         self.cmdlist = cmdlist
 
         self.fin = fin
         self.fout = fout
-        self.ferr = ferr
-        self.history_file = history_file
-
         self.last_cmd = ''
+        self.rl = None
 
-        self.interactive = interactive
-        if not interactive:
-            self.rl = None
-            return
-
-        self.print_banner()
-
-        try:
-            import readline
-            self.rl = readline
-        except ImportError:
-            self.err('"readline" not available. No auto completion.\n')
-            return
-
-        if 'libedit' in self.rl.__doc__:
-            self.rl.parse_and_bind('bind -e')
-            self.rl.parse_and_bind("bind '\t' rl_complete")
+        if history_file is None:
+            try:
+                self.history_file = os.path.expanduser('~/.bess_history')
+            except:
+                self.history_file = None
         else:
-            self.rl.parse_and_bind('tab: complete')
+            self.history_file = history_file
 
-        self.rl.set_completer(self.complete)
+        # Colorize output to standard error
+        if ferr is None:
+            if sys.stderr.isatty():
+                self.ferr = ColorizedOutput(sys.stderr, '\033[31m')  # dark red
+            else:
+                self.ferr = sys.stderr
+        else:
+            self.ferr = ferr
 
-        try:
-            if self.history_file and os.path.exists(self.history_file):
-                self.rl.read_history_file(self.history_file)
-        except:
-            self.err('Cannot read from history file "%s"' %
-                        self.history_file)
+        if interactive is None:
+            self.interactive = fin.isatty() and fout.isatty()
+        else:
+            self.interactive = interactive
+
+        if self.interactive:
+            self.go_interactive()
 
     def err(self, msg):
         self.ferr.write('*** Error: %s\n' % msg)
@@ -440,6 +446,32 @@ class CLI(object):
             termios.tcsetattr(sys.stdin, termios.TCSADRAIN, new_flags)
         except:
             pass
+
+    def go_interactive(self):
+        try:
+            import readline
+            self.rl = readline
+        except ImportError:
+            self.err('"readline" not available. No auto completion.\n')
+            return
+
+        if 'libedit' in self.rl.__doc__:
+            self.rl.parse_and_bind('bind -e')
+            self.rl.parse_and_bind("bind '\t' rl_complete")
+        else:
+            self.rl.parse_and_bind('tab: complete')
+
+        self.rl.set_completer(self.complete)
+
+        try:
+            if self.history_file and os.path.exists(self.history_file):
+                self.rl.read_history_file(self.history_file)
+        except:
+            self.err('Cannot read from history file "%s"' %
+                        self.history_file)
+
+        self.print_banner()
+        self.fout.flush()
 
     def loop(self):
         self.disable_echoctl()

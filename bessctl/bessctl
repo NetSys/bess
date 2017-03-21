@@ -122,69 +122,28 @@ class BESSCLI(cli.CLI):
         return '<disconnected> $ '
 
 
-class ColorizedOutput(object):
-    def __init__(self, orig_out, color):
-        self.orig_out = orig_out
-        self.color = color
-
-    def __getattr__(self, attr):
-        def_color = '\033[0;0m'  # resets all terminal attributes
-
-        if attr == 'write':
-            return lambda x: self.orig_out.write(self.color + x + def_color)
-        else:
-            return getattr(self.orig_out, attr)
-
-
-def run_cli():
-    interactive = sys.stdin.isatty() and sys.stdout.isatty()
-
-    # Colorize output to standard error
-    if interactive and sys.stderr.isatty():
-        stderr = ColorizedOutput(sys.stderr, '\033[31m')  # red (not bright)
-    else:
-        stderr = sys.stderr
+def run_cli(instream=sys.stdin):
+    s = BESS()
+    cli = BESSCLI(s, commands, fin=instream)
 
     try:
-        hist_file = os.path.expanduser('~/.bess_history')
-        open(hist_file, 'a+').close()
-    except:
-        print >> stderr, 'Error: Cannot open ~/.bess_history'
-        hist_file = None
-        raise
-
-    try:
-        s = BESS()
         s.connect()
     except BESS.APIError as e:
-        print >> stderr, e.message
-        print >> stderr, 'Perhaps bessd daemon is not running locally? ' \
-                         'Try "daemon start".'
+        if cli.interactive:
+            cli.ferr.write(e.message + '\n')
+            cli.ferr.write('Perhaps bessd daemon is not running locally? ' \
+                        'Try "daemon start".\n')
 
-    cli = BESSCLI(s, commands, ferr=stderr, interactive=interactive,
-                  history_file=hist_file)
     cli.loop()
 
-
-def run_cmds(instream):
-    try:
-        s = BESS()
-        s.connect()
-    except BESS.APIError:
-        # show no error msg, since user might be about to launch the daemon
-        pass
-
-    cli = BESSCLI(s, commands, fin=instream, interactive=False)
-    cli.loop()
-
-    # end of loop due to error?
+    # end of loop due to error? let them know which command failed.
     if cli.stop_loop:
         if cli.last_cmd:
             cli.ferr.write('  Command failed: %s\n' % cli.last_cmd)
         sys.exit(1)
 
 
-if __name__ == '__main__':
+def main():
     if len(sys.argv) == 1:
         run_cli()
     else:
@@ -199,4 +158,7 @@ if __name__ == '__main__':
                 line_buf.append(arg)
 
         cmds.append(' '.join(line_buf))
-        run_cmds(cStringIO.StringIO('\n'.join(cmds)))
+        run_cli(cStringIO.StringIO('\n'.join(cmds)))
+
+if __name__ == '__main__':
+    main()

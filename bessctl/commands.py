@@ -1550,6 +1550,18 @@ def track_module(cli, flag, module_name, direction, gate):
 
 @cmd('interactive', 'Switch to interactive mode')
 def interactive(cli):
+    if cli.interactive:
+        return
+
+    old_fin = cli.fin
+    old_fout = cli.fout
     cli.fin = sys.stdin
     cli.fout = sys.stdout
-    cli.maybe_go_interactive()
+    cli.interactive = True
+
+    cli.go_interactive()
+    cli.loop()
+
+    cli.fin = old_fin
+    cli.fout = old_fout
+    cli.interactive = False
