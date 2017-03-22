@@ -13,18 +13,14 @@
 
 namespace bess {
 
-void TrafficClass::IncrementTcCountTowardsRoot(int increment) {
-  TrafficClassBuilder::tc_count()[this] += increment;
-  if (parent_) {
-    parent_->IncrementTcCountTowardsRoot(increment);
-  }
-}
-
 size_t TrafficClass::Size() const {
-  const auto &tc_count = TrafficClassBuilder::tc_count();
-  auto it = tc_count.find(this);
-  CHECK(it != tc_count.end());
-  return it->second;
+  size_t ret = 0;
+  Traverse(
+      []([[maybe_unused]] const bess::TrafficClass* c, void* arg) {
+        *reinterpret_cast<size_t*>(arg) += 1;
+      },
+      static_cast<void*>(&ret));
+  return ret;
 }
 
 PriorityTrafficClass::~PriorityTrafficClass() {
@@ -53,8 +49,6 @@ bool PriorityTrafficClass::AddChild(TrafficClass *child, priority_t priority) {
   child->parent_ = this;
 
   UnblockTowardsRoot(rdtsc());
-
-  IncrementTcCountTowardsRoot(child->Size());
 
   return true;
 }
@@ -132,8 +126,6 @@ bool WeightedFairTrafficClass::AddChild(TrafficClass *child,
     children_.push(child_data);
     UnblockTowardsRoot(rdtsc());
   }
-
-  IncrementTcCountTowardsRoot(child->Size());
 
   return true;
 }
@@ -217,8 +209,6 @@ bool RoundRobinTrafficClass::AddChild(TrafficClass *child) {
 
   UnblockTowardsRoot(rdtsc());
 
-  IncrementTcCountTowardsRoot(child->Size());
-
   return true;
 }
 
@@ -291,8 +281,6 @@ bool RateLimitTrafficClass::AddChild(TrafficClass *child) {
   child->parent_ = this;
 
   UnblockTowardsRoot(rdtsc());
-
-  IncrementTcCountTowardsRoot(child->Size());
 
   return true;
 }
@@ -376,7 +364,6 @@ TrafficClass *LeafTrafficClass::PickNextChild() {
 }
 
 std::unordered_map<std::string, TrafficClass *> TrafficClassBuilder::all_tcs_;
-std::unordered_map<const TrafficClass *, int> TrafficClassBuilder::tc_count_;
 
 bool TrafficClassBuilder::ClearAll() {
   for (const auto &it : all_tcs_) {
@@ -392,13 +379,11 @@ bool TrafficClassBuilder::ClearAll() {
   }
 
   all_tcs_.clear();
-  tc_count_.clear();
   return true;
 }
 
 bool TrafficClassBuilder::Clear(TrafficClass *c) {
   bool ret = all_tcs_.erase(c->name());
-  tc_count_.erase(c);
   return ret;
 }
 
