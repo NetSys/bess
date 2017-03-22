@@ -181,9 +181,6 @@ class TrafficClass {
     parent_->UnblockTowardsRoot(tsc);
   }
 
-  // Increments the TC count from this up towards the root.
-  void IncrementTcCountTowardsRoot(int increment);
-
   // Returns the next schedulable child of this traffic class.
   virtual TrafficClass *PickNextChild() = 0;
 
@@ -519,7 +516,6 @@ class TrafficClassBuilder {
 
     T *c = new T(name, args...);
     all_tcs_.emplace(name, c);
-    tc_count_[c] = 1;
     return c;
   }
 
@@ -642,10 +638,6 @@ class TrafficClassBuilder {
     return all_tcs_;
   }
 
-  static std::unordered_map<const TrafficClass *, int> &tc_count() {
-    return tc_count_;
-  }
-
   // Returns the TrafficClass * with the given name or nullptr if not found.
   static TrafficClass *Find(const std::string &name) {
     auto it = all_tcs_.find(name);
@@ -658,9 +650,6 @@ class TrafficClassBuilder {
  private:
   // A collection of all TCs in the system, mapped from their textual name.
   static std::unordered_map<std::string, TrafficClass *> all_tcs_;
-
-  // A mapping from each TC to the count of TCs in its subtree, including itself.
-  static std::unordered_map<const TrafficClass *, int> tc_count_;
 };
 
 }  // namespace bess
