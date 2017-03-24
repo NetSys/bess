@@ -38,8 +38,6 @@
         - libgoogle-glog-dev
         - libgraph-easy-perl
         - libgtest-dev
-        - google-mock
-        - linux-virtual
         - linux-headers-generic
         - lcov
 
