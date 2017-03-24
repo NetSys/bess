@@ -1537,6 +1537,7 @@ def tcpdump_module(cli, module_name, direction, gate, opts):
 def track_module(cli, flag, module_name, direction, gate):
     if direction is None:
         direction = 'out'
+    module_name = module_name or ''    
 
     cli.bess.pause_all()
     try:
