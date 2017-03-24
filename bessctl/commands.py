@@ -206,7 +206,7 @@ def get_var_attrs(cli, var_token, partial_word):
             var_type = 'name'
             var_desc = 'specify a name of the new module instance'
 
-        elif var_token == 'MODULE':
+        elif var_token in ['MODULE', '[MODULE]']:
             var_type = 'name'
             var_desc = 'name of an existing module instance'
             try:
