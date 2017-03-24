@@ -1532,9 +1532,9 @@ def tcpdump_module(cli, module_name, direction, gate, opts):
             pass
 
 
-@cmd('track ENABLE_DISABLE [MODULE] [DIRECTION] [GATE]',
+@cmd('track ENABLE_DISABLE [DIRECTION] [MODULE] [GATE]',
      'Count the packets and batches on a gate')
-def track_module(cli, flag, module_name, direction, gate):
+def track_module(cli, flag, direction, module_name, gate):
     if direction is None:
         direction = 'out'
     module_name = module_name or ''    
