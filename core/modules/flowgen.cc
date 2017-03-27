@@ -23,11 +23,6 @@ const double PARETO_TAIL_LIMIT = 0.99;
 const Commands FlowGen::cmds = {
     {"update", "FlowGenArg", MODULE_CMD_FUNC(&FlowGen::CommandUpdate), 0}};
 
-// Priority queue must be a *min* heap -> next upcoming event first.
-static inline bool EventLess(const Event &a, const Event &b) {
-  return a.first > b.first;
-}
-
 /* find x from CDF of pareto distribution from given y in [0.0, 1.0) */
 static inline double pareto_variate(double inversed_alpha, double y) {
   return pow(1.0 / (1.0 - y * PARETO_TAIL_LIMIT), inversed_alpha);
@@ -366,9 +361,6 @@ pb_error_t FlowGen::Init(const bess::pb::FlowGenArg &arg) {
   }
 
   UpdateDerivedParameters();
-
-  /* initialize time-sorted priority queue */
-  events_ = EventQueue(EventLess);
 
   /* add a seed flow (and background flows if necessary) */
   PopulateInitialFlows();
