@@ -235,6 +235,8 @@ pb_error_t PMDPort::Init(const bess::pb::PMDPortArg &arg) {
   }
   rte_eth_promiscuous_enable(ret_port_id);
 
+  // NOTE: As of DPDK 17.02, TX queues should be initialized first.
+  // Otherwise the DPDK virtio PMD will crash in rte_eth_rx_burst() later.
   for (i = 0; i < num_txq; i++) {
     int sid = 0; /* XXX */
 
