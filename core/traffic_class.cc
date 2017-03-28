@@ -53,6 +53,27 @@ bool PriorityTrafficClass::AddChild(TrafficClass *child, priority_t priority) {
   return true;
 }
 
+bool PriorityTrafficClass::RemoveChild(TrafficClass *child) {
+  if (child->parent_ != this) {
+    return false;
+  }
+
+  for (auto it = children_.begin(); it != children_.end(); it++) {
+    if (it->c_ == child) {
+      children_.erase(it);
+      child->parent_ = nullptr;
+      if (static_cast<size_t>(it - children_.begin()) < first_runnable_) {
+        first_runnable_--;
+      }
+      BlockTowardsRoot();
+
+      return true;
+    }
+  }
+
+  return false;
+}
+
 TrafficClass *PriorityTrafficClass::PickNextChild() {
   return children_[first_runnable_].c_;
 }
@@ -66,6 +87,15 @@ void PriorityTrafficClass::UnblockTowardsRoot(uint64_t tsc) {
   }
   TrafficClass::UnblockTowardsRootSetBlocked(tsc,
                                              first_runnable_ >= num_children);
+}
+
+void PriorityTrafficClass::BlockTowardsRoot() {
+  size_t num_children = children_.size();
+  while (first_runnable_ < num_children &&
+         children_[first_runnable_].c_->blocked_) {
+    ++first_runnable_;
+  }
+  TrafficClass::BlockTowardsRootSetBlocked(first_runnable_ == num_children);
 }
 
 void PriorityTrafficClass::FinishAndAccountTowardsRoot(Scheduler *sched,
@@ -130,6 +160,30 @@ bool WeightedFairTrafficClass::AddChild(TrafficClass *child,
   return true;
 }
 
+bool WeightedFairTrafficClass::RemoveChild(TrafficClass *child) {
+  if (child->parent_ != this) {
+    return false;
+  }
+
+  for (auto it = blocked_children_.begin();
+       it != blocked_children_.end(); it++) {
+    if (it->c_ == child) {
+      blocked_children_.erase(it);
+      child->parent_ = nullptr;
+      return true;
+    }
+  }
+
+  bool ret = children_.delete_single_element([=](const ChildData &x){return x.c_ == child;});
+  if (ret) {
+    child->parent_ = nullptr;
+    BlockTowardsRoot();
+    return true;
+  }
+
+  return false;
+}
+
 TrafficClass *WeightedFairTrafficClass::PickNextChild() {
   return children_.top().c_;
 }
@@ -147,6 +201,18 @@ void WeightedFairTrafficClass::UnblockTowardsRoot(uint64_t tsc) {
   }
 
   TrafficClass::UnblockTowardsRootSetBlocked(tsc, children_.empty());
+}
+
+void WeightedFairTrafficClass::BlockTowardsRoot() {
+  children_.delete_single_element([&](const ChildData &x) {
+    if (x.c_->blocked_) {
+      blocked_children_.push_back(x);
+      return true;
+    }
+    return false;
+  });
+
+  TrafficClass::BlockTowardsRootSetBlocked(children_.empty());
 }
 
 void WeightedFairTrafficClass::FinishAndAccountTowardsRoot(Scheduler *sched,
@@ -212,6 +278,39 @@ bool RoundRobinTrafficClass::AddChild(TrafficClass *child) {
   return true;
 }
 
+bool RoundRobinTrafficClass::RemoveChild(TrafficClass *child) {
+  if (child->parent_ != this) {
+    return false;
+  }
+
+  for (auto it = blocked_children_.begin();
+       it != blocked_children_.end(); it++) {
+    if (*it == child) {
+      blocked_children_.erase(it);
+      child->parent_ = nullptr;
+      return true;
+    }
+  }
+
+  for (auto it = children_.begin(); it != children_.end(); it++) {
+    if (*it == child) {
+      if (static_cast<size_t>(it - children_.begin()) < next_child_) {
+        next_child_--;
+      }
+      children_.erase(it);
+      // Wrap around for round robin.
+      if (next_child_ >= children_.size()) {
+        next_child_ = 0;
+      }
+      child->parent_ = nullptr;
+      BlockTowardsRoot();
+      return true;
+    }
+  }
+
+  return false;
+}
+
 TrafficClass *RoundRobinTrafficClass::PickNextChild() {
   return children_[next_child_];
 }
@@ -228,6 +327,25 @@ void RoundRobinTrafficClass::UnblockTowardsRoot(uint64_t tsc) {
   }
 
   TrafficClass::UnblockTowardsRootSetBlocked(tsc, children_.empty());
+}
+
+void RoundRobinTrafficClass::BlockTowardsRoot() {
+  for (auto it = children_.begin(); it != children_.end();) {
+    if ((*it)->blocked_) {
+      if (static_cast<size_t>(it - children_.begin()) < next_child_) {
+        next_child_--;
+      }
+      blocked_children_.push_back(*it);
+      children_.erase(it++);
+      // Wrap around for round robin.
+      if (next_child_ >= children_.size()) {
+        next_child_ = 0;
+      }
+    } else {
+      ++it;
+    }
+  }
+  TrafficClass::BlockTowardsRootSetBlocked(children_.empty());
 }
 
 void RoundRobinTrafficClass::FinishAndAccountTowardsRoot(Scheduler *sched,
@@ -285,6 +403,18 @@ bool RateLimitTrafficClass::AddChild(TrafficClass *child) {
   return true;
 }
 
+bool RateLimitTrafficClass::RemoveChild(TrafficClass *child) {
+  if (child->parent_ != this || child != child_) {
+    return false;
+  }
+
+  child_ = nullptr;
+
+  BlockTowardsRoot();
+
+  return true;
+}
+
 TrafficClass *RateLimitTrafficClass::PickNextChild() {
   return child_;
 }
@@ -292,8 +422,13 @@ TrafficClass *RateLimitTrafficClass::PickNextChild() {
 void RateLimitTrafficClass::UnblockTowardsRoot(uint64_t tsc) {
   last_tsc_ = tsc;
 
-  bool blocked = throttle_expiration_ || child_->blocked_;
+  bool blocked = throttle_expiration_ || !child_ || child_->blocked_;
   TrafficClass::UnblockTowardsRootSetBlocked(tsc, blocked);
+}
+
+void RateLimitTrafficClass::BlockTowardsRoot() {
+  bool blocked = !child_ || child_->blocked_;
+  TrafficClass::BlockTowardsRootSetBlocked(blocked);
 }
 
 void RateLimitTrafficClass::FinishAndAccountTowardsRoot(Scheduler *sched,
@@ -332,7 +467,9 @@ void RateLimitTrafficClass::FinishAndAccountTowardsRoot(Scheduler *sched,
 
 void RateLimitTrafficClass::Traverse(TraverseTcFn f, void *arg) const {
   f(this, arg);
-  child_->Traverse(f, arg);
+  if (child_) {
+    child_->Traverse(f, arg);
+  }
 }
 
 LeafTrafficClass::~LeafTrafficClass() {
