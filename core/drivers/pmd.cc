@@ -220,7 +220,7 @@ pb_error_t PMDPort::Init(const bess::pb::PMDPortArg &arg) {
   eth_rxconf = dev_info.default_rxconf;
 
   /* #36: em driver does not allow rx_drop_en enabled */
-  if (driver_ != "rte_em_pmd") {
+  if (driver_ != "net_e1000_em") {
     eth_rxconf.rx_drop_en = 1;
   }
 
@@ -235,6 +235,18 @@ pb_error_t PMDPort::Init(const bess::pb::PMDPortArg &arg) {
   }
   rte_eth_promiscuous_enable(ret_port_id);
 
+  // NOTE: As of DPDK 17.02, TX queues should be initialized first.
+  // Otherwise the DPDK virtio PMD will crash in rte_eth_rx_burst() later.
+  for (i = 0; i < num_txq; i++) {
+    int sid = 0; /* XXX */
+
+    ret = rte_eth_tx_queue_setup(ret_port_id, i, queue_size[PACKET_DIR_OUT],
+                                 sid, &eth_txconf);
+    if (ret != 0) {
+      return pb_error(-ret, "rte_eth_tx_queue_setup() failed");
+    }
+  }
+
   for (i = 0; i < num_rxq; i++) {
     int sid = rte_eth_dev_socket_id(ret_port_id);
 
@@ -248,16 +260,6 @@ pb_error_t PMDPort::Init(const bess::pb::PMDPortArg &arg) {
                                &eth_rxconf, bess::get_pframe_pool_socket(sid));
     if (ret != 0) {
       return pb_error(-ret, "rte_eth_rx_queue_setup() failed");
-    }
-  }
-
-  for (i = 0; i < num_txq; i++) {
-    int sid = 0; /* XXX */
-
-    ret = rte_eth_tx_queue_setup(ret_port_id, i, queue_size[PACKET_DIR_OUT],
-                                 sid, &eth_txconf);
-    if (ret != 0) {
-      return pb_error(-ret, "rte_eth_tx_queue_setup() failed");
     }
   }
 
