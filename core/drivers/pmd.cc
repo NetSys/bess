@@ -220,7 +220,7 @@ pb_error_t PMDPort::Init(const bess::pb::PMDPortArg &arg) {
   eth_rxconf = dev_info.default_rxconf;
 
   /* #36: em driver does not allow rx_drop_en enabled */
-  if (driver_ != "rte_em_pmd") {
+  if (driver_ != "net_e1000_em") {
     eth_rxconf.rx_drop_en = 1;
   }
 
