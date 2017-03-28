@@ -105,20 +105,6 @@ service BESSControl {
   /// Collect statistics of a traffic class
   rpc GetTcStats (GetTcStatsRequest) returns (GetTcStatsResponse) {}
 
-  /// Attach a task to the specified traffic class (TC)
-  ///
-  /// Some modules (PortInc/QueueInc/Source/Queue/etc) create schedulable tasks.
-  /// By attaching tasks to a traffic class, their resource usage (e.g., link
-  /// bandwidth or CPU cycles) can be measured and policed.
-  /// If wid is given instead of tc, the task will be attached to a default TC
-  /// running on the specified worker
-  /// If there are tasks that are not attached to any TC when BESS resumes,
-  /// BESS will assign tasks across TCs on all existing workers in an
-  /// arbitrary manner.
-  ///
-  /// NOTE: There should be no running worker to run this command.
-  rpc AttachTask (AttachTaskRequest) returns (EmptyResponse) {}
-
 
   //  -------------------------------------------------------------------------
   //  Port

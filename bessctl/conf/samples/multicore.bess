@@ -28,8 +28,8 @@ src1::Source() -> sink
 #attach src0:0 => worker:0 
 #attach src1:0 => worker:1
 
-bess.attach_task("src0", 0, wid=0)
-bess.attach_task("src1", 0, wid=1)
+bess.add_tc("leaf_src0", policy='leaf', leaf_module_name="src0", wid=0)
+bess.add_tc("leaf_src1", policy='leaf', leaf_module_name="src1", wid=1)
 
 # Future work
 #

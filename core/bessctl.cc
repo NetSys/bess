@@ -439,13 +439,7 @@ class BESSControlImpl final : public BESSControl::Service {
       bool has_tasks = false;
       root->Traverse(
           [](const bess::TrafficClass* c, void* arg) {
-            bool have_tasks = false;
-            if (c->policy() == bess::POLICY_LEAF) {
-              have_tasks = reinterpret_cast<const bess::LeafTrafficClass*>(c)
-                               ->tasks()
-                               .size() > 0;
-            }
-            *reinterpret_cast<bool*>(arg) |= have_tasks;
+            *reinterpret_cast<bool*>(arg) |= c->policy() == bess::POLICY_LEAF;
           },
           static_cast<void*>(&has_tasks));
       if (has_tasks) {
@@ -525,13 +519,6 @@ class BESSControlImpl final : public BESSControl::Service {
               status->mutable_class_()->set_policy("invalid");
             }
 
-            if (c->policy() == bess::POLICY_LEAF) {
-              status->set_tasks(
-                  reinterpret_cast<const bess::LeafTrafficClass*>(c)
-                      ->tasks()
-                      .size());
-            }
-
             status->mutable_class_()->set_wid(arg_->wid);
 
             if (c->policy() == bess::POLICY_RATE_LIMIT) {
@@ -562,6 +549,9 @@ class BESSControlImpl final : public BESSControl::Service {
     const char* tc_name = request->class_().name().c_str();
     if (request->class_().name().length() == 0) {
       return return_with_error(response, EINVAL, "Missing 'name' field");
+    } else if (tc_name[0] == '!') {
+      return return_with_error(response, EINVAL,
+          "TC names starting with \'!\' are reserved");
     }
 
     if (TrafficClassBuilder::all_tcs().count(tc_name)) {
@@ -623,9 +613,46 @@ class BESSControlImpl final : public BESSControl::Service {
           TrafficClassBuilder::CreateTrafficClass<bess::RateLimitTrafficClass>(
               tc_name, bess::ResourceMap.at(resource), limit, max_burst));
     } else if (policy == bess::TrafficPolicyName[bess::POLICY_LEAF]) {
-      c = reinterpret_cast<bess::TrafficClass*>(
-          TrafficClassBuilder::CreateTrafficClass<bess::LeafTrafficClass>(
-              tc_name));
+      if (!request->class_().leaf_module_name().length()) {
+        return return_with_error(response, EINVAL,
+                                 "Missing 'leaf_module_name' field");
+      }
+
+      const std::string &module_name = request->class_().leaf_module_name();
+      const auto& it = ModuleBuilder::all_modules().find(module_name);
+      if (it == ModuleBuilder::all_modules().end()) {
+        return return_with_error(response, ENOENT, "No module '%s' found",
+                                 module_name.c_str());
+      }
+      Module* m = it->second;
+
+      task_id_t tid = request->class_().leaf_module_taskid();
+      if (tid >= MAX_TASKS_PER_MODULE) {
+        return return_with_error(response, EINVAL,
+                                 "'taskid' must be between 0 and %d",
+                                 MAX_TASKS_PER_MODULE - 1);
+      }
+
+      if (tid >= m->tasks().size()) {
+        return return_with_error(response, ENOENT, "Task %s:%hu does not exist",
+                                 request->class_().leaf_module_name().c_str(),
+                                 tid);
+      }
+
+      bess::LeafTrafficClass<Task> *oldleaf = m->tasks()[tid]->GetTC();
+      if (oldleaf) {
+        if (oldleaf->parent() && !oldleaf->parent()->RemoveChild(oldleaf)) {
+          return return_with_error(response, ENOENT, "Cannot remove Task "
+                                   "%s:%hu old leaf TC",
+                                   request->class_().leaf_module_name().c_str(),
+                                   tid);
+        }
+        delete oldleaf;
+      }
+
+      c = static_cast<bess::TrafficClass*>(
+          TrafficClassBuilder::CreateTrafficClass<bess::LeafTrafficClass<Task>>(
+              tc_name, Task(m, m->tasks()[tid]->arg(), m->tasks()[tid])));
     } else {
       return return_with_error(response, EINVAL, "Invalid traffic policy");
     }
@@ -634,9 +661,9 @@ class BESSControlImpl final : public BESSControl::Service {
       return return_with_error(response, ENOMEM, "CreateTrafficClass failed");
     }
 
-    bess::TrafficClass* root;
+    bess::TrafficClass* parent;
     if (request->class_().parent().length() == 0) {
-      root = workers[wid]->scheduler()->root();
+      parent = workers[wid]->scheduler()->default_rr_class();
     } else {
       const auto& tcs = TrafficClassBuilder::all_tcs();
       const auto& it = tcs.find(request->class_().parent());
@@ -644,11 +671,11 @@ class BESSControlImpl final : public BESSControl::Service {
         return return_with_error(response, ENOENT, "Parent TC '%s' not found",
                                  tc_name);
       }
-      root = it->second;
+      parent = it->second;
     }
 
     bool fail = false;
-    switch (root->policy()) {
+    switch (parent->policy()) {
       case bess::POLICY_PRIORITY: {
         if (request->class_().arg_case() != bess::pb::TrafficClass::kPriority) {
           return return_with_error(response, EINVAL, "No priority specified");
@@ -658,7 +685,7 @@ class BESSControlImpl final : public BESSControl::Service {
           return return_with_error(response, EINVAL, "Priority %d is reserved",
                                    DEFAULT_PRIORITY);
         }
-        fail = !reinterpret_cast<bess::PriorityTrafficClass*>(root)->AddChild(
+        fail = !static_cast<bess::PriorityTrafficClass*>(parent)->AddChild(
             c, pri);
         break;
       }
@@ -666,21 +693,18 @@ class BESSControlImpl final : public BESSControl::Service {
         if (request->class_().arg_case() != bess::pb::TrafficClass::kShare) {
           return return_with_error(response, EINVAL, "No share specified");
         }
-        fail =
-            !reinterpret_cast<bess::WeightedFairTrafficClass*>(root)->AddChild(
+        fail = !static_cast<bess::WeightedFairTrafficClass*>(parent)->AddChild(
                 c, request->class_().share());
         break;
       case bess::POLICY_ROUND_ROBIN:
-        fail =
-            !reinterpret_cast<bess::RoundRobinTrafficClass*>(root)->AddChild(c);
+        fail = !static_cast<bess::RoundRobinTrafficClass*>(parent)->AddChild(c);
         break;
       case bess::POLICY_RATE_LIMIT:
-        fail =
-            !reinterpret_cast<bess::RateLimitTrafficClass*>(root)->AddChild(c);
+        fail = !static_cast<bess::RateLimitTrafficClass*>(parent)->AddChild(c);
         break;
       default:
         return return_with_error(response, EPERM,
-                                 "Root tc doens't support children");
+                                 "Parent tc doesn't support children");
     }
     if (fail) {
       return return_with_error(response, EINVAL, "AddChild() failed");
@@ -1141,77 +1165,6 @@ class BESSControlImpl final : public BESSControl::Service {
     if (ret < 0)
       return return_with_error(response, -ret, "Disconnection %s:%d failed",
                                m_name, ogate);
-
-    return Status::OK;
-  }
-
-  Status AttachTask(ServerContext*, const AttachTaskRequest* request,
-                    EmptyResponse* response) override {
-    if (is_any_worker_running()) {
-      return return_with_error(response, EBUSY, "There is a running worker");
-    }
-
-    if (!request->name().length()) {
-      return return_with_error(response, EINVAL, "Missing 'name' field");
-    }
-
-    const auto& it = ModuleBuilder::all_modules().find(request->name());
-    if (it == ModuleBuilder::all_modules().end()) {
-      return return_with_error(response, ENOENT, "No module '%s' found",
-                               request->name().c_str());
-    }
-    Module* m = it->second;
-
-    task_id_t tid = request->taskid();
-    if (tid >= MAX_TASKS_PER_MODULE) {
-      return return_with_error(response, EINVAL,
-                               "'taskid' must be between 0 and %d",
-                               MAX_TASKS_PER_MODULE - 1);
-    }
-
-    Task* t;
-    if (tid >= m->tasks().size() || (t = m->tasks()[tid]) == nullptr) {
-      return return_with_error(response, ENOENT, "Task %s:%hu does not exist",
-                               request->name().c_str(), tid);
-    }
-
-    if (request->identifier_case() == bess::pb::AttachTaskRequest::kTc) {
-      const auto& tcs = TrafficClassBuilder::all_tcs();
-      const auto& it2 = tcs.find(request->tc());
-      if (it2 == tcs.end()) {
-        return return_with_error(response, ENOENT, "No TC '%s' found",
-                                 request->tc().c_str());
-      }
-      bess::TrafficClass* c = it2->second;
-      if (c->policy() == bess::POLICY_LEAF) {
-        t->Attach(static_cast<bess::LeafTrafficClass*>(c));
-      } else {
-        return return_with_error(response, EINVAL, "TC must be a leaf class");
-      }
-    } else if (request->identifier_case() ==
-               bess::pb::AttachTaskRequest::kWid) {
-      int wid = request->wid(); /* TODO: worker_id_t */
-      if (wid >= MAX_WORKERS) {
-        return return_with_error(response, EINVAL,
-                                 "'wid' must be between 0 and %d",
-                                 MAX_WORKERS - 1);
-      }
-
-      if (!is_worker_active(wid)) {
-        return return_with_error(response, EINVAL, "Worker %d does not exist",
-                                 wid);
-      }
-
-      bess::LeafTrafficClass* tc =
-          workers[wid]->scheduler()->default_leaf_class();
-      if (!tc) {
-        return return_with_error(response, ENOENT,
-                                 "Worker %d has no default leaf tc", wid);
-      }
-      t->Attach(tc);
-    } else {
-      return return_with_error(response, EINVAL, "Both tc and wid are not set");
-    }
 
     return Status::OK;
   }

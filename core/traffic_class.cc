@@ -98,7 +98,7 @@ void PriorityTrafficClass::BlockTowardsRoot() {
   TrafficClass::BlockTowardsRootSetBlocked(first_runnable_ == num_children);
 }
 
-void PriorityTrafficClass::FinishAndAccountTowardsRoot(Scheduler *sched,
+void PriorityTrafficClass::FinishAndAccountTowardsRoot(SchedThrottledCache *thr,
                                                        TrafficClass *child,
                                                        resource_arr_t usage,
                                                        uint64_t tsc) {
@@ -116,7 +116,7 @@ void PriorityTrafficClass::FinishAndAccountTowardsRoot(Scheduler *sched,
   if (!parent_) {
     return;
   }
-  parent_->FinishAndAccountTowardsRoot(sched, this, usage, tsc);
+  parent_->FinishAndAccountTowardsRoot(thr, this, usage, tsc);
 }
 
 void PriorityTrafficClass::Traverse(TraverseTcFn f, void *arg) const {
@@ -217,10 +217,11 @@ void WeightedFairTrafficClass::BlockTowardsRoot() {
   TrafficClass::BlockTowardsRootSetBlocked(children_.empty());
 }
 
-void WeightedFairTrafficClass::FinishAndAccountTowardsRoot(Scheduler *sched,
-                                                           TrafficClass *child,
-                                                           resource_arr_t usage,
-                                                           uint64_t tsc) {
+void WeightedFairTrafficClass::FinishAndAccountTowardsRoot(
+                                                       SchedThrottledCache *thr,
+                                                       TrafficClass *child,
+                                                       resource_arr_t usage,
+                                                       uint64_t tsc) {
   ACCUMULATE(stats_.usage, usage);
 
   // DCHECK_EQ(item.c_, child) << "Child that we picked should be at the front
@@ -240,7 +241,7 @@ void WeightedFairTrafficClass::FinishAndAccountTowardsRoot(Scheduler *sched,
   if (!parent_) {
     return;
   }
-  parent_->FinishAndAccountTowardsRoot(sched, this, usage, tsc);
+  parent_->FinishAndAccountTowardsRoot(thr, this, usage, tsc);
 }
 
 void WeightedFairTrafficClass::Traverse(TraverseTcFn f, void *arg) const {
@@ -350,10 +351,11 @@ void RoundRobinTrafficClass::BlockTowardsRoot() {
   TrafficClass::BlockTowardsRootSetBlocked(children_.empty());
 }
 
-void RoundRobinTrafficClass::FinishAndAccountTowardsRoot(Scheduler *sched,
-                                                         TrafficClass *child,
-                                                         resource_arr_t usage,
-                                                         uint64_t tsc) {
+void RoundRobinTrafficClass::FinishAndAccountTowardsRoot(
+                                                     SchedThrottledCache *thr,
+                                                     TrafficClass *child,
+                                                     resource_arr_t usage,
+                                                     uint64_t tsc) {
   ACCUMULATE(stats_.usage, usage);
   if (child->blocked_) {
     children_.erase(children_.begin() + next_child_);
@@ -371,7 +373,7 @@ void RoundRobinTrafficClass::FinishAndAccountTowardsRoot(Scheduler *sched,
   if (!parent_) {
     return;
   }
-  parent_->FinishAndAccountTowardsRoot(sched, this, usage, tsc);
+  parent_->FinishAndAccountTowardsRoot(thr, this, usage, tsc);
 }
 
 void RoundRobinTrafficClass::Traverse(TraverseTcFn f, void *arg) const {
@@ -434,10 +436,11 @@ void RateLimitTrafficClass::BlockTowardsRoot() {
   TrafficClass::BlockTowardsRootSetBlocked(blocked);
 }
 
-void RateLimitTrafficClass::FinishAndAccountTowardsRoot(Scheduler *sched,
-                                                        TrafficClass *child,
-                                                        resource_arr_t usage,
-                                                        uint64_t tsc) {
+void RateLimitTrafficClass::FinishAndAccountTowardsRoot(
+                                                    SchedThrottledCache *thr,
+                                                    TrafficClass *child,
+                                                    resource_arr_t usage,
+                                                    uint64_t tsc) {
   ACCUMULATE(stats_.usage, usage);
   uint64_t elapsed_cycles = tsc - last_tsc_;
   last_tsc_ = tsc;
@@ -452,7 +455,7 @@ void RateLimitTrafficClass::FinishAndAccountTowardsRoot(Scheduler *sched,
 
     uint64_t wait_tsc = (consumed - tokens) / limit_;
     throttle_expiration_ = tsc + wait_tsc;
-    sched->AddThrottled(this);
+    thr->AddThrottled(this);
   } else {
     // Still has some tokens, unthrottled.
     tokens_ = std::min(tokens - consumed, max_burst_);
@@ -465,7 +468,7 @@ void RateLimitTrafficClass::FinishAndAccountTowardsRoot(Scheduler *sched,
   if (!parent_) {
     return;
   }
-  parent_->FinishAndAccountTowardsRoot(sched, this, usage, tsc);
+  parent_->FinishAndAccountTowardsRoot(thr, this, usage, tsc);
 }
 
 void RateLimitTrafficClass::Traverse(TraverseTcFn f, void *arg) const {
@@ -475,49 +478,9 @@ void RateLimitTrafficClass::Traverse(TraverseTcFn f, void *arg) const {
   }
 }
 
-LeafTrafficClass::~LeafTrafficClass() {
-  // TODO(barath): Determin whether tasks should be deleted here or elsewhere.
-  TrafficClassBuilder::Clear(this);
-}
-
-void LeafTrafficClass::AddTask(Task *t) {
-  tasks_.push_back(t);
-
-  UnblockTowardsRoot(rdtsc());
-}
-
-bool LeafTrafficClass::RemoveTask(Task *t) {
-  // TODO(barath): When removing a task, consider whether that makes tasks_
-  // empty, and if so, causing this leaf to block (and recurse up the tree.
-  auto it = std::find(tasks_.begin(), tasks_.end(), t);
-  if (it != tasks_.end()) {
-    tasks_.erase(it);
-    // Avoid out-of-bounds access in RunTasks()
-    task_index_ = 0;
-    return true;
-  }
-  return false;
-}
-
-TrafficClass *LeafTrafficClass::PickNextChild() {
-  return nullptr;
-}
-
 std::unordered_map<std::string, TrafficClass *> TrafficClassBuilder::all_tcs_;
 
 bool TrafficClassBuilder::ClearAll() {
-  for (const auto &it : all_tcs_) {
-    TrafficClass *c = it.second;
-
-    if (c->policy_ == POLICY_LEAF) {
-      LeafTrafficClass *l = static_cast<LeafTrafficClass *>(c);
-      for (const auto *task : l->tasks_) {
-        delete task;  // XXX: module writer responsible for freeing task->arg_?
-      }
-      l->tasks_.clear();
-    }
-  }
-
   all_tcs_.clear();
   return true;
 }
