@@ -10,6 +10,7 @@
 
 #include "gate.h"
 #include "pktbatch.h"
+#include "task.h"
 #include "traffic_class.h"
 #include "utils/common.h"
 
@@ -42,6 +43,7 @@ typedef enum {
 } worker_status_t;
 
 namespace bess {
+template <typename CallableTask>
 class Scheduler;
 }  // namespace bess
 
@@ -49,7 +51,7 @@ class Worker {
  public:
   static const bess::TrafficPolicy kDefaultRootPolicy;
   static const char *kRootClassNamePrefix;
-  static const char *kDefaultLeafClassNamePrefix;
+  static const char *kDefaultRRClassNamePrefix;
 
   /* ----------------------------------------------------------------------
    * functions below are invoked by non-worker threads (the master)
@@ -79,7 +81,7 @@ class Worker {
     return pframe_pool_;
   }
 
-  bess::Scheduler *scheduler() { return scheduler_; }
+  bess::Scheduler<Task> *scheduler() { return scheduler_; }
 
   uint64_t silent_drops() { return silent_drops_; }
   void set_silent_drops(uint64_t drops) { silent_drops_ = drops; }
@@ -107,7 +109,7 @@ class Worker {
 
   struct rte_mempool *pframe_pool_;
 
-  bess::Scheduler *scheduler_;
+  bess::Scheduler<Task> *scheduler_;
 
   uint64_t silent_drops_; /* packets that have been sent to a deadend */
 

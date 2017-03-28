@@ -51,12 +51,15 @@ struct tc_stats {
   uint64_t cnt_throttled;
 };
 
+template <typename CallableTask>
 class Scheduler;
+class SchedThrottledCache;
 class TrafficClassBuilder;
 class PriorityTrafficClass;
 class WeightedFairTrafficClass;
 class RoundRobinTrafficClass;
 class RateLimitTrafficClass;
+template <typename CallableTask>
 class LeafTrafficClass;
 class TrafficClass;
 
@@ -145,7 +148,7 @@ class TrafficClass {
   // after execution and finishes any data structure reorganization required
   // after execution has finished.  The scheduler is the scheduler that owns
   // these classes.
-  virtual void FinishAndAccountTowardsRoot(Scheduler *sched,
+  virtual void FinishAndAccountTowardsRoot(SchedThrottledCache *thr,
                                            TrafficClass *child,
                                            resource_arr_t usage,
                                            uint64_t tsc) = 0;
@@ -165,10 +168,12 @@ class TrafficClass {
   friend WeightedFairTrafficClass;
   friend RoundRobinTrafficClass;
   friend RateLimitTrafficClass;
-  friend LeafTrafficClass;
+  template <typename CallableTask>
+  friend class LeafTrafficClass;
 
-  TrafficClass(const std::string &name, const TrafficPolicy &policy)
-      : parent_(), name_(name), stats_(), blocked_(true), policy_(policy) {}
+  TrafficClass(const std::string &name, const TrafficPolicy &policy,
+               bool blocked = true)
+      : parent_(), name_(name), stats_(), blocked_(blocked), policy_(policy) {}
 
   // Sets blocked status to nowblocked and recurses towards root by signaling
   // the parent if status became unblocked.
@@ -217,8 +222,8 @@ class TrafficClass {
   struct tc_stats stats_;
 
  private:
-  friend Scheduler;
-  friend TrafficClassBuilder;
+  template <typename CallableTask>
+  friend class Scheduler;
 
   bool blocked_;
 
@@ -255,16 +260,15 @@ class PriorityTrafficClass final : public TrafficClass {
   void UnblockTowardsRoot(uint64_t tsc) override;
   void BlockTowardsRoot() override;
 
-  void FinishAndAccountTowardsRoot(Scheduler *sched, TrafficClass *child,
-                                   resource_arr_t usage, uint64_t tsc) override;
+  void FinishAndAccountTowardsRoot(SchedThrottledCache *thr,
+                                   TrafficClass *child, resource_arr_t usage,
+                                   uint64_t tsc) override;
 
   const std::vector<ChildData> &children() const { return children_; }
 
   void Traverse(TraverseTcFn f, void *arg) const override;
 
  private:
-  friend Scheduler;
-
   size_t
       first_runnable_;  // Index of first member of children_ that is runnable.
   std::vector<ChildData> children_;
@@ -304,8 +308,9 @@ class WeightedFairTrafficClass final : public TrafficClass {
   void UnblockTowardsRoot(uint64_t tsc) override;
   void BlockTowardsRoot() override;
 
-  void FinishAndAccountTowardsRoot(Scheduler *sched, TrafficClass *child,
-                                   resource_arr_t usage, uint64_t tsc) override;
+  void FinishAndAccountTowardsRoot(SchedThrottledCache *thr,
+                                   TrafficClass *child, resource_arr_t usage,
+                                   uint64_t tsc) override;
 
   resource_t resource() const { return resource_; }
 
@@ -320,8 +325,6 @@ class WeightedFairTrafficClass final : public TrafficClass {
   void Traverse(TraverseTcFn f, void *arg) const override;
 
  private:
-  friend Scheduler;
-
   // The resource that we are sharing.
   resource_t resource_;
 
@@ -350,8 +353,9 @@ class RoundRobinTrafficClass final : public TrafficClass {
   void UnblockTowardsRoot(uint64_t tsc) override;
   void BlockTowardsRoot() override;
 
-  void FinishAndAccountTowardsRoot(Scheduler *sched, TrafficClass *child,
-                                   resource_arr_t usage, uint64_t tsc) override;
+  void FinishAndAccountTowardsRoot(SchedThrottledCache *thr,
+                                   TrafficClass *child, resource_arr_t usage,
+                                   uint64_t tsc) override;
 
   const std::vector<TrafficClass *> &children() const { return children_; }
 
@@ -362,8 +366,6 @@ class RoundRobinTrafficClass final : public TrafficClass {
   void Traverse(TraverseTcFn f, void *arg) const override;
 
  private:
-  friend Scheduler;
-
   size_t next_child_;
   std::vector<TrafficClass *> children_;
   std::list<TrafficClass *> blocked_children_;
@@ -409,8 +411,9 @@ class RateLimitTrafficClass final : public TrafficClass {
   void UnblockTowardsRoot(uint64_t tsc) override;
   void BlockTowardsRoot() override;
 
-  void FinishAndAccountTowardsRoot(Scheduler *sched, TrafficClass *child,
-                                   resource_arr_t usage, uint64_t tsc) override;
+  void FinishAndAccountTowardsRoot(SchedThrottledCache *thr,
+                                   TrafficClass *child, resource_arr_t usage,
+                                   uint64_t tsc) override;
 
   resource_t resource() const { return resource_; }
 
@@ -450,7 +453,8 @@ class RateLimitTrafficClass final : public TrafficClass {
   }
 
  private:
-  friend Scheduler;
+  template <typename CallableTask>
+  friend class Scheduler;
 
   // The resource that we are limiting.
   resource_t resource_;
@@ -476,77 +480,47 @@ class RateLimitTrafficClass final : public TrafficClass {
   TrafficClass *child_;
 };
 
+template <typename CallableTask>
 class LeafTrafficClass final : public TrafficClass {
  public:
-  explicit LeafTrafficClass(const std::string &name)
-      : TrafficClass(name, POLICY_LEAF), task_index_(), tasks_() {}
+  explicit LeafTrafficClass(const std::string &name,
+                            const CallableTask &task)
+      : TrafficClass(name, POLICY_LEAF, false), task_(task) {
+  }
 
-  ~LeafTrafficClass();
-
-  // Direct access to the tasks vector, for testing only.
-  std::vector<Task *> &tasks() { return tasks_; }
-
-  // Regular accessor for everyone else
-  const std::vector<Task *> &tasks() const { return tasks_; }
+  ~LeafTrafficClass() override;
 
   // Returns true if child was removed successfully.
   bool RemoveChild(TrafficClass *) override {
     return false;
   };
 
-  // Executes tasks for a leaf TrafficClass.
-  inline struct task_result RunTasks() {
-    size_t start = task_index_;
-    while (task_index_ < tasks_.size()) {
-      struct task_result ret = tasks_[task_index_++]->Scheduled();
-      if (ret.packets) {
-        return ret;
-      }
-    }
-
-    // Slight code duplication in order to avoid a loop with a mod operation.
-    task_index_ = 0;
-    while (task_index_ < start) {
-      struct task_result ret = tasks_[task_index_++]->Scheduled();
-      if (ret.packets) {
-        return ret;
-      }
-    }
-
-    return (struct task_result){.packets = 0, .bits = 0};
-  }
-
-  void AddTask(Task *t);
-
-  // Removes the task from this class; returns true upon success.
-  bool RemoveTask(Task *t);
-
-  TrafficClass *PickNextChild() override;
+  TrafficClass *PickNextChild() override {
+    return nullptr;
+  };
 
   void BlockTowardsRoot() override {
-    TrafficClass::BlockTowardsRootSetBlocked(tasks_.empty());
+    TrafficClass::BlockTowardsRootSetBlocked(false);
   }
 
   void UnblockTowardsRoot(uint64_t tsc) override {
-    TrafficClass::UnblockTowardsRootSetBlocked(tsc, tasks_.empty());
+    TrafficClass::UnblockTowardsRootSetBlocked(tsc, false);
   }
 
-  void FinishAndAccountTowardsRoot(Scheduler *sched,
+  CallableTask &Task() {
+    return task_;
+  }
+
+  void FinishAndAccountTowardsRoot(SchedThrottledCache *thr,
                                    [[maybe_unused]] TrafficClass *child,
                                    resource_arr_t usage,
                                    uint64_t tsc) override {
     ACCUMULATE(stats_.usage, usage);
-    parent_->FinishAndAccountTowardsRoot(sched, this, usage, tsc);
+    parent_->FinishAndAccountTowardsRoot(thr, this, usage, tsc);
   }
 
  private:
-  friend Scheduler;
-  friend TrafficClassBuilder;
-
-  // The tasks of this class.  Always empty if this is a non-leaf class.
-  // task_index_ keeps track of the next task to run.
-  size_t task_index_;
-  std::vector<Task *> tasks_;
+  CallableTask task_;
 };
 
 // Responsible for creating and destroying all traffic classes.
@@ -601,8 +575,10 @@ class TrafficClassBuilder {
     TrafficClass *c;
   };
 
+  template <typename CallableTask>
   struct LeafArgs {
     LeafFakeType dummy;
+    CallableTask task;
   };
 
   // These CreateTree(...) functions enable brace-initialized construction of a
@@ -648,7 +624,8 @@ class TrafficClassBuilder {
 
   static TrafficClass *CreateTree(const std::string &name,
                                   [[maybe_unused]] RoundRobinArgs args,
-                                  std::vector<RoundRobinChildArgs> children) {
+                                  std::vector<RoundRobinChildArgs> children
+                                      = std::vector<RoundRobinChildArgs>()) {
     RoundRobinTrafficClass *p =
         CreateTrafficClass<RoundRobinTrafficClass>(name);
     for (auto &c : children) {
@@ -665,9 +642,10 @@ class TrafficClassBuilder {
     return p;
   }
 
+  template <typename CallableTask>
   static TrafficClass *CreateTree(const std::string &name,
-                                  [[maybe_unused]] LeafArgs args) {
-    return CreateTrafficClass<LeafTrafficClass>(name);
+                                  LeafArgs<CallableTask> args) {
+    return CreateTrafficClass<LeafTrafficClass<CallableTask>>(name, args.task);
   }
 
   // Attempts to clear knowledge of all classes.  Returns true upon success.
@@ -695,6 +673,11 @@ class TrafficClassBuilder {
   // A collection of all TCs in the system, mapped from their textual name.
   static std::unordered_map<std::string, TrafficClass *> all_tcs_;
 };
+
+template <typename CallableTask>
+inline LeafTrafficClass<CallableTask>::~LeafTrafficClass() {
+  TrafficClassBuilder::Clear(this);
+}
 
 }  // namespace bess
 

@@ -13,13 +13,8 @@ src::Source() \
         -> VLANPush(tci=2) \
         -> Sink()
 
-bess.add_tc('rr', policy='round_robin', priority=0)
+bess.add_tc('fast', policy='rate_limit', resource='packet', limit={'packet': 9000000})
+bess.add_tc('fast_leaf', policy='leaf', parent='fast', leaf_module_name=src.name)
 
-bess.add_tc('fast', policy='rate_limit', resource='packet', limit={'packet': 9000000}, parent='rr')
-bess.add_tc('fast_leaf', policy='leaf', parent='fast')
-
-bess.add_tc('slow', policy='rate_limit', resource='packet', limit={'packet': 1000000}, parent='rr')
-bess.add_tc('slow_leaf', policy='leaf', parent='slow')
-
-bess.attach_task(src.name, tc='fast_leaf')
-bess.attach_task(queue.name, tc='slow_leaf')
+bess.add_tc('slow', policy='rate_limit', resource='packet', limit={'packet': 1000000})
+bess.add_tc('slow_leaf', policy='leaf', parent='slow', leaf_module_name=queue.name)

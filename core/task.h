@@ -3,14 +3,13 @@
 
 #include <cstdint>
 
-#include "gate.h"
-
 typedef uint16_t task_id_t;
 
 class Module;
 
 namespace bess {
-class LeafTrafficClass;
+  template <typename CallableTask>
+  class LeafTrafficClass;
 }  // namespace bess
 
 struct task_result {
@@ -20,22 +19,36 @@ struct task_result {
 
 class Task {
  public:
-  Task(Module *m, void *arg, bess::LeafTrafficClass *c);
+  Task(Module *m, void *arg) : module_(m), arg_(arg) {};
 
-  virtual ~Task();
-
-  struct task_result Scheduled();
-
-  void Attach(bess::LeafTrafficClass *c);
-
-  inline const Module *m() const { return m_; }
-
-  inline const bess::LeafTrafficClass *c() const { return c_; }
+  virtual ~Task() {};
+  
+  struct task_result operator()();
 
  private:
-  Module *m_;
+  void DestroyTC();
+
+  Module *module_;
   void *arg_;
-  bess::LeafTrafficClass *c_;
+};
+
+class ModuleTask : public Task {
+ public:
+  ModuleTask(Task t, bess::LeafTrafficClass<Task> *c)
+      : Task(t), c_(c) {};
+
+  ~ModuleTask() {};
+
+  void SetTC(bess::LeafTrafficClass<Task> *c) {
+    c_ = c;
+  }
+
+  bess::LeafTrafficClass<Task> *GetTC() {
+    return c_;
+  }
+
+ private:
+  bess::LeafTrafficClass<Task> *c_;
 };
 
 #endif  // BESS_TASK_H_

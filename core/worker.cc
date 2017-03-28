@@ -17,6 +17,7 @@
 #include "packet.h"
 #include "scheduler.h"
 #include "task.h"
+#include "task-impl.h"
 #include "utils/time.h"
 
 using bess::Scheduler;
@@ -34,7 +35,7 @@ using bess::RateLimitTrafficClass;
 using bess::LeafTrafficClass;
 
 const char *Worker::kRootClassNamePrefix = "root_";
-const char *Worker::kDefaultLeafClassNamePrefix = "defaultleaf_";
+const char *Worker::kDefaultRRClassNamePrefix = "defaultrr_";
 
 // See worker.h
 __thread Worker ctx;
@@ -214,16 +215,16 @@ void *Worker::Run(void *_arg) {
   fd_event_ = eventfd(0, 0);
   DCHECK_GE(fd_event_, 0);
 
-  // By default create a root node of default policy with a single leaf.
+  // By default create a root node of default policy with a round robin tc.
   std::string root_name = kRootClassNamePrefix + std::to_string(wid_);
-  std::string leaf_name = kDefaultLeafClassNamePrefix + std::to_string(wid_);
+  std::string rr_name = kDefaultRRClassNamePrefix + std::to_string(wid_);
   const bess::priority_t kDefaultPriority = 10;
   PriorityTrafficClass *root =
       TrafficClassBuilder::CreateTrafficClass<PriorityTrafficClass>(root_name);
-  LeafTrafficClass *leaf =
-      TrafficClassBuilder::CreateTrafficClass<LeafTrafficClass>(leaf_name);
-  root->AddChild(leaf, kDefaultPriority);
-  scheduler_ = new Scheduler(root, leaf_name);
+  RoundRobinTrafficClass *rr =
+      TrafficClassBuilder::CreateTrafficClass<RoundRobinTrafficClass>(rr_name);
+  root->AddChild(rr, kDefaultPriority);
+  scheduler_ = new Scheduler<Task>(root, rr_name);
 
   current_tsc_ = rdtsc();
 
