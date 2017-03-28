@@ -235,6 +235,16 @@ pb_error_t PMDPort::Init(const bess::pb::PMDPortArg &arg) {
   }
   rte_eth_promiscuous_enable(ret_port_id);
 
+  for (i = 0; i < num_txq; i++) {
+    int sid = 0; /* XXX */
+
+    ret = rte_eth_tx_queue_setup(ret_port_id, i, queue_size[PACKET_DIR_OUT],
+                                 sid, &eth_txconf);
+    if (ret != 0) {
+      return pb_error(-ret, "rte_eth_tx_queue_setup() failed");
+    }
+  }
+
   for (i = 0; i < num_rxq; i++) {
     int sid = rte_eth_dev_socket_id(ret_port_id);
 
@@ -248,16 +258,6 @@ pb_error_t PMDPort::Init(const bess::pb::PMDPortArg &arg) {
                                &eth_rxconf, bess::get_pframe_pool_socket(sid));
     if (ret != 0) {
       return pb_error(-ret, "rte_eth_rx_queue_setup() failed");
-    }
-  }
-
-  for (i = 0; i < num_txq; i++) {
-    int sid = 0; /* XXX */
-
-    ret = rte_eth_tx_queue_setup(ret_port_id, i, queue_size[PACKET_DIR_OUT],
-                                 sid, &eth_txconf);
-    if (ret != 0) {
-      return pb_error(-ret, "rte_eth_tx_queue_setup() failed");
     }
   }
 
