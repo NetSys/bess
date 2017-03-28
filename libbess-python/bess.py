@@ -345,30 +345,15 @@ class BESS(object):
         request.wid = wid
         return self._request('DestroyWorker', request)
 
-    def attach_task(self, m, tid=0, tc=None, wid=None):
-        if (tc is None) == (wid is None):
-            raise self.APIError('You should specify either "tc" or "wid"'
-                                ', but not both')
-
-        request = bess_msg.AttachTaskRequest()
-        request.name = m
-        request.taskid = tid
-
-        if tc is not None:
-            request.tc = tc
-        else:
-            request.wid = wid
-
-        return self._request('AttachTask', request)
-
     def list_tcs(self, wid=-1):
         request = bess_msg.ListTcsRequest()
         request.wid = wid
 
         return self._request('ListTcs', request)
 
-    def add_tc(self, name, wid=0, parent='', policy='priority', resource=None,
-               priority=None, share=None, limit=None, max_burst=None):
+    def add_tc(self, name, policy, wid=-1, parent='', resource=None,
+               priority=None, share=None, limit=None, max_burst=None,
+               leaf_module_name=None, leaf_module_taskid=None):
         request = bess_msg.AddTcRequest()
         class_ = getattr(request, 'class')
         class_.parent = parent
@@ -392,14 +377,22 @@ class BESS(object):
         if max_burst:
             for k in max_burst:
                 class_.max_burst[k] = max_burst[k]
+        if leaf_module_name is not None:
+            class_.leaf_module_name = leaf_module_name
+        if leaf_module_taskid is not None:
+            class_.leaf_module_taskid = leaf_module_taskid
 
         return self._request('AddTc', request)
 
-    def update_tc(self, name, resource=None, limit=None, max_burst=None):
-        request = bess_msg.UpdateTcRequest()
+    def update_tc_param(self, name, resource=None, limit=None, max_burst=None,
+                        leaf_module_name=None, leaf_module_taskid=0):
+        request = bess_msg.UpdateTcParamRequest()
         class_ = getattr(request, 'class')
         class_.name = name
-        class_.resource = resource
+        if resource is not None:
+            class_.resource = resource
+        class_.parent = parent
+        class_.wid = wid
 
         if limit:
             for k in limit:
@@ -409,7 +402,23 @@ class BESS(object):
             for k in max_burst:
                 class_.max_burst[k] = max_burst[k]
 
-        return self._request('UpdateTc', request)
+        if leaf_module_name is not None:
+            class_.leaf_module_name = leaf_module_name
+        if leaf_module_taskid is not None:
+            class_.leaf_module_taskid = leaf_module_taskid
+
+        return self._request('UpdateTcParam', request)
+
+    def attach_module(self, module_name, parent='', wid=-1,
+                      module_taskid=0):
+        request = bess_msg.UpdateTcParentRequest()
+        class_ = getattr(request, 'class')
+        class_.leaf_module_name = module_name
+        class_.leaf_module_taskid = module_taskid
+        class_.parent = parent
+        class_.wid = wid
+
+        return self._request('UpdateTcParent', request)
 
     def get_tc_stats(self, name):
         request = bess_msg.GetTcStatsRequest()

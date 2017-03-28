@@ -57,7 +57,7 @@ message DestroyWorkerRequest {
 }
 
 message TrafficClass {
-  string parent = 1;    /// Name of paraent TC
+  string parent = 1;    /// Name of parent TC
   string name = 2;      /// Name of TC
   bool blocked = 3;     /// Is it running or ready to run at the moment?
 
@@ -81,7 +81,9 @@ message TrafficClass {
     int64 share = 7;
   }
 
-  int64 wid = 8;  /// Worker ID that this TC belongs to
+  /// Worker ID that this TC belongs to. If -1, the TC will be assigned
+  /// to an arbitrary worker.
+  int64 wid = 8;
 
   //  FIXME: If one can specify limit for only one resource type per TC,
   //         these two fields shouldn't be a map.
@@ -92,10 +94,14 @@ message TrafficClass {
   /// Burst allowance of resource limit, in cycles, packets, bits, ...
   /// If set to 0, no extra tokens will be saved.
   map<string, int64> max_burst = 10;
+
+  /// Only for "leaf": the task executed by this class.
+  string leaf_module_name = 11;
+  uint64 leaf_module_taskid = 12;
 }
 
 message ListTcsRequest {
-  /// Specify a worker thrread to fetch traffic claees.
+  /// Specify a worker thread to fetch traffic classes.
   /// To include all traffic classes on every worker, specify -1.
   int64 wid = 1;
 }
@@ -104,7 +110,6 @@ message ListTcsResponse {
   message TrafficClassStatus {
     TrafficClass class = 1;
     string parent = 2;  /// Name of its parent TC
-    int64 tasks = 3;    /// How many tasks belong to this TC?
   }
   Error error = 1;
   repeated TrafficClassStatus classes_status = 2;
@@ -114,7 +119,11 @@ message AddTcRequest {
   TrafficClass class = 1;
 }
 
-message UpdateTcRequest {
+message UpdateTcParamsRequest {
+  TrafficClass class = 1;
+}
+
+message UpdateTcParentRequest {
   TrafficClass class = 1;
 }
 
@@ -132,15 +141,6 @@ message GetTcStatsResponse {
   uint64 cycles = 4;   /// CPU cycles
   uint64 packets = 5;  /// # of packets
   uint64 bits = 6;     /// # of bits
-}
-
-message AttachTaskRequest {
-  string name = 1;    /// Name of module
-  uint64 taskid = 2;  /// Task ID, starting from 0
-  oneof identifier {
-    string tc = 3;    /// Name of TC to bind
-    uint64 wid = 4;   /// Worker ID, starting from 0
-  }
 }
 
 message ListDriversResponse {

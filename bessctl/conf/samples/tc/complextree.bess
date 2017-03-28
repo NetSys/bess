@@ -1,0 +1,44 @@
+# Check out "show tc" and "monitor tc" commands
+
+bess.add_tc('main',
+            policy='priority')
+
+bess.add_tc('rl',
+            policy='rate_limit',
+            parent = 'main',
+            priority=5,
+            resource='bit',
+            limit={'bit': 40000000})
+bess.add_tc('rest',
+            policy='round_robin',
+            parent = 'main',
+            priority=100)
+
+bess.add_tc('1',
+            parent = 'rest',
+            policy='weighted_fair',
+            resource='bit')
+bess.add_tc('2',
+            parent = 'rest',
+            policy='round_robin')
+
+bess.add_tc('11',
+            parent = '1',
+            policy='round_robin',
+            share=5)
+bess.add_tc('12',
+            parent = '1',
+            policy='round_robin',
+            share=6)
+
+bess.resume_all()
+bess.pause_all()
+
+src0::Source() -> Sink()
+
+bess.resume_all()
+bess.pause_all()
+
+bess.attach_module(src0.name, 'rl')
+
+bess.resume_all()

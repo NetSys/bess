@@ -73,17 +73,14 @@ def fairness_test():
             measure_out.append(Measure())
             exm:i -> measure_out[i-1] -> snk
 
-        bess.add_tc('rr', policy='round_robin', priority=0)
         for i in range(0, n):
-            bess.add_tc('r'+ str(i) , policy='rate_limit', resource='packet', \
-                    limit={'packet': rates[i]}, parent='rr')
-            bess.add_tc(str(i) + '_leaf', policy='leaf', parent='r'+ str(i))
-            bess.attach_task(src[i].name, tc= str(i) + '_leaf')
-        
-        bess.add_tc('output', policy='rate_limit', resource='packet', \
-                limit={'packet': module_rate}, parent='rr')
-        bess.add_tc('output_leaf', policy='leaf', parent='output')
-        bess.attach_task(q.name, tc= "output_leaf")
+            bess.add_tc('r'+ str(i) , policy='rate_limit', resource='packet',
+                    limit={'packet': rates[i]})
+            bess.attach_module(src[i].name, 'r'+ str(i))
+
+        bess.add_tc('output', policy='rate_limit', resource='packet',
+                limit={'packet': module_rate})
+        bess.attach_module(q.name, 'output')
 
         bess.resume_all()
         time.sleep(5)

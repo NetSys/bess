@@ -10,6 +10,7 @@
 
 #include "gate.h"
 #include "pktbatch.h"
+#include "task.h"
 #include "traffic_class.h"
 #include "utils/common.h"
 
@@ -42,15 +43,12 @@ typedef enum {
 } worker_status_t;
 
 namespace bess {
+template <typename CallableTask>
 class Scheduler;
 }  // namespace bess
 
 class Worker {
  public:
-  static const bess::TrafficPolicy kDefaultRootPolicy;
-  static const char *kRootClassNamePrefix;
-  static const char *kDefaultLeafClassNamePrefix;
-
   /* ----------------------------------------------------------------------
    * functions below are invoked by non-worker threads (the master)
    * ---------------------------------------------------------------------- */
@@ -79,7 +77,7 @@ class Worker {
     return pframe_pool_;
   }
 
-  bess::Scheduler *scheduler() { return scheduler_; }
+  bess::Scheduler<Task> *scheduler() { return scheduler_; }
 
   uint64_t silent_drops() { return silent_drops_; }
   void set_silent_drops(uint64_t drops) { silent_drops_ = drops; }
@@ -107,7 +105,7 @@ class Worker {
 
   struct rte_mempool *pframe_pool_;
 
-  bess::Scheduler *scheduler_;
+  bess::Scheduler<Task> *scheduler_;
 
   uint64_t silent_drops_; /* packets that have been sent to a deadend */
 
@@ -165,5 +163,9 @@ static inline int is_worker_running(int wid) {
 void launch_worker(int wid, int core);
 
 Worker *get_next_active_worker();
+
+void add_tc_to_orphan(bess::TrafficClass *c, int wid);
+bool remove_tc_from_orphan(bess::TrafficClass *c);
+bool detach_tc(bess::TrafficClass *c);
 
 #endif  // BESS_WORKER_H_

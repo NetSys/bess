@@ -978,9 +978,6 @@ def _build_tcs_tree(tcs):
                     c_.HasField("priority")):
                 nodes[c_.name]["show_list"].append("priority: %d" % c_.priority)
 
-        if c_.policy == "leaf":
-            nodes[c_.name]["show_list"].append("tasks: %d" % tc.tasks)
-
         if c_.policy == "rate_limit":
             nodes[c_.name]["show_list"].append(_limit_to_str(c_.limit))
 

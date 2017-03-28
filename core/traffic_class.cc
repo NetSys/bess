@@ -13,13 +13,11 @@
 
 namespace bess {
 
-size_t TrafficClass::Size() const {
+size_t TrafficClass::Size() {
   size_t ret = 0;
-  Traverse(
-      []([[maybe_unused]] const bess::TrafficClass* c, void* arg) {
-        *reinterpret_cast<size_t*>(arg) += 1;
-      },
-      static_cast<void*>(&ret));
+  Traverse([&ret](bess::TCChildArgs *) {
+        ret += 1;
+      });
   return ret;
 }
 
@@ -98,7 +96,7 @@ void PriorityTrafficClass::BlockTowardsRoot() {
   TrafficClass::BlockTowardsRootSetBlocked(first_runnable_ == num_children);
 }
 
-void PriorityTrafficClass::FinishAndAccountTowardsRoot(Scheduler *sched,
+void PriorityTrafficClass::FinishAndAccountTowardsRoot(SchedThrottledCache *thr,
                                                        TrafficClass *child,
                                                        resource_arr_t usage,
                                                        uint64_t tsc) {
@@ -116,13 +114,14 @@ void PriorityTrafficClass::FinishAndAccountTowardsRoot(Scheduler *sched,
   if (!parent_) {
     return;
   }
-  parent_->FinishAndAccountTowardsRoot(sched, this, usage, tsc);
+  parent_->FinishAndAccountTowardsRoot(thr, this, usage, tsc);
 }
 
-void PriorityTrafficClass::Traverse(TraverseTcFn f, void *arg) const {
-  f(this, arg);
+void PriorityTrafficClass::TraverseChildren(
+    std::function<void(TCChildArgs *)> f) const {
   for (const auto &child : children_) {
-    child.c_->Traverse(f, arg);
+    PriorityChildArgs args (child.priority_,child.c_);
+    f(&args);
   }
 }
 
@@ -148,6 +147,10 @@ bool WeightedFairTrafficClass::AddChild(TrafficClass *child,
     pass = children_.top().pass_;
   }
 
+  if (!share) {
+    return false;
+  }
+
   child->parent_ = this;
   WeightedFairTrafficClass::ChildData child_data{STRIDE1 / share, pass, child};
   if (child->blocked_) {
@@ -157,12 +160,22 @@ bool WeightedFairTrafficClass::AddChild(TrafficClass *child,
     UnblockTowardsRoot(rdtsc());
   }
 
+  all_children_.emplace_back(child, share);
+
   return true;
 }
 
 bool WeightedFairTrafficClass::RemoveChild(TrafficClass *child) {
   if (child->parent_ != this) {
     return false;
+  }
+
+  for (auto it = all_children_.begin();
+       it != all_children_.end(); it++) {
+    if (it->first == child) {
+      all_children_.erase(it);
+      break;
+    }
   }
 
   for (auto it = blocked_children_.begin();
@@ -217,10 +230,11 @@ void WeightedFairTrafficClass::BlockTowardsRoot() {
   TrafficClass::BlockTowardsRootSetBlocked(children_.empty());
 }
 
-void WeightedFairTrafficClass::FinishAndAccountTowardsRoot(Scheduler *sched,
-                                                           TrafficClass *child,
-                                                           resource_arr_t usage,
-                                                           uint64_t tsc) {
+void WeightedFairTrafficClass::FinishAndAccountTowardsRoot(
+                                                       SchedThrottledCache *thr,
+                                                       TrafficClass *child,
+                                                       resource_arr_t usage,
+                                                       uint64_t tsc) {
   ACCUMULATE(stats_.usage, usage);
 
   // DCHECK_EQ(item.c_, child) << "Child that we picked should be at the front
@@ -240,16 +254,14 @@ void WeightedFairTrafficClass::FinishAndAccountTowardsRoot(Scheduler *sched,
   if (!parent_) {
     return;
   }
-  parent_->FinishAndAccountTowardsRoot(sched, this, usage, tsc);
+  parent_->FinishAndAccountTowardsRoot(thr, this, usage, tsc);
 }
 
-void WeightedFairTrafficClass::Traverse(TraverseTcFn f, void *arg) const {
-  f(this, arg);
-  for (const auto &child : children_.container()) {
-    child.c_->Traverse(f, arg);
-  }
-  for (const auto &child : blocked_children_) {
-    child.c_->Traverse(f, arg);
+void WeightedFairTrafficClass::TraverseChildren(
+    std::function<void(TCChildArgs *)> f) const {
+  for (const auto &child : all_children_) {
+    WeightedFairChildArgs args (child.second, child.first);
+    f(&args);
   }
 }
 
@@ -277,12 +289,22 @@ bool RoundRobinTrafficClass::AddChild(TrafficClass *child) {
 
   UnblockTowardsRoot(rdtsc());
 
+  all_children_.push_back(child);
+
   return true;
 }
 
 bool RoundRobinTrafficClass::RemoveChild(TrafficClass *child) {
   if (child->parent_ != this) {
     return false;
+  }
+
+  for (auto it = all_children_.begin();
+       it != all_children_.end(); it++) {
+    if (*it == child) {
+      all_children_.erase(it);
+      break;
+    }
   }
 
   for (auto it = blocked_children_.begin();
@@ -350,10 +372,11 @@ void RoundRobinTrafficClass::BlockTowardsRoot() {
   TrafficClass::BlockTowardsRootSetBlocked(children_.empty());
 }
 
-void RoundRobinTrafficClass::FinishAndAccountTowardsRoot(Scheduler *sched,
-                                                         TrafficClass *child,
-                                                         resource_arr_t usage,
-                                                         uint64_t tsc) {
+void RoundRobinTrafficClass::FinishAndAccountTowardsRoot(
+                                                     SchedThrottledCache *thr,
+                                                     TrafficClass *child,
+                                                     resource_arr_t usage,
+                                                     uint64_t tsc) {
   ACCUMULATE(stats_.usage, usage);
   if (child->blocked_) {
     children_.erase(children_.begin() + next_child_);
@@ -371,16 +394,14 @@ void RoundRobinTrafficClass::FinishAndAccountTowardsRoot(Scheduler *sched,
   if (!parent_) {
     return;
   }
-  parent_->FinishAndAccountTowardsRoot(sched, this, usage, tsc);
+  parent_->FinishAndAccountTowardsRoot(thr, this, usage, tsc);
 }
 
-void RoundRobinTrafficClass::Traverse(TraverseTcFn f, void *arg) const {
-  f(this, arg);
-  for (const auto &child : children_) {
-    child->Traverse(f, arg);
-  }
-  for (const auto &child : blocked_children_) {
-    child->Traverse(f, arg);
+void RoundRobinTrafficClass::TraverseChildren(
+    std::function<void(TCChildArgs *)> f) const {
+  for (auto child : all_children_) {
+    RoundRobinChildArgs args(child);
+    f(&args);
   }
 }
 
@@ -434,10 +455,11 @@ void RateLimitTrafficClass::BlockTowardsRoot() {
   TrafficClass::BlockTowardsRootSetBlocked(blocked);
 }
 
-void RateLimitTrafficClass::FinishAndAccountTowardsRoot(Scheduler *sched,
-                                                        TrafficClass *child,
-                                                        resource_arr_t usage,
-                                                        uint64_t tsc) {
+void RateLimitTrafficClass::FinishAndAccountTowardsRoot(
+                                                    SchedThrottledCache *thr,
+                                                    TrafficClass *child,
+                                                    resource_arr_t usage,
+                                                    uint64_t tsc) {
   ACCUMULATE(stats_.usage, usage);
   uint64_t elapsed_cycles = tsc - last_tsc_;
   last_tsc_ = tsc;
@@ -450,9 +472,11 @@ void RateLimitTrafficClass::FinishAndAccountTowardsRoot(Scheduler *sched,
     blocked_ = true;
     ++stats_.cnt_throttled;
 
-    uint64_t wait_tsc = (consumed - tokens) / limit_;
-    throttle_expiration_ = tsc + wait_tsc;
-    sched->AddThrottled(this);
+    if (limit_) {
+      uint64_t wait_tsc = (consumed - tokens) / limit_;
+      throttle_expiration_ = tsc + wait_tsc;
+      thr->AddThrottled(this);
+    }
   } else {
     // Still has some tokens, unthrottled.
     tokens_ = std::min(tokens - consumed, max_burst_);
@@ -465,59 +489,20 @@ void RateLimitTrafficClass::FinishAndAccountTowardsRoot(Scheduler *sched,
   if (!parent_) {
     return;
   }
-  parent_->FinishAndAccountTowardsRoot(sched, this, usage, tsc);
+  parent_->FinishAndAccountTowardsRoot(thr, this, usage, tsc);
 }
 
-void RateLimitTrafficClass::Traverse(TraverseTcFn f, void *arg) const {
-  f(this, arg);
+void RateLimitTrafficClass::TraverseChildren(
+    std::function<void(TCChildArgs *)> f) const {
   if (child_) {
-    child_->Traverse(f, arg);
+    RateLimitChildArgs args(child_);
+    f(&args);
   }
-}
-
-LeafTrafficClass::~LeafTrafficClass() {
-  // TODO(barath): Determin whether tasks should be deleted here or elsewhere.
-  TrafficClassBuilder::Clear(this);
-}
-
-void LeafTrafficClass::AddTask(Task *t) {
-  tasks_.push_back(t);
-
-  UnblockTowardsRoot(rdtsc());
-}
-
-bool LeafTrafficClass::RemoveTask(Task *t) {
-  // TODO(barath): When removing a task, consider whether that makes tasks_
-  // empty, and if so, causing this leaf to block (and recurse up the tree.
-  auto it = std::find(tasks_.begin(), tasks_.end(), t);
-  if (it != tasks_.end()) {
-    tasks_.erase(it);
-    // Avoid out-of-bounds access in RunTasks()
-    task_index_ = 0;
-    return true;
-  }
-  return false;
-}
-
-TrafficClass *LeafTrafficClass::PickNextChild() {
-  return nullptr;
 }
 
 std::unordered_map<std::string, TrafficClass *> TrafficClassBuilder::all_tcs_;
 
 bool TrafficClassBuilder::ClearAll() {
-  for (const auto &it : all_tcs_) {
-    TrafficClass *c = it.second;
-
-    if (c->policy_ == POLICY_LEAF) {
-      LeafTrafficClass *l = static_cast<LeafTrafficClass *>(c);
-      for (const auto *task : l->tasks_) {
-        delete task;  // XXX: module writer responsible for freeing task->arg_?
-      }
-      l->tasks_.clear();
-    }
-  }
-
   all_tcs_.clear();
   return true;
 }

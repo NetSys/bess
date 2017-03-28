@@ -235,7 +235,7 @@ class Module {
     return attrs_;
   }
 
-  const std::vector<Task *> tasks() const {
+  const std::vector<ModuleTask *> &tasks() const {
     return tasks_;
   }
 
@@ -283,7 +283,7 @@ class Module {
   std::vector<bess::metadata::Attribute> attrs_;
   bess::metadata::mt_offset_t attr_offsets_[bess::metadata::kMaxAttrsPerModule];
 
-  std::vector<Task *> tasks_;
+  std::vector<ModuleTask *> tasks_;
 
   std::vector<bess::IGate *> igates_;
   std::vector<bess::OGate *> ogates_;

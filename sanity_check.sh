@@ -15,6 +15,7 @@ TESTS='exactmatch.bess
 	queue.bess
 	roundrobin.bess
 	s2s.bess
+	tc/complextree.bess
 	unix_port.bess
 	update.bess
 	vlantest.bess

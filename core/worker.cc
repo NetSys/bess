@@ -10,13 +10,16 @@
 
 #include <cassert>
 #include <climits>
+#include <list>
 #include <string>
+#include <utility>
 
 #include "metadata.h"
 #include "opts.h"
 #include "packet.h"
 #include "scheduler.h"
 #include "task.h"
+#include "task-impl.h"
 #include "utils/time.h"
 
 using bess::Scheduler;
@@ -33,8 +36,7 @@ using bess::RoundRobinTrafficClass;
 using bess::RateLimitTrafficClass;
 using bess::LeafTrafficClass;
 
-const char *Worker::kRootClassNamePrefix = "root_";
-const char *Worker::kDefaultLeafClassNamePrefix = "defaultleaf_";
+std::list<std::pair<int, bess::TrafficClass *>> orphan_tcs;
 
 // See worker.h
 __thread Worker ctx;
@@ -105,10 +107,34 @@ static void resume_worker(int wid) {
 }
 
 void resume_all_workers() {
-  bess::metadata::default_pipeline.ComputeMetadataOffsets();
-  // TODO(barath): Handle orphan tasks somehow.
-  // process_orphan_tasks();
+  // Distribute all orphan TCs to workers.
+  for (const auto& tc: orphan_tcs) {
+    bess::TrafficClass *c = tc.second;
+    if (c->parent()) {
+      continue;
+    }
 
+    Worker *w;
+
+    int wid = tc.first;
+    if (wid == -1 || workers[wid] == nullptr) {
+      w = get_next_active_worker();
+    } else {
+      w = workers[wid];
+    }
+
+    w->scheduler()->AttachOrphan(c, w->wid());
+  }
+
+  orphan_tcs.clear();
+
+  for (int wid = 0; wid < MAX_WORKERS; wid++) {
+    if (workers[wid]) {
+      workers[wid]->scheduler()->AdjustDefault();
+    }
+  }
+
+  bess::metadata::default_pipeline.ComputeMetadataOffsets();
   for (int wid = 0; wid < MAX_WORKERS; wid++)
     resume_worker(wid);
 }
@@ -214,16 +240,7 @@ void *Worker::Run(void *_arg) {
   fd_event_ = eventfd(0, 0);
   DCHECK_GE(fd_event_, 0);
 
-  // By default create a root node of default policy with a single leaf.
-  std::string root_name = kRootClassNamePrefix + std::to_string(wid_);
-  std::string leaf_name = kDefaultLeafClassNamePrefix + std::to_string(wid_);
-  const bess::priority_t kDefaultPriority = 10;
-  PriorityTrafficClass *root =
-      TrafficClassBuilder::CreateTrafficClass<PriorityTrafficClass>(root_name);
-  LeafTrafficClass *leaf =
-      TrafficClassBuilder::CreateTrafficClass<LeafTrafficClass>(leaf_name);
-  root->AddChild(leaf, kDefaultPriority);
-  scheduler_ = new Scheduler(root, leaf_name);
+  scheduler_ = new Scheduler<Task>();
 
   current_tsc_ = rdtsc();
 
@@ -285,4 +302,41 @@ Worker *get_next_active_worker() {
   Worker *ret = workers[prev_wid];
   prev_wid = (prev_wid + 1) % MAX_WORKERS;
   return ret;
+}
+
+void add_tc_to_orphan(bess::TrafficClass *c, int wid) {
+  orphan_tcs.emplace_back(wid, c);
+}
+
+bool remove_tc_from_orphan(bess::TrafficClass *c) {
+  for (auto it = orphan_tcs.begin(); it != orphan_tcs.end();) {
+    if (it->second == c) {
+      orphan_tcs.erase(it);
+      return true;
+    } else {
+      it++;
+    }
+  }
+
+  return false;
+}
+
+bool detach_tc(bess::TrafficClass *c) {
+  bess::TrafficClass *parent = c->parent();
+  if (parent) {
+    return parent->RemoveChild(c);
+  }
+
+  // Try to remove from root of one of the schedulers
+  for (int wid = 0; wid < MAX_WORKERS; wid++) {
+    if (workers[wid]) {
+      bool found = workers[wid]->scheduler()->RemoveRoot(c);
+      if (found) {
+        return true;
+      }
+    }
+  }
+
+  // Try to remove from orphan_tcs
+  return remove_tc_from_orphan(c);
 }
