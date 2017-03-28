@@ -10,7 +10,7 @@
 
 typedef std::pair<uint64_t, struct flow *> Event;
 typedef std::priority_queue<Event, std::vector<Event>,
-                            std::function<bool(const Event &, const Event &)>>
+                            std::greater<Event>>
     EventQueue;
 
 struct flow {
