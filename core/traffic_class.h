@@ -138,6 +138,9 @@ class TrafficClass {
     return parent_->Root();
   }
 
+  // Returns true if child was removed successfully.
+  virtual bool RemoveChild(TrafficClass *child) = 0;
+
   // Starts from the current node and accounts for the usage of the given child
   // after execution and finishes any data structure reorganization required
   // after execution has finished.  The scheduler is the scheduler that owns
@@ -167,8 +170,8 @@ class TrafficClass {
   TrafficClass(const std::string &name, const TrafficPolicy &policy)
       : parent_(), name_(name), stats_(), blocked_(true), policy_(policy) {}
 
-  // Sets blocked status to nowblocked and recurses towards root if our blocked
-  // status changed.
+  // Sets blocked status to nowblocked and recurses towards root by signaling
+  // the parent if status became unblocked.
   void UnblockTowardsRootSetBlocked(uint64_t tsc, bool nowblocked)
       __attribute__((always_inline)) {
     bool became_unblocked = !nowblocked && blocked_;
@@ -181,12 +184,29 @@ class TrafficClass {
     parent_->UnblockTowardsRoot(tsc);
   }
 
+  // Sets blocked status to nowblocked and recurses towards root by signaling
+  // the parent if status became blocked.
+  void BlockTowardsRootSetBlocked(bool nowblocked) {
+    bool became_blocked = nowblocked && !blocked_;
+    blocked_ = nowblocked;
+
+    if (!parent_ || !became_blocked) {
+      return;
+    }
+
+    parent_->BlockTowardsRoot();
+  }
+
   // Returns the next schedulable child of this traffic class.
   virtual TrafficClass *PickNextChild() = 0;
 
   // Starts from the current node and attempts to recursively unblock (if
   // eligible) all nodes from this node to the root.
   virtual void UnblockTowardsRoot(uint64_t tsc) = 0;
+
+  // Starts from the current node and attempts to recursively block (if
+  // eligible) all nodes from this node to the root.
+  virtual void BlockTowardsRoot() = 0;
 
   // Parent of this class; nullptr for root.
   TrafficClass *parent_;
@@ -227,9 +247,13 @@ class PriorityTrafficClass final : public TrafficClass {
   // Returns true if child was added successfully.
   bool AddChild(TrafficClass *child, priority_t priority);
 
+  // Returns true if child was removed successfully.
+  bool RemoveChild(TrafficClass *child) override;
+
   TrafficClass *PickNextChild() override;
 
   void UnblockTowardsRoot(uint64_t tsc) override;
+  void BlockTowardsRoot() override;
 
   void FinishAndAccountTowardsRoot(Scheduler *sched, TrafficClass *child,
                                    resource_arr_t usage, uint64_t tsc) override;
@@ -272,9 +296,13 @@ class WeightedFairTrafficClass final : public TrafficClass {
   // Returns true if child was added successfully.
   bool AddChild(TrafficClass *child, resource_share_t share);
 
+  // Returns true if child was removed successfully.
+  bool RemoveChild(TrafficClass *child) override;
+
   TrafficClass *PickNextChild() override;
 
   void UnblockTowardsRoot(uint64_t tsc) override;
+  void BlockTowardsRoot() override;
 
   void FinishAndAccountTowardsRoot(Scheduler *sched, TrafficClass *child,
                                    resource_arr_t usage, uint64_t tsc) override;
@@ -314,9 +342,13 @@ class RoundRobinTrafficClass final : public TrafficClass {
   // Returns true if child was added successfully.
   bool AddChild(TrafficClass *child);
 
+  // Returns true if child was removed successfully.
+  bool RemoveChild(TrafficClass *child) override;
+
   TrafficClass *PickNextChild() override;
 
   void UnblockTowardsRoot(uint64_t tsc) override;
+  void BlockTowardsRoot() override;
 
   void FinishAndAccountTowardsRoot(Scheduler *sched, TrafficClass *child,
                                    resource_arr_t usage, uint64_t tsc) override;
@@ -367,11 +399,15 @@ class RateLimitTrafficClass final : public TrafficClass {
   // Returns true if child was added successfully.
   bool AddChild(TrafficClass *child);
 
+  // Returns true if child was removed successfully.
+  bool RemoveChild(TrafficClass *child) override;
+
   inline uint64_t throttle_expiration() const { return throttle_expiration_; }
 
   TrafficClass *PickNextChild() override;
 
   void UnblockTowardsRoot(uint64_t tsc) override;
+  void BlockTowardsRoot() override;
 
   void FinishAndAccountTowardsRoot(Scheduler *sched, TrafficClass *child,
                                    resource_arr_t usage, uint64_t tsc) override;
@@ -453,6 +489,11 @@ class LeafTrafficClass final : public TrafficClass {
   // Regular accessor for everyone else
   const std::vector<Task *> &tasks() const { return tasks_; }
 
+  // Returns true if child was removed successfully.
+  bool RemoveChild(TrafficClass *) override {
+    return false;
+  };
+
   // Executes tasks for a leaf TrafficClass.
   inline struct task_result RunTasks() {
     size_t start = task_index_;
@@ -482,9 +523,12 @@ class LeafTrafficClass final : public TrafficClass {
 
   TrafficClass *PickNextChild() override;
 
-  void UnblockTowardsRoot([[maybe_unused]] uint64_t tsc) override {
+  void BlockTowardsRoot() override {
+    TrafficClass::BlockTowardsRootSetBlocked(tasks_.empty());
+  }
+
+  void UnblockTowardsRoot(uint64_t tsc) override {
     TrafficClass::UnblockTowardsRootSetBlocked(tsc, tasks_.empty());
-    return;
   }
 
   void FinishAndAccountTowardsRoot(Scheduler *sched,
