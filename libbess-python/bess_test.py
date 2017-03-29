@@ -3,7 +3,6 @@ import bess_msg_pb2 as bess_msg
 import error_pb2 as error_msg
 import service_pb2
 import grpc
-import proto_conv
 import bess
 import time
 from concurrent import futures
@@ -106,5 +105,5 @@ class TestBESS(unittest.TestCase):
                                              'add',
                                              'ExactMatchCommandAddArg',
                                              {'gate': 0,
-                                              'fields': [0x11, 0x22]})
+                                              'fields': ['\x11', '\x22']})
         self.assertEqual(0, response.error.err)
