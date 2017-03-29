@@ -215,6 +215,16 @@ def get_var_attrs(cli, var_token, partial_word):
             except:
                 pass
 
+        elif var_token == '[MODULE]':
+            var_type = 'optional_name'
+            var_desc = 'name of an existing module instance (* means all)'
+            var_candidates = ['*']
+            try:
+                var_candidates += [m.name for m in
+                                   cli.bess.list_modules().modules]
+            except:
+                pass
+
         elif var_token == 'MODULE...':
             var_type = 'name+'
             var_desc = 'one or more module names'
@@ -345,7 +355,8 @@ def get_var_attrs(cli, var_token, partial_word):
 #   tail: the rest of input line
 # You can assume that 'line == head + tail'
 def split_var(cli, var_type, line):
-    if var_type in ['name', 'gate', 'confname', 'filename', 'endis', 'int']:
+    if var_type in ['name', 'optional_name', 'gate', 'confname', 'filename',
+                    'endis', 'int']:
         pos = line.find(' ')
         if pos == -1:
             head = line
@@ -397,6 +408,10 @@ def bind_var(cli, var_type, line):
     elif var_type == 'name':
         if re.match(r'^[_a-zA-Z][\w]*$', val) is None:
             raise cli.BindError('"name" must be [_a-zA-Z][_a-zA-Z0-9]*')
+
+    elif var_type == 'optional_name':
+        if re.match(r'^(\*|[_a-zA-Z][\w]*)$', val) is None:
+            raise cli.BindError('"name" must be "*" or [_a-zA-Z][_a-zA-Z0-9]*')
 
     elif var_type == 'gate':
         if head.isdigit():
@@ -1537,6 +1552,8 @@ def tcpdump_module(cli, module_name, direction, gate, opts):
 def track_module(cli, flag, module_name, direction, gate):
     if direction is None:
         direction = 'out'
+    if module_name in [None, '*']:
+        module_name = ''
 
     cli.bess.pause_all()
     try:
