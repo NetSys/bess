@@ -327,8 +327,10 @@ void PMDPort::CollectStats(bool reset) {
   port_stats_.inc.dropped = stats.imissed;
 
   // i40e PMD driver doesn't support per-queue stats
-  if (driver_ == "net_i40e") {
-    // NOTE: if link is down, tx bytes won't increase
+  if (driver_ == "net_i40e" || driver_ == "net_i40e_vf") {
+    // NOTE:
+    // - if link is down, tx bytes won't increase
+    // - if destination MAC address is incorrect, rx pkts won't increase
     port_stats_.inc.packets = stats.ipackets;
     port_stats_.inc.bytes = stats.ibytes;
     port_stats_.out.packets = stats.opackets;
