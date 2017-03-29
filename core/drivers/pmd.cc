@@ -1,5 +1,6 @@
 #include "pmd.h"
 
+#include "../utils/ether.h"
 #include "../utils/format.h"
 
 /*!
@@ -59,9 +60,13 @@ void PMDPort::InitDriver() {
           dev_info.pci_dev->id.vendor_id, dev_info.pci_dev->id.device_id);
     }
 
+    bess::utils::EthHeader::Address lladdr;
+    rte_eth_macaddr_get(i, reinterpret_cast<ether_addr *>(lladdr.bytes));
+
     LOG(INFO) << "DPDK port_id " << static_cast<int>(i) << " ("
               << dev_info.driver_name << ")   RXQ " << dev_info.max_rx_queues
-              << " TXQ " << dev_info.max_tx_queues << "  " << pci_info;
+              << " TXQ " << dev_info.max_tx_queues << "  " << lladdr.ToString()
+              << "  " << pci_info;
   }
 }
 
@@ -322,8 +327,10 @@ void PMDPort::CollectStats(bool reset) {
   port_stats_.inc.dropped = stats.imissed;
 
   // i40e PMD driver doesn't support per-queue stats
-  if (driver_ == "net_i40e") {
-    // NOTE: if link is down, tx bytes won't increase
+  if (driver_ == "net_i40e" || driver_ == "net_i40e_vf") {
+    // NOTE:
+    // - if link is down, tx bytes won't increase
+    // - if destination MAC address is incorrect, rx pkts won't increase
     port_stats_.inc.packets = stats.ipackets;
     port_stats_.inc.bytes = stats.ibytes;
     port_stats_.out.packets = stats.opackets;

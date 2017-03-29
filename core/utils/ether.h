@@ -22,7 +22,7 @@ struct[[gnu::packed]] EthHeader {
     //   (in that case, the content of parsed is undefined.)
     bool FromString(const std::string &str);
 
-    // Returns "aA:Bb:00:11:22:33"
+    // Returns "aa:bb:00:11:22:33" (all in lower case)
     std::string ToString() const;
 
     void Randomize();
