@@ -1,5 +1,5 @@
 # Copied from https://github.com/benhodgson/protobuf-to-dict (cd98280)
-# written by Ben Hodgson, without any changes
+# written by Ben Hodgson, with additional fixes
 
 from google.protobuf.message import Message
 from google.protobuf.descriptor import FieldDescriptor
@@ -26,7 +26,7 @@ TYPE_CALLABLE_MAP = {
     FieldDescriptor.TYPE_SFIXED64: long,
     FieldDescriptor.TYPE_BOOL: bool,
     FieldDescriptor.TYPE_STRING: unicode,
-    FieldDescriptor.TYPE_BYTES: lambda b: b.encode("base64"),
+    FieldDescriptor.TYPE_BYTES: str,
     FieldDescriptor.TYPE_ENUM: int,
 }
 
@@ -75,12 +75,8 @@ def _get_field_value_adaptor(pb, field, type_callable_map=TYPE_CALLABLE_MAP, use
         pb.__class__.__name__, field.name, field.type))
 
 
-def get_bytes(value):
-    return value.decode('base64')
-
-
 REVERSE_TYPE_CALLABLE_MAP = {
-    FieldDescriptor.TYPE_BYTES: get_bytes,
+    # empty
 }
 
 
@@ -89,7 +85,7 @@ def dict_to_protobuf(pb_klass_or_instance, values, type_callable_map=REVERSE_TYP
 
     :param pb_klass_or_instance: a protobuf message class, or an protobuf instance
     :type pb_klass_or_instance: a type or instance of a subclass of google.protobuf.message.Message
-    :param dict values: a dictionary of values. Repeated and nested values are 
+    :param dict values: a dictionary of values. Repeated and nested values are
        fully supported.
     :param dict type_callable_map: a mapping of protobuf types to callables for setting
        values on the target instance.
@@ -123,7 +119,6 @@ def _get_field_mapping(pb, dict_value, strict):
                 raise KeyError("%s does not have a extension with number %s. Perhaps you forgot to import it?" % (pb, key))
             continue
         ext_field = pb._extensions_by_number[ext_num]
-        pb_val = None
         pb_val = pb.Extensions[ext_field]
         field_mapping.append((ext_field, ext_val, pb_val))
 
@@ -135,6 +130,9 @@ def _dict_to_protobuf(pb, value, type_callable_map, strict):
 
     for field, input_value, pb_value in fields:
         if field.label == FieldDescriptor.LABEL_REPEATED:
+            if field.message_type and field.message_type.has_options and field.message_type.GetOptions().map_entry:
+                pb_value.update(input_value)
+                continue
             for item in input_value:
                 if field.type == FieldDescriptor.TYPE_MESSAGE:
                     m = pb_value.add()
