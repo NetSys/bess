@@ -1,5 +1,6 @@
 #include "pmd.h"
 
+#include "../utils/ether.h"
 #include "../utils/format.h"
 
 /*!
@@ -59,9 +60,13 @@ void PMDPort::InitDriver() {
           dev_info.pci_dev->id.vendor_id, dev_info.pci_dev->id.device_id);
     }
 
+    bess::utils::EthHeader::Address lladdr;
+    rte_eth_macaddr_get(i, reinterpret_cast<ether_addr *>(lladdr.bytes));
+
     LOG(INFO) << "DPDK port_id " << static_cast<int>(i) << " ("
               << dev_info.driver_name << ")   RXQ " << dev_info.max_rx_queues
-              << " TXQ " << dev_info.max_tx_queues << "  " << pci_info;
+              << " TXQ " << dev_info.max_tx_queues << "  " << lladdr.ToString()
+              << "  " << pci_info;
   }
 }
 
