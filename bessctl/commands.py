@@ -206,7 +206,7 @@ def get_var_attrs(cli, var_token, partial_word):
             var_type = 'name'
             var_desc = 'specify a name of the new module instance'
 
-        elif var_token == 'MODULE':
+        elif var_token in ['MODULE', '[MODULE]']:
             var_type = 'name'
             var_desc = 'name of an existing module instance'
             try:
@@ -1532,11 +1532,12 @@ def tcpdump_module(cli, module_name, direction, gate, opts):
             pass
 
 
-@cmd('track ENABLE_DISABLE [MODULE] [DIRECTION] [GATE]',
+@cmd('track ENABLE_DISABLE [DIRECTION] [MODULE] [GATE]',
      'Count the packets and batches on a gate')
-def track_module(cli, flag, module_name, direction, gate):
+def track_module(cli, flag, direction, module_name, gate):
     if direction is None:
         direction = 'out'
+    module_name = module_name or ''    
 
     cli.bess.pause_all()
     try:
