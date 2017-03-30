@@ -10,7 +10,7 @@ import threading
 import time
 
 import service_pb2
-import proto_conv
+from protobuf_to_dict import *
 
 import module_msg
 import bess_msg_pb2 as bess_msg
@@ -120,7 +120,7 @@ class BESS(object):
 
         if self.debug:
             print '====',  req_fn._method
-            req = proto_conv.protobuf_to_dict(request)
+            req = protobuf_to_dict(request)
             print '--->', type(request).__name__
             if req:
                 pprint.pprint(req)
@@ -132,7 +132,7 @@ class BESS(object):
 
         if self.debug:
             print '<---', type(response).__name__
-            res = proto_conv.protobuf_to_dict(response)
+            res = protobuf_to_dict(response)
             if res:
                 pprint.pprint(res)
 
@@ -182,29 +182,20 @@ class BESS(object):
     def list_ports(self):
         return self._request('ListPorts')
 
-    def create_port(self, driver, name, arg):
-        if arg == None:
-            arg = {}
+    def create_port(self, driver, name=None, arg=None):
+        arg = arg or {}
 
-        num_inc_q = arg.pop('num_inc_q', 0)
-        num_out_q = arg.pop('num_out_q', 0)
-        size_inc_q = arg.pop('size_inc_q', 0)
-        size_out_q = arg.pop('size_out_q', 0)
-        mac_addr = arg.pop('mac_addr', '')
+        request = bess_msg.CreatePortRequest()
+        request.name = name or ''
+        request.driver = driver
+        request.num_inc_q = arg.pop('num_inc_q', 0)
+        request.num_out_q = arg.pop('num_out_q', 0)
+        request.size_inc_q = arg.pop('size_inc_q', 0)
+        request.size_out_q = arg.pop('size_out_q', 0)
+        request.mac_addr = arg.pop('mac_addr', '')
 
-        kv = {
-            'name': name,
-            'driver': driver,
-            'num_inc_q': num_inc_q,
-            'num_out_q': num_out_q,
-            'size_inc_q': size_inc_q,
-            'size_out_q': size_out_q,
-            'mac_addr': mac_addr,
-        }
-
-        request = proto_conv.dict_to_protobuf(kv, bess_msg.CreatePortRequest)
         message_type = getattr(port_msg, driver + 'Arg', bess_msg.EmptyArg)
-        arg_msg = proto_conv.dict_to_protobuf(arg, message_type)
+        arg_msg = dict_to_protobuf(message_type, arg)
         request.arg.Pack(arg_msg)
 
         return self._request('CreatePort', request)
@@ -244,14 +235,16 @@ class BESS(object):
         return self._request('ResetModules')
 
     def create_module(self, mclass, name=None, arg=None):
-        kv = {
-            'name': name,
-            'mclass': mclass,
-        }
-        request = proto_conv.dict_to_protobuf(kv, bess_msg.CreateModuleRequest)
+        arg = arg or {}
+
+        request = bess_msg.CreateModuleRequest()
+        request.name = name or ''
+        request.mclass = mclass
+
         message_type = getattr(module_msg, mclass + 'Arg', bess_msg.EmptyArg)
-        arg_msg = proto_conv.dict_to_protobuf(arg, message_type)
+        arg_msg = dict_to_protobuf(message_type, arg)
         request.arg.Pack(arg_msg)
+
         return self._request('CreateModule', request)
 
     def destroy_module(self, name):
@@ -284,7 +277,7 @@ class BESS(object):
         request.cmd = cmd
 
         message_type = getattr(module_msg, arg_type, bess_msg.EmptyArg)
-        arg_msg = proto_conv.dict_to_protobuf(arg, message_type)
+        arg_msg = dict_to_protobuf(message_type, arg)
 
         request.arg.Pack(arg_msg)
 
