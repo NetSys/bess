@@ -148,16 +148,18 @@ class BESS(object):
 
         return response
 
-    def kill(self):
+    def kill(self, block=True):
         try:
-            self._request('KillBess')
+            response = self._request('KillBess')
         except grpc._channel._Rendezvous:
             pass
 
-        while self.is_connected():
-            time.sleep(0.1)
+        if block:
+            while self.is_connected():
+                time.sleep(0.1)
 
         self.disconnect()
+        return response
 
     def reset_all(self):
         return self._request('ResetAll')

@@ -55,7 +55,7 @@ class TestBESS(unittest.TestCase):
         client = bess.BESS()
         client.connect()
 
-        response = client.kill()
+        response = client.kill(block=False)
         self.assertEqual(0, response.error.err)
 
     def test_list_modules(self):
