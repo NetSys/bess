@@ -10,7 +10,7 @@ import threading
 import time
 
 import service_pb2
-from protobuf_to_dict import *
+import protobuf_to_dict as pb_conv
 
 import module_msg
 import bess_msg_pb2 as bess_msg
@@ -120,7 +120,7 @@ class BESS(object):
 
         if self.debug:
             print '====',  req_fn._method
-            req = protobuf_to_dict(request)
+            req = pb_conv.protobuf_to_dict(request)
             print '--->', type(request).__name__
             if req:
                 pprint.pprint(req)
@@ -132,7 +132,7 @@ class BESS(object):
 
         if self.debug:
             print '<---', type(response).__name__
-            res = protobuf_to_dict(response)
+            res = pb_conv.protobuf_to_dict(response)
             if res:
                 pprint.pprint(res)
 
@@ -197,7 +197,7 @@ class BESS(object):
         request.mac_addr = arg.pop('mac_addr', '')
 
         message_type = getattr(port_msg, driver + 'Arg', bess_msg.EmptyArg)
-        arg_msg = dict_to_protobuf(message_type, arg)
+        arg_msg = pb_conv.dict_to_protobuf(message_type, arg)
         request.arg.Pack(arg_msg)
 
         return self._request('CreatePort', request)
@@ -244,7 +244,7 @@ class BESS(object):
         request.mclass = mclass
 
         message_type = getattr(module_msg, mclass + 'Arg', bess_msg.EmptyArg)
-        arg_msg = dict_to_protobuf(message_type, arg)
+        arg_msg = pb_conv.dict_to_protobuf(message_type, arg)
         request.arg.Pack(arg_msg)
 
         return self._request('CreateModule', request)
@@ -279,7 +279,7 @@ class BESS(object):
         request.cmd = cmd
 
         message_type = getattr(module_msg, arg_type, bess_msg.EmptyArg)
-        arg_msg = dict_to_protobuf(message_type, arg)
+        arg_msg = pb_conv.dict_to_protobuf(message_type, arg)
 
         request.arg.Pack(arg_msg)
 
