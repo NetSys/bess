@@ -22,5 +22,5 @@ To configure and install BESS on Linux quickly, you can run the provided Ansible
     sudo apt-add-repository -y ppa:ansible/ansible
     sudo apt-get update
     sudo apt-get install -y ansible
-    ansible-playbook vagrant/bess.yml
+    ansible-playbook -K -i localhost, -c local vagrant/bess.yml
     sudo reboot
