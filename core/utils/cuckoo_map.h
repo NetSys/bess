@@ -479,7 +479,11 @@ class CuckooMap {
       }
     }
 
-    *this = std::move(bigger);
+    bucket_mask_ = std::move(bigger.bucket_mask_);
+    num_entries_ = bigger.num_entries_;
+    buckets_ = std::move(bigger.buckets_);
+    entries_ = std::move(bigger.entries_);
+    free_entry_indices_ = std::move(bigger.free_entry_indices_);
   }
 
   // # of buckets == mask + 1
