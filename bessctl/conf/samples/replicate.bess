@@ -1,0 +1,6 @@
+Source() -> repl::Replicate(gates=[0,1,2])
+sink::Sink()
+repl:0 -> sink
+repl:1 -> sink
+repl:2 -> sink
+
