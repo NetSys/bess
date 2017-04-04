@@ -742,7 +742,7 @@ message ReplicateArg {
  * the total number of output gates in the module.
  */
 message ReplicateCommandSetGatesArg {
-  repeated int64 gates = 1; /// A list of gate numbers to round-robin the traffic over.
+  repeated int64 gates = 1; /// A list of gate numbers to replicate the traffic over.
 }
 
 /**
