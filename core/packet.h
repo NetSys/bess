@@ -188,6 +188,10 @@ class alignas(64) Packet {
 
     dst = __packet_alloc_pool(src->pool_);
 
+    if(!dst){
+      return nullptr; //FAIL.
+    }
+
     rte_memcpy(dst->append(src->total_len()), src->head_data(),
                src->total_len());
 

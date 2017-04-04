@@ -4,11 +4,11 @@
 #include "../module.h"
 #include "../module_msg.pb.h"
 
-#define MAX_REPL_GATES 20
 
 class Replicate final : public Module {
  public:
-  static const gate_idx_t kNumOGates = MAX_REPL_GATES;
+  static const gate_idx_t kMaxGates = 20;
+  static const gate_idx_t kNumOGates = kMaxGates;
 
   static const Commands cmds;
 
@@ -27,7 +27,7 @@ class Replicate final : public Module {
 
  private:
   // ID number for each egress gate.
-  gate_idx_t gates_[MAX_REPL_GATES];
+  gate_idx_t gates_[kMaxGates];
   // The total number of output gates
   int ngates_;
 };
