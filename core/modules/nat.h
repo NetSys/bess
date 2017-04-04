@@ -100,38 +100,44 @@ class AvailablePorts {
  public:
   // Tracks available ports within the given IP prefix.
   explicit AvailablePorts(const CIDRNetwork &prefix)
-      : prefix_(prefix), free_list_(), next_expiry_() {
-    uint32_t min = ntohl(prefix_.addr & prefix_.mask);
-    uint32_t max = ntohl(prefix_.addr | (~prefix_.mask));
+      : prefix_(prefix),
+        records_(),
+        free_list_(),
+        next_expiry_(),
+        min_(),
+        max_() {
+    min_ = ntohl(prefix_.addr & prefix_.mask);
+    max_ = ntohl(prefix_.addr | (~prefix_.mask));
 
-    for (uint32_t ip = min; ip <= max; ip++) {
+    for (uint32_t ip = min_; ip <= max_; ip++) {
       for (uint32_t port = MIN_PORT; port <= MAX_PORT; port++) {
-        free_list_.emplace_back(htonl(ip), htons((uint16_t)port),
-                                new FlowRecord());
+        records_.emplace_back();
+        free_list_.emplace_back(ip, port);
       }
     }
     std::random_shuffle(free_list_.begin(), free_list_.end());
   }
 
-  ~AvailablePorts() {
-    for (auto &i : free_list_) {
-      FlowRecord *r = std::get<2>(i);
-      delete r;
-    }
-  }
-
   // Returns a random free IP/port pair within the network and removes it from
   // the free list.
   std::tuple<IPAddress, uint16_t, FlowRecord *> RandomFreeIPAndPort() {
-    std::tuple<IPAddress, uint16_t, FlowRecord *> r = free_list_.back();
+    uint32_t ip;
+    uint16_t port;
+
+    std::tie(ip, port) = free_list_.back();
     free_list_.pop_back();
-    return r;
+
+    size_t index = (port - MIN_PORT) + (ip - min_) * (MAX_PORT - MIN_PORT + 1);
+    FlowRecord *record = &records_[index];
+
+    return std::make_tuple(htonl(ip), htons(port), record);
   }
 
-  // Adds the given IP/port pair back to the list of available ports.  Takes
-  // back ownership of the tuple and the FlowRecord object in it.
+  // Adds the index of given IP/port pair back to the free list.
   void FreeAllocated(const std::tuple<IPAddress, uint16_t, FlowRecord *> &a) {
-    free_list_.push_back(a);
+    uint32_t ip = ntohl(std::get<0>(a));
+    uint16_t port = ntohs(std::get<1>(a));
+    free_list_.emplace_back(ip, port);
   }
 
   // Returns true if there are no free remaining IP/port pairs.
@@ -145,8 +151,10 @@ class AvailablePorts {
 
  private:
   CIDRNetwork prefix_;
-  std::vector<std::tuple<IPAddress, uint16_t, FlowRecord *>> free_list_;
+  std::vector<FlowRecord> records_;
+  std::vector<std::pair<uint32_t, uint16_t>> free_list_;
   uint64_t next_expiry_;
+  uint32_t min_, max_;
 };
 
 class FlowHash {
