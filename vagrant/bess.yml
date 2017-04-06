@@ -1,4 +1,4 @@
-- include: packages.yml
+#- include: packages.yml
 
 - hosts: all
   tags: build-bess
@@ -14,8 +14,13 @@
       when: "{{ def_hugepage_size.stdout.find('2048 kB') != -1 }}"
       become: true
 
+    - shell: mount | grep 'type hugetlbfs'
+      register: hugetlbfs_mounted
+      failed_when: hugetlbfs_mounted.rc == 2
+
     - name: Mount up /mnt/huge
       mount: name=/mnt/huge fstype=hugetlbfs src=none state=mounted
+      when: hugetlbfs_mounted.rc == 1
       become: true
 
     - name: Clone BESS repository
