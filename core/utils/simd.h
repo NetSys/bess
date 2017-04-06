@@ -46,6 +46,22 @@ static inline __m256i concat_two_m128i(__m128i lo, __m128i hi) {
   return _mm256_insertf128_si256(_mm256_castsi128_si256(lo), hi, 1);
 #endif
 }
+
+static inline uint64_t m128i_extract_u64(__m128i a, int i) {
+#if __x86_64
+  return _mm_extract_epi64(a, i);
+#else
+  // In 32-bit machines, _mm_extract_epi64() is not supported
+  union {
+    __m128i vec;
+    uint64_t b[2];
+  };
+
+  vec = a;
+  return b[i];
+#endif
+}
+
 #endif  // __AVX__
 
 #endif  // BESS_UTILS_SIMD_H_
