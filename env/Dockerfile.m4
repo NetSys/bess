@@ -9,8 +9,8 @@ RUN apt-add-repository -y ppa:ansible/ansible
 RUN apt-get -q update
 RUN apt-get install -y ansible
 
-COPY bess.yml /tmp/bess.yml
-RUN ansible-playbook /tmp/bess.yml -i "localhost," -c local --tags "package" && rm -rf /tmp/*
+COPY packages.yml /tmp/packages.yml
+RUN ansible-playbook /tmp/packages.yml -i "localhost," -c local && rm -rf /tmp/*
 
 RUN mkdir -p /build
 
