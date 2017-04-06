@@ -14,7 +14,7 @@
     - name: Clone BESS repository
       git: repo=https://github.com/NetSys/bess.git dest={{ ansible_env.HOME }}/bess accept_hostkey=yes
       
-    - name: Build BESS 
+    - name: Build BESS (this may take a while)
       shell: ./build.py chdir={{ ansible_env.HOME }}/bess 
 
     - name: Set PATH
