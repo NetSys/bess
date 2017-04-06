@@ -7,6 +7,7 @@
 class Replicate final : public Module {
  public:
   static const gate_idx_t kMaxGates = 32;
+  static const gate_idx_t kNumOGates = kMaxGates;
 
   static const Commands cmds;
 
