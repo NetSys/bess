@@ -4,16 +4,13 @@
 #include "../module.h"
 #include "../module_msg.pb.h"
 
-
 class Replicate final : public Module {
  public:
-  static const gate_idx_t kMaxGates = 20;
-  static const gate_idx_t kNumOGates = kMaxGates;
+  static const gate_idx_t kMaxGates = 32;
 
   static const Commands cmds;
 
-  Replicate()
-      : Module(), gates_(), ngates_() {}
+  Replicate() : Module(), gates_(), ngates_() {}
 
   pb_error_t Init(const bess::pb::ReplicateArg &arg);
 
@@ -31,6 +28,5 @@ class Replicate final : public Module {
   // The total number of output gates
   int ngates_;
 };
-
 
 #endif  // BESS_MODULES_RELICATE_H_

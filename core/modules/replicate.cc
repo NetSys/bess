@@ -1,8 +1,8 @@
 #include "replicate.h"
 
 const Commands Replicate::cmds = {
-  {"set_gates", "ReplicateCommandSetGatesArg",
-    MODULE_CMD_FUNC(&Replicate::CommandSetGates), 0},
+    {"set_gates", "ReplicateCommandSetGatesArg",
+     MODULE_CMD_FUNC(&Replicate::CommandSetGates), 0},
 };
 
 pb_error_t Replicate::Init(const bess::pb::ReplicateArg &arg) {
@@ -42,24 +42,25 @@ pb_cmd_response_t Replicate::CommandSetGates(
 
 void Replicate::ProcessBatch(bess::PacketBatch *batch) {
   bess::PacketBatch out_gates[ngates_];
-  for(int i = 0; i < ngates_; i++){
+  for (int i = 0; i < ngates_; i++) {
     out_gates[i].clear();
   }
 
   for (int i = 0; i < batch->cnt(); i++) {
-    bess::Packet* tocopy = batch->pkts()[i];
+    bess::Packet *tocopy = batch->pkts()[i];
     out_gates[0].add(tocopy);
-    for(int j = 1; j < ngates_; j++){
-      bess::Packet* newpkt = bess::Packet::copy(tocopy);
-      if(newpkt){
+    for (int j = 1; j < ngates_; j++) {
+      bess::Packet *newpkt = bess::Packet::copy(tocopy);
+      if (newpkt) {
         out_gates[j].add(newpkt);
       }
     }
   }
 
-  for(int j = 0; j < ngates_; j++){
+  for (int j = 0; j < ngates_; j++) {
     RunChooseModule(gates_[j], &(out_gates[j]));
   }
 }
 
-ADD_MODULE(Replicate, "repl", "makes a copy of a packet and sends it out over n gates")
+ADD_MODULE(Replicate, "repl",
+           "makes a copy of a packet and sends it out over n gates")
