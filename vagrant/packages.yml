@@ -46,17 +46,6 @@
       become: true
       when: ansible_kernel | match(".*-generic")
 
-    - name: Add the new GPG key for Docker
-      apt_key: keyserver=hkp://p80.pool.sks-keyservers.net:80 id=58118E89F3A912897C070ADBF76221572C52609D
-      become: true
-
-    - apt_repository: repo='deb https://apt.dockerproject.org/repo ubuntu-{{ansible_distribution_release}} main' state=present
-      become: true
-
-    - name: Install Docker
-      apt: name=docker-engine state=latest update_cache=yes
-      become: true
-
     - name: Install list of Python packages
       pip: name=grpcio
       become: true
