@@ -5,7 +5,7 @@
     - apt_repository: repo='ppa:ubuntu-toolchain-r/test' state=present
       become: true
 
-    - name: Install list of packages
+    - name: Install list of packages (this step may take a long time)
       apt: name={{item}} state=latest update_cache=yes
       become: true
       with_items:
@@ -81,7 +81,7 @@
     - name: Download protobuf
       unarchive: src=https://github.com/google/protobuf/releases/download/v3.2.0/protobuf-cpp-3.2.0.tar.gz dest=/tmp/ copy=no
 
-    - name: Compile protobuf
+    - name: Compile protobuf (this step takes a long time too)
       shell: ./autogen.sh && ./configure && make chdir=/tmp/protobuf-3.2.0
 
     - name: Install protobuf
