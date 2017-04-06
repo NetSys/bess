@@ -700,10 +700,7 @@ message RewriteArg {
 
 /**
  * The RoundRobin module has a function `setGates(...)` which changes
- * the total number of gates in the module.
- *
- * __Input Gates__: 1
- * __Output Gates__: many (configurable)
+ * the total number of output gates in the module.
  */
 message RoundRobinCommandSetGatesArg {
   repeated int64 gates = 1; /// A list of gate numbers to round-robin the traffic over.
@@ -720,10 +717,32 @@ message RoundRobinCommandSetModeArg {
 /**
  * The RoundRobin module splits packets from one input gate across multiple output
  * gates.
+ *
+ * __Input Gates__: 1
+ * __Output Gates__: many (configurable)
  */
 message RoundRobinArg {
   repeated int64 gates = 1; /// A list of gate numbers to split packets across.
   string mode = 2; /// Whether to split across gate with every 'packet' or every 'batch'.
+}
+
+/**
+ * The Replicate module makes copies of a packet sending one copy out over each
+ * of n output gates.
+ *
+ * __Input Gates__: 1
+ * __Output Gates__: many (configurable)
+ */
+message ReplicateArg {
+  repeated int64 gates = 1; /// A list of gate numbers to send packet copies to.
+}
+
+/**
+ * The Replicate module has a function `setGates(...)` which changes
+ * the total number of output gates in the module.
+ */
+message ReplicateCommandSetGatesArg {
+  repeated int64 gates = 1; /// A list of gate numbers to replicate the traffic over.
 }
 
 /**

@@ -81,9 +81,14 @@ class alignas(64) Packet {
   }
 
   template <typename T = void *>
-  T head_data(uint16_t offset = 0) {
+  const T head_data(uint16_t offset = 0) const {
     return reinterpret_cast<T>(static_cast<char *>(buf_addr_) + data_off_ +
                                offset);
+  }
+
+  template <typename T = void *>
+  T head_data(uint16_t offset = 0) {
+    return const_cast<T>(static_cast<const Packet &>(*this).head_data<T>(offset));
   }
 
   template <typename T = char *>
@@ -181,12 +186,16 @@ class alignas(64) Packet {
     DCHECK_EQ(ret, 0);
   }
 
-  Packet *copy(Packet *src) {
+  static Packet *copy(const Packet *src) {
     Packet *dst;
 
     DCHECK(src->is_linear());
 
     dst = __packet_alloc_pool(src->pool_);
+
+    if(!dst){
+      return nullptr; //FAIL.
+    }
 
     rte_memcpy(dst->append(src->total_len()), src->head_data(),
                src->total_len());
