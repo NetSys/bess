@@ -16,7 +16,3 @@
 
     - name: Build BESS (this may take a while)
       shell: ./build.py chdir={{ ansible_env.HOME }}/bess
-
-    - name: Set PATH
-      lineinfile: dest=/etc/environment line='PATH="/opt/bess/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"'
-      become: true
