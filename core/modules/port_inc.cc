@@ -121,7 +121,7 @@ struct task_result PortInc::RunTask(void *arg) {
 pb_error_t PortInc::SetBurst(int64_t burst) {
   if (burst == 0 ||
       burst > static_cast<int64_t>(bess::PacketBatch::kMaxBurst)) {
-    return pb_error(EINVAL, "burst size must be [1,%lu]",
+    return pb_error(EINVAL, "burst size must be [1,%zu]",
                     bess::PacketBatch::kMaxBurst);
   }
   burst_ = burst;

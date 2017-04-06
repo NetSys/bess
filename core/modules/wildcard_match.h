@@ -90,7 +90,7 @@ class wm_hash {
     }
     return init_val;
 #else
-    return rte_hash_crc(&key, key.key_len, init_val);
+    return rte_hash_crc(&key, len_, init_val);
 #endif
   }
 

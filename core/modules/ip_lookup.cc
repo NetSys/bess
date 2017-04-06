@@ -1,3 +1,5 @@
+#include <rte_config.h>
+
 #include "ip_lookup.h"
 
 #include <arpa/inet.h>
@@ -140,7 +142,7 @@ pb_cmd_response_t IPLookup::CommandAdd(
 
   if (prefix_len > 32) {
     set_cmd_response_error(
-        &response, pb_error(EINVAL, "Invalid prefix length: %lu", prefix_len));
+        &response, pb_error(EINVAL, "Invalid prefix length: %" PRIu64, prefix_len));
     return response;
   }
 
@@ -149,7 +151,7 @@ pb_cmd_response_t IPLookup::CommandAdd(
 
   if (ip_addr & ~netmask) {
     set_cmd_response_error(
-        &response, pb_error(EINVAL, "Invalid IP prefix %s/%lu %x %x", prefix,
+        &response, pb_error(EINVAL, "Invalid IP prefix %s/%" PRIu64 " %x %x", prefix,
                             prefix_len, ip_addr, netmask));
     return response;
   }

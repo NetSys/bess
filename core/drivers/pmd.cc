@@ -319,8 +319,9 @@ void PMDPort::CollectStats(bool reset) {
   }
 
   VLOG(1) << bess::utils::Format(
-      "PMD port %d: ipackets %lu opackets %lu ibytes %lu obytes %lu "
-      "imissed %lu ierrors %lu oerrors %lu rx_nombuf %lu",
+      "PMD port %d: ipackets %" PRIu64 " opackets %" PRIu64
+      " ibytes %" PRIu64 " obytes %" PRIu64 " imissed %" PRIu64
+      " ierrors %" PRIu64 " oerrors %" PRIu64 " rx_nombuf %" PRIu64,
       dpdk_port_id_, stats.ipackets, stats.opackets, stats.ibytes, stats.obytes,
       stats.imissed, stats.ierrors, stats.oerrors, stats.rx_nombuf);
 

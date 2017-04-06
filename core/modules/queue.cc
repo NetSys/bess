@@ -150,7 +150,7 @@ struct task_result Queue::RunTask(void *) {
 pb_error_t Queue::SetBurst(int64_t burst) {
   if (burst == 0 ||
       burst > static_cast<int64_t>(bess::PacketBatch::kMaxBurst)) {
-    return pb_error(EINVAL, "burst size must be [1,%lu]",
+    return pb_error(EINVAL, "burst size must be [1,%zu]",
                     bess::PacketBatch::kMaxBurst);
   }
 

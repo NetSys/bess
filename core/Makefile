@@ -43,9 +43,10 @@ else ifeq ($(words $(MAKECMDGOALS)),1)
 	endif
 endif
 
-CXXFLAGS += -std=gnu++11 -g3 -ggdb3 -march=native \
-	    -Werror -isystem $(DPDK_INC_DIR) -isystem . -D_GNU_SOURCE \
-	    -Wall -Wextra -Wcast-align
+CXXARCHFLAGS ?= -march=native
+CXXFLAGS += -std=gnu++11 -g3 -ggdb3 $(CXXARCHFLAGS) \
+            -Werror -isystem $(DPDK_INC_DIR) -isystem . -D_GNU_SOURCE \
+            -Wall -Wextra -Wcast-align
 
 PERMISSIVE := -Wno-unused-parameter -Wno-missing-field-initializers \
 	      -Wno-unused-private-field
@@ -55,14 +56,23 @@ ifeq "$(shell expr $(CXXCOMPILER) = g++ \& $(CXXVERSION) \< 50000)" "0"
 	CXXFLAGS += -Wshadow
 endif
 
-LDFLAGS += -rdynamic -L$(DPDK_LIB_DIR) -Wl,-rpath=$(DPDK_LIB_DIR) -pthread \
-	   -static-libstdc++
+LDFLAGS += -rdynamic -L$(DPDK_LIB_DIR) -Wl,-rpath=$(DPDK_LIB_DIR) -pthread
+ifdef BESS_LINK_DYNAMIC
+    LIBS_ALL_SHARED = -Wl,-call_shared
+    LIBS_DL_SHARED = 
+else # Used static libraries
+    LIBS_ALL_SHARED =
+    LIBS_DL_SHARED = -Wl,-call_shared
+    LIBS_LZMA = -llzma
+    LDFLAGS += -static-libstdc++
+endif
 
 LIBS += -Wl,-non_shared \
 	-Wl,--whole-archive -l$(DPDK_LIB) -Wl,--no-whole-archive \
+	$(LIBS_ALL_SHARED) \
 	-lglog -lgflags -lprotobuf -lgrpc++ -lgrpc \
-	-lssl -lcrypto -lunwind -llzma -lpcap -lz \
-	-Wl,-call_shared \
+	-lssl -lcrypto -lunwind $(LIBS_LZMA) -lpcap -lz \
+	$(LIBS_DL_SHARED) \
 	-ldl
 
 ifdef SANITIZE

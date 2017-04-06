@@ -74,6 +74,7 @@ static inline uint32_t CalculateSum(const void *buf, size_t len) {
   }
 #endif
 
+#if __x86_64
   // Repeat 64-bit one's complement sum (at sum64) including carrys
   // 8 additions in a loop
   while (len >= sizeof(uint64_t) * 8) {
@@ -109,6 +110,24 @@ static inline uint32_t CalculateSum(const void *buf, size_t len) {
   // Reduce 64-bit unsigned integer to 32-bit unsigned integer
   // Carry may happens, but no need to complete reduce here
   sum64 = (sum64 >> 32) + (sum64 & 0xFFFFFFFF);
+#else
+  // Use stantard C language for 32 bit or other non-Intel
+  typedef union [[gnu::may_alias]] {
+     uint32_t u64;
+     uint16_t u16[4];
+  } u16_64;
+  const u16_64 *ubuf64;
+  ubuf64 = reinterpret_cast<const u16_64  *>(buf64);
+  while (len >= sizeof(uint64_t)) {
+     sum64 += ubuf64->u16[0];
+     sum64 += ubuf64->u16[1];
+     sum64 += ubuf64->u16[2];
+     sum64 += ubuf64->u16[3];
+     len -= sizeof(uint64_t);
+     ubuf64++;
+  }
+  buf64 = reinterpret_cast<const uint64_t *>(ubuf64);
+#endif
 
   // Repeat 16-bit one's complement sum (at sum64)
   const uint16_t *buf16 = reinterpret_cast<const uint16_t *>(buf64);
