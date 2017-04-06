@@ -1,0 +1,107 @@
+---
+- hosts: all
+  tags: package
+  tasks:
+    - apt_repository: repo='ppa:ubuntu-toolchain-r/test' state=present
+      become: true
+
+    - name: Install list of packages (this step may take a long time)
+      apt: name={{item}} state=latest update_cache=yes
+      become: true
+      with_items:
+        - apt-transport-https
+        - ca-certificates
+        - build-essential
+        - g++-4.8
+        - g++-5
+        - g++-6
+        - g++
+        - clang-3.8
+        - autoconf
+        - automake
+        - libtool
+        - make
+        - cmake
+        - libpthread-stubs0-dev
+        - libunwind8-dev
+        - liblzma-dev
+        - zlib1g-dev
+        - libpcap-dev
+        - libssl-dev
+        - curl
+        - git
+        - python
+        - python-dev
+        - python-pip
+        - python-scapy
+        - libgflags-dev
+        - libgoogle-glog-dev
+        - libgraph-easy-perl
+        - libgtest-dev
+        - linux-headers-generic
+        - lcov
+
+    - name: Install Linux headers
+      apt: name=linux-headers-{{ ansible_kernel }} state=latest update_cache=yes
+      become: true
+      when: ansible_kernel | match(".*-generic")
+
+    - name: Add the new GPG key for Docker
+      apt_key: keyserver=hkp://p80.pool.sks-keyservers.net:80 id=58118E89F3A912897C070ADBF76221572C52609D
+      become: true
+
+    - apt_repository: repo='deb https://apt.dockerproject.org/repo ubuntu-{{ansible_distribution_release}} main' state=present
+      become: true
+
+    - name: Install Docker
+      apt: name=docker-engine state=latest update_cache=yes
+      become: true
+
+    - name: Install list of Python packages
+      pip: name=grpcio
+      become: true
+
+    - name: Clone libbenchmark
+      git: repo=https://github.com/google/benchmark dest=/tmp/benchmark accept_hostkey=yes
+
+    - name: Generate makefile for libbenchmark
+      shell: cmake . chdir=/tmp/benchmark
+
+    - name: Compile libbenchmark
+      shell: make chdir=/tmp/benchmark
+
+    - name: Install libbenchmark
+      shell: make install chdir=/tmp/benchmark
+      become: true
+
+    - name: Wipe prior protobuf installs to avoid conflicts
+      shell: apt-get remove -y -f libprotobuf* protobuf-* protoc; sudo rm -f `which protoc` warn=no
+      become: true
+
+    - name: Download protobuf
+      unarchive: src=https://github.com/google/protobuf/releases/download/v3.2.0/protobuf-cpp-3.2.0.tar.gz dest=/tmp/ copy=no
+
+    - name: Compile protobuf (this step takes a long time too)
+      shell: ./autogen.sh && ./configure && make chdir=/tmp/protobuf-3.2.0
+
+    - name: Install protobuf
+      shell: make install chdir=/tmp/protobuf-3.2.0
+      become: true
+
+    - name: sudo ldconfig
+      shell: ldconfig
+      become: true
+
+    - name: Download gRPC
+      unarchive: src=https://github.com/grpc/grpc/archive/v1.1.2.tar.gz dest=/tmp/ copy=no
+
+    - name: Compile gRPC
+      shell: make chdir=/tmp/grpc-1.1.2
+
+    - name: Install gRPC
+      shell: make install chdir=/tmp/grpc-1.1.2
+      become: true
+
+    - name: sudo ldconfig
+      shell: ldconfig
+      become: true

@@ -1,0 +1,27 @@
+- include: packages.yml
+
+- hosts: all
+  tags: vagrant
+  tasks:
+    - name: Reboot after 20 sec on kernel panic
+      sysctl: name=kernel.panic value=20 sysctl_set=yes
+      become: true
+
+    - name: Panic on oops
+      sysctl: name=kernel.panic_on_oops value=1 sysctl_set=yes
+      become: true
+
+    - name: Enable huge pages
+      sysctl: name=vm.nr_hugepages value=1024 sysctl_set=yes
+      become: true
+
+    - user: name=vagrant groups=adm,docker append=yes
+      become: true
+
+    - name: Bind /opt/bess as ~/bess
+      mount: name=/home/vagrant/bess fstype=none opts=bind src=/opt/bess state=mounted
+      become: true
+
+    - name: Set PATH
+      lineinfile: dest=/etc/environment line='PATH="/opt/bess/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"'
+      become: true
