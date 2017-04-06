@@ -7,6 +7,7 @@ core/extra.mk
 core/extra.dpdk.mk
 sanity_check.out
 *.retry
+.travis/Dockerfile
 
 # VM images
 *.img

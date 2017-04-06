@@ -1,1 +1,4 @@
-rebuild_image.sh
+rebuild_images.py
+Dockerfile.m4
+Dockerfile
+.dockerignore
