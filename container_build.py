@@ -6,7 +6,7 @@ import os
 import os.path
 import time
 
-IMAGE = 'nefelinetworks/bess_build:latest'
+IMAGE = 'nefelinetworks/bess_build:latest' + os.getenv('TAG_SUFFIX', '')
 BESS_DIR_HOST = os.path.dirname(os.path.abspath(__file__))
 BESS_DIR_CONTAINER = '/build/bess'
 BUILD_SCRIPT = './build.py'
