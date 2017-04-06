@@ -3,8 +3,15 @@
 - hosts: all
   tags: build-bess
   tasks:
+    - shell: ls -d /sys/devices/system/node/node* | wc -l
+      register: num_nodes
+
+    - shell: cat /proc/meminfo | grep Hugepagesize
+      register: def_hugepage_size
+
     - name: Enable huge pages
-      sysctl: name=vm.nr_hugepages value=1024 sysctl_set=yes
+      sysctl: name=vm.nr_hugepages value={{ num_nodes.stdout|int * 1024 }} sysctl_set=yes
+      when: "{{ def_hugepage_size.stdout.find('2048 kB') != -1 }}"
       become: true
 
     - name: Mount up /mnt/huge
