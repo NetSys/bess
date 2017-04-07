@@ -4,6 +4,10 @@
 #include "../module.h"
 #include "../module_msg.pb.h"
 
+#if __BYTE_ORDER__ != __ORDER_LITTLE_ENDIAN__
+#error this code assumes little endian architecture (x86)
+#endif
+
 struct l2_entry {
   union {
     struct {

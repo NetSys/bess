@@ -324,9 +324,10 @@ static int l2_flush(struct l2_table *l2tbl) {
 }
 
 static uint64_t l2_addr_to_u64(char *addr) {
-  uint64_t *addrp = reinterpret_cast<uint64_t *>(addr);
+  uint64_t a = *(reinterpret_cast<uint32_t *>(addr));
+  uint64_t b = *(reinterpret_cast<uint16_t *>(addr + 4));
 
-  return (*addrp & 0x0000FFffFFffFFfflu);
+  return a | (b << 32);
 }
 
 /******************************************************************************/
@@ -562,7 +563,9 @@ void L2Forward::ProcessBatch(bess::PacketBatch *batch) {
 
     out_gates[i] = default_gate;
 
-    l2_find(&l2_table_, l2_addr_to_u64(snb->head_data<char *>()),
+    // read destination MAC address (first 6 bytes)
+    // NOTE: assumes little endian
+    l2_find(&l2_table_, *(snb->head_data<uint64_t *>()) & 0x0000ffffffffffff,
             &out_gates[i]);
   }
 
