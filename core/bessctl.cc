@@ -596,7 +596,7 @@ class BESSControlImpl final : public BESSControl::Service {
               tc_name, bess::ResourceMap.at(resource), limit, max_burst));
     } else if (policy == bess::TrafficPolicyName[bess::POLICY_LEAF]) {
       return return_with_error(response, EINVAL, "Cannot create leaf TC. Use "
-                               "UpdateTcRequest message");
+                               "UpdateTcParentRequest message");
     } else {
       return return_with_error(response, EINVAL, "Invalid traffic policy");
     }
@@ -614,10 +614,9 @@ class BESSControlImpl final : public BESSControl::Service {
       return return_with_error(response, EBUSY, "There is a running worker");
     }
 
-    bess::TrafficClass* c ;
-    auto ret_find =  FindTc(request->class_(), response, &c);
-    if (!ret_find.ok()) {
-      return ret_find;
+    bess::TrafficClass* c = FindTc(request->class_(), response);
+    if (!c) {
+      return Status::OK;
     }
 
     if (c->policy() == bess::POLICY_RATE_LIMIT) {
@@ -658,10 +657,9 @@ class BESSControlImpl final : public BESSControl::Service {
       return return_with_error(response, EBUSY, "There is a running worker");
     }
 
-    bess::TrafficClass* c ;
-    auto ret_find =  FindTc(request->class_(), response, &c);
-    if (!ret_find.ok()) {
-      return ret_find;
+    bess::TrafficClass* c = FindTc(request->class_(), response);
+    if (!c) {
+      return Status::OK;
     }
 
     if (c->policy() == bess::POLICY_LEAF) {
@@ -683,12 +681,7 @@ class BESSControlImpl final : public BESSControl::Service {
       }
     }
 
-    auto ret_attach = AttachTc(c, request->class_(), response);
-    if (!ret_attach.ok()) {
-      return ret_attach;
-    }
-
-    return Status::OK;
+    return AttachTc(c, request->class_(), response);
   }
 
   Status GetTcStats(ServerContext*, const GetTcStatsRequest* request,
@@ -1404,46 +1397,55 @@ class BESSControlImpl final : public BESSControl::Service {
     return Status::OK;
   }
 
-  Status FindTc(const bess::pb::TrafficClass& class_,
-                EmptyResponse *response, bess::TrafficClass **c) {
+  bess::TrafficClass* FindTc(const bess::pb::TrafficClass& class_,
+                             EmptyResponse* response) {
+    bess::TrafficClass* c = nullptr;
+
     if (class_.name().length() != 0) {
       const char* name = class_.name().c_str();
       const auto all_tcs = TrafficClassBuilder::all_tcs();
       auto it = all_tcs.find(name);
       if (it == all_tcs.end()) {
-        return return_with_error(response, ENOENT, "Name '%s' doesn't exist",
-                                 name);
+        return_with_error(response, ENOENT, "Tc '%s' doesn't exist", name);
+        return nullptr;
       }
 
-      *c = it->second;
+      c = it->second;
     } else if (class_.leaf_module_name().length() != 0) {
       const std::string &module_name = class_.leaf_module_name();
       const auto& it = ModuleBuilder::all_modules().find(module_name);
       if (it == ModuleBuilder::all_modules().end()) {
-        return return_with_error(response, ENOENT, "No module '%s' found",
-                                 module_name.c_str());
+        return_with_error(response, ENOENT, "No module '%s' found",
+                          module_name.c_str());
+        return nullptr;
       }
       Module* m = it->second;
 
       task_id_t tid = class_.leaf_module_taskid();
       if (tid >= MAX_TASKS_PER_MODULE) {
-        return return_with_error(response, EINVAL,
-                                 "'taskid' must be between 0 and %d",
-                                 MAX_TASKS_PER_MODULE - 1);
+        return_with_error(response, EINVAL, "'taskid' must be between 0 and %d",
+                          MAX_TASKS_PER_MODULE - 1);
+        return nullptr;
       }
 
       if (tid >= m->tasks().size()) {
-        return return_with_error(response, ENOENT, "Task %s:%hu does not exist",
-                                 class_.leaf_module_name().c_str(),
-                                 tid);
+        return_with_error(response, ENOENT, "Task %s:%hu does not exist",
+                          class_.leaf_module_name().c_str(), tid);
+        return nullptr;
       }
 
-      *c = m->tasks()[tid]->GetTC();
+      c = m->tasks()[tid]->GetTC();
     } else {
-      return return_with_error(response, EINVAL, "One of 'name' or "
-                               "'leaf_module_name' must be specified");
+      return_with_error(response, EINVAL, "One of 'name' or "
+                        "'leaf_module_name' must be specified");
+      return nullptr;
     }
-    return Status::OK;
+
+    if (!c) {
+      return_with_error(response, ENOENT, "Error finding TC");
+    }
+
+    return c;
   }
 };
 

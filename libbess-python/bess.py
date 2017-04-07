@@ -384,15 +384,13 @@ class BESS(object):
 
         return self._request('AddTc', request)
 
-    def update_tc_param(self, name, resource=None, limit=None, max_burst=None,
-                        leaf_module_name=None, leaf_module_taskid=0):
-        request = bess_msg.UpdateTcParamRequest()
+    def update_tc_params(self, name, resource=None, limit=None, max_burst=None,
+                         leaf_module_name=None, leaf_module_taskid=0):
+        request = bess_msg.UpdateTcParamsRequest()
         class_ = getattr(request, 'class')
         class_.name = name
         if resource is not None:
             class_.resource = resource
-        class_.parent = parent
-        class_.wid = wid
 
         if limit:
             for k in limit:
@@ -407,7 +405,7 @@ class BESS(object):
         if leaf_module_taskid is not None:
             class_.leaf_module_taskid = leaf_module_taskid
 
-        return self._request('UpdateTcParam', request)
+        return self._request('UpdateTcParams', request)
 
     def attach_module(self, module_name, parent='', wid=-1,
                       module_taskid=0):

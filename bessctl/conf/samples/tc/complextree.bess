@@ -40,5 +40,6 @@ bess.resume_all()
 bess.pause_all()
 
 bess.attach_module(src0.name, 'rl')
+bess.update_tc_params('rl', resource='bit', limit={'bit': 300000})
 
 bess.resume_all()
