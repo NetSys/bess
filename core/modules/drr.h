@@ -1,6 +1,8 @@
 #ifndef BESS_MODULES_DRR_H_
 #define BESS_MODULES_DRR_H_
 
+#include <cstdlib>
+
 #include <rte_hash_crc.h>
 
 #include "../kmod/llring.h"
@@ -82,7 +84,7 @@ class DRR final : public Module {
           bess::Packet::Free(pkt);
         }
 
-        delete queue;
+        std::free(queue);
       }
 
       if (next_packet) {
