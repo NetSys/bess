@@ -1,6 +1,8 @@
 #ifndef BESS_MODULES_DRR_H_
 #define BESS_MODULES_DRR_H_
 
+#include <cstdlib>
+
 #include <rte_hash_crc.h>
 
 #include "../kmod/llring.h"
@@ -16,12 +18,12 @@ using bess::utils::CuckooMap;
 
 /*
   * This module implements Deficit Round Robin, a fair queueing algorithm, for
-  * flows. On receiving each packet, they are assigned to a flow's queue based on their 
-  * 5 tuple. On running a task, the module goes through the flows in round robin fashion
-  * adding a quantum to their deficit(allocated bytes). The module will then query
-  * each of those flows for packets until their deficit falls below the next packet's
-  * size. After a obtaining a 32 packets(a full batch), the module passes these
-  * packets onto the next module.
+  * flows. On receiving each packet, they are assigned to a flow's queue based
+  * on their 5 tuple. On running a task, the module goes through the flows in
+  * round robin fashion adding a quantum to their deficit(allocated bytes).
+  * The module will then query each of those flows for packets until their
+  * deficit falls below the next packet's size. After a obtaining a 32
+  * packets(a full batch), the module passes these packets onto the next module.
   *
   * based on this:
   *  https://en.wikipedia.org/wiki/Deficit_round_robin
@@ -45,13 +47,17 @@ using bess::utils::CuckooMap;
 class DRR final : public Module {
  public:
   // the default max number of flows allowed + 1
-  static const int kDefaultNumFlows = 4096;  
+  static const int kDefaultNumFlows = 4096;
   static const int kFlowQueueSize = 2048;  // initial queue size for a flow
-  static const int kQueueGrowthFactor = 2;  // the scale at which a flow's queue grows
-  static const int kFlowQueueMax = 200000;  // the max flow queue size if non-specified
+  static const int kQueueGrowthFactor =
+      2;  // the scale at which a flow's queue grows
+  static const int kFlowQueueMax =
+      200000;                   // the max flow queue size if non-specified
   static const int kTtl = 300;  // time to live for flow entries
-  static const int kDefaultQuantum = 1500;  // default value to initialize qauntum_ to
-  static const int kPacketOverhead = 24;  // additional bytes associated with packets
+  static const int kDefaultQuantum =
+      1500;  // default value to initialize qauntum_ to
+  static const int kPacketOverhead =
+      24;  // additional bytes associated with packets
 
   // 5 tuple id to identify a flow from a packet header information.
   struct FlowId {
@@ -82,7 +88,7 @@ class DRR final : public Module {
           bess::Packet::Free(pkt);
         }
 
-        delete queue;
+        std::free(queue);
       }
 
       if (next_packet) {

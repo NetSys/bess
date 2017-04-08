@@ -11,7 +11,6 @@
 #include <iostream>
 #include <string>
 
-#include "../mem_alloc.h"
 #include "../utils/common.h"
 
 uint32_t RoundToPowerTwo(uint32_t v) {
@@ -43,7 +42,7 @@ DRR::~DRR() {
     RemoveFlow(it->second);
     it++;
   }
-  delete flow_ring_;
+  std::free(flow_ring_);
 }
 
 pb_error_t DRR::Init(const bess::pb::DRRArg& arg) {
@@ -308,7 +307,7 @@ llring* DRR::AddQueue(uint32_t slots, int* err) {
   int bytes = llring_bytes_with_slots(slots);
   int ret;
 
-  llring* queue = static_cast<llring*>(mem_alloc_ex(bytes, alignof(llring), 0));
+  llring* queue = static_cast<llring*>(aligned_alloc(alignof(llring), bytes));
   if (!queue) {
     *err = -ENOMEM;
     return nullptr;
@@ -316,7 +315,7 @@ llring* DRR::AddQueue(uint32_t slots, int* err) {
 
   ret = llring_init(queue, slots, 1, 1);
   if (ret) {
-    mem_free(queue);
+    std::free(queue);
     *err = -EINVAL;
     return nullptr;
   }
@@ -363,12 +362,12 @@ llring* DRR::ResizeQueue(llring* old_queue, uint32_t new_size, int* err) {
         bess::Packet::Free(pkt);
         *err = 0;
       } else if (*err != 0) {
-        mem_free(new_queue);
+        std::free(new_queue);
         return nullptr;
       }
     }
 
-    mem_free(old_queue);
+    std::free(old_queue);
   }
   return new_queue;
 }
