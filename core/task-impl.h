@@ -5,8 +5,7 @@
 
 #include "module.h"
 
-inline struct task_result Task::operator()(void)
-{
+inline struct task_result Task::operator()(void) {
   return module_->RunTask(arg_);
 }
 

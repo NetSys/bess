@@ -172,7 +172,9 @@ class TrafficClass {
     return parent_->Root();
   }
 
-  // Returns true if child was removed successfully.
+  // Returns true if 'child' was removed successfully, in which case
+  // the caller owns it. Therefore, after a successful call, 'child'
+  // must be destroyed or attached to another tree.
   virtual bool RemoveChild(TrafficClass *child) = 0;
 
   // Starts from the current node and accounts for the usage of the given child

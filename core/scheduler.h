@@ -21,6 +21,7 @@ struct sched_stats {
 template <typename CallableTask>
 class Scheduler;
 
+// List of throttled traffic classes ordered by throttle expiration.
 class SchedThrottledCache {
  public:
   struct ThrottledComp {
@@ -39,14 +40,12 @@ class SchedThrottledCache {
   }
 
  private:
-
   template <typename CallableTasks>
   friend class Scheduler;
 
   // A cache of throttled TrafficClasses.
   std::priority_queue<RateLimitTrafficClass *,
-                      std::vector<RateLimitTrafficClass *>, ThrottledComp>
-      q_;
+                      std::vector<RateLimitTrafficClass *>, ThrottledComp> q_;
 };
 
 template <typename CallableTask>
@@ -173,6 +172,9 @@ class Scheduler final {
 
   TrafficClass *root() { return root_; }
 
+  // Add 'c' at the top of the scheduler's tree.  If the scheduler is empty,
+  // 'c' becomes the root, otherwise it is be attached to a default
+  // round-robin root.
   bool AttachOrphan(TrafficClass *c, int wid) {
     if (!root_) {
       root_ = c;
@@ -190,6 +192,8 @@ class Scheduler final {
     return true;
   }
 
+  // Simplify the root of the tree, removing an eventual default
+  // round-robin root, if it has a single child (or none).
   void AdjustDefault() {
     if (!root_ || !default_rr_class_) {
       return;
@@ -213,6 +217,8 @@ class Scheduler final {
     }
   }
 
+  // If 'c' is the root of the scheduler's tree, remove it and return
+  // true.  The caller now owns 'c'.
   bool RemoveRoot(TrafficClass *c) {
     if (root_ == c && default_rr_class_ == nullptr) {
       root_ = nullptr;
