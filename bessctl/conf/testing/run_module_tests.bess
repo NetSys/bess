@@ -77,7 +77,8 @@ def load_test(filename):
             CUSTOM_TEST_FUNCTIONS]
 
 def monitor_task(module, wid):
-  bess.attach_task(module.name, 0, wid=wid)
+  bess.add_tc("leaf" + module.name, policy='leaf', wid=wid,
+              leaf_module_name=module.name)
 
 ## RUN TEST LOOP ##
 path = os.path.dirname(os.path.realpath(sys.argv[0]))

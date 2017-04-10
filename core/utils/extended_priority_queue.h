@@ -1,6 +1,7 @@
 #ifndef BESS_UTILS_EXTENDED_PRIORITY_QUEUE_H_
 #define BESS_UTILS_EXTENDED_PRIORITY_QUEUE_H_
 
+#include <algorithm>
 #include <queue>
 #include <vector>
 
@@ -48,6 +49,19 @@ class extended_priority_queue : public std::priority_queue<T> {
     }
   
     // DCHECK(std::is_heap(v.begin(), v.end()));
+  }
+
+  template <class F>
+  inline bool delete_single_element(F func) {
+    auto &v = this->c;
+    auto it = std::find_if(v.begin(), v.end(), func);
+    if (it != v.end()) {
+      v.erase(it);
+      std::make_heap(v.begin(), v.end(), this->comp);
+
+      return true;
+    }
+    return false;
   }
 };
 
