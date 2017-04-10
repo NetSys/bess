@@ -56,11 +56,11 @@ bool PriorityTrafficClass::RemoveChild(TrafficClass *child) {
     return false;
   }
 
-  for (auto it = children_.begin(); it != children_.end(); it++) {
-    if (it->c_ == child) {
-      children_.erase(it);
+  for (size_t i = 0; i < children_.size(); i++) {
+    if (children_[i].c_ == child) {
+      children_.erase(children_.begin() + i);
       child->parent_ = nullptr;
-      if (static_cast<size_t>(it - children_.begin()) < first_runnable_) {
+      if (first_runnable_ > i) {
         first_runnable_--;
       }
       BlockTowardsRoot();
@@ -316,18 +316,15 @@ bool RoundRobinTrafficClass::RemoveChild(TrafficClass *child) {
     }
   }
 
-  for (auto it = children_.begin(); it != children_.end(); it++) {
-    if (*it == child) {
-      if (static_cast<size_t>(it - children_.begin()) < next_child_) {
+  for (size_t i = 0; i < children_.size(); i++) {
+    if (children_[i] == child) {
+      children_.erase(children_.begin() + i);
+      child->parent_ = nullptr;
+      if (next_child_ > i) {
         next_child_--;
       }
-      children_.erase(it);
-      // Wrap around for round robin.
-      if (next_child_ >= children_.size()) {
-        next_child_ = 0;
-      }
-      child->parent_ = nullptr;
       BlockTowardsRoot();
+
       return true;
     }
   }
@@ -354,19 +351,15 @@ void RoundRobinTrafficClass::UnblockTowardsRoot(uint64_t tsc) {
 }
 
 void RoundRobinTrafficClass::BlockTowardsRoot() {
-  for (auto it = children_.begin(); it != children_.end();) {
-    if ((*it)->blocked_) {
-      if (static_cast<size_t>(it - children_.begin()) < next_child_) {
+  for (size_t i = 0; i < children_.size();) {
+    if (children_[i]->blocked_) {
+      blocked_children_.push_back(children_[i]);
+      children_.erase(children_.begin() + i);
+      if (next_child_ > i) {
         next_child_--;
       }
-      blocked_children_.push_back(*it);
-      it = children_.erase(it);
-      // Wrap around for round robin.
-      if (next_child_ >= children_.size()) {
-        next_child_ = 0;
-      }
     } else {
-      ++it;
+      ++i;
     }
   }
   TrafficClass::BlockTowardsRootSetBlocked(children_.empty());
