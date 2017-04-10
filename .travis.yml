@@ -27,7 +27,7 @@ install:
   - "docker pull nefelinetworks/bess_build:latest${TAG_SUFFIX}"
 
 before_script:
-  - sudo sysctl -w vm.nr_hugepages=1024
+  - sudo sysctl -w vm.nr_hugepages=512
   - sudo mkdir -p /mnt/huge
   - sudo mount -t hugetlbfs nodev /mnt/huge
   - export CXX=$VER_CXX

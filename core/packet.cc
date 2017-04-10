@@ -40,7 +40,7 @@ static void init_mempool_socket(int sid) {
   char name[256];
 
   const int num_mempool_cache = 512;
-  const int initial_try = 524288;
+  const int initial_try = 262144;
   const int minimum_try = 16384;
   int current_try = initial_try;
 
