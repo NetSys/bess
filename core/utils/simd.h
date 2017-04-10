@@ -47,6 +47,7 @@ static inline __m256i concat_two_m128i(__m128i lo, __m128i hi) {
 #endif
 }
 
+<<<<<<< 627aad191e3e0e9dbba3dd057057ef1a697c170d
 static inline uint64_t m128i_extract_u64(__m128i a, int i) {
 #if __x86_64
   return _mm_extract_epi64(a, i);
