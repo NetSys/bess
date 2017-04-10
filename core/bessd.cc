@@ -368,11 +368,31 @@ static inline bool HasSuffix(const std::string &s, const std::string &suffix) {
          std::equal(suffix.rbegin(), suffix.rend(), s.rbegin());
 }
 
-bool LoadModule(const std::string &module_path) {
-  return (dlopen(module_path.c_str(), RTLD_NOW) != nullptr);
+static std::unordered_map<std::string, void *> plugin_handles;
+
+bool LoadPlugin(const std::string &path) {
+  void *handle = dlopen(path.c_str(), RTLD_NOW);
+  if (handle != nullptr) {
+    plugin_handles.emplace(path, handle);
+    return true;
+  } else {
+    return false;
+  }
 }
 
-bool LoadModules(const std::string &directory) {
+bool UnloadPlugin(const std::string &path) {
+  auto it = plugin_handles.find(path);
+  if (it == plugin_handles.end()) {
+    return false;
+  }
+  bool result = (dlclose(it->second) == 0);
+  if (result) {
+    plugin_handles.erase(it);
+  }
+  return result;
+}
+
+bool LoadPlugins(const std::string &directory) {
   DIR *dir = opendir(directory.c_str());
   if (!dir) {
     return false;
@@ -382,7 +402,7 @@ bool LoadModules(const std::string &directory) {
     if (entry->d_type == DT_REG && HasSuffix(entry->d_name, ".so")) {
       const std::string full_path = directory + "/" + entry->d_name;
       LOG(INFO) << "Loading module: " << full_path;
-      if (!LoadModule(full_path)) {
+      if (!LoadPlugin(full_path)) {
         LOG(WARNING) << "Cannot load module " << full_path;
         closedir(dir);
         return false;

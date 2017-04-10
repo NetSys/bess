@@ -21,9 +21,9 @@ int main(int argc, char *argv[]) {
   google::ParseCommandLineFlags(&argc, &argv, true);
   bess::bessd::ProcessCommandLineArgs();
 
-  if (!bess::bessd::LoadModules(bess::bessd::GetCurrentDirectory() +
+  if (!bess::bessd::LoadPlugins(bess::bessd::GetCurrentDirectory() +
                                 "modules")) {
-    PLOG(FATAL) << "LoadModules() failed";
+    PLOG(FATAL) << "LoadPlugins() failed";
   }
 
   bess::bessd::CheckRunningAsRoot();

@@ -1254,11 +1254,21 @@ class BESSControlImpl final : public BESSControl::Service {
     return Status::OK;
   }
 
-  Status ImportMclass(ServerContext*, const ImportMclassRequest* request,
+  Status ImportPlugin(ServerContext*, const ImportPluginRequest* request,
                       EmptyResponse* response) override {
-    VLOG(1) << "Loading module: " << request->path();
-    if (!bess::bessd::LoadModule(request->path())) {
-      return return_with_error(response, -1, "Failed loading module %s",
+    VLOG(1) << "Loading plugin: " << request->path();
+    if (!bess::bessd::LoadPlugin(request->path())) {
+      return return_with_error(response, -1, "Failed loading plugin %s",
+                               request->path().c_str());
+    }
+    return Status::OK;
+  }
+
+  Status UnloadPlugin(ServerContext*, const UnloadPluginRequest* request,
+                      EmptyResponse* response) override {
+    VLOG(1) << "Unloading plugin: " << request->path();
+    if (!bess::bessd::UnloadPlugin(request->path())) {
+      return return_with_error(response, -1, "Failed loading plugin %s",
                                request->path().c_str());
     }
     return Status::OK;

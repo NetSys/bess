@@ -24,7 +24,11 @@ message EmptyResponse {
   Error error = 1;
 }
 
-message ImportMclassRequest {
+message ImportPluginRequest {
+  string path = 1;  /// Path to the module library (*.so file)
+}
+
+message UnloadPluginRequest {
   string path = 1;  /// Path to the module library (*.so file)
 }
 

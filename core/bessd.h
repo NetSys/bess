@@ -40,11 +40,14 @@ int Daemonize();
 // Sets BESS's resource limit.  Returns true upon success.
 bool SetResourceLimit();
 
-// Load an indiviual module specified by module_path. Return true upon success.
-bool LoadModule(const std::string &module_path);
+// Load an indiviual plugin specified by path. Return true upon success.
+bool LoadPlugin(const std::string &path);
+
+// Unload a loaded plugin specified by path. Return true upon success.
+bool UnloadPlugin(const std::string &path);
 
 // Load all the .so files in the specified directory. Return true upon success.
-bool LoadModules(const std::string &directory);
+bool LoadPlugins(const std::string &directory);
 
 // Return the current executable's own directory. For example, if the location
 // of the executable is /opt/bess/core/bessd, returns /opt/bess/core/ (with the

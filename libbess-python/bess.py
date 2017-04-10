@@ -217,10 +217,15 @@ class BESS(object):
         request.name = name
         return self._request('GetLinkStatus', request)
 
-    def import_mclass(self, path):
-        request = bess_msg.ImportMclassRequest()
+    def import_plugin(self, path):
+        request = bess_msg.ImportPluginRequest()
         request.path = path
-        return self._request('ImportMclass', request)
+        return self._request('ImportPlugin', request)
+
+    def unload_plugin(self, path):
+        request = bess_msg.UnloadPluginRequest()
+        request.path = path
+        return self._request('UnloadPlugin', request)
 
     def list_mclasses(self):
         return self._request('ListMclass')

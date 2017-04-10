@@ -1296,7 +1296,11 @@ def show_mclass_list(cli, cls_names):
 
 @cmd('import plugin PLUGIN_FILE', 'Import the specified plugin (*.so)')
 def import_plugin(cli, plugin):
-    cli.bess.import_mclass(plugin)
+    cli.bess.import_plugin(plugin)
+
+@cmd('unload plugin PLUGIN_FILE', 'Unload the specified plugin (*.so)')
+def unload_plugin(cli, plugin):
+    cli.bess.unload_plugin(plugin)
 
 def _show_driver(cli, drv_name, detail):
     info = cli.bess.get_driver_info(drv_name)
