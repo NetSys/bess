@@ -43,7 +43,7 @@ class TCWeightedFair : public benchmark::Fixture {
 
     TrafficClass *root =
         CT("root", {PRIORITY},
-           {{PRIORITY, 0, CT("weighted", {WEIGHTED_FAIR, resource}, {})}});
+           {{0, CT("weighted", {WEIGHTED_FAIR, resource}, {})}});
     s_ = new Scheduler<Task>(root);
     WeightedFairTrafficClass *weighted =
         static_cast<WeightedFairTrafficClass *>(

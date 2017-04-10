@@ -581,9 +581,7 @@ class PriorityChildArgs : public TCChildArgs {
  public:
   PriorityChildArgs(priority_t priority, TrafficClass *c)
       : TCChildArgs(POLICY_PRIORITY, c), priority_(priority) {}
-  PriorityChildArgs(PriorityFakeType, priority_t priority, TrafficClass *c)
-      : PriorityChildArgs(priority, c) {}
-  priority_t priority(){ return priority_; }
+  priority_t priority() { return priority_; }
  private:
   priority_t priority_;
 };
@@ -592,9 +590,6 @@ class WeightedFairChildArgs : public TCChildArgs {
  public:
   WeightedFairChildArgs(resource_share_t share, TrafficClass *c)
       : TCChildArgs(POLICY_WEIGHTED_FAIR, c), share_(share) {}
-  WeightedFairChildArgs(WeightedFairFakeType, resource_share_t share,
-                        TrafficClass *c)
-      : WeightedFairChildArgs(share, c) {}
   resource_share_t share() { return share_; }
  private:
   resource_share_t share_;
@@ -604,16 +599,12 @@ class RoundRobinChildArgs : public TCChildArgs {
  public:
   RoundRobinChildArgs(TrafficClass *c)
       : TCChildArgs(POLICY_ROUND_ROBIN, c) {}
-  RoundRobinChildArgs(RoundRobinFakeType, TrafficClass *c)
-      : RoundRobinChildArgs(c) {}
 };
 
 class RateLimitChildArgs : public TCChildArgs {
  public:
   RateLimitChildArgs(TrafficClass *c)
       : TCChildArgs(POLICY_RATE_LIMIT, c) {}
-  RateLimitChildArgs(RateLimitFakeType, TrafficClass *c)
-      : RateLimitChildArgs(c) {}
 };
 
 // Responsible for creating and destroying all traffic classes.
