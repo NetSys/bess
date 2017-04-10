@@ -5,11 +5,13 @@ import glob
 import socket
 import time
 import sugar
+import traceback
 from time import gmtime, strftime
 
 ## HANDY UTILS AND GLOBAL VARS ##
 SOCKET_PATH = '/tmp/bess_unix_'
 SCRIPT_STARTTIME = strftime("%Y-%m-%d-%H-%M-%S", gmtime())
+DID_TESTS_FAIL = False
 
 # Generate a UnixSocketPort and a Socket to talk to it
 def gen_socket_and_port(sockname):
@@ -84,7 +86,7 @@ path = os.path.dirname(os.path.realpath(sys.argv[0]))
 for filename in glob.glob(path + "/conf/testing/module_tests/*.py"):
     bess.reset_all()
 
-    print("-- Running Module Tests for %s --\n" % filename)
+    print("-- Running Module Tests for %s --" % filename.split("/")[-1])
 
    # Wrap in a function to make sure scope doesn't leak.
     CRASH_TEST_INPUTS, OUTPUT_TEST_INPUTS, CUSTOM_TEST_FUNCTIONS = load_test(
@@ -92,8 +94,15 @@ for filename in glob.glob(path + "/conf/testing/module_tests/*.py"):
 
     crash_testid = 1
     for module, input_port_cnt, output_port_cnt in CRASH_TEST_INPUTS:
-        crash_test(module, input_port_cnt, output_port_cnt)
-        print("   %s crash test %s: PASS\n" % (str(module), str(crash_testid)))
+        try:
+            crash_test(module, input_port_cnt, output_port_cnt)
+            print("   %s crash test %s: PASS" % (str(module), str(crash_testid)))
+        except:
+            print("   %s crash test %s: FAIL" % (str(module), str(crash_testid)))
+            DID_TESTS_FAIL = True
+            print "\n"
+            traceback.print_exc()
+            print "\n"
         crash_testid += 1
 
     output_testid = 1
@@ -101,59 +110,75 @@ for filename in glob.glob(path + "/conf/testing/module_tests/*.py"):
         input_ports = []
         output_ports = []
         sockets = []
+        try:
+            for port_num in range(max(input_port_cnt, output_port_cnt)):
+                sockname= module.name +"_" + str(output_testid) + "_moduletesting_" + \
+                    SCRIPT_STARTTIME + str(port_num)
+                socket_port, mysocket = gen_socket_and_port(sockname)
+                input_ports.append(PortInc(port=sockname))
+                output_ports.append(PortOut(port=sockname))
+                sockets.append(mysocket)
+                if (port_num < input_port_cnt):
+                    input_ports[port_num] -> port_num:module
+                if (port_num < output_port_cnt):
+                    module:port_num -> output_ports[port_num]
 
-        for port_num in range(max(input_port_cnt, output_port_cnt)):
-            sockname= module.name +"_" + str(output_testid) + "_moduletesting_" + \
-                SCRIPT_STARTTIME + str(port_num)
-            socket_port, mysocket = gen_socket_and_port(sockname)
-            input_ports.append(PortInc(port=sockname))
-            output_ports.append(PortOut(port=sockname))
-            sockets.append(mysocket)
-            if (port_num < input_port_cnt):
-                input_ports[port_num] -> port_num:module
-            if (port_num < output_port_cnt):
-                module:port_num -> output_ports[port_num]
+            bess.resume_all()
 
-        bess.resume_all()
-
-        for test_case in test_cases:
-            input_port = test_case["input_port"]
-            output_port = test_case["output_port"]
-            input_pkt = test_case["input_packet"]
-            output_pkt = test_case["output_packet"]
-            if(input_pkt is not None):
-                sockets[input_port].send(str(input_pkt))
-            try:
-                return_pkt = scapy.Ether(sockets[output_port].recv(2048))
-            except socket.timeout:
-                return_pkt = None
-            if(not ((return_pkt is None and output_pkt is None) or
-                    (return_pkt == scapy.Ether(output_pkt)))):
-                sys.stderr.write("Test failed!\n")
-                sys.stderr.write("Input packet: %s\n" %
-                      pkt_str(scapy.Ether(input_pkt)))
-                sys.stderr.write("Expected: %s\n" % pkt_str(scapy.Ether(output_pkt)))
-                sys.stderr.write("Received: %s\n" % pkt_str(return_pkt))
-                for sock in sockets:
-                    sock.close()
-                sys.exit(1)
-            print("   %s output test %s: PASS\n" %
+            for test_case in test_cases:
+                input_port = test_case["input_port"]
+                output_port = test_case["output_port"]
+                input_pkt = test_case["input_packet"]
+                output_pkt = test_case["output_packet"]
+                if(input_pkt is not None):
+                    sockets[input_port].send(str(input_pkt))
+                try:
+                    return_pkt = scapy.Ether(sockets[output_port].recv(2048))
+                except socket.timeout:
+                    return_pkt = None
+                if(not ((return_pkt is None and output_pkt is None) or
+                        (return_pkt == scapy.Ether(output_pkt)))):
+                    sys.stderr.write("Test failed!")
+                    sys.stderr.write("Input packet: %s" %
+                          pkt_str(scapy.Ether(input_pkt)))
+                    sys.stderr.write("Expected: %s" % pkt_str(scapy.Ether(output_pkt)))
+                    sys.stderr.write("Received: %s" % pkt_str(return_pkt))
+                    for sock in sockets:
+                        sock.close()
+                    DID_TESTS_FAIL = True
+                print("   %s output test %s: PASS" %
+                      (str(module), str(output_testid)))
+                output_testid += 1
+        except:
+            print("   %s output test %s: FAIL" %
                   (str(module), str(output_testid)))
-            output_testid += 1
+            DID_TESTS_FAIL = True
+            print "\n"
+            traceback.print_exc()
+            print "\n"
+
         # tests passed!
         for sock in sockets:
             sock.close()
         bess.pause_all()
 
     for test in CUSTOM_TEST_FUNCTIONS:
+        bess.pause_all()
+        bess.reset_all()
         try:
             test()
+            print("   %s  custom test: PASS" % str(test))
         except:
-            sys.stderr.write("Test failed!\n")
-            sys.stderr.write("Return value: %s\n" % sys.exc_info()[0])
-            sys.exit(1)
-        print("   %s  custom test: PASS" % str(test))
+            print("   %s  custom test: FAIL" % str(test))
+            DID_TESTS_FAIL = True
+            print "\n"
+            traceback.print_exc()
+            print "\n"
     # All done!
-    print "\n\n"
 
+bess.pause_all()
 bess.reset_all()
+if(DID_TESTS_FAIL):
+    print("Some tests failed. :(")
+    sys.exit(1)
+
