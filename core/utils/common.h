@@ -4,7 +4,6 @@
 #define BESS_UTILS_COMMON_H_
 
 #include <unistd.h>
-#include <x86intrin.h>
 
 #include <cstddef>
 #include <cstdint>
