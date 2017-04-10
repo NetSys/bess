@@ -195,15 +195,30 @@ void Module::ProcessBatch(bess::PacketBatch *) {
 }
 
 task_id_t Module::RegisterTask(void *arg) {
+  ModuleTask *t = new ModuleTask(arg, nullptr);
   Worker *w = get_next_active_worker();
-  bess::LeafTrafficClass *c = w->scheduler()->default_leaf_class();
+  bess::RoundRobinTrafficClass *d = w->scheduler()->default_rr_class();
 
-  tasks_.push_back(new Task(this, arg, c));
+  std::string leafname = std::string("!") + name_ + std::string("_")
+                         + std::to_string(tasks_.size());
+  bess::LeafTrafficClass<Task> *c = 
+      bess::TrafficClassBuilder::CreateTrafficClass<bess::LeafTrafficClass<Task>>(
+          leafname, Task(this, arg, t));
+
+  d->AddChild(c);
+
+  tasks_.push_back(t);
   return tasks_.size() - 1;
 }
 
 void Module::DestroyAllTasks() {
   for (auto task : tasks_) {
+    auto c = task->GetTC();
+    if (c && c->parent()) {
+      c->parent()->RemoveChild(c);
+      delete c;
+      task->SetTC(nullptr);
+    }
     delete task;
   }
   tasks_.clear();

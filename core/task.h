@@ -3,14 +3,14 @@
 
 #include <cstdint>
 
-#include "gate.h"
-
 typedef uint16_t task_id_t;
 
 class Module;
+class Task;
 
 namespace bess {
-class LeafTrafficClass;
+  template <typename CallableTask>
+  class LeafTrafficClass;
 }  // namespace bess
 
 struct task_result {
@@ -18,24 +18,52 @@ struct task_result {
   uint64_t bits;
 };
 
-class Task {
+class ModuleTask {
  public:
-  Task(Module *m, void *arg, bess::LeafTrafficClass *c);
+  ModuleTask(void *arg, bess::LeafTrafficClass<Task> *c)
+      : arg_(arg), c_(c) {};
 
-  virtual ~Task();
+  ~ModuleTask() {};
 
-  struct task_result Scheduled();
+  void *arg() {
+    return arg_;
+  }
 
-  void Attach(bess::LeafTrafficClass *c);
+  void SetTC(bess::LeafTrafficClass<Task> *c) {
+    c_ = c;
+  }
 
-  inline const Module *m() const { return m_; }
-
-  inline const bess::LeafTrafficClass *c() const { return c_; }
+  bess::LeafTrafficClass<Task> *GetTC() {
+    return c_;
+  }
 
  private:
-  Module *m_;
   void *arg_;
-  bess::LeafTrafficClass *c_;
+  bess::LeafTrafficClass<Task> *c_;
+};
+
+class Task {
+ public:
+  Task(Module *m, void *arg, ModuleTask *t) : module_(m), arg_(arg), t_(t) {};
+
+  void Detach() {
+    if (t_) {
+      t_->SetTC(nullptr);
+    }
+  }
+
+  void Attach(bess::LeafTrafficClass<Task> *c) {
+    if (t_) {
+      t_->SetTC(c);
+    }
+  }
+
+  struct task_result operator()(void);
+
+ private:
+  Module *module_;
+  void *arg_;
+  ModuleTask *t_;
 };
 
 #endif  // BESS_TASK_H_

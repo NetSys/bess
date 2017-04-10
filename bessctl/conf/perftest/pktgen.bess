@@ -44,9 +44,6 @@ else:
 ports = [PMDPort(port_id=i, num_inc_q=num_cores, num_out_q=num_cores) \
          for i in range(num_ports)]
 
-if(rate_limit != 0):
-    bess.add_tc('rr', policy='round_robin', priority=0)
-
 for i in range(num_cores):
     if(rate_limit == 0):
         print("starting up worker: " + str(i))
@@ -61,9 +58,8 @@ for i in range(num_cores):
     -> rr
 
     if(rate_limit != 0):
-        bess.add_tc('bit_limit', parent='rr', policy='rate_limit', resource='bit', limit={'bit': rate_limit * 1000000})
-        bess.add_tc('bit_leaf', policy='leaf', parent='bit_limit')
-        bess.attach_task(src.name, tc='bit_leaf')
+        bess.add_tc('bit_limit', policy='rate_limit', resource='bit', limit={'bit': rate_limit * 1000000})
+        bess.add_tc('bit_leaf', policy='leaf', parent='bit_limit', leaf_module_name=src.name)
 
     for j in range(num_ports):
         rr:j -> Update(fields=[{'offset': 29, 'size': 1, 'value': j+1}]) -> QueueOut(port=ports[j].name, qid=i)

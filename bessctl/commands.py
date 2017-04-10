@@ -924,13 +924,12 @@ def _show_tc_list(cli, tcs):
             c_ = getattr(tc, 'class')
             has_priority = c_.HasField('priority')
             cli.fout.write('    %-16s  '
-                           'parent %-10s  %s %-3d  tasks %-3d '
+                           'parent %-10s  %s %-3d '
                            '%s\n' %
                            (c_.name,
                             tc.parent if tc.parent else 'none',
                             'priority' if has_priority else 'share',
                             c_.priority if has_priority else c_.share,
-                            tc.tasks,
                             _limit_to_str(c_.limit)))
 
 
@@ -939,7 +938,7 @@ def show_tc_all(cli):
     classes = cli.bess.list_tcs().classes_status
 
     if len(classes) == 0:
-        raise cli.CommandError('There is no traffic class tho show.')
+        raise cli.CommandError('There is no traffic class to show.')
     else:
         _show_tc_list(cli, classes)
 
