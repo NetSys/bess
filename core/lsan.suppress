@@ -1,0 +1,11 @@
+# This file contains a list of functions/files that should be ignored by
+# clang's LeakSanitizer. For more details, see:
+# https://github.com/google/sanitizers/wiki/AddressSanitizerLeakSanitizer
+
+# there are some internal memory leaks in libpcap
+leak:pcap_alloc_pcap_t
+leak:pcap_check_header
+leak:pcap_open_offline_common
+
+# at startup in gtest
+leak:__si_class_type_info::__do_dyncast
