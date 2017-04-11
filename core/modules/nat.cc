@@ -6,6 +6,7 @@
 #include <numeric>
 #include <string>
 
+#include "../utils/checksum.h"
 #include "../utils/ether.h"
 #include "../utils/format.h"
 #include "../utils/icmp.h"
@@ -46,6 +47,9 @@ pb_cmd_response_t NAT::CommandClear(const bess::pb::EmptyArg &) {
 }
 
 // Recompute IP and TCP/UDP/ICMP checksum
+//
+// XXX The function assumes that ip->length bytes are effectively available
+// in the buffer and that the ip header has no options.
 static inline void compute_cksum(struct Ipv4Header *ip, void *l4) {
   struct TcpHeader *tcp = reinterpret_cast<struct TcpHeader *>(l4);
   struct UdpHeader *udp = reinterpret_cast<struct UdpHeader *>(l4);
@@ -63,8 +67,8 @@ static inline void compute_cksum(struct Ipv4Header *ip, void *l4) {
       break;
     case ICMP:
       icmp->checksum = 0;
-      icmp->checksum =
-          rte_ipv4_udptcp_cksum(reinterpret_cast<const ipv4_hdr *>(ip), icmp);
+      icmp->checksum = bess::utils::CalculateGenericChecksum(icmp,
+                                                             ntohs(ip->length));
       break;
     default:
       VLOG(1) << "Unknown protocol: " << ip->protocol;

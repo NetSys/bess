@@ -1,4 +1,5 @@
 #ifndef BESS_UTILS_TCP_H_
+#define BESS_UTILS_TCP_H_
 
 // Flags used in the flags field of the TCP header.
 #define TCP_FLAG_FIN 0x01
