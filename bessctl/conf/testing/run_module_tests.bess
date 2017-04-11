@@ -14,6 +14,8 @@ SCRIPT_STARTTIME = strftime("%Y-%m-%d-%H-%M-%S", gmtime())
 DID_TESTS_FAIL = False
 
 # Generate a UnixSocketPort and a Socket to talk to it
+
+
 def gen_socket_and_port(sockname):
     socket_port = UnixSocketPort(
         name=sockname,
@@ -28,6 +30,8 @@ def gen_socket_and_port(sockname):
 
 # Craft a packet with the specified IP addresses
 # All the other fields -- Ether, ports -- are dummy values.
+
+
 def gen_packet(proto, src_ip, dst_ip, ip_ttl=64):
     eth = scapy.Ether(src='02:1e:67:9f:4d:ae', dst='06:16:3e:1b:72:32')
     ip = scapy.IP(src=src_ip, dst=dst_ip, ttl=ip_ttl)
@@ -37,11 +41,14 @@ def gen_packet(proto, src_ip, dst_ip, ip_ttl=64):
     return str(pkt)
 
 # Quick turn a packet into a string even if it is None
+
+
 def pkt_str(pkt):
     if(pkt is None):
         return "None"
     else:
         return pkt.summary()
+
 
 # These are just for the crash test
 crash_test_packets = [
@@ -57,6 +64,8 @@ crash_test_packets = [
 
 # All this does is subject a module to load and make sure it
 # doesn't crash
+
+
 def crash_test(module, num_input_ports, num_output_ports):
     for i in range(num_input_ports):
         Source() -> Rewrite(templates=crash_test_packets) -> i:module
@@ -67,6 +76,8 @@ def crash_test(module, num_input_ports, num_output_ports):
 
 # Can't just call exec() in the middle of mane loop because
 # variables will leak into main script scope
+
+
 def load_test(filename):
     CRASH_TEST_INPUTS = []
     OUTPUT_TEST_INPUTS = []
@@ -78,8 +89,10 @@ def load_test(filename):
             OUTPUT_TEST_INPUTS,
             CUSTOM_TEST_FUNCTIONS]
 
+
 def monitor_task(module, wid):
-  bess.attach_module(module.name, wid=wid)
+    bess.attach_module(module.name, wid=wid)
+
 
 ## RUN TEST LOOP ##
 path = os.path.dirname(os.path.realpath(sys.argv[0]))
@@ -96,9 +109,13 @@ for filename in glob.glob(path + "/conf/testing/module_tests/*.py"):
     for module, input_port_cnt, output_port_cnt in CRASH_TEST_INPUTS:
         try:
             crash_test(module, input_port_cnt, output_port_cnt)
-            print("   %s crash test %s: PASS" % (str(module), str(crash_testid)))
-        except:
-            print("   %s crash test %s: FAIL" % (str(module), str(crash_testid)))
+            print(
+                "   %s crash test %s: PASS" %
+                (str(module), str(crash_testid)))
+        except BaseException:
+            print(
+                "   %s crash test %s: FAIL" %
+                (str(module), str(crash_testid)))
             DID_TESTS_FAIL = True
             print "\n"
             traceback.print_exc()
@@ -112,7 +129,7 @@ for filename in glob.glob(path + "/conf/testing/module_tests/*.py"):
         sockets = []
         try:
             for port_num in range(max(input_port_cnt, output_port_cnt)):
-                sockname= module.name +"_" + str(output_testid) + "_moduletesting_" + \
+                sockname = module.name + "_" + str(output_testid) + "_moduletesting_" + \
                     SCRIPT_STARTTIME + str(port_num)
                 socket_port, mysocket = gen_socket_and_port(sockname)
                 input_ports.append(PortInc(port=sockname))
@@ -140,8 +157,11 @@ for filename in glob.glob(path + "/conf/testing/module_tests/*.py"):
                         (return_pkt == scapy.Ether(output_pkt)))):
                     sys.stderr.write("Test failed!")
                     sys.stderr.write("Input packet: %s" %
-                          pkt_str(scapy.Ether(input_pkt)))
-                    sys.stderr.write("Expected: %s" % pkt_str(scapy.Ether(output_pkt)))
+                                     pkt_str(scapy.Ether(input_pkt)))
+                    sys.stderr.write(
+                        "Expected: %s" %
+                        pkt_str(
+                            scapy.Ether(output_pkt)))
                     sys.stderr.write("Received: %s" % pkt_str(return_pkt))
                     for sock in sockets:
                         sock.close()
@@ -149,7 +169,7 @@ for filename in glob.glob(path + "/conf/testing/module_tests/*.py"):
                 print("   %s output test %s: PASS" %
                       (str(module), str(output_testid)))
                 output_testid += 1
-        except:
+        except BaseException:
             print("   %s output test %s: FAIL" %
                   (str(module), str(output_testid)))
             DID_TESTS_FAIL = True
@@ -168,7 +188,7 @@ for filename in glob.glob(path + "/conf/testing/module_tests/*.py"):
         try:
             test()
             print("   %s  custom test: PASS" % str(test))
-        except:
+        except BaseException:
             print("   %s  custom test: FAIL" % str(test))
             DID_TESTS_FAIL = True
             print "\n"
@@ -181,4 +201,3 @@ bess.reset_all()
 if(DID_TESTS_FAIL):
     print("Some tests failed. :(")
     sys.exit(1)
-
