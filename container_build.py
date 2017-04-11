@@ -6,7 +6,7 @@ import os
 import os.path
 import time
 
-IMAGE = 'nefelinetworks/bess_build:latest'
+IMAGE = 'nefelinetworks/bess_build:latest' + os.getenv('TAG_SUFFIX', '')
 BESS_DIR_HOST = os.path.dirname(os.path.abspath(__file__))
 BESS_DIR_CONTAINER = '/build/bess'
 BUILD_SCRIPT = './build.py'
@@ -28,12 +28,14 @@ def shell_quote(cmd):
 
 
 def run_docker_cmd(cmd):
-    run_cmd('docker run -e CXX -e DEBUG --rm -t -u %d:%d -v %s:%s %s sh -c %s' %
-            (os.getuid(), os.getgid(), BESS_DIR_HOST, BESS_DIR_CONTAINER, IMAGE, shell_quote(cmd)))
+    run_cmd('docker run -e CXX -e DEBUG -e SANITIZE --rm -t ' \
+            '-u %d:%d -v %s:%s %s sh -c %s' %
+            (os.getuid(), os.getgid(), BESS_DIR_HOST, BESS_DIR_CONTAINER,
+             IMAGE, shell_quote(cmd)))
 
 
 def run_shell():
-    run_cmd('docker run -e CXX -e DEBUG --rm -it -v %s:%s %s' %
+    run_cmd('docker run -e CXX -e DEBUG -e SANITIZE --rm -it -v %s:%s %s' %
             (BESS_DIR_HOST, BESS_DIR_CONTAINER, IMAGE))
 
 

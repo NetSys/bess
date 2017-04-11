@@ -29,14 +29,14 @@ TEST(HistogramTest, DoubleQuartiles) {
     hist.insert(x);
   }
   ASSERT_EQ(0, hist.above_threshold());
-  ASSERT_EQ(1.5, hist.min());
-  ASSERT_EQ(5.5, hist.max());
-  ASSERT_EQ(19.0 / 6.0, hist.avg());
+  ASSERT_DOUBLE_EQ(1.5, hist.min());
+  ASSERT_DOUBLE_EQ(5.5, hist.max());
+  ASSERT_DOUBLE_EQ(19.0 / 6.0, hist.avg());
   ASSERT_EQ(6, hist.count());
-  ASSERT_EQ(19.0, hist.total());
-  ASSERT_EQ(1.0, hist.percentile(25));   // 25th percentile
-  ASSERT_EQ(2.0, hist.percentile(50));   // 50th percentile
-  ASSERT_EQ(3.0, hist.percentile(75));   // 75th percentile
-  ASSERT_EQ(5.0, hist.percentile(100));  // 100th percentile
+  ASSERT_DOUBLE_EQ(19.0, hist.total());
+  ASSERT_DOUBLE_EQ(1.0, hist.percentile(25));   // 25th percentile
+  ASSERT_DOUBLE_EQ(2.0, hist.percentile(50));   // 50th percentile
+  ASSERT_DOUBLE_EQ(3.0, hist.percentile(75));   // 75th percentile
+  ASSERT_DOUBLE_EQ(5.0, hist.percentile(100));  // 100th percentile
 }
 }

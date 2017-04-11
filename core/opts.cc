@@ -54,6 +54,6 @@ static bool ValidateMegabytesPerSocket(const char *, int32_t value) {
 
   return true;
 }
-DEFINE_int32(m, 2048, "Specifies how many megabytes to use per socket");
+DEFINE_int32(m, 1024, "Specifies how many megabytes to use per socket");
 static const bool _m_dummy[[maybe_unused]] =
     google::RegisterFlagValidator(&FLAGS_m, &ValidateMegabytesPerSocket);

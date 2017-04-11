@@ -1,0 +1,14 @@
+# Docker is an optional package, so not included in packages.yml
+- hosts: all
+  tags: docker
+  tasks:
+    - name: Add the new GPG key for Docker
+      apt_key: url=https://download.docker.com/linux/ubuntu/gpg
+      become: true
+
+    - apt_repository: repo='deb https://download.docker.com/linux/ubuntu {{ansible_distribution_release}} stable'
+      become: true
+
+    - name: Install Docker
+      apt: name=docker-engine state=latest update_cache=yes
+      become: true

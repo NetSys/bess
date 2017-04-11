@@ -1,0 +1,6 @@
+# This file contains a list of functions/files that should be ignored by
+# clang's UndefinedBehaviorSanitizer. For more details, see:
+# https://clang.llvm.org/docs/UndefinedBehaviorSanitizer.html
+
+# ignore all misaligned store/load issues, since we are on x86
+alignment:*

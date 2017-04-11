@@ -1,4 +1,5 @@
-#- include: packages.yml
+- include: packages.yml
+- include: docker.yml
 
 - hosts: all
   tags: build-bess
@@ -10,7 +11,7 @@
       register: def_hugepage_size
 
     - name: Enable huge pages
-      sysctl: name=vm.nr_hugepages value={{ num_nodes.stdout|int * 1024 }} sysctl_set=yes
+      sysctl: name=vm.nr_hugepages value={{ num_nodes.stdout|int * 512 }} sysctl_set=yes
       when: "{{ def_hugepage_size.stdout.find('2048 kB') != -1 }}"
       become: true
 
@@ -21,6 +22,9 @@
     - name: Mount up /mnt/huge
       mount: name=/mnt/huge fstype=hugetlbfs src=none state=mounted
       when: hugetlbfs_mounted.rc == 1
+      become: true
+
+    - user: name=vagrant groups=adm,docker append=yes
       become: true
 
     - name: Clone BESS repository

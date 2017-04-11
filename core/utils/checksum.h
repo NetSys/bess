@@ -9,6 +9,7 @@
 #include <glog/logging.h>
 
 #include "ip.h"
+#include "simd.h"
 #include "tcp.h"
 
 namespace bess {
@@ -69,7 +70,7 @@ static inline uint32_t CalculateSum(const void *buf, size_t len) {
                                    _mm256_extracti128_si256(sum256, 1));
 
     // fold 128bit sum into 64bit
-    sum64 += _mm_extract_epi64(sum128, 0) + _mm_extract_epi64(sum128, 1);
+    sum64 += m128i_extract_u64(sum128, 0) + m128i_extract_u64(sum128, 1);
     buf64 = reinterpret_cast<const uint64_t *>(buf256);
   }
 #endif

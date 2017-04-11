@@ -14,7 +14,7 @@ If you are new to BESS, we recommend you start here:
 3. [Write a BESS Configuration Script](https://github.com/NetSys/bess/wiki/Writing-a-BESS-Configuration-Script)
 4. [Connect BESS to a Network Interface, VM, or Container](https://github.com/NetSys/bess/wiki/Hooking-up-BESS-Ports)
 
-To configure and install BESS on Linux quickly, you can run the provided Ansible script (`vagrant/bess.yml`):
+To configure and install BESS on Linux quickly, you can run the provided Ansible script (`env/bess.yml`):
 
     git clone https://github.com/NetSys/bess.git
     cd bess/
@@ -22,5 +22,5 @@ To configure and install BESS on Linux quickly, you can run the provided Ansible
     sudo apt-add-repository -y ppa:ansible/ansible
     sudo apt-get update
     sudo apt-get install -y ansible
-    ansible-playbook -K -i localhost, -c local vagrant/bess.yml
+    ansible-playbook -K -i localhost, -c local env/bess.yml
     sudo reboot

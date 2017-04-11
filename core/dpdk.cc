@@ -86,10 +86,6 @@ static void init_eal(const char *prog_name, int mb_per_socket,
   snprintf(opt_lcore_bitmap, sizeof(opt_lcore_bitmap), "%d@%d",
            RTE_MAX_LCORE - 1, default_core);
 
-  if (mb_per_socket <= 0) {
-    mb_per_socket = 2048;
-  }
-
   snprintf(opt_socket_mem, sizeof(opt_socket_mem), "%d", mb_per_socket);
   for (i = 1; i < numa_count; i++) {
     auto len = strlen(opt_socket_mem);
