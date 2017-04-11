@@ -10,7 +10,6 @@
 
 #include "gate.h"
 #include "pktbatch.h"
-#include "task.h"
 #include "traffic_class.h"
 #include "utils/common.h"
 
@@ -46,6 +45,8 @@ namespace bess {
 template <typename CallableTask>
 class Scheduler;
 }  // namespace bess
+
+class Task;
 
 class Worker {
  public:

@@ -11,7 +11,6 @@
 #include <utility>
 #include <vector>
 
-#include "task.h"
 #include "utils/common.h"
 #include "utils/extended_priority_queue.h"
 #include "utils/simd.h"

@@ -15,11 +15,10 @@
 #include <utility>
 
 #include "metadata.h"
+#include "module.h"
 #include "opts.h"
 #include "packet.h"
 #include "scheduler.h"
-#include "task.h"
-#include "task-impl.h"
 #include "utils/time.h"
 
 using bess::Scheduler;

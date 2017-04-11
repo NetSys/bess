@@ -6,7 +6,6 @@
 
 #include "opts.h"
 #include "scheduler.h"
-#include "task.h"
 #include "utils/common.h"
 #include "utils/time.h"
 #include "worker.h"

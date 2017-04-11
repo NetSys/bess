@@ -3,8 +3,6 @@
 #include <benchmark/benchmark.h>
 #include <glog/logging.h>
 
-#include "task.h"
-#include "task-impl.h"
 #include "traffic_class.h"
 
 namespace {

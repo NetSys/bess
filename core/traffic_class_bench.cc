@@ -8,7 +8,6 @@
 #include "module.h"
 
 #include "scheduler.h"
-#include "task-impl.h"
 #include "traffic_class.h"
 
 #define CT TrafficClassBuilder::CreateTree
