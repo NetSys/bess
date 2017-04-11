@@ -46,16 +46,17 @@ class DummyRelayModule : public Module {
   RunNextModule(batch);
 }
 
+ADD_MODULE(DummySourceModule, "src", "the most sophisticated modue ever");
+ADD_MODULE(DummyRelayModule, "relay", "the most sophisticated modue ever");
+
 // Simple harness for testing the Module class.
 class ModuleFixture : public benchmark::Fixture {
  protected:
   void SetUp(benchmark::State &state) override {
     const int chain_length = state.range(0);
 
-    ADD_MODULE(DummySourceModule, "src", "the most sophisticated modue ever");
-    ADD_MODULE(DummyRelayModule, "relay", "the most sophisticated modue ever");
-    DCHECK(__module__DummySourceModule);
-    DCHECK(__module__DummyRelayModule);
+    DummySourceModule_init();
+    DummyRelayModule_init();
 
     const auto &builders = ModuleBuilder::all_module_builders();
     const auto &builder_src = builders.find("DummySourceModule")->second;
@@ -81,6 +82,8 @@ class ModuleFixture : public benchmark::Fixture {
 
   void TearDown(benchmark::State &) override {
     ModuleBuilder::DestroyAllModules();
+    DummySourceModule_fini();
+    DummyRelayModule_fini();
     ModuleBuilder::all_module_builders_holder(true);
   }
 

@@ -501,10 +501,16 @@ INSTANTIATE_MT_FOR_TYPE(uint16_t)
 INSTANTIATE_MT_FOR_TYPE(uint32_t)
 INSTANTIATE_MT_FOR_TYPE(uint64_t)
 
-#define ADD_MODULE(_MOD, _NAME_TEMPLATE, _HELP)                              \
-  bool __module__##_MOD = ModuleBuilder::RegisterModuleClass(                \
-      std::function<Module *()>([]() { return new _MOD(); }), #_MOD,         \
-      _NAME_TEMPLATE, _HELP, _MOD::kNumIGates, _MOD::kNumOGates, _MOD::cmds, \
-      MODULE_INIT_FUNC(&_MOD::Init));
-
+#define ADD_MODULE(_MOD, _NAME_TEMPLATE, _HELP)                                \
+  static void __attribute__((constructor)) _MOD##_init() {                     \
+    VLOG(1) << #_MOD << "_init()";                                             \
+    ModuleBuilder::RegisterModuleClass(                                        \
+        std::function<Module *()>([]() { return new _MOD(); }), #_MOD,         \
+        _NAME_TEMPLATE, _HELP, _MOD::kNumIGates, _MOD::kNumOGates, _MOD::cmds, \
+        MODULE_INIT_FUNC(&_MOD::Init));                                        \
+  }                                                                            \
+  static void __attribute__((destructor)) _MOD##_fini() {                      \
+    VLOG(1) << #_MOD << "_fini()";                                             \
+    ModuleBuilder::DeregisterModuleClass(#_MOD);                               \
+  }
 #endif  // BESS_MODULE_H_

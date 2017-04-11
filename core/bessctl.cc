@@ -1268,7 +1268,7 @@ class BESSControlImpl final : public BESSControl::Service {
                       EmptyResponse* response) override {
     VLOG(1) << "Unloading plugin: " << request->path();
     if (!bess::bessd::UnloadPlugin(request->path())) {
-      return return_with_error(response, -1, "Failed loading plugin %s",
+      return return_with_error(response, -1, "Failed unloading plugin %s",
                                request->path().c_str());
     }
     return Status::OK;

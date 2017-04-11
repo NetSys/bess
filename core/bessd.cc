@@ -383,6 +383,7 @@ bool LoadPlugin(const std::string &path) {
 bool UnloadPlugin(const std::string &path) {
   auto it = plugin_handles.find(path);
   if (it == plugin_handles.end()) {
+    VLOG(1) << "Plugin " << path << " not found.";
     return false;
   }
   bool result = (dlclose(it->second) == 0);
