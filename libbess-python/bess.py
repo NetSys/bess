@@ -278,8 +278,15 @@ class BESS(object):
         request.name = name
         request.cmd = cmd
 
-        message_type = getattr(module_msg, arg_type, bess_msg.EmptyArg)
-        arg_msg = pb_conv.dict_to_protobuf(message_type, arg)
+        try:
+            message_type = getattr(module_msg, arg_type)
+        except AttributeError as e:
+            raise self.APIError('Unknown arg "%s"' % arg_type)
+
+        try:
+            arg_msg = pb_conv.dict_to_protobuf(message_type, arg)
+        except (KeyError, ValueError) as e:
+            raise self.APIError(e)
 
         request.arg.Pack(arg_msg)
 

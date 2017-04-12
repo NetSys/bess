@@ -105,7 +105,8 @@ def _get_field_mapping(pb, dict_value, strict):
             continue
         if key not in pb.DESCRIPTOR.fields_by_name:
             if strict:
-                raise KeyError("%s does not have a field called %s" % (pb, key))
+                raise KeyError("%s does not have a field called %s" %
+                               (pb.__class__.__name__, key))
             continue
         field_mapping.append((pb.DESCRIPTOR.fields_by_name[key], value, getattr(pb, key, None)))
 
@@ -116,7 +117,9 @@ def _get_field_mapping(pb, dict_value, strict):
             raise ValueError("Extension keys must be integers.")
         if ext_num not in pb._extensions_by_number:
             if strict:
-                raise KeyError("%s does not have a extension with number %s. Perhaps you forgot to import it?" % (pb, key))
+                raise KeyError("%s does not have a extension with number %s. " \
+                               "Perhaps you forgot to import it?" %
+                               (pb.__class__.__name__, key))
             continue
         ext_field = pb._extensions_by_number[ext_num]
         pb_val = pb.Extensions[ext_field]
