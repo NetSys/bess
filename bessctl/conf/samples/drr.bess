@@ -21,16 +21,11 @@ src2::Source() ->Rewrite(templates=[pkt_bytes2]) \
 # once can put a rate a limiter on the tasks associated with these modules.
 # as a result of the throttle on drr, drr will fairly distribute the throughput across
 # all of the flows. (In order to maximize fairness, the quantum should be tweaked) 
-bess.add_tc('rr', policy='round_robin', priority=0)
-bess.add_tc('fast', policy='rate_limit', resource='packet', limit={'packet': 90000}, parent='rr')
-bess.add_tc('fast_leaf', policy='leaf', parent='fast')
+bess.add_tc('fast', policy='rate_limit', resource='packet', limit={'packet': 90000})
+bess.attach_module(src1.name, 'fast')
 
-bess.add_tc('slow', policy='rate_limit', resource='packet', limit={'packet': 40000}, parent='rr')
-bess.add_tc('slow_leaf', policy='leaf', parent='slow')
+bess.add_tc('slow', policy='rate_limit', resource='packet', limit={'packet': 40000})
+bess.attach_module(src2.name, 'slow')
 
-bess.add_tc('medium', policy='rate_limit', resource='packet', limit={'packet': 50000}, parent='rr')
-bess.add_tc('medium_leaf', policy='leaf', parent='medium')
-
-bess.attach_task(q.name, tc= "medium_leaf")
-bess.attach_task(src1.name, tc='fast_leaf')
-bess.attach_task(src2.name, tc='slow_leaf')
+bess.add_tc('medium', policy='rate_limit', resource='packet', limit={'packet': 50000})
+bess.attach_module(q.name, 'medium')

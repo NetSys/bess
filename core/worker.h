@@ -42,15 +42,14 @@ typedef enum {
 } worker_status_t;
 
 namespace bess {
+template <typename CallableTask>
 class Scheduler;
 }  // namespace bess
 
+class Task;
+
 class Worker {
  public:
-  static const bess::TrafficPolicy kDefaultRootPolicy;
-  static const char *kRootClassNamePrefix;
-  static const char *kDefaultLeafClassNamePrefix;
-
   /* ----------------------------------------------------------------------
    * functions below are invoked by non-worker threads (the master)
    * ---------------------------------------------------------------------- */
@@ -79,7 +78,7 @@ class Worker {
     return pframe_pool_;
   }
 
-  bess::Scheduler *scheduler() { return scheduler_; }
+  bess::Scheduler<Task> *scheduler() { return scheduler_; }
 
   uint64_t silent_drops() { return silent_drops_; }
   void set_silent_drops(uint64_t drops) { silent_drops_ = drops; }
@@ -107,7 +106,7 @@ class Worker {
 
   struct rte_mempool *pframe_pool_;
 
-  bess::Scheduler *scheduler_;
+  bess::Scheduler<Task> *scheduler_;
 
   uint64_t silent_drops_; /* packets that have been sent to a deadend */
 
@@ -134,6 +133,8 @@ static_assert(std::is_trivially_constructible<Worker>::value,
 static_assert(std::is_trivially_destructible<Worker>::value,
               "not trivially destructible");
 #endif
+
+// TODO: C++-ify
 
 extern int num_workers;
 extern std::thread worker_threads[MAX_WORKERS];
@@ -165,5 +166,24 @@ static inline int is_worker_running(int wid) {
 void launch_worker(int wid, int core);
 
 Worker *get_next_active_worker();
+
+// Add 'c' to the list of orphan traffic classes.
+void add_tc_to_orphan(bess::TrafficClass *c, int wid);
+
+// Return true if 'c' was removed from the list of orphan traffic classes.
+// 'c' is now owned by the caller, and it must be attached to a tree or
+// destroyed.
+//
+// Otherwise, return false
+bool remove_tc_from_orphan(bess::TrafficClass *c);
+
+// Try to detach 'c' from a scheduler, or from the list of orhpan traffic
+// classes.
+//
+// Return true if successful. 'c' is now owned by the caller, and it must be
+// attached to a tree or destroyed.
+//
+// Otherwise, return false
+bool detach_tc(bess::TrafficClass *c);
 
 #endif  // BESS_WORKER_H_

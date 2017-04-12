@@ -895,7 +895,7 @@ def _limit_to_str(limit):
         else:
             buf.append('%.3f Mpps' % (limit['packet'] / 1e6))
 
-    if limit['bit']:
+    if 'bit' in limit:
         if limit['bit'] < 1e3:
             buf.append('%.d bps' % limit['bit'])
         elif limit['bit'] < 1e6:
@@ -909,29 +909,94 @@ def _limit_to_str(limit):
         return 'unlimited'
 
 
+def _show_tcs_node(cli, node, indent, prefix, lastsibling):
+    line = prefix
+    if indent > 0:
+        line += "+-- "
+    line += str(node["name"])
+    line = line.ljust(30)
+
+    if "show_list" in node:
+        attrs = node["show_list"]
+        for v in attrs:
+            line += " %-19s" % v
+
+    cli.fout.write(line.rstrip(" ") + "\n")
+
+    recursions = []
+    if indent > 0:
+        childprefix = prefix + ("    " if lastsibling else "|   ")
+    else:
+        childprefix = prefix + ("  " if lastsibling else "| ")
+    children = node["children"]
+    for i in range(0, len(children)):
+        recursions.append((children[i],             # node
+                           indent + 1,              # indent
+                           childprefix,             # prefix
+                           i >= len(children) - 1,  # lastsibling
+                           ))
+    return recursions
+
+
+def _show_tcs_tree(cli, root):
+    stack = []
+    stack.append((root, 0, "", True))
+
+    while stack:
+        args = stack.pop()
+        ret = _show_tcs_node(cli, *args)
+        stack.extend(reversed(ret))
+
+
+def _build_tcs_tree(tcs):
+    nodes = {}
+    root = {"children": []}
+    for tc in tcs:
+        c_ = getattr(tc, 'class')
+        node = {}
+        node["children"] = []
+        node["name"] = c_.name
+        node["policy"] = c_.policy
+        node["show_list"] = []
+        nodes[c_.name] = node
+
+    for tc in tcs:
+        c_ = getattr(tc, 'class')
+
+        if tc.parent and tc.parent in nodes:
+            nodes[tc.parent]["children"].append(nodes[c_.name])
+        else:
+            root["children"].append(nodes[c_.name])
+
+        nodes[c_.name]["show_list"].append(c_.policy)
+
+        if tc.parent and tc.parent in nodes:
+            if (nodes[tc.parent]["policy"] == "weighted_fair" and
+                    c_.HasField("share")):
+                nodes[c_.name]["show_list"].append("share: %d" % c_.share)
+            elif (nodes[tc.parent]["policy"] == "priority" and
+                    c_.HasField("priority")):
+                nodes[c_.name]["show_list"].append("priority: %d" % c_.priority)
+
+        if c_.policy == "rate_limit":
+            nodes[c_.name]["show_list"].append(_limit_to_str(c_.limit))
+
+    return root
+
+
 def _show_tc_list(cli, tcs):
     wids = sorted(list(set(map(lambda tc: getattr(tc, 'class').wid, tcs))))
 
     for wid in wids:
         matched = filter(lambda tc: getattr(tc, 'class').wid == wid, tcs)
 
+        root = _build_tcs_tree(matched)
         if wid == -1:
-            cli.fout.write('  Unattached (%d classes)\n' % len(matched))
+            root["name"] = "<unattached>"
         else:
-            cli.fout.write('  worker %d (%d classes)\n' % (wid, len(matched)))
+            root["name"] = "<worker %d>" % wid
 
-        for tc in matched:
-            c_ = getattr(tc, 'class')
-            has_priority = c_.HasField('priority')
-            cli.fout.write('    %-16s  '
-                           'parent %-10s  %s %-3d  tasks %-3d '
-                           '%s\n' %
-                           (c_.name,
-                            tc.parent if tc.parent else 'none',
-                            'priority' if has_priority else 'share',
-                            c_.priority if has_priority else c_.share,
-                            tc.tasks,
-                            _limit_to_str(c_.limit)))
+        _show_tcs_tree(cli, root)
 
 
 @cmd('show tc', 'Show the list of traffic classes')
@@ -939,7 +1004,7 @@ def show_tc_all(cli):
     classes = cli.bess.list_tcs().classes_status
 
     if len(classes) == 0:
-        raise cli.CommandError('There is no traffic class tho show.')
+        raise cli.CommandError('There is no traffic class to show.')
     else:
         _show_tc_list(cli, classes)
 

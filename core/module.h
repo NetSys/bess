@@ -10,7 +10,6 @@
 #include "message.h"
 #include "metadata.h"
 #include "packet.h"
-#include "task.h"
 
 using bess::gate_idx_t;
 
@@ -19,6 +18,13 @@ static inline void set_cmd_response_error(pb_cmd_response_t *response,
   response->mutable_error()->CopyFrom(error);
 }
 #define MODULE_NAME_LEN 128
+
+struct task_result {
+  uint64_t packets;
+  uint64_t bits;
+};
+
+typedef uint16_t task_id_t;
 
 #define MAX_TASKS_PER_MODULE 32
 #define INVALID_TASK_ID ((task_id_t)-1)
@@ -146,6 +152,8 @@ class ModuleBuilder {
   const module_init_func_t init_func_;
 };
 
+class ModuleTask;
+
 class Module {
   // overide this section to create a new module -----------------------------
  public:
@@ -235,7 +243,7 @@ class Module {
     return attrs_;
   }
 
-  const std::vector<Task *> tasks() const {
+  const std::vector<ModuleTask *> &tasks() const {
     return tasks_;
   }
 
@@ -283,7 +291,7 @@ class Module {
   std::vector<bess::metadata::Attribute> attrs_;
   bess::metadata::mt_offset_t attr_offsets_[bess::metadata::kMaxAttrsPerModule];
 
-  std::vector<Task *> tasks_;
+  std::vector<ModuleTask *> tasks_;
 
   std::vector<bess::IGate *> igates_;
   std::vector<bess::OGate *> ogates_;
@@ -330,6 +338,74 @@ inline void Module::RunChooseModule(gate_idx_t ogate_idx,
 inline void Module::RunNextModule(bess::PacketBatch *batch) {
   RunChooseModule(0, batch);
 }
+
+class Task;
+
+namespace bess {
+  template <typename CallableTask>
+  class LeafTrafficClass;
+}  // namespace bess
+
+// Stores the arguments of a task created by a module.
+class ModuleTask {
+ public:
+  // Doesn't take ownership of 'arg' and 'c'.  'c' can be null and it
+  // can be changed later with SetTC()
+  ModuleTask(void *arg, bess::LeafTrafficClass<Task> *c)
+      : arg_(arg), c_(c) {};
+
+  ~ModuleTask() {};
+
+  void *arg() {
+    return arg_;
+  }
+
+  void SetTC(bess::LeafTrafficClass<Task> *c) {
+    c_ = c;
+  }
+
+  bess::LeafTrafficClass<Task> *GetTC() {
+    return c_;
+  }
+
+ private:
+  void *arg_; // Auxiliary value passed to Module::RunTask().
+  bess::LeafTrafficClass<Task> *c_; // Leaf TC associated with this task.
+};
+
+// Functor used by a leaf in a Worker's Scheduler to run a task in a module.
+class Task {
+ public:
+  // When this task is scheduled it will execute 'm' with 'arg'.
+  // When the associated leaf is created/destroyed, 't' will be updated.
+  Task(Module *m, void *arg, ModuleTask *t) : module_(m), arg_(arg), t_(t) {};
+
+  // Called when the leaf that owns this task is destroyed.
+  void Detach() {
+    if (t_) {
+      t_->SetTC(nullptr);
+    }
+  }
+
+  // Called when the leaf that owns this task is created.
+  void Attach(bess::LeafTrafficClass<Task> *c) {
+    if (t_) {
+      t_->SetTC(c);
+    }
+  }
+
+  struct task_result operator()(void) {
+    return module_->RunTask(arg_);
+  }
+
+ private:
+  // Used by operator().
+  Module *module_;
+  void *arg_;
+
+  // Used to notify a module that a leaf is being created/destroyed.
+  ModuleTask *t_;
+};
 
 /* run all per-thread initializers */
 void init_module_worker(void);

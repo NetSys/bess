@@ -34,7 +34,7 @@ for i in range(num_cores):
     pkt_src = FlowGen(template = pkt_template, pps = init_pps / num_cores, flow_rate = num_flows / flow_time, flow_duration = flow_time, \
         arrival = 'uniform', duration='uniform', quick_rampup = True)
     flowgens.append(pkt_src)
-    bess.attach_task(pkt_src.name, 0, wid=i)
+    bess.attach_module(pkt_src.name, wid=i)
 
     pkt_src -> IPChecksum() -> QueueOut(port=myport, qid = i)
 
