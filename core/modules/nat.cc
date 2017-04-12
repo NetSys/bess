@@ -19,6 +19,10 @@ using bess::utils::Ipv4Header;
 using bess::utils::UdpHeader;
 using bess::utils::TcpHeader;
 using bess::utils::IcmpHeader;
+using bess::utils::CalculateChecksumIncremental16;
+using bess::utils::CalculateChecksumUnfoldedIncremental32;
+using bess::utils::CalculateChecksumUnfoldedIncremental16;
+using bess::utils::FoldChecksumIncremental;
 
 const Commands NAT::cmds = {
     {"add", "NATArg", MODULE_CMD_FUNC(&NAT::CommandAdd), 0},
@@ -44,36 +48,6 @@ pb_cmd_response_t NAT::CommandClear(const bess::pb::EmptyArg &) {
   flow_hash_.Clear();
 
   return pb_cmd_response_t();
-}
-
-// Recompute IP and TCP/UDP/ICMP checksum
-//
-// XXX The function assumes that ip->length bytes are effectively available
-// in the buffer and that the ip header has no options.
-static inline void compute_cksum(struct Ipv4Header *ip, void *l4) {
-  struct TcpHeader *tcp = reinterpret_cast<struct TcpHeader *>(l4);
-  struct UdpHeader *udp = reinterpret_cast<struct UdpHeader *>(l4);
-  struct IcmpHeader *icmp = reinterpret_cast<struct IcmpHeader *>(l4);
-
-  ip->checksum = 0;
-  switch (ip->protocol) {
-    case TCP:
-      tcp->checksum = 0;
-      tcp->checksum =
-          rte_ipv4_udptcp_cksum(reinterpret_cast<const ipv4_hdr *>(ip), tcp);
-      break;
-    case UDP:
-      udp->checksum = 0;
-      break;
-    case ICMP:
-      icmp->checksum = 0;
-      icmp->checksum = bess::utils::CalculateGenericChecksum(icmp,
-                                                             ntohs(ip->length));
-      break;
-    default:
-      VLOG(1) << "Unknown protocol: " << ip->protocol;
-  }
-  ip->checksum = rte_ipv4_cksum(reinterpret_cast<const ipv4_hdr *>(ip));
 }
 
 // Extract a Flow object from IP header ip and L4 header l4
@@ -113,17 +87,50 @@ static inline Flow parse_flow(struct Ipv4Header *ip, void *l4) {
 static inline void stamp_flow(struct Ipv4Header *ip, void *l4,
                               const Flow &flow) {
   struct UdpHeader *udp = reinterpret_cast<struct UdpHeader *>(l4);
+  struct TcpHeader *tcp = reinterpret_cast<struct TcpHeader *>(l4);
   struct IcmpHeader *icmp = reinterpret_cast<struct IcmpHeader *>(l4);
+  uint32_t l3_inc = 0;
+  uint32_t l4_inc = 0;
+
+  l3_inc += CalculateChecksumUnfoldedIncremental32(ip->src, flow.src_ip);
+  l3_inc += CalculateChecksumUnfoldedIncremental32(ip->dst, flow.dst_ip);
 
   ip->src = flow.src_ip;
   ip->dst = flow.dst_ip;
+  ip->checksum = FoldChecksumIncremental(ip->checksum, l3_inc);
 
   switch (flow.proto) {
-    case UDP:
     case TCP:
+      l4_inc +=
+          CalculateChecksumUnfoldedIncremental16(tcp->src_port, flow.src_port);
+      l4_inc +=
+          CalculateChecksumUnfoldedIncremental16(tcp->dst_port, flow.dst_port);
+      l4_inc += l3_inc;
+
+      tcp->src_port = flow.src_port;
+      tcp->dst_port = flow.dst_port;
+      tcp->checksum = FoldChecksumIncremental(tcp->checksum, l4_inc);
+      break;
+
+    case UDP:
+      if (udp->checksum) {
+        l4_inc += CalculateChecksumUnfoldedIncremental16(udp->src_port,
+                                                         flow.src_port);
+        l4_inc += CalculateChecksumUnfoldedIncremental16(udp->dst_port,
+                                                         flow.dst_port);
+        l4_inc += l3_inc;
+
+        udp->checksum = FoldChecksumIncremental(udp->checksum, l4_inc);
+
+        if (!udp->checksum) {
+          udp->checksum = 0xFFFF;
+        }
+      }
+
       udp->src_port = flow.src_port;
       udp->dst_port = flow.dst_port;
       break;
+
     case ICMP:
       switch (icmp->type) {
         case 0:
@@ -131,6 +138,8 @@ static inline void stamp_flow(struct Ipv4Header *ip, void *l4,
         case 13:
         case 15:
         case 16:
+          icmp->checksum = CalculateChecksumIncremental16(
+              icmp->checksum, icmp->ident, flow.icmp_ident);
           icmp->ident = flow.icmp_ident;
           break;
         default:
@@ -138,7 +147,6 @@ static inline void stamp_flow(struct Ipv4Header *ip, void *l4,
       }
       break;
   }
-  compute_cksum(ip, l4);
 }
 
 void NAT::ProcessBatch(bess::PacketBatch *batch) {
