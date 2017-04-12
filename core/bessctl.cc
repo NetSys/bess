@@ -1256,6 +1256,10 @@ class BESSControlImpl final : public BESSControl::Service {
 
   Status ImportPlugin(ServerContext*, const ImportPluginRequest* request,
                       EmptyResponse* response) override {
+    if (is_any_worker_running()) {
+      return return_with_error(response, EBUSY, "There is a running worker");
+    }
+
     VLOG(1) << "Loading plugin: " << request->path();
     if (!bess::bessd::LoadPlugin(request->path())) {
       return return_with_error(response, -1, "Failed loading plugin %s",
@@ -1266,6 +1270,10 @@ class BESSControlImpl final : public BESSControl::Service {
 
   Status UnloadPlugin(ServerContext*, const UnloadPluginRequest* request,
                       EmptyResponse* response) override {
+    if (is_any_worker_running()) {
+      return return_with_error(response, EBUSY, "There is a running worker");
+    }
+
     VLOG(1) << "Unloading plugin: " << request->path();
     if (!bess::bessd::UnloadPlugin(request->path())) {
       return return_with_error(response, -1, "Failed unloading plugin %s",
