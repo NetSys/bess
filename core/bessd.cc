@@ -368,6 +368,8 @@ static inline bool HasSuffix(const std::string &s, const std::string &suffix) {
          std::equal(suffix.rbegin(), suffix.rend(), s.rbegin());
 }
 
+// Store handles of loaded plugins
+// key: plugin path (std::string), value: handle (void *)
 static std::unordered_map<std::string, void *> plugin_handles;
 
 bool LoadPlugin(const std::string &path) {
@@ -375,9 +377,8 @@ bool LoadPlugin(const std::string &path) {
   if (handle != nullptr) {
     plugin_handles.emplace(path, handle);
     return true;
-  } else {
-    return false;
   }
+  return false;
 }
 
 bool UnloadPlugin(const std::string &path) {
@@ -386,11 +387,11 @@ bool UnloadPlugin(const std::string &path) {
     VLOG(1) << "Plugin " << path << " not found.";
     return false;
   }
-  bool result = (dlclose(it->second) == 0);
-  if (result) {
+  bool success = (dlclose(it->second) == 0);
+  if (success) {
     plugin_handles.erase(it);
   }
-  return result;
+  return success;
 }
 
 bool LoadPlugins(const std::string &directory) {
