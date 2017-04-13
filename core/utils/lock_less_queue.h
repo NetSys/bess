@@ -73,6 +73,33 @@ class LockLessQueue final : public Queue<T> {
   bool Empty() override { return llring_empty(ring_); }
 
   bool Full() override { return llring_full(ring_); }
+ 
+  int Resize(size_t new_capacity) override {
+    if (new_capacity <= Size() || (new_capacity & (new_capacity - 1))) {
+      return -1;
+    }
+
+    int err;
+    size_t ring_sz = llring_bytes_with_slots(new_capacity);
+    llring* new_ring = reinterpret_cast<struct llring*>(malloc(ring_sz));
+    CHECK(new_ring);
+    err = llring_init(new_ring, new_capacity, ring_->common.sp_enqueue,
+                      ring_->common.sc_dequeue);
+    if (err != 0) {
+      free(new_ring);
+      return err;
+    }
+
+    void* obj;
+    while (llring_dequeue(ring_, reinterpret_cast<void**>(&obj)) == 0) {
+      llring_enqueue(new_ring, obj);
+    }
+
+    free(ring_);
+    ring_ = new_ring;
+    capacity_ = new_capacity;
+    return 0;
+  }
 
  private:
   struct llring* ring_;  // class's ring buffer

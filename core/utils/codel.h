@@ -3,12 +3,12 @@
 
 #include <cmath>
 #include <deque>
+#include <functional>
 
 #include <glog/logging.h>
 
 #include "time.h"
 #include "queue.h"
-
 
 namespace bess {
 namespace utils {
@@ -50,6 +50,7 @@ class Codel final: public Queue<T> {
         queue_(),
         drop_func_(drop_func) { }
 
+  // deconstructor that drops all objects still left in the internal queue.  
   virtual ~Codel() {
     Wrapper w;
     while (!queue_.empty()) {
@@ -134,8 +135,15 @@ class Codel final: public Queue<T> {
     }
     return i;
   }
-
-  size_t Capacity() override { return queue_.max_size(); }
+  // the underlying queue is deque which is a dynamically sized queue with a max size 
+  // determined by system limit. Therefore, the capacity is a specified value used to
+  // limit the queue or if no value is specified, the queue's system limit.
+  size_t Capacity() override {
+    if (max_size_ != 0) {
+      return max_size_;
+    }
+    return queue_.max_size();
+  }
 
   bool Empty() override { return queue_.empty(); }
 
@@ -147,6 +155,21 @@ class Codel final: public Queue<T> {
   }
 
   size_t Size() override { return queue_.size(); }
+  
+  // The undelying queue is deque which is a dynamically sized queue with a max size 
+  // determined by system limits. Therefore, the resize method will error if the new_capacity
+  // is outside of the queue's system limits or otherwise, only change the imposed limit on
+  // the capacity of the queue.
+  int Resize(size_t new_capacity) override {
+    if (new_capacity <= Size()) {
+      return -1;
+    } else if (new_capacity >= queue_.max_size()) {
+      return -1;
+    }
+
+    max_size_ = new_capacity;
+    return 0;
+  }
 
  private:
   // Calls the drop_func on the object if the drop function exists
