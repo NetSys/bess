@@ -61,7 +61,9 @@ class Scheduler final {
 
   // TODO(barath): Do real cleanup, akin to sched_free() from the old impl.
   virtual ~Scheduler() {
-    TrafficClassBuilder::Clear(root_);
+    if (root_) {
+      TrafficClassBuilder::Clear(root_);
+    }
     delete root_;
   }
 
