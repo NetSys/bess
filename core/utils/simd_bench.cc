@@ -82,13 +82,16 @@ static void SetArguments(benchmark::internal::Benchmark *b) {
   b->Args({0, 0, 4})
       ->Args({0, 0, 7})
       ->Args({0, 0, 8})
-      ->Args({0, 0, 31})
-      ->Args({0, 0, 63})
+      ->Args({0,10, 31})
+      ->Args({0, 0, 32})
+      ->Args({2, 0, 63})
       ->Args({0, 0, 64})
       ->Args({0, 0, 100})
       ->Args({0, 0, 256})
-      ->Args({0, 0, 257})
+      ->Args({10, 47, 257})
+      ->Args({0, 16, 512})
       ->Args({0, 0, 1024})
+      ->Args({19, 4, 2047})
       ->Args({0, 0, 4096});
 }
 
