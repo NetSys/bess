@@ -6,6 +6,8 @@
 #include <glog/logging.h>
 #include <rte_memcpy.h>
 
+#include "random.h"
+
 class CopyFixture : public benchmark::Fixture {
  protected:
   void SetUp(benchmark::State &state) override {
@@ -25,10 +27,16 @@ class CopyFixture : public benchmark::Fixture {
 
     src_aligned_ = static_cast<char *>(aligned_alloc(64, size_ + 63));
     src_ = src_aligned_ + src_misalign;
-    CHECK(reinterpret_cast<uintptr_t>(src_) % 64 == dst_misalign);
+    CHECK(reinterpret_cast<uintptr_t>(src_) % 64 == src_misalign);
+
+    Random rng;
+    for (size_t i = 0; i < size_; i++) {
+      src_[i] = rng.GetRange(256);
+    }
   }
 
   void TearDown(benchmark::State &) override {
+    CHECK_EQ(memcmp(dst_, src_, size_), 0);   // Sanity
     std::free(dst_aligned_);
     std::free(src_aligned_);
   }
