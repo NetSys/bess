@@ -31,17 +31,18 @@ class AcmeModule : public Module {
 const Commands AcmeModule::cmds = {
     {"foo", "EmptyArg", MODULE_CMD_FUNC(&AcmeModule::FooPb), 0}};
 
-ADD_MODULE(AcmeModule, "acme_module", "foo bar");
+DEF_MODULE(AcmeModule, "acme_module", "foo bar");
 
 // Simple harness for testing the Module class.
 class ModuleTester : public ::testing::Test {
  protected:
-  virtual void SetUp() { AcmeModule_init(); }
+  ModuleTester() : AcmeModule_singleton() {}
 
-  virtual void TearDown() {
-    ModuleBuilder::DestroyAllModules();
-    ModuleBuilder::all_module_builders_holder(true);
-  }
+  virtual void SetUp() {}
+
+  virtual void TearDown() { ModuleBuilder::DestroyAllModules(); }
+
+  AcmeModule_class AcmeModule_singleton;
 };
 
 int create_acme(const char *name, Module **m) {
@@ -80,10 +81,9 @@ int create_acme(const char *name, Module **m) {
 // Check that new module classes are actually created correctly and stored in
 // the table of module classes
 TEST(ModuleBuilderTest, RegisterModuleClass) {
-  ModuleBuilder::all_module_builders_holder(true);
   ASSERT_EQ(0, ModuleBuilder::all_module_builders().count("AcmeModule"));
 
-  AcmeModule_init();
+  AcmeModule_class AcmeModule_singleton;
   ASSERT_EQ(1, ModuleBuilder::all_module_builders().count("AcmeModule"));
 
   const ModuleBuilder &builder =
@@ -95,8 +95,6 @@ TEST(ModuleBuilderTest, RegisterModuleClass) {
   EXPECT_EQ(1, builder.NumIGates());
   EXPECT_EQ(1, builder.NumOGates());
   EXPECT_EQ(1, builder.cmds().size());
-
-  ModuleBuilder::all_module_builders_holder(true);
 }
 
 TEST(ModuleBuilderTest, GenerateDefaultNameTemplate) {
