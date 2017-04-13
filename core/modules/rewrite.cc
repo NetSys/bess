@@ -1,6 +1,8 @@
 #include "rewrite.h"
+
 #include <cstdio>
-#include <rte_memcpy.h>
+
+#include "../utils/simd.h"
 
 const Commands Rewrite::cmds = {
     {"add", "RewriteArg", MODULE_CMD_FUNC(&Rewrite::CommandAdd), 0},
@@ -73,36 +75,40 @@ pb_cmd_response_t Rewrite::CommandClear(const bess::pb::EmptyArg &) {
 inline void Rewrite::DoRewriteSingle(bess::PacketBatch *batch) {
   const int cnt = batch->cnt();
   uint16_t size = template_size_[0];
-  void *templ = templates_[0];
+  const void *templ = templates_[0];
 
   for (int i = 0; i < cnt; i++) {
     bess::Packet *pkt = batch->pkts()[i];
-    char *ptr = pkt->head_data<char *>();
-
-    pkt->set_total_len(size);
-    pkt->set_data_len(size);
-
-    rte_memcpy(ptr, templ, size);
-  }
-}
-
-inline void Rewrite::DoRewrite(bess::PacketBatch *batch) {
-  int start = next_turn_;
-  const int cnt = batch->cnt();
-
-  for (int i = 0; i < cnt; i++) {
-    uint16_t size = template_size_[start + i];
-    bess::Packet *pkt = batch->pkts()[i];
-    char *ptr = static_cast<char *>(pkt->buffer()) + SNBUF_HEADROOM;
+    char *ptr = pkt->buffer<char *>() + SNBUF_HEADROOM;
 
     pkt->set_data_off(SNBUF_HEADROOM);
     pkt->set_total_len(size);
     pkt->set_data_len(size);
 
-    rte_memcpy(ptr, templates_[start + i], size);
+    CopySloppy(ptr, templ, size);
+  }
+}
+
+inline void Rewrite::DoRewrite(bess::PacketBatch *batch) {
+  size_t start = next_turn_;
+  const size_t cnt = batch->cnt();
+
+  for (size_t i = 0; i < cnt; i++) {
+    uint16_t size = template_size_[start + i];
+    bess::Packet *pkt = batch->pkts()[i];
+    char *ptr = pkt->buffer<char *>() + SNBUF_HEADROOM;
+
+    pkt->set_data_off(SNBUF_HEADROOM);
+    pkt->set_total_len(size);
+    pkt->set_data_len(size);
+
+    CopySloppy(ptr, templates_[start + i], size);
   }
 
-  next_turn_ = (start + cnt) % num_templates_;
+  next_turn_ = start + cnt;
+  if (next_turn_ >= bess::PacketBatch::kMaxBurst) {
+    next_turn_ -= bess::PacketBatch::kMaxBurst;
+  }
 }
 
 void Rewrite::ProcessBatch(bess::PacketBatch *batch) {
