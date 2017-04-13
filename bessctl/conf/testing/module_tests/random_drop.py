@@ -33,7 +33,6 @@ def create_drop_test(rate):
                 "1.2.3.4")]
         a = Measure()
         b = Measure()
-
         src -> b -> Rewrite(templates=rwtemp) -> rd2 -> a -> Sink()
 
         bess.resume_all()

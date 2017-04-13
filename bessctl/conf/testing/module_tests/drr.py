@@ -46,13 +46,13 @@ def fairness_test():
     # throughput for each flow had a jaine fairness of atleast .95.
     def fairness_n_flow_test(n, quantum, rates, module_rate):
         err = bess.reset_all()
-        
+
         packets = []
         exm = ExactMatch(fields=[{'offset':26, 'size':4}])
         for i in range(1, n+1):
            packets.append(gen_packet(scapy.TCP, '22.11.11.' + str(i), '22.22.11.' + str(i))) 
            exm.add(fields=[socket.inet_aton('22.11.11.' + str(i))], gate=i)
-        
+
         me_in = Measure()
         src = []
         measure_in = []
@@ -90,19 +90,19 @@ def fairness_test():
         for i in range(n):
             square_sum += f(measure_out[i])
         square_sum *= n
-        
+
         if square_sum == 0:
             fair = 0
         else:
             fair = f(me_out)/square_sum
         assert abs(.99 - fair) <=.05
-    
+
     fairness_n_flow_test(2, 1000, [80000, 20000], 30000)
     fairness_n_flow_test(5, 1000, [110000, 200000, 70000, 60000, 40000], 150000)
-    
+
     ten_flows =  [210000, 120000, 130000, 160000, 100000, 105000, 90000, 70000, 60000, 40000]
     fairness_n_flow_test(10, 1000, ten_flows , 300000)
-    
+
     # hund_flows= []
     # cur = 200000
     # for i in range(100):
