@@ -15,5 +15,5 @@ Source() \
         -> GenericEncap(fields=[ \
             {'size': 6, 'value': 0x020000000001},
             {'size': 6, 'value': 0x0619deadbeef},
-            {'size': 2, 'attr_name': 'ether_type'}]) \
+            {'size': 2, 'attribute': 'ether_type'}]) \
         -> Sink()

@@ -28,8 +28,8 @@ pb_error_t ExactMatch::AddFieldOne(const bess::pb::ExactMatchArg_Field &field,
     return pb_error(EINVAL, "idx %d: 'size' must be 1-%d", idx, MAX_FIELD_SIZE);
   }
 
-  if (field.position_case() == bess::pb::ExactMatchArg_Field::kName) {
-    const char *attr = field.name().c_str();
+  if (field.position_case() == bess::pb::ExactMatchArg_Field::kAttribute) {
+    const char *attr = field.attribute().c_str();
     f->attr_id = AddMetadataAttr(attr, f->size,
                                  bess::metadata::Attribute::AccessMode::kRead);
     if (f->attr_id < 0) {

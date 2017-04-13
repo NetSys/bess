@@ -399,7 +399,7 @@ message ExactMatchArg {
     uint64 size = 1; /// The length, in bytes, of the field to inspect.
     uint64 mask = 4; /// A bitmask over the field to specify which bits to inspect (default 0xff).
     oneof position {
-      string name = 2; ///Metadata attribute name, if field resides in metadata.
+      string attribute = 2; ///Metadata attribute name, if field resides in metadata.
       int64 offset = 3; /// The offset, in bytes, from the start of the packet that the field resides in (if field resides in packet data)..
     }
   }
@@ -443,14 +443,14 @@ message GenericDecapArg {
  * Takes a list of fields. Each field is either:
  *
  *  1. {'size': X, 'value': Y}		(for constant values)
- *  2. {'size': X, 'attr': Y}		(for metadata attributes)
+ *  2. {'size': X, 'attribute': Y}	(for metadata attributes)
  *
- * e.g.: GenericEncap([{'size': 4, 'value':0xdeadbeef},
- *                     {'size': 2, 'attr':'foo'},
- *                     {'size': 2, 'value':0x1234}])
+ * e.g.: GenericEncap([{'size': 4, 'value': 0xdeadbeef},
+ *                     {'size': 2, 'attribute': 'foo'},
+ *                     {'size': 2, 'value': 0x1234}])
  * will prepend a 8-byte header:
  *    de ad be ef <xx> <xx> 12 34
- * where the 2-byte <xx> <xx> comes from the value of metadata arribute 'foo'
+ * where the 2-byte <xx> <xx> comes from the value of metadata attribute 'foo'
  * for each packet.
  * An example script using GenericEncap is in [`bess/bessctl/conf/samples/generic_encap.bess`](https://github.com/NetSys/bess/blob/master/bessctl/conf/samples/generic_encap.bess).
  *
@@ -463,8 +463,8 @@ message GenericEncapArg {
    */
   message Field {
     uint64 size = 1; /// The length of the field.
-    oneof attribute {
-      string attr_name = 2; /// The metadata attribute name to pull the field value from
+    oneof insertion {
+      string attribute = 2; /// The metadata attribute name to pull the field value from
       uint64 value = 3; /// Or, the fixed value to insert into the packet (max 8 bytes).
     }
   }
@@ -931,7 +931,7 @@ message WildcardMatchArg {
    */
   message Field {
     uint64 size = 1; /// The length in bytes of the field to inspect.
-    oneof length {
+    oneof position {
       uint64 offset = 2; /// The field offset into the packet data, if the field lies in the packet itself.
       string attribute = 3; /// The metadata attribute to inspect, if the field is a metadata attribute.
     }
