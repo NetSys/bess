@@ -1,4 +1,4 @@
-#include "simd.h"
+#include "copy.h"
 
 #include <cstdlib>
 
@@ -7,6 +7,8 @@
 #include <rte_memcpy.h>
 
 #include "random.h"
+
+using bess::utils::Copy;
 
 class CopyFixture : public benchmark::Fixture {
  protected:
@@ -21,24 +23,39 @@ class CopyFixture : public benchmark::Fixture {
     size_ = state.range(2);
     CHECK_LE(size_, kMaxSize);
 
-    dst_aligned_ = static_cast<char *>(aligned_alloc(64, size_ + 63));
-    dst_ = dst_aligned_ + dst_misalign;
-    CHECK(reinterpret_cast<uintptr_t>(dst_) % 64 == dst_misalign);
+    // for deterministic benchmark results, allocate page-aligned memory.
+    // (otherwise CPU cache bank conflict will incur seemingly random results)
+    mem_ = static_cast<char *>(aligned_alloc(4096, kMaxSize * 2 + 256));
 
-    src_aligned_ = static_cast<char *>(aligned_alloc(64, size_ + 63));
-    src_ = src_aligned_ + src_misalign;
-    CHECK(reinterpret_cast<uintptr_t>(src_) % 64 == src_misalign);
+    dst_ = mem_ + 64 + dst_misalign;
+    CHECK_EQ(reinterpret_cast<uintptr_t>(dst_) % 64, dst_misalign);
+
+    // Note the page offset of dst_ and src_ differs by 64.
+    // This is also to mitigate the CPU cache effect.
+    src_ = mem_ + 64 + kMaxSize + 64 + src_misalign;
+    CHECK_EQ(reinterpret_cast<uintptr_t>(src_) % 64, src_misalign);
 
     Random rng;
     for (size_t i = 0; i < size_; i++) {
-      src_[i] = rng.GetRange(256);
+      src_[i] = rng.GetRange(254);
     }
+
+    src_[-1] = '\xfe';
+    src_[size_] = '\xfe';
+
+    dst_[-1] = '\xff';
+    dst_[size_] = '\xff';
   }
 
   void TearDown(benchmark::State &) override {
-    CHECK_EQ(memcmp(dst_, src_, size_), 0);   // Sanity
-    std::free(dst_aligned_);
-    std::free(src_aligned_);
+    CHECK_EQ(dst_[-1], '\xff');
+    //CHECK_EQ(dst_[size_], '\xff');  // Copy(sloppy=true) may violate this
+
+    for (size_t i = 0; i < size_; i++) {
+      CHECK_EQ(dst_[i], src_[i]) << "Byte " << i << " is different";
+    }
+
+    std::free(mem_);
   }
 
   char *dst_;
@@ -47,13 +64,21 @@ class CopyFixture : public benchmark::Fixture {
 
  private:
   static const size_t kMaxSize = 8192;
-  char *dst_aligned_;
-  char *src_aligned_;
+  char *mem_;
 };
+
+BENCHMARK_DEFINE_F(CopyFixture, Copy)(benchmark::State &state) {
+  while (state.KeepRunning()) {
+    Copy(dst_, src_, size_);
+  }
+
+  state.SetItemsProcessed(state.iterations());
+  state.SetBytesProcessed(size_ * state.iterations());
+}
 
 BENCHMARK_DEFINE_F(CopyFixture, CopySloppy)(benchmark::State &state) {
   while (state.KeepRunning()) {
-    CopySloppy(dst_, src_, size_);
+    Copy(dst_, src_, size_, true);
   }
 
   state.SetItemsProcessed(state.iterations());
@@ -79,22 +104,29 @@ BENCHMARK_DEFINE_F(CopyFixture, Memcpy)(benchmark::State &state) {
 }
 
 static void SetArguments(benchmark::internal::Benchmark *b) {
+  // skip argument names for brevity
+  //b->ArgNames({"dst_align", "src_align", "size"});
   b->Args({0, 0, 4})
       ->Args({0, 0, 7})
       ->Args({0, 0, 8})
-      ->Args({0,10, 31})
+      ->Args({0, 10, 31})
       ->Args({0, 0, 32})
-      ->Args({2, 0, 63})
+      ->Args({15, 19, 48})
+      ->Args({0, 0, 48})
+      ->Args({2, 0, 60})
       ->Args({0, 0, 64})
       ->Args({0, 0, 100})
       ->Args({0, 0, 256})
       ->Args({10, 47, 257})
+      ->Args({0, 0, 384})
+      ->Args({1, 0, 384})
       ->Args({0, 16, 512})
       ->Args({0, 0, 1024})
       ->Args({19, 4, 2047})
       ->Args({0, 0, 4096});
 }
 
+BENCHMARK_REGISTER_F(CopyFixture, Copy)->Apply(SetArguments);
 BENCHMARK_REGISTER_F(CopyFixture, CopySloppy)->Apply(SetArguments);
 BENCHMARK_REGISTER_F(CopyFixture, RteMemcpy)->Apply(SetArguments);
 BENCHMARK_REGISTER_F(CopyFixture, Memcpy)->Apply(SetArguments);
