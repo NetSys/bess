@@ -42,13 +42,13 @@ pb_error_t WildcardMatch::AddFieldOne(
     return pb_error(EINVAL, "'size' must be 1-%d", MAX_FIELD_SIZE);
   }
 
-  if (field.length_case() == bess::pb::WildcardMatchArg_Field::kOffset) {
+  if (field.position_case() == bess::pb::WildcardMatchArg_Field::kOffset) {
     f->attr_id = -1;
     f->offset = field.offset();
     if (f->offset < 0 || f->offset > 1024) {
       return pb_error(EINVAL, "too small 'offset'");
     }
-  } else if (field.length_case() ==
+  } else if (field.position_case() ==
              bess::pb::WildcardMatchArg_Field::kAttribute) {
     const char *attr = field.attribute().c_str();
     f->attr_id = AddMetadataAttr(attr, f->size, Attribute::AccessMode::kRead);

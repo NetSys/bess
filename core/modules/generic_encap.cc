@@ -16,14 +16,14 @@ pb_error_t GenericEncap::AddFieldOne(
     return pb_error(EINVAL, "idx %d: 'size' must be 1-%d", idx, MAX_FIELD_SIZE);
   }
 
-  if (field.attribute_case() == bess::pb::GenericEncapArg_Field::kAttrName) {
-    const char *attr = field.attr_name().c_str();
+  if (field.insertion_case() == bess::pb::GenericEncapArg_Field::kAttribute) {
+    const char *attr = field.attribute().c_str();
     f->attr_id = AddMetadataAttr(attr, f->size,
                                  bess::metadata::Attribute::AccessMode::kRead);
     if (f->attr_id < 0) {
       return pb_error(-f->attr_id, "idx %d: add_metadata_attr() failed", idx);
     }
-  } else if (field.attribute_case() ==
+  } else if (field.insertion_case() ==
              bess::pb::GenericEncapArg_Field::kValue) {
     f->attr_id = -1;
     uint64_t value = field.value();
@@ -34,7 +34,7 @@ pb_error_t GenericEncap::AddFieldOne(
                       idx, f->size);
     }
   } else {
-    return pb_error(EINVAL, "idx %d: must specify 'value' or 'attr_name'", idx);
+    return pb_error(EINVAL, "idx %d: must specify 'value' or 'attribute'", idx);
   }
 
   return pb_errno(0);
@@ -43,17 +43,16 @@ pb_error_t GenericEncap::AddFieldOne(
 /* Takes a list of fields. Each field is either:
  *
  *  1. {'size': X, 'value': Y}		(for constant values)
- *  2. {'size': X, 'attr': Y}		(for metadata attributes)
+ *  2. {'size': X, 'attribute': Y}	(for metadata attributes)
  *
- * e.g.: GenericEncap([{'size': 4, 'value':0xdeadbeef},
- *                     {'size': 2, 'attr':'foo'},
- *                     {'size': 2, 'value':0x1234}])
+ * e.g.: GenericEncap([{'size': 4, 'value': 0xdeadbeef},
+ *                     {'size': 2, 'attribute': 'foo'},
+ *                     {'size': 2, 'value': 0x1234}])
  * will prepend a 8-byte header:
  *    de ad be ef <xx> <xx> 12 34
- * where the 2-byte <xx> <xx> comes from the value of metadata arribute 'foo'
+ * where the 2-byte <xx> <xx> comes from the value of metadata attribute 'foo'
  * for each packet.
  */
-
 pb_error_t GenericEncap::Init(const bess::pb::GenericEncapArg &arg) {
   int size_acc = 0;
 
