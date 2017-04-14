@@ -37,6 +37,9 @@ Module *create_foo(const std::string name = "") {
 
   return m;
 }
+
+DEF_MODULE(Foo, "foo", "bip");
+
 }  // namespace
 
 namespace bess {
@@ -44,26 +47,22 @@ namespace metadata {
 
 class MetadataTest : public ::testing::Test {
  protected:
-  MetadataTest() : m0(), m1() {}
+  MetadataTest() : m0(), m1(), Foo_singleton() {}
 
   virtual void SetUp() {
     default_pipeline.CleanupMetadataComputation();
     default_pipeline.registered_attrs_.clear();
-    ADD_MODULE(Foo, "foo", "bip")
-    ASSERT_TRUE(__module__Foo);
     m0 = ::create_foo();
     m1 = ::create_foo();
     ASSERT_TRUE(m0);
     ASSERT_TRUE(m1);
   }
 
-  virtual void TearDown() {
-    ModuleBuilder::DestroyAllModules();
-    ModuleBuilder::all_module_builders_holder(true);
-  }
+  virtual void TearDown() { ModuleBuilder::DestroyAllModules(); }
 
   Module *m0;
   Module *m1;
+  Foo_class Foo_singleton;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(MetadataTest);

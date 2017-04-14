@@ -20,12 +20,6 @@ int main(int argc, char *argv[]) {
   google::SetUsageMessage("BESS Command Line Options:");
   google::ParseCommandLineFlags(&argc, &argv, true);
   bess::bessd::ProcessCommandLineArgs();
-
-  if (!bess::bessd::LoadModules(bess::bessd::GetCurrentDirectory() +
-                                "modules")) {
-    PLOG(FATAL) << "LoadModules() failed";
-  }
-
   bess::bessd::CheckRunningAsRoot();
 
   int pidfile_fd = bess::bessd::CheckUniqueInstance(FLAGS_i);
@@ -41,6 +35,12 @@ int main(int argc, char *argv[]) {
 
   // Store our PID (child's, if daemonized) in the PID file.
   bess::bessd::WritePidfile(pidfile_fd, getpid());
+
+  // Load plugins
+  if (!bess::bessd::LoadPlugins(bess::bessd::GetCurrentDirectory() +
+                                "modules")) {
+    PLOG(FATAL) << "LoadPlugins() failed";
+  }
 
   // TODO(barath): Make these DPDK calls generic, so as to not be so tied to
   // DPDK.

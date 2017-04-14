@@ -46,16 +46,16 @@ class DummyRelayModule : public Module {
   RunNextModule(batch);
 }
 
+DEF_MODULE(DummySourceModule, "src", "the most sophisticated modue ever");
+DEF_MODULE(DummyRelayModule, "relay", "the most sophisticated modue ever");
+
 // Simple harness for testing the Module class.
 class ModuleFixture : public benchmark::Fixture {
  protected:
+  ModuleFixture()
+      : DummySourceModule_singleton(), DummyRelayModule_singleton() {}
   void SetUp(benchmark::State &state) override {
     const int chain_length = state.range(0);
-
-    ADD_MODULE(DummySourceModule, "src", "the most sophisticated modue ever");
-    ADD_MODULE(DummyRelayModule, "relay", "the most sophisticated modue ever");
-    DCHECK(__module__DummySourceModule);
-    DCHECK(__module__DummyRelayModule);
 
     const auto &builders = ModuleBuilder::all_module_builders();
     const auto &builder_src = builders.find("DummySourceModule")->second;
@@ -81,11 +81,12 @@ class ModuleFixture : public benchmark::Fixture {
 
   void TearDown(benchmark::State &) override {
     ModuleBuilder::DestroyAllModules();
-    ModuleBuilder::all_module_builders_holder(true);
   }
 
   Module *src_;
   std::vector<Module *> relays;
+  DummySourceModule_class DummySourceModule_singleton;
+  DummyRelayModule_class DummyRelayModule_singleton;
 };
 
 }  // namespace (unnamed)

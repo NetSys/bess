@@ -91,6 +91,25 @@ bool ModuleBuilder::RegisterModuleClass(
   return true;
 }
 
+bool ModuleBuilder::DeregisterModuleClass(const std::string &class_name) {
+  // Check if the module builder exists
+  auto it = all_module_builders_holder().find(class_name);
+  if (it == all_module_builders_holder().end()) {
+    return false;
+  }
+
+  // Check if any module of the class still exists
+  const ModuleBuilder *builder = &(it->second);
+  for (auto const &e : all_modules()) {
+    if (e.second->module_builder() == builder) {
+      return false;
+    }
+  }
+
+  all_module_builders_holder().erase(it);
+  return true;
+}
+
 std::string ModuleBuilder::GenerateDefaultName(
     const std::string &class_name, const std::string &default_template) {
   std::string name_template;

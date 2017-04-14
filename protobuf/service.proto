@@ -37,8 +37,13 @@ service BESSControl {
   ///
   /// At the moment plugins can only contain module types,
   /// but might also support drivers/hooks/schedulers in the future.
-  /// FIXME: rename (e.g., ImportPlugin)
-  rpc ImportMclass (ImportMclassRequest) returns (EmptyResponse) {}
+  rpc ImportPlugin (ImportPluginRequest) returns (EmptyResponse) {}
+
+  /// Unload a plugin
+  ///
+  /// At the moment plugins can only contain module types,
+  /// but might also support drivers/hooks/schedulers in the future.
+  rpc UnloadPlugin (UnloadPluginRequest) returns (EmptyResponse) {}
 
 
   //  -------------------------------------------------------------------------

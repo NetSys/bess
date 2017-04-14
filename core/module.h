@@ -109,12 +109,13 @@ class ModuleBuilder {
                                   const gate_idx_t ogates, const Commands &cmds,
                                   module_init_func_t init_func);
 
+  static bool DeregisterModuleClass(const std::string &class_name);
+
   static std::map<std::string, ModuleBuilder> &all_module_builders_holder(
       bool reset = false);
   static const std::map<std::string, ModuleBuilder> &all_module_builders();
 
   static const std::map<std::string, Module *> &all_modules();
-
   gate_idx_t NumIGates() const { return num_igates_; }
   gate_idx_t NumOGates() const { return num_ogates_; }
 
@@ -243,9 +244,7 @@ class Module {
     return attrs_;
   }
 
-  const std::vector<ModuleTask *> &tasks() const {
-    return tasks_;
-  }
+  const std::vector<ModuleTask *> &tasks() const { return tasks_; }
 
   void set_attr_offset(size_t idx, bess::metadata::mt_offset_t offset) {
     if (idx < bess::metadata::kMaxAttrsPerModule) {
@@ -262,13 +261,9 @@ class Module {
     return attr_offsets_;
   }
 
-  const std::vector<bess::IGate *> &igates() const {
-    return igates_;
-  };
+  const std::vector<bess::IGate *> &igates() const { return igates_; }
 
-  const std::vector<bess::OGate *> &ogates() const {
-    return ogates_;
-  };
+  const std::vector<bess::OGate *> &ogates() const { return ogates_; }
 
  private:
   void DestroyAllTasks();
@@ -342,8 +337,8 @@ inline void Module::RunNextModule(bess::PacketBatch *batch) {
 class Task;
 
 namespace bess {
-  template <typename CallableTask>
-  class LeafTrafficClass;
+template <typename CallableTask>
+class LeafTrafficClass;
 }  // namespace bess
 
 // Stores the arguments of a task created by a module.
@@ -351,26 +346,19 @@ class ModuleTask {
  public:
   // Doesn't take ownership of 'arg' and 'c'.  'c' can be null and it
   // can be changed later with SetTC()
-  ModuleTask(void *arg, bess::LeafTrafficClass<Task> *c)
-      : arg_(arg), c_(c) {};
+  ModuleTask(void *arg, bess::LeafTrafficClass<Task> *c) : arg_(arg), c_(c) {}
 
-  ~ModuleTask() {};
+  ~ModuleTask() {}
 
-  void *arg() {
-    return arg_;
-  }
+  void *arg() { return arg_; }
 
-  void SetTC(bess::LeafTrafficClass<Task> *c) {
-    c_ = c;
-  }
+  void SetTC(bess::LeafTrafficClass<Task> *c) { c_ = c; }
 
-  bess::LeafTrafficClass<Task> *GetTC() {
-    return c_;
-  }
+  bess::LeafTrafficClass<Task> *GetTC() { return c_; }
 
  private:
-  void *arg_; // Auxiliary value passed to Module::RunTask().
-  bess::LeafTrafficClass<Task> *c_; // Leaf TC associated with this task.
+  void *arg_;  // Auxiliary value passed to Module::RunTask().
+  bess::LeafTrafficClass<Task> *c_;  // Leaf TC associated with this task.
 };
 
 // Functor used by a leaf in a Worker's Scheduler to run a task in a module.
@@ -378,7 +366,7 @@ class Task {
  public:
   // When this task is scheduled it will execute 'm' with 'arg'.
   // When the associated leaf is created/destroyed, 't' will be updated.
-  Task(Module *m, void *arg, ModuleTask *t) : module_(m), arg_(arg), t_(t) {};
+  Task(Module *m, void *arg, ModuleTask *t) : module_(m), arg_(arg), t_(t) {}
 
   // Called when the leaf that owns this task is destroyed.
   void Detach() {
@@ -513,10 +501,20 @@ INSTANTIATE_MT_FOR_TYPE(uint16_t)
 INSTANTIATE_MT_FOR_TYPE(uint32_t)
 INSTANTIATE_MT_FOR_TYPE(uint64_t)
 
-#define ADD_MODULE(_MOD, _NAME_TEMPLATE, _HELP)                              \
-  bool __module__##_MOD = ModuleBuilder::RegisterModuleClass(                \
-      std::function<Module *()>([]() { return new _MOD(); }), #_MOD,         \
-      _NAME_TEMPLATE, _HELP, _MOD::kNumIGates, _MOD::kNumOGates, _MOD::cmds, \
-      MODULE_INIT_FUNC(&_MOD::Init));
+#define DEF_MODULE(_MOD, _NAME_TEMPLATE, _HELP)                          \
+  class _MOD##_class {                                                   \
+   public:                                                               \
+    _MOD##_class() {                                                     \
+      ModuleBuilder::RegisterModuleClass(                                \
+          std::function<Module *()>([]() { return new _MOD(); }), #_MOD, \
+          _NAME_TEMPLATE, _HELP, _MOD::kNumIGates, _MOD::kNumOGates,     \
+          _MOD::cmds, MODULE_INIT_FUNC(&_MOD::Init));                    \
+    }                                                                    \
+    ~_MOD##_class() { ModuleBuilder::DeregisterModuleClass(#_MOD); }     \
+  };
+
+#define ADD_MODULE(_MOD, _NAME_TEMPLATE, _HELP) \
+  DEF_MODULE(_MOD, _NAME_TEMPLATE, _HELP);      \
+  static _MOD##_class _MOD##_singleton;
 
 #endif  // BESS_MODULE_H_

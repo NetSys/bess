@@ -56,10 +56,15 @@ ifeq "$(shell expr $(CXXCOMPILER) = g++ \& $(CXXVERSION) \< 50000)" "0"
 	CXXFLAGS += -Wshadow
 endif
 
+# Disable GNU_UNIQUE symbol for g++
+ifeq "$(shell expr $(CXXCOMPILER) = g++)" "1"
+	CXXFLAGS += -fno-gnu-unique
+endif
+
 LDFLAGS += -rdynamic -L$(DPDK_LIB_DIR) -Wl,-rpath=$(DPDK_LIB_DIR) -pthread
 ifdef BESS_LINK_DYNAMIC
     LIBS_ALL_SHARED = -Wl,-call_shared
-    LIBS_DL_SHARED = 
+    LIBS_DL_SHARED =
 else # Used static libraries
     LIBS_ALL_SHARED =
     LIBS_DL_SHARED = -Wl,-call_shared
@@ -126,7 +131,7 @@ all: $(EXEC) modules tests benchmarks
 
 clean:
 	rm -rf $(EXEC) .deps/*.d .deps/*/*.d *_test */*_test *_bench */*_bench \
-		*.a *.pb.* *.o */*.o *.gcda *.gcno */*.gcda */*.gcno \
+		*.a *.pb.* *.o */*.o *.so */*.so *.gcda *.gcno */*.gcda */*.gcno \
 		coverage.info coverage_html
 
 tags:

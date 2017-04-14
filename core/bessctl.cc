@@ -437,10 +437,9 @@ class BESSControlImpl final : public BESSControl::Service {
     bess::TrafficClass* root = workers[wid]->scheduler()->root();
     if (root) {
       bool has_tasks = false;
-      root->Traverse(
-          [&has_tasks](bess::TCChildArgs* c) {
-            has_tasks |= c->child()->policy() == bess::POLICY_LEAF;
-          });
+      root->Traverse([&has_tasks](bess::TCChildArgs* c) {
+        has_tasks |= c->child()->policy() == bess::POLICY_LEAF;
+      });
       if (has_tasks) {
         return return_with_error(response, EBUSY, "Worker %d has active tasks ",
                                  wid);
@@ -489,49 +488,47 @@ class BESSControlImpl final : public BESSControl::Service {
                                  i);
       }
 
-      root->Traverse(
-          [&response, i](bess::TCChildArgs* args) {
-            bess::TrafficClass *c = args->child();
+      root->Traverse([&response, i](bess::TCChildArgs* args) {
+        bess::TrafficClass* c = args->child();
 
-            ListTcsResponse_TrafficClassStatus* status =
-                response->add_classes_status();
+        ListTcsResponse_TrafficClassStatus* status =
+            response->add_classes_status();
 
-            if (c->parent()) {
-              status->set_parent(c->parent()->name());
-            }
+        if (c->parent()) {
+          status->set_parent(c->parent()->name());
+        }
 
-            status->mutable_class_()->set_name(c->name());
-            status->mutable_class_()->set_blocked(c->blocked());
+        status->mutable_class_()->set_name(c->name());
+        status->mutable_class_()->set_blocked(c->blocked());
 
-            if (c->policy() >= 0 && c->policy() < bess::NUM_POLICIES) {
-              status->mutable_class_()->set_policy(
-                  bess::TrafficPolicyName[c->policy()]);
-            } else {
-              status->mutable_class_()->set_policy("invalid");
-            }
+        if (c->policy() >= 0 && c->policy() < bess::NUM_POLICIES) {
+          status->mutable_class_()->set_policy(
+              bess::TrafficPolicyName[c->policy()]);
+        } else {
+          status->mutable_class_()->set_policy("invalid");
+        }
 
-            status->mutable_class_()->set_wid(i);
+        status->mutable_class_()->set_wid(i);
 
-            if (c->policy() == bess::POLICY_RATE_LIMIT) {
-              const bess::RateLimitTrafficClass* rl =
-                  reinterpret_cast<const bess::RateLimitTrafficClass*>(c);
-              std::string resource = bess::ResourceName.at(rl->resource());
-              int64_t limit = rl->limit_arg();
-              int64_t max_burst = rl->max_burst_arg();
-              status->mutable_class_()->mutable_limit()->insert(
-                  {resource, limit});
-              status->mutable_class_()->mutable_max_burst()->insert(
-                  {resource, max_burst});
-            }
+        if (c->policy() == bess::POLICY_RATE_LIMIT) {
+          const bess::RateLimitTrafficClass* rl =
+              reinterpret_cast<const bess::RateLimitTrafficClass*>(c);
+          std::string resource = bess::ResourceName.at(rl->resource());
+          int64_t limit = rl->limit_arg();
+          int64_t max_burst = rl->max_burst_arg();
+          status->mutable_class_()->mutable_limit()->insert({resource, limit});
+          status->mutable_class_()->mutable_max_burst()->insert(
+              {resource, max_burst});
+        }
 
-            if (args->parent_type() == bess::POLICY_WEIGHTED_FAIR) {
-              auto ca = static_cast<bess::WeightedFairChildArgs *>(args);
-              status->mutable_class_()->set_share(ca->share());
-            } else if (args->parent_type() == bess::POLICY_PRIORITY) {
-              auto ca = static_cast<bess::PriorityChildArgs *>(args);
-              status->mutable_class_()->set_priority(ca->priority());
-            }
-          });
+        if (args->parent_type() == bess::POLICY_WEIGHTED_FAIR) {
+          auto ca = static_cast<bess::WeightedFairChildArgs*>(args);
+          status->mutable_class_()->set_share(ca->share());
+        } else if (args->parent_type() == bess::POLICY_PRIORITY) {
+          auto ca = static_cast<bess::PriorityChildArgs*>(args);
+          status->mutable_class_()->set_priority(ca->priority());
+        }
+      });
     }
 
     return Status::OK;
@@ -548,7 +545,7 @@ class BESSControlImpl final : public BESSControl::Service {
       return return_with_error(response, EINVAL, "Missing 'name' field");
     } else if (tc_name[0] == '!') {
       return return_with_error(response, EINVAL,
-          "TC names starting with \'!\' are reserved");
+                               "TC names starting with \'!\' are reserved");
     }
 
     if (TrafficClassBuilder::all_tcs().count(tc_name)) {
@@ -595,7 +592,8 @@ class BESSControlImpl final : public BESSControl::Service {
           TrafficClassBuilder::CreateTrafficClass<bess::RateLimitTrafficClass>(
               tc_name, bess::ResourceMap.at(resource), limit, max_burst));
     } else if (policy == bess::TrafficPolicyName[bess::POLICY_LEAF]) {
-      return return_with_error(response, EINVAL, "Cannot create leaf TC. Use "
+      return return_with_error(response, EINVAL,
+                               "Cannot create leaf TC. Use "
                                "UpdateTcParentRequest message");
     } else {
       return return_with_error(response, EINVAL, "Invalid traffic policy");
@@ -644,7 +642,8 @@ class BESSControlImpl final : public BESSControl::Service {
       }
       tc->set_resource(bess::ResourceMap.at(resource));
     } else {
-      return return_with_error(response, EINVAL, "Only 'rate_limit' and"
+      return return_with_error(response, EINVAL,
+                               "Only 'rate_limit' and"
                                " 'weighted_fair' can be updated");
     }
 
@@ -664,7 +663,8 @@ class BESSControlImpl final : public BESSControl::Service {
 
     if (c->policy() == bess::POLICY_LEAF) {
       if (!detach_tc(c)) {
-        return return_with_error(response, EINVAL, "Cannot detach '%s'"
+        return return_with_error(response, EINVAL,
+                                 "Cannot detach '%s'"
                                  " from parent",
                                  request->class_().name().c_str());
       }
@@ -673,9 +673,10 @@ class BESSControlImpl final : public BESSControl::Service {
     // XXX Leaf nodes can always be moved, other nodes can be moved only if
     // they're orphans. The scheduler maintains state which would need to be
     // updated otherwise.
-    if (c->policy() != bess::POLICY_LEAF) { 
+    if (c->policy() != bess::POLICY_LEAF) {
       if (!remove_tc_from_orphan(c)) {
-        return return_with_error(response, EINVAL, "Cannot detach '%s'."
+        return return_with_error(response, EINVAL,
+                                 "Cannot detach '%s'."
                                  " while it is part of a worker",
                                  request->class_().name().c_str());
       }
@@ -1254,11 +1255,29 @@ class BESSControlImpl final : public BESSControl::Service {
     return Status::OK;
   }
 
-  Status ImportMclass(ServerContext*, const ImportMclassRequest* request,
+  Status ImportPlugin(ServerContext*, const ImportPluginRequest* request,
                       EmptyResponse* response) override {
-    VLOG(1) << "Loading module: " << request->path();
-    if (!bess::bessd::LoadModule(request->path())) {
-      return return_with_error(response, -1, "Failed loading module %s",
+    if (is_any_worker_running()) {
+      return return_with_error(response, EBUSY, "There is a running worker");
+    }
+
+    VLOG(1) << "Loading plugin: " << request->path();
+    if (!bess::bessd::LoadPlugin(request->path())) {
+      return return_with_error(response, -1, "Failed loading plugin %s",
+                               request->path().c_str());
+    }
+    return Status::OK;
+  }
+
+  Status UnloadPlugin(ServerContext*, const UnloadPluginRequest* request,
+                      EmptyResponse* response) override {
+    if (is_any_worker_running()) {
+      return return_with_error(response, EBUSY, "There is a running worker");
+    }
+
+    VLOG(1) << "Unloading plugin: " << request->path();
+    if (!bess::bessd::UnloadPlugin(request->path())) {
+      return return_with_error(response, -1, "Failed unloading plugin %s",
                                request->path().c_str());
     }
     return Status::OK;
@@ -1275,6 +1294,8 @@ class BESSControlImpl final : public BESSControl::Service {
 
   Status GetMclassInfo(ServerContext*, const GetMclassInfoRequest* request,
                        GetMclassInfoResponse* response) override {
+    VLOG(1) << "GetMclassInfo from client:" << std::endl
+            << request->DebugString();
     if (!request->name().length()) {
       return return_with_error(response, EINVAL,
                                "Argument must be a name in str");
@@ -1316,16 +1337,18 @@ class BESSControlImpl final : public BESSControl::Service {
     *response = m->RunCommand(request->cmd(), request->arg());
     return Status::OK;
   }
+
  private:
   Status AttachTc(bess::TrafficClass* c_, const bess::pb::TrafficClass& class_,
-                  EmptyResponse *response) {
+                  EmptyResponse* response) {
     std::unique_ptr<bess::TrafficClass> c(c_);
     int wid = class_.wid();
 
     if (class_.parent().length() == 0) {
       if (wid >= MAX_WORKERS) {
         return return_with_error(response, EINVAL,
-            "'wid' must be between -1 and %d", MAX_WORKERS - 1);
+                                 "'wid' must be between -1 and %d",
+                                 MAX_WORKERS - 1);
       }
 
       if ((wid != -1 && !is_worker_active(wid)) ||
@@ -1343,7 +1366,8 @@ class BESSControlImpl final : public BESSControl::Service {
     }
 
     if (wid != -1) {
-      return return_with_error(response, EINVAL, "Both 'parent' and 'wid'"
+      return return_with_error(response, EINVAL,
+                               "Both 'parent' and 'wid'"
                                "have been specified");
     }
 
@@ -1412,7 +1436,7 @@ class BESSControlImpl final : public BESSControl::Service {
 
       c = it->second;
     } else if (class_.leaf_module_name().length() != 0) {
-      const std::string &module_name = class_.leaf_module_name();
+      const std::string& module_name = class_.leaf_module_name();
       const auto& it = ModuleBuilder::all_modules().find(module_name);
       if (it == ModuleBuilder::all_modules().end()) {
         return_with_error(response, ENOENT, "No module '%s' found",
@@ -1436,7 +1460,8 @@ class BESSControlImpl final : public BESSControl::Service {
 
       c = m->tasks()[tid]->GetTC();
     } else {
-      return_with_error(response, EINVAL, "One of 'name' or "
+      return_with_error(response, EINVAL,
+                        "One of 'name' or "
                         "'leaf_module_name' must be specified");
       return nullptr;
     }
