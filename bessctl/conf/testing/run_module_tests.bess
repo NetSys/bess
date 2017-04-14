@@ -167,8 +167,11 @@ def run_tests():
                         for sock in sockets:
                             sock.close()
                         DID_TESTS_FAIL = True
-                    print("   %s output test %s: PASS" %
-                          (str(module), str(output_testid)))
+                        print("   %s output test %s: FAIL" %
+                            (str(module), str(output_testid)))
+                    else:
+                        print("   %s output test %s: PASS" %
+                            (str(module), str(output_testid)))
                     output_testid += 1
             except BaseException:
                 print("   %s output test %s: FAIL" %
