@@ -2,7 +2,7 @@
 
 #include <cstdio>
 
-#include "../utils/simd.h"
+#include "../utils/copy.h"
 
 const Commands Rewrite::cmds = {
     {"add", "RewriteArg", MODULE_CMD_FUNC(&Rewrite::CommandAdd), 0},
@@ -85,7 +85,7 @@ inline void Rewrite::DoRewriteSingle(bess::PacketBatch *batch) {
     pkt->set_total_len(size);
     pkt->set_data_len(size);
 
-    CopySloppy(ptr, templ, size);
+    bess::utils::Copy(ptr, templ, size, true);
   }
 }
 
@@ -102,7 +102,7 @@ inline void Rewrite::DoRewrite(bess::PacketBatch *batch) {
     pkt->set_total_len(size);
     pkt->set_data_len(size);
 
-    CopySloppy(ptr, templates_[start + i], size);
+    bess::utils::Copy(ptr, templates_[start + i], size, true);
   }
 
   next_turn_ = start + cnt;

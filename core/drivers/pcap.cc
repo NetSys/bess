@@ -49,7 +49,7 @@ int PCAPPort::RecvPackets(queue_t qid, bess::Packet** pkts, int cnt) {
 
     if (caplen <= SNBUF_DATA) {
       // pcap packet will fit in the mbuf, go ahead and copy.
-      rte_memcpy(sbuf->append(caplen), packet, caplen);
+      bess::utils::Copy(sbuf->append(caplen), packet, caplen, true);
     } else {
 /* FIXME: no support for chained mbuf for now */
 #if 0
@@ -105,7 +105,7 @@ int PCAPPort::SendPackets(queue_t, bess::Packet** pkts, int cnt) {
 
 void PCAPPort::GatherData(unsigned char* data, bess::Packet* pkt) {
   while (pkt) {
-    rte_memcpy(data, pkt->head_data(), pkt->head_len());
+    bess::utils::Copy(data, pkt->head_data(), pkt->head_len());
 
     data += pkt->head_len();
     pkt = reinterpret_cast<bess::Packet*>(pkt->next());

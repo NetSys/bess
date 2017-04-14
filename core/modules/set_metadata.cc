@@ -1,4 +1,5 @@
 #include "set_metadata.h"
+
 #include "../utils/endian.h"
 
 static void CopyFromPacket(bess::PacketBatch *batch, const struct Attr *attr,
@@ -14,7 +15,7 @@ static void CopyFromPacket(bess::PacketBatch *batch, const struct Attr *attr,
     void *mt_ptr;
 
     mt_ptr = _ptr_attr_with_offset<value_t>(mt_off, pkt);
-    rte_memcpy(mt_ptr, head + pkt_off, size);
+    bess::utils::Copy(mt_ptr, head + pkt_off, size);
   }
 }
 
@@ -30,7 +31,7 @@ static void CopyFromValue(bess::PacketBatch *batch, const struct Attr *attr,
     void *mt_ptr;
 
     mt_ptr = _ptr_attr_with_offset<value_t>(mt_off, pkt);
-    rte_memcpy(mt_ptr, val_ptr, size);
+    bess::utils::Copy(mt_ptr, val_ptr, size);
   }
 }
 

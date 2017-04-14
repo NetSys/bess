@@ -420,7 +420,7 @@ bess::Packet *FlowGen::FillPacket(struct flow *f) {
     pkt->set_total_len(size);
     pkt->set_data_len(size);
 
-    CopySloppy(p, templ_, size);
+    bess::utils::Copy(p, templ_, size, true);
   }
 
   uint8_t tcp_flags = f->first_pkt ? /* SYN */ 0x02 : /* ACK */ 0x10;

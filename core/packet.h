@@ -197,8 +197,8 @@ class alignas(64) Packet {
       return nullptr; //FAIL.
     }
 
-    rte_memcpy(dst->append(src->total_len()), src->head_data(),
-               src->total_len());
+    bess::utils::Copy(dst->append(src->total_len()), src->head_data(),
+                      src->total_len(), true);
 
     return dst;
   }
