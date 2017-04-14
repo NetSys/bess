@@ -83,7 +83,7 @@ static inline Flow parse_flow(struct Ipv4Header *ip, void *l4) {
   return flow;
 }
 
-// Rewrite IP header and L4 header using flow
+template <bool src>
 static inline void stamp_flow(struct Ipv4Header *ip, void *l4,
                               const Flow &flow) {
   struct UdpHeader *udp = reinterpret_cast<struct UdpHeader *>(l4);
@@ -92,32 +92,41 @@ static inline void stamp_flow(struct Ipv4Header *ip, void *l4,
   uint32_t l3_inc = 0;
   uint32_t l4_inc = 0;
 
-  l3_inc += CalculateChecksumUnfoldedIncremental32(ip->src, flow.src_ip);
-  l3_inc += CalculateChecksumUnfoldedIncremental32(ip->dst, flow.dst_ip);
+  if (src) {
+    l3_inc += CalculateChecksumUnfoldedIncremental32(ip->src, flow.src_ip);
+    ip->src = flow.src_ip;
+  } else {
+    l3_inc += CalculateChecksumUnfoldedIncremental32(ip->dst, flow.dst_ip);
+    ip->dst = flow.dst_ip;
+  }
 
-  ip->src = flow.src_ip;
-  ip->dst = flow.dst_ip;
   ip->checksum = FoldChecksumIncremental(ip->checksum, l3_inc);
 
   switch (flow.proto) {
     case TCP:
-      l4_inc +=
-          CalculateChecksumUnfoldedIncremental16(tcp->src_port, flow.src_port);
-      l4_inc +=
-          CalculateChecksumUnfoldedIncremental16(tcp->dst_port, flow.dst_port);
+      if (src) {
+        l4_inc += CalculateChecksumUnfoldedIncremental16(tcp->src_port,
+                                                         flow.src_port);
+        tcp->src_port = flow.src_port;
+      } else {
+        l4_inc += CalculateChecksumUnfoldedIncremental16(tcp->dst_port,
+                                                         flow.dst_port);
+        tcp->dst_port = flow.dst_port;
+      }
       l4_inc += l3_inc;
 
-      tcp->src_port = flow.src_port;
-      tcp->dst_port = flow.dst_port;
       tcp->checksum = FoldChecksumIncremental(tcp->checksum, l4_inc);
       break;
 
     case UDP:
       if (udp->checksum) {
-        l4_inc += CalculateChecksumUnfoldedIncremental16(udp->src_port,
-                                                         flow.src_port);
-        l4_inc += CalculateChecksumUnfoldedIncremental16(udp->dst_port,
-                                                         flow.dst_port);
+        if (src) {
+          l4_inc += CalculateChecksumUnfoldedIncremental16(udp->src_port,
+                                                           flow.src_port);
+        } else {
+          l4_inc += CalculateChecksumUnfoldedIncremental16(udp->dst_port,
+                                                           flow.dst_port);
+        }
         l4_inc += l3_inc;
 
         udp->checksum = FoldChecksumIncremental(udp->checksum, l4_inc);
@@ -127,8 +136,11 @@ static inline void stamp_flow(struct Ipv4Header *ip, void *l4,
         }
       }
 
-      udp->src_port = flow.src_port;
-      udp->dst_port = flow.dst_port;
+      if (src) {
+        udp->src_port = flow.src_port;
+      } else {
+        udp->dst_port = flow.dst_port;
+      }
       break;
 
     case ICMP:
@@ -147,6 +159,20 @@ static inline void stamp_flow(struct Ipv4Header *ip, void *l4,
       }
       break;
   }
+}
+
+// Rewrite IP header and L4 header src info using flow
+static inline void stamp_flow_src(struct Ipv4Header *ip, void *l4,
+                                  const Flow &flow)
+{
+  stamp_flow<true>(ip, l4, flow);
+}
+
+// Rewrite IP header and L4 header dst info using flow
+static inline void stamp_flow_dst(struct Ipv4Header *ip, void *l4,
+                                  const Flow &flow)
+{
+  stamp_flow<false>(ip, l4, flow);
 }
 
 void NAT::ProcessBatch(bess::PacketBatch *batch) {
@@ -192,9 +218,9 @@ void NAT::ProcessBatch(bess::PacketBatch *batch) {
           // Entry exists and does not exceed timeout
           record->time = now;
           if (incoming_gate == 0) {
-            stamp_flow(ip, l4, record->external_flow);
+            stamp_flow_src(ip, l4, record->external_flow);
           } else {
-            stamp_flow(ip, l4, record->internal_flow.ReverseFlow());
+            stamp_flow_dst(ip, l4, record->internal_flow.ReverseFlow());
           }
           out_batch.add(pkt);
           continue;
@@ -279,7 +305,7 @@ void NAT::ProcessBatch(bess::PacketBatch *batch) {
     Flow rev_flow = flow.ReverseFlow();   // Copy
     flow_hash_.Insert(rev_flow, record);  // Copy
 
-    stamp_flow(ip, l4, flow);
+    stamp_flow_src(ip, l4, flow);
     out_batch.add(pkt);
   }
 
