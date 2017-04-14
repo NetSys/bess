@@ -24,3 +24,5 @@ To configure and install BESS on Linux quickly, you can run the provided Ansible
     sudo apt-get install -y ansible
     ansible-playbook -K -i localhost, -c local env/bess.yml
     sudo reboot
+
+Documentation can be found [here](https://github.com/NetSys/bess/wiki/). Please consdier [contributing](https://github.com/NetSys/bess/wiki/How-to-Contribute) to the project!
