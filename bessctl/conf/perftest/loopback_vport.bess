@@ -3,10 +3,10 @@ import multiprocessing
 
 num_cpus = multiprocessing.cpu_count()
 
-CORE_START = int($SN_CORE_START!'1')
-CORE_END = int($SN_CORE_END!num_cpus)   # not inclusive
-CORE_STEP = int($SN_CORE_STEP!'1')      # for SMT servers
-INTERVAL = int($SN_INTERVAL!'2')
+CORE_START = int($BESS_CORE_START!'1')
+CORE_END = int($BESS_CORE_END!num_cpus)   # not inclusive
+CORE_STEP = int($BESS_CORE_STEP!'1')      # for SMT servers
+INTERVAL = int($BESS_INTERVAL!'2')
 
 cpu_set = []
 ports = []

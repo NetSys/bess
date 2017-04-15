@@ -1,7 +1,7 @@
-dpdk_ports = int($SN_PORTS!'1')
-qsize = int($SN_QSIZE!'128')
+dpdk_ports = int($BESS_PORTS!'1')
+qsize = int($BESS_QSIZE!'128')
 
-print 'Using %d DPDK ports... (envvar "SN_PORTS")' % dpdk_ports
+print 'Using %d DPDK ports... (envvar "BESS_PORTS")' % dpdk_ports
 print 'RX/TX queue size: %d packets per queue' % qsize
 print 'NOTE: not all DPDK ports support lookback mode'
 

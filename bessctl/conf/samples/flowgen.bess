@@ -2,7 +2,7 @@ import scapy.all as scapy
 
 # 'show module' command shows detailed stats/parameters
 
-pkt_size = int($SN_PKT_SIZE!'60')
+pkt_size = int($BESS_PKT_SIZE!'60')
 assert(60 <= pkt_size <= 1522)
 
 eth = scapy.Ether(src='02:1e:67:9f:4d:ae', dst='06:16:3e:1b:72:32')

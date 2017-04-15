@@ -1,4 +1,4 @@
-psize = int($SN_PKT_SIZE!'60')
-print 'Using packet size %d (envvar "SN_PKT_SIZE")' % psize
+psize = int($BESS_PKT_SIZE!'60')
+print 'Using packet size %d (envvar "BESS_PKT_SIZE")' % psize
 
 Source(pkt_size=psize) -> Sink()

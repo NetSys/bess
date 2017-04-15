@@ -1,7 +1,7 @@
 import sys
 import time
 
-NUM_PORTS = int($SN_PORTS!'100')
+NUM_PORTS = int($BESS_PORTS!'100')
 
 for i in xrange(1, NUM_PORTS + 1):
     try:

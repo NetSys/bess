@@ -1,9 +1,9 @@
-num_ports = int($SN_PORTS!'1')
-num_cores = int($SN_CORES!'1')
-mq_mode = int($SN_MQ!'0')
-fwd_mode = $SN_FWD!'pair'
-start_core = int($SN_START_CORE!'0')
-q_size = int($SN_QSIZE!'0')
+num_ports = int($BESS_PORTS!'1')
+num_cores = int($BESS_CORES!'1')
+mq_mode = int($BESS_MQ!'0')
+fwd_mode = $BESS_FWD!'pair'
+start_core = int($BESS_START_CORE!'0')
+q_size = int($BESS_QSIZE!'0')
 
 # parameter sanity check
 assert(num_cores in [1, 2, 4])
