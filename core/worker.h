@@ -15,8 +15,6 @@
 
 #define MAX_WORKERS 4
 
-#define MAX_MODULES_PER_PATH 256
-
 // XXX
 typedef uint16_t gate_idx_t;
 #define MAX_GATES 8192
