@@ -12,9 +12,8 @@ CRASH_TEST_INPUTS.append([m0, 1, 1])
 # Decrement Test
 m1 = UpdateTTL()
 in_packet = gen_packet(scapy.TCP, '22.22.22.22', '22.22.22.22', ip_ttl=2)
-out_packet = scapy.Ether(in_packet)
-out_packet.ttl -= 1
-out_packet = str(out_packet)
+out_packet = gen_packet(scapy.TCP, '22.22.22.22', '22.22.22.22', ip_ttl=1)
+
 OUTPUT_TEST_INPUTS.append([m1, 1, 1,
                            [{'input_port': 0,
                              'input_packet': in_packet,
@@ -24,8 +23,8 @@ OUTPUT_TEST_INPUTS.append([m1, 1, 1,
 # Drop test
 m2 = UpdateTTL()
 drop_packet0 = gen_packet(scapy.TCP, '22.22.22.22', '22.22.22.22', ip_ttl=0)
-
 drop_packet1 = gen_packet(scapy.TCP, '22.22.22.22', '22.22.22.22', ip_ttl=1)
+
 OUTPUT_TEST_INPUTS.append([m2, 1, 1,
                            [{'input_port': 0,
                              'input_packet': drop_packet0,
@@ -39,6 +38,3 @@ OUTPUT_TEST_INPUTS.append([m2, 1, 1,
                              'input_packet': drop_packet1,
                              'output_port': 0,
                              'output_packet': None}]])
-
-# TODO: If Checksum code is modified and integrated make sure to write tests for it
-
