@@ -48,13 +48,15 @@ pb_error_t ExactMatch::AddFieldOne(const bess::pb::ExactMatchArg_Field &field,
   int force_be = (f->attr_id < 0);
 
   if (field.mask() == 0) {
-    /* by default all bits are considered */
-    f->mask = ((uint64_t)1 << (f->size * 8)) - 1;
+    // by default all bits are considered
+    f->mask = (f->size == 8) ? 0xffffffffffffffffull
+                             : (1ull << (f->size * 8)) - 1;
   } else {
     if (uint64_to_bin((uint8_t *)&f->mask, f->size, field.mask(),
-                      bess::utils::is_be_system() | force_be))
+                      bess::utils::is_be_system() | force_be)) {
       return pb_error(EINVAL, "idx %d: not a correct %d-byte mask", idx,
                       f->size);
+    }
   }
 
   if (f->mask == 0) {
@@ -74,8 +76,9 @@ pb_error_t ExactMatch::Init(const bess::pb::ExactMatchArg &arg) {
     f->pos = size_acc;
 
     err = AddFieldOne(arg.fields(i), f, i);
-    if (err.err() != 0)
+    if (err.err() != 0) {
       return err;
+    }
 
     size_acc += f->size;
   }

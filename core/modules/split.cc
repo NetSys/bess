@@ -19,13 +19,17 @@ pb_error_t Split::Init(const bess::pb::SplitArg &arg) {
   if (size_ < 1 || size_ > MAX_SIZE) {
     return pb_error(EINVAL, "'size' must be 1-%d", MAX_SIZE);
   }
-  mask_ = ((uint64_t)1 << (size_ * 8)) - 1;
+
+  mask_ = (size_ == 8) ? 0xffffffffffffffffull
+                       : (1ull << (size_ * 8)) - 1;
+
   const char *name = arg.name().c_str();
   if (arg.name().length()) {
     attr_id_ = AddMetadataAttr(name, size_,
                                bess::metadata::Attribute::AccessMode::kRead);
-    if (attr_id_ < 0)
+    if (attr_id_ < 0) {
       return pb_error(-attr_id_, "add_metadata_attr() failed");
+    }
   } else {
     attr_id_ = -1;
     offset_ = arg.offset();

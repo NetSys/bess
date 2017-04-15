@@ -26,7 +26,7 @@ CIDRNetwork::CIDRNetwork(const std::string &cidr) {
   } else if (len >= 32) {
     mask = 0xffffffff;
   } else {
-    mask = ~((1 << (32 - len)) - 1);
+    mask = ~((1u << (32 - len)) - 1);
   }
   mask = htonl(mask);
 }

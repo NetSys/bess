@@ -147,7 +147,7 @@ pb_cmd_response_t IPLookup::CommandAdd(
   }
 
   ip_addr = rte_be_to_cpu_32(ip_addr_be.s_addr);
-  netmask = ~0 ^ ((1 << (32 - prefix_len)) - 1);
+  netmask = ~((1ull << (32 - prefix_len)) - 1);
 
   if (ip_addr & ~netmask) {
     set_cmd_response_error(
