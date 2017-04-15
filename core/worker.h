@@ -13,7 +13,7 @@
 #include "traffic_class.h"
 #include "utils/common.h"
 
-#define MAX_WORKERS 4
+#define MAX_WORKERS 64
 
 // XXX
 typedef uint16_t gate_idx_t;
