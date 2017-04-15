@@ -1,5 +1,6 @@
 #include "debug.h"
 
+#include <cxxabi.h>
 #include <dlfcn.h>
 #include <execinfo.h>
 #include <gnu/libc-version.h>
@@ -28,6 +29,9 @@
 
 namespace bess {
 namespace debug {
+
+using bess::utils::Format;
+using bess::utils::Parse;
 
 static const char *si_code_to_str(int sig_num, int si_code) {
   /* See the manpage of sigaction() */
@@ -208,15 +212,14 @@ static std::string PrintCode(std::string symbol, int context) {
   // ./bessd(run_worker+0x8e) [0x419d0e]
   // ./bessd() [0x4149d8]
   // /home/foo/.../source.so(_ZN6Source7RunTaskEPv+0x55) [0x7f09e912c7b5]
-  //sscanf(symbol.c_str(), "%[^(](%*s [%[^]]]", objfile, addr);
-  bess::utils::Parse(symbol, "%[^(](%*s [%[^]]]", objfile, addr);
+  Parse(symbol, "%[^(](%*s [%[^]]]", objfile, addr);
 
   uintptr_t sym_addr = std::strtoull(addr, nullptr, 16);
   uintptr_t obj_addr = GetRelativeAddress(sym_addr);
 
-  std::string cmd = bess::utils::Format(
-      "addr2line -C -i -f -p -e %s 0x%" PRIxPTR " 2> /dev/null", objfile,
-      obj_addr);
+  std::string cmd =
+      Format("addr2line -C -i -f -p -e %s 0x%" PRIxPTR " 2> /dev/null", objfile,
+             obj_addr);
 
   std::istringstream result(RunCommand(cmd));
   std::string line;
@@ -240,7 +243,7 @@ static std::string PrintCode(std::string symbol, int context) {
     char filename[PATH_MAX];
     int lineno;
 
-    if (bess::utils::Parse(line, "%[^:]:%d", filename, &lineno) == 2) {
+    if (Parse(line, "%[^:]:%d", filename, &lineno) == 2) {
       if (std::string(filename) != "??" && lineno != 0) {
         ret << FetchLine(filename, lineno, context);
       }
@@ -429,35 +432,68 @@ void SetTrapHandler() {
   }
 }
 
+template <typename T>
+static void DumpType() {
+  std::string type_name = typeid(T).name();
+  char *demangled;
+  int ret;
+
+  demangled = abi::__cxa_demangle(type_name.c_str(), nullptr, nullptr, &ret);
+  if (ret == 0) {
+    type_name = demangled;
+    std::free(demangled);
+  } else {
+    DCHECK_EQ(ret, 0);
+  }
+
+  std::cout << Format("%-24s %8zu %8zu", type_name.c_str(),
+                                   sizeof(T), alignof(T)) << std::endl;
+}
+
 void DumpTypes(void) {
-  printf("gcc: %d.%d.%d\n", __GNUC__, __GNUC_MINOR__, __GNUC_PATCHLEVEL__);
-  printf("glibc: %s-%s\n", gnu_get_libc_version(), gnu_get_libc_release());
-  printf("DPDK: %s\n", rte_version());
+  std::cout << Format("gcc %d.%d.%d", __GNUC__, __GNUC_MINOR__,
+                      __GNUC_PATCHLEVEL__)
+            << std::endl;
+  std::cout << Format("glibc %s-%s", gnu_get_libc_version(),
+                      gnu_get_libc_release())
+            << std::endl;
+#if defined(__GLIBCXX__)
+  std::cout << "libstdc++ " << __GLIBCXX__ << std::endl;
+#elif defined(__GLIBCPP__)
+  std::cout << "libstdc++ " << __GLIBCPP__ << std::endl;
+#else
+  std::cout << "libstdc++ ?" << std::endl;
+#endif
+  std::cout << rte_version() << std::endl;
 
-  printf("sizeof(char)=%zu\n", sizeof(char));
-  printf("sizeof(short)=%zu\n", sizeof(short));
-  printf("sizeof(int)=%zu\n", sizeof(int));
-  printf("sizeof(long)=%zu\n", sizeof(long));
-  printf("sizeof(long long)=%zu\n", sizeof(long long));
-  printf("sizeof(intmax_t)=%zu\n", sizeof(intmax_t));
-  printf("sizeof(void *)=%zu\n", sizeof(void *));
-  printf("sizeof(size_t)=%zu\n", sizeof(size_t));
+  std::cout << Format("%-24s %8s %8s", "", "sizeof", "alignof") << std::endl;
 
-  printf("sizeof(rte_mbuf)=%zu\n", sizeof(struct rte_mbuf));
-  printf("sizeof(Packet)=%zu\n", sizeof(Packet));
-  printf("sizeof(pkt_batch)=%zu\n", sizeof(bess::PacketBatch));
-  printf("sizeof(Scheduler<Task>)=%zu sizeof(sched_stats)=%zu\n",
-         sizeof(Scheduler<Task>), sizeof(struct sched_stats));
-  printf("sizeof(TrafficClass)=%zu sizeof(tc_stats)=%zu\n",
-         sizeof(TrafficClass), sizeof(struct tc_stats));
-  printf("sizeof(Task)=%zu\n", sizeof(Task));
+  // basic types
+  DumpType<char>();
+  DumpType<short>();
+  DumpType<int>();
+  DumpType<long>();
+  DumpType<long long>();
+  DumpType<intmax_t>();
+  DumpType<void *>();
+  DumpType<size_t>();
+  DumpType<max_align_t>();
 
-  printf("sizeof(Module)=%zu\n", sizeof(Module));
-  printf("sizeof(Gate)=%zu\n", sizeof(bess::Gate));
-  printf("sizeof(IGate)=%zu\n", sizeof(bess::IGate));
-  printf("sizeof(OGate)=%zu\n", sizeof(bess::OGate));
+  // BESS types
+  DumpType<rte_mbuf>();
+  DumpType<Packet>();
+  DumpType<bess::PacketBatch>();
 
-  printf("sizeof(worker_context)=%zu\n", sizeof(Worker));
+  DumpType<Scheduler<Task>>();
+  DumpType<TrafficClass>();
+  DumpType<Task>();
+
+  DumpType<Module>();
+  DumpType<bess::Gate>();
+  DumpType<bess::IGate>();
+  DumpType<bess::OGate>();
+
+  DumpType<Worker>();
 }
 
 }  // namespace debug
