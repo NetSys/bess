@@ -22,7 +22,7 @@ static inline uint16_t hash_range(uint32_t hashval, uint16_t range) {
   } tmp;
 
   /* the resulting number is 1.(b0)(b1)..(b31)00000..00 */
-  tmp.i = 0x3ff0000000000000ul | ((uint64_t)hashval << 20);
+  tmp.i = 0x3ff0000000000000ull | (static_cast<uint64_t>(hashval) << 20);
 
   return (tmp.d - 1.0) * range;
 #else

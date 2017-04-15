@@ -96,11 +96,11 @@ static uint32_t l2_alt_index(uint32_t hash, uint32_t size_power,
 const union {
   uint64_t val[4];
   __m256d _mask;
-} _mask = {.val = {0x8000ffffFFFFfffflu, 0x8000ffffFFFFfffflu,
-                   0x8000ffffFFFFfffflu, 0x8000ffffFFFFfffflu}};
+} _mask = {.val = {0x8000ffffFFFFffffull, 0x8000ffffFFFFffffull,
+                   0x8000ffffFFFFffffull, 0x8000ffffFFFFffffull}};
 
 static inline int find_index_avx(uint64_t addr, uint64_t *table) {
-  __m256d _addr = (__m256d)_mm256_set1_epi64x(addr | ((uint64_t)1 << 63));
+  __m256d _addr = (__m256d)_mm256_set1_epi64x(addr | (1ull << 63));
   __m256d _table = _mm256_load_pd((double *)table);
   _table = _mm256_and_pd(_table, _mask._mask);
   __m256d cmp = _mm256_cmp_pd(_addr, _table, _CMP_EQ_OQ);
@@ -110,7 +110,7 @@ static inline int find_index_avx(uint64_t addr, uint64_t *table) {
 #else
 static inline int find_index_basic(uint64_t addr, uint64_t *table) {
   for (int i = 0; i < 4; i++) {
-    if ((addr | ((uint64_t)1 << 63)) == (table[i] & 0x8000ffffFFFFffffUL)) {
+    if ((addr | (1ull << 63)) == (table[i] & 0x8000ffffFFFFffffull)) {
       return i + 1;
     }
   }
