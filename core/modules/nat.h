@@ -24,7 +24,7 @@ using bess::utils::CuckooMap;
 
 const uint16_t MIN_PORT = 1024;
 const uint16_t MAX_PORT = 65535;
-const uint64_t TIME_OUT_NS = (uint64_t)120 * 1000 * 1000 * 1000;
+const uint64_t TIME_OUT_NS = 120ull * 1000 * 1000 * 1000;
 
 enum Protocol : uint8_t {
   ICMP = 0x01,

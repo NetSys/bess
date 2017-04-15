@@ -78,7 +78,7 @@ pb_cmd_response_t Update::CommandAdd(const bess::pb::UpdateArg &arg) {
     }
 
     offset -= (8 - size);
-    mask = ((uint64_t)1 << ((8 - size) * 8)) - 1;
+    mask = (1ull << ((8 - size) * 8)) - 1;
 
     if (offset + 8 > SNBUF_DATA) {
       set_cmd_response_error(&response, pb_error(EINVAL, "too large 'offset'"));
