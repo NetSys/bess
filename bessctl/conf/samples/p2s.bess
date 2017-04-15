@@ -1,5 +1,5 @@
-dpdk_ports = int($SN_PORTS!'1')
-print 'Using %d DPDK ports... (envvar "SN_PORTS")' % dpdk_ports
+dpdk_ports = int($BESS_PORTS!'1')
+print 'Using %d DPDK ports... (envvar "BESS_PORTS")' % dpdk_ports
 
 for i in range(dpdk_ports):
     p = PMDPort(port_id=i)

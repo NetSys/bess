@@ -2,7 +2,7 @@
 
 import scapy.all as scapy
 
-pkt_size = int($SN_PKT_SIZE!'60')
+pkt_size = int($BESS_PKT_SIZE!'60')
 
 assert(60 <= pkt_size <= 1522)
 

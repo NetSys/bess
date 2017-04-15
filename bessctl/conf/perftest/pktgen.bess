@@ -1,17 +1,17 @@
 import scapy.all as scapy
 
-pkt_size = int($SN_PKT_SIZE!'60')
-num_ports = int($SN_PORTS!'1')
-num_cores = int($SN_CORES!'1')
+pkt_size = int($BESS_PKT_SIZE!'60')
+num_ports = int($BESS_PORTS!'1')
+num_cores = int($BESS_CORES!'1')
 rate_limit = int($BESS_RATELIMIT_MBPS!'0') # default no limit
-imix = int($SN_IMIX!'0')
+imix = int($BESS_IMIX!'0')
 
 assert(60 <= pkt_size <= 1522)
 assert(1 <= num_ports <= 16)
 assert(1 <= num_cores <= 4)
 
 # generate flows by varying dst IP addr
-num_flows = int($SN_FLOWS!'1')
+num_flows = int($BESS_FLOWS!'1')
 assert(1 <= num_flows <= 256 ** 3)
 
 def build_pkt(size):

@@ -1,8 +1,8 @@
 import scapy.all as scapy
 import struct
 
-num_entries = int($SN_ENTRIES!'1000')
-use_exactmatch = bool(int(($SN_EXACTMATCH!'0')))
+num_entries = int($BESS_ENTRIES!'1000')
+use_exactmatch = bool(int(($BESS_EXACTMATCH!'0')))
 
 assert num_entries >= 1
 
