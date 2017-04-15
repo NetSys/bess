@@ -147,7 +147,6 @@ def get_var_attrs(cli, var_token, partial_word):
     try:
         if var_token == 'ENABLE_DISABLE':
             var_type = 'endis'
-            var_desc = 'one or more worker IDs'
             var_candidates = ['enable', 'disable']
 
         elif var_token == 'CORE':
