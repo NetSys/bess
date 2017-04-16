@@ -24,8 +24,8 @@
 using bess::Scheduler;
 
 int num_workers = 0;
-std::thread worker_threads[MAX_WORKERS];
-Worker *volatile workers[MAX_WORKERS];
+std::thread worker_threads[Worker::kMaxWorkers];
+Worker *volatile workers[Worker::kMaxWorkers];
 
 using bess::TrafficClassBuilder;
 using namespace bess::traffic_class_initializer_types;
@@ -63,7 +63,7 @@ int is_cpu_present(unsigned int core_id) {
 int is_worker_core(int cpu) {
   int wid;
 
-  for (wid = 0; wid < MAX_WORKERS; wid++) {
+  for (wid = 0; wid < Worker::kMaxWorkers; wid++) {
     if (is_worker_active(wid) && workers[wid]->core() == cpu)
       return 1;
   }
@@ -83,7 +83,7 @@ static void pause_worker(int wid) {
 }
 
 void pause_all_workers() {
-  for (int wid = 0; wid < MAX_WORKERS; wid++)
+  for (int wid = 0; wid < Worker::kMaxWorkers; wid++)
     pause_worker(wid);
 }
 
@@ -127,14 +127,14 @@ void resume_all_workers() {
 
   orphan_tcs.clear();
 
-  for (int wid = 0; wid < MAX_WORKERS; wid++) {
+  for (int wid = 0; wid < Worker::kMaxWorkers; wid++) {
     if (workers[wid]) {
       workers[wid]->scheduler()->AdjustDefault();
     }
   }
 
   bess::metadata::default_pipeline.ComputeMetadataOffsets();
-  for (int wid = 0; wid < MAX_WORKERS; wid++)
+  for (int wid = 0; wid < Worker::kMaxWorkers; wid++)
     resume_worker(wid);
 }
 
@@ -158,14 +158,14 @@ void destroy_worker(int wid) {
 }
 
 void destroy_all_workers() {
-  for (int wid = 0; wid < MAX_WORKERS; wid++)
+  for (int wid = 0; wid < Worker::kMaxWorkers; wid++)
     destroy_worker(wid);
 }
 
 int is_any_worker_running() {
   int wid;
 
-  for (wid = 0; wid < MAX_WORKERS; wid++) {
+  for (wid = 0; wid < Worker::kMaxWorkers; wid++) {
     if (workers[wid] && workers[wid]->status() == WORKER_RUNNING)
       return 1;
   }
@@ -295,11 +295,11 @@ Worker *get_next_active_worker() {
   }
 
   while (!is_worker_active(prev_wid)) {
-    prev_wid = (prev_wid + 1) % MAX_WORKERS;
+    prev_wid = (prev_wid + 1) % Worker::kMaxWorkers;
   }
 
   Worker *ret = workers[prev_wid];
-  prev_wid = (prev_wid + 1) % MAX_WORKERS;
+  prev_wid = (prev_wid + 1) % Worker::kMaxWorkers;
   return ret;
 }
 
@@ -327,7 +327,7 @@ bool detach_tc(bess::TrafficClass *c) {
   }
 
   // Try to remove from root of one of the schedulers
-  for (int wid = 0; wid < MAX_WORKERS; wid++) {
+  for (int wid = 0; wid < Worker::kMaxWorkers; wid++) {
     if (workers[wid]) {
       bool found = workers[wid]->scheduler()->RemoveRoot(c);
       if (found) {
