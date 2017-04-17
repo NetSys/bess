@@ -238,6 +238,10 @@ def get_var_attrs(cli, var_token, partial_word):
             var_type = 'name'
             var_desc = 'module command to run (see "show mclass")'
 
+        elif var_token == 'ARG_TYPE':
+            var_type = 'name'
+            var_desc = 'type of argument (see "show mclass")'
+
         elif var_token == '[NEW_PORT]':
             var_type = 'name'
             var_desc = 'specify a name of the new port'
@@ -789,6 +793,9 @@ def add_connection(cli, m1, m2, ogate, igate):
 @cmd('command module MODULE MODULE_CMD ARG_TYPE [CMD_ARGS...]',
      'Send a command to a module')
 def command_module(cli, module, cmd, arg_type, args):
+    if args is None:
+        args = {}
+
     cli.bess.pause_all()
     try:
         ret = cli.bess.run_module_command(module, cmd, arg_type, args)
@@ -1276,7 +1283,9 @@ def _show_mclass(cli, cls_name, detail):
 
     if detail:
         if len(info.cmds) > 0:
-            cli.fout.write('\t\t commands: %s\n' % (', '.join(info.cmds)))
+            cli.fout.write('\t\t commands: %s\n' %
+                (', '.join(map(lambda cmd, msg: "%s(%s)"
+                    % (cmd,msg), info.cmds, info.cmd_args))))
         else:
             cli.fout.write('\t\t (no commands)\n')
 
