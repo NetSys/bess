@@ -69,7 +69,7 @@ class BESSCLI(cli.CLI):
 
         except self.bess.RPCError as e:
             self.err('RPC failed to {}:{} - {}'.format(
-                    self.bess.peer[0], self.bess.peer[1], e.message))
+                self.bess.peer[0], self.bess.peer[1], e.message))
 
             self._handle_broken_connection()
             raise self.HandledError()
@@ -131,8 +131,8 @@ def run_cli(instream=sys.stdin):
     except BESS.APIError as e:
         if cli.interactive:
             cli.ferr.write(e.message + '\n')
-            cli.ferr.write('Perhaps bessd daemon is not running locally? ' \
-                        'Try "daemon start".\n')
+            cli.ferr.write('Perhaps bessd daemon is not running locally? '
+                           'Try "daemon start".\n')
 
     cli.loop()
 

@@ -92,8 +92,8 @@ STRING_ALL = STRING_LONG + '|' + STRING_SHORT
 
 def replace_envvar(s):
     environment = r'\$(' + NAME + ')'\
-            r'(!(' + STRING_SHORT + '|' + NAME + '))?' \
-            r'(!\()?'
+        r'(!(' + STRING_SHORT + '|' + NAME + '))?' \
+        r'(!\()?'
 
     # first group: # leading COMMENT -> skip
     # second group: single / double /triple quoted strings -> skip
@@ -118,7 +118,7 @@ def replace_envvar(s):
                 return "__bess_env__('" + match.group(4) + "')"
             elif match.group(5) is not None:
                 return "__bess_env__('" + match.group(4) + "', " + \
-                        match.group(6) + ")"
+                    match.group(6) + ")"
             else:
                 return "__bess_env__('" + match.group(4) + "', "
 
@@ -156,7 +156,7 @@ def replace_rarrows(s):
             if t[0] == tokenize.OP:
                 l = len(exp) - len(exp.lstrip())
                 r = len(exp) - len(exp.rstrip())
-                return '%s(%s)%s' % (exp[:l], exp.strip(), exp[len(exp)-r:])
+                return '%s(%s)%s' % (exp[:l], exp.strip(), exp[len(exp) - r:])
         return exp
 
     # Phase 1: split the string with delimiter "->"
@@ -199,7 +199,7 @@ def replace_rarrows(s):
             line_idx += 1
             col_offset = 0
         elif line_idx == row:
-            curr_seg.append(line[col_offset:col-1])
+            curr_seg.append(line[col_offset:col - 1])
             segments.append(''.join(curr_seg))
             curr_seg = []
             col_offset = col + 1
@@ -214,7 +214,7 @@ def replace_rarrows(s):
         seg = segments[i]
         colon_pos = seg.rfind(':')
         while colon_pos != -1:
-            ogate = seg[colon_pos+1:]
+            ogate = seg[colon_pos + 1:]
 
             if ogate.strip() == '':
                 break
@@ -234,7 +234,8 @@ def replace_rarrows(s):
                 break
 
             if is_gate_expr(igate, False):
-                segments[i+1] = parenthesize(igate) + '*' + seg[colon_pos+1:]
+                segments[
+                    i + 1] = parenthesize(igate) + '*' + seg[colon_pos + 1:]
                 break
 
             colon_pos = seg.find(':', colon_pos + 1)
@@ -251,7 +252,7 @@ def create_module_string(s):
     # multiple module -> return a tuple of module name string
     mstr = '('
     for module in s.split(','):
-        mstr += "'"+module.strip()+"', "
+        mstr += "'" + module.strip() + "', "
     mstr += ')'
     return mstr
 

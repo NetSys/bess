@@ -1,8 +1,9 @@
 import sys
 import os
 
-#for pretty printing
-class ColorizedOutput(object):
+
+class ColorizedOutput(object):  # for pretty printing
+
     def __init__(self, orig_out, color):
         self.orig_out = orig_out
         self.color = color
@@ -15,7 +16,9 @@ class ColorizedOutput(object):
         else:
             return getattr(self.orig_out, attr)
 
+
 class CLI(object):
+
     # general command errors
     class CommandError(Exception):
         pass
@@ -468,7 +471,7 @@ class CLI(object):
                 self.rl.read_history_file(self.history_file)
         except:
             self.err('Cannot read from history file "%s"' %
-                        self.history_file)
+                     self.history_file)
 
         self.print_banner()
         self.fout.flush()

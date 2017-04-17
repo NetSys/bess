@@ -656,12 +656,12 @@ def _do_run_file(cli, conf_file):
     xformed = sugar.xform_file(conf_file)
 
     new_globals = {
-            '__builtins__': __builtins__,
-            'bess': cli.bess,
-            'ConfError': ConfError,
-            '__bess_env__': __bess_env__,
-            '__bess_module__': __bess_module__,
-        }
+        '__builtins__': __builtins__,
+        'bess': cli.bess,
+        'ConfError': ConfError,
+        '__bess_env__': __bess_env__,
+        '__bess_module__': __bess_module__,
+    }
 
     class_names = cli.bess.list_mclasses().names
     driver_names = cli.bess.list_drivers().driver_names
@@ -733,7 +733,7 @@ def _run_file(cli, conf_file, env_map):
             for k, v in original_env.iteritems():
                 os.environ[k] = v
     else:
-            _do_run_file(cli, conf_file)
+        _do_run_file(cli, conf_file)
 
 
 @cmd('run CONF [ENV_VARS...]', 'Run a *.bess configuration in "conf/"')
@@ -849,11 +849,11 @@ def _show_worker_header(cli):
 
 def _show_worker(cli, w):
     cli.fout.write('  %10d%10s%10d%10d%16d\n' % (
-            w.wid,
-            'RUNNING' if w.running else 'PAUSED',
-            w.core,
-            w.num_tcs,
-            w.silent_drops))
+        w.wid,
+        'RUNNING' if w.running else 'PAUSED',
+        w.core,
+        w.num_tcs,
+        w.silent_drops))
 
 
 @cmd('show worker', 'Show the status of all worker threads')
@@ -983,7 +983,8 @@ def _build_tcs_tree(tcs):
                 nodes[c_.name]["show_list"].append("share: %d" % c_.share)
             elif (nodes[tc.parent]["policy"] == "priority" and
                     c_.HasField("priority")):
-                nodes[c_.name]["show_list"].append("priority: %d" % c_.priority)
+                nodes[c_.name]["show_list"].append(
+                    "priority: %d" % c_.priority)
 
         if c_.policy == "rate_limit":
             nodes[c_.name]["show_list"].append(_limit_to_str(c_.limit))
@@ -1161,10 +1162,9 @@ def _show_port(cli, port):
     else:
         autoneg = 'OFF'
 
-
-    cli.fout.write('  %-12s Driver %-10s HWaddr %s\n' % \
+    cli.fout.write('  %-12s Driver %-10s HWaddr %s\n' %
                    (port.name, port.driver, port.mac_addr))
-    cli.fout.write('  %-12s Speed %-11s Link %-5s Duplex %-5s Autoneg %-5s\n' % \
+    cli.fout.write('  %-12s Speed %-11s Link %-5s Duplex %-5s Autoneg %-5s\n' %
                    ('', speed, link, duplex, autoneg))
     stats = cli.bess.get_port_stats(port.name)
 
@@ -1250,8 +1250,8 @@ def _show_module(cli, module_name):
             except:
                 pass
             cli.fout.write(
-                    '      %5d: %s -> %d:%s\n' %
-                    (gate.ogate, track_str, gate.igate, gate.name))
+                '      %5d: %s -> %d:%s\n' %
+                (gate.ogate, track_str, gate.igate, gate.name))
 
     if hasattr(info, 'dump'):
         dump_str = pprint.pformat(info.dump, width=74)
@@ -1284,8 +1284,8 @@ def _show_mclass(cli, cls_name, detail):
     if detail:
         if len(info.cmds) > 0:
             cli.fout.write('\t\t commands: %s\n' %
-                (', '.join(map(lambda cmd, msg: "%s(%s)"
-                    % (cmd,msg), info.cmds, info.cmd_args))))
+                           (', '.join(map(lambda cmd, msg: "%s(%s)"
+                                          % (cmd, msg), info.cmds, info.cmd_args))))
         else:
             cli.fout.write('\t\t (no commands)\n')
 
@@ -1307,9 +1307,11 @@ def show_mclass_list(cli, cls_names):
 def import_plugin(cli, plugin):
     cli.bess.import_plugin(plugin)
 
+
 @cmd('unload plugin PLUGIN_FILE', 'Unload the specified plugin (*.so)')
 def unload_plugin(cli, plugin):
     cli.bess.unload_plugin(plugin)
+
 
 def _show_driver(cli, drv_name, detail):
     info = cli.bess.get_driver_info(drv_name)
@@ -1345,7 +1347,7 @@ def _monitor_pipeline(cli, field):
 
         for gate in gates:
             last_stats[(module.name, gate.ogate)] = \
-                    (gate.timestamp, getattr(gate, field))
+                (gate.timestamp, getattr(gate, field))
 
     try:
         while True:
@@ -1370,17 +1372,18 @@ PortRate = collections.namedtuple('PortRate',
                                   ['inc_packets', 'inc_dropped', 'inc_bytes',
                                    'out_packets', 'out_dropped', 'out_bytes'])
 
+
 def _monitor_ports(cli, *ports):
 
     def get_delta(old, new):
         sec_diff = new.timestamp - old.timestamp
         delta = PortRate(
-            inc_packets = (new.inc.packets - old.inc.packets) / sec_diff,
-            inc_dropped = (new.inc.dropped - old.inc.dropped) / sec_diff,
-            inc_bytes = (new.inc.bytes - old.inc.bytes) / sec_diff,
-            out_packets = (new.out.packets - old.out.packets) / sec_diff,
-            out_dropped = (new.out.dropped - old.out.dropped) / sec_diff,
-            out_bytes = (new.out.bytes - old.out.bytes) / sec_diff)
+            inc_packets=(new.inc.packets - old.inc.packets) / sec_diff,
+            inc_dropped=(new.inc.dropped - old.inc.dropped) / sec_diff,
+            inc_bytes=(new.inc.bytes - old.inc.bytes) / sec_diff,
+            out_packets=(new.out.packets - old.out.packets) / sec_diff,
+            out_dropped=(new.out.dropped - old.out.dropped) / sec_diff,
+            out_bytes=(new.out.bytes - old.out.bytes) / sec_diff)
         return delta
 
     def print_header(timestamp):
@@ -1460,8 +1463,8 @@ def _monitor_ports(cli, *ports):
 
             if len(ports) > 1:
                 print_delta('Total', get_delta(
-                        get_total(last.values()),
-                        get_total(now.values())))
+                    get_total(last.values()),
+                    get_total(now.values())))
 
             for port in ports:
                 last[port] = now[port]
@@ -1482,13 +1485,14 @@ def monitor_port_all(cli, ports):
 TcCounterRate = collections.namedtuple('TcCounterRate',
                                        ['count', 'cycles', 'bits', 'packets'])
 
+
 def _monitor_tcs(cli, *tcs):
     def get_delta(old, new):
         sec_diff = new.timestamp - old.timestamp
-        delta = TcCounterRate(count = (new.count - old.count) / sec_diff,
-                              cycles = (new.cycles - old.cycles) / sec_diff,
-                              bits = (new.bits - old.bits) / sec_diff,
-                              packets = (new.packets - old.packets) / sec_diff)
+        delta = TcCounterRate(count=(new.count - old.count) / sec_diff,
+                              cycles=(new.cycles - old.cycles) / sec_diff,
+                              bits=(new.bits - old.bits) / sec_diff,
+                              packets=(new.packets - old.packets) / sec_diff)
         return delta
 
     def print_header(timestamp):
