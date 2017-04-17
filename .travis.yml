@@ -27,6 +27,7 @@ before_install:
 install:
   - sudo apt-get install -y python
   - pip install grpcio scapy
+  - "[[ ${DEBUG:-0} == 0 ]] || sudo apt-get install -y lcov"
   - "[[ ${SANITIZE:-0} == 0 ]] || sudo apt-get install -y llvm-3.8"
   - "[[ $TAG_SUFFIX != _32 ]] || sudo apt-get install -y lib32gcc1"
   - ln -s /build/dpdk-17.02 deps
@@ -48,6 +49,8 @@ script:
 
 after_success:
   - "[[ ${DEBUG:-0} == 0 ]] || bash <(curl -s https://codecov.io/bash)"
+  - "lcov --capture --directory . --output-file coverage.info && \
+    genhtml coverage.info --output-directory coverage_html"
 
 after_failure:
   - more /tmp/bessd.*.INFO.* | cat      # dump all bessd log files
