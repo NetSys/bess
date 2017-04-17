@@ -391,7 +391,7 @@ class BESSControlImpl final : public BESSControl::Service {
 
   Status ListWorkers(ServerContext*, const EmptyRequest*,
                      ListWorkersResponse* response) override {
-    for (int wid = 0; wid < MAX_WORKERS; wid++) {
+    for (int wid = 0; wid < Worker::kMaxWorkers; wid++) {
       if (!is_worker_active(wid))
         continue;
       ListWorkersResponse_WorkerStatus* status = response->add_workers_status();
@@ -407,7 +407,7 @@ class BESSControlImpl final : public BESSControl::Service {
   Status AddWorker(ServerContext*, const AddWorkerRequest* request,
                    EmptyResponse* response) override {
     uint64_t wid = request->wid();
-    if (wid >= MAX_WORKERS) {
+    if (wid >= Worker::kMaxWorkers) {
       return return_with_error(response, EINVAL, "Invalid worker id");
     }
     uint64_t core = request->core();
@@ -425,7 +425,7 @@ class BESSControlImpl final : public BESSControl::Service {
   Status DestroyWorker(ServerContext*, const DestroyWorkerRequest* request,
                        EmptyResponse* response) override {
     uint64_t wid = request->wid();
-    if (wid >= MAX_WORKERS) {
+    if (wid >= Worker::kMaxWorkers) {
       return return_with_error(response, EINVAL, "Invalid worker id");
     }
     Worker* worker = workers[wid];
@@ -1345,10 +1345,10 @@ class BESSControlImpl final : public BESSControl::Service {
     int wid = class_.wid();
 
     if (class_.parent().length() == 0) {
-      if (wid >= MAX_WORKERS) {
+      if (wid >= Worker::kMaxWorkers) {
         return return_with_error(response, EINVAL,
                                  "'wid' must be between -1 and %d",
-                                 MAX_WORKERS - 1);
+                                 Worker::kMaxWorkers - 1);
       }
 
       if ((wid != -1 && !is_worker_active(wid)) ||

@@ -13,17 +13,13 @@
 #include "traffic_class.h"
 #include "utils/common.h"
 
-#define MAX_WORKERS 4
-
-#define MAX_MODULES_PER_PATH 256
-
 // XXX
 typedef uint16_t gate_idx_t;
 #define MAX_GATES 8192
 
 /*  TODO: worker threads doesn't necessarily be pinned to 1 core
  *
- *  n: MAX_WORKERS
+ *  n: kMaxWorkers
  *
  *  Role              DPDK lcore ID      Hardware core(s)
  *  --------------------------------------------------------
@@ -50,6 +46,8 @@ class Task;
 
 class Worker {
  public:
+  static const int kMaxWorkers = 64;
+
   /* ----------------------------------------------------------------------
    * functions below are invoked by non-worker threads (the master)
    * ---------------------------------------------------------------------- */
@@ -99,8 +97,8 @@ class Worker {
  private:
   volatile worker_status_t status_;
 
-  int wid_;  /* always [0, MAX_WORKERS - 1] */
-  int core_; /* TODO: should be cpuset_t */
+  int wid_;   // always [0, kMaxWorkers - 1]
+  int core_;  // TODO: should be cpuset_t
   int socket_;
   int fd_event_;
 
@@ -137,8 +135,8 @@ static_assert(std::is_trivially_destructible<Worker>::value,
 // TODO: C++-ify
 
 extern int num_workers;
-extern std::thread worker_threads[MAX_WORKERS];
-extern Worker *volatile workers[MAX_WORKERS];
+extern std::thread worker_threads[Worker::kMaxWorkers];
+extern Worker *volatile workers[Worker::kMaxWorkers];
 
 /* ------------------------------------------------------------------------
  * functions below are invoked by non-worker threads (the master)
