@@ -1283,6 +1283,15 @@ class BESSControlImpl final : public BESSControl::Service {
     return Status::OK;
   }
 
+  Status ListPlugins(ServerContext*, const EmptyRequest*,
+                     ListPluginsResponse* response) override {
+    auto list = bess::bessd::ListPlugins();
+    for (auto& path : list) {
+      response->add_paths(path);
+    }
+    return Status::OK;
+  }
+
   Status ListMclass(ServerContext*, const EmptyRequest*,
                     ListMclassResponse* response) override {
     for (const auto& pair : ModuleBuilder::all_module_builders()) {

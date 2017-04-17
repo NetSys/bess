@@ -372,6 +372,14 @@ static inline bool HasSuffix(const std::string &s, const std::string &suffix) {
 // key: plugin path (std::string), value: handle (void *)
 static std::unordered_map<std::string, void *> plugin_handles;
 
+std::vector<std::string> ListPlugins() {
+  std::vector<std::string> list;
+  for (auto &kv : plugin_handles) {
+    list.push_back(kv.first);
+  }
+  return list;
+}
+
 bool LoadPlugin(const std::string &path) {
   void *handle = dlopen(path.c_str(), RTLD_NOW);
   if (handle != nullptr) {

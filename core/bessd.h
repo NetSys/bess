@@ -5,6 +5,7 @@
 
 #include <string>
 #include <tuple>
+#include <vector>
 
 namespace bess {
 namespace bessd {
@@ -48,6 +49,9 @@ bool UnloadPlugin(const std::string &path);
 
 // Load all the .so files in the specified directory. Return true upon success.
 bool LoadPlugins(const std::string &directory);
+
+// List all imported .so files.
+std::vector<std::string> ListPlugins();
 
 // Return the current executable's own directory. For example, if the location
 // of the executable is /opt/bess/core/bessd, returns /opt/bess/core/ (with the

@@ -32,6 +32,11 @@ message UnloadPluginRequest {
   string path = 1;  /// Path to the module library (*.so file)
 }
 
+message ListPluginsResponse {
+  Error error = 1;
+  repeated string paths = 2; /// Paths to the module library (*.so file)
+}
+
 message ListWorkersResponse {
   message WorkerStatus {
     int64 wid = 1;      /// Worker ID, starting from 0

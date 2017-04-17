@@ -230,6 +230,9 @@ class BESS(object):
         request.path = path
         return self._request('UnloadPlugin', request)
 
+    def list_plugins(self):
+        return self._request('ListPlugins')
+
     def list_mclasses(self):
         return self._request('ListMclass')
 

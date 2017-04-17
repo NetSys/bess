@@ -45,6 +45,12 @@ service BESSControl {
   /// but might also support drivers/hooks/schedulers in the future.
   rpc UnloadPlugin (UnloadPluginRequest) returns (EmptyResponse) {}
 
+  /// List imported plugins
+  ///
+  /// At the moment plugins can only contain module types,
+  /// but might also support drivers/hooks/schedulers in the future.
+  rpc ListPlugins (EmptyRequest) returns (ListPluginsResponse) {}
+
 
   //  -------------------------------------------------------------------------
   //  Worker
