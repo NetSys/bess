@@ -9,6 +9,7 @@ from concurrent import futures
 
 
 class TestServiceImpl(service_pb2.BESSControlServicer):
+
     def __init__(self):
         pass
 
@@ -30,6 +31,7 @@ class TestServiceImpl(service_pb2.BESSControlServicer):
 
 
 class TestBESS(unittest.TestCase):
+
     def setUp(self):
         self.server = grpc.server(futures.ThreadPoolExecutor(max_workers=2))
         service_pb2.add_BESSControlServicer_to_server(
@@ -93,7 +95,7 @@ class TestBESS(unittest.TestCase):
             'tx_outer_tci': 123,
             'loopback': False,
             'ip_addrs': ['1.2.3.4', '255.254.253.252']
-            })
+        })
         self.assertEqual(0, response.error.err)
         self.assertEqual('p0', response.name)
 

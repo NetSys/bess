@@ -1,4 +1,5 @@
 class Port(object):
+
     def __init__(self, **kwargs):
         self.name = '<uninitialized>'
         self.driver = self.__class__.__name__

@@ -8,6 +8,7 @@ def _callback_factory(self, cmd, arg_type):
 
 
 class Module(object):
+
     def __init__(self, **kwargs):
         self.name = '<uninitialized>'
         self.mclass = self.__class__.__name__

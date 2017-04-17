@@ -3,7 +3,9 @@ import bess_msg_pb2 as bess_msg
 import error_pb2 as error_msg
 import protobuf_to_dict as pb_conv
 
+
 class TestProtobufConvert(unittest.TestCase):
+
     def test_protobuf_to_dict(self):
         pb = bess_msg.CreatePortResponse()
         pb.error.err = 1

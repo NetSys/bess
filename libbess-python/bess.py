@@ -16,10 +16,12 @@ import module_msg
 import bess_msg_pb2 as bess_msg
 import port_msg_pb2 as port_msg
 
+
 class BESS(object):
 
     # errors from BESS daemon
     class Error(Exception):
+
         def __init__(self, err, errmsg, details):
             self.err = err
             self.errmsg = errmsg
@@ -88,7 +90,8 @@ class BESS(object):
                                grpc.ChannelConnectivity.SHUTDOWN,
                                self.BROKEN_CHANNEL]:
                 self.disconnect()
-                raise self.APIError('Connection to %s:%d failed' % (host, port))
+                raise self.APIError(
+                    'Connection to %s:%d failed' % (host, port))
             time.sleep(0.1)
 
     # returns no error if already disconnected
