@@ -31,6 +31,7 @@ const Commands WildcardMatch::cmds = {
     {"delete", "WildcardMatchCommandDeleteArg",
      MODULE_CMD_FUNC(&WildcardMatch::CommandDelete), 0},
     {"clear", "EmptyArg", MODULE_CMD_FUNC(&WildcardMatch::CommandClear), 0},
+    {"get_rules", "EmptyArg", MODULE_CMD_FUNC(&WildcardMatch::CommandGetRules), 0},
     {"set_default_gate", "WildcardMatchCommandSetDefaultGateArg",
      MODULE_CMD_FUNC(&WildcardMatch::CommandSetDefaultGate), 1}};
 
@@ -354,6 +355,40 @@ pb_cmd_response_t WildcardMatch::CommandClear(const bess::pb::EmptyArg &) {
   set_cmd_response_error(&response, pb_errno(0));
   return response;
 }
+
+
+#include <iostream>
+pb_cmd_response_t WildcardMatch::CommandGetRules(const bess::pb::EmptyArg &) {
+  bess::pb::WildcardMatchCommandGetRulesResponse resp;
+
+  for (auto &tuple : tuples_) {
+    wm_hkey_t mask = tuple.mask;
+    for(auto &entry : tuple.ht) {
+      bess::pb::WildcardMatchCommandAddArg* rule = resp.add_rules();
+      rule->set_priority(entry.second.priority);
+      rule->set_gate(entry.second.ogate);
+
+      uint8_t* entry_data = reinterpret_cast<uint8_t*>(entry.first.u64_arr);
+      uint8_t* entry_mask = reinterpret_cast<uint8_t*>(mask.u64_arr);
+      for(auto &field : fields_) {
+        if(field.attr_id > -1) continue; //skip metadata for now.
+        std::cout << "At position " << field.pos << ", offset " << field.offset << std::endl;
+        uint64_t data =  *(reinterpret_cast<uint64_t*>(entry_data + field.pos));
+        rule->add_values(data);
+        uint64_t mask_data =  *(reinterpret_cast<uint64_t*>(entry_mask + field.pos));
+        rule->add_masks(mask_data);
+      }
+    }
+  }
+  pb_cmd_response_t response;
+
+  response.mutable_error()->set_err(0);
+  response.mutable_other()->PackFrom(resp);
+
+  return response;
+}
+
+
 
 pb_cmd_response_t WildcardMatch::CommandSetDefaultGate(
     const bess::pb::WildcardMatchCommandSetDefaultGateArg &arg) {

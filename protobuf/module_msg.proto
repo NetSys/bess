@@ -300,6 +300,12 @@ message WildcardMatchCommandSetDefaultGateArg {
   uint64 gate = 1;
 }
 
+message WildcardMatchCommandGetRulesResponse {
+  uint64 default_gate = 1;
+  WildcardMatchArg fields = 2;
+  repeated WildcardMatchCommandAddArg rules = 3;
+}
+
 /**
  * The module ACL creates an access control module which by default blocks all traffic, unless it contains a rule which specifies otherwise.
  * Examples of ACL can be found in [acl.bess](https://github.com/NetSys/bess/blob/master/bessctl/conf/samples/acl.bess)

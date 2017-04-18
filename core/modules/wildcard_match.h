@@ -119,7 +119,8 @@ class WildcardMatch final : public Module {
   pb_cmd_response_t CommandClear(const bess::pb::EmptyArg &arg);
   pb_cmd_response_t CommandSetDefaultGate(
       const bess::pb::WildcardMatchCommandSetDefaultGateArg &arg);
-
+  pb_cmd_response_t CommandGetRules(const bess::pb::EmptyArg &);
+ 
  private:
   struct WmTuple {
     CuckooMap<wm_hkey_t, struct WmData, wm_hash, wm_eq> ht;
