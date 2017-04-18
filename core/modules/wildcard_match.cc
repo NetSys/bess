@@ -235,7 +235,6 @@ int WildcardMatch::FindTuple(wm_hkey_t *mask) {
     }
     i++;
   }
-
   return -ENOENT;
 }
 
@@ -360,6 +359,17 @@ pb_cmd_response_t WildcardMatch::CommandClear(const bess::pb::EmptyArg &) {
 #include <iostream>
 pb_cmd_response_t WildcardMatch::CommandGetRules(const bess::pb::EmptyArg &) {
   bess::pb::WildcardMatchCommandGetRulesResponse resp;
+  resp.set_default_gate(default_gate_);
+
+  for(auto &field : fields_){
+    bess::pb::WildcardMatchArg_Field* f = resp.mutable_fields()->add_fields();
+    if(field.attr_id >= 0){
+      f->set_attribute(all_attrs().at(field.attr_id).name);
+    }else{
+      f->set_offset(field.offset);
+    }
+    f->set_size(field.size);
+  }
 
   for (auto &tuple : tuples_) {
     wm_hkey_t mask = tuple.mask;
@@ -371,11 +381,11 @@ pb_cmd_response_t WildcardMatch::CommandGetRules(const bess::pb::EmptyArg &) {
       uint8_t* entry_data = reinterpret_cast<uint8_t*>(entry.first.u64_arr);
       uint8_t* entry_mask = reinterpret_cast<uint8_t*>(mask.u64_arr);
       for(auto &field : fields_) {
-        if(field.attr_id > -1) continue; //skip metadata for now.
-        std::cout << "At position " << field.pos << ", offset " << field.offset << std::endl;
-        uint64_t data =  *(reinterpret_cast<uint64_t*>(entry_data + field.pos));
+        uint64_t data = 0;
+        bin_to_uint64(&data , entry_data + field.pos, field.size, 1);
         rule->add_values(data);
-        uint64_t mask_data =  *(reinterpret_cast<uint64_t*>(entry_mask + field.pos));
+        uint64_t mask_data = 0;
+        bin_to_uint64(&mask_data, entry_mask + field.pos, field.size, 1);
         rule->add_masks(mask_data);
       }
     }

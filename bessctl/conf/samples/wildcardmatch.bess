@@ -65,4 +65,4 @@ wm.delete(values=[atoh('172.12.55.0'),     0,          0       ],
            masks=[atoh('255.255.255.0'),   0x0000,     0x0000  ])
 
 resp=wm.get_rules()
-print(str(resp.rules))
+print(resp)
