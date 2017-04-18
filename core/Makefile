@@ -151,11 +151,15 @@ protobuf: $(PROTO_SRCS)
 
 modules: protobuf $(MODULE_OBJS) $(MODULE_LIBS)
 
-GIT_VERSION := \#define VERSION \
-	\"$(shell git describe --abbrev=4 --dirty --always --tags)\"
+# Generate version string from the current status of the git working copy
+VERSION := $(shell git describe --abbrev=4 --dirty --always --tags 2>/dev/null)
 
+# Default if previous command fails (e.g., when building from a tarball)
+DEFAULT_VERSION := v0.2.1
+
+VERSION_LINE := \#define VERSION \"$(or $(VERSION), $(DEFAULT_VERSION))\"
 version.h: force
-	@echo "$(GIT_VERSION)"| cmp -s - $@ || echo "$(GIT_VERSION)" > $@
+	@echo "$(VERSION_LINE)"| cmp -s - $@ || echo "$(VERSION_LINE)" > $@
 
 # This build wrapper takes 4 parameters:
 # $(1): build type (CXX, LD, ...)
