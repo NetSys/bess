@@ -15,7 +15,7 @@ static void CopyFromPacket(bess::PacketBatch *batch, const struct Attr *attr,
     void *mt_ptr;
 
     mt_ptr = _ptr_attr_with_offset<value_t>(mt_off, pkt);
-    bess::utils::Copy(mt_ptr, head + pkt_off, size);
+    bess::utils::CopySmall(mt_ptr, head + pkt_off, size);
   }
 }
 
@@ -31,7 +31,7 @@ static void CopyFromValue(bess::PacketBatch *batch, const struct Attr *attr,
     void *mt_ptr;
 
     mt_ptr = _ptr_attr_with_offset<value_t>(mt_off, pkt);
-    bess::utils::Copy(mt_ptr, val_ptr, size);
+    bess::utils::CopySmall(mt_ptr, val_ptr, size);
   }
 }
 
@@ -77,7 +77,7 @@ pb_error_t SetMetadata::AddAttrOne(
                       "correct %zu-byte value",
                       size);
     }
-    memcpy(&value, attr.value_bin().data(), size);
+    bess::utils::Copy(&value, attr.value_bin().data(), size);
   } else {
     offset = attr.offset();
     if (offset < 0 || offset + size >= SNBUF_DATA) {

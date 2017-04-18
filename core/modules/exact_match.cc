@@ -162,8 +162,8 @@ pb_error_t ExactMatch::GatherKey(const RepeatedPtrField<std::string> &fields,
                       field_size);
     }
 
-    memcpy(reinterpret_cast<uint8_t *>(key) + field_pos, f_obj.c_str(),
-           field_size);
+    bess::utils::Copy(reinterpret_cast<uint8_t *>(key) + field_pos,
+                      f_obj.c_str(), field_size);
   }
 
   return pb_errno(0);

@@ -16,7 +16,8 @@ void Buffer::ProcessBatch(bess::PacketBatch *batch) {
 
   if (left >= free_slots) {
     buf->set_cnt(bess::PacketBatch::kMaxBurst);
-    bess::utils::Copy(p_buf, p_batch, free_slots * sizeof(bess::Packet *));
+    bess::utils::CopyInlined(p_buf, p_batch,
+                             free_slots * sizeof(bess::Packet *));
 
     p_buf = &buf->pkts()[0];
     p_batch += free_slots;
@@ -27,7 +28,7 @@ void Buffer::ProcessBatch(bess::PacketBatch *batch) {
   }
 
   buf->incr_cnt(left);
-  bess::utils::Copy(p_buf, p_batch, left * sizeof(bess::Packet *));
+  bess::utils::CopyInlined(p_buf, p_batch, left * sizeof(bess::Packet *));
 }
 
 ADD_MODULE(Buffer, "buffer", "buffers packets into larger batches")

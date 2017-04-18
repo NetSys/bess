@@ -287,7 +287,7 @@ static ::Port* create_port(const std::string& name, const PortBuilder& driver,
     size_out_q = p->DefaultOutQueueSize();
   }
 
-  memcpy(p->mac_addr, mac_addr.bytes, ETH_ALEN);
+  bess::utils::Copy(p->mac_addr, mac_addr.bytes, ETH_ALEN);
   p->num_queues[PACKET_DIR_INC] = num_inc_q;
   p->num_queues[PACKET_DIR_OUT] = num_out_q;
   p->queue_size[PACKET_DIR_INC] = size_inc_q;
@@ -780,7 +780,7 @@ class BESSControlImpl final : public BESSControl::Service {
       port->set_driver(p->port_builder()->class_name());
 
       bess::utils::EthHeader::Address mac_addr;
-      memcpy(mac_addr.bytes, p->mac_addr, ETH_ALEN);
+      bess::utils::Copy(mac_addr.bytes, p->mac_addr, ETH_ALEN);
       port->set_mac_addr(mac_addr.ToString());
     }
 
@@ -820,7 +820,7 @@ class BESSControlImpl final : public BESSControl::Service {
     response->set_name(port->name());
 
     bess::utils::EthHeader::Address mac_addr;
-    memcpy(mac_addr.bytes, port->mac_addr, ETH_ALEN);
+    bess::utils::Copy(mac_addr.bytes, port->mac_addr, ETH_ALEN);
     response->set_mac_addr(mac_addr.ToString());
 
     return Status::OK;

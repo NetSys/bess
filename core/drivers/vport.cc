@@ -225,7 +225,7 @@ void *VPort::AllocBar(struct tx_queue_opts *txq_opts,
 
   strcpy(conf->ifname, ifname_);
 
-  memcpy(conf->mac_addr, mac_addr, ETH_ALEN);
+  bess::utils::Copy(conf->mac_addr, mac_addr, ETH_ALEN);
 
   conf->num_txq = num_queues[PACKET_DIR_INC];
   conf->num_rxq = num_queues[PACKET_DIR_OUT];

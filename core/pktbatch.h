@@ -29,7 +29,7 @@ class PacketBatch {
 
   void Copy(const PacketBatch *src) {
     cnt_ = src->cnt_;
-    bess::utils::Copy(pkts_, src->pkts_, cnt_ * sizeof(Packet *));
+    bess::utils::CopyInlined(pkts_, src->pkts_, cnt_ * sizeof(Packet *));
   }
 
   static const size_t kMaxBurst = 32;

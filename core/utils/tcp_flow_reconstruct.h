@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "../packet.h"
+#include "copy.h"
 #include "ether.h"
 #include "ip.h"
 #include "tcp.h"
@@ -19,9 +20,7 @@ class TcpFlowReconstruct {
   // Constructs a TCP flow reconstruction object that can hold initial_buflen
   // bytes to start with.
   explicit TcpFlowReconstruct(size_t initial_buflen = 1024)
-      : initialized_(false),
-        init_seq_(0),
-        buf_(initial_buflen) {}
+      : initialized_(false), init_seq_(0), buf_(initial_buflen) {}
 
   virtual ~TcpFlowReconstruct() {}
 
@@ -96,7 +95,7 @@ class TcpFlowReconstruct {
       buf_.resize(new_buflen);
     }
 
-    memcpy(buf_.data() + buf_offset, datastart, datalen);
+    bess::utils::CopyInlined(buf_.data() + buf_offset, datastart, datalen);
 
     uint32_t start = buf_offset;
     uint32_t end = buf_offset + datalen;

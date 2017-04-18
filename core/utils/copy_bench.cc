@@ -8,7 +8,7 @@
 
 #include "random.h"
 
-using bess::utils::Copy;
+using bess::utils::CopyInlined;
 
 class CopyFixture : public benchmark::Fixture {
  protected:
@@ -69,7 +69,7 @@ class CopyFixture : public benchmark::Fixture {
 
 BENCHMARK_DEFINE_F(CopyFixture, Copy)(benchmark::State &state) {
   while (state.KeepRunning()) {
-    Copy(dst_, src_, size_);
+    CopyInlined(dst_, src_, size_);
   }
 
   state.SetItemsProcessed(state.iterations());
@@ -78,7 +78,7 @@ BENCHMARK_DEFINE_F(CopyFixture, Copy)(benchmark::State &state) {
 
 BENCHMARK_DEFINE_F(CopyFixture, CopySloppy)(benchmark::State &state) {
   while (state.KeepRunning()) {
-    Copy(dst_, src_, size_, true);
+    CopyInlined(dst_, src_, size_, true);
   }
 
   state.SetItemsProcessed(state.iterations());

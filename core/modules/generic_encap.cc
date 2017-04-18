@@ -108,7 +108,7 @@ void GenericEncap::ProcessBatch(bess::PacketBatch *batch) {
       continue;
     }
 
-    bess::utils::Copy(p, headers[i], encap_size);
+    bess::utils::CopyInlined(p, headers[i], encap_size);
   }
 
   RunNextModule(batch);

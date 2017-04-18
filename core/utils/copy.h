@@ -105,17 +105,12 @@ static inline void CopySmall(void *__restrict__ dst,
   }
 }
 
-// Copies "bytes" data from "src" to "dst".
-// Same as memcpy() and rte_memcpy(), but significantly faster for both
-// aligned/unaligned buffers. Performs best if aligned, of course.
-// bytes can be 0.
-//
-// NOTE: When "sloppy" is set, it may copy more than "bytes", up to additional
-// 31 bytes. It will generate much smaller and usually faster code. Use this
-// option only if overwriting some data at the end is acceptable, such as
-// rewriting the payload data of class Packet.
-static inline void Copy(void *__restrict__ dst, const void *__restrict__ src,
-                        size_t bytes, bool sloppy = false) {
+// Inline version of Copy(). Use only when performance is critial. Since the
+// function is inlined whenever used, the compiled code will be substantially
+// larger. See Copy() for more details.
+static inline void CopyInlined(void *__restrict__ dst,
+                               const void *__restrict__ src, size_t bytes,
+                               bool sloppy = false) {
 #if __AVX2__
   using block_t = __m256i;
   auto copy_block = [](void *__restrict__ d, const void *__restrict__ s) {
@@ -190,11 +185,36 @@ static inline void Copy(void *__restrict__ dst, const void *__restrict__ src,
 
   if (!sloppy && (bytes % block_size) != 0) {
     size_t fringe = bytes % block_size;
-    dst_u = reinterpret_cast<decltype(dst_u)>(d + leftover_blocks);
-    src_u = reinterpret_cast<decltype(src_u)>(s + leftover_blocks);
+    dst_u = reinterpret_cast<uintptr_t>(d + leftover_blocks);
+    src_u = reinterpret_cast<uintptr_t>(s + leftover_blocks);
 
     copy_block(reinterpret_cast<decltype(d)>(dst_u + fringe - block_size),
                reinterpret_cast<decltype(s)>(src_u + fringe - block_size));
+  }
+}
+
+// Non-inlined version of Copy().
+// Do not call this function directly, unless you know what you are doing.
+// Just use Copy()
+void CopyNonInlined(void *__restrict__ dst, const void *__restrict__ src,
+                    size_t bytes, bool sloppy = false);
+
+// Copies "bytes" data from "src" to "dst".
+// Same as memcpy() and rte_memcpy(), but significantly faster for both
+// aligned/unaligned buffers. Performs best if aligned, of course.
+// bytes can be 0.
+//
+// NOTE: When "sloppy" is set, it may copy more than "bytes", up to additional
+// 31 bytes. It will generate much smaller and usually faster code. Use this
+// option only if overwriting some data at the end is acceptable, such as
+// rewriting the payload data of class Packet.
+static inline void Copy(void *__restrict__ dst, const void *__restrict__ src,
+                        size_t bytes, bool sloppy = false) {
+  // If the size is a compile-time constant, inlining can generate compact code
+  if (__builtin_constant_p(bytes)) {
+    CopyInlined(dst, src, bytes, sloppy);
+  } else {
+    CopyNonInlined(dst, src, bytes, sloppy);
   }
 }
 

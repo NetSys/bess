@@ -186,19 +186,19 @@ class alignas(64) Packet {
     DCHECK_EQ(ret, 0);
   }
 
+  // returns nullptr if memory allocation failed
   static Packet *copy(const Packet *src) {
     Packet *dst;
 
     DCHECK(src->is_linear());
 
     dst = __packet_alloc_pool(src->pool_);
-
-    if(!dst){
-      return nullptr; //FAIL.
+    if (!dst) {
+      return nullptr;  // FAIL.
     }
 
-    bess::utils::Copy(dst->append(src->total_len()), src->head_data(),
-                      src->total_len(), true);
+    bess::utils::CopyInlined(dst->append(src->total_len()), src->head_data(),
+                             src->total_len(), true);
 
     return dst;
   }

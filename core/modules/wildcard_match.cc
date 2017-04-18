@@ -218,8 +218,10 @@ pb_error_t WildcardMatch::ExtractKeyMask(const T &arg, wm_hkey_t *key,
                       i, field_size * 2, v, field_size * 2, m);
     }
 
-    memcpy(reinterpret_cast<uint8_t *>(key) + field_pos, &v, field_size);
-    memcpy(reinterpret_cast<uint8_t *>(mask) + field_pos, &m, field_size);
+    bess::utils::Copy(reinterpret_cast<uint8_t *>(key) + field_pos, &v,
+                      field_size);
+    bess::utils::Copy(reinterpret_cast<uint8_t *>(mask) + field_pos, &m,
+                      field_size);
   }
 
   return pb_errno(0);
@@ -245,7 +247,7 @@ int WildcardMatch::AddTuple(wm_hkey_t *mask) {
 
   tuples_.emplace_back();
   struct WmTuple &tuple = tuples_.back();
-  memcpy(&tuple.mask, mask, sizeof(*mask));
+  bess::utils::Copy(&tuple.mask, mask, sizeof(*mask));
 
   return int(tuples_.size() - 1);
 }

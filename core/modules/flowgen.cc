@@ -159,7 +159,7 @@ pb_error_t FlowGen::ProcessArguments(const bess::pb::FlowGenArg &arg) {
   template_size_ = arg.template_().length();
 
   memset(templ_, 0, MAX_TEMPLATE_SIZE);
-  memcpy(templ_, arg.template_().c_str(), template_size_);
+  bess::utils::Copy(templ_, arg.template_().c_str(), template_size_);
   pb_error_t err = UpdateBaseAddresses();
   if (err.err() != 0) {
     return err;
@@ -253,7 +253,7 @@ pb_cmd_response_t FlowGen::CommandUpdate(const bess::pb::FlowGenArg &arg) {
     template_size_ = arg.template_().length();
 
     memset(templ_, 0, MAX_TEMPLATE_SIZE);
-    memcpy(templ_, arg.template_().c_str(), template_size_);
+    bess::utils::Copy(templ_, arg.template_().c_str(), template_size_);
   }
 
   double prev_pps = 0;
