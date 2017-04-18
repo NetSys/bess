@@ -10,6 +10,9 @@ service BESSControl {
   //  System
   //  -------------------------------------------------------------------------
 
+  /// Query version of bessd
+  rpc GetVersion (EmptyRequest) returns (VersionResponse) {}
+
   /// Reset the current packet processing datapath to the initial state.
   ///
   /// This command is identical to the following sequence:

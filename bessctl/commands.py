@@ -1337,6 +1337,12 @@ def show_driver_list(cli, drv_names):
         _show_driver(cli, drv_name, True)
 
 
+@cmd('show version', 'Show the version of BESS daemon')
+def show_version(cli):
+    version = cli.bess.get_version()
+    cli.fout.write('%s\n' % version.version)
+
+
 def _monitor_pipeline(cli, field):
     modules = sorted(cli.bess.list_modules().modules, key=lambda x: x.name)
 
