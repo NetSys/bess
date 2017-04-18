@@ -7,7 +7,7 @@ PY_FORMAT="autopep8"
 PY_EXTS=".py"
 
 command_exists() {
-	hash $1 2>/dev/null
+	command -v $1 >/dev/null 2>&1
 }
 
 match_extension() {
@@ -19,22 +19,51 @@ match_extension() {
 	return 1
 }
 
+show_patch() {
+	local diff=""
+	for file in `git diff-index --cached --name-only HEAD` ; do
+		if match_extension $file "$CXX_EXTS"; then
+			diff+=$($CXX_FORMAT -style=file $file | diff -u $file - | \
+				sed -e "1s|--- |--- a/|" -e "2s|+++ -|+++ b/$file|")
+		elif match_extension $file "$PY_EXTS"; then
+			diff+=$($PY_FORMAT $file | diff -u $file - | \
+				sed -e "1s|--- |--- a/|" -e "2s|+++ -|+++ b/$file|")
+		fi
+	done
+	echo "$diff"
+}
+
+refresh_commit() {
+	for file in `git diff-index --cached --name-only HEAD` ; do
+		git add $file
+	done
+}
+
 if ! command_exists $CXX_FORMAT; then
-	printf "Error: $CXX_FORMAT executable not found.\n"
+	@echo "Error: $CXX_FORMAT executable not found.\n" >&2
 	exit 1
 fi
 
 if ! command_exists $PY_FORMAT; then
-	printf "Error: $PY_FORMAT executable not found.\n"
+	@echo "Error: $PY_FORMAT executable not found.\n" >&2
 	exit 1
 fi
 
-for file in `git diff-index --cached --name-only HEAD` ; do
-	printf "$file"
-	if match_extension $file "$CXX_EXTS"; then
-		$CXX_FORMAT -i -style=file $file
-	elif match_extension $file "$PY_EXTS"; then
-		$PY_FORMAT -i $file
-	fi
-	git add $file
-done
+# Allows us to read user input below, assigns stdin to keyboard
+exec < /dev/tty
+
+patch=$(show_patch)
+if [[ ! -z $patch ]]; then
+	echo "$patch"
+	echo "==========================================="
+	echo "Files in the commit do not comply with the formatting rules. Options:"
+	echo "y - commit without reformatting (not recommended)"
+	echo "r - apply the patch and commit"
+	echo "n - abort"
+	read -p "Do you want to commit anyway? [y/r/N]" yn
+	case $yn in
+		[Yy]* ) exit 0;;
+		[Rr]* ) (echo "$patch" | git apply -) && refresh_commit && exit 0;;
+		* ) exit 1;;
+	esac
+fi
