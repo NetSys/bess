@@ -125,9 +125,9 @@ EXEC := bessd
 
 GTEST_DIR := /usr/src/gtest
 
-.PHONY: all clean tags cscope tests benchmarks protobuf
+.PHONY: all clean tags cscope tests benchmarks protobuf force
 
-all: $(EXEC) modules tests benchmarks
+all: version.h $(EXEC) modules tests benchmarks
 
 clean:
 	rm -rf $(EXEC) .deps/*.d .deps/*/*.d *_test */*_test *_bench */*_bench \
@@ -150,6 +150,12 @@ benchmarks: $(BENCH_OBJS) $(BENCH_EXEC)
 protobuf: $(PROTO_SRCS)
 
 modules: protobuf $(MODULE_OBJS) $(MODULE_LIBS)
+
+GIT_VERSION := \#define VERSION \
+	\"$(shell git describe --abbrev=4 --dirty --always --tags)\"
+
+version.h: force
+	@echo "$(GIT_VERSION)"| cmp -s - $@ || echo "$(GIT_VERSION)" > $@
 
 # This build wrapper takes 4 parameters:
 # $(1): build type (CXX, LD, ...)

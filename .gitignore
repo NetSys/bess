@@ -57,6 +57,9 @@ doxygen/doxygen.errors
 doxygen/html/
 doxygen/latex/
 
+# Auto-genereated by make
+core/version.h
+
 # Code coverage files
 core/*.gcda
 core/*.gcno

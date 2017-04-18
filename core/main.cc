@@ -9,6 +9,7 @@
 #include "opts.h"
 #include "packet.h"
 #include "port.h"
+#include "version.h"
 
 int main(int argc, char *argv[]) {
   FLAGS_logbuflevel = -1;
@@ -17,6 +18,7 @@ int main(int argc, char *argv[]) {
   google::InstallFailureFunction(bess::debug::GoPanic);
   bess::debug::SetTrapHandler();
 
+  google::SetVersionString(VERSION);
   google::SetUsageMessage("BESS Command Line Options:");
   google::ParseCommandLineFlags(&argc, &argv, true);
   bess::bessd::ProcessCommandLineArgs();
