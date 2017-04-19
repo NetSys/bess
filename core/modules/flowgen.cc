@@ -8,6 +8,7 @@
 #include "../utils/ether.h"
 #include "../utils/format.h"
 #include "../utils/ip.h"
+#include "../utils/simd.h"
 #include "../utils/tcp.h"
 #include "../utils/time.h"
 
@@ -158,7 +159,7 @@ pb_error_t FlowGen::ProcessArguments(const bess::pb::FlowGenArg &arg) {
   template_size_ = arg.template_().length();
 
   memset(templ_, 0, MAX_TEMPLATE_SIZE);
-  memcpy(templ_, arg.template_().c_str(), template_size_);
+  bess::utils::Copy(templ_, arg.template_().c_str(), template_size_);
   pb_error_t err = UpdateBaseAddresses();
   if (err.err() != 0) {
     return err;
@@ -252,7 +253,7 @@ pb_cmd_response_t FlowGen::CommandUpdate(const bess::pb::FlowGenArg &arg) {
     template_size_ = arg.template_().length();
 
     memset(templ_, 0, MAX_TEMPLATE_SIZE);
-    memcpy(templ_, arg.template_().c_str(), template_size_);
+    bess::utils::Copy(templ_, arg.template_().c_str(), template_size_);
   }
 
   double prev_pps = 0;
@@ -403,11 +404,7 @@ bess::Packet *FlowGen::FillPacket(struct flow *f) {
     return nullptr;
   }
 
-  char *p = reinterpret_cast<char *>(pkt->buffer()) +
-            static_cast<size_t>(SNBUF_HEADROOM);
-  if (!p) {
-    return nullptr;
-  }
+  char *p = pkt->buffer<char *>() + SNBUF_HEADROOM;
 
   EthHeader *eth = reinterpret_cast<EthHeader *>(p);
   Ipv4Header *ip = reinterpret_cast<Ipv4Header *>(eth + 1);
@@ -415,15 +412,15 @@ bess::Packet *FlowGen::FillPacket(struct flow *f) {
 
   // SYN or FIN?
   if (f->first_pkt || f->packets_left <= 1) {
-    pkt->set_total_len(60);  // eth + ip + tcp
-    pkt->set_data_len(60);   // eth + ip + tcp
+    pkt->set_total_len(60);
+    pkt->set_data_len(60);
     ip->length = htons(40);
   } else {
     pkt->set_data_off(SNBUF_HEADROOM);
     pkt->set_total_len(size);
     pkt->set_data_len(size);
 
-    rte_memcpy(p, templ_, size);
+    bess::utils::Copy(p, templ_, size, true);
   }
 
   uint8_t tcp_flags = f->first_pkt ? /* SYN */ 0x02 : /* ACK */ 0x10;

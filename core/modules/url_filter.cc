@@ -73,8 +73,8 @@ inline static bess::Packet *Generate403Packet(const EthHeader::Address &src_eth,
   pkt->set_total_len(sizeof(rst_template) + len);
   pkt->set_data_len(sizeof(rst_template) + len);
 
-  rte_memcpy(ptr, &rst_template, sizeof(rst_template));
-  rte_memcpy(ptr + sizeof(rst_template), HTTP_403_BODY, len);
+  bess::utils::Copy(ptr, &rst_template, sizeof(rst_template));
+  bess::utils::Copy(ptr + sizeof(rst_template), HTTP_403_BODY, len, true);
 
   EthHeader *eth = reinterpret_cast<EthHeader *>(ptr);
   Ipv4Header *ip = reinterpret_cast<Ipv4Header *>(eth + 1);
@@ -110,7 +110,7 @@ inline static bess::Packet *GenerateResetPacket(
   pkt->set_total_len(sizeof(rst_template));
   pkt->set_data_len(sizeof(rst_template));
 
-  rte_memcpy(ptr, &rst_template, sizeof(rst_template));
+  bess::utils::Copy(ptr, &rst_template, sizeof(rst_template), true);
 
   EthHeader *eth = reinterpret_cast<EthHeader *>(ptr);
   Ipv4Header *ip = reinterpret_cast<Ipv4Header *>(eth + 1);

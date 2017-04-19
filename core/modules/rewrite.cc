@@ -1,6 +1,8 @@
 #include "rewrite.h"
+
 #include <cstdio>
-#include <rte_memcpy.h>
+
+#include "../utils/copy.h"
 
 const Commands Rewrite::cmds = {
     {"add", "RewriteArg", MODULE_CMD_FUNC(&Rewrite::CommandAdd), 0},
@@ -40,7 +42,7 @@ pb_cmd_response_t Rewrite::CommandAdd(const bess::pb::RewriteArg &arg) {
     }
 
     memset(templates_[curr + i], 0, kMaxTemplateSize);
-    memcpy(templates_[curr + i], templ.c_str(), templ.length());
+    bess::utils::Copy(templates_[curr + i], templ.c_str(), templ.length());
     template_size_[curr + i] = templ.length();
   }
 
@@ -52,7 +54,7 @@ pb_cmd_response_t Rewrite::CommandAdd(const bess::pb::RewriteArg &arg) {
 
   for (size_t i = num_templates_; i < kNumSlots; i++) {
     size_t j = i % num_templates_;
-    memcpy(templates_[i], templates_[j], template_size_[j]);
+    bess::utils::Copy(templates_[i], templates_[j], template_size_[j]);
     template_size_[i] = template_size_[j];
   }
 
@@ -73,36 +75,40 @@ pb_cmd_response_t Rewrite::CommandClear(const bess::pb::EmptyArg &) {
 inline void Rewrite::DoRewriteSingle(bess::PacketBatch *batch) {
   const int cnt = batch->cnt();
   uint16_t size = template_size_[0];
-  void *templ = templates_[0];
+  const void *templ = templates_[0];
 
   for (int i = 0; i < cnt; i++) {
     bess::Packet *pkt = batch->pkts()[i];
-    char *ptr = pkt->head_data<char *>();
-
-    pkt->set_total_len(size);
-    pkt->set_data_len(size);
-
-    rte_memcpy(ptr, templ, size);
-  }
-}
-
-inline void Rewrite::DoRewrite(bess::PacketBatch *batch) {
-  int start = next_turn_;
-  const int cnt = batch->cnt();
-
-  for (int i = 0; i < cnt; i++) {
-    uint16_t size = template_size_[start + i];
-    bess::Packet *pkt = batch->pkts()[i];
-    char *ptr = static_cast<char *>(pkt->buffer()) + SNBUF_HEADROOM;
+    char *ptr = pkt->buffer<char *>() + SNBUF_HEADROOM;
 
     pkt->set_data_off(SNBUF_HEADROOM);
     pkt->set_total_len(size);
     pkt->set_data_len(size);
 
-    rte_memcpy(ptr, templates_[start + i], size);
+    bess::utils::CopyInlined(ptr, templ, size, true);
+  }
+}
+
+inline void Rewrite::DoRewrite(bess::PacketBatch *batch) {
+  size_t start = next_turn_;
+  const size_t cnt = batch->cnt();
+
+  for (size_t i = 0; i < cnt; i++) {
+    uint16_t size = template_size_[start + i];
+    bess::Packet *pkt = batch->pkts()[i];
+    char *ptr = pkt->buffer<char *>() + SNBUF_HEADROOM;
+
+    pkt->set_data_off(SNBUF_HEADROOM);
+    pkt->set_total_len(size);
+    pkt->set_data_len(size);
+
+    bess::utils::CopyInlined(ptr, templates_[start + i], size, true);
   }
 
-  next_turn_ = (start + cnt) % num_templates_;
+  next_turn_ = start + cnt;
+  if (next_turn_ >= bess::PacketBatch::kMaxBurst) {
+    next_turn_ -= bess::PacketBatch::kMaxBurst;
+  }
 }
 
 void Rewrite::ProcessBatch(bess::PacketBatch *batch) {

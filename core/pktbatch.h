@@ -1,7 +1,7 @@
 #ifndef BESS_PKTBATCH_H_
 #define BESS_PKTBATCH_H_
 
-#include <rte_memcpy.h>
+#include "utils/copy.h"
 
 namespace bess {
 
@@ -28,12 +28,8 @@ class PacketBatch {
   bool full() { return (cnt_ == kMaxBurst); }
 
   void Copy(const PacketBatch *src) {
-    int cnt = src->cnt_;
-
-    cnt_ = cnt;
-    rte_memcpy(reinterpret_cast<void *>(pkts_),
-               reinterpret_cast<const void *>(src->pkts_),
-               cnt * sizeof(Packet *));
+    cnt_ = src->cnt_;
+    bess::utils::CopyInlined(pkts_, src->pkts_, cnt_ * sizeof(Packet *));
   }
 
   static const size_t kMaxBurst = 32;

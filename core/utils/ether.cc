@@ -3,6 +3,7 @@
 #include <cstring>
 #include <sstream>
 
+#include "copy.h"
 #include "endian.h"
 #include "format.h"
 #include "time.h"
@@ -20,7 +21,7 @@ Address::Address(const std::string &str) {
 
 bool Address::FromString(const std::string &str) {
   int ret = Parse(str, "%2hhx:%2hhx:%2hhx:%2hhx:%2hhx:%2hhx", &bytes[0],
-                   &bytes[1], &bytes[2], &bytes[3], &bytes[4], &bytes[5]);
+                  &bytes[1], &bytes[2], &bytes[3], &bytes[4], &bytes[5]);
   return (ret == Address::kSize);
 }
 
@@ -33,9 +34,9 @@ void Address::Randomize() {
   uint64_t tsc = rdtsc();
 
   if (is_be_system()) {
-    memcpy(bytes, reinterpret_cast<char *>(&tsc) + 2, sizeof(bytes));
+    bess::utils::Copy(bytes, reinterpret_cast<char *>(&tsc) + 2, sizeof(bytes));
   } else {
-    memcpy(bytes, &tsc, sizeof(bytes));
+    bess::utils::Copy(bytes, &tsc, sizeof(bytes));
   }
 
   bytes[0] &= 0xfe;  // not broadcast/multicast

@@ -253,9 +253,3 @@ void Port::ReleaseQueues(const struct module *m, packet_dir_t dir,
       users[dir][qid] = nullptr;
   }
 }
-
-/* XXX: Do we need this? Currently not being used anywhere */
-// void get_queue_stats(Port *p, packet_dir_t dir, queue_t qid,
-//                      struct packet_stats *stats) {
-//   memcpy(stats, &p->queue_stats[dir][qid], sizeof(*stats));
-// }
