@@ -1110,11 +1110,15 @@ def _draw_pipeline(cli, field, last_stats=None):
                     new_time, new_val = gate.timestamp, getattr(gate, field)
                     last_stats[(name, gate.ogate)] = (new_time, new_val)
 
-                    val = int((new_val - last_val) / (new_time - last_time))
+                    if new_time != last_time:
+                        val = str(int((new_val - last_val) / (
+                                      new_time - last_time)))
+                    else:
+                        val = "?"
                 else:
-                    val = getattr(gate, field)
+                    val = str(getattr(gate, field))
 
-                edge_attr = '{label::%d  %d  %d:;}' % (
+                edge_attr = '{label::%d  %s  %d:;}' % (
                     gate.ogate, val, gate.igate)
 
                 print >> f.stdin, '[%s] ->%s [%s]' % (
