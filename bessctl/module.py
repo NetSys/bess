@@ -22,8 +22,6 @@ class Module(object):
         else:
             name = None
 
-        print(_do_not_create)
-
         if(not _do_not_create):
             ret = self.bess.create_module(self.__class__.__name__, name,
                                       self.choose_arg(None, kwargs))
