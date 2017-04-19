@@ -36,21 +36,21 @@ const Commands WildcardMatch::cmds = {
      MODULE_CMD_FUNC(&WildcardMatch::CommandSetDefaultGate), 1}};
 
 pb_error_t WildcardMatch::AddFieldOne(
-    const bess::pb::WildcardMatchArg_Field &field, struct WmField *f) {
+    const bess::pb::WildcardMatchField &field, struct WmField *f) {
   f->size = field.size();
 
   if (f->size < 1 || f->size > MAX_FIELD_SIZE) {
     return pb_error(EINVAL, "'size' must be 1-%d", MAX_FIELD_SIZE);
   }
 
-  if (field.position_case() == bess::pb::WildcardMatchArg_Field::kOffset) {
+  if (field.position_case() == bess::pb::WildcardMatchField::kOffset) {
     f->attr_id = -1;
     f->offset = field.offset();
     if (f->offset < 0 || f->offset > 1024) {
       return pb_error(EINVAL, "too small 'offset'");
     }
   } else if (field.position_case() ==
-             bess::pb::WildcardMatchArg_Field::kAttribute) {
+             bess::pb::WildcardMatchField::kAttribute) {
     const char *attr = field.attribute().c_str();
     f->attr_id = AddMetadataAttr(attr, f->size, Attribute::AccessMode::kRead);
     if (f->attr_id < 0) {
@@ -361,7 +361,7 @@ pb_cmd_response_t WildcardMatch::CommandGetRules(const bess::pb::EmptyArg &) {
   resp.set_default_gate(default_gate_);
 
   for(auto &field : fields_){
-    bess::pb::WildcardMatchArg_Field* f = resp.mutable_fields()->add_fields();
+    bess::pb::WildcardMatchField* f = resp.add_fields();
     if(field.attr_id >= 0){
       f->set_attribute(all_attrs().at(field.attr_id).name);
     }else{
@@ -373,7 +373,7 @@ pb_cmd_response_t WildcardMatch::CommandGetRules(const bess::pb::EmptyArg &) {
   for (auto &tuple : tuples_) {
     wm_hkey_t mask = tuple.mask;
     for(auto &entry : tuple.ht) {
-      bess::pb::WildcardMatchCommandAddArg* rule = resp.add_rules();
+      bess::pb::WildcardMatchRule* rule = resp.add_rules();
       rule->set_priority(entry.second.priority);
       rule->set_gate(entry.second.ogate);
 
