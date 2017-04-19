@@ -1028,6 +1028,7 @@ def show_status(cli):
     workers = sorted(cli.bess.list_workers().workers_status,
                      key=lambda x: x.wid)
     drivers = sorted(cli.bess.list_drivers().driver_names)
+    plugins = sorted(cli.bess.list_plugins().paths)
     mclasses = sorted(cli.bess.list_mclasses().names)
     modules = sorted(cli.bess.list_modules().modules, key=lambda x: x.name)
     ports = sorted(cli.bess.list_ports().ports, key=lambda x: x.name)
@@ -1043,6 +1044,12 @@ def show_status(cli):
     cli.fout.write('  Available drivers: ')
     if drivers:
         cli.fout.write('%s\n' % ', '.join(drivers))
+    else:
+        cli.fout.write('(none)\n')
+
+    cli.fout.write('  Available plugins: ')
+    if drivers:
+        cli.fout.write('%s\n' % ', '.join(plugins))
     else:
         cli.fout.write('(none)\n')
 
@@ -1310,6 +1317,13 @@ def import_plugin(cli, plugin):
 @cmd('unload plugin PLUGIN_FILE', 'Unload the specified plugin (*.so)')
 def unload_plugin(cli, plugin):
     cli.bess.unload_plugin(plugin)
+
+
+@cmd('show plugin', 'Show all imported plugins')
+def show_plugin_all(cli):
+    plugins = cli.bess.list_plugins().paths
+    for plugin_name in plugins:
+        cli.fout.write('%-16s\n' % (plugin_name))
 
 
 def _show_driver(cli, drv_name, detail):
