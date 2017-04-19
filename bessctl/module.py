@@ -22,12 +22,15 @@ class Module(object):
         else:
             name = None
 
-        if(_do_not_create):
+        print(_do_not_create)
+
+        if(not _do_not_create):
             ret = self.bess.create_module(self.__class__.__name__, name,
                                       self.choose_arg(None, kwargs))
             self.name = ret.name
         else:
             self.name = name
+            assert self.name != None
 
         # add mclass-specific methods
         cls = self.bess.get_mclass_info(self.__class__.__name__)
