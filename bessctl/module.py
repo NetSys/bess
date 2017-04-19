@@ -9,7 +9,7 @@ def _callback_factory(self, cmd, arg_type):
 
 class Module(object):
 
-    def __init__(self, **kwargs):
+    def __init__(self, _do_not_create=False, **kwargs):
         self.name = '<uninitialized>'
         self.mclass = self.__class__.__name__
 
@@ -22,10 +22,12 @@ class Module(object):
         else:
             name = None
 
-        ret = self.bess.create_module(self.__class__.__name__, name,
+        if(_do_not_create):
+            ret = self.bess.create_module(self.__class__.__name__, name,
                                       self.choose_arg(None, kwargs))
-
-        self.name = ret.name
+            self.name = ret.name
+        else:
+            self.name = name
 
         # add mclass-specific methods
         cls = self.bess.get_mclass_info(self.__class__.__name__)
