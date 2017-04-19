@@ -356,7 +356,6 @@ pb_cmd_response_t WildcardMatch::CommandClear(const bess::pb::EmptyArg &) {
 }
 
 
-#include <iostream>
 pb_cmd_response_t WildcardMatch::CommandGetRules(const bess::pb::EmptyArg &) {
   bess::pb::WildcardMatchCommandGetRulesResponse resp;
   resp.set_default_gate(default_gate_);
