@@ -49,4 +49,23 @@ static inline int uint64_to_bin(uint8_t *ptr, int size, uint64_t val, int be) {
   }
 }
 
+// move data from *ptr to *val. set "be" if *ptr stores big endian data
+static inline int bin_to_uint64(uint64_t *val, uint8_t *ptr, int size, bool be) {
+  if(size > 8 || size < 1){
+    return -EINVAL; /* Size must be 1-8 */
+  }
+
+  *val = 0;
+
+  if (be) {
+    for (int i = 0; i < size; i++) {
+      *val = (*val << 8) | ptr[i];
+    }
+  } else {
+    for (int i = size - 1; i >= 0; i--) {
+      *val = (*val << 8) | ptr[i];
+    }
+  }
+  return 0;
+}
 #endif  // BESS_MESSAGE_H_

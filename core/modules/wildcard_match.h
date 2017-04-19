@@ -119,7 +119,7 @@ class WildcardMatch final : public Module {
   pb_cmd_response_t CommandClear(const bess::pb::EmptyArg &arg);
   pb_cmd_response_t CommandSetDefaultGate(
       const bess::pb::WildcardMatchCommandSetDefaultGateArg &arg);
-
+  pb_cmd_response_t CommandGetRules(const bess::pb::EmptyArg &);
  private:
   struct WmTuple {
     CuckooMap<wm_hkey_t, struct WmData, wm_hash, wm_eq> ht;
@@ -128,7 +128,7 @@ class WildcardMatch final : public Module {
 
   gate_idx_t LookupEntry(const wm_hkey_t &key, gate_idx_t def_gate);
 
-  pb_error_t AddFieldOne(const bess::pb::WildcardMatchArg_Field &field,
+  pb_error_t AddFieldOne(const bess::pb::WildcardMatchField &field,
                          struct WmField *f);
 
   template <typename T>
