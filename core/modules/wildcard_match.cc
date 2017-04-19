@@ -397,8 +397,6 @@ pb_cmd_response_t WildcardMatch::CommandGetRules(const bess::pb::EmptyArg &) {
   return response;
 }
 
-
-
 pb_cmd_response_t WildcardMatch::CommandSetDefaultGate(
     const bess::pb::WildcardMatchCommandSetDefaultGateArg &arg) {
   pb_cmd_response_t response;
