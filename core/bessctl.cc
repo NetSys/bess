@@ -73,25 +73,29 @@ static pb_error_t enable_track_for_module(const Module* m, gate_idx_t gate_idx,
   int ret;
 
   if (use_gate) {
-    if (!is_igate && gate_idx >= m->ogates().size()) {
-      return pb_error(EINVAL, "Output gate '%hu' does not exist", gate_idx);
+    if (is_igate) { 
+      if (!is_active_gate(m->igates(), gate_idx)) {
+        return pb_error(EINVAL, "Input gate '%hu' does not exist", gate_idx);
+      }
+      if ((ret = m->igates()[gate_idx]->AddHook(new TrackGate()))) {
+        return pb_error(ret, "Failed to track input gate '%hu'", gate_idx);
+      }
+    } else {
+      if (!is_active_gate(m->ogates(), gate_idx)) {
+        return pb_error(EINVAL, "Output gate '%hu' does not exist", gate_idx);
+      }
+      if ((ret = m->ogates()[gate_idx]->AddHook(new TrackGate()))) {
+        return pb_error(ret, "Failed to track output gate '%hu'", gate_idx);
+      }
     }
-
-    if (is_igate && gate_idx >= m->igates().size()) {
-      return pb_error(EINVAL, "Input gate '%hu' does not exist", gate_idx);
-    }
-
-    if (is_igate && (ret = m->igates()[gate_idx]->AddHook(new TrackGate()))) {
-      return pb_error(ret, "Failed to track input gate '%hu'", gate_idx);
-    }
-
-    if ((ret = m->ogates()[gate_idx]->AddHook(new TrackGate()))) {
-      return pb_error(ret, "Failed to track output gate '%hu'", gate_idx);
-    }
+    return pb_errno(0);
   }
 
   if (is_igate) {
     for (auto& gate : m->igates()) {
+      if (!gate) {
+          continue;
+      }
       if ((ret = gate->AddHook(new TrackGate()))) {
         return pb_error(ret, "Failed to track input gate '%hu'",
                         gate->gate_idx());
@@ -99,6 +103,9 @@ static pb_error_t enable_track_for_module(const Module* m, gate_idx_t gate_idx,
     }
   } else {
     for (auto& gate : m->ogates()) {
+      if (!gate) {
+          continue;
+      }
       if ((ret = gate->AddHook(new TrackGate()))) {
         return pb_error(ret, "Failed to track output gate '%hu'",
                         gate->gate_idx());
@@ -111,11 +118,11 @@ static pb_error_t enable_track_for_module(const Module* m, gate_idx_t gate_idx,
 static pb_error_t disable_track_for_module(const Module* m, gate_idx_t gate_idx,
                                            bool is_igate, bool use_gate) {
   if (use_gate) {
-    if (!is_igate && gate_idx >= m->ogates().size()) {
+    if (!is_igate && !is_active_gate(m->ogates(), gate_idx)) {
       return pb_error(EINVAL, "Output gate '%hu' does not exist", gate_idx);
     }
 
-    if (is_igate && gate_idx >= m->igates().size()) {
+    if (is_igate && !is_active_gate(m->igates(), gate_idx)) {
       return pb_error(EINVAL, "Input gate '%hu' does not exist", gate_idx);
     }
 
@@ -129,10 +136,16 @@ static pb_error_t disable_track_for_module(const Module* m, gate_idx_t gate_idx,
 
   if (is_igate) {
     for (auto& gate : m->igates()) {
+      if (!gate) {
+          continue;
+      }
       gate->RemoveHook(kGateHookTrackGate);
     }
   } else {
     for (auto& gate : m->ogates()) {
+      if (!gate) {
+          continue;
+      }
       gate->RemoveHook(kGateHookTrackGate);
     }
   }
@@ -1123,11 +1136,11 @@ class BESSControlImpl final : public BESSControl::Service {
     }
     Module* m = it->second;
 
-    if (!is_igate && gate >= m->ogates().size())
+    if (!is_igate && !is_active_gate(m->ogates(), gate))
       return return_with_error(response, EINVAL,
                                "Output gate '%hu' does not exist", gate);
 
-    if (is_igate && gate >= m->igates().size())
+    if (is_igate && !is_active_gate(m->igates(), gate))
       return return_with_error(response, EINVAL,
                                "Input gate '%hu' does not exist", gate);
 
@@ -1168,11 +1181,11 @@ class BESSControlImpl final : public BESSControl::Service {
     }
 
     Module* m = it->second;
-    if (!is_igate && gate >= m->ogates().size())
+    if (!is_igate && !is_active_gate(m->ogates(), gate))
       return return_with_error(response, EINVAL,
                                "Output gate '%hu' does not exist", gate);
 
-    if (is_igate && gate >= m->igates().size())
+    if (is_igate && !is_active_gate(m->igates(), gate))
       return return_with_error(response, EINVAL,
                                "Input gate '%hu' does not exist", gate);
 
