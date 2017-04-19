@@ -27,7 +27,7 @@ static inline void Copy32(void *__restrict__ dst,
 #else
   Copy16(dst, src);
   Copy16(reinterpret_cast<__m128i *>(dst) + 1,
-         reinterpret_cast<__m128i *>(src) + 1);
+         reinterpret_cast<const __m128i *>(src) + 1);
 #endif
 }
 
