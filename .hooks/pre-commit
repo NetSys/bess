@@ -1,0 +1,69 @@
+#!/bin/bash
+#
+CXX_FORMAT="clang-format"
+CXX_EXTS=".c .h .cpp .hpp .cc .hh .cxx .hxx"
+
+PY_FORMAT="autopep8"
+PY_EXTS=".py"
+
+command_exists() {
+	command -v $1 >/dev/null 2>&1
+}
+
+match_extension() {
+	local filename=$(basename $1)
+	local extension=".${filename##*.}"
+	local ext
+
+	for ext in $2; do [[ "$ext" == "$extension" ]] && return 0; done
+	return 1
+}
+
+show_patch() {
+	local diff=""
+	for file in `git diff-index --cached --name-only HEAD` ; do
+		if match_extension $file "$CXX_EXTS"; then
+			diff+=$($CXX_FORMAT -style=file $file | diff -u $file - | \
+				sed -e "1s|--- |--- a/|" -e "2s|+++ -|+++ b/$file|")
+		elif match_extension $file "$PY_EXTS"; then
+			diff+=$($PY_FORMAT $file | diff -u $file - | \
+				sed -e "1s|--- |--- a/|" -e "2s|+++ -|+++ b/$file|")
+		fi
+	done
+	echo "$diff"
+}
+
+refresh_commit() {
+	for file in `git diff-index --cached --name-only HEAD` ; do
+		git add $file
+	done
+}
+
+if ! command_exists $CXX_FORMAT; then
+	@echo "Error: $CXX_FORMAT executable not found.\n" >&2
+	exit 1
+fi
+
+if ! command_exists $PY_FORMAT; then
+	@echo "Error: $PY_FORMAT executable not found.\n" >&2
+	exit 1
+fi
+
+# Allows us to read user input below, assigns stdin to keyboard
+exec < /dev/tty
+
+patch=$(show_patch)
+if [[ ! -z $patch ]]; then
+	echo "$patch"
+	echo "==========================================="
+	echo "Files in the commit do not comply with the formatting rules. Options:"
+	echo "y - commit without reformatting (not recommended)"
+	echo "r - apply the patch and commit"
+	echo "n - abort"
+	read -p "Do you want to commit anyway? [y/r/N]" yn
+	case $yn in
+		[Yy]* ) exit 0;;
+		[Rr]* ) (echo "$patch" | git apply -) && refresh_commit && exit 0;;
+		* ) exit 1;;
+	esac
+fi
