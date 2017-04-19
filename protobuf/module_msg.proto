@@ -300,10 +300,14 @@ message WildcardMatchCommandSetDefaultGateArg {
   uint64 gate = 1;
 }
 
+/**
+ * The module WildcardMatch has a function `get_rules()` which
+ * returns the current set of running rules.
+ */
 message WildcardMatchCommandGetRulesResponse {
-  uint64 default_gate = 1;
-  WildcardMatchArg fields = 2;
-  repeated WildcardMatchCommandAddArg rules = 3;
+  uint64 default_gate = 1; // The default gate
+  WildcardMatchArg fields = 2; // The fields provided in initializing WCM
+  repeated WildcardMatchCommandAddArg rules = 3; //All rules provided via calls to `WilcardMatch.add(...)`
 }
 
 /**
