@@ -42,3 +42,9 @@ em.add(fields=[chr(17), aton('192.168.1.123'), aton('12.34.56.78')], gate=3)
 em.delete(fields=[chr(17), aton('192.168.1.123'), aton('12.34.56.78')])
 
 em.set_default_gate(gate=5)
+
+# Test gates tracking.
+bess.disable_track('')
+bess.enable_track('em', 'out', 0)
+bess.disable_track('em', 'out', 0)
+bess.enable_track('')
