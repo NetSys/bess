@@ -6,6 +6,7 @@
 #include <numeric>
 #include <string>
 
+#include "../utils/checksum.h"
 #include "../utils/ether.h"
 #include "../utils/format.h"
 #include "../utils/icmp.h"
@@ -18,6 +19,10 @@ using bess::utils::Ipv4Header;
 using bess::utils::UdpHeader;
 using bess::utils::TcpHeader;
 using bess::utils::IcmpHeader;
+using bess::utils::CalculateChecksumIncremental16;
+using bess::utils::CalculateChecksumUnfoldedIncremental32;
+using bess::utils::CalculateChecksumUnfoldedIncremental16;
+using bess::utils::FoldChecksumIncremental;
 
 const Commands NAT::cmds = {
     {"add", "NATArg", MODULE_CMD_FUNC(&NAT::CommandAdd), 0},
@@ -43,33 +48,6 @@ pb_cmd_response_t NAT::CommandClear(const bess::pb::EmptyArg &) {
   flow_hash_.Clear();
 
   return pb_cmd_response_t();
-}
-
-// Recompute IP and TCP/UDP/ICMP checksum
-static inline void compute_cksum(struct Ipv4Header *ip, void *l4) {
-  struct TcpHeader *tcp = reinterpret_cast<struct TcpHeader *>(l4);
-  struct UdpHeader *udp = reinterpret_cast<struct UdpHeader *>(l4);
-  struct IcmpHeader *icmp = reinterpret_cast<struct IcmpHeader *>(l4);
-
-  ip->checksum = 0;
-  switch (ip->protocol) {
-    case TCP:
-      tcp->checksum = 0;
-      tcp->checksum =
-          rte_ipv4_udptcp_cksum(reinterpret_cast<const ipv4_hdr *>(ip), tcp);
-      break;
-    case UDP:
-      udp->checksum = 0;
-      break;
-    case ICMP:
-      icmp->checksum = 0;
-      icmp->checksum =
-          rte_ipv4_udptcp_cksum(reinterpret_cast<const ipv4_hdr *>(ip), icmp);
-      break;
-    default:
-      VLOG(1) << "Unknown protocol: " << ip->protocol;
-  }
-  ip->checksum = rte_ipv4_cksum(reinterpret_cast<const ipv4_hdr *>(ip));
 }
 
 // Extract a Flow object from IP header ip and L4 header l4
@@ -105,21 +83,66 @@ static inline Flow parse_flow(struct Ipv4Header *ip, void *l4) {
   return flow;
 }
 
-// Rewrite IP header and L4 header using flow
+template <bool src>
 static inline void stamp_flow(struct Ipv4Header *ip, void *l4,
                               const Flow &flow) {
   struct UdpHeader *udp = reinterpret_cast<struct UdpHeader *>(l4);
+  struct TcpHeader *tcp = reinterpret_cast<struct TcpHeader *>(l4);
   struct IcmpHeader *icmp = reinterpret_cast<struct IcmpHeader *>(l4);
+  uint32_t l3_inc = 0;
+  uint32_t l4_inc = 0;
 
-  ip->src = flow.src_ip;
-  ip->dst = flow.dst_ip;
+  if (src) {
+    l3_inc += CalculateChecksumUnfoldedIncremental32(ip->src, flow.src_ip);
+    ip->src = flow.src_ip;
+  } else {
+    l3_inc += CalculateChecksumUnfoldedIncremental32(ip->dst, flow.dst_ip);
+    ip->dst = flow.dst_ip;
+  }
+
+  ip->checksum = FoldChecksumIncremental(ip->checksum, l3_inc);
 
   switch (flow.proto) {
-    case UDP:
     case TCP:
-      udp->src_port = flow.src_port;
-      udp->dst_port = flow.dst_port;
+      if (src) {
+        l4_inc += CalculateChecksumUnfoldedIncremental16(tcp->src_port,
+                                                         flow.src_port);
+        tcp->src_port = flow.src_port;
+      } else {
+        l4_inc += CalculateChecksumUnfoldedIncremental16(tcp->dst_port,
+                                                         flow.dst_port);
+        tcp->dst_port = flow.dst_port;
+      }
+      l4_inc += l3_inc;
+
+      tcp->checksum = FoldChecksumIncremental(tcp->checksum, l4_inc);
       break;
+
+    case UDP:
+      if (udp->checksum) {
+        if (src) {
+          l4_inc += CalculateChecksumUnfoldedIncremental16(udp->src_port,
+                                                           flow.src_port);
+        } else {
+          l4_inc += CalculateChecksumUnfoldedIncremental16(udp->dst_port,
+                                                           flow.dst_port);
+        }
+        l4_inc += l3_inc;
+
+        udp->checksum = FoldChecksumIncremental(udp->checksum, l4_inc);
+
+        if (!udp->checksum) {
+          udp->checksum = 0xFFFF;
+        }
+      }
+
+      if (src) {
+        udp->src_port = flow.src_port;
+      } else {
+        udp->dst_port = flow.dst_port;
+      }
+      break;
+
     case ICMP:
       switch (icmp->type) {
         case 0:
@@ -127,6 +150,8 @@ static inline void stamp_flow(struct Ipv4Header *ip, void *l4,
         case 13:
         case 15:
         case 16:
+          icmp->checksum = CalculateChecksumIncremental16(
+              icmp->checksum, icmp->ident, flow.icmp_ident);
           icmp->ident = flow.icmp_ident;
           break;
         default:
@@ -134,7 +159,20 @@ static inline void stamp_flow(struct Ipv4Header *ip, void *l4,
       }
       break;
   }
-  compute_cksum(ip, l4);
+}
+
+// Rewrite IP header and L4 header src info using flow
+static inline void stamp_flow_src(struct Ipv4Header *ip, void *l4,
+                                  const Flow &flow)
+{
+  stamp_flow<true>(ip, l4, flow);
+}
+
+// Rewrite IP header and L4 header dst info using flow
+static inline void stamp_flow_dst(struct Ipv4Header *ip, void *l4,
+                                  const Flow &flow)
+{
+  stamp_flow<false>(ip, l4, flow);
 }
 
 void NAT::ProcessBatch(bess::PacketBatch *batch) {
@@ -180,9 +218,9 @@ void NAT::ProcessBatch(bess::PacketBatch *batch) {
           // Entry exists and does not exceed timeout
           record->time = now;
           if (incoming_gate == 0) {
-            stamp_flow(ip, l4, record->external_flow);
+            stamp_flow_src(ip, l4, record->external_flow);
           } else {
-            stamp_flow(ip, l4, record->internal_flow.ReverseFlow());
+            stamp_flow_dst(ip, l4, record->internal_flow.ReverseFlow());
           }
           out_batch.add(pkt);
           continue;
@@ -267,7 +305,7 @@ void NAT::ProcessBatch(bess::PacketBatch *batch) {
     Flow rev_flow = flow.ReverseFlow();   // Copy
     flow_hash_.Insert(rev_flow, record);  // Copy
 
-    stamp_flow(ip, l4, flow);
+    stamp_flow_src(ip, l4, flow);
     out_batch.add(pkt);
   }
 

@@ -298,17 +298,46 @@ static inline uint16_t CalculateIpv4TcpChecksum(const Ipv4Header &iph,
                                   ntohs(iph.length) - (iph.header_length << 2));
 }
 
+// Incremental checksum update
+//
+// The functions below can be used to update multiple fields and update the
+// checksum in a single shot:
+//
+// uint32_t incremental = 0;
+//
+// incremental += CalculateChecksumIncremental32(iphdr->src, new_src);
+// incremental += CalculateChecksumIncremental32(iphdr->dst, new_dst);
+//
+// iphdr->src = new_src
+// iphdr->dst = new_dst
+// iphdr->checksum = FoldChecksumIncremental(iphdr->checksum, incremental);
+
+static inline uint32_t CalculateChecksumUnfoldedIncremental32(
+    uint32_t old_value, uint32_t new_value) {
+  uint32_t sum = (~old_value >> 16) + (~old_value & 0xFFFF);
+  sum += (new_value >> 16) + (new_value & 0xFFFF);
+  return sum;
+}
+
+static inline uint32_t CalculateChecksumUnfoldedIncremental16(
+    uint16_t old_value, uint16_t new_value) {
+  return (~old_value & 0xFFFF) + new_value;
+}
+
+static inline uint16_t FoldChecksumIncremental(uint16_t old_checksum,
+                                               uint32_t incremental) {
+  return FoldChecksum((~old_checksum & 0xFFFF) + incremental);
+}
+
 // Return incrementally updated checksum from old_checksum
 // when 32-bit 'old_value' changes to 'new_value' e.g., changed IPv4 address
 static inline uint16_t CalculateChecksumIncremental32(uint16_t old_checksum,
                                                       uint32_t old_value,
                                                       uint32_t new_value) {
   // new checksum = ~(~old_checksum + ~old_value + new_value) by RFC 1624
-  uint32_t sum = ~old_checksum & 0xFFFF;
-  sum += (~old_value >> 16) + (~old_value & 0xFFFF);
-  sum += (new_value >> 16) + (new_value & 0xFFFF);
+  uint32_t inc = CalculateChecksumUnfoldedIncremental32(old_value, new_value);
 
-  return FoldChecksum(sum);
+  return FoldChecksumIncremental(old_checksum, inc);
 }
 
 // Return incrementally updated checksum from old_checksum
@@ -317,11 +346,9 @@ static inline uint16_t CalculateChecksumIncremental16(uint16_t old_checksum,
                                                       uint16_t old_value,
                                                       uint16_t new_value) {
   // new checksum = ~(~old_checksum + ~old_value + new_value) by RFC 1624
-  uint32_t sum = ~old_checksum & 0xFFFF;
-  sum += ~old_value & 0xFFFF;
-  sum += new_value;
+  uint32_t inc = CalculateChecksumUnfoldedIncremental16(old_value, new_value);
 
-  return FoldChecksum(sum);
+  return FoldChecksumIncremental(old_checksum, inc);
 }
 
 }  // namespace utils
