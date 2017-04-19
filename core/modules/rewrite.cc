@@ -41,7 +41,7 @@ pb_cmd_response_t Rewrite::CommandAdd(const bess::pb::RewriteArg &arg) {
       return response;
     }
 
-    bess::utils::Copy(templates_[curr + i], 0, kMaxTemplateSize);
+    memset(templates_[curr + i], 0, kMaxTemplateSize);
     bess::utils::Copy(templates_[curr + i], templ.c_str(), templ.length());
     template_size_[curr + i] = templ.length();
   }
