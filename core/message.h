@@ -66,11 +66,6 @@ static inline int bin_to_uint64(uint64_t *val, uint8_t *ptr, int size, bool be) 
       *val = (*val << 8) | ptr[i];
     }
   }
-
-  if (val) {
-    return -EINVAL; /* the value is too large for the size */
-  } else {
-    return 0;
-  }
+  return 0;
 }
 #endif  // BESS_MESSAGE_H_
