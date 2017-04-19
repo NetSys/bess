@@ -298,15 +298,15 @@ static inline uint16_t CalculateIpv4TcpChecksum(const Ipv4Header &iph,
                                   ntohs(iph.length) - (iph.header_length << 2));
 }
 
-// Incremental checksum udpdate
+// Incremental checksum update
 //
 // The functions below can be used to update multiple fields and update the
 // checksum in a single shot:
 //
 // uint32_t incremental = 0;
 //
-// inc = CalculateChecksumIncremental32(iphdr->src, new_src);
-// incremental = CalculateChecksumIncremental32(iphdr->dst, new_dst);
+// incremental += CalculateChecksumIncremental32(iphdr->src, new_src);
+// incremental += CalculateChecksumIncremental32(iphdr->dst, new_dst);
 //
 // iphdr->src = new_src
 // iphdr->dst = new_dst
