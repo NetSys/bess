@@ -23,12 +23,20 @@ class Module(object):
             name = None
 
         if(not _do_not_create):
+            #create an object
             ret = self.bess.create_module(self.__class__.__name__, name,
                                       self.choose_arg(None, kwargs))
             self.name = ret.name
         else:
-            self.name = name
+            #bind to a pre-existing object, check if it's real
             assert self.name != None
+            all_modules = self.bess.list_modules().modules
+            result = list(filter(lambda x:
+                x.name == name and
+                x.mclass == self.__class__.__name__,
+                all_modules))
+            assert(len(result) == 1)
+            self.name = name
 
         # add mclass-specific methods
         cls = self.bess.get_mclass_info(self.__class__.__name__)

@@ -13,7 +13,8 @@ TESTS='exactmatch.bess
 	l2_forward.bess
 	multicore.bess
 	queue.bess
-	roundrobin.bess
+	reattachment.bess
+  roundrobin.bess
 	s2s.bess
 	tc/complextree.bess
 	unix_port.bess
