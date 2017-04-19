@@ -99,6 +99,7 @@ const union {
 } _mask = {.val = {0x8000ffffFFFFffffull, 0x8000ffffFFFFffffull,
                    0x8000ffffFFFFffffull, 0x8000ffffFFFFffffull}};
 
+// Do not call these functions directly. Use find_index() instead. See below.
 static inline int find_index_avx(uint64_t addr, uint64_t *table) {
   __m256d _addr = (__m256d)_mm256_set1_epi64x(addr | (1ull << 63));
   __m256d _table = _mm256_load_pd((double *)table);
@@ -119,6 +120,8 @@ static inline int find_index_basic(uint64_t addr, uint64_t *table) {
 }
 #endif
 
+// Finds addr from a 4-way bucket *table and returns its index + 1.
+// Returns zero if not found.
 static inline int find_index(uint64_t addr, uint64_t *table, const uint64_t) {
 #if __AVX__
   return find_index_avx(addr, table);
