@@ -6,9 +6,9 @@
       apt_key: url=https://download.docker.com/linux/ubuntu/gpg
       become: true
 
-    - apt_repository: repo='deb https://download.docker.com/linux/ubuntu {{ansible_distribution_release}} stable'
+    - apt_repository: repo='deb [arch=amd64] https://download.docker.com/linux/ubuntu {{ansible_distribution_release}} stable'
       become: true
 
     - name: Install Docker
-      apt: name=docker-engine state=latest update_cache=yes
+      apt: name=docker-ce state=latest update_cache=yes
       become: true
