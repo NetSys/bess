@@ -1,0 +1,50 @@
+import scapy.all as scapy
+import socket
+import struct
+
+def atoh(ip):
+    return struct.unpack("!L", socket.inet_aton(ip))[0]
+
+# Craft a packet with the specified IP address and port number
+def gen_packet(dst_ip, dst_port):
+    eth = scapy.Ether(src='02:1e:67:9f:4d:ae', dst='06:16:3e:1b:72:32')
+    ip = scapy.IP(src='10.0.0.1', dst=dst_ip)
+    udp = scapy.UDP(sport=1234, dport=dst_port)
+    payload = 'helloworld'
+    pkt = eth/ip/udp/payload
+    return str(pkt)
+
+pkts = [gen_packet('172.16.100.1', 80),
+        gen_packet('172.12.55.99', 54321),
+        gen_packet('172.12.55.3', 8080),
+        gen_packet('172.16.100.1', 345),
+        gen_packet('172.12.55.99', 12345),
+        gen_packet('192.168.1.123', 80)]
+
+# destination IP address + destination port number + metadata 'in_port'
+wm::WildcardMatch(fields=[{'offset':30, 'size':4},
+                          {'offset':36, 'size':2},
+                          {'attribute':'in_port', 'size':2}])
+
+# locally emulate two input ports
+Source() -> SetMetadata(attrs=[{'name': 'in_port', 'size': 2, 'value_int': 1}]) -> Rewrite(templates=pkts) -> wm
+
+wm:0 -> Sink()
+wm:1 -> Sink()
+wm:2 -> Sink()
+wm.set_default_gate(gate=2)
+
+# 172.16.100.1/32, port 80, in_port 1
+wm.add(values=[atoh('172.16.100.1'),    80,         1       ], gate=0,
+        masks=[atoh('255.255.255.255'), 0xffff,     0xffff  ], priority=2)
+
+# 172.12.55.99/32, in_port 2
+wm.add(values=[atoh('172.12.55.99'),    0,          2       ], gate=1,
+        masks=[atoh('255.255.255.255'), 0x0000,     0xffff  ], priority=1)
+
+print "Original Object"
+print wm.get_rules()
+
+print "Reattached Object"
+wm2 = WildcardMatch(name="wm", _do_not_create=True)
+print wm2.get_rules()
