@@ -155,7 +155,7 @@ modules: protobuf $(MODULE_OBJS) $(MODULE_LIBS)
 VERSION := $(shell git describe --abbrev=4 --dirty --always --tags 2>/dev/null)
 
 # Default if previous command fails (e.g., when building from a tarball)
-DEFAULT_VERSION := v0.2.1
+DEFAULT_VERSION := unknown
 
 VERSION_LINE := \#define VERSION \"$(or $(VERSION), $(DEFAULT_VERSION))\"
 version.h: force
