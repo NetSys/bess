@@ -219,7 +219,13 @@ class Module {
   int DisconnectModulesUpstream(gate_idx_t igate_idx);
   int DisconnectModules(gate_idx_t ogate_idx);
 
+  // Register a task with no placement constraints.
   task_id_t RegisterTask(void *arg);
+
+  // Register a task with constraints on the NUMA node it should run on.
+  // TODO[apanda]: Eventually we should move to some sort of a structure with
+  // a richer set of constraints.
+  task_id_t RegisterTask(void *arg, int socket_constraints);
 
   /* Modules should call this function to declare additional metadata
    * attributes at initialization time.
@@ -344,9 +350,23 @@ class LeafTrafficClass;
 // Stores the arguments of a task created by a module.
 class ModuleTask {
  public:
+  static const int UNCONSTRAINED_SOCKET = 0xff;
+
   // Doesn't take ownership of 'arg' and 'c'.  'c' can be null and it
   // can be changed later with SetTC()
-  ModuleTask(void *arg, bess::LeafTrafficClass<Task> *c) : arg_(arg), c_(c) {}
+  ModuleTask(void *arg, bess::LeafTrafficClass<Task> *c)
+      : ModuleTask(arg, c, UNCONSTRAINED_SOCKET) {}
+
+  ModuleTask(void *arg, bess::LeafTrafficClass<Task> *c, int socket_constraints)
+      : arg_(arg), c_(c), socket_constraints_(socket_constraints) {}
+
+  // Set socket constraints which are used to check that task placement is
+  // reasonable.
+  void SetSocketConstraints(int constraints) {
+    socket_constraints_ = constraints;
+  }
+
+  int GetSocketConstraints() const { return socket_constraints_; }
 
   ~ModuleTask() {}
 
@@ -359,6 +379,8 @@ class ModuleTask {
  private:
   void *arg_;  // Auxiliary value passed to Module::RunTask().
   bess::LeafTrafficClass<Task> *c_;  // Leaf TC associated with this task.
+  int socket_constraints_;  // Constraints on what socket this task should be
+                            // placed represented as a bit mask.
 };
 
 // Functor used by a leaf in a Worker's Scheduler to run a task in a module.
@@ -384,6 +406,14 @@ class Task {
 
   struct task_result operator()(void) {
     return module_->RunTask(arg_);
+  }
+
+  int GetSocketConstraints() const {
+    if (t_) {
+      return t_->GetSocketConstraints();
+    } else {
+      return ModuleTask::UNCONSTRAINED_SOCKET;
+    }
   }
 
  private:

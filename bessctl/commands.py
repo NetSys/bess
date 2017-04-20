@@ -464,6 +464,7 @@ def bind_var(cli, var_type, line):
 
     return val, remainder
 
+
 cmdlist = []
 
 
@@ -991,6 +992,20 @@ def _build_tcs_tree(tcs):
     return root
 
 
+@cmd('check constraints', 'Check constraints')
+def check_constraints(cli):
+    response = cli.bess.check_scheduling_constraints()
+    if len(response.violations) != 0:
+        print 'Placement violations found'
+        for violation in response.violations:
+            print 'name %s constraint %d socket %d core %d' % (violation.name,
+                                                               violation.constraint,
+                                                               violation.assigned_node,
+                                                               violation.assigned_core)
+    else:
+        print 'No violations found'
+
+
 def _show_tc_list(cli, tcs):
     wids = sorted(list(set(map(lambda tc: getattr(tc, 'class').wid, tcs))))
 
@@ -1384,6 +1399,7 @@ def monitor_pipeline(cli):
      'Monitor batch counters in the datapath pipeline')
 def monitor_pipeline_batch(cli):
     _monitor_pipeline(cli, 'cnt')
+
 
 PortRate = collections.namedtuple('PortRate',
                                   ['inc_packets', 'inc_dropped', 'inc_bytes',

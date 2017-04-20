@@ -49,6 +49,7 @@ void PMDPort::InitDriver() {
   for (dpdk_port_t i = 0; i < num_dpdk_ports; i++) {
     struct rte_eth_dev_info dev_info;
     std::string pci_info;
+    int numa_node = -1;
 
     rte_eth_dev_info_get(i, &dev_info);
 
@@ -58,6 +59,7 @@ void PMDPort::InitDriver() {
           dev_info.pci_dev->addr.domain, dev_info.pci_dev->addr.bus,
           dev_info.pci_dev->addr.devid, dev_info.pci_dev->addr.function,
           dev_info.pci_dev->id.vendor_id, dev_info.pci_dev->id.device_id);
+      numa_node = rte_eth_dev_socket_id(static_cast<int>(i));
     }
 
     bess::utils::EthHeader::Address lladdr;
@@ -66,7 +68,7 @@ void PMDPort::InitDriver() {
     LOG(INFO) << "DPDK port_id " << static_cast<int>(i) << " ("
               << dev_info.driver_name << ")   RXQ " << dev_info.max_rx_queues
               << " TXQ " << dev_info.max_tx_queues << "  " << lladdr.ToString()
-              << "  " << pci_info;
+              << "  " << pci_info << " numa_node " << numa_node;
   }
 }
 
@@ -115,10 +117,10 @@ static pb_error_t find_dpdk_port_by_pci_addr(const std::string &pci,
     rte_eth_dev_info_get(i, &dev_info);
 
     if (dev_info.pci_dev) {
-        if (rte_eal_compare_pci_addr(&addr, &dev_info.pci_dev->addr) == 0) {
-          port_id = i;
-          break;
-        }
+      if (rte_eal_compare_pci_addr(&addr, &dev_info.pci_dev->addr) == 0) {
+        port_id = i;
+        break;
+      }
     }
   }
 
@@ -182,6 +184,8 @@ pb_error_t PMDPort::Init(const bess::pb::PMDPortArg &arg) {
   int ret;
 
   int i;
+
+  int numa_node = -1;
 
   pb_error_t err;
   switch (arg.port_case()) {
@@ -275,6 +279,9 @@ pb_error_t PMDPort::Init(const bess::pb::PMDPortArg &arg) {
 
   dpdk_port_id_ = ret_port_id;
 
+  numa_node = rte_eth_dev_socket_id(static_cast<int>(ret_port_id));
+  node_placement_ = numa_node == -1 ? ModuleTask::UNCONSTRAINED_SOCKET : numa_node;
+
   rte_eth_macaddr_get(dpdk_port_id_, reinterpret_cast<ether_addr *>(&mac_addr));
 
   // Reset hardware stat counters, as they may still contain previous data
@@ -319,9 +326,9 @@ void PMDPort::CollectStats(bool reset) {
   }
 
   VLOG(1) << bess::utils::Format(
-      "PMD port %d: ipackets %" PRIu64 " opackets %" PRIu64
-      " ibytes %" PRIu64 " obytes %" PRIu64 " imissed %" PRIu64
-      " ierrors %" PRIu64 " oerrors %" PRIu64 " rx_nombuf %" PRIu64,
+      "PMD port %d: ipackets %" PRIu64 " opackets %" PRIu64 " ibytes %" PRIu64
+      " obytes %" PRIu64 " imissed %" PRIu64 " ierrors %" PRIu64
+      " oerrors %" PRIu64 " rx_nombuf %" PRIu64,
       dpdk_port_id_, stats.ipackets, stats.opackets, stats.ibytes, stats.obytes,
       stats.imissed, stats.ierrors, stats.oerrors, stats.rx_nombuf);
 

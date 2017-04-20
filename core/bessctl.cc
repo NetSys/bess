@@ -547,6 +547,46 @@ class BESSControlImpl final : public BESSControl::Service {
     return Status::OK;
   }
 
+  Status CheckSchedulingConstraints(
+      ServerContext*, const EmptyRequest*,
+      CheckSchedulingConstraintsResponse* response) override {
+    LOG(INFO) << "Checking scheduling constraints";
+    for (int i = 0; i < num_workers; i++) {
+      int socket = workers[i]->socket();
+      int core = workers[i]->core();
+      bess::TrafficClass* root = workers[i]->scheduler()->root();
+      if (!root) {
+        return return_with_error(response, ENOENT, 
+                "worker:%d has no root tc ",
+                                 i);
+      }
+
+      root->Traverse([&response, i, socket, core](bess::TCChildArgs* args) {
+        bess::TrafficClass* c = args->child();
+        if (c->policy() == bess::POLICY_LEAF) {
+          auto leaf = static_cast<bess::LeafTrafficClass<Task>*>(c);
+          int constraints = leaf->Task().GetSocketConstraints();
+          if (constraints != ModuleTask::UNCONSTRAINED_SOCKET &&
+              constraints != socket) {
+            LOG(WARNING) << "Scheduler constraints are violated for wid " << i
+                         << " socket " << socket << " constraint "
+                         << constraints;
+            auto violation = response->add_violations();
+            violation->set_name(c->name());
+            violation->set_constraint(constraints);
+            violation->set_assigned_node(socket);
+            violation->set_assigned_core(core);
+          } else {
+            LOG(WARNING) << "Scheduler constraints hold wid " << i
+                         << " socket " << socket << " constraint "
+                         << constraints;
+          }
+        }
+      });
+    }
+    return Status::OK;
+  }
+
   Status AddTc(ServerContext*, const AddTcRequest* request,
                EmptyResponse* response) override {
     if (is_any_worker_running()) {
