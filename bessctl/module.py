@@ -30,12 +30,9 @@ class Module(object):
         else:
             #bind to a pre-existing object, check if it's real
             assert name != None
-            all_modules = self.bess.list_modules().modules
-            result = list(filter(lambda x:
-                x.name == name and
-                x.mclass == self.__class__.__name__,
-                all_modules))
-            assert(len(result) == 1)
+            info = self.bess.get_module_info(name)
+            assert info != None
+            assert self.mclass == info.mclass
             self.name = name
 
         # add mclass-specific methods
