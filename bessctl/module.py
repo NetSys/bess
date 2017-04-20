@@ -29,7 +29,7 @@ class Module(object):
             self.name = ret.name
         else:
             #bind to a pre-existing object, check if it's real
-            assert self.name != None
+            assert name != None
             all_modules = self.bess.list_modules().modules
             result = list(filter(lambda x:
                 x.name == name and
