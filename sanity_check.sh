@@ -5,23 +5,22 @@ SCRIPTS='./bessctl/conf/samples'
 OUTFILE='sanity_check.out'
 
 TESTS='exactmatch.bess
-	flowgen.bess
-	generic_encap.bess
-	hash_lb.bess
-	igate.bess
-	iplookup.bess
-	l2_forward.bess
-	multicore.bess
-	queue.bess
-  reattachment.bess
-  reattachment.bess
-  roundrobin.bess
-	s2s.bess
-	tc/complextree.bess
-	unix_port.bess
-	update.bess
-	vlantest.bess
-	wildcardmatch.bess'
+flowgen.bess
+generic_encap.bess
+hash_lb.bess
+igate.bess
+iplookup.bess
+l2_forward.bess
+multicore.bess
+queue.bess
+reattachment.bess
+roundrobin.bess
+s2s.bess
+tc/complextree.bess
+unix_port.bess
+update.bess
+vlantest.bess
+wildcardmatch.bess'
 
 function fail
 {
@@ -31,7 +30,7 @@ function fail
 }
 
 echo "This script runs a collection of BESS sample scripts and makes sure \
-nothing blows up. Sit back and relax."
+  nothing blows up. Sit back and relax."
 rm -f $OUTFILE
 
 for file in $TESTS
