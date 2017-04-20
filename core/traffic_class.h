@@ -244,8 +244,6 @@ class TrafficClass {
   // eligible) all nodes from this node to the root.
   virtual void BlockTowardsRoot() = 0;
 
-  virtual void SetParent(TrafficClass *parent) { parent_ = parent; }
-
   // Parent of this class; nullptr for root.
   TrafficClass *parent_;
 

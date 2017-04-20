@@ -50,6 +50,7 @@ void PMDPort::InitDriver() {
     struct rte_eth_dev_info dev_info;
     std::string pci_info;
     int numa_node = -1;
+    bess::utils::EthHeader::Address lladdr;
 
     rte_eth_dev_info_get(i, &dev_info);
 
@@ -59,10 +60,9 @@ void PMDPort::InitDriver() {
           dev_info.pci_dev->addr.domain, dev_info.pci_dev->addr.bus,
           dev_info.pci_dev->addr.devid, dev_info.pci_dev->addr.function,
           dev_info.pci_dev->id.vendor_id, dev_info.pci_dev->id.device_id);
-      numa_node = rte_eth_dev_socket_id(static_cast<int>(i));
     }
 
-    bess::utils::EthHeader::Address lladdr;
+    numa_node = rte_eth_dev_socket_id(static_cast<int>(i));
     rte_eth_macaddr_get(i, reinterpret_cast<ether_addr *>(lladdr.bytes));
 
     LOG(INFO) << "DPDK port_id " << static_cast<int>(i) << " ("
