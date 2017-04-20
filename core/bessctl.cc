@@ -5,6 +5,7 @@
 #include <string>
 #include <thread>
 
+#include <gflags/gflags.h>
 #include <glog/logging.h>
 #include <grpc++/server.h>
 #include <grpc++/server_builder.h>
@@ -345,6 +346,12 @@ static Module* create_module(const std::string& name,
 
 class BESSControlImpl final : public BESSControl::Service {
  public:
+  Status GetVersion(ServerContext*, const EmptyRequest*,
+                    VersionResponse* response) override {
+    response->set_version(google::VersionString());
+    return Status::OK;
+  }
+
   Status ResetAll(ServerContext* context, const EmptyRequest* request,
                   EmptyResponse* response) override {
     Status status;

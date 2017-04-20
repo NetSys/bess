@@ -164,6 +164,9 @@ class BESS(object):
         self.disconnect()
         return response
 
+    def get_version(self):
+        return self._request('GetVersion')
+
     def reset_all(self):
         return self._request('ResetAll')
 

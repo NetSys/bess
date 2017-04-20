@@ -125,9 +125,9 @@ EXEC := bessd
 
 GTEST_DIR := /usr/src/gtest
 
-.PHONY: all clean tags cscope tests benchmarks protobuf
+.PHONY: all clean tags cscope tests benchmarks protobuf force
 
-all: $(EXEC) modules tests benchmarks
+all: version.h $(EXEC) modules tests benchmarks
 
 clean:
 	rm -rf $(EXEC) .deps/*.d .deps/*/*.d *_test */*_test *_bench */*_bench \
@@ -150,6 +150,16 @@ benchmarks: $(BENCH_OBJS) $(BENCH_EXEC)
 protobuf: $(PROTO_SRCS)
 
 modules: protobuf $(MODULE_OBJS) $(MODULE_LIBS)
+
+# Generate version string from the current status of the git working copy
+VERSION := $(shell git describe --abbrev=4 --dirty --always --tags 2>/dev/null)
+
+# Default if previous command fails (e.g., when building from a tarball)
+DEFAULT_VERSION := unknown
+
+VERSION_LINE := \#define VERSION \"$(or $(VERSION), $(DEFAULT_VERSION))\"
+version.h: force
+	@echo "$(VERSION_LINE)"| cmp -s - $@ || echo "$(VERSION_LINE)" > $@
 
 # This build wrapper takes 4 parameters:
 # $(1): build type (CXX, LD, ...)

@@ -24,6 +24,11 @@ message EmptyResponse {
   Error error = 1;
 }
 
+message VersionResponse {
+  Error error = 1;
+  string version = 2;  /// Version of bessd
+}
+
 message ImportPluginRequest {
   string path = 1;  /// Path to the module library (*.so file)
 }
