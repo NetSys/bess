@@ -106,6 +106,9 @@ service BESSControl {
   /// Enumerate all existing workers
   rpc ListTcs (ListTcsRequest) returns (ListTcsResponse) {}
 
+  /// Check scheduling contraints
+  rpc CheckSchedulingConstraints (EmptyRequest) returns (CheckSchedulingConstraintsResponse) {}
+
   /// Create a new traffic class
   ///
   /// NOTE: There should be no running worker to run this command.

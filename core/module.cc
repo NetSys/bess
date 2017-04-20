@@ -214,14 +214,17 @@ void Module::ProcessBatch(bess::PacketBatch *) {
 }
 
 task_id_t Module::RegisterTask(void *arg) {
-  ModuleTask *t = new ModuleTask(arg, nullptr);
+  return RegisterTask(arg, ModuleTask::UNCONSTRAINED_SOCKET);
+}
 
-  std::string leafname = std::string("!leaf_") + name_ + std::string(":")
-                         + std::to_string(tasks_.size());
-  bess::LeafTrafficClass<Task> *c = 
-      bess::TrafficClassBuilder::
-          CreateTrafficClass<bess::LeafTrafficClass<Task>>(
-              leafname, Task(this, arg, t));
+task_id_t Module::RegisterTask(void *arg, int constraints) {
+  ModuleTask *t = new ModuleTask(arg, nullptr, constraints);
+
+  std::string leafname = std::string("!leaf_") + name_ + std::string(":") +
+                         std::to_string(tasks_.size());
+  bess::LeafTrafficClass<Task> *c =
+      bess::TrafficClassBuilder::CreateTrafficClass<
+          bess::LeafTrafficClass<Task>>(leafname, Task(this, arg, t));
 
   add_tc_to_orphan(c, -1);
 

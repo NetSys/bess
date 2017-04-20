@@ -176,6 +176,9 @@ class BESS(object):
     def resume_all(self):
         return self._request('ResumeAll')
 
+    def check_scheduling_constraints(self):
+        return self._request('CheckSchedulingConstraints')
+
     def list_drivers(self):
         return self._request('ListDrivers')
 

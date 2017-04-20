@@ -74,7 +74,7 @@ static pb_error_t enable_track_for_module(const Module* m, gate_idx_t gate_idx,
   int ret;
 
   if (use_gate) {
-    if (is_igate) { 
+    if (is_igate) {
       if (!is_active_gate(m->igates(), gate_idx)) {
         return pb_error(EINVAL, "Input gate '%hu' does not exist", gate_idx);
       }
@@ -95,7 +95,7 @@ static pb_error_t enable_track_for_module(const Module* m, gate_idx_t gate_idx,
   if (is_igate) {
     for (auto& gate : m->igates()) {
       if (!gate) {
-          continue;
+        continue;
       }
       if ((ret = gate->AddHook(new TrackGate()))) {
         return pb_error(ret, "Failed to track input gate '%hu'",
@@ -105,7 +105,7 @@ static pb_error_t enable_track_for_module(const Module* m, gate_idx_t gate_idx,
   } else {
     for (auto& gate : m->ogates()) {
       if (!gate) {
-          continue;
+        continue;
       }
       if ((ret = gate->AddHook(new TrackGate()))) {
         return pb_error(ret, "Failed to track output gate '%hu'",
@@ -138,14 +138,14 @@ static pb_error_t disable_track_for_module(const Module* m, gate_idx_t gate_idx,
   if (is_igate) {
     for (auto& gate : m->igates()) {
       if (!gate) {
-          continue;
+        continue;
       }
       gate->RemoveHook(kGateHookTrackGate);
     }
   } else {
     for (auto& gate : m->ogates()) {
       if (!gate) {
-          continue;
+        continue;
       }
       gate->RemoveHook(kGateHookTrackGate);
     }
@@ -504,8 +504,7 @@ class BESSControlImpl final : public BESSControl::Service {
     for (; i <= wid_filter; i++) {
       bess::TrafficClass* root = workers[i]->scheduler()->root();
       if (!root) {
-        return return_with_error(response, ENOENT, "worker:%d has no root tc",
-                                 i);
+        continue;
       }
 
       root->Traverse([&response, i](bess::TCChildArgs* args) {
@@ -551,6 +550,42 @@ class BESSControlImpl final : public BESSControl::Service {
       });
     }
 
+    return Status::OK;
+  }
+
+  Status CheckSchedulingConstraints(
+      ServerContext*, const EmptyRequest*,
+      CheckSchedulingConstraintsResponse* response) override {
+    LOG(INFO) << "Checking scheduling constraints";
+    for (int i = 0; i < num_workers; i++) {
+      int socket = workers[i]->socket();
+      int core = workers[i]->core();
+      bess::TrafficClass* root = workers[i]->scheduler()->root();
+      if (root) {
+        root->Traverse([&response, i, socket, core](bess::TCChildArgs* args) {
+          bess::TrafficClass* c = args->child();
+          if (c->policy() == bess::POLICY_LEAF) {
+            auto leaf = static_cast<bess::LeafTrafficClass<Task>*>(c);
+            int constraints = leaf->Task().GetSocketConstraints();
+            if (constraints != ModuleTask::UNCONSTRAINED_SOCKET &&
+                constraints != socket) {
+              LOG(WARNING) << "Scheduler constraints are violated for wid " << i
+                           << " socket " << socket << " constraint "
+                           << constraints;
+              auto violation = response->add_violations();
+              violation->set_name(c->name());
+              violation->set_constraint(constraints);
+              violation->set_assigned_node(socket);
+              violation->set_assigned_core(core);
+            } else {
+              LOG(WARNING) << "Scheduler constraints hold wid " << i
+                           << " socket " << socket << " constraint "
+                           << constraints;
+            }
+          }
+        });
+      }
+    }
     return Status::OK;
   }
 

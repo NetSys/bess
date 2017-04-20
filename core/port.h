@@ -11,6 +11,7 @@
 #include <string>
 
 #include "message.h"
+#include "module.h"
 #include "packet.h"
 #include "port_msg.pb.h"
 #include "utils/common.h"
@@ -190,6 +191,14 @@ class Port {
   virtual size_t DefaultOutQueueSize() const { return kDefaultOutQueueSize; }
 
   virtual uint64_t GetFlags() const { return 0; }
+
+  /*!
+   * Get any placement constraints that need to be met when receiving from this
+   * port.
+   */
+  virtual int GetNodePlacementConstraint() const {
+    return ModuleTask::UNCONSTRAINED_SOCKET;
+  }
 
   virtual LinkStatus GetLinkStatus() {
     return LinkStatus{

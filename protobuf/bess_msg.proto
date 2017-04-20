@@ -129,6 +129,17 @@ message ListTcsResponse {
   repeated TrafficClassStatus classes_status = 2;
 }
 
+message CheckSchedulingConstraintsResponse {
+  message ViolatingClass {
+    string name = 1;
+    int32 constraint = 2;
+    int32 assigned_node = 3;
+    int32 assigned_core = 4;
+  }
+  Error error = 1;
+  repeated ViolatingClass violations = 2;
+}
+
 message AddTcRequest {
   TrafficClass class = 1;
 }
