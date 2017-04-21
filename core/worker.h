@@ -175,6 +175,9 @@ void add_tc_to_orphan(bess::TrafficClass *c, int wid);
 // Otherwise, return false
 bool remove_tc_from_orphan(bess::TrafficClass *c);
 
+// Returns a list of all the orphan traffic classes.
+const std::list<std::pair<int, bess::TrafficClass *>> &list_orphan_tcs();
+
 // Try to detach 'c' from a scheduler, or from the list of orhpan traffic
 // classes.
 //

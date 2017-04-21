@@ -554,6 +554,16 @@ class BESSControlImpl final : public BESSControl::Service {
       });
     }
 
+    if (request->wid() < 0) {
+      std::list<std::pair<int, bess::TrafficClass*>> all = list_orphan_tcs();
+      for (auto c : all) {
+        ListTcsResponse_TrafficClassStatus* status =
+            response->add_classes_status();
+
+        collect_tc(c.second, -1, status);
+      }
+    }
+
     return Status::OK;
   }
 

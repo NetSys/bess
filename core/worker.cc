@@ -320,6 +320,10 @@ bool remove_tc_from_orphan(bess::TrafficClass *c) {
   return false;
 }
 
+const std::list<std::pair<int, bess::TrafficClass *>> &list_orphan_tcs() {
+  return orphan_tcs;
+}
+
 bool detach_tc(bess::TrafficClass *c) {
   bess::TrafficClass *parent = c->parent();
   if (parent) {
