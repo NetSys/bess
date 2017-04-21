@@ -22,7 +22,7 @@ class Module(object):
         else:
             name = None
 
-        if(not _do_not_create):
+        if not _do_not_create:
             # create an object
             ret = self.bess.create_module(self.__class__.__name__, name,
                                           self.choose_arg(None, kwargs))
@@ -31,7 +31,6 @@ class Module(object):
             # bind to a pre-existing object, check if it's real
             assert name != None
             info = self.bess.get_module_info(name)
-            assert info != None
             assert self.mclass == info.mclass
             self.name = name
 

@@ -63,3 +63,10 @@ wm.add(values=[atoh('172.12.55.0'),     0,          0       ], gate=0,
         masks=[atoh('255.255.255.0'),   0x0000,     0x0000  ], priority=4)
 wm.delete(values=[atoh('172.12.55.0'),     0,          0       ],
            masks=[atoh('255.255.255.0'),   0x0000,     0x0000  ])
+
+print "Original Object"
+print wm.get_rules()
+
+print "Reattached Object"
+wm2 = WildcardMatch(name="wm", _do_not_create=True)
+print wm2.get_rules()
