@@ -32,7 +32,7 @@ flowgens = []
 for i in range(num_cores):
     bess.add_worker(wid=i, core=i)
     pkt_src = FlowGen(template = pkt_template, pps = init_pps / num_cores, flow_rate = num_flows / flow_time, flow_duration = flow_time, \
-        arrival = 'uniform', duration='uniform', quick_rampup = True)
+        arrival = 'uniform', duration='uniform', quick_rampup = True, burst = 32)
     flowgens.append(pkt_src)
     bess.attach_module(pkt_src.name, wid=i)
 
@@ -56,4 +56,3 @@ while True:
     bess.resume_all()
     time.sleep(sleeptime) # give it some time to warm up to the new rate
     prev_portstats = myport.get_port_stats().inc.packets
-
