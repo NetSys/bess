@@ -344,6 +344,35 @@ static Module* create_module(const std::string& name,
   return m;
 }
 
+static void collect_tc(const bess::TrafficClass* c, int wid,
+                       ListTcsResponse_TrafficClassStatus* status) {
+  if (c->parent()) {
+    status->set_parent(c->parent()->name());
+  }
+
+  status->mutable_class_()->set_name(c->name());
+  status->mutable_class_()->set_blocked(c->blocked());
+
+  if (c->policy() >= 0 && c->policy() < bess::NUM_POLICIES) {
+    status->mutable_class_()->set_policy(bess::TrafficPolicyName[c->policy()]);
+  } else {
+    status->mutable_class_()->set_policy("invalid");
+  }
+
+  status->mutable_class_()->set_wid(wid);
+
+  if (c->policy() == bess::POLICY_RATE_LIMIT) {
+    const bess::RateLimitTrafficClass* rl =
+        reinterpret_cast<const bess::RateLimitTrafficClass*>(c);
+    std::string resource = bess::ResourceName.at(rl->resource());
+    int64_t limit = rl->limit_arg();
+    int64_t max_burst = rl->max_burst_arg();
+    status->mutable_class_()->mutable_limit()->insert({resource, limit});
+    status->mutable_class_()->mutable_max_burst()->insert(
+        {resource, max_burst});
+  }
+}
+
 class BESSControlImpl final : public BESSControl::Service {
  public:
   Status GetVersion(ServerContext*, const EmptyRequest*,
@@ -513,32 +542,7 @@ class BESSControlImpl final : public BESSControl::Service {
         ListTcsResponse_TrafficClassStatus* status =
             response->add_classes_status();
 
-        if (c->parent()) {
-          status->set_parent(c->parent()->name());
-        }
-
-        status->mutable_class_()->set_name(c->name());
-        status->mutable_class_()->set_blocked(c->blocked());
-
-        if (c->policy() >= 0 && c->policy() < bess::NUM_POLICIES) {
-          status->mutable_class_()->set_policy(
-              bess::TrafficPolicyName[c->policy()]);
-        } else {
-          status->mutable_class_()->set_policy("invalid");
-        }
-
-        status->mutable_class_()->set_wid(i);
-
-        if (c->policy() == bess::POLICY_RATE_LIMIT) {
-          const bess::RateLimitTrafficClass* rl =
-              reinterpret_cast<const bess::RateLimitTrafficClass*>(c);
-          std::string resource = bess::ResourceName.at(rl->resource());
-          int64_t limit = rl->limit_arg();
-          int64_t max_burst = rl->max_burst_arg();
-          status->mutable_class_()->mutable_limit()->insert({resource, limit});
-          status->mutable_class_()->mutable_max_burst()->insert(
-              {resource, max_burst});
-        }
+        collect_tc(c, i, status);
 
         if (args->parent_type() == bess::POLICY_WEIGHTED_FAIR) {
           auto ca = static_cast<bess::WeightedFairChildArgs*>(args);
