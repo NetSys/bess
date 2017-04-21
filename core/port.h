@@ -197,7 +197,7 @@ class Port {
    * port.
    */
   virtual int GetNodePlacementConstraint() const {
-    return ModuleTask::UNCONSTRAINED_SOCKET;
+    return UNCONSTRAINED_SOCKET;
   }
 
   virtual LinkStatus GetLinkStatus() {

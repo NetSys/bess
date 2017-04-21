@@ -17,7 +17,9 @@ static inline void set_cmd_response_error(pb_cmd_response_t *response,
                                           const pb_error_t &error) {
   response->mutable_error()->CopyFrom(error);
 }
+
 #define MODULE_NAME_LEN 128
+#define UNCONSTRAINED_SOCKET 0xffff
 
 struct task_result {
   uint64_t packets;
@@ -166,7 +168,8 @@ class Module {
         attr_offsets_(),
         tasks_(),
         igates_(),
-        ogates_() {}
+        ogates_(),
+        node_constraints_(UNCONSTRAINED_SOCKET) {}
   virtual ~Module() {}
 
   pb_error_t Init(const bess::pb::EmptyArg &arg);
@@ -219,13 +222,8 @@ class Module {
   int DisconnectModulesUpstream(gate_idx_t igate_idx);
   int DisconnectModules(gate_idx_t ogate_idx);
 
-  // Register a task with no placement constraints.
+  // Register a task.
   task_id_t RegisterTask(void *arg);
-
-  // Register a task with constraints on the NUMA node it should run on.
-  // TODO[apanda]: Eventually we should move to some sort of a structure with
-  // a richer set of constraints.
-  task_id_t RegisterTask(void *arg, int socket_constraints);
 
   /* Modules should call this function to declare additional metadata
    * attributes at initialization time.
@@ -271,6 +269,8 @@ class Module {
 
   const std::vector<bess::OGate *> &ogates() const { return ogates_; }
 
+  int ComputePlacementConstraints() const;
+
  private:
   void DestroyAllTasks();
   void DeregisterAllAttributes();
@@ -296,6 +296,12 @@ class Module {
 
   std::vector<bess::IGate *> igates_;
   std::vector<bess::OGate *> ogates_;
+
+ protected:
+  // Placement constraints for this module. We use this to update the task based
+  // on
+  // all upstream tasks.
+  int node_constraints_;
 
   DISALLOW_COPY_AND_ASSIGN(Module);
 };
@@ -350,23 +356,10 @@ class LeafTrafficClass;
 // Stores the arguments of a task created by a module.
 class ModuleTask {
  public:
-  static const int UNCONSTRAINED_SOCKET = 0xffff;
-
   // Doesn't take ownership of 'arg' and 'c'.  'c' can be null and it
   // can be changed later with SetTC()
   ModuleTask(void *arg, bess::LeafTrafficClass<Task> *c)
-      : ModuleTask(arg, c, UNCONSTRAINED_SOCKET) {}
-
-  ModuleTask(void *arg, bess::LeafTrafficClass<Task> *c, int socket_constraints)
-      : arg_(arg), c_(c), socket_constraints_(socket_constraints) {}
-
-  // Set socket constraints which are used to check that task placement is
-  // reasonable.
-  void SetSocketConstraints(int constraints) {
-    socket_constraints_ = constraints;
-  }
-
-  int GetSocketConstraints() const { return socket_constraints_; }
+      : arg_(arg), c_(c) {}
 
   ~ModuleTask() {}
 
@@ -379,8 +372,6 @@ class ModuleTask {
  private:
   void *arg_;  // Auxiliary value passed to Module::RunTask().
   bess::LeafTrafficClass<Task> *c_;  // Leaf TC associated with this task.
-  int socket_constraints_;  // Constraints on what socket this task should be
-                            // placed represented as a bit mask.
 };
 
 // Functor used by a leaf in a Worker's Scheduler to run a task in a module.
@@ -409,10 +400,10 @@ class Task {
   }
 
   int GetSocketConstraints() const {
-    if (t_) {
-      return t_->GetSocketConstraints();
+    if (module_) {
+      return module_->ComputePlacementConstraints();
     } else {
-      return ModuleTask::UNCONSTRAINED_SOCKET;
+      return UNCONSTRAINED_SOCKET;
     }
   }
 

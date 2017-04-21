@@ -214,11 +214,7 @@ void Module::ProcessBatch(bess::PacketBatch *) {
 }
 
 task_id_t Module::RegisterTask(void *arg) {
-  return RegisterTask(arg, ModuleTask::UNCONSTRAINED_SOCKET);
-}
-
-task_id_t Module::RegisterTask(void *arg, int constraints) {
-  ModuleTask *t = new ModuleTask(arg, nullptr, constraints);
+  ModuleTask *t = new ModuleTask(arg, nullptr);
 
   std::string leafname = std::string("!leaf_") + name_ + std::string(":") +
                          std::to_string(tasks_.size());
@@ -246,6 +242,20 @@ void Module::DeregisterAllAttributes() {
   for (const auto &it : attrs_) {
     pipeline_->DeregisterAttribute(it.name);
   }
+}
+
+int Module::ComputePlacementConstraints() const {
+  // Take the constraints we have.
+  int constraint = node_constraints_;
+  LOG(WARNING) << " Processing module " <<  name_;
+  for (size_t i = 0; i < ogates_.size(); i++) {
+    if (ogates_[i]) {
+        auto next = static_cast<Module *>(ogates_[i]->arg());
+        // Restrict this based on what we found out from others in this pipeline.
+        constraint &= next->ComputePlacementConstraints();
+    }
+  }
+  return constraint;
 }
 
 int Module::AddMetadataAttr(const std::string &name, size_t size,

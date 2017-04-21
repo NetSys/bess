@@ -34,8 +34,8 @@ pb_error_t QueueInc::Init(const bess::pb::QueueIncArg &arg) {
   if (arg.prefetch()) {
     prefetch_ = 1;
   }
-
-  tid = RegisterTask((void *)(uintptr_t)qid_, port_->GetNodePlacementConstraint());
+  node_constraints_ = port_->GetNodePlacementConstraint();
+  tid = RegisterTask((void *)(uintptr_t)qid_);
   if (tid == INVALID_TASK_ID)
     return pb_error(ENOMEM, "Task creation failed");
 

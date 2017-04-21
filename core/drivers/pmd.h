@@ -23,7 +23,7 @@ class PMDPort final : public Port {
       : Port(),
         dpdk_port_id_(DPDK_PORT_UNKNOWN),
         hot_plugged_(false),
-        node_placement_(ModuleTask::UNCONSTRAINED_SOCKET) {}
+        node_placement_(UNCONSTRAINED_SOCKET) {}
 
   void InitDriver() override;
 

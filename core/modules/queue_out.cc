@@ -20,6 +20,8 @@ pb_error_t QueueOut::Init(const bess::pb::QueueOutArg &arg) {
   }
   port_ = it->second;
 
+  node_constraints_ = port_->GetNodePlacementConstraint();
+
   ret = port_->AcquireQueues(reinterpret_cast<const module *>(this),
                              PACKET_DIR_OUT, &qid_, 1);
   if (ret < 0) {

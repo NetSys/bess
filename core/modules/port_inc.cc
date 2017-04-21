@@ -39,9 +39,10 @@ pb_error_t PortInc::Init(const bess::pb::PortIncArg &arg) {
   }
 
   placement_constraint = port_->GetNodePlacementConstraint();
+  node_constraints_ = placement_constraint;
 
   for (queue_t qid = 0; qid < num_inc_q; qid++) {
-    task_id_t tid = RegisterTask((void *)(uintptr_t)qid, placement_constraint);
+    task_id_t tid = RegisterTask((void *)(uintptr_t)qid);
 
     if (tid == INVALID_TASK_ID) {
       return pb_error(ENOMEM, "Task creation failed");
