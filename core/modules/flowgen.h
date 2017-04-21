@@ -9,8 +9,7 @@
 #include "../utils/random.h"
 
 typedef std::pair<uint64_t, struct flow *> Event;
-typedef std::priority_queue<Event, std::vector<Event>,
-                            std::greater<Event>>
+typedef std::priority_queue<Event, std::vector<Event>, std::greater<Event>>
     EventQueue;
 
 struct flow {
@@ -55,7 +54,8 @@ class FlowGen final : public Module {
         flow_pps_(),
         flow_pkts_(),
         flow_gap_ns_(),
-        pareto_() {}
+        pareto_(),
+        burst_() {}
 
   static const Commands cmds;
   pb_error_t Init(const bess::pb::FlowGenArg &arg);
@@ -131,6 +131,8 @@ class FlowGen final : public Module {
     double inversed_alpha; /* 1.0 / alpha */
     double mean;           /* determined by alpha */
   } pareto_;
+
+  int burst_;
 };
 
 #endif  // BESS_MODULES_FLOWGEN_H_

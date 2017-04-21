@@ -470,6 +470,7 @@ message FlowGenArg {
   uint32 ip_dst_range = 9; /// When generating new flows, FlowGen modifies the template packet by changing the IP dst, incrementing it by at most ip_dst_range.
   uint32 port_src_range = 10; /// When generating new flows, FlowGen modifies the template packet by changing the TCP port, incrementing it by at most port_src_range.
   uint32 port_dst_range = 11; /// When generating new flows, FlowGen modifies the template packet by changing the TCP dst port, incrementing it by at most port_dst_range.
+  uint64 burst = 12; /// The number of packets per batch to release.
 }
 
 /**

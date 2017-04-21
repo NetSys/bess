@@ -201,6 +201,13 @@ pb_error_t FlowGen::ProcessArguments(const bess::pb::FlowGenArg &arg) {
     quick_rampup_ = 1;
   }
 
+  if (arg.burst() <= bess::PacketBatch::kMaxBurst) {
+    burst_ = arg.burst();
+  } else {
+    return pb_error(EINVAL, "'burst' must be no greater than %ld",
+                    bess::PacketBatch::kMaxBurst);
+  }
+
   ip_src_range_ = arg.ip_src_range();
   ip_dst_range_ = arg.ip_dst_range();
 
@@ -447,8 +454,9 @@ void FlowGen::GeneratePackets(bess::PacketBatch *batch) {
   uint64_t now = ctx.current_ns();
 
   batch->clear();
+  const int burst = ACCESS_ONCE(burst_);
 
-  while (!batch->full() && !events_.empty()) {
+  while (batch->cnt() < burst && !events_.empty()) {
     uint64_t t = events_.top().first;
     struct flow *f = events_.top().second;
     if (!f || now < t)
