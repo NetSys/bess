@@ -350,7 +350,7 @@ class LeafTrafficClass;
 // Stores the arguments of a task created by a module.
 class ModuleTask {
  public:
-  static const int UNCONSTRAINED_SOCKET = 0xff;
+  static const int UNCONSTRAINED_SOCKET = 0xffff;
 
   // Doesn't take ownership of 'arg' and 'c'.  'c' can be null and it
   // can be changed later with SetTC()

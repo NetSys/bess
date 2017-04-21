@@ -558,7 +558,7 @@ class BESSControlImpl final : public BESSControl::Service {
       CheckSchedulingConstraintsResponse* response) override {
     LOG(INFO) << "Checking scheduling constraints";
     for (int i = 0; i < num_workers; i++) {
-      int socket = workers[i]->socket();
+      int socket = 1 << workers[i]->socket();
       int core = workers[i]->core();
       bess::TrafficClass* root = workers[i]->scheduler()->root();
       if (root) {
@@ -567,15 +567,14 @@ class BESSControlImpl final : public BESSControl::Service {
           if (c->policy() == bess::POLICY_LEAF) {
             auto leaf = static_cast<bess::LeafTrafficClass<Task>*>(c);
             int constraints = leaf->Task().GetSocketConstraints();
-            if (constraints != ModuleTask::UNCONSTRAINED_SOCKET &&
-                constraints != socket) {
+            if ((constraints & socket) == 0) {
               LOG(WARNING) << "Scheduler constraints are violated for wid " << i
                            << " socket " << socket << " constraint "
                            << constraints;
               auto violation = response->add_violations();
               violation->set_name(c->name());
               violation->set_constraint(constraints);
-              violation->set_assigned_node(socket);
+              violation->set_assigned_node(workers[i]->socket());
               violation->set_assigned_core(core);
             } else {
               LOG(WARNING) << "Scheduler constraints hold wid " << i

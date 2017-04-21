@@ -991,6 +991,15 @@ def _build_tcs_tree(tcs):
 
     return root
 
+def _constraints_to_list(constraint):
+    current = 0
+    active = []
+    while constraint > 0:
+        if constraint & 1 == 1:
+            active.append(current)
+        current += 1
+        constraint = constraint >> 1
+    return active
 
 @cmd('check constraints', 'Check constraints')
 def check_constraints(cli):
@@ -998,8 +1007,9 @@ def check_constraints(cli):
     if len(response.violations) != 0:
         cli.fout.write('Placement violations found\n')
         for violation in response.violations:
-            cli.fout.write('name %s constraint %d socket %d core %d\n' % (violation.name,
-                                                                          violation.constraint,
+            valid = ' '.join(map(str, _constraints_to_list(violation.constraint)))
+            cli.fout.write('name %s allowed_sockets [%s] worker_socket %d worker_core %d\n' % (violation.name,
+                                                                          valid,
                                                                           violation.assigned_node,
                                                                           violation.assigned_core))
     else:
