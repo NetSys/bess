@@ -28,8 +28,7 @@ function fail
   exit 2
 }
 
-echo "This script runs a collection of BESS sample scripts and makes sure \
-  nothing blows up. Sit back and relax."
+echo "This script runs a collection of BESS sample scripts and makes sure nothing blows up. Sit back and relax."
 rm -f $OUTFILE
 
 for file in $TESTS
