@@ -338,6 +338,11 @@ def get_var_attrs(cli, var_token, partial_word):
             var_type = 'int'
             var_desc = 'TCP port'
 
+        elif var_token == '[PAUSE_WORKERS]':
+            var_type = 'pause_workers'
+            var_desc = 'determines whether to pause workers for the operation (default: "pause")'
+            var_candidates = ['pause', 'no_pause']
+
     except socket.error as e:
         if e.errno in [errno.ECONNRESET, errno.EPIPE]:
             cli.bess.disconnect()
@@ -359,7 +364,7 @@ def get_var_attrs(cli, var_token, partial_word):
 # You can assume that 'line == head + tail'
 def split_var(cli, var_type, line):
     if var_type in ['name', 'optional_name', 'gate', 'confname', 'filename',
-                    'endis', 'int']:
+                    'endis', 'int', 'pause_workers']:
         pos = line.find(' ')
         if pos == -1:
             head = line
@@ -762,13 +767,16 @@ def add_port(cli, driver, port, args):
         cli.fout.write('  The new port "%s" has been created\n' % ret.name)
 
 
-@cmd('add module MCLASS [NEW_MODULE] [MODULE_ARGS...]', 'Add a new module')
-def add_module(cli, mclass, module, args):
-    cli.bess.pause_all()
+@cmd('add module MCLASS [NEW_MODULE] [PAUSE_WORKERS] [MODULE_ARGS...]',
+     'Add a new module')
+def add_module(cli, mclass, module, pause_workers, args):
+    if pause_workers != 'no_pause':
+        cli.bess.pause_all()
     try:
         ret = cli.bess.create_module(mclass, module, args)
     finally:
-        cli.bess.resume_all()
+        if pause_workers != 'no_pause':
+            cli.bess.resume_all()
 
     if module is None:
         cli.fout.write('  The new module "%s" has been created\n' % ret.name)

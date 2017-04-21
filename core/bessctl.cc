@@ -988,10 +988,6 @@ class BESSControlImpl final : public BESSControl::Service {
 
   Status CreateModule(ServerContext*, const CreateModuleRequest* request,
                       CreateModuleResponse* response) override {
-    if (is_any_worker_running()) {
-      return return_with_error(response, EBUSY, "There is a running worker");
-    }
-
     VLOG(1) << "CreateModuleRequest from client:" << std::endl
             << request->DebugString();
 
