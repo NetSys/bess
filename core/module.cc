@@ -275,14 +275,14 @@ void Module::AddActiveWorker(int wid) {
 }
 
 CheckResults Module::CheckModuleConstraints() const {
-  int num_workers = active_workers_.size();
+  int num_active_workers = active_workers_.size();
   CheckResults valid = CHECK_OK;
-  if (num_workers < min_allowed_workers_ ||
-      num_workers > max_allowed_workers_) {
+  if (num_active_workers < min_allowed_workers_ ||
+      num_active_workers > max_allowed_workers_) {
     LOG(ERROR) << "Mismatch in number of workers for module " << name_
                << " min required " << min_allowed_workers_ << " max allowed "
-               << max_allowed_workers_ << " attached workers " << num_workers
-               << " returning fatal";
+               << max_allowed_workers_ << " attached workers "
+               << num_active_workers << " returning fatal";
     return CHECK_FATAL_ERROR;
   }
 
