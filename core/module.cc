@@ -15,6 +15,7 @@
 #include "mem_alloc.h"
 #include "scheduler.h"
 #include "utils/pcap.h"
+#include "worker.h"
 
 const Commands Module::cmds;
 
@@ -247,15 +248,53 @@ void Module::DeregisterAllAttributes() {
 int Module::ComputePlacementConstraints() const {
   // Take the constraints we have.
   int constraint = node_constraints_;
-  LOG(WARNING) << " Processing module " <<  name_;
   for (size_t i = 0; i < ogates_.size(); i++) {
     if (ogates_[i]) {
-        auto next = static_cast<Module *>(ogates_[i]->arg());
-        // Restrict this based on what we found out from others in this pipeline.
-        constraint &= next->ComputePlacementConstraints();
+      auto next = static_cast<Module *>(ogates_[i]->arg());
+      // Restrict constraints to account for other modules in the pipeline.
+      constraint &= next->ComputePlacementConstraints();
+      if (constraint == 0) {
+        LOG(WARNING) << "At " << name_
+                     << " after accounting for constraints from module "
+                     << next->name_ << " no feasible placement exists.";
+      }
     }
   }
   return constraint;
+}
+
+void Module::AddActiveWorker(int wid) {
+  active_workers_.insert(wid);
+  LOG(WARNING) << "Added active worker " << wid << " to " << name_;
+  for (size_t i = 0; i < ogates_.size(); i++) {
+    if (ogates_[i]) {
+      auto next = static_cast<Module *>(ogates_[i]->arg());
+      next->AddActiveWorker(wid);
+    }
+  }
+}
+
+CheckResults Module::CheckModuleConstraints() const {
+  int num_workers = active_workers_.size();
+  CheckResults valid = CHECK_OK;
+  if (num_workers < min_allowed_workers_ ||
+      num_workers > max_allowed_workers_) {
+    LOG(ERROR) << "Mismatch in number of workers for module " << name_
+               << " min required " << min_allowed_workers_ << " max allowed "
+               << max_allowed_workers_ << " attached workers " << num_workers
+               << " returning fatal";
+    return CHECK_FATAL_ERROR;
+  }
+
+  for (auto widx : active_workers_) {
+    int socket = 1 << workers[widx]->socket();
+    if ((socket & node_constraints_) == 0) {
+      LOG(ERROR) << "Worker wid " << widx
+                 << " does not meet placement constraints for module " << name_;
+      valid = CHECK_NONFATAL_ERROR;
+    }
+  }
+  return valid;
 }
 
 int Module::AddMetadataAttr(const std::string &name, size_t size,

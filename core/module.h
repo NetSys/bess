@@ -3,6 +3,7 @@
 
 #include <map>
 #include <string>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -157,6 +158,12 @@ class ModuleBuilder {
 
 class ModuleTask;
 
+enum CheckResults {
+  CHECK_OK = 0,
+  CHECK_NONFATAL_ERROR = 1,
+  CHECK_FATAL_ERROR = 2
+};
+
 class Module {
   // overide this section to create a new module -----------------------------
  public:
@@ -169,7 +176,10 @@ class Module {
         tasks_(),
         igates_(),
         ogates_(),
-        node_constraints_(UNCONSTRAINED_SOCKET) {}
+        active_workers_(),
+        node_constraints_(UNCONSTRAINED_SOCKET),
+        min_allowed_workers_(1),
+        max_allowed_workers_(1) {}
   virtual ~Module() {}
 
   pb_error_t Init(const bess::pb::EmptyArg &arg);
@@ -271,6 +281,16 @@ class Module {
 
   int ComputePlacementConstraints() const;
 
+  void ResetActiveWorkerSet() { active_workers_.clear(); }
+
+  int GetActiveWorkerCount() { return active_workers_.size(); }
+
+  const std::unordered_set<int> &GetActiveWorkers() { return active_workers_; }
+
+  void AddActiveWorker(int wid);
+
+  virtual CheckResults CheckModuleConstraints() const;
+
  private:
   void DestroyAllTasks();
   void DeregisterAllAttributes();
@@ -296,13 +316,22 @@ class Module {
 
   std::vector<bess::IGate *> igates_;
   std::vector<bess::OGate *> ogates_;
+  // Set of active workers accessing this module.
+  std::unordered_set<int> active_workers_;
 
  protected:
+  // TODO[apanda]: Move to some constraint structure?
   // Placement constraints for this module. We use this to update the task based
-  // on
-  // all upstream tasks.
+  // on all upstream tasks.
   int node_constraints_;
 
+  // The minimum number of workers that should be using this module.
+  int min_allowed_workers_;
+
+  // The maximum number of workers allowed to access this module. Should be set
+  // to
+  // greater than 1 iff the module is thread safe.
+  int max_allowed_workers_;
   DISALLOW_COPY_AND_ASSIGN(Module);
 };
 
@@ -358,8 +387,7 @@ class ModuleTask {
  public:
   // Doesn't take ownership of 'arg' and 'c'.  'c' can be null and it
   // can be changed later with SetTC()
-  ModuleTask(void *arg, bess::LeafTrafficClass<Task> *c)
-      : arg_(arg), c_(c) {}
+  ModuleTask(void *arg, bess::LeafTrafficClass<Task> *c) : arg_(arg), c_(c) {}
 
   ~ModuleTask() {}
 
@@ -404,6 +432,16 @@ class Task {
       return module_->ComputePlacementConstraints();
     } else {
       return UNCONSTRAINED_SOCKET;
+    }
+  }
+
+  void AddActiveWorker(int wid) {
+    if (module_) {
+      LOG(WARNING) << "Adding active worker for wid " << wid << " to "
+                   << module_->name();
+      module_->AddActiveWorker(wid);
+    } else {
+      LOG(WARNING) << "No module";
     }
   }
 

@@ -557,6 +557,10 @@ class BESSControlImpl final : public BESSControl::Service {
       ServerContext*, const EmptyRequest*,
       CheckSchedulingConstraintsResponse* response) override {
     LOG(INFO) << "Checking scheduling constraints";
+    for (auto& pair : ModuleBuilder::all_modules()) {
+      Module* m = pair.second;
+      m->ResetActiveWorkerSet();
+    }
     for (int i = 0; i < num_workers; i++) {
       int socket = 1 << workers[i]->socket();
       int core = workers[i]->core();
@@ -567,6 +571,7 @@ class BESSControlImpl final : public BESSControl::Service {
           if (c->policy() == bess::POLICY_LEAF) {
             auto leaf = static_cast<bess::LeafTrafficClass<Task>*>(c);
             int constraints = leaf->Task().GetSocketConstraints();
+            leaf->Task().AddActiveWorker(i);
             if ((constraints & socket) == 0) {
               LOG(WARNING) << "Scheduler constraints are violated for wid " << i
                            << " socket " << socket << " constraint "
@@ -583,6 +588,19 @@ class BESSControlImpl final : public BESSControl::Service {
             }
           }
         });
+      }
+    }
+    for (const auto& pair : ModuleBuilder::all_modules()) {
+      const Module* m = pair.second;
+      auto ret = m->CheckModuleConstraints();
+      if (ret != CHECK_OK) {
+        LOG(WARNING) << "Module " << m->name() << " failed check " << ret;
+        auto module = response->add_modules();
+        module->set_name(m->name());
+        if (ret == CHECK_FATAL_ERROR) {
+          LOG(WARNING) << " --- FATAL CONSTRAINT FAILURE ---";
+          response->set_fatal(true);
+        }
       }
     }
     return Status::OK;

@@ -136,8 +136,11 @@ message CheckSchedulingConstraintsResponse {
     int32 assigned_node = 3;
     int32 assigned_core = 4;
   }
+  message ViolatingModule { string name = 1; }
   Error error = 1;
-  repeated ViolatingClass violations = 2;
+  bool fatal = 2;
+  repeated ViolatingClass violations = 3;
+  repeated ViolatingModule modules = 4;
 }
 
 message AddTcRequest {
