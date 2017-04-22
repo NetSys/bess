@@ -287,7 +287,7 @@ CheckConstraintResult Module::CheckModuleConstraints() const {
   }
 
   for (auto wid : active_workers_) {
-    int socket = 1 << workers[wid]->socket();
+    placement_constraint socket = 1ull << workers[wid]->socket();
     if ((socket & node_constraints_) == 0) {
       LOG(ERROR) << "Worker wid " << wid
                  << " does not meet placement constraints for module " << name_;
