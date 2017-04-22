@@ -101,7 +101,7 @@ class PMDPort final : public Port {
    * Get any placement constraints that need to be met when receiving from this
    * port.
    */
-  virtual int GetNodePlacementConstraint() const override {
+  virtual placement_constraint GetNodePlacementConstraint() const override {
     return node_placement_;
   }
 
@@ -120,7 +120,7 @@ class PMDPort final : public Port {
   /*!
    * The NUMA node to which device is attached
    */
-  int node_placement_;
+  placement_constraint node_placement_;
 
   std::string driver_;  // ixgbe, i40e, ...
 };

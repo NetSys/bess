@@ -196,7 +196,7 @@ class Port {
    * Get any placement constraints that need to be met when receiving from this
    * port.
    */
-  virtual int GetNodePlacementConstraint() const {
+  virtual placement_constraint GetNodePlacementConstraint() const {
     return UNCONSTRAINED_SOCKET;
   }
 

@@ -28,6 +28,7 @@ struct task_result {
 };
 
 typedef uint16_t task_id_t;
+typedef uint64_t placement_constraint;
 
 #define MAX_TASKS_PER_MODULE 32
 #define INVALID_TASK_ID ((task_id_t)-1)
@@ -158,7 +159,11 @@ class ModuleBuilder {
 
 class ModuleTask;
 
-enum CheckResults {
+/*!
+ * Results from checking for constraints. Failing constraints can indicate
+ * whether the failure is fatal or not.
+ */
+enum CheckConstraintResult {
   CHECK_OK = 0,
   CHECK_NONFATAL_ERROR = 1,
   CHECK_FATAL_ERROR = 2
@@ -279,17 +284,22 @@ class Module {
 
   const std::vector<bess::OGate *> &ogates() const { return ogates_; }
 
-  int ComputePlacementConstraints() const;
+  /*!
+   * Compute placement constraints based on the current module and all
+   * downstream modules (i.e., modules connected to out ports.
+   */
+  placement_constraint ComputePlacementConstraints() const;
 
+  /*!
+   * Reset the set of active workers.
+   */
   void ResetActiveWorkerSet() { active_workers_.clear(); }
 
-  int GetActiveWorkerCount() { return active_workers_.size(); }
-
-  const std::unordered_set<int> &GetActiveWorkers() { return active_workers_; }
+  const std::unordered_set<int> &active_workers() const { return active_workers_; }
 
   void AddActiveWorker(int wid);
 
-  virtual CheckResults CheckModuleConstraints() const;
+  virtual CheckConstraintResult CheckModuleConstraints() const;
 
  private:
   void DestroyAllTasks();
@@ -323,7 +333,7 @@ class Module {
   // TODO[apanda]: Move to some constraint structure?
   // Placement constraints for this module. We use this to update the task based
   // on all upstream tasks.
-  int node_constraints_;
+  placement_constraint node_constraints_;
 
   // The minimum number of workers that should be using this module.
   int min_allowed_workers_;
@@ -427,7 +437,10 @@ class Task {
     return module_->RunTask(arg_);
   }
 
-  int GetSocketConstraints() const {
+  /*!
+   * Compute constraints for the pipeline starting at this task.
+   */
+  placement_constraint GetSocketConstraints() const {
     if (module_) {
       return module_->ComputePlacementConstraints();
     } else {

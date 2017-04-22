@@ -1,5 +1,9 @@
 # This sample exists merely as a way to check
 # that constraint detection is correctly working.
+# This should detect constraint violations for
+# both workers, and indicate that no worker can
+# satisfy the constraints on `src1`. It should
+# also identify that `hlb` is unused.
 bess.add_worker(0, 0)
 bess.add_worker(1, 1)
 

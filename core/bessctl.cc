@@ -562,7 +562,7 @@ class BESSControlImpl final : public BESSControl::Service {
       m->ResetActiveWorkerSet();
     }
     for (int i = 0; i < num_workers; i++) {
-      int socket = 1 << workers[i]->socket();
+      int socket = 1ull << workers[i]->socket();
       int core = workers[i]->core();
       bess::TrafficClass* root = workers[i]->scheduler()->root();
       if (root) {

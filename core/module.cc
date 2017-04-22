@@ -245,7 +245,7 @@ void Module::DeregisterAllAttributes() {
   }
 }
 
-int Module::ComputePlacementConstraints() const {
+placement_constraint Module::ComputePlacementConstraints() const {
   // Take the constraints we have.
   int constraint = node_constraints_;
   for (size_t i = 0; i < ogates_.size(); i++) {
@@ -274,9 +274,9 @@ void Module::AddActiveWorker(int wid) {
   }
 }
 
-CheckResults Module::CheckModuleConstraints() const {
+CheckConstraintResult Module::CheckModuleConstraints() const {
   int num_active_workers = active_workers_.size();
-  CheckResults valid = CHECK_OK;
+  CheckConstraintResult valid = CHECK_OK;
   if (num_active_workers < min_allowed_workers_ ||
       num_active_workers > max_allowed_workers_) {
     LOG(ERROR) << "Mismatch in number of workers for module " << name_
@@ -286,10 +286,10 @@ CheckResults Module::CheckModuleConstraints() const {
     return CHECK_FATAL_ERROR;
   }
 
-  for (auto widx : active_workers_) {
-    int socket = 1 << workers[widx]->socket();
+  for (auto wid : active_workers_) {
+    int socket = 1 << workers[wid]->socket();
     if ((socket & node_constraints_) == 0) {
-      LOG(ERROR) << "Worker wid " << widx
+      LOG(ERROR) << "Worker wid " << wid
                  << " does not meet placement constraints for module " << name_;
       valid = CHECK_NONFATAL_ERROR;
     }

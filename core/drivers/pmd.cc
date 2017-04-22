@@ -280,7 +280,7 @@ pb_error_t PMDPort::Init(const bess::pb::PMDPortArg &arg) {
   dpdk_port_id_ = ret_port_id;
 
   numa_node = rte_eth_dev_socket_id(static_cast<int>(ret_port_id));
-  node_placement_ = numa_node == -1 ? UNCONSTRAINED_SOCKET : (1 << numa_node);
+  node_placement_ = numa_node == -1 ? UNCONSTRAINED_SOCKET : (1ull << numa_node);
 
   rte_eth_macaddr_get(dpdk_port_id_, reinterpret_cast<ether_addr *>(&mac_addr));
 

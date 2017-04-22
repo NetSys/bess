@@ -11,7 +11,7 @@ pb_error_t PortInc::Init(const bess::pb::PortIncArg &arg) {
   queue_t num_inc_q;
   int ret;
   pb_error_t err;
-  int placement_constraint;
+  int placement;
 
   burst_ = bess::PacketBatch::kMaxBurst;
 
@@ -38,8 +38,8 @@ pb_error_t PortInc::Init(const bess::pb::PortIncArg &arg) {
     return pb_error(ENODEV, "Port %s has no incoming queue", port_name);
   }
 
-  placement_constraint = port_->GetNodePlacementConstraint();
-  node_constraints_ = placement_constraint;
+  placement = port_->GetNodePlacementConstraint();
+  node_constraints_ = placement;
 
   for (queue_t qid = 0; qid < num_inc_q; qid++) {
     task_id_t tid = RegisterTask((void *)(uintptr_t)qid);
