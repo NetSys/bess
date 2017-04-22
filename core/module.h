@@ -20,7 +20,8 @@ static inline void set_cmd_response_error(pb_cmd_response_t *response,
 }
 
 #define MODULE_NAME_LEN 128
-#define UNCONSTRAINED_SOCKET 0xffff
+#define MAX_NUMA_NODE 16
+#define UNCONSTRAINED_SOCKET ((0x1ull << MAX_NUMA_NODE) - 1)
 
 struct task_result {
   uint64_t packets;

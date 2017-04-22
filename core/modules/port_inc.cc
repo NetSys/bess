@@ -11,7 +11,7 @@ pb_error_t PortInc::Init(const bess::pb::PortIncArg &arg) {
   queue_t num_inc_q;
   int ret;
   pb_error_t err;
-  int placement;
+  placement_constraint placement;
 
   burst_ = bess::PacketBatch::kMaxBurst;
 
