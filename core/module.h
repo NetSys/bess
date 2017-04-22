@@ -448,6 +448,9 @@ class Task {
     }
   }
 
+  /*!
+   * Add a worker to the set of workers that call this task.
+   */
   void AddActiveWorker(int wid) {
     if (module_) {
       LOG(WARNING) << "Adding active worker for wid " << wid << " to "
