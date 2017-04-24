@@ -322,6 +322,10 @@ bool RoundRobinTrafficClass::RemoveChild(TrafficClass *child) {
       if (next_child_ > i) {
         next_child_--;
       }
+      // Wrap around for round robin.
+      if (next_child_ >= children_.size()) {
+        next_child_ = 0;
+      }
       BlockTowardsRoot();
 
       return true;
@@ -356,6 +360,10 @@ void RoundRobinTrafficClass::BlockTowardsRoot() {
       children_.erase(children_.begin() + i);
       if (next_child_ > i) {
         next_child_--;
+      }
+      // Wrap around for round robin.
+      if (next_child_ >= children_.size()) {
+        next_child_ = 0;
       }
     } else {
       ++i;
