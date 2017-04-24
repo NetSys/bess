@@ -16,5 +16,4 @@ pkt_data = str(pkt)
 # the desied load level, especially when flow duration is pareto distribution
 
 FlowGen(template=pkt_data, pps=1e6, flow_rate = 1e4, flow_duration = 10.0, \
-        arrival='exponential', duration='pareto', quick_rampup=True, \
-        burst = 32) -> Sink()
+        arrival='exponential', duration='pareto', quick_rampup=True) -> Sink()

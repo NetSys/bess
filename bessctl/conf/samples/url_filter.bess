@@ -9,7 +9,7 @@ payload = 'GET /pub/WWW/TheProject.html HTTP/1.1\r\nHost: www.google.com\r\n\r\n
 pkt = str(eth/ip/tcp/payload)
 
 src::FlowGen(template=pkt, pps=2.2e6, flow_rate=800, flow_duration=5.0, \
-    arrival='uniform', duration='uniform', quick_rampup=False, burst = 32)
+    arrival='uniform', duration='uniform', quick_rampup=False)
 
 blacklist_rules = [{'host': 'www.%d.com' % i, 'path': '/'} for i in range(100)]
 filter::UrlFilter(blacklist=blacklist_rules)

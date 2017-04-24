@@ -22,7 +22,9 @@ using bess::utils::TcpHeader;
 const double PARETO_TAIL_LIMIT = 0.99;
 
 const Commands FlowGen::cmds = {
-    {"update", "FlowGenArg", MODULE_CMD_FUNC(&FlowGen::CommandUpdate), 0}};
+    {"update", "FlowGenArg", MODULE_CMD_FUNC(&FlowGen::CommandUpdate), 0},
+    {"set_burst", "FlowGenCommandSetBurstArg",
+     MODULE_CMD_FUNC(&FlowGen::CommandSetBurst), 0}};
 
 /* find x from CDF of pareto distribution from given y in [0.0, 1.0) */
 static inline double pareto_variate(double inversed_alpha, double y) {
@@ -201,10 +203,12 @@ pb_error_t FlowGen::ProcessArguments(const bess::pb::FlowGenArg &arg) {
     quick_rampup_ = 1;
   }
 
-  if (arg.burst() <= bess::PacketBatch::kMaxBurst) {
+  if (arg.burst() == 0) {
+    burst_ = bess::PacketBatch::kMaxBurst;
+  } else if (arg.burst() <= bess::PacketBatch::kMaxBurst) {
     burst_ = arg.burst();
   } else {
-    return pb_error(EINVAL, "'burst' must be no greater than %ld",
+    return pb_error(EINVAL, "'burst' must be no greater than %zu",
                     bess::PacketBatch::kMaxBurst);
   }
 
@@ -332,7 +336,33 @@ pb_cmd_response_t FlowGen::CommandUpdate(const bess::pb::FlowGenArg &arg) {
     return response;
   }
 
+  if (arg.burst() == 0) {
+    burst_ = bess::PacketBatch::kMaxBurst;
+  } else if (arg.burst() <= bess::PacketBatch::kMaxBurst) {
+    burst_ = arg.burst();
+  } else {
+    set_cmd_response_error(
+        &response, pb_error(EINVAL, "'burst' must be no greater than %zu",
+                            bess::PacketBatch::kMaxBurst));
+  }
+
   UpdateDerivedParameters();
+
+  set_cmd_response_error(&response, pb_errno(0));
+  return response;
+}
+
+pb_cmd_response_t FlowGen::CommandSetBurst(
+    const bess::pb::FlowGenCommandSetBurstArg &arg) {
+  pb_cmd_response_t response;
+
+  if (arg.burst() <= bess::PacketBatch::kMaxBurst) {
+    burst_ = arg.burst();
+  } else {
+    set_cmd_response_error(
+        &response, pb_error(EINVAL, "'burst' must be no greater than %zu",
+                            bess::PacketBatch::kMaxBurst));
+  }
 
   set_cmd_response_error(&response, pb_errno(0));
   return response;
