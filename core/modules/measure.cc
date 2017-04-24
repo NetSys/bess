@@ -31,7 +31,7 @@ const Commands Measure::cmds = {
 
 pb_error_t Measure::Init(const bess::pb::MeasureArg &arg) {
   // seconds from nanoseconds
-  warmup_ns_ = arg.warmup() * 1000000000ul;
+  warmup_ns_ = arg.warmup() * 1000000000ull;
 
   if (arg.offset()) {
     offset_ = arg.offset();

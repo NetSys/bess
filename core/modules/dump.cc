@@ -5,7 +5,7 @@
 
 #include <rte_hexdump.h>
 
-#define NS_PER_SEC 1000000000ul
+#define NS_PER_SEC 1000000000ull
 
 static const uint64_t DEFAULT_INTERVAL_NS = 1 * NS_PER_SEC; /* 1 sec */
 
