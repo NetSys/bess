@@ -1115,10 +1115,6 @@ class BESSControlImpl final : public BESSControl::Service {
 
   Status ConnectModules(ServerContext*, const ConnectModulesRequest* request,
                         EmptyResponse* response) override {
-    if (is_any_worker_running()) {
-      return return_with_error(response, EBUSY, "There is a running worker");
-    }
-
     VLOG(1) << "ConnectModulesRequest from client:" << std::endl
             << request->DebugString();
 
@@ -1154,6 +1150,18 @@ class BESSControlImpl final : public BESSControl::Service {
                                m2_name);
     }
     m2 = it2->second;
+
+    if (is_any_worker_running()) {
+      populate_active_workers();
+      if (m1->active_workers().size()) {
+        return return_with_error(response, EBUSY, "Module '%s' is in use",
+                                 m1_name);
+      }
+      if (m2->active_workers().size()) {
+        return return_with_error(response, EBUSY, "Module '%s' is in use",
+                                 m2_name);
+      }
+    }
 
     ret = m1->ConnectModules(ogate, m2, igate);
     if (ret < 0)
