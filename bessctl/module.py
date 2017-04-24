@@ -9,7 +9,7 @@ def _callback_factory(self, cmd, arg_type):
 
 class Module(object):
 
-    def __init__(self, **kwargs):
+    def __init__(self, _do_not_create=False, **kwargs):
         self.name = '<uninitialized>'
         self.mclass = self.__class__.__name__
 
@@ -22,10 +22,18 @@ class Module(object):
         else:
             name = None
 
-        ret = self.bess.create_module(self.__class__.__name__, name,
-                                      self.choose_arg(None, kwargs))
-
-        self.name = ret.name
+        if not _do_not_create:
+            # create an object
+            ret = self.bess.create_module(self.__class__.__name__, name,
+                                          self.choose_arg(None, kwargs))
+            self.name = ret.name
+        else:
+            # bind to a pre-existing object, check if it's real
+            assert name != None, "Module should not be None"
+            info = self.bess.get_module_info(name)
+            assert self.mclass == info.mclass, "Module %s is not of % type" % (
+                name, self.mclass)
+            self.name = name
 
         # add mclass-specific methods
         cls = self.bess.get_mclass_info(self.__class__.__name__)
