@@ -27,6 +27,7 @@ class Measure final : public Module {
   void ProcessBatch(bess::PacketBatch *batch) override;
 
   pb_cmd_response_t CommandGetSummary(const bess::pb::EmptyArg &arg);
+  pb_cmd_response_t CommandClear(const bess::pb::EmptyArg &arg);
 
   static const Commands cmds;
 

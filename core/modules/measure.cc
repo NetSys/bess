@@ -27,6 +27,7 @@ static bool IsTimestamped(bess::Packet *pkt, size_t offset, uint64_t *time) {
 const Commands Measure::cmds = {
     {"get_summary", "EmptyArg", MODULE_CMD_FUNC(&Measure::CommandGetSummary),
      0},
+    {"clear", "EmptyArg", MODULE_CMD_FUNC(&Measure::CommandClear), 0},
 };
 
 pb_error_t Measure::Init(const bess::pb::MeasureArg &arg) {
@@ -118,6 +119,12 @@ pb_cmd_response_t Measure::CommandGetSummary(const bess::pb::EmptyArg &) {
   response.mutable_other()->PackFrom(r);
 
   return response;
+}
+
+pb_cmd_response_t Measure::CommandClear(const bess::pb::EmptyArg &) {
+  rtt_hist_.reset();
+  jitter_hist_.reset();
+  return pb_cmd_response_t();
 }
 
 ADD_MODULE(Measure, "measure",
