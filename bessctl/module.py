@@ -29,9 +29,10 @@ class Module(object):
             self.name = ret.name
         else:
             # bind to a pre-existing object, check if it's real
-            assert name != None
+            assert name != None, "Module should not be None"
             info = self.bess.get_module_info(name)
-            assert self.mclass == info.mclass
+            assert self.mclass == info.mclass, "Module %s is not of % type" % (
+                name, self.mclass)
             self.name = name
 
         # add mclass-specific methods
