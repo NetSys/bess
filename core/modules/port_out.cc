@@ -23,6 +23,9 @@ pb_error_t PortOut::Init(const bess::pb::PortOutArg &arg) {
 
   ret = port_->AcquireQueues(reinterpret_cast<const module *>(this),
                              PACKET_DIR_OUT, nullptr, 0);
+
+  node_constraints_ = port_->GetNodePlacementConstraint();
+
   if (ret < 0) {
     return pb_errno(-ret);
   }

@@ -15,6 +15,7 @@
 #include "mem_alloc.h"
 #include "scheduler.h"
 #include "utils/pcap.h"
+#include "worker.h"
 
 const Commands Module::cmds;
 
@@ -214,11 +215,7 @@ void Module::ProcessBatch(bess::PacketBatch *) {
 }
 
 task_id_t Module::RegisterTask(void *arg) {
-  return RegisterTask(arg, ModuleTask::UNCONSTRAINED_SOCKET);
-}
-
-task_id_t Module::RegisterTask(void *arg, int constraints) {
-  ModuleTask *t = new ModuleTask(arg, nullptr, constraints);
+  ModuleTask *t = new ModuleTask(arg, nullptr);
 
   std::string leafname = std::string("!leaf_") + name_ + std::string(":") +
                          std::to_string(tasks_.size());
@@ -246,6 +243,58 @@ void Module::DeregisterAllAttributes() {
   for (const auto &it : attrs_) {
     pipeline_->DeregisterAttribute(it.name);
   }
+}
+
+placement_constraint Module::ComputePlacementConstraints() const {
+  // Take the constraints we have.
+  int constraint = node_constraints_;
+  for (size_t i = 0; i < ogates_.size(); i++) {
+    if (ogates_[i]) {
+      auto next = static_cast<Module *>(ogates_[i]->arg());
+      // Restrict constraints to account for other modules in the pipeline.
+      constraint &= next->ComputePlacementConstraints();
+      if (constraint == 0) {
+        LOG(WARNING) << "At " << name_
+                     << " after accounting for constraints from module "
+                     << next->name_ << " no feasible placement exists.";
+      }
+    }
+  }
+  return constraint;
+}
+
+void Module::AddActiveWorker(int wid) {
+  active_workers_.insert(wid);
+  LOG(WARNING) << "Added active worker " << wid << " to " << name_;
+  for (size_t i = 0; i < ogates_.size(); i++) {
+    if (ogates_[i]) {
+      auto next = static_cast<Module *>(ogates_[i]->arg());
+      next->AddActiveWorker(wid);
+    }
+  }
+}
+
+CheckConstraintResult Module::CheckModuleConstraints() const {
+  int num_active_workers = active_workers_.size();
+  CheckConstraintResult valid = CHECK_OK;
+  if (num_active_workers < min_allowed_workers_ ||
+      num_active_workers > max_allowed_workers_) {
+    LOG(ERROR) << "Mismatch in number of workers for module " << name_
+               << " min required " << min_allowed_workers_ << " max allowed "
+               << max_allowed_workers_ << " attached workers "
+               << num_active_workers << " returning fatal";
+    return CHECK_FATAL_ERROR;
+  }
+
+  for (auto wid : active_workers_) {
+    placement_constraint socket = 1ull << workers[wid]->socket();
+    if ((socket & node_constraints_) == 0) {
+      LOG(ERROR) << "Worker wid " << wid
+                 << " does not meet placement constraints for module " << name_;
+      valid = CHECK_NONFATAL_ERROR;
+    }
+  }
+  return valid;
 }
 
 int Module::AddMetadataAttr(const std::string &name, size_t size,

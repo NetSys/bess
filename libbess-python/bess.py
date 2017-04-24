@@ -17,6 +17,17 @@ import bess_msg_pb2 as bess_msg
 import port_msg_pb2 as port_msg
 
 
+def _constraints_to_list(constraint):
+    current = 0
+    active = []
+    while constraint > 0:
+        if constraint & 1 == 1:
+            active.append(current)
+        current += 1
+        constraint = constraint >> 1
+    return active
+
+
 class BESS(object):
 
     # errors from BESS daemon
@@ -42,6 +53,10 @@ class BESS(object):
 
     # errors from this class itself
     class APIError(Exception):
+        pass
+
+    # An error due to an unsatisfied constraint
+    class ConstraintError(Exception):
         pass
 
     DEF_PORT = 10514
@@ -78,7 +93,6 @@ class BESS(object):
     def connect(self, host='localhost', port=DEF_PORT):
         if self.is_connected():
             raise self.APIError('Already connected')
-
         self.status = None
         self.peer = (host, port)
         self.channel = grpc.insecure_channel('%s:%d' % (host, port))
@@ -172,6 +186,34 @@ class BESS(object):
 
     def pause_all(self):
         return self._request('PauseAll')
+
+    def check_constraints(self):
+        response = self.check_scheduling_constraints()
+        if len(response.violations) != 0 or len(response.modules) != 0:
+            print 'Placement violations found'
+            for violation in response.violations:
+                if violation.constraint != 0:
+                    valid = ' '.join(
+                        map(str, _constraints_to_list(violation.constraint)))
+                    print 'name %s allowed_sockets [%s] worker_socket %d '\
+                        'worker_core %d' % (violation.name,
+                                            valid,
+                                            violation.assigned_node,
+                                            violation.assigned_core)
+                else:
+                    print 'name %s has no valid '\
+                        'placements worker_socket %d '\
+                        'worker_core %d' % (violation.name,
+                                            violation.assigned_node,
+                                            violation.assigned_core)
+            for module in response.modules:
+                print 'constraints violated for module %s --'\
+                    ' please check bessd log' % module.name
+        else:
+            print 'No violations found'
+        if response.fatal:
+            raise self.ConstraintError("Fatal violation of "
+                                       "scheduling constraints")
 
     def resume_all(self):
         return self._request('ResumeAll')

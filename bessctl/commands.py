@@ -994,16 +994,10 @@ def _build_tcs_tree(tcs):
 
 @cmd('check constraints', 'Check constraints')
 def check_constraints(cli):
-    response = cli.bess.check_scheduling_constraints()
-    if len(response.violations) != 0:
-        cli.fout.write('Placement violations found\n')
-        for violation in response.violations:
-            cli.fout.write('name %s constraint %d socket %d core %d\n' % (violation.name,
-                                                                          violation.constraint,
-                                                                          violation.assigned_node,
-                                                                          violation.assigned_core))
-    else:
-        cli.fout.write('No violations found\n')
+    try:
+        cli.bess.check_constraints()
+    except Exception as e:
+        cli.fout.write("Constraint check failed %s\n" % repr(e))
 
 
 def _show_tc_list(cli, tcs):

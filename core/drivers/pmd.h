@@ -23,7 +23,7 @@ class PMDPort final : public Port {
       : Port(),
         dpdk_port_id_(DPDK_PORT_UNKNOWN),
         hot_plugged_(false),
-        node_placement_(ModuleTask::UNCONSTRAINED_SOCKET) {}
+        node_placement_(UNCONSTRAINED_SOCKET) {}
 
   void InitDriver() override;
 
@@ -101,7 +101,7 @@ class PMDPort final : public Port {
    * Get any placement constraints that need to be met when receiving from this
    * port.
    */
-  virtual int GetNodePlacementConstraint() const override {
+  virtual placement_constraint GetNodePlacementConstraint() const override {
     return node_placement_;
   }
 
@@ -120,7 +120,7 @@ class PMDPort final : public Port {
   /*!
    * The NUMA node to which device is attached
    */
-  int node_placement_;
+  placement_constraint node_placement_;
 
   std::string driver_;  // ixgbe, i40e, ...
 };
