@@ -373,6 +373,25 @@ static void collect_tc(const bess::TrafficClass* c, int wid,
   }
 }
 
+static void populate_active_workers() {
+  for (auto& pair : ModuleBuilder::all_modules()) {
+    Module* m = pair.second;
+    m->ResetActiveWorkerSet();
+  }
+  for (int i = 0; i < num_workers; i++) {
+    bess::TrafficClass* root = workers[i]->scheduler()->root();
+    if (root) {
+      root->Traverse([i](bess::TCChildArgs* args) {
+        bess::TrafficClass* c = args->child();
+        if (c->policy() == bess::POLICY_LEAF) {
+          auto leaf = static_cast<bess::LeafTrafficClass<Task>*>(c);
+          leaf->Task().AddActiveWorker(i);
+        }
+      });
+    }
+  }
+}
+
 class BESSControlImpl final : public BESSControl::Service {
  public:
   Status GetVersion(ServerContext*, const EmptyRequest*,
@@ -571,10 +590,9 @@ class BESSControlImpl final : public BESSControl::Service {
       ServerContext*, const EmptyRequest*,
       CheckSchedulingConstraintsResponse* response) override {
     LOG(INFO) << "Checking scheduling constraints";
-    for (auto& pair : ModuleBuilder::all_modules()) {
-      Module* m = pair.second;
-      m->ResetActiveWorkerSet();
-    }
+
+    populate_active_workers();
+
     for (int i = 0; i < num_workers; i++) {
       int socket = 1ull << workers[i]->socket();
       int core = workers[i]->core();
@@ -585,7 +603,6 @@ class BESSControlImpl final : public BESSControl::Service {
           if (c->policy() == bess::POLICY_LEAF) {
             auto leaf = static_cast<bess::LeafTrafficClass<Task>*>(c);
             int constraints = leaf->Task().GetSocketConstraints();
-            leaf->Task().AddActiveWorker(i);
             if ((constraints & socket) == 0) {
               LOG(WARNING) << "Scheduler constraints are violated for wid " << i
                            << " socket " << socket << " constraint "
