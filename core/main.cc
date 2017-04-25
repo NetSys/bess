@@ -39,9 +39,9 @@ int main(int argc, char *argv[]) {
   bess::bessd::WritePidfile(pidfile_fd, getpid());
 
   // Load plugins
-  if (!bess::bessd::LoadPlugins(bess::bessd::GetCurrentDirectory() +
-                                "modules")) {
-    PLOG(FATAL) << "LoadPlugins() failed";
+  if (!bess::bessd::LoadPlugins(FLAGS_modules)) {
+    PLOG(FATAL) << "LoadPlugins() failed to load from directory: " <<
+      FLAGS_modules;
   }
 
   // TODO(barath): Make these DPDK calls generic, so as to not be so tied to
