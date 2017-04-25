@@ -108,8 +108,10 @@ static void resume_worker(int wid) {
 
 /*!
  * Attach orphan TCs to workers. Note this does not ensure optimal placement.
+ * This method can only be called when all workers are paused.
  */
 void attach_orphans() {
+  assert(!is_any_worker_running());
   // Distribute all orphan TCs to workers.
   for (const auto& tc: orphan_tcs) {
     bess::TrafficClass *c = tc.second;

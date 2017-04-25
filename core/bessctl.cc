@@ -573,7 +573,11 @@ class BESSControlImpl final : public BESSControl::Service {
       CheckSchedulingConstraintsResponse* response) override {
     // Start by attaching orphans -- this is essential to make sure we visit
     // every TC.
-    attach_orphans();
+    if (!is_any_worker_running()) {
+      // If any worker is running (i.e., not everything is paused), then there
+      // is no point in attaching orphans.
+      attach_orphans();
+    }
     propagate_active_worker();
     LOG(INFO) << "Checking scheduling constraints";
     // Check constraints around chains run by each worker. This checks that
