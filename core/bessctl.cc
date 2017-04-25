@@ -373,25 +373,6 @@ static void collect_tc(const bess::TrafficClass* c, int wid,
   }
 }
 
-static void populate_active_workers() {
-  for (auto& pair : ModuleBuilder::all_modules()) {
-    Module* m = pair.second;
-    m->ResetActiveWorkerSet();
-  }
-  for (int i = 0; i < num_workers; i++) {
-    bess::TrafficClass* root = workers[i]->scheduler()->root();
-    if (root) {
-      root->Traverse([i](bess::TCChildArgs* args) {
-        bess::TrafficClass* c = args->child();
-        if (c->policy() == bess::POLICY_LEAF) {
-          auto leaf = static_cast<bess::LeafTrafficClass<Task>*>(c);
-          leaf->Task().AddActiveWorker(i);
-        }
-      });
-    }
-  }
-}
-
 class BESSControlImpl final : public BESSControl::Service {
  public:
   Status GetVersion(ServerContext*, const EmptyRequest*,
@@ -443,6 +424,7 @@ class BESSControlImpl final : public BESSControl::Service {
   Status ResumeAll(ServerContext*, const EmptyRequest*,
                    EmptyResponse*) override {
     LOG(INFO) << "*** Resuming ***";
+    attach_orphans();
     resume_all_workers();
     return Status::OK;
   }
@@ -589,10 +571,13 @@ class BESSControlImpl final : public BESSControl::Service {
   Status CheckSchedulingConstraints(
       ServerContext*, const EmptyRequest*,
       CheckSchedulingConstraintsResponse* response) override {
+    // Start by attaching orphans -- this is essential to make sure we visit
+    // every TC.
+    attach_orphans();
+    propagate_active_worker();
     LOG(INFO) << "Checking scheduling constraints";
-
-    populate_active_workers();
-
+    // Check constraints around chains run by each worker. This checks that
+    // global constraints are met.
     for (int i = 0; i < num_workers; i++) {
       int socket = 1ull << workers[i]->socket();
       int core = workers[i]->core();
@@ -621,6 +606,8 @@ class BESSControlImpl final : public BESSControl::Service {
         });
       }
     }
+
+    // Check local constraints
     for (const auto& pair : ModuleBuilder::all_modules()) {
       const Module* m = pair.second;
       auto ret = m->CheckModuleConstraints();
@@ -1152,7 +1139,7 @@ class BESSControlImpl final : public BESSControl::Service {
     m2 = it2->second;
 
     if (is_any_worker_running()) {
-      populate_active_workers();
+      propagate_active_worker();
       if (m1->active_workers().size()) {
         return return_with_error(response, EBUSY, "Module '%s' is in use",
                                  m1_name);

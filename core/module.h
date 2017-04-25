@@ -11,6 +11,7 @@
 #include "message.h"
 #include "metadata.h"
 #include "packet.h"
+#include "scheduler.h"
 
 using bess::gate_idx_t;
 
@@ -296,7 +297,9 @@ class Module {
    */
   void ResetActiveWorkerSet() { active_workers_.clear(); }
 
-  const std::unordered_set<int> &active_workers() const { return active_workers_; }
+  const std::unordered_set<int> &active_workers() const {
+    return active_workers_;
+  }
 
   void AddActiveWorker(int wid);
 
@@ -552,6 +555,11 @@ template <typename T>
 inline void set_attr(Module *m, int attr_id, bess::Packet *pkt, T val) {
   set_attr_with_offset(m->attr_offset(attr_id), pkt, val);
 }
+
+/*!
+ * Update information about what workers are accessing what model.
+ */
+void propagate_active_worker();
 
 // Define some common versions of the above functions
 #define INSTANTIATE_MT_FOR_TYPE(type)                                        \
