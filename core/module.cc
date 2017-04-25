@@ -482,32 +482,33 @@ void Module::RunSplit(const gate_idx_t *out_gates,
   gate_idx_t pending[bess::PacketBatch::kMaxBurst];
   bess::PacketBatch batches[bess::PacketBatch::kMaxBurst];
 
-  bess::PacketBatch *splits = ctx.splits();
+  bess::PacketBatch **splits = ctx.splits();
 
-  /* phase 1: collect unique ogates into pending[] */
+  // phase 1: collect unique ogates into pending[] and add packets to local
+  // batches, using splits to remember the association between an ogate and a
+  // local batch
   for (int i = 0; i < cnt; i++) {
     bess::PacketBatch *batch;
     gate_idx_t ogate;
 
     ogate = out_gates[i];
-    batch = &splits[ogate];
+    batch = splits[ogate];
+    if (!batch) {
+      batch = splits[ogate] = &batches[num_pending];
+      batch->clear();
+      pending[num_pending] = ogate;
+      num_pending++;
+    }
 
     batch->add(*(p_pkt++));
-
-    pending[num_pending] = ogate;
-    num_pending += (batch->cnt() == 1);
   }
 
-  /* phase 2: move batches to local stack, since it may be reentrant */
+  // phase 2: clear splits, since it may be reentrant.
   for (int i = 0; i < num_pending; i++) {
-    bess::PacketBatch *batch;
-
-    batch = &splits[pending[i]];
-    batches[i].Copy(batch);
-    batch->clear();
+    splits[pending[i]] = nullptr;
   }
 
-  /* phase 3: fire */
+  // phase 3: fire
   for (int i = 0; i < num_pending; i++)
     RunChooseModule(pending[i], &batches[i]);
 }
