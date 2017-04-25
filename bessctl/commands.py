@@ -796,7 +796,6 @@ def add_connection(cli, m1, m2, ogate, igate, pause_workers):
     try:
         cli.bess.connect_modules(m1, m2, ogate, igate)
     finally:
-        cli.bess.resume_all()
         if pause_workers != 'no_pause':
             cli.bess.resume_all()
 
