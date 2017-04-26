@@ -56,4 +56,3 @@ while True:
     bess.resume_all()
     time.sleep(sleeptime) # give it some time to warm up to the new rate
     prev_portstats = myport.get_port_stats().inc.packets
-
