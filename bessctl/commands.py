@@ -784,7 +784,7 @@ def add_module(cli, mclass, module, pause_workers, args):
 
 @cmd('add connection MODULE MODULE [OGATE] [IGATE] [PAUSE_WORKERS]',
      'Add a connection between two modules')
-def add_connection(cli, m1, m2, ogate, igate, pause_workers):
+def add_connection(cli, m1, m2, ogate, igate, pause_workers='pause'):
     if ogate is None:
         ogate = 0
 
