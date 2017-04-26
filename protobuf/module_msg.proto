@@ -547,6 +547,8 @@ message IPEncapArg {
  * __Output Gates__: many (configurable, depending on rule values)
  */
 message IPLookupArg {
+  uint32 max_rules = 1; /// Maximum number of rules (default: 1024)
+  uint32 max_tbl8s = 2; /// Maximum number of IP prefixes with smaller than /24 (default: 128)
 }
 
 /**
