@@ -860,8 +860,10 @@ message SourceArg {
  */
 message SplitArg {
   uint64 size = 1; /// The size of the value to read in bytes
-  string name = 2; /// The name of the metadata field to read.
-  int64 offset = 3; /// The offset (in bytes) of the data field to read.
+  oneof type {
+    string attribute = 2; /// The name of the metadata field to read.
+    int64 offset = 3; /// The offset (in bytes) of the data field to read.
+  }
 }
 
 /**
