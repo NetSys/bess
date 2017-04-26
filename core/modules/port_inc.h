@@ -25,7 +25,7 @@ class PortInc final : public Module {
       const bess::pb::PortIncCommandSetBurstArg &arg);
 
  private:
-  pb_error_t SetBurst(int64_t burst);
+  pb_error_t SetBurst(uint64_t burst);
 
   Port *port_;
   int prefetch_;

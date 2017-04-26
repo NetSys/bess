@@ -58,14 +58,7 @@ pb_error_t Queue::Init(const bess::pb::QueueArg &arg) {
   if (tid == INVALID_TASK_ID)
     return pb_error(ENOMEM, "Task creation failed");
 
-  if (arg.burst() != 0) {
-    err = SetBurst(arg.burst());
-    if (err.err() != 0) {
-      return err;
-    }
-  } else {
-    burst_ = bess::PacketBatch::kMaxBurst;
-  }
+  burst_ = bess::PacketBatch::kMaxBurst;
 
   if (arg.size() != 0) {
     err = SetSize(arg.size());
@@ -147,10 +140,9 @@ struct task_result Queue::RunTask(void *) {
   return ret;
 }
 
-pb_error_t Queue::SetBurst(int64_t burst) {
-  if (burst == 0 ||
-      burst > static_cast<int64_t>(bess::PacketBatch::kMaxBurst)) {
-    return pb_error(EINVAL, "burst size must be [1,%zu]",
+pb_error_t Queue::SetBurst(uint64_t burst) {
+  if (burst > bess::PacketBatch::kMaxBurst) {
+    return pb_error(EINVAL, "burst size must be [0,%zu]",
                     bess::PacketBatch::kMaxBurst);
   }
 

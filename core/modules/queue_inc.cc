@@ -23,13 +23,7 @@ pb_error_t QueueInc::Init(const bess::pb::QueueIncArg &arg) {
     return pb_error(ENODEV, "Port %s not found", port_name);
   }
   port_ = it->second;
-
-  if (arg.burst() != 0) {
-    err = SetBurst(arg.burst());
-    if (err.err() != 0) {
-      return err;
-    }
-  }
+  burst_ = bess::PacketBatch::kMaxBurst;
 
   if (arg.prefetch()) {
     prefetch_ = 1;
@@ -109,10 +103,9 @@ struct task_result QueueInc::RunTask(void *arg) {
   return ret;
 }
 
-pb_error_t QueueInc::SetBurst(int64_t burst) {
-  if (burst == 0 ||
-      burst > static_cast<int64_t>(bess::PacketBatch::kMaxBurst)) {
-    return pb_error(EINVAL, "burst size must be [1,%zu]",
+pb_error_t QueueInc::SetBurst(uint64_t burst) {
+  if (burst > bess::PacketBatch::kMaxBurst) {
+    return pb_error(EINVAL, "burst size must be [0,%zu]",
                     bess::PacketBatch::kMaxBurst);
   }
   burst_ = burst;

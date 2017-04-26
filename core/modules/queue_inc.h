@@ -28,7 +28,7 @@ class QueueInc final : public Module {
   queue_t qid_;
   int prefetch_;
   int burst_;
-  pb_error_t SetBurst(int64_t burst);
+  pb_error_t SetBurst(uint64_t burst);
 };
 
 #endif  // BESS_MODULES_QUEUEINC_H_

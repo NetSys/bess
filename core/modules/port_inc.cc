@@ -24,14 +24,9 @@ pb_error_t PortInc::Init(const bess::pb::PortIncArg &arg) {
   if (it == PortBuilder::all_ports().end()) {
     return pb_error(ENODEV, "Port %s not found", port_name);
   }
-  port_ = it->second;
 
-  if (arg.burst() != 0) {
-    err = SetBurst(arg.burst());
-    if (err.err() != 0) {
-      return err;
-    }
-  }
+  port_ = it->second;
+  burst_ = bess::PacketBatch::kMaxBurst;
 
   num_inc_q = port_->num_queues[PACKET_DIR_INC];
   if (num_inc_q == 0) {
@@ -122,10 +117,9 @@ struct task_result PortInc::RunTask(void *arg) {
   return ret;
 }
 
-pb_error_t PortInc::SetBurst(int64_t burst) {
-  if (burst == 0 ||
-      burst > static_cast<int64_t>(bess::PacketBatch::kMaxBurst)) {
-    return pb_error(EINVAL, "burst size must be [1,%zu]",
+pb_error_t PortInc::SetBurst(uint64_t burst) {
+  if (burst > bess::PacketBatch::kMaxBurst) {
+    return pb_error(EINVAL, "burst size must be [0,%zu]",
                     bess::PacketBatch::kMaxBurst);
   }
   burst_ = burst;
