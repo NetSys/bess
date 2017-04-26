@@ -344,6 +344,54 @@ static Module* create_module(const std::string& name,
   return m;
 }
 
+static void collect_tc(const bess::TrafficClass* c, int wid,
+                       ListTcsResponse_TrafficClassStatus* status) {
+  if (c->parent()) {
+    status->set_parent(c->parent()->name());
+  }
+
+  status->mutable_class_()->set_name(c->name());
+  status->mutable_class_()->set_blocked(c->blocked());
+
+  if (c->policy() >= 0 && c->policy() < bess::NUM_POLICIES) {
+    status->mutable_class_()->set_policy(bess::TrafficPolicyName[c->policy()]);
+  } else {
+    status->mutable_class_()->set_policy("invalid");
+  }
+
+  status->mutable_class_()->set_wid(wid);
+
+  if (c->policy() == bess::POLICY_RATE_LIMIT) {
+    const bess::RateLimitTrafficClass* rl =
+        reinterpret_cast<const bess::RateLimitTrafficClass*>(c);
+    std::string resource = bess::ResourceName.at(rl->resource());
+    int64_t limit = rl->limit_arg();
+    int64_t max_burst = rl->max_burst_arg();
+    status->mutable_class_()->mutable_limit()->insert({resource, limit});
+    status->mutable_class_()->mutable_max_burst()->insert(
+        {resource, max_burst});
+  }
+}
+
+static void populate_active_workers() {
+  for (auto& pair : ModuleBuilder::all_modules()) {
+    Module* m = pair.second;
+    m->ResetActiveWorkerSet();
+  }
+  for (int i = 0; i < num_workers; i++) {
+    bess::TrafficClass* root = workers[i]->scheduler()->root();
+    if (root) {
+      root->Traverse([i](bess::TCChildArgs* args) {
+        bess::TrafficClass* c = args->child();
+        if (c->policy() == bess::POLICY_LEAF) {
+          auto leaf = static_cast<bess::LeafTrafficClass<Task>*>(c);
+          leaf->Task().AddActiveWorker(i);
+        }
+      });
+    }
+  }
+}
+
 class BESSControlImpl final : public BESSControl::Service {
  public:
   Status GetVersion(ServerContext*, const EmptyRequest*,
@@ -513,32 +561,7 @@ class BESSControlImpl final : public BESSControl::Service {
         ListTcsResponse_TrafficClassStatus* status =
             response->add_classes_status();
 
-        if (c->parent()) {
-          status->set_parent(c->parent()->name());
-        }
-
-        status->mutable_class_()->set_name(c->name());
-        status->mutable_class_()->set_blocked(c->blocked());
-
-        if (c->policy() >= 0 && c->policy() < bess::NUM_POLICIES) {
-          status->mutable_class_()->set_policy(
-              bess::TrafficPolicyName[c->policy()]);
-        } else {
-          status->mutable_class_()->set_policy("invalid");
-        }
-
-        status->mutable_class_()->set_wid(i);
-
-        if (c->policy() == bess::POLICY_RATE_LIMIT) {
-          const bess::RateLimitTrafficClass* rl =
-              reinterpret_cast<const bess::RateLimitTrafficClass*>(c);
-          std::string resource = bess::ResourceName.at(rl->resource());
-          int64_t limit = rl->limit_arg();
-          int64_t max_burst = rl->max_burst_arg();
-          status->mutable_class_()->mutable_limit()->insert({resource, limit});
-          status->mutable_class_()->mutable_max_burst()->insert(
-              {resource, max_burst});
-        }
+        collect_tc(c, i, status);
 
         if (args->parent_type() == bess::POLICY_WEIGHTED_FAIR) {
           auto ca = static_cast<bess::WeightedFairChildArgs*>(args);
@@ -550,6 +573,16 @@ class BESSControlImpl final : public BESSControl::Service {
       });
     }
 
+    if (request->wid() < 0) {
+      std::list<std::pair<int, bess::TrafficClass*>> all = list_orphan_tcs();
+      for (auto c : all) {
+        ListTcsResponse_TrafficClassStatus* status =
+            response->add_classes_status();
+
+        collect_tc(c.second, -1, status);
+      }
+    }
+
     return Status::OK;
   }
 
@@ -557,10 +590,9 @@ class BESSControlImpl final : public BESSControl::Service {
       ServerContext*, const EmptyRequest*,
       CheckSchedulingConstraintsResponse* response) override {
     LOG(INFO) << "Checking scheduling constraints";
-    for (auto& pair : ModuleBuilder::all_modules()) {
-      Module* m = pair.second;
-      m->ResetActiveWorkerSet();
-    }
+
+    populate_active_workers();
+
     for (int i = 0; i < num_workers; i++) {
       int socket = 1ull << workers[i]->socket();
       int core = workers[i]->core();
@@ -571,7 +603,6 @@ class BESSControlImpl final : public BESSControl::Service {
           if (c->policy() == bess::POLICY_LEAF) {
             auto leaf = static_cast<bess::LeafTrafficClass<Task>*>(c);
             int constraints = leaf->Task().GetSocketConstraints();
-            leaf->Task().AddActiveWorker(i);
             if ((constraints & socket) == 0) {
               LOG(WARNING) << "Scheduler constraints are violated for wid " << i
                            << " socket " << socket << " constraint "
@@ -988,10 +1019,6 @@ class BESSControlImpl final : public BESSControl::Service {
 
   Status CreateModule(ServerContext*, const CreateModuleRequest* request,
                       CreateModuleResponse* response) override {
-    if (is_any_worker_running()) {
-      return return_with_error(response, EBUSY, "There is a running worker");
-    }
-
     VLOG(1) << "CreateModuleRequest from client:" << std::endl
             << request->DebugString();
 
@@ -1088,10 +1115,6 @@ class BESSControlImpl final : public BESSControl::Service {
 
   Status ConnectModules(ServerContext*, const ConnectModulesRequest* request,
                         EmptyResponse* response) override {
-    if (is_any_worker_running()) {
-      return return_with_error(response, EBUSY, "There is a running worker");
-    }
-
     VLOG(1) << "ConnectModulesRequest from client:" << std::endl
             << request->DebugString();
 
@@ -1127,6 +1150,18 @@ class BESSControlImpl final : public BESSControl::Service {
                                m2_name);
     }
     m2 = it2->second;
+
+    if (is_any_worker_running()) {
+      populate_active_workers();
+      if (m1->active_workers().size()) {
+        return return_with_error(response, EBUSY, "Module '%s' is in use",
+                                 m1_name);
+      }
+      if (m2->active_workers().size()) {
+        return return_with_error(response, EBUSY, "Module '%s' is in use",
+                                 m2_name);
+      }
+    }
 
     ret = m1->ConnectModules(ogate, m2, igate);
     if (ret < 0)
