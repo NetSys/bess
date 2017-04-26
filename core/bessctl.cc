@@ -424,7 +424,9 @@ class BESSControlImpl final : public BESSControl::Service {
   Status ResumeAll(ServerContext*, const EmptyRequest*,
                    EmptyResponse*) override {
     LOG(INFO) << "*** Resuming ***";
-    attach_orphans();
+    if (!is_any_worker_running()) {
+      attach_orphans();
+    }
     resume_all_workers();
     return Status::OK;
   }
