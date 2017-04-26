@@ -24,7 +24,7 @@ const double PARETO_TAIL_LIMIT = 0.99;
 const Commands FlowGen::cmds = {
     {"update", "FlowGenArg", MODULE_CMD_FUNC(&FlowGen::CommandUpdate), 0},
     {"set_burst", "FlowGenCommandSetBurstArg",
-     MODULE_CMD_FUNC(&FlowGen::CommandSetBurst), 0}};
+     MODULE_CMD_FUNC(&FlowGen::CommandSetBurst), 1}};
 
 /* find x from CDF of pareto distribution from given y in [0.0, 1.0) */
 static inline double pareto_variate(double inversed_alpha, double y) {
@@ -334,16 +334,6 @@ pb_cmd_response_t FlowGen::CommandUpdate(const bess::pb::FlowGenArg &arg) {
         pb_error(EINVAL, "duration must be 'uniform' or 'pareto' {%s}",
                  arg.duration().c_str()));
     return response;
-  }
-
-  if (arg.burst() == 0) {
-    burst_ = bess::PacketBatch::kMaxBurst;
-  } else if (arg.burst() <= bess::PacketBatch::kMaxBurst) {
-    burst_ = arg.burst();
-  } else {
-    set_cmd_response_error(
-        &response, pb_error(EINVAL, "'burst' must be no greater than %zu",
-                            bess::PacketBatch::kMaxBurst));
   }
 
   UpdateDerivedParameters();
