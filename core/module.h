@@ -563,7 +563,7 @@ inline void set_attr(Module *m, int attr_id, bess::Packet *pkt, T val) {
 }
 
 /*!
- * Update information about what workers are accessing what model.
+ * Update information about what workers are accessing what module.
  */
 void propagate_active_worker();
 

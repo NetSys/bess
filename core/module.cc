@@ -266,9 +266,9 @@ placement_constraint Module::ComputePlacementConstraints() const {
 void Module::AddActiveWorker(int wid) {
   active_workers_.insert(wid);
   if (propagate_workers_) {
-    for (size_t i = 0; i < ogates_.size(); i++) {
-      if (ogates_[i]) {
-        auto next = static_cast<Module *>(ogates_[i]->arg());
+    for (auto ogate : ogates_) {
+      if (ogate) {
+        auto next = static_cast<Module *>(ogate->arg());
         next->AddActiveWorker(wid);
       }
     }
