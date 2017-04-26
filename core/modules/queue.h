@@ -9,7 +9,9 @@ class Queue final : public Module {
  public:
   static const Commands cmds;
 
-  Queue() : Module(), queue_(), prefetch_(), burst_() {}
+  Queue() : Module(), queue_(), prefetch_(), burst_() {
+    propagate_workers_ = false;
+  }
 
   pb_error_t Init(const bess::pb::QueueArg &arg);
 

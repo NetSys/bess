@@ -265,11 +265,12 @@ placement_constraint Module::ComputePlacementConstraints() const {
 
 void Module::AddActiveWorker(int wid) {
   active_workers_.insert(wid);
-  LOG(WARNING) << "Added active worker " << wid << " to " << name_;
-  for (size_t i = 0; i < ogates_.size(); i++) {
-    if (ogates_[i]) {
-      auto next = static_cast<Module *>(ogates_[i]->arg());
-      next->AddActiveWorker(wid);
+  if (propagate_workers_) {
+    for (size_t i = 0; i < ogates_.size(); i++) {
+      if (ogates_[i]) {
+        auto next = static_cast<Module *>(ogates_[i]->arg());
+        next->AddActiveWorker(wid);
+      }
     }
   }
 }

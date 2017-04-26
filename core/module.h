@@ -186,7 +186,8 @@ class Module {
         active_workers_(),
         node_constraints_(UNCONSTRAINED_SOCKET),
         min_allowed_workers_(1),
-        max_allowed_workers_(1) {}
+        max_allowed_workers_(1),
+        propagate_workers_(true) {}
   virtual ~Module() {}
 
   pb_error_t Init(const bess::pb::EmptyArg &arg);
@@ -301,7 +302,7 @@ class Module {
     return active_workers_;
   }
 
-  void AddActiveWorker(int wid);
+  virtual void AddActiveWorker(int wid);
 
   virtual CheckConstraintResult CheckModuleConstraints() const;
 
@@ -343,9 +344,14 @@ class Module {
   int min_allowed_workers_;
 
   // The maximum number of workers allowed to access this module. Should be set
-  // to
-  // greater than 1 iff the module is thread safe.
+  // to greater than 1 iff the module is thread safe.
   int max_allowed_workers_;
+
+  // Should workers be propagated. Set this to false for cases, e.g., `Queue`
+  // where upstream and downstream modules are called by different workers.
+  // Note, one should override the `AddActiveWorker` method in more complex
+  // cases.
+  bool propagate_workers_;
   DISALLOW_COPY_AND_ASSIGN(Module);
 };
 
