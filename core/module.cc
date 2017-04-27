@@ -271,7 +271,6 @@ placement_constraint Module::ComputePlacementConstraints(
 void Module::AddActiveWorker(int wid, ModuleTask *t) {
   uint64_t worker_mask = 1ull << wid;
   if (!(worker_mask & active_workers_)) {  // Already accounted for this worker
-    LOG(WARNING) << "Adding " << wid << " to " << name_;
     active_workers_ |= worker_mask;
     bool propagate = propagate_workers_;
     if (!propagate) {  // Do not propagate unless this module created worker.
