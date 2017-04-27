@@ -172,12 +172,6 @@ message L2ForwardCommandPopulateArg {
   int64 gate_count = 3; /// How many gates to create in the L2Forward module.
 }
 
-/**
- * This function requests a summary of the statistics stored in the Measure module.
- * It takes no parameters and returns a GetSummaryResponse.
- */
-message MeasureCommandGetSummaryArg {
-}
 
 /**
  * The Measure module function `get_summary()` takes no parameters and returns
