@@ -245,57 +245,78 @@ void Module::DeregisterAllAttributes() {
   }
 }
 
-placement_constraint Module::ComputePlacementConstraints() const {
+placement_constraint Module::ComputePlacementConstraints(
+    std::unordered_set<const Module *> &visited) const {
   // Take the constraints we have.
   int constraint = node_constraints_;
-  for (size_t i = 0; i < ogates_.size(); i++) {
-    if (ogates_[i]) {
-      auto next = static_cast<Module *>(ogates_[i]->arg());
-      // Restrict constraints to account for other modules in the pipeline.
-      constraint &= next->ComputePlacementConstraints();
-      if (constraint == 0) {
-        LOG(WARNING) << "At " << name_
-                     << " after accounting for constraints from module "
-                     << next->name_ << " no feasible placement exists.";
+  // Follow the rest of the tree unless we have already been here.
+  if (visited.find(this) == visited.end()) {
+    visited.insert(this);
+    for (size_t i = 0; i < ogates_.size(); i++) {
+      if (ogates_[i]) {
+        auto next = static_cast<Module *>(ogates_[i]->arg());
+        // Restrict constraints to account for other modules in the pipeline.
+        constraint &= next->ComputePlacementConstraints(visited);
+        if (constraint == 0) {
+          LOG(WARNING) << "At " << name_
+                       << " after accounting for constraints from module "
+                       << next->name_ << " no feasible placement exists.";
+        }
       }
     }
   }
   return constraint;
 }
 
-void Module::AddActiveWorker(int wid) {
-  active_workers_.insert(wid);
-  if (propagate_workers_) {
-    for (auto ogate : ogates_) {
-      if (ogate) {
-        auto next = static_cast<Module *>(ogate->arg());
-        next->AddActiveWorker(wid);
+void Module::AddActiveWorker(int wid, ModuleTask *t) {
+  uint64_t worker_mask = 1ull << wid;
+  if (!(worker_mask & active_workers_)) {  // Already accounted for this worker
+    LOG(WARNING) << "Adding " << wid << " to " << name_;
+    active_workers_ |= worker_mask;
+    bool propagate = propagate_workers_;
+    if (!propagate) {  // Do not propagate unless this module created worker.
+      for (const auto task : tasks_) {  // Check to see if this is the case.
+        if (t == task) {
+          propagate = true;
+          break;
+        }
+      }
+    }
+    if (propagate) {
+      for (auto ogate : ogates_) {
+        if (ogate) {
+          auto next = static_cast<Module *>(ogate->arg());
+          next->AddActiveWorker(wid, t);
+        }
       }
     }
   }
 }
 
 CheckConstraintResult Module::CheckModuleConstraints() const {
-  int num_active_workers = active_workers_.size();
+  int active_workers = num_active_workers();
   CheckConstraintResult valid = CHECK_OK;
-  if (num_active_workers < min_allowed_workers_ ||
-      num_active_workers > max_allowed_workers_) {
+  if (active_workers < min_allowed_workers_ ||
+      active_workers > max_allowed_workers_) {
     LOG(ERROR) << "Mismatch in number of workers for module " << name_
                << " min required " << min_allowed_workers_ << " max allowed "
                << max_allowed_workers_ << " attached workers "
-               << num_active_workers;
-    if (num_active_workers > max_allowed_workers_) {
+               << active_workers;
+    if (active_workers > max_allowed_workers_) {
       LOG(ERROR) << "Violates thread safety, returning fatal error";
       return CHECK_FATAL_ERROR;
     }
   }
 
-  for (auto wid : active_workers_) {
-    placement_constraint socket = 1ull << workers[wid]->socket();
-    if ((socket & node_constraints_) == 0) {
-      LOG(ERROR) << "Worker wid " << wid
-                 << " does not meet placement constraints for module " << name_;
-      valid = CHECK_NONFATAL_ERROR;
+  for (int wid = 0; wid < Worker::kMaxWorkers; wid++) {
+    if (active_workers_ & (1ull << wid)) {
+      placement_constraint socket = 1ull << workers[wid]->socket();
+      if ((socket & node_constraints_) == 0) {
+        LOG(ERROR) << "Worker wid " << wid
+                   << " does not meet placement constraints for module "
+                   << name_;
+        valid = CHECK_NONFATAL_ERROR;
+      }
     }
   }
   return valid;

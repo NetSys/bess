@@ -19,7 +19,8 @@ TESTS='exactmatch.bess
   unix_port.bess
   update.bess
   vlantest.bess
-  wildcardmatch.bess'
+  wildcardmatch.bess
+  nat'
 
 function fail
 {

@@ -1146,11 +1146,11 @@ class BESSControlImpl final : public BESSControl::Service {
 
     if (is_any_worker_running()) {
       propagate_active_worker();
-      if (m1->active_workers().size()) {
+      if (m1->num_active_workers()) {
         return return_with_error(response, EBUSY, "Module '%s' is in use",
                                  m1_name);
       }
-      if (m2->active_workers().size()) {
+      if (m2->num_active_workers()) {
         return return_with_error(response, EBUSY, "Module '%s' is in use",
                                  m2_name);
       }
