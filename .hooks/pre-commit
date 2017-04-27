@@ -40,12 +40,12 @@ refresh_commit() {
 }
 
 if ! command_exists $CXX_FORMAT; then
-	echo "Error: $CXX_FORMAT executable not found.\n" >&2
+	echo "Error: '$CXX_FORMAT' not found." >&2
 	exit 1
 fi
 
 if ! command_exists $PY_FORMAT; then
-	echo "Error: $PY_FORMAT executable not found. Try 'pip install $PY_FORMAT'?\n" >&2
+	echo "Error: '$PY_FORMAT' not found. Try 'pip install $PY_FORMAT'?" >&2
 	exit 1
 fi
 
