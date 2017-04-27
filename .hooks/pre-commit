@@ -21,7 +21,7 @@ match_extension() {
 
 show_patch() {
 	local diff=""
-	for file in `git diff-index --cached --name-only HEAD` ; do
+	for file in $files; do
 		if match_extension $file "$CXX_EXTS"; then
 			diff+=$($CXX_FORMAT -style=file $file | diff -u $file - | \
 				sed -e "1s|--- |--- a/|" -e "2s|+++ -|+++ b/$file|")
@@ -34,9 +34,7 @@ show_patch() {
 }
 
 refresh_commit() {
-	for file in `git diff-index --cached --name-only HEAD` ; do
-		git add $file
-	done
+	git add -- $files
 }
 
 if ! command_exists $CXX_FORMAT; then
@@ -54,6 +52,7 @@ fi
 # Allows us to read user input below, assigns stdin to keyboard
 exec < /dev/tty
 
+files=`git diff-index --cached --name-only HEAD`
 patch=$(show_patch)
 if [[ ! -z $patch ]]; then
 	echo "$patch"
