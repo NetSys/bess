@@ -265,11 +265,12 @@ placement_constraint Module::ComputePlacementConstraints() const {
 
 void Module::AddActiveWorker(int wid) {
   active_workers_.insert(wid);
-  LOG(WARNING) << "Added active worker " << wid << " to " << name_;
-  for (size_t i = 0; i < ogates_.size(); i++) {
-    if (ogates_[i]) {
-      auto next = static_cast<Module *>(ogates_[i]->arg());
-      next->AddActiveWorker(wid);
+  if (propagate_workers_) {
+    for (auto ogate : ogates_) {
+      if (ogate) {
+        auto next = static_cast<Module *>(ogate->arg());
+        next->AddActiveWorker(wid);
+      }
     }
   }
 }
@@ -282,8 +283,11 @@ CheckConstraintResult Module::CheckModuleConstraints() const {
     LOG(ERROR) << "Mismatch in number of workers for module " << name_
                << " min required " << min_allowed_workers_ << " max allowed "
                << max_allowed_workers_ << " attached workers "
-               << num_active_workers << " returning fatal";
-    return CHECK_FATAL_ERROR;
+               << num_active_workers;
+    if (num_active_workers > max_allowed_workers_) {
+      LOG(ERROR) << "Violates thread safety, returning fatal error";
+      return CHECK_FATAL_ERROR;
+    }
   }
 
   for (auto wid : active_workers_) {
@@ -644,4 +648,25 @@ int Module::DisableTcpDump(int is_igate, gate_idx_t gate_idx) {
   gate->RemoveHook(kGateHookTcpDumpGate);
 
   return 0;
+}
+
+void propagate_active_worker() {
+  for (auto &pair : ModuleBuilder::all_modules()) {
+    Module *m = pair.second;
+    m->ResetActiveWorkerSet();
+  }
+  for (int i = 0; i < num_workers; i++) {
+    int socket = 1ull << workers[i]->socket();
+    int core = workers[i]->core();
+    bess::TrafficClass *root = workers[i]->scheduler()->root();
+    if (root) {
+      root->Traverse([i, socket, core](bess::TCChildArgs *args) {
+        bess::TrafficClass *c = args->child();
+        if (c->policy() == bess::POLICY_LEAF) {
+          auto leaf = static_cast<bess::LeafTrafficClass<Task> *>(c);
+          leaf->Task().AddActiveWorker(i);
+        }
+      });
+    }
+  }
 }

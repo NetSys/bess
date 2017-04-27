@@ -215,8 +215,19 @@ class BESS(object):
             raise self.ConstraintError("Fatal violation of "
                                        "scheduling constraints")
 
-    def resume_all(self):
+    def uncheck_resume_all(self):
         return self._request('ResumeAll')
+
+    def check_resume_all(self):
+        ret = self.check_constraints()
+        self.uncheck_resume_all()
+        return ret
+
+    def resume_all(self, check=True):
+        if check:
+            return self.check_resume_all()
+        else:
+            return self.uncheck_resume_all()
 
     def check_scheduling_constraints(self):
         return self._request('CheckSchedulingConstraints')

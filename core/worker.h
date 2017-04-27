@@ -144,6 +144,11 @@ extern Worker *volatile workers[Worker::kMaxWorkers];
 int is_worker_core(int cpu);
 
 void pause_all_workers();
+
+/*!
+ * Attach orphan TCs to workers. Note this does not ensure optimal placement.
+ */
+void attach_orphans();
 void resume_all_workers();
 void destroy_worker(int wid);
 void destroy_all_workers();

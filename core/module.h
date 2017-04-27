@@ -11,6 +11,7 @@
 #include "message.h"
 #include "metadata.h"
 #include "packet.h"
+#include "scheduler.h"
 
 using bess::gate_idx_t;
 
@@ -185,7 +186,8 @@ class Module {
         active_workers_(),
         node_constraints_(UNCONSTRAINED_SOCKET),
         min_allowed_workers_(1),
-        max_allowed_workers_(1) {}
+        max_allowed_workers_(1),
+        propagate_workers_(true) {}
   virtual ~Module() {}
 
   pb_error_t Init(const bess::pb::EmptyArg &arg);
@@ -296,9 +298,11 @@ class Module {
    */
   void ResetActiveWorkerSet() { active_workers_.clear(); }
 
-  const std::unordered_set<int> &active_workers() const { return active_workers_; }
+  const std::unordered_set<int> &active_workers() const {
+    return active_workers_;
+  }
 
-  void AddActiveWorker(int wid);
+  virtual void AddActiveWorker(int wid);
 
   virtual CheckConstraintResult CheckModuleConstraints() const;
 
@@ -340,9 +344,14 @@ class Module {
   int min_allowed_workers_;
 
   // The maximum number of workers allowed to access this module. Should be set
-  // to
-  // greater than 1 iff the module is thread safe.
+  // to greater than 1 iff the module is thread safe.
   int max_allowed_workers_;
+
+  // Should workers be propagated. Set this to false for cases, e.g., `Queue`
+  // where upstream and downstream modules are called by different workers.
+  // Note, one should override the `AddActiveWorker` method in more complex
+  // cases.
+  bool propagate_workers_;
   DISALLOW_COPY_AND_ASSIGN(Module);
 };
 
@@ -552,6 +561,11 @@ template <typename T>
 inline void set_attr(Module *m, int attr_id, bess::Packet *pkt, T val) {
   set_attr_with_offset(m->attr_offset(attr_id), pkt, val);
 }
+
+/*!
+ * Update information about what workers are accessing what module.
+ */
+void propagate_active_worker();
 
 // Define some common versions of the above functions
 #define INSTANTIATE_MT_FOR_TYPE(type)                                        \

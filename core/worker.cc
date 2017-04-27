@@ -105,9 +105,14 @@ static void resume_worker(int wid) {
   }
 }
 
-void resume_all_workers() {
+/*!
+ * Attach orphan TCs to workers. Note this does not ensure optimal placement.
+ * This method can only be called when all workers are paused.
+ */
+void attach_orphans() {
+  CHECK(!is_any_worker_running());
   // Distribute all orphan TCs to workers.
-  for (const auto& tc: orphan_tcs) {
+  for (const auto &tc : orphan_tcs) {
     bess::TrafficClass *c = tc.second;
     if (c->parent()) {
       continue;
@@ -126,7 +131,9 @@ void resume_all_workers() {
   }
 
   orphan_tcs.clear();
+}
 
+void resume_all_workers() {
   for (int wid = 0; wid < Worker::kMaxWorkers; wid++) {
     if (workers[wid]) {
       workers[wid]->scheduler()->AdjustDefault();
