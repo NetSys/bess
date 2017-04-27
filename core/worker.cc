@@ -71,7 +71,7 @@ int is_worker_core(int cpu) {
   return 0;
 }
 
-static void pause_worker(int wid) {
+void pause_worker(int wid) {
   if (workers[wid] && workers[wid]->status() == WORKER_RUNNING) {
     workers[wid]->set_status(WORKER_PAUSING);
 
@@ -92,7 +92,7 @@ enum class worker_signal : uint64_t {
   quit,
 };
 
-static void resume_worker(int wid) {
+void resume_worker(int wid) {
   if (workers[wid] && workers[wid]->status() == WORKER_PAUSED) {
     int ret;
     worker_signal sig = worker_signal::unblock;

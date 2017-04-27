@@ -421,6 +421,14 @@ class BESSControlImpl final : public BESSControl::Service {
     return Status::OK;
   }
 
+  Status PauseWorker(ServerContext*, const PauseWorkerRequest* req,
+                     EmptyResponse*) override {
+    int wid = req->wid();
+    pause_worker(wid);
+    LOG(INFO) << "*** Worker " << wid << " has been paused ***";
+    return Status::OK;
+  }
+
   Status ResumeAll(ServerContext*, const EmptyRequest*,
                    EmptyResponse*) override {
     LOG(INFO) << "*** Resuming ***";
@@ -428,6 +436,14 @@ class BESSControlImpl final : public BESSControl::Service {
       attach_orphans();
     }
     resume_all_workers();
+    return Status::OK;
+  }
+
+  Status ResumeWorker(ServerContext*, const ResumeWorkerRequest* req,
+                      EmptyResponse*) override {
+    int wid = req->wid();
+    LOG(INFO) << "*** Resuming worker " << wid << " ***";
+    resume_worker(wid);
     return Status::OK;
   }
 

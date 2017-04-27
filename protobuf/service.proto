@@ -72,6 +72,22 @@ service BESSControl {
   /// Keep the duration as short as possible, to avoid packet drops.
   rpc PauseAll (EmptyRequest) returns (EmptyResponse) {}
 
+  /// Pause the specified worker temporarily
+  ///
+  /// Some RPC commands to BESS or individual modules/ports require that
+  /// threads must be inactive, to avoid race conditions.
+  /// For such commands, use PauseWorker at the beginning and ResumeWorker at the end.
+  ///  PauseWorker(0)
+  ///   SomeCommand1()
+  ///   SomeCommand2()
+  ///   ...
+  ///  ResumeWorker(0)
+  /// Keep the duration as short as possible, to avoid packet drops.
+  rpc PauseWorker (PauseWorkerRequest) returns (EmptyResponse) {}
+
+  /// Resume the specified worker
+  rpc ResumeWorker (ResumeWorkerRequest) returns (EmptyResponse) {}
+
   /// Resume all paused workers
   rpc ResumeAll (EmptyRequest) returns (EmptyResponse) {}
 
