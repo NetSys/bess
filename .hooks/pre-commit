@@ -41,11 +41,13 @@ refresh_commit() {
 
 if ! command_exists $CXX_FORMAT; then
 	echo "Error: '$CXX_FORMAT' not found." >&2
+	echo "       Use '--no-verify' to bypass format checker (not recommended)" >&2
 	exit 1
 fi
 
 if ! command_exists $PY_FORMAT; then
 	echo "Error: '$PY_FORMAT' not found. Try 'pip install $PY_FORMAT'?" >&2
+	echo "       Use '--no-verify' to bypass format checker (not recommended)" >&2
 	exit 1
 fi
 
