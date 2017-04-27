@@ -1,9 +1,9 @@
 #!/bin/bash
-#
-CXX_FORMAT="clang-format"
-CXX_EXTS=".c .h .cpp .hpp .cc .hh .cxx .hxx"
 
-PY_FORMAT="autopep8"
+: ${CXX_FORMAT:=clang-format}
+: ${PY_FORMAT:=autopep8}
+
+CXX_EXTS=".c .h .cpp .hpp .cc .hh .cxx .hxx"
 PY_EXTS=".py"
 
 command_exists() {
