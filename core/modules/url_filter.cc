@@ -135,7 +135,9 @@ inline static bess::Packet *GenerateResetPacket(
 pb_error_t UrlFilter::Init(const bess::pb::UrlFilterArg &arg) {
   for (const auto &url : arg.blacklist()) {
     if (blacklist_.find(url.host()) == blacklist_.end()) {
-      blacklist_.emplace(url.host(), Trie());
+      blacklist_.emplace(std::piecewise_construct,
+                         std::forward_as_tuple(url.host()),
+                         std::forward_as_tuple());
     }
     Trie &trie = blacklist_.at(url.host());
     trie.Insert(url.path());
