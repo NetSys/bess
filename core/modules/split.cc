@@ -23,9 +23,8 @@ pb_error_t Split::Init(const bess::pb::SplitArg &arg) {
   mask_ = (size_ == 8) ? 0xffffffffffffffffull
                        : (1ull << (size_ * 8)) - 1;
 
-  const char *name = arg.name().c_str();
-  if (arg.name().length()) {
-    attr_id_ = AddMetadataAttr(name, size_,
+  if (arg.type_case() == bess::pb::SplitArg::kAttribute) {
+    attr_id_ = AddMetadataAttr(arg.attribute().c_str(), size_,
                                bess::metadata::Attribute::AccessMode::kRead);
     if (attr_id_ < 0) {
       return pb_error(-attr_id_, "add_metadata_attr() failed");
