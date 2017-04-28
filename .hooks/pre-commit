@@ -33,8 +33,15 @@ show_patch() {
 	echo "$diff"
 }
 
-refresh_commit() {
-	git add -- $files
+apply_and_commit() {
+	if [[ ! -z $GIT_INDEX_FILE ]]; then
+		echo "Error: Non-default index file is being used (GIT_INDEX_FILE is set)." >&2
+		echo "       Are you using 'git commit [--only] -- <files>' to bypass staging?" >&2
+		exit 1
+	fi
+
+	(echo "$patch" | git apply -)
+	git add -- $file
 }
 
 if ! command_exists $CXX_FORMAT; then
@@ -64,7 +71,7 @@ if [[ ! -z $patch ]]; then
 	read -p "Do you want to commit anyway? [y/r/N] " yn
 	case $yn in
 		[Yy]* ) exit 0;;
-		[Rr]* ) (echo "$patch" | git apply -) && refresh_commit && exit 0;;
+		[Rr]* ) apply_and_commit && exit 0;;
 		* ) exit 1;;
 	esac
 fi
