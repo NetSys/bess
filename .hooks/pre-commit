@@ -40,6 +40,12 @@ apply_and_commit() {
 		exit 1
 	fi
 
+	# Do some files have partial commits? (only some portion of a file is staged)
+	if [[ ! -z $(git diff -- $files) ]]; then
+		echo "Error: Partial commits are not supported." >&2
+		exit 1
+	fi
+
 	(echo "$patch" | git apply -)
 	git add -- $file
 }
