@@ -61,7 +61,7 @@ if [[ ! -z $patch ]]; then
 	echo "y - commit without reformatting (not recommended)"
 	echo "r - apply the patch and commit"
 	echo "n - abort"
-	read -p "Do you want to commit anyway? [y/r/N]" yn
+	read -p "Do you want to commit anyway? [y/r/N] " yn
 	case $yn in
 		[Yy]* ) exit 0;;
 		[Rr]* ) (echo "$patch" | git apply -) && refresh_commit && exit 0;;
