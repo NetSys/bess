@@ -203,15 +203,6 @@ pb_error_t FlowGen::ProcessArguments(const bess::pb::FlowGenArg &arg) {
     quick_rampup_ = 1;
   }
 
-  if (arg.burst() == 0) {
-    burst_ = bess::PacketBatch::kMaxBurst;
-  } else if (arg.burst() <= bess::PacketBatch::kMaxBurst) {
-    burst_ = arg.burst();
-  } else {
-    return pb_error(EINVAL, "'burst' must be no greater than %zu",
-                    bess::PacketBatch::kMaxBurst);
-  }
-
   ip_src_range_ = arg.ip_src_range();
   ip_dst_range_ = arg.ip_dst_range();
 
@@ -371,6 +362,7 @@ pb_error_t FlowGen::Init(const bess::pb::FlowGenArg &arg) {
   arrival_ = Arrival::kUniform;
   duration_ = Duration::kUniform;
   pareto_.alpha = 1.3;
+  burst_ = bess::PacketBatch::kMaxBurst;
 
   /* register task */
   tid = RegisterTask(nullptr);
