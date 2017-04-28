@@ -20,7 +20,7 @@ TESTS='exactmatch.bess
   update.bess
   vlantest.bess
   wildcardmatch.bess
-  nat'
+  nat.bess'
 
 function fail
 {
