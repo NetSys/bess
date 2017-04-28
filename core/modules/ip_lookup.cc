@@ -21,9 +21,11 @@ const Commands IPLookup::cmds = {
     {"add", "IPLookupCommandAddArg", MODULE_CMD_FUNC(&IPLookup::CommandAdd), 0},
     {"clear", "EmptyArg", MODULE_CMD_FUNC(&IPLookup::CommandClear), 0}};
 
-pb_error_t IPLookup::Init(const bess::pb::EmptyArg &) {
+pb_error_t IPLookup::Init(const bess::pb::IPLookupArg &arg) {
   struct rte_lpm_config conf = {
-      .max_rules = 1024, .number_tbl8s = 128, .flags = 0,
+      .max_rules = arg.max_rules() ? arg.max_rules() : 1024,
+      .number_tbl8s = arg.max_tbl8s() ? arg.max_tbl8s() : 128,
+      .flags = 0,
   };
 
   default_gate_ = DROP_GATE;
@@ -142,7 +144,8 @@ pb_cmd_response_t IPLookup::CommandAdd(
 
   if (prefix_len > 32) {
     set_cmd_response_error(
-        &response, pb_error(EINVAL, "Invalid prefix length: %" PRIu64, prefix_len));
+        &response,
+        pb_error(EINVAL, "Invalid prefix length: %" PRIu64, prefix_len));
     return response;
   }
 
@@ -151,8 +154,8 @@ pb_cmd_response_t IPLookup::CommandAdd(
 
   if (ip_addr & ~netmask) {
     set_cmd_response_error(
-        &response, pb_error(EINVAL, "Invalid IP prefix %s/%" PRIu64 " %x %x", prefix,
-                            prefix_len, ip_addr, netmask));
+        &response, pb_error(EINVAL, "Invalid IP prefix %s/%" PRIu64 " %x %x",
+                            prefix, prefix_len, ip_addr, netmask));
     return response;
   }
 
