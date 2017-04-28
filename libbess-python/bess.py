@@ -209,8 +209,6 @@ class BESS(object):
             for module in response.modules:
                 print 'constraints violated for module %s --'\
                     ' please check bessd log' % module.name
-        else:
-            print 'No violations found'
         if response.fatal:
             raise self.ConstraintError("Fatal violation of "
                                        "scheduling constraints")
