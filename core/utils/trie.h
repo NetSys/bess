@@ -19,19 +19,28 @@ class Trie {
     }
 
     ~Node() {
-      if (!leaf) {
-        for (int i = 0; i < 256; i++) {
-          delete children[i];
+      for (int i = 0; i < 256; i++) {
+        delete children[i];
+      }
+    }
+
+    Node(const Node& n) {
+      leaf = n.leaf;
+      for (int i = 0; i < 256; i++) {
+        if (n.children[i] != nullptr) {
+          children[i] = new Node(*(n.children[i]));
+        } else {
+          children[i] = nullptr;
         }
       }
     }
 
     bool leaf;
-    Node *children[256];
+    Node* children[256];
   };
 
-  Trie() : root_(new Node()) {}
-  ~Trie() { delete root_; }
+  Trie() : root_() {}
+  Trie(const Trie& t) { root_ = t.root_; }
 
   // Inserts a string into the trie
   void Insert(const std::string& key);
@@ -43,11 +52,11 @@ class Trie {
   bool LookupKey(const std::string& key);
 
  private:
-  Node* root_;
+  Node root_;
 };
 
 inline void Trie::Insert(const std::string& key) {
-  Node* cur = root_;
+  Node* cur = &root_;
   for (const char& c : key) {
     size_t idx = c;
     if (cur->children[idx] == nullptr) {
@@ -59,7 +68,7 @@ inline void Trie::Insert(const std::string& key) {
 }
 
 inline bool Trie::Lookup(const std::string& prefix) {
-  Node* cur = root_;
+  Node* cur = &root_;
   for (const char& c : prefix) {
     size_t idx = c;
     if (cur->children[idx] == nullptr) {
@@ -71,7 +80,7 @@ inline bool Trie::Lookup(const std::string& prefix) {
 }
 
 inline bool Trie::LookupKey(const std::string& key) {
-  Node* cur = root_;
+  Node* cur = &root_;
   for (const char& c : key) {
     size_t idx = c;
     if (cur->children[idx] == nullptr) {

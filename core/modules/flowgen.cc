@@ -394,7 +394,7 @@ void FlowGen::DeInit() {
     flows_free_.pop();
   }
 
-  delete templ_;
+  delete[] templ_;
 }
 
 pb_error_t FlowGen::UpdateBaseAddresses() {
