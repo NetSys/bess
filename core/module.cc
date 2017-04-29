@@ -246,12 +246,12 @@ void Module::DeregisterAllAttributes() {
 }
 
 placement_constraint Module::ComputePlacementConstraints(
-    std::unordered_set<const Module *> &visited) const {
+    std::unordered_set<const Module *> *visited) const {
   // Take the constraints we have.
   int constraint = node_constraints_;
   // Follow the rest of the tree unless we have already been here.
-  if (visited.find(this) == visited.end()) {
-    visited.insert(this);
+  if (visited->find(this) == visited->end()) {
+    visited->insert(this);
     for (size_t i = 0; i < ogates_.size(); i++) {
       if (ogates_[i]) {
         auto next = static_cast<Module *>(ogates_[i]->arg());
@@ -268,13 +268,15 @@ placement_constraint Module::ComputePlacementConstraints(
   return constraint;
 }
 
-void Module::AddActiveWorker(int wid, ModuleTask *t) {
-  uint64_t worker_mask = 1ull << wid;
-  if (!(worker_mask & active_workers_)) {  // Already accounted for this worker
-    active_workers_ |= worker_mask;
+void Module::AddActiveWorker(int wid, const ModuleTask *t) {
+  if (!(active_workers_[wid])) {  // Have not already accounted for
+                                  // worker.
+    active_workers_[wid] = true;
+    // Check if we should propagate downstream. We propagate if either
+    // `propagate_workers_` is true or if the current module created the task.
     bool propagate = propagate_workers_;
-    if (!propagate) {  // Do not propagate unless this module created worker.
-      for (const auto task : tasks_) {  // Check to see if this is the case.
+    if (!propagate) {
+      for (const auto task : tasks_) {
         if (t == task) {
           propagate = true;
           break;
@@ -308,7 +310,7 @@ CheckConstraintResult Module::CheckModuleConstraints() const {
   }
 
   for (int wid = 0; wid < Worker::kMaxWorkers; wid++) {
-    if (active_workers_ & (1ull << wid)) {
+    if (active_workers_[wid]) {
       placement_constraint socket = 1ull << workers[wid]->socket();
       if ((socket & node_constraints_) == 0) {
         LOG(ERROR) << "Worker wid " << wid

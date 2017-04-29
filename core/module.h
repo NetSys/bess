@@ -183,7 +183,7 @@ class Module {
         tasks_(),
         igates_(),
         ogates_(),
-        active_workers_(0),
+        active_workers_(Worker::kMaxWorkers, false),
         node_constraints_(UNCONSTRAINED_SOCKET),
         min_allowed_workers_(1),
         max_allowed_workers_(1),
@@ -292,27 +292,26 @@ class Module {
    * downstream modules (i.e., modules connected to out ports.
    */
   placement_constraint ComputePlacementConstraints(
-      std::unordered_set<const Module *> &visited) const;
+      std::unordered_set<const Module *> *visited) const;
 
   /*!
    * Reset the set of active workers.
    */
-  void ResetActiveWorkerSet() { active_workers_ = 0; }
+  void ResetActiveWorkerSet() {
+    std::fill(active_workers_.begin(), active_workers_.end(), false);
+  }
 
-  uint64_t active_workers() const { return active_workers_; }
+  const std::vector<bool> &active_workers() const { return active_workers_; }
 
   /*!
    * Number of active workers attached to this module.
    */
   inline size_t num_active_workers() const {
-    if (sizeof(long) == 8) {
-      return __builtin_popcountl(active_workers_);
-    } else {
-      return __builtin_popcountll(active_workers_);
-    }
+    return std::count_if(active_workers_.begin(), active_workers_.end(),
+                         [](bool b) { return b; });
   }
 
-  virtual void AddActiveWorker(int wid, ModuleTask *task);
+  virtual void AddActiveWorker(int wid, const ModuleTask *task);
 
   virtual CheckConstraintResult CheckModuleConstraints() const;
 
@@ -342,7 +341,7 @@ class Module {
   std::vector<bess::IGate *> igates_;
   std::vector<bess::OGate *> ogates_;
   // Set of active workers accessing this module.
-  std::uint64_t active_workers_;
+  std::vector<bool> active_workers_;
 
  protected:
   // TODO[apanda]: Move to some constraint structure?
@@ -463,7 +462,7 @@ class Task {
   placement_constraint GetSocketConstraints() const {
     if (module_) {
       std::unordered_set<const Module *> visited;
-      return module_->ComputePlacementConstraints(visited);
+      return module_->ComputePlacementConstraints(&visited);
     } else {
       return UNCONSTRAINED_SOCKET;
     }
