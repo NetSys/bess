@@ -19,14 +19,13 @@ match_extension() {
 	return 1
 }
 
-show_patch() {
-	local diff=""
+get_patch() {
 	local reformatted=""
 	local file
+	patch=""
 
 	for file in $files; do
 		if match_extension $file "$CXX_EXTS"; then
-			echo "hi"
 			reformatted=`$CXX_FORMAT -style=file $file`
 		elif match_extension $file "$PY_EXTS"; then
 			reformatted=`$PY_FORMAT $file`
@@ -38,13 +37,14 @@ show_patch() {
 		echo "$reformatted" | git diff --no-index --color=always $file -
 
 		# ... and save non-colored patch for git-apply
-		diff+=`echo "$reformatted" | diff -u $file - | \
+		patch+=`echo "$reformatted" | diff -u $file - | \
 			sed -e "1s|--- |--- a/|" -e "2s|+++ -|+++ b/$file|"`
+		patch+=$'\n'
 	done
 }
 
 apply_and_commit() {
-	if [[ ! -z $GIT_INDEX_FILE ]]; then
+	if [[ $GIT_INDEX_FILE != ".git/index" ]]; then
 		echo "Error: Non-default index file is being used (GIT_INDEX_FILE is set)." >&2
 		echo "       Are you using 'git commit [--only] -- <files>' to bypass staging?" >&2
 		exit 1
@@ -76,9 +76,8 @@ fi
 exec < /dev/tty
 
 files=`git diff-index --cached --name-only HEAD`
-patch=$(show_patch)
+get_patch
 if [[ ! -z $patch ]]; then
-	echo "$patch"
 	echo "==========================================="
 	echo "Files in the commit do not comply with the formatting rules. Options:"
 	echo "y - commit without reformatting (not recommended)"
