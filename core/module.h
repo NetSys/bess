@@ -183,7 +183,7 @@ class Module {
         tasks_(),
         igates_(),
         ogates_(),
-        active_workers_(),
+        active_workers_(Worker::kMaxWorkers, false),
         node_constraints_(UNCONSTRAINED_SOCKET),
         min_allowed_workers_(1),
         max_allowed_workers_(1),
@@ -291,18 +291,27 @@ class Module {
    * Compute placement constraints based on the current module and all
    * downstream modules (i.e., modules connected to out ports.
    */
-  placement_constraint ComputePlacementConstraints() const;
+  placement_constraint ComputePlacementConstraints(
+      std::unordered_set<const Module *> *visited) const;
 
   /*!
    * Reset the set of active workers.
    */
-  void ResetActiveWorkerSet() { active_workers_.clear(); }
-
-  const std::unordered_set<int> &active_workers() const {
-    return active_workers_;
+  void ResetActiveWorkerSet() {
+    std::fill(active_workers_.begin(), active_workers_.end(), false);
   }
 
-  virtual void AddActiveWorker(int wid);
+  const std::vector<bool> &active_workers() const { return active_workers_; }
+
+  /*!
+   * Number of active workers attached to this module.
+   */
+  inline size_t num_active_workers() const {
+    return std::count_if(active_workers_.begin(), active_workers_.end(),
+                         [](bool b) { return b; });
+  }
+
+  virtual void AddActiveWorker(int wid, const ModuleTask *task);
 
   virtual CheckConstraintResult CheckModuleConstraints() const;
 
@@ -332,7 +341,7 @@ class Module {
   std::vector<bess::IGate *> igates_;
   std::vector<bess::OGate *> ogates_;
   // Set of active workers accessing this module.
-  std::unordered_set<int> active_workers_;
+  std::vector<bool> active_workers_;
 
  protected:
   // TODO[apanda]: Move to some constraint structure?
@@ -452,7 +461,8 @@ class Task {
    */
   placement_constraint GetSocketConstraints() const {
     if (module_) {
-      return module_->ComputePlacementConstraints();
+      std::unordered_set<const Module *> visited;
+      return module_->ComputePlacementConstraints(&visited);
     } else {
       return UNCONSTRAINED_SOCKET;
     }
@@ -465,7 +475,7 @@ class Task {
     if (module_) {
       LOG(WARNING) << "Adding active worker for wid " << wid << " to "
                    << module_->name();
-      module_->AddActiveWorker(wid);
+      module_->AddActiveWorker(wid, t_);
     } else {
       LOG(WARNING) << "No module";
     }
