@@ -44,6 +44,8 @@ get_patch() {
 }
 
 apply_and_commit() {
+	# The "git add" we use below do not work with non-default index file,
+	# which is used by "git commit -a" or "git commit <files>"
 	if [[ $GIT_INDEX_FILE != ".git/index" ]]; then
 		echo "Error: Non-default index file is being used (GIT_INDEX_FILE is set)." >&2
 		echo "       Are you using 'git commit [--only] -- <files>' to bypass staging?" >&2
