@@ -21,16 +21,26 @@ match_extension() {
 
 show_patch() {
 	local diff=""
+	local reformatted=""
+	local file
+
 	for file in $files; do
 		if match_extension $file "$CXX_EXTS"; then
-			diff+=$($CXX_FORMAT -style=file $file | diff -u $file - | \
-				sed -e "1s|--- |--- a/|" -e "2s|+++ -|+++ b/$file|")
+			echo "hi"
+			reformatted=`$CXX_FORMAT -style=file $file`
 		elif match_extension $file "$PY_EXTS"; then
-			diff+=$($PY_FORMAT $file | diff -u $file - | \
-				sed -e "1s|--- |--- a/|" -e "2s|+++ -|+++ b/$file|")
+			reformatted=`$PY_FORMAT $file`
+		else
+			continue
 		fi
+
+		# show colored version to the user
+		echo "$reformatted" | git diff --no-index --color=always $file -
+
+		# ... and save non-colored patch for git-apply
+		diff+=`echo "$reformatted" | diff -u $file - | \
+			sed -e "1s|--- |--- a/|" -e "2s|+++ -|+++ b/$file|"`
 	done
-	echo "$diff"
 }
 
 apply_and_commit() {
@@ -47,7 +57,7 @@ apply_and_commit() {
 	fi
 
 	(echo "$patch" | git apply -)
-	git add -- $file
+	git add -- $files
 }
 
 if ! command_exists $CXX_FORMAT; then
