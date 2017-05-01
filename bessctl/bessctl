@@ -85,17 +85,6 @@ class BESSCLI(cli.CLI):
             self.ferr.write('  BESS daemon response - errno=%d (%s: %s)\n' %
                             (e.err, err_code, os.strerror(e.err)))
 
-            if e.details:
-                details = pprint.pformat(e.details)
-                initial_indent = '  error details: '
-                subsequent_indent = ' ' * len(initial_indent)
-
-                for i, line in enumerate(details.splitlines()):
-                    if i == 0:
-                        self.fout.write('%s%s\n' % (initial_indent, line))
-                    else:
-                        self.fout.write('%s%s\n' % (subsequent_indent, line))
-
             raise self.HandledError()
 
     def _print_crashlog(self):

@@ -12,19 +12,11 @@ typedef bess::pb::ModuleCommandResponse pb_cmd_response_t;
 template <typename T, typename M, typename A>
 using pb_func_t = std::function<T(M *, const A &)>;
 
-[[gnu::format(printf, 3, 4)]] pb_error_t pb_error_details(int code,
-                                                          const char *details,
-                                                          const char *fmt, ...);
-
-#define pb_error(code, fmt, ...) \
-  pb_error_details(code, nullptr, fmt, ##__VA_ARGS__)
-
-static inline pb_error_t pb_errno_details(int code, const char *details) {
-  return pb_error_details(code, details, "%s", strerror(code));
-}
+[[gnu::format(printf, 2, 3)]] pb_error_t pb_error(int code, const char *fmt,
+                                                  ...);
 
 static inline pb_error_t pb_errno(int code) {
-  return pb_errno_details(code, nullptr);
+  return pb_error(code, "%s", strerror(code));
 }
 
 static inline int uint64_to_bin(uint8_t *ptr, int size, uint64_t val, int be) {

@@ -141,12 +141,8 @@ static pb_error_t docker_container_pid(const std::string &cid,
 
   fp = popen(buf, "r");
   if (!fp) {
-    const std::string details =
-        bess::utils::Format("popen() errno=%d (%s)", errno, strerror(errno));
-
-    return pb_error_details(
-        ESRCH, details.c_str(),
-        "Command 'docker' is not available. (not installed?)");
+    return pb_error(ESRCH,
+                    "Command 'docker' is not available. (not installed?)");
   }
 
   ret = fread(buf, 1, sizeof(buf) - 1, fp);
@@ -162,12 +158,7 @@ static pb_error_t docker_container_pid(const std::string &cid,
   exit_code = WEXITSTATUS(ret);
 
   if (exit_code != 0 || sscanf(buf, "%d", container_pid) == 0) {
-    // TODO(clan): Need to fully replicate the map in details
-    // snobj_map_set(details, "exit_code", snobj_int(exit_code));
-    // snobj_map_set(details, "docker_err", snobj_str(buf));
-
-    return pb_error_details(ESRCH, buf, "Cannot find the PID of container %s",
-                            cid.c_str());
+    return pb_error(ESRCH, "Cannot find the PID of container %s", cid.c_str());
   }
 
   return pb_errno(0);
@@ -493,7 +484,7 @@ pb_error_t VPort::Init(const bess::pb::VPortArg &arg) {
 
   ret = ioctl(fd_, SN_IOC_CREATE_HOSTNIC, &phy_addr);
   if (ret < 0) {
-    err = pb_errno_details(-ret, "SN_IOC_CREATE_HOSTNIC failure");
+    err = pb_error(-ret, "SN_IOC_CREATE_HOSTNIC failure");
     goto fail;
   }
 
