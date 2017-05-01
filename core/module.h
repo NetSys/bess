@@ -20,7 +20,6 @@ static inline void set_cmd_response_error(pb_cmd_response_t *response,
   response->mutable_error()->CopyFrom(error);
 }
 
-#define MODULE_NAME_LEN 128
 #define MAX_NUMA_NODE 16
 #define UNCONSTRAINED_SOCKET ((0x1ull << MAX_NUMA_NODE) - 1)
 
@@ -62,8 +61,6 @@ static inline module_init_func_t MODULE_INIT_FUNC(
 }
 
 class Module;
-
-#define CALL_MEMBER_FN(obj, ptr_to_member_func) ((obj).*(ptr_to_member_func))
 
 struct Command {
   std::string cmd;
