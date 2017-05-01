@@ -22,7 +22,6 @@ import sugar
 try:
     this_dir = os.path.dirname(os.path.realpath(__file__))
     sys.path.insert(1, '%s/../libbess-python' % this_dir)
-    from bess import *
     from module import *
     from port import *
 except ImportError:
