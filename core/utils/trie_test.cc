@@ -58,4 +58,34 @@ TEST(TrieTest, Empty) {
   EXPECT_FALSE(trie.LookupKey(""));
 }
 
+// Test the copy constructor
+TEST(TrieTest, Copy) {
+  Trie trie0;
+
+  Trie trie1 = trie0;
+  EXPECT_FALSE(trie1.Lookup("Hello"));
+  EXPECT_FALSE(trie1.Lookup("H"));
+  EXPECT_TRUE(trie1.Lookup(""));
+  EXPECT_FALSE(trie1.LookupKey("234"));
+  EXPECT_FALSE(trie1.LookupKey("ello"));
+  EXPECT_FALSE(trie1.LookupKey(""));
+
+  trie0.Insert("Hello world!");
+  trie0.Insert("123456");
+  Trie trie2 = trie0;
+
+  EXPECT_FALSE(trie2.Lookup("234"));
+  EXPECT_FALSE(trie2.Lookup("ello"));
+  EXPECT_TRUE(trie2.Lookup("Hello"));
+  EXPECT_TRUE(trie2.Lookup("H"));
+  EXPECT_TRUE(trie2.Lookup(""));
+  EXPECT_TRUE(trie2.Lookup("1"));
+  EXPECT_TRUE(trie2.Lookup("123456"));
+  EXPECT_FALSE(trie2.LookupKey("Hello"));
+  EXPECT_FALSE(trie2.LookupKey("1"));
+  EXPECT_TRUE(trie2.LookupKey("Hello world!"));
+  EXPECT_TRUE(trie2.LookupKey("123456"));
+  EXPECT_TRUE(trie2.LookupKey("1234567"));
+}
+
 }  // namespace (unnamed)
