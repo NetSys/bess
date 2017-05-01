@@ -424,6 +424,11 @@ class BESSControlImpl final : public BESSControl::Service {
   Status PauseWorker(ServerContext*, const PauseWorkerRequest* req,
                      EmptyResponse*) override {
     int wid = req->wid();
+    // TODO: It should be made harder to wreak havoc on the rest of the daemon
+    // when using PauseWorker(). For now a warning and suggestion that this is
+    // for experts only is sufficient.
+    LOG(WARNING) << "PauseWorker() is an experimental operation and should be"
+                 << " used with care. Long-term support not guaranteed.";
     pause_worker(wid);
     LOG(INFO) << "*** Worker " << wid << " has been paused ***";
     return Status::OK;
