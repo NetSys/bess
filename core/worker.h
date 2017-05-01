@@ -155,7 +155,7 @@ void resume_all_workers();
 void destroy_worker(int wid);
 void destroy_all_workers();
 
-int is_any_worker_running();
+bool is_any_worker_running();
 
 int is_cpu_present(unsigned int core_id);
 
@@ -163,7 +163,7 @@ static inline int is_worker_active(int wid) {
   return workers[wid] != nullptr;
 }
 
-static inline int is_worker_running(int wid) {
+inline bool is_worker_running(int wid) {
   return workers[wid] && workers[wid]->status() == WORKER_RUNNING;
 }
 

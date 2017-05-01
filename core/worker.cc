@@ -169,15 +169,16 @@ void destroy_all_workers() {
     destroy_worker(wid);
 }
 
-int is_any_worker_running() {
+bool is_any_worker_running() {
   int wid;
 
   for (wid = 0; wid < Worker::kMaxWorkers; wid++) {
-    if (workers[wid] && workers[wid]->status() == WORKER_RUNNING)
-      return 1;
+    if (is_worker_running(wid)) {
+      return true;
+    }
   }
 
-  return 0;
+  return false;
 }
 
 void Worker::SetNonWorker() {
