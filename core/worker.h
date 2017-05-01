@@ -91,7 +91,8 @@ class Worker {
   gate_idx_t current_igate() const { return current_igate_; }
   void set_current_igate(gate_idx_t idx) { current_igate_ = idx; }
 
-  bess::PacketBatch **splits() { return splits_; }
+  /* better be the last field. it's huge */
+  bess::PacketBatch *splits() { return splits_; }
 
  private:
   volatile worker_status_t status_;
@@ -114,11 +115,8 @@ class Worker {
    * Modules should use get_igate() for access */
   gate_idx_t current_igate_;
 
-  // For each possible output gate contains a pointer to a batch, or nullptr,
-  // if no batch has been associated with the output gate yet.
-  //
-  // This should be the last field, since it's huge.
-  bess::PacketBatch *splits_[MAX_GATES + 1];
+  /* better be the last field. it's huge */
+  bess::PacketBatch splits_[MAX_GATES + 1];
 };
 
 // NOTE: Do not use "thread_local" here. It requires a function call every time
