@@ -1,0 +1,17 @@
+bess.add_worker(0, 0)
+bess.add_worker(1, 1)
+
+chokepoint = Bypass()
+src0::Source() -> chokepoint
+src1::Source() -> chokepoint
+src2::Source() -> chokepoint
+src3::Source() -> chokepoint
+
+chokepoint -> ws::WorkerSplit()
+ws:0 -> sink0::Sink()
+ws:1 -> sink1::Sink()
+
+bess.attach_module('src0', wid=0)
+bess.attach_module('src1', wid=0)
+bess.attach_module('src2', wid=1)
+bess.attach_module('src3', wid=1)
