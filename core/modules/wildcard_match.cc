@@ -31,12 +31,13 @@ const Commands WildcardMatch::cmds = {
     {"delete", "WildcardMatchCommandDeleteArg",
      MODULE_CMD_FUNC(&WildcardMatch::CommandDelete), 0},
     {"clear", "EmptyArg", MODULE_CMD_FUNC(&WildcardMatch::CommandClear), 0},
-    {"get_rules", "EmptyArg", MODULE_CMD_FUNC(&WildcardMatch::CommandGetRules), 0},
+    {"get_rules", "EmptyArg", MODULE_CMD_FUNC(&WildcardMatch::CommandGetRules),
+     0},
     {"set_default_gate", "WildcardMatchCommandSetDefaultGateArg",
      MODULE_CMD_FUNC(&WildcardMatch::CommandSetDefaultGate), 1}};
 
-pb_error_t WildcardMatch::AddFieldOne(
-    const bess::pb::WildcardMatchField &field, struct WmField *f) {
+pb_error_t WildcardMatch::AddFieldOne(const bess::pb::WildcardMatchField &field,
+                                      struct WmField *f) {
   f->size = field.size();
 
   if (f->size < 1 || f->size > MAX_FIELD_SIZE) {
@@ -197,15 +198,15 @@ pb_error_t WildcardMatch::ExtractKeyMask(const T &arg, wm_hkey_t *key,
     uint64_t v = 0;
     uint64_t m = 0;
 
-    int force_be = (fields_[i].attr_id < 0);
+    bool force_be = (fields_[i].attr_id < 0);
 
-    if (uint64_to_bin(reinterpret_cast<uint8_t *>(&v), field_size,
-                      arg.values(i), force_be || bess::utils::is_be_system())) {
+    if (bess::utils::uint64_to_bin(&v, arg.values(i), field_size,
+                                   force_be || bess::utils::is_be_system())) {
       return pb_error(EINVAL, "idx %zu: not a correct %d-byte value", i,
                       field_size);
-    } else if (uint64_to_bin(reinterpret_cast<uint8_t *>(&m), field_size,
-                             arg.masks(i),
-                             force_be || bess::utils::is_be_system())) {
+    } else if (bess::utils::uint64_to_bin(
+                   &m, arg.masks(i), field_size,
+                   force_be || bess::utils::is_be_system())) {
       return pb_error(EINVAL, "idx %zu: not a correct %d-byte mask", i,
                       field_size);
     }
@@ -357,16 +358,15 @@ pb_cmd_response_t WildcardMatch::CommandClear(const bess::pb::EmptyArg &) {
   return response;
 }
 
-
 pb_cmd_response_t WildcardMatch::CommandGetRules(const bess::pb::EmptyArg &) {
   bess::pb::WildcardMatchCommandGetRulesResponse resp;
   resp.set_default_gate(default_gate_);
 
-  for(auto &field : fields_){
-    bess::pb::WildcardMatchField* f = resp.add_fields();
-    if(field.attr_id >= 0){
+  for (auto &field : fields_) {
+    bess::pb::WildcardMatchField *f = resp.add_fields();
+    if (field.attr_id >= 0) {
       f->set_attribute(all_attrs().at(field.attr_id).name);
-    }else{
+    } else {
       f->set_offset(field.offset);
     }
     f->set_size(field.size);
@@ -374,19 +374,21 @@ pb_cmd_response_t WildcardMatch::CommandGetRules(const bess::pb::EmptyArg &) {
 
   for (auto &tuple : tuples_) {
     wm_hkey_t mask = tuple.mask;
-    for(auto &entry : tuple.ht) {
-      bess::pb::WildcardMatchRule* rule = resp.add_rules();
+    for (auto &entry : tuple.ht) {
+      bess::pb::WildcardMatchRule *rule = resp.add_rules();
       rule->set_priority(entry.second.priority);
       rule->set_gate(entry.second.ogate);
 
-      uint8_t* entry_data = reinterpret_cast<uint8_t*>(entry.first.u64_arr);
-      uint8_t* entry_mask = reinterpret_cast<uint8_t*>(mask.u64_arr);
-      for(auto &field : fields_) {
+      uint8_t *entry_data = reinterpret_cast<uint8_t *>(entry.first.u64_arr);
+      uint8_t *entry_mask = reinterpret_cast<uint8_t *>(mask.u64_arr);
+      for (auto &field : fields_) {
         uint64_t data = 0;
-        bin_to_uint64(&data , entry_data + field.pos, field.size, 1);
+        bess::utils::bin_to_uint64(&data, entry_data + field.pos, field.size,
+                                   1);
         rule->add_values(data);
         uint64_t mask_data = 0;
-        bin_to_uint64(&mask_data, entry_mask + field.pos, field.size, 1);
+        bess::utils::bin_to_uint64(&mask_data, entry_mask + field.pos,
+                                   field.size, 1);
         rule->add_masks(mask_data);
       }
     }

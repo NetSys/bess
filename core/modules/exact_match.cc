@@ -45,15 +45,15 @@ pb_error_t ExactMatch::AddFieldOne(const bess::pb::ExactMatchArg_Field &field,
     return pb_error(EINVAL, "idx %d: must specify 'offset' or 'attr'", idx);
   }
 
-  int force_be = (f->attr_id < 0);
+  bool force_be = (f->attr_id < 0);
 
   if (field.mask() == 0) {
     // by default all bits are considered
-    f->mask = (f->size == 8) ? 0xffffffffffffffffull
-                             : (1ull << (f->size * 8)) - 1;
+    f->mask =
+        (f->size == 8) ? 0xffffffffffffffffull : (1ull << (f->size * 8)) - 1;
   } else {
-    if (uint64_to_bin((uint8_t *)&f->mask, f->size, field.mask(),
-                      bess::utils::is_be_system() | force_be)) {
+    if (bess::utils::uint64_to_bin(&f->mask, field.mask(), f->size,
+                                   bess::utils::is_be_system() || force_be)) {
       return pb_error(EINVAL, "idx %d: not a correct %d-byte mask", idx,
                       f->size);
     }

@@ -63,8 +63,8 @@ pb_cmd_response_t Update::CommandAdd(const bess::pb::UpdateArg &arg) {
       return response;
     }
 
-    if (uint64_to_bin((uint8_t *)&value, size, field.value(),
-                      bess::utils::is_be_system())) {
+    if (bess::utils::uint64_to_bin(&value, field.value(), size,
+                                   bess::utils::is_be_system())) {
       set_cmd_response_error(&response, pb_error(EINVAL,
                                                  "'value' field has not a "
                                                  "correct %d-byte value",

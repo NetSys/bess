@@ -62,8 +62,8 @@ pb_error_t SetMetadata::AddAttrOne(
   // stored in memory). value_bin is a short stream of bytes, which means that
   // its data will never be reordered.
   if (attr.value_case() == bess::pb::SetMetadataArg_Attribute::kValueInt) {
-    if (uint64_to_bin((uint8_t *)&value, size, attr.value_int(),
-                      bess::utils::is_be_system())) {
+    if (bess::utils::uint64_to_bin(&value, attr.value_int(), size,
+                                   bess::utils::is_be_system())) {
       return pb_error(EINVAL,
                       "'value_int' field has not a "
                       "correct %zu-byte value",

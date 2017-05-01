@@ -1,5 +1,7 @@
 #include "generic_encap.h"
 
+#include "../utils/endian.h"
+
 static_assert(MAX_FIELD_SIZE <= sizeof(uint64_t),
               "field cannot be larger than 8 bytes");
 
@@ -26,8 +28,7 @@ pb_error_t GenericEncap::AddFieldOne(
   } else if (field.insertion_case() ==
              bess::pb::GenericEncapArg_Field::kValue) {
     f->attr_id = -1;
-    uint64_t value = field.value();
-    if (uint64_to_bin((uint8_t *)&f->value, f->size, value, 1)) {
+    if (bess::utils::uint64_to_bin(&f->value, field.value(), f->size, 1)) {
       return pb_error(EINVAL,
                       "idx %d: "
                       "not a correct %d-byte value",

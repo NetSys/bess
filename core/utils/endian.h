@@ -1,7 +1,9 @@
 #ifndef BESS_UTILS_ENDIAN_H_
 #define BESS_UTILS_ENDIAN_H_
 
+#include <cstddef>
 #include <cstdint>
+#include <type_traits>
 
 namespace bess {
 namespace utils {
@@ -54,9 +56,9 @@ class[[gnu::packed]] BigEndian final : public EndianBase<T> {
     return is_be_system() ? v : EndianBase<T>::swap(v);
   }
 
-  bool operator==(const BigEndian &other) const { return value_ == other.value_; }
+  bool operator==(const BigEndian &rhs) const { return value_ == rhs.value_; }
 
-  bool operator!=(const BigEndian &other) const { return value_ != other.value_; }
+  bool operator!=(const BigEndian &rhs) const { return value_ != rhs.value_; }
 
  protected:
   T value_;
@@ -75,6 +77,13 @@ static_assert(std::is_pod<be64_t>::value, "not a POD type");
 static_assert(sizeof(be16_t) == 2, "be16_t is not 2 bytes");
 static_assert(sizeof(be32_t) == 4, "be32_t is not 4 bytes");
 static_assert(sizeof(be64_t) == 8, "be64_t is not 8 bytes");
+
+// Copy data from val to *ptr. Set "big_endian" to store in big endian
+bool uint64_to_bin(void *ptr, uint64_t val, size_t size, bool big_endian);
+
+// Copy data from *ptr to *pval. Set "big_endian" if *ptr has big endian data
+bool bin_to_uint64(uint64_t *pval, const void *ptr, size_t size,
+                   bool big_endian);
 
 }  // namespace utils
 }  // namespace bess
