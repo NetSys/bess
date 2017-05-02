@@ -12,7 +12,7 @@ class IPLookup final : public Module {
 
   IPLookup() : Module(), lpm_(), default_gate_() {}
 
-  pb_error_t Init(const bess::pb::IPLookupArg &arg);
+  CommandResponse Init(const bess::pb::IPLookupArg &arg);
 
   void DeInit() override;
 

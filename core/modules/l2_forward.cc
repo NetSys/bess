@@ -527,7 +527,7 @@ const Commands L2Forward::cmds = {
      MODULE_CMD_FUNC(&L2Forward::CommandPopulate), 0},
 };
 
-pb_error_t L2Forward::Init(const bess::pb::L2ForwardArg &arg) {
+CommandResponse L2Forward::Init(const bess::pb::L2ForwardArg &arg) {
   int ret = 0;
   int size = arg.size();
   int bucket = arg.bucket();
@@ -544,13 +544,13 @@ pb_error_t L2Forward::Init(const bess::pb::L2ForwardArg &arg) {
   ret = l2_init(&l2_table_, size, bucket);
 
   if (ret != 0) {
-    return pb_error(-ret,
-                    "initialization failed with argument "
-                    "size: '%d' bucket: '%d'",
-                    size, bucket);
+    return CommandFailure(-ret,
+                          "initialization failed with argument "
+                          "size: '%d' bucket: '%d'",
+                          size, bucket);
   }
 
-  return pb_errno(0);
+  return CommandSuccess();
 }
 
 void L2Forward::DeInit() {

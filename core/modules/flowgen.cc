@@ -149,37 +149,37 @@ void FlowGen::PopulateInitialFlows() {
   }
 }
 
-pb_error_t FlowGen::ProcessArguments(const bess::pb::FlowGenArg &arg) {
+CommandResponse FlowGen::ProcessArguments(const bess::pb::FlowGenArg &arg) {
   if (arg.template_().length() == 0) {
-    return pb_error(EINVAL, "must specify 'template'");
+    return CommandFailure(EINVAL, "must specify 'template'");
   }
 
   if (arg.template_().length() > MAX_TEMPLATE_SIZE) {
-    return pb_error(EINVAL, "'template' is too big");
+    return CommandFailure(EINVAL, "'template' is too big");
   }
 
   template_size_ = arg.template_().length();
 
   memset(templ_, 0, MAX_TEMPLATE_SIZE);
   bess::utils::Copy(templ_, arg.template_().c_str(), template_size_);
-  pb_error_t err = UpdateBaseAddresses();
-  if (err.code() != 0) {
+  CommandResponse err = UpdateBaseAddresses();
+  if (err.error().code() != 0) {
     return err;
   }
 
   total_pps_ = arg.pps();
   if (std::isnan(total_pps_) || total_pps_ < 0.0) {
-    return pb_error(EINVAL, "invalid 'pps'");
+    return CommandFailure(EINVAL, "invalid 'pps'");
   }
 
   flow_rate_ = arg.flow_rate();
   if (std::isnan(flow_rate_) || flow_rate_ < 0.0) {
-    return pb_error(EINVAL, "invalid 'flow_rate'");
+    return CommandFailure(EINVAL, "invalid 'flow_rate'");
   }
 
   flow_duration_ = arg.flow_duration();
   if (std::isnan(flow_duration_) || flow_duration_ < 0.0) {
-    return pb_error(EINVAL, "invalid 'flow_duration'");
+    return CommandFailure(EINVAL, "invalid 'flow_duration'");
   }
 
   if (arg.arrival() == "uniform") {
@@ -187,8 +187,8 @@ pb_error_t FlowGen::ProcessArguments(const bess::pb::FlowGenArg &arg) {
   } else if (arg.arrival() == "exponential") {
     arrival_ = Arrival::kExponential;
   } else {
-    return pb_error(EINVAL,
-                    "'arrival' must be either 'uniform' or 'exponential'");
+    return CommandFailure(
+        EINVAL, "'arrival' must be either 'uniform' or 'exponential'");
   }
 
   if (arg.duration() == "uniform") {
@@ -196,7 +196,8 @@ pb_error_t FlowGen::ProcessArguments(const bess::pb::FlowGenArg &arg) {
   } else if (arg.duration() == "pareto") {
     duration_ = Duration::kPareto;
   } else {
-    return pb_error(EINVAL, "'duration' must be either 'uniform' or 'pareto'");
+    return CommandFailure(EINVAL,
+                          "'duration' must be either 'uniform' or 'pareto'");
   }
 
   if (arg.quick_rampup()) {
@@ -207,7 +208,7 @@ pb_error_t FlowGen::ProcessArguments(const bess::pb::FlowGenArg &arg) {
   ip_dst_range_ = arg.ip_dst_range();
 
   if (arg.port_src_range() > 65535 || arg.port_dst_range() > 65535) {
-    return pb_error(EINVAL, "portrang must be e <= 65535");
+    return CommandFailure(EINVAL, "portrang must be e <= 65535");
   }
 
   port_src_range_ = (uint16_t)arg.port_src_range();
@@ -220,7 +221,7 @@ pb_error_t FlowGen::ProcessArguments(const bess::pb::FlowGenArg &arg) {
     port_src_range_ = 20000;
   }
 
-  return pb_errno(0);
+  return CommandSuccess();
 }
 
 void FlowGen::UpdateDerivedParameters() {
@@ -328,9 +329,9 @@ CommandResponse FlowGen::CommandSetBurst(
   return CommandSuccess();
 }
 
-pb_error_t FlowGen::Init(const bess::pb::FlowGenArg &arg) {
+CommandResponse FlowGen::Init(const bess::pb::FlowGenArg &arg) {
   task_id_t tid;
-  pb_error_t err;
+  CommandResponse err;
 
   rng_.SetSeed(0xBAADF00DDEADBEEFul);
 
@@ -346,16 +347,16 @@ pb_error_t FlowGen::Init(const bess::pb::FlowGenArg &arg) {
   /* register task */
   tid = RegisterTask(nullptr);
   if (tid == INVALID_TASK_ID) {
-    return pb_error(ENOMEM, "task creation failed");
+    return CommandFailure(ENOMEM, "task creation failed");
   }
 
   templ_ = new char[MAX_TEMPLATE_SIZE];
   if (templ_ == nullptr) {
-    return pb_error(ENOMEM, "unable to allocate template");
+    return CommandFailure(ENOMEM, "unable to allocate template");
   }
 
   err = ProcessArguments(arg);
-  if (err.code() != 0) {
+  if (err.error().code() != 0) {
     return err;
   }
 
@@ -364,7 +365,7 @@ pb_error_t FlowGen::Init(const bess::pb::FlowGenArg &arg) {
   /* add a seed flow (and background flows if necessary) */
   PopulateInitialFlows();
 
-  return pb_errno(0);
+  return CommandSuccess();
 }
 
 void FlowGen::DeInit() {
@@ -376,10 +377,10 @@ void FlowGen::DeInit() {
   delete[] templ_;
 }
 
-pb_error_t FlowGen::UpdateBaseAddresses() {
+CommandResponse FlowGen::UpdateBaseAddresses() {
   char *p = reinterpret_cast<char *>(templ_);
   if (!p) {
-    return pb_error(EINVAL, "must specify 'template'");
+    return CommandFailure(EINVAL, "must specify 'template'");
   }
 
   Ipv4Header *ipheader = reinterpret_cast<Ipv4Header *>(p + sizeof(EthHeader));
@@ -390,7 +391,7 @@ pb_error_t FlowGen::UpdateBaseAddresses() {
   ip_dst_base_ = ntohl(ipheader->dst);
   port_src_base_ = ntohs(tcpheader->src_port);
   port_dst_base_ = ntohs(tcpheader->dst_port);
-  return pb_errno(0);
+  return CommandSuccess();
 }
 
 bess::Packet *FlowGen::FillPacket(struct flow *f) {

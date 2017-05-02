@@ -13,7 +13,7 @@ class Replicate final : public Module {
 
   Replicate() : Module(), gates_(), ngates_() {}
 
-  pb_error_t Init(const bess::pb::ReplicateArg &arg);
+  CommandResponse Init(const bess::pb::ReplicateArg &arg);
 
   void ProcessBatch(bess::PacketBatch *batch) override;
 

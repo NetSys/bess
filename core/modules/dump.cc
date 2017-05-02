@@ -13,11 +13,10 @@ const Commands Dump::cmds = {
     {"set_interval", "DumpArg", MODULE_CMD_FUNC(&Dump::CommandSetInterval), 0},
 };
 
-pb_error_t Dump::Init(const bess::pb::DumpArg &arg) {
+CommandResponse Dump::Init(const bess::pb::DumpArg &arg) {
   min_interval_ns_ = DEFAULT_INTERVAL_NS;
   next_ns_ = ctx.current_tsc();
-  CommandResponse response = CommandSetInterval(arg);
-  return response.error();
+  return CommandSetInterval(arg);
 }
 
 void Dump::ProcessBatch(bess::PacketBatch *batch) {

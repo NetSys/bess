@@ -5,11 +5,11 @@ const Commands Replicate::cmds = {
      MODULE_CMD_FUNC(&Replicate::CommandSetGates), 0},
 };
 
-pb_error_t Replicate::Init(const bess::pb::ReplicateArg &arg) {
-  pb_error_t err;
+CommandResponse Replicate::Init(const bess::pb::ReplicateArg &arg) {
+  CommandResponse err;
 
   if (arg.gates_size() > kMaxGates) {
-    return pb_error(EINVAL, "no more than %d gates", kMaxGates);
+    return CommandFailure(EINVAL, "no more than %d gates", kMaxGates);
   }
 
   for (int i = 0; i < arg.gates_size(); i++) {
@@ -18,7 +18,7 @@ pb_error_t Replicate::Init(const bess::pb::ReplicateArg &arg) {
   }
   ngates_ = arg.gates_size();
 
-  return pb_errno(0);
+  return CommandSuccess();
 }
 
 CommandResponse Replicate::CommandSetGates(

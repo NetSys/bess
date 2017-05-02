@@ -11,11 +11,12 @@ static_assert(MAX_FIELD_SIZE <= sizeof(uint64_t),
 #error this code assumes little endian architecture (x86)
 #endif
 
-pb_error_t GenericEncap::AddFieldOne(
+CommandResponse GenericEncap::AddFieldOne(
     const bess::pb::GenericEncapArg_Field &field, struct Field *f, int idx) {
   f->size = field.size();
   if (f->size < 1 || f->size > MAX_FIELD_SIZE) {
-    return pb_error(EINVAL, "idx %d: 'size' must be 1-%d", idx, MAX_FIELD_SIZE);
+    return CommandFailure(EINVAL, "idx %d: 'size' must be 1-%d", idx,
+                          MAX_FIELD_SIZE);
   }
 
   if (field.insertion_case() == bess::pb::GenericEncapArg_Field::kAttribute) {
@@ -23,22 +24,24 @@ pb_error_t GenericEncap::AddFieldOne(
     f->attr_id = AddMetadataAttr(attr, f->size,
                                  bess::metadata::Attribute::AccessMode::kRead);
     if (f->attr_id < 0) {
-      return pb_error(-f->attr_id, "idx %d: add_metadata_attr() failed", idx);
+      return CommandFailure(-f->attr_id, "idx %d: add_metadata_attr() failed",
+                            idx);
     }
   } else if (field.insertion_case() ==
              bess::pb::GenericEncapArg_Field::kValue) {
     f->attr_id = -1;
-    if (bess::utils::uint64_to_bin(&f->value, field.value(), f->size, 1)) {
-      return pb_error(EINVAL,
-                      "idx %d: "
-                      "not a correct %d-byte value",
-                      idx, f->size);
+    if (!bess::utils::uint64_to_bin(&f->value, field.value(), f->size, 1)) {
+      return CommandFailure(EINVAL,
+                            "idx %d: "
+                            "not a correct %d-byte value",
+                            idx, f->size);
     }
   } else {
-    return pb_error(EINVAL, "idx %d: must specify 'value' or 'attribute'", idx);
+    return CommandFailure(EINVAL, "idx %d: must specify 'value' or 'attribute'",
+                          idx);
   }
 
-  return pb_errno(0);
+  return CommandSuccess();
 }
 
 /* Takes a list of fields. Each field is either:
@@ -54,18 +57,18 @@ pb_error_t GenericEncap::AddFieldOne(
  * where the 2-byte <xx> <xx> comes from the value of metadata attribute 'foo'
  * for each packet.
  */
-pb_error_t GenericEncap::Init(const bess::pb::GenericEncapArg &arg) {
+CommandResponse GenericEncap::Init(const bess::pb::GenericEncapArg &arg) {
   int size_acc = 0;
 
   for (int i = 0; i < arg.fields_size(); i++) {
     const auto &field = arg.fields(i);
-    pb_error_t err;
+    CommandResponse err;
     struct Field *f = &fields_[i];
 
     f->pos = size_acc;
 
     err = AddFieldOne(field, f, i);
-    if (err.code() != 0) {
+    if (err.error().code() != 0) {
       return err;
     }
 
@@ -75,7 +78,7 @@ pb_error_t GenericEncap::Init(const bess::pb::GenericEncapArg &arg) {
   encap_size_ = size_acc;
   num_fields_ = arg.fields_size();
 
-  return pb_errno(0);
+  return CommandSuccess();
 }
 
 void GenericEncap::ProcessBatch(bess::PacketBatch *batch) {

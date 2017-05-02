@@ -10,7 +10,7 @@ class VLANPush final : public Module {
 
   VLANPush() : Module(), vlan_tag_(), qinq_tag_() {}
 
-  pb_error_t Init(const bess::pb::VLANPushArg &arg);
+  CommandResponse Init(const bess::pb::VLANPushArg &arg);
 
   void ProcessBatch(bess::PacketBatch *batch) override;
 

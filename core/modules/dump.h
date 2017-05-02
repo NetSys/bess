@@ -6,7 +6,7 @@
 
 class Dump final : public Module {
  public:
-  pb_error_t Init(const bess::pb::DumpArg &arg);
+  CommandResponse Init(const bess::pb::DumpArg &arg);
 
   void ProcessBatch(bess::PacketBatch *batch) override;
 

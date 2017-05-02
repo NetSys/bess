@@ -23,7 +23,7 @@ class BPF final : public Module {
 
   static const Commands cmds;
 
-  pb_error_t Init(const bess::pb::BPFArg &arg);
+  CommandResponse Init(const bess::pb::BPFArg &arg);
   void DeInit() override;
 
   void ProcessBatch(bess::PacketBatch *batch) override;

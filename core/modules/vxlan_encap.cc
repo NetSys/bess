@@ -18,13 +18,13 @@ enum {
   ATTR_W_IP_PROTO,
 };
 
-pb_error_t VXLANEncap::Init(const bess::pb::VXLANEncapArg &arg) {
+CommandResponse VXLANEncap::Init(const bess::pb::VXLANEncapArg &arg) {
   auto dstport = arg.dstport();
   if (dstport == 0) {
     dstport_ = rte_cpu_to_be_16(4789);
   } else {
     if (dstport >= 65536)
-      return pb_error(EINVAL, "invalid 'dstport' field");
+      return CommandFailure(EINVAL, "invalid 'dstport' field");
     dstport_ = rte_cpu_to_be_16(dstport);
   }
 
@@ -37,7 +37,7 @@ pb_error_t VXLANEncap::Init(const bess::pb::VXLANEncapArg &arg) {
   AddMetadataAttr("ip_dst", 4, AccessMode::kWrite);
   AddMetadataAttr("ip_proto", 1, AccessMode::kWrite);
 
-  return pb_errno(0);
+  return CommandSuccess();
 }
 
 void VXLANEncap::ProcessBatch(bess::PacketBatch *batch) {

@@ -13,7 +13,7 @@ class Queue final : public Module {
     propagate_workers_ = false;
   }
 
-  pb_error_t Init(const bess::pb::QueueArg &arg);
+  CommandResponse Init(const bess::pb::QueueArg &arg);
 
   void DeInit() override;
 
@@ -27,7 +27,7 @@ class Queue final : public Module {
 
  private:
   int Resize(int slots);
-  pb_error_t SetSize(uint64_t size);
+  CommandResponse SetSize(uint64_t size);
 
   struct llring *queue_;
   bool prefetch_;

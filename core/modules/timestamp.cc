@@ -36,14 +36,14 @@ static inline void timestamp_packet(bess::Packet *pkt, size_t offset,
   *ts = time;
 }
 
-pb_error_t Timestamp::Init(const bess::pb::TimestampArg &arg) {
+CommandResponse Timestamp::Init(const bess::pb::TimestampArg &arg) {
   if (arg.offset()) {
     offset_ = arg.offset();
   } else {
     offset_ = sizeof(struct EthHeader) + sizeof(struct Ipv4Header) +
               sizeof(struct UdpHeader);
   }
-  return pb_errno(0);
+  return CommandSuccess();
 }
 
 void Timestamp::ProcessBatch(bess::PacketBatch *batch) {

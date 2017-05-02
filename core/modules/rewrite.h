@@ -18,7 +18,7 @@ class Rewrite final : public Module {
         template_size_(),
         templates_() {}
 
-  pb_error_t Init(const bess::pb::RewriteArg &arg);
+  CommandResponse Init(const bess::pb::RewriteArg &arg);
 
   void ProcessBatch(bess::PacketBatch *batch) override;
 

@@ -21,7 +21,7 @@ const Commands IPLookup::cmds = {
     {"add", "IPLookupCommandAddArg", MODULE_CMD_FUNC(&IPLookup::CommandAdd), 0},
     {"clear", "EmptyArg", MODULE_CMD_FUNC(&IPLookup::CommandClear), 0}};
 
-pb_error_t IPLookup::Init(const bess::pb::IPLookupArg &arg) {
+CommandResponse IPLookup::Init(const bess::pb::IPLookupArg &arg) {
   struct rte_lpm_config conf = {
       .max_rules = arg.max_rules() ? arg.max_rules() : 1024,
       .number_tbl8s = arg.max_tbl8s() ? arg.max_tbl8s() : 128,
@@ -33,10 +33,10 @@ pb_error_t IPLookup::Init(const bess::pb::IPLookupArg &arg) {
   lpm_ = rte_lpm_create(name().c_str(), /* socket_id = */ 0, &conf);
 
   if (!lpm_) {
-    return pb_error(rte_errno, "DPDK error: %s", rte_strerror(rte_errno));
+    return CommandFailure(rte_errno, "DPDK error: %s", rte_strerror(rte_errno));
   }
 
-  return pb_errno(0);
+  return CommandSuccess();
 }
 
 void IPLookup::DeInit() {

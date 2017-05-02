@@ -50,25 +50,26 @@ int Queue::Resize(int slots) {
   return 0;
 }
 
-pb_error_t Queue::Init(const bess::pb::QueueArg &arg) {
+CommandResponse Queue::Init(const bess::pb::QueueArg &arg) {
   task_id_t tid;
-  pb_error_t err;
+  CommandResponse err;
 
   tid = RegisterTask(nullptr);
-  if (tid == INVALID_TASK_ID)
-    return pb_error(ENOMEM, "Task creation failed");
+  if (tid == INVALID_TASK_ID) {
+    return CommandFailure(ENOMEM, "Task creation failed");
+  }
 
   burst_ = bess::PacketBatch::kMaxBurst;
 
   if (arg.size() != 0) {
     err = SetSize(arg.size());
-    if (err.code() != 0) {
+    if (err.error().code() != 0) {
       return err;
     }
   } else {
     int ret = Resize(DEFAULT_QUEUE_SIZE);
     if (ret) {
-      return pb_errno(-ret);
+      return CommandFailure(-ret);
     }
   }
 
@@ -76,7 +77,7 @@ pb_error_t Queue::Init(const bess::pb::QueueArg &arg) {
     prefetch_ = true;
   }
 
-  return pb_errno(0);
+  return CommandSuccess();
 }
 
 void Queue::DeInit() {
@@ -153,30 +154,25 @@ CommandResponse Queue::CommandSetBurst(
   return CommandSuccess();
 }
 
-pb_error_t Queue::SetSize(uint64_t size) {
+CommandResponse Queue::SetSize(uint64_t size) {
   if (size < 4 || size > 16384) {
-    return pb_error(EINVAL, "must be in [4, 16384]");
+    return CommandFailure(EINVAL, "must be in [4, 16384]");
   }
 
   if (size & (size - 1)) {
-    return pb_error(EINVAL, "must be a power of 2");
+    return CommandFailure(EINVAL, "must be a power of 2");
   }
 
   int ret = Resize(size);
   if (ret) {
-    return pb_errno(-ret);
+    return CommandFailure(-ret);
   }
-  return pb_errno(0);
+  return CommandSuccess();
 }
 
 CommandResponse Queue::CommandSetSize(
     const bess::pb::QueueCommandSetSizeArg &arg) {
-  pb_error_t ret = SetSize(arg.size());
-  if (ret.code() != 0) {
-    return CommandFailure(ret.code(), "%s", ret.errmsg().c_str());
-  } else {
-    return CommandSuccess();
-  }
+  return SetSize(arg.size());
 }
 
 ADD_MODULE(Queue, "queue",

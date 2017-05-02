@@ -9,13 +9,8 @@ const Commands Rewrite::cmds = {
     {"clear", "EmptyArg", MODULE_CMD_FUNC(&Rewrite::CommandClear), 0},
 };
 
-pb_error_t Rewrite::Init(const bess::pb::RewriteArg &arg) {
-  if (arg.templates_size() > 0) {
-    CommandResponse response = CommandAdd(arg);
-    return response.error();
-  } else {
-    return pb_errno(0);
-  }
+CommandResponse Rewrite::Init(const bess::pb::RewriteArg &arg) {
+  return CommandAdd(arg);
 }
 
 CommandResponse Rewrite::CommandAdd(const bess::pb::RewriteArg &arg) {

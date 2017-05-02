@@ -13,7 +13,7 @@ class PortInc final : public Module {
 
   PortInc() : Module(), port_(), prefetch_(), burst_() {}
 
-  pb_error_t Init(const bess::pb::PortIncArg &arg);
+  CommandResponse Init(const bess::pb::PortIncArg &arg);
 
   void DeInit() override;
 

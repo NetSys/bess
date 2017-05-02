@@ -7,26 +7,26 @@ const Commands Source::cmds = {
      MODULE_CMD_FUNC(&Source::CommandSetBurst), 1},
 };
 
-pb_error_t Source::Init(const bess::pb::SourceArg &arg) {
-  pb_error_t err;
+CommandResponse Source::Init(const bess::pb::SourceArg &arg) {
+  CommandResponse err;
 
   task_id_t tid = RegisterTask(nullptr);
   if (tid == INVALID_TASK_ID)
-    return pb_error(ENOMEM, "Task creation failed");
+    return CommandFailure(ENOMEM, "Task creation failed");
 
   pkt_size_ = 60;
   burst_ = bess::PacketBatch::kMaxBurst;
 
   if (arg.pkt_size() > 0) {
     if (arg.pkt_size() > SNBUF_DATA) {
-      return pb_error(EINVAL, "Invalid packet size");
+      return CommandFailure(EINVAL, "Invalid packet size");
     }
     pkt_size_ = arg.pkt_size();
   }
 
   burst_ = bess::PacketBatch::kMaxBurst;
 
-  return pb_errno(0);
+  return CommandSuccess();
 }
 
 CommandResponse Source::CommandSetBurst(

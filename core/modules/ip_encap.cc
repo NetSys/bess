@@ -15,7 +15,7 @@ enum {
   ATTR_W_ETHER_TYPE,
 };
 
-pb_error_t IPEncap::Init(const bess::pb::IPEncapArg &arg[[maybe_unused]]) {
+CommandResponse IPEncap::Init(const bess::pb::IPEncapArg &arg[[maybe_unused]]) {
   using AccessMode = bess::metadata::Attribute::AccessMode;
 
   AddMetadataAttr("ip_src", 4, AccessMode::kRead);
@@ -24,7 +24,7 @@ pb_error_t IPEncap::Init(const bess::pb::IPEncapArg &arg[[maybe_unused]]) {
   AddMetadataAttr("ip_nexthop", 4, AccessMode::kWrite);
   AddMetadataAttr("ether_type", 2, AccessMode::kWrite);
 
-  return pb_errno(0);
+  return CommandSuccess();
 }
 
 void IPEncap::ProcessBatch(bess::PacketBatch *batch) {

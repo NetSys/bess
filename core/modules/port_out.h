@@ -11,7 +11,7 @@ class PortOut final : public Module {
 
   PortOut() : Module(), port_() {}
 
-  pb_error_t Init(const bess::pb::PortOutArg &arg);
+  CommandResponse Init(const bess::pb::PortOutArg &arg);
 
   void DeInit() override;
 

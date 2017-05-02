@@ -33,9 +33,9 @@ std::string Flow::ToString() const {
                              dst_ip, dst_port);
 }
 
-pb_error_t NAT::Init(const bess::pb::NATArg &arg) {
+CommandResponse NAT::Init(const bess::pb::NATArg &arg) {
   InitRules(arg);
-  return pb_errno(0);
+  return CommandSuccess();
 }
 
 CommandResponse NAT::CommandAdd(const bess::pb::NATArg &arg) {

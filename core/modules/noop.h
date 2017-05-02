@@ -6,7 +6,7 @@
 
 class NoOP final : public Module {
  public:
-  pb_error_t Init(const bess::pb::EmptyArg &arg);
+  CommandResponse Init(const bess::pb::EmptyArg &arg);
 
   struct task_result RunTask(void *arg) override;
 

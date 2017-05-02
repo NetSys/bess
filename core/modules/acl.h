@@ -30,7 +30,7 @@ class ACL final : public Module {
 
   static const Commands cmds;
 
-  pb_error_t Init(const bess::pb::ACLArg &arg);
+  CommandResponse Init(const bess::pb::ACLArg &arg);
 
   void ProcessBatch(bess::PacketBatch *batch) override;
 

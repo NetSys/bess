@@ -9,7 +9,7 @@ class Timestamp final : public Module {
   using MarkerType = uint32_t;
   static const MarkerType kMarker = 0x54C5BE55;
 
-  pb_error_t Init(const bess::pb::TimestampArg &arg);
+  CommandResponse Init(const bess::pb::TimestampArg &arg);
 
   void ProcessBatch(bess::PacketBatch *batch) override;
 

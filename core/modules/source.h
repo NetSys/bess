@@ -12,7 +12,7 @@ class Source final : public Module {
 
   Source() : Module(), pkt_size_(), burst_() {}
 
-  pb_error_t Init(const bess::pb::SourceArg &arg);
+  CommandResponse Init(const bess::pb::SourceArg &arg);
 
   struct task_result RunTask(void *arg) override;
 

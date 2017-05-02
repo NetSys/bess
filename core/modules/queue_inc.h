@@ -13,7 +13,7 @@ class QueueInc final : public Module {
 
   QueueInc() : Module(), port_(), qid_(), prefetch_(), burst_() {}
 
-  pb_error_t Init(const bess::pb::QueueIncArg &arg);
+  CommandResponse Init(const bess::pb::QueueIncArg &arg);
   void DeInit() override;
 
   struct task_result RunTask(void *arg) override;

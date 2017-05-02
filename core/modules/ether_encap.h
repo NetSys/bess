@@ -6,7 +6,7 @@
 
 class EtherEncap final : public Module {
  public:
-  pb_error_t Init(const bess::pb::EtherEncapArg &arg);
+  CommandResponse Init(const bess::pb::EtherEncapArg &arg);
 
   void ProcessBatch(bess::PacketBatch *batch);
 };

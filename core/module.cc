@@ -188,18 +188,18 @@ CommandResponse ModuleBuilder::RunCommand(
                         class_name_.c_str(), user_cmd.c_str());
 }
 
-pb_error_t ModuleBuilder::RunInit(Module *m,
-                                  const google::protobuf::Any &arg) const {
+CommandResponse ModuleBuilder::RunInit(Module *m,
+                                       const google::protobuf::Any &arg) const {
   return init_func_(m, arg);
 }
 
 // -------------------------------------------------------------------------
-pb_error_t Module::InitWithGenericArg(const google::protobuf::Any &arg) {
+CommandResponse Module::InitWithGenericArg(const google::protobuf::Any &arg) {
   return module_builder_->RunInit(this, arg);
 }
 
-pb_error_t Module::Init(const bess::pb::EmptyArg &) {
-  return pb_errno(0);
+CommandResponse Module::Init(const bess::pb::EmptyArg &) {
+  return CommandSuccess();
 }
 
 void Module::DeInit() {}

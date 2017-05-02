@@ -30,7 +30,7 @@ const Commands Measure::cmds = {
     {"clear", "EmptyArg", MODULE_CMD_FUNC(&Measure::CommandClear), 0},
 };
 
-pb_error_t Measure::Init(const bess::pb::MeasureArg &arg) {
+CommandResponse Measure::Init(const bess::pb::MeasureArg &arg) {
   // seconds from nanoseconds
   warmup_ns_ = arg.warmup() * 1000000000ull;
 
@@ -49,7 +49,7 @@ pb_error_t Measure::Init(const bess::pb::MeasureArg &arg) {
 
   start_ns_ = tsc_to_ns(rdtsc());
 
-  return pb_errno(0);
+  return CommandSuccess();
 }
 
 void Measure::ProcessBatch(bess::PacketBatch *batch) {

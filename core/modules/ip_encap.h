@@ -6,7 +6,7 @@
 
 class IPEncap final : public Module {
  public:
-  pb_error_t Init(const bess::pb::IPEncapArg &arg);
+  CommandResponse Init(const bess::pb::IPEncapArg &arg);
 
   void ProcessBatch(bess::PacketBatch *batch) override;
 };

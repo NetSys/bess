@@ -132,7 +132,7 @@ inline static bess::Packet *GenerateResetPacket(
   return pkt;
 }
 
-pb_error_t UrlFilter::Init(const bess::pb::UrlFilterArg &arg) {
+CommandResponse UrlFilter::Init(const bess::pb::UrlFilterArg &arg) {
   for (const auto &url : arg.blacklist()) {
     if (blacklist_.find(url.host()) == blacklist_.end()) {
       blacklist_.emplace(std::piecewise_construct,
@@ -142,7 +142,7 @@ pb_error_t UrlFilter::Init(const bess::pb::UrlFilterArg &arg) {
     Trie &trie = blacklist_.at(url.host());
     trie.Insert(url.path());
   }
-  return pb_errno(0);
+  return CommandSuccess();
 }
 
 CommandResponse UrlFilter::CommandAdd(const bess::pb::UrlFilterArg &arg) {

@@ -11,12 +11,12 @@ class MetadataTest final : public Module {
   static const gate_idx_t kNumIGates = MAX_GATES;
   static const gate_idx_t kNumOGates = MAX_GATES;
 
-  pb_error_t Init(const bess::pb::MetadataTestArg &arg);
+  CommandResponse Init(const bess::pb::MetadataTestArg &arg);
 
   void ProcessBatch(bess::PacketBatch *batch);
 
  private:
-  pb_error_t AddAttributes(
+  CommandResponse AddAttributes(
       const google::protobuf::Map<std::string, int64_t> &attrs,
       Attribute::AccessMode mode);
 };

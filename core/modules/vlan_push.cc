@@ -12,9 +12,8 @@ const Commands VLANPush::cmds = {
     {"set_tci", "VLANPushArg", MODULE_CMD_FUNC(&VLANPush::CommandSetTci), 0},
 };
 
-pb_error_t VLANPush::Init(const bess::pb::VLANPushArg &arg) {
-  CommandResponse response = CommandSetTci(arg);
-  return response.error();
+CommandResponse VLANPush::Init(const bess::pb::VLANPushArg &arg) {
+  return CommandSetTci(arg);
 }
 
 CommandResponse VLANPush::CommandSetTci(const bess::pb::VLANPushArg &arg) {

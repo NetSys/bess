@@ -40,7 +40,7 @@ class RoundRobin final : public Module {
   RoundRobin()
       : Module(), gates_(), ngates_(), current_gate_(), per_packet_() {}
 
-  pb_error_t Init(const bess::pb::RoundRobinArg &arg);
+  CommandResponse Init(const bess::pb::RoundRobinArg &arg);
 
   void ProcessBatch(bess::PacketBatch *batch) override;
 

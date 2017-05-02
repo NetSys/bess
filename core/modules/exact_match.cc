@@ -21,11 +21,12 @@ const Commands ExactMatch::cmds = {
     {"set_default_gate", "ExactMatchCommandSetDefaultGateArg",
      MODULE_CMD_FUNC(&ExactMatch::CommandSetDefaultGate), 1}};
 
-pb_error_t ExactMatch::AddFieldOne(const bess::pb::ExactMatchArg_Field &field,
-                                   struct EmField *f, int idx) {
+CommandResponse ExactMatch::AddFieldOne(
+    const bess::pb::ExactMatchArg_Field &field, struct EmField *f, int idx) {
   f->size = field.size();
   if (f->size < 1 || f->size > MAX_FIELD_SIZE) {
-    return pb_error(EINVAL, "idx %d: 'size' must be 1-%d", idx, MAX_FIELD_SIZE);
+    return CommandFailure(EINVAL, "idx %d: 'size' must be 1-%d", idx,
+                          MAX_FIELD_SIZE);
   }
 
   if (field.position_case() == bess::pb::ExactMatchArg_Field::kAttribute) {
@@ -33,16 +34,18 @@ pb_error_t ExactMatch::AddFieldOne(const bess::pb::ExactMatchArg_Field &field,
     f->attr_id = AddMetadataAttr(attr, f->size,
                                  bess::metadata::Attribute::AccessMode::kRead);
     if (f->attr_id < 0) {
-      return pb_error(-f->attr_id, "idx %d: add_metadata_attr() failed", idx);
+      return CommandFailure(-f->attr_id, "idx %d: add_metadata_attr() failed",
+                            idx);
     }
   } else if (field.position_case() == bess::pb::ExactMatchArg_Field::kOffset) {
     f->attr_id = -1;
     f->offset = field.offset();
     if (f->offset < 0 || f->offset > 1024) {
-      return pb_error(EINVAL, "idx %d: invalid 'offset'", idx);
+      return CommandFailure(EINVAL, "idx %d: invalid 'offset'", idx);
     }
   } else {
-    return pb_error(EINVAL, "idx %d: must specify 'offset' or 'attr'", idx);
+    return CommandFailure(EINVAL, "idx %d: must specify 'offset' or 'attr'",
+                          idx);
   }
 
   bool force_be = (f->attr_id < 0);
@@ -52,31 +55,31 @@ pb_error_t ExactMatch::AddFieldOne(const bess::pb::ExactMatchArg_Field &field,
     f->mask =
         (f->size == 8) ? 0xffffffffffffffffull : (1ull << (f->size * 8)) - 1;
   } else {
-    if (bess::utils::uint64_to_bin(&f->mask, field.mask(), f->size,
-                                   bess::utils::is_be_system() || force_be)) {
-      return pb_error(EINVAL, "idx %d: not a correct %d-byte mask", idx,
-                      f->size);
+    if (!bess::utils::uint64_to_bin(&f->mask, field.mask(), f->size,
+                                    bess::utils::is_be_system() || force_be)) {
+      return CommandFailure(EINVAL, "idx %d: not a correct %d-byte mask", idx,
+                            f->size);
     }
   }
 
   if (f->mask == 0) {
-    return pb_error(EINVAL, "idx %d: empty mask", idx);
+    return CommandFailure(EINVAL, "idx %d: empty mask", idx);
   }
 
-  return pb_errno(0);
+  return CommandSuccess();
 }
 
-pb_error_t ExactMatch::Init(const bess::pb::ExactMatchArg &arg) {
+CommandResponse ExactMatch::Init(const bess::pb::ExactMatchArg &arg) {
   int size_acc = 0;
 
   for (auto i = 0; i < arg.fields_size(); ++i) {
-    pb_error_t err;
+    CommandResponse err;
     struct EmField *f = &fields_[i];
 
     f->pos = size_acc;
 
     err = AddFieldOne(arg.fields(i), f, i);
-    if (err.code() != 0) {
+    if (err.error().code() != 0) {
       return err;
     }
 
@@ -87,7 +90,7 @@ pb_error_t ExactMatch::Init(const bess::pb::ExactMatchArg &arg) {
   num_fields_ = arg.fields_size();
   total_key_size_ = align_ceil(size_acc, sizeof(uint64_t));
 
-  return pb_errno(0);
+  return CommandSuccess();
 }
 
 void ExactMatch::ProcessBatch(bess::PacketBatch *batch) {

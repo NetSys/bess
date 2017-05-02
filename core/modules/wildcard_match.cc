@@ -36,32 +36,32 @@ const Commands WildcardMatch::cmds = {
     {"set_default_gate", "WildcardMatchCommandSetDefaultGateArg",
      MODULE_CMD_FUNC(&WildcardMatch::CommandSetDefaultGate), 1}};
 
-pb_error_t WildcardMatch::AddFieldOne(const bess::pb::WildcardMatchField &field,
-                                      struct WmField *f) {
+CommandResponse WildcardMatch::AddFieldOne(
+    const bess::pb::WildcardMatchField &field, struct WmField *f) {
   f->size = field.size();
 
   if (f->size < 1 || f->size > MAX_FIELD_SIZE) {
-    return pb_error(EINVAL, "'size' must be 1-%d", MAX_FIELD_SIZE);
+    return CommandFailure(EINVAL, "'size' must be 1-%d", MAX_FIELD_SIZE);
   }
 
   if (field.position_case() == bess::pb::WildcardMatchField::kOffset) {
     f->attr_id = -1;
     f->offset = field.offset();
     if (f->offset < 0 || f->offset > 1024) {
-      return pb_error(EINVAL, "too small 'offset'");
+      return CommandFailure(EINVAL, "too small 'offset'");
     }
   } else if (field.position_case() ==
              bess::pb::WildcardMatchField::kAttribute) {
     const char *attr = field.attribute().c_str();
     f->attr_id = AddMetadataAttr(attr, f->size, Attribute::AccessMode::kRead);
     if (f->attr_id < 0) {
-      return pb_error(-f->attr_id, "add_metadata_attr() failed");
+      return CommandFailure(-f->attr_id, "add_metadata_attr() failed");
     }
   } else {
-    return pb_error(EINVAL, "specify 'offset' or 'attr'");
+    return CommandFailure(EINVAL, "specify 'offset' or 'attr'");
   }
 
-  return pb_errno(0);
+  return CommandSuccess();
 }
 
 /* Takes a list of all fields that may be used by rules.
@@ -73,19 +73,19 @@ pb_error_t WildcardMatch::AddFieldOne(const bess::pb::WildcardMatchField &field,
  * You can also specify metadata attributes
  * e.g.: WildcardMatch([{'name': 'nexthop', 'size': 4}, ...] */
 
-pb_error_t WildcardMatch::Init(const bess::pb::WildcardMatchArg &arg) {
+CommandResponse WildcardMatch::Init(const bess::pb::WildcardMatchArg &arg) {
   int size_acc = 0;
 
   for (int i = 0; i < arg.fields_size(); i++) {
     const auto &field = arg.fields(i);
-    pb_error_t err;
+    CommandResponse err;
     fields_.emplace_back();
     struct WmField &f = fields_.back();
 
     f.pos = size_acc;
 
     err = AddFieldOne(field, &f);
-    if (err.code() != 0) {
+    if (err.error().code() != 0) {
       return err;
     }
 
@@ -95,7 +95,7 @@ pb_error_t WildcardMatch::Init(const bess::pb::WildcardMatchArg &arg) {
   default_gate_ = DROP_GATE;
   total_key_size_ = align_ceil(size_acc, sizeof(uint64_t));
 
-  return pb_errno(0);
+  return CommandSuccess();
 }
 
 inline gate_idx_t WildcardMatch::LookupEntry(const wm_hkey_t &key,
@@ -200,11 +200,11 @@ CommandResponse WildcardMatch::ExtractKeyMask(const T &arg, wm_hkey_t *key,
 
     bool force_be = (fields_[i].attr_id < 0);
 
-    if (bess::utils::uint64_to_bin(&v, arg.values(i), field_size,
-                                   force_be || bess::utils::is_be_system())) {
+    if (!bess::utils::uint64_to_bin(&v, arg.values(i), field_size,
+                                    force_be || bess::utils::is_be_system())) {
       return CommandFailure(EINVAL, "idx %zu: not a correct %d-byte value", i,
                             field_size);
-    } else if (bess::utils::uint64_to_bin(
+    } else if (!bess::utils::uint64_to_bin(
                    &m, arg.masks(i), field_size,
                    force_be || bess::utils::is_be_system())) {
       return CommandFailure(EINVAL, "idx %zu: not a correct %d-byte mask", i,

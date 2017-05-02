@@ -7,6 +7,7 @@
 
 #include <gflags/gflags.h>
 #include <glog/logging.h>
+#include <google/protobuf/empty.pb.h>
 #include <grpc++/server.h>
 #include <grpc++/server_builder.h>
 #include <grpc++/server_context.h>
@@ -330,10 +331,21 @@ static Module* create_module(const std::string& name,
 
   // DPDK functions may be called, so be prepared
   ctx.SetNonWorker();
-  *perr = m->InitWithGenericArg(arg);
-  if (perr->code() != 0) {
-    VLOG(1) << perr->DebugString();
-    ModuleBuilder::DestroyModule(m);
+
+  CommandResponse ret = m->InitWithGenericArg(arg);
+
+  {
+    google::protobuf::Any empty;
+
+    if (ret.data().SerializeAsString() != empty.SerializeAsString()) {
+      LOG(WARNING) << name << "::" << builder.class_name()
+                   << " Init() returned non-empty response: "
+                   << ret.data().DebugString();
+    }
+  }
+
+  if (ret.error().code() != 0) {
+    *perr = ret.error();
     return nullptr;
   }
 

@@ -35,7 +35,7 @@ class L2Forward final : public Module {
 
   L2Forward() : Module(), l2_table_(), default_gate_() {}
 
-  pb_error_t Init(const bess::pb::L2ForwardArg &arg);
+  CommandResponse Init(const bess::pb::L2ForwardArg &arg);
 
   void DeInit() override;
 

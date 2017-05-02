@@ -9,9 +9,8 @@ const Commands RandomUpdate::cmds = {
     {"clear", "EmptyArg", MODULE_CMD_FUNC(&RandomUpdate::CommandClear), 0},
 };
 
-pb_error_t RandomUpdate::Init(const bess::pb::RandomUpdateArg &arg) {
-  CommandResponse response = CommandAdd(arg);
-  return response.error();
+CommandResponse RandomUpdate::Init(const bess::pb::RandomUpdateArg &arg) {
+  return CommandAdd(arg);
 }
 
 CommandResponse RandomUpdate::CommandAdd(const bess::pb::RandomUpdateArg &arg) {

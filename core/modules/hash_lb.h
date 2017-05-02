@@ -21,7 +21,7 @@ class HashLB final : public Module {
 
   HashLB() : Module(), gates_(), num_gates_(), mode_() {}
 
-  pb_error_t Init(const bess::pb::HashLBArg &arg);
+  CommandResponse Init(const bess::pb::HashLBArg &arg);
 
   void ProcessBatch(bess::PacketBatch *batch) override;
 

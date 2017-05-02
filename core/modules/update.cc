@@ -7,9 +7,8 @@ const Commands Update::cmds = {
     {"clear", "EmptyArg", MODULE_CMD_FUNC(&Update::CommandClear), 0},
 };
 
-pb_error_t Update::Init(const bess::pb::UpdateArg &arg) {
-  CommandResponse response = CommandAdd(arg);
-  return response.error();
+CommandResponse Update::Init(const bess::pb::UpdateArg &arg) {
+  return CommandAdd(arg);
 }
 
 void Update::ProcessBatch(bess::PacketBatch *batch) {
@@ -57,8 +56,8 @@ CommandResponse Update::CommandAdd(const bess::pb::UpdateArg &arg) {
       return CommandFailure(EINVAL, "'size' must be 1-8");
     }
 
-    if (bess::utils::uint64_to_bin(&value, field.value(), size,
-                                   bess::utils::is_be_system())) {
+    if (!bess::utils::uint64_to_bin(&value, field.value(), size,
+                                    bess::utils::is_be_system())) {
       return CommandFailure(
           EINVAL, "'value' field has not a correct %d-byte value", size);
     }

@@ -7,18 +7,18 @@ const Commands RoundRobin::cmds = {
      MODULE_CMD_FUNC(&RoundRobin::CommandSetGates), 0},
 };
 
-pb_error_t RoundRobin::Init(const bess::pb::RoundRobinArg &arg) {
-  pb_error_t err;
+CommandResponse RoundRobin::Init(const bess::pb::RoundRobinArg &arg) {
+  CommandResponse err;
 
   if (arg.gates_size() > MAX_RR_GATES) {
-    return pb_error(EINVAL, "no more than %d gates", MAX_RR_GATES);
+    return CommandFailure(EINVAL, "no more than %d gates", MAX_RR_GATES);
   }
 
   for (int i = 0; i < arg.gates_size(); i++) {
     int elem = arg.gates(i);
     gates_[i] = elem;
     if (!is_valid_gate(gates_[i])) {
-      return pb_error(EINVAL, "invalid gate %d", gates_[i]);
+      return CommandFailure(EINVAL, "invalid gate %d", gates_[i]);
     }
   }
   ngates_ = arg.gates_size();
@@ -29,11 +29,12 @@ pb_error_t RoundRobin::Init(const bess::pb::RoundRobinArg &arg) {
     } else if (arg.mode() == "batch") {
       per_packet_ = 0;
     } else {
-      return pb_error(EINVAL, "argument must be either 'packet' or 'batch'");
+      return CommandFailure(EINVAL,
+                            "argument must be either 'packet' or 'batch'");
     }
   }
 
-  return pb_errno(0);
+  return CommandSuccess();
 }
 
 CommandResponse RoundRobin::CommandSetMode(

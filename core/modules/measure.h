@@ -22,7 +22,7 @@ class Measure final : public Module {
         bytes_cnt_(),
         total_latency_() {}
 
-  pb_error_t Init(const bess::pb::MeasureArg &arg);
+  CommandResponse Init(const bess::pb::MeasureArg &arg);
 
   void ProcessBatch(bess::PacketBatch *batch) override;
 

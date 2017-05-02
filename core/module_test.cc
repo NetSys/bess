@@ -18,7 +18,9 @@ class AcmeModule : public Module {
 
   static const Commands cmds;
 
-  pb_error_t Init(const bess::pb::EmptyArg &) { return pb_errno(42); }
+  CommandResponse Init(const bess::pb::EmptyArg &) {
+    return CommandFailure(42);
+  }
 
   CommandResponse FooPb(const bess::pb::EmptyArg &) {
     n += 1;
@@ -65,8 +67,8 @@ int create_acme(const char *name, Module **m) {
   bess::pb::EmptyArg arg_;
   google::protobuf::Any arg;
   arg.PackFrom(arg_);
-  pb_error_t err = (*m)->InitWithGenericArg(arg);
-  EXPECT_EQ(42, err.code());
+  CommandResponse ret = (*m)->InitWithGenericArg(arg);
+  EXPECT_EQ(42, ret.error().code());
 
   ModuleBuilder::AddModule(*m);
 
