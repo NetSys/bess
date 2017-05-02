@@ -7,7 +7,16 @@
 #include "error.pb.h"
 
 typedef bess::pb::Error pb_error_t;
-typedef bess::pb::ModuleCommandResponse pb_cmd_response_t;
+
+using CommandResponse = bess::pb::ModuleCommandResponse;
+
+CommandResponse CommandSuccess();
+CommandResponse CommandSuccess(const google::protobuf::Message &return_data);
+
+CommandResponse CommandFailure(int code);
+[[gnu::format(printf, 2, 3)]] CommandResponse CommandFailure(int code,
+                                                             const char *fmt,
+                                                             ...);
 
 template <typename T, typename M, typename A>
 using pb_func_t = std::function<T(M *, const A &)>;

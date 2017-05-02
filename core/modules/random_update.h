@@ -17,8 +17,8 @@ class RandomUpdate final : public Module {
 
   void ProcessBatch(bess::PacketBatch *batch) override;
 
-  pb_cmd_response_t CommandAdd(const bess::pb::RandomUpdateArg &arg);
-  pb_cmd_response_t CommandClear(const bess::pb::EmptyArg &arg);
+  CommandResponse CommandAdd(const bess::pb::RandomUpdateArg &arg);
+  CommandResponse CommandClear(const bess::pb::EmptyArg &arg);
 
  private:
   int num_vars_;

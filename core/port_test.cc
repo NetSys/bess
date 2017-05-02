@@ -77,7 +77,7 @@ TEST_F(PortTest, CreatePort) {
   google::protobuf::Any arg;
   arg.PackFrom(arg_);
   pb_error_t err = p->InitWithGenericArg(arg);
-  EXPECT_EQ(42, err.err());
+  EXPECT_EQ(42, err.code());
 }
 
 // Checks that adding a port puts it into the global port collection.

@@ -55,14 +55,14 @@ pb_error_t DRR::Init(const bess::pb::DRRArg& arg) {
 
   if (arg.max_flow_queue_size() != 0) {
     err = SetMaxFlowQueueSize(arg.max_flow_queue_size());
-    if (err.err() != 0) {
+    if (err.code() != 0) {
       return err;
     }
   }
 
   if (arg.quantum() != 0) {
     err = SetQuantumSize(arg.quantum());
-    if (err.err() != 0) {
+    if (err.code() != 0) {
       return err;
     }
   }
@@ -82,17 +82,23 @@ pb_error_t DRR::Init(const bess::pb::DRRArg& arg) {
   return pb_errno(0);
 }
 
-pb_cmd_response_t DRR::CommandQuantumSize(const bess::pb::DRRQuantumArg& arg) {
-  pb_cmd_response_t response;
-  set_cmd_response_error(&response, SetQuantumSize(arg.quantum()));
-  return response;
+CommandResponse DRR::CommandQuantumSize(const bess::pb::DRRQuantumArg& arg) {
+  pb_error_t ret = SetQuantumSize(arg.quantum());
+  if (ret.code() != 0) {
+    return CommandFailure(ret.code(), "%s", ret.errmsg().c_str());
+  } else {
+    return CommandSuccess();
+  }
 }
 
-pb_cmd_response_t DRR::CommandMaxFlowQueueSize(
+CommandResponse DRR::CommandMaxFlowQueueSize(
     const bess::pb::DRRMaxFlowQueueSizeArg& arg) {
-  pb_cmd_response_t response;
-  set_cmd_response_error(&response, SetMaxFlowQueueSize(arg.max_queue_size()));
-  return response;
+  pb_error_t ret = SetMaxFlowQueueSize(arg.max_queue_size());
+  if (ret.code() != 0) {
+    return CommandFailure(ret.code(), "%s", ret.errmsg().c_str());
+  } else {
+    return CommandSuccess();
+  }
 }
 
 void DRR::ProcessBatch(bess::PacketBatch* batch) {

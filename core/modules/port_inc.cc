@@ -117,20 +117,17 @@ struct task_result PortInc::RunTask(void *arg) {
   return ret;
 }
 
-pb_error_t PortInc::SetBurst(uint64_t burst) {
-  if (burst > bess::PacketBatch::kMaxBurst) {
-    return pb_error(EINVAL, "burst size must be [0,%zu]",
-                    bess::PacketBatch::kMaxBurst);
-  }
-  burst_ = burst;
-  return pb_errno(0);
-}
-
-pb_cmd_response_t PortInc::CommandSetBurst(
+CommandResponse PortInc::CommandSetBurst(
     const bess::pb::PortIncCommandSetBurstArg &arg) {
-  pb_cmd_response_t response;
-  set_cmd_response_error(&response, SetBurst(arg.burst()));
-  return response;
+  uint64_t burst = arg.burst();
+
+  if (burst > bess::PacketBatch::kMaxBurst) {
+    return CommandFailure(EINVAL, "burst size must be [0,%zu]",
+                          bess::PacketBatch::kMaxBurst);
+  }
+
+  burst_ = burst;
+  return CommandSuccess();
 }
 
 ADD_MODULE(PortInc, "port_inc", "receives packets from a port")

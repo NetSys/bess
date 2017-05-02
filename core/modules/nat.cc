@@ -38,16 +38,16 @@ pb_error_t NAT::Init(const bess::pb::NATArg &arg) {
   return pb_errno(0);
 }
 
-pb_cmd_response_t NAT::CommandAdd(const bess::pb::NATArg &arg) {
+CommandResponse NAT::CommandAdd(const bess::pb::NATArg &arg) {
   InitRules(arg);
-  return pb_cmd_response_t();
+  return CommandResponse();
 }
 
-pb_cmd_response_t NAT::CommandClear(const bess::pb::EmptyArg &) {
+CommandResponse NAT::CommandClear(const bess::pb::EmptyArg &) {
   rules_.clear();
   flow_hash_.Clear();
 
-  return pb_cmd_response_t();
+  return CommandResponse();
 }
 
 // Extract a Flow object from IP header ip and L4 header l4
@@ -163,15 +163,13 @@ static inline void stamp_flow(struct Ipv4Header *ip, void *l4,
 
 // Rewrite IP header and L4 header src info using flow
 static inline void stamp_flow_src(struct Ipv4Header *ip, void *l4,
-                                  const Flow &flow)
-{
+                                  const Flow &flow) {
   stamp_flow<true>(ip, l4, flow);
 }
 
 // Rewrite IP header and L4 header dst info using flow
 static inline void stamp_flow_dst(struct Ipv4Header *ip, void *l4,
-                                  const Flow &flow)
-{
+                                  const Flow &flow) {
   stamp_flow<false>(ip, l4, flow);
 }
 

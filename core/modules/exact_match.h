@@ -109,18 +109,18 @@ class ExactMatch final : public Module {
   std::string GetDesc() const override;
 
   pb_error_t Init(const bess::pb::ExactMatchArg &arg);
-  pb_cmd_response_t CommandAdd(const bess::pb::ExactMatchCommandAddArg &arg);
-  pb_cmd_response_t CommandDelete(
+  CommandResponse CommandAdd(const bess::pb::ExactMatchCommandAddArg &arg);
+  CommandResponse CommandDelete(
       const bess::pb::ExactMatchCommandDeleteArg &arg);
-  pb_cmd_response_t CommandClear(const bess::pb::EmptyArg &arg);
-  pb_cmd_response_t CommandSetDefaultGate(
+  CommandResponse CommandClear(const bess::pb::EmptyArg &arg);
+  CommandResponse CommandSetDefaultGate(
       const bess::pb::ExactMatchCommandSetDefaultGateArg &arg);
 
  private:
   pb_error_t AddFieldOne(const bess::pb::ExactMatchArg_Field &field,
                          struct EmField *f, int idx);
-  pb_error_t GatherKey(const RepeatedPtrField<std::string> &fields,
-                       em_hkey_t *key);
+  CommandResponse GatherKey(const RepeatedPtrField<std::string> &fields,
+                            em_hkey_t *key);
 
   gate_idx_t default_gate_;
 

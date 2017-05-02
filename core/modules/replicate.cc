@@ -21,14 +21,10 @@ pb_error_t Replicate::Init(const bess::pb::ReplicateArg &arg) {
   return pb_errno(0);
 }
 
-pb_cmd_response_t Replicate::CommandSetGates(
+CommandResponse Replicate::CommandSetGates(
     const bess::pb::ReplicateCommandSetGatesArg &arg) {
-  pb_cmd_response_t response;
-
   if (arg.gates_size() > kMaxGates) {
-    set_cmd_response_error(
-        &response, pb_error(EINVAL, "no more than %d gates", kMaxGates));
-    return response;
+    return CommandFailure(EINVAL, "no more than %d gates", kMaxGates);
   }
 
   for (int i = 0; i < arg.gates_size(); i++) {
@@ -36,8 +32,7 @@ pb_cmd_response_t Replicate::CommandSetGates(
   }
 
   ngates_ = arg.gates_size();
-  set_cmd_response_error(&response, pb_errno(0));
-  return response;
+  return CommandSuccess();
 }
 
 void Replicate::ProcessBatch(bess::PacketBatch *batch) {

@@ -117,10 +117,8 @@ void IPLookup::ProcessBatch(bess::PacketBatch *batch) {
   RunSplit(out_gates, batch);
 }
 
-pb_cmd_response_t IPLookup::CommandAdd(
+CommandResponse IPLookup::CommandAdd(
     const bess::pb::IPLookupCommandAddArg &arg) {
-  pb_cmd_response_t response;
-
   struct in_addr ip_addr_be;
   uint32_t ip_addr; /* in cpu order */
   uint32_t netmask;
@@ -128,8 +126,7 @@ pb_cmd_response_t IPLookup::CommandAdd(
   gate_idx_t gate = arg.gate();
 
   if (!arg.prefix().length()) {
-    set_cmd_response_error(&response, pb_error(EINVAL, "prefix' is missing"));
-    return response;
+    return CommandFailure(EINVAL, "prefix' is missing");
   }
 
   const char *prefix = arg.prefix().c_str();
@@ -137,32 +134,24 @@ pb_cmd_response_t IPLookup::CommandAdd(
 
   ret = inet_aton(prefix, &ip_addr_be);
   if (!ret) {
-    set_cmd_response_error(&response,
-                           pb_error(EINVAL, "Invalid IP prefix: %s", prefix));
-    return response;
+    return CommandFailure(EINVAL, "Invalid IP prefix: %s", prefix);
   }
 
   if (prefix_len > 32) {
-    set_cmd_response_error(
-        &response,
-        pb_error(EINVAL, "Invalid prefix length: %" PRIu64, prefix_len));
-    return response;
+    return CommandFailure(EINVAL, "Invalid prefix length: %" PRIu64,
+                          prefix_len);
   }
 
   ip_addr = rte_be_to_cpu_32(ip_addr_be.s_addr);
   netmask = ~((1ull << (32 - prefix_len)) - 1);
 
   if (ip_addr & ~netmask) {
-    set_cmd_response_error(
-        &response, pb_error(EINVAL, "Invalid IP prefix %s/%" PRIu64 " %x %x",
-                            prefix, prefix_len, ip_addr, netmask));
-    return response;
+    return CommandFailure(EINVAL, "Invalid IP prefix %s/%" PRIu64 " %x %x",
+                          prefix, prefix_len, ip_addr, netmask);
   }
 
   if (!is_valid_gate(gate)) {
-    set_cmd_response_error(&response,
-                           pb_error(EINVAL, "Invalid gate: %hu", gate));
-    return response;
+    return CommandFailure(EINVAL, "Invalid gate: %hu", gate);
   }
 
   if (prefix_len == 0) {
@@ -170,22 +159,16 @@ pb_cmd_response_t IPLookup::CommandAdd(
   } else {
     ret = rte_lpm_add(lpm_, ip_addr, prefix_len, gate);
     if (ret) {
-      set_cmd_response_error(&response, pb_error(-ret, "rpm_lpm_add() failed"));
-      return response;
+      return CommandFailure(-ret, "rpm_lpm_add() failed");
     }
   }
 
-  set_cmd_response_error(&response, pb_errno(0));
-  return response;
+  return CommandSuccess();
 }
 
-pb_cmd_response_t IPLookup::CommandClear(const bess::pb::EmptyArg &) {
-  pb_cmd_response_t response;
-
+CommandResponse IPLookup::CommandClear(const bess::pb::EmptyArg &) {
   rte_lpm_delete_all(lpm_);
-  default_gate_ = DROP_GATE;
-  set_cmd_response_error(&response, pb_errno(0));
-  return response;
+  return CommandSuccess();
 }
 
 ADD_MODULE(IPLookup, "ip_lookup",

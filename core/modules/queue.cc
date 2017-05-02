@@ -62,7 +62,7 @@ pb_error_t Queue::Init(const bess::pb::QueueArg &arg) {
 
   if (arg.size() != 0) {
     err = SetSize(arg.size());
-    if (err.err() != 0) {
+    if (err.code() != 0) {
       return err;
     }
   } else {
@@ -140,14 +140,17 @@ struct task_result Queue::RunTask(void *) {
   return ret;
 }
 
-pb_error_t Queue::SetBurst(uint64_t burst) {
+CommandResponse Queue::CommandSetBurst(
+    const bess::pb::QueueCommandSetBurstArg &arg) {
+  uint64_t burst = arg.burst();
+
   if (burst > bess::PacketBatch::kMaxBurst) {
-    return pb_error(EINVAL, "burst size must be [0,%zu]",
-                    bess::PacketBatch::kMaxBurst);
+    return CommandFailure(EINVAL, "burst size must be [0,%zu]",
+                          bess::PacketBatch::kMaxBurst);
   }
 
   burst_ = burst;
-  return pb_errno(0);
+  return CommandSuccess();
 }
 
 pb_error_t Queue::SetSize(uint64_t size) {
@@ -166,17 +169,14 @@ pb_error_t Queue::SetSize(uint64_t size) {
   return pb_errno(0);
 }
 
-pb_cmd_response_t Queue::CommandSetBurst(
-    const bess::pb::QueueCommandSetBurstArg &arg) {
-  pb_cmd_response_t response;
-  set_cmd_response_error(&response, SetBurst(arg.burst()));
-  return response;
-}
-pb_cmd_response_t Queue::CommandSetSize(
+CommandResponse Queue::CommandSetSize(
     const bess::pb::QueueCommandSetSizeArg &arg) {
-  pb_cmd_response_t response;
-  set_cmd_response_error(&response, SetSize(arg.size()));
-  return response;
+  pb_error_t ret = SetSize(arg.size());
+  if (ret.code() != 0) {
+    return CommandFailure(ret.code(), "%s", ret.errmsg().c_str());
+  } else {
+    return CommandSuccess();
+  }
 }
 
 ADD_MODULE(Queue, "queue",

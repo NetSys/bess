@@ -85,7 +85,7 @@ pb_error_t WildcardMatch::Init(const bess::pb::WildcardMatchArg &arg) {
     f.pos = size_acc;
 
     err = AddFieldOne(field, &f);
-    if (err.err() != 0) {
+    if (err.code() != 0) {
       return err;
     }
 
@@ -180,12 +180,12 @@ std::string WildcardMatch::GetDesc() const {
 }
 
 template <typename T>
-pb_error_t WildcardMatch::ExtractKeyMask(const T &arg, wm_hkey_t *key,
-                                         wm_hkey_t *mask) {
+CommandResponse WildcardMatch::ExtractKeyMask(const T &arg, wm_hkey_t *key,
+                                              wm_hkey_t *mask) {
   if ((size_t)arg.values_size() != fields_.size()) {
-    return pb_error(EINVAL, "must specify %zu values", fields_.size());
+    return CommandFailure(EINVAL, "must specify %zu values", fields_.size());
   } else if ((size_t)arg.masks_size() != fields_.size()) {
-    return pb_error(EINVAL, "must specify %zu masks", fields_.size());
+    return CommandFailure(EINVAL, "must specify %zu masks", fields_.size());
   }
 
   memset(key, 0, sizeof(*key));
@@ -202,22 +202,22 @@ pb_error_t WildcardMatch::ExtractKeyMask(const T &arg, wm_hkey_t *key,
 
     if (bess::utils::uint64_to_bin(&v, arg.values(i), field_size,
                                    force_be || bess::utils::is_be_system())) {
-      return pb_error(EINVAL, "idx %zu: not a correct %d-byte value", i,
-                      field_size);
+      return CommandFailure(EINVAL, "idx %zu: not a correct %d-byte value", i,
+                            field_size);
     } else if (bess::utils::uint64_to_bin(
                    &m, arg.masks(i), field_size,
                    force_be || bess::utils::is_be_system())) {
-      return pb_error(EINVAL, "idx %zu: not a correct %d-byte mask", i,
-                      field_size);
+      return CommandFailure(EINVAL, "idx %zu: not a correct %d-byte mask", i,
+                            field_size);
     }
 
     if (v & ~m) {
-      return pb_error(EINVAL,
-                      "idx %zu: invalid pair of "
-                      "value 0x%0*" PRIx64
-                      " and "
-                      "mask 0x%0*" PRIx64,
-                      i, field_size * 2, v, field_size * 2, m);
+      return CommandFailure(EINVAL,
+                            "idx %zu: invalid pair of "
+                            "value 0x%0*" PRIx64
+                            " and "
+                            "mask 0x%0*" PRIx64,
+                            i, field_size * 2, v, field_size * 2, m);
     }
 
     bess::utils::Copy(reinterpret_cast<uint8_t *>(key) + field_pos, &v,
@@ -226,7 +226,7 @@ pb_error_t WildcardMatch::ExtractKeyMask(const T &arg, wm_hkey_t *key,
                       field_size);
   }
 
-  return pb_errno(0);
+  return CommandSuccess();
 }
 
 int WildcardMatch::FindTuple(wm_hkey_t *mask) {
@@ -268,10 +268,8 @@ int WildcardMatch::DelEntry(int idx, wm_hkey_t *key) {
   return 0;
 }
 
-pb_cmd_response_t WildcardMatch::CommandAdd(
+CommandResponse WildcardMatch::CommandAdd(
     const bess::pb::WildcardMatchCommandAddArg &arg) {
-  pb_cmd_response_t response;
-
   gate_idx_t gate = arg.gate();
   int priority = arg.priority();
 
@@ -280,16 +278,13 @@ pb_cmd_response_t WildcardMatch::CommandAdd(
 
   struct WmData data;
 
-  pb_error_t err = ExtractKeyMask(arg, &key, &mask);
-  if (err.err() != 0) {
-    set_cmd_response_error(&response, err);
-    return response;
+  CommandResponse err = ExtractKeyMask(arg, &key, &mask);
+  if (err.error().code() != 0) {
+    return err;
   }
 
   if (!is_valid_gate(gate)) {
-    set_cmd_response_error(&response,
-                           pb_error(EINVAL, "Invalid gate: %hu", gate));
-    return response;
+    return CommandFailure(EINVAL, "Invalid gate: %hu", gate);
   }
 
   data.priority = priority;
@@ -299,66 +294,53 @@ pb_cmd_response_t WildcardMatch::CommandAdd(
   if (idx < 0) {
     idx = AddTuple(&mask);
     if (idx < 0) {
-      set_cmd_response_error(
-          &response, pb_error(-idx, "failed to add a new wildcard pattern"));
-      return response;
+      return CommandFailure(-idx, "failed to add a new wildcard pattern");
     }
   }
 
   auto *ret = tuples_[idx].ht.Insert(key, data, wm_hash(total_key_size_),
                                      wm_eq(total_key_size_));
   if (ret == nullptr) {
-    set_cmd_response_error(&response, pb_error(-1, "failed to add a rule"));
-    return response;
+    return CommandFailure(EINVAL, "failed to add a rule");
   }
 
-  set_cmd_response_error(&response, pb_errno(0));
-  return response;
+  return CommandSuccess();
 }
 
-pb_cmd_response_t WildcardMatch::CommandDelete(
+CommandResponse WildcardMatch::CommandDelete(
     const bess::pb::WildcardMatchCommandDeleteArg &arg) {
-  pb_cmd_response_t response;
-
   wm_hkey_t key;
   wm_hkey_t mask;
 
-  pb_error_t err = ExtractKeyMask(arg, &key, &mask);
-  if (err.err() != 0) {
-    set_cmd_response_error(&response, err);
-    return response;
+  CommandResponse err = ExtractKeyMask(arg, &key, &mask);
+  if (err.error().code() != 0) {
+    return err;
   }
 
   int idx = FindTuple(&mask);
   if (idx < 0) {
-    set_cmd_response_error(&response,
-                           pb_error(-idx, "failed to delete a rule"));
-    return response;
+    return CommandFailure(-idx, "failed to delete a rule");
   }
 
   int ret = DelEntry(idx, &key);
   if (ret < 0) {
-    set_cmd_response_error(&response,
-                           pb_error(-ret, "failed to delete a rule"));
-    return response;
+    return CommandFailure(-ret, "failed to delete a rule");
   }
 
-  set_cmd_response_error(&response, pb_errno(0));
-  return response;
+  return CommandSuccess();
 }
 
-pb_cmd_response_t WildcardMatch::CommandClear(const bess::pb::EmptyArg &) {
+CommandResponse WildcardMatch::CommandClear(const bess::pb::EmptyArg &) {
   for (auto &tuple : tuples_) {
     tuple.ht.Clear();
   }
 
-  pb_cmd_response_t response;
+  CommandResponse response;
 
-  set_cmd_response_error(&response, pb_errno(0));
-  return response;
+  return CommandSuccess();
 }
 
-pb_cmd_response_t WildcardMatch::CommandGetRules(const bess::pb::EmptyArg &) {
+CommandResponse WildcardMatch::CommandGetRules(const bess::pb::EmptyArg &) {
   bess::pb::WildcardMatchCommandGetRulesResponse resp;
   resp.set_default_gate(default_gate_);
 
@@ -393,24 +375,14 @@ pb_cmd_response_t WildcardMatch::CommandGetRules(const bess::pb::EmptyArg &) {
       }
     }
   }
-  pb_cmd_response_t response;
 
-  response.mutable_error()->set_err(0);
-  response.mutable_other()->PackFrom(resp);
-
-  return response;
+  return CommandSuccess(resp);
 }
 
-pb_cmd_response_t WildcardMatch::CommandSetDefaultGate(
+CommandResponse WildcardMatch::CommandSetDefaultGate(
     const bess::pb::WildcardMatchCommandSetDefaultGateArg &arg) {
-  pb_cmd_response_t response;
-
-  int gate = arg.gate();
-
-  default_gate_ = gate;
-
-  set_cmd_response_error(&response, pb_errno(0));
-  return response;
+  default_gate_ = arg.gate();
+  return CommandSuccess();
 }
 
 ADD_MODULE(WildcardMatch, "wm",

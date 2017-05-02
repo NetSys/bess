@@ -18,8 +18,8 @@ class IPLookup final : public Module {
 
   void ProcessBatch(bess::PacketBatch *batch) override;
 
-  pb_cmd_response_t CommandAdd(const bess::pb::IPLookupCommandAddArg &arg);
-  pb_cmd_response_t CommandClear(const bess::pb::EmptyArg &arg);
+  CommandResponse CommandAdd(const bess::pb::IPLookupCommandAddArg &arg);
+  CommandResponse CommandClear(const bess::pb::EmptyArg &arg);
 
  private:
   struct rte_lpm *lpm_;

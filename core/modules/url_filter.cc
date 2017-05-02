@@ -145,15 +145,14 @@ pb_error_t UrlFilter::Init(const bess::pb::UrlFilterArg &arg) {
   return pb_errno(0);
 }
 
-pb_cmd_response_t UrlFilter::CommandAdd(const bess::pb::UrlFilterArg &arg) {
-  pb_cmd_response_t response;
-  set_cmd_response_error(&response, Init(arg));
-  return response;
+CommandResponse UrlFilter::CommandAdd(const bess::pb::UrlFilterArg &arg) {
+  Init(arg);
+  return CommandSuccess();
 }
 
-pb_cmd_response_t UrlFilter::CommandClear(const bess::pb::EmptyArg &) {
+CommandResponse UrlFilter::CommandClear(const bess::pb::EmptyArg &) {
   blacklist_.clear();
-  return pb_cmd_response_t();
+  return CommandResponse();
 }
 
 void UrlFilter::ProcessBatch(bess::PacketBatch *batch) {

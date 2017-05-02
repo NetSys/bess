@@ -25,9 +25,8 @@ class HashLB final : public Module {
 
   void ProcessBatch(bess::PacketBatch *batch) override;
 
-  pb_cmd_response_t CommandSetMode(
-      const bess::pb::HashLBCommandSetModeArg &arg);
-  pb_cmd_response_t CommandSetGates(
+  CommandResponse CommandSetMode(const bess::pb::HashLBCommandSetModeArg &arg);
+  CommandResponse CommandSetGates(
       const bess::pb::HashLBCommandSetGatesArg &arg);
 
  private:

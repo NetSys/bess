@@ -103,20 +103,15 @@ struct task_result QueueInc::RunTask(void *arg) {
   return ret;
 }
 
-pb_error_t QueueInc::SetBurst(uint64_t burst) {
-  if (burst > bess::PacketBatch::kMaxBurst) {
-    return pb_error(EINVAL, "burst size must be [0,%zu]",
-                    bess::PacketBatch::kMaxBurst);
-  }
-  burst_ = burst;
-  return pb_errno(0);
-}
-
-pb_cmd_response_t QueueInc::CommandSetBurst(
+CommandResponse QueueInc::CommandSetBurst(
     const bess::pb::QueueIncCommandSetBurstArg &arg) {
-  pb_cmd_response_t response;
-  set_cmd_response_error(&response, SetBurst(arg.burst()));
-  return response;
+  if (arg.burst() > bess::PacketBatch::kMaxBurst) {
+    return CommandFailure(EINVAL, "burst size must be [0,%zu]",
+                          bess::PacketBatch::kMaxBurst);
+  } else {
+    burst_ = arg.burst();
+    return CommandSuccess();
+  }
 }
 
 ADD_MODULE(QueueInc, "queue_inc",

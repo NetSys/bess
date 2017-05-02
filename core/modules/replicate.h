@@ -20,7 +20,7 @@ class Replicate final : public Module {
   /*!
    * Sets the number of output gates.
    */
-  pb_cmd_response_t CommandSetGates(
+  CommandResponse CommandSetGates(
       const bess::pb::ReplicateCommandSetGatesArg &arg);
 
  private:

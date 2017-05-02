@@ -225,9 +225,11 @@ TEST(TryAcquirePidfileLock, AlreadyHeldPidReadFails) {
 // Checks that trying to check for a unique instance with a bad pidfile path
 // dies.
 TEST(CheckUniqueInstance, BadPidfilePath) {
-  // Assume we don't have permission to write to this path:
-  const std::string kNoPermissionPath("/dev/nopermission");
-  EXPECT_DEATH(CheckUniqueInstance(kNoPermissionPath), "");
+  if (geteuid()) {
+    // Assume we don't have permission to write to this path:
+    const std::string kNoPermissionPath("/dev/nopermission");
+    EXPECT_DEATH(CheckUniqueInstance(kNoPermissionPath), "");
+  }
 }
 
 // Checks that the combined routine to check for a unique instance works when

@@ -65,7 +65,7 @@ pb_error_t GenericEncap::Init(const bess::pb::GenericEncapArg &arg) {
     f->pos = size_acc;
 
     err = AddFieldOne(field, f, i);
-    if (err.err() != 0) {
+    if (err.code() != 0) {
       return err;
     }
 

@@ -24,15 +24,14 @@ pb_error_t ACL::Init(const bess::pb::ACLArg &arg) {
   return pb_errno(0);
 }
 
-pb_cmd_response_t ACL::CommandAdd(const bess::pb::ACLArg &arg) {
-  pb_cmd_response_t response;
-  set_cmd_response_error(&response, Init(arg));
-  return response;
+CommandResponse ACL::CommandAdd(const bess::pb::ACLArg &arg) {
+  Init(arg);
+  return CommandSuccess();
 }
 
-pb_cmd_response_t ACL::CommandClear(const bess::pb::EmptyArg &) {
+CommandResponse ACL::CommandClear(const bess::pb::EmptyArg &) {
   rules_.clear();
-  return pb_cmd_response_t();
+  return CommandSuccess();
 }
 
 void ACL::ProcessBatch(bess::PacketBatch *batch) {

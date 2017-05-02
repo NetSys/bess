@@ -88,8 +88,8 @@ class UrlFilter final : public Module {
 
   void ProcessBatch(bess::PacketBatch *batch) override;
 
-  pb_cmd_response_t CommandAdd(const bess::pb::UrlFilterArg &arg);
-  pb_cmd_response_t CommandClear(const bess::pb::EmptyArg &arg);
+  CommandResponse CommandAdd(const bess::pb::UrlFilterArg &arg);
+  CommandResponse CommandClear(const bess::pb::EmptyArg &arg);
 
  private:
   std::unordered_map<std::string, Trie> blacklist_;

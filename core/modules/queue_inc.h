@@ -20,7 +20,7 @@ class QueueInc final : public Module {
 
   std::string GetDesc() const override;
 
-  pb_cmd_response_t CommandSetBurst(
+  CommandResponse CommandSetBurst(
       const bess::pb::QueueIncCommandSetBurstArg &arg);
 
  private:
@@ -28,7 +28,6 @@ class QueueInc final : public Module {
   queue_t qid_;
   int prefetch_;
   int burst_;
-  pb_error_t SetBurst(uint64_t burst);
 };
 
 #endif  // BESS_MODULES_QUEUEINC_H_

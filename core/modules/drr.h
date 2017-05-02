@@ -136,8 +136,8 @@ class DRR final : public Module {
 
   struct task_result RunTask(void*) override;
 
-  pb_cmd_response_t CommandQuantumSize(const bess::pb::DRRQuantumArg& arg);
-  pb_cmd_response_t CommandMaxFlowQueueSize(
+  CommandResponse CommandQuantumSize(const bess::pb::DRRQuantumArg& arg);
+  CommandResponse CommandMaxFlowQueueSize(
       const bess::pb::DRRMaxFlowQueueSizeArg& arg);
 
  private:

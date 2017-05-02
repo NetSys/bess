@@ -13,20 +13,15 @@ const Commands VLANPush::cmds = {
 };
 
 pb_error_t VLANPush::Init(const bess::pb::VLANPushArg &arg) {
-  pb_cmd_response_t response = CommandSetTci(arg);
+  CommandResponse response = CommandSetTci(arg);
   return response.error();
 }
 
-pb_cmd_response_t VLANPush::CommandSetTci(const bess::pb::VLANPushArg &arg) {
-  pb_cmd_response_t response;
-
-  uint16_t tci;
-  tci = arg.tci();
-
+CommandResponse VLANPush::CommandSetTci(const bess::pb::VLANPushArg &arg) {
+  uint16_t tci = arg.tci();
   vlan_tag_ = htonl((0x8100 << 16) | tci);
   qinq_tag_ = htonl((0x88a8 << 16) | tci);
-  set_cmd_response_error(&response, pb_errno(0));
-  return response;
+  return CommandSuccess();
 }
 
 /* the behavior is undefined if a packet is already double tagged */

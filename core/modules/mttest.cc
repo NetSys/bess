@@ -39,17 +39,17 @@ pb_error_t MetadataTest::Init(const bess::pb::MetadataTestArg &arg) {
   pb_error_t err;
 
   err = AddAttributes(arg.read(), Attribute::AccessMode::kRead);
-  if (err.err() != 0) {
+  if (err.code() != 0) {
     return err;
   }
 
   err = AddAttributes(arg.write(), Attribute::AccessMode::kWrite);
-  if (err.err() != 0) {
+  if (err.code() != 0) {
     return err;
   }
 
   err = AddAttributes(arg.update(), Attribute::AccessMode::kUpdate);
-  if (err.err() != 0) {
+  if (err.code() != 0) {
     return err;
   }
 

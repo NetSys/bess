@@ -109,7 +109,7 @@ pb_error_t SetMetadata::Init(const bess::pb::SetMetadataArg &arg) {
     pb_error_t err;
 
     err = AddAttrOne(attr);
-    if (err.err() != 0) {
+    if (err.code() != 0) {
       return err;
     }
   }

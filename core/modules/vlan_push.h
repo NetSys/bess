@@ -16,7 +16,7 @@ class VLANPush final : public Module {
 
   std::string GetDesc() const override;
 
-  pb_cmd_response_t CommandSetTci(const bess::pb::VLANPushArg &arg);
+  CommandResponse CommandSetTci(const bess::pb::VLANPushArg &arg);
 
  private:
   /* network order */

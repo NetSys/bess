@@ -41,14 +41,12 @@ class L2Forward final : public Module {
 
   void ProcessBatch(bess::PacketBatch *batch) override;
 
-  pb_cmd_response_t CommandAdd(const bess::pb::L2ForwardCommandAddArg &arg);
-  pb_cmd_response_t CommandDelete(
-      const bess::pb::L2ForwardCommandDeleteArg &arg);
-  pb_cmd_response_t CommandSetDefaultGate(
+  CommandResponse CommandAdd(const bess::pb::L2ForwardCommandAddArg &arg);
+  CommandResponse CommandDelete(const bess::pb::L2ForwardCommandDeleteArg &arg);
+  CommandResponse CommandSetDefaultGate(
       const bess::pb::L2ForwardCommandSetDefaultGateArg &arg);
-  pb_cmd_response_t CommandLookup(
-      const bess::pb::L2ForwardCommandLookupArg &arg);
-  pb_cmd_response_t CommandPopulate(
+  CommandResponse CommandLookup(const bess::pb::L2ForwardCommandLookupArg &arg);
+  CommandResponse CommandPopulate(
       const bess::pb::L2ForwardCommandPopulateArg &arg);
 
  private:

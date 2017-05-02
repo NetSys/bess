@@ -34,8 +34,8 @@ class ACL final : public Module {
 
   void ProcessBatch(bess::PacketBatch *batch) override;
 
-  pb_cmd_response_t CommandAdd(const bess::pb::ACLArg &arg);
-  pb_cmd_response_t CommandClear(const bess::pb::EmptyArg &arg);
+  CommandResponse CommandAdd(const bess::pb::ACLArg &arg);
+  CommandResponse CommandClear(const bess::pb::EmptyArg &arg);
 
  private:
   std::vector<ACLRule> rules_;

@@ -163,7 +163,7 @@ pb_error_t FlowGen::ProcessArguments(const bess::pb::FlowGenArg &arg) {
   memset(templ_, 0, MAX_TEMPLATE_SIZE);
   bess::utils::Copy(templ_, arg.template_().c_str(), template_size_);
   pb_error_t err = UpdateBaseAddresses();
-  if (err.err() != 0) {
+  if (err.code() != 0) {
     return err;
   }
 
@@ -242,15 +242,11 @@ void FlowGen::UpdateDerivedParameters() {
   }
 }
 
-pb_cmd_response_t FlowGen::CommandUpdate(const bess::pb::FlowGenArg &arg) {
-  pb_cmd_response_t response;
-
+CommandResponse FlowGen::CommandUpdate(const bess::pb::FlowGenArg &arg) {
   if (arg.template_().length() > 0) {
     LOG(INFO) << "Updating FlowGen template";
     if (arg.template_().length() > MAX_TEMPLATE_SIZE) {
-      set_cmd_response_error(&response,
-                             pb_error(EINVAL, "'template' is too big"));
-      return response;
+      return CommandFailure(EINVAL, "'template' is too big");
     }
     template_size_ = arg.template_().length();
 
@@ -261,9 +257,7 @@ pb_cmd_response_t FlowGen::CommandUpdate(const bess::pb::FlowGenArg &arg) {
   double prev_pps = 0;
   if (!(std::isnan(arg.pps()) || arg.pps() == 0.0)) {
     if (arg.pps() < 0) {
-      set_cmd_response_error(&response,
-                             pb_error(EINVAL, "pps cannot be negative"));
-      return response;
+      return CommandFailure(EINVAL, "pps cannot be negative");
     }
 
     LOG(INFO) << "Updating FlowGen pps" << arg.pps();
@@ -274,9 +268,7 @@ pb_cmd_response_t FlowGen::CommandUpdate(const bess::pb::FlowGenArg &arg) {
   double prev_flowrate = 0;
   if (!(std::isnan(arg.flow_rate()) || arg.flow_rate() == 0.0)) {
     if (arg.flow_rate() < 0) {
-      set_cmd_response_error(&response,
-                             pb_error(EINVAL, "flow rate cannot be negative"));
-      return response;
+      return CommandFailure(EINVAL, "flow rate cannot be negative");
     }
 
     LOG(INFO) << "Updating FlowGen flow rate" << arg.flow_rate();
@@ -288,16 +280,12 @@ pb_cmd_response_t FlowGen::CommandUpdate(const bess::pb::FlowGenArg &arg) {
   if (flow_rate_ > total_pps_) {
     flow_rate_ = prev_flowrate;
     total_pps_ = prev_pps;
-    set_cmd_response_error(
-        &response, pb_error(EINVAL, "flow rate cannot be more than pps"));
-    return response;
+    return CommandFailure(EINVAL, "flow rate cannot be more than pps");
   }
 
   if (!(std::isnan(arg.flow_duration()) || arg.flow_duration() == 0.0)) {
     if (arg.flow_duration() < 0) {
-      set_cmd_response_error(
-          &response, pb_error(EINVAL, "flow duration cannot be negative"));
-      return response;
+      return CommandFailure(EINVAL, "flow duration cannot be negative");
     }
 
     LOG(INFO) << "Updating FlowGen flow duration" << arg.flow_duration();
@@ -309,10 +297,7 @@ pb_cmd_response_t FlowGen::CommandUpdate(const bess::pb::FlowGenArg &arg) {
   } else if (arg.arrival() == "exponential") {
     arrival_ = Arrival::kExponential;
   } else if (arg.arrival() != "") {
-    set_cmd_response_error(
-        &response,
-        pb_error(EINVAL, "arrival must be 'uniform' or 'exponential'"));
-    return response;
+    return CommandFailure(EINVAL, "arrival must be 'uniform' or 'exponential'");
   }
 
   if (arg.duration() == "uniform") {
@@ -320,33 +305,27 @@ pb_cmd_response_t FlowGen::CommandUpdate(const bess::pb::FlowGenArg &arg) {
   } else if (arg.duration() == "pareto") {
     duration_ = Duration::kPareto;
   } else if (arg.duration() != "") {
-    set_cmd_response_error(
-        &response,
-        pb_error(EINVAL, "duration must be 'uniform' or 'pareto' {%s}",
-                 arg.duration().c_str()));
-    return response;
+    return CommandFailure(EINVAL, "duration must be 'uniform' or 'pareto' {%s}",
+                          arg.duration().c_str());
   }
 
   UpdateDerivedParameters();
 
-  set_cmd_response_error(&response, pb_errno(0));
-  return response;
+  return CommandSuccess();
 }
 
-pb_cmd_response_t FlowGen::CommandSetBurst(
+CommandResponse FlowGen::CommandSetBurst(
     const bess::pb::FlowGenCommandSetBurstArg &arg) {
-  pb_cmd_response_t response;
+  CommandResponse response;
 
   if (arg.burst() <= bess::PacketBatch::kMaxBurst) {
     burst_ = arg.burst();
   } else {
-    set_cmd_response_error(
-        &response, pb_error(EINVAL, "'burst' must be no greater than %zu",
-                            bess::PacketBatch::kMaxBurst));
+    return CommandFailure(EINVAL, "'burst' must be no greater than %zu",
+                          bess::PacketBatch::kMaxBurst);
   }
 
-  set_cmd_response_error(&response, pb_errno(0));
-  return response;
+  return CommandSuccess();
 }
 
 pb_error_t FlowGen::Init(const bess::pb::FlowGenArg &arg) {
@@ -376,7 +355,7 @@ pb_error_t FlowGen::Init(const bess::pb::FlowGenArg &arg) {
   }
 
   err = ProcessArguments(arg);
-  if (err.err() != 0) {
+  if (err.code() != 0) {
     return err;
   }
 

@@ -113,13 +113,14 @@ class WildcardMatch final : public Module {
 
   std::string GetDesc() const override;
 
-  pb_cmd_response_t CommandAdd(const bess::pb::WildcardMatchCommandAddArg &arg);
-  pb_cmd_response_t CommandDelete(
+  CommandResponse CommandAdd(const bess::pb::WildcardMatchCommandAddArg &arg);
+  CommandResponse CommandDelete(
       const bess::pb::WildcardMatchCommandDeleteArg &arg);
-  pb_cmd_response_t CommandClear(const bess::pb::EmptyArg &arg);
-  pb_cmd_response_t CommandSetDefaultGate(
+  CommandResponse CommandClear(const bess::pb::EmptyArg &arg);
+  CommandResponse CommandSetDefaultGate(
       const bess::pb::WildcardMatchCommandSetDefaultGateArg &arg);
-  pb_cmd_response_t CommandGetRules(const bess::pb::EmptyArg &);
+  CommandResponse CommandGetRules(const bess::pb::EmptyArg &);
+
  private:
   struct WmTuple {
     CuckooMap<wm_hkey_t, struct WmData, wm_hash, wm_eq> ht;
@@ -132,7 +133,7 @@ class WildcardMatch final : public Module {
                          struct WmField *f);
 
   template <typename T>
-  pb_error_t ExtractKeyMask(const T &arg, wm_hkey_t *key, wm_hkey_t *mask);
+  CommandResponse ExtractKeyMask(const T &arg, wm_hkey_t *key, wm_hkey_t *mask);
 
   int FindTuple(wm_hkey_t *mask);
   int AddTuple(wm_hkey_t *mask);

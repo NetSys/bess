@@ -10,21 +10,15 @@ const Commands RandomUpdate::cmds = {
 };
 
 pb_error_t RandomUpdate::Init(const bess::pb::RandomUpdateArg &arg) {
-  pb_cmd_response_t response = CommandAdd(arg);
+  CommandResponse response = CommandAdd(arg);
   return response.error();
 }
 
-pb_cmd_response_t RandomUpdate::CommandAdd(
-    const bess::pb::RandomUpdateArg &arg) {
-  pb_cmd_response_t response;
-
+CommandResponse RandomUpdate::CommandAdd(const bess::pb::RandomUpdateArg &arg) {
   int curr = num_vars_;
   if (curr + arg.fields_size() > MAX_VARS) {
-    set_cmd_response_error(&response, pb_error(EINVAL,
-                                               "max %d variables "
-                                               "can be specified",
-                                               MAX_VARS));
-    return response;
+    return CommandFailure(EINVAL, "max %d variables can be specified",
+                          MAX_VARS);
   }
 
   for (int i = 0; i < arg.fields_size(); i++) {
@@ -42,8 +36,7 @@ pb_cmd_response_t RandomUpdate::CommandAdd(
     max = var.max();
 
     if (offset < 0) {
-      set_cmd_response_error(&response, pb_error(EINVAL, "too small 'offset'"));
-      return response;
+      return CommandFailure(EINVAL, "too small 'offset'");
     }
 
     switch (size) {
@@ -68,21 +61,15 @@ pb_cmd_response_t RandomUpdate::CommandAdd(
         break;
 
       default:
-        set_cmd_response_error(&response,
-                               pb_error(EINVAL, "'size' must be 1, 2, or 4"));
-        return response;
+        return CommandFailure(EINVAL, "'size' must be 1, 2, or 4");
     }
 
     if (offset + 4 > SNBUF_DATA) {
-      set_cmd_response_error(&response, pb_error(EINVAL, "too large 'offset'"));
-      return response;
+      return CommandFailure(EINVAL, "too large 'offset'");
     }
 
     if (min > max) {
-      set_cmd_response_error(&response, pb_error(EINVAL,
-                                                 "'min' should not be "
-                                                 "greater than 'max'"));
-      return response;
+      return CommandFailure(EINVAL, "'min' should not be greater than 'max'");
     }
 
     vars_[curr + i].offset = offset;
@@ -94,17 +81,12 @@ pb_cmd_response_t RandomUpdate::CommandAdd(
   }
 
   num_vars_ = curr + arg.fields_size();
-
-  set_cmd_response_error(&response, pb_errno(0));
-  return response;
+  return CommandSuccess();
 }
 
-pb_cmd_response_t RandomUpdate::CommandClear(const bess::pb::EmptyArg &) {
+CommandResponse RandomUpdate::CommandClear(const bess::pb::EmptyArg &) {
   num_vars_ = 0;
-
-  pb_cmd_response_t response;
-  set_cmd_response_error(&response, pb_errno(0));
-  return response;
+  return CommandSuccess();
 }
 
 void RandomUpdate::ProcessBatch(bess::PacketBatch *batch) {

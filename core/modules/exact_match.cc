@@ -76,7 +76,7 @@ pb_error_t ExactMatch::Init(const bess::pb::ExactMatchArg &arg) {
     f->pos = size_acc;
 
     err = AddFieldOne(arg.fields(i), f, i);
-    if (err.err() != 0) {
+    if (err.code() != 0) {
       return err;
     }
 
@@ -146,10 +146,10 @@ std::string ExactMatch::GetDesc() const {
   return bess::utils::Format("%d fields, %zu rules", num_fields_, ht_.Count());
 }
 
-pb_error_t ExactMatch::GatherKey(const RepeatedPtrField<std::string> &fields,
-                                 em_hkey_t *key) {
+CommandResponse ExactMatch::GatherKey(
+    const RepeatedPtrField<std::string> &fields, em_hkey_t *key) {
   if (fields.size() != num_fields_) {
-    return pb_error(EINVAL, "must specify %d fields", num_fields_);
+    return CommandFailure(EINVAL, "must specify %d fields", num_fields_);
   }
 
   memset(key, 0, sizeof(*key));
@@ -161,92 +161,70 @@ pb_error_t ExactMatch::GatherKey(const RepeatedPtrField<std::string> &fields,
     const std::string &f_obj = fields.Get(i);
 
     if (static_cast<size_t>(field_size) != f_obj.length()) {
-      return pb_error(EINVAL, "idx %d: not a correct %d-byte value", i,
-                      field_size);
+      return CommandFailure(EINVAL, "idx %d: not a correct %d-byte value", i,
+                            field_size);
     }
 
     bess::utils::Copy(reinterpret_cast<uint8_t *>(key) + field_pos,
                       f_obj.c_str(), field_size);
   }
 
-  return pb_errno(0);
+  return CommandSuccess();
 }
 
-pb_cmd_response_t ExactMatch::CommandAdd(
+CommandResponse ExactMatch::CommandAdd(
     const bess::pb::ExactMatchCommandAddArg &arg) {
   em_hkey_t key;
   gate_idx_t gate = arg.gate();
-  pb_error_t err;
-
-  pb_cmd_response_t response;
+  CommandResponse err;
 
   if (!is_valid_gate(gate)) {
-    set_cmd_response_error(&response,
-                           pb_error(EINVAL, "Invalid gate: %hu", gate));
-    return response;
+    return CommandFailure(EINVAL, "Invalid gate: %hu", gate);
   }
 
   if (arg.fields_size() == 0) {
-    set_cmd_response_error(&response,
-                           pb_error(EINVAL, "'fields' must be a list"));
-    return response;
+    return CommandFailure(EINVAL, "'fields' must be a list");
   }
 
-  if ((err = GatherKey(arg.fields(), &key)).err() != 0) {
-    set_cmd_response_error(&response, err);
-    return response;
+  if ((err = GatherKey(arg.fields(), &key)).error().code() != 0) {
+    return err;
   }
 
   ht_.Insert(key, gate, em_hash(total_key_size_), em_eq(total_key_size_));
 
-  set_cmd_response_error(&response, pb_errno(0));
-  return response;
+  return CommandSuccess();
 }
 
-pb_cmd_response_t ExactMatch::CommandDelete(
+CommandResponse ExactMatch::CommandDelete(
     const bess::pb::ExactMatchCommandDeleteArg &arg) {
-  pb_cmd_response_t response;
-
+  CommandResponse err;
   em_hkey_t key;
 
-  pb_error_t err;
-
   if (arg.fields_size() == 0) {
-    set_cmd_response_error(&response,
-                           pb_error(EINVAL, "argument must be a list"));
-    return response;
+    return CommandFailure(EINVAL, "argument must be a list");
   }
 
-  if ((err = GatherKey(arg.fields(), &key)).err() != 0) {
-    set_cmd_response_error(&response, err);
-    return response;
+  if ((err = GatherKey(arg.fields(), &key)).error().code() != 0) {
+    return err;
   }
 
   bool ret = ht_.Remove(key, em_hash(total_key_size_), em_eq(total_key_size_));
   if (!ret) {
-    set_cmd_response_error(&response, pb_error(-1, "ht_del() failed"));
-    return response;
+    return CommandFailure(ENOENT, "ht_del() failed");
   }
 
-  set_cmd_response_error(&response, pb_errno(0));
-  return response;
+  return CommandSuccess();
 }
 
-pb_cmd_response_t ExactMatch::CommandClear(const bess::pb::EmptyArg &) {
+CommandResponse ExactMatch::CommandClear(const bess::pb::EmptyArg &) {
   ht_.Clear();
-
-  pb_cmd_response_t response;
-  set_cmd_response_error(&response, pb_errno(0));
-  return response;
+  return CommandSuccess();
 }
 
-pb_cmd_response_t ExactMatch::CommandSetDefaultGate(
+CommandResponse ExactMatch::CommandSetDefaultGate(
     const bess::pb::ExactMatchCommandSetDefaultGateArg &arg) {
-  pb_cmd_response_t response;
   default_gate_ = arg.gate();
-
-  set_cmd_response_error(&response, pb_errno(0));
-  return response;
+  return CommandSuccess();
 }
 
 ADD_MODULE(ExactMatch, "em", "Multi-field classifier with an exact match table")

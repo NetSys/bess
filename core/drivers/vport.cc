@@ -448,7 +448,7 @@ pb_error_t VPort::Init(const bess::pb::VPortArg &arg) {
 
   if (arg.cpid_case() == bess::pb::VPortArg::kDocker) {
     err = docker_container_pid(arg.docker(), &container_pid_);
-    if (err.err() != 0)
+    if (err.code() != 0)
       goto fail;
   } else if (arg.cpid_case() == bess::pb::VPortArg::kContainerPid) {
     container_pid_ = arg.container_pid();
@@ -491,7 +491,7 @@ pb_error_t VPort::Init(const bess::pb::VPortArg &arg) {
   if (arg.ip_addrs_size() > 0) {
     err = SetIPAddr(arg);
 
-    if (err.err() != 0) {
+    if (err.code() != 0) {
       DeInit();
       goto fail;
     }

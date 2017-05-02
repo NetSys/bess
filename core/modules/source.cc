@@ -29,34 +29,25 @@ pb_error_t Source::Init(const bess::pb::SourceArg &arg) {
   return pb_errno(0);
 }
 
-pb_cmd_response_t Source::CommandSetBurst(
+CommandResponse Source::CommandSetBurst(
     const bess::pb::SourceCommandSetBurstArg &arg) {
-  pb_cmd_response_t response;
-
   if (arg.burst() > bess::PacketBatch::kMaxBurst) {
-    set_cmd_response_error(&response,
-                           pb_error(EINVAL, "burst size must be [0,%zu]",
-                                    bess::PacketBatch::kMaxBurst));
-    return response;
+    return CommandFailure(EINVAL, "burst size must be [0,%zu]",
+                          bess::PacketBatch::kMaxBurst);
   }
   burst_ = arg.burst();
 
-  set_cmd_response_error(&response, pb_errno(0));
-  return response;
+  return CommandSuccess();
 }
 
-pb_cmd_response_t Source::CommandSetPktSize(
+CommandResponse Source::CommandSetPktSize(
     const bess::pb::SourceCommandSetPktSizeArg &arg) {
-  pb_cmd_response_t response;
-
   uint64_t val = arg.pkt_size();
   if (val == 0 || val > SNBUF_DATA) {
-    set_cmd_response_error(&response, pb_error(EINVAL, "Invalid packet size"));
-    return response;
+    return CommandFailure(EINVAL, "Invalid packet size");
   }
   pkt_size_ = val;
-  set_cmd_response_error(&response, pb_errno(0));
-  return response;
+  return CommandSuccess();
 }
 
 struct task_result Source::RunTask(void *) {

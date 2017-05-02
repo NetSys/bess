@@ -22,8 +22,8 @@ class Rewrite final : public Module {
 
   void ProcessBatch(bess::PacketBatch *batch) override;
 
-  pb_cmd_response_t CommandAdd(const bess::pb::RewriteArg &arg);
-  pb_cmd_response_t CommandClear(const bess::pb::EmptyArg &arg);
+  CommandResponse CommandAdd(const bess::pb::RewriteArg &arg);
+  CommandResponse CommandClear(const bess::pb::EmptyArg &arg);
 
  private:
   inline void DoRewrite(bess::PacketBatch *batch);

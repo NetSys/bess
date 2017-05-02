@@ -164,10 +164,9 @@ const std::map<std::string, Module *> &ModuleBuilder::all_modules() {
   return all_modules_;
 }
 
-pb_cmd_response_t ModuleBuilder::RunCommand(
+CommandResponse ModuleBuilder::RunCommand(
     Module *m, const std::string &user_cmd,
     const google::protobuf::Any &arg) const {
-  pb_cmd_response_t response;
   for (auto &cmd : cmds_) {
     if (user_cmd == cmd.cmd) {
       bool workers_running = false;
@@ -175,22 +174,18 @@ pb_cmd_response_t ModuleBuilder::RunCommand(
         workers_running |= is_worker_running(wid);
       }
       if (!cmd.mt_safe && workers_running) {
-        set_cmd_response_error(&response,
-                               pb_error(EBUSY,
-                                        "There is a running worker "
-                                        "and command '%s' is not MT safe",
-                                        cmd.cmd.c_str()));
-        return response;
+        return CommandFailure(EBUSY,
+                              "There is a running worker and command "
+                              "'%s' is not MT safe",
+                              cmd.cmd.c_str());
       }
 
       return cmd.func(m, arg);
     }
   }
 
-  set_cmd_response_error(&response,
-                         pb_error(ENOTSUP, "'%s' does not support command '%s'",
-                                  class_name_.c_str(), user_cmd.c_str()));
-  return response;
+  return CommandFailure(ENOTSUP, "'%s' does not support command '%s'",
+                        class_name_.c_str(), user_cmd.c_str());
 }
 
 pb_error_t ModuleBuilder::RunInit(Module *m,
