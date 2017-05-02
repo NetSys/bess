@@ -8,14 +8,13 @@ class TestProtobufConvert(unittest.TestCase):
 
     def test_protobuf_to_dict(self):
         pb = bess_msg.CreatePortResponse()
-        pb.error.err = 1
+        pb.error.code = 1
         pb.error.errmsg = 'bar'
-        pb.error.details = ''
         pb.name = 'foo'
 
         true_result = {
             'error': {
-                'err': 1,
+                'code': 1,
                 'errmsg': 'bar',
             },
             'name': 'foo'
@@ -25,14 +24,13 @@ class TestProtobufConvert(unittest.TestCase):
 
     def test_dict_to_protobuf(self):
         pb = bess_msg.CreatePortResponse()
-        pb.error.err = 1
+        pb.error.code = 1
         pb.error.errmsg = 'bar'
-        pb.error.details = ''
         pb.name = 'foo'
 
         msg_dict = {
             'error': {
-                'err': 1,
+                'code': 1,
                 'errmsg': 'bar',
             },
             'name': 'foo'

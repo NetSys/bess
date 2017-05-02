@@ -391,7 +391,7 @@ message ModuleCommandRequest {
 
 message ModuleCommandResponse {
   Error error = 1;
-  google.protobuf.Any other = 2;  /// Command response (see module_msg.proto)
+  google.protobuf.Any data = 2;  /// Command response (see module_msg.proto)
 }
 
 

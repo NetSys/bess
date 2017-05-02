@@ -33,18 +33,18 @@ class BESS(object):
     # errors from BESS daemon
     class Error(Exception):
 
-        def __init__(self, err, errmsg, details):
-            self.err = err
+        def __init__(self, code, errmsg, details):
+            self.code = code
             self.errmsg = errmsg
             self.details = details
 
         def __str__(self):
-            if self.err in errno.errorcode:
-                err_code = errno.errorcode[self.err]
+            if self.code in errno.errorcode:
+                err_code = errno.errorcode[self.code]
             else:
                 err_code = '<unknown>'
             return 'errno: %d (%s: %s), %s, details: %s' % (
-                self.err, err_code, os.strerror(self.err), self.errmsg,
+                self.code, err_code, os.strerror(self.code), self.errmsg,
                 repr(self.details))
 
     # abnormal RPC failure
@@ -153,15 +153,15 @@ class BESS(object):
             if res:
                 pprint.pprint(res)
 
-        if response.error.err != 0:
-            err = response.error.err
+        if response.error.code != 0:
+            code = response.error.code
             errmsg = response.error.errmsg
             if errmsg == '':
                 errmsg = '(error message is not given)'
             details = response.error.details
             if details == '':
                 details = None
-            raise self.Error(err, errmsg, details)
+            raise self.Error(code, errmsg, details)
 
         return response
 

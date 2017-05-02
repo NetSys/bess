@@ -77,13 +77,13 @@ class BESSCLI(cli.CLI):
         except self.bess.Error as e:
             self.err(e.errmsg)
 
-            if e.err in errno.errorcode:
-                err_code = errno.errorcode[e.err]
+            if e.code in errno.errorcode:
+                err_code = errno.errorcode[e.code]
             else:
                 err_code = '<unknown>'
 
             self.ferr.write('  BESS daemon response - errno=%d (%s: %s)\n' %
-                            (e.err, err_code, os.strerror(e.err)))
+                            (e.code, err_code, os.strerror(e.code)))
 
             raise self.HandledError()
 
