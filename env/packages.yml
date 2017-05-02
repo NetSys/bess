@@ -39,6 +39,8 @@
         - libgtest-dev
         - linux-headers-generic
         - lcov
+        - python-pep8
+        - python-autopep8
 
     - name: Install Linux headers
       apt: name=linux-headers-{{ ansible_kernel }} state=latest update_cache=yes
