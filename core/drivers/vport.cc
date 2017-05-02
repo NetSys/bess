@@ -549,7 +549,7 @@ int VPort::RecvPackets(queue_t qid, bess::Packet **pkts, int max_cnt) {
   int cnt;
   int i;
 
-  if ((size_t)max_cnt > bess::PacketBatch::kMaxBurst) {
+  if (static_cast<size_t>(max_cnt) > bess::PacketBatch::kMaxBurst) {
     max_cnt = bess::PacketBatch::kMaxBurst;
   }
   cnt = llring_sc_dequeue_burst(tx_queue->drv_to_sn, paddr, max_cnt);
@@ -583,7 +583,7 @@ int VPort::SendPackets(queue_t qid, bess::Packet **pkts, int cnt) {
 
   int ret;
 
-  assert(cnt <= bess::PacketBatch::kMaxBurst);
+  assert(static_cast<size_t>(cnt) <= bess::PacketBatch::kMaxBurst);
 
   reclaim_packets(rx_queue->drv_to_sn);
 
