@@ -30,16 +30,15 @@
 
 import scapy.all as scapy
 
-# ensures that given infinite input that the module does not crash.
+#ensures that given infinite input that the module does not crash.
+def crash_test(queue_type, queue_dict):
+    if queue_type == 1:
+        return [DRR(codel=queue_dict), 1, 1]
+    else:
+        return [DRR(queue=queue_dict), 1, 1]
 
-
-def crash_test():
-    return [DRR(), 1, 1]
-
-# tests to make that inividual packets gets through the module
-
-
-def basic_output_test():
+# tests to make that individual packets gets through the module
+def basic_output_test(queue_type, queue_dict):
 
     # produces the number of duplicate packets specified by num_pkts and uses the provided
     # the specifications in the packet along with dummy ports.
@@ -50,8 +49,11 @@ def basic_output_test():
             packet_list.append({'input_port': 0, 'input_packet': cur_pkt,
                                 'output_port': 0, "output_packet": cur_pkt})
         return packet_list
-
-    single_basic = DRR(num_flows=2, max_flow_queue_size=100)
+    if queue_type== 1:
+        single_basic = DRR(num_flows=2, max_flow_queue_size= 100, codel=queue_dict);
+    else:
+        single_basic = DRR(num_flows=2, max_flow_queue_size= 100, queue=queue_dict);
+        
     monitor_task(single_basic, 0)
 
     out = []
@@ -59,7 +61,11 @@ def basic_output_test():
     out.append([single_basic,  # test this module
                 1, 1,  # it has one input port and one output port
                 single_packet])
-    batch_basic = DRR(num_flows=4, max_flow_queue_size=100)
+    if queue_type== 1:
+        batch_basic = DRR(num_flows=4, max_flow_queue_size= 100, codel=queue_dict);
+    else:
+        batch_basic = DRR(num_flows=4, max_flow_queue_size= 100, queue=queue_dict);
+    
     monitor_task(batch_basic, 0)
     packet_list = gen_packet_list(scapy.TCP, '22.22.22.1', '22.22.22.1', 2)
     packet_list += gen_packet_list(scapy.TCP, '22.22.11.1', '22.22.11.1', 2)
@@ -75,7 +81,7 @@ def fairness_test():
     # Takes the number of flows n, the quantum to give drr, the list packet rates for each flow
     # and the packet rate for the module. runs this setup for five seconds and tests that
     # throughput for each flow had a jaine fairness of atleast .95.
-    def fairness_n_flow_test(n, quantum, rates, module_rate):
+    def fairness_n_flow_test(n, quantum, rates, module_rate, queue_type, queue_dict):
         err = bess.reset_all()
 
         packets = []
@@ -98,7 +104,11 @@ def fairness_test():
 
         me_out = Measure()
         snk = Sink()
-        q = DRR(num_flows=n + 1, quantum=quantum)
+        if queue_type == 1:
+            q = DRR(num_flows= n+1, quantum=quantum, codel=queue_dict)
+        else:
+            q = DRR(num_flows= n+1, quantum=quantum, queue=queue_dict)
+
         me_in -> q -> me_out -> exm
 
         measure_out = []
@@ -127,16 +137,18 @@ def fairness_test():
         if square_sum == 0:
             fair = 0
         else:
-            fair = f(me_out) / square_sum
-        assert abs(.99 - fair) <= .05
+            fair = f(me_out)/square_sum
+        assert abs(.99 - fair) <=.05
+    llqueue_dict = {} # all default values
+    codel_dict = {} # all default values
+    fairness_n_flow_test(2, 1000, [80000, 20000], 30000, 0, llqueue_dict)
+    fairness_n_flow_test(2, 1000, [80000, 20000], 30000, 1, codel_dict)
+    fairness_n_flow_test(5, 1000, [110000, 200000, 70000, 60000, 40000], 150000, 0, llqueue_dict)
+    fairness_n_flow_test(5, 1000, [110000, 200000, 70000, 60000, 40000], 150000, 1, codel_dict)
 
-    fairness_n_flow_test(2, 1000, [80000, 20000], 30000)
-    fairness_n_flow_test(
-        5, 1000, [110000, 200000, 70000, 60000, 40000], 150000)
-
-    ten_flows = [210000, 120000, 130000, 160000,
-                 100000, 105000, 90000, 70000, 60000, 40000]
-    fairness_n_flow_test(10, 1000, ten_flows, 300000)
+    ten_flows =  [210000, 120000, 130000, 160000, 100000, 105000, 90000, 70000, 60000, 40000]
+    fairness_n_flow_test(10, 1000, ten_flows , 300000, 0, llqueue_dict)
+    fairness_n_flow_test(10, 1000, ten_flows , 300000, 1, codel_dict)
 
     # hund_flows= []
     # cur = 200000
@@ -145,6 +157,10 @@ def fairness_test():
         # cur -= 1600
     # fairness_n_flow_test(100, 1000, hund_flows, 300000)
 
-OUTPUT_TEST_INPUTS += basic_output_test()
+llqueue_dict = {} # all default values llqueue queue type: 0
+codel_dict = {} # all default values codel queue type: 1
+OUTPUT_TEST_INPUTS += basic_output_test(0, llqueue_dict)
+OUTPUT_TEST_INPUTS += basic_output_test(1, codel_dict)
 CUSTOM_TEST_FUNCTIONS.append(fairness_test)
-CRASH_TEST_INPUTS.append(crash_test())
+CRASH_TEST_INPUTS.append(crash_test(0, llqueue_dict))
+CRASH_TEST_INPUTS.append(crash_test(1, codel_dict))

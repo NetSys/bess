@@ -32,18 +32,21 @@
 #define BESS_MODULES_DRR_H_
 
 #include <cstdlib>
+#include <deque>
 
 #include <rte_hash_crc.h>
 
-#include "../kmod/llring.h"
 #include "../module.h"
 #include "../pb/module_msg.pb.h"
 #include "../pktbatch.h"
 #include "../utils/cuckoo_map.h"
 #include "../utils/ip.h"
+#include "../utils/queue.h"
+#include "../utils/lock_less_queue.h"
 
 using bess::utils::Ipv4Prefix;
 using bess::utils::CuckooMap;
+using bess::utils::Queue;
 
 /*
   * This module implements Deficit Round Robin, a fair queueing algorithm, for
@@ -105,7 +108,7 @@ class DRR final : public Module {
     int deficit;                // the allocated bytes to the flow
     double timer;               // to determine if TTL should be used
     FlowId id;                  // allows the flow to remove itself from the map
-    struct llring* queue;       // queue to store current packets for flow
+    Queue<bess::Packet*>* queue;       // queue to store current packets for flow
     bess::Packet* next_packet;  // buffer to store next packet from the queue.
     Flow() : deficit(0), timer(0), id(), next_packet(nullptr){};
     Flow(FlowId new_id)
@@ -113,7 +116,7 @@ class DRR final : public Module {
     ~Flow() {
       if (queue) {
         bess::Packet* pkt;
-        while (llring_sc_dequeue(queue, reinterpret_cast<void**>(&pkt)) == 0) {
+        while (!queue->Pop(pkt)) {
           bess::Packet::Free(pkt);
         }
 
@@ -186,19 +189,7 @@ class DRR final : public Module {
   CommandResponse SetMaxFlowQueueSize(uint32_t queue_size);
 
   /*
-    Creates a new larger llring queue of the specifed size and moves over all
-    of the entries from the old queue and frees the old_queue. Takes a pointer
-    to the
-    location of the  current queue, the new size of the queue and integer
-    pointer
-    to set on error. If the integer pointer is set than the return value will be
-    a
-    nullptr. Returns a pointer to the new llring otherwise.
-  */
-  llring* ResizeQueue(llring* old_queue, uint32_t new_size, int* err);
-
-  /*
-    Puts the packet into the llring queue within the flow. Takes the flow to
+    Puts the packet into the queue within the flow. Takes the flow to
     enqueue the packet into, the packet to enqueue into the flow's queue
     and integer pointer to be set on error.
   */
@@ -238,7 +229,7 @@ class DRR final : public Module {
     from and integer pointer to set on error. Returns the total bytes put in
     batch
   */
-  uint32_t GetNextPackets(bess::PacketBatch* batch, Flow* f, int* err);
+  uint32_t GetNextPackets(bess::PacketBatch* batch, Flow* f);
 
   /*
     gets the next flow from the queue of flows. Returns nullptr if the next
@@ -246,14 +237,6 @@ class DRR final : public Module {
     an error and sets the integer pointer to error value.
    */
   Flow* GetNextFlow(int* err);
-
-  /*
-    allocates llring queue space and adds the queue to the specified flow with
-    size indicated by slots. Takes the Flow to add the queue, the number
-    of slots for the queue to have and the integer pointer to set on error.
-    Returns a llring queue.
-  */
-  llring* AddQueue(uint32_t slots, int* err);
 
   // the number of bytes to allocate to each flow in each round.
   uint32_t quantum_;
@@ -267,7 +250,14 @@ class DRR final : public Module {
 
   // state map used to reunite packets with their flow
   CuckooMap<FlowId, Flow*, Hash, EqualTo> flows_;
-  llring* flow_ring_;   // llring used for round robin.
+  std::deque<Flow*> flow_queue_;   // queue used for round robin.
   Flow* current_flow_;  // store current flow between batch rounds.
+  
+  // given codel is the queue type for flows 
+  uint64_t codel_target_; // desired delay in microseconds that codel tries to maintain
+  uint64_t codel_window_; // window in mircroseconds between changing states in codel 
+
+  // given llring is the queue type for flows
+  uint32_t init_queue_size_; // the initial size of each flow's queue
 };
 #endif  // BESS_MODULES_DRR_H_
