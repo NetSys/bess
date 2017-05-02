@@ -12,31 +12,29 @@ class Trie {
  public:
   // Node definition
   struct Node {
-    Node() : leaf(), children() {
-      for (int i = 0; i < 256; i++) {
-        children[i] = nullptr;
-      }
-    }
+    Node() : leaf(), children() {}
 
-    ~Node() {
+    Node(const Node& other) {
+      leaf = other.leaf;
       for (int i = 0; i < 256; i++) {
-        delete children[i];
-      }
-    }
-
-    Node(const Node& n) {
-      leaf = n.leaf;
-      for (int i = 0; i < 256; i++) {
-        if (n.children[i] != nullptr) {
-          children[i] = new Node(*(n.children[i]));
-        } else {
-          children[i] = nullptr;
+        if (other.children[i] != nullptr) {
+          children[i].reset(new Node(*(other.children[i])));
         }
       }
     }
 
+    Node& operator=(const Node& other) {
+      leaf = other.leaf;
+      for (int i = 0; i < 256; i++) {
+        if (other.children[i] != nullptr) {
+          children[i].reset(new Node(*(other.children[i])));
+        }
+      }
+      return *this;
+    }
+
     bool leaf;
-    Node* children[256];
+    std::unique_ptr<Node> children[256];
   };
 
   Trie() : root_() {}
@@ -60,9 +58,9 @@ inline void Trie::Insert(const std::string& key) {
   for (const char& c : key) {
     size_t idx = c;
     if (cur->children[idx] == nullptr) {
-      cur->children[idx] = new Node();
+      cur->children[idx].reset(new Node());
     }
-    cur = cur->children[idx];
+    cur = cur->children[idx].get();
   }
   cur->leaf = true;
 }
@@ -74,7 +72,7 @@ inline bool Trie::Lookup(const std::string& prefix) {
     if (cur->children[idx] == nullptr) {
       return false;
     }
-    cur = cur->children[idx];
+    cur = cur->children[idx].get();
   }
   return true;
 }
@@ -86,7 +84,7 @@ inline bool Trie::LookupKey(const std::string& key) {
     if (cur->children[idx] == nullptr) {
       break;
     }
-    cur = cur->children[idx];
+    cur = cur->children[idx].get();
   }
   return cur->leaf;
 }
