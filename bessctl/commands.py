@@ -18,8 +18,16 @@ import signal
 import collections
 
 import sugar
-from port import *
-from module import *
+
+try:
+    this_dir = os.path.dirname(os.path.realpath(__file__))
+    sys.path.insert(1, '%s/../libbess-python' % this_dir)
+    from module import *
+    from port import *
+except ImportError:
+    print >> sys.stderr, 'Cannot import the API module (libbess-python)'
+    raise
+
 
 # extention for configuration files.
 CONF_EXT = 'bess'
