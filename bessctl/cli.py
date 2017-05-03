@@ -215,12 +215,6 @@ class CLI(object):
         candidates = []
         num_full_matches = 0
 
-        # ignore partial_word set by readline
-        if len(line) > 0 and line[-1] != ' ':
-            partial_word = line.split()[-1]
-        else:
-            partial_word = ''
-
         for cmd in self.cmdlist:
             syntax = cmd[0]
             match_type, sub_candidates, \
@@ -254,13 +248,7 @@ class CLI(object):
 
             if common_prefix and len(partial_word) < len(common_prefix):
                 if partial_word == common_prefix[:len(partial_word)]:
-                    ret = []
-                    skip = partial_word.rfind('/') + 1
-                    for candidate in candidates:
-                        candidate = candidate[skip:]
-                        ret.append(candidate)
-
-                    return ret
+                    return candidates
 
         buf = []
 
@@ -465,6 +453,10 @@ class CLI(object):
             self.rl.parse_and_bind('tab: complete')
 
         self.rl.set_completer(self.complete)
+
+        # Remove `~!@#$%^&*()-=+[{]}\|;:'",<>?/ from readline delimiters
+        # leaving only space, tab, LF
+        self.rl.set_completer_delims(' \x09\x0a')
 
         try:
             if self.history_file and os.path.exists(self.history_file):
