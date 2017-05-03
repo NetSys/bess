@@ -311,8 +311,20 @@ static ::Port* create_port(const std::string& name, const PortBuilder& driver,
   // DPDK functions may be called, so be prepared
   ctx.SetNonWorker();
 
-  *perr = p->InitWithGenericArg(arg);
-  if (perr->code() != 0) {
+  CommandResponse ret = p->InitWithGenericArg(arg);
+
+  {
+    google::protobuf::Any empty;
+
+    if (ret.data().SerializeAsString() != empty.SerializeAsString()) {
+      LOG(WARNING) << port_name << "::" << driver.class_name()
+                   << " Init() returned non-empty response: "
+                   << ret.data().DebugString();
+    }
+  }
+
+  if (ret.error().code() != 0) {
+    *perr = ret.error();
     return nullptr;
   }
 
@@ -1467,8 +1479,8 @@ class BESSControlImpl final : public BESSControl::Service {
     return Status::OK;
   }
 
-  Status ModuleCommand(ServerContext*, const ModuleCommandRequest* request,
-                       ModuleCommandResponse* response) override {
+  Status ModuleCommand(ServerContext*, const CommandRequest* request,
+                       CommandResponse* response) override {
     if (!request->name().length()) {
       return return_with_error(response, EINVAL,
                                "Missing module name field 'name'");

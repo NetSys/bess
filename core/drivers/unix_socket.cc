@@ -57,7 +57,7 @@ void UnixSocketPort::CloseConnection() {
   accept_thread.detach();
 }
 
-pb_error_t UnixSocketPort::Init(const bess::pb::UnixSocketPortArg &arg) {
+CommandResponse UnixSocketPort::Init(const bess::pb::UnixSocketPortArg &arg) {
   const std::string path = arg.path();
   int num_txq = num_queues[PACKET_DIR_OUT];
   int num_rxq = num_queues[PACKET_DIR_INC];
@@ -70,12 +70,12 @@ pb_error_t UnixSocketPort::Init(const bess::pb::UnixSocketPortArg &arg) {
   old_client_fd_ = kNotConnectedFd;
 
   if (num_txq > 1 || num_rxq > 1) {
-    return pb_error(EINVAL, "Cannot have more than 1 queue per RX/TX");
+    return CommandFailure(EINVAL, "Cannot have more than 1 queue per RX/TX");
   }
 
   listen_fd_ = socket(AF_UNIX, SOCK_SEQPACKET, 0);
   if (listen_fd_ < 0) {
-    return pb_error(errno, "socket(AF_UNIX) failed");
+    return CommandFailure(errno, "socket(AF_UNIX) failed");
   }
 
   addr_.sun_family = AF_UNIX;
@@ -100,18 +100,18 @@ pb_error_t UnixSocketPort::Init(const bess::pb::UnixSocketPortArg &arg) {
 
   ret = bind(listen_fd_, reinterpret_cast<struct sockaddr *>(&addr_), addrlen);
   if (ret < 0) {
-    return pb_error(errno, "bind(%s) failed", addr_.sun_path);
+    return CommandFailure(errno, "bind(%s) failed", addr_.sun_path);
   }
 
   ret = listen(listen_fd_, 1);
   if (ret < 0) {
-    return pb_error(errno, "listen() failed");
+    return CommandFailure(errno, "listen() failed");
   }
 
   std::thread accept_thread(AcceptThreadMain, reinterpret_cast<void *>(this));
   accept_thread.detach();
 
-  return pb_errno(0);
+  return CommandSuccess();
 }
 
 void UnixSocketPort::DeInit() {

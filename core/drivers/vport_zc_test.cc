@@ -32,7 +32,7 @@ class ZeroCopyVPortTest : public ::testing::Test {
     ASSERT_NE(nullptr, port);
     port->num_queues[PACKET_DIR_INC] = 1;
     port->num_queues[PACKET_DIR_OUT] = 1;
-    ASSERT_EQ(0, port->Init(arg).code());
+    ASSERT_EQ(0, port->Init(arg).error().code());
   }
 
   virtual void TearDown() {

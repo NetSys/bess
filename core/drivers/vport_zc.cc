@@ -12,7 +12,7 @@
 
 #define ROUND_TO_64(x) ((x + 32) & (~0x3f))
 
-pb_error_t ZeroCopyVPort::Init(const bess::pb::EmptyArg &) {
+CommandResponse ZeroCopyVPort::Init(const bess::pb::EmptyArg &) {
   struct vport_bar *bar = nullptr;
 
   int num_inc_q = num_queues[PACKET_DIR_INC];
@@ -101,7 +101,7 @@ pb_error_t ZeroCopyVPort::Init(const bess::pb::EmptyArg &) {
   fwrite(&bar_address, 8, 1, fp);
   fclose(fp);
 
-  return pb_errno(0);
+  return CommandSuccess();
 }
 
 void ZeroCopyVPort::DeInit() {

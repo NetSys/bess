@@ -8,7 +8,7 @@
 
 typedef bess::pb::Error pb_error_t;
 
-using CommandResponse = bess::pb::ModuleCommandResponse;
+using CommandResponse = bess::pb::CommandResponse;
 
 CommandResponse CommandSuccess();
 CommandResponse CommandSuccess(const google::protobuf::Message &return_data);

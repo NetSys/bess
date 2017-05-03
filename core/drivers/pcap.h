@@ -13,7 +13,7 @@
 // needs more tests!
 class PCAPPort final : public Port {
  public:
-  pb_error_t Init(const bess::pb::PCAPPortArg &arg);
+  CommandResponse Init(const bess::pb::PCAPPortArg &arg);
 
   void DeInit() override;
   // PCAP has no notion of queue so unlike parent (port.cc) quid is ignored.

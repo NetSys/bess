@@ -40,10 +40,12 @@ typedef enum {
 class Port;
 class PortTest;
 
-using port_init_func_t = pb_func_t<pb_error_t, Port, google::protobuf::Any>;
+using port_init_func_t =
+    pb_func_t<CommandResponse, Port, google::protobuf::Any>;
 
 template <typename T, typename P>
-static inline port_init_func_t PORT_INIT_FUNC(pb_error_t (P::*fn)(const T &)) {
+static inline port_init_func_t PORT_INIT_FUNC(
+    CommandResponse (P::*fn)(const T &)) {
   return [fn](Port *p, const google::protobuf::Any &arg) {
     T arg_;
     arg.UnpackTo(&arg_);
@@ -112,7 +114,7 @@ class PortBuilder {
   const std::string &help_text() const { return help_text_; }
   bool initialized() const { return initialized_; }
 
-  pb_error_t RunInit(Port *p, const google::protobuf::Any &arg) const {
+  CommandResponse RunInit(Port *p, const google::protobuf::Any &arg) const {
     return init_func_(p, arg);
   }
 
@@ -174,7 +176,7 @@ class Port {
 
   virtual ~Port() {}
 
-  pb_error_t Init(const bess::pb::EmptyArg &arg);
+  CommandResponse Init(const bess::pb::EmptyArg &arg);
 
   virtual void DeInit();
 
@@ -211,7 +213,7 @@ class Port {
  public:
   friend class PortBuilder;
 
-  pb_error_t InitWithGenericArg(const google::protobuf::Any &arg);
+  CommandResponse InitWithGenericArg(const google::protobuf::Any &arg);
 
   PortStats GetPortStats();
 

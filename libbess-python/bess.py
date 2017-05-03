@@ -346,7 +346,7 @@ class BESS(object):
         return self._request('DisconnectModules', request)
 
     def run_module_command(self, name, cmd, arg_type, arg):
-        request = bess_msg.ModuleCommandRequest()
+        request = bess_msg.CommandRequest()
         request.name = name
         request.cmd = cmd
 
