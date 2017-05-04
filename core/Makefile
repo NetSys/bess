@@ -131,7 +131,7 @@ all: version.h $(EXEC) modules tests benchmarks
 
 clean:
 	rm -rf $(EXEC) .deps/*.d .deps/*/*.d *_test */*_test *_bench */*_bench \
-		*.a *.pb.* *.o */*.o *.so */*.so *.gcda *.gcno */*.gcda */*.gcno \
+		*.a *.pb.* *.o */*.o *.so */*.so *.gcov *.gcda *.gcno */*.gcda */*.gcno \
 		coverage.info coverage_html
 
 tags:

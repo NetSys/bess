@@ -65,5 +65,6 @@ core/*.gcda
 core/*.gcno
 core/*/*.gcda
 core/*/*.gcno
+*.gcov
 coverage.info
 coverage_html
