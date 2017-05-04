@@ -534,6 +534,9 @@ class BESSControlImpl final : public BESSControl::Service {
     }
 
     for (; i <= wid_filter; i++) {
+      if (workers[i] == nullptr) {
+        continue;
+      }
       bess::TrafficClass* root = workers[i]->scheduler()->root();
       if (!root) {
         continue;
@@ -584,7 +587,10 @@ class BESSControlImpl final : public BESSControl::Service {
     LOG(INFO) << "Checking scheduling constraints";
     // Check constraints around chains run by each worker. This checks that
     // global constraints are met.
-    for (int i = 0; i < num_workers; i++) {
+    for (int i = 0; i < Worker::kMaxWorkers; i++) {
+      if (workers[i] == nullptr) {
+        continue;
+      }
       int socket = 1ull << workers[i]->socket();
       int core = workers[i]->core();
       bess::TrafficClass* root = workers[i]->scheduler()->root();
