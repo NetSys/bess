@@ -187,6 +187,11 @@ class BESS(object):
     def pause_all(self):
         return self._request('PauseAll')
 
+    def pause_worker(self, wid):
+        request = bess_msg.PauseWorkerRequest()
+        request.wid = wid
+        return self._request('PauseWorker', request)
+
     def check_constraints(self):
         response = self.check_scheduling_constraints()
         if len(response.violations) != 0 or len(response.modules) != 0:
@@ -226,6 +231,11 @@ class BESS(object):
             return self.check_resume_all()
         else:
             return self.uncheck_resume_all()
+
+    def resume_worker(self, wid):
+        request = bess_msg.ResumeWorkerRequest()
+        request.wid = wid
+        return self._request('ResumeWorker', request)
 
     def check_scheduling_constraints(self):
         return self._request('CheckSchedulingConstraints')

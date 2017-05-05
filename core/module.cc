@@ -170,7 +170,11 @@ pb_cmd_response_t ModuleBuilder::RunCommand(
   pb_cmd_response_t response;
   for (auto &cmd : cmds_) {
     if (user_cmd == cmd.cmd) {
-      if (!cmd.mt_safe && is_any_worker_running()) {
+      bool workers_running = false;
+      for (const auto wid : m->active_workers_) {
+        workers_running |= is_worker_running(wid);
+      }
+      if (!cmd.mt_safe && workers_running) {
         set_cmd_response_error(&response,
                                pb_error(EBUSY,
                                         "There is a running worker "

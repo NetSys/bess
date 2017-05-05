@@ -435,3 +435,15 @@ message DisableTcpdumpRequest {
 
   // FIXME: use oneof {igate, ogate)
 }
+
+//  -------------------------------------------------------------------------
+//  Worker maniuplation
+//  -------------------------------------------------------------------------
+
+message PauseWorkerRequest {
+  int64 wid = 1;    /// ID of the worker to be paused
+}
+
+message ResumeWorkerRequest {
+  int64 wid = 1;    /// ID of the worker to be resumed
+}

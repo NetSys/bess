@@ -28,17 +28,17 @@ pkt_template = str(eth/ip/tcp/payload)
 # This script is multi threaded but connects to a single port.
 myport = PMDPort(port_id=0, num_inc_q=num_cores, num_out_q=num_cores)
 
-flowgens = []
-for i in range(num_cores):
-    bess.add_worker(wid=i, core=i)
+flowgens = dict()
+for wid in range(num_cores):
+    bess.add_worker(wid=wid, core=wid)
     pkt_src = FlowGen(template = pkt_template, pps = init_pps / num_cores, flow_rate = num_flows / flow_time, flow_duration = flow_time, \
         arrival = 'uniform', duration='uniform', quick_rampup = True)
-    flowgens.append(pkt_src)
-    bess.attach_module(pkt_src.name, wid=i)
+    flowgens[wid] = pkt_src
+    bess.attach_module(pkt_src.name, wid=wid)
 
-    pkt_src -> IPChecksum() -> QueueOut(port=myport, qid = i)
+    pkt_src -> IPChecksum() -> QueueOut(port=myport, qid = wid)
 
-    QueueInc(port=myport, qid=i) -> Sink()
+    QueueInc(port=myport, qid=wid) -> Sink()
 
 bess.resume_all()
 
@@ -50,9 +50,9 @@ while True:
     delta = portstats - prev_portstats
     nextround = max(1e6, 1.1 * delta / sleeptime)
     print("Received " + str(delta / sleeptime) + " pps. Ramping up to: " + str(nextround))
-    bess.pause_all()
-    for pkt_src in flowgens:
+    for wid, pkt_src in flowgens.items():
+        bess.pause_worker(wid)
         pkt_src.update(pps = nextround / num_cores)
-    bess.resume_all()
+        bess.resume_worker(wid)
     time.sleep(sleeptime) # give it some time to warm up to the new rate
     prev_portstats = myport.get_port_stats().inc.packets
