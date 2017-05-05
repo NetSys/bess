@@ -47,11 +47,6 @@ script:
   - ./sanity_check.sh
   - ./bessctl/bessctl -- daemon start -- run testing/run_module_tests
 
-after_success:
-  - "[[ ${DEBUG:-0} == 0 ]] || bash <(curl -s https://codecov.io/bash)"
-  - "lcov --capture --directory . --output-file coverage.info && \
-    genhtml coverage.info --output-directory coverage_html"
-
 after_failure:
   - more /tmp/bessd.*.INFO.* | cat      # dump all bessd log files
   - more /tmp/sanitizer* | cat          # dump all sanitizer results
