@@ -109,9 +109,7 @@ TEST(CuckooMapTest, Iterator) {
 TEST(CuckooMapTest, CollisionTest) {
   class BrokenHash {
    public:
-    bess::utils::HashResult operator()(const uint32_t) const {
-      return 9999999;
-    }
+    bess::utils::HashResult operator()(const uint32_t) const { return 9999999; }
   };
 
   CuckooMap<int, int, BrokenHash> cuckoo;
@@ -153,7 +151,7 @@ TEST(CuckooMapTest, RandomTest) {
   // check if the initial population succeeded
   for (size_t i = 0; i < array_size; i++) {
     auto ret = cuckoo.Find(i);
-    //std::cout << i << ' ' << idx << ' ' << truth[idx] << std::endl;
+    // std::cout << i << ' ' << idx << ' ' << truth[idx] << std::endl;
     if (truth[i] == 0) {
       EXPECT_EQ(nullptr, ret);
     } else {
@@ -180,7 +178,7 @@ TEST(CuckooMapTest, RandomTest) {
     } else {
       // 80% lookup
       auto ret = cuckoo.Find(idx);
-      //std::cout << i << ' ' << idx << ' ' << truth[idx] << std::endl;
+      // std::cout << i << ' ' << idx << ' ' << truth[idx] << std::endl;
       if (truth[idx] == 0) {
         EXPECT_EQ(nullptr, ret);
       } else {

@@ -469,21 +469,32 @@ class CuckooMap {
 
   // Resize the space of buckets, and rehash existing entries
   void ExpandBuckets(const H& hasher, const E& eq) {
-    CuckooMap<K, V, H, E> bigger(buckets_.size() * 2, entries_.size());
+    std::vector<Bucket> old_buckets = buckets_;
+    std::vector<Entry> old_entries = entries_;
 
-    for (const auto& e : *this) {
-      // While very unlikely, this insert() may cause recursive expansion
-      bool ret = bigger.Insert(e.first, e.second, hasher, eq);
-      if (!ret) {
-        return;
-      }
+    buckets_.clear();
+    buckets_.resize((bucket_mask_ + 1) * 2);
+
+    bucket_mask_ = 2 * bucket_mask_ + 1;
+    num_entries_ = 0;
+
+    while (!free_entry_indices_.empty()) {
+      free_entry_indices_.pop();
     }
 
-    bucket_mask_ = std::move(bigger.bucket_mask_);
-    num_entries_ = bigger.num_entries_;
-    buckets_ = std::move(bigger.buckets_);
-    entries_ = std::move(bigger.entries_);
-    free_entry_indices_ = std::move(bigger.free_entry_indices_);
+    for (int i = entries_.size() - 1; i >= 0; --i) {
+      free_entry_indices_.push(i);
+    }
+
+    for (size_t bucket_idx = 0; bucket_idx < old_buckets.size(); ++bucket_idx) {
+      for (size_t slot_idx = 0; slot_idx < kEntriesPerBucket; ++slot_idx) {
+        if (old_buckets[bucket_idx].hash_values[slot_idx] != 0) {
+          size_t entry_idx = old_buckets[bucket_idx].entry_indices[slot_idx];
+          const Entry& e = old_entries[entry_idx];
+          Insert(e.first, e.second, hasher, eq);
+        }
+      }
+    }
   }
 
   // # of buckets == mask + 1
