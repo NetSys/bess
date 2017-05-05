@@ -46,6 +46,7 @@ script:
   - (cd core && ./all_test)
   - ./sanity_check.sh
   - ./bessctl/bessctl -- daemon start -- run testing/run_module_tests
+  - ./.update_libbess_python.sh
 
 after_success:
   - "[[ ${DEBUG:-0} == 0 ]] || bash <(curl -s https://codecov.io/bash)"
