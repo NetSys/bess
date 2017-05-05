@@ -39,13 +39,8 @@ static void
 sn_dump_queue_mapping(struct sn_device *dev) __attribute__((unused));
 
 #define BUFS_PER_CPU 32
-
-/* We cannot directly use phys_addr_t on 32bit machines,
- * since it may be sizeof(phys_addr_t) != sizeof(void *) */
-typedef uintptr_t paddr_t;
-
 struct snb_cache {
-	paddr_t paddr[BUFS_PER_CPU];
+	phys_addr_t paddr[BUFS_PER_CPU];
 	int cnt;
 };
 
@@ -86,7 +81,7 @@ static int sn_host_release(struct inode *inode, struct file *filp)
 	return 0;
 }
 
-static int load_from_cache(paddr_t paddr[], int cnt)
+static int load_from_cache(phys_addr_t paddr[], int cnt)
 {
 	struct snb_cache *cache;
 	int loaded;
@@ -96,13 +91,13 @@ static int load_from_cache(paddr_t paddr[], int cnt)
 	loaded = min(cnt, cache->cnt);
 
 	memcpy(paddr, &cache->paddr[cache->cnt - loaded],
-			loaded * sizeof(paddr_t));
+			loaded * sizeof(phys_addr_t));
 	cache->cnt -= loaded;
 
 	return loaded;
 }
 
-static int store_to_cache(paddr_t paddr[], int cnt)
+static int store_to_cache(phys_addr_t paddr[], int cnt)
 {
 	struct snb_cache *cache;
 	int free_slots;
@@ -113,13 +108,13 @@ static int store_to_cache(paddr_t paddr[], int cnt)
 	free_slots = BUFS_PER_CPU - cache->cnt;
 	stored = min(cnt, free_slots);
 
-	memcpy(&cache->paddr[cache->cnt], paddr, stored * sizeof(paddr_t));
+	memcpy(&cache->paddr[cache->cnt], paddr, stored * sizeof(phys_addr_t));
 	cache->cnt += stored;
 
 	return stored;
 }
 
-static int alloc_snb_burst(struct sn_queue *queue, paddr_t paddr[], int cnt)
+static int alloc_snb_burst(struct sn_queue *queue, phys_addr_t paddr[], int cnt)
 {
 	int loaded;
 
@@ -127,30 +122,22 @@ static int alloc_snb_burst(struct sn_queue *queue, paddr_t paddr[], int cnt)
 	if (loaded == cnt)
 		return cnt;
 
-	cnt = llring_sc_dequeue_burst(queue->sn_to_drv, (void *)&paddr[loaded],
+	cnt = llring_sc_dequeue_burst(queue->sn_to_drv, &paddr[loaded],
 			cnt - loaded);
 	return loaded + cnt;
 }
 
-static void free_snb_bulk(struct sn_queue *queue, paddr_t paddr[], int cnt)
+static void free_snb_bulk(struct sn_queue *queue, phys_addr_t paddr[], int cnt)
 {
-	uintptr_t vaddr_user[MAX_BATCH];
-
 	int stored;
 	int ret;
-	int i;
 
 	stored = store_to_cache(paddr, cnt);
 	if (stored == cnt)
 		return;
 
-	for (i = stored; i < cnt; i++)
-		vaddr_user[i] = *(uintptr_t *)phys_to_virt(paddr[i] +
-				SNBUF_IMMUTABLE_OFF);
-
 	ret = llring_sp_enqueue_bulk(queue->drv_to_sn,
-			(void **)&vaddr_user[stored],
-			cnt - stored);
+			&paddr[stored], cnt - stored);
 
 	if (ret == -LLRING_ERR_NOBUF && net_ratelimit()) {
 		log_err("%s: RX free queue overflow!\n",
@@ -168,11 +155,11 @@ static int sn_host_do_tx_batch(struct sn_queue *queue,
 	int ret;
 	int i;
 
-	paddr_t paddr_arr[MAX_BATCH];
-	uintptr_t vaddr_user[MAX_BATCH];
+	phys_addr_t paddr_arr[MAX_BATCH];
 
 	cnt_to_send = min(cnt_requested,
 			(int)llring_free_count(queue->drv_to_sn));
+	cnt_to_send = min(cnt_to_send, MAX_BATCH);
 
 	cnt = alloc_snb_burst(queue, paddr_arr, cnt_to_send);
 	queue->tx.stats.descriptor += cnt_requested - cnt;
@@ -188,8 +175,6 @@ static int sn_host_do_tx_batch(struct sn_queue *queue,
 
 		int j;
 
-		vaddr_user[i] = *((uintptr_t *)phys_to_virt(paddr +
-					SNBUF_IMMUTABLE_OFF));
 		dst_addr = phys_to_virt(paddr + SNBUF_DATA_OFF);
 		tx_desc = phys_to_virt(paddr + SNBUF_SCRATCHPAD_OFF);
 
@@ -208,8 +193,7 @@ static int sn_host_do_tx_batch(struct sn_queue *queue,
 		}
 	}
 
-	ret = llring_sp_enqueue_burst(queue->drv_to_sn,
-			(void **)vaddr_user, cnt);
+	ret = llring_sp_enqueue_burst(queue->drv_to_sn, paddr_arr, cnt);
 	if (ret < cnt && net_ratelimit()) {
 		/* It should never happen since we cap cnt with llring_count().
 		 * If it does, snbufs leak. Ouch. */
@@ -330,15 +314,14 @@ static int sn_host_do_rx_batch(struct sn_queue *queue,
 			       struct sk_buff **skbs,
 			       int max_cnt)
 {
-	paddr_t paddr[MAX_BATCH];
+	phys_addr_t paddr[MAX_BATCH];
 
 	int cnt;
 	int i;
 
 	max_cnt = min(max_cnt, MAX_BATCH);
 
-	cnt = llring_sc_dequeue_burst(queue->sn_to_drv,
-			(void **)paddr, max_cnt);
+	cnt = llring_sc_dequeue_burst(queue->sn_to_drv, paddr, max_cnt);
 	if (cnt == 0)
 		return 0;
 
@@ -352,7 +335,7 @@ static int sn_host_do_rx_batch(struct sn_queue *queue,
 
 		rx_desc = phys_to_virt(paddr[i] + SNBUF_SCRATCHPAD_OFF);
 		if (!virt_addr_valid(rx_desc)) {
-			log_err("invalid rx_desc %lu %p\n", paddr[i], rx_desc);
+			log_err("invalid rx_desc %llx %p\n", paddr[i], rx_desc);
 			continue;
 		}
 
@@ -577,14 +560,19 @@ sn_host_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	struct sn_device *dev = filp->private_data;
 
 	int ret = 0;
+	phys_addr_t bar_phys = 0;
 
 	switch(cmd) {
 	case SN_IOC_CREATE_HOSTNIC:
+		if (copy_from_user(&bar_phys, (void *)arg, sizeof(bar_phys))) {
+			log_err("copy_from_user: %llx", bar_phys);
+			return -EINVAL;
+		}
 		if (dev) {
 			ret = -EEXIST;
 		} else {
 			ret = sn_host_ioctl_create_netdev(
-				(phys_addr_t) arg,
+				bar_phys,
 				(struct sn_device **)&filp->private_data);
 		}
 		break;
@@ -623,6 +611,7 @@ static struct file_operations sn_host_fops = {
 	.open = sn_host_open,
 	.release = sn_host_release,
 	.unlocked_ioctl = sn_host_ioctl,
+	.compat_ioctl = sn_host_ioctl,
 };
 
 struct miscdevice sn_host_device = {

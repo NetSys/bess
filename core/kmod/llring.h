@@ -100,6 +100,8 @@ static inline void llring_pause(void) { cpu_relax(); }
 
 #include <stdint.h>
 
+typedef uint64_t phys_addr_t;
+
 #define llring_likely(x) __builtin_expect(!!(x), 1)
 #define llring_unlikely(x) __builtin_expect(!!(x), 0)
 
@@ -107,6 +109,16 @@ static inline void llring_pause(void) { cpu_relax(); }
 
 static inline void llring_pause(void) { _mm_pause(); }
 
+#endif
+
+/* llring can be used between execution contexts having different address widths.
+ * In such circumstances, use phys_addr_t rather than void *, whose size would
+ * be different in 32 bit versus 64 bit contexts.
+ */
+#ifdef __LLRING_USE_PHYS_ADDR__
+typedef phys_addr_t llring_addr_t;
+#else
+typedef void * llring_addr_t;
 #endif
 
 /* dummy assembly operation to prevent compiler re-ordering of instructions */
@@ -198,11 +210,10 @@ struct llring {
 	/* it seems to help */
 	char _pad[LLRING_CACHELINE_SIZE];
 
-	void *ring[0] __llring_cache_aligned; /**< Memory space of ring starts
-					       * here.
-						 * not volatile so need to be
-					       * careful
-						 * about compiler re-ordering */
+	llring_addr_t ring[0]
+	        __llring_cache_aligned; /**< Memory space of ring starts here.
+					 * not volatile so need to be careful
+					 * about compiler re-ordering */
 } __llring_cache_aligned;
 
 #define RING_QUOT_EXCEED (1 << 31)	  /**< Quota exceed for burst ops */
@@ -230,7 +241,7 @@ struct llring {
 
 static inline int llring_bytes_with_slots(unsigned int slots)
 {
-	return sizeof(struct llring) + sizeof(void *) * slots;
+	return sizeof(struct llring) + sizeof(llring_addr_t) * slots;
 }
 
 static inline int llring_bytes(struct llring *r)
@@ -366,7 +377,7 @@ static inline int llring_set_water_mark(struct llring *r, unsigned count)
  * @param r
  *   A pointer to the ring structure.
  * @param obj_table
- *   A pointer to a table of void * pointers (objects).
+ *   A pointer to a table of pointers (objects).
  * @param n
  *   The number of objects to add in the ring from the obj_table.
  * @param behavior
@@ -384,7 +395,7 @@ static inline int llring_set_water_mark(struct llring *r, unsigned count)
  *   - n: Actual number of objects enqueued.
  */
 static inline int __attribute__((always_inline))
-__llring_mp_do_enqueue(struct llring *r, void *const *obj_table, unsigned n,
+__llring_mp_do_enqueue(struct llring *r, llring_addr_t const *obj_table, unsigned n,
 		       enum llring_queue_behavior behavior)
 {
 	uint32_t prod_head, prod_next;
@@ -462,7 +473,7 @@ __llring_mp_do_enqueue(struct llring *r, void *const *obj_table, unsigned n,
  * @param r
  *   A pointer to the ring structure.
  * @param obj_table
- *   A pointer to a table of void * pointers (objects).
+ *   A pointer to a table of pointers (objects).
  * @param n
  *   The number of objects to add in the ring from the obj_table.
  * @param behavior
@@ -480,7 +491,7 @@ __llring_mp_do_enqueue(struct llring *r, void *const *obj_table, unsigned n,
  *   - n: Actual number of objects enqueued.
  */
 static inline int __attribute__((always_inline))
-__llring_sp_do_enqueue(struct llring *r, void *const *obj_table, unsigned n,
+__llring_sp_do_enqueue(struct llring *r, llring_addr_t const *obj_table, unsigned n,
 		       enum llring_queue_behavior behavior)
 {
 	uint32_t prod_head, cons_tail;
@@ -547,7 +558,7 @@ __llring_sp_do_enqueue(struct llring *r, void *const *obj_table, unsigned n,
  * @param r
  *   A pointer to the ring structure.
  * @param obj_table
- *   A pointer to a table of void * pointers (objects) that will be filled.
+ *   A pointer to a table of pointers (objects) that will be filled.
  * @param n
  *   The number of objects to dequeue from the ring to the obj_table.
  * @param behavior
@@ -565,7 +576,7 @@ __llring_sp_do_enqueue(struct llring *r, void *const *obj_table, unsigned n,
  */
 
 static inline int __attribute__((always_inline))
-__llring_mc_do_dequeue(struct llring *r, void **obj_table, unsigned n,
+__llring_mc_do_dequeue(struct llring *r, llring_addr_t *obj_table, unsigned n,
 		       enum llring_queue_behavior behavior)
 {
 	uint32_t cons_head, prod_tail;
@@ -633,7 +644,7 @@ __llring_mc_do_dequeue(struct llring *r, void **obj_table, unsigned n,
  * @param r
  *   A pointer to the ring structure.
  * @param obj_table
- *   A pointer to a table of void * pointers (objects) that will be filled.
+ *   A pointer to a table of pointers (objects) that will be filled.
  * @param n
  *   The number of objects to dequeue from the ring to the obj_table.
  * @param behavior
@@ -650,7 +661,7 @@ __llring_mc_do_dequeue(struct llring *r, void **obj_table, unsigned n,
  *   - n: Actual number of objects dequeued.
  */
 static inline int __attribute__((always_inline))
-__llring_sc_do_dequeue(struct llring *r, void **obj_table, unsigned n,
+__llring_sc_do_dequeue(struct llring *r, llring_addr_t *obj_table, unsigned n,
 		       enum llring_queue_behavior behavior)
 {
 	uint32_t cons_head, prod_tail;
@@ -701,7 +712,7 @@ __llring_sc_do_dequeue(struct llring *r, void **obj_table, unsigned n,
  * @param r
  *   A pointer to the ring structure.
  * @param obj_table
- *   A pointer to a table of void * pointers (objects).
+ *   A pointer to a table of pointers (objects).
  * @param n
  *   The number of objects to add in the ring from the obj_table.
  * @return
@@ -712,19 +723,19 @@ __llring_sc_do_dequeue(struct llring *r, void **obj_table, unsigned n,
  * enqueued.
  */
 static inline int __attribute__((always_inline))
-llring_mp_enqueue_bulk(struct llring *r, void *const *obj_table, unsigned n)
+llring_mp_enqueue_bulk(struct llring *r, llring_addr_t const *obj_table, unsigned n)
 {
 	return __llring_mp_do_enqueue(r, obj_table, n, LLRING_QUEUE_FIXED);
 }
 
 static inline int __attribute__((always_inline))
-llring_sp_enqueue_bulk(struct llring *r, void *const *obj_table, unsigned n)
+llring_sp_enqueue_bulk(struct llring *r, llring_addr_t const *obj_table, unsigned n)
 {
 	return __llring_sp_do_enqueue(r, obj_table, n, LLRING_QUEUE_FIXED);
 }
 
 static inline int __attribute__((always_inline))
-llring_enqueue_bulk(struct llring *r, void *const *obj_table, unsigned n)
+llring_enqueue_bulk(struct llring *r, llring_addr_t const *obj_table, unsigned n)
 {
 	if (r->common.sp_enqueue)
 		return llring_sp_enqueue_bulk(r, obj_table, n);
@@ -733,7 +744,7 @@ llring_enqueue_bulk(struct llring *r, void *const *obj_table, unsigned n)
 }
 
 static inline int __attribute__((always_inline))
-llring_mp_enqueue(struct llring *r, void *obj)
+llring_mp_enqueue(struct llring *r, llring_addr_t obj)
 {
 	return llring_mp_enqueue_bulk(r, &obj, 1);
 }
@@ -753,7 +764,7 @@ llring_mp_enqueue(struct llring *r, void *obj)
  * enqueued.
  */
 static inline int __attribute__((always_inline))
-llring_sp_enqueue(struct llring *r, void *obj)
+llring_sp_enqueue(struct llring *r, llring_addr_t obj)
 {
 	return llring_sp_enqueue_bulk(r, &obj, 1);
 }
@@ -777,7 +788,7 @@ llring_sp_enqueue(struct llring *r, void *obj)
  * enqueued.
  */
 static inline int __attribute__((always_inline))
-llring_enqueue(struct llring *r, void *obj)
+llring_enqueue(struct llring *r, llring_addr_t obj)
 {
 	if (r->common.sp_enqueue)
 		return llring_sp_enqueue(r, obj);
@@ -794,7 +805,7 @@ llring_enqueue(struct llring *r, void *obj)
  * @param r
  *   A pointer to the ring structure.
  * @param obj_table
- *   A pointer to a table of void * pointers (objects) that will be filled.
+ *   A pointer to a table of pointers (objects) that will be filled.
  * @param n
  *   The number of objects to dequeue from the ring to the obj_table.
  * @return
@@ -804,7 +815,7 @@ llring_enqueue(struct llring *r, void *obj)
  *     dequeued.
  */
 static inline int __attribute__((always_inline))
-llring_mc_dequeue_bulk(struct llring *r, void **obj_table, unsigned n)
+llring_mc_dequeue_bulk(struct llring *r, llring_addr_t *obj_table, unsigned n)
 {
 	return __llring_mc_do_dequeue(r, obj_table, n, LLRING_QUEUE_FIXED);
 }
@@ -815,7 +826,7 @@ llring_mc_dequeue_bulk(struct llring *r, void **obj_table, unsigned n)
  * @param r
  *   A pointer to the ring structure.
  * @param obj_table
- *   A pointer to a table of void * pointers (objects) that will be filled.
+ *   A pointer to a table of pointers (objects) that will be filled.
  * @param n
  *   The number of objects to dequeue from the ring to the obj_table,
  *   must be strictly positive.
@@ -826,7 +837,7 @@ llring_mc_dequeue_bulk(struct llring *r, void **obj_table, unsigned n)
  *     dequeued.
  */
 static inline int __attribute__((always_inline))
-llring_sc_dequeue_bulk(struct llring *r, void **obj_table, unsigned n)
+llring_sc_dequeue_bulk(struct llring *r, llring_addr_t *obj_table, unsigned n)
 {
 	return __llring_sc_do_dequeue(r, obj_table, n, LLRING_QUEUE_FIXED);
 }
@@ -841,7 +852,7 @@ llring_sc_dequeue_bulk(struct llring *r, void **obj_table, unsigned n)
  * @param r
  *   A pointer to the ring structure.
  * @param obj_table
- *   A pointer to a table of void * pointers (objects) that will be filled.
+ *   A pointer to a table of pointers (objects) that will be filled.
  * @param n
  *   The number of objects to dequeue from the ring to the obj_table.
  * @return
@@ -851,7 +862,7 @@ llring_sc_dequeue_bulk(struct llring *r, void **obj_table, unsigned n)
  *     dequeued.
  */
 static inline int __attribute__((always_inline))
-llring_dequeue_bulk(struct llring *r, void **obj_table, unsigned n)
+llring_dequeue_bulk(struct llring *r, llring_addr_t *obj_table, unsigned n)
 {
 	if (r->common.sc_dequeue)
 		return llring_sc_dequeue_bulk(r, obj_table, n);
@@ -868,7 +879,7 @@ llring_dequeue_bulk(struct llring *r, void **obj_table, unsigned n)
  * @param r
  *   A pointer to the ring structure.
  * @param obj_p
- *   A pointer to a void * pointer (object) that will be filled.
+ *   A pointer to a pointer (object) that will be filled.
  * @return
  *   - 0: Success; objects dequeued.
  *   - -LLRING_ERR_NOENT: Not enough entries in the ring to dequeue; no object
@@ -876,7 +887,7 @@ llring_dequeue_bulk(struct llring *r, void **obj_table, unsigned n)
  *     dequeued.
  */
 static inline int __attribute__((always_inline))
-llring_mc_dequeue(struct llring *r, void **obj_p)
+llring_mc_dequeue(struct llring *r, llring_addr_t *obj_p)
 {
 	return llring_mc_dequeue_bulk(r, obj_p, 1);
 }
@@ -887,7 +898,7 @@ llring_mc_dequeue(struct llring *r, void **obj_p)
  * @param r
  *   A pointer to the ring structure.
  * @param obj_p
- *   A pointer to a void * pointer (object) that will be filled.
+ *   A pointer to a pointer (object) that will be filled.
  * @return
  *   - 0: Success; objects dequeued.
  *   - -LLRING_ERR_NOENT: Not enough entries in the ring to dequeue, no object
@@ -895,7 +906,7 @@ llring_mc_dequeue(struct llring *r, void **obj_p)
  *     dequeued.
  */
 static inline int __attribute__((always_inline))
-llring_sc_dequeue(struct llring *r, void **obj_p)
+llring_sc_dequeue(struct llring *r, llring_addr_t *obj_p)
 {
 	return llring_sc_dequeue_bulk(r, obj_p, 1);
 }
@@ -910,7 +921,7 @@ llring_sc_dequeue(struct llring *r, void **obj_p)
  * @param r
  *   A pointer to the ring structure.
  * @param obj_p
- *   A pointer to a void * pointer (object) that will be filled.
+ *   A pointer to a pointer (object) that will be filled.
  * @return
  *   - 0: Success, objects dequeued.
  *   - -LLRING_ERR_NOENT: Not enough entries in the ring to dequeue, no object
@@ -918,7 +929,7 @@ llring_sc_dequeue(struct llring *r, void **obj_p)
  *     dequeued.
  */
 static inline int __attribute__((always_inline))
-llring_dequeue(struct llring *r, void **obj_p)
+llring_dequeue(struct llring *r, llring_addr_t *obj_p)
 {
 	if (r->common.sc_dequeue)
 		return llring_sc_dequeue(r, obj_p);
@@ -997,14 +1008,15 @@ static inline unsigned llring_free_count(const struct llring *r)
  * @param r
  *   A pointer to the ring structure.
  * @param obj_table
- *   A pointer to a table of void * pointers (objects).
+ *   A pointer to a table of pointers (objects).
  * @param n
  *   The number of objects to add in the ring from the obj_table.
  * @return
  *   - n: Actual number of objects enqueued.
  */
 static inline int __attribute__((always_inline))
-llring_mp_enqueue_burst(struct llring *r, void *const *obj_table, unsigned n)
+llring_mp_enqueue_burst(struct llring *r, llring_addr_t const *obj_table,
+			unsigned n)
 {
 	return __llring_mp_do_enqueue(r, obj_table, n, LLRING_QUEUE_VARIABLE);
 }
@@ -1015,14 +1027,15 @@ llring_mp_enqueue_burst(struct llring *r, void *const *obj_table, unsigned n)
  * @param r
  *   A pointer to the ring structure.
  * @param obj_table
- *   A pointer to a table of void * pointers (objects).
+ *   A pointer to a table of pointers (objects).
  * @param n
  *   The number of objects to add in the ring from the obj_table.
  * @return
  *   - n: Actual number of objects enqueued.
  */
 static inline int __attribute__((always_inline))
-llring_sp_enqueue_burst(struct llring *r, void *const *obj_table, unsigned n)
+llring_sp_enqueue_burst(struct llring *r, llring_addr_t const *obj_table,
+			unsigned n)
 {
 	return __llring_sp_do_enqueue(r, obj_table, n, LLRING_QUEUE_VARIABLE);
 }
@@ -1037,14 +1050,14 @@ llring_sp_enqueue_burst(struct llring *r, void *const *obj_table, unsigned n)
  * @param r
  *   A pointer to the ring structure.
  * @param obj_table
- *   A pointer to a table of void * pointers (objects).
+ *   A pointer to a table of pointers (objects).
  * @param n
  *   The number of objects to add in the ring from the obj_table.
  * @return
  *   - n: Actual number of objects enqueued.
  */
 static inline int __attribute__((always_inline))
-llring_enqueue_burst(struct llring *r, void *const *obj_table, unsigned n)
+llring_enqueue_burst(struct llring *r, llring_addr_t const *obj_table, unsigned n)
 {
 	if (r->common.sp_enqueue)
 		return llring_sp_enqueue_burst(r, obj_table, n);
@@ -1063,14 +1076,14 @@ llring_enqueue_burst(struct llring *r, void *const *obj_table, unsigned n)
  * @param r
  *   A pointer to the ring structure.
  * @param obj_table
- *   A pointer to a table of void * pointers (objects) that will be filled.
+ *   A pointer to a table of pointers (objects) that will be filled.
  * @param n
  *   The number of objects to dequeue from the ring to the obj_table.
  * @return
  *   - n: Actual number of objects dequeued, 0 if ring is empty
  */
 static inline int __attribute__((always_inline))
-llring_mc_dequeue_burst(struct llring *r, void **obj_table, unsigned n)
+llring_mc_dequeue_burst(struct llring *r, llring_addr_t *obj_table, unsigned n)
 {
 	return __llring_mc_do_dequeue(r, obj_table, n, LLRING_QUEUE_VARIABLE);
 }
@@ -1083,14 +1096,14 @@ llring_mc_dequeue_burst(struct llring *r, void **obj_table, unsigned n)
  * @param r
  *   A pointer to the ring structure.
  * @param obj_table
- *   A pointer to a table of void * pointers (objects) that will be filled.
+ *   A pointer to a table of pointers (objects) that will be filled.
  * @param n
  *   The number of objects to dequeue from the ring to the obj_table.
  * @return
  *   - n: Actual number of objects dequeued, 0 if ring is empty
  */
 static inline int __attribute__((always_inline))
-llring_sc_dequeue_burst(struct llring *r, void **obj_table, unsigned n)
+llring_sc_dequeue_burst(struct llring *r, llring_addr_t *obj_table, unsigned n)
 {
 	return __llring_sc_do_dequeue(r, obj_table, n, LLRING_QUEUE_VARIABLE);
 }
@@ -1105,14 +1118,14 @@ llring_sc_dequeue_burst(struct llring *r, void **obj_table, unsigned n)
  * @param r
  *   A pointer to the ring structure.
  * @param obj_table
- *   A pointer to a table of void * pointers (objects) that will be filled.
+ *   A pointer to a table of pointers (objects) that will be filled.
  * @param n
  *   The number of objects to dequeue from the ring to the obj_table.
  * @return
  *   - Number of objects dequeued, or a negative error code on error
  */
 static inline int __attribute__((always_inline))
-llring_dequeue_burst(struct llring *r, void **obj_table, unsigned n)
+llring_dequeue_burst(struct llring *r, llring_addr_t *obj_table, unsigned n)
 {
 	if (r->common.sc_dequeue)
 		return llring_sc_dequeue_burst(r, obj_table, n);

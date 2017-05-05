@@ -33,10 +33,6 @@
 
 #define ROUND_TO_64(x) ((x + 32) & (~0x3f))
 
-/* We cannot directly use phys_addr_t on 32bit machines,
- * since it may be sizeof(phys_addr_t) != sizeof(void *) */
-typedef uintptr_t paddr_t;
-
 static inline int find_next_nonworker_cpu(int cpu) {
   do {
     cpu = (cpu + 1) % sysconf(_SC_NPROCESSORS_ONLN);
@@ -46,7 +42,7 @@ static inline int find_next_nonworker_cpu(int cpu) {
 
 static void refill_tx_bufs(struct llring *r) {
   bess::Packet *pkts[REFILL_HIGH];
-  void *objs[REFILL_HIGH];
+  phys_addr_t objs[REFILL_HIGH];
 
   int deficit;
   int ret;
@@ -63,7 +59,7 @@ static void refill_tx_bufs(struct llring *r) {
     return;
 
   for (int i = 0; i < ret; i++)
-    objs[i] = (void *)(uintptr_t)pkts[i]->paddr();
+    objs[i] = pkts[i]->paddr();
 
   ret = llring_mp_enqueue_bulk(r, objs, ret);
   DCHECK_EQ(ret, 0);
@@ -72,48 +68,51 @@ static void refill_tx_bufs(struct llring *r) {
 static void drain_sn_to_drv_q(struct llring *q) {
   /* sn_to_drv queues contain physical address of packet buffers */
   for (;;) {
-    paddr_t paddr;
+    phys_addr_t paddr;
     bess::Packet *snb;
     int ret;
 
-    ret = llring_mc_dequeue(q, (void **)&paddr);
+    ret = llring_mc_dequeue(q, &paddr);
     if (ret)
       break;
 
     snb = bess::Packet::from_paddr(paddr);
     if (!snb) {
-      LOG(ERROR) << "paddr_to_snb(" << paddr << ") failed";
+      LOG(ERROR) << "from_paddr(" << paddr << ") failed";
       continue;
     }
 
-    bess::Packet::Free(bess::Packet::from_paddr(paddr));
+    bess::Packet::Free(snb);
   }
 }
 
 static void drain_drv_to_sn_q(struct llring *q) {
   /* sn_to_drv queues contain virtual address of packet buffers */
   for (;;) {
-    bess::Packet *snb;
+    phys_addr_t paddr;
     int ret;
 
-    ret = llring_mc_dequeue(q, (void **)&snb);
+    ret = llring_mc_dequeue(q, &paddr);
     if (ret)
       break;
 
-    bess::Packet::Free(snb);
+    bess::Packet::Free(bess::Packet::from_paddr(paddr));
   }
 }
 
 static void reclaim_packets(struct llring *ring) {
-  void *objs[bess::PacketBatch::kMaxBurst];
+  phys_addr_t objs[bess::PacketBatch::kMaxBurst];
+  bess::Packet *pkts[bess::PacketBatch::kMaxBurst];
   int ret;
 
   for (;;) {
     ret = llring_mc_dequeue_burst(ring, objs, bess::PacketBatch::kMaxBurst);
     if (ret == 0)
       break;
-
-    bess::Packet::Free((bess::Packet **)objs, ret);
+    for (int i = 0; i < ret; i++) {
+      pkts[i] = bess::Packet::from_paddr(objs[i]);
+    }
+    bess::Packet::Free(pkts, ret);
   }
 }
 
@@ -433,6 +432,7 @@ void VPort::DeInit() {
 pb_error_t VPort::Init(const bess::pb::VPortArg &arg) {
   pb_error_t err;
   int ret;
+  phys_addr_t phy_addr;
 
   struct tx_queue_opts txq_opts = tx_queue_opts();
   struct rx_queue_opts rxq_opts = rx_queue_opts();
@@ -487,10 +487,11 @@ pb_error_t VPort::Init(const bess::pb::VPortArg &arg) {
   rxq_opts.loopback = arg.loopback();
 
   bar_ = AllocBar(&txq_opts, &rxq_opts);
+  phy_addr = rte_malloc_virt2phy(bar_);
 
-  VLOG(1) << "virt: " << bar_ << ", phys: " << rte_malloc_virt2phy(bar_);
+  VLOG(1) << "virt: " << bar_ << ", phys: " << phy_addr;
 
-  ret = ioctl(fd_, SN_IOC_CREATE_HOSTNIC, rte_malloc_virt2phy(bar_));
+  ret = ioctl(fd_, SN_IOC_CREATE_HOSTNIC, &phy_addr);
   if (ret < 0) {
     err = pb_errno_details(-ret, "SN_IOC_CREATE_HOSTNIC failure");
     goto fail;
@@ -544,18 +545,23 @@ fail:
 
 int VPort::RecvPackets(queue_t qid, bess::Packet **pkts, int max_cnt) {
   struct queue *tx_queue = &inc_qs_[qid];
-
+  phys_addr_t paddr[bess::PacketBatch::kMaxBurst];
   int cnt;
   int i;
 
-  cnt = llring_sc_dequeue_burst(tx_queue->drv_to_sn, (void **)pkts, max_cnt);
+  if (static_cast<size_t>(max_cnt) > bess::PacketBatch::kMaxBurst) {
+    max_cnt = bess::PacketBatch::kMaxBurst;
+  }
+  cnt = llring_sc_dequeue_burst(tx_queue->drv_to_sn, paddr, max_cnt);
 
   refill_tx_bufs(tx_queue->sn_to_drv);
 
   for (i = 0; i < cnt; i++) {
-    bess::Packet *pkt = pkts[i];
+    bess::Packet *pkt;
     struct sn_tx_desc *tx_desc;
     uint16_t len;
+
+    pkt = pkts[i] = bess::Packet::from_paddr(paddr[i]);
 
     tx_desc = pkt->scratchpad<struct sn_tx_desc *>();
     len = tx_desc->total_len;
@@ -573,9 +579,11 @@ int VPort::RecvPackets(queue_t qid, bess::Packet **pkts, int max_cnt) {
 int VPort::SendPackets(queue_t qid, bess::Packet **pkts, int cnt) {
   struct queue *rx_queue = &out_qs_[qid];
 
-  paddr_t paddr[bess::PacketBatch::kMaxBurst];
+  phys_addr_t paddr[bess::PacketBatch::kMaxBurst];
 
   int ret;
+
+  assert(static_cast<size_t>(cnt) <= bess::PacketBatch::kMaxBurst);
 
   reclaim_packets(rx_queue->drv_to_sn);
 
@@ -624,7 +632,7 @@ int VPort::SendPackets(queue_t qid, bess::Packet **pkts, int cnt) {
     }
   }
 
-  ret = llring_mp_enqueue_bulk(rx_queue->sn_to_drv, (void **)paddr, cnt);
+  ret = llring_mp_enqueue_bulk(rx_queue->sn_to_drv, paddr, cnt);
 
   if (ret == -LLRING_ERR_NOBUF)
     return 0;
