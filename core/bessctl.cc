@@ -521,14 +521,15 @@ class BESSControlImpl final : public BESSControl::Service {
     int i;
 
     wid_filter = request->wid();
-    if (wid_filter >= num_workers) {
-      return return_with_error(
-          response, EINVAL, "'wid' must be between 0 and %d", num_workers - 1);
+    if (wid_filter >= Worker::kMaxWorkers) {
+      return return_with_error(response, EINVAL,
+                               "'wid' must be between 0 and %d",
+                               Worker::kMaxWorkers - 1);
     }
 
     if (wid_filter < 0) {
       i = 0;
-      wid_filter = num_workers - 1;
+      wid_filter = Worker::kMaxWorkers - 1;
     } else {
       i = wid_filter;
     }
