@@ -11,6 +11,7 @@
 using bess::utils::EthHeader;
 using bess::utils::Ipv4Header;
 using bess::utils::TcpHeader;
+using bess::utils::be16_t;
 
 const uint64_t TIME_OUT_NS = 10ull * 1000 * 1000 * 1000;  // 10 seconds
 
@@ -27,7 +28,7 @@ struct[[gnu::packed]] PacketTemplate {
   PacketTemplate() {
     eth.dst_addr = EthHeader::Address();  // To fill in
     eth.src_addr = EthHeader::Address();  // To fill in
-    eth.ether_type = 0x0800;              // IPv4
+    eth.ether_type = be16_t(0x0800);      // IPv4
     ip.version = 4;
     ip.header_length = 5;
     ip.type_of_service = 0;
