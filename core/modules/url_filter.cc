@@ -32,24 +32,24 @@ struct[[gnu::packed]] PacketTemplate {
     ip.version = 4;
     ip.header_length = 5;
     ip.type_of_service = 0;
-    ip.length = 40;
-    ip.id = 0;
-    ip.fragment_offset = 0;
+    ip.length = be16_t(40);
+    ip.id = be16_t(0);
+    ip.fragment_offset = be16_t(0);
     ip.ttl = 0x40;
     ip.protocol = 0x06;
-    ip.checksum = 0;   // To fill in
-    ip.src = 0;        // To fill in
-    ip.dst = 0;        // To fill in
-    tcp.src_port = 0;  // To fill in
-    tcp.dst_port = 0;  // To fill in
-    tcp.seq_num = 0;   // To fill in
-    tcp.ack_num = 0;   // To fill in
+    ip.checksum = 0;           // To fill in
+    ip.src = be32_t(0);        // To fill in
+    ip.dst = be32_t(0);        // To fill in
+    tcp.src_port = be16_t(0);  // To fill in
+    tcp.dst_port = be16_t(0);  // To fill in
+    tcp.seq_num = be32_t(0);   // To fill in
+    tcp.ack_num = be32_t(0);   // To fill in
     tcp.reserved = 0;
     tcp.offset = 5;
     tcp.flags = 0x14;  // RST-ACK
-    tcp.window = 0;
+    tcp.window = be16_t(0);
     tcp.checksum = 0;  // To fill in
-    tcp.urgent_ptr = 0;
+    tcp.urgent_ptr = be16_t(0);
   }
 };
 
@@ -62,10 +62,9 @@ static PacketTemplate rst_template;
 // Generate an HTTP 403 packet
 inline static bess::Packet *Generate403Packet(const EthHeader::Address &src_eth,
                                               const EthHeader::Address &dst_eth,
-                                              uint32_t src_ip, uint32_t dst_ip,
-                                              uint16_t src_port,
-                                              uint16_t dst_port, uint32_t seq,
-                                              uint32_t ack) {
+                                              be32_t src_ip, be32_t dst_ip,
+                                              be16_t src_port, be16_t dst_port,
+                                              be32_t seq, be32_t ack) {
   bess::Packet *pkt = bess::Packet::Alloc();
   char *ptr = static_cast<char *>(pkt->buffer()) + SNBUF_HEADROOM;
   pkt->set_data_off(SNBUF_HEADROOM);
@@ -86,7 +85,7 @@ inline static bess::Packet *Generate403Packet(const EthHeader::Address &src_eth,
   eth->src_addr = src_eth;
   ip->src = src_ip;
   ip->dst = dst_ip;
-  ip->length = 40 + len;
+  ip->length = be16_t(40 + len);
   tcp->src_port = src_port;
   tcp->dst_port = dst_port;
   tcp->seq_num = seq;
@@ -103,8 +102,8 @@ inline static bess::Packet *Generate403Packet(const EthHeader::Address &src_eth,
 // Generate a TCP RST packet
 inline static bess::Packet *GenerateResetPacket(
     const EthHeader::Address &src_eth, const EthHeader::Address &dst_eth,
-    uint32_t src_ip, uint32_t dst_ip, uint16_t src_port, uint16_t dst_port,
-    uint32_t seq, uint32_t ack) {
+    be32_t src_ip, be32_t dst_ip, be16_t src_port, be16_t dst_port, be32_t seq,
+    be32_t ack) {
   bess::Packet *pkt = bess::Packet::Alloc();
   char *ptr = static_cast<char *>(pkt->buffer()) + SNBUF_HEADROOM;
   pkt->set_data_off(SNBUF_HEADROOM);
@@ -283,7 +282,8 @@ void UrlFilter::ProcessBatch(bess::PacketBatch *batch) {
       // Inject RST to source
       out_batches[3].add(GenerateResetPacket(
           eth->dst_addr, eth->src_addr, ip->dst, ip->src, tcp->dst_port,
-          tcp->src_port, tcp->ack_num + strlen(HTTP_403_BODY), tcp->seq_num));
+          tcp->src_port, be32_t(tcp->ack_num.value() + strlen(HTTP_403_BODY)),
+          tcp->seq_num));
 
       // Drop the data packet
       free_batch.add(pkt);

@@ -42,7 +42,12 @@ class EndianBase<uint64_t> {
   }
 };
 
-// NOTE: DO NOT ALLOW implicit type-conversion, comparison, and operations
+// NOTE: DO NOT ADD implicit type-conversion, comparison, and operations.
+//       Especially, we do not allow assignments like "be16_t a = 5;".
+//       While it looks benign, this form of assignment becomes quite
+//       confusing if the rhs is a variable; the behavior of the assignment
+//       will be different depending on whether rhs is native or big endian,
+//       which may not be immediately clear from the variable name.
 template <typename T>
 class[[gnu::packed]] BigEndian final : public EndianBase<T> {
  public:
@@ -60,6 +65,8 @@ class[[gnu::packed]] BigEndian final : public EndianBase<T> {
 
   constexpr BigEndian<T> operator~() { return BigEndian(~(this->value())); }
 
+  // While this swap(swap(a) & swap(b)) looks inefficient, gcc 4.9+ will
+  // correctly optimize the code.
   constexpr BigEndian<T> operator&(const BigEndian<T> &o) {
     return BigEndian(this->value() & o.value());
   }
@@ -72,8 +79,7 @@ class[[gnu::packed]] BigEndian final : public EndianBase<T> {
     return BigEndian(this->value() ^ o.value());
   }
 
-  constexpr BigEndian<T>
-  operator+(const BigEndian<T> &o) {
+  constexpr BigEndian<T> operator+(const BigEndian<T> &o) {
     return BigEndian(this->value() + o.value());
   }
 
@@ -93,8 +99,9 @@ class[[gnu::packed]] BigEndian final : public EndianBase<T> {
 
   constexpr bool operator!=(const BigEndian &o) { return !(*this == o); }
 
-  friend std::ostream &operator<<(std::ostream & os, const BigEndian &be) {
-    os << std::hex << be.value() << std::dec;
+  friend std::ostream &operator<<(std::ostream &os, const BigEndian &be) {
+    os << std::hex << std::showbase << be.value() << std::noshowbase
+       << std::dec;
     return os;
   }
 

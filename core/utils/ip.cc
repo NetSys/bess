@@ -9,8 +9,8 @@ namespace utils {
 
 CIDRNetwork::CIDRNetwork(const std::string &cidr) {
   if (cidr.length() == 0) {
-    addr = 0;
-    mask = 0;
+    addr = be32_t(0);
+    mask = be32_t(0);
     return;
   }
 
@@ -22,13 +22,12 @@ CIDRNetwork::CIDRNetwork(const std::string &cidr) {
 
   const int len = std::stoi(cidr.substr(delim_pos + 1));
   if (len <= 0) {
-    mask = 0;
+    mask = be32_t(0);
   } else if (len >= 32) {
-    mask = 0xffffffff;
+    mask = be32_t(0xffffffff);
   } else {
-    mask = ~((1u << (32 - len)) - 1);
+    mask = be32_t(~((1 << (32 - len)) - 1));
   }
-  mask = htonl(mask);
 }
 
 }  // namespace utils

@@ -15,8 +15,8 @@ CommandResponse ACL::Init(const bess::pb::ACLArg &arg) {
     ACLRule new_rule = {
         .src_ip = CIDRNetwork(rule.src_ip()),
         .dst_ip = CIDRNetwork(rule.dst_ip()),
-        .src_port = htons(static_cast<uint16_t>(rule.src_port())),
-        .dst_port = htons(static_cast<uint16_t>(rule.dst_port())),
+        .src_port = be16_t(static_cast<uint16_t>(rule.src_port())),
+        .dst_port = be16_t(static_cast<uint16_t>(rule.dst_port())),
         .established = rule.established(),
         .drop = rule.drop()};
     rules_.push_back(new_rule);
@@ -48,10 +48,10 @@ void ACL::ProcessBatch(bess::PacketBatch *batch) {
     struct udp_hdr *udp = reinterpret_cast<struct udp_hdr *>(
         reinterpret_cast<uint8_t *>(ip) + ip_bytes);
 
-    IPAddress src_ip = ip->src_addr;
-    IPAddress dst_ip = ip->dst_addr;
-    uint16_t src_port = udp->src_port;
-    uint16_t dst_port = udp->dst_port;
+    be32_t src_ip(be32_t::swap(ip->src_addr));
+    be32_t dst_ip(be32_t::swap(ip->dst_addr));
+    be16_t src_port(be32_t::swap(udp->src_port));
+    be16_t dst_port(be32_t::swap(udp->dst_port));
 
     out_gates[i] = DROP_GATE;  // By default, drop unmatched packets
 

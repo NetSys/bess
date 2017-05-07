@@ -3,9 +3,12 @@
 #include "../utils/checksum.h"
 #include "../utils/ether.h"
 #include "../utils/ip.h"
+#include "../utils/endian.h"
 
 using bess::utils::EthHeader;
 using bess::utils::Ipv4Header;
+using bess::utils::be16_t;
+using bess::utils::be32_t;
 
 enum {
   ATTR_R_IP_SRC,
@@ -50,12 +53,12 @@ void IPEncap::ProcessBatch(bess::PacketBatch *batch) {
     iph->version = 0x4;
     iph->header_length = sizeof(*iph) / 4;
     iph->type_of_service = 0;
-    iph->length = __builtin_bswap16(total_len);
-    iph->fragment_offset = __builtin_bswap16(Ipv4Header::Flag::kDF);
+    iph->length = be16_t(total_len);
+    iph->fragment_offset = be16_t(Ipv4Header::Flag::kDF);
     iph->ttl = 64;
     iph->protocol = ip_proto;
-    iph->src = ip_src;
-    iph->dst = ip_dst;
+    iph->src = be32_t(ip_src);
+    iph->dst = be32_t(ip_dst);
 
     iph->checksum = bess::utils::CalculateIpv4NoOptChecksum(*iph);
 

@@ -29,8 +29,9 @@ const Commands NAT::cmds = {
     {"clear", "EmptyArg", MODULE_CMD_FUNC(&NAT::CommandClear), 0}};
 
 std::string Flow::ToString() const {
-  return bess::utils::Format("%d %08x:%d -> %08x:%d", proto, src_ip, src_port,
-                             dst_ip, dst_port);
+  return bess::utils::Format("%d %08x:%hu -> %08x:%hu", proto, src_ip.value(),
+                             src_port.value(), dst_ip.value(),
+                             dst_port.value());
 }
 
 CommandResponse NAT::Init(const bess::pb::NATArg &arg) {
@@ -93,10 +94,12 @@ static inline void stamp_flow(struct Ipv4Header *ip, void *l4,
   uint32_t l4_inc = 0;
 
   if (src) {
-    l3_inc += CalculateChecksumUnfoldedIncremental32(ip->src, flow.src_ip);
+    l3_inc += CalculateChecksumUnfoldedIncremental32(ip->src.raw_value(),
+                                                     flow.src_ip.raw_value());
     ip->src = flow.src_ip;
   } else {
-    l3_inc += CalculateChecksumUnfoldedIncremental32(ip->dst, flow.dst_ip);
+    l3_inc += CalculateChecksumUnfoldedIncremental32(ip->dst.raw_value(),
+                                                     flow.dst_ip.raw_value());
     ip->dst = flow.dst_ip;
   }
 
@@ -105,12 +108,12 @@ static inline void stamp_flow(struct Ipv4Header *ip, void *l4,
   switch (flow.proto) {
     case TCP:
       if (src) {
-        l4_inc += CalculateChecksumUnfoldedIncremental16(tcp->src_port,
-                                                         flow.src_port);
+        l4_inc += CalculateChecksumUnfoldedIncremental16(
+            tcp->src_port.raw_value(), flow.src_port.raw_value());
         tcp->src_port = flow.src_port;
       } else {
-        l4_inc += CalculateChecksumUnfoldedIncremental16(tcp->dst_port,
-                                                         flow.dst_port);
+        l4_inc += CalculateChecksumUnfoldedIncremental16(
+            tcp->dst_port.raw_value(), flow.dst_port.raw_value());
         tcp->dst_port = flow.dst_port;
       }
       l4_inc += l3_inc;
@@ -121,11 +124,11 @@ static inline void stamp_flow(struct Ipv4Header *ip, void *l4,
     case UDP:
       if (udp->checksum) {
         if (src) {
-          l4_inc += CalculateChecksumUnfoldedIncremental16(udp->src_port,
-                                                           flow.src_port);
+          l4_inc += CalculateChecksumUnfoldedIncremental16(
+              udp->src_port.raw_value(), flow.src_port.raw_value());
         } else {
-          l4_inc += CalculateChecksumUnfoldedIncremental16(udp->dst_port,
-                                                           flow.dst_port);
+          l4_inc += CalculateChecksumUnfoldedIncremental16(
+              udp->dst_port.raw_value(), flow.dst_port.raw_value());
         }
         l4_inc += l3_inc;
 
@@ -151,7 +154,8 @@ static inline void stamp_flow(struct Ipv4Header *ip, void *l4,
         case 15:
         case 16:
           icmp->checksum = CalculateChecksumIncremental16(
-              icmp->checksum, icmp->ident, flow.icmp_ident);
+              icmp->checksum, icmp->ident.raw_value(),
+              flow.icmp_ident.raw_value());
           icmp->ident = flow.icmp_ident;
           break;
         default:
@@ -212,6 +216,7 @@ void NAT::ProcessBatch(bess::PacketBatch *batch) {
       if (res != nullptr) {
         FlowRecord *record = res->second;
         DCHECK_EQ(record->external_flow.src_port, record->port);
+
         if (now - record->time < TIME_OUT_NS) {
           // Entry exists and does not exceed timeout
           record->time = now;
@@ -286,8 +291,8 @@ void NAT::ProcessBatch(bess::PacketBatch *batch) {
       continue;
     }
 
-    IPAddress new_ip;
-    uint16_t new_port;
+    be32_t new_ip;
+    be16_t new_port;
     FlowRecord *record;
     std::tie(new_ip, new_port, record) = available_ports.RandomFreeIPAndPort();
 

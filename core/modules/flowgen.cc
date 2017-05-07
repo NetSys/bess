@@ -15,6 +15,8 @@
 using bess::utils::EthHeader;
 using bess::utils::Ipv4Header;
 using bess::utils::TcpHeader;
+using bess::utils::be16_t;
+using bess::utils::be32_t;
 
 #define MAX_TEMPLATE_SIZE 1536
 
@@ -89,10 +91,10 @@ inline flow *FlowGen::ScheduleFlow(uint64_t time_ns) {
 
   f->first_pkt = true;
   f->next_seq_no = 12345;
-  f->src_ip = htonl(ip_src_base_ + rng_.GetRange(ip_src_range_));
-  f->dst_ip = htonl(ip_dst_base_ + rng_.GetRange(ip_dst_range_));
-  f->src_port = htons(port_src_base_ + rng_.GetRange(port_src_range_));
-  f->dst_port = htons(port_src_base_ + rng_.GetRange(port_dst_range_));
+  f->src_ip = be32_t(ip_src_base_ + rng_.GetRange(ip_src_range_));
+  f->dst_ip = be32_t(ip_dst_base_ + rng_.GetRange(ip_dst_range_));
+  f->src_port = be16_t(port_src_base_ + rng_.GetRange(port_src_range_));
+  f->dst_port = be16_t(port_src_base_ + rng_.GetRange(port_dst_range_));
 
   /* compensate the fraction part by adding [0.0, 1.0) */
   f->packets_left = NewFlowPkts() + rng_.GetReal();
@@ -387,10 +389,10 @@ CommandResponse FlowGen::UpdateBaseAddresses() {
   TcpHeader *tcpheader =
       reinterpret_cast<TcpHeader *>(p + sizeof(EthHeader) + sizeof(Ipv4Header));
 
-  ip_src_base_ = ntohl(ipheader->src);
-  ip_dst_base_ = ntohl(ipheader->dst);
-  port_src_base_ = ntohs(tcpheader->src_port);
-  port_dst_base_ = ntohs(tcpheader->dst_port);
+  ip_src_base_ = ipheader->src.value();
+  ip_dst_base_ = ipheader->dst.value();
+  port_src_base_ = tcpheader->src_port.value();
+  port_dst_base_ = tcpheader->dst_port.value();
   return CommandSuccess();
 }
 
@@ -411,9 +413,9 @@ bess::Packet *FlowGen::FillPacket(struct flow *f) {
 
   // SYN or FIN?
   if (f->first_pkt || f->packets_left <= 1) {
-    pkt->set_total_len(60);
-    pkt->set_data_len(60);
-    ip->length = htons(40);
+    pkt->set_total_len(60);  // eth + ip + tcp
+    pkt->set_data_len(60);   // eth + ip + tcp
+    ip->length = be16_t(40);
   } else {
     pkt->set_data_off(SNBUF_HEADROOM);
     pkt->set_total_len(size);
@@ -434,7 +436,7 @@ bess::Packet *FlowGen::FillPacket(struct flow *f) {
   tcp->dst_port = f->dst_port;
 
   tcp->flags = tcp_flags;
-  tcp->seq_num = htonl(f->next_seq_no);
+  tcp->seq_num = be32_t(f->next_seq_no);
 
   f->next_seq_no +=
       f->first_pkt ? 1 : size - (sizeof(*eth) + sizeof(*ip) + sizeof(*tcp));

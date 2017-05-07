@@ -7,6 +7,7 @@
 #include "../module.h"
 #include "../module_msg.pb.h"
 #include "../utils/random.h"
+#include "../utils/endian.h"
 
 typedef std::pair<uint64_t, struct flow *> Event;
 typedef std::priority_queue<Event, std::vector<Event>, std::greater<Event>>
@@ -15,10 +16,10 @@ typedef std::priority_queue<Event, std::vector<Event>, std::greater<Event>>
 struct flow {
   int packets_left;
   bool first_pkt;
+
   uint32_t next_seq_no;
-  /* Note that these are in NETWORK ORDER */
-  uint32_t src_ip, dst_ip;
-  uint16_t src_port, dst_port;
+  bess::utils::be32_t src_ip, dst_ip;
+  bess::utils::be16_t src_port, dst_port;
 };
 
 class FlowGen final : public Module {
