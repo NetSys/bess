@@ -13,7 +13,9 @@ class DummyPort : public Port {
 
   virtual void InitDriver() { initialized_ = true; }
 
-  pb_error_t Init(const google::protobuf::Any &) { return pb_errno(42); }
+  CommandResponse Init(const google::protobuf::Any &) {
+    return CommandFailure(42);
+  }
 
   virtual void DeInit() {
     if (deinited_)
@@ -76,8 +78,8 @@ TEST_F(PortTest, CreatePort) {
   bess::pb::EmptyArg arg_;
   google::protobuf::Any arg;
   arg.PackFrom(arg_);
-  pb_error_t err = p->InitWithGenericArg(arg);
-  EXPECT_EQ(42, err.err());
+  CommandResponse err = p->InitWithGenericArg(arg);
+  EXPECT_EQ(42, err.error().code());
 }
 
 // Checks that adding a port puts it into the global port collection.

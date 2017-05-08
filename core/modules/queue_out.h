@@ -11,7 +11,7 @@ class QueueOut final : public Module {
 
   QueueOut() : Module(), port_(), qid_() {}
 
-  pb_error_t Init(const bess::pb::QueueOutArg &arg);
+  CommandResponse Init(const bess::pb::QueueOutArg &arg);
 
   void DeInit() override;
 

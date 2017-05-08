@@ -1113,9 +1113,8 @@ const Commands BPF::cmds = {
     {"add", "BPFArg", MODULE_CMD_FUNC(&BPF::CommandAdd), 0},
     {"clear", "EmptyArg", MODULE_CMD_FUNC(&BPF::CommandClear), 0}};
 
-pb_error_t BPF::Init(const bess::pb::BPFArg &arg) {
-  pb_cmd_response_t response = CommandAdd(arg);
-  return response.error();
+CommandResponse BPF::Init(const bess::pb::BPFArg &arg) {
+  return CommandAdd(arg);
 }
 
 void BPF::DeInit() {
@@ -1127,12 +1126,9 @@ void BPF::DeInit() {
   n_filters_ = 0;
 }
 
-pb_cmd_response_t BPF::CommandAdd(const bess::pb::BPFArg &arg) {
-  pb_cmd_response_t response;
-
+CommandResponse BPF::CommandAdd(const bess::pb::BPFArg &arg) {
   if (n_filters_ + arg.filters_size() > MAX_FILTERS) {
-    set_cmd_response_error(&response, pb_error(EINVAL, "Too many filters"));
-    return response;
+    return CommandFailure(EINVAL, "Too many filters");
   }
 
   struct filter *filter = &filters_[n_filters_];
@@ -1142,15 +1138,12 @@ pb_cmd_response_t BPF::CommandAdd(const bess::pb::BPFArg &arg) {
     const char *exp = f.filter().c_str();
     int64_t gate = f.gate();
     if (gate < 0 || gate >= MAX_GATES) {
-      set_cmd_response_error(&response, pb_error(EINVAL, "Invalid gate"));
-      return response;
+      return CommandFailure(EINVAL, "Invalid gate");
     }
     if (pcap_compile_nopcap(SNAPLEN, DLT_EN10MB,  // Ethernet
                             &il_code, exp, 1,     // optimize (IL only)
                             PCAP_NETMASK_UNKNOWN) == -1) {
-      set_cmd_response_error(&response,
-                             pb_error(EINVAL, "BPF compilation error"));
-      return response;
+      return CommandFailure(EINVAL, "BPF compilation error");
     }
     filter->priority = f.priority();
     filter->gate = f.gate();
@@ -1160,24 +1153,20 @@ pb_cmd_response_t BPF::CommandAdd(const bess::pb::BPFArg &arg) {
     pcap_freecode(&il_code);
     if (!filter->func) {
       free(filter->exp);
-      set_cmd_response_error(&response,
-                             pb_error(ENOMEM, "BPF JIT compilation error"));
-      return response;
+      return CommandFailure(ENOMEM, "BPF JIT compilation error");
     }
     n_filters_++;
     qsort(filters_, n_filters_, sizeof(struct filter), &compare_filter);
 
     filter++;
   }
-  set_cmd_response_error(&response, pb_errno(0));
-  return response;
+
+  return CommandSuccess();
 }
 
-pb_cmd_response_t BPF::CommandClear(const bess::pb::EmptyArg &) {
+CommandResponse BPF::CommandClear(const bess::pb::EmptyArg &) {
   DeInit();
-  pb_cmd_response_t response;
-  set_cmd_response_error(&response, pb_errno(0));
-  return response;
+  return CommandSuccess();
 }
 
 inline void BPF::process_batch_1filter(bess::PacketBatch *batch) {

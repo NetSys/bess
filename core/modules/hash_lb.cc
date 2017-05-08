@@ -40,9 +40,8 @@ const Commands HashLB::cmds = {{"set_mode", "HashLBCommandSetModeArg",
                                {"set_gates", "HashLBCommandSetGatesArg",
                                 MODULE_CMD_FUNC(&HashLB::CommandSetGates), 0}};
 
-pb_cmd_response_t HashLB::CommandSetMode(
+CommandResponse HashLB::CommandSetMode(
     const bess::pb::HashLBCommandSetModeArg &arg) {
-  pb_cmd_response_t response;
   if (arg.mode() == "l2") {
     mode_ = LB_L2;
   } else if (arg.mode() == "l3") {
@@ -50,48 +49,40 @@ pb_cmd_response_t HashLB::CommandSetMode(
   } else if (arg.mode() == "l4") {
     mode_ = LB_L4;
   } else {
-    set_cmd_response_error(&response,
-                           pb_error(EINVAL, "available LB modes: l2, l3, l4"));
+    return CommandFailure(EINVAL, "available LB modes: l2, l3, l4");
   }
-  return response;
+
+  return CommandSuccess();
 }
 
-pb_cmd_response_t HashLB::CommandSetGates(
+CommandResponse HashLB::CommandSetGates(
     const bess::pb::HashLBCommandSetGatesArg &arg) {
-  pb_cmd_response_t response;
-
   if (arg.gates_size() > MAX_HLB_GATES) {
-    set_cmd_response_error(
-        &response, pb_error(EINVAL, "no more than %d gates", MAX_HLB_GATES));
-    return response;
+    return CommandFailure(EINVAL, "no more than %d gates", MAX_HLB_GATES);
   }
 
   for (int i = 0; i < arg.gates_size(); i++) {
     gates_[i] = arg.gates(i);
     if (!is_valid_gate(gates_[i])) {
-      set_cmd_response_error(&response,
-                             pb_error(EINVAL, "invalid gate %d", gates_[i]));
-      return response;
+      return CommandFailure(EINVAL, "invalid gate %d", gates_[i]);
     }
   }
 
   num_gates_ = arg.gates_size();
-
-  set_cmd_response_error(&response, pb_errno(0));
-  return response;
+  return CommandSuccess();
 }
 
-pb_error_t HashLB::Init(const bess::pb::HashLBArg &arg) {
+CommandResponse HashLB::Init(const bess::pb::HashLBArg &arg) {
   mode_ = DEFAULT_MODE;
 
   if (arg.gates_size() > MAX_HLB_GATES) {
-    return pb_error(EINVAL, "no more than %d gates", MAX_HLB_GATES);
+    return CommandFailure(EINVAL, "no more than %d gates", MAX_HLB_GATES);
   }
 
   for (int i = 0; i < arg.gates_size(); i++) {
     gates_[i] = arg.gates(i);
     if (!is_valid_gate(gates_[i])) {
-      return pb_error(EINVAL, "invalid gate %d", gates_[i]);
+      return CommandFailure(EINVAL, "invalid gate %d", gates_[i]);
     }
   }
 
@@ -104,10 +95,10 @@ pb_error_t HashLB::Init(const bess::pb::HashLBArg &arg) {
   } else if (arg.mode() == "l4") {
     mode_ = LB_L4;
   } else {
-    return pb_error(EINVAL, "available LB modes: l2, l3, l4");
+    return CommandFailure(EINVAL, "available LB modes: l2, l3, l4");
   }
 
-  return pb_errno(0);
+  return CommandSuccess();
 }
 
 void HashLB::LbL2(bess::PacketBatch *batch, gate_idx_t *out_gates) {

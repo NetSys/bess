@@ -7,56 +7,47 @@ const Commands Source::cmds = {
      MODULE_CMD_FUNC(&Source::CommandSetBurst), 1},
 };
 
-pb_error_t Source::Init(const bess::pb::SourceArg &arg) {
-  pb_error_t err;
+CommandResponse Source::Init(const bess::pb::SourceArg &arg) {
+  CommandResponse err;
 
   task_id_t tid = RegisterTask(nullptr);
   if (tid == INVALID_TASK_ID)
-    return pb_error(ENOMEM, "Task creation failed");
+    return CommandFailure(ENOMEM, "Task creation failed");
 
   pkt_size_ = 60;
   burst_ = bess::PacketBatch::kMaxBurst;
 
   if (arg.pkt_size() > 0) {
     if (arg.pkt_size() > SNBUF_DATA) {
-      return pb_error(EINVAL, "Invalid packet size");
+      return CommandFailure(EINVAL, "Invalid packet size");
     }
     pkt_size_ = arg.pkt_size();
   }
 
   burst_ = bess::PacketBatch::kMaxBurst;
 
-  return pb_errno(0);
+  return CommandSuccess();
 }
 
-pb_cmd_response_t Source::CommandSetBurst(
+CommandResponse Source::CommandSetBurst(
     const bess::pb::SourceCommandSetBurstArg &arg) {
-  pb_cmd_response_t response;
-
   if (arg.burst() > bess::PacketBatch::kMaxBurst) {
-    set_cmd_response_error(&response,
-                           pb_error(EINVAL, "burst size must be [0,%zu]",
-                                    bess::PacketBatch::kMaxBurst));
-    return response;
+    return CommandFailure(EINVAL, "burst size must be [0,%zu]",
+                          bess::PacketBatch::kMaxBurst);
   }
   burst_ = arg.burst();
 
-  set_cmd_response_error(&response, pb_errno(0));
-  return response;
+  return CommandSuccess();
 }
 
-pb_cmd_response_t Source::CommandSetPktSize(
+CommandResponse Source::CommandSetPktSize(
     const bess::pb::SourceCommandSetPktSizeArg &arg) {
-  pb_cmd_response_t response;
-
   uint64_t val = arg.pkt_size();
   if (val == 0 || val > SNBUF_DATA) {
-    set_cmd_response_error(&response, pb_error(EINVAL, "Invalid packet size"));
-    return response;
+    return CommandFailure(EINVAL, "Invalid packet size");
   }
   pkt_size_ = val;
-  set_cmd_response_error(&response, pb_errno(0));
-  return response;
+  return CommandSuccess();
 }
 
 struct task_result Source::RunTask(void *) {

@@ -50,7 +50,7 @@ struct vport_bar {
 
 class ZeroCopyVPort final : public Port {
  public:
-  pb_error_t Init(const bess::pb::EmptyArg &arg);
+  CommandResponse Init(const bess::pb::EmptyArg &arg);
 
   void DeInit();
 

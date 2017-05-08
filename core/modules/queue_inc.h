@@ -13,14 +13,14 @@ class QueueInc final : public Module {
 
   QueueInc() : Module(), port_(), qid_(), prefetch_(), burst_() {}
 
-  pb_error_t Init(const bess::pb::QueueIncArg &arg);
+  CommandResponse Init(const bess::pb::QueueIncArg &arg);
   void DeInit() override;
 
   struct task_result RunTask(void *arg) override;
 
   std::string GetDesc() const override;
 
-  pb_cmd_response_t CommandSetBurst(
+  CommandResponse CommandSetBurst(
       const bess::pb::QueueIncCommandSetBurstArg &arg);
 
  private:
@@ -28,7 +28,6 @@ class QueueInc final : public Module {
   queue_t qid_;
   int prefetch_;
   int burst_;
-  pb_error_t SetBurst(uint64_t burst);
 };
 
 #endif  // BESS_MODULES_QUEUEINC_H_

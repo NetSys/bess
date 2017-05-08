@@ -1,14 +1,14 @@
 #include "generic_decap.h"
 
-pb_error_t GenericDecap::Init(const bess::pb::GenericDecapArg &arg) {
+CommandResponse GenericDecap::Init(const bess::pb::GenericDecapArg &arg) {
   if (arg.bytes() == 0) {
-    return pb_errno(0);
+    return CommandSuccess();
   }
   decap_size_ = arg.bytes();
   if (decap_size_ <= 0 || decap_size_ > 1024) {
-    return pb_error(EINVAL, "invalid decap size");
+    return CommandFailure(EINVAL, "invalid decap size");
   }
-  return pb_errno(0);
+  return CommandSuccess();
 }
 
 void GenericDecap::ProcessBatch(bess::PacketBatch *batch) {

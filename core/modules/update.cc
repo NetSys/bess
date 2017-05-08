@@ -7,9 +7,8 @@ const Commands Update::cmds = {
     {"clear", "EmptyArg", MODULE_CMD_FUNC(&Update::CommandClear), 0},
 };
 
-pb_error_t Update::Init(const bess::pb::UpdateArg &arg) {
-  pb_cmd_response_t response = CommandAdd(arg);
-  return response.error();
+CommandResponse Update::Init(const bess::pb::UpdateArg &arg) {
+  return CommandAdd(arg);
 }
 
 void Update::ProcessBatch(bess::PacketBatch *batch) {
@@ -34,17 +33,12 @@ void Update::ProcessBatch(bess::PacketBatch *batch) {
   RunNextModule(batch);
 }
 
-pb_cmd_response_t Update::CommandAdd(const bess::pb::UpdateArg &arg) {
-  pb_cmd_response_t response;
-
+CommandResponse Update::CommandAdd(const bess::pb::UpdateArg &arg) {
   int curr = num_fields_;
 
   if (curr + arg.fields_size() > UPDATE_MAX_FIELDS) {
-    set_cmd_response_error(&response, pb_error(EINVAL,
-                                               "max %d variables "
-                                               "can be specified",
-                                               UPDATE_MAX_FIELDS));
-    return response;
+    return CommandFailure(EINVAL, "max %d variables can be specified",
+                          UPDATE_MAX_FIELDS);
   }
 
   for (int i = 0; i < arg.fields_size(); i++) {
@@ -59,30 +53,24 @@ pb_cmd_response_t Update::CommandAdd(const bess::pb::UpdateArg &arg) {
 
     size = field.size();
     if (size < 1 || size > 8) {
-      set_cmd_response_error(&response, pb_error(EINVAL, "'size' must be 1-8"));
-      return response;
+      return CommandFailure(EINVAL, "'size' must be 1-8");
     }
 
-    if (uint64_to_bin((uint8_t *)&value, size, field.value(),
-                      bess::utils::is_be_system())) {
-      set_cmd_response_error(&response, pb_error(EINVAL,
-                                                 "'value' field has not a "
-                                                 "correct %d-byte value",
-                                                 size));
-      return response;
+    if (!bess::utils::uint64_to_bin(&value, field.value(), size,
+                                    bess::utils::is_be_system())) {
+      return CommandFailure(
+          EINVAL, "'value' field has not a correct %d-byte value", size);
     }
 
     if (offset < 0) {
-      set_cmd_response_error(&response, pb_error(EINVAL, "too small 'offset'"));
-      return response;
+      return CommandFailure(EINVAL, "too small 'offset'");
     }
 
     offset -= (8 - size);
     mask = (1ull << ((8 - size) * 8)) - 1;
 
     if (offset + 8 > SNBUF_DATA) {
-      set_cmd_response_error(&response, pb_error(EINVAL, "too large 'offset'"));
-      return response;
+      return CommandFailure(EINVAL, "too large 'offset'");
     }
 
     fields_[curr + i].offset = offset;
@@ -91,16 +79,12 @@ pb_cmd_response_t Update::CommandAdd(const bess::pb::UpdateArg &arg) {
   }
 
   num_fields_ = curr + arg.fields_size();
-  set_cmd_response_error(&response, pb_errno(0));
-  return response;
+  return CommandSuccess();
 }
 
-pb_cmd_response_t Update::CommandClear(const bess::pb::EmptyArg &) {
+CommandResponse Update::CommandClear(const bess::pb::EmptyArg &) {
   num_fields_ = 0;
-
-  pb_cmd_response_t response;
-  set_cmd_response_error(&response, pb_errno(0));
-  return response;
+  return CommandSuccess();
 }
 
 ADD_MODULE(Update, "update", "updates packet data with specified values")

@@ -1,24 +1,24 @@
 #include "port_out.h"
 #include "../utils/format.h"
 
-pb_error_t PortOut::Init(const bess::pb::PortOutArg &arg) {
+CommandResponse PortOut::Init(const bess::pb::PortOutArg &arg) {
   const char *port_name;
   int ret;
 
   if (!arg.port().length()) {
-    return pb_error(EINVAL, "'port' must be given as a string");
+    return CommandFailure(EINVAL, "'port' must be given as a string");
   }
 
   port_name = arg.port().c_str();
 
   const auto &it = PortBuilder::all_ports().find(port_name);
   if (it == PortBuilder::all_ports().end()) {
-    return pb_error(ENODEV, "Port %s not found", port_name);
+    return CommandFailure(ENODEV, "Port %s not found", port_name);
   }
   port_ = it->second;
 
   if (port_->num_queues[PACKET_DIR_OUT] == 0) {
-    return pb_error(ENODEV, "Port %s has no outgoing queue", port_name);
+    return CommandFailure(ENODEV, "Port %s has no outgoing queue", port_name);
   }
 
   ret = port_->AcquireQueues(reinterpret_cast<const module *>(this),
@@ -27,10 +27,10 @@ pb_error_t PortOut::Init(const bess::pb::PortOutArg &arg) {
   node_constraints_ = port_->GetNodePlacementConstraint();
 
   if (ret < 0) {
-    return pb_errno(-ret);
+    return CommandFailure(-ret);
   }
 
-  return pb_errno(0);
+  return CommandSuccess();
 }
 
 void PortOut::DeInit() {

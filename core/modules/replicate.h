@@ -13,14 +13,14 @@ class Replicate final : public Module {
 
   Replicate() : Module(), gates_(), ngates_() {}
 
-  pb_error_t Init(const bess::pb::ReplicateArg &arg);
+  CommandResponse Init(const bess::pb::ReplicateArg &arg);
 
   void ProcessBatch(bess::PacketBatch *batch) override;
 
   /*!
    * Sets the number of output gates.
    */
-  pb_cmd_response_t CommandSetGates(
+  CommandResponse CommandSetGates(
       const bess::pb::ReplicateCommandSetGatesArg &arg);
 
  private:

@@ -84,12 +84,12 @@ class UrlFilter final : public Module {
   static const gate_idx_t kNumIGates = 2;
   static const gate_idx_t kNumOGates = 2;
 
-  pb_error_t Init(const bess::pb::UrlFilterArg &arg);
+  CommandResponse Init(const bess::pb::UrlFilterArg &arg);
 
   void ProcessBatch(bess::PacketBatch *batch) override;
 
-  pb_cmd_response_t CommandAdd(const bess::pb::UrlFilterArg &arg);
-  pb_cmd_response_t CommandClear(const bess::pb::EmptyArg &arg);
+  CommandResponse CommandAdd(const bess::pb::UrlFilterArg &arg);
+  CommandResponse CommandClear(const bess::pb::EmptyArg &arg);
 
  private:
   std::unordered_map<std::string, Trie> blacklist_;

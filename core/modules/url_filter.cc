@@ -132,7 +132,7 @@ inline static bess::Packet *GenerateResetPacket(
   return pkt;
 }
 
-pb_error_t UrlFilter::Init(const bess::pb::UrlFilterArg &arg) {
+CommandResponse UrlFilter::Init(const bess::pb::UrlFilterArg &arg) {
   for (const auto &url : arg.blacklist()) {
     if (blacklist_.find(url.host()) == blacklist_.end()) {
       blacklist_.emplace(std::piecewise_construct,
@@ -142,18 +142,17 @@ pb_error_t UrlFilter::Init(const bess::pb::UrlFilterArg &arg) {
     Trie &trie = blacklist_.at(url.host());
     trie.Insert(url.path());
   }
-  return pb_errno(0);
+  return CommandSuccess();
 }
 
-pb_cmd_response_t UrlFilter::CommandAdd(const bess::pb::UrlFilterArg &arg) {
-  pb_cmd_response_t response;
-  set_cmd_response_error(&response, Init(arg));
-  return response;
+CommandResponse UrlFilter::CommandAdd(const bess::pb::UrlFilterArg &arg) {
+  Init(arg);
+  return CommandSuccess();
 }
 
-pb_cmd_response_t UrlFilter::CommandClear(const bess::pb::EmptyArg &) {
+CommandResponse UrlFilter::CommandClear(const bess::pb::EmptyArg &) {
   blacklist_.clear();
-  return pb_cmd_response_t();
+  return CommandResponse();
 }
 
 void UrlFilter::ProcessBatch(bess::PacketBatch *batch) {

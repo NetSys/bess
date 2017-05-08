@@ -249,7 +249,7 @@ service BESSControl {
   ///
   /// NOTE: Some commands cannot be used if there are running workers.
   ///       For those commands you must pause all workers first.
-  rpc ModuleCommand (ModuleCommandRequest) returns (ModuleCommandResponse) {}
+  rpc ModuleCommand (CommandRequest) returns (CommandResponse) {}
 
 
   //  -------------------------------------------------------------------------

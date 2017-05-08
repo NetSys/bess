@@ -14,29 +14,28 @@ static inline int is_valid_gate(gate_idx_t gate) {
   return (gate < MAX_GATES || gate == DROP_GATE);
 }
 
-pb_error_t Split::Init(const bess::pb::SplitArg &arg) {
+CommandResponse Split::Init(const bess::pb::SplitArg &arg) {
   size_ = arg.size();
   if (size_ < 1 || size_ > MAX_SIZE) {
-    return pb_error(EINVAL, "'size' must be 1-%d", MAX_SIZE);
+    return CommandFailure(EINVAL, "'size' must be 1-%d", MAX_SIZE);
   }
 
-  mask_ = (size_ == 8) ? 0xffffffffffffffffull
-                       : (1ull << (size_ * 8)) - 1;
+  mask_ = (size_ == 8) ? 0xffffffffffffffffull : (1ull << (size_ * 8)) - 1;
 
   if (arg.type_case() == bess::pb::SplitArg::kAttribute) {
     attr_id_ = AddMetadataAttr(arg.attribute().c_str(), size_,
                                bess::metadata::Attribute::AccessMode::kRead);
     if (attr_id_ < 0) {
-      return pb_error(-attr_id_, "add_metadata_attr() failed");
+      return CommandFailure(-attr_id_, "add_metadata_attr() failed");
     }
   } else {
     attr_id_ = -1;
     offset_ = arg.offset();
     if (offset_ < 0 || offset_ > 1024) {
-      return pb_error(EINVAL, "invalid 'offset'");
+      return CommandFailure(EINVAL, "invalid 'offset'");
     }
   }
-  return pb_errno(0);
+  return CommandSuccess();
 }
 
 void Split::ProcessBatch(bess::PacketBatch *batch) {

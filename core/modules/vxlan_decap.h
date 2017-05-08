@@ -6,7 +6,7 @@
 
 class VXLANDecap final : public Module {
  public:
-  pb_error_t Init(const bess::pb::VXLANDecapArg &arg);
+  CommandResponse Init(const bess::pb::VXLANDecapArg &arg);
 
   void ProcessBatch(bess::PacketBatch *batch);
 };

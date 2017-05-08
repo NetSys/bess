@@ -18,11 +18,13 @@ class AcmeModule : public Module {
 
   static const Commands cmds;
 
-  pb_error_t Init(const bess::pb::EmptyArg &) { return pb_errno(42); }
+  CommandResponse Init(const bess::pb::EmptyArg &) {
+    return CommandFailure(42);
+  }
 
-  pb_cmd_response_t FooPb(const bess::pb::EmptyArg &) {
+  CommandResponse FooPb(const bess::pb::EmptyArg &) {
     n += 1;
-    return pb_cmd_response_t();
+    return CommandResponse();
   }
 
   int n = {};
@@ -65,8 +67,8 @@ int create_acme(const char *name, Module **m) {
   bess::pb::EmptyArg arg_;
   google::protobuf::Any arg;
   arg.PackFrom(arg_);
-  pb_error_t err = (*m)->InitWithGenericArg(arg);
-  EXPECT_EQ(42, err.err());
+  CommandResponse ret = (*m)->InitWithGenericArg(arg);
+  EXPECT_EQ(42, ret.error().code());
 
   ModuleBuilder::AddModule(*m);
 
@@ -142,16 +144,16 @@ TEST_F(ModuleTester, RunCommand) {
   google::protobuf::Any arg;
   arg.PackFrom(arg_);
 
-  pb_cmd_response_t response;
+  CommandResponse response;
 
   for (int i = 0; i < 10; i++) {
     response = m->RunCommand("foo", arg);
-    EXPECT_EQ(0, response.error().err());
+    EXPECT_EQ(0, response.error().code());
   }
   EXPECT_EQ(10, (static_cast<AcmeModule *>(m))->n);
 
   response = m->RunCommand("bar", arg);
-  EXPECT_EQ(ENOTSUP, response.error().err());
+  EXPECT_EQ(ENOTSUP, response.error().code());
 }
 
 TEST_F(ModuleTester, ConnectModules) {

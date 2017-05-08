@@ -13,11 +13,10 @@ const Commands Dump::cmds = {
     {"set_interval", "DumpArg", MODULE_CMD_FUNC(&Dump::CommandSetInterval), 0},
 };
 
-pb_error_t Dump::Init(const bess::pb::DumpArg &arg) {
+CommandResponse Dump::Init(const bess::pb::DumpArg &arg) {
   min_interval_ns_ = DEFAULT_INTERVAL_NS;
   next_ns_ = ctx.current_tsc();
-  pb_cmd_response_t response = CommandSetInterval(arg);
-  return response.error();
+  return CommandSetInterval(arg);
 }
 
 void Dump::ProcessBatch(bess::PacketBatch *batch) {
@@ -34,20 +33,15 @@ void Dump::ProcessBatch(bess::PacketBatch *batch) {
   RunChooseModule(get_igate(), batch);
 }
 
-pb_cmd_response_t Dump::CommandSetInterval(const bess::pb::DumpArg &arg) {
-  pb_cmd_response_t response;
-
+CommandResponse Dump::CommandSetInterval(const bess::pb::DumpArg &arg) {
   double sec = arg.interval();
 
   if (std::isnan(sec) || sec <= 0.0) {
-    set_cmd_response_error(&response, pb_error(EINVAL, "invalid interval"));
-    return response;
+    return CommandFailure(EINVAL, "invalid interval");
   }
 
   min_interval_ns_ = static_cast<uint64_t>(sec * NS_PER_SEC);
-
-  set_cmd_response_error(&response, pb_errno(0));
-  return response;
+  return CommandSuccess();
 }
 
 ADD_MODULE(Dump, "dump", "Dump packet data and metadata attributes")

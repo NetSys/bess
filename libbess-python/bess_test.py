@@ -22,7 +22,7 @@ class TestServiceImpl(service_pb2.BESSControlServicer):
         return response
 
     def ModuleCommand(self, request, context):
-        response = bess_msg.ModuleCommandResponse()
+        response = bess_msg.CommandResponse()
         return response
 
     def ListModules(self, request, context):
@@ -58,33 +58,33 @@ class TestBESS(unittest.TestCase):
         client.connect()
 
         response = client.kill(block=False)
-        self.assertEqual(0, response.error.err)
+        self.assertEqual(0, response.error.code)
 
     def test_list_modules(self):
         client = bess.BESS()
         client.connect()
 
         response = client.list_modules()
-        self.assertEqual(0, response.error.err)
+        self.assertEqual(0, response.error.code)
 
     def test_create_port(self):
         client = bess.BESS()
         client.connect()
 
         response = client.create_port('PCAPPort', 'p0', {'dev': 'rnd'})
-        self.assertEqual(0, response.error.err)
+        self.assertEqual(0, response.error.code)
         self.assertEqual('p0', response.name)
 
         response = client.create_port('PMDPort', 'p0', {
             'loopback': True,
             'port_id': 14325,
             'pci': 'akshdkashf'})
-        self.assertEqual(0, response.error.err)
+        self.assertEqual(0, response.error.code)
         self.assertEqual('p0', response.name)
 
         response = client.create_port('UnixSocketPort', 'p0',
                                       {'path': '/ajksd/dd'})
-        self.assertEqual(0, response.error.err)
+        self.assertEqual(0, response.error.code)
         self.assertEqual('p0', response.name)
 
         response = client.create_port('VPort', 'p0', {
@@ -96,7 +96,7 @@ class TestBESS(unittest.TestCase):
             'loopback': False,
             'ip_addrs': ['1.2.3.4', '255.254.253.252']
         })
-        self.assertEqual(0, response.error.err)
+        self.assertEqual(0, response.error.code)
         self.assertEqual('p0', response.name)
 
     def test_run_module_command(self):
@@ -108,4 +108,4 @@ class TestBESS(unittest.TestCase):
                                              'ExactMatchCommandAddArg',
                                              {'gate': 0,
                                               'fields': ['\x11', '\x22']})
-        self.assertEqual(0, response.error.err)
+        self.assertEqual(0, response.error.code)

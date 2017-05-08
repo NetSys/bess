@@ -35,7 +35,7 @@ static void CopyFromValue(bess::PacketBatch *batch, const struct Attr *attr,
   }
 }
 
-pb_error_t SetMetadata::AddAttrOne(
+CommandResponse SetMetadata::AddAttrOne(
     const bess::pb::SetMetadataArg_Attribute &attr) {
   std::string name;
   size_t size = 0;
@@ -45,14 +45,14 @@ pb_error_t SetMetadata::AddAttrOne(
   int ret;
 
   if (!attr.name().length()) {
-    return pb_error(EINVAL, "'name' field is missing");
+    return CommandFailure(EINVAL, "'name' field is missing");
   }
   name = attr.name();
   size = attr.size();
 
   if (size < 1 || size > bess::metadata::kMetadataAttrMaxSize) {
-    return pb_error(EINVAL, "'size' must be 1-%zu",
-                    bess::metadata::kMetadataAttrMaxSize);
+    return CommandFailure(EINVAL, "'size' must be 1-%zu",
+                          bess::metadata::kMetadataAttrMaxSize);
   }
 
   // All metadata values are stored in a reserved area of packet data.
@@ -62,33 +62,33 @@ pb_error_t SetMetadata::AddAttrOne(
   // stored in memory). value_bin is a short stream of bytes, which means that
   // its data will never be reordered.
   if (attr.value_case() == bess::pb::SetMetadataArg_Attribute::kValueInt) {
-    if (uint64_to_bin((uint8_t *)&value, size, attr.value_int(),
-                      bess::utils::is_be_system())) {
-      return pb_error(EINVAL,
-                      "'value_int' field has not a "
-                      "correct %zu-byte value",
-                      size);
+    if (!bess::utils::uint64_to_bin(&value, attr.value_int(), size,
+                                    bess::utils::is_be_system())) {
+      return CommandFailure(EINVAL,
+                            "'value_int' field has not a "
+                            "correct %zu-byte value",
+                            size);
     }
   } else if (attr.value_case() ==
              bess::pb::SetMetadataArg_Attribute::kValueBin) {
     if (attr.value_bin().length() != size) {
-      return pb_error(EINVAL,
-                      "'value_bin' field has not a "
-                      "correct %zu-byte value",
-                      size);
+      return CommandFailure(EINVAL,
+                            "'value_bin' field has not a "
+                            "correct %zu-byte value",
+                            size);
     }
     bess::utils::Copy(&value, attr.value_bin().data(), size);
   } else {
     offset = attr.offset();
     if (offset < 0 || offset + size >= SNBUF_DATA) {
-      return pb_error(EINVAL, "invalid packet offset");
+      return CommandFailure(EINVAL, "invalid packet offset");
     }
   }
 
   ret = AddMetadataAttr(name, size,
                         bess::metadata::Attribute::AccessMode::kWrite);
   if (ret < 0)
-    return pb_error(-ret, "add_metadata_attr() failed");
+    return CommandFailure(-ret, "add_metadata_attr() failed");
 
   attrs_.emplace_back();
   attrs_.back().name = name;
@@ -96,25 +96,25 @@ pb_error_t SetMetadata::AddAttrOne(
   attrs_.back().offset = offset;
   attrs_.back().value = value;
 
-  return pb_errno(0);
+  return CommandSuccess();
 }
 
-pb_error_t SetMetadata::Init(const bess::pb::SetMetadataArg &arg) {
+CommandResponse SetMetadata::Init(const bess::pb::SetMetadataArg &arg) {
   if (!arg.attrs_size()) {
-    return pb_error(EINVAL, "'attrs' must be specified");
+    return CommandFailure(EINVAL, "'attrs' must be specified");
   }
 
   for (int i = 0; i < arg.attrs_size(); i++) {
     const auto &attr = arg.attrs(i);
-    pb_error_t err;
+    CommandResponse err;
 
     err = AddAttrOne(attr);
-    if (err.err() != 0) {
+    if (err.error().code() != 0) {
       return err;
     }
   }
 
-  return pb_errno(0);
+  return CommandSuccess();
 }
 
 void SetMetadata::ProcessBatch(bess::PacketBatch *batch) {

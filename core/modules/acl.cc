@@ -10,7 +10,7 @@ const Commands ACL::cmds = {
     {"add", "ACLArg", MODULE_CMD_FUNC(&ACL::CommandAdd), 0},
     {"clear", "EmptyArg", MODULE_CMD_FUNC(&ACL::CommandClear), 0}};
 
-pb_error_t ACL::Init(const bess::pb::ACLArg &arg) {
+CommandResponse ACL::Init(const bess::pb::ACLArg &arg) {
   for (const auto &rule : arg.rules()) {
     ACLRule new_rule = {
         .src_ip = CIDRNetwork(rule.src_ip()),
@@ -21,18 +21,17 @@ pb_error_t ACL::Init(const bess::pb::ACLArg &arg) {
         .drop = rule.drop()};
     rules_.push_back(new_rule);
   }
-  return pb_errno(0);
+  return CommandSuccess();
 }
 
-pb_cmd_response_t ACL::CommandAdd(const bess::pb::ACLArg &arg) {
-  pb_cmd_response_t response;
-  set_cmd_response_error(&response, Init(arg));
-  return response;
+CommandResponse ACL::CommandAdd(const bess::pb::ACLArg &arg) {
+  Init(arg);
+  return CommandSuccess();
 }
 
-pb_cmd_response_t ACL::CommandClear(const bess::pb::EmptyArg &) {
+CommandResponse ACL::CommandClear(const bess::pb::EmptyArg &) {
   rules_.clear();
-  return pb_cmd_response_t();
+  return CommandSuccess();
 }
 
 void ACL::ProcessBatch(bess::PacketBatch *batch) {

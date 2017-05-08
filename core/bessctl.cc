@@ -7,6 +7,7 @@
 
 #include <gflags/gflags.h>
 #include <glog/logging.h>
+#include <google/protobuf/empty.pb.h>
 #include <grpc++/server.h>
 #include <grpc++/server_builder.h>
 #include <grpc++/server_context.h>
@@ -56,7 +57,7 @@ static inline Status return_with_error(T* response, int code, const char* fmt,
                                        ...) {
   va_list ap;
   va_start(ap, fmt);
-  response->mutable_error()->set_err(code);
+  response->mutable_error()->set_code(code);
   response->mutable_error()->set_errmsg(bess::utils::FormatVarg(fmt, ap));
   va_end(ap);
   return Status::OK;
@@ -64,7 +65,7 @@ static inline Status return_with_error(T* response, int code, const char* fmt,
 
 template <typename T>
 static inline Status return_with_errno(T* response, int code) {
-  response->mutable_error()->set_err(code);
+  response->mutable_error()->set_code(code);
   response->mutable_error()->set_errmsg(strerror(code));
   return Status::OK;
 }
@@ -252,7 +253,7 @@ static ::Port* create_port(const std::string& name, const PortBuilder& driver,
 
   if (mac_addr_str.length() > 0) {
     if (!mac_addr.FromString(mac_addr_str)) {
-      perr->set_err(EINVAL);
+      perr->set_code(EINVAL);
       perr->set_errmsg(
           "MAC address should be "
           "formatted as a string "
@@ -264,13 +265,13 @@ static ::Port* create_port(const std::string& name, const PortBuilder& driver,
   }
 
   if (num_inc_q > MAX_QUEUES_PER_DIR || num_out_q > MAX_QUEUES_PER_DIR) {
-    perr->set_err(EINVAL);
+    perr->set_code(EINVAL);
     perr->set_errmsg("Invalid number of queues");
     return nullptr;
   }
 
   if (size_inc_q > MAX_QUEUE_SIZE || size_out_q > MAX_QUEUE_SIZE) {
-    perr->set_err(EINVAL);
+    perr->set_code(EINVAL);
     perr->set_errmsg("Invalid queue size");
     return nullptr;
   }
@@ -279,7 +280,7 @@ static ::Port* create_port(const std::string& name, const PortBuilder& driver,
 
   if (name.length() > 0) {
     if (PortBuilder::all_ports().count(name)) {
-      perr->set_err(EEXIST);
+      perr->set_code(EEXIST);
       perr->set_errmsg(
           bess::utils::Format("Port '%s' already exists", name.c_str()));
       return nullptr;
@@ -310,8 +311,20 @@ static ::Port* create_port(const std::string& name, const PortBuilder& driver,
   // DPDK functions may be called, so be prepared
   ctx.SetNonWorker();
 
-  *perr = p->InitWithGenericArg(arg);
-  if (perr->err() != 0) {
+  CommandResponse ret = p->InitWithGenericArg(arg);
+
+  {
+    google::protobuf::Any empty;
+
+    if (ret.data().SerializeAsString() != empty.SerializeAsString()) {
+      LOG(WARNING) << port_name << "::" << driver.class_name()
+                   << " Init() returned non-empty response: "
+                   << ret.data().DebugString();
+    }
+  }
+
+  if (ret.error().code() != 0) {
+    *perr = ret.error();
     return nullptr;
   }
 
@@ -330,10 +343,21 @@ static Module* create_module(const std::string& name,
 
   // DPDK functions may be called, so be prepared
   ctx.SetNonWorker();
-  *perr = m->InitWithGenericArg(arg);
-  if (perr->err() != 0) {
-    VLOG(1) << perr->DebugString();
-    ModuleBuilder::DestroyModule(m);
+
+  CommandResponse ret = m->InitWithGenericArg(arg);
+
+  {
+    google::protobuf::Any empty;
+
+    if (ret.data().SerializeAsString() != empty.SerializeAsString()) {
+      LOG(WARNING) << name << "::" << builder.class_name()
+                   << " Init() returned non-empty response: "
+                   << ret.data().DebugString();
+    }
+  }
+
+  if (ret.error().code() != 0) {
+    *perr = ret.error();
     return nullptr;
   }
 
@@ -392,22 +416,22 @@ class BESSControlImpl final : public BESSControl::Service {
     LOG(INFO) << "*** ResetAll requested ***";
 
     status = ResetModules(context, request, response);
-    if (response->error().err() != 0) {
+    if (response->error().code() != 0) {
       return status;
     }
 
     status = ResetPorts(context, request, response);
-    if (response->error().err() != 0) {
+    if (response->error().code() != 0) {
       return status;
     }
 
     status = ResetTcs(context, request, response);
-    if (response->error().err() != 0) {
+    if (response->error().code() != 0) {
       return status;
     }
 
     status = ResetWorkers(context, request, response);
-    if (response->error().err() != 0) {
+    if (response->error().code() != 0) {
       return status;
     }
 
@@ -1325,7 +1349,7 @@ class BESSControlImpl final : public BESSControl::Service {
         *error =
             enable_track_for_module(it.second, request->gate(),
                                     request->is_igate(), request->use_gate());
-        if (error->err() != 0) {
+        if (error->code() != 0) {
           return Status::OK;
         }
       }
@@ -1354,7 +1378,7 @@ class BESSControlImpl final : public BESSControl::Service {
         *error =
             disable_track_for_module(it.second, request->gate(),
                                      request->is_igate(), request->use_gate());
-        if (error->err() != 0) {
+        if (error->code() != 0) {
           return Status::OK;
         }
       }
@@ -1455,8 +1479,8 @@ class BESSControlImpl final : public BESSControl::Service {
     return Status::OK;
   }
 
-  Status ModuleCommand(ServerContext*, const ModuleCommandRequest* request,
-                       ModuleCommandResponse* response) override {
+  Status ModuleCommand(ServerContext*, const CommandRequest* request,
+                       CommandResponse* response) override {
     if (!request->name().length()) {
       return return_with_error(response, EINVAL,
                                "Missing module name field 'name'");

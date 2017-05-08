@@ -23,13 +23,13 @@ class BPF final : public Module {
 
   static const Commands cmds;
 
-  pb_error_t Init(const bess::pb::BPFArg &arg);
+  CommandResponse Init(const bess::pb::BPFArg &arg);
   void DeInit() override;
 
   void ProcessBatch(bess::PacketBatch *batch) override;
 
-  pb_cmd_response_t CommandAdd(const bess::pb::BPFArg &arg);
-  pb_cmd_response_t CommandClear(const bess::pb::EmptyArg &arg);
+  CommandResponse CommandAdd(const bess::pb::BPFArg &arg);
+  CommandResponse CommandClear(const bess::pb::EmptyArg &arg);
 
  private:
   struct filter filters_[MAX_FILTERS + 1] = {};

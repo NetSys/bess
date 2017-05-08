@@ -77,24 +77,13 @@ class BESSCLI(cli.CLI):
         except self.bess.Error as e:
             self.err(e.errmsg)
 
-            if e.err in errno.errorcode:
-                err_code = errno.errorcode[e.err]
+            if e.code in errno.errorcode:
+                err_code = errno.errorcode[e.code]
             else:
                 err_code = '<unknown>'
 
             self.ferr.write('  BESS daemon response - errno=%d (%s: %s)\n' %
-                            (e.err, err_code, os.strerror(e.err)))
-
-            if e.details:
-                details = pprint.pformat(e.details)
-                initial_indent = '  error details: '
-                subsequent_indent = ' ' * len(initial_indent)
-
-                for i, line in enumerate(details.splitlines()):
-                    if i == 0:
-                        self.fout.write('%s%s\n' % (initial_indent, line))
-                    else:
-                        self.fout.write('%s%s\n' % (subsequent_indent, line))
+                            (e.code, err_code, os.strerror(e.code)))
 
             raise self.HandledError()
 

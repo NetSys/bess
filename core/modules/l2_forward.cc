@@ -527,7 +527,7 @@ const Commands L2Forward::cmds = {
      MODULE_CMD_FUNC(&L2Forward::CommandPopulate), 0},
 };
 
-pb_error_t L2Forward::Init(const bess::pb::L2ForwardArg &arg) {
+CommandResponse L2Forward::Init(const bess::pb::L2ForwardArg &arg) {
   int ret = 0;
   int size = arg.size();
   int bucket = arg.bucket();
@@ -544,13 +544,13 @@ pb_error_t L2Forward::Init(const bess::pb::L2ForwardArg &arg) {
   ret = l2_init(&l2_table_, size, bucket);
 
   if (ret != 0) {
-    return pb_error(-ret,
-                    "initialization failed with argument "
-                    "size: '%d' bucket: '%d'",
-                    size, bucket);
+    return CommandFailure(-ret,
+                          "initialization failed with argument "
+                          "size: '%d' bucket: '%d'",
+                          size, bucket);
   }
 
-  return pb_errno(0);
+  return CommandSuccess();
 }
 
 void L2Forward::DeInit() {
@@ -575,19 +575,14 @@ void L2Forward::ProcessBatch(bess::PacketBatch *batch) {
   RunSplit(out_gates, batch);
 }
 
-pb_cmd_response_t L2Forward::CommandAdd(
+CommandResponse L2Forward::CommandAdd(
     const bess::pb::L2ForwardCommandAddArg &arg) {
-  pb_cmd_response_t response;
-
   for (int i = 0; i < arg.entries_size(); i++) {
     const auto &entry = arg.entries(i);
 
     if (!entry.addr().length()) {
-      set_cmd_response_error(&response,
-                             pb_error(EINVAL,
-                                      "add list item map must contain addr"
-                                      " as a string"));
-      return response;
+      return CommandFailure(EINVAL,
+                            "add list item map must contain addr as a string");
     }
 
     const char *str_addr = entry.addr().c_str();
@@ -595,148 +590,104 @@ pb_cmd_response_t L2Forward::CommandAdd(
     char addr[6];
 
     if (parse_mac_addr(str_addr, addr) != 0) {
-      set_cmd_response_error(
-          &response,
-          pb_error(EINVAL, "%s is not a proper mac address", str_addr));
-      return response;
+      return CommandFailure(EINVAL, "%s is not a proper mac address", str_addr);
     }
 
     int r = l2_add_entry(&l2_table_, l2_addr_to_u64(addr), gate);
 
     if (r == -EEXIST) {
-      set_cmd_response_error(
-          &response,
-          pb_error(EEXIST, "MAC address '%s' already exist", str_addr));
-      return response;
+      return CommandFailure(EEXIST, "MAC address '%s' already exist", str_addr);
     } else if (r == -ENOMEM) {
-      set_cmd_response_error(&response, pb_error(ENOMEM, "Not enough space"));
-      return response;
+      return CommandFailure(ENOMEM, "Not enough space");
     } else if (r != 0) {
-      set_cmd_response_error(&response, pb_errno(-r));
-      return response;
+      return CommandFailure(-r);
     }
   }
 
-  set_cmd_response_error(&response, pb_errno(0));
-  return response;
+  return CommandSuccess();
 }
 
-pb_cmd_response_t L2Forward::CommandDelete(
+CommandResponse L2Forward::CommandDelete(
     const bess::pb::L2ForwardCommandDeleteArg &arg) {
-  pb_cmd_response_t response;
-
   for (int i = 0; i < arg.addrs_size(); i++) {
     const auto &_addr = arg.addrs(i);
 
     if (!_addr.length()) {
-      set_cmd_response_error(&response,
-                             pb_error(EINVAL, "lookup must be list of string"));
-      return response;
+      return CommandFailure(EINVAL, "lookup must be list of string");
     }
 
     const char *str_addr = _addr.c_str();
     char addr[6];
 
     if (parse_mac_addr(str_addr, addr) != 0) {
-      set_cmd_response_error(
-          &response,
-          pb_error(EINVAL, "%s is not a proper mac address", str_addr));
-      return response;
+      return CommandFailure(EINVAL, "%s is not a proper mac address", str_addr);
     }
 
     int r = l2_del_entry(&l2_table_, l2_addr_to_u64(addr));
 
     if (r == -ENOENT) {
-      set_cmd_response_error(
-          &response,
-          pb_error(ENOENT, "MAC address '%s' does not exist", str_addr));
-      return response;
+      return CommandFailure(ENOENT, "MAC address '%s' does not exist",
+                            str_addr);
     } else if (r != 0) {
-      set_cmd_response_error(&response,
-                             pb_error(EINVAL, "Unknown Error: %d\n", r));
-      return response;
+      return CommandFailure(EINVAL, "Unknown Error: %d\n", r);
     }
   }
 
-  set_cmd_response_error(&response, pb_errno(0));
-  return response;
+  return CommandSuccess();
 }
 
-pb_cmd_response_t L2Forward::CommandSetDefaultGate(
+CommandResponse L2Forward::CommandSetDefaultGate(
     const bess::pb::L2ForwardCommandSetDefaultGateArg &arg) {
-  pb_cmd_response_t response;
-
   default_gate_ = arg.gate();
-  set_cmd_response_error(&response, pb_errno(0));
-  return response;
+  return CommandSuccess();
 }
 
-pb_cmd_response_t L2Forward::CommandLookup(
+CommandResponse L2Forward::CommandLookup(
     const bess::pb::L2ForwardCommandLookupArg &arg) {
-  int i;
-  pb_cmd_response_t response;
   bess::pb::L2ForwardCommandLookupResponse ret;
-  for (i = 0; i < arg.addrs_size(); i++) {
+  for (int i = 0; i < arg.addrs_size(); i++) {
     const auto &_addr = arg.addrs(i);
 
     if (!_addr.length()) {
-      set_cmd_response_error(&response,
-                             pb_error(EINVAL, "lookup must be list of string"));
-      return response;
+      return CommandFailure(EINVAL, "lookup must be list of string");
     }
 
     const char *str_addr = _addr.c_str();
     char addr[6];
 
     if (parse_mac_addr(str_addr, addr) != 0) {
-      set_cmd_response_error(
-          &response,
-          pb_error(EINVAL, "%s is not a proper mac address", str_addr));
-      return response;
+      return CommandFailure(EINVAL, "%s is not a proper mac address", str_addr);
     }
 
     gate_idx_t gate;
     int r = l2_find(&l2_table_, l2_addr_to_u64(addr), &gate);
 
     if (r == -ENOENT) {
-      set_cmd_response_error(
-          &response,
-          pb_error(ENOENT, "MAC address '%s' does not exist", str_addr));
-      return response;
+      return CommandFailure(ENOENT, "MAC address '%s' does not exist",
+                            str_addr);
     } else if (r != 0) {
-      set_cmd_response_error(&response,
-                             pb_error(EINVAL, "Unknown Error: %d\n", r));
-      return response;
+      return CommandFailure(EINVAL, "Unknown Error: %d\n", r);
     }
     ret.add_gates(gate);
   }
 
-  response.mutable_error()->set_err(0);
-  response.mutable_other()->PackFrom(ret);
-  return response;
+  return CommandSuccess(ret);
 }
 
-pb_cmd_response_t L2Forward::CommandPopulate(
+CommandResponse L2Forward::CommandPopulate(
     const bess::pb::L2ForwardCommandPopulateArg &arg) {
-  pb_cmd_response_t response;
   const char *base;
   char base_str[6] = {0};
   uint64_t base_u64;
 
   if (!arg.base().length()) {
-    set_cmd_response_error(
-        &response,
-        pb_error(EINVAL, "base must exist in gen, and must be string"));
-    return response;
+    return CommandFailure(EINVAL, "base must exist in gen, and must be string");
   }
 
   // parse base addr
   base = arg.base().c_str();
   if (parse_mac_addr(base, base_str) != 0) {
-    set_cmd_response_error(
-        &response,
-        pb_error(EINVAL, "%s is not a proper mac address", base_str));
-    return response;
+    return CommandFailure(EINVAL, "%s is not a proper mac address", base_str);
   }
 
   base_u64 = l2_addr_to_u64(base_str);
@@ -753,8 +704,7 @@ pb_cmd_response_t L2Forward::CommandPopulate(
     base_u64++;
   }
 
-  set_cmd_response_error(&response, pb_errno(0));
-  return response;
+  return CommandSuccess();
 }
 
 ADD_MODULE(L2Forward, "l2_forward",

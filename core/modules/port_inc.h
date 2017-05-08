@@ -13,7 +13,7 @@ class PortInc final : public Module {
 
   PortInc() : Module(), port_(), prefetch_(), burst_() {}
 
-  pb_error_t Init(const bess::pb::PortIncArg &arg);
+  CommandResponse Init(const bess::pb::PortIncArg &arg);
 
   void DeInit() override;
 
@@ -21,12 +21,10 @@ class PortInc final : public Module {
 
   std::string GetDesc() const override;
 
-  pb_cmd_response_t CommandSetBurst(
+  CommandResponse CommandSetBurst(
       const bess::pb::PortIncCommandSetBurstArg &arg);
 
  private:
-  pb_error_t SetBurst(uint64_t burst);
-
   Port *port_;
   int prefetch_;
   int burst_;

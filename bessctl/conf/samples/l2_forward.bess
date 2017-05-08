@@ -7,7 +7,6 @@ def test_lookup():
     ret = l2fib.add(entries=[{'addr':'00:01:02:03:04:05', 'gate':64},
                             {'addr':'aa:bb:cc:dd:ee:ff', 'gate':1},
                             {'addr':'11:11:11:11:11:22', 'gate':2}])
-    assert ret.error.err == 0, 'Incorrect response'
     print '  OK. Response:', ret
 
     print '2. Adding entry again expecting failure'
@@ -25,7 +24,6 @@ def test_lookup():
 
     print '4. Removing Entry'
     ret = l2fib.delete(addrs=['00:01:02:03:04:05'])
-    assert ret.error.err == 0, 'Incorrect response'
     print '  OK. Response:', ret
 
     print '5. Querying entry again expecting failure'

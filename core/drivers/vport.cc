@@ -116,8 +116,8 @@ static void reclaim_packets(struct llring *ring) {
   }
 }
 
-static pb_error_t docker_container_pid(const std::string &cid,
-                                       int *container_pid) {
+static CommandResponse docker_container_pid(const std::string &cid,
+                                            int *container_pid) {
   char buf[1024];
 
   FILE *fp;
@@ -126,35 +126,31 @@ static pb_error_t docker_container_pid(const std::string &cid,
   int exit_code;
 
   if (cid.length() == 0)
-    return pb_error(EINVAL,
-                    "field 'docker' should be "
-                    "a containder ID or name in string");
+    return CommandFailure(EINVAL,
+                          "field 'docker' should be "
+                          "a containder ID or name in string");
 
   ret = snprintf(buf, static_cast<int>(sizeof(buf)),
                  "docker inspect --format '{{.State.Pid}}' "
                  "%s 2>&1",
                  cid.c_str());
   if (ret >= static_cast<int>(sizeof(buf)))
-    return pb_error(EINVAL,
-                    "The specified Docker "
-                    "container ID or name is too long");
+    return CommandFailure(EINVAL,
+                          "The specified Docker "
+                          "container ID or name is too long");
 
   fp = popen(buf, "r");
   if (!fp) {
-    const std::string details =
-        bess::utils::Format("popen() errno=%d (%s)", errno, strerror(errno));
-
-    return pb_error_details(
-        ESRCH, details.c_str(),
-        "Command 'docker' is not available. (not installed?)");
+    return CommandFailure(
+        ESRCH, "Command 'docker' is not available. (not installed?)");
   }
 
   ret = fread(buf, 1, sizeof(buf) - 1, fp);
   if (ret == 0)
-    return pb_error(ENOENT,
-                    "Cannot find the PID of "
-                    "container %s",
-                    cid.c_str());
+    return CommandFailure(ENOENT,
+                          "Cannot find the PID of "
+                          "container %s",
+                          cid.c_str());
 
   buf[ret] = '\0';
 
@@ -162,15 +158,11 @@ static pb_error_t docker_container_pid(const std::string &cid,
   exit_code = WEXITSTATUS(ret);
 
   if (exit_code != 0 || sscanf(buf, "%d", container_pid) == 0) {
-    // TODO(clan): Need to fully replicate the map in details
-    // snobj_map_set(details, "exit_code", snobj_int(exit_code));
-    // snobj_map_set(details, "docker_err", snobj_str(buf));
-
-    return pb_error_details(ESRCH, buf, "Cannot find the PID of container %s",
-                            cid.c_str());
+    return CommandFailure(ESRCH, "Cannot find the PID of container %s",
+                          cid.c_str());
   }
 
-  return pb_errno(0);
+  return CommandSuccess();
 }
 
 static int next_cpu;
@@ -332,7 +324,7 @@ int VPort::SetIPAddrSingle(const std::string &ip_addr) {
   return 0;
 }
 
-pb_error_t VPort::SetIPAddr(const bess::pb::VPortArg &arg) {
+CommandResponse VPort::SetIPAddr(const bess::pb::VPortArg &arg) {
   int child_pid = 0;
 
   int ret = 0;
@@ -344,7 +336,7 @@ pb_error_t VPort::SetIPAddr(const bess::pb::VPortArg &arg) {
 
     child_pid = fork();
     if (child_pid < 0) {
-      return pb_errno(-child_pid);
+      return CommandFailure(-child_pid);
     }
 
     if (child_pid == 0) {
@@ -410,12 +402,12 @@ pb_error_t VPort::SetIPAddr(const bess::pb::VPortArg &arg) {
   }
 
   if (ret < 0) {
-    return pb_error(-ret,
-                    "Failed to set IP addresses "
-                    "(incorrect IP address format?)");
+    return CommandFailure(-ret,
+                          "Failed to set IP addresses "
+                          "(incorrect IP address format?)");
   }
 
-  return pb_errno(0);
+  return CommandSuccess();
 }
 
 void VPort::DeInit() {
@@ -429,8 +421,8 @@ void VPort::DeInit() {
   FreeBar();
 }
 
-pb_error_t VPort::Init(const bess::pb::VPortArg &arg) {
-  pb_error_t err;
+CommandResponse VPort::Init(const bess::pb::VPortArg &arg) {
+  CommandResponse err;
   int ret;
   phys_addr_t phy_addr;
 
@@ -442,10 +434,10 @@ pb_error_t VPort::Init(const bess::pb::VPortArg &arg) {
   container_pid_ = 0;
 
   if (arg.ifname().length() >= IFNAMSIZ) {
-    err = pb_error(EINVAL,
-                   "Linux interface name should be "
-                   "shorter than %d characters",
-                   IFNAMSIZ);
+    err = CommandFailure(EINVAL,
+                         "Linux interface name should be "
+                         "shorter than %d characters",
+                         IFNAMSIZ);
     goto fail;
   }
 
@@ -457,28 +449,28 @@ pb_error_t VPort::Init(const bess::pb::VPortArg &arg) {
 
   if (arg.cpid_case() == bess::pb::VPortArg::kDocker) {
     err = docker_container_pid(arg.docker(), &container_pid_);
-    if (err.err() != 0)
+    if (err.error().code() != 0)
       goto fail;
   } else if (arg.cpid_case() == bess::pb::VPortArg::kContainerPid) {
     container_pid_ = arg.container_pid();
   } else if (arg.cpid_case() == bess::pb::VPortArg::kNetns) {
     netns_fd_ = open(arg.netns().c_str(), O_RDONLY);
     if (netns_fd_ < 0) {
-      err =
-          pb_error(EINVAL, "Invalid network namespace %s", arg.netns().c_str());
+      err = CommandFailure(EINVAL, "Invalid network namespace %s",
+                           arg.netns().c_str());
       goto fail;
     }
   }
 
   if (arg.rxq_cpus_size() > 0 &&
       arg.rxq_cpus_size() != num_queues[PACKET_DIR_OUT]) {
-    err = pb_error(EINVAL, "Must specify as many cores as rxqs");
+    err = CommandFailure(EINVAL, "Must specify as many cores as rxqs");
     goto fail;
   }
 
   fd_ = open("/dev/bess", O_RDONLY);
   if (fd_ == -1) {
-    err = pb_error(ENODEV, "the kernel module is not loaded");
+    err = CommandFailure(ENODEV, "the kernel module is not loaded");
     goto fail;
   }
 
@@ -493,14 +485,14 @@ pb_error_t VPort::Init(const bess::pb::VPortArg &arg) {
 
   ret = ioctl(fd_, SN_IOC_CREATE_HOSTNIC, &phy_addr);
   if (ret < 0) {
-    err = pb_errno_details(-ret, "SN_IOC_CREATE_HOSTNIC failure");
+    err = CommandFailure(-ret, "SN_IOC_CREATE_HOSTNIC failure");
     goto fail;
   }
 
   if (arg.ip_addrs_size() > 0) {
     err = SetIPAddr(arg);
 
-    if (err.err() != 0) {
+    if (err.error().code() != 0) {
       DeInit();
       goto fail;
     }
@@ -531,7 +523,7 @@ pb_error_t VPort::Init(const bess::pb::VPortArg &arg) {
     PLOG(ERROR) << "ioctl(SN_IOC_SET_QUEUE_MAPPING)";
   }
 
-  return pb_errno(0);
+  return CommandSuccess();
 
 fail:
   if (fd_ >= 0)

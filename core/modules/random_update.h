@@ -13,12 +13,12 @@ class RandomUpdate final : public Module {
 
   RandomUpdate() : Module(), num_vars_(), vars_(), rng_() {}
 
-  pb_error_t Init(const bess::pb::RandomUpdateArg &arg);
+  CommandResponse Init(const bess::pb::RandomUpdateArg &arg);
 
   void ProcessBatch(bess::PacketBatch *batch) override;
 
-  pb_cmd_response_t CommandAdd(const bess::pb::RandomUpdateArg &arg);
-  pb_cmd_response_t CommandClear(const bess::pb::EmptyArg &arg);
+  CommandResponse CommandAdd(const bess::pb::RandomUpdateArg &arg);
+  CommandResponse CommandClear(const bess::pb::EmptyArg &arg);
 
  private:
   int num_vars_;

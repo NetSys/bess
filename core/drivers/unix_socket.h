@@ -36,7 +36,7 @@ class UnixSocketPort final : public Port {
    * PARAMETERS:
    * * string path : file name to bind the socket ti.
    */
-  pb_error_t Init(const bess::pb::UnixSocketPortArg &arg);
+  CommandResponse Init(const bess::pb::UnixSocketPortArg &arg);
 
   /*!
    * Close the socket / shut down the port.

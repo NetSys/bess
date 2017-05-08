@@ -2,23 +2,23 @@
 
 #include "../utils/pcap.h"
 
-pb_error_t PCAPPort::Init(const bess::pb::PCAPPortArg& arg) {
+CommandResponse PCAPPort::Init(const bess::pb::PCAPPortArg& arg) {
   if (pcap_handle_.is_initialized()) {
-    return pb_error(EINVAL, "Device already initialized.");
+    return CommandFailure(EINVAL, "Device already initialized.");
   }
 
   const std::string dev = arg.dev();
   pcap_handle_ = PcapHandle(dev);
 
   if (!pcap_handle_.is_initialized()) {
-    return pb_error(EINVAL, "Error initializing device.");
+    return CommandFailure(EINVAL, "Error initializing device.");
   }
 
   if (pcap_handle_.SetBlocking(false)) {
-    return pb_error(EINVAL, "Error initializing device.");
+    return CommandFailure(EINVAL, "Error initializing device.");
   }
 
-  return pb_errno(0);
+  return CommandSuccess();
 }
 
 void PCAPPort::DeInit() {

@@ -383,15 +383,15 @@ message DisconnectModulesRequest {
   uint64 ogate = 2;  /// Output gate ID of previous module
 }
 
-message ModuleCommandRequest {
-  string name = 1;              /// Name of module to handle this command
+message CommandRequest {
+  string name = 1;              /// Name of module/port/driver
   string cmd = 2;               /// Name of command
-  google.protobuf.Any arg = 3;  /// Command argument (see module_msg.proto)
+  google.protobuf.Any arg = 3;  /// Command argument
 }
 
-message ModuleCommandResponse {
+message CommandResponse {
   Error error = 1;
-  google.protobuf.Any other = 2;  /// Command response (see module_msg.proto)
+  google.protobuf.Any data = 2;  /// Command response (see *_msg.proto)
 }
 
 

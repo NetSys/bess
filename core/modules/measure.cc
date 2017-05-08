@@ -30,7 +30,7 @@ const Commands Measure::cmds = {
     {"clear", "EmptyArg", MODULE_CMD_FUNC(&Measure::CommandClear), 0},
 };
 
-pb_error_t Measure::Init(const bess::pb::MeasureArg &arg) {
+CommandResponse Measure::Init(const bess::pb::MeasureArg &arg) {
   // seconds from nanoseconds
   warmup_ns_ = arg.warmup() * 1000000000ull;
 
@@ -49,7 +49,7 @@ pb_error_t Measure::Init(const bess::pb::MeasureArg &arg) {
 
   start_ns_ = tsc_to_ns(rdtsc());
 
-  return pb_errno(0);
+  return CommandSuccess();
 }
 
 void Measure::ProcessBatch(bess::PacketBatch *batch) {
@@ -91,12 +91,10 @@ void Measure::ProcessBatch(bess::PacketBatch *batch) {
   RunNextModule(batch);
 }
 
-pb_cmd_response_t Measure::CommandGetSummary(const bess::pb::EmptyArg &) {
+CommandResponse Measure::CommandGetSummary(const bess::pb::EmptyArg &) {
   uint64_t pkt_total = pkt_cnt_;
   uint64_t byte_total = bytes_cnt_;
   uint64_t bits = (byte_total + pkt_total * 24) * 8;
-
-  pb_cmd_response_t response;
 
   bess::pb::MeasureCommandGetSummaryResponse r;
 
@@ -115,16 +113,13 @@ pb_cmd_response_t Measure::CommandGetSummary(const bess::pb::EmptyArg &) {
   r.set_jitter_50_ns(jitter_hist_.percentile(50));
   r.set_jitter_99_ns(jitter_hist_.percentile(99));
 
-  response.mutable_error()->set_err(0);
-  response.mutable_other()->PackFrom(r);
-
-  return response;
+  return CommandSuccess(r);
 }
 
-pb_cmd_response_t Measure::CommandClear(const bess::pb::EmptyArg &) {
+CommandResponse Measure::CommandClear(const bess::pb::EmptyArg &) {
   rtt_hist_.reset();
   jitter_hist_.reset();
-  return pb_cmd_response_t();
+  return CommandResponse();
 }
 
 ADD_MODULE(Measure, "measure",

@@ -30,22 +30,19 @@ def _constraints_to_list(constraint):
 
 class BESS(object):
 
-    # errors from BESS daemon
-    class Error(Exception):
+    class Error(Exception):  # errors from BESS daemon
 
-        def __init__(self, err, errmsg, details):
-            self.err = err
+        def __init__(self, code, errmsg):
+            self.code = code
             self.errmsg = errmsg
-            self.details = details
 
         def __str__(self):
-            if self.err in errno.errorcode:
-                err_code = errno.errorcode[self.err]
+            if self.code in errno.errorcode:
+                err_code = errno.errorcode[self.code]
             else:
                 err_code = '<unknown>'
-            return 'errno: %d (%s: %s), %s, details: %s' % (
-                self.err, err_code, os.strerror(self.err), self.errmsg,
-                repr(self.details))
+            return 'errno: %d (%s: %s), %s' % (
+                self.code, err_code, os.strerror(self.code), self.errmsg)
 
     # abnormal RPC failure
     class RPCError(Exception):
@@ -153,15 +150,12 @@ class BESS(object):
             if res:
                 pprint.pprint(res)
 
-        if response.error.err != 0:
-            err = response.error.err
+        if response.error.code != 0:
+            code = response.error.code
             errmsg = response.error.errmsg
             if errmsg == '':
                 errmsg = '(error message is not given)'
-            details = response.error.details
-            if details == '':
-                details = None
-            raise self.Error(err, errmsg, details)
+            raise self.Error(code, errmsg)
 
         return response
 
@@ -352,7 +346,7 @@ class BESS(object):
         return self._request('DisconnectModules', request)
 
     def run_module_command(self, name, cmd, arg_type, arg):
-        request = bess_msg.ModuleCommandRequest()
+        request = bess_msg.CommandRequest()
         request.name = name
         request.cmd = cmd
 
@@ -369,12 +363,12 @@ class BESS(object):
         request.arg.Pack(arg_msg)
 
         response = self._request('ModuleCommand', request)
-        if response.HasField('other'):
-            response_type_str = response.other.type_url.split('.')[-1]
+        if response.HasField('data'):
+            response_type_str = response.data.type_url.split('.')[-1]
             response_type = getattr(module_msg, response_type_str,
                                     bess_msg.EmptyArg)
             result = response_type()
-            response.other.Unpack(result)
+            response.data.Unpack(result)
             return result
         else:
             return response

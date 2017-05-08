@@ -130,14 +130,14 @@ class DRR final : public Module {
 
   static const Commands cmds;
 
-  pb_error_t Init(const bess::pb::DRRArg& arg);
+  CommandResponse Init(const bess::pb::DRRArg& arg);
 
   void ProcessBatch(bess::PacketBatch* batch) override;
 
   struct task_result RunTask(void*) override;
 
-  pb_cmd_response_t CommandQuantumSize(const bess::pb::DRRQuantumArg& arg);
-  pb_cmd_response_t CommandMaxFlowQueueSize(
+  CommandResponse CommandQuantumSize(const bess::pb::DRRQuantumArg& arg);
+  CommandResponse CommandMaxFlowQueueSize(
       const bess::pb::DRRMaxFlowQueueSizeArg& arg);
 
  private:
@@ -146,7 +146,7 @@ class DRR final : public Module {
     Takes the size to set the quantum to. Returns 0 on success and error value
     otherwise.
   */
-  pb_error_t SetQuantumSize(uint32_t size);
+  CommandResponse SetQuantumSize(uint32_t size);
 
   /*
     Sets the maximum size that any Flows queue can get before the module will
@@ -154,7 +154,7 @@ class DRR final : public Module {
     queue.
     Returns 0 on success and error value otherwise.
   */
-  pb_error_t SetMaxFlowQueueSize(uint32_t queue_size);
+  CommandResponse SetMaxFlowQueueSize(uint32_t queue_size);
 
   /*
     Creates a new larger llring queue of the specifed size and moves over all

@@ -3,7 +3,6 @@ syntax = "proto3";
 package bess.pb;
 
 message Error {
-  int32 err = 1;
+  int32 code = 1;  // 0 for success, errno (>0) for failure
   string errmsg = 2;
-  string details = 3;
 }

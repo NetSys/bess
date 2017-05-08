@@ -7,20 +7,20 @@ const Commands QueueInc::cmds = {{"set_burst", "QueueIncCommandSetBurstArg",
                                   MODULE_CMD_FUNC(&QueueInc::CommandSetBurst),
                                   1}};
 
-pb_error_t QueueInc::Init(const bess::pb::QueueIncArg &arg) {
+CommandResponse QueueInc::Init(const bess::pb::QueueIncArg &arg) {
   const char *port_name;
   task_id_t tid;
-  pb_error_t err;
+  CommandResponse err;
   burst_ = bess::PacketBatch::kMaxBurst;
   if (!arg.port().length()) {
-    return pb_error(EINVAL, "Field 'port' must be specified");
+    return CommandFailure(EINVAL, "Field 'port' must be specified");
   }
   port_name = arg.port().c_str();
   qid_ = arg.qid();
 
   const auto &it = PortBuilder::all_ports().find(port_name);
   if (it == PortBuilder::all_ports().end()) {
-    return pb_error(ENODEV, "Port %s not found", port_name);
+    return CommandFailure(ENODEV, "Port %s not found", port_name);
   }
   port_ = it->second;
   burst_ = bess::PacketBatch::kMaxBurst;
@@ -31,15 +31,15 @@ pb_error_t QueueInc::Init(const bess::pb::QueueIncArg &arg) {
   node_constraints_ = port_->GetNodePlacementConstraint();
   tid = RegisterTask((void *)(uintptr_t)qid_);
   if (tid == INVALID_TASK_ID)
-    return pb_error(ENOMEM, "Task creation failed");
+    return CommandFailure(ENOMEM, "Task creation failed");
 
   int ret = port_->AcquireQueues(reinterpret_cast<const module *>(this),
                                  PACKET_DIR_INC, &qid_, 1);
   if (ret < 0) {
-    return pb_errno(-ret);
+    return CommandFailure(-ret);
   }
 
-  return pb_errno(0);
+  return CommandSuccess();
 }
 
 void QueueInc::DeInit() {
@@ -103,20 +103,15 @@ struct task_result QueueInc::RunTask(void *arg) {
   return ret;
 }
 
-pb_error_t QueueInc::SetBurst(uint64_t burst) {
-  if (burst > bess::PacketBatch::kMaxBurst) {
-    return pb_error(EINVAL, "burst size must be [0,%zu]",
-                    bess::PacketBatch::kMaxBurst);
-  }
-  burst_ = burst;
-  return pb_errno(0);
-}
-
-pb_cmd_response_t QueueInc::CommandSetBurst(
+CommandResponse QueueInc::CommandSetBurst(
     const bess::pb::QueueIncCommandSetBurstArg &arg) {
-  pb_cmd_response_t response;
-  set_cmd_response_error(&response, SetBurst(arg.burst()));
-  return response;
+  if (arg.burst() > bess::PacketBatch::kMaxBurst) {
+    return CommandFailure(EINVAL, "burst size must be [0,%zu]",
+                          bess::PacketBatch::kMaxBurst);
+  } else {
+    burst_ = arg.burst();
+    return CommandSuccess();
+  }
 }
 
 ADD_MODULE(QueueInc, "queue_inc",

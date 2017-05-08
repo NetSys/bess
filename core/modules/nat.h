@@ -181,12 +181,12 @@ class NAT final : public Module {
   static const gate_idx_t kNumIGates = 2;
   static const gate_idx_t kNumOGates = 2;
 
-  pb_error_t Init(const bess::pb::NATArg &arg);
+  CommandResponse Init(const bess::pb::NATArg &arg);
 
   void ProcessBatch(bess::PacketBatch *batch) override;
 
-  pb_cmd_response_t CommandAdd(const bess::pb::NATArg &arg);
-  pb_cmd_response_t CommandClear(const bess::pb::EmptyArg &arg);
+  CommandResponse CommandAdd(const bess::pb::NATArg &arg);
+  CommandResponse CommandClear(const bess::pb::EmptyArg &arg);
 
  private:
   void InitRules(const bess::pb::NATArg &arg) {

@@ -6,11 +6,11 @@
 
 class Dump final : public Module {
  public:
-  pb_error_t Init(const bess::pb::DumpArg &arg);
+  CommandResponse Init(const bess::pb::DumpArg &arg);
 
   void ProcessBatch(bess::PacketBatch *batch) override;
 
-  pb_cmd_response_t CommandSetInterval(const bess::pb::DumpArg &arg);
+  CommandResponse CommandSetInterval(const bess::pb::DumpArg &arg);
 
   static const Commands cmds;
 

@@ -10,7 +10,7 @@ class VXLANEncap final : public Module {
  public:
   VXLANEncap() : Module(), dstport_() {}
 
-  pb_error_t Init(const bess::pb::VXLANEncapArg &arg);
+  CommandResponse Init(const bess::pb::VXLANEncapArg &arg);
 
   void ProcessBatch(bess::PacketBatch *batch) override;
 

@@ -9,7 +9,7 @@ enum {
   ATTR_R_ETHER_TYPE,
 };
 
-pb_error_t EtherEncap::Init(
+CommandResponse EtherEncap::Init(
     const bess::pb::EtherEncapArg &arg[[maybe_unused]]) {
   using AccessMode = bess::metadata::Attribute::AccessMode;
 
@@ -17,7 +17,7 @@ pb_error_t EtherEncap::Init(
   AddMetadataAttr("ether_dst", ETHER_ADDR_LEN, AccessMode::kRead);
   AddMetadataAttr("ether_type", 2, AccessMode::kRead);
 
-  return pb_errno(0);
+  return CommandSuccess();
 };
 
 void EtherEncap::ProcessBatch(bess::PacketBatch *batch) {

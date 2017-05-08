@@ -58,9 +58,9 @@ class FlowGen final : public Module {
         burst_() {}
 
   static const Commands cmds;
-  pb_error_t Init(const bess::pb::FlowGenArg &arg);
-  pb_cmd_response_t CommandUpdate(const bess::pb::FlowGenArg &arg);
-  pb_cmd_response_t CommandSetBurst(
+  CommandResponse Init(const bess::pb::FlowGenArg &arg);
+  CommandResponse CommandUpdate(const bess::pb::FlowGenArg &arg);
+  CommandResponse CommandSetBurst(
       const bess::pb::FlowGenCommandSetBurstArg &arg);
 
   void DeInit() override;
@@ -78,11 +78,11 @@ class FlowGen final : public Module {
   void MeasureParetoMean();
   void PopulateInitialFlows();
 
-  pb_error_t UpdateBaseAddresses();
+  CommandResponse UpdateBaseAddresses();
   bess::Packet *FillPacket(struct flow *f);
   void GeneratePackets(bess::PacketBatch *batch);
 
-  pb_error_t ProcessArguments(const bess::pb::FlowGenArg &arg);
+  CommandResponse ProcessArguments(const bess::pb::FlowGenArg &arg);
 
   // the number of concurrent flows
   int active_flows_;

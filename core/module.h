@@ -15,12 +15,6 @@
 
 using bess::gate_idx_t;
 
-static inline void set_cmd_response_error(pb_cmd_response_t *response,
-                                          const pb_error_t &error) {
-  response->mutable_error()->CopyFrom(error);
-}
-
-#define MODULE_NAME_LEN 128
 #define MAX_NUMA_NODE 16
 #define UNCONSTRAINED_SOCKET ((0x1ull << MAX_NUMA_NODE) - 1)
 
@@ -36,12 +30,13 @@ typedef uint64_t placement_constraint;
 #define INVALID_TASK_ID ((task_id_t)-1)
 
 using module_cmd_func_t =
-    pb_func_t<pb_cmd_response_t, Module, google::protobuf::Any>;
-using module_init_func_t = pb_func_t<pb_error_t, Module, google::protobuf::Any>;
+    pb_func_t<CommandResponse, Module, google::protobuf::Any>;
+using module_init_func_t =
+    pb_func_t<CommandResponse, Module, google::protobuf::Any>;
 
 template <typename T, typename M>
 static inline module_cmd_func_t MODULE_CMD_FUNC(
-    pb_cmd_response_t (M::*fn)(const T &)) {
+    CommandResponse (M::*fn)(const T &)) {
   return [fn](Module *m, const google::protobuf::Any &arg) {
     T arg_;
     arg.UnpackTo(&arg_);
@@ -52,7 +47,7 @@ static inline module_cmd_func_t MODULE_CMD_FUNC(
 
 template <typename T, typename M>
 static inline module_init_func_t MODULE_INIT_FUNC(
-    pb_error_t (M::*fn)(const T &)) {
+    CommandResponse (M::*fn)(const T &)) {
   return [fn](Module *m, const google::protobuf::Any &arg) {
     T arg_;
     arg.UnpackTo(&arg_);
@@ -62,8 +57,6 @@ static inline module_init_func_t MODULE_INIT_FUNC(
 }
 
 class Module;
-
-#define CALL_MEMBER_FN(obj, ptr_to_member_func) ((obj).*(ptr_to_member_func))
 
 struct Command {
   std::string cmd;
@@ -83,7 +76,7 @@ class ModuleBuilder {
       std::function<Module *()> module_generator, const std::string &class_name,
       const std::string &name_template, const std::string &help_text,
       const gate_idx_t igates, const gate_idx_t ogates, const Commands &cmds,
-      std::function<pb_error_t(Module *, const google::protobuf::Any &)>
+      std::function<CommandResponse(Module *, const google::protobuf::Any &)>
           init_func)
       : module_generator_(module_generator),
         num_igates_(igates),
@@ -139,10 +132,10 @@ class ModuleBuilder {
   static std::string GenerateDefaultName(const std::string &class_name,
                                          const std::string &default_template);
 
-  pb_cmd_response_t RunCommand(Module *m, const std::string &user_cmd,
-                               const google::protobuf::Any &arg) const;
+  CommandResponse RunCommand(Module *m, const std::string &user_cmd,
+                             const google::protobuf::Any &arg) const;
 
-  pb_error_t RunInit(Module *m, const google::protobuf::Any &arg) const;
+  CommandResponse RunInit(Module *m, const google::protobuf::Any &arg) const;
 
  private:
   const std::function<Module *()> module_generator_;
@@ -190,7 +183,7 @@ class Module {
         propagate_workers_(true) {}
   virtual ~Module() {}
 
-  pb_error_t Init(const bess::pb::EmptyArg &arg);
+  CommandResponse Init(const bess::pb::EmptyArg &arg);
 
   // NOTE: this function will be called even if Init() has failed.
   virtual void DeInit();
@@ -211,7 +204,7 @@ class Module {
  public:
   friend class ModuleBuilder;
 
-  pb_error_t InitWithGenericArg(const google::protobuf::Any &arg);
+  CommandResponse InitWithGenericArg(const google::protobuf::Any &arg);
 
   const ModuleBuilder *module_builder() const { return module_builder_; }
 
@@ -257,8 +250,8 @@ class Module {
 
   int DisableTcpDump(int is_igate, gate_idx_t gate_idx);
 
-  pb_cmd_response_t RunCommand(const std::string &cmd,
-                               const google::protobuf::Any &arg) {
+  CommandResponse RunCommand(const std::string &cmd,
+                             const google::protobuf::Any &arg) {
     return module_builder_->RunCommand(this, cmd, arg);
   }
 

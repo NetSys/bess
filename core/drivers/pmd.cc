@@ -76,17 +76,17 @@ void PMDPort::InitDriver() {
 // returns 0 and sets *ret_port_id to "port_id" if the port is valid and
 // available.
 // returns > 0 on error.
-static pb_error_t find_dpdk_port_by_id(dpdk_port_t port_id,
-                                       dpdk_port_t *ret_port_id) {
+static CommandResponse find_dpdk_port_by_id(dpdk_port_t port_id,
+                                            dpdk_port_t *ret_port_id) {
   if (port_id >= RTE_MAX_ETHPORTS) {
-    return pb_error(EINVAL, "Invalid port id %d", port_id);
+    return CommandFailure(EINVAL, "Invalid port id %d", port_id);
   }
   if (!rte_eth_devices[port_id].attached) {
-    return pb_error(ENODEV, "Port id %d is not available", port_id);
+    return CommandFailure(ENODEV, "Port id %d is not available", port_id);
   }
 
   *ret_port_id = port_id;
-  return pb_errno(0);
+  return CommandSuccess();
 }
 
 // Find a port attached to DPDK by its PCI address.
@@ -94,21 +94,21 @@ static pb_error_t find_dpdk_port_by_id(dpdk_port_t port_id,
 // "pci" if it is valid and available. *ret_hot_plugged is set to true if the
 // device was attached to DPDK as a result of calling this function.
 // returns > 0 on error.
-static pb_error_t find_dpdk_port_by_pci_addr(const std::string &pci,
-                                             dpdk_port_t *ret_port_id,
-                                             bool *ret_hot_plugged) {
+static CommandResponse find_dpdk_port_by_pci_addr(const std::string &pci,
+                                                  dpdk_port_t *ret_port_id,
+                                                  bool *ret_hot_plugged) {
   dpdk_port_t port_id = DPDK_PORT_UNKNOWN;
   struct rte_pci_addr addr;
 
   if (pci.length() == 0) {
-    return pb_error(EINVAL, "No PCI address specified");
+    return CommandFailure(EINVAL, "No PCI address specified");
   }
 
   if (eal_parse_pci_DomBDF(pci.c_str(), &addr) != 0 &&
       eal_parse_pci_BDF(pci.c_str(), &addr) != 0) {
-    return pb_error(EINVAL,
-                    "PCI address must be like "
-                    "dddd:bb:dd.ff or bb:dd.ff");
+    return CommandFailure(EINVAL,
+                          "PCI address must be like "
+                          "dddd:bb:dd.ff or bb:dd.ff");
   }
 
   dpdk_port_t num_dpdk_ports = rte_eth_dev_count();
@@ -134,14 +134,14 @@ static pb_error_t find_dpdk_port_by_pci_addr(const std::string &pci,
     ret = rte_eth_dev_attach(name, &port_id);
 
     if (ret < 0) {
-      return pb_error(ENODEV, "Cannot attach PCI device %s", name);
+      return CommandFailure(ENODEV, "Cannot attach PCI device %s", name);
     }
 
     *ret_hot_plugged = true;
   }
 
   *ret_port_id = port_id;
-  return pb_errno(0);
+  return CommandSuccess();
 }
 
 // Find a DPDK vdev by name.
@@ -149,28 +149,28 @@ static pb_error_t find_dpdk_port_by_pci_addr(const std::string &pci,
 // available. *ret_hot_plugged is set to true if the device was attached to
 // DPDK as a result of calling this function.
 // returns > 0 on error.
-static pb_error_t find_dpdk_vdev(const std::string &vdev,
-                                 dpdk_port_t *ret_port_id,
-                                 bool *ret_hot_plugged) {
+static CommandResponse find_dpdk_vdev(const std::string &vdev,
+                                      dpdk_port_t *ret_port_id,
+                                      bool *ret_hot_plugged) {
   dpdk_port_t port_id = DPDK_PORT_UNKNOWN;
 
   if (vdev.length() == 0) {
-    return pb_error(EINVAL, "No vdev specified");
+    return CommandFailure(EINVAL, "No vdev specified");
   }
 
   const char *name = vdev.c_str();
   int ret = rte_eth_dev_attach(name, &port_id);
 
   if (ret < 0) {
-    return pb_error(ENODEV, "Cannot attach vdev %s", name);
+    return CommandFailure(ENODEV, "Cannot attach vdev %s", name);
   }
 
   *ret_hot_plugged = true;
   *ret_port_id = port_id;
-  return pb_errno(0);
+  return CommandSuccess();
 }
 
-pb_error_t PMDPort::Init(const bess::pb::PMDPortArg &arg) {
+CommandResponse PMDPort::Init(const bess::pb::PMDPortArg &arg) {
   dpdk_port_t ret_port_id = DPDK_PORT_UNKNOWN;
 
   struct rte_eth_dev_info dev_info;
@@ -187,7 +187,7 @@ pb_error_t PMDPort::Init(const bess::pb::PMDPortArg &arg) {
 
   int numa_node = -1;
 
-  pb_error_t err;
+  CommandResponse err;
   switch (arg.port_case()) {
     case bess::pb::PMDPortArg::kPortId: {
       err = find_dpdk_port_by_id(arg.port_id(), &ret_port_id);
@@ -202,15 +202,15 @@ pb_error_t PMDPort::Init(const bess::pb::PMDPortArg &arg) {
       break;
     }
     default:
-      return pb_error(EINVAL, "No port specified");
+      return CommandFailure(EINVAL, "No port specified");
   }
 
-  if (err.err() != 0) {
+  if (err.error().code() != 0) {
     return err;
   }
 
   if (ret_port_id == DPDK_PORT_UNKNOWN) {
-    return pb_error(ENOENT, "Port not found");
+    return CommandFailure(ENOENT, "Port not found");
   }
 
   eth_conf = default_eth_conf();
@@ -240,7 +240,7 @@ pb_error_t PMDPort::Init(const bess::pb::PMDPortArg &arg) {
 
   ret = rte_eth_dev_configure(ret_port_id, num_rxq, num_txq, &eth_conf);
   if (ret != 0) {
-    return pb_error(-ret, "rte_eth_dev_configure() failed");
+    return CommandFailure(-ret, "rte_eth_dev_configure() failed");
   }
   rte_eth_promiscuous_enable(ret_port_id);
 
@@ -252,7 +252,7 @@ pb_error_t PMDPort::Init(const bess::pb::PMDPortArg &arg) {
     ret = rte_eth_tx_queue_setup(ret_port_id, i, queue_size[PACKET_DIR_OUT],
                                  sid, &eth_txconf);
     if (ret != 0) {
-      return pb_error(-ret, "rte_eth_tx_queue_setup() failed");
+      return CommandFailure(-ret, "rte_eth_tx_queue_setup() failed");
     }
   }
 
@@ -268,26 +268,27 @@ pb_error_t PMDPort::Init(const bess::pb::PMDPortArg &arg) {
         rte_eth_rx_queue_setup(ret_port_id, i, queue_size[PACKET_DIR_INC], sid,
                                &eth_rxconf, bess::get_pframe_pool_socket(sid));
     if (ret != 0) {
-      return pb_error(-ret, "rte_eth_rx_queue_setup() failed");
+      return CommandFailure(-ret, "rte_eth_rx_queue_setup() failed");
     }
   }
 
   ret = rte_eth_dev_start(ret_port_id);
   if (ret != 0) {
-    return pb_error(-ret, "rte_eth_dev_start() failed");
+    return CommandFailure(-ret, "rte_eth_dev_start() failed");
   }
 
   dpdk_port_id_ = ret_port_id;
 
   numa_node = rte_eth_dev_socket_id(static_cast<int>(ret_port_id));
-  node_placement_ = numa_node == -1 ? UNCONSTRAINED_SOCKET : (1ull << numa_node);
+  node_placement_ =
+      numa_node == -1 ? UNCONSTRAINED_SOCKET : (1ull << numa_node);
 
   rte_eth_macaddr_get(dpdk_port_id_, reinterpret_cast<ether_addr *>(&mac_addr));
 
   // Reset hardware stat counters, as they may still contain previous data
   CollectStats(true);
 
-  return pb_errno(0);
+  return CommandSuccess();
 }
 
 void PMDPort::DeInit() {

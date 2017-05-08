@@ -12,12 +12,12 @@ class Update final : public Module {
 
   Update() : Module(), num_fields_(), fields_() {}
 
-  pb_error_t Init(const bess::pb::UpdateArg &arg);
+  CommandResponse Init(const bess::pb::UpdateArg &arg);
 
   void ProcessBatch(bess::PacketBatch *batch) override;
 
-  pb_cmd_response_t CommandAdd(const bess::pb::UpdateArg &arg);
-  pb_cmd_response_t CommandClear(const bess::pb::EmptyArg &arg);
+  CommandResponse CommandAdd(const bess::pb::UpdateArg &arg);
+  CommandResponse CommandClear(const bess::pb::EmptyArg &arg);
 
  private:
   int num_fields_;

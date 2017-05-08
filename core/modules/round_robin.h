@@ -40,19 +40,19 @@ class RoundRobin final : public Module {
   RoundRobin()
       : Module(), gates_(), ngates_(), current_gate_(), per_packet_() {}
 
-  pb_error_t Init(const bess::pb::RoundRobinArg &arg);
+  CommandResponse Init(const bess::pb::RoundRobinArg &arg);
 
   void ProcessBatch(bess::PacketBatch *batch) override;
 
   /*!
    * Switches the RoundRobin module between "batch" vs "packet" scheduling.
    */
-  pb_cmd_response_t CommandSetMode(
+  CommandResponse CommandSetMode(
       const bess::pb::RoundRobinCommandSetModeArg &arg);
   /*!
    * Sets the number of output gates.
    */
-  pb_cmd_response_t CommandSetGates(
+  CommandResponse CommandSetGates(
       const bess::pb::RoundRobinCommandSetGatesArg &arg);
 
  private:

@@ -9,36 +9,24 @@ const Commands Rewrite::cmds = {
     {"clear", "EmptyArg", MODULE_CMD_FUNC(&Rewrite::CommandClear), 0},
 };
 
-pb_error_t Rewrite::Init(const bess::pb::RewriteArg &arg) {
-  if (arg.templates_size() > 0) {
-    pb_cmd_response_t response = CommandAdd(arg);
-    return response.error();
-  } else {
-    return pb_errno(0);
-  }
+CommandResponse Rewrite::Init(const bess::pb::RewriteArg &arg) {
+  return CommandAdd(arg);
 }
 
-pb_cmd_response_t Rewrite::CommandAdd(const bess::pb::RewriteArg &arg) {
-  pb_cmd_response_t response;
-
+CommandResponse Rewrite::CommandAdd(const bess::pb::RewriteArg &arg) {
   size_t curr = num_templates_;
 
   if (curr + arg.templates_size() > bess::PacketBatch::kMaxBurst) {
-    set_cmd_response_error(&response, pb_error(EINVAL,
-                                               "max %zu packet templates "
-                                               "can be used %zu %d",
-                                               bess::PacketBatch::kMaxBurst,
-                                               curr, arg.templates_size()));
-    return response;
+    return CommandFailure(EINVAL, "max %zu packet templates can be used %zu %d",
+                          bess::PacketBatch::kMaxBurst, curr,
+                          arg.templates_size());
   }
 
   for (int i = 0; i < arg.templates_size(); i++) {
     const auto &templ = arg.templates(i);
 
     if (templ.length() > kMaxTemplateSize) {
-      set_cmd_response_error(&response,
-                             pb_error(EINVAL, "template is too big"));
-      return response;
+      return CommandFailure(EINVAL, "template is too big");
     }
 
     memset(templates_[curr + i], 0, kMaxTemplateSize);
@@ -48,8 +36,7 @@ pb_cmd_response_t Rewrite::CommandAdd(const bess::pb::RewriteArg &arg) {
 
   num_templates_ = curr + arg.templates_size();
   if (num_templates_ == 0) {
-    set_cmd_response_error(&response, pb_errno(0));
-    return response;
+    return CommandSuccess();
   }
 
   for (size_t i = num_templates_; i < kNumSlots; i++) {
@@ -58,18 +45,13 @@ pb_cmd_response_t Rewrite::CommandAdd(const bess::pb::RewriteArg &arg) {
     template_size_[i] = template_size_[j];
   }
 
-  set_cmd_response_error(&response, pb_errno(0));
-  return response;
+  return CommandSuccess();
 }
 
-pb_cmd_response_t Rewrite::CommandClear(const bess::pb::EmptyArg &) {
+CommandResponse Rewrite::CommandClear(const bess::pb::EmptyArg &) {
   next_turn_ = 0;
   num_templates_ = 0;
-
-  pb_cmd_response_t response;
-
-  set_cmd_response_error(&response, pb_errno(0));
-  return response;
+  return CommandSuccess();
 }
 
 inline void Rewrite::DoRewriteSingle(bess::PacketBatch *batch) {

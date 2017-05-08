@@ -12,14 +12,14 @@ class IPLookup final : public Module {
 
   IPLookup() : Module(), lpm_(), default_gate_() {}
 
-  pb_error_t Init(const bess::pb::IPLookupArg &arg);
+  CommandResponse Init(const bess::pb::IPLookupArg &arg);
 
   void DeInit() override;
 
   void ProcessBatch(bess::PacketBatch *batch) override;
 
-  pb_cmd_response_t CommandAdd(const bess::pb::IPLookupCommandAddArg &arg);
-  pb_cmd_response_t CommandClear(const bess::pb::EmptyArg &arg);
+  CommandResponse CommandAdd(const bess::pb::IPLookupCommandAddArg &arg);
+  CommandResponse CommandClear(const bess::pb::EmptyArg &arg);
 
  private:
   struct rte_lpm *lpm_;

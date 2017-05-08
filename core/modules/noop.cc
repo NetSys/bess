@@ -1,13 +1,13 @@
 #include "noop.h"
 
-pb_error_t NoOP::Init(const bess::pb::EmptyArg &) {
+CommandResponse NoOP::Init(const bess::pb::EmptyArg &) {
   task_id_t tid;
 
   tid = RegisterTask(nullptr);
   if (tid == INVALID_TASK_ID)
-    return pb_error(ENOMEM, "Task creation failed");
+    return CommandFailure(ENOMEM, "Task creation failed");
 
-  return pb_errno(0);
+  return CommandSuccess();
 }
 
 struct task_result NoOP::RunTask(void *) {

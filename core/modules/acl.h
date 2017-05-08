@@ -30,12 +30,12 @@ class ACL final : public Module {
 
   static const Commands cmds;
 
-  pb_error_t Init(const bess::pb::ACLArg &arg);
+  CommandResponse Init(const bess::pb::ACLArg &arg);
 
   void ProcessBatch(bess::PacketBatch *batch) override;
 
-  pb_cmd_response_t CommandAdd(const bess::pb::ACLArg &arg);
-  pb_cmd_response_t CommandClear(const bess::pb::EmptyArg &arg);
+  CommandResponse CommandAdd(const bess::pb::ACLArg &arg);
+  CommandResponse CommandClear(const bess::pb::EmptyArg &arg);
 
  private:
   std::vector<ACLRule> rules_;

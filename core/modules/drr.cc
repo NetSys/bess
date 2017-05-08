@@ -45,8 +45,8 @@ DRR::~DRR() {
   std::free(flow_ring_);
 }
 
-pb_error_t DRR::Init(const bess::pb::DRRArg& arg) {
-  pb_error_t err;
+CommandResponse DRR::Init(const bess::pb::DRRArg& arg) {
+  CommandResponse err;
   task_id_t tid;
 
   if (arg.num_flows() != 0) {
@@ -55,14 +55,14 @@ pb_error_t DRR::Init(const bess::pb::DRRArg& arg) {
 
   if (arg.max_flow_queue_size() != 0) {
     err = SetMaxFlowQueueSize(arg.max_flow_queue_size());
-    if (err.err() != 0) {
+    if (err.error().code() != 0) {
       return err;
     }
   }
 
   if (arg.quantum() != 0) {
     err = SetQuantumSize(arg.quantum());
-    if (err.err() != 0) {
+    if (err.error().code() != 0) {
       return err;
     }
   }
@@ -70,29 +70,25 @@ pb_error_t DRR::Init(const bess::pb::DRRArg& arg) {
   /* register task */
   tid = RegisterTask(nullptr);
   if (tid == INVALID_TASK_ID) {
-    return pb_error(ENOMEM, "task creation failed");
+    return CommandFailure(ENOMEM, "task creation failed");
   }
 
   int err_num = 0;
   flow_ring_ = AddQueue(max_number_flows_, &err_num);
   if (err_num != 0) {
-    return pb_errno(err_num);
+    return CommandFailure(-err_num);
   }
 
-  return pb_errno(0);
+  return CommandSuccess();
 }
 
-pb_cmd_response_t DRR::CommandQuantumSize(const bess::pb::DRRQuantumArg& arg) {
-  pb_cmd_response_t response;
-  set_cmd_response_error(&response, SetQuantumSize(arg.quantum()));
-  return response;
+CommandResponse DRR::CommandQuantumSize(const bess::pb::DRRQuantumArg& arg) {
+  return SetQuantumSize(arg.quantum());
 }
 
-pb_cmd_response_t DRR::CommandMaxFlowQueueSize(
+CommandResponse DRR::CommandMaxFlowQueueSize(
     const bess::pb::DRRMaxFlowQueueSizeArg& arg) {
-  pb_cmd_response_t response;
-  set_cmd_response_error(&response, SetMaxFlowQueueSize(arg.max_queue_size()));
-  return response;
+  return SetMaxFlowQueueSize(arg.max_queue_size());
 }
 
 void DRR::ProcessBatch(bess::PacketBatch* batch) {
@@ -372,21 +368,21 @@ llring* DRR::ResizeQueue(llring* old_queue, uint32_t new_size, int* err) {
   return new_queue;
 }
 
-pb_error_t DRR::SetQuantumSize(uint32_t size) {
+CommandResponse DRR::SetQuantumSize(uint32_t size) {
   if (size == 0) {
-    return pb_error(EINVAL, "quantum size must be at least 1");
+    return CommandFailure(EINVAL, "quantum size must be at least 1");
   }
 
   quantum_ = size;
-  return pb_errno(0);
+  return CommandSuccess();
 }
 
-pb_error_t DRR::SetMaxFlowQueueSize(uint32_t queue_size) {
+CommandResponse DRR::SetMaxFlowQueueSize(uint32_t queue_size) {
   if (queue_size == 0) {
-    return pb_error(EINVAL, "max queue size must be at least 1");
+    return CommandFailure(EINVAL, "max queue size must be at least 1");
   }
   max_queue_size_ = queue_size;
-  return pb_errno(0);
+  return CommandSuccess();
 }
 
 ADD_MODULE(DRR, "DRR", "Deficit Round Robin")
