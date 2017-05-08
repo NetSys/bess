@@ -681,7 +681,10 @@ void propagate_active_worker() {
     Module *m = pair.second;
     m->ResetActiveWorkerSet();
   }
-  for (int i = 0; i < num_workers; i++) {
+  for (int i = 0; i < Worker::kMaxWorkers; i++) {
+    if (workers[i] == nullptr) {
+      continue;
+    }
     int socket = 1ull << workers[i]->socket();
     int core = workers[i]->core();
     bess::TrafficClass *root = workers[i]->scheduler()->root();

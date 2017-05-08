@@ -542,19 +542,23 @@ class BESSControlImpl final : public BESSControl::Service {
     int i;
 
     wid_filter = request->wid();
-    if (wid_filter >= num_workers) {
-      return return_with_error(
-          response, EINVAL, "'wid' must be between 0 and %d", num_workers - 1);
+    if (wid_filter >= Worker::kMaxWorkers) {
+      return return_with_error(response, EINVAL,
+                               "'wid' must be between 0 and %d",
+                               Worker::kMaxWorkers - 1);
     }
 
     if (wid_filter < 0) {
       i = 0;
-      wid_filter = num_workers - 1;
+      wid_filter = Worker::kMaxWorkers - 1;
     } else {
       i = wid_filter;
     }
 
     for (; i <= wid_filter; i++) {
+      if (workers[i] == nullptr) {
+        continue;
+      }
       bess::TrafficClass* root = workers[i]->scheduler()->root();
       if (!root) {
         continue;
@@ -605,7 +609,10 @@ class BESSControlImpl final : public BESSControl::Service {
     LOG(INFO) << "Checking scheduling constraints";
     // Check constraints around chains run by each worker. This checks that
     // global constraints are met.
-    for (int i = 0; i < num_workers; i++) {
+    for (int i = 0; i < Worker::kMaxWorkers; i++) {
+      if (workers[i] == nullptr) {
+        continue;
+      }
       int socket = 1ull << workers[i]->socket();
       int core = workers[i]->core();
       bess::TrafficClass* root = workers[i]->scheduler()->root();
