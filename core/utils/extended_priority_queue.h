@@ -8,15 +8,16 @@
 #include <glog/logging.h>
 
 namespace bess {
+namespace utils {
 
 // Extends std::priority_queue to support decreasing the key of the top element
 // directly.
 template <typename T>
 class extended_priority_queue : public std::priority_queue<T> {
  public:
-   T &mutable_top() { return this->c.front(); }
+  T &mutable_top() { return this->c.front(); }
 
-   const std::vector<T> &container() const { return this->c; }
+  const std::vector<T> &container() const { return this->c; }
 
   // Notifies the priority queue that the key of the top element may have been
   // decreased, necessitating a reorganization of the heap structure.
@@ -28,8 +29,8 @@ class extended_priority_queue : public std::priority_queue<T> {
     size_t node = 0;
     while (true) {
       size_t larger_child;
-      size_t left = (2*node)+1;
-      size_t right = (2*node)+2;
+      size_t left = (2 * node) + 1;
+      size_t right = (2 * node) + 2;
 
       if (left >= len) {
         break;
@@ -47,7 +48,7 @@ class extended_priority_queue : public std::priority_queue<T> {
       std::swap(v[node], v[larger_child]);
       node = larger_child;
     }
-  
+
     // DCHECK(std::is_heap(v.begin(), v.end()));
   }
 
@@ -65,6 +66,7 @@ class extended_priority_queue : public std::priority_queue<T> {
   }
 };
 
+}  // namespace utils
 }  // namespace bess
 
 #endif  // BESS_UTILS_EXTENDED_PRIORITY_QUEUE_H_
