@@ -43,7 +43,7 @@ class TCWeightedFair : public benchmark::Fixture {
     TrafficClass *root =
         CT("root", {PRIORITY},
            {{0, CT("weighted", {WEIGHTED_FAIR, resource}, {})}});
-    s_ = new Scheduler<Task>(root);
+    s_ = new FastScheduler<Task>(root);
     WeightedFairTrafficClass *weighted =
         static_cast<WeightedFairTrafficClass *>(
             TrafficClassBuilder::Find("weighted"));
@@ -71,7 +71,7 @@ class TCWeightedFair : public benchmark::Fixture {
   }
 
  protected:
-  Scheduler<Task> *s_;
+  FastScheduler<Task> *s_;
   Module *dummy_;
 };
 
@@ -142,7 +142,7 @@ class TCRoundRobin : public benchmark::Fixture {
     dummy_ = new DummyModule;
 
     TrafficClass *root = CT("rr", {ROUND_ROBIN}, {});
-    s_ = new Scheduler<Task>(root);
+    s_ = new FastScheduler<Task>(root);
     RoundRobinTrafficClass *rr =
         static_cast<RoundRobinTrafficClass *>(TrafficClassBuilder::Find("rr"));
 
@@ -168,7 +168,7 @@ class TCRoundRobin : public benchmark::Fixture {
   }
 
  protected:
-  Scheduler<Task> *s_;
+  FastScheduler<Task> *s_;
   Module *dummy_;
 };
 

@@ -762,9 +762,9 @@ def run_file(cli, conf_file, env_map):
     _run_file(cli, os.path.expanduser(conf_file), env_map)
 
 
-@cmd('add worker WORKER_ID CORE', 'Create a worker')
-def add_worker(cli, wid, core):
-    cli.bess.add_worker(wid, core)
+@cmd('add worker WORKER_ID CORE [SCHEDULER]', 'Create a worker')
+def add_worker(cli, wid, core, scheduler='fast'):
+    cli.bess.add_worker(wid, core, scheduler)
 
 
 @cmd('add port DRIVER [NEW_PORT] [PORT_ARGS...]', 'Add a new port')

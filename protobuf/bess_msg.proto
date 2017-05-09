@@ -62,8 +62,9 @@ message ListWorkersResponse {
 }
 
 message AddWorkerRequest {
-  int64 wid = 1;   /// Worker ID to be added
-  int64 core = 2;  /// CPU core ID on which the worker would run
+  int64 wid = 1;         /// Worker ID to be added
+  int64 core = 2;        /// CPU core ID on which the worker would run
+  string scheduler = 3;  /// Default is "fast".
 }
 
 message DestroyWorkerRequest {

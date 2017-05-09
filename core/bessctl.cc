@@ -515,7 +515,12 @@ class BESSControlImpl final : public BESSControl::Service {
       return return_with_error(response, EEXIST, "worker:%d is already active",
                                wid);
     }
-    launch_worker(wid, core);
+    const std::string &scheduler = request->scheduler();
+    if (scheduler != "fast") {
+      return return_with_error(response, EINVAL, "Invalid scheduler type %s",
+                               scheduler.c_str());
+    }
+    launch_worker(wid, core, scheduler);
     return Status::OK;
   }
 
@@ -1515,7 +1520,7 @@ class BESSControlImpl final : public BESSControl::Service {
       if ((wid != -1 && !is_worker_active(wid)) ||
           (wid == -1 && num_workers == 0)) {
         if (num_workers == 0 && (wid == 0 || wid == -1)) {
-          launch_worker(0, FLAGS_c);
+          launch_worker(0, FLAGS_c, "fast");
         } else {
           return return_with_error(response, EINVAL, "worker:%d does not exist",
                                    wid);

@@ -22,6 +22,8 @@
 #include "utils/time.h"
 
 using bess::Scheduler;
+using bess::FastScheduler;
+using bess::SchedulerType;
 
 int num_workers = 0;
 std::thread worker_threads[Worker::kMaxWorkers];
@@ -43,6 +45,7 @@ __thread Worker ctx;
 struct thread_arg {
   int wid;
   int core;
+  SchedulerType scheduler;
 };
 
 #define SYS_CPU_DIR "/sys/devices/system/cpu/cpu%u"
@@ -247,7 +250,11 @@ void *Worker::Run(void *_arg) {
   fd_event_ = eventfd(0, 0);
   DCHECK_GE(fd_event_, 0);
 
-  scheduler_ = new Scheduler<Task>();
+  if (arg->scheduler == SchedulerType::FAST) {
+    scheduler_ = new FastScheduler<Task>();
+  } else {
+    CHECK(false) << "Scheduler " << static_cast<int>(arg->scheduler) << " is invalid.";
+  }
 
   current_tsc_ = rdtsc();
 
@@ -281,8 +288,14 @@ void *run_worker(void *_arg) {
   return ctx.Run(_arg);
 }
 
-void launch_worker(int wid, int core) {
-  struct thread_arg arg = {.wid = wid, .core = core};
+void launch_worker(int wid, int core, [[maybe_unused]] const std::string &scheduler) {
+  SchedulerType scheduler_type = SchedulerType::FAST;
+
+  struct thread_arg arg = {
+    .wid = wid,
+    .core = core,
+    .scheduler = scheduler_type
+  };
   worker_threads[wid] = std::thread(run_worker, &arg);
   worker_threads[wid].detach();
 
@@ -298,7 +311,7 @@ void launch_worker(int wid, int core) {
 Worker *get_next_active_worker() {
   static int prev_wid = 0;
   if (num_workers == 0) {
-    launch_worker(0, FLAGS_c);
+    launch_worker(0, FLAGS_c, "fast");
     return workers[0];
   }
 
