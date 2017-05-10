@@ -16,6 +16,8 @@
 #include "utils/simd.h"
 #include "utils/time.h"
 
+using bess::utils::extended_priority_queue;
+
 namespace bess {
 
 // A large default priority.
@@ -121,12 +123,15 @@ const std::unordered_map<int, std::string> ResourceName = {
 
 class TCChildArgs {
  public:
-  TCChildArgs(TrafficClass *child) : parent_type_(NUM_POLICIES), child_(child) {}
+  TCChildArgs(TrafficClass *child)
+      : parent_type_(NUM_POLICIES), child_(child) {}
   TrafficClass *child() { return child_; }
   TrafficPolicy parent_type() { return parent_type_; }
+
  protected:
   TCChildArgs(TrafficPolicy parent_type, TrafficClass *child)
-    : parent_type_(parent_type), child_(child) {}
+      : parent_type_(parent_type), child_(child) {}
+
  private:
   const TrafficPolicy parent_type_;
   TrafficClass *child_;
@@ -154,8 +159,7 @@ class TrafficClass {
   }
 
   // Iterates through every child.
-  virtual void TraverseChildren(
-      std::function<void(TCChildArgs *)>) const = 0;
+  virtual void TraverseChildren(std::function<void(TCChildArgs *)>) const = 0;
 
   // Returns the number of TCs in the TC subtree rooted at this, including
   // this TC.
@@ -297,8 +301,7 @@ class PriorityTrafficClass final : public TrafficClass {
 
   const std::vector<ChildData> &children() const { return children_; }
 
-  void TraverseChildren(
-      std::function<void(TCChildArgs *)>) const override;
+  void TraverseChildren(std::function<void(TCChildArgs *)>) const override;
 
  private:
   size_t
@@ -357,8 +360,7 @@ class WeightedFairTrafficClass final : public TrafficClass {
     return blocked_children_;
   }
 
-  void TraverseChildren(
-      std::function<void(TCChildArgs *)>) const override;
+  void TraverseChildren(std::function<void(TCChildArgs *)>) const override;
 
  private:
   // The resource that we are sharing.
@@ -369,7 +371,7 @@ class WeightedFairTrafficClass final : public TrafficClass {
 
   // This is a copy of the pointers to (and shares of) all children. It can be
   // safely accessed from the master thread while the workers are running.
-  std::vector<std::pair<TrafficClass*, resource_share_t>> all_children_;
+  std::vector<std::pair<TrafficClass *, resource_share_t>> all_children_;
 };
 
 class RoundRobinTrafficClass final : public TrafficClass {
@@ -404,8 +406,7 @@ class RoundRobinTrafficClass final : public TrafficClass {
     return blocked_children_;
   }
 
-  void TraverseChildren(
-      std::function<void(TCChildArgs *)>) const override;
+  void TraverseChildren(std::function<void(TCChildArgs *)>) const override;
 
  private:
   size_t next_child_;
@@ -492,8 +493,7 @@ class RateLimitTrafficClass final : public TrafficClass {
 
   TrafficClass *child() const { return child_; }
 
-  void TraverseChildren(
-      std::function<void(TCChildArgs *)>) const override;
+  void TraverseChildren(std::function<void(TCChildArgs *)>) const override;
 
   // Convert resource units to work units
   static uint64_t to_work_units(uint64_t x) {
@@ -531,25 +531,19 @@ class RateLimitTrafficClass final : public TrafficClass {
 template <typename CallableTask>
 class LeafTrafficClass final : public TrafficClass {
  public:
-  explicit LeafTrafficClass(const std::string &name,
-                            const CallableTask &task)
+  explicit LeafTrafficClass(const std::string &name, const CallableTask &task)
       : TrafficClass(name, POLICY_LEAF, false), task_(task) {
     task_.Attach(this);
   }
 
   ~LeafTrafficClass() override;
 
-  void TraverseChildren(std::function<void(TCChildArgs *)>)
-      const override {}
+  void TraverseChildren(std::function<void(TCChildArgs *)>) const override {}
 
   // Returns true if child was removed successfully.
-  bool RemoveChild(TrafficClass *) override {
-    return false;
-  }
+  bool RemoveChild(TrafficClass *) override { return false; }
 
-  TrafficClass *PickNextChild() override {
-    return nullptr;
-  }
+  TrafficClass *PickNextChild() override { return nullptr; }
 
   void BlockTowardsRoot() override {
     TrafficClass::BlockTowardsRootSetBlocked(false);
@@ -559,9 +553,7 @@ class LeafTrafficClass final : public TrafficClass {
     TrafficClass::UnblockTowardsRootSetBlocked(tsc, false);
   }
 
-  CallableTask &Task() {
-    return task_;
-  }
+  CallableTask &Task() { return task_; }
 
   void FinishAndAccountTowardsRoot(SchedThrottledCache *thr,
                                    [[maybe_unused]] TrafficClass *child,
@@ -583,6 +575,7 @@ class PriorityChildArgs : public TCChildArgs {
   PriorityChildArgs(priority_t priority, TrafficClass *c)
       : TCChildArgs(POLICY_PRIORITY, c), priority_(priority) {}
   priority_t priority() { return priority_; }
+
  private:
   priority_t priority_;
 };
@@ -592,20 +585,19 @@ class WeightedFairChildArgs : public TCChildArgs {
   WeightedFairChildArgs(resource_share_t share, TrafficClass *c)
       : TCChildArgs(POLICY_WEIGHTED_FAIR, c), share_(share) {}
   resource_share_t share() { return share_; }
+
  private:
   resource_share_t share_;
 };
 
 class RoundRobinChildArgs : public TCChildArgs {
  public:
-  RoundRobinChildArgs(TrafficClass *c)
-      : TCChildArgs(POLICY_ROUND_ROBIN, c) {}
+  RoundRobinChildArgs(TrafficClass *c) : TCChildArgs(POLICY_ROUND_ROBIN, c) {}
 };
 
 class RateLimitChildArgs : public TCChildArgs {
  public:
-  RateLimitChildArgs(TrafficClass *c)
-      : TCChildArgs(POLICY_RATE_LIMIT, c) {}
+  RateLimitChildArgs(TrafficClass *c) : TCChildArgs(POLICY_RATE_LIMIT, c) {}
 };
 
 // Responsible for creating and destroying all traffic classes.
@@ -687,8 +679,8 @@ class TrafficClassBuilder {
 
   static TrafficClass *CreateTree(const std::string &name,
                                   [[maybe_unused]] RoundRobinArgs args,
-                                  std::vector<RoundRobinChildArgs> children
-                                      = std::vector<RoundRobinChildArgs>()) {
+                                  std::vector<RoundRobinChildArgs> children =
+                                      std::vector<RoundRobinChildArgs>()) {
     RoundRobinTrafficClass *p =
         CreateTrafficClass<RoundRobinTrafficClass>(name);
     for (auto &c : children) {
@@ -718,8 +710,7 @@ class TrafficClassBuilder {
   // Attempts to clear knowledge of given class.  Returns true upon success.
   static bool Clear(TrafficClass *c);
 
-  static const std::unordered_map<std::string, TrafficClass *>
-      &all_tcs() {
+  static const std::unordered_map<std::string, TrafficClass *> &all_tcs() {
     return all_tcs_;
   }
 
