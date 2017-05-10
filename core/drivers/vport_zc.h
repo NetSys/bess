@@ -52,10 +52,10 @@ class ZeroCopyVPort final : public Port {
  public:
   CommandResponse Init(const bess::pb::EmptyArg &arg);
 
-  void DeInit();
+  void DeInit() override;
 
-  int RecvPackets(queue_t qid, bess::Packet **pkts, int cnt);
-  int SendPackets(queue_t qid, bess::Packet **pkts, int cnt);
+  int RecvPackets(queue_t qid, bess::Packet **pkts, int cnt) override;
+  int SendPackets(queue_t qid, bess::Packet **pkts, int cnt) override;
 
  private:
   friend class ZeroCopyVPortTest;
