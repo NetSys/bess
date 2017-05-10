@@ -11,6 +11,7 @@ class Bypass final : public Module {
   static const gate_idx_t kNumIGates = MAX_GATES;
   static const gate_idx_t kNumOGates = MAX_GATES;
 
+  Bypass() { max_allowed_workers_ = Worker::kMaxWorkers; }
   void ProcessBatch(bess::PacketBatch *batch) override;
 };
 
