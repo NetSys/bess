@@ -176,17 +176,15 @@ class Port {
 
   virtual ~Port() {}
 
-  CommandResponse Init(const bess::pb::EmptyArg &arg);
-
-  virtual void DeInit();
+  virtual void DeInit() = 0;
 
   // For one-time initialization of the port's "driver" (optional).
   virtual void InitDriver() {}
 
   virtual void CollectStats(bool reset);
 
-  virtual int RecvPackets(queue_t qid, bess::Packet **pkts, int cnt);
-  virtual int SendPackets(queue_t qid, bess::Packet **pkts, int cnt);
+  virtual int RecvPackets(queue_t qid, bess::Packet **pkts, int cnt) = 0;
+  virtual int SendPackets(queue_t qid, bess::Packet **pkts, int cnt) = 0;
 
   // For custom incoming / outgoing queue sizes (optional).
   virtual size_t DefaultIncQueueSize() const { return kDefaultIncQueueSize; }

@@ -11,16 +11,19 @@ class DummyPort : public Port {
  public:
   DummyPort() : Port(), deinited_(nullptr) {}
 
-  virtual void InitDriver() { initialized_ = true; }
+  void InitDriver() override { initialized_ = true; }
 
   CommandResponse Init(const google::protobuf::Any &) {
     return CommandFailure(42);
   }
 
-  virtual void DeInit() {
+  void DeInit() override {
     if (deinited_)
       *deinited_ = true;
   }
+
+  int RecvPackets(queue_t, bess::Packet **, int) override { return 0; }
+  int SendPackets(queue_t, bess::Packet **, int) override { return 0; }
 
   void set_deinited(bool *val) { deinited_ = val; }
 

@@ -134,20 +134,6 @@ CommandResponse Port::InitWithGenericArg(const google::protobuf::Any &arg) {
   return port_builder_->RunInit(this, arg);
 }
 
-CommandResponse Port::Init(const bess::pb::EmptyArg &) {
-  return CommandSuccess();
-}
-
-void Port::DeInit() {}
-
-int Port::RecvPackets(queue_t, bess::Packet **, int) {
-  return 0;
-}
-
-int Port::SendPackets(queue_t, bess::Packet **, int) {
-  return 0;
-}
-
 Port::PortStats Port::GetPortStats() {
   CollectStats(false);
 

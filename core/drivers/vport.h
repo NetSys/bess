@@ -12,8 +12,7 @@ class VPort final : public Port {
   CommandResponse Init(const bess::pb::VPortArg &arg);
   void DeInit() override;
 
-  virtual int RecvPackets(queue_t qid, bess::Packet **pkts,
-                          int max_cnt) override;
+  int RecvPackets(queue_t qid, bess::Packet **pkts, int max_cnt) override;
   int SendPackets(queue_t qid, bess::Packet **pkts, int cnt) override;
 
  private:
