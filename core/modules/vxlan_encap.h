@@ -8,7 +8,7 @@
 
 class VXLANEncap final : public Module {
  public:
-  static const uint16_t kDefaultDstPort = 4789;
+  static const uint16_t kDefaultDstPort;
 
   VXLANEncap() : Module(), dstport_() {}
 

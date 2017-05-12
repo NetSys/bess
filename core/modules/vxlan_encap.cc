@@ -19,6 +19,10 @@ enum {
   ATTR_W_IP_PROTO,
 };
 
+// NOTE: UDP port 4789 is the official port number assigned by IANA,
+// but some systems (including Linux) uses 8472 for legacy reasons.
+const uint16_t VXLANEncap::kDefaultDstPort = 4789;
+
 CommandResponse VXLANEncap::Init(const bess::pb::VXLANEncapArg &arg) {
   auto dstport = arg.dstport();
   if (dstport == 0) {

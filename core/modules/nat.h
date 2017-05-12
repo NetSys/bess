@@ -154,8 +154,8 @@ struct FlowHash {
     init_val = crc32c_sse42_u64(bytes.u64[0], init_val);
     init_val = crc32c_sse42_u64(bytes.u64[1], init_val);
 #else
-    init_val = rte_hash_crc(&key.e1, sizeof(key.e1), init_val);
-    init_val = rte_hash_crc(&key.e2, sizeof(key.e2), init_val);
+    init_val = rte_hash_crc(&bytes.u64[0], sizeof(uint64_t), init_val);
+    init_val = rte_hash_crc(&bytes.u64[1], sizeof(uint64_t), init_val);
 #endif
     return init_val;
   }

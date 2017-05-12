@@ -31,7 +31,9 @@ class alignas(16) Flow {
 
   Flow() : padding(0) {}
 
-  bool operator==(const Flow &other) const { return *this == other; }
+  bool operator==(const Flow &other) const {
+    return memcmp(this, &other, sizeof(*this)) == 0;
+  }
 };
 
 static_assert(sizeof(Flow) == 16, "Flow must be 16 bytes.");

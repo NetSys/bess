@@ -61,43 +61,47 @@ class[[gnu::packed]] BigEndian final : public EndianBase<T> {
     return is_be_system() ? data_ : EndianBase<T>::swap(data_);
   }
 
-  constexpr T raw_value() { return data_; }
+  constexpr T raw_value() const { return data_; }
 
-  constexpr BigEndian<T> operator~() { return BigEndian(~(this->value())); }
+  constexpr BigEndian<T> operator~() const {
+    return BigEndian(~(this->value()));
+  }
 
   // While this swap(swap(a) & swap(b)) looks inefficient, gcc 4.9+ will
   // correctly optimize the code.
-  constexpr BigEndian<T> operator&(const BigEndian<T> &o) {
+  constexpr BigEndian<T> operator&(const BigEndian<T> &o) const {
     return BigEndian(this->value() & o.value());
   }
 
-  constexpr BigEndian<T> operator|(const BigEndian<T> &o) {
+  constexpr BigEndian<T> operator|(const BigEndian<T> &o) const {
     return BigEndian(this->value() | o.value());
   }
 
-  constexpr BigEndian<T> operator^(const BigEndian<T> &o) {
+  constexpr BigEndian<T> operator^(const BigEndian<T> &o) const {
     return BigEndian(this->value() ^ o.value());
   }
 
-  constexpr BigEndian<T> operator+(const BigEndian<T> &o) {
+  constexpr BigEndian<T> operator+(const BigEndian<T> &o) const {
     return BigEndian(this->value() + o.value());
   }
 
-  constexpr BigEndian<T> operator-(const BigEndian<T> &o) {
+  constexpr BigEndian<T> operator-(const BigEndian<T> &o) const {
     return BigEndian(this->value() - o.value());
   }
 
-  constexpr BigEndian<T> operator<<(unsigned int shift) {
+  constexpr BigEndian<T> operator<<(unsigned int shift) const {
     return BigEndian(this->value() << shift);
   }
 
-  constexpr BigEndian<T> operator>>(unsigned int shift) {
+  constexpr BigEndian<T> operator>>(unsigned int shift) const {
     return BigEndian(this->value() >> shift);
   }
 
-  constexpr bool operator==(const BigEndian &o) { return data_ == o.data_; }
+  constexpr bool operator==(const BigEndian &o) const {
+    return data_ == o.data_;
+  }
 
-  constexpr bool operator!=(const BigEndian &o) { return !(*this == o); }
+  constexpr bool operator!=(const BigEndian &o) const { return !(*this == o); }
 
   friend std::ostream &operator<<(std::ostream &os, const BigEndian &be) {
     os << std::hex << std::showbase << be.value() << std::noshowbase
