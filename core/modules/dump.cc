@@ -26,7 +26,8 @@ void Dump::ProcessBatch(bess::PacketBatch *batch) {
     printf("----------------------------------------\n");
     printf("%s: packet dump\n", name().c_str());
     std::cout << pkt->Dump();
-    rte_hexdump(stdout, "Metadata buffer", pkt->metadata(), SNBUF_METADATA);
+    rte_hexdump(stdout, "Metadata buffer", pkt->metadata<const char *>(),
+                SNBUF_METADATA);
     next_ns_ = ctx.current_ns() + min_interval_ns_;
   }
 

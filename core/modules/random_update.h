@@ -3,6 +3,8 @@
 
 #include "../module.h"
 #include "../module_msg.pb.h"
+
+#include "../utils/endian.h"
 #include "../utils/random.h"
 
 #define MAX_VARS 16
@@ -24,10 +26,11 @@ class RandomUpdate final : public Module {
   int num_vars_;
 
   struct {
-    uint32_t mask; /* bits with 1 won't be updated */
+    bess::utils::be32_t mask;  // bits with 1 won't be updated
     uint32_t min;
-    uint32_t range; /* == max - min + 1 */
-    int16_t offset;
+    uint32_t range;  // max - min + 1
+    size_t offset;
+    size_t bit_shift;
   } vars_[MAX_VARS];
 
   Random rng_;

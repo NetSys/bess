@@ -17,8 +17,8 @@ class Split final : public Module {
  private:
   uint64_t mask_;
   int attr_id_;
-  int offset_;
-  int size_;
+  size_t offset_;
+  size_t size_;
 };
 
 #endif  // BESS_MODULES_SPLIT_H_

@@ -1,12 +1,12 @@
-#include <string.h>
+#include "vlan_push.h"
 
-#include <arpa/inet.h>
-
-#include <rte_byteorder.h>
+#include <cstring>
 
 #include "../utils/format.h"
 #include "../utils/simd.h"
-#include "vlan_push.h"
+
+using bess::utils::be16_t;
+using bess::utils::be32_t;
 
 const Commands VLANPush::cmds = {
     {"set_tci", "VLANPushArg", MODULE_CMD_FUNC(&VLANPush::CommandSetTci), 0},
@@ -33,7 +33,6 @@ void VLANPush::ProcessBatch(bess::PacketBatch *batch) {
   for (int i = 0; i < cnt; i++) {
     bess::Packet *pkt = batch->pkts()[i];
     char *new_head;
-    uint16_t tpid;
 
     if ((new_head = static_cast<char *>(pkt->prepend(4))) != nullptr) {
 /* shift 12 bytes to the left by 4 bytes */
@@ -41,20 +40,20 @@ void VLANPush::ProcessBatch(bess::PacketBatch *batch) {
       __m128i ethh;
 
       ethh = _mm_loadu_si128(reinterpret_cast<__m128i *>(new_head + 4));
-      tpid = _mm_extract_epi16(ethh, 6);
+      be16_t tpid(be16_t::swap(_mm_extract_epi16(ethh, 6)));
 
-      ethh = _mm_insert_epi32(ethh, (tpid == rte_cpu_to_be_16(0x8100))
-                                        ? qinq_tag.raw_value()
-                                        : vlan_tag.raw_value(),
+      ethh = _mm_insert_epi32(ethh,
+                              (tpid.value() == 0x8100) ? qinq_tag.raw_value()
+                                                       : vlan_tag.raw_value(),
                               3);
 
       _mm_storeu_si128(reinterpret_cast<__m128i *>(new_head), ethh);
 #else
-      tpid = *(uint16_t *)(new_head + 16);
+      be16_t tpid(*(uint16_t *)(new_head + 16));
       memmove(new_head, new_head + 4, 12);
 
-      *(uint32_t *)(new_head + 12) =
-          (tpid == rte_cpu_to_be_16(0x8100)) ? qinq_tag : vlan_tag;
+      *(be32_t *)(new_head + 12) =
+          (tpid.value() == 0x8100) ? qinq_tag : vlan_tag;
 #endif
     }
   }

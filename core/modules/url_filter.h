@@ -41,18 +41,20 @@ static_assert(sizeof(Flow) == 16, "Flow must be 16 bytes.");
 // Hash function for std::unordered_map
 struct FlowHash {
   std::size_t operator()(const Flow &f) const {
+    uint32_t init_val = 0;
+
+#if __SSE4_2__ && __x86_64
     const union {
       Flow flow;
       uint64_t u64[2];
     } &bytes = {.flow = f};
 
-    uint32_t init_val = 0;
-#if __SSE4_2__ && __x86_64
     init_val = crc32c_sse42_u64(bytes.u64[0], init_val);
     init_val = crc32c_sse42_u64(bytes.u64[1], init_val);
 #else
     init_val = rte_hash_crc(&f, sizeof(Flow), init_val);
 #endif
+
     return init_val;
   }
 };

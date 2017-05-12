@@ -1,10 +1,9 @@
 #include "l2_forward.h"
 
-#include <glog/logging.h>
-#include <rte_byteorder.h>
 #include <rte_hash_crc.h>
 
 #include "../mem_alloc.h"
+#include "../utils/endian.h"
 #include "../utils/simd.h"
 
 #define MAX_TABLE_SIZE (1048576 * 64)
@@ -695,11 +694,12 @@ CommandResponse L2Forward::CommandPopulate(
   int cnt = arg.count();
   int gate_cnt = arg.gate_count();
 
-  base_u64 = rte_be_to_cpu_64(base_u64);
+  base_u64 = bess::utils::be64_t::swap(base_u64) >> 16;
   base_u64 = base_u64 >> 16;
 
   for (int i = 0; i < cnt; i++) {
-    l2_add_entry(&l2_table_, rte_cpu_to_be_64(base_u64 << 16), i % gate_cnt);
+    l2_add_entry(&l2_table_, bess::utils::be64_t::swap(base_u64 << 16),
+                 i % gate_cnt);
 
     base_u64++;
   }
