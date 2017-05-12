@@ -37,9 +37,15 @@ get_patch() {
 		echo "$reformatted" | git diff --no-index --color=always $file -
 
 		# ... and save non-colored patch for git-apply
-		patch+=`echo "$reformatted" | diff -u $file - | \
-			sed -e "1s|--- |--- a/|" -e "2s|+++ -|+++ b/$file|"`
-		patch+=$'\n'
+		file_diff=`echo "$reformatted" | diff -u $file - | \
+			   sed -e "1s|--- |--- a/|" -e "2s|+++ -|+++ b/$file|"`
+
+		# diff output does not have a linefeed at the end.
+		# We need one if there are multiple diff outputs.
+		if [[ ! -z $file_diff ]]; then
+			patch+=file_diff
+			patch+=$'\n'
+		fi
 	done
 }
 
