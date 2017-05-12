@@ -1,7 +1,5 @@
 #include "nat.h"
 
-#include <rte_ip.h>
-
 #include <algorithm>
 #include <numeric>
 #include <string>

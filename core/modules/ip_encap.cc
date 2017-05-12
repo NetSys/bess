@@ -1,9 +1,9 @@
 #include "ip_encap.h"
 
 #include "../utils/checksum.h"
+#include "../utils/endian.h"
 #include "../utils/ether.h"
 #include "../utils/ip.h"
-#include "../utils/endian.h"
 
 using bess::utils::EthHeader;
 using bess::utils::Ipv4Header;
@@ -36,8 +36,8 @@ void IPEncap::ProcessBatch(bess::PacketBatch *batch) {
   for (int i = 0; i < cnt; i++) {
     bess::Packet *pkt = batch->pkts()[i];
 
-    uint32_t ip_src = get_attr<uint32_t>(this, ATTR_R_IP_SRC, pkt);
-    uint32_t ip_dst = get_attr<uint32_t>(this, ATTR_R_IP_DST, pkt);
+    be32_t ip_src = get_attr<be32_t>(this, ATTR_R_IP_SRC, pkt);
+    be32_t ip_dst = get_attr<be32_t>(this, ATTR_R_IP_DST, pkt);
     uint8_t ip_proto = get_attr<uint8_t>(this, ATTR_R_IP_PROTO, pkt);
 
     Ipv4Header *iph;
@@ -57,14 +57,14 @@ void IPEncap::ProcessBatch(bess::PacketBatch *batch) {
     iph->fragment_offset = be16_t(Ipv4Header::Flag::kDF);
     iph->ttl = 64;
     iph->protocol = ip_proto;
-    iph->src = be32_t(ip_src);
-    iph->dst = be32_t(ip_dst);
+    iph->src = ip_src;
+    iph->dst = ip_dst;
 
     iph->checksum = bess::utils::CalculateIpv4NoOptChecksum(*iph);
 
-    set_attr<uint32_t>(this, ATTR_W_IP_NEXTHOP, pkt, ip_dst);
-    set_attr<uint16_t>(this, ATTR_W_ETHER_TYPE, pkt,
-                       __builtin_bswap16(EthHeader::Type::kIpv4));
+    set_attr<be32_t>(this, ATTR_W_IP_NEXTHOP, pkt, ip_dst);
+    set_attr<be16_t>(this, ATTR_W_ETHER_TYPE, pkt,
+                     be16_t(EthHeader::Type::kIpv4));
   }
 
   RunNextModule(batch);

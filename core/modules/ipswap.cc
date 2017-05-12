@@ -1,30 +1,32 @@
 #include "ipswap.h"
 
-#include <rte_ether.h>
-#include <rte_icmp.h>
-#include <rte_ip.h>
-#include <rte_tcp.h>
-#include <rte_udp.h>
+#include "utils/ether.h"
+#include "utils/ip.h"
+#include "utils/udp.h"
 
 void IPSwap::ProcessBatch(bess::PacketBatch *batch) {
+  using bess::utils::EthHeader;
+  using bess::utils::Ipv4Header;
+  using bess::utils::UdpHeader;
+
   int cnt = batch->cnt();
 
   for (int i = 0; i < cnt; i++) {
     bess::Packet *pkt = batch->pkts()[i];
 
-    struct ether_hdr *eth = pkt->head_data<struct ether_hdr *>();
-    struct ipv4_hdr *ip = reinterpret_cast<struct ipv4_hdr *>(eth + 1);
-    size_t ip_bytes = (ip->version_ihl & 0xf) << 2;
-    struct udp_hdr *udp = reinterpret_cast<struct udp_hdr *>(
+    EthHeader *eth = pkt->head_data<EthHeader *>();
+    Ipv4Header *ip = reinterpret_cast<Ipv4Header *>(eth + 1);
+    size_t ip_bytes = (ip->header_length & 0xf) << 2;
+    UdpHeader *udp = reinterpret_cast<UdpHeader *>(
         reinterpret_cast<uint8_t *>(ip) + ip_bytes);
 
     // std::swap cannot be used for packed fields
-    uint32_t tmp_ip = ip->src_addr;
-    ip->src_addr = ip->dst_addr;
-    ip->dst_addr = tmp_ip;
+    bess::utils::be32_t tmp_ip = ip->src;
+    ip->src = ip->dst;
+    ip->dst = tmp_ip;
 
-    uint16_t tmp_port;
-    switch (ip->next_proto_id) {
+    bess::utils::be16_t tmp_port;
+    switch (ip->protocol) {
       case 0x06:  // TCP
       case 0x11:  // UDP
         // TCP and UDP share the same layout for ports
@@ -35,7 +37,7 @@ void IPSwap::ProcessBatch(bess::PacketBatch *batch) {
       case 0x01:  // ICMP
         break;
       default:
-        VLOG(1) << "Unknown next_proto_id: " << ip->next_proto_id;
+        VLOG(1) << "Unknown protocol: " << ip->protocol;
     }
   }
 

@@ -24,7 +24,6 @@ class ACL final : public Module {
     CIDRNetwork dst_ip;
     be16_t src_port;
     be16_t dst_port;
-    bool established;
     bool drop;
   };
 

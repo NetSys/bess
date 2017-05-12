@@ -1,9 +1,9 @@
 #include "vxlan_decap.h"
 
-#include <rte_config.h>
-#include <rte_ether.h>
-#include <rte_ip.h>
-#include <rte_udp.h>
+#include "../utils/ether.h"
+#include "../utils/ip.h"
+#include "../utils/udp.h"
+#include "../utils/vxlan.h"
 
 /* TODO: Currently it decapulates the entire Ethernet/IP/UDP/VXLAN headers.
  *       Modularize. */
@@ -26,23 +26,28 @@ CommandResponse VXLANDecap::Init(
 }
 
 void VXLANDecap::ProcessBatch(bess::PacketBatch *batch) {
+  using bess::utils::be32_t;
+  using bess::utils::EthHeader;
+  using bess::utils::Ipv4Header;
+  using bess::utils::UdpHeader;
+  using bess::utils::VxlanHeader;
+
   int cnt = batch->cnt();
 
   for (int i = 0; i < cnt; i++) {
     bess::Packet *pkt = batch->pkts()[i];
-    struct ether_hdr *ethh = pkt->head_data<struct ether_hdr *>();
-    struct ipv4_hdr *iph = reinterpret_cast<struct ipv4_hdr *>(ethh + 1);
-    int iph_bytes = (iph->version_ihl & 0xf) << 2;
-    struct udp_hdr *udph = reinterpret_cast<struct udp_hdr *>(
-        reinterpret_cast<uint8_t *>(iph) + iph_bytes);
-    struct vxlan_hdr *vh = reinterpret_cast<struct vxlan_hdr *>(udph + 1);
+    EthHeader *eth = pkt->head_data<EthHeader *>();
+    Ipv4Header *ip = reinterpret_cast<Ipv4Header *>(eth + 1);
+    size_t ip_bytes = ip->header_length << 2;
+    UdpHeader *udp = reinterpret_cast<UdpHeader *>(
+        reinterpret_cast<uint8_t *>(ip) + ip_bytes);
+    VxlanHeader *vh = reinterpret_cast<VxlanHeader *>(udp + 1);
 
-    set_attr<uint32_t>(this, ATTR_W_TUN_IP_SRC, pkt, iph->src_addr);
-    set_attr<uint32_t>(this, ATTR_W_TUN_IP_DST, pkt, iph->dst_addr);
-    set_attr<uint32_t>(this, ATTR_W_TUN_ID, pkt,
-                       rte_be_to_cpu_32(vh->vx_vni) >> 8);
+    set_attr<be32_t>(this, ATTR_W_TUN_IP_SRC, pkt, ip->src);
+    set_attr<be32_t>(this, ATTR_W_TUN_IP_DST, pkt, ip->dst);
+    set_attr<be32_t>(this, ATTR_W_TUN_ID, pkt, vh->vx_vni >> 8);
 
-    pkt->adj(sizeof(*ethh) + iph_bytes + sizeof(*udph) + sizeof(*vh));
+    pkt->adj(sizeof(*eth) + ip_bytes + sizeof(*udp) + sizeof(*vh));
   }
 
   RunNextModule(batch);

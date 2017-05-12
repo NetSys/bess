@@ -8,6 +8,9 @@
 namespace bess {
 namespace utils {
 
+// return false if string -> be32_t conversion failed (*addr is unmodified)
+bool ParseIpv4Address(const std::string &str, be32_t *addr);
+
 // An IPv4 header definition loosely based on the BSD version.
 struct[[gnu::packed]] Ipv4Header {
   enum Flag : uint16_t {
@@ -40,10 +43,10 @@ struct CIDRNetwork {
   CIDRNetwork() = delete;
 
   // Construct CIDRNetwork from a string like "192.168.0.1/24"
-  explicit CIDRNetwork(const std::string& cidr);
+  explicit CIDRNetwork(const std::string &cidr);
 
   // Returns true if ip is within the range of CIDRNetwork
-  bool Match(const be32_t& ip) const { return (addr & mask) == (ip & mask); }
+  bool Match(const be32_t &ip) const { return (addr & mask) == (ip & mask); }
 
   be32_t addr;
   be32_t mask;

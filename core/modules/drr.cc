@@ -1,17 +1,13 @@
 #include "drr.h"
 
-#include <glog/logging.h>
-#include <rte_ether.h>
-#include <rte_ip.h>
-#include <rte_udp.h>
-#include <time.h>
-
 #include <cmath>
 #include <fstream>
 #include <iostream>
 #include <string>
 
-#include "../utils/common.h"
+#include "../utils/ether.h"
+#include "../utils/ip.h"
+#include "../utils/udp.h"
 
 uint32_t RoundToPowerTwo(uint32_t v) {
   v--;
@@ -258,14 +254,18 @@ uint32_t DRR::GetNextPackets(bess::PacketBatch* batch, Flow* f, int* err) {
 }
 
 DRR::FlowId DRR::GetId(bess::Packet* pkt) {
-  struct ether_hdr* eth = pkt->head_data<struct ether_hdr*>();
-  struct ipv4_hdr* ip = reinterpret_cast<struct ipv4_hdr*>(eth + 1);
-  int ip_bytes = (ip->version_ihl & 0xf) << 2;
-  struct udp_hdr* udp = reinterpret_cast<struct udp_hdr*>(
+  using bess::utils::EthHeader;
+  using bess::utils::Ipv4Header;
+  using bess::utils::UdpHeader;
+
+  EthHeader* eth = pkt->head_data<EthHeader*>();
+  Ipv4Header* ip = reinterpret_cast<Ipv4Header*>(eth + 1);
+  size_t ip_bytes = ip->header_length << 2;
+  UdpHeader* udp = reinterpret_cast<UdpHeader*>(
       reinterpret_cast<uint8_t*>(ip) + ip_bytes);  // Assumes a l-4 header
   // TODO(joshua): handle packet fragmentation
-  FlowId id = {ip->src_addr, ip->dst_addr, udp->src_port, udp->dst_port,
-               ip->next_proto_id};
+  FlowId id = {ip->src.value(), ip->dst.value(), udp->src_port.value(),
+               udp->dst_port.value(), ip->protocol};
   return id;
 }
 

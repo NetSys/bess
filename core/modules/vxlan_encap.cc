@@ -1,13 +1,14 @@
 #include "vxlan_encap.h"
 
-#include <netinet/in.h>
-
-#include <rte_byteorder.h>
-#include <rte_config.h>
-#include <rte_ether.h>
 #include <rte_hash_crc.h>
-#include <rte_ip.h>
-#include <rte_udp.h>
+
+#include "../utils/ether.h"
+#include "../utils/ip.h"
+#include "../utils/udp.h"
+#include "../utils/vxlan.h"
+
+using bess::utils::be16_t;
+using bess::utils::be32_t;
 
 enum {
   ATTR_R_TUN_IP_SRC,
@@ -21,11 +22,12 @@ enum {
 CommandResponse VXLANEncap::Init(const bess::pb::VXLANEncapArg &arg) {
   auto dstport = arg.dstport();
   if (dstport == 0) {
-    dstport_ = rte_cpu_to_be_16(4789);
+    dstport_ = be16_t(kDefaultDstPort);
   } else {
-    if (dstport >= 65536)
+    if (dstport >= 65536) {
       return CommandFailure(EINVAL, "invalid 'dstport' field");
-    dstport_ = rte_cpu_to_be_16(dstport);
+    }
+    dstport_ = be16_t(dstport);
   }
 
   using AccessMode = bess::metadata::Attribute::AccessMode;
@@ -41,43 +43,46 @@ CommandResponse VXLANEncap::Init(const bess::pb::VXLANEncapArg &arg) {
 }
 
 void VXLANEncap::ProcessBatch(bess::PacketBatch *batch) {
-  uint16_t dstport = dstport_;
+  using bess::utils::EthHeader;
+  using bess::utils::Ipv4Header;
+  using bess::utils::UdpHeader;
+  using bess::utils::VxlanHeader;
+
   int cnt = batch->cnt();
 
   for (int i = 0; i < cnt; i++) {
     bess::Packet *pkt = batch->pkts()[i];
 
-    uint32_t ip_src = get_attr<uint32_t>(this, ATTR_R_TUN_IP_SRC, pkt);
-    uint32_t ip_dst = get_attr<uint32_t>(this, ATTR_R_TUN_IP_DST, pkt);
-    uint32_t vni = get_attr<uint32_t>(this, ATTR_R_TUN_ID, pkt);
+    be32_t ip_src = get_attr<be32_t>(this, ATTR_R_TUN_IP_SRC, pkt);
+    be32_t ip_dst = get_attr<be32_t>(this, ATTR_R_TUN_IP_DST, pkt);
+    be32_t vni = get_attr<be32_t>(this, ATTR_R_TUN_ID, pkt);
 
-    struct ether_hdr *inner_ethh;
-    struct udp_hdr *udph;
-    struct vxlan_hdr *vh;
+    EthHeader *inner_eth;
+    UdpHeader *udp;
+    VxlanHeader *vh;
 
-    int inner_frame_len = pkt->total_len() + sizeof(*udph);
+    size_t inner_frame_len = pkt->total_len() + sizeof(*udp);
 
-    inner_ethh = pkt->head_data<struct ether_hdr *>();
-    udph = static_cast<struct udp_hdr *>(
-        pkt->prepend(sizeof(*udph) + sizeof(*vh)));
-
-    if (unlikely(!udph)) {
+    inner_eth = pkt->head_data<EthHeader *>();
+    udp = static_cast<UdpHeader *>(pkt->prepend(sizeof(*udp) + sizeof(*vh)));
+    if (unlikely(!udp)) {
       continue;
     }
 
-    vh = reinterpret_cast<struct vxlan_hdr *>(udph + 1);
-    vh->vx_flags = rte_cpu_to_be_32(0x08000000);
-    vh->vx_vni = rte_cpu_to_be_32(vni << 8);
+    vh = reinterpret_cast<VxlanHeader *>(udp + 1);
+    vh->vx_flags = be32_t(0x08000000);
+    vh->vx_vni = vni << 8;
 
-    udph->src_port =
-        rte_hash_crc(inner_ethh, ETHER_ADDR_LEN * 2, UINT32_MAX) | 0x00f0;
-    udph->dst_port = dstport;
-    udph->dgram_len = rte_cpu_to_be_16(sizeof(*udph) + inner_frame_len);
-    udph->dgram_cksum = rte_cpu_to_be_16(0);
+    udp->src_port = be16_t(
+        rte_hash_crc(inner_eth, sizeof(EthHeader::Address) * 2, UINT32_MAX) |
+        0xf000);
+    udp->dst_port = dstport_;
+    udp->length = be16_t(sizeof(*udp) + inner_frame_len);
+    udp->checksum = 0;
 
-    set_attr<uint32_t>(this, ATTR_W_IP_SRC, pkt, ip_src);
-    set_attr<uint32_t>(this, ATTR_W_IP_DST, pkt, ip_dst);
-    set_attr<uint8_t>(this, ATTR_W_IP_PROTO, pkt, IPPROTO_UDP);
+    set_attr<be32_t>(this, ATTR_W_IP_SRC, pkt, ip_src);
+    set_attr<be32_t>(this, ATTR_W_IP_DST, pkt, ip_dst);
+    set_attr<uint8_t>(this, ATTR_W_IP_PROTO, pkt, 17);
   }
 
   RunNextModule(batch);

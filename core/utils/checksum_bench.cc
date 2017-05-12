@@ -4,6 +4,7 @@
 #include <rte_ip.h>
 
 #include <benchmark/benchmark.h>
+#include <glog/logging.h>
 
 #include "ether.h"
 #include "random.h"

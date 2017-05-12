@@ -1,10 +1,8 @@
 #include "acl.h"
 
-#include <rte_ether.h>
-#include <rte_ip.h>
-#include <rte_udp.h>
-
-#include <string>
+#include "../utils/ether.h"
+#include "../utils/ip.h"
+#include "../utils/udp.h"
 
 const Commands ACL::cmds = {
     {"add", "ACLArg", MODULE_CMD_FUNC(&ACL::CommandAdd), 0},
@@ -17,7 +15,6 @@ CommandResponse ACL::Init(const bess::pb::ACLArg &arg) {
         .dst_ip = CIDRNetwork(rule.dst_ip()),
         .src_port = be16_t(static_cast<uint16_t>(rule.src_port())),
         .dst_port = be16_t(static_cast<uint16_t>(rule.dst_port())),
-        .established = rule.established(),
         .drop = rule.drop()};
     rules_.push_back(new_rule);
   }
@@ -35,6 +32,10 @@ CommandResponse ACL::CommandClear(const bess::pb::EmptyArg &) {
 }
 
 void ACL::ProcessBatch(bess::PacketBatch *batch) {
+  using bess::utils::EthHeader;
+  using bess::utils::Ipv4Header;
+  using bess::utils::UdpHeader;
+
   gate_idx_t out_gates[bess::PacketBatch::kMaxBurst];
   gate_idx_t incoming_gate = get_igate();
 
@@ -42,21 +43,16 @@ void ACL::ProcessBatch(bess::PacketBatch *batch) {
   for (int i = 0; i < cnt; i++) {
     bess::Packet *pkt = batch->pkts()[i];
 
-    struct ether_hdr *eth = pkt->head_data<struct ether_hdr *>();
-    struct ipv4_hdr *ip = reinterpret_cast<struct ipv4_hdr *>(eth + 1);
-    int ip_bytes = (ip->version_ihl & 0xf) << 2;
-    struct udp_hdr *udp = reinterpret_cast<struct udp_hdr *>(
+    EthHeader *eth = pkt->head_data<EthHeader *>();
+    Ipv4Header *ip = reinterpret_cast<Ipv4Header *>(eth + 1);
+    size_t ip_bytes = ip->header_length << 2;
+    UdpHeader *udp = reinterpret_cast<UdpHeader *>(
         reinterpret_cast<uint8_t *>(ip) + ip_bytes);
-
-    be32_t src_ip(be32_t::swap(ip->src_addr));
-    be32_t dst_ip(be32_t::swap(ip->dst_addr));
-    be16_t src_port(be32_t::swap(udp->src_port));
-    be16_t dst_port(be32_t::swap(udp->dst_port));
 
     out_gates[i] = DROP_GATE;  // By default, drop unmatched packets
 
     for (const auto &rule : rules_) {
-      if (rule.Match(src_ip, dst_ip, src_port, dst_port)) {
+      if (rule.Match(ip->src, ip->dst, udp->src_port, udp->dst_port)) {
         if (!rule.drop) {
           out_gates[i] = incoming_gate;
         }

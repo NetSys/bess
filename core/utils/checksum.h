@@ -5,9 +5,6 @@
 #define BESS_UTILS_CHECKSUM_H_
 
 #include <x86intrin.h>
-#include <arpa/inet.h>
-
-#include <glog/logging.h>
 
 #include "ip.h"
 #include "simd.h"
@@ -80,8 +77,7 @@ static inline uint32_t CalculateSum(const void *buf, size_t len) {
   // Repeat 64-bit one's complement sum (at sum64) including carrys
   // 8 additions in a loop
   while (len >= sizeof(uint64_t) * 8) {
-    asm(
-        "addq %[u0], %[sum] \n\t"
+    asm("addq %[u0], %[sum] \n\t"
         "adcq %[u1], %[sum] \n\t"
         "adcq %[u2], %[sum] \n\t"
         "adcq %[u3], %[sum] \n\t"
@@ -101,8 +97,7 @@ static inline uint32_t CalculateSum(const void *buf, size_t len) {
   while (len >= sizeof(uint64_t) * 2) {
     // Repeat 64-bit one's complement sum (at sum64) including carrys
     // 2 additions in a loop
-    asm(
-        "addq %[u0], %[sum] \n\t"
+    asm("addq %[u0], %[sum] \n\t"
         "adcq %[u1], %[sum] \n\t"
         "adcq $0, %[sum]"
         : [sum] "+r"(sum64)
@@ -188,8 +183,7 @@ static inline bool VerifyIpv4NoOptChecksum(const Ipv4Header &iph) {
   // Calculate internet checksum, the optimized way is
   // 1. get 32-bit one's complement sum including carrys
   // 2. reduce to 16-bit unsigned integer
-  asm(
-      "addl %[u1], %[sum]   \n\t"
+  asm("addl %[u1], %[sum]   \n\t"
       "adcl %[u2], %[sum]   \n\t"
       "adcl %[u3], %[sum]   \n\t"
       "adcl %[u4], %[sum]   \n\t"
@@ -212,8 +206,7 @@ static inline uint16_t CalculateIpv4NoOptChecksum(const Ipv4Header &iph) {
   // 1. get 32-bit one's complement sum including carrys
   // 2. reduce to 16-bit unsigned integers
   // 3. negate
-  asm(
-      "addl %[u1], %[sum]    \n\t"
+  asm("addl %[u1], %[sum]    \n\t"
       "adcl %[u2], %[sum]    \n\t"
       "adcl %[u3], %[sum]    \n\t"
       "adcl %[u4], %[sum]    \n\t"
@@ -234,12 +227,11 @@ static inline bool VerifyIpv4TcpChecksum(const TcpHeader &tcph, be32_t src_ip,
   const uint32_t *buf32 = reinterpret_cast<const uint32_t *>(&tcph);
 
   // tcp options and data
-  uint32_t sum = CalculateSum(buf32 + 5, tcp_len - 20);
-  uint32_t len = static_cast<uint32_t>(htons(tcp_len));
+  uint32_t sum = CalculateSum(buf32 + 5, tcp_len - sizeof(tcph));
+  uint32_t len = static_cast<uint32_t>(be16_t::swap(tcp_len));
 
   // Calculate the checksum of TCP pseudo header
-  asm(
-      "addl %[u0], %[sum]      \n\t"
+  asm("addl %[u0], %[sum]      \n\t"
       "adcl %[u1], %[sum]      \n\t"
       "adcl %[u2], %[sum]      \n\t"
       "adcl %[u3], %[sum]      \n\t"
@@ -275,12 +267,11 @@ static inline uint16_t CalculateIpv4TcpChecksum(const TcpHeader &tcph,
                                                 uint16_t tcp_len) {
   const uint32_t *buf32 = reinterpret_cast<const uint32_t *>(&tcph);
   // tcp options and data
-  uint32_t sum = CalculateSum(buf32 + 5, tcp_len - 20);
-  uint32_t len = static_cast<uint32_t>(htons(tcp_len));
+  uint32_t sum = CalculateSum(buf32 + 5, tcp_len - sizeof(tcph));
+  uint32_t len = static_cast<uint32_t>(be16_t::swap(tcp_len));
 
   // Calculate the checksum of TCP pseudo header
-  asm(
-      "addl %[u0], %[sum]      \n\t"
+  asm("addl %[u0], %[sum]      \n\t"
       "adcl %[u1], %[sum]      \n\t"
       "adcl %[u2], %[sum]      \n\t"
       "adcl %[u3], %[sum]      \n\t"

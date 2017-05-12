@@ -1,9 +1,8 @@
 #include "url_filter.h"
 
-#include <rte_ip.h>
-
 #include <algorithm>
 
+#include "../utils/checksum.h"
 #include "../utils/ether.h"
 #include "../utils/http_parser.h"
 #include "../utils/ip.h"
@@ -92,9 +91,9 @@ inline static bess::Packet *Generate403Packet(const EthHeader::Address &src_eth,
   tcp->ack_num = ack;
   tcp->flags = 0x10;  // ACK
 
-  tcp->checksum =
-      rte_ipv4_udptcp_cksum(reinterpret_cast<const ipv4_hdr *>(ip), tcp);
-  ip->checksum = rte_ipv4_cksum(reinterpret_cast<const ipv4_hdr *>(ip));
+  tcp->checksum = bess::utils::CalculateIpv4TcpChecksum(*tcp, src_ip, dst_ip,
+                                                        sizeof(*tcp) + len);
+  ip->checksum = bess::utils::CalculateIpv4NoOptChecksum(*ip);
 
   return pkt;
 }
@@ -125,9 +124,10 @@ inline static bess::Packet *GenerateResetPacket(
   tcp->dst_port = dst_port;
   tcp->seq_num = seq;
   tcp->ack_num = ack;
+
   tcp->checksum =
-      rte_ipv4_udptcp_cksum(reinterpret_cast<const ipv4_hdr *>(ip), tcp);
-  ip->checksum = rte_ipv4_cksum(reinterpret_cast<const ipv4_hdr *>(ip));
+      bess::utils::CalculateIpv4TcpChecksum(*tcp, src_ip, dst_ip, sizeof(*tcp));
+  ip->checksum = bess::utils::CalculateIpv4NoOptChecksum(*ip);
 
   return pkt;
 }
@@ -191,7 +191,7 @@ void UrlFilter::ProcessBatch(bess::PacketBatch *batch) {
       continue;
     }
 
-    int ip_bytes = (ip->header_length & 0xf) << 2;
+    int ip_bytes = ip->header_length << 2;
     struct TcpHeader *tcp = reinterpret_cast<struct TcpHeader *>(
         reinterpret_cast<uint8_t *>(ip) + ip_bytes);
 

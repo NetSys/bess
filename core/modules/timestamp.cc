@@ -1,10 +1,5 @@
 #include "timestamp.h"
 
-#include <rte_config.h>
-#include <rte_ether.h>
-#include <rte_ip.h>
-#include <rte_udp.h>
-
 #include "../utils/ether.h"
 #include "../utils/ip.h"
 #include "../utils/time.h"
@@ -40,8 +35,7 @@ CommandResponse Timestamp::Init(const bess::pb::TimestampArg &arg) {
   if (arg.offset()) {
     offset_ = arg.offset();
   } else {
-    offset_ = sizeof(struct EthHeader) + sizeof(struct Ipv4Header) +
-              sizeof(struct UdpHeader);
+    offset_ = sizeof(EthHeader) + sizeof(Ipv4Header) + sizeof(UdpHeader);
   }
   return CommandSuccess();
 }

@@ -1,15 +1,11 @@
-#include <rte_config.h>
-
 #include "ip_lookup.h"
 
-#include <arpa/inet.h>
-
-#include <rte_byteorder.h>
 #include <rte_config.h>
 #include <rte_errno.h>
-#include <rte_ether.h>
-#include <rte_ip.h>
 #include <rte_lpm.h>
+
+#include "../utils/ether.h"
+#include "../utils/ip.h"
 
 #define VECTOR_OPTIMIZATION 1
 
@@ -46,6 +42,9 @@ void IPLookup::DeInit() {
 }
 
 void IPLookup::ProcessBatch(bess::PacketBatch *batch) {
+  using bess::utils::EthHeader;
+  using bess::utils::Ipv4Header;
+
   gate_idx_t out_gates[bess::PacketBatch::kMaxBurst];
   gate_idx_t default_gate = default_gate_;
 
@@ -58,29 +57,29 @@ void IPLookup::ProcessBatch(bess::PacketBatch *batch) {
 
   /* 4 at a time */
   for (i = 0; i + 3 < cnt; i += 4) {
-    struct ether_hdr *eth;
-    struct ipv4_hdr *ip;
+    EthHeader *eth;
+    Ipv4Header *ip;
 
     uint32_t a0, a1, a2, a3;
     uint32_t next_hops[4];
 
     __m128i ip_addr;
 
-    eth = batch->pkts()[i]->head_data<struct ether_hdr *>();
-    ip = (struct ipv4_hdr *)(eth + 1);
-    a0 = ip->dst_addr;
+    eth = batch->pkts()[i]->head_data<EthHeader *>();
+    ip = (Ipv4Header *)(eth + 1);
+    a0 = ip->dst.raw_value();
 
-    eth = batch->pkts()[i + 1]->head_data<struct ether_hdr *>();
-    ip = (struct ipv4_hdr *)(eth + 1);
-    a1 = ip->dst_addr;
+    eth = batch->pkts()[i + 1]->head_data<EthHeader *>();
+    ip = (Ipv4Header *)(eth + 1);
+    a1 = ip->dst.raw_value();
 
-    eth = batch->pkts()[i + 2]->head_data<struct ether_hdr *>();
-    ip = (struct ipv4_hdr *)(eth + 1);
-    a2 = ip->dst_addr;
+    eth = batch->pkts()[i + 2]->head_data<EthHeader *>();
+    ip = (Ipv4Header *)(eth + 1);
+    a2 = ip->dst.raw_value();
 
-    eth = batch->pkts()[i + 3]->head_data<struct ether_hdr *>();
-    ip = (struct ipv4_hdr *)(eth + 1);
-    a3 = ip->dst_addr;
+    eth = batch->pkts()[i + 3]->head_data<EthHeader *>();
+    ip = (Ipv4Header *)(eth + 1);
+    a3 = ip->dst.raw_value();
 
     ip_addr = _mm_set_epi32(a3, a2, a1, a0);
     ip_addr = _mm_shuffle_epi8(ip_addr, bswap_mask);
@@ -96,16 +95,16 @@ void IPLookup::ProcessBatch(bess::PacketBatch *batch) {
 
   /* process the rest one by one */
   for (; i < cnt; i++) {
-    struct ether_hdr *eth;
-    struct ipv4_hdr *ip;
+    EthHeader *eth;
+    Ipv4Header *ip;
 
     uint32_t next_hop;
     int ret;
 
-    eth = batch->pkts()[i]->head_data<struct ether_hdr *>();
-    ip = (struct ipv4_hdr *)(eth + 1);
+    eth = batch->pkts()[i]->head_data<EthHeader *>();
+    ip = (Ipv4Header *)(eth + 1);
 
-    ret = rte_lpm_lookup(lpm_, rte_be_to_cpu_32(ip->dst_addr), &next_hop);
+    ret = rte_lpm_lookup(lpm_, ip->dst.raw_value(), &next_hop);
 
     if (ret == 0) {
       out_gates[i] = next_hop;
@@ -119,35 +118,32 @@ void IPLookup::ProcessBatch(bess::PacketBatch *batch) {
 
 CommandResponse IPLookup::CommandAdd(
     const bess::pb::IPLookupCommandAddArg &arg) {
-  struct in_addr ip_addr_be;
-  uint32_t ip_addr; /* in cpu order */
-  uint32_t netmask;
-  int ret;
+  using bess::utils::be32_t;
+
+  be32_t net_addr;
+  be32_t net_mask;
   gate_idx_t gate = arg.gate();
 
   if (!arg.prefix().length()) {
     return CommandFailure(EINVAL, "prefix' is missing");
   }
-
-  const char *prefix = arg.prefix().c_str();
-  uint64_t prefix_len = arg.prefix_len();
-
-  ret = inet_aton(prefix, &ip_addr_be);
-  if (!ret) {
-    return CommandFailure(EINVAL, "Invalid IP prefix: %s", prefix);
+  if (!bess::utils::ParseIpv4Address(arg.prefix(), &net_addr)) {
+    return CommandFailure(EINVAL, "Invalid IP prefix: %s",
+                          arg.prefix().c_str());
   }
 
+  uint64_t prefix_len = arg.prefix_len();
   if (prefix_len > 32) {
     return CommandFailure(EINVAL, "Invalid prefix length: %" PRIu64,
                           prefix_len);
   }
 
-  ip_addr = rte_be_to_cpu_32(ip_addr_be.s_addr);
-  netmask = ~((1ull << (32 - prefix_len)) - 1);
+  net_mask = be32_t(~((1ull << (32 - prefix_len)) - 1));
 
-  if (ip_addr & ~netmask) {
+  if ((net_addr & ~net_mask).value()) {
     return CommandFailure(EINVAL, "Invalid IP prefix %s/%" PRIu64 " %x %x",
-                          prefix, prefix_len, ip_addr, netmask);
+                          arg.prefix().c_str(), prefix_len, net_addr.value(),
+                          net_mask.value());
   }
 
   if (!is_valid_gate(gate)) {
@@ -157,7 +153,7 @@ CommandResponse IPLookup::CommandAdd(
   if (prefix_len == 0) {
     default_gate_ = gate;
   } else {
-    ret = rte_lpm_add(lpm_, ip_addr, prefix_len, gate);
+    int ret = rte_lpm_add(lpm_, net_addr.value(), prefix_len, gate);
     if (ret) {
       return CommandFailure(-ret, "rpm_lpm_add() failed");
     }
