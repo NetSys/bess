@@ -88,7 +88,8 @@ class alignas(64) Packet {
 
   template <typename T = void *>
   T head_data(uint16_t offset = 0) {
-    return const_cast<T>(static_cast<const Packet &>(*this).head_data<T>(offset));
+    return const_cast<T>(
+        static_cast<const Packet &>(*this).head_data<T>(offset));
   }
 
   template <typename T = char *>
@@ -97,7 +98,7 @@ class alignas(64) Packet {
   }
 
   template <typename T = char *>
-  T metadata() {
+  T metadata() const {
     return reinterpret_cast<T>(metadata_);
   }
 
@@ -213,9 +214,7 @@ class alignas(64) Packet {
     return offset + offsetof(Packet, metadata_) - offsetof(Packet, headroom_);
   }
 
-  static Packet *Alloc() {
-    return __packet_alloc();
-  }
+  static Packet *Alloc() { return __packet_alloc(); }
 
   // cnt must be [0, PacketBatch::kMaxBurst]
   static inline size_t Alloc(Packet **pkts, size_t cnt, uint16_t len);

@@ -505,15 +505,15 @@ static inline int is_active_gate(const std::vector<T *> &gates,
 // Unsafe, but faster version. for offset use Attribute_offset().
 template <typename T>
 inline T *_ptr_attr_with_offset(bess::metadata::mt_offset_t offset,
-                                bess::Packet *pkt) {
+                                const bess::Packet *pkt) {
   promise(offset >= 0);
-  uintptr_t addr = reinterpret_cast<uintptr_t>(pkt->metadata()) + offset;
+  uintptr_t addr = pkt->metadata<uintptr_t>() + offset;
   return reinterpret_cast<T *>(addr);
 }
 
 template <typename T>
 inline T _get_attr_with_offset(bess::metadata::mt_offset_t offset,
-                               bess::Packet *pkt) {
+                               const bess::Packet *pkt) {
   return *_ptr_attr_with_offset<T>(offset, pkt);
 }
 
@@ -534,7 +534,7 @@ inline T *ptr_attr_with_offset(bess::metadata::mt_offset_t offset,
 
 template <typename T>
 inline T get_attr_with_offset(bess::metadata::mt_offset_t offset,
-                              bess::Packet *pkt) {
+                              const bess::Packet *pkt) {
   return bess::metadata::IsValidOffset(offset)
              ? _get_attr_with_offset<T>(offset, pkt)
              : T();
@@ -556,7 +556,7 @@ inline T *ptr_attr(Module *m, int attr_id, bess::Packet *pkt) {
 }
 
 template <typename T>
-inline T get_attr(Module *m, int attr_id, bess::Packet *pkt) {
+inline T get_attr(Module *m, int attr_id, const bess::Packet *pkt) {
   return get_attr_with_offset<T>(m->attr_offset(attr_id), pkt);
 }
 
