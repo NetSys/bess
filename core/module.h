@@ -570,30 +570,6 @@ inline void set_attr(Module *m, int attr_id, bess::Packet *pkt, T val) {
  */
 void propagate_active_worker();
 
-// Define some common versions of the above functions
-#define INSTANTIATE_MT_FOR_TYPE(type)                                        \
-  template type *_ptr_attr_with_offset(bess::metadata::mt_offset_t offset,   \
-                                       bess::Packet *pkt);                   \
-  template type _get_attr_with_offset(bess::metadata::mt_offset_t offset,    \
-                                      bess::Packet *pkt);                    \
-  template void _set_attr_with_offset(bess::metadata::mt_offset_t offset,    \
-                                      bess::Packet *pkt, type val);          \
-  template type *ptr_attr_with_offset(bess::metadata::mt_offset_t offset,    \
-                                      bess::Packet *pkt);                    \
-  template type get_attr_with_offset(bess::metadata::mt_offset_t offset,     \
-                                     bess::Packet *pkt);                     \
-  template void set_attr_with_offset(bess::metadata::mt_offset_t offset,     \
-                                     bess::Packet *pkt, type val);           \
-  template type *ptr_attr<type>(Module * m, int attr_id, bess::Packet *pkt); \
-  template type get_attr<type>(Module * m, int attr_id, bess::Packet *pkt);  \
-  template void set_attr<>(Module * m, int attr_id, bess::Packet *pkt,       \
-                           type val);
-
-INSTANTIATE_MT_FOR_TYPE(uint8_t)
-INSTANTIATE_MT_FOR_TYPE(uint16_t)
-INSTANTIATE_MT_FOR_TYPE(uint32_t)
-INSTANTIATE_MT_FOR_TYPE(uint64_t)
-
 #define DEF_MODULE(_MOD, _NAME_TEMPLATE, _HELP)                          \
   class _MOD##_class {                                                   \
    public:                                                               \
