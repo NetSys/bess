@@ -3,6 +3,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <iomanip>
 #include <iostream>
 
 namespace bess {
@@ -104,8 +105,8 @@ class[[gnu::packed]] BigEndian final : public EndianBase<T> {
   constexpr bool operator!=(const BigEndian &o) const { return !(*this == o); }
 
   friend std::ostream &operator<<(std::ostream &os, const BigEndian &be) {
-    os << std::hex << std::showbase << be.value() << std::noshowbase
-       << std::dec;
+    os << "0x" << std::hex << std::setw(sizeof(be) * 2) << std::setfill('0')
+       << be.value() << std::setfill(' ') << std::dec;
     return os;
   }
 
