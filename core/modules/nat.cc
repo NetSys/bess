@@ -73,6 +73,7 @@ static inline Flow parse_flow(struct Ipv4Header *ip, void *l4) {
         case 15:
         case 16:
           flow.icmp_ident = icmp->ident;
+          flow.dst_port = be16_t(0);
           break;
         default:
           VLOG(1) << "Unknown icmp_type: " << icmp->type;
