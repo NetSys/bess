@@ -8,7 +8,7 @@
 
 using bess::utils::be16_t;
 using bess::utils::be32_t;
-using bess::utils::EthHeader;
+using bess::utils::Ethernet;
 
 const Commands VLANPush::cmds = {
     {"set_tci", "VLANPushArg", MODULE_CMD_FUNC(&VLANPush::CommandSetTci), 0},
@@ -20,8 +20,8 @@ CommandResponse VLANPush::Init(const bess::pb::VLANPushArg &arg) {
 
 CommandResponse VLANPush::CommandSetTci(const bess::pb::VLANPushArg &arg) {
   uint16_t tci = arg.tci();
-  vlan_tag_ = be32_t((EthHeader::Type::kVlan << 16) | tci);
-  qinq_tag_ = be32_t((EthHeader::Type::kQinQ << 16) | tci);
+  vlan_tag_ = be32_t((Ethernet::Type::kVlan << 16) | tci);
+  qinq_tag_ = be32_t((Ethernet::Type::kQinQ << 16) | tci);
   return CommandSuccess();
 }
 
@@ -44,7 +44,7 @@ void VLANPush::ProcessBatch(bess::PacketBatch *batch) {
       ethh = _mm_loadu_si128(reinterpret_cast<__m128i *>(new_head + 4));
       be16_t tpid(be16_t::swap(_mm_extract_epi16(ethh, 6)));
 
-      ethh = _mm_insert_epi32(ethh, (tpid.value() == EthHeader::Type::kVlan)
+      ethh = _mm_insert_epi32(ethh, (tpid.value() == Ethernet::Type::kVlan)
                                         ? qinq_tag.raw_value()
                                         : vlan_tag.raw_value(),
                               3);
@@ -55,7 +55,7 @@ void VLANPush::ProcessBatch(bess::PacketBatch *batch) {
       memmove(new_head, new_head + 4, 12);
 
       *(be32_t *)(new_head + 12) =
-          (tpid.value() == EthHeader::Type::kVlan) ? qinq_tag : vlan_tag;
+          (tpid.value() == Ethernet::Type::kVlan) ? qinq_tag : vlan_tag;
 #endif
     }
   }

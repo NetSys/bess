@@ -32,7 +32,7 @@ CommandResponse ACL::CommandClear(const bess::pb::EmptyArg &) {
 }
 
 void ACL::ProcessBatch(bess::PacketBatch *batch) {
-  using bess::utils::EthHeader;
+  using bess::utils::Ethernet;
   using bess::utils::Ipv4;
   using bess::utils::UdpHeader;
 
@@ -43,7 +43,7 @@ void ACL::ProcessBatch(bess::PacketBatch *batch) {
   for (int i = 0; i < cnt; i++) {
     bess::Packet *pkt = batch->pkts()[i];
 
-    EthHeader *eth = pkt->head_data<EthHeader *>();
+    Ethernet *eth = pkt->head_data<Ethernet *>();
     Ipv4 *ip = reinterpret_cast<Ipv4 *>(eth + 1);
     size_t ip_bytes = ip->header_length << 2;
     UdpHeader *udp = reinterpret_cast<UdpHeader *>(

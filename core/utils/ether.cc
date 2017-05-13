@@ -11,7 +11,7 @@
 namespace bess {
 namespace utils {
 
-using Address = EthHeader::Address;
+using Address = Ethernet::Address;
 
 Address::Address(const std::string &str) {
   if (!FromString(str)) {

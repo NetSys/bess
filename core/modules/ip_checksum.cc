@@ -5,13 +5,13 @@
 #include "../utils/ip.h"
 
 void IPChecksum::ProcessBatch(bess::PacketBatch *batch) {
-  using bess::utils::EthHeader;
+  using bess::utils::Ethernet;
   using bess::utils::Ipv4;
 
   int cnt = batch->cnt();
 
   for (int i = 0; i < cnt; i++) {
-    EthHeader *eth = batch->pkts()[i]->head_data<EthHeader *>();
+    Ethernet *eth = batch->pkts()[i]->head_data<Ethernet *>();
     Ipv4 *ip = reinterpret_cast<Ipv4 *>(eth + 1);
     ip->checksum = CalculateIpv4NoOptChecksum(*ip);
   }

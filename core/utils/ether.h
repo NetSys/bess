@@ -10,7 +10,7 @@
 namespace bess {
 namespace utils {
 
-struct[[gnu::packed]] EthHeader {
+struct[[gnu::packed]] Ethernet {
   struct[[gnu::packed]] Address {
     Address() = default;
     Address(const std::string &str);
@@ -61,9 +61,9 @@ struct[[gnu::packed]] EthHeader {
   be16_t ether_type;
 };
 
-static_assert(std::is_pod<EthHeader>::value, "not a POD type");
-static_assert(std::is_pod<EthHeader::Address>::value, "not a POD type");
-static_assert(sizeof(EthHeader) == 14, "struct EthHeader is incorrect");
+static_assert(std::is_pod<Ethernet>::value, "not a POD type");
+static_assert(std::is_pod<Ethernet::Address>::value, "not a POD type");
+static_assert(sizeof(Ethernet) == 14, "struct Ethernet is incorrect");
 
 }  // namespace utils
 }  // namespace bess

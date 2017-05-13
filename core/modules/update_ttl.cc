@@ -4,7 +4,7 @@
 #include "../utils/ether.h"
 #include "../utils/ip.h"
 
-using bess::utils::EthHeader;
+using bess::utils::Ethernet;
 using bess::utils::Ipv4;
 
 void UpdateTTL::ProcessBatch(bess::PacketBatch *batch) {
@@ -18,7 +18,7 @@ void UpdateTTL::ProcessBatch(bess::PacketBatch *batch) {
   for (int i = 0; i < cnt; i++) {
     bess::Packet *pkt = batch->pkts()[i];
 
-    struct EthHeader *eth = pkt->head_data<struct EthHeader *>();
+    struct Ethernet *eth = pkt->head_data<struct Ethernet *>();
     struct Ipv4 *ip = reinterpret_cast<struct Ipv4 *>(eth + 1);
 
     if (ip->ttl > 1) {

@@ -11,7 +11,7 @@
 #include "../utils/tcp.h"
 #include "../utils/time.h"
 
-using bess::utils::EthHeader;
+using bess::utils::Ethernet;
 using bess::utils::Ipv4;
 using bess::utils::TcpHeader;
 using bess::utils::be16_t;
@@ -384,9 +384,9 @@ CommandResponse FlowGen::UpdateBaseAddresses() {
     return CommandFailure(EINVAL, "must specify 'template'");
   }
 
-  Ipv4 *ipheader = reinterpret_cast<Ipv4 *>(p + sizeof(EthHeader));
+  Ipv4 *ipheader = reinterpret_cast<Ipv4 *>(p + sizeof(Ethernet));
   TcpHeader *tcpheader =
-      reinterpret_cast<TcpHeader *>(p + sizeof(EthHeader) + sizeof(Ipv4));
+      reinterpret_cast<TcpHeader *>(p + sizeof(Ethernet) + sizeof(Ipv4));
 
   ip_src_base_ = ipheader->src.value();
   ip_dst_base_ = ipheader->dst.value();
@@ -406,7 +406,7 @@ bess::Packet *FlowGen::FillPacket(struct flow *f) {
 
   char *p = pkt->buffer<char *>() + SNBUF_HEADROOM;
 
-  EthHeader *eth = reinterpret_cast<EthHeader *>(p);
+  Ethernet *eth = reinterpret_cast<Ethernet *>(p);
   Ipv4 *ip = reinterpret_cast<Ipv4 *>(eth + 1);
   TcpHeader *tcp = reinterpret_cast<TcpHeader *>(ip + 1);
 

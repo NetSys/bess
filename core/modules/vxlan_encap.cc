@@ -47,7 +47,7 @@ CommandResponse VXLANEncap::Init(const bess::pb::VXLANEncapArg &arg) {
 }
 
 void VXLANEncap::ProcessBatch(bess::PacketBatch *batch) {
-  using bess::utils::EthHeader;
+  using bess::utils::Ethernet;
   using bess::utils::Ipv4;
   using bess::utils::UdpHeader;
   using bess::utils::VxlanHeader;
@@ -61,13 +61,13 @@ void VXLANEncap::ProcessBatch(bess::PacketBatch *batch) {
     be32_t ip_dst = get_attr<be32_t>(this, ATTR_R_TUN_IP_DST, pkt);
     be32_t vni = get_attr<be32_t>(this, ATTR_R_TUN_ID, pkt);
 
-    EthHeader *inner_eth;
+    Ethernet *inner_eth;
     UdpHeader *udp;
     VxlanHeader *vh;
 
     size_t inner_frame_len = pkt->total_len() + sizeof(*udp);
 
-    inner_eth = pkt->head_data<EthHeader *>();
+    inner_eth = pkt->head_data<Ethernet *>();
     udp = static_cast<UdpHeader *>(pkt->prepend(sizeof(*udp) + sizeof(*vh)));
     if (unlikely(!udp)) {
       continue;
@@ -78,7 +78,7 @@ void VXLANEncap::ProcessBatch(bess::PacketBatch *batch) {
     vh->vx_vni = vni << 8;
 
     udp->src_port = be16_t(
-        rte_hash_crc(inner_eth, sizeof(EthHeader::Address) * 2, UINT32_MAX) |
+        rte_hash_crc(inner_eth, sizeof(Ethernet::Address) * 2, UINT32_MAX) |
         0xf000);
     udp->dst_port = dstport_;
     udp->length = be16_t(sizeof(*udp) + inner_frame_len);

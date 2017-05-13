@@ -4,7 +4,7 @@
 #include "../utils/ether.h"
 #include "../utils/ip.h"
 
-using bess::utils::EthHeader;
+using bess::utils::Ethernet;
 using bess::utils::Ipv4;
 using bess::utils::be16_t;
 using bess::utils::be32_t;
@@ -63,7 +63,7 @@ void IPEncap::ProcessBatch(bess::PacketBatch *batch) {
 
     set_attr<be32_t>(this, ATTR_W_IP_NEXTHOP, pkt, ip_dst);
     set_attr<be16_t>(this, ATTR_W_ETHER_TYPE, pkt,
-                     be16_t(EthHeader::Type::kIpv4));
+                     be16_t(Ethernet::Type::kIpv4));
   }
 
   RunNextModule(batch);

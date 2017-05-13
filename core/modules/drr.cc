@@ -254,11 +254,11 @@ uint32_t DRR::GetNextPackets(bess::PacketBatch* batch, Flow* f, int* err) {
 }
 
 DRR::FlowId DRR::GetId(bess::Packet* pkt) {
-  using bess::utils::EthHeader;
+  using bess::utils::Ethernet;
   using bess::utils::Ipv4;
   using bess::utils::UdpHeader;
 
-  EthHeader* eth = pkt->head_data<EthHeader*>();
+  Ethernet* eth = pkt->head_data<Ethernet*>();
   Ipv4* ip = reinterpret_cast<Ipv4*>(eth + 1);
   size_t ip_bytes = ip->header_length << 2;
   UdpHeader* udp = reinterpret_cast<UdpHeader*>(

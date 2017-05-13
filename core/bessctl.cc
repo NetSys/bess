@@ -249,7 +249,7 @@ static ::Port* create_port(const std::string& name, const PortBuilder& driver,
     num_out_q = 1;
   }
 
-  bess::utils::EthHeader::Address mac_addr;
+  bess::utils::Ethernet::Address mac_addr;
 
   if (mac_addr_str.length() > 0) {
     if (!mac_addr.FromString(mac_addr_str)) {
@@ -927,7 +927,7 @@ class BESSControlImpl final : public BESSControl::Service {
       port->set_name(p->name());
       port->set_driver(p->port_builder()->class_name());
 
-      bess::utils::EthHeader::Address mac_addr;
+      bess::utils::Ethernet::Address mac_addr;
       bess::utils::Copy(mac_addr.bytes, p->mac_addr, ETH_ALEN);
       port->set_mac_addr(mac_addr.ToString());
     }
@@ -967,7 +967,7 @@ class BESSControlImpl final : public BESSControl::Service {
 
     response->set_name(port->name());
 
-    bess::utils::EthHeader::Address mac_addr;
+    bess::utils::Ethernet::Address mac_addr;
     bess::utils::Copy(mac_addr.bytes, port->mac_addr, ETH_ALEN);
     response->set_mac_addr(mac_addr.ToString());
 

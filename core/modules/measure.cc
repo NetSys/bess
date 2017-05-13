@@ -8,7 +8,7 @@
 #include "../utils/udp.h"
 #include "timestamp.h"
 
-using bess::utils::EthHeader;
+using bess::utils::Ethernet;
 using bess::utils::Ipv4;
 using bess::utils::UdpHeader;
 
@@ -37,7 +37,7 @@ CommandResponse Measure::Init(const bess::pb::MeasureArg &arg) {
   if (arg.offset()) {
     offset_ = arg.offset();
   } else {
-    offset_ = sizeof(struct EthHeader) + sizeof(struct Ipv4) +
+    offset_ = sizeof(struct Ethernet) + sizeof(struct Ipv4) +
               sizeof(struct UdpHeader);
   }
 

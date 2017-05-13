@@ -204,7 +204,7 @@ BENCHMARK_DEFINE_F(ChecksumFixture, BmIncrementalUpdate16)
   void *pkt = get_buffer(60);  // min ethernet pkt size except FCS
 
   bess::utils::Ipv4 *ip = reinterpret_cast<bess::utils::Ipv4 *>(
-      reinterpret_cast<uint8_t *>(pkt) + sizeof(EthHeader));
+      reinterpret_cast<uint8_t *>(pkt) + sizeof(Ethernet));
   bess::utils::TcpHeader *tcp =
       reinterpret_cast<bess::utils::TcpHeader *>(ip + 1);
 
@@ -235,7 +235,7 @@ BENCHMARK_DEFINE_F(ChecksumFixture, BmIncrementalUpdate32)
   void *pkt = get_buffer(60);  // min ethernet pkt size except FCS
 
   bess::utils::Ipv4 *ip = reinterpret_cast<bess::utils::Ipv4 *>(
-      reinterpret_cast<uint8_t *>(pkt) + sizeof(EthHeader));
+      reinterpret_cast<uint8_t *>(pkt) + sizeof(Ethernet));
   bess::utils::TcpHeader *tcp =
       reinterpret_cast<bess::utils::TcpHeader *>(ip + 1);
 
@@ -269,7 +269,7 @@ BENCHMARK_DEFINE_F(ChecksumFixture, BmSrcIpPortUpdateDpdk)
   void *pkt = get_buffer(60);  // min ethernet pkt size except FCS
 
   bess::utils::Ipv4 *ip = reinterpret_cast<bess::utils::Ipv4 *>(
-      reinterpret_cast<uint8_t *>(pkt) + sizeof(EthHeader));
+      reinterpret_cast<uint8_t *>(pkt) + sizeof(Ethernet));
   bess::utils::TcpHeader *tcp =
       reinterpret_cast<bess::utils::TcpHeader *>(ip + 1);
 
@@ -299,7 +299,7 @@ BENCHMARK_DEFINE_F(ChecksumFixture, BmSrcIpPortUpdateBess)
   void *pkt = get_buffer(60);  // min ethernet pkt size except FCS
 
   bess::utils::Ipv4 *ip = reinterpret_cast<bess::utils::Ipv4 *>(
-      reinterpret_cast<uint8_t *>(pkt) + sizeof(EthHeader));
+      reinterpret_cast<uint8_t *>(pkt) + sizeof(Ethernet));
   bess::utils::TcpHeader *tcp =
       reinterpret_cast<bess::utils::TcpHeader *>(ip + 1);
 

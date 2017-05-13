@@ -7,7 +7,7 @@
 #include "../utils/http_parser.h"
 #include "../utils/ip.h"
 
-using bess::utils::EthHeader;
+using bess::utils::Ethernet;
 using bess::utils::Ipv4;
 using bess::utils::TcpHeader;
 using bess::utils::be16_t;
@@ -20,14 +20,14 @@ const Commands UrlFilter::cmds = {
 
 // Template for generating TCP packets without data
 struct[[gnu::packed]] PacketTemplate {
-  EthHeader eth;
+  Ethernet eth;
   Ipv4 ip;
   TcpHeader tcp;
 
   PacketTemplate() {
-    eth.dst_addr = EthHeader::Address();  // To fill in
-    eth.src_addr = EthHeader::Address();  // To fill in
-    eth.ether_type = be16_t(EthHeader::Type::kIpv4);
+    eth.dst_addr = Ethernet::Address();  // To fill in
+    eth.src_addr = Ethernet::Address();  // To fill in
+    eth.ether_type = be16_t(Ethernet::Type::kIpv4);
     ip.version = 4;
     ip.header_length = 5;
     ip.type_of_service = 0;
@@ -59,8 +59,8 @@ static const char *HTTP_403_BODY =
 static PacketTemplate rst_template;
 
 // Generate an HTTP 403 packet
-inline static bess::Packet *Generate403Packet(const EthHeader::Address &src_eth,
-                                              const EthHeader::Address &dst_eth,
+inline static bess::Packet *Generate403Packet(const Ethernet::Address &src_eth,
+                                              const Ethernet::Address &dst_eth,
                                               be32_t src_ip, be32_t dst_ip,
                                               be16_t src_port, be16_t dst_port,
                                               be32_t seq, be32_t ack) {
@@ -75,7 +75,7 @@ inline static bess::Packet *Generate403Packet(const EthHeader::Address &src_eth,
   bess::utils::Copy(ptr, &rst_template, sizeof(rst_template));
   bess::utils::Copy(ptr + sizeof(rst_template), HTTP_403_BODY, len, true);
 
-  EthHeader *eth = reinterpret_cast<EthHeader *>(ptr);
+  Ethernet *eth = reinterpret_cast<Ethernet *>(ptr);
   Ipv4 *ip = reinterpret_cast<Ipv4 *>(eth + 1);
   // We know there is no IP option
   TcpHeader *tcp = reinterpret_cast<TcpHeader *>(ip + 1);
@@ -100,7 +100,7 @@ inline static bess::Packet *Generate403Packet(const EthHeader::Address &src_eth,
 
 // Generate a TCP RST packet
 inline static bess::Packet *GenerateResetPacket(
-    const EthHeader::Address &src_eth, const EthHeader::Address &dst_eth,
+    const Ethernet::Address &src_eth, const Ethernet::Address &dst_eth,
     be32_t src_ip, be32_t dst_ip, be16_t src_port, be16_t dst_port, be32_t seq,
     be32_t ack) {
   bess::Packet *pkt = bess::Packet::Alloc();
@@ -111,7 +111,7 @@ inline static bess::Packet *GenerateResetPacket(
 
   bess::utils::Copy(ptr, &rst_template, sizeof(rst_template), true);
 
-  EthHeader *eth = reinterpret_cast<EthHeader *>(ptr);
+  Ethernet *eth = reinterpret_cast<Ethernet *>(ptr);
   Ipv4 *ip = reinterpret_cast<Ipv4 *>(eth + 1);
   // We know there is no IP option
   TcpHeader *tcp = reinterpret_cast<TcpHeader *>(ip + 1);
@@ -183,7 +183,7 @@ void UrlFilter::ProcessBatch(bess::PacketBatch *batch) {
   for (int i = 0; i < cnt; i++) {
     bess::Packet *pkt = batch->pkts()[i];
 
-    struct EthHeader *eth = pkt->head_data<struct EthHeader *>();
+    struct Ethernet *eth = pkt->head_data<struct Ethernet *>();
     struct Ipv4 *ip = reinterpret_cast<struct Ipv4 *>(eth + 1);
 
     if (ip->protocol != Ipv4::Proto::kTcp) {

@@ -42,7 +42,7 @@ void IPLookup::DeInit() {
 }
 
 void IPLookup::ProcessBatch(bess::PacketBatch *batch) {
-  using bess::utils::EthHeader;
+  using bess::utils::Ethernet;
   using bess::utils::Ipv4;
 
   gate_idx_t out_gates[bess::PacketBatch::kMaxBurst];
@@ -57,7 +57,7 @@ void IPLookup::ProcessBatch(bess::PacketBatch *batch) {
 
   /* 4 at a time */
   for (i = 0; i + 3 < cnt; i += 4) {
-    EthHeader *eth;
+    Ethernet *eth;
     Ipv4 *ip;
 
     uint32_t a0, a1, a2, a3;
@@ -65,19 +65,19 @@ void IPLookup::ProcessBatch(bess::PacketBatch *batch) {
 
     __m128i ip_addr;
 
-    eth = batch->pkts()[i]->head_data<EthHeader *>();
+    eth = batch->pkts()[i]->head_data<Ethernet *>();
     ip = (Ipv4 *)(eth + 1);
     a0 = ip->dst.raw_value();
 
-    eth = batch->pkts()[i + 1]->head_data<EthHeader *>();
+    eth = batch->pkts()[i + 1]->head_data<Ethernet *>();
     ip = (Ipv4 *)(eth + 1);
     a1 = ip->dst.raw_value();
 
-    eth = batch->pkts()[i + 2]->head_data<EthHeader *>();
+    eth = batch->pkts()[i + 2]->head_data<Ethernet *>();
     ip = (Ipv4 *)(eth + 1);
     a2 = ip->dst.raw_value();
 
-    eth = batch->pkts()[i + 3]->head_data<EthHeader *>();
+    eth = batch->pkts()[i + 3]->head_data<Ethernet *>();
     ip = (Ipv4 *)(eth + 1);
     a3 = ip->dst.raw_value();
 
@@ -95,13 +95,13 @@ void IPLookup::ProcessBatch(bess::PacketBatch *batch) {
 
   /* process the rest one by one */
   for (; i < cnt; i++) {
-    EthHeader *eth;
+    Ethernet *eth;
     Ipv4 *ip;
 
     uint32_t next_hop;
     int ret;
 
-    eth = batch->pkts()[i]->head_data<EthHeader *>();
+    eth = batch->pkts()[i]->head_data<Ethernet *>();
     ip = (Ipv4 *)(eth + 1);
 
     ret = rte_lpm_lookup(lpm_, ip->dst.raw_value(), &next_hop);

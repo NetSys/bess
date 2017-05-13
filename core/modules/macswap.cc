@@ -3,13 +3,13 @@
 #include "../utils/ether.h"
 
 void MACSwap::ProcessBatch(bess::PacketBatch *batch) {
-  using bess::utils::EthHeader;
+  using bess::utils::Ethernet;
 
   int cnt = batch->cnt();
 
   for (int i = 0; i < cnt; i++) {
-    EthHeader *eth = batch->pkts()[i]->head_data<EthHeader *>();
-    EthHeader::Address tmp;
+    Ethernet *eth = batch->pkts()[i]->head_data<Ethernet *>();
+    Ethernet::Address tmp;
 
     tmp = eth->dst_addr;
     eth->dst_addr = eth->src_addr;
