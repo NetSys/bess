@@ -9,7 +9,7 @@
 
 using bess::utils::Ethernet;
 using bess::utils::Ipv4;
-using bess::utils::TcpHeader;
+using bess::utils::Tcp;
 using bess::utils::be16_t;
 
 const uint64_t TIME_OUT_NS = 10ull * 1000 * 1000 * 1000;  // 10 seconds
@@ -22,7 +22,7 @@ const Commands UrlFilter::cmds = {
 struct[[gnu::packed]] PacketTemplate {
   Ethernet eth;
   Ipv4 ip;
-  TcpHeader tcp;
+  Tcp tcp;
 
   PacketTemplate() {
     eth.dst_addr = Ethernet::Address();  // To fill in
@@ -45,7 +45,7 @@ struct[[gnu::packed]] PacketTemplate {
     tcp.ack_num = be32_t(0);   // To fill in
     tcp.reserved = 0;
     tcp.offset = 5;
-    tcp.flags = TcpHeader::Flag::kAck | TcpHeader::Flag::kRst;
+    tcp.flags = Tcp::Flag::kAck | Tcp::Flag::kRst;
     tcp.window = be16_t(0);
     tcp.checksum = 0;  // To fill in
     tcp.urgent_ptr = be16_t(0);
@@ -78,7 +78,7 @@ inline static bess::Packet *Generate403Packet(const Ethernet::Address &src_eth,
   Ethernet *eth = reinterpret_cast<Ethernet *>(ptr);
   Ipv4 *ip = reinterpret_cast<Ipv4 *>(eth + 1);
   // We know there is no IP option
-  TcpHeader *tcp = reinterpret_cast<TcpHeader *>(ip + 1);
+  Tcp *tcp = reinterpret_cast<Tcp *>(ip + 1);
 
   eth->dst_addr = dst_eth;
   eth->src_addr = src_eth;
@@ -89,7 +89,7 @@ inline static bess::Packet *Generate403Packet(const Ethernet::Address &src_eth,
   tcp->dst_port = dst_port;
   tcp->seq_num = seq;
   tcp->ack_num = ack;
-  tcp->flags = TcpHeader::Flag::kAck;
+  tcp->flags = Tcp::Flag::kAck;
 
   tcp->checksum = bess::utils::CalculateIpv4TcpChecksum(*tcp, src_ip, dst_ip,
                                                         sizeof(*tcp) + len);
@@ -114,7 +114,7 @@ inline static bess::Packet *GenerateResetPacket(
   Ethernet *eth = reinterpret_cast<Ethernet *>(ptr);
   Ipv4 *ip = reinterpret_cast<Ipv4 *>(eth + 1);
   // We know there is no IP option
-  TcpHeader *tcp = reinterpret_cast<TcpHeader *>(ip + 1);
+  Tcp *tcp = reinterpret_cast<Tcp *>(ip + 1);
 
   eth->dst_addr = dst_eth;
   eth->src_addr = src_eth;
@@ -192,7 +192,7 @@ void UrlFilter::ProcessBatch(bess::PacketBatch *batch) {
     }
 
     int ip_bytes = ip->header_length << 2;
-    struct TcpHeader *tcp = reinterpret_cast<struct TcpHeader *>(
+    struct Tcp *tcp = reinterpret_cast<struct Tcp *>(
         reinterpret_cast<uint8_t *>(ip) + ip_bytes);
 
     Flow flow;
@@ -262,7 +262,7 @@ void UrlFilter::ProcessBatch(bess::PacketBatch *batch) {
       // If FIN is observed, no need to reconstruct this flow
       // NOTE: if FIN is lost on its way to destination, this will simply pass
       // the retransmitted packet
-      if (tcp->flags & TcpHeader::Flag::kFin) {
+      if (tcp->flags & Tcp::Flag::kFin) {
         flow_cache_.erase(it);
       }
     } else {

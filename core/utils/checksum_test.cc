@@ -107,8 +107,8 @@ TEST(ChecksumTest, TcpChecksum) {
   bess::utils::Ipv4 *ip =
       reinterpret_cast<bess::utils::Ipv4 *>(buf);
 
-  bess::utils::TcpHeader *tcp =
-      reinterpret_cast<bess::utils::TcpHeader *>(ip + 1);
+  bess::utils::Tcp *tcp =
+      reinterpret_cast<bess::utils::Tcp *>(ip + 1);
 
   ip->version = 4;
   ip->header_length = 5;
@@ -231,8 +231,8 @@ TEST(ChecksumTest, IncrementalUpdateSrcIpPort) {
   bess::utils::Ipv4 *ip =
       reinterpret_cast<bess::utils::Ipv4 *>(buf);
 
-  bess::utils::TcpHeader *tcp =
-      reinterpret_cast<bess::utils::TcpHeader *>(ip + 1);
+  bess::utils::Tcp *tcp =
+      reinterpret_cast<bess::utils::Tcp *>(ip + 1);
 
   ip->version = 4;
   ip->header_length = 5;

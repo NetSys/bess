@@ -13,7 +13,7 @@
 
 using bess::utils::Ethernet;
 using bess::utils::Ipv4;
-using bess::utils::TcpHeader;
+using bess::utils::Tcp;
 using bess::utils::be16_t;
 using bess::utils::be32_t;
 
@@ -385,8 +385,8 @@ CommandResponse FlowGen::UpdateBaseAddresses() {
   }
 
   Ipv4 *ipheader = reinterpret_cast<Ipv4 *>(p + sizeof(Ethernet));
-  TcpHeader *tcpheader =
-      reinterpret_cast<TcpHeader *>(p + sizeof(Ethernet) + sizeof(Ipv4));
+  Tcp *tcpheader =
+      reinterpret_cast<Tcp *>(p + sizeof(Ethernet) + sizeof(Ipv4));
 
   ip_src_base_ = ipheader->src.value();
   ip_dst_base_ = ipheader->dst.value();
@@ -408,7 +408,7 @@ bess::Packet *FlowGen::FillPacket(struct flow *f) {
 
   Ethernet *eth = reinterpret_cast<Ethernet *>(p);
   Ipv4 *ip = reinterpret_cast<Ipv4 *>(eth + 1);
-  TcpHeader *tcp = reinterpret_cast<TcpHeader *>(ip + 1);
+  Tcp *tcp = reinterpret_cast<Tcp *>(ip + 1);
 
   // SYN or FIN?
   if (f->first_pkt || f->packets_left <= 1) {

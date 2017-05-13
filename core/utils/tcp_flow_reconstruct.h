@@ -50,13 +50,13 @@ class TcpFlowReconstruct {
   bool InsertPacket(Packet *p) {
     const Ethernet *eth = p->head_data<const Ethernet *>();
     const Ipv4 *ip = (const Ipv4 *)(eth + 1);
-    const TcpHeader *tcp =
-        (const TcpHeader *)(((const char *)ip) + (ip->header_length * 4));
+    const Tcp *tcp =
+        (const Tcp *)(((const char *)ip) + (ip->header_length * 4));
 
     uint32_t seq = tcp->seq_num.value();
     // Assumes we only get one SYN and the sequence number of it doesn't change
     // for any reason.  Also assumes we have no data in the SYN.
-    if (tcp->flags & TcpHeader::Flag::kSyn) {
+    if (tcp->flags & Tcp::Flag::kSyn) {
       init_seq_ = seq + 1;
       initialized_ = true;
       return true;

@@ -222,7 +222,7 @@ static inline uint16_t CalculateIpv4NoOptChecksum(const Ipv4 &iph) {
 // Return true if the TCP checksum is true with the TCP header and
 // pseudo header info - source ip, destiniation ip, and tcp byte stream length
 // tcp_len: TCP header + payload in bytes
-static inline bool VerifyIpv4TcpChecksum(const TcpHeader &tcph, be32_t src_ip,
+static inline bool VerifyIpv4TcpChecksum(const Tcp &tcph, be32_t src_ip,
                                          be32_t dst_ip, uint16_t tcp_len) {
   const uint32_t *buf32 = reinterpret_cast<const uint32_t *>(&tcph);
 
@@ -251,7 +251,7 @@ static inline bool VerifyIpv4TcpChecksum(const TcpHeader &tcph, be32_t src_ip,
 
 // Return true if the TCP checksum is true
 static inline bool VerifyIpv4TcpChecksum(const Ipv4 &iph,
-                                         const TcpHeader &tcph) {
+                                         const Tcp &tcph) {
   return VerifyIpv4TcpChecksum(tcph, iph.src, iph.dst,
                                iph.length.value() - (iph.header_length << 2));
 }
@@ -262,7 +262,7 @@ static inline bool VerifyIpv4TcpChecksum(const Ipv4 &iph,
 // 'tcp_len' is in host-order, and the others are in network-order
 // It skips the checksum field into the calculation
 // It does not set the checksum field in TCP header
-static inline uint16_t CalculateIpv4TcpChecksum(const TcpHeader &tcph,
+static inline uint16_t CalculateIpv4TcpChecksum(const Tcp &tcph,
                                                 be32_t src, be32_t dst,
                                                 uint16_t tcp_len) {
   const uint32_t *buf32 = reinterpret_cast<const uint32_t *>(&tcph);
@@ -292,7 +292,7 @@ static inline uint16_t CalculateIpv4TcpChecksum(const TcpHeader &tcph,
 
 // Return true if the TCP (on IPv4) checksum is true
 static inline uint16_t CalculateIpv4TcpChecksum(const Ipv4 &iph,
-                                                const TcpHeader &tcph) {
+                                                const Tcp &tcph) {
   return CalculateIpv4TcpChecksum(
       tcph, iph.src, iph.dst, iph.length.value() - (iph.header_length << 2));
 }

@@ -5,7 +5,7 @@ namespace bess {
 namespace utils {
 
 // A basic TCP header definition loosely based on the BSD version.
-struct[[gnu::packed]] TcpHeader {
+struct[[gnu::packed]] Tcp {
   enum Flag : uint8_t {
     kFin = 0x01,
     kSyn = 0x02,

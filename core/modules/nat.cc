@@ -16,7 +16,7 @@ using bess::utils::Ethernet;
 using bess::utils::Ipv4;
 using IpProto = bess::utils::Ipv4::Proto;
 using bess::utils::Udp;
-using bess::utils::TcpHeader;
+using bess::utils::Tcp;
 using bess::utils::IcmpHeader;
 using bess::utils::CalculateChecksumIncremental16;
 using bess::utils::CalculateChecksumUnfoldedIncremental32;
@@ -96,7 +96,7 @@ template <bool src>
 static inline void stamp_flow(struct Ipv4 *ip, void *l4,
                               const Flow &flow) {
   struct Udp *udp = reinterpret_cast<struct Udp *>(l4);
-  struct TcpHeader *tcp = reinterpret_cast<struct TcpHeader *>(l4);
+  struct Tcp *tcp = reinterpret_cast<struct Tcp *>(l4);
   struct IcmpHeader *icmp = reinterpret_cast<struct IcmpHeader *>(l4);
   uint32_t l3_inc = 0;
   uint32_t l4_inc = 0;
