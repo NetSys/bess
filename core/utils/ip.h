@@ -52,6 +52,9 @@ struct[[gnu::packed]] Ipv4 {
   be32_t dst;               // Destination address.
 };
 
+static_assert(std::is_pod<Ipv4>::value, "not a POD type");
+static_assert(sizeof(Ipv4) == 20, "struct Ipv4 is incorrect");
+
 struct CIDRNetwork {
   // Implicit default constructor is not allowed
   CIDRNetwork() = delete;

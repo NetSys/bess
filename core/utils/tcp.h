@@ -34,6 +34,9 @@ struct[[gnu::packed]] Tcp {
   be16_t urgent_ptr;  // Urgent pointer.
 };
 
+static_assert(std::is_pod<Tcp>::value, "not a POD type");
+static_assert(sizeof(Tcp) == 20, "struct Tcp is incorrect");
+
 }  // namespace utils
 }  // namespace bess
 

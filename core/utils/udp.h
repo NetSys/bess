@@ -12,6 +12,9 @@ struct[[gnu::packed]] Udp {
   uint16_t checksum;  // Checksum.
 };
 
+static_assert(std::is_pod<Udp>::value, "not a POD type");
+static_assert(sizeof(Udp) == 8, "struct Udp is incorrect");
+
 }  // namespace utils
 }  // namespace bess
 

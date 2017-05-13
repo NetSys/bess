@@ -15,6 +15,9 @@ struct[[gnu::packed]] Vxlan {
   be32_t vx_vni;
 };
 
+static_assert(std::is_pod<Vxlan>::value, "not a POD type");
+static_assert(sizeof(Vxlan) == 8, "struct Vxlan is incorrect");
+
 }  // namespace utils
 }  // namespace bess
 

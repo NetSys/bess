@@ -12,6 +12,9 @@ struct[[gnu::packed]] Icmp {
   be16_t seq_num;     // ICMP packet sequence number
 };
 
+static_assert(std::is_pod<Icmp>::value, "not a POD type");
+static_assert(sizeof(Icmp) == 8, "struct Icmp is incorrect");
+
 }  // namespace utils
 }  // namespace bess
 
