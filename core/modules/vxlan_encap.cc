@@ -50,7 +50,7 @@ void VXLANEncap::ProcessBatch(bess::PacketBatch *batch) {
   using bess::utils::Ethernet;
   using bess::utils::Ipv4;
   using bess::utils::Udp;
-  using bess::utils::VxlanHeader;
+  using bess::utils::Vxlan;
 
   int cnt = batch->cnt();
 
@@ -63,7 +63,7 @@ void VXLANEncap::ProcessBatch(bess::PacketBatch *batch) {
 
     Ethernet *inner_eth;
     Udp *udp;
-    VxlanHeader *vh;
+    Vxlan *vh;
 
     size_t inner_frame_len = pkt->total_len() + sizeof(*udp);
 
@@ -73,7 +73,7 @@ void VXLANEncap::ProcessBatch(bess::PacketBatch *batch) {
       continue;
     }
 
-    vh = reinterpret_cast<VxlanHeader *>(udp + 1);
+    vh = reinterpret_cast<Vxlan *>(udp + 1);
     vh->vx_flags = be32_t(0x08000000);
     vh->vx_vni = vni << 8;
 
