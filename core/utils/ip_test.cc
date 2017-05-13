@@ -1,6 +1,5 @@
 #include "ip.h"
 
-#include <arpa/inet.h>
 #include <gtest/gtest.h>
 
 using bess::utils::be32_t;

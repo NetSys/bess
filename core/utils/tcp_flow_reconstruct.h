@@ -1,8 +1,6 @@
 #ifndef BESS_UTILS_TCP_FLOW_RECONSTRUCT_H_
 #define BESS_UTILS_TCP_FLOW_RECONSTRUCT_H_
 
-#include <arpa/inet.h>
-
 #include <vector>
 
 #include "../packet.h"

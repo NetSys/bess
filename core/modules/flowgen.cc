@@ -1,6 +1,5 @@
 #include "flowgen.h"
 
-#include <arpa/inet.h>
 #include <cmath>
 #include <functional>
 
