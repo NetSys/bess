@@ -250,8 +250,7 @@ static inline bool VerifyIpv4TcpChecksum(const Tcp &tcph, be32_t src_ip,
 }
 
 // Return true if the TCP checksum is true
-static inline bool VerifyIpv4TcpChecksum(const Ipv4 &iph,
-                                         const Tcp &tcph) {
+static inline bool VerifyIpv4TcpChecksum(const Ipv4 &iph, const Tcp &tcph) {
   return VerifyIpv4TcpChecksum(tcph, iph.src, iph.dst,
                                iph.length.value() - (iph.header_length << 2));
 }
@@ -262,9 +261,8 @@ static inline bool VerifyIpv4TcpChecksum(const Ipv4 &iph,
 // 'tcp_len' is in host-order, and the others are in network-order
 // It skips the checksum field into the calculation
 // It does not set the checksum field in TCP header
-static inline uint16_t CalculateIpv4TcpChecksum(const Tcp &tcph,
-                                                be32_t src, be32_t dst,
-                                                uint16_t tcp_len) {
+static inline uint16_t CalculateIpv4TcpChecksum(const Tcp &tcph, be32_t src,
+                                                be32_t dst, uint16_t tcp_len) {
   const uint32_t *buf32 = reinterpret_cast<const uint32_t *>(&tcph);
   // tcp options and data
   uint32_t sum = CalculateSum(buf32 + 5, tcp_len - sizeof(tcph));

@@ -56,8 +56,7 @@ TEST(ChecksumTest, GenericChecksum) {
 TEST(ChecksumTest, Ipv4NoOptChecksum) {
   char buf[1514] = {0};  // ipv4 header w/o options
 
-  bess::utils::Ipv4 *ip =
-      reinterpret_cast<bess::utils::Ipv4 *>(buf);
+  bess::utils::Ipv4 *ip = reinterpret_cast<bess::utils::Ipv4 *>(buf);
 
   ip->version = 4;
   ip->header_length = 5;
@@ -104,11 +103,9 @@ TEST(ChecksumTest, Ipv4NoOptChecksum) {
 TEST(ChecksumTest, TcpChecksum) {
   char buf[1514] = {0};  // ipv4 header + tcp header
 
-  bess::utils::Ipv4 *ip =
-      reinterpret_cast<bess::utils::Ipv4 *>(buf);
+  bess::utils::Ipv4 *ip = reinterpret_cast<bess::utils::Ipv4 *>(buf);
 
-  bess::utils::Tcp *tcp =
-      reinterpret_cast<bess::utils::Tcp *>(ip + 1);
+  bess::utils::Tcp *tcp = reinterpret_cast<bess::utils::Tcp *>(ip + 1);
 
   ip->version = 4;
   ip->header_length = 5;
@@ -228,11 +225,9 @@ TEST(ChecksumTest, IncrementalUpdateChecksum32) {
 TEST(ChecksumTest, IncrementalUpdateSrcIpPort) {
   char buf[1514] = {0};
 
-  bess::utils::Ipv4 *ip =
-      reinterpret_cast<bess::utils::Ipv4 *>(buf);
+  bess::utils::Ipv4 *ip = reinterpret_cast<bess::utils::Ipv4 *>(buf);
 
-  bess::utils::Tcp *tcp =
-      reinterpret_cast<bess::utils::Tcp *>(ip + 1);
+  bess::utils::Tcp *tcp = reinterpret_cast<bess::utils::Tcp *>(ip + 1);
 
   ip->version = 4;
   ip->header_length = 5;

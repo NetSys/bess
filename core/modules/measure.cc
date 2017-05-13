@@ -37,8 +37,8 @@ CommandResponse Measure::Init(const bess::pb::MeasureArg &arg) {
   if (arg.offset()) {
     offset_ = arg.offset();
   } else {
-    offset_ = sizeof(struct Ethernet) + sizeof(struct Ipv4) +
-              sizeof(struct Udp);
+    offset_ =
+        sizeof(struct Ethernet) + sizeof(struct Ipv4) + sizeof(struct Udp);
   }
 
   if (arg.jitter_sample_prob()) {

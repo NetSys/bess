@@ -46,8 +46,8 @@ void ACL::ProcessBatch(bess::PacketBatch *batch) {
     Ethernet *eth = pkt->head_data<Ethernet *>();
     Ipv4 *ip = reinterpret_cast<Ipv4 *>(eth + 1);
     size_t ip_bytes = ip->header_length << 2;
-    Udp *udp = reinterpret_cast<Udp *>(
-        reinterpret_cast<uint8_t *>(ip) + ip_bytes);
+    Udp *udp =
+        reinterpret_cast<Udp *>(reinterpret_cast<uint8_t *>(ip) + ip_bytes);
 
     out_gates[i] = DROP_GATE;  // By default, drop unmatched packets
 

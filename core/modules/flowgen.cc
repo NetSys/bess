@@ -385,8 +385,7 @@ CommandResponse FlowGen::UpdateBaseAddresses() {
   }
 
   Ipv4 *ipheader = reinterpret_cast<Ipv4 *>(p + sizeof(Ethernet));
-  Tcp *tcpheader =
-      reinterpret_cast<Tcp *>(p + sizeof(Ethernet) + sizeof(Ipv4));
+  Tcp *tcpheader = reinterpret_cast<Tcp *>(p + sizeof(Ethernet) + sizeof(Ipv4));
 
   ip_src_base_ = ipheader->src.value();
   ip_dst_base_ = ipheader->dst.value();
