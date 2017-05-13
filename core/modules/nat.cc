@@ -17,7 +17,7 @@ using bess::utils::Ipv4;
 using IpProto = bess::utils::Ipv4::Proto;
 using bess::utils::Udp;
 using bess::utils::Tcp;
-using bess::utils::IcmpHeader;
+using bess::utils::Icmp;
 using bess::utils::CalculateChecksumIncremental16;
 using bess::utils::CalculateChecksumUnfoldedIncremental32;
 using bess::utils::CalculateChecksumUnfoldedIncremental16;
@@ -61,7 +61,7 @@ CommandResponse NAT::CommandClear(const bess::pb::EmptyArg &) {
 // Extract a Flow object from IP header ip and L4 header l4
 static inline Flow parse_flow(struct Ipv4 *ip, void *l4) {
   struct Udp *udp = reinterpret_cast<struct Udp *>(l4);
-  struct IcmpHeader *icmp = reinterpret_cast<struct IcmpHeader *>(l4);
+  struct Icmp *icmp = reinterpret_cast<struct Icmp *>(l4);
   Flow flow;
 
   flow.proto = ip->protocol;
@@ -93,11 +93,10 @@ static inline Flow parse_flow(struct Ipv4 *ip, void *l4) {
 }
 
 template <bool src>
-static inline void stamp_flow(struct Ipv4 *ip, void *l4,
-                              const Flow &flow) {
+static inline void stamp_flow(struct Ipv4 *ip, void *l4, const Flow &flow) {
   struct Udp *udp = reinterpret_cast<struct Udp *>(l4);
   struct Tcp *tcp = reinterpret_cast<struct Tcp *>(l4);
-  struct IcmpHeader *icmp = reinterpret_cast<struct IcmpHeader *>(l4);
+  struct Icmp *icmp = reinterpret_cast<struct Icmp *>(l4);
   uint32_t l3_inc = 0;
   uint32_t l4_inc = 0;
 
@@ -174,14 +173,12 @@ static inline void stamp_flow(struct Ipv4 *ip, void *l4,
 }
 
 // Rewrite IP header and L4 header src info using flow
-static inline void stamp_flow_src(struct Ipv4 *ip, void *l4,
-                                  const Flow &flow) {
+static inline void stamp_flow_src(struct Ipv4 *ip, void *l4, const Flow &flow) {
   stamp_flow<true>(ip, l4, flow);
 }
 
 // Rewrite IP header and L4 header dst info using flow
-static inline void stamp_flow_dst(struct Ipv4 *ip, void *l4,
-                                  const Flow &flow) {
+static inline void stamp_flow_dst(struct Ipv4 *ip, void *l4, const Flow &flow) {
   stamp_flow<false>(ip, l4, flow);
 }
 
