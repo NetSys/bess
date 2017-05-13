@@ -8,7 +8,7 @@
 #include "../utils/ip.h"
 
 using bess::utils::EthHeader;
-using bess::utils::Ipv4Header;
+using bess::utils::Ipv4;
 using bess::utils::TcpHeader;
 using bess::utils::be16_t;
 
@@ -21,7 +21,7 @@ const Commands UrlFilter::cmds = {
 // Template for generating TCP packets without data
 struct[[gnu::packed]] PacketTemplate {
   EthHeader eth;
-  Ipv4Header ip;
+  Ipv4 ip;
   TcpHeader tcp;
 
   PacketTemplate() {
@@ -35,7 +35,7 @@ struct[[gnu::packed]] PacketTemplate {
     ip.id = be16_t(0);
     ip.fragment_offset = be16_t(0);
     ip.ttl = 0x40;
-    ip.protocol = Ipv4Header::Proto::kTcp;
+    ip.protocol = Ipv4::Proto::kTcp;
     ip.checksum = 0;           // To fill in
     ip.src = be32_t(0);        // To fill in
     ip.dst = be32_t(0);        // To fill in
@@ -76,7 +76,7 @@ inline static bess::Packet *Generate403Packet(const EthHeader::Address &src_eth,
   bess::utils::Copy(ptr + sizeof(rst_template), HTTP_403_BODY, len, true);
 
   EthHeader *eth = reinterpret_cast<EthHeader *>(ptr);
-  Ipv4Header *ip = reinterpret_cast<Ipv4Header *>(eth + 1);
+  Ipv4 *ip = reinterpret_cast<Ipv4 *>(eth + 1);
   // We know there is no IP option
   TcpHeader *tcp = reinterpret_cast<TcpHeader *>(ip + 1);
 
@@ -112,7 +112,7 @@ inline static bess::Packet *GenerateResetPacket(
   bess::utils::Copy(ptr, &rst_template, sizeof(rst_template), true);
 
   EthHeader *eth = reinterpret_cast<EthHeader *>(ptr);
-  Ipv4Header *ip = reinterpret_cast<Ipv4Header *>(eth + 1);
+  Ipv4 *ip = reinterpret_cast<Ipv4 *>(eth + 1);
   // We know there is no IP option
   TcpHeader *tcp = reinterpret_cast<TcpHeader *>(ip + 1);
 
@@ -184,9 +184,9 @@ void UrlFilter::ProcessBatch(bess::PacketBatch *batch) {
     bess::Packet *pkt = batch->pkts()[i];
 
     struct EthHeader *eth = pkt->head_data<struct EthHeader *>();
-    struct Ipv4Header *ip = reinterpret_cast<struct Ipv4Header *>(eth + 1);
+    struct Ipv4 *ip = reinterpret_cast<struct Ipv4 *>(eth + 1);
 
-    if (ip->protocol != Ipv4Header::Proto::kTcp) {
+    if (ip->protocol != Ipv4::Proto::kTcp) {
       out_batches[0].add(pkt);
       continue;
     }

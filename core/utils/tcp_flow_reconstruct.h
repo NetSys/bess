@@ -49,7 +49,7 @@ class TcpFlowReconstruct {
   // Behavior is undefined the packet is not a TCP packet.
   bool InsertPacket(Packet *p) {
     const EthHeader *eth = p->head_data<const EthHeader *>();
-    const Ipv4Header *ip = (const Ipv4Header *)(eth + 1);
+    const Ipv4 *ip = (const Ipv4 *)(eth + 1);
     const TcpHeader *tcp =
         (const TcpHeader *)(((const char *)ip) + (ip->header_length * 4));
 

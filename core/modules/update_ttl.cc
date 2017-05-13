@@ -5,7 +5,7 @@
 #include "../utils/ip.h"
 
 using bess::utils::EthHeader;
-using bess::utils::Ipv4Header;
+using bess::utils::Ipv4;
 
 void UpdateTTL::ProcessBatch(bess::PacketBatch *batch) {
   bess::PacketBatch out_batch;
@@ -19,7 +19,7 @@ void UpdateTTL::ProcessBatch(bess::PacketBatch *batch) {
     bess::Packet *pkt = batch->pkts()[i];
 
     struct EthHeader *eth = pkt->head_data<struct EthHeader *>();
-    struct Ipv4Header *ip = reinterpret_cast<struct Ipv4Header *>(eth + 1);
+    struct Ipv4 *ip = reinterpret_cast<struct Ipv4 *>(eth + 1);
 
     if (ip->ttl > 1) {
       // The incremental checksum only cares the difference from old_value to

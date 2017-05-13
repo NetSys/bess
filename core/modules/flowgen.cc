@@ -12,7 +12,7 @@
 #include "../utils/time.h"
 
 using bess::utils::EthHeader;
-using bess::utils::Ipv4Header;
+using bess::utils::Ipv4;
 using bess::utils::TcpHeader;
 using bess::utils::be16_t;
 using bess::utils::be32_t;
@@ -384,9 +384,9 @@ CommandResponse FlowGen::UpdateBaseAddresses() {
     return CommandFailure(EINVAL, "must specify 'template'");
   }
 
-  Ipv4Header *ipheader = reinterpret_cast<Ipv4Header *>(p + sizeof(EthHeader));
+  Ipv4 *ipheader = reinterpret_cast<Ipv4 *>(p + sizeof(EthHeader));
   TcpHeader *tcpheader =
-      reinterpret_cast<TcpHeader *>(p + sizeof(EthHeader) + sizeof(Ipv4Header));
+      reinterpret_cast<TcpHeader *>(p + sizeof(EthHeader) + sizeof(Ipv4));
 
   ip_src_base_ = ipheader->src.value();
   ip_dst_base_ = ipheader->dst.value();
@@ -407,7 +407,7 @@ bess::Packet *FlowGen::FillPacket(struct flow *f) {
   char *p = pkt->buffer<char *>() + SNBUF_HEADROOM;
 
   EthHeader *eth = reinterpret_cast<EthHeader *>(p);
-  Ipv4Header *ip = reinterpret_cast<Ipv4Header *>(eth + 1);
+  Ipv4 *ip = reinterpret_cast<Ipv4 *>(eth + 1);
   TcpHeader *tcp = reinterpret_cast<TcpHeader *>(ip + 1);
 
   // SYN or FIN?

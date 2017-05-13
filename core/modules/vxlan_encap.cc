@@ -48,7 +48,7 @@ CommandResponse VXLANEncap::Init(const bess::pb::VXLANEncapArg &arg) {
 
 void VXLANEncap::ProcessBatch(bess::PacketBatch *batch) {
   using bess::utils::EthHeader;
-  using bess::utils::Ipv4Header;
+  using bess::utils::Ipv4;
   using bess::utils::UdpHeader;
   using bess::utils::VxlanHeader;
 
@@ -86,7 +86,7 @@ void VXLANEncap::ProcessBatch(bess::PacketBatch *batch) {
 
     set_attr<be32_t>(this, ATTR_W_IP_SRC, pkt, ip_src);
     set_attr<be32_t>(this, ATTR_W_IP_DST, pkt, ip_dst);
-    set_attr<uint8_t>(this, ATTR_W_IP_PROTO, pkt, Ipv4Header::Proto::kUdp);
+    set_attr<uint8_t>(this, ATTR_W_IP_PROTO, pkt, Ipv4::Proto::kUdp);
   }
 
   RunNextModule(batch);

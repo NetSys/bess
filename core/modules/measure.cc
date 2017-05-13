@@ -9,7 +9,7 @@
 #include "timestamp.h"
 
 using bess::utils::EthHeader;
-using bess::utils::Ipv4Header;
+using bess::utils::Ipv4;
 using bess::utils::UdpHeader;
 
 static bool IsTimestamped(bess::Packet *pkt, size_t offset, uint64_t *time) {
@@ -37,7 +37,7 @@ CommandResponse Measure::Init(const bess::pb::MeasureArg &arg) {
   if (arg.offset()) {
     offset_ = arg.offset();
   } else {
-    offset_ = sizeof(struct EthHeader) + sizeof(struct Ipv4Header) +
+    offset_ = sizeof(struct EthHeader) + sizeof(struct Ipv4) +
               sizeof(struct UdpHeader);
   }
 

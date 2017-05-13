@@ -6,7 +6,7 @@
 
 void IPSwap::ProcessBatch(bess::PacketBatch *batch) {
   using bess::utils::EthHeader;
-  using bess::utils::Ipv4Header;
+  using bess::utils::Ipv4;
   using bess::utils::UdpHeader;
 
   int cnt = batch->cnt();
@@ -15,7 +15,7 @@ void IPSwap::ProcessBatch(bess::PacketBatch *batch) {
     bess::Packet *pkt = batch->pkts()[i];
 
     EthHeader *eth = pkt->head_data<EthHeader *>();
-    Ipv4Header *ip = reinterpret_cast<Ipv4Header *>(eth + 1);
+    Ipv4 *ip = reinterpret_cast<Ipv4 *>(eth + 1);
     size_t ip_bytes = (ip->header_length & 0xf) << 2;
     UdpHeader *udp = reinterpret_cast<UdpHeader *>(
         reinterpret_cast<uint8_t *>(ip) + ip_bytes);
@@ -27,14 +27,14 @@ void IPSwap::ProcessBatch(bess::PacketBatch *batch) {
 
     bess::utils::be16_t tmp_port;
     switch (ip->protocol) {
-      case Ipv4Header::Proto::kTcp:
-      case Ipv4Header::Proto::kUdp:
+      case Ipv4::Proto::kTcp:
+      case Ipv4::Proto::kUdp:
         // TCP and UDP share the same layout for ports
         tmp_port = udp->src_port;
         udp->src_port = udp->dst_port;
         udp->dst_port = tmp_port;
         break;
-      case Ipv4Header::Proto::kIcmp:
+      case Ipv4::Proto::kIcmp:
         break;
       default:
         VLOG(1) << "Unknown protocol: " << ip->protocol;

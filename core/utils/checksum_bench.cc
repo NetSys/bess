@@ -81,8 +81,8 @@ BENCHMARK_DEFINE_F(ChecksumFixture, BmIpv4NoOptChecksumDpdk)
 (benchmark::State &state) {
   char pkt[20] = {0};  // ipv4 header w/o options
 
-  bess::utils::Ipv4Header *ip =
-      reinterpret_cast<bess::utils::Ipv4Header *>(pkt);
+  bess::utils::Ipv4 *ip =
+      reinterpret_cast<bess::utils::Ipv4 *>(pkt);
 
   ip->version = 4;
   ip->header_length = 5;
@@ -109,8 +109,8 @@ BENCHMARK_DEFINE_F(ChecksumFixture, BmIpv4NoOptChecksumBess)
 (benchmark::State &state) {
   char pkt[20] = {0};  // ipv4 header w/o options
 
-  bess::utils::Ipv4Header *ip =
-      reinterpret_cast<bess::utils::Ipv4Header *>(pkt);
+  bess::utils::Ipv4 *ip =
+      reinterpret_cast<bess::utils::Ipv4 *>(pkt);
 
   ip->version = 4;
   ip->header_length = 5;
@@ -144,8 +144,8 @@ BENCHMARK_DEFINE_F(ChecksumFixture, BmTcpChecksumDpdk)
   while (state.KeepRunning()) {
     pkt = get_buffer(buf_len);
 
-    bess::utils::Ipv4Header *ip =
-        reinterpret_cast<bess::utils::Ipv4Header *>(pkt);
+    bess::utils::Ipv4 *ip =
+        reinterpret_cast<bess::utils::Ipv4 *>(pkt);
     bess::utils::TcpHeader *tcp =
         reinterpret_cast<bess::utils::TcpHeader *>(ip + 1);
 
@@ -172,8 +172,8 @@ BENCHMARK_DEFINE_F(ChecksumFixture, BmTcpChecksumBess)
   while (state.KeepRunning()) {
     pkt = get_buffer(buf_len);
 
-    bess::utils::Ipv4Header *ip =
-        reinterpret_cast<bess::utils::Ipv4Header *>(pkt);
+    bess::utils::Ipv4 *ip =
+        reinterpret_cast<bess::utils::Ipv4 *>(pkt);
     bess::utils::TcpHeader *tcp =
         reinterpret_cast<bess::utils::TcpHeader *>(ip + 1);
 
@@ -203,7 +203,7 @@ BENCHMARK_DEFINE_F(ChecksumFixture, BmIncrementalUpdate16)
 (benchmark::State &state) {
   void *pkt = get_buffer(60);  // min ethernet pkt size except FCS
 
-  bess::utils::Ipv4Header *ip = reinterpret_cast<bess::utils::Ipv4Header *>(
+  bess::utils::Ipv4 *ip = reinterpret_cast<bess::utils::Ipv4 *>(
       reinterpret_cast<uint8_t *>(pkt) + sizeof(EthHeader));
   bess::utils::TcpHeader *tcp =
       reinterpret_cast<bess::utils::TcpHeader *>(ip + 1);
@@ -234,7 +234,7 @@ BENCHMARK_DEFINE_F(ChecksumFixture, BmIncrementalUpdate32)
 (benchmark::State &state) {
   void *pkt = get_buffer(60);  // min ethernet pkt size except FCS
 
-  bess::utils::Ipv4Header *ip = reinterpret_cast<bess::utils::Ipv4Header *>(
+  bess::utils::Ipv4 *ip = reinterpret_cast<bess::utils::Ipv4 *>(
       reinterpret_cast<uint8_t *>(pkt) + sizeof(EthHeader));
   bess::utils::TcpHeader *tcp =
       reinterpret_cast<bess::utils::TcpHeader *>(ip + 1);
@@ -268,7 +268,7 @@ BENCHMARK_DEFINE_F(ChecksumFixture, BmSrcIpPortUpdateDpdk)
 (benchmark::State &state) {
   void *pkt = get_buffer(60);  // min ethernet pkt size except FCS
 
-  bess::utils::Ipv4Header *ip = reinterpret_cast<bess::utils::Ipv4Header *>(
+  bess::utils::Ipv4 *ip = reinterpret_cast<bess::utils::Ipv4 *>(
       reinterpret_cast<uint8_t *>(pkt) + sizeof(EthHeader));
   bess::utils::TcpHeader *tcp =
       reinterpret_cast<bess::utils::TcpHeader *>(ip + 1);
@@ -298,7 +298,7 @@ BENCHMARK_DEFINE_F(ChecksumFixture, BmSrcIpPortUpdateBess)
 (benchmark::State &state) {
   void *pkt = get_buffer(60);  // min ethernet pkt size except FCS
 
-  bess::utils::Ipv4Header *ip = reinterpret_cast<bess::utils::Ipv4Header *>(
+  bess::utils::Ipv4 *ip = reinterpret_cast<bess::utils::Ipv4 *>(
       reinterpret_cast<uint8_t *>(pkt) + sizeof(EthHeader));
   bess::utils::TcpHeader *tcp =
       reinterpret_cast<bess::utils::TcpHeader *>(ip + 1);

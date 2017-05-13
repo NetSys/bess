@@ -5,7 +5,7 @@
 #include "../utils/ip.h"
 
 using bess::utils::EthHeader;
-using bess::utils::Ipv4Header;
+using bess::utils::Ipv4;
 using bess::utils::be16_t;
 using bess::utils::be32_t;
 
@@ -39,11 +39,11 @@ void IPEncap::ProcessBatch(bess::PacketBatch *batch) {
     be32_t ip_dst = get_attr<be32_t>(this, ATTR_R_IP_DST, pkt);
     uint8_t ip_proto = get_attr<uint8_t>(this, ATTR_R_IP_PROTO, pkt);
 
-    Ipv4Header *iph;
+    Ipv4 *iph;
 
     uint16_t total_len = pkt->total_len() + sizeof(*iph);
 
-    iph = static_cast<Ipv4Header *>(pkt->prepend(sizeof(*iph)));
+    iph = static_cast<Ipv4 *>(pkt->prepend(sizeof(*iph)));
 
     if (unlikely(!iph)) {
       continue;
@@ -53,7 +53,7 @@ void IPEncap::ProcessBatch(bess::PacketBatch *batch) {
     iph->header_length = sizeof(*iph) / 4;
     iph->type_of_service = 0;
     iph->length = be16_t(total_len);
-    iph->fragment_offset = be16_t(Ipv4Header::Flag::kDF);
+    iph->fragment_offset = be16_t(Ipv4::Flag::kDF);
     iph->ttl = 64;
     iph->protocol = ip_proto;
     iph->src = ip_src;

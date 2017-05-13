@@ -176,7 +176,7 @@ static inline bool VerifyGenericChecksum(const void *buf, size_t len) {
 }
 
 // Return true if the IP checksum is true
-static inline bool VerifyIpv4NoOptChecksum(const Ipv4Header &iph) {
+static inline bool VerifyIpv4NoOptChecksum(const Ipv4 &iph) {
   const uint32_t *buf32 = reinterpret_cast<const uint32_t *>(&iph);
   uint32_t sum = buf32[0];
 
@@ -198,7 +198,7 @@ static inline bool VerifyIpv4NoOptChecksum(const Ipv4Header &iph) {
 // Return IP checksum of the ip header 'iph' without ip options
 // It skips the checksum field into the calculation
 // It does not set the checksum field in ip header
-static inline uint16_t CalculateIpv4NoOptChecksum(const Ipv4Header &iph) {
+static inline uint16_t CalculateIpv4NoOptChecksum(const Ipv4 &iph) {
   const uint32_t *buf32 = reinterpret_cast<const uint32_t *>(&iph);
   uint32_t sum = buf32[0];
 
@@ -250,7 +250,7 @@ static inline bool VerifyIpv4TcpChecksum(const TcpHeader &tcph, be32_t src_ip,
 }
 
 // Return true if the TCP checksum is true
-static inline bool VerifyIpv4TcpChecksum(const Ipv4Header &iph,
+static inline bool VerifyIpv4TcpChecksum(const Ipv4 &iph,
                                          const TcpHeader &tcph) {
   return VerifyIpv4TcpChecksum(tcph, iph.src, iph.dst,
                                iph.length.value() - (iph.header_length << 2));
@@ -291,7 +291,7 @@ static inline uint16_t CalculateIpv4TcpChecksum(const TcpHeader &tcph,
 }
 
 // Return true if the TCP (on IPv4) checksum is true
-static inline uint16_t CalculateIpv4TcpChecksum(const Ipv4Header &iph,
+static inline uint16_t CalculateIpv4TcpChecksum(const Ipv4 &iph,
                                                 const TcpHeader &tcph) {
   return CalculateIpv4TcpChecksum(
       tcph, iph.src, iph.dst, iph.length.value() - (iph.header_length << 2));

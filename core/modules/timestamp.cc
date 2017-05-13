@@ -6,7 +6,7 @@
 #include "../utils/udp.h"
 
 using bess::utils::EthHeader;
-using bess::utils::Ipv4Header;
+using bess::utils::Ipv4;
 using bess::utils::UdpHeader;
 
 static inline void timestamp_packet(bess::Packet *pkt, size_t offset,
@@ -35,7 +35,7 @@ CommandResponse Timestamp::Init(const bess::pb::TimestampArg &arg) {
   if (arg.offset()) {
     offset_ = arg.offset();
   } else {
-    offset_ = sizeof(EthHeader) + sizeof(Ipv4Header) + sizeof(UdpHeader);
+    offset_ = sizeof(EthHeader) + sizeof(Ipv4) + sizeof(UdpHeader);
   }
   return CommandSuccess();
 }
