@@ -1,7 +1,6 @@
 #include "ip_encap.h"
 
 #include "../utils/checksum.h"
-#include "../utils/endian.h"
 #include "../utils/ether.h"
 #include "../utils/ip.h"
 

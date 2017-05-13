@@ -1,13 +1,14 @@
 #ifndef BESS_MODULES_FLOWGEN_H_
 #define BESS_MODULES_FLOWGEN_H_
 
+#include "../module.h"
+#include "../module_msg.pb.h"
+
 #include <queue>
 #include <stack>
 
-#include "../module.h"
-#include "../module_msg.pb.h"
-#include "../utils/random.h"
 #include "../utils/endian.h"
+#include "../utils/random.h"
 
 typedef std::pair<uint64_t, struct flow *> Event;
 typedef std::priority_queue<Event, std::vector<Event>, std::greater<Event>>

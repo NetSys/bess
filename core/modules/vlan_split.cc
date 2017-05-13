@@ -1,9 +1,10 @@
 #include "vlan_split.h"
 
-#include "../utils/endian.h"
+#include "../utils/ether.h"
 
 void VLANSplit::ProcessBatch(bess::PacketBatch *batch) {
   using bess::utils::be16_t;
+  using bess::utils::EthHeader;
 
   gate_idx_t vid[bess::PacketBatch::kMaxBurst];
   int cnt = batch->cnt();
@@ -16,7 +17,8 @@ void VLANSplit::ProcessBatch(bess::PacketBatch *batch) {
     eth = _mm_loadu_si128(reinterpret_cast<__m128i *>(old_head));
     be16_t tpid(be16_t::swap(_mm_extract_epi16(eth, 6)));
 
-    bool tagged = (tpid == be16_t(0x8100)) || (tpid == be16_t(0x88a8));
+    bool tagged = (tpid == be16_t(EthHeader::Type::kVlan)) ||
+                  (tpid == be16_t(EthHeader::Type::kQinQ));
 
     if (tagged && pkt->adj(4)) {
       be16_t tci(be16_t::swap(_mm_extract_epi16(eth, 7)));

@@ -3,6 +3,7 @@
 
 #include "../module.h"
 #include "../module_msg.pb.h"
+
 #include "../utils/endian.h"
 
 class VLANPush final : public Module {

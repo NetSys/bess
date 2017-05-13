@@ -1,9 +1,10 @@
 #include "vlan_pop.h"
 
-#include "../utils/endian.h"
+#include "../utils/ether.h"
 
 void VLANPop::ProcessBatch(bess::PacketBatch *batch) {
   using bess::utils::be16_t;
+  using bess::utils::EthHeader;
 
   int cnt = batch->cnt();
 
@@ -14,7 +15,8 @@ void VLANPop::ProcessBatch(bess::PacketBatch *batch) {
     __m128i eth = _mm_loadu_si128(reinterpret_cast<__m128i *>(old_head));
     be16_t tpid(be16_t::swap(_mm_extract_epi16(eth, 6)));
 
-    bool tagged = (tpid == be16_t(0x8100)) || (tpid == be16_t(0x88a8));
+    bool tagged = (tpid == be16_t(EthHeader::Type::kVlan)) ||
+                  (tpid == be16_t(EthHeader::Type::kQinQ));
 
     if (tagged && pkt->adj(4)) {
       eth = _mm_slli_si128(eth, 4);

@@ -27,7 +27,7 @@ struct[[gnu::packed]] PacketTemplate {
   PacketTemplate() {
     eth.dst_addr = EthHeader::Address();  // To fill in
     eth.src_addr = EthHeader::Address();  // To fill in
-    eth.ether_type = be16_t(0x0800);      // IPv4
+    eth.ether_type = be16_t(EthHeader::Type::kIpv4);
     ip.version = 4;
     ip.header_length = 5;
     ip.type_of_service = 0;
