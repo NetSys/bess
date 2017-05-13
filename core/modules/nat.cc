@@ -59,9 +59,9 @@ CommandResponse NAT::CommandClear(const bess::pb::EmptyArg &) {
 }
 
 // Extract a Flow object from IP header ip and L4 header l4
-static inline Flow parse_flow(struct Ipv4 *ip, void *l4) {
-  struct Udp *udp = reinterpret_cast<struct Udp *>(l4);
-  struct Icmp *icmp = reinterpret_cast<struct Icmp *>(l4);
+static inline Flow parse_flow(Ipv4 *ip, void *l4) {
+  Udp *udp = reinterpret_cast<Udp *>(l4);
+  Icmp *icmp = reinterpret_cast<Icmp *>(l4);
   Flow flow;
 
   flow.proto = ip->protocol;
@@ -93,10 +93,10 @@ static inline Flow parse_flow(struct Ipv4 *ip, void *l4) {
 }
 
 template <bool src>
-static inline void stamp_flow(struct Ipv4 *ip, void *l4, const Flow &flow) {
-  struct Udp *udp = reinterpret_cast<struct Udp *>(l4);
-  struct Tcp *tcp = reinterpret_cast<struct Tcp *>(l4);
-  struct Icmp *icmp = reinterpret_cast<struct Icmp *>(l4);
+static inline void stamp_flow(Ipv4 *ip, void *l4, const Flow &flow) {
+  Udp *udp = reinterpret_cast<Udp *>(l4);
+  Tcp *tcp = reinterpret_cast<Tcp *>(l4);
+  Icmp *icmp = reinterpret_cast<Icmp *>(l4);
   uint32_t l3_inc = 0;
   uint32_t l4_inc = 0;
 
@@ -173,12 +173,12 @@ static inline void stamp_flow(struct Ipv4 *ip, void *l4, const Flow &flow) {
 }
 
 // Rewrite IP header and L4 header src info using flow
-static inline void stamp_flow_src(struct Ipv4 *ip, void *l4, const Flow &flow) {
+static inline void stamp_flow_src(Ipv4 *ip, void *l4, const Flow &flow) {
   stamp_flow<true>(ip, l4, flow);
 }
 
 // Rewrite IP header and L4 header dst info using flow
-static inline void stamp_flow_dst(struct Ipv4 *ip, void *l4, const Flow &flow) {
+static inline void stamp_flow_dst(Ipv4 *ip, void *l4, const Flow &flow) {
   stamp_flow<false>(ip, l4, flow);
 }
 
@@ -196,8 +196,8 @@ void NAT::ProcessBatch(bess::PacketBatch *batch) {
   for (int i = 0; i < cnt; i++) {
     bess::Packet *pkt = batch->pkts()[i];
 
-    struct Ethernet *eth = pkt->head_data<struct Ethernet *>();
-    struct Ipv4 *ip = reinterpret_cast<struct Ipv4 *>(eth + 1);
+    Ethernet *eth = pkt->head_data<Ethernet *>();
+    Ipv4 *ip = reinterpret_cast<Ipv4 *>(eth + 1);
     size_t ip_bytes = (ip->header_length) << 2;
 
     void *l4 = reinterpret_cast<uint8_t *>(ip) + ip_bytes;

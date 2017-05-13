@@ -18,8 +18,8 @@ void UpdateTTL::ProcessBatch(bess::PacketBatch *batch) {
   for (int i = 0; i < cnt; i++) {
     bess::Packet *pkt = batch->pkts()[i];
 
-    struct Ethernet *eth = pkt->head_data<struct Ethernet *>();
-    struct Ipv4 *ip = reinterpret_cast<struct Ipv4 *>(eth + 1);
+    Ethernet *eth = pkt->head_data<Ethernet *>();
+    Ipv4 *ip = reinterpret_cast<Ipv4 *>(eth + 1);
 
     if (ip->ttl > 1) {
       // The incremental checksum only cares the difference from old_value to

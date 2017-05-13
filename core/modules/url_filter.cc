@@ -183,8 +183,8 @@ void UrlFilter::ProcessBatch(bess::PacketBatch *batch) {
   for (int i = 0; i < cnt; i++) {
     bess::Packet *pkt = batch->pkts()[i];
 
-    struct Ethernet *eth = pkt->head_data<struct Ethernet *>();
-    struct Ipv4 *ip = reinterpret_cast<struct Ipv4 *>(eth + 1);
+    Ethernet *eth = pkt->head_data<Ethernet *>();
+    Ipv4 *ip = reinterpret_cast<Ipv4 *>(eth + 1);
 
     if (ip->protocol != Ipv4::Proto::kTcp) {
       out_batches[0].add(pkt);
@@ -192,8 +192,8 @@ void UrlFilter::ProcessBatch(bess::PacketBatch *batch) {
     }
 
     int ip_bytes = ip->header_length << 2;
-    struct Tcp *tcp = reinterpret_cast<struct Tcp *>(
-        reinterpret_cast<uint8_t *>(ip) + ip_bytes);
+    Tcp *tcp =
+        reinterpret_cast<Tcp *>(reinterpret_cast<uint8_t *>(ip) + ip_bytes);
 
     Flow flow;
     flow.src_ip = ip->src;
