@@ -56,7 +56,7 @@ class TcpFlowReconstruct {
     uint32_t seq = tcp->seq_num.value();
     // Assumes we only get one SYN and the sequence number of it doesn't change
     // for any reason.  Also assumes we have no data in the SYN.
-    if (tcp->flags & TCP_FLAG_SYN) {
+    if (tcp->flags & TcpHeader::Flag::kSyn) {
       init_seq_ = seq + 1;
       initialized_ = true;
       return true;

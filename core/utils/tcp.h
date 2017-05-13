@@ -1,19 +1,20 @@
 #ifndef BESS_UTILS_TCP_H_
 #define BESS_UTILS_TCP_H_
 
-// Flags used in the flags field of the TCP header.
-#define TCP_FLAG_FIN 0x01
-#define TCP_FLAG_SYN 0x02
-#define TCP_FLAG_RST 0x04
-#define TCP_FLAG_PUSH 0x08
-#define TCP_FLAG_ACK 0x10
-#define TCP_FLAG_URG 0x20
-
 namespace bess {
 namespace utils {
 
 // A basic TCP header definition loosely based on the BSD version.
 struct[[gnu::packed]] TcpHeader {
+  enum Flag : uint8_t {
+    kFin = 0x01,
+    kSyn = 0x02,
+    kRst = 0x04,
+    kPsh = 0x08,
+    kAck = 0x10,
+    kUrg = 0x20,
+  };
+
   be16_t src_port;  // Source port.
   be16_t dst_port;  // Destination port.
   be32_t seq_num;   // Sequence number.

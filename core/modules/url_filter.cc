@@ -45,7 +45,7 @@ struct[[gnu::packed]] PacketTemplate {
     tcp.ack_num = be32_t(0);   // To fill in
     tcp.reserved = 0;
     tcp.offset = 5;
-    tcp.flags = 0x14;  // RST-ACK
+    tcp.flags = TcpHeader::Flag::kAck | TcpHeader::Flag::kRst;
     tcp.window = be16_t(0);
     tcp.checksum = 0;  // To fill in
     tcp.urgent_ptr = be16_t(0);
@@ -89,7 +89,7 @@ inline static bess::Packet *Generate403Packet(const EthHeader::Address &src_eth,
   tcp->dst_port = dst_port;
   tcp->seq_num = seq;
   tcp->ack_num = ack;
-  tcp->flags = 0x10;  // ACK
+  tcp->flags = TcpHeader::Flag::kAck;
 
   tcp->checksum = bess::utils::CalculateIpv4TcpChecksum(*tcp, src_ip, dst_ip,
                                                         sizeof(*tcp) + len);
@@ -262,7 +262,7 @@ void UrlFilter::ProcessBatch(bess::PacketBatch *batch) {
       // If FIN is observed, no need to reconstruct this flow
       // NOTE: if FIN is lost on its way to destination, this will simply pass
       // the retransmitted packet
-      if (tcp->flags & TCP_FLAG_FIN) {
+      if (tcp->flags & TcpHeader::Flag::kFin) {
         flow_cache_.erase(it);
       }
     } else {
