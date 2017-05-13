@@ -19,7 +19,7 @@ struct sched_stats {
 };
 
 enum class SchedulerType {
-  FAST = 0,  // Corresponds to FastScheduler.
+  DEFAULT = 0,  // Corresponds to DefaultScheduler.
 };
 
 template <typename CallableTask>
@@ -185,14 +185,14 @@ class Scheduler {
   DISALLOW_COPY_AND_ASSIGN(Scheduler);
 };
 
-// The default "fast" scheduler, which picks the first leaf that the TC tree
-// gives it and runs the corresponding task.
+// The default scheduler, which picks the first leaf that the TC tree gives it
+// and runs the corresponding task.
 template <typename CallableTask>
-class FastScheduler : public Scheduler<CallableTask> {
+class DefaultScheduler : public Scheduler<CallableTask> {
  public:
-  explicit FastScheduler(TrafficClass *root = nullptr) : Scheduler<CallableTask>(root) {}
+  explicit DefaultScheduler(TrafficClass *root = nullptr) : Scheduler<CallableTask>(root) {}
 
-  virtual ~FastScheduler() {}
+  virtual ~DefaultScheduler() {}
 
   // Runs the scheduler loop forever.
   void ScheduleLoop() override {
@@ -220,7 +220,7 @@ class FastScheduler : public Scheduler<CallableTask> {
   }
 
   // Runs the scheduler once.
-  void ScheduleOnce() __attribute__((always_inline)) {
+  void ScheduleOnce() {
     resource_arr_t usage;
 
     // Schedule.
@@ -262,8 +262,7 @@ class FastScheduler : public Scheduler<CallableTask> {
   }
 
   // Selects the next TrafficClass to run.
-  LeafTrafficClass<CallableTask> *Next(uint64_t tsc)
-      __attribute__((always_inline)) {
+  LeafTrafficClass<CallableTask> *Next(uint64_t tsc) {
     // Before we select the next class to run, resume any classes that were
     // throttled whose throttle time has expired so that they are available.
     this->ResumeThrottled(tsc);

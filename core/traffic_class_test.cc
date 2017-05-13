@@ -177,9 +177,9 @@ TEST(CreateTree, RateLimitRootAndLeaf) {
 
 // Tess that we can create a simple tree and have the scheduler pick the leaf
 // repeatedly.
-TEST(FastSchedulerNext, BasicTreePriority) {
+TEST(DefaultSchedulerNext, BasicTreePriority) {
   Task t(nullptr, nullptr, nullptr);
-  FastScheduler<Task> s(CT("root", {PRIORITY},
+  DefaultScheduler<Task> s(CT("root", {PRIORITY},
                                    {{10, CL("leaf", {LEAF, t})}}));
   ASSERT_EQ(2, TrafficClassBuilder::Find("root")->Size());
 
@@ -205,9 +205,9 @@ TEST(FastSchedulerNext, BasicTreePriority) {
 
 // Tess that we can create a simple tree and have the scheduler pick the leaf
 // repeatedly.
-TEST(FastSchedulerNext, BasicTreeWeightedFair) {
+TEST(DefaultSchedulerNext, BasicTreeWeightedFair) {
   Task t(nullptr, nullptr, nullptr);
-  FastScheduler<Task> s(CT("root", {WEIGHTED_FAIR, RESOURCE_COUNT},
+  DefaultScheduler<Task> s(CT("root", {WEIGHTED_FAIR, RESOURCE_COUNT},
                                    {{2, CL("leaf", {LEAF, t})}}));
   ASSERT_EQ(2, TrafficClassBuilder::Find("root")->Size());
 
@@ -234,9 +234,9 @@ TEST(FastSchedulerNext, BasicTreeWeightedFair) {
 
 // Tess that we can create a simple tree and have the scheduler pick the leaf
 // repeatedly.
-TEST(FastSchedulerNext, BasicTreeRoundRobin) {
+TEST(DefaultSchedulerNext, BasicTreeRoundRobin) {
   Task t(nullptr, nullptr, nullptr);
-  FastScheduler<Task> s(CT("root", {ROUND_ROBIN},
+  DefaultScheduler<Task> s(CT("root", {ROUND_ROBIN},
                                    {{CL("leaf", {LEAF, t})}}));
   ASSERT_EQ(2, TrafficClassBuilder::Find("root")->Size());
 
@@ -261,11 +261,11 @@ TEST(FastSchedulerNext, BasicTreeRoundRobin) {
 
 // Tess that we can create a simple tree and have the scheduler pick the leaf
 // repeatedly.
-TEST(FastSchedulerNext, BasicTreeRateLimit) {
+TEST(DefaultSchedulerNext, BasicTreeRateLimit) {
   uint64_t new_limit = 25;
   uint64_t new_burst = 50;
   Task t(nullptr, nullptr, nullptr);
-  FastScheduler<Task> s(CT("root", {RATE_LIMIT, RESOURCE_COUNT, 50, 100},
+  DefaultScheduler<Task> s(CT("root", {RATE_LIMIT, RESOURCE_COUNT, 50, 100},
                                    {CL("leaf", {LEAF, t})}));
   ASSERT_EQ(2, TrafficClassBuilder::Find("root")->Size());
 
@@ -305,9 +305,9 @@ TEST(FastSchedulerNext, BasicTreeRateLimit) {
 
 // Tess that we can create a simple tree and have the scheduler pick the
 // unblocked child repeatedly if one of the children is blocked.
-TEST(FastSchedulerNext, TwoLeavesWeightedFairOneBlocked) {
+TEST(DefaultSchedulerNext, TwoLeavesWeightedFairOneBlocked) {
   Task t(nullptr, nullptr, nullptr);
-  FastScheduler<Task> s(CT("root", {WEIGHTED_FAIR, RESOURCE_COUNT},
+  DefaultScheduler<Task> s(CT("root", {WEIGHTED_FAIR, RESOURCE_COUNT},
                                    {{1, CT("rr_1", {ROUND_ROBIN})},
                                    {2, CT("rr_2", {ROUND_ROBIN})}}));
   ASSERT_EQ(3, TrafficClassBuilder::Find("root")->Size());
@@ -337,10 +337,10 @@ TEST(FastSchedulerNext, TwoLeavesWeightedFairOneBlocked) {
 
 // Tess that we can create a simple tree and have the scheduler pick the
 // leaves in proportion to their weights.
-TEST(FastScheduleOnce, TwoLeavesWeightedFair) {
+TEST(DefaultScheduleOnce, TwoLeavesWeightedFair) {
   DummyModule dm;
   Task t(&dm, nullptr, nullptr);
-  FastScheduler<Task> s(CT("root", {WEIGHTED_FAIR, RESOURCE_COUNT},
+  DefaultScheduler<Task> s(CT("root", {WEIGHTED_FAIR, RESOURCE_COUNT},
                                    {{5, CL("leaf_2", {LEAF, t})},
                                    {2, CL("leaf_1", {LEAF, t})}}));
   ASSERT_EQ(3, TrafficClassBuilder::Find("root")->Size());
@@ -380,10 +380,10 @@ TEST(FastScheduleOnce, TwoLeavesWeightedFair) {
 
 // Tess that we can create a simple tree and have the scheduler pick the best
 // (lowest) priority leaf that is unblocked at that time.
-TEST(FastScheduleOnce, TwoLeavesPriority) {
+TEST(DefaultScheduleOnce, TwoLeavesPriority) {
   DummyModule dm;
   Task t(&dm, nullptr, nullptr);
-  FastScheduler<Task> s(CT("root", {PRIORITY},
+  DefaultScheduler<Task> s(CT("root", {PRIORITY},
                                    {{0, CT("rr_1", {ROUND_ROBIN})},
                                    {1, CT("rr_2", {ROUND_ROBIN})}}));
   ASSERT_EQ(3, TrafficClassBuilder::Find("root")->Size());
@@ -429,10 +429,10 @@ TEST(FastScheduleOnce, TwoLeavesPriority) {
 
 // Tess that we can create a simple tree and have the scheduler pick the
 // leaves round robin.
-TEST(FastScheduleOnce, TwoLeavesRoundRobin) {
+TEST(DefaultScheduleOnce, TwoLeavesRoundRobin) {
   DummyModule dm;
   Task t(&dm, nullptr, nullptr);
-  FastScheduler<Task> s(CT("root", {ROUND_ROBIN},
+  DefaultScheduler<Task> s(CT("root", {ROUND_ROBIN},
                                    {{CL("leaf_1", {LEAF, t})},
                                    {CL("leaf_2", {LEAF, t})}}));
   ASSERT_EQ(3, TrafficClassBuilder::Find("root")->Size());
@@ -467,10 +467,10 @@ TEST(FastScheduleOnce, TwoLeavesRoundRobin) {
 // Tess that we can create a more complex tree and have the scheduler pick the
 // leaves in proportion to their weights even when they are multiple levels down
 // in the hierarchy.
-TEST(FastScheduleOnce, LeavesWeightedFairAndRoundRobin) {
+TEST(DefaultScheduleOnce, LeavesWeightedFairAndRoundRobin) {
   DummyModule dm;
   Task t(&dm, nullptr, nullptr);
-  FastScheduler<Task> s(
+  DefaultScheduler<Task> s(
       CT("root", {WEIGHTED_FAIR, RESOURCE_COUNT},
                  {{2, CT("rr_1", {ROUND_ROBIN}, {
                       {CL("leaf_1a", {LEAF, t})},
@@ -523,7 +523,7 @@ TEST(FastScheduleOnce, LeavesWeightedFairAndRoundRobin) {
 // Tests that rate limit nodes get properly blocked and unblocked.
 TEST(RateLimit, BasicBlockUnblock) {
   Task t(nullptr, nullptr, nullptr);
-  FastScheduler<Task> s(
+  DefaultScheduler<Task> s(
       CT("root", {ROUND_ROBIN},
          {{CT("limit_1", {RATE_LIMIT, RESOURCE_COUNT, 1, 0},
             {CL("leaf_1", {LEAF, t})})},

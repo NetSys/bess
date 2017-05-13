@@ -256,7 +256,7 @@ def get_var_attrs(cli, var_token, partial_word):
         elif var_token == '[SCHEDULER]':
             var_type = 'name'
             var_desc = 'specify the type of scheduler'
-            var_candidates = ['fast']
+            var_candidates = ['default']
 
         elif var_token == 'PORT':
             var_type = 'name'
@@ -769,11 +769,7 @@ def run_file(cli, conf_file, env_map):
 
 @cmd('add worker WORKER_ID CORE [SCHEDULER]', 'Create a worker')
 def add_worker(cli, wid, core, scheduler=None):
-    s = scheduler
-    if s is None:
-        s = 'fast'
-    cli.bess.add_worker(wid, core, s)
-
+    cli.bess.add_worker(wid, core, scheduler or '')
 
 @cmd('add port DRIVER [NEW_PORT] [PORT_ARGS...]', 'Add a new port')
 def add_port(cli, driver, port, args):

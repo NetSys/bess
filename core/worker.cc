@@ -22,7 +22,7 @@
 #include "utils/time.h"
 
 using bess::Scheduler;
-using bess::FastScheduler;
+using bess::DefaultScheduler;
 using bess::SchedulerType;
 
 int num_workers = 0;
@@ -42,10 +42,11 @@ std::list<std::pair<int, bess::TrafficClass *>> orphan_tcs;
 // See worker.h
 __thread Worker ctx;
 
+template <typename CallableTask>
 struct thread_arg {
   int wid;
   int core;
-  SchedulerType scheduler;
+  Scheduler<CallableTask> *scheduler;
 };
 
 #define SYS_CPU_DIR "/sys/devices/system/cpu/cpu%u"
@@ -231,7 +232,7 @@ int Worker::BlockWorker() {
 
 /* The entry point of worker threads */
 void *Worker::Run(void *_arg) {
-  struct thread_arg *arg = (struct thread_arg *)_arg;
+  struct thread_arg<Task> *arg = (struct thread_arg<Task> *)_arg;
 
   cpu_set_t set;
 
@@ -250,11 +251,7 @@ void *Worker::Run(void *_arg) {
   fd_event_ = eventfd(0, 0);
   DCHECK_GE(fd_event_, 0);
 
-  if (arg->scheduler == SchedulerType::FAST) {
-    scheduler_ = new FastScheduler<Task>();
-  } else {
-    CHECK(false) << "Scheduler " << static_cast<int>(arg->scheduler) << " is invalid.";
-  }
+  scheduler_ = arg->scheduler;
 
   current_tsc_ = rdtsc();
 
@@ -289,21 +286,26 @@ void *run_worker(void *_arg) {
 }
 
 void launch_worker(int wid, int core, [[maybe_unused]] const std::string &scheduler) {
-  SchedulerType scheduler_type = SchedulerType::FAST;
-
-  struct thread_arg arg = {
+  struct thread_arg<Task> arg = {
     .wid = wid,
     .core = core,
-    .scheduler = scheduler_type
+    .scheduler = nullptr
   };
+  if (scheduler == "") {
+    arg.scheduler = new DefaultScheduler<Task>();
+  } else {
+    CHECK(false) << "Scheduler " << scheduler << " is invalid.";
+  }
+
   worker_threads[wid] = std::thread(run_worker, &arg);
   worker_threads[wid].detach();
 
   INST_BARRIER();
 
   /* spin until it becomes ready and fully paused */
-  while (!is_worker_active(wid) || workers[wid]->status() != WORKER_PAUSED)
+  while (!is_worker_active(wid) || workers[wid]->status() != WORKER_PAUSED) {
     continue;
+  }
 
   num_workers++;
 }
@@ -311,7 +313,7 @@ void launch_worker(int wid, int core, [[maybe_unused]] const std::string &schedu
 Worker *get_next_active_worker() {
   static int prev_wid = 0;
   if (num_workers == 0) {
-    launch_worker(0, FLAGS_c, "fast");
+    launch_worker(0, FLAGS_c);
     return workers[0];
   }
 

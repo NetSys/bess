@@ -258,7 +258,7 @@ class TrafficClass {
 
  private:
   template <typename CallableTask> friend class Scheduler;
-  template <typename CallableTask> friend class FastScheduler;
+  template <typename CallableTask> friend class DefaultScheduler;
 
   bool blocked_;
 

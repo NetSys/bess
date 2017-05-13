@@ -516,7 +516,9 @@ class BESSControlImpl final : public BESSControl::Service {
                                wid);
     }
     const std::string &scheduler = request->scheduler();
-    if (scheduler != "fast") {
+
+    // TODO(barath): Remove this check once we support additional schedulers.
+    if (scheduler != "") {
       return return_with_error(response, EINVAL, "Invalid scheduler type %s",
                                scheduler.c_str());
     }
@@ -1520,7 +1522,7 @@ class BESSControlImpl final : public BESSControl::Service {
       if ((wid != -1 && !is_worker_active(wid)) ||
           (wid == -1 && num_workers == 0)) {
         if (num_workers == 0 && (wid == 0 || wid == -1)) {
-          launch_worker(0, FLAGS_c, "fast");
+          launch_worker(0, FLAGS_c);
         } else {
           return return_with_error(response, EINVAL, "worker:%d does not exist",
                                    wid);
