@@ -10,7 +10,7 @@
 
 using bess::utils::Ethernet;
 using bess::utils::Ipv4;
-using bess::utils::UdpHeader;
+using bess::utils::Udp;
 
 static bool IsTimestamped(bess::Packet *pkt, size_t offset, uint64_t *time) {
   auto *marker = pkt->head_data<Timestamp::MarkerType *>(offset);
@@ -38,7 +38,7 @@ CommandResponse Measure::Init(const bess::pb::MeasureArg &arg) {
     offset_ = arg.offset();
   } else {
     offset_ = sizeof(struct Ethernet) + sizeof(struct Ipv4) +
-              sizeof(struct UdpHeader);
+              sizeof(struct Udp);
   }
 
   if (arg.jitter_sample_prob()) {

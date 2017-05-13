@@ -15,7 +15,7 @@
 using bess::utils::Ethernet;
 using bess::utils::Ipv4;
 using IpProto = bess::utils::Ipv4::Proto;
-using bess::utils::UdpHeader;
+using bess::utils::Udp;
 using bess::utils::TcpHeader;
 using bess::utils::IcmpHeader;
 using bess::utils::CalculateChecksumIncremental16;
@@ -60,7 +60,7 @@ CommandResponse NAT::CommandClear(const bess::pb::EmptyArg &) {
 
 // Extract a Flow object from IP header ip and L4 header l4
 static inline Flow parse_flow(struct Ipv4 *ip, void *l4) {
-  struct UdpHeader *udp = reinterpret_cast<struct UdpHeader *>(l4);
+  struct Udp *udp = reinterpret_cast<struct Udp *>(l4);
   struct IcmpHeader *icmp = reinterpret_cast<struct IcmpHeader *>(l4);
   Flow flow;
 
@@ -95,7 +95,7 @@ static inline Flow parse_flow(struct Ipv4 *ip, void *l4) {
 template <bool src>
 static inline void stamp_flow(struct Ipv4 *ip, void *l4,
                               const Flow &flow) {
-  struct UdpHeader *udp = reinterpret_cast<struct UdpHeader *>(l4);
+  struct Udp *udp = reinterpret_cast<struct Udp *>(l4);
   struct TcpHeader *tcp = reinterpret_cast<struct TcpHeader *>(l4);
   struct IcmpHeader *icmp = reinterpret_cast<struct IcmpHeader *>(l4);
   uint32_t l3_inc = 0;

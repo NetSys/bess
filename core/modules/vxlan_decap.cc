@@ -29,7 +29,7 @@ void VXLANDecap::ProcessBatch(bess::PacketBatch *batch) {
   using bess::utils::be32_t;
   using bess::utils::Ethernet;
   using bess::utils::Ipv4;
-  using bess::utils::UdpHeader;
+  using bess::utils::Udp;
   using bess::utils::VxlanHeader;
 
   int cnt = batch->cnt();
@@ -39,7 +39,7 @@ void VXLANDecap::ProcessBatch(bess::PacketBatch *batch) {
     Ethernet *eth = pkt->head_data<Ethernet *>();
     Ipv4 *ip = reinterpret_cast<Ipv4 *>(eth + 1);
     size_t ip_bytes = ip->header_length << 2;
-    UdpHeader *udp = reinterpret_cast<UdpHeader *>(
+    Udp *udp = reinterpret_cast<Udp *>(
         reinterpret_cast<uint8_t *>(ip) + ip_bytes);
     VxlanHeader *vh = reinterpret_cast<VxlanHeader *>(udp + 1);
 

@@ -5,7 +5,7 @@ namespace bess {
 namespace utils {
 
 // A basic UDP header definition.
-struct[[gnu::packed]] UdpHeader {
+struct[[gnu::packed]] Udp {
   be16_t src_port;    // Source port.
   be16_t dst_port;    // Destination port.
   be16_t length;      // Length of header and data.

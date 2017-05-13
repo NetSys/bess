@@ -7,7 +7,7 @@
 
 using bess::utils::Ethernet;
 using bess::utils::Ipv4;
-using bess::utils::UdpHeader;
+using bess::utils::Udp;
 
 static inline void timestamp_packet(bess::Packet *pkt, size_t offset,
                                     uint64_t time) {
@@ -35,7 +35,7 @@ CommandResponse Timestamp::Init(const bess::pb::TimestampArg &arg) {
   if (arg.offset()) {
     offset_ = arg.offset();
   } else {
-    offset_ = sizeof(Ethernet) + sizeof(Ipv4) + sizeof(UdpHeader);
+    offset_ = sizeof(Ethernet) + sizeof(Ipv4) + sizeof(Udp);
   }
   return CommandSuccess();
 }

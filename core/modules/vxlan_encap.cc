@@ -49,7 +49,7 @@ CommandResponse VXLANEncap::Init(const bess::pb::VXLANEncapArg &arg) {
 void VXLANEncap::ProcessBatch(bess::PacketBatch *batch) {
   using bess::utils::Ethernet;
   using bess::utils::Ipv4;
-  using bess::utils::UdpHeader;
+  using bess::utils::Udp;
   using bess::utils::VxlanHeader;
 
   int cnt = batch->cnt();
@@ -62,13 +62,13 @@ void VXLANEncap::ProcessBatch(bess::PacketBatch *batch) {
     be32_t vni = get_attr<be32_t>(this, ATTR_R_TUN_ID, pkt);
 
     Ethernet *inner_eth;
-    UdpHeader *udp;
+    Udp *udp;
     VxlanHeader *vh;
 
     size_t inner_frame_len = pkt->total_len() + sizeof(*udp);
 
     inner_eth = pkt->head_data<Ethernet *>();
-    udp = static_cast<UdpHeader *>(pkt->prepend(sizeof(*udp) + sizeof(*vh)));
+    udp = static_cast<Udp *>(pkt->prepend(sizeof(*udp) + sizeof(*vh)));
     if (unlikely(!udp)) {
       continue;
     }
