@@ -14,6 +14,7 @@
 
 using bess::utils::EthHeader;
 using bess::utils::Ipv4Header;
+using IpProto = bess::utils::Ipv4Header::Proto;
 using bess::utils::UdpHeader;
 using bess::utils::TcpHeader;
 using bess::utils::IcmpHeader;
@@ -25,6 +26,14 @@ using bess::utils::FoldChecksumIncremental;
 const Commands NAT::cmds = {
     {"add", "NATArg", MODULE_CMD_FUNC(&NAT::CommandAdd), 0},
     {"clear", "EmptyArg", MODULE_CMD_FUNC(&NAT::CommandClear), 0}};
+
+inline Flow Flow::ReverseFlow() const {
+  if (proto == IpProto::kIcmp) {
+    return Flow(dst_ip, src_ip, icmp_ident, be16_t(0), IpProto::kIcmp);
+  } else {
+    return Flow(dst_ip, src_ip, dst_port, src_port, proto);
+  }
+}
 
 std::string Flow::ToString() const {
   return bess::utils::Format("%d %08x:%hu -> %08x:%hu", proto, src_ip.value(),
@@ -60,12 +69,12 @@ static inline Flow parse_flow(struct Ipv4Header *ip, void *l4) {
   flow.dst_ip = ip->dst;
 
   switch (flow.proto) {
-    case UDP:
-    case TCP:
+    case IpProto::kTcp:
+    case IpProto::kUdp:
       flow.src_port = udp->src_port;
       flow.dst_port = udp->dst_port;
       break;
-    case ICMP:
+    case IpProto::kIcmp:
       switch (icmp->type) {
         case 0:
         case 8:
@@ -105,7 +114,7 @@ static inline void stamp_flow(struct Ipv4Header *ip, void *l4,
   ip->checksum = FoldChecksumIncremental(ip->checksum, l3_inc);
 
   switch (flow.proto) {
-    case TCP:
+    case IpProto::kTcp:
       if (src) {
         l4_inc += CalculateChecksumUnfoldedIncremental16(
             tcp->src_port.raw_value(), flow.src_port.raw_value());
@@ -120,7 +129,7 @@ static inline void stamp_flow(struct Ipv4Header *ip, void *l4,
       tcp->checksum = FoldChecksumIncremental(tcp->checksum, l4_inc);
       break;
 
-    case UDP:
+    case IpProto::kUdp:
       if (udp->checksum) {
         if (src) {
           l4_inc += CalculateChecksumUnfoldedIncremental16(
@@ -145,7 +154,7 @@ static inline void stamp_flow(struct Ipv4Header *ip, void *l4,
       }
       break;
 
-    case ICMP:
+    case IpProto::kIcmp:
       switch (icmp->type) {
         case 0:
         case 8:
@@ -198,8 +207,8 @@ void NAT::ProcessBatch(bess::PacketBatch *batch) {
 
     Flow flow = parse_flow(ip, l4);
 
-    // L4 protocol must be TCP, UDP, or ICMP
-    if (ip->protocol != TCP && ip->protocol != UDP && ip->protocol != ICMP) {
+    if (ip->protocol != IpProto::kTcp && ip->protocol != IpProto::kUdp &&
+        ip->protocol != IpProto::kIcmp) {
       free_batch.add(pkt);
       continue;
     }

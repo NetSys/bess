@@ -19,18 +19,10 @@
 using bess::utils::be16_t;
 using bess::utils::be32_t;
 using bess::utils::CIDRNetwork;
-using bess::utils::HashResult;
-using bess::utils::CuckooMap;
 
 const uint16_t MIN_PORT = 1024;
 const uint16_t MAX_PORT = 65535;
 const uint64_t TIME_OUT_NS = 120ull * 1000 * 1000 * 1000;
-
-enum Protocol : uint8_t {
-  ICMP = 0x01,
-  TCP = 0x06,
-  UDP = 0x11,
-};
 
 // 5 tuple for TCP/UDP packets with an additional icmp_ident for ICMP query pkts
 class alignas(16) Flow {
@@ -51,13 +43,7 @@ class alignas(16) Flow {
       : src_ip(sip), dst_ip(dip), src_port(sp), dst_port(dp), proto(protocol) {}
 
   // Returns a new instance of reserse flow
-  Flow ReverseFlow() const {
-    if (proto == ICMP) {
-      return Flow(dst_ip, src_ip, icmp_ident, be16_t(0), ICMP);
-    } else {
-      return Flow(dst_ip, src_ip, dst_port, src_port, proto);
-    }
-  }
+  Flow ReverseFlow() const;
 
   bool operator==(const Flow &other) const {
     return memcmp(this, &other, sizeof(*this)) == 0;
@@ -189,7 +175,7 @@ class NAT final : public Module {
   }
 
   std::vector<std::pair<CIDRNetwork, AvailablePorts>> rules_;
-  CuckooMap<Flow, FlowRecord *, FlowHash> flow_hash_;
+  bess::utils::CuckooMap<Flow, FlowRecord *, FlowHash> flow_hash_;
   Random rng_;
 };
 

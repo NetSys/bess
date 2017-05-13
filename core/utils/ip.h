@@ -18,6 +18,20 @@ struct[[gnu::packed]] Ipv4Header {
     kDF = 1 << 14,  // Do not fragment
   };
 
+  enum Proto : uint8_t {
+    kIcmp = 1,
+    kIgmp = 2,
+    kIpIp = 4,  // IPv4-in-IPv4
+    kTcp = 6,
+    kUdp = 17,
+    kIpv6 = 41,  // IPv6-in-IPv4
+    kGre = 47,
+    kSctp = 132,
+    kUdpLite = 136,
+    kMpls = 137,  // MPLS-in-IPv4
+    kRaw = 255,
+  };
+
 #if __BYTE_ORDER == __LITTLE_ENDIAN
   uint8_t header_length : 4;  // Header length.
   uint8_t version : 4;        // Version.

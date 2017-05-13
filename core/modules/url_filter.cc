@@ -35,7 +35,7 @@ struct[[gnu::packed]] PacketTemplate {
     ip.id = be16_t(0);
     ip.fragment_offset = be16_t(0);
     ip.ttl = 0x40;
-    ip.protocol = 0x06;
+    ip.protocol = Ipv4Header::Proto::kTcp;
     ip.checksum = 0;           // To fill in
     ip.src = be32_t(0);        // To fill in
     ip.dst = be32_t(0);        // To fill in
@@ -186,7 +186,7 @@ void UrlFilter::ProcessBatch(bess::PacketBatch *batch) {
     struct EthHeader *eth = pkt->head_data<struct EthHeader *>();
     struct Ipv4Header *ip = reinterpret_cast<struct Ipv4Header *>(eth + 1);
 
-    if (ip->protocol != 0x06) {
+    if (ip->protocol != Ipv4Header::Proto::kTcp) {
       out_batches[0].add(pkt);
       continue;
     }

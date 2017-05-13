@@ -27,14 +27,14 @@ void IPSwap::ProcessBatch(bess::PacketBatch *batch) {
 
     bess::utils::be16_t tmp_port;
     switch (ip->protocol) {
-      case 0x06:  // TCP
-      case 0x11:  // UDP
+      case Ipv4Header::Proto::kTcp:
+      case Ipv4Header::Proto::kUdp:
         // TCP and UDP share the same layout for ports
         tmp_port = udp->src_port;
         udp->src_port = udp->dst_port;
         udp->dst_port = tmp_port;
         break;
-      case 0x01:  // ICMP
+      case Ipv4Header::Proto::kIcmp:
         break;
       default:
         VLOG(1) << "Unknown protocol: " << ip->protocol;

@@ -86,7 +86,7 @@ void VXLANEncap::ProcessBatch(bess::PacketBatch *batch) {
 
     set_attr<be32_t>(this, ATTR_W_IP_SRC, pkt, ip_src);
     set_attr<be32_t>(this, ATTR_W_IP_DST, pkt, ip_dst);
-    set_attr<uint8_t>(this, ATTR_W_IP_PROTO, pkt, 17);
+    set_attr<uint8_t>(this, ATTR_W_IP_PROTO, pkt, Ipv4Header::Proto::kUdp);
   }
 
   RunNextModule(batch);
