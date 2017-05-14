@@ -332,6 +332,7 @@ void DRR::Enqueue(Flow* f, bess::Packet* newpkt, int* err) {
         RoundToPowerTwo(llring_count(f->queue) * kQueueGrowthFactor);
     f->queue = ResizeQueue(f->queue, slots, err);
     if (*err != 0) {
+      bess::Packet::Free(newpkt);
       return;
     }
   }
@@ -339,6 +340,8 @@ void DRR::Enqueue(Flow* f, bess::Packet* newpkt, int* err) {
   *err = llring_enqueue(f->queue, reinterpret_cast<void*>(newpkt));
   if (*err == 0) {
     f->timer = get_epoch_time();
+  } else {
+    bess::Packet::Free(newpkt);
   }
 }
 
