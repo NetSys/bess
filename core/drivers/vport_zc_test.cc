@@ -19,7 +19,7 @@ class ZeroCopyVPortTest : public ::testing::Test {
 
     if (!dpdk_inited_) {
       if (geteuid() == 0) {
-        init_dpdk("vport_zc_test", 2048, 0, true);
+        init_dpdk("vport_zc_test", 1024, 0, true);
         dpdk_inited_ = true;
       } else {
         LOG(INFO) << "This test requires root privileges. Skipping...";
