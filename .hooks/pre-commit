@@ -34,7 +34,7 @@ get_patch() {
 		fi
 
 		# show colored version to the user
-		echo "$reformatted" | git diff --no-index --color=always $file -
+		echo "$reformatted" | git diff --no-index --no-pager --color=always $file -
 
 		# ... and save non-colored patch for git-apply
 		file_diff=`echo "$reformatted" | diff -u $file - | \
