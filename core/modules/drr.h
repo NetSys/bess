@@ -52,7 +52,7 @@ class DRR final : public Module {
   static const int kQueueGrowthFactor =
       2;  // the scale at which a flow's queue grows
   static const int kFlowQueueMax =
-      200000;                   // the max flow queue size if non-specified
+      8192;                     // the max flow queue size if non-specified
   static const int kTtl = 300;  // time to live for flow entries
   static const int kDefaultQuantum =
       1500;  // default value to initialize qauntum_ to
