@@ -9,7 +9,7 @@
 
 using bess::utils::be16_t;
 using bess::utils::be32_t;
-using bess::utils::CIDRNetwork;
+using bess::utils::Ipv4Prefix;
 
 class ACL final : public Module {
  public:
@@ -20,8 +20,8 @@ class ACL final : public Module {
              (dst_port == be16_t(0) || dst_port == dport);
     }
 
-    CIDRNetwork src_ip;
-    CIDRNetwork dst_ip;
+    Ipv4Prefix src_ip;
+    Ipv4Prefix dst_ip;
     be16_t src_port;
     be16_t dst_port;
     bool drop;

@@ -11,8 +11,8 @@ const Commands ACL::cmds = {
 CommandResponse ACL::Init(const bess::pb::ACLArg &arg) {
   for (const auto &rule : arg.rules()) {
     ACLRule new_rule = {
-        .src_ip = CIDRNetwork(rule.src_ip()),
-        .dst_ip = CIDRNetwork(rule.dst_ip()),
+        .src_ip = Ipv4Prefix(rule.src_ip()),
+        .dst_ip = Ipv4Prefix(rule.dst_ip()),
         .src_port = be16_t(static_cast<uint16_t>(rule.src_port())),
         .dst_port = be16_t(static_cast<uint16_t>(rule.dst_port())),
         .drop = rule.drop()};

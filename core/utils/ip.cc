@@ -20,21 +20,21 @@ bool ParseIpv4Address(const std::string &str, be32_t *addr) {
   return true;
 }
 
-CIDRNetwork::CIDRNetwork(const std::string &cidr) {
-  size_t delim_pos = cidr.find('/');
+Ipv4Prefix::Ipv4Prefix(const std::string &prefix) {
+  size_t delim_pos = prefix.find('/');
 
   // default values in case of parser failure
   addr = be32_t(0);
   mask = be32_t(0);
 
-  if (cidr.length() == 0 || delim_pos == std::string::npos ||
-      delim_pos >= cidr.length()) {
+  if (prefix.length() == 0 || delim_pos == std::string::npos ||
+      delim_pos >= prefix.length()) {
     return;
   }
 
-  ParseIpv4Address(cidr.substr(0, delim_pos), &addr);
+  ParseIpv4Address(prefix.substr(0, delim_pos), &addr);
 
-  const int len = std::stoi(cidr.substr(delim_pos + 1));
+  const int len = std::stoi(prefix.substr(delim_pos + 1));
   if (len <= 0) {
     mask = be32_t(0);
   } else if (len >= 32) {

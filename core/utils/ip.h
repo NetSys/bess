@@ -55,14 +55,14 @@ struct[[gnu::packed]] Ipv4 {
 static_assert(std::is_pod<Ipv4>::value, "not a POD type");
 static_assert(sizeof(Ipv4) == 20, "struct Ipv4 is incorrect");
 
-struct CIDRNetwork {
+struct Ipv4Prefix {
   // Implicit default constructor is not allowed
-  CIDRNetwork() = delete;
+  Ipv4Prefix() = delete;
 
-  // Construct CIDRNetwork from a string like "192.168.0.1/24"
-  explicit CIDRNetwork(const std::string &cidr);
+  // Construct Ipv4Prefix from a string like "192.168.0.1/24"
+  explicit Ipv4Prefix(const std::string &prefix);
 
-  // Returns true if ip is within the range of CIDRNetwork
+  // Returns true if ip is within the range of Ipv4Prefix
   bool Match(const be32_t &ip) const { return (addr & mask) == (ip & mask); }
 
   be32_t addr;

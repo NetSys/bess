@@ -212,7 +212,7 @@ void NAT::ProcessBatch(bess::PacketBatch *batch) {
 
     const auto rule_it =
         std::find_if(rules_.begin(), rules_.end(),
-                     [&ip](const std::pair<CIDRNetwork, AvailablePorts> &rule) {
+                     [&ip](const std::pair<Ipv4Prefix, AvailablePorts> &rule) {
                        return rule.first.Match(ip->src);
                      });
 
