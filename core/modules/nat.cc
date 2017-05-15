@@ -1,7 +1,5 @@
 #include "nat.h"
 
-#include <rte_ip.h>
-
 #include <algorithm>
 #include <numeric>
 #include <string>
@@ -14,11 +12,12 @@
 #include "../utils/tcp.h"
 #include "../utils/udp.h"
 
-using bess::utils::EthHeader;
-using bess::utils::Ipv4Header;
-using bess::utils::UdpHeader;
-using bess::utils::TcpHeader;
-using bess::utils::IcmpHeader;
+using bess::utils::Ethernet;
+using bess::utils::Ipv4;
+using IpProto = bess::utils::Ipv4::Proto;
+using bess::utils::Udp;
+using bess::utils::Tcp;
+using bess::utils::Icmp;
 using bess::utils::CalculateChecksumIncremental16;
 using bess::utils::CalculateChecksumUnfoldedIncremental32;
 using bess::utils::CalculateChecksumUnfoldedIncremental16;
@@ -28,9 +27,18 @@ const Commands NAT::cmds = {
     {"add", "NATArg", MODULE_CMD_FUNC(&NAT::CommandAdd), 0},
     {"clear", "EmptyArg", MODULE_CMD_FUNC(&NAT::CommandClear), 0}};
 
+inline Flow Flow::ReverseFlow() const {
+  if (proto == IpProto::kIcmp) {
+    return Flow(dst_ip, src_ip, icmp_ident, be16_t(0), IpProto::kIcmp);
+  } else {
+    return Flow(dst_ip, src_ip, dst_port, src_port, proto);
+  }
+}
+
 std::string Flow::ToString() const {
-  return bess::utils::Format("%d %08x:%d -> %08x:%d", proto, src_ip, src_port,
-                             dst_ip, dst_port);
+  return bess::utils::Format("%d %08x:%hu -> %08x:%hu", proto, src_ip.value(),
+                             src_port.value(), dst_ip.value(),
+                             dst_port.value());
 }
 
 CommandResponse NAT::Init(const bess::pb::NATArg &arg) {
@@ -51,9 +59,9 @@ CommandResponse NAT::CommandClear(const bess::pb::EmptyArg &) {
 }
 
 // Extract a Flow object from IP header ip and L4 header l4
-static inline Flow parse_flow(struct Ipv4Header *ip, void *l4) {
-  struct UdpHeader *udp = reinterpret_cast<struct UdpHeader *>(l4);
-  struct IcmpHeader *icmp = reinterpret_cast<struct IcmpHeader *>(l4);
+static inline Flow parse_flow(Ipv4 *ip, void *l4) {
+  Udp *udp = reinterpret_cast<Udp *>(l4);
+  Icmp *icmp = reinterpret_cast<Icmp *>(l4);
   Flow flow;
 
   flow.proto = ip->protocol;
@@ -61,12 +69,12 @@ static inline Flow parse_flow(struct Ipv4Header *ip, void *l4) {
   flow.dst_ip = ip->dst;
 
   switch (flow.proto) {
-    case UDP:
-    case TCP:
+    case IpProto::kTcp:
+    case IpProto::kUdp:
       flow.src_port = udp->src_port;
       flow.dst_port = udp->dst_port;
       break;
-    case ICMP:
+    case IpProto::kIcmp:
       switch (icmp->type) {
         case 0:
         case 8:
@@ -74,6 +82,7 @@ static inline Flow parse_flow(struct Ipv4Header *ip, void *l4) {
         case 15:
         case 16:
           flow.icmp_ident = icmp->ident;
+          flow.dst_port = be16_t(0);
           break;
         default:
           VLOG(1) << "Unknown icmp_type: " << icmp->type;
@@ -84,33 +93,34 @@ static inline Flow parse_flow(struct Ipv4Header *ip, void *l4) {
 }
 
 template <bool src>
-static inline void stamp_flow(struct Ipv4Header *ip, void *l4,
-                              const Flow &flow) {
-  struct UdpHeader *udp = reinterpret_cast<struct UdpHeader *>(l4);
-  struct TcpHeader *tcp = reinterpret_cast<struct TcpHeader *>(l4);
-  struct IcmpHeader *icmp = reinterpret_cast<struct IcmpHeader *>(l4);
+static inline void stamp_flow(Ipv4 *ip, void *l4, const Flow &flow) {
+  Udp *udp = reinterpret_cast<Udp *>(l4);
+  Tcp *tcp = reinterpret_cast<Tcp *>(l4);
+  Icmp *icmp = reinterpret_cast<Icmp *>(l4);
   uint32_t l3_inc = 0;
   uint32_t l4_inc = 0;
 
   if (src) {
-    l3_inc += CalculateChecksumUnfoldedIncremental32(ip->src, flow.src_ip);
+    l3_inc += CalculateChecksumUnfoldedIncremental32(ip->src.raw_value(),
+                                                     flow.src_ip.raw_value());
     ip->src = flow.src_ip;
   } else {
-    l3_inc += CalculateChecksumUnfoldedIncremental32(ip->dst, flow.dst_ip);
+    l3_inc += CalculateChecksumUnfoldedIncremental32(ip->dst.raw_value(),
+                                                     flow.dst_ip.raw_value());
     ip->dst = flow.dst_ip;
   }
 
   ip->checksum = FoldChecksumIncremental(ip->checksum, l3_inc);
 
   switch (flow.proto) {
-    case TCP:
+    case IpProto::kTcp:
       if (src) {
-        l4_inc += CalculateChecksumUnfoldedIncremental16(tcp->src_port,
-                                                         flow.src_port);
+        l4_inc += CalculateChecksumUnfoldedIncremental16(
+            tcp->src_port.raw_value(), flow.src_port.raw_value());
         tcp->src_port = flow.src_port;
       } else {
-        l4_inc += CalculateChecksumUnfoldedIncremental16(tcp->dst_port,
-                                                         flow.dst_port);
+        l4_inc += CalculateChecksumUnfoldedIncremental16(
+            tcp->dst_port.raw_value(), flow.dst_port.raw_value());
         tcp->dst_port = flow.dst_port;
       }
       l4_inc += l3_inc;
@@ -118,14 +128,14 @@ static inline void stamp_flow(struct Ipv4Header *ip, void *l4,
       tcp->checksum = FoldChecksumIncremental(tcp->checksum, l4_inc);
       break;
 
-    case UDP:
+    case IpProto::kUdp:
       if (udp->checksum) {
         if (src) {
-          l4_inc += CalculateChecksumUnfoldedIncremental16(udp->src_port,
-                                                           flow.src_port);
+          l4_inc += CalculateChecksumUnfoldedIncremental16(
+              udp->src_port.raw_value(), flow.src_port.raw_value());
         } else {
-          l4_inc += CalculateChecksumUnfoldedIncremental16(udp->dst_port,
-                                                           flow.dst_port);
+          l4_inc += CalculateChecksumUnfoldedIncremental16(
+              udp->dst_port.raw_value(), flow.dst_port.raw_value());
         }
         l4_inc += l3_inc;
 
@@ -143,7 +153,7 @@ static inline void stamp_flow(struct Ipv4Header *ip, void *l4,
       }
       break;
 
-    case ICMP:
+    case IpProto::kIcmp:
       switch (icmp->type) {
         case 0:
         case 8:
@@ -151,7 +161,8 @@ static inline void stamp_flow(struct Ipv4Header *ip, void *l4,
         case 15:
         case 16:
           icmp->checksum = CalculateChecksumIncremental16(
-              icmp->checksum, icmp->ident, flow.icmp_ident);
+              icmp->checksum, icmp->ident.raw_value(),
+              flow.icmp_ident.raw_value());
           icmp->ident = flow.icmp_ident;
           break;
         default:
@@ -162,14 +173,12 @@ static inline void stamp_flow(struct Ipv4Header *ip, void *l4,
 }
 
 // Rewrite IP header and L4 header src info using flow
-static inline void stamp_flow_src(struct Ipv4Header *ip, void *l4,
-                                  const Flow &flow) {
+static inline void stamp_flow_src(Ipv4 *ip, void *l4, const Flow &flow) {
   stamp_flow<true>(ip, l4, flow);
 }
 
 // Rewrite IP header and L4 header dst info using flow
-static inline void stamp_flow_dst(struct Ipv4Header *ip, void *l4,
-                                  const Flow &flow) {
+static inline void stamp_flow_dst(Ipv4 *ip, void *l4, const Flow &flow) {
   stamp_flow<false>(ip, l4, flow);
 }
 
@@ -187,23 +196,23 @@ void NAT::ProcessBatch(bess::PacketBatch *batch) {
   for (int i = 0; i < cnt; i++) {
     bess::Packet *pkt = batch->pkts()[i];
 
-    struct EthHeader *eth = pkt->head_data<struct EthHeader *>();
-    struct Ipv4Header *ip = reinterpret_cast<struct Ipv4Header *>(eth + 1);
+    Ethernet *eth = pkt->head_data<Ethernet *>();
+    Ipv4 *ip = reinterpret_cast<Ipv4 *>(eth + 1);
     size_t ip_bytes = (ip->header_length) << 2;
 
     void *l4 = reinterpret_cast<uint8_t *>(ip) + ip_bytes;
 
     Flow flow = parse_flow(ip, l4);
 
-    // L4 protocol must be TCP, UDP, or ICMP
-    if (ip->protocol != TCP && ip->protocol != UDP && ip->protocol != ICMP) {
+    if (ip->protocol != IpProto::kTcp && ip->protocol != IpProto::kUdp &&
+        ip->protocol != IpProto::kIcmp) {
       free_batch.add(pkt);
       continue;
     }
 
     const auto rule_it =
         std::find_if(rules_.begin(), rules_.end(),
-                     [&ip](const std::pair<CIDRNetwork, AvailablePorts> &rule) {
+                     [&ip](const std::pair<Ipv4Prefix, AvailablePorts> &rule) {
                        return rule.first.Match(ip->src);
                      });
 
@@ -212,6 +221,7 @@ void NAT::ProcessBatch(bess::PacketBatch *batch) {
       if (res != nullptr) {
         FlowRecord *record = res->second;
         DCHECK_EQ(record->external_flow.src_port, record->port);
+
         if (now - record->time < TIME_OUT_NS) {
           // Entry exists and does not exceed timeout
           record->time = now;
@@ -286,8 +296,8 @@ void NAT::ProcessBatch(bess::PacketBatch *batch) {
       continue;
     }
 
-    IPAddress new_ip;
-    uint16_t new_port;
+    be32_t new_ip;
+    be16_t new_port;
     FlowRecord *record;
     std::tie(new_ip, new_port, record) = available_ports.RandomFreeIPAndPort();
 

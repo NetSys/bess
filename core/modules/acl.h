@@ -7,24 +7,23 @@
 #include "../module_msg.pb.h"
 #include "../utils/ip.h"
 
-using bess::utils::IPAddress;
-using bess::utils::CIDRNetwork;
+using bess::utils::be16_t;
+using bess::utils::be32_t;
+using bess::utils::Ipv4Prefix;
 
 class ACL final : public Module {
  public:
   struct ACLRule {
-    bool Match(IPAddress sip, IPAddress dip, uint16_t sport,
-               uint16_t dport) const {
+    bool Match(be32_t sip, be32_t dip, be16_t sport, be16_t dport) const {
       return src_ip.Match(sip) && dst_ip.Match(dip) &&
-             (src_port == 0 || src_port == sport) &&
-             (dst_port == 0 || dst_port == dport);
+             (src_port == be16_t(0) || src_port == sport) &&
+             (dst_port == be16_t(0) || dst_port == dport);
     }
 
-    CIDRNetwork src_ip;
-    CIDRNetwork dst_ip;
-    uint16_t src_port;
-    uint16_t dst_port;
-    bool established;
+    Ipv4Prefix src_ip;
+    Ipv4Prefix dst_ip;
+    be16_t src_port;
+    be16_t dst_port;
     bool drop;
   };
 

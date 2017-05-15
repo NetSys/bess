@@ -8,9 +8,9 @@
 #include "../utils/udp.h"
 #include "timestamp.h"
 
-using bess::utils::EthHeader;
-using bess::utils::Ipv4Header;
-using bess::utils::UdpHeader;
+using bess::utils::Ethernet;
+using bess::utils::Ipv4;
+using bess::utils::Udp;
 
 static bool IsTimestamped(bess::Packet *pkt, size_t offset, uint64_t *time) {
   auto *marker = pkt->head_data<Timestamp::MarkerType *>(offset);
@@ -37,8 +37,7 @@ CommandResponse Measure::Init(const bess::pb::MeasureArg &arg) {
   if (arg.offset()) {
     offset_ = arg.offset();
   } else {
-    offset_ = sizeof(struct EthHeader) + sizeof(struct Ipv4Header) +
-              sizeof(struct UdpHeader);
+    offset_ = sizeof(Ethernet) + sizeof(Ipv4) + sizeof(Udp);
   }
 
   if (arg.jitter_sample_prob()) {

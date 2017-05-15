@@ -1,20 +1,19 @@
 #include "ip_checksum.h"
 
-#include <rte_ether.h>
-#include <rte_ip.h>
+#include "../utils/checksum.h"
+#include "../utils/ether.h"
+#include "../utils/ip.h"
 
 void IPChecksum::ProcessBatch(bess::PacketBatch *batch) {
+  using bess::utils::Ethernet;
+  using bess::utils::Ipv4;
+
   int cnt = batch->cnt();
 
   for (int i = 0; i < cnt; i++) {
-    bess::Packet *pkt = batch->pkts()[i];
-
-    struct ether_hdr *eth = pkt->head_data<struct ether_hdr *>();
-    struct ipv4_hdr *ip = reinterpret_cast<struct ipv4_hdr *>(eth + 1);
-
-    ip->hdr_checksum = 0;
-
-    ip->hdr_checksum = rte_ipv4_cksum(ip);
+    Ethernet *eth = batch->pkts()[i]->head_data<Ethernet *>();
+    Ipv4 *ip = reinterpret_cast<Ipv4 *>(eth + 1);
+    ip->checksum = CalculateIpv4NoOptChecksum(*ip);
   }
 
   RunNextModule(batch);

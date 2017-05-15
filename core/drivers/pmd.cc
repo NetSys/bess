@@ -50,7 +50,7 @@ void PMDPort::InitDriver() {
     struct rte_eth_dev_info dev_info;
     std::string pci_info;
     int numa_node = -1;
-    bess::utils::EthHeader::Address lladdr;
+    bess::utils::Ethernet::Address lladdr;
 
     rte_eth_dev_info_get(i, &dev_info);
 

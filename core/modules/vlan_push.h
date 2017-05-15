@@ -4,6 +4,8 @@
 #include "../module.h"
 #include "../module_msg.pb.h"
 
+#include "../utils/endian.h"
+
 class VLANPush final : public Module {
  public:
   static const Commands cmds;
@@ -19,9 +21,8 @@ class VLANPush final : public Module {
   CommandResponse CommandSetTci(const bess::pb::VLANPushArg &arg);
 
  private:
-  /* network order */
-  uint32_t vlan_tag_;
-  uint32_t qinq_tag_;
+  bess::utils::be32_t vlan_tag_;
+  bess::utils::be32_t qinq_tag_;
 };
 
 #endif  // BESS_MODULES_VLANPUSH_H_

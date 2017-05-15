@@ -3,7 +3,8 @@
 
 #include "../module.h"
 
-// Updates TTl of packets by decrementing by 1 and dropping packets if their TTl <= 1
+// Updates TTl of packets by decrementing by 1 and dropping packets if their TTl
+// <= 1
 class UpdateTTL final : public Module {
  public:
   void ProcessBatch(bess::PacketBatch *batch) override;

@@ -4,8 +4,10 @@
 #include "../utils/ether.h"
 #include "../utils/ip.h"
 
-using bess::utils::EthHeader;
-using bess::utils::Ipv4Header;
+using bess::utils::Ethernet;
+using bess::utils::Ipv4;
+using bess::utils::be16_t;
+using bess::utils::be32_t;
 
 enum {
   ATTR_R_IP_SRC,
@@ -33,15 +35,15 @@ void IPEncap::ProcessBatch(bess::PacketBatch *batch) {
   for (int i = 0; i < cnt; i++) {
     bess::Packet *pkt = batch->pkts()[i];
 
-    uint32_t ip_src = get_attr<uint32_t>(this, ATTR_R_IP_SRC, pkt);
-    uint32_t ip_dst = get_attr<uint32_t>(this, ATTR_R_IP_DST, pkt);
+    be32_t ip_src = get_attr<be32_t>(this, ATTR_R_IP_SRC, pkt);
+    be32_t ip_dst = get_attr<be32_t>(this, ATTR_R_IP_DST, pkt);
     uint8_t ip_proto = get_attr<uint8_t>(this, ATTR_R_IP_PROTO, pkt);
 
-    Ipv4Header *iph;
+    Ipv4 *iph;
 
     uint16_t total_len = pkt->total_len() + sizeof(*iph);
 
-    iph = static_cast<Ipv4Header *>(pkt->prepend(sizeof(*iph)));
+    iph = static_cast<Ipv4 *>(pkt->prepend(sizeof(*iph)));
 
     if (unlikely(!iph)) {
       continue;
@@ -50,8 +52,8 @@ void IPEncap::ProcessBatch(bess::PacketBatch *batch) {
     iph->version = 0x4;
     iph->header_length = sizeof(*iph) / 4;
     iph->type_of_service = 0;
-    iph->length = __builtin_bswap16(total_len);
-    iph->fragment_offset = __builtin_bswap16(Ipv4Header::Flag::kDF);
+    iph->length = be16_t(total_len);
+    iph->fragment_offset = be16_t(Ipv4::Flag::kDF);
     iph->ttl = 64;
     iph->protocol = ip_proto;
     iph->src = ip_src;
@@ -59,9 +61,9 @@ void IPEncap::ProcessBatch(bess::PacketBatch *batch) {
 
     iph->checksum = bess::utils::CalculateIpv4NoOptChecksum(*iph);
 
-    set_attr<uint32_t>(this, ATTR_W_IP_NEXTHOP, pkt, ip_dst);
-    set_attr<uint16_t>(this, ATTR_W_ETHER_TYPE, pkt,
-                       __builtin_bswap16(EthHeader::Type::kIpv4));
+    set_attr<be32_t>(this, ATTR_W_IP_NEXTHOP, pkt, ip_dst);
+    set_attr<be16_t>(this, ATTR_W_ETHER_TYPE, pkt,
+                     be16_t(Ethernet::Type::kIpv4));
   }
 
   RunNextModule(batch);

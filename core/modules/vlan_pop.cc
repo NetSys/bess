@@ -1,26 +1,26 @@
 #include "vlan_pop.h"
 
-#include <rte_byteorder.h>
+#include "../utils/ether.h"
 
 void VLANPop::ProcessBatch(bess::PacketBatch *batch) {
+  using bess::utils::be16_t;
+  using bess::utils::Ethernet;
+
   int cnt = batch->cnt();
 
   for (int i = 0; i < cnt; i++) {
     bess::Packet *pkt = batch->pkts()[i];
     char *old_head = pkt->head_data<char *>();
-    __m128i ethh;
-    uint16_t tpid;
-    int tagged;
 
-    ethh = _mm_loadu_si128(reinterpret_cast<__m128i *>(old_head));
-    tpid = _mm_extract_epi16(ethh, 6);
+    __m128i eth = _mm_loadu_si128(reinterpret_cast<__m128i *>(old_head));
+    be16_t tpid(be16_t::swap(_mm_extract_epi16(eth, 6)));
 
-    tagged = (tpid == rte_cpu_to_be_16(0x8100)) ||
-             (tpid == rte_cpu_to_be_16(0x88a8));
+    bool tagged = (tpid == be16_t(Ethernet::Type::kVlan)) ||
+                  (tpid == be16_t(Ethernet::Type::kQinQ));
 
     if (tagged && pkt->adj(4)) {
-      ethh = _mm_slli_si128(ethh, 4);
-      _mm_storeu_si128(reinterpret_cast<__m128i *>(old_head), ethh);
+      eth = _mm_slli_si128(eth, 4);
+      _mm_storeu_si128(reinterpret_cast<__m128i *>(old_head), eth);
     }
   }
 

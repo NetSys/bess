@@ -1,18 +1,19 @@
 #include "macswap.h"
 
-#include <rte_ether.h>
+#include "../utils/ether.h"
 
 void MACSwap::ProcessBatch(bess::PacketBatch *batch) {
+  using bess::utils::Ethernet;
+
   int cnt = batch->cnt();
 
   for (int i = 0; i < cnt; i++) {
-    char *head = batch->pkts()[i]->head_data<char *>();
-    struct ether_hdr *eth = (struct ether_hdr *)head;
-    struct ether_addr tmp;
+    Ethernet *eth = batch->pkts()[i]->head_data<Ethernet *>();
+    Ethernet::Address tmp;
 
-    tmp = eth->d_addr;
-    eth->d_addr = eth->s_addr;
-    eth->s_addr = tmp;
+    tmp = eth->dst_addr;
+    eth->dst_addr = eth->src_addr;
+    eth->src_addr = tmp;
   }
 
   RunNextModule(batch);

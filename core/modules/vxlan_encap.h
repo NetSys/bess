@@ -4,10 +4,12 @@
 #include "../module.h"
 #include "../module_msg.pb.h"
 
-using bess::metadata::Attribute;
+#include "../utils/endian.h"
 
 class VXLANEncap final : public Module {
  public:
+  static const uint16_t kDefaultDstPort;
+
   VXLANEncap() : Module(), dstport_() {}
 
   CommandResponse Init(const bess::pb::VXLANEncapArg &arg);
@@ -15,7 +17,7 @@ class VXLANEncap final : public Module {
   void ProcessBatch(bess::PacketBatch *batch) override;
 
  private:
-  uint16_t dstport_;
+  bess::utils::be16_t dstport_;
 };
 
 #endif  // BESS_MODULES_VXLANENCAP_H_

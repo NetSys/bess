@@ -1,16 +1,16 @@
 #include "url_filter.h"
 
-#include <rte_ip.h>
-
 #include <algorithm>
 
+#include "../utils/checksum.h"
 #include "../utils/ether.h"
 #include "../utils/http_parser.h"
 #include "../utils/ip.h"
 
-using bess::utils::EthHeader;
-using bess::utils::Ipv4Header;
-using bess::utils::TcpHeader;
+using bess::utils::Ethernet;
+using bess::utils::Ipv4;
+using bess::utils::Tcp;
+using bess::utils::be16_t;
 
 const uint64_t TIME_OUT_NS = 10ull * 1000 * 1000 * 1000;  // 10 seconds
 
@@ -20,35 +20,35 @@ const Commands UrlFilter::cmds = {
 
 // Template for generating TCP packets without data
 struct[[gnu::packed]] PacketTemplate {
-  EthHeader eth;
-  Ipv4Header ip;
-  TcpHeader tcp;
+  Ethernet eth;
+  Ipv4 ip;
+  Tcp tcp;
 
   PacketTemplate() {
-    eth.dst_addr = EthHeader::Address();  // To fill in
-    eth.src_addr = EthHeader::Address();  // To fill in
-    eth.ether_type = 0x0800;              // IPv4
+    eth.dst_addr = Ethernet::Address();  // To fill in
+    eth.src_addr = Ethernet::Address();  // To fill in
+    eth.ether_type = be16_t(Ethernet::Type::kIpv4);
     ip.version = 4;
     ip.header_length = 5;
     ip.type_of_service = 0;
-    ip.length = 40;
-    ip.id = 0;
-    ip.fragment_offset = 0;
+    ip.length = be16_t(40);
+    ip.id = be16_t(0);
+    ip.fragment_offset = be16_t(0);
     ip.ttl = 0x40;
-    ip.protocol = 0x06;
-    ip.checksum = 0;   // To fill in
-    ip.src = 0;        // To fill in
-    ip.dst = 0;        // To fill in
-    tcp.src_port = 0;  // To fill in
-    tcp.dst_port = 0;  // To fill in
-    tcp.seq_num = 0;   // To fill in
-    tcp.ack_num = 0;   // To fill in
+    ip.protocol = Ipv4::Proto::kTcp;
+    ip.checksum = 0;           // To fill in
+    ip.src = be32_t(0);        // To fill in
+    ip.dst = be32_t(0);        // To fill in
+    tcp.src_port = be16_t(0);  // To fill in
+    tcp.dst_port = be16_t(0);  // To fill in
+    tcp.seq_num = be32_t(0);   // To fill in
+    tcp.ack_num = be32_t(0);   // To fill in
     tcp.reserved = 0;
     tcp.offset = 5;
-    tcp.flags = 0x14;  // RST-ACK
-    tcp.window = 0;
+    tcp.flags = Tcp::Flag::kAck | Tcp::Flag::kRst;
+    tcp.window = be16_t(0);
     tcp.checksum = 0;  // To fill in
-    tcp.urgent_ptr = 0;
+    tcp.urgent_ptr = be16_t(0);
   }
 };
 
@@ -59,12 +59,11 @@ static const char *HTTP_403_BODY =
 static PacketTemplate rst_template;
 
 // Generate an HTTP 403 packet
-inline static bess::Packet *Generate403Packet(const EthHeader::Address &src_eth,
-                                              const EthHeader::Address &dst_eth,
-                                              uint32_t src_ip, uint32_t dst_ip,
-                                              uint16_t src_port,
-                                              uint16_t dst_port, uint32_t seq,
-                                              uint32_t ack) {
+inline static bess::Packet *Generate403Packet(const Ethernet::Address &src_eth,
+                                              const Ethernet::Address &dst_eth,
+                                              be32_t src_ip, be32_t dst_ip,
+                                              be16_t src_port, be16_t dst_port,
+                                              be32_t seq, be32_t ack) {
   bess::Packet *pkt = bess::Packet::Alloc();
   char *ptr = static_cast<char *>(pkt->buffer()) + SNBUF_HEADROOM;
   pkt->set_data_off(SNBUF_HEADROOM);
@@ -76,34 +75,34 @@ inline static bess::Packet *Generate403Packet(const EthHeader::Address &src_eth,
   bess::utils::Copy(ptr, &rst_template, sizeof(rst_template));
   bess::utils::Copy(ptr + sizeof(rst_template), HTTP_403_BODY, len, true);
 
-  EthHeader *eth = reinterpret_cast<EthHeader *>(ptr);
-  Ipv4Header *ip = reinterpret_cast<Ipv4Header *>(eth + 1);
+  Ethernet *eth = reinterpret_cast<Ethernet *>(ptr);
+  Ipv4 *ip = reinterpret_cast<Ipv4 *>(eth + 1);
   // We know there is no IP option
-  TcpHeader *tcp = reinterpret_cast<TcpHeader *>(ip + 1);
+  Tcp *tcp = reinterpret_cast<Tcp *>(ip + 1);
 
   eth->dst_addr = dst_eth;
   eth->src_addr = src_eth;
   ip->src = src_ip;
   ip->dst = dst_ip;
-  ip->length = 40 + len;
+  ip->length = be16_t(40 + len);
   tcp->src_port = src_port;
   tcp->dst_port = dst_port;
   tcp->seq_num = seq;
   tcp->ack_num = ack;
-  tcp->flags = 0x10;  // ACK
+  tcp->flags = Tcp::Flag::kAck;
 
-  tcp->checksum =
-      rte_ipv4_udptcp_cksum(reinterpret_cast<const ipv4_hdr *>(ip), tcp);
-  ip->checksum = rte_ipv4_cksum(reinterpret_cast<const ipv4_hdr *>(ip));
+  tcp->checksum = bess::utils::CalculateIpv4TcpChecksum(*tcp, src_ip, dst_ip,
+                                                        sizeof(*tcp) + len);
+  ip->checksum = bess::utils::CalculateIpv4NoOptChecksum(*ip);
 
   return pkt;
 }
 
 // Generate a TCP RST packet
 inline static bess::Packet *GenerateResetPacket(
-    const EthHeader::Address &src_eth, const EthHeader::Address &dst_eth,
-    uint32_t src_ip, uint32_t dst_ip, uint16_t src_port, uint16_t dst_port,
-    uint32_t seq, uint32_t ack) {
+    const Ethernet::Address &src_eth, const Ethernet::Address &dst_eth,
+    be32_t src_ip, be32_t dst_ip, be16_t src_port, be16_t dst_port, be32_t seq,
+    be32_t ack) {
   bess::Packet *pkt = bess::Packet::Alloc();
   char *ptr = static_cast<char *>(pkt->buffer()) + SNBUF_HEADROOM;
   pkt->set_data_off(SNBUF_HEADROOM);
@@ -112,10 +111,10 @@ inline static bess::Packet *GenerateResetPacket(
 
   bess::utils::Copy(ptr, &rst_template, sizeof(rst_template), true);
 
-  EthHeader *eth = reinterpret_cast<EthHeader *>(ptr);
-  Ipv4Header *ip = reinterpret_cast<Ipv4Header *>(eth + 1);
+  Ethernet *eth = reinterpret_cast<Ethernet *>(ptr);
+  Ipv4 *ip = reinterpret_cast<Ipv4 *>(eth + 1);
   // We know there is no IP option
-  TcpHeader *tcp = reinterpret_cast<TcpHeader *>(ip + 1);
+  Tcp *tcp = reinterpret_cast<Tcp *>(ip + 1);
 
   eth->dst_addr = dst_eth;
   eth->src_addr = src_eth;
@@ -125,9 +124,10 @@ inline static bess::Packet *GenerateResetPacket(
   tcp->dst_port = dst_port;
   tcp->seq_num = seq;
   tcp->ack_num = ack;
+
   tcp->checksum =
-      rte_ipv4_udptcp_cksum(reinterpret_cast<const ipv4_hdr *>(ip), tcp);
-  ip->checksum = rte_ipv4_cksum(reinterpret_cast<const ipv4_hdr *>(ip));
+      bess::utils::CalculateIpv4TcpChecksum(*tcp, src_ip, dst_ip, sizeof(*tcp));
+  ip->checksum = bess::utils::CalculateIpv4NoOptChecksum(*ip);
 
   return pkt;
 }
@@ -183,17 +183,17 @@ void UrlFilter::ProcessBatch(bess::PacketBatch *batch) {
   for (int i = 0; i < cnt; i++) {
     bess::Packet *pkt = batch->pkts()[i];
 
-    struct EthHeader *eth = pkt->head_data<struct EthHeader *>();
-    struct Ipv4Header *ip = reinterpret_cast<struct Ipv4Header *>(eth + 1);
+    Ethernet *eth = pkt->head_data<Ethernet *>();
+    Ipv4 *ip = reinterpret_cast<Ipv4 *>(eth + 1);
 
-    if (ip->protocol != 0x06) {
+    if (ip->protocol != Ipv4::Proto::kTcp) {
       out_batches[0].add(pkt);
       continue;
     }
 
-    int ip_bytes = (ip->header_length & 0xf) << 2;
-    struct TcpHeader *tcp = reinterpret_cast<struct TcpHeader *>(
-        reinterpret_cast<uint8_t *>(ip) + ip_bytes);
+    int ip_bytes = ip->header_length << 2;
+    Tcp *tcp =
+        reinterpret_cast<Tcp *>(reinterpret_cast<uint8_t *>(ip) + ip_bytes);
 
     Flow flow;
     flow.src_ip = ip->src;
@@ -262,7 +262,7 @@ void UrlFilter::ProcessBatch(bess::PacketBatch *batch) {
       // If FIN is observed, no need to reconstruct this flow
       // NOTE: if FIN is lost on its way to destination, this will simply pass
       // the retransmitted packet
-      if (tcp->flags & TCP_FLAG_FIN) {
+      if (tcp->flags & Tcp::Flag::kFin) {
         flow_cache_.erase(it);
       }
     } else {
@@ -282,7 +282,8 @@ void UrlFilter::ProcessBatch(bess::PacketBatch *batch) {
       // Inject RST to source
       out_batches[3].add(GenerateResetPacket(
           eth->dst_addr, eth->src_addr, ip->dst, ip->src, tcp->dst_port,
-          tcp->src_port, tcp->ack_num + strlen(HTTP_403_BODY), tcp->seq_num));
+          tcp->src_port, be32_t(tcp->ack_num.value() + strlen(HTTP_403_BODY)),
+          tcp->seq_num));
 
       // Drop the data packet
       free_batch.add(pkt);

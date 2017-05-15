@@ -504,28 +504,28 @@ static inline int is_active_gate(const std::vector<T *> &gates,
 
 // Unsafe, but faster version. for offset use Attribute_offset().
 template <typename T>
-inline T *_ptr_attr_with_offset(bess::metadata::mt_offset_t offset,
-                                bess::Packet *pkt) {
+static inline T *_ptr_attr_with_offset(bess::metadata::mt_offset_t offset,
+                                       const bess::Packet *pkt) {
   promise(offset >= 0);
-  uintptr_t addr = reinterpret_cast<uintptr_t>(pkt->metadata()) + offset;
+  uintptr_t addr = pkt->metadata<uintptr_t>() + offset;
   return reinterpret_cast<T *>(addr);
 }
 
 template <typename T>
-inline T _get_attr_with_offset(bess::metadata::mt_offset_t offset,
-                               bess::Packet *pkt) {
+static inline T _get_attr_with_offset(bess::metadata::mt_offset_t offset,
+                                      const bess::Packet *pkt) {
   return *_ptr_attr_with_offset<T>(offset, pkt);
 }
 
 template <typename T>
-inline void _set_attr_with_offset(bess::metadata::mt_offset_t offset,
-                                  bess::Packet *pkt, T val) {
+static inline void _set_attr_with_offset(bess::metadata::mt_offset_t offset,
+                                         bess::Packet *pkt, T val) {
   *(_ptr_attr_with_offset<T>(offset, pkt)) = val;
 }
 
 // Safe version.
 template <typename T>
-inline T *ptr_attr_with_offset(bess::metadata::mt_offset_t offset,
+static T *ptr_attr_with_offset(bess::metadata::mt_offset_t offset,
                                bess::Packet *pkt) {
   return bess::metadata::IsValidOffset(offset)
              ? _ptr_attr_with_offset<T>(offset, pkt)
@@ -533,16 +533,16 @@ inline T *ptr_attr_with_offset(bess::metadata::mt_offset_t offset,
 }
 
 template <typename T>
-inline T get_attr_with_offset(bess::metadata::mt_offset_t offset,
-                              bess::Packet *pkt) {
+static T get_attr_with_offset(bess::metadata::mt_offset_t offset,
+                              const bess::Packet *pkt) {
   return bess::metadata::IsValidOffset(offset)
              ? _get_attr_with_offset<T>(offset, pkt)
              : T();
 }
 
 template <typename T>
-inline void set_attr_with_offset(bess::metadata::mt_offset_t offset,
-                                 bess::Packet *pkt, T val) {
+static inline void set_attr_with_offset(bess::metadata::mt_offset_t offset,
+                                        bess::Packet *pkt, T val) {
   if (bess::metadata::IsValidOffset(offset)) {
     _set_attr_with_offset<T>(offset, pkt, val);
   }
@@ -551,17 +551,17 @@ inline void set_attr_with_offset(bess::metadata::mt_offset_t offset,
 // Slowest but easiest.
 // TODO(melvin): These ought to be members of Module
 template <typename T>
-inline T *ptr_attr(Module *m, int attr_id, bess::Packet *pkt) {
+static inline T *ptr_attr(Module *m, int attr_id, bess::Packet *pkt) {
   return ptr_attr_with_offset<T>(m->attr_offset(attr_id), pkt);
 }
 
 template <typename T>
-inline T get_attr(Module *m, int attr_id, bess::Packet *pkt) {
+static inline T get_attr(Module *m, int attr_id, const bess::Packet *pkt) {
   return get_attr_with_offset<T>(m->attr_offset(attr_id), pkt);
 }
 
 template <typename T>
-inline void set_attr(Module *m, int attr_id, bess::Packet *pkt, T val) {
+static inline void set_attr(Module *m, int attr_id, bess::Packet *pkt, T val) {
   set_attr_with_offset(m->attr_offset(attr_id), pkt, val);
 }
 
@@ -569,30 +569,6 @@ inline void set_attr(Module *m, int attr_id, bess::Packet *pkt, T val) {
  * Update information about what workers are accessing what module.
  */
 void propagate_active_worker();
-
-// Define some common versions of the above functions
-#define INSTANTIATE_MT_FOR_TYPE(type)                                        \
-  template type *_ptr_attr_with_offset(bess::metadata::mt_offset_t offset,   \
-                                       bess::Packet *pkt);                   \
-  template type _get_attr_with_offset(bess::metadata::mt_offset_t offset,    \
-                                      bess::Packet *pkt);                    \
-  template void _set_attr_with_offset(bess::metadata::mt_offset_t offset,    \
-                                      bess::Packet *pkt, type val);          \
-  template type *ptr_attr_with_offset(bess::metadata::mt_offset_t offset,    \
-                                      bess::Packet *pkt);                    \
-  template type get_attr_with_offset(bess::metadata::mt_offset_t offset,     \
-                                     bess::Packet *pkt);                     \
-  template void set_attr_with_offset(bess::metadata::mt_offset_t offset,     \
-                                     bess::Packet *pkt, type val);           \
-  template type *ptr_attr<type>(Module * m, int attr_id, bess::Packet *pkt); \
-  template type get_attr<type>(Module * m, int attr_id, bess::Packet *pkt);  \
-  template void set_attr<>(Module * m, int attr_id, bess::Packet *pkt,       \
-                           type val);
-
-INSTANTIATE_MT_FOR_TYPE(uint8_t)
-INSTANTIATE_MT_FOR_TYPE(uint16_t)
-INSTANTIATE_MT_FOR_TYPE(uint32_t)
-INSTANTIATE_MT_FOR_TYPE(uint64_t)
 
 #define DEF_MODULE(_MOD, _NAME_TEMPLATE, _HELP)                          \
   class _MOD##_class {                                                   \

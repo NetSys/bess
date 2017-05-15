@@ -56,18 +56,17 @@ TEST(ChecksumTest, GenericChecksum) {
 TEST(ChecksumTest, Ipv4NoOptChecksum) {
   char buf[1514] = {0};  // ipv4 header w/o options
 
-  bess::utils::Ipv4Header *ip =
-      reinterpret_cast<bess::utils::Ipv4Header *>(buf);
+  bess::utils::Ipv4 *ip = reinterpret_cast<bess::utils::Ipv4 *>(buf);
 
   ip->version = 4;
   ip->header_length = 5;
   ip->type_of_service = 0;
-  ip->length = htons(20);
-  ip->fragment_offset = 0;
+  ip->length = be16_t(20);
+  ip->fragment_offset = be16_t(0);
   ip->ttl = 10;
   ip->protocol = 0x06;  // tcp
-  ip->src = 0x12345678;
-  ip->dst = 0x12347890;
+  ip->src = be32_t(0x12345678);
+  ip->dst = be32_t(0x12347890);
 
   uint16_t cksum_dpdk = rte_ipv4_cksum(reinterpret_cast<const ipv4_hdr *>(ip));
   uint16_t cksum_bess = CalculateIpv4NoOptChecksum(*ip);
@@ -84,8 +83,8 @@ TEST(ChecksumTest, Ipv4NoOptChecksum) {
   ip->checksum = 0x0000;  // for dpdk
 
   for (int i = 0; i < TestLoopCount; i++) {
-    ip->src = rd.Get();
-    ip->dst = rd.Get();
+    ip->src = be32_t(rd.Get());
+    ip->dst = be32_t(rd.Get());
 
     cksum_dpdk = rte_ipv4_cksum(reinterpret_cast<const ipv4_hdr *>(ip));
     cksum_bess = CalculateIpv4NoOptChecksum(*ip);
@@ -104,26 +103,24 @@ TEST(ChecksumTest, Ipv4NoOptChecksum) {
 TEST(ChecksumTest, TcpChecksum) {
   char buf[1514] = {0};  // ipv4 header + tcp header
 
-  bess::utils::Ipv4Header *ip =
-      reinterpret_cast<bess::utils::Ipv4Header *>(buf);
+  bess::utils::Ipv4 *ip = reinterpret_cast<bess::utils::Ipv4 *>(buf);
 
-  bess::utils::TcpHeader *tcp =
-      reinterpret_cast<bess::utils::TcpHeader *>(ip + 1);
+  bess::utils::Tcp *tcp = reinterpret_cast<bess::utils::Tcp *>(ip + 1);
 
   ip->version = 4;
   ip->header_length = 5;
   ip->type_of_service = 0;
-  ip->length = htons(40);
-  ip->fragment_offset = 0;
+  ip->length = be16_t(40);
+  ip->fragment_offset = be16_t(0);
   ip->ttl = 10;
   ip->protocol = 0x06;  // tcp
-  ip->src = 0x12345678;
-  ip->dst = 0x12347890;
+  ip->src = be32_t(0x12345678);
+  ip->dst = be32_t(0x12347890);
 
-  tcp->src_port = 0x0024;
-  tcp->dst_port = 0x2097;
-  tcp->seq_num = 0x67546354;
-  tcp->ack_num = 0x98461732;
+  tcp->src_port = be16_t(0x0024);
+  tcp->dst_port = be16_t(0x2097);
+  tcp->seq_num = be32_t(0x67546354);
+  tcp->ack_num = be32_t(0x98461732);
 
   uint16_t cksum_dpdk =
       rte_ipv4_udptcp_cksum(reinterpret_cast<const ipv4_hdr *>(ip), tcp);
@@ -146,7 +143,7 @@ TEST(ChecksumTest, TcpChecksum) {
 
       ip->version = 4;
       ip->header_length = 5;
-      ip->length = htons(40);
+      ip->length = be16_t(40);
       ip->protocol = 0x06;     // tcp
       ip->checksum = 0x0000;   // for dpdk
       tcp->checksum = 0x0000;  // for dpdk
@@ -228,26 +225,24 @@ TEST(ChecksumTest, IncrementalUpdateChecksum32) {
 TEST(ChecksumTest, IncrementalUpdateSrcIpPort) {
   char buf[1514] = {0};
 
-  bess::utils::Ipv4Header *ip =
-      reinterpret_cast<bess::utils::Ipv4Header *>(buf);
+  bess::utils::Ipv4 *ip = reinterpret_cast<bess::utils::Ipv4 *>(buf);
 
-  bess::utils::TcpHeader *tcp =
-      reinterpret_cast<bess::utils::TcpHeader *>(ip + 1);
+  bess::utils::Tcp *tcp = reinterpret_cast<bess::utils::Tcp *>(ip + 1);
 
   ip->version = 4;
   ip->header_length = 5;
   ip->type_of_service = 0;
-  ip->length = htons(40);
-  ip->fragment_offset = 0;
+  ip->length = be16_t(40);
+  ip->fragment_offset = be16_t(0);
   ip->ttl = 10;
   ip->protocol = 0x06;  // tcp
-  ip->src = 0x12345678;
-  ip->dst = 0x12347890;
+  ip->src = be32_t(0x12345678);
+  ip->dst = be32_t(0x12347890);
 
-  tcp->src_port = 0x0024;
-  tcp->dst_port = 0x2097;
-  tcp->seq_num = 0x67546354;
-  tcp->ack_num = 0x98461732;
+  tcp->src_port = be16_t(0x0024);
+  tcp->dst_port = be16_t(0x2097);
+  tcp->seq_num = be32_t(0x67546354);
+  tcp->ack_num = be32_t(0x98461732);
 
   ip->checksum = CalculateIpv4NoOptChecksum(*ip);
   tcp->checksum = CalculateIpv4TcpChecksum(*ip, *tcp);
@@ -255,24 +250,24 @@ TEST(ChecksumTest, IncrementalUpdateSrcIpPort) {
   EXPECT_TRUE(VerifyIpv4TcpChecksum(*ip, *tcp));
 
   for (int i = 0; i < TestLoopCount; i++) {
-    uint32_t src_ip_old = ip->src;
-    uint16_t src_port_old = tcp->src_port;
+    be32_t src_ip_old = ip->src;
+    be16_t src_port_old = tcp->src_port;
     uint16_t ip_cksum_old = ip->checksum;
     uint16_t tcp_cksum_old = tcp->checksum;
 
     for (int j = 0; j < 5; j++) {
-      ip->src = rd.Get();
-      tcp->src_port = rd.Get() >> 16;
+      ip->src = be32_t(rd.Get());
+      tcp->src_port = be16_t(rd.Get() >> 16);
     }
 
-    ip->checksum =
-        CalculateChecksumIncremental32(ip_cksum_old, src_ip_old, ip->src);
+    ip->checksum = CalculateChecksumIncremental32(
+        ip_cksum_old, src_ip_old.raw_value(), ip->src.raw_value());
     EXPECT_TRUE(VerifyIpv4NoOptChecksum(*ip));
 
-    tcp->checksum =
-        CalculateChecksumIncremental32(tcp_cksum_old, src_ip_old, ip->src);
-    tcp->checksum = CalculateChecksumIncremental16(tcp->checksum, src_port_old,
-                                                   tcp->src_port);
+    tcp->checksum = CalculateChecksumIncremental32(
+        tcp_cksum_old, src_ip_old.raw_value(), ip->src.raw_value());
+    tcp->checksum = CalculateChecksumIncremental16(
+        tcp->checksum, src_port_old.raw_value(), tcp->src_port.raw_value());
     EXPECT_TRUE(VerifyIpv4TcpChecksum(*ip, *tcp));
   }
 }

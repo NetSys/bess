@@ -17,44 +17,44 @@
 
 using bess::utils::TcpFlowReconstruct;
 using bess::utils::Trie;
+using bess::utils::be16_t;
+using bess::utils::be32_t;
 
 // A helper class that defines a TCP flow
 class alignas(16) Flow {
  public:
-  union {
-    struct {
-      uint32_t src_ip;
-      uint32_t dst_ip;
-      uint16_t src_port;
-      uint16_t dst_port;
-    };
+  be32_t src_ip;
+  be32_t dst_ip;
+  be16_t src_port;
+  be16_t dst_port;
+  uint32_t padding;
 
-    struct {
-      uint64_t e1;
-      uint64_t e2;
-    };
-  };
-
-  Flow() : e1(0), e2(0) {}
+  Flow() : padding(0) {}
 
   bool operator==(const Flow &other) const {
-    return e1 == other.e1 && e2 == other.e2;
+    return memcmp(this, &other, sizeof(*this)) == 0;
   }
 };
+
+static_assert(sizeof(Flow) == 16, "Flow must be 16 bytes.");
 
 // Hash function for std::unordered_map
 struct FlowHash {
   std::size_t operator()(const Flow &f) const {
-    static_assert(sizeof(Flow) == 2 * sizeof(uint64_t),
-                  "Flow must be 16 bytes.");
-    const Flow *flow = reinterpret_cast<const Flow *>(&f);
     uint32_t init_val = 0;
+
 #if __SSE4_2__ && __x86_64
-    init_val = crc32c_sse42_u64(flow->e1, init_val);
-    init_val = crc32c_sse42_u64(flow->e2, init_val);
+    const union {
+      Flow flow;
+      uint64_t u64[2];
+    } &bytes = {.flow = f};
+
+    init_val = crc32c_sse42_u64(bytes.u64[0], init_val);
+    init_val = crc32c_sse42_u64(bytes.u64[1], init_val);
 #else
-    init_val = rte_hash_crc(flow, sizeof(Flow), init_val);
+    init_val = rte_hash_crc(&f, sizeof(Flow), init_val);
 #endif
+
     return init_val;
   }
 };

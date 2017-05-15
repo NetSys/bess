@@ -1,10 +1,8 @@
 #include "acl.h"
 
-#include <rte_ether.h>
-#include <rte_ip.h>
-#include <rte_udp.h>
-
-#include <string>
+#include "../utils/ether.h"
+#include "../utils/ip.h"
+#include "../utils/udp.h"
 
 const Commands ACL::cmds = {
     {"add", "ACLArg", MODULE_CMD_FUNC(&ACL::CommandAdd), 0},
@@ -13,11 +11,10 @@ const Commands ACL::cmds = {
 CommandResponse ACL::Init(const bess::pb::ACLArg &arg) {
   for (const auto &rule : arg.rules()) {
     ACLRule new_rule = {
-        .src_ip = CIDRNetwork(rule.src_ip()),
-        .dst_ip = CIDRNetwork(rule.dst_ip()),
-        .src_port = htons(static_cast<uint16_t>(rule.src_port())),
-        .dst_port = htons(static_cast<uint16_t>(rule.dst_port())),
-        .established = rule.established(),
+        .src_ip = Ipv4Prefix(rule.src_ip()),
+        .dst_ip = Ipv4Prefix(rule.dst_ip()),
+        .src_port = be16_t(static_cast<uint16_t>(rule.src_port())),
+        .dst_port = be16_t(static_cast<uint16_t>(rule.dst_port())),
         .drop = rule.drop()};
     rules_.push_back(new_rule);
   }
@@ -35,6 +32,10 @@ CommandResponse ACL::CommandClear(const bess::pb::EmptyArg &) {
 }
 
 void ACL::ProcessBatch(bess::PacketBatch *batch) {
+  using bess::utils::Ethernet;
+  using bess::utils::Ipv4;
+  using bess::utils::Udp;
+
   gate_idx_t out_gates[bess::PacketBatch::kMaxBurst];
   gate_idx_t incoming_gate = get_igate();
 
@@ -42,21 +43,16 @@ void ACL::ProcessBatch(bess::PacketBatch *batch) {
   for (int i = 0; i < cnt; i++) {
     bess::Packet *pkt = batch->pkts()[i];
 
-    struct ether_hdr *eth = pkt->head_data<struct ether_hdr *>();
-    struct ipv4_hdr *ip = reinterpret_cast<struct ipv4_hdr *>(eth + 1);
-    int ip_bytes = (ip->version_ihl & 0xf) << 2;
-    struct udp_hdr *udp = reinterpret_cast<struct udp_hdr *>(
-        reinterpret_cast<uint8_t *>(ip) + ip_bytes);
-
-    IPAddress src_ip = ip->src_addr;
-    IPAddress dst_ip = ip->dst_addr;
-    uint16_t src_port = udp->src_port;
-    uint16_t dst_port = udp->dst_port;
+    Ethernet *eth = pkt->head_data<Ethernet *>();
+    Ipv4 *ip = reinterpret_cast<Ipv4 *>(eth + 1);
+    size_t ip_bytes = ip->header_length << 2;
+    Udp *udp =
+        reinterpret_cast<Udp *>(reinterpret_cast<uint8_t *>(ip) + ip_bytes);
 
     out_gates[i] = DROP_GATE;  // By default, drop unmatched packets
 
     for (const auto &rule : rules_) {
-      if (rule.Match(src_ip, dst_ip, src_port, dst_port)) {
+      if (rule.Match(ip->src, ip->dst, udp->src_port, udp->dst_port)) {
         if (!rule.drop) {
           out_gates[i] = incoming_gate;
         }

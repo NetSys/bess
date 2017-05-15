@@ -12,8 +12,7 @@
 #include "../utils/cuckoo_map.h"
 #include "../utils/ip.h"
 
-using bess::utils::IPAddress;
-using bess::utils::CIDRNetwork;
+using bess::utils::Ipv4Prefix;
 using bess::utils::CuckooMap;
 
 /*

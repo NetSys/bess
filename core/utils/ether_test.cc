@@ -4,9 +4,9 @@
 
 namespace {
 
-using MacAddr = bess::utils::EthHeader::Address;
+using MacAddr = bess::utils::Ethernet::Address;
 
-TEST(EthHeaderTest, AddressInStr) {
+TEST(EthernetTest, AddressInStr) {
   MacAddr a;
 
   EXPECT_FALSE(a.FromString("0g:12:34:56:78:90"));
@@ -26,7 +26,7 @@ TEST(EthHeaderTest, AddressInStr) {
   EXPECT_STREQ(b.ToString().c_str(), a.ToString().c_str());
 }
 
-TEST(EthHeaderTest, AddrEquality) {
+TEST(EthernetTest, AddrEquality) {
   MacAddr a("a0:17:03:20:b8:9");
   MacAddr b("A0:17:3:20:B8:09");
   MacAddr c("a0:18:3:20:b8:09");
@@ -43,7 +43,7 @@ TEST(EthHeaderTest, AddrEquality) {
   EXPECT_NE(c, b);
 }
 
-TEST(EthHeaderTest, RandomAddr) {
+TEST(EthernetTest, RandomAddr) {
   MacAddr a;
   MacAddr b;
   MacAddr c("a0:18:3:20:b8:09");

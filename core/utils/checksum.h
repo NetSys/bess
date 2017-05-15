@@ -6,8 +6,6 @@
 
 #include <x86intrin.h>
 
-#include <glog/logging.h>
-
 #include "ip.h"
 #include "simd.h"
 #include "tcp.h"
@@ -113,19 +111,20 @@ static inline uint32_t CalculateSum(const void *buf, size_t len) {
   sum64 = (sum64 >> 32) + (sum64 & 0xFFFFFFFF);
 #else
   // Use stantard C language for 32 bit or other non-Intel
-  typedef union [[gnu::may_alias]] {
-     uint32_t u64;
-     uint16_t u16[4];
-  } u16_64;
+  typedef union[[gnu::may_alias]] {
+    uint32_t u64;
+    uint16_t u16[4];
+  }
+  u16_64;
   const u16_64 *ubuf64;
-  ubuf64 = reinterpret_cast<const u16_64  *>(buf64);
+  ubuf64 = reinterpret_cast<const u16_64 *>(buf64);
   while (len >= sizeof(uint64_t)) {
-     sum64 += ubuf64->u16[0];
-     sum64 += ubuf64->u16[1];
-     sum64 += ubuf64->u16[2];
-     sum64 += ubuf64->u16[3];
-     len -= sizeof(uint64_t);
-     ubuf64++;
+    sum64 += ubuf64->u16[0];
+    sum64 += ubuf64->u16[1];
+    sum64 += ubuf64->u16[2];
+    sum64 += ubuf64->u16[3];
+    len -= sizeof(uint64_t);
+    ubuf64++;
   }
   buf64 = reinterpret_cast<const uint64_t *>(ubuf64);
 #endif
@@ -177,7 +176,7 @@ static inline bool VerifyGenericChecksum(const void *buf, size_t len) {
 }
 
 // Return true if the IP checksum is true
-static inline bool VerifyIpv4NoOptChecksum(const Ipv4Header &iph) {
+static inline bool VerifyIpv4NoOptChecksum(const Ipv4 &iph) {
   const uint32_t *buf32 = reinterpret_cast<const uint32_t *>(&iph);
   uint32_t sum = buf32[0];
 
@@ -199,7 +198,7 @@ static inline bool VerifyIpv4NoOptChecksum(const Ipv4Header &iph) {
 // Return IP checksum of the ip header 'iph' without ip options
 // It skips the checksum field into the calculation
 // It does not set the checksum field in ip header
-static inline uint16_t CalculateIpv4NoOptChecksum(const Ipv4Header &iph) {
+static inline uint16_t CalculateIpv4NoOptChecksum(const Ipv4 &iph) {
   const uint32_t *buf32 = reinterpret_cast<const uint32_t *>(&iph);
   uint32_t sum = buf32[0];
 
@@ -223,13 +222,13 @@ static inline uint16_t CalculateIpv4NoOptChecksum(const Ipv4Header &iph) {
 // Return true if the TCP checksum is true with the TCP header and
 // pseudo header info - source ip, destiniation ip, and tcp byte stream length
 // tcp_len: TCP header + payload in bytes
-static inline bool VerifyIpv4TcpChecksum(const TcpHeader &tcph, uint32_t src_ip,
-                                         uint32_t dst_ip, uint16_t tcp_len) {
+static inline bool VerifyIpv4TcpChecksum(const Tcp &tcph, be32_t src_ip,
+                                         be32_t dst_ip, uint16_t tcp_len) {
   const uint32_t *buf32 = reinterpret_cast<const uint32_t *>(&tcph);
 
   // tcp options and data
-  uint32_t sum = CalculateSum(buf32 + 5, tcp_len - 20);
-  uint32_t len = static_cast<uint32_t>(htons(tcp_len));
+  uint32_t sum = CalculateSum(buf32 + 5, tcp_len - sizeof(tcph));
+  uint32_t len = static_cast<uint32_t>(be16_t::swap(tcp_len));
 
   // Calculate the checksum of TCP pseudo header
   asm("addl %[u0], %[sum]      \n\t"
@@ -244,17 +243,16 @@ static inline bool VerifyIpv4TcpChecksum(const TcpHeader &tcph, uint32_t src_ip,
       "adcl $0, %[sum]         \n\t"
       : [sum] "+r"(sum)
       : [u0] "m"(buf32[0]), [u1] "m"(buf32[1]), [u2] "m"(buf32[2]),
-        [u3] "m"(buf32[3]), [u4] "m"(buf32[4]), [src] "r"(src_ip),
-        [dst] "r"(dst_ip), [len] "r"(len));
+        [u3] "m"(buf32[3]), [u4] "m"(buf32[4]), [src] "r"(src_ip.raw_value()),
+        [dst] "r"(dst_ip.raw_value()), [len] "r"(len));
 
   return FoldChecksum(sum) == 0;
 }
 
 // Return true if the TCP checksum is true
-static inline bool VerifyIpv4TcpChecksum(const Ipv4Header &iph,
-                                         const TcpHeader &tcph) {
+static inline bool VerifyIpv4TcpChecksum(const Ipv4 &iph, const Tcp &tcph) {
   return VerifyIpv4TcpChecksum(tcph, iph.src, iph.dst,
-                               ntohs(iph.length) - (iph.header_length << 2));
+                               iph.length.value() - (iph.header_length << 2));
 }
 
 // Return TCP (on IPv4) checksum of the tcp header 'tcph' with pseudo header
@@ -263,13 +261,12 @@ static inline bool VerifyIpv4TcpChecksum(const Ipv4Header &iph,
 // 'tcp_len' is in host-order, and the others are in network-order
 // It skips the checksum field into the calculation
 // It does not set the checksum field in TCP header
-static inline uint16_t CalculateIpv4TcpChecksum(const TcpHeader &tcph,
-                                                uint32_t src, uint32_t dst,
-                                                uint16_t tcp_len) {
+static inline uint16_t CalculateIpv4TcpChecksum(const Tcp &tcph, be32_t src,
+                                                be32_t dst, uint16_t tcp_len) {
   const uint32_t *buf32 = reinterpret_cast<const uint32_t *>(&tcph);
   // tcp options and data
-  uint32_t sum = CalculateSum(buf32 + 5, tcp_len - 20);
-  uint32_t len = static_cast<uint32_t>(htons(tcp_len));
+  uint32_t sum = CalculateSum(buf32 + 5, tcp_len - sizeof(tcph));
+  uint32_t len = static_cast<uint32_t>(be16_t::swap(tcp_len));
 
   // Calculate the checksum of TCP pseudo header
   asm("addl %[u0], %[sum]      \n\t"
@@ -286,16 +283,16 @@ static inline uint16_t CalculateIpv4TcpChecksum(const TcpHeader &tcph,
       : [u0] "m"(buf32[0]), [u1] "m"(buf32[1]), [u2] "m"(buf32[2]),
         [u3] "m"(buf32[3]),
         [u4] "g"(buf32[4] >> 16),  // skip checksum field
-        [src] "r"(src), [dst] "r"(dst), [len] "r"(len));
+        [src] "r"(src.raw_value()), [dst] "r"(dst.raw_value()), [len] "r"(len));
 
   return FoldChecksum(sum);
 }
 
 // Return true if the TCP (on IPv4) checksum is true
-static inline uint16_t CalculateIpv4TcpChecksum(const Ipv4Header &iph,
-                                                const TcpHeader &tcph) {
-  return CalculateIpv4TcpChecksum(tcph, iph.src, iph.dst,
-                                  ntohs(iph.length) - (iph.header_length << 2));
+static inline uint16_t CalculateIpv4TcpChecksum(const Ipv4 &iph,
+                                                const Tcp &tcph) {
+  return CalculateIpv4TcpChecksum(
+      tcph, iph.src, iph.dst, iph.length.value() - (iph.header_length << 2));
 }
 
 // Incremental checksum update

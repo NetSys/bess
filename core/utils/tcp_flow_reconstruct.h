@@ -1,8 +1,6 @@
 #ifndef BESS_UTILS_TCP_FLOW_RECONSTRUCT_H_
 #define BESS_UTILS_TCP_FLOW_RECONSTRUCT_H_
 
-#include <arpa/inet.h>
-
 #include <vector>
 
 #include "../packet.h"
@@ -50,15 +48,15 @@ class TcpFlowReconstruct {
   //
   // Behavior is undefined the packet is not a TCP packet.
   bool InsertPacket(Packet *p) {
-    const EthHeader *eth = p->head_data<const EthHeader *>();
-    const Ipv4Header *ip = (const Ipv4Header *)(eth + 1);
-    const TcpHeader *tcp =
-        (const TcpHeader *)(((const char *)ip) + (ip->header_length * 4));
+    const Ethernet *eth = p->head_data<const Ethernet *>();
+    const Ipv4 *ip = (const Ipv4 *)(eth + 1);
+    const Tcp *tcp =
+        (const Tcp *)(((const char *)ip) + (ip->header_length * 4));
 
-    uint32_t seq = ntohl(tcp->seq_num);
+    uint32_t seq = tcp->seq_num.value();
     // Assumes we only get one SYN and the sequence number of it doesn't change
     // for any reason.  Also assumes we have no data in the SYN.
-    if (tcp->flags & TCP_FLAG_SYN) {
+    if (tcp->flags & Tcp::Flag::kSyn) {
       init_seq_ = seq + 1;
       initialized_ = true;
       return true;
@@ -82,7 +80,7 @@ class TcpFlowReconstruct {
 
     const char *datastart = ((const char *)tcp) + (tcp->offset * 4);
     uint32_t datalen =
-        ntohs(ip->length) - (tcp->offset * 4) - (ip->header_length * 4);
+        ip->length.value() - (tcp->offset * 4) - (ip->header_length * 4);
 
     // pure-ACK packets?
     if (datalen == 0) {
