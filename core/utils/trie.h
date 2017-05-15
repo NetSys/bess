@@ -38,7 +38,7 @@ class Trie {
   };
 
   Trie() : root_() {}
-  Trie(const Trie& t) { root_ = t.root_; }
+  Trie(const Trie& t) : root_(t.root_) { }
 
   // Inserts a string into the trie
   void Insert(const std::string& key);

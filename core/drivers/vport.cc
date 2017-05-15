@@ -214,7 +214,7 @@ void *VPort::AllocBar(struct tx_queue_opts *txq_opts,
   conf->netns_fd = netns_fd_;
   conf->container_pid = container_pid_;
 
-  strcpy(conf->ifname, ifname_);
+  strncpy(conf->ifname, ifname_, IFNAMSIZ);
 
   bess::utils::Copy(conf->mac_addr, mac_addr, ETH_ALEN);
 
@@ -290,7 +290,7 @@ void VPort::InitDriver() {
     exec_path[ret] = '\0';
     exec_dir = dirname(exec_path);
 
-    sprintf(cmd, "insmod %s/kmod/bess.ko", exec_dir);
+    snprintf(cmd, sizeof(cmd), "insmod %s/kmod/bess.ko", exec_dir);
     ret = system(cmd);
     if (WEXITSTATUS(ret) != 0) {
       LOG(WARNING) << "Cannot load kernel module " << exec_dir
@@ -344,7 +344,7 @@ CommandResponse VPort::SetIPAddr(const bess::pb::VPortArg &arg) {
       int fd;
 
       if (container_pid_) {
-        sprintf(buf, "/proc/%d/ns/net", container_pid_);
+        snprintf(buf, sizeof(buf), "/proc/%d/ns/net", container_pid_);
         fd = open(buf, O_RDONLY);
         if (fd < 0) {
           PLOG(ERROR) << "open(/proc/pid/ns/net)";
@@ -442,9 +442,9 @@ CommandResponse VPort::Init(const bess::pb::VPortArg &arg) {
   }
 
   if (arg.ifname().length()) {
-    strcpy(ifname_, arg.ifname().c_str());
+    strncpy(ifname_, arg.ifname().c_str(), IFNAMSIZ);
   } else {
-    strcpy(ifname_, name().c_str());
+    strncpy(ifname_, name().c_str(), IFNAMSIZ);
   }
 
   if (arg.cpid_case() == bess::pb::VPortArg::kDocker) {
