@@ -10,8 +10,8 @@ class Measure final : public Module {
  public:
   Measure()
       : Module(),
-        rtt_hist_(Histogram<uint64_t>(kBuckets, kBucketWidth)),
-        jitter_hist_(Histogram<uint64_t>(kBuckets, kBucketWidth)),
+        rtt_hist_(kBuckets, kBucketWidth),
+        jitter_hist_(kBuckets, kBucketWidth),
         rand_(Random()),
         jitter_sample_prob_(),
         last_rtt_ns_(),

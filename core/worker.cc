@@ -52,10 +52,12 @@ struct thread_arg {
 int is_cpu_present(unsigned int core_id) {
   char path[PATH_MAX];
   int len = snprintf(path, sizeof(path), SYS_CPU_DIR "/" CORE_ID_FILE, core_id);
-  if (len <= 0 || (unsigned)len >= sizeof(path))
+  if (len <= 0 || (unsigned)len >= sizeof(path)) {
     return 0;
-  if (access(path, F_OK) != 0)
+  }
+  if (access(path, F_OK) != 0) {
     return 0;
+  }
 
   return 1;
 }

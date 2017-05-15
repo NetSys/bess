@@ -32,6 +32,9 @@ class Histogram {
 
   ~Histogram() { delete[] buckets_; }
 
+  Histogram(const Histogram&) = delete;
+  Histogram& operator=(const Histogram&) = delete;
+
   // Insert x into the histogram.
   void insert(T x) {
     if (count_) {
@@ -47,7 +50,7 @@ class Histogram {
 
   // Returns the number of inserted values that were >= (num_buckets_ + 1) *
   // bucket_width_
-  size_t above_threshold() { return above_threshold_; }
+  size_t above_threshold() const { return above_threshold_; }
 
   // Return the bucket with the lowest frequency.
   // NOTE: This function s destructive, i.e. it turns the histogram into a
