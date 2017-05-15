@@ -48,8 +48,10 @@ class SchedThrottledCache {
                       std::vector<RateLimitTrafficClass *>, ThrottledComp> q_;
 };
 
+// The non-instantiable base class for schedulers.  Implements common routines
+// needed for scheduling.
 template <typename CallableTask>
-class Scheduler final {
+class Scheduler {
  public:
   explicit Scheduler(TrafficClass *root = nullptr)
       : root_(root),
@@ -68,92 +70,7 @@ class Scheduler final {
   }
 
   // Runs the scheduler loop forever.
-  void ScheduleLoop() {
-    uint64_t now;
-    // How many rounds to go before we do accounting.
-    const uint64_t accounting_mask = 0xff;
-    static_assert(((accounting_mask + 1) & accounting_mask) == 0,
-                  "Accounting mask must be (2^n)-1");
-
-    checkpoint_ = now = rdtsc();
-
-    // The main scheduling, running, accounting loop.
-    for (uint64_t round = 0;; ++round) {
-      // Periodic check, to mitigate expensive operations.
-      if ((round & accounting_mask) == 0) {
-        if (ctx.is_pause_requested()) {
-          if (ctx.BlockWorker()) {
-            break;
-          }
-        }
-      }
-
-      ScheduleOnce();
-    }
-  }
-
-  // Runs the scheduler once.
-  void ScheduleOnce() __attribute__((always_inline)) {
-    resource_arr_t usage;
-
-    // Schedule.
-    LeafTrafficClass<CallableTask> *leaf = Next(checkpoint_);
-
-    uint64_t now;
-    if (leaf) {
-      ctx.set_current_tsc(checkpoint_);  // Tasks see updated tsc.
-      ctx.set_current_ns(checkpoint_ * ns_per_cycle_);
-
-      // Run.
-      auto ret = leaf->Task()();
-
-      now = rdtsc();
-
-      // Account.
-      usage[RESOURCE_COUNT] = 1;
-      usage[RESOURCE_CYCLE] = now - checkpoint_;
-      usage[RESOURCE_PACKET] = ret.packets;
-      usage[RESOURCE_BIT] = ret.bits;
-
-      // TODO(barath): Re-enable scheduler-wide stats accumulation.
-      // accumulate(stats_.usage, usage);
-
-      leaf->FinishAndAccountTowardsRoot(&throttled_cache_, nullptr, usage, now);
-    } else {
-      // TODO(barath): Ideally, we wouldn't spin in this case but rather take
-      // the
-      // fact that Next() returned nullptr as an indication that everything is
-      // blocked, so we could wait until something is added that unblocks us. We
-      // currently have no functionality to support such whole-scheduler
-      // blocking/unblocking.
-      ++stats_.cnt_idle;
-
-      now = rdtsc();
-      stats_.cycles_idle += (now - checkpoint_);
-    }
-
-    checkpoint_ = now;
-  }
-
-  // Selects the next TrafficClass to run.
-  LeafTrafficClass<CallableTask> *Next(uint64_t tsc)
-      __attribute__((always_inline)) {
-    // Before we select the next class to run, resume any classes that were
-    // throttled whose throttle time has expired so that they are available.
-    ResumeThrottled(tsc);
-
-    if (!root_ || root_->blocked()) {
-      // Nothing to schedule anywhere.
-      return nullptr;
-    }
-
-    TrafficClass *c = root_;
-    while (c->policy_ != POLICY_LEAF) {
-      c = c->PickNextChild();
-    }
-
-    return static_cast<LeafTrafficClass<CallableTask> *>(c);
-  }
+  virtual void ScheduleLoop() = 0;
 
   // Unthrottles any TrafficClasses that were throttled whose time has passed.
   void ResumeThrottled(uint64_t tsc) __attribute__((always_inline)) {
@@ -239,7 +156,7 @@ class Scheduler final {
       return throttled_cache_;
   }
 
- private:
+ protected:
   // Handles a rate limiter class's usage, and blocks it if needed.
   void HandleRateLimit(RateLimitTrafficClass *rc, uint64_t consumed,
                        uint64_t tsc);
@@ -260,7 +177,104 @@ class Scheduler final {
 
   double ns_per_cycle_;
 
+ private:
   DISALLOW_COPY_AND_ASSIGN(Scheduler);
+};
+
+// The default scheduler, which picks the first leaf that the TC tree gives it
+// and runs the corresponding task.
+template <typename CallableTask>
+class DefaultScheduler : public Scheduler<CallableTask> {
+ public:
+  explicit DefaultScheduler(TrafficClass *root = nullptr) : Scheduler<CallableTask>(root) {}
+
+  virtual ~DefaultScheduler() {}
+
+  // Runs the scheduler loop forever.
+  void ScheduleLoop() override {
+    uint64_t now;
+    // How many rounds to go before we do accounting.
+    const uint64_t accounting_mask = 0xff;
+    static_assert(((accounting_mask + 1) & accounting_mask) == 0,
+                  "Accounting mask must be (2^n)-1");
+
+    this->checkpoint_ = now = rdtsc();
+
+    // The main scheduling, running, accounting loop.
+    for (uint64_t round = 0;; ++round) {
+      // Periodic check, to mitigate expensive operations.
+      if ((round & accounting_mask) == 0) {
+        if (ctx.is_pause_requested()) {
+          if (ctx.BlockWorker()) {
+            break;
+          }
+        }
+      }
+
+      ScheduleOnce();
+    }
+  }
+
+  // Runs the scheduler once.
+  void ScheduleOnce() {
+    resource_arr_t usage;
+
+    // Schedule.
+    LeafTrafficClass<CallableTask> *leaf = Next(this->checkpoint_);
+
+    uint64_t now;
+    if (leaf) {
+      ctx.set_current_tsc(this->checkpoint_);  // Tasks see updated tsc.
+      ctx.set_current_ns(this->checkpoint_ * this->ns_per_cycle_);
+
+      // Run.
+      auto ret = leaf->Task()();
+
+      now = rdtsc();
+
+      // Account.
+      usage[RESOURCE_COUNT] = 1;
+      usage[RESOURCE_CYCLE] = now - this->checkpoint_;
+      usage[RESOURCE_PACKET] = ret.packets;
+      usage[RESOURCE_BIT] = ret.bits;
+
+      // TODO(barath): Re-enable scheduler-wide stats accumulation.
+      // accumulate(stats_.usage, usage);
+
+      leaf->FinishAndAccountTowardsRoot(&this->throttled_cache_, nullptr, usage, now);
+    } else {
+      // TODO(barath): Ideally, we wouldn't spin in this case but rather take
+      // the fact that Next() returned nullptr as an indication that everything
+      // is blocked, so we could wait until something is added that unblocks us.
+      // We currently have no functionality to support such whole-scheduler
+      // blocking/unblocking.
+      ++this->stats_.cnt_idle;
+
+      now = rdtsc();
+      this->stats_.cycles_idle += (now - this->checkpoint_);
+    }
+
+    this->checkpoint_ = now;
+  }
+
+  // Selects the next TrafficClass to run.
+  LeafTrafficClass<CallableTask> *Next(uint64_t tsc) {
+    // Before we select the next class to run, resume any classes that were
+    // throttled whose throttle time has expired so that they are available.
+    this->ResumeThrottled(tsc);
+
+    if (!this->root_ || this->root_->blocked()) {
+      // Nothing to schedule anywhere.
+      return nullptr;
+    }
+
+    TrafficClass *c = this->root_;
+    while (c->policy_ != POLICY_LEAF) {
+      c = c->PickNextChild();
+    }
+
+    return static_cast<LeafTrafficClass<CallableTask> *>(c);
+  }
 };
 
 }  // namespace bess

@@ -413,10 +413,11 @@ class BESS(object):
     def list_workers(self):
         return self._request('ListWorkers')
 
-    def add_worker(self, wid, core):
+    def add_worker(self, wid, core, scheduler=None):
         request = bess_msg.AddWorkerRequest()
         request.wid = wid
         request.core = core
+        request.scheduler = scheduler or ''
         return self._request('AddWorker', request)
 
     def destroy_worker(self, wid):

@@ -257,8 +257,8 @@ class TrafficClass {
   struct tc_stats stats_;
 
  private:
-  template <typename CallableTask>
-  friend class Scheduler;
+  template <typename CallableTask> friend class Scheduler;
+  template <typename CallableTask> friend class DefaultScheduler;
 
   bool blocked_;
 

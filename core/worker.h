@@ -167,8 +167,9 @@ inline bool is_worker_running(int wid) {
   return workers[wid] && workers[wid]->status() == WORKER_RUNNING;
 }
 
-/* arg (int) is the core id the worker should run on */
-void launch_worker(int wid, int core);
+// arg (int) is the core id the worker should run on, and optionally the
+// scheduler to use.
+void launch_worker(int wid, int core, const std::string &scheduler = "");
 
 Worker *get_next_active_worker();
 
