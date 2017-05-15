@@ -23,7 +23,6 @@
 
 using bess::Scheduler;
 using bess::DefaultScheduler;
-using bess::SchedulerType;
 
 int num_workers = 0;
 std::thread worker_threads[Worker::kMaxWorkers];

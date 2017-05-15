@@ -18,10 +18,6 @@ struct sched_stats {
   uint64_t cycles_idle;
 };
 
-enum class SchedulerType {
-  DEFAULT = 0,  // Corresponds to DefaultScheduler.
-};
-
 template <typename CallableTask>
 class Scheduler;
 
