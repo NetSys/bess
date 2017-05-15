@@ -152,12 +152,12 @@ protobuf: $(PROTO_SRCS)
 modules: protobuf $(MODULE_OBJS) $(MODULE_LIBS)
 
 # Generate version string from the current status of the git working copy
-VERSION := $(shell git describe --dirty --always --tags 2>/dev/null)
+VERSION = $(shell git describe --dirty --always --tags 2>/dev/null)
 
 # Default if previous command fails (e.g., when building from a tarball)
-DEFAULT_VERSION := unknown
+DEFAULT_VERSION = unknown
 
-VERSION_LINE := \#define VERSION \"$(or $(VERSION), $(DEFAULT_VERSION))\"
+VERSION_LINE = \#define VERSION \"$(or $(VERSION), $(DEFAULT_VERSION))\"
 version.h: $(SRCS) $(filter-out version.h, $(HEADERS))
 	@echo "$(VERSION_LINE)" > $@
 
