@@ -7,7 +7,7 @@ b:1 -> Sink()
 c::Bypass() -> Sink()
 Source() -> 1:c:1 -> Sink()
 
-src0::Source() -> rr::RoundRobin(gates=[2])
+src0::Source() -> rr::RoundRobin(gates=[0, 1])
 rr:0 -> 0:d::Bypass():0 -> dst::Sink()
 rr:1 -> 1:d:1 -> dst
 src1::Source() -> 0:d

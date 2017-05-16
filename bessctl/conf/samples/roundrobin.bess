@@ -1,4 +1,4 @@
-Source() -> rr1::RoundRobin(gates=[3])
+Source() -> rr1::RoundRobin(gates=[0, 1, 2])
 sink1::Sink()
 rr1:0 -> sink1
 rr1:1 -> sink1
