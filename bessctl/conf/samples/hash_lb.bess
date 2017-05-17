@@ -10,7 +10,7 @@ pkt_bytes = str(eth/ip/udp/payload)
 Source() \
     -> Rewrite(templates=[pkt_bytes]) \
     -> RandomUpdate(fields=[{'offset': 34, 'size': 2, 'min': 1, 'max': 1023}]) \
-    -> hlb::HashLB(gates=[3], mode='l4')
+    -> hlb::HashLB(gates=[0, 1, 2], mode='l4')
 
 hlb:0 -> Sink()
 hlb:1 -> Sink()

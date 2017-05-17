@@ -10,7 +10,7 @@ bess.add_worker(1, 1)
 p0 = PMDPort(pci='82:00.0')
 p1 = PMDPort(pci='82:00.1')
 p2 = PMDPort(pci='07:00.0')
-hlb = HashLB(gates=[2], mode='l2')
+hlb = HashLB(gates=[0, 1], mode='l2')
 src0::PortInc(port=p0.name) -> Sink()
 src1::PortInc(port=p2.name) -> PortOut(port=p1.name)
 
