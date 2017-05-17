@@ -33,15 +33,8 @@
 #include "utils/time.h"
 #include "worker.h"
 
-using grpc::Server;
-using grpc::ServerBuilder;
-using grpc::ServerContext;
-using grpc::ServerReader;
-using grpc::ServerReaderWriter;
-using grpc::ServerWriter;
 using grpc::Status;
 using grpc::ServerContext;
-using grpc::ServerBuilder;
 
 using bess::priority_t;
 using bess::resource_t;
@@ -1643,11 +1636,11 @@ class BESSControlImpl final : public BESSControl::Service {
 };
 
 // TODO: C++-ify
-static std::unique_ptr<Server> server;
+static std::unique_ptr<grpc::Server> server;
 static BESSControlImpl service;
 
 void SetupControl() {
-  ServerBuilder builder;
+  grpc::ServerBuilder builder;
 
   if (FLAGS_p) {
     std::string server_address = bess::utils::Format("127.0.0.1:%d", FLAGS_p);
@@ -1655,6 +1648,7 @@ void SetupControl() {
     builder.AddListeningPort(server_address, grpc::InsecureServerCredentials());
   }
 
+  builder.SetSyncServerOption(grpc::ServerBuilder::MAX_POLLERS, 1);
   builder.RegisterService(&service);
   server = builder.BuildAndStart();
 }
