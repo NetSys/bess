@@ -95,7 +95,7 @@ void PriorityTrafficClass::BlockTowardsRoot() {
   TrafficClass::BlockTowardsRootSetBlocked(first_runnable_ == num_children);
 }
 
-void PriorityTrafficClass::FinishAndAccountTowardsRoot(SchedThrottledCache *thr,
+void PriorityTrafficClass::FinishAndAccountTowardsRoot(SchedBlockedCache *blocked_cache,
                                                        TrafficClass *child,
                                                        resource_arr_t usage,
                                                        uint64_t tsc) {
@@ -113,7 +113,7 @@ void PriorityTrafficClass::FinishAndAccountTowardsRoot(SchedThrottledCache *thr,
   if (!parent_) {
     return;
   }
-  parent_->FinishAndAccountTowardsRoot(thr, this, usage, tsc);
+  parent_->FinishAndAccountTowardsRoot(blocked_cache, this, usage, tsc);
 }
 
 void PriorityTrafficClass::TraverseChildren(
@@ -230,7 +230,7 @@ void WeightedFairTrafficClass::BlockTowardsRoot() {
 }
 
 void WeightedFairTrafficClass::FinishAndAccountTowardsRoot(
-                                                       SchedThrottledCache *thr,
+                                                       SchedBlockedCache *blocked_cache,
                                                        TrafficClass *child,
                                                        resource_arr_t usage,
                                                        uint64_t tsc) {
@@ -253,7 +253,7 @@ void WeightedFairTrafficClass::FinishAndAccountTowardsRoot(
   if (!parent_) {
     return;
   }
-  parent_->FinishAndAccountTowardsRoot(thr, this, usage, tsc);
+  parent_->FinishAndAccountTowardsRoot(blocked_cache, this, usage, tsc);
 }
 
 void WeightedFairTrafficClass::TraverseChildren(
@@ -373,7 +373,7 @@ void RoundRobinTrafficClass::BlockTowardsRoot() {
 }
 
 void RoundRobinTrafficClass::FinishAndAccountTowardsRoot(
-                                                     SchedThrottledCache *thr,
+                                                     SchedBlockedCache *blocked_cache,
                                                      TrafficClass *child,
                                                      resource_arr_t usage,
                                                      uint64_t tsc) {
@@ -394,7 +394,7 @@ void RoundRobinTrafficClass::FinishAndAccountTowardsRoot(
   if (!parent_) {
     return;
   }
-  parent_->FinishAndAccountTowardsRoot(thr, this, usage, tsc);
+  parent_->FinishAndAccountTowardsRoot(blocked_cache, this, usage, tsc);
 }
 
 void RoundRobinTrafficClass::TraverseChildren(
@@ -407,7 +407,7 @@ void RoundRobinTrafficClass::TraverseChildren(
 
 RateLimitTrafficClass::~RateLimitTrafficClass() {
   // TODO(barath): Ensure that when this destructor is called this instance is
-  // also cleared out of the throttled_cache_ in Scheduler if it is present
+  // also cleared out of the blocked_cache_ in Scheduler if it is present
   // there.
   delete child_;
   TrafficClassBuilder::Clear(this);
@@ -446,7 +446,7 @@ TrafficClass *RateLimitTrafficClass::PickNextChild() {
 void RateLimitTrafficClass::UnblockTowardsRoot(uint64_t tsc) {
   last_tsc_ = tsc;
 
-  bool blocked = throttle_expiration_ || !child_ || child_->blocked_;
+  bool blocked = unblock_time_ || !child_ || child_->blocked_;
   TrafficClass::UnblockTowardsRootSetBlocked(tsc, blocked);
 }
 
@@ -456,7 +456,7 @@ void RateLimitTrafficClass::BlockTowardsRoot() {
 }
 
 void RateLimitTrafficClass::FinishAndAccountTowardsRoot(
-                                                    SchedThrottledCache *thr,
+                                                    SchedBlockedCache *blocked_cache,
                                                     TrafficClass *child,
                                                     resource_arr_t usage,
                                                     uint64_t tsc) {
@@ -474,8 +474,8 @@ void RateLimitTrafficClass::FinishAndAccountTowardsRoot(
 
     if (limit_) {
       uint64_t wait_tsc = (consumed - tokens) / limit_;
-      throttle_expiration_ = tsc + wait_tsc;
-      thr->AddThrottled(this);
+      unblock_time_ = tsc + wait_tsc;
+      blocked_cache->AddBlocked(this);
     }
   } else {
     // Still has some tokens, unthrottled.
@@ -489,7 +489,7 @@ void RateLimitTrafficClass::FinishAndAccountTowardsRoot(
   if (!parent_) {
     return;
   }
-  parent_->FinishAndAccountTowardsRoot(thr, this, usage, tsc);
+  parent_->FinishAndAccountTowardsRoot(blocked_cache, this, usage, tsc);
 }
 
 void RateLimitTrafficClass::TraverseChildren(

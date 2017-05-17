@@ -21,31 +21,30 @@ struct sched_stats {
 template <typename CallableTask>
 class Scheduler;
 
-// List of throttled traffic classes ordered by throttle expiration.
-class SchedThrottledCache {
+// List of blocked traffic classes ordered by time expiration.
+class SchedBlockedCache {
  public:
-  struct ThrottledComp {
-    inline bool operator()(const RateLimitTrafficClass *left,
-                           const RateLimitTrafficClass *right) const {
+  struct BlockedComp {
+    bool operator()(const TrafficClass *left,
+                    const TrafficClass *right) const {
       // Reversed so that priority_queue is a min priority queue.
-      return right->throttle_expiration() < left->throttle_expiration();
+      return right->unblock_time() < left->unblock_time();
     }
   };
 
-  SchedThrottledCache() : q_(ThrottledComp()) {}
-  // Adds the given rate limit traffic class to those that are considered
-  // throttled (and need resuming later).
-  void AddThrottled(RateLimitTrafficClass *rc) __attribute__((always_inline)) {
-    q_.push(rc);
+  SchedBlockedCache() : q_(BlockedComp()) {}
+
+  // Adds the given traffic class to those that are considered blocked.
+  void AddBlocked(TrafficClass *c) {
+    q_.push(c);
   }
 
  private:
   template <typename CallableTasks>
   friend class Scheduler;
 
-  // A cache of throttled TrafficClasses.
-  std::priority_queue<RateLimitTrafficClass *,
-                      std::vector<RateLimitTrafficClass *>, ThrottledComp> q_;
+  // A cache of blocked TrafficClasses.
+  std::priority_queue<TrafficClass *, std::vector<TrafficClass *>, BlockedComp> q_;
 };
 
 // The non-instantiable base class for schedulers.  Implements common routines
@@ -56,7 +55,7 @@ class Scheduler {
   explicit Scheduler(TrafficClass *root = nullptr)
       : root_(root),
         default_rr_class_(),
-        throttled_cache_(),
+        blocked_cache_(),
         stats_(),
         checkpoint_(),
         ns_per_cycle_(1e9 / tsc_hz) {}
@@ -72,17 +71,17 @@ class Scheduler {
   // Runs the scheduler loop forever.
   virtual void ScheduleLoop() = 0;
 
-  // Unthrottles any TrafficClasses that were throttled whose time has passed.
-  void ResumeThrottled(uint64_t tsc) __attribute__((always_inline)) {
-    while (!throttled_cache_.q_.empty()) {
-      RateLimitTrafficClass *rc = throttled_cache_.q_.top();
-      if (rc->throttle_expiration_ < tsc) {
-        throttled_cache_.q_.pop();
-        uint64_t expiration = rc->throttle_expiration_;
-        rc->throttle_expiration_ = 0;
+  // Unblocks any TrafficClasses that were blocked whose time has passed.
+  void ResumeBlocked(uint64_t tsc) {
+    while (!blocked_cache_.q_.empty()) {
+      TrafficClass *c = blocked_cache_.q_.top();
+      uint64_t unblock_time = c->unblock_time();
+      if (unblock_time < tsc) {
+        blocked_cache_.q_.pop();
+        c->unblock_time_ = 0;
 
         // Traverse upward toward root to unblock any blocked parents.
-        rc->UnblockTowardsRoot(expiration);
+        c->UnblockTowardsRoot(unblock_time);
       } else {
         break;
       }
@@ -152,15 +151,11 @@ class Scheduler {
   }
 
   // For testing
-  SchedThrottledCache &throttled_cache() {
-      return throttled_cache_;
+  SchedBlockedCache &blocked_cache() {
+      return blocked_cache_;
   }
 
  protected:
-  // Handles a rate limiter class's usage, and blocks it if needed.
-  void HandleRateLimit(RateLimitTrafficClass *rc, uint64_t consumed,
-                       uint64_t tsc);
-
   // Starts at the given class and attempts to unblock classes on the path
   // towards the root.
   void UnblockTowardsRoot(TrafficClass *c, uint64_t tsc);
@@ -169,10 +164,10 @@ class Scheduler {
 
   RoundRobinTrafficClass *default_rr_class_;
 
-  // A cache of throttled TrafficClasses.
-  SchedThrottledCache throttled_cache_;
+  SchedBlockedCache blocked_cache_;
 
   struct sched_stats stats_;
+
   uint64_t checkpoint_;
 
   double ns_per_cycle_;
@@ -241,7 +236,7 @@ class DefaultScheduler : public Scheduler<CallableTask> {
       // TODO(barath): Re-enable scheduler-wide stats accumulation.
       // accumulate(stats_.usage, usage);
 
-      leaf->FinishAndAccountTowardsRoot(&this->throttled_cache_, nullptr, usage, now);
+      leaf->FinishAndAccountTowardsRoot(&this->blocked_cache_, nullptr, usage, now);
     } else {
       // TODO(barath): Ideally, we wouldn't spin in this case but rather take
       // the fact that Next() returned nullptr as an indication that everything
@@ -260,8 +255,8 @@ class DefaultScheduler : public Scheduler<CallableTask> {
   // Selects the next TrafficClass to run.
   LeafTrafficClass<CallableTask> *Next(uint64_t tsc) {
     // Before we select the next class to run, resume any classes that were
-    // throttled whose throttle time has expired so that they are available.
-    this->ResumeThrottled(tsc);
+    // blocked whose time has expired so that they are available.
+    this->ResumeBlocked(tsc);
 
     if (!this->root_ || this->root_->blocked()) {
       // Nothing to schedule anywhere.

@@ -556,14 +556,14 @@ TEST(RateLimit, BasicBlockUnblock) {
   ASSERT_EQ(c, leaf_1);
   resource_arr_t usage;
   usage[RESOURCE_COUNT] = 1;
-  c->FinishAndAccountTowardsRoot(&s.throttled_cache(), nullptr, usage, now);
+  c->FinishAndAccountTowardsRoot(&s.blocked_cache(), nullptr, usage, now);
   ASSERT_TRUE(limit_1->blocked());
 
   // Fake quarter second delay, schedule again.
   now += tsc_hz / 4;
   c = s.Next(now);
   ASSERT_EQ(c, leaf_2);
-  c->FinishAndAccountTowardsRoot(&s.throttled_cache(), nullptr, usage, now);
+  c->FinishAndAccountTowardsRoot(&s.blocked_cache(), nullptr, usage, now);
   ASSERT_TRUE(limit_2->blocked());
 
   // The leaves should be unaffected by the rate limiters, but the root
@@ -583,14 +583,14 @@ TEST(RateLimit, BasicBlockUnblock) {
   ASSERT_FALSE(leaf_2->blocked());
   ASSERT_FALSE(limit_1->blocked())
       << "tsc=" << now
-      << ", limit_1 expiration=" << limit_1->throttle_expiration();
+      << ", limit_1 expiration=" << limit_1->unblock_time();
   ASSERT_FALSE(limit_2->blocked())
       << "tsc=" << now
-      << ", limit_2 expiration=" << limit_2->throttle_expiration();
+      << ", limit_2 expiration=" << limit_2->unblock_time();
   ASSERT_FALSE(rr->blocked());
 
   EXPECT_EQ(c, leaf_1);
-  c->FinishAndAccountTowardsRoot(&s.throttled_cache(), nullptr, usage, now);
+  c->FinishAndAccountTowardsRoot(&s.blocked_cache(), nullptr, usage, now);
   now += tsc_hz / 4;
   c = s.Next(now);
   ASSERT_EQ(c, leaf_2);
