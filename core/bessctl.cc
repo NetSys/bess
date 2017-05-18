@@ -1,6 +1,5 @@
 #include "bessctl.h"
 
-#include <future>
 #include <map>
 #include <string>
 #include <thread>
@@ -43,7 +42,7 @@ using bess::PriorityTrafficClass;
 using bess::TrafficClassBuilder;
 using namespace bess::pb;
 
-static std::promise<void> exit_requested;
+static std::unique_ptr<grpc::Server> server;
 
 template <typename T>
 static inline Status return_with_error(T* response, int code, const char* fmt,
@@ -1402,7 +1401,8 @@ class BESSControlImpl final : public BESSControl::Service {
       return return_with_error(response, EBUSY, "There is a running worker");
     }
     LOG(WARNING) << "Halt requested by a client\n";
-    exit_requested.set_value();
+    std::thread shutdown_helper([]() { server->Shutdown(); });
+    shutdown_helper.detach();
 
     return Status::OK;
   }
@@ -1636,7 +1636,6 @@ class BESSControlImpl final : public BESSControl::Service {
 };
 
 // TODO: C++-ify
-static std::unique_ptr<grpc::Server> server;
 static BESSControlImpl service;
 
 class ServerCallbacks: public grpc::Server::GlobalCallbacks {
@@ -1649,7 +1648,7 @@ class ServerCallbacks: public grpc::Server::GlobalCallbacks {
   }
 
   std::mutex mutex;
-} callbacks;
+};
 
 void SetupControl() {
   grpc::ServerBuilder builder;
@@ -1659,26 +1658,15 @@ void SetupControl() {
     LOG(INFO) << "Server listening on " << server_address;
     builder.AddListeningPort(server_address, grpc::InsecureServerCredentials());
   }
-
-  grpc::Server::SetGlobalCallbacks(&callbacks);
+  auto *callbacks = new ServerCallbacks();
+  grpc::Server::SetGlobalCallbacks(callbacks);
   builder.SetSyncServerOption(grpc::ServerBuilder::MAX_POLLERS, 1);
   builder.RegisterService(&service);
   server = builder.BuildAndStart();
 }
 
 void RunControl() {
-  auto serve_func = []() {
-    server->Wait();
-    LOG(INFO) << "Terminating gRPC server";
-  };
-
-  std::thread grpc_server_thread(serve_func);
-
-  auto f = exit_requested.get_future();
-  f.wait();
-
-  server->Shutdown();
-  grpc_server_thread.join();
+  server->Wait();
 
   delete server.release();
 }
