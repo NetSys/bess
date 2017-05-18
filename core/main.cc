@@ -53,18 +53,21 @@ int main(int argc, char *argv[]) {
 
   PortBuilder::InitDrivers();
 
-  SetupControl();
+  {
+    ApiServer server;
+    server.Listen("127.0.0.1", FLAGS_p);
 
-  // Signal the parent that all initialization has been finished.
-  if (!FLAGS_f) {
-    uint64_t one = 1;
-    if (write(signal_fd, &one, sizeof(one)) < 0) {
-      PLOG(FATAL) << "write(signal_fd)";
+    // Signal the parent that all initialization has been finished.
+    if (!FLAGS_f) {
+      uint64_t one = 1;
+      if (write(signal_fd, &one, sizeof(one)) < 0) {
+        PLOG(FATAL) << "write(signal_fd)";
+      }
+      close(signal_fd);
     }
-    close(signal_fd);
-  }
 
-  RunControl();
+    server.Run();
+  }
 
   rte_eal_mp_wait_lcore();
   bess::close_mempool();

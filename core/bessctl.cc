@@ -1,16 +1,12 @@
 #include "bessctl.h"
 
-#include <map>
-#include <string>
 #include <thread>
 
 #include <gflags/gflags.h>
 #include <glog/logging.h>
-#include <google/protobuf/empty.pb.h>
 #include <grpc++/server.h>
 #include <grpc++/server_builder.h>
 #include <grpc++/server_context.h>
-#include <grpc/grpc.h>
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-parameter"
@@ -35,14 +31,8 @@
 using grpc::Status;
 using grpc::ServerContext;
 
-using bess::priority_t;
-using bess::resource_t;
-using bess::resource_share_t;
-using bess::PriorityTrafficClass;
 using bess::TrafficClassBuilder;
 using namespace bess::pb;
-
-static std::unique_ptr<grpc::Server> server;
 
 template <typename T>
 static inline Status return_with_error(T* response, int code, const char* fmt,
@@ -391,6 +381,10 @@ static void collect_tc(const bess::TrafficClass* c, int wid,
 
 class BESSControlImpl final : public BESSControl::Service {
  public:
+  void set_shutdown_func(const std::function<void()>& func) {
+    shutdown_func_ = func;
+  }
+
   Status GetVersion(ServerContext*, const EmptyRequest*,
                     VersionResponse* response) override {
     response->set_version(google::VersionString());
@@ -1401,7 +1395,14 @@ class BESSControlImpl final : public BESSControl::Service {
       return return_with_error(response, EBUSY, "There is a running worker");
     }
     LOG(WARNING) << "Halt requested by a client\n";
-    std::thread shutdown_helper([]() { server->Shutdown(); });
+
+    CHECK(shutdown_func_ != nullptr);
+    std::thread shutdown_helper([this]() {
+      // Deadlock occurs when closing a gRPC server while processing a RPC.
+      // Instead, we defer calling gRPC::Server::Shutdown() to a temporary
+      // thread.
+      shutdown_func_();
+    });
     shutdown_helper.detach();
 
     return Status::OK;
@@ -1547,7 +1548,7 @@ class BESSControlImpl final : public BESSControl::Service {
         if (class_.arg_case() != bess::pb::TrafficClass::kPriority) {
           return return_with_error(response, EINVAL, "No priority specified");
         }
-        priority_t pri = class_.priority();
+        bess::priority_t pri = class_.priority();
         if (pri == DEFAULT_PRIORITY) {
           return return_with_error(response, EINVAL, "Priority %d is reserved",
                                    DEFAULT_PRIORITY);
@@ -1633,40 +1634,62 @@ class BESSControlImpl final : public BESSControl::Service {
 
     return c;
   }
+
+  // function to call to close this gRPC service.
+  std::function<void()> shutdown_func_;
 };
 
-// TODO: C++-ify
-static BESSControlImpl service;
+bool ApiServer::grpc_cb_set_ = false;
 
-class ServerCallbacks: public grpc::Server::GlobalCallbacks {
- public:
-  void PreSynchronousRequest(ServerContext *) {
-    mutex.lock();
-  }
-  void PostSynchronousRequest(ServerContext *) {
-    mutex.unlock();
+bool ApiServer::Listen(const std::string &host, int port) {
+  if (!builder_) {
+    builder_ = new grpc::ServerBuilder();
   }
 
-  std::mutex mutex;
-};
+  std::string addr = bess::utils::Format("%s:%d", host.c_str(), port);
+  LOG(INFO) << "Server listening on " << addr;
 
-void SetupControl() {
-  grpc::ServerBuilder builder;
-
-  if (FLAGS_p) {
-    std::string server_address = bess::utils::Format("127.0.0.1:%d", FLAGS_p);
-    LOG(INFO) << "Server listening on " << server_address;
-    builder.AddListeningPort(server_address, grpc::InsecureServerCredentials());
+  int alloced_port = 0;
+  builder_->AddListeningPort(addr, grpc::InsecureServerCredentials(),
+                             &alloced_port);
+  if (port != alloced_port) {
+    LOG(ERROR) << "AddListeningPort() failed";
+    return false;
   }
-  auto *callbacks = new ServerCallbacks();
-  grpc::Server::SetGlobalCallbacks(callbacks);
-  builder.SetSyncServerOption(grpc::ServerBuilder::MAX_POLLERS, 1);
-  builder.RegisterService(&service);
-  server = builder.BuildAndStart();
+
+  return true;
 }
 
-void RunControl() {
-  server->Wait();
+void ApiServer::Run() {
+  class ServerCallbacks : public grpc::Server::GlobalCallbacks {
+   public:
+    ServerCallbacks() {}
+    void PreSynchronousRequest(ServerContext*) { mutex_.lock(); }
+    void PostSynchronousRequest(ServerContext*) { mutex_.unlock(); }
 
-  delete server.release();
+   private:
+    std::mutex mutex_;
+  };
+
+  if (!builder_) {
+    // We are not listening on any sockets. There is nothing to do.
+    return;
+  }
+
+  if (!grpc_cb_set_) {
+    // SetGlobalCallbacks() must be invoked only once.
+    grpc_cb_set_ = true;
+    // NOTE: Despite its documentation, SetGlobalCallbacks() does take the
+    // ownership of the object pointer. So we just "new" and forget about it.
+    grpc::Server::SetGlobalCallbacks(new ServerCallbacks());
+  }
+
+  BESSControlImpl service;
+  builder_->RegisterService(&service);
+  builder_->SetSyncServerOption(grpc::ServerBuilder::MAX_POLLERS, 1);
+
+  std::unique_ptr<grpc::Server> server;
+  server = builder_->BuildAndStart();
+  service.set_shutdown_func([&server]() { server->Shutdown(); });
+  server->Wait();
 }
