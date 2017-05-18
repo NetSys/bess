@@ -35,6 +35,8 @@ int main(int argc, char *argv[]) {
     signal_fd = bess::bessd::Daemonize();
   }
 
+  LOG(INFO) << "bessd " << google::VersionString();
+
   // Store our PID (child's, if daemonized) in the PID file.
   bess::bessd::WritePidfile(pidfile_fd, getpid());
 

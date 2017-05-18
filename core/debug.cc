@@ -340,7 +340,7 @@ static bool SkipSymbol(char *symbol) {
   _exit(EXIT_FAILURE);
 }
 
-[[gnu::noinline, noreturn]] void GoPanic() {
+[[ gnu::noinline, noreturn ]] void GoPanic() {
   if (oops_msg == "")
     oops_msg = DumpStack();
 
@@ -446,11 +446,13 @@ static void DumpType() {
     DCHECK_EQ(ret, 0);
   }
 
-  std::cout << Format("%-24s %8zu %8zu", type_name.c_str(),
-                                   sizeof(T), alignof(T)) << std::endl;
+  std::cout << Format("%-24s %8zu %8zu", type_name.c_str(), sizeof(T),
+                      alignof(T))
+            << std::endl;
 }
 
 void DumpTypes(void) {
+  std::cout << "bessd " << google::VersionString() << std::endl;
   std::cout << Format("gcc %d.%d.%d", __GNUC__, __GNUC_MINOR__,
                       __GNUC_PATCHLEVEL__)
             << std::endl;
