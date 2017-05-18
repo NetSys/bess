@@ -27,17 +27,18 @@ class Queue final : public Module {
 
   CheckConstraintResult CheckModuleConstraints() const override {
     int active_workers = num_active_workers() - tasks().size();
-    if (active_workers != 1) {  // Assume single writer.
-      LOG(ERROR) << "More than one queue writer for " << name();
+    CheckConstraintResult satus = CHECK_OK;
+    if (active_workers < 1) {  // Assume multi-producer.
+      LOG(ERROR) << "Queue has no producers";
+      satus = CHECK_NONFATAL_ERROR;
+    }
+
+    if (tasks().size() > 1) {  // Assume single consumer.
+      LOG(ERROR) << "More than one consumer for the queue" << name();
       return CHECK_FATAL_ERROR;
     }
 
-    if (tasks().size() > 1) {  // Assume single reader.
-      LOG(ERROR) << "More than one reader for the queue" << name();
-      return CHECK_FATAL_ERROR;
-    }
-
-    return CHECK_OK;
+    return satus;
   }
 
  private:
