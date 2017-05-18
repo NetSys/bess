@@ -32,16 +32,19 @@ class BESS(object):
 
     class Error(Exception):  # errors from BESS daemon
 
-        def __init__(self, code, errmsg):
+        def __init__(self, code, errmsg, **kwargs):
             self.code = code
             self.errmsg = errmsg
+
+            # a string->value dict for additional error contexts
+            self.info = kwargs
 
         def __str__(self):
             if self.code in errno.errorcode:
                 err_code = errno.errorcode[self.code]
             else:
                 err_code = '<unknown>'
-            return 'errno: %d (%s: %s), %s' % (
+            return 'errno=%d (%s: %s), %s' % (
                 self.code, err_code, os.strerror(self.code), self.errmsg)
 
     # abnormal RPC failure
@@ -119,7 +122,7 @@ class BESS(object):
     def set_debug(self, flag):
         self.debug = flag
 
-    def _request(self, name, request=None):
+    def _request(self, name, req_pb=None):
         if not self.is_connected():
             if self.is_connection_broken():
                 # The channel got abnormally (and asynchronously) disconnected,
@@ -129,18 +132,19 @@ class BESS(object):
                 raise self.APIError('BESS daemon not connected')
 
         req_fn = getattr(self.stub, name)
-        if request is None:
-            request = bess_msg.EmptyRequest()
+        if req_pb is None:
+            req_pb = bess_msg.EmptyRequest()
+
+        req_dict = pb_conv.protobuf_to_dict(req_pb)
 
         if self.debug:
             print '====',  req_fn._method
-            req = pb_conv.protobuf_to_dict(request)
-            print '--->', type(request).__name__
-            if req:
-                pprint.pprint(req)
+            print '--->', type(req_pb).__name__
+            if req_dict:
+                pprint.pprint(req_dict)
 
         try:
-            response = req_fn(request)
+            response = req_fn(req_pb)
         except grpc._channel._Rendezvous as e:
             raise self.RPCError(str(e))
 
@@ -152,10 +156,8 @@ class BESS(object):
 
         if response.error.code != 0:
             code = response.error.code
-            errmsg = response.error.errmsg
-            if errmsg == '':
-                errmsg = '(error message is not given)'
-            raise self.Error(code, errmsg)
+            errmsg = response.error.errmsg or '(error message is not given)'
+            raise self.Error(code, errmsg, query=name, query_arg=req_dict)
 
         return response
 
@@ -362,7 +364,12 @@ class BESS(object):
 
         request.arg.Pack(arg_msg)
 
-        response = self._request('ModuleCommand', request)
+        try:
+            response = self._request('ModuleCommand', request)
+        except self.Error as e:
+            e.info.update(module=name, command=cmd, command_arg=arg)
+            raise
+
         if response.HasField('data'):
             response_type_str = response.data.type_url.split('.')[-1]
             response_type = getattr(module_msg, response_type_str,

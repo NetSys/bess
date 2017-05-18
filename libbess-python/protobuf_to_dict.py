@@ -32,6 +32,12 @@ TYPE_CALLABLE_MAP = {
 }
 
 
+def repeated_map(type_k_callable, type_v_callable):
+    return lambda values: {type_k_callable(k): type_v_callable(v)
+                           for k, v in values.items()
+                           }
+
+
 def repeated(type_callable):
     return lambda value_list: [type_callable(value) for value in value_list]
 
@@ -44,10 +50,24 @@ def protobuf_to_dict(pb, type_callable_map=TYPE_CALLABLE_MAP, use_enum_labels=Fa
     result_dict = {}
     extensions = {}
     for field, value in pb.ListFields():
-        type_callable = _get_field_value_adaptor(
-            pb, field, type_callable_map, use_enum_labels)
-        if field.label == FieldDescriptor.LABEL_REPEATED:
-            type_callable = repeated(type_callable)
+        if field.type == FieldDescriptor.TYPE_MESSAGE and \
+                field.message_type.GetOptions().map_entry:
+            field_k = field.message_type.fields_by_name['key']
+            type_k_callable = _get_field_value_adaptor(pb,
+                                                       field_k,
+                                                       type_callable_map,
+                                                       use_enum_labels)
+            field_v = field.message_type.fields_by_name['value']
+            type_v_callable = _get_field_value_adaptor(pb,
+                                                       field_v,
+                                                       type_callable_map,
+                                                       use_enum_labels)
+            type_callable = repeated_map(type_k_callable, type_v_callable)
+        else:
+            type_callable = _get_field_value_adaptor(
+                pb, field, type_callable_map, use_enum_labels)
+            if field.label == FieldDescriptor.LABEL_REPEATED:
+                type_callable = repeated(type_callable)
 
         if field.is_extension:
             extensions[str(field.number)] = type_callable(value)

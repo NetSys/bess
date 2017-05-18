@@ -84,6 +84,8 @@ class BESSCLI(cli.CLI):
 
             self.ferr.write('  BESS daemon response - errno=%d (%s: %s)\n' %
                             (e.code, err_code, os.strerror(e.code)))
+            for k, v in sorted(e.info.items()):
+                self.ferr.write('%12s: %s\n' % (str(k), str(v)))
 
             raise self.HandledError()
 
