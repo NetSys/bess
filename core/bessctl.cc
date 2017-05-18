@@ -1639,6 +1639,18 @@ class BESSControlImpl final : public BESSControl::Service {
 static std::unique_ptr<grpc::Server> server;
 static BESSControlImpl service;
 
+class ServerCallbacks: public grpc::Server::GlobalCallbacks {
+ public:
+  void PreSynchronousRequest(ServerContext *) {
+    mutex.lock();
+  }
+  void PostSynchronousRequest(ServerContext *) {
+    mutex.unlock();
+  }
+
+  std::mutex mutex;
+} callbacks;
+
 void SetupControl() {
   grpc::ServerBuilder builder;
 
@@ -1648,6 +1660,7 @@ void SetupControl() {
     builder.AddListeningPort(server_address, grpc::InsecureServerCredentials());
   }
 
+  grpc::Server::SetGlobalCallbacks(&callbacks);
   builder.SetSyncServerOption(grpc::ServerBuilder::MAX_POLLERS, 1);
   builder.RegisterService(&service);
   server = builder.BuildAndStart();
