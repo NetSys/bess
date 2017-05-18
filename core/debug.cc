@@ -9,6 +9,7 @@
 #include <ucontext.h>
 #include <unistd.h>
 
+#include <gflags/gflags.h>
 #include <glog/logging.h>
 #include <rte_config.h>
 #include <rte_version.h>
