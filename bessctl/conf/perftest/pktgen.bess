@@ -3,7 +3,7 @@ import scapy.all as scapy
 pkt_size = int($BESS_PKT_SIZE!'60')
 num_ports = int($BESS_PORTS!'1')
 num_cores = int($BESS_CORES!'1')
-rate_limit = int($BESS_RATELIMIT_MBPS!'0') # default no limit
+mbps = float($BESS_RATELIMIT_MBPS!'0') # default no limit
 imix = int($BESS_IMIX!'0')
 
 assert(60 <= pkt_size <= 1522)
@@ -45,9 +45,8 @@ ports = [PMDPort(port_id=i, num_inc_q=num_cores, num_out_q=num_cores) \
          for i in range(num_ports)]
 
 for i in range(num_cores):
-    if(rate_limit == 0):
-        print("starting up worker: " + str(i))
-        bess.add_worker(wid=i, core=i)
+    print("starting up worker: " + str(i))
+    bess.add_worker(wid=i, core=i)
 
     src = Source()
     rr = RoundRobin(gates=range(num_ports))
@@ -57,11 +56,15 @@ for i in range(num_cores):
     -> IPChecksum() \
     -> rr
 
-    if(rate_limit != 0):
-        bess.add_tc('bit_limit', policy='rate_limit', resource='bit', limit={'bit': rate_limit * 1000000})
-        bess.attach_module(src.name, 'bit_limit')
+    if mbps != 0:
+        tc_name = 'bit_limit%d' % i
+        bess.add_tc(tc_name, policy='rate_limit', resource='bit', limit={'bit': int(mbps / num_cores * 1e6)})
+        bess.attach_module(src.name, parent=tc_name)
+    else:
+        bess.attach_module(src.name, wid=i)
 
     for j in range(num_ports):
         rr:j -> Update(fields=[{'offset': 29, 'size': 1, 'value': j+1}]) -> QueueOut(port=ports[j].name, qid=i)
-        QueueInc(port=ports[j].name, qid=i) -> Sink()
-
+        qinc = QueueInc(port=ports[j].name, qid=i)
+        qinc -> Sink()
+        bess.attach_module(qinc.name, wid=i)
