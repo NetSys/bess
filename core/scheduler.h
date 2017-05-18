@@ -21,21 +21,21 @@ struct sched_stats {
 template <typename CallableTask>
 class Scheduler;
 
-// List of blocked traffic classes ordered by time expiration.
-class SchedBlockedCache {
+// Queue of blocked traffic classes ordered by time expiration.
+class SchedWakeupQueue {
  public:
-  struct BlockedComp {
+  struct WakeupComp {
     bool operator()(const TrafficClass *left,
                     const TrafficClass *right) const {
       // Reversed so that priority_queue is a min priority queue.
-      return right->unblock_time() < left->unblock_time();
+      return right->wakeup_time() < left->wakeup_time();
     }
   };
 
-  SchedBlockedCache() : q_(BlockedComp()) {}
+  SchedWakeupQueue() : q_(WakeupComp()) {}
 
   // Adds the given traffic class to those that are considered blocked.
-  void AddBlocked(TrafficClass *c) {
+  void Add(TrafficClass *c) {
     q_.push(c);
   }
 
@@ -43,8 +43,8 @@ class SchedBlockedCache {
   template <typename CallableTasks>
   friend class Scheduler;
 
-  // A cache of blocked TrafficClasses.
-  std::priority_queue<TrafficClass *, std::vector<TrafficClass *>, BlockedComp> q_;
+  // A priority queue of TrafficClasses to wake up ordered by time.
+  std::priority_queue<TrafficClass *, std::vector<TrafficClass *>, WakeupComp> q_;
 };
 
 // The non-instantiable base class for schedulers.  Implements common routines
@@ -55,7 +55,7 @@ class Scheduler {
   explicit Scheduler(TrafficClass *root = nullptr)
       : root_(root),
         default_rr_class_(),
-        blocked_cache_(),
+        wakeup_queue_(),
         stats_(),
         checkpoint_(),
         ns_per_cycle_(1e9 / tsc_hz) {}
@@ -71,17 +71,17 @@ class Scheduler {
   // Runs the scheduler loop forever.
   virtual void ScheduleLoop() = 0;
 
-  // Unblocks any TrafficClasses that were blocked whose time has passed.
-  void ResumeBlocked(uint64_t tsc) {
-    while (!blocked_cache_.q_.empty()) {
-      TrafficClass *c = blocked_cache_.q_.top();
-      uint64_t unblock_time = c->unblock_time();
-      if (unblock_time < tsc) {
-        blocked_cache_.q_.pop();
-        c->unblock_time_ = 0;
+  // Wakes up any TrafficClasses whose wakeup time has passed.
+  void WakeTCs(uint64_t tsc) {
+    while (!wakeup_queue_.q_.empty()) {
+      TrafficClass *c = wakeup_queue_.q_.top();
+      uint64_t wakeup_time = c->wakeup_time();
+      if (wakeup_time < tsc) {
+        wakeup_queue_.q_.pop();
+        c->wakeup_time_ = 0;
 
         // Traverse upward toward root to unblock any blocked parents.
-        c->UnblockTowardsRoot(unblock_time);
+        c->UnblockTowardsRoot(wakeup_time);
       } else {
         break;
       }
@@ -151,8 +151,8 @@ class Scheduler {
   }
 
   // For testing
-  SchedBlockedCache &blocked_cache() {
-      return blocked_cache_;
+  SchedWakeupQueue &wakeup_queue() {
+      return wakeup_queue_;
   }
 
  protected:
@@ -164,7 +164,7 @@ class Scheduler {
 
   RoundRobinTrafficClass *default_rr_class_;
 
-  SchedBlockedCache blocked_cache_;
+  SchedWakeupQueue wakeup_queue_;
 
   struct sched_stats stats_;
 
@@ -236,7 +236,7 @@ class DefaultScheduler : public Scheduler<CallableTask> {
       // TODO(barath): Re-enable scheduler-wide stats accumulation.
       // accumulate(stats_.usage, usage);
 
-      leaf->FinishAndAccountTowardsRoot(&this->blocked_cache_, nullptr, usage, now);
+      leaf->FinishAndAccountTowardsRoot(&this->wakeup_queue_, nullptr, usage, now);
     } else {
       // TODO(barath): Ideally, we wouldn't spin in this case but rather take
       // the fact that Next() returned nullptr as an indication that everything
@@ -254,9 +254,7 @@ class DefaultScheduler : public Scheduler<CallableTask> {
 
   // Selects the next TrafficClass to run.
   LeafTrafficClass<CallableTask> *Next(uint64_t tsc) {
-    // Before we select the next class to run, resume any classes that were
-    // blocked whose time has expired so that they are available.
-    this->ResumeBlocked(tsc);
+    this->WakeTCs(tsc);
 
     if (!this->root_ || this->root_->blocked()) {
       // Nothing to schedule anywhere.

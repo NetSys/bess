@@ -56,7 +56,7 @@ struct tc_stats {
 
 template <typename CallableTask>
 class Scheduler;
-class SchedBlockedCache;
+class SchedWakeupQueue;
 class TrafficClassBuilder;
 class PriorityTrafficClass;
 class WeightedFairTrafficClass;
@@ -183,7 +183,7 @@ class TrafficClass {
   // Starts from the current node and accounts for the usage of the given child
   // after execution and finishes any data structure reorganization required
   // after execution has finished.
-  virtual void FinishAndAccountTowardsRoot(SchedBlockedCache *blocked_cache,
+  virtual void FinishAndAccountTowardsRoot(SchedWakeupQueue *wakeup_queue,
                                            TrafficClass *child,
                                            resource_arr_t usage,
                                            uint64_t tsc) = 0;
@@ -194,7 +194,7 @@ class TrafficClass {
 
   const struct tc_stats &stats() const { return stats_; }
 
-  uint64_t unblock_time() const { return unblock_time_; }
+  uint64_t wakeup_time() const { return wakeup_time_; }
 
   bool blocked() const { return blocked_; }
 
@@ -210,7 +210,7 @@ class TrafficClass {
 
   TrafficClass(const std::string &name, const TrafficPolicy &policy,
                bool blocked = true)
-      : parent_(), name_(name), stats_(), unblock_time_(), blocked_(blocked), policy_(policy) {}
+      : parent_(), name_(name), stats_(), wakeup_time_(), blocked_(blocked), policy_(policy) {}
 
   // Sets blocked status to nowblocked and recurses towards root by signaling
   // the parent if status became unblocked.
@@ -257,8 +257,8 @@ class TrafficClass {
 
   struct tc_stats stats_;
 
-  // The tsc time that this should be unblocked by the scheduler.
-  uint64_t unblock_time_;
+  // The tsc time that this should be woken up by the scheduler.
+  uint64_t wakeup_time_;
 
  private:
   template <typename CallableTask> friend class Scheduler;
@@ -298,7 +298,7 @@ class PriorityTrafficClass final : public TrafficClass {
   void UnblockTowardsRoot(uint64_t tsc) override;
   void BlockTowardsRoot() override;
 
-  void FinishAndAccountTowardsRoot(SchedBlockedCache *blocked_cache,
+  void FinishAndAccountTowardsRoot(SchedWakeupQueue *wakeup_queue,
                                    TrafficClass *child, resource_arr_t usage,
                                    uint64_t tsc) override;
 
@@ -346,7 +346,7 @@ class WeightedFairTrafficClass final : public TrafficClass {
   void UnblockTowardsRoot(uint64_t tsc) override;
   void BlockTowardsRoot() override;
 
-  void FinishAndAccountTowardsRoot(SchedBlockedCache *blocked_cache,
+  void FinishAndAccountTowardsRoot(SchedWakeupQueue *wakeup_queue,
                                    TrafficClass *child, resource_arr_t usage,
                                    uint64_t tsc) override;
 
@@ -398,7 +398,7 @@ class RoundRobinTrafficClass final : public TrafficClass {
   void UnblockTowardsRoot(uint64_t tsc) override;
   void BlockTowardsRoot() override;
 
-  void FinishAndAccountTowardsRoot(SchedBlockedCache *blocked_cache,
+  void FinishAndAccountTowardsRoot(SchedWakeupQueue *wakeup_queue,
                                    TrafficClass *child, resource_arr_t usage,
                                    uint64_t tsc) override;
 
@@ -458,7 +458,7 @@ class RateLimitTrafficClass final : public TrafficClass {
   void UnblockTowardsRoot(uint64_t tsc) override;
   void BlockTowardsRoot() override;
 
-  void FinishAndAccountTowardsRoot(SchedBlockedCache *blocked_cache,
+  void FinishAndAccountTowardsRoot(SchedWakeupQueue *wakeup_queue,
                                    TrafficClass *child, resource_arr_t usage,
                                    uint64_t tsc) override;
 
@@ -552,7 +552,7 @@ class LeafTrafficClass final : public TrafficClass {
 
   CallableTask &Task() { return task_; }
 
-  void FinishAndAccountTowardsRoot(SchedBlockedCache *blocked_cache,
+  void FinishAndAccountTowardsRoot(SchedWakeupQueue *wakeup_queue,
                                    [[maybe_unused]] TrafficClass *child,
                                    resource_arr_t usage,
                                    uint64_t tsc) override {
@@ -560,7 +560,7 @@ class LeafTrafficClass final : public TrafficClass {
     if (!parent_) {
       return;
     }
-    parent_->FinishAndAccountTowardsRoot(blocked_cache, this, usage, tsc);
+    parent_->FinishAndAccountTowardsRoot(wakeup_queue, this, usage, tsc);
   }
 
  private:
