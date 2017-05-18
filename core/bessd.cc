@@ -398,6 +398,8 @@ bool UnloadPlugin(const std::string &path) {
   bool success = (dlclose(it->second) == 0);
   if (success) {
     plugin_handles.erase(it);
+  } else {
+    LOG(WARNING) << "Error unloading module " << path << ": " << dlerror();
   }
   return success;
 }
@@ -413,7 +415,8 @@ bool LoadPlugins(const std::string &directory) {
       const std::string full_path = directory + "/" + entry->d_name;
       LOG(INFO) << "Loading module: " << full_path;
       if (!LoadPlugin(full_path)) {
-        LOG(WARNING) << "Cannot load module " << full_path;
+        LOG(WARNING) << "Error loading module " << full_path << ": "
+                     << dlerror();
         closedir(dir);
         return false;
       }
