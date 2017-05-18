@@ -21,7 +21,8 @@ TESTS='exactmatch.bess
   vlantest.bess
   wildcardmatch.bess
   nat.bess
-  worker_split.bess'
+  worker_split.bess
+  qtest.bess'
 
 function fail
 {

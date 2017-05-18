@@ -25,6 +25,21 @@ class Queue final : public Module {
   CommandResponse CommandSetBurst(const bess::pb::QueueCommandSetBurstArg &arg);
   CommandResponse CommandSetSize(const bess::pb::QueueCommandSetSizeArg &arg);
 
+  CheckConstraintResult CheckModuleConstraints() const override {
+    int active_workers = num_active_workers() - tasks().size();
+    if (active_workers != 1) {  // Assume single writer.
+      LOG(ERROR) << "More than one queue writer for " << name();
+      return CHECK_FATAL_ERROR;
+    }
+
+    if (tasks().size() > 1) {  // Assume single reader.
+      LOG(ERROR) << "More than one reader for the queue" << name();
+      return CHECK_FATAL_ERROR;
+    }
+
+    return CHECK_OK;
+  }
+
  private:
   int Resize(int slots);
   CommandResponse SetSize(uint64_t size);
