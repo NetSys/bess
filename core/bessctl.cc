@@ -516,6 +516,9 @@ class BESSControlImpl final : public BESSControl::Service {
                                wid);
     }
     const std::string &scheduler = request->scheduler();
+    if (scheduler != "" && scheduler != "experimental") {
+      return return_with_error(response, EINVAL, "Invalid scheduler %s", scheduler.c_str());
+    }
 
     launch_worker(wid, core, scheduler);
     return Status::OK;
