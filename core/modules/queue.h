@@ -25,21 +25,7 @@ class Queue final : public Module {
   CommandResponse CommandSetBurst(const bess::pb::QueueCommandSetBurstArg &arg);
   CommandResponse CommandSetSize(const bess::pb::QueueCommandSetSizeArg &arg);
 
-  CheckConstraintResult CheckModuleConstraints() const override {
-    int active_workers = num_active_workers() - tasks().size();
-    CheckConstraintResult satus = CHECK_OK;
-    if (active_workers < 1) {  // Assume multi-producer.
-      LOG(ERROR) << "Queue has no producers";
-      satus = CHECK_NONFATAL_ERROR;
-    }
-
-    if (tasks().size() > 1) {  // Assume single consumer.
-      LOG(ERROR) << "More than one consumer for the queue" << name();
-      return CHECK_FATAL_ERROR;
-    }
-
-    return satus;
-  }
+  CheckConstraintResult CheckModuleConstraints() const override;
 
  private:
   int Resize(int slots);
