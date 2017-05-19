@@ -270,6 +270,104 @@ class DefaultScheduler : public Scheduler<CallableTask> {
   }
 };
 
+template <typename CallableTask>
+class ExperimentalScheduler : public Scheduler<CallableTask> {
+ public:
+  static const uint64_t kWaitCycles = 10000;
+
+  explicit ExperimentalScheduler(TrafficClass *root = nullptr) : Scheduler<CallableTask>(root) {}
+
+  virtual ~ExperimentalScheduler() {}
+
+  // Runs the scheduler loop forever.
+  // Currently a copy-paste from DefaultScheduler so that this is the only
+  // virtual call that is made (i.e., ScheduleOnce() is non-virtual).
+  void ScheduleLoop() override {
+    uint64_t now;
+    // How many rounds to go before we do accounting.
+    const uint64_t accounting_mask = 0xff;
+    static_assert(((accounting_mask + 1) & accounting_mask) == 0,
+                  "Accounting mask must be (2^n)-1");
+
+    this->checkpoint_ = now = rdtsc();
+
+    // The main scheduling, running, accounting loop.
+    for (uint64_t round = 0;; ++round) {
+      // Periodic check, to mitigate expensive operations.
+      if ((round & accounting_mask) == 0) {
+        if (ctx.is_pause_requested()) {
+          if (ctx.BlockWorker()) {
+            break;
+          }
+        }
+      }
+
+      ScheduleOnce();
+    }
+  }
+
+  // Runs the scheduler once.
+  void ScheduleOnce() {
+    resource_arr_t usage;
+
+    // Schedule.
+    LeafTrafficClass<CallableTask> *leaf = Next(this->checkpoint_);
+
+    uint64_t now;
+    if (leaf) {
+      ctx.set_current_tsc(this->checkpoint_);  // Tasks see updated tsc.
+      ctx.set_current_ns(this->checkpoint_ * this->ns_per_cycle_);
+
+      // Run.
+      auto ret = leaf->Task()();
+      now = rdtsc();
+
+      if (ret.packets == 0 && ret.bits == 0) {
+        leaf->blocked_ = true;
+        leaf->wakeup_time_ = now + kWaitCycles;
+        this->wakeup_queue_.Add(leaf);
+
+        usage[RESOURCE_COUNT] = 0;
+        usage[RESOURCE_CYCLE] = 0;
+        usage[RESOURCE_PACKET] = 0;
+        usage[RESOURCE_BIT] = 0;
+      } else {
+        usage[RESOURCE_COUNT] = 1;
+        usage[RESOURCE_CYCLE] = now - this->checkpoint_;
+        usage[RESOURCE_PACKET] = ret.packets;
+        usage[RESOURCE_BIT] = ret.bits;
+      }
+
+      // Account.
+      leaf->FinishAndAccountTowardsRoot(&this->wakeup_queue_, nullptr, usage, now);
+    } else {
+      ++this->stats_.cnt_idle;
+
+      now = rdtsc();
+      this->stats_.cycles_idle += (now - this->checkpoint_);
+    }
+
+    this->checkpoint_ = now;
+  }
+
+  // Selects the next TrafficClass to run.
+  LeafTrafficClass<CallableTask> *Next(uint64_t tsc) {
+    this->WakeTCs(tsc);
+
+    if (!this->root_ || this->root_->blocked()) {
+      // Nothing to schedule anywhere.
+      return nullptr;
+    }
+
+    TrafficClass *c = this->root_;
+    while (c->policy_ != POLICY_LEAF) {
+      c = c->PickNextChild();
+    }
+
+    return static_cast<LeafTrafficClass<CallableTask> *>(c);
+  }
+};
+
 }  // namespace bess
 
 #endif  // BESS_SCHEDULER_H_
