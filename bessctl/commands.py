@@ -255,8 +255,8 @@ def get_var_attrs(cli, var_token, partial_word):
 
         elif var_token == '[SCHEDULER]':
             var_type = 'name'
-            var_desc = 'specify the type of scheduler'
-            var_candidates = ['default']
+            var_desc = 'specify the type of scheduler (none for default)'
+            var_candidates = ['', 'experimental']
 
         elif var_token == 'PORT':
             var_type = 'name'

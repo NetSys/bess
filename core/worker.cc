@@ -23,6 +23,7 @@
 
 using bess::Scheduler;
 using bess::DefaultScheduler;
+using bess::ExperimentalScheduler;
 
 int num_workers = 0;
 std::thread worker_threads[Worker::kMaxWorkers];
@@ -294,6 +295,8 @@ void launch_worker(int wid, int core, [[maybe_unused]] const std::string &schedu
   };
   if (scheduler == "") {
     arg.scheduler = new DefaultScheduler<Task>();
+  } else if (scheduler == "experimental") {
+    arg.scheduler = new ExperimentalScheduler<Task>();
   } else {
     CHECK(false) << "Scheduler " << scheduler << " is invalid.";
   }
