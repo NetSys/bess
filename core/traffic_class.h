@@ -529,8 +529,12 @@ class RateLimitTrafficClass final : public TrafficClass {
 template <typename CallableTask>
 class LeafTrafficClass final : public TrafficClass {
  public:
+  static const uint64_t kInitialWaitCycles = (1ull << 14);
+
   explicit LeafTrafficClass(const std::string &name, const CallableTask &task)
-      : TrafficClass(name, POLICY_LEAF, false), task_(task) {
+      : TrafficClass(name, POLICY_LEAF, false),
+        task_(task),
+        wait_cycles_(kInitialWaitCycles) {
     task_.Attach(this);
   }
 
@@ -542,6 +546,10 @@ class LeafTrafficClass final : public TrafficClass {
   bool RemoveChild(TrafficClass *) override { return false; }
 
   TrafficClass *PickNextChild() override { return nullptr; }
+
+  uint64_t wait_cycles() const { return wait_cycles_; }
+
+  void set_wait_cycles(uint64_t wait_cycles) { wait_cycles_ = wait_cycles; }
 
   void BlockTowardsRoot() override {
     TrafficClass::BlockTowardsRootSetBlocked(false);
@@ -566,6 +574,8 @@ class LeafTrafficClass final : public TrafficClass {
 
  private:
   CallableTask task_;
+
+  uint64_t wait_cycles_;
 };
 
 class PriorityChildArgs : public TCChildArgs {
