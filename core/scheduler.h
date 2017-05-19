@@ -155,6 +155,23 @@ class Scheduler {
       return wakeup_queue_;
   }
 
+  // Selects the next TrafficClass to run.
+  LeafTrafficClass<CallableTask> *Next(uint64_t tsc) {
+    WakeTCs(tsc);
+
+    if (!root_ || root_->blocked()) {
+      // Nothing to schedule anywhere.
+      return nullptr;
+    }
+
+    TrafficClass *c = root_;
+    while (c->policy_ != POLICY_LEAF) {
+      c = c->PickNextChild();
+    }
+
+    return static_cast<LeafTrafficClass<CallableTask> *>(c);
+  }
+
  protected:
   // Starts at the given class and attempts to unblock classes on the path
   // towards the root.
@@ -215,7 +232,7 @@ class DefaultScheduler : public Scheduler<CallableTask> {
     resource_arr_t usage;
 
     // Schedule.
-    LeafTrafficClass<CallableTask> *leaf = Next(this->checkpoint_);
+    LeafTrafficClass<CallableTask> *leaf = Scheduler<CallableTask>::Next(this->checkpoint_);
 
     uint64_t now;
     if (leaf) {
@@ -250,23 +267,6 @@ class DefaultScheduler : public Scheduler<CallableTask> {
     }
 
     this->checkpoint_ = now;
-  }
-
-  // Selects the next TrafficClass to run.
-  LeafTrafficClass<CallableTask> *Next(uint64_t tsc) {
-    this->WakeTCs(tsc);
-
-    if (!this->root_ || this->root_->blocked()) {
-      // Nothing to schedule anywhere.
-      return nullptr;
-    }
-
-    TrafficClass *c = this->root_;
-    while (c->policy_ != POLICY_LEAF) {
-      c = c->PickNextChild();
-    }
-
-    return static_cast<LeafTrafficClass<CallableTask> *>(c);
   }
 };
 
@@ -309,7 +309,7 @@ class ExperimentalScheduler : public Scheduler<CallableTask> {
     resource_arr_t usage;
 
     // Schedule.
-    LeafTrafficClass<CallableTask> *leaf = Next(this->checkpoint_);
+    LeafTrafficClass<CallableTask> *leaf = Scheduler<CallableTask>::Next(this->checkpoint_);
 
     uint64_t now;
     if (leaf) {
@@ -355,23 +355,6 @@ class ExperimentalScheduler : public Scheduler<CallableTask> {
     }
 
     this->checkpoint_ = now;
-  }
-
-  // Selects the next TrafficClass to run.
-  LeafTrafficClass<CallableTask> *Next(uint64_t tsc) {
-    this->WakeTCs(tsc);
-
-    if (!this->root_ || this->root_->blocked()) {
-      // Nothing to schedule anywhere.
-      return nullptr;
-    }
-
-    TrafficClass *c = this->root_;
-    while (c->policy_ != POLICY_LEAF) {
-      c = c->PickNextChild();
-    }
-
-    return static_cast<LeafTrafficClass<CallableTask> *>(c);
   }
 };
 
