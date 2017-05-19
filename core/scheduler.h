@@ -273,8 +273,6 @@ class DefaultScheduler : public Scheduler<CallableTask> {
 template <typename CallableTask>
 class ExperimentalScheduler : public Scheduler<CallableTask> {
  public:
-  static const uint64_t kWaitCycles = 10000;
-
   explicit ExperimentalScheduler(TrafficClass *root = nullptr) : Scheduler<CallableTask>(root) {}
 
   virtual ~ExperimentalScheduler() {}
@@ -323,8 +321,15 @@ class ExperimentalScheduler : public Scheduler<CallableTask> {
       now = rdtsc();
 
       if (ret.packets == 0 && ret.bits == 0) {
+        constexpr uint64_t kMaxWait = 1ull << 32;
+        uint64_t wait = leaf->wait_cycles() << 1;
+        if (wait > kMaxWait) {
+          wait = kMaxWait;
+        }
+        leaf->set_wait_cycles(wait);
+
         leaf->blocked_ = true;
-        leaf->wakeup_time_ = now + kWaitCycles;
+        leaf->wakeup_time_ = now + leaf->wait_cycles();
         this->wakeup_queue_.Add(leaf);
 
         usage[RESOURCE_COUNT] = 0;
@@ -332,6 +337,8 @@ class ExperimentalScheduler : public Scheduler<CallableTask> {
         usage[RESOURCE_PACKET] = 0;
         usage[RESOURCE_BIT] = 0;
       } else {
+        leaf->set_wait_cycles((leaf->wait_cycles() + 1) >> 1);
+
         usage[RESOURCE_COUNT] = 1;
         usage[RESOURCE_CYCLE] = now - this->checkpoint_;
         usage[RESOURCE_PACKET] = ret.packets;
