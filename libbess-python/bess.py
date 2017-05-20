@@ -495,13 +495,19 @@ class BESS(object):
         return self._request('UpdateTcParams', request)
 
     def attach_module(self, module_name, parent='', wid=-1,
-                      module_taskid=0):
+                      module_taskid=0, priority=None, share=None):
         request = bess_msg.UpdateTcParentRequest()
         class_ = getattr(request, 'class')
         class_.leaf_module_name = module_name
         class_.leaf_module_taskid = module_taskid
         class_.parent = parent
         class_.wid = wid
+
+        if priority is not None:
+            class_.priority = priority
+
+        if share is not None:
+            class_.share = share
 
         return self._request('UpdateTcParent', request)
 
