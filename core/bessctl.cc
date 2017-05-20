@@ -21,6 +21,7 @@
 #include "bessd.h"
 #include "gate.h"
 #include "hooks/track.h"
+#include "hooks/track_bytes.h"
 #include "message.h"
 #include "metadata.h"
 #include "module.h"
@@ -71,22 +72,35 @@ static inline Status return_with_errno(T* response, int code) {
 }
 
 static pb_error_t enable_track_for_module(const Module* m, gate_idx_t gate_idx,
-                                          bool is_igate, bool use_gate) {
+                                          bool is_igate, bool use_gate,
+                                          bool is_bytes) {
   int ret;
+
+  bess::GateHook* hook = nullptr;
 
   if (use_gate) {
     if (is_igate) {
       if (!is_active_gate(m->igates(), gate_idx)) {
         return pb_error(EINVAL, "Input gate '%hu' does not exist", gate_idx);
       }
-      if ((ret = m->igates()[gate_idx]->AddHook(new TrackGate()))) {
+      if (is_bytes) {
+        hook = new TrackBytes();
+      } else {
+        hook = new TrackGate();
+      }
+      if ((ret = m->igates()[gate_idx]->AddHook(hook))) {
         return pb_error(ret, "Failed to track input gate '%hu'", gate_idx);
       }
     } else {
       if (!is_active_gate(m->ogates(), gate_idx)) {
         return pb_error(EINVAL, "Output gate '%hu' does not exist", gate_idx);
       }
-      if ((ret = m->ogates()[gate_idx]->AddHook(new TrackGate()))) {
+      if (is_bytes) {
+        hook = new TrackBytes();
+      } else {
+        hook = new TrackGate();
+      }
+      if ((ret = m->ogates()[gate_idx]->AddHook(hook))) {
         return pb_error(ret, "Failed to track output gate '%hu'", gate_idx);
       }
     }
@@ -98,7 +112,12 @@ static pb_error_t enable_track_for_module(const Module* m, gate_idx_t gate_idx,
       if (!gate) {
         continue;
       }
-      if ((ret = gate->AddHook(new TrackGate()))) {
+      if (is_bytes) {
+        hook = new TrackBytes();
+      } else {
+        hook = new TrackGate();
+      }
+      if ((ret = gate->AddHook(hook))) {
         return pb_error(ret, "Failed to track input gate '%hu'",
                         gate->gate_idx());
       }
@@ -108,7 +127,12 @@ static pb_error_t enable_track_for_module(const Module* m, gate_idx_t gate_idx,
       if (!gate) {
         continue;
       }
-      if ((ret = gate->AddHook(new TrackGate()))) {
+      if (is_bytes) {
+        hook = new TrackBytes();
+      } else {
+        hook = new TrackGate();
+      }
+      if ((ret = gate->AddHook(hook))) {
         return pb_error(ret, "Failed to track output gate '%hu'",
                         gate->gate_idx());
       }
@@ -118,7 +142,11 @@ static pb_error_t enable_track_for_module(const Module* m, gate_idx_t gate_idx,
 }
 
 static pb_error_t disable_track_for_module(const Module* m, gate_idx_t gate_idx,
-                                           bool is_igate, bool use_gate) {
+                                           bool is_igate, bool use_gate,
+                                           bool is_bytes) {
+  const std::string& target_hook =
+      is_bytes ? kGateHookTrackGate : kGateHookTrackBytes;
+
   if (use_gate) {
     if (!is_igate && !is_active_gate(m->ogates(), gate_idx)) {
       return pb_error(EINVAL, "Output gate '%hu' does not exist", gate_idx);
@@ -129,10 +157,10 @@ static pb_error_t disable_track_for_module(const Module* m, gate_idx_t gate_idx,
     }
 
     if (is_igate) {
-      m->igates()[gate_idx]->RemoveHook(kGateHookTrackGate);
+      m->igates()[gate_idx]->RemoveHook(target_hook);
       return pb_errno(0);
     }
-    m->ogates()[gate_idx]->RemoveHook(kGateHookTrackGate);
+    m->ogates()[gate_idx]->RemoveHook(target_hook);
     return pb_errno(0);
   }
 
@@ -141,14 +169,14 @@ static pb_error_t disable_track_for_module(const Module* m, gate_idx_t gate_idx,
       if (!gate) {
         continue;
       }
-      gate->RemoveHook(kGateHookTrackGate);
+      gate->RemoveHook(target_hook);
     }
   } else {
     for (auto& gate : m->ogates()) {
       if (!gate) {
         continue;
       }
-      gate->RemoveHook(kGateHookTrackGate);
+      gate->RemoveHook(target_hook);
     }
   }
   return pb_errno(0);
@@ -168,6 +196,14 @@ static int collect_igates(Module* m, GetModuleInfoResponse* response) {
     if (t) {
       igate->set_cnt(t->cnt());
       igate->set_pkts(t->pkts());
+      igate->set_timestamp(get_epoch_time());
+    }
+
+    TrackBytes* b =
+        reinterpret_cast<TrackBytes*>(g->FindHook(kGateHookTrackBytes));
+
+    if (b) {
+      igate->set_bytes(b->bytes());
       igate->set_timestamp(get_epoch_time());
     }
 
@@ -191,13 +227,24 @@ static int collect_ogates(Module* m, GetModuleInfoResponse* response) {
     GetModuleInfoResponse_OGate* ogate = response->add_ogates();
 
     ogate->set_ogate(g->gate_idx());
+
     TrackGate* t =
         reinterpret_cast<TrackGate*>(g->FindHook(kGateHookTrackGate));
+
     if (t) {
       ogate->set_cnt(t->cnt());
       ogate->set_pkts(t->pkts());
       ogate->set_timestamp(get_epoch_time());
     }
+
+    TrackBytes* b =
+        reinterpret_cast<TrackBytes*>(g->FindHook(kGateHookTrackBytes));
+
+    if (b) {
+      ogate->set_bytes(b->bytes());
+      ogate->set_timestamp(get_epoch_time());
+    }
+
     ogate->set_name(g->igate()->module()->name());
     ogate->set_igate(g->igate()->gate_idx());
   }
@@ -515,9 +562,10 @@ class BESSControlImpl final : public BESSControl::Service {
       return return_with_error(response, EEXIST, "worker:%d is already active",
                                wid);
     }
-    const std::string &scheduler = request->scheduler();
+    const std::string& scheduler = request->scheduler();
     if (scheduler != "" && scheduler != "experimental") {
-      return return_with_error(response, EINVAL, "Invalid scheduler %s", scheduler.c_str());
+      return return_with_error(response, EINVAL, "Invalid scheduler %s",
+                               scheduler.c_str());
     }
 
     launch_worker(wid, core, scheduler);
@@ -1351,9 +1399,9 @@ class BESSControlImpl final : public BESSControl::Service {
     pb_error_t* error = response->mutable_error();
     if (!request->name().length()) {
       for (const auto& it : ModuleBuilder::all_modules()) {
-        *error =
-            enable_track_for_module(it.second, request->gate(),
-                                    request->is_igate(), request->use_gate());
+        *error = enable_track_for_module(
+            it.second, request->gate(), request->is_igate(),
+            request->use_gate(), request->is_bytes());
         if (error->code() != 0) {
           return Status::OK;
         }
@@ -1365,9 +1413,9 @@ class BESSControlImpl final : public BESSControl::Service {
         *error =
             pb_error(ENOENT, "No module '%s' found", request->name().c_str());
       }
-      *error =
-          enable_track_for_module(it->second, request->gate(),
-                                  request->is_igate(), request->use_gate());
+      *error = enable_track_for_module(it->second, request->gate(),
+                                       request->is_igate(), request->use_gate(),
+                                       request->is_bytes());
       return Status::OK;
     }
   }
@@ -1380,9 +1428,9 @@ class BESSControlImpl final : public BESSControl::Service {
     pb_error_t* error = response->mutable_error();
     if (!request->name().length()) {
       for (const auto& it : ModuleBuilder::all_modules()) {
-        *error =
-            disable_track_for_module(it.second, request->gate(),
-                                     request->is_igate(), request->use_gate());
+        *error = disable_track_for_module(
+            it.second, request->gate(), request->is_igate(),
+            request->use_gate(), request->is_bytes());
         if (error->code() != 0) {
           return Status::OK;
         }
@@ -1394,9 +1442,9 @@ class BESSControlImpl final : public BESSControl::Service {
         *error =
             pb_error(ENOENT, "No module '%s' found", request->name().c_str());
       }
-      *error =
-          disable_track_for_module(it->second, request->gate(),
-                                   request->is_igate(), request->use_gate());
+      *error = disable_track_for_module(
+          it->second, request->gate(), request->is_igate(), request->use_gate(),
+          request->is_bytes());
       return Status::OK;
     }
   }

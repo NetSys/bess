@@ -345,15 +345,17 @@ message GetModuleInfoResponse {
     repeated OGate ogates = 2;  /// The list of upstream output gates
     uint64 cnt = 3;             /// # of packet batches seen
     uint64 pkts = 4;            /// # of packets seen
-    double timestamp = 5;       /// The time that cnt/pkts counters were read
+    uint64 bytes = 5;           /// # of bytes seen
+    double timestamp = 6;       /// The time that cnt/pkts counters were read
   }
   message OGate {
     uint64 ogate = 1;      /// Output gate ID
     uint64 cnt = 2;        /// # of packet batches seen
     uint64 pkts = 3;       /// # of packets seen
-    double timestamp = 4;  /// The time thatcnt/pkts counters were read
-    string name = 5;       /// Name of the "next" module it connects to
-    uint64 igate = 6;      /// Input gate ID of the "next" module
+    uint64 bytes = 4;           /// # of bytes seen
+    double timestamp = 5;  /// The time thatcnt/pkts counters were read
+    string name = 6;       /// Name of the "next" module it connects to
+    uint64 igate = 7;      /// Input gate ID of the "next" module
   }
   message Attribute {
     string name = 1;   /// Name of per-packet metadata attribute
@@ -405,6 +407,7 @@ message EnableTrackRequest {
   int64 gate = 2;     /// Gate ID, starting from 0
   bool is_igate = 3;  /// Either input gate (True) or output gate (False)
   bool use_gate = 4;  /// If False, the hook is installed on all igates & ogates
+  bool is_bytes = 5;  /// If True, the TrackBytes hook is installed. Otherwise, Track is installed.
 
   // FIXME: use oneof {igate, ogate)
   // FIXME: get rid of use_gate (e.g., gate == -1)
@@ -415,6 +418,7 @@ message DisableTrackRequest {
   int64 gate = 2;     /// Gate ID, starting from 0
   bool is_igate = 3;  /// Either input gate (True) or output gate (False)
   bool use_gate = 4;  /// If False, the hook is installed on all igates & ogates
+  bool is_bytes = 5;  /// If True, the TrackBytes hook is installed. Otherwise, Track is installed.
 
   // FIXME: use oneof {igate, ogate)
   // FIXME: get rid of use_gate (e.g., gate == -1)

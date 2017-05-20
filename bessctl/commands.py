@@ -771,6 +771,7 @@ def run_file(cli, conf_file, env_map):
 def add_worker(cli, wid, core, scheduler):
     cli.bess.add_worker(wid, core, scheduler or '')
 
+
 @cmd('add port DRIVER [NEW_PORT] [PORT_ARGS...]', 'Add a new port')
 def add_port(cli, driver, port, args):
     ret = cli.bess.create_port(driver, port, args)
@@ -1142,12 +1143,20 @@ def _draw_pipeline(cli, field, last_stats=None):
                     last_stats[(name, gate.ogate)] = (new_time, new_val)
 
                     if new_time != last_time:
-                        val = str(int((new_val - last_val) / (
-                                      new_time - last_time)))
+                        rate = int((new_val - last_val) /
+                                   (new_time - last_time))
+                        if field == 'bytes':
+                            val = '%.1f' % (rate * 8 / 1e6)
+                        else:
+                            val = str(rate)
                     else:
                         val = "?"
                 else:
-                    val = str(getattr(gate, field))
+                    count = getattr(gate, field)
+                    if field == 'bytes':
+                        val = '%.1f' % (count * 8 / 1e6)
+                    else:
+                        val = str(count)
 
                 edge_attr = '{label::%d  %s  %d:;}' % (
                     gate.ogate, val, gate.igate)
@@ -1178,6 +1187,12 @@ def show_pipeline(cli):
      'Show the current datapath pipeline with batch counters')
 def show_pipeline_batch(cli):
     cli.fout.write(_draw_pipeline(cli, 'cnt'))
+
+
+@cmd('show pipeline bytes',
+     'Show the current datapath pipeline with byte counters (Megabits)')
+def show_pipeline_bytes(cli):
+    cli.fout.write(_draw_pipeline(cli, 'bytes'))
 
 
 def _show_port(cli, port):
@@ -1421,6 +1436,12 @@ def monitor_pipeline(cli):
      'Monitor batch counters in the datapath pipeline')
 def monitor_pipeline_batch(cli):
     _monitor_pipeline(cli, 'cnt')
+
+
+@cmd('monitor pipeline bytes',
+     'Monitor byte counters (Mbps) in the datapath pipeline')
+def monitor_pipeline_bytes(cli):
+    _monitor_pipeline(cli, 'bytes')
 
 
 PortRate = collections.namedtuple('PortRate',
@@ -1698,6 +1719,24 @@ def track_module(cli, flag, module_name, direction, gate):
             cli.bess.enable_track(module_name, direction, gate)
         else:
             cli.bess.disable_track(module_name, direction, gate)
+    finally:
+        cli.bess.resume_all()
+
+
+@cmd('track bytes ENABLE_DISABLE [MODULE] [DIRECTION] [GATE]',
+     'Count the bytes on a gate')
+def track_module_bytes(cli, flag, module_name, direction, gate):
+    if direction is None:
+        direction = 'out'
+    if module_name in [None, '*']:
+        module_name = ''
+
+    cli.bess.pause_all()
+    try:
+        if flag == 'enable':
+            cli.bess.enable_track(module_name, direction, gate, True)
+        else:
+            cli.bess.disable_track(module_name, direction, gate, True)
     finally:
         cli.bess.resume_all()
 
