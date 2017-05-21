@@ -771,6 +771,7 @@ def run_file(cli, conf_file, env_map):
 def add_worker(cli, wid, core, scheduler):
     cli.bess.add_worker(wid, core, scheduler or '')
 
+
 @cmd('add port DRIVER [NEW_PORT] [PORT_ARGS...]', 'Add a new port')
 def add_port(cli, driver, port, args):
     ret = cli.bess.create_port(driver, port, args)
@@ -1695,9 +1696,9 @@ def track_module(cli, flag, module_name, direction, gate):
     cli.bess.pause_all()
     try:
         if flag == 'enable':
-            cli.bess.enable_track(module_name, direction, gate)
+            cli.bess.track_module(module_name, True, direction, gate)
         else:
-            cli.bess.disable_track(module_name, direction, gate)
+            cli.bess.track_module(module_name, False, direction, gate)
     finally:
         cli.bess.resume_all()
 

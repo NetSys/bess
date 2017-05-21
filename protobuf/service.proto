@@ -256,22 +256,14 @@ service BESSControl {
   //  Module hook
   //  -------------------------------------------------------------------------
 
-  /// Enable "track" hook on a gate (or all gates)
+  /// Enable/Disable the "track" hook on a gate (or all gates)
   ///
   /// "track" hook accumulates the number of total packets & batches passing
   /// through a gate. This incurs some amount of CPU overheads. While the cost
   /// is very small, remember that the delay adds up at every gate.
   ///
   /// NOTE: There should be no running worker to run this command.
-  rpc EnableTrack (EnableTrackRequest) returns (EmptyResponse) {}
-
-  /// Disable "track" hook on a gate (or all gates)
-  ///
-  /// You may want to disable the hook to squeeze out CPU cycles
-  /// as much as you can.
-  ///
-  /// NOTE: There should be no running worker to run this command.
-  rpc DisableTrack (DisableTrackRequest) returns (EmptyResponse) {}
+  rpc TrackModule (TrackModuleRequest) returns (EmptyResponse) {}
 
   /// Enable tcpdump tapping at an input/output gate.
   ///

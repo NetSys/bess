@@ -400,24 +400,13 @@ message CommandResponse {
 //  Module hook
 //  -------------------------------------------------------------------------
 
-message EnableTrackRequest {
-  string name = 1;    /// Name of module
-  int64 gate = 2;     /// Gate ID, starting from 0
-  bool is_igate = 3;  /// Either input gate (True) or output gate (False)
-  bool use_gate = 4;  /// If False, the hook is installed on all igates & ogates
-
-  // FIXME: use oneof {igate, ogate)
-  // FIXME: get rid of use_gate (e.g., gate == -1)
-}
-
-message DisableTrackRequest {
-  string name = 1;    /// Name of module
-  int64 gate = 2;     /// Gate ID, starting from 0
-  bool is_igate = 3;  /// Either input gate (True) or output gate (False)
-  bool use_gate = 4;  /// If False, the hook is installed on all igates & ogates
-
-  // FIXME: use oneof {igate, ogate)
-  // FIXME: get rid of use_gate (e.g., gate == -1)
+message TrackModuleRequest {
+  string name = 1;    /// Name of module to (un)install hook on
+  bool enable = 2;    /// Installs the hook if True, else uninstalls it
+  oneof gate {
+    int64 igate = 3;  /// Input gate index. All input gates if -1
+    int64 ogate = 4;  /// Output gate index. All output gates if -1
+  }
 }
 
 message EnableTcpdumpRequest {

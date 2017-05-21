@@ -395,27 +395,17 @@ class BESS(object):
         request.gate = gate
         return self._request('DisableTcpdump', request)
 
-    def enable_track(self, m, direction='out', gate=None):
-        request = bess_msg.EnableTrackRequest()
-        request.name = m
+    def track_module(self, m, enable=True, direction='out', gate=-1):
         if gate is None:
-            request.use_gate = False
-        else:
-            request.use_gate = True
-            request.gate = gate
-        request.is_igate = (direction == 'in')
-        return self._request('EnableTrack', request)
-
-    def disable_track(self, m, direction='out', gate=None):
-        request = bess_msg.DisableTrackRequest()
+            gate = -1
+        request = bess_msg.TrackModuleRequest()
         request.name = m
-        if gate is None:
-            request.use_gate = False
-        else:
-            request.use_gate = True
-            request.gate = gate
-        request.is_igate = (direction == 'in')
-        return self._request('DisableTrack', request)
+        request.enable = enable
+        if direction == 'in':
+            request.igate = gate
+        elif direction == 'out':
+            request.ogate = gate
+        return self._request('TrackModule', request)
 
     def list_workers(self):
         return self._request('ListWorkers')

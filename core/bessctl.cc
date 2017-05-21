@@ -515,9 +515,10 @@ class BESSControlImpl final : public BESSControl::Service {
       return return_with_error(response, EEXIST, "worker:%d is already active",
                                wid);
     }
-    const std::string &scheduler = request->scheduler();
+    const std::string& scheduler = request->scheduler();
     if (scheduler != "" && scheduler != "experimental") {
-      return return_with_error(response, EINVAL, "Invalid scheduler %s", scheduler.c_str());
+      return return_with_error(response, EINVAL, "Invalid scheduler %s",
+                               scheduler.c_str());
     }
 
     launch_worker(wid, core, scheduler);
@@ -1343,17 +1344,32 @@ class BESSControlImpl final : public BESSControl::Service {
     return Status::OK;
   }
 
-  Status EnableTrack(ServerContext*, const EnableTrackRequest* request,
+  Status TrackModule(ServerContext*, const TrackModuleRequest* request,
                      EmptyResponse* response) override {
     if (is_any_worker_running()) {
       return return_with_error(response, EBUSY, "There is a running worker");
     }
     pb_error_t* error = response->mutable_error();
+    bool use_gate = true;
+    gate_idx_t gate_idx = 0;
+    bool is_igate =
+        request->gate_case() == bess::pb::TrackModuleRequest::kIgate;
+    if (is_igate) {
+      gate_idx = request->igate();
+      use_gate = request->igate() >= 0;
+    } else {
+      gate_idx = request->ogate();
+      use_gate = request->ogate() >= 0;
+    }
     if (!request->name().length()) {
       for (const auto& it : ModuleBuilder::all_modules()) {
-        *error =
-            enable_track_for_module(it.second, request->gate(),
-                                    request->is_igate(), request->use_gate());
+        if (request->enable()) {
+          *error =
+              enable_track_for_module(it.second, gate_idx, is_igate, use_gate);
+        } else {
+          *error =
+              disable_track_for_module(it.second, gate_idx, is_igate, use_gate);
+        }
         if (error->code() != 0) {
           return Status::OK;
         }
@@ -1365,38 +1381,13 @@ class BESSControlImpl final : public BESSControl::Service {
         *error =
             pb_error(ENOENT, "No module '%s' found", request->name().c_str());
       }
-      *error =
-          enable_track_for_module(it->second, request->gate(),
-                                  request->is_igate(), request->use_gate());
-      return Status::OK;
-    }
-  }
-
-  Status DisableTrack(ServerContext*, const DisableTrackRequest* request,
-                      EmptyResponse* response) override {
-    if (is_any_worker_running()) {
-      return return_with_error(response, EBUSY, "There is a running worker");
-    }
-    pb_error_t* error = response->mutable_error();
-    if (!request->name().length()) {
-      for (const auto& it : ModuleBuilder::all_modules()) {
+      if (request->enable()) {
         *error =
-            disable_track_for_module(it.second, request->gate(),
-                                     request->is_igate(), request->use_gate());
-        if (error->code() != 0) {
-          return Status::OK;
-        }
-      }
-      return Status::OK;
-    } else {
-      const auto& it = ModuleBuilder::all_modules().find(request->name());
-      if (it == ModuleBuilder::all_modules().end()) {
+            enable_track_for_module(it->second, gate_idx, is_igate, use_gate);
+      } else {
         *error =
-            pb_error(ENOENT, "No module '%s' found", request->name().c_str());
+            disable_track_for_module(it->second, gate_idx, is_igate, use_gate);
       }
-      *error =
-          disable_track_for_module(it->second, request->gate(),
-                                   request->is_igate(), request->use_gate());
       return Status::OK;
     }
   }
