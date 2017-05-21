@@ -345,15 +345,17 @@ message GetModuleInfoResponse {
     repeated OGate ogates = 2;  /// The list of upstream output gates
     uint64 cnt = 3;             /// # of packet batches seen
     uint64 pkts = 4;            /// # of packets seen
-    double timestamp = 5;       /// The time that cnt/pkts counters were read
+    uint64 bytes = 5;            /// # of bytes seen
+    double timestamp = 6;       /// The time that cnt/pkts counters were read
   }
   message OGate {
     uint64 ogate = 1;      /// Output gate ID
     uint64 cnt = 2;        /// # of packet batches seen
     uint64 pkts = 3;       /// # of packets seen
-    double timestamp = 4;  /// The time thatcnt/pkts counters were read
-    string name = 5;       /// Name of the "next" module it connects to
-    uint64 igate = 6;      /// Input gate ID of the "next" module
+    uint64 bytes = 4;      /// # of bytes seen
+    double timestamp = 5;  /// The time thatcnt/pkts counters were read
+    string name = 6;       /// Name of the "next" module it connects to
+    uint64 igate = 7;      /// Input gate ID of the "next" module
   }
   message Attribute {
     string name = 1;   /// Name of per-packet metadata attribute
@@ -407,6 +409,7 @@ message TrackModuleRequest {
     int64 igate = 3;  /// Input gate index. All input gates if -1
     int64 ogate = 4;  /// Output gate index. All output gates if -1
   }
+  bool bits = 5;      /// Tracks bits too if True, else only packets and batches
 }
 
 message EnableTcpdumpRequest {

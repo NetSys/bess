@@ -258,9 +258,9 @@ service BESSControl {
 
   /// Enable/Disable the "track" hook on a gate (or all gates)
   ///
-  /// "track" hook accumulates the number of total packets & batches passing
-  /// through a gate. This incurs some amount of CPU overheads. While the cost
-  /// is very small, remember that the delay adds up at every gate.
+  /// "track" hook accumulates the number of total packets, batches and bits
+  ///  passing through a gate. This incurs some amount of CPU overheads. While
+  ///  the cost is very small, remember that the delay adds up at every gate.
   ///
   /// NOTE: There should be no running worker to run this command.
   rpc TrackModule (TrackModuleRequest) returns (EmptyResponse) {}

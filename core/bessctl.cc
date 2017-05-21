@@ -70,23 +70,43 @@ static inline Status return_with_errno(T* response, int code) {
   return Status::OK;
 }
 
+static bool set_track_bytes(bess::Gate* gate, bool track) {
+  TrackGate* hook =
+      reinterpret_cast<TrackGate*>(gate->FindHook(kGateHookTrackGate));
+  if (hook != nullptr) {
+    hook->set_track_bytes(track);
+    return true;
+  }
+  return false;
+}
+
 static pb_error_t enable_track_for_module(const Module* m, gate_idx_t gate_idx,
-                                          bool is_igate, bool use_gate) {
+                                          bool is_igate, bool use_gate,
+                                          bool track_bits) {
   int ret;
 
   if (use_gate) {
+    bess::Gate* gate = nullptr;
     if (is_igate) {
       if (!is_active_gate(m->igates(), gate_idx)) {
         return pb_error(EINVAL, "Input gate '%hu' does not exist", gate_idx);
       }
-      if ((ret = m->igates()[gate_idx]->AddHook(new TrackGate()))) {
+      gate = m->igates()[gate_idx];
+      if (set_track_bytes(gate, track_bits)) {
+        return pb_errno(0);
+      }
+      if ((ret = gate->AddHook(new TrackGate(track_bits)))) {
         return pb_error(ret, "Failed to track input gate '%hu'", gate_idx);
       }
     } else {
       if (!is_active_gate(m->ogates(), gate_idx)) {
         return pb_error(EINVAL, "Output gate '%hu' does not exist", gate_idx);
       }
-      if ((ret = m->ogates()[gate_idx]->AddHook(new TrackGate()))) {
+      gate = m->ogates()[gate_idx];
+      if (set_track_bytes(gate, track_bits)) {
+        return pb_errno(0);
+      }
+      if ((ret = gate->AddHook(new TrackGate(track_bits)))) {
         return pb_error(ret, "Failed to track output gate '%hu'", gate_idx);
       }
     }
@@ -98,7 +118,10 @@ static pb_error_t enable_track_for_module(const Module* m, gate_idx_t gate_idx,
       if (!gate) {
         continue;
       }
-      if ((ret = gate->AddHook(new TrackGate()))) {
+      if (set_track_bytes(gate, track_bits)) {
+        continue;
+      }
+      if ((ret = gate->AddHook(new TrackGate(track_bits)))) {
         return pb_error(ret, "Failed to track input gate '%hu'",
                         gate->gate_idx());
       }
@@ -108,7 +131,10 @@ static pb_error_t enable_track_for_module(const Module* m, gate_idx_t gate_idx,
       if (!gate) {
         continue;
       }
-      if ((ret = gate->AddHook(new TrackGate()))) {
+      if (set_track_bytes(gate, track_bits)) {
+        continue;
+      }
+      if ((ret = gate->AddHook(new TrackGate(track_bits)))) {
         return pb_error(ret, "Failed to track output gate '%hu'",
                         gate->gate_idx());
       }
@@ -118,7 +144,8 @@ static pb_error_t enable_track_for_module(const Module* m, gate_idx_t gate_idx,
 }
 
 static pb_error_t disable_track_for_module(const Module* m, gate_idx_t gate_idx,
-                                           bool is_igate, bool use_gate) {
+                                           bool is_igate, bool use_gate,
+                                           bool track_bits) {
   if (use_gate) {
     if (!is_igate && !is_active_gate(m->ogates(), gate_idx)) {
       return pb_error(EINVAL, "Output gate '%hu' does not exist", gate_idx);
@@ -128,11 +155,20 @@ static pb_error_t disable_track_for_module(const Module* m, gate_idx_t gate_idx,
       return pb_error(EINVAL, "Input gate '%hu' does not exist", gate_idx);
     }
 
-    if (is_igate) {
+    if (is_igate && !track_bits) {
       m->igates()[gate_idx]->RemoveHook(kGateHookTrackGate);
       return pb_errno(0);
+    } else if (is_igate) {
+      set_track_bytes(m->igates()[gate_idx], false);
+      return pb_errno(0);
     }
-    m->ogates()[gate_idx]->RemoveHook(kGateHookTrackGate);
+
+    if (track_bits) {
+      set_track_bytes(m->ogates()[gate_idx], false);
+      m->ogates()[gate_idx]->RemoveHook(kGateHookTrackGate);
+    } else {
+      m->ogates()[gate_idx]->RemoveHook(kGateHookTrackGate);
+    }
     return pb_errno(0);
   }
 
@@ -168,6 +204,7 @@ static int collect_igates(Module* m, GetModuleInfoResponse* response) {
     if (t) {
       igate->set_cnt(t->cnt());
       igate->set_pkts(t->pkts());
+      igate->set_bytes(t->bytes());
       igate->set_timestamp(get_epoch_time());
     }
 
@@ -196,6 +233,7 @@ static int collect_ogates(Module* m, GetModuleInfoResponse* response) {
     if (t) {
       ogate->set_cnt(t->cnt());
       ogate->set_pkts(t->pkts());
+      ogate->set_bytes(t->bytes());
       ogate->set_timestamp(get_epoch_time());
     }
     ogate->set_name(g->igate()->module()->name());
@@ -1354,6 +1392,7 @@ class BESSControlImpl final : public BESSControl::Service {
     gate_idx_t gate_idx = 0;
     bool is_igate =
         request->gate_case() == bess::pb::TrackModuleRequest::kIgate;
+    bool track_bits = request->bits();
     if (is_igate) {
       gate_idx = request->igate();
       use_gate = request->igate() >= 0;
@@ -1364,11 +1403,11 @@ class BESSControlImpl final : public BESSControl::Service {
     if (!request->name().length()) {
       for (const auto& it : ModuleBuilder::all_modules()) {
         if (request->enable()) {
-          *error =
-              enable_track_for_module(it.second, gate_idx, is_igate, use_gate);
+          *error = enable_track_for_module(it.second, gate_idx, is_igate,
+                                           use_gate, track_bits);
         } else {
-          *error =
-              disable_track_for_module(it.second, gate_idx, is_igate, use_gate);
+          *error = disable_track_for_module(it.second, gate_idx, is_igate,
+                                            use_gate, track_bits);
         }
         if (error->code() != 0) {
           return Status::OK;
@@ -1382,11 +1421,11 @@ class BESSControlImpl final : public BESSControl::Service {
             pb_error(ENOENT, "No module '%s' found", request->name().c_str());
       }
       if (request->enable()) {
-        *error =
-            enable_track_for_module(it->second, gate_idx, is_igate, use_gate);
+        *error = enable_track_for_module(it->second, gate_idx, is_igate,
+                                         use_gate, track_bits);
       } else {
-        *error =
-            disable_track_for_module(it->second, gate_idx, is_igate, use_gate);
+        *error = disable_track_for_module(it->second, gate_idx, is_igate,
+                                          use_gate, track_bits);
       }
       return Status::OK;
     }
