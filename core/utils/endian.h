@@ -114,7 +114,7 @@ class[[gnu::packed]] BigEndian final : public EndianBase<T> {
 
   constexpr bool operator>=(const BigEndian &o) const { return !(*this < o); }
 
-  constexpr operator bool() const { return data_ != 0; }
+  explicit constexpr operator bool() const { return data_ != 0; }
 
   friend std::ostream &operator<<(std::ostream &os, const BigEndian &be) {
     os << "0x" << std::hex << std::setw(sizeof(be) * 2) << std::setfill('0')
