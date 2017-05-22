@@ -21,8 +21,7 @@ class ApiServer {
   ApiServer& operator=(const ApiServer&) = delete;
 
   // Adds a host:port pair. host can be an ipv6 address.
-  // Returns false if failed.
-  bool Listen(const std::string &host, int port);
+  void Listen(const std::string &host, int port);
 
   // Runs the API server until it is shutdown by KillBess RPC.
   void Run();

@@ -1641,7 +1641,7 @@ class BESSControlImpl final : public BESSControl::Service {
 
 bool ApiServer::grpc_cb_set_ = false;
 
-bool ApiServer::Listen(const std::string &host, int port) {
+void ApiServer::Listen(const std::string &host, int port) {
   if (!builder_) {
     builder_ = new grpc::ServerBuilder();
   }
@@ -1649,15 +1649,7 @@ bool ApiServer::Listen(const std::string &host, int port) {
   std::string addr = bess::utils::Format("%s:%d", host.c_str(), port);
   LOG(INFO) << "Server listening on " << addr;
 
-  int alloced_port = 0;
-  builder_->AddListeningPort(addr, grpc::InsecureServerCredentials(),
-                             &alloced_port);
-  if (port != alloced_port) {
-    LOG(ERROR) << "AddListeningPort() failed";
-    return false;
-  }
-
-  return true;
+  builder_->AddListeningPort(addr, grpc::InsecureServerCredentials());
 }
 
 void ApiServer::Run() {
@@ -1688,8 +1680,12 @@ void ApiServer::Run() {
   builder_->RegisterService(&service);
   builder_->SetSyncServerOption(grpc::ServerBuilder::MAX_POLLERS, 1);
 
-  std::unique_ptr<grpc::Server> server;
-  server = builder_->BuildAndStart();
+  std::unique_ptr<grpc::Server> server = builder_->BuildAndStart();
+  if (server == nullptr) {
+    LOG(ERROR) << "ServerBuilder::BuildAndStart() failed";
+    return;
+  }
+
   service.set_shutdown_func([&server]() { server->Shutdown(); });
   server->Wait();
 }
