@@ -399,9 +399,16 @@ message CommandResponse {
 
 
 //  -------------------------------------------------------------------------
-//  Module hook
+//  Gate hooks
 //  -------------------------------------------------------------------------
 
+/// Enable/Disable the "track" hook on a gate (or all gates)
+///
+/// "track" hook accumulates the number of total packets, batches and bits
+///  passing through a gate. This incurs some amount of CPU overheads. While
+///  the cost is very small, remember that the delay adds up at every gate.
+///
+/// NOTE: There should be no running worker to run this command.
 message TrackModuleRequest {
   string name = 1;    /// Name of module to (un)install hook on
   bool enable = 2;    /// Installs the hook if True, else uninstalls it
@@ -412,6 +419,14 @@ message TrackModuleRequest {
   bool bits = 5;      /// Tracks bits too if True, else only packets and batches
 }
 
+/// Enable/Disable tcpdump tapping at an input/output gate.
+///
+/// Once the tap is installed, all packets going through the gate will be
+/// captured and sent in PCAP format to the specified named pipe (FIFO).
+/// Thus you can run `tcpdump -r <path to FIFO>` or save the stream in a file.
+/// This feature may afffect performance.
+///
+/// NOTE: There should be no running worker to run this command.
 message TcpdumpRequest {
   string name = 1;    /// Name of module
   bool enable = 2;    /// Installs the hook if True, else uninstalls it
@@ -420,6 +435,11 @@ message TcpdumpRequest {
     int64 ogate = 4;  /// Output gate index. All output gates if -1
   }
   string fifo = 5;    /// Path to the FIFO file.
+}
+
+message ConfigureGateHookRequest {
+  string name = 1;              /// Name of the hook
+  google.protobuf.Any arg = 2;  /// Hook-specific arguments
 }
 
 //  -------------------------------------------------------------------------

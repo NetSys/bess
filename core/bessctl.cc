@@ -20,6 +20,7 @@
 
 #include "bessd.h"
 #include "gate.h"
+#include "hooks/tcpdump.h"
 #include "hooks/track.h"
 #include "message.h"
 #include "metadata.h"
@@ -170,6 +171,18 @@ static Status disable_tcpdump(const TcpdumpRequest* request,
   return Status::OK;
 }
 
+static Status ConfigureTcpdump(const TcpdumpRequest* request,
+                               EmptyResponse* response) {
+  if (is_any_worker_running()) {
+    return return_with_error(response, EBUSY, "There is a running worker");
+  }
+
+  if (request->enable()) {
+    return enable_tcpdump(request, response);
+  }
+  return disable_tcpdump(request, response);
+}
+
 static pb_error_t enable_track_for_module(const Module* m, gate_idx_t gate_idx,
                                           bool is_igate, bool use_gate,
                                           bool track_bits) {
@@ -278,6 +291,54 @@ static pb_error_t disable_track_for_module(const Module* m, gate_idx_t gate_idx,
     }
   }
   return pb_errno(0);
+}
+
+static Status ConfigureTrackModule(const TrackModuleRequest* request,
+                                   EmptyResponse* response) {
+  if (is_any_worker_running()) {
+    return return_with_error(response, EBUSY, "There is a running worker");
+  }
+  pb_error_t* error = response->mutable_error();
+  bool use_gate = true;
+  gate_idx_t gate_idx = 0;
+  bool is_igate = request->gate_case() == bess::pb::TrackModuleRequest::kIgate;
+  bool track_bits = request->bits();
+  if (is_igate) {
+    gate_idx = request->igate();
+    use_gate = request->igate() >= 0;
+  } else {
+    gate_idx = request->ogate();
+    use_gate = request->ogate() >= 0;
+  }
+  if (!request->name().length()) {
+    for (const auto& it : ModuleBuilder::all_modules()) {
+      if (request->enable()) {
+        *error = enable_track_for_module(it.second, gate_idx, is_igate,
+                                         use_gate, track_bits);
+      } else {
+        *error = disable_track_for_module(it.second, gate_idx, is_igate,
+                                          use_gate, track_bits);
+      }
+      if (error->code() != 0) {
+        return Status::OK;
+      }
+    }
+    return Status::OK;
+  } else {
+    const auto& it = ModuleBuilder::all_modules().find(request->name());
+    if (it == ModuleBuilder::all_modules().end()) {
+      *error =
+          pb_error(ENOENT, "No module '%s' found", request->name().c_str());
+    }
+    if (request->enable()) {
+      *error = enable_track_for_module(it->second, gate_idx, is_igate, use_gate,
+                                       track_bits);
+    } else {
+      *error = disable_track_for_module(it->second, gate_idx, is_igate,
+                                        use_gate, track_bits);
+    }
+    return Status::OK;
+  }
 }
 
 static int collect_igates(Module* m, GetModuleInfoResponse* response) {
@@ -1382,65 +1443,19 @@ class BESSControlImpl final : public BESSControl::Service {
     return Status::OK;
   }
 
-  Status Tcpdump(ServerContext*, const TcpdumpRequest* request,
-                 EmptyResponse* response) override {
-    if (is_any_worker_running()) {
-      return return_with_error(response, EBUSY, "There is a running worker");
+  Status ConfigureGateHook(ServerContext*,
+                           const ConfigureGateHookRequest* request,
+                           EmptyResponse* response) override {
+    if (request->name() == kGateHookTrackGate) {
+      TrackModuleRequest arg;
+      request->arg().UnpackTo(&arg);
+      return ConfigureTrackModule(&arg, response);
+    } else if (request->name() == kGateHookTcpDumpGate) {
+      TcpdumpRequest arg;
+      request->arg().UnpackTo(&arg);
+      return ConfigureTcpdump(&arg, response);
     }
-
-    if (request->enable()) {
-      return enable_tcpdump(request, response);
-    }
-    return disable_tcpdump(request, response);
-  }
-
-  Status TrackModule(ServerContext*, const TrackModuleRequest* request,
-                     EmptyResponse* response) override {
-    if (is_any_worker_running()) {
-      return return_with_error(response, EBUSY, "There is a running worker");
-    }
-    pb_error_t* error = response->mutable_error();
-    bool use_gate = true;
-    gate_idx_t gate_idx = 0;
-    bool is_igate =
-        request->gate_case() == bess::pb::TrackModuleRequest::kIgate;
-    bool track_bits = request->bits();
-    if (is_igate) {
-      gate_idx = request->igate();
-      use_gate = request->igate() >= 0;
-    } else {
-      gate_idx = request->ogate();
-      use_gate = request->ogate() >= 0;
-    }
-    if (!request->name().length()) {
-      for (const auto& it : ModuleBuilder::all_modules()) {
-        if (request->enable()) {
-          *error = enable_track_for_module(it.second, gate_idx, is_igate,
-                                           use_gate, track_bits);
-        } else {
-          *error = disable_track_for_module(it.second, gate_idx, is_igate,
-                                            use_gate, track_bits);
-        }
-        if (error->code() != 0) {
-          return Status::OK;
-        }
-      }
-      return Status::OK;
-    } else {
-      const auto& it = ModuleBuilder::all_modules().find(request->name());
-      if (it == ModuleBuilder::all_modules().end()) {
-        *error =
-            pb_error(ENOENT, "No module '%s' found", request->name().c_str());
-      }
-      if (request->enable()) {
-        *error = enable_track_for_module(it->second, gate_idx, is_igate,
-                                         use_gate, track_bits);
-      } else {
-        *error = disable_track_for_module(it->second, gate_idx, is_igate,
-                                          use_gate, track_bits);
-      }
-      return Status::OK;
-    }
+    return Status::OK;
   }
 
   Status KillBess(ServerContext*, const EmptyRequest*,

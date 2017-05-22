@@ -256,22 +256,6 @@ service BESSControl {
   //  Module hook
   //  -------------------------------------------------------------------------
 
-  /// Enable/Disable the "track" hook on a gate (or all gates)
-  ///
-  /// "track" hook accumulates the number of total packets, batches and bits
-  ///  passing through a gate. This incurs some amount of CPU overheads. While
-  ///  the cost is very small, remember that the delay adds up at every gate.
-  ///
-  /// NOTE: There should be no running worker to run this command.
-  rpc TrackModule (TrackModuleRequest) returns (EmptyResponse) {}
-
-  /// Enable/Disable tcpdump tapping at an input/output gate.
-  ///
-  /// Once the tap is installed, all packets going through the gate will be
-  /// captured and sent in PCAP format to the specified named pipe (FIFO).
-  /// Thus you can run `tcpdump -r <path to FIFO>` or save the stream in a file.
-  /// This feature may afffect performance.
-  ///
-  /// NOTE: There should be no running worker to run this command.
-  rpc Tcpdump (TcpdumpRequest) returns (EmptyResponse) {}
+  /// Enable/Disable a gate hook.
+  rpc ConfigureGateHook (ConfigureGateHookRequest) returns (EmptyResponse) {}
 }
