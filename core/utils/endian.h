@@ -90,11 +90,11 @@ class[[gnu::packed]] BigEndian final : public EndianBase<T> {
     return BigEndian(this->value() - o.value());
   }
 
-  constexpr BigEndian<T> operator<<(unsigned int shift) const {
+  constexpr BigEndian<T> operator<<(size_t shift) const {
     return BigEndian(this->value() << shift);
   }
 
-  constexpr BigEndian<T> operator>>(unsigned int shift) const {
+  constexpr BigEndian<T> operator>>(size_t shift) const {
     return BigEndian(this->value() >> shift);
   }
 
