@@ -412,21 +412,14 @@ message TrackModuleRequest {
   bool bits = 5;      /// Tracks bits too if True, else only packets and batches
 }
 
-message EnableTcpdumpRequest {
+message TcpdumpRequest {
   string name = 1;    /// Name of module
-  uint64 gate = 2;    /// Gate ID, starting from 0
-  string fifo = 3;    /// Path to the FIFO file.
-  bool is_igate = 4;  /// Either input gate (True) or output gate (False)
-
-  // FIXME: use oneof {igate, ogate)
-}
-
-message DisableTcpdumpRequest {
-  string name = 1;    /// Name of module
-  uint64 gate = 2;    /// Gate ID, starting from 0
-  bool is_igate = 3;  /// Either input gate (True) or output gate (False)
-
-  // FIXME: use oneof {igate, ogate)
+  bool enable = 2;    /// Installs the hook if True, else uninstalls it
+  oneof gate {
+    int64 igate = 3;  /// Input gate index. All input gates if -1
+    int64 ogate = 4;  /// Output gate index. All output gates if -1
+  }
+  string fifo = 5;    /// Path to the FIFO file.
 }
 
 //  -------------------------------------------------------------------------

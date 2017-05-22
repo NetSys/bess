@@ -80,6 +80,96 @@ static bool set_track_bytes(bess::Gate* gate, bool track) {
   return false;
 }
 
+static Status enable_tcpdump(const TcpdumpRequest* request,
+                             EmptyResponse* response) {
+  const char* m_name;
+  const char* fifo;
+  gate_idx_t gate;
+  bool is_igate = request->gate_case() == bess::pb::TcpdumpRequest::kIgate;
+
+  int ret;
+
+  m_name = request->name().c_str();
+  if (is_igate) {
+    gate = request->igate();
+  } else {
+    gate = request->ogate();
+  }
+  fifo = request->fifo().c_str();
+
+  if (!request->name().length())
+    return return_with_error(response, EINVAL, "Missing 'name' field");
+
+  const auto& it = ModuleBuilder::all_modules().find(request->name());
+  if (it == ModuleBuilder::all_modules().end()) {
+    return return_with_error(response, ENOENT, "No module '%s' found", m_name);
+  }
+  Module* m = it->second;
+
+  if (!is_igate && !is_active_gate(m->ogates(), gate))
+    return return_with_error(response, EINVAL,
+                             "Output gate '%hu' does not exist", gate);
+
+  if (is_igate && !is_active_gate(m->igates(), gate))
+    return return_with_error(response, EINVAL,
+                             "Input gate '%hu' does not exist", gate);
+
+  // TODO(melvin): actually change protobufs when new bessctl arrives
+  ret = m->EnableTcpDump(fifo, is_igate, gate);
+
+  if (ret < 0) {
+    return return_with_error(response, -ret, "Enabling tcpdump %s:%d failed",
+                             m_name, gate);
+  }
+
+  return Status::OK;
+}
+
+static Status disable_tcpdump(const TcpdumpRequest* request,
+                              EmptyResponse* response) {
+  if (is_any_worker_running()) {
+    return return_with_error(response, EBUSY, "There is a running worker");
+  }
+  const char* m_name;
+  gate_idx_t gate;
+  bool is_igate = request->gate_case() == bess::pb::TcpdumpRequest::kIgate;
+
+  int ret;
+
+  m_name = request->name().c_str();
+  if (is_igate) {
+    gate = request->igate();
+  } else {
+    gate = request->ogate();
+  }
+
+  if (!request->name().length()) {
+    return return_with_error(response, EINVAL, "Missing 'name' field");
+  }
+
+  const auto& it = ModuleBuilder::all_modules().find(request->name());
+  if (it == ModuleBuilder::all_modules().end()) {
+    return return_with_error(response, ENOENT, "No module '%s' found", m_name);
+  }
+
+  Module* m = it->second;
+  if (!is_igate && !is_active_gate(m->ogates(), gate))
+    return return_with_error(response, EINVAL,
+                             "Output gate '%hu' does not exist", gate);
+
+  if (is_igate && !is_active_gate(m->igates(), gate))
+    return return_with_error(response, EINVAL,
+                             "Input gate '%hu' does not exist", gate);
+
+  ret = m->DisableTcpDump(is_igate, gate);
+
+  if (ret < 0) {
+    return return_with_error(response, -ret, "Disabling tcpdump %s:%d failed",
+                             m_name, gate);
+  }
+  return Status::OK;
+}
+
 static pb_error_t enable_track_for_module(const Module* m, gate_idx_t gate_idx,
                                           bool is_igate, bool use_gate,
                                           bool track_bits) {
@@ -1292,94 +1382,16 @@ class BESSControlImpl final : public BESSControl::Service {
     return Status::OK;
   }
 
-  Status EnableTcpdump(ServerContext*, const EnableTcpdumpRequest* request,
-                       EmptyResponse* response) override {
+  Status Tcpdump(ServerContext*, const TcpdumpRequest* request,
+                 EmptyResponse* response) override {
     if (is_any_worker_running()) {
       return return_with_error(response, EBUSY, "There is a running worker");
     }
-    const char* m_name;
-    const char* fifo;
-    gate_idx_t gate;
-    bool is_igate;
 
-    int ret;
-
-    m_name = request->name().c_str();
-    gate = request->gate();
-    is_igate = request->is_igate();
-    fifo = request->fifo().c_str();
-
-    if (!request->name().length())
-      return return_with_error(response, EINVAL, "Missing 'name' field");
-
-    const auto& it = ModuleBuilder::all_modules().find(request->name());
-    if (it == ModuleBuilder::all_modules().end()) {
-      return return_with_error(response, ENOENT, "No module '%s' found",
-                               m_name);
+    if (request->enable()) {
+      return enable_tcpdump(request, response);
     }
-    Module* m = it->second;
-
-    if (!is_igate && !is_active_gate(m->ogates(), gate))
-      return return_with_error(response, EINVAL,
-                               "Output gate '%hu' does not exist", gate);
-
-    if (is_igate && !is_active_gate(m->igates(), gate))
-      return return_with_error(response, EINVAL,
-                               "Input gate '%hu' does not exist", gate);
-
-    // TODO(melvin): actually change protobufs when new bessctl arrives
-    ret = m->EnableTcpDump(fifo, is_igate, gate);
-
-    if (ret < 0) {
-      return return_with_error(response, -ret, "Enabling tcpdump %s:%d failed",
-                               m_name, gate);
-    }
-
-    return Status::OK;
-  }
-
-  Status DisableTcpdump(ServerContext*, const DisableTcpdumpRequest* request,
-                        EmptyResponse* response) override {
-    if (is_any_worker_running()) {
-      return return_with_error(response, EBUSY, "There is a running worker");
-    }
-    const char* m_name;
-    gate_idx_t gate;
-    bool is_igate;
-
-    int ret;
-
-    m_name = request->name().c_str();
-    gate = request->gate();
-    is_igate = request->is_igate();
-
-    if (!request->name().length()) {
-      return return_with_error(response, EINVAL, "Missing 'name' field");
-    }
-
-    const auto& it = ModuleBuilder::all_modules().find(request->name());
-    if (it == ModuleBuilder::all_modules().end()) {
-      return return_with_error(response, ENOENT, "No module '%s' found",
-                               m_name);
-    }
-
-    Module* m = it->second;
-    if (!is_igate && !is_active_gate(m->ogates(), gate))
-      return return_with_error(response, EINVAL,
-                               "Output gate '%hu' does not exist", gate);
-
-    if (is_igate && !is_active_gate(m->igates(), gate))
-      return return_with_error(response, EINVAL,
-                               "Input gate '%hu' does not exist", gate);
-
-    // TODO(melvin): actually change protobufs when new bessctl arrives
-    ret = m->DisableTcpDump(is_igate, gate);
-
-    if (ret < 0) {
-      return return_with_error(response, -ret, "Disabling tcpdump %s:%d failed",
-                               m_name, gate);
-    }
-    return Status::OK;
+    return disable_tcpdump(request, response);
   }
 
   Status TrackModule(ServerContext*, const TrackModuleRequest* request,

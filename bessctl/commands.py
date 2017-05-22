@@ -1678,7 +1678,7 @@ def tcpdump_module(cli, module_name, direction, gate, opts):
 
     cli.bess.pause_all()
     try:
-        cli.bess.enable_tcpdump(fifo, module_name, direction, gate)
+        cli.bess.tcpdump(True, module_name, direction, gate, fifo)
     finally:
         cli.bess.resume_all()
 
@@ -1690,7 +1690,7 @@ def tcpdump_module(cli, module_name, direction, gate, opts):
     finally:
         cli.bess.pause_all()
         try:
-            cli.bess.disable_tcpdump(module_name, direction, gate)
+            cli.bess.tcpdump(False, module_name, direction, gate)
         finally:
             cli.bess.resume_all()
 

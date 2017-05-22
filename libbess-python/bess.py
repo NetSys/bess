@@ -380,20 +380,17 @@ class BESS(object):
         else:
             return response
 
-    def enable_tcpdump(self, fifo, m, direction='out', gate=0):
-        request = bess_msg.EnableTcpdumpRequest()
+    def tcpdump(self, enable, m, direction='out', gate=0, fifo=None):
+        request = bess_msg.TcpdumpRequest()
         request.name = m
-        request.is_igate = (direction == 'in')
-        request.gate = gate
-        request.fifo = fifo
-        return self._request('EnableTcpdump', request)
-
-    def disable_tcpdump(self, m, direction='out', gate=0):
-        request = bess_msg.DisableTcpdumpRequest()
-        request.name = m
-        request.is_igate = (direction == 'in')
-        request.gate = gate
-        return self._request('DisableTcpdump', request)
+        request.enable = enable
+        if direction == 'in':
+            request.igate = gate
+        elif direction == 'out':
+            request.ogate = gate
+        if fifo is not None:
+            request.fifo = fifo
+        return self._request('Tcpdump', request)
 
     def track_module(self, m, enable=True, bits=False, direction='out', gate=-1):
         if gate is None:

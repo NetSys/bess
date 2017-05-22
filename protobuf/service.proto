@@ -265,7 +265,7 @@ service BESSControl {
   /// NOTE: There should be no running worker to run this command.
   rpc TrackModule (TrackModuleRequest) returns (EmptyResponse) {}
 
-  /// Enable tcpdump tapping at an input/output gate.
+  /// Enable/Disable tcpdump tapping at an input/output gate.
   ///
   /// Once the tap is installed, all packets going through the gate will be
   /// captured and sent in PCAP format to the specified named pipe (FIFO).
@@ -273,13 +273,5 @@ service BESSControl {
   /// This feature may afffect performance.
   ///
   /// NOTE: There should be no running worker to run this command.
-  rpc EnableTcpdump (EnableTcpdumpRequest) returns (EmptyResponse) {}
-
-  /// Disable tcpdump tapping at an input/output gate.
-  ///
-  /// Stop mirroring packets and Close the FIFO. Also see EnableTcpdumpRequest.
-  /// Once disabled the performance overhead will be gone.
-  ///
-  /// NOTE: There should be no running worker to run this command.
-  rpc DisableTcpdump (DisableTcpdumpRequest) returns (EmptyResponse) {}
+  rpc Tcpdump (TcpdumpRequest) returns (EmptyResponse) {}
 }
