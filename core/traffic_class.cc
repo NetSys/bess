@@ -383,7 +383,7 @@ void RoundRobinTrafficClass::FinishAndAccountTowardsRoot(
     blocked_children_.push_back(child);
     blocked_ = children_.empty();
   } else {
-    ++next_child_;
+    next_child_ += usage[RESOURCE_COUNT];
   }
 
   // Wrap around for round robin.
