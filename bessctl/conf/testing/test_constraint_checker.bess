@@ -1,0 +1,42 @@
+# This is taken from queue.bess
+src::Source() \
+        -> queue::Queue() \
+        -> VLANPush(tci=2) \
+        -> Sink()
+
+bess.add_tc('fast', policy='rate_limit', resource='packet', limit={'packet': 9000000})
+bess.attach_module(src.name, 'fast')
+
+bess.add_tc('slow', policy='rate_limit', resource='packet', limit={'packet': 1000000})
+bess.attach_module(queue.name, 'slow')
+ret = bess.check_constraints()
+assert(not ret)
+bess.reset_all()
+
+# From nat.bess -- check that revisiting the same module works correctly.
+nat::NAT(rules=[{'internal_addr_block':'0.0.0.0/0', 'external_addr_block':'192.168.1.1/32'}])
+
+# Swap src/dst MAC
+mac::MACSwap()
+
+# Swap src/dst IP addresses / ports
+ip::IPSwap()
+
+Source() -> 0:nat:0 -> mac -> ip -> 1:nat:1 -> Sink()
+ret = bess.check_constraints()
+assert(not ret)
+
+bess.reset_all()
+
+# Check a combination.
+nat2::NAT(rules=[{'internal_addr_block':'0.0.0.0/0', 'external_addr_block':'192.168.1.1/32'}])
+
+# Swap src/dst MAC
+mac2::MACSwap()
+
+# Swap src/dst IP addresses / ports
+ip2::IPSwap()
+
+Source() -> 0:nat2:0 -> Queue() -> ip2 -> 1:nat2:1 -> Sink()
+ret = bess.check_constraints()
+assert(not ret)

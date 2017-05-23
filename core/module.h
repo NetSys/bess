@@ -483,11 +483,7 @@ class Task {
    */
   void AddActiveWorker(int wid) {
     if (module_) {
-      LOG(WARNING) << "Adding active worker for wid " << wid << " to "
-                   << module_->name();
       module_->AddActiveWorker(wid, t_);
-    } else {
-      LOG(WARNING) << "No module";
     }
   }
 

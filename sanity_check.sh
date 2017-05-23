@@ -22,7 +22,8 @@ TESTS='exactmatch.bess
   wildcardmatch.bess
   nat.bess
   worker_split.bess
-  qtest.bess'
+  qtest.bess
+  ../testing/test_constraint_checker.bess'
 
 function fail
 {

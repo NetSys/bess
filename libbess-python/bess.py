@@ -190,6 +190,7 @@ class BESS(object):
 
     def check_constraints(self):
         response = self.check_scheduling_constraints()
+        error = False
         if len(response.violations) != 0 or len(response.modules) != 0:
             print 'Placement violations found'
             for violation in response.violations:
@@ -210,9 +211,12 @@ class BESS(object):
             for module in response.modules:
                 print 'constraints violated for module %s --'\
                     ' please check bessd log' % module.name
+            error = True
         if response.fatal:
             raise self.ConstraintError("Fatal violation of "
                                        "scheduling constraints")
+            error = True
+        return error
 
     def uncheck_resume_all(self):
         return self._request('ResumeAll')
