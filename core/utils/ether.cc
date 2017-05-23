@@ -6,7 +6,7 @@
 #include "copy.h"
 #include "endian.h"
 #include "format.h"
-#include "time.h"
+#include "random.h"
 
 namespace bess {
 namespace utils {
@@ -31,12 +31,10 @@ std::string Address::ToString() const {
 }
 
 void Address::Randomize() {
-  uint64_t tsc = rdtsc();
+  Random rng;
 
-  if (is_be_system()) {
-    bess::utils::Copy(bytes, reinterpret_cast<char *>(&tsc) + 2, sizeof(bytes));
-  } else {
-    bess::utils::Copy(bytes, &tsc, sizeof(bytes));
+  for (size_t i = 0; i < Address::kSize; i++) {
+    bytes[i] = rng.Get() & 0xff;
   }
 
   bytes[0] &= 0xfe;  // not broadcast/multicast
