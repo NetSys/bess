@@ -277,7 +277,7 @@ TEST(DefaultSchedulerNext, BasicTreeRateLimit) {
 
   ASSERT_EQ(RESOURCE_COUNT, c->resource());
   ASSERT_EQ(50, c->limit_arg());
-  ASSERT_EQ(RateLimitTrafficClass::to_work_units(50), c->limit());
+  ASSERT_EQ(RateLimitTrafficClass::to_work_units_per_cycle(50), c->limit());
   ASSERT_EQ(100, c->max_burst_arg());
   ASSERT_EQ(RateLimitTrafficClass::to_work_units(100), c->max_burst());
 
@@ -287,7 +287,8 @@ TEST(DefaultSchedulerNext, BasicTreeRateLimit) {
 
   ASSERT_EQ(RESOURCE_PACKET, c->resource());
   ASSERT_EQ(new_limit, c->limit_arg());
-  ASSERT_EQ(RateLimitTrafficClass::to_work_units(new_limit), c->limit());
+  ASSERT_EQ(RateLimitTrafficClass::to_work_units_per_cycle(new_limit),
+            c->limit());
   ASSERT_EQ(new_burst, c->max_burst_arg());
   ASSERT_EQ(RateLimitTrafficClass::to_work_units(new_burst), c->max_burst());
 
