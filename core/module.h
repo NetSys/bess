@@ -177,6 +177,7 @@ class Module {
         igates_(),
         ogates_(),
         active_workers_(Worker::kMaxWorkers, false),
+        visited_tasks_(),
         node_constraints_(UNCONSTRAINED_SOCKET),
         min_allowed_workers_(1),
         max_allowed_workers_(1),
@@ -292,6 +293,7 @@ class Module {
    */
   void ResetActiveWorkerSet() {
     std::fill(active_workers_.begin(), active_workers_.end(), false);
+    visited_tasks_.clear();
   }
 
   const std::vector<bool> &active_workers() const { return active_workers_; }
@@ -303,6 +305,19 @@ class Module {
     return std::count_if(active_workers_.begin(), active_workers_.end(),
                          [](bool b) { return b; });
   }
+
+  /*!
+   * Check if we have already seen a task
+   */
+  inline bool HaveVisitedWorker(const ModuleTask *task) const {
+    return std::find(visited_tasks_.begin(), visited_tasks_.end(), task) !=
+           visited_tasks_.end();
+  }
+
+  /*!
+   * Number of tasks that access this module
+   */
+  inline size_t num_active_tasks() const { return visited_tasks_.size(); }
 
   virtual void AddActiveWorker(int wid, const ModuleTask *task);
 
@@ -335,6 +350,8 @@ class Module {
   std::vector<bess::OGate *> ogates_;
   // Set of active workers accessing this module.
   std::vector<bool> active_workers_;
+  // Set of tasks we have already accounted for when propagating workers.
+  std::vector<const ModuleTask *> visited_tasks_;
 
  protected:
   // TODO[apanda]: Move to some constraint structure?

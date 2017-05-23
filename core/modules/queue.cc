@@ -176,9 +176,8 @@ CommandResponse Queue::CommandSetSize(
 }
 
 CheckConstraintResult Queue::CheckModuleConstraints() const {
-  int active_workers = num_active_workers() - tasks().size();
   CheckConstraintResult status = CHECK_OK;
-  if (active_workers < 1) {  // Assume multi-producer.
+  if (num_active_tasks() - tasks().size() < 1) {  // Assume multi-producer.
     LOG(ERROR) << "Queue has no producers";
     status = CHECK_NONFATAL_ERROR;
   }
