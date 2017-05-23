@@ -1,0 +1,35 @@
+# Compare worker 0 and worker 1 with "monitor tc"
+
+bess.add_worker(wid=0, core=0)
+bess.add_worker(wid=1, core=1)
+dummy_pkt = '0' * 100
+
+# Worker 0: no burstiness causes inaccurate scheduling
+w0_src0::Source() -> w0_rewrite::Rewrite(templates=[dummy_pkt]) -> Sink()
+w0_src1::Source() -> w0_rewrite
+
+w0_src0.set_burst(burst=1)
+w0_src1.set_burst(burst=32)
+
+bess.add_tc('w0_1000MHz', policy='rate_limit', resource='cycle', limit={'cycle': int(1e9)}, wid=0)
+bess.add_tc('w0_rr', policy='round_robin', parent='w0_1000MHz')
+bess.add_tc('w0_500MHz_0', policy='rate_limit', resource='cycle', limit={'cycle': int(0.5e9)}, parent='w0_rr')
+bess.add_tc('w0_500MHz_1', policy='rate_limit', resource='cycle', limit={'cycle': int(0.5e9)}, parent='w0_rr')
+
+bess.attach_module(w0_src0.name, 'w0_500MHz_0')
+bess.attach_module(w0_src1.name, 'w0_500MHz_1')
+
+# Worker 1: traffic classes with burstiness allowance
+w1_src0::Source() -> w1_rewrite::Rewrite(templates=[dummy_pkt]) -> Sink()
+w1_src1::Source() -> w1_rewrite
+
+w1_src0.set_burst(burst=1)
+w1_src1.set_burst(burst=32)
+
+bess.add_tc('w1_1000MHz', policy='rate_limit', resource='cycle', limit={'cycle': int(1e9)}, wid=1)
+bess.add_tc('w1_rr', policy='round_robin', parent='w1_1000MHz')
+bess.add_tc('w1_500MHz_0', policy='rate_limit', resource='cycle', limit={'cycle': int(0.5e9)}, max_burst={'cycle': 10000}, parent='w1_rr')
+bess.add_tc('w1_500MHz_1', policy='rate_limit', resource='cycle', limit={'cycle': int(0.5e9)}, max_burst={'cycle': 10000}, parent='w1_rr')
+
+bess.attach_module(w1_src0.name, 'w1_500MHz_0')
+bess.attach_module(w1_src1.name, 'w1_500MHz_1')
