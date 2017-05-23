@@ -46,7 +46,7 @@ message ListWorkersResponse {
   message WorkerStatus {
     int64 wid = 1;      /// Worker ID, starting from 0
     int64 core = 2;     /// CPU core ID on which the worker is pinned
-    int64 running = 3;  /// 1 if running, or 0. TODO: bool
+    bool running = 3;   /// True if running, otherwise False.
 
     /// Number of traffic classes running on the worker
     int64 num_tcs = 4;
