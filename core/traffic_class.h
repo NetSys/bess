@@ -437,12 +437,8 @@ class RateLimitTrafficClass final : public TrafficClass {
         tokens_(),
         last_tsc_(),
         child_() {
-    limit_arg_ = limit;
-    limit_ = to_work_units(limit);
-    if (limit_) {
-      max_burst_arg_ = max_burst;
-      max_burst_ = to_work_units(max_burst);
-    }
+    set_limit(limit);
+    set_max_burst(max_burst);
   }
 
   ~RateLimitTrafficClass();
@@ -481,7 +477,7 @@ class RateLimitTrafficClass final : public TrafficClass {
   // Set the limit to `limit`, which is in units of the resource type
   void set_limit(uint64_t limit) {
     limit_arg_ = limit;
-    limit_ = to_work_units(limit);
+    limit_ = to_work_units_per_cycle(limit);
   }
 
   // Set the max burst to `burst`, which is in units of the resource type
@@ -494,9 +490,14 @@ class RateLimitTrafficClass final : public TrafficClass {
 
   void TraverseChildren(std::function<void(TCChildArgs *)>) const override;
 
+  // Convert resource units to work units per cycle
+  static uint64_t to_work_units_per_cycle(uint64_t x) {
+    return (x << (USAGE_AMPLIFIER_POW - 4)) / (tsc_hz >> 4);
+  }
+
   // Convert resource units to work units
   static uint64_t to_work_units(uint64_t x) {
-    return (x << (USAGE_AMPLIFIER_POW - 4)) / (tsc_hz >> 4);
+    return x << USAGE_AMPLIFIER_POW;
   }
 
  private:
@@ -515,8 +516,8 @@ class RateLimitTrafficClass final : public TrafficClass {
   // tb->limit < 2^36
   uint64_t limit_;          // In work units per cycle (0 if unlimited).
   uint64_t limit_arg_;      // In resource units per second.
-  uint64_t max_burst_;      // In work units per cycle (0 if unlimited).
-  uint64_t max_burst_arg_;  // In resource units per second.
+  uint64_t max_burst_;      // In work units.
+  uint64_t max_burst_arg_;  // In resource units.
   uint64_t tokens_;         // In work units.
 
   // Last time this TC was scheduled.

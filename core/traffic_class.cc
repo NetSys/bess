@@ -465,7 +465,7 @@ void RateLimitTrafficClass::FinishAndAccountTowardsRoot(
   last_tsc_ = tsc;
 
   uint64_t tokens = tokens_ + limit_ * elapsed_cycles;
-  uint64_t consumed = usage[resource_] << USAGE_AMPLIFIER_POW;
+  uint64_t consumed = to_work_units(usage[resource_]);
   if (tokens < consumed) {
     // Exceeded limit, throttled.
     tokens_ = 0;
