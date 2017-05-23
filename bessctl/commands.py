@@ -908,34 +908,53 @@ def show_worker_list(cli, worker_ids):
 
 
 def _limit_to_str(limit):
-    buf = []
-
     if 'count' in limit:
-        buf.append('%d times' % limit['count'])
-
-    if 'cycle' in limit:
-        buf.append('%.3f Mhz' % (limit['cycle'] / 1e6))
-
-    if 'packet' in limit:
+        return '%d times/s' % limit['count']
+    elif 'cycle' in limit:
+        return '%.3f MHz' % (limit['cycle'] / 1e6)
+    elif 'packet' in limit:
         if limit['packet'] < 1e3:
-            buf.append('%.d pps' % limit['packet'])
+            return '%.d pps' % limit['packet']
         elif limit['packet'] < 1e6:
-            buf.append('%.3f kpps' % (limit['packet'] / 1e3))
+            return '%.3f kpps' % (limit['packet'] / 1e3)
         else:
-            buf.append('%.3f Mpps' % (limit['packet'] / 1e6))
-
-    if 'bit' in limit:
+            return '%.3f Mpps' % (limit['packet'] / 1e6)
+    elif 'bit' in limit:
         if limit['bit'] < 1e3:
-            buf.append('%.d bps' % limit['bit'])
+            return '%.d bps' % limit['bit']
         elif limit['bit'] < 1e6:
-            buf.append('%.3f kbps' % (limit['bit'] / 1e3))
+            return '%.3f kbps' % (limit['bit'] / 1e3)
         else:
-            buf.append('%.3f Mbps' % (limit['bit'] / 1e6))
-
-    if buf:
-        return 'limits: ' + ', '.join(buf)
+            return '%.3f Mbps' % (limit['bit'] / 1e6)
     else:
         return 'unlimited'
+
+
+def _burst_to_str(burst):
+    # no output if max_burst is not set
+    if len(burst.values()) == 0 or burst.values()[0] == 0:
+        return ''
+
+    if 'count' in burst:
+        return 'burst: %d times' % burst['count']
+    elif 'cycle' in burst:
+        return 'burst: %d cycles' % burst['cycle']
+    elif 'packet' in burst:
+        if burst['packet'] < 1e3:
+            return 'burst: %.d pkts' % burst['packet']
+        elif burst['packet'] < 1e6:
+            return 'burst: %.3f kpkts' % (burst['packet'] / 1e3)
+        else:
+            return 'burst: %.3f Mpkts' % (burst['packet'] / 1e6)
+    elif 'bit' in burst:
+        if burst['bit'] < 1e3:
+            return 'burst: %.d bits' % burst['bit']
+        elif burst['bit'] < 1e6:
+            return 'burst: %.3f kbits' % (burst['bit'] / 1e3)
+        else:
+            return 'burst: %.3f Mbits' % (burst['bit'] / 1e6)
+    else:
+        return ''
 
 
 def _show_tcs_node(cli, node, indent, prefix, lastsibling):
@@ -1010,6 +1029,7 @@ def _build_tcs_tree(tcs):
 
         if c_.policy == "rate_limit":
             nodes[c_.name]["show_list"].append(_limit_to_str(c_.limit))
+            nodes[c_.name]["show_list"].append(_burst_to_str(c_.max_burst))
 
     return root
 
