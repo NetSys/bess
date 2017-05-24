@@ -395,8 +395,9 @@ class BESS(object):
         request.gate = gate
         return self._request('DisableTcpdump', request)
 
-    def enable_track(self, m, direction='out', gate=None):
+    def enable_track(self, m, direction='out', gate=None, is_bytes=False):
         request = bess_msg.EnableTrackRequest()
+
         request.name = m
         if gate is None:
             request.use_gate = False
@@ -404,10 +405,13 @@ class BESS(object):
             request.use_gate = True
             request.gate = gate
         request.is_igate = (direction == 'in')
+        request.is_bytes = is_bytes
+
         return self._request('EnableTrack', request)
 
-    def disable_track(self, m, direction='out', gate=None):
+    def disable_track(self, m, direction='out', gate=None, is_bytes=False):
         request = bess_msg.DisableTrackRequest()
+
         request.name = m
         if gate is None:
             request.use_gate = False
@@ -415,7 +419,9 @@ class BESS(object):
             request.use_gate = True
             request.gate = gate
         request.is_igate = (direction == 'in')
-        return self._request('DisableTrack', request)
+        request.is_bytes = is_bytes
+
+        return self._request('DisableTrackBytes', request)
 
     def list_workers(self):
         return self._request('ListWorkers')
