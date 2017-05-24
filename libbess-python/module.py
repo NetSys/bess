@@ -95,3 +95,20 @@ class Module(object):
 
         # for a->b->c syntax
         return next_mod
+
+    # Attach the task numbered `module_taskid` (usually modules only have one
+    # task, numbered 0) from this module to a TC tree.
+    #
+    # The behavior differs based on the arguments provided:
+    #
+    # * If `wid` is specified, the task is attached as a root in the worker
+    #   `wid`.  If `wid` has multiple roots they will be under a default
+    #   round-robin policy.
+    # * If `parent` is specified, the task is attached as a child of `parent`.
+    #   If `parent` is a priority or weighted_fair TC, `priority` or `share`
+    #   can be used to customize the child parameter.
+    #
+    def attach_task(self, parent='', wid=-1, module_taskid=0,
+                    priority=None, share=None):
+        return self.bess.attach_task(self.name, parent, wid, module_taskid,
+                                     priority, share)
