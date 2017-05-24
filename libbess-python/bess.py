@@ -215,7 +215,6 @@ class BESS(object):
         if response.fatal:
             raise self.ConstraintError("Fatal violation of "
                                        "scheduling constraints")
-            error = True
         return error
 
     def uncheck_resume_all(self):
