@@ -1,29 +1,29 @@
 #!/bin/bash
 
 BESSCTL='./bessctl/bessctl'
-SCRIPTS='./bessctl/conf/samples'
+SCRIPTS='./bessctl/conf'
 OUTFILE='sanity_check.out'
 
-TESTS='exactmatch.bess
-  flowgen.bess
-  generic_encap.bess
-  hash_lb.bess
-  igate.bess
-  iplookup.bess
-  l2_forward.bess
-  multicore.bess
-  queue.bess
-  roundrobin.bess
-  s2s.bess
-  tc/complextree.bess
-  unix_port.bess
-  update.bess
-  vlantest.bess
-  wildcardmatch.bess
-  nat.bess
-  worker_split.bess
-  qtest.bess
-  ../testing/test_constraint_checker.bess'
+TESTS='samples/exactmatch.bess
+  samples/flowgen.bess
+  samples/generic_encap.bess
+  samples/hash_lb.bess
+  samples/igate.bess
+  samples/iplookup.bess
+  samples/l2_forward.bess
+  samples/multicore.bess
+  samples/queue.bess
+  samples/roundrobin.bess
+  samples/s2s.bess
+  samples/tc/complextree.bess
+  samples/unix_port.bess
+  samples/update.bess
+  samples/vlantest.bess
+  samples/wildcardmatch.bess
+  samples/nat.bess
+  samples/worker_split.bess
+  samples/qtest.bess
+  testing/test_constraint_checker.bess'
 
 function fail
 {
