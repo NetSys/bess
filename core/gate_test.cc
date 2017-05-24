@@ -51,19 +51,19 @@ TEST_F(GateTest, AddExistingHookFails) {
 TEST_F(GateTest, HookPriority) {
   ASSERT_EQ(0, g->AddHook(new TrackGate()));
   ASSERT_EQ(0, g->AddHook(new TcpDump()));
-  ASSERT_EQ(kGateHookTrackGate, g->hooks()[0]->name());
+  ASSERT_EQ(TrackGate::kName, g->hooks()[0]->name());
 }
 
 TEST_F(GateTest, FindHook) {
-  ASSERT_EQ(nullptr, g->FindHook(kGateHookTrackGate));
+  ASSERT_EQ(nullptr, g->FindHook(TrackGate::kName));
   ASSERT_EQ(0, g->AddHook(new TrackGate()));
-  ASSERT_NE(nullptr, g->FindHook(kGateHookTrackGate));
+  ASSERT_NE(nullptr, g->FindHook(TrackGate::kName));
 }
 
 TEST_F(GateTest, RemoveHook) {
   ASSERT_EQ(0, g->AddHook(new TrackGate()));
-  g->RemoveHook(kGateHookTrackGate);
-  ASSERT_EQ(nullptr, g->FindHook(kGateHookTrackGate));
+  g->RemoveHook(TrackGate::kName);
+  ASSERT_EQ(nullptr, g->FindHook(TrackGate::kName));
 }
 
 TEST(HookTest, TrackGate) {

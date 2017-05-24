@@ -246,10 +246,6 @@ class Module {
   int AddMetadataAttr(const std::string &name, size_t size,
                       bess::metadata::Attribute::AccessMode mode);
 
-  int EnableTcpDump(const char *fifo, int is_igate, gate_idx_t gate_idx);
-
-  int DisableTcpDump(int is_igate, gate_idx_t gate_idx);
-
   CommandResponse RunCommand(const std::string &cmd,
                              const google::protobuf::Any &arg) {
     return module_builder_->RunCommand(this, cmd, arg);

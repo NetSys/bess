@@ -1,12 +1,57 @@
 #include "tcpdump.h"
 
+#include <fcntl.h>
 #include <sys/uio.h>
+#include <unistd.h>
 
 #include <glog/logging.h>
 
+#include "../message.h"
 #include "../utils/common.h"
 #include "../utils/pcap.h"
 #include "../utils/time.h"
+
+const std::string TcpDump::kName = "tcpdump";
+
+TcpDump::TcpDump()
+    : bess::GateHook(TcpDump::kName, TcpDump::kPriority), fifo_fd_() {}
+
+TcpDump::~TcpDump() {
+  close(fifo_fd_);
+}
+
+CommandResponse TcpDump::Init(const bess::Gate *,
+                              const bess::pb::TcpdumpRequest &arg) {
+  static const struct pcap_hdr PCAP_FILE_HDR = {
+      .magic_number = PCAP_MAGIC_NUMBER,
+      .version_major = PCAP_VERSION_MAJOR,
+      .version_minor = PCAP_VERSION_MINOR,
+      .thiszone = PCAP_THISZONE,
+      .sigfigs = PCAP_SIGFIGS,
+      .snaplen = PCAP_SNAPLEN,
+      .network = PCAP_NETWORK,
+  };
+  int ret;
+
+  fifo_fd_ = open(arg.fifo().c_str(), O_WRONLY | O_NONBLOCK);
+  if (fifo_fd_ < 0) {
+    return CommandFailure(-errno, "Failed to open FIFO");
+  }
+
+  ret = fcntl(fifo_fd_, F_SETFL, fcntl(fifo_fd_, F_GETFL) | O_NONBLOCK);
+  if (ret < 0) {
+    close(fifo_fd_);
+    return CommandFailure(-errno, "fnctl() on FIFO failed");
+  }
+
+  ret = write(fifo_fd_, &PCAP_FILE_HDR, sizeof(PCAP_FILE_HDR));
+  if (ret < 0) {
+    close(fifo_fd_);
+    return CommandFailure(-errno, "Failed to write PCAP header");
+  }
+
+  return CommandSuccess();
+}
 
 void TcpDump::ProcessBatch(const bess::PacketBatch *batch) {
   struct timeval tv;
@@ -38,3 +83,5 @@ void TcpDump::ProcessBatch(const bess::PacketBatch *batch) {
     }
   }
 }
+
+ADD_GATE_HOOK(TcpDump)

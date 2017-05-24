@@ -380,36 +380,34 @@ class BESS(object):
         else:
             return response
 
-    def _configure_gate_hook(self, hook, arg):
+    def _configure_gate_hook(self, hook, module, arg, enable=None, direction=None, gate=None):
+        if gate is None:
+            gate = -1
+        if direction is None:
+            direction = 'out'
+        if enable is None:
+            enable = False
         request = bess_msg.ConfigureGateHookRequest()
-        request.name = hook
+        request.hook_name = hook
+        request.module_name = module
+        request.enable = enable
+        if direction == 'in':
+            request.igate = gate
+        elif direction == 'out':
+            request.ogate = gate
         request.arg.Pack(arg)
         return self._request('ConfigureGateHook', request)
 
     def tcpdump(self, enable, m, direction='out', gate=0, fifo=None):
-        request = bess_msg.TcpdumpRequest()
-        request.name = m
-        request.enable = enable
-        if direction == 'in':
-            request.igate = gate
-        elif direction == 'out':
-            request.ogate = gate
+        arg = bess_msg.TcpdumpRequest()
         if fifo is not None:
-            request.fifo = fifo
-        return self._configure_gate_hook('tcpdump', request)
+            arg.fifo = fifo
+        return self._configure_gate_hook('tcpdump', m, arg, enable, direction, gate)
 
-    def track_module(self, m, enable=True, bits=False, direction='out', gate=-1):
-        if gate is None:
-            gate = -1
-        request = bess_msg.TrackModuleRequest()
-        request.name = m
-        request.enable = enable
-        if direction == 'in':
-            request.igate = gate
-        elif direction == 'out':
-            request.ogate = gate
-        request.bits = bits
-        return self._configure_gate_hook('track_gate', request)
+    def track_module(self, m, enable, bits=False, direction='out', gate=-1):
+        arg = bess_msg.TrackModuleRequest()
+        arg.bits = bits
+        return self._configure_gate_hook('track', m, arg, enable, direction, gate)
 
     def list_workers(self):
         return self._request('ListWorkers')

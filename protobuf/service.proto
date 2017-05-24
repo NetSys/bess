@@ -251,11 +251,10 @@ service BESSControl {
   ///       For those commands you must pause all workers first.
   rpc ModuleCommand (CommandRequest) returns (CommandResponse) {}
 
-
   //  -------------------------------------------------------------------------
-  //  Module hook
+  //  Gate hooks
   //  -------------------------------------------------------------------------
 
   /// Enable/Disable a gate hook.
-  rpc ConfigureGateHook (ConfigureGateHookRequest) returns (EmptyResponse) {}
+  rpc ConfigureGateHook (ConfigureGateHookRequest) returns (CommandResponse) {}
 }

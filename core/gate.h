@@ -4,6 +4,10 @@
 #include <string>
 #include <vector>
 
+#include <grpc++/server.h>
+#include <grpc/grpc.h>
+
+#include "message.h"
 #include "pktbatch.h"
 #include "utils/common.h"
 
@@ -28,8 +32,6 @@ class Gate;
 
 // Gate hooks allow you to run arbitrary code on the packets flowing through a
 // gate before they get delievered to the upstream module.
-// TODO(melvin): GateHooks should be structured like Modules/Drivers, so bessctl
-// can attach/detach them at runtime.
 class GateHook {
  public:
   explicit GateHook(const std::string &name, uint16_t priority = 0,
@@ -39,6 +41,8 @@ class GateHook {
   virtual ~GateHook() {}
 
   const std::string &name() const { return name_; }
+
+  const Gate *gate() const { return gate_; }
 
   void set_gate(Gate *gate) { gate_ = gate; }
 
@@ -60,6 +64,42 @@ class GateHook {
 inline bool GateHookComp(const GateHook *lhs, const GateHook *rhs) {
   return (lhs->priority() < rhs->priority());
 }
+
+using hook_constructor_t = std::function<GateHook *()>;
+
+using hook_init_func_t = std::function<CommandResponse(
+    GateHook *, const Gate *, const google::protobuf::Any &)>;
+
+class GateHookFactory {
+ public:
+  GateHookFactory(hook_constructor_t constructor, hook_init_func_t init_func,
+                  const std::string &hook_name)
+      : hook_constructor_(constructor),
+        hook_init_func_(init_func),
+        hook_name_(hook_name) {}
+
+  static bool RegisterGateHook(hook_constructor_t constructor,
+                               hook_init_func_t init_func,
+                               const std::string &hook_name);
+
+  static std::map<std::string, GateHookFactory> &all_gate_hook_factories_holder(
+      bool reset = false);
+
+  static const std::map<std::string, GateHookFactory>
+      &all_gate_hook_factories();
+
+  GateHook *CreateGateHook() const { return hook_constructor_(); }
+
+  CommandResponse InitGateHook(GateHook *h, const Gate *g,
+                               const google::protobuf::Any &arg) const {
+    return hook_init_func_(h, g, arg);
+  }
+
+ private:
+  hook_constructor_t hook_constructor_;
+  hook_init_func_t hook_init_func_;
+  std::string hook_name_;
+};
 
 class Gate {
  public:
@@ -139,5 +179,22 @@ class IGate : public Gate {
 };
 
 }  // namespace bess
+
+template <typename H, typename A>
+static inline bess::hook_init_func_t InitHookWithGenericArg(
+    CommandResponse (H::*fn)(const bess::Gate *, const A &)) {
+  return [fn](bess::GateHook *h, const bess::Gate *g,
+              const google::protobuf::Any &arg) {
+    A arg_;
+    arg.UnpackTo(&arg_);
+    auto base_fn = std::mem_fn(fn);
+    return base_fn(static_cast<H *>(h), g, arg_);
+  };
+}
+
+#define ADD_GATE_HOOK(_HOOK)                                           \
+  bool __gate_hook__##_HOOK = bess::GateHookFactory::RegisterGateHook( \
+      std::function<bess::GateHook *()>([]() { return new _HOOK(); }), \
+      InitHookWithGenericArg(&_HOOK::Init), _HOOK::kName);
 
 #endif  // BESS_GATE_H_

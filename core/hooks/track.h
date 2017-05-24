@@ -1,19 +1,16 @@
 #ifndef BESS_HOOKS_TRACK_
 #define BESS_HOOKS_TRACK_
 
+#include "../message.h"
 #include "../module.h"
-
-const std::string kGateHookTrackGate = "track_gate";
-const uint16_t kGateHookPriorityTrackGate = 0;
 
 // TrackGate counts the number of packets, batches and bytes seen by a gate.
 class TrackGate final : public bess::GateHook {
  public:
-  TrackGate(bool track_bytes = false)
-      : bess::GateHook(kGateHookTrackGate, kGateHookPriorityTrackGate),
-        track_bytes_(track_bytes),
-        cnt_(),
-        pkts_(){};
+  TrackGate();
+
+  CommandResponse Init(const bess::Gate *,
+                       const bess::pb::TrackModuleRequest &);
 
   uint64_t cnt() const { return cnt_; }
 
@@ -24,6 +21,9 @@ class TrackGate final : public bess::GateHook {
   void set_track_bytes(bool track) { track_bytes_ = track; }
 
   void ProcessBatch(const bess::PacketBatch *batch);
+
+  static constexpr uint16_t kPriority = 0;
+  static const std::string kName;
 
  private:
   bool track_bytes_;
