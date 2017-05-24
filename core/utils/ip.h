@@ -11,6 +11,9 @@ namespace utils {
 // return false if string -> be32_t conversion failed (*addr is unmodified)
 bool ParseIpv4Address(const std::string &str, be32_t *addr);
 
+// be32 -> string
+std::string ToIpv4Address(be32_t addr);
+
 // An IPv4 header definition loosely based on the BSD version.
 struct[[gnu::packed]] Ipv4 {
   enum Flag : uint16_t {
