@@ -18,10 +18,10 @@ using IpProto = bess::utils::Ipv4::Proto;
 using bess::utils::Udp;
 using bess::utils::Tcp;
 using bess::utils::Icmp;
-using bess::utils::CalculateChecksumIncremental16;
-using bess::utils::CalculateChecksumUnfoldedIncremental32;
-using bess::utils::CalculateChecksumUnfoldedIncremental16;
-using bess::utils::FoldChecksumIncremental;
+using bess::utils::UpdateChecksum16;
+using bess::utils::ChecksumIncrement16;
+using bess::utils::ChecksumIncrement32;
+using bess::utils::UpdateChecksumWithIncrement;
 
 const Commands NAT::cmds = {
     {"add", "NATArg", MODULE_CMD_FUNC(&NAT::CommandAdd), 0},
@@ -101,45 +101,45 @@ static inline void stamp_flow(Ipv4 *ip, void *l4, const Flow &flow) {
   uint32_t l4_inc = 0;
 
   if (src) {
-    l3_inc += CalculateChecksumUnfoldedIncremental32(ip->src.raw_value(),
+    l3_inc += ChecksumIncrement32(ip->src.raw_value(),
                                                      flow.src_ip.raw_value());
     ip->src = flow.src_ip;
   } else {
-    l3_inc += CalculateChecksumUnfoldedIncremental32(ip->dst.raw_value(),
+    l3_inc += ChecksumIncrement32(ip->dst.raw_value(),
                                                      flow.dst_ip.raw_value());
     ip->dst = flow.dst_ip;
   }
 
-  ip->checksum = FoldChecksumIncremental(ip->checksum, l3_inc);
+  ip->checksum = UpdateChecksumWithIncrement(ip->checksum, l3_inc);
 
   switch (flow.proto) {
     case IpProto::kTcp:
       if (src) {
-        l4_inc += CalculateChecksumUnfoldedIncremental16(
+        l4_inc += ChecksumIncrement16(
             tcp->src_port.raw_value(), flow.src_port.raw_value());
         tcp->src_port = flow.src_port;
       } else {
-        l4_inc += CalculateChecksumUnfoldedIncremental16(
+        l4_inc += ChecksumIncrement16(
             tcp->dst_port.raw_value(), flow.dst_port.raw_value());
         tcp->dst_port = flow.dst_port;
       }
       l4_inc += l3_inc;
 
-      tcp->checksum = FoldChecksumIncremental(tcp->checksum, l4_inc);
+      tcp->checksum = UpdateChecksumWithIncrement(tcp->checksum, l4_inc);
       break;
 
     case IpProto::kUdp:
       if (udp->checksum) {
         if (src) {
-          l4_inc += CalculateChecksumUnfoldedIncremental16(
+          l4_inc += ChecksumIncrement16(
               udp->src_port.raw_value(), flow.src_port.raw_value());
         } else {
-          l4_inc += CalculateChecksumUnfoldedIncremental16(
+          l4_inc += ChecksumIncrement16(
               udp->dst_port.raw_value(), flow.dst_port.raw_value());
         }
         l4_inc += l3_inc;
 
-        udp->checksum = FoldChecksumIncremental(udp->checksum, l4_inc);
+        udp->checksum = UpdateChecksumWithIncrement(udp->checksum, l4_inc);
 
         if (!udp->checksum) {
           udp->checksum = 0xFFFF;
@@ -160,9 +160,9 @@ static inline void stamp_flow(Ipv4 *ip, void *l4, const Flow &flow) {
         case 13:
         case 15:
         case 16:
-          icmp->checksum = CalculateChecksumIncremental16(
-              icmp->checksum, icmp->ident.raw_value(),
-              flow.icmp_ident.raw_value());
+          icmp->checksum =
+              UpdateChecksum16(icmp->checksum, icmp->ident.raw_value(),
+                               flow.icmp_ident.raw_value());
           icmp->ident = flow.icmp_ident;
           break;
         default:

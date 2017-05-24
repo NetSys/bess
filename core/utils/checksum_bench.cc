@@ -214,7 +214,7 @@ BENCHMARK_DEFINE_F(ChecksumFixture, BmIncrementalUpdate16)
     tcp->src_port = be16_t(GetRandom());
 
     benchmark::DoNotOptimize(
-        cksum_update = CalculateChecksumIncremental32(
+        cksum_update = UpdateChecksum32(
             cksum, src_port_old.raw_value(), tcp->src_port.raw_value()));
     cksum = cksum_update;
   }
@@ -244,7 +244,7 @@ BENCHMARK_DEFINE_F(ChecksumFixture, BmIncrementalUpdate32)
     ip->src = be32_t(GetRandom());
 
     benchmark::DoNotOptimize(
-        cksum_update = CalculateChecksumIncremental32(
+        cksum_update = UpdateChecksum32(
             cksum, src_ip_old.raw_value(), ip->src.raw_value()));
     cksum = cksum_update;
   }
@@ -275,10 +275,9 @@ BENCHMARK_DEFINE_F(ChecksumFixture, BmSrcIpPortUpdateDpdk)
     // NAT simulation
     // - one update for ip checksum recalcuation
     // - two for tcp checksum
-    benchmark::DoNotOptimize(
-        ip->checksum = rte_ipv4_cksum(reinterpret_cast<const ipv4_hdr *>(ip)));
-    benchmark::DoNotOptimize(tcp->checksum = rte_ipv4_udptcp_cksum(
-                                 reinterpret_cast<const ipv4_hdr *>(ip), tcp));
+    ip->checksum = rte_ipv4_cksum(reinterpret_cast<const ipv4_hdr *>(ip));
+    tcp->checksum =
+        rte_ipv4_udptcp_cksum(reinterpret_cast<const ipv4_hdr *>(ip), tcp);
   }
 
   state.SetItemsProcessed(state.iterations());
@@ -308,17 +307,15 @@ BENCHMARK_DEFINE_F(ChecksumFixture, BmSrcIpPortUpdateBess)
     tcp->src_port = be16_t(GetRandom());
 
     // NAT simulation
-    // - one update for ip checksum recalcuation
-    // - two for tcp checksum
-    benchmark::DoNotOptimize(
-        ip->checksum = CalculateChecksumIncremental32(
-            ip->checksum, src_ip_old.raw_value(), ip->src.raw_value()));
-    benchmark::DoNotOptimize(
-        tcp->checksum = CalculateChecksumIncremental32(
-            tcp->checksum, src_ip_old.raw_value(), ip->src.raw_value()));
-    benchmark::DoNotOptimize(tcp->checksum = CalculateChecksumIncremental16(
-                                 tcp->checksum, src_port_old.raw_value(),
-                                 tcp->src_port.raw_value()));
+    // - one update (IP addr) for ip checksum recalcuation
+    // - two updates (IP addr and TCP port) for tcp checksum
+    uint32_t l3_inc =
+        ChecksumIncrement32(src_ip_old.raw_value(), ip->src.raw_value());
+    uint32_t l4_inc = l3_inc + ChecksumIncrement16(src_port_old.raw_value(),
+                                                   tcp->src_port.raw_value());
+
+    ip->checksum = UpdateChecksumWithIncrement(ip->checksum, l3_inc);
+    tcp->checksum = UpdateChecksumWithIncrement(tcp->checksum, l4_inc);
   }
 
   state.SetItemsProcessed(state.iterations());

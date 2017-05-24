@@ -300,52 +300,55 @@ static inline uint16_t CalculateIpv4TcpChecksum(const Ipv4 &iph,
 // The functions below can be used to update multiple fields and update the
 // checksum in a single shot:
 //
-// uint32_t incremental = 0;
+// uint32_t increment = 0;
 //
-// incremental += CalculateChecksumIncremental32(iphdr->src, new_src);
-// incremental += CalculateChecksumIncremental32(iphdr->dst, new_dst);
+// increment += ChecksumIncrement32(iphdr->src, new_src);
+// increment += ChecksumIncrement32(iphdr->dst, new_dst);
 //
 // iphdr->src = new_src
 // iphdr->dst = new_dst
-// iphdr->checksum = FoldChecksumIncremental(iphdr->checksum, incremental);
+// iphdr->checksum = UpdateChecksumWithIncrement(iphdr->checksum, incremental);
 
-static inline uint32_t CalculateChecksumUnfoldedIncremental32(
-    uint32_t old_value, uint32_t new_value) {
+static inline uint32_t ChecksumIncrement32(uint32_t old_value,
+                                           uint32_t new_value) {
   uint32_t sum = (~old_value >> 16) + (~old_value & 0xFFFF);
   sum += (new_value >> 16) + (new_value & 0xFFFF);
   return sum;
 }
 
-static inline uint32_t CalculateChecksumUnfoldedIncremental16(
-    uint16_t old_value, uint16_t new_value) {
+// Note that the return type is uint32_t. You can add up increments from both
+// ChecksumIncrement16() and ChecksumIncrement32()
+static inline uint32_t ChecksumIncrement16(uint16_t old_value,
+                                           uint16_t new_value) {
   return (~old_value & 0xFFFF) + new_value;
 }
 
-static inline uint16_t FoldChecksumIncremental(uint16_t old_checksum,
-                                               uint32_t incremental) {
-  return FoldChecksum((~old_checksum & 0xFFFF) + incremental);
+// Returns updated checksum value, which is ready to be written in the header
+static inline uint16_t UpdateChecksumWithIncrement(uint16_t old_checksum,
+                                                   uint32_t increment) {
+  return FoldChecksum((~old_checksum & 0xFFFF) + increment);
 }
 
 // Return incrementally updated checksum from old_checksum
 // when 32-bit 'old_value' changes to 'new_value' e.g., changed IPv4 address
-static inline uint16_t CalculateChecksumIncremental32(uint16_t old_checksum,
-                                                      uint32_t old_value,
-                                                      uint32_t new_value) {
+static inline uint16_t UpdateChecksum32(uint16_t old_checksum,
+                                        uint32_t old_value,
+                                        uint32_t new_value) {
   // new checksum = ~(~old_checksum + ~old_value + new_value) by RFC 1624
-  uint32_t inc = CalculateChecksumUnfoldedIncremental32(old_value, new_value);
+  uint32_t inc = ChecksumIncrement32(old_value, new_value);
 
-  return FoldChecksumIncremental(old_checksum, inc);
+  return UpdateChecksumWithIncrement(old_checksum, inc);
 }
 
 // Return incrementally updated checksum from old_checksum
 // when 16-bit 'old_value' changes to 'new_value' e.g., changed port number
-static inline uint16_t CalculateChecksumIncremental16(uint16_t old_checksum,
-                                                      uint16_t old_value,
-                                                      uint16_t new_value) {
+static inline uint16_t UpdateChecksum16(uint16_t old_checksum,
+                                        uint16_t old_value,
+                                        uint16_t new_value) {
   // new checksum = ~(~old_checksum + ~old_value + new_value) by RFC 1624
-  uint32_t inc = CalculateChecksumUnfoldedIncremental16(old_value, new_value);
+  uint32_t inc = ChecksumIncrement16(old_value, new_value);
 
-  return FoldChecksumIncremental(old_checksum, inc);
+  return UpdateChecksumWithIncrement(old_checksum, inc);
 }
 
 }  // namespace utils
