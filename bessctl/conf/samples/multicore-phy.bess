@@ -14,5 +14,5 @@ hlb = HashLB(gates=[0, 1], mode='l2')
 src0::PortInc(port=p0.name) -> Sink()
 src1::PortInc(port=p2.name) -> PortOut(port=p1.name)
 
-bess.attach_module('src0', wid=0)
-bess.attach_module('src1', wid=1)
+src0.attach_task(wid=0)
+src1.attach_task(wid=1)

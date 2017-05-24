@@ -59,12 +59,12 @@ for i in range(num_cores):
     if mbps != 0:
         tc_name = 'bit_limit%d' % i
         bess.add_tc(tc_name, policy='rate_limit', resource='bit', limit={'bit': int(mbps / num_cores * 1e6)})
-        bess.attach_module(src.name, parent=tc_name)
+        src.attach_task(parent=tc_name)
     else:
-        bess.attach_module(src.name, wid=i)
+        src.attach_task(wid=i)
 
     for j in range(num_ports):
         rr:j -> Update(fields=[{'offset': 29, 'size': 1, 'value': j+1}]) -> QueueOut(port=ports[j].name, qid=i)
         qinc = QueueInc(port=ports[j].name, qid=i)
         qinc -> Sink()
-        bess.attach_module(qinc.name, wid=i)
+        qinc.attach_task(wid=i)

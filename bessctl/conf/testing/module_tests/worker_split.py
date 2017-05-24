@@ -15,7 +15,7 @@ def test_workersplit():
         for i in range(NUM_WORKERS):
             ws:i -> Sink()
 
-        bess.attach_module(src.name, wid=wid)
+        src.attach_task(wid=wid)
 
         bess.resume_all()
         time.sleep(0.1)

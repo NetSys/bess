@@ -7,10 +7,10 @@ def queue_test():
         -> Sink()
     
     bess.add_tc('fast', policy='rate_limit', resource='packet', limit={'packet': 9000000})
-    bess.attach_module(src.name, 'fast')
+    src.attach_task(parent='fast')
     
     bess.add_tc('slow', policy='rate_limit', resource='packet', limit={'packet': 1000000})
-    bess.attach_module(queue.name, 'slow')
+    queue.attach_task(parent='slow')
 
 def nat_test():
     # From nat.bess -- check that revisiting the same module works correctly.
@@ -41,9 +41,9 @@ def nat_negative_test():
     nat = NAT(rules=[{'internal_addr_block':'0.0.0.0/0', 'external_addr_block':'192.168.1.1/32'}])
     src0 -> 0:nat:0 -> Sink()
     src1 -> 1:nat:1 -> Sink()
-    bess.attach_module(src0.name, wid = 0)
-    bess.attach_module(src1.name, wid = 1)
-    
+    src0.attach_task(wid=0)
+    src1.attach_task(wid=1)
+
 
 def test_no_error(test):
     test()
