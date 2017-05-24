@@ -1319,7 +1319,7 @@ class BESSControlImpl final : public BESSControl::Service {
         request->hook_name());
     if (factory == bess::GateHookFactory::all_gate_hook_factories().end()) {
       return return_with_error(response, ENOENT, "No such gate hook: %s",
-                               request->hook_name());
+                               request->hook_name().c_str());
     }
 
     if (request->module_name().length() == 0) {
