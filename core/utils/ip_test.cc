@@ -25,7 +25,7 @@ TEST(IPTest, AddressInStr) {
 }
 
 // Check if Ipv4Prefix can be correctly constructed from strings
-TEST(IPTest, CIDRInStr) {
+TEST(IPTest, PrefixInStr) {
   Ipv4Prefix prefix_1("192.168.0.1/24");
   EXPECT_EQ((192 << 24) + (168 << 16) + 1, prefix_1.addr.value());
   EXPECT_EQ(0xffffff00, prefix_1.mask.value());
@@ -40,7 +40,7 @@ TEST(IPTest, CIDRInStr) {
 }
 
 // Check if Ipv4Prefix::Match() behaves correctly
-TEST(IPTest, CIDRMatch) {
+TEST(IPTest, PrefixMatch) {
   Ipv4Prefix prefix_1("192.168.0.1/24");
   EXPECT_TRUE(prefix_1.Match(be32_t((192 << 24) + (168 << 16) + 254)));
   EXPECT_FALSE(
