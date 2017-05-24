@@ -5,21 +5,20 @@
 // Ethernet overhead in bytes
 static const size_t kEthernetOverhead = 24;
 
-const std::string TrackGate::kName = "track";
+const std::string Track::kName = "track";
 
-TrackGate::TrackGate()
-    : bess::GateHook(TrackGate::kName, TrackGate::kPriority),
+Track::Track()
+    : bess::GateHook(Track::kName, Track::kPriority),
       track_bytes_(),
       cnt_(),
       pkts_() {}
 
-CommandResponse TrackGate::Init(const bess::Gate *,
-                                const bess::pb::TrackModuleRequest &arg) {
+CommandResponse Track::Init(const bess::Gate *, const bess::pb::TrackArg &arg) {
   track_bytes_ = arg.bits();
   return CommandSuccess();
 }
 
-void TrackGate::ProcessBatch(const bess::PacketBatch *batch) {
+void Track::ProcessBatch(const bess::PacketBatch *batch) {
   size_t cnt = batch->cnt();
   cnt_ += 1;
   pkts_ += cnt;
@@ -33,4 +32,4 @@ void TrackGate::ProcessBatch(const bess::PacketBatch *batch) {
   }
 }
 
-ADD_GATE_HOOK(TrackGate)
+ADD_GATE_HOOK(Track)

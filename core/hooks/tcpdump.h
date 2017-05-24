@@ -4,14 +4,14 @@
 #include "../message.h"
 #include "../module.h"
 
-// TcpDump dumps copies of the packets seen by a gate. Useful for debugging.
-class TcpDump final : public bess::GateHook {
+// Tcpdump dumps copies of the packets seen by a gate. Useful for debugging.
+class Tcpdump final : public bess::GateHook {
  public:
-  TcpDump();
+  Tcpdump();
 
-  ~TcpDump();
+  ~Tcpdump();
 
-  CommandResponse Init(const bess::Gate *, const bess::pb::TcpdumpRequest &);
+  CommandResponse Init(const bess::Gate *, const bess::pb::TcpdumpArg &);
 
   int fifo_fd() const { return fifo_fd_; }
   void set_fifo_fd(int fifo_fd) { fifo_fd_ = fifo_fd; }

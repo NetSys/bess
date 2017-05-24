@@ -398,7 +398,7 @@ int Module::ConnectModules(gate_idx_t ogate_idx, Module *m_next,
   ogate->set_igate_idx(igate_idx);
 
   // Gate tracking is enabled by default
-  ogate->AddHook(new TrackGate());
+  ogate->AddHook(new Track());
   igate->PushOgate(ogate);
 
   return 0;

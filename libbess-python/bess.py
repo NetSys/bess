@@ -399,13 +399,13 @@ class BESS(object):
         return self._request('ConfigureGateHook', request)
 
     def tcpdump(self, enable, m, direction='out', gate=0, fifo=None):
-        arg = bess_msg.TcpdumpRequest()
+        arg = bess_msg.TcpdumpArg()
         if fifo is not None:
             arg.fifo = fifo
         return self._configure_gate_hook('tcpdump', m, arg, enable, direction, gate)
 
     def track_module(self, m, enable, bits=False, direction='out', gate=-1):
-        arg = bess_msg.TrackModuleRequest()
+        arg = bess_msg.TrackArg()
         arg.bits = bits
         return self._configure_gate_hook('track', m, arg, enable, direction, gate)
 

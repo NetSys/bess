@@ -5,12 +5,11 @@
 #include "../module.h"
 
 // TrackGate counts the number of packets, batches and bytes seen by a gate.
-class TrackGate final : public bess::GateHook {
+class Track final : public bess::GateHook {
  public:
-  TrackGate();
+  Track();
 
-  CommandResponse Init(const bess::Gate *,
-                       const bess::pb::TrackModuleRequest &);
+  CommandResponse Init(const bess::Gate *, const bess::pb::TrackArg &);
 
   uint64_t cnt() const { return cnt_; }
 

@@ -11,17 +11,17 @@
 #include "../utils/pcap.h"
 #include "../utils/time.h"
 
-const std::string TcpDump::kName = "tcpdump";
+const std::string Tcpdump::kName = "tcpdump";
 
-TcpDump::TcpDump()
-    : bess::GateHook(TcpDump::kName, TcpDump::kPriority), fifo_fd_() {}
+Tcpdump::Tcpdump()
+    : bess::GateHook(Tcpdump::kName, Tcpdump::kPriority), fifo_fd_() {}
 
-TcpDump::~TcpDump() {
+Tcpdump::~Tcpdump() {
   close(fifo_fd_);
 }
 
-CommandResponse TcpDump::Init(const bess::Gate *,
-                              const bess::pb::TcpdumpRequest &arg) {
+CommandResponse Tcpdump::Init(const bess::Gate *,
+                              const bess::pb::TcpdumpArg &arg) {
   static const struct pcap_hdr PCAP_FILE_HDR = {
       .magic_number = PCAP_MAGIC_NUMBER,
       .version_major = PCAP_VERSION_MAJOR,
@@ -53,7 +53,7 @@ CommandResponse TcpDump::Init(const bess::Gate *,
   return CommandSuccess();
 }
 
-void TcpDump::ProcessBatch(const bess::PacketBatch *batch) {
+void Tcpdump::ProcessBatch(const bess::PacketBatch *batch) {
   struct timeval tv;
 
   int ret = 0;
@@ -84,4 +84,4 @@ void TcpDump::ProcessBatch(const bess::PacketBatch *batch) {
   }
 }
 
-ADD_GATE_HOOK(TcpDump)
+ADD_GATE_HOOK(Tcpdump)

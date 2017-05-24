@@ -409,7 +409,7 @@ message CommandResponse {
 ///  the cost is very small, remember that the delay adds up at every gate.
 ///
 /// NOTE: There should be no running worker to run this command.
-message TrackModuleRequest {
+message TrackArg {
   bool bits = 5;  /// Tracks bits too if True, else only packets and batches
 }
 
@@ -421,7 +421,7 @@ message TrackModuleRequest {
 /// This feature may afffect performance.
 ///
 /// NOTE: There should be no running worker to run this command.
-message TcpdumpRequest {
+message TcpdumpArg {
   string fifo = 5;    /// Path to the FIFO file.
 }
 

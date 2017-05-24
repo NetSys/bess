@@ -203,7 +203,7 @@ static int collect_igates(Module* m, GetModuleInfoResponse* response) {
 
     GetModuleInfoResponse_IGate* igate = response->add_igates();
 
-    TrackGate* t = reinterpret_cast<TrackGate*>(g->FindHook(TrackGate::kName));
+    Track* t = reinterpret_cast<Track*>(g->FindHook(Track::kName));
 
     if (t) {
       igate->set_cnt(t->cnt());
@@ -232,7 +232,7 @@ static int collect_ogates(Module* m, GetModuleInfoResponse* response) {
     GetModuleInfoResponse_OGate* ogate = response->add_ogates();
 
     ogate->set_ogate(g->gate_idx());
-    TrackGate* t = reinterpret_cast<TrackGate*>(g->FindHook(TrackGate::kName));
+    Track* t = reinterpret_cast<Track*>(g->FindHook(Track::kName));
     if (t) {
       ogate->set_cnt(t->cnt());
       ogate->set_pkts(t->pkts());
