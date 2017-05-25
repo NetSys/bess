@@ -162,6 +162,7 @@ inline void InsertSorted(T &container, U &item) {
   }
 }
 
+// Returns the absolute difference between `lhs` and `rhs`.
 template <typename T>
 T absdiff(const T &lhs, const T &rhs) {
   return lhs > rhs ? lhs - rhs : rhs - lhs;
