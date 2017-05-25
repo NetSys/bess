@@ -2,6 +2,7 @@
 
 #include <cmath>
 
+#include "../utils/common.h"
 #include "../utils/ether.h"
 #include "../utils/ip.h"
 #include "../utils/time.h"
@@ -80,8 +81,7 @@ void Measure::ProcessBatch(bess::PacketBatch *batch) {
             last_rtt_ns_ = diff;
             continue;
           }
-          uint64_t jitter = (diff > last_rtt_ns_) ? (diff - last_rtt_ns_)
-                                                  : (last_rtt_ns_ - diff);
+          uint64_t jitter = absdiff(diff, last_rtt_ns_);
           jitter_hist_.insert(jitter);
           last_rtt_ns_ = diff;
         }
