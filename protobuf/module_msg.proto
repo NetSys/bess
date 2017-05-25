@@ -612,20 +612,18 @@ message MetadataTestArg {
 }
 
 /**
- * The NAT module implements address translation, rewriting packet source addresses
- * for a specified internal prefix with IPs according to a specified
- * external prefix. To see an example
- * of NAT in use, see [`bess/bessctl/conf/samples/nat.bess`](https://github.com/NetSys/bess/blob/master/bessctl/conf/samples/nat.bess)
+ * The NAT module implements IPv4 address/port translation, rewriting packet
+ * source addresses with external addresses as specified. Currently only
+ * supports TCP/UDP/ICMP. Note that address/port in packet payload
+ * (e.g., FTP, SIP, RTSP, etc.) are NOT translated.
+ * To see an example of NAT in use, see:
+ * [`bess/bessctl/conf/samples/nat.bess`](https://github.com/NetSys/bess/blob/master/bessctl/conf/samples/nat.bess)
  *
  * __Input Gates__: 2
  * __Output Gates__: 2
  */
 message NATArg {
-  message Rule {
-    string internal_addr_block = 1; /// Internal IP block in CIDR.
-    string external_addr_block = 2; /// External IP block in CIDR.
-  }
-  repeated Rule rules = 1; /// A list of rules for rewriting
+  repeated string ext_addrs = 1; /// list of external IP addresses
 }
 
 /**

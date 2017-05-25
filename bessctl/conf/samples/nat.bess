@@ -3,9 +3,6 @@
 import scapy.all as scapy
 import socket
 
-def aton(ip):
-    return socket.inet_aton(ip)
-
 # Craft a packet with the specified IP addresses
 def gen_packet(proto, src_ip, dst_ip):
     eth = scapy.Ether(src='02:1e:67:9f:4d:ae', dst='06:16:3e:1b:72:32')
@@ -23,7 +20,7 @@ packets = [gen_packet(scapy.UDP, '172.16.100.1', '10.0.0.1'),
            gen_packet(scapy.UDP, '192.168.1.123', '12.34.56.78'),
           ]
 
-nat::NAT(rules=[{'internal_addr_block':'0.0.0.0/0', 'external_addr_block':'192.168.1.1/32'}])
+nat::NAT(ext_addrs=['192.168.0.1', '192.168.0.2'])
 
 # Swap src/dst MAC
 mac::MACSwap()
