@@ -268,9 +268,10 @@ placement_constraint Module::ComputePlacementConstraints(
 }
 
 void Module::AddActiveWorker(int wid, const ModuleTask *t) {
-  if (!(active_workers_[wid])) {  // Have not already accounted for
-                                  // worker.
+  if (!HaveVisitedWorker(t)) {  // Have not already accounted for
+                                // worker.
     active_workers_[wid] = true;
+    visited_tasks_.push_back(t);
     // Check if we should propagate downstream. We propagate if either
     // `propagate_workers_` is true or if the current module created the task.
     bool propagate = propagate_workers_;
