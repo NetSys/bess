@@ -44,8 +44,8 @@ CommandResponse NAT::Init(const bess::pb::NATArg &arg) {
 }
 
 static inline std::pair<bool, Endpoint> ExtractEndpoint(const Ipv4 *ip,
-                                                 const void *l4,
-                                                 NAT::Direction dir) {
+                                                        const void *l4,
+                                                        NAT::Direction dir) {
   IpProto proto = static_cast<IpProto>(ip->protocol);
 
   if (likely(proto == IpProto::kTcp || proto == IpProto::kUdp)) {
@@ -67,11 +67,8 @@ static inline std::pair<bool, Endpoint> ExtractEndpoint(const Ipv4 *ip,
     const Icmp *icmp = static_cast<const Icmp *>(l4);
     Endpoint ret;
 
-    if (icmp->type == 0 ||
-        icmp->type == 8 ||
-        icmp->type == 13 ||
-        icmp->type == 15 ||
-        icmp->type == 16) {
+    if (icmp->type == 0 || icmp->type == 8 || icmp->type == 13 ||
+        icmp->type == 15 || icmp->type == 16) {
       if (dir == NAT::kForward) {
         ret = {
             .addr = ip->src, .port = icmp->ident, .protocol = IpProto::kIcmp};

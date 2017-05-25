@@ -47,10 +47,12 @@ struct alignas(8) Endpoint {
 
   struct Hash {
     std::size_t operator()(const Endpoint &e) const {
-#if __SSE4_2__
-      return crc32c_sse42_u32(
-          static_cast<uint32_t>(e.port.raw_value()) << 16 |
-          e.protocol, e.addr.raw_value());
+#if __SSE4_2__ && __x86_64
+      return crc32c_sse42_u64(
+          (static_cast<uint64_t>(e.addr.raw_value()) << 32) |
+              (static_cast<uint64_t>(e.port.raw_value()) << 16) |
+              static_cast<uint64_t>(e.protocol),
+          0);
 #else
       return rte_hash_crc(&e, sizeof(uint64_t), 0);
 #endif
@@ -73,7 +75,7 @@ static_assert(sizeof(Endpoint) == sizeof(uint64_t), "Incorrect Endpoint");
 
 // timestamp is only refreshed for forward mappings (rfc4787 REQ-6)
 // NAT mapping entry will NOT expire unless it runs out of ports in the pool.
-struct alignas(16) NatEntry {
+struct NatEntry {
   Endpoint endpoint;
   uint64_t last_refresh;
 };
