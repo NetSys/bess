@@ -22,7 +22,9 @@ void UpdateTTL::ProcessBatch(bess::PacketBatch *batch) {
     Ipv4 *ip = reinterpret_cast<Ipv4 *>(eth + 1);
 
     if (ip->ttl > 1) {
-      ip->checksum = bess::utils::UpdateChecksumWithIncrement(ip->checksum, 1);
+      // N to N-1 and 2 to 1 are identical for checksum purpose
+      // We use constant numbers here for efficiency.
+      ip->checksum = bess::utils::UpdateChecksum16(ip->checksum, 2, 1);
       ip->ttl -= 1;
       out_batch.add(pkt);
     } else {
