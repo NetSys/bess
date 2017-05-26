@@ -99,16 +99,21 @@ NAT::HashTable::Entry *NAT::CreateNewEntry(const Endpoint &src_internal,
   uint16_t min;
   uint16_t range;  // consider [min, min + range) port range
 
-  if (src_internal.port == be16_t(0)) {
-    // ignore port number 0
-    return nullptr;
-  } else if (src_internal.port & ~be16_t(1023)) {
-    min = 1024;
-    range = 65535 - min + 1;
+  if (src_internal.protocol == IpProto::kIcmp) {
+    min = 0;
+    range = 65535;  // identifier 65535 won't be used, but who cares?
   } else {
-    // Privileged ports are mapped to privileged ports (rfc4787 REQ-5-a)
-    min = 1;
-    range = 1023;
+    if (src_internal.port == be16_t(0)) {
+      // ignore port number 0
+      return nullptr;
+    } else if (src_internal.port & ~be16_t(1023)) {
+      min = 1024;
+      range = 65535 - min + 1;
+    } else {
+      // Privileged ports are mapped to privileged ports (rfc4787 REQ-5-a)
+      min = 1;
+      range = 1023;
+    }
   }
 
   // Start from a random port, then do linear probing
