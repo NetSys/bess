@@ -501,9 +501,10 @@ class BESSControlImpl final : public BESSControl::Service {
       return return_with_error(response, EEXIST, "worker:%d is already active",
                                wid);
     }
-    const std::string &scheduler = request->scheduler();
+    const std::string& scheduler = request->scheduler();
     if (scheduler != "" && scheduler != "experimental") {
-      return return_with_error(response, EINVAL, "Invalid scheduler %s", scheduler.c_str());
+      return return_with_error(response, EINVAL, "Invalid scheduler %s",
+                               scheduler.c_str());
     }
 
     launch_worker(wid, core, scheduler);
@@ -1137,10 +1138,7 @@ class BESSControlImpl final : public BESSControl::Service {
 
     response->set_name(m->name());
     response->set_mclass(m->module_builder()->class_name());
-
     response->set_desc(m->GetDesc());
-
-    // TODO(clan): Dump!
 
     collect_igates(m, response);
     collect_ogates(m, response);

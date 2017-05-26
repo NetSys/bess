@@ -193,7 +193,6 @@ class Module {
   virtual void ProcessBatch(bess::PacketBatch *batch);
 
   virtual std::string GetDesc() const { return ""; }
-  virtual std::string GetDump() const { return ""; }
 
   static const gate_idx_t kNumIGates = 1;
   static const gate_idx_t kNumOGates = 1;
