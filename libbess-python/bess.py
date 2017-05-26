@@ -383,42 +383,34 @@ class BESS(object):
         else:
             return response
 
-    def enable_tcpdump(self, fifo, m, direction='out', gate=0):
-        request = bess_msg.EnableTcpdumpRequest()
-        request.name = m
-        request.is_igate = (direction == 'in')
-        request.gate = gate
-        request.fifo = fifo
-        return self._request('EnableTcpdump', request)
-
-    def disable_tcpdump(self, m, direction='out', gate=0):
-        request = bess_msg.DisableTcpdumpRequest()
-        request.name = m
-        request.is_igate = (direction == 'in')
-        request.gate = gate
-        return self._request('DisableTcpdump', request)
-
-    def enable_track(self, m, direction='out', gate=None):
-        request = bess_msg.EnableTrackRequest()
-        request.name = m
+    def _configure_gate_hook(self, hook, module, arg, enable=None, direction=None, gate=None):
         if gate is None:
-            request.use_gate = False
-        else:
-            request.use_gate = True
-            request.gate = gate
-        request.is_igate = (direction == 'in')
-        return self._request('EnableTrack', request)
+            gate = -1
+        if direction is None:
+            direction = 'out'
+        if enable is None:
+            enable = False
+        request = bess_msg.ConfigureGateHookRequest()
+        request.hook_name = hook
+        request.module_name = module
+        request.enable = enable
+        if direction == 'in':
+            request.igate = gate
+        elif direction == 'out':
+            request.ogate = gate
+        request.arg.Pack(arg)
+        return self._request('ConfigureGateHook', request)
 
-    def disable_track(self, m, direction='out', gate=None):
-        request = bess_msg.DisableTrackRequest()
-        request.name = m
-        if gate is None:
-            request.use_gate = False
-        else:
-            request.use_gate = True
-            request.gate = gate
-        request.is_igate = (direction == 'in')
-        return self._request('DisableTrack', request)
+    def tcpdump(self, enable, m, direction='out', gate=0, fifo=None):
+        arg = bess_msg.TcpdumpArg()
+        if fifo is not None:
+            arg.fifo = fifo
+        return self._configure_gate_hook('tcpdump', m, arg, enable, direction, gate)
+
+    def track_module(self, m, enable, bits=False, direction='out', gate=-1):
+        arg = bess_msg.TrackArg()
+        arg.bits = bits
+        return self._configure_gate_hook('track', m, arg, enable, direction, gate)
 
     def list_workers(self):
         return self._request('ListWorkers')

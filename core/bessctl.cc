@@ -15,6 +15,7 @@
 
 #include "bessd.h"
 #include "gate.h"
+#include "hooks/tcpdump.h"
 #include "hooks/track.h"
 #include "message.h"
 #include "metadata.h"
@@ -52,27 +53,48 @@ static inline Status return_with_errno(T* response, int code) {
   return Status::OK;
 }
 
-static pb_error_t enable_track_for_module(const Module* m, gate_idx_t gate_idx,
-                                          bool is_igate, bool use_gate) {
+static CommandResponse enable_hook_for_module(
+    const Module* m, gate_idx_t gate_idx, bool is_igate, bool use_gate,
+    const bess::GateHookFactory& factory, const google::protobuf::Any& arg) {
   int ret;
 
   if (use_gate) {
+    bess::Gate* gate = nullptr;
     if (is_igate) {
       if (!is_active_gate(m->igates(), gate_idx)) {
-        return pb_error(EINVAL, "Input gate '%hu' does not exist", gate_idx);
+        return CommandFailure(EINVAL, "Input gate '%hu' does not exist",
+                              gate_idx);
       }
-      if ((ret = m->igates()[gate_idx]->AddHook(new TrackGate()))) {
-        return pb_error(ret, "Failed to track input gate '%hu'", gate_idx);
+      gate = m->igates()[gate_idx];
+      bess::GateHook* hook = factory.CreateGateHook();
+      CommandResponse init_ret = factory.InitGateHook(hook, gate, arg);
+      if (init_ret.error().code() != 0) {
+        delete hook;
+        return init_ret;
+      }
+      if ((ret = gate->AddHook(hook))) {
+        return CommandFailure(ret, "Failed to track input gate '%hu'",
+                              gate_idx);
       }
     } else {
       if (!is_active_gate(m->ogates(), gate_idx)) {
-        return pb_error(EINVAL, "Output gate '%hu' does not exist", gate_idx);
+        return CommandFailure(EINVAL, "Output gate '%hu' does not exist",
+                              gate_idx);
       }
-      if ((ret = m->ogates()[gate_idx]->AddHook(new TrackGate()))) {
-        return pb_error(ret, "Failed to track output gate '%hu'", gate_idx);
+      gate = m->ogates()[gate_idx];
+      bess::GateHook* hook = factory.CreateGateHook();
+      CommandResponse init_ret = factory.InitGateHook(hook, gate, arg);
+      if (init_ret.error().code() != 0) {
+        delete hook;
+        return init_ret;
+      }
+      if ((ret = gate->AddHook(hook))) {
+        delete hook;
+        return CommandFailure(ret, "Failed to track output gate '%hu'",
+                              gate_idx);
       }
     }
-    return pb_errno(0);
+    return CommandSuccess();
   }
 
   if (is_igate) {
@@ -80,9 +102,16 @@ static pb_error_t enable_track_for_module(const Module* m, gate_idx_t gate_idx,
       if (!gate) {
         continue;
       }
-      if ((ret = gate->AddHook(new TrackGate()))) {
-        return pb_error(ret, "Failed to track input gate '%hu'",
-                        gate->gate_idx());
+      bess::GateHook* hook = factory.CreateGateHook();
+      CommandResponse init_ret = factory.InitGateHook(hook, gate, arg);
+      if (init_ret.error().code() != 0) {
+        delete hook;
+        return init_ret;
+      }
+      if ((ret = gate->AddHook(hook))) {
+        delete hook;
+        return CommandFailure(ret, "Failed to track input gate '%hu'",
+                              gate->gate_idx());
       }
     }
   } else {
@@ -90,32 +119,44 @@ static pb_error_t enable_track_for_module(const Module* m, gate_idx_t gate_idx,
       if (!gate) {
         continue;
       }
-      if ((ret = gate->AddHook(new TrackGate()))) {
-        return pb_error(ret, "Failed to track output gate '%hu'",
-                        gate->gate_idx());
+      bess::GateHook* hook = factory.CreateGateHook();
+      CommandResponse init_ret = factory.InitGateHook(hook, gate, arg);
+      if (init_ret.error().code() != 0) {
+        delete hook;
+        return init_ret;
+      }
+      if ((ret = gate->AddHook(hook))) {
+        delete hook;
+        return CommandFailure(ret, "Failed to track output gate '%hu'",
+                              gate->gate_idx());
       }
     }
   }
-  return pb_errno(0);
+  return CommandSuccess();
 }
 
-static pb_error_t disable_track_for_module(const Module* m, gate_idx_t gate_idx,
-                                           bool is_igate, bool use_gate) {
+static CommandResponse disable_hook_for_module(const Module* m,
+                                               gate_idx_t gate_idx,
+                                               bool is_igate, bool use_gate,
+                                               const std::string& hook) {
   if (use_gate) {
     if (!is_igate && !is_active_gate(m->ogates(), gate_idx)) {
-      return pb_error(EINVAL, "Output gate '%hu' does not exist", gate_idx);
+      return CommandFailure(EINVAL, "Output gate '%hu' does not exist",
+                            gate_idx);
     }
 
     if (is_igate && !is_active_gate(m->igates(), gate_idx)) {
-      return pb_error(EINVAL, "Input gate '%hu' does not exist", gate_idx);
+      return CommandFailure(EINVAL, "Input gate '%hu' does not exist",
+                            gate_idx);
     }
 
     if (is_igate) {
-      m->igates()[gate_idx]->RemoveHook(kGateHookTrackGate);
-      return pb_errno(0);
+      m->igates()[gate_idx]->RemoveHook(hook);
+      return CommandSuccess();
     }
-    m->ogates()[gate_idx]->RemoveHook(kGateHookTrackGate);
-    return pb_errno(0);
+
+    m->ogates()[gate_idx]->RemoveHook(hook);
+    return CommandSuccess();
   }
 
   if (is_igate) {
@@ -123,17 +164,17 @@ static pb_error_t disable_track_for_module(const Module* m, gate_idx_t gate_idx,
       if (!gate) {
         continue;
       }
-      gate->RemoveHook(kGateHookTrackGate);
+      gate->RemoveHook(hook);
     }
   } else {
     for (auto& gate : m->ogates()) {
       if (!gate) {
         continue;
       }
-      gate->RemoveHook(kGateHookTrackGate);
+      gate->RemoveHook(hook);
     }
   }
-  return pb_errno(0);
+  return CommandSuccess();
 }
 
 static int collect_igates(Module* m, GetModuleInfoResponse* response) {
@@ -144,12 +185,12 @@ static int collect_igates(Module* m, GetModuleInfoResponse* response) {
 
     GetModuleInfoResponse_IGate* igate = response->add_igates();
 
-    TrackGate* t =
-        reinterpret_cast<TrackGate*>(g->FindHook(kGateHookTrackGate));
+    Track* t = reinterpret_cast<Track*>(g->FindHook(Track::kName));
 
     if (t) {
       igate->set_cnt(t->cnt());
       igate->set_pkts(t->pkts());
+      igate->set_bytes(t->bytes());
       igate->set_timestamp(get_epoch_time());
     }
 
@@ -173,11 +214,11 @@ static int collect_ogates(Module* m, GetModuleInfoResponse* response) {
     GetModuleInfoResponse_OGate* ogate = response->add_ogates();
 
     ogate->set_ogate(g->gate_idx());
-    TrackGate* t =
-        reinterpret_cast<TrackGate*>(g->FindHook(kGateHookTrackGate));
+    Track* t = reinterpret_cast<Track*>(g->FindHook(Track::kName));
     if (t) {
       ogate->set_cnt(t->cnt());
       ogate->set_pkts(t->pkts());
+      ogate->set_bytes(t->bytes());
       ogate->set_timestamp(get_epoch_time());
     }
     ogate->set_name(g->igate()->module()->name());
@@ -1237,152 +1278,67 @@ class BESSControlImpl final : public BESSControl::Service {
     return Status::OK;
   }
 
-  Status EnableTcpdump(ServerContext*, const EnableTcpdumpRequest* request,
-                       EmptyResponse* response) override {
+  Status ConfigureGateHook(ServerContext*,
+                           const ConfigureGateHookRequest* request,
+                           CommandResponse* response) override {
     if (is_any_worker_running()) {
       return return_with_error(response, EBUSY, "There is a running worker");
     }
-    const char* m_name;
-    const char* fifo;
-    gate_idx_t gate;
-    bool is_igate;
 
-    int ret;
+    bool use_gate = true;
+    gate_idx_t gate_idx = 0;
+    bool is_igate =
+        request->gate_case() == bess::pb::ConfigureGateHookRequest::kIgate;
 
-    m_name = request->name().c_str();
-    gate = request->gate();
-    is_igate = request->is_igate();
-    fifo = request->fifo().c_str();
-
-    if (!request->name().length())
-      return return_with_error(response, EINVAL, "Missing 'name' field");
-
-    const auto& it = ModuleBuilder::all_modules().find(request->name());
-    if (it == ModuleBuilder::all_modules().end()) {
-      return return_with_error(response, ENOENT, "No module '%s' found",
-                               m_name);
-    }
-    Module* m = it->second;
-
-    if (!is_igate && !is_active_gate(m->ogates(), gate))
-      return return_with_error(response, EINVAL,
-                               "Output gate '%hu' does not exist", gate);
-
-    if (is_igate && !is_active_gate(m->igates(), gate))
-      return return_with_error(response, EINVAL,
-                               "Input gate '%hu' does not exist", gate);
-
-    // TODO(melvin): actually change protobufs when new bessctl arrives
-    ret = m->EnableTcpDump(fifo, is_igate, gate);
-
-    if (ret < 0) {
-      return return_with_error(response, -ret, "Enabling tcpdump %s:%d failed",
-                               m_name, gate);
+    if (is_igate) {
+      gate_idx = request->igate();
+      use_gate = request->igate() >= 0;
+    } else {
+      gate_idx = request->ogate();
+      use_gate = request->ogate() >= 0;
     }
 
-    return Status::OK;
-  }
-
-  Status DisableTcpdump(ServerContext*, const DisableTcpdumpRequest* request,
-                        EmptyResponse* response) override {
-    if (is_any_worker_running()) {
-      return return_with_error(response, EBUSY, "There is a running worker");
-    }
-    const char* m_name;
-    gate_idx_t gate;
-    bool is_igate;
-
-    int ret;
-
-    m_name = request->name().c_str();
-    gate = request->gate();
-    is_igate = request->is_igate();
-
-    if (!request->name().length()) {
-      return return_with_error(response, EINVAL, "Missing 'name' field");
+    const auto factory = bess::GateHookFactory::all_gate_hook_factories().find(
+        request->hook_name());
+    if (factory == bess::GateHookFactory::all_gate_hook_factories().end()) {
+      return return_with_error(response, ENOENT, "No such gate hook: %s",
+                               request->hook_name().c_str());
     }
 
-    const auto& it = ModuleBuilder::all_modules().find(request->name());
-    if (it == ModuleBuilder::all_modules().end()) {
-      return return_with_error(response, ENOENT, "No module '%s' found",
-                               m_name);
-    }
-
-    Module* m = it->second;
-    if (!is_igate && !is_active_gate(m->ogates(), gate))
-      return return_with_error(response, EINVAL,
-                               "Output gate '%hu' does not exist", gate);
-
-    if (is_igate && !is_active_gate(m->igates(), gate))
-      return return_with_error(response, EINVAL,
-                               "Input gate '%hu' does not exist", gate);
-
-    // TODO(melvin): actually change protobufs when new bessctl arrives
-    ret = m->DisableTcpDump(is_igate, gate);
-
-    if (ret < 0) {
-      return return_with_error(response, -ret, "Disabling tcpdump %s:%d failed",
-                               m_name, gate);
-    }
-    return Status::OK;
-  }
-
-  Status EnableTrack(ServerContext*, const EnableTrackRequest* request,
-                     EmptyResponse* response) override {
-    if (is_any_worker_running()) {
-      return return_with_error(response, EBUSY, "There is a running worker");
-    }
-    pb_error_t* error = response->mutable_error();
-    if (!request->name().length()) {
+    if (request->module_name().length() == 0) {
+      // Install this hook on all modules
       for (const auto& it : ModuleBuilder::all_modules()) {
-        *error =
-            enable_track_for_module(it.second, request->gate(),
-                                    request->is_igate(), request->use_gate());
-        if (error->code() != 0) {
+        if (request->enable()) {
+          *response =
+              enable_hook_for_module(it.second, gate_idx, is_igate, use_gate,
+                                     factory->second, request->arg());
+        } else {
+          *response = disable_hook_for_module(it.second, gate_idx, is_igate,
+                                              use_gate, request->hook_name());
+        }
+        if (response->error().code() != 0) {
           return Status::OK;
         }
       }
       return Status::OK;
-    } else {
-      const auto& it = ModuleBuilder::all_modules().find(request->name());
-      if (it == ModuleBuilder::all_modules().end()) {
-        *error =
-            pb_error(ENOENT, "No module '%s' found", request->name().c_str());
-      }
-      *error =
-          enable_track_for_module(it->second, request->gate(),
-                                  request->is_igate(), request->use_gate());
-      return Status::OK;
     }
-  }
 
-  Status DisableTrack(ServerContext*, const DisableTrackRequest* request,
-                      EmptyResponse* response) override {
-    if (is_any_worker_running()) {
-      return return_with_error(response, EBUSY, "There is a running worker");
+    // Install this hook on the specified module
+    const auto& it = ModuleBuilder::all_modules().find(request->module_name());
+    if (it == ModuleBuilder::all_modules().end()) {
+      *response = CommandFailure(ENOENT, "No module '%s' found",
+                                 request->module_name().c_str());
     }
-    pb_error_t* error = response->mutable_error();
-    if (!request->name().length()) {
-      for (const auto& it : ModuleBuilder::all_modules()) {
-        *error =
-            disable_track_for_module(it.second, request->gate(),
-                                     request->is_igate(), request->use_gate());
-        if (error->code() != 0) {
-          return Status::OK;
-        }
-      }
-      return Status::OK;
+    if (request->enable()) {
+      *response =
+          enable_hook_for_module(it->second, gate_idx, is_igate, use_gate,
+                                 factory->second, request->arg());
     } else {
-      const auto& it = ModuleBuilder::all_modules().find(request->name());
-      if (it == ModuleBuilder::all_modules().end()) {
-        *error =
-            pb_error(ENOENT, "No module '%s' found", request->name().c_str());
-      }
-      *error =
-          disable_track_for_module(it->second, request->gate(),
-                                   request->is_igate(), request->use_gate());
-      return Status::OK;
+      *response = disable_hook_for_module(it->second, gate_idx, is_igate,
+                                          use_gate, request->hook_name());
     }
+
+    return Status::OK;
   }
 
   Status KillBess(ServerContext*, const EmptyRequest*,

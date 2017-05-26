@@ -1,9 +1,38 @@
 #include "gate.h"
 
 #include <algorithm>
+#include <map>
 #include <string>
+#include <utility>
 
 namespace bess {
+
+bool GateHookFactory::RegisterGateHook(hook_constructor_t constructor,
+                                       hook_init_func_t init_func,
+                                       const std::string &hook_name) {
+  return all_gate_hook_factories_holder()
+      .emplace(std::piecewise_construct, std::forward_as_tuple(hook_name),
+               std::forward_as_tuple(constructor, init_func, hook_name))
+      .second;
+}
+
+std::map<std::string, GateHookFactory>
+    &GateHookFactory::all_gate_hook_factories_holder(bool reset) {
+  // Maps from hook names to hook factories. Tracks all hooks (via their
+  // GateHookFactorys).
+  static std::map<std::string, GateHookFactory> all_gate_hook_factories;
+
+  if (reset) {
+    all_gate_hook_factories.clear();
+  }
+
+  return all_gate_hook_factories;
+}
+
+const std::map<std::string, GateHookFactory>
+    &GateHookFactory::all_gate_hook_factories() {
+  return all_gate_hook_factories_holder();
+}
 
 int Gate::AddHook(GateHook *hook) {
   for (const auto &h : hooks_) {

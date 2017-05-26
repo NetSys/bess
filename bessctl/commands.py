@@ -771,6 +771,7 @@ def run_file(cli, conf_file, env_map):
 def add_worker(cli, wid, core, scheduler):
     cli.bess.add_worker(wid, core, scheduler or '')
 
+
 @cmd('add port DRIVER [NEW_PORT] [PORT_ARGS...]', 'Add a new port')
 def add_port(cli, driver, port, args):
     ret = cli.bess.create_port(driver, port, args)
@@ -1129,7 +1130,7 @@ def show_status(cli):
 
 
 # last_stats: a map of (node name, gateid) -> (timestamp, counter value)
-def _draw_pipeline(cli, field, last_stats=None):
+def _draw_pipeline(cli, field, units, last_stats=None):
     modules = sorted(cli.bess.list_modules().modules, key=lambda x: x.name)
     names = []
     node_labels = {}
@@ -1156,21 +1157,26 @@ def _draw_pipeline(cli, field, last_stats=None):
             gates = cli.bess.get_module_info(name).ogates
 
             for gate in gates:
-                if last_stats is not None:
-                    last_time, last_val = last_stats[(name, gate.ogate)]
-                    new_time, new_val = gate.timestamp, getattr(gate, field)
-                    last_stats[(name, gate.ogate)] = (new_time, new_val)
-
-                    if new_time != last_time:
-                        val = str(int((new_val - last_val) / (
-                                      new_time - last_time)))
-                    else:
-                        val = "?"
+                if gate.timestamp == 0.0:  # stats disabled?
+                    label = '?'
                 else:
-                    val = str(getattr(gate, field))
+                    if last_stats is None:  # show pipeline
+                        val = getattr(gate, field)
+                    else:  # monitor pipeline
+                        last_time, last_val = last_stats[(name, gate.ogate)]
+                        new_time, new_val = gate.timestamp, getattr(
+                            gate, field)
+                        last_stats[(name, gate.ogate)] = (new_time, new_val)
 
-                edge_attr = '{label::%d  %s  %d:;}' % (
-                    gate.ogate, val, gate.igate)
+                        val = (new_val - last_val) / (new_time - last_time)
+
+                    if field == 'bytes':
+                        label = '%.1f' % (val * 8 / 1e6)
+                    else:
+                        label = '%d' % val
+
+                edge_attr = '{label::%d  %s %s %d:;}' % (
+                    gate.ogate, label, units, gate.igate)
 
                 print >> f.stdin, '[%s] ->%s [%s]' % (
                     node_labels[name],
@@ -1191,13 +1197,19 @@ def _draw_pipeline(cli, field, last_stats=None):
 
 @cmd('show pipeline', 'Show the current datapath pipeline')
 def show_pipeline(cli):
-    cli.fout.write(_draw_pipeline(cli, 'pkts'))
+    cli.fout.write(_draw_pipeline(cli, 'pkts', ''))
 
 
 @cmd('show pipeline batch',
      'Show the current datapath pipeline with batch counters')
 def show_pipeline_batch(cli):
-    cli.fout.write(_draw_pipeline(cli, 'cnt'))
+    cli.fout.write(_draw_pipeline(cli, 'cnt', ''))
+
+
+@cmd('show pipeline bit',
+     'Show the current datapath pipeline with Megabit counters')
+def show_pipeline_bit(cli):
+    cli.fout.write(_draw_pipeline(cli, 'bytes', 'Mb'))
 
 
 def _show_port(cli, port):
@@ -1412,7 +1424,7 @@ def show_version(cli):
     cli.fout.write('%s\n' % version.version)
 
 
-def _monitor_pipeline(cli, field):
+def _monitor_pipeline(cli, field, units):
     modules = sorted(cli.bess.list_modules().modules, key=lambda x: x.name)
 
     last_stats = {}
@@ -1426,7 +1438,7 @@ def _monitor_pipeline(cli, field):
     try:
         while True:
             time.sleep(1)
-            cli.fout.write(_draw_pipeline(cli, field, last_stats))
+            cli.fout.write(_draw_pipeline(cli, field, units, last_stats))
             cli.fout.write('\n')
     except KeyboardInterrupt:
         pass
@@ -1434,13 +1446,19 @@ def _monitor_pipeline(cli, field):
 
 @cmd('monitor pipeline', 'Monitor packet counters in the datapath pipeline')
 def monitor_pipeline(cli):
-    _monitor_pipeline(cli, 'pkts')
+    _monitor_pipeline(cli, 'pkts', '')
 
 
 @cmd('monitor pipeline batch',
      'Monitor batch counters in the datapath pipeline')
 def monitor_pipeline_batch(cli):
-    _monitor_pipeline(cli, 'cnt')
+    _monitor_pipeline(cli, 'cnt', '')
+
+
+@cmd('monitor pipeline bit',
+     'Monitor Megabit counters in the datapath pipeline')
+def monitor_pipeline_bit(cli):
+    _monitor_pipeline(cli, 'bytes', 'Mbps')
 
 
 PortRate = collections.namedtuple('PortRate',
@@ -1680,7 +1698,7 @@ def tcpdump_module(cli, module_name, direction, gate, opts):
 
     cli.bess.pause_all()
     try:
-        cli.bess.enable_tcpdump(fifo, module_name, direction, gate)
+        cli.bess.tcpdump(True, module_name, direction, gate, fifo)
     finally:
         cli.bess.resume_all()
 
@@ -1692,7 +1710,7 @@ def tcpdump_module(cli, module_name, direction, gate, opts):
     finally:
         cli.bess.pause_all()
         try:
-            cli.bess.disable_tcpdump(module_name, direction, gate)
+            cli.bess.tcpdump(False, module_name, direction, gate)
         finally:
             cli.bess.resume_all()
 
@@ -1704,9 +1722,7 @@ def tcpdump_module(cli, module_name, direction, gate, opts):
             pass
 
 
-@cmd('track ENABLE_DISABLE [MODULE] [DIRECTION] [GATE]',
-     'Count the packets and batches on a gate')
-def track_module(cli, flag, module_name, direction, gate):
+def _track_module(cli, bits, flag, module_name, direction, gate):
     if direction is None:
         direction = 'out'
     if module_name in [None, '*']:
@@ -1715,11 +1731,23 @@ def track_module(cli, flag, module_name, direction, gate):
     cli.bess.pause_all()
     try:
         if flag == 'enable':
-            cli.bess.enable_track(module_name, direction, gate)
+            cli.bess.track_module(module_name, True, bits, direction, gate)
         else:
-            cli.bess.disable_track(module_name, direction, gate)
+            cli.bess.track_module(module_name, False, bits, direction, gate)
     finally:
         cli.bess.resume_all()
+
+
+@cmd('track ENABLE_DISABLE [MODULE] [DIRECTION] [GATE]',
+     'Count the packets and batches on a gate')
+def track_module(cli, flag, module_name, direction, gate):
+    _track_module(cli, False, flag, module_name, direction, gate)
+
+
+@cmd('track bit ENABLE_DISABLE [MODULE] [DIRECTION] [GATE]',
+     'Count the packets, batches and bits on a gate')
+def track_module_bits(cli, flag, module_name, direction, gate):
+    _track_module(cli, True, flag, module_name, direction, gate)
 
 
 @cmd('interactive', 'Switch to interactive mode')

@@ -251,43 +251,10 @@ service BESSControl {
   ///       For those commands you must pause all workers first.
   rpc ModuleCommand (CommandRequest) returns (CommandResponse) {}
 
-
   //  -------------------------------------------------------------------------
-  //  Module hook
+  //  Gate hooks
   //  -------------------------------------------------------------------------
 
-  /// Enable "track" hook on a gate (or all gates)
-  ///
-  /// "track" hook accumulates the number of total packets & batches passing
-  /// through a gate. This incurs some amount of CPU overheads. While the cost
-  /// is very small, remember that the delay adds up at every gate.
-  ///
-  /// NOTE: There should be no running worker to run this command.
-  rpc EnableTrack (EnableTrackRequest) returns (EmptyResponse) {}
-
-  /// Disable "track" hook on a gate (or all gates)
-  ///
-  /// You may want to disable the hook to squeeze out CPU cycles
-  /// as much as you can.
-  ///
-  /// NOTE: There should be no running worker to run this command.
-  rpc DisableTrack (DisableTrackRequest) returns (EmptyResponse) {}
-
-  /// Enable tcpdump tapping at an input/output gate.
-  ///
-  /// Once the tap is installed, all packets going through the gate will be
-  /// captured and sent in PCAP format to the specified named pipe (FIFO).
-  /// Thus you can run `tcpdump -r <path to FIFO>` or save the stream in a file.
-  /// This feature may afffect performance.
-  ///
-  /// NOTE: There should be no running worker to run this command.
-  rpc EnableTcpdump (EnableTcpdumpRequest) returns (EmptyResponse) {}
-
-  /// Disable tcpdump tapping at an input/output gate.
-  ///
-  /// Stop mirroring packets and Close the FIFO. Also see EnableTcpdumpRequest.
-  /// Once disabled the performance overhead will be gone.
-  ///
-  /// NOTE: There should be no running worker to run this command.
-  rpc DisableTcpdump (DisableTcpdumpRequest) returns (EmptyResponse) {}
+  /// Enable/Disable a gate hook.
+  rpc ConfigureGateHook (ConfigureGateHookRequest) returns (CommandResponse) {}
 }

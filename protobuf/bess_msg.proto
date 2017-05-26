@@ -345,15 +345,17 @@ message GetModuleInfoResponse {
     repeated OGate ogates = 2;  /// The list of upstream output gates
     uint64 cnt = 3;             /// # of packet batches seen
     uint64 pkts = 4;            /// # of packets seen
-    double timestamp = 5;       /// The time that cnt/pkts counters were read
+    uint64 bytes = 5;            /// # of bytes seen
+    double timestamp = 6;       /// The time that cnt/pkts counters were read
   }
   message OGate {
     uint64 ogate = 1;      /// Output gate ID
     uint64 cnt = 2;        /// # of packet batches seen
     uint64 pkts = 3;       /// # of packets seen
-    double timestamp = 4;  /// The time thatcnt/pkts counters were read
-    string name = 5;       /// Name of the "next" module it connects to
-    uint64 igate = 6;      /// Input gate ID of the "next" module
+    uint64 bytes = 4;      /// # of bytes seen
+    double timestamp = 5;  /// The time thatcnt/pkts counters were read
+    string name = 6;       /// Name of the "next" module it connects to
+    uint64 igate = 7;      /// Input gate ID of the "next" module
   }
   message Attribute {
     string name = 1;   /// Name of per-packet metadata attribute
@@ -395,44 +397,41 @@ message CommandResponse {
 
 
 //  -------------------------------------------------------------------------
-//  Module hook
+//  Gate hooks
 //  -------------------------------------------------------------------------
 
-message EnableTrackRequest {
-  string name = 1;    /// Name of module
-  int64 gate = 2;     /// Gate ID, starting from 0
-  bool is_igate = 3;  /// Either input gate (True) or output gate (False)
-  bool use_gate = 4;  /// If False, the hook is installed on all igates & ogates
-
-  // FIXME: use oneof {igate, ogate)
-  // FIXME: get rid of use_gate (e.g., gate == -1)
+/// Enable/Disable the "track" hook on a gate (or all gates)
+///
+/// "track" hook accumulates the number of total packets, batches and bits
+///  passing through a gate. This incurs some amount of CPU overheads. While
+///  the cost is very small, remember that the delay adds up at every gate.
+///
+/// NOTE: There should be no running worker to run this command.
+message TrackArg {
+  bool bits = 5;  /// Tracks bits too if True, else only packets and batches
 }
 
-message DisableTrackRequest {
-  string name = 1;    /// Name of module
-  int64 gate = 2;     /// Gate ID, starting from 0
-  bool is_igate = 3;  /// Either input gate (True) or output gate (False)
-  bool use_gate = 4;  /// If False, the hook is installed on all igates & ogates
-
-  // FIXME: use oneof {igate, ogate)
-  // FIXME: get rid of use_gate (e.g., gate == -1)
+/// Enable/Disable tcpdump tapping at an input/output gate.
+///
+/// Once the tap is installed, all packets going through the gate will be
+/// captured and sent in PCAP format to the specified named pipe (FIFO).
+/// Thus you can run `tcpdump -r <path to FIFO>` or save the stream in a file.
+/// This feature may afffect performance.
+///
+/// NOTE: There should be no running worker to run this command.
+message TcpdumpArg {
+  string fifo = 5;    /// Path to the FIFO file.
 }
 
-message EnableTcpdumpRequest {
-  string name = 1;    /// Name of module
-  uint64 gate = 2;    /// Gate ID, starting from 0
-  string fifo = 3;    /// Path to the FIFO file.
-  bool is_igate = 4;  /// Either input gate (True) or output gate (False)
-
-  // FIXME: use oneof {igate, ogate)
-}
-
-message DisableTcpdumpRequest {
-  string name = 1;    /// Name of module
-  uint64 gate = 2;    /// Gate ID, starting from 0
-  bool is_igate = 3;  /// Either input gate (True) or output gate (False)
-
-  // FIXME: use oneof {igate, ogate)
+message ConfigureGateHookRequest {
+  string hook_name = 1;         /// Name of the hook
+  string module_name = 2;       /// Name of module
+  bool enable = 3;              /// Installs the hook if True, else uninstalls
+  oneof gate {
+    int64 igate = 4;            /// Input gate index. All input gates if -1
+    int64 ogate = 5;            /// Output gate index. All output gates if -1
+  }
+  google.protobuf.Any arg = 6;  /// Hook-specific arguments
 }
 
 //  -------------------------------------------------------------------------

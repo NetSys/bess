@@ -1,9 +1,5 @@
 #include "module.h"
 
-#include <fcntl.h>
-#include <sys/uio.h>
-#include <unistd.h>
-
 #include <glog/logging.h>
 
 #include <algorithm>
@@ -403,7 +399,7 @@ int Module::ConnectModules(gate_idx_t ogate_idx, Module *m_next,
   ogate->set_igate_idx(igate_idx);
 
   // Gate tracking is enabled by default
-  ogate->AddHook(new TrackGate());
+  ogate->AddHook(new Track());
   igate->PushOgate(ogate);
 
   return 0;
@@ -595,82 +591,6 @@ void _trace_after_call(void) {
   s->curr_indent = s->indent[s->depth];
 }
 #endif
-
-// TODO(melvin): Much of this belongs in the TcpDump constructor.
-int Module::EnableTcpDump(const char *fifo, int is_igate, gate_idx_t gate_idx) {
-  static const struct pcap_hdr PCAP_FILE_HDR = {
-      .magic_number = PCAP_MAGIC_NUMBER,
-      .version_major = PCAP_VERSION_MAJOR,
-      .version_minor = PCAP_VERSION_MINOR,
-      .thiszone = PCAP_THISZONE,
-      .sigfigs = PCAP_SIGFIGS,
-      .snaplen = PCAP_SNAPLEN,
-      .network = PCAP_NETWORK,
-  };
-  bess::Gate *gate;
-
-  int fd;
-  int ret;
-
-  /* Don't allow tcpdump to be attached to gates that are not active */
-  if (!is_igate && !is_active_gate<bess::OGate>(ogates_, gate_idx))
-    return -EINVAL;
-
-  if (is_igate && !is_active_gate<bess::IGate>(igates_, gate_idx))
-    return -EINVAL;
-
-  fd = open(fifo, O_WRONLY | O_NONBLOCK);
-  if (fd < 0)
-    return -errno;
-
-  /* Looooong time ago Linux ignored O_NONBLOCK in open().
-   * Try again just in case. */
-  ret = fcntl(fd, F_SETFL, fcntl(fd, F_GETFL) | O_NONBLOCK);
-  if (ret < 0) {
-    close(fd);
-    return -errno;
-  }
-
-  ret = write(fd, &PCAP_FILE_HDR, sizeof(PCAP_FILE_HDR));
-  if (ret < 0) {
-    close(fd);
-    return -errno;
-  }
-
-  if (is_igate) {
-    gate = igates_[gate_idx];
-  } else {
-    gate = ogates_[gate_idx];
-  }
-
-  TcpDump *tcpdump = new TcpDump();
-  if (!gate->AddHook(tcpdump)) {
-    tcpdump->set_fifo_fd(fd);
-  } else {
-    delete tcpdump;
-  }
-
-  return 0;
-}
-
-int Module::DisableTcpDump(int is_igate, gate_idx_t gate_idx) {
-  if (!is_igate && !is_active_gate<bess::OGate>(ogates_, gate_idx))
-    return -EINVAL;
-
-  if (is_igate && !is_active_gate<bess::IGate>(igates_, gate_idx))
-    return -EINVAL;
-
-  bess::Gate *gate;
-  if (is_igate) {
-    gate = igates_[gate_idx];
-  } else {
-    gate = ogates_[gate_idx];
-  }
-
-  gate->RemoveHook(kGateHookTcpDumpGate);
-
-  return 0;
-}
 
 void propagate_active_worker() {
   for (auto &pair : ModuleBuilder::all_modules()) {
