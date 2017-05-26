@@ -7,11 +7,11 @@ def queue_test():
 
     bess.add_tc('fast', policy='rate_limit',
                 resource='packet', limit={'packet': 9000000})
-    bess.attach_module(src.name, 'fast')
+    src.attach_task('fast')
 
     bess.add_tc('slow', policy='rate_limit',
                 resource='packet', limit={'packet': 1000000})
-    bess.attach_module(queue.name, 'slow')
+    queue.attach_task('slow')
 
 
 def nat_test():

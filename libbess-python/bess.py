@@ -520,7 +520,7 @@ class BESS(object):
 
     # Deprecated alias for attach_task
     def attach_module(self, *args, **kwargs):
-        return attach_task(self, *args, **kwargs)
+        return self.attach_task(self, *args, **kwargs)
 
     def get_tc_stats(self, name):
         request = bess_msg.GetTcStatsRequest()
