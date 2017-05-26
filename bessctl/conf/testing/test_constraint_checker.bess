@@ -45,13 +45,8 @@ def nat_negative_test():
     nat = NAT(ext_addrs=['192.168.1.1'])
     src0 -> 0:nat:0 -> Sink()
     src1 -> 1:nat:1 -> Sink()
-<<<<<<< cae02101c1434ea659c18966d7fa14847639260f
     src0.attach_task(wid=0)
     src1.attach_task(wid=1)
-=======
-    bess.attach_module(src0.name, wid=0)
-    bess.attach_module(src1.name, wid=1)
->>>>>>> Update NAT arguments
 
 
 def test_no_error(test):
