@@ -42,7 +42,13 @@ using bess::utils::be32_t;
 
 struct alignas(8) Endpoint {
   be32_t addr;
-  be16_t port;    // identifier if ICMP
+
+  // TCP/UDP port number or ICMP identifier
+  be16_t port;
+
+  // L4 protocol (IPPROTO_*). Note that this is a 1-byte field in the IP header,
+  // but we store the value in a 2-byte field so that the struct be 8-byte long
+  // without a hole, without needing to initialize it explicitly.
   uint16_t protocol;
 
   struct Hash {
@@ -60,7 +66,7 @@ struct alignas(8) Endpoint {
   };
 
   struct EqualTo {
-    bool operator()(const Endpoint& lhs, const Endpoint& rhs) const {
+    bool operator()(const Endpoint &lhs, const Endpoint &rhs) const {
       const union {
         Endpoint endpoint;
         uint64_t u64;
@@ -73,11 +79,14 @@ struct alignas(8) Endpoint {
 
 static_assert(sizeof(Endpoint) == sizeof(uint64_t), "Incorrect Endpoint");
 
-// timestamp is only refreshed for forward mappings (rfc4787 REQ-6)
-// NAT mapping entry will NOT expire unless it runs out of ports in the pool.
 struct NatEntry {
   Endpoint endpoint;
-  uint64_t last_refresh;
+
+  // last_refresh is only updated for forward-direction (outbound) packets, as
+  // per rfc4787 REQ-6. Reverse entries will have an garbage value.
+  // We do lazy reclaim of expired; NAT mapping entry will NOT expire unless it
+  // runs out of ports in the pool.
+  uint64_t last_refresh;  // in nanoseconds (ctx.current_ns)
 };
 
 // NAT module. 2 igates and 2 ogates
