@@ -6,7 +6,7 @@ bess.add_tc('schedule_limit',
             policy='rate_limit',
             resource='count',
             limit={'count': 100000})
-bess.attach_module(src0.name, 'schedule_limit')
+src0.attach_task(parent='schedule_limit')
 
 # up to 100Mhz
 src1::Source() -> Sink()
@@ -14,7 +14,7 @@ bess.add_tc('cycle_limit',
             policy='rate_limit',
             resource='cycle',
             limit={'cycle': 100000000})
-bess.attach_module(src1.name, 'cycle_limit')
+src1.attach_task(parent='cycle_limit')
 
 # 10M packets / sec
 src2::Source() -> Sink()
@@ -22,7 +22,7 @@ bess.add_tc('packet_limit',
             policy='rate_limit',
             resource='packet',
             limit={'packet': 10000000})
-bess.attach_module(src2.name, 'packet_limit')
+src2.attach_task(parent='packet_limit')
 
 # Gigabits per second
 src3::Source() -> Sink()
@@ -30,6 +30,6 @@ bess.add_tc('bit_limit',
             policy='rate_limit',
             resource='bit',
             limit={'bit': 1000000000})
-bess.attach_module(src3.name, 'bit_limit')
+src3.attach_task(parent='bit_limit')
 
 src4::Source() -> Sink()

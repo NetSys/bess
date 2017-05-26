@@ -41,8 +41,8 @@ src2::Source() -> Sink()
 bess.resume_all()
 bess.pause_all()
 
-bess.attach_module(src0.name, 'rl')
-bess.attach_module(src1.name, '1', share=2)
-bess.attach_module(src2.name, 'main', priority=1000)
+src0.attach_task(parent='rl')
+src1.attach_task(parent='1', share=2)
+src2.attach_task(parent='main', priority=1000)
 bess.update_tc_params('rl', resource='bit', limit={'bit': 300000})
 # Do not resume_all here, bessctl will automatically resume

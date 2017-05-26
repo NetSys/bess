@@ -489,8 +489,20 @@ class BESS(object):
 
         return self._request('UpdateTcParams', request)
 
-    def attach_module(self, module_name, parent='', wid=-1,
-                      module_taskid=0, priority=None, share=None):
+    # Attach the task numbered `module_taskid` (usually modules only have one
+    # task, numbered 0) from the module `module_name` to a TC tree.
+    #
+    # The behavior differs based on the arguments provided:
+    #
+    # * If `wid` is specified, the task is attached as a root in the worker
+    #   `wid`.  If `wid` has multiple roots they will be under a default
+    #   round-robin policy.
+    # * If `parent` is specified, the task is attached as a child of `parent`.
+    #   If `parent` is a priority or weighted_fair TC, `priority` or `share`
+    #   can be used to customize the child parameter.
+    #
+    def attach_task(self, module_name, parent='', wid=-1,
+                    module_taskid=0, priority=None, share=None):
         request = bess_msg.UpdateTcParentRequest()
         class_ = getattr(request, 'class')
         class_.leaf_module_name = module_name
@@ -505,6 +517,10 @@ class BESS(object):
             class_.share = share
 
         return self._request('UpdateTcParent', request)
+
+    # Deprecated alias for attach_task
+    def attach_module(self, *args, **kwargs):
+        return attach_task(self, *args, **kwargs)
 
     def get_tc_stats(self, name):
         request = bess_msg.GetTcStatsRequest()

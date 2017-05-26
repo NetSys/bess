@@ -22,10 +22,10 @@ src2::Source() ->Rewrite(templates=[pkt_bytes2]) \
 # as a result of the throttle on drr, drr will fairly distribute the throughput across
 # all of the flows. (In order to maximize fairness, the quantum should be tweaked) 
 bess.add_tc('fast', policy='rate_limit', resource='packet', limit={'packet': 90000})
-bess.attach_module(src1.name, 'fast')
+src1.attach_task(parent='fast')
 
 bess.add_tc('slow', policy='rate_limit', resource='packet', limit={'packet': 40000})
-bess.attach_module(src2.name, 'slow')
+src2.attach_task(parent='slow')
 
 bess.add_tc('medium', policy='rate_limit', resource='packet', limit={'packet': 50000})
-bess.attach_module(q.name, 'medium')
+q.attach_task(parent='medium')

@@ -76,11 +76,11 @@ def fairness_test():
         for i in range(0, n):
             bess.add_tc('r'+ str(i) , policy='rate_limit', resource='packet',
                     limit={'packet': rates[i]})
-            bess.attach_module(src[i].name, 'r'+ str(i))
+            src[i].attach_task(parent='r'+ str(i))
 
         bess.add_tc('output', policy='rate_limit', resource='packet',
                 limit={'packet': module_rate})
-        bess.attach_module(q.name, 'output')
+        q.attach_task(parent='output')
 
         bess.resume_all()
         time.sleep(5)

@@ -16,8 +16,8 @@ bess.add_tc('w0_rr', policy='round_robin', parent='w0_1000MHz')
 bess.add_tc('w0_500MHz_0', policy='rate_limit', resource='cycle', limit={'cycle': int(0.5e9)}, parent='w0_rr')
 bess.add_tc('w0_500MHz_1', policy='rate_limit', resource='cycle', limit={'cycle': int(0.5e9)}, parent='w0_rr')
 
-bess.attach_module(w0_src0.name, 'w0_500MHz_0')
-bess.attach_module(w0_src1.name, 'w0_500MHz_1')
+w0_src0.attach_task(parent='w0_500MHz_0')
+w0_src1.attach_task(parent='w0_500MHz_1')
 
 # Worker 1: traffic classes with burstiness allowance
 w1_src0::Source() -> w1_rewrite::Rewrite(templates=[dummy_pkt]) -> Sink()
@@ -31,5 +31,5 @@ bess.add_tc('w1_rr', policy='round_robin', parent='w1_1000MHz')
 bess.add_tc('w1_500MHz_0', policy='rate_limit', resource='cycle', limit={'cycle': int(0.5e9)}, max_burst={'cycle': 10000}, parent='w1_rr')
 bess.add_tc('w1_500MHz_1', policy='rate_limit', resource='cycle', limit={'cycle': int(0.5e9)}, max_burst={'cycle': 10000}, parent='w1_rr')
 
-bess.attach_module(w1_src0.name, 'w1_500MHz_0')
-bess.attach_module(w1_src1.name, 'w1_500MHz_1')
+w1_src0.attach_task(parent='w1_500MHz_0')
+w1_src1.attach_task(parent='w1_500MHz_1')

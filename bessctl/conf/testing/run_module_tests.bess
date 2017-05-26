@@ -89,7 +89,7 @@ def load_test(filename):
 
 
 def monitor_task(module, wid):
-    bess.attach_module(module.name, wid=wid)
+    module.attach_task(wid=wid)
 
 
 ## RUN TEST LOOP ##
