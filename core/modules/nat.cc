@@ -81,7 +81,8 @@ static inline std::pair<bool, Endpoint> ExtractEndpoint(const Ipv4 *ip,
     }
   }
 
-  return std::make_pair(false, Endpoint{});
+  return std::make_pair(
+      false, Endpoint{.addr = ip->src, .port = be16_t(0), .protocol = 0});
 }
 
 // Not necessary to inline this function, since it is less frequently called
