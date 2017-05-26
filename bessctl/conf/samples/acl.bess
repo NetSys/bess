@@ -1,8 +1,4 @@
 import scapy.all as scapy
-import socket
-
-def aton(ip):
-    return socket.inet_aton(ip)
 
 # Craft a packet with the specified IP addresses
 def gen_packet(proto, src_ip, dst_ip):
