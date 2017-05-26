@@ -43,7 +43,7 @@ get_patch() {
 		# diff output does not have a linefeed at the end.
 		# We need one if there are multiple diff outputs.
 		if [[ ! -z $file_diff ]]; then
-			patch+=file_diff
+			patch+=$file_diff
 			patch+=$'\n'
 		fi
 	done
