@@ -90,11 +90,11 @@ class[[gnu::packed]] BigEndian final : public EndianBase<T> {
     return BigEndian(this->value() - o.value());
   }
 
-  constexpr BigEndian<T> operator<<(unsigned int shift) const {
+  constexpr BigEndian<T> operator<<(size_t shift) const {
     return BigEndian(this->value() << shift);
   }
 
-  constexpr BigEndian<T> operator>>(unsigned int shift) const {
+  constexpr BigEndian<T> operator>>(size_t shift) const {
     return BigEndian(this->value() >> shift);
   }
 
@@ -103,6 +103,18 @@ class[[gnu::packed]] BigEndian final : public EndianBase<T> {
   }
 
   constexpr bool operator!=(const BigEndian &o) const { return !(*this == o); }
+
+  constexpr bool operator<(const BigEndian &o) const {
+    return this->value() < o.value();
+  }
+
+  constexpr bool operator>(const BigEndian &o) const { return o < *this; }
+
+  constexpr bool operator<=(const BigEndian &o) const { return !(*this > o); }
+
+  constexpr bool operator>=(const BigEndian &o) const { return !(*this < o); }
+
+  explicit constexpr operator bool() const { return data_ != 0; }
 
   friend std::ostream &operator<<(std::ostream &os, const BigEndian &be) {
     os << "0x" << std::hex << std::setw(sizeof(be) * 2) << std::setfill('0')

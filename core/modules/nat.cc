@@ -5,6 +5,7 @@
 #include <string>
 
 #include "../utils/checksum.h"
+#include "../utils/common.h"
 #include "../utils/ether.h"
 #include "../utils/format.h"
 #include "../utils/icmp.h"
@@ -18,173 +19,205 @@ using IpProto = bess::utils::Ipv4::Proto;
 using bess::utils::Udp;
 using bess::utils::Tcp;
 using bess::utils::Icmp;
-using bess::utils::CalculateChecksumIncremental16;
-using bess::utils::CalculateChecksumUnfoldedIncremental32;
-using bess::utils::CalculateChecksumUnfoldedIncremental16;
-using bess::utils::FoldChecksumIncremental;
-
-const Commands NAT::cmds = {
-    {"add", "NATArg", MODULE_CMD_FUNC(&NAT::CommandAdd), 0},
-    {"clear", "EmptyArg", MODULE_CMD_FUNC(&NAT::CommandClear), 0}};
-
-inline Flow Flow::ReverseFlow() const {
-  if (proto == IpProto::kIcmp) {
-    return Flow(dst_ip, src_ip, icmp_ident, be16_t(0), IpProto::kIcmp);
-  } else {
-    return Flow(dst_ip, src_ip, dst_port, src_port, proto);
-  }
-}
-
-std::string Flow::ToString() const {
-  return bess::utils::Format("%d %08x:%hu -> %08x:%hu", proto, src_ip.value(),
-                             src_port.value(), dst_ip.value(),
-                             dst_port.value());
-}
+using bess::utils::ChecksumIncrement16;
+using bess::utils::ChecksumIncrement32;
+using bess::utils::UpdateChecksumWithIncrement;
+using bess::utils::UpdateChecksum16;
 
 CommandResponse NAT::Init(const bess::pb::NATArg &arg) {
-  InitRules(arg);
+  for (const std::string &ext_addr : arg.ext_addrs()) {
+    be32_t addr;
+    bool ret = bess::utils::ParseIpv4Address(ext_addr, &addr);
+    if (!ret) {
+      return CommandFailure(EINVAL, "invalid IP address %s", ext_addr.c_str());
+    }
+
+    ext_addrs_.push_back(addr);
+  }
+
+  if (ext_addrs_.empty()) {
+    return CommandFailure(EINVAL,
+                          "at least one external IP address must be specified");
+  }
+
   return CommandSuccess();
 }
 
-CommandResponse NAT::CommandAdd(const bess::pb::NATArg &arg) {
-  InitRules(arg);
-  return CommandResponse();
-}
+static inline std::pair<bool, Endpoint> ExtractEndpoint(const Ipv4 *ip,
+                                                        const void *l4,
+                                                        NAT::Direction dir) {
+  IpProto proto = static_cast<IpProto>(ip->protocol);
 
-CommandResponse NAT::CommandClear(const bess::pb::EmptyArg &) {
-  rules_.clear();
-  flow_hash_.Clear();
+  if (likely(proto == IpProto::kTcp || proto == IpProto::kUdp)) {
+    // UDP and TCP share the same layout for port numbers
+    const Udp *udp = static_cast<const Udp *>(l4);
+    Endpoint ret;
 
-  return CommandResponse();
-}
+    if (dir == NAT::kForward) {
+      ret = {.addr = ip->src, .port = udp->src_port, .protocol = proto};
+    } else {
+      ret = {.addr = ip->dst, .port = udp->dst_port, .protocol = proto};
+    }
 
-// Extract a Flow object from IP header ip and L4 header l4
-static inline Flow parse_flow(Ipv4 *ip, void *l4) {
-  Udp *udp = reinterpret_cast<Udp *>(l4);
-  Icmp *icmp = reinterpret_cast<Icmp *>(l4);
-  Flow flow;
-
-  flow.proto = ip->protocol;
-  flow.src_ip = ip->src;
-  flow.dst_ip = ip->dst;
-
-  switch (flow.proto) {
-    case IpProto::kTcp:
-    case IpProto::kUdp:
-      flow.src_port = udp->src_port;
-      flow.dst_port = udp->dst_port;
-      break;
-    case IpProto::kIcmp:
-      switch (icmp->type) {
-        case 0:
-        case 8:
-        case 13:
-        case 15:
-        case 16:
-          flow.icmp_ident = icmp->ident;
-          flow.dst_port = be16_t(0);
-          break;
-        default:
-          VLOG(1) << "Unknown icmp_type: " << icmp->type;
-      }
-      break;
+    return std::make_pair(true, ret);
   }
-  return flow;
+
+  // slow path
+  if (proto == IpProto::kIcmp) {
+    const Icmp *icmp = static_cast<const Icmp *>(l4);
+    Endpoint ret;
+
+    if (icmp->type == 0 || icmp->type == 8 || icmp->type == 13 ||
+        icmp->type == 15 || icmp->type == 16) {
+      if (dir == NAT::kForward) {
+        ret = {
+            .addr = ip->src, .port = icmp->ident, .protocol = IpProto::kIcmp};
+      } else {
+        ret = {
+            .addr = ip->dst, .port = icmp->ident, .protocol = IpProto::kIcmp};
+      }
+
+      return std::make_pair(true, ret);
+    }
+  }
+
+  return std::make_pair(
+      false, Endpoint{.addr = ip->src, .port = be16_t(0), .protocol = 0});
 }
 
-template <bool src>
-static inline void stamp_flow(Ipv4 *ip, void *l4, const Flow &flow) {
-  Udp *udp = reinterpret_cast<Udp *>(l4);
-  Tcp *tcp = reinterpret_cast<Tcp *>(l4);
-  Icmp *icmp = reinterpret_cast<Icmp *>(l4);
-  uint32_t l3_inc = 0;
-  uint32_t l4_inc = 0;
+// Not necessary to inline this function, since it is less frequently called
+NAT::HashTable::Entry *NAT::CreateNewEntry(const Endpoint &src_internal,
+                                           uint64_t now) {
+  Endpoint src_external;
 
-  if (src) {
-    l3_inc += CalculateChecksumUnfoldedIncremental32(ip->src.raw_value(),
-                                                     flow.src_ip.raw_value());
-    ip->src = flow.src_ip;
+  // An internal IP address is always mapped to the same external IP address,
+  // in an deterministic manner (rfc4787 REQ-2)
+  size_t hashed = rte_hash_crc(&src_internal.addr, sizeof(be32_t), 0);
+  src_external.addr = ext_addrs_[hashed % ext_addrs_.size()];
+  src_external.protocol = src_internal.protocol;
+
+  uint16_t min;
+  uint16_t range;  // consider [min, min + range) port range
+
+  if (src_internal.protocol == IpProto::kIcmp) {
+    min = 0;
+    range = 65535;  // identifier 65535 won't be used, but who cares?
   } else {
-    l3_inc += CalculateChecksumUnfoldedIncremental32(ip->dst.raw_value(),
-                                                     flow.dst_ip.raw_value());
-    ip->dst = flow.dst_ip;
+    if (src_internal.port == be16_t(0)) {
+      // ignore port number 0
+      return nullptr;
+    } else if (src_internal.port & ~be16_t(1023)) {
+      min = 1024;
+      range = 65535 - min + 1;
+    } else {
+      // Privileged ports are mapped to privileged ports (rfc4787 REQ-5-a)
+      min = 1;
+      range = 1023;
+    }
   }
 
-  ip->checksum = FoldChecksumIncremental(ip->checksum, l3_inc);
+  // Start from a random port, then do linear probing
+  uint16_t start_port = min + rng_.GetRange(range);
+  uint16_t port = start_port;
+  int trials = 0;
 
-  switch (flow.proto) {
-    case IpProto::kTcp:
-      if (src) {
-        l4_inc += CalculateChecksumUnfoldedIncremental16(
-            tcp->src_port.raw_value(), flow.src_port.raw_value());
-        tcp->src_port = flow.src_port;
-      } else {
-        l4_inc += CalculateChecksumUnfoldedIncremental16(
-            tcp->dst_port.raw_value(), flow.dst_port.raw_value());
-        tcp->dst_port = flow.dst_port;
+  do {
+    src_external.port = be16_t(port);
+    auto *hash_reverse = map_.Find(src_external);
+    if (hash_reverse == nullptr) {
+found:
+      // Found an available src_internal <-> src_external mapping
+      NatEntry forward_entry;
+      NatEntry reverse_entry;
+
+      reverse_entry.endpoint = src_internal;
+      map_.Insert(src_external, reverse_entry);
+
+      forward_entry.endpoint = src_external;
+      return map_.Insert(src_internal, forward_entry);
+    } else {
+      // A':a' is not free, but it might have been expired.
+      // Check with the forward hash entry since timestamp refreshes only for
+      // forward direction.
+      auto *hash_forward = map_.Find(hash_reverse->second.endpoint);
+
+      // Forward and reverse entries must share the same lifespan.
+      DCHECK(hash_forward != nullptr);
+
+      if (now - hash_forward->second.last_refresh > kTimeOutNs) {
+        // Found an expired mapping. Remove A':a' <-> A'':a''...
+        map_.Remove(hash_forward->first);
+        map_.Remove(hash_reverse->first);
+        goto found;  // and go install A:a <-> A':a'
       }
-      l4_inc += l3_inc;
+    }
 
-      tcp->checksum = FoldChecksumIncremental(tcp->checksum, l4_inc);
-      break;
+    port++;
+    trials++;
 
-    case IpProto::kUdp:
-      if (udp->checksum) {
-        if (src) {
-          l4_inc += CalculateChecksumUnfoldedIncremental16(
-              udp->src_port.raw_value(), flow.src_port.raw_value());
-        } else {
-          l4_inc += CalculateChecksumUnfoldedIncremental16(
-              udp->dst_port.raw_value(), flow.dst_port.raw_value());
-        }
-        l4_inc += l3_inc;
+    // Out of range? Also check if zero due to uint16_t overflow
+    if (port == 0 || port >= min + range) {
+      port = min;
+    }
+  } while (port != start_port && trials < kMaxTrials);
 
-        udp->checksum = FoldChecksumIncremental(udp->checksum, l4_inc);
+  return nullptr;
+}
 
-        if (!udp->checksum) {
-          udp->checksum = 0xFFFF;
-        }
+template <NAT::Direction dir>
+inline void Stamp(Ipv4 *ip, void *l4, const Endpoint &before,
+                  const Endpoint &after) {
+  IpProto proto = static_cast<IpProto>(ip->protocol);
+  DCHECK_EQ(before.protocol, after.protocol);
+  DCHECK_EQ(before.protocol, proto);
+
+  if (dir == NAT::kForward) {
+    ip->src = after.addr;
+  } else {
+    ip->dst = after.addr;
+  }
+
+  uint32_t l3_increment =
+      ChecksumIncrement32(before.addr.raw_value(), after.addr.raw_value());
+  ip->checksum = UpdateChecksumWithIncrement(ip->checksum, l3_increment);
+
+  uint32_t l4_increment =
+      l3_increment +
+      ChecksumIncrement16(before.port.raw_value(), after.port.raw_value());
+
+  if (likely(proto == IpProto::kTcp || proto == IpProto::kUdp)) {
+    Udp *udp = static_cast<Udp *>(l4);
+    if (dir == NAT::kForward) {
+      udp->src_port = after.port;
+    } else {
+      udp->dst_port = after.port;
+    }
+
+    if (proto == IpProto::kTcp) {
+      Tcp *tcp = static_cast<Tcp *>(l4);
+      tcp->checksum = UpdateChecksumWithIncrement(tcp->checksum, l4_increment);
+    } else {
+      // NOTE: UDP checksum is tricky in two ways:
+      // 1. if the old checksum field was 0 (not set), no need to update
+      // 2. if the updated value is 0, use 0xffff (rfc768)
+      if (udp->checksum != 0) {
+        udp->checksum =
+            UpdateChecksumWithIncrement(udp->checksum, l4_increment) ?: 0xffff;
       }
+    }
+  } else {
+    DCHECK_EQ(proto, IpProto::kIcmp);
+    Icmp *icmp = static_cast<Icmp *>(l4);
+    icmp->ident = after.port;
 
-      if (src) {
-        udp->src_port = flow.src_port;
-      } else {
-        udp->dst_port = flow.dst_port;
-      }
-      break;
-
-    case IpProto::kIcmp:
-      switch (icmp->type) {
-        case 0:
-        case 8:
-        case 13:
-        case 15:
-        case 16:
-          icmp->checksum = CalculateChecksumIncremental16(
-              icmp->checksum, icmp->ident.raw_value(),
-              flow.icmp_ident.raw_value());
-          icmp->ident = flow.icmp_ident;
-          break;
-        default:
-          VLOG(1) << "Unknown icmp_type: " << icmp->type;
-      }
-      break;
+    // ICMP does not have a pseudo header
+    icmp->checksum = UpdateChecksum16(icmp->checksum, before.port.raw_value(),
+                                      after.port.raw_value());
   }
 }
 
-// Rewrite IP header and L4 header src info using flow
-static inline void stamp_flow_src(Ipv4 *ip, void *l4, const Flow &flow) {
-  stamp_flow<true>(ip, l4, flow);
-}
-
-// Rewrite IP header and L4 header dst info using flow
-static inline void stamp_flow_dst(Ipv4 *ip, void *l4, const Flow &flow) {
-  stamp_flow<false>(ip, l4, flow);
-}
-
-void NAT::ProcessBatch(bess::PacketBatch *batch) {
-  gate_idx_t incoming_gate = get_igate();
-
+template <NAT::Direction dir>
+inline void NAT::DoProcessBatch(bess::PacketBatch *batch) {
   bess::PacketBatch out_batch;
   bess::PacketBatch free_batch;
   out_batch.clear();
@@ -199,127 +232,54 @@ void NAT::ProcessBatch(bess::PacketBatch *batch) {
     Ethernet *eth = pkt->head_data<Ethernet *>();
     Ipv4 *ip = reinterpret_cast<Ipv4 *>(eth + 1);
     size_t ip_bytes = (ip->header_length) << 2;
-
     void *l4 = reinterpret_cast<uint8_t *>(ip) + ip_bytes;
 
-    Flow flow = parse_flow(ip, l4);
+    bool valid_protocol;
+    Endpoint before;
+    std::tie(valid_protocol, before) = ExtractEndpoint(ip, l4, dir);
 
-    if (ip->protocol != IpProto::kTcp && ip->protocol != IpProto::kUdp &&
-        ip->protocol != IpProto::kIcmp) {
+    if (!valid_protocol) {
       free_batch.add(pkt);
       continue;
     }
 
-    const auto rule_it =
-        std::find_if(rules_.begin(), rules_.end(),
-                     [&ip](const std::pair<Ipv4Prefix, AvailablePorts> &rule) {
-                       return rule.first.Match(ip->src);
-                     });
+    auto *hash_item = map_.Find(before);
 
-    {
-      auto *res = flow_hash_.Find(flow);
-      if (res != nullptr) {
-        FlowRecord *record = res->second;
-        DCHECK_EQ(record->external_flow.src_port, record->port);
-
-        if (now - record->time < TIME_OUT_NS) {
-          // Entry exists and does not exceed timeout
-          record->time = now;
-          if (incoming_gate == 0) {
-            stamp_flow_src(ip, l4, record->external_flow);
-          } else {
-            stamp_flow_dst(ip, l4, record->internal_flow.ReverseFlow());
-          }
-          out_batch.add(pkt);
-          continue;
-        } else {
-          // Reclaim expired record
-          record->time = 0;
-          if (incoming_gate == 0) {
-            flow_hash_.Remove(flow);
-            Flow rev_flow = record->external_flow.ReverseFlow();
-            flow_hash_.Remove(rev_flow);
-          } else {
-            flow_hash_.Remove(flow);
-            flow_hash_.Remove(record->internal_flow);
-          }
-          AvailablePorts &available_ports = rule_it->second;
-          available_ports.FreeAllocated(std::make_tuple(
-              record->external_flow.src_ip, record->port, record));
-        }
+    if (hash_item == nullptr) {
+      if (dir != kForward || !(hash_item = CreateNewEntry(before, now))) {
+        free_batch.add(pkt);
+        continue;
       }
     }
 
-    // The flow didn't match, and we currently don't support any mechanisms to
-    // allow external flows entry through the NAT.
-    if (incoming_gate == 1) {
-      // Flow from external network, drop.
-      free_batch.add(pkt);
-      continue;
+    // only refresh for outbound packets, rfc4787 REQ-6
+    if (dir == kForward) {
+      hash_item->second.last_refresh = now;
     }
 
-    // The flow must be a new flow if we have gotten this far.  So look for a
-    // rule that tells us what external prefix this packet's flow maps to.
-    if (rule_it == rules_.end()) {
-      // No rules found for this source IP address, drop.
-      free_batch.add(pkt);
-      continue;
-    }
+    Stamp<dir>(ip, l4, before, hash_item->second.endpoint);
 
-    AvailablePorts &available_ports = rule_it->second;
-
-    // Garbage collect.
-    if (available_ports.empty() && now >= available_ports.next_expiry()) {
-      uint64_t expiry = UINT64_MAX;
-
-      for (auto it = flow_hash_.begin(); it != flow_hash_.end(); ++it) {
-        FlowRecord *record = it->second;
-        if (record->time != 0 && (now - record->time) >= TIME_OUT_NS) {
-          // Found expired flow entry.
-          record->time = 0;
-          flow_hash_.Remove(record->internal_flow);
-          Flow rev_flow = record->external_flow.ReverseFlow();
-          flow_hash_.Remove(rev_flow);
-          available_ports.FreeAllocated(
-              std::make_tuple(record->external_flow.src_ip,
-                              record->external_flow.src_port, record));
-        } else if (record->time != 0) {
-          expiry = std::min(expiry, record->time + TIME_OUT_NS);
-        }
-      }
-      available_ports.set_next_expiry(expiry);
-    }
-
-    // Still no available ports, so drop.
-    if (available_ports.empty()) {
-      free_batch.add(pkt);
-      continue;
-    }
-
-    be32_t new_ip;
-    be16_t new_port;
-    FlowRecord *record;
-    std::tie(new_ip, new_port, record) = available_ports.RandomFreeIPAndPort();
-
-    record->port = new_port;
-    record->time = now;
-    record->internal_flow = flow;     // Copy
-    flow_hash_.Insert(flow, record);  // Copy
-
-    flow.src_ip = new_ip;
-    flow.src_port = new_port;
-
-    record->external_flow = flow;
-    Flow rev_flow = flow.ReverseFlow();   // Copy
-    flow_hash_.Insert(rev_flow, record);  // Copy
-
-    stamp_flow_src(ip, l4, flow);
     out_batch.add(pkt);
   }
 
   bess::Packet::Free(&free_batch);
 
-  RunChooseModule(incoming_gate, &out_batch);
+  RunChooseModule(static_cast<gate_idx_t>(dir), &out_batch);
+}
+
+void NAT::ProcessBatch(bess::PacketBatch *batch) {
+  gate_idx_t incoming_gate = get_igate();
+
+  if (incoming_gate == 0) {
+    DoProcessBatch<kForward>(batch);
+  } else {
+    DoProcessBatch<kReverse>(batch);
+  }
+}
+
+std::string NAT::GetDesc() const {
+  // Divide by 2 since the table has both forward and reverse entries
+  return bess::utils::Format("%zu entries", map_.Count() / 2);
 }
 
 ADD_MODULE(NAT, "nat", "Network address translator")

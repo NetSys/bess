@@ -171,8 +171,7 @@ TEST(ChecksumTest, IncrementalUpdateChecksum16) {
 
   buf[0] = new16;
   uint16_t cksum_new = CalculateGenericChecksum(buf, 10);
-  uint16_t cksum_update =
-      CalculateChecksumIncremental16(cksum_old, old16, new16);
+  uint16_t cksum_update = UpdateChecksum16(cksum_old, old16, new16);
 
   EXPECT_EQ(cksum_new, cksum_update);
 
@@ -185,7 +184,7 @@ TEST(ChecksumTest, IncrementalUpdateChecksum16) {
     old16 = buf[0];
     new16 = buf[0] = rd.Get() >> 16;
     cksum_new = CalculateGenericChecksum(buf, 10);
-    cksum_update = CalculateChecksumIncremental16(cksum_old, old16, new16);
+    cksum_update = UpdateChecksum16(cksum_old, old16, new16);
     EXPECT_EQ(cksum_new, cksum_update);
   }
 }
@@ -201,8 +200,7 @@ TEST(ChecksumTest, IncrementalUpdateChecksum32) {
 
   buf[0] = new32;
   uint16_t cksum_new = CalculateGenericChecksum(buf, 20);
-  uint16_t cksum_update =
-      CalculateChecksumIncremental32(cksum_old, old32, new32);
+  uint16_t cksum_update = UpdateChecksum32(cksum_old, old32, new32);
 
   EXPECT_EQ(cksum_new, cksum_update);
 
@@ -216,7 +214,7 @@ TEST(ChecksumTest, IncrementalUpdateChecksum32) {
     old32 = buf[0];
     new32 = buf[0] = rd.Get();
     cksum_new = CalculateGenericChecksum(buf, 20);
-    cksum_update = CalculateChecksumIncremental32(cksum_old, old32, new32);
+    cksum_update = UpdateChecksum32(cksum_old, old32, new32);
     EXPECT_EQ(cksum_new, cksum_update);
   }
 }
@@ -260,14 +258,14 @@ TEST(ChecksumTest, IncrementalUpdateSrcIpPort) {
       tcp->src_port = be16_t(rd.Get() >> 16);
     }
 
-    ip->checksum = CalculateChecksumIncremental32(
-        ip_cksum_old, src_ip_old.raw_value(), ip->src.raw_value());
+    ip->checksum = UpdateChecksum32(ip_cksum_old, src_ip_old.raw_value(),
+                                    ip->src.raw_value());
     EXPECT_TRUE(VerifyIpv4NoOptChecksum(*ip));
 
-    tcp->checksum = CalculateChecksumIncremental32(
-        tcp_cksum_old, src_ip_old.raw_value(), ip->src.raw_value());
-    tcp->checksum = CalculateChecksumIncremental16(
-        tcp->checksum, src_port_old.raw_value(), tcp->src_port.raw_value());
+    tcp->checksum = UpdateChecksum32(tcp_cksum_old, src_ip_old.raw_value(),
+                                     ip->src.raw_value());
+    tcp->checksum = UpdateChecksum16(tcp->checksum, src_port_old.raw_value(),
+                                     tcp->src_port.raw_value());
     EXPECT_TRUE(VerifyIpv4TcpChecksum(*ip, *tcp));
   }
 }

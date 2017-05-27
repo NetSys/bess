@@ -1,0 +1,23 @@
+import scapy.all as scapy
+
+# generate flows by varying src IP addr
+num_flows = int($BESS_FLOWS!'1')
+assert(1 <= num_flows <= 256 ** 3)
+
+bidirectional = bool(int($BESS_BIDIRECTIONAL!'0'))
+
+eth = scapy.Ether(src='02:1e:67:9f:4d:ac', dst='06:16:3e:1b:72:32')
+ip = scapy.IP(src='10.0.0.1', dst='192.168.1.1')
+udp = scapy.UDP(sport=10001, dport=10002)
+payload = 'helloworld'
+pkt_bytes = str(eth/ip/udp/payload)
+
+Source() \
+    -> Rewrite(templates=[pkt_bytes]) \
+    -> RandomUpdate(fields=[{'offset': 26, 'size': 4, 'min': 0x0a000001, 'max': 0x0a000001 + num_flows - 1}]) \
+    -> nat::NAT(ext_addrs=['1.1.1.1', '1.1.1.2'])
+
+if bidirectional:
+    nat -> MACSwap() -> IPSwap() -> 1:nat:1 -> Sink()
+else:
+    nat -> Sink()

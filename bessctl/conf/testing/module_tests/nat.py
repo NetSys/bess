@@ -58,8 +58,7 @@ def my_nat_simple_rule_test():
         unnatted_str = s0.recv(2048)
         assert str(eth / ip_unnatted / swap_l4(l4_orig) / l7) == unnatted_str
 
-    nat0::NAT(rules=[{'internal_addr_block':'0.0.0.0/0',
-                      'external_addr_block':'192.168.1.1/32'}])
+    nat0::NAT(ext_addrs=['192.168.1.1'])
 
     port0, s0 = gen_socket_and_port("NATcustom0_" + SCRIPT_STARTTIME)
     port1, s1 = gen_socket_and_port("NATcustom1_" + SCRIPT_STARTTIME)

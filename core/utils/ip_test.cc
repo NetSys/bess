@@ -8,8 +8,24 @@ namespace {
 
 using bess::utils::Ipv4Prefix;
 
+TEST(IPTest, AddressInStr) {
+  be32_t a(192 << 24 | 168 << 16 | 100 << 8 | 199);
+
+  std::string str = ToIpv4Address(a);
+  EXPECT_EQ(str, "192.168.100.199");
+
+  be32_t b;
+  bool ret = ParseIpv4Address(str, &b);
+  EXPECT_TRUE(ret);
+  EXPECT_EQ(a, b);
+
+  EXPECT_FALSE(ParseIpv4Address("hello", &b));
+  EXPECT_FALSE(ParseIpv4Address("1.1.1", &b));
+  EXPECT_FALSE(ParseIpv4Address("1.1.256.1", &b));
+}
+
 // Check if Ipv4Prefix can be correctly constructed from strings
-TEST(IPTest, CIDRInStr) {
+TEST(IPTest, PrefixInStr) {
   Ipv4Prefix prefix_1("192.168.0.1/24");
   EXPECT_EQ((192 << 24) + (168 << 16) + 1, prefix_1.addr.value());
   EXPECT_EQ(0xffffff00, prefix_1.mask.value());
@@ -24,7 +40,7 @@ TEST(IPTest, CIDRInStr) {
 }
 
 // Check if Ipv4Prefix::Match() behaves correctly
-TEST(IPTest, CIDRMatch) {
+TEST(IPTest, PrefixMatch) {
   Ipv4Prefix prefix_1("192.168.0.1/24");
   EXPECT_TRUE(prefix_1.Match(be32_t((192 << 24) + (168 << 16) + 254)));
   EXPECT_FALSE(

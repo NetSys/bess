@@ -20,6 +20,16 @@ bool ParseIpv4Address(const std::string &str, be32_t *addr) {
   return true;
 }
 
+std::string ToIpv4Address(be32_t addr) {
+  const union {
+    be32_t addr;
+    char bytes[4];
+  } &t = {.addr = addr};
+
+  return bess::utils::Format("%hhu.%hhu.%hhu.%hhu", t.bytes[0], t.bytes[1],
+                             t.bytes[2], t.bytes[3]);
+}
+
 Ipv4Prefix::Ipv4Prefix(const std::string &prefix) {
   size_t delim_pos = prefix.find('/');
 
