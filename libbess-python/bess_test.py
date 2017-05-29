@@ -1,6 +1,5 @@
 import unittest
 import bess_msg_pb2 as bess_msg
-import error_pb2 as error_msg
 import service_pb2
 import grpc
 import bess

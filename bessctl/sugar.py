@@ -1,7 +1,6 @@
 import re
 import tokenize
 import parser
-import string
 from StringIO import StringIO
 
 '''
