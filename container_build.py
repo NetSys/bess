@@ -15,8 +15,7 @@ BUILD_SCRIPT = './build.py'
 def run_cmd(cmd):
     proc = subprocess.Popen(cmd, shell=True)
 
-    # err should be None
-    out, err = proc.communicate()
+    proc.communicate()
 
     if proc.returncode:
         print >> sys.stderr, 'Error has occured running host command: %s' % cmd
@@ -44,7 +43,7 @@ def build_bess():
 
 
 def build_kmod():
-    kernel_ver = subprocess.check_output('uname -r', shell=True).strip()
+    subprocess.check_output('uname -r', shell=True).strip()
 
     try:
         run_docker_cmd('%s kmod' % BUILD_SCRIPT)
