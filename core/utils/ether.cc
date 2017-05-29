@@ -30,6 +30,12 @@ std::string Address::ToString() const {
                 bytes[2], bytes[3], bytes[4], bytes[5]);
 }
 
+void Address::CopyFrom(const Address &o) {
+  for (size_t i = 0; i < Address::kSize; i++) {
+    bytes[i] = o.bytes[i];
+  }
+}
+
 void Address::Randomize() {
   Random rng;
 
