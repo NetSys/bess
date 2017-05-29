@@ -1,12 +1,7 @@
 import errno
 import grpc
-import inspect
 import os
 import pprint
-import socket
-import struct
-import sys
-import threading
 import time
 
 import service_pb2

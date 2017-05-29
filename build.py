@@ -3,8 +3,6 @@
 import sys
 import os
 import os.path
-import time
-import urllib
 import subprocess
 import textwrap
 import argparse

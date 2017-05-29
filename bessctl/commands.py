@@ -5,7 +5,6 @@ import fnmatch
 import socket
 import fcntl
 import errno
-import glob
 import re
 import subprocess
 import pprint
