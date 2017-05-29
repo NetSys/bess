@@ -10,7 +10,7 @@ namespace utils {
 
 // A basic ARP header definition.
 struct[[gnu::packed]] ARP {
-  // Ethernet hardware format for arp_hrd
+  // Ethernet hardware format for hrd
   static const be16_t kEtherHardwareFormat = 1;
 
   enum Opcode : uint16_t {
@@ -22,17 +22,17 @@ struct[[gnu::packed]] ARP {
     INVREPLY = 8,
   };
 
-  be16_t arp_hrd;   // format of hardware address
-  be16_t arp_pro;   // format of protocol address
-  uint8_t arp_hln;  // length of hardware address
-  uint8_t arp_pln;  // length of protocol address
-  be16_t arp_op;    // ARP opcode (command)
+  be16_t hrd;   // format of hardware address
+  be16_t pro;   // format of protocol address
+  uint8_t hln;  // length of hardware address
+  uint8_t pln;  // length of protocol address
+  be16_t op;    // ARP opcode (command)
 
   // ARP Data
-  Ethernet::Address arp_sha;  // sender hardware address
-  Ipv4 arp_sip;               // sender IP address
-  Ethernet::Address arp_tha;  // target hardware address
-  Ipv4 arp_tip;               // target IP address
+  Ethernet::Address sha;  // sender hardware address
+  Ipv4 sip;               // sender IP address
+  Ethernet::Address tha;  // target hardware address
+  Ipv4 tip;               // target IP address
 };
 
 }  // namespace utils
