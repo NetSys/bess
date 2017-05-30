@@ -4,10 +4,10 @@ import parser
 from StringIO import StringIO
 
 '''
-<Ringo language>
-- Providing a click-like module connection semantics
-- All these syntactic sugars must be able to coexist with original Python synta
-x. e.g.,
+<BESS script language>
+- Providing a Click-like module connection semantics
+- All these syntactic sugars must be able to coexist with original Python
+  syntax. e.g.,
     print 'hello %s' % (%ENV!'Anynomous')
 
 --------------------------------------------------------------------------------
@@ -292,87 +292,3 @@ def xform_str(s):
 def xform_file(filename):
     with open(filename) as f:
         return xform_str(f.read())
-
-
-def _test(suite):
-    def escape(s):
-        return s.encode('string_escape')
-
-    failed = 0
-    for i, case in enumerate(suite):
-        str_input, str_expected = case
-        str_output = xform_str(str_input)
-
-        print 'Testcase %2d: %-30s %s' % (
-            i + 1, escape(str_input), escape(str_output))
-        if str_output != str_expected:
-            print '%s !! Expected: %s' % (' ' * 30, escape(str_expected))
-            failed += 1
-
-    if failed == 0:
-        print 'OK'
-    else:
-        print '%d test cases failed' % failed
-
-
-def _run_tests():
-    env_suite = [
-        ('$ENV',                "__bess_env__('ENV')"),
-        ("$ENV!x",              "__bess_env__('ENV', x)"),
-        ("$ENV!'100'",          "__bess_env__('ENV', '100')"),
-        ("$ENV!'DPDK'",         "__bess_env__('ENV', 'DPDK')"),
-        ("$ENV!('DPDK')",       "__bess_env__('ENV', 'DPDK')"),
-        ("if (3 != 4)",         "if (3 != 4)"),
-        ("' $ENV '",            "' $ENV '"),
-        ('" $ENV "',            '" $ENV "'),
-        ('# $ENV ',             '# $ENV '),
-    ]
-
-    mod_suite = [
-        ('a::SomeModule()',         "__bess_module__('a', 'SomeModule', )"),
-        ('a::SomeModule(b, c, d)',  "__bess_module__('a', 'SomeModule', b, c, d)"),
-        ('a > b',                   "a > b"),
-        ('a >- b',                  "a >- b"),
-        ('a -> b',                  "a + b"),
-        ('ab->cd',                  "ab+cd"),
-        ('abc:2 -> def',            "abc*2 + def"),
-        ('abc -> 3:def',            "abc + 3*def"),
-        ('a1 -> b1 -> c1',          "a1 + b1 + c1"),
-        ('xx ->yy :0-> zz',         "xx +yy *0+ zz"),
-        ('aa:0 -> 1:bb:23 -> 4:cc', "aa*0 + 1*bb*23 + 4*cc"),
-        ('a:i+1 -> b',              "a*(i+1) + b"),
-        ('a -> j+1:b',            "a + (j+1)*b"),
-        ('a -> hello:b',            "a + hello*b"),
-        ('a -> b -> c',             "a + b + c"),
-        ('a::Foo() -> b::Bar()',
-            "__bess_module__('a', 'Foo', ) + __bess_module__('b', 'Bar', )"),
-        ('a::Foo(b, c, d) -> b::Bar()',
-            "__bess_module__('a', 'Foo', b, c, d) + __bess_module__('b', 'Bar', )"),
-        ('a::Foo():xxx -> b::Bar()',
-            "__bess_module__('a', 'Foo', )*xxx + __bess_module__('b', 'Bar', )"),
-        ('a::Foo(b, c, d):3->2:b::Bar()',
-            "__bess_module__('a', 'Foo', b, c, d)*3+2*__bess_module__('b', 'Bar', )"),
-        ('Foo() -> Bar()',         'Foo() + Bar()'),
-        ('Foo():0 -> Bar()',       'Foo()*0 + Bar()'),
-        ('Foo() -> 1:Bar()',       'Foo() + 1*Bar()'),
-        ('a:{1:2}[1] -> b', 'a*({1:2}[1]) + b'),
-        ('a  -> {1:2}[1]:b', 'a  + ({1:2}[1])*b'),
-        ('x -> c[5]:y', 'x + (c[5])*y'),
-        ('x:b[2] -> y', 'x*(b[2]) + y'),
-        ('x:b[2] -> c[5]:y', 'x*(b[2]) + (c[5])*y'),
-        ('a:2\\\n -> y', 'a*2\\\n + y'),
-        ('a -> \\\n2:y', 'a + \\\n2*y'),
-        ('# a -> b', '# a -> b'),
-        ('"a -> b"', '"a -> b"'),
-        ('"""a -> b"""', '"""a -> b"""'),
-        ('"""a \n-> b"""', '"""a \n-> b"""'),
-        ("'a -> b'", "'a -> b'"),
-        ("'''a -> b'''", "'''a -> b'''"),
-    ]
-
-    _test(env_suite)
-    _test(mod_suite)
-
-
-if __name__ == '__main__':
-    _run_tests()
