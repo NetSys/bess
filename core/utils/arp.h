@@ -30,9 +30,9 @@ struct[[gnu::packed]] ARP {
 
   // ARP Data
   Ethernet::Address sha;  // sender hardware address
-  Ipv4 sip;               // sender IP address
+  be32_t sip;             // sender IP address
   Ethernet::Address tha;  // target hardware address
-  Ipv4 tip;               // target IP address
+  be32_t tip;             // target IP address
 };
 
 }  // namespace utils
