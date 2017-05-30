@@ -250,10 +250,10 @@ def build_bess():
 
     generate_extra_mk()
 
-    print 'Generating protobuf codes for libbess-python...'
+    print 'Generating protobuf codes for pybess...'
     cmd('protoc protobuf/*.proto \
-        --proto_path=protobuf --python_out=libbess-python \
-        --grpc_out=libbess-python \
+        --proto_path=protobuf --python_out=pybess \
+        --grpc_out=pybess \
         --plugin=protoc-gen-grpc=`which grpc_python_plugin`')
 
     print 'Building BESS daemon...'
@@ -293,7 +293,7 @@ def do_clean():
     cmd('make -C core clean')
     cmd('rm -f bin/bessd')
     cmd('make -C core/kmod clean')
-    cmd('rm -rf libbess-python/*_pb2.py')
+    cmd('rm -rf pybess/*_pb2.py')
 
 
 def do_dist_clean():
