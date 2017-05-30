@@ -10,7 +10,7 @@ class TestSugar(unittest.TestCase):
     tests (e.g., test_conf_samples_exactmatch_bess) in this class.
     The tests will just perform nothing but sugar.xform_file() and
     check if the resulting code is syntactically correct.
-    This is to see if it causes any expcetions during the process.
+    This is to see if it causes any exceptions during the process.
     """
 
     def run_suite(self, suite):
