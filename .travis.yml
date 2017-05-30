@@ -37,7 +37,7 @@ install:
   - "[[ ${SANITIZE:-0} == 0 ]] || sudo apt-get install -y llvm-3.8"
   - "[[ $TAG_SUFFIX != _32 ]] || sudo apt-get install -y lib32gcc1"
   - ln -s /build/dpdk-17.02 deps
-  - "docker pull nefelinetworks/bess_build:latest${TAG_SUFFIX}"
+  - "docker pull nefelinetworks/bess_build:latest${TAG_SUFFIX} | cat"  # cat suppresses progress bars
 
 before_script:
   - sudo sysctl -w vm.nr_hugepages=512
