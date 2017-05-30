@@ -378,7 +378,8 @@ class BESS(object):
         else:
             return response
 
-    def _configure_gate_hook(self, hook, module, arg, enable=None, direction=None, gate=None):
+    def _configure_gate_hook(self, hook, module,
+                             arg, enable=None, direction=None, gate=None):
         if gate is None:
             gate = -1
         if direction is None:
@@ -400,12 +401,14 @@ class BESS(object):
         arg = bess_msg.TcpdumpArg()
         if fifo is not None:
             arg.fifo = fifo
-        return self._configure_gate_hook('tcpdump', m, arg, enable, direction, gate)
+        return self._configure_gate_hook('tcpdump', m, arg, enable, direction,
+                                         gate)
 
     def track_module(self, m, enable, bits=False, direction='out', gate=-1):
         arg = bess_msg.TrackArg()
         arg.bits = bits
-        return self._configure_gate_hook('track', m, arg, enable, direction, gate)
+        return self._configure_gate_hook('track', m, arg, enable, direction,
+                                         gate)
 
     def list_workers(self):
         return self._request('ListWorkers')

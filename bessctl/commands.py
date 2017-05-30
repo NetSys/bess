@@ -108,7 +108,8 @@ def is_allowed_filename(basename):
     return True
 
 
-def complete_filename(partial_word, start_dir='', suffix='', skip_suffix=False):
+def complete_filename(partial_word, start_dir='', suffix='',
+                      skip_suffix=False):
     try:
         sub_dir, partial_basename = os.path.split(partial_word)
         pattern = '%s*%s' % (partial_basename, suffix)
@@ -1357,7 +1358,9 @@ def _show_mclass(cli, cls_name, detail):
         if len(info.cmds) > 0:
             cli.fout.write('\t\t commands: %s\n' %
                            (', '.join(map(lambda cmd, msg: "%s(%s)"
-                                          % (cmd, msg), info.cmds, info.cmd_args))))
+                                          % (cmd, msg),
+                                          info.cmds,
+                                          info.cmd_args))))
         else:
             cli.fout.write('\t\t (no commands)\n')
 
