@@ -7,8 +7,11 @@ import sys
 import time
 import unittest
 
+this_dir = os.path.dirname(os.path.realpath(__file__))
+bessctl = os.path.join(this_dir, 'bessctl')
+sample_dir = os.path.join(this_dir, 'conf/samples')
+
 try:
-    this_dir = os.path.dirname(os.path.realpath(__file__))
     sys.path.insert(1, '%s/../libbess-python' % this_dir)
     from bess import *
 except ImportError:
@@ -24,7 +27,7 @@ def run_cmd(cmd):
 class TestSamples(unittest.TestCase):
     """
     All scripts in conf/samples will be dynamically added here as individual
-    tests (e.g., test_conf_samples_exactmatch_bess) in this class.
+    tests (e.g., test_path_to_conf_samples_exactmatch_bess) in this class.
     Each script will be executed for 0.5 second.
     NOTE: make sure that the scripts do not require any special configurations
           (physical/virtual ports, docker, etc.) and do not run interactively.
@@ -32,16 +35,16 @@ class TestSamples(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        run_cmd('./bessctl daemon start')
+        run_cmd('%s daemon start' % bessctl)
 
     @classmethod
     def tearDownClass(cls):
-        run_cmd('./bessctl daemon stop')
+        run_cmd('%s daemon stop' % bessctl)
 
 
 def test_generator(path):
     def test(self):
-        run_cmd('./bessctl daemon reset -- run file %s' % path)
+        run_cmd('%s daemon reset -- run file %s' % (bessctl, path))
 
         # 0.5 seconds should be enough to detect packet leaks in the datapath
         time.sleep(0.5)
@@ -49,10 +52,10 @@ def test_generator(path):
     return test
 
 
-for root, dir_names, file_names in os.walk('conf/samples'):
+for root, _, file_names in os.walk(sample_dir):
     for file_name in fnmatch.filter(file_names, "*.bess"):
         path = os.path.join(root, file_name)
-        test_name = 'test_' + path.replace('/', '_').replace('.', '_')
+        test_name = 'test' + path.replace('/', '_').replace('.', '_')
         test_method = test_generator(path)
         setattr(TestSamples, test_name, test_method)
 
