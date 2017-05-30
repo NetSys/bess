@@ -3,11 +3,14 @@ import os
 import sugar
 import unittest
 
+this_dir = os.path.dirname(os.path.realpath(__file__))
+script_dir = os.path.join(this_dir, 'conf')
+
 
 class TestSugar(unittest.TestCase):
     """
     All scripts in conf/ will be dynamically added here as individual
-    tests (e.g., test_conf_samples_exactmatch_bess) in this class.
+    tests (e.g., test_path_to_conf_samples_exactmatch_bess) in this class.
     The tests will just perform nothing but sugar.xform_file() and
     check if the resulting code is syntactically correct.
     This is to see if it causes any exceptions during the process.
@@ -89,10 +92,10 @@ def test_generator(path):
     return test
 
 
-for root, dir_names, file_names in os.walk('conf'):
+for root, dir_names, file_names in os.walk(script_dir):
     for file_name in fnmatch.filter(file_names, "*.bess"):
         path = os.path.join(root, file_name)
-        test_name = 'test_' + path.replace('/', '_').replace('.', '_')
+        test_name = 'test' + path.replace('/', '_').replace('.', '_')
         test_method = test_generator(path)
         setattr(TestSugar, test_name, test_method)
 
