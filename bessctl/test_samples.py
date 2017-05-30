@@ -1,4 +1,4 @@
-import glob
+import fnmatch
 import os
 import shlex
 import subprocess
@@ -24,6 +24,7 @@ class TestSamples(unittest.TestCase):
     """
     All scripts in conf/samples will be dynamically added here as individual
     tests (e.g., test_conf_samples_exactmatch_bess) in this class.
+    Each script will be executed for 0.5 second.
     NOTE: make sure that the scripts do not require any special configurations
           (physical/virtual ports, docker, etc.) and do not run interactively.
     """
@@ -37,9 +38,9 @@ class TestSamples(unittest.TestCase):
         run_cmd('./bessctl daemon stop')
 
 
-def test_generator(file_name):
+def test_generator(path):
     def test(self):
-        run_cmd('./bessctl daemon reset -- run file %s' % file_name)
+        run_cmd('./bessctl daemon reset -- run file %s' % path)
 
         # 0.5 seconds should be enough to detect packet leaks in the datapath
         time.sleep(0.5)
@@ -47,10 +48,12 @@ def test_generator(file_name):
     return test
 
 
-for file_name in glob.glob('conf/samples/**.bess'):
-    test_name = 'test_' + file_name.replace('/', '_').replace('.', '_')
-    test_method = test_generator(file_name)
-    setattr(TestSamples, test_name, test_method)
+for root, dir_names, file_names in os.walk('conf/samples'):
+    for file_name in fnmatch.filter(file_names, "*.bess"):
+        path = os.path.join(root, file_name)
+        test_name = 'test_' + path.replace('/', '_').replace('.', '_')
+        test_method = test_generator(path)
+        setattr(TestSamples, test_name, test_method)
 
 if __name__ == '__main__':
     unittest.main()
