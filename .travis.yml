@@ -47,7 +47,7 @@ script:
   - ./container_build.py bess
   - ./container_build.py kmod_buildtest
   - (cd core && GCOV_PREFIX_STRIP=3 ./all_test) # TcpFlowReconstructTest requires working directory to be `core/`
-  - GCOV_PREFIX_STRIP=2 ./sanity_check.sh
+  - (cd bessctl && GCOV_PREFIX_STRIP=2 python -m unittest discover -v)
   - GCOV_PREFIX_STRIP=2 ./bessctl/bessctl -- daemon start -- run testing/run_module_tests
 
 after_success:
