@@ -1,11 +1,3 @@
-import sugar
-import scapy.all as scapy
-import socket
-
-from module import *
-from port import *
-
-
 # Test the packet mangling features with a single rule
 def my_nat_simple_rule_test():
     def swap_l4(l4):

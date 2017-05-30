@@ -1,7 +1,4 @@
-import sugar
 import scapy.all as scapy
-from module import *
-from port import *
 
 
 ## CRASH TESTS ##
