@@ -175,7 +175,9 @@ def replace_rarrows(s):
             last_token = token
 
     except (tokenize.TokenError, IndentationError):
-        return s    # source code with syntax errors. give up.
+        # Source code has syntax errors, but arrows has been set
+        # correctly up until now.
+        pass
 
     segments = []
     curr_seg = []
