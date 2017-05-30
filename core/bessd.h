@@ -40,6 +40,7 @@
 namespace bess {
 namespace bessd {
 
+const int kInheritanceLimit = 10;
 // Process command line arguments from gflags.
 void ProcessCommandLineArgs();
 
