@@ -1,4 +1,8 @@
+<<<<<<< f1d0032da0c786ff4ebaa84be3da33746050e9ea
 import fnmatch
+=======
+import glob
+>>>>>>> Replaece sanity_cehck.sh with Python unittest
 import os
 import shlex
 import subprocess
