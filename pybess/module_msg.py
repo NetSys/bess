@@ -10,18 +10,18 @@ def _load_symbols(mod, *symbols):
 
 
 def load_symbol(mod_name, symbol):
-    mod = importlib.import_module(mod_name)
+    mod = importlib.import_module('..' + mod_name, __name__)
     _load_symbols(mod, symbol)
 
 
 def load_symbols(mod_name):
-    mod = importlib.import_module(mod_name)
+    mod = importlib.import_module('..' + mod_name, __name__)
     symbols = [n for n in mod.__dict__ if
                n.endswith('Arg') or n.endswith('Response')]
     _load_symbols(mod, *symbols)
 
 
-dir_path = os.path.dirname(os.path.abspath(__file__))
+dir_path = os.path.dirname(os.path.realpath(__file__))
 mod_files = glob.glob(dir_path + '/*_msg_pb2.py')
 mods = filter(lambda m: m not in exclude_list,
               [os.path.basename(m)[:-3] for m in mod_files])

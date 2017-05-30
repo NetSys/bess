@@ -20,11 +20,11 @@ import sugar
 
 try:
     this_dir = os.path.dirname(os.path.realpath(__file__))
-    sys.path.insert(1, '%s/../libbess-python' % this_dir)
-    from module import *
-    from port import *
+    sys.path.insert(1, os.path.join(this_dir, '..'))
+    from pybess.module import *
+    from pybess.port import *
 except ImportError:
-    print >> sys.stderr, 'Cannot import the API module (libbess-python)'
+    print >> sys.stderr, 'Cannot import the API module (pybess)'
     raise
 
 

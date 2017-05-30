@@ -11,17 +11,20 @@ this_dir = os.path.dirname(os.path.realpath(__file__))
 bessctl = os.path.join(this_dir, 'bessctl')
 sample_dir = os.path.join(this_dir, 'conf/samples')
 
-try:
-    sys.path.insert(1, '%s/../libbess-python' % this_dir)
-    from bess import *
-except ImportError:
-    print >> sys.stderr, 'Cannot import the API module (libbess-python)'
-    raise
+
+class CommandError(subprocess.CalledProcessError):
+    '''Identical to CalledProcessError, except it also shows the output'''
+
+    def __str__(self):
+        return '%s\n%s' % (super(CommandError, self).__str__(), self.output)
 
 
 def run_cmd(cmd):
     args = shlex.split(cmd)
-    subprocess.check_output(args, stderr=subprocess.STDOUT)
+    try:
+        subprocess.check_output(args, stderr=subprocess.STDOUT)
+    except subprocess.CalledProcessError as e:
+        raise CommandError(e.returncode, e.cmd, e.output)
 
 
 class TestSamples(unittest.TestCase):
