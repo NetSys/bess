@@ -16,6 +16,8 @@ env:
     - ASAN_OPTIONS=log_path=/tmp/sanitizer,log_exe_name=1
     - LSAN_OPTIONS=suppressions=$TRAVIS_BUILD_DIR/core/lsan.suppress
     - UBSAN_OPTIONS=suppressions=$TRAVIS_BUILD_DIR/core/ubsan.suppress,print_stacktrace=1
+    - GCOV_PREFIX_STRIP=2                       # /build/bess in the container
+    - GCOV_PREFIX=$TRAVIS_BUILD_DIR             # /build/bess/core/xx becomes $TRAVIS_BUILD_DIR/core/xx
   matrix:
     - VER_CXX=clang++-3.8 SANITIZE=1
     - VER_CXX=g++-4.8
@@ -30,8 +32,8 @@ before_install:
 
 install:
   - sudo apt-get install -y python
-  - pip install grpcio scapy
-  - "[[ ${DEBUG:-0} == 0 ]] || sudo apt-get install -y g++-5" # install gcov-5
+  - pip install grpcio scapy codecov
+  - "[[ ${DEBUG:-0} == 0 ]] || sudo apt-get install -y g++-5"  # install gcov-5
   - "[[ ${SANITIZE:-0} == 0 ]] || sudo apt-get install -y llvm-3.8"
   - "[[ $TAG_SUFFIX != _32 ]] || sudo apt-get install -y lib32gcc1"
   - ln -s /build/dpdk-17.02 deps
@@ -47,12 +49,13 @@ before_script:
 script:
   - ./container_build.py bess
   - ./container_build.py kmod_buildtest
-  - (cd core && GCOV_PREFIX_STRIP=3 ./all_test) # TcpFlowReconstructTest requires working directory to be `core/`
-  - (cd bessctl && GCOV_PREFIX_STRIP=2 python -m unittest discover -v)
-  - GCOV_PREFIX_STRIP=2 ./bessctl/bessctl -- daemon start -- run testing/run_module_tests
+  - (cd core && ./all_test)  # TcpFlowReconstructTest requires working directory to be `core/`
+  - (cd bessctl && python -m unittest discover -v)
+  - bessctl/bessctl -- daemon start -- run testing/run_module_tests
 
 after_success:
-  - "[[ ${DEBUG:-0} == 0 ]] || (cd core && bash <(curl -s https://codecov.io/bash) -x gcov-5)"
+  - bessctl/bessctl daemon stop # flush out the coverage data
+  - "[[ ${DEBUG:-0} == 0 ]] || codecov --gcov-exec gcov-5"
 
 after_failure:
   - more /tmp/bessd.*.INFO.* | cat      # dump all bessd log files
