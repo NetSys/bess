@@ -81,7 +81,9 @@ def load_test(filename):
     OUTPUT_TEST_INPUTS = []
     CUSTOM_TEST_FUNCTIONS = []
 
-    exec(sugar.xform_file(filename))
+    xformed = sugar.xform_file(filename)
+    code = compile(xformed, filename, 'exec')
+    exec(code)
 
     return [CRASH_TEST_INPUTS,
             OUTPUT_TEST_INPUTS,
