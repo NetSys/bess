@@ -46,6 +46,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <iostream>
+#include <list>
 #include <string>
 #include <tuple>
 
@@ -411,13 +412,11 @@ std::vector<std::string> ListPlugins() {
 }
 
 bool LoadPlugin(const std::string &path) {
-  LOG(INFO) << "Loading module: " << path;
-  void *handle = dlopen(path.c_str(), RTLD_NOW);
+  void *handle = dlopen(path.c_str(), RTLD_NOW | RTLD_GLOBAL);
   if (handle != nullptr) {
     plugin_handles.emplace(path, handle);
     return true;
   }
-  LOG(WARNING) << "Error loading module " << path << ": " << dlerror();
   return false;
 }
 
@@ -441,21 +440,40 @@ bool LoadPlugins(const std::string &directory) {
   if (!dir) {
     return false;
   }
+
+  std::list<std::string> remaining;
   dirent *entry;
   while ((entry = readdir(dir)) != nullptr) {
-    if ((entry->d_type == DT_REG || entry->d_type == DT_LNK)
-	&& HasSuffix(entry->d_name, ".so")) {
+    if ((entry->d_type == DT_REG || entry->d_type == DT_LNK) &&
+        HasSuffix(entry->d_name, ".so")) {
       const std::string full_path = directory + "/" + entry->d_name;
-      LOG(INFO) << "Loading plugin: " << full_path;
+      remaining.push_back(full_path);
+    }
+  }
+
+  for (int pass = 1; pass <= kInheritanceLimit && remaining.size() > 0;
+       ++pass) {
+    for (auto it = remaining.begin(); it != remaining.end();) {
+      const std::string full_path = *it;
+      LOG(INFO) << "Loading plugin (attempt " << pass << "): " << full_path;
       if (!LoadPlugin(full_path)) {
-        LOG(WARNING) << "Cannot load plugin " << full_path << "dlerror=" << dlerror();
-        closedir(dir);
-        return false;
+        VLOG(1) << "Error loading plugin " << full_path
+                << "dlerror=" << dlerror();
+        ++it;
+      } else {
+        it = remaining.erase(it);
       }
     }
   }
+
+  for (auto it = remaining.begin(); it != remaining.end(); ++it) {
+    LOG(ERROR)
+        << "Failed to load plugin " << *it
+        << ". Run daemon in verbose mode (--v=1) to see dlopen() attempts.";
+  }
+
   closedir(dir);
-  return true;
+  return (remaining.size() == 0);
 }
 
 std::string GetCurrentDirectory() {
