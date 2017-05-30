@@ -1,7 +1,4 @@
-import sugar
 import scapy.all as scapy
-from module import *
-from port import *
 
 #ensures that given infinite input that the module does not crash.
 def crash_test():

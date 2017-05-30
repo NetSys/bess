@@ -1,6 +1,3 @@
-from module import *
-from port import *
-
 ## CRASH TESTS ##
 rep4 = Replicate(gates=[0,1,2,3])
 CRASH_TEST_INPUTS.append([rep4, 1, 4])

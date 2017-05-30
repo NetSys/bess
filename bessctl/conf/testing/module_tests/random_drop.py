@@ -1,7 +1,3 @@
-import sugar
-from module import *
-from port import *
-
 ## CRASH TESTS ##
 rd0 = RandomDrop(drop_rate=0)
 CRASH_TEST_INPUTS.append([rd0, 1, 1])
