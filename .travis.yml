@@ -6,8 +6,9 @@ services:
   - docker
 
 branches:
-  only: 
+  only:
     - master
+    - /travis.*/
 
 env:
   global:
