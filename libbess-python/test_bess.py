@@ -1,7 +1,10 @@
 import unittest
 import grpc
 import time
-from concurrent import futures
+
+import bess
+import bess_msg_pb2 as bess_msg
+import service_pb2
 
 import bess
 import bess_msg_pb2 as bess_msg
