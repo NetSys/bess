@@ -5,6 +5,8 @@
 
 #include <x86intrin.h>
 
+#include <glog/logging.h>
+
 #define __xmm_aligned __attribute__((aligned(16)))
 #define __ymm_aligned __attribute__((aligned(32)))
 #define __zmm_aligned __attribute__((aligned(64)))
@@ -49,6 +51,7 @@ static inline __m256i concat_two_m128i(__m128i lo, __m128i hi) {
 
 static inline uint64_t m128i_extract_u64(__m128i a, int i) {
 #if __x86_64
+  DCHECK(i == 0 || i == 1) << "selector must be either 0 or 1";
   return _mm_extract_epi64(a, i);
 #else
   // In 32-bit machines, _mm_extract_epi64() is not supported
