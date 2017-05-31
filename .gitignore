@@ -67,3 +67,5 @@ core/*/*.gcno
 *.gcov
 coverage.info
 coverage_html
+.coverage
+htmlcov
