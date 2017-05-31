@@ -8,7 +8,7 @@
 #error this code assumes little endian architecture (x86)
 #endif
 
-struct l2_entry {
+struct alignas(32) l2_entry {
   union {
     struct {
       uint64_t addr : 48;
