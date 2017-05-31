@@ -52,7 +52,13 @@ static inline __m256i concat_two_m128i(__m128i lo, __m128i hi) {
 static inline uint64_t m128i_extract_u64(__m128i a, int i) {
 #if __x86_64
   DCHECK(i == 0 || i == 1) << "selector must be either 0 or 1";
-  return _mm_extract_epi64(a, i);
+
+  // While this looks silly, otherwise g++ will complain on -O0
+  if (i == 0) {
+    return _mm_extract_epi64(a, 0);
+  } else {
+    return _mm_extract_epi64(a, 1);
+  }
 #else
   // In 32-bit machines, _mm_extract_epi64() is not supported
   union {
