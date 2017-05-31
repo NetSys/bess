@@ -40,8 +40,8 @@ static int l2_init(struct l2_table *l2tbl, int size, int bucket) {
     return -EINVAL;
   }
 
-  l2tbl->table = static_cast<l2_entry *>(
-      mem_alloc(sizeof(struct l2_entry) * size * bucket));
+  l2tbl->table = static_cast<l2_entry *>(mem_alloc_ex(
+      sizeof(struct l2_entry) * size * bucket, alignof(struct l2_entry), 0));
   if (l2tbl->table == nullptr) {
     return -ENOMEM;
   }
@@ -100,6 +100,7 @@ const union {
 
 // Do not call these functions directly. Use find_index() instead. See below.
 static inline int find_index_avx(uint64_t addr, uint64_t *table) {
+  DCHECK(reinterpret_cast<uintptr_t>(table) % 32 == 0);
   __m256d _addr = (__m256d)_mm256_set1_epi64x(addr | (1ull << 63));
   __m256d _table = _mm256_load_pd((double *)table);
   _table = _mm256_and_pd(_table, _mask._mask);
