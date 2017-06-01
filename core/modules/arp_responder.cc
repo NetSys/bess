@@ -19,9 +19,12 @@ CommandResponse ArpResponder::CommandAdd(const bess::pb::ArpResponderArg &arg) {
     return CommandFailure(EINVAL, "Invalid IP Address: %s", arg.ip().c_str());
   }
 
-  entry.mac_addr.FromString(arg.mac_addr());
+  if (!entry.mac_addr.FromString(arg.mac_addr())) {
+	  return CommandFailure(EINVAL, "Invalid MAC Address: %s", arg.mac_addr().c_str());
+  }
+
   entry.ip_addr = ip_addr;
-  entries[ip_addr] = entry;
+  entries_[ip_addr] = entry;
   return CommandSuccess();
 }
 
@@ -44,27 +47,27 @@ void ArpResponder::ProcessBatch(bess::PacketBatch *batch) {
 
     Arp *arp = reinterpret_cast<Arp *>(eth + 1);
     if (arp->opcode == be16_t(Arp::Opcode::kRequest)) {
-      // TODO When learn is added, learn SRC MAC here
+      // TODO(galsagie) When learn is added, learn SRC MAC here
 
       // Try to find target IP in cache, if exists convert request to reply
-      auto it = entries.find(arp->target_ip_addr);
-      if (it != entries.end()) {
-        struct arp_entry *entry = &it->second;
+      auto it = entries_.find(arp->target_ip_addr);
+      if (it != entries_.end()) {
+    	const struct arp_entry &entry = it->second;
         arp->opcode = be16_t(Arp::Opcode::kReply);
 
         eth->dst_addr = eth->src_addr;
-        eth->src_addr = entry->mac_addr;
+        eth->src_addr = entry.mac_addr;
 
         arp->target_hw_addr = arp->sender_hw_addr;
-        arp->sender_hw_addr = entry->mac_addr;
+        arp->sender_hw_addr = entry.mac_addr;
 
         arp->target_ip_addr = arp->sender_ip_addr;
-        arp->sender_ip_addr = entry->ip_addr;
+        arp->sender_ip_addr = entry.ip_addr;
       }
     } else if (arp->opcode == be16_t(Arp::Opcode::kReply)) {
-      // TODO When learn is added, learn SRC MAC here
+      // TODO(galsagie) When learn is added, learn SRC MAC here
     } else {
-      // TODO Other opcodes are not handled yet.
+      // TODO(galsagie) Other opcodes are not handled yet.
     }
   }
 

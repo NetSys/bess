@@ -12,12 +12,17 @@
 using bess::utils::Ethernet;
 using bess::utils::be32_t;
 
+// ARP cache entry struct which keeps mapping between IP and MAC
 struct arp_entry {
   Ethernet::Address mac_addr;
   be32_t ip_addr;
+  // timestamp used to expire cache entries
   uint64_t time;
 };
 
+// ARP Responder module
+// Answer ARP requests from an internal configurable cache
+// Currently drops non ARP packets
 class ArpResponder final : public Module {
  public:
   static const gate_idx_t kNumIGates = 1;
@@ -30,7 +35,8 @@ class ArpResponder final : public Module {
   CommandResponse CommandAdd(const bess::pb::ArpResponderArg &arg);
 
  private:
-  std::map<be32_t, arp_entry> entries;
+  // Mapping between IP (key) and its ARP entry (MAC Address)
+  std::map<be32_t, struct arp_entry> entries_;
 };
 
 #endif  // BESS_MODULES_ARP_RESPONDER_H_
