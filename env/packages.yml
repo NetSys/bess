@@ -48,7 +48,7 @@
         - python-pep8
       when: ansible_distribution == 'Ubuntu' and ansible_lsb.major_release|int >= 16
 
-    - name: Install Linux headers
+    - name: Install Linux headers of current running kernel
       apt: name=linux-headers-{{ ansible_kernel }} state=latest update_cache=yes
       become: true
       when: ansible_kernel | match(".*-generic")
@@ -57,31 +57,8 @@
       pip: name=grpcio
       become: true
 
-    - name: Clone libbenchmark
-      git: repo=https://github.com/google/benchmark dest=/tmp/benchmark accept_hostkey=yes
-
-    - name: Generate makefile for libbenchmark
-      shell: cmake . chdir=/tmp/benchmark
-
-    - name: Compile libbenchmark
-      shell: make chdir=/tmp/benchmark
-
-    - name: Install libbenchmark
-      shell: make install chdir=/tmp/benchmark
-      become: true
-
     - name: Wipe prior protobuf installs to avoid conflicts
       shell: apt-get remove -y -f libprotobuf* protobuf-* protoc; sudo rm -f `which protoc` warn=no
-      become: true
-
-    - name: Download protobuf
-      unarchive: src=https://github.com/google/protobuf/releases/download/v3.2.0/protobuf-cpp-3.2.0.tar.gz dest=/tmp/ copy=no
-
-    - name: Compile protobuf (this step takes a long time too)
-      shell: ./autogen.sh && ./configure && make chdir=/tmp/protobuf-3.2.0
-
-    - name: Install protobuf
-      shell: make install chdir=/tmp/protobuf-3.2.0
       become: true
 
     - name: sudo ldconfig
@@ -89,13 +66,24 @@
       become: true
 
     - name: Download gRPC
-      unarchive: src=https://github.com/grpc/grpc/archive/v1.1.2.tar.gz dest=/tmp/ copy=no
+      git: repo=https://github.com/google/grpc dest=/tmp/grpc accept_hostkey=yes version=v1.3.2
 
-    - name: Compile gRPC
-      shell: make chdir=/tmp/grpc-1.1.2
+    - name: Compile gRPC and its dependencies
+      shell: make -j{{ ansible_processor_vcpus }} chdir=/tmp/grpc
 
     - name: Install gRPC
-      shell: make install chdir=/tmp/grpc-1.1.2
+      shell: make install chdir=/tmp/grpc
+      become: true
+
+    - name: Install protobuf
+      shell: make install chdir=/tmp/grpc/third_party/protobuf
+      become: true
+
+    - name: Generate makefile for libbenchmark
+      shell: cmake . chdir=/tmp/grpc/third_party/benchmark
+
+    - name: Install libbenchmark
+      shell: make install chdir=/tmp/grpc/third_party/benchmark
       become: true
 
     - name: sudo ldconfig
