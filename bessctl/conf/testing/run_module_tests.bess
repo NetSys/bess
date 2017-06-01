@@ -155,7 +155,7 @@ def run_tests():
                     except socket.timeout:
                         return_pkt = None
                     if(not ((return_pkt is None and output_pkt is None) or
-                            (return_pkt == scapy.Ether(output_pkt)))):
+                            (str(return_pkt) == str(output_pkt)))):
                         sys.stderr.write("Test failed!")
                         sys.stderr.write("Input packet: %s" %
                                          pkt_str(scapy.Ether(input_pkt)))
