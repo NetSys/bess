@@ -1326,8 +1326,8 @@ class BESSControlImpl final : public BESSControl::Service {
     // Install this hook on the specified module
     const auto& it = ModuleBuilder::all_modules().find(request->module_name());
     if (it == ModuleBuilder::all_modules().end()) {
-      *response = CommandFailure(ENOENT, "No module '%s' found",
-                                 request->module_name().c_str());
+      return return_with_error(response, ENOENT, "No module '%s' found",
+                               request->module_name().c_str());
     }
     if (request->enable()) {
       *response =
