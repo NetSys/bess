@@ -8,4 +8,4 @@ packets = [str(pkt)]
 arp = ArpResponder(name="arp")
 arp.add(ip='1.1.1.1', mac_addr='11:22:33:44:55:66')
 
-Source() -> Rewrite(templates=packets) -> arp -> Sink() 
+Source() -> Rewrite(templates=packets) -> arp -> Sink()
