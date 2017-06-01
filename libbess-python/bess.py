@@ -398,6 +398,10 @@ class BESS(object):
         return self._request('ConfigureGateHook', request)
 
     def tcpdump(self, enable, m, direction='out', gate=0, fifo=None):
+        try:
+            self.get_module_info(m)
+        except self.Error:
+            raise
         arg = bess_msg.TcpdumpArg()
         if fifo is not None:
             arg.fifo = fifo
