@@ -16,8 +16,7 @@ using bess::utils::be32_t;
 struct arp_entry {
   Ethernet::Address mac_addr;
   be32_t ip_addr;
-  // timestamp used to expire cache entries
-  uint64_t time;
+  uint64_t time; // timestamp used to expire cache entries (in milliseconds)
 };
 
 // ARP Responder module

@@ -20,7 +20,8 @@ CommandResponse ArpResponder::CommandAdd(const bess::pb::ArpResponderArg &arg) {
   }
 
   if (!entry.mac_addr.FromString(arg.mac_addr())) {
-	  return CommandFailure(EINVAL, "Invalid MAC Address: %s", arg.mac_addr().c_str());
+    return CommandFailure(EINVAL, "Invalid MAC Address: %s",
+                          arg.mac_addr().c_str());
   }
 
   entry.ip_addr = ip_addr;
@@ -52,7 +53,7 @@ void ArpResponder::ProcessBatch(bess::PacketBatch *batch) {
       // Try to find target IP in cache, if exists convert request to reply
       auto it = entries_.find(arp->target_ip_addr);
       if (it != entries_.end()) {
-    	const struct arp_entry &entry = it->second;
+        const struct arp_entry &entry = it->second;
         arp->opcode = be16_t(Arp::Opcode::kReply);
 
         eth->dst_addr = eth->src_addr;
