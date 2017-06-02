@@ -1,6 +1,6 @@
 num_ports = int($BESS_PORTS!'1')
 
-print 'Using %d virtual ports... (envvar "BESS_PORTS")' % num_ports
+print('Using %d virtual ports... (envvar "BESS_PORTS")' % num_ports)
 
 for i in range(num_ports):
 	v = VPort(loopback=True)

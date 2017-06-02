@@ -1,14 +1,15 @@
+from __future__ import print_function
 import re
 import tokenize
 import parser
-from StringIO import StringIO
+import io
 
 '''
 <BESS script language>
 - Providing a Click-like module connection semantics
 - All these syntactic sugars must be able to coexist with original Python
   syntax. e.g.,
-    print 'hello %s' % (%ENV!'Anynomous')
+    print('hello %s' % (%ENV!'Anynomous'))
 
 --------------------------------------------------------------------------------
 Syntax               Semantic                      Plain Python code
@@ -151,7 +152,7 @@ def is_gate_expr(exp, is_ogate):
 def replace_rarrows(s):
     # if the gate expression is not trivial, add parenthesis
     def parenthesize(exp):
-        for t in tokenize.generate_tokens(StringIO(exp).readline):
+        for t in tokenize.generate_tokens(io.StringIO(exp).readline):
             if t[0] == tokenize.OP:
                 l = len(exp) - len(exp.lstrip())
                 r = len(exp) - len(exp.rstrip())
@@ -164,12 +165,14 @@ def replace_rarrows(s):
     arrows = []
 
     try:
-        for t in tokenize.generate_tokens(StringIO(s).readline):
+        for t in tokenize.generate_tokens(io.StringIO(s).readline):
             token = t[1]
             row, col = t[2]
 
-            if last_token == '-' and token == '>':
+            if last_token == '-' and token == '>':  # Python 2.x
                 # line numbers returned by tokenizer are 1-indexed...
+                arrows.append((row - 1, col - 1))
+            elif token == '->':  # Python 3
                 arrows.append((row - 1, col))
 
             last_token = token
@@ -183,7 +186,7 @@ def replace_rarrows(s):
     curr_seg = []
     arrow_idx = 0
 
-    lines = StringIO(s).readlines()
+    lines = io.StringIO(s).readlines()
     line_idx = 0
     col_offset = 0
 
@@ -200,10 +203,10 @@ def replace_rarrows(s):
             line_idx += 1
             col_offset = 0
         elif line_idx == row:
-            curr_seg.append(line[col_offset:col - 1])
+            curr_seg.append(line[col_offset:col])
             segments.append(''.join(curr_seg))
             curr_seg = []
-            col_offset = col + 1
+            col_offset = col + 2
             arrow_idx += 1
         else:
             assert False
@@ -292,5 +295,5 @@ def xform_str(s):
 
 
 def xform_file(filename):
-    with open(filename) as f:
+    with io.open(filename) as f:
         return xform_str(f.read())

@@ -1,24 +1,25 @@
 #!/usr/bin/env python2.7
+from __future__ import print_function
+from __future__ import absolute_import
 import sys
 import os
 import os.path
-import cStringIO
+import io
 import tempfile
 import time
+import cli
+import commands
 
 # Suppress scapy IPv6 warning (must be done before importing scapy module)
 import logging
 logging.getLogger("scapy.runtime").setLevel(logging.ERROR)
-
-import cli
-import commands
 
 try:
     this_dir = os.path.dirname(os.path.realpath(__file__))
     sys.path.insert(1, os.path.join(this_dir, '..'))
     from pybess.bess import *
 except ImportError:
-    print >> sys.stderr, 'Cannot import the API module (pybess)'
+    print('Cannot import the API module (pybess)', file=sys.stderr)
     raise
 
 
@@ -141,6 +142,7 @@ def main():
         line_buf = []
 
         for arg in sys.argv[1:]:
+            arg = arg.decode()
             if arg == '--':
                 cmds.append(' '.join(line_buf))
                 line_buf = []
@@ -148,7 +150,7 @@ def main():
                 line_buf.append(arg)
 
         cmds.append(' '.join(line_buf))
-        run_cli(cStringIO.StringIO('\n'.join(cmds)))
+        run_cli(io.StringIO('\n'.join(cmds)))
 
 if __name__ == '__main__':
     main()

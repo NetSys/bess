@@ -1,6 +1,7 @@
+from __future__ import absolute_import
 import unittest
-import bess_msg_pb2 as bess_msg
-import protobuf_to_dict as pb_conv
+from . import bess_msg_pb2 as bess_msg
+from . import protobuf_to_dict as pb_conv
 
 
 class TestProtobufConvert(unittest.TestCase):

@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+from __future__ import print_function
 import sys
 import subprocess
 import os
@@ -22,11 +23,11 @@ def run_cmd(cmd):
 
 
 def shell_quote(cmd):
-        return "'" + cmd.replace("'", "'\\''") + "'"
+    return "'" + cmd.replace("'", "'\\''") + "'"
 
 
 def run_docker_cmd(cmd):
-    run_cmd('docker run -e CXX -e DEBUG -e SANITIZE --rm -t ' \
+    run_cmd('docker run -e CXX -e DEBUG -e SANITIZE --rm -t '
             '-u %d:%d -v %s:%s %s sh -c %s' %
             (os.getuid(), os.getgid(), BESS_DIR_HOST, BESS_DIR_CONTAINER,
              IMAGE, shell_quote(cmd)))
@@ -73,9 +74,9 @@ def do_dist_clean():
 
 def print_usage():
     print >> sys.stderr, \
-            'Usage: %s ' \
-            '[all|bess|kmod|kmod_buildtest|clean|dist_clean|shell||help]' % \
-            sys.argv[0]
+        'Usage: %s ' \
+        '[all|bess|kmod|kmod_buildtest|clean|dist_clean|shell||help]' % \
+        sys.argv[0]
 
 
 def main():
@@ -113,4 +114,4 @@ def main():
 
 if __name__ == '__main__':
     main()
-    print 'Done.'
+    print('Done.')

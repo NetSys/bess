@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-
+from __future__ import print_function
 import os
 import shlex
 import subprocess
@@ -11,16 +11,19 @@ TARGET_REPO = 'nefelinetworks/bess_build'
 imgs = {'trusty64': {'arch': 'x86_64', 'base': 'ubuntu:trusty',
                      'tag_suffix': ''},
         'trusty32': {'arch': 'i386', 'base': 'ioft/i386-ubuntu:trusty',
-                     'tag_suffix': '_32'},}
+                     'tag_suffix': '_32'}, }
+
 
 def print_usage(prog):
     print('Usage - {} [{}]'.format(prog, '|'.join(imgs.keys())))
+
 
 def run_cmd(cmd, shell=False):
     if shell:
         subprocess.check_call(cmd, shell=True)
     else:
         subprocess.check_call(shlex.split(cmd))
+
 
 def build(env):
     arch = imgs[env]['arch']
@@ -31,9 +34,9 @@ def build(env):
 
     run_cmd('m4 -DBASE_IMAGE={} Dockerfile.m4 > Dockerfile'.format(base),
             shell=True)
-    run_cmd('docker build --build-arg BESS_DPDK_BRANCH={branch} ' \
-            '--build-arg DPDK_ARCH={arch} ' \
-            '-t {target}:latest{suffix} -t {target}:{version}{suffix} ' \
+    run_cmd('docker build --build-arg BESS_DPDK_BRANCH={branch} '
+            '--build-arg DPDK_ARCH={arch} '
+            '-t {target}:latest{suffix} -t {target}:{version}{suffix} '
             '.'.format(branch=bess_dpdk_branch, arch=arch, target=TARGET_REPO,
                        version=version, suffix=tag_suffix))
 
@@ -42,10 +45,12 @@ def build(env):
 
     return version, tag_suffix
 
+
 def push(version, tag_suffix):
     run_cmd('docker login')
     run_cmd('docker push {}:latest{}'.format(TARGET_REPO, tag_suffix))
     run_cmd('docker push {}:{}{}'.format(TARGET_REPO, version, tag_suffix))
+
 
 def main(argv):
     if len(argv) != 2 or argv[1] not in imgs.keys():

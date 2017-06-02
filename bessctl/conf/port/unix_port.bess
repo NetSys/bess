@@ -46,7 +46,7 @@ for i in range(ITERATION):
     assert len(original) == len(modified)
 
     print('%2d/%2d\tOriginal: %s' % (i + 1, ITERATION, original.summary()))
-    print '\tModified: %s' % pkt.summary()
+    print('\tModified: %s' % pkt.summary())
 
     time.sleep(1)
 

@@ -123,9 +123,9 @@ def run_tests():
                     "   %s crash test %s: FAIL" %
                     (str(module), str(crash_testid)))
                 DID_TESTS_FAIL = True
-                print "\n"
+                print("\n")
                 traceback.print_exc()
-                print "\n"
+                print("\n")
             crash_testid += 1
 
         output_testid = 1
@@ -185,9 +185,9 @@ def run_tests():
                 print("   %s output test %s: FAIL" %
                       (str(module), str(output_testid)))
                 DID_TESTS_FAIL = True
-                print "\n"
+                print("\n")
                 traceback.print_exc()
-                print "\n"
+                print("\n")
 
             # tests passed!
             for sock in sockets:
@@ -203,9 +203,9 @@ def run_tests():
             except BaseException:
                 print("   %s  custom test: FAIL" % str(test))
                 DID_TESTS_FAIL = True
-                print "\n"
+                print("\n")
                 traceback.print_exc()
-                print "\n"
+                print("\n")
         # All done!
 
     bess.pause_all()

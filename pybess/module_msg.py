@@ -23,8 +23,8 @@ def load_symbols(mod_name):
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
 mod_files = glob.glob(dir_path + '/*_msg_pb2.py')
-mods = filter(lambda m: m not in exclude_list,
-              [os.path.basename(m)[:-3] for m in mod_files])
+mods = [m for m in [os.path.basename(m)[:-3] for m in mod_files]
+        if m not in exclude_list]
 
 for mod_name in mods:
     load_symbols(mod_name)

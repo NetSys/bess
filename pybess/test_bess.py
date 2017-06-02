@@ -1,15 +1,12 @@
+from __future__ import absolute_import
 import unittest
 import grpc
 import time
 from concurrent import futures
 
-import bess
-import bess_msg_pb2 as bess_msg
-import service_pb2
-
-import bess
-import bess_msg_pb2 as bess_msg
-import service_pb2
+from . import bess
+from . import bess_msg_pb2 as bess_msg
+from . import service_pb2
 
 
 class TestServiceImpl(service_pb2.BESSControlServicer):
@@ -114,5 +111,5 @@ class TestBESS(unittest.TestCase):
                                              'add',
                                              'ExactMatchCommandAddArg',
                                              {'gate': 0,
-                                              'fields': ['\x11', '\x22']})
+                                              'fields': [b'\x11', b'\x22']})
         self.assertEqual(0, response.error.code)
