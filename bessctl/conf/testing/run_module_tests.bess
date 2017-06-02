@@ -37,25 +37,28 @@ def gen_packet(proto, src_ip, dst_ip, ip_ttl=64):
     udp = proto(sport=10001, dport=10002)
     payload = 'helloworld'
     pkt = eth / ip / udp / payload
-    return str(pkt)
+    return pkt
 
 # Quick turn a packet into a string even if it is None
 
 
 def pkt_str(pkt):
-    if(pkt is None):
+    if pkt is None:
         return "None"
+    elif issubclass(type(pkt), scapy.Packet):
+        return pkt.summary() + " " + str(pkt).encode("HEX")
     else:
-        return pkt.summary()
+        return str(pkt).encode("HEX")
+
 
 # These are just for the crash test
 crash_test_packets = [
-    gen_packet(scapy.UDP, '172.16.100.1', '10.0.0.1'),
-    gen_packet(scapy.UDP, '172.12.55.99', '12.34.56.78'),
-    gen_packet(scapy.UDP, '172.12.55.99', '10.0.0.1'),
-    gen_packet(scapy.UDP, '172.16.100.1', '12.34.56.78'),
-    gen_packet(scapy.TCP, '172.12.55.99', '12.34.56.78'),
-    gen_packet(scapy.UDP, '192.168.1.123', '12.34.56.78')
+    str(gen_packet(scapy.UDP, '172.16.100.1', '10.0.0.1')),
+    str(gen_packet(scapy.UDP, '172.12.55.99', '12.34.56.78')),
+    str(gen_packet(scapy.UDP, '172.12.55.99', '10.0.0.1')),
+    str(gen_packet(scapy.UDP, '172.16.100.1', '12.34.56.78')),
+    str(gen_packet(scapy.TCP, '172.12.55.99', '12.34.56.78')),
+    str(gen_packet(scapy.UDP, '192.168.1.123', '12.34.56.78'))
 ]
 
 ## TEST FUNCTIONS ##
@@ -97,7 +100,7 @@ def monitor_task(module, wid):
 ## RUN TEST LOOP ##
 def run_tests():
     DID_TESTS_FAIL = False
- 
+
     path = os.path.dirname(os.path.realpath(sys.argv[0]))
     for filename in glob.glob(path + "/conf/testing/module_tests/*.py"):
         bess.reset_all()
@@ -138,9 +141,9 @@ def run_tests():
                     input_ports.append(PortInc(port=sockname))
                     output_ports.append(PortOut(port=sockname))
                     sockets.append(mysocket)
-                    if (port_num < input_port_cnt):
+                    if port_num < input_port_cnt:
                         input_ports[port_num] -> port_num:module
-                    if (port_num < output_port_cnt):
+                    if port_num < output_port_cnt:
                         module:port_num -> output_ports[port_num]
 
                 bess.resume_all()
@@ -150,30 +153,33 @@ def run_tests():
                     output_port = test_case["output_port"]
                     input_pkt = test_case["input_packet"]
                     output_pkt = test_case["output_packet"]
-                    if(input_pkt is not None):
+                    if input_pkt is not None:
                         sockets[input_port].send(str(input_pkt))
+
                     try:
-                        return_pkt = scapy.Ether(sockets[output_port].recv(2048))
+                        return_data = sockets[output_port].recv(2048)
+                        try:
+                            return_pkt = scapy.Ether(return_data)
+                        except:
+                            return_pkt = return_data
                     except socket.timeout:
-                        return_pkt = None
-                    if(not ((return_pkt is None and output_pkt is None) or
-                            (return_pkt == scapy.Ether(output_pkt)))):
-                        sys.stderr.write("Test failed!")
+                        return_pkt = "None"
+
+                    if not (str(return_pkt) == str(output_pkt)):
+                        sys.stderr.write("Output test failed!\n")
                         sys.stderr.write("Input packet: %s" %
-                                         pkt_str(scapy.Ether(input_pkt)))
+                                         pkt_str(input_pkt) + "\n")
                         sys.stderr.write(
                             "Expected: %s" %
-                            pkt_str(
-                                scapy.Ether(output_pkt)))
-                        sys.stderr.write("Received: %s" % pkt_str(return_pkt))
-                        for sock in sockets:
-                            sock.close()
+                            pkt_str(output_pkt) + "\n")
+                        sys.stderr.write("Received: %s" % pkt_str(
+                            return_pkt) + " " + str(output_pkt) + "\n")
                         DID_TESTS_FAIL = True
                         print("   %s output test %s: FAIL" %
-                            (str(module), str(output_testid)))
+                              (str(module), str(output_testid)))
                     else:
                         print("   %s output test %s: PASS" %
-                            (str(module), str(output_testid)))
+                              (str(module), str(output_testid)))
                     output_testid += 1
             except BaseException:
                 print("   %s output test %s: FAIL" %
@@ -206,7 +212,8 @@ def run_tests():
     bess.reset_all()
     return not DID_TESTS_FAIL
 
-#Call our big test function.
-if(not run_tests()):
+
+# Call our big test function.
+if not run_tests():
     print("Some tests failed. :(")
     sys.exit(1)

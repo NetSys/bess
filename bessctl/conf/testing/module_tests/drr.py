@@ -47,7 +47,7 @@ def fairness_test():
         packets = []
         exm = ExactMatch(fields=[{'offset':26, 'size':4}])
         for i in range(1, n+1):
-           packets.append(gen_packet(scapy.TCP, '22.11.11.' + str(i), '22.22.11.' + str(i))) 
+           packets.append(str(gen_packet(scapy.TCP, '22.11.11.' + str(i), '22.22.11.' + str(i)))) 
            exm.add(fields=[socket.inet_aton('22.11.11.' + str(i))], gate=i)
 
         me_in = Measure()

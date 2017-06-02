@@ -78,14 +78,14 @@ def my_bonus_acl_test():
                       'drop': False}])
     src = Source()
     rwtemp = [
-        gen_packet(
+        str(gen_packet(
             scapy.UDP,
             "172.12.0.3",
-            "127.12.0.4"),
-        gen_packet(
+            "127.12.0.4")),
+        str(gen_packet(
             scapy.TCP,
             "192.168.32.4",
-            "1.2.3.4")]
+            "1.2.3.4"))]
     src -> Rewrite(templates=rwtemp) -> fw5 -> Sink()
     bess.resume_all()
     time.sleep(15)
