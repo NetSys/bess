@@ -43,9 +43,9 @@ def gen_packet(proto, src_ip, dst_ip, ip_ttl=64):
 
 
 def pkt_str(pkt):
-    if(pkt is None):
+    if pkt is None:
         return "None"
-    elif(issubclass(type(pkt), scapy.Packet)):
+    elif issubclass(type(pkt), scapy.Packet):
         return pkt.summary() + " " + str(pkt).encode("HEX")
     else:
         return str(pkt).encode("HEX")
@@ -139,9 +139,9 @@ def run_tests():
                     input_ports.append(PortInc(port=sockname))
                     output_ports.append(PortOut(port=sockname))
                     sockets.append(mysocket)
-                    if (port_num < input_port_cnt):
+                    if port_num < input_port_cnt:
                         input_ports[port_num] -> port_num:module
-                    if (port_num < output_port_cnt):
+                    if port_num < output_port_cnt:
                         module:port_num -> output_ports[port_num]
 
                 bess.resume_all()
@@ -151,7 +151,7 @@ def run_tests():
                     output_port = test_case["output_port"]
                     input_pkt = test_case["input_packet"]
                     output_pkt = test_case["output_packet"]
-                    if(input_pkt is not None):
+                    if input_pkt is not None:
                         sockets[input_port].send(str(input_pkt))
 
                     try:
@@ -163,7 +163,7 @@ def run_tests():
                     except socket.timeout:
                         return_pkt = "None"
 
-                    if(not (str(return_pkt) == str(output_pkt))):
+                    if not (str(return_pkt) == str(output_pkt)):
                         sys.stderr.write("Output test failed!\n")
                         sys.stderr.write("Input packet: %s" %
                                          pkt_str(input_pkt) + "\n")
@@ -212,6 +212,6 @@ def run_tests():
 
 
 # Call our big test function.
-if(not run_tests()):
+if not run_tests():
     print("Some tests failed. :(")
     sys.exit(1)
