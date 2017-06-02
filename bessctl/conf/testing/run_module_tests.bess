@@ -45,6 +45,8 @@ def gen_packet(proto, src_ip, dst_ip, ip_ttl=64):
 def pkt_str(pkt):
     if(pkt is None):
         return "None"
+    elif(type(pkt) is scapy.Packet):
+        return pkt.summary() + " " + str(pkt).encode("HEX")
     else:
         return str(pkt).encode("HEX")
 
