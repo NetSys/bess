@@ -50,6 +50,7 @@ def pkt_str(pkt):
     else:
         return str(pkt).encode("HEX")
 
+
 # These are just for the crash test
 crash_test_packets = [
     str(gen_packet(scapy.UDP, '172.16.100.1', '10.0.0.1')),
@@ -97,7 +98,7 @@ def monitor_task(module, wid):
 ## RUN TEST LOOP ##
 def run_tests():
     DID_TESTS_FAIL = False
- 
+
     path = os.path.dirname(os.path.realpath(sys.argv[0]))
     for filename in glob.glob(path + "/conf/testing/module_tests/*.py"):
         bess.reset_all()
@@ -169,13 +170,14 @@ def run_tests():
                         sys.stderr.write(
                             "Expected: %s" %
                             pkt_str(output_pkt) + "\n")
-                        sys.stderr.write("Received: %s" % pkt_str(return_pkt) + " " + str(output_pkt) + "\n")
+                        sys.stderr.write("Received: %s" % pkt_str(
+                            return_pkt) + " " + str(output_pkt) + "\n")
                         DID_TESTS_FAIL = True
                         print("   %s output test %s: FAIL" %
-                            (str(module), str(output_testid)))
+                              (str(module), str(output_testid)))
                     else:
                         print("   %s output test %s: PASS" %
-                            (str(module), str(output_testid)))
+                              (str(module), str(output_testid)))
                     output_testid += 1
             except BaseException:
                 print("   %s output test %s: FAIL" %
@@ -208,7 +210,8 @@ def run_tests():
     bess.reset_all()
     return not DID_TESTS_FAIL
 
-#Call our big test function.
+
+# Call our big test function.
 if(not run_tests()):
     print("Some tests failed. :(")
     sys.exit(1)
