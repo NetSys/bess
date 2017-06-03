@@ -116,7 +116,6 @@ void DRR::ProcessBatch(bess::PacketBatch* batch) {
 
 struct task_result DRR::RunTask(void*) {
   bess::PacketBatch batch;
-  struct task_result ret;
   int err = 0;
   batch.clear();
   uint32_t total_bytes = 0;
@@ -130,11 +129,9 @@ struct task_result DRR::RunTask(void*) {
   }
 
   // the number of bits inserted into the packet batch
-  uint64_t cnt = batch.cnt();
+  uint32_t cnt = batch.cnt();
   uint64_t bits_retrieved = (total_bytes + cnt * kPacketOverhead) * 8;
-  ret = (struct task_result){.packets = cnt, .bits = bits_retrieved};
-
-  return ret;
+  return { .packets = cnt, .bits = bits_retrieved, .block = (cnt == 0) };
 }
 
 uint32_t DRR::GetNextBatch(bess::PacketBatch* batch, int* err) {

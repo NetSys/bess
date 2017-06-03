@@ -110,35 +110,37 @@ void Queue::ProcessBatch(bess::PacketBatch *batch) {
 /* to downstream */
 struct task_result Queue::RunTask(void *) {
   bess::PacketBatch batch;
-  struct task_result ret;
 
   const int burst = ACCESS_ONCE(burst_);
   const int pkt_overhead = 24;
 
   uint64_t total_bytes = 0;
 
-  uint64_t cnt = llring_sc_dequeue_burst(queue_, (void **)batch.pkts(), burst);
+  uint32_t cnt = llring_sc_dequeue_burst(queue_, (void **)batch.pkts(), burst);
 
-  if (cnt > 0) {
-    batch.set_cnt(cnt);
-    RunNextModule(&batch);
+  if (cnt == 0) {
+    return { .packets = 0, .bits = 0, .block = true };
   }
 
+  batch.set_cnt(cnt);
+  RunNextModule(&batch);
+
   if (prefetch_) {
-    for (uint64_t i = 0; i < cnt; i++) {
+    for (uint32_t i = 0; i < cnt; i++) {
       total_bytes += batch.pkts()[i]->total_len();
       rte_prefetch0(batch.pkts()[i]->head_data());
     }
   } else {
-    for (uint64_t i = 0; i < cnt; i++)
+    for (uint32_t i = 0; i < cnt; i++) {
       total_bytes += batch.pkts()[i]->total_len();
+    }
   }
 
-  ret = (struct task_result){
-      .packets = cnt, .bits = (total_bytes + cnt * pkt_overhead) * 8,
+  return {
+    .packets = cnt,
+    .bits = (total_bytes + cnt * pkt_overhead) * 8,
+    .block = false
   };
-
-  return ret;
 }
 
 CommandResponse Queue::CommandSetBurst(

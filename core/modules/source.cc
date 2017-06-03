@@ -58,14 +58,14 @@ struct task_result Source::RunTask(void *) {
   const int pkt_size = ACCESS_ONCE(pkt_size_);
   const int burst = ACCESS_ONCE(burst_);
 
-  int cnt = bess::Packet::Alloc(batch.pkts(), burst, pkt_size);
-
+  uint32_t cnt = bess::Packet::Alloc(batch.pkts(), burst, pkt_size);
   batch.set_cnt(cnt);
   RunNextModule(&batch);  // it's fine to call this function with cnt==0
 
-  return (struct task_result){
-      .packets = static_cast<uint64_t>(cnt),
-      .bits = static_cast<uint64_t>(pkt_size + pkt_overhead) * cnt * 8,
+  return {
+    .packets = cnt,
+    .bits = (pkt_size + pkt_overhead) * cnt * 8,
+    .block = (cnt == 0)
   };
 }
 

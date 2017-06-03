@@ -15,19 +15,20 @@
 
 using bess::gate_idx_t;
 
+#define INVALID_TASK_ID ((task_id_t)-1)
 #define MAX_NUMA_NODE 16
+#define MAX_TASKS_PER_MODULE 32
 #define UNCONSTRAINED_SOCKET ((0x1ull << MAX_NUMA_NODE) - 1)
 
 struct task_result {
-  uint64_t packets;
+  uint32_t packets;
   uint64_t bits;
+  bool block;
 };
 
 typedef uint16_t task_id_t;
 typedef uint64_t placement_constraint;
 
-#define MAX_TASKS_PER_MODULE 32
-#define INVALID_TASK_ID ((task_id_t)-1)
 
 using module_cmd_func_t =
     pb_func_t<CommandResponse, Module, google::protobuf::Any>;

@@ -320,12 +320,9 @@ class ExperimentalScheduler : public Scheduler<CallableTask> {
       auto ret = leaf->Task()();
       now = rdtsc();
 
-      if (ret.packets == 0 && ret.bits == 0) {
+      if (ret.packets == 0 && ret.block) {
         constexpr uint64_t kMaxWait = 1ull << 32;
-        uint64_t wait = leaf->wait_cycles() << 1;
-        if (wait > kMaxWait) {
-          wait = kMaxWait;
-        }
+        uint64_t wait = std::min(kMaxWait, leaf->wait_cycles() << 1);
         leaf->set_wait_cycles(wait);
 
         leaf->blocked_ = true;
