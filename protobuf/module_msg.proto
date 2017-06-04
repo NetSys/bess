@@ -974,7 +974,8 @@ message WildcardMatchArg {
 }
 
 /**
- * The ARP Responder module is responding to ARP requests and can optionally learn new MAC's-IP's mapping
+ * The ARP Responder module is responding to ARP requests
+ * TODO: Dynamic learn new MAC's-IP's mapping
  *
  * __Input Gates__: 1
  * __Output Gates__: 1
