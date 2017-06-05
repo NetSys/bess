@@ -1692,7 +1692,7 @@ def tcpdump_module(cli, module_name, direction, gate, opts):
         direction = 'out'
 
     fifo = tempfile.mktemp()
-    os.mkfifo(fifo, 0600)   # random people should not see packets...
+    os.mkfifo(fifo, 0o600)   # random people should not see packets...
 
     fd = os.open(fifo, os.O_RDWR)
 
