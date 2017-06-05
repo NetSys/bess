@@ -370,7 +370,7 @@ class CLI(object):
 
     def process_one_line(self):
         if self.interactive:
-            try:    # Hack for Python 2/3 compatibi
+            try:    # Hack for Python 2/3 compatibility
                 input = raw_input
             except NameError:
                 pass

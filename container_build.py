@@ -18,7 +18,8 @@ def run_cmd(cmd):
     proc.communicate()
 
     if proc.returncode:
-        print >> sys.stderr, 'Error has occured running host command: %s' % cmd
+        print('Error has occured running host command: %s' % cmd,
+              file=sys.stderr)
         sys.exit(proc.returncode)
 
 
@@ -48,7 +49,7 @@ def build_kmod():
     try:
         run_docker_cmd('%s kmod' % BUILD_SCRIPT)
     except:
-        print >> sys.stderr, '*** module build has failed.'
+        print('*** module build has failed.', file=sys.stderr)
 
 
 def build_kmod_buildtest():
@@ -73,10 +74,9 @@ def do_dist_clean():
 
 
 def print_usage():
-    print >> sys.stderr, \
-        'Usage: %s ' \
-        '[all|bess|kmod|kmod_buildtest|clean|dist_clean|shell||help]' % \
-        sys.argv[0]
+    print('Usage: %s '
+          '[all|bess|kmod|kmod_buildtest|clean|dist_clean|shell||help]'
+          % sys.argv[0], file=sys.stderr)
 
 
 def main():
@@ -104,7 +104,8 @@ def main():
             print_usage()
             sys.exit(0)
         else:
-            print >> sys.stderr, 'Error - unknown command "%s".' % sys.argv[1]
+            print('Error - unknown command "%s".' % sys.argv[1],
+                  file=sys.stderr)
             print_usage()
             sys.exit(2)
     else:

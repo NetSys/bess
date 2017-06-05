@@ -111,22 +111,23 @@ def check_c_lib(lib):
 
 def required(header_file, lib_name, compiler):
     if not check_header(header_file, compiler):
-        print >> sys.stderr, 'Error - #include <%s> failed. ' \
-            'Did you install "%s" package?' % (header_file, lib_name)
+        print('Error - #include <%s> failed. '
+              'Did you install "%s" package?'
+              % (header_file, lib_name), file=sys.stderr)
         sys.exit(1)
 
 
 def check_essential():
     if not cmd_success('gcc -v'):
-        print >> sys.stderr, 'Error - "gcc" is not available'
+        print('Error - "gcc" is not available', file=sys.stderr)
         sys.exit(1)
 
     if not cmd_success('g++ -v'):
-        print >> sys.stderr, 'Error - "g++" is not available'
+        print('Error - "g++" is not available', file=sys.stderr)
         sys.exit(1)
 
     if not cmd_success('make -v'):
-        print >> sys.stderr, 'Error - "make" is not available'
+        print('Error - "make" is not available', file=sys.stderr)
         sys.exit(1)
 
     required('pcap/pcap.h', 'libpcap-dev', 'gcc')
