@@ -370,12 +370,12 @@ class CLI(object):
 
     def process_one_line(self):
         if self.interactive:
-            try:    # Hack for Python 2/3 compatibility
-                input = raw_input
-            except NameError:
-                pass
             try:
-                line = input(self.get_prompt())
+                # Hack for Python 2/3 compatibility
+                if hasattr(__builtins__, 'raw_input'):
+                    line = raw_input(self.get_prompt())
+                else:
+                    line = input(self.get_prompt())
             except KeyboardInterrupt:
                 self.fout.write('\n')
                 return
