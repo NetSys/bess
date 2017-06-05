@@ -142,14 +142,13 @@ def main():
         line_buf = []
 
         for arg in sys.argv[1:]:
-            arg = arg.decode()
             if arg == '--':
                 cmds.append(' '.join(line_buf))
                 line_buf = []
             else:
                 line_buf.append(arg)
 
-        cmds.append(' '.join(line_buf))
+        cmds.append(u' '.join(line_buf))
         run_cli(io.StringIO('\n'.join(cmds)))
 
 if __name__ == '__main__':
