@@ -13,7 +13,7 @@ def gen_packet(dst_ip):
     udp = scapy.UDP(sport=10001, dport=10002)
     payload = ('hello' + '0123456789' * 200)[:pkt_size-len(eth/ip/udp)]
     pkt = eth/ip/udp/payload
-    return str(pkt)
+    return bytes(pkt)
 
 packets = [gen_packet('172.16.100.1'),
            gen_packet('172.12.55.99'),

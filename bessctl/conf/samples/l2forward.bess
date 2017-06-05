@@ -21,7 +21,7 @@ else:
                      for i in range(num_entries)])
 
 pkt = scapy.Ether(src='02:00:00:00:00:01', dst='00:00:00:00:00:01')
-pkt_bytes = str(pkt)
+pkt_bytes = bytes(pkt)
 
 Source() -> \
         Rewrite(templates=[pkt_bytes]) -> \

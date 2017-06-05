@@ -5,8 +5,8 @@ ip1 = scapy.IP(src='192.168.1.1', dst='10.0.0.1')
 ip2 = scapy.IP(src='192.168.2.2', dst= '10.0.0.2')
 udp = scapy.UDP(sport=10001, dport=10002)
 payload = 'helloworld'
-pkt_bytes1 = str(eth/ip1/udp/payload)
-pkt_bytes2 = str(eth/ip2/udp/payload)
+pkt_bytes1 = bytes(eth/ip1/udp/payload)
+pkt_bytes2 = bytes(eth/ip2/udp/payload)
 
 # Create the pipeline from two sources rewriting each to have their own 
 # source port and destination port respectively, the pushing them into

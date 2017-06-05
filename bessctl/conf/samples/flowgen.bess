@@ -10,7 +10,7 @@ ip = scapy.IP(src='10.0.0.1', dst='10.0.0.2')   # dst IP is overwritten
 tcp = scapy.TCP(sport=10001, dport=10002)
 payload = ('hello' + '0123456789' * 200)[:pkt_size-len(eth/ip/tcp)]
 pkt = eth/ip/tcp/payload
-pkt_data = str(pkt)
+pkt_data = bytes(pkt)
 
 # NOTE: without quick_rampup=1, it takes a while to converge to
 # the desied load level, especially when flow duration is pareto distribution

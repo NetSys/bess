@@ -53,12 +53,12 @@ def pkt_str(pkt):
 
 # These are just for the crash test
 crash_test_packets = [
-    str(gen_packet(scapy.UDP, '172.16.100.1', '10.0.0.1')),
-    str(gen_packet(scapy.UDP, '172.12.55.99', '12.34.56.78')),
-    str(gen_packet(scapy.UDP, '172.12.55.99', '10.0.0.1')),
-    str(gen_packet(scapy.UDP, '172.16.100.1', '12.34.56.78')),
-    str(gen_packet(scapy.TCP, '172.12.55.99', '12.34.56.78')),
-    str(gen_packet(scapy.UDP, '192.168.1.123', '12.34.56.78'))
+    bytes(gen_packet(scapy.UDP, '172.16.100.1', '10.0.0.1')),
+    bytes(gen_packet(scapy.UDP, '172.12.55.99', '12.34.56.78')),
+    bytes(gen_packet(scapy.UDP, '172.12.55.99', '10.0.0.1')),
+    bytes(gen_packet(scapy.UDP, '172.16.100.1', '12.34.56.78')),
+    bytes(gen_packet(scapy.TCP, '172.12.55.99', '12.34.56.78')),
+    bytes(gen_packet(scapy.UDP, '192.168.1.123', '12.34.56.78'))
 ]
 
 ## TEST FUNCTIONS ##
@@ -115,13 +115,9 @@ def run_tests():
         for module, input_port_cnt, output_port_cnt in CRASH_TEST_INPUTS:
             try:
                 crash_test(module, input_port_cnt, output_port_cnt)
-                print(
-                    "   %s crash test %s: PASS" %
-                    (str(module), str(crash_testid)))
+                print("   %s crash test %d: PASS" % (str(module), crash_testid))
             except BaseException:
-                print(
-                    "   %s crash test %s: FAIL" %
-                    (str(module), str(crash_testid)))
+                print("   %s crash test %d: FAIL" % (str(module), crash_testid))
                 DID_TESTS_FAIL = True
                 print("\n")
                 traceback.print_exc()
@@ -154,7 +150,7 @@ def run_tests():
                     input_pkt = test_case["input_packet"]
                     output_pkt = test_case["output_packet"]
                     if input_pkt is not None:
-                        sockets[input_port].send(str(input_pkt))
+                        sockets[input_port].send(bytes(input_pkt))
 
                     try:
                         return_data = sockets[output_port].recv(2048)
@@ -175,15 +171,15 @@ def run_tests():
                         sys.stderr.write("Received: %s" % pkt_str(
                             return_pkt) + " " + str(output_pkt) + "\n")
                         DID_TESTS_FAIL = True
-                        print("   %s output test %s: FAIL" %
-                              (str(module), str(output_testid)))
+                        print("   %s output test %d: FAIL" %
+                              (str(module), output_testid))
                     else:
-                        print("   %s output test %s: PASS" %
-                              (str(module), str(output_testid)))
+                        print("   %s output test %d: PASS" %
+                              (str(module), output_testid))
                     output_testid += 1
             except BaseException:
-                print("   %s output test %s: FAIL" %
-                      (str(module), str(output_testid)))
+                print("   %s output test %d: FAIL" %
+                      (str(module), output_testid))
                 DID_TESTS_FAIL = True
                 print("\n")
                 traceback.print_exc()

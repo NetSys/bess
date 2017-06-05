@@ -10,7 +10,7 @@ def gen_packet(proto, src_ip, dst_ip):
     udp = proto(sport=10001, dport=10002)
     payload = 'helloworld'
     pkt = eth/ip/udp/payload
-    return str(pkt)
+    return bytes(pkt)
 
 packets = [gen_packet(scapy.UDP, '172.16.100.1', '10.0.0.1'),
            gen_packet(scapy.UDP, '172.12.55.99', '12.34.56.78'),

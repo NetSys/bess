@@ -33,7 +33,7 @@ before_install:
 install:
   - sudo apt-get install -y python2.7 python3 python3-pip
   - pip2 install grpcio scapy codecov
-  - pip3 install grpcio coverage
+  - pip3 install grpcio scapy-python3 coverage
   - "[[ ${DEBUG:-0} == 0 ]] || sudo apt-get install -y g++-5"  # install gcov-5
   - "[[ ${SANITIZE:-0} == 0 ]] || sudo apt-get install -y llvm-3.8"
   - "[[ $TAG_SUFFIX != _32 ]] || sudo apt-get install -y lib32gcc1"
@@ -53,7 +53,8 @@ script:
   - (cd core && ./all_test)  # TcpFlowReconstructTest requires working directory to be `core/`
   - coverage2 run -m unittest discover -v
   - coverage3 run -m unittest discover -v
-  - bessctl/bessctl -- daemon start -- run testing/run_module_tests
+  - python2 bessctl/bessctl -- daemon start -- run testing/run_module_tests
+  - python3 bessctl/bessctl -- daemon start -- run testing/run_module_tests
 
 after_success:
   - bessctl/bessctl daemon stop # flush out the coverage data

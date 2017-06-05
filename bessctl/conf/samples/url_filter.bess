@@ -6,7 +6,7 @@ eth = scapy.Ether(src='02:1e:67:9f:4d:ae', dst='06:16:3e:1b:72:32')
 ip = scapy.IP(src='192.168.0.1', dst='10.0.0.1')
 tcp = scapy.TCP(sport=10001, dport=80, seq=12345)
 payload = 'GET /pub/WWW/TheProject.html HTTP/1.1\r\nHost: www.google.com\r\n\r\n'
-pkt = str(eth/ip/tcp/payload)
+pkt = bytes(eth/ip/tcp/payload)
 
 src::FlowGen(template=pkt, pps=2.2e6, flow_rate=800, flow_duration=5.0, \
     arrival='uniform', duration='uniform', quick_rampup=False)
