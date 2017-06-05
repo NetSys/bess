@@ -19,4 +19,3 @@ test_data.append({'input_port' : 0, 'input_packet': test_packet2,
         'output_port' : 0, 'output_packet': test_packet})
 
 OUTPUT_TEST_INPUTS.append([buf1, 1, 1, test_data])
-
