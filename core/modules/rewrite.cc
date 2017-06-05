@@ -89,7 +89,7 @@ inline void Rewrite::DoRewrite(bess::PacketBatch *batch) {
 
   next_turn_ = start + cnt;
   if (next_turn_ >= bess::PacketBatch::kMaxBurst) {
-    next_turn_ -= bess::PacketBatch::kMaxBurst;
+    next_turn_ = next_turn_ % num_templates_;
   }
 }
 
