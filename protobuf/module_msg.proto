@@ -972,3 +972,18 @@ message VXLANEncapArg {
 message WildcardMatchArg {
   repeated WildcardMatchField fields = 1; /// A list of WildcardMatch fields.
 }
+
+/**
+ * The ARP Responder module is responding to ARP requests
+ * TODO: Dynamic learn new MAC's-IP's mapping
+ *
+ * __Input Gates__: 1
+ * __Output Gates__: 1
+ */
+message ArpResponderArg {
+  /**
+   * One ARP IP-MAC mapping
+   */
+   string ip = 1; // The IP
+   string mac_addr = 2; /// The MAC address
+}

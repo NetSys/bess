@@ -1,0 +1,11 @@
+import scapy.all as scapy
+
+eth_header = scapy.Ether(src='02:1e:67:9f:4d:ae', dst='ff:ff:ff:ff:ff:ff')
+arp_header = scapy.ARP(op=1, pdst='1.2.3.4')
+pkt = eth_header/arp_header
+packets = [str(pkt)]
+
+arp::ArpResponder()
+arp.add(ip='1.2.3.4', mac_addr='A0:22:33:44:55:66')
+
+Source() -> Rewrite(templates=packets) -> arp -> Sink()
