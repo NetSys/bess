@@ -286,22 +286,25 @@ class alignas(64) Packet {
           uint16_t _dummy3_;  // rte_mbuf.vlan_tci
 
           // offset 44:
-          uint32_t _dummy4_;  // rte_mbuf.rss
+          uint32_t _dummy4_lo;  // rte_mbuf.fdir.lo and rte_mbuf.rss
         };
       };
 
       // offset 48:
-      uint16_t _dummy5_;  // rte_mbuf.vlan_tci_outer
-
-      // offset 50:
-      const uint16_t buf_len_;
+      uint32_t _dummy4_hi;  // rte_mbuf.fdir.hi
 
       // offset 52:
+      uint16_t _dummy5_;  // rte_mbuf.vlan_tci_outer
+
+      // offset 54:
+      const uint16_t buf_len_;
+
+      // offset 56:
       uint64_t _dummy6_;  // rte_mbuf.timestamp
 
       // 2nd cacheline - fields only used in slow path or on TX --------------
       // offset 64:
-      uint64_t _dummy7;  // rte_mbuf.userdata
+      uint64_t _dummy7_;  // rte_mbuf.userdata
 
       // offset 72:
       struct rte_mempool *pool_;  // Pool from which mbuf was allocated.
