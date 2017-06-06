@@ -13,7 +13,7 @@ class DummySourceModule : public Module {
 };
 
 [[gnu::noinline]] struct task_result DummySourceModule::RunTask(void *arg) {
-  const size_t batch_size = reinterpret_cast<size_t>(arg);
+  const uint32_t batch_size = reinterpret_cast<size_t>(arg);
   bess::PacketBatch batch;
 
   bess::Packet pkts[bess::PacketBatch::kMaxBurst];
@@ -33,7 +33,7 @@ class DummySourceModule : public Module {
 
   RunNextModule(&batch);
 
-  return {.packets = static_cast<uint64_t>(batch_size), .bits = 0};
+  return { .block = false, .packets = batch_size, .bits = 0 };
 }
 
 class DummyRelayModule : public Module {

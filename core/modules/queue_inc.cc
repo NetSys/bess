@@ -60,38 +60,30 @@ struct task_result QueueInc::RunTask(void *arg) {
   const queue_t qid = (queue_t)(uintptr_t)arg;
 
   bess::PacketBatch batch;
-  struct task_result ret;
 
   uint64_t received_bytes = 0;
 
   const int burst = ACCESS_ONCE(burst_);
   const int pkt_overhead = 24;
 
-  uint64_t cnt;
   batch.set_cnt(p->RecvPackets(qid, batch.pkts(), burst));
-  cnt = batch.cnt();
+  uint32_t cnt = batch.cnt();
 
   if (cnt == 0) {
-    ret.packets = 0;
-    ret.bits = 0;
-    return ret;
+    return { .block = true, .packets = 0, .bits = 0 };
   }
 
-  /* NOTE: we cannot skip this step since it might be used by scheduler */
+  // NOTE: we cannot skip this step since it might be used by scheduler.
   if (prefetch_) {
-    for (uint64_t i = 0; i < cnt; i++) {
+    for (uint32_t i = 0; i < cnt; i++) {
       received_bytes += batch.pkts()[i]->total_len();
       rte_prefetch0(batch.pkts()[i]->head_data());
     }
   } else {
-    for (uint64_t i = 0; i < cnt; i++) {
+    for (uint32_t i = 0; i < cnt; i++) {
       received_bytes += batch.pkts()[i]->total_len();
     }
   }
-
-  ret = (struct task_result){
-      .packets = cnt, .bits = (received_bytes + cnt * pkt_overhead) * 8,
-  };
 
   if (!(p->GetFlags() & DRIVER_FLAG_SELF_INC_STATS)) {
     p->queue_stats[PACKET_DIR_INC][qid].packets += cnt;
@@ -100,7 +92,11 @@ struct task_result QueueInc::RunTask(void *arg) {
 
   RunNextModule(&batch);
 
-  return ret;
+  return {
+    .block = false,
+    .packets = cnt,
+    .bits = (received_bytes + cnt * pkt_overhead) * 8
+  };
 }
 
 CommandResponse QueueInc::CommandSetBurst(

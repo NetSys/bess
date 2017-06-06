@@ -479,21 +479,18 @@ void FlowGen::GeneratePackets(bess::PacketBatch *batch) {
 }
 
 struct task_result FlowGen::RunTask(void *) {
-  bess::PacketBatch batch;
-  struct task_result ret;
-
   const int pkt_overhead = 24;
+  bess::PacketBatch batch;
 
   GeneratePackets(&batch);
   RunNextModule(&batch);
 
-  ret = (struct task_result){
-      .packets = static_cast<uint64_t>(batch.cnt()),
-      .bits = static_cast<uint64_t>(
-          ((template_size_ + pkt_overhead) * batch.cnt()) * 8),
+  uint32_t cnt = batch.cnt();
+  return {
+    .block = (cnt == 0),
+    .packets = cnt,
+    .bits = ((template_size_ + pkt_overhead) * cnt) * 8
   };
-
-  return ret;
 }
 
 std::string FlowGen::GetDesc() const {
