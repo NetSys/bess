@@ -1,10 +1,6 @@
 codecov:
   branch: master  # base branch for delta computation
 
-coverage:
-  precision: 0
-  round: nearest
-
 ignore:           # files and folders to be ignored
   - "*_test.cc$"
   - "*_bench.cc$"
