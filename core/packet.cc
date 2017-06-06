@@ -15,8 +15,6 @@
 
 namespace bess {
 
-Packet pframe_template;
-
 static struct rte_mempool *pframe_pool[RTE_MAX_NUMA_NODES];
 
 static void packet_init(struct rte_mempool *mp, void *opaque_arg, void *_m,
@@ -72,22 +70,6 @@ again:
             << ": OK";
 }
 
-static void init_templates(void) {
-  int i;
-
-  for (i = 0; i < RTE_MAX_NUMA_NODES; i++) {
-    Packet *pkt;
-
-    if (!pframe_pool[i]) {
-      continue;
-    }
-
-    pkt = reinterpret_cast<Packet *>(rte_pktmbuf_alloc(pframe_pool[i]));
-    pframe_template = *pkt;
-    Packet::Free(pkt);
-  }
-}
-
 void init_mempool(void) {
   int initialized[RTE_MAX_NUMA_NODES];
 
@@ -109,8 +91,6 @@ void init_mempool(void) {
       initialized[sid] = 1;
     }
   }
-
-  init_templates();
 }
 
 void close_mempool(void) {
@@ -251,7 +231,7 @@ std::string Packet::Dump() {
 
   dump << "refcnt chain: ";
   for (pkt = this; pkt; pkt = pkt->next_) {
-    dump << pkt->refcnt_;
+    dump << pkt->refcnt_ << ' ';
   }
   dump << std::endl;
 
@@ -273,8 +253,8 @@ std::string Packet::Dump() {
   dump << "dump packet at " << this << ", phys=" << buf_physaddr_
        << ", buf_len=" << buf_len_ << std::endl;
   dump << "  pkt_len=" << pkt_len_ << ", ol_flags=" << std::hex
-       << offload_flags_ << ", nb_segs=" << std::dec << unsigned{nb_segs_}
-       << ", in_port=" << unsigned{port_} << std::endl;
+       << mbuf_.ol_flags << ", nb_segs=" << std::dec << nb_segs_
+       << ", in_port=" << mbuf_.port << std::endl;
 
   nb_segs = nb_segs_;
   pkt = this;

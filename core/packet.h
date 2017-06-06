@@ -53,7 +53,7 @@ void close_mempool(void);
 // For the layout of snbuf, see snbuf_layout.h
 class alignas(64) Packet {
  public:
-  // TODO: delete constructor/destructor w/o breaking module_bench
+  Packet() { rte_pktmbuf_reset(&mbuf_); }
 
   struct rte_mbuf &as_rte_mbuf() {
     return *reinterpret_cast<struct rte_mbuf *>(this);
@@ -232,108 +232,83 @@ class alignas(64) Packet {
   static void Free(PacketBatch *batch) { Free(batch->pkts(), batch->cnt()); }
 
  private:
-  typedef void *MARKER[0];     // generic marker for a point in a structure
-  typedef uint8_t MARKER8[0];  // generic marker with 1B alignment
-
   union {
-    // This is all lifted from rte_mbuf.h
     struct {
-      MARKER cacheline0_;
+      // offset 0: Virtual address of segment buffer.
+      void *buf_addr_;
+      // offset 8: Physical address of segment buffer.
+      alignas(8) phys_addr_t buf_physaddr_;
 
-      void *buf_addr_;            // Virtual address of segment buffer.
-      phys_addr_t buf_physaddr_;  // Physical address of segment buffer.
-
-      uint16_t buf_len_;  // Length of segment buffer.
-
-      // next 6 bytes are initialised on RX descriptor rearm
-      MARKER8 rearm_data_;
-      uint16_t data_off_;
-
-      /**
-       * 16-bit Reference counter.
-       * It should only be accessed using the following functions:
-       * rte_mbuf_refcnt_update(), rte_mbuf_refcnt_read(), and
-       * rte_mbuf_refcnt_set(). The functionality of these functions (atomic,
-       * or non-atomic) is controlled by the CONFIG_RTE_MBUF_REFCNT_ATOMIC
-       * config option.
-       */
       union {
-        rte_atomic16_t refcnt_atomic_;  // Atomically accessed refcnt
-        uint16_t refcnt_;               // Non-atomically accessed refcnt
-      };
-      uint8_t nb_segs_;  // Number of segments.
-      uint8_t port_;     // Input port.
+        __m128i rearm_;
 
-      uint64_t offload_flags_;  // Offload features.
-
-      // remaining bytes are set on RX when pulling packet from descriptor
-      MARKER rx_descriptor_fields1_;
-
-      /*
-       * The packet type, which is the combination of outer/inner L2, L3, L4
-       * and tunnel types. The packet_type is about data really present in the
-       * mbuf. Example: if vlan stripping is enabled, a received vlan packet
-       * would have RTE_PTYPE_L2_ETHER and not RTE_PTYPE_L2_VLAN because the
-       * vlan is stripped from the data.
-       */
-      union {
-        uint32_t packet_type_;  // L2/L3/L4 and tunnel information.
         struct {
-          uint32_t l2_type_ : 4;        // (Outer) L2 type.
-          uint32_t l3_type_ : 4;        // (Outer) L3 type.
-          uint32_t l4_type_ : 4;        // (Outer) L4 type.
-          uint32_t tun_type_ : 4;       // Tunnel type.
-          uint32_t inner_l2_type_ : 4;  // Inner L2 type.
-          uint32_t inner_l3_type_ : 4;  // Inner L3 type.
-          uint32_t inner_l4_type_ : 4;  // Inner L4 type.
+          // offset 16:
+          alignas(8) uint16_t data_off_;
+
+          // offset 18:
+          uint16_t refcnt_;
+
+          // offset 20:
+          uint16_t nb_segs_;  // Number of segments
+
+          // offset 22:
+          uint16_t _dummy0_;  // rte_mbuf.port
+          // offset 24:
+          uint64_t _dummy1_;  // rte_mbuf.ol_flags
         };
       };
 
-      uint32_t pkt_len_;   // Total pkt len: sum of all segments.
-      uint16_t data_len_;  // Amount of data in segment buffer.
-
-      // VLAN TCI (CPU order), valid if PKT_RX_VLAN_STRIPPED is set.
-      uint16_t vlan_tci_;
-
       union {
-        uint32_t rss_;  // RSS hash result if RSS enabled
+        __m128i rxdesc_;
+
         struct {
-          union {
-            struct {
-              uint16_t hash_;
-              uint16_t id_;
-            };
-            uint32_t lo_;
-            // Second 4 flexible bytes
-          };
-          uint32_t hi_;
-          // First 4 flexible bytes or FD ID, dependent on
-          // PKT_RX_FDIR_* flag in ol_flags.
-        } fdir_;  // Filter identifier if FDIR enabled
-        struct {
-          uint32_t lo_;
-          uint32_t hi_;
-        } sched_;       // Hierarchical scheduler
-        uint32_t usr_;  // User defined tags. See rte_distributor_process()
-      } hash_;          // hash information
+          // offset 32:
+          uint32_t _dummy2_;  // rte_mbuf.packet_type_;
 
-      uint32_t seqn_;  // Sequence number.
+          // offset 36:
+          uint32_t pkt_len_;  // Total pkt length: sum of all segments
 
-      // Outer VLAN TCI (CPU order), valid if PKT_RX_QINQ_STRIPPED is set.
-      uint16_t vlan_tci_outer_;
+          // offset 40:
+          uint16_t data_len_;  // Amount of data in this segment
 
-      // second cache line - fields only used in slow path or on TX
-      MARKER cacheline1_ __rte_cache_min_aligned;
+          // offset 42:
+          uint16_t _dummy3_;  // rte_mbuf.vlan_tci
 
-      union {
-        void *userdata_;    // Can be used for external metadata
-        uint64_t udata64_;  // Allow 8-byte userdata on 32-bit
+          // offset 44:
+          uint32_t _dummy4_;  // rte_mbuf.rss
+        };
       };
 
+      // offset 48:
+      uint16_t _dummy5_;  // rte_mbuf.vlan_tci_outer
+
+      // offset 50:
+      const uint16_t buf_len_;
+
+      // offset 52:
+      uint64_t _dummy6_;  // rte_mbuf.timestamp
+
+      // 2nd cacheline - fields only used in slow path or on TX --------------
+      // offset 64:
+      uint64_t _dummy7;  // rte_mbuf.userdata
+
+      // offset 72:
       struct rte_mempool *pool_;  // Pool from which mbuf was allocated.
-      Packet *next_;              // Next segment of scattered packet.
+
+      // offset 80:
+      Packet *next_;  // Next segment. nullptr if not scattered.
+
+      // offset 88:
+      uint64_t _dummy8;   // rte_mbuf.tx_offload
+      uint16_t _dummy9;   // rte_mbuf.priv_size
+      uint16_t _dummy10;  // rte_mbuf.timesync
+      uint32_t _dummy11;  // rte_mbuf.seqn
+
+      // offset 104:
     };
-    char mbuf_[SNBUF_MBUF];
+
+    struct rte_mbuf mbuf_;
   };
 
   union {
@@ -370,9 +345,8 @@ class alignas(64) Packet {
   char data_[SNBUF_DATA];
 };
 
-static_assert(std::is_pod<Packet>::value, "Packet is not a POD Type");
-
-extern Packet pframe_template;
+static_assert(std::is_standard_layout<Packet>::value,
+              "Packet is not compatible with rte_mbuf");
 
 #if __AVX__
 #include "packet_avx.h"
