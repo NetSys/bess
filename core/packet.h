@@ -10,10 +10,10 @@
 #include <string>
 #include <type_traits>
 
+#include "mem_alloc.h"
 #include "metadata.h"
-#include "worker.h"
-
 #include "snbuf_layout.h"
+#include "worker.h"
 
 /* NOTE: NEVER use rte_pktmbuf_*() directly,
  *       unless you know what you are doing */
@@ -54,6 +54,16 @@ void close_mempool(void);
 class alignas(64) Packet {
  public:
   Packet() { rte_pktmbuf_reset(&mbuf_); }
+
+  // The default new operator does not honor the 64B alignment requirement of
+  // this class, since it is larger than max_align_t (16B)
+  static void* operator new(size_t count) {
+    return mem_alloc_ex(sizeof(Packet) * count, alignof(Packet), 0);
+  }
+
+  static void operator delete(void *ptr) {
+    mem_free(ptr);
+  }
 
   struct rte_mbuf &as_rte_mbuf() {
     return *reinterpret_cast<struct rte_mbuf *>(this);
