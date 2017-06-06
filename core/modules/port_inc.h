@@ -24,6 +24,8 @@ class PortInc final : public Module {
   CommandResponse CommandSetBurst(
       const bess::pb::PortIncCommandSetBurstArg &arg);
 
+  bool IsTask() const override { return true; } // PortInc overrides RunTask.
+
  private:
   Port *port_;
   int prefetch_;

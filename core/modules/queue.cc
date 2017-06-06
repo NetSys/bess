@@ -61,12 +61,17 @@ CommandResponse Queue::Init(const bess::pb::QueueArg &arg) {
 
   burst_ = bess::PacketBatch::kMaxBurst;
 
+  if (arg.backpressure()) {
+    backpressure_ = true;
+  }
+
   if (arg.size() != 0) {
     err = SetSize(arg.size());
     if (err.error().code() != 0) {
       return err;
     }
   } else {
+    size_ = DEFAULT_QUEUE_SIZE;
     int ret = Resize(DEFAULT_QUEUE_SIZE);
     if (ret) {
       return CommandFailure(-ret);
@@ -101,6 +106,9 @@ std::string Queue::GetDesc() const {
 void Queue::ProcessBatch(bess::PacketBatch *batch) {
   int queued =
       llring_mp_enqueue_burst(queue_, (void **)batch->pkts(), batch->cnt());
+  if (backpressure_ && llring_count(queue_) > high_water_) {
+    SignalOverload();
+  }
 
   if (queued < batch->cnt()) {
     bess::Packet::Free(batch->pkts() + queued, batch->cnt() - queued);
@@ -109,6 +117,12 @@ void Queue::ProcessBatch(bess::PacketBatch *batch) {
 
 /* to downstream */
 struct task_result Queue::RunTask(void *) {
+  if (children_overload_ > 0) {
+    return {
+        .packets = 0, .bits = 0,
+    };
+  }
+
   bess::PacketBatch batch;
 
   const int burst = ACCESS_ONCE(burst_);
@@ -134,6 +148,10 @@ struct task_result Queue::RunTask(void *) {
     for (uint32_t i = 0; i < cnt; i++) {
       total_bytes += batch.pkts()[i]->total_len();
     }
+  }
+
+  if (backpressure_ && llring_count(queue_) < low_water_) {
+    SignalUnderload();
   }
 
   return {.block = false,
@@ -167,12 +185,23 @@ CommandResponse Queue::SetSize(uint64_t size) {
   if (ret) {
     return CommandFailure(-ret);
   }
+  size_ = size;
+
+  if (backpressure_) {
+    AdjustWaterLevels();
+  }
+
   return CommandSuccess();
 }
 
 CommandResponse Queue::CommandSetSize(
     const bess::pb::QueueCommandSetSizeArg &arg) {
   return SetSize(arg.size());
+}
+
+void Queue::AdjustWaterLevels() {
+  high_water_ = (uint64_t)(size_ * kHighWaterRatio);
+  low_water_ = (uint64_t)(size_ * kLowWaterRatio);
 }
 
 CheckConstraintResult Queue::CheckModuleConstraints() const {

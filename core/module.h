@@ -1,6 +1,7 @@
 #ifndef BESS_MODULE_H_
 #define BESS_MODULE_H_
 
+#include <atomic>
 #include <map>
 #include <string>
 #include <unordered_set>
@@ -19,6 +20,33 @@ using bess::gate_idx_t;
 #define MAX_NUMA_NODE 16
 #define MAX_TASKS_PER_MODULE 32
 #define UNCONSTRAINED_SOCKET ((0x1ull << MAX_NUMA_NODE) - 1)
+
+// Represents a node in a graph.
+class Node {
+ public:
+  /*!
+   * Creates a new Node that represents `module_`.
+   */
+  Node(Module *module) : module_(module), children_(), parents_() {}
+
+  Module *module() { return module_; }
+  std::unordered_set<std::string> &children() { return children_; }
+  std::unordered_set<Module *> &parents() { return parents_; }
+
+ private:
+  // Module that this Node represents.
+  Module *module_;
+
+  // Children of `module_` in the pipeline.
+  std::unordered_set<std::string> children_;
+
+  // Parents of `module_` in the pipeline. Only applicable when generating a
+  // task graph.
+  std::unordered_set<Module *> parents_;
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(Node);
+};
 
 struct task_result {
   bool block;
@@ -137,7 +165,43 @@ class ModuleBuilder {
 
   CommandResponse RunInit(Module *m, const google::protobuf::Any &arg) const;
 
+  /*!
+   * Connects two modules together in `module_graph_`.
+   */
+  static int AddEdge(const std::string &from, const std::string &to);
+
+  /*!
+   * Returns task parent(s) of a task node.
+   */
+  static std::unordered_set<Module *> *Parents(const std::string &node) {
+    auto it = task_graph_.find(node);
+    if (it == task_graph_.end()) {
+      return nullptr;
+    }
+    return &(it->second.parents());
+  }
+
  private:
+  /*!
+   * Updates `task_graph_` by traversing `module_graph_` and ignoring all
+   * modules that are not tasks.
+   */
+  static int UpdateTCGraph();
+
+  /*!
+   * Finds the next module that implements a task, and updates `task_graph_`
+   * accordingly.
+   */
+  static int FindNextTC(const std::string &node_name,
+                        const std::string &parent_name,
+                        std::unordered_set<std::string> &visited);
+
+  // A graph of all the modules in the current pipeline.
+  static std::map<std::string, Node> module_graph_;
+
+  // Represents a graph of all modules that are tasks in the pipeline.
+  static std::map<std::string, Node> task_graph_;
+
   const std::function<Module *()> module_generator_;
 
   static std::map<std::string, Module *> all_modules_;
@@ -178,6 +242,8 @@ class Module {
         ogates_(),
         active_workers_(Worker::kMaxWorkers, false),
         visited_tasks_(),
+        children_overload_(0),
+        overload_(false),
         node_constraints_(UNCONSTRAINED_SOCKET),
         min_allowed_workers_(1),
         max_allowed_workers_(1),
@@ -318,6 +384,23 @@ class Module {
 
   virtual CheckConstraintResult CheckModuleConstraints() const;
 
+  /*!
+   * Whether the module overrides RunTask.
+   */
+  virtual bool IsTask() const { return false; };
+
+  int children_overload() { return children_overload_; };  // For testing.
+
+  /*!
+   * Signals to parent(s) tasks that module is overloaded
+   */
+  void SignalOverload();
+
+  /*!
+   * Signals to parent(s) tasks that module is underloaded
+   */
+  void SignalUnderload();
+
  private:
   void DestroyAllTasks();
   void DeregisterAllAttributes();
@@ -349,6 +432,12 @@ class Module {
   std::vector<const ModuleTask *> visited_tasks_;
 
  protected:
+  // # of child tasks that are overloaded
+  std::atomic<int> children_overload_;
+
+  // Whether the module itself is overloaded
+  bool overload_;
+
   // TODO[apanda]: Move to some constraint structure?
   // Placement constraints for this module. We use this to update the task based
   // on all upstream tasks.

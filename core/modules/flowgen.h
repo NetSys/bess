@@ -71,6 +71,8 @@ class FlowGen final : public Module {
 
   std::string GetDesc() const override;
 
+  bool IsTask() const override { return true; } // Flowgen overrides RunTask.
+
  private:
   void UpdateDerivedParameters();
   double NewFlowPkts();
