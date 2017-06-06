@@ -63,9 +63,9 @@ struct task_result Source::RunTask(void *) {
   RunNextModule(&batch);  // it's fine to call this function with cnt==0
 
   return {
+    .block = (cnt == 0),
     .packets = cnt,
-    .bits = (pkt_size + pkt_overhead) * cnt * 8,
-    .block = (cnt == 0)
+    .bits = (pkt_size + pkt_overhead) * cnt * 8
   };
 }
 

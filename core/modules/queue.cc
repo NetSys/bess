@@ -119,7 +119,7 @@ struct task_result Queue::RunTask(void *) {
   uint32_t cnt = llring_sc_dequeue_burst(queue_, (void **)batch.pkts(), burst);
 
   if (cnt == 0) {
-    return { .packets = 0, .bits = 0, .block = true };
+    return { .block = true, .packets = 0, .bits = 0 };
   }
 
   batch.set_cnt(cnt);
@@ -137,9 +137,9 @@ struct task_result Queue::RunTask(void *) {
   }
 
   return {
+    .block = false,
     .packets = cnt,
-    .bits = (total_bytes + cnt * pkt_overhead) * 8,
-    .block = false
+    .bits = (total_bytes + cnt * pkt_overhead) * 8
   };
 }
 

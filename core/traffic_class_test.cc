@@ -24,7 +24,7 @@ class DummyModule : public Module {
 
 [[gnu::noinline]] struct task_result DummyModule::RunTask(
     void *arg[[maybe_unused]]) {
-  return { .packets = 0, .bits = 0, .block = false };
+  return { .block = false, .packets = 0, .bits = 0 };
 }
 
 // Tests that we can create a leaf node.

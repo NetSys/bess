@@ -131,7 +131,7 @@ struct task_result DRR::RunTask(void*) {
   // the number of bits inserted into the packet batch
   uint32_t cnt = batch.cnt();
   uint64_t bits_retrieved = (total_bytes + cnt * kPacketOverhead) * 8;
-  return { .packets = cnt, .bits = bits_retrieved, .block = (cnt == 0) };
+  return { .block = (cnt == 0), .packets = cnt, .bits = bits_retrieved };
 }
 
 uint32_t DRR::GetNextBatch(bess::PacketBatch* batch, int* err) {

@@ -25,7 +25,7 @@ class DummyModule : public Module {
 
 [[gnu::noinline]] struct task_result DummyModule::RunTask(
     [[maybe_unused]] void *arg) {
-  return { .packets = 0, .bits = 0, .block = false };
+  return { .block = false, .packets = 0, .bits = 0 };
 }
 
 // Performs TC Scheduler init/deinit before/after each test.

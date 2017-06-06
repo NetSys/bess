@@ -21,9 +21,9 @@ using bess::gate_idx_t;
 #define UNCONSTRAINED_SOCKET ((0x1ull << MAX_NUMA_NODE) - 1)
 
 struct task_result {
+  bool block;
   uint32_t packets;
   uint64_t bits;
-  bool block;
 };
 
 typedef uint16_t task_id_t;

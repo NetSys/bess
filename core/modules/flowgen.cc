@@ -487,9 +487,9 @@ struct task_result FlowGen::RunTask(void *) {
 
   uint32_t cnt = batch.cnt();
   return {
+    .block = (cnt == 0),
     .packets = cnt,
-    .bits = ((template_size_ + pkt_overhead) * cnt) * 8,
-    .block = (cnt == 0)
+    .bits = ((template_size_ + pkt_overhead) * cnt) * 8
   };
 }
 
