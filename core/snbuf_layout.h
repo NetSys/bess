@@ -3,7 +3,7 @@
 
 /* snbuf and mbuf share the same start address, so that we can avoid conversion.
  *
- * Layout (2048 bytes):
+ * Layout (2560 bytes):
  *    Offset	Size	Field
  *  - 0		128	mbuf (SNBUF_MBUF == sizeof(struct rte_mbuf))
  *  - 128	64	some read-only/immutable fields
@@ -11,14 +11,14 @@
  *  - 320	64	private area for module/driver's internal use
  *                        (currently used for vport RX/TX descriptors)
  *  - 384	128	_headroom (SNBUF_HEADROOM == RTE_PKTMBUF_HEADROOM)
- *  - 512	1536	_data (SNBUF_DATA)
+ *  - 512	2048	_data (SNBUF_DATA)
  *
- * Stride will be 2112B, because of mempool's per-object header which takes 64B.
+ * Stride will be 2624B, because of mempool's per-object header which takes 64B.
  *
  * Invariants:
  *  * When packets are newly allocated, the data should be filled from _data.
  *  * The packet data may reside in the _headroom + _data areas,
- *    but its size must not exceed 1536 (SNBUF_DATA) when passed to a port.
+ *    but its size must not exceed 2048 (SNBUF_DATA) when passed to a port.
  */
 #define SNBUF_MBUF 128
 #define SNBUF_IMMUTABLE 64
