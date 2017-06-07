@@ -83,7 +83,7 @@ struct task_result PortInc::RunTask(void *arg) {
   batch.set_cnt(p->RecvPackets(qid, batch.pkts(), burst));
   uint32_t cnt = batch.cnt();
   if (cnt == 0) {
-    return { .block = true, .packets = 0, .bits = 0 };
+    return {.block = true, .packets = 0, .bits = 0};
   }
 
   // NOTE: we cannot skip this step since it might be used by scheduler.
@@ -105,11 +105,9 @@ struct task_result PortInc::RunTask(void *arg) {
 
   RunNextModule(&batch);
 
-  return {
-    .block = false,
-    .packets = cnt,
-    .bits = (received_bytes + cnt * pkt_overhead) * 8
-  };
+  return {.block = false,
+          .packets = cnt,
+          .bits = (received_bytes + cnt * pkt_overhead) * 8};
 }
 
 CommandResponse PortInc::CommandSetBurst(

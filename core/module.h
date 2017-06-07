@@ -29,7 +29,6 @@ struct task_result {
 typedef uint16_t task_id_t;
 typedef uint64_t placement_constraint;
 
-
 using module_cmd_func_t =
     pb_func_t<CommandResponse, Module, google::protobuf::Any>;
 using module_init_func_t =

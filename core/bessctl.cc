@@ -1593,7 +1593,7 @@ class BESSControlImpl final : public BESSControl::Service {
 
 bool ApiServer::grpc_cb_set_ = false;
 
-void ApiServer::Listen(const std::string &host, int port) {
+void ApiServer::Listen(const std::string& host, int port) {
   if (!builder_) {
     builder_ = new grpc::ServerBuilder();
   }

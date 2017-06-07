@@ -125,7 +125,7 @@ NAT::HashTable::Entry *NAT::CreateNewEntry(const Endpoint &src_internal,
     src_external.port = be16_t(port);
     auto *hash_reverse = map_.Find(src_external);
     if (hash_reverse == nullptr) {
-found:
+    found:
       // Found an available src_internal <-> src_external mapping
       NatEntry forward_entry;
       NatEntry reverse_entry;

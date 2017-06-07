@@ -33,7 +33,7 @@ class DummySourceModule : public Module {
 
   RunNextModule(&batch);
 
-  return { .block = false, .packets = batch_size, .bits = 0 };
+  return {.block = false, .packets = batch_size, .bits = 0};
 }
 
 class DummyRelayModule : public Module {

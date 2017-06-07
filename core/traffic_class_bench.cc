@@ -23,9 +23,9 @@ class DummyModule : public Module {
   struct task_result RunTask(void *arg) override;
 };
 
-[[gnu::noinline]] struct task_result DummyModule::RunTask(
-    [[maybe_unused]] void *arg) {
-  return { .block = false, .packets = 0, .bits = 0 };
+[[gnu::noinline]] struct task_result DummyModule::RunTask([
+    [maybe_unused]] void *arg) {
+  return {.block = false, .packets = 0, .bits = 0};
 }
 
 // Performs TC Scheduler init/deinit before/after each test.

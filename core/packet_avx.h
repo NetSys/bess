@@ -10,7 +10,7 @@
 inline size_t Packet::Alloc(Packet **pkts, size_t cnt, uint16_t len) {
   // rte_mempool_get_bulk() is all (cnt) or nothing (0)
   if (rte_mempool_get_bulk(ctx.pframe_pool(), reinterpret_cast<void **>(pkts),
-                             cnt) < 0) {
+                           cnt) < 0) {
     return 0;
   }
 
@@ -21,7 +21,8 @@ inline size_t Packet::Alloc(Packet **pkts, size_t cnt, uint16_t len) {
   // vlan_tci        0   (16 bits)
   // rss             0   (32 bits)
   __m128i rxdesc_fields = _mm_setr_epi32(0, len, len, 0);
-  __m128i mbuf_template = *(reinterpret_cast<__m128i *>(&pframe_template.buf_len_));
+  __m128i mbuf_template =
+      *(reinterpret_cast<__m128i *>(&pframe_template.buf_len_));
 
   size_t i;
 

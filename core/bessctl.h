@@ -4,7 +4,7 @@
 #include <string>
 
 namespace grpc {
-  class ServerBuilder;
+class ServerBuilder;
 }  // namespace grpc
 
 // gRPC server encapsulation. Usage:
@@ -17,8 +17,8 @@ class ApiServer {
   ApiServer() : builder_(nullptr) {}
 
   // This class is neither copyable nor movable.
-  ApiServer(const ApiServer&) = delete;
-  ApiServer& operator=(const ApiServer&) = delete;
+  ApiServer(const ApiServer &) = delete;
+  ApiServer &operator=(const ApiServer &) = delete;
 
   // Adds a host:port pair. host can be an ipv6 address.
   void Listen(const std::string &host, int port);
