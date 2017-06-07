@@ -10,6 +10,7 @@ class Queue final : public Module {
   static const Commands cmds;
 
   Queue() : Module(), queue_(), prefetch_(), burst_() {
+    is_task_ = true;
     propagate_workers_ = false;
   }
 
@@ -26,8 +27,6 @@ class Queue final : public Module {
   CommandResponse CommandSetSize(const bess::pb::QueueCommandSetSizeArg &arg);
 
   CheckConstraintResult CheckModuleConstraints() const override;
-
-  bool IsTask() const override { return true; }  // Queue overrides RunTask.
 
  private:
   const double kHighWaterRatio = 0.90;

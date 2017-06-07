@@ -10,7 +10,9 @@ class Source final : public Module {
 
   static const Commands cmds;
 
-  Source() : Module(), pkt_size_(), burst_() {}
+  Source() : Module(), pkt_size_(), burst_() {
+    is_task_ = true;
+  }
 
   CommandResponse Init(const bess::pb::SourceArg &arg);
 
@@ -20,8 +22,6 @@ class Source final : public Module {
       const bess::pb::SourceCommandSetBurstArg &arg);
   CommandResponse CommandSetPktSize(
       const bess::pb::SourceCommandSetPktSizeArg &arg);
-
-  bool IsTask() const override { return true; } // Source overrides RunTask.
 
  private:
   int pkt_size_;

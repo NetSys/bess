@@ -31,7 +31,9 @@ DRR::DRR()
       max_queue_size_(kFlowQueueMax),
       max_number_flows_(kDefaultNumFlows),
       flow_ring_(nullptr),
-      current_flow_(nullptr) {}
+      current_flow_(nullptr) {
+        is_task_ = true;
+      }
 
 DRR::~DRR() {
   for (auto it = flows_.begin(); it != flows_.end();) {

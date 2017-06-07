@@ -37,19 +37,21 @@ DEF_MODULE(AcmeModule, "acme_module", "foo bar");
 
 class AcmeModuleWithTask : public Module {
  public:
-  AcmeModuleWithTask() : Module() {}
+  AcmeModuleWithTask() : Module() {
+    is_task_ = true;
+  }
 
   static const gate_idx_t kNumIGates = 1;
   static const gate_idx_t kNumOGates = 2;
 
-  CommandResponse Init(const bess::pb::EmptyArg &) { return CommandResponse(); }
+  CommandResponse Init(const bess::pb::EmptyArg &) {
+    return CommandResponse();
+  }
 
   struct task_result RunTask(void *) override {
     struct task_result ret;
     return ret;
   }
-
-  bool IsTask() const override { return true; };
 };
 
 DEF_MODULE(AcmeModuleWithTask, "acme_module_with_task", "foo bar");
@@ -282,14 +284,10 @@ TEST_F(ModuleTester, GenerateTCGraph) {
   EXPECT_EQ(0, m2->ConnectModules(1, m3, 0));
   EXPECT_EQ(0, m3->ConnectModules(0, t4, 0));
 
-  ASSERT_NE(nullptr, ModuleBuilder::Parents("t1"));
-  EXPECT_EQ(0, ModuleBuilder::Parents("t1")->size());
-  ASSERT_NE(nullptr, ModuleBuilder::Parents("t2"));
-  EXPECT_EQ(1, ModuleBuilder::Parents("t2")->size());
-  ASSERT_NE(nullptr, ModuleBuilder::Parents("t3"));
-  EXPECT_EQ(1, ModuleBuilder::Parents("t3")->size());
-  ASSERT_NE(nullptr, ModuleBuilder::Parents("t4"));
-  EXPECT_EQ(1, ModuleBuilder::Parents("t4")->size());
+  EXPECT_EQ(0, t1->parent_tasks().size());
+  EXPECT_EQ(1, t2->parent_tasks().size());
+  EXPECT_EQ(1, t2->parent_tasks().size());
+  EXPECT_EQ(1, t2->parent_tasks().size());
 
   ASSERT_EQ(0, t1->children_overload());
   t2->SignalOverload();

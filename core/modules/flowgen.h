@@ -57,7 +57,9 @@ class FlowGen final : public Module {
         flow_pkts_(),
         flow_gap_ns_(),
         pareto_(),
-        burst_() {}
+        burst_() {
+    is_task_ = true;
+  }
 
   static const Commands cmds;
   CommandResponse Init(const bess::pb::FlowGenArg &arg);
@@ -70,8 +72,6 @@ class FlowGen final : public Module {
   struct task_result RunTask(void *arg) override;
 
   std::string GetDesc() const override;
-
-  bool IsTask() const override { return true; } // Flowgen overrides RunTask.
 
  private:
   void UpdateDerivedParameters();

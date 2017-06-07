@@ -16,66 +16,67 @@
 const Commands Module::cmds;
 
 std::map<std::string, Module *> ModuleBuilder::all_modules_;
-std::map<std::string, Node> ModuleBuilder::module_graph_;
-std::map<std::string, Node> ModuleBuilder::task_graph_;
+std::unordered_map<std::string, Node> ModuleBuilder::module_graph_;
+std::unordered_set<std::string> ModuleBuilder::tasks_;
 
-int ModuleBuilder::AddEdge(const std::string &from, const std::string &to) {
+bool ModuleBuilder::AddEdge(const std::string &from, const std::string &to) {
   auto it = module_graph_.find(from);
   if (it == module_graph_.end()) {
-    return -EINVAL;
+    return false;
   }
-  it->second.children().insert(to);
-  UpdateTCGraph();
-  return 0;
+  it->second.AddChild(to);
+  return UpdateTCGraph();
 }
 
-int ModuleBuilder::UpdateTCGraph() {
-  int ret = 0;
-  for (auto const &tc : task_graph_) {
+bool ModuleBuilder::UpdateTCGraph() {
+  for (auto const &task : tasks_) {
     std::unordered_set<std::string> visited;
-    ret = FindNextTC(tc.first, tc.first, visited);
-    if (ret != 0) {
-      return ret;
+    if (!FindNextTC(task, task, &visited)) {
+      return false;
     }
   }
-  return ret;
+  return true;
 }
 
-int ModuleBuilder::FindNextTC(const std::string &node_name,
-                              const std::string &parent_name,
-                              std::unordered_set<std::string> &visited) {
-  visited.insert(node_name);
+bool ModuleBuilder::FindNextTC(const std::string &node_name,
+                               const std::string &parent_name,
+                               std::unordered_set<std::string> *visited) {
+  visited->insert(node_name);
   // While traversing the module graph, if `node` is in the task graph and is
   // not `parent`, then it must be  the child of `parent`.
-  if (node_name != parent_name &&
-      task_graph_.find(node_name) != task_graph_.end()) {
-    auto parent_it = task_graph_.find(parent_name);
-    auto node_it = task_graph_.find(node_name);
-    if (parent_it == task_graph_.end() || node_it == task_graph_.end()) {
-      return -EINVAL;
+  if (node_name != parent_name && tasks_.find(node_name) != tasks_.end()) {
+    auto parent_it = all_modules_.find(parent_name);
+    auto node_it = all_modules_.find(node_name);
+    if (parent_it == all_modules_.end() || node_it == all_modules_.end()) {
+      return false;
     }
-    parent_it->second.children().insert(node_name);
-    node_it->second.parents().insert(parent_it->second.module());
-    return 0;
+
+    Module *node = node_it->second;
+    Module *parent = parent_it->second;
+    for (Module *it : node->parent_tasks_) {
+      if (it == parent) {
+        return true;
+      }
+    }
+    node->parent_tasks_.push_back(parent);
+    return true;
   }
 
   auto node_it = module_graph_.find(node_name);
   if (node_it == module_graph_.end()) {
-    return -EINVAL;
+    return false;
   }
 
-  int ret;
   for (auto &child_name : node_it->second.children()) {
-    auto it = visited.find(child_name);
-    if (it != visited.end()) {
+    auto it = visited->find(child_name);
+    if (it != visited->end()) {
       continue;
     }
-    ret = FindNextTC(child_name, parent_name, visited);
-    if (ret != 0) {
-      return ret;
+    if (!FindNextTC(child_name, parent_name, visited)) {
+      return false;
     }
   }
-  return ret;
+  return true;
 }
 
 Module *ModuleBuilder::CreateModule(const std::string &name,
@@ -84,17 +85,21 @@ Module *ModuleBuilder::CreateModule(const std::string &name,
   m->set_name(name);
   m->set_module_builder(this);
   m->set_pipeline(pipeline);
-  module_graph_.emplace(std::piecewise_construct, std::forward_as_tuple(name),
-                        std::forward_as_tuple(m));
-  if (m->IsTask()) {
-    task_graph_.emplace(std::piecewise_construct, std::forward_as_tuple(name),
-                        std::forward_as_tuple(m));
-  }
   return m;
 }
 
 bool ModuleBuilder::AddModule(Module *m) {
-  return all_modules_.insert({m->name(), m}).second;
+  if (m->is_task_) {
+    if (!tasks_.insert(m->name()).second) {
+      return false;
+    }
+  }
+  return all_modules_.insert({m->name(), m}).second &&
+         module_graph_
+             .emplace(std::piecewise_construct,
+                      std::forward_as_tuple(m->name()),
+                      std::forward_as_tuple(m))
+             .second;
 }
 
 int ModuleBuilder::DestroyModule(Module *m, bool erase) {
@@ -124,8 +129,8 @@ int ModuleBuilder::DestroyModule(Module *m, bool erase) {
     all_modules_.erase(m->name());
   }
   module_graph_.erase(m->name());
-  if (m->IsTask()) {
-    task_graph_.erase(m->name());
+  if (m->is_task_) {
+    tasks_.erase(m->name());
   }
 
   delete m;
@@ -474,7 +479,10 @@ int Module::ConnectModules(gate_idx_t ogate_idx, Module *m_next,
   igate->PushOgate(ogate);
 
   // Update graph
-  return ModuleBuilder::AddEdge(name(), m_next->name());
+  if (ModuleBuilder::AddEdge(name_, m_next->name_)) {
+    return 0;
+  }
+  return 1;
 }
 
 int Module::DisconnectModules(gate_idx_t ogate_idx) {
@@ -582,40 +590,6 @@ void Module::RunSplit(const gate_idx_t *out_gates,
   /* phase 3: fire */
   for (int i = 0; i < num_pending; i++)
     RunChooseModule(pending[i], &batches[i]);
-}
-
-void Module::SignalOverload() {
-  if (overload_) {
-    return;
-  }
-
-  std::unordered_set<Module *> *parents = ModuleBuilder::Parents(name());
-  if (parents == nullptr) {
-    LOG(ERROR) << name() << " has no entry in task graph";
-    return;
-  }
-  for (auto const &p : *parents) {
-    ++(p->children_overload_);
-  }
-
-  overload_ = true;
-}
-
-void Module::SignalUnderload() {
-  if (!overload_) {
-    return;
-  }
-
-  std::unordered_set<Module *> *parents = ModuleBuilder::Parents(name());
-  if (parents == nullptr) {
-    LOG(ERROR) << name() << " has no entry in task graph";
-    return;
-  }
-  for (auto const &p : *parents) {
-    --(p->children_overload_);
-  }
-
-  overload_ = false;
 }
 
 #if SN_TRACE_MODULES

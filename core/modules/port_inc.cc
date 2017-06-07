@@ -72,7 +72,9 @@ std::string PortInc::GetDesc() const {
 struct task_result PortInc::RunTask(void *arg) {
   if (children_overload_ > 0) {
     return {
-      .packets = 0, .bits = 0,
+      .block = true,
+      .packets = 0,
+      .bits = 0,
     };
   }
 

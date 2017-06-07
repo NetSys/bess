@@ -139,8 +139,6 @@ class DRR final : public Module {
   CommandResponse CommandMaxFlowQueueSize(
       const bess::pb::DRRMaxFlowQueueSizeArg& arg);
 
-  bool IsTask() const override { return true; } // DRR overrides RunTask.
-
  private:
   /*
     Sets the quantum: the number of bytes allocated to each flow on every round
