@@ -287,11 +287,10 @@ void *run_worker(void *_arg) {
   return ctx.Run(_arg);
 }
 
-void launch_worker(int wid, int core, [[maybe_unused]] const std::string &scheduler) {
+void launch_worker(int wid, int core,
+                   [[maybe_unused]] const std::string &scheduler) {
   struct thread_arg<Task> arg = {
-    .wid = wid,
-    .core = core,
-    .scheduler = nullptr
+    .wid = wid, .core = core, .scheduler = nullptr
   };
   if (scheduler == "") {
     arg.scheduler = new DefaultScheduler<Task>();

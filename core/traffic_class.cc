@@ -14,9 +14,7 @@ namespace bess {
 
 size_t TrafficClass::Size() {
   size_t ret = 0;
-  Traverse([&ret](bess::TCChildArgs *) {
-        ret += 1;
-      });
+  Traverse([&ret](bess::TCChildArgs *) { ret += 1; });
   return ret;
 }
 
@@ -95,10 +93,9 @@ void PriorityTrafficClass::BlockTowardsRoot() {
   TrafficClass::BlockTowardsRootSetBlocked(first_runnable_ == num_children);
 }
 
-void PriorityTrafficClass::FinishAndAccountTowardsRoot(SchedWakeupQueue *wakeup_queue,
-                                                       TrafficClass *child,
-                                                       resource_arr_t usage,
-                                                       uint64_t tsc) {
+void PriorityTrafficClass::FinishAndAccountTowardsRoot(
+    SchedWakeupQueue *wakeup_queue, TrafficClass *child, resource_arr_t usage,
+    uint64_t tsc) {
   ACCUMULATE(stats_.usage, usage);
 
   if (child->blocked_) {
@@ -119,7 +116,7 @@ void PriorityTrafficClass::FinishAndAccountTowardsRoot(SchedWakeupQueue *wakeup_
 void PriorityTrafficClass::TraverseChildren(
     std::function<void(TCChildArgs *)> f) const {
   for (const auto &child : children_) {
-    PriorityChildArgs args (child.priority_,child.c_);
+    PriorityChildArgs args(child.priority_, child.c_);
     f(&args);
   }
 }
@@ -169,16 +166,15 @@ bool WeightedFairTrafficClass::RemoveChild(TrafficClass *child) {
     return false;
   }
 
-  for (auto it = all_children_.begin();
-       it != all_children_.end(); it++) {
+  for (auto it = all_children_.begin(); it != all_children_.end(); it++) {
     if (it->first == child) {
       all_children_.erase(it);
       break;
     }
   }
 
-  for (auto it = blocked_children_.begin();
-       it != blocked_children_.end(); it++) {
+  for (auto it = blocked_children_.begin(); it != blocked_children_.end();
+       it++) {
     if (it->c_ == child) {
       blocked_children_.erase(it);
       child->parent_ = nullptr;
@@ -186,9 +182,8 @@ bool WeightedFairTrafficClass::RemoveChild(TrafficClass *child) {
     }
   }
 
-  bool ret = children_.delete_single_element([=](const ChildData &x) {
-    return x.c_ == child;
-  });
+  bool ret = children_.delete_single_element(
+      [=](const ChildData &x) { return x.c_ == child; });
   if (ret) {
     child->parent_ = nullptr;
     BlockTowardsRoot();
@@ -230,10 +225,8 @@ void WeightedFairTrafficClass::BlockTowardsRoot() {
 }
 
 void WeightedFairTrafficClass::FinishAndAccountTowardsRoot(
-                                                       SchedWakeupQueue *wakeup_queue,
-                                                       TrafficClass *child,
-                                                       resource_arr_t usage,
-                                                       uint64_t tsc) {
+    SchedWakeupQueue *wakeup_queue, TrafficClass *child, resource_arr_t usage,
+    uint64_t tsc) {
   ACCUMULATE(stats_.usage, usage);
 
   // DCHECK_EQ(item.c_, child) << "Child that we picked should be at the front
@@ -259,7 +252,7 @@ void WeightedFairTrafficClass::FinishAndAccountTowardsRoot(
 void WeightedFairTrafficClass::TraverseChildren(
     std::function<void(TCChildArgs *)> f) const {
   for (const auto &child : all_children_) {
-    WeightedFairChildArgs args (child.second, child.first);
+    WeightedFairChildArgs args(child.second, child.first);
     f(&args);
   }
 }
@@ -298,16 +291,15 @@ bool RoundRobinTrafficClass::RemoveChild(TrafficClass *child) {
     return false;
   }
 
-  for (auto it = all_children_.begin();
-       it != all_children_.end(); it++) {
+  for (auto it = all_children_.begin(); it != all_children_.end(); it++) {
     if (*it == child) {
       all_children_.erase(it);
       break;
     }
   }
 
-  for (auto it = blocked_children_.begin();
-       it != blocked_children_.end(); it++) {
+  for (auto it = blocked_children_.begin(); it != blocked_children_.end();
+       it++) {
     if (*it == child) {
       blocked_children_.erase(it);
       child->parent_ = nullptr;
@@ -373,10 +365,8 @@ void RoundRobinTrafficClass::BlockTowardsRoot() {
 }
 
 void RoundRobinTrafficClass::FinishAndAccountTowardsRoot(
-                                                     SchedWakeupQueue *wakeup_queue,
-                                                     TrafficClass *child,
-                                                     resource_arr_t usage,
-                                                     uint64_t tsc) {
+    SchedWakeupQueue *wakeup_queue, TrafficClass *child, resource_arr_t usage,
+    uint64_t tsc) {
   ACCUMULATE(stats_.usage, usage);
   if (child->blocked_) {
     children_.erase(children_.begin() + next_child_);
@@ -456,10 +446,8 @@ void RateLimitTrafficClass::BlockTowardsRoot() {
 }
 
 void RateLimitTrafficClass::FinishAndAccountTowardsRoot(
-                                                    SchedWakeupQueue *wakeup_queue,
-                                                    TrafficClass *child,
-                                                    resource_arr_t usage,
-                                                    uint64_t tsc) {
+    SchedWakeupQueue *wakeup_queue, TrafficClass *child, resource_arr_t usage,
+    uint64_t tsc) {
   ACCUMULATE(stats_.usage, usage);
   uint64_t elapsed_cycles = tsc - last_tsc_;
   last_tsc_ = tsc;

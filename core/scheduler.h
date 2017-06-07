@@ -25,8 +25,7 @@ class Scheduler;
 class SchedWakeupQueue {
  public:
   struct WakeupComp {
-    bool operator()(const TrafficClass *left,
-                    const TrafficClass *right) const {
+    bool operator()(const TrafficClass *left, const TrafficClass *right) const {
       // Reversed so that priority_queue is a min priority queue.
       return right->wakeup_time() < left->wakeup_time();
     }
@@ -35,16 +34,15 @@ class SchedWakeupQueue {
   SchedWakeupQueue() : q_(WakeupComp()) {}
 
   // Adds the given traffic class to those that are considered blocked.
-  void Add(TrafficClass *c) {
-    q_.push(c);
-  }
+  void Add(TrafficClass *c) { q_.push(c); }
 
  private:
   template <typename CallableTasks>
   friend class Scheduler;
 
   // A priority queue of TrafficClasses to wake up ordered by time.
-  std::priority_queue<TrafficClass *, std::vector<TrafficClass *>, WakeupComp> q_;
+  std::priority_queue<TrafficClass *, std::vector<TrafficClass *>, WakeupComp>
+      q_;
 };
 
 // The non-instantiable base class for schedulers.  Implements common routines
@@ -102,8 +100,8 @@ class Scheduler {
       return default_rr_class_->AddChild(c);
     }
     default_rr_class_ =
-      TrafficClassBuilder::CreateTrafficClass<RoundRobinTrafficClass>(
-          std::string("!default_rr_") + std::to_string(wid));
+        TrafficClassBuilder::CreateTrafficClass<RoundRobinTrafficClass>(
+            std::string("!default_rr_") + std::to_string(wid));
     default_rr_class_->AddChild(root_);
     default_rr_class_->AddChild(c);
     root_ = default_rr_class_;
@@ -121,9 +119,9 @@ class Scheduler {
     TrafficClass *last_child = nullptr;
     default_rr_class_->TraverseChildren(
         [&last_child, &n_children](TCChildArgs *c) {
-      last_child = c->child();
-      n_children++;
-    });
+          last_child = c->child();
+          n_children++;
+        });
 
     if (n_children <= 1) {
       root_ = last_child;
@@ -146,14 +144,10 @@ class Scheduler {
   }
 
   // Return the number of traffic classes, managed by this scheduler.
-  size_t NumTcs() const {
-    return root_ ? root_->Size() : 0;
-  }
+  size_t NumTcs() const { return root_ ? root_->Size() : 0; }
 
   // For testing
-  SchedWakeupQueue &wakeup_queue() {
-      return wakeup_queue_;
-  }
+  SchedWakeupQueue &wakeup_queue() { return wakeup_queue_; }
 
   // Selects the next TrafficClass to run.
   LeafTrafficClass<CallableTask> *Next(uint64_t tsc) {
@@ -198,7 +192,8 @@ class Scheduler {
 template <typename CallableTask>
 class DefaultScheduler : public Scheduler<CallableTask> {
  public:
-  explicit DefaultScheduler(TrafficClass *root = nullptr) : Scheduler<CallableTask>(root) {}
+  explicit DefaultScheduler(TrafficClass *root = nullptr)
+      : Scheduler<CallableTask>(root) {}
 
   virtual ~DefaultScheduler() {}
 
@@ -232,7 +227,8 @@ class DefaultScheduler : public Scheduler<CallableTask> {
     resource_arr_t usage;
 
     // Schedule.
-    LeafTrafficClass<CallableTask> *leaf = Scheduler<CallableTask>::Next(this->checkpoint_);
+    LeafTrafficClass<CallableTask> *leaf =
+        Scheduler<CallableTask>::Next(this->checkpoint_);
 
     uint64_t now;
     if (leaf) {
@@ -253,7 +249,8 @@ class DefaultScheduler : public Scheduler<CallableTask> {
       // TODO(barath): Re-enable scheduler-wide stats accumulation.
       // accumulate(stats_.usage, usage);
 
-      leaf->FinishAndAccountTowardsRoot(&this->wakeup_queue_, nullptr, usage, now);
+      leaf->FinishAndAccountTowardsRoot(&this->wakeup_queue_, nullptr, usage,
+                                        now);
     } else {
       // TODO(barath): Ideally, we wouldn't spin in this case but rather take
       // the fact that Next() returned nullptr as an indication that everything
@@ -273,7 +270,8 @@ class DefaultScheduler : public Scheduler<CallableTask> {
 template <typename CallableTask>
 class ExperimentalScheduler : public Scheduler<CallableTask> {
  public:
-  explicit ExperimentalScheduler(TrafficClass *root = nullptr) : Scheduler<CallableTask>(root) {}
+  explicit ExperimentalScheduler(TrafficClass *root = nullptr)
+      : Scheduler<CallableTask>(root) {}
 
   virtual ~ExperimentalScheduler() {}
 
@@ -309,7 +307,8 @@ class ExperimentalScheduler : public Scheduler<CallableTask> {
     resource_arr_t usage;
 
     // Schedule.
-    LeafTrafficClass<CallableTask> *leaf = Scheduler<CallableTask>::Next(this->checkpoint_);
+    LeafTrafficClass<CallableTask> *leaf =
+        Scheduler<CallableTask>::Next(this->checkpoint_);
 
     uint64_t now;
     if (leaf) {
@@ -343,7 +342,8 @@ class ExperimentalScheduler : public Scheduler<CallableTask> {
       }
 
       // Account.
-      leaf->FinishAndAccountTowardsRoot(&this->wakeup_queue_, nullptr, usage, now);
+      leaf->FinishAndAccountTowardsRoot(&this->wakeup_queue_, nullptr, usage,
+                                        now);
     } else {
       ++this->stats_.cnt_idle;
 

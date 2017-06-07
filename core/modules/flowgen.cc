@@ -486,11 +486,9 @@ struct task_result FlowGen::RunTask(void *) {
   RunNextModule(&batch);
 
   uint32_t cnt = batch.cnt();
-  return {
-    .block = (cnt == 0),
-    .packets = cnt,
-    .bits = ((template_size_ + pkt_overhead) * cnt) * 8
-  };
+  return {.block = (cnt == 0),
+          .packets = cnt,
+          .bits = ((template_size_ + pkt_overhead) * cnt) * 8};
 }
 
 std::string FlowGen::GetDesc() const {

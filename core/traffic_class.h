@@ -210,7 +210,12 @@ class TrafficClass {
 
   TrafficClass(const std::string &name, const TrafficPolicy &policy,
                bool blocked = true)
-      : parent_(), name_(name), stats_(), wakeup_time_(), blocked_(blocked), policy_(policy) {}
+      : parent_(),
+        name_(name),
+        stats_(),
+        wakeup_time_(),
+        blocked_(blocked),
+        policy_(policy) {}
 
   // Sets blocked status to nowblocked and recurses towards root by signaling
   // the parent if status became unblocked.
@@ -261,9 +266,12 @@ class TrafficClass {
   uint64_t wakeup_time_;
 
  private:
-  template <typename CallableTask> friend class Scheduler;
-  template <typename CallableTask> friend class DefaultScheduler;
-  template <typename CallableTask> friend class ExperimentalScheduler;
+  template <typename CallableTask>
+  friend class Scheduler;
+  template <typename CallableTask>
+  friend class DefaultScheduler;
+  template <typename CallableTask>
+  friend class ExperimentalScheduler;
 
   bool blocked_;
 
@@ -497,9 +505,7 @@ class RateLimitTrafficClass final : public TrafficClass {
   }
 
   // Convert resource units to work units
-  static uint64_t to_work_units(uint64_t x) {
-    return x << USAGE_AMPLIFIER_POW;
-  }
+  static uint64_t to_work_units(uint64_t x) { return x << USAGE_AMPLIFIER_POW; }
 
  private:
   template <typename CallableTask>

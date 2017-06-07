@@ -4,8 +4,8 @@
 
 #include <cstdint>
 
-#include "worker.h"
 #include "bessd.h"
+#include "worker.h"
 
 // Port this BESS instance listens on.
 // Panda came up with this default number
@@ -21,7 +21,7 @@ DEFINE_bool(d, false, "Run BESS in debug mode (with debug log messages)");
 DEFINE_bool(a, false, "Allow multiple instances");
 DEFINE_bool(no_huge, false, "Disable hugepages");
 DEFINE_string(modules, bess::bessd::GetCurrentDirectory() + "modules",
-	      "Load modules from the specified directory");
+              "Load modules from the specified directory");
 
 static bool ValidateCoreID(const char *, int32_t value) {
   if (!is_cpu_present(value)) {
