@@ -52,9 +52,9 @@ script:
   - ./container_build.py kmod_buildtest
   - (cd core && ./all_test)  # TcpFlowReconstructTest requires working directory to be `core/`
   - coverage2 run -m unittest discover -v
-  - coverage3 run -m unittest discover -v
+  - "[[ ${DEBUG:-0} == 0 ]] || coverage3 run -m unittest discover -v"
   - python2 bessctl/bessctl -- daemon start -- run testing/run_module_tests
-  - python3 bessctl/bessctl -- daemon start -- run testing/run_module_tests
+  - "[[ ${DEBUG:-0} == 0 ]] || python3 bessctl/bessctl -- daemon start -- run testing/run_module_tests"
 
 after_success:
   - bessctl/bessctl daemon stop # flush out the coverage data
