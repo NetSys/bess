@@ -14,32 +14,32 @@ def basic_output_test():
         for i in range(num_pkts):
             cur_pkt = gen_packet(protocol, input_ip, output_ip)
             packet_list.append({'input_port': 0, 'input_packet': cur_pkt,
-                                    'output_port': 0, "output_packet": cur_pkt})
+                                'output_port': 0, "output_packet": cur_pkt})
         return packet_list
 
-    single_basic = DRR(num_flows=2, max_flow_queue_size= 100)
+    single_basic = DRR(num_flows=2, max_flow_queue_size=100)
     monitor_task(single_basic, 0)
 
     out = []
-    single_packet= gen_packet_list(scapy.TCP, '22.22.22.22', '22.22.22.22', 1)
+    single_packet = gen_packet_list(scapy.TCP, '22.22.22.22', '22.22.22.22', 1)
     out.append([single_basic,  # test this module
-                               1, 1,  # it has one input port and one output port
-                               single_packet])
-    batch_basic = DRR(num_flows=4, max_flow_queue_size= 100)
+                1, 1,  # it has one input port and one output port
+                single_packet])
+    batch_basic = DRR(num_flows=4, max_flow_queue_size=100)
     monitor_task(batch_basic, 0)
     packet_list = gen_packet_list(scapy.TCP, '22.22.22.1', '22.22.22.1', 2)
     packet_list += gen_packet_list(scapy.TCP, '22.22.11.1', '22.22.11.1', 2)
     packet_list += gen_packet_list(scapy.TCP, '22.11.11.1', '22.11.11.1', 1)
     out.append([batch_basic,  # test this module
-                               1, 1,  # it has one input port and one output port
-                               packet_list])
+                1, 1,  # it has one input port and one output port
+                packet_list])
     return out
 
-# tests the fairness of 2 and 5 flows setup using the inner helper function. 
-def fairness_test():
 
-    # Takes the number of flows n, the quantum to give drr, the list packet rates for each flow 
-    # and the packet rate for the module. runs this setup for five seconds and tests that 
+# tests the fairness of 2 and 5 flows setup using the inner helper function.
+def fairness_test():
+    # Takes the number of flows n, the quantum to give drr, the list packet rates for each flow
+    # and the packet rate for the module. runs this setup for five seconds and tests that
     # throughput for each flow had a jaine fairness of atleast .95.
     def fairness_n_flow_test(n, quantum, rates, module_rate):
         err = bess.reset_all()
@@ -47,7 +47,7 @@ def fairness_test():
         packets = []
         exm = ExactMatch(fields=[{'offset':26, 'size':4}])
         for i in range(1, n+1):
-           packets.append(str(gen_packet(scapy.TCP, '22.11.11.' + str(i), '22.22.11.' + str(i)))) 
+           packets.append(bytes(gen_packet(scapy.TCP, '22.11.11.' + str(i), '22.22.11.' + str(i))))
            exm.add(fields=[socket.inet_aton('22.11.11.' + str(i))], gate=i)
 
         me_in = Measure()
@@ -60,9 +60,9 @@ def fairness_test():
             rewrites.append(Rewrite(templates=[packets[i]]))
             src[i] -> rewrites[i] -> measure_in[i] -> me_in
 
-        me_out = Measure() 
+        me_out = Measure()
         snk = Sink()
-        q = DRR(num_flows= n+1, quantum=quantum) 
+        q = DRR(num_flows= n+1, quantum=quantum)
         me_in -> q -> me_out -> exm
 
         measure_out = []

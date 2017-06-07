@@ -7,7 +7,7 @@ for i in xrange(1, NUM_PORTS + 1):
     try:
         vport = VPort(loopback=1)
     except:
-        print 'FAILURE: %d vports has been initialized' % (i - 1)
+        print('FAILURE: %d vports has been initialized' % (i - 1))
         raise
 
     sys.stdout.write('.')
@@ -18,4 +18,4 @@ for i in xrange(1, NUM_PORTS + 1):
 
     time.sleep(1.0 / i)
 else:
-    print 'SUCCESS: %d vports has been successfully initialized' % NUM_PORTS
+    print('SUCCESS: %d vports has been successfully initialized' % NUM_PORTS)

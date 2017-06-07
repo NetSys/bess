@@ -78,11 +78,11 @@ def my_bonus_acl_test():
                       'drop': False}])
     src = Source()
     rwtemp = [
-        str(gen_packet(
+        bytes(gen_packet(
             scapy.UDP,
             "172.12.0.3",
             "127.12.0.4")),
-        str(gen_packet(
+        bytes(gen_packet(
             scapy.TCP,
             "192.168.32.4",
             "1.2.3.4"))]
@@ -90,5 +90,6 @@ def my_bonus_acl_test():
     bess.resume_all()
     time.sleep(15)
     bess.pause_all()
+
 
 CUSTOM_TEST_FUNCTIONS.append(my_bonus_acl_test)

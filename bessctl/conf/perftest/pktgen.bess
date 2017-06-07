@@ -21,7 +21,7 @@ def build_pkt(size):
     payload = ('hello' + '0123456789' * 200)[:size-len(eth/ip/udp)]
     pkt = eth/ip/udp/payload
     pkt.show()
-    return str(pkt)
+    return bytes(pkt)
 
 if imix:
     # https://en.wikipedia.org/wiki/Internet_Mix
@@ -45,7 +45,7 @@ ports = [PMDPort(port_id=i, num_inc_q=num_cores, num_out_q=num_cores) \
          for i in range(num_ports)]
 
 for i in range(num_cores):
-    print("starting up worker: " + str(i))
+    print("starting up worker: " + bytes(i))
     bess.add_worker(wid=i, core=i)
 
     src = Source()

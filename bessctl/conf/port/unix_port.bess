@@ -38,15 +38,15 @@ else:
     s.connect(SOCKET_PATH)
 
 for i in range(ITERATION):
-    original = gen_packet('10.0.0.1', '192.168.1.10' + str(i))
-    s.send(str(original))
+    original = gen_packet('10.0.0.1', '192.168.1.10' + bytes(i))
+    s.send(bytes(original))
 
     modified = s.recv(2048)
     pkt = scapy.Ether(modified)
     assert len(original) == len(modified)
 
     print('%2d/%2d\tOriginal: %s' % (i + 1, ITERATION, original.summary()))
-    print '\tModified: %s' % pkt.summary()
+    print('\tModified: %s' % pkt.summary())
 
     time.sleep(1)
 

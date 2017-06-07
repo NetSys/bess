@@ -19,5 +19,5 @@ em:1 -> Sink()
 em:2 -> Sink()
 
 # NOTE: metadata attribute values are stored in host order (little endian)!
-em.add(fields=['\xcc', '\x22\x11'], gate=1)
-em.add(fields=['\x42', '\x33\x44'], gate=2)
+em.add(fields=[b'\xcc', b'\x22\x11'], gate=1)
+em.add(fields=[b'\x42', b'\x33\x44'], gate=2)

@@ -7,4 +7,4 @@ p = PMDPort(port_id=0)
 PortInc(port=p.name) -> PortOut(port=v.name)
 PortInc(port=v.name) -> PortOut(port=p.name)
 
-print 'Two ports have been spliced: {} <-> {}'.format(p, v)
+print('Two ports have been spliced: {} <-> {}'.format(p, v))

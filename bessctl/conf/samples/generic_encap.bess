@@ -7,7 +7,7 @@ ip = scapy.IP()
 udp = scapy.UDP()
 payload = 'Hello World'
 
-test_packet = str(eth/ip/udp/payload)
+test_packet = bytes(eth/ip/udp/payload)
 
 Source() \
         -> SetMetadata(attrs=[{'name': 'ether_type', 'size': 2, 'value_int': 0x9999}]) \

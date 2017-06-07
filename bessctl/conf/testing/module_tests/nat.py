@@ -31,7 +31,7 @@ def my_nat_simple_rule_test():
 
         orig = eth / ip_orig / l4_orig / l7
 
-        s0.send(str(orig))
+        s0.send(bytes(orig))
         natted_str = s1.recv(2048)
         natted = scapy.Ether(natted_str)
         # The NAT module can choose an arbitrary port/id.  We cannot test it,
@@ -41,14 +41,14 @@ def my_nat_simple_rule_test():
             l4_natted.id = natted.payload.payload.id
         else:
             l4_natted.sport = natted.payload.payload.sport
-        assert str(eth / ip_natted / l4_natted / l7) == natted_str
+        assert bytes(eth / ip_natted / l4_natted / l7) == natted_str
 
         l4_reply = swap_l4(natted.payload.payload)
         reply = eth / ip_reply / l4_reply / l7
 
-        s1.send(str(reply))
+        s1.send(bytes(reply))
         unnatted_str = s0.recv(2048)
-        assert str(eth / ip_unnatted / swap_l4(l4_orig) / l7) == unnatted_str
+        assert bytes(eth / ip_unnatted / swap_l4(l4_orig) / l7) == unnatted_str
 
     nat0::NAT(ext_addrs=['192.168.1.1'])
 

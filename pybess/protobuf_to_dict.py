@@ -1,6 +1,5 @@
 # Copied from https://github.com/benhodgson/protobuf-to-dict (cd98280)
 # written by Ben Hodgson, with additional fixes
-
 from google.protobuf.message import Message
 from google.protobuf.descriptor import FieldDescriptor
 
@@ -16,26 +15,25 @@ TYPE_CALLABLE_MAP = {
     FieldDescriptor.TYPE_DOUBLE: float,
     FieldDescriptor.TYPE_FLOAT: float,
     FieldDescriptor.TYPE_INT32: int,
-    FieldDescriptor.TYPE_INT64: long,
+    FieldDescriptor.TYPE_INT64: int,
     FieldDescriptor.TYPE_UINT32: int,
-    FieldDescriptor.TYPE_UINT64: long,
+    FieldDescriptor.TYPE_UINT64: int,
     FieldDescriptor.TYPE_SINT32: int,
-    FieldDescriptor.TYPE_SINT64: long,
+    FieldDescriptor.TYPE_SINT64: int,
     FieldDescriptor.TYPE_FIXED32: int,
-    FieldDescriptor.TYPE_FIXED64: long,
+    FieldDescriptor.TYPE_FIXED64: int,
     FieldDescriptor.TYPE_SFIXED32: int,
-    FieldDescriptor.TYPE_SFIXED64: long,
+    FieldDescriptor.TYPE_SFIXED64: int,
     FieldDescriptor.TYPE_BOOL: bool,
-    FieldDescriptor.TYPE_STRING: unicode,
-    FieldDescriptor.TYPE_BYTES: str,
+    FieldDescriptor.TYPE_STRING: str,
+    FieldDescriptor.TYPE_BYTES: bytes,
     FieldDescriptor.TYPE_ENUM: int,
 }
 
 
 def repeated_map(type_k_callable, type_v_callable):
     return lambda values: {type_k_callable(k): type_v_callable(v)
-                           for k, v in values.items()
-                           }
+                           for k, v in values.items()}
 
 
 def repeated(type_callable):

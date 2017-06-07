@@ -1,24 +1,25 @@
-#!/usr/bin/env python2.7
+#!/usr/bin/env python
+from __future__ import print_function
+from __future__ import absolute_import
 import sys
 import os
 import os.path
-import cStringIO
+import io
 import tempfile
 import time
+import cli
+import commands
 
 # Suppress scapy IPv6 warning (must be done before importing scapy module)
 import logging
 logging.getLogger("scapy.runtime").setLevel(logging.ERROR)
-
-import cli
-import commands
 
 try:
     this_dir = os.path.dirname(os.path.realpath(__file__))
     sys.path.insert(1, os.path.join(this_dir, '..'))
     from pybess.bess import *
 except ImportError:
-    print >> sys.stderr, 'Cannot import the API module (pybess)'
+    print('Cannot import the API module (pybess)', file=sys.stderr)
     raise
 
 
@@ -68,7 +69,7 @@ class BESSCLI(cli.CLI):
 
         except self.bess.RPCError as e:
             self.err('RPC failed to {}:{} - {}'.format(
-                self.bess.peer[0], self.bess.peer[1], e.message))
+                self.bess.peer[0], self.bess.peer[1], str(e)))
 
             self._handle_broken_connection()
             raise self.HandledError()
@@ -120,7 +121,7 @@ def run_cli(instream=sys.stdin):
         s.connect()
     except BESS.APIError as e:
         if cli.interactive:
-            cli.ferr.write(e.message + '\n')
+            cli.ferr.write(str(e) + '\n')
             cli.ferr.write('Perhaps bessd daemon is not running locally? '
                            'Try "daemon start".\n')
 
@@ -147,8 +148,8 @@ def main():
             else:
                 line_buf.append(arg)
 
-        cmds.append(' '.join(line_buf))
-        run_cli(cStringIO.StringIO('\n'.join(cmds)))
+        cmds.append(u' '.join(line_buf))
+        run_cli(io.StringIO('\n'.join(cmds)))
 
 if __name__ == '__main__':
     main()

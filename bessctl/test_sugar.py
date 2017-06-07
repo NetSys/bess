@@ -1,7 +1,11 @@
+from __future__ import print_function
+from __future__ import absolute_import
+from __future__ import unicode_literals
 import fnmatch
 import os
-import sugar
 import unittest
+
+from . import sugar
 
 this_dir = os.path.dirname(os.path.realpath(__file__))
 script_dir = os.path.join(this_dir, 'conf')

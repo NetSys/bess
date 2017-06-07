@@ -27,7 +27,7 @@ while True:
     else:
         ns_per_packet = 0
 
-    print '%s: %.3f Mpps, %.3f Mbps, rtt_avg: %.3f us, rtt_med: %.3f us, '\
+    print('%s: %.3f Mpps, %.3f Mbps, rtt_avg: %.3f us, rtt_med: %.3f us, '\
           'rtt_99th: %.3f us, jitter_med: %.3f us, jitter_99th: %.3f us' % \
             (time.ctime(now.timestamp),
              diff_pkts / 1e6,
@@ -36,4 +36,4 @@ while True:
              last.latency_50_ns / 1e3,
              last.latency_99_ns / 1e3,
              last.jitter_50_ns / 1e3,
-             last.jitter_99_ns / 1e3)
+             last.jitter_99_ns / 1e3))

@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+from __future__ import print_function
 import sys
 import os
 import os.path
@@ -45,8 +46,8 @@ def cmd(cmd):
     out, err = proc.communicate()
 
     if proc.returncode:
-        print >> sys.stderr, 'Log:\n', out
-        print >> sys.stderr, 'Error has occured running command: %s' % cmd
+        print('Log:\n', out, file=sys.stderr)
+        print('Error has occured running command: %s' % cmd, file=sys.stderr)
         sys.exit(proc.returncode)
 
 
@@ -110,22 +111,23 @@ def check_c_lib(lib):
 
 def required(header_file, lib_name, compiler):
     if not check_header(header_file, compiler):
-        print >> sys.stderr, 'Error - #include <%s> failed. ' \
-                'Did you install "%s" package?' % (header_file, lib_name)
+        print('Error - #include <%s> failed. '
+              'Did you install "%s" package?'
+              % (header_file, lib_name), file=sys.stderr)
         sys.exit(1)
 
 
 def check_essential():
     if not cmd_success('gcc -v'):
-        print >> sys.stderr, 'Error - "gcc" is not available'
+        print('Error - "gcc" is not available', file=sys.stderr)
         sys.exit(1)
 
     if not cmd_success('g++ -v'):
-        print >> sys.stderr, 'Error - "g++" is not available'
+        print('Error - "g++" is not available', file=sys.stderr)
         sys.exit(1)
 
     if not cmd_success('make -v'):
-        print >> sys.stderr, 'Error - "make" is not available'
+        print('Error - "make" is not available', file=sys.stderr)
         sys.exit(1)
 
     required('pcap/pcap.h', 'libpcap-dev', 'gcc')
@@ -153,8 +155,8 @@ def check_bnx():
         global extra_libs
         extra_libs.add('z')
     else:
-        print ' - "zlib1g-dev" is not available. ' \
-                'Disabling BNX2X PMD...'
+        print(' - "zlib1g-dev" is not available. '
+              'Disabling BNX2X PMD...')
         set_config(DPDK_FINAL_CONFIG, 'CONFIG_RTE_LIBRTE_BNX2X_PMD', 'n')
 
 
@@ -164,12 +166,12 @@ def check_mlx():
         extra_libs.add('ibverbs')
         # extra_libs.add('mlx5')
     else:
-        print ' - "Mellanox OFED" is not available. ' \
-                'Disabling MLX4 and MLX5 PMDs...'
+        print(' - "Mellanox OFED" is not available. '
+              'Disabling MLX4 and MLX5 PMDs...')
         if check_header('infiniband/verbs.h', 'gcc'):
-            print '   NOTE: "libibverbs-dev" does exist, but it does not ' \
-                    'work with MLX PMDs. Instead download OFED from ' \
-                    'http://www.melloanox.com'
+            print('   NOTE: "libibverbs-dev" does exist, but it does not '
+                  'work with MLX PMDs. Instead download OFED from '
+                  'http://www.melloanox.com')
         set_config(DPDK_FINAL_CONFIG, 'CONFIG_RTE_LIBRTE_MLX4_PMD', 'n')
         set_config(DPDK_FINAL_CONFIG, 'CONFIG_RTE_LIBRTE_MLX5_PMD', 'n')
 
@@ -192,7 +194,7 @@ def generate_extra_mk():
 
 def download_dpdk():
     try:
-        print 'Downloading %s ...  ' % DPDK_URL
+        print('Downloading %s ...  ' % DPDK_URL)
         cmd('curl -s -L %s -o %s' % (DPDK_URL, DPDK_FILE))
 
     except:
@@ -202,7 +204,7 @@ def download_dpdk():
 
 def configure_dpdk():
     try:
-        print 'Configuring DPDK...'
+        print('Configuring DPDK...')
         cmd('cp -f %s %s' % (DPDK_BASE_CONFIG, DPDK_FINAL_CONFIG))
 
         check_mlx()
@@ -223,7 +225,7 @@ def build_dpdk():
             download_dpdk()
 
         try:
-            print 'Decompressing DPDK...'
+            print('Decompressing DPDK...')
             cmd('mkdir -p %s' % DPDK_DIR)
             cmd('tar zxf %s -C %s --strip-components 1' %
                 (DPDK_FILE, DPDK_DIR))
@@ -237,7 +239,7 @@ def build_dpdk():
     if not os.path.exists('%s/build' % DPDK_DIR):
         configure_dpdk()
 
-    print 'Building DPDK...'
+    print('Building DPDK...')
     nproc = int(subprocess.check_output('nproc'))
     cmd('make -j%d -C %s EXTRA_CFLAGS=%s' % (nproc, DPDK_DIR, DPDK_CFLAGS))
 
@@ -250,13 +252,14 @@ def build_bess():
 
     generate_extra_mk()
 
-    print 'Generating protobuf codes for pybess...'
+    print('Generating protobuf codes for pybess...')
     cmd('protoc protobuf/*.proto \
         --proto_path=protobuf --python_out=pybess \
         --grpc_out=pybess \
         --plugin=protoc-gen-grpc=`which grpc_python_plugin`')
+    cmd('2to3 -wn pybess/*_pb2.py')
 
-    print 'Building BESS daemon...'
+    print('Building BESS daemon...')
     cmd('bin/bessctl daemon stop 2> /dev/null || true')
     cmd('rm -f core/bessd')     # force relink as DPDK might have been rebuilt
     cmd('make -C core -j`nproc`')
@@ -267,17 +270,17 @@ def build_kmod():
     check_essential()
 
     if os.getenv('KERNELDIR'):
-        print 'Building BESS kernel module (%s) ...' % \
-                os.getenv('KERNELDIR')
+        print('Building BESS kernel module (%s) ...' %
+              os.getenv('KERNELDIR'))
     else:
-        print 'Building BESS kernel module (%s - running kernel) ...' % \
-                subprocess.check_output('uname -r', shell=True).strip()
+        print('Building BESS kernel module (%s - running kernel) ...' %
+              subprocess.check_output('uname -r', shell=True).strip())
 
     cmd('sudo -n rmmod bess 2> /dev/null || true')
     try:
         cmd('make -C core/kmod')
     except SystemExit:
-        print >> sys.stderr, '*** module build has failed.'
+        print('*** module build has failed.', file=sys.stderr)
         sys.exit(1)
 
 
@@ -285,11 +288,11 @@ def build_all():
     build_dpdk()
     build_bess()
     build_kmod()
-    print 'Done.'
+    print('Done.')
 
 
 def do_clean():
-    print 'Cleaning up...'
+    print('Cleaning up...')
     cmd('make -C core clean')
     cmd('rm -f bin/bessd')
     cmd('make -C core/kmod clean')
@@ -298,7 +301,7 @@ def do_clean():
 
 def do_dist_clean():
     do_clean()
-    print 'Removing 3rd-party libraries...'
+    print('Removing 3rd-party libraries...')
     cmd('rm -rf %s %s' % (DPDK_FILE, DPDK_DIR))
 
 
@@ -308,7 +311,7 @@ def print_usage(parser):
 
 
 def update_benchmark_path(path):
-    print 'Specified benchmark path %s' % path
+    print('Specified benchmark path %s' % path)
     cxx_flags.extend(['-I%s/include' % (path)])
     ld_flags.extend(['-L%s/lib' % (path)])
 
@@ -341,8 +344,9 @@ def main():
     elif args.action == 'help':
         print_usage(parser)
     else:
-        print >> sys.stderr, 'Error - unknown command "%s".' % sys.argv[1]
+        print('Error - unknown command "%s".' % sys.argv[1], file=sys.stderr)
         print_usage(parser)
+
 
 if __name__ == '__main__':
     main()

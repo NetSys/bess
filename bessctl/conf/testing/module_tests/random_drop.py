@@ -19,11 +19,11 @@ def create_drop_test(rate):
         src = Source()
         rd2 = RandomDrop(drop_rate=rate)
         rwtemp = [
-            str(gen_packet(
+            bytes(gen_packet(
                 scapy.UDP,
                 "172.12.0.3",
                 "127.12.0.4")),
-            str(gen_packet(
+            bytes(gen_packet(
                 scapy.TCP,
                 "192.168.32.4",
                 "1.2.3.4"))]

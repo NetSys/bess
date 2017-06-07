@@ -5,7 +5,7 @@ ip = scapy.IP()
 udp = scapy.UDP()
 payload = 'Hello World'
 
-test_packet = str(eth/ip/udp/payload)
+test_packet = bytes(eth/ip/udp/payload)
 
 Source() -> Rewrite(templates=[test_packet]) -> VLANPush(tci=2) -> VLANPop() -> Sink()
 Source() -> Rewrite(templates=[test_packet]) -> VLANPush(tci=2) -> VLANPush(tci=3) -> VLANPop() -> VLANPop() -> Sink()

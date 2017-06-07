@@ -32,6 +32,10 @@
 #   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
+from __future__ import print_function
+from builtins import map
+from builtins import str
+from builtins import range
 import sys
 import os
 import getopt
@@ -182,8 +186,7 @@ def check_modules():
 
         # special case for vfio_pci (module is named vfio-pci,
         # but its .ko is named vfio_pci)
-        sysfs_mods = map(lambda a:
-                         a if a != 'vfio_pci' else 'vfio-pci', sysfs_mods)
+        sysfs_mods = [a if a != 'vfio_pci' else 'vfio-pci' for a in sysfs_mods]
 
         for mod in mods:
             if mod["Name"] in sysfs_mods:
@@ -265,12 +268,12 @@ def get_nic_details():
     ssh_if = []
     route = check_output(["ip", "-o", "route"])
     # filter out all lines for 169.254 routes
-    route = "\n".join(filter(lambda ln: not ln.startswith("169.254"),
-                             route.decode().splitlines()))
+    route = "\n".join([ln for ln in route.decode().splitlines()
+                       if not ln.startswith("169.254")])
     rt_info = route.split()
     for i in range(len(rt_info) - 1):
         if rt_info[i] == "dev":
-            ssh_if.append(rt_info[i+1])
+            ssh_if.append(rt_info[i + 1])
 
     # based on the basic info, get extended text details
     for d in devices.keys():
@@ -509,7 +512,7 @@ def display_devices(title, dev_list, extra_params=None):
      device's dictionary.'''
     strings = []  # this holds the strings to print. We sort before printing
     print("\n%s" % title)
-    print("="*len(title))
+    print("=" * len(title))
     if len(dev_list) == 0:
         strings.append("<none>")
     else:

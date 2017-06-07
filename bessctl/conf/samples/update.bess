@@ -4,7 +4,7 @@ eth = scapy.Ether(src='02:1e:67:9f:4d:ae', dst='06:16:3e:1b:72:32')
 ip = scapy.IP(src='192.168.1.1', dst='10.0.0.1')
 udp = scapy.UDP(sport=10001, dport=10002)
 payload = 'helloworld'
-pkt_bytes = str(eth/ip/udp/payload)
+pkt_bytes = bytes(eth/ip/udp/payload)
 
 Source() -> Rewrite(templates=[pkt_bytes]) -> rr::RoundRobin(gates=[1, 2])
 

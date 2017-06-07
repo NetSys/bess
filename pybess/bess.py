@@ -1,15 +1,18 @@
+from __future__ import print_function
+from __future__ import absolute_import
+
 import errno
 import grpc
 import os
 import pprint
 import time
 
-import service_pb2
-import protobuf_to_dict as pb_conv
+from . import service_pb2
+from . import protobuf_to_dict as pb_conv
 
-import module_msg
-import bess_msg_pb2 as bess_msg
-import port_msg_pb2 as port_msg
+from . import module_msg
+from . import bess_msg_pb2 as bess_msg
+from . import port_msg_pb2 as port_msg
 
 
 def _constraints_to_list(constraint):
@@ -73,7 +76,7 @@ class BESS(object):
 
     def _update_status(self, connectivity):
         if self.debug:
-            print "Channel status: {} -> {}".format(self.status, connectivity)
+            print("Channel status: {} -> {}".format(self.status, connectivity))
 
         # do not update status if previous disconnection is not reported yet
         if self.is_connection_broken():
@@ -133,8 +136,8 @@ class BESS(object):
         req_dict = pb_conv.protobuf_to_dict(req_pb)
 
         if self.debug:
-            print '====',  req_fn._method
-            print '--->', type(req_pb).__name__
+            print('====',  req_fn._method)
+            print('--->', type(req_pb).__name__)
             if req_dict:
                 pprint.pprint(req_dict)
 
@@ -144,7 +147,7 @@ class BESS(object):
             raise self.RPCError(str(e))
 
         if self.debug:
-            print '<---', type(response).__name__
+            print('<---', type(response).__name__)
             res = pb_conv.protobuf_to_dict(response)
             if res:
                 pprint.pprint(res)
@@ -187,25 +190,25 @@ class BESS(object):
         response = self.check_scheduling_constraints()
         error = False
         if len(response.violations) != 0 or len(response.modules) != 0:
-            print 'Placement violations found'
+            print('Placement violations found')
             for violation in response.violations:
                 if violation.constraint != 0:
                     valid = ' '.join(
                         map(str, _constraints_to_list(violation.constraint)))
-                    print 'name %s allowed_sockets [%s] worker_socket %d '\
-                        'worker_core %d' % (violation.name,
-                                            valid,
-                                            violation.assigned_node,
-                                            violation.assigned_core)
+                    print('name %s allowed_sockets [%s] worker_socket %d '
+                          'worker_core %d' % (violation.name,
+                                              valid,
+                                              violation.assigned_node,
+                                              violation.assigned_core))
                 else:
-                    print 'name %s has no valid '\
-                        'placements worker_socket %d '\
-                        'worker_core %d' % (violation.name,
-                                            violation.assigned_node,
-                                            violation.assigned_core)
+                    print('name %s has no valid '
+                          'placements worker_socket %d '
+                          'worker_core %d' % (violation.name,
+                                              violation.assigned_node,
+                                              violation.assigned_core))
             for module in response.modules:
-                print 'constraints violated for module %s --'\
-                    ' please check bessd log' % module.name
+                print('constraints violated for module %s --'
+                      ' please check bessd log' % module.name)
             error = True
         if response.fatal:
             raise self.ConstraintError("Fatal violation of "

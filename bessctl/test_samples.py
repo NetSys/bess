@@ -1,3 +1,4 @@
+from __future__ import print_function
 import fnmatch
 import glob
 import os
@@ -6,6 +7,7 @@ import subprocess
 import sys
 import time
 import unittest
+
 
 this_dir = os.path.dirname(os.path.realpath(__file__))
 bessctl = os.path.join(this_dir, 'bessctl')

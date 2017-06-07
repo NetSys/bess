@@ -23,7 +23,7 @@ ip = scapy.IP(src=src_ip, dst=dst_ip)
 src_port = int($BESS_SRC_PORT!'10001')
 tcp = scapy.TCP(sport=src_port, dport=12345, seq=12345)
 payload = "BESS is the Queen of Packet Processing."
-pkt_template = str(eth/ip/tcp/payload)
+pkt_template = bytes(eth/ip/tcp/payload)
 
 # This script is multi threaded but connects to a single port.
 myport = PMDPort(port_id=0, num_inc_q=num_cores, num_out_q=num_cores)
@@ -49,7 +49,7 @@ while True:
     portstats = myport.get_port_stats().inc.packets
     delta = portstats - prev_portstats
     nextround = max(1e6, 1.1 * delta / sleeptime)
-    print("Received " + str(delta / sleeptime) + " pps. Ramping up to: " + str(nextround))
+    print("Received " + bytes(delta / sleeptime) + " pps. Ramping up to: " + bytes(nextround))
     for wid, pkt_src in flowgens.items():
         bess.pause_worker(wid)
         pkt_src.update(pps = nextround / num_cores)

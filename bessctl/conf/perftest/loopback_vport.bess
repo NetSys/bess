@@ -39,32 +39,32 @@ def measure():
                     old_stats[i].inc.packets
         inc_mpps.append(pkts_diff / time_diff / 1000000.0)
 
-    print '%-15s' % 'CPU',
-    print '%7s' % '',
+    print('%-15s' % 'CPU', end=' ')
+    print('%7s' % '', end=' ')
     for i in range(len(ports)):
-        print '%7d' % cpu_set[i],
+        print('%7d' % cpu_set[i], end=' ')
     print
 
-    print '%-15s' % 'Ports',
-    print '%7s' % '(total)',
+    print('%-15s' % 'Ports', end=' ')
+    print('%7s' % '(total)', end=' ')
     for i in range(len(ports)):
-        print '%7s' % ports[i].name,
-    print
+        print('%7s' % ports[i].name, end=' ')
+    print()
 
-    print '-' * (8 * (len(ports) + 3))
+    print('-' * (8 * (len(ports) + 3)))
 
-    print '%-15s' % 'Outgoing (Mpps)',
-    print '%7.3f' % sum(out_mpps),
+    print('%-15s' % 'Outgoing (Mpps)', end=' ')
+    print('%7.3f' % sum(out_mpps), end=' ')
     for i in range(len(ports)):
-        print '%7.3f' % out_mpps[i],
-    print
+        print('%7.3f' % out_mpps[i], end=' ')
+    print()
 
-    print '%-15s' % 'Incoming (Mpps)',
-    print '%7.3f' % sum(inc_mpps),
+    print('%-15s' % 'Incoming (Mpps)', end=' ')
+    print('%7.3f' % sum(inc_mpps), end=' ')
     for i in range(len(ports)):
-        print '%7.3f' % inc_mpps[i],
-    print
-    print
+        print('%7.3f' % inc_mpps[i], end=' ')
+    print()
+    print()
 
 for cpu in range(CORE_START, CORE_END, CORE_STEP):
     v = VPort(loopback=1, rxq_cpus=[cpu])
