@@ -28,12 +28,21 @@ class Node {
   // Creates a new Node that represents `module_`.
   Node(Module *module) : module_(module), children_() {}
 
+  // Add a child to the node.
+  bool AddChild(const std::string &child) {
+    return children_.insert(child).second;
+  }
+
+  // Remove a child from the node.
+  void RemoveChild(const std::string &child) {
+    auto it = children_.find(child);
+    if (it != children_.end()) {
+      children_.erase(it);
+    }
+  }
+
   const Module *module() const { return module_; }
   const std::unordered_set<std::string> &children() const { return children_; }
-
-  void AddChild(const std::string &child) {
-    children_.insert(child);
-  }
 
  private:
   // Module that this Node represents.
@@ -164,6 +173,9 @@ class ModuleBuilder {
 
   // Connects two modules (`to` and `from`) together in `module_graph_`.
   static bool AddEdge(const std::string &from, const std::string &to);
+
+  // Disconnects two modules (`to` and `from`) together in `module_graph_`.
+  static bool RemoveEdge(const std::string &from, const std::string &to);
 
  private:
   // Updates the parents of modules with tasks by traversing `module_graph_` and
@@ -371,6 +383,9 @@ class Module {
   const std::vector<Module *> &parent_tasks() const { return parent_tasks_; };
 
   // Signals to parent task(s) that module is overloaded.
+  // TODO: SignalOverload and SignalUnderload are only safe if the module is not
+  // thread safe (e.g. multiple workers should not be able to simultaneously
+  // call these methods)
   void SignalOverload() {
     if (overload_) {
       return;

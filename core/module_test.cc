@@ -286,13 +286,23 @@ TEST_F(ModuleTester, GenerateTCGraph) {
 
   EXPECT_EQ(0, t1->parent_tasks().size());
   EXPECT_EQ(1, t2->parent_tasks().size());
-  EXPECT_EQ(1, t2->parent_tasks().size());
-  EXPECT_EQ(1, t2->parent_tasks().size());
+  EXPECT_EQ(1, t3->parent_tasks().size());
+  EXPECT_EQ(1, t4->parent_tasks().size());
 
   ASSERT_EQ(0, t1->children_overload());
   t2->SignalOverload();
   t3->SignalOverload();
   t4->SignalOverload();
   ASSERT_EQ(3, t1->children_overload());
+
+  t2->SignalUnderload();
+  t3->SignalUnderload();
+  t4->SignalUnderload();
+  ASSERT_EQ(0, t1->children_overload());
+
+  ModuleBuilder::DestroyModule(t1, true);
+  EXPECT_EQ(0, t2->parent_tasks().size());
+  EXPECT_EQ(0, t3->parent_tasks().size());
+  EXPECT_EQ(0, t4->parent_tasks().size());
 }
 }  // namespace (unnamed)

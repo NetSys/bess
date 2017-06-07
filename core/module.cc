@@ -28,6 +28,27 @@ bool ModuleBuilder::AddEdge(const std::string &from, const std::string &to) {
   return UpdateTCGraph();
 }
 
+bool ModuleBuilder::RemoveEdge(const std::string &from, const std::string &to) {
+  auto from_it = all_modules_.find(from);
+  auto from_node = module_graph_.find(from);
+  auto to_it = all_modules_.find(from);
+  if (from_it == all_modules_.end() || from_node == module_graph_.end() ||
+      to_it == all_modules_.end()) {
+    return false;
+  }
+
+  from_node->second.RemoveChild(to);
+
+  // We need to regenerate the task graph.
+  for (auto const &task : tasks_) {
+    auto it = all_modules_.find(task);
+    if (it != all_modules_.end()) {
+      it->second->parent_tasks_.clear();
+    }
+  }
+  return UpdateTCGraph();
+}
+
 bool ModuleBuilder::UpdateTCGraph() {
   for (auto const &task : tasks_) {
     std::unordered_set<std::string> visited;
@@ -94,12 +115,13 @@ bool ModuleBuilder::AddModule(Module *m) {
       return false;
     }
   }
-  return all_modules_.insert({m->name(), m}).second &&
-         module_graph_
-             .emplace(std::piecewise_construct,
-                      std::forward_as_tuple(m->name()),
-                      std::forward_as_tuple(m))
-             .second;
+  bool module_added = all_modules_.insert({m->name(), m}).second;
+  bool node_added =
+      module_graph_
+          .emplace(std::piecewise_construct, std::forward_as_tuple(m->name()),
+                   std::forward_as_tuple(m))
+          .second;
+  return module_added && node_added;
 }
 
 int ModuleBuilder::DestroyModule(Module *m, bool erase) {
@@ -128,6 +150,7 @@ int ModuleBuilder::DestroyModule(Module *m, bool erase) {
   if (erase) {
     all_modules_.erase(m->name());
   }
+
   module_graph_.erase(m->name());
   if (m->is_task_) {
     tasks_.erase(m->name());
@@ -479,10 +502,7 @@ int Module::ConnectModules(gate_idx_t ogate_idx, Module *m_next,
   igate->PushOgate(ogate);
 
   // Update graph
-  if (ModuleBuilder::AddEdge(name_, m_next->name_)) {
-    return 0;
-  }
-  return 1;
+  return !(ModuleBuilder::AddEdge(name_, m_next->name_));
 }
 
 int Module::DisconnectModules(gate_idx_t ogate_idx) {
@@ -504,6 +524,11 @@ int Module::DisconnectModules(gate_idx_t ogate_idx) {
   }
 
   igate = ogate->igate();
+
+  // Remove edge in module graph.
+  if (!ModuleBuilder::RemoveEdge(name_, igate->module()->name_)) {
+    return 1;
+  }
 
   /* Does the igate become inactive as well? */
   igate->RemoveOgate(ogate);
@@ -542,6 +567,12 @@ int Module::DisconnectModulesUpstream(gate_idx_t igate_idx) {
     Module *m_prev = ogate->module();
     m_prev->ogates_[ogate->gate_idx()] = nullptr;
     ogate->ClearHooks();
+
+    // Remove edge in module graph
+    if (!ModuleBuilder::RemoveEdge(igate->module()->name_, name_)) {
+      return 1;
+    }
+
     delete ogate;
   }
 
