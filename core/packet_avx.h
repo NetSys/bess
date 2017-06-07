@@ -50,17 +50,17 @@ inline size_t Packet::Alloc(Packet **pkts, size_t cnt, uint16_t len) {
     Packet *pkt0 = pkts[i];
     Packet *pkt1 = pkts[i + 1];
 
-    _mm_store_si128(&pkt0->rearm_, rearm);
-    _mm_store_si128(&pkt0->rxdesc_, rxdesc);
-    _mm_store_si128(&pkt1->rearm_, rearm);
-    _mm_store_si128(&pkt1->rxdesc_, rxdesc);
+    _mm_store_si128(&pkt0->rearm_data_, rearm);
+    _mm_store_si128(&pkt0->rx_descriptor_fields1_, rxdesc);
+    _mm_store_si128(&pkt1->rearm_data_, rearm);
+    _mm_store_si128(&pkt1->rx_descriptor_fields1_, rxdesc);
   }
 
   if (cnt & 0x1) {
     Packet *pkt = pkts[i];
 
-    _mm_store_si128(&pkt->rearm_, rearm);
-    _mm_store_si128(&pkt->rxdesc_, rxdesc);
+    _mm_store_si128(&pkt->rearm_data_, rearm);
+    _mm_store_si128(&pkt->rx_descriptor_fields1_, rxdesc);
   }
 
   for (i = 0; i < cnt; i++) {
@@ -122,7 +122,7 @@ inline void Packet::Free(Packet **pkts, size_t cnt) {
     buf_addrs_derived = _mm_add_epi64(mbuf_ptrs, offset);
 
     /* refcnt and nb_segs must be 1 */
-    info = gather_m128i(&mbuf0->rearm_, &mbuf1->rearm_);
+    info = gather_m128i(&mbuf0->rearm_data_, &mbuf1->rearm_data_);
     info = _mm_and_si128(info, info_mask);
 
     pools = gather_m128i(&mbuf0->pool_, &mbuf1->pool_);

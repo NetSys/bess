@@ -122,6 +122,32 @@ static Packet *paddr_to_snb_memchunk(struct rte_mempool_memhdr *chunk,
   return nullptr;
 }
 
+#define check_offset(field)                                                                                                                                                                                                                                                                                                  \
+  do {                                                                                                                                                                                                                                                                                                                \
+    static_assert(offsetof(Packet, field##_) == offsetof(rte_mbuf, field), \
+      "Incompatibility detected between class Packet and struct rte_mbuf"); \
+  } while (0)
+
+Packet::Packet() {
+  // static assertions for rte_mbuf layout compatibility
+  static_assert(offsetof(Packet, mbuf_) == 0, "mbuf_ must be at offset 0");
+  check_offset(buf_addr);
+  check_offset(rearm_data);
+  check_offset(data_off);
+  check_offset(refcnt);
+  check_offset(nb_segs);
+  check_offset(rx_descriptor_fields1);
+  check_offset(pkt_len);
+  check_offset(data_len);
+  check_offset(buf_len);
+  check_offset(pool);
+  check_offset(next);
+
+  rte_pktmbuf_reset(&mbuf_);
+}
+
+#undef check_offset
+
 Packet *Packet::from_paddr(phys_addr_t paddr) {
   for (int i = 0; i < RTE_MAX_NUMA_NODES; i++) {
     struct rte_mempool *pool;

@@ -53,7 +53,7 @@ void close_mempool(void);
 // For the layout of snbuf, see snbuf_layout.h
 class alignas(64) Packet {
  public:
-  Packet() { rte_pktmbuf_reset(&mbuf_); }
+  Packet();
 
   // The default new operator does not honor the 64B alignment requirement of
   // this class, since it is larger than max_align_t (16B)
@@ -250,7 +250,7 @@ class alignas(64) Packet {
       alignas(8) phys_addr_t buf_physaddr_;
 
       union {
-        __m128i rearm_;
+        __m128i rearm_data_;
 
         struct {
           // offset 16:
@@ -270,7 +270,7 @@ class alignas(64) Packet {
       };
 
       union {
-        __m128i rxdesc_;
+        __m128i rx_descriptor_fields1_;
 
         struct {
           // offset 32:
@@ -358,8 +358,8 @@ class alignas(64) Packet {
   char data_[SNBUF_DATA];
 };
 
-static_assert(std::is_standard_layout<Packet>::value,
-              "Packet is not compatible with rte_mbuf");
+static_assert(std::is_standard_layout<Packet>::value, "Incorrect class Packet");
+static_assert(sizeof(Packet) == SNBUF_SIZE, "Incorrect class Packet");
 
 #if __AVX__
 #include "packet_avx.h"
