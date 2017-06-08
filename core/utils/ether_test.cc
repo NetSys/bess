@@ -60,4 +60,13 @@ TEST(EthernetTest, RandomAddr) {
   EXPECT_NE(c, d);
 }
 
+TEST(EthernetTest, CopyAddr) {
+  MacAddr a;
+  MacAddr b("a0:18:3:20:b8:09");
+
+  a.CopyFrom(b);
+
+  EXPECT_EQ(a, b);
+}
+
 }  // namespace (unnamed)

@@ -25,6 +25,8 @@ struct[[gnu::packed]] Ethernet {
     // Returns "aa:bb:00:11:22:33" (all in lower case)
     std::string ToString() const;
 
+    void CopyFrom(const Address &o);
+
     void Randomize();
 
     bool operator==(const Address &o) const {
