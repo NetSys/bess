@@ -546,12 +546,12 @@ def warn(cli, msg, func, *args):
             cli.rl.set_completer(cli.complete_dummy)
 
         try:
-            # Hack for Python 2/3 compatibility
-            if hasattr(__builtins__, 'raw_input'):
-                resp = raw_input(
-                    'WARNING: %s Are you sure? (type "yes") ' % msg)
-            else:
-                resp = input('WARNING: %s Are you sure? (type "yes") ' % msg)
+            try:
+                prompt = raw_input  # Python 2
+            except NameError:
+                prompt = input      # Python 3
+
+            resp = prompt('WARNING: %s Are you sure? (type "yes") ' % msg)
 
             if resp.strip() == 'yes':
                 func(cli, *args)
