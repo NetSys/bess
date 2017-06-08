@@ -31,10 +31,10 @@ def gen_socket_and_port(sockname):
 # All the other fields -- Ether, ports -- are dummy values.
 
 
-def gen_packet(proto, src_ip, dst_ip, ip_ttl=64):
+def gen_packet(proto, src_ip, dst_ip, ip_ttl=64, srcport=1001, dstport=1002):
     eth = scapy.Ether(src='02:1e:67:9f:4d:ae', dst='06:16:3e:1b:72:32')
     ip = scapy.IP(src=src_ip, dst=dst_ip, ttl=ip_ttl)
-    udp = proto(sport=10001, dport=10002)
+    udp = proto(sport=srcport, dport=dstport)
     payload = 'helloworld'
     pkt = eth / ip / udp / payload
     return pkt
