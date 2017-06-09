@@ -1,8 +1,10 @@
 #ifndef BESS_MODULE_H_
 #define BESS_MODULE_H_
 
+#include <atomic>
 #include <map>
 #include <string>
+#include <unordered_map>
 #include <unordered_set>
 #include <utility>
 #include <vector>
@@ -19,6 +21,33 @@ using bess::gate_idx_t;
 #define MAX_NUMA_NODE 16
 #define MAX_TASKS_PER_MODULE 32
 #define UNCONSTRAINED_SOCKET ((0x1ull << MAX_NUMA_NODE) - 1)
+
+// Represents a node in `module_graph_`.
+class Node {
+ public:
+  // Creates a new Node that represents `module_`.
+  Node(Module *module) : module_(module), children_() {}
+
+  // Add a child to the node.
+  bool AddChild(const std::string &child) {
+    return children_.insert(child).second;
+  }
+
+  // Remove a child from the node.
+  void RemoveChild(const std::string &child) { children_.erase(child); }
+
+  const Module *module() const { return module_; }
+  const std::unordered_set<std::string> &children() const { return children_; }
+
+ private:
+  // Module that this Node represents.
+  Module *module_;
+
+  // Children of `module_` in the pipeline.
+  std::unordered_set<std::string> children_;
+
+  DISALLOW_COPY_AND_ASSIGN(Node);
+};
 
 struct task_result {
   bool block;
@@ -137,7 +166,29 @@ class ModuleBuilder {
 
   CommandResponse RunInit(Module *m, const google::protobuf::Any &arg) const;
 
+  // Connects two modules (`to` and `from`) together in `module_graph_`.
+  static bool AddEdge(const std::string &from, const std::string &to);
+
+  // Disconnects two modules (`to` and `from`) together in `module_graph_`.
+  static bool RemoveEdge(const std::string &from, const std::string &to);
+
  private:
+  // Updates the parents of modules with tasks by traversing `module_graph_` and
+  // ignoring all modules that are not tasks.
+  static bool UpdateTaskGraph();
+
+  // Finds the next module that implements a task, and updates it's parents
+  // accordingly.
+  static bool FindNextTask(const std::string &node_name,
+                           const std::string &parent_name,
+                           std::unordered_set<std::string> *visited);
+
+  // A graph of all the modules in the current pipeline.
+  static std::unordered_map<std::string, Node> module_graph_;
+
+  // All modules that are tasks in the current pipeline.
+  static std::unordered_set<std::string> tasks_;
+
   const std::function<Module *()> module_generator_;
 
   static std::map<std::string, Module *> all_modules_;
@@ -178,6 +229,10 @@ class Module {
         ogates_(),
         active_workers_(Worker::kMaxWorkers, false),
         visited_tasks_(),
+        is_task_(false),
+        parent_tasks_(),
+        children_overload_(0),
+        overload_(false),
         node_constraints_(UNCONSTRAINED_SOCKET),
         min_allowed_workers_(1),
         max_allowed_workers_(1),
@@ -318,6 +373,38 @@ class Module {
 
   virtual CheckConstraintResult CheckModuleConstraints() const;
 
+  // For testing.
+  int children_overload() const { return children_overload_; };
+  const std::vector<Module *> &parent_tasks() const { return parent_tasks_; };
+
+  // Signals to parent task(s) that module is overloaded.
+  // TODO: SignalOverload and SignalUnderload are only safe if the module is not
+  // thread safe (e.g. multiple workers should not be able to simultaneously
+  // call these methods)
+  void SignalOverload() {
+    if (overload_) {
+      return;
+    }
+    for (auto const &p : parent_tasks_) {
+      ++(p->children_overload_);
+    }
+
+    overload_ = true;
+  }
+
+  // Signals to parent task(s) that module is underloaded.
+  void SignalUnderload() {
+    if (!overload_) {
+      return;
+    }
+
+    for (auto const &p : parent_tasks_) {
+      --(p->children_overload_);
+    }
+
+    overload_ = false;
+  }
+
  private:
   void DestroyAllTasks();
   void DeregisterAllAttributes();
@@ -349,6 +436,18 @@ class Module {
   std::vector<const ModuleTask *> visited_tasks_;
 
  protected:
+  // Whether the module overrides RunTask or not.
+  bool is_task_;
+
+  // Parent tasks of this module in the current pipeline.
+  std::vector<Module *> parent_tasks_;
+
+  // # of child tasks of this module that are overloaded.
+  std::atomic<int> children_overload_;
+
+  // Whether the module itself is overloaded.
+  bool overload_;
+
   // TODO[apanda]: Move to some constraint structure?
   // Placement constraints for this module. We use this to update the task based
   // on all upstream tasks.

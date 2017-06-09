@@ -10,7 +10,9 @@ class Source final : public Module {
 
   static const Commands cmds;
 
-  Source() : Module(), pkt_size_(), burst_() {}
+  Source() : Module(), pkt_size_(), burst_() {
+    is_task_ = true;
+  }
 
   CommandResponse Init(const bess::pb::SourceArg &arg);
 

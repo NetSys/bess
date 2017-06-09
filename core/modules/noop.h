@@ -6,6 +6,9 @@
 
 class NoOP final : public Module {
  public:
+  NoOP() : Module() {
+    is_task_ = true;
+  };
   CommandResponse Init(const bess::pb::EmptyArg &arg);
 
   struct task_result RunTask(void *arg) override;

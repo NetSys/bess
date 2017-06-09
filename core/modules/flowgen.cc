@@ -479,6 +479,14 @@ void FlowGen::GeneratePackets(bess::PacketBatch *batch) {
 }
 
 struct task_result FlowGen::RunTask(void *) {
+  if (children_overload_ > 0) {
+    return {
+      .block = true,
+      .packets = 0,
+      .bits = 0,
+    };
+  }
+
   const int pkt_overhead = 24;
   bess::PacketBatch batch;
 

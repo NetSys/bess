@@ -11,7 +11,9 @@ class PortInc final : public Module {
 
   static const Commands cmds;
 
-  PortInc() : Module(), port_(), prefetch_(), burst_() {}
+  PortInc() : Module(), port_(), prefetch_(), burst_() {
+    is_task_ = true;
+  }
 
   CommandResponse Init(const bess::pb::PortIncArg &arg);
 

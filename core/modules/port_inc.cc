@@ -70,6 +70,14 @@ std::string PortInc::GetDesc() const {
 }
 
 struct task_result PortInc::RunTask(void *arg) {
+  if (children_overload_ > 0) {
+    return {
+      .block = true,
+      .packets = 0,
+      .bits = 0,
+    };
+  }
+
   Port *p = port_;
 
   const queue_t qid = (queue_t)(uintptr_t)arg;
