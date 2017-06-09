@@ -34,9 +34,7 @@ class Queue final : public Module {
 
   int Resize(int slots);
 
-  /*!
-   * Readjusts the water level according to `size_`.
-   */
+  // Readjusts the water level according to `size_`.
   void AdjustWaterLevels();
 
   CommandResponse SetSize(uint64_t size);

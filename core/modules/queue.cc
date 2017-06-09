@@ -144,7 +144,7 @@ struct task_result Queue::RunTask(void *) {
   batch.set_cnt(cnt);
   RunNextModule(&batch);
 
-  if (backpressure_ && overload_ && llring_count(queue_) < low_water_) {
+  if (backpressure_ && llring_count(queue_) < low_water_) {
     SignalUnderload();
   }
 
@@ -201,8 +201,8 @@ CommandResponse Queue::CommandSetSize(
 }
 
 void Queue::AdjustWaterLevels() {
-  high_water_ = (uint64_t)(size_ * kHighWaterRatio);
-  low_water_ = (uint64_t)(size_ * kLowWaterRatio);
+  high_water_ = static_cast<uint64_t>(size_ * kHighWaterRatio);
+  low_water_ = static_cast<uint64_t>(size_ * kLowWaterRatio);
 }
 
 CheckConstraintResult Queue::CheckModuleConstraints() const {
