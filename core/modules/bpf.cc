@@ -33,13 +33,13 @@
 
 #include "bpf.h"
 
-#include <pcap.h>
 #include <sys/mman.h>
 
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
 
+#ifdef __x86_64  // JIT compilation code only works in 64-bit
 /*
  * Registers
  */
@@ -1088,6 +1088,7 @@ static bpf_filter_func_t bpf_jit_compile(struct bpf_insn *prog, u_int nins,
 
   return (reinterpret_cast<bpf_filter_func_t>(stream.ibuf));
 }
+#endif
 
 /* -------------------------------------------------------------------------
  * Module code begins from here
@@ -1119,7 +1120,11 @@ CommandResponse BPF::Init(const bess::pb::BPFArg &arg) {
 
 void BPF::DeInit() {
   for (int i = 0; i < n_filters_; i++) {
+#ifdef __x86_64
     munmap(reinterpret_cast<void *>(filters_[i].func), filters_[i].mmap_size);
+#else
+    pcap_freecode(&(filters_[i].il_code));
+#endif
     free(filters_[i].exp);
   }
 
@@ -1132,7 +1137,6 @@ CommandResponse BPF::CommandAdd(const bess::pb::BPFArg &arg) {
   }
 
   struct filter *filter = &filters_[n_filters_];
-  struct bpf_program il_code;
 
   for (const auto &f : arg.filters()) {
     const char *exp = f.filter().c_str();
@@ -1140,14 +1144,16 @@ CommandResponse BPF::CommandAdd(const bess::pb::BPFArg &arg) {
     if (gate < 0 || gate >= MAX_GATES) {
       return CommandFailure(EINVAL, "Invalid gate");
     }
+    filter->priority = f.priority();
+    filter->gate = f.gate();
+    filter->exp = strdup(exp);
+#ifdef __x86_64
+    struct bpf_program il_code;
     if (pcap_compile_nopcap(SNAPLEN, DLT_EN10MB,  // Ethernet
                             &il_code, exp, 1,     // optimize (IL only)
                             PCAP_NETMASK_UNKNOWN) == -1) {
       return CommandFailure(EINVAL, "BPF compilation error");
     }
-    filter->priority = f.priority();
-    filter->gate = f.gate();
-    filter->exp = strdup(exp);
     filter->func =
         bpf_jit_compile(il_code.bf_insns, il_code.bf_len, &filter->mmap_size);
     pcap_freecode(&il_code);
@@ -1155,6 +1161,13 @@ CommandResponse BPF::CommandAdd(const bess::pb::BPFArg &arg) {
       free(filter->exp);
       return CommandFailure(ENOMEM, "BPF JIT compilation error");
     }
+#else
+    if (pcap_compile_nopcap(SNAPLEN, DLT_EN10MB,         // Ethernet
+                            &(filter->il_code), exp, 1,  // optimize (IL only)
+                            PCAP_NETMASK_UNKNOWN) == -1) {
+      return CommandFailure(EINVAL, "BPF compilation error");
+    }
+#endif
     n_filters_++;
     qsort(filters_, n_filters_, sizeof(struct filter), &compare_filter);
 
@@ -1185,8 +1198,17 @@ inline void BPF::process_batch_1filter(bess::PacketBatch *batch) {
     int ret;
     int idx;
 
+#ifdef __x86_64
     ret = filter->func(pkt->head_data<uint8_t *>(), pkt->total_len(),
                        pkt->head_len());
+#else
+    ret = bpf_filter(filter->il_code.bf_insns, pkt->head_data<uint8_t *>(),
+                     pkt->total_len(), pkt->head_len());
+
+    if (ret != 0) {
+      ret = 1;
+    }
+#endif
 
     idx = ret & 1;
     *(ptrs[idx]++) = pkt;
@@ -1227,11 +1249,19 @@ void BPF::ProcessBatch(bess::PacketBatch *batch) {
     gate_idx_t gate = 0; /* default gate for unmatched pkts */
 
     for (int j = 0; j < n_filters; j++, filter++) {
+#ifdef __x86_64
       if (filter->func(pkt->head_data<uint8_t *>(), pkt->total_len(),
                        pkt->head_len()) != 0) {
         gate = filter->gate;
         break;
       }
+#else
+      if (bpf_filter(filter->il_code.bf_insns, pkt->head_data<uint8_t *>(),
+                     pkt->total_len(), pkt->head_len())) {
+        gate = filter->gate;
+        break;
+      }
+#endif
     }
 
     out_gates[i] = gate;
