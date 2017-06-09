@@ -3,16 +3,21 @@
 
 #include "../module.h"
 #include "../module_msg.pb.h"
-
+#include <pcap.h>
 #define MAX_FILTERS 128
 
+#ifdef __x86_64
 typedef u_int (*bpf_filter_func_t)(u_char *, u_int, u_int);
+#endif
 
 struct filter {
+#ifdef __x86_64
   bpf_filter_func_t func;
-  int gate;
-
   size_t mmap_size; /* needed for munmap() */
+#else
+  bpf_program il_code;
+#endif
+  int gate;
   int priority;     /* higher number == higher priority */
   char *exp;        /* original filter expression string */
 };
