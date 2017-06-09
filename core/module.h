@@ -34,12 +34,7 @@ class Node {
   }
 
   // Remove a child from the node.
-  void RemoveChild(const std::string &child) {
-    auto it = children_.find(child);
-    if (it != children_.end()) {
-      children_.erase(it);
-    }
-  }
+  void RemoveChild(const std::string &child) { children_.erase(child); }
 
   const Module *module() const { return module_; }
   const std::unordered_set<std::string> &children() const { return children_; }
@@ -180,13 +175,13 @@ class ModuleBuilder {
  private:
   // Updates the parents of modules with tasks by traversing `module_graph_` and
   // ignoring all modules that are not tasks.
-  static bool UpdateTCGraph();
+  static bool UpdateTaskGraph();
 
   // Finds the next module that implements a task, and updates it's parents
   // accordingly.
-  static bool FindNextTC(const std::string &node_name,
-                         const std::string &parent_name,
-                         std::unordered_set<std::string> *visited);
+  static bool FindNextTask(const std::string &node_name,
+                           const std::string &parent_name,
+                           std::unordered_set<std::string> *visited);
 
   // A graph of all the modules in the current pipeline.
   static std::unordered_map<std::string, Node> module_graph_;
@@ -390,7 +385,6 @@ class Module {
     if (overload_) {
       return;
     }
-
     for (auto const &p : parent_tasks_) {
       ++(p->children_overload_);
     }

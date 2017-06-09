@@ -20,20 +20,17 @@ std::unordered_map<std::string, Node> ModuleBuilder::module_graph_;
 std::unordered_set<std::string> ModuleBuilder::tasks_;
 
 bool ModuleBuilder::AddEdge(const std::string &from, const std::string &to) {
-  auto it = module_graph_.find(from);
-  if (it == module_graph_.end()) {
+  auto from_it = module_graph_.find(from);
+  if (from_it == module_graph_.end() || module_graph_.count(to) == 0) {
     return false;
   }
-  it->second.AddChild(to);
-  return UpdateTCGraph();
+  from_it->second.AddChild(to);
+  return UpdateTaskGraph();
 }
 
 bool ModuleBuilder::RemoveEdge(const std::string &from, const std::string &to) {
-  auto from_it = all_modules_.find(from);
   auto from_node = module_graph_.find(from);
-  auto to_it = all_modules_.find(from);
-  if (from_it == all_modules_.end() || from_node == module_graph_.end() ||
-      to_it == all_modules_.end()) {
+  if (from_node == module_graph_.end() || module_graph_.count(to) == 0) {
     return false;
   }
 
@@ -46,22 +43,22 @@ bool ModuleBuilder::RemoveEdge(const std::string &from, const std::string &to) {
       it->second->parent_tasks_.clear();
     }
   }
-  return UpdateTCGraph();
+  return UpdateTaskGraph();
 }
 
-bool ModuleBuilder::UpdateTCGraph() {
+bool ModuleBuilder::UpdateTaskGraph() {
   for (auto const &task : tasks_) {
     std::unordered_set<std::string> visited;
-    if (!FindNextTC(task, task, &visited)) {
+    if (!FindNextTask(task, task, &visited)) {
       return false;
     }
   }
   return true;
 }
 
-bool ModuleBuilder::FindNextTC(const std::string &node_name,
-                               const std::string &parent_name,
-                               std::unordered_set<std::string> *visited) {
+bool ModuleBuilder::FindNextTask(const std::string &node_name,
+                                 const std::string &parent_name,
+                                 std::unordered_set<std::string> *visited) {
   visited->insert(node_name);
   // While traversing the module graph, if `node` is in the task graph and is
   // not `parent`, then it must be  the child of `parent`.
@@ -89,11 +86,10 @@ bool ModuleBuilder::FindNextTC(const std::string &node_name,
   }
 
   for (auto &child_name : node_it->second.children()) {
-    auto it = visited->find(child_name);
-    if (it != visited->end()) {
+    if (visited->count(child_name) > 0) {
       continue;
     }
-    if (!FindNextTC(child_name, parent_name, visited)) {
+    if (!FindNextTask(child_name, parent_name, visited)) {
       return false;
     }
   }
@@ -115,13 +111,16 @@ bool ModuleBuilder::AddModule(Module *m) {
       return false;
     }
   }
+
   bool module_added = all_modules_.insert({m->name(), m}).second;
-  bool node_added =
-      module_graph_
-          .emplace(std::piecewise_construct, std::forward_as_tuple(m->name()),
-                   std::forward_as_tuple(m))
-          .second;
-  return module_added && node_added;
+  if (!module_added) {
+    return false;
+  }
+
+  return module_graph_
+      .emplace(std::piecewise_construct, std::forward_as_tuple(m->name()),
+               std::forward_as_tuple(m))
+      .second;
 }
 
 int ModuleBuilder::DestroyModule(Module *m, bool erase) {
@@ -502,7 +501,7 @@ int Module::ConnectModules(gate_idx_t ogate_idx, Module *m_next,
   igate->PushOgate(ogate);
 
   // Update graph
-  return !(ModuleBuilder::AddEdge(name_, m_next->name_));
+  return !ModuleBuilder::AddEdge(name_, m_next->name_);
 }
 
 int Module::DisconnectModules(gate_idx_t ogate_idx) {
@@ -569,7 +568,7 @@ int Module::DisconnectModulesUpstream(gate_idx_t igate_idx) {
     ogate->ClearHooks();
 
     // Remove edge in module graph
-    if (!ModuleBuilder::RemoveEdge(igate->module()->name_, name_)) {
+    if (!ModuleBuilder::RemoveEdge(ogate->module()->name_, name_)) {
       return 1;
     }
 

@@ -47,6 +47,10 @@ int Queue::Resize(int slots) {
 
   queue_ = new_queue;
 
+  if (backpressure_) {
+    AdjustWaterLevels();
+  }
+
   return 0;
 }
 
@@ -62,6 +66,7 @@ CommandResponse Queue::Init(const bess::pb::QueueArg &arg) {
   burst_ = bess::PacketBatch::kMaxBurst;
 
   if (arg.backpressure()) {
+    LOG(INFO) << "Backpressure enabled";
     backpressure_ = true;
   }
 
@@ -106,7 +111,7 @@ std::string Queue::GetDesc() const {
 void Queue::ProcessBatch(bess::PacketBatch *batch) {
   int queued =
       llring_mp_enqueue_burst(queue_, (void **)batch->pkts(), batch->cnt());
-  if (backpressure_ && !overload_ && llring_count(queue_) > high_water_) {
+  if (backpressure_ && llring_count(queue_) > high_water_) {
     SignalOverload();
   }
 
@@ -119,9 +124,7 @@ void Queue::ProcessBatch(bess::PacketBatch *batch) {
 struct task_result Queue::RunTask(void *) {
   if (children_overload_ > 0) {
     return {
-      .block = true,
-      .packets = 0,
-      .bits = 0,
+        .block = true, .packets = 0, .bits = 0,
     };
   }
 
@@ -141,6 +144,10 @@ struct task_result Queue::RunTask(void *) {
   batch.set_cnt(cnt);
   RunNextModule(&batch);
 
+  if (backpressure_ && overload_ && llring_count(queue_) < low_water_) {
+    SignalUnderload();
+  }
+
   if (prefetch_) {
     for (uint32_t i = 0; i < cnt; i++) {
       total_bytes += batch.pkts()[i]->total_len();
@@ -150,10 +157,6 @@ struct task_result Queue::RunTask(void *) {
     for (uint32_t i = 0; i < cnt; i++) {
       total_bytes += batch.pkts()[i]->total_len();
     }
-  }
-
-  if (backpressure_ && overload_ && llring_count(queue_) < low_water_) {
-    SignalUnderload();
   }
 
   return {.block = false,
@@ -188,10 +191,6 @@ CommandResponse Queue::SetSize(uint64_t size) {
     return CommandFailure(-ret);
   }
   size_ = size;
-
-  if (backpressure_) {
-    AdjustWaterLevels();
-  }
 
   return CommandSuccess();
 }
