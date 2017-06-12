@@ -1,4 +1,4 @@
-[![Build Status](https://travis-ci.org/NetSys/bess.svg?branch=develop)](https://travis-ci.org/NetSys/bess)
+[![Build Status](https://travis-ci.org/NetSys/bess.svg?branch=master)](https://travis-ci.org/NetSys/bess)
 [![codecov](https://codecov.io/gh/NetSys/bess/graph/badge.svg)](https://codecov.io/gh/NetSys/bess)
 
 ## BESS (Berkeley Extensible Software Switch)
