@@ -73,9 +73,11 @@ def crash_test(module, num_input_ports, num_output_ports):
     for i in range(num_output_ports):
         module:i -> Sink()
 
+    bess.resume_all()
     time.sleep(5)
+    bess.pause_all()
 
-# Can't just call exec() in the middle of mane loop because
+# Can't just call exec() in the middle of main loop because
 # variables will leak into main script scope
 
 
