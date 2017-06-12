@@ -81,7 +81,7 @@ static CommandResponse find_dpdk_port_by_id(dpdk_port_t port_id,
   if (port_id >= RTE_MAX_ETHPORTS) {
     return CommandFailure(EINVAL, "Invalid port id %d", port_id);
   }
-  if (!rte_eth_devices[port_id].attached) {
+  if (rte_eth_devices[port_id].state != RTE_ETH_DEV_ATTACHED) {
     return CommandFailure(ENODEV, "Port id %d is not available", port_id);
   }
 

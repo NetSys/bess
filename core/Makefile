@@ -25,7 +25,7 @@ ifeq "$(shell expr $(CXXCOMPILER) = g++ \& $(CXXVERSION) \< 40800)" "1"
     $(error g++ 4.8 or higher is required)
 endif
 
-RTE_SDK ?= $(abspath ../deps/dpdk-17.02)
+RTE_SDK ?= $(abspath ../deps/dpdk-17.05)
 RTE_TARGET ?= $(shell uname -m)-native-linuxapp-gcc
 DPDK_LIB ?= dpdk
 
