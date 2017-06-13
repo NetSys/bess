@@ -6,6 +6,7 @@ import socket
 import time
 import sugar
 import traceback
+import binascii #only consistent way python3/python2 to convert hex string to bytes
 from time import gmtime, strftime
 
 ## HANDY UTILS AND GLOBAL VARS ##
