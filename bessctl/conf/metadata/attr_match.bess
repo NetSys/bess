@@ -1,8 +1,8 @@
 # For metadata attribute usage for wildcard matching,
 # also see samples/wildcardmatch.bess
 
-em::ExactMatch(fields=[{'name':'foo', 'size':1}, \
-                       {'name':'bar', 'size':2}])
+em::ExactMatch(fields=[{'attribute':'foo', 'size':1}, \
+                       {'attribute':'bar', 'size':2}])
 Source() \
         -> SetMetadata(attrs=[{'name': 'foo', 'size': 1, 'value_int': 0xcc}]) \
         -> SetMetadata(attrs=[{'name': 'bar', 'size': 2, 'value_int': 0x1122}]) \
