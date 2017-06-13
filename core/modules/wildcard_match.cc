@@ -366,11 +366,11 @@ CommandResponse WildcardMatch::CommandGetRules(const bess::pb::EmptyArg &) {
       for (auto &field : fields_) {
         uint64_t data = 0;
         bess::utils::bin_to_uint64(&data, entry_data + field.pos, field.size,
-                                   1);
+                                   true);
         rule->add_values(data);
         uint64_t mask_data = 0;
         bess::utils::bin_to_uint64(&mask_data, entry_mask + field.pos,
-                                   field.size, 1);
+                                   field.size, true);
         rule->add_masks(mask_data);
       }
     }
