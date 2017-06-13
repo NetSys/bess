@@ -1,26 +1,14 @@
 #ifndef BESS_MODULES_BPF_H_
 #define BESS_MODULES_BPF_H_
 
+#include <pcap.h>
+
+#include <vector>
+
 #include "../module.h"
 #include "../module_msg.pb.h"
-#include <pcap.h>
-#define MAX_FILTERS 128
 
-#ifdef __x86_64
-typedef u_int (*bpf_filter_func_t)(u_char *, u_int, u_int);
-#endif
-
-struct filter {
-#ifdef __x86_64
-  bpf_filter_func_t func;
-  size_t mmap_size; /* needed for munmap() */
-#else
-  bpf_program il_code;
-#endif
-  int gate;
-  int priority;     /* higher number == higher priority */
-  char *exp;        /* original filter expression string */
-};
+using bpf_filter_func_t = u_int (*)(u_char *, u_int, u_int);
 
 class BPF final : public Module {
  public:
@@ -37,10 +25,23 @@ class BPF final : public Module {
   CommandResponse CommandClear(const bess::pb::EmptyArg &arg);
 
  private:
-  struct filter filters_[MAX_FILTERS + 1] = {};
-  int n_filters_ = {};
+  struct Filter {
+#ifdef __x86_64
+    bpf_filter_func_t func;
+    size_t mmap_size;  // needed for munmap()
+#else
+    bpf_program il_code;
+#endif
+    int gate;
+    int priority;     // higher number == higher priority
+    std::string exp;  // original filter expression string
+  };
 
-  inline void process_batch_1filter(bess::PacketBatch *batch);
+  static bool Match(const Filter &, u_char *, u_int, u_int);
+
+  void ProcessBatch1Filter(bess::PacketBatch *batch);
+
+  std::vector<Filter> filters_;
 };
 
 #endif  // BESS_MODULES_BPF_H_
