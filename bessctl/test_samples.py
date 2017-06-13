@@ -15,6 +15,7 @@ sample_dir = os.path.join(this_dir, 'conf/samples')
 
 
 class CommandError(subprocess.CalledProcessError):
+
     '''Identical to CalledProcessError, except it also shows the output'''
 
     def __str__(self):
@@ -30,6 +31,7 @@ def run_cmd(cmd):
 
 
 class TestSamples(unittest.TestCase):
+
     """
     All scripts in conf/samples will be dynamically added here as individual
     tests (e.g., test_path_to_conf_samples_exactmatch_bess) in this class.
@@ -47,22 +49,22 @@ class TestSamples(unittest.TestCase):
         run_cmd('%s daemon stop' % bessctl)
 
 
-def test_generator(path):
-    def test(self):
+def generate_test_method(path):
+    def template(self):
         run_cmd('%s daemon reset -- run file %s' % (bessctl, path))
 
         # 0.5 seconds should be enough to detect packet leaks in the datapath
         time.sleep(0.5)
 
-    return test
+    return template
 
 
 for root, _, file_names in os.walk(sample_dir):
     for file_name in fnmatch.filter(file_names, "*.bess"):
         path = os.path.join(root, file_name)
-        test_name = 'test' + path.replace('/', '_').replace('.', '_')
-        test_method = test_generator(path)
-        setattr(TestSamples, test_name, test_method)
+        name = 'test' + path.replace('/', '_').replace('.', '_')
+        method = generate_test_method(path)
+        setattr(TestSamples, name, method)
 
 if __name__ == '__main__':
     unittest.main()

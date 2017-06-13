@@ -9,7 +9,7 @@ from . import bess_msg_pb2 as bess_msg
 from . import service_pb2
 
 
-class TestServiceImpl(service_pb2.BESSControlServicer):
+class DummyServiceImpl(service_pb2.BESSControlServicer):
 
     def __init__(self):
         pass
@@ -39,7 +39,7 @@ class TestBESS(unittest.TestCase):
     def setUp(self):
         self.server = grpc.server(futures.ThreadPoolExecutor(max_workers=2))
         service_pb2.add_BESSControlServicer_to_server(
-            TestServiceImpl(),
+            DummyServiceImpl(),
             self.server)
         self.server.add_insecure_port('[::]:%d' % self.PORT)
         self.server.start()
