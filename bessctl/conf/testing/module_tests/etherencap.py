@@ -3,9 +3,9 @@
 def etherencap_crashtest():
     encap1 = EtherEncap()
     src = Source()
-    metadata = SetMetadata(attrs=[{"name": "ether_src", "size": 6, "value_bin": binascii.unhexlify("deadbeef1234")},
-        {"name": "ether_dst", "size": 6, "value_bin": binascii.unhexlify("1234deadbeef")},
-        {"name" : "ether_type", "size": 2, "value_bin": binascii.unhexlify("0800")}])
+    metadata = SetMetadata(attrs=[{"name": "ether_src", "size": 6, "value_bin": b'\xde\xad\xbe\xef\x12\x34'},
+        {"name": "ether_dst", "size": 6, "value_bin": b'\x12\x34\xde\xad\xbe\xef'},
+        {"name" : "ether_type", "size": 2, "value_bin": b'\x08\x00'}])
     rwtemp = [
         bytes(gen_packet(
             scapy.UDP,
@@ -40,9 +40,9 @@ def metadata_outputtest_fixedvalues():
     outdriver = PortOut(port=sockname)
 
     encap2 = EtherEncap()
-    metadata = SetMetadata(attrs=[{"name": "ether_src", "size": 6, "value_bin": binascii.unhexlify("deadbeef1234")},
-        {"name": "ether_dst", "size": 6, "value_bin": binascii.unhexlify("1234deadbeef")},
-        {"name" : "ether_type", "size": 2, "value_bin": binascii.unhexlify("0800")}])
+    metadata = SetMetadata(attrs=[{"name": "ether_src", "size": 6, "value_bin": b'\xde\xad\xbe\xef\x12\x34'},
+        {"name": "ether_dst", "size": 6, "value_bin": b'\x12\x34\xde\xad\xbe\xef'},
+        {"name" : "ether_type", "size": 2, "value_bin": b'\x08\x00'}])
     indriver -> metadata -> encap2 -> outdriver
 
     bess.resume_all()
