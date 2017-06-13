@@ -1,3 +1,4 @@
+# Crash test -- generate a bunch of rules and stuff packets through
 em0 = ExactMatch(fields=[{'offset': 23, 'size': 1},  # random fields, I have no idea what these are
                          {'offset': 2, 'size': 2},
                          {'offset': 29, 'size': 1}])
@@ -11,6 +12,8 @@ em0.add(fields=[chr(123), chr(4) + chr(0), chr(2)], gate=5)
 
 CRASH_TEST_INPUTS.append([em0, 1, 6])
 
+
+#Output test -- just make sure packets go out right ports
 em1 = ExactMatch(fields=[{'offset': 26, 'size': 4},
                          {'offset': 30, 'size': 4}])  # ip src and dst
 
