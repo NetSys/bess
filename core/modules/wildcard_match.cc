@@ -198,15 +198,11 @@ CommandResponse WildcardMatch::ExtractKeyMask(const T &arg, wm_hkey_t *key,
     uint64_t v = 0;
     uint64_t m = 0;
 
-    bool force_be = (fields_[i].attr_id < 0);
-
-    if (!bess::utils::uint64_to_bin(&v, arg.values(i), field_size,
-                                    force_be || bess::utils::is_be_system())) {
+    if (!bess::utils::uint64_to_bin(&v, arg.values(i), field_size, true)) {
       return CommandFailure(EINVAL, "idx %zu: not a correct %d-byte value", i,
                             field_size);
-    } else if (!bess::utils::uint64_to_bin(
-                   &m, arg.masks(i), field_size,
-                   force_be || bess::utils::is_be_system())) {
+    } else if (!bess::utils::uint64_to_bin(&m, arg.masks(i), field_size,
+                                           true)) {
       return CommandFailure(EINVAL, "idx %zu: not a correct %d-byte mask", i,
                             field_size);
     }
