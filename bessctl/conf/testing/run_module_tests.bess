@@ -50,6 +50,10 @@ def pkt_str(pkt):
     else:
         return str(pkt).encode("HEX")
 
+# The classic
+def aton(ip):
+    return socket.inet_aton(ip)
+
 
 # These are just for the crash test
 crash_test_packets = [
