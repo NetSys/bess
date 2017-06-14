@@ -43,3 +43,62 @@ OUTPUT_TEST_INPUTS.append([em1, 1, 4,
                              'input_packet': None,
                              'output_port': 0,
                              'output_packet': None}]])
+
+# Output test over fields -- just make sure packets go out right ports
+
+
+def exactmatch_test_with_metadata():
+    # One exact match field
+    em2 = ExactMatch(
+        fields=[{"attribute": "sangjin", "size": 2, "mask_bin": b'\xff\xf0'}])
+    em2.add(fields=[b'\x88\x80'], gate=1)
+    em2.add(fields=[b'\x77\x70'], gate=2)
+    em2.set_default_gate(gate=0)
+
+    # Only need one test packet
+    eth = scapy.Ether(src='de:ad:be:ef:12:34', dst='12:34:de:ad:be:ef')
+    ip = scapy.IP(src="1.2.3.4", dst="2.3.4.5", ttl=98)
+    udp = scapy.UDP(sport=10001, dport=10002)
+    payload = 'helloworld'
+    test_packet_in = ip / udp / payload
+
+    # Three kinds of metadata tags
+    metadata = []
+
+    metadata.append(SetMetadata(
+        attrs=[{"name": "sangjin", "size": 2, "value_bin": b'\x77\x90'}]))
+    metadata.append(SetMetadata(
+        attrs=[{"name": "sangjin", "size": 2, "value_bin": b'\x88\x80'}]))
+    metadata.append(SetMetadata(
+        attrs=[{"name": "sangjin", "size": 2, "value_bin": b'\x77\x70'}]))
+
+    # And a merge module
+    merger = Merge()
+    merger -> em2
+
+    sockets = []
+    indrivers = []
+    outdrivers = []
+    for i in range(3):  # three input ports for three metadata tags
+        sockname = "exactmatch_metadata" + SCRIPT_STARTTIME + str(i)
+        socket_port, mysocket = gen_socket_and_port(sockname)
+
+        sockets.append(mysocket)
+        indrivers.append(PortInc(port=sockname))
+        outdrivers.append(PortOut(port=sockname))
+
+        indrivers[i] -> metadata[i] -> merger
+        em2: i -> outdrivers[i]
+
+    bess.resume_all()
+
+    # Now run the packets through
+    for i in range(3):
+        sockets[i].send(bytes(test_packet_in))
+        return_data = sockets[i].recv(2048)
+        assert(bytes(return_data) == bytes(test_packet_in))
+
+    bess.pause_all()
+
+
+CUSTOM_TEST_FUNCTIONS.append(exactmatch_test_with_metadata)

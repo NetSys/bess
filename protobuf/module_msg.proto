@@ -442,8 +442,11 @@ message ExactMatchArg {
    * An ExactMatch Field specifies a field over which to check for ExactMatch rules. Field may be in EITHER the packet's data OR it's metadata attributes.
    */
   message Field {
-    uint64 size = 1; /// The length, in bytes, of the field to inspect.
-    uint64 mask = 4; /// A bitmask over the field to specify which bits to inspect (default 0xff).
+    uint64 size = 1; /// The length, in bytes, of the field to inspect
+    oneof mask {
+      uint64 mask_int = 4; /// A bitmask over the field to specify which bits to inspect (default 0xff).
+      bytes mask_bin = 5; // Same as mask_int, but in binary format.
+    }
     oneof position {
       string attribute = 2; ///Metadata attribute name, if field resides in metadata.
       int64 offset = 3; /// The offset, in bytes, from the start of the packet that the field resides in (if field resides in packet data)..
