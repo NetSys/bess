@@ -21,7 +21,6 @@ const Commands ExactMatch::cmds = {
     {"set_default_gate", "ExactMatchCommandSetDefaultGateArg",
      MODULE_CMD_FUNC(&ExactMatch::CommandSetDefaultGate), 1}};
 
-#include <iostream>
 CommandResponse ExactMatch::AddFieldOne(
     const bess::pb::ExactMatchArg_Field &field, struct EmField *f, int idx) {
   f->size = field.size();
@@ -51,14 +50,12 @@ CommandResponse ExactMatch::AddFieldOne(
 
   bool force_be = (f->attr_id < 0);
   if (field.mask_case() == bess::pb::ExactMatchArg_Field::kMaskInt) {
-    std::cout << "mask int" << std::endl;
     if (!bess::utils::uint64_to_bin(&f->mask, field.mask_int(), f->size,
                                     bess::utils::is_be_system() || force_be)) {
       return CommandFailure(EINVAL, "idx %d: not a correct %d-byte mask", idx,
                             f->size);
     }
   } else if (field.mask_case() == bess::pb::ExactMatchArg_Field::kMaskBin) {
-    std::cout << "mask bin" << std::endl;
     if (field.mask_bin().size() != (size_t)f->size) {
       return CommandFailure(EINVAL, "idx %d: not a correct %d-byte mask", idx,
                             f->size);
@@ -66,7 +63,6 @@ CommandResponse ExactMatch::AddFieldOne(
     bess::utils::Copy(reinterpret_cast<uint8_t *>(&(f->mask)),
                       field.mask_bin().c_str(), field.mask_bin().size());
   } else {
-    std::cout << "fuck" << std::endl;
     // by default all bits are considered
     f->mask =
         (f->size == 8) ? 0xffffffffffffffffull : (1ull << (f->size * 8)) - 1;
