@@ -49,17 +49,23 @@ CommandResponse ExactMatch::AddFieldOne(
   }
 
   bool force_be = (f->attr_id < 0);
-
-  if (field.mask() == 0) {
-    // by default all bits are considered
-    f->mask =
-        (f->size == 8) ? 0xffffffffffffffffull : (1ull << (f->size * 8)) - 1;
-  } else {
-    if (!bess::utils::uint64_to_bin(&f->mask, field.mask(), f->size,
+  if (field.mask_case() == bess::pb::ExactMatchArg_Field::kMaskInt) {
+    if (!bess::utils::uint64_to_bin(&f->mask, field.mask_int(), f->size,
                                     bess::utils::is_be_system() || force_be)) {
       return CommandFailure(EINVAL, "idx %d: not a correct %d-byte mask", idx,
                             f->size);
     }
+  } else if (field.mask_case() == bess::pb::ExactMatchArg_Field::kMaskBin) {
+    if (field.mask_bin().size() != (size_t)f->size) {
+      return CommandFailure(EINVAL, "idx %d: not a correct %d-byte mask", idx,
+                            f->size);
+    }
+    bess::utils::Copy(reinterpret_cast<uint8_t *>(&(f->mask)),
+                      field.mask_bin().c_str(), field.mask_bin().size());
+  } else {
+    // by default all bits are considered
+    f->mask =
+        (f->size == 8) ? 0xffffffffffffffffull : (1ull << (f->size * 8)) - 1;
   }
 
   if (f->mask == 0) {
