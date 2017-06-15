@@ -6,7 +6,7 @@
       apt_key: url=https://download.docker.com/linux/ubuntu/gpg
       become: true
 
-    - apt_repository: repo='deb [arch=amd64] https://download.docker.com/linux/ubuntu {{ansible_distribution_release}} stable'
+    - apt_repository: repo='deb [arch=amd64] https://download.docker.com/linux/ubuntu {{ansible_distribution_release}} edge'
       become: true
 
     - name: Install Docker
