@@ -8,6 +8,7 @@
 namespace {
 
 using bess::utils::Codel;
+using bess::utils::Queue;
 void integer_drop(int* ptr) {
   delete ptr;
 }
@@ -226,7 +227,7 @@ TEST(CodelTest, MultiPushPop) {
   EXPECT_EQ(c.Size(), n);
 
   int** output = new int*[n]; 
-  c.Pop(output, n);
+  ASSERT_EQ(c.Pop(output, n), n);
   for (int i = 0; i < n; i++) {
     ASSERT_EQ(output[i], vals[i]);
   }

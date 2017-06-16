@@ -39,6 +39,10 @@ class Queue {
   
   // Returns true if full and false otherwise
   virtual bool Full() = 0;
+
+  // Resizes the queue to the specified new capacity which must be larger than
+  // the current size. Returns 0 on success.
+  virtual int Resize(size_t) = 0;
 };
 
 }  // namespace utils
