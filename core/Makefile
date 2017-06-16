@@ -45,7 +45,7 @@ else ifeq ($(words $(MAKECMDGOALS)),1)
 endif
 
 CXXARCHFLAGS ?= -march=native
-CXXFLAGS += -std=gnu++11 -g3 -ggdb3 $(CXXARCHFLAGS) \
+CXXFLAGS += -std=c++11 -g3 -ggdb3 $(CXXARCHFLAGS) \
             -Werror -isystem $(DPDK_INC_DIR) -isystem . -D_GNU_SOURCE \
             -Wall -Wextra -Wcast-align
 
