@@ -37,20 +37,15 @@ DEF_MODULE(AcmeModule, "acme_module", "foo bar");
 
 class AcmeModuleWithTask : public Module {
  public:
-  AcmeModuleWithTask() : Module() {
-    is_task_ = true;
-  }
+  AcmeModuleWithTask() : Module() { is_task_ = true; }
 
   static const gate_idx_t kNumIGates = 1;
   static const gate_idx_t kNumOGates = 2;
 
-  CommandResponse Init(const bess::pb::EmptyArg &) {
-    return CommandResponse();
-  }
+  CommandResponse Init(const bess::pb::EmptyArg &) { return CommandResponse(); }
 
   struct task_result RunTask(void *) override {
-    struct task_result ret;
-    return ret;
+    return task_result();
   }
 };
 
@@ -305,4 +300,4 @@ TEST_F(ModuleTester, GenerateTCGraph) {
   EXPECT_EQ(0, t3->parent_tasks().size());
   EXPECT_EQ(0, t4->parent_tasks().size());
 }
-}  // namespace (unnamed)
+}  // namespace
