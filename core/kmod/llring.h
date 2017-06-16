@@ -66,6 +66,18 @@
 #ifndef _LLRING_H_
 #define _LLRING_H_
 
+#if defined(__has_cpp_attribute)
+#if __has_cpp_attribute(fallthrough)
+#define FALLTHROUGH [[fallthrough]]
+#elif __has_cpp_attribute(clang::fallthrough)
+#define FALLTHROUGH [[clang::fallthrough]]
+#else
+#define FALLTHROUGH
+#endif
+#else
+#define FALLTHROUGH
+#endif
+
 /**
  * Note: the ring implementation is not preemptable. A producer must not
  * be interrupted by another producer that uses the same ring.
@@ -327,10 +339,10 @@ static inline int llring_set_water_mark(struct llring *r, unsigned count)
 			switch (n & 0x3) {                                     \
 			case 3:                                                \
 				r->ring[idx++] = obj_table[i++];               \
-				[[gnu::fallthrough]];                          \
+				FALLTHROUGH;                                   \
 			case 2:                                                \
 				r->ring[idx++] = obj_table[i++];               \
-				[[gnu::fallthrough]];                          \
+				FALLTHROUGH;                                   \
 			case 1:                                                \
 				r->ring[idx++] = obj_table[i++];               \
 			}                                                      \
@@ -360,10 +372,10 @@ static inline int llring_set_water_mark(struct llring *r, unsigned count)
 			switch (n & 0x3) {                                     \
 			case 3:                                                \
 				obj_table[i++] = r->ring[idx++];               \
-				[[gnu::fallthrough]];                          \
+				FALLTHROUGH;                                   \
 			case 2:                                                \
 				obj_table[i++] = r->ring[idx++];               \
-				[[gnu::fallthrough]];                          \
+				FALLTHROUGH;                                   \
 			case 1:                                                \
 				obj_table[i++] = r->ring[idx++];               \
 			}                                                      \
