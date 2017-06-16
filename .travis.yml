@@ -25,6 +25,7 @@ env:
     - VER_CXX=g++-5 DEBUG=1
     - VER_CXX=g++-5 TAG_SUFFIX=_32              # 32bit build
     - VER_CXX=g++-6
+    - VER_CXX=g++-7
 
 before_install:
   - sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test

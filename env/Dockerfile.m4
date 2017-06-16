@@ -21,7 +21,7 @@ RUN cd /build && \
 	git clone -b ${BESS_DPDK_BRANCH} https://github.com/netsys/bess && \
 	cd /build/bess && \
 	setarch ${DPDK_ARCH} ./build.py dpdk && \
-	mv /build/bess/deps/dpdk-17.02 /build/dpdk-17.02 && \
+	mv /build/bess/deps/dpdk-17.05 /build/dpdk-17.05 && \
 	rm -rf /build/bess
 
 WORKDIR /build/bess
