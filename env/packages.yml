@@ -71,6 +71,9 @@
 
     - name: Compile gRPC and its dependencies
       shell: make -j{{ ansible_processor_vcpus }} chdir=/tmp/grpc
+      environment:
+        - CC: gcc-6
+        - CXX: g++-6
 
     - name: Install gRPC
       shell: make install chdir=/tmp/grpc
