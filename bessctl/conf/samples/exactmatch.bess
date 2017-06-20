@@ -24,7 +24,8 @@ packets = [gen_packet(scapy.UDP, '172.16.100.1', '10.0.0.1'),
 # L4 protocol and source/destination IP addresses
 em::ExactMatch(fields=[{'offset':23, 'size':1},
                        {'offset':26, 'size':4},
-                       {'offset':30, 'size':4}])
+                       {'offset':30, 'size':4}],
+                masks=[{'value_int':0xff},{'value_int':0xff},{'value_int':0xff}])
 
 Source() -> Rewrite(templates=packets) -> em
 
@@ -33,12 +34,12 @@ em:1 -> Sink()
 em:2 -> Sink()
 em:5 -> Sink()   # used as default gate
 
-em.add(fields=[chr(17), aton('172.16.100.1'), aton('10.0.0.1')], gate=0)
-em.add(fields=[chr(6), aton('172.12.55.99'), aton('12.34.56.78')], gate=1)
-em.add(fields=[chr(17), aton('172.12.55.99'), aton('12.34.56.78')], gate=2)
+em.add(fields=[{'value_int':17}, {'value_bin':aton('172.16.100.1')}, {'value_bin':aton('10.0.0.1')}], gate=0)
+em.add(fields=[{'value_int':6}, {'value_bin':aton('172.12.55.99')}, {'value_bin':aton('12.34.56.78')}], gate=1)
+em.add(fields=[{'value_int':17}, {'value_bin':aton('172.12.55.99')}, {'value_bin':aton('12.34.56.78')}], gate=2)
 
 # delete test
-em.add(fields=[chr(17), aton('192.168.1.123'), aton('12.34.56.78')], gate=3)
-em.delete(fields=[chr(17), aton('192.168.1.123'), aton('12.34.56.78')])
+em.add(fields=[{'value_int':17}, {'value_bin':aton('192.168.1.123')}, {'value_bin':aton('12.34.56.78')}], gate=3)
+em.delete(fields=[{'value_int':17}, {'value_bin':aton('192.168.1.123')}, {'value_bin':aton('12.34.56.78')}])
 
 em.set_default_gate(gate=5)

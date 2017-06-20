@@ -78,13 +78,19 @@ CommandResponse ExactMatch::AddFieldOne(
 CommandResponse ExactMatch::Init(const bess::pb::ExactMatchArg &arg) {
   int size_acc = 0;
 
-  for (auto i = 0; i < arg.fields_size(); ++i) {
+  RepeatedPtrField<bess::pb::Field> fields = arg.fields();
+  RepeatedPtrField<bess::pb::FieldData> masks = arg.masks();
+
+  for (auto i = 0; i < arg.fields().size(); ++i) {
     CommandResponse err;
     struct EmField *f = &fields_[i];
 
     f->pos = size_acc;
 
-    err = AddFieldOne(arg.fields(i), arg.masks(i), f, i);
+    bess::pb::Field fnm = arg.fields().Get(i);
+    bess::pb::FieldData fd = arg.masks().Get(i);
+
+    err = AddFieldOne(arg.fields().Get(i), arg.masks().Get(i), f, i);
     if (err.error().code() != 0) {
       return err;
     }
