@@ -69,3 +69,7 @@ coverage.info
 coverage_html
 .coverage
 htmlcov
+
+# VM images and SSH keys
+vm.key
+vm.qcow2
