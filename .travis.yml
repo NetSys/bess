@@ -9,6 +9,7 @@ branches:
   only:
     - master
     - /travis.*/
+    - /^v\d+\.\d+(\.\d+)?(-\S*)?$/
 
 env:
   global:
