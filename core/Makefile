@@ -18,11 +18,12 @@ $(shell mkdir -p $(DEPDIR)/hooks >/dev/null)
 # 'clang' or 'g++'
 CXXCOMPILER := $(shell expr $(word 1, $(shell $(CXX) --version)) : '\(clang\|g++\)')
 
-# e.g., 4.9.3 -> 40903. For clang it is always 40201
-CXXVERSION := $(shell $(CXX) -dumpversion | sed -e 's/\.\([0-9][0-9]\)/\1/g' -e 's/\.\([0-9]\)/0\1/g' -e 's/^[0-9]\{3,4\}$$/&00/')
+CXXVERSION := $(shell $(CXX) -dumpversion)
 
-ifeq "$(shell expr $(CXXCOMPILER) = g++ \& $(CXXVERSION) \< 40800)" "1"
+ifeq "$(CXXCOMPILER)" "g++"
+ifneq "$(shell printf '$(CXXVERSION)\n4.7' | sort -V | head -n1)" "4.7"
     $(error g++ 4.8 or higher is required)
+endif
 endif
 
 RTE_SDK ?= $(abspath ../deps/dpdk-17.05)
@@ -44,7 +45,7 @@ else ifeq ($(words $(MAKECMDGOALS)),1)
 endif
 
 CXXARCHFLAGS ?= -march=native
-CXXFLAGS += -std=gnu++11 -g3 -ggdb3 $(CXXARCHFLAGS) \
+CXXFLAGS += -std=c++11 -g3 -ggdb3 $(CXXARCHFLAGS) \
             -Werror -isystem $(DPDK_INC_DIR) -isystem . -D_GNU_SOURCE \
             -Wall -Wextra -Wcast-align
 

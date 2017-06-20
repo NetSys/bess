@@ -36,7 +36,7 @@ class Rewrite final : public Module {
 
   size_t num_templates_;
   uint16_t template_size_[kNumSlots];
-  unsigned char templates_[kNumSlots][kMaxTemplateSize] __ymm_aligned;
+  unsigned char templates_[kNumSlots][kMaxTemplateSize];
 };
 
 #endif  // BESS_MODULES_REWRITE_H_

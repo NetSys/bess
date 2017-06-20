@@ -12,6 +12,7 @@
 #include <functional>
 #include <limits>
 #include <stack>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
@@ -180,7 +181,9 @@ class CuckooMap {
   Entry* Find(const K& key, const H& hasher = H(), const E& eq = E()) {
     // Blame Effective C++ for this
     return const_cast<Entry*>(
-        static_cast<const typeof(*this)&>(*this).Find(key, hasher, eq));
+        static_cast<
+            const typename std::remove_reference<decltype(*this)>::type&>(*this)
+            .Find(key, hasher, eq));
   }
 
   // const version of Find()

@@ -2,6 +2,7 @@
 #define BESS_MESSAGE_H_
 
 #include <cstdarg>
+#include <functional>
 
 #include "bess_msg.pb.h"
 #include "error.pb.h"
