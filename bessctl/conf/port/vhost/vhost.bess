@@ -1,0 +1,60 @@
+import os
+import random
+import scapy.all as scapy
+import string
+
+from socket import inet_aton as aton
+
+PKT_SIZE = int($BESS_PKT_SIZE!'60')
+NUM_VMS = int(os.getenv('BESS_VMS', '1'))
+NUM_VPORTS = int(os.getenv('BESS_PORTS', '2'))
+NUM_QUEUES = int(os.getenv('BESS_QUEUES', '1'))
+
+# QEMU 2.8 supports up to 1024, older versions are hardcoded with 256
+QSIZE = int($BESS_QSIZE!'2048')
+
+bess.add_worker(wid=0, core=0)
+bess.add_tc('host_to_nf', policy='round_robin', wid=0)
+bess.add_tc('nf_to_host', policy='round_robin', wid=0)
+
+kwargs = {'num_inc_q': NUM_QUEUES,
+          'num_out_q': NUM_QUEUES,
+          'size_inc_q': QSIZE,
+          'size_out_q': QSIZE}
+
+os.system('sudo mkdir -p /tmp/bessd')
+os.system('sudo rm -f /tmp/bessd/vhost_user*.sock')
+
+def build_udp(size):
+    eth = scapy.Ether(src='02:fe:00:00:00:01', dst='02:fe:00:00:00:02')
+    ip = scapy.IP(src='10.0.0.1', dst='10.0.0.2')
+    udp = scapy.UDP(sport=10001, dport=10002)
+    header = eth/ip/udp
+    payload = '0' * (size - len(header))
+    return bytes(header/payload)
+
+src::Source() \
+        -> Rewrite(templates=[build_udp(PKT_SIZE)]) \
+        -> rr_vm::RoundRobin(gates=range(NUM_VMS))
+src.attach_task(parent='host_to_nf')
+
+sink::Sink()
+
+for i in range(NUM_VMS):
+    rr_vport = RoundRobin(gates=range(NUM_VPORTS))
+    rr_vm:i -> rr_vport
+    for j in range(NUM_VPORTS):
+        v = 'v{}_{}'.format(i, j)
+        vdev_str = 'eth_vhost_{},iface=/tmp/bessd/vhost_user{}_{}.sock,queues={}' \
+                .format(v, i, j, NUM_QUEUES)
+        p = PMDPort(name=v, vdev=vdev_str, num_inc_q=NUM_QUEUES, \
+                    num_out_q=NUM_QUEUES, size_inc_q=QSIZE, size_out_q=QSIZE)
+        rr_queue = RoundRobin(gates=range(NUM_QUEUES))
+        rr_vport:j -> rr_queue
+        for k in range(NUM_QUEUES):
+            rr_queue:k -> QueueOut(port=p, qid=k)
+            qinc = QueueInc(port=p, qid=k)
+            qinc -> sink
+            qinc.attach_task(parent='nf_to_host')
+
+print('Run launch_vm.py to launch VMs')
