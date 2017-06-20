@@ -22,22 +22,22 @@ const Commands ExactMatch::cmds = {
      MODULE_CMD_FUNC(&ExactMatch::CommandSetDefaultGate), 1}};
 
 CommandResponse ExactMatch::AddFieldOne(
-    const bess::pb::ExactMatchArg_Field &field, struct EmField *f, int idx) {
+    const bess::pb::Field &field, const bess::pb::FieldData &mask, struct EmField *f, int idx) {
   f->size = field.size();
   if (f->size < 1 || f->size > MAX_FIELD_SIZE) {
     return CommandFailure(EINVAL, "idx %d: 'size' must be 1-%d", idx,
                           MAX_FIELD_SIZE);
   }
 
-  if (field.position_case() == bess::pb::ExactMatchArg_Field::kAttribute) {
-    const char *attr = field.attribute().c_str();
+  if (field.position_case() == bess::pb::Field::kAttrName) {
+    const char *attr = field.attr_name().c_str();
     f->attr_id = AddMetadataAttr(attr, f->size,
                                  bess::metadata::Attribute::AccessMode::kRead);
     if (f->attr_id < 0) {
       return CommandFailure(-f->attr_id, "idx %d: add_metadata_attr() failed",
                             idx);
     }
-  } else if (field.position_case() == bess::pb::ExactMatchArg_Field::kOffset) {
+  } else if (field.position_case() == bess::pb::Field::kOffset) {
     f->attr_id = -1;
     f->offset = field.offset();
     if (f->offset < 0 || f->offset > 1024) {
@@ -49,19 +49,19 @@ CommandResponse ExactMatch::AddFieldOne(
   }
 
   bool force_be = (f->attr_id < 0);
-  if (field.mask_case() == bess::pb::ExactMatchArg_Field::kMaskInt) {
-    if (!bess::utils::uint64_to_bin(&f->mask, field.mask_int(), f->size,
+  if (mask.encoding_case() == bess::pb::FieldData::kValueInt) {
+    if (!bess::utils::uint64_to_bin(&f->mask, mask.value_int(), f->size,
                                     bess::utils::is_be_system() || force_be)) {
       return CommandFailure(EINVAL, "idx %d: not a correct %d-byte mask", idx,
                             f->size);
     }
-  } else if (field.mask_case() == bess::pb::ExactMatchArg_Field::kMaskBin) {
-    if (field.mask_bin().size() != (size_t)f->size) {
+  } else if (mask.encoding_case() == bess::pb::FieldData::kValueBin) {
+    if (mask.value_bin().size() != (size_t)f->size) {
       return CommandFailure(EINVAL, "idx %d: not a correct %d-byte mask", idx,
                             f->size);
     }
     bess::utils::Copy(reinterpret_cast<uint8_t *>(&(f->mask)),
-                      field.mask_bin().c_str(), field.mask_bin().size());
+                      mask.value_bin().c_str(), mask.value_bin().size());
   } else {
     // by default all bits are considered
     f->mask =
@@ -84,7 +84,7 @@ CommandResponse ExactMatch::Init(const bess::pb::ExactMatchArg &arg) {
 
     f->pos = size_acc;
 
-    err = AddFieldOne(arg.fields(i), f, i);
+    err = AddFieldOne(arg.fields(i), arg.masks(i), f, i);
     if (err.error().code() != 0) {
       return err;
     }
@@ -155,8 +155,9 @@ std::string ExactMatch::GetDesc() const {
   return bess::utils::Format("%d fields, %zu rules", num_fields_, ht_.Count());
 }
 
+//TODO: Support match on Metadata
 CommandResponse ExactMatch::GatherKey(
-    const RepeatedPtrField<std::string> &fields, em_hkey_t *key) {
+    const RepeatedPtrField<bess::pb::FieldData> &fields, em_hkey_t *key) {
   if (fields.size() != num_fields_) {
     return CommandFailure(EINVAL, "must specify %d fields", num_fields_);
   }
@@ -165,17 +166,28 @@ CommandResponse ExactMatch::GatherKey(
 
   for (auto i = 0; i < fields.size(); i++) {
     int field_size = fields_[i].size;
-    int field_pos = fields_[i].pos;
+    int field_pos = fields_[i].offset;
 
-    const std::string &f_obj = fields.Get(i);
+    const bess::pb::FieldData &field = fields.Get(i);
 
-    if (static_cast<size_t>(field_size) != f_obj.length()) {
-      return CommandFailure(EINVAL, "idx %d: not a correct %d-byte value", i,
+    if (field.encoding_case() == bess::pb::FieldData::kValueBin){
+      if (static_cast<size_t>(field_size) != field.value_bin().length()) {
+        return CommandFailure(EINVAL, "idx %d: not a correct %d-byte value", i,
+                              field_size);
+      }
+
+      bess::utils::Copy(reinterpret_cast<uint8_t *>(key) + field_pos,
+                        field.value_bin().c_str(), field_size);
+    } else if (field.encoding_case() == bess::pb::FieldData::kValueInt) {
+      bool force_be = (fields_[i].attr_id < 0);
+      if (!bess::utils::uint64_to_bin(&fields_[i].mask, field.value_int(), field_size,
+                                    bess::utils::is_be_system() || force_be)) {
+          return CommandFailure(EINVAL, "idx %d: not a correct %d-byte mask", i,
                             field_size);
+      }
+    } else {
+        return CommandFailure(EINVAL, "FieldData lacks value_bin or value_int");
     }
-
-    bess::utils::Copy(reinterpret_cast<uint8_t *>(key) + field_pos,
-                      f_obj.c_str(), field_size);
   }
 
   return CommandSuccess();

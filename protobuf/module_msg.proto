@@ -1,6 +1,7 @@
 syntax = "proto3";
 
 package bess.pb;
+import "util_msg.proto";
 
 // Module-specific messages.
 // The header generated from this file should not be included in the BESS core
@@ -35,7 +36,7 @@ message BPFCommandClearArg {
  */
 message ExactMatchCommandAddArg {
   uint64 gate = 1; /// The gate to forward out packets that mach this rule.
-  repeated bytes fields = 2; /// The exact match values to check for
+  repeated FieldData fields = 2; /// The exact match values to check for
 }
 
 /**
@@ -43,7 +44,7 @@ message ExactMatchCommandAddArg {
  * Example use: `delete(fields=[aton('12.3.4.5'), aton('5.4.3.2')])`
  */
 message ExactMatchCommandDeleteArg {
-  repeated bytes fields = 2; /// The field values for the rule to be deleted.
+  repeated FieldData fields = 2; /// The field values for the rule to be deleted.
 }
 
 /**
@@ -438,21 +439,8 @@ message EtherEncapArg {
  * __Output Gates__: many (configurable)
  */
 message ExactMatchArg {
-  /**
-   * An ExactMatch Field specifies a field over which to check for ExactMatch rules. Field may be in EITHER the packet's data OR it's metadata attributes.
-   */
-  message Field {
-    uint64 size = 1; /// The length, in bytes, of the field to inspect
-    oneof mask {
-      uint64 mask_int = 4; /// A bitmask over the field to specify which bits to inspect (default 0xff).
-      bytes mask_bin = 5; // Same as mask_int, but in binary format.
-    }
-    oneof position {
-      string attribute = 2; ///Metadata attribute name, if field resides in metadata.
-      int64 offset = 3; /// The offset, in bytes, from the start of the packet that the field resides in (if field resides in packet data)..
-    }
-  }
   repeated Field fields = 1; ///A list of ExactMatch Fields
+  repeated FieldData masks = 2; /// mask(i) corresponds to the mask for field(i)
 }
 
 /**

@@ -117,9 +117,10 @@ class ExactMatch final : public Module {
       const bess::pb::ExactMatchCommandSetDefaultGateArg &arg);
 
  private:
-  CommandResponse AddFieldOne(const bess::pb::ExactMatchArg_Field &field,
+  CommandResponse AddFieldOne(const bess::pb::Field &field,
+                              const bess::pb::FieldData &mask,
                               struct EmField *f, int idx);
-  CommandResponse GatherKey(const RepeatedPtrField<std::string> &fields,
+  CommandResponse GatherKey(const RepeatedPtrField<bess::pb::FieldData> &fields,
                             em_hkey_t *key);
 
   gate_idx_t default_gate_;
