@@ -67,13 +67,13 @@ after_failure:
   - more /tmp/sanitizer* | cat          # dump all sanitizer results
 
 before_deploy:
-  - find . -name '*.pyc' -delete
   - for arch in x86-64 sandybridge haswell; do
       export CXXARCHFLAGS="-march=$arch";
       ./container_build.py clean;
       ./container_build.py bess;
       ./container_build.py kmod_buildtest;
-      tar zcf bess-$arch-linux.tar.gz bessctl/* bin/* pybess/* core/bessd core/kmod/bess.ko core/modules/*.so;
+      find . -name '*.pyc' -delete;
+      (cd .. && tar zcf bess/bess-$arch-linux.tar.gz bess/bessctl/* bess/bin/* bess/pybess/* bess/core/kmod/* bess/core/snbuf_layout.h bess/core/bessd bess/core/modules/*.so);
     done
 
 deploy:
