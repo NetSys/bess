@@ -17,6 +17,7 @@
         - g++-7
         - g++
         - clang-3.8
+        - clang-3.9
         - autoconf
         - automake
         - libtool
