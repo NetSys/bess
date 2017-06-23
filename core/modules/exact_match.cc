@@ -52,11 +52,13 @@ CommandResponse ExactMatch::AddFieldOne(
   if (mask.encoding_case() == bess::pb::FieldData::kValueInt) {
     if (!bess::utils::uint64_to_bin(&f->mask, mask.value_int(), f->size,
                                     bess::utils::is_be_system() || force_be)) {
+      std::cout << "lol" << std::endl;
       return CommandFailure(EINVAL, "idx %d: not a correct %d-byte mask", idx,
                             f->size);
     }
   } else if (mask.encoding_case() == bess::pb::FieldData::kValueBin) {
     if (mask.value_bin().size() != (size_t)f->size) {
+      std::cout << "not lol" << std::endl;
       return CommandFailure(EINVAL, "idx %d: not a correct %d-byte mask", idx,
                             f->size);
     }
@@ -72,25 +74,39 @@ CommandResponse ExactMatch::AddFieldOne(
     return CommandFailure(EINVAL, "idx %d: empty mask", idx);
   }
 
+  std::cout << "Holla, field is" << f->mask << " " << f->offset << std::endl;
+
   return CommandSuccess();
 }
 
+#include <iostream>
 CommandResponse ExactMatch::Init(const bess::pb::ExactMatchArg &arg) {
   int size_acc = 0;
 
   RepeatedPtrField<bess::pb::Field> fields = arg.fields();
   RepeatedPtrField<bess::pb::FieldData> masks = arg.masks();
-
   for (auto i = 0; i < arg.fields().size(); ++i) {
     CommandResponse err;
     struct EmField *f = &fields_[i];
 
     f->pos = size_acc;
 
-    bess::pb::Field fnm = arg.fields().Get(i);
-    bess::pb::FieldData fd = arg.masks().Get(i);
+    if(arg.masks().size() == arg.fields().size()){
+      std::cout << "masks == fields" << std::endl;
+      err = AddFieldOne(arg.fields().Get(i), arg.masks().Get(i), f, i);
+    } else if (arg.masks().size() == 0){
+      std::cout << "masks == 0" << std::endl;
 
-    err = AddFieldOne(arg.fields().Get(i), arg.masks().Get(i), f, i);
+      bess::pb::FieldData default_mask;
+      int fieldsize = arg.fields().Get(i).size();
+      default_mask.set_value_int((fieldsize == 8) ? 0xffffffffffffffffull : (1ull << (fieldsize * 8)) - 1);
+      std::cout << default_mask.value_int() << std::endl;
+      err = AddFieldOne(arg.fields().Get(i), default_mask, f, i);
+    } else{
+      std::cout << "you're fucked" << std::endl;
+      return CommandFailure(EINVAL, "must specify one mask for each field (or no masks for 0xff over all fields)");
+    }
+
     if (err.error().code() != 0) {
       return err;
     }
@@ -178,22 +194,23 @@ CommandResponse ExactMatch::GatherKey(
 
     if (field.encoding_case() == bess::pb::FieldData::kValueBin){
       if (static_cast<size_t>(field_size) != field.value_bin().length()) {
-        return CommandFailure(EINVAL, "idx %d: not a correct %d-byte value", i,
-                              field_size);
+        return CommandFailure(EINVAL, "idx %d: not a correct %d-byte value (%s)", i,
+                              field_size, field.value_bin().c_str());
       }
 
       bess::utils::Copy(reinterpret_cast<uint8_t *>(key) + field_pos,
                         field.value_bin().c_str(), field_size);
     } else if (field.encoding_case() == bess::pb::FieldData::kValueInt) {
       bool force_be = (fields_[i].attr_id < 0);
-      if (!bess::utils::uint64_to_bin(&fields_[i].mask, field.value_int(), field_size,
+      if (!bess::utils::uint64_to_bin(reinterpret_cast<uint8_t*>(key) + field_pos, field.value_int(), field_size,
                                     bess::utils::is_be_system() || force_be)) {
-          return CommandFailure(EINVAL, "idx %d: not a correct %d-byte mask", i,
-                            field_size);
+          return CommandFailure(EINVAL, "idx %d: not a correct %d-byte value (%" PRIu64 "\n", i,
+                            field_size, field.value_int());
       }
     } else {
         return CommandFailure(EINVAL, "FieldData lacks value_bin or value_int");
     }
+    std::cout << "mask is " << fields_[i].mask << std::endl;
   }
 
   return CommandSuccess();

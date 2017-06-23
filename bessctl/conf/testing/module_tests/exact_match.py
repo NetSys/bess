@@ -1,7 +1,7 @@
 # Crash test -- generate a bunch of rules and stuff packets through
 em0 = ExactMatch(fields=[{'offset': 23, 'size': 1},  # random fields, I have no idea what these are
                          {'offset': 2, 'size': 2},
-                         {'offset': 29, 'size': 1}])
+                         {'offset': 29, 'size': 1}],
 
 em0.add(fields=[b'\xff', b'\x23\xba', b'\x34'], gate=0)
 em0.add(fields=[b'\xff', b'\x34\xaa', b'\x12'], gate=1)
