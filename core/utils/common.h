@@ -19,6 +19,16 @@
 #define maybe_unused gnu::unused
 #endif
 
+#if !defined(__cplusplus)  // C
+#define FALLTHROUGH __attribute__((fallthrough))
+#elif __cplusplus <= 201402L && defined(__clang__)  // C++14 or older, Clang
+#define FALLTHROUGH [[clang::fallthrough]]
+#elif __cplusplus <= 201402L && __GNUC__ < 7  // C++14 or older, pre-GCC 7
+#define FALLTHROUGH
+#else
+#define FALLTHROUGH [[fallthrough]]
+#endif
+
 /* Hint for performance optimization. Same as _nDCHECK() of TI compilers */
 #define promise(cond)          \
   ({                           \
@@ -151,8 +161,8 @@ template <typename T, typename U>
 inline void InsertSorted(T &container, U &item) {
   container.push_back(item);
 
-  for (size_t i = container.size()-1; i > 0; --i) {
-    auto &prev = container[i-1];
+  for (size_t i = container.size() - 1; i > 0; --i) {
+    auto &prev = container[i - 1];
     auto &cur = container[i];
     if (cur < prev) {
       std::swap(prev, cur);

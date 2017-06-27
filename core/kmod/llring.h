@@ -66,23 +66,14 @@
 #ifndef _LLRING_H_
 #define _LLRING_H_
 
-#if !defined(FALLTHROUGH) && defined(__has_attribute)
-#if __has_attribute(fallthrough)
+#if !defined(__cplusplus) // C
 #define FALLTHROUGH __attribute__((fallthrough))
-#endif
-#endif
-
-#if !defined(FALLTHROUGH) && defined(__has_cpp_attribute) &&                   \
-    defined(__cplusplus)
-#if __has_cpp_attribute(fallthrough)
-#define FALLTHROUGH [[fallthrough]]
-#elif __has_cpp_attribute(clang::fallthrough)
+#elif __cplusplus <= 201402L && defined(__clang__) // C++14 or older, Clang
 #define FALLTHROUGH [[clang::fallthrough]]
-#endif
-#endif
-
-#ifndef FALLTHROUGH
+#elif __cplusplus <= 201402L && __GNUC__ < 7 // C++14 or older, pre-GCC 7
 #define FALLTHROUGH
+#else
+#define FALLTHROUGH [[fallthrough]]
 #endif
 
 /**
