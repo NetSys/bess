@@ -11,7 +11,6 @@
         - apt-transport-https
         - ca-certificates
         - build-essential
-        - g++-4.8
         - g++-5
         - g++-6
         - g++-7
@@ -73,8 +72,8 @@
     - name: Compile gRPC and its dependencies
       shell: make -j{{ ansible_processor_vcpus }} chdir=/tmp/grpc
       environment:
-        - CC: gcc-4.8
-        - CXX: g++-4.8
+        - CC: gcc-5
+        - CXX: g++-5
 
     - name: Install gRPC
       shell: make install chdir=/tmp/grpc

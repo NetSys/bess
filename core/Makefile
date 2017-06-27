@@ -21,8 +21,8 @@ CXXCOMPILER := $(shell expr $(word 1, $(shell $(CXX) --version)) : '\(clang\|g++
 CXXVERSION := $(shell $(CXX) -dumpversion)
 
 ifeq "$(CXXCOMPILER)" "g++"
-ifneq "$(shell printf '$(CXXVERSION)\n4.7' | sort -V | head -n1)" "4.7"
-    $(error g++ 4.8 or higher is required)
+ifneq "$(shell printf '$(CXXVERSION)\n5' | sort -V | head -n1)" "5"
+    $(error g++ 5 or higher is required. Use container_build.py if newer g++ is not available.)
 endif
 endif
 
