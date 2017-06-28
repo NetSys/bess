@@ -20,12 +20,12 @@ namespace utils {
  *	TTL:    Time to Live, 8 bits
  */
 struct[[gnu::packed]] Mpls {
-#if RTE_BYTE_ORDER == RTE_LITTLE_ENDIAN
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
   uint32_t ttl : 8;     // Time to Live, 8 bits
   uint32_t s : 1;       // Bottom of Stack, 1 bit
   uint32_t tc : 3;      // Traffic Class field, 3 bits
   uint32_t label : 20;  // Label Value, 20 bits
-#elif RTE_BYTE_ORDER == RTE_BIG_ENDIAN
+#elif  __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
   uint32_t label : 20;  // Label Value, 20 bits
   uint32_t tc : 3;      // Traffic Class field, 3 bits
   uint32_t s : 1;       // Bottom of Stack, 1 bit
