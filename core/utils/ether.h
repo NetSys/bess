@@ -54,6 +54,7 @@ struct[[gnu::packed]] Ethernet {
     kVlan = 0x8100,
     kQinQ = 0x88a8,  // 802.1ad double-tagged VLAN packets
     kIpv6 = 0x86DD,
+    kMpls = 0x8847,
   };
 
   Address dst_addr;
