@@ -14,12 +14,12 @@ If you are new to BESS, we recommend you start here:
 3. [Write a BESS Configuration Script](https://github.com/NetSys/bess/wiki/Writing-a-BESS-Configuration-Script)
 4. [Connect BESS to a Network Interface, VM, or Container](https://github.com/NetSys/bess/wiki/Hooking-up-BESS-Ports)
 
-To install BESS on Linux quickly, you can download the binary from [Release](https://github.com/NetSys/bess/releases/latest). Please refer to [GCC x86 Options](https://gcc.gnu.org/onlinedocs/gcc/x86-Options.html) to determine which tarball to use. Suppose `bess-x86-64-linux.tar.gz` is downloaded:
+To install BESS on Linux quickly, you can download the binary from [Release](https://github.com/NetSys/bess/releases/latest). Please refer to [GCC x86 Options](https://gcc.gnu.org/onlinedocs/gcc/x86-Options.html) to determine which tarball to use. Suppose `bess-core2-linux.tar.gz` is downloaded:
 
     sudo apt-get install -y python python-pip python-scapy libgraph-easy-perl
     pip install grpcio
     sudo sysctl vm.nr_hugepages=1024  # For single NUMA node systems
-    tar -xf bess-x86-64-linux.tar.gz
+    tar -xf bess-core2-linux.tar.gz
     cd bess/
     make -C core/kmod # Build the kernel module
     bessctl/bessctl
