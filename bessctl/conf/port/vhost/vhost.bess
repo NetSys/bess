@@ -6,9 +6,9 @@ import string
 from socket import inet_aton as aton
 
 PKT_SIZE = int($BESS_PKT_SIZE!'60')
-NUM_VMS = int(os.getenv('BESS_VMS', '1'))
-NUM_VPORTS = int(os.getenv('BESS_PORTS', '2'))
-NUM_QUEUES = int(os.getenv('BESS_QUEUES', '1'))
+NUM_VMS = int($BESS_VMS!'1')
+NUM_VPORTS = int($BESS_PORTS!'2')
+NUM_QUEUES = int($BESS_QUEUES!'1')
 
 # QEMU 2.8 supports up to 1024, older versions are hardcoded with 256
 QSIZE = int($BESS_QSIZE!'2048')
