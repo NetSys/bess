@@ -1,19 +1,6 @@
 #ifndef BESS_UTILS_COPY_H_
 #define BESS_UTILS_COPY_H_
 
-#if !defined(FALLTHROUGH) && defined(__has_cpp_attribute) && \
-    defined(__cplusplus)
-#if __has_cpp_attribute(fallthrough)
-#define FALLTHROUGH [[fallthrough]]
-#elif __has_cpp_attribute(clang::fallthrough)
-#define FALLTHROUGH [[clang::fallthrough]]
-#endif
-#endif
-
-#ifndef FALLTHROUGH
-#define FALLTHROUGH
-#endif
-
 #include <glog/logging.h>
 #include <x86intrin.h>
 

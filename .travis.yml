@@ -21,7 +21,6 @@ env:
     - GCOV_PREFIX=$TRAVIS_BUILD_DIR             # /build/bess/core/xx becomes $TRAVIS_BUILD_DIR/core/xx
   matrix:
     - VER_CXX=clang++-3.8 SANITIZE=1
-    - VER_CXX=g++-4.8
     - VER_CXX=g++-5
     - VER_CXX=g++-5 DEBUG=1
     - VER_CXX=g++-5 TAG_SUFFIX=_32              # 32bit build
