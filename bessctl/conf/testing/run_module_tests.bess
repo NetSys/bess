@@ -8,6 +8,9 @@ import sugar
 import traceback
 from time import gmtime, strftime
 
+# Env variable used to run a single test
+test_name = $TEST_NAME!'none'
+
 ## HANDY UTILS AND GLOBAL VARS ##
 SOCKET_PATH = '/tmp/bess_unix_'
 SCRIPT_STARTTIME = strftime("%Y-%m-%d-%H-%M-%S", gmtime())
@@ -108,7 +111,13 @@ def run_tests():
     DID_TESTS_FAIL = False
 
     path = os.path.dirname(os.path.realpath(sys.argv[0]))
-    for filename in glob.glob(path + "/conf/testing/module_tests/*.py"):
+
+    if test_name == 'none':
+        filenames = glob.glob(path + "/conf/testing/module_tests/*.py")
+    else:
+        filenames = glob.glob(path + "/conf/testing/module_tests/" + test_name + ".py")
+
+    for filename in filenames:
         bess.reset_all()
 
         print("-- Running Module Tests for %s --" % filename.split("/")[-1])
