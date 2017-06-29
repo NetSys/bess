@@ -69,6 +69,10 @@
     - name: Download gRPC
       git: repo=https://github.com/google/grpc dest=/tmp/grpc accept_hostkey=yes version=v1.3.2
 
+    - name: Compile and install protobuf
+      shell: ./autogen.sh && ./configure && make install chdir=/tmp/grpc/third_party/protobuf
+      become: true
+
     - name: Compile gRPC and its dependencies
       shell: make -j{{ ansible_processor_vcpus }} chdir=/tmp/grpc
       environment:
@@ -77,10 +81,6 @@
 
     - name: Install gRPC
       shell: make install chdir=/tmp/grpc
-      become: true
-
-    - name: Install protobuf
-      shell: make install chdir=/tmp/grpc/third_party/protobuf
       become: true
 
     - name: Generate makefile for libbenchmark
