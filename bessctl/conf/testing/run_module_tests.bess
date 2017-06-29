@@ -9,7 +9,7 @@ import traceback
 from time import gmtime, strftime
 
 # Env variable used to run a single test
-test_name = $TEST_NAME!'none'
+test_name = $TEST_NAME!'*'
 
 ## HANDY UTILS AND GLOBAL VARS ##
 SOCKET_PATH = '/tmp/bess_unix_'
@@ -112,12 +112,7 @@ def run_tests():
 
     path = os.path.dirname(os.path.realpath(sys.argv[0]))
 
-    if test_name == 'none':
-        filenames = glob.glob(path + "/conf/testing/module_tests/*.py")
-    else:
-        filenames = glob.glob(path + "/conf/testing/module_tests/" + test_name + ".py")
-
-    for filename in filenames:
+    for filename in glob.glob(path + "/conf/testing/module_tests/" + test_name + ".py"):
         bess.reset_all()
 
         print("-- Running Module Tests for %s --" % filename.split("/")[-1])
