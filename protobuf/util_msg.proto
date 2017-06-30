@@ -2,6 +2,8 @@ syntax="proto3";
 /// This file contains some standard "types" for messages to/from BESS
 
 package bess.pb;
+
+/// The Field message represents one field in a packet -- either stored in metadata or in the packet body.
 message Field {
   oneof position {
     string attr_name = 1;
