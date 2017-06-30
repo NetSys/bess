@@ -37,9 +37,9 @@ em:1 -> Sink()
 em:2 -> Sink()
 em:5 -> Sink()   # used as default gate
 
-em.add(fields=[{'value_bin':chr(17)}, {'value_bin':aton('172.16.100.1')}, {'value_bin':aton('10.0.0.1')}], gate=0)
-em.add(fields=[{'value_bin':chr(6)}, {'value_bin':aton('172.12.55.99')}, {'value_bin':aton('12.34.56.78')}], gate=1)
-em.add(fields=[{'value_bin':chr(17)}, {'value_bin':aton('172.12.55.99')}, {'value_bin':aton('12.34.56.78')}], gate=2)
+em.add(fields=[{'value_int':17}, {'value_bin':aton('172.16.100.1')}, {'value_bin':aton('10.0.0.1')}], gate=0)
+em.add(fields=[{'value_int':6}, {'value_bin':aton('172.12.55.99')}, {'value_bin':aton('12.34.56.78')}], gate=1)
+em.add(fields=[{'value_int':17}, {'value_bin':aton('172.12.55.99')}, {'value_bin':aton('12.34.56.78')}], gate=2)
 
 # delete test
 em.add(fields=[{'value_bin':chr(17)}, {'value_bin':aton('192.168.1.123')}, {'value_bin':aton('12.34.56.78')}], gate=3)
