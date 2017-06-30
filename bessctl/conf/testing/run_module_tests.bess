@@ -16,8 +16,6 @@ SOCKET_PATH = '/tmp/bess_unix_'
 SCRIPT_STARTTIME = strftime("%Y-%m-%d-%H-%M-%S", gmtime())
 
 # Generate a UnixSocketPort and a Socket to talk to it
-
-
 def gen_socket_and_port(sockname):
     socket_port = UnixSocketPort(
         name=sockname,
@@ -32,8 +30,6 @@ def gen_socket_and_port(sockname):
 
 # Craft a packet with the specified IP addresses
 # All the other fields -- Ether, ports -- are dummy values.
-
-
 def gen_packet(proto, src_ip, dst_ip, ip_ttl=64, srcport=1001, dstport=1002):
     eth = scapy.Ether(src='02:1e:67:9f:4d:ae', dst='06:16:3e:1b:72:32')
     ip = scapy.IP(src=src_ip, dst=dst_ip, ttl=ip_ttl)
@@ -43,8 +39,6 @@ def gen_packet(proto, src_ip, dst_ip, ip_ttl=64, srcport=1001, dstport=1002):
     return pkt
 
 # Quick turn a packet into a string even if it is None
-
-
 def pkt_str(pkt):
     if pkt is None:
         return "None"
@@ -72,8 +66,6 @@ crash_test_packets = [
 
 # All this does is subject a module to load and make sure it
 # doesn't crash
-
-
 def crash_test(module, num_input_ports, num_output_ports):
     for i in range(num_input_ports):
         Source() -> Rewrite(templates=crash_test_packets) -> i:module
@@ -86,8 +78,6 @@ def crash_test(module, num_input_ports, num_output_ports):
 
 # Can't just call exec() in the middle of main loop because
 # variables will leak into main script scope
-
-
 def load_test(filename):
     CRASH_TEST_INPUTS = []
     OUTPUT_TEST_INPUTS = []
@@ -163,23 +153,19 @@ def run_tests():
                         sockets[input_port].send(bytes(input_pkt))
 
                     try:
-                        return_data = sockets[output_port].recv(2048)
+                        received_data = sockets[output_port].recv(2048)
                         try:
-                            return_pkt = scapy.Ether(return_data)
+                            received_pkt = scapy.Ether(received_data)
                         except:
-                            return_pkt = return_data
+                            received_pkt = received_data
                     except socket.timeout:
-                        return_pkt = "None"
+                        received_pkt = None
 
-                    if not (str(return_pkt) == str(output_pkt)):
+                    if str(received_pkt) != str(output_pkt):
                         sys.stderr.write("Output test failed!\n")
-                        sys.stderr.write("Input packet: %s" %
-                                         pkt_str(input_pkt) + "\n")
-                        sys.stderr.write(
-                            "Expected: %s" %
-                            pkt_str(output_pkt) + "\n")
-                        sys.stderr.write("Received: %s" % pkt_str(
-                            return_pkt) + " " + str(output_pkt) + "\n")
+                        sys.stderr.write("Input packet: %s\n" % pkt_str(input_pkt))
+                        sys.stderr.write("Expected: %s\n" % pkt_str(output_pkt))
+                        sys.stderr.write("Received: %s\n" % pkt_str(received_pkt))
                         DID_TESTS_FAIL = True
                         print("   %s output test %d: FAIL" %
                               (str(module), output_testid))
