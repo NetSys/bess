@@ -1,10 +1,14 @@
 import scapy.all as scapy
 
-#ensures that given infinite input that the module does not crash.
+# ensures that given infinite input that the module does not crash.
+
+
 def crash_test():
     return [DRR(), 1, 1]
 
 # tests to make that inividual packets gets through the module
+
+
 def basic_output_test():
 
     # produces the number of duplicate packets specified by num_pkts and uses the provided
@@ -45,10 +49,12 @@ def fairness_test():
         err = bess.reset_all()
 
         packets = []
-        exm = ExactMatch(fields=[{'offset':26, 'size':4}])
-        for i in range(1, n+1):
-           packets.append(bytes(gen_packet(scapy.TCP, '22.11.11.' + str(i), '22.22.11.' + str(i))))
-           exm.add(fields=[socket.inet_aton('22.11.11.' + str(i))], gate=i)
+        exm = ExactMatch(fields=[{'offset': 26, 'size': 4}])
+        for i in range(1, n + 1):
+            packets.append(
+                bytes(gen_packet(scapy.TCP, '22.11.11.' + str(i), '22.22.11.' + str(i))))
+            exm.add(
+                fields=[{'value_bin': socket.inet_aton('22.11.11.' + str(i))}], gate=i)
 
         me_in = Measure()
         src = []
@@ -62,27 +68,28 @@ def fairness_test():
 
         me_out = Measure()
         snk = Sink()
-        q = DRR(num_flows= n+1, quantum=quantum)
+        q = DRR(num_flows=n + 1, quantum=quantum)
         me_in -> q -> me_out -> exm
 
         measure_out = []
-        for i in range(1, n+1):
+        for i in range(1, n + 1):
             measure_out.append(Measure())
-            exm:i -> measure_out[i-1] -> snk
+            exm:
+                i -> measure_out[i - 1] -> snk
 
         for i in range(0, n):
-            bess.add_tc('r'+ str(i) , policy='rate_limit', resource='packet',
-                    limit={'packet': rates[i]})
-            src[i].attach_task(parent='r'+ str(i))
+            bess.add_tc('r' + str(i), policy='rate_limit', resource='packet',
+                        limit={'packet': rates[i]})
+            src[i].attach_task(parent='r' + str(i))
 
         bess.add_tc('output', policy='rate_limit', resource='packet',
-                limit={'packet': module_rate})
+                    limit={'packet': module_rate})
         q.attach_task(parent='output')
 
         bess.resume_all()
         time.sleep(5)
         bess.pause_all()
-        f = lambda m : (float)((m.get_summary().packets)**2)
+        f = lambda m: (float)((m.get_summary().packets)**2)
         square_sum = 0
         for i in range(n):
             square_sum += f(measure_out[i])
@@ -91,14 +98,16 @@ def fairness_test():
         if square_sum == 0:
             fair = 0
         else:
-            fair = f(me_out)/square_sum
-        assert abs(.99 - fair) <=.05
+            fair = f(me_out) / square_sum
+        assert abs(.99 - fair) <= .05
 
     fairness_n_flow_test(2, 1000, [80000, 20000], 30000)
-    fairness_n_flow_test(5, 1000, [110000, 200000, 70000, 60000, 40000], 150000)
+    fairness_n_flow_test(
+        5, 1000, [110000, 200000, 70000, 60000, 40000], 150000)
 
-    ten_flows =  [210000, 120000, 130000, 160000, 100000, 105000, 90000, 70000, 60000, 40000]
-    fairness_n_flow_test(10, 1000, ten_flows , 300000)
+    ten_flows = [210000, 120000, 130000, 160000,
+                 100000, 105000, 90000, 70000, 60000, 40000]
+    fairness_n_flow_test(10, 1000, ten_flows, 300000)
 
     # hund_flows= []
     # cur = 200000
