@@ -23,8 +23,6 @@ namespace bess {
 // A large default priority.
 #define DEFAULT_PRIORITY 0xFFFFFFFFu
 
-#define USAGE_AMPLIFIER_POW 32
-
 // Share is defined relatively, so 1024 should be large enough
 #define STRIDE1 (1 << 20)
 
@@ -504,20 +502,22 @@ class RateLimitTrafficClass final : public TrafficClass {
     // We sacrifice 10 least significant bits of tsc_hz to avoid overflow.
     // (it should be less than measurement error anyway)
     // x (resource units / second) should be less than 2^42 (~4.4 Tbps)
-    return (x << (USAGE_AMPLIFIER_POW - 10)) / (tsc_hz >> 10);
+    return (x << (kUsageAmplifierPow - 10)) / (tsc_hz >> 10);
   }
 
   // Convert resource units to work units
-  static uint64_t to_work_units(uint64_t x) { return x << USAGE_AMPLIFIER_POW; }
+  static uint64_t to_work_units(uint64_t x) { return x << kUsageAmplifierPow; }
 
  private:
   template <typename CallableTask>
   friend class Scheduler;
 
+  static const int kUsageAmplifierPow = 32;
+
   // The resource that we are limiting.
   resource_t resource_;
 
-  // 1 work unit = 2 ^ USAGE_AMPLIFIER_POW resource usage.
+  // 1 work unit = 2 ^ kUsageAmplifierPow resource usage.
   // (for better precision without using floating point numbers)
   uint64_t limit_;          // In work units per cycle (0 if unlimited).
   uint64_t limit_arg_;      // In resource units per second.
