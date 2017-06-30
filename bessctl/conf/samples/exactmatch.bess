@@ -26,10 +26,6 @@ em::ExactMatch(fields=[{'offset':23, 'size':1},
                        {'offset':26, 'size':4},
                        {'offset':30, 'size':4}])
 
-#em::ExactMatch(fields=[{'offset':23, 'size':1}])
-#em.add(fields=[{'value_bin':b'\x11'}], gate=0)
-#em.add(fields=[{'value_bin':b'\x06'}], gate=1)
-
 Source() -> Rewrite(templates=packets) -> em
 
 em:0 -> Sink()
