@@ -57,4 +57,4 @@ for i in range(NUM_VMS):
             qinc -> sink
             qinc.attach_task(parent='nf_to_host')
 
-print('Run launch_vm.py to launch VMs')
+print('Now you can run either launch_vm.py or launch_container.py')
