@@ -66,13 +66,13 @@ after_failure:
   - more /tmp/sanitizer* | cat          # dump all sanitizer results
 
 before_deploy:
-  - find . -name '*.pyc' -delete
-  - for arch in x86-64 sandybridge haswell; do
+  - for arch in core2 sandybridge haswell; do
       export CXXARCHFLAGS="-march=$arch";
       ./container_build.py clean;
       ./container_build.py bess;
       ./container_build.py kmod_buildtest;
-      tar zcf bess-$arch-linux.tar.gz bessctl/* bin/* pybess/* core/bessd core/kmod/bess.ko core/modules/*.so;
+      find . -name '*.pyc' -delete;
+      (cd .. && tar zcf bess/bess-$arch-linux.tar.gz bess/bessctl/* bess/bin/* bess/pybess/* bess/core/kmod/* bess/core/snbuf_layout.h bess/core/bessd bess/core/modules/*.so);
     done
 
 deploy:
@@ -80,7 +80,7 @@ deploy:
   api_key:
     secure: NVoPKxyZTa9K5shhh67uQ9/spds24VexpKSE5U5X79cyBhNXdIRcxBAxvyZ6s6cQGRyWoVmC8FLin3BeUeKga5SEqSbSNed42Tazw7lRQt08ni1WYpirx5Qb9bE3M2vb5FuxO5kbaUsns2o0q7cE/+HCGcHK5UbKrEEG6mZxwPwNEiwEwqHBf9nECuUE1gZXUK4KiVn/NNDK6bX1pg3jeHh5yNK1yCBeBvIJbtTlKTZRZ1Xd8mTz/PpLXTiSD7d3gDNF2UwIg8HQAtQ9b9I2K5s41pM47ejtBGf7kOUbVRBx0iuEHKOpBKRp9kFWoePryL65wT4Pthr47FSPhR9KKHWpbTIJbUwJiWdUrImCZmnwmFZURLmXB/xKWDCLYr3d51jnxOHUv8ATOKN7DhjvaZwTbQSNed7CBNfNa3hgAj60limki/fzRzyM4wMgDA1ihR9Ohcvnf9VArmz7fFi3EKvZ47eXnM6EgTWd8Jl8U09Rzd7C9LkgYq+8eaqGSKN57RR0ptCkI9rqgBQw5RbQuwGVkCAsTDbQ9yqI/2Qt5FcRceUtNFG+rc5uejY2a0ba0qR9kANWdk09qrd5XxQ3hiJbw5J+ThTW0gV9xWqn8Emz0tHr6UUH8cXNAruiQ/Rtxu7XjGnkulLa60Wdv7JTulky3yA46SN4Jmkmilo38MU=
   file:
-    - bess-x86-64-linux.tar.gz
+    - bess-core2-linux.tar.gz
     - bess-sandybridge-linux.tar.gz
     - bess-haswell-linux.tar.gz
   skip_cleanup: true

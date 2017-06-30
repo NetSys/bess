@@ -14,15 +14,14 @@ If you are new to BESS, we recommend you start here:
 3. [Write a BESS Configuration Script](https://github.com/NetSys/bess/wiki/Writing-a-BESS-Configuration-Script)
 4. [Connect BESS to a Network Interface, VM, or Container](https://github.com/NetSys/bess/wiki/Hooking-up-BESS-Ports)
 
-To configure and install BESS on Linux quickly, you can run the provided Ansible script (`env/bess.yml`):
+To install BESS on Linux quickly, you can download the binary from [Release](https://github.com/NetSys/bess/releases/latest). Please refer to [GCC x86 Options](https://gcc.gnu.org/onlinedocs/gcc/x86-Options.html) to determine which tarball to use. Suppose `bess-core2-linux.tar.gz` is downloaded:
 
-    git clone https://github.com/NetSys/bess.git
+    sudo apt-get install -y python python-pip python-scapy libgraph-easy-perl
+    pip install grpcio
+    sudo sysctl vm.nr_hugepages=1024  # For single NUMA node systems
+    tar -xf bess-core2-linux.tar.gz
     cd bess/
-    sudo apt-get install -y software-properties-common
-    sudo apt-add-repository -y ppa:ansible/ansible
-    sudo apt-get update
-    sudo apt-get install -y ansible
-    ansible-playbook -K -i localhost, -c local env/bess.yml
-    sudo reboot
+    make -C core/kmod # Build the kernel module
+    bessctl/bessctl
 
 Documentation can be found [here](https://github.com/NetSys/bess/wiki/). Please consider [contributing](https://github.com/NetSys/bess/wiki/How-to-Contribute) to the project!
