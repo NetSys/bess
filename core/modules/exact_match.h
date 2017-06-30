@@ -118,7 +118,7 @@ class ExactMatch final : public Module {
 
  private:
   CommandResponse AddFieldOne(const bess::pb::Field &field,
-                              const bess::pb::FieldData &mask,
+                            //const bess::pb::FieldData &mask,
                               struct EmField *f, int idx);
   CommandResponse GatherKey(const RepeatedPtrField<bess::pb::FieldData> &fields,
                             em_hkey_t *key);
