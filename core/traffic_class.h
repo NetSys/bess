@@ -501,7 +501,10 @@ class RateLimitTrafficClass final : public TrafficClass {
 
   // Convert resource units to work units per cycle
   static uint64_t to_work_units_per_cycle(uint64_t x) {
-    return (x << (USAGE_AMPLIFIER_POW - 4)) / (tsc_hz >> 4);
+    // We sacrifice 10 least significant bits of tsc_hz to avoid overflow.
+    // (it should be less than measurement error anyway)
+    // x (resource units / second) should be less than 2^42 (~4.4 Tbps)
+    return (x << (USAGE_AMPLIFIER_POW - 10)) / (tsc_hz >> 10);
   }
 
   // Convert resource units to work units
@@ -514,13 +517,8 @@ class RateLimitTrafficClass final : public TrafficClass {
   // The resource that we are limiting.
   resource_t resource_;
 
-  // For per-resource token buckets:
   // 1 work unit = 2 ^ USAGE_AMPLIFIER_POW resource usage.
   // (for better precision without using floating point numbers)
-  //
-  // prof->limit < 2^36 (~64 Tbps)
-  // 2^24 < tsc_hz < 2^34 (16 Mhz - 16 GHz)
-  // tb->limit < 2^36
   uint64_t limit_;          // In work units per cycle (0 if unlimited).
   uint64_t limit_arg_;      // In resource units per second.
   uint64_t max_burst_;      // In work units.
