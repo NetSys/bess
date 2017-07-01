@@ -70,7 +70,7 @@
       git: repo=https://github.com/google/grpc dest=/tmp/grpc accept_hostkey=yes version=v1.3.2
 
     - name: Compile gRPC and its dependencies
-      shell: make -j{{ ansible_processor_vcpus }} chdir=/tmp/grpc
+      shell: make -j{{ ansible_processor_vcpus }} HAS_SYSTEM_PROTOBUF=false chdir=/tmp/grpc
       environment:
         - CC: gcc-5
         - CXX: g++-5
