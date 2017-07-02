@@ -991,3 +991,14 @@ message ArpResponderArg {
    string ip = 1; // The IP
    string mac_addr = 2; /// The MAC address
 }
+
+/**
+ * The MPLS pop module removes MPLS labels
+ *
+ * __Input Gates__: 1
+ * __Output Gates__: 2
+ */
+message MplsPopArg {
+   bool remove_eth_header = 1; // Remove ETH header with the pop
+   uint32 next_eth_type = 2; /// The next ETH type to set
+}

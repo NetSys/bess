@@ -22,5 +22,7 @@ ip = scapy.IP(src='192.168.0.1', dst='10.0.0.1')
 udp = scapy.UDP(sport=10001, dport=10002)
 
 test_packet = bytes(eth/mpls/ip/udp)
+mplsPop::MPLSPop()
+mplsPop.set(remove_eth_header=False,next_eth_type=0x0800)
 
-Source() -> Rewrite(templates=[test_packet]) -> MPLSPop() -> Sink()
+Source() -> Rewrite(templates=[test_packet]) -> mplsPop -> Sink()
