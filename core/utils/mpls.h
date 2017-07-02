@@ -19,18 +19,43 @@ namespace utils {
 //	S:      Bottom of Stack, 1 bit
 //	TTL:    Time to Live, 8 bits
 
+#define MPLS_LS_LABEL_MASK 0xFFFFF000
+#define MPLS_LS_LABEL_SHIFT 12
+#define MPLS_LS_TC_MASK 0x00000E00
+#define MPLS_LS_TC_SHIFT 9
+#define MPLS_LS_S_MASK 0x00000100
+#define MPLS_LS_S_SHIFT 8
+#define MPLS_LS_TTL_MASK 0x000000FF
+#define MPLS_LS_TTL_SHIFT 0
+
 struct[[gnu::packed]] Mpls {
-#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
-  uint32_t ttl : 8;     // Time to Live, 8 bits
-  uint32_t s : 1;       // Bottom of Stack, 1 bit
-  uint32_t tc : 3;      // Traffic Class field, 3 bits
-  uint32_t label : 20;  // Label Value, 20 bits
-#elif  __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
-  uint32_t label : 20;  // Label Value, 20 bits
-  uint32_t tc : 3;      // Traffic Class field, 3 bits
-  uint32_t s : 1;       // Bottom of Stack, 1 bit
-  uint32_t ttl : 8;     // Time to Live, 8 bits
-#endif
+  void setEntry(uint32_t label, uint8_t ttl, uint8_t tc, bool bos) {
+    entry =
+        be32_t((label << MPLS_LS_LABEL_SHIFT) | (tc << MPLS_LS_TC_SHIFT) |
+               (bos ? (1 << MPLS_LS_S_SHIFT) : 0) | (ttl << MPLS_LS_TTL_SHIFT));
+  }
+
+  uint32_t getLabel() {
+    be32_t mpls_entry = be32_t(entry);
+    return (mpls_entry.value() & MPLS_LS_LABEL_MASK) >> MPLS_LS_LABEL_SHIFT;
+  }
+
+  uint8_t getTtl() {
+    be32_t mpls_entry = be32_t(entry);
+    return (mpls_entry.value() & MPLS_LS_TTL_MASK) >> MPLS_LS_TTL_SHIFT;
+  }
+
+  uint8_t getTc() {
+    be32_t mpls_entry = be32_t(entry);
+    return (mpls_entry.value() & MPLS_LS_TC_MASK) >> MPLS_LS_TC_SHIFT;
+  }
+
+  bool isBottomOfStack() {
+    be32_t mpls_entry = be32_t(entry);
+    return (mpls_entry.value() & MPLS_LS_S_MASK) >> MPLS_LS_S_SHIFT;
+  }
+
+  be32_t entry;
 };
 
 static_assert(sizeof(Mpls) == 4, "struct Mpls size is incorrect");
