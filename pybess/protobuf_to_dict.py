@@ -154,8 +154,14 @@ def _dict_to_protobuf(pb, value, type_callable_map, strict):
 
     for field, input_value, pb_value in fields:
         if field.label == FieldDescriptor.LABEL_REPEATED:
-            if field.message_type and field.message_type.has_options and field.message_type.GetOptions().map_entry:
-                pb_value.update(input_value)
+            if field.message_type and field.message_type.has_options and \
+                   field.message_type.GetOptions().map_entry:
+                if not isinstance(input_value, dict):
+                    pb_value.update(input_value)
+                else:
+                    for k, v in input_value.items():
+                        _dict_to_protobuf(
+                            pb_value[k], input_value[k], type_callable_map, strict)
                 continue
             for item in input_value:
                 if field.type == FieldDescriptor.TYPE_MESSAGE:
