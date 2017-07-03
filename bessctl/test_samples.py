@@ -51,7 +51,12 @@ class TestSamples(unittest.TestCase):
 
 def generate_test_method(path):
     def template(self):
-        run_cmd('%s daemon reset -- run file %s' % (bessctl, path))
+        try:
+            run_cmd('%s daemon reset -- run file %s' % (bessctl, path))
+        except CommandError:
+            # bessd may have crashed. Relaunch for next tests.
+            run_cmd('%s daemon start' % bessctl)
+            raise
 
         # 0.5 seconds should be enough to detect packet leaks in the datapath
         time.sleep(0.5)
