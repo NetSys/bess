@@ -23,7 +23,7 @@ class GenericEncap final : public Module {
   void ProcessBatch(bess::PacketBatch *batch);
 
  private:
-  CommandResponse AddFieldOne(const bess::pb::GenericEncapArg_Field &field,
+  CommandResponse AddFieldOne(const bess::pb::GenericEncapArg_EncapField &field,
                               struct Field *f, int idx);
 
   int encap_size_;

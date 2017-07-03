@@ -496,16 +496,16 @@ message GenericDecapArg {
  */
 message GenericEncapArg {
   /**
-   * A GenericEncap field represents one field in the new packet header.
+   * An EncapField represents one field in the new packet header.
    */
-  message Field {
+  message EncapField {
     uint64 size = 1; /// The length of the field.
     oneof insertion {
       string attribute = 2; /// The metadata attribute name to pull the field value from
-      uint64 value = 3; /// Or, the fixed value to insert into the packet (max 8 bytes).
+      FieldData value = 3; /// Or, the fixed value to insert into the packet.
     }
   }
-  repeated Field fields = 1;
+  repeated EncapField fields = 1;
 }
 
 /**

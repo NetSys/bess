@@ -12,14 +12,16 @@ static_assert(MAX_FIELD_SIZE <= sizeof(uint64_t),
 #endif
 
 CommandResponse GenericEncap::AddFieldOne(
-    const bess::pb::GenericEncapArg_Field &field, struct Field *f, int idx) {
+    const bess::pb::GenericEncapArg_EncapField &field, struct Field *f,
+    int idx) {
   f->size = field.size();
   if (f->size < 1 || f->size > MAX_FIELD_SIZE) {
     return CommandFailure(EINVAL, "idx %d: 'size' must be 1-%d", idx,
                           MAX_FIELD_SIZE);
   }
 
-  if (field.insertion_case() == bess::pb::GenericEncapArg_Field::kAttribute) {
+  if (field.insertion_case() ==
+      bess::pb::GenericEncapArg_EncapField::kAttribute) {
     const char *attr = field.attribute().c_str();
     f->attr_id = AddMetadataAttr(attr, f->size,
                                  bess::metadata::Attribute::AccessMode::kRead);
@@ -28,13 +30,25 @@ CommandResponse GenericEncap::AddFieldOne(
                             idx);
     }
   } else if (field.insertion_case() ==
-             bess::pb::GenericEncapArg_Field::kValue) {
+             bess::pb::GenericEncapArg_EncapField::kValue) {
     f->attr_id = -1;
-    if (!bess::utils::uint64_to_bin(&f->value, field.value(), f->size, 1)) {
-      return CommandFailure(EINVAL,
-                            "idx %d: "
-                            "not a correct %d-byte value",
-                            idx, f->size);
+    if (field.value().encoding_case() == bess::pb::FieldData::kValueInt) {
+      if (!bess::utils::uint64_to_bin(&f->value, field.value().value_int(),
+                                      f->size, 1)) {
+        return CommandFailure(EINVAL,
+                              "idx %d: "
+                              "not a correct %d-byte value",
+                              idx, f->size);
+      }
+    } else if (field.value().encoding_case() ==
+               bess::pb::FieldData::kValueBin) {
+      if (field.value().value_bin().size() != (size_t)f->size) {
+        return CommandFailure(EINVAL, "idx %d: not a correct %d-byte mask", idx,
+                              f->size);
+      }
+      bess::utils::Copy(reinterpret_cast<uint8_t *>(&(f->value)),
+                        field.value().value_bin().c_str(),
+                        field.value().value_bin().size());
     }
   } else {
     return CommandFailure(EINVAL, "idx %d: must specify 'value' or 'attribute'",
