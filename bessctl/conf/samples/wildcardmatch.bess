@@ -3,7 +3,7 @@ import socket
 import struct
 
 def atoh(ip):
-    return struct.unpack("!L", socket.inet_aton(ip))[0]
+    return socket.inet_aton(ip)
 
 # Craft a packet with the specified IP address and port number
 def gen_packet(dst_ip, dst_port):
@@ -24,7 +24,7 @@ pkts = [gen_packet('172.16.100.1', 80),
 # destination IP address + destination port number + metadata 'in_port'
 wm::WildcardMatch(fields=[{'offset':30, 'size':4},
                           {'offset':36, 'size':2},
-                          {'attribute':'in_port', 'size':2}])
+                          {'attr_name':'in_port', 'size':2}])
 
 # locally emulate two input ports
 Source() -> SetMetadata(attrs=[{'name': 'in_port', 'size': 2, 'value_int': 1}]) -> Rewrite(templates=pkts) -> wm
@@ -39,27 +39,27 @@ wm:5 -> Sink()   # used as default gate
 wm.set_default_gate(gate=5)
 
 # 172.16.100.1/32, port 80, in_port 1
-wm.add(values=[atoh('172.16.100.1'),    80,         1       ], gate=0,
-        masks=[atoh('255.255.255.255'), 0xffff,     0xffff  ], priority=3)
+wm.add(values=[{'value_bin':atoh('172.16.100.1')},  {'value_int':80}, {'value_int': 1}], gate=0,
+        masks=[{'value_bin':atoh('255.255.255.255')}, {'value_int':0xffff}, {'value_int':0xffff}], priority=3)
 
 # 172.12.55.99/32, in_port 2
-wm.add(values=[atoh('172.12.55.99'),    0,          2       ], gate=1,
-        masks=[atoh('255.255.255.255'), 0x0000,     0xffff  ], priority=1)
+wm.add(values=[{'value_bin':atoh('172.12.55.99')}, {'value_int': 0}, {'value_int':  2}], gate=1,
+        masks=[{'value_bin':atoh('255.255.255.255')}, {'value_int': 0}, {'value_int':0xffff }], priority=1)
 
 # 172.12.55.3/32, in_port 1 (w/ the same wildcard pattern as the previous one)
-wm.add(values=[atoh('172.12.55.3'),     0,          1       ], gate=2,
-        masks=[atoh('255.255.255.255'), 0x0000,     0xffff  ], priority=0)
+wm.add(values=[{'value_bin':atoh('172.12.55.3')},{'value_int': 0},  {'value_int':1} ], gate=2,
+        masks=[{'value_bin':atoh('255.255.255.255')},{'value_int':0x0000},{'value_int': 0xffff}], priority=0)
 
 # 172.0.0.0/8, port <= 1023
-wm.add(values=[atoh('172.0.0.0'),       0,          0       ], gate=2,
-        masks=[atoh('255.0.0.0'),       0xfc00,     0x0000  ], priority=2)
+wm.add(values=[{'value_bin':atoh('172.0.0.0')},{'value_int':0},{'value_int':0}], gate=2,
+        masks=[{'value_bin':atoh('255.0.0.0')},{'value_int': 0xfc00},{'value_int':0x0000}], priority=2)
 
 # port 80
-wm.add(values=[atoh('0.0.0.0'),         80,         0       ], gate=3,
-        masks=[atoh('0.0.0.0'),         0xffff,     0x0000  ], priority=0)
+wm.add(values=[{'value_bin':atoh('0.0.0.0')}, {'value_int': 80}, {'value_int': 0}], gate=3,
+    masks=[{'value_bin':atoh('0.0.0.0')},{'value_int':0xffff},{'value_int':0x0000}], priority=0)
 
 # delete test
-wm.add(values=[atoh('172.12.55.0'),     0,          0       ], gate=0,
-        masks=[atoh('255.255.255.0'),   0x0000,     0x0000  ], priority=4)
-wm.delete(values=[atoh('172.12.55.0'),     0,          0       ],
-           masks=[atoh('255.255.255.0'),   0x0000,     0x0000  ])
+wm.add(values=[{'value_bin':atoh('172.12.55.0')},{'value_int':0},{'value_int':0}], gate=0,
+    masks=[{'value_bin':atoh('255.255.255.0')},{'value_int': 0x0000},{'value_int':0x0000}], priority=4)
+wm.delete(values=[{'value_bin':atoh('172.12.55.0')},{'value_int': 0},{'value_int':  0}],
+    masks=[{'value_bin':atoh('255.255.255.0')}, {'value_int':0x0000},{'value_int': 0x0000}  ])

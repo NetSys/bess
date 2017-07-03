@@ -289,16 +289,16 @@ message UpdateCommandClearArg {
 message WildcardMatchCommandAddArg {
   uint64 gate = 1; /// Traffic matching this new rule will be sent to this gate.
   int64 priority = 2; ///If a packet matches multiple rules, the rule with higher priority will be applied. If priorities are equal behavior is undefined.
-  repeated uint64 values = 3; /// The values to check for in each fieild.
-  repeated uint64 masks = 4; /// The bitmask for each field -- set 0x0 to ignore the field altogether.
+  repeated FieldData values = 3; /// The values to check for in each fieild.
+  repeated FieldData masks = 4; /// The bitmask for each field -- set 0x0 to ignore the field altogether.
 }
 
 /**
  * The module WildcardMatch has a command `delete(...)` which removes a rule -- simply specify the values and masks from the previously inserted rule to remove them.
  */
 message WildcardMatchCommandDeleteArg {
-  repeated uint64 values = 1; /// The values being checked for in the rule
-  repeated uint64 masks = 2; /// The bitmask from the rule.
+  repeated FieldData values = 1; /// The values being checked for in the rule
+  repeated FieldData masks = 2; /// The bitmask from the rule.
 }
 
 /**
@@ -327,23 +327,12 @@ message WildcardMatchRule {
 }
 
 /**
- * A field over which the WildcardMatch module should inspect.
- */
-message WildcardMatchField {
-  uint64 size = 1; /// The length in bytes of the field to inspect.
-  oneof position {
-    uint64 offset = 2; /// The field offset into the packet data, if the field lies in the packet itself.
-    string attribute = 3; /// The metadata attribute to inspect, if the field is a metadata attribute.
-  }
-}
-
-/**
  * The module WildcardMatch has a function `get_rules()` which
  * returns the current set of running rules.
  */
 message WildcardMatchCommandGetRulesResponse {
   uint64 default_gate = 1; /// The default gate
-  repeated WildcardMatchField fields = 2; /// The fields provided in initializing WCM
+  repeated Field fields = 2; /// The fields provided in initializing WCM
   repeated WildcardMatchRule rules = 3; /// All rules provided via calls to `WilcardMatch.add(...)`
 }
 
@@ -962,7 +951,7 @@ message VXLANEncapArg {
  * __Output Gates__: many (configurable)
  */
 message WildcardMatchArg {
-  repeated WildcardMatchField fields = 1; /// A list of WildcardMatch fields.
+  repeated Field fields = 1; /// A list of WildcardMatch fields.
 }
 
 /**

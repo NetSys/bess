@@ -129,8 +129,7 @@ class WildcardMatch final : public Module {
 
   gate_idx_t LookupEntry(const wm_hkey_t &key, gate_idx_t def_gate);
 
-  CommandResponse AddFieldOne(const bess::pb::WildcardMatchField &field,
-                              struct WmField *f);
+  CommandResponse AddFieldOne(const bess::pb::Field &field, struct WmField *f);
 
   template <typename T>
   CommandResponse ExtractKeyMask(const T &arg, wm_hkey_t *key, wm_hkey_t *mask);
