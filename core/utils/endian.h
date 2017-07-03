@@ -153,4 +153,15 @@ static_assert(be32_t(0x1234).value() == 0x1234, "Something is wrong");
 }  // namespace utils
 }  // namespace bess
 
+namespace std {
+
+template <typename T>
+struct hash<bess::utils::BigEndian<T>> {
+  size_t operator()(const bess::utils::BigEndian<T> &key) const {
+    return hash<T>{}(key.raw_value());
+  }
+};
+
+}  // namespace std
+
 #endif  // BESS_UTILS_ENDIAN_H_
