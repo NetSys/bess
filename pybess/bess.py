@@ -397,6 +397,8 @@ class BESS(object):
             request.igate = gate
         elif direction == 'out':
             request.ogate = gate
+        else:
+            raise self.APIError('direction must be either "out" or "in"')
         request.arg.Pack(arg)
         return self._request('ConfigureGateHook', request)
 
