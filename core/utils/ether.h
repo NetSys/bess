@@ -62,9 +62,15 @@ struct[[gnu::packed]] Ethernet {
   be16_t ether_type;
 };
 
+struct[[gnu::packed]] Vlan {
+  be16_t tci;
+  be16_t ether_type;
+};
+
 static_assert(std::is_pod<Ethernet>::value, "not a POD type");
 static_assert(std::is_pod<Ethernet::Address>::value, "not a POD type");
 static_assert(sizeof(Ethernet) == 14, "struct Ethernet is incorrect");
+static_assert(std::is_pod<Vlan>::value, "not a POD type");
 
 }  // namespace utils
 }  // namespace bess
