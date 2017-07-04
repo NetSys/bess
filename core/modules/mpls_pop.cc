@@ -13,7 +13,7 @@ const Commands MPLSPop::cmds = {
 //              configurable per MPLS label (with default)
 MPLSPop::MPLSPop()
     : next_ether_type_(be16_t(Ethernet::Type::kIpv4)),
-	  remove_eth_header_(false){}
+      remove_eth_header_(false) {}
 
 void MPLSPop::ProcessBatch(bess::PacketBatch *batch) {
   gate_idx_t out_gates[bess::PacketBatch::kMaxBurst];
@@ -27,6 +27,7 @@ void MPLSPop::ProcessBatch(bess::PacketBatch *batch) {
     if (eth->ether_type != be16_t(Ethernet::Type::kMpls)) {
       // non MPLS packets are sent to different output gate
       out_gates[i] = 1;
+      continue;
     }
     out_gates[i] = 0;
 

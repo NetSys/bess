@@ -1,6 +1,4 @@
 import scapy.all as scapy
-import random
-import string
 
 # MPLS layer addition to scapy
 class MPLS(scapy.Packet):
