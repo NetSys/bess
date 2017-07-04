@@ -1,6 +1,6 @@
 #ifndef BESS_UTILS_MPLS_H_
 #define BESS_UTILS_MPLS_H_
-
+#include <type_traits>
 #include "rte_byteorder.h"
 
 namespace bess {
@@ -58,6 +58,7 @@ struct[[gnu::packed]] Mpls {
   be32_t entry;
 };
 
+static_assert(std::is_pod<Mpls>::value, "not a POD type");
 static_assert(sizeof(Mpls) == 4, "struct Mpls size is incorrect");
 
 }  // namespace utils
