@@ -70,6 +70,7 @@ struct Ipv4Prefix {
 
   be32_t addr;
   be32_t mask;
+  uint32_t prefix_length ;
 };
 
 }  // namespace utils
