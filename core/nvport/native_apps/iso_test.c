@@ -1,3 +1,33 @@
+// Copyright (c) 2014-2016, The Regents of the University of California.
+// Copyright (c) 2016-2017, Nefeli Networks, Inc.
+// All rights reserved.
+//
+// Redistribution and use in source and binary forms, with or without
+// modification, are permitted provided that the following conditions are met:
+//
+// * Redistributions of source code must retain the above copyright notice,
+// this list of conditions and the following disclaimer.
+//
+// * Redistributions in binary form must reproduce the above copyright notice,
+// this list of conditions and the following disclaimer in the documentation
+// and/or other materials provided with the distribution.
+//
+// * Neither the names of the copyright holders nor the names of their
+// contributors may be used to endorse or promote products derived from this
+// software without specific prior written permission.
+//
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+// AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+// IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+// ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+// LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+// CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+// SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+// INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+// CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+// ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+// POSSIBILITY OF SUCH DAMAGE.
+
 #include <stdio.h>
 #include <assert.h>
 #include <string.h>
@@ -98,7 +128,7 @@ static inline void do_work(struct snbuf *pkt)
 		struct ipv4_hdr *ip =
 			(struct ipv4_hdr*)(snb_head_data(pkt) +
 					sizeof(struct ether_hdr));
-		
+
 		stats.csum += ip->src_addr;
 	}
 	if (stalled_cycles) {
@@ -135,7 +165,7 @@ static inline int recv_pkts(struct sn_port *port,
 		for (i = 0; i < received; i++)
 			stats.rx_bytes += snb_total_len(pkts[i]);
 	}
-	
+
 	return received;
 }
 
@@ -194,7 +224,7 @@ static inline int run_fastforward(void)
 		for (i = 0; i < received; i++) {
 			do_work(pkts[i]);
 		}
-		
+
 		sent = send_pkts(out_port, rxq, pkts, received);
 
 		stats.tx_pkts += sent;
@@ -231,7 +261,7 @@ static inline int run_fastforward_event(int efd)
 		received = recv_pkts(in_port, rxq, pkts, batch_size);
 		while (received) {
 			no_recv_cnt = 0;
-			
+
 			for (i = 0; i < received; i++) {
 				do_work(pkts[i]);
 			}
@@ -250,10 +280,10 @@ static inline int run_fastforward_event(int efd)
 				break;
 			}
 
-			rxq = (rxq + 1) % in_port->num_rxq;			
+			rxq = (rxq + 1) % in_port->num_rxq;
 			received = recv_pkts(in_port, rxq, pkts, batch_size);
 		}
-		rxq = (rxq + 1) % in_port->num_rxq;		
+		rxq = (rxq + 1) % in_port->num_rxq;
 		no_recv_cnt++;
 	}
 
@@ -266,7 +296,7 @@ static inline int run_fastforward_event(int efd)
 				if (!llring_empty(in_port->rx_qs[rxq]))
 					return ret;
 		}
-		
+
 		for (rxq = 0; rxq < in_port->num_rxq; rxq++)
 			sn_enable_interrupt(in_port->rx_regs[rxq]);
 
@@ -441,7 +471,7 @@ int main(int argc, char **argv)
 	printf("registering input port %s\n", in_ifname);
 	printf("registering output port %s\n", out_ifname);
 
-	
+
 	if (lookup) {
 		struct rte_lpm_config config = {
 			.max_rules = max_rules,
@@ -493,7 +523,7 @@ int main(int argc, char **argv)
 		struct epoll_event ev;
 		int rxq;
 		efd = epoll_create(1024);
-		
+
 		for (rxq = 0; rxq < in_port->num_rxq; rxq++) {
 			ev.events = EPOLLIN;
 			ev.data.u32 = rxq;
@@ -511,7 +541,7 @@ int main(int argc, char **argv)
 		memset(memory_access_region, 0, memory_access_size);
 		//for (i = 0; i < memory_access_size / sizeof(uint64_t); i++)
 		//	memory_access_region[i] = i;
-		
+
 		printf("memory_access_size %ld\n", memory_access_size);
 	}
 
