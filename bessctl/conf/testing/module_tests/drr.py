@@ -74,8 +74,7 @@ def fairness_test():
         measure_out = []
         for i in range(1, n + 1):
             measure_out.append(Measure())
-            exm:
-                i -> measure_out[i - 1] -> snk
+            exm:i -> measure_out[i - 1] -> snk
 
         for i in range(0, n):
             bess.add_tc('r' + str(i), policy='rate_limit', resource='packet',
