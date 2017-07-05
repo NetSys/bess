@@ -24,7 +24,7 @@ const Commands ExactMatch::cmds = {
 CommandResponse ExactMatch::AddFieldOne(const bess::pb::Field &field,
                                         const bess::pb::FieldData &mask,
                                         struct EmField *f, int idx) {
-  f->size = field.size();
+  f->size = field.num_bytes();
   if (f->size < 1 || f->size > MAX_FIELD_SIZE) {
     return CommandFailure(EINVAL, "idx %d: 'size' must be 1-%d", idx,
                           MAX_FIELD_SIZE);
@@ -45,7 +45,7 @@ CommandResponse ExactMatch::AddFieldOne(const bess::pb::Field &field,
       return CommandFailure(EINVAL, "idx %d: invalid 'offset'", idx);
     }
   } else {
-    return CommandFailure(EINVAL, "idx %d: must specify 'offset' or 'attr'",
+    return CommandFailure(EINVAL, "idx %d: must specify 'offset' or 'attr_name'",
                           idx);
   }
 

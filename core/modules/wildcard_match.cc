@@ -38,7 +38,7 @@ const Commands WildcardMatch::cmds = {
 
 CommandResponse WildcardMatch::AddFieldOne(const bess::pb::Field &field,
                                            struct WmField *f) {
-  f->size = field.size();
+  f->size = field.num_bytes();
 
   if (f->size < 1 || f->size > MAX_FIELD_SIZE) {
     return CommandFailure(EINVAL, "'size' must be 1-%d", MAX_FIELD_SIZE);
@@ -363,7 +363,7 @@ CommandResponse WildcardMatch::CommandGetRules(const bess::pb::EmptyArg &) {
     } else {
       f->set_offset(field.offset);
     }
-    f->set_size(field.size);
+    f->set_num_bytes(field.size);
   }
 
   for (auto &tuple : tuples_) {
