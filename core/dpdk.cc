@@ -98,13 +98,19 @@ static void init_eal(const char *prog_name, int mb_per_socket,
   rte_argv[rte_argc++] = opt_master_lcore;
   rte_argv[rte_argc++] = "--lcore";
   rte_argv[rte_argc++] = opt_lcore_bitmap;
-  rte_argv[rte_argc++] = "-n";
-  rte_argv[rte_argc++] = "4"; /* number of memory channels (Sandy Bridge) */
+
+  // Do not bother with /var/run/.rte_config and .rte_hugepage_info,
+  // since we don't want to interfere with other DPDK applications.
+  rte_argv[rte_argc++] = "--no-shconf";
   if (no_huge) {
     rte_argv[rte_argc++] = "--no-huge";
   } else {
     rte_argv[rte_argc++] = "--socket-mem";
     rte_argv[rte_argc++] = opt_socket_mem;
+
+    // Unlink mapped hugepage files so that memory can be reclaimed as soon as
+    // bessd terminates.
+    rte_argv[rte_argc++] = "--huge-unlink";
   }
   if (!no_huge && multi_instance) {
     snprintf(opt_file_prefix, sizeof(opt_file_prefix), "rte%lld",
