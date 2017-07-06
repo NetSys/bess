@@ -23,8 +23,6 @@ namespace bess {
 // A large default priority.
 #define DEFAULT_PRIORITY 0xFFFFFFFFu
 
-#define USAGE_AMPLIFIER_POW 32
-
 // Share is defined relatively, so 1024 should be large enough
 #define STRIDE1 (1 << 20)
 
@@ -499,28 +497,26 @@ class RateLimitTrafficClass final : public TrafficClass {
 
   void TraverseChildren(std::function<void(TCChildArgs *)>) const override;
 
-  // Convert resource units to work units per cycle
+  // Convert resource units to work units per cycle.
+  // Not meant to be used in the datapath: slow due to 128bit operations
   static uint64_t to_work_units_per_cycle(uint64_t x) {
-    return (x << (USAGE_AMPLIFIER_POW - 4)) / (tsc_hz >> 4);
+    return (static_cast<unsigned __int128>(x) << kUsageAmplifierPow) / tsc_hz;
   }
 
   // Convert resource units to work units
-  static uint64_t to_work_units(uint64_t x) { return x << USAGE_AMPLIFIER_POW; }
+  static uint64_t to_work_units(uint64_t x) { return x << kUsageAmplifierPow; }
 
  private:
   template <typename CallableTask>
   friend class Scheduler;
 
+  static const int kUsageAmplifierPow = 32;
+
   // The resource that we are limiting.
   resource_t resource_;
 
-  // For per-resource token buckets:
-  // 1 work unit = 2 ^ USAGE_AMPLIFIER_POW resource usage.
+  // 1 work unit = 2 ^ kUsageAmplifierPow resource usage.
   // (for better precision without using floating point numbers)
-  //
-  // prof->limit < 2^36 (~64 Tbps)
-  // 2^24 < tsc_hz < 2^34 (16 Mhz - 16 GHz)
-  // tb->limit < 2^36
   uint64_t limit_;          // In work units per cycle (0 if unlimited).
   uint64_t limit_arg_;      // In resource units per second.
   uint64_t max_burst_;      // In work units.
