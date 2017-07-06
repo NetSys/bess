@@ -36,7 +36,7 @@ Ipv4Prefix::Ipv4Prefix(const std::string &prefix) {
   // default values in case of parser failure
   addr = be32_t(0);
   mask = be32_t(0);
-  prefix_length = 0 ;
+
   if (prefix.length() == 0 || delim_pos == std::string::npos ||
       delim_pos >= prefix.length()) {
     return;
@@ -52,7 +52,7 @@ Ipv4Prefix::Ipv4Prefix(const std::string &prefix) {
   } else {
     mask = be32_t(~((1 << (32 - len)) - 1));
   }
-  prefix_length  = len;
+
 }
 
 }  // namespace utils
