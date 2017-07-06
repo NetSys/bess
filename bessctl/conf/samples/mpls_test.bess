@@ -1,0 +1,26 @@
+import scapy.all as scapy
+
+# MPLS layer addition to scapy
+class MPLS(scapy.Packet):
+        name = "MPLS"
+        fields_desc =  [
+                scapy.BitField("label", 3, 20),
+                scapy.BitField("experimental_bits", 0, 3),
+                scapy.BitField("bottom_of_label_stack", 1, 1),
+                scapy.ByteField("TTL", 255)
+        ]
+        
+scapy.bind_layers(scapy.Ether, MPLS, type = 0x8847)
+scapy.bind_layers(MPLS, MPLS, bottom_of_label_stack = 0)
+scapy.bind_layers(MPLS, scapy.IP)
+        
+eth = scapy.Ether(src='02:1e:67:9f:4d:ae', dst='06:16:3e:1b:72:32')
+mpls = MPLS(label = 0xFFFFF, TTL = 255, bottom_of_label_stack=1)
+ip = scapy.IP(src='192.168.0.1', dst='10.0.0.1')
+udp = scapy.UDP(sport=10001, dport=10002)
+
+test_packet = bytes(eth/mpls/ip/udp)
+mplsPop::MPLSPop()
+mplsPop.set(remove_eth_header=False,next_eth_type=0x0800)
+
+Source() -> Rewrite(templates=[test_packet]) -> mplsPop -> Sink()
