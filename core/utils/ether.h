@@ -71,6 +71,7 @@ static_assert(std::is_pod<Ethernet>::value, "not a POD type");
 static_assert(std::is_pod<Ethernet::Address>::value, "not a POD type");
 static_assert(sizeof(Ethernet) == 14, "struct Ethernet is incorrect");
 static_assert(std::is_pod<Vlan>::value, "not a POD type");
+static_assert(sizeof(Vlan) == 4, "struct Vlan is incorrectly sized");
 
 }  // namespace utils
 }  // namespace bess
