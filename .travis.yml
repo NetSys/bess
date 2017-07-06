@@ -65,6 +65,7 @@ after_success:
 after_failure:
   - more /tmp/bessd.*.INFO.* | cat      # dump all bessd log files
   - more /tmp/sanitizer* | cat          # dump all sanitizer results
+  - fgrep Huge /proc/meminfo /sys/devices/system/node/node*/meminfo
 
 before_deploy:
   - for arch in core2 sandybridge haswell; do
