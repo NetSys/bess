@@ -27,8 +27,8 @@ wm::WildcardMatch(fields=[{'offset':30, 'num_bytes':4},
                           {'attr_name':'in_port', 'num_bytes':2}])
 
 # locally emulate two input ports
-Source() -> SetMetadata(attrs=[{'name': 'in_port', 'num_bytes': 2, 'value_int': 1}]) -> Rewrite(templates=pkts) -> wm
-Source() -> SetMetadata(attrs=[{'name': 'in_port', 'num_bytes': 2, 'value_int': 2}]) -> Rewrite(templates=pkts) -> wm
+Source() -> SetMetadata(attrs=[{'name': 'in_port', 'size': 2, 'value_int': 1}]) -> Rewrite(templates=pkts) -> wm
+Source() -> SetMetadata(attrs=[{'name': 'in_port', 'size': 2, 'value_int': 2}]) -> Rewrite(templates=pkts) -> wm
 
 wm:0 -> Sink()
 wm:1 -> Sink()

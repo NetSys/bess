@@ -13,7 +13,7 @@ Source() \
         -> SetMetadata(attrs=[{'name': 'ether_type', 'size': 2, 'value_int': 0x9876}]) \
         -> Rewrite(templates=[test_packet]) \
         -> GenericEncap(fields=[ \
-        {'num_bytes': 6, 'value': {'value_int': 0x020000000001}},
-            {'num_bytes': 6, 'value': {'value_int': 0x0619deadbeef}},
-            {'num_bytes': 2, 'attribute': 'ether_type'}]) \
+        {'size': 6, 'value': {'value_int': 0x020000000001}},
+            {'size': 6, 'value': {'value_int': 0x0619deadbeef}},
+            {'size': 2, 'attribute': 'ether_type'}]) \
         -> Sink()
