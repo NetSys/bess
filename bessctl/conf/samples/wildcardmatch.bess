@@ -22,13 +22,13 @@ pkts = [gen_packet('172.16.100.1', 80),
         gen_packet('192.168.1.123', 80)]
 
 # destination IP address + destination port number + metadata 'in_port'
-wm::WildcardMatch(fields=[{'offset':30, 'size':4},
-                          {'offset':36, 'size':2},
-                          {'attr_name':'in_port', 'size':2}])
+wm::WildcardMatch(fields=[{'offset':30, 'num_bytes':4},
+                          {'offset':36, 'num_bytes':2},
+                          {'attr_name':'in_port', 'num_bytes':2}])
 
 # locally emulate two input ports
-Source() -> SetMetadata(attrs=[{'name': 'in_port', 'size': 2, 'value_int': 1}]) -> Rewrite(templates=pkts) -> wm
-Source() -> SetMetadata(attrs=[{'name': 'in_port', 'size': 2, 'value_int': 2}]) -> Rewrite(templates=pkts) -> wm
+Source() -> SetMetadata(attrs=[{'name': 'in_port', 'num_bytes': 2, 'value_int': 1}]) -> Rewrite(templates=pkts) -> wm
+Source() -> SetMetadata(attrs=[{'name': 'in_port', 'num_bytes': 2, 'value_int': 2}]) -> Rewrite(templates=pkts) -> wm
 
 wm:0 -> Sink()
 wm:1 -> Sink()

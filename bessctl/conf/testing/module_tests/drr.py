@@ -49,7 +49,7 @@ def fairness_test():
         err = bess.reset_all()
 
         packets = []
-        exm = ExactMatch(fields=[{'offset': 26, 'size': 4}])
+        exm = ExactMatch(fields=[{'offset': 26, 'num_bytes': 4}])
         for i in range(1, n + 1):
             packets.append(
                 bytes(gen_packet(scapy.TCP, '22.11.11.' + str(i), '22.22.11.' + str(i))))

@@ -22,9 +22,9 @@ packets = [gen_packet(scapy.UDP, '172.16.100.1', '10.0.0.1'),
           ]
 
 # L4 protocol and source/destination IP addresses
-em::ExactMatch(fields=[{'offset':23, 'size':1},
-                       {'offset':26, 'size':4},
-                       {'offset':30, 'size':4}])
+em::ExactMatch(fields=[{'offset':23, 'num_bytes':1},
+                       {'offset':26, 'num_bytes':4},
+                       {'offset':30, 'num_bytes':4}])
 
 Source() -> Rewrite(templates=packets) -> em
 
