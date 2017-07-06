@@ -497,12 +497,10 @@ class RateLimitTrafficClass final : public TrafficClass {
 
   void TraverseChildren(std::function<void(TCChildArgs *)>) const override;
 
-  // Convert resource units to work units per cycle
+  // Convert resource units to work units per cycle.
+  // Not meant to be used in the datapath: slow due to 128bit operations
   static uint64_t to_work_units_per_cycle(uint64_t x) {
-    // We sacrifice 10 least significant bits of tsc_hz to avoid overflow.
-    // (it should be less than measurement error anyway)
-    // x (resource units / second) should be less than 2^42 (~4.4 Tbps)
-    return (x << (kUsageAmplifierPow - 10)) / (tsc_hz >> 10);
+    return (static_cast<unsigned __int128>(x) << kUsageAmplifierPow) / tsc_hz;
   }
 
   // Convert resource units to work units
