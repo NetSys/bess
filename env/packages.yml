@@ -75,7 +75,7 @@
       become: true
 
     - name: Wipe prior protobuf installs to avoid conflicts
-      shell: apt-get remove -y -f libprotobuf* protobuf-*; rm -f `which protoc` warn=no
+      shell: apt-get remove -y -f libprotobuf-dev libprotobuf-java  ^protobuf-*; rm -f `which protoc` warn=no
       become: true
 
     - name: sudo ldconfig
