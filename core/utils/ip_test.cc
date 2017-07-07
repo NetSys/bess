@@ -57,13 +57,13 @@ TEST(IPTest, PrefixMatch) {
 
 TEST(IPTest, PrefixCalc) {
   Ipv4Prefix prefix_1("192.168.0.1/24");
-  ASSERT_EQ(24, prefix_1.prefixLength()) ;
+  ASSERT_EQ(24, prefix_1.prefix_length()) ;
   Ipv4Prefix prefix_2("0.0.0.0/0");
-  ASSERT_EQ(0, prefix_2.prefixLength()) ;
+  ASSERT_EQ(0, prefix_2.prefix_length()) ;
   Ipv4Prefix prefix_3("192.168.0.1/32");
-  ASSERT_EQ(32, prefix_3.prefixLength()) ;
+  ASSERT_EQ(32, prefix_3.prefix_length()) ;
   Ipv4Prefix prefix_4("192.168.0.1/16");
-  ASSERT_EQ(16, prefix_4.prefixLength()) ;
+  ASSERT_EQ(16, prefix_4.prefix_length()) ;
 
 }
 }  // namespace (unnamed)

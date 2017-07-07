@@ -52,7 +52,6 @@ Ipv4Prefix::Ipv4Prefix(const std::string &prefix) {
   } else {
     mask = be32_t(~((1 << (32 - len)) - 1));
   }
-
 }
 
 }  // namespace utils
