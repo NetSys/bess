@@ -688,10 +688,6 @@ class BESSControlImpl final : public BESSControl::Service {
               violation->set_constraint(constraints);
               violation->set_assigned_node(workers[i]->socket());
               violation->set_assigned_core(core);
-            } else {
-              LOG(WARNING) << "Scheduler constraints hold wid " << i
-                           << " socket " << socket << " constraint "
-                           << constraints;
             }
           }
         });
