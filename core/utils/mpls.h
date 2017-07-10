@@ -1,7 +1,7 @@
 #ifndef BESS_UTILS_MPLS_H_
 #define BESS_UTILS_MPLS_H_
-#include <type_traits>
 #include "rte_byteorder.h"
+#include <type_traits>
 
 namespace bess {
 namespace utils {
@@ -19,46 +19,60 @@ namespace utils {
 //	S:      Bottom of Stack, 1 bit
 //	TTL:    Time to Live, 8 bits
 
-#define MPLS_LS_LABEL_MASK 0xFFFFF000
-#define MPLS_LS_LABEL_SHIFT 12
-#define MPLS_LS_TC_MASK 0x00000E00
-#define MPLS_LS_TC_SHIFT 9
-#define MPLS_LS_S_MASK 0x00000100
-#define MPLS_LS_S_SHIFT 8
-#define MPLS_LS_TTL_MASK 0x000000FF
-#define MPLS_LS_TTL_SHIFT 0
+struct Mpls {
+  static const uint32_t kMplsLabelMask = 0xFFFFF000;
+  static const uint32_t kMplsLabelShift = 12;
+  static const uint32_t kMplsTcMask = 0x00000E00;
+  static const uint32_t kMplsTcShift = 9;
+  static const uint32_t kMplsBosMask = 0x00000100;
+  static const uint32_t kMplsBosShift = 8;
+  static const uint32_t kMplsTtlMask = 0x000000FF;
+  static const uint32_t kMplsTtlShift = 0;
 
-struct[[gnu::packed]] Mpls {
   void setEntry(uint32_t label, uint8_t ttl, uint8_t tc, bool bos) {
-    entry =
-        be32_t((label << MPLS_LS_LABEL_SHIFT) | (tc << MPLS_LS_TC_SHIFT) |
-               (bos ? (1 << MPLS_LS_S_SHIFT) : 0) | (ttl << MPLS_LS_TTL_SHIFT));
+    tag = be32_t((label << kMplsLabelShift) | (tc << kMplsTcShift) |
+                 (bos ? (1 << kMplsBosShift) : 0) | (ttl << kMplsTtlShift));
   }
 
   uint32_t getLabel() {
-    be32_t mpls_entry = be32_t(entry);
-    return (mpls_entry.value() & MPLS_LS_LABEL_MASK) >> MPLS_LS_LABEL_SHIFT;
+    be32_t mpls_entry = be32_t(tag);
+    return (mpls_entry.value() & kMplsLabelMask) >> kMplsLabelShift;
   }
 
   uint8_t getTtl() {
-    be32_t mpls_entry = be32_t(entry);
-    return (mpls_entry.value() & MPLS_LS_TTL_MASK) >> MPLS_LS_TTL_SHIFT;
+    be32_t mpls_entry = be32_t(tag);
+    return (mpls_entry.value() & kMplsTtlMask) >> kMplsTtlShift;
   }
 
   uint8_t getTc() {
-    be32_t mpls_entry = be32_t(entry);
-    return (mpls_entry.value() & MPLS_LS_TC_MASK) >> MPLS_LS_TC_SHIFT;
+    be32_t mpls_entry = be32_t(tag);
+    return (mpls_entry.value() & kMplsTcMask) >> kMplsTcShift;
   }
 
   bool isBottomOfStack() {
-    be32_t mpls_entry = be32_t(entry);
-    return (mpls_entry.value() & MPLS_LS_S_MASK) >> MPLS_LS_S_SHIFT;
+    be32_t mpls_entry = be32_t(tag);
+    return (mpls_entry.value() & kMplsBosMask) >> kMplsBosShift;
   }
 
-  be32_t entry;
+  union {
+    struct {
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+      uint32_t ttl : 8;     // Time to Live, 8 bits
+      uint32_t s : 1;       // Bottom of Stack, 1 bit
+      uint32_t tc : 3;      // Traffic Class field, 3 bits
+      uint32_t label : 20;  // Label Value, 20 bits
+#elif __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
+      uint32_t label : 20;  // Label Value, 20 bits
+      uint32_t tc : 3;      // Traffic Class field, 3 bits
+      uint32_t s : 1;       // Bottom of Stack, 1 bit
+      uint32_t ttl : 8;     // Time to Live, 8 bits
+#endif
+    } entry;
+
+    be32_t tag;
+  };
 };
 
-static_assert(std::is_pod<Mpls>::value, "not a POD type");
 static_assert(sizeof(Mpls) == 4, "struct Mpls size is incorrect");
 
 }  // namespace utils
