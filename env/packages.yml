@@ -14,7 +14,6 @@
         - g++-5
         - g++-6
         - g++-7
-        - g++
         - clang-3.8
         - clang-3.9
         - autoconf
@@ -44,6 +43,13 @@
         - linux-headers-generic
         - lcov
         - python-autopep8
+
+    - name: Set default gcc and g++ version
+      alternatives: name={{item}} link=/usr/bin/{{item}} path=/usr/bin/{{item}}-5
+      become: true
+      with_items:
+        - gcc
+        - g++
 
     - name: Install release-specific packages
       apt: name={{item}} state=latest update_cache=yes
@@ -81,9 +87,6 @@
 
     - name: Compile gRPC and its dependencies
       shell: make -j{{ ansible_processor_vcpus }} HAS_SYSTEM_PROTOBUF=false chdir=/tmp/grpc
-      environment:
-        - CC: gcc-5
-        - CXX: g++-5
 
     - name: Install gRPC
       shell: make install chdir=/tmp/grpc
