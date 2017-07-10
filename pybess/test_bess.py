@@ -111,5 +111,5 @@ class TestBESS(unittest.TestCase):
                                              'add',
                                              'ExactMatchCommandAddArg',
                                              {'gate': 0,
-                                              'fields': [b'\x11', b'\x22']})
+                                                 'fields': [{'value_bin':b'\x11'}, {'value_bin':b'\x22'}]})
         self.assertEqual(0, response.error.code)

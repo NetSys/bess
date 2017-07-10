@@ -1,6 +1,7 @@
 syntax = "proto3";
 
 package bess.pb;
+import "util_msg.proto";
 
 // Module-specific messages.
 // The header generated from this file should not be included in the BESS core
@@ -35,7 +36,7 @@ message BPFCommandClearArg {
  */
 message ExactMatchCommandAddArg {
   uint64 gate = 1; /// The gate to forward out packets that mach this rule.
-  repeated bytes fields = 2; /// The exact match values to check for
+  repeated FieldData fields = 2; /// The exact match values to check for
 }
 
 /**
@@ -43,7 +44,7 @@ message ExactMatchCommandAddArg {
  * Example use: `delete(fields=[aton('12.3.4.5'), aton('5.4.3.2')])`
  */
 message ExactMatchCommandDeleteArg {
-  repeated bytes fields = 2; /// The field values for the rule to be deleted.
+  repeated FieldData fields = 2; /// The field values for the rule to be deleted.
 }
 
 /**
@@ -288,16 +289,16 @@ message UpdateCommandClearArg {
 message WildcardMatchCommandAddArg {
   uint64 gate = 1; /// Traffic matching this new rule will be sent to this gate.
   int64 priority = 2; ///If a packet matches multiple rules, the rule with higher priority will be applied. If priorities are equal behavior is undefined.
-  repeated uint64 values = 3; /// The values to check for in each fieild.
-  repeated uint64 masks = 4; /// The bitmask for each field -- set 0x0 to ignore the field altogether.
+  repeated FieldData values = 3; /// The values to check for in each fieild.
+  repeated FieldData masks = 4; /// The bitmask for each field -- set 0x0 to ignore the field altogether.
 }
 
 /**
  * The module WildcardMatch has a command `delete(...)` which removes a rule -- simply specify the values and masks from the previously inserted rule to remove them.
  */
 message WildcardMatchCommandDeleteArg {
-  repeated uint64 values = 1; /// The values being checked for in the rule
-  repeated uint64 masks = 2; /// The bitmask from the rule.
+  repeated FieldData values = 1; /// The values being checked for in the rule
+  repeated FieldData masks = 2; /// The bitmask from the rule.
 }
 
 /**
@@ -326,23 +327,12 @@ message WildcardMatchRule {
 }
 
 /**
- * A field over which the WildcardMatch module should inspect.
- */
-message WildcardMatchField {
-  uint64 size = 1; /// The length in bytes of the field to inspect.
-  oneof position {
-    uint64 offset = 2; /// The field offset into the packet data, if the field lies in the packet itself.
-    string attribute = 3; /// The metadata attribute to inspect, if the field is a metadata attribute.
-  }
-}
-
-/**
  * The module WildcardMatch has a function `get_rules()` which
  * returns the current set of running rules.
  */
 message WildcardMatchCommandGetRulesResponse {
   uint64 default_gate = 1; /// The default gate
-  repeated WildcardMatchField fields = 2; /// The fields provided in initializing WCM
+  repeated Field fields = 2; /// The fields provided in initializing WCM
   repeated WildcardMatchRule rules = 3; /// All rules provided via calls to `WilcardMatch.add(...)`
 }
 
@@ -438,21 +428,8 @@ message EtherEncapArg {
  * __Output Gates__: many (configurable)
  */
 message ExactMatchArg {
-  /**
-   * An ExactMatch Field specifies a field over which to check for ExactMatch rules. Field may be in EITHER the packet's data OR it's metadata attributes.
-   */
-  message Field {
-    uint64 size = 1; /// The length, in bytes, of the field to inspect
-    oneof mask {
-      uint64 mask_int = 4; /// A bitmask over the field to specify which bits to inspect (default 0xff).
-      bytes mask_bin = 5; // Same as mask_int, but in binary format.
-    }
-    oneof position {
-      string attribute = 2; ///Metadata attribute name, if field resides in metadata.
-      int64 offset = 3; /// The offset, in bytes, from the start of the packet that the field resides in (if field resides in packet data)..
-    }
-  }
   repeated Field fields = 1; ///A list of ExactMatch Fields
+  repeated FieldData masks = 2; /// mask(i) corresponds to the mask for field(i)
 }
 
 /**
@@ -508,16 +485,16 @@ message GenericDecapArg {
  */
 message GenericEncapArg {
   /**
-   * A GenericEncap field represents one field in the new packet header.
+   * An EncapField represents one field in the new packet header.
    */
-  message Field {
+  message EncapField {
     uint64 size = 1; /// The length of the field.
     oneof insertion {
       string attribute = 2; /// The metadata attribute name to pull the field value from
-      uint64 value = 3; /// Or, the fixed value to insert into the packet (max 8 bytes).
+      FieldData value = 3; /// Or, the fixed value to insert into the packet.
     }
   }
-  repeated Field fields = 1;
+  repeated EncapField fields = 1;
 }
 
 /**
@@ -974,7 +951,7 @@ message VXLANEncapArg {
  * __Output Gates__: many (configurable)
  */
 message WildcardMatchArg {
-  repeated WildcardMatchField fields = 1; /// A list of WildcardMatch fields.
+  repeated Field fields = 1; /// A list of WildcardMatch fields.
 }
 
 /**

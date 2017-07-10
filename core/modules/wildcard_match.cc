@@ -36,23 +36,22 @@ const Commands WildcardMatch::cmds = {
     {"set_default_gate", "WildcardMatchCommandSetDefaultGateArg",
      MODULE_CMD_FUNC(&WildcardMatch::CommandSetDefaultGate), 1}};
 
-CommandResponse WildcardMatch::AddFieldOne(
-    const bess::pb::WildcardMatchField &field, struct WmField *f) {
-  f->size = field.size();
+CommandResponse WildcardMatch::AddFieldOne(const bess::pb::Field &field,
+                                           struct WmField *f) {
+  f->size = field.num_bytes();
 
   if (f->size < 1 || f->size > MAX_FIELD_SIZE) {
     return CommandFailure(EINVAL, "'size' must be 1-%d", MAX_FIELD_SIZE);
   }
 
-  if (field.position_case() == bess::pb::WildcardMatchField::kOffset) {
+  if (field.position_case() == bess::pb::Field::kOffset) {
     f->attr_id = -1;
     f->offset = field.offset();
     if (f->offset < 0 || f->offset > 1024) {
       return CommandFailure(EINVAL, "too small 'offset'");
     }
-  } else if (field.position_case() ==
-             bess::pb::WildcardMatchField::kAttribute) {
-    const char *attr = field.attribute().c_str();
+  } else if (field.position_case() == bess::pb::Field::kAttrName) {
+    const char *attr = field.attr_name().c_str();
     f->attr_id = AddMetadataAttr(attr, f->size, Attribute::AccessMode::kRead);
     if (f->attr_id < 0) {
       return CommandFailure(-f->attr_id, "add_metadata_attr() failed");
@@ -198,13 +197,30 @@ CommandResponse WildcardMatch::ExtractKeyMask(const T &arg, wm_hkey_t *key,
     uint64_t v = 0;
     uint64_t m = 0;
 
-    if (!bess::utils::uint64_to_bin(&v, arg.values(i), field_size, true)) {
-      return CommandFailure(EINVAL, "idx %zu: not a correct %d-byte value", i,
-                            field_size);
-    } else if (!bess::utils::uint64_to_bin(&m, arg.masks(i), field_size,
-                                           true)) {
-      return CommandFailure(EINVAL, "idx %zu: not a correct %d-byte mask", i,
-                            field_size);
+    bess::pb::FieldData valuedata = arg.values(i);
+    if (valuedata.encoding_case() == bess::pb::FieldData::kValueInt) {
+      if (!bess::utils::uint64_to_bin(&v, valuedata.value_int(), field_size,
+                                      true)) {
+        return CommandFailure(EINVAL, "idx %zu: not a correct %d-byte value", i,
+                              field_size);
+      }
+    } else if (valuedata.encoding_case() == bess::pb::FieldData::kValueBin) {
+      bess::utils::Copy(reinterpret_cast<uint8_t *>(&v),
+                        valuedata.value_bin().c_str(),
+                        valuedata.value_bin().size());
+    }
+
+    bess::pb::FieldData maskdata = arg.masks(i);
+    if (maskdata.encoding_case() == bess::pb::FieldData::kValueInt) {
+      if (!bess::utils::uint64_to_bin(&m, maskdata.value_int(), field_size,
+                                      true)) {
+        return CommandFailure(EINVAL, "idx %zu: not a correct %d-byte mask", i,
+                              field_size);
+      }
+    } else if (maskdata.encoding_case() == bess::pb::FieldData::kValueBin) {
+      bess::utils::Copy(reinterpret_cast<uint8_t *>(&m),
+                        maskdata.value_bin().c_str(),
+                        maskdata.value_bin().size());
     }
 
     if (v & ~m) {
@@ -341,13 +357,13 @@ CommandResponse WildcardMatch::CommandGetRules(const bess::pb::EmptyArg &) {
   resp.set_default_gate(default_gate_);
 
   for (auto &field : fields_) {
-    bess::pb::WildcardMatchField *f = resp.add_fields();
+    bess::pb::Field *f = resp.add_fields();
     if (field.attr_id >= 0) {
-      f->set_attribute(all_attrs().at(field.attr_id).name);
+      f->set_attr_name(all_attrs().at(field.attr_id).name);
     } else {
       f->set_offset(field.offset);
     }
-    f->set_size(field.size);
+    f->set_num_bytes(field.size);
   }
 
   for (auto &tuple : tuples_) {
