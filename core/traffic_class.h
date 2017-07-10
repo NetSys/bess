@@ -1,6 +1,7 @@
 #ifndef BESS_TRAFFIC_CLASS_H_
 #define BESS_TRAFFIC_CLASS_H_
 
+#include <cstdint>
 #include <deque>
 #include <functional>
 #include <list>
@@ -500,7 +501,15 @@ class RateLimitTrafficClass final : public TrafficClass {
   // Convert resource units to work units per cycle.
   // Not meant to be used in the datapath: slow due to 128bit operations
   static uint64_t to_work_units_per_cycle(uint64_t x) {
+#if INTPTR_MAX == INT64_MAX
     return (static_cast<unsigned __int128>(x) << kUsageAmplifierPow) / tsc_hz;
+#elif INTPTR_MAX == INT32_MAX
+    // On 32bit systems, __int128 is not available.
+    // Instead, we sacrfice the accuracy of tsc_hz to avoid overflow
+    return (x << (kUsageAmplifierPow - 10)) / (tsc_hz >> 10);
+#else
+#error Forgot to add #include <cstdint>?
+#endif
   }
 
   // Convert resource units to work units
