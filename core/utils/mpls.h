@@ -1,7 +1,7 @@
 #ifndef BESS_UTILS_MPLS_H_
 #define BESS_UTILS_MPLS_H_
+
 #include "rte_byteorder.h"
-#include <type_traits>
 
 namespace bess {
 namespace utils {
