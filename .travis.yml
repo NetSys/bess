@@ -28,6 +28,8 @@ env:
     - VER_CXX=g++-7
 
 before_install:
+  # Reserve hugepages as early as possible, to avoid fragmentation
+  - sudo sysctl -w vm.nr_hugepages=512
   - sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
   - sudo apt-get -q update
 
@@ -43,7 +45,6 @@ install:
   - "docker pull nefelinetworks/bess_build:latest${TAG_SUFFIX} | cat"  # cat suppresses progress bars
 
 before_script:
-  - sudo sysctl -w vm.nr_hugepages=512
   - sudo mkdir -p /mnt/huge
   - sudo mount -t hugetlbfs nodev /mnt/huge
   - export CXX=$VER_CXX
