@@ -63,15 +63,15 @@ class TcpFlowReconstruct {
     }
 
     if (!initialized_) {
-      DLOG(WARNING) << "Non-SYN received but not yet initialized.";
+      VLOG(1) << "Non-SYN received but not yet initialized.";
       return false;
     }
 
     // Check if the sequence number is greater or equal than SYN + 1. Wraparound
     // is possible.
     if ((int32_t)(seq - init_seq_) < 0) {
-      DLOG(WARNING) << "Sequence number not match. Initial seq: " << init_seq_
-                    << ", Seq: " << seq;
+      VLOG(1) << "Sequence number not match. Initial seq: " << init_seq_
+              << ", Seq: " << seq;
       return false;
     }
 

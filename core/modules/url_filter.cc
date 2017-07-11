@@ -226,7 +226,7 @@ void UrlFilter::ProcessBatch(bess::PacketBatch *batch) {
     // No need to parse the headers if the reconstruct code tells us it failed.
     bool success = buffer.InsertPacket(pkt);
     if (!success) {
-      DLOG(WARNING) << "Reconstruction failure";
+      VLOG(1) << "Reconstruction failure";
       out_batches[0].add(pkt);
       continue;
     }
