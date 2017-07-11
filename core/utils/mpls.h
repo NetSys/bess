@@ -29,48 +29,28 @@ struct Mpls {
   static const uint32_t kMplsTtlMask = 0x000000FF;
   static const uint32_t kMplsTtlShift = 0;
 
-  void setEntry(uint32_t label, uint8_t ttl, uint8_t tc, bool bos) {
+  void SetEntry(uint32_t label, uint8_t ttl, uint8_t tc, bool bos) {
     tag = be32_t((label << kMplsLabelShift) | (tc << kMplsTcShift) |
                  (bos ? (1 << kMplsBosShift) : 0) | (ttl << kMplsTtlShift));
   }
 
-  uint32_t getLabel() {
-    be32_t mpls_entry = be32_t(tag);
-    return (mpls_entry.value() & kMplsLabelMask) >> kMplsLabelShift;
+  uint32_t Label() {
+    return (tag.value() & kMplsLabelMask) >> kMplsLabelShift;
   }
 
-  uint8_t getTtl() {
-    be32_t mpls_entry = be32_t(tag);
-    return (mpls_entry.value() & kMplsTtlMask) >> kMplsTtlShift;
+  uint8_t Ttl() {
+    return (tag.value() & kMplsTtlMask) >> kMplsTtlShift;
   }
 
-  uint8_t getTc() {
-    be32_t mpls_entry = be32_t(tag);
-    return (mpls_entry.value() & kMplsTcMask) >> kMplsTcShift;
+  uint8_t Tc() {
+    return (tag.value() & kMplsTcMask) >> kMplsTcShift;
   }
 
   bool isBottomOfStack() {
-    be32_t mpls_entry = be32_t(tag);
-    return (mpls_entry.value() & kMplsBosMask) >> kMplsBosShift;
+    return (tag.value() & kMplsBosMask) >> kMplsBosShift;
   }
 
-  union {
-    struct {
-#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
-      uint32_t ttl : 8;     // Time to Live, 8 bits
-      uint32_t s : 1;       // Bottom of Stack, 1 bit
-      uint32_t tc : 3;      // Traffic Class field, 3 bits
-      uint32_t label : 20;  // Label Value, 20 bits
-#elif __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
-      uint32_t label : 20;  // Label Value, 20 bits
-      uint32_t tc : 3;      // Traffic Class field, 3 bits
-      uint32_t s : 1;       // Bottom of Stack, 1 bit
-      uint32_t ttl : 8;     // Time to Live, 8 bits
-#endif
-    } entry;
-
-    be32_t tag;
-  };
+  be32_t tag;
 };
 
 static_assert(sizeof(Mpls) == 4, "struct Mpls size is incorrect");
