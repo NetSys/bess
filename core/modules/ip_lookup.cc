@@ -129,6 +129,9 @@ CommandResponse IPLookup::Init(const bess::pb::IPLookupArg &arg) {
 
   default_gate_ = DROP_GATE;
 
+  // XXX rte_lpm_create sometimes fails without setting rte_errno.
+  // This occurs for memory-allocation failure only, so pre-set it.
+  rte_errno = ENOMEM;
   lpm_ = rte_lpm_create(name().c_str(), /* socket_id = */ 0, &conf);
 
   if (!lpm_) {
