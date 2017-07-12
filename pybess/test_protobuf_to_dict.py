@@ -1,8 +1,19 @@
 from __future__ import absolute_import
 import unittest
 from . import bess_msg_pb2 as bess_msg
-from . import bess_test_msg_pb2 as test_msg
 from . import protobuf_to_dict as pb_conv
+
+try:
+    from . import bess_test_msg_pb2 as test_msg
+except:
+    # Compile test protobuf messages.
+    import subprocess
+    subprocess.call('protoc pybess/bess_test_msg.proto \
+        --proto_path=pybess --python_out=pybess --grpc_out=pybess \
+        --plugin=protoc-gen-grpc=`which grpc_python_plugin`', shell=True)
+    subprocess.call(
+        '2to3 --no-diffs -wn pybess/bess_test_msg_pb2.py', shell=True)
+    from . import bess_test_msg_pb2 as test_msg
 
 
 class TestProtobufConvert(unittest.TestCase):
