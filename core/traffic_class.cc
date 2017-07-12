@@ -25,6 +25,14 @@ PriorityTrafficClass::~PriorityTrafficClass() {
   TrafficClassBuilder::Clear(this);
 }
 
+std::vector<TrafficClass *> PriorityTrafficClass::Children() const {
+  std::vector<TrafficClass *> ret;
+  for (const auto &child : children_) {
+    ret.push_back(child.c_);
+  }
+  return ret;
+}
+
 bool PriorityTrafficClass::AddChild(TrafficClass *child, priority_t priority) {
   if (child->parent_) {
     return false;
@@ -130,6 +138,14 @@ WeightedFairTrafficClass::~WeightedFairTrafficClass() {
     delete c.c_;
   }
   TrafficClassBuilder::Clear(this);
+}
+
+std::vector<TrafficClass *> WeightedFairTrafficClass::Children() const {
+  std::vector<TrafficClass *> ret;
+  for (const auto &child : all_children_) {
+    ret.push_back(child.first);
+  }
+  return ret;
 }
 
 bool WeightedFairTrafficClass::AddChild(TrafficClass *child,
@@ -401,6 +417,10 @@ RateLimitTrafficClass::~RateLimitTrafficClass() {
   // there.
   delete child_;
   TrafficClassBuilder::Clear(this);
+}
+
+std::vector<TrafficClass *> RateLimitTrafficClass::Children() const {
+  return {child_};
 }
 
 bool RateLimitTrafficClass::AddChild(TrafficClass *child) {

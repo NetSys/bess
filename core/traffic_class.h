@@ -164,6 +164,8 @@ class TrafficClass {
   // this TC.
   size_t Size();
 
+  virtual std::vector<TrafficClass *> Children() const = 0;
+
   // Returns the root of the tree this class belongs to.
   // Expensive in that it is recursive, so do not call from
   // performance-sensitive code.
@@ -295,6 +297,8 @@ class PriorityTrafficClass final : public TrafficClass {
 
   ~PriorityTrafficClass();
 
+  std::vector<TrafficClass *> Children() const override;
+
   // Returns true if child was added successfully.
   bool AddChild(TrafficClass *child, priority_t priority);
 
@@ -342,6 +346,8 @@ class WeightedFairTrafficClass final : public TrafficClass {
         all_children_() {}
 
   ~WeightedFairTrafficClass();
+
+  std::vector<TrafficClass *> Children() const override;
 
   // Returns true if child was added successfully.
   bool AddChild(TrafficClass *child, resource_share_t share);
@@ -394,6 +400,10 @@ class RoundRobinTrafficClass final : public TrafficClass {
         all_children_() {}
 
   ~RoundRobinTrafficClass();
+
+  std::vector<TrafficClass *> Children() const override {
+    return all_children_;
+  }
 
   // Returns true if child was added successfully.
   bool AddChild(TrafficClass *child);
@@ -450,6 +460,8 @@ class RateLimitTrafficClass final : public TrafficClass {
   }
 
   ~RateLimitTrafficClass();
+
+  std::vector<TrafficClass *> Children() const override;
 
   // Returns true if child was added successfully.
   bool AddChild(TrafficClass *child);
@@ -551,6 +563,8 @@ class LeafTrafficClass final : public TrafficClass {
   }
 
   ~LeafTrafficClass() override;
+
+  std::vector<TrafficClass *> Children() const override { return {}; }
 
   void TraverseChildren(std::function<void(TCChildArgs *)>) const override {}
 
