@@ -122,9 +122,9 @@ void PriorityTrafficClass::TraverseChildren(
 }
 
 WeightedFairTrafficClass::~WeightedFairTrafficClass() {
-  while (!children_.empty()) {
-    delete children_.top().c_;
-    children_.pop();
+  while (!runnable_children_.empty()) {
+    delete runnable_children_.top().c_;
+    runnable_children_.pop();
   }
   for (auto &c : blocked_children_) {
     delete c.c_;
@@ -139,8 +139,8 @@ bool WeightedFairTrafficClass::AddChild(TrafficClass *child,
   }
 
   int64_t pass = 0;
-  if (!children_.empty()) {
-    pass = children_.top().pass_;
+  if (!runnable_children_.empty()) {
+    pass = runnable_children_.top().pass_;
   }
 
   if (!share) {
@@ -152,7 +152,7 @@ bool WeightedFairTrafficClass::AddChild(TrafficClass *child,
   if (child->blocked_) {
     blocked_children_.push_back(child_data);
   } else {
-    children_.push(child_data);
+    runnable_children_.push(child_data);
     UnblockTowardsRoot(rdtsc());
   }
 
@@ -182,7 +182,7 @@ bool WeightedFairTrafficClass::RemoveChild(TrafficClass *child) {
     }
   }
 
-  bool ret = children_.delete_single_element(
+  bool ret = runnable_children_.delete_single_element(
       [=](const ChildData &x) { return x.c_ == child; });
   if (ret) {
     child->parent_ = nullptr;
@@ -194,7 +194,7 @@ bool WeightedFairTrafficClass::RemoveChild(TrafficClass *child) {
 }
 
 TrafficClass *WeightedFairTrafficClass::PickNextChild() {
-  return children_.top().c_;
+  return runnable_children_.top().c_;
 }
 
 void WeightedFairTrafficClass::UnblockTowardsRoot(uint64_t tsc) {
@@ -202,18 +202,18 @@ void WeightedFairTrafficClass::UnblockTowardsRoot(uint64_t tsc) {
   for (auto it = blocked_children_.begin(); it != blocked_children_.end();) {
     if (!it->c_->blocked_) {
       it->pass_ = 0;
-      children_.push(*it);
+      runnable_children_.push(*it);
       blocked_children_.erase(it++);
     } else {
       ++it;
     }
   }
 
-  TrafficClass::UnblockTowardsRootSetBlocked(tsc, children_.empty());
+  TrafficClass::UnblockTowardsRootSetBlocked(tsc, runnable_children_.empty());
 }
 
 void WeightedFairTrafficClass::BlockTowardsRoot() {
-  children_.delete_single_element([&](const ChildData &x) {
+  runnable_children_.delete_single_element([&](const ChildData &x) {
     if (x.c_->blocked_) {
       blocked_children_.push_back(x);
       return true;
@@ -221,7 +221,7 @@ void WeightedFairTrafficClass::BlockTowardsRoot() {
     return false;
   });
 
-  TrafficClass::BlockTowardsRootSetBlocked(children_.empty());
+  TrafficClass::BlockTowardsRootSetBlocked(runnable_children_.empty());
 }
 
 void WeightedFairTrafficClass::FinishAndAccountTowardsRoot(
@@ -232,15 +232,15 @@ void WeightedFairTrafficClass::FinishAndAccountTowardsRoot(
   // DCHECK_EQ(item.c_, child) << "Child that we picked should be at the front
   // of priority queue.";
   if (child->blocked_) {
-    auto item = children_.top();
-    children_.pop();
+    auto item = runnable_children_.top();
+    runnable_children_.pop();
     blocked_children_.emplace_back(std::move(item));
-    blocked_ = children_.empty();
+    blocked_ = runnable_children_.empty();
   } else {
-    auto &item = children_.mutable_top();
+    auto &item = runnable_children_.mutable_top();
     uint64_t consumed = usage[resource_];
     item.pass_ += item.stride_ * consumed / QUANTUM;
-    children_.decrease_key_top();
+    runnable_children_.decrease_key_top();
   }
 
   if (!parent_) {

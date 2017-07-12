@@ -337,7 +337,7 @@ class WeightedFairTrafficClass final : public TrafficClass {
   WeightedFairTrafficClass(const std::string &name, resource_t resource)
       : TrafficClass(name, POLICY_WEIGHTED_FAIR),
         resource_(resource),
-        children_(),
+        runnable_children_(),
         blocked_children_(),
         all_children_() {}
 
@@ -362,8 +362,8 @@ class WeightedFairTrafficClass final : public TrafficClass {
 
   void set_resource(resource_t res) { resource_ = res; }
 
-  const extended_priority_queue<ChildData> &children() const {
-    return children_;
+  const extended_priority_queue<ChildData> &runnable_children() const {
+    return runnable_children_;
   }
 
   const std::list<ChildData> &blocked_children() const {
@@ -376,7 +376,7 @@ class WeightedFairTrafficClass final : public TrafficClass {
   // The resource that we are sharing.
   resource_t resource_;
 
-  extended_priority_queue<ChildData> children_;
+  extended_priority_queue<ChildData> runnable_children_;
   std::list<ChildData> blocked_children_;
 
   // This is a copy of the pointers to (and shares of) all children. It can be
