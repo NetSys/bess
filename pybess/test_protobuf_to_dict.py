@@ -95,6 +95,7 @@ class TestProtobufConvert(unittest.TestCase):
         msg = pb_conv.dict_to_protobuf(test_msg.UnnestedDictMsg, msg_dict)
         self.assertEqual(msg, pb)
 
+
 def init_from_dict(pb_map, d):
     for k, v in d.items():
         pb_map[k] = v
