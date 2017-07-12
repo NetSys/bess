@@ -75,7 +75,7 @@ before_deploy:
       ./container_build.py kmod_buildtest;
       find . -name '*.pyc' -delete;
       (cd .. && tar zcf bess/bess-$arch-linux.tar.gz bess/bessctl/* bess/bin/* bess/pybess/* bess/core/kmod/* bess/core/snbuf_layout.h bess/core/bessd bess/core/modules/*.so);
-      fpm -s tar -t deb -v ${TRAVIS_TAG#v} -n bess -d python -d python-pip -d python-scapy -d libgraph-easy-perl -m "bess@nefeli.io" --url "https://github.com/NetSys/bess" --prefix "/usr/local/" --after-install=env/after_install.sh --before-remove=env/before_remove.sh -p bess-$arch-linux.deb bess-$arch-linux.tar.gz
+      fpm -s tar -t deb -v ${TRAVIS_TAG#v} -n bess -d python -d python-pip -d python-scapy -d libgraph-easy-perl -m "bess@nefeli.io" --url "https://github.com/NetSys/bess" --prefix "/usr/local/" --after-install=env/after_install.sh --before-remove=env/before_remove.sh -p bess-$arch-linux.deb bess-$arch-linux.tar.gz;
     done
 
 deploy:
