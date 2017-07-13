@@ -115,20 +115,15 @@ class Scheduler {
       return;
     }
 
-    size_t n_children = 0;
-    TrafficClass *last_child = nullptr;
-    default_rr_class_->TraverseChildren(
-        [&last_child, &n_children](TCChildArgs *c) {
-          last_child = c->child();
-          n_children++;
-        });
-
-    if (n_children <= 1) {
-      root_ = last_child;
-      if (root_) {
-        default_rr_class_->RemoveChild(root_);
-      }
-      delete default_rr_class_;
+    const auto &children = default_rr_class_->Children();
+    if (children.size() == 0) {
+      delete root_;
+      root_ = nullptr;
+      default_rr_class_ = nullptr;
+    } else if (children.size() == 1) {
+      root_->RemoveChild(children[0]);
+      delete root_;
+      root_ = children[0];
       default_rr_class_ = nullptr;
     }
   }
