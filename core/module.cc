@@ -267,7 +267,7 @@ CommandResponse ModuleBuilder::RunCommand(
       for (const auto wid : m->active_workers_) {
         workers_running |= is_worker_running(wid);
       }
-      if (!cmd.mt_safe && workers_running) {
+      if (cmd.mt_safe != Command::THREAD_SAFE && workers_running) {
         return CommandFailure(EBUSY,
                               "There is a running worker and command "
                               "'%s' is not MT safe",

@@ -3,7 +3,7 @@
 
 const Commands PortInc::cmds = {
     {"set_burst", "PortIncCommandSetBurstArg",
-     MODULE_CMD_FUNC(&PortInc::CommandSetBurst), 1},
+     MODULE_CMD_FUNC(&PortInc::CommandSetBurst), Command::THREAD_SAFE},
 };
 
 CommandResponse PortInc::Init(const bess::pb::PortIncArg &arg) {

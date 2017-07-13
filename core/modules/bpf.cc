@@ -1099,8 +1099,10 @@ static bpf_filter_func_t bpf_jit_compile(struct bpf_insn *prog, u_int nins,
 #define SNAPLEN 0xffff
 
 const Commands BPF::cmds = {
-    {"add", "BPFArg", MODULE_CMD_FUNC(&BPF::CommandAdd), 0},
-    {"clear", "EmptyArg", MODULE_CMD_FUNC(&BPF::CommandClear), 0}};
+    {"add", "BPFArg", MODULE_CMD_FUNC(&BPF::CommandAdd),
+     Command::THREAD_UNSAFE},
+    {"clear", "EmptyArg", MODULE_CMD_FUNC(&BPF::CommandClear),
+     Command::THREAD_UNSAFE}};
 
 CommandResponse BPF::Init(const bess::pb::BPFArg &arg) {
   return CommandAdd(arg);

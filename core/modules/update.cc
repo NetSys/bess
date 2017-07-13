@@ -3,8 +3,10 @@
 #include "../utils/endian.h"
 
 const Commands Update::cmds = {
-    {"add", "UpdateArg", MODULE_CMD_FUNC(&Update::CommandAdd), 0},
-    {"clear", "EmptyArg", MODULE_CMD_FUNC(&Update::CommandClear), 0},
+    {"add", "UpdateArg", MODULE_CMD_FUNC(&Update::CommandAdd),
+     Command::THREAD_UNSAFE},
+    {"clear", "EmptyArg", MODULE_CMD_FUNC(&Update::CommandClear),
+     Command::THREAD_UNSAFE},
 };
 
 CommandResponse Update::Init(const bess::pb::UpdateArg &arg) {

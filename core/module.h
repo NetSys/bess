@@ -87,13 +87,17 @@ static inline module_init_func_t MODULE_INIT_FUNC(
 
 class Module;
 
+// Describes a single command that can be issued to a module.
 struct Command {
+  enum ThreadSafety { THREAD_UNSAFE = 0, THREAD_SAFE = 1 };
+
   std::string cmd;
   std::string arg_type;
   module_cmd_func_t func;
-  // if non-zero, workers don't need to be paused in order to
-  // run this command
-  int mt_safe;
+
+  // If set to THREAD_SAFE, workers don't need to be paused in order to run
+  // this command.
+  ThreadSafety mt_safe;
 };
 
 using Commands = std::vector<struct Command>;

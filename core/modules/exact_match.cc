@@ -14,12 +14,14 @@ static inline int is_valid_gate(gate_idx_t gate) {
 
 const Commands ExactMatch::cmds = {
     {"add", "ExactMatchCommandAddArg", MODULE_CMD_FUNC(&ExactMatch::CommandAdd),
-     0},
+     Command::THREAD_UNSAFE},
     {"delete", "ExactMatchCommandDeleteArg",
-     MODULE_CMD_FUNC(&ExactMatch::CommandDelete), 0},
-    {"clear", "EmptyArg", MODULE_CMD_FUNC(&ExactMatch::CommandClear), 0},
+     MODULE_CMD_FUNC(&ExactMatch::CommandDelete), Command::THREAD_UNSAFE},
+    {"clear", "EmptyArg", MODULE_CMD_FUNC(&ExactMatch::CommandClear),
+     Command::THREAD_UNSAFE},
     {"set_default_gate", "ExactMatchCommandSetDefaultGateArg",
-     MODULE_CMD_FUNC(&ExactMatch::CommandSetDefaultGate), 1}};
+     MODULE_CMD_FUNC(&ExactMatch::CommandSetDefaultGate),
+     Command::THREAD_SAFE}};
 
 CommandResponse ExactMatch::AddFieldOne(const bess::pb::Field &field,
                                         const bess::pb::FieldData &mask,

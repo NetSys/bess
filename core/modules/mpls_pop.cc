@@ -6,8 +6,9 @@
 using bess::utils::Ethernet;
 using bess::utils::Mpls;
 
-const Commands MPLSPop::cmds = {
-    {"set", "MplsPopArg", MODULE_CMD_FUNC(&MPLSPop::CommandSet), 0}};
+const Commands MPLSPop::cmds = {{"set", "MplsPopArg",
+                                 MODULE_CMD_FUNC(&MPLSPop::CommandSet),
+                                 Command::THREAD_UNSAFE}};
 
 // TODO(gsagie) make the next eth type and remove eth header
 //              configurable per MPLS label (with default)

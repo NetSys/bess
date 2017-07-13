@@ -23,9 +23,10 @@ using bess::utils::be32_t;
 const double PARETO_TAIL_LIMIT = 0.99;
 
 const Commands FlowGen::cmds = {
-    {"update", "FlowGenArg", MODULE_CMD_FUNC(&FlowGen::CommandUpdate), 0},
+    {"update", "FlowGenArg", MODULE_CMD_FUNC(&FlowGen::CommandUpdate),
+     Command::THREAD_UNSAFE},
     {"set_burst", "FlowGenCommandSetBurstArg",
-     MODULE_CMD_FUNC(&FlowGen::CommandSetBurst), 1}};
+     MODULE_CMD_FUNC(&FlowGen::CommandSetBurst), Command::THREAD_SAFE}};
 
 /* find x from CDF of pareto distribution from given y in [0.0, 1.0) */
 static inline double pareto_variate(double inversed_alpha, double y) {
