@@ -162,7 +162,7 @@ class TrafficClass {
 
   // Returns the number of TCs in the TC subtree rooted at this, including
   // this TC.
-  size_t Size();
+  size_t Size() const;
 
   virtual std::vector<TrafficClass *> Children() const = 0;
 

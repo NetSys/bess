@@ -12,9 +12,11 @@
 
 namespace bess {
 
-size_t TrafficClass::Size() {
-  size_t ret = 0;
-  Traverse([&ret](bess::TCChildArgs *) { ret += 1; });
+size_t TrafficClass::Size() const {
+  size_t ret = 1;  // itself
+  for (const auto *child : Children()) {
+    ret += child->Size();
+  };
   return ret;
 }
 
@@ -420,7 +422,11 @@ RateLimitTrafficClass::~RateLimitTrafficClass() {
 }
 
 std::vector<TrafficClass *> RateLimitTrafficClass::Children() const {
-  return {child_};
+  if (child_ == nullptr) {
+    return {};
+  } else {
+    return {child_};
+  }
 }
 
 bool RateLimitTrafficClass::AddChild(TrafficClass *child) {
