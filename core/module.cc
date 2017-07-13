@@ -712,17 +712,14 @@ void propagate_active_worker() {
     if (workers[i] == nullptr) {
       continue;
     }
-    int socket = 1ull << workers[i]->socket();
-    int core = workers[i]->core();
-    bess::TrafficClass *root = workers[i]->scheduler()->root();
-    if (root) {
-      root->Traverse([i, socket, core](bess::TCChildArgs *args) {
-        bess::TrafficClass *c = args->child();
-        if (c->policy() == bess::POLICY_LEAF) {
+    if (bess::TrafficClass *root = workers[i]->scheduler()->root()) {
+      for (const auto &tc_pair : bess::TrafficClassBuilder::all_tcs()) {
+        bess::TrafficClass *c = tc_pair.second;
+        if (c->policy() == bess::POLICY_LEAF && c->Root() == root) {
           auto leaf = static_cast<bess::LeafTrafficClass<Task> *>(c);
           leaf->Task().AddActiveWorker(i);
         }
-      });
+      }
     }
   }
 }
