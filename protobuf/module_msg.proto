@@ -261,6 +261,22 @@ message QueueCommandSetSizeArg {
 }
 
 /**
+ * Modules that are queues or contain queues may contain functions
+ * `get_status()` that return QueueCommandGetStatusResponse.
+ */
+message QueueCommandGetStatusArg {}
+
+/**
+ * Modules that are queues or contain queues may contain functions
+ * `get_status()` that take no parameters and returns the queue occupancy and
+ * size.
+ */
+message QueueCommandGetStatusResponse {
+  uint64 count = 1; /// The number of packets currently in the queue.
+  uint64 size = 2;  /// The maximum number of packets the queue can contain.
+}
+
+/**
  * The function `clear()` for RandomUpdate takes no parameters and clears all
  * state in the module.
  */
