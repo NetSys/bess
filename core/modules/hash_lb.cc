@@ -35,10 +35,11 @@ static inline int is_valid_gate(gate_idx_t gate) {
   return (gate < MAX_GATES || gate == DROP_GATE);
 }
 
-const Commands HashLB::cmds = {{"set_mode", "HashLBCommandSetModeArg",
-                                MODULE_CMD_FUNC(&HashLB::CommandSetMode), 0},
-                               {"set_gates", "HashLBCommandSetGatesArg",
-                                MODULE_CMD_FUNC(&HashLB::CommandSetGates), 0}};
+const Commands HashLB::cmds = {
+    {"set_mode", "HashLBCommandSetModeArg",
+     MODULE_CMD_FUNC(&HashLB::CommandSetMode), Command::THREAD_UNSAFE},
+    {"set_gates", "HashLBCommandSetGatesArg",
+     MODULE_CMD_FUNC(&HashLB::CommandSetGates), Command::THREAD_UNSAFE}};
 
 CommandResponse HashLB::CommandSetMode(
     const bess::pb::HashLBCommandSetModeArg &arg) {

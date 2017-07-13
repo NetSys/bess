@@ -2,9 +2,9 @@
 
 const Commands Source::cmds = {
     {"set_pkt_size", "SourceCommandSetPktSizeArg",
-     MODULE_CMD_FUNC(&Source::CommandSetPktSize), 1},
+     MODULE_CMD_FUNC(&Source::CommandSetPktSize), Command::THREAD_SAFE},
     {"set_burst", "SourceCommandSetBurstArg",
-     MODULE_CMD_FUNC(&Source::CommandSetBurst), 1},
+     MODULE_CMD_FUNC(&Source::CommandSetBurst), Command::THREAD_SAFE},
 };
 
 CommandResponse Source::Init(const bess::pb::SourceArg &arg) {

@@ -27,8 +27,9 @@ static bool IsTimestamped(bess::Packet *pkt, size_t offset, uint64_t *time) {
 
 const Commands Measure::cmds = {
     {"get_summary", "EmptyArg", MODULE_CMD_FUNC(&Measure::CommandGetSummary),
-     0},
-    {"clear", "EmptyArg", MODULE_CMD_FUNC(&Measure::CommandClear), 0},
+     Command::THREAD_UNSAFE},
+    {"clear", "EmptyArg", MODULE_CMD_FUNC(&Measure::CommandClear),
+     Command::THREAD_UNSAFE},
 };
 
 CommandResponse Measure::Init(const bess::pb::MeasureArg &arg) {

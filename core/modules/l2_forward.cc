@@ -516,15 +516,15 @@ static int parse_mac_addr(const char *str, char *addr) {
 
 const Commands L2Forward::cmds = {
     {"add", "L2ForwardCommandAddArg", MODULE_CMD_FUNC(&L2Forward::CommandAdd),
-     0},
+     Command::THREAD_UNSAFE},
     {"delete", "L2ForwardCommandDeleteArg",
-     MODULE_CMD_FUNC(&L2Forward::CommandDelete), 0},
+     MODULE_CMD_FUNC(&L2Forward::CommandDelete), Command::THREAD_UNSAFE},
     {"set_default_gate", "L2ForwardCommandSetDefaultGateArg",
-     MODULE_CMD_FUNC(&L2Forward::CommandSetDefaultGate), 1},
+     MODULE_CMD_FUNC(&L2Forward::CommandSetDefaultGate), Command::THREAD_SAFE},
     {"lookup", "L2ForwardCommandLookupArg",
-     MODULE_CMD_FUNC(&L2Forward::CommandLookup), 1},
+     MODULE_CMD_FUNC(&L2Forward::CommandLookup), Command::THREAD_SAFE},
     {"populate", "L2ForwardCommandPopulateArg",
-     MODULE_CMD_FUNC(&L2Forward::CommandPopulate), 0},
+     MODULE_CMD_FUNC(&L2Forward::CommandPopulate), Command::THREAD_UNSAFE},
 };
 
 CommandResponse L2Forward::Init(const bess::pb::L2ForwardArg &arg) {

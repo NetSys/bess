@@ -2,9 +2,9 @@
 
 const Commands RoundRobin::cmds = {
     {"set_mode", "RoundRobinCommandSetModeArg",
-     MODULE_CMD_FUNC(&RoundRobin::CommandSetMode), 0},
+     MODULE_CMD_FUNC(&RoundRobin::CommandSetMode), Command::THREAD_UNSAFE},
     {"set_gates", "RoundRobinCommandSetGatesArg",
-     MODULE_CMD_FUNC(&RoundRobin::CommandSetGates), 0},
+     MODULE_CMD_FUNC(&RoundRobin::CommandSetGates), Command::THREAD_UNSAFE},
 };
 
 CommandResponse RoundRobin::Init(const bess::pb::RoundRobinArg &arg) {

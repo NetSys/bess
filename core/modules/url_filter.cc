@@ -15,8 +15,10 @@ using bess::utils::be16_t;
 const uint64_t TIME_OUT_NS = 10ull * 1000 * 1000 * 1000;  // 10 seconds
 
 const Commands UrlFilter::cmds = {
-    {"add", "UrlFilterArg", MODULE_CMD_FUNC(&UrlFilter::CommandAdd), 0},
-    {"clear", "EmptyArg", MODULE_CMD_FUNC(&UrlFilter::CommandClear), 0}};
+    {"add", "UrlFilterArg", MODULE_CMD_FUNC(&UrlFilter::CommandAdd),
+     Command::THREAD_UNSAFE},
+    {"clear", "EmptyArg", MODULE_CMD_FUNC(&UrlFilter::CommandClear),
+     Command::THREAD_UNSAFE}};
 
 // Template for generating TCP packets without data
 struct[[gnu::packed]] PacketTemplate {

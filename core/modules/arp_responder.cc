@@ -6,7 +6,8 @@ using bess::utils::Arp;
 using bess::utils::be16_t;
 
 const Commands ArpResponder::cmds = {
-    {"add", "ArpResponderArg", MODULE_CMD_FUNC(&ArpResponder::CommandAdd), 0}};
+    {"add", "ArpResponderArg", MODULE_CMD_FUNC(&ArpResponder::CommandAdd),
+     Command::THREAD_UNSAFE}};
 
 CommandResponse ArpResponder::CommandAdd(const bess::pb::ArpResponderArg &arg) {
   be32_t ip_addr;

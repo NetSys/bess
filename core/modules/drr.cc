@@ -22,9 +22,9 @@ uint32_t RoundToPowerTwo(uint32_t v) {
 
 const Commands DRR::cmds = {
     {"set_quantum_size", "DRRQuantumArg",
-     MODULE_CMD_FUNC(&DRR::CommandQuantumSize), 0},
+     MODULE_CMD_FUNC(&DRR::CommandQuantumSize), Command::THREAD_UNSAFE},
     {"set_max_flow_queue_size", "DRRMaxFlowQueueSizeArg",
-     MODULE_CMD_FUNC(&DRR::CommandMaxFlowQueueSize), 0}};
+     MODULE_CMD_FUNC(&DRR::CommandMaxFlowQueueSize), Command::THREAD_UNSAFE}};
 
 DRR::DRR()
     : quantum_(kDefaultQuantum),

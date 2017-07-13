@@ -7,9 +7,9 @@
 
 const Commands Queue::cmds = {
     {"set_burst", "QueueCommandSetBurstArg",
-     MODULE_CMD_FUNC(&Queue::CommandSetBurst), 1},
+     MODULE_CMD_FUNC(&Queue::CommandSetBurst), Command::THREAD_SAFE},
     {"set_size", "QueueCommandSetSizeArg",
-     MODULE_CMD_FUNC(&Queue::CommandSetSize), 0},
+     MODULE_CMD_FUNC(&Queue::CommandSetSize), Command::THREAD_UNSAFE},
 };
 
 int Queue::Resize(int slots) {

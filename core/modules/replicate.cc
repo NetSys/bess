@@ -2,7 +2,7 @@
 
 const Commands Replicate::cmds = {
     {"set_gates", "ReplicateCommandSetGatesArg",
-     MODULE_CMD_FUNC(&Replicate::CommandSetGates), 0},
+     MODULE_CMD_FUNC(&Replicate::CommandSetGates), Command::THREAD_UNSAFE},
 };
 
 CommandResponse Replicate::Init(const bess::pb::ReplicateArg &arg) {

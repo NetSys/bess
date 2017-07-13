@@ -30,8 +30,9 @@ class AcmeModule : public Module {
   int n = {};
 };
 
-const Commands AcmeModule::cmds = {
-    {"foo", "EmptyArg", MODULE_CMD_FUNC(&AcmeModule::FooPb), 0}};
+const Commands AcmeModule::cmds = {{"foo", "EmptyArg",
+                                    MODULE_CMD_FUNC(&AcmeModule::FooPb),
+                                    Command::THREAD_UNSAFE}};
 
 DEF_MODULE(AcmeModule, "acme_module", "foo bar");
 

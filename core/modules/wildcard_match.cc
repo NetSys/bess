@@ -27,14 +27,16 @@ static inline int is_valid_gate(gate_idx_t gate) {
 
 const Commands WildcardMatch::cmds = {
     {"add", "WildcardMatchCommandAddArg",
-     MODULE_CMD_FUNC(&WildcardMatch::CommandAdd), 0},
+     MODULE_CMD_FUNC(&WildcardMatch::CommandAdd), Command::THREAD_UNSAFE},
     {"delete", "WildcardMatchCommandDeleteArg",
-     MODULE_CMD_FUNC(&WildcardMatch::CommandDelete), 0},
-    {"clear", "EmptyArg", MODULE_CMD_FUNC(&WildcardMatch::CommandClear), 0},
+     MODULE_CMD_FUNC(&WildcardMatch::CommandDelete), Command::THREAD_UNSAFE},
+    {"clear", "EmptyArg", MODULE_CMD_FUNC(&WildcardMatch::CommandClear),
+     Command::THREAD_UNSAFE},
     {"get_rules", "EmptyArg", MODULE_CMD_FUNC(&WildcardMatch::CommandGetRules),
-     0},
+     Command::THREAD_UNSAFE},
     {"set_default_gate", "WildcardMatchCommandSetDefaultGateArg",
-     MODULE_CMD_FUNC(&WildcardMatch::CommandSetDefaultGate), 1}};
+     MODULE_CMD_FUNC(&WildcardMatch::CommandSetDefaultGate),
+     Command::THREAD_SAFE}};
 
 CommandResponse WildcardMatch::AddFieldOne(const bess::pb::Field &field,
                                            struct WmField *f) {

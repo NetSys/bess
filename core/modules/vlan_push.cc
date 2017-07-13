@@ -11,7 +11,8 @@ using bess::utils::be32_t;
 using bess::utils::Ethernet;
 
 const Commands VLANPush::cmds = {
-    {"set_tci", "VLANPushArg", MODULE_CMD_FUNC(&VLANPush::CommandSetTci), 0},
+    {"set_tci", "VLANPushArg", MODULE_CMD_FUNC(&VLANPush::CommandSetTci),
+     Command::THREAD_UNSAFE},
 };
 
 CommandResponse VLANPush::Init(const bess::pb::VLANPushArg &arg) {

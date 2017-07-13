@@ -5,8 +5,10 @@
 #include "../utils/copy.h"
 
 const Commands Rewrite::cmds = {
-    {"add", "RewriteArg", MODULE_CMD_FUNC(&Rewrite::CommandAdd), 0},
-    {"clear", "EmptyArg", MODULE_CMD_FUNC(&Rewrite::CommandClear), 0},
+    {"add", "RewriteArg", MODULE_CMD_FUNC(&Rewrite::CommandAdd),
+     Command::THREAD_UNSAFE},
+    {"clear", "EmptyArg", MODULE_CMD_FUNC(&Rewrite::CommandClear),
+     Command::THREAD_UNSAFE},
 };
 
 CommandResponse Rewrite::Init(const bess::pb::RewriteArg &arg) {
