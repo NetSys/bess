@@ -128,11 +128,11 @@ TEST(CreateTree, RoundRobinRootAndLeaf) {
 
   RoundRobinTrafficClass *c = static_cast<RoundRobinTrafficClass *>(tree.get());
   ASSERT_NE(nullptr, c);
-  ASSERT_EQ(1, c->children().size());
+  ASSERT_EQ(1, c->runnable_children().size());
   ASSERT_EQ(0, c->blocked_children().size());
 
   LeafTrafficClass<Task> *leaf =
-      static_cast<LeafTrafficClass<Task> *>(c->children().front());
+      static_cast<LeafTrafficClass<Task> *>(c->runnable_children().front());
   ASSERT_NE(nullptr, leaf);
   EXPECT_EQ(leaf->parent(), c);
 
@@ -248,7 +248,7 @@ TEST(DefaultSchedulerNext, BasicTreeRoundRobin) {
   ASSERT_EQ(0, c->blocked_children().size());
 
   LeafTrafficClass<Task> *leaf =
-      static_cast<LeafTrafficClass<Task> *>(c->children().front());
+      static_cast<LeafTrafficClass<Task> *>(c->runnable_children().front());
   ASSERT_NE(nullptr, leaf);
   EXPECT_EQ(leaf->parent(), c);
 
@@ -450,7 +450,7 @@ TEST(DefaultScheduleOnce, TwoLeavesRoundRobin) {
 
   RoundRobinTrafficClass *root =
       static_cast<RoundRobinTrafficClass *>(s.root());
-  ASSERT_EQ(2, root->children().size());
+  ASSERT_EQ(2, root->runnable_children().size());
 
   ASSERT_EQ(leaf_1, s.Next(rdtsc()));
   s.ScheduleOnce();
@@ -496,10 +496,10 @@ TEST(DefaultScheduleOnce, LeavesWeightedFairAndRoundRobin) {
   ASSERT_EQ(2, root->runnable_children().size());
   RoundRobinTrafficClass *rr_1 =
       static_cast<RoundRobinTrafficClass *>(TrafficClassBuilder::Find("rr_1"));
-  ASSERT_EQ(2, rr_1->children().size());
+  ASSERT_EQ(2, rr_1->runnable_children().size());
   RoundRobinTrafficClass *rr_2 =
       static_cast<RoundRobinTrafficClass *>(TrafficClassBuilder::Find("rr_2"));
-  ASSERT_EQ(2, rr_2->children().size());
+  ASSERT_EQ(2, rr_2->runnable_children().size());
 
   // There's no guarantee which will run first because they will tie, so this is
   // a guess based upon the heap's behavior.

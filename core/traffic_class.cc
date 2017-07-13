@@ -274,7 +274,7 @@ void WeightedFairTrafficClass::TraverseChildren(
 }
 
 RoundRobinTrafficClass::~RoundRobinTrafficClass() {
-  for (TrafficClass *c : children_) {
+  for (TrafficClass *c : runnable_children_) {
     delete c;
   }
   for (TrafficClass *c : blocked_children_) {
@@ -292,7 +292,7 @@ bool RoundRobinTrafficClass::AddChild(TrafficClass *child) {
   if (child->blocked_) {
     blocked_children_.push_back(child);
   } else {
-    children_.push_back(child);
+    runnable_children_.push_back(child);
   }
 
   UnblockTowardsRoot(rdtsc());
@@ -323,15 +323,15 @@ bool RoundRobinTrafficClass::RemoveChild(TrafficClass *child) {
     }
   }
 
-  for (size_t i = 0; i < children_.size(); i++) {
-    if (children_[i] == child) {
-      children_.erase(children_.begin() + i);
+  for (size_t i = 0; i < runnable_children_.size(); i++) {
+    if (runnable_children_[i] == child) {
+      runnable_children_.erase(runnable_children_.begin() + i);
       child->parent_ = nullptr;
       if (next_child_ > i) {
         next_child_--;
       }
       // Wrap around for round robin.
-      if (next_child_ >= children_.size()) {
+      if (next_child_ >= runnable_children_.size()) {
         next_child_ = 0;
       }
       BlockTowardsRoot();
@@ -344,40 +344,40 @@ bool RoundRobinTrafficClass::RemoveChild(TrafficClass *child) {
 }
 
 TrafficClass *RoundRobinTrafficClass::PickNextChild() {
-  return children_[next_child_];
+  return runnable_children_[next_child_];
 }
 
 void RoundRobinTrafficClass::UnblockTowardsRoot(uint64_t tsc) {
   // TODO(barath): Optimize this unblocking behavior.
   for (auto it = blocked_children_.begin(); it != blocked_children_.end();) {
     if (!(*it)->blocked_) {
-      children_.push_back(*it);
+      runnable_children_.push_back(*it);
       it = blocked_children_.erase(it);
     } else {
       ++it;
     }
   }
 
-  TrafficClass::UnblockTowardsRootSetBlocked(tsc, children_.empty());
+  TrafficClass::UnblockTowardsRootSetBlocked(tsc, runnable_children_.empty());
 }
 
 void RoundRobinTrafficClass::BlockTowardsRoot() {
-  for (size_t i = 0; i < children_.size();) {
-    if (children_[i]->blocked_) {
-      blocked_children_.push_back(children_[i]);
-      children_.erase(children_.begin() + i);
+  for (size_t i = 0; i < runnable_children_.size();) {
+    if (runnable_children_[i]->blocked_) {
+      blocked_children_.push_back(runnable_children_[i]);
+      runnable_children_.erase(runnable_children_.begin() + i);
       if (next_child_ > i) {
         next_child_--;
       }
       // Wrap around for round robin.
-      if (next_child_ >= children_.size()) {
+      if (next_child_ >= runnable_children_.size()) {
         next_child_ = 0;
       }
     } else {
       ++i;
     }
   }
-  TrafficClass::BlockTowardsRootSetBlocked(children_.empty());
+  TrafficClass::BlockTowardsRootSetBlocked(runnable_children_.empty());
 }
 
 void RoundRobinTrafficClass::FinishAndAccountTowardsRoot(
@@ -385,15 +385,15 @@ void RoundRobinTrafficClass::FinishAndAccountTowardsRoot(
     uint64_t tsc) {
   ACCUMULATE(stats_.usage, usage);
   if (child->blocked_) {
-    children_.erase(children_.begin() + next_child_);
+    runnable_children_.erase(runnable_children_.begin() + next_child_);
     blocked_children_.push_back(child);
-    blocked_ = children_.empty();
+    blocked_ = runnable_children_.empty();
   } else {
     next_child_ += usage[RESOURCE_COUNT];
   }
 
   // Wrap around for round robin.
-  if (next_child_ >= children_.size()) {
+  if (next_child_ >= runnable_children_.size()) {
     next_child_ = 0;
   }
 
