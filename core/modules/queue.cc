@@ -143,11 +143,6 @@ struct task_result Queue::RunTask(void *) {
   }
 
   batch.set_cnt(cnt);
-  RunNextModule(&batch);
-
-  if (backpressure_ && llring_count(queue_) < low_water_) {
-    SignalUnderload();
-  }
 
   if (prefetch_) {
     for (uint32_t i = 0; i < cnt; i++) {
@@ -158,6 +153,12 @@ struct task_result Queue::RunTask(void *) {
     for (uint32_t i = 0; i < cnt; i++) {
       total_bytes += batch.pkts()[i]->total_len();
     }
+  }
+
+  RunNextModule(&batch);
+
+  if (backpressure_ && llring_count(queue_) < low_water_) {
+    SignalUnderload();
   }
 
   return {.block = false,
