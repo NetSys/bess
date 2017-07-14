@@ -566,13 +566,12 @@ class BESSControlImpl final : public BESSControl::Service {
 
     bess::TrafficClass* root = workers[wid]->scheduler()->root();
     if (root) {
-      bool has_tasks = false;
-      root->Traverse([&has_tasks](bess::TCChildArgs* c) {
-        has_tasks |= c->child()->policy() == bess::POLICY_LEAF;
-      });
-      if (has_tasks) {
-        return return_with_error(response, EBUSY, "Worker %d has active tasks ",
-                                 wid);
+      for (const auto& it : bess::TrafficClassBuilder::all_tcs()) {
+        bess::TrafficClass* c = it.second;
+        if (c->policy() == bess::POLICY_LEAF && c->Root() == root) {
+          return return_with_error(response, EBUSY,
+                                   "Worker %d has active tasks ", wid);
+        }
       }
     }
 
@@ -595,57 +594,50 @@ class BESSControlImpl final : public BESSControl::Service {
 
   Status ListTcs(ServerContext*, const ListTcsRequest* request,
                  ListTcsResponse* response) override {
-    int wid_filter;
-    int i;
+    const bess::TrafficClass* target_root = nullptr;
 
-    wid_filter = request->wid();
-    if (wid_filter >= Worker::kMaxWorkers) {
+    int wid = request->wid();
+    if (wid >= Worker::kMaxWorkers) {
       return return_with_error(response, EINVAL,
                                "'wid' must be between 0 and %d",
                                Worker::kMaxWorkers - 1);
+    } else if (wid < 0) {
+      wid = -1;
+    } else if (workers[wid]) {
+      target_root = workers[wid]->scheduler()->root();
     }
 
-    if (wid_filter < 0) {
-      i = 0;
-      wid_filter = Worker::kMaxWorkers - 1;
-    } else {
-      i = wid_filter;
-    }
-
-    for (; i <= wid_filter; i++) {
-      if (workers[i] == nullptr) {
-        continue;
-      }
-      bess::TrafficClass* root = workers[i]->scheduler()->root();
-      if (!root) {
-        continue;
-      }
-
-      root->Traverse([&response, i](bess::TCChildArgs* args) {
-        bess::TrafficClass* c = args->child();
-
-        ListTcsResponse_TrafficClassStatus* status =
-            response->add_classes_status();
-
-        collect_tc(c, i, status);
-
-        if (args->parent_type() == bess::POLICY_WEIGHTED_FAIR) {
-          auto ca = static_cast<bess::WeightedFairChildArgs*>(args);
-          status->mutable_class_()->set_share(ca->share());
-        } else if (args->parent_type() == bess::POLICY_PRIORITY) {
-          auto ca = static_cast<bess::PriorityChildArgs*>(args);
-          status->mutable_class_()->set_priority(ca->priority());
+    for (const auto& tc_pair : bess::TrafficClassBuilder::all_tcs()) {
+      bess::TrafficClass* c = tc_pair.second;
+      if (!target_root || target_root == c->Root()) {
+        // WRR and Priority TCs associate share/priority to each child
+        if (c->policy() == bess::POLICY_WEIGHTED_FAIR) {
+          const auto* wrr_parent =
+              static_cast<const bess::WeightedFairTrafficClass*>(c);
+          for (const auto& child_data : wrr_parent->children()) {
+            auto* status = response->add_classes_status();
+            collect_tc(child_data.first, wid, status);
+            status->mutable_class_()->set_share(child_data.second);
+          }
+        } else if (c->policy() == bess::POLICY_PRIORITY) {
+          const auto* prio_parent =
+              static_cast<const bess::PriorityTrafficClass*>(c);
+          for (const auto& child_data : prio_parent->children()) {
+            auto* status = response->add_classes_status();
+            collect_tc(child_data.c_, wid, status);
+            status->mutable_class_()->set_priority(child_data.priority_);
+          }
+        } else {
+          for (const auto* child : c->Children()) {
+            auto* status = response->add_classes_status();
+            collect_tc(child, wid, status);
+          }
         }
-      });
-    }
 
-    if (request->wid() < 0) {
-      std::list<std::pair<int, bess::TrafficClass*>> all = list_orphan_tcs();
-      for (auto c : all) {
-        ListTcsResponse_TrafficClassStatus* status =
-            response->add_classes_status();
-
-        collect_tc(c.second, -1, status);
+        if (!c->parent()) {
+          auto* status = response->add_classes_status();
+          collect_tc(c, wid, status);
+        }
       }
     }
 
@@ -673,24 +665,23 @@ class BESSControlImpl final : public BESSControl::Service {
       int socket = 1ull << workers[i]->socket();
       int core = workers[i]->core();
       bess::TrafficClass* root = workers[i]->scheduler()->root();
-      if (root) {
-        root->Traverse([&response, i, socket, core](bess::TCChildArgs* args) {
-          bess::TrafficClass* c = args->child();
-          if (c->policy() == bess::POLICY_LEAF) {
-            auto leaf = static_cast<bess::LeafTrafficClass<Task>*>(c);
-            int constraints = leaf->Task().GetSocketConstraints();
-            if ((constraints & socket) == 0) {
-              LOG(WARNING) << "Scheduler constraints are violated for wid " << i
-                           << " socket " << socket << " constraint "
-                           << constraints;
-              auto violation = response->add_violations();
-              violation->set_name(c->name());
-              violation->set_constraint(constraints);
-              violation->set_assigned_node(workers[i]->socket());
-              violation->set_assigned_core(core);
-            }
+
+      for (const auto& tc_pair : bess::TrafficClassBuilder::all_tcs()) {
+        bess::TrafficClass* c = tc_pair.second;
+        if (c->policy() == bess::POLICY_LEAF && root == c->Root()) {
+          auto leaf = static_cast<bess::LeafTrafficClass<Task>*>(c);
+          int constraints = leaf->Task().GetSocketConstraints();
+          if ((constraints & socket) == 0) {
+            LOG(WARNING) << "Scheduler constraints are violated for wid " << i
+                         << " socket " << socket << " constraint "
+                         << constraints;
+            auto violation = response->add_violations();
+            violation->set_name(c->name());
+            violation->set_constraint(constraints);
+            violation->set_assigned_node(workers[i]->socket());
+            violation->set_assigned_core(core);
           }
-        });
+        }
       }
     }
 

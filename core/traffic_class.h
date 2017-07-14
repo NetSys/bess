@@ -378,6 +378,11 @@ class WeightedFairTrafficClass final : public TrafficClass {
 
   void TraverseChildren(std::function<void(TCChildArgs *)>) const override;
 
+  const std::vector<std::pair<TrafficClass *, resource_share_t>> &children()
+      const {
+    return all_children_;
+  }
+
  private:
   // The resource that we are sharing.
   resource_t resource_;
