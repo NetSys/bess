@@ -25,6 +25,8 @@ class Queue final : public Module {
 
   CommandResponse CommandSetBurst(const bess::pb::QueueCommandSetBurstArg &arg);
   CommandResponse CommandSetSize(const bess::pb::QueueCommandSetSizeArg &arg);
+  CommandResponse CommandGetStatus(
+      const bess::pb::QueueCommandGetStatusArg &arg);
 
   CheckConstraintResult CheckModuleConstraints() const override;
 

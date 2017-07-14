@@ -10,7 +10,8 @@ const Commands Queue::cmds = {
      MODULE_CMD_FUNC(&Queue::CommandSetBurst), Command::THREAD_SAFE},
     {"set_size", "QueueCommandSetSizeArg",
      MODULE_CMD_FUNC(&Queue::CommandSetSize), Command::THREAD_UNSAFE},
-};
+    {"get_status", "QueueCommandGetStatusArg",
+     MODULE_CMD_FUNC(&Queue::CommandGetStatus), Command::THREAD_SAFE}};
 
 int Queue::Resize(int slots) {
   struct llring *old_queue = queue_;
@@ -198,6 +199,14 @@ CommandResponse Queue::SetSize(uint64_t size) {
 CommandResponse Queue::CommandSetSize(
     const bess::pb::QueueCommandSetSizeArg &arg) {
   return SetSize(arg.size());
+}
+
+CommandResponse Queue::CommandGetStatus(
+    const bess::pb::QueueCommandGetStatusArg &) {
+  bess::pb::QueueCommandGetStatusResponse resp;
+  resp.set_count(llring_count(queue_));
+  resp.set_size(size_);
+  return CommandSuccess(resp);
 }
 
 void Queue::AdjustWaterLevels() {
