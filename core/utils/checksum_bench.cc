@@ -129,8 +129,35 @@ BENCHMARK_DEFINE_F(ChecksumFixture, BmIpv4NoOptChecksumBess)
   state.SetItemsProcessed(state.iterations());
 }
 
+// Benchmarks BESS IP checksum
+BENCHMARK_DEFINE_F(ChecksumFixture, BmIpv4ChecksumBess)
+(benchmark::State &state) {
+  char pkt[20] = {0};  // ipv4 header w/o options
+
+  bess::utils::Ipv4 *ip = reinterpret_cast<bess::utils::Ipv4 *>(pkt);
+
+  ip->version = 4;
+  ip->header_length = 5;
+  ip->type_of_service = 0;
+  ip->length = be16_t(40);
+  ip->fragment_offset = be16_t(0);
+  ip->ttl = 10;
+  ip->protocol = bess::utils::Ipv4::Proto::kTcp;
+  ip->checksum = 0x0000;  // for dpdk
+
+  while (state.KeepRunning()) {
+    ip->src = be32_t(GetRandom());
+    ip->dst = be32_t(GetRandom());
+
+    benchmark::DoNotOptimize(CalculateIpv4Checksum(*ip));
+  }
+
+  state.SetItemsProcessed(state.iterations());
+}
+
 BENCHMARK_REGISTER_F(ChecksumFixture, BmIpv4NoOptChecksumDpdk);
 BENCHMARK_REGISTER_F(ChecksumFixture, BmIpv4NoOptChecksumBess);
+BENCHMARK_REGISTER_F(ChecksumFixture, BmIpv4ChecksumBess);
 
 // Benchmarks DPDK UDP checksum
 BENCHMARK_DEFINE_F(ChecksumFixture, BmUdpChecksumDpdk)

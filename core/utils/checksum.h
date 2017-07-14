@@ -6,6 +6,7 @@
 
 #include <x86intrin.h>
 
+#include "common.h"
 #include "ip.h"
 #include "simd.h"
 #include "tcp.h"
@@ -183,7 +184,6 @@ static inline bool VerifyIpv4NoOptChecksum(const Ipv4 &iph) {
 
   // Calculate internet checksum, the optimized way is
   // 1. get 32-bit one's complement sum including carrys
-  // 2. reduce to 16-bit unsigned integer
   asm("addl %[u1], %[sum]   \n\t"
       "adcl %[u2], %[sum]   \n\t"
       "adcl %[u3], %[sum]   \n\t"
@@ -193,6 +193,7 @@ static inline bool VerifyIpv4NoOptChecksum(const Ipv4 &iph) {
       : [u1] "m"(buf32[1]), [u2] "m"(buf32[2]), [u3] "m"(buf32[3]),
         [u4] "m"(buf32[4]));
 
+  // 2. reduce to 16-bit unsigned integer and negate
   return FoldChecksum(sum) == 0;
 }
 
@@ -205,8 +206,6 @@ static inline uint16_t CalculateIpv4NoOptChecksum(const Ipv4 &iph) {
 
   // Calculate internet checksum, the optimized way is
   // 1. get 32-bit one's complement sum including carrys
-  // 2. reduce to 16-bit unsigned integers
-  // 3. negate
   asm("addl %[u1], %[sum]    \n\t"
       "adcl %[u2], %[sum]    \n\t"
       "adcl %[u3], %[sum]    \n\t"
@@ -217,6 +216,54 @@ static inline uint16_t CalculateIpv4NoOptChecksum(const Ipv4 &iph) {
         [u2] "g"(buf32[2] & 0xFFFF),  // skip checksum fields
         [u3] "m"(buf32[3]), [u4] "m"(buf32[4]));
 
+  // 2. reduce to 16-bit unsigned integer and negate
+  return FoldChecksum(sum);
+}
+
+// Returns true if the IP checksum is true
+static inline bool VerifyIpv4Checksum(const Ipv4 &iph) {
+  const uint32_t *buf32 = reinterpret_cast<const uint32_t *>(&iph);
+  size_t ip_opts_len = (iph.header_length << 2) - sizeof(Ipv4);
+  uint32_t sum = ip_opts_len == 0 ? 0 : CalculateSum(buf32 + 5, ip_opts_len);
+
+  // Calculate internet checksum, the optimized way is
+  // 1. get 32-bit one's complement sum including carrys
+  asm("addl %[u0], %[sum]   \n\t"
+      "adcl %[u1], %[sum]   \n\t"
+      "adcl %[u2], %[sum]   \n\t"
+      "adcl %[u3], %[sum]   \n\t"
+      "adcl %[u4], %[sum]   \n\t"
+      "adcl $0, %[sum]        \n\t"
+      : [sum] "+r"(sum)
+      : [u0] "m"(buf32[0]), [u1] "m"(buf32[1]), [u2] "m"(buf32[2]),
+        [u3] "m"(buf32[3]), [u4] "m"(buf32[4]));
+
+  // 2. reduce to 16-bit unsigned integer and negate
+  return FoldChecksum(sum) == 0;
+}
+
+// Returns IP checksum of the ip header 'iph'
+// It skips the checksum field into the calculation
+// It does not set the checksum field in ip header
+static inline uint16_t CalculateIpv4Checksum(const Ipv4 &iph) {
+  const uint32_t *buf32 = reinterpret_cast<const uint32_t *>(&iph);
+  size_t ip_opts_len = (iph.header_length << 2) - sizeof(Ipv4);
+  uint32_t sum = ip_opts_len == 0 ? 0 : CalculateSum(buf32 + 5, ip_opts_len);
+
+  // Calculate internet checksum, the optimized way is
+  // 1. get 32-bit one's complement sum including carrys
+  asm("addl %[u0], %[sum]    \n\t"
+      "adcl %[u1], %[sum]    \n\t"
+      "adcl %[u2], %[sum]    \n\t"
+      "adcl %[u3], %[sum]    \n\t"
+      "adcl %[u4], %[sum]    \n\t"
+      "adcl $0, %[sum]       \n\t"
+      : [sum] "+r"(sum)
+      : [u0] "m"(buf32[0]), [u1] "m"(buf32[1]),
+        [u2] "g"(buf32[2] & 0xFFFF),  // skip checksum fields
+        [u3] "m"(buf32[3]), [u4] "m"(buf32[4]));
+
+  // 2. reduce to 16-bit unsigned integer and negate
   return FoldChecksum(sum);
 }
 

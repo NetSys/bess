@@ -99,6 +99,63 @@ TEST(ChecksumTest, Ipv4NoOptChecksum) {
   }
 }
 
+// Tests IP checksum
+TEST(ChecksumTest, Ipv4Checksum) {
+  char buf[1514] = {0};  // ipv4 header w/o options
+  uint32_t *buf32 = reinterpret_cast<uint32_t *>(buf);
+  bess::utils::Ipv4 *ip = reinterpret_cast<bess::utils::Ipv4 *>(buf);
+
+  ip->version = 4;
+  ip->header_length = 5;
+  ip->type_of_service = 0;
+  ip->length = be16_t(20);
+  ip->fragment_offset = be16_t(0);
+  ip->ttl = 10;
+  ip->protocol = 0x06;  // tcp
+  ip->src = be32_t(0x12345678);
+  ip->dst = be32_t(0x12347890);
+
+  // DPDK doesn't support IP checksum with options
+  uint16_t cksum_dpdk =
+      ~rte_raw_cksum(buf, ip->header_length << 2);  // takes the complement
+  uint16_t cksum_bess = CalculateIpv4Checksum(*ip);
+  EXPECT_EQ(cksum_dpdk, cksum_bess);
+
+  // bess excludes to checksum fields to calculate ip checksum
+  ip->checksum = 0x7823;
+  cksum_bess = CalculateIpv4Checksum(*ip);
+  EXPECT_EQ(cksum_dpdk, cksum_bess);
+
+  ip->checksum = cksum_bess;
+  EXPECT_TRUE(VerifyIpv4Checksum(*ip));
+
+  ip->checksum = 0x0000;  // for dpdk
+
+  for (int i = 0; i < TestLoopCount; i++) {
+    size_t ip_opts_len = rd.Get() % 10;  // Maximum IP option length is 10 << 2
+    ip->header_length = 5 + ip_opts_len;
+    ip->src = be32_t(rd.Get());
+    ip->dst = be32_t(rd.Get());
+
+    for (size_t j = 0; j < ip_opts_len; j++) {
+      buf32[5 + j] = rd.Get();
+    }
+
+    // DPDK doesn't support IP checksum with options
+    cksum_dpdk =
+        ~rte_raw_cksum(buf, ip->header_length << 2);  // takes the complement
+    cksum_bess = CalculateIpv4Checksum(*ip);
+
+    if (cksum_dpdk == 0xffff) {
+      // While the value of IP/TCP checksum field must not be -0 (0xffff),
+      // but DPDK often (incorrectly) gives that value. (RFC 768, 1071, 1624)
+      EXPECT_EQ(0, cksum_bess);
+    } else {
+      EXPECT_EQ(cksum_dpdk, cksum_bess);
+    }
+  }
+}
+
 // Tests UDP checksum
 TEST(ChecksumTest, UdpChecksum) {
   char buf[1514] = {0};  // ipv4 header + udp header + payload
