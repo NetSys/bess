@@ -13,7 +13,8 @@ void IPChecksum::ProcessBatch(bess::PacketBatch *batch) {
   for (int i = 0; i < cnt; i++) {
     Ethernet *eth = batch->pkts()[i]->head_data<Ethernet *>();
     Ipv4 *ip = reinterpret_cast<Ipv4 *>(eth + 1);
-    ip->checksum = CalculateIpv4NoOptChecksum(*ip);
+
+    ip->checksum = CalculateIpv4Checksum(*ip);
   }
 
   RunNextModule(batch);
