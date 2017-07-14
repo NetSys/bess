@@ -123,14 +123,6 @@ void PriorityTrafficClass::FinishAndAccountTowardsRoot(
   parent_->FinishAndAccountTowardsRoot(wakeup_queue, this, usage, tsc);
 }
 
-void PriorityTrafficClass::TraverseChildren(
-    std::function<void(TCChildArgs *)> f) const {
-  for (const auto &child : children_) {
-    PriorityChildArgs args(child.priority_, child.c_);
-    f(&args);
-  }
-}
-
 WeightedFairTrafficClass::~WeightedFairTrafficClass() {
   while (!runnable_children_.empty()) {
     delete runnable_children_.top().c_;
@@ -267,14 +259,6 @@ void WeightedFairTrafficClass::FinishAndAccountTowardsRoot(
   parent_->FinishAndAccountTowardsRoot(wakeup_queue, this, usage, tsc);
 }
 
-void WeightedFairTrafficClass::TraverseChildren(
-    std::function<void(TCChildArgs *)> f) const {
-  for (const auto &child : all_children_) {
-    WeightedFairChildArgs args(child.second, child.first);
-    f(&args);
-  }
-}
-
 RoundRobinTrafficClass::~RoundRobinTrafficClass() {
   for (TrafficClass *c : runnable_children_) {
     delete c;
@@ -405,14 +389,6 @@ void RoundRobinTrafficClass::FinishAndAccountTowardsRoot(
   parent_->FinishAndAccountTowardsRoot(wakeup_queue, this, usage, tsc);
 }
 
-void RoundRobinTrafficClass::TraverseChildren(
-    std::function<void(TCChildArgs *)> f) const {
-  for (auto child : all_children_) {
-    RoundRobinChildArgs args(child);
-    f(&args);
-  }
-}
-
 RateLimitTrafficClass::~RateLimitTrafficClass() {
   // TODO(barath): Ensure that when this destructor is called this instance is
   // also cleared out of the wakeup_queue_ in Scheduler if it is present
@@ -504,14 +480,6 @@ void RateLimitTrafficClass::FinishAndAccountTowardsRoot(
     return;
   }
   parent_->FinishAndAccountTowardsRoot(wakeup_queue, this, usage, tsc);
-}
-
-void RateLimitTrafficClass::TraverseChildren(
-    std::function<void(TCChildArgs *)> f) const {
-  if (child_) {
-    RateLimitChildArgs args(child_);
-    f(&args);
-  }
 }
 
 std::unordered_map<std::string, TrafficClass *> TrafficClassBuilder::all_tcs_;

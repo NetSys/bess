@@ -142,24 +142,6 @@ class TrafficClass {
  public:
   virtual ~TrafficClass() {}
 
-  // Iterates through every traffic class in the tree, including 'this'.
-  void Traverse(std::function<void(TCChildArgs *)> f) {
-    TCChildArgs args(this);
-    f(&args);
-    TraverseChildrenRecursive(f);
-  }
-
-  // Iterates through every traffic class in the tree, excluding 'this'.
-  void TraverseChildrenRecursive(std::function<void(TCChildArgs *)> f) {
-    TraverseChildren([&f](TCChildArgs *args) {
-      f(args);
-      args->child()->TraverseChildrenRecursive(f);
-    });
-  }
-
-  // Iterates through every child.
-  virtual void TraverseChildren(std::function<void(TCChildArgs *)>) const = 0;
-
   // Returns the number of TCs in the TC subtree rooted at this, including
   // this TC.
   size_t Size() const;
@@ -316,8 +298,6 @@ class PriorityTrafficClass final : public TrafficClass {
 
   const std::vector<ChildData> &children() const { return children_; }
 
-  void TraverseChildren(std::function<void(TCChildArgs *)>) const override;
-
  private:
   size_t
       first_runnable_;  // Index of first member of children_ that is runnable.
@@ -376,8 +356,6 @@ class WeightedFairTrafficClass final : public TrafficClass {
     return blocked_children_;
   }
 
-  void TraverseChildren(std::function<void(TCChildArgs *)>) const override;
-
   const std::vector<std::pair<TrafficClass *, resource_share_t>> &children()
       const {
     return all_children_;
@@ -432,8 +410,6 @@ class RoundRobinTrafficClass final : public TrafficClass {
   const std::list<TrafficClass *> &blocked_children() const {
     return blocked_children_;
   }
-
-  void TraverseChildren(std::function<void(TCChildArgs *)>) const override;
 
  private:
   size_t next_child_;
@@ -515,8 +491,6 @@ class RateLimitTrafficClass final : public TrafficClass {
 
   TrafficClass *child() const { return child_; }
 
-  void TraverseChildren(std::function<void(TCChildArgs *)>) const override;
-
   // Convert resource units to work units per cycle.
   // Not meant to be used in the datapath: slow due to 128bit operations
   static uint64_t to_work_units_per_cycle(uint64_t x) {
@@ -572,8 +546,6 @@ class LeafTrafficClass final : public TrafficClass {
   ~LeafTrafficClass() override;
 
   std::vector<TrafficClass *> Children() const override { return {}; }
-
-  void TraverseChildren(std::function<void(TCChildArgs *)>) const override {}
 
   // Returns true if child was removed successfully.
   bool RemoveChild(TrafficClass *) override { return false; }
