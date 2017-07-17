@@ -19,18 +19,38 @@ namespace utils {
 //	S:      Bottom of Stack, 1 bit
 //	TTL:    Time to Live, 8 bits
 
-struct[[gnu::packed]] Mpls {
-#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
-  uint32_t ttl : 8;     // Time to Live, 8 bits
-  uint32_t s : 1;       // Bottom of Stack, 1 bit
-  uint32_t tc : 3;      // Traffic Class field, 3 bits
-  uint32_t label : 20;  // Label Value, 20 bits
-#elif  __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
-  uint32_t label : 20;  // Label Value, 20 bits
-  uint32_t tc : 3;      // Traffic Class field, 3 bits
-  uint32_t s : 1;       // Bottom of Stack, 1 bit
-  uint32_t ttl : 8;     // Time to Live, 8 bits
-#endif
+struct Mpls {
+  static const uint32_t kMplsLabelMask = 0xFFFFF000;
+  static const uint32_t kMplsLabelShift = 12;
+  static const uint32_t kMplsTcMask = 0x00000E00;
+  static const uint32_t kMplsTcShift = 9;
+  static const uint32_t kMplsBosMask = 0x00000100;
+  static const uint32_t kMplsBosShift = 8;
+  static const uint32_t kMplsTtlMask = 0x000000FF;
+  static const uint32_t kMplsTtlShift = 0;
+
+  void SetEntry(uint32_t label, uint8_t ttl, uint8_t tc, bool bos) {
+    tag = be32_t((label << kMplsLabelShift) | (tc << kMplsTcShift) |
+                 (bos ? (1 << kMplsBosShift) : 0) | (ttl << kMplsTtlShift));
+  }
+
+  uint32_t Label() {
+    return (tag.value() & kMplsLabelMask) >> kMplsLabelShift;
+  }
+
+  uint8_t Ttl() {
+    return (tag.value() & kMplsTtlMask) >> kMplsTtlShift;
+  }
+
+  uint8_t Tc() {
+    return (tag.value() & kMplsTcMask) >> kMplsTcShift;
+  }
+
+  bool isBottomOfStack() {
+    return (tag.value() & kMplsBosMask) >> kMplsBosShift;
+  }
+
+  be32_t tag;
 };
 
 static_assert(sizeof(Mpls) == 4, "struct Mpls size is incorrect");
