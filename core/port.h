@@ -61,8 +61,7 @@ class PortBuilder {
  public:
   friend class PortTest;
   friend class ZeroCopyVPortTest;
-  FRIEND_TEST(PortBuilderTest, RegisterPortClassDirectCall);
-  FRIEND_TEST(PortBuilderTest, RegisterPortClassMacroCall);
+  friend class PortBuilderTest;
 
   PortBuilder(std::function<Port *()> port_generator,
               const std::string &class_name, const std::string &name_template,

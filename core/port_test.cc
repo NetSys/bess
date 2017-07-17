@@ -69,6 +69,16 @@ class PortTest : public ::testing::Test {
   const PortBuilder *dummy_port_builder;
 };
 
+class PortBuilderTest : public ::testing::Test {
+ protected:
+  virtual void SetUp() {
+    PortBuilder::all_port_builders_holder(true);
+    ASSERT_TRUE(PortBuilder::all_port_builders().empty());
+  }
+
+  virtual void TearDown() { PortBuilder::all_port_builders_holder(true); }
+};
+
 // Checks that when we create a port via the established PortBuilder, the right
 // Port object is returned.
 TEST_F(PortTest, CreatePort) {
@@ -246,9 +256,7 @@ TEST_F(PortTest, InitDrivers) {
 
 // Checks that when we register a portclass, the global table of PortBuilders
 // contains it.
-TEST(PortBuilderTest, RegisterPortClassDirectCall) {
-  ASSERT_TRUE(PortBuilder::all_port_builders().empty());
-
+TEST_F(PortBuilderTest, RegisterPortClassDirectCall) {
   PortBuilder::RegisterPortClass([]() { return new DummyPort(); }, "DummyPort",
                                  "dummy_port", "dummy help",
                                  PORT_INIT_FUNC(&DummyPort::Init));
@@ -261,15 +269,11 @@ TEST(PortBuilderTest, RegisterPortClassDirectCall) {
   EXPECT_EQ("DummyPort", b.class_name());
   EXPECT_EQ("dummy_port", b.name_template());
   EXPECT_EQ("dummy help", b.help_text());
-
-  PortBuilder::all_port_builders_holder(true);
 }
 
 // Checks that when we register a portclass via the ADD_DRIVER macro, the global
 // table of PortBuilders contains it.
-TEST(PortBuilderTest, RegisterPortClassMacroCall) {
-  ASSERT_TRUE(PortBuilder::all_port_builders().empty());
-
+TEST_F(PortBuilderTest, RegisterPortClassMacroCall) {
   ADD_DRIVER(DummyPort, "dummy_port", "dummy help");
   ASSERT_TRUE(__driver__DummyPort);
 
@@ -281,12 +285,10 @@ TEST(PortBuilderTest, RegisterPortClassMacroCall) {
   EXPECT_EQ("DummyPort", b.class_name());
   EXPECT_EQ("dummy_port", b.name_template());
   EXPECT_EQ("dummy help", b.help_text());
-
-  PortBuilder::all_port_builders_holder(true);
 }
 
 // Checks that we can generate a proper port name given a template or not.
-TEST(PortBuilderTest, GenerateDefaultPortNameTemplate) {
+TEST_F(PortBuilderTest, GenerateDefaultPortNameTemplate) {
   std::string name1 = PortBuilder::GenerateDefaultPortName("FooPort", "foo");
   EXPECT_EQ("foo0", name1);
 
