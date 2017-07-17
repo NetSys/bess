@@ -363,4 +363,7 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    try:
+        sys.exit(main())
+    except KeyboardInterrupt:
+        sys.exit('\nInterrupted')
