@@ -53,7 +53,7 @@ before_script:
 script:
   - ./container_build.py bess
   - ./container_build.py kmod_buildtest
-  - (cd core && ./all_test)  # TcpFlowReconstructTest requires working directory to be `core/`
+  - (cd core && ./all_test --gtest_shuffle)  # TcpFlowReconstructTest requires working directory to be `core/`
   - coverage2 run -m unittest discover -v
   - "[[ ${DEBUG:-0} == 0 ]] || coverage3 run -m unittest discover -v"
   - python2 bessctl/bessctl -- daemon start -- run testing/run_module_tests
