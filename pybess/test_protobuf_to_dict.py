@@ -2,6 +2,7 @@ from __future__ import absolute_import
 import unittest
 from . import bess_msg_pb2 as bess_msg
 from . import protobuf_to_dict as pb_conv
+from . import test_msg_pb2 as test_msg
 
 
 class TestProtobufConvert(unittest.TestCase):
@@ -49,3 +50,41 @@ class TestProtobufConvert(unittest.TestCase):
         }
         msg = pb_conv.dict_to_protobuf(bess_msg.CreateModuleRequest, kv)
         self.assertEqual(msg, pb)
+
+    def test_dict_to_protobuf_msg_has_nested_dict(self):
+        pb = test_msg.NestedDictMsg()
+
+        # pb.a = test_msg.UnnestedDictMsg()
+        a_dict = {7: 1, 8: 10}
+        init_from_dict(pb.a.dict, a_dict)
+
+        b_dict = {7: 5}
+        init_from_dict(pb.b.dict, b_dict)
+
+        c_dict = {110: 10, 7: 5, 6: 7}
+        init_from_dict(pb.c.dict, c_dict)
+
+        msg_dict = {
+            'a': {'dict': a_dict},
+            'b': {'dict': b_dict},
+            'c': {'dict': c_dict},
+        }
+
+        msg = pb_conv.dict_to_protobuf(test_msg.NestedDictMsg, msg_dict)
+        self.assertEqual(msg, pb)
+
+    def test_dict_to_protobuf_msg_is_unnested_dict(self):
+        pb = test_msg.UnnestedDictMsg()
+        init_from_dict(pb.dict, {0: 10, 1: 5, 6: 7})
+
+        msg_dict = {
+            'dict': {0: 10, 1: 5, 6: 7}
+        }
+
+        msg = pb_conv.dict_to_protobuf(test_msg.UnnestedDictMsg, msg_dict)
+        self.assertEqual(msg, pb)
+
+
+def init_from_dict(pb_map, d):
+    for k, v in d.items():
+        pb_map[k] = v

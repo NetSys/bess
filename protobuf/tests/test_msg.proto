@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+package bess.pb.test;
+
+message UnnestedDictMsg { map<int32, int32> dict = 1; }
+
+message NestedDictMsg {
+  UnnestedDictMsg a = 1;
+  UnnestedDictMsg b = 2;
+  UnnestedDictMsg c = 3;
+}

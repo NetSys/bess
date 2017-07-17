@@ -251,6 +251,10 @@ def build_bess():
         --proto_path=protobuf --python_out=pybess \
         --grpc_out=pybess \
         --plugin=protoc-gen-grpc=`which grpc_python_plugin`')
+    cmd('protoc protobuf/tests/*.proto \
+        --proto_path=protobuf/tests/ --python_out=pybess \
+        --grpc_out=pybess \
+        --plugin=protoc-gen-grpc=`which grpc_python_plugin`')
     cmd('2to3 -wn pybess/*_pb2.py')
 
     print('Building BESS daemon...')
