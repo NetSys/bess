@@ -47,6 +47,7 @@ class Task;
 class Worker {
  public:
   static const int kMaxWorkers = 64;
+  static const int kAnyWorker = -1;  // unspecified worker ID
 
   /* ----------------------------------------------------------------------
    * functions below are invoked by non-worker threads (the master)

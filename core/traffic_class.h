@@ -142,27 +142,11 @@ class TrafficClass {
  public:
   virtual ~TrafficClass() {}
 
-  // Iterates through every traffic class in the tree, including 'this'.
-  void Traverse(std::function<void(TCChildArgs *)> f) {
-    TCChildArgs args(this);
-    f(&args);
-    TraverseChildrenRecursive(f);
-  }
-
-  // Iterates through every traffic class in the tree, excluding 'this'.
-  void TraverseChildrenRecursive(std::function<void(TCChildArgs *)> f) {
-    TraverseChildren([&f](TCChildArgs *args) {
-      f(args);
-      args->child()->TraverseChildrenRecursive(f);
-    });
-  }
-
-  // Iterates through every child.
-  virtual void TraverseChildren(std::function<void(TCChildArgs *)>) const = 0;
-
   // Returns the number of TCs in the TC subtree rooted at this, including
   // this TC.
-  size_t Size();
+  size_t Size() const;
+
+  virtual std::vector<TrafficClass *> Children() const = 0;
 
   // Returns the root of the tree this class belongs to.
   // Expensive in that it is recursive, so do not call from
@@ -295,6 +279,8 @@ class PriorityTrafficClass final : public TrafficClass {
 
   ~PriorityTrafficClass();
 
+  std::vector<TrafficClass *> Children() const override;
+
   // Returns true if child was added successfully.
   bool AddChild(TrafficClass *child, priority_t priority);
 
@@ -311,8 +297,6 @@ class PriorityTrafficClass final : public TrafficClass {
                                    uint64_t tsc) override;
 
   const std::vector<ChildData> &children() const { return children_; }
-
-  void TraverseChildren(std::function<void(TCChildArgs *)>) const override;
 
  private:
   size_t
@@ -337,11 +321,13 @@ class WeightedFairTrafficClass final : public TrafficClass {
   WeightedFairTrafficClass(const std::string &name, resource_t resource)
       : TrafficClass(name, POLICY_WEIGHTED_FAIR),
         resource_(resource),
-        children_(),
+        runnable_children_(),
         blocked_children_(),
         all_children_() {}
 
   ~WeightedFairTrafficClass();
+
+  std::vector<TrafficClass *> Children() const override;
 
   // Returns true if child was added successfully.
   bool AddChild(TrafficClass *child, resource_share_t share);
@@ -362,21 +348,24 @@ class WeightedFairTrafficClass final : public TrafficClass {
 
   void set_resource(resource_t res) { resource_ = res; }
 
-  const extended_priority_queue<ChildData> &children() const {
-    return children_;
+  const extended_priority_queue<ChildData> &runnable_children() const {
+    return runnable_children_;
   }
 
   const std::list<ChildData> &blocked_children() const {
     return blocked_children_;
   }
 
-  void TraverseChildren(std::function<void(TCChildArgs *)>) const override;
+  const std::vector<std::pair<TrafficClass *, resource_share_t>> &children()
+      const {
+    return all_children_;
+  }
 
  private:
   // The resource that we are sharing.
   resource_t resource_;
 
-  extended_priority_queue<ChildData> children_;
+  extended_priority_queue<ChildData> runnable_children_;
   std::list<ChildData> blocked_children_;
 
   // This is a copy of the pointers to (and shares of) all children. It can be
@@ -389,11 +378,15 @@ class RoundRobinTrafficClass final : public TrafficClass {
   explicit RoundRobinTrafficClass(const std::string &name)
       : TrafficClass(name, POLICY_ROUND_ROBIN),
         next_child_(),
-        children_(),
+        runnable_children_(),
         blocked_children_(),
         all_children_() {}
 
   ~RoundRobinTrafficClass();
+
+  std::vector<TrafficClass *> Children() const override {
+    return all_children_;
+  }
 
   // Returns true if child was added successfully.
   bool AddChild(TrafficClass *child);
@@ -410,18 +403,18 @@ class RoundRobinTrafficClass final : public TrafficClass {
                                    TrafficClass *child, resource_arr_t usage,
                                    uint64_t tsc) override;
 
-  const std::vector<TrafficClass *> &children() const { return children_; }
+  const std::vector<TrafficClass *> &runnable_children() const {
+    return runnable_children_;
+  }
 
   const std::list<TrafficClass *> &blocked_children() const {
     return blocked_children_;
   }
 
-  void TraverseChildren(std::function<void(TCChildArgs *)>) const override;
-
  private:
   size_t next_child_;
 
-  std::vector<TrafficClass *> children_;
+  std::vector<TrafficClass *> runnable_children_;
   std::list<TrafficClass *> blocked_children_;
 
   // This is a copy of the pointers to all children. It can be safely
@@ -450,6 +443,8 @@ class RateLimitTrafficClass final : public TrafficClass {
   }
 
   ~RateLimitTrafficClass();
+
+  std::vector<TrafficClass *> Children() const override;
 
   // Returns true if child was added successfully.
   bool AddChild(TrafficClass *child);
@@ -495,8 +490,6 @@ class RateLimitTrafficClass final : public TrafficClass {
   }
 
   TrafficClass *child() const { return child_; }
-
-  void TraverseChildren(std::function<void(TCChildArgs *)>) const override;
 
   // Convert resource units to work units per cycle.
   // Not meant to be used in the datapath: slow due to 128bit operations
@@ -552,7 +545,7 @@ class LeafTrafficClass final : public TrafficClass {
 
   ~LeafTrafficClass() override;
 
-  void TraverseChildren(std::function<void(TCChildArgs *)>) const override {}
+  std::vector<TrafficClass *> Children() const override { return {}; }
 
   // Returns true if child was removed successfully.
   bool RemoveChild(TrafficClass *) override { return false; }
