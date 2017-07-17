@@ -127,7 +127,7 @@ void attach_orphans() {
     Worker *w;
 
     int wid = tc.first;
-    if (wid == -1 || workers[wid] == nullptr) {
+    if (wid == Worker::kAnyWorker || workers[wid] == nullptr) {
       w = get_next_active_worker();
     } else {
       w = workers[wid];

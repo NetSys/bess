@@ -602,7 +602,7 @@ class BESSControlImpl final : public BESSControl::Service {
                                "'wid' must be between 0 and %d",
                                Worker::kMaxWorkers - 1);
     } else if (wid < 0) {
-      wid = -1;
+      wid = Worker::kAnyWorker;
     } else if (workers[wid]) {
       target_root = workers[wid]->scheduler()->root();
     }
@@ -1445,16 +1445,17 @@ class BESSControlImpl final : public BESSControl::Service {
     std::unique_ptr<bess::TrafficClass> c(c_);
     int wid = class_.wid();
 
-    if (class_.parent().length() == 0) {
-      if (wid >= Worker::kMaxWorkers) {
+    if (class_.parent() == "") {
+      if (wid != Worker::kAnyWorker &&
+          (wid < 0 || wid >= Worker::kMaxWorkers)) {
         return return_with_error(response, EINVAL,
-                                 "'wid' must be between -1 and %d",
-                                 Worker::kMaxWorkers - 1);
+                                 "'wid' must be %d or between 0 and %d",
+                                 Worker::kAnyWorker, Worker::kMaxWorkers - 1);
       }
 
-      if ((wid != -1 && !is_worker_active(wid)) ||
-          (wid == -1 && num_workers == 0)) {
-        if (num_workers == 0 && (wid == 0 || wid == -1)) {
+      if ((wid != Worker::kAnyWorker && !is_worker_active(wid)) ||
+          (wid == Worker::kAnyWorker && num_workers == 0)) {
+        if (num_workers == 0 && (wid == 0 || wid == Worker::kAnyWorker)) {
           launch_worker(0, FLAGS_c);
         } else {
           return return_with_error(response, EINVAL, "worker:%d does not exist",
@@ -1466,7 +1467,7 @@ class BESSControlImpl final : public BESSControl::Service {
       return Status::OK;
     }
 
-    if (wid != -1) {
+    if (wid != Worker::kAnyWorker) {
       return return_with_error(response, EINVAL,
                                "Both 'parent' and 'wid'"
                                "have been specified");
