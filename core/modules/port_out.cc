@@ -48,19 +48,21 @@ std::string PortOut::GetDesc() const {
 void PortOut::ProcessBatch(bess::PacketBatch *batch) {
   Port *p = port_;
 
-  /* TODO: choose appropriate out queue */
-  const queue_t qid = 0;
+  const queue_t qid = get_igate();
 
   uint64_t sent_bytes = 0;
-  int sent_pkts;
+  int sent_pkts = 0;
 
-  sent_pkts = p->SendPackets(qid, batch->pkts(), batch->cnt());
+  if (likely(qid < port_->num_queues[PACKET_DIR_OUT])) {
+    sent_pkts = p->SendPackets(qid, batch->pkts(), batch->cnt());
+  }
 
   if (!(p->GetFlags() & DRIVER_FLAG_SELF_OUT_STATS)) {
     const packet_dir_t dir = PACKET_DIR_OUT;
 
-    for (int i = 0; i < sent_pkts; i++)
+    for (int i = 0; i < sent_pkts; i++) {
       sent_bytes += batch->pkts()[i]->total_len();
+    }
 
     p->queue_stats[dir][qid].packets += sent_pkts;
     p->queue_stats[dir][qid].dropped += (batch->cnt() - sent_pkts);
