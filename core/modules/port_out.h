@@ -7,6 +7,7 @@
 
 class PortOut final : public Module {
  public:
+  static const gate_idx_t kNumIGates = MAX_GATES;
   static const gate_idx_t kNumOGates = 0;
 
   PortOut() : Module(), port_() {}
