@@ -188,7 +188,11 @@ def generate_extra_mk():
         fp.write('LDFLAGS += %s\n' % ' '.join(ld_flags))
 
 
-def download_dpdk():
+def download_dpdk(quiet=False):
+    if os.path.exists(DPDK_DIR):
+        if not quiet:
+            print('already downloaded to %s' % DPDK_DIR)
+        return
     try:
         print('Downloading %s ...  ' % DPDK_REPO)
         # Using --depth 1 speeds download, but leaves some traps.
@@ -237,9 +241,7 @@ def configure_dpdk():
 
 def build_dpdk():
     check_essential()
-
-    if not os.path.exists(DPDK_DIR):
-        download_dpdk()
+    download_dpdk(quiet=True)
 
     # not configured yet?
     if not os.path.exists('%s/build' % DPDK_DIR):
@@ -329,13 +331,24 @@ def update_benchmark_path(path):
 def main():
     os.chdir(BESS_DIR)
     parser = argparse.ArgumentParser(description='Build BESS')
+    cmds = {
+        'all': build_all,
+        'download_dpdk': download_dpdk,
+        'dpdk': build_dpdk,
+        'bess': build_bess,
+        'kmod': build_kmod,
+        'clean': do_clean,
+        'dist_clean': do_dist_clean,
+        'help': lambda: print_usage(parser),
+    }
+    cmdlist = sorted(cmds.keys())
     parser.add_argument(
         'action',
         metavar='action',
         nargs='?',
         default='all',
-        help='Action is one of all, dpdk, bess, kmod, clean'
-        ' dist_clean, help')
+        choices=cmdlist,
+        help='Action is one of ' + ', '.join(cmdlist))
     parser.add_argument(
         '--with-benchmark',
         dest='benchmark_path',
@@ -346,23 +359,7 @@ def main():
     if args.benchmark_path:
         update_benchmark_path(args.benchmark_path[0])
 
-    if args.action == 'all':
-        build_all()
-    elif args.action == 'dpdk':
-        build_dpdk()
-    elif args.action == 'bess':
-        build_bess()
-    elif args.action == 'kmod':
-        build_kmod()
-    elif args.action == 'clean':
-        do_clean()
-    elif args.action == 'dist_clean':
-        do_dist_clean()
-    elif args.action == 'help':
-        print_usage(parser)
-    else:
-        print('Error - unknown command "%s".' % sys.argv[1], file=sys.stderr)
-        print_usage(parser)
+    cmds[args.action]()
 
 
 if __name__ == '__main__':
