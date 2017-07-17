@@ -79,7 +79,7 @@ BENCHMARK_REGISTER_F(ChecksumFixture, BmGenericChecksumBess)
 // Benchmarks DPDK IP checksum
 BENCHMARK_DEFINE_F(ChecksumFixture, BmIpv4NoOptChecksumDpdk)
 (benchmark::State &state) {
-  char pkt[20] = {0};  // ipv4 header w/o options
+  char pkt[60] = {0};  // ipv4 header w/o options
 
   bess::utils::Ipv4 *ip = reinterpret_cast<bess::utils::Ipv4 *>(pkt);
 
@@ -106,7 +106,7 @@ BENCHMARK_DEFINE_F(ChecksumFixture, BmIpv4NoOptChecksumDpdk)
 // Benchmarks BESS IP checksum
 BENCHMARK_DEFINE_F(ChecksumFixture, BmIpv4NoOptChecksumBess)
 (benchmark::State &state) {
-  char pkt[20] = {0};  // ipv4 header w/o options
+  char pkt[60] = {0};  // ipv4 header w/o options
 
   bess::utils::Ipv4 *ip = reinterpret_cast<bess::utils::Ipv4 *>(pkt);
 
@@ -132,7 +132,7 @@ BENCHMARK_DEFINE_F(ChecksumFixture, BmIpv4NoOptChecksumBess)
 // Benchmarks BESS IP checksum
 BENCHMARK_DEFINE_F(ChecksumFixture, BmIpv4ChecksumBess)
 (benchmark::State &state) {
-  char pkt[20] = {0};  // ipv4 header w/o options
+  char pkt[60] = {0};  // ipv4 header w/o options
 
   bess::utils::Ipv4 *ip = reinterpret_cast<bess::utils::Ipv4 *>(pkt);
 
@@ -185,7 +185,7 @@ BENCHMARK_DEFINE_F(ChecksumFixture, BmUdpChecksumDpdk)
   state.SetBytesProcessed(buf_len * state.iterations());
 }
 
-// Benchmarks BESS TCP checksum
+// Benchmarks BESS UCP checksum
 BENCHMARK_DEFINE_F(ChecksumFixture, BmUdpChecksumBess)
 (benchmark::State &state) {
   void *pkt;
