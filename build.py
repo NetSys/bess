@@ -12,7 +12,11 @@ BESS_DIR = os.path.dirname(os.path.abspath(__file__))
 
 DEPS_DIR = '%s/deps' % BESS_DIR
 
-DPDK_REPO = 'http://dpdk.org/browse/dpdk/snapshot'
+# It's best to use a release tag if possible -- see comments in
+# download_dpdk
+DPDK_REPO = 'http://dpdk.org/git/dpdk'
+DPDK_TAG = 'v17.05'
+
 DPDK_VER = 'dpdk-17.05'
 
 arch = subprocess.check_output('uname -m', shell=True).strip()
@@ -24,8 +28,6 @@ else:
     assert False, 'Unsupported arch %s' % arch
 
 DPDK_DIR = '%s/%s' % (DEPS_DIR, DPDK_VER)
-DPDK_URL = '%s/%s.tar.gz' % (DPDK_REPO, DPDK_VER)
-DPDK_FILE = '%s/%s.tar.gz' % (DEPS_DIR, DPDK_VER)
 DPDK_CFLAGS = '"-g -w -fPIC"'
 DPDK_ORIG_CONFIG = '%s/config/common_linuxapp' % DPDK_DIR
 DPDK_BASE_CONFIG = '%s/%s_common_linuxapp' % (DEPS_DIR, DPDK_VER)
@@ -188,11 +190,25 @@ def generate_extra_mk():
 
 def download_dpdk():
     try:
-        print('Downloading %s ...  ' % DPDK_URL)
-        cmd('curl -s -L %s -o %s' % (DPDK_URL, DPDK_FILE))
+        print('Downloading %s ...  ' % DPDK_REPO)
+        # Using --depth 1 speeds download, but leaves some traps.
+        # We'll fix the trickiest one here.
+        #
+        # Because the -b arg is a tag, we will be on a detached HEAD.
+        #
+        # If you need a branch instead of a tag, or need to check
+        # out a commit by raw hash ID, run "git fetch unshallow" before
+        # your "git checkout", or remove the "--depth 1" here and
+        # remove the subsequent "git ... config remote.url.fetch"
+        # command.
+        cmd('git clone --depth 1 -b %s %s %s' % (DPDK_TAG, DPDK_REPO, DPDK_DIR))
+        cmd("git -C %s config "
+            "remote.url.fetch '+refs/heads/*:refs/remotes/origin/*'" % DPDK_DIR)
 
     except:
-        cmd('rm -f %s' % (DPDK_FILE))
+        # git removes the clone on interrupt, but let's do it here
+        # in case we did not finish reconfiguring.
+        cmd('rm -rf %s' % (DPDK_DIR))
         raise
 
 
@@ -215,19 +231,7 @@ def build_dpdk():
     check_essential()
 
     if not os.path.exists(DPDK_DIR):
-        if not os.path.exists(DPDK_FILE):
-            download_dpdk()
-
-        try:
-            print('Decompressing DPDK...')
-            cmd('mkdir -p %s' % DPDK_DIR)
-            cmd('tar zxf %s -C %s --strip-components 1' % (DPDK_FILE,
-                                                           DPDK_DIR))
-        except:
-            cmd('rm -rf %s' % (DPDK_DIR))
-            raise
-        finally:
-            cmd('rm -f %s' % (DPDK_FILE))
+        download_dpdk()
 
     # not configured yet?
     if not os.path.exists('%s/build' % DPDK_DIR):
@@ -300,7 +304,7 @@ def do_clean():
 def do_dist_clean():
     do_clean()
     print('Removing 3rd-party libraries...')
-    cmd('rm -rf %s %s' % (DPDK_FILE, DPDK_DIR))
+    cmd('rm -rf %s' % (DPDK_DIR))
 
 
 def print_usage(parser):
