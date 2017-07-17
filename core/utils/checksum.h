@@ -6,9 +6,11 @@
 
 #include <x86intrin.h>
 
+#include "common.h"
 #include "ip.h"
 #include "simd.h"
 #include "tcp.h"
+#include "udp.h"
 
 namespace bess {
 namespace utils {
@@ -16,7 +18,7 @@ namespace utils {
 // All input bytestreams for checksum should be network-order
 // Todo: strongly-typed endian for input/output paramters
 
-// Return 32-bit one's complement sum of 'len' bytes from 'buf' and 'sum16'.
+// Returns 32-bit one's complement sum of 'len' bytes from 'buf' and 'sum16'.
 static inline uint32_t CalculateSum(const void *buf, size_t len) {
   const uint64_t *buf64 = reinterpret_cast<const uint64_t *>(buf);
   uint64_t sum64 = 0;
@@ -156,33 +158,32 @@ static inline uint16_t FoldChecksum(uint32_t cksum) {
   return ~cksum;
 }
 
-// Return internet checksum (the negative of 16-bit one's complement sum)
+// Returns internet checksum (the negative of 16-bit one's complement sum)
 // of 'len' bytes from 'buf'
 static inline uint16_t CalculateGenericChecksum(const void *buf, size_t len) {
   return FoldChecksum(CalculateSum(buf, len));
 }
 
-// Return true if the 'cksum' is correct for the 'len' bytes from 'buf'
+// Returns true if the 'cksum' is correct for the 'len' bytes from 'buf'
 static inline bool VerifyGenericChecksum(const void *buf, size_t len,
                                          uint16_t cksum) {
   uint16_t ret = CalculateGenericChecksum(buf, len);
   return ret == cksum;
 }
 
-// Return true if the 'len' bytes from 'buf' is correct
+// Returns true if the 'len' bytes from 'buf' is correct
 // Assumption: 'buf' already includes 16-bit checksum (e.g., IP/TCP header)
 static inline bool VerifyGenericChecksum(const void *buf, size_t len) {
   return VerifyGenericChecksum(buf, len, 0);
 }
 
-// Return true if the IP checksum is true
+// Returns true if the IP checksum is true
 static inline bool VerifyIpv4NoOptChecksum(const Ipv4 &iph) {
   const uint32_t *buf32 = reinterpret_cast<const uint32_t *>(&iph);
   uint32_t sum = buf32[0];
 
   // Calculate internet checksum, the optimized way is
   // 1. get 32-bit one's complement sum including carrys
-  // 2. reduce to 16-bit unsigned integer
   asm("addl %[u1], %[sum]   \n\t"
       "adcl %[u2], %[sum]   \n\t"
       "adcl %[u3], %[sum]   \n\t"
@@ -192,10 +193,11 @@ static inline bool VerifyIpv4NoOptChecksum(const Ipv4 &iph) {
       : [u1] "m"(buf32[1]), [u2] "m"(buf32[2]), [u3] "m"(buf32[3]),
         [u4] "m"(buf32[4]));
 
+  // 2. reduce to 16-bit unsigned integer and negate
   return FoldChecksum(sum) == 0;
 }
 
-// Return IP checksum of the ip header 'iph' without ip options
+// Returns IP checksum of the ip header 'iph' without ip options
 // It skips the checksum field into the calculation
 // It does not set the checksum field in ip header
 static inline uint16_t CalculateIpv4NoOptChecksum(const Ipv4 &iph) {
@@ -204,8 +206,6 @@ static inline uint16_t CalculateIpv4NoOptChecksum(const Ipv4 &iph) {
 
   // Calculate internet checksum, the optimized way is
   // 1. get 32-bit one's complement sum including carrys
-  // 2. reduce to 16-bit unsigned integers
-  // 3. negate
   asm("addl %[u1], %[sum]    \n\t"
       "adcl %[u2], %[sum]    \n\t"
       "adcl %[u3], %[sum]    \n\t"
@@ -216,21 +216,138 @@ static inline uint16_t CalculateIpv4NoOptChecksum(const Ipv4 &iph) {
         [u2] "g"(buf32[2] & 0xFFFF),  // skip checksum fields
         [u3] "m"(buf32[3]), [u4] "m"(buf32[4]));
 
+  // 2. reduce to 16-bit unsigned integer and negate
   return FoldChecksum(sum);
 }
 
-// Return true if the TCP checksum is true with the TCP header and
+// Returns true if the IP checksum is true
+static inline bool VerifyIpv4Checksum(const Ipv4 &iph) {
+  const uint32_t *buf32 = reinterpret_cast<const uint32_t *>(&iph);
+  size_t ip_opts_len = (iph.header_length << 2) - sizeof(Ipv4);
+  uint32_t sum = ip_opts_len == 0 ? 0 : CalculateSum(buf32 + 5, ip_opts_len);
+
+  // Calculate internet checksum, the optimized way is
+  // 1. get 32-bit one's complement sum including carrys
+  asm("addl %[u0], %[sum]   \n\t"
+      "adcl %[u1], %[sum]   \n\t"
+      "adcl %[u2], %[sum]   \n\t"
+      "adcl %[u3], %[sum]   \n\t"
+      "adcl %[u4], %[sum]   \n\t"
+      "adcl $0, %[sum]        \n\t"
+      : [sum] "+r"(sum)
+      : [u0] "m"(buf32[0]), [u1] "m"(buf32[1]), [u2] "m"(buf32[2]),
+        [u3] "m"(buf32[3]), [u4] "m"(buf32[4]));
+
+  // 2. reduce to 16-bit unsigned integer and negate
+  return FoldChecksum(sum) == 0;
+}
+
+// Returns IP checksum of the ip header 'iph'
+// It skips the checksum field into the calculation
+// It does not set the checksum field in ip header
+static inline uint16_t CalculateIpv4Checksum(const Ipv4 &iph) {
+  const uint32_t *buf32 = reinterpret_cast<const uint32_t *>(&iph);
+  size_t ip_opts_len = (iph.header_length << 2) - sizeof(Ipv4);
+  uint32_t sum = ip_opts_len == 0 ? 0 : CalculateSum(buf32 + 5, ip_opts_len);
+
+  // Calculate internet checksum, the optimized way is
+  // 1. get 32-bit one's complement sum including carrys
+  asm("addl %[u0], %[sum]    \n\t"
+      "adcl %[u1], %[sum]    \n\t"
+      "adcl %[u2], %[sum]    \n\t"
+      "adcl %[u3], %[sum]    \n\t"
+      "adcl %[u4], %[sum]    \n\t"
+      "adcl $0, %[sum]       \n\t"
+      : [sum] "+r"(sum)
+      : [u0] "m"(buf32[0]), [u1] "m"(buf32[1]),
+        [u2] "g"(buf32[2] & 0xFFFF),  // skip checksum fields
+        [u3] "m"(buf32[3]), [u4] "m"(buf32[4]));
+
+  // 2. reduce to 16-bit unsigned integer and negate
+  return FoldChecksum(sum);
+}
+
+// Returns true if the UDP checksum is true with the UDP header and
+// pseudo header info - source ip, destiniation ip, and UDP byte stream length
+// udp_len: UDP header + payload in bytes
+static inline bool VerifyIpv4UdpChecksum(const Udp &udph, be32_t src_ip,
+                                         be32_t dst_ip, uint16_t udp_len) {
+  const uint32_t *buf32 = reinterpret_cast<const uint32_t *>(&udph);
+
+  // UDP payload
+  uint32_t sum = CalculateSum(buf32 + 2, udp_len - sizeof(udph));
+  uint32_t len = static_cast<uint32_t>(be16_t::swap(udp_len));
+
+  // Calculate the checksum of UDP header and pseudo header
+  asm("addl %[u0], %[sum]      \n\t"
+      "adcl %[u1], %[sum]      \n\t"
+      "adcl %[src], %[sum]     \n\t"
+      "adcl %[dst], %[sum]     \n\t"
+      "adcl %[len], %[sum]     \n\t"
+      "adcl $0x1100, %[sum]    \n\t"  // 17 == IPPROTO_UDP
+      "adcl $0, %[sum]         \n\t"
+      : [sum] "+r"(sum)
+      : [u0] "m"(buf32[0]), [u1] "m"(buf32[1]), [src] "r"(src_ip.raw_value()),
+        [dst] "r"(dst_ip.raw_value()), [len] "r"(len));
+
+  return FoldChecksum(sum) == 0;
+}
+
+// Returns true if the UDP checksum is true
+static inline bool VerifyIpv4UdpChecksum(const Ipv4 &iph, const Udp &udph) {
+  return VerifyIpv4UdpChecksum(udph, iph.src, iph.dst,
+                               iph.length.value() - (iph.header_length << 2));
+}
+
+// Returns UDP (on IPv4) checksum of the UDP header 'udph' with pseudo header
+// informations - source ip ('src'), destiniation ip ('dst'),
+// and UDP byte stream length ('udp_len', udp_header + payload len)
+// 'udp_len' is in host-order, and the others are in network-order
+// It skips the checksum field into the calculation
+// It does not set the checksum field in UDP header
+static inline uint16_t CalculateIpv4UdpChecksum(const Udp &udph, be32_t src,
+                                                be32_t dst, uint16_t udp_len) {
+  const uint32_t *buf32 = reinterpret_cast<const uint32_t *>(&udph);
+  // UDP payload
+  uint32_t sum = CalculateSum(buf32 + 2, udp_len - sizeof(udph));
+  uint32_t len = static_cast<uint32_t>(be16_t::swap(udp_len));
+
+  // Calculate the checksum of UDP header and pseudo header
+  asm("addl %[u0], %[sum]      \n\t"
+      "adcl %[u1], %[sum]      \n\t"
+      "adcl %[src], %[sum]     \n\t"
+      "adcl %[dst], %[sum]     \n\t"
+      "adcl %[len], %[sum]     \n\t"
+      "adcl $0x1100, %[sum]    \n\t"  // 17 == IPPROTO_UDP
+      "adcl $0, %[sum]         \n\t"
+      : [sum] "+r"(sum)
+      : [u0] "m"(buf32[0]), [u1] "g"(buf32[1] & 0xFFFF),  // skip checksum field
+        [src] "r"(src.raw_value()), [dst] "r"(dst.raw_value()), [len] "r"(len));
+
+  return FoldChecksum(sum);
+}
+
+// Returns UDP (on IPv4) checksum of the UDP header 'udph' with ip header 'iph'
+// It skips the checksum field into the calculation
+// It does not set the checksum field in UDP header
+static inline uint16_t CalculateIpv4UdpChecksum(const Ipv4 &iph,
+                                                const Udp &udph) {
+  return CalculateIpv4UdpChecksum(
+      udph, iph.src, iph.dst, iph.length.value() - (iph.header_length << 2));
+}
+
+// Returns true if the TCP checksum is true with the TCP header and
 // pseudo header info - source ip, destiniation ip, and tcp byte stream length
 // tcp_len: TCP header + payload in bytes
 static inline bool VerifyIpv4TcpChecksum(const Tcp &tcph, be32_t src_ip,
                                          be32_t dst_ip, uint16_t tcp_len) {
   const uint32_t *buf32 = reinterpret_cast<const uint32_t *>(&tcph);
 
-  // tcp options and data
+  // TCP options and payload
   uint32_t sum = CalculateSum(buf32 + 5, tcp_len - sizeof(tcph));
   uint32_t len = static_cast<uint32_t>(be16_t::swap(tcp_len));
 
-  // Calculate the checksum of TCP pseudo header
+  // Calculate the checksum of TCP header and pseudo header
   asm("addl %[u0], %[sum]      \n\t"
       "adcl %[u1], %[sum]      \n\t"
       "adcl %[u2], %[sum]      \n\t"
@@ -249,26 +366,26 @@ static inline bool VerifyIpv4TcpChecksum(const Tcp &tcph, be32_t src_ip,
   return FoldChecksum(sum) == 0;
 }
 
-// Return true if the TCP checksum is true
+// Returns true if the TCP checksum is true
 static inline bool VerifyIpv4TcpChecksum(const Ipv4 &iph, const Tcp &tcph) {
   return VerifyIpv4TcpChecksum(tcph, iph.src, iph.dst,
                                iph.length.value() - (iph.header_length << 2));
 }
 
-// Return TCP (on IPv4) checksum of the tcp header 'tcph' with pseudo header
+// Returns TCP (on IPv4) checksum of the tcp header 'tcph' with pseudo header
 // informations - source ip ('src'), destiniation ip ('dst'),
-// and tcp byte stream length ('tcp_len', tcp_header + data len)
+// and tcp byte stream length ('tcp_len', tcp_header + payload len)
 // 'tcp_len' is in host-order, and the others are in network-order
 // It skips the checksum field into the calculation
 // It does not set the checksum field in TCP header
 static inline uint16_t CalculateIpv4TcpChecksum(const Tcp &tcph, be32_t src,
                                                 be32_t dst, uint16_t tcp_len) {
   const uint32_t *buf32 = reinterpret_cast<const uint32_t *>(&tcph);
-  // tcp options and data
+  // tcp options and payload
   uint32_t sum = CalculateSum(buf32 + 5, tcp_len - sizeof(tcph));
   uint32_t len = static_cast<uint32_t>(be16_t::swap(tcp_len));
 
-  // Calculate the checksum of TCP pseudo header
+  // Calculate the checksum of TCP header and pseudo header
   asm("addl %[u0], %[sum]      \n\t"
       "adcl %[u1], %[sum]      \n\t"
       "adcl %[u2], %[sum]      \n\t"
@@ -288,7 +405,9 @@ static inline uint16_t CalculateIpv4TcpChecksum(const Tcp &tcph, be32_t src,
   return FoldChecksum(sum);
 }
 
-// Return true if the TCP (on IPv4) checksum is true
+// Returns TCP (on IPv4) checksum of the tcp header 'tcph' with ip header 'iph'
+// It skips the checksum field into the calculation
+// It does not set the checksum field in TCP header
 static inline uint16_t CalculateIpv4TcpChecksum(const Ipv4 &iph,
                                                 const Tcp &tcph) {
   return CalculateIpv4TcpChecksum(
@@ -329,7 +448,7 @@ static inline uint16_t UpdateChecksumWithIncrement(uint16_t old_checksum,
   return FoldChecksum((~old_checksum & 0xFFFF) + increment);
 }
 
-// Return incrementally updated checksum from old_checksum
+// Returns incrementally updated checksum from old_checksum
 // when 32-bit 'old_value' changes to 'new_value' e.g., changed IPv4 address
 static inline uint16_t UpdateChecksum32(uint16_t old_checksum,
                                         uint32_t old_value,
@@ -340,7 +459,7 @@ static inline uint16_t UpdateChecksum32(uint16_t old_checksum,
   return UpdateChecksumWithIncrement(old_checksum, inc);
 }
 
-// Return incrementally updated checksum from old_checksum
+// Returns incrementally updated checksum from old_checksum
 // when 16-bit 'old_value' changes to 'new_value' e.g., changed port number
 static inline uint16_t UpdateChecksum16(uint16_t old_checksum,
                                         uint16_t old_value,

@@ -79,7 +79,7 @@ BENCHMARK_REGISTER_F(ChecksumFixture, BmGenericChecksumBess)
 // Benchmarks DPDK IP checksum
 BENCHMARK_DEFINE_F(ChecksumFixture, BmIpv4NoOptChecksumDpdk)
 (benchmark::State &state) {
-  char pkt[20] = {0};  // ipv4 header w/o options
+  char pkt[60] = {0};  // ipv4 header w/o options
 
   bess::utils::Ipv4 *ip = reinterpret_cast<bess::utils::Ipv4 *>(pkt);
 
@@ -89,7 +89,7 @@ BENCHMARK_DEFINE_F(ChecksumFixture, BmIpv4NoOptChecksumDpdk)
   ip->length = be16_t(40);
   ip->fragment_offset = be16_t(0);
   ip->ttl = 10;
-  ip->protocol = 0x06;    // tcp
+  ip->protocol = bess::utils::Ipv4::Proto::kTcp;
   ip->checksum = 0x0000;  // for dpdk
 
   while (state.KeepRunning()) {
@@ -106,7 +106,7 @@ BENCHMARK_DEFINE_F(ChecksumFixture, BmIpv4NoOptChecksumDpdk)
 // Benchmarks BESS IP checksum
 BENCHMARK_DEFINE_F(ChecksumFixture, BmIpv4NoOptChecksumBess)
 (benchmark::State &state) {
-  char pkt[20] = {0};  // ipv4 header w/o options
+  char pkt[60] = {0};  // ipv4 header w/o options
 
   bess::utils::Ipv4 *ip = reinterpret_cast<bess::utils::Ipv4 *>(pkt);
 
@@ -116,7 +116,7 @@ BENCHMARK_DEFINE_F(ChecksumFixture, BmIpv4NoOptChecksumBess)
   ip->length = be16_t(40);
   ip->fragment_offset = be16_t(0);
   ip->ttl = 10;
-  ip->protocol = 0x06;    // tcp
+  ip->protocol = bess::utils::Ipv4::Proto::kTcp;
   ip->checksum = 0x0000;  // for dpdk
 
   while (state.KeepRunning()) {
@@ -129,8 +129,95 @@ BENCHMARK_DEFINE_F(ChecksumFixture, BmIpv4NoOptChecksumBess)
   state.SetItemsProcessed(state.iterations());
 }
 
+// Benchmarks BESS IP checksum
+BENCHMARK_DEFINE_F(ChecksumFixture, BmIpv4ChecksumBess)
+(benchmark::State &state) {
+  char pkt[60] = {0};  // ipv4 header w/o options
+
+  bess::utils::Ipv4 *ip = reinterpret_cast<bess::utils::Ipv4 *>(pkt);
+
+  ip->version = 4;
+  ip->header_length = 5;
+  ip->type_of_service = 0;
+  ip->length = be16_t(40);
+  ip->fragment_offset = be16_t(0);
+  ip->ttl = 10;
+  ip->protocol = bess::utils::Ipv4::Proto::kTcp;
+  ip->checksum = 0x0000;  // for dpdk
+
+  while (state.KeepRunning()) {
+    ip->src = be32_t(GetRandom());
+    ip->dst = be32_t(GetRandom());
+
+    benchmark::DoNotOptimize(CalculateIpv4Checksum(*ip));
+  }
+
+  state.SetItemsProcessed(state.iterations());
+}
+
 BENCHMARK_REGISTER_F(ChecksumFixture, BmIpv4NoOptChecksumDpdk);
 BENCHMARK_REGISTER_F(ChecksumFixture, BmIpv4NoOptChecksumBess);
+BENCHMARK_REGISTER_F(ChecksumFixture, BmIpv4ChecksumBess);
+
+// Benchmarks DPDK UDP checksum
+BENCHMARK_DEFINE_F(ChecksumFixture, BmUdpChecksumDpdk)
+(benchmark::State &state) {
+  void *pkt;
+  size_t buf_len = state.range(0);
+  buf_len = (buf_len < 32) ? 32 : buf_len;
+
+  while (state.KeepRunning()) {
+    pkt = get_buffer(buf_len);
+
+    bess::utils::Ipv4 *ip = reinterpret_cast<bess::utils::Ipv4 *>(pkt);
+    bess::utils::Udp *udp = reinterpret_cast<bess::utils::Udp *>(ip + 1);
+
+    ip->header_length = 5;
+    ip->length = be16_t(buf_len);
+    ip->protocol = bess::utils::Ipv4::Proto::kUdp;
+    udp->checksum = 0x0000;  // for dpdk
+
+    benchmark::DoNotOptimize(
+        rte_ipv4_udptcp_cksum(reinterpret_cast<const ipv4_hdr *>(ip), udp));
+  }
+
+  state.SetItemsProcessed(state.iterations());
+  state.SetBytesProcessed(buf_len * state.iterations());
+}
+
+// Benchmarks BESS UCP checksum
+BENCHMARK_DEFINE_F(ChecksumFixture, BmUdpChecksumBess)
+(benchmark::State &state) {
+  void *pkt;
+  size_t buf_len = state.range(0);
+  buf_len = (buf_len < 32) ? 32 : buf_len;
+
+  while (state.KeepRunning()) {
+    pkt = get_buffer(buf_len);
+
+    bess::utils::Ipv4 *ip = reinterpret_cast<bess::utils::Ipv4 *>(pkt);
+    bess::utils::Udp *udp = reinterpret_cast<bess::utils::Udp *>(ip + 1);
+
+    ip->header_length = 5;
+    ip->length = be16_t(buf_len);
+    ip->protocol = bess::utils::Ipv4::Proto::kTcp;
+    udp->checksum = 0x0000;  // for dpdk
+
+    benchmark::DoNotOptimize(CalculateIpv4UdpChecksum(*ip, *udp));
+  }
+
+  state.SetItemsProcessed(state.iterations());
+  state.SetBytesProcessed(buf_len * state.iterations());
+}
+
+BENCHMARK_REGISTER_F(ChecksumFixture, BmUdpChecksumDpdk)
+    ->Arg(60)
+    ->Arg(787)
+    ->Arg(1514);
+BENCHMARK_REGISTER_F(ChecksumFixture, BmUdpChecksumBess)
+    ->Arg(60)
+    ->Arg(787)
+    ->Arg(1514);
 
 // Benchmarks DPDK TCP checksum
 BENCHMARK_DEFINE_F(ChecksumFixture, BmTcpChecksumDpdk)
@@ -147,7 +234,7 @@ BENCHMARK_DEFINE_F(ChecksumFixture, BmTcpChecksumDpdk)
 
     ip->header_length = 5;
     ip->length = be16_t(buf_len);
-    ip->protocol = 0x06;     // tcp
+    ip->protocol = bess::utils::Ipv4::Proto::kTcp;
     tcp->checksum = 0x0000;  // for dpdk
 
     benchmark::DoNotOptimize(
@@ -173,7 +260,7 @@ BENCHMARK_DEFINE_F(ChecksumFixture, BmTcpChecksumBess)
 
     ip->header_length = 5;
     ip->length = be16_t(buf_len);
-    ip->protocol = 0x06;     // tcp
+    ip->protocol = bess::utils::Ipv4::Proto::kTcp;
     tcp->checksum = 0x0000;  // for dpdk
 
     benchmark::DoNotOptimize(CalculateIpv4TcpChecksum(*ip, *tcp));
@@ -203,7 +290,7 @@ BENCHMARK_DEFINE_F(ChecksumFixture, BmIncrementalUpdate16)
 
   ip->header_length = 5;
   ip->length = be16_t(60);
-  ip->protocol = 0x06;  // tcp
+  ip->protocol = bess::utils::Ipv4::Proto::kTcp;
 
   uint16_t cksum = CalculateIpv4TcpChecksum(*ip, *tcp);
 
@@ -214,8 +301,8 @@ BENCHMARK_DEFINE_F(ChecksumFixture, BmIncrementalUpdate16)
     tcp->src_port = be16_t(GetRandom());
 
     benchmark::DoNotOptimize(
-        cksum_update = UpdateChecksum32(
-            cksum, src_port_old.raw_value(), tcp->src_port.raw_value()));
+        cksum_update = UpdateChecksum32(cksum, src_port_old.raw_value(),
+                                        tcp->src_port.raw_value()));
     cksum = cksum_update;
   }
 
@@ -233,7 +320,7 @@ BENCHMARK_DEFINE_F(ChecksumFixture, BmIncrementalUpdate32)
 
   ip->header_length = 5;
   ip->length = be16_t(60);
-  ip->protocol = 0x06;  // tcp
+  ip->protocol = bess::utils::Ipv4::Proto::kTcp;
 
   uint16_t cksum = CalculateIpv4TcpChecksum(*ip, *tcp);
 
@@ -243,9 +330,9 @@ BENCHMARK_DEFINE_F(ChecksumFixture, BmIncrementalUpdate32)
 
     ip->src = be32_t(GetRandom());
 
-    benchmark::DoNotOptimize(
-        cksum_update = UpdateChecksum32(
-            cksum, src_ip_old.raw_value(), ip->src.raw_value()));
+    benchmark::DoNotOptimize(cksum_update =
+                                 UpdateChecksum32(cksum, src_ip_old.raw_value(),
+                                                  ip->src.raw_value()));
     cksum = cksum_update;
   }
 
@@ -266,7 +353,7 @@ BENCHMARK_DEFINE_F(ChecksumFixture, BmSrcIpPortUpdateDpdk)
 
   ip->header_length = 5;
   ip->length = be16_t(60);
-  ip->protocol = 0x06;  // tcp
+  ip->protocol = bess::utils::Ipv4::Proto::kTcp;
 
   while (state.KeepRunning()) {
     ip->src = be32_t(GetRandom());
@@ -294,7 +381,7 @@ BENCHMARK_DEFINE_F(ChecksumFixture, BmSrcIpPortUpdateBess)
 
   ip->header_length = 5;
   ip->length = be16_t(60);
-  ip->protocol = 0x06;  // tcp
+  ip->protocol = bess::utils::Ipv4::Proto::kTcp;
 
   ip->checksum = CalculateIpv4NoOptChecksum(*ip);
   tcp->checksum = CalculateIpv4TcpChecksum(*ip, *tcp);

@@ -99,12 +99,138 @@ TEST(ChecksumTest, Ipv4NoOptChecksum) {
   }
 }
 
-// Tests TCP checksum
-TEST(ChecksumTest, TcpChecksum) {
-  char buf[1514] = {0};  // ipv4 header + tcp header
-
+// Tests IP checksum
+TEST(ChecksumTest, Ipv4Checksum) {
+  char buf[1514] = {0};  // ipv4 header w/o options
+  uint32_t *buf32 = reinterpret_cast<uint32_t *>(buf);
   bess::utils::Ipv4 *ip = reinterpret_cast<bess::utils::Ipv4 *>(buf);
 
+  ip->version = 4;
+  ip->header_length = 5;
+  ip->type_of_service = 0;
+  ip->length = be16_t(20);
+  ip->fragment_offset = be16_t(0);
+  ip->ttl = 10;
+  ip->protocol = 0x06;  // tcp
+  ip->src = be32_t(0x12345678);
+  ip->dst = be32_t(0x12347890);
+
+  // DPDK doesn't support IP checksum with options
+  uint16_t cksum_dpdk =
+      ~rte_raw_cksum(buf, ip->header_length << 2);  // takes the complement
+  uint16_t cksum_bess = CalculateIpv4Checksum(*ip);
+  EXPECT_EQ(cksum_dpdk, cksum_bess);
+
+  // bess excludes to checksum fields to calculate ip checksum
+  ip->checksum = 0x7823;
+  cksum_bess = CalculateIpv4Checksum(*ip);
+  EXPECT_EQ(cksum_dpdk, cksum_bess);
+
+  ip->checksum = cksum_bess;
+  EXPECT_TRUE(VerifyIpv4Checksum(*ip));
+
+  ip->checksum = 0x0000;  // for dpdk
+
+  for (int i = 0; i < TestLoopCount; i++) {
+    size_t ip_opts_len = rd.Get() % 10;  // Maximum IP option length is 10 << 2
+    ip->header_length = 5 + ip_opts_len;
+    ip->src = be32_t(rd.Get());
+    ip->dst = be32_t(rd.Get());
+
+    for (size_t j = 0; j < ip_opts_len; j++) {
+      buf32[5 + j] = rd.Get();
+    }
+
+    // DPDK doesn't support IP checksum with options
+    cksum_dpdk =
+        ~rte_raw_cksum(buf, ip->header_length << 2);  // takes the complement
+    cksum_bess = CalculateIpv4Checksum(*ip);
+
+    if (cksum_dpdk == 0xffff) {
+      // While the value of IP/TCP checksum field must not be -0 (0xffff),
+      // but DPDK often (incorrectly) gives that value. (RFC 768, 1071, 1624)
+      EXPECT_EQ(0, cksum_bess);
+    } else {
+      EXPECT_EQ(cksum_dpdk, cksum_bess);
+    }
+  }
+}
+
+// Tests UDP checksum
+TEST(ChecksumTest, UdpChecksum) {
+  char buf[1514] = {0};  // ipv4 header + udp header + payload
+
+  bess::utils::Ipv4 *ip = reinterpret_cast<bess::utils::Ipv4 *>(buf);
+  bess::utils::Udp *udp = reinterpret_cast<bess::utils::Udp *>(ip + 1);
+
+  ip->version = 4;
+  ip->header_length = 5;
+  ip->type_of_service = 0;
+  ip->length = be16_t(28);
+  ip->fragment_offset = be16_t(0);
+  ip->ttl = 10;
+  ip->protocol = bess::utils::Ipv4::Proto::kUdp;
+  ip->src = be32_t(0x12345678);
+  ip->dst = be32_t(0x12347890);
+
+  udp->src_port = be16_t(0x0024);
+  udp->dst_port = be16_t(0x2097);
+  udp->length = be16_t(8);
+
+  uint16_t cksum_dpdk =
+      rte_ipv4_udptcp_cksum(reinterpret_cast<const ipv4_hdr *>(ip), udp);
+  uint16_t cksum_bess = CalculateIpv4UdpChecksum(*ip, *udp);
+  EXPECT_EQ(cksum_dpdk, cksum_bess);
+
+  // bess excludes the checksum field to calculate udp checksum
+  udp->checksum = 0x0987;
+  cksum_bess = CalculateIpv4UdpChecksum(*ip, *udp);
+  EXPECT_EQ(cksum_dpdk, cksum_bess);
+
+  udp->checksum = cksum_bess;
+  EXPECT_TRUE(VerifyIpv4UdpChecksum(*ip, *udp));
+
+  for (int i = 0; i < TestLoopCount; i++) {
+    ip->src = be32_t(rd.Get());
+    ip->dst = be32_t(rd.Get());
+    udp->src_port = be16_t(rd.Get() >> 16);
+    udp->dst_port = be16_t(rd.Get() >> 16);
+
+    ip->checksum = 0x0000;   // for dpdk
+    udp->checksum = 0x0000;  // for dpdk
+
+    cksum_dpdk = rte_ipv4_cksum(reinterpret_cast<const ipv4_hdr *>(ip));
+    cksum_bess = CalculateIpv4NoOptChecksum(*ip);
+
+    if (cksum_dpdk == 0xffff) {
+      // While the value of IP/UDP/TCP checksum field must not be -0 (0xffff),
+      // but DPDK often (incorrectly) gives that value. (RFC 768, 1071, 1624)
+      EXPECT_EQ(0, cksum_bess);
+    } else {
+      EXPECT_EQ(cksum_dpdk, cksum_bess);
+    }
+
+    ip->checksum = cksum_bess;
+
+    cksum_dpdk =
+        rte_ipv4_udptcp_cksum(reinterpret_cast<const ipv4_hdr *>(ip), udp);
+    cksum_bess = CalculateIpv4UdpChecksum(*ip, *udp);
+
+    if (cksum_dpdk == 0xffff) {
+      // While the value of IP/UDP/TCP checksum field must not be -0 (0xffff),
+      // but DPDK often (incorrectly) gives that value. (RFC 768, 1071, 1624)
+      EXPECT_EQ(0, cksum_bess);
+    } else {
+      EXPECT_EQ(cksum_dpdk, cksum_bess);
+    }
+  }
+}
+
+// Tests TCP checksum
+TEST(ChecksumTest, TcpChecksum) {
+  char buf[1514] = {0};  // ipv4 header + tcp header + payload
+
+  bess::utils::Ipv4 *ip = reinterpret_cast<bess::utils::Ipv4 *>(buf);
   bess::utils::Tcp *tcp = reinterpret_cast<bess::utils::Tcp *>(ip + 1);
 
   ip->version = 4;
@@ -113,7 +239,7 @@ TEST(ChecksumTest, TcpChecksum) {
   ip->length = be16_t(40);
   ip->fragment_offset = be16_t(0);
   ip->ttl = 10;
-  ip->protocol = 0x06;  // tcp
+  ip->protocol = bess::utils::Ipv4::Proto::kTcp;
   ip->src = be32_t(0x12345678);
   ip->dst = be32_t(0x12347890);
 
@@ -136,24 +262,35 @@ TEST(ChecksumTest, TcpChecksum) {
   EXPECT_TRUE(VerifyIpv4TcpChecksum(*ip, *tcp));
 
   for (int i = 0; i < TestLoopCount; i++) {
-    uint16_t *p = reinterpret_cast<uint16_t *>(buf);
+    ip->src = be32_t(rd.Get());
+    ip->dst = be32_t(rd.Get());
+    tcp->src_port = be16_t(rd.Get() >> 16);
+    tcp->dst_port = be16_t(rd.Get() >> 16);
+    tcp->seq_num = be32_t(rd.Get());
+    tcp->ack_num = be32_t(rd.Get());
 
-    for (int j = 0; j < 5; j++) {
-      p[j] = rd.Get();
-
-      ip->version = 4;
-      ip->header_length = 5;
-      ip->length = be16_t(40);
-      ip->protocol = 0x06;     // tcp
-      ip->checksum = 0x0000;   // for dpdk
-      tcp->checksum = 0x0000;  // for dpdk
-    }
+    ip->checksum = 0x0000;   // for dpdk
+    tcp->checksum = 0x0000;  // for dpdk
 
     cksum_dpdk = rte_ipv4_cksum(reinterpret_cast<const ipv4_hdr *>(ip));
     cksum_bess = CalculateIpv4NoOptChecksum(*ip);
 
     if (cksum_dpdk == 0xffff) {
-      // While the value of IP/TCP checksum field must not be -0 (0xffff),
+      // While the value of IP/UDP/TCP checksum field must not be -0 (0xffff),
+      // but DPDK often (incorrectly) gives that value. (RFC 768, 1071, 1624)
+      EXPECT_EQ(0, cksum_bess);
+    } else {
+      EXPECT_EQ(cksum_dpdk, cksum_bess);
+    }
+
+    ip->checksum = cksum_bess;
+
+    cksum_dpdk =
+        rte_ipv4_udptcp_cksum(reinterpret_cast<const ipv4_hdr *>(ip), tcp);
+    cksum_bess = CalculateIpv4TcpChecksum(*ip, *tcp);
+
+    if (cksum_dpdk == 0xffff) {
+      // While the value of IP/UDP/TCP checksum field must not be -0 (0xffff),
       // but DPDK often (incorrectly) gives that value. (RFC 768, 1071, 1624)
       EXPECT_EQ(0, cksum_bess);
     } else {
