@@ -11,6 +11,7 @@ DECLARE_bool(k);
 DECLARE_bool(d);
 DECLARE_bool(a);
 DECLARE_int32(c);
+DECLARE_string(b);
 DECLARE_int32(p);
 DECLARE_int32(m);
 DECLARE_bool(no_huge);

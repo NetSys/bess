@@ -55,7 +55,7 @@ int main(int argc, char *argv[]) {
 
   {
     ApiServer server;
-    server.Listen("127.0.0.1", FLAGS_p);
+    server.Listen(FLAGS_b, FLAGS_p);
 
     // Signal the parent that all initialization has been finished.
     if (!FLAGS_f) {
