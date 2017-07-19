@@ -21,6 +21,7 @@
 #include "metadata.h"
 #include "module.h"
 #include "opts.h"
+#include "packet.h"
 #include "port.h"
 #include "scheduler.h"
 #include "traffic_class.h"
@@ -28,6 +29,9 @@
 #include "utils/format.h"
 #include "utils/time.h"
 #include "worker.h"
+
+#include <rte_mempool.h>
+#include <rte_ring.h>
 
 using grpc::Status;
 using grpc::ServerContext;
@@ -1262,6 +1266,36 @@ class BESSControlImpl final : public BESSControl::Service {
       return return_with_error(response, -ret, "Disconnection %s:%d failed",
                                m_name, ogate);
 
+    return Status::OK;
+  }
+
+  Status DumpMempool(ServerContext*,
+                           const DumpMempoolRequest* request,
+                           DumpMempoolResponse* response) override {
+    int socket_filter = request->socket();
+    socket_filter = (socket_filter == -1) ? (RTE_MAX_NUMA_NODES - 1) : socket_filter;
+    int socket = (request->socket() == -1) ? 0 : socket_filter;
+    for (; socket <= socket_filter; socket++) {
+      struct rte_mempool *mempool = bess::get_pframe_pool_socket(socket);
+      MempoolDump *dump = response->add_dumps();
+      dump->set_socket(socket);
+      dump->set_initialized(mempool != nullptr);
+      if (mempool == nullptr) {
+        continue;
+      }
+      struct rte_ring *ring = reinterpret_cast<struct rte_ring*>(mempool->pool_data);
+      dump->set_mp_size(mempool->size);
+      dump->set_mp_cache_size(mempool->cache_size);
+      dump->set_mp_element_size(mempool->elt_size);
+      dump->set_mp_populated_size(mempool->populated_size);
+      dump->set_mp_available_count(rte_mempool_avail_count(mempool));
+      dump->set_mp_in_use_count(rte_mempool_in_use_count(mempool));
+      uint32_t ring_count = rte_ring_count(ring);
+      uint32_t ring_free_count = rte_ring_free_count(ring);
+      dump->set_ring_count(ring_count);
+      dump->set_ring_free_count(ring_free_count);
+      dump->set_ring_bytes(rte_ring_get_memsize(ring_count + ring_free_count));
+    }
     return Status::OK;
   }
 

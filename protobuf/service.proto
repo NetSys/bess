@@ -241,6 +241,9 @@ service BESSControl {
   /// NOTE: There should be no running worker to run this command.
   rpc DisconnectModules (DisconnectModulesRequest) returns (EmptyResponse) {}
 
+  /// Dump various stats about BESS's packet pools
+  rpc DumpMempool (DumpMempoolRequest) returns (DumpMempoolResponse) {}
+
   /// Send a command to the specified module instance.
   ///
   /// Each module type defines a list of modyle-specific commands, which

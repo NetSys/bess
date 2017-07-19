@@ -529,3 +529,8 @@ class BESS(object):
         request = bess_msg.GetTcStatsRequest()
         request.name = name
         return self._request('GetTcStats', request)
+
+    def dump_mempool(self, socket=-1):
+        request = bess_msg.DumpMempoolRequest()
+        request.socket = socket
+        return self._request('DumpMempool', request)
