@@ -201,7 +201,15 @@ def download_dpdk():
         # your "git checkout", or remove the "--depth 1" here and
         # remove the subsequent "git ... config remote.url.fetch"
         # command.
-        cmd('git clone --depth 1 -b %s %s %s' % (DPDK_TAG, DPDK_REPO, DPDK_DIR))
+        #
+        # If the base git is pre-2.7.4 and there is no configured
+        # user.name and user.email, "git clone" can fail when run
+        # with no (or not enough) of a user database, e.g., in a
+        # container.  To work around this, we supply a dummy
+        # user.name and user.email (which are otherwise ignored --
+        # they do not wind up in the new config file).
+        cmd('git -c user.name=git-bug-workaround -c user.email=not@used.com '
+            'clone --depth 1 -b %s %s %s' % (DPDK_TAG, DPDK_REPO, DPDK_DIR))
         cmd("git -C %s config "
             "remote.url.fetch '+refs/heads/*:refs/remotes/origin/*'" % DPDK_DIR)
 
