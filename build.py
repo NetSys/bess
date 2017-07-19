@@ -38,21 +38,44 @@ cxx_flags = []
 ld_flags = []
 
 
-def cmd(cmd):
-    proc = subprocess.Popen(
-        cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True)
+def cmd(cmd, quiet=False):
+    """
+    Run a command.  If quiet is True, or if V is not set in the
+    environment, eat its stdout and stderr by default (we'll print
+    both to stderr on any failure though).
 
-    # err should be None
-    out, err = proc.communicate()
+    If V is set and we're not forced to be quiet, just let stdout
+    and stderr flow through as usual.  The name V is from the
+    standard Linux kernel build ("V=1 make" => print everything).
+
+    (We use quiet=True for build environment test cleanup steps;
+    the tests themselves use use cmd_success() to check for failures.)
+    """
+    if not quiet:
+        quiet = os.getenv('V') is None
+    if quiet:
+        proc = subprocess.Popen(
+            cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True)
+    else:
+        proc = subprocess.Popen(cmd, shell=True)
+
+    # There is never any stderr output here - either it went straight
+    # to os.STDERR_FILENO, or it went to the pipe for stdout.
+    out, _ = proc.communicate()
 
     if proc.returncode:
-        print('Log:\n', out, file=sys.stderr)
+        # We only have output if we ran in quiet mode.
+        if quiet:
+            print('Log:\n', out, file=sys.stderr)
         print('Error has occured running command: %s' % cmd, file=sys.stderr)
         sys.exit(proc.returncode)
 
 
 def cmd_success(cmd):
     try:
+        # This is a little sloppy - the pipes swallow up output,
+        # but if the output exceeds PIPE_MAX, the pipes will
+        # constipate and check_call may never return.
         subprocess.check_call(
             cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True)
         return True
@@ -82,7 +105,7 @@ def check_header(header_file, compiler):
                             test_o_file))
 
     finally:
-        cmd('rm -f %s %s' % (test_c_file, test_o_file))
+        cmd('rm -f %s %s' % (test_c_file, test_o_file), quiet=True)
 
 
 def check_c_lib(lib):
@@ -104,7 +127,7 @@ def check_c_lib(lib):
                            (test_c_file, lib, ' '.join(cxx_flags),
                             ' '.join(ld_flags), test_e_file))
     finally:
-        cmd('rm -f %s %s' % (test_c_file, test_e_file))
+        cmd('rm -f %s %s' % (test_c_file, test_e_file), quiet=True)
 
 
 def required(header_file, lib_name, compiler):
@@ -349,7 +372,12 @@ def main():
         dest='benchmark_path',
         nargs=1,
         help='Location of benchmark library')
+    parser.add_argument('-v', '--verbose', action='store_true',
+        help='enable verbose builds (same as env V=1)')
     args = parser.parse_args()
+
+    if args.verbose:
+        os.environ['V'] = '1'
 
     if args.benchmark_path:
         update_benchmark_path(args.benchmark_path[0])
