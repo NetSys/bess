@@ -93,8 +93,7 @@ else
 	CXXFLAGS += -Ofast -DNDEBUG
 endif
 
--include extra.dpdk.mk
--include extra.mk
+-include extra*.mk
 
 PROTO_DIR := $(abspath ../protobuf)
 PROTOS := $(wildcard $(PROTO_DIR)/*.proto)
