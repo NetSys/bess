@@ -29,14 +29,14 @@ def shell_quote(cmd):
 
 
 def run_docker_cmd(cmd):
-    run_cmd('docker run -e CXX -e DEBUG -e SANITIZE --rm -t '
+    run_cmd('docker run -e V -e CXX -e DEBUG -e SANITIZE --rm -t '
             '-u %d:%d -v %s:%s %s sh -c %s' %
             (os.getuid(), os.getgid(), BESS_DIR_HOST, BESS_DIR_CONTAINER,
              IMAGE, shell_quote(cmd)))
 
 
 def run_shell():
-    run_cmd('docker run -e CXX -e DEBUG -e SANITIZE --rm -it -v %s:%s %s' %
+    run_cmd('docker run -e V -e CXX -e DEBUG -e SANITIZE --rm -it -v %s:%s %s' %
             (BESS_DIR_HOST, BESS_DIR_CONTAINER, IMAGE))
 
 
@@ -100,8 +100,12 @@ def main():
         default='all',
         choices=cmdlist,
         help='Action is one of ' + ', '.join(cmdlist))
+    parser.add_argument('-v', '--verbose', action='store_true',
+        help='pass verbose flag to build inside container')
 
     args = parser.parse_args()
+    if args.verbose:
+        os.environ['V'] = '1'
 
     cmds[args.action]()
 
