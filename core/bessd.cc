@@ -427,12 +427,15 @@ bool LoadPlugins(const std::string &directory) {
       const std::string full_path = *it;
       LOG(INFO) << "Loading module (pass " << pass << "): " << full_path;
       if (!LoadPlugin(full_path)) {
-        LOG(WARNING) << "Error loading module " << full_path << ": "
-                     << dlerror();
+        LOG(INFO) << "Error loading module " << full_path << ": " << dlerror();
       } else {
         remaining.erase(it++);
       }
     }
+  }
+
+  for (auto it = remaining.begin(); it != remaining.end(); ++it) {
+    LOG(WARNING) << "Gave up on loading module " << *it;
   }
 
   return (remaining.size() == 0);
