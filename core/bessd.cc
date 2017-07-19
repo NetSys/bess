@@ -406,40 +406,36 @@ bool UnloadPlugin(const std::string &path) {
 }
 
 bool LoadPlugins(const std::string &directory) {
-  std::list<std::string> failed = {};
   DIR *dir = opendir(directory.c_str());
   if (!dir) {
     return false;
   }
+
+  std::list<std::string> remaining;
   dirent *entry;
   while ((entry = readdir(dir)) != nullptr) {
     if (entry->d_type == DT_REG && HasSuffix(entry->d_name, ".so")) {
       const std::string full_path = directory + "/" + entry->d_name;
-      LOG(INFO) << "Loading module (pass 1): " << full_path;
-      if (!LoadPlugin(full_path)) {
-        failed.push_back(full_path);
-        LOG(WARNING) << "Error loading module " << full_path << ": "
-                     << dlerror();
-      }
+      remaining.push_back(full_path);
     }
   }
   closedir(dir);
 
-  int iter_cnt = 2;
-  while (failed.size() > 0 && iter_cnt < kInheritanceLimit + 1) {
-    for (auto it = failed.begin(); it != failed.end(); ++it) {
+  for (int pass = 1; pass <= kInheritanceLimit && remaining.size() > 0;
+       pass++) {
+    for (auto it = remaining.begin(); it != remaining.end(); ++it) {
       const std::string full_path = *it;
-      LOG(INFO) << "Loading module (pass " << iter_cnt << "): " << full_path;
+      LOG(INFO) << "Loading module (pass " << pass << "): " << full_path;
       if (!LoadPlugin(full_path)) {
         LOG(WARNING) << "Error loading module " << full_path << ": "
                      << dlerror();
       } else {
-        failed.erase(it++);
+        remaining.erase(it++);
       }
     }
-    ++iter_cnt;
   }
-  return (failed.size() == 0);
+
+  return (remaining.size() == 0);
 }
 
 std::string GetCurrentDirectory() {
