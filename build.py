@@ -149,7 +149,6 @@ def set_config(filename, config, new_value):
 
 def check_bnx():
     if check_header('zlib.h', 'gcc') and check_c_lib('z'):
-        global extra_libs
         extra_libs.add('z')
     else:
         print(' - "zlib1g-dev" is not available. Disabling BNX2X PMD...')
@@ -158,7 +157,6 @@ def check_bnx():
 
 def check_mlx():
     if check_header('infiniband/verbs_exp.h', 'gcc'):
-        global extra_libs
         extra_libs.add('ibverbs')
         # extra_libs.add('mlx5')
     else:
@@ -173,16 +171,12 @@ def check_mlx():
 
 
 def generate_dpdk_extra_mk():
-    global extra_libs
-
     with open('core/extra.dpdk.mk', 'w') as fp:
         fp.write(
             'LIBS += %s\n' % ' '.join(map(lambda lib: '-l' + lib, extra_libs)))
 
 
 def generate_extra_mk():
-    global cxx_flags
-    global ld_flags
     with open('core/extra.mk', 'w') as fp:
         fp.write('CXXFLAGS += %s\n' % ' '.join(cxx_flags))
         fp.write('LDFLAGS += %s\n' % ' '.join(ld_flags))
