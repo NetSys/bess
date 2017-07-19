@@ -303,6 +303,7 @@ def do_clean():
     cmd('rm -f bin/bessd')
     cmd('make -C core/kmod clean')
     cmd('rm -rf pybess/*_pb2.py')
+    cmd('rm -rf %s/build' % DPDK_DIR)
 
 
 def do_dist_clean():
