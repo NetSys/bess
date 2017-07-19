@@ -5,6 +5,7 @@ import sys
 import subprocess
 import os
 import os.path
+import argparse
 
 IMAGE = 'nefelinetworks/bess_build:latest' + os.getenv('TAG_SUFFIX', '')
 BESS_DIR_HOST = os.path.dirname(os.path.abspath(__file__))
@@ -73,44 +74,36 @@ def do_dist_clean():
     run_docker_cmd('%s dist_clean' % BUILD_SCRIPT)
 
 
-def print_usage():
-    print('Usage: %s '
-          '[all|bess|kmod|kmod_buildtest|clean|dist_clean|shell||help]'
-          % sys.argv[0], file=sys.stderr)
+def print_usage(parser):
+    parser.print_help(file=sys.stderr)
+    sys.exit(2)
 
 
 def main():
     os.chdir(BESS_DIR_HOST)
+    parser = argparse.ArgumentParser(description='Build BESS in container')
+    cmds = {
+        'all': build_all,
+        'bess': build_bess,
+        'kmod': build_kmod,
+        'kmod_buildtest': build_kmod_buildtest,
+        'clean': do_clean,
+        'dist_clean': do_dist_clean,
+        'shell': run_shell,
+        'help': lambda: print_usage(parser),
+    }
+    cmdlist = sorted(cmds.keys())
+    parser.add_argument(
+        'action',
+        metavar='action',
+        nargs='?',
+        default='all',
+        choices=cmdlist,
+        help='Action is one of ' + ', '.join(cmdlist))
 
-    if len(sys.argv) == 1:
-        build_bess()
-        build_kmod()
-    elif len(sys.argv) == 2:
-        if sys.argv[1] == 'all':
-            build_all()
-        elif sys.argv[1] == 'bess':
-            build_bess()
-        elif sys.argv[1] == 'kmod':
-            build_kmod()
-        elif sys.argv[1] == 'kmod_buildtest':
-            build_kmod_buildtest()
-        elif sys.argv[1] == 'clean':
-            do_clean()
-        elif sys.argv[1] == 'dist_clean':
-            do_dist_clean()
-        elif sys.argv[1] == 'shell':
-            run_shell()
-        elif sys.argv[1] == 'help':
-            print_usage()
-            sys.exit(0)
-        else:
-            print('Error - unknown command "%s".' % sys.argv[1],
-                  file=sys.stderr)
-            print_usage()
-            sys.exit(2)
-    else:
-        print_usage()
-        sys.exit(2)
+    args = parser.parse_args()
+
+    cmds[args.action]()
 
 
 if __name__ == '__main__':
