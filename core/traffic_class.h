@@ -151,12 +151,11 @@ class TrafficClass {
   // Returns the root of the tree this class belongs to.
   // Expensive in that it is recursive, so do not call from
   // performance-sensitive code.
-  TrafficClass *Root() {
-    if (!parent_) {
-      return this;
-    }
-    return parent_->Root();
-  }
+  const TrafficClass *Root() const { return parent_ ? parent_->Root() : this; }
+  TrafficClass *Root() { return parent_ ? parent_->Root() : this; }
+
+  // Returns its worker ID, or -1 (kAnyWorker) if not belongs to any worker yet
+  int WorkerId() const;
 
   // Returns true if 'child' was removed successfully, in which case
   // the caller owns it. Therefore, after a successful call, 'child'

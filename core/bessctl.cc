@@ -594,22 +594,19 @@ class BESSControlImpl final : public BESSControl::Service {
 
   Status ListTcs(ServerContext*, const ListTcsRequest* request,
                  ListTcsResponse* response) override {
-    const bess::TrafficClass* target_root = nullptr;
-
-    int wid = request->wid();
-    if (wid >= Worker::kMaxWorkers) {
+    int wid_filter = request->wid();
+    if (wid_filter >= Worker::kMaxWorkers) {
       return return_with_error(response, EINVAL,
                                "'wid' must be between 0 and %d",
                                Worker::kMaxWorkers - 1);
-    } else if (wid < 0) {
-      wid = Worker::kAnyWorker;
-    } else if (workers[wid]) {
-      target_root = workers[wid]->scheduler()->root();
+    } else if (wid_filter < 0) {
+      wid_filter = Worker::kAnyWorker;
     }
 
     for (const auto& tc_pair : bess::TrafficClassBuilder::all_tcs()) {
       bess::TrafficClass* c = tc_pair.second;
-      if (!target_root || target_root == c->Root()) {
+      int wid = c->WorkerId();
+      if (wid_filter == Worker::kAnyWorker || wid_filter == wid) {
         // WRR and Priority TCs associate share/priority to each child
         if (c->policy() == bess::POLICY_WEIGHTED_FAIR) {
           const auto* wrr_parent =
