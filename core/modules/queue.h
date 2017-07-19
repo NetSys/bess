@@ -9,7 +9,15 @@ class Queue final : public Module {
  public:
   static const Commands cmds;
 
-  Queue() : Module(), queue_(), prefetch_(), burst_() {
+  Queue()
+      : Module(),
+        queue_(),
+        prefetch_(),
+        backpressure_(),
+        burst_(),
+        size_(),
+        high_water_(),
+        low_water_() {
     is_task_ = true;
     propagate_workers_ = false;
   }
