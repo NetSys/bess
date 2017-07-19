@@ -38,9 +38,8 @@ core/test_all
 *_bench
 
 # 3rd-party libraries
-deps/dpdk*/*
-deps/*.tgz
-deps/*.gz
+deps/dpdk*
+!deps/dpdk*_common_linuxapp
 
 # OSX
 .DS_Store
