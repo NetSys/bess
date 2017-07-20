@@ -49,6 +49,20 @@ size_t TrafficClass::Size() const {
   return ret;
 }
 
+int TrafficClass::WorkerId() const {
+  for (int wid = 0; wid < Worker::kMaxWorkers; wid++) {
+    if (!is_worker_active(wid))
+      continue;
+
+    if (workers[wid]->scheduler()->root() == Root()) {
+      return wid;
+    }
+  }
+
+  // Orphan TC
+  return Worker::kAnyWorker;
+}
+
 PriorityTrafficClass::~PriorityTrafficClass() {
   for (auto &c : children_) {
     delete c.c_;
