@@ -427,7 +427,7 @@ bool LoadPlugins(const std::string &directory) {
       const std::string full_path = *it;
       LOG(INFO) << "Loading module (pass " << pass << "): " << full_path;
       if (!LoadPlugin(full_path)) {
-        LOG(INFO) << "Error loading module " << full_path << ": " << dlerror();
+        VLOG(1) << "Error loading module " << full_path << ": " << dlerror();
       } else {
         remaining.erase(it++);
       }
@@ -435,7 +435,9 @@ bool LoadPlugins(const std::string &directory) {
   }
 
   for (auto it = remaining.begin(); it != remaining.end(); ++it) {
-    LOG(WARNING) << "Gave up on loading module " << *it;
+    LOG(ERROR)
+        << "Failed to load module " << *it
+        << ". Run daemon in verbose mode (--v=1) to see dlopen() attempts.";
   }
 
   return (remaining.size() == 0);
