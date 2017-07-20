@@ -995,3 +995,16 @@ message MplsPopArg {
    bool remove_eth_header = 1; // Remove ETH header with the pop
    uint32 next_eth_type = 2; /// The next ETH type to set
 }
+
+/**
+ * The MPLS push module adds MPLS label
+ *
+ * __Input Gates__: 1
+ * __Output Gates__: 1
+ */
+message MplsPushArg {
+   uint32 label = 1;
+   uint32 ttl = 2;
+   uint32 tc = 3;
+   bool is_bottom_of_stack = 4;
+}
