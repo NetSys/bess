@@ -422,14 +422,14 @@ bool LoadPlugins(const std::string &directory) {
   closedir(dir);
 
   for (int pass = 1; pass <= kInheritanceLimit && remaining.size() > 0;
-       pass++) {
+       ++pass) {
     for (auto it = remaining.begin(); it != remaining.end(); ++it) {
       const std::string full_path = *it;
       LOG(INFO) << "Loading module (pass " << pass << "): " << full_path;
       if (!LoadPlugin(full_path)) {
         VLOG(1) << "Error loading module " << full_path << ": " << dlerror();
       } else {
-        remaining.erase(it++);
+        remaining.erase(it);
       }
     }
   }
