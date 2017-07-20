@@ -14,6 +14,7 @@ const Commands MPLSPush::cmds = {{"set", "MplsPushArg",
 
 MPLSPush::MPLSPush() : label_(0), ttl_(64), tc_(0), is_bottom_of_stack_(true) {}
 
+
 CommandResponse MPLSPush::Init(const bess::pb::MplsPushArg &arg) {
   return CommandSet(arg);
 }
@@ -49,4 +50,3 @@ CommandResponse MPLSPush::CommandSet(const bess::pb::MplsPushArg &arg) {
 }
 
 ADD_MODULE(MPLSPush, "mpls_push", "Push MPLS label")
-

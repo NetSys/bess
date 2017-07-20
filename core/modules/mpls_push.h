@@ -27,4 +27,3 @@ class MPLSPush final : public Module {
 };
 
 #endif  // BESS_MODULES_MPLSPUSH_H_
-
