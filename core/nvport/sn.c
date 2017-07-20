@@ -1,3 +1,33 @@
+// Copyright (c) 2014-2016, The Regents of the University of California.
+// Copyright (c) 2016-2017, Nefeli Networks, Inc.
+// All rights reserved.
+//
+// Redistribution and use in source and binary forms, with or without
+// modification, are permitted provided that the following conditions are met:
+//
+// * Redistributions of source code must retain the above copyright notice,
+// this list of conditions and the following disclaimer.
+//
+// * Redistributions in binary form must reproduce the above copyright notice,
+// this list of conditions and the following disclaimer in the documentation
+// and/or other materials provided with the distribution.
+//
+// * Neither the names of the copyright holders nor the names of their
+// contributors may be used to endorse or promote products derived from this
+// software without specific prior written permission.
+//
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+// AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+// IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+// ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+// LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+// CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+// SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+// INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+// CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+// ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+// POSSIBILITY OF SUCH DAMAGE.
+
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -120,7 +150,7 @@ void init_bess(uint32_t lcore, char *name)
 	uint64_t cpumask = (1ull << lcore);
 
 	sprintf(opt_core_bitmap, "0x%lx", cpumask);
-	
+
 	rte_argc = 7;
 	rte_argv[0] = "";
 	rte_argv[1] = "-c";
@@ -155,7 +185,7 @@ struct sn_port *init_port(const char *ifname)
 	FILE* fd;
 	char port_file[PORT_FNAME_LEN];
 
-	snprintf(port_file, PORT_FNAME_LEN, "%s/%s/%s", 
+	snprintf(port_file, PORT_FNAME_LEN, "%s/%s/%s",
 			P_tmpdir, VPORT_DIR_PREFIX, ifname);
 	fd = fopen(port_file, "r");
 	if (!fd) {
@@ -171,7 +201,7 @@ struct sn_port *init_port(const char *ifname)
 		return NULL;
 
 	port = malloc(sizeof(struct sn_port));
-	port->bar = bar; 
+	port->bar = bar;
 
 	port->num_txq = bar->num_inc_q;
 	port->num_rxq = bar->num_out_q;
@@ -189,9 +219,9 @@ struct sn_port *init_port(const char *ifname)
 	for (i = 0; i < port->num_rxq; i++) {
 		char fifoname[256];
 
-		sprintf(fifoname, "%s/%s/%s.rx%d", 
+		sprintf(fifoname, "%s/%s/%s.rx%d",
 				P_tmpdir, VPORT_DIR_PREFIX, ifname, i);
-		
+
 		port->fd[i] = open(fifoname, O_RDONLY);
 		assert(port->fd[i] > 0);
 	}
@@ -201,7 +231,7 @@ struct sn_port *init_port(const char *ifname)
 
 void sn_enable_interrupt(struct vport_out_regs *rx_regs)
 {
-	__sn_enable_interrupt(rx_regs);	
+	__sn_enable_interrupt(rx_regs);
 }
 
 void sn_disable_interrupt(struct vport_out_regs *rx_regs)
@@ -271,7 +301,7 @@ void sn_snb_copy_batch(snb_array_t src, snb_array_t dest, int cnt) {
 	__sn_snb_alloc_bulk(dest, cnt);
 	for (int i=0; i<cnt; i++) {
 		dest[i]->mbuf.data_len = dest[i]->mbuf.pkt_len = src[i]->mbuf.data_len;
-		rte_memcpy(snb_head_data(dest[i]), snb_head_data(src[i]), src[i]->mbuf.data_len); 
+		rte_memcpy(snb_head_data(dest[i]), snb_head_data(src[i]), src[i]->mbuf.data_len);
 	}
 }
 

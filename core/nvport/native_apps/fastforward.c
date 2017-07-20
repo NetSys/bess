@@ -1,3 +1,33 @@
+// Copyright (c) 2014-2016, The Regents of the University of California.
+// Copyright (c) 2016-2017, Nefeli Networks, Inc.
+// All rights reserved.
+//
+// Redistribution and use in source and binary forms, with or without
+// modification, are permitted provided that the following conditions are met:
+//
+// * Redistributions of source code must retain the above copyright notice,
+// this list of conditions and the following disclaimer.
+//
+// * Redistributions in binary form must reproduce the above copyright notice,
+// this list of conditions and the following disclaimer in the documentation
+// and/or other materials provided with the distribution.
+//
+// * Neither the names of the copyright holders nor the names of their
+// contributors may be used to endorse or promote products derived from this
+// software without specific prior written permission.
+//
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+// AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+// IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+// ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+// LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+// CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+// SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+// INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+// CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+// ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+// POSSIBILITY OF SUCH DAMAGE.
+
 #include <stdio.h>
 #include <assert.h>
 #include <string.h>
@@ -121,7 +151,7 @@ static int run_fastforward_event(int efd)
 	int n = epoll_wait(efd, evs, 1024, -1);
 
 	int total_batch = 0;
-	
+
 	for (k = 0; k < n; k++) {
 		char buf[100];
 
@@ -140,14 +170,14 @@ static int run_fastforward_event(int efd)
 					break;
 				}
 			}
-			
+
 			total_batch++;
 
 			if (statistics) {
 				stats.rx_pkts += received;
 				stats.rx_batch += (received > 0);
 				stats.rx_bytes += received * 24;	/* Ethernet overheads */
-				
+
 				for (i = 0; i < received; i++)
 					stats.rx_bytes += snb_total_len(pkts[i]);
 			}
@@ -159,7 +189,7 @@ static int run_fastforward_event(int efd)
 				while (end - start < stalled_cycles)
 					end = rte_rdtsc();
 			}
-#endif			
+#endif
 			sent = sn_send_pkts(out_port, rxq % out_port->num_rxq, pkts, received);
 
 			stats.tx_pkts += sent;
@@ -178,7 +208,7 @@ static int run_fastforward_event(int efd)
 		/* FIXME */
 		/*sn_enable_interrupt(&in_port->rx_queues[rxq]);		*/
 	}
-	
+
 
 	return ret;
 }
@@ -324,7 +354,7 @@ int main(int argc, char **argv)
 		struct epoll_event ev;
 		int rxq;
 		efd = epoll_create(1024);
-		
+
 		for (rxq = 0; rxq < in_port->num_txq; rxq++) {
 			ev.events = EPOLLIN;
 			ev.data.fd = rxq;

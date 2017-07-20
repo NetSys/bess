@@ -1,3 +1,33 @@
+// Copyright (c) 2017, Joshua Stone.
+// Copyright (c) 2016-2017, Nefeli Networks, Inc.
+// All rights reserved.
+//
+// Redistribution and use in source and binary forms, with or without
+// modification, are permitted provided that the following conditions are met:
+//
+// * Redistributions of source code must retain the above copyright notice, this
+// list of conditions and the following disclaimer.
+//
+// * Redistributions in binary form must reproduce the above copyright notice,
+// this list of conditions and the following disclaimer in the documentation
+// and/or other materials provided with the distribution.
+//
+// * Neither the names of the copyright holders nor the names of their
+// contributors may be used to endorse or promote products derived from this
+// software without specific prior written permission.
+//
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+// AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+// IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+// ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+// LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+// CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+// SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+// INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+// CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+// ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+// POSSIBILITY OF SUCH DAMAGE.
+
 #ifndef BESS_UTILS_CODEL_H_
 #define BESS_UTILS_CODEL_H_
 
@@ -25,20 +55,20 @@ template <typename T>
 class Codel final: public Queue<T> {
  public:
   // default delay target for codel
-  static const uint64_t kDefaultTarget = 5000000; 
+  static const uint64_t kDefaultTarget = 5000000;
   // default window size for codel
-  static const uint64_t kDefaultWindow = 100000000; 
-  // default number of slots in the codel queue 
-  static const int kDefaultSlots = 4096; 
+  static const uint64_t kDefaultWindow = 100000000;
+  // default number of slots in the codel queue
+  static const int kDefaultSlots = 4096;
 
   typedef std::pair<uint64_t, T> Wrapper;
 
-  // Takes a drop function which is a function that should take a dropped object 
+  // Takes a drop function which is a function that should take a dropped object
   // and handle it removing the object potentially including freeing the object.
   // If there is no need to handle a dropped object, NULL can be passed instead.
   // target is the target delay in nanoseconds and the window is the buffer time u
   // in nanosecond before changing into drop state.
-  Codel(void (*drop_func)(T)= NULL, size_t max_entries=0, uint64_t target = kDefaultTarget, 
+  Codel(void (*drop_func)(T)= NULL, size_t max_entries=0, uint64_t target = kDefaultTarget,
       uint64_t window = kDefaultWindow)
       : delay_target_(target),
         window_(window),
@@ -50,7 +80,7 @@ class Codel final: public Queue<T> {
         queue_(),
         drop_func_(drop_func) { }
 
-  // deconstructor that drops all objects still left in the internal queue.  
+  // deconstructor that drops all objects still left in the internal queue.
   virtual ~Codel() {
     Wrapper w;
     while (!queue_.empty()) {
@@ -73,7 +103,7 @@ class Codel final: public Queue<T> {
     for (; i < count; i++) {
       if (Push(ptr[i])) {
         break;
-      } 
+      }
     }
     return i;
   }
@@ -111,12 +141,12 @@ class Codel final: public Queue<T> {
         next_drop_time_ = NextDrop(now);
       }
     }
-    
-    // if there was a wrapper to dequeue, set the parameter object to the 
+
+    // if there was a wrapper to dequeue, set the parameter object to the
     // wrapper's object
     if (err == 0) {
       obj = w.second;
-    } 
+    }
     return err;
   }
 
@@ -135,7 +165,7 @@ class Codel final: public Queue<T> {
     }
     return i;
   }
-  // the underlying queue is deque which is a dynamically sized queue with a max size 
+  // the underlying queue is deque which is a dynamically sized queue with a max size
   // determined by system limit. Therefore, the capacity is a specified value used to
   // limit the queue or if no value is specified, the queue's system limit.
   size_t Capacity() override {
@@ -147,7 +177,7 @@ class Codel final: public Queue<T> {
 
   bool Empty() override { return queue_.empty(); }
 
-  bool Full() override { 
+  bool Full() override {
     if (max_size_ != 0) {
       return max_size_ == queue_.size();
     }
@@ -155,8 +185,8 @@ class Codel final: public Queue<T> {
   }
 
   size_t Size() override { return queue_.size(); }
-  
-  // The undelying queue is deque which is a dynamically sized queue with a max size 
+
+  // The undelying queue is deque which is a dynamically sized queue with a max size
   // determined by system limits. Therefore, the resize method will error if the new_capacity
   // is outside of the queue's system limits or otherwise, only change the imposed limit on
   // the capacity of the queue.
@@ -187,7 +217,7 @@ class Codel final: public Queue<T> {
 
   // Gets the next object from the queue and determines based on current state,
   // whether set the passed drop boolean to true(to tell the calling function to
-  // drop it). Takes a Wrapper to set to the next entry in the queue and a boolean 
+  // drop it). Takes a Wrapper to set to the next entry in the queue and a boolean
   // to set if the entry should be dropped. Returns 0 on success.
   int RingDequeue(Wrapper &w, bool &drop) {
     if (!queue_.empty()) {
@@ -214,9 +244,9 @@ class Codel final: public Queue<T> {
   }
 
   // Called while Codel is in drop state to determine whether to drop the current
-  // entries and dequeue the next entry. Will continue to drop entries until the 
+  // entries and dequeue the next entry. Will continue to drop entries until the
   // next drop is greater than the current time. Takes a Wrapper which is the next
-  // entry in the queue which will potentially be replaced and a boolean determing 
+  // entry in the queue which will potentially be replaced and a boolean determing
   // if the entry should be dropped. Returns 0 on success.
   int DropDequeue(Wrapper &w, bool &drop) {
     uint64_t now = NanoSecondTime();
