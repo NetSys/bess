@@ -46,6 +46,8 @@ import "util_msg.proto";
 /// is called on modules in bessd. This file lists all modules, their initialization parameters
 /// and any functions that may be called on them.
 
+message EmptyArg {
+}
 
 /**
  * The BPF module has a command `clear()` that takes no parameters.

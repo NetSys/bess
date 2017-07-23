@@ -30,9 +30,9 @@
 
 from __future__ import absolute_import
 import unittest
-from . import bess_msg_pb2 as bess_msg
 from . import protobuf_to_dict as pb_conv
-from . import test_msg_pb2 as test_msg
+from .builtin_pb import bess_msg_pb2 as bess_msg
+from .builtin_pb import test_msg_pb2 as test_msg
 
 
 class TestProtobufConvert(unittest.TestCase):

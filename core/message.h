@@ -34,6 +34,7 @@
 #include <functional>
 
 #include "bess_msg.pb.h"
+#include "module_msg.pb.h"
 #include "error.pb.h"
 
 typedef bess::pb::Error pb_error_t;
