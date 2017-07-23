@@ -32,7 +32,7 @@
 #define BESS_MODULES_SETMETADATA_H_
 
 #include "../module.h"
-#include "../module_msg.pb.h"
+#include "../pb/module_msg.pb.h"
 
 typedef struct { char bytes[bess::metadata::kMetadataAttrMaxSize]; } value_t;
 

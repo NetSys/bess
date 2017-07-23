@@ -31,7 +31,7 @@
 #define BESS_MODULES_NAT_H_
 
 #include "../module.h"
-#include "../module_msg.pb.h"
+#include "../pb/module_msg.pb.h"
 
 #include <rte_config.h>
 #include <rte_hash_crc.h>

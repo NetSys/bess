@@ -37,7 +37,7 @@
 
 #include "../kmod/llring.h"
 #include "../module.h"
-#include "../module_msg.pb.h"
+#include "../pb/module_msg.pb.h"
 #include "../pktbatch.h"
 #include "../utils/cuckoo_map.h"
 #include "../utils/ip.h"

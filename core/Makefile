@@ -44,6 +44,7 @@ $(shell mkdir -p $(DEPDIR)/utils >/dev/null)
 $(shell mkdir -p $(DEPDIR)/modules >/dev/null)
 $(shell mkdir -p $(DEPDIR)/drivers >/dev/null)
 $(shell mkdir -p $(DEPDIR)/hooks >/dev/null)
+$(shell mkdir -p $(DEPDIR)/pb >/dev/null)
 
 # 'clang' or 'g++'
 CXXCOMPILER := $(shell expr $(word 1, $(shell $(CXX) --version)) : '\(clang\|g++\)')
@@ -127,10 +128,10 @@ endif
 
 PROTO_DIR := $(abspath ../protobuf)
 PROTOS := $(wildcard $(PROTO_DIR)/*.proto)
-PROTO_SRCS := $(patsubst %.proto,%.pb.cc, $(notdir $(PROTOS)))
-PROTO_SRCS += $(patsubst %.proto,%.grpc.pb.cc, $(notdir $(PROTOS)))
+PROTO_SRCS := $(patsubst %.proto,pb/%.pb.cc, $(notdir $(PROTOS)))
+PROTO_SRCS += $(patsubst %.proto,pb/%.grpc.pb.cc, $(notdir $(PROTOS)))
 PROTO_HEADERS := $(patsubst %.cc,%.h, $(PROTO_SRCS))
-PROTOCFLAGS += --proto_path=$(PROTO_DIR) --cpp_out=. --grpc_out=. --plugin=protoc-gen-grpc=`which grpc_cpp_plugin`
+PROTOCFLAGS += --proto_path=$(PROTO_DIR) --cpp_out=./pb --grpc_out=./pb --plugin=protoc-gen-grpc=`which grpc_cpp_plugin`
 
 ALL_SRCS := $(wildcard *.cc utils/*.cc modules/*.cc drivers/*.cc hooks/*.cc)
 
@@ -161,7 +162,7 @@ all: $(EXEC) modules tests benchmarks
 
 clean:
 	rm -rf $(EXEC) .deps/*.d .deps/*/*.d *_test */*_test *_bench */*_bench \
-		*.a *.pb.* *.o */*.o *.so */*.so *.gcov *.gcda *.gcno */*.gcda */*.gcno \
+		*.a pb/*.pb.* *.o */*.o *.so */*.so *.gcov *.gcda *.gcno */*.gcda */*.gcno \
 		coverage.info coverage_html
 
 tags:
@@ -218,14 +219,14 @@ endef
 
 $(eval $(call BUILD, \
 	PROTOC, \
-	%.pb.cc %.pb.h %.grpc.pb.cc %.grpc.pb.h, \
+	pb/%.pb.cc pb/%.pb.h pb/%.grpc.pb.cc pb/%.grpc.pb.h, \
 	$(PROTO_DIR)/%.proto, \
 	$(PROTOC) $$< $(PROTOCFLAGS)))
 
 $(eval $(call BUILD, \
 	CXX, \
-	%.pb.o, \
-	%.pb.cc, \
+	pb/%.pb.o, \
+	pb/%.pb.cc, \
 	$(CXX) -o $$@ -c $$< $(CXXFLAGS) $(PERMISSIVE) $$(DEPFLAGS)))
 
 $(eval $(call BUILD, \

@@ -33,7 +33,7 @@
 
 #include "../kmod/llring.h"
 #include "../module.h"
-#include "../module_msg.pb.h"
+#include "../pb/module_msg.pb.h"
 
 class Queue final : public Module {
  public:

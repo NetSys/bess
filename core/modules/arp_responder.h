@@ -34,7 +34,7 @@
 #include <map>
 
 #include "../module.h"
-#include "../module_msg.pb.h"
+#include "../pb/module_msg.pb.h"
 #include "../utils/endian.h"
 #include "../utils/ether.h"
 #include "../utils/ip.h"

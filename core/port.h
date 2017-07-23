@@ -43,7 +43,7 @@
 #include "message.h"
 #include "module.h"
 #include "packet.h"
-#include "port_msg.pb.h"
+#include "pb/port_msg.pb.h"
 #include "utils/common.h"
 
 typedef uint8_t queue_t;

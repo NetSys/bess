@@ -33,9 +33,9 @@
 #include <cstdarg>
 #include <functional>
 
-#include "bess_msg.pb.h"
-#include "module_msg.pb.h"
-#include "error.pb.h"
+#include "pb/bess_msg.pb.h"
+#include "pb/error.pb.h"
+#include "pb/module_msg.pb.h"
 
 typedef bess::pb::Error pb_error_t;
 

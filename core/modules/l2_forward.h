@@ -32,7 +32,7 @@
 #define BESS_MODULES_L2FORWARD_H_
 
 #include "../module.h"
-#include "../module_msg.pb.h"
+#include "../pb/module_msg.pb.h"
 
 #if __BYTE_ORDER__ != __ORDER_LITTLE_ENDIAN__
 #error this code assumes little endian architecture (x86)

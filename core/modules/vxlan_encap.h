@@ -32,7 +32,7 @@
 #define BESS_MODULES_VXLANENCAP_H_
 
 #include "../module.h"
-#include "../module_msg.pb.h"
+#include "../pb/module_msg.pb.h"
 
 #include "../utils/endian.h"
 

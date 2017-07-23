@@ -39,8 +39,8 @@
 #include <vector>
 
 #include "../module.h"
-#include "../module_msg.pb.h"
 #include "../packet.h"
+#include "../pb/module_msg.pb.h"
 #include "../utils/tcp_flow_reconstruct.h"
 #include "../utils/trie.h"
 

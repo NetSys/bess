@@ -32,7 +32,7 @@
 #define BESS_MODULES_PORTINC_H_
 
 #include "../module.h"
-#include "../module_msg.pb.h"
+#include "../pb/module_msg.pb.h"
 #include "../port.h"
 
 class PortInc final : public Module {
@@ -41,9 +41,7 @@ class PortInc final : public Module {
 
   static const Commands cmds;
 
-  PortInc() : Module(), port_(), prefetch_(), burst_() {
-    is_task_ = true;
-  }
+  PortInc() : Module(), port_(), prefetch_(), burst_() { is_task_ = true; }
 
   CommandResponse Init(const bess::pb::PortIncArg &arg);
 

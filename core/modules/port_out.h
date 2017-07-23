@@ -32,7 +32,7 @@
 #define BESS_MODULES_PORTOUT_H_
 
 #include "../module.h"
-#include "../module_msg.pb.h"
+#include "../pb/module_msg.pb.h"
 #include "../port.h"
 
 class PortOut final : public Module {
