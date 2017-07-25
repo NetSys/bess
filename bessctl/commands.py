@@ -100,35 +100,42 @@ def __bess_env__(key, default=None):
 
 
 def __bess_module__(module_names, mclass_name, *args, **kwargs):
-    caller_globals = inspect.stack()[1][0].f_globals
+    def make_modules(names):
+        result = []
+        for module in names:
+            if module in caller_globals:
+                raise ConfError("Module name %s already exists" % module)
+            if module in caller_locals:
+                raise ConfError("Module name %s shadowed by local variable" %
+                                module)
+        for module in names:
+            obj = mclass_obj(*args, name=module, **kwargs)
+            caller_globals[module] = obj
+            result.append(obj)
+        return result
+
+    caller_frame = inspect.stack()[1][0]
+    caller_globals = caller_frame.f_globals
+    caller_locals = caller_frame.f_locals
+    # If the locals *are* the globals, we are in the module of the
+    # caller and should look only at the globals.  If not, we are
+    # in a function defined in that module, and must check both.
+    if caller_locals is caller_globals:
+        caller_locals = {}
 
     if mclass_name not in caller_globals:
         raise ConfError("Module class %s does not exist" % mclass_name)
     mclass_obj = caller_globals[mclass_name]
 
+    # a::SomeMod()
     if isinstance(module_names, str):
-        if module_names in caller_globals:
-            raise ConfError("Module name %s already exists" % module_names)
-        obj = mclass_obj(*args, name=module_names, **kwargs)
-        caller_globals[module_names] = obj
-        return obj
+        return make_modules([module_names])[0]
 
     # a,b,c::SomeMod()
-    elif isinstance(module_names, tuple):
-        obj_list = []
+    if isinstance(module_names, tuple):
+        return make_modules(module_names)
 
-        for module in module_names:
-            if module in caller_globals:
-                raise ConfError("Module name %s already exists" % module)
-
-        for module in module_names:
-            obj = mclass_obj(*args, name=module, **kwargs)
-            caller_globals[module] = obj
-            obj_list.append(obj)
-        return obj_list
-
-    else:
-        assert False, 'Invalid argument %s' % type(module_names)
+    assert False, 'Invalid argument %s' % type(module_names)
 
 
 def is_allowed_filename(basename):
