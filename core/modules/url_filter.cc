@@ -1,6 +1,7 @@
 #include "url_filter.h"
 
 #include <algorithm>
+#include <tuple>
 
 #include "../utils/checksum.h"
 #include "../utils/ether.h"
@@ -141,8 +142,8 @@ CommandResponse UrlFilter::Init(const bess::pb::UrlFilterArg &arg) {
                          std::forward_as_tuple(url.host()),
                          std::forward_as_tuple());
     }
-    Trie &trie = blacklist_.at(url.host());
-    trie.Insert(url.path());
+    Trie<std::tuple<>> &trie = blacklist_.at(url.host());
+    trie.Insert(url.path(), {});
   }
   return CommandSuccess();
 }
@@ -253,7 +254,7 @@ void UrlFilter::ProcessBatch(bess::PacketBatch *batch) {
           const std::string host(headers[j].value, headers[j].value_len);
           const auto rule_iterator = blacklist_.find(host);
           matched = rule_iterator != blacklist_.end() &&
-                    rule_iterator->second.LookupKey(path_str);
+                    rule_iterator->second.Match(path_str);
         }
       }
     }
