@@ -35,14 +35,11 @@ CXXCOMPILER := $(shell expr $(word 1, $(shell $(CXX) --version)) : '\(clang\|g++
 
 CXXVERSION := $(shell $(CXX) -dumpversion)
 
+
 ifeq "$(CXXCOMPILER)" "g++"
 ifneq "$(shell printf '$(CXXVERSION)\n5' | sort -V | head -n1)" "5"
-	$(error g++ 5 or higher is required. Use container_build.py if newer g++ is not available.)
+$(error g++ 5 or higher is required. Use container_build.py if newer g++ is not available.)
 endif
-endif
-
-ifeq ($(BESS_HOME),)
-	$(error BESS_HOME is not defined.)
 endif
 
 RTE_SDK ?= $(BESS_HOME)/deps/dpdk-17.05

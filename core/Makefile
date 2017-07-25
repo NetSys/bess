@@ -53,7 +53,7 @@ CXXVERSION := $(shell $(CXX) -dumpversion)
 
 ifeq "$(CXXCOMPILER)" "g++"
 ifneq "$(shell printf '$(CXXVERSION)\n5' | sort -V | head -n1)" "5"
-    $(error g++ 5 or higher is required. Use container_build.py if newer g++ is not available.)
+$(error g++ 5 or higher is required. Use container_build.py if newer g++ is not available.)
 endif
 endif
 

@@ -1,4 +1,10 @@
-BESS_HOME ?= /home/shinae/bess
+# BESS must be already built.
+# Set your BESS_HOME environment variable to that directory.
+#BESS_HOME ?= /your/bess/home
+
+ifeq ($(BESS_HOME),)
+$(error BESS_HOME is not defined.)
+endif
 
 # Library target
 target_a := modules/sequential_update.so
@@ -38,4 +44,4 @@ clean:
 	rm -f $(proto_o) $(proto_cc) $(proto_h) $(proto_py) \
 		$(target_a) $(objects_a)
 
-include bess_plugin.mk
+include $(BESS_HOME)/core/bess_plugin.mk
