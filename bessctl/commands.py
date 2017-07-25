@@ -1421,7 +1421,7 @@ def import_plugin(cli, plugin):
     try:
         cli.bess.import_plugin(plugin)
     finally:
-            cli.bess.resume_all()
+        cli.bess.resume_all()
 
 
 @cmd('unload plugin PLUGIN_FILE', 'Unload the specified plugin (*.so)')
@@ -1432,7 +1432,7 @@ def unload_plugin(cli, plugin):
     try:
         cli.bess.unload_plugin(plugin)
     finally:
-            cli.bess.resume_all()
+        cli.bess.resume_all()
 
 
 @cmd('show plugin', 'Show all imported plugins')

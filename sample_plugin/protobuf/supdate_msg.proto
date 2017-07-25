@@ -10,8 +10,8 @@ message SequentialUpdateCommandClearArg {
 }
 
 /**
- * The SequentialUpdate module rewrites a random field in a packet with a random value
- * between a specified min and max values.
+ * The SequentialUpdate module rewrites a specified field (`offset` and `size`) in a packet
+ * with a sequentially increased value from a specified min to max values.
  *
  * __Input Gates__: 1
  * __Output Gates__: 1

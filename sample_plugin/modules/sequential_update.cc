@@ -16,10 +16,10 @@ SequentialUpdate::Init(const sample::supdate::pb::SequentialUpdateArg &arg) {
 
 CommandResponse SequentialUpdate::CommandAdd(
     const sample::supdate::pb::SequentialUpdateArg &arg) {
-  int curr = num_vars_;
-  if (curr + arg.fields_size() > MAX_VARS) {
-    return CommandFailure(EINVAL, "max %d variables can be specified",
-                          MAX_VARS);
+  size_t curr = num_vars_;
+  if (curr + arg.fields_size() > kMaxVariable) {
+    return CommandFailure(EINVAL, "max %zu variables can be specified",
+                          kMaxVariable);
   }
 
   for (int i = 0; i < arg.fields_size(); i++) {
@@ -89,7 +89,7 @@ CommandResponse SequentialUpdate::CommandClear(const bess::pb::EmptyArg &) {
 void SequentialUpdate::ProcessBatch(bess::PacketBatch *batch) {
   int cnt = batch->cnt();
 
-  for (int i = 0; i < num_vars_; i++) {
+  for (size_t i = 0; i < num_vars_; i++) {
     const auto var = &vars_[i];
 
     be32_t mask = var->mask;
@@ -101,9 +101,13 @@ void SequentialUpdate::ProcessBatch(bess::PacketBatch *batch) {
 
     for (int j = 0; j < cnt; j++) {
       be32_t *p = batch->pkts()[j]->head_data<be32_t *>(offset);
-      uint32_t rand_val = min + cur;
-      cur = (cur + 1) % range;
-      *p = (*p & mask) | (be32_t(rand_val) << bit_shift);
+      uint32_t value = min + cur;
+      cur = cur + 1;
+      if (cur >= range) {
+        cur = 0;
+      }
+
+      *p = (*p & mask) | (be32_t(value) << bit_shift);
     }
 
     var->cur = cur;

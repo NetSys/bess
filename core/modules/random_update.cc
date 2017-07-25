@@ -44,10 +44,10 @@ CommandResponse RandomUpdate::Init(const bess::pb::RandomUpdateArg &arg) {
 }
 
 CommandResponse RandomUpdate::CommandAdd(const bess::pb::RandomUpdateArg &arg) {
-  int curr = num_vars_;
-  if (curr + arg.fields_size() > MAX_VARS) {
-    return CommandFailure(EINVAL, "max %d variables can be specified",
-                          MAX_VARS);
+  size_t curr = num_vars_;
+  if (curr + arg.fields_size() > kMaxVariable) {
+    return CommandFailure(EINVAL, "max %zu variables can be specified",
+                          kMaxVariable);
   }
 
   for (int i = 0; i < arg.fields_size(); i++) {
@@ -116,7 +116,7 @@ CommandResponse RandomUpdate::CommandClear(const bess::pb::EmptyArg &) {
 void RandomUpdate::ProcessBatch(bess::PacketBatch *batch) {
   int cnt = batch->cnt();
 
-  for (int i = 0; i < num_vars_; i++) {
+  for (size_t i = 0; i < num_vars_; i++) {
     const auto var = &vars_[i];
 
     be32_t mask = var->mask;

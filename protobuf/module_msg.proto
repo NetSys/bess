@@ -737,8 +737,8 @@ message RandomDropArg {
 }
 
 /**
- * The RandomUpdate module rewrites a random field in a packet with a random value
- * between a specified min and max values.
+ * The RandomUpdate module rewrites a specified field (`offset` and `size`) in a packet
+ * with a random value between a specified min and max values.
  *
  * __Input Gates__: 1
  * __Output Gates__: 1

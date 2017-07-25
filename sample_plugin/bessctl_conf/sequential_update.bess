@@ -15,6 +15,7 @@ rr:1 \
 
 # UDP src/dst ports
 rr:2 \
-    -> SequentialUpdate(fields=[{'offset': 34, 'size': 2, 'min': 20000, 'max': 30000},
-                      {'offset': 36, 'size': 2, 'min': 40000, 'max': 50000}]) \
+    -> su::SequentialUpdate(fields=[{'offset': 34, 'size': 2, 'min': 20000, 'max': 30000}]) \
     -> Sink()
+
+su.add(fields=[{'offset': 36, 'size': 2, 'min': 40000, 'max': 50000}])

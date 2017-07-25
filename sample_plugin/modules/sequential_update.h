@@ -3,11 +3,10 @@
 
 #include "module.h"
 #include "utils/endian.h"
-#include "utils/random.h"
 
 #include "protobuf/supdate_msg.pb.h"
 
-#define MAX_VARS 16
+static const size_t kMaxVariable = 16;
 
 class SequentialUpdate final : public Module {
 public:
@@ -24,7 +23,7 @@ public:
   CommandResponse CommandClear(const bess::pb::EmptyArg &arg);
 
 private:
-  int num_vars_;
+  size_t num_vars_;
 
   struct {
     bess::utils::be32_t mask; // bits with 1 won't be updated
@@ -33,7 +32,7 @@ private:
     uint32_t cur;
     size_t offset;
     size_t bit_shift;
-  } vars_[MAX_VARS];
+  } vars_[kMaxVariable];
 };
 
 #endif // BESS_MODULES_SEQUENTIALUPDATE_H_

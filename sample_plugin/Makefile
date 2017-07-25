@@ -15,13 +15,13 @@ all: $(target_a) # $(target_b) ...
 protobuf := $(abspath protobuf/supdate_msg.proto)
 
 #### You don't need to modify from here ####
-proto_h :=  $(patsubst %.proto,%.pb.h, $(protobuf)) \
-						$(patsubst %.proto,%.grpc.pb.h, $(protobuf))
-proto_cc :=  $(patsubst %.proto,%.pb.cc, $(protobuf)) \
-						$(patsubst %.proto,%.grpc.pb.cc, $(protobuf))
+proto_h := $(patsubst %.proto,%.pb.h, $(protobuf)) \
+	   $(patsubst %.proto,%.grpc.pb.h, $(protobuf))
+proto_cc := $(patsubst %.proto,%.pb.cc, $(protobuf)) \
+	    $(patsubst %.proto,%.grpc.pb.cc, $(protobuf))
 proto_o := $(patsubst %.cc,%.o, $(proto_cc))
-proto_py :=  $(patsubst %.proto, %_pb2.py, $(protobuf)) \
-						$(patsubst %.proto, %_pb2_grpc.py, $(protobuf))
+proto_py := $(patsubst %.proto, %_pb2.py, $(protobuf)) \
+	    $(patsubst %.proto, %_pb2_grpc.py, $(protobuf))
 
 $(proto_cc): $(protobuf) $(proto_py)
 $(proto_cc): PROTO_DIR=$(dir $(protobuf))
@@ -35,7 +35,7 @@ $(target_a): $(proto_o) $(objects_a)
 # $(target_b): $(proto_o) $(objects_b)
 
 clean:
-	rm -f $(proto_o) $(proto_cc) $(proto_h) $(proto_py)\
+	rm -f $(proto_o) $(proto_cc) $(proto_h) $(proto_py) \
 		$(target_a) $(objects_a)
 
 include bess_plugin.mk

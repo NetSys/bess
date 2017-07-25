@@ -411,11 +411,13 @@ std::vector<std::string> ListPlugins() {
 }
 
 bool LoadPlugin(const std::string &path) {
+  LOG(INFO) << "Loading module: " << path;
   void *handle = dlopen(path.c_str(), RTLD_NOW);
   if (handle != nullptr) {
     plugin_handles.emplace(path, handle);
     return true;
   }
+  LOG(WARNING) << "Error loading module " << path << ": " << dlerror();
   return false;
 }
 
@@ -443,10 +445,7 @@ bool LoadPlugins(const std::string &directory) {
   while ((entry = readdir(dir)) != nullptr) {
     if (entry->d_type == DT_REG && HasSuffix(entry->d_name, ".so")) {
       const std::string full_path = directory + "/" + entry->d_name;
-      LOG(INFO) << "Loading module: " << full_path;
       if (!LoadPlugin(full_path)) {
-        LOG(WARNING) << "Error loading module " << full_path << ": "
-                     << dlerror();
         closedir(dir);
         return false;
       }
