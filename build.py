@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# Copyright (c) 2014-2016, The Regents of the University of California.
+# Copyright (c) 2014-2017, The Regents of the University of California.
 # Copyright (c) 2016-2017, Nefeli Networks, Inc.
 # All rights reserved.
 #
@@ -406,7 +406,7 @@ def main():
         nargs=1,
         help='Location of benchmark library')
     parser.add_argument('-v', '--verbose', action='store_true',
-        help='enable verbose builds (same as env V=1)')
+                        help='enable verbose builds (same as env V=1)')
     args = parser.parse_args()
 
     if args.verbose:
