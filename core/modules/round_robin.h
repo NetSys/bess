@@ -32,7 +32,7 @@
 #define BESS_MODULES_ROUNDROBIN_H_
 
 #include "../module.h"
-#include "../module_msg.pb.h"
+#include "../pb/module_msg.pb.h"
 
 /*!
  * TODO: RoundRobin currently does not support multiple workers.

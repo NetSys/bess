@@ -32,7 +32,7 @@
 #define BESS_MODULES_GENERICDECAP_H_
 
 #include "../module.h"
-#include "../module_msg.pb.h"
+#include "../pb/module_msg.pb.h"
 
 class GenericDecap final : public Module {
  public:

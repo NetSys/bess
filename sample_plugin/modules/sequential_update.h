@@ -1,4 +1,4 @@
-// Copyright (c) 2014-2016, The Regents of the University of California.
+// Copyright (c) 2014-2017, The Regents of the University of California.
 // Copyright (c) 2016-2017, Nefeli Networks, Inc.
 // All rights reserved.
 //
@@ -28,36 +28,41 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef BESS_MODULES_QUEUEINC_H_
-#define BESS_MODULES_QUEUEINC_H_
+#ifndef BESS_MODULES_SEQUENTIALUPDATE_H_
+#define BESS_MODULES_SEQUENTIALUPDATE_H_
 
-#include "../module.h"
-#include "../pb/module_msg.pb.h"
-#include "../port.h"
+#include "module.h"
+#include "utils/endian.h"
 
-class QueueInc final : public Module {
- public:
-  static const gate_idx_t kNumIGates = 0;
+#include "protobuf/supdate_msg.pb.h"
 
+static const size_t kMaxVariable = 16;
+
+class SequentialUpdate final : public Module {
+public:
   static const Commands cmds;
 
-  QueueInc() : Module(), port_(), qid_(), prefetch_(), burst_() {}
+  SequentialUpdate() : Module(), num_vars_(), vars_() {}
 
-  CommandResponse Init(const bess::pb::QueueIncArg &arg);
-  void DeInit() override;
+  CommandResponse Init(const sample::supdate::pb::SequentialUpdateArg &arg);
 
-  struct task_result RunTask(void *arg) override;
+  void ProcessBatch(bess::PacketBatch *batch) override;
 
-  std::string GetDesc() const override;
+  CommandResponse
+  CommandAdd(const sample::supdate::pb::SequentialUpdateArg &arg);
+  CommandResponse CommandClear(const bess::pb::EmptyArg &arg);
 
-  CommandResponse CommandSetBurst(
-      const bess::pb::QueueIncCommandSetBurstArg &arg);
+private:
+  size_t num_vars_;
 
- private:
-  Port *port_;
-  queue_t qid_;
-  int prefetch_;
-  int burst_;
+  struct {
+    bess::utils::be32_t mask; // bits with 1 won't be updated
+    uint32_t min;
+    uint32_t range; // max - min + 1
+    uint32_t cur;
+    size_t offset;
+    size_t bit_shift;
+  } vars_[kMaxVariable];
 };
 
-#endif  // BESS_MODULES_QUEUEINC_H_
+#endif // BESS_MODULES_SEQUENTIALUPDATE_H_

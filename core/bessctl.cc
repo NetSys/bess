@@ -40,7 +40,7 @@
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-parameter"
-#include "service.grpc.pb.h"
+#include "pb/service.grpc.pb.h"
 #pragma GCC diagnostic pop
 
 #include "bessd.h"

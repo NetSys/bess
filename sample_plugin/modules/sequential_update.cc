@@ -1,4 +1,4 @@
-// Copyright (c) 2014-2016, The Regents of the University of California.
+// Copyright (c) 2014-2017, The Regents of the University of California.
 // Copyright (c) 2016-2017, Nefeli Networks, Inc.
 // All rights reserved.
 //
@@ -28,22 +28,24 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-#include "random_update.h"
+#include "sequential_update.h"
 
 using bess::utils::be32_t;
 
-const Commands RandomUpdate::cmds = {
-    {"add", "RandomUpdateArg", MODULE_CMD_FUNC(&RandomUpdate::CommandAdd),
-     Command::THREAD_UNSAFE},
-    {"clear", "EmptyArg", MODULE_CMD_FUNC(&RandomUpdate::CommandClear),
+const Commands SequentialUpdate::cmds = {
+    {"add", "SequentialUpdateArg",
+     MODULE_CMD_FUNC(&SequentialUpdate::CommandAdd), Command::THREAD_UNSAFE},
+    {"clear", "EmptyArg", MODULE_CMD_FUNC(&SequentialUpdate::CommandClear),
      Command::THREAD_UNSAFE},
 };
 
-CommandResponse RandomUpdate::Init(const bess::pb::RandomUpdateArg &arg) {
+CommandResponse
+SequentialUpdate::Init(const sample::supdate::pb::SequentialUpdateArg &arg) {
   return CommandAdd(arg);
 }
 
-CommandResponse RandomUpdate::CommandAdd(const bess::pb::RandomUpdateArg &arg) {
+CommandResponse SequentialUpdate::CommandAdd(
+    const sample::supdate::pb::SequentialUpdateArg &arg) {
   size_t curr = num_vars_;
   if (curr + arg.fields_size() > kMaxVariable) {
     return CommandFailure(EINVAL, "max %zu variables can be specified",
@@ -65,26 +67,26 @@ CommandResponse RandomUpdate::CommandAdd(const bess::pb::RandomUpdateArg &arg) {
     max = var.max();
 
     switch (size) {
-      case 1:
-        mask = be32_t(0x00ffffff);
-        min = std::min(min, static_cast<uint32_t>(0xff));
-        max = std::min(max, static_cast<uint32_t>(0xff));
-        break;
+    case 1:
+      mask = be32_t(0x00ffffff);
+      min = std::min(min, static_cast<uint32_t>(0xff));
+      max = std::min(max, static_cast<uint32_t>(0xff));
+      break;
 
-      case 2:
-        mask = be32_t(0x0000ffff);
-        min = std::min(min, static_cast<uint32_t>(0xffff));
-        max = std::min(max, static_cast<uint32_t>(0xffff));
-        break;
+    case 2:
+      mask = be32_t(0x0000ffff);
+      min = std::min(min, static_cast<uint32_t>(0xffff));
+      max = std::min(max, static_cast<uint32_t>(0xffff));
+      break;
 
-      case 4:
-        mask = be32_t(0x00000000);
-        min = std::min(min, static_cast<uint32_t>(0xffffffffu));
-        max = std::min(max, static_cast<uint32_t>(0xffffffffu));
-        break;
+    case 4:
+      mask = be32_t(0x00000000);
+      min = std::min(min, static_cast<uint32_t>(0xffffffffu));
+      max = std::min(max, static_cast<uint32_t>(0xffffffffu));
+      break;
 
-      default:
-        return CommandFailure(EINVAL, "'size' must be 1, 2, or 4");
+    default:
+      return CommandFailure(EINVAL, "'size' must be 1, 2, or 4");
     }
 
     if (offset + size > SNBUF_DATA) {
@@ -101,6 +103,7 @@ CommandResponse RandomUpdate::CommandAdd(const bess::pb::RandomUpdateArg &arg) {
 
     // avoid modulo 0
     vars_[curr + i].range = (max - min + 1) ?: 0xffffffff;
+    vars_[curr + i].cur = 0;
     vars_[curr + i].bit_shift = (4 - size) * 8;
   }
 
@@ -108,12 +111,12 @@ CommandResponse RandomUpdate::CommandAdd(const bess::pb::RandomUpdateArg &arg) {
   return CommandSuccess();
 }
 
-CommandResponse RandomUpdate::CommandClear(const bess::pb::EmptyArg &) {
+CommandResponse SequentialUpdate::CommandClear(const bess::pb::EmptyArg &) {
   num_vars_ = 0;
   return CommandSuccess();
 }
 
-void RandomUpdate::ProcessBatch(bess::PacketBatch *batch) {
+void SequentialUpdate::ProcessBatch(bess::PacketBatch *batch) {
   int cnt = batch->cnt();
 
   for (size_t i = 0; i < num_vars_; i++) {
@@ -122,17 +125,26 @@ void RandomUpdate::ProcessBatch(bess::PacketBatch *batch) {
     be32_t mask = var->mask;
     uint32_t min = var->min;
     uint32_t range = var->range;
+    uint32_t cur = var->cur;
     size_t offset = var->offset;
     size_t bit_shift = var->bit_shift;
 
     for (int j = 0; j < cnt; j++) {
       be32_t *p = batch->pkts()[j]->head_data<be32_t *>(offset);
-      uint32_t rand_val = min + rng_.GetRange(range);
-      *p = (*p & mask) | (be32_t(rand_val) << bit_shift);
+      uint32_t value = min + cur;
+      cur = cur + 1;
+      if (cur >= range) {
+        cur = 0;
+      }
+
+      *p = (*p & mask) | (be32_t(value) << bit_shift);
     }
+
+    var->cur = cur;
   }
 
   RunNextModule(batch);
 }
 
-ADD_MODULE(RandomUpdate, "rupdate", "updates packet data with random values")
+ADD_MODULE(SequentialUpdate, "supdate",
+           "updates packet data sequentially in a range")

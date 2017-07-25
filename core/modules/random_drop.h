@@ -32,7 +32,7 @@
 #define BESS_MODULES_RANDOM_DROP_H_
 
 #include "../module.h"
-#include "../module_msg.pb.h"
+#include "../pb/module_msg.pb.h"
 #include "../utils/random.h"
 
 // RandomDrop drops packets with a specified probability [0, 1].

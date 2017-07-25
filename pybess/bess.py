@@ -1,4 +1,4 @@
-# Copyright (c) 2014-2016, The Regents of the University of California.
+# Copyright (c) 2014-2017, The Regents of the University of California.
 # Copyright (c) 2016-2017, Nefeli Networks, Inc.
 # Copyright (c) 2017, Cloudigo.
 # All rights reserved.
@@ -38,12 +38,14 @@ import os
 import pprint
 import time
 
-from . import service_pb2
 from . import protobuf_to_dict as pb_conv
 
-from . import module_msg
-from . import bess_msg_pb2 as bess_msg
-from . import port_msg_pb2 as port_msg
+from . import module_pb_loader as module_pb
+
+from .builtin_pb import service_pb2
+from .builtin_pb import bess_msg_pb2 as bess_msg
+from .builtin_pb import module_msg_pb2 as module_msg
+from .builtin_pb import port_msg_pb2 as port_msg
 
 
 def _constraints_to_list(constraint):
@@ -294,7 +296,7 @@ class BESS(object):
         request.size_out_q = arg.pop('size_out_q', 0)
         request.mac_addr = arg.pop('mac_addr', '')
 
-        message_type = getattr(port_msg, driver + 'Arg', bess_msg.EmptyArg)
+        message_type = getattr(port_msg, driver + 'Arg', module_msg.EmptyArg)
         arg_msg = pb_conv.dict_to_protobuf(message_type, arg)
         request.arg.Pack(arg_msg)
 
@@ -349,7 +351,7 @@ class BESS(object):
         request.name = name or ''
         request.mclass = mclass
 
-        message_type = getattr(module_msg, mclass + 'Arg', bess_msg.EmptyArg)
+        message_type = getattr(module_pb, mclass + 'Arg', module_msg.EmptyArg)
         arg_msg = pb_conv.dict_to_protobuf(message_type, arg)
         request.arg.Pack(arg_msg)
 
@@ -385,7 +387,7 @@ class BESS(object):
         request.cmd = cmd
 
         try:
-            message_type = getattr(module_msg, arg_type)
+            message_type = getattr(module_pb, arg_type)
         except AttributeError as e:
             raise self.APIError('Unknown arg "%s"' % arg_type)
 
@@ -404,8 +406,8 @@ class BESS(object):
 
         if response.HasField('data'):
             response_type_str = response.data.type_url.split('.')[-1]
-            response_type = getattr(module_msg, response_type_str,
-                                    bess_msg.EmptyArg)
+            response_type = getattr(module_pb, response_type_str,
+                                    module_msg.EmptyArg)
             result = response_type()
             response.data.Unpack(result)
             return result

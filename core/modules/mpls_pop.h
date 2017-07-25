@@ -32,7 +32,7 @@
 #define BESS_MODULES_MPLSPOP_H_
 
 #include "../module.h"
-#include "../module_msg.pb.h"
+#include "../pb/module_msg.pb.h"
 #include "../utils/ether.h"
 
 using bess::utils::be16_t;

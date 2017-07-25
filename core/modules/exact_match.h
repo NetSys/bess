@@ -35,7 +35,7 @@
 #include <rte_hash_crc.h>
 
 #include "../module.h"
-#include "../module_msg.pb.h"
+#include "../pb/module_msg.pb.h"
 #include "../utils/cuckoo_map.h"
 
 #define MAX_FIELDS 8

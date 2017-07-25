@@ -32,7 +32,7 @@
 #define BESS_MODULES_FLOWGEN_H_
 
 #include "../module.h"
-#include "../module_msg.pb.h"
+#include "../pb/module_msg.pb.h"
 
 class Source final : public Module {
  public:
@@ -40,9 +40,7 @@ class Source final : public Module {
 
   static const Commands cmds;
 
-  Source() : Module(), pkt_size_(), burst_() {
-    is_task_ = true;
-  }
+  Source() : Module(), pkt_size_(), burst_() { is_task_ = true; }
 
   CommandResponse Init(const bess::pb::SourceArg &arg);
 

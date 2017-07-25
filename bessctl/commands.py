@@ -1,4 +1,4 @@
-# Copyright (c) 2014-2016, The Regents of the University of California.
+# Copyright (c) 2014-2017, The Regents of the University of California.
 # Copyright (c) 2016-2017, Nefeli Networks, Inc.
 # Copyright (c) 2017, Cloudigo.
 # All rights reserved.
@@ -333,7 +333,7 @@ def get_var_attrs(cli, var_token, partial_word):
             var_candidates = complete_filename(partial_word, suffix='.so',
                                                skip_suffix=True)
 
-        if var_token == '[DIRECTION]':
+        elif var_token == '[DIRECTION]':
             var_type = 'name'
             var_desc = 'gate direction discriminator (default "out")'
             var_candidates = ['in', 'out']
@@ -1417,12 +1417,22 @@ def show_mclass_list(cli, cls_names):
 
 @cmd('import plugin PLUGIN_FILE', 'Import the specified plugin (*.so)')
 def import_plugin(cli, plugin):
-    cli.bess.import_plugin(plugin)
+    cli.bess.pause_all()
+    try:
+        cli.bess.import_plugin(plugin)
+    finally:
+        cli.bess.resume_all()
 
 
 @cmd('unload plugin PLUGIN_FILE', 'Unload the specified plugin (*.so)')
 def unload_plugin(cli, plugin):
-    cli.bess.unload_plugin(plugin)
+    # FIXME check whether the plugin is being used
+    # currently this command can crash the BESS daemon
+    cli.bess.pause_all()
+    try:
+        cli.bess.unload_plugin(plugin)
+    finally:
+        cli.bess.resume_all()
 
 
 @cmd('show plugin', 'Show all imported plugins')

@@ -35,8 +35,8 @@ import time
 from concurrent import futures
 
 from . import bess
-from . import bess_msg_pb2 as bess_msg
-from . import service_pb2
+from .builtin_pb import bess_msg_pb2 as bess_msg
+from .builtin_pb import service_pb2
 
 
 class DummyServiceImpl(service_pb2.BESSControlServicer):
@@ -141,5 +141,5 @@ class TestBESS(unittest.TestCase):
                                              'add',
                                              'ExactMatchCommandAddArg',
                                              {'gate': 0,
-                                                 'fields': [{'value_bin':b'\x11'}, {'value_bin':b'\x22'}]})
+                                                 'fields': [{'value_bin': b'\x11'}, {'value_bin': b'\x22'}]})
         self.assertEqual(0, response.error.code)

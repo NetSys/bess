@@ -1,4 +1,4 @@
-# Copyright (c) 2014-2016, The Regents of the University of California.
+# Copyright (c) 2014-2017, The Regents of the University of California.
 # Copyright (c) 2016-2017, Nefeli Networks, Inc.
 # All rights reserved.
 #
@@ -32,31 +32,34 @@ import importlib
 import glob
 import os
 
-exclude_list = ['bess_msg_pb2', 'port_msg_pb2']
+__all__ = []
+
+blacklist = ['builtin_pb.bess_msg_pb2', 'builtin_pb.port_msg_pb2']
 
 
-def _load_symbols(mod, *symbols):
-    globals().update({name: mod.__dict__[name] for name in symbols})
+def update_symbols(module, symbols):
+    globals().update({name: module.__dict__[name] for name in symbols})
 
 
-def load_symbol(mod_name, symbol):
-    mod = importlib.import_module('..' + mod_name, __name__)
-    _load_symbols(mod, symbol)
-
-
-def load_symbols(mod_name):
-    mod = importlib.import_module('..' + mod_name, __name__)
-    symbols = [n for n in mod.__dict__ if
+def import_module(module_name, update_symbol=True):
+    module = importlib.import_module('..' + module_name, __name__)
+    symbols = [n for n in module.__dict__ if
                n.endswith('Arg') or n.endswith('Response')]
-    _load_symbols(mod, *symbols)
+
+    if update_symbol:
+        update_symbols(module, symbols)
 
 
-dir_path = os.path.dirname(os.path.realpath(__file__))
-mod_files = glob.glob(dir_path + '/*_msg_pb2.py')
-mods = [m for m in [os.path.basename(m)[:-3] for m in mod_files]
-        if m not in exclude_list]
+def import_package(package_name):
+    cur_path = os.path.dirname(os.path.relpath(__file__))
+    module_files = glob.glob(cur_path + '/' + package_name + '/*_msg_pb2.py')
+    modules = [package_name + '.' + m
+               for m in [os.path.basename(m)[:-3] for m in module_files]]
 
-for mod_name in mods:
-    load_symbols(mod_name)
+    for module_name in modules:
+        if module_name not in blacklist:
+            import_module(module_name)
 
-load_symbol('bess_msg_pb2', 'EmptyArg')
+import_package('builtin_pb')
+import_package('plugin_pb')
+import_module('builtin_pb.bess_msg_pb2', False)

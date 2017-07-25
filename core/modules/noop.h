@@ -32,13 +32,11 @@
 #define BESS_MODULES_NOOP_H_
 
 #include "../module.h"
-#include "../module_msg.pb.h"
+#include "../pb/module_msg.pb.h"
 
 class NoOP final : public Module {
  public:
-  NoOP() : Module() {
-    is_task_ = true;
-  };
+  NoOP() : Module() { is_task_ = true; };
   CommandResponse Init(const bess::pb::EmptyArg &arg);
 
   struct task_result RunTask(void *arg) override;

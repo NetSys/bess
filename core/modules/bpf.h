@@ -36,7 +36,7 @@
 #include <vector>
 
 #include "../module.h"
-#include "../module_msg.pb.h"
+#include "../pb/module_msg.pb.h"
 
 using bpf_filter_func_t = u_int (*)(u_char *, u_int, u_int);
 

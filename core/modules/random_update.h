@@ -1,4 +1,4 @@
-// Copyright (c) 2014-2016, The Regents of the University of California.
+// Copyright (c) 2014-2017, The Regents of the University of California.
 // Copyright (c) 2016-2017, Nefeli Networks, Inc.
 // All rights reserved.
 //
@@ -32,12 +32,12 @@
 #define BESS_MODULES_RANDOMUPDATE_H_
 
 #include "../module.h"
-#include "../module_msg.pb.h"
+#include "../pb/module_msg.pb.h"
 
 #include "../utils/endian.h"
 #include "../utils/random.h"
 
-#define MAX_VARS 16
+static const size_t kMaxVariable = 16;
 
 class RandomUpdate final : public Module {
  public:
@@ -53,7 +53,7 @@ class RandomUpdate final : public Module {
   CommandResponse CommandClear(const bess::pb::EmptyArg &arg);
 
  private:
-  int num_vars_;
+  size_t num_vars_;
 
   struct {
     bess::utils::be32_t mask;  // bits with 1 won't be updated
@@ -61,7 +61,7 @@ class RandomUpdate final : public Module {
     uint32_t range;  // max - min + 1
     size_t offset;
     size_t bit_shift;
-  } vars_[MAX_VARS];
+  } vars_[kMaxVariable];
 
   Random rng_;
 };

@@ -33,7 +33,7 @@
 #include <vector>
 
 #include "../module.h"
-#include "../module_msg.pb.h"
+#include "../pb/module_msg.pb.h"
 #include "../utils/ip.h"
 
 using bess::utils::be16_t;

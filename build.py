@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# Copyright (c) 2014-2016, The Regents of the University of California.
+# Copyright (c) 2014-2017, The Regents of the University of California.
 # Copyright (c) 2016-2017, Nefeli Networks, Inc.
 # All rights reserved.
 #
@@ -309,14 +309,14 @@ def build_bess():
 
     print('Generating protobuf codes for pybess...')
     cmd('protoc protobuf/*.proto \
-        --proto_path=protobuf --python_out=pybess \
-        --grpc_out=pybess \
+        --proto_path=protobuf --python_out=pybess/builtin_pb \
+        --grpc_out=pybess/builtin_pb \
         --plugin=protoc-gen-grpc=`which grpc_python_plugin`')
     cmd('protoc protobuf/tests/*.proto \
-        --proto_path=protobuf/tests/ --python_out=pybess \
-        --grpc_out=pybess \
+        --proto_path=protobuf/tests/ --python_out=pybess/builtin_pb \
+        --grpc_out=pybess/builtin_pb \
         --plugin=protoc-gen-grpc=`which grpc_python_plugin`')
-    cmd('2to3 -wn pybess/*_pb2.py')
+    cmd('2to3 -wn pybess/builtin_pb/*_pb2.py')
 
     print('Building BESS daemon...')
     cmd('bin/bessctl daemon stop 2> /dev/null || true')
@@ -355,7 +355,10 @@ def do_clean():
     cmd('make -C core clean')
     cmd('rm -f bin/bessd')
     cmd('make -C core/kmod clean')
-    cmd('rm -rf pybess/*_pb2.py')
+    cmd('rm -rf pybess/builtin_pb/*_pb2.py*')
+    cmd('rm -rf pybess/builtin_pb/*_pb2_grpc.py*')
+    cmd('rm -rf pybess/plugin_pb/*_pb2.py*')
+    cmd('rm -rf pybess/plugin_pb/*_pb2_grpc.py*')
     cmd('rm -rf %s/build' % DPDK_DIR)
 
 
@@ -403,7 +406,7 @@ def main():
         nargs=1,
         help='Location of benchmark library')
     parser.add_argument('-v', '--verbose', action='store_true',
-        help='enable verbose builds (same as env V=1)')
+                        help='enable verbose builds (same as env V=1)')
     args = parser.parse_args()
 
     if args.verbose:
