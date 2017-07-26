@@ -50,13 +50,13 @@ class Trie {
 
   // Inserts a string into the trie, associating the key
   // with the value.
-  void Insert(const std::string& key, const T val);
+  void Insert(const std::string& key, const T& val);
 
   // Inserts a string into the trie, associating the key with
   // the value. If prefix is true, then any key that begins with
   // this key will also be a match, unless the trie contains a match
   // of greater specificity.
-  void Insert(const std::string& key, const T val, bool prefix);
+  void Insert(const std::string& key, const T& val, bool prefix);
 
   // Returns true if the key is in the trie.
   bool Match(const std::string& key);
@@ -75,12 +75,12 @@ class Trie {
 };
 
 template <typename T>
-inline void Trie<T>::Insert(const std::string& key, const T val) {
+inline void Trie<T>::Insert(const std::string& key, const T& val) {
   return Insert(key, val, false);
 }
 
 template <typename T>
-inline void Trie<T>::Insert(const std::string& key, const T val, bool prefix) {
+inline void Trie<T>::Insert(const std::string& key, const T& val, bool prefix) {
   Node* cur = &root_;
   for (const char& c : key) {
     size_t idx = c;

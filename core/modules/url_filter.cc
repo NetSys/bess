@@ -142,8 +142,7 @@ CommandResponse UrlFilter::Init(const bess::pb::UrlFilterArg &arg) {
                          std::forward_as_tuple(url.host()),
                          std::forward_as_tuple());
     }
-    Trie<std::tuple<>> &trie = blacklist_.at(url.host());
-    trie.Insert(url.path(), {});
+    blacklist_[url.host()].Insert(url.path(), {});
   }
   return CommandSuccess();
 }
