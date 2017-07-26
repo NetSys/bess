@@ -385,7 +385,8 @@ static inline uint16_t CalculateIpv4UdpChecksum(const Udp &udph, be32_t src,
       : [u0] "m"(buf32[0]), [u1] "g"(buf32[1] & 0xFFFF),  // skip checksum field
         [src] "r"(src.raw_value()), [dst] "r"(dst.raw_value()), [len] "r"(len));
 
-  return FoldChecksum(sum);
+  // If the result of UDP checksum calculation is 0, return all ones (rfc 768)
+  return FoldChecksum(sum) ?: 0xFFFF;
 }
 
 // Returns UDP (on IPv4) checksum of the UDP header 'udph' with ip header 'iph'

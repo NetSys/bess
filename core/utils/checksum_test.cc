@@ -241,7 +241,7 @@ TEST(ChecksumTest, UdpChecksum) {
     cksum_bess = CalculateIpv4NoOptChecksum(*ip);
 
     if (cksum_dpdk == 0xffff) {
-      // While the value of IP/UDP/TCP checksum field must not be -0 (0xffff),
+      // While the value of IP/TCP checksum field must not be -0 (0xffff),
       // but DPDK often (incorrectly) gives that value. (RFC 768, 1071, 1624)
       EXPECT_EQ(0, cksum_bess);
     } else {
@@ -254,13 +254,10 @@ TEST(ChecksumTest, UdpChecksum) {
         rte_ipv4_udptcp_cksum(reinterpret_cast<const ipv4_hdr *>(ip), udp);
     cksum_bess = CalculateIpv4UdpChecksum(*ip, *udp);
 
-    if (cksum_dpdk == 0xffff) {
-      // While the value of IP/UDP/TCP checksum field must not be -0 (0xffff),
-      // but DPDK often (incorrectly) gives that value. (RFC 768, 1071, 1624)
-      EXPECT_EQ(0, cksum_bess);
-    } else {
-      EXPECT_EQ(cksum_dpdk, cksum_bess);
-    }
+    EXPECT_EQ(cksum_dpdk, cksum_bess);
+
+    // The result of UDP checksum must not be zero
+    EXPECT_NE(0, cksum_bess);
   }
 }
 
@@ -302,7 +299,7 @@ TEST(ChecksumTest, TcpChecksum) {
   // Should not crash with incorrect IP headers
   ip->length = be16_t(39);
   EXPECT_EQ(0, CalculateIpv4TcpChecksum(*ip, *tcp));
-  //EXPECT_FALSE(VerifyIpv4TcpChecksum(*ip, *tcp));
+  EXPECT_FALSE(VerifyIpv4TcpChecksum(*ip, *tcp));
 
   ip->length = be16_t(40);
 
@@ -321,7 +318,7 @@ TEST(ChecksumTest, TcpChecksum) {
     cksum_bess = CalculateIpv4NoOptChecksum(*ip);
 
     if (cksum_dpdk == 0xffff) {
-      // While the value of IP/UDP/TCP checksum field must not be -0 (0xffff),
+      // While the value of IP/TCP checksum field must not be -0 (0xffff),
       // but DPDK often (incorrectly) gives that value. (RFC 768, 1071, 1624)
       EXPECT_EQ(0, cksum_bess);
     } else {
@@ -335,7 +332,7 @@ TEST(ChecksumTest, TcpChecksum) {
     cksum_bess = CalculateIpv4TcpChecksum(*ip, *tcp);
 
     if (cksum_dpdk == 0xffff) {
-      // While the value of IP/UDP/TCP checksum field must not be -0 (0xffff),
+      // While the value of IP/TCP checksum field must not be -0 (0xffff),
       // but DPDK often (incorrectly) gives that value. (RFC 768, 1071, 1624)
       EXPECT_EQ(0, cksum_bess);
     } else {
