@@ -255,15 +255,16 @@ static inline bool VerifyIpv4Checksum(const Ipv4 &iph) {
   const uint32_t *buf32 = reinterpret_cast<const uint32_t *>(&iph);
   size_t ip_header_len = iph.header_length << 2;
 
-  if (likely(ip_header_len == 20)) {
+  if (likely(ip_header_len == sizeof(iph))) {
     return VerifyIpv4NoOptChecksum(iph);
   }
 
-  if (unlikely(ip_header_len < 20)) {
+  if (unlikely(ip_header_len < sizeof(iph))) {
     return false;  // Invalid IP header
   }
 
-  uint32_t sum = CalculateSum(buf32 + 5, ip_header_len - 20);
+  uint32_t sum = CalculateSum(buf32 + sizeof(iph) / sizeof(*buf32),
+                              ip_header_len - sizeof(iph));
 
   // Calculate internet checksum, the optimized way is
   // 1. get 32-bit one's complement sum including carrys
@@ -288,15 +289,16 @@ static inline uint16_t CalculateIpv4Checksum(const Ipv4 &iph) {
   const uint32_t *buf32 = reinterpret_cast<const uint32_t *>(&iph);
   size_t ip_header_len = iph.header_length << 2;
 
-  if (likely(ip_header_len == 20)) {
+  if (likely(ip_header_len == sizeof(iph))) {
     return CalculateIpv4NoOptChecksum(iph);
   }
 
-  if (unlikely(ip_header_len < 20)) {
+  if (unlikely(ip_header_len < sizeof(iph))) {
     return 0;  // Invalid IP header. Give up.
   }
 
-  uint32_t sum = CalculateSum(buf32 + 5, ip_header_len - 20);
+  uint32_t sum = CalculateSum(buf32 + sizeof(iph) / sizeof(*buf32),
+                              ip_header_len - sizeof(iph));
 
   // Calculate internet checksum, the optimized way is
   // 1. get 32-bit one's complement sum including carrys
@@ -329,7 +331,8 @@ static inline bool VerifyIpv4UdpChecksum(const Udp &udph, be32_t src_ip,
   }
 
   // UDP payload
-  uint32_t sum = CalculateSum(buf32 + 2, udp_len - sizeof(udph));
+  uint32_t sum = CalculateSum(buf32 + sizeof(udph) / sizeof(*buf32),
+                              udp_len - sizeof(udph));
   uint32_t len = static_cast<uint32_t>(be16_t::swap(udp_len));
 
   // Calculate the checksum of UDP header and pseudo header
@@ -369,7 +372,8 @@ static inline uint16_t CalculateIpv4UdpChecksum(const Udp &udph, be32_t src,
                                                 be32_t dst, uint16_t udp_len) {
   const uint32_t *buf32 = reinterpret_cast<const uint32_t *>(&udph);
   // UDP payload
-  uint32_t sum = CalculateSum(buf32 + 2, udp_len - sizeof(udph));
+  uint32_t sum = CalculateSum(buf32 + sizeof(udph) / sizeof(*buf32),
+                              udp_len - sizeof(udph));
   uint32_t len = static_cast<uint32_t>(be16_t::swap(udp_len));
 
   // Calculate the checksum of UDP header and pseudo header
@@ -411,7 +415,8 @@ static inline bool VerifyIpv4TcpChecksum(const Tcp &tcph, be32_t src_ip,
   const uint32_t *buf32 = reinterpret_cast<const uint32_t *>(&tcph);
 
   // TCP options and payload
-  uint32_t sum = CalculateSum(buf32 + 5, tcp_len - sizeof(tcph));
+  uint32_t sum = CalculateSum(buf32 + sizeof(tcph) / sizeof(*buf32),
+                              tcp_len - sizeof(tcph));
   uint32_t len = static_cast<uint32_t>(be16_t::swap(tcp_len));
 
   // Calculate the checksum of TCP header and pseudo header
@@ -457,7 +462,8 @@ static inline uint16_t CalculateIpv4TcpChecksum(const Tcp &tcph, be32_t src,
                                                 be32_t dst, uint16_t tcp_len) {
   const uint32_t *buf32 = reinterpret_cast<const uint32_t *>(&tcph);
   // tcp options and payload
-  uint32_t sum = CalculateSum(buf32 + 5, tcp_len - sizeof(tcph));
+  uint32_t sum = CalculateSum(buf32 + sizeof(tcph) / sizeof(*buf32),
+                              tcp_len - sizeof(tcph));
   uint32_t len = static_cast<uint32_t>(be16_t::swap(tcp_len));
 
   // Calculate the checksum of TCP header and pseudo header
