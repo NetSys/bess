@@ -1785,8 +1785,9 @@ def interactive(cli):
     cli.fout = old_fout
     cli.interactive = False
 
-@cmd('dump mempool [SOCKET]', 'Dump the mempool of one or more sockets')
-def dump_mempool(cli, socket):
+
+@cmd('show system packets [SOCKET]', 'Dump the mempool of one or more sockets')
+def show_system_packets(cli, socket):
     if socket is None:
         socket = -1
     resp = cli.bess.dump_mempool(socket)
@@ -1798,8 +1799,10 @@ def dump_mempool(cli, socket):
         cli.fout.write('\tmp_size: {}\n'.format(dump.mp_size))
         cli.fout.write('\tmp_cache_size: {}\n'.format(dump.mp_cache_size))
         cli.fout.write('\tmp_element_size: {}\n'.format(dump.mp_element_size))
-        cli.fout.write('\tmp_populated_size: {}\n'.format(dump.mp_populated_size))
-        cli.fout.write('\tmp_available_count: {}\n'.format(dump.mp_available_count))
+        cli.fout.write('\tmp_populated_size: {}\n'.format(
+            dump.mp_populated_size))
+        cli.fout.write('\tmp_available_count: {}\n'.format(
+            dump.mp_available_count))
         cli.fout.write('\tmp_in_use_count: {}\n'.format(dump.mp_in_use_count))
         cli.fout.write('\tring_count: {}\n'.format(dump.ring_count))
         cli.fout.write('\tring_free_count: {}\n'.format(dump.ring_free_count))
