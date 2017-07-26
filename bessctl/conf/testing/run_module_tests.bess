@@ -106,20 +106,46 @@ def crash_test(module, num_input_ports, num_output_ports):
     time.sleep(5)
     bess.pause_all()
 
-# Can't just call exec() in the middle of main loop because
-# variables will leak into main script scope
 def load_test(filename):
-    CRASH_TEST_INPUTS = []
-    OUTPUT_TEST_INPUTS = []
-    CUSTOM_TEST_FUNCTIONS = []
+    """
+    Load a test file.  It should modify the (global to it) variables
+    CRASH_TEST_INPUTS, OUTPUT_TEST_INPUTS, and CUSTOM_TEST_FUNCTIONS
+    using .append() to add its tests.  The format of each of these is
+    a bit different; see the wiki at
+    https://github.com/NetSys/bess/wiki/Python-Scripts
+    """
+    namespace = {
+        '__builtins__': __builtins__,
+        'bess': bess,
+        'ConfError': ConfError,
+        '__bess_env__': __bess_env__,
+        '__bess_module__': __bess_module__,
+        '__bess_creators__': __bess_creators__,
+        'scapy': scapy,
+        'socket': socket,
+        'time': time,
+        'SOCKET_PATH': SOCKET_PATH,
+        'SCRIPT_STARTTIME': SCRIPT_STARTTIME,
+        'gen_socket_and_port': gen_socket_and_port,
+        'gen_packet': gen_packet,
+        'pkt_str': pkt_str,
+        'aton': aton,
+        'monitor_task': monitor_task,
+        'CRASH_TEST_INPUTS': [],
+        'OUTPUT_TEST_INPUTS': [],
+        'CUSTOM_TEST_FUNCTIONS': [],
+    }
+    # pre-import all the actual creator modules directly
+    namespace.update(__bess_creators__)
 
     xformed = sugar.xform_file(filename)
     code = compile(xformed, filename, 'exec')
-    exec(code)
+    exec(code, namespace)
 
-    return [CRASH_TEST_INPUTS,
-            OUTPUT_TEST_INPUTS,
-            CUSTOM_TEST_FUNCTIONS]
+    # if test deleted any of our items, use an empty list
+    return [namespace.get('CRASH_TEST_INPUTS', []),
+            namespace.get('OUTPUT_TEST_INPUTS', []),
+            namespace.get('CUSTOM_TEST_FUNCTIONS', [])]
 
 
 def monitor_task(module, wid):

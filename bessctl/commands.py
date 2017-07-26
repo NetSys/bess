@@ -100,35 +100,42 @@ def __bess_env__(key, default=None):
 
 
 def __bess_module__(module_names, mclass_name, *args, **kwargs):
-    caller_globals = inspect.stack()[1][0].f_globals
+    def make_modules(names):
+        result = []
+        for module in names:
+            if module in caller_globals:
+                raise ConfError("Module name %s already exists" % module)
+            if module in caller_locals:
+                raise ConfError("Module name %s shadowed by local variable" %
+                                module)
+        for module in names:
+            obj = mclass_obj(*args, name=module, **kwargs)
+            caller_globals[module] = obj
+            result.append(obj)
+        return result
+
+    caller_frame = inspect.stack()[1][0]
+    caller_globals = caller_frame.f_globals
+    caller_locals = caller_frame.f_locals
+    # If the locals *are* the globals, we are in the module of the
+    # caller and should look only at the globals.  If not, we are
+    # in a function defined in that module, and must check both.
+    if caller_locals is caller_globals:
+        caller_locals = {}
 
     if mclass_name not in caller_globals:
         raise ConfError("Module class %s does not exist" % mclass_name)
     mclass_obj = caller_globals[mclass_name]
 
+    # a::SomeMod()
     if isinstance(module_names, str):
-        if module_names in caller_globals:
-            raise ConfError("Module name %s already exists" % module_names)
-        obj = mclass_obj(*args, name=module_names, **kwargs)
-        caller_globals[module_names] = obj
-        return obj
+        return make_modules([module_names])[0]
 
     # a,b,c::SomeMod()
-    elif isinstance(module_names, tuple):
-        obj_list = []
+    if isinstance(module_names, tuple):
+        return make_modules(module_names)
 
-        for module in module_names:
-            if module in caller_globals:
-                raise ConfError("Module name %s already exists" % module)
-
-        for module in module_names:
-            obj = mclass_obj(*args, name=module, **kwargs)
-            caller_globals[module] = obj
-            obj_list.append(obj)
-        return obj_list
-
-    else:
-        assert False, 'Invalid argument %s' % type(module_names)
+    assert False, 'Invalid argument %s' % type(module_names)
 
 
 def is_allowed_filename(basename):
@@ -702,6 +709,70 @@ def _clear_pipeline(cli):
     cli.bess.reset_all()
 
 
+def _get_bess_module_and_port_creators(cli, rsvd):
+    """
+    Return module instance creators and port instance creators.
+
+    A creator is, in effect, a class as if defined by:
+        class Foo(Module):
+            bess = bess
+            choose_arg = _choose_arg
+    (and similarly for a port creator but with Port as the base class).
+    The choose_arg function is internal, meant for use in the __init__
+    functions in the base classes; see class Module and class Port,
+    defined elsewhere.
+
+    The rsvd argument is a dictionary of reserved names (see below).
+    """
+    creators = {}
+
+    # TODO(torek) cache these for performance, rebuild when needed
+
+    class_names = [str(i) for i in cli.bess.list_mclasses().names]
+    driver_names = [str(i) for i in cli.bess.list_drivers().driver_names]
+
+    # Duplicates, if they exist, represent a fault in what's been
+    # loaded into BESS.  In particular, at least for the moment,
+    # we cannot have the same name as both a module *and* a port,
+    # nor may they use any of the reserved names.
+    #
+    # We can assume that the C++ code has already forbidden
+    # using the same name twice as-module class or port-driver.
+    # But the C++ code does not have the restriction on using
+    # Foo() as *both* module *and* port-driver.
+    counts = collections.Counter(rsvd.keys())
+    counts.update(class_names)
+    counts.update(driver_names)
+    dups = [k for k in counts if counts[k] > 1]
+
+    if dups:
+        errors = []
+        for name in dups:
+            if name in rsvd:
+                why = 'reserved name {} is used as '.format(name)
+            else:
+                why = 'name {} is used as '.format(name)
+            if name in class_names:
+                if name in driver_names:
+                    why += 'both a module class and a port driver'
+                else:
+                    why += 'a module class'
+            else:
+                why += 'a port driver'
+            errors.append(why)
+        errors = 'duplicate names found: {}'.format('; '.join(errors))
+        raise cli.InternalError(errors)
+
+    for name in class_names:
+        creators[name] = type(str(name), (Module,),
+                              {'bess': cli.bess, 'choose_arg': _choose_arg})
+    for name in driver_names:
+        creators[name] = type(str(name), (Port,),
+                              {'bess': cli.bess, 'choose_arg': _choose_arg})
+
+    return creators
+
+
 # NOTE: the name of this function is used below
 def _do_run_file(cli, conf_file):
     if not os.path.exists(conf_file):
@@ -716,26 +787,18 @@ def _do_run_file(cli, conf_file):
         'ConfError': ConfError,
         '__bess_env__': __bess_env__,
         '__bess_module__': __bess_module__,
+        '__bess_creators__': None,   # will be replaced below
     }
 
-    class_names = cli.bess.list_mclasses().names
-    driver_names = cli.bess.list_drivers().driver_names
+    creators = _get_bess_module_and_port_creators(cli, new_globals)
 
-    # Add BESS port classes
-    for name in driver_names:
-        if name in new_globals:
-            raise cli.InternalError('Invalid driver name: %s' % name)
-
-        new_globals[name] = type(str(name), (Port,),
-                                 {'bess': cli.bess, 'choose_arg': _choose_arg})
-
-    # Add BESS module classes
-    for name in class_names:
-        if name in new_globals:
-            raise cli.InternalError('Invalid module class name: %s' % name)
-
-        new_globals[name] = type(str(name), (Module,),
-                                 {'bess': cli.bess, 'choose_arg': _choose_arg})
+    # Creator names are used globally in scripts, so export them
+    # globally.  We keep them in __bess_creators__ for use in the
+    # test code as well, which wants to create its own new set of
+    # globals.
+    new_globals['__bess_creators__'] = creators
+    for name in creators:
+        new_globals[name] = creators[name]
 
     code = compile(xformed, conf_file, 'exec')
 
