@@ -158,6 +158,11 @@ TEST(ChecksumTest, Ipv4Checksum) {
   ip->checksum = cksum_bess;
   EXPECT_TRUE(VerifyIpv4Checksum(*ip));
 
+  // Should not crash with incorrect IP headers
+  ip->header_length = 4;
+  EXPECT_EQ(0, CalculateIpv4Checksum(*ip));
+  EXPECT_FALSE(VerifyIpv4Checksum(*ip));
+
   ip->checksum = 0x0000;  // for dpdk
 
   for (int i = 0; i < TestLoopCount; i++) {
@@ -289,6 +294,13 @@ TEST(ChecksumTest, TcpChecksum) {
 
   tcp->checksum = cksum_bess;
   EXPECT_TRUE(VerifyIpv4TcpChecksum(*ip, *tcp));
+
+  // Should not crash with incorrect IP headers
+  ip->length = be16_t(39);
+  EXPECT_EQ(0, CalculateIpv4TcpChecksum(*ip, *tcp));
+  //EXPECT_FALSE(VerifyIpv4TcpChecksum(*ip, *tcp));
+
+  ip->length = be16_t(40);
 
   for (int i = 0; i < TestLoopCount; i++) {
     ip->src = be32_t(rd.Get());

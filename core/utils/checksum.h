@@ -253,8 +253,17 @@ static inline uint16_t CalculateIpv4NoOptChecksum(const Ipv4 &iph) {
 // Returns true if the IP checksum is true
 static inline bool VerifyIpv4Checksum(const Ipv4 &iph) {
   const uint32_t *buf32 = reinterpret_cast<const uint32_t *>(&iph);
-  size_t ip_opts_len = (iph.header_length << 2) - sizeof(Ipv4);
-  uint32_t sum = ip_opts_len == 0 ? 0 : CalculateSum(buf32 + 5, ip_opts_len);
+  size_t ip_header_len = iph.header_length << 2;
+
+  if (likely(ip_header_len == 20)) {
+    return VerifyIpv4NoOptChecksum(iph);
+  }
+
+  if (unlikely(ip_header_len < 20)) {
+    return false;  // Invalid IP header
+  }
+
+  uint32_t sum = CalculateSum(buf32 + 5, ip_header_len - 20);
 
   // Calculate internet checksum, the optimized way is
   // 1. get 32-bit one's complement sum including carrys
@@ -277,8 +286,17 @@ static inline bool VerifyIpv4Checksum(const Ipv4 &iph) {
 // It does not set the checksum field in ip header
 static inline uint16_t CalculateIpv4Checksum(const Ipv4 &iph) {
   const uint32_t *buf32 = reinterpret_cast<const uint32_t *>(&iph);
-  size_t ip_opts_len = (iph.header_length << 2) - sizeof(Ipv4);
-  uint32_t sum = ip_opts_len == 0 ? 0 : CalculateSum(buf32 + 5, ip_opts_len);
+  size_t ip_header_len = iph.header_length << 2;
+
+  if (likely(ip_header_len == 20)) {
+    return CalculateIpv4NoOptChecksum(iph);
+  }
+
+  if (unlikely(ip_header_len < 20)) {
+    return 0;  // Invalid IP header. Give up.
+  }
+
+  uint32_t sum = CalculateSum(buf32 + 5, ip_header_len - 20);
 
   // Calculate internet checksum, the optimized way is
   // 1. get 32-bit one's complement sum including carrys
@@ -299,7 +317,8 @@ static inline uint16_t CalculateIpv4Checksum(const Ipv4 &iph) {
 
 // Returns true if the UDP checksum is true with the UDP header and
 // pseudo header info - source ip, destiniation ip, and UDP byte stream length
-// udp_len: UDP header + payload in bytes
+// udp_len: UDP header + payload in bytes.
+// NOTE: Undefined behavior if udp_len < 8
 static inline bool VerifyIpv4UdpChecksum(const Udp &udph, be32_t src_ip,
                                          be32_t dst_ip, uint16_t udp_len) {
   const uint32_t *buf32 = reinterpret_cast<const uint32_t *>(&udph);
@@ -325,8 +344,14 @@ static inline bool VerifyIpv4UdpChecksum(const Udp &udph, be32_t src_ip,
 
 // Returns true if the UDP checksum is true
 static inline bool VerifyIpv4UdpChecksum(const Ipv4 &iph, const Udp &udph) {
-  return VerifyIpv4UdpChecksum(udph, iph.src, iph.dst,
-                               iph.length.value() - (iph.header_length << 2));
+  size_t ip_len = iph.length.value();
+  size_t ip_header_len = iph.header_length << 2;
+
+  if (unlikely(ip_len < ip_header_len)) {
+    return false;
+  }
+
+  return VerifyIpv4UdpChecksum(udph, iph.src, iph.dst, ip_len - ip_header_len);
 }
 
 // Returns UDP (on IPv4) checksum of the UDP header 'udph' with pseudo header
@@ -335,6 +360,7 @@ static inline bool VerifyIpv4UdpChecksum(const Ipv4 &iph, const Udp &udph) {
 // 'udp_len' is in host-order, and the others are in network-order
 // It skips the checksum field into the calculation
 // It does not set the checksum field in UDP header
+// NOTE: Undefined behavior if udp_len < 8
 static inline uint16_t CalculateIpv4UdpChecksum(const Udp &udph, be32_t src,
                                                 be32_t dst, uint16_t udp_len) {
   const uint32_t *buf32 = reinterpret_cast<const uint32_t *>(&udph);
@@ -362,13 +388,21 @@ static inline uint16_t CalculateIpv4UdpChecksum(const Udp &udph, be32_t src,
 // It does not set the checksum field in UDP header
 static inline uint16_t CalculateIpv4UdpChecksum(const Ipv4 &iph,
                                                 const Udp &udph) {
-  return CalculateIpv4UdpChecksum(
-      udph, iph.src, iph.dst, iph.length.value() - (iph.header_length << 2));
+  size_t ip_len = iph.length.value();
+  size_t ip_header_len = iph.header_length << 2;
+
+  if (unlikely(ip_len < ip_header_len)) {
+    return 0;
+  }
+
+  return CalculateIpv4UdpChecksum(udph, iph.src, iph.dst,
+                                  ip_len - ip_header_len);
 }
 
 // Returns true if the TCP checksum is true with the TCP header and
 // pseudo header info - source ip, destiniation ip, and tcp byte stream length
 // tcp_len: TCP header + payload in bytes
+// NOTE: Undefined behavior if tcp_len < 20
 static inline bool VerifyIpv4TcpChecksum(const Tcp &tcph, be32_t src_ip,
                                          be32_t dst_ip, uint16_t tcp_len) {
   const uint32_t *buf32 = reinterpret_cast<const uint32_t *>(&tcph);
@@ -398,8 +432,14 @@ static inline bool VerifyIpv4TcpChecksum(const Tcp &tcph, be32_t src_ip,
 
 // Returns true if the TCP checksum is true
 static inline bool VerifyIpv4TcpChecksum(const Ipv4 &iph, const Tcp &tcph) {
-  return VerifyIpv4TcpChecksum(tcph, iph.src, iph.dst,
-                               iph.length.value() - (iph.header_length << 2));
+  size_t ip_len = iph.length.value();
+  size_t ip_header_len = iph.header_length << 2;
+
+  if (unlikely(ip_len < ip_header_len + sizeof(tcph))) {
+    return false;  // Invalid IP header
+  }
+
+  return VerifyIpv4TcpChecksum(tcph, iph.src, iph.dst, ip_len - ip_header_len);
 }
 
 // Returns TCP (on IPv4) checksum of the tcp header 'tcph' with pseudo header
@@ -408,6 +448,7 @@ static inline bool VerifyIpv4TcpChecksum(const Ipv4 &iph, const Tcp &tcph) {
 // 'tcp_len' is in host-order, and the others are in network-order
 // It skips the checksum field into the calculation
 // It does not set the checksum field in TCP header
+// NOTE: Undefined behavior if tcp_len < 20
 static inline uint16_t CalculateIpv4TcpChecksum(const Tcp &tcph, be32_t src,
                                                 be32_t dst, uint16_t tcp_len) {
   const uint32_t *buf32 = reinterpret_cast<const uint32_t *>(&tcph);
@@ -440,8 +481,15 @@ static inline uint16_t CalculateIpv4TcpChecksum(const Tcp &tcph, be32_t src,
 // It does not set the checksum field in TCP header
 static inline uint16_t CalculateIpv4TcpChecksum(const Ipv4 &iph,
                                                 const Tcp &tcph) {
-  return CalculateIpv4TcpChecksum(
-      tcph, iph.src, iph.dst, iph.length.value() - (iph.header_length << 2));
+  size_t ip_len = iph.length.value();
+  size_t ip_header_len = iph.header_length << 2;
+
+  if (unlikely(ip_len < ip_header_len + sizeof(tcph))) {
+    return 0;  // Invalid IP header
+  }
+
+  return CalculateIpv4TcpChecksum(tcph, iph.src, iph.dst,
+                                  ip_len - ip_header_len);
 }
 
 // Incremental checksum update
