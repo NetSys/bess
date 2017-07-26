@@ -224,6 +224,10 @@ TEST(ChecksumTest, UdpChecksum) {
   udp->checksum = cksum_bess;
   EXPECT_TRUE(VerifyIpv4UdpChecksum(*ip, *udp));
 
+  // Empty checksum is always considered correct for UDP
+  udp->checksum = 0;
+  EXPECT_TRUE(VerifyIpv4UdpChecksum(*ip, *udp));
+
   for (int i = 0; i < TestLoopCount; i++) {
     ip->src = be32_t(rd.Get());
     ip->dst = be32_t(rd.Get());
