@@ -349,14 +349,13 @@ static inline bool VerifyIpv4UdpChecksum(const Udp &udph, be32_t src_ip,
 
 // Returns true if the UDP checksum is correct
 static inline bool VerifyIpv4UdpChecksum(const Ipv4 &iph, const Udp &udph) {
-  size_t ip_len = iph.length.value();
-  size_t ip_header_len = iph.header_length << 2;
+  size_t udp_len = udph.length.value();
 
-  if (unlikely(ip_len < ip_header_len)) {
-    return false;
+  if (unlikely(udp_len < sizeof(udph))) {
+    return false;  // Invalid UDP header
   }
 
-  return VerifyIpv4UdpChecksum(udph, iph.src, iph.dst, ip_len - ip_header_len);
+  return VerifyIpv4UdpChecksum(udph, iph.src, iph.dst, udp_len);
 }
 
 // Returns UDP (on IPv4) checksum of the UDP header 'udph' with pseudo header
@@ -394,15 +393,13 @@ static inline uint16_t CalculateIpv4UdpChecksum(const Udp &udph, be32_t src,
 // It does not set the checksum field in UDP header
 static inline uint16_t CalculateIpv4UdpChecksum(const Ipv4 &iph,
                                                 const Udp &udph) {
-  size_t ip_len = iph.length.value();
-  size_t ip_header_len = iph.header_length << 2;
+  size_t udp_len = udph.length.value();
 
-  if (unlikely(ip_len < ip_header_len)) {
+  if (unlikely(udp_len < sizeof(udph))) {
     return 0;
   }
 
-  return CalculateIpv4UdpChecksum(udph, iph.src, iph.dst,
-                                  ip_len - ip_header_len);
+  return CalculateIpv4UdpChecksum(udph, iph.src, iph.dst, udp_len);
 }
 
 // Returns true if the TCP checksum is correct with the TCP header and
@@ -438,6 +435,7 @@ static inline bool VerifyIpv4TcpChecksum(const Tcp &tcph, be32_t src_ip,
 
 // Returns true if the TCP checksum is correct
 static inline bool VerifyIpv4TcpChecksum(const Ipv4 &iph, const Tcp &tcph) {
+  // Unlike UDP, TCP doesn't have a length field. Derive from IP header.
   size_t ip_len = iph.length.value();
   size_t ip_header_len = iph.header_length << 2;
 
@@ -487,6 +485,7 @@ static inline uint16_t CalculateIpv4TcpChecksum(const Tcp &tcph, be32_t src,
 // It does not set the checksum field in TCP header
 static inline uint16_t CalculateIpv4TcpChecksum(const Ipv4 &iph,
                                                 const Tcp &tcph) {
+  // Unlike UDP, TCP doesn't have a length field. Derive from IP header.
   size_t ip_len = iph.length.value();
   size_t ip_header_len = iph.header_length << 2;
 

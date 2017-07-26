@@ -228,6 +228,12 @@ TEST(ChecksumTest, UdpChecksum) {
   udp->checksum = 0;
   EXPECT_TRUE(VerifyIpv4UdpChecksum(*ip, *udp));
 
+  // Return 0 upon invalid header?
+  udp->length = be16_t(7);
+  EXPECT_EQ(0, CalculateIpv4UdpChecksum(*ip, *udp));
+
+  udp->length = be16_t(8);
+
   for (int i = 0; i < kTestLoopCount; i++) {
     ip->src = be32_t(rd.Get());
     ip->dst = be32_t(rd.Get());
