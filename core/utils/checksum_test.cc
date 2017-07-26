@@ -42,7 +42,7 @@ using namespace bess::utils;
 namespace {
 
 Random rd;
-static int TestLoopCount = 100000;
+const int kTestLoopCount = 1000000;
 
 // Tests generic checksum
 TEST(ChecksumTest, GenericChecksum) {
@@ -70,7 +70,7 @@ TEST(ChecksumTest, GenericChecksum) {
   EXPECT_TRUE(VerifyGenericChecksum(buf, 159, cksum_bess));
   EXPECT_TRUE(VerifyGenericChecksum(buf, 159, cksum_dpdk));
 
-  for (int i = 0; i < TestLoopCount; i++) {
+  for (int i = 0; i < kTestLoopCount; i++) {
     for (int j = 0; j < 40; j++) {
       buf[j] = rd.Get();
     }
@@ -111,7 +111,7 @@ TEST(ChecksumTest, Ipv4NoOptChecksum) {
 
   ip->checksum = 0x0000;  // for dpdk
 
-  for (int i = 0; i < TestLoopCount; i++) {
+  for (int i = 0; i < kTestLoopCount; i++) {
     ip->src = be32_t(rd.Get());
     ip->dst = be32_t(rd.Get());
 
@@ -165,7 +165,7 @@ TEST(ChecksumTest, Ipv4Checksum) {
 
   ip->checksum = 0x0000;  // for dpdk
 
-  for (int i = 0; i < TestLoopCount; i++) {
+  for (int i = 0; i < kTestLoopCount; i++) {
     size_t ip_opts_len = rd.Get() % 10;  // Maximum IP option length is 10 << 2
     ip->header_length = 5 + ip_opts_len;
     ip->src = be32_t(rd.Get());
@@ -228,7 +228,7 @@ TEST(ChecksumTest, UdpChecksum) {
   udp->checksum = 0;
   EXPECT_TRUE(VerifyIpv4UdpChecksum(*ip, *udp));
 
-  for (int i = 0; i < TestLoopCount; i++) {
+  for (int i = 0; i < kTestLoopCount; i++) {
     ip->src = be32_t(rd.Get());
     ip->dst = be32_t(rd.Get());
     udp->src_port = be16_t(rd.Get() >> 16);
@@ -306,7 +306,7 @@ TEST(ChecksumTest, TcpChecksum) {
 
   ip->length = be16_t(40);
 
-  for (int i = 0; i < TestLoopCount; i++) {
+  for (int i = 0; i < kTestLoopCount; i++) {
     ip->src = be32_t(rd.Get());
     ip->dst = be32_t(rd.Get());
     tcp->src_port = be16_t(rd.Get() >> 16);
@@ -357,7 +357,7 @@ TEST(ChecksumTest, IncrementalUpdateChecksum16) {
 
   EXPECT_EQ(cksum_new, cksum_update);
 
-  for (int i = 0; i < TestLoopCount; i++) {
+  for (int i = 0; i < kTestLoopCount; i++) {
     for (int j = 0; j < 5; j++)
       buf[j] = rd.Get() >> 16;
 
@@ -386,7 +386,7 @@ TEST(ChecksumTest, IncrementalUpdateChecksum32) {
 
   EXPECT_EQ(cksum_new, cksum_update);
 
-  for (int i = 0; i < TestLoopCount; i++) {
+  for (int i = 0; i < kTestLoopCount; i++) {
     for (int j = 0; j < 5; j++) {
       buf[j] = rd.Get();
     }
@@ -429,7 +429,7 @@ TEST(ChecksumTest, IncrementalUpdateSrcIpPort) {
   EXPECT_TRUE(VerifyIpv4NoOptChecksum(*ip));
   EXPECT_TRUE(VerifyIpv4TcpChecksum(*ip, *tcp));
 
-  for (int i = 0; i < TestLoopCount; i++) {
+  for (int i = 0; i < kTestLoopCount; i++) {
     be32_t src_ip_old = ip->src;
     be16_t src_port_old = tcp->src_port;
     uint16_t ip_cksum_old = ip->checksum;
