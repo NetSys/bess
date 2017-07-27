@@ -44,10 +44,12 @@
 const std::string Tcpdump::kName = "tcpdump";
 
 Tcpdump::Tcpdump()
-    : bess::GateHook(Tcpdump::kName, Tcpdump::kPriority), fifo_fd_() {}
+    : bess::GateHook(Tcpdump::kName, Tcpdump::kPriority), fifo_fd_(-1) {}
 
 Tcpdump::~Tcpdump() {
-  close(fifo_fd_);
+  if (fifo_fd_ >= 0) {
+    close(fifo_fd_);
+  }
 }
 
 CommandResponse Tcpdump::Init(const bess::Gate *,
@@ -107,7 +109,7 @@ void Tcpdump::ProcessBatch(const bess::PacketBatch *batch) {
       if (errno == EPIPE) {
         DLOG(WARNING) << "Broken pipe: stopping tcpdump";
         close(fifo_fd_);
-        fifo_fd_ = 0;
+        fifo_fd_ = -1;
       }
       return;
     }
