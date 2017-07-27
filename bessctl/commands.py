@@ -199,6 +199,9 @@ def get_var_attrs(cli, var_token, partial_word):
         elif var_token == 'CORE':
             var_type = 'int'
 
+        elif var_token == '[SOCKET]':
+            var_type = 'socket'
+
         elif var_token == 'WORKER_ID':
             var_type = 'int'
             try:
@@ -416,7 +419,7 @@ def get_var_attrs(cli, var_token, partial_word):
 # You can assume that 'line == head + tail'
 def split_var(cli, var_type, line):
     if var_type in ['name', 'optional_name', 'gate', 'confname', 'filename',
-                    'endis', 'int', 'pause_workers']:
+                    'endis', 'int', 'socket', 'pause_workers']:
         pos = line.find(' ')
         if pos == -1:
             head = line
@@ -478,6 +481,12 @@ def bind_var(cli, var_type, line):
             val = int(head)
         else:
             raise cli.BindError('"gate" must be a positive number')
+
+    elif var_type == 'socket':
+        if head.isdigit():
+            val = int(head)
+        else:
+            raise cli.BindError('"socket" must be a positive number')
 
     elif var_type == 'name+':
         val = sorted(list(set(head.split())))  # collect unique items
@@ -1879,3 +1888,26 @@ def interactive(cli):
     cli.fin = old_fin
     cli.fout = old_fout
     cli.interactive = False
+
+
+@cmd('show system packets [SOCKET]', 'Dump the mempool of one or more sockets')
+def show_system_packets(cli, socket):
+    if socket is None:
+        socket = -1
+    resp = cli.bess.dump_mempool(socket)
+    for dump in resp.dumps:
+        cli.fout.write('Socket {}\n'.format(dump.socket))
+        cli.fout.write('\tinitialized: {}\n'.format(dump.initialized))
+        if not dump.initialized:
+            continue
+        cli.fout.write('\tmp_size: {}\n'.format(dump.mp_size))
+        cli.fout.write('\tmp_cache_size: {}\n'.format(dump.mp_cache_size))
+        cli.fout.write('\tmp_element_size: {}\n'.format(dump.mp_element_size))
+        cli.fout.write('\tmp_populated_size: {}\n'.format(
+            dump.mp_populated_size))
+        cli.fout.write('\tmp_available_count: {}\n'.format(
+            dump.mp_available_count))
+        cli.fout.write('\tmp_in_use_count: {}\n'.format(dump.mp_in_use_count))
+        cli.fout.write('\tring_count: {}\n'.format(dump.ring_count))
+        cli.fout.write('\tring_free_count: {}\n'.format(dump.ring_free_count))
+        cli.fout.write('\tring_bytes: {}\n'.format(dump.ring_bytes))

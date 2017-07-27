@@ -411,6 +411,29 @@ message DisconnectModulesRequest {
   uint64 ogate = 2;  /// Output gate ID of previous module
 }
 
+message MempoolDump {
+    int32 socket = 1;               /// The socket this mempool belongs to
+    bool initialized = 2;           /// True when this mempool has been initialized
+    uint32 mp_size = 3;             /// The maximum size of this mempool
+    uint32 mp_cache_size = 4;       /// Size of per-lcore default local cache.
+    uint32 mp_element_size = 5;     /// Size of one element
+    uint32 mp_populated_size = 6;   /// Number of populated objects
+    uint32 mp_available_count = 7;  /// Number of entries in this mempool
+    uint32 mp_in_use_count = 8;     /// Number of elements which have been allocated from this mempool
+    uint32 ring_count = 9;          /// Number of entries in the backing ring
+    uint32 ring_free_count = 10;    /// Number of free entries in the backing ring
+    uint64 ring_bytes = 11;         /// Size of the backing ring in bytes 
+}
+
+message DumpMempoolRequest {
+    int32 socket = 1; // ID of the socket whose mempool should be dumped. -1 for all sockets
+}
+
+message DumpMempoolResponse {
+    Error error = 1;
+    repeated MempoolDump dumps = 2; /// The list of requested mempool dumps
+}
+
 message CommandRequest {
   string name = 1;              /// Name of module/port/driver
   string cmd = 2;               /// Name of command
