@@ -344,13 +344,13 @@ def get_var_attrs(cli, var_token, partial_word):
                                                skip_suffix=True)
 
         elif var_token == '[DIRECTION]':
-            var_type = 'name'
+            var_type = 'dir'
             var_desc = 'gate direction discriminator (default "out")'
             var_candidates = ['in', 'out']
 
         elif var_token == '[GATE]':
             var_type = 'gate'
-            var_desc = 'gate index (default all)'
+            var_desc = 'gate index of a module'
 
         elif var_token == '[OGATE]':
             var_type = 'gate'
@@ -419,7 +419,7 @@ def get_var_attrs(cli, var_token, partial_word):
 # You can assume that 'line == head + tail'
 def split_var(cli, var_type, line):
     if var_type in ['name', 'optional_name', 'gate', 'confname', 'filename',
-                    'endis', 'int', 'socket', 'pause_workers']:
+                    'endis', 'int', 'socket', 'pause_workers', 'dir']:
         pos = line.find(' ')
         if pos == -1:
             head = line
@@ -458,6 +458,14 @@ def bind_var(cli, var_type, line):
             val = 'disable'
         else:
             raise cli.BindError('"endis" must be either "enable" or "disable"')
+
+    elif var_type == 'dir':
+        if 'in'.startswith(val):
+            val = 'in'
+        elif 'out'.startswith(val):
+            val = 'out'
+        else:
+            raise cli.BindError('"dir" must be either "in" or "out"')
 
     elif var_type == 'wid+':
         val = []
@@ -1792,7 +1800,7 @@ def monitor_tc_all(cli, tcs):
 
 
 # tcpdump can write pcap files, so we don't need to support it separately
-@cmd('tcpdump MODULE [DIRECTION] [OGATE] [TCPDUMP_OPTS...]',
+@cmd('tcpdump MODULE [DIRECTION] [GATE] [TCPDUMP_OPTS...]',
      'Capture packets on a gate')
 def tcpdump_module(cli, module_name, direction, gate, opts):
     if gate is None:
@@ -1848,6 +1856,8 @@ def _track_module(cli, bits, flag, module_name, direction, gate):
         direction = 'out'
     if module_name in [None, '*']:
         module_name = ''
+    if gate is None:
+        gate = -1
 
     cli.bess.pause_all()
     try:
@@ -1860,13 +1870,13 @@ def _track_module(cli, bits, flag, module_name, direction, gate):
 
 
 @cmd('track ENABLE_DISABLE [MODULE] [DIRECTION] [GATE]',
-     'Count the packets and batches on a gate')
+     'Count the packets and batches on specified or all gates')
 def track_module(cli, flag, module_name, direction, gate):
     _track_module(cli, False, flag, module_name, direction, gate)
 
 
 @cmd('track bit ENABLE_DISABLE [MODULE] [DIRECTION] [GATE]',
-     'Count the packets, batches and bits on a gate')
+     'Count the packets, batches, and bits on specified or all gates')
 def track_module_bits(cli, flag, module_name, direction, gate):
     _track_module(cli, True, flag, module_name, direction, gate)
 
