@@ -102,7 +102,7 @@ void Tcpdump::ProcessBatch(const bess::PacketBatch *batch) {
     };
 
     struct iovec vec[2] = {{&rec, sizeof(rec)},
-                           {pkt->head_data(), (size_t)pkt->total_len()}};
+                           {pkt->head_data(), (size_t)pkt->head_len()}};
 
     ret = writev(fifo_fd_, vec, 2);
     if (ret < 0) {
