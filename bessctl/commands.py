@@ -1791,7 +1791,7 @@ def show_system_packets(cli, socket):
     if socket is None:
         socket = -1
     resp = cli.bess.dump_mempool(socket)
-    for (i, dump) in enumerate(resp.dumps):
+    for dump in resp.dumps:
         cli.fout.write('Socket {}\n'.format(dump.socket))
         cli.fout.write('\tinitialized: {}\n'.format(dump.initialized))
         if not dump.initialized:
