@@ -43,9 +43,6 @@ class Tcpdump final : public bess::GateHook {
 
   CommandResponse Init(const bess::Gate *, const bess::pb::TcpdumpArg &);
 
-  int fifo_fd() const { return fifo_fd_; }
-  void set_fifo_fd(int fifo_fd) { fifo_fd_ = fifo_fd; }
-
   void ProcessBatch(const bess::PacketBatch *batch);
 
   static constexpr uint16_t kPriority = 1;
