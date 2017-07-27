@@ -35,6 +35,7 @@
 
 #include <map>
 #include <string>
+#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -121,7 +122,7 @@ class UrlFilter final : public Module {
   CommandResponse CommandClear(const bess::pb::EmptyArg &arg);
 
  private:
-  std::unordered_map<std::string, Trie> blacklist_;
+  std::unordered_map<std::string, Trie<std::tuple<>>> blacklist_;
   std::unordered_map<Flow, FlowRecord, FlowHash> flow_cache_;
 };
 
