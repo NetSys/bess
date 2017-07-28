@@ -784,11 +784,11 @@ def _get_bess_module_and_port_creators(cli, rsvd):
 
 # NOTE: the name of this function is used below
 def _do_run_file(cli, conf_file):
-    if not os.path.exists(conf_file):
-        cli.err('Cannot open file "%s"' % conf_file)
+    try:
+        xformed = sugar.xform_file(conf_file)
+    except (IOError, OSError):
+        cli.err('Cannot open file %s' % conf_file)
         return
-
-    xformed = sugar.xform_file(conf_file)
 
     new_globals = {
         '__builtins__': __builtins__,
@@ -809,7 +809,12 @@ def _do_run_file(cli, conf_file):
     for name in creators:
         new_globals[name] = creators[name]
 
-    code = compile(xformed, conf_file, 'exec')
+    try:
+        code = compile(xformed, conf_file, 'exec')
+    except:
+        # TODO: Provide more information where and why fail to compile
+        cli.err('Fail to compile bess config file %s ' % conf_file)
+        return
 
     if is_pipeline_empty(cli):
         cli.bess.pause_all()
