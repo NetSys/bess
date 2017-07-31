@@ -788,7 +788,7 @@ def _do_run_file(cli, conf_file):
         xformed = sugar.xform_file(conf_file)
     except (IOError, OSError):
         cli.err('Cannot open file %s' % conf_file)
-        return
+        raise cli.HandledError()
 
     new_globals = {
         '__builtins__': __builtins__,
@@ -814,7 +814,7 @@ def _do_run_file(cli, conf_file):
     except:
         # TODO: Provide more information where and why fail to compile
         cli.err('Fail to compile bess config file %s ' % conf_file)
-        return
+        raise cli.HandledError()
 
     if is_pipeline_empty(cli):
         cli.bess.pause_all()
