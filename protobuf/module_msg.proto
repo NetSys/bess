@@ -837,6 +837,8 @@ message SetMetadataArg {
       bytes value_bin = 4; /// A binary value to store in the packet (host-order).
     }
     int64 offset = 5; /// An index in the packet data to store copy into the metadata attribute.
+    bytes mask = 6; /// An array of bit masks to apply to each of the bytes copied starting from `offset`. If empty, the mask [0xFF,....,0xFF] will be used.
+    int32 shift = 7; /// The number of bytes to shift the masked value at offset by before storing it in metadata. Positive and negative values represent right and left shifts respectively.
   }
   repeated Attribute attrs = 1; /// A list of attributes to attach to the packet.
 }
