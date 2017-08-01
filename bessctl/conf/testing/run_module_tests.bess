@@ -46,7 +46,7 @@ SOCKET_PATH = '/tmp/bess_unix_'
 SCRIPT_STARTTIME = strftime("%Y-%m-%d-%H-%M-%S", gmtime())
 
 # Generate a UnixSocketPort and a Socket to talk to it
-def gen_socket_and_port(sockname):
+def gen_socket_and_port(sockname, timeout_sec=5):
     socket_port = UnixSocketPort(
         name=sockname,
         path='@' +
@@ -54,7 +54,7 @@ def gen_socket_and_port(sockname):
         sockname)
 
     s = socket.socket(socket.AF_UNIX, socket.SOCK_SEQPACKET)
-    s.settimeout(5)  # five second timeout
+    s.settimeout(timeout_sec)
     s.connect('\0' + SOCKET_PATH + sockname)
     return socket_port, s
 
