@@ -36,11 +36,13 @@ import errno
 import grpc
 import os
 import pprint
+import sys
 import time
 
 from . import protobuf_to_dict as pb_conv
 
-from . import module_pb_loader as module_pb
+# pseudo-module multi-importer, used to build module message types
+from . import pm_import as _pm
 
 # Ugh: builtin_pb must be on path, as protoc generates python code
 # that assumes it can import files in that directory.  With our
@@ -55,6 +57,46 @@ from .builtin_pb import service_pb2
 from .builtin_pb import bess_msg_pb2 as bess_msg
 from .builtin_pb import module_msg_pb2 as module_msg
 from .builtin_pb import port_msg_pb2 as port_msg
+
+
+def _import_modules(name):
+    """Return a module instance retaining just the *Arg and *Response
+    names, built by importing most of the *_msg_pb2.py files in the
+    builtin_pb and plugin_pb directories.  We skip bess_msg_pb2
+    for historical reasons, and port_msg_pb2 because it defines
+    port messages rather than module messages.
+
+    We detect any name collisions, e.g., if foo_msg_pb2.py defines
+    QuuxArg and bar_msg_pb2.py also defines QuuxArg, we catch that
+    error here."""
+    def protobufs():
+        "Yield all *_msg_pb2.py import names except special history items"
+        self_path = os.path.dirname(os.path.relpath(__file__))
+        for directory in ('builtin_pb', 'plugin_pb'):
+            dirpath = os.path.join(self_path, directory)
+            for filename in os.listdir(dirpath):
+                if not filename.endswith('_msg_pb2.py'):
+                    continue
+                import_name = '..{}.{}'.format(directory, filename[:-3])
+                if import_name not in ('..builtin_pb.bess_msg_pb2',
+                                       '..builtin_pb.port_msg_pb2'):
+                    yield import_name
+
+    def keep_name(name):
+        return name.endswith('Arg') or name.endswith('Response')
+
+    try:
+        mod = _pm.pm_import(name, protobufs(),
+                            name_filter=keep_name,
+                            package=__name__)
+    except _pm.Collisions as err:
+        print('internal error:')
+        for key in err.collisions:
+            print('', key, 'is defined in', ' and '.join(err.collisions[key]))
+        raise SystemExit(1)
+    return mod
+
+module_pb = _import_modules('module_pb')
 
 
 def _constraints_to_list(constraint):
