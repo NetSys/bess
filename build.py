@@ -316,7 +316,6 @@ def build_bess():
         --proto_path=protobuf/tests/ --python_out=pybess/builtin_pb \
         --grpc_out=pybess/builtin_pb \
         --plugin=protoc-gen-grpc=`which grpc_python_plugin`')
-    cmd('2to3 -wn pybess/builtin_pb/*_pb2.py')
 
     print('Building BESS daemon...')
     cmd('bin/bessctl daemon stop 2> /dev/null || true')

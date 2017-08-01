@@ -106,7 +106,6 @@ PROTOPYFLAGS += --proto_path=$(PROTO_DIR) \
 
 %_pb2.py:
 	protoc $< $(PROTOPYFLAGS)
-	2to3 -wn $(PROTO_DIR)/*_pb2.py 2> /dev/null
 	mv $(PROTO_DIR)/*_pb2.py $(BESS_HOME)/pybess/plugin_pb/
 
 %.o: %.cc

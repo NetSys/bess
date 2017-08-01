@@ -42,6 +42,15 @@ from . import protobuf_to_dict as pb_conv
 
 from . import module_pb_loader as module_pb
 
+# Ugh: builtin_pb must be on path, as protoc generates python code
+# that assumes it can import files in that directory.  With our
+# split of builtin and plugin pb files we do not want 'from . import'
+# either, so just add 'builtin_pb' to sys.path.
+bipath = os.path.abspath(os.path.join(__file__, '..', 'builtin_pb'))
+if bipath not in sys.path:
+    sys.path.insert(1, bipath)
+del bipath
+
 from .builtin_pb import service_pb2
 from .builtin_pb import bess_msg_pb2 as bess_msg
 from .builtin_pb import module_msg_pb2 as module_msg
