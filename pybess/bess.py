@@ -56,37 +56,38 @@ del bipath
 from .builtin_pb import service_pb2
 from .builtin_pb import bess_msg_pb2 as bess_msg
 from .builtin_pb import module_msg_pb2 as module_msg
-from .builtin_pb import port_msg_pb2 as port_msg
 
-
-def _import_modules(name):
+def _import_modules(name, subdir):
     """Return a module instance retaining just the *Arg and *Response
     names, built by importing most of the *_msg_pb2.py files in the
-    builtin_pb and plugin_pb directories.  We skip bess_msg_pb2
-    for historical reasons, and port_msg_pb2 because it defines
-    port messages rather than module messages.
+    builtin_pb and plugin_pb directories, or a subdirectory of them.
+    We skip bess_msg_pb2 for historical reasons.
 
     We detect any name collisions, e.g., if foo_msg_pb2.py defines
     QuuxArg and bar_msg_pb2.py also defines QuuxArg, we catch that
     error here."""
-    def protobufs():
-        "Yield all *_msg_pb2.py import names except special history items"
+    def protobufs(subdir):
+        "Yield modules (subdir=None) or port drivers (subdir='ports')."
         self_path = os.path.dirname(os.path.relpath(__file__))
         for directory in ('builtin_pb', 'plugin_pb'):
-            dirpath = os.path.join(self_path, directory)
+            if subdir:
+                dirpath = os.path.join(self_path, directory, subdir)
+                prefix = '..{}.{}'.format(directory, subdir)
+            else:
+                dirpath = os.path.join(self_path, directory)
+                prefix = '..{}'.format(directory)
             for filename in os.listdir(dirpath):
                 if not filename.endswith('_msg_pb2.py'):
                     continue
-                import_name = '..{}.{}'.format(directory, filename[:-3])
-                if import_name not in ('..builtin_pb.bess_msg_pb2',
-                                       '..builtin_pb.port_msg_pb2'):
+                import_name = '{}.{}'.format(prefix, filename[:-3])
+                if import_name != '..builtin_pb.bess_msg_pb2':
                     yield import_name
 
     def keep_name(name):
         return name.endswith('Arg') or name.endswith('Response')
 
     try:
-        mod = _pm.pm_import(name, protobufs(),
+        mod = _pm.pm_import(name, protobufs(subdir),
                             name_filter=keep_name,
                             package=__name__)
     except _pm.Collisions as err:
@@ -96,7 +97,8 @@ def _import_modules(name):
         raise SystemExit(1)
     return mod
 
-module_pb = _import_modules('module_pb')
+module_pb = _import_modules('module_pb', None)
+port_msg = _import_modules('port_msg', 'ports')
 
 
 def _constraints_to_list(constraint):
