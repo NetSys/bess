@@ -1,0 +1,10 @@
+# Ignore everything first, then un-ignore - note that
+# we must explicitly un-ignore the subdirectory, then
+# ignore everything in it, then un-ignore the __init__.py
+# file.
+*
+!.gitignore
+!__init__.py
+!ports
+ports/*
+!ports/__init__.py

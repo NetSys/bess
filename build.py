@@ -31,6 +31,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 
 from __future__ import print_function
+import glob
 import sys
 import os
 import os.path
@@ -299,6 +300,47 @@ def build_dpdk():
     cmd('make -j%d -C %s EXTRA_CFLAGS=%s' % (nproc, DPDK_DIR, DPDK_CFLAGS))
 
 
+def generate_protobuf_files():
+    grpc = subprocess.check_output('which grpc_python_plugin', shell=True)
+    grpc = grpc.rstrip()
+
+    def gen_one_set_of_files(srcdir, outdir):
+        "run protoc on *.proto in srcdir, with python output to outdir"
+        cmd_template = ('protoc {name} --proto_path={srcdir} '
+                        '--proto_path={stddir} '
+                        '--python_out={outdir} --grpc_out={outdir} '
+                        '--plugin=protoc-gen-grpc={grpc}')
+        cmd_args = {
+            'grpc': grpc,
+            'stddir': 'protobuf',
+            'srcdir': srcdir,
+            'outdir': outdir,
+        }
+        files = glob.glob(os.path.join(srcdir, '*.proto'))
+        for name in files:
+            cmd(cmd_template.format(name=name, **cmd_args))
+        # Note: when run as, e.g.
+        #    protoc protobuf/ports/port_msg.proto \
+        #        --proto_path=protobuf \
+        #        --python_out=pybess/builtin_pb ...
+        # protoc writes its output to:
+        #    pybess/builtin_pb/ports/port_msg.proto
+        # which is automatically where we want it.
+        # Contrast this with bess/Makefile, where we put the
+        # protobuf ports directory in another --proto_path argument,
+        # so that the generated file does not have a ports/ prefix.
+        # This is documented!  See, e.g.,
+        # developers.google.com/protocol-buffers/docs/reference/cpp-generated
+        files = glob.glob(os.path.join(srcdir, 'ports', '*.proto'))
+        for name in files:
+            cmd(cmd_template.format(name=name, **cmd_args))
+
+    print('Generating protobuf codes for pybess...')
+    sys.stdout.flush()
+    gen_one_set_of_files('protobuf', 'pybess/builtin_pb')
+    gen_one_set_of_files('protobuf/tests', 'pybess/builtin_pb')
+
+
 def build_bess():
     check_essential()
 
@@ -307,15 +349,7 @@ def build_bess():
 
     generate_extra_mk()
 
-    print('Generating protobuf codes for pybess...')
-    cmd('protoc protobuf/*.proto \
-        --proto_path=protobuf --python_out=pybess/builtin_pb \
-        --grpc_out=pybess/builtin_pb \
-        --plugin=protoc-gen-grpc=`which grpc_python_plugin`')
-    cmd('protoc protobuf/tests/*.proto \
-        --proto_path=protobuf/tests/ --python_out=pybess/builtin_pb \
-        --grpc_out=pybess/builtin_pb \
-        --plugin=protoc-gen-grpc=`which grpc_python_plugin`')
+    generate_protobuf_files()
 
     print('Building BESS daemon...')
     cmd('bin/bessctl daemon stop 2> /dev/null || true')
@@ -354,10 +388,12 @@ def do_clean():
     cmd('make -C core clean')
     cmd('rm -f bin/bessd')
     cmd('make -C core/kmod clean')
-    cmd('rm -rf pybess/builtin_pb/*_pb2.py*')
-    cmd('rm -rf pybess/builtin_pb/*_pb2_grpc.py*')
-    cmd('rm -rf pybess/plugin_pb/*_pb2.py*')
-    cmd('rm -rf pybess/plugin_pb/*_pb2_grpc.py*')
+    for path in ('pybess/builtin_pb', 'pybess/plugin_pb'):
+        cmd('rm -rf '
+            '{path}/*_pb2.py* {path}/ports/*_pb2.py* '
+            '{path}/__init__.pyc {path}/ports/__init__.pyc '
+            '{path}/*_pb2_grpc.py* {path}/ports/*_pb2_grpc.py* '
+            '{path}/__pycache__ {path}/ports/__pycache__'.format(path=path))
     cmd('rm -rf %s/build' % DPDK_DIR)
 
 
