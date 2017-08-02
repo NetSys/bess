@@ -178,6 +178,10 @@ CommandResponse SetMetadata::AddAttrOne(
     if (offset < 0 || offset + size >= SNBUF_DATA) {
       return CommandFailure(EINVAL, "invalid packet offset");
     }
+    if (std::abs(attr.shift()) > size) {
+      return CommandFailure(EINVAL, "'shift' must be in [-%zu,%zu]", size,
+                            size);
+    }
     if (do_mask) {
       memset(mask.bytes, 0xFF, size);
       if (attr.mask().length() != size) {
