@@ -34,13 +34,17 @@
 #include "../module.h"
 #include "../pb/module_msg.pb.h"
 
-typedef struct { char bytes[bess::metadata::kMetadataAttrMaxSize]; } value_t;
+typedef struct { uint8_t bytes[bess::metadata::kMetadataAttrMaxSize]; } value_t;
+typedef struct { uint8_t bytes[bess::metadata::kMetadataAttrMaxSize]; } mask_t;
 
 struct Attr {
   std::string name;
   value_t value;
   int offset;
   int size;
+  bool do_mask;
+  mask_t mask;
+  int shift;
 };
 
 class SetMetadata final : public Module {

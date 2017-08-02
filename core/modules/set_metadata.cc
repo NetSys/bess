@@ -28,24 +28,87 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
+#include <cmath>
+#include <x86intrin.h>
+
 #include "set_metadata.h"
 
 #include "../utils/endian.h"
+#include "../utils/simd.h"
 
 static void CopyFromPacket(bess::PacketBatch *batch, const struct Attr *attr,
                            bess::metadata::mt_offset_t mt_off) {
   int cnt = batch->cnt();
   int size = attr->size;
-
+  int shift = attr->shift;
   int pkt_off = attr->offset;
+  int mt_adj = 0;
+  if (shift < 0) {
+    pkt_off += std::abs(shift);
+  } else if (shift > 0) {
+    mt_adj += shift;
+  }
+  size -= std::abs(shift);
 
   for (int i = 0; i < cnt; i++) {
     bess::Packet *pkt = batch->pkts()[i];
-    char *head = pkt->head_data<char *>();
-    void *mt_ptr;
+    uint8_t *head = pkt->head_data<uint8_t *>(pkt_off);
+    uint8_t *mt_ptr = _ptr_attr_with_offset<uint8_t>(mt_off + mt_adj, pkt);
+    bess::utils::CopySmall(mt_ptr, head, size);
+  }
+}
 
-    mt_ptr = _ptr_attr_with_offset<value_t>(mt_off, pkt);
-    bess::utils::CopySmall(mt_ptr, head + pkt_off, size);
+static void CopyFromPacketWithMask(bess::PacketBatch *batch,
+                                   const struct Attr *attr,
+                                   bess::metadata::mt_offset_t mt_off) {
+  int cnt = batch->cnt();
+  int size = attr->size;
+  mask_t mask = attr->mask;
+  int shift = attr->shift;
+  int pkt_off = attr->offset;
+  int mt_adj = 0;
+  if (shift < 0) {
+    pkt_off += std::abs(shift);
+  } else if (shift > 0) {
+    mt_adj += shift;
+  }
+
+  // Copy data
+  size -= std::abs(shift);
+  for (int i = 0; i < cnt; i++) {
+    bess::Packet *pkt = batch->pkts()[i];
+    uint8_t *head = pkt->head_data<uint8_t *>(pkt_off);
+    uint8_t *mt_ptr = _ptr_attr_with_offset<uint8_t>(mt_off + mt_adj, pkt);
+    bess::utils::CopySmall(mt_ptr, head, size);
+  }
+  size += std::abs(shift);
+
+  // Apply mask
+  for (int i = 0; i < cnt; i++) {
+    bess::Packet *pkt = batch->pkts()[i];
+    int len = size;
+
+    uint64_t *mt64 = _ptr_attr_with_offset<uint64_t>(mt_off + mt_adj, pkt);
+    uint64_t *mask64 = reinterpret_cast<uint64_t *>(mask.bytes);
+    __m128i *mt128 = reinterpret_cast<__m128i *>(mt64);
+    __m128i a = gather_m128i(mt64, mt64 + 1);
+    __m128i b = gather_m128i(mask64, mask64 + 1);
+    *mt128 = _mm_and_si128(a, b);
+
+    len -= sizeof(__m128i);
+    mt128++;
+    mt64 += 2;
+    mask64 += 2;
+
+    while (len >= int{sizeof(__m128i)}) {
+      a = gather_m128i(mt64, mt64 + 1);
+      b = gather_m128i(mask64, mask64 + 1);
+      *mt128 = _mm_and_si128(a, b);
+      len -= sizeof(__m128i);
+      mt128++;
+      mt64 += 2;
+      mask64 += 2;
+    }
   }
 }
 
@@ -71,6 +134,8 @@ CommandResponse SetMetadata::AddAttrOne(
   size_t size = 0;
   int offset = -1;
   value_t value = value_t();
+  mask_t mask = mask_t();
+  bool do_mask = false;
 
   int ret;
 
@@ -79,6 +144,7 @@ CommandResponse SetMetadata::AddAttrOne(
   }
   name = attr.name();
   size = attr.size();
+  do_mask = attr.mask().length() > 0;
 
   if (size < 1 || size > bess::metadata::kMetadataAttrMaxSize) {
     return CommandFailure(EINVAL, "'size' must be 1-%zu",
@@ -112,6 +178,20 @@ CommandResponse SetMetadata::AddAttrOne(
     if (offset < 0 || offset + size >= SNBUF_DATA) {
       return CommandFailure(EINVAL, "invalid packet offset");
     }
+    if (std::abs(attr.shift()) > size) {
+      return CommandFailure(EINVAL, "'shift' must be in [-%zu,%zu]", size,
+                            size);
+    }
+    if (do_mask) {
+      memset(mask.bytes, 0xFF, size);
+      if (attr.mask().length() != size) {
+        return CommandFailure(EINVAL,
+                              "'mask' field has not a "
+                              "correct %zu-byte value",
+                              size);
+      }
+      bess::utils::Copy(&mask, attr.mask().data(), size);
+    }
   }
 
   ret = AddMetadataAttr(name, size,
@@ -124,6 +204,9 @@ CommandResponse SetMetadata::AddAttrOne(
   attrs_.back().size = size;
   attrs_.back().offset = offset;
   attrs_.back().value = value;
+  attrs_.back().do_mask = do_mask;
+  attrs_.back().mask = mask;
+  attrs_.back().shift = attr.shift();
 
   return CommandSuccess();
 }
@@ -158,7 +241,11 @@ void SetMetadata::ProcessBatch(bess::PacketBatch *batch) {
 
     /* copy data from the packet */
     if (attr->offset >= 0) {
-      CopyFromPacket(batch, attr, mt_offset);
+      if (attr->do_mask) {
+        CopyFromPacketWithMask(batch, attr, mt_offset);
+      } else {
+        CopyFromPacket(batch, attr, mt_offset);
+      }
     } else {
       CopyFromValue(batch, attr, mt_offset);
     }
