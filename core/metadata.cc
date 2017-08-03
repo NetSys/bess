@@ -208,7 +208,10 @@ void Pipeline::TraverseUpstream(Module *m, const struct Attribute *attr) {
   }
   module_scopes_[m] = static_cast<int>(scope_components_.size());
 
-  for (const auto &g : m->igates()) {
+  for (const IGate *g : m->igates()) {
+    if (g == nullptr) {
+      continue;
+    }
     for (const auto &og : g->ogates_upstream()) {
       TraverseUpstream(og->module(), attr);
     }
