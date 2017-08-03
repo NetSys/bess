@@ -29,7 +29,10 @@
 # POSSIBILITY OF SUCH DAMAGE.
 
 
-# testing nodes with non contiguous gates
+# Regression test for a bug in the graph traversal code for metadata:
+# if the input gate indexes in a node are not contiguous (i.e. there's a
+# gate 4, but not a gate 3), BESS crashed because one of the gates in the
+# module is stored as nullptr.
 
 a::MetadataTest(write={'foo':2, 'bar':3, 'baz':5, 'quz':8})
 b::MetadataTest(read={'foo':2, 'bar':3})
