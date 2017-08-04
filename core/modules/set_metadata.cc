@@ -189,13 +189,15 @@ inline void SetMetadata::DoProcessBatch(bess::PacketBatch *batch,
                                         const struct Attr *attr,
                                         mt_offset_t mt_offset) {
   if (mode == Mode::FromPacket) {
-    bool shift = attr->shift;
+    bool shift = attr->shift != 0;
     if (shift && attr->do_mask) {
       CopyFromPacket<true, true>(batch, attr, mt_offset);
     } else if (shift) {
-      CopyFromPacket<true>(batch, attr, mt_offset);
+      CopyFromPacket<true, false>(batch, attr, mt_offset);
+    } else if (!shift) {
+      CopyFromPacket<false, true>(batch, attr, mt_offset);
     } else {
-      CopyFromPacket<false>(batch, attr, mt_offset);
+      CopyFromPacket<false, false>(batch, attr, mt_offset);
     }
   } else {
     CopyFromValue(batch, attr, mt_offset);
