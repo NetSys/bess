@@ -54,16 +54,16 @@ static inline void ShiftBytesLeftSmall(uint8_t *buf, const size_t len,
 // std::memmove() and std::memset().
 static inline void ShiftBytesLeft(uint8_t *buf, const size_t len,
                                   const size_t shift) {
-  if (len < sizeof(__m64) || shift > sizeof(__m64)) {
+  if (len < sizeof(uint64_t) || shift > sizeof(uint64_t)) {
     return ShiftBytesLeftSmall(buf, len, shift);
   }
 
   uint8_t *tmp_buf = buf;
   size_t tmp_len = len;
-  size_t inc = sizeof(__m64) - shift;
-  while (tmp_len >= sizeof(__m64)) {
-    __m64 *block = reinterpret_cast<__m64 *>(tmp_buf);
-    *block = _mm_srl_si64(*block, _m_from_int64(shift * 8));
+  size_t inc = sizeof(uint64_t) - shift;
+  while (tmp_len >= sizeof(uint64_t)) {
+    uint64_t *block = reinterpret_cast<uint64_t *>(tmp_buf);
+    *block >>= shift * 8;
     tmp_buf += inc;
     tmp_len = buf + len - tmp_buf;
   }
@@ -92,16 +92,16 @@ static inline void ShiftBytesRightSmall(uint8_t *buf, const size_t len,
 // std::memmove() and std::memset().
 static inline void ShiftBytesRight(uint8_t *buf, const size_t len,
                                    const size_t shift) {
-  if (len < sizeof(__m64) || shift > sizeof(__m64)) {
+  if (len < sizeof(uint64_t) || shift > sizeof(uint64_t)) {
     return ShiftBytesRightSmall(buf, len, shift);
   }
 
-  uint8_t *tmp_buf = buf + len - sizeof(__m64);
-  size_t dec = sizeof(__m64) - shift;
+  uint8_t *tmp_buf = buf + len - sizeof(uint64_t);
+  size_t dec = sizeof(uint64_t) - shift;
   size_t leftover = len;
   while (tmp_buf >= buf) {
-    __m64 *block = reinterpret_cast<__m64 *>(tmp_buf);
-    *block = _mm_sll_si64(*block, _m_from_int64(shift * 8));
+    uint64_t *block = reinterpret_cast<uint64_t *>(tmp_buf);
+    *block <<= shift * 8;
     tmp_buf -= dec;
     leftover -= dec;
   }
@@ -120,12 +120,12 @@ static inline void MaskBytesSmall(uint8_t *buf, const uint8_t *mask,
 // otherwise, falls back to 1-byte chunks.
 static inline void MaskBytes64(uint8_t *buf, uint8_t const *mask,
                                const size_t len) {
-  size_t n = len / sizeof(__m64);
-  size_t leftover = len - n * sizeof(__m64);
-  __m64 *buf64 = reinterpret_cast<__m64 *>(buf);
-  const __m64 *mask64 = reinterpret_cast<const __m64 *>(mask);
+  size_t n = len / sizeof(uint64_t);
+  size_t leftover = len - n * sizeof(uint64_t);
+  uint64_t *buf64 = reinterpret_cast<uint64_t *>(buf);
+  const uint64_t *mask64 = reinterpret_cast<const uint64_t *>(mask);
   for (size_t i = 0; i < n; i++) {
-    *buf64 = _mm_and_si64(buf64[i], mask64[i]);
+    buf64[i] &= mask64[i];
   }
 
   if (leftover) {
@@ -139,7 +139,7 @@ static inline void MaskBytes64(uint8_t *buf, uint8_t const *mask,
 // otherwise, falls back to 8-byte chunks and possibly 1-byte chunks.
 static inline void MaskBytes(uint8_t *buf, uint8_t const *mask,
                              const size_t len) {
-  if (len <= sizeof(__m64)) {
+  if (len <= sizeof(uint64_t)) {
     return MaskBytes64(buf, mask, len);
   }
 
@@ -156,7 +156,7 @@ static inline void MaskBytes(uint8_t *buf, uint8_t const *mask,
 
   buf = reinterpret_cast<uint8_t *>(buf128 + n);
   mask = reinterpret_cast<uint8_t const *>(mask128 + n);
-  if (leftover >= sizeof(__m64)) {
+  if (leftover >= sizeof(uint64_t)) {
     MaskBytes64(buf, mask, leftover);
   } else {
     MaskBytesSmall(buf, mask, leftover);
