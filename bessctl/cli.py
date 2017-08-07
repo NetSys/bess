@@ -49,8 +49,7 @@ class ColorizedOutput(object):  # for pretty printing
 
 class CLI(object):
 
-    # general command errors
-    class CommandError(Exception):
+    class CommandError(Exception):  # general command errors
         pass
 
     class HandledError(Exception):
@@ -210,8 +209,8 @@ class CLI(object):
             if '...' in syntax_token:
                 return 'full', candidates, syntax_token, score
             if new_token:
-                return 'full', [], '', score
-            return 'full', candidates, '', score
+                return 'full', ['\n'], '', score
+            return 'full', candidates, syntax_token, score
         return 'nonmatch', [], '', score
 
     # filters is a list of 'full', 'partial', 'nonmatch'
@@ -258,7 +257,7 @@ class CLI(object):
 
                 for candidate in sub_candidates:
                     if candidate.startswith(partial_word):
-                        if not candidate.endswith('/'):
+                        if not candidate.endswith('/') and candidate != '\n':
                             candidate += ' '
                         candidates.append(candidate)
 
@@ -276,8 +275,10 @@ class CLI(object):
             else:
                 common_prefix = s_min
 
-            if common_prefix and len(partial_word) < len(common_prefix):
-                if partial_word == common_prefix[:len(partial_word)]:
+            if (common_prefix and len(partial_word) < len(common_prefix) and
+                    partial_word == common_prefix[:len(partial_word)]):
+                candidates = [c for c in candidates if c.strip() != '']
+                if candidates:
                     return candidates
 
         buf = []
@@ -286,9 +287,9 @@ class CLI(object):
             syntax, desc, _ = cmd
 
             if match_type == 'full' and num_full_matches == 1:
-                buf.append('  %-50s%s\n' % (syntax + ' <enter>', desc))
+                buf.append('  %-50s %s\n' % (syntax + ' <enter>', desc))
             else:
-                buf.append('  %-50s%s\n' % (syntax, desc))
+                buf.append('  %-50s %s\n' % (syntax, desc))
 
             if syntax_token:
                 attrs = self.get_var_attrs(syntax_token, partial_word)
