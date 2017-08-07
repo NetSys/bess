@@ -828,7 +828,7 @@ message ReplicateCommandSetGatesArg {
 message SetMetadataArg {
   /**
    * SetMetadata Attribute describes a metadata attribute and value to attach to every packet.
-   * If copying data from a packet buffer, SetMetadata will optionally shift
+   * If copying data from a packet buffer, SetMetadata can also logically shift
    * then mask the value before storing it as metadata, i.e.,
    * metadata_value = (packet_value >> `rshift_bits`) & `mask`.
    */

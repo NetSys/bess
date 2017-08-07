@@ -28,8 +28,9 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-#include <cmath>
 #include <x86intrin.h>
+
+#include <cmath>
 
 #include "set_metadata.h"
 
@@ -103,6 +104,17 @@ CommandResponse SetMetadata::AddAttrOne(
     return CommandFailure(EINVAL, "'size' must be 1-%zu", kMetadataAttrMaxSize);
   }
 
+  if (do_mask && attr.offset() < 0) {
+    return CommandFailure(
+        EINVAL, "'mask' may only be set when copying metadata from a packet.");
+  }
+
+  if (attr.rshift_bits() && attr.offset() < 0) {
+    return CommandFailure(
+        EINVAL,
+        "'rshift_bits' may only be set when copying metadata from a packet.");
+  }
+
   // All metadata values are stored in a reserved area of packet data.
   // Note they are stored in network order. This does not mean that you need
   // to pass endian-swapped values in value_int to the module. Value is just
@@ -133,12 +145,11 @@ CommandResponse SetMetadata::AddAttrOne(
     if (rshift_bytes * 8 != attr.rshift_bits()) {
       return CommandFailure(EINVAL, "'rshift_bits' must be a multiple of 8");
     }
-    if (static_cast<size_t>(std::abs(rshift_bytes)) > size) {
-      return CommandFailure(EINVAL, "'rshift_bits' must be in [-%zu,%zu]",
+    if (static_cast<size_t>(std::abs(rshift_bytes)) >= size) {
+      return CommandFailure(EINVAL, "'rshift_bits' must be in (-%zu, %zu)",
                             8 * size, 8 * size);
     }
     if (do_mask) {
-      memset(mask.bytes, 0xFF, size);
       if (attr.mask().length() != size) {
         return CommandFailure(EINVAL,
                               "'mask' field has not a "
@@ -213,7 +224,7 @@ void SetMetadata::ProcessBatch(bess::PacketBatch *batch) {
       continue;
     }
 
-    if (attr->offset > 0) {
+    if (attr->offset >= 0) {
       DoProcessBatch<Mode::FromPacket>(batch, attr, mt_offset);
     } else {
       DoProcessBatch<Mode::FromValue>(batch, attr, mt_offset);
