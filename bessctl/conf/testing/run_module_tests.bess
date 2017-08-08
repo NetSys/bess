@@ -158,7 +158,13 @@ def run_tests():
 
     path = os.path.dirname(os.path.realpath(sys.argv[0]))
 
-    for filename in glob.glob(path + "/conf/testing/module_tests/" + test_name + ".py"):
+    # Note: os.path.join will discard the leading parts if test
+    # begins with '/', so callers should provide an absolute path
+    # if and only if they want to override the internal BESS
+    # path prefixing.
+    for filename in glob.glob(os.path.join(path,
+                                           "conf/testing/module_tests",
+                                           test_name + ".py")):
         bess.reset_all()
 
         print("-- Running Module Tests for %s --" % filename.split("/")[-1])
