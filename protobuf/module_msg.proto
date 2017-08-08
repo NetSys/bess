@@ -828,6 +828,9 @@ message ReplicateCommandSetGatesArg {
 message SetMetadataArg {
   /**
    * SetMetadata Attribute describes a metadata attribute and value to attach to every packet.
+   * If copying data from a packet buffer, SetMetadata can also logically shift
+   * then mask the value before storing it as metadata, i.e.,
+   * metadata_value = (packet_value >> `rshift_bits`) & `mask`.
    */
   message Attribute {
     string name = 1; /// The metadata attribute name.
@@ -836,7 +839,9 @@ message SetMetadataArg {
       uint64 value_int = 3; /// An integer value to store in the packet (host-order).
       bytes value_bin = 4; /// A binary value to store in the packet (host-order).
     }
-    int64 offset = 5; /// An index in the packet data to store copy into the metadata attribute.
+    int32 offset = 5; /// An index in the packet data to store copy into the metadata attribute.
+    bytes mask = 6; /// An array of bit masks to apply to each of the bytes copied starting from `offset`. If empty, the mask [0xFF,....,0xFF] will be used.
+    int32 rshift_bits = 7; /// The number of bits to shift the value at `offset` by before masking. Must be a multiple of 8. Positive and negative values represent right and left shifts respectively.
   }
   repeated Attribute attrs = 1; /// A list of attributes to attach to the packet.
 }

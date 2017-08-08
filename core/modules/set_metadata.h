@@ -34,13 +34,20 @@
 #include "../module.h"
 #include "../pb/module_msg.pb.h"
 
-typedef struct { char bytes[bess::metadata::kMetadataAttrMaxSize]; } value_t;
+using bess::metadata::mt_offset_t;
+using bess::metadata::kMetadataAttrMaxSize;
+
+typedef struct { uint8_t bytes[kMetadataAttrMaxSize]; } value_t;
+typedef struct { uint8_t bytes[kMetadataAttrMaxSize]; } mask_t;
 
 struct Attr {
   std::string name;
   value_t value;
+  mask_t mask;
   int offset;
-  int size;
+  size_t size;
+  bool do_mask;
+  int shift;  // in bytes for now
 };
 
 class SetMetadata final : public Module {
@@ -52,6 +59,12 @@ class SetMetadata final : public Module {
   void ProcessBatch(bess::PacketBatch *batch);
 
  private:
+  enum class Mode { FromPacket, FromValue };
+
+  template <Mode mode = Mode::FromValue>
+  inline void DoProcessBatch(bess::PacketBatch *batch, const struct Attr *attr,
+                             mt_offset_t mt_offset);
+
   CommandResponse AddAttrOne(const bess::pb::SetMetadataArg_Attribute &attr);
 
   std::vector<struct Attr> attrs_;
