@@ -203,11 +203,11 @@ inline void SetMetadata::DoProcessBatch(bess::PacketBatch *batch,
     bool shift = attr->shift != 0;
     if (shift && attr->do_mask) {
       CopyFromPacket<true, true>(batch, attr, mt_offset);
-    } else if (shift) {
+    } else if (shift && !attr->do_mask) {
       CopyFromPacket<true, false>(batch, attr, mt_offset);
-    } else if (!shift) {
+    } else if (!shift && attr->do_mask) {
       CopyFromPacket<false, true>(batch, attr, mt_offset);
-    } else {
+    } else if (!shift && !attr->do_mask) {
       CopyFromPacket<false, false>(batch, attr, mt_offset);
     }
   } else {
