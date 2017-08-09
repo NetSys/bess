@@ -75,10 +75,25 @@ else ifeq ($(words $(MAKECMDGOALS)),1)
 	endif
 endif
 
+# Plugins get to look in $COREDIR through -I $(COREDIR).  Let them also
+# see their own top level directory, e.g., /some/path/to/modules/foo.cc
+# gets /some/path/to/modules/.. so that it can read its own
+# /some/path/to/utils/foo.h; and add $COREDIR/modules, so that
+# relative paths from there work as if they lived in that directory.
+# We give these paths to all compilations, not just plugins, but
+# they are harmless for non-plugin files.
+#
+# TODO(torek): currently all -I are -isystem to disable warnings from
+# these headers.  Should fix the warnings.  Using -isystem also disables
+# -MMD dependency recording (should we use -MD?).
+COREDIR := $(abspath .)
 CXXARCHFLAGS ?= -march=native
 CXXFLAGS += -std=c++11 -g3 -ggdb3 $(CXXARCHFLAGS) \
-            -Werror -isystem $(DPDK_INC_DIR) -isystem . -D_GNU_SOURCE \
-            -Wall -Wextra -Wcast-align
+	    -isystem $(DPDK_INC_DIR) -isystem $(COREDIR) \
+	    -isystem $(dir $<).. -isystem $(COREDIR)/modules \
+	    -D_GNU_SOURCE \
+	    -Werror \
+	    -Wall -Wextra -Wcast-align
 
 PERMISSIVE := -Wno-unused-parameter -Wno-missing-field-initializers \
 	      -Wno-unused-private-field
@@ -126,31 +141,83 @@ endif
 
 -include extra*.mk
 
-PROTO_DIR := $(abspath ../protobuf)
-PROTOS := $(wildcard $(PROTO_DIR)/*.proto)
+# Given PLUGINS (set in extra.mk), set up PROTO_PLUGINS,
+# DRIVER_PLUGINS, MODULE_PLUGINS, and UTIL_PLUGINS.  Note
+# that paths in extra.mk are already absolute.  Use
+# $(wildcard) in case there are no drivers or modules or
+# whatever: $(wildcard /path/to/nonexistent/dir) expands to
+# empty, while $(wildcard /path/to/existing/dir) expands to
+# /path/to/existing/dir.  This doesn't help if the PLUGINS
+# path points to files (instead of directories), but that's
+# a severe user-configuration error.
+DRIVER_PLUGINS := $(foreach dir,$(PLUGINS),$(wildcard $(dir)/drivers))
+MODULE_PLUGINS := $(foreach dir,$(PLUGINS),$(wildcard $(dir)/modules))
+PROTO_PLUGINS := $(foreach dir,$(PLUGINS),$(wildcard $(dir)/protobuf))
+UTIL_PLUGINS := $(foreach dir,$(PLUGINS),$(wildcard $(dir)/utils))
+
+# Much as above, ../protobuf has our standard protobufs and
+# ports; there may be additional plugin ones via PLUGINS.
+# Scan all these dirs and set up --proto_path argument to
+# include these dirs, and add each to the vpath for %.proto
+# so that Make can find the source for $< expansion.
+#
+# NB: protoc strips off the *first matching* leading --proto_path.
+# This means we want longer paths (the ports/ sub-directories)
+# to appear first.  As above, leave out the ports/ sub-directory
+# if it does not exist (for plugins that do not define any
+# port driver protobufs).
+PROTO_DIRS := $(foreach dir,$(abspath ../protobuf) $(PROTO_PLUGINS),$(wildcard $(dir)/ports) $(wildcard $(dir)))
+vpath %.proto $(PROTO_DIRS)
+PROTOCFLAGS += $(PROTO_DIRS:%=--proto_path=%)
+PROTOS := $(foreach dir,$(PROTO_DIRS),$(wildcard $(dir)/*.proto))
 PROTO_SRCS := $(patsubst %.proto,pb/%.pb.cc, $(notdir $(PROTOS)))
 PROTO_SRCS += $(patsubst %.proto,pb/%.grpc.pb.cc, $(notdir $(PROTOS)))
 PROTO_HEADERS := $(patsubst %.cc,%.h, $(PROTO_SRCS))
-PROTOCFLAGS += --proto_path=$(PROTO_DIR) --cpp_out=./pb --grpc_out=./pb --plugin=protoc-gen-grpc=`which grpc_cpp_plugin`
+PROTOC_CXX := $(shell which grpc_cpp_plugin)
+PROTOCFLAGS += --cpp_out=./pb --grpc_out=./pb --plugin=protoc-gen-grpc=$(PROTOC_CXX)
 
-ALL_SRCS := $(wildcard *.cc utils/*.cc modules/*.cc drivers/*.cc hooks/*.cc)
+# NB: MODULES as defined here may include test and/or benchmark
+# sources -- it's just all the files in all modules/ including
+# any plugin modules.  Use MODULE_SRCS below, which filters them
+# out, when that's important.
+DRIVERS := $(foreach dir,drivers $(DRIVER_PLUGINS),$(wildcard $(dir)/*.cc))
+MODULES := $(foreach dir,modules $(MODULE_PLUGINS),$(wildcard $(dir)/*.cc))
+UTILS := $(foreach dir,utils $(UTIL_PLUGINS),$(wildcard $(dir)/*.cc))
+DRIVER_H := $(foreach dir,drivers $(DRIVER_PLUGINS),$(wildcard $(dir)/*.h))
+MODULE_H := $(foreach dir,drivers $(MODULE_PLUGINS),$(wildcard $(dir)/*.h))
+UTIL_H := $(foreach dir,utils $(UTIL_PLUGINS),$(wildcard $(dir)/*.h))
+vpath %.cc drivers $(DRIVER_PLUGINS)
+vpath %.cc modules $(MODULE_PLUGINS)
+vpath %.cc utils $(UTIL_PLUGINS)
+
+ALL_SRCS := $(wildcard *.cc hooks/*.cc) $(MODULES) $(DRIVERS) $(UTILS)
 
 TEST_SRCS := $(filter %_test.cc gtest_main.cc, $(ALL_SRCS))
-TEST_OBJS := $(TEST_SRCS:.cc=.o)
+TEST_OBJS := $(patsubst %.cc,%.o,$(notdir $(TEST_SRCS)))
 TEST_EXEC := $(filter-out gtest_main, $(TEST_OBJS:%.o=%))
 TEST_ALL_EXEC := all_test
 
 BENCH_SRCS := $(filter %_bench.cc, $(ALL_SRCS))
-BENCH_OBJS := $(BENCH_SRCS:.cc=.o)
+BENCH_OBJS := $(patsubst %.cc,%.o,$(notdir $(BENCH_SRCS)))
 BENCH_EXEC := $(BENCH_OBJS:%.o=%)
 
-MODULE_SRCS := $(filter-out $(TEST_SRCS) $(BENCH_SRCS), $(filter modules/%.cc, $(ALL_SRCS)))
-MODULE_OBJS := $(MODULE_SRCS:.cc=.o)
+MODULE_SRCS := $(filter-out $(TEST_SRCS) $(BENCH_SRCS), $(MODULES))
+MODULE_OBJS := $(addprefix modules/,$(patsubst %.cc,%.o, \
+		 $(notdir $(MODULE_SRCS))))
 MODULE_LIBS := $(MODULE_OBJS:.o=.so)
 
-SRCS := $(filter-out $(TEST_SRCS) $(BENCH_SRCS) $(MODULE_SRCS), $(ALL_SRCS)) $(PROTO_SRCS)
-HEADERS := $(wildcard *.h utils/*.h drivers/*.h hooks/*.h)
-OBJS := $(SRCS:.cc=.o)
+# We don't (yet?) make shared objects for drivers.
+DRIVER_SRCS := $(filter-out $(TEST_SRCS) $(BENCH_SRCS), $(DRIVERS))
+DRIVER_OBJS := $(addprefix drivers/,$(patsubst %.cc,%.o, \
+		 $(notdir $(DRIVER_SRCS))))
+
+UTIL_SRCS := $(filter-out $(TEST_SRCS) $(BENCH_SRCS), $(UTILS))
+UTIL_OBJS := $(addprefix utils/,$(patsubst %.cc,%.o,$(notdir $(UTIL_SRCS))))
+
+SRCS := $(filter-out $(TEST_SRCS) $(BENCH_SRCS) $(MODULE_SRCS) $(DRIVER_SRCS) $(UTIL_SRCS), $(ALL_SRCS)) $(PROTO_SRCS)
+# ? why doesn't HEADERS include module headers?
+HEADERS := $(wildcard *.h utils/*.h $(DRIVER_H) hooks/*.h)
+OBJS := $(SRCS:.cc=.o) $(DRIVER_OBJS) $(UTIL_OBJS)
 
 EXEC := bessd
 
@@ -179,6 +246,8 @@ tests: $(TEST_OBJS) $(TEST_EXEC) $(TEST_ALL_EXEC)
 benchmarks: $(BENCH_OBJS) $(BENCH_EXEC)
 
 protobuf: $(PROTO_SRCS)
+
+drivers: protobuf $(DRIVER_OBJS)
 
 modules: protobuf $(MODULE_OBJS) $(MODULE_LIBS)
 
@@ -220,20 +289,32 @@ endef
 $(eval $(call BUILD, \
 	PROTOC, \
 	pb/%.pb.cc pb/%.pb.h pb/%.grpc.pb.cc pb/%.grpc.pb.h, \
-	$(PROTO_DIR)/%.proto, \
+	%.proto, \
 	$(PROTOC) $$< $(PROTOCFLAGS)))
 
 $(eval $(call BUILD, \
 	CXX, \
 	pb/%.pb.o, \
 	pb/%.pb.cc, \
-	$(CXX) -o $$@ -c $$< $(CXXFLAGS) $(PERMISSIVE) $$(DEPFLAGS)))
+	$(CXX) -o $$@ -c $$< $$(CXXFLAGS) $(PERMISSIVE) $$(DEPFLAGS)))
+
+$(eval $(call BUILD, \
+	DRIVER_CXX, \
+	drivers/%.o, \
+	%.cc, \
+	$(CXX) -o $$@ -c $$< $$(CXXFLAGS) $$(DEPFLAGS)))
 
 $(eval $(call BUILD, \
 	MODULE_CXX, \
 	modules/%.o, \
-	modules/%.cc, \
-	$(CXX) -o $$@ -c $$< $(CXXFLAGS) $$(DEPFLAGS) -fPIC))
+	%.cc, \
+	$(CXX) -o $$@ -c $$< $$(CXXFLAGS) $$(DEPFLAGS) -fPIC))
+
+$(eval $(call BUILD, \
+	CXX, \
+	utils/%.o, \
+	%.cc, \
+	$(CXX) -o $$@ -c $$< $$(CXXFLAGS) $$(DEPFLAGS)))
 
 $(eval $(call BUILD, \
 	MODULE_LD, \
@@ -257,7 +338,7 @@ $(eval $(call BUILD, \
 	CXX, \
 	%.o, \
 	%.cc $(PROTO_HEADERS), \
-	$(CXX) -o $$@ -c $$< $(CXXFLAGS) $$(DEPFLAGS)))
+	$(CXX) -o $$@ -c $$< $$(CXXFLAGS) $$(DEPFLAGS)))
 
 $(eval $(call BUILD, \
 	LD, \
@@ -269,7 +350,7 @@ $(eval $(call BUILD, \
 	TEST_CXX, \
 	%_test.o, \
 	%_test.cc, \
-	$(CXX) -o $$@ -c $$< $(CXXFLAGS) $$(DEPFLAGS)))
+	$(CXX) -o $$@ -c $$< $$(CXXFLAGS) $$(DEPFLAGS)))
 
 $(eval $(call BUILD, \
 	TEST_LD, \
@@ -287,13 +368,13 @@ $(eval $(call BUILD, \
 	TEST_CXX, \
 	gtest-all.o, \
 	$(GTEST_DIR)/src/gtest-all.cc, \
-	$(CXX) -o $$@ -c $$< -isystem $(GTEST_DIR) $(CXXFLAGS) $$(DEPFLAGS)))
+	$(CXX) -o $$@ -c $$< -isystem $(GTEST_DIR) $$(CXXFLAGS) $$(DEPFLAGS)))
 
 $(eval $(call BUILD, \
 	BENCH_CXX, \
 	%_bench.o, \
 	%_bench.cc, \
-	$(CXX) -o $$@ -c $$< $(CXXFLAGS) $$(DEPFLAGS)))
+	$(CXX) -o $$@ -c $$< $$(CXXFLAGS) $$(DEPFLAGS)))
 
 $(eval $(call BUILD, \
 	BENCH_LD, \
@@ -311,4 +392,9 @@ $(eval $(call BUILD, \
 
 .PRECIOUS: %.d $(PROTO_HEADERS)
 
--include $(patsubst %,$(DEPDIR)/%.d,$(basename $(ALL_SRCS)))
+# Note: this is slightly dangerous as it includes stale .d files
+# left behind if a plug-in module is removed without doing a
+# "clean".  But it's a lot easier than carefully expanding
+# # out all the MODULE, DRIVER, and UTIL names to have the correct
+# prefixes.
+-include $(wildcard $(DEPDIR)/**/*.d)
