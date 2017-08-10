@@ -35,6 +35,7 @@ import glob
 import sys
 import os
 import os.path
+import re
 import subprocess
 import textwrap
 import argparse
@@ -67,6 +68,7 @@ DPDK_FINAL_CONFIG = '%s/%s_common_linuxapp_final' % (DEPS_DIR, DPDK_VER)
 extra_libs = set()
 cxx_flags = []
 ld_flags = []
+plugins = []
 
 
 def cmd(cmd, quiet=False):
@@ -230,10 +232,26 @@ def generate_dpdk_extra_mk():
             'LIBS += %s\n' % ' '.join(map(lambda lib: '-l' + lib, extra_libs)))
 
 
+def find_current_plugins():
+    "return list of existing plugins"
+    result = []
+    try:
+        for line in open('core/extra.mk').readlines():
+            match = re.match(r'PLUGINS \+= (.*)', line)
+            if match:
+                result.append(match.group(1))
+    except (OSError, IOError):
+        pass
+    return result
+
+
 def generate_extra_mk():
+    "set up core/extra.mk to hold flags and plugin paths"
     with open('core/extra.mk', 'w') as fp:
         fp.write('CXXFLAGS += %s\n' % ' '.join(cxx_flags))
         fp.write('LDFLAGS += %s\n' % ' '.join(ld_flags))
+        for path in plugins:
+            fp.write('PLUGINS += {}\n'.format(path))
 
 
 def download_dpdk(quiet=False):
@@ -339,6 +357,9 @@ def generate_protobuf_files():
     sys.stdout.flush()
     gen_one_set_of_files('protobuf', 'pybess/builtin_pb')
     gen_one_set_of_files('protobuf/tests', 'pybess/builtin_pb')
+    for path in plugins:
+        gen_one_set_of_files(os.path.join(path, 'protobuf'),
+                             'pybess/plugin_pb')
 
 
 def build_bess():
@@ -346,8 +367,6 @@ def build_bess():
 
     if not os.path.exists('%s/build' % DPDK_DIR):
         build_dpdk()
-
-    generate_extra_mk()
 
     generate_protobuf_files()
 
@@ -414,6 +433,23 @@ def update_benchmark_path(path):
     ld_flags.extend(['-L%s/lib' % (path)])
 
 
+def dedup(lst):
+    "de-duplicate a list, retaining original order"
+    d = {}
+    result = []
+    for item in lst:
+        if item not in d:
+            d[item] = True
+            result.append(item)
+    return result
+
+
+def show_plugins():
+    "show the current (perhaps just-now augmented) set of plugins"
+    for path in plugins:
+        print(path)
+
+
 def main():
     os.chdir(BESS_DIR)
     parser = argparse.ArgumentParser(description='Build BESS')
@@ -426,7 +462,13 @@ def main():
         'clean': do_clean,
         'dist_clean': do_dist_clean,
         'help': lambda: print_usage(parser),
+        'protobuf': generate_protobuf_files,
+        'show_plugins': show_plugins,
     }
+    # if foo_bar is a command allow foo-bar too
+    for name in cmds.keys():
+        if '_' in name:
+            cmds[name.replace('_', '-')] = cmds[name]
     cmdlist = sorted(cmds.keys())
     parser.add_argument(
         'action',
@@ -436,6 +478,16 @@ def main():
         choices=cmdlist,
         help='Action is one of ' + ', '.join(cmdlist))
     parser.add_argument(
+        '--plugin',
+        action='append',
+        help='add a plugin source directory')
+    parser.add_argument(
+        '--reset-plugins',
+        action='store_true',
+        help='clear out existing plugin settings')
+    # Note: unlike plugins, --with-benchmark must be specified each time
+    # you build bess.
+    parser.add_argument(
         '--with-benchmark',
         dest='benchmark_path',
         nargs=1,
@@ -444,11 +496,20 @@ def main():
                         help='enable verbose builds (same as env V=1)')
     args = parser.parse_args()
 
+    newplugins = [] if args.reset_plugins else find_current_plugins()
+    if args.plugin:
+        newplugins.extend(args.plugin)
+    # Convert to absolute path, de-duplicate, and set plugins.
+    plugins.extend(dedup(os.path.abspath(i) for i in newplugins))
+
     if args.verbose:
         os.environ['V'] = '1'
 
     if args.benchmark_path:
         update_benchmark_path(args.benchmark_path[0])
+
+    # TODO(torek): only update if needed
+    generate_extra_mk()
 
     cmds[args.action]()
 
