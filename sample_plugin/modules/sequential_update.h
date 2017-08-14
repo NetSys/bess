@@ -34,7 +34,7 @@
 #include "module.h"
 #include "utils/endian.h"
 
-#include "protobuf/supdate_msg.pb.h"
+#include "pb/supdate_msg.pb.h"
 
 static const size_t kMaxVariable = 16;
 
