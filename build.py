@@ -269,7 +269,7 @@ def download_dpdk(quiet=False):
         # If you need a branch instead of a tag, or need to check
         # out a commit by raw hash ID, run "git fetch unshallow" before
         # your "git checkout", or remove the "--depth 1" here and
-        # remove the subsequent "git ... config remote.url.fetch"
+        # remove the subsequent "git ... config remote.origin.fetch"
         # command.
         #
         # If the base git is pre-2.7.4 and there is no configured
@@ -281,7 +281,8 @@ def download_dpdk(quiet=False):
         cmd('git -c user.name=git-bug-workaround -c user.email=not@used.com '
             'clone --depth 1 -b %s %s %s' % (DPDK_TAG, DPDK_REPO, DPDK_DIR))
         cmd("git -C %s config "
-            "remote.url.fetch '+refs/heads/*:refs/remotes/origin/*'" % DPDK_DIR)
+            "remote.origin.fetch '+refs/heads/*:refs/remotes/origin/*'" %
+            DPDK_DIR)
 
     except:
         # git removes the clone on interrupt, but let's do it here
