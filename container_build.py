@@ -36,12 +36,55 @@ import sys
 import subprocess
 import os
 import os.path
+import re
 import argparse
 
 IMAGE = 'nefelinetworks/bess_build:latest' + os.getenv('TAG_SUFFIX', '')
 BESS_DIR_HOST = os.path.dirname(os.path.abspath(__file__))
 BESS_DIR_CONTAINER = '/build/bess'
 BUILD_SCRIPT = './build.py'
+PLUGINS = []
+
+
+def docker_mount_args(plugins):
+    """
+    Return the string of arguments to "docker run" suitable for
+    mounting BESS_DIR_HOST as BESS_DIR_CONTAINER and all the
+    plugins under their original paths.
+
+    Note, the plugins must not live under the BESS_DIR_CONTAINER
+    directory itself since that will not play well.  But plugins
+    can live under a previously-exported path, including the
+    BESS directory itself -- this is the case for the sample
+    plugin, for instance.
+    """
+    for path in plugins:
+        if not os.path.isabs(path):
+            sys.exit('Error: plugin {!r} path is not absolute'.format(path))
+        if path.startswith(BESS_DIR_CONTAINER + os.path.sep):
+            sys.exit('Error: plugin {!r}: path {!r} is taken by '
+                     'bess'.format(path, BESS_DIR_CONTAINER))
+
+    ret = ['-v {}:{}'.format(BESS_DIR_HOST, BESS_DIR_CONTAINER)]
+
+    # Make sure longer paths that are prefixes of shorter paths
+    # appear after the shorter paths.  That way we mount only
+    # /foo/bar if both /foo/bar and /foo/bar/sub/dir are listed.
+    earlier = { BESS_DIR_HOST: True }
+    for path in sorted(plugins, key=lambda x: x + os.path.sep):
+        # given, e.g., /foo/bar/baz we want to look at /foo, /foo/bar,
+        # and /foo/bar/baz to see if they're already in the mount list.
+        components = path.split(os.path.sep)
+        components[0] = os.path.sep
+        for i in range(1, len(components)):
+            if os.path.join(*components[:i + 1]) in earlier:
+                # already mounted
+                break
+        else:
+            # no prefix is mounted yet
+            ret.append('-v {path}:{path}'.format(path=path))
+            earlier[path] = True
+    return ' '.join(ret)
 
 
 def run_cmd(cmd):
@@ -61,14 +104,27 @@ def shell_quote(cmd):
 
 def run_docker_cmd(cmd):
     run_cmd('docker run -e V -e CXX -e DEBUG -e SANITIZE --rm -t '
-            '-u %d:%d -v %s:%s %s sh -c %s' %
-            (os.getuid(), os.getgid(), BESS_DIR_HOST, BESS_DIR_CONTAINER,
+            '-u %d:%d %s %s sh -c %s' %
+            (os.getuid(), os.getgid(), docker_mount_args(PLUGINS),
              IMAGE, shell_quote(cmd)))
 
 
 def run_shell():
-    run_cmd('docker run -e V -e CXX -e DEBUG -e SANITIZE --rm -it -v %s:%s %s' %
-            (BESS_DIR_HOST, BESS_DIR_CONTAINER, IMAGE))
+    run_cmd('docker run -e V -e CXX -e DEBUG -e SANITIZE --rm -it %s %s' %
+            (docker_mount_args(PLUGINS), IMAGE))
+
+
+def find_current_plugins():
+    "return list of existing plugins"
+    result = []
+    try:
+        for line in open('core/extra.mk').readlines():
+            match = re.match(r'PLUGINS \+= (.*)', line)
+            if match:
+                result.append(match.group(1))
+    except (OSError, IOError):
+        pass
+    return result
 
 
 def build_bess():
@@ -132,11 +188,13 @@ def main():
         choices=cmdlist,
         help='Action is one of ' + ', '.join(cmdlist))
     parser.add_argument('-v', '--verbose', action='store_true',
-        help='pass verbose flag to build inside container')
+                        help='pass verbose flag to build inside container')
 
     args = parser.parse_args()
     if args.verbose:
         os.environ['V'] = '1'
+
+    PLUGINS.extend(find_current_plugins())
 
     cmds[args.action]()
 

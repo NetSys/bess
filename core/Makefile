@@ -223,9 +223,9 @@ EXEC := bessd
 
 GTEST_DIR := /usr/src/gtest
 
-.PHONY: all clean tags cscope tests benchmarks protobuf
+.PHONY: all clean tags cscope tests benchmarks protobuf check_plugins_exist
 
-all: $(EXEC) modules tests benchmarks
+all: $(EXEC) modules tests benchmarks check_plugins_exist
 
 clean:
 	rm -rf $(EXEC) .deps/*.d .deps/*/*.d *_test */*_test *_bench */*_bench \
@@ -250,6 +250,12 @@ protobuf: $(PROTO_SRCS)
 drivers: protobuf $(DRIVER_OBJS)
 
 modules: protobuf $(MODULE_OBJS) $(MODULE_LIBS)
+
+# This just makes sure all the plugin directories actually exist
+# (it's a sanity check on the value of $(PLUGINS) since if one is
+# misspelled or not container-mounted, its modules just seem to
+# vanish).
+check_plugins_exist: $(PLUGINS)
 
 # Generate version string from the current status of the git working copy
 VERSION ?= $(shell git describe --dirty --always --tags 2>/dev/null)
