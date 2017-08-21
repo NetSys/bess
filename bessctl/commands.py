@@ -228,7 +228,7 @@ def get_var_attrs(cli, var_token, partial_word):
                 pass
 
         elif var_token == 'DRIVER...':
-            var_type = 'name'
+            var_type = 'name+'
             var_desc = 'one or more port driver names'
             try:
                 var_candidates = cli.bess.list_drivers().driver_names
