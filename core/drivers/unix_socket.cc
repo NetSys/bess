@@ -28,6 +28,8 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
+#include <sys/epoll.h>
+
 #include "unix_socket.h"
 
 // TODO(barath): Clarify these comments.
@@ -43,48 +45,63 @@
 void UnixSocketPort::AcceptNewClient() {
   int ret;
 
-  for (;;) {
-    ret = accept4(listen_fd_, nullptr, nullptr, SOCK_NONBLOCK);
-    if (ret >= 0) {
+  while (true) {
+    for (;;) {
+      ret = accept4(listen_fd_, nullptr, nullptr, SOCK_NONBLOCK);
+      if (ret >= 0) {
+        // New client while we already have an active one; drop connection
+        if (client_fd_ != kNotConnectedFd) {
+          close(ret);
+        }
+        break;
+      }
+
+      if (errno != EINTR) {
+        PLOG(ERROR) << "[UnixSocket]:accept4()";
+      }
+    }
+
+    recv_skip_cnt_ = 0;
+    client_fd_ = ret;
+
+    // Detect when connection is dropped by client
+    struct epoll_event event;
+    event.events = EPOLLRDHUP;
+    ret = epoll_ctl(epoll_fd_, EPOLL_CTL_ADD, ret, &event);
+    if (ret < 0) {
+      PLOG(ERROR) << "[UnixSocket]:epoll_ctl()";
       break;
     }
 
-    if (errno != EINTR) {
-      PLOG(ERROR) << "[UnixSocket]:accept4()";
+    while (true) {
+      ret = epoll_wait(epoll_fd_, &event, 1, -1);
+      if (ret < 0) {
+        if (errno == EINTR) {
+          continue;
+        } else {
+          PLOG(ERROR) << "[UnixSocket]:epoll_wait()";
+          break;
+        }
+      }
+
+      if (event.events & EPOLLRDHUP) {
+        break;
+      }
     }
-  }
 
-  recv_skip_cnt_ = 0;
-
-  if (old_client_fd_ != kNotConnectedFd) {
-    // Reuse the old file descriptor number by atomically exchanging the new fd
-    // with the
-    // old one.  The zombie socket is closed silently (see dup2).
-    dup2(ret, client_fd_);
-    close(ret);
-  } else {
-    client_fd_ = ret;
+    // Close dropped connection (Send/Recv are resilient)
+    epoll_ctl(epoll_fd_, EPOLL_CTL_DEL, client_fd_, &event);
+    close(client_fd_);
+    client_fd_ = -1;
   }
 }
 
 // This accept thread terminates once a new client is connected.
 void *AcceptThreadMain(void *arg) {
+  // TODO: should make sure it's pinned to a non-worker CPU
   UnixSocketPort *p = reinterpret_cast<UnixSocketPort *>(arg);
   p->AcceptNewClient();
   return nullptr;
-}
-
-// The file descriptor for the connection will not be closed, until we have a
-// new client.
-// This is to avoid race condition in TX process.
-void UnixSocketPort::CloseConnection() {
-  // Keep client_fd, since it may be being used in unix_send_pkts().
-  old_client_fd_ = client_fd_;
-  client_fd_ = kNotConnectedFd;
-
-  // Relaunch the accept thread.
-  std::thread accept_thread(AcceptThreadMain, reinterpret_cast<void *>(this));
-  accept_thread.detach();
 }
 
 CommandResponse UnixSocketPort::Init(const bess::pb::UnixSocketPortArg &arg) {
@@ -97,10 +114,15 @@ CommandResponse UnixSocketPort::Init(const bess::pb::UnixSocketPortArg &arg) {
   int ret;
 
   client_fd_ = kNotConnectedFd;
-  old_client_fd_ = kNotConnectedFd;
 
   if (num_txq > 1 || num_rxq > 1) {
     return CommandFailure(EINVAL, "Cannot have more than 1 queue per RX/TX");
+  }
+
+  // TODO: close in error paths to avoid leaking FDs
+  epoll_fd_ = epoll_create(1);
+  if (epoll_fd_ < 0) {
+    return CommandFailure(errno, "epoll_create(1) failed");
   }
 
   listen_fd_ = socket(AF_UNIX, SOCK_SEQPACKET, 0);
@@ -146,6 +168,7 @@ CommandResponse UnixSocketPort::Init(const bess::pb::UnixSocketPortArg &arg) {
 
 void UnixSocketPort::DeInit() {
   close(listen_fd_);
+  close(epoll_fd_);
 
   if (client_fd_ >= 0) {
     close(client_fd_);
@@ -153,9 +176,11 @@ void UnixSocketPort::DeInit() {
 }
 
 int UnixSocketPort::RecvPackets(queue_t qid, bess::Packet **pkts, int cnt) {
+  int client_fd = client_fd_;
+
   DCHECK_EQ(qid, 0);
 
-  if (client_fd_ == kNotConnectedFd) {
+  if (client_fd == kNotConnectedFd) {
     return 0;
   }
 
@@ -174,7 +199,7 @@ int UnixSocketPort::RecvPackets(queue_t qid, bess::Packet **pkts, int cnt) {
     }
 
     // Datagrams larger than 2KB will be truncated.
-    ret = recv(client_fd_, pkt->data(), SNBUF_DATA, 0);
+    ret = recv(client_fd, pkt->data(), SNBUF_DATA, 0);
 
     if (ret > 0) {
       pkt->append(ret);
@@ -185,7 +210,7 @@ int UnixSocketPort::RecvPackets(queue_t qid, bess::Packet **pkts, int cnt) {
     bess::Packet::Free(pkt);
 
     if (ret < 0) {
-      if (errno == EAGAIN || errno == EWOULDBLOCK) {
+      if (errno == EAGAIN || errno == EWOULDBLOCK || errno == EBADF) {
         break;
       }
 
@@ -195,7 +220,6 @@ int UnixSocketPort::RecvPackets(queue_t qid, bess::Packet **pkts, int cnt) {
     }
 
     // Connection closed.
-    CloseConnection();
     break;
   }
 
@@ -208,8 +232,13 @@ int UnixSocketPort::RecvPackets(queue_t qid, bess::Packet **pkts, int cnt) {
 
 int UnixSocketPort::SendPackets(queue_t qid, bess::Packet **pkts, int cnt) {
   int sent = 0;
+  int client_fd = client_fd_;
 
   DCHECK_EQ(qid, 0);
+
+  if (client_fd == kNotConnectedFd) {
+    return 0;
+  }
 
   for (int i = 0; i < cnt; i++) {
     bess::Packet *pkt = pkts[i];
@@ -229,7 +258,7 @@ int UnixSocketPort::SendPackets(queue_t qid, bess::Packet **pkts, int cnt) {
       pkt = pkt->next();
     }
 
-    ret = sendmsg(client_fd_, &msg, 0);
+    ret = sendmsg(client_fd, &msg, 0);
     if (ret < 0) {
       break;
     }
