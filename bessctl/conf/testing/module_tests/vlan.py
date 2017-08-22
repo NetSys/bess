@@ -81,8 +81,7 @@ else:
                     'output_port': default_gate,
                     'input_packet': q,
                     'output_packet': q})
-        return [VLANSplit(), 1, 150, expected]
+        return [VLANSplit(), 1, 30, expected]
 
-    OUTPUT_TEST_INPUTS.append(output_test([1, 100, 77, -1, 149, 50, 100, -1]))
-    OUTPUT_TEST_INPUTS.append(output_test([100, 77, -1, 149, 50, 100, -1, 33, 70]))
-    OUTPUT_TEST_INPUTS.append(output_test([100, 77, -1, 149, 50, 100, -1, 33, 70], True))
+    OUTPUT_TEST_INPUTS.append(output_test([1, 17, -1, 29, 10, 13, 7]))
+    OUTPUT_TEST_INPUTS.append(output_test([1, 17, -1, 29, 10, 13, 7], True))
