@@ -41,9 +41,6 @@
 // TODO: Revise this once the interrupt mode is  implemented.
 
 #define RECV_SKIP_TICKS 256
-#define MAX_TX_FRAGS 8
-
-#define SIG_THREAD_EXIT SIGUSR2
 
 
 static void EpollAdd(int epoll_fd, int new_fd, uint32_t events)
@@ -67,8 +64,6 @@ CommandResponse UnixSocketPort::Init(const bess::pb::UnixSocketPortArg &arg) {
   size_t addrlen;
 
   int ret;
-
-  client_fd_ = kNotConnectedFd;
 
   if (num_txq > 1 || num_rxq > 1) {
     return CommandFailure(EINVAL, "Cannot have more than 1 queue per RX/TX");
