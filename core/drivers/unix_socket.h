@@ -121,7 +121,12 @@ class UnixSocketPort final : public Port {
   uint32_t recv_skip_cnt_;
 
   /*!
-   * Thread accepting and monitoring clients.
+   * Function for the thread accepting and monitoring clients (accept thread).
+   */
+  void AcceptThread();
+
+  /*!
+   * Accept thread handle.
    */
   std::thread accept_thread_;
 
