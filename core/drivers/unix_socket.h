@@ -55,6 +55,8 @@ class UnixSocketPort final : public Port {
   UnixSocketPort()
       : Port(),
         recv_skip_cnt_(),
+        accept_thread_stopped_fd_(kNotConnectedFd),
+        accept_thread_stop_fd_(kNotConnectedFd),
         listen_fd_(kNotConnectedFd),
         addr_(),
         epoll_fd_(kNotConnectedFd),
@@ -107,11 +109,6 @@ class UnixSocketPort final : public Port {
    */
   int SendPackets(queue_t qid, bess::Packet **pkts, int cnt) override;
 
-  /*!
-   * Waits for a client to connect to the socket.
-   */
-  void AcceptNewClient();
-
  private:
   // Value for a disconnected socket.
   static const int kNotConnectedFd = -1;
@@ -122,6 +119,21 @@ class UnixSocketPort final : public Port {
   * since we last called recv().
   * */
   uint32_t recv_skip_cnt_;
+
+  /*!
+   * Thread accepting and monitoring clients.
+   */
+  std::thread accept_thread_;
+
+  /*!
+   * FD to read stop signal in accept thread.
+   */
+  int accept_thread_stopped_fd_;
+
+  /*!
+   * FD to signal accept thread to stop.
+   */
+  int accept_thread_stop_fd_;
 
   /*!
    * The listener fd -- listen for new connections here.
