@@ -228,7 +228,7 @@ def get_var_attrs(cli, var_token, partial_word):
                 pass
 
         elif var_token == 'DRIVER...':
-            var_type = 'name'
+            var_type = 'name+'
             var_desc = 'one or more port driver names'
             try:
                 var_candidates = cli.bess.list_drivers().driver_names
@@ -635,8 +635,9 @@ def _do_start(cli, opts):
     if opts is None:
         opts = []
 
-    cmd = 'sudo %s/core/bessd -k %s' % (os.path.dirname(cli.this_dir),
-                                        ' '.join(opts))
+    # need -E to pass GCOV_* env variables through
+    cmd = 'sudo -E %s/core/bessd -k %s' % (os.path.dirname(cli.this_dir),
+                                           ' '.join(opts))
 
     cli.bess.disconnect()
 
