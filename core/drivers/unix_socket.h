@@ -32,6 +32,7 @@
 #define BESS_DRIVERS_UNIXSOCKET_H_
 
 #include <assert.h>
+#include <atomic>
 #include <errno.h>
 #include <poll.h>
 #include <stdio.h>
@@ -55,8 +56,7 @@ class UnixSocketPort final : public Port {
   UnixSocketPort()
       : Port(),
         recv_skip_cnt_(),
-        accept_thread_stopped_fd_(kNotConnectedFd),
-        accept_thread_stop_fd_(kNotConnectedFd),
+        accept_thread_stop_req_(false),
         listen_fd_(kNotConnectedFd),
         addr_(),
         epoll_fd_(kNotConnectedFd),
@@ -131,14 +131,9 @@ class UnixSocketPort final : public Port {
   std::thread accept_thread_;
 
   /*!
-   * FD to read stop signal in accept thread.
+   * Sent stop request to accept thread.
    */
-  int accept_thread_stopped_fd_;
-
-  /*!
-   * FD to signal accept thread to stop.
-   */
-  int accept_thread_stop_fd_;
+  std::atomic<bool> accept_thread_stop_req_;
 
   /*!
    * The listener fd -- listen for new connections here.

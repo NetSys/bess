@@ -41,82 +41,82 @@
 // TODO: Revise this once the interrupt mode is  implemented.
 
 #define RECV_SKIP_TICKS 256
+#define SIG_THREAD_EXIT SIGUSR2
 
 
-static void EpollAdd(int epoll_fd, int new_fd, uint32_t events)
-{
+static void EpollAdd(int epoll_fd, int new_fd, uint32_t events) {
     struct epoll_event event;
     event.events = events;
     event.data.fd = new_fd;
     epoll_ctl(epoll_fd, EPOLL_CTL_ADD, new_fd, &event);
 }
 
-static void EpollDel(int epoll_fd, int fd)
-{
+static void EpollDel(int epoll_fd, int fd) {
     epoll_ctl(epoll_fd, EPOLL_CTL_DEL, fd, nullptr);
 }
 
 void UnixSocketPort::AcceptThread() {
+  sigset_t sigset;
+  sigfillset(&sigset);
+  sigdelset(&sigset, SIG_THREAD_EXIT);
+
   while (true) {
     struct epoll_event event;
-    if (epoll_wait(epoll_fd_, &event, 1, -1) < 0) {
+    if (epoll_pwait(epoll_fd_, &event, 1, -1, &sigset) < 0) {
       if (errno == EINTR) {
-        continue;
+        if (accept_thread_stop_req_) {
+          break;
+        } else {
+          continue;
+        }
       } else {
         PLOG(ERROR) << "[UnixSocketPort]:epoll_wait()";
       }
-    } else {
-      if (event.data.fd == accept_thread_stopped_fd_) {
-        if (event.events & EPOLLIN) {
-          // thread requested to stop
-          break;
-        } else {
-          LOG(ERROR) << "[UnixSocketPort]:epoll_wait(): "
-                     << "Unexpected event " << event.events
-                     << " in accept_thread_stopped_fd_";
-            }
 
-          } else if (event.data.fd == listen_fd_) {
-            if (event.events & EPOLLIN) {
-              // new client connected
-              int fd;
-              while (true) {
-                fd = accept4(listen_fd_, nullptr, nullptr, SOCK_NONBLOCK);
-                if (fd >= 0 || errno != EINTR) {
-                  break;
-                }
-              }
-              if (fd < 0) {
-                PLOG(ERROR) << "[UnixSocketPort]:accept4()";
-              } else {
-                EpollAdd(epoll_fd_, fd, EPOLLRDHUP);
-                client_fd_ = fd;
-              }
-            } else {
-              LOG(ERROR) << "[UnixSocketPort]:epoll_wait(): "
-                         << "Unexpected event " << event.events
-                         << " in listen_fd_";
-            }
-
-          } else if (event.data.fd == client_fd_) {
-            if (event.events & EPOLLRDHUP) {
-              // connection dropped by client
-              int fd = client_fd_;
-              client_fd_ = -1;
-              EpollDel(epoll_fd_, fd);
-              close(fd);
-            } else {
-              LOG(ERROR) << "[UnixSocketPort]:epoll_wait(): "
-                         << "Unexpected event " << event.events
-                         << " in client_fd_";
-            }
-
-          } else {
-            LOG(ERROR) << "[UnixSocketPort]:epoll_wait(): "
-                       << "Unexpected fd " << event.data.fd;
+    } else if (event.data.fd == listen_fd_) {
+      if (event.events & EPOLLIN) {
+        // new client connected
+        int fd;
+        while (true) {
+          fd = accept4(listen_fd_, nullptr, nullptr, SOCK_NONBLOCK);
+          if (fd >= 0 || errno != EINTR) {
+            break;
           }
         }
+        if (fd < 0) {
+          PLOG(ERROR) << "[UnixSocketPort]:accept4()";
+        } else {
+          EpollAdd(epoll_fd_, fd, EPOLLRDHUP);
+          client_fd_ = fd;
+        }
+      } else {
+        LOG(ERROR) << "[UnixSocketPort]:epoll_wait(): "
+                   << "Unexpected event " << event.events
+                   << " in listen_fd_";
       }
+
+    } else if (event.data.fd == client_fd_) {
+      if (event.events & EPOLLRDHUP) {
+        // connection dropped by client
+        int fd = client_fd_;
+        client_fd_ = -1;
+        EpollDel(epoll_fd_, fd);
+        close(fd);
+      } else {
+        LOG(ERROR) << "[UnixSocketPort]:epoll_wait(): "
+                   << "Unexpected event " << event.events
+                   << " in client_fd_";
+      }
+
+    } else {
+      LOG(ERROR) << "[UnixSocketPort]:epoll_wait(): "
+                 << "Unexpected fd " << event.data.fd;
+    }
+  }
+}
+
+static void AcceptThreadHandler(int sig) {
+  sig = sig;
 }
 
 CommandResponse UnixSocketPort::Init(const bess::pb::UnixSocketPortArg &arg) {
@@ -171,23 +171,21 @@ CommandResponse UnixSocketPort::Init(const bess::pb::UnixSocketPortArg &arg) {
   }
 
 
-  int control_fds[2];
-  ret = pipe2(control_fds, 0);
-  if (ret < 0) {
-    DeInit();
-    return CommandFailure(errno, "pipe2() failed");
-  }
-  accept_thread_stopped_fd_ = control_fds[0];
-  accept_thread_stop_fd_ = control_fds[1];
-
-
   epoll_fd_ = epoll_create(1);
   if (epoll_fd_ < 0) {
     DeInit();
     return CommandFailure(errno, "epoll_create(1) failed");
   }
   EpollAdd(epoll_fd_, listen_fd_, EPOLLIN);
-  EpollAdd(epoll_fd_, accept_thread_stopped_fd_, EPOLLIN);
+
+
+  struct sigaction sa;
+  memset(&sa, 0, sizeof(sa));
+  sa.sa_handler = AcceptThreadHandler;
+  if (sigaction(SIG_THREAD_EXIT, &sa, NULL) < 0) {
+    DeInit();
+    return CommandFailure(errno, "sigaction(SIG_THREAD_EXIT) failed");
+  }
 
 
   accept_thread_ = std::thread([&]() {
@@ -199,22 +197,11 @@ CommandResponse UnixSocketPort::Init(const bess::pb::UnixSocketPortArg &arg) {
 
 void UnixSocketPort::DeInit() {
   if (accept_thread_.joinable()) {
-    LOG(INFO) << "test: signalling\n";
-    char c = 0;
-    if (write(accept_thread_stop_fd_, &c, sizeof(c)) < 0) {
-      PLOG(ERROR) << "[UnixSocketPort]:write(accept_thread_stop_fd_)";
-    }
-    LOG(INFO) << "test: join\n";
+    accept_thread_stop_req_ = true;
+    pthread_kill(accept_thread_.native_handle(), SIG_THREAD_EXIT);
     accept_thread_.join();
-    LOG(INFO) << "test: joined\n";
   }
 
-  if (accept_thread_stopped_fd_ != kNotConnectedFd) {
-    close(accept_thread_stopped_fd_);
-  }
-  if (accept_thread_stop_fd_ != kNotConnectedFd) {
-    close(accept_thread_stop_fd_);
-  }
   if (listen_fd_ != kNotConnectedFd) {
     close(listen_fd_);
   }
