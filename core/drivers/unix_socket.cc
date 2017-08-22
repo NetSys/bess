@@ -29,7 +29,7 @@
 // POSSIBILITY OF SUCH DAMAGE.
 
 #include <signal.h>
-#include <sys/epoll.h>
+#include <poll.h>
 
 #include "unix_socket.h"
 
@@ -44,73 +44,51 @@
 #define SIG_THREAD_EXIT SIGUSR2
 
 
-static void EpollAdd(int epoll_fd, int new_fd, uint32_t events) {
-    struct epoll_event event;
-    event.events = events;
-    event.data.fd = new_fd;
-    epoll_ctl(epoll_fd, EPOLL_CTL_ADD, new_fd, &event);
-}
-
-static void EpollDel(int epoll_fd, int fd) {
-    epoll_ctl(epoll_fd, EPOLL_CTL_DEL, fd, nullptr);
-}
-
 void UnixSocketPort::AcceptThread() {
   sigset_t sigset;
   sigfillset(&sigset);
   sigdelset(&sigset, SIG_THREAD_EXIT);
 
+  struct pollfd fds[2];
+  memset(fds, 0, sizeof(fds));
+  fds[0].fd = listen_fd_;
+  fds[0].events = POLLIN;
+  fds[1].events = POLLRDHUP;
+
   while (true) {
-    struct epoll_event event;
-    if (epoll_pwait(epoll_fd_, &event, 1, -1, &sigset) < 0) {
+    fds[1].fd = client_fd_;
+    int res = ppoll(fds, 2, nullptr, &sigset);
+
+    if (accept_thread_stop_req_) {
+      return;
+
+    } else if (res < 0) {
       if (errno == EINTR) {
-        if (accept_thread_stop_req_) {
-          break;
-        } else {
-          continue;
-        }
+        continue;
       } else {
         PLOG(ERROR) << "[UnixSocketPort]:epoll_wait()";
       }
 
-    } else if (event.data.fd == listen_fd_) {
-      if (event.events & EPOLLIN) {
-        // new client connected
-        int fd;
-        while (true) {
-          fd = accept4(listen_fd_, nullptr, nullptr, SOCK_NONBLOCK);
-          if (fd >= 0 || errno != EINTR) {
-            break;
-          }
+    } else if (fds[0].revents & POLLIN) {
+      // new client connected
+      int fd;
+      while (true) {
+        fd = accept4(listen_fd_, nullptr, nullptr, SOCK_NONBLOCK);
+        if (fd >= 0 || errno != EINTR) {
+          break;
         }
-        if (fd < 0) {
-          PLOG(ERROR) << "[UnixSocketPort]:accept4()";
-        } else {
-          EpollAdd(epoll_fd_, fd, EPOLLRDHUP);
-          client_fd_ = fd;
-        }
+      }
+      if (fd < 0) {
+        PLOG(ERROR) << "[UnixSocketPort]:accept4()";
       } else {
-        LOG(ERROR) << "[UnixSocketPort]:epoll_wait(): "
-                   << "Unexpected event " << event.events
-                   << " in listen_fd_";
+        client_fd_ = fd;
       }
 
-    } else if (event.data.fd == client_fd_) {
-      if (event.events & EPOLLRDHUP) {
-        // connection dropped by client
-        int fd = client_fd_;
-        client_fd_ = -1;
-        EpollDel(epoll_fd_, fd);
-        close(fd);
-      } else {
-        LOG(ERROR) << "[UnixSocketPort]:epoll_wait(): "
-                   << "Unexpected event " << event.events
-                   << " in client_fd_";
-      }
-
-    } else {
-      LOG(ERROR) << "[UnixSocketPort]:epoll_wait(): "
-                 << "Unexpected fd " << event.data.fd;
+    } else if (fds[1].revents & (POLLRDHUP | POLLHUP)) {
+      // connection dropped by client
+      int fd = client_fd_;
+      client_fd_ = -1;
+      close(fd);
     }
   }
 }
@@ -171,14 +149,6 @@ CommandResponse UnixSocketPort::Init(const bess::pb::UnixSocketPortArg &arg) {
   }
 
 
-  epoll_fd_ = epoll_create(1);
-  if (epoll_fd_ < 0) {
-    DeInit();
-    return CommandFailure(errno, "epoll_create(1) failed");
-  }
-  EpollAdd(epoll_fd_, listen_fd_, EPOLLIN);
-
-
   struct sigaction sa;
   memset(&sa, 0, sizeof(sa));
   sa.sa_handler = AcceptThreadHandler;
@@ -207,9 +177,6 @@ void UnixSocketPort::DeInit() {
   }
   if (client_fd_ != kNotConnectedFd) {
     close(client_fd_);
-  }
-  if (epoll_fd_ != kNotConnectedFd) {
-    close(epoll_fd_);
   }
 }
 

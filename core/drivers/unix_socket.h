@@ -59,7 +59,6 @@ class UnixSocketPort final : public Port {
         accept_thread_stop_req_(false),
         listen_fd_(kNotConnectedFd),
         addr_(),
-        epoll_fd_(kNotConnectedFd),
         client_fd_(kNotConnectedFd) {}
 
   /*!
@@ -144,11 +143,6 @@ class UnixSocketPort final : public Port {
    * My socket address on the listener fd.
    */
   struct sockaddr_un addr_;
-
-  /*!
-   * The epoll fd -- detect when client closes.
-   */
-  int epoll_fd_;
 
   // NOTE: three threads (accept / recv / send) may race on this, so use
   // volatile.
