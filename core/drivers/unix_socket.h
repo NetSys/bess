@@ -55,9 +55,10 @@ class UnixSocketPort final : public Port {
   UnixSocketPort()
       : Port(),
         recv_skip_cnt_(),
-        listen_fd_(),
+        listen_fd_(kNotConnectedFd),
         addr_(),
-        client_fd_() {}
+        epoll_fd_(kNotConnectedFd),
+        client_fd_(kNotConnectedFd) {}
 
   /*!
    * Initialize the port, ie, open the socket.

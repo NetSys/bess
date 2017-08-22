@@ -119,14 +119,15 @@ CommandResponse UnixSocketPort::Init(const bess::pb::UnixSocketPortArg &arg) {
     return CommandFailure(EINVAL, "Cannot have more than 1 queue per RX/TX");
   }
 
-  // TODO: close in error paths to avoid leaking FDs
   epoll_fd_ = epoll_create(1);
   if (epoll_fd_ < 0) {
+    DeInit();
     return CommandFailure(errno, "epoll_create(1) failed");
   }
 
   listen_fd_ = socket(AF_UNIX, SOCK_SEQPACKET, 0);
   if (listen_fd_ < 0) {
+    DeInit();
     return CommandFailure(errno, "socket(AF_UNIX) failed");
   }
 
@@ -152,11 +153,13 @@ CommandResponse UnixSocketPort::Init(const bess::pb::UnixSocketPortArg &arg) {
 
   ret = bind(listen_fd_, reinterpret_cast<struct sockaddr *>(&addr_), addrlen);
   if (ret < 0) {
+    DeInit();
     return CommandFailure(errno, "bind(%s) failed", addr_.sun_path);
   }
 
   ret = listen(listen_fd_, 1);
   if (ret < 0) {
+    DeInit();
     return CommandFailure(errno, "listen() failed");
   }
 
@@ -167,10 +170,13 @@ CommandResponse UnixSocketPort::Init(const bess::pb::UnixSocketPortArg &arg) {
 }
 
 void UnixSocketPort::DeInit() {
-  close(listen_fd_);
-  close(epoll_fd_);
-
-  if (client_fd_ >= 0) {
+  if (listen_fd_ != kNotConnectedFd) {
+    close(listen_fd_);
+  }
+  if (epoll_fd_ != kNotConnectedFd) {
+    close(epoll_fd_);
+  }
+  if (client_fd_ != kNotConnectedFd) {
     close(client_fd_);
   }
 }
