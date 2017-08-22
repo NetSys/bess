@@ -95,63 +95,63 @@ static ssize_t dpdk_log_writer(void *, const char *data, size_t len) {
   return len;
 }
 
-static void init_eal(const char *prog_name, int mb_per_socket,
-                     int multi_instance, bool no_huge, int default_core) {
-  int rte_argc = 0;
-  const char *rte_argv[16];
-
-  char opt_master_lcore[1024];
-  char opt_lcore_bitmap[1024];
-  char opt_socket_mem[1024];
-  char opt_file_prefix[1024];
-
-  int numa_count = get_numa_count();
-
-  int ret;
-  int i;
-
-  FILE *org_stdout;
-
-  snprintf(opt_master_lcore, sizeof(opt_master_lcore), "%d", RTE_MAX_LCORE - 1);
-  snprintf(opt_lcore_bitmap, sizeof(opt_lcore_bitmap), "%d@%d",
-           RTE_MAX_LCORE - 1, default_core);
-
-  snprintf(opt_socket_mem, sizeof(opt_socket_mem), "%d", mb_per_socket);
-  for (i = 1; i < numa_count; i++) {
-    auto len = strlen(opt_socket_mem);
-    snprintf(opt_socket_mem + len, sizeof(opt_socket_mem) - len, ",%d",
-             mb_per_socket);
+class CmdLineOpts {
+ public:
+  explicit CmdLineOpts(std::initializer_list<std::string> args)
+      : args_(), argv_({nullptr}) {
+    Append(args);
   }
 
-  rte_argv[rte_argc++] = prog_name;
-  rte_argv[rte_argc++] = "--master-lcore";
-  rte_argv[rte_argc++] = opt_master_lcore;
-  rte_argv[rte_argc++] = "--lcore";
-  rte_argv[rte_argc++] = opt_lcore_bitmap;
+  void Append(std::initializer_list<std::string> args) {
+    for (const std::string &arg : args) {
+      args_.emplace_back(arg.begin(), arg.end());
+      args_.back().push_back('\0');
+      argv_.insert(argv_.begin() + argv_.size() - 1, args_.back().data());
+    }
+  }
 
-  // Do not bother with /var/run/.rte_config and .rte_hugepage_info,
-  // since we don't want to interfere with other DPDK applications.
-  rte_argv[rte_argc++] = "--no-shconf";
+  char **Argv() { return argv_.data(); }
+
+  int Argc() const { return args_.size(); }
+
+ private:
+  // Contains a copy of each argument.
+  std::vector<std::vector<char>> args_;
+  // Pointer to each argument (in `args_`), plus an extra `nullptr`.
+  std::vector<char *> argv_;
+};
+
+static void init_eal(const char *prog_name, int mb_per_socket,
+                     int multi_instance, bool no_huge, int default_core) {
+  int numa_count = get_numa_count();
+
+  CmdLineOpts rte_args{
+      prog_name, "--master-lcore", std::to_string(RTE_MAX_LCORE - 1), "--lcore",
+      std::to_string(RTE_MAX_LCORE - 1) + "@" + std::to_string(default_core),
+      // Do not bother with /var/run/.rte_config and .rte_hugepage_info,
+      // since we don't want to interfere with other DPDK applications.
+      "--no-shconf",
+  };
+
   if (no_huge) {
-    rte_argv[rte_argc++] = "--no-huge";
+    rte_args.Append({"--no-huge"});
+    rte_args.Append({"-m", std::to_string(mb_per_socket)});
   } else {
-    rte_argv[rte_argc++] = "--socket-mem";
-    rte_argv[rte_argc++] = opt_socket_mem;
+    std::string opt_socket_mem = std::to_string(mb_per_socket);
+    for (int i = 1; i < numa_count; i++) {
+      opt_socket_mem += "," + std::to_string(mb_per_socket);
+    }
+
+    rte_args.Append({"--socket-mem", opt_socket_mem});
 
     // Unlink mapped hugepage files so that memory can be reclaimed as soon as
     // bessd terminates.
-    rte_argv[rte_argc++] = "--huge-unlink";
+    rte_args.Append({"--huge-unlink"});
   }
+
   if (!no_huge && multi_instance) {
-    snprintf(opt_file_prefix, sizeof(opt_file_prefix), "rte%lld",
-             (long long)getpid());
-    /* Casting to long long isn't guaranteed by POSIX to not lose
-     * any information, but should be okay for Linux and BSDs for
-     * the foreseeable future. */
-    rte_argv[rte_argc++] = "--file-prefix";
-    rte_argv[rte_argc++] = opt_file_prefix;
+    rte_args.Append({"--file-prefix", "rte" + std::to_string(getpid())});
   }
-  rte_argv[rte_argc] = nullptr;
 
   /* reset getopt() */
   optind = 0;
@@ -167,11 +167,11 @@ static void init_eal(const char *prog_name, int mb_per_socket,
   dpdk_log_init_funcs.write = &dpdk_log_init_writer;
   dpdk_log_funcs.write = &dpdk_log_writer;
 
-  org_stdout = stdout;
+  FILE *org_stdout = stdout;
   stdout = fopencookie(nullptr, "w", dpdk_log_init_funcs);
 
   disable_syslog();
-  ret = rte_eal_init(rte_argc, const_cast<char **>(rte_argv));
+  int ret = rte_eal_init(rte_args.Argc(), rte_args.Argv());
   if (ret < 0) {
     LOG(ERROR) << "rte_eal_init() failed: ret = " << ret;
     exit(EXIT_FAILURE);
