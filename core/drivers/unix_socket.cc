@@ -80,6 +80,9 @@ void UnixSocketPort::AcceptThread() {
       }
       if (fd < 0) {
         PLOG(ERROR) << "[UnixSocketPort]:accept4()";
+      } else if (client_fd_ != kNotConnectedFd) {
+        LOG(WARNING) << "[UnixSocketPort]: Ignoring additional client\n";
+        close(fd);
       } else {
         client_fd_ = fd;
       }
