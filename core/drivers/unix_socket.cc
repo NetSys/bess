@@ -97,7 +97,7 @@ void UnixSocketPort::AcceptThread() {
 }
 
 static void AcceptThreadHandler(int sig) {
-  sig = sig;
+  int arg __attribute__((unused)) = sig; // keep compiler happy
 }
 
 CommandResponse UnixSocketPort::Init(const bess::pb::UnixSocketPortArg &arg) {
