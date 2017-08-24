@@ -21,6 +21,7 @@
         - libtool
         - make
         - cmake
+        - pkg-config
         - libpthread-stubs0-dev
         - libunwind8-dev
         - liblzma-dev

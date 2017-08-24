@@ -34,6 +34,7 @@ MAKEFLAGS += --no-builtin-rules
 
 CXX ?= g++
 PROTOC ?= protoc
+PKG_CONFIG ?= pkg-config
 
 VERBOSE ?= 0
 
@@ -57,6 +58,8 @@ $(error g++ 5 or higher is required. Use container_build.py if newer g++ is not 
 endif
 endif
 
+HAS_PKG_CONFIG := $(shell command -v $(PKG_CONFIG) 2>&1 >/dev/null && echo yes || echo no)
+
 RTE_SDK ?= $(abspath ../deps/dpdk-17.05)
 RTE_TARGET ?= $(shell uname -m)-native-linuxapp-gcc
 DPDK_LIB ?= dpdk
@@ -73,6 +76,28 @@ else ifeq ($(words $(MAKECMDGOALS)),1)
 	$(error DPDK is not available. \
 		Make sure $(abspath $(RTE_SDK)) is available and built)
 	endif
+endif
+
+# We always want these libraries to be dynamically linked even when the
+# user requests a static build.  These needs to be listed first, so even
+# if they're listed again in the static section, they will be dynamically
+# linked.
+ALWAYS_DYN_LIBS := -lpthread -ldl
+# These libraries are not supported by pkg-config.
+ALWAYS_LIBS := -lpcap
+# If pkg-config is available, we just need a list of the dependecies.
+PKG_CONFIG_DEPS := libglog gflags protobuf grpc++ libunwind zlib
+# If pkg-config is not available, we need to list the libs we depend on.
+NO_PKG_CONFIG_LIBS := -lglog -lgflags -lprotobuf -lgrpc++ -lunwind -lz
+# If pkg-config is not available and we're static linking, we also need
+# the indirect dependecies.  This is annoying, because they may change
+# in future versions.
+NO_PKG_CONFIG_LIBS_INDIRECT := -lgrpc -lssl -lcrypto -llzma
+
+ifeq ($(HAS_PKG_CONFIG), yes)
+    PKG_CFLAGS = $(shell $(PKG_CONFIG) --cflags $(PKG_CONFIG_DEPS))
+else
+    PKG_CFLAGS =
 endif
 
 # Plugins get to look in $COREDIR through -I $(COREDIR).  Let them also
@@ -93,7 +118,7 @@ CXXFLAGS += -std=c++11 -g3 -ggdb3 $(CXXARCHFLAGS) \
 	    -isystem $(dir $<).. -isystem $(COREDIR)/modules \
 	    -D_GNU_SOURCE \
 	    -Werror \
-	    -Wall -Wextra -Wcast-align
+	    -Wall -Wextra -Wcast-align $(PKG_CFLAGS)
 
 PERMISSIVE := -Wno-unused-parameter -Wno-missing-field-initializers \
 	      -Wno-unused-private-field
@@ -111,21 +136,25 @@ endif
 LDFLAGS += -rdynamic -L$(DPDK_LIB_DIR) -Wl,-rpath=$(DPDK_LIB_DIR) -pthread
 ifdef BESS_LINK_DYNAMIC
     LIBS_ALL_SHARED = -Wl,-call_shared
-    LIBS_DL_SHARED =
+    ifeq ($(HAS_PKG_CONFIG), yes)
+      PKG_LIBS = $(shell $(PKG_CONFIG) --libs $(PKG_CONFIG_DEPS))
+    else
+      PKG_LIBS = $(NO_PKG_CONFIG_LIBS)
+    endif
 else # Used static libraries
     LIBS_ALL_SHARED =
-    LIBS_DL_SHARED = -Wl,-call_shared
-    LIBS_LZMA = -llzma
     LDFLAGS += -static-libstdc++
+    ifeq ($(HAS_PKG_CONFIG), yes)
+      PKG_LIBS = $(shell $(PKG_CONFIG) --static --libs $(PKG_CONFIG_DEPS))
+    else
+      PKG_LIBS = $(NO_PKG_CONFIG_LIBS) $(NO_PKG_CONFIG_LIBS_INDIRECT)
+    endif
 endif
 
-LIBS += -Wl,-non_shared \
+LIBS += $(ALWAYS_DYN_LIBS) -Wl,-non_shared \
 	-Wl,--whole-archive -l$(DPDK_LIB) -Wl,--no-whole-archive \
 	$(LIBS_ALL_SHARED) \
-	-lglog -lgflags -lprotobuf -lgrpc++ -lgrpc \
-	-lssl -lcrypto -lunwind $(LIBS_LZMA) -lpcap -lz \
-	$(LIBS_DL_SHARED) \
-	-ldl
+	$(PKG_LIBS) $(ALWAYS_LIBS)
 
 ifdef SANITIZE
 	CXXFLAGS += -fsanitize=address -fsanitize=undefined -fno-omit-frame-pointer
