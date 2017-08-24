@@ -28,8 +28,13 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-#include <signal.h>
+
+#include <glog/logging.h>
 #include <poll.h>
+#include <signal.h>
+
+#include <cerrno>
+#include <cstring>
 
 #include "unix_socket.h"
 
@@ -56,6 +61,7 @@ void UnixSocketPort::AcceptThread() {
   fds[1].events = POLLRDHUP;
 
   while (true) {
+    // negative FDs are ignored by ppoll()
     fds[1].fd = client_fd_;
     int res = ppoll(fds, 2, nullptr, &sigset);
 
@@ -66,7 +72,7 @@ void UnixSocketPort::AcceptThread() {
       if (errno == EINTR) {
         continue;
       } else {
-        PLOG(ERROR) << "[UnixSocketPort]:epoll_wait()";
+        PLOG(ERROR) << "ppoll()";
       }
 
     } else if (fds[0].revents & POLLIN) {
@@ -79,9 +85,9 @@ void UnixSocketPort::AcceptThread() {
         }
       }
       if (fd < 0) {
-        PLOG(ERROR) << "[UnixSocketPort]:accept4()";
+        PLOG(ERROR) << "accept4()";
       } else if (client_fd_ != kNotConnectedFd) {
-        LOG(WARNING) << "[UnixSocketPort]: Ignoring additional client\n";
+        LOG(WARNING) << "Ignoring additional client\n";
         close(fd);
       } else {
         client_fd_ = fd;
@@ -90,14 +96,14 @@ void UnixSocketPort::AcceptThread() {
     } else if (fds[1].revents & (POLLRDHUP | POLLHUP)) {
       // connection dropped by client
       int fd = client_fd_;
-      client_fd_ = -1;
+      client_fd_ = kNotConnectedFd;
       close(fd);
     }
   }
 }
 
-static void AcceptThreadHandler(int sig) {
-  int arg __attribute__((unused)) = sig; // keep compiler happy
+static void AcceptThreadHandler(int) {
+  // empty handler, we only care about blocking syscalls being interrupted
 }
 
 CommandResponse UnixSocketPort::Init(const bess::pb::UnixSocketPortArg &arg) {
@@ -161,7 +167,7 @@ CommandResponse UnixSocketPort::Init(const bess::pb::UnixSocketPortArg &arg) {
   }
 
 
-  accept_thread_ = std::thread([&]() {
+  accept_thread_ = std::thread([this]() {
       this->AcceptThread();
     });
 

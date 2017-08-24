@@ -31,18 +31,12 @@
 #ifndef BESS_DRIVERS_UNIXSOCKET_H_
 #define BESS_DRIVERS_UNIXSOCKET_H_
 
-#include <assert.h>
-#include <atomic>
-#include <errno.h>
-#include <poll.h>
-#include <stdio.h>
-#include <string.h>
 #include <sys/socket.h>
 #include <sys/un.h>
-#include <thread>
 #include <unistd.h>
 
-#include <glog/logging.h>
+#include <atomic>
+#include <thread>
 
 #include "../message.h"
 #include "../port.h"
