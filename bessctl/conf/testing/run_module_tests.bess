@@ -169,7 +169,6 @@ def run_tests():
 
         print("-- Running Module Tests for %s --" % filename.split("/")[-1])
 
-       # Wrap in a function to make sure scope doesn't leak.
         CRASH_TEST_INPUTS, OUTPUT_TEST_INPUTS, CUSTOM_TEST_FUNCTIONS = load_test(
             filename)
 
@@ -260,7 +259,12 @@ def run_tests():
                 print("\n")
                 traceback.print_exc()
                 print("\n")
-        # All done!
+        # Pause any running workers left over by sloppy or failed
+        # custom test.  Next trip through outer loop will fail reset
+        # otherwise.
+        if len(CUSTOM_TEST_FUNCTIONS):
+            bess.pause_all()
+        # All done with this module, on to the next!
 
     bess.pause_all()
     bess.reset_all()
