@@ -31,17 +31,12 @@
 #ifndef BESS_DRIVERS_UNIXSOCKET_H_
 #define BESS_DRIVERS_UNIXSOCKET_H_
 
-#include <assert.h>
-#include <errno.h>
-#include <poll.h>
-#include <stdio.h>
-#include <string.h>
 #include <sys/socket.h>
 #include <sys/un.h>
-#include <thread>
 #include <unistd.h>
 
-#include <glog/logging.h>
+#include <atomic>
+#include <thread>
 
 #include "../message.h"
 #include "../port.h"
@@ -55,10 +50,10 @@ class UnixSocketPort final : public Port {
   UnixSocketPort()
       : Port(),
         recv_skip_cnt_(),
-        listen_fd_(),
+        accept_thread_stop_req_(false),
+        listen_fd_(kNotConnectedFd),
         addr_(),
-        client_fd_(),
-        old_client_fd_() {}
+        client_fd_(kNotConnectedFd) {}
 
   /*!
    * Initialize the port, ie, open the socket.
@@ -107,19 +102,9 @@ class UnixSocketPort final : public Port {
    */
   int SendPackets(queue_t qid, bess::Packet **pkts, int cnt) override;
 
-  /*!
-   * Waits for a client to connect to the socket.
-   */
-  void AcceptNewClient();
-
  private:
   // Value for a disconnected socket.
   static const int kNotConnectedFd = -1;
-
-  /*!
-   * Closes the client connection but does not shut down the listener fd.
-   */
-  void CloseConnection();
 
   /*!
   * Calling recv() system call is expensive so we only do it every
@@ -127,6 +112,21 @@ class UnixSocketPort final : public Port {
   * since we last called recv().
   * */
   uint32_t recv_skip_cnt_;
+
+  /*!
+   * Function for the thread accepting and monitoring clients (accept thread).
+   */
+  void AcceptThread();
+
+  /*!
+   * Accept thread handle.
+   */
+  std::thread accept_thread_;
+
+  /*!
+   * Sent stop request to accept thread.
+   */
+  std::atomic<bool> accept_thread_stop_req_;
 
   /*!
    * The listener fd -- listen for new connections here.
@@ -142,9 +142,6 @@ class UnixSocketPort final : public Port {
   // volatile.
   /* FD for client connection.*/
   volatile int client_fd_;
-  /* If client FD is not connected, what was the fd the last time we were
-   * connected to a client? */
-  int old_client_fd_;
 };
 
 #endif  // BESS_DRIVERS_UNIXSOCKET_H_
