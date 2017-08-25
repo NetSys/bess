@@ -41,7 +41,10 @@ class PortInc final : public Module {
 
   static const Commands cmds;
 
-  PortInc() : Module(), port_(), prefetch_(), burst_() { is_task_ = true; }
+  PortInc() : Module(), port_(), prefetch_(), burst_() {
+    is_task_ = true;
+    max_allowed_workers_ = Worker::kMaxWorkers;
+  }
 
   CommandResponse Init(const bess::pb::PortIncArg &arg);
 
