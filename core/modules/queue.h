@@ -50,6 +50,7 @@ class Queue final : public Module {
         low_water_() {
     is_task_ = true;
     propagate_workers_ = false;
+    max_allowed_workers_ = Worker::kMaxWorkers;
   }
 
   CommandResponse Init(const bess::pb::QueueArg &arg);
