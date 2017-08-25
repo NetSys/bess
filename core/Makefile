@@ -84,7 +84,7 @@ endif
 # linked.
 ALWAYS_DYN_LIBS := -lpthread -ldl
 # These libraries are not supported by pkg-config.
-ALWAYS_LIBS := -lpcap
+ALWAYS_LIBS := -lpcap -ldl
 # If pkg-config is available, we just need a list of the dependecies.
 PKG_CONFIG_DEPS := libglog gflags protobuf grpc++ libunwind zlib
 # If pkg-config is not available, we need to list the libs we depend on.
