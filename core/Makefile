@@ -95,9 +95,9 @@ NO_PKG_CONFIG_LIBS := -lglog -lgflags -lprotobuf -lgrpc++ -lunwind -lz
 NO_PKG_CONFIG_LIBS_INDIRECT := -lgrpc -lssl -lcrypto -llzma
 
 ifeq ($(HAS_PKG_CONFIG), yes)
-    PKG_CFLAGS = $(shell $(PKG_CONFIG) --cflags $(PKG_CONFIG_DEPS))
+    PKG_CFLAGS := $(shell $(PKG_CONFIG) --cflags $(PKG_CONFIG_DEPS))
 else
-    PKG_CFLAGS =
+    PKG_CFLAGS :=
 endif
 
 # Plugins get to look in $COREDIR through -I $(COREDIR).  Let them also
@@ -138,18 +138,18 @@ ifdef BESS_LINK_DYNAMIC
     LIBS_ALL_SHARED = -Wl,-call_shared
     LIBS_DL_SHARED =
     ifeq ($(HAS_PKG_CONFIG), yes)
-      PKG_LIBS = $(shell $(PKG_CONFIG) --libs $(PKG_CONFIG_DEPS))
+      PKG_LIBS := $(shell $(PKG_CONFIG) --libs $(PKG_CONFIG_DEPS))
     else
-      PKG_LIBS = $(NO_PKG_CONFIG_LIBS)
+      PKG_LIBS := $(NO_PKG_CONFIG_LIBS)
     endif
 else # Used static libraries
     LIBS_ALL_SHARED =
     LIBS_DL_SHARED = -Wl,-call_shared
     LDFLAGS += -static-libstdc++
     ifeq ($(HAS_PKG_CONFIG), yes)
-      PKG_LIBS = $(shell $(PKG_CONFIG) --static --libs $(PKG_CONFIG_DEPS))
+      PKG_LIBS := $(shell $(PKG_CONFIG) --static --libs $(PKG_CONFIG_DEPS))
     else
-      PKG_LIBS = $(NO_PKG_CONFIG_LIBS) $(NO_PKG_CONFIG_LIBS_INDIRECT)
+      PKG_LIBS := $(NO_PKG_CONFIG_LIBS) $(NO_PKG_CONFIG_LIBS_INDIRECT)
     endif
 endif
 
