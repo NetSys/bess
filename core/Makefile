@@ -84,9 +84,9 @@ endif
 # linked.
 ALWAYS_DYN_LIBS := -lpthread -ldl
 # These libraries are not supported by pkg-config.
-ALWAYS_LIBS := -lpcap -ldl
+ALWAYS_LIBS := -lpcap -lgflags
 # If pkg-config is available, we just need a list of the dependecies.
-PKG_CONFIG_DEPS := libglog gflags protobuf grpc++ libunwind zlib
+PKG_CONFIG_DEPS := libglog protobuf grpc++ libunwind zlib
 # If pkg-config is not available, we need to list the libs we depend on.
 NO_PKG_CONFIG_LIBS := -lglog -lgflags -lprotobuf -lgrpc++ -lunwind -lz
 # If pkg-config is not available and we're static linking, we also need
@@ -136,6 +136,7 @@ endif
 LDFLAGS += -rdynamic -L$(DPDK_LIB_DIR) -Wl,-rpath=$(DPDK_LIB_DIR) -pthread
 ifdef BESS_LINK_DYNAMIC
     LIBS_ALL_SHARED = -Wl,-call_shared
+    LIBS_DL_SHARED =
     ifeq ($(HAS_PKG_CONFIG), yes)
       PKG_LIBS = $(shell $(PKG_CONFIG) --libs $(PKG_CONFIG_DEPS))
     else
@@ -143,6 +144,7 @@ ifdef BESS_LINK_DYNAMIC
     endif
 else # Used static libraries
     LIBS_ALL_SHARED =
+    LIBS_DL_SHARED = -Wl,-call_shared
     LDFLAGS += -static-libstdc++
     ifeq ($(HAS_PKG_CONFIG), yes)
       PKG_LIBS = $(shell $(PKG_CONFIG) --static --libs $(PKG_CONFIG_DEPS))
@@ -154,7 +156,9 @@ endif
 LIBS += $(ALWAYS_DYN_LIBS) -Wl,-non_shared \
 	-Wl,--whole-archive -l$(DPDK_LIB) -Wl,--no-whole-archive \
 	$(LIBS_ALL_SHARED) \
-	$(PKG_LIBS) $(ALWAYS_LIBS)
+	$(PKG_LIBS) $(ALWAYS_LIBS) \
+	$(LIBS_DL_SHARED) \
+	$(ALWAYS_DYN_LIBS)
 
 ifdef SANITIZE
 	CXXFLAGS += -fsanitize=address -fsanitize=undefined -fno-omit-frame-pointer
