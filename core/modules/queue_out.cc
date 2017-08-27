@@ -69,7 +69,7 @@ void QueueOut::DeInit() {
 }
 
 std::string QueueOut::GetDesc() const {
-  return bess::utils::Format("%s/%s", port_->name().c_str(),
+  return bess::utils::Format("%s:%hhu/%s", port_->name().c_str(), qid_,
                              port_->port_builder()->class_name().c_str());
 }
 
