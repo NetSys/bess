@@ -101,15 +101,24 @@ CommandResponse RoundRobin::CommandSetGates(
 void RoundRobin::ProcessBatch(bess::PacketBatch *batch) {
   gate_idx_t out_gates[bess::PacketBatch::kMaxBurst];
 
+  if (ngates_ <= 0) {
+    bess::Packet::Free(batch);
+    return;
+  }
+
   if (per_packet_) {
     for (int i = 0; i < batch->cnt(); i++) {
       out_gates[i] = gates_[current_gate_];
-      current_gate_ = (current_gate_ + 1) % ngates_;
+      if (++current_gate_ >= ngates_) {
+        current_gate_ = 0;
+      }
     }
     RunSplit(out_gates, batch);
   } else {
     gate_idx_t gate = gates_[current_gate_];
-    current_gate_ = (current_gate_ + 1) % ngates_;
+    if (++current_gate_ >= ngates_) {
+      current_gate_ = 0;
+    }
     RunChooseModule(gate, batch);
   }
 }
