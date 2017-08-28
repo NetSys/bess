@@ -94,8 +94,8 @@ def __bess_env__(key, default=None):
         if default is None:
             raise ConfError('Environment variable "%s" must be set.')
 
-        print('Environment variable "%s" is not set. \
-              Using default value "%s"' % (key, default))
+        print('Environment variable "%s" is not set. '
+              'Using default value "%s"' % (key, default), file=sys.stderr)
         return default
 
 
