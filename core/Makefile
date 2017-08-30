@@ -79,9 +79,7 @@ else ifeq ($(words $(MAKECMDGOALS)),1)
 endif
 
 # We always want these libraries to be dynamically linked even when the
-# user requests a static build.  These needs to be listed first, so even
-# if they're listed again in the static section, they will be dynamically
-# linked.
+# user requests a static build.
 ALWAYS_DYN_LIBS := -lpthread -ldl
 # These libraries are not supported by pkg-config.
 ALWAYS_LIBS := -lpcap -lgflags
@@ -148,12 +146,16 @@ else # Used static libraries
     LDFLAGS += -static-libstdc++
     ifeq ($(HAS_PKG_CONFIG), yes)
       PKG_LIBS := $(shell $(PKG_CONFIG) --static --libs $(PKG_CONFIG_DEPS))
+      # One of our pkg-config dependency might depend on a library that
+      # we want to dynamically link no matter what.  Filter those out
+      # to avoid including them into the static linking section.
+      PKG_LIBS := $(filter-out $(ALWAYS_DYN_LIBS), $(PKG_LIBS))
     else
       PKG_LIBS := $(NO_PKG_CONFIG_LIBS) $(NO_PKG_CONFIG_LIBS_INDIRECT)
     endif
 endif
 
-LIBS += $(ALWAYS_DYN_LIBS) -Wl,-non_shared \
+LIBS += -Wl,-non_shared \
 	-Wl,--whole-archive -l$(DPDK_LIB) -Wl,--no-whole-archive \
 	$(LIBS_ALL_SHARED) \
 	$(PKG_LIBS) $(ALWAYS_LIBS) \
