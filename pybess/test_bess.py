@@ -66,16 +66,20 @@ class TestBESS(unittest.TestCase):
     # a real bessd process.
     PORT = 19876
 
-    def setUp(self):
-        self.server = grpc.server(futures.ThreadPoolExecutor(max_workers=2))
+    @classmethod
+    def setUpClass(cls):
+        server = grpc.server(futures.ThreadPoolExecutor(max_workers=2))
         service_pb2.add_BESSControlServicer_to_server(
             DummyServiceImpl(),
-            self.server)
-        self.server.add_insecure_port('[::]:%d' % self.PORT)
-        self.server.start()
+            server)
+        server.add_insecure_port('[::]:%d' % cls.PORT)
+        server.start()
+        cls.server = server
 
-    def tearDown(self):
-        self.server.stop(0)
+    @classmethod
+    def tearDownClass(cls):
+        future = cls.server.stop(0)
+        future.wait()
 
     def test_connect(self):
         client = bess.BESS()

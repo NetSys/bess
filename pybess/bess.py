@@ -57,6 +57,7 @@ from .builtin_pb import service_pb2
 from .builtin_pb import bess_msg_pb2 as bess_msg
 from .builtin_pb import module_msg_pb2 as module_msg
 
+
 def _import_modules(name, subdir):
     """Return a module instance retaining just the *Arg and *Response
     names, built by importing most of the *_msg_pb2.py files in the
@@ -175,8 +176,12 @@ class BESS(object):
             self.status = connectivity
 
     def connect(self, host='localhost', port=DEF_PORT):
+        if self.debug:
+            print('Connecting to %s:%d' % (host, port))
+
         if self.is_connected():
             raise self.APIError('Already connected')
+
         self.status = None
         self.peer = (host, port)
         self.channel = grpc.insecure_channel('%s:%d' % (host, port))
@@ -196,6 +201,8 @@ class BESS(object):
     def disconnect(self):
         try:
             if self.is_connected():
+                if self.debug:
+                    print('Disconnecting')
                 self.channel.unsubscribe(self._update_status)
         finally:
             self.status = None
