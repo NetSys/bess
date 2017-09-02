@@ -42,6 +42,7 @@
 #include "pktbatch.h"
 #include "traffic_class.h"
 #include "utils/common.h"
+#include "utils/random.h"
 
 // XXX
 typedef uint16_t gate_idx_t;
@@ -124,6 +125,8 @@ class Worker {
 
   bess::PacketBatch **splits() { return splits_; }
 
+  Random *rand() const { return rand_; }
+
  private:
   volatile worker_status_t status_;
 
@@ -144,6 +147,8 @@ class Worker {
   /* The current input gate index is not given as a function parameter.
    * Modules should use get_igate() for access */
   gate_idx_t current_igate_;
+
+  Random *rand_;
 
   // For each possible output gate contains a pointer to a batch, or nullptr,
   // if no batch has been associated with the output gate yet.

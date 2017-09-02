@@ -49,6 +49,7 @@
 #include "opts.h"
 #include "packet.h"
 #include "scheduler.h"
+#include "utils/random.h"
 #include "utils/time.h"
 
 using bess::Scheduler;
@@ -265,6 +266,7 @@ int Worker::BlockWorker() {
 /* The entry point of worker threads */
 void *Worker::Run(void *_arg) {
   struct thread_arg<Task> *arg = (struct thread_arg<Task> *)_arg;
+  rand_ = new Random();
 
   cpu_set_t set;
 
@@ -308,6 +310,7 @@ void *Worker::Run(void *_arg) {
             << ")";
 
   delete scheduler_;
+  delete rand_;
 
   return nullptr;
 }
