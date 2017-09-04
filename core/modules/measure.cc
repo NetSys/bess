@@ -57,7 +57,7 @@ static bool IsTimestamped(bess::Packet *pkt, size_t offset, uint64_t *time) {
 
 const Commands Measure::cmds = {
     {"get_summary", "EmptyArg", MODULE_CMD_FUNC(&Measure::CommandGetSummary),
-     Command::THREAD_UNSAFE},
+     Command::THREAD_SAFE},
     {"clear", "EmptyArg", MODULE_CMD_FUNC(&Measure::CommandClear),
      Command::THREAD_UNSAFE},
 };
