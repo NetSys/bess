@@ -443,9 +443,12 @@ bool LoadPlugins(const std::string &directory) {
   }
   dirent *entry;
   while ((entry = readdir(dir)) != nullptr) {
-    if (entry->d_type == DT_REG && HasSuffix(entry->d_name, ".so")) {
+    if ((entry->d_type == DT_REG || entry->d_type == DT_LNK)
+	&& HasSuffix(entry->d_name, ".so")) {
       const std::string full_path = directory + "/" + entry->d_name;
+      LOG(INFO) << "Loading plugin: " << full_path;
       if (!LoadPlugin(full_path)) {
+        LOG(WARNING) << "Cannot load plugin " << full_path << "dlerror=" << dlerror();
         closedir(dir);
         return false;
       }
