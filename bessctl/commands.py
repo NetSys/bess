@@ -386,7 +386,7 @@ def get_var_attrs(cli, var_token, partial_word):
             var_desc = 'bess daemon command-line options (see "bessd -h")'
 
         elif var_token == '[HOST]':
-            var_type = 'name'
+            var_type = 'host'
             var_desc = 'host address'
 
         elif var_token == '[TCP_PORT]':
@@ -418,7 +418,8 @@ def get_var_attrs(cli, var_token, partial_word):
 #   tail: the rest of input line
 # You can assume that 'line == head + tail'
 def split_var(cli, var_type, line):
-    if var_type in ['name', 'optional_name', 'gate', 'confname', 'filename',
+    if var_type in [
+        'host', 'name', 'optional_name', 'gate', 'confname', 'filename',
                     'endis', 'int', 'socket', 'pause_workers', 'dir']:
         pos = line.find(' ')
         if pos == -1:
@@ -475,6 +476,13 @@ def bind_var(cli, var_type, line):
             else:
                 raise cli.BindError('"wid" must be a positive number')
         val = sorted(list(set(val)))
+
+    elif var_type == 'host':
+        dns = re.match(r'^[a-zA-Z0-9][a-zA-Z0-9\-.]*$', val)
+        ip = re.match(r'^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$', val)
+        if dns is None and ip is None:
+            raise cli.BindError(
+                '"host" must be a valid DNS name or IPv4 address')
 
     elif var_type == 'name':
         if re.match(r'^[_a-zA-Z][\w]*$', val) is None:
