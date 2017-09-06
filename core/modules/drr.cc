@@ -38,6 +38,12 @@
 #include "../utils/ether.h"
 #include "../utils/ip.h"
 #include "../utils/udp.h"
+#include "../utils/common.h"
+#include "../utils/codel.h"
+
+using bess::utils::Codel;
+using bess::utils::LockLessQueue;
+using bess::pb::DRRArg;
 
 uint32_t RoundToPowerTwo(uint32_t v) {
   v--;
@@ -60,20 +66,21 @@ DRR::DRR()
     : quantum_(kDefaultQuantum),
       max_queue_size_(kFlowQueueMax),
       max_number_flows_(kDefaultNumFlows),
-      flow_ring_(nullptr),
-      current_flow_(nullptr) {
+      flow_queue_(),
+      current_flow_(nullptr), 
+      codel_target_(0),
+      codel_window_(0),
+      init_queue_size_(0) {
         is_task_ = true;
       }
-
 DRR::~DRR() {
   for (auto it = flows_.begin(); it != flows_.end();) {
     RemoveFlow(it->second);
     it++;
   }
-  std::free(flow_ring_);
 }
 
-CommandResponse DRR::Init(const bess::pb::DRRArg& arg) {
+CommandResponse DRR::Init(const DRRArg& arg) {
   CommandResponse err;
   task_id_t tid;
 
@@ -95,16 +102,29 @@ CommandResponse DRR::Init(const bess::pb::DRRArg& arg) {
     }
   }
 
-  /* register task */
+  // register task
   tid = RegisterTask(nullptr);
   if (tid == INVALID_TASK_ID) {
     return CommandFailure(ENOMEM, "task creation failed");
   }
 
-  int err_num = 0;
-  flow_ring_ = AddQueue(max_number_flows_, &err_num);
-  if (err_num != 0) {
-    return CommandFailure(-err_num);
+  // get flow queue arguments
+  if (arg.has_codel()) {
+    const DRRArg::Codel& codel = arg.codel();
+    if (!(codel_target_ = codel.target())) {
+      codel_target_ = Codel<bess::Packet*>::kDefaultTarget;
+    }
+
+    if (!(codel_window_ = codel.window())) {
+      codel_window_ = Codel<bess::Packet*>::kDefaultWindow;
+    }
+
+  } else {
+    const DRRArg::DropTailQueue& drop_queue = arg.queue();
+     
+    if (!(init_queue_size_ = drop_queue.size())) {
+      init_queue_size_ = LockLessQueue<bess::Packet*>::kDefaultRingSize;
+    }
   }
 
   return CommandSuccess();
@@ -133,7 +153,7 @@ void DRR::ProcessBatch(bess::PacketBatch* batch) {
     // if the Flow doesn't exist create one
     // and add the packet to the new Flow
     if (it == nullptr) {
-      if (llring_full(flow_ring_)) {
+      if (flow_queue_.size() >= max_number_flows_) {
         bess::Packet::Free(pkt);
       } else {
         AddNewFlow(pkt, id, &err);
@@ -158,10 +178,7 @@ struct task_result DRR::RunTask(void*) {
   bess::PacketBatch batch;
   int err = 0;
   batch.clear();
-  uint32_t total_bytes = 0;
-  if (flow_ring_ != NULL) {
-    total_bytes = GetNextBatch(&batch, &err);
-  }
+  uint32_t total_bytes = GetNextBatch(&batch, &err);
   assert(err >= 0);  // TODO(joshua) do proper error checking
 
   if (total_bytes > 0) {
@@ -177,7 +194,7 @@ struct task_result DRR::RunTask(void*) {
 uint32_t DRR::GetNextBatch(bess::PacketBatch* batch, int* err) {
   Flow* f;
   uint32_t total_bytes = 0;
-  uint32_t count = llring_count(flow_ring_);
+  uint32_t count = flow_queue_.size();
   if (current_flow_) {
     count++;
   }
@@ -192,35 +209,34 @@ uint32_t DRR::GetNextBatch(bess::PacketBatch* batch, int* err) {
       if (batch_size == batch->cnt()) {
         break;
       } else {
-        count = llring_count(flow_ring_);
+        count = flow_queue_.size();
         batch_size = batch->cnt();
       }
     }
     count--;
 
     f = GetNextFlow(err);
-    if (*err != 0) {
+    if (*err) {
       return total_bytes;
     } else if (f == nullptr) {
       continue;
     }
 
-    uint32_t bytes = GetNextPackets(batch, f, err);
+    uint32_t bytes = GetNextPackets(batch, f);
     total_bytes += bytes;
-    if (*err != 0) {
-      return total_bytes;
-    }
 
-    if (llring_empty(f->queue) && !f->next_packet) {
+    if (f->queue->Empty() && !f->next_packet) {
       f->deficit = 0;
     }
 
     // if the flow doesn't have any more packets to give, reenqueue it
     if (!f->next_packet || f->next_packet->total_len() > f->deficit) {
-      *err = llring_enqueue(flow_ring_, f);
-      if (*err != 0) {
-        return total_bytes;
-      }
+        if (flow_queue_.size() < max_number_flows_) {
+          flow_queue_.push_back(f);
+        } else {
+          *err = -1;
+          return total_bytes;
+        }
     } else {
       // knowing that the while statement will exit, keep the flow that still
       // has packets at the front
@@ -235,18 +251,24 @@ DRR::Flow* DRR::GetNextFlow(int* err) {
   double now = get_epoch_time();
 
   if (!current_flow_) {
-    *err = llring_dequeue(flow_ring_, reinterpret_cast<void**>(&f));
-    if (*err < 0) {
+    
+    if (!flow_queue_.empty()) {
+      f = flow_queue_.front();
+      flow_queue_.pop_front();
+    } else {
+      *err = -1;
       return nullptr;
     }
 
-    if (llring_empty(f->queue) && !f->next_packet) {
+    if (f->queue->Empty() && !f->next_packet) {
       // if the flow expired, remove it
       if (now - f->timer > kTtl) {
         RemoveFlow(f);
       } else {
-        *err = llring_enqueue(flow_ring_, f);
-        if (*err < 0) {
+        if (flow_queue_.size() < max_number_flows_) {
+          flow_queue_.push_back(f);
+        } else {
+          *err = -1;
           return nullptr;
         }
       }
@@ -261,15 +283,15 @@ DRR::Flow* DRR::GetNextFlow(int* err) {
   return f;
 }
 
-uint32_t DRR::GetNextPackets(bess::PacketBatch* batch, Flow* f, int* err) {
+uint32_t DRR::GetNextPackets(bess::PacketBatch* batch, Flow* f) {
   uint32_t total_bytes = 0;
   bess::Packet* pkt;
 
-  while (!batch->full() && (!llring_empty(f->queue) || f->next_packet)) {
+  while (!batch->full() && (!f->queue->Empty() || f->next_packet)) {
     // makes sure there isn't already a packet at the front
     if (!f->next_packet) {
-      *err = llring_dequeue(f->queue, reinterpret_cast<void**>(&pkt));
-      if (*err < 0) {
+      int err = f->queue->Pop(pkt);
+      if (err) {
         return total_bytes;
       }
     } else {
@@ -311,21 +333,26 @@ void DRR::AddNewFlow(bess::Packet* pkt, FlowId id, int* err) {
   Flow* f = new Flow(id);
 
   // TODO(joshua) do proper error checking
-  f->queue = AddQueue(static_cast<int>(kFlowQueueSize), err);
-
-  if (*err != 0) {
-    return;
+  if(!init_queue_size_) {
+    f->queue = new Codel<bess::Packet*>(bess::Packet::Free, max_queue_size_, 
+        codel_target_, codel_window_);
+  } else {
+    f->queue = new LockLessQueue<bess::Packet*>(init_queue_size_); 
   }
 
   flows_.Insert(id, f);
 
   Enqueue(f, pkt, err);
-  if (*err != 0) {
+  if (*err) {
     return;
   }
 
   // puts flow in round robin
-  *err = llring_enqueue(flow_ring_, f);
+  if (flow_queue_.size() < max_number_flows_) {
+    flow_queue_.push_back(f);
+  } else {
+    *err = -1;
+  }
 }
 
 void DRR::RemoveFlow(Flow* f) {
@@ -336,77 +363,34 @@ void DRR::RemoveFlow(Flow* f) {
   delete f;
 }
 
-llring* DRR::AddQueue(uint32_t slots, int* err) {
-  int bytes = llring_bytes_with_slots(slots);
-  int ret;
-
-  llring* queue = static_cast<llring*>(aligned_alloc(alignof(llring), bytes));
-  if (!queue) {
-    *err = -ENOMEM;
-    return nullptr;
-  }
-
-  ret = llring_init(queue, slots, 1, 1);
-  if (ret) {
-    std::free(queue);
-    *err = -EINVAL;
-    return nullptr;
-  }
-  return queue;
-}
 
 void DRR::Enqueue(Flow* f, bess::Packet* newpkt, int* err) {
   // if the queue is full. drop the packet.
-  if (llring_count(f->queue) >= max_queue_size_) {
+  if (f->queue->Size() >= max_queue_size_) {
     bess::Packet::Free(newpkt);
     return;
   }
 
   // creates a new queue if there is not enough space for the new packet
   // in the old queue
-  if (llring_full(f->queue)) {
+  if (f->queue->Full()) {
     uint32_t slots =
-        RoundToPowerTwo(llring_count(f->queue) * kQueueGrowthFactor);
-    f->queue = ResizeQueue(f->queue, slots, err);
-    if (*err != 0) {
+        RoundToPowerTwo(f->queue->Size() * kQueueGrowthFactor);
+    *err = f->queue->Resize(slots);
+    if (*err) {
       bess::Packet::Free(newpkt);
       return;
     }
   }
 
-  *err = llring_enqueue(f->queue, reinterpret_cast<void*>(newpkt));
-  if (*err == 0) {
+  *err = f->queue->Push(newpkt);
+  if (!*err) {
     f->timer = get_epoch_time();
   } else {
     bess::Packet::Free(newpkt);
   }
 }
 
-llring* DRR::ResizeQueue(llring* old_queue, uint32_t new_size, int* err) {
-  llring* new_queue = AddQueue(new_size, err);
-  if (*err != 0) {
-    return nullptr;
-  }
-
-  // migrates packets from the old queue
-  if (old_queue) {
-    bess::Packet* pkt;
-
-    while (llring_dequeue(old_queue, reinterpret_cast<void**>(&pkt)) == 0) {
-      *err = llring_enqueue(new_queue, pkt);
-      if (*err == -LLRING_ERR_NOBUF) {
-        bess::Packet::Free(pkt);
-        *err = 0;
-      } else if (*err != 0) {
-        std::free(new_queue);
-        return nullptr;
-      }
-    }
-
-    std::free(old_queue);
-  }
-  return new_queue;
-}
 
 CommandResponse DRR::SetQuantumSize(uint32_t size) {
   if (size == 0) {

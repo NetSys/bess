@@ -239,6 +239,21 @@ message DRRArg {
   uint32 num_flows = 1;  /// Number of flows to handle in module
   uint64 quantum = 2;  /// the number of bytes to allocate to each on every round
   uint32 max_flow_queue_size = 3; /// the max size that any Flows queue can get
+  
+  
+  message DropTailQueue{
+   uint32 size  = 1; /// the initial size of each flow's queue 
+  }
+
+  message Codel {
+    uint64 target = 1; /// the desired delay in microseconds that codel tries to maintain
+    uint64 window = 2; /// window in microseconds between changing states in codel 
+  }
+
+  oneof params {
+    DropTailQueue queue = 4; /// Llring arguments if llring chosen for each flow's queue
+    Codel codel = 5; /// Codel arguments if Codel chosen for each flow's queue
+  }
 }
 
 /**
