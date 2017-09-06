@@ -34,5 +34,18 @@ void WorkerSplit::ProcessBatch(bess::PacketBatch *batch) {
   RunChooseModule(ctx.wid(), batch);
 }
 
+void WorkerSplit::AddActiveWorker(int wid, const ModuleTask *t) {
+  if (!HaveVisitedWorker(t)) {  // Have not already accounted for worker.
+    active_workers_[wid] = true;
+    visited_tasks_.push_back(t);
+    // Only propagate workers downstream on ogate `wid`
+    bess::OGate *ogate = ogates()[wid];
+    if (ogate) {
+      auto next = static_cast<Module *>(ogate->arg());
+      next->AddActiveWorker(wid, t);
+    }
+  }
+}
+
 ADD_MODULE(WorkerSplit, "ws",
            "send packets to output gate X, the id of current worker")
