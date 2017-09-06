@@ -49,7 +49,9 @@ class HashLB final : public Module {
 
   static const Commands cmds;
 
-  HashLB() : Module(), gates_(), num_gates_(), mode_() {}
+  HashLB() : Module(), gates_(), num_gates_(), mode_() {
+    max_allowed_workers_ = Worker::kMaxWorkers;
+  }
 
   CommandResponse Init(const bess::pb::HashLBArg &arg);
 

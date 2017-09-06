@@ -46,7 +46,9 @@ struct Field {
 
 class GenericEncap final : public Module {
  public:
-  GenericEncap() : Module(), encap_size_(), num_fields_(), fields_() {}
+  GenericEncap() : Module(), encap_size_(), num_fields_(), fields_() {
+    max_allowed_workers_ = Worker::kMaxWorkers;
+  }
 
   CommandResponse Init(const bess::pb::GenericEncapArg &arg);
 

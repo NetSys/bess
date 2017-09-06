@@ -38,6 +38,7 @@ using bess::metadata::Attribute;
 
 class MetadataTest final : public Module {
  public:
+  MetadataTest() : Module() { max_allowed_workers_ = Worker::kMaxWorkers; }
   static const gate_idx_t kNumIGates = MAX_GATES;
   static const gate_idx_t kNumOGates = MAX_GATES;
 

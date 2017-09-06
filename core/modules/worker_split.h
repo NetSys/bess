@@ -40,6 +40,8 @@ class WorkerSplit final : public Module {
   WorkerSplit() { max_allowed_workers_ = kNumOGates; }
 
   void ProcessBatch(bess::PacketBatch *batch) override;
+
+  void AddActiveWorker(int wid, const ModuleTask *task) override;
 };
 
 #endif  // BESS_MODULES_WORKERSPLIT_H_

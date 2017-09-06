@@ -40,7 +40,9 @@ class VXLANEncap final : public Module {
  public:
   static const uint16_t kDefaultDstPort;
 
-  VXLANEncap() : Module(), dstport_() {}
+  VXLANEncap() : Module(), dstport_() {
+    max_allowed_workers_ = Worker::kMaxWorkers;
+  }
 
   CommandResponse Init(const bess::pb::VXLANEncapArg &arg);
 

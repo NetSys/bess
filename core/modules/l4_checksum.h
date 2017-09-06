@@ -36,6 +36,7 @@
 // Compute L4 checksum on packet
 class L4Checksum final : public Module {
  public:
+  L4Checksum() : Module() { max_allowed_workers_ = Worker::kMaxWorkers; }
   void ProcessBatch(bess::PacketBatch *batch) override;
 };
 

@@ -40,7 +40,9 @@ class IPLookup final : public Module {
 
   static const Commands cmds;
 
-  IPLookup() : Module(), lpm_(), default_gate_() {}
+  IPLookup() : Module(), lpm_(), default_gate_() {
+    max_allowed_workers_ = Worker::kMaxWorkers;
+  }
 
   CommandResponse Init(const bess::pb::IPLookupArg &arg);
 

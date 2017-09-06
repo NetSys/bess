@@ -58,6 +58,8 @@ class ACL final : public Module {
 
   static const Commands cmds;
 
+  ACL() : Module() { max_allowed_workers_ = Worker::kMaxWorkers; }
+
   CommandResponse Init(const bess::pb::ACLArg &arg);
 
   void ProcessBatch(bess::PacketBatch *batch) override;

@@ -37,6 +37,7 @@
 // <= 1
 class UpdateTTL final : public Module {
  public:
+  UpdateTTL() : Module() { max_allowed_workers_ = Worker::kMaxWorkers; }
   void ProcessBatch(bess::PacketBatch *batch) override;
 };
 
