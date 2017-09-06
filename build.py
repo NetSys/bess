@@ -59,6 +59,8 @@ elif arch == 'i686':
 else:
     assert False, 'Unsupported arch %s' % arch
 
+kernel_release = subprocess.check_output('uname -r', shell=True).strip()
+
 DPDK_DIR = '%s/%s' % (DEPS_DIR, DPDK_VER)
 DPDK_CFLAGS = '"-g -w -fPIC"'
 DPDK_ORIG_CONFIG = '%s/config/common_linuxapp' % DPDK_DIR
@@ -203,6 +205,28 @@ def set_config(filename, config, new_value):
             fp.write(line)
 
 
+def is_kernel_header_installed():
+    try:
+        cmd = 'dpkg-query -W -f \'${Status}\' linux-headers-%s' \
+            % kernel_release
+        status = subprocess.check_output(cmd, shell=True).strip()
+
+        if status == 'install ok installed':
+            return True
+        else:
+            return False
+    except subprocess.CalledProcessError:
+        return False
+
+
+def check_kernel_headers():
+    if not is_kernel_header_installed():
+        set_config(DPDK_FINAL_CONFIG, 'CONFIG_RTE_EAL_IGB_UIO', 'n')
+        set_config(DPDK_FINAL_CONFIG, 'CONFIG_RTE_KNI_KMOD', 'n')
+        set_config(DPDK_FINAL_CONFIG, 'CONFIG_RTE_LIBRTE_KNI', 'n')
+        set_config(DPDK_FINAL_CONFIG, 'CONFIG_RTE_LIBRTE_PMD_KNI', 'n')
+
+
 def check_bnx():
     if check_header('zlib.h', 'gcc') and check_c_lib('z'):
         extra_libs.add('z')
@@ -296,6 +320,8 @@ def configure_dpdk():
         print('Configuring DPDK...')
         cmd('cp -f %s %s' % (DPDK_BASE_CONFIG, DPDK_FINAL_CONFIG))
 
+        check_kernel_headers()
+
         check_mlx()
 
         generate_dpdk_extra_mk()
@@ -381,12 +407,18 @@ def build_bess():
 def build_kmod():
     check_essential()
 
+    if not is_kernel_header_installed():
+        print('"kernel-headers-%s" is not available. '
+              'Do not building BESS kernel module.' %
+              kernel_release)
+        return
+
     if os.getenv('KERNELDIR'):
         print('Building BESS kernel module (%s) ...' %
               os.getenv('KERNELDIR'))
     else:
         print('Building BESS kernel module (%s - running kernel) ...' %
-              subprocess.check_output('uname -r', shell=True).strip())
+              kernel_release)
 
     cmd('sudo -n rmmod bess 2> /dev/null || true')
     try:
