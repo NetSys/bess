@@ -63,7 +63,9 @@ class L2Forward final : public Module {
 
   static const Commands cmds;
 
-  L2Forward() : Module(), l2_table_(), default_gate_() {}
+  L2Forward() : Module(), l2_table_(), default_gate_() {
+    max_allowed_workers_ = Worker::kMaxWorkers;
+  }
 
   CommandResponse Init(const bess::pb::L2ForwardArg &arg);
 

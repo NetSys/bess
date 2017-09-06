@@ -40,7 +40,9 @@ class VLANPush final : public Module {
  public:
   static const Commands cmds;
 
-  VLANPush() : Module(), vlan_tag_(), qinq_tag_() {}
+  VLANPush() : Module(), vlan_tag_(), qinq_tag_() {
+    max_allowed_workers_ = Worker::kMaxWorkers;
+  }
 
   CommandResponse Init(const bess::pb::VLANPushArg &arg);
 

@@ -38,6 +38,8 @@
 // RandomDrop drops packets with a specified probability [0, 1].
 class RandomDrop final : public Module {
  public:
+  RandomDrop() : Module() { max_allowed_workers_ = Worker::kMaxWorkers; }
+
   static const uint32_t kRange = 1000000;  // for granularity
   CommandResponse Init(const bess::pb::RandomDropArg &arg);
   void ProcessBatch(bess::PacketBatch *batch) override;

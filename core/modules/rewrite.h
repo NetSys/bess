@@ -46,7 +46,9 @@ class Rewrite final : public Module {
         next_turn_(),
         num_templates_(),
         template_size_(),
-        templates_() {}
+        templates_() {
+    max_allowed_workers_ = Worker::kMaxWorkers;
+  }
 
   CommandResponse Init(const bess::pb::RewriteArg &arg);
 

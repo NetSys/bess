@@ -132,7 +132,9 @@ class ExactMatch final : public Module {
         total_key_size_(),
         num_fields_(),
         fields_(),
-        ht_() {}
+        ht_() {
+    max_allowed_workers_ = Worker::kMaxWorkers;
+  }
 
   void ProcessBatch(bess::PacketBatch *batch) override;
 

@@ -36,6 +36,8 @@
 
 class IPEncap final : public Module {
  public:
+  IPEncap() : Module() { max_allowed_workers_ = Worker::kMaxWorkers; }
+
   CommandResponse Init(const bess::pb::IPEncapArg &arg);
 
   void ProcessBatch(bess::PacketBatch *batch) override;

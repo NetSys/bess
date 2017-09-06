@@ -46,6 +46,8 @@ class BPF final : public Module {
 
   static const Commands cmds;
 
+  BPF() : Module() { max_allowed_workers_ = Worker::kMaxWorkers; }
+
   CommandResponse Init(const bess::pb::BPFArg &arg);
   void DeInit() override;
 

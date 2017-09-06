@@ -42,7 +42,9 @@ class Update final : public Module {
  public:
   static const Commands cmds;
 
-  Update() : Module(), num_fields_(), fields_() {}
+  Update() : Module(), num_fields_(), fields_() {
+    max_allowed_workers_ = Worker::kMaxWorkers;
+  }
 
   CommandResponse Init(const bess::pb::UpdateArg &arg);
 

@@ -36,7 +36,9 @@
 
 class GenericDecap final : public Module {
  public:
-  GenericDecap() : Module(), decap_size_() {}
+  GenericDecap() : Module(), decap_size_() {
+    max_allowed_workers_ = Worker::kMaxWorkers;
+  }
 
   CommandResponse Init(const bess::pb::GenericDecapArg &arg);
 

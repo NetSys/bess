@@ -38,7 +38,9 @@ class Split final : public Module {
  public:
   static const gate_idx_t kNumOGates = MAX_GATES;
 
-  Split() : Module(), mask_(), attr_id_(), offset_(), size_() {}
+  Split() : Module(), mask_(), attr_id_(), offset_(), size_() {
+    max_allowed_workers_ = Worker::kMaxWorkers;
+  }
 
   CommandResponse Init(const bess::pb::SplitArg &arg);
 

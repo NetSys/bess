@@ -36,6 +36,7 @@
 
 class VXLANDecap final : public Module {
  public:
+  VXLANDecap() : Module() { max_allowed_workers_ = Worker::kMaxWorkers; }
   CommandResponse Init(const bess::pb::VXLANDecapArg &arg);
 
   void ProcessBatch(bess::PacketBatch *batch);

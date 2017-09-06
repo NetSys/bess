@@ -44,7 +44,9 @@ const Commands MPLSPop::cmds = {{"set", "MplsPopArg",
 //              configurable per MPLS label (with default)
 MPLSPop::MPLSPop()
     : next_ether_type_(be16_t(Ethernet::Type::kIpv4)),
-      remove_eth_header_(false) {}
+      remove_eth_header_(false) {
+  max_allowed_workers_ = Worker::kMaxWorkers;
+}
 
 void MPLSPop::ProcessBatch(bess::PacketBatch *batch) {
   gate_idx_t out_gates[bess::PacketBatch::kMaxBurst];

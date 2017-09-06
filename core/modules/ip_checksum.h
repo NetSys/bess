@@ -37,6 +37,8 @@
 // Compute IP checksum on packet
 class IPChecksum final : public Module {
  public:
+  IPChecksum() : Module() { max_allowed_workers_ = Worker::kMaxWorkers; }
+
   void ProcessBatch(bess::PacketBatch *batch) override;
 };
 

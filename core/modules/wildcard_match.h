@@ -135,7 +135,9 @@ class WildcardMatch final : public Module {
   static const Commands cmds;
 
   WildcardMatch()
-      : Module(), default_gate_(), total_key_size_(), fields_(), tuples_() {}
+      : Module(), default_gate_(), total_key_size_(), fields_(), tuples_() {
+    max_allowed_workers_ = Worker::kMaxWorkers;
+  }
 
   CommandResponse Init(const bess::pb::WildcardMatchArg &arg);
 

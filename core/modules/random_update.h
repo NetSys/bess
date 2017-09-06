@@ -43,7 +43,9 @@ class RandomUpdate final : public Module {
  public:
   static const Commands cmds;
 
-  RandomUpdate() : Module(), num_vars_(), vars_(), rng_() {}
+  RandomUpdate() : Module(), num_vars_(), vars_(), rng_() {
+    max_allowed_workers_ = Worker::kMaxWorkers;
+  }
 
   CommandResponse Init(const bess::pb::RandomUpdateArg &arg);
 

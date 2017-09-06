@@ -52,7 +52,9 @@ struct Attr {
 
 class SetMetadata final : public Module {
  public:
-  SetMetadata() : Module(), attrs_() {}
+  SetMetadata() : Module(), attrs_() {
+    max_allowed_workers_ = Worker::kMaxWorkers;
+  }
 
   CommandResponse Init(const bess::pb::SetMetadataArg &arg);
 

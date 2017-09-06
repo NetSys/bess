@@ -62,8 +62,9 @@ DRR::DRR()
       max_number_flows_(kDefaultNumFlows),
       flow_ring_(nullptr),
       current_flow_(nullptr) {
-        is_task_ = true;
-      }
+  is_task_ = true;
+  max_allowed_workers_ = Worker::kMaxWorkers;
+}
 
 DRR::~DRR() {
   for (auto it = flows_.begin(); it != flows_.end();) {
@@ -149,9 +150,7 @@ void DRR::ProcessBatch(bess::PacketBatch* batch) {
 struct task_result DRR::RunTask(void*) {
   if (children_overload_ > 0) {
     return {
-      .block = true,
-      .packets = 0,
-      .bits = 0,
+        .block = true, .packets = 0, .bits = 0,
     };
   }
 

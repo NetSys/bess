@@ -40,7 +40,9 @@ class Replicate final : public Module {
 
   static const Commands cmds;
 
-  Replicate() : Module(), gates_(), ngates_() {}
+  Replicate() : Module(), gates_(), ngates_() {
+    max_allowed_workers_ = Worker::kMaxWorkers;
+  }
 
   CommandResponse Init(const bess::pb::ReplicateArg &arg);
 

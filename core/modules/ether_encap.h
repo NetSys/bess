@@ -36,6 +36,8 @@
 
 class EtherEncap final : public Module {
  public:
+  EtherEncap() : Module() { max_allowed_workers_ = Worker::kMaxWorkers; }
+
   CommandResponse Init(const bess::pb::EtherEncapArg &arg);
 
   void ProcessBatch(bess::PacketBatch *batch);
