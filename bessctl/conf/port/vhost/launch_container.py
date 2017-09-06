@@ -58,6 +58,7 @@ VERBOSE = int(os.getenv('VERBOSE', '0'))
 
 SOCKDIR = '/tmp/bessd'
 IMAGE = 'nefelinetworks/bess_build'
+CONTAINER_NAME = 'nefeli_bessd'
 
 
 def launch(cid):
@@ -80,11 +81,11 @@ def launch(cid):
     else:
         cmd = 'numactl -m %d ' % VM_MEM_SOCKET
 
-    cmd += 'docker run -i --rm -v {huge}:{huge} -v {sock}:{sock} ' \
+    cmd += 'docker run -i --rm --name {name} -v {huge}:{huge} -v {sock}:{sock} ' \
            '{image} {cmd} {eal_options} -- {testpmd_options}'.format(
-               huge=HUGEPAGES_PATH, sock=SOCKDIR, image=IMAGE,
-            cmd='/build/dpdk-17.05/build/app/testpmd', eal_options=eal_opts,
-            testpmd_options=testpmd_opts)
+               name=CONTAINER_NAME + str(cid), huge=HUGEPAGES_PATH, sock=SOCKDIR,
+            image=IMAGE, cmd='/build/dpdk-17.05/build/app/testpmd',
+            eal_options=eal_opts, testpmd_options=testpmd_opts)
 
     if VERBOSE:
         out = None  # to screen
@@ -97,6 +98,20 @@ def launch(cid):
     proc.stdin.write('set fwd {}\n'.format(FWD_MODE))
     proc.stdin.write('start\n')
     return proc
+
+
+def kill(cid):
+    print('Terminating container {} '.format(cid))
+
+    cmd = 'docker kill {name}'.format(name=CONTAINER_NAME + str(cid))
+
+    if VERBOSE:
+        print(cmd)
+
+    try:
+        proc = subprocess.check_call(shlex.split(cmd), stdout=subprocess.PIPE)
+    except subprocess.CalledProcessError:
+        pass
 
 
 def main(argv):
@@ -115,14 +130,11 @@ def main(argv):
             time.sleep(100)
     except KeyboardInterrupt:
         pass
-    finally:
-        for proc in procs:
-            print('Terminating container (pid=%d)' % proc.pid)
-            proc.kill()
-            proc.wait()
+
+    for cid in range(num_containers):
+        kill(cid)
 
     return 0
-
 
 if __name__ == '__main__':
     sys.exit(main(sys.argv))
