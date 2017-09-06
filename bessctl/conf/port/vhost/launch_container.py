@@ -130,9 +130,9 @@ def main(argv):
             time.sleep(100)
     except KeyboardInterrupt:
         pass
-
-    for cid in range(num_containers):
-        kill(cid)
+    finally:
+        for cid in range(num_containers):
+            kill(cid)
 
     return 0
 
