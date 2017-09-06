@@ -5,8 +5,9 @@ to the BESS git repository. This is the current list of BESS maintainers
 and their GitHub accounts.
 
 * Sangjin Han (sangjinhan)
-* Chang Lan (changlan)
 * Melvin Walls (melvinw)
-* Justine Sherry (justinemarie)
 * Barath Raghavan (barath)
- 
+* Shinae Woo (shinae-woo)
+* Daniele Di Proietto (ddiproietto)
+* Aurojit Panda (apanda)
+* Chris Torek (chris3torek)
