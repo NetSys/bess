@@ -464,12 +464,13 @@ class Module {
 
   std::vector<bess::IGate *> igates_;
   std::vector<bess::OGate *> ogates_;
+
+ protected:
   // Set of active workers accessing this module.
   std::vector<bool> active_workers_;
   // Set of tasks we have already accounted for when propagating workers.
   std::vector<const ModuleTask *> visited_tasks_;
 
- protected:
   // Whether the module overrides RunTask or not.
   bool is_task_;
 
