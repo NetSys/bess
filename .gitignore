@@ -54,6 +54,7 @@ doxygen/latex/
 
 # Auto-genereated by make
 core/version.h
+pybess/
 
 # Code coverage files
 core/*.gcda
