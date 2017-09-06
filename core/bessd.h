@@ -40,6 +40,11 @@
 namespace bess {
 namespace bessd {
 
+// When Modules extend other Modules, they may reference a shared object
+// that has not yet been loaded by the BESS daemon. kInheritanceLimit is
+// the number of passes that will be made while loading Module shared objects,
+// and thus the maximum inheritance depth of any Module.
+const int kInheritanceLimit = 10;
 // Process command line arguments from gflags.
 void ProcessCommandLineArgs();
 
