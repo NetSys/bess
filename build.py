@@ -206,17 +206,7 @@ def set_config(filename, config, new_value):
 
 
 def is_kernel_header_installed():
-    try:
-        cmd = 'dpkg-query -W -f \'${Status}\' linux-headers-%s' \
-            % kernel_release
-        status = subprocess.check_output(cmd, shell=True).strip()
-
-        if status == 'install ok installed':
-            return True
-        else:
-            return False
-    except subprocess.CalledProcessError:
-        return False
+    return os.path.isdir("/lib/modules/%s/build" % kernel_release)
 
 
 def check_kernel_headers():
