@@ -210,6 +210,8 @@ def is_kernel_header_installed():
 
 
 def check_kernel_headers():
+    # If kernel header is not available, do not attempt to build
+    # any components that require kernel.
     if not is_kernel_header_installed():
         set_config(DPDK_FINAL_CONFIG, 'CONFIG_RTE_EAL_IGB_UIO', 'n')
         set_config(DPDK_FINAL_CONFIG, 'CONFIG_RTE_KNI_KMOD', 'n')
@@ -397,18 +399,15 @@ def build_bess():
 def build_kmod():
     check_essential()
 
-    if not is_kernel_header_installed():
-        print('"kernel-headers-%s" is not available. '
-              'Do not building BESS kernel module.' %
-              kernel_release)
-        return
-
     if os.getenv('KERNELDIR'):
         print('Building BESS kernel module (%s) ...' %
               os.getenv('KERNELDIR'))
     else:
         print('Building BESS kernel module (%s - running kernel) ...' %
               kernel_release)
+        if not is_kernel_header_installed():
+            print('"kernel-headers-%s" is not available. Build may fail.' %
+                  kernel_release)
 
     cmd('sudo -n rmmod bess 2> /dev/null || true')
     try:
