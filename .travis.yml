@@ -38,8 +38,8 @@ install:
   # want to avoid the "ln -s /build/dpdk-17.05 deps" step below
   - sudo apt-get install -y python2.7 python3 python3-pip ruby-dev
   - sudo gem install ffi fpm
-  - pip2 install grpcio scapy codecov
-  - pip3 install grpcio scapy-python3 coverage
+  - pip2 install --user grpcio scapy codecov
+  - pip3 install --user grpcio scapy-python3 coverage
   - "[[ ${DEBUG:-0} == 0 ]] || sudo apt-get install -y g++-5"  # install gcov-5
   - "[[ ${SANITIZE:-0} == 0 ]] || sudo apt-get install -y llvm-3.8"
   - "[[ $TAG_SUFFIX != _32 ]] || sudo apt-get install -y lib32gcc1"
