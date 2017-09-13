@@ -294,8 +294,8 @@ CommandResponse ModuleBuilder::RunCommand(
   for (auto &cmd : cmds_) {
     if (user_cmd == cmd.cmd) {
       bool workers_running = false;
-      for (const auto wid : m->active_workers_) {
-        workers_running |= is_worker_running(wid);
+      for (int wid = 0; wid < Worker::kMaxWorkers; wid++) {
+        workers_running |= m->active_workers_[wid] && is_worker_running(wid);
       }
       if (cmd.mt_safe != Command::THREAD_SAFE && workers_running) {
         return CommandFailure(EBUSY,
