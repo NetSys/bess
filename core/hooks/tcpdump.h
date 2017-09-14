@@ -39,7 +39,7 @@ class Tcpdump final : public bess::GateHook {
  public:
   Tcpdump();
 
-  ~Tcpdump();
+  virtual ~Tcpdump();
 
   CommandResponse Init(const bess::Gate *, const bess::pb::TcpdumpArg &);
 
