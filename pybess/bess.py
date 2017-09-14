@@ -508,6 +508,13 @@ class BESS(object):
         return self._configure_gate_hook('track', m, arg, enable, direction,
                                          gate)
 
+    def pcapng(self, enable, m, direction='out', gate=0, fifo=None):
+        arg = bess_msg.PcapngArg()
+        if fifo is not None:
+            arg.fifo = fifo
+        return self._configure_gate_hook('pcapng', m, arg, enable, direction,
+                                         gate)
+
     def list_workers(self):
         return self._request('ListWorkers')
 
