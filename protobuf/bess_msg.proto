@@ -473,6 +473,18 @@ message TcpdumpArg {
   string fifo = 5;    /// Path to the FIFO file.
 }
 
+/// Enable/Disable pcapng tapping at an input/output gate.
+///
+/// Once the tap is installed, all packets going through the gate will be
+/// captured and sent in pcapng format to the specified named pipe (FIFO).
+/// Thus you can run `tcpdump -r <path to FIFO>` or save the stream in a file.
+/// This feature may afffect performance.
+///
+/// NOTE: There should be no running worker to run this command.
+message PcapngArg {
+  string fifo = 5;    /// Path to the FIFO file.
+}
+
 message ConfigureGateHookRequest {
   string hook_name = 1;         /// Name of the hook
   string module_name = 2;       /// Name of module
