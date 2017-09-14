@@ -381,6 +381,11 @@ def get_var_attrs(cli, var_token, partial_word):
             var_desc = 'tcpdump(1) command-line options ' \
                 '(e.g., "-ne tcp port 22")'
 
+        elif var_token == '[TSHARK_OPTS...]':
+            var_type = 'opts'
+            var_desc = 'tshark(1) command-line options ' \
+                '(default "-z proto,colinfo,frame.comment,frame.comment")'
+
         elif var_token == '[BESSD_OPTS...]':
             var_type = 'opts'
             var_desc = 'bess daemon command-line options (see "bessd -h")'
@@ -1813,10 +1818,7 @@ def monitor_tc_all(cli, tcs):
     _monitor_tcs(cli, *tcs)
 
 
-# tcpdump can write pcap files, so we don't need to support it separately
-@cmd('tcpdump MODULE [DIRECTION] [GATE] [TCPDUMP_OPTS...]',
-     'Capture packets on a gate')
-def tcpdump_module(cli, module_name, direction, gate, opts):
+def _capture_module(cli, module_name, direction, gate, opts, program, hook_fn):
     if gate is None:
         gate = 0
 
@@ -1831,7 +1833,7 @@ def tcpdump_module(cli, module_name, direction, gate, opts):
 
     fd = os.open(fifo, os.O_RDWR)
 
-    tcpdump_cmd = ['tcpdump']
+    tcpdump_cmd = [program]
     tcpdump_cmd.extend(['-r', fifo])
     tcpdump_cmd.extend(opts)
     tcpdump_cmd = ' '.join(tcpdump_cmd)
@@ -1841,7 +1843,7 @@ def tcpdump_module(cli, module_name, direction, gate, opts):
 
     cli.bess.pause_all()
     try:
-        cli.bess.tcpdump(True, module_name, direction, gate, fifo)
+        hook_fn(True, module_name, direction, gate, fifo)
     finally:
         cli.bess.resume_all()
 
@@ -1853,7 +1855,7 @@ def tcpdump_module(cli, module_name, direction, gate, opts):
     finally:
         cli.bess.pause_all()
         try:
-            cli.bess.tcpdump(False, module_name, direction, gate)
+            hook_fn(False, module_name, direction, gate)
         finally:
             cli.bess.resume_all()
 
@@ -1863,6 +1865,23 @@ def tcpdump_module(cli, module_name, direction, gate, opts):
             os.system('stty sane')  # more/less may have screwed the terminal
         except:
             pass
+
+
+# tcpdump can write pcap files, so we don't need to support it separately
+@cmd('tcpdump MODULE [DIRECTION] [GATE] [TCPDUMP_OPTS...]',
+     'Capture packets on a gate')
+def tcpdump_module(cli, module_name, direction, gate, opts):
+    _capture_module(cli, module_name, direction,
+                    gate, opts, 'tcpdump', cli.bess.tcpdump)
+
+
+@cmd('tshark MODULE [DIRECTION] [GATE] [TSHARK_OPTS...]',
+     'Capture packets on a gate with metadata')
+def tshark_module(cli, module_name, direction, gate, opts):
+    if opts is None:
+        opts = ['-z', 'proto,colinfo,frame.comment,frame.comment']
+    _capture_module(cli, module_name, direction,
+                    gate, opts, 'tshark', cli.bess.pcapng)
 
 
 def _track_module(cli, bits, flag, module_name, direction, gate):
