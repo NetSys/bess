@@ -34,8 +34,8 @@
 #include "../message.h"
 #include "../module.h"
 
-// Pcapng dumps copies of the packets seen by a gate in pcapng format.
-// Useful for debugging.
+// Pcapng dumps copies of the packets seen by a gate (data + metadata) in
+// pcapng format.  Useful for debugging.
 class Pcapng final : public bess::GateHook {
  public:
   Pcapng();
@@ -50,7 +50,23 @@ class Pcapng final : public bess::GateHook {
   static const std::string kName;
 
  private:
+  struct Attr {
+    // Attribute offset in the packet metadata.
+    int md_offset;
+    // Size in bytes of the attribute.
+    size_t size;
+    // Offset where this attribute hex dump should go inside `attr_template_`.
+    size_t tmpl_offset;
+  };
+
+  // The file descripton where to output the pcapng stream.
   int fifo_fd_;
+  // List of attributes to dump.
+  std::vector<Attr> attrs_;
+  // Preallocated string with attribute names and values.  For each packet,
+  // we will change in place the values and send the string out, without
+  // doing any memory allocation.
+  std::vector<char> attr_template_;
 };
 
 #endif  // BESS_HOOKS_PCAPNG_

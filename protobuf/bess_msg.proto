@@ -477,7 +477,9 @@ message TcpdumpArg {
 ///
 /// Once the tap is installed, all packets going through the gate will be
 /// captured and sent in pcapng format to the specified named pipe (FIFO).
-/// Thus you can run `tcpdump -r <path to FIFO>` or save the stream in a file.
+/// Unlike the Tcpdump hook, this also dumps a textual metadata representation,
+/// in the form of a comment to the Enhanced Packet Block. Thus you can run
+/// `tcpdump -r <path to FIFO>` or save the stream in a file.
 /// This feature may afffect performance.
 ///
 /// NOTE: There should be no running worker to run this command.
