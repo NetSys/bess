@@ -37,12 +37,38 @@
 void IPChecksum::ProcessBatch(bess::PacketBatch *batch) {
   using bess::utils::Ethernet;
   using bess::utils::Ipv4;
+  using bess::utils::Vlan;
+  using bess::utils::be16_t;
 
   int cnt = batch->cnt();
 
   for (int i = 0; i < cnt; i++) {
     Ethernet *eth = batch->pkts()[i]->head_data<Ethernet *>();
-    Ipv4 *ip = reinterpret_cast<Ipv4 *>(eth + 1);
+    void *data = eth + 1;
+    Ipv4 *ip;
+
+    be16_t ether_type = eth->ether_type;
+
+    if (ether_type == be16_t(Ethernet::Type::kQinQ)) {
+      Vlan *qinq = reinterpret_cast<Vlan *>(data);
+      data = qinq + 1;
+      ether_type = qinq->ether_type;
+      if (ether_type != be16_t(Ethernet::Type::kVlan)) {
+        continue;
+      }
+    }
+
+    if (ether_type == be16_t(Ethernet::Type::kVlan)) {
+      Vlan *vlan = reinterpret_cast<Vlan *>(data);
+      data = vlan + 1;
+      ether_type = vlan->ether_type;
+    }
+
+    if (ether_type == be16_t(Ethernet::Type::kIpv4)) {
+      ip = reinterpret_cast<Ipv4 *>(data);
+    } else {
+      continue;
+    }
 
     ip->checksum = CalculateIpv4Checksum(*ip);
   }
