@@ -208,4 +208,20 @@ T absdiff(const T &lhs, const T &rhs) {
   return lhs > rhs ? lhs - rhs : rhs - lhs;
 }
 
+struct PairHasher {
+  template <typename T1, typename T2>
+  std::size_t operator()(const std::pair<T1, T2> &p) const noexcept {
+    // Adopted from Google's cityhash Hash128to64(), MIT licensed
+    const uint64_t kMul = 0x9ddfea08eb382d69ULL;
+    std::size_t x = std::hash<T1>{}(p.first);
+    std::size_t y = std::hash<T2>{}(p.second);
+    uint64_t a = (x ^ y) * kMul;
+    a ^= (a >> 47);
+    uint64_t b = (x ^ y) * kMul;
+    b ^= (b >> 47);
+    b *= kMul;
+    return static_cast<size_t>(b);
+  }
+};
+
 #endif  // BESS_UTILS_COMMON_H_
