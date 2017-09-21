@@ -71,18 +71,21 @@ class SharedObjectSpace {
  public:
   // By default, the Get() method creates a new object with its default
   // constructor (a constructor without any arguments). To change this behavior,
-  // you can use the optional argument "constructor", a callable object
+  // you can use the optional argument "creator", a callable object
   // (function pointer, functor, lambda function, etc.) that creates the object
   // in a way you'd like, e.g., to create an object with a non-default
   // constructor, or to reuse an already existing object.
+  //
+  // NOTE: the creator function will be called with the global mutex being held,
+  //       so it's not a good idea for the creator to block on something.
   template <typename T>
   std::shared_ptr<T> Get(
       const std::string &name,
-      std::function<std::shared_ptr<T>()> constructor = DefaultConstructor<T>) {
+      std::function<std::shared_ptr<T>()> creator = DefaultConstructor<T>) {
     SharedObjectKey key = std::make_pair(std::type_index(typeid(T)), name);
 
-    static std::mutex mutex;
-    std::lock_guard<std::mutex> lock(mutex);
+    static std::recursive_mutex mutex;
+    std::lock_guard<decltype(mutex)> lock(mutex);
 
     auto it = obj_map_.find(key);
     if (it != obj_map_.end()) {
@@ -93,9 +96,9 @@ class SharedObjectSpace {
       }
     }
 
-    // "constructor" returns an empty shared_ptr if object allocation
+    // "creator" returns an empty shared_ptr if object allocation
     // failed or no object should be newly made.
-    std::shared_ptr<T> new_object = constructor();
+    std::shared_ptr<T> new_object = creator();
     if (new_object) {
       obj_map_[key] = std::weak_ptr<T>(new_object);
     }
@@ -115,13 +118,14 @@ class SharedObjectSpace {
     return std::shared_ptr<T>(new T());
   }
 
+ private:
+  using SharedObjectKey = std::pair<std::type_index, std::string>;
+
+  // Used by Lookup()
   template <typename T>
   static std::shared_ptr<T> LookupOnly() {
     return std::shared_ptr<T>();
   }
-
- private:
-  using SharedObjectKey = std::pair<std::type_index, std::string>;
 
   std::unordered_map<SharedObjectKey, std::weak_ptr<void>, PairHasher> obj_map_;
 };
