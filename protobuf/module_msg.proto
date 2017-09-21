@@ -483,7 +483,7 @@ message ExactMatchArg {
 /**
  * The FlowGen module generates simulated TCP flows of packets with correct SYN/FIN flags and sequence numbers.
  * This module is useful for testing, e.g., a NAT module or other flow-aware code.
- * Packets are generated off a base, "template" packet by modifying the IP src/dst and TCP src/dst. By default, only the ports are changed and will be modified by incrementing the template ports by up to 2000 more than the template values.
+ * Packets are generated off a base, "template" packet by modifying the IP src/dst and TCP src/dst. By default, only the ports are changed and will be modified by incrementing the template ports by up to 20000 more than the template values.
  *
  * __Input Gates__: 0
  * __Output Gates__: 1
