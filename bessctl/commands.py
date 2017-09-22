@@ -833,9 +833,16 @@ def _do_run_file(cli, conf_file):
 
     try:
         code = compile(xformed, conf_file, 'exec')
-    except:
-        # TODO: Provide more information where and why fail to compile
-        cli.err('Fail to compile bess config file %s ' % conf_file)
+    except SyntaxError as e:
+        # TODO: e.offset might be wrong if there's a correct syntactic
+        #       sugar in an erroneous line
+
+        # Mimic python's error reporting style
+        cli.err('\n  File "%s", line %d\n    %s\n    %s\nSyntaxError: %s' %
+                (conf_file, e.lineno, e.text, ' '*(e.offset - 1) + '^', e.msg))
+        raise cli.HandledError()
+    except Exception as e:
+        cli.err('Fail to compile bess config file (%s): %s ' % (conf_file, e))
         raise cli.HandledError()
 
     if is_pipeline_empty(cli):
