@@ -402,3 +402,22 @@ bool detach_tc(bess::TrafficClass *c) {
   // Try to remove from orphan_tcs
   return remove_tc_from_orphan(c);
 }
+
+WorkerPauser::WorkerPauser() {
+  if (is_any_worker_running()) {
+    for (int wid = 0; wid < Worker::kMaxWorkers; wid++) {
+      if (is_worker_running(wid)) {
+	workers_paused_.push_back(wid);
+	VLOG(1) << "*** Pausing Worker " << wid << " ***";
+	pause_worker(wid);
+	}
+    }
+  }
+}
+
+WorkerPauser:: ~WorkerPauser() {
+  for (int wid : workers_paused_) {
+    resume_worker(wid);
+    VLOG(1) << "*** Worker " << wid << " Resumed ***";
+  }
+}
