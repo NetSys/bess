@@ -87,6 +87,28 @@ static inline Status return_with_errno(T* response, int code) {
   return Status::OK;
 }
 
+
+// This class is used as a resource manager to automatically pause workers if
+// running and then restarts workers if they were previously paused.
+class WorkerPauser {
+ public:
+  explicit WorkerPauser() {
+    if (is_any_worker_running()) {
+      workers_paused = true;
+      pause_all_workers();
+    } else {
+      workers_paused = false;
+    }
+  }
+  ~WorkerPauser() {
+    if (workers_paused) {
+      resume_all_workers();
+    }
+  }
+ private:
+  bool workers_paused;
+};
+
 static CommandResponse enable_hook_for_module(
     const Module* m, gate_idx_t gate_idx, bool is_igate, bool use_gate,
     const bess::GateHookFactory& factory, const google::protobuf::Any& arg) {
@@ -469,10 +491,7 @@ class BESSControlImpl final : public BESSControl::Service {
   Status ResetAll(ServerContext* context, const EmptyRequest* request,
                   EmptyResponse* response) override {
     Status status;
-
-    if (is_any_worker_running()) {
-      return return_with_error(response, EBUSY, "There is a running worker");
-    }
+    WorkerPauser wp;
 
     LOG(INFO) << "*** ResetAll requested ***";
 
@@ -538,10 +557,8 @@ class BESSControlImpl final : public BESSControl::Service {
   }
 
   Status ResetWorkers(ServerContext*, const EmptyRequest*,
-                      EmptyResponse* response) override {
-    if (is_any_worker_running()) {
-      return return_with_error(response, EBUSY, "There is a running worker");
-    }
+                      EmptyResponse*) override {
+    WorkerPauser wp;
     destroy_all_workers();
     LOG(INFO) << "*** All workers have been destroyed ***";
     return Status::OK;
@@ -615,9 +632,7 @@ class BESSControlImpl final : public BESSControl::Service {
 
   Status ResetTcs(ServerContext*, const EmptyRequest*,
                   EmptyResponse* response) override {
-    if (is_any_worker_running()) {
-      return return_with_error(response, EBUSY, "There is a running worker");
-    }
+    WorkerPauser wp;
 
     if (!TrafficClassBuilder::ClearAll()) {
       return return_with_error(response, EBUSY, "TCs still have tasks");
@@ -735,9 +750,7 @@ class BESSControlImpl final : public BESSControl::Service {
 
   Status AddTc(ServerContext*, const AddTcRequest* request,
                EmptyResponse* response) override {
-    if (is_any_worker_running()) {
-      return return_with_error(response, EBUSY, "There is a running worker");
-    }
+    WorkerPauser wp;
 
     const char* tc_name = request->class_().name().c_str();
     if (request->class_().name().length() == 0) {
@@ -807,9 +820,7 @@ class BESSControlImpl final : public BESSControl::Service {
 
   Status UpdateTcParams(ServerContext*, const UpdateTcParamsRequest* request,
                         EmptyResponse* response) override {
-    if (is_any_worker_running()) {
-      return return_with_error(response, EBUSY, "There is a running worker");
-    }
+    WorkerPauser wp;
 
     bess::TrafficClass* c = FindTc(request->class_(), response);
     if (!c) {
@@ -851,9 +862,7 @@ class BESSControlImpl final : public BESSControl::Service {
 
   Status UpdateTcParent(ServerContext*, const UpdateTcParentRequest* request,
                         EmptyResponse* response) override {
-    if (is_any_worker_running()) {
-      return return_with_error(response, EBUSY, "There is a running worker");
-    }
+    WorkerPauser wp;
 
     bess::TrafficClass* c = FindTc(request->class_(), response);
     if (!c) {
@@ -950,9 +959,8 @@ class BESSControlImpl final : public BESSControl::Service {
 
   Status ResetPorts(ServerContext*, const EmptyRequest*,
                     EmptyResponse* response) override {
-    if (is_any_worker_running()) {
-      return return_with_error(response, EBUSY, "There is a running worker");
-    }
+    WorkerPauser wp;
+
     for (auto it = PortBuilder::all_ports().cbegin();
          it != PortBuilder::all_ports().end();) {
       auto it_next = std::next(it);
@@ -1090,10 +1098,8 @@ class BESSControlImpl final : public BESSControl::Service {
   }
 
   Status ResetModules(ServerContext*, const EmptyRequest*,
-                      EmptyResponse* response) override {
-    if (is_any_worker_running()) {
-      return return_with_error(response, EBUSY, "There is a running worker");
-    }
+                      EmptyResponse*) override {
+    WorkerPauser wp;
 
     ModuleBuilder::DestroyAllModules();
     LOG(INFO) << "*** All modules have been destroyed ***";
@@ -1155,9 +1161,7 @@ class BESSControlImpl final : public BESSControl::Service {
 
   Status DestroyModule(ServerContext*, const DestroyModuleRequest* request,
                        EmptyResponse* response) override {
-    if (is_any_worker_running()) {
-      return return_with_error(response, EBUSY, "There is a running worker");
-    }
+    WorkerPauser wp;
     const char* m_name;
     Module* m;
 
@@ -1244,18 +1248,7 @@ class BESSControlImpl final : public BESSControl::Service {
     }
     m2 = it2->second;
 
-    if (is_any_worker_running()) {
-      propagate_active_worker();
-      if (m1->num_active_workers()) {
-        return return_with_error(response, EBUSY, "Module '%s' is in use",
-                                 m1_name);
-      }
-      if (m2->num_active_workers()) {
-        return return_with_error(response, EBUSY, "Module '%s' is in use",
-                                 m2_name);
-      }
-    }
-
+    WorkerPauser wp;
     ret = m1->ConnectModules(ogate, m2, igate);
     if (ret < 0)
       return return_with_error(response, -ret, "Connection %s:%d->%d:%s failed",
@@ -1267,9 +1260,7 @@ class BESSControlImpl final : public BESSControl::Service {
   Status DisconnectModules(ServerContext*,
                            const DisconnectModulesRequest* request,
                            EmptyResponse* response) override {
-    if (is_any_worker_running()) {
-      return return_with_error(response, EBUSY, "There is a running worker");
-    }
+    WorkerPauser wp;
     const char* m_name;
     gate_idx_t ogate;
 
@@ -1329,10 +1320,7 @@ class BESSControlImpl final : public BESSControl::Service {
   Status ConfigureGateHook(ServerContext*,
                            const ConfigureGateHookRequest* request,
                            CommandResponse* response) override {
-    if (is_any_worker_running()) {
-      return return_with_error(response, EBUSY, "There is a running worker");
-    }
-
+    WorkerPauser wp;
     bool use_gate = true;
     gate_idx_t gate_idx = 0;
     bool is_igate =
@@ -1390,10 +1378,8 @@ class BESSControlImpl final : public BESSControl::Service {
   }
 
   Status KillBess(ServerContext*, const EmptyRequest*,
-                  EmptyResponse* response) override {
-    if (is_any_worker_running()) {
-      return return_with_error(response, EBUSY, "There is a running worker");
-    }
+                  EmptyResponse*) override {
+    WorkerPauser wp;
     LOG(WARNING) << "Halt requested by a client\n";
 
     CHECK(shutdown_func_ != nullptr);
@@ -1410,10 +1396,7 @@ class BESSControlImpl final : public BESSControl::Service {
 
   Status ImportPlugin(ServerContext*, const ImportPluginRequest* request,
                       EmptyResponse* response) override {
-    if (is_any_worker_running()) {
-      return return_with_error(response, EBUSY, "There is a running worker");
-    }
-
+    WorkerPauser wp;
     VLOG(1) << "Loading plugin: " << request->path();
     if (!bess::bessd::LoadPlugin(request->path())) {
       return return_with_error(response, -1, "Failed loading plugin %s",
@@ -1424,9 +1407,7 @@ class BESSControlImpl final : public BESSControl::Service {
 
   Status UnloadPlugin(ServerContext*, const UnloadPluginRequest* request,
                       EmptyResponse* response) override {
-    if (is_any_worker_running()) {
-      return return_with_error(response, EBUSY, "There is a running worker");
-    }
+    WorkerPauser wp;
 
     VLOG(1) << "Unloading plugin: " << request->path();
     if (!bess::bessd::UnloadPlugin(request->path())) {
