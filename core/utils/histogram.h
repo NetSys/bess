@@ -31,182 +31,116 @@
 #ifndef BESS_UTILS_HISTOGRAM_H_
 #define BESS_UTILS_HISTOGRAM_H_
 
-#include <cmath>
-#include <cstring>
-#include <sstream>
-#include <string>
+#include <cstdint>
+#include <cstdlib>
+#include <limits>
 #include <vector>
 
-static const std::vector<double> quartiles = {0.25f, 0.5f, 0.75f, 1.0f};
+#include <glog/logging.h>
 
-// A general purpose histogram. A bin b_i is labeled by (i+1) * bucket_width_.
-// T must be an arithmetic type
-template <typename T>
+// Class for general purpose histogram. T must be an integral type.
+// A bin b_i corresponds for the range [i * width, (i + 1) * width)
+// (note that it's left-closed and right-open), and (i * width) is used for its
+// representative value.
+template <typename T = uint64_t>
 class Histogram {
  public:
+  struct Summary {
+    size_t count;        // # of all samples. If 0, min, max and avg are also 0
+    size_t above_range;  // # of samples beyond the histogram range
+    T min;               // Min value
+    T max;               // Max value. May be underestimated if above_range > 0
+    T avg;               // Average of all samples (== total / count)
+    T total;             // Total sum of all samples
+    std::vector<T> percentile_values;
+  };
+
   // Construct a new histogram with "num_buckets" buckets of width
   // "bucket_width".
   Histogram(size_t num_buckets, T bucket_width)
-      : num_buckets_(num_buckets),
-        bucket_width_(bucket_width),
-        threshold_((num_buckets_ + 1) * bucket_width_),
-        buckets_(),
-        above_threshold_(),
-        count_(),
-        total_(),
-        min_bucket_(),
-        max_bucket_() {
-    buckets_ = new size_t[num_buckets_];
-    reset();
+      : bucket_width_(bucket_width), count_(), buckets_(num_buckets + 1) {}
+
+  // Inserts x into the histogram.
+  void Insert(T x) {
+    // The last element of the buckets_ is used to count data points above
+    // the upper bound of the histogram range.
+    size_t index = x / bucket_width_;
+    buckets_[std::min(index, buckets_.size() - 1)]++;
+    count_++;
   }
 
-  ~Histogram() { delete[] buckets_; }
+  // Returns the summary of the histogram.
+  // "percentiles" is a vector of doubles, whose values are in the range of
+  // [0.0, 100.0] and monotonically increasing. E.g., {50.0, 90.0, 99.0, 99.9}
+  // X'th percentile of a histogram is defined as the smallest
+  // representative value of a non-empty bucket i, which satisfies that
+  // sum(bucket 0..i) / sum(bucket 0..N) * 100.0 >= X
+  // This approximation should work well if: (1) bucket width is small and
+  // (2) there are enough data points.
+  // Each of percentiles is calculated and its value is returned in
+  // percentile_values
+  const Summary Summarize(const std::vector<double> &percentiles = {}) const {
+    Summary ret;
+    ret.count = count_;
+    ret.above_range = buckets_.back();
+    ret.percentile_values = std::vector<T>(percentiles.size());
 
-  Histogram(const Histogram&) = delete;
-  Histogram& operator=(const Histogram&) = delete;
+    bool found_min = false;
+    size_t count_so_far = 0;
+    T total = 0;
+    auto percentile_it = percentiles.cbegin();
+    auto percentile_value_it = ret.percentile_values.begin();
 
-  // Insert x into the histogram.
-  void insert(T x) {
-    if (count_) {
-      reset();
-    }
+    for (size_t i = 0; i < buckets_.size(); i++) {
+      T val = i * bucket_width_;
+      T freq = buckets_[i];
+      total += val * freq;
+      count_so_far += freq;
 
-    if (x >= threshold_) {
-      above_threshold_++;
-      return;
-    }
-    (*bucket(x))++;
-  }
+      if (freq > 0) {
+        if (!found_min) {
+          ret.min = val;
+          found_min = true;
+        }
+        ret.max = val;
 
-  // Returns the number of inserted values that were >= (num_buckets_ + 1) *
-  // bucket_width_
-  size_t above_threshold() const { return above_threshold_; }
+        while (percentile_it != percentiles.end()) {
+          DCHECK_LE(0.0, *percentile_it);
+          DCHECK_LE(*percentile_it, 100.0);
 
-  // Return the bucket with the lowest frequency.
-  // NOTE: This function s destructive, i.e. it turns the histogram into a
-  // cummulative histogram. Any calls to insert() after calls to this function
-  // will result in a call to reset().
-  T min() {
-    if (!count_) {
-      summarize();
-    }
-    return (min_bucket_ + 1) * bucket_width_;
-  }
+          // Perform integer comparison first for the special case 100'th %-ile
+          if (count_so_far < count_ &&
+              (count_so_far * 100.0) / count_ - *percentile_it <
+                  std::numeric_limits<double>::epsilon()) {
+            break;
+          }
 
-  // Return the bucket with the highest frequency.
-  // NOTE: This function s destructive, i.e. it turns the histogram into a
-  // cummulative histogram. Any calls to insert() after calls to this function
-  // will result in a call to reset().
-  T max() {
-    if (!count_) {
-      summarize();
-    }
-    return (max_bucket_ + 1) * bucket_width_;
-  }
+          *percentile_value_it = val;
+          percentile_value_it++;
+          percentile_it++;
 
-  // Return the average value in the histogram.
-  // NOTE: This function s destructive, i.e. it turns the histogram into a
-  // cummulative histogram. Any calls to insert() after calls to this function
-  // will result in a call to reset().
-  T avg() {
-    if (!count_) {
-      summarize();
-    }
-    if (count_) {
-      return total_ / count_;
-    }
-    return 0;
-  }
-
-  // Return the sum of the frequencies of each bucket.
-  // NOTE: This function s destructive, i.e. it turns the histogram into a
-  // cummulative histogram. Any calls to insert() after calls to this function
-  // will result in a call to reset().
-  size_t count() {
-    if (!count_) {
-      summarize();
-    }
-    return count_;
-  }
-
-  // Return the total of values inserted into the histogram, i.e. the sum of
-  // (i+1) * bucket_width_ * count(b_i) for each bucket b_i
-  // NOTE: This function s destructive, i.e. it turns the histogram into a
-  // cummulative histogram. Any calls to insert() after calls to this function
-  // will result in a call to reset().
-  T total() {
-    if (!count_) {
-      summarize();
-    }
-    return total_;
-  }
-
-  // Return the largest bucket b_i for which the cummulative frequency is less
-  // than p % of the total. p should be in [0, 100].
-  // NOTE: This function s destructive, i.e. it turns the histogram into a
-  // cummulative histogram. Any calls to insert() after calls to this function
-  // will result in a call to reset().
-  T percentile(double p) {
-    p /= 100.0;
-    if (!count_) {
-      summarize();
-    }
-
-    T ret = 0;
-    size_t p_count = (size_t)(p * count_);
-    for (size_t i = 0; i < max_bucket_; i++) {
-      if (buckets_[i] < p_count) {
-        ret = i + 1;
+          // should be monotonic
+          DCHECK(percentile_it == percentiles.end() ||
+                 *(percentile_it - 1) < *percentile_it);
+        }
       }
     }
-    return ret * bucket_width_;
+
+    ret.avg = (count_ > 0) ? total / count_ : 0;
+    ret.total = total;
+    return ret;
   }
 
-  // Zero out the histogram.
-  void reset() {
+  void Reset() {
     count_ = 0;
-    total_ = 0;
-    min_bucket_ = 0;
-    max_bucket_ = 0;
-    above_threshold_ = 0;
-    memset(buckets_, 0, num_buckets_ * sizeof(size_t));
+    buckets_ = std::vector<size_t>(buckets_.size());
   }
 
  private:
   // TODO(melvin): add support for logarithmic binning
-  size_t *bucket(T x) { return buckets_ + (uintptr_t)(x / bucket_width_); }
-
-  // Convert the histogram into a cummulative histogram. Called by min(), max(),
-  // avg(), count(), total() and percentile().
-  void summarize() {
-    bool found_min = false;
-    count_ = 0;
-    total_ = 0;
-    max_bucket_ = 0;
-    for (size_t i = 0; i < num_buckets_; i++) {
-      size_t samples = buckets_[i];
-      if (!found_min && samples > 0) {
-        min_bucket_ = i;
-        found_min = true;
-      }
-      if (samples > 0) {
-        max_bucket_ = i;
-      }
-      count_ += samples;
-      buckets_[i] = count_;
-      total_ += (samples * (i + 1) * bucket_width_);
-    }
-  }
-
-  size_t num_buckets_;
   T bucket_width_;
-  T threshold_;
-  size_t *buckets_;
-  size_t above_threshold_;
   size_t count_;
-  T total_;
-  size_t min_bucket_;
-  size_t max_bucket_;
+  std::vector<size_t> buckets_;
 };
 
 #endif  // BESS_UTILS_HISTOGRAM_H_
