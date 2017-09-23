@@ -34,6 +34,7 @@
 #include "../module.h"
 #include "../pb/module_msg.pb.h"
 #include "../utils/histogram.h"
+#include "../utils/mcslock.h"
 #include "../utils/random.h"
 
 class Measure final : public Module {
@@ -42,21 +43,21 @@ class Measure final : public Module {
       : Module(),
         rtt_hist_(kBuckets, kBucketWidth),
         jitter_hist_(kBuckets, kBucketWidth),
-        rand_(Random()),
+        rand_(),
         jitter_sample_prob_(),
         last_rtt_ns_(),
-        start_ns_(),
-        warmup_ns_(),
         offset_(),
         pkt_cnt_(),
-        bytes_cnt_(),
-        total_latency_() {}
+        bytes_cnt_() {
+    max_allowed_workers_ = Worker::kMaxWorkers;
+  }
 
   CommandResponse Init(const bess::pb::MeasureArg &arg);
 
   void ProcessBatch(bess::PacketBatch *batch) override;
 
-  CommandResponse CommandGetSummary(const bess::pb::EmptyArg &arg);
+  CommandResponse CommandGetSummary(
+      const bess::pb::MeasureCommandGetSummaryArg &arg);
   CommandResponse CommandClear(const bess::pb::EmptyArg &arg);
 
   static const Commands cmds;
@@ -66,21 +67,21 @@ class Measure final : public Module {
   static const uint64_t kBuckets = 1000000;
   static constexpr double kDefaultIpDvSampleProb = 0.05;
 
+  void Clear();
+
   Histogram<uint64_t> rtt_hist_;
   Histogram<uint64_t> jitter_hist_;
 
   Random rand_;
   double jitter_sample_prob_;
-
   uint64_t last_rtt_ns_;
 
-  uint64_t start_ns_;
-  uint64_t warmup_ns_;  // no measurement for this warmup period
-  size_t offset_;       // in bytes
+  size_t offset_;  // in bytes
 
   uint64_t pkt_cnt_;
   uint64_t bytes_cnt_;
-  uint64_t total_latency_;
+
+  mcslock lock_;
 };
 
 #endif  // BESS_MODULES_MEASURE_H_

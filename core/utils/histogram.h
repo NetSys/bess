@@ -80,7 +80,7 @@ class Histogram {
   // Each of percentiles is calculated and its value is returned in
   // percentile_values
   const Summary Summarize(const std::vector<double> &percentiles = {}) const {
-    Summary ret;
+    Summary ret = {};
     ret.count = count_;
     ret.above_range = buckets_.back();
     ret.percentile_values = std::vector<T>(percentiles.size());

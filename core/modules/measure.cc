@@ -30,7 +30,7 @@
 
 #include "measure.h"
 
-#include <cmath>
+#include <iterator>
 
 #include "../utils/common.h"
 #include "../utils/ether.h"
@@ -53,19 +53,15 @@ static bool IsTimestamped(bess::Packet *pkt, size_t offset, uint64_t *time) {
   return false;
 }
 
-/* XXX: currently doesn't support multiple workers */
-
 const Commands Measure::cmds = {
-    {"get_summary", "EmptyArg", MODULE_CMD_FUNC(&Measure::CommandGetSummary),
-     Command::THREAD_SAFE},
+    {"get_summary", "MeasureCommandGetSummaryArg",
+     MODULE_CMD_FUNC(&Measure::CommandGetSummary), Command::THREAD_SAFE},
     {"clear", "EmptyArg", MODULE_CMD_FUNC(&Measure::CommandClear),
-     Command::THREAD_UNSAFE},
+     Command::THREAD_SAFE},
 };
 
 CommandResponse Measure::Init(const bess::pb::MeasureArg &arg) {
   // seconds from nanoseconds
-  warmup_ns_ = arg.warmup() * 1000000000ull;
-
   if (arg.offset()) {
     offset_ = arg.offset();
   } else {
@@ -78,7 +74,7 @@ CommandResponse Measure::Init(const bess::pb::MeasureArg &arg) {
     jitter_sample_prob_ = kDefaultIpDvSampleProb;
   }
 
-  start_ns_ = tsc_to_ns(rdtsc());
+  mcs_lock_init(&lock_);
 
   return CommandSuccess();
 }
@@ -88,68 +84,123 @@ void Measure::ProcessBatch(bess::PacketBatch *batch) {
   uint64_t now_ns = tsc_to_ns(rdtsc());
   size_t offset = offset_;
 
-  if (now_ns - start_ns_ >= warmup_ns_) {
-    pkt_cnt_ += batch->cnt();
+  mcslock_node_t mynode;
+  mcs_lock(&lock_, &mynode);
 
-    for (int i = 0; i < batch->cnt(); i++) {
-      uint64_t pkt_time;
-      if (IsTimestamped(batch->pkts()[i], offset, &pkt_time)) {
-        uint64_t diff;
+  pkt_cnt_ += batch->cnt();
 
-        if (now_ns >= pkt_time) {
-          diff = now_ns - pkt_time;
-        } else {
-          // The magic number matched, but timestamp doesn't seem correct
+  for (int i = 0; i < batch->cnt(); i++) {
+    uint64_t pkt_time;
+    if (IsTimestamped(batch->pkts()[i], offset, &pkt_time)) {
+      uint64_t diff;
+
+      if (now_ns >= pkt_time) {
+        diff = now_ns - pkt_time;
+      } else {
+        // The magic number matched, but timestamp doesn't seem correct
+        continue;
+      }
+
+      bytes_cnt_ += batch->pkts()[i]->total_len();
+
+      rtt_hist_.Insert(diff);
+      if (rand_.GetRealNonzero() <= jitter_sample_prob_) {
+        if (unlikely(!last_rtt_ns_)) {
+          last_rtt_ns_ = diff;
           continue;
         }
-
-        bytes_cnt_ += batch->pkts()[i]->total_len();
-        total_latency_ += diff;
-
-        rtt_hist_.insert(diff);
-        if (rand_.GetRealNonzero() <= jitter_sample_prob_) {
-          if (unlikely(!last_rtt_ns_)) {
-            last_rtt_ns_ = diff;
-            continue;
-          }
-          uint64_t jitter = absdiff(diff, last_rtt_ns_);
-          jitter_hist_.insert(jitter);
-          last_rtt_ns_ = diff;
-        }
+        uint64_t jitter = absdiff(diff, last_rtt_ns_);
+        jitter_hist_.Insert(jitter);
+        last_rtt_ns_ = diff;
       }
     }
   }
+
+  mcs_unlock(&lock_, &mynode);
+
   RunNextModule(batch);
 }
 
-CommandResponse Measure::CommandGetSummary(const bess::pb::EmptyArg &) {
-  uint64_t pkt_total = pkt_cnt_;
-  uint64_t byte_total = bytes_cnt_;
-  uint64_t bits = (byte_total + pkt_total * 24) * 8;
+template <typename T>
+static void SetHistogram(
+    bess::pb::MeasureCommandGetSummaryResponse::Histogram *r, const T &hist) {
+  r->set_count(hist.count);
+  r->set_above_range(hist.above_range);
+  r->set_min_ns(hist.min);
+  r->set_max_ns(hist.max);
+  r->set_avg_ns(hist.avg);
+  r->set_total_ns(hist.total);
+  for (const auto &val : hist.percentile_values) {
+    r->add_percentile_values_ns(val);
+  }
+}
 
+void Measure::Clear() {
+  // vector initialization is expensive thus should be out of critical section
+  decltype(rtt_hist_) new_rtt_hist(kBuckets, kBucketWidth);
+  decltype(jitter_hist_) new_jitter_hist(kBuckets, kBucketWidth);
+
+  // Use move semantics to minimize critical section
+  mcslock_node_t mynode;
+  mcs_lock(&lock_, &mynode);
+  pkt_cnt_ = 0;
+  bytes_cnt_ = 0;
+  rtt_hist_ = std::move(new_rtt_hist);
+  jitter_hist_ = std::move(new_jitter_hist);
+  mcs_unlock(&lock_, &mynode);
+}
+
+static bool IsValidPercentiles(const std::vector<double> &percentiles) {
+  if (percentiles.empty()) {
+    return true;
+  }
+
+  return std::is_sorted(percentiles.cbegin(), percentiles.cend()) &&
+         *std::min_element(percentiles.cbegin(), percentiles.cend()) >= 0.0 &&
+         *std::max_element(percentiles.cbegin(), percentiles.cend()) <= 100.0;
+}
+
+CommandResponse Measure::CommandGetSummary(
+    const bess::pb::MeasureCommandGetSummaryArg &arg) {
   bess::pb::MeasureCommandGetSummaryResponse r;
 
+  std::vector<double> latency_percentiles;
+  std::vector<double> jitter_percentiles;
+
+  std::copy(arg.latency_percentiles().begin(), arg.latency_percentiles().end(),
+            back_inserter(latency_percentiles));
+  std::copy(arg.jitter_percentiles().begin(), arg.jitter_percentiles().end(),
+            back_inserter(jitter_percentiles));
+
+  if (!IsValidPercentiles(latency_percentiles)) {
+    return CommandFailure(EINVAL, "invalid 'latency_percentiles'");
+  }
+
+  if (!IsValidPercentiles(jitter_percentiles)) {
+    return CommandFailure(EINVAL, "invalid 'jitter_percentiles'");
+  }
+
   r.set_timestamp(get_epoch_time());
-  r.set_packets(pkt_total);
-  r.set_bits(bits);
-  r.set_total_latency_ns(total_latency_);
-  r.set_latency_min_ns(rtt_hist_.min());
-  r.set_latency_avg_ns(rtt_hist_.avg());
-  r.set_latency_max_ns(rtt_hist_.max());
-  r.set_latency_50_ns(rtt_hist_.percentile(50));
-  r.set_latency_99_ns(rtt_hist_.percentile(99));
-  r.set_jitter_min_ns(jitter_hist_.min());
-  r.set_jitter_avg_ns(jitter_hist_.avg());
-  r.set_jitter_max_ns(jitter_hist_.max());
-  r.set_jitter_50_ns(jitter_hist_.percentile(50));
-  r.set_jitter_99_ns(jitter_hist_.percentile(99));
+  r.set_packets(pkt_cnt_);
+  r.set_bits((bytes_cnt_ + pkt_cnt_ * 24) * 8);
+  const auto &rtt = rtt_hist_.Summarize(latency_percentiles);
+  const auto &jitter = jitter_hist_.Summarize(jitter_percentiles);
+
+  SetHistogram(r.mutable_latency(), rtt);
+  SetHistogram(r.mutable_jitter(), jitter);
+
+  if (arg.clear()) {
+    // Note that some samples might be lost due to the small gap between
+    // Summarize() and the next mcs_lock... but we posit that smaller
+    // critical section is more important.
+    Clear();
+  }
 
   return CommandSuccess(r);
 }
 
 CommandResponse Measure::CommandClear(const bess::pb::EmptyArg &) {
-  rtt_hist_.reset();
-  jitter_hist_.reset();
+  Clear();
   return CommandResponse();
 }
 
