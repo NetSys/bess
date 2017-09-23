@@ -438,4 +438,4 @@ $(eval $(call BUILD, \
 # "clean".  But it's a lot easier than carefully expanding
 # # out all the MODULE, DRIVER, and UTIL names to have the correct
 # prefixes.
--include $(wildcard $(DEPDIR)/**/*.d)
+-include $(wildcard $(DEPDIR)/*.d) $(wildcard $(DEPDIR)/*/*.d)
