@@ -205,26 +205,40 @@ message L2ForwardCommandPopulateArg {
   int64 gate_count = 3; /// How many gates to create in the L2Forward module.
 }
 
+/**
+ * The Measure module measures and collects latency/jitter data for packets
+ * annotated by a Timestamp module. Note that Timestamp and Measure module must reside
+ * on the server for accurate measurement (as a result, the most typical use case is
+ * measuring roundtrip time).
+ * Optionally, you can also retrieve percentile values by specifying points in
+ * "percentiles". For example, "percentiles" of [50.0, 99.0] will return
+ * [median, 99'th %-ile tail latency] in "percentile_values_ns" in the response.
+ */
+message MeasureCommandGetSummaryArg {
+  bool clear = 1; /// if true, the data will be all cleared after read
+  repeated double latency_percentiles = 2; /// ascending list of real numbers in [0.0, 100.0]
+  repeated double jitter_percentiles = 3; /// ascending list of real numbers in [0.0, 100.0]
+}
 
 /**
- * The Measure module function `get_summary()` takes no parameters and returns
- * the following values.
+ * The Measure module function `get_summary()` returns the following values.
  */
 message MeasureCommandGetSummaryResponse {
+  message Histogram {
+    uint64 count = 1; /// Total # of measured data points, including above_range
+    uint64 above_range = 2; /// # of data points for the "too large value" bucket
+    uint64 min_ns = 3;;
+    uint64 avg_ns = 4;
+    uint64 max_ns = 5;
+    uint64 total_ns = 6;
+    repeated uint64 percentile_values_ns = 7;
+  }
+
   double timestamp = 1; /// Seconds since boot.
-  uint64 packets = 2; /// The total number of packets seen by this module.
-  uint64 bits = 3; /// The total number of bits seen by this module.
-  uint64 total_latency_ns = 4; /// Sum of all round trip times across all packets
-  uint64 latency_min_ns = 5; /// The minimum latency for any packet observed by the Measure module.
-  uint64 latency_avg_ns = 6; /// The average latency for all packets.
-  uint64 latency_max_ns = 7; /// The max latency for any packet
-  uint64 latency_50_ns = 8; /// The 50th percentile latency over all packets
-  uint64 latency_99_ns = 9; /// The 99th percentile latency over all packets.
-  uint64 jitter_min_ns = 10; /// The minimum observed jitter.
-  uint64 jitter_avg_ns = 11; /// The average observed jitter.
-  uint64 jitter_max_ns = 12; /// The max observed jitter.
-  uint64 jitter_50_ns = 13; /// The 50th percentile of jitter.
-  uint64 jitter_99_ns = 14; /// The 99th percentile of jitter.
+  uint64 packets = 2; /// Total # of packets seen by this module.
+  uint64 bits = 3; /// Total # of bits seen by this module.
+  Histogram latency = 4;
+  Histogram jitter = 5;
 }
 
 
