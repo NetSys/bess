@@ -28,42 +28,54 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
+import scapy.all as scapy
 import time
 
-# latency will be high, since the queue builds up
-# as the Linux network stack is the bottleneck
-
 v = VPort(loopback=1, rxq_cpus=[1])
+pkt = bytes(scapy.Ether()/scapy.IP()/scapy.UDP()/'hello world!')
 
-Source() -> Timestamp() -> PortOut(port=v.name)
+s::Source() -> Rewrite(templates=[pkt]) -> Timestamp() -> PortOut(port=v.name)
 PortInc(port=v.name) -> m::Measure() -> Sink()
 
-last = m.get_summary()
+bess.add_tc('pktgen', policy='rate_limit',
+            resource='packet', limit={'packet': 1500000})
+s.attach_task('pktgen')
+
+start_time = time.time()
+last_time = start_time
+
+bess.resume_all()
+
+print('{} RTT (us)                             '.format(' ' * 41), end='')
+print('   jitter (us)')
+print('{}    avg    min    50%    99%      max '.format(' ' * 41), end='')
+print('      avg    min    50%    99%      max')
 
 while True:
-    bess.resume_all()
     time.sleep(1)
-    bess.pause_all()
 
-    now = m.get_summary()
-    diff_ts = last.timestamp - now.timestamp
-    diff_pkts = (last.packets - now.packets) / diff_ts
-    diff_bits = (last.bits - now.bits) / diff_ts
-    diff_total_latency_ns = (last.total_latency_ns - now.total_latency_ns) / diff_ts
-    last = now
+    # get_summary() doesn't require workers to be stopped
+    ret = m.get_summary(clear=True,  # reset stats every interval
+                        latency_percentiles=[55, 99],
+                        jitter_percentiles=[55, 99])
 
-    if diff_pkts >= 1.0:
-        ns_per_packet = diff_total_latency_ns / diff_pkts
-    else:
-        ns_per_packet = 0
+    diff_ts = ret.timestamp - last_time
+    diff_pkts = ret.packets / diff_ts
+    diff_bits = ret.bits / diff_ts
+    last_time = ret.timestamp
 
-    print('%s: %.3f Mpps, %.3f Mbps, rtt_avg: %.3f us, rtt_med: %.3f us, '\
-          'rtt_99th: %.3f us, jitter_med: %.3f us, jitter_99th: %.3f us' % \
-            (time.ctime(now.timestamp),
-             diff_pkts / 1e6,
-             diff_bits / 1e6,
-             ns_per_packet / 1e3,
-             last.latency_50_ns / 1e3,
-             last.latency_99_ns / 1e3,
-             last.jitter_50_ns / 1e3,
-             last.jitter_99_ns / 1e3))
+    print('%12.6f: %5.3f Mpps, %8.3f Mbps, ' \
+          '%7.3f %6.1f %6.1f %6.1f %8.1f   %7.3f %6.1f %6.1f %6.1f %8.1f' %
+          (ret.timestamp - start_time,
+           diff_pkts / 1e6,
+           diff_bits / 1e6,
+           ret.latency.avg_ns / 1e3,
+           ret.latency.min_ns / 1e3,
+           ret.latency.percentile_values_ns[0] / 1e3,
+           ret.latency.percentile_values_ns[1] / 1e3,
+           ret.latency.max_ns / 1e3,
+           ret.jitter.avg_ns / 1e3,
+           ret.jitter.min_ns / 1e3,
+           ret.jitter.percentile_values_ns[0] / 1e3,
+           ret.jitter.percentile_values_ns[1] / 1e3,
+           ret.jitter.max_ns / 1e3))
