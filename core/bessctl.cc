@@ -87,6 +87,28 @@ static inline Status return_with_errno(T* response, int code) {
   return Status::OK;
 }
 
+
+// This class is used as a resource manager to automatically pause workers if
+// running and then restarts workers if they were previously paused.
+class WorkerPauser {
+ public:
+  explicit WorkerPauser() {
+    if (is_any_worker_running()) {
+      workers_paused = true;
+      pause_all_workers();
+    } else {
+      workers_paused = false;
+    }
+  }
+  ~WorkerPauser() {
+    if (workers_paused) {
+      resume_all_workers();
+    }
+  }
+ private:
+  bool workers_paused;
+};
+
 static CommandResponse enable_hook_for_module(
     const Module* m, gate_idx_t gate_idx, bool is_igate, bool use_gate,
     const bess::GateHookFactory& factory, const google::protobuf::Any& arg) {
