@@ -597,7 +597,7 @@ class Task {
     }
   }
 
-  struct task_result operator()(void) {
+  struct task_result operator()(void) const {
     return module_->RunTask(arg_);
   }
 
@@ -616,7 +616,7 @@ class Task {
   /*!
    * Add a worker to the set of workers that call this task.
    */
-  void AddActiveWorker(int wid) {
+  void AddActiveWorker(int wid) const {
     if (module_) {
       module_->AddActiveWorker(wid, t_);
     }

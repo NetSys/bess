@@ -694,7 +694,7 @@ class BESSControlImpl final : public BESSControl::Service {
         bess::TrafficClass* c = tc_pair.second;
         if (c->policy() == bess::POLICY_LEAF && root == c->Root()) {
           auto leaf = static_cast<bess::LeafTrafficClass<Task>*>(c);
-          int constraints = leaf->Task().GetSocketConstraints();
+          int constraints = leaf->task().GetSocketConstraints();
           if ((constraints & socket) == 0) {
             LOG(WARNING) << "Scheduler constraints are violated for wid " << i
                          << " socket " << socket << " constraint "
