@@ -451,6 +451,19 @@ static void collect_tc(const bess::TrafficClass* c, int wid,
     status->mutable_class_()->mutable_limit()->insert({resource, limit});
     status->mutable_class_()->mutable_max_burst()->insert(
         {resource, max_burst});
+  } else if (c->policy() == bess::POLICY_LEAF) {
+    const bess::LeafTrafficClass<Task>* leaf =
+        static_cast<const bess::LeafTrafficClass<Task>*>(c);
+    const Task& task = leaf->task();
+    const Module* module = task.module();
+
+    status->mutable_class_()->set_leaf_module_name(task.module()->name());
+
+    auto it = std::find(module->tasks().begin(), module->tasks().end(),
+                        task.module_task());
+    CHECK(it != module->tasks().end());
+    uint64_t task_id = it - module->tasks().begin();
+    status->mutable_class_()->set_leaf_module_taskid(task_id);
   }
 }
 
