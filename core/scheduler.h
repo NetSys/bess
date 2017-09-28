@@ -261,7 +261,7 @@ class DefaultScheduler : public Scheduler<CallableTask> {
       ctx.set_current_ns(this->checkpoint_ * this->ns_per_cycle_);
 
       // Run.
-      auto ret = leaf->Task()();
+      auto ret = leaf->task()();
 
       now = rdtsc();
 
@@ -341,7 +341,7 @@ class ExperimentalScheduler : public Scheduler<CallableTask> {
       ctx.set_current_ns(this->checkpoint_ * this->ns_per_cycle_);
 
       // Run.
-      auto ret = leaf->Task()();
+      auto ret = leaf->task()();
       now = rdtsc();
 
       if (ret.packets == 0 && ret.block) {

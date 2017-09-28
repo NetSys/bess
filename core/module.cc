@@ -747,7 +747,7 @@ void propagate_active_worker() {
         bess::TrafficClass *c = tc_pair.second;
         if (c->policy() == bess::POLICY_LEAF && c->Root() == root) {
           auto leaf = static_cast<bess::LeafTrafficClass<Task> *>(c);
-          leaf->Task().AddActiveWorker(i);
+          leaf->task().AddActiveWorker(i);
         }
       }
     }
