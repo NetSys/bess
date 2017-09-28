@@ -249,9 +249,15 @@ enum CheckConstraintResult {
   CHECK_FATAL_ERROR = 2
 };
 
-class Module {
+class alignas(64) Module {
   // overide this section to create a new module -----------------------------
  public:
+  static void *operator new(std::size_t size) {
+    return mem_alloc_ex(size, alignof(Module), 0);
+  }
+
+  static void operator delete(void *ptr) { mem_free(ptr); }
+
   Module()
       : name_(),
         module_builder_(),
