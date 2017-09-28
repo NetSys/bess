@@ -844,7 +844,7 @@ def _do_run_file(cli, conf_file):
 
         # Mimic python's error reporting style
         cli.err('\n  File "%s", line %d\n    %s\n    %s\nSyntaxError: %s' %
-                (conf_file, e.lineno, e.text, ' '*(e.offset - 1) + '^', e.msg))
+                (conf_file, e.lineno, e.text, ' ' * (e.offset - 1) + '^', e.msg))
         raise cli.HandledError()
     except Exception as e:
         cli.err('Fail to compile bess config file (%s): %s ' % (conf_file, e))
@@ -1859,6 +1859,19 @@ def _capture_module(cli, module_name, direction, gate, opts, program, hook_fn):
     cli.bess.pause_all()
     try:
         hook_fn(True, module_name, direction, gate, fifo)
+    except cli.bess.Error:
+        # kill all descendants in the process group
+        os.killpg(proc.pid, signal.SIGTERM)
+
+        try:
+            os.close(fd)
+            os.unlink(fifo)
+            os.system('stty sane')  # more/less may screw the terminal
+        except:
+            pass
+
+        raise
+
     finally:
         cli.bess.resume_all()
 
@@ -1874,12 +1887,12 @@ def _capture_module(cli, module_name, direction, gate, opts, program, hook_fn):
         finally:
             cli.bess.resume_all()
 
-        try:
-            os.close(fd)
-            os.unlink(fifo)
-            os.system('stty sane')  # more/less may have screwed the terminal
-        except:
-            pass
+            try:
+                os.close(fd)
+                os.unlink(fifo)
+                os.system('stty sane')  # more/less may screw the terminal
+            except:
+                pass
 
 
 # tcpdump can write pcap files, so we don't need to support it separately
