@@ -1856,37 +1856,23 @@ def _capture_module(cli, module_name, direction, gate, opts, program, hook_fn):
     cli.fout.write('  Running: %s\n' % tcpdump_cmd)
     proc = subprocess.Popen(tcpdump_cmd, shell=True, preexec_fn=os.setsid)
 
-    cli.bess.pause_all()
+    unhook = True
     try:
         hook_fn(True, module_name, direction, gate, fifo)
-    except cli.bess.Error:
-        # kill all descendants in the process group
-        os.killpg(proc.pid, signal.SIGTERM)
-
-        try:
-            os.close(fd)
-            os.unlink(fifo)
-            os.system('stty sane')  # more/less may screw the terminal
-        except:
-            pass
-
-        raise
-
-    finally:
-        cli.bess.resume_all()
-
-    try:
         proc.wait()
     except KeyboardInterrupt:
         # kill all descendants in the process group
         os.killpg(proc.pid, signal.SIGTERM)
+    except cli.bess.Error:
+        unhook = False
+        # kill all descendants in the process group
+        os.killpg(proc.pid, signal.SIGTERM)
+        raise
     finally:
-        cli.bess.pause_all()
         try:
-            hook_fn(False, module_name, direction, gate)
+            if unhook:
+                hook_fn(False, module_name, direction, gate)
         finally:
-            cli.bess.resume_all()
-
             try:
                 os.close(fd)
                 os.unlink(fifo)
@@ -1894,8 +1880,9 @@ def _capture_module(cli, module_name, direction, gate, opts, program, hook_fn):
             except:
                 pass
 
-
 # tcpdump can write pcap files, so we don't need to support it separately
+
+
 @cmd('tcpdump MODULE [DIRECTION] [GATE] [TCPDUMP_OPTS...]',
      'Capture packets on a gate')
 def tcpdump_module(cli, module_name, direction, gate, opts):
