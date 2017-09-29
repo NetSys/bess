@@ -1869,6 +1869,7 @@ def _capture_module(cli, module_name, direction, gate, opts, program, hook_fn):
         os.killpg(proc.pid, signal.SIGTERM)
         raise
     finally:
+        proc.wait()
         try:
             if unhook:
                 hook_fn(False, module_name, direction, gate)
