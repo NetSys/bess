@@ -28,8 +28,8 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef BESS_HOOKS_TCPDUMP_
-#define BESS_HOOKS_TCPDUMP_
+#ifndef BESS_GATE_HOOKS_TCPDUMP_
+#define BESS_GATE_HOOKS_TCPDUMP_
 
 #include "../message.h"
 #include "../module.h"
@@ -52,4 +52,4 @@ class Tcpdump final : public bess::GateHook {
   int fifo_fd_;
 };
 
-#endif  // BESS_HOOKS_TCPDUMP_
+#endif  // BESS_GATE_HOOKS_TCPDUMP_

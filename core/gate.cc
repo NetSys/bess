@@ -37,8 +37,8 @@
 
 namespace bess {
 
-bool GateHookFactory::RegisterGateHook(hook_constructor_t constructor,
-                                       hook_init_func_t init_func,
+bool GateHookFactory::RegisterGateHook(GateHook::constructor_t constructor,
+                                       GateHook::init_func_t init_func,
                                        const std::string &hook_name) {
   return all_gate_hook_factories_holder()
       .emplace(std::piecewise_construct, std::forward_as_tuple(hook_name),
@@ -72,7 +72,7 @@ int Gate::AddHook(GateHook *hook) {
   }
 
   hooks_.push_back(hook);
-  std::sort(hooks_.begin(), hooks_.end(), GateHookComp);
+  std::sort(hooks_.begin(), hooks_.end());
   return 0;
 }
 

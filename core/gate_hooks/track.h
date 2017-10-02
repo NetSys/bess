@@ -28,45 +28,37 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef BESS_HOOKS_PCAPNG_
-#define BESS_HOOKS_PCAPNG_
+#ifndef BESS_GATE_HOOKS_TRACK_
+#define BESS_GATE_HOOKS_TRACK_
 
 #include "../message.h"
 #include "../module.h"
 
-// Pcapng dumps copies of the packets seen by a gate (data + metadata) in
-// pcapng format.  Useful for debugging.
-class Pcapng final : public bess::GateHook {
+// TrackGate counts the number of packets, batches and bytes seen by a gate.
+class Track final : public bess::GateHook {
  public:
-  Pcapng();
+  Track();
 
-  virtual ~Pcapng();
+  CommandResponse Init(const bess::Gate *, const bess::pb::TrackArg &);
 
-  CommandResponse Init(const bess::Gate *, const bess::pb::PcapngArg &);
+  uint64_t cnt() const { return cnt_; }
+
+  uint64_t pkts() const { return pkts_; }
+
+  uint64_t bytes() const { return bytes_; }
+
+  void set_track_bytes(bool track) { track_bytes_ = track; }
 
   void ProcessBatch(const bess::PacketBatch *batch);
 
-  static constexpr uint16_t kPriority = 2;
+  static constexpr uint16_t kPriority = 0;
   static const std::string kName;
 
  private:
-  struct Attr {
-    // Attribute offset in the packet metadata.
-    int md_offset;
-    // Size in bytes of the attribute.
-    size_t size;
-    // Offset where this attribute hex dump should go inside `attr_template_`.
-    size_t tmpl_offset;
-  };
-
-  // The file descripton where to output the pcapng stream.
-  int fifo_fd_;
-  // List of attributes to dump.
-  std::vector<Attr> attrs_;
-  // Preallocated string with attribute names and values.  For each packet,
-  // we will change in place the values and send the string out, without
-  // doing any memory allocation.
-  std::vector<char> attr_template_;
+  bool track_bytes_;
+  uint64_t cnt_;
+  uint64_t pkts_;
+  uint64_t bytes_;
 };
 
-#endif  // BESS_HOOKS_PCAPNG_
+#endif  // BESS_GATE_HOOKS_TRACK_

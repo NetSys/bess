@@ -32,8 +32,8 @@
 
 #include <gtest/gtest.h>
 
-#include "hooks/tcpdump.h"
-#include "hooks/track.h"
+#include "gate_hooks/tcpdump.h"
+#include "gate_hooks/track.h"
 #include "module.h"
 #include "pktbatch.h"
 

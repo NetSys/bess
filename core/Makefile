@@ -44,7 +44,7 @@ $(shell mkdir -p $(DEPDIR) >/dev/null)
 $(shell mkdir -p $(DEPDIR)/utils >/dev/null)
 $(shell mkdir -p $(DEPDIR)/modules >/dev/null)
 $(shell mkdir -p $(DEPDIR)/drivers >/dev/null)
-$(shell mkdir -p $(DEPDIR)/hooks >/dev/null)
+$(shell mkdir -p $(DEPDIR)/gate_hooks >/dev/null)
 $(shell mkdir -p $(DEPDIR)/pb >/dev/null)
 
 # 'clang' or 'g++'
@@ -225,7 +225,7 @@ vpath %.cc drivers $(DRIVER_PLUGINS)
 vpath %.cc modules $(MODULE_PLUGINS)
 vpath %.cc utils $(UTIL_PLUGINS)
 
-ALL_SRCS := $(wildcard *.cc hooks/*.cc) $(MODULES) $(DRIVERS) $(UTILS)
+ALL_SRCS := $(wildcard *.cc gate_hooks/*.cc) $(MODULES) $(DRIVERS) $(UTILS)
 
 TEST_SRCS := $(filter %_test.cc gtest_main.cc, $(ALL_SRCS))
 TEST_OBJS := $(patsubst %.cc,%.o,$(notdir $(TEST_SRCS)))
@@ -251,7 +251,7 @@ UTIL_OBJS := $(addprefix utils/,$(patsubst %.cc,%.o,$(notdir $(UTIL_SRCS))))
 
 SRCS := $(filter-out $(TEST_SRCS) $(BENCH_SRCS) $(MODULE_SRCS) $(DRIVER_SRCS) $(UTIL_SRCS), $(ALL_SRCS)) $(PROTO_SRCS)
 # ? why doesn't HEADERS include module headers?
-HEADERS := $(wildcard *.h utils/*.h $(DRIVER_H) hooks/*.h)
+HEADERS := $(wildcard *.h utils/*.h $(DRIVER_H) gate_hooks/*.h)
 OBJS := $(SRCS:.cc=.o) $(DRIVER_OBJS) $(UTIL_OBJS)
 
 EXEC := bessd

@@ -45,8 +45,8 @@
 
 #include "bessd.h"
 #include "gate.h"
-#include "hooks/tcpdump.h"
-#include "hooks/track.h"
+#include "gate_hooks/tcpdump.h"
+#include "gate_hooks/track.h"
 #include "message.h"
 #include "metadata.h"
 #include "module.h"
