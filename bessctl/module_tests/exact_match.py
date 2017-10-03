@@ -29,6 +29,7 @@
 
 import socket
 from test_utils import *
+from pybess import protobuf_to_dict as pb_conv
 
 
 class BessExactMatchTest(BessModuleTestCase):
@@ -120,6 +121,41 @@ class BessExactMatchTest(BessModuleTestCase):
                 metadata[i], em, 0, [test_packet_in], range(3))
             self.assertEquals(len(pkt_outs[i]), 1)
             self.assertSamePackets(pkt_outs[i][0], test_packet_in)
+
+    def test_exactmatch_selfconfig(self):
+        "make sure get_initial_arg and [gs]et_runtime_config work"
+        iconf = {
+            'fields': [{'attr_name': 'babylon5', 'num_bytes': 2},
+                       {'offset': 10, 'num_bytes': 1}],
+            'masks': [{'value_bin': b'\xff\xf0'}, {'value_bin': b'\x7f'}]
+        }
+        em = ExactMatch(**iconf)
+        # workers are all paused, we never run them here
+        em.add(fields=[{'value_bin': b'\x88\x80'}, {'value_bin': b'\x03'}], gate=1)
+        em.add(fields=[{'value_bin': b'\x77\x70'}, {'value_bin': b'\x05'}], gate=2)
+        em.set_default_gate(gate=3)
+        # Delivered config is sorted by gate first, then field values
+        # if gates are identical.  Keep expected config sorted here.
+        expect_config = {
+            'default_gate': 3,
+            'rules': [
+                {'fields': [{'value_bin': b'\x88\x80'}, {'value_bin': b'\x03'}],
+                 'gate': 1},
+                {'fields': [{'value_bin': b'\x77\x70'}, {'value_bin': b'\x05'}],
+                 'gate': 2 },
+            ]
+        }
+        # or: expect_config['rules'].sort(lambda i: (i['gate'], j['value_bin'] for j in i['fields']))
+        arg = pb_conv.protobuf_to_dict(em.get_initial_arg())
+        cur_config = pb_conv.protobuf_to_dict(em.get_runtime_config())
+        #import pprint
+        #def pp2(*args):
+        #    for a, b in zip(*[iter(args)] * 2):
+        #        print('{}:'.format(a))
+        #        pprint.pprint(b, indent=4)
+        #pp2('iconf:', iconf, 'arg:', arg,
+        #    '\nmut state:', cur_config, 'expecting:', expect_config)
+        assert arg == iconf and cur_config == expect_config
 
 suite = unittest.TestLoader().loadTestsFromTestCase(BessExactMatchTest)
 results = unittest.TextTestRunner(verbosity=2).run(suite)
