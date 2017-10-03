@@ -48,6 +48,7 @@ class Split final : public Module {
 
  private:
   uint64_t mask_;
+  int shift_;
   int attr_id_;
   size_t offset_;
   size_t size_;

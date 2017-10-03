@@ -34,7 +34,7 @@
 
 // XXX: this is repeated in many modules. get rid of them when converting .h to
 // .hh, etc... it's in defined in some old header
-static inline int is_valid_gate(gate_idx_t gate) {
+static inline bool is_valid_gate(gate_idx_t gate) {
   return (gate < MAX_GATES || gate == DROP_GATE);
 }
 
@@ -45,6 +45,10 @@ CommandResponse Split::Init(const bess::pb::SplitArg &arg) {
   }
 
   mask_ = (size_ == 8) ? 0xffffffffffffffffull : (1ull << (size_ * 8)) - 1;
+
+  // We read a be64_t value regardless of the actual size,
+  // hence the read value needs bit shift to the right.
+  shift_ = 64 - (size_ * 8);
 
   if (arg.type_case() == bess::pb::SplitArg::kAttribute) {
     attr_id_ = AddMetadataAttr(arg.attribute().c_str(), size_,
@@ -69,30 +73,19 @@ void Split::ProcessBatch(bess::PacketBatch *batch) {
   int cnt = batch->cnt();
 
   if (attr_id_ >= 0) {
-    int attr_id = attr_id_;
-
+    bess::metadata::mt_offset_t offset = attr_offset(attr_id_);
     for (int i = 0; i < cnt; i++) {
       const bess::Packet *pkt = batch->pkts()[i];
-
-      uint64_t val = get_attr<be64_t>(this, attr_id, pkt).value();
-      val &= mask_;
-
-      if (is_valid_gate(val)) {
-        ogate[i] = val;
-      } else {
-        ogate[i] = DROP_GATE;
-      }
+      uint64_t val = get_attr_with_offset<be64_t>(offset, pkt).value();
+      val = (val >> shift_) & mask_;
+      ogate[i] = is_valid_gate(val) ? val : DROP_GATE;
     }
   } else {
     for (int i = 0; i < cnt; i++) {
       const bess::Packet *pkt = batch->pkts()[i];
-      uint64_t val = (*(pkt->head_data<be64_t *>(offset_))).value() & mask_;
-
-      if (is_valid_gate(val)) {
-        ogate[i] = val;
-      } else {
-        ogate[i] = DROP_GATE;
-      }
+      uint64_t val = (pkt->head_data<be64_t *>(offset_))->value();
+      val = (val >> shift_) & mask_;
+      ogate[i] = is_valid_gate(val) ? val : DROP_GATE;
     }
   }
 
