@@ -629,9 +629,14 @@ static u16 sn_select_queue(struct net_device *netdev,
 	return dev->cpu_to_txq[raw_smp_processor_id()];
 }
 
-static struct
-rtnl_link_stats64 *sn_get_stats64(struct net_device *netdev,
-				  struct rtnl_link_stats64 *storage)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4,11,0)
+static
+struct rtnl_link_stats64 *sn_get_stats64(struct net_device *netdev,
+          struct rtnl_link_stats64 *storage)
+#else
+static void sn_get_stats64(struct net_device *netdev,
+          struct rtnl_link_stats64 *storage)
+#endif
 {
 	struct sn_device *dev = netdev_priv(netdev);
 
@@ -651,8 +656,9 @@ rtnl_link_stats64 *sn_get_stats64(struct net_device *netdev,
 		storage->rx_bytes 	+= dev->rx_queues[i]->rx.stats.bytes;
 		storage->rx_dropped 	+= dev->rx_queues[i]->rx.stats.dropped;
 	}
-
-	return storage;
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4,11,0)
+  return storage;
+#endif
 }
 
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(3,3,0))
@@ -805,7 +811,11 @@ int sn_create_netdev(void *bar, struct sn_device **dev_ret)
 	 * Also see attach_default_qdiscs() in sch_generic.c */
 	netdev->tx_queue_len = 0;
 
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(4,11,9))
 	netdev->destructor = sn_netdev_destructor;
+#else
+	netdev->priv_destructor = sn_netdev_destructor;
+#endif
 
 	sn_set_offloads(netdev);
 
