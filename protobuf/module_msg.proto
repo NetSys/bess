@@ -495,6 +495,16 @@ message ExactMatchArg {
 }
 
 /**
+ * ExactMatchConfig represents the current runtime configuration
+ * of an ExactMatch module, as returned by get_runtime_config and
+ * set by set_runtime_config.
+ */
+message ExactMatchConfig {
+  uint64 default_gate = 1;
+  repeated ExactMatchCommandAddArg rules = 2;
+}
+
+/**
  * The FlowGen module generates simulated TCP flows of packets with correct SYN/FIN flags and sequence numbers.
  * This module is useful for testing, e.g., a NAT module or other flow-aware code.
  * Packets are generated off a base, "template" packet by modifying the IP src/dst and TCP src/dst. By default, only the ports are changed and will be modified by incrementing the template ports by up to 20000 more than the template values.
