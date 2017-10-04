@@ -54,7 +54,9 @@
 #include "opts.h"
 #include "packet.h"
 #include "port.h"
+#include "resume_hook.h"
 #include "scheduler.h"
+#include "shared_obj.h"
 #include "traffic_class.h"
 #include "utils/ether.h"
 #include "utils/format.h"
@@ -68,6 +70,8 @@ using grpc::Status;
 using grpc::ServerContext;
 
 using bess::TrafficClassBuilder;
+using bess::ResumeHook;
+using bess::ResumeHookFactory;
 using namespace bess::pb;
 
 template <typename T>
@@ -498,10 +502,13 @@ class BESSControlImpl final : public BESSControl::Service {
 
   Status ResumeAll(ServerContext*, const EmptyRequest*,
                    EmptyResponse*) override {
-    LOG(INFO) << "*** Resuming ***";
     if (!is_any_worker_running()) {
       attach_orphans();
     }
+
+    run_global_resume_hooks();
+
+    LOG(INFO) << "*** Resuming ***";
     resume_all_workers();
     return Status::OK;
   }
@@ -517,6 +524,7 @@ class BESSControlImpl final : public BESSControl::Service {
   Status ResetWorkers(ServerContext*, const EmptyRequest*,
                       EmptyResponse*) override {
     WorkerPauser wp;
+    bess::global_resume_hooks.clear();
     destroy_all_workers();
     LOG(INFO) << "*** All workers have been destroyed ***";
     return Status::OK;
@@ -1343,6 +1351,47 @@ class BESSControlImpl final : public BESSControl::Service {
       *response = disable_hook_for_module(it->second, gate_idx, is_igate,
                                           use_gate, request->hook_name());
     }
+
+    return Status::OK;
+  }
+
+  Status ConfigureResumeHook(ServerContext*,
+                             const ConfigureResumeHookRequest* request,
+                             CommandResponse* response) override {
+    auto& hooks = bess::global_resume_hooks;
+    auto hook_it = hooks.end();
+    for (auto it = hooks.begin(); it != hooks.end(); ++it) {
+      if (it->get()->name() == request->hook_name()) {
+        hook_it = it;
+        break;
+      }
+    }
+
+    if (!request->enable()) {
+      if (hook_it != hooks.end()) {
+        hooks.erase(hook_it);
+      }
+      return Status::OK;
+    }
+
+    if (hook_it != hooks.end()) {
+      return return_with_error(response, EEXIST,
+                               "Resume hook '%s' is already installed",
+                               request->hook_name().c_str());
+    }
+
+    const auto factory = ResumeHookFactory::all_resume_hook_factories().find(
+        request->hook_name());
+    if (factory == ResumeHookFactory::all_resume_hook_factories().end()) {
+      return return_with_error(response, ENOENT, "No such resume hook '%s'",
+                               request->hook_name().c_str());
+    }
+    auto hook = factory->second.CreateResumeHook();
+    *response = factory->second.InitResumeHook(hook.get(), request->arg());
+    if (response->has_error()) {
+      return Status::OK;
+    }
+    hooks.insert(std::move(hook));
 
     return Status::OK;
   }

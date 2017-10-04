@@ -48,6 +48,8 @@
 #include "module.h"
 #include "opts.h"
 #include "packet.h"
+#include "resume_hook.h"
+#include "resume_hooks/metadata.h"
 #include "scheduler.h"
 #include "utils/random.h"
 #include "utils/time.h"
@@ -62,6 +64,7 @@ Worker *volatile workers[Worker::kMaxWorkers];
 
 using bess::TrafficClassBuilder;
 using namespace bess::traffic_class_initializer_types;
+using bess::ResumeHookFactory;
 
 std::list<std::pair<int, bess::TrafficClass *>> orphan_tcs;
 
@@ -171,7 +174,6 @@ void resume_all_workers() {
     }
   }
 
-  bess::metadata::default_pipeline.ComputeMetadataOffsets();
   for (int wid = 0; wid < Worker::kMaxWorkers; wid++)
     resume_worker(wid);
 }
@@ -395,6 +397,30 @@ bool detach_tc(bess::TrafficClass *c) {
   return remove_tc_from_orphan(c);
 }
 
+void run_global_resume_hooks() {
+  auto &hooks = bess::global_resume_hooks;
+
+  // Enable metadata offset computation by default
+  bool found_setup_md = false;
+  for (auto &hook : hooks) {
+    hook->Run();
+    if (hook->name() == SetupMetadata::kName) {
+      found_setup_md = true;
+    }
+  }
+
+  if (!found_setup_md) {
+    const auto factory = ResumeHookFactory::all_resume_hook_factories().find(
+        SetupMetadata::kName);
+    hooks.emplace(factory->second.CreateResumeHook());
+  }
+
+  for (auto &hook : hooks) {
+    VLOG(1) << "Running global resume hook '" << hook->name() << "'";
+    hook->Run();
+  }
+}
+
 WorkerPauser::WorkerPauser() {
   if (is_any_worker_running()) {
     for (int wid = 0; wid < Worker::kMaxWorkers; wid++) {
@@ -408,6 +434,10 @@ WorkerPauser::WorkerPauser() {
 }
 
 WorkerPauser::~WorkerPauser() {
+  if (workers_paused_.size()) {
+    run_global_resume_hooks();
+  }
+
   for (int wid : workers_paused_) {
     resume_worker(wid);
     VLOG(1) << "*** Worker " << wid << " Resumed ***";

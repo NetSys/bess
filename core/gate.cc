@@ -72,7 +72,12 @@ int Gate::AddHook(GateHook *hook) {
   }
 
   hooks_.push_back(hook);
-  std::sort(hooks_.begin(), hooks_.end());
+
+  const auto cmp = [](const GateHook *lhs, const GateHook *rhs) {
+    return lhs->priority() < rhs->priority() && lhs->name() < rhs->name();
+  };
+  std::sort(hooks_.begin(), hooks_.end(), cmp);
+
   return 0;
 }
 

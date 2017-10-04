@@ -495,6 +495,15 @@ class BESS(object):
         request.arg.Pack(arg)
         return self._request('ConfigureGateHook', request)
 
+    def _configure_resume_hook(self, hook, arg, enable=None):
+        if enable is None:
+            enable = True
+        request = bess_msg.ConfigureResumeHookRequest()
+        request.hook_name = hook
+        request.enable = enable
+        request.arg.Pack(arg)
+        return self._request('ConfigureResumeHook', request)
+
     def tcpdump(self, enable, m, direction='out', gate=0, fifo=None):
         arg = bess_msg.TcpdumpArg()
         if fifo is not None:

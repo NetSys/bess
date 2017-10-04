@@ -85,10 +85,6 @@ class GateHook {
 
   virtual void ProcessBatch(const bess::PacketBatch *) {}
 
-  bool operator<(const GateHook &rhs) {
-    return std::tie(priority_, name_) < std::tie(rhs.priority_, rhs.name_);
-  }
-
  protected:
   Gate *gate_;
 
