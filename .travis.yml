@@ -60,8 +60,8 @@ script:
   - (cd core && ./all_test --gtest_shuffle)  # TcpFlowReconstructTest requires working directory to be `core/`
   - coverage2 run -m unittest discover -v
   - "[[ ${DEBUG:-0} == 0 ]] || coverage3 run -m unittest discover -v"
-  - python2 bessctl/bessctl -- daemon start -- run testing/run_module_tests
-  - "[[ ${DEBUG:-0} == 0 ]] || python3 bessctl/bessctl -- daemon start -- run testing/run_module_tests"
+  - python2 bessctl/conf/testing/run_module_tests.py
+  - "[[ ${DEBUG:-0} == 0 ]] || python3 bessctl/conf/testing/run_module_tests.py"
 
 after_success:
   - bessctl/bessctl daemon stop # flush out the coverage data

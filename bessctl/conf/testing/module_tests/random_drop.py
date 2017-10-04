@@ -27,46 +27,65 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
-## CRASH TESTS ##
-rd0 = RandomDrop(drop_rate=0)
-CRASH_TEST_INPUTS.append([rd0, 1, 1])
+from test_utils import *
 
-## OUTPUT TESTS ##
-rd1 = RandomDrop(drop_rate=0)
-test_packet = gen_packet(scapy.TCP, '22.22.22.22', '22.22.22.22')
-OUTPUT_TEST_INPUTS.append([rd1, 1, 1,
-                           [{'input_port': 0,
-                               'input_packet': test_packet,
-                                'output_port': 0,
-                                'output_packet': test_packet}]])
 
-## CUSTOM TESTS ##
-def create_drop_test(rate):
-    def equal_with_noise(a, b, threshold):
-        return abs((a - b)) <= threshold
-    def drop_test():
-        src = Source()
-        rd2 = RandomDrop(drop_rate=rate)
-        rwtemp = [
-            bytes(gen_packet(
-                scapy.UDP,
-                "172.12.0.3",
-                "127.12.0.4")),
-            bytes(gen_packet(
-                scapy.TCP,
-                "192.168.32.4",
-                "1.2.3.4"))]
-        a = Measure()
-        b = Measure()
-        src -> b -> Rewrite(templates=rwtemp) -> rd2 -> a -> Sink()
+class BessRandomDropTest(BessModuleTestCase):
+
+    def test_dropall(self):
+        drop0 = RandomDrop(drop_rate=0)
+        pkt_in = get_udp_packet()
+        pkt_outs = self.run_module(drop0, 0, [pkt_in], [0])
+        self.assertEquals(len(pkt_outs[0]), 1)
+        self.assertSamePackets(pkt_outs[0][0], pkt_in)
+
+    def test_dropnone(self):
+        drop0 = RandomDrop(drop_rate=1)
+        pkt_in = get_udp_packet()
+        pkt_outs = self.run_module(drop0, 0, [pkt_in], [0])
+        self.assertEquals(len(pkt_outs[0]), 0)
+
+    def _drop_with_rate(self, rate):
+
+        def _equal_with_noise(a, b, threshold):
+            return abs((a - b)) <= threshold
+
+        pktftm = [
+            bytes(get_udp_packet()),
+            bytes(get_tcp_packet())]
+
+        ma = Measure()
+        mb = Measure()
+
+        Source() -> \
+            ma -> \
+            Rewrite(templates=pktftm) -> \
+            RandomDrop(drop_rate=rate) -> \
+            mb -> \
+            Sink()
 
         bess.resume_all()
-        time.sleep(2)
+        time.sleep(1)
         bess.pause_all()
 
         # Measure the ratio of packets dropped
-        ratio = float(a.get_summary().packets) / b.get_summary().packets
-        assert equal_with_noise(ratio, 1 - rate, 0.05)
-    return drop_test
+        ratio = float(mb.get_summary().packets) / ma.get_summary().packets
+        assert _equal_with_noise(ratio, 1 - rate, 0.05)
 
-CUSTOM_TEST_FUNCTIONS.extend([create_drop_test(0.5), create_drop_test(0.75), create_drop_test(0.9), create_drop_test(0.3)])
+    def test_droprate_1(self):
+        self._drop_with_rate(0.3)
+
+    def test_droprate_2(self):
+        self._drop_with_rate(0.5)
+
+    def test_droprate_3(self):
+        self._drop_with_rate(0.75)
+
+    def test_droprate_4(self):
+        self._drop_with_rate(0.9)
+
+suite = unittest.TestLoader().loadTestsFromTestCase(BessRandomDropTest)
+results = unittest.TextTestRunner(verbosity=2).run(suite)
+
+if results.failures or results.errors:
+    sys.exit(1)

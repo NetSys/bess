@@ -27,40 +27,53 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
-import scapy.all as scapy
+from test_utils import *
 
 
-## CRASH TESTS ##
-m0 = UpdateTTL()
-CRASH_TEST_INPUTS.append([m0, 1, 1])
+class BessUpdateTTLTest(BessModuleTestCase):
 
-## OUTPUT TESTS ##
-# Decrement Test
-m1 = UpdateTTL()
-in_packet = gen_packet(scapy.TCP, '22.22.22.22', '22.22.22.22', ip_ttl=2)
-out_packet = gen_packet(scapy.TCP, '22.22.22.22', '22.22.22.22', ip_ttl=1)
+    def test_run_update_ttl(self):
+        uttl = UpdateTTL()
+        self.run_for(uttl, [0], 3)
 
-OUTPUT_TEST_INPUTS.append([m1, 1, 1,
-                           [{'input_port': 0,
-                             'input_packet': in_packet,
-                             'output_port': 0,
-                             'output_packet': out_packet}]])
+    def test_decrement(self):
+        uttl = UpdateTTL()
 
-# Drop test
-m2 = UpdateTTL()
-drop_packet0 = gen_packet(scapy.TCP, '22.22.22.22', '22.22.22.22', ip_ttl=0)
-drop_packet1 = gen_packet(scapy.TCP, '22.22.22.22', '22.22.22.22', ip_ttl=1)
+        pkt_in = get_tcp_packet()
+        pkt_in[scapy.IP].ttl = 2
+        pkt_expected_out = scapy.Packet.copy(pkt_in)
+        pkt_expected_out[scapy.IP].ttl = 1
 
-OUTPUT_TEST_INPUTS.append([m2, 1, 1,
-                           [{'input_port': 0,
-                             'input_packet': drop_packet0,
-                             'output_port': 0,
-                             'output_packet': None},
-                            {'input_port': 0,
-                             'input_packet': in_packet,
-                             'output_port': 0,
-                             'output_packet': out_packet},
-                            {'input_port': 0,
-                             'input_packet': drop_packet1,
-                             'output_port': 0,
-                             'output_packet': None}]])
+        pkt_outs = self.run_module(uttl, 0, [pkt_in], [0])
+        self.assertEquals(len(pkt_outs[0]), 1)
+        self.assertSamePackets(pkt_outs[0][0], pkt_expected_out)
+
+    def test_drop(self):
+        # Drop test
+        uttl = UpdateTTL()
+
+        pkt_in = get_tcp_packet()
+        pkt_in[scapy.IP].ttl = 2
+        pkt_expected_out = scapy.Packet.copy(pkt_in)
+        pkt_expected_out[scapy.IP].ttl = 1
+
+        drop_pkt0 = get_tcp_packet()
+        drop_pkt0[scapy.IP].ttl = 0
+        drop_pkt1 = get_tcp_packet()
+        drop_pkt1[scapy.IP].ttl = 1
+
+        pkt_outs = self.run_module(uttl, 0, [drop_pkt0], [0])
+        self.assertEquals(len(pkt_outs[0]), 0)
+
+        pkt_outs = self.run_module(uttl, 0, [pkt_in], [0])
+        self.assertEquals(len(pkt_outs[0]), 1)
+        self.assertSamePackets(pkt_outs[0][0], pkt_expected_out)
+
+        pkt_outs = self.run_module(uttl, 0, [drop_pkt1], [0])
+        self.assertEquals(len(pkt_outs[0]), 0)
+
+suite = unittest.TestLoader().loadTestsFromTestCase(BessUpdateTTLTest)
+results = unittest.TextTestRunner(verbosity=2).run(suite)
+
+if results.failures or results.errors:
+    sys.exit(1)

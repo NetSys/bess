@@ -27,107 +27,102 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
-# Crash test -- generate a bunch of rules and stuff packets through
-em0 = ExactMatch(fields=[{'offset': 23, 'num_bytes': 1},  # random fields, I have no idea what these are
-                         {'offset': 2, 'num_bytes': 2},
-                         {'offset': 29, 'num_bytes': 1}])
-
-em0.add(fields=[{'value_bin':b'\xff'}, {'value_bin':b'\x23\xba'}, {'value_bin':b'\x34'}], gate=0)
-em0.add(fields=[{'value_bin':b'\xff'}, {'value_bin':b'\x34\xaa'}, {'value_bin':b'\x12'}], gate=1)
-em0.add(fields=[{'value_bin':b'\xba'}, {'value_bin':b'\x33\xaa'}, {'value_bin':b'\x22'}], gate=2)
-em0.add(fields=[{'value_bin':b'\xaa'}, {'value_bin':b'\x34\xba'}, {'value_bin':b'\x32'}], gate=3)
-em0.add(fields=[{'value_bin':b'\x34'}, {'value_bin':b'\x34\x7a'}, {'value_bin':b'\x52'}], gate=4)
-em0.add(fields=[{'value_bin':b'\x12'}, {'value_bin':b'\x34\x7a'}, {'value_bin':b'\x72'}], gate=5)
-
-CRASH_TEST_INPUTS.append([em0, 1, 6])
+import socket
+from test_utils import *
 
 
-# Output test over fields -- just make sure packets go out right ports
-em1 = ExactMatch(fields=[{'offset': 26, 'num_bytes': 4},
-                         {'offset': 30, 'num_bytes': 4}])  # ip src and dst
+class BessExactMatchTest(BessModuleTestCase):
 
-em1.add(fields=[{'value_bin':aton('65.43.21.00')}, {'value_bin':aton('12.34.56.78')}], gate=1)
-em1.add(fields=[{'value_bin':aton('00.12.34.56')}, {'value_bin':aton('12.34.56.78')}], gate=2)
-em1.set_default_gate(gate=3)
+    def test_run_exactmatch(self):
+        # random fields, I have no idea what these are
+        em = ExactMatch(fields=[{'offset': 23, 'num_bytes': 1},
+                                {'offset': 2, 'num_bytes': 2},
+                                {'offset': 29, 'num_bytes': 1}])
+        em.add(fields=[{'value_bin': b'\xff'}, {'value_bin': b'\x23\xba'},
+                       {'value_bin': b'\x34'}], gate=0)
+        em.add(fields=[{'value_bin': b'\xff'}, {'value_bin': b'\x34\xaa'},
+                       {'value_bin': b'\x12'}], gate=1)
+        em.add(fields=[{'value_bin': b'\xba'}, {'value_bin': b'\x33\xaa'},
+                       {'value_bin': b'\x22'}], gate=2)
+        em.add(fields=[{'value_bin': b'\xaa'}, {'value_bin': b'\x34\xba'},
+                       {'value_bin': b'\x32'}], gate=3)
+        em.add(fields=[{'value_bin': b'\x34'}, {'value_bin': b'\x34\x7a'},
+                       {'value_bin': b'\x52'}], gate=4)
+        em.add(fields=[{'value_bin': b'\x12'}, {'value_bin': b'\x34\x7a'},
+                       {'value_bin': b'\x72'}], gate=5)
 
-test_packet1 = gen_packet(scapy.TCP, '65.43.21.00', '12.34.56.78')  # match 1
-test_packet2 = gen_packet(scapy.TCP, '00.12.34.56', '12.34.56.78')  # match 2
-test_packet3 = gen_packet(scapy.TCP, '00.12.33.56',
-                          '12.34.56.78')  # match nothing
+        self.run_for(em, [0], 3)
+        self.assertBessAlive()
 
-OUTPUT_TEST_INPUTS.append([em1, 1, 4,
-                           [{'input_port': 0,
-                             'input_packet': test_packet1,
-                             'output_port': 1,
-                             'output_packet': test_packet1},
-                            {'input_port': 0,
-                             'input_packet': test_packet2,
-                             'output_port': 2,
-                             'output_packet': test_packet2},
-                            {'input_port': 0,
-                             'input_packet': test_packet3,
-                             'output_port': 3,
-                             'output_packet': test_packet3},
-                            {'input_port': 0,
-                             'input_packet': None,
-                             'output_port': 0,
-                             'output_packet': None}]])
+    # Output test over fields -- just make sure packets go out right ports
+    def test_exactmatch(self):
+        # exact match for ip src and dst
+        em = ExactMatch(fields=[{'offset': 26, 'num_bytes': 4},
+                                {'offset': 30, 'num_bytes': 4}])
+        em.add(fields=[{'value_bin': socket.inet_aton('65.43.21.00')},
+                       {'value_bin': socket.inet_aton('12.34.56.78')}], gate=1)
+        em.add(fields=[{'value_bin': socket.inet_aton('00.12.34.56')},
+                       {'value_bin': socket.inet_aton('12.34.56.78')}], gate=2)
+        em.set_default_gate(gate=3)
 
-# Output test over fields -- just make sure packets go out right ports
+        pkt1 = get_tcp_packet(sip='65.43.21.00', dip='12.34.56.78')
+        pkt2 = get_tcp_packet(sip='00.12.34.56', dip='12.34.56.78')
+        pkt_nomatch = get_tcp_packet(sip='00.12.33.56', dip='12.34.56.78')
 
+        pkt_outs = self.run_module(em, 0, [], [0])
+        self.assertEquals(len(pkt_outs[0]), 0)
 
-def exactmatch_test_with_metadata():
-    # One exact match field
-    em2 = ExactMatch(
-        fields=[{"attr_name": "sangjin", "num_bytes": 2}],masks=[{"value_bin": b'\xff\xf0'}])
-    em2.add(fields=[{'value_bin':b'\x88\x80'}], gate=1)
-    em2.add(fields=[{'value_bin':b'\x77\x70'}], gate=2)
-    em2.set_default_gate(gate=0)
+        pkt_outs = self.run_module(em, 0, [pkt1], [0, 1, 2, 3])
+        self.assertEquals(len(pkt_outs[1]), 1)
+        self.assertSamePackets(pkt_outs[1][0], pkt1)
 
-    # Only need one test packet
-    eth = scapy.Ether(src='de:ad:be:ef:12:34', dst='12:34:de:ad:be:ef')
-    ip = scapy.IP(src="1.2.3.4", dst="2.3.4.5", ttl=98)
-    udp = scapy.UDP(sport=10001, dport=10002)
-    payload = 'helloworld'
-    test_packet_in = ip / udp / payload
+        pkt_outs = self.run_module(em, 0, [pkt2], [0, 1, 2, 3])
+        self.assertEquals(len(pkt_outs[2]), 1)
+        self.assertSamePackets(pkt_outs[2][0], pkt2)
 
-    # Three kinds of metadata tags
-    metadata = []
+        pkt_outs = self.run_module(em, 0, [pkt_nomatch], [0, 1, 2, 3])
+        self.assertEquals(len(pkt_outs[3]), 1)
+        self.assertSamePackets(pkt_outs[3][0], pkt_nomatch)
 
-    metadata.append(SetMetadata(
-        attrs=[{"name": "sangjin", "size": 2, "value_bin": b'\x77\x90'}]))
-    metadata.append(SetMetadata(
-        attrs=[{"name": "sangjin", "size": 2, "value_bin": b'\x88\x80'}]))
-    metadata.append(SetMetadata(
-        attrs=[{"name": "sangjin", "size": 2, "value_bin": b'\x77\x70'}]))
+    def test_exactmatch_with_metadata(self):
+        # One exact match field
+        em = ExactMatch(
+            fields=[{"attr_name": "sangjin", "num_bytes": 2}], masks=[{"value_bin": b'\xff\xff'}])
+        em.add(fields=[{'value_bin': b'\x88\x80'}], gate=1)
+        em.add(fields=[{'value_bin': b'\x77\x70'}], gate=2)
+        em.set_default_gate(gate=0)
 
-    # And a merge module
-    merger = Merge()
-    merger -> em2
+        # Only need one test packet
+        eth = scapy.Ether(src='de:ad:be:ef:12:34', dst='12:34:de:ad:be:ef')
+        ip = scapy.IP(src="1.2.3.4", dst="2.3.4.5", ttl=98)
+        udp = scapy.UDP(sport=10001, dport=10002)
+        payload = 'helloworld'
+        test_packet_in = ip / udp / payload
 
-    sockets = []
-    indrivers = []
-    outdrivers = []
-    for i in range(3):  # three input ports for three metadata tags
-        sockname = "exactmatch_metadata" + SCRIPT_STARTTIME + str(i)
-        socket_port, mysocket = gen_socket_and_port(sockname)
+        # Three kinds of metadata tags
+        metadata = []
+        metadata.append(SetMetadata(
+            attrs=[{"name": "sangjin", "size": 2, "value_bin": b'\x77\x90'}]))
+        metadata.append(SetMetadata(
+            attrs=[{"name": "sangjin", "size": 2, "value_bin": b'\x88\x80'}]))
+        metadata.append(SetMetadata(
+            attrs=[{"name": "sangjin", "size": 2, "value_bin": b'\x77\x70'}]))
 
-        sockets.append(mysocket)
-        indrivers.append(PortInc(port=sockname))
-        outdrivers.append(PortOut(port=sockname))
+        # And a merge module
+        merger = Merge()
+        merger -> em
 
-        indrivers[i] -> metadata[i] -> merger
-        em2: i -> outdrivers[i]
+        for i in range(3):
+            metadata[i] -> merger
 
-    bess.resume_all()
+        for i in range(3):
+            pkt_outs = self.run_pipeline(
+                metadata[i], em, 0, [test_packet_in], range(3))
+            self.assertEquals(len(pkt_outs[i]), 1)
+            self.assertSamePackets(pkt_outs[i][0], test_packet_in)
 
-    # Now run the packets through
-    for i in range(3):
-        sockets[i].send(bytes(test_packet_in))
-        return_data = sockets[i].recv(2048)
-        assert(bytes(return_data) == bytes(test_packet_in))
+suite = unittest.TestLoader().loadTestsFromTestCase(BessExactMatchTest)
+results = unittest.TextTestRunner(verbosity=2).run(suite)
 
-    bess.pause_all()
-
-
-CUSTOM_TEST_FUNCTIONS.append(exactmatch_test_with_metadata)
+if results.failures or results.errors:
+    sys.exit(1)

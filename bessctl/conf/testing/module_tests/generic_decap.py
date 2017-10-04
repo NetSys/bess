@@ -27,25 +27,39 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
-#CRASH TEST
-gd0 = GenericDecap(bytes=0)
-CRASH_TEST_INPUTS.append([gd0, 1, 1])
+from test_utils import *
 
-gd1 = GenericDecap(bytes=23)
-CRASH_TEST_INPUTS.append([gd1, 1, 1])
 
-#OUTPUT TESTS
+class BessDecapTest(BessModuleTestCase):
 
-#test strip off ether
-gd2 = GenericDecap(bytes=14)
-eth = scapy.Ether(src='de:ad:be:ef:12:34', dst='12:34:de:ad:be:ef')
-ip = scapy.IP(src="1.2.3.4", dst="2.3.4.5", ttl=98)
-udp = scapy.UDP(sport=10001, dport=10002)
-payload = 'helloworldhelloworldhelloworld'
+    def test_run_decap_0bytes(self):
+        gd = GenericDecap(bytes=0)
+        self.run_for(gd, [0], 3)
+        self.assertBessAlive()
 
-eth_packet_in = eth/ip/udp/payload
-eth_packet_out = ip/udp/payload
+    def test_run_decap_morebytes(self):
+        gd = GenericDecap(bytes=23)
+        self.run_for(gd, [0], 3)
+        self.assertBessAlive()
 
-OUTPUT_TEST_INPUTS.append([gd2, 1, 1,
-	[{'input_port': 0, 'input_packet': eth_packet_in,
-	'output_port': 0, 'output_packet': eth_packet_out}]])
+    # test strip off ether
+    def test_decap(self):
+        gd = GenericDecap(bytes=14)
+
+        eth = scapy.Ether(src='de:ad:be:ef:12:34', dst='12:34:de:ad:be:ef')
+        ip = scapy.IP(src="1.2.3.4", dst="2.3.4.5", ttl=98)
+        udp = scapy.UDP(sport=10001, dport=10002)
+        payload = 'helloworldhelloworldhelloworld'
+
+        pkt_in = eth / ip / udp / payload
+        pkt_expected_out = ip / udp / payload
+
+        pkt_outs = self.run_module(gd, 0, [pkt_in], [0])
+        self.assertEquals(len(pkt_outs[0]), 1)
+        self.assertSamePackets(pkt_outs[0][0], pkt_expected_out)
+
+suite = unittest.TestLoader().loadTestsFromTestCase(BessDecapTest)
+results = unittest.TextTestRunner(verbosity=2).run(suite)
+
+if results.failures or results.errors:
+    sys.exit(1)

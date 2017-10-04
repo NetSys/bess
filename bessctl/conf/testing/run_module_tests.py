@@ -1,4 +1,6 @@
-# Copyright (c) 2016-2017, Nefeli Networks, Inc.
+#!/usr/bin/env python
+
+# Copyright (c) 2017, UC Berkeley
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -27,41 +29,57 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
-from test_utils import *
+from __future__ import print_function
+
+import fnmatch
+import glob
+import os
+import shlex
+import subprocess
+import sys
+import unittest
+
+this_dir = os.path.dirname(os.path.realpath(__file__))
+bessctl = os.path.join(this_dir, '../../bessctl')
+test_dir = os.path.join(this_dir, 'module_tests')
 
 
-class BessWorkerSplitTest(BessModuleTestCase):
+class CommandError(subprocess.CalledProcessError):
 
-    def test_worker_split(self):
-        NUM_WORKERS = 2
+    '''Identical to CalledProcessError, except it also shows the output'''
 
-        for i in range(NUM_WORKERS):
-            bess.add_worker(wid=i, core=i)
+    def __str__(self):
+        return '%s\n%s' % (super(CommandError, self).__str__(), self.output)
 
-        for wid in range(NUM_WORKERS):
-            src = Source()
-            ws = WorkerSplit()
-            src -> ws
 
-            for i in range(NUM_WORKERS):
-                ws:i -> Sink()
+def run_cmd(cmd):
+    args = shlex.split(cmd)
+    try:
+        ret = subprocess.check_call(args, stderr=subprocess.STDOUT)
+    except subprocess.CalledProcessError as e:
+        raise CommandError(e.returncode, e.cmd, e.output)
 
-            src.attach_task(wid=wid)
 
-            bess.resume_all()
-            time.sleep(1)
-            bess.pause_all()
+def main():
+    any_failure = 0
 
-            # packets should flow onto only one output gate...
-            ogates = bess.get_module_info(ws.name).ogates
-            for ogate in ogates:
-                if ogate.ogate == wid:
-                    self.assertTrue(ogate.pkts > 0)
-                else:
-                    self.assertTrue(ogate.pkts == 0)
+    try:
+        run_cmd('%s daemon start' % bessctl)
+    except CommandError:
+        raise Exception('bess daemon could not start')
 
-suite = unittest.TestLoader().loadTestsFromTestCase(BessWorkerSplitTest)
-results = unittest.TextTestRunner(verbosity=2).run(suite)
+    for file_name in glob.glob(os.path.join(test_dir, "*.py")):
+        path = os.path.join(test_dir, file_name)
+        print('Running test %s' % file_name)
 
-if results.failures or results.errors:
-    sys.exit(1)
+        try:
+            run_cmd('%s daemon reset -- run file %s' % (bessctl, path))
+        except CommandError:
+            any_failure = 1
+            run_cmd('%s daemon start' % bessctl)
+            pass
+
+    sys.exit(any_failure)
+
+if __name__ == '__main__':
+    main()

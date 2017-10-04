@@ -27,29 +27,31 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
-# Test the packet mangling features with a single rule
-def my_nat_simple_rule_test():
-    def swap_l4(l4):
-        ret = l4.copy()
-        ret.remove_payload()
-        if type(l4) == scapy.ICMP:
-            ret.id = l4.id
-        else:
-            ret.sport = l4.dport
-            ret.dport = l4.sport
-        return ret
+from test_utils import *
 
-    def test_l4(l4_orig, s0, s1, ruleaddr):
+
+class BessNatTest(BessModuleTestCase):
+    # Test the packet mangling features with a single rule
+
+    def _test_l4(self, module, l4_orig, ruleaddr):
+
+        def _swap_l4(l4):
+            ret = l4.copy()
+            if type(l4) == scapy.UDP or type(l4) == scapy.TCP:
+                ret.sport = l4.dport
+                ret.dport = l4.sport
+            return ret
+
         # There are 4 packets in this test:
         # 1. orig, 2. natted, 3. reply, 4. unnatted
         #
         # We're acting as 's0' and 's1' to test 'NAT'
         #
-        # +----+    orig    +-------+   natted    +----+
-        # |    |----------->|       |------------>|    |
-        # | s0 |            |  NAT  |             | s1 |
-        # |    |<-----------|       |<------------|    |
-        # +----+  unnatted  +-------+    reply    +----+
+        # +----+    pkt_orig   +-------+    pkt_natted   +----+
+        # |    |-------------->|       |---------------->|    |
+        # | s0 |               |  NAT  |                 | s1 |
+        # |    |<--------------|       |<----------------|    |
+        # +----+  pkt_unnatted +-------+    pkt_repl     +----+
 
         eth = scapy.Ether(src='02:1e:67:9f:4d:ae', dst='06:16:3e:1b:72:32')
         ip_orig = scapy.IP(src='172.16.0.2', dst='8.8.8.8')
@@ -58,43 +60,50 @@ def my_nat_simple_rule_test():
         ip_unnatted = scapy.IP(src='8.8.8.8', dst='172.16.0.2')
         l7 = 'helloworld'
 
-        orig = eth / ip_orig / l4_orig / l7
+        pkt_orig = eth / ip_orig / l4_orig / l7
 
-        s0.send(bytes(orig))
-        natted_str = s1.recv(2048)
-        natted = scapy.Ether(natted_str)
-        # The NAT module can choose an arbitrary port/id.  We cannot test it,
-        # we have to read from the output.
+        pkt_outs = self.run_module(module, 0, [pkt_orig], [0, 1])
+        self.assertEquals(len(pkt_outs[0]), 1)
+        pkt_natted = pkt_outs[0][0]
+
+        # The NAT module can choose an arbitrary source port/id.
+        # We cannot test it, we have to read from the output.
         l4_natted = l4_orig.copy()
         if type(l4_natted) == scapy.ICMP:
-            l4_natted.id = natted.payload.payload.id
-        else:
-            l4_natted.sport = natted.payload.payload.sport
-        assert bytes(eth / ip_natted / l4_natted / l7) == natted_str
+            l4_natted.id = pkt_natted[scapy.ICMP].id
+        elif type(l4_natted) == scapy.UDP:
+            l4_natted.sport = pkt_natted[scapy.UDP].sport
+        elif type(l4_natted) == scapy.TCP:
+            l4_natted.sport = pkt_natted[scapy.TCP].sport
+        self.assertSamePackets(eth / ip_natted / l4_natted / l7, pkt_natted)
 
-        l4_reply = swap_l4(natted.payload.payload)
-        reply = eth / ip_reply / l4_reply / l7
+        l4_reply = _swap_l4(l4_natted)
+        pkt_reply = eth / ip_reply / l4_reply / l7
 
-        s1.send(bytes(reply))
-        unnatted_str = s0.recv(2048)
-        assert bytes(eth / ip_unnatted / swap_l4(l4_orig) / l7) == unnatted_str
+        pkt_outs = self.run_module(module, 1, [pkt_reply], [0, 1])
+        self.assertEquals(len(pkt_outs[1]), 1)
+        self.assertSamePackets(eth / ip_unnatted / _swap_l4(l4_orig) / l7,
+                               pkt_outs[1][0])
 
-    nat0::NAT(ext_addrs=['192.168.1.1'])
+    def test_nat_udp(self):
+        nat = NAT(ext_addrs=['192.168.1.1'])
+        self._test_l4(nat, scapy.UDP(sport=56797, dport=53), '192.168.1.1')
 
-    port0, s0 = gen_socket_and_port("NATcustom0_" + SCRIPT_STARTTIME)
-    port1, s1 = gen_socket_and_port("NATcustom1_" + SCRIPT_STARTTIME)
+    def test_nat_udp_with_cksum(self):
+        nat = NAT(ext_addrs=['192.168.1.1'])
+        self._test_l4(
+            nat, scapy.UDP(sport=56797, dport=53, chksum=0), '192.168.1.1')
 
-    PortInc(port=port0.name) -> 0:nat0:0 -> PortOut(port=port1.name)
-    PortInc(port=port1.name) -> 1:nat0:1 -> PortOut(port=port0.name)
+    def test_nat_tcp(self):
+        nat = NAT(ext_addrs=['192.168.1.1'])
+        self._test_l4(nat, scapy.TCP(sport=52428, dport=80), '192.168.1.1')
 
-    bess.resume_all()
+    def test_nat_icmp(self):
+        nat = NAT(ext_addrs=['192.168.1.1'])
+        self._test_l4(nat, scapy.ICMP(), '192.168.1.1')
 
-    test_l4(scapy.UDP(sport=56797, dport=53), s0, s1, '192.168.1.1')
-    test_l4(scapy.UDP(sport=56797, dport=53, chksum=0), s0, s1, '192.168.1.1')
-    test_l4(scapy.TCP(sport=52428, dport=80), s0, s1, '192.168.1.1')
-    test_l4(scapy.ICMP(), s0, s1, '192.168.1.1')
+suite = unittest.TestLoader().loadTestsFromTestCase(BessNatTest)
+results = unittest.TextTestRunner(verbosity=2).run(suite)
 
-    bess.pause_all()
-
-
-CUSTOM_TEST_FUNCTIONS.append(my_nat_simple_rule_test)
+if results.failures or results.errors:
+    sys.exit(1)

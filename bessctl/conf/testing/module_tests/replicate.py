@@ -27,33 +27,40 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
-## CRASH TESTS ##
-rep4 = Replicate(gates=[0,1,2,3])
-CRASH_TEST_INPUTS.append([rep4, 1, 4])
-
-rep10 = Replicate(gates=[0,1,2,3,4,5,6,7,8,9])
-CRASH_TEST_INPUTS.append([rep10, 1, 10])
-
-rep1 = Replicate(gates=[0])
-CRASH_TEST_INPUTS.append([rep1, 1, 1])
-
-## OUTPUT TESTS ##
-rep3 = Replicate(gates=[0,1,2])
-test_packet = gen_packet(scapy.TCP, '22.22.22.22', '22.22.22.22')
-OUTPUT_TEST_INPUTS.append([rep3,  # test this module
-                           1, 3,
-                           [{'input_port': 0,
-                               'input_packet': test_packet,
-                                'output_port': 0,
-                                'output_packet': test_packet},
-                             {'input_port': 0,
-                               'input_packet': None,
-                                'output_port': 1,
-                                'output_packet': test_packet},
-                            {'input_port': 0,
-                               'input_packet': None,
-                                'output_port': 2,
-                                'output_packet': test_packet}
-                                ]])  # I expect test_packet to come out on all ports
+from test_utils import *
 
 
+class BessReplicateTest(BessModuleTestCase):
+
+    def test_run_replicate4(self):
+        rep4 = Replicate(gates=[0, 1, 2, 3])
+        self.run_for(rep4, [0], 3)
+
+    def test_run_replicate10(self):
+        rep10 = Replicate(gates=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
+        self.run_for(rep10, [0], 3)
+
+    def test_run_replicate1(self):
+        rep1 = Replicate(gates=[0])
+        self.run_for(rep1, [0], 3)
+
+    def test_replicate(self):
+        rep3 = Replicate(gates=[0, 1, 2])
+        pkt_in = get_tcp_packet(sip='22.22.22.22', dip='22.22.22.22')
+
+        pkt_outs = self.run_module(rep3, 0, [pkt_in], [0, 1, 2])
+
+        self.assertEquals(len(pkt_outs[0]), 1)
+        self.assertSamePackets(pkt_outs[0][0], pkt_in)
+
+        self.assertEquals(len(pkt_outs[1]), 1)
+        self.assertSamePackets(pkt_outs[1][0], pkt_in)
+
+        self.assertEquals(len(pkt_outs[2]), 1)
+        self.assertSamePackets(pkt_outs[2][0], pkt_in)
+
+suite = unittest.TestLoader().loadTestsFromTestCase(BessReplicateTest)
+results = unittest.TextTestRunner(verbosity=2).run(suite)
+
+if results.failures or results.errors:
+    sys.exit(1)

@@ -27,63 +27,80 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
-# CRASH TEST ##
+from test_utils import *
 
 filters = [
-        "tcp src port 92",
+    "tcp src port 92",
         "len <= 1000",
         "ether proto 0x800",
         "ip proto 47 or ip6 proto 47",
         "ip host 22.22.22.22"
-        ]
+]
 
-filter0 = {"priority": 0, "filter": filters[0], "gate": 1}
-bpf0::BPF()
-bpf0.add(filters=[filter0])
-CRASH_TEST_INPUTS.append([bpf0, 1, 2])
 
-bpf1::BPF()
-for i, exp in enumerate(filters):
-    bpf1.add(filters=[{"priority": i, "filter": exp, "gate": i}])
+class BessBpfTest(BessModuleTestCase):
 
-CRASH_TEST_INPUTS.append([bpf1, 1, len(filters)])
+    def test_run_bpf_simple(self):
+        bpf = BPF()
+        filter0 = {"priority": 0, "filter": filters[0], "gate": 1}
+        bpf.add(filters=[filter0])
+        self.run_for(bpf, [0], 3)
+        self.assertBessAlive()
 
-# OUTPUT TEST ##
+    def test_run_bpf_complex(self):
+        bpf = BPF()
+        for i, exp in enumerate(filters):
+            bpf.add(filters=[{"priority": i, "filter": exp, "gate": i}])
+        self.run_for(bpf, [0], 3)
+        self.assertBessAlive()
 
-# Test basic output/steering with single rule
-bpf2::BPF()
-bpf2.add(filters=[filter0])
-packet1 = gen_packet(scapy.UDP, '12.34.56.78', '12.34.56.78')
-packet2 = gen_packet(scapy.TCP, '12.34.56.78', '12.34.56.78', srcport=92)
+    # Test basic output/steering with single rule
+    def test_bpf_single_rule(self):
+        bpf = BPF()
+        filter0 = {"priority": 0, "filter": filters[0], "gate": 1}
+        bpf.add(filters=[filter0])
 
-OUTPUT_TEST_INPUTS.append([bpf2, 1, 2,
-    [{'input_port': 0,
-        'input_packet': packet1,
-        'output_port': 0,
-        'output_packet': packet1},
-     {'input_port': 0,
-         'input_packet': packet2,
-         'output_port': 1,
-         'output_packet': packet2}]])
+        pkt1 = get_udp_packet(sip='12.34.56.78', dip='12.34.56.78')
+        pkt2 = get_tcp_packet(sip='12.34.56.78', dip='12.34.56.78',
+                              sport=92)
 
-# Test multiple rules with priorities
-bpf3::BPF()
-bpf3.add(filters=[{"priority": 2, "filter": filters[0], "gate": 1}])
-bpf3.add(filters=[{"priority": 1, "filter": filters[4], "gate": 2}])
-packet1 = gen_packet(scapy.UDP, '22.22.22.22', '12.34.56.78', srcport=700)
-packet2 = gen_packet(scapy.TCP, '12.34.56.78', '22.22.22.22', srcport=92)
-packet3 = gen_packet(scapy.TCP, '12.34.56.78', '12.34.56.78', srcport=700)
+        pkt_outs = self.run_module(bpf, 0, [pkt1], [0])
+        self.assertEquals(len(pkt_outs[0]), 1)
+        self.assertSamePackets(pkt_outs[0][0], pkt1)
 
-OUTPUT_TEST_INPUTS.append([bpf3, 1, 3,
-    [{'input_port': 0,
-        'input_packet': packet1,
-        'output_port': 2,
-        'output_packet': packet1},
-     {'input_port': 0,
-         'input_packet': packet2,
-         'output_port': 1,
-         'output_packet': packet2},
-     {'input_port': 0,
-         'input_packet': packet3,
-         'output_port': 0,
-         'output_packet': packet3}]])
+        pkt_outs = self.run_module(bpf, 0, [pkt2], [1])
+        self.assertEquals(len(pkt_outs[1]), 1)
+        self.assertSamePackets(pkt_outs[1][0], pkt2)
+
+    # Test multiple rules with priorities
+    def test_bpf_multiple_rules(self):
+        bpf = BPF()
+        bpf.add(filters=[{"priority": 2, "filter": filters[0], "gate": 1}])
+        bpf.add(filters=[{"priority": 1, "filter": filters[4], "gate": 2}])
+
+        pkt1 = get_udp_packet(sip='22.22.22.22', dip='12.34.56.78',
+                              sport=700)
+
+        pkt2 = get_tcp_packet(sip='12.34.56.78', dip='22.22.22.22',
+                              sport=92)
+
+        pkt3 = get_tcp_packet(sip='12.34.56.78', dip='12.34.56.78',
+                              sport=700)
+
+        pkt_outs = self.run_module(bpf, 0, [pkt3], [0])
+        self.assertEquals(len(pkt_outs[0]), 1)
+        self.assertSamePackets(pkt_outs[0][0], pkt3)
+
+        pkt_outs = self.run_module(bpf, 0, [pkt2], [1])
+        self.assertEquals(len(pkt_outs[1]), 1)
+        self.assertSamePackets(pkt_outs[1][0], pkt2)
+
+        pkt_outs = self.run_module(bpf, 0, [pkt1], [2])
+        self.assertEquals(len(pkt_outs[2]), 1)
+        self.assertSamePackets(pkt_outs[2][0], pkt1)
+
+suite = unittest.TestLoader().loadTestsFromTestCase(BessBpfTest)
+results = unittest.TextTestRunner(verbosity=2).run(suite)
+
+if results.failures or results.errors:
+    sys.exit(1)
