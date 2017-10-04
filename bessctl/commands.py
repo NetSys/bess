@@ -517,7 +517,7 @@ def bind_var(cli, var_type, line):
     elif var_type == 'name+':
         val = sorted(list(set(head.split())))  # collect unique items
         for name in val:
-            if re.match(r'^[_a-zA-Z][\w]*$', name) is None:
+            if re.match(r'^(!)?[_a-zA-Z][\w]*$', name) is None:
                 raise cli.BindError('"name" must be [_a-zA-Z][_a-zA-Z0-9]*')
 
     elif var_type == 'confname':
