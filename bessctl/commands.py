@@ -317,7 +317,7 @@ def get_var_attrs(cli, var_token, partial_word):
                 pass
 
         elif var_token == 'TC...':
-            var_type = 'name+'
+            var_type = 'tcname+'
             var_desc = 'one or more traffic class names'
             try:
                 var_candidates = [getattr(c, 'class').name
@@ -439,7 +439,7 @@ def split_var(cli, var_type, line):
             head = line[:pos]
             tail = line[pos:]
 
-    elif var_type in ['wid+', 'name+', 'map', 'pyobj', 'opts']:
+    elif var_type in ['wid+', 'name+', 'tcname+', 'map', 'pyobj', 'opts']:
         head = line
         tail = ''
 
@@ -514,10 +514,11 @@ def bind_var(cli, var_type, line):
         else:
             raise cli.BindError('"socket" must be a positive number')
 
-    elif var_type == 'name+':
+    elif var_type in ('name+', 'tcname+'):
+        regexp = r'^[_a-zA-Z][\w]*$' if var_type == 'name+' else r'^!?[_a-zA-Z][\w:]*$'
         val = sorted(list(set(head.split())))  # collect unique items
         for name in val:
-            if re.match(r'^(!)?[_a-zA-Z][\w]*$', name) is None:
+            if re.match(regexp, name) is None:
                 raise cli.BindError('"name" must be [_a-zA-Z][_a-zA-Z0-9]*')
 
     elif var_type == 'confname':
