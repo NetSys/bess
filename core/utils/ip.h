@@ -99,7 +99,12 @@ struct Ipv4Prefix {
 
   // Returns the prefix length
   uint32_t prefix_length() const {
-    return ((32 - __builtin_clz(mask.raw_value())));
+    uint32_t mask_val = mask.value();
+    if (mask_val == 0) {
+      return 0;
+    } else {
+      return 32 - __builtin_ctz(mask_val);
+    }
   }
 
   be32_t addr;
