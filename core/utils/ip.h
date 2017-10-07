@@ -96,8 +96,16 @@ struct Ipv4Prefix {
 
   // Returns true if ip is within the range of Ipv4Prefix
   bool Match(const be32_t &ip) const { return (addr & mask) == (ip & mask); }
+
   // Returns the prefix length
-  uint32_t prefix_length() const { return ((32 - __builtin_clz(mask.raw_value()))); }
+  uint32_t prefix_length() const {
+    uint32_t mask_val = mask.value();
+    if (mask_val == 0) {
+      return 0;
+    } else {
+      return 32 - __builtin_ctz(mask_val);
+    }
+  }
 
   be32_t addr;
   be32_t mask;
