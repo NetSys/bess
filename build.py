@@ -51,7 +51,10 @@ DPDK_TAG = 'v17.05'
 
 DPDK_VER = 'dpdk-17.05'
 
-arch = subprocess.check_output('uname -m', shell=True).strip()
+# In some 32-bit container images "uname -m" incorrectly(?) reports "x86_64".
+# To work around this issue, we use "gcc -dumpmachine" to detect target architecture.
+# The output looks like "i686-linux-gnu".
+arch = subprocess.check_output(['gcc', '-dumpmachine']).split('-')[0]
 if arch == 'x86_64':
     DPDK_TARGET = 'x86_64-native-linuxapp-gcc'
 elif arch == 'i686':
@@ -59,7 +62,7 @@ elif arch == 'i686':
 else:
     assert False, 'Unsupported arch %s' % arch
 
-kernel_release = subprocess.check_output('uname -r', shell=True).strip()
+kernel_release = subprocess.check_output(['uname', '-r']).strip()
 
 DPDK_DIR = '%s/%s' % (DEPS_DIR, DPDK_VER)
 DPDK_CFLAGS = '"-g -w -fPIC"'
