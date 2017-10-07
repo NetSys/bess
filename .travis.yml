@@ -43,7 +43,8 @@ install:
   - "[[ ${DEBUG:-0} == 0 ]] || sudo apt-get install -y g++-5"  # install gcov-5
   - "[[ ${SANITIZE:-0} == 0 ]] || sudo apt-get install -y llvm-3.8"
   - "[[ $TAG_SUFFIX != _32 ]] || sudo apt-get install -y lib32gcc1"
-  - ln -s /build/dpdk-17.05 deps
+  # HOTFIX: do not use prebuilt DPDK binary, in case Travis VM runs on an old processor
+  # - ln -s /build/dpdk-17.05 deps
   - "docker pull nefelinetworks/bess_build:latest${TAG_SUFFIX} | cat"  # cat suppresses progress bars
 
 before_script:
