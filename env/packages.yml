@@ -1,7 +1,16 @@
 - hosts: all
   tags: package
   tasks:
-    - apt_repository: repo='ppa:ubuntu-toolchain-r/test' state=present
+    - apt_repository: repo='ppa:ubuntu-toolchain-r/test/ubuntu'
+      become: true
+
+    - apt_key: url='http://apt.llvm.org/llvm-snapshot.gpg.key'
+      become: true
+
+    - apt_repository: repo='deb http://apt.llvm.org/{{ ansible_distribution_release }}/ llvm-toolchain-{{ ansible_distribution_release }}-4.0 main'
+      become: true
+
+    - apt_repository: repo='deb http://apt.llvm.org/{{ ansible_distribution_release }}/ llvm-toolchain-{{ ansible_distribution_release }}-5.0 main'
       become: true
 
     - name: Install list of packages (this step may take a long time)
@@ -15,7 +24,7 @@
         - g++-6
         - g++-7
         - clang-3.8
-        - clang-3.9
+        - clang-4.0
         - autoconf
         - automake
         - libtool
@@ -44,6 +53,13 @@
         - linux-headers-generic
         - lcov
         - python-autopep8
+
+    # The server doesn't seem to have 32-bit binaries for clang-5.0 package.
+    # Remove "when" once it's fixed.
+    - name: Install clang-5.0 on x86_64
+      apt: name=clang-5.0
+      become: true
+      when: ansible_machine != 'i386'
 
     - name: Set default gcc and g++ version
       alternatives: name={{item}} link=/usr/bin/{{item}} path=/usr/bin/{{item}}-5

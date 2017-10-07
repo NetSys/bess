@@ -41,7 +41,7 @@ TARGET_REPO = 'nefelinetworks/bess_build'
 
 imgs = {'trusty64': {'arch': 'x86_64', 'base': 'ubuntu:trusty',
                      'tag_suffix': ''},
-        'trusty32': {'arch': 'i386', 'base': 'ioft/i386-ubuntu:trusty',
+        'trusty32': {'arch': 'i386', 'base': 'i386/ubuntu:trusty',
                      'tag_suffix': '_32'}, }
 
 
