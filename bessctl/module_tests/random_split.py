@@ -30,17 +30,17 @@
 from test_utils import *
 
 
-class BessRandomDropTest(BessModuleTestCase):
+class BessRandomSplitTest(BessModuleTestCase):
 
     def test_dropall(self):
-        drop0 = RandomDrop(drop_rate=0)
+        drop0 = RandomSplit(drop_rate=0, gates=[0])
         pkt_in = get_udp_packet()
         pkt_outs = self.run_module(drop0, 0, [pkt_in], [0])
         self.assertEquals(len(pkt_outs[0]), 1)
         self.assertSamePackets(pkt_outs[0][0], pkt_in)
 
     def test_dropnone(self):
-        drop0 = RandomDrop(drop_rate=1)
+        drop0 = RandomSplit(drop_rate=1, gates=[0])
         pkt_in = get_udp_packet()
         pkt_outs = self.run_module(drop0, 0, [pkt_in], [0])
         self.assertEquals(len(pkt_outs[0]), 0)
@@ -60,7 +60,7 @@ class BessRandomDropTest(BessModuleTestCase):
         Source() -> \
             ma -> \
             Rewrite(templates=pktftm) -> \
-            RandomDrop(drop_rate=rate) -> \
+            RandomSplit(drop_rate=rate, gates=[0]) -> \
             mb -> \
             Sink()
 
@@ -84,7 +84,7 @@ class BessRandomDropTest(BessModuleTestCase):
     def test_droprate_4(self):
         self._drop_with_rate(0.9)
 
-suite = unittest.TestLoader().loadTestsFromTestCase(BessRandomDropTest)
+suite = unittest.TestLoader().loadTestsFromTestCase(BessRandomSplitTest)
 results = unittest.TextTestRunner(verbosity=2).run(suite)
 
 if results.failures or results.errors:

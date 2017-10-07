@@ -742,13 +742,30 @@ message QueueArg {
 }
 
 /**
- * The RandomDrop module randomly drops packets with a pre-defined probability.
+ * The RandomSplit module randomly split/drop packets
  *
  * __InputGates__: 1
- * __Output_Gates__: 1
+ * __Output Gates__: many (configurable)
  */
-message RandomDropArg {
-  double drop_rate = 1; // Probability of dropping packet.
+message RandomSplitArg {
+  double drop_rate = 1; /// Probability of dropping packet.
+  repeated int64 gates = 2; /// A list of gate numbers to split the traffic.
+}
+
+/**
+ * The RandomSplit module has a function `set_droprate(...)` which specifies
+ * the probability of dropping packets
+ */
+message RandomSplitCommandSetDroprateArg {
+  double drop_rate = 1; /// Probability of dropping packet.
+}
+
+/**
+ * The RandomSplit module has a function `set_gates(...)` which changes
+ * the total number of output gates in the module.
+ */
+message RandomSplitCommandSetGatesArg {
+  repeated int64 gates = 1; /// A list of gate numbers to split the traffic.
 }
 
 /**
