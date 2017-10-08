@@ -506,7 +506,7 @@ class BESSControlImpl final : public BESSControl::Service {
       attach_orphans();
     }
 
-    run_global_resume_hooks();
+    bess::run_global_resume_hooks();
 
     LOG(INFO) << "*** Resuming ***";
     resume_all_workers();
@@ -1124,10 +1124,7 @@ class BESSControlImpl final : public BESSControl::Service {
         ModuleGraph::CreateModule(builder, mod_name, request->arg(), error);
     if (module) {
       response->set_name(module->name());
-
-      if (module->OnEvent(bess::Event::PreResume) != ENOTSUP) {
-        bess::event_modules.insert(module);
-      }
+      bess::event_modules[bess::Event::PreResume].insert(module);
     }
 
     return Status::OK;
@@ -1153,9 +1150,9 @@ class BESSControlImpl final : public BESSControl::Service {
 
     ModuleGraph::DestroyModule(m);
 
-    auto event_it = bess::event_modules.find(m);
-    if (event_it != bess::event_modules.end()) {
-      bess::event_modules.erase(event_it);
+    auto& resume_modules = bess::event_modules[bess::Event::PreResume];
+    if (resume_modules.erase(m) > 0) {
+      VLOG(1) << "Cleared pre-resume hook for module '" << m->name() << "'";
     }
 
     return Status::OK;

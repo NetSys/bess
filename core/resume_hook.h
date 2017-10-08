@@ -66,7 +66,7 @@ class ResumeHook {
 
   virtual void Run() = 0;
 
-  bool operator<(const ResumeHook &rhs) {
+  bool operator<(const ResumeHook &rhs) const {
     return priority_ < rhs.priority_ && name_ < rhs.name_;
   }
 
@@ -92,7 +92,7 @@ class ResumeHookFactory {
   const std::string &hook_name() const { return hook_name_; }
 
   static std::map<std::string, ResumeHookFactory>
-      &all_resume_hook_factories_holder(bool reset = false);
+      &all_resume_hook_factories_holder();
 
   static const std::map<std::string, ResumeHookFactory>
       &all_resume_hook_factories();
@@ -113,7 +113,8 @@ class ResumeHookFactory {
 };
 
 extern std::set<std::unique_ptr<ResumeHook>> global_resume_hooks;
-extern std::set<Module *> event_modules;
+
+void run_global_resume_hooks(bool run_modules = true);
 
 }  // namespace bess
 

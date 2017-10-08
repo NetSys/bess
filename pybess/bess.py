@@ -502,7 +502,7 @@ class BESS(object):
         request.arg.Pack(arg)
         return self._request('ConfigureGateHook', request)
 
-    def _configure_resume_hook(self, hook, arg, enable=None):
+    def configure_resume_hook(self, hook, arg, enable=True):
         if enable is None:
             enable = True
         request = bess_msg.ConfigureResumeHookRequest()

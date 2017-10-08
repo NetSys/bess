@@ -118,7 +118,7 @@ void PortOut::ProcessBatch(bess::PacketBatch *batch) {
 
 int PortOut::OnEvent(bess::Event e) {
   if (e != bess::Event::PreResume) {
-    return ENOTSUP;
+    return -ENOTSUP;
   }
 
   const std::vector<bool> &actives = active_workers();

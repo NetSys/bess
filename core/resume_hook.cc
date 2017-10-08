@@ -38,17 +38,12 @@
 namespace bess {
 
 std::set<std::unique_ptr<ResumeHook>> global_resume_hooks;
-std::set<Module *> event_modules;
 
 std::map<std::string, ResumeHookFactory>
-    &ResumeHookFactory::all_resume_hook_factories_holder(bool reset) {
+    &ResumeHookFactory::all_resume_hook_factories_holder() {
   // Maps from hook names to hook factories. Tracks all hooks (via their
   // ResumeHookFactorys).
   static std::map<std::string, ResumeHookFactory> all_resume_hook_factories;
-
-  if (reset) {
-    all_resume_hook_factories.clear();
-  }
 
   return all_resume_hook_factories;
 }
@@ -65,6 +60,25 @@ bool ResumeHookFactory::RegisterResumeHook(
       .emplace(std::piecewise_construct, std::forward_as_tuple(hook_name),
                std::forward_as_tuple(constructor, init_func, hook_name))
       .second;
+}
+
+void run_global_resume_hooks(bool run_modules) {
+  auto &hooks = global_resume_hooks;
+
+  for (auto &hook : hooks) {
+    VLOG(1) << "Running global resume hook '" << hook->name() << "'";
+    hook->Run();
+  }
+
+  if (run_modules) {
+    auto &resume_modules = event_modules[Event::PreResume];
+    for (Module *m : resume_modules) {
+      int ret = m->OnEvent(Event::PreResume);
+      if (ret == -ENOTSUP) {
+        resume_modules.erase(m);
+      }
+    }
+  }
 }
 
 }  // namespace bess
