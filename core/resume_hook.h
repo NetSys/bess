@@ -38,6 +38,7 @@
 #include <utility>
 
 #include "message.h"
+#include "module.h"
 #include "utils/format.h"
 
 namespace bess {
@@ -112,6 +113,7 @@ class ResumeHookFactory {
 };
 
 extern std::set<std::unique_ptr<ResumeHook>> global_resume_hooks;
+extern std::set<Module *> event_modules;
 
 }  // namespace bess
 

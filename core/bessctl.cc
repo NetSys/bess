@@ -1068,6 +1068,7 @@ class BESSControlImpl final : public BESSControl::Service {
     WorkerPauser wp;
 
     ModuleGraph::DestroyAllModules();
+    bess::event_modules.clear();
     LOG(INFO) << "*** All modules have been destroyed ***";
     return Status::OK;
   }
@@ -1125,6 +1126,10 @@ class BESSControlImpl final : public BESSControl::Service {
       response->set_name(module->name());
     }
 
+    if (module->OnEvent(bess::Event::PreResume) != ENOTSUP) {
+      bess::event_modules.insert(module);
+    }
+
     return Status::OK;
   }
 
@@ -1147,6 +1152,11 @@ class BESSControlImpl final : public BESSControl::Service {
     m = it->second;
 
     ModuleGraph::DestroyModule(m);
+
+    auto event_it = bess::event_modules.find(m);
+    if (event_it != bess::event_modules.end()) {
+      bess::event_modules.erase(event_it);
+    }
 
     return Status::OK;
   }

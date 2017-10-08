@@ -28,43 +28,26 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-#include "resume_hook.h"
-
-#include <map>
-#include <set>
-#include <string>
-#include <utility>
+#ifndef BESS_EVENT_H_
+#define BESS_EVENT_H_
 
 namespace bess {
 
-std::set<std::unique_ptr<ResumeHook>> global_resume_hooks;
-std::set<Module *> event_modules;
-
-std::map<std::string, ResumeHookFactory>
-    &ResumeHookFactory::all_resume_hook_factories_holder(bool reset) {
-  // Maps from hook names to hook factories. Tracks all hooks (via their
-  // ResumeHookFactorys).
-  static std::map<std::string, ResumeHookFactory> all_resume_hook_factories;
-
-  if (reset) {
-    all_resume_hook_factories.clear();
-  }
-
-  return all_resume_hook_factories;
-}
-
-const std::map<std::string, ResumeHookFactory>
-    &ResumeHookFactory::all_resume_hook_factories() {
-  return all_resume_hook_factories_holder();
-}
-
-bool ResumeHookFactory::RegisterResumeHook(
-    ResumeHook::constructor_t constructor, ResumeHook::init_func_t init_func,
-    const std::string &hook_name) {
-  return all_resume_hook_factories_holder()
-      .emplace(std::piecewise_construct, std::forward_as_tuple(hook_name),
-               std::forward_as_tuple(constructor, init_func, hook_name))
-      .second;
-}
+/*
+ * An Event is a lightweight notification of some activity in the BESS core.
+ * Currently these are only "sent" to Modules via `Module::OnEvent()`, but they
+ * could easily be extended to other entities in the system. See below for a
+ * description of
+ *
+ * PreResume
+ * ---------
+ * Modules will receive the PreResume event immediately before a call to
+ * `resume_worker()` or `resume_all_workers()`. If a Module is attached to
+ * multiple workers which are being resumed at the same time (e.g., via
+ * WorkerPauser) it will recieve PreResume exactly once.
+ */
+enum class Event { PreResume };
 
 }  // namespace bess
+
+#endif  // BESS_EVENT_H_

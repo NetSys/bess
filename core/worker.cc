@@ -419,6 +419,10 @@ void run_global_resume_hooks() {
     VLOG(1) << "Running global resume hook '" << hook->name() << "'";
     hook->Run();
   }
+
+  for (Module *m : bess::event_modules) {
+    m->OnEvent(bess::Event::PreResume);
+  }
 }
 
 WorkerPauser::WorkerPauser() {
@@ -438,7 +442,14 @@ WorkerPauser::~WorkerPauser() {
     run_global_resume_hooks();
   }
 
+  std::set<Module *> modules_run;
   for (int wid : workers_paused_) {
+    for (Module *m : bess::event_modules) {
+      if (!modules_run.count(m) && m->active_workers()[wid]) {
+        m->OnEvent(bess::Event::PreResume);
+        modules_run.insert(m);
+      }
+    }
     resume_worker(wid);
     VLOG(1) << "*** Worker " << wid << " Resumed ***";
   }

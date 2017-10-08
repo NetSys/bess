@@ -39,6 +39,7 @@
 #include <utility>
 #include <vector>
 
+#include "event.h"
 #include "gate.h"
 #include "message.h"
 #include "metadata.h"
@@ -213,6 +214,14 @@ class alignas(64) Module {
 
   virtual struct task_result RunTask(void *arg);
   virtual void ProcessBatch(bess::PacketBatch *batch);
+
+  /*
+   * If a derived Module overrides OnEvent and returns ENOTSUP for a particular
+   * Event `e` it will be invoked for each instance of the derived Module
+   * whenever `e` occours. See `event.h` for details about the various event
+   * types and their semantics/requirements when it comes to modules.
+   */
+  virtual int OnEvent(bess::Event) { return ENOTSUP; }
 
   virtual std::string GetDesc() const { return ""; }
 
