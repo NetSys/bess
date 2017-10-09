@@ -53,15 +53,16 @@ CommandResponse RandomSplit::Init(const bess::pb::RandomSplitArg &arg) {
   if (arg.gates_size() > MAX_SPLIT_GATES) {
     return CommandFailure(EINVAL, "no more than %d gates", MAX_SPLIT_GATES);
   }
-  ngates_ = arg.gates_size();
 
   for (int i = 0; i < arg.gates_size(); i++) {
-    int elem = arg.gates(i);
-    gates_[i] = elem;
-
-    if (!is_valid_gate(gates_[i])) {
+    if (!is_valid_gate(arg.gates(i))) {
       return CommandFailure(EINVAL, "Invalid gate %d", gates_[i]);
     }
+  }
+
+  ngates_ = arg.gates_size();
+  for (int i = 0; i < ngates_; i++) {
+    gates_[i] = arg.gates(i);
   }
 
   return CommandSuccess();
@@ -85,14 +86,15 @@ CommandResponse RandomSplit::CommandSetGates(
   }
 
   for (int i = 0; i < arg.gates_size(); i++) {
-    int elem = arg.gates(i);
-    gates_[i] = elem;
-
-    if (!is_valid_gate(gates_[i])) {
+    if (!is_valid_gate(arg.gates(i))) {
       return CommandFailure(EINVAL, "Invalid gate %d", gates_[i]);
     }
   }
+
   ngates_ = arg.gates_size();
+  for (int i = 0; i < ngates_; i++) {
+    gates_[i] = arg.gates(i);
+  }
 
   return CommandSuccess();
 }
