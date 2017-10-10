@@ -52,33 +52,6 @@ using bess::gate_idx_t;
 #define MAX_TASKS_PER_MODULE 32
 #define UNCONSTRAINED_SOCKET ((0x1ull << MAX_NUMA_NODE) - 1)
 
-// Represents a node in `module_graph_`.
-class Node {
- public:
-  // Creates a new Node that represents `module_`.
-  Node(Module *module) : module_(module), children_() {}
-
-  // Add a child to the node.
-  bool AddChild(const std::string &child) {
-    return children_.insert(child).second;
-  }
-
-  // Remove a child from the node.
-  void RemoveChild(const std::string &child) { children_.erase(child); }
-
-  const Module *module() const { return module_; }
-  const std::unordered_set<std::string> &children() const { return children_; }
-
- private:
-  // Module that this Node represents.
-  Module *module_;
-
-  // Children of `module_` in the pipeline.
-  std::unordered_set<std::string> children_;
-
-  DISALLOW_COPY_AND_ASSIGN(Node);
-};
-
 struct task_result {
   bool block;
   uint32_t packets;
@@ -199,51 +172,6 @@ class ModuleBuilder {
   const std::string help_text_;
   const Commands cmds_;
   const module_init_func_t init_func_;
-};
-
-// A static class for managing module graphs
-class ModuleGraph {
- public:
-  // Return true if any module from the builder exists
-  static bool ExistModuleClass(const ModuleBuilder *);
-
-  // Add a module to the collection. Returns true on success, false otherwise.
-  static bool AddModule(Module *m);
-
-  // Remove a module from the collection. Returns 0 on success, -errno
-  // otherwise.
-  static int DestroyModule(Module *m, bool erase = true);
-  static void DestroyAllModules();
-
-  static const std::map<std::string, Module *> &all_modules();
-
-  static std::string GenerateDefaultName(const std::string &class_name,
-                                         const std::string &default_template);
-
-  // Connects two modules (`to` and `from`) together in `module_graph_`.
-  static bool AddEdge(const std::string &from, const std::string &to);
-
-  // Disconnects two modules (`to` and `from`) together in `module_graph_`.
-  static bool RemoveEdge(const std::string &from, const std::string &to);
-
- private:
-  // Updates the parents of modules with tasks by traversing `module_graph_` and
-  // ignoring all modules that are not tasks.
-  static bool UpdateTaskGraph();
-
-  // Finds the next module that implements a task, and updates it's parents
-  // accordingly.
-  static bool FindNextTask(const std::string &node_name,
-                           const std::string &parent_name,
-                           std::unordered_set<std::string> *visited);
-
-  // A graph of all the modules in the current pipeline.
-  static std::unordered_map<std::string, Node> module_graph_;
-
-  // All modules that are tasks in the current pipeline.
-  static std::unordered_set<std::string> tasks_;
-
-  static std::map<std::string, Module *> all_modules_;
 };
 
 class ModuleTask;

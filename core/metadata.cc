@@ -38,6 +38,7 @@
 
 #include "mem_alloc.h"
 #include "module.h"
+#include "module_graph.h"
 
 namespace bess {
 namespace metadata {
@@ -65,7 +66,7 @@ static mt_offset_t ComputeNextOffset(mt_offset_t curr_offset, int8_t size) {
 
 // Generate warnings for modules that read metadata that never gets set.
 static void CheckOrphanReaders() {
-  for (const auto &it : ModuleGraph::all_modules()) {
+  for (const auto &it : ModuleGraph::GetAllModules()) {
     const Module *m = it.second;
     if (!m) {
       break;
@@ -123,7 +124,7 @@ bool ScopeComponent::DisjointFrom(const ScopeComponent &rhs) {
 // Pipeline ----------------------------------------------------------------
 
 int Pipeline::PrepareMetadataComputation() {
-  for (const auto &it : ModuleGraph::all_modules()) {
+  for (const auto &it : ModuleGraph::GetAllModules()) {
     Module *m = it.second;
     if (!m) {
       break;
@@ -412,7 +413,7 @@ void Pipeline::LogAllScopes() const {
     VLOG(1) << "}";
   }
 
-  for (const auto &it : ModuleGraph::all_modules()) {
+  for (const auto &it : ModuleGraph::GetAllModules()) {
     const Module *m = it.second;
     if (!m) {
       break;
@@ -452,7 +453,7 @@ int Pipeline::ComputeMetadataOffsets() {
     return ret;
   }
 
-  for (const auto &it : ModuleGraph::all_modules()) {
+  for (const auto &it : ModuleGraph::GetAllModules()) {
     Module *m = it.second;
     if (!m) {
       break;

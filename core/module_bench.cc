@@ -28,6 +28,7 @@
 // POSSIBILITY OF SUCH DAMAGE.
 
 #include "module.h"
+#include "module_graph.h"
 
 #include <benchmark/benchmark.h>
 #include <glog/logging.h>

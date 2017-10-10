@@ -36,6 +36,7 @@
 #include <vector>
 
 #include "module.h"
+#include "module_graph.h"
 
 namespace {
 

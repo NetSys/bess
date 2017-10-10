@@ -28,6 +28,7 @@
 // POSSIBILITY OF SUCH DAMAGE.
 
 #include "module.h"
+#include "module_graph.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -100,7 +101,7 @@ int create_acme(const char *name, Module **m) {
 
   std::string mod_name;
   if (name) {
-    if (ModuleGraph::all_modules().count(name)) {
+    if (ModuleGraph::GetAllModules().count(name)) {
       return EEXIST;
     }
     mod_name = name;
@@ -133,7 +134,7 @@ int create_acme_with_task(const char *name, Module **m) {
   const ModuleBuilder &builder =
       ModuleBuilder::all_module_builders().find("AcmeModuleWithTask")->second;
 
-  if (ModuleGraph::all_modules().count(name)) {
+  if (ModuleGraph::GetAllModules().count(name)) {
     return EEXIST;
   }
 
@@ -197,9 +198,9 @@ TEST_F(ModuleTester, CreateModuleWithName) {
 
   EXPECT_EQ(0, create_acme("bar", &m1));
   ASSERT_NE(nullptr, m1);
-  EXPECT_EQ(1, ModuleGraph::all_modules().size());
+  EXPECT_EQ(1, ModuleGraph::GetAllModules().size());
   EXPECT_EQ(EEXIST, create_acme("bar", &m2));
-  EXPECT_EQ(1, ModuleGraph::all_modules().count("bar"));
+  EXPECT_EQ(1, ModuleGraph::GetAllModules().count("bar"));
 }
 
 // Check that module builders create modules with generated names
@@ -208,12 +209,12 @@ TEST_F(ModuleTester, CreateModuleGenerateName) {
 
   EXPECT_EQ(0, create_acme(nullptr, &m));
   ASSERT_NE(nullptr, m);
-  EXPECT_EQ(1, ModuleGraph::all_modules().size());
-  EXPECT_EQ(1, ModuleGraph::all_modules().count("acme_module0"));
+  EXPECT_EQ(1, ModuleGraph::GetAllModules().size());
+  EXPECT_EQ(1, ModuleGraph::GetAllModules().count("acme_module0"));
   EXPECT_EQ(0, create_acme(nullptr, &m));
   ASSERT_NE(nullptr, m);
-  EXPECT_EQ(2, ModuleGraph::all_modules().size());
-  EXPECT_EQ(1, ModuleGraph::all_modules().count("acme_module1"));
+  EXPECT_EQ(2, ModuleGraph::GetAllModules().size());
+  EXPECT_EQ(1, ModuleGraph::GetAllModules().count("acme_module1"));
 }
 
 TEST_F(ModuleTester, RunCommand) {
@@ -263,10 +264,10 @@ TEST_F(ModuleTester, ResetModules) {
     EXPECT_EQ(0, create_acme(nullptr, &m));
     ASSERT_NE(nullptr, m);
   }
-  EXPECT_EQ(10, ModuleGraph::all_modules().size());
+  EXPECT_EQ(10, ModuleGraph::GetAllModules().size());
 
   ModuleGraph::DestroyAllModules();
-  EXPECT_EQ(0, ModuleGraph::all_modules().size());
+  EXPECT_EQ(0, ModuleGraph::GetAllModules().size());
 }
 
 TEST(ModuleBuilderTest, GenerateDefaultNameTemplate) {
