@@ -204,7 +204,6 @@ class ModuleBuilder {
 // A static class for managing module graphs
 class ModuleGraph {
  public:
-
   // Return true if any module from the builder exists
   static bool ExistModuleClass(const ModuleBuilder *);
 

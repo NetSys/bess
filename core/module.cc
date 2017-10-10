@@ -71,7 +71,7 @@ bool ModuleBuilder::DeregisterModuleClass(const std::string &class_name) {
   // Check if any module of the class still exists
   const ModuleBuilder *builder = &(it->second);
   if (ModuleGraph::ExistModuleClass(builder))
-	  return false;
+    return false;
 
   all_module_builders_holder().erase(it);
   return true;
@@ -127,7 +127,6 @@ CommandResponse ModuleBuilder::RunInit(Module *m,
                                        const google::protobuf::Any &arg) const {
   return init_func_(m, arg);
 }
-
 
 Module *ModuleBuilder::CreateModule(const std::string &name,
                                     bess::metadata::Pipeline *pipeline) const {
@@ -185,8 +184,8 @@ bool ModuleGraph::UpdateTaskGraph() {
 }
 
 bool ModuleGraph::FindNextTask(const std::string &node_name,
-                                 const std::string &parent_name,
-                                 std::unordered_set<std::string> *visited) {
+                               const std::string &parent_name,
+                               std::unordered_set<std::string> *visited) {
   visited->insert(node_name);
   // While traversing the module graph, if `node` is in the task graph and is
   // not `parent`, then it must be  the child of `parent`.

@@ -1137,7 +1137,7 @@ class BESSControlImpl final : public BESSControl::Service {
       mod_name = request->name();
     } else {
       mod_name = ModuleGraph::GenerateDefaultName(builder.class_name(),
-                                                    builder.name_template());
+                                                  builder.name_template());
     }
 
     pb_error_t* error = response->mutable_error();
@@ -1241,10 +1241,10 @@ class BESSControlImpl final : public BESSControl::Service {
 
     if (is_any_worker_running()) {
       propagate_active_worker();
-      if (m1->num_active_workers() || m2->num_active_workers() ) {
-	WorkerPauser wp; // Only pause when absolutely required
-	ret = m1->ConnectModules(ogate, m2, igate);
-	goto done;
+      if (m1->num_active_workers() || m2->num_active_workers()) {
+        WorkerPauser wp;  // Only pause when absolutely required
+        ret = m1->ConnectModules(ogate, m2, igate);
+        goto done;
       }
     }
     ret = m1->ConnectModules(ogate, m2, igate);
@@ -1286,21 +1286,22 @@ class BESSControlImpl final : public BESSControl::Service {
     return Status::OK;
   }
 
-  Status DumpMempool(ServerContext*,
-                           const DumpMempoolRequest* request,
-                           DumpMempoolResponse* response) override {
+  Status DumpMempool(ServerContext*, const DumpMempoolRequest* request,
+                     DumpMempoolResponse* response) override {
     int socket_filter = request->socket();
-    socket_filter = (socket_filter == -1) ? (RTE_MAX_NUMA_NODES - 1) : socket_filter;
+    socket_filter =
+        (socket_filter == -1) ? (RTE_MAX_NUMA_NODES - 1) : socket_filter;
     int socket = (request->socket() == -1) ? 0 : socket_filter;
     for (; socket <= socket_filter; socket++) {
-      struct rte_mempool *mempool = bess::get_pframe_pool_socket(socket);
-      MempoolDump *dump = response->add_dumps();
+      struct rte_mempool* mempool = bess::get_pframe_pool_socket(socket);
+      MempoolDump* dump = response->add_dumps();
       dump->set_socket(socket);
       dump->set_initialized(mempool != nullptr);
       if (mempool == nullptr) {
         continue;
       }
-      struct rte_ring *ring = reinterpret_cast<struct rte_ring*>(mempool->pool_data);
+      struct rte_ring* ring =
+          reinterpret_cast<struct rte_ring*>(mempool->pool_data);
       dump->set_mp_size(mempool->size);
       dump->set_mp_cache_size(mempool->cache_size);
       dump->set_mp_element_size(mempool->elt_size);

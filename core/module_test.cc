@@ -106,7 +106,7 @@ int create_acme(const char *name, Module **m) {
     mod_name = name;
   } else {
     mod_name = ModuleGraph::GenerateDefaultName(builder.class_name(),
-                                                  builder.name_template());
+                                                builder.name_template());
   }
 
   *m = builder.CreateModule(mod_name, &bess::metadata::default_pipeline);
