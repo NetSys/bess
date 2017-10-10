@@ -45,11 +45,109 @@
 
 const Commands Module::cmds;
 
-std::map<std::string, Module *> ModuleBuilder::all_modules_;
-std::unordered_map<std::string, Node> ModuleBuilder::module_graph_;
-std::unordered_set<std::string> ModuleBuilder::tasks_;
+std::map<std::string, Module *> ModuleGraph::all_modules_;
+std::unordered_map<std::string, Node> ModuleGraph::module_graph_;
+std::unordered_set<std::string> ModuleGraph::tasks_;
 
-bool ModuleBuilder::AddEdge(const std::string &from, const std::string &to) {
+bool ModuleBuilder::RegisterModuleClass(
+    std::function<Module *()> module_generator, const std::string &class_name,
+    const std::string &name_template, const std::string &help_text,
+    const gate_idx_t igates, const gate_idx_t ogates, const Commands &cmds,
+    module_init_func_t init_func) {
+  all_module_builders_holder().emplace(
+      std::piecewise_construct, std::forward_as_tuple(class_name),
+      std::forward_as_tuple(module_generator, class_name, name_template,
+                            help_text, igates, ogates, cmds, init_func));
+  return true;
+}
+
+bool ModuleBuilder::DeregisterModuleClass(const std::string &class_name) {
+  // Check if the module builder exists
+  auto it = all_module_builders_holder().find(class_name);
+  if (it == all_module_builders_holder().end()) {
+    return false;
+  }
+
+  // Check if any module of the class still exists
+  const ModuleBuilder *builder = &(it->second);
+  if (ModuleGraph::ExistModuleClass(builder))
+	  return false;
+
+  all_module_builders_holder().erase(it);
+  return true;
+}
+
+std::map<std::string, ModuleBuilder> &ModuleBuilder::all_module_builders_holder(
+    bool reset) {
+  // Maps from class names to port builders.  Tracks all port classes (via their
+  // PortBuilders).
+  static std::map<std::string, ModuleBuilder> all_module_builders;
+
+  if (reset) {
+    all_module_builders.clear();
+  }
+
+  return all_module_builders;
+}
+
+const std::map<std::string, ModuleBuilder>
+    &ModuleBuilder::all_module_builders() {
+  return all_module_builders_holder();
+}
+
+const std::map<std::string, Module *> &ModuleGraph::all_modules() {
+  return all_modules_;
+}
+
+CommandResponse ModuleBuilder::RunCommand(
+    Module *m, const std::string &user_cmd,
+    const google::protobuf::Any &arg) const {
+  for (auto &cmd : cmds_) {
+    if (user_cmd == cmd.cmd) {
+      bool workers_running = false;
+      for (int wid = 0; wid < Worker::kMaxWorkers; wid++) {
+        workers_running |= m->active_workers_[wid] && is_worker_running(wid);
+      }
+      if (cmd.mt_safe != Command::THREAD_SAFE && workers_running) {
+        return CommandFailure(EBUSY,
+                              "There is a running worker and command "
+                              "'%s' is not MT safe",
+                              cmd.cmd.c_str());
+      }
+
+      return cmd.func(m, arg);
+    }
+  }
+
+  return CommandFailure(ENOTSUP, "'%s' does not support command '%s'",
+                        class_name_.c_str(), user_cmd.c_str());
+}
+
+CommandResponse ModuleBuilder::RunInit(Module *m,
+                                       const google::protobuf::Any &arg) const {
+  return init_func_(m, arg);
+}
+
+
+Module *ModuleBuilder::CreateModule(const std::string &name,
+                                    bess::metadata::Pipeline *pipeline) const {
+  Module *m = module_generator_();
+  m->set_name(name);
+  m->set_module_builder(this);
+  m->set_pipeline(pipeline);
+  return m;
+}
+
+bool ModuleGraph::ExistModuleClass(const ModuleBuilder *builder) {
+  for (auto const &e : all_modules()) {
+    if (e.second->module_builder() == builder) {
+      return true;
+    }
+  }
+  return false;
+}
+
+bool ModuleGraph::AddEdge(const std::string &from, const std::string &to) {
   auto from_it = module_graph_.find(from);
   if (from_it == module_graph_.end() || module_graph_.count(to) == 0) {
     return false;
@@ -58,7 +156,7 @@ bool ModuleBuilder::AddEdge(const std::string &from, const std::string &to) {
   return UpdateTaskGraph();
 }
 
-bool ModuleBuilder::RemoveEdge(const std::string &from, const std::string &to) {
+bool ModuleGraph::RemoveEdge(const std::string &from, const std::string &to) {
   auto from_node = module_graph_.find(from);
   if (from_node == module_graph_.end() || module_graph_.count(to) == 0) {
     return false;
@@ -76,7 +174,7 @@ bool ModuleBuilder::RemoveEdge(const std::string &from, const std::string &to) {
   return UpdateTaskGraph();
 }
 
-bool ModuleBuilder::UpdateTaskGraph() {
+bool ModuleGraph::UpdateTaskGraph() {
   for (auto const &task : tasks_) {
     std::unordered_set<std::string> visited;
     if (!FindNextTask(task, task, &visited)) {
@@ -86,7 +184,7 @@ bool ModuleBuilder::UpdateTaskGraph() {
   return true;
 }
 
-bool ModuleBuilder::FindNextTask(const std::string &node_name,
+bool ModuleGraph::FindNextTask(const std::string &node_name,
                                  const std::string &parent_name,
                                  std::unordered_set<std::string> *visited) {
   visited->insert(node_name);
@@ -126,16 +224,7 @@ bool ModuleBuilder::FindNextTask(const std::string &node_name,
   return true;
 }
 
-Module *ModuleBuilder::CreateModule(const std::string &name,
-                                    bess::metadata::Pipeline *pipeline) const {
-  Module *m = module_generator_();
-  m->set_name(name);
-  m->set_module_builder(this);
-  m->set_pipeline(pipeline);
-  return m;
-}
-
-bool ModuleBuilder::AddModule(Module *m) {
+bool ModuleGraph::AddModule(Module *m) {
   if (m->is_task_) {
     if (!tasks_.insert(m->name()).second) {
       return false;
@@ -153,7 +242,7 @@ bool ModuleBuilder::AddModule(Module *m) {
       .second;
 }
 
-int ModuleBuilder::DestroyModule(Module *m, bool erase) {
+int ModuleGraph::DestroyModule(Module *m, bool erase) {
   int ret;
   m->DeInit();
 
@@ -189,7 +278,7 @@ int ModuleBuilder::DestroyModule(Module *m, bool erase) {
   return 0;
 }
 
-void ModuleBuilder::DestroyAllModules() {
+void ModuleGraph::DestroyAllModules() {
   int ret;
   for (auto it = all_modules_.begin(); it != all_modules_.end();) {
     auto it_next = std::next(it);
@@ -204,38 +293,7 @@ void ModuleBuilder::DestroyAllModules() {
   }
 }
 
-bool ModuleBuilder::RegisterModuleClass(
-    std::function<Module *()> module_generator, const std::string &class_name,
-    const std::string &name_template, const std::string &help_text,
-    const gate_idx_t igates, const gate_idx_t ogates, const Commands &cmds,
-    module_init_func_t init_func) {
-  all_module_builders_holder().emplace(
-      std::piecewise_construct, std::forward_as_tuple(class_name),
-      std::forward_as_tuple(module_generator, class_name, name_template,
-                            help_text, igates, ogates, cmds, init_func));
-  return true;
-}
-
-bool ModuleBuilder::DeregisterModuleClass(const std::string &class_name) {
-  // Check if the module builder exists
-  auto it = all_module_builders_holder().find(class_name);
-  if (it == all_module_builders_holder().end()) {
-    return false;
-  }
-
-  // Check if any module of the class still exists
-  const ModuleBuilder *builder = &(it->second);
-  for (auto const &e : all_modules()) {
-    if (e.second->module_builder() == builder) {
-      return false;
-    }
-  }
-
-  all_module_builders_holder().erase(it);
-  return true;
-}
-
-std::string ModuleBuilder::GenerateDefaultName(
+std::string ModuleGraph::GenerateDefaultName(
     const std::string &class_name, const std::string &default_template) {
   std::string name_template;
 
@@ -264,57 +322,6 @@ std::string ModuleBuilder::GenerateDefaultName(
   }
 
   promise_unreachable();
-}
-
-std::map<std::string, ModuleBuilder> &ModuleBuilder::all_module_builders_holder(
-    bool reset) {
-  // Maps from class names to port builders.  Tracks all port classes (via their
-  // PortBuilders).
-  static std::map<std::string, ModuleBuilder> all_module_builders;
-
-  if (reset) {
-    all_module_builders.clear();
-  }
-
-  return all_module_builders;
-}
-
-const std::map<std::string, ModuleBuilder>
-    &ModuleBuilder::all_module_builders() {
-  return all_module_builders_holder();
-}
-
-const std::map<std::string, Module *> &ModuleBuilder::all_modules() {
-  return all_modules_;
-}
-
-CommandResponse ModuleBuilder::RunCommand(
-    Module *m, const std::string &user_cmd,
-    const google::protobuf::Any &arg) const {
-  for (auto &cmd : cmds_) {
-    if (user_cmd == cmd.cmd) {
-      bool workers_running = false;
-      for (int wid = 0; wid < Worker::kMaxWorkers; wid++) {
-        workers_running |= m->active_workers_[wid] && is_worker_running(wid);
-      }
-      if (cmd.mt_safe != Command::THREAD_SAFE && workers_running) {
-        return CommandFailure(EBUSY,
-                              "There is a running worker and command "
-                              "'%s' is not MT safe",
-                              cmd.cmd.c_str());
-      }
-
-      return cmd.func(m, arg);
-    }
-  }
-
-  return CommandFailure(ENOTSUP, "'%s' does not support command '%s'",
-                        class_name_.c_str(), user_cmd.c_str());
-}
-
-CommandResponse ModuleBuilder::RunInit(Module *m,
-                                       const google::protobuf::Any &arg) const {
-  return init_func_(m, arg);
 }
 
 // -------------------------------------------------------------------------
@@ -531,7 +538,7 @@ int Module::ConnectModules(gate_idx_t ogate_idx, Module *m_next,
   igate->PushOgate(ogate);
 
   // Update graph
-  return !ModuleBuilder::AddEdge(name_, m_next->name_);
+  return !ModuleGraph::AddEdge(name_, m_next->name_);
 }
 
 int Module::DisconnectModules(gate_idx_t ogate_idx) {
@@ -555,7 +562,7 @@ int Module::DisconnectModules(gate_idx_t ogate_idx) {
   igate = ogate->igate();
 
   // Remove edge in module graph.
-  if (!ModuleBuilder::RemoveEdge(name_, igate->module()->name_)) {
+  if (!ModuleGraph::RemoveEdge(name_, igate->module()->name_)) {
     return 1;
   }
 
@@ -598,7 +605,7 @@ int Module::DisconnectModulesUpstream(gate_idx_t igate_idx) {
     ogate->ClearHooks();
 
     // Remove edge in module graph
-    if (!ModuleBuilder::RemoveEdge(ogate->module()->name_, name_)) {
+    if (!ModuleGraph::RemoveEdge(ogate->module()->name_, name_)) {
       return 1;
     }
 
@@ -734,7 +741,7 @@ void _trace_after_call(void) {
 #endif
 
 void propagate_active_worker() {
-  for (auto &pair : ModuleBuilder::all_modules()) {
+  for (auto &pair : ModuleGraph::all_modules()) {
     Module *m = pair.second;
     m->ResetActiveWorkerSet();
   }

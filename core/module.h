@@ -132,7 +132,8 @@ struct Command {
 
 using Commands = std::vector<struct Command>;
 
-// A class for generating new Modules of a particular type.
+// A class for managing modules of 'a particular type'.
+// It creates new modules and forwarding module-specific commands
 class ModuleBuilder {
  public:
   ModuleBuilder(
@@ -150,19 +151,6 @@ class ModuleBuilder {
         cmds_(cmds),
         init_func_(init_func) {}
 
-  /* returns a pointer to the created module.
-   * if error, returns nullptr and *perr is set */
-  Module *CreateModule(const std::string &name,
-                       bess::metadata::Pipeline *pipeline) const;
-
-  // Add a module to the collection. Returns true on success, false otherwise.
-  static bool AddModule(Module *m);
-
-  // Remove a module from the collection. Returns 0 on success, -errno
-  // otherwise.
-  static int DestroyModule(Module *m, bool erase = true);
-  static void DestroyAllModules();
-
   static bool RegisterModuleClass(std::function<Module *()> module_generator,
                                   const std::string &class_name,
                                   const std::string &name_template,
@@ -170,14 +158,17 @@ class ModuleBuilder {
                                   const gate_idx_t igates,
                                   const gate_idx_t ogates, const Commands &cmds,
                                   module_init_func_t init_func);
-
   static bool DeregisterModuleClass(const std::string &class_name);
 
   static std::map<std::string, ModuleBuilder> &all_module_builders_holder(
       bool reset = false);
   static const std::map<std::string, ModuleBuilder> &all_module_builders();
 
-  static const std::map<std::string, Module *> &all_modules();
+  /* returns a pointer to the created module.
+   * if error, returns nullptr and *perr is set */
+  Module *CreateModule(const std::string &name,
+                       bess::metadata::Pipeline *pipeline) const;
+
   gate_idx_t NumIGates() const { return num_igates_; }
   gate_idx_t NumOGates() const { return num_ogates_; }
 
@@ -192,13 +183,43 @@ class ModuleBuilder {
     return ret;
   }
 
-  static std::string GenerateDefaultName(const std::string &class_name,
-                                         const std::string &default_template);
-
   CommandResponse RunCommand(Module *m, const std::string &user_cmd,
                              const google::protobuf::Any &arg) const;
 
   CommandResponse RunInit(Module *m, const google::protobuf::Any &arg) const;
+
+ private:
+  const std::function<Module *()> module_generator_;
+
+  const gate_idx_t num_igates_;
+  const gate_idx_t num_ogates_;
+
+  const std::string class_name_;
+  const std::string name_template_;
+  const std::string help_text_;
+  const Commands cmds_;
+  const module_init_func_t init_func_;
+};
+
+// A static class for managing module graphs
+class ModuleGraph {
+ public:
+
+  // Return true if any module from the builder exists
+  static bool ExistModuleClass(const ModuleBuilder *);
+
+  // Add a module to the collection. Returns true on success, false otherwise.
+  static bool AddModule(Module *m);
+
+  // Remove a module from the collection. Returns 0 on success, -errno
+  // otherwise.
+  static int DestroyModule(Module *m, bool erase = true);
+  static void DestroyAllModules();
+
+  static const std::map<std::string, Module *> &all_modules();
+
+  static std::string GenerateDefaultName(const std::string &class_name,
+                                         const std::string &default_template);
 
   // Connects two modules (`to` and `from`) together in `module_graph_`.
   static bool AddEdge(const std::string &from, const std::string &to);
@@ -223,18 +244,7 @@ class ModuleBuilder {
   // All modules that are tasks in the current pipeline.
   static std::unordered_set<std::string> tasks_;
 
-  const std::function<Module *()> module_generator_;
-
   static std::map<std::string, Module *> all_modules_;
-
-  const gate_idx_t num_igates_;
-  const gate_idx_t num_ogates_;
-
-  const std::string class_name_;
-  const std::string name_template_;
-  const std::string help_text_;
-  const Commands cmds_;
-  const module_init_func_t init_func_;
 };
 
 class ModuleTask;
@@ -298,6 +308,7 @@ class alignas(64) Module {
 
  public:
   friend class ModuleBuilder;
+  friend class ModuleGraph;
 
   CommandResponse InitWithGenericArg(const google::protobuf::Any &arg);
 

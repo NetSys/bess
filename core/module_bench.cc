@@ -92,14 +92,14 @@ class ModuleFixture : public benchmark::Fixture {
     Module *last;
 
     src_ = builder_src.CreateModule("src0", &bess::metadata::default_pipeline);
-    ModuleBuilder::AddModule(src_);
+    ModuleGraph::AddModule(src_);
 
     last = src_;
 
     for (int i = 0; i < chain_length; i++) {
       Module *relay = builder_relay.CreateModule(
           "relay" + std::to_string(i), &bess::metadata::default_pipeline);
-      ModuleBuilder::AddModule(relay);
+      ModuleGraph::AddModule(relay);
 
       relays.push_back(relay);
       int ret = last->ConnectModules(0, relay, 0);
@@ -109,7 +109,7 @@ class ModuleFixture : public benchmark::Fixture {
   }
 
   void TearDown(benchmark::State &) override {
-    ModuleBuilder::DestroyAllModules();
+    ModuleGraph::DestroyAllModules();
   }
 
   Module *src_;
