@@ -410,6 +410,8 @@ WorkerPauser::WorkerPauser() {
 }
 
 WorkerPauser::~WorkerPauser() {
+  attach_orphans(); // All workers should be paused at this point.
+
   if (!workers_paused_.empty()) {
     bess::run_global_resume_hooks(false);
   }
