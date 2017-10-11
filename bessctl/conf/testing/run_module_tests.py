@@ -77,7 +77,6 @@ def main():
         except CommandError:
             any_failure = 1
             run_cmd('%s daemon start' % bessctl)
-            pass
 
     sys.exit(any_failure)
 

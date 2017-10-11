@@ -35,10 +35,10 @@ class BessWorkerSplitTest(BessModuleTestCase):
     def test_worker_split(self):
         NUM_WORKERS = 2
 
-        for i in range(NUM_WORKERS):
-            bess.add_worker(wid=i, core=i)
-
         for wid in range(NUM_WORKERS):
+            for i in range(NUM_WORKERS):
+                bess.add_worker(wid=i, core=i)
+
             src = Source()
             ws = WorkerSplit()
             src -> ws
@@ -56,9 +56,11 @@ class BessWorkerSplitTest(BessModuleTestCase):
             ogates = bess.get_module_info(ws.name).ogates
             for ogate in ogates:
                 if ogate.ogate == wid:
-                    self.assertTrue(ogate.pkts > 0)
+                    self.assertGreater(ogate.pkts, 0)
                 else:
-                    self.assertTrue(ogate.pkts == 0)
+                    self.assertEquals(ogate.pkts, 0)
+
+            bess.reset_all()
 
 suite = unittest.TestLoader().loadTestsFromTestCase(BessWorkerSplitTest)
 results = unittest.TextTestRunner(verbosity=2).run(suite)

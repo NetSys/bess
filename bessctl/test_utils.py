@@ -32,13 +32,16 @@ from __future__ import print_function
 import os
 import random
 import scapy.all as scapy
+import shlex
 import socket
+import subprocess
 import sys
 import unittest
 from time import gmtime, sleep, strftime
 
 try:
     this_dir = os.path.dirname(os.path.realpath(__file__))
+    bessctl = os.path.join(this_dir, 'bessctl')
     sys.path.insert(1, os.path.join(this_dir, '../../../'))
     from pybess.bess import *
 except ImportError:
@@ -47,6 +50,15 @@ except ImportError:
 
 SOCKET_PATH = '/tmp/bess_unix_'
 SCRIPT_STARTTIME = strftime("%Y-%m-%d-%H-%M-%S", gmtime())
+
+
+def run_cmd(cmd):
+    args = shlex.split(cmd)
+    print(cmd)
+    try:
+        subprocess.check_output(args, stderr=subprocess.STDOUT)
+    except subprocess.CalledProcessError as e:
+        raise CommandError(e.returncode, e.cmd, e.output)
 
 
 def gen_unix_socket(bess, sockname, timeout_sec=3):
@@ -91,27 +103,25 @@ def pkt_str(pkt):
         return str(pkt).encode('HEX')
 
 
-class BessModuleAssertion():
+class BessModuleTestCase(unittest.TestCase):
 
-    def assertSamePackets(self, pkt1, pkt2):
+    @staticmethod
+    def assertSamePackets(pkt1, pkt2):
         if pkt_str(pkt1) != pkt_str(pkt2):
             raise AssertionError('"%s" != "%s"',
                                  pkt_str(pkt1), pkt_str(pkt2))
 
-    def assertNotSamePackets(self, pkt1, pkt2):
+    @staticmethod
+    def assertNotSamePackets(pkt1, pkt2):
         if pkt_str(pkt1) == pkt_str(pkt2):
             raise AssertionError('"%s" == "%s"',
                                  pkt_str(pkt1), pkt_str(pkt2))
 
     def assertBessAlive(self):
-        self.bess = BESS()
         try:
-            self.bess.connect()
+            self.bess.get_version()
         except BESS.APIError:
             raise AssertionError('Bess is not alive')
-
-
-class BessModuleTestCase(unittest.TestCase, BessModuleAssertion):
 
     def setUp(self):
         self.bess = BESS()
@@ -129,7 +139,7 @@ class BessModuleTestCase(unittest.TestCase, BessModuleAssertion):
         self.output_ports = {}
 
     def tearDown(self):
-        for idx, sock in self.sockets.items():
+        for sock in self.sockets.values():
             sock.close()
 
         self.bess.pause_all()
