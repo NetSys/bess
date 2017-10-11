@@ -37,7 +37,8 @@
 
 namespace bess {
 
-std::set<std::unique_ptr<ResumeHook>> global_resume_hooks;
+std::set<std::unique_ptr<ResumeHook>, ResumeHook::UniquePtrLess>
+    global_resume_hooks;
 
 std::map<std::string, ResumeHookFactory>
     &ResumeHookFactory::all_resume_hook_factories_holder() {

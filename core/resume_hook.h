@@ -67,8 +67,16 @@ class ResumeHook {
   virtual void Run() = 0;
 
   bool operator<(const ResumeHook &rhs) const {
-    return priority_ < rhs.priority_ && name_ < rhs.name_;
+    return std::tie(priority_, name_) < std::tie(rhs.priority_, rhs.name_);
   }
+
+  class UniquePtrLess {
+   public:
+    bool operator()(const std::unique_ptr<ResumeHook> &lhs,
+                    const std::unique_ptr<ResumeHook> &rhs) const {
+      return *lhs < *rhs;
+    }
+  };
 
  private:
   const std::string &name_;
@@ -112,7 +120,8 @@ class ResumeHookFactory {
   std::string hook_name_;
 };
 
-extern std::set<std::unique_ptr<ResumeHook>> global_resume_hooks;
+extern std::set<std::unique_ptr<ResumeHook>, ResumeHook::UniquePtrLess>
+    global_resume_hooks;
 
 void run_global_resume_hooks(bool run_modules = true);
 
