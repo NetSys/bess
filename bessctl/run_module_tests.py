@@ -40,7 +40,7 @@ import sys
 import unittest
 
 this_dir = os.path.dirname(os.path.realpath(__file__))
-bessctl = os.path.join(this_dir, '../../bessctl')
+bessctl = os.path.join(this_dir, 'bessctl')
 test_dir = os.path.join(this_dir, 'module_tests')
 
 
