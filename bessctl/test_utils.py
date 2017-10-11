@@ -1,4 +1,4 @@
-# Copyright (c) 2017, UC Berkeley
+# Copyright (c) 2017, The Regents of the University of California.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
