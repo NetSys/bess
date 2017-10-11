@@ -145,15 +145,21 @@ class BessModuleTestCase(unittest.TestCase):
         self.bess.pause_all()
         self.bess.reset_all()
 
-    def run_for(self, module, igates, duration):
+    def run_for(self, module, igates, duration, pkt_update_fields=[]):
         self.bess.pause_all()
+
+        fields = pkt_update_fields
+        if len(fields) == 0:
+            fields.append({'offset': 26, 'size': 4,
+                           'min': 1, 'max': pow(2, 32) - 1})
+            fields.append({'offset': 30, 'size': 4,
+                           'min': 1, 'max': pow(2, 32) - 1})
 
         # source and associate sockets
         for igate in igates:
             src = self.bess.create_module('Source')
             random = self.bess.create_module('RandomUpdate', 'RandomUpdateArg',
-                                             {'fields': [{'offset': 26, 'size': 4, 'min': 1, 'max': pow(2, 32) - 1},
-                                                         {'offset': 30, 'size': 4, 'min': 1, 'max': pow(2, 32) - 1}]})
+                                             {'fields': fields})
             self.bess.connect_modules(src.name, random.name)
             self.bess.connect_modules(random.name, module.name, 0, igate)
 
