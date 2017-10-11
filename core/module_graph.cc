@@ -231,3 +231,24 @@ std::string ModuleGraph::GenerateDefaultName(
 
   promise_unreachable();
 }
+
+void propagate_active_worker() {
+  for (auto &pair : ModuleGraph::GetAllModules()) {
+    Module *m = pair.second;
+    m->ResetActiveWorkerSet();
+  }
+  for (int i = 0; i < Worker::kMaxWorkers; i++) {
+    if (workers[i] == nullptr) {
+      continue;
+    }
+    if (bess::TrafficClass *root = workers[i]->scheduler()->root()) {
+      for (const auto &tc_pair : bess::TrafficClassBuilder::all_tcs()) {
+        bess::TrafficClass *c = tc_pair.second;
+        if (c->policy() == bess::POLICY_LEAF && c->Root() == root) {
+          auto leaf = static_cast<bess::LeafTrafficClass<Task> *>(c);
+          leaf->task().AddActiveWorker(i);
+        }
+      }
+    }
+  }
+}

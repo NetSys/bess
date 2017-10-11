@@ -113,4 +113,9 @@ class ModuleGraph {
   static std::map<std::string, Module *> all_modules_;
 };
 
+/*!
+ * Update information about what workers are accessing what module.
+ */
+void propagate_active_worker();
+
 #endif

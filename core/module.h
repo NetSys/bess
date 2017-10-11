@@ -44,6 +44,7 @@
 #include "metadata.h"
 #include "packet.h"
 #include "scheduler.h"
+#include "task.h"
 
 using bess::gate_idx_t;
 
@@ -51,15 +52,6 @@ using bess::gate_idx_t;
 #define MAX_NUMA_NODE 16
 #define MAX_TASKS_PER_MODULE 32
 #define UNCONSTRAINED_SOCKET ((0x1ull << MAX_NUMA_NODE) - 1)
-
-struct task_result {
-  bool block;
-  uint32_t packets;
-  uint64_t bits;
-};
-
-typedef uint16_t task_id_t;
-typedef uint64_t placement_constraint;
 
 using module_cmd_func_t =
     pb_func_t<CommandResponse, Module, google::protobuf::Any>;
@@ -487,93 +479,6 @@ inline void Module::RunNextModule(bess::PacketBatch *batch) {
   RunChooseModule(0, batch);
 }
 
-class Task;
-
-namespace bess {
-template <typename CallableTask>
-class LeafTrafficClass;
-}  // namespace bess
-
-// Stores the arguments of a task created by a module.
-class ModuleTask {
- public:
-  // Doesn't take ownership of 'arg' and 'c'.  'c' can be null and it
-  // can be changed later with SetTC()
-  ModuleTask(void *arg, bess::LeafTrafficClass<Task> *c) : arg_(arg), c_(c) {}
-
-  ~ModuleTask() {}
-
-  void *arg() { return arg_; }
-
-  void SetTC(bess::LeafTrafficClass<Task> *c) { c_ = c; }
-
-  bess::LeafTrafficClass<Task> *GetTC() { return c_; }
-
- private:
-  void *arg_;  // Auxiliary value passed to Module::RunTask().
-  bess::LeafTrafficClass<Task> *c_;  // Leaf TC associated with this task.
-};
-
-// Functor used by a leaf in a Worker's Scheduler to run a task in a module.
-class Task {
- public:
-  // When this task is scheduled it will execute 'm' with 'arg'.  When the
-  // associated leaf is created/destroyed, 'module_task' will be updated.
-  Task(Module *m, void *arg, ModuleTask *module_task)
-      : module_(m), arg_(arg), module_task_(module_task) {}
-
-  // Called when the leaf that owns this task is destroyed.
-  void Detach() {
-    if (module_task_) {
-      module_task_->SetTC(nullptr);
-    }
-  }
-
-  // Called when the leaf that owns this task is created.
-  void Attach(bess::LeafTrafficClass<Task> *c) {
-    if (module_task_) {
-      module_task_->SetTC(c);
-    }
-  }
-
-  struct task_result operator()(void) const {
-    return module_->RunTask(arg_);
-  }
-
-  /*!
-   * Compute constraints for the pipeline starting at this task.
-   */
-  placement_constraint GetSocketConstraints() const {
-    if (module_) {
-      std::unordered_set<const Module *> visited;
-      return module_->ComputePlacementConstraints(&visited);
-    } else {
-      return UNCONSTRAINED_SOCKET;
-    }
-  }
-
-  /*!
-   * Add a worker to the set of workers that call this task.
-   */
-  void AddActiveWorker(int wid) const {
-    if (module_) {
-      module_->AddActiveWorker(wid, module_task_);
-    }
-  }
-
-  Module *module() const { return module_; }
-
-  ModuleTask *module_task() const { return module_task_; }
-
- private:
-  // Used by operator().
-  Module *module_;
-  void *arg_;
-
-  // Used to notify a module that a leaf is being created/destroyed.
-  ModuleTask *module_task_;
-};
-
 /* run all per-thread initializers */
 void init_module_worker(void);
 
@@ -655,11 +560,6 @@ template <typename T>
 static inline void set_attr(Module *m, int attr_id, bess::Packet *pkt, T val) {
   set_attr_with_offset(m->attr_offset(attr_id), pkt, val);
 }
-
-/*!
- * Update information about what workers are accessing what module.
- */
-void propagate_active_worker();
 
 #define DEF_MODULE(_MOD, _NAME_TEMPLATE, _HELP)                          \
   class _MOD##_class {                                                   \

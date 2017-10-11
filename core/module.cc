@@ -41,6 +41,7 @@
 #include "mem_alloc.h"
 #include "module_graph.h"
 #include "scheduler.h"
+#include "task.h"
 #include "utils/pcap.h"
 #include "worker.h"
 
@@ -546,24 +547,3 @@ void _trace_after_call(void) {
 }
 
 #endif
-
-void propagate_active_worker() {
-  for (auto &pair : ModuleGraph::GetAllModules()) {
-    Module *m = pair.second;
-    m->ResetActiveWorkerSet();
-  }
-  for (int i = 0; i < Worker::kMaxWorkers; i++) {
-    if (workers[i] == nullptr) {
-      continue;
-    }
-    if (bess::TrafficClass *root = workers[i]->scheduler()->root()) {
-      for (const auto &tc_pair : bess::TrafficClassBuilder::all_tcs()) {
-        bess::TrafficClass *c = tc_pair.second;
-        if (c->policy() == bess::POLICY_LEAF && c->Root() == root) {
-          auto leaf = static_cast<bess::LeafTrafficClass<Task> *>(c);
-          leaf->task().AddActiveWorker(i);
-        }
-      }
-    }
-  }
-}
