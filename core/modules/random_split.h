@@ -44,7 +44,6 @@ class RandomSplit final : public Module {
   RandomSplit() : Module() { max_allowed_workers_ = Worker::kMaxWorkers; }
 
   static const gate_idx_t kNumOGates = MAX_GATES;
-  static const uint32_t kRange = 1000000;  // for granularity
   static const Commands cmds;
 
   CommandResponse Init(const bess::pb::RandomSplitArg &arg);
@@ -56,8 +55,8 @@ class RandomSplit final : public Module {
   void ProcessBatch(bess::PacketBatch *batch) override;
 
  private:
-  Random rng_;      // Random number generator
-  uint threshold_;  // Split threshold for random number generated
+  Random rng_;  // Random number generator
+  double drop_rate_;
   gate_idx_t gates_[MAX_SPLIT_GATES];
   gate_idx_t ngates_;
 };

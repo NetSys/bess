@@ -48,7 +48,7 @@ CommandResponse RandomSplit::Init(const bess::pb::RandomSplitArg &arg) {
   if (drop_rate < 0 || drop_rate > 1) {
     return CommandFailure(EINVAL, "drop rate needs to be between [0, 1]");
   }
-  threshold_ = drop_rate * kRange;
+  drop_rate_ = drop_rate;
 
   if (arg.gates_size() > MAX_SPLIT_GATES) {
     return CommandFailure(EINVAL, "no more than %d gates", MAX_SPLIT_GATES);
@@ -74,7 +74,7 @@ CommandResponse RandomSplit::CommandSetDroprate(
   if (drop_rate < 0 || drop_rate > 1) {
     return CommandFailure(EINVAL, "drop rate needs to be between [0, 1]");
   }
-  threshold_ = drop_rate * kRange;
+  drop_rate_ = drop_rate;
 
   return CommandSuccess();
 }
@@ -108,7 +108,7 @@ void RandomSplit::ProcessBatch(bess::PacketBatch *batch) {
   }
 
   for (int i = 0; i < batch->cnt(); i++) {
-    if (rng_.GetRange(kRange) > threshold_) {
+    if (rng_.GetReal() > drop_rate_) {
       ogates[i] = gates_[rng_.GetRange(ngates_)];
     } else {
       ogates[i] = DROP_GATE;
