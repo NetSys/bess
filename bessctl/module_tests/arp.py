@@ -1,4 +1,4 @@
-# Copyright (c) 2016-2017, Nefeli Networks, Inc.
+# Copyright (c) 2017, Cloudigo.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -27,20 +27,38 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
-# Crash Test #
-bp0 = Bypass()
-CRASH_TEST_INPUTS.append([bp0, 1, 1])
+from test_utils import *
 
-# Output Test #
-bp1 = Bypass()
-test_packet = gen_packet(scapy.TCP, '22.22.22.22', '22.22.22.22')
-OUTPUT_TEST_INPUTS.append([bp1,
-                           1, 1,
-                           [{'input_port': 0,
-                               'input_packet': test_packet,
-                                'output_port': 0,
-                                'output_packet': test_packet},
-                            {'input_port': 0,
-                               'input_packet': None,
-                                'output_port': 0,
-                                'output_packet': None}]])
+
+class BessArpTest(BessModuleTestCase):
+
+    def test_arp(self):
+        arp = ArpResponder()
+
+        eth_header = scapy.Ether(
+            src='02:1e:67:9f:4d:ae', dst='ff:ff:ff:ff:ff:ff')
+        arp_header = scapy.ARP(op=1, pdst='1.2.3.4')
+        arp_req = eth_header / arp_header
+
+        arp.add(ip='1.2.3.4', mac_addr='A0:22:33:44:55:66')
+
+        arp_reply = arp_req.copy()
+        arp_reply[scapy.Ether].src = 'A0:22:33:44:55:66'
+        arp_reply[scapy.Ether].dst = '02:1e:67:9f:4d:ae'
+        arp_reply[scapy.ARP].op = 2
+
+        arp_reply[scapy.ARP].hwdst = arp_req[scapy.ARP].hwsrc
+        arp_reply[scapy.ARP].hwsrc = 'A0:22:33:44:55:66'
+
+        arp_reply[scapy.ARP].pdst = arp_req[scapy.ARP].psrc
+        arp_reply[scapy.ARP].psrc = '1.2.3.4'
+
+        pkt_outs = self.run_module(arp, 0, [arp_req], [0])
+        self.assertEquals(len(pkt_outs[0]), 1)
+        self.assertSamePackets(pkt_outs[0][0], arp_reply)
+
+suite = unittest.TestLoader().loadTestsFromTestCase(BessArpTest)
+results = unittest.TextTestRunner(verbosity=2).run(suite)
+
+if results.failures or results.errors:
+    sys.exit(1)

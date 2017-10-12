@@ -27,39 +27,45 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
-import scapy.all as scapy
+from test_utils import *
+
+# BESS default batch size
+# TODO: Any way to receive the parameter from bess daemon?
+BATCH_SIZE = 32
 
 
-def test_lookup():
-    l2fib = L2Forward()
+class BessBufferTest(BessModuleTestCase):
 
-    # Adding entry
-    ret = l2fib.add(entries=[{'addr': '00:01:02:03:04:05', 'gate': 64},
-                             {'addr': 'aa:bb:cc:dd:ee:ff', 'gate': 1},
-                             {'addr': '11:11:11:11:11:22', 'gate': 2}])
+    def test_run_buffer(self):
+        buf = Buffer()
+        self.run_for(buf, [0], 3)
+        self.assertBessAlive()
 
-    # Adding entry again expecting failure
-    try:
-        l2fib.add(entries=[{'addr': '00:01:02:03:04:05', 'gate': 0}])
-    except Exception as e:
-        pass
-    else:
-        assert False, 'Failure was expected'
+    def test_buffer(self):
+        buf = Buffer()
+        pkt1 = get_tcp_packet(sip='22.22.22.22', dip='22.22.22.22')
+        pkt2 = get_tcp_packet(sip='32.22.22.22', dip='22.22.22.22')
 
-    # Querying entry
-    ret = l2fib.lookup(addrs=['aa:bb:cc:dd:ee:ff', '00:01:02:03:04:05'])
-    assert ret.gates == [1, 64], 'Incorrect response'
+        test_data = []
 
-    # Removing Entry
-    ret = l2fib.delete(addrs=['00:01:02:03:04:05'])
+        # Should withhold data until it has a full batch to push through.
+        for i in range(BATCH_SIZE - 1):
+            test_data.append({'input_port': 0, 'input_packet': pkt1,
+                              'output_port': 0, 'output_packet': None})
 
-    # Querying entry again expecting failure'
-    try:
-        l2fib.delete(addrs=['00:01:02:03:04:05'])
-    except Exception as e:
-        pass
-    else:
-        assert False, 'failure was expected'
+        test_data.append({'input_port': 0, 'input_packet': pkt2,
+                          'output_port': 0, 'output_packet': pkt1})
 
+        for i in range(BATCH_SIZE - 1):
+            pkt_outs = self.run_module(buf, 0, [pkt1], [0])
+            self.assertEquals(len(pkt_outs[0]), 0)
 
-CUSTOM_TEST_FUNCTIONS.append(test_lookup)
+        pkt_outs = self.run_module(buf, 0, [pkt2], [0])
+        self.assertEquals(len(pkt_outs[0]), BATCH_SIZE)
+        self.assertSamePackets(pkt_outs[0][0], pkt1)
+
+suite = unittest.TestLoader().loadTestsFromTestCase(BessBufferTest)
+results = unittest.TextTestRunner(verbosity=2).run(suite)
+
+if results.failures or results.errors:
+    sys.exit(1)

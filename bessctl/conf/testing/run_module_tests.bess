@@ -38,6 +38,9 @@ import sugar
 import traceback
 from time import gmtime, strftime
 
+# Env variable used to run a single test
+test_name = $TEST_NAME!'*'
+
 ## HANDY UTILS AND GLOBAL VARS ##
 SOCKET_PATH = '/tmp/bess_unix_'
 SCRIPT_STARTTIME = strftime("%Y-%m-%d-%H-%M-%S", gmtime())
@@ -153,23 +156,20 @@ def monitor_task(module, wid):
 def run_tests():
     DID_TESTS_FAIL = False
 
-    # Env variable used to run a subset of tests
-    test_name = $TEST_NAME!'*'
-
-    default_path = os.path.join(os.path.dirname(os.path.realpath(sys.argv[0])),
-                                'conf/testing/module_tests')
-    test_path = $TEST_PATH!default_path
+    path = os.path.dirname(os.path.realpath(sys.argv[0]))
 
     # Note: os.path.join will discard the leading parts if test
     # begins with '/', so callers should provide an absolute path
-
     # if and only if they want to override the internal BESS
     # path prefixing.
-    for filename in glob.glob(os.path.join(test_path, test_name + ".py")):
+    for filename in glob.glob(os.path.join(path,
+                                           "module_tests",
+                                           test_name + ".py")):
         bess.reset_all()
 
         print("-- Running Module Tests for %s --" % filename.split("/")[-1])
 
+       # Wrap in a function to make sure scope doesn't leak.
         CRASH_TEST_INPUTS, OUTPUT_TEST_INPUTS, CUSTOM_TEST_FUNCTIONS = load_test(
             filename)
 
@@ -260,12 +260,7 @@ def run_tests():
                 print("\n")
                 traceback.print_exc()
                 print("\n")
-        # Pause any running workers left over by sloppy or failed
-        # custom test.  Next trip through outer loop will fail reset
-        # otherwise.
-        if len(CUSTOM_TEST_FUNCTIONS):
-            bess.pause_all()
-        # All done with this module, on to the next!
+        # All done!
 
     bess.pause_all()
     bess.reset_all()
@@ -273,6 +268,9 @@ def run_tests():
 
 
 # Call our big test function.
+sys.stderr.write("[Warn] This test framework may be removed soon. "
+        "Please consider porting your existing test code into new framework "
+        "'bessctl/run_module_tests.py'.\n")
 if not run_tests():
     print("Some tests failed. :(")
     sys.exit(1)

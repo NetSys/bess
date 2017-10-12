@@ -27,24 +27,40 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
-## CRASH TESTS ##
-buf0 = Buffer() #Buffer takes no parameters
-CRASH_TEST_INPUTS.append([buf0, 1, 1])
+from test_utils import *
 
-## INPUT TESTS ##
-batch_size = 32
 
-buf1 = Buffer()
-test_packet = gen_packet(scapy.TCP, '22.22.22.22', '22.22.22.22')
-test_packet2 = gen_packet(scapy.TCP, '33.22.22.22', '22.22.22.22')
-test_data = []
+class BessReplicateTest(BessModuleTestCase):
 
-#Should withhold data until it has a full batch to push through.
-for i in range(batch_size - 1):
-    test_data.append({'input_port' : 0, 'input_packet': test_packet,
-        'output_port' : 0, 'output_packet': None})
+    def test_run_replicate4(self):
+        rep4 = Replicate(gates=[0, 1, 2, 3])
+        self.run_for(rep4, [0], 3)
 
-test_data.append({'input_port' : 0, 'input_packet': test_packet2,
-        'output_port' : 0, 'output_packet': test_packet})
+    def test_run_replicate10(self):
+        rep10 = Replicate(gates=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
+        self.run_for(rep10, [0], 3)
 
-OUTPUT_TEST_INPUTS.append([buf1, 1, 1, test_data])
+    def test_run_replicate1(self):
+        rep1 = Replicate(gates=[0])
+        self.run_for(rep1, [0], 3)
+
+    def test_replicate(self):
+        rep3 = Replicate(gates=[0, 1, 2])
+        pkt_in = get_tcp_packet(sip='22.22.22.22', dip='22.22.22.22')
+
+        pkt_outs = self.run_module(rep3, 0, [pkt_in], [0, 1, 2])
+
+        self.assertEquals(len(pkt_outs[0]), 1)
+        self.assertSamePackets(pkt_outs[0][0], pkt_in)
+
+        self.assertEquals(len(pkt_outs[1]), 1)
+        self.assertSamePackets(pkt_outs[1][0], pkt_in)
+
+        self.assertEquals(len(pkt_outs[2]), 1)
+        self.assertSamePackets(pkt_outs[2][0], pkt_in)
+
+suite = unittest.TestLoader().loadTestsFromTestCase(BessReplicateTest)
+results = unittest.TextTestRunner(verbosity=2).run(suite)
+
+if results.failures or results.errors:
+    sys.exit(1)

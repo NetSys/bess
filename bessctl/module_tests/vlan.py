@@ -27,18 +27,22 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
-import scapy.all as scapy
 import sys
+from test_utils import *
 
-if sys.version_info[0] != 2:
-    print("python3-compatible scapy does not have Dot1AD. Skipping vlan test...")
-else:
-    ## CRASH TESTS ##
-    CRASH_TEST_INPUTS.append([VLANSplit(), 1, 1])
 
-    ## OUTPUT TESTS ##
-    def output_test(vids, double_tag=False, default_gate=0):
-        def gen_packet(vid):
+class BessVlanTest(BessModuleTestCase):
+
+    def test_run_vlan(self):
+        if sys.version_info[0] != 2:
+            print(
+                "python3-compatible scapy does not have Dot1AD. Skipping vlan test...")
+        else:
+            self.run_for(VLANSplit(), [0], 3)
+            self.assertBessAlive()
+
+    def _vlan_output_test(self, vids, double_tag=False, default_gate=0):
+        def gen_vlan_packet(vid):
             eth = scapy.Ether(src='02:1e:67:9f:4d:ae', dst='06:16:3e:1b:72:32')
             vlan1 = scapy.Dot1AD(vlan=vid)
             vlan2 = scapy.Dot1Q(vlan=vid)
@@ -59,29 +63,35 @@ else:
 
         expected = []
 
+        vlan = VLANSplit()
+
         for vid in vids:
-            p, pp = gen_packet(vid)
+            p, pp = gen_vlan_packet(vid)
             q = gen_untagged_packet()
             if vid >= 0:
                 if not double_tag:
-                    expected.append({
-                        'input_port': 0,
-                        'output_port': vid,
-                        'input_packet': p,
-                        'output_packet': q})
-                else:
-                    expected.append({
-                        'input_port': 0,
-                        'output_port': vid,
-                        'input_packet': pp,
-                        'output_packet': p})
-            else:
-                expected.append({
-                    'input_port': 0,
-                    'output_port': default_gate,
-                    'input_packet': q,
-                    'output_packet': q})
-        return [VLANSplit(), 1, 30, expected]
+                    pkt_outs = self.run_module(vlan, 0, [p], [vid])
+                    self.assertEquals(len(pkt_outs[vid]), 1)
+                    self.assertSamePackets(pkt_outs[vid][0], q)
 
-    OUTPUT_TEST_INPUTS.append(output_test([1, 17, -1, 29, 10, 13, 7]))
-    OUTPUT_TEST_INPUTS.append(output_test([1, 17, -1, 29, 10, 13, 7], True))
+                else:
+                    pkt_outs = self.run_module(vlan, 0, [pp], [vid])
+                    self.assertEquals(len(pkt_outs[vid]), 1)
+                    self.assertSamePackets(pkt_outs[vid][0], p)
+
+            else:
+                pkt_outs = self.run_module(vlan, 0, [q], [default_gate])
+                self.assertEquals(len(pkt_outs[default_gate]), 1)
+                self.assertSamePackets(pkt_outs[default_gate][0], q)
+
+    def test_vlan_single_tag(self):
+        self._vlan_output_test([1, 17, -1, 29, 10, 13, 7])
+
+    def test_vlan_double_tag(self):
+        self._vlan_output_test([1, 17, -1, 29, 10, 13, 7], True)
+
+suite = unittest.TestLoader().loadTestsFromTestCase(BessVlanTest)
+results = unittest.TextTestRunner(verbosity=2).run(suite)
+
+if results.failures or results.errors:
+    sys.exit(1)

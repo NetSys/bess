@@ -1,4 +1,6 @@
-# Copyright (c) 2016-2017, Nefeli Networks, Inc.
+#!/usr/bin/env python
+
+# Copyright (c) 2017, The Regents of the University of California.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -27,25 +29,56 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
-#CRASH TEST
-gd0 = GenericDecap(bytes=0)
-CRASH_TEST_INPUTS.append([gd0, 1, 1])
+from __future__ import print_function
 
-gd1 = GenericDecap(bytes=23)
-CRASH_TEST_INPUTS.append([gd1, 1, 1])
+import fnmatch
+import glob
+import os
+import shlex
+import subprocess
+import sys
+import unittest
 
-#OUTPUT TESTS
+this_dir = os.path.dirname(os.path.realpath(__file__))
+bessctl = os.path.join(this_dir, 'bessctl')
+test_dir = os.path.join(this_dir, 'module_tests')
 
-#test strip off ether
-gd2 = GenericDecap(bytes=14)
-eth = scapy.Ether(src='de:ad:be:ef:12:34', dst='12:34:de:ad:be:ef')
-ip = scapy.IP(src="1.2.3.4", dst="2.3.4.5", ttl=98)
-udp = scapy.UDP(sport=10001, dport=10002)
-payload = 'helloworldhelloworldhelloworld'
 
-eth_packet_in = eth/ip/udp/payload
-eth_packet_out = ip/udp/payload
+class CommandError(subprocess.CalledProcessError):
 
-OUTPUT_TEST_INPUTS.append([gd2, 1, 1,
-	[{'input_port': 0, 'input_packet': eth_packet_in,
-	'output_port': 0, 'output_packet': eth_packet_out}]])
+    '''Identical to CalledProcessError, except it also shows the output'''
+
+    def __str__(self):
+        return '%s\n%s' % (super(CommandError, self).__str__(), self.output)
+
+
+def run_cmd(cmd):
+    args = shlex.split(cmd)
+    try:
+        ret = subprocess.check_call(args, stderr=subprocess.STDOUT)
+    except subprocess.CalledProcessError as e:
+        raise CommandError(e.returncode, e.cmd, e.output)
+
+
+def main():
+    any_failure = 0
+
+    try:
+        run_cmd('%s daemon start' % bessctl)
+    except CommandError:
+        raise Exception('bess daemon could not start')
+
+    for file_name in glob.glob(os.path.join(test_dir, "*.py")):
+        path = os.path.join(test_dir, file_name)
+        print('Running test %s' % file_name)
+
+        try:
+            run_cmd('%s daemon reset -- run file %s' % (bessctl, path))
+        except CommandError:
+            any_failure = 1
+            run_cmd('%s daemon start' % bessctl)
+
+    sys.exit(any_failure)
+
+if __name__ == '__main__':
+    main()

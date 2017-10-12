@@ -1,4 +1,4 @@
-# Copyright (c) 2017, Cloudigo.
+# Copyright (c) 2016-2017, Nefeli Networks, Inc.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -27,35 +27,29 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
-import scapy.all as scapy
+from test_utils import *
 
 
-## CRASH TESTS ##
-m0 = ArpResponder()
-CRASH_TEST_INPUTS.append([m0, 1, 1])
+class BessL2ForwardTest(BessModuleTestCase):
 
-## OUTPUT TESTS ##
-m1 = ArpResponder()
-eth_header = scapy.Ether(src='02:1e:67:9f:4d:ae', dst='ff:ff:ff:ff:ff:ff')
-arp_header = scapy.ARP(op=1, pdst='1.2.3.4')
-arp_req = eth_header/arp_header
+    def test_l2forward(self):
+        l2fib = L2Forward()
 
-m1.add(ip='1.2.3.4', mac_addr='A0:22:33:44:55:66')
+        l2fib.add(entries=[{'addr': '00:01:02:03:04:05', 'gate': 64},
+                           {'addr': 'aa:bb:cc:dd:ee:ff', 'gate': 1},
+                           {'addr': '11:11:11:11:11:22', 'gate': 2}])
+        with self.assertRaises(bess.Error):
+            l2fib.add(entries=[{'addr': '00:01:02:03:04:05', 'gate': 0}])
 
-arp_reply = arp_req.copy()
-arp_reply[scapy.Ether].src = 'A0:22:33:44:55:66'
-arp_reply[scapy.Ether].dst = '02:1e:67:9f:4d:ae'
-arp_reply[scapy.ARP].op = 2
+        ret = l2fib.lookup(addrs=['aa:bb:cc:dd:ee:ff', '00:01:02:03:04:05'])
+        self.assertEquals(ret.gates, [1, 64])
 
-arp_reply[scapy.ARP].hwdst = arp_req[scapy.ARP].hwsrc
-arp_reply[scapy.ARP].hwsrc = 'A0:22:33:44:55:66'
+        l2fib.delete(addrs=['00:01:02:03:04:05'])
+        with self.assertRaises(bess.Error):
+            l2fib.delete(addrs=['00:01:02:03:04:05'])
 
-arp_reply[scapy.ARP].pdst = arp_req[scapy.ARP].psrc
-arp_reply[scapy.ARP].psrc = '1.2.3.4'
+suite = unittest.TestLoader().loadTestsFromTestCase(BessL2ForwardTest)
+results = unittest.TextTestRunner(verbosity=2).run(suite)
 
-
-OUTPUT_TEST_INPUTS.append([m1, 1, 1,
-                           [{'input_port': 0,
-                             'input_packet': arp_req,
-                             'output_port': 0,
-                             'output_packet': arp_reply}]])
+if results.failures or results.errors:
+    sys.exit(1)
