@@ -36,6 +36,8 @@
 #include <unordered_map>
 #include <unordered_set>
 
+#include "message.h"
+#include "metadata.h"
 #include "utils/common.h"
 
 class Module;
@@ -74,10 +76,13 @@ class ModuleGraph {
   // Return true if any module from the builder exists
   static bool HasModuleOfClass(const ModuleBuilder *);
 
-  // Add a module to the collection. Returns true on success, false otherwise.
-  static bool AddModule(Module *m);
+  // Creates a module to the graph.
+  static Module *CreateModule(const ModuleBuilder &builder,
+                              const std::string &module_name,
+                              const google::protobuf::Any &arg,
+                              pb_error_t *perr);
 
-  // Remove a module from the collection. Returns 0 on success, -errno
+  // Removes a module to the graph. Returns 0 on success, -errno
   // otherwise.
   static int DestroyModule(Module *m, bool erase = true);
   static void DestroyAllModules();
