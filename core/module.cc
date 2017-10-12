@@ -68,7 +68,7 @@ bool ModuleBuilder::DeregisterModuleClass(const std::string &class_name) {
 
   // Check if any module of the class still exists
   const ModuleBuilder *builder = &(it->second);
-  if (ModuleGraph::ExistModuleClass(builder))
+  if (ModuleGraph::HasModuleOfClass(builder))
     return false;
 
   all_module_builders_holder().erase(it);

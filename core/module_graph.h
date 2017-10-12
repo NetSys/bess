@@ -71,7 +71,7 @@ class Node {
 class ModuleGraph {
  public:
   // Return true if any module from the builder exists
-  static bool ExistModuleClass(const ModuleBuilder *);
+  static bool HasModuleOfClass(const ModuleBuilder *);
 
   // Add a module to the collection. Returns true on success, false otherwise.
   static bool AddModule(Module *m);

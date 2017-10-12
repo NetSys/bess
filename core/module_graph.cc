@@ -96,7 +96,7 @@ const std::map<std::string, Module *> &ModuleGraph::GetAllModules() {
   return all_modules_;
 }
 
-bool ModuleGraph::ExistModuleClass(const ModuleBuilder *builder) {
+bool ModuleGraph::HasModuleOfClass(const ModuleBuilder *builder) {
   for (auto const &e : all_modules_) {
     if (e.second->module_builder() == builder) {
       return true;
