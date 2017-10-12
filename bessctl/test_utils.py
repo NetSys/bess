@@ -29,6 +29,7 @@
 
 from __future__ import print_function
 
+import codecs
 import os
 import random
 import scapy.all as scapy
@@ -98,9 +99,9 @@ def get_tcp_packet(sip=None, dip=None, sport=None, dport=None, pkt_len=60):
 
 def pkt_str(pkt):
     if not pkt:
-        return str('').encode('HEX')
+        return ''
     else:
-        return str(pkt).encode('HEX')
+        return codecs.encode(bytes(pkt), 'hex')
 
 
 class BessModuleTestCase(unittest.TestCase):
