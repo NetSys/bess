@@ -98,7 +98,7 @@ struct Command {
 using Commands = std::vector<struct Command>;
 
 // A class for managing modules of 'a particular type'.
-// It creates new modules and forwarding module-specific commands
+// Creates new modules and forwards module-specific commands.
 class ModuleBuilder {
  public:
   ModuleBuilder(
@@ -129,8 +129,7 @@ class ModuleBuilder {
       bool reset = false);
   static const std::map<std::string, ModuleBuilder> &all_module_builders();
 
-  /* returns a pointer to the created module.
-   * if error, returns nullptr and *perr is set */
+  /* returns a pointer to the created module */
   Module *CreateModule(const std::string &name,
                        bess::metadata::Pipeline *pipeline) const;
 

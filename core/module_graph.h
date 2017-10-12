@@ -1,4 +1,4 @@
-// Copyright (c) 2014-2016, The Regents of the University of California.
+// Copyright (c) 2014-2017, The Regents of the University of California.
 // Copyright (c) 2016-2017, Nefeli Networks, Inc.
 // All rights reserved.
 //
@@ -68,6 +68,7 @@ class Node {
   DISALLOW_COPY_AND_ASSIGN(Node);
 };
 
+// Manages a global graph of modules
 class ModuleGraph {
  public:
   // Return true if any module from the builder exists
@@ -97,8 +98,8 @@ class ModuleGraph {
   // ignoring all modules that are not tasks.
   static bool UpdateTaskGraph();
 
-  // Finds the next module that implements a task, and updates it's parents
-  // accordingly.
+  // Finds the next module that implements a task along the pipeline.
+  // If if find any, then the current task becomes the parent of the next task.
   static bool FindNextTask(const std::string &node_name,
                            const std::string &parent_name,
                            std::unordered_set<std::string> *visited);

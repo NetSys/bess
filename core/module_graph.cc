@@ -1,4 +1,4 @@
-// Copyright (c) 2014-2016, The Regents of the University of California.
+// Copyright (c) 2014-2017, The Regents of the University of California.
 // Copyright (c) 2016-2017, Nefeli Networks, Inc.
 // All rights reserved.
 //
@@ -38,8 +38,6 @@ std::map<std::string, Module *> ModuleGraph::all_modules_;
 std::unordered_map<std::string, Node> ModuleGraph::module_graph_;
 std::unordered_set<std::string> ModuleGraph::tasks_;
 
-// Finds the next module that implements a task, and updates it's parents
-// accordingly.
 bool ModuleGraph::FindNextTask(const std::string &node_name,
                                const std::string &parent_name,
                                std::unordered_set<std::string> *visited) {
@@ -80,8 +78,6 @@ bool ModuleGraph::FindNextTask(const std::string &node_name,
   return true;
 }
 
-// Updates the parents of modules with tasks by traversing `module_graph_` and
-// ignoring all modules that are not tasks.
 bool ModuleGraph::UpdateTaskGraph() {
   for (auto const &task : tasks_) {
     std::unordered_set<std::string> visited;
