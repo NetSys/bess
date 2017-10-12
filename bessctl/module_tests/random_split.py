@@ -32,14 +32,14 @@ from test_utils import *
 
 class BessRandomSplitTest(BessModuleTestCase):
 
-    def test_dropall(self):
+    def test_dropnone(self):
         drop0 = RandomSplit(drop_rate=0, gates=[0])
         pkt_in = get_udp_packet()
         pkt_outs = self.run_module(drop0, 0, [pkt_in], [0])
         self.assertEquals(len(pkt_outs[0]), 1)
         self.assertSamePackets(pkt_outs[0][0], pkt_in)
 
-    def test_dropnone(self):
+    def test_dropall(self):
         drop0 = RandomSplit(drop_rate=1, gates=[0])
         pkt_in = get_udp_packet()
         pkt_outs = self.run_module(drop0, 0, [pkt_in], [0])
