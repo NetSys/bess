@@ -174,6 +174,7 @@ class WildcardMatch final : public Module {
 
   size_t total_key_size_; /* a multiple of sizeof(uint64_t) */
 
+  // TODO(melvinw): this can be refactored to use ExactMatchTable
   std::vector<struct WmField> fields_;
   std::vector<struct WmTuple> tuples_;
 };
