@@ -109,14 +109,14 @@ class BessModuleTestCase(unittest.TestCase):
     @staticmethod
     def assertSamePackets(pkt1, pkt2):
         if pkt_str(pkt1) != pkt_str(pkt2):
-            raise AssertionError('"%s" != "%s"',
-                                 pkt_str(pkt1), pkt_str(pkt2))
+            raise AssertionError(
+                '"%s" != "%s"' % (pkt_str(pkt1), pkt_str(pkt2)))
 
     @staticmethod
     def assertNotSamePackets(pkt1, pkt2):
         if pkt_str(pkt1) == pkt_str(pkt2):
-            raise AssertionError('"%s" == "%s"',
-                                 pkt_str(pkt1), pkt_str(pkt2))
+            raise AssertionError(
+                '"%s" == "%s"' % (pkt_str(pkt1), pkt_str(pkt2)))
 
     def assertBessAlive(self):
         try:
