@@ -69,7 +69,7 @@ after_success:
 
 after_failure:
   - more /tmp/bessd.*.INFO.* | cat      # dump all bessd log files
-  - more /tmp/sanitizer* | cat          # dump all sanitizer results
+  - sudo more /tmp/sanitizer* | cat          # dump all sanitizer results
 
 before_deploy:
   - for arch in core2 sandybridge haswell; do
