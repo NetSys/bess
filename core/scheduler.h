@@ -32,12 +32,12 @@
 #define BESS_SCHEDULER_H_
 
 #include <iostream>
-#include <queue>
 #include <sstream>
 #include <string>
 #include <vector>
 
 #include "traffic_class.h"
+#include "utils/extended_priority_queue.h"
 #include "worker.h"
 
 namespace bess {
@@ -60,17 +60,22 @@ class SchedWakeupQueue {
     }
   };
 
-  SchedWakeupQueue() : q_(WakeupComp()) {}
+  SchedWakeupQueue() : q_() {}
 
   // Adds the given traffic class to those that are considered blocked.
   void Add(TrafficClass *c) { q_.push(c); }
+
+  // Removes the given traffic class from the blocked list.
+  void Remove(const TrafficClass *c) {
+    const auto del_pred = [&](const TrafficClass *t) { return t == c; };
+    q_.delete_single_element(del_pred);
+  }
 
  private:
   friend class Scheduler;
 
   // A priority queue of TrafficClasses to wake up ordered by time.
-  std::priority_queue<TrafficClass *, std::vector<TrafficClass *>, WakeupComp>
-      q_;
+  bess::utils::extended_priority_queue<TrafficClass *, WakeupComp> q_;
 };
 
 // The non-instantiable base class for schedulers.  Implements common routines

@@ -166,6 +166,13 @@ task_id_t Module::RegisterTask(void *arg) {
 void Module::DestroyAllTasks() {
   for (auto task : tasks_) {
     auto c = task->GetTC();
+
+    int wid = c->WorkerId();
+    if (wid >= 0) {
+      bess::Scheduler *s = workers[wid]->scheduler();
+      s->wakeup_queue().Remove(c);
+    }
+
     CHECK(detach_tc(c));
     delete c;
   }
