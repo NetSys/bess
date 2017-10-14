@@ -570,6 +570,7 @@ class ModuleTask {
   void SetTC(bess::LeafTrafficClass<Task> *c) { c_ = c; }
 
   bess::LeafTrafficClass<Task> *GetTC() { return c_; }
+  const bess::LeafTrafficClass<Task> *GetTC() const { return c_; }
 
  private:
   void *arg_;  // Auxiliary value passed to Module::RunTask().
