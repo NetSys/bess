@@ -455,13 +455,12 @@ static void collect_tc(const bess::TrafficClass* c, int wid,
   } else if (c->policy() == bess::POLICY_LEAF) {
     const bess::LeafTrafficClass<Task>* leaf =
         static_cast<const bess::LeafTrafficClass<Task>*>(c);
-    const Task& task = leaf->task();
-    const Module* module = task.module();
+    const Task* task = leaf->task();
+    const Module* module = task->module();
 
-    status->mutable_class_()->set_leaf_module_name(task.module()->name());
+    status->mutable_class_()->set_leaf_module_name(task->module()->name());
 
-    auto it = std::find(module->tasks().begin(), module->tasks().end(),
-                        task.module_task());
+    auto it = std::find(module->tasks().begin(), module->tasks().end(), task);
     CHECK(it != module->tasks().end());
     uint64_t task_id = it - module->tasks().begin();
     status->mutable_class_()->set_leaf_module_taskid(task_id);
@@ -708,7 +707,7 @@ class BESSControlImpl final : public BESSControl::Service {
         bess::TrafficClass* c = tc_pair.second;
         if (c->policy() == bess::POLICY_LEAF && root == c->Root()) {
           auto leaf = static_cast<bess::LeafTrafficClass<Task>*>(c);
-          int constraints = leaf->task().GetSocketConstraints();
+          int constraints = leaf->task()->GetSocketConstraints();
           if ((constraints & socket) == 0) {
             LOG(WARNING) << "Scheduler constraints are violated for wid " << i
                          << " socket " << socket << " constraint "

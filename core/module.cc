@@ -152,17 +152,14 @@ void Module::ProcessBatch(bess::PacketBatch *) {
 }
 
 task_id_t Module::RegisterTask(void *arg) {
-  ModuleTask *t = new ModuleTask(arg, nullptr);
-
   std::string leafname = std::string("!leaf_") + name_ + std::string(":") +
                          std::to_string(tasks_.size());
   bess::LeafTrafficClass<Task> *c =
       bess::TrafficClassBuilder::CreateTrafficClass<
-          bess::LeafTrafficClass<Task>>(leafname, Task(this, arg, t));
+          bess::LeafTrafficClass<Task>>(leafname, Task(this, arg));
 
   add_tc_to_orphan(c, -1);
-
-  tasks_.push_back(t);
+  tasks_.push_back(c->task());
   return tasks_.size() - 1;
 }
 
@@ -171,7 +168,6 @@ void Module::DestroyAllTasks() {
     auto c = task->GetTC();
     CHECK(detach_tc(c));
     delete c;
-    delete task;
   }
   tasks_.clear();
 }
@@ -205,7 +201,7 @@ placement_constraint Module::ComputePlacementConstraints(
   return constraint;
 }
 
-void Module::AddActiveWorker(int wid, const ModuleTask *t) {
+void Module::AddActiveWorker(int wid, const Task *t) {
   if (!HaveVisitedWorker(t)) {  // Have not already accounted for
                                 // worker.
     active_workers_[wid] = true;

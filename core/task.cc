@@ -36,16 +36,12 @@
 
 // Called when the leaf that owns this task is destroyed.
 void Task::Detach() {
-  if (module_task_) {
-    module_task_->SetTC(nullptr);
-  }
+  c_ = nullptr;
 }
 
 // Called when the leaf that owns this task is created.
 void Task::Attach(bess::LeafTrafficClass<Task> *c) {
-  if (module_task_) {
-    module_task_->SetTC(c);
-  }
+  c_ = c;
 }
 
 struct task_result Task::operator()(void) const {
@@ -69,6 +65,6 @@ placement_constraint Task::GetSocketConstraints() const {
  */
 void Task::AddActiveWorker(int wid) const {
   if (module_) {
-    module_->AddActiveWorker(wid, module_task_);
+    module_->AddActiveWorker(wid, c_->task());
   }
 }

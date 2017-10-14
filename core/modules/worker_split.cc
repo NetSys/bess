@@ -34,7 +34,7 @@ void WorkerSplit::ProcessBatch(bess::PacketBatch *batch) {
   RunChooseModule(ctx.wid(), batch);
 }
 
-void WorkerSplit::AddActiveWorker(int wid, const ModuleTask *t) {
+void WorkerSplit::AddActiveWorker(int wid, const Task *t) {
   if (!HaveVisitedWorker(t)) {  // Have not already accounted for worker.
     active_workers_[wid] = true;
     visited_tasks_.push_back(t);

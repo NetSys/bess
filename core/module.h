@@ -165,7 +165,7 @@ class ModuleBuilder {
   const module_init_func_t init_func_;
 };
 
-class ModuleTask;
+class Task;
 
 /*!
  * Results from checking for constraints. Failing constraints can indicate
@@ -279,7 +279,7 @@ class alignas(64) Module {
     return attrs_;
   }
 
-  const std::vector<ModuleTask *> &tasks() const { return tasks_; }
+  const std::vector<const Task *> &tasks() const { return tasks_; }
 
   void set_attr_offset(size_t idx, bess::metadata::mt_offset_t offset) {
     if (idx < bess::metadata::kMaxAttrsPerModule) {
@@ -328,7 +328,7 @@ class alignas(64) Module {
   /*!
    * Check if we have already seen a task
    */
-  inline bool HaveVisitedWorker(const ModuleTask *task) const {
+  inline bool HaveVisitedWorker(const Task *task) const {
     return std::find(visited_tasks_.begin(), visited_tasks_.end(), task) !=
            visited_tasks_.end();
   }
@@ -338,7 +338,7 @@ class alignas(64) Module {
    */
   inline size_t num_active_tasks() const { return visited_tasks_.size(); }
 
-  virtual void AddActiveWorker(int wid, const ModuleTask *task);
+  virtual void AddActiveWorker(int wid, const Task *task);
 
   virtual CheckConstraintResult CheckModuleConstraints() const;
 
@@ -395,7 +395,7 @@ class alignas(64) Module {
   std::vector<bess::metadata::Attribute> attrs_;
   bess::metadata::mt_offset_t attr_offsets_[bess::metadata::kMaxAttrsPerModule];
 
-  std::vector<ModuleTask *> tasks_;
+  std::vector<const Task *> tasks_;
 
   std::vector<bess::IGate *> igates_;
   std::vector<bess::OGate *> ogates_;
@@ -404,7 +404,7 @@ class alignas(64) Module {
   // Set of active workers accessing this module.
   std::vector<bool> active_workers_;
   // Set of tasks we have already accounted for when propagating workers.
-  std::vector<const ModuleTask *> visited_tasks_;
+  std::vector<const Task *> visited_tasks_;
 
   // Whether the module overrides RunTask or not.
   bool is_task_;

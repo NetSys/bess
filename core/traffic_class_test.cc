@@ -58,7 +58,7 @@ class DummyModule : public Module {
 
 // Tests that we can create a leaf node.
 TEST(CreateTree, Leaf) {
-  Task t(nullptr, nullptr, nullptr);
+  Task t(nullptr, nullptr);
   std::unique_ptr<TrafficClass> c(CL("leaf", {LEAF, t}));
   ASSERT_NE(nullptr, c.get());
   ASSERT_EQ(1, c->Size());
@@ -69,7 +69,7 @@ TEST(CreateTree, Leaf) {
 
 // Tests that we can create and fetch a priority root node with a leaf under it.
 TEST(CreateTree, PriorityRootAndLeaf) {
-  Task t(nullptr, nullptr, nullptr);
+  Task t(nullptr, nullptr);
   std::unique_ptr<TrafficClass> tree(
       CT("root", {PRIORITY}, {{10, CL("leaf", {LEAF, t})}}));
   ASSERT_EQ(2, TrafficClassBuilder::Find("root")->Size());
@@ -112,7 +112,7 @@ TEST(CreateTree, PriorityRootAndLeaf) {
 // Tests that we can create and fetch a weighted fair root node with a leaf
 // under it.
 TEST(CreateTree, WeightedFairRootAndLeaf) {
-  Task t(nullptr, nullptr, nullptr);
+  Task t(nullptr, nullptr);
   std::unique_ptr<TrafficClass> tree(CT("root", {WEIGHTED_FAIR, RESOURCE_CYCLE},
                                         {{10, CL("leaf", {LEAF, t})}}));
   ASSERT_EQ(2, TrafficClassBuilder::Find("root")->Size());
@@ -147,7 +147,7 @@ TEST(CreateTree, WeightedFairRootAndLeaf) {
 // Tests that we can create and fetch a round robin root node with a leaf under
 // it.
 TEST(CreateTree, RoundRobinRootAndLeaf) {
-  Task t(nullptr, nullptr, nullptr);
+  Task t(nullptr, nullptr);
   std::unique_ptr<TrafficClass> tree(
       CT("root", {ROUND_ROBIN}, {{CL("leaf", {LEAF, t})}}));
   ASSERT_EQ(2, TrafficClassBuilder::Find("root")->Size());
@@ -180,7 +180,7 @@ TEST(CreateTree, RoundRobinRootAndLeaf) {
 // Tests that we can create and fetch a rate limit root node with a leaf under
 // it.
 TEST(CreateTree, RateLimitRootAndLeaf) {
-  Task t(nullptr, nullptr, nullptr);
+  Task t(nullptr, nullptr);
   std::unique_ptr<TrafficClass> tree(CT(
       "root", {RATE_LIMIT, RESOURCE_CYCLE, 10, 15}, {CL("leaf", {LEAF, t})}));
   ASSERT_EQ(2, TrafficClassBuilder::Find("root")->Size());
@@ -207,7 +207,7 @@ TEST(CreateTree, RateLimitRootAndLeaf) {
 // Tess that we can create a simple tree and have the scheduler pick the leaf
 // repeatedly.
 TEST(DefaultSchedulerNext, BasicTreePriority) {
-  Task t(nullptr, nullptr, nullptr);
+  Task t(nullptr, nullptr);
   DefaultScheduler<Task> s(
       CT("root", {PRIORITY}, {{10, CL("leaf", {LEAF, t})}}));
   ASSERT_EQ(2, TrafficClassBuilder::Find("root")->Size());
@@ -235,7 +235,7 @@ TEST(DefaultSchedulerNext, BasicTreePriority) {
 // Tess that we can create a simple tree and have the scheduler pick the leaf
 // repeatedly.
 TEST(DefaultSchedulerNext, BasicTreeWeightedFair) {
-  Task t(nullptr, nullptr, nullptr);
+  Task t(nullptr, nullptr);
   DefaultScheduler<Task> s(CT("root", {WEIGHTED_FAIR, RESOURCE_COUNT},
                               {{2, CL("leaf", {LEAF, t})}}));
   ASSERT_EQ(2, TrafficClassBuilder::Find("root")->Size());
@@ -264,7 +264,7 @@ TEST(DefaultSchedulerNext, BasicTreeWeightedFair) {
 // Tess that we can create a simple tree and have the scheduler pick the leaf
 // repeatedly.
 TEST(DefaultSchedulerNext, BasicTreeRoundRobin) {
-  Task t(nullptr, nullptr, nullptr);
+  Task t(nullptr, nullptr);
   DefaultScheduler<Task> s(
       CT("root", {ROUND_ROBIN}, {{CL("leaf", {LEAF, t})}}));
   ASSERT_EQ(2, TrafficClassBuilder::Find("root")->Size());
@@ -293,7 +293,7 @@ TEST(DefaultSchedulerNext, BasicTreeRoundRobin) {
 TEST(DefaultSchedulerNext, BasicTreeRateLimit) {
   uint64_t new_limit = 25;
   uint64_t new_burst = 50;
-  Task t(nullptr, nullptr, nullptr);
+  Task t(nullptr, nullptr);
   DefaultScheduler<Task> s(CT("root", {RATE_LIMIT, RESOURCE_COUNT, 50, 100},
                               {CL("leaf", {LEAF, t})}));
   ASSERT_EQ(2, TrafficClassBuilder::Find("root")->Size());
@@ -336,7 +336,7 @@ TEST(DefaultSchedulerNext, BasicTreeRateLimit) {
 // Tess that we can create a simple tree and have the scheduler pick the
 // unblocked child repeatedly if one of the children is blocked.
 TEST(DefaultSchedulerNext, TwoLeavesWeightedFairOneBlocked) {
-  Task t(nullptr, nullptr, nullptr);
+  Task t(nullptr, nullptr);
   DefaultScheduler<Task> s(
       CT("root", {WEIGHTED_FAIR, RESOURCE_COUNT},
          {{1, CT("rr_1", {ROUND_ROBIN})}, {2, CT("rr_2", {ROUND_ROBIN})}}));
@@ -369,7 +369,7 @@ TEST(DefaultSchedulerNext, TwoLeavesWeightedFairOneBlocked) {
 // leaves in proportion to their weights.
 TEST(DefaultScheduleOnce, TwoLeavesWeightedFair) {
   DummyModule dm;
-  Task t(&dm, nullptr, nullptr);
+  Task t(&dm, nullptr);
   DefaultScheduler<Task> s(
       CT("root", {WEIGHTED_FAIR, RESOURCE_COUNT},
          {{5, CL("leaf_2", {LEAF, t})}, {2, CL("leaf_1", {LEAF, t})}}));
@@ -412,7 +412,7 @@ TEST(DefaultScheduleOnce, TwoLeavesWeightedFair) {
 // (lowest) priority leaf that is unblocked at that time.
 TEST(DefaultScheduleOnce, TwoLeavesPriority) {
   DummyModule dm;
-  Task t(&dm, nullptr, nullptr);
+  Task t(&dm, nullptr);
   DefaultScheduler<Task> s(
       CT("root", {PRIORITY},
          {{0, CT("rr_1", {ROUND_ROBIN})}, {1, CT("rr_2", {ROUND_ROBIN})}}));
@@ -461,7 +461,7 @@ TEST(DefaultScheduleOnce, TwoLeavesPriority) {
 // leaves round robin.
 TEST(DefaultScheduleOnce, TwoLeavesRoundRobin) {
   DummyModule dm;
-  Task t(&dm, nullptr, nullptr);
+  Task t(&dm, nullptr);
   DefaultScheduler<Task> s(
       CT("root", {ROUND_ROBIN},
          {{CL("leaf_1", {LEAF, t})}, {CL("leaf_2", {LEAF, t})}}));
@@ -499,7 +499,7 @@ TEST(DefaultScheduleOnce, TwoLeavesRoundRobin) {
 // in the hierarchy.
 TEST(DefaultScheduleOnce, LeavesWeightedFairAndRoundRobin) {
   DummyModule dm;
-  Task t(&dm, nullptr, nullptr);
+  Task t(&dm, nullptr);
   DefaultScheduler<Task> s(
       CT("root", {WEIGHTED_FAIR, RESOURCE_COUNT},
          {{2, CT("rr_1", {ROUND_ROBIN},
@@ -551,7 +551,7 @@ TEST(DefaultScheduleOnce, LeavesWeightedFairAndRoundRobin) {
 
 // Tests that rate limit nodes get properly blocked and unblocked.
 TEST(RateLimit, BasicBlockUnblock) {
-  Task t(nullptr, nullptr, nullptr);
+  Task t(nullptr, nullptr);
   DefaultScheduler<Task> s(CT(
       "root", {ROUND_ROBIN}, {{CT("limit_1", {RATE_LIMIT, RESOURCE_COUNT, 1, 0},
                                   {CL("leaf_1", {LEAF, t})})},
