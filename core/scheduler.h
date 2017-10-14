@@ -345,7 +345,7 @@ class ExperimentalScheduler : public Scheduler<CallableTask> {
       now = rdtsc();
 
       if (ret.packets == 0 && ret.block) {
-        constexpr uint64_t kMaxWait = 1ull << 32;
+        constexpr uint64_t kMaxWait = 1ull << 20;
         uint64_t wait = std::min(kMaxWait, leaf->wait_cycles() << 1);
         leaf->set_wait_cycles(wait);
 
