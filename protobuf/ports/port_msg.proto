@@ -45,7 +45,14 @@ message PMDPortArg {
 }
 
 message UnixSocketPortArg {
+  /// Set the first character to "@" in place of \0 for abstract path
+  /// See manpage for unix(7).
   string path = 1;
+
+  /// Minimum RX polling interval for system calls, when *idle*.
+  /// Use a negative number for unthrottled polling. If unspecified or 0,
+  /// it is set to 50,000 (50 microseconds, or 20k polls per second)
+  int64 min_rx_interval_ns = 2;
 }
 
 message ZeroCopyVPortArg {
