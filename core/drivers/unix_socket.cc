@@ -28,7 +28,6 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-
 #include <glog/logging.h>
 #include <poll.h>
 #include <signal.h>
@@ -39,7 +38,6 @@
 #include "unix_socket.h"
 
 #define SIG_THREAD_EXIT SIGUSR2
-
 
 void UnixSocketPort::AcceptThread() {
   sigset_t sigset;
@@ -112,7 +110,7 @@ CommandResponse UnixSocketPort::Init(const bess::pb::UnixSocketPortArg &arg) {
   if (arg.min_rx_interval_ns() < 0) {
     min_rx_interval_ns_ = 0;
   } else {
-    min_rx_interval_ns_ = arg.min_rx_interval_ns() ? : kDefaultMinRxInterval;
+    min_rx_interval_ns_ = arg.min_rx_interval_ns() ?: kDefaultMinRxInterval;
   }
 
   listen_fd_ = socket(AF_UNIX, SOCK_SEQPACKET, 0);
@@ -161,9 +159,7 @@ CommandResponse UnixSocketPort::Init(const bess::pb::UnixSocketPortArg &arg) {
     return CommandFailure(errno, "sigaction(SIG_THREAD_EXIT) failed");
   }
 
-  accept_thread_ = std::thread([this]() {
-      this->AcceptThread();
-    });
+  accept_thread_ = std::thread([this]() { this->AcceptThread(); });
 
   return CommandSuccess();
 }
