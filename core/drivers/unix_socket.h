@@ -80,10 +80,10 @@ class UnixSocketPort final : public Port {
   static const uint64_t kDefaultMinRxInterval = 50000;  // 50 microsec
 
   /*!
-  * Calling recv() system call is expensive so we may not want to invoke it
-  * too frequently. min_rx_interval_ns_ is a configurable parameter to throttle
-  * the polling rate.
-  */
+   * Calling recv() system call is expensive so we may not want to invoke it
+   * too frequently. min_rx_interval_ns_ is a configurable parameter to throttle
+   * the rate of busy-wait polling.
+   */
   uint64_t min_rx_interval_ns_;
   uint64_t last_idle_ns_;
 
