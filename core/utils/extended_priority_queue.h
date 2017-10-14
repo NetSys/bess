@@ -41,8 +41,9 @@ namespace utils {
 
 // Extends std::priority_queue to support decreasing the key of the top element
 // directly.
-template <typename T>
-class extended_priority_queue : public std::priority_queue<T> {
+template <typename T, typename Cmp = std::less<T>>
+class extended_priority_queue
+    : public std::priority_queue<T, std::vector<T>, Cmp> {
  public:
   T &mutable_top() { return this->c.front(); }
 
