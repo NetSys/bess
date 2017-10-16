@@ -1,4 +1,4 @@
-// Copyright (c) 2014-2016, The Regents of the University of California.
+// Copyright (c) 2014-2017, The Regents of the University of California.
 // Copyright (c) 2016-2017, Nefeli Networks, Inc.
 // All rights reserved.
 //
@@ -39,170 +39,13 @@
 #include "hooks/tcpdump.h"
 #include "hooks/track.h"
 #include "mem_alloc.h"
+#include "module_graph.h"
 #include "scheduler.h"
+#include "task.h"
 #include "utils/pcap.h"
 #include "worker.h"
 
 const Commands Module::cmds;
-
-std::map<std::string, Module *> ModuleBuilder::all_modules_;
-std::unordered_map<std::string, Node> ModuleBuilder::module_graph_;
-std::unordered_set<std::string> ModuleBuilder::tasks_;
-
-bool ModuleBuilder::AddEdge(const std::string &from, const std::string &to) {
-  auto from_it = module_graph_.find(from);
-  if (from_it == module_graph_.end() || module_graph_.count(to) == 0) {
-    return false;
-  }
-  from_it->second.AddChild(to);
-  return UpdateTaskGraph();
-}
-
-bool ModuleBuilder::RemoveEdge(const std::string &from, const std::string &to) {
-  auto from_node = module_graph_.find(from);
-  if (from_node == module_graph_.end() || module_graph_.count(to) == 0) {
-    return false;
-  }
-
-  from_node->second.RemoveChild(to);
-
-  // We need to regenerate the task graph.
-  for (auto const &task : tasks_) {
-    auto it = all_modules_.find(task);
-    if (it != all_modules_.end()) {
-      it->second->parent_tasks_.clear();
-    }
-  }
-  return UpdateTaskGraph();
-}
-
-bool ModuleBuilder::UpdateTaskGraph() {
-  for (auto const &task : tasks_) {
-    std::unordered_set<std::string> visited;
-    if (!FindNextTask(task, task, &visited)) {
-      return false;
-    }
-  }
-  return true;
-}
-
-bool ModuleBuilder::FindNextTask(const std::string &node_name,
-                                 const std::string &parent_name,
-                                 std::unordered_set<std::string> *visited) {
-  visited->insert(node_name);
-  // While traversing the module graph, if `node` is in the task graph and is
-  // not `parent`, then it must be  the child of `parent`.
-  if (node_name != parent_name && tasks_.find(node_name) != tasks_.end()) {
-    auto parent_it = all_modules_.find(parent_name);
-    auto node_it = all_modules_.find(node_name);
-    if (parent_it == all_modules_.end() || node_it == all_modules_.end()) {
-      return false;
-    }
-
-    Module *node = node_it->second;
-    Module *parent = parent_it->second;
-    for (Module *it : node->parent_tasks_) {
-      if (it == parent) {
-        return true;
-      }
-    }
-    node->parent_tasks_.push_back(parent);
-    return true;
-  }
-
-  auto node_it = module_graph_.find(node_name);
-  if (node_it == module_graph_.end()) {
-    return false;
-  }
-
-  for (auto &child_name : node_it->second.children()) {
-    if (visited->count(child_name) > 0) {
-      continue;
-    }
-    if (!FindNextTask(child_name, parent_name, visited)) {
-      return false;
-    }
-  }
-  return true;
-}
-
-Module *ModuleBuilder::CreateModule(const std::string &name,
-                                    bess::metadata::Pipeline *pipeline) const {
-  Module *m = module_generator_();
-  m->set_name(name);
-  m->set_module_builder(this);
-  m->set_pipeline(pipeline);
-  return m;
-}
-
-bool ModuleBuilder::AddModule(Module *m) {
-  if (m->is_task_) {
-    if (!tasks_.insert(m->name()).second) {
-      return false;
-    }
-  }
-
-  bool module_added = all_modules_.insert({m->name(), m}).second;
-  if (!module_added) {
-    return false;
-  }
-
-  return module_graph_
-      .emplace(std::piecewise_construct, std::forward_as_tuple(m->name()),
-               std::forward_as_tuple(m))
-      .second;
-}
-
-int ModuleBuilder::DestroyModule(Module *m, bool erase) {
-  int ret;
-  m->DeInit();
-
-  // disconnect from upstream modules.
-  for (size_t i = 0; i < m->igates_.size(); i++) {
-    ret = m->DisconnectModulesUpstream(i);
-    if (ret) {
-      return ret;
-    }
-  }
-
-  // disconnect downstream modules
-  for (size_t i = 0; i < m->ogates_.size(); i++) {
-    ret = m->DisconnectModules(i);
-    if (ret) {
-      return ret;
-    }
-  }
-
-  m->DestroyAllTasks();
-  m->DeregisterAllAttributes();
-
-  if (erase) {
-    all_modules_.erase(m->name());
-  }
-
-  module_graph_.erase(m->name());
-  if (m->is_task_) {
-    tasks_.erase(m->name());
-  }
-
-  delete m;
-  return 0;
-}
-
-void ModuleBuilder::DestroyAllModules() {
-  int ret;
-  for (auto it = all_modules_.begin(); it != all_modules_.end();) {
-    auto it_next = std::next(it);
-    ret = DestroyModule(it->second, false);
-    if (ret) {
-      LOG(ERROR) << "Error destroying module '" << it->first
-                 << "' (errno = " << ret << ")";
-    } else {
-      all_modules_.erase(it);
-    }
-    it = it_next;
-  }
-}
 
 bool ModuleBuilder::RegisterModuleClass(
     std::function<Module *()> module_generator, const std::string &class_name,
@@ -225,45 +68,11 @@ bool ModuleBuilder::DeregisterModuleClass(const std::string &class_name) {
 
   // Check if any module of the class still exists
   const ModuleBuilder *builder = &(it->second);
-  for (auto const &e : all_modules()) {
-    if (e.second->module_builder() == builder) {
-      return false;
-    }
-  }
+  if (ModuleGraph::HasModuleOfClass(builder))
+    return false;
 
   all_module_builders_holder().erase(it);
   return true;
-}
-
-std::string ModuleBuilder::GenerateDefaultName(
-    const std::string &class_name, const std::string &default_template) {
-  std::string name_template;
-
-  if (default_template == "") {
-    std::ostringstream ss;
-    char last_char = '\0';
-    for (auto t : class_name) {
-      if (last_char != '\0' && islower(last_char) && isupper(t))
-        ss << '_';
-
-      ss << char(tolower(t));
-      last_char = t;
-    }
-    name_template = ss.str();
-  } else {
-    name_template = default_template;
-  }
-
-  for (int i = 0;; i++) {
-    std::ostringstream ss;
-    ss << name_template << i;
-    std::string name = ss.str();
-
-    if (!all_modules_.count(name))
-      return name;
-  }
-
-  promise_unreachable();
 }
 
 std::map<std::string, ModuleBuilder> &ModuleBuilder::all_module_builders_holder(
@@ -282,10 +91,6 @@ std::map<std::string, ModuleBuilder> &ModuleBuilder::all_module_builders_holder(
 const std::map<std::string, ModuleBuilder>
     &ModuleBuilder::all_module_builders() {
   return all_module_builders_holder();
-}
-
-const std::map<std::string, Module *> &ModuleBuilder::all_modules() {
-  return all_modules_;
 }
 
 CommandResponse ModuleBuilder::RunCommand(
@@ -315,6 +120,15 @@ CommandResponse ModuleBuilder::RunCommand(
 CommandResponse ModuleBuilder::RunInit(Module *m,
                                        const google::protobuf::Any &arg) const {
   return init_func_(m, arg);
+}
+
+Module *ModuleBuilder::CreateModule(const std::string &name,
+                                    bess::metadata::Pipeline *pipeline) const {
+  Module *m = module_generator_();
+  m->set_name(name);
+  m->set_module_builder(this);
+  m->set_pipeline(pipeline);
+  return m;
 }
 
 // -------------------------------------------------------------------------
@@ -531,7 +345,7 @@ int Module::ConnectModules(gate_idx_t ogate_idx, Module *m_next,
   igate->PushOgate(ogate);
 
   // Update graph
-  return !ModuleBuilder::AddEdge(name_, m_next->name_);
+  return !ModuleGraph::AddEdge(name_, m_next->name_);
 }
 
 int Module::DisconnectModules(gate_idx_t ogate_idx) {
@@ -555,7 +369,7 @@ int Module::DisconnectModules(gate_idx_t ogate_idx) {
   igate = ogate->igate();
 
   // Remove edge in module graph.
-  if (!ModuleBuilder::RemoveEdge(name_, igate->module()->name_)) {
+  if (!ModuleGraph::RemoveEdge(name_, igate->module()->name_)) {
     return 1;
   }
 
@@ -598,7 +412,7 @@ int Module::DisconnectModulesUpstream(gate_idx_t igate_idx) {
     ogate->ClearHooks();
 
     // Remove edge in module graph
-    if (!ModuleBuilder::RemoveEdge(ogate->module()->name_, name_)) {
+    if (!ModuleGraph::RemoveEdge(ogate->module()->name_, name_)) {
       return 1;
     }
 
@@ -731,25 +545,5 @@ void _trace_after_call(void) {
 
   s->curr_indent = s->indent[s->depth];
 }
-#endif
 
-void propagate_active_worker() {
-  for (auto &pair : ModuleBuilder::all_modules()) {
-    Module *m = pair.second;
-    m->ResetActiveWorkerSet();
-  }
-  for (int i = 0; i < Worker::kMaxWorkers; i++) {
-    if (workers[i] == nullptr) {
-      continue;
-    }
-    if (bess::TrafficClass *root = workers[i]->scheduler()->root()) {
-      for (const auto &tc_pair : bess::TrafficClassBuilder::all_tcs()) {
-        bess::TrafficClass *c = tc_pair.second;
-        if (c->policy() == bess::POLICY_LEAF && c->Root() == root) {
-          auto leaf = static_cast<bess::LeafTrafficClass<Task> *>(c);
-          leaf->task().AddActiveWorker(i);
-        }
-      }
-    }
-  }
-}
+#endif

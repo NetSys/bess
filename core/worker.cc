@@ -62,11 +62,6 @@ Worker *volatile workers[Worker::kMaxWorkers];
 
 using bess::TrafficClassBuilder;
 using namespace bess::traffic_class_initializer_types;
-using bess::PriorityTrafficClass;
-using bess::WeightedFairTrafficClass;
-using bess::RoundRobinTrafficClass;
-using bess::RateLimitTrafficClass;
-using bess::LeafTrafficClass;
 
 std::list<std::pair<int, bess::TrafficClass *>> orphan_tcs;
 
@@ -407,15 +402,15 @@ WorkerPauser::WorkerPauser() {
   if (is_any_worker_running()) {
     for (int wid = 0; wid < Worker::kMaxWorkers; wid++) {
       if (is_worker_running(wid)) {
-	workers_paused_.push_back(wid);
-	VLOG(1) << "*** Pausing Worker " << wid << " ***";
-	pause_worker(wid);
-	}
+        workers_paused_.push_back(wid);
+        VLOG(1) << "*** Pausing Worker " << wid << " ***";
+        pause_worker(wid);
+      }
     }
   }
 }
 
-WorkerPauser:: ~WorkerPauser() {
+WorkerPauser::~WorkerPauser() {
   for (int wid : workers_paused_) {
     resume_worker(wid);
     VLOG(1) << "*** Worker " << wid << " Resumed ***";

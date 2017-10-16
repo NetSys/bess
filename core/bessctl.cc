@@ -50,6 +50,7 @@
 #include "message.h"
 #include "metadata.h"
 #include "module.h"
+#include "module_graph.h"
 #include "opts.h"
 #include "packet.h"
 #include "port.h"
@@ -418,7 +419,7 @@ static Module* create_module(const std::string& name,
     return nullptr;
   }
 
-  if (!ModuleBuilder::AddModule(m)) {
+  if (!ModuleGraph::AddModule(m)) {
     *perr = pb_errno(ENOMEM);
     return nullptr;
   }
@@ -723,7 +724,7 @@ class BESSControlImpl final : public BESSControl::Service {
     }
 
     // Check local constraints
-    for (const auto& pair : ModuleBuilder::all_modules()) {
+    for (const auto& pair : ModuleGraph::GetAllModules()) {
       const Module* m = pair.second;
       auto ret = m->CheckModuleConstraints();
       if (ret != CHECK_OK) {
@@ -1092,14 +1093,14 @@ class BESSControlImpl final : public BESSControl::Service {
                       EmptyResponse*) override {
     WorkerPauser wp;
 
-    ModuleBuilder::DestroyAllModules();
+    ModuleGraph::DestroyAllModules();
     LOG(INFO) << "*** All modules have been destroyed ***";
     return Status::OK;
   }
 
   Status ListModules(ServerContext*, const EmptyRequest*,
                      ListModulesResponse* response) override {
-    for (const auto& pair : ModuleBuilder::all_modules()) {
+    for (const auto& pair : ModuleGraph::GetAllModules()) {
       const Module* m = pair.second;
       ListModulesResponse_Module* module = response->add_modules();
 
@@ -1129,15 +1130,15 @@ class BESSControlImpl final : public BESSControl::Service {
 
     std::string mod_name;
     if (request->name().length()) {
-      const auto& it2 = ModuleBuilder::all_modules().find(request->name());
-      if (it2 != ModuleBuilder::all_modules().end()) {
+      const auto& it2 = ModuleGraph::GetAllModules().find(request->name());
+      if (it2 != ModuleGraph::GetAllModules().end()) {
         return return_with_error(response, EEXIST, "Module %s exists",
                                  request->name().c_str());
       }
       mod_name = request->name();
     } else {
-      mod_name = ModuleBuilder::GenerateDefaultName(builder.class_name(),
-                                                    builder.name_template());
+      mod_name = ModuleGraph::GenerateDefaultName(builder.class_name(),
+                                                  builder.name_template());
     }
 
     pb_error_t* error = response->mutable_error();
@@ -1161,14 +1162,14 @@ class BESSControlImpl final : public BESSControl::Service {
                                "Argument must be a name in str");
     m_name = request->name().c_str();
 
-    const auto& it = ModuleBuilder::all_modules().find(request->name());
-    if (it == ModuleBuilder::all_modules().end()) {
+    const auto& it = ModuleGraph::GetAllModules().find(request->name());
+    if (it == ModuleGraph::GetAllModules().end()) {
       return return_with_error(response, ENOENT, "No module '%s' found",
                                m_name);
     }
     m = it->second;
 
-    ModuleBuilder::DestroyModule(m);
+    ModuleGraph::DestroyModule(m);
 
     return Status::OK;
   }
@@ -1183,8 +1184,8 @@ class BESSControlImpl final : public BESSControl::Service {
                                "Argument must be a name in str");
     m_name = request->name().c_str();
 
-    const auto& it = ModuleBuilder::all_modules().find(request->name());
-    if (it == ModuleBuilder::all_modules().end()) {
+    const auto& it = ModuleGraph::GetAllModules().find(request->name());
+    if (it == ModuleGraph::GetAllModules().end()) {
       return return_with_error(response, ENOENT, "No module '%s' found",
                                m_name);
     }
@@ -1224,16 +1225,16 @@ class BESSControlImpl final : public BESSControl::Service {
     if (!m1_name || !m2_name)
       return return_with_error(response, EINVAL, "Missing 'm1' or 'm2' field");
 
-    const auto& it1 = ModuleBuilder::all_modules().find(request->m1());
-    if (it1 == ModuleBuilder::all_modules().end()) {
+    const auto& it1 = ModuleGraph::GetAllModules().find(request->m1());
+    if (it1 == ModuleGraph::GetAllModules().end()) {
       return return_with_error(response, ENOENT, "No module '%s' found",
                                m1_name);
     }
 
     m1 = it1->second;
 
-    const auto& it2 = ModuleBuilder::all_modules().find(request->m2());
-    if (it2 == ModuleBuilder::all_modules().end()) {
+    const auto& it2 = ModuleGraph::GetAllModules().find(request->m2());
+    if (it2 == ModuleGraph::GetAllModules().end()) {
       return return_with_error(response, ENOENT, "No module '%s' found",
                                m2_name);
     }
@@ -1241,10 +1242,10 @@ class BESSControlImpl final : public BESSControl::Service {
 
     if (is_any_worker_running()) {
       propagate_active_worker();
-      if (m1->num_active_workers() || m2->num_active_workers() ) {
-	WorkerPauser wp; // Only pause when absolutely required
-	ret = m1->ConnectModules(ogate, m2, igate);
-	goto done;
+      if (m1->num_active_workers() || m2->num_active_workers()) {
+        WorkerPauser wp;  // Only pause when absolutely required
+        ret = m1->ConnectModules(ogate, m2, igate);
+        goto done;
       }
     }
     ret = m1->ConnectModules(ogate, m2, igate);
@@ -1271,8 +1272,8 @@ class BESSControlImpl final : public BESSControl::Service {
     if (!request->name().length())
       return return_with_error(response, EINVAL, "Missing 'name' field");
 
-    const auto& it = ModuleBuilder::all_modules().find(request->name());
-    if (it == ModuleBuilder::all_modules().end()) {
+    const auto& it = ModuleGraph::GetAllModules().find(request->name());
+    if (it == ModuleGraph::GetAllModules().end()) {
       return return_with_error(response, ENOENT, "No module '%s' found",
                                m_name);
     }
@@ -1286,21 +1287,22 @@ class BESSControlImpl final : public BESSControl::Service {
     return Status::OK;
   }
 
-  Status DumpMempool(ServerContext*,
-                           const DumpMempoolRequest* request,
-                           DumpMempoolResponse* response) override {
+  Status DumpMempool(ServerContext*, const DumpMempoolRequest* request,
+                     DumpMempoolResponse* response) override {
     int socket_filter = request->socket();
-    socket_filter = (socket_filter == -1) ? (RTE_MAX_NUMA_NODES - 1) : socket_filter;
+    socket_filter =
+        (socket_filter == -1) ? (RTE_MAX_NUMA_NODES - 1) : socket_filter;
     int socket = (request->socket() == -1) ? 0 : socket_filter;
     for (; socket <= socket_filter; socket++) {
-      struct rte_mempool *mempool = bess::get_pframe_pool_socket(socket);
-      MempoolDump *dump = response->add_dumps();
+      struct rte_mempool* mempool = bess::get_pframe_pool_socket(socket);
+      MempoolDump* dump = response->add_dumps();
       dump->set_socket(socket);
       dump->set_initialized(mempool != nullptr);
       if (mempool == nullptr) {
         continue;
       }
-      struct rte_ring *ring = reinterpret_cast<struct rte_ring*>(mempool->pool_data);
+      struct rte_ring* ring =
+          reinterpret_cast<struct rte_ring*>(mempool->pool_data);
       dump->set_mp_size(mempool->size);
       dump->set_mp_cache_size(mempool->cache_size);
       dump->set_mp_element_size(mempool->elt_size);
@@ -1342,7 +1344,7 @@ class BESSControlImpl final : public BESSControl::Service {
 
     if (request->module_name().length() == 0) {
       // Install this hook on all modules
-      for (const auto& it : ModuleBuilder::all_modules()) {
+      for (const auto& it : ModuleGraph::GetAllModules()) {
         if (request->enable()) {
           *response =
               enable_hook_for_module(it.second, gate_idx, is_igate, use_gate,
@@ -1359,8 +1361,8 @@ class BESSControlImpl final : public BESSControl::Service {
     }
 
     // Install this hook on the specified module
-    const auto& it = ModuleBuilder::all_modules().find(request->module_name());
-    if (it == ModuleBuilder::all_modules().end()) {
+    const auto& it = ModuleGraph::GetAllModules().find(request->module_name());
+    if (it == ModuleGraph::GetAllModules().end()) {
       return return_with_error(response, ENOENT, "No module '%s' found",
                                request->module_name().c_str());
     }
@@ -1466,8 +1468,8 @@ class BESSControlImpl final : public BESSControl::Service {
       return return_with_error(response, EINVAL,
                                "Missing module name field 'name'");
     }
-    const auto& it = ModuleBuilder::all_modules().find(request->name());
-    if (it == ModuleBuilder::all_modules().end()) {
+    const auto& it = ModuleGraph::GetAllModules().find(request->name());
+    if (it == ModuleGraph::GetAllModules().end()) {
       return return_with_error(response, ENOENT, "No module '%s' found",
                                request->name().c_str());
     }
@@ -1580,8 +1582,8 @@ class BESSControlImpl final : public BESSControl::Service {
       c = it->second;
     } else if (class_.leaf_module_name().length() != 0) {
       const std::string& module_name = class_.leaf_module_name();
-      const auto& it = ModuleBuilder::all_modules().find(module_name);
-      if (it == ModuleBuilder::all_modules().end()) {
+      const auto& it = ModuleGraph::GetAllModules().find(module_name);
+      if (it == ModuleGraph::GetAllModules().end()) {
         return_with_error(response, ENOENT, "No module '%s' found",
                           module_name.c_str());
         return nullptr;

@@ -28,6 +28,7 @@
 // POSSIBILITY OF SUCH DAMAGE.
 
 #include "module.h"
+#include "module_graph.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -88,7 +89,7 @@ class ModuleTester : public ::testing::Test {
 
   virtual void SetUp() {}
 
-  virtual void TearDown() { ModuleBuilder::DestroyAllModules(); }
+  virtual void TearDown() { ModuleGraph::DestroyAllModules(); }
 
   AcmeModule_class AcmeModule_singleton;
   AcmeModuleWithTask_class AcmeModuleWithTask_singleton;
@@ -100,13 +101,13 @@ int create_acme(const char *name, Module **m) {
 
   std::string mod_name;
   if (name) {
-    if (ModuleBuilder::all_modules().count(name)) {
+    if (ModuleGraph::GetAllModules().count(name)) {
       return EEXIST;
     }
     mod_name = name;
   } else {
-    mod_name = ModuleBuilder::GenerateDefaultName(builder.class_name(),
-                                                  builder.name_template());
+    mod_name = ModuleGraph::GenerateDefaultName(builder.class_name(),
+                                                builder.name_template());
   }
 
   *m = builder.CreateModule(mod_name, &bess::metadata::default_pipeline);
@@ -117,7 +118,7 @@ int create_acme(const char *name, Module **m) {
   CommandResponse ret = (*m)->InitWithGenericArg(arg);
   EXPECT_EQ(42, ret.error().code());
 
-  if (!ModuleBuilder::AddModule(*m)) {
+  if (!ModuleGraph::AddModule(*m)) {
     return 1;
   }
 
@@ -133,7 +134,7 @@ int create_acme_with_task(const char *name, Module **m) {
   const ModuleBuilder &builder =
       ModuleBuilder::all_module_builders().find("AcmeModuleWithTask")->second;
 
-  if (ModuleBuilder::all_modules().count(name)) {
+  if (ModuleGraph::GetAllModules().count(name)) {
     return EEXIST;
   }
 
@@ -144,7 +145,7 @@ int create_acme_with_task(const char *name, Module **m) {
   CommandResponse ret = (*m)->InitWithGenericArg(arg);
   EXPECT_EQ(0, ret.error().code());
 
-  if (!ModuleBuilder::AddModule(*m)) {
+  if (!ModuleGraph::AddModule(*m)) {
     return 1;
   }
 
@@ -197,9 +198,9 @@ TEST_F(ModuleTester, CreateModuleWithName) {
 
   EXPECT_EQ(0, create_acme("bar", &m1));
   ASSERT_NE(nullptr, m1);
-  EXPECT_EQ(1, ModuleBuilder::all_modules().size());
+  EXPECT_EQ(1, ModuleGraph::GetAllModules().size());
   EXPECT_EQ(EEXIST, create_acme("bar", &m2));
-  EXPECT_EQ(1, ModuleBuilder::all_modules().count("bar"));
+  EXPECT_EQ(1, ModuleGraph::GetAllModules().count("bar"));
 }
 
 // Check that module builders create modules with generated names
@@ -208,12 +209,12 @@ TEST_F(ModuleTester, CreateModuleGenerateName) {
 
   EXPECT_EQ(0, create_acme(nullptr, &m));
   ASSERT_NE(nullptr, m);
-  EXPECT_EQ(1, ModuleBuilder::all_modules().size());
-  EXPECT_EQ(1, ModuleBuilder::all_modules().count("acme_module0"));
+  EXPECT_EQ(1, ModuleGraph::GetAllModules().size());
+  EXPECT_EQ(1, ModuleGraph::GetAllModules().count("acme_module0"));
   EXPECT_EQ(0, create_acme(nullptr, &m));
   ASSERT_NE(nullptr, m);
-  EXPECT_EQ(2, ModuleBuilder::all_modules().size());
-  EXPECT_EQ(1, ModuleBuilder::all_modules().count("acme_module1"));
+  EXPECT_EQ(2, ModuleGraph::GetAllModules().size());
+  EXPECT_EQ(1, ModuleGraph::GetAllModules().count("acme_module1"));
 }
 
 TEST_F(ModuleTester, RunCommand) {
@@ -263,20 +264,20 @@ TEST_F(ModuleTester, ResetModules) {
     EXPECT_EQ(0, create_acme(nullptr, &m));
     ASSERT_NE(nullptr, m);
   }
-  EXPECT_EQ(10, ModuleBuilder::all_modules().size());
+  EXPECT_EQ(10, ModuleGraph::GetAllModules().size());
 
-  ModuleBuilder::DestroyAllModules();
-  EXPECT_EQ(0, ModuleBuilder::all_modules().size());
+  ModuleGraph::DestroyAllModules();
+  EXPECT_EQ(0, ModuleGraph::GetAllModules().size());
 }
 
 TEST(ModuleBuilderTest, GenerateDefaultNameTemplate) {
-  std::string name1 = ModuleBuilder::GenerateDefaultName("FooBar", "foo");
+  std::string name1 = ModuleGraph::GenerateDefaultName("FooBar", "foo");
   EXPECT_EQ("foo0", name1);
 
-  std::string name2 = ModuleBuilder::GenerateDefaultName("FooBar", "");
+  std::string name2 = ModuleGraph::GenerateDefaultName("FooBar", "");
   EXPECT_EQ("foo_bar0", name2);
 
-  std::string name3 = ModuleBuilder::GenerateDefaultName("FooABCBar", "");
+  std::string name3 = ModuleGraph::GenerateDefaultName("FooABCBar", "");
   EXPECT_EQ("foo_abcbar0", name3);
 }
 
@@ -325,7 +326,7 @@ TEST_F(ModuleTester, GenerateTCGraph) {
   t4->SignalUnderload();
   ASSERT_EQ(0, t1->children_overload());
 
-  ModuleBuilder::DestroyModule(t1, true);
+  ModuleGraph::DestroyModule(t1, true);
   EXPECT_EQ(0, t2->parent_tasks().size());
   EXPECT_EQ(0, t3->parent_tasks().size());
   EXPECT_EQ(0, t4->parent_tasks().size());
