@@ -40,7 +40,7 @@ void Task::Detach() {
 }
 
 // Called when the leaf that owns this task is created.
-void Task::Attach(bess::LeafTrafficClass<Task> *c) {
+void Task::Attach(bess::LeafTrafficClass *c) {
   c_ = c;
 }
 

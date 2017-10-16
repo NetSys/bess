@@ -69,7 +69,6 @@ typedef enum {
 } worker_status_t;
 
 namespace bess {
-template <typename CallableTask>
 class Scheduler;
 }  // namespace bess
 
@@ -108,7 +107,7 @@ class Worker {
     return pframe_pool_;
   }
 
-  bess::Scheduler<Task> *scheduler() { return scheduler_; }
+  bess::Scheduler *scheduler() { return scheduler_; }
 
   uint64_t silent_drops() { return silent_drops_; }
   void set_silent_drops(uint64_t drops) { silent_drops_ = drops; }
@@ -137,7 +136,7 @@ class Worker {
 
   struct rte_mempool *pframe_pool_;
 
-  bess::Scheduler<Task> *scheduler_;
+  bess::Scheduler *scheduler_;
 
   uint64_t silent_drops_; /* packets that have been sent to a deadend */
 
@@ -239,6 +238,7 @@ class WorkerPauser {
  public:
   explicit WorkerPauser();
   ~WorkerPauser();
+
  private:
   std::list<int> workers_paused_;
 };

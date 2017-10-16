@@ -41,6 +41,7 @@
 #include <utility>
 #include <vector>
 
+#include "task.h"
 #include "utils/common.h"
 #include "utils/extended_priority_queue.h"
 #include "utils/simd.h"
@@ -82,7 +83,6 @@ struct tc_stats {
   uint64_t cnt_throttled;
 };
 
-template <typename CallableTask>
 class Scheduler;
 class SchedWakeupQueue;
 class TrafficClassBuilder;
@@ -90,7 +90,6 @@ class PriorityTrafficClass;
 class WeightedFairTrafficClass;
 class RoundRobinTrafficClass;
 class RateLimitTrafficClass;
-template <typename CallableTask>
 class LeafTrafficClass;
 class TrafficClass;
 
@@ -216,7 +215,6 @@ class TrafficClass {
   friend WeightedFairTrafficClass;
   friend RoundRobinTrafficClass;
   friend RateLimitTrafficClass;
-  template <typename CallableTask>
   friend class LeafTrafficClass;
 
   TrafficClass(const std::string &name, const TrafficPolicy &policy,
@@ -277,11 +275,8 @@ class TrafficClass {
   uint64_t wakeup_time_;
 
  private:
-  template <typename CallableTask>
   friend class Scheduler;
-  template <typename CallableTask>
   friend class DefaultScheduler;
-  template <typename CallableTask>
   friend class ExperimentalScheduler;
 
   bool blocked_;
@@ -537,7 +532,6 @@ class RateLimitTrafficClass final : public TrafficClass {
   static uint64_t to_work_units(uint64_t x) { return x << kUsageAmplifierPow; }
 
  private:
-  template <typename CallableTask>
   friend class Scheduler;
 
   static const int kUsageAmplifierPow = 32;
@@ -559,12 +553,11 @@ class RateLimitTrafficClass final : public TrafficClass {
   TrafficClass *child_;
 };
 
-template <typename CallableTask>
 class LeafTrafficClass final : public TrafficClass {
  public:
   static const uint64_t kInitialWaitCycles = (1ull << 14);
 
-  explicit LeafTrafficClass(const std::string &name, const CallableTask &task)
+  explicit LeafTrafficClass(const std::string &name, const Task &task)
       : TrafficClass(name, POLICY_LEAF, false),
         task_(task),
         wait_cycles_(kInitialWaitCycles) {
@@ -592,7 +585,7 @@ class LeafTrafficClass final : public TrafficClass {
     TrafficClass::UnblockTowardsRootSetBlocked(tsc, false);
   }
 
-  const CallableTask *task() const { return &task_; }
+  const Task *task() const { return &task_; }
 
   void FinishAndAccountTowardsRoot(SchedWakeupQueue *wakeup_queue,
                                    [[maybe_unused]] TrafficClass *child,
@@ -606,7 +599,7 @@ class LeafTrafficClass final : public TrafficClass {
   }
 
  private:
-  CallableTask task_;
+  Task task_;
 
   uint64_t wait_cycles_;
 };
@@ -671,10 +664,10 @@ class TrafficClassBuilder {
     uint64_t limit;
     uint64_t max_burst;
   };
-  template <typename CallableTask>
+
   struct LeafArgs {
     LeafFakeType dummy;
-    CallableTask task;
+    Task task;
   };
 
   // These CreateTree(...) functions enable brace-initialized construction of a
@@ -738,10 +731,8 @@ class TrafficClassBuilder {
     return p;
   }
 
-  template <typename CallableTask>
-  static TrafficClass *CreateTree(const std::string &name,
-                                  LeafArgs<CallableTask> args) {
-    return CreateTrafficClass<LeafTrafficClass<CallableTask>>(name, args.task);
+  static TrafficClass *CreateTree(const std::string &name, LeafArgs args) {
+    return CreateTrafficClass<LeafTrafficClass>(name, args.task);
   }
 
   // Attempts to clear knowledge of all classes.  Returns true upon success.
@@ -768,12 +759,6 @@ class TrafficClassBuilder {
   // A collection of all TCs in the system, mapped from their textual name.
   static std::unordered_map<std::string, TrafficClass *> all_tcs_;
 };
-
-template <typename CallableTask>
-LeafTrafficClass<CallableTask>::~LeafTrafficClass() {
-  TrafficClassBuilder::Clear(this);
-  task_.Detach();
-}
 
 }  // namespace bess
 

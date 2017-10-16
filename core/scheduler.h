@@ -48,7 +48,6 @@ struct sched_stats {
   uint64_t cycles_idle;
 };
 
-template <typename CallableTask>
 class Scheduler;
 
 // Queue of blocked traffic classes ordered by time expiration.
@@ -67,7 +66,6 @@ class SchedWakeupQueue {
   void Add(TrafficClass *c) { q_.push(c); }
 
  private:
-  template <typename CallableTasks>
   friend class Scheduler;
 
   // A priority queue of TrafficClasses to wake up ordered by time.
@@ -77,7 +75,6 @@ class SchedWakeupQueue {
 
 // The non-instantiable base class for schedulers.  Implements common routines
 // needed for scheduling.
-template <typename CallableTask>
 class Scheduler {
  public:
   explicit Scheduler(TrafficClass *root = nullptr)
@@ -175,7 +172,7 @@ class Scheduler {
   SchedWakeupQueue &wakeup_queue() { return wakeup_queue_; }
 
   // Selects the next TrafficClass to run.
-  LeafTrafficClass<CallableTask> *Next(uint64_t tsc) {
+  LeafTrafficClass *Next(uint64_t tsc) {
     WakeTCs(tsc);
 
     if (!root_ || root_->blocked()) {
@@ -188,7 +185,7 @@ class Scheduler {
       c = c->PickNextChild();
     }
 
-    return static_cast<LeafTrafficClass<CallableTask> *>(c);
+    return static_cast<LeafTrafficClass *>(c);
   }
 
  protected:
@@ -214,11 +211,9 @@ class Scheduler {
 
 // The default scheduler, which picks the first leaf that the TC tree gives it
 // and runs the corresponding task.
-template <typename CallableTask>
-class DefaultScheduler : public Scheduler<CallableTask> {
+class DefaultScheduler : public Scheduler {
  public:
-  explicit DefaultScheduler(TrafficClass *root = nullptr)
-      : Scheduler<CallableTask>(root) {}
+  explicit DefaultScheduler(TrafficClass *root = nullptr) : Scheduler(root) {}
 
   virtual ~DefaultScheduler() {}
 
@@ -252,8 +247,7 @@ class DefaultScheduler : public Scheduler<CallableTask> {
     resource_arr_t usage;
 
     // Schedule.
-    LeafTrafficClass<CallableTask> *leaf =
-        Scheduler<CallableTask>::Next(this->checkpoint_);
+    LeafTrafficClass *leaf = Scheduler::Next(this->checkpoint_);
 
     uint64_t now;
     if (leaf) {
@@ -292,11 +286,10 @@ class DefaultScheduler : public Scheduler<CallableTask> {
   }
 };
 
-template <typename CallableTask>
-class ExperimentalScheduler : public Scheduler<CallableTask> {
+class ExperimentalScheduler : public Scheduler {
  public:
   explicit ExperimentalScheduler(TrafficClass *root = nullptr)
-      : Scheduler<CallableTask>(root) {}
+      : Scheduler(root) {}
 
   virtual ~ExperimentalScheduler() {}
 
@@ -332,8 +325,7 @@ class ExperimentalScheduler : public Scheduler<CallableTask> {
     resource_arr_t usage;
 
     // Schedule.
-    LeafTrafficClass<CallableTask> *leaf =
-        Scheduler<CallableTask>::Next(this->checkpoint_);
+    LeafTrafficClass *leaf = Scheduler::Next(this->checkpoint_);
 
     uint64_t now;
     if (leaf) {

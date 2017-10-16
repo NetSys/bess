@@ -44,7 +44,6 @@
 #include "metadata.h"
 #include "packet.h"
 #include "scheduler.h"
-#include "task.h"
 
 using bess::gate_idx_t;
 

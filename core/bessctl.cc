@@ -453,8 +453,8 @@ static void collect_tc(const bess::TrafficClass* c, int wid,
     status->mutable_class_()->mutable_max_burst()->insert(
         {resource, max_burst});
   } else if (c->policy() == bess::POLICY_LEAF) {
-    const bess::LeafTrafficClass<Task>* leaf =
-        static_cast<const bess::LeafTrafficClass<Task>*>(c);
+    const bess::LeafTrafficClass* leaf =
+        static_cast<const bess::LeafTrafficClass*>(c);
     const Task* task = leaf->task();
     const Module* module = task->module();
 
@@ -706,7 +706,7 @@ class BESSControlImpl final : public BESSControl::Service {
       for (const auto& tc_pair : bess::TrafficClassBuilder::all_tcs()) {
         bess::TrafficClass* c = tc_pair.second;
         if (c->policy() == bess::POLICY_LEAF && root == c->Root()) {
-          auto leaf = static_cast<bess::LeafTrafficClass<Task>*>(c);
+          auto leaf = static_cast<bess::LeafTrafficClass*>(c);
           int constraints = leaf->task()->GetSocketConstraints();
           if ((constraints & socket) == 0) {
             LOG(WARNING) << "Scheduler constraints are violated for wid " << i

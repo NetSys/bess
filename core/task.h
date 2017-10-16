@@ -45,7 +45,6 @@ typedef uint64_t placement_constraint;
 class Module;
 
 namespace bess {
-template <typename CallableTask>
 class LeafTrafficClass;
 }  // namespace bess
 
@@ -60,9 +59,9 @@ class Task {
   void Detach();
 
   // Called when the leaf that owns this task is created.
-  void Attach(bess::LeafTrafficClass<Task> *c);
+  void Attach(bess::LeafTrafficClass *c);
 
-  bess::LeafTrafficClass<Task> *GetTC() const { return c_; }
+  bess::LeafTrafficClass *GetTC() const { return c_; }
 
   struct task_result operator()(void) const;
 
@@ -81,8 +80,8 @@ class Task {
  private:
   // Used by operator().
   Module *module_;
-  void *arg_;  // Auxiliary value passed to Module::RunTask().
-  bess::LeafTrafficClass<Task> *c_;  // Leaf TC associated with this task.
+  void *arg_;                  // Auxiliary value passed to Module::RunTask().
+  bess::LeafTrafficClass *c_;  // Leaf TC associated with this task.
 };
 
 #endif  // BESS_TASK_H_

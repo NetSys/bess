@@ -68,11 +68,10 @@ std::list<std::pair<int, bess::TrafficClass *>> orphan_tcs;
 // See worker.h
 __thread Worker ctx;
 
-template <typename CallableTask>
 struct thread_arg {
   int wid;
   int core;
-  Scheduler<CallableTask> *scheduler;
+  Scheduler *scheduler;
 };
 
 #define SYS_CPU_DIR "/sys/devices/system/cpu/cpu%u"
@@ -260,7 +259,7 @@ int Worker::BlockWorker() {
 
 /* The entry point of worker threads */
 void *Worker::Run(void *_arg) {
-  struct thread_arg<Task> *arg = (struct thread_arg<Task> *)_arg;
+  struct thread_arg *arg = (struct thread_arg *)_arg;
   rand_ = new Random();
 
   cpu_set_t set;
@@ -317,13 +316,11 @@ void *run_worker(void *_arg) {
 
 void launch_worker(int wid, int core,
                    [[maybe_unused]] const std::string &scheduler) {
-  struct thread_arg<Task> arg = {
-    .wid = wid, .core = core, .scheduler = nullptr
-  };
+  struct thread_arg arg = {.wid = wid, .core = core, .scheduler = nullptr};
   if (scheduler == "") {
-    arg.scheduler = new DefaultScheduler<Task>();
+    arg.scheduler = new DefaultScheduler();
   } else if (scheduler == "experimental") {
-    arg.scheduler = new ExperimentalScheduler<Task>();
+    arg.scheduler = new ExperimentalScheduler();
   } else {
     CHECK(false) << "Scheduler " << scheduler << " is invalid.";
   }

@@ -40,7 +40,6 @@
 #include "traffic_class.h"
 
 #define CT TrafficClassBuilder::CreateTree
-#define CL TrafficClassBuilder::CreateTree<Task>
 
 using namespace bess;
 using namespace bess::traffic_class_initializer_types;
@@ -72,14 +71,14 @@ class TCWeightedFair : public benchmark::Fixture {
     TrafficClass *root =
         CT("root", {PRIORITY},
            {{0, CT("weighted", {WEIGHTED_FAIR, resource}, {})}});
-    s_ = new DefaultScheduler<Task>(root);
+    s_ = new DefaultScheduler(root);
     WeightedFairTrafficClass *weighted =
         static_cast<WeightedFairTrafficClass *>(
             TrafficClassBuilder::Find("weighted"));
     for (int i = 0; i < num_classes; i++) {
       std::string name("class_" + std::to_string(i));
-      LeafTrafficClass<Task> *c =
-          TrafficClassBuilder::CreateTrafficClass<LeafTrafficClass<Task>>(
+      LeafTrafficClass *c =
+          TrafficClassBuilder::CreateTrafficClass<LeafTrafficClass>(
               name, Task(dummy_, nullptr));
 
       resource_share_t share = 1;
@@ -100,7 +99,7 @@ class TCWeightedFair : public benchmark::Fixture {
   }
 
  protected:
-  DefaultScheduler<Task> *s_;
+  DefaultScheduler *s_;
   Module *dummy_;
 };
 
@@ -171,14 +170,14 @@ class TCRoundRobin : public benchmark::Fixture {
     dummy_ = new DummyModule;
 
     TrafficClass *root = CT("rr", {ROUND_ROBIN}, {});
-    s_ = new DefaultScheduler<Task>(root);
+    s_ = new DefaultScheduler(root);
     RoundRobinTrafficClass *rr =
         static_cast<RoundRobinTrafficClass *>(TrafficClassBuilder::Find("rr"));
 
     for (int i = 0; i < num_classes; i++) {
       std::string name("class_" + std::to_string(i));
-      LeafTrafficClass<Task> *c =
-          TrafficClassBuilder::CreateTrafficClass<LeafTrafficClass<Task>>(
+      LeafTrafficClass *c =
+          TrafficClassBuilder::CreateTrafficClass<LeafTrafficClass>(
               name, Task(dummy_, nullptr));
 
       CHECK(rr->AddChild(c));
@@ -197,7 +196,7 @@ class TCRoundRobin : public benchmark::Fixture {
   }
 
  protected:
-  DefaultScheduler<Task> *s_;
+  DefaultScheduler *s_;
   Module *dummy_;
 };
 
