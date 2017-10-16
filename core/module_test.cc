@@ -194,9 +194,9 @@ TEST(ModuleBuilderTest, RegisterModuleClass) {
 TEST_F(ModuleTester, CreateModuleWithName) {
   pb_error_t perr;
 
-  EXPECT_NE(nullptr, create_acme("bar", &perr));
+  ASSERT_NE(nullptr, create_acme("bar", &perr));
   EXPECT_EQ(1, ModuleGraph::GetAllModules().size());
-  EXPECT_EQ(nullptr, create_acme("bar", &perr));
+  ASSERT_EQ(nullptr, create_acme("bar", &perr));
   EXPECT_EQ(EEXIST, perr.code());
   EXPECT_EQ(1, ModuleGraph::GetAllModules().count("bar"));
 }
@@ -205,10 +205,10 @@ TEST_F(ModuleTester, CreateModuleWithName) {
 TEST_F(ModuleTester, CreateModuleGenerateName) {
   pb_error_t perr;
 
-  EXPECT_NE(nullptr, create_acme(nullptr, &perr));
+  ASSERT_NE(nullptr, create_acme(nullptr, &perr));
   EXPECT_EQ(1, ModuleGraph::GetAllModules().size());
   EXPECT_EQ(1, ModuleGraph::GetAllModules().count("acme_module0"));
-  EXPECT_NE(nullptr, create_acme(nullptr, &perr));
+  ASSERT_NE(nullptr, create_acme(nullptr, &perr));
   EXPECT_EQ(2, ModuleGraph::GetAllModules().size());
   EXPECT_EQ(1, ModuleGraph::GetAllModules().count("acme_module1"));
 }
@@ -217,7 +217,7 @@ TEST_F(ModuleTester, RunCommand) {
   Module *m;
   pb_error_t perr;
 
-  EXPECT_NE(nullptr, m = create_acme(nullptr, &perr));
+  ASSERT_NE(nullptr, m = create_acme(nullptr, &perr));
   bess::pb::EmptyArg arg_;
   google::protobuf::Any arg;
   arg.PackFrom(arg_);
@@ -238,8 +238,8 @@ TEST_F(ModuleTester, ConnectModules) {
   pb_error_t perr;
   Module *m1, *m2;
 
-  EXPECT_NE(nullptr, m1 = create_acme("m1", &perr));
-  EXPECT_NE(nullptr, m2 = create_acme("m2", &perr));
+  ASSERT_NE(nullptr, m1 = create_acme("m1", &perr));
+  ASSERT_NE(nullptr, m2 = create_acme("m2", &perr));
 
   EXPECT_EQ(0, m1->ConnectModules(0, m2, 0));
   EXPECT_EQ(1, m1->ogates().size());
@@ -256,7 +256,7 @@ TEST_F(ModuleTester, ResetModules) {
   pb_error_t perr;
 
   for (int i = 0; i < 10; i++) {
-    EXPECT_NE(nullptr, create_acme(nullptr, &perr));
+    ASSERT_NE(nullptr, create_acme(nullptr, &perr));
   }
   EXPECT_EQ(10, ModuleGraph::GetAllModules().size());
 
@@ -292,13 +292,13 @@ TEST_F(ModuleTester, GenerateTCGraph) {
    *         \
    *          t4
    */
-  EXPECT_NE(nullptr, m1 = create_acme("m1", &perr));
-  EXPECT_NE(nullptr, m2 = create_acme("m2", &perr));
-  EXPECT_NE(nullptr, m3 = create_acme("m3", &perr));
-  EXPECT_NE(nullptr, t1 = create_acme_with_task("t1", &perr));
-  EXPECT_NE(nullptr, t2 = create_acme_with_task("t2", &perr));
-  EXPECT_NE(nullptr, t3 = create_acme_with_task("t3", &perr));
-  EXPECT_NE(nullptr, t4 = create_acme_with_task("t4", &perr));
+  ASSERT_NE(nullptr, m1 = create_acme("m1", &perr));
+  ASSERT_NE(nullptr, m2 = create_acme("m2", &perr));
+  ASSERT_NE(nullptr, m3 = create_acme("m3", &perr));
+  ASSERT_NE(nullptr, t1 = create_acme_with_task("t1", &perr));
+  ASSERT_NE(nullptr, t2 = create_acme_with_task("t2", &perr));
+  ASSERT_NE(nullptr, t3 = create_acme_with_task("t3", &perr));
+  ASSERT_NE(nullptr, t4 = create_acme_with_task("t4", &perr));
   EXPECT_EQ(0, t1->ConnectModules(0, m1, 0));
   EXPECT_EQ(0, t1->ConnectModules(1, m2, 0));
   EXPECT_EQ(0, m1->ConnectModules(0, t2, 0));
