@@ -28,37 +28,37 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-#include "random_drop.h"
-#include <string>
-#include <time.h>
+#ifndef BESS_MODULES_RANDOM_SPLIT_H_
+#define BESS_MODULES_RANDOM_SPLIT_H_
 
-CommandResponse RandomDrop::Init(const bess::pb::RandomDropArg &arg) {
-  double drop_rate = arg.drop_rate();
-  if (drop_rate < 0 || drop_rate > 1) {
-    return CommandFailure(EINVAL, "drop rate needs to be between [0, 1]");
-  }
-  threshold_ = drop_rate * kRange;
-  return CommandSuccess();
-}
+#include "../module.h"
+#include "../pb/module_msg.pb.h"
+#include "../utils/random.h"
 
-void RandomDrop::ProcessBatch(bess::PacketBatch *batch) {
-  bess::PacketBatch out_batch;
-  bess::PacketBatch free_batch;
-  out_batch.clear();
-  free_batch.clear();
+// Maximum number of output gates to allow.
+#define MAX_SPLIT_GATES 16384
 
-  int cnt = batch->cnt();
-  for (int i = 0; i < cnt; i++) {
-    bess::Packet *pkt = batch->pkts()[i];
-    if (rng_.GetRange(kRange) > threshold_) {
-      out_batch.add(pkt);
-    } else {
-      free_batch.add(pkt);
-    }
-  }
+// RandomSplit splits and drop packets.
+class RandomSplit final : public Module {
+ public:
+  RandomSplit() : Module() { max_allowed_workers_ = Worker::kMaxWorkers; }
 
-  bess::Packet::Free(&free_batch);
-  RunNextModule(&out_batch);
-}
+  static const gate_idx_t kNumOGates = MAX_GATES;
+  static const Commands cmds;
 
-ADD_MODULE(RandomDrop, "random_drop", "randomly drops packets")
+  CommandResponse Init(const bess::pb::RandomSplitArg &arg);
+  CommandResponse CommandSetDroprate(
+      const bess::pb::RandomSplitCommandSetDroprateArg &arg);
+  CommandResponse CommandSetGates(
+      const bess::pb::RandomSplitCommandSetGatesArg &arg);
+
+  void ProcessBatch(bess::PacketBatch *batch) override;
+
+ private:
+  Random rng_;  // Random number generator
+  double drop_rate_;
+  gate_idx_t gates_[MAX_SPLIT_GATES];
+  gate_idx_t ngates_;
+};
+
+#endif  // BESS_MODULES_RANDOM_SPLIT_H_
