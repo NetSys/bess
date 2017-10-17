@@ -34,12 +34,8 @@ from test_utils import *
 class BessVlanTest(BessModuleTestCase):
 
     def test_run_vlan(self):
-        if sys.version_info[0] != 2:
-            print(
-                "python3-compatible scapy does not have Dot1AD. Skipping vlan test...")
-        else:
-            self.run_for(VLANSplit(), [0], 3)
-            self.assertBessAlive()
+        self.run_for(VLANSplit(), [0], 3)
+        self.assertBessAlive()
 
     def _vlan_output_test(self, vids, double_tag=False, default_gate=0):
         def gen_vlan_packet(vid):
@@ -84,9 +80,11 @@ class BessVlanTest(BessModuleTestCase):
                 self.assertEquals(len(pkt_outs[default_gate]), 1)
                 self.assertSamePackets(pkt_outs[default_gate][0], q)
 
+    @unittest.skipUnless(hasattr(scapy, 'Dot1AD'), "this scapy lacks Dot1AD")
     def test_vlan_single_tag(self):
         self._vlan_output_test([1, 17, -1, 29, 10, 13, 7])
 
+    @unittest.skipUnless(hasattr(scapy, 'Dot1AD'), "this scapy lacks Dot1AD")
     def test_vlan_double_tag(self):
         self._vlan_output_test([1, 17, -1, 29, 10, 13, 7], True)
 
