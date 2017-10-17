@@ -133,16 +133,13 @@ class GateHookFactory {
 
 class Gate {
  public:
-  Gate(Module *m, gate_idx_t idx, void *arg)
-      : module_(m), gate_idx_(idx), arg_(arg), hooks_() {}
+  Gate(Module *m, gate_idx_t idx) : module_(m), gate_idx_(idx), hooks_() {}
 
   ~Gate() { ClearHooks(); }
 
   Module *module() const { return module_; }
 
   gate_idx_t gate_idx() const { return gate_idx_; }
-
-  void *arg() const { return arg_; }
 
   const std::vector<GateHook *> &hooks() const { return hooks_; }
 
@@ -160,9 +157,6 @@ class Gate {
   Module *module_;      /* the module this gate belongs to */
   gate_idx_t gate_idx_; /* input/output gate index of itself */
 
-  /* mutable values below */
-  void *arg_;
-
   // TODO(melvin): Consider using a map here instead. It gets rid of the need to
   // scan to find modules for queries. Not sure how priority would work in a
   // map, though.
@@ -175,16 +169,19 @@ class IGate;
 
 class OGate : public Gate {
  public:
-  OGate(Module *m, gate_idx_t idx, void *arg)
-      : Gate(m, idx, arg), igate_(), igate_idx_() {}
+  OGate(Module *m, gate_idx_t idx, Module *next)
+      : Gate(m, idx), next_(next), igate_(), igate_idx_() {}
 
   void set_igate(IGate *ig) { igate_ = ig; }
+
   IGate *igate() const { return igate_; }
+  Module *next() const { return next_; }
 
   void set_igate_idx(gate_idx_t idx) { igate_idx_ = idx; }
   gate_idx_t igate_idx() const { return igate_idx_; }
 
  private:
+  Module *next_;
   IGate *igate_;
   gate_idx_t igate_idx_; /* cache for igate->gate_idx */
 
@@ -193,8 +190,7 @@ class OGate : public Gate {
 
 class IGate : public Gate {
  public:
-  IGate(Module *m, gate_idx_t idx, void *arg)
-      : Gate(m, idx, arg), ogates_upstream_() {}
+  IGate(Module *m, gate_idx_t idx) : Gate(m, idx), ogates_upstream_() {}
 
   const std::vector<OGate *> &ogates_upstream() const {
     return ogates_upstream_;

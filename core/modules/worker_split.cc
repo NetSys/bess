@@ -41,7 +41,7 @@ void WorkerSplit::AddActiveWorker(int wid, const ModuleTask *t) {
     // Only propagate workers downstream on ogate `wid`
     bess::OGate *ogate = ogates()[wid];
     if (ogate) {
-      auto next = static_cast<Module *>(ogate->arg());
+      auto next = static_cast<Module *>(ogate->next());
       next->AddActiveWorker(wid, t);
     }
   }

@@ -191,7 +191,7 @@ placement_constraint Module::ComputePlacementConstraints(
     visited->insert(this);
     for (size_t i = 0; i < ogates_.size(); i++) {
       if (ogates_[i]) {
-        auto next = static_cast<Module *>(ogates_[i]->arg());
+        auto next = static_cast<Module *>(ogates_[i]->next());
         // Restrict constraints to account for other modules in the pipeline.
         constraint &= next->ComputePlacementConstraints(visited);
         if (constraint == 0) {
@@ -224,7 +224,7 @@ void Module::AddActiveWorker(int wid, const ModuleTask *t) {
     if (propagate) {
       for (auto ogate : ogates_) {
         if (ogate) {
-          auto next = static_cast<Module *>(ogate->arg());
+          auto next = static_cast<Module *>(ogate->next());
           next->AddActiveWorker(wid, t);
         }
       }
@@ -331,7 +331,7 @@ int Module::ConnectModules(gate_idx_t ogate_idx, Module *m_next,
   }
 
   if (m_next->igates_[igate_idx] == nullptr) {
-    igate = new bess::IGate(m_next, igate_idx, m_next);
+    igate = new bess::IGate(m_next, igate_idx);
     m_next->igates_[igate_idx] = igate;
   } else {
     igate = m_next->igates_[igate_idx];
