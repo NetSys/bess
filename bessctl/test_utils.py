@@ -187,7 +187,6 @@ class BessModuleTestCase(unittest.TestCase):
 
         # output ports and associate sockets
         for ogate in ogates:
-            out_pkts[ogate] = []
             if ogate not in self.output_ports:
                 sock_name = "soc_{}_{}".format(ogate,
                                                SCRIPT_STARTTIME)
@@ -245,26 +244,54 @@ class BessModuleTestCase(unittest.TestCase):
         while duration <= time_out:
             cur = self.bess.get_tc_stats(root_tc.name)
             if cur.packets - last.packets >= len(input_pkts):
-                for ogate in ogates:
-                    while True:
-                        try:
-                            self.sockets[ogate].setblocking(False)
-                            received_data = self.sockets[ogate].recv(2048)
-                            out_pkts[ogate].append(scapy.Ether(received_data))
-                            self.sockets[ogate].setblocking(True)
-                        except socket.error as e:
-                            if e.args[0] == errno.EAGAIN or e.args[0] == errno.EWOULDBLOCK:
-                                break
-                            else:
-                                raise
                 break
-            else:
-                time.sleep(0.1)
-                duration += 0.1
+            time.sleep(0.1)
+            duration += 0.1
+
+        out_pkts = self._collect_output(ogates)
 
         self.bess.pause_all()
 
         return out_pkts
+
+    def _collect_output(self, ogates):
+        """
+        Collects output on self.sockets[] per ogates.  Returns a
+        dictionary indexed by ogate with a list of each packet
+        wrapped by scapy.Ether.
+        """
+        def get_all_pkts(sock):
+            """
+            Reads all immediately-available packets.  Wrecks
+            the current timeout/nonblock setting.
+            """
+            ret = []
+            sock.settimeout(0.0)
+            while True:
+                try:
+                    received_data = sock.recv(2048)
+                    ret.append(scapy.Ether(received_data))
+                # NB: sock.settimeout(0.0) logically should
+                # produce a socket.timeout, not a socket.error
+                # with EAGAIN, but in fact we get the latter.
+                except socket.error as e:
+                    if e.errno in (errno.EAGAIN, errno.EWOULDBLOCK):
+                        return ret
+                    raise
+                except socket.timeout:
+                    return ret
+
+        timeout = {}
+        out_pkts = {}
+        for ogate in ogates:
+            timeout[ogate] = self.sockets[ogate].gettimeout()
+        try:
+            for ogate in ogates:
+                out_pkts[ogate] = get_all_pkts(self.sockets[ogate])
+            return out_pkts
+        finally:
+            for ogate in ogates:
+                self.sockets[ogate].settimeout(timeout[ogate])
 
     def run_module(self, module, igate, input_pkts, ogates=range(16), time_out=3):
         return self.run_pipeline(module, module, igate, input_pkts, ogates, time_out)
