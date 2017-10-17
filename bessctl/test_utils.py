@@ -171,7 +171,17 @@ class BessModuleTestCase(unittest.TestCase):
 
     def run_pipeline(self, src_module, dst_module, igate, input_pkts,
                      ogates, time_out=3):
-        out_pkts = {}
+        """
+        Runs a pipeline that injects data (input_pkts) at module
+        src_module on input gate igate and collects it at module
+        dst_module on output gates ogates.  Runs the pipeline for
+        at most time_out seconds; stops sooner if and when all the
+        input packets are processed.
+
+        input_pkts may be a single bytestring, or a list of them.
+        """
+        if not isinstance(input_pkts, list):
+            input_pkts = [input_pkts]
 
         self.bess.pause_all()
 
@@ -221,15 +231,15 @@ class BessModuleTestCase(unittest.TestCase):
         if not root_tc:
             raise Exception('Fail to find root tc')
 
+        # Get number of packets processed inside bess.
+        # Send our packets in, then wait for them to also
+        # get processed.
         last = self.bess.get_tc_stats(root_tc.name)
 
         self.bess.resume_all()
 
-        if isinstance(input_pkts, list):
-            for pkt in input_pkts:
-                self.sockets[igate].send(bytes(pkt))
-        else:
-            self.sockets[igate].send(bytes(input_pkts))
+        for pkt in input_pkts:
+            self.sockets[igate].send(bytes(pkt))
 
         duration = 0
         while duration <= time_out:
