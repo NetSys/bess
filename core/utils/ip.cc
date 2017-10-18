@@ -79,7 +79,7 @@ Ipv4Prefix::Ipv4Prefix(const std::string &prefix) {
   } else if (len >= 32) {
     mask = be32_t(0xffffffff);
   } else {
-    mask = be32_t(~((1 << (32 - len)) - 1));
+    mask = be32_t(~((1u << (32 - len)) - 1));
   }
 }
 
