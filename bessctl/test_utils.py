@@ -63,11 +63,51 @@ def run_cmd(cmd):
 
 
 def gen_unix_socket(bess, sockname, timeout_sec=3):
+    """
+    Create a socket that can send data to BESS and/or receive
+    data from BESS, once it has a PortInc or PortOut or similar
+    wrapped around it.
+
+    The sockname argument is the name to be given to PortInc/PortOut.
+    """
+    # Regarding 'confirm_connect' = True here:
+    #
+    # The create_port() call runs a race: BESS spins off a thread
+    # listen()ing on the abstract path '\0' + SOCKET_PATH + sockname.
+    # When we connect() to it below, the thread eventually wakes up
+    # and creates the in-BESS listener.
     socket_port = bess.create_port('UnixSocketPort', sockname,
-                                   {'path': '@' + SOCKET_PATH + sockname})
+                                   {
+                                       'path': '@' + SOCKET_PATH + sockname,
+                                       # 'min_rx_interval_ns': 50000,
+                                       'confirm_connect': True,
+                                   })
     s = socket.socket(socket.AF_UNIX, socket.SOCK_SEQPACKET)
     s.settimeout(timeout_sec)
+
     s.connect('\0' + SOCKET_PATH + sockname)
+    # This connect() is in the middle of the race.  If we return
+    # now, the in-BESS listener may not have actually set up the
+    # connection.  We can make more bess.* calls, e.g., to create
+    # a PortOut object and wire it to the listener.  Then we can
+    # inject a packet into bess, have it flow through to the port,
+    # and have it arrive at the unix_socket driver in BESS, all
+    # before the connection really finishes.
+    #
+    # If all that happens, the unix_socket.cc driver will drop the
+    # packet (and we'll count the drop).  If a test like
+    # module_tests/ vlan.py (for VlanSplit()) expects the packet
+    # to arrive, the test will fail.
+    #
+    # This scenario seems unlikely, and yet it's actually happening
+    # in a VM running on a Mac host.  By setting confirm_connect,
+    # we make the unix_socket port driver send a "yes\0" packet to
+    # us once the connection finishes.  We read this here to guarantee
+    # that the connection is live and it's OK to run the test.
+    confirmed = s.recv(2048)
+    if confirmed != b'yes\0':
+        raise AssertionError('port not connected '
+                             '({!r} != {!r})'.format(confirmed, b'yes\0'))
 
     return s
 
