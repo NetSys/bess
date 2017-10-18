@@ -2,9 +2,12 @@
 # clang's LeakSanitizer. For more details, see:
 # https://github.com/google/sanitizers/wiki/AddressSanitizerLeakSanitizer
 
-# there are some internal memory leaks in libpcap
+# there are some internal memory leaks in older versions of libpcap (see:
+# https://github.com/the-tcpdump-group/libpcap/commit/cd46a74cf492). For now
+# suppress leaks from these functions
 leak:pcap_alloc_pcap_t
 leak:pcap_check_header
+leak:pcap_create_common
 
 # at startup in gtest
 leak:__si_class_type_info::__do_dyncast
