@@ -393,39 +393,6 @@ static ::Port* create_port(const std::string& name, const PortBuilder& driver,
   return p.release();
 }
 
-static Module* create_module(const std::string& name,
-                             const ModuleBuilder& builder,
-                             const google::protobuf::Any& arg,
-                             pb_error_t* perr) {
-  Module* m = builder.CreateModule(name, &bess::metadata::default_pipeline);
-
-  // DPDK functions may be called, so be prepared
-  ctx.SetNonWorker();
-
-  CommandResponse ret = m->InitWithGenericArg(arg);
-
-  {
-    google::protobuf::Any empty;
-
-    if (ret.data().SerializeAsString() != empty.SerializeAsString()) {
-      LOG(WARNING) << name << "::" << builder.class_name()
-                   << " Init() returned non-empty response: "
-                   << ret.data().DebugString();
-    }
-  }
-
-  if (ret.error().code() != 0) {
-    *perr = ret.error();
-    return nullptr;
-  }
-
-  if (!ModuleGraph::AddModule(m)) {
-    *perr = pb_errno(ENOMEM);
-    return nullptr;
-  }
-  return m;
-}
-
 static void collect_tc(const bess::TrafficClass* c, int wid,
                        ListTcsResponse_TrafficClassStatus* status) {
   if (c->parent()) {
@@ -1140,9 +1107,12 @@ class BESSControlImpl final : public BESSControl::Service {
                                                   builder.name_template());
     }
 
-    pb_error_t* error = response->mutable_error();
-    Module* module = create_module(mod_name, builder, request->arg(), error);
+    // DPDK functions may be called, so be prepared
+    ctx.SetNonWorker();
 
+    pb_error_t* error = response->mutable_error();
+    Module* module =
+        ModuleGraph::CreateModule(builder, mod_name, request->arg(), error);
     if (module) {
       response->set_name(module->name());
     }
