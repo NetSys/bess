@@ -43,10 +43,8 @@ typedef uint16_t task_id_t;
 typedef uint64_t placement_constraint;
 
 class Module;
-class ModuleTask;
 
 namespace bess {
-template <typename CallableTask>
 class LeafTrafficClass;
 }  // namespace bess
 
@@ -55,14 +53,15 @@ class Task {
  public:
   // When this task is scheduled it will execute 'm' with 'arg'.  When the
   // associated leaf is created/destroyed, 'module_task' will be updated.
-  Task(Module *m, void *arg, ModuleTask *module_task)
-      : module_(m), arg_(arg), module_task_(module_task) {}
+  Task(Module *m, void *arg) : module_(m), arg_(arg), c_(nullptr) {}
 
   // Called when the leaf that owns this task is destroyed.
   void Detach();
 
   // Called when the leaf that owns this task is created.
-  void Attach(bess::LeafTrafficClass<Task> *c);
+  void Attach(bess::LeafTrafficClass *c);
+
+  bess::LeafTrafficClass *GetTC() const { return c_; }
 
   struct task_result operator()(void) const;
 
@@ -78,35 +77,11 @@ class Task {
 
   Module *module() const { return module_; }
 
-  ModuleTask *module_task() const { return module_task_; }
-
  private:
   // Used by operator().
   Module *module_;
-  void *arg_;
-
-  // Used to notify a module that a leaf is being created/destroyed.
-  ModuleTask *module_task_;
-};
-
-// Stores the arguments of a task created by a module.
-class ModuleTask {
- public:
-  // Doesn't take ownership of 'arg' and 'c'.  'c' can be null and it
-  // can be changed later with SetTC()
-  ModuleTask(void *arg, bess::LeafTrafficClass<Task> *c) : arg_(arg), c_(c) {}
-
-  ~ModuleTask() {}
-
-  void *arg() { return arg_; }
-
-  void SetTC(bess::LeafTrafficClass<Task> *c) { c_ = c; }
-
-  bess::LeafTrafficClass<Task> *GetTC() { return c_; }
-
- private:
-  void *arg_;  // Auxiliary value passed to Module::RunTask().
-  bess::LeafTrafficClass<Task> *c_;  // Leaf TC associated with this task.
+  void *arg_;                  // Auxiliary value passed to Module::RunTask().
+  bess::LeafTrafficClass *c_;  // Leaf TC associated with this task.
 };
 
 #endif  // BESS_TASK_H_
