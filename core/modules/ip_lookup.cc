@@ -187,6 +187,7 @@ void IPLookup::ProcessBatch(bess::PacketBatch *batch) {
   int i;
 
 #if VECTOR_OPTIMIZATION
+  // Convert endianness for four addresses at the same time
   const __m128i bswap_mask =
       _mm_set_epi8(12, 13, 14, 15, 8, 9, 10, 11, 4, 5, 6, 7, 0, 1, 2, 3);
 
@@ -239,7 +240,7 @@ void IPLookup::ProcessBatch(bess::PacketBatch *batch) {
     eth = batch->pkts()[i]->head_data<Ethernet *>();
     ip = (Ipv4 *)(eth + 1);
 
-    ret = rte_lpm_lookup(lpm_, ip->dst.raw_value(), &next_hop);
+    ret = rte_lpm_lookup(lpm_, ip->dst.value(), &next_hop);
 
     if (ret == 0) {
       out_gates[i] = next_hop;
