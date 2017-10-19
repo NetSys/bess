@@ -140,7 +140,6 @@ static void lpm_lookupx4(const struct rte_lpm *lpm, __m128i ip, uint64_t hop[2],
 }
 
 // Substitute DPDK's function with ours.
-#define rte_lpm_lookupx4 lpm_lookupx4
 #endif
 
 static inline int is_valid_gate(gate_idx_t gate) {
@@ -221,7 +220,11 @@ void IPLookup::ProcessBatch(bess::PacketBatch *batch) {
     ip_addr = _mm_set_epi32(a3, a2, a1, a0);
     ip_addr = _mm_shuffle_epi8(ip_addr, bswap_mask);
 
-    rte_lpm_lookupx4(lpm_, ip_addr, reinterpret_cast<uint64_t *>(next_hops), default_gate);
+#ifndef __OPTIMIZE__
+    lpm_lookupx4(lpm_, ip_addr, reinterpret_cast<uint64_t *>(next_hops), default_gate);
+#else
+    rte_lpm_lookupx4(lpm_, ip_addr, next_hops, default_gate);
+#endif
 
     out_gates[i + 0] = next_hops[0];
     out_gates[i + 1] = next_hops[1];
