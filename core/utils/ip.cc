@@ -31,6 +31,7 @@
 
 #include <glog/logging.h>
 
+#include "bits.h"
 #include "format.h"
 
 namespace bess {
@@ -74,13 +75,7 @@ Ipv4Prefix::Ipv4Prefix(const std::string &prefix) {
   ParseIpv4Address(prefix.substr(0, delim_pos), &addr);
 
   const int len = std::stoi(prefix.substr(delim_pos + 1));
-  if (len <= 0) {
-    mask = be32_t(0);
-  } else if (len >= 32) {
-    mask = be32_t(0xffffffff);
-  } else {
-    mask = be32_t(~((1u << (32 - len)) - 1));
-  }
+  mask = be32_t(SetBitsLow<uint32_t>(len));
 }
 
 }  // namespace utils

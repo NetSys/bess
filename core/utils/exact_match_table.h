@@ -42,6 +42,7 @@
 #include "../metadata.h"
 #include "../module.h"
 #include "../packet.h"
+#include "bits.h"
 #include "cuckoo_map.h"
 #include "endian.h"
 #include "format.h"
@@ -404,8 +405,7 @@ class ExactMatchTable {
 
     if (field.mask == 0) {
       /* by default all bits are considered */
-      f->mask =
-          (f->size == 8) ? 0xFFFFFFFFFFFFFFFFULL : (1ULL << (f->size * 8)) - 1;
+      f->mask = SetBitsHigh<uint64_t>(f->size * 8);
     } else {
       if (!utils::uint64_to_bin(&f->mask, field.mask, f->size,
                                 utils::is_be_system() | force_be)) {

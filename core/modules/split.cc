@@ -30,6 +30,7 @@
 
 #include "split.h"
 
+#include "../utils/bits.h"
 #include "../utils/endian.h"
 
 // XXX: this is repeated in many modules. get rid of them when converting .h to
@@ -44,7 +45,7 @@ CommandResponse Split::Init(const bess::pb::SplitArg &arg) {
     return CommandFailure(EINVAL, "'size' must be 1-%zu", sizeof(uint64_t));
   }
 
-  mask_ = (size_ == 8) ? 0xffffffffffffffffull : (1ull << (size_ * 8)) - 1;
+  mask_ = bess::utils::SetBitsHigh<uint64_t>(size_ * 8);
 
   // We read a be64_t value regardless of the actual size,
   // hence the read value needs bit shift to the right.
