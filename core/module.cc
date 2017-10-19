@@ -36,8 +36,8 @@
 #include <sstream>
 
 #include "gate.h"
-#include "hooks/tcpdump.h"
-#include "hooks/track.h"
+#include "gate_hooks/tcpdump.h"
+#include "gate_hooks/track.h"
 #include "mem_alloc.h"
 #include "module_graph.h"
 #include "scheduler.h"

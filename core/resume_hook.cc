@@ -28,37 +28,43 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef BESS_MODULES_PORTOUT_H_
-#define BESS_MODULES_PORTOUT_H_
+#include "resume_hook.h"
 
-#include "../module.h"
-#include "../pb/module_msg.pb.h"
-#include "../port.h"
-#include "../worker.h"
+#include <map>
+#include <set>
+#include <string>
+#include <utility>
 
-class PortOut final : public Module {
- public:
-  static const gate_idx_t kNumIGates = MAX_GATES;
-  static const gate_idx_t kNumOGates = 0;
+namespace bess {
 
-  PortOut() : Module(), port_(), available_queues_(), worker_queues_() {}
+std::set<std::unique_ptr<ResumeHook>> global_resume_hooks;
+std::set<Module *> event_modules;
 
-  CommandResponse Init(const bess::pb::PortOutArg &arg);
+std::map<std::string, ResumeHookFactory>
+    &ResumeHookFactory::all_resume_hook_factories_holder(bool reset) {
+  // Maps from hook names to hook factories. Tracks all hooks (via their
+  // ResumeHookFactorys).
+  static std::map<std::string, ResumeHookFactory> all_resume_hook_factories;
 
-  void DeInit() override;
+  if (reset) {
+    all_resume_hook_factories.clear();
+  }
 
-  void ProcessBatch(bess::PacketBatch *batch) override;
+  return all_resume_hook_factories;
+}
 
-  int OnEvent(bess::Event e) override;
+const std::map<std::string, ResumeHookFactory>
+    &ResumeHookFactory::all_resume_hook_factories() {
+  return all_resume_hook_factories_holder();
+}
 
-  std::string GetDesc() const override;
+bool ResumeHookFactory::RegisterResumeHook(
+    ResumeHook::constructor_t constructor, ResumeHook::init_func_t init_func,
+    const std::string &hook_name) {
+  return all_resume_hook_factories_holder()
+      .emplace(std::piecewise_construct, std::forward_as_tuple(hook_name),
+               std::forward_as_tuple(constructor, init_func, hook_name))
+      .second;
+}
 
- private:
-  Port *port_;
-
-  std::vector<queue_t> available_queues_;
-
-  int worker_queues_[Worker::kMaxWorkers];
-};
-
-#endif  // BESS_MODULES_PORTOUT_H_
+}  // namespace bess

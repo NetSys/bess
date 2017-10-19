@@ -28,37 +28,24 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef BESS_MODULES_PORTOUT_H_
-#define BESS_MODULES_PORTOUT_H_
+#ifndef BESS_RESUME_HOOKS_METADATA_
+#define BESS_RESUME_HOOKS_METADATA_
 
-#include "../module.h"
-#include "../pb/module_msg.pb.h"
-#include "../port.h"
+#include "../message.h"
+#include "../resume_hook.h"
 #include "../worker.h"
 
-class PortOut final : public Module {
+// SetupMetadata computes read/write offsets for packet metadata attributes.
+class SetupMetadata final : public bess::ResumeHook {
  public:
-  static const gate_idx_t kNumIGates = MAX_GATES;
-  static const gate_idx_t kNumOGates = 0;
+  SetupMetadata();
 
-  PortOut() : Module(), port_(), available_queues_(), worker_queues_() {}
+  CommandResponse Init(const bess::pb::EmptyArg &);
 
-  CommandResponse Init(const bess::pb::PortOutArg &arg);
+  void Run() override;
 
-  void DeInit() override;
-
-  void ProcessBatch(bess::PacketBatch *batch) override;
-
-  int OnEvent(bess::Event e) override;
-
-  std::string GetDesc() const override;
-
- private:
-  Port *port_;
-
-  std::vector<queue_t> available_queues_;
-
-  int worker_queues_[Worker::kMaxWorkers];
+  static constexpr uint16_t kPriority = 0;
+  static const std::string kName;
 };
 
-#endif  // BESS_MODULES_PORTOUT_H_
+#endif  // BESS_RESUME_HOOKS_METADATA_

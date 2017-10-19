@@ -28,37 +28,37 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef BESS_MODULES_PORTOUT_H_
-#define BESS_MODULES_PORTOUT_H_
+#ifndef BESS_GATE_HOOKS_TRACK_
+#define BESS_GATE_HOOKS_TRACK_
 
+#include "../message.h"
 #include "../module.h"
-#include "../pb/module_msg.pb.h"
-#include "../port.h"
-#include "../worker.h"
 
-class PortOut final : public Module {
+// TrackGate counts the number of packets, batches and bytes seen by a gate.
+class Track final : public bess::GateHook {
  public:
-  static const gate_idx_t kNumIGates = MAX_GATES;
-  static const gate_idx_t kNumOGates = 0;
+  Track();
 
-  PortOut() : Module(), port_(), available_queues_(), worker_queues_() {}
+  CommandResponse Init(const bess::Gate *, const bess::pb::TrackArg &);
 
-  CommandResponse Init(const bess::pb::PortOutArg &arg);
+  uint64_t cnt() const { return cnt_; }
 
-  void DeInit() override;
+  uint64_t pkts() const { return pkts_; }
 
-  void ProcessBatch(bess::PacketBatch *batch) override;
+  uint64_t bytes() const { return bytes_; }
 
-  int OnEvent(bess::Event e) override;
+  void set_track_bytes(bool track) { track_bytes_ = track; }
 
-  std::string GetDesc() const override;
+  void ProcessBatch(const bess::PacketBatch *batch);
+
+  static constexpr uint16_t kPriority = 0;
+  static const std::string kName;
 
  private:
-  Port *port_;
-
-  std::vector<queue_t> available_queues_;
-
-  int worker_queues_[Worker::kMaxWorkers];
+  bool track_bytes_;
+  uint64_t cnt_;
+  uint64_t pkts_;
+  uint64_t bytes_;
 };
 
-#endif  // BESS_MODULES_PORTOUT_H_
+#endif  // BESS_GATE_HOOKS_TRACK_

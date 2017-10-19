@@ -28,37 +28,28 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef BESS_MODULES_PORTOUT_H_
-#define BESS_MODULES_PORTOUT_H_
+#ifndef BESS_GATE_HOOKS_TCPDUMP_
+#define BESS_GATE_HOOKS_TCPDUMP_
 
+#include "../message.h"
 #include "../module.h"
-#include "../pb/module_msg.pb.h"
-#include "../port.h"
-#include "../worker.h"
 
-class PortOut final : public Module {
+// Tcpdump dumps copies of the packets seen by a gate. Useful for debugging.
+class Tcpdump final : public bess::GateHook {
  public:
-  static const gate_idx_t kNumIGates = MAX_GATES;
-  static const gate_idx_t kNumOGates = 0;
+  Tcpdump();
 
-  PortOut() : Module(), port_(), available_queues_(), worker_queues_() {}
+  virtual ~Tcpdump();
 
-  CommandResponse Init(const bess::pb::PortOutArg &arg);
+  CommandResponse Init(const bess::Gate *, const bess::pb::TcpdumpArg &);
 
-  void DeInit() override;
+  void ProcessBatch(const bess::PacketBatch *batch);
 
-  void ProcessBatch(bess::PacketBatch *batch) override;
-
-  int OnEvent(bess::Event e) override;
-
-  std::string GetDesc() const override;
+  static constexpr uint16_t kPriority = 1;
+  static const std::string kName;
 
  private:
-  Port *port_;
-
-  std::vector<queue_t> available_queues_;
-
-  int worker_queues_[Worker::kMaxWorkers];
+  int fifo_fd_;
 };
 
-#endif  // BESS_MODULES_PORTOUT_H_
+#endif  // BESS_GATE_HOOKS_TCPDUMP_

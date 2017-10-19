@@ -232,6 +232,8 @@ const std::list<std::pair<int, bess::TrafficClass *>> &list_orphan_tcs();
 // Otherwise, return false
 bool detach_tc(bess::TrafficClass *c);
 
+void run_global_resume_hooks();
+
 // This class is used as a resource manager to automatically pause workers if
 // running and then restarts workers if they were previously paused.
 class WorkerPauser {

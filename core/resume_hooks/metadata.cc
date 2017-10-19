@@ -28,37 +28,19 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef BESS_HOOKS_TRACK_
-#define BESS_HOOKS_TRACK_
+#include "../metadata.h"
+#include "metadata.h"
 
-#include "../message.h"
-#include "../module.h"
+const std::string SetupMetadata::kName = "setup_metadata";
 
-// TrackGate counts the number of packets, batches and bytes seen by a gate.
-class Track final : public bess::GateHook {
- public:
-  Track();
+SetupMetadata::SetupMetadata() : bess::ResumeHook(kName, kPriority) {}
 
-  CommandResponse Init(const bess::Gate *, const bess::pb::TrackArg &);
+CommandResponse SetupMetadata::Init(const bess::pb::EmptyArg &) {
+  return CommandSuccess();
+}
 
-  uint64_t cnt() const { return cnt_; }
+void SetupMetadata::Run() {
+  bess::metadata::default_pipeline.ComputeMetadataOffsets();
+}
 
-  uint64_t pkts() const { return pkts_; }
-
-  uint64_t bytes() const { return bytes_; }
-
-  void set_track_bytes(bool track) { track_bytes_ = track; }
-
-  void ProcessBatch(const bess::PacketBatch *batch);
-
-  static constexpr uint16_t kPriority = 0;
-  static const std::string kName;
-
- private:
-  bool track_bytes_;
-  uint64_t cnt_;
-  uint64_t pkts_;
-  uint64_t bytes_;
-};
-
-#endif  // BESS_HOOKS_TRACK_
+ADD_RESUME_HOOK(SetupMetadata)

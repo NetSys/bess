@@ -28,45 +28,26 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef BESS_HOOKS_PCAPNG_
-#define BESS_HOOKS_PCAPNG_
+#ifndef BESS_EVENT_H_
+#define BESS_EVENT_H_
 
-#include "../message.h"
-#include "../module.h"
+namespace bess {
 
-// Pcapng dumps copies of the packets seen by a gate (data + metadata) in
-// pcapng format.  Useful for debugging.
-class Pcapng final : public bess::GateHook {
- public:
-  Pcapng();
+/*
+ * An Event is a lightweight notification of some activity in the BESS core.
+ * Currently these are only "sent" to Modules via `Module::OnEvent()`, but they
+ * could easily be extended to other entities in the system. See below for a
+ * description of
+ *
+ * PreResume
+ * ---------
+ * Modules will receive the PreResume event immediately before a call to
+ * `resume_worker()` or `resume_all_workers()`. If a Module is attached to
+ * multiple workers which are being resumed at the same time (e.g., via
+ * WorkerPauser) it will recieve PreResume exactly once.
+ */
+enum class Event { PreResume };
 
-  virtual ~Pcapng();
+}  // namespace bess
 
-  CommandResponse Init(const bess::Gate *, const bess::pb::PcapngArg &);
-
-  void ProcessBatch(const bess::PacketBatch *batch);
-
-  static constexpr uint16_t kPriority = 2;
-  static const std::string kName;
-
- private:
-  struct Attr {
-    // Attribute offset in the packet metadata.
-    int md_offset;
-    // Size in bytes of the attribute.
-    size_t size;
-    // Offset where this attribute hex dump should go inside `attr_template_`.
-    size_t tmpl_offset;
-  };
-
-  // The file descripton where to output the pcapng stream.
-  int fifo_fd_;
-  // List of attributes to dump.
-  std::vector<Attr> attrs_;
-  // Preallocated string with attribute names and values.  For each packet,
-  // we will change in place the values and send the string out, without
-  // doing any memory allocation.
-  std::vector<char> attr_template_;
-};
-
-#endif  // BESS_HOOKS_PCAPNG_
+#endif  // BESS_EVENT_H_
