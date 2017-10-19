@@ -47,7 +47,7 @@
 // To work around the issue as a quick and dirty fix, this function was copied
 // from DPDK 17.02 to modify its body. See #if 0 .. #endif block below.
 #ifndef __OPTIMIZE__
-static void lpm_lookupx4(const struct rte_lpm *lpm, __m128i ip, uint32_t hop[4],
+static void lpm_lookupx4(const struct rte_lpm *lpm, __m128i ip, uint64_t hop[2],
                          uint32_t defv) {
   __m128i i24;
   rte_xmm_t i8;
@@ -102,8 +102,8 @@ static void lpm_lookupx4(const struct rte_lpm *lpm, __m128i ip, uint32_t hop[4],
 
   /* search successfully finished for all 4 IP addresses. */
   if (likely((pt & mask_xv) == mask_v) && likely((pt2 & mask_xv) == mask_v)) {
-    *(uint64_t *)hop = pt & RTE_LPM_MASKX4_RES;
-    *(uint64_t *)(hop + 2) = pt2 & RTE_LPM_MASKX4_RES;
+    hop[0] = pt & RTE_LPM_MASKX4_RES;
+    hop[1] = pt2 & RTE_LPM_MASKX4_RES;
     return;
   }
 
@@ -132,10 +132,11 @@ static void lpm_lookupx4(const struct rte_lpm *lpm, __m128i ip, uint32_t hop[4],
     tbl[3] = *ptbl;
   }
 
-  hop[0] = (tbl[0] & RTE_LPM_LOOKUP_SUCCESS) ? tbl[0] & 0x00FFFFFF : defv;
-  hop[1] = (tbl[1] & RTE_LPM_LOOKUP_SUCCESS) ? tbl[1] & 0x00FFFFFF : defv;
-  hop[2] = (tbl[2] & RTE_LPM_LOOKUP_SUCCESS) ? tbl[2] & 0x00FFFFFF : defv;
-  hop[3] = (tbl[3] & RTE_LPM_LOOKUP_SUCCESS) ? tbl[3] & 0x00FFFFFF : defv;
+  uint32_t *hop32 = reinterpret_cast<uint32_t *>(hop);
+  hop32[0] = (tbl[0] & RTE_LPM_LOOKUP_SUCCESS) ? tbl[0] & 0x00FFFFFF : defv;
+  hop32[1] = (tbl[1] & RTE_LPM_LOOKUP_SUCCESS) ? tbl[1] & 0x00FFFFFF : defv;
+  hop32[2] = (tbl[2] & RTE_LPM_LOOKUP_SUCCESS) ? tbl[2] & 0x00FFFFFF : defv;
+  hop32[3] = (tbl[3] & RTE_LPM_LOOKUP_SUCCESS) ? tbl[3] & 0x00FFFFFF : defv;
 }
 
 // Substitute DPDK's function with ours.
@@ -220,7 +221,7 @@ void IPLookup::ProcessBatch(bess::PacketBatch *batch) {
     ip_addr = _mm_set_epi32(a3, a2, a1, a0);
     ip_addr = _mm_shuffle_epi8(ip_addr, bswap_mask);
 
-    rte_lpm_lookupx4(lpm_, ip_addr, next_hops, default_gate);
+    rte_lpm_lookupx4(lpm_, ip_addr, reinterpret_cast<uint64_t *>(next_hops), default_gate);
 
     out_gates[i + 0] = next_hops[0];
     out_gates[i + 1] = next_hops[1];
