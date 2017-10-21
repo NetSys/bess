@@ -88,6 +88,12 @@ class UnixSocketPort final : public Port {
   uint64_t last_idle_ns_;
 
   /*!
+   * Allow user to detect that the accepting/monitoring thread has
+   * finished its accept() call and that the socket is now connected.
+   */
+  bool confirm_connect_;
+
+  /*!
    * Function for the thread accepting and monitoring clients (accept thread).
    */
   void AcceptThread();

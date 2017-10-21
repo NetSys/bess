@@ -44,7 +44,8 @@ $(shell mkdir -p $(DEPDIR) >/dev/null)
 $(shell mkdir -p $(DEPDIR)/utils >/dev/null)
 $(shell mkdir -p $(DEPDIR)/modules >/dev/null)
 $(shell mkdir -p $(DEPDIR)/drivers >/dev/null)
-$(shell mkdir -p $(DEPDIR)/hooks >/dev/null)
+$(shell mkdir -p $(DEPDIR)/gate_hooks >/dev/null)
+$(shell mkdir -p $(DEPDIR)/resume_hooks >/dev/null)
 $(shell mkdir -p $(DEPDIR)/pb >/dev/null)
 
 # 'clang' or 'g++'
@@ -189,6 +190,8 @@ DRIVER_PLUGINS := $(foreach dir,$(PLUGINS),$(wildcard $(dir)/drivers))
 MODULE_PLUGINS := $(foreach dir,$(PLUGINS),$(wildcard $(dir)/modules))
 PROTO_PLUGINS := $(foreach dir,$(PLUGINS),$(wildcard $(dir)/protobuf))
 UTIL_PLUGINS := $(foreach dir,$(PLUGINS),$(wildcard $(dir)/utils))
+GATE_HOOK_PLUGINS := $(foreach dir,$(PLUGINS),$(wildcard $(dir)/gate_hooks))
+RESUME_HOOK_PLUGINS := $(foreach dir,$(PLUGINS),$(wildcard $(dir)/resume_hooks))
 
 # Much as above, ../protobuf has our standard protobufs and
 # ports; there may be additional plugin ones via PLUGINS.
@@ -218,14 +221,18 @@ PROTOCFLAGS += --cpp_out=./pb --grpc_out=./pb --plugin=protoc-gen-grpc=$(PROTOC_
 DRIVERS := $(foreach dir,drivers $(DRIVER_PLUGINS),$(wildcard $(dir)/*.cc))
 MODULES := $(foreach dir,modules $(MODULE_PLUGINS),$(wildcard $(dir)/*.cc))
 UTILS := $(foreach dir,utils $(UTIL_PLUGINS),$(wildcard $(dir)/*.cc))
+GATE_HOOKS := $(foreach dir,gate_hooks $(GATE_HOOK_PLUGINS),$(wildcard $(dir)/*.cc))
+RESUME_HOOKS := $(foreach dir,resume_hooks $(RESUME_HOOK_PLUGINS),$(wildcard $(dir)/*.cc))
 DRIVER_H := $(foreach dir,drivers $(DRIVER_PLUGINS),$(wildcard $(dir)/*.h))
 MODULE_H := $(foreach dir,drivers $(MODULE_PLUGINS),$(wildcard $(dir)/*.h))
 UTIL_H := $(foreach dir,utils $(UTIL_PLUGINS),$(wildcard $(dir)/*.h))
 vpath %.cc drivers $(DRIVER_PLUGINS)
 vpath %.cc modules $(MODULE_PLUGINS)
 vpath %.cc utils $(UTIL_PLUGINS)
+vpath %.cc gate_hooks $(GATE_HOOK_PLUGINS)
+vpath %.cc resume_hooks $(RESUME_HOOK_PLUGINS)
 
-ALL_SRCS := $(wildcard *.cc hooks/*.cc) $(MODULES) $(DRIVERS) $(UTILS)
+ALL_SRCS := $(wildcard *.cc gate_hooks/*.cc resume_hooks/*.cc) $(MODULES) $(DRIVERS) $(UTILS)
 
 TEST_SRCS := $(filter %_test.cc gtest_main.cc, $(ALL_SRCS))
 TEST_OBJS := $(patsubst %.cc,%.o,$(notdir $(TEST_SRCS)))
@@ -251,7 +258,7 @@ UTIL_OBJS := $(addprefix utils/,$(patsubst %.cc,%.o,$(notdir $(UTIL_SRCS))))
 
 SRCS := $(filter-out $(TEST_SRCS) $(BENCH_SRCS) $(MODULE_SRCS) $(DRIVER_SRCS) $(UTIL_SRCS), $(ALL_SRCS)) $(PROTO_SRCS)
 # ? why doesn't HEADERS include module headers?
-HEADERS := $(wildcard *.h utils/*.h $(DRIVER_H) hooks/*.h)
+HEADERS := $(wildcard *.h utils/*.h $(DRIVER_H) gate_hooks/*.h resume_hooks/*.h)
 OBJS := $(SRCS:.cc=.o) $(DRIVER_OBJS) $(UTIL_OBJS)
 
 EXEC := bessd

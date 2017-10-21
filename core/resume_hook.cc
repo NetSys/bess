@@ -28,24 +28,43 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-#include "worker_split.h"
+#include "resume_hook.h"
 
-void WorkerSplit::ProcessBatch(bess::PacketBatch *batch) {
-  RunChooseModule(ctx.wid(), batch);
-}
+#include <map>
+#include <set>
+#include <string>
+#include <utility>
 
-void WorkerSplit::AddActiveWorker(int wid, const Task *t) {
-  if (!HaveVisitedWorker(t)) {  // Have not already accounted for worker.
-    active_workers_[wid] = true;
-    visited_tasks_.push_back(t);
-    // Only propagate workers downstream on ogate `wid`
-    bess::OGate *ogate = ogates()[wid];
-    if (ogate) {
-      auto next = static_cast<Module *>(ogate->next());
-      next->AddActiveWorker(wid, t);
-    }
+namespace bess {
+
+std::set<std::unique_ptr<ResumeHook>> global_resume_hooks;
+std::set<Module *> event_modules;
+
+std::map<std::string, ResumeHookFactory>
+    &ResumeHookFactory::all_resume_hook_factories_holder(bool reset) {
+  // Maps from hook names to hook factories. Tracks all hooks (via their
+  // ResumeHookFactorys).
+  static std::map<std::string, ResumeHookFactory> all_resume_hook_factories;
+
+  if (reset) {
+    all_resume_hook_factories.clear();
   }
+
+  return all_resume_hook_factories;
 }
 
-ADD_MODULE(WorkerSplit, "ws",
-           "send packets to output gate X, the id of current worker")
+const std::map<std::string, ResumeHookFactory>
+    &ResumeHookFactory::all_resume_hook_factories() {
+  return all_resume_hook_factories_holder();
+}
+
+bool ResumeHookFactory::RegisterResumeHook(
+    ResumeHook::constructor_t constructor, ResumeHook::init_func_t init_func,
+    const std::string &hook_name) {
+  return all_resume_hook_factories_holder()
+      .emplace(std::piecewise_construct, std::forward_as_tuple(hook_name),
+               std::forward_as_tuple(constructor, init_func, hook_name))
+      .second;
+}
+
+}  // namespace bess

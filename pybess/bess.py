@@ -36,6 +36,7 @@ import errno
 import grpc
 import os
 import pprint
+import re
 import sys
 import time
 
@@ -59,7 +60,7 @@ from .builtin_pb import module_msg_pb2 as module_msg
 
 
 def _import_modules(name, subdir):
-    """Return a module instance retaining just the *Arg and *Response
+    """Return a module instance retaining just the right protobuf
     names, built by importing most of the *_msg_pb2.py files in the
     builtin_pb and plugin_pb directories, or a subdirectory of them.
     We skip bess_msg_pb2 for historical reasons.
@@ -85,7 +86,13 @@ def _import_modules(name, subdir):
                     yield import_name
 
     def keep_name(name):
-        return name.endswith('Arg') or name.endswith('Response')
+        """
+        This defines the set of protobuf names to keep.  Those ending
+        with Arg, Response, or Config are kept: Arg for arguments to
+        a command, Response for a reply to a command, and Config for
+        get_config / set_config state.
+        """
+        return re.search(r'(?:Arg|Config|Response)$', name) is not None
 
     try:
         mod = _pm.pm_import(name, protobufs(subdir),
@@ -494,6 +501,15 @@ class BESS(object):
             raise self.APIError('direction must be either "out" or "in"')
         request.arg.Pack(arg)
         return self._request('ConfigureGateHook', request)
+
+    def _configure_resume_hook(self, hook, arg, enable=None):
+        if enable is None:
+            enable = True
+        request = bess_msg.ConfigureResumeHookRequest()
+        request.hook_name = hook
+        request.enable = enable
+        request.arg.Pack(arg)
+        return self._request('ConfigureResumeHook', request)
 
     def tcpdump(self, enable, m, direction='out', gate=0, fifo=None):
         arg = bess_msg.TcpdumpArg()

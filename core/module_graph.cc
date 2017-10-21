@@ -128,22 +128,58 @@ bool ModuleGraph::RemoveEdge(const std::string &from, const std::string &to) {
   return UpdateTaskGraph();
 }
 
-bool ModuleGraph::AddModule(Module *m) {
+// Creates a module to the graph.
+Module *ModuleGraph::CreateModule(const ModuleBuilder &builder,
+                                  const std::string &module_name,
+                                  const google::protobuf::Any &arg,
+                                  pb_error_t *perr) {
+  Module *m =
+      builder.CreateModule(module_name, &bess::metadata::default_pipeline);
+
+  CommandResponse ret = m->InitWithGenericArg(arg);
+  {
+    google::protobuf::Any empty;
+
+    if (ret.data().SerializeAsString() != empty.SerializeAsString()) {
+      LOG(WARNING) << module_name << "::" << builder.class_name()
+                   << " Init() returned non-empty response: "
+                   << ret.data().DebugString();
+    }
+  }
+
+  if (ret.error().code() != 0) {
+    *perr = ret.error();
+    delete m;
+    return nullptr;
+  }
+
   if (m->is_task_) {
     if (!tasks_.insert(m->name()).second) {
-      return false;
+      *perr = pb_errno(ENOMEM);
+      delete m;
+      return nullptr;
     }
   }
 
   bool module_added = all_modules_.insert({m->name(), m}).second;
   if (!module_added) {
-    return false;
+    *perr = pb_errno(ENOMEM);
+    delete m;
+    return nullptr;
   }
 
-  return module_graph_
-      .emplace(std::piecewise_construct, std::forward_as_tuple(m->name()),
-               std::forward_as_tuple(m))
-      .second;
+  module_added =
+      module_graph_
+          .emplace(std::piecewise_construct, std::forward_as_tuple(m->name()),
+                   std::forward_as_tuple(m))
+          .second;
+  if (!module_added) {
+    *perr = pb_errno(ENOMEM);
+    delete m;
+    return nullptr;
+  }
+
+  return m;
 }
 
 int ModuleGraph::DestroyModule(Module *m, bool erase) {
@@ -154,6 +190,7 @@ int ModuleGraph::DestroyModule(Module *m, bool erase) {
   for (size_t i = 0; i < m->igates_.size(); i++) {
     ret = m->DisconnectModulesUpstream(i);
     if (ret) {
+      delete m;
       return ret;
     }
   }
@@ -162,6 +199,7 @@ int ModuleGraph::DestroyModule(Module *m, bool erase) {
   for (size_t i = 0; i < m->ogates_.size(); i++) {
     ret = m->DisconnectModules(i);
     if (ret) {
+      delete m;
       return ret;
     }
   }
@@ -241,8 +279,8 @@ void propagate_active_worker() {
       for (const auto &tc_pair : bess::TrafficClassBuilder::all_tcs()) {
         bess::TrafficClass *c = tc_pair.second;
         if (c->policy() == bess::POLICY_LEAF && c->Root() == root) {
-          auto leaf = static_cast<bess::LeafTrafficClass<Task> *>(c);
-          leaf->task().AddActiveWorker(i);
+          auto leaf = static_cast<bess::LeafTrafficClass *>(c);
+          leaf->task()->AddActiveWorker(i);
         }
       }
     }

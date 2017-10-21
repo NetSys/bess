@@ -92,15 +92,18 @@ class ModuleFixture : public benchmark::Fixture {
     const auto &builder_relay = builders.find("DummyRelayModule")->second;
     Module *last;
 
-    src_ = builder_src.CreateModule("src0", &bess::metadata::default_pipeline);
-    ModuleGraph::AddModule(src_);
+    bess::pb::EmptyArg arg_;
+    google::protobuf::Any arg;
+    arg.PackFrom(arg_);
+    pb_error_t perr;
+
+    src_ = ModuleGraph::CreateModule(builder_src, "src0", arg, &perr);
 
     last = src_;
 
     for (int i = 0; i < chain_length; i++) {
-      Module *relay = builder_relay.CreateModule(
-          "relay" + std::to_string(i), &bess::metadata::default_pipeline);
-      ModuleGraph::AddModule(relay);
+      Module *relay = ModuleGraph::CreateModule(
+          builder_relay, "relay" + std::to_string(i), arg, &perr);
 
       relays.push_back(relay);
       int ret = last->ConnectModules(0, relay, 0);
@@ -124,7 +127,7 @@ class ModuleFixture : public benchmark::Fixture {
 BENCHMARK_DEFINE_F(ModuleFixture, Chain)(benchmark::State &state) {
   const size_t batch_size = bess::PacketBatch::kMaxBurst;
 
-  Task t(src_, reinterpret_cast<void *>(batch_size), nullptr);
+  Task t(src_, reinterpret_cast<void *>(batch_size));
 
   while (state.KeepRunning()) {
     struct task_result ret = t();

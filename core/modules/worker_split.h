@@ -41,7 +41,7 @@ class WorkerSplit final : public Module {
 
   void ProcessBatch(bess::PacketBatch *batch) override;
 
-  void AddActiveWorker(int wid, const ModuleTask *task) override;
+  void AddActiveWorker(int wid, const Task *task) override;
 };
 
 #endif  // BESS_MODULES_WORKERSPLIT_H_

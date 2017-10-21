@@ -289,4 +289,11 @@ service BESSControl {
 
   /// Enable/Disable a gate hook.
   rpc ConfigureGateHook (ConfigureGateHookRequest) returns (CommandResponse) {}
+
+  //  -------------------------------------------------------------------------
+  //  Resume hooks
+  //  -------------------------------------------------------------------------
+
+  /// Enable/Disable a resume hook.
+  rpc ConfigureResumeHook (ConfigureResumeHookRequest) returns (CommandResponse) {}
 }

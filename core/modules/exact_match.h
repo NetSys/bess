@@ -60,6 +60,9 @@ class ExactMatch final : public Module {
   std::string GetDesc() const override;
 
   CommandResponse Init(const bess::pb::ExactMatchArg &arg);
+  CommandResponse GetInitialArg(const bess::pb::EmptyArg &arg);
+  CommandResponse GetRuntimeConfig(const bess::pb::EmptyArg &arg);
+  CommandResponse SetRuntimeConfig(const bess::pb::ExactMatchConfig &arg);
   CommandResponse CommandAdd(const bess::pb::ExactMatchCommandAddArg &arg);
   CommandResponse CommandDelete(
       const bess::pb::ExactMatchCommandDeleteArg &arg);
@@ -72,8 +75,10 @@ class ExactMatch final : public Module {
                               const bess::pb::FieldData &mask, int idx);
   void RuleFieldsFromPb(const RepeatedPtrField<bess::pb::FieldData> &fields,
                         bess::utils::ExactMatchRuleFields *rule);
+  Error AddRule(const bess::pb::ExactMatchCommandAddArg &arg);
 
   gate_idx_t default_gate_;
+  bool empty_masks_;		// mainly for GetInitialArg
 
   ExactMatchTable<gate_idx_t> table_;
 };

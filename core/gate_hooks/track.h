@@ -28,24 +28,37 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-#include "worker_split.h"
+#ifndef BESS_GATE_HOOKS_TRACK_
+#define BESS_GATE_HOOKS_TRACK_
 
-void WorkerSplit::ProcessBatch(bess::PacketBatch *batch) {
-  RunChooseModule(ctx.wid(), batch);
-}
+#include "../message.h"
+#include "../module.h"
 
-void WorkerSplit::AddActiveWorker(int wid, const Task *t) {
-  if (!HaveVisitedWorker(t)) {  // Have not already accounted for worker.
-    active_workers_[wid] = true;
-    visited_tasks_.push_back(t);
-    // Only propagate workers downstream on ogate `wid`
-    bess::OGate *ogate = ogates()[wid];
-    if (ogate) {
-      auto next = static_cast<Module *>(ogate->next());
-      next->AddActiveWorker(wid, t);
-    }
-  }
-}
+// TrackGate counts the number of packets, batches and bytes seen by a gate.
+class Track final : public bess::GateHook {
+ public:
+  Track();
 
-ADD_MODULE(WorkerSplit, "ws",
-           "send packets to output gate X, the id of current worker")
+  CommandResponse Init(const bess::Gate *, const bess::pb::TrackArg &);
+
+  uint64_t cnt() const { return cnt_; }
+
+  uint64_t pkts() const { return pkts_; }
+
+  uint64_t bytes() const { return bytes_; }
+
+  void set_track_bytes(bool track) { track_bytes_ = track; }
+
+  void ProcessBatch(const bess::PacketBatch *batch);
+
+  static constexpr uint16_t kPriority = 0;
+  static const std::string kName;
+
+ private:
+  bool track_bytes_;
+  uint64_t cnt_;
+  uint64_t pkts_;
+  uint64_t bytes_;
+};
+
+#endif  // BESS_GATE_HOOKS_TRACK_

@@ -525,6 +525,11 @@ void RateLimitTrafficClass::FinishAndAccountTowardsRoot(
   parent_->FinishAndAccountTowardsRoot(wakeup_queue, this, usage, tsc);
 }
 
+LeafTrafficClass::~LeafTrafficClass() {
+  TrafficClassBuilder::Clear(this);
+  task_.Detach();
+}
+
 std::unordered_map<std::string, TrafficClass *> TrafficClassBuilder::all_tcs_;
 
 bool TrafficClassBuilder::ClearAll() {

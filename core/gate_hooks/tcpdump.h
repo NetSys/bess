@@ -28,24 +28,28 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-#include "worker_split.h"
+#ifndef BESS_GATE_HOOKS_TCPDUMP_
+#define BESS_GATE_HOOKS_TCPDUMP_
 
-void WorkerSplit::ProcessBatch(bess::PacketBatch *batch) {
-  RunChooseModule(ctx.wid(), batch);
-}
+#include "../message.h"
+#include "../module.h"
 
-void WorkerSplit::AddActiveWorker(int wid, const Task *t) {
-  if (!HaveVisitedWorker(t)) {  // Have not already accounted for worker.
-    active_workers_[wid] = true;
-    visited_tasks_.push_back(t);
-    // Only propagate workers downstream on ogate `wid`
-    bess::OGate *ogate = ogates()[wid];
-    if (ogate) {
-      auto next = static_cast<Module *>(ogate->next());
-      next->AddActiveWorker(wid, t);
-    }
-  }
-}
+// Tcpdump dumps copies of the packets seen by a gate. Useful for debugging.
+class Tcpdump final : public bess::GateHook {
+ public:
+  Tcpdump();
 
-ADD_MODULE(WorkerSplit, "ws",
-           "send packets to output gate X, the id of current worker")
+  virtual ~Tcpdump();
+
+  CommandResponse Init(const bess::Gate *, const bess::pb::TcpdumpArg &);
+
+  void ProcessBatch(const bess::PacketBatch *batch);
+
+  static constexpr uint16_t kPriority = 1;
+  static const std::string kName;
+
+ private:
+  int fifo_fd_;
+};
+
+#endif  // BESS_GATE_HOOKS_TCPDUMP_

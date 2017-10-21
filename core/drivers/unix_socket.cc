@@ -81,6 +81,10 @@ void UnixSocketPort::AcceptThread() {
         close(fd);
       } else {
         client_fd_ = fd;
+        if (confirm_connect_) {
+          // Send confirmation that we've accepted their connect().
+          send(fd, "yes", 4, 0);
+        }
       }
 
     } else if (fds[1].revents & (POLLRDHUP | POLLHUP)) {
@@ -112,6 +116,8 @@ CommandResponse UnixSocketPort::Init(const bess::pb::UnixSocketPortArg &arg) {
   } else {
     min_rx_interval_ns_ = arg.min_rx_interval_ns() ?: kDefaultMinRxInterval;
   }
+
+  confirm_connect_ = arg.confirm_connect();
 
   listen_fd_ = socket(AF_UNIX, SOCK_SEQPACKET, 0);
   if (listen_fd_ < 0) {

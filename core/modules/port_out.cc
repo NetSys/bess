@@ -56,6 +56,12 @@ CommandResponse PortOut::Init(const bess::pb::PortOutArg &arg) {
 
   node_constraints_ = port_->GetNodePlacementConstraint();
 
+  max_allowed_workers_ = port_->num_queues[PACKET_DIR_OUT];
+
+  for (queue_t i = 0; i < max_allowed_workers_; i++) {
+    available_queues_.push_back(i);
+  }
+
   if (ret < 0) {
     return CommandFailure(-ret);
   }
@@ -78,7 +84,13 @@ std::string PortOut::GetDesc() const {
 void PortOut::ProcessBatch(bess::PacketBatch *batch) {
   Port *p = port_;
 
-  const queue_t qid = get_igate();
+  if (unlikely(worker_queues_[ctx.wid()] < 0)) {
+    // If CheckSchedulingConstratins() is called before resuming, which is the
+    // default now, this should never happen. Including this for users that
+    // enjoy living on the edge.
+    return;
+  }
+  const queue_t qid = worker_queues_[ctx.wid()];
 
   uint64_t sent_bytes = 0;
   int sent_pkts = 0;
@@ -102,6 +114,36 @@ void PortOut::ProcessBatch(bess::PacketBatch *batch) {
   if (sent_pkts < batch->cnt()) {
     bess::Packet::Free(batch->pkts() + sent_pkts, batch->cnt() - sent_pkts);
   }
+}
+
+int PortOut::OnEvent(bess::Event e) {
+  if (e != bess::Event::PreResume) {
+    return ENOTSUP;
+  }
+
+  const std::vector<bool> &actives = active_workers();
+
+  // Reclaim queues from workers that have been detached from this PortOut since
+  // the last resume.
+  for (size_t i = 0; i < Worker::kMaxWorkers; i++) {
+    if (!actives[i]) {
+      if (worker_queues_[i] >= 0) {
+        available_queues_.push_back(worker_queues_[i]);
+      }
+      worker_queues_[i] = -1;
+    }
+  }
+
+  // Assign remaining queues to any newly attached workers.
+  for (size_t i = 0; i < actives.size(); i++) {
+    if (actives[i] && worker_queues_[i] < 0) {
+      CHECK(!available_queues_.empty()); // Should not be tripped.
+      worker_queues_[i] = available_queues_.back();
+      available_queues_.pop_back();
+    }
+  }
+
+  return 0;
 }
 
 ADD_MODULE(PortOut, "port_out", "sends pakets to a port")

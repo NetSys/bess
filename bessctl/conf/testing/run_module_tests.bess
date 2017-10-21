@@ -37,6 +37,7 @@ import time
 import sugar
 import traceback
 from time import gmtime, strftime
+from pybess import protobuf_to_dict as pb_conv
 
 # Env variable used to run a single test
 test_name = $TEST_NAME!'*'
@@ -134,6 +135,7 @@ def load_test(filename):
         'CRASH_TEST_INPUTS': [],
         'OUTPUT_TEST_INPUTS': [],
         'CUSTOM_TEST_FUNCTIONS': [],
+        'protobuf_to_dict': pb_conv.protobuf_to_dict,
     }
     # pre-import all the actual creator modules directly
     namespace.update(__bess_creators__)

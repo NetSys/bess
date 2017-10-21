@@ -48,6 +48,8 @@
 #include "module.h"
 #include "opts.h"
 #include "packet.h"
+#include "resume_hook.h"
+#include "resume_hooks/metadata.h"
 #include "scheduler.h"
 #include "utils/random.h"
 #include "utils/time.h"
@@ -62,17 +64,17 @@ Worker *volatile workers[Worker::kMaxWorkers];
 
 using bess::TrafficClassBuilder;
 using namespace bess::traffic_class_initializer_types;
+using bess::ResumeHookFactory;
 
 std::list<std::pair<int, bess::TrafficClass *>> orphan_tcs;
 
 // See worker.h
 __thread Worker ctx;
 
-template <typename CallableTask>
 struct thread_arg {
   int wid;
   int core;
-  Scheduler<CallableTask> *scheduler;
+  Scheduler *scheduler;
 };
 
 #define SYS_CPU_DIR "/sys/devices/system/cpu/cpu%u"
@@ -172,7 +174,6 @@ void resume_all_workers() {
     }
   }
 
-  bess::metadata::default_pipeline.ComputeMetadataOffsets();
   for (int wid = 0; wid < Worker::kMaxWorkers; wid++)
     resume_worker(wid);
 }
@@ -260,7 +261,7 @@ int Worker::BlockWorker() {
 
 /* The entry point of worker threads */
 void *Worker::Run(void *_arg) {
-  struct thread_arg<Task> *arg = (struct thread_arg<Task> *)_arg;
+  struct thread_arg *arg = (struct thread_arg *)_arg;
   rand_ = new Random();
 
   cpu_set_t set;
@@ -317,13 +318,11 @@ void *run_worker(void *_arg) {
 
 void launch_worker(int wid, int core,
                    [[maybe_unused]] const std::string &scheduler) {
-  struct thread_arg<Task> arg = {
-    .wid = wid, .core = core, .scheduler = nullptr
-  };
+  struct thread_arg arg = {.wid = wid, .core = core, .scheduler = nullptr};
   if (scheduler == "") {
-    arg.scheduler = new DefaultScheduler<Task>();
+    arg.scheduler = new DefaultScheduler();
   } else if (scheduler == "experimental") {
-    arg.scheduler = new ExperimentalScheduler<Task>();
+    arg.scheduler = new ExperimentalScheduler();
   } else {
     CHECK(false) << "Scheduler " << scheduler << " is invalid.";
   }
@@ -398,6 +397,34 @@ bool detach_tc(bess::TrafficClass *c) {
   return remove_tc_from_orphan(c);
 }
 
+void run_global_resume_hooks() {
+  auto &hooks = bess::global_resume_hooks;
+
+  // Enable metadata offset computation by default
+  bool found_setup_md = false;
+  for (auto &hook : hooks) {
+    hook->Run();
+    if (hook->name() == SetupMetadata::kName) {
+      found_setup_md = true;
+    }
+  }
+
+  if (!found_setup_md) {
+    const auto factory = ResumeHookFactory::all_resume_hook_factories().find(
+        SetupMetadata::kName);
+    hooks.emplace(factory->second.CreateResumeHook());
+  }
+
+  for (auto &hook : hooks) {
+    VLOG(1) << "Running global resume hook '" << hook->name() << "'";
+    hook->Run();
+  }
+
+  for (Module *m : bess::event_modules) {
+    m->OnEvent(bess::Event::PreResume);
+  }
+}
+
 WorkerPauser::WorkerPauser() {
   if (is_any_worker_running()) {
     for (int wid = 0; wid < Worker::kMaxWorkers; wid++) {
@@ -411,7 +438,18 @@ WorkerPauser::WorkerPauser() {
 }
 
 WorkerPauser::~WorkerPauser() {
+  if (workers_paused_.size()) {
+    run_global_resume_hooks();
+  }
+
+  std::set<Module *> modules_run;
   for (int wid : workers_paused_) {
+    for (Module *m : bess::event_modules) {
+      if (!modules_run.count(m) && m->active_workers()[wid]) {
+        m->OnEvent(bess::Event::PreResume);
+        modules_run.insert(m);
+      }
+    }
     resume_worker(wid);
     VLOG(1) << "*** Worker " << wid << " Resumed ***";
   }

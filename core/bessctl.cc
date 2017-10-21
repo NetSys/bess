@@ -45,8 +45,8 @@
 
 #include "bessd.h"
 #include "gate.h"
-#include "hooks/tcpdump.h"
-#include "hooks/track.h"
+#include "gate_hooks/tcpdump.h"
+#include "gate_hooks/track.h"
 #include "message.h"
 #include "metadata.h"
 #include "module.h"
@@ -54,7 +54,9 @@
 #include "opts.h"
 #include "packet.h"
 #include "port.h"
+#include "resume_hook.h"
 #include "scheduler.h"
+#include "shared_obj.h"
 #include "traffic_class.h"
 #include "utils/ether.h"
 #include "utils/format.h"
@@ -68,6 +70,8 @@ using grpc::Status;
 using grpc::ServerContext;
 
 using bess::TrafficClassBuilder;
+using bess::ResumeHook;
+using bess::ResumeHookFactory;
 using namespace bess::pb;
 
 template <typename T>
@@ -393,39 +397,6 @@ static ::Port* create_port(const std::string& name, const PortBuilder& driver,
   return p.release();
 }
 
-static Module* create_module(const std::string& name,
-                             const ModuleBuilder& builder,
-                             const google::protobuf::Any& arg,
-                             pb_error_t* perr) {
-  Module* m = builder.CreateModule(name, &bess::metadata::default_pipeline);
-
-  // DPDK functions may be called, so be prepared
-  ctx.SetNonWorker();
-
-  CommandResponse ret = m->InitWithGenericArg(arg);
-
-  {
-    google::protobuf::Any empty;
-
-    if (ret.data().SerializeAsString() != empty.SerializeAsString()) {
-      LOG(WARNING) << name << "::" << builder.class_name()
-                   << " Init() returned non-empty response: "
-                   << ret.data().DebugString();
-    }
-  }
-
-  if (ret.error().code() != 0) {
-    *perr = ret.error();
-    return nullptr;
-  }
-
-  if (!ModuleGraph::AddModule(m)) {
-    *perr = pb_errno(ENOMEM);
-    return nullptr;
-  }
-  return m;
-}
-
 static void collect_tc(const bess::TrafficClass* c, int wid,
                        ListTcsResponse_TrafficClassStatus* status) {
   if (c->parent()) {
@@ -453,15 +424,14 @@ static void collect_tc(const bess::TrafficClass* c, int wid,
     status->mutable_class_()->mutable_max_burst()->insert(
         {resource, max_burst});
   } else if (c->policy() == bess::POLICY_LEAF) {
-    const bess::LeafTrafficClass<Task>* leaf =
-        static_cast<const bess::LeafTrafficClass<Task>*>(c);
-    const Task& task = leaf->task();
-    const Module* module = task.module();
+    const bess::LeafTrafficClass* leaf =
+        static_cast<const bess::LeafTrafficClass*>(c);
+    const Task* task = leaf->task();
+    const Module* module = task->module();
 
-    status->mutable_class_()->set_leaf_module_name(task.module()->name());
+    status->mutable_class_()->set_leaf_module_name(task->module()->name());
 
-    auto it = std::find(module->tasks().begin(), module->tasks().end(),
-                        task.module_task());
+    auto it = std::find(module->tasks().begin(), module->tasks().end(), task);
     CHECK(it != module->tasks().end());
     uint64_t task_id = it - module->tasks().begin();
     status->mutable_class_()->set_leaf_module_taskid(task_id);
@@ -532,10 +502,13 @@ class BESSControlImpl final : public BESSControl::Service {
 
   Status ResumeAll(ServerContext*, const EmptyRequest*,
                    EmptyResponse*) override {
-    LOG(INFO) << "*** Resuming ***";
     if (!is_any_worker_running()) {
       attach_orphans();
     }
+
+    run_global_resume_hooks();
+
+    LOG(INFO) << "*** Resuming ***";
     resume_all_workers();
     return Status::OK;
   }
@@ -551,6 +524,7 @@ class BESSControlImpl final : public BESSControl::Service {
   Status ResetWorkers(ServerContext*, const EmptyRequest*,
                       EmptyResponse*) override {
     WorkerPauser wp;
+    bess::global_resume_hooks.clear();
     destroy_all_workers();
     LOG(INFO) << "*** All workers have been destroyed ***";
     return Status::OK;
@@ -707,8 +681,8 @@ class BESSControlImpl final : public BESSControl::Service {
       for (const auto& tc_pair : bess::TrafficClassBuilder::all_tcs()) {
         bess::TrafficClass* c = tc_pair.second;
         if (c->policy() == bess::POLICY_LEAF && root == c->Root()) {
-          auto leaf = static_cast<bess::LeafTrafficClass<Task>*>(c);
-          int constraints = leaf->task().GetSocketConstraints();
+          auto leaf = static_cast<bess::LeafTrafficClass*>(c);
+          int constraints = leaf->task()->GetSocketConstraints();
           if ((constraints & socket) == 0) {
             LOG(WARNING) << "Scheduler constraints are violated for wid " << i
                          << " socket " << socket << " constraint "
@@ -1094,6 +1068,7 @@ class BESSControlImpl final : public BESSControl::Service {
     WorkerPauser wp;
 
     ModuleGraph::DestroyAllModules();
+    bess::event_modules.clear();
     LOG(INFO) << "*** All modules have been destroyed ***";
     return Status::OK;
   }
@@ -1141,11 +1116,18 @@ class BESSControlImpl final : public BESSControl::Service {
                                                   builder.name_template());
     }
 
-    pb_error_t* error = response->mutable_error();
-    Module* module = create_module(mod_name, builder, request->arg(), error);
+    // DPDK functions may be called, so be prepared
+    ctx.SetNonWorker();
 
+    pb_error_t* error = response->mutable_error();
+    Module* module =
+        ModuleGraph::CreateModule(builder, mod_name, request->arg(), error);
     if (module) {
       response->set_name(module->name());
+
+      if (module->OnEvent(bess::Event::PreResume) != ENOTSUP) {
+        bess::event_modules.insert(module);
+      }
     }
 
     return Status::OK;
@@ -1170,6 +1152,11 @@ class BESSControlImpl final : public BESSControl::Service {
     m = it->second;
 
     ModuleGraph::DestroyModule(m);
+
+    auto event_it = bess::event_modules.find(m);
+    if (event_it != bess::event_modules.end()) {
+      bess::event_modules.erase(event_it);
+    }
 
     return Status::OK;
   }
@@ -1374,6 +1361,47 @@ class BESSControlImpl final : public BESSControl::Service {
       *response = disable_hook_for_module(it->second, gate_idx, is_igate,
                                           use_gate, request->hook_name());
     }
+
+    return Status::OK;
+  }
+
+  Status ConfigureResumeHook(ServerContext*,
+                             const ConfigureResumeHookRequest* request,
+                             CommandResponse* response) override {
+    auto& hooks = bess::global_resume_hooks;
+    auto hook_it = hooks.end();
+    for (auto it = hooks.begin(); it != hooks.end(); ++it) {
+      if (it->get()->name() == request->hook_name()) {
+        hook_it = it;
+        break;
+      }
+    }
+
+    if (!request->enable()) {
+      if (hook_it != hooks.end()) {
+        hooks.erase(hook_it);
+      }
+      return Status::OK;
+    }
+
+    if (hook_it != hooks.end()) {
+      return return_with_error(response, EEXIST,
+                               "Resume hook '%s' is already installed",
+                               request->hook_name().c_str());
+    }
+
+    const auto factory = ResumeHookFactory::all_resume_hook_factories().find(
+        request->hook_name());
+    if (factory == ResumeHookFactory::all_resume_hook_factories().end()) {
+      return return_with_error(response, ENOENT, "No such resume hook '%s'",
+                               request->hook_name().c_str());
+    }
+    auto hook = factory->second.CreateResumeHook();
+    *response = factory->second.InitResumeHook(hook.get(), request->arg());
+    if (response->has_error()) {
+      return Status::OK;
+    }
+    hooks.insert(std::move(hook));
 
     return Status::OK;
   }

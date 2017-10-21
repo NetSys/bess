@@ -43,6 +43,14 @@ static inline int is_valid_gate(gate_idx_t gate) {
 }
 
 const Commands ExactMatch::cmds = {
+    {"get_initial_arg", "EmptyArg", MODULE_CMD_FUNC(&ExactMatch::GetInitialArg),
+     Command::THREAD_SAFE},
+    {"get_runtime_config", "EmptyArg",
+     MODULE_CMD_FUNC(&ExactMatch::GetRuntimeConfig),
+     Command::THREAD_SAFE},
+    {"set_runtime_config", "ExactMatchConfig",
+     MODULE_CMD_FUNC(&ExactMatch::SetRuntimeConfig),
+     Command::THREAD_UNSAFE},
     {"add", "ExactMatchCommandAddArg", MODULE_CMD_FUNC(&ExactMatch::CommandAdd),
      Command::THREAD_UNSAFE},
     {"delete", "ExactMatchCommandDeleteArg",
@@ -85,7 +93,8 @@ CommandResponse ExactMatch::AddFieldOne(const bess::pb::Field &field,
 }
 
 CommandResponse ExactMatch::Init(const bess::pb::ExactMatchArg &arg) {
-  if (arg.fields_size() != arg.masks_size() && arg.masks_size() != 0) {
+  empty_masks_ = arg.masks_size() == 0;
+  if (arg.fields_size() != arg.masks_size() && !empty_masks_) {
     return CommandFailure(EINVAL,
                           "must provide masks for all fields (or no masks for "
                           "default match on all bits on all fields)");
@@ -94,7 +103,7 @@ CommandResponse ExactMatch::Init(const bess::pb::ExactMatchArg &arg) {
   for (auto i = 0; i < arg.fields_size(); ++i) {
     CommandResponse err;
 
-    if (arg.masks_size() == 0) {
+    if (empty_masks_) {
       bess::pb::FieldData emptymask;
       err = AddFieldOne(arg.fields(i), emptymask, i);
     } else {
@@ -108,6 +117,110 @@ CommandResponse ExactMatch::Init(const bess::pb::ExactMatchArg &arg) {
 
   default_gate_ = DROP_GATE;
 
+  return CommandSuccess();
+}
+
+// Retrieves an ExactMatchArg that would reconstruct this module.
+CommandResponse ExactMatch::GetInitialArg(const bess::pb::EmptyArg &) {
+  bess::pb::ExactMatchArg r;
+
+  for (size_t i = 0; i < table_.num_fields(); i++) {
+    const ExactMatchField &f = table_.get_field(i);
+    bess::pb::Field *ret_field = r.add_fields();
+    if (f.attr_id >= 0) {
+      ret_field->set_attr_name(all_attrs().at(f.attr_id).name);
+    } else {
+      ret_field->set_offset(f.offset);
+    }
+    ret_field->set_num_bytes(f.size);
+    if (!empty_masks_) {
+      bess::pb::FieldData *ret_mask = r.add_masks();
+      // The optimal type for the mask (value_bin vs value_int) depends
+      // on the wire encoding.  For the moment, we'll just use value_bin
+      // with the field size, though; it's much simpler.  Or, perhaps
+      // we should save the form used during configuration, and use
+      // the same form here.
+      const char *ptr = reinterpret_cast<const char *>(&f.mask);
+      ret_mask->set_value_bin(ptr, f.size);
+    }
+  }
+  return CommandSuccess(r);
+}
+
+// Retrieves an ExactMatchConfig that would restore this module's
+// runtime configuration.
+CommandResponse ExactMatch::GetRuntimeConfig(const bess::pb::EmptyArg &) {
+  bess::pb::ExactMatchConfig r;
+  using rule_t = bess::pb::ExactMatchCommandAddArg;
+
+  r.set_default_gate(default_gate_);
+  for (auto const &kv : table_) {
+    auto const &key = kv.first;
+    auto const &value = kv.second;
+    rule_t *rule = r.add_rules();
+
+    rule->set_gate(value);
+    for (size_t i = 0; i < table_.num_fields(); i++) {
+      const ExactMatchField &f = table_.get_field(i);
+      bess::pb::FieldData *field = rule->add_fields();
+
+      // See GetInitialArg above for why we only set_value_bin here.
+      const char *ptr = reinterpret_cast<const char *>(&key.u64_arr[0]);
+      field->set_value_bin(ptr + f.pos, f.size);
+    }
+  }
+  std::sort(r.mutable_rules()->begin(), r.mutable_rules()->end(),
+            [this](const rule_t &a, const rule_t &b){
+              // Primary sort key is gate number.
+              if (a.gate() != b.gate()) {
+                return a.gate() < b.gate();
+              }
+              // After that, sort by value-to-be-matched, in field order.
+              for (size_t i = 0; i < table_.num_fields(); i++) {
+                if (a.fields(i).value_bin() != b.fields(i).value_bin()) {
+                  return a.fields(i).value_bin() < b.fields(i).value_bin();
+                }
+              }
+              // Huh: a, b exactly equal - should not happen unless
+              // std::sort() is poor.
+              return false;
+            });
+  return CommandSuccess(r);
+}
+
+Error ExactMatch::AddRule(
+    const bess::pb::ExactMatchCommandAddArg &arg) {
+  gate_idx_t gate = arg.gate();
+
+  if (!is_valid_gate(gate)) {
+    return std::make_pair(EINVAL,
+        bess::utils::Format("Invalid gate: %hu", gate));
+  }
+
+  if (arg.fields_size() == 0) {
+    return std::make_pair(EINVAL, "'fields' must be a list");
+  }
+
+  ExactMatchRuleFields rule;
+  RuleFieldsFromPb(arg.fields(), &rule);
+
+  return table_.AddRule(gate, rule);
+}
+
+// Uses an ExactMatchConfig to restore this module's runtime config.
+// If this returns with an error, the state may be partially restored.
+// TODO(torek): consider vetting the entire argument before clobbering state.
+CommandResponse ExactMatch::SetRuntimeConfig(
+    const bess::pb::ExactMatchConfig &arg) {
+  default_gate_ = arg.default_gate();
+  table_.ClearRules();
+
+  for (auto i = 0; i < arg.rules_size(); i++) {
+    Error ret = AddRule(arg.rules(i));
+    if (ret.first) {
+      return CommandFailure(ret.first, "%s", ret.second.c_str());
+    }
+  }
   return CommandSuccess();
 }
 
@@ -162,21 +275,7 @@ void ExactMatch::RuleFieldsFromPb(
 
 CommandResponse ExactMatch::CommandAdd(
     const bess::pb::ExactMatchCommandAddArg &arg) {
-  gate_idx_t gate = arg.gate();
-  CommandResponse err;
-
-  if (!is_valid_gate(gate)) {
-    return CommandFailure(EINVAL, "Invalid gate: %hu", gate);
-  }
-
-  if (arg.fields_size() == 0) {
-    return CommandFailure(EINVAL, "'fields' must be a list");
-  }
-
-  ExactMatchRuleFields rule;
-  RuleFieldsFromPb(arg.fields(), &rule);
-
-  Error ret = table_.AddRule(gate, rule);
+  Error ret = AddRule(arg);
   if (ret.first) {
     return CommandFailure(ret.first, "%s", ret.second.c_str());
   }

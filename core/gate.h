@@ -64,6 +64,11 @@ class Gate;
 // gate before they get delievered to the upstream module.
 class GateHook {
  public:
+  using constructor_t = std::function<GateHook *()>;
+
+  using init_func_t = std::function<CommandResponse(
+      GateHook *, const Gate *, const google::protobuf::Any &)>;
+
   explicit GateHook(const std::string &name, uint16_t priority = 0,
                     Gate *gate = nullptr)
       : gate_(gate), name_(name), priority_(priority) {}
@@ -90,26 +95,17 @@ class GateHook {
   DISALLOW_COPY_AND_ASSIGN(GateHook);
 };
 
-inline bool GateHookComp(const GateHook *lhs, const GateHook *rhs) {
-  return (lhs->priority() < rhs->priority());
-}
-
-using hook_constructor_t = std::function<GateHook *()>;
-
-using hook_init_func_t = std::function<CommandResponse(
-    GateHook *, const Gate *, const google::protobuf::Any &)>;
-
 // A class for creating new 'gate hook's
 class GateHookFactory {
  public:
-  GateHookFactory(hook_constructor_t constructor, hook_init_func_t init_func,
-                  const std::string &hook_name)
+  GateHookFactory(GateHook::constructor_t constructor,
+                  GateHook::init_func_t init_func, const std::string &hook_name)
       : hook_constructor_(constructor),
         hook_init_func_(init_func),
         hook_name_(hook_name) {}
 
-  static bool RegisterGateHook(hook_constructor_t constructor,
-                               hook_init_func_t init_func,
+  static bool RegisterGateHook(GateHook::constructor_t constructor,
+                               GateHook::init_func_t init_func,
                                const std::string &hook_name);
 
   static std::map<std::string, GateHookFactory> &all_gate_hook_factories_holder(
@@ -126,8 +122,8 @@ class GateHookFactory {
   }
 
  private:
-  hook_constructor_t hook_constructor_;
-  hook_init_func_t hook_init_func_;
+  GateHook::constructor_t hook_constructor_;
+  GateHook::init_func_t hook_init_func_;
   std::string hook_name_;
 };
 
@@ -209,7 +205,7 @@ class IGate : public Gate {
 }  // namespace bess
 
 template <typename H, typename A>
-static inline bess::hook_init_func_t InitHookWithGenericArg(
+static inline bess::GateHook::init_func_t InitGateHookWithGenericArg(
     CommandResponse (H::*fn)(const bess::Gate *, const A &)) {
   return [fn](bess::GateHook *h, const bess::Gate *g,
               const google::protobuf::Any &arg) {
@@ -223,6 +219,6 @@ static inline bess::hook_init_func_t InitHookWithGenericArg(
 #define ADD_GATE_HOOK(_HOOK)                                           \
   bool __gate_hook__##_HOOK = bess::GateHookFactory::RegisterGateHook( \
       std::function<bess::GateHook *()>([]() { return new _HOOK(); }), \
-      InitHookWithGenericArg(&_HOOK::Init), _HOOK::kName);
+      InitGateHookWithGenericArg(&_HOOK::Init), _HOOK::kName);
 
 #endif  // BESS_GATE_H_

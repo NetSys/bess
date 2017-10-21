@@ -517,7 +517,7 @@ void DumpTypes(void) {
   DumpType<Packet>();
   DumpType<bess::PacketBatch>();
 
-  DumpType<Scheduler<Task>>();
+  DumpType<Scheduler>();
   DumpType<TrafficClass>();
   DumpType<Task>();
 

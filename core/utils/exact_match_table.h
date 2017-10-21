@@ -309,6 +309,10 @@ class ExactMatchTable {
   // Returns the ith field.
   const ExactMatchField &get_field(size_t i) const { return fields_[i]; }
 
+  typename EmTable::iterator begin() { return table_.begin(); }
+
+  typename EmTable::iterator end() { return table_.end(); }
+
  private:
   Error MakeError(int code, const std::string &msg = "") {
     return std::make_pair(code, msg);

@@ -50,13 +50,13 @@ class TcpFlowReconstructTest : public ::testing::TestWithParam<const char *> {
     std::string tracefile_prefix = "testdata/test-pktcaptures/tcpflow-http-3";
 
     char errbuf[PCAP_ERRBUF_SIZE];
-    pcap_t *handle =
+    handle_ =
         pcap_open_offline((tracefile_prefix + ".pcap").c_str(), errbuf);
-    ASSERT_TRUE(handle != nullptr);
+    ASSERT_TRUE(handle_ != nullptr);
 
     const u_char *pcap_pkt;
     struct pcap_pkthdr pcap_hdr;
-    while ((pcap_pkt = pcap_next(handle, &pcap_hdr)) != nullptr) {
+    while ((pcap_pkt = pcap_next(handle_, &pcap_hdr)) != nullptr) {
       ASSERT_EQ(pcap_hdr.caplen, pcap_hdr.len)
           << "Didn't capture the full packet.";
       Packet *p = new Packet();
@@ -80,6 +80,9 @@ class TcpFlowReconstructTest : public ::testing::TestWithParam<const char *> {
     for (Packet *p : pkts_) {
       delete p;
     }
+    if (handle_) {
+      pcap_close(handle_);
+    }
   }
 
   // The packets of the pcap trace file.
@@ -87,6 +90,8 @@ class TcpFlowReconstructTest : public ::testing::TestWithParam<const char *> {
 
   // The correctly reconstructed raw TCP byte stream.
   std::vector<char> bytestream_;
+
+  pcap_t *handle_;
 };
 
 // Tests that the constructor initializes the underlying buffers to the
