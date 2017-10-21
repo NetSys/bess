@@ -1124,10 +1124,10 @@ class BESSControlImpl final : public BESSControl::Service {
         ModuleGraph::CreateModule(builder, mod_name, request->arg(), error);
     if (module) {
       response->set_name(module->name());
-    }
 
-    if (module->OnEvent(bess::Event::PreResume) != ENOTSUP) {
-      bess::event_modules.insert(module);
+      if (module->OnEvent(bess::Event::PreResume) != ENOTSUP) {
+        bess::event_modules.insert(module);
+      }
     }
 
     return Status::OK;
