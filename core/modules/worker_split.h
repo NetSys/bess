@@ -37,11 +37,20 @@ class WorkerSplit final : public Module {
  public:
   static const gate_idx_t kNumOGates = Worker::kMaxWorkers;
 
-  WorkerSplit() { max_allowed_workers_ = kNumOGates; }
+  WorkerSplit() : Module(), gates_() { max_allowed_workers_ = kNumOGates; }
+
+  static const Commands cmds;
+
+  CommandResponse Init(const bess::pb::WorkerSplitArg &);
+
+  CommandResponse CommandReset(const bess::pb::WorkerSplitArg &);
 
   void ProcessBatch(bess::PacketBatch *batch) override;
 
   void AddActiveWorker(int wid, const Task *task) override;
+
+ private:
+  int gates_[Worker::kMaxWorkers];
 };
 
 #endif  // BESS_MODULES_WORKERSPLIT_H_
