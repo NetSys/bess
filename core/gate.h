@@ -90,12 +90,12 @@ class GateHook {
 
  private:
   const std::string &name_;
-
   const uint16_t priority_;
 
   DISALLOW_COPY_AND_ASSIGN(GateHook);
 };
 
+// A class for creating new 'gate hook's
 class GateHookFactory {
  public:
   GateHookFactory(GateHook::constructor_t constructor,
@@ -127,18 +127,16 @@ class GateHookFactory {
   std::string hook_name_;
 };
 
+// A class for gate, will be inherited for input gates and output gates
 class Gate {
  public:
-  Gate(Module *m, gate_idx_t idx, void *arg)
-      : module_(m), gate_idx_(idx), arg_(arg), hooks_() {}
+  Gate(Module *m, gate_idx_t idx) : module_(m), gate_idx_(idx), hooks_() {}
 
-  ~Gate() { ClearHooks(); }
+  virtual ~Gate() { ClearHooks(); }
 
   Module *module() const { return module_; }
 
   gate_idx_t gate_idx() const { return gate_idx_; }
-
-  void *arg() const { return arg_; }
 
   const std::vector<GateHook *> &hooks() const { return hooks_; }
 
@@ -152,12 +150,8 @@ class Gate {
   void ClearHooks();
 
  private:
-  /* immutable values */
-  Module *module_;      /* the module this gate belongs to */
-  gate_idx_t gate_idx_; /* input/output gate index of itself */
-
-  /* mutable values below */
-  void *arg_;
+  Module *module_;       // the module this gate belongs to
+  gate_idx_t gate_idx_;  // input/output gate index of itself
 
   // TODO(melvin): Consider using a map here instead. It gets rid of the need to
   // scan to find modules for queries. Not sure how priority would work in a
@@ -169,28 +163,32 @@ class Gate {
 
 class IGate;
 
+// A class for output gate. It connects to an input gate of the next module.
 class OGate : public Gate {
  public:
-  OGate(Module *m, gate_idx_t idx, void *arg)
-      : Gate(m, idx, arg), igate_(), igate_idx_() {}
+  OGate(Module *m, gate_idx_t idx, Module *next)
+      : Gate(m, idx), next_(next), igate_(), igate_idx_() {}
 
   void set_igate(IGate *ig) { igate_ = ig; }
+
   IGate *igate() const { return igate_; }
+  Module *next() const { return next_; }
 
   void set_igate_idx(gate_idx_t idx) { igate_idx_ = idx; }
   gate_idx_t igate_idx() const { return igate_idx_; }
 
  private:
-  IGate *igate_;
-  gate_idx_t igate_idx_; /* cache for igate->gate_idx */
+  Module *next_;          // next module connected with
+  IGate *igate_;          // next igate connected with
+  gate_idx_t igate_idx_;  // cache for igate->gate_idx
 
   DISALLOW_COPY_AND_ASSIGN(OGate);
 };
 
+// A class for input gate
 class IGate : public Gate {
  public:
-  IGate(Module *m, gate_idx_t idx, void *arg)
-      : Gate(m, idx, arg), ogates_upstream_() {}
+  IGate(Module *m, gate_idx_t idx) : Gate(m, idx), ogates_upstream_() {}
 
   const std::vector<OGate *> &ogates_upstream() const {
     return ogates_upstream_;
@@ -201,7 +199,7 @@ class IGate : public Gate {
   void RemoveOgate(const OGate *og);
 
  private:
-  std::vector<OGate *> ogates_upstream_;
+  std::vector<OGate *> ogates_upstream_;  // previous ogates connected with
 };
 
 }  // namespace bess
