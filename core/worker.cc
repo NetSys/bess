@@ -174,8 +174,9 @@ void resume_all_workers() {
     }
   }
 
-  for (int wid = 0; wid < Worker::kMaxWorkers; wid++)
+  for (int wid = 0; wid < Worker::kMaxWorkers; wid++) {
     resume_worker(wid);
+  }
 }
 
 void destroy_worker(int wid) {
@@ -195,11 +196,25 @@ void destroy_worker(int wid) {
 
     num_workers--;
   }
+
+  if (num_workers > 0) {
+    return;
+  }
+
+  auto &hooks = bess::global_resume_hooks;
+  for (auto it = hooks.begin(); it != hooks.end();) {
+    if ((*it)->is_default()) {
+      it++;
+    } else {
+      it = hooks.erase(it);
+    }
+  }
 }
 
 void destroy_all_workers() {
-  for (int wid = 0; wid < Worker::kMaxWorkers; wid++)
+  for (int wid = 0; wid < Worker::kMaxWorkers; wid++) {
     destroy_worker(wid);
+  }
 }
 
 bool is_any_worker_running() {
