@@ -57,7 +57,7 @@ def measure(duration):
     sec_diff = new.timestamp - old.timestamp
     pps = (new.packets - old.packets) / sec_diff
     cps = (new.count - old.count) / sec_diff
-    sys.stdout.write("pps: %12.f counts/s: %12.f\n" % (pps, cps))
+    sys.stdout.write("pps: %12.f\tcounts/s: %12.f\n" % (pps, cps))
 
 create_pipeline()
 sys.stdout.write("MergeAsym ")

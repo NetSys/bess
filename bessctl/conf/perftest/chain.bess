@@ -59,7 +59,7 @@ def measure(duration):
     sec_diff = new.timestamp - old.timestamp
     pps = (new.packets - old.packets) / sec_diff
     cps = (new.count - old.count) / sec_diff
-    sys.stdout.write("pps: %12.f counts/s: %12.f\n" % (pps, cps))
+    sys.stdout.write("pps: %12.f\tcounts/s: %12.f\n" % (pps, cps))
 
 for chain_len in [1, 2, 4, 8, 16, 32]:
     create_pipeline(chain_len)

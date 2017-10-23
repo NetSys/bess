@@ -38,7 +38,7 @@ def create_pipeline(child_cnt, tree_depth):
     src = Source(pkt_size=psize)
     splits.insert(0, RandomSplit(gates=range(child_cnt)))
 
-    src-> splits[0]
+    src -> splits[0]
 
     pidx = 0;
     cidx = 1;
@@ -47,15 +47,15 @@ def create_pipeline(child_cnt, tree_depth):
             for c in range(child_cnt): # for each parent connect child
                 splits.insert(cidx, RandomSplit(gates=range(child_cnt)))
                 splits[pidx]:c -> splits[cidx]
-                cidx = cidx + 1
-            pidx = pidx + 1
+                cidx += 1
+            pidx += 1
 
     # Leaf nodes are connected to sink node
     for p in range(pow(child_cnt, tree_depth-1)): # number of parents at depth d
         for c in range(child_cnt): # for each parent connect child
             splits[pidx]:c -> Bypass() -> Sink()
-            cidx = cidx + 1
-        pidx = pidx + 1
+            cidx += 1
+        pidx += 1
 
 def measure(duration):
     tcs = bess.list_tcs().classes_status
@@ -73,7 +73,7 @@ def measure(duration):
     sec_diff = new.timestamp - old.timestamp
     pps = (new.packets - old.packets) / sec_diff
     cps = (new.count - old.count) / sec_diff
-    sys.stdout.write("pps: %12.f counts/s: %12.f\n" % (pps, cps))
+    sys.stdout.write("pps: %12.f\tcounts/s: %12.f\n" % (pps, cps))
 
 for (child_cnt, tree_depth) in [(2, 2), (2, 3), (2, 4), (2, 5),
                                 (3, 2), (3, 3), (3, 4), (3, 5)]:
