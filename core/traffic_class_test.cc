@@ -47,11 +47,13 @@ namespace bess {
 
 class DummyModule : public Module {
  public:
-  struct task_result RunTask(void *arg) override;
+  struct task_result RunTask(const Task *, bess::PacketBatch *,
+                             void *arg) override;
 };
 
-[[gnu::noinline]] struct task_result DummyModule::RunTask(
-    void *arg[[maybe_unused]]) {
+[[gnu::noinline]] struct task_result DummyModule::RunTask(const Task *,
+                                                          bess::PacketBatch *,
+                                                          void *) {
   return {.block = false, .packets = 0, .bits = 0};
 }
 

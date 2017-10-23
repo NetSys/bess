@@ -45,7 +45,7 @@ class Bypass final : public Module {
 
   CommandResponse Init(const bess::pb::BypassArg &arg);
 
-  void ProcessBatch(bess::PacketBatch *batch) override;
+  void ProcessBatch(const Task *task, bess::PacketBatch *batch) override;
 
  private:
   uint32_t cycles_per_batch_;

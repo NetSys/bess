@@ -47,6 +47,7 @@
 // XXX
 typedef uint16_t gate_idx_t;
 #define MAX_GATES 8192
+#define MAX_PBATCH_CNT 1024
 
 /*  TODO: worker threads doesn't necessarily be pinned to 1 core
  *
@@ -107,6 +108,17 @@ class Worker {
     return pframe_pool_;
   }
 
+  // FIXME: track which is used or not
+  bess::PacketBatch *alloc_batch() {
+    bess::PacketBatch *batch = &pbatch_[pbatch_idx_++ % MAX_PBATCH_CNT];
+    batch->clear();
+    return batch;
+  }
+
+  void free_batch(bess::PacketBatch *) {
+    // Do nothing
+  }
+
   bess::Scheduler *scheduler() { return scheduler_; }
 
   uint64_t silent_drops() { return silent_drops_; }
@@ -148,6 +160,10 @@ class Worker {
   gate_idx_t current_igate_;
 
   Random *rand_;
+
+  // packet batches for storing packets
+  int pbatch_idx_;
+  bess::PacketBatch *pbatch_;
 
   // For each possible output gate contains a pointer to a batch, or nullptr,
   // if no batch has been associated with the output gate yet.

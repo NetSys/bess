@@ -99,7 +99,7 @@ CommandResponse RandomSplit::CommandSetGates(
   return CommandSuccess();
 }
 
-void RandomSplit::ProcessBatch(bess::PacketBatch *batch) {
+void RandomSplit::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
   gate_idx_t ogates[bess::PacketBatch::kMaxBurst];
 
   if (ngates_ <= 0) {
@@ -115,7 +115,7 @@ void RandomSplit::ProcessBatch(bess::PacketBatch *batch) {
     }
   }
 
-  RunSplit(ogates, batch);
+  RunSplit(task, ogates, batch);
 }
 
 ADD_MODULE(RandomSplit, "random_split", "randomly splits/drops packets")
