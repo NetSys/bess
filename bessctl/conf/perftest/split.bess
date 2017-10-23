@@ -29,6 +29,7 @@
 
 import sys
 import time
+from test_utils import *
 
 psize = int($BESS_PKT_SIZE!'60')
 print('Using packet size %d (envvar "BESS_PKT_SIZE")' % psize)
@@ -42,28 +43,11 @@ def create_pipeline(split_len):
     for i in range(split_len):
         split:i -> Bypass() -> Sink()
 
-def measure(duration):
-    tcs = bess.list_tcs().classes_status
-    root_tc = None
-    for tc in tcs:
-        if not getattr(tc, 'parent'):
-            root_tc = getattr(tc, 'class')
-    if not root_tc:
-        raise Exception('Fail to find root tc')
-
-    old = bess.get_tc_stats(root_tc.name)
-    time.sleep(duration);
-    new = bess.get_tc_stats(root_tc.name)
-
-    sec_diff = new.timestamp - old.timestamp
-    pps = (new.packets - old.packets) / sec_diff
-    cps = (new.count - old.count) / sec_diff
-    sys.stdout.write("pps: %12.f\tcounts/s: %12.f\n" % (pps, cps))
 
 for split_len in [1, 2, 4, 8, 16, 32]:
     create_pipeline(split_len)
     sys.stdout.write("Split/%2d " % split_len)
     bess.resume_all()
-    measure(5)
+    measure_tc_perf(bess, 5)
     bess.pause_all()
     bess.reset_all()
