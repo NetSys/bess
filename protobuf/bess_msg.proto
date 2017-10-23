@@ -505,8 +505,8 @@ message ConfigureGateHookRequest {
 // Enable/Disable a global ResumeHook.
 message ConfigureResumeHookRequest {
   string hook_name = 1;         /// Name of the hook
-  bool enable = 5;              /// Installs the hook if True, else uninstalls
-  google.protobuf.Any arg = 6;  /// Hook-specific arguments
+  bool enable = 2;              /// Installs the hook if True, else uninstalls
+  google.protobuf.Any arg = 3;  /// Hook-specific arguments
 }
 
 //  -------------------------------------------------------------------------

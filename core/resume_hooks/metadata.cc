@@ -33,7 +33,7 @@
 
 const std::string SetupMetadata::kName = "setup_metadata";
 
-SetupMetadata::SetupMetadata() : bess::ResumeHook(kName, kPriority) {}
+SetupMetadata::SetupMetadata() : bess::ResumeHook(kName, kPriority, true) {}
 
 CommandResponse SetupMetadata::Init(const bess::pb::EmptyArg &) {
   return CommandSuccess();
@@ -44,3 +44,11 @@ void SetupMetadata::Run() {
 }
 
 ADD_RESUME_HOOK(SetupMetadata)
+
+bool __enable_SetupMetadata = []() {
+  bool ret = bess::global_resume_hooks.emplace(new SetupMetadata()).second;
+  if (!ret) {
+    LOG(ERROR) << "Failed to enable SetupMetadata hook by default";
+  }
+  return ret;
+}();

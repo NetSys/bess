@@ -5,7 +5,7 @@ resumed. They can be configured with the `ConfigureResumeHook()` RPC.
 The API is simple, similar to that of `GateHook`. All you need to do is:
 
 - Define `YourHook::kName`. This must be unique across all other resume hooks.
-- Define `YourHook::kPriority`. Ties are broken by hook name in increasing lexographical order.
+- Define `YourHook::kPriority` (lower values get higher priority). Ties are broken by hook name in increasing lexographical order.
 - Include `ResumeHook(kName, kPriority)` in `YourHook`'s initializer list.
 - Define `void YourHook::Run()`.
 - Define `void YourHook::Init(const bess::pb::YourHookArg &)`.

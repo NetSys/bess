@@ -55,8 +55,9 @@ class ResumeHook {
   using init_func_t = std::function<CommandResponse(
       ResumeHook *, const google::protobuf::Any &)>;
 
-  explicit ResumeHook(const std::string &name, uint16_t priority = 0)
-      : name_(name), priority_(priority) {}
+  explicit ResumeHook(const std::string &name, uint16_t priority = 0,
+                      bool is_default = false)
+      : name_(name), priority_(priority), is_default_(is_default) {}
 
   virtual ~ResumeHook() {}
 
@@ -64,16 +65,28 @@ class ResumeHook {
 
   uint16_t priority() const { return priority_; }
 
+  bool is_default() const { return is_default_; }
+
   virtual void Run() = 0;
 
-  bool operator<(const ResumeHook &rhs) {
-    return priority_ < rhs.priority_ && name_ < rhs.name_;
+  bool operator<(const ResumeHook &rhs) const {
+    return std::tie(priority_, name_) < std::tie(rhs.priority_, rhs.name_);
   }
+
+  class UniquePtrLess {
+   public:
+    bool operator()(const std::unique_ptr<ResumeHook> &lhs,
+                    const std::unique_ptr<ResumeHook> &rhs) const {
+      return *lhs < *rhs;
+    }
+  };
 
  private:
   const std::string &name_;
 
   const uint16_t priority_;
+
+  const bool is_default_;
 };
 
 class ResumeHookFactory {
@@ -92,7 +105,7 @@ class ResumeHookFactory {
   const std::string &hook_name() const { return hook_name_; }
 
   static std::map<std::string, ResumeHookFactory>
-      &all_resume_hook_factories_holder(bool reset = false);
+      &all_resume_hook_factories_holder();
 
   static const std::map<std::string, ResumeHookFactory>
       &all_resume_hook_factories();
@@ -112,8 +125,10 @@ class ResumeHookFactory {
   std::string hook_name_;
 };
 
-extern std::set<std::unique_ptr<ResumeHook>> global_resume_hooks;
-extern std::set<Module *> event_modules;
+extern std::set<std::unique_ptr<ResumeHook>, ResumeHook::UniquePtrLess>
+    global_resume_hooks;
+
+void run_global_resume_hooks(bool run_modules = true);
 
 }  // namespace bess
 

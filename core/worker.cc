@@ -174,8 +174,9 @@ void resume_all_workers() {
     }
   }
 
-  for (int wid = 0; wid < Worker::kMaxWorkers; wid++)
+  for (int wid = 0; wid < Worker::kMaxWorkers; wid++) {
     resume_worker(wid);
+  }
 }
 
 void destroy_worker(int wid) {
@@ -195,11 +196,25 @@ void destroy_worker(int wid) {
 
     num_workers--;
   }
+
+  if (num_workers > 0) {
+    return;
+  }
+
+  auto &hooks = bess::global_resume_hooks;
+  for (auto it = hooks.begin(); it != hooks.end();) {
+    if ((*it)->is_default()) {
+      it++;
+    } else {
+      it = hooks.erase(it);
+    }
+  }
 }
 
 void destroy_all_workers() {
-  for (int wid = 0; wid < Worker::kMaxWorkers; wid++)
+  for (int wid = 0; wid < Worker::kMaxWorkers; wid++) {
     destroy_worker(wid);
+  }
 }
 
 bool is_any_worker_running() {
@@ -397,34 +412,6 @@ bool detach_tc(bess::TrafficClass *c) {
   return remove_tc_from_orphan(c);
 }
 
-void run_global_resume_hooks() {
-  auto &hooks = bess::global_resume_hooks;
-
-  // Enable metadata offset computation by default
-  bool found_setup_md = false;
-  for (auto &hook : hooks) {
-    hook->Run();
-    if (hook->name() == SetupMetadata::kName) {
-      found_setup_md = true;
-    }
-  }
-
-  if (!found_setup_md) {
-    const auto factory = ResumeHookFactory::all_resume_hook_factories().find(
-        SetupMetadata::kName);
-    hooks.emplace(factory->second.CreateResumeHook());
-  }
-
-  for (auto &hook : hooks) {
-    VLOG(1) << "Running global resume hook '" << hook->name() << "'";
-    hook->Run();
-  }
-
-  for (Module *m : bess::event_modules) {
-    m->OnEvent(bess::Event::PreResume);
-  }
-}
-
 WorkerPauser::WorkerPauser() {
   if (is_any_worker_running()) {
     for (int wid = 0; wid < Worker::kMaxWorkers; wid++) {
@@ -438,16 +425,22 @@ WorkerPauser::WorkerPauser() {
 }
 
 WorkerPauser::~WorkerPauser() {
-  if (workers_paused_.size()) {
-    run_global_resume_hooks();
+  attach_orphans(); // All workers should be paused at this point.
+
+  if (!workers_paused_.empty()) {
+    bess::run_global_resume_hooks(false);
   }
 
   std::set<Module *> modules_run;
   for (int wid : workers_paused_) {
-    for (Module *m : bess::event_modules) {
+    auto &resume_modules = bess::event_modules[bess::Event::PreResume];
+    for (Module *m : resume_modules) {
       if (!modules_run.count(m) && m->active_workers()[wid]) {
-        m->OnEvent(bess::Event::PreResume);
+        int ret = m->OnEvent(bess::Event::PreResume);
         modules_run.insert(m);
+        if (ret == -ENOTSUP) {
+          resume_modules.erase(m);
+        }
       }
     }
     resume_worker(wid);

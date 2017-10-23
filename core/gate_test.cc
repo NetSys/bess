@@ -61,8 +61,6 @@ class IOGateTest : public ::testing::Test {
   }
 
   virtual void TearDown() {
-    og->ClearHooks();
-    ig->ClearHooks();
     delete og;
     delete ig;
   }
