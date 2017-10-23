@@ -55,14 +55,17 @@ class ResumeHook {
   using init_func_t = std::function<CommandResponse(
       ResumeHook *, const google::protobuf::Any &)>;
 
-  explicit ResumeHook(const std::string &name, uint16_t priority = 0)
-      : name_(name), priority_(priority) {}
+  explicit ResumeHook(const std::string &name, uint16_t priority = 0,
+                      bool is_default = false)
+      : name_(name), priority_(priority), is_default_(is_default) {}
 
   virtual ~ResumeHook() {}
 
   const std::string &name() const { return name_; }
 
   uint16_t priority() const { return priority_; }
+
+  bool is_default() const { return is_default_; }
 
   virtual void Run() = 0;
 
@@ -82,6 +85,8 @@ class ResumeHook {
   const std::string &name_;
 
   const uint16_t priority_;
+
+  const bool is_default_;
 };
 
 class ResumeHookFactory {

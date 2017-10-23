@@ -33,7 +33,7 @@
 
 const std::string SetupMetadata::kName = "setup_metadata";
 
-SetupMetadata::SetupMetadata() : bess::ResumeHook(kName, kPriority) {}
+SetupMetadata::SetupMetadata() : bess::ResumeHook(kName, kPriority, true) {}
 
 CommandResponse SetupMetadata::Init(const bess::pb::EmptyArg &) {
   return CommandSuccess();

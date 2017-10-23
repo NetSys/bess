@@ -524,7 +524,14 @@ class BESSControlImpl final : public BESSControl::Service {
   Status ResetWorkers(ServerContext*, const EmptyRequest*,
                       EmptyResponse*) override {
     WorkerPauser wp;
-    bess::global_resume_hooks.clear();
+    auto& hooks = bess::global_resume_hooks;
+    for (auto it = hooks.begin(); it != hooks.end();) {
+      if ((*it)->is_default()) {
+        it++;
+      } else {
+        it = hooks.erase(it);
+      }
+    }
     destroy_all_workers();
     LOG(INFO) << "*** All workers have been destroyed ***";
     return Status::OK;
