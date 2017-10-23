@@ -218,6 +218,8 @@ PROTOCFLAGS += --cpp_out=./pb --grpc_out=./pb --plugin=protoc-gen-grpc=$(PROTOC_
 # Use MODULE_SRCS below, which filters them out, when that's important.
 DRIVERS := $(foreach dir,drivers $(DRIVER_PLUGINS),$(wildcard $(dir)/*.cc))
 MODULES := $(foreach dir,modules,$(wildcard $(dir)/*.cc))
+#MODULES := $(foreach dir,modules $(MODULE_PLUGINS),$(wildcard $(dir)/*.cc))
+MODULES := modules/source.cc modules/sink.cc modules/random_split.cc modules/bypass.cc
 UTILS := $(foreach dir,utils $(UTIL_PLUGINS),$(wildcard $(dir)/*.cc))
 GATE_HOOK_SRCS := $(foreach dir,gate_hooks $(GATE_HOOK_PLUGINS),$(wildcard $(dir)/*.cc))
 GATE_HOOKS_H := $(foreach dir,gate_hooks $(GATE_HOOK_PLUGINS),$(wildcard $(dir)/*.h))
