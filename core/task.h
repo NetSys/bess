@@ -31,6 +31,7 @@
 #ifndef BESS_TASK_H_
 #define BESS_TASK_H_
 
+#include <queue>
 #include <string>
 
 #include "gate.h"
@@ -121,7 +122,7 @@ class Task {
   // Called when the leaf that owns this task is created.
   void Attach(bess::LeafTrafficClass *c);
 
-  inline void AddToRun(bess::IGate *ig, bess::PacketBatch *batch) const {
+  void AddToRun(bess::IGate *ig, bess::PacketBatch *batch) const {
     if (next_gate_ == nullptr &&
         !ig->mergeable()) {  // optimization for chained
       next_gate_ = ig;
