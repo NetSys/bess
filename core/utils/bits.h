@@ -35,6 +35,8 @@
 
 #include <algorithm>
 
+#include "common.h"
+
 namespace bess {
 namespace utils {
 
@@ -161,6 +163,38 @@ static inline void MaskBytes(uint8_t *buf, uint8_t const *mask,
   } else {
     MaskBytesSmall(buf, mask, leftover);
   }
+}
+
+// Dangerous Helper! Use SetBitsHigh<T>() and SetBitsLow<T>() instead.
+template <typename T, typename = std::enable_if<std::is_integral<T>::value>>
+static inline T _SetBitsHigh(size_t n) {
+  return (T{1} << n) - 1;
+}
+
+// TODO(melvinw): it would be nice if SetBitsHigh() supported blobs.
+// Returns a mask for the first `n` bits of an integral type `T`, i.e. starting
+// from the most significant bit toward the least significant. Returns a `T`
+// with all bits set if `n` is greater than the number of bits in `T`.
+// For example: SetBitsHigh<uint32_t>(9) will return 0xFF800000
+template <typename T, typename = std::enable_if<std::is_integral<T>::value>>
+static inline T SetBitsHigh(size_t n) {
+  if (unlikely(n == 0)) {
+    return T{0};
+  }
+  return (n >= sizeof(T) * 8) ? ~T{0} : _SetBitsHigh<T>(n);
+}
+
+// TODO(melvinw): it would be nice if SetBitsLow() supported blobs.
+// Returns a mask for the last `n` bits of an integral type `T`, i.e. starting
+// from the least significant bit toward the most signifant. Returns a `T` with
+// all bits set if `n` is greater than the number of bits in `T`.
+// For example: SetBitsLow<uint32_t>(9) will return 0x000001FF
+template <typename T, typename = std::enable_if<std::is_integral<T>::value>>
+static inline T SetBitsLow(size_t n) {
+  if (unlikely(n == 0)) {
+    return T{0};
+  }
+  return (n >= sizeof(T) * 8) ? ~T{0} : ~_SetBitsHigh<T>((sizeof(T) * 8) - n);
 }
 
 }  // namespace utils
