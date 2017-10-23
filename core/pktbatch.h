@@ -52,6 +52,11 @@ class PacketBatch {
   // overrun the buffer by calling this. We are not adding bounds check because
   // we want maximum GOFAST.
   void add(Packet *pkt) { pkts_[cnt_++] = pkt; }
+  void add(PacketBatch *batch) {
+    bess::utils::CopyInlined(pkts_ + cnt_, batch->pkts(),
+                             batch->cnt() * sizeof(Packet *));
+    cnt_ += batch->cnt();
+  }
 
   bool empty() { return (cnt_ == 0); }
 

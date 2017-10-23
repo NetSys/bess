@@ -136,12 +136,12 @@ CommandResponse Module::Init(const bess::pb::EmptyArg &) {
 
 void Module::DeInit() {}
 
-struct task_result Module::RunTask(void *) {
+struct task_result Module::RunTask(const Task *, bess::PacketBatch *, void *) {
   CHECK(0);  // You must override this function
   return task_result();
 }
 
-void Module::ProcessBatch(bess::PacketBatch *) {
+void Module::ProcessBatch(const Task *, bess::PacketBatch *) {
   CHECK(0);  // You must override this function
 }
 
@@ -337,36 +337,46 @@ int Module::DisconnectGate(gate_idx_t ogate_idx) {
   return 0;
 }
 
-void Module::RunSplit(const gate_idx_t *out_gates,
+void Module::RunSplit(const Task *task, const gate_idx_t *out_gates,
                       bess::PacketBatch *mixed_batch) {
-  int cnt = mixed_batch->cnt();
-  int num_pending = 0;
+  int pkt_cnt = mixed_batch->cnt();
+  if (unlikely(pkt_cnt <= 0)) {
+    ctx.free_batch(mixed_batch);
+    return;
+  }
+
+  int gate_cnt = ogates_.size();
+  if (unlikely(gate_cnt <= 0)) {
+    deadend(mixed_batch);
+    return;
+  }
 
   bess::Packet **p_pkt = &mixed_batch->pkts()[0];
 
+  int num_pending = 0;
   gate_idx_t pending[bess::PacketBatch::kMaxBurst];
-  bess::PacketBatch batches[bess::PacketBatch::kMaxBurst];
-
+  bess::PacketBatch *batches[bess::PacketBatch::kMaxBurst];
   bess::PacketBatch **splits = ctx.splits();
 
   // phase 1: collect unique ogates into pending[] and add packets to local
   // batches, using splits to remember the association between an ogate and a
   // local batch
-  for (int i = 0; i < cnt; i++) {
-    bess::PacketBatch *batch;
-    gate_idx_t ogate;
-
-    ogate = out_gates[i];
-    batch = splits[ogate];
+  for (int i = 0; i < pkt_cnt; i++) {
+    gate_idx_t ogate = out_gates[i];
+    bess::PacketBatch *batch = splits[ogate];
     if (!batch) {
-      batch = splits[ogate] = &batches[num_pending];
-      batch->clear();
-      pending[num_pending] = ogate;
-      num_pending++;
+      if (unlikely(gate_cnt <= ogate) || unlikely(!ogates_[ogate])) {
+        batch = splits[ogate] = task->dead_batch();
+      } else {
+        batch = splits[ogate] = batches[num_pending] = ctx.alloc_batch();
+        pending[num_pending] = ogate;
+        num_pending++;
+      }
     }
-
     batch->add(*(p_pkt++));
   }
+
+  ctx.free_batch(mixed_batch);
 
   // phase 2: clear splits, since it may be reentrant.
   for (int i = 0; i < num_pending; i++) {
@@ -374,8 +384,14 @@ void Module::RunSplit(const gate_idx_t *out_gates,
   }
 
   // phase 3: fire
-  for (int i = 0; i < num_pending; i++)
-    RunChooseModule(pending[i], &batches[i]);
+  for (int i = 0; i < num_pending; i++) {
+    bess::OGate *ogate = ogates_[pending[i]];  // should not be null
+    for (auto &hook : ogate->hooks()) {
+      hook->ProcessBatch(batches[i]);
+    }
+    ogate->igate()->AddInput(batches[i]);
+    task->subtasks_.push(ogate->igate());
+  }
 }
 
 void Module::Destroy() {

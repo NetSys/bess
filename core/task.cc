@@ -32,6 +32,7 @@
 
 #include <unordered_set>
 
+#include "gate.h"
 #include "module.h"
 
 // Called when the leaf that owns this task is destroyed.
@@ -45,12 +46,40 @@ void Task::Attach(bess::LeafTrafficClass *c) {
 }
 
 struct task_result Task::operator()(void) const {
-  return module_->RunTask(arg_);
+  bess::PacketBatch init_batch;
+
+  // Start from the first module (task module)
+  struct task_result result = module_->RunTask(this, &init_batch, arg_);
+  if (result.packets == 0) {
+    return result;
+  }
+
+  while (!subtasks_.empty()) {
+    bess::IGate *igate = subtasks_.front();
+    subtasks_.pop();
+
+    bess::PacketBatch *batch = igate->input();
+    if (!batch)
+      continue;
+
+    ctx.set_current_igate(igate->gate_idx());
+
+    for (auto &hook : igate->hooks()) {
+      hook->ProcessBatch(batch);
+    }
+
+    // Process module
+    igate->module()->ProcessBatch(this, batch);
+    igate->ClearInput();
+  }
+
+  bess::Packet::Free(&dead_batch_);
+  dead_batch_.clear();
+
+  return result;
 }
 
-/*!
- * Compute constraints for the pipeline starting at this task.
- */
+// Compute constraints for the pipeline starting at this task.
 placement_constraint Task::GetSocketConstraints() const {
   if (module_) {
     std::unordered_set<const Module *> visited;
@@ -60,9 +89,7 @@ placement_constraint Task::GetSocketConstraints() const {
   }
 }
 
-/*!
- * Add a worker to the set of workers that call this task.
- */
+// Add a worker to the set of workers that call this task.
 void Task::AddActiveWorker(int wid) const {
   if (module_) {
     module_->AddActiveWorker(wid, c_->task());

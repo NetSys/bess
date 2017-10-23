@@ -303,6 +303,9 @@ void *Worker::Run(void *_arg) {
   pframe_pool_ = bess::get_pframe_pool();
   DCHECK(pframe_pool_);
 
+  pbatch_idx_ = 0;
+  pbatch_ = new bess::PacketBatch[MAX_PBATCH_CNT];
+
   status_ = WORKER_PAUSING;
 
   STORE_BARRIER();
@@ -425,7 +428,7 @@ WorkerPauser::WorkerPauser() {
 }
 
 WorkerPauser::~WorkerPauser() {
-  attach_orphans(); // All workers should be paused at this point.
+  attach_orphans();  // All workers should be paused at this point.
 
   if (!workers_paused_.empty()) {
     bess::run_global_resume_hooks(false);

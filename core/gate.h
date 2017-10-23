@@ -193,23 +193,7 @@ class Gate {
   DISALLOW_COPY_AND_ASSIGN(Gate);
 };
 
-class OGate;
-
-// A class for input gate
-class IGate : public Gate {
- public:
-  IGate(Module *m, gate_idx_t idx) : Gate(m, idx), ogates_upstream_() {}
-
-  const std::vector<OGate *> &ogates_upstream() const {
-    return ogates_upstream_;
-  }
-
-  void PushOgate(OGate *og);
-  void RemoveOgate(const OGate *og);
-
- private:
-  std::vector<OGate *> ogates_upstream_;  // previous ogates connected with
-};
+class IGate;
 
 // A class for output gate. It connects to an input gate of the next module.
 class OGate : public Gate {
@@ -233,6 +217,31 @@ class OGate : public Gate {
 
   DISALLOW_COPY_AND_ASSIGN(OGate);
 };
+
+// A class for input gate
+class IGate : public Gate {
+ public:
+  IGate(Module *m, gate_idx_t idx) : Gate(m, idx), ogates_upstream_() {
+    input_ = nullptr;
+  }
+
+  const std::vector<OGate *> &ogates_upstream() const {
+    return ogates_upstream_;
+  }
+
+  void AddInput(PacketBatch *batch);
+  void ClearInput() { input_ = nullptr; }
+
+  PacketBatch *input() const { return input_; }
+
+  void PushOgate(OGate *og);
+  void RemoveOgate(const OGate *og);
+
+ private:
+  std::vector<OGate *> ogates_upstream_;  // previous ogates connected with
+  PacketBatch *input_;                    // a batch of input packets
+};
+
 }  // namespace bess
 
 template <typename T, typename H>

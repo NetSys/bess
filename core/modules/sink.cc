@@ -30,8 +30,9 @@
 
 #include "sink.h"
 
-void Sink::ProcessBatch(bess::PacketBatch *batch) {
+void Sink::ProcessBatch(const Task *, bess::PacketBatch *batch) {
   bess::Packet::Free(batch);
+  ctx.free_batch(batch);
 }
 
 ADD_MODULE(Sink, "sink", "discards all packets")

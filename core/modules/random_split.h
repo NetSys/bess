@@ -52,7 +52,7 @@ class RandomSplit final : public Module {
   CommandResponse CommandSetGates(
       const bess::pb::RandomSplitCommandSetGatesArg &arg);
 
-  void ProcessBatch(bess::PacketBatch *batch) override;
+  void ProcessBatch(const Task *task, bess::PacketBatch *batch) override;
 
  private:
   Random rng_;  // Random number generator
