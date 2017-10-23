@@ -1073,3 +1073,22 @@ message MplsPopArg {
    bool remove_eth_header = 1; // Remove ETH header with the pop
    uint32 next_eth_type = 2; /// The next ETH type to set
 }
+
+/**
+ * WorkerSplit splits packets based on the worker calling ProcessBatch(). It has
+ * two modes.
+ * 1) Packets from worker `x` are mapped to output gate `x`. This is the default
+ *    mode.
+ * 2) When the `worker_gates` field is set, packets from a worker `x` are mapped
+ *    to `worker_gates[x]`.  In this mode, packet batches from workers not
+ *    mapped to an output gate will be dropped.
+ *
+ * Calling the `reset` command with an empty `worker_gates` field will revert
+ * WorkerSplit to the default mode.
+ *
+ * __Input Gates__: 1
+ * __Output Gates__: many
+ */
+message WorkerSplitArg {
+  map<uint32, uint32> worker_gates = 1; // ogate -> worker mask
+}
