@@ -53,6 +53,33 @@ SOCKET_PATH = '/tmp/bess_unix_'
 SCRIPT_STARTTIME = strftime("%Y-%m-%d-%H-%M-%S", gmtime())
 
 
+def get_root_tc(bess):
+    # get tc information
+    tcs = bess.list_tcs().classes_status
+    root_tc = None
+    for tc in tcs:
+        if not getattr(tc, 'parent'):
+            root_tc = getattr(tc, 'class')
+            break
+
+    return root_tc
+
+
+def measure_tc_perf(bess, duration):
+    root_tc = get_root_tc(bess)
+    if not root_tc:
+        raise Exception('Fail to find root tc')
+
+    old = bess.get_tc_stats(root_tc.name)
+    time.sleep(duration)
+    new = bess.get_tc_stats(root_tc.name)
+
+    sec_diff = new.timestamp - old.timestamp
+    pps = (new.packets - old.packets) / sec_diff
+    cps = (new.count - old.count) / sec_diff
+    sys.stdout.write("pps: %12.f\tcounts/s: %12.f\n" % (pps, cps))
+
+
 def run_cmd(cmd):
     args = shlex.split(cmd)
     print(cmd)
@@ -260,13 +287,10 @@ class BessModuleTestCase(unittest.TestCase):
         self.bess.disconnect_modules(pi.name)
         self.bess.connect_modules(pi.name, src_module.name, 0, igate)
 
-        # get tc information
-        tcs = self.bess.list_tcs().classes_status
-        root_tc = None
-        for tc in tcs:
-            if not getattr(tc, 'parent'):
-                root_tc = getattr(tc, 'class')
-                break
+        self.bess.resume_all()  # attach all orphan tasks into root
+        self.bess.pause_all()
+
+        root_tc = get_root_tc(self.bess)
         if not root_tc:
             raise Exception('Fail to find root tc')
 

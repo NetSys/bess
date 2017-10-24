@@ -1,0 +1,85 @@
+# Copyright (c) 2017, The Regents of the University of California.
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#
+# * Redistributions of source code must retain the above copyright notice, this
+# list of conditions and the following disclaimer.
+#
+# * Redistributions in binary form must reproduce the above copyright notice,
+# this list of conditions and the following disclaimer in the documentation
+# and/or other materials provided with the distribution.
+#
+# * Neither the names of the copyright holders nor the names of their
+# contributors may be used to endorse or promote products derived from this
+# software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+# AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+# LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+# CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+# SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+# INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+# CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+# ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+
+import sys
+import time
+from test_utils import *
+
+psize = int($BESS_PKT_SIZE!'60')
+print('Using packet size %d (envvar "BESS_PKT_SIZE")' % psize)
+
+def create_pipeline(child_cnt, tree_depth):
+    splits = {}
+    merges = {}
+    src = Source(pkt_size=psize)
+    splits[0] = RandomSplit(gates=range(child_cnt))
+
+    src -> splits[0]
+
+    # Start split
+    pidx = 0;
+    cidx = 1;
+    for d in range(tree_depth-1):
+        for p in range(pow(child_cnt, d)): # number of parents at depth d
+            for c in range(child_cnt): # for each parent connect child
+                splits[cidx] = RandomSplit(gates=range(child_cnt))
+                splits[pidx]:c -> splits[cidx]
+                cidx += 1
+            pidx += 1
+
+    # Leaf nodes of split
+    cidx = pidx + pow(child_cnt, tree_depth-1)
+    for p in range(pow(child_cnt, tree_depth-1)): # number of parents at depth d
+        for c in range(child_cnt): # for each parent connect child
+            merges[cidx] = Bypass()
+            splits[pidx]:c -> merges[cidx]
+            cidx += 1
+        pidx += 1
+
+    # Start merging (reversely construct)
+    cidx, pidx = pidx - 1, cidx - 1
+    while cidx >= 0:
+        merges[cidx] = Bypass()
+        for c in range(child_cnt):
+            merges[pidx] -> merges[cidx]
+            pidx -= 1
+        cidx -= 1
+
+    # Leaf nodes are connected to sink node
+    merges[0] -> Sink()
+
+
+for (child_cnt, tree_depth) in [(2, 2), (2, 3), (2, 4), (2, 5),
+                                (3, 2), (3, 3), (3, 4), (3, 5)]:
+    create_pipeline(child_cnt, tree_depth)
+    sys.stdout.write("ComplexMerge/%2d/%2d " % (child_cnt, tree_depth))
+    bess.resume_all()
+    measure_tc_perf(bess, 5)
+    bess.pause_all()
+    bess.reset_all()
