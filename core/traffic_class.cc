@@ -527,7 +527,8 @@ void RateLimitTrafficClass::FinishAndAccountTowardsRoot(
 
 LeafTrafficClass::~LeafTrafficClass() {
   TrafficClassBuilder::Clear(this);
-  task_.Detach();
+  task_->Detach();
+  delete task_;
 }
 
 std::unordered_map<std::string, TrafficClass *> TrafficClassBuilder::all_tcs_;

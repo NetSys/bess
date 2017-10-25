@@ -154,12 +154,13 @@ void Module::ProcessBatch(bess::PacketBatch *) {
 task_id_t Module::RegisterTask(void *arg) {
   std::string leafname = std::string("!leaf_") + name_ + std::string(":") +
                          std::to_string(tasks_.size());
+  Task *t = new Task(this, arg);
   bess::LeafTrafficClass *c =
       bess::TrafficClassBuilder::CreateTrafficClass<bess::LeafTrafficClass>(
-          leafname, Task(this, arg));
+          leafname, t);
 
   add_tc_to_orphan(c, -1);
-  tasks_.push_back(c->task());
+  tasks_.push_back(t);
   return tasks_.size() - 1;
 }
 

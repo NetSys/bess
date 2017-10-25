@@ -557,11 +557,11 @@ class LeafTrafficClass final : public TrafficClass {
  public:
   static const uint64_t kInitialWaitCycles = (1ull << 14);
 
-  explicit LeafTrafficClass(const std::string &name, const Task &task)
+  explicit LeafTrafficClass(const std::string &name, Task *task)
       : TrafficClass(name, POLICY_LEAF, false),
         task_(task),
         wait_cycles_(kInitialWaitCycles) {
-    task_.Attach(this);
+    task_->Attach(this);
   }
 
   ~LeafTrafficClass() override;
@@ -585,7 +585,7 @@ class LeafTrafficClass final : public TrafficClass {
     TrafficClass::UnblockTowardsRootSetBlocked(tsc, false);
   }
 
-  const Task *task() const { return &task_; }
+  const Task *task() const { return task_; }
 
   void FinishAndAccountTowardsRoot(SchedWakeupQueue *wakeup_queue,
                                    [[maybe_unused]] TrafficClass *child,
@@ -599,7 +599,7 @@ class LeafTrafficClass final : public TrafficClass {
   }
 
  private:
-  Task task_;
+  Task *task_;
 
   uint64_t wait_cycles_;
 };
@@ -667,7 +667,7 @@ class TrafficClassBuilder {
 
   struct LeafArgs {
     LeafFakeType dummy;
-    Task task;
+    Task *task;
   };
 
   // These CreateTree(...) functions enable brace-initialized construction of a
