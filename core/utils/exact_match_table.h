@@ -240,6 +240,14 @@ class ExactMatchTable {
   void MakeKeys(const PacketBatch *batch, const BufferFunc &buffer_fn,
                 ExactMatchKey *keys) const {
     size_t n = batch->cnt();
+    // Initialize the padding with zero.  NB: if total_key_size_ is 0,
+    // this is (-1 / 8) which since C++11 is defined to be 0.  If
+    // total_key_size_ == raw_key_size_, this is unnecessary, but
+    // harmless.
+    size_t last = (total_key_size_ - 1) / 8;
+    for (size_t i = 0; i < n; i++) {
+      keys[i].u64_arr[last] = 0;
+    }
     for (size_t i = 0; i < num_fields_; i++) {
       uint64_t mask = fields_[i].mask;
       int pos = fields_[i].pos;
@@ -350,6 +358,14 @@ class ExactMatchTable {
 
   // Helper for public MakeKey functions
   void DoMakeKeys(ExactMatchKey *keys, const void **bufs, size_t n) const {
+    // Initialize the padding with zero.  NB: if total_key_size_ is 0,
+    // this is (-1 / 8) which since C++11 is defined to be 0.  If
+    // total_key_size_ == raw_key_size_, this is unnecessary, but
+    // harmless.
+    size_t last = (total_key_size_ - 1) / 8;
+    for (size_t i = 0; i < n; i++) {
+      keys[i].u64_arr[last] = 0;
+    }
     for (size_t i = 0; i < num_fields_; i++) {
       uint64_t mask = fields_[i].mask;
       int offset = fields_[i].offset;
