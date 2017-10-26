@@ -62,6 +62,10 @@ CommandResponse PortOut::Init(const bess::pb::PortOutArg &arg) {
     available_queues_.push_back(i);
   }
 
+  for (size_t i = 0; i < Worker::kMaxWorkers; i++) {
+    worker_queues_[i] = -1;
+  }
+
   if (ret < 0) {
     return CommandFailure(-ret);
   }
@@ -135,7 +139,7 @@ int PortOut::OnEvent(bess::Event e) {
   }
 
   // Assign remaining queues to any newly attached workers.
-  for (size_t i = 0; i < actives.size(); i++) {
+  for (size_t i = 0; i < Worker::kMaxWorkers; i++) {
     if (actives[i] && worker_queues_[i] < 0) {
       CHECK(!available_queues_.empty()); // Should not be tripped.
       worker_queues_[i] = available_queues_.back();
