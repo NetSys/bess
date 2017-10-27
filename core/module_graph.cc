@@ -34,9 +34,37 @@
 
 #include "module.h"
 
+class Node;
 std::map<std::string, Module *> ModuleGraph::all_modules_;
-std::unordered_map<std::string, Node> ModuleGraph::module_graph_;
 std::unordered_set<std::string> ModuleGraph::tasks_;
+std::unordered_map<std::string, Node *> ModuleGraph::module_graph_;
+
+// Represents a node in `module_graph_`.
+class Node {
+ public:
+  // Creates a new Node that represents `module_`.
+  Node(Module *module) : module_(module), children_() {}
+
+  // Add a child to the node.
+  bool AddChild(const std::string &child) {
+    return children_.insert(child).second;
+  }
+
+  // Remove a child from the node.
+  void RemoveChild(const std::string &child) { children_.erase(child); }
+
+  const Module *module() const { return module_; }
+  const std::unordered_set<std::string> &children() const { return children_; }
+
+ private:
+  // Module that this Node represents.
+  Module *module_;
+
+  // Children of `module_` in the pipeline.
+  std::unordered_set<std::string> children_;
+
+  DISALLOW_COPY_AND_ASSIGN(Node);
+};
 
 bool ModuleGraph::FindNextTask(const std::string &node_name,
                                const std::string &parent_name,
@@ -67,7 +95,7 @@ bool ModuleGraph::FindNextTask(const std::string &node_name,
     return false;
   }
 
-  for (auto &child_name : node_it->second.children()) {
+  for (auto &child_name : node_it->second->children()) {
     if (visited->count(child_name) > 0) {
       continue;
     }
@@ -106,8 +134,8 @@ bool ModuleGraph::AddEdge(const std::string &from, const std::string &to) {
   if (from_it == module_graph_.end() || module_graph_.count(to) == 0) {
     return false;
   }
-  from_it->second.AddChild(to);
-  return UpdateTaskGraph();
+  from_it->second->AddChild(to);
+  return true;
 }
 
 bool ModuleGraph::RemoveEdge(const std::string &from, const std::string &to) {
@@ -116,16 +144,9 @@ bool ModuleGraph::RemoveEdge(const std::string &from, const std::string &to) {
     return false;
   }
 
-  from_node->second.RemoveChild(to);
+  from_node->second->RemoveChild(to);
 
-  // We need to regenerate the task graph.
-  for (auto const &task : tasks_) {
-    auto it = all_modules_.find(task);
-    if (it != all_modules_.end()) {
-      it->second->parent_tasks_.clear();
-    }
-  }
-  return UpdateTaskGraph();
+  return false;
 }
 
 // Creates a module to the graph.
@@ -168,11 +189,7 @@ Module *ModuleGraph::CreateModule(const ModuleBuilder &builder,
     return nullptr;
   }
 
-  module_added =
-      module_graph_
-          .emplace(std::piecewise_construct, std::forward_as_tuple(m->name()),
-                   std::forward_as_tuple(m))
-          .second;
+  module_added = module_graph_.emplace(m->name(), new Node(m)).second;
   if (!module_added) {
     *perr = pb_errno(ENOMEM);
     delete m;
@@ -211,7 +228,13 @@ int ModuleGraph::DestroyModule(Module *m, bool erase) {
     all_modules_.erase(m->name());
   }
 
-  module_graph_.erase(m->name());
+  auto node_it = module_graph_.find(m->name());
+  if (node_it != module_graph_.end()) {
+    Node *node = node_it->second;
+    module_graph_.erase(m->name());
+    delete node;
+  }
+
   if (m->is_task_) {
     tasks_.erase(m->name());
   }

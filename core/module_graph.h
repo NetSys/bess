@@ -42,33 +42,7 @@
 
 class Module;
 class ModuleBuilder;
-
-// Represents a node in `module_graph_`.
-class Node {
- public:
-  // Creates a new Node that represents `module_`.
-  Node(Module *module) : module_(module), children_() {}
-
-  // Add a child to the node.
-  bool AddChild(const std::string &child) {
-    return children_.insert(child).second;
-  }
-
-  // Remove a child from the node.
-  void RemoveChild(const std::string &child) { children_.erase(child); }
-
-  const Module *module() const { return module_; }
-  const std::unordered_set<std::string> &children() const { return children_; }
-
- private:
-  // Module that this Node represents.
-  Module *module_;
-
-  // Children of `module_` in the pipeline.
-  std::unordered_set<std::string> children_;
-
-  DISALLOW_COPY_AND_ASSIGN(Node);
-};
+class Node;
 
 // Manages a global graph of modules
 class ModuleGraph {
@@ -98,11 +72,11 @@ class ModuleGraph {
   // Disconnects two modules (`to` and `from`) together in `module_graph_`.
   static bool RemoveEdge(const std::string &from, const std::string &to);
 
- private:
   // Updates the parents of modules with tasks by traversing `module_graph_` and
   // ignoring all modules that are not tasks.
   static bool UpdateTaskGraph();
 
+ private:
   // Finds the next module that implements a task along the pipeline.
   // If if find any, then the current task becomes the parent of the next task.
   static bool FindNextTask(const std::string &node_name,
@@ -110,7 +84,7 @@ class ModuleGraph {
                            std::unordered_set<std::string> *visited);
 
   // A graph of all the modules in the current pipeline.
-  static std::unordered_map<std::string, Node> module_graph_;
+  static std::unordered_map<std::string, Node *> module_graph_;
 
   // All modules that are tasks in the current pipeline.
   static std::unordered_set<std::string> tasks_;
