@@ -42,6 +42,10 @@ from pybess import protobuf_to_dict as pb_conv
 # Env variable used to run a single test
 test_name = $TEST_NAME!'*'
 
+default_path = os.path.join(os.path.dirname(os.path.realpath(sys.argv[0])),
+                            'module_tests')
+test_path = $TEST_PATH!default_path
+
 ## HANDY UTILS AND GLOBAL VARS ##
 SOCKET_PATH = '/tmp/bess_unix_'
 SCRIPT_STARTTIME = strftime("%Y-%m-%d-%H-%M-%S", gmtime())
@@ -158,14 +162,11 @@ def monitor_task(module, wid):
 def run_tests():
     DID_TESTS_FAIL = False
 
-    path = os.path.dirname(os.path.realpath(sys.argv[0]))
-
     # Note: os.path.join will discard the leading parts if test
     # begins with '/', so callers should provide an absolute path
     # if and only if they want to override the internal BESS
     # path prefixing.
-    for filename in glob.glob(os.path.join(path,
-                                           "module_tests",
+    for filename in glob.glob(os.path.join(test_path,
                                            test_name + ".py")):
         bess.reset_all()
 
