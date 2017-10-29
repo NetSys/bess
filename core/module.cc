@@ -347,8 +347,7 @@ int Module::ConnectModules(gate_idx_t ogate_idx, Module *m_next,
   ogate->AddHook(new Track());
   igate->PushOgate(ogate);
 
-  // Update graph
-  return !ModuleGraph::AddEdge(name_, m_next->name_);
+  return 0;
 }
 
 int Module::DisconnectModules(gate_idx_t ogate_idx) {
@@ -370,11 +369,6 @@ int Module::DisconnectModules(gate_idx_t ogate_idx) {
   }
 
   igate = ogate->igate();
-
-  // Remove edge in module graph.
-  if (!ModuleGraph::RemoveEdge(name_, igate->module()->name_)) {
-    return 1;
-  }
 
   /* Does the igate become inactive as well? */
   igate->RemoveOgate(ogate);
@@ -413,11 +407,6 @@ int Module::DisconnectModulesUpstream(gate_idx_t igate_idx) {
     Module *m_prev = ogate->module();
     m_prev->ogates_[ogate->gate_idx()] = nullptr;
     ogate->ClearHooks();
-
-    // Remove edge in module graph
-    if (!ModuleGraph::RemoveEdge(ogate->module()->name_, name_)) {
-      return 1;
-    }
 
     delete ogate;
   }

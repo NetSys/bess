@@ -39,6 +39,7 @@ CommandResponse SetupTaskGraph::Init(const bess::pb::EmptyArg &) {
 }
 
 void SetupTaskGraph::Run() {
+  ModuleGraph::CleanTaskGraph();
   ModuleGraph::UpdateTaskGraph();
 }
 

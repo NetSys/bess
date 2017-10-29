@@ -306,6 +306,8 @@ TEST_F(ModuleTester, GenerateTCGraph) {
   EXPECT_EQ(0, m2->ConnectModules(1, m3, 0));
   EXPECT_EQ(0, m3->ConnectModules(0, t4, 0));
 
+  ModuleGraph::UpdateTaskGraph();
+
   EXPECT_EQ(0, t1->parent_tasks().size());
   EXPECT_EQ(1, t2->parent_tasks().size());
   EXPECT_EQ(1, t3->parent_tasks().size());
@@ -323,6 +325,9 @@ TEST_F(ModuleTester, GenerateTCGraph) {
   ASSERT_EQ(0, t1->children_overload());
 
   ModuleGraph::DestroyModule(t1, true);
+  ModuleGraph::CleanTaskGraph();
+  ModuleGraph::UpdateTaskGraph();
+
   EXPECT_EQ(0, t2->parent_tasks().size());
   EXPECT_EQ(0, t3->parent_tasks().size());
   EXPECT_EQ(0, t4->parent_tasks().size());

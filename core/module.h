@@ -287,6 +287,8 @@ class alignas(64) Module {
     return attrs_;
   }
 
+  bool is_task() const { return is_task_; }
+
   const std::vector<const Task *> &tasks() const { return tasks_; }
 
   void set_attr_offset(size_t idx, bess::metadata::mt_offset_t offset) {
@@ -353,6 +355,8 @@ class alignas(64) Module {
   // For testing.
   int children_overload() const { return children_overload_; };
   const std::vector<Module *> &parent_tasks() const { return parent_tasks_; };
+
+  void add_parent_task(Module *task) { parent_tasks_.push_back(task); }
 
   // Signals to parent task(s) that module is overloaded.
   // TODO: SignalOverload and SignalUnderload are only safe if the module is not

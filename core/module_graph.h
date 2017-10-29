@@ -50,13 +50,13 @@ class ModuleGraph {
   // Return true if any module from the builder exists
   static bool HasModuleOfClass(const ModuleBuilder *);
 
-  // Creates a module to the graph.
+  // Creates a module.
   static Module *CreateModule(const ModuleBuilder &builder,
                               const std::string &module_name,
                               const google::protobuf::Any &arg,
                               pb_error_t *perr);
 
-  // Removes a module to the graph. Returns 0 on success, -errno
+  // Removes a module. Returns 0 on success, -errno
   // otherwise.
   static int DestroyModule(Module *m, bool erase = true);
   static void DestroyAllModules();
@@ -66,15 +66,11 @@ class ModuleGraph {
   static std::string GenerateDefaultName(const std::string &class_name,
                                          const std::string &default_template);
 
-  // Connects two modules (`to` and `from`) together in `module_graph_`.
-  static bool AddEdge(const std::string &from, const std::string &to);
+  // Updates the parents of tasks
+  static void UpdateTaskGraph();
 
-  // Disconnects two modules (`to` and `from`) together in `module_graph_`.
-  static bool RemoveEdge(const std::string &from, const std::string &to);
-
-  // Updates the parents of modules with tasks by traversing `module_graph_` and
-  // ignoring all modules that are not tasks.
-  static bool UpdateTaskGraph();
+  // Cleans the parents of modules
+  static void CleanTaskGraph();
 
  private:
   // Finds the next module that implements a task along the pipeline.
@@ -82,9 +78,6 @@ class ModuleGraph {
   static bool FindNextTask(const std::string &node_name,
                            const std::string &parent_name,
                            std::unordered_set<std::string> *visited);
-
-  // A graph of all the modules in the current pipeline.
-  static std::unordered_map<std::string, Node *> module_graph_;
 
   // All modules that are tasks in the current pipeline.
   static std::unordered_set<std::string> tasks_;

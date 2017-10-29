@@ -37,83 +37,51 @@
 class Node;
 std::map<std::string, Module *> ModuleGraph::all_modules_;
 std::unordered_set<std::string> ModuleGraph::tasks_;
-std::unordered_map<std::string, Node *> ModuleGraph::module_graph_;
 
-// Represents a node in `module_graph_`.
-class Node {
- public:
-  // Creates a new Node that represents `module_`.
-  Node(Module *module) : module_(module), children_() {}
-
-  // Add a child to the node.
-  bool AddChild(const std::string &child) {
-    return children_.insert(child).second;
-  }
-
-  // Remove a child from the node.
-  void RemoveChild(const std::string &child) { children_.erase(child); }
-
-  const Module *module() const { return module_; }
-  const std::unordered_set<std::string> &children() const { return children_; }
-
- private:
-  // Module that this Node represents.
-  Module *module_;
-
-  // Children of `module_` in the pipeline.
-  std::unordered_set<std::string> children_;
-
-  DISALLOW_COPY_AND_ASSIGN(Node);
-};
-
-bool ModuleGraph::FindNextTask(const std::string &node_name,
-                               const std::string &parent_name,
-                               std::unordered_set<std::string> *visited) {
-  visited->insert(node_name);
-  // While traversing the module graph, if `node` is in the task graph and is
-  // not `parent`, then it must be  the child of `parent`.
-  if (node_name != parent_name && tasks_.find(node_name) != tasks_.end()) {
-    auto parent_it = all_modules_.find(parent_name);
-    auto node_it = all_modules_.find(node_name);
-    if (parent_it == all_modules_.end() || node_it == all_modules_.end()) {
-      return false;
-    }
-
-    Module *node = node_it->second;
-    Module *parent = parent_it->second;
-    for (Module *it : node->parent_tasks_) {
-      if (it == parent) {
-        return true;
+static void UpdateParentsAs(Module *parent_task, Module *module) {
+  if (module->is_task()) {
+    module->add_parent_task(parent_task);
+    return;
+  } else {
+    std::vector<bess::OGate *> ogates = module->ogates();
+    for (size_t i = 0; i < ogates.size(); i++) {
+      if (!ogates[i]) {
+        break;
       }
-    }
-    node->parent_tasks_.push_back(parent);
-    return true;
-  }
-
-  auto node_it = module_graph_.find(node_name);
-  if (node_it == module_graph_.end()) {
-    return false;
-  }
-
-  for (auto &child_name : node_it->second->children()) {
-    if (visited->count(child_name) > 0) {
-      continue;
-    }
-    if (!FindNextTask(child_name, parent_name, visited)) {
-      return false;
+      Module *child = ogates[i]->igate()->module();
+      UpdateParentsAs(parent_task, child);
     }
   }
-  return true;
 }
 
-bool ModuleGraph::UpdateTaskGraph() {
+static void UpdateSingleTask(Module *module) {
+  std::vector<bess::OGate *> ogates = module->ogates();
+  for (size_t i = 0; i < ogates.size(); i++) {
+    if (!ogates[i]) {
+      break;
+    }
+
+    Module *child = ogates[i]->igate()->module();
+    UpdateParentsAs(module, child);
+  }
+}
+
+void ModuleGraph::UpdateTaskGraph() {
   for (auto const &task : tasks_) {
-    std::unordered_set<std::string> visited;
-    if (!FindNextTask(task, task, &visited)) {
-      return false;
+    auto it = all_modules_.find(task);
+    if (it != all_modules_.end()) {
+      UpdateSingleTask(it->second);
     }
   }
-  return true;
+}
+
+void ModuleGraph::CleanTaskGraph() {
+  for (auto const &task : tasks_) {
+    auto it = all_modules_.find(task);
+    if (it != all_modules_.end()) {
+      it->second->parent_tasks_.clear();
+    }
+  }
 }
 
 const std::map<std::string, Module *> &ModuleGraph::GetAllModules() {
@@ -126,26 +94,6 @@ bool ModuleGraph::HasModuleOfClass(const ModuleBuilder *builder) {
       return true;
     }
   }
-  return false;
-}
-
-bool ModuleGraph::AddEdge(const std::string &from, const std::string &to) {
-  auto from_it = module_graph_.find(from);
-  if (from_it == module_graph_.end() || module_graph_.count(to) == 0) {
-    return false;
-  }
-  from_it->second->AddChild(to);
-  return true;
-}
-
-bool ModuleGraph::RemoveEdge(const std::string &from, const std::string &to) {
-  auto from_node = module_graph_.find(from);
-  if (from_node == module_graph_.end() || module_graph_.count(to) == 0) {
-    return false;
-  }
-
-  from_node->second->RemoveChild(to);
-
   return false;
 }
 
@@ -174,7 +122,7 @@ Module *ModuleGraph::CreateModule(const ModuleBuilder &builder,
     return nullptr;
   }
 
-  if (m->is_task_) {
+  if (m->is_task()) {
     if (!tasks_.insert(m->name()).second) {
       *perr = pb_errno(ENOMEM);
       delete m;
@@ -183,13 +131,6 @@ Module *ModuleGraph::CreateModule(const ModuleBuilder &builder,
   }
 
   bool module_added = all_modules_.insert({m->name(), m}).second;
-  if (!module_added) {
-    *perr = pb_errno(ENOMEM);
-    delete m;
-    return nullptr;
-  }
-
-  module_added = module_graph_.emplace(m->name(), new Node(m)).second;
   if (!module_added) {
     *perr = pb_errno(ENOMEM);
     delete m;
@@ -228,14 +169,7 @@ int ModuleGraph::DestroyModule(Module *m, bool erase) {
     all_modules_.erase(m->name());
   }
 
-  auto node_it = module_graph_.find(m->name());
-  if (node_it != module_graph_.end()) {
-    Node *node = node_it->second;
-    module_graph_.erase(m->name());
-    delete node;
-  }
-
-  if (m->is_task_) {
+  if (m->is_task()) {
     tasks_.erase(m->name());
   }
 
