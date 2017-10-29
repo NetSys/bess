@@ -34,13 +34,12 @@
 
 #include "module.h"
 
-class Node;
 std::map<std::string, Module *> ModuleGraph::all_modules_;
 std::unordered_set<std::string> ModuleGraph::tasks_;
 
 static void UpdateParentsAs(Module *parent_task, Module *module) {
   if (module->is_task()) {
-    module->add_parent_task(parent_task);
+    module->AddParentTask(parent_task);
     return;
   } else {
     std::vector<bess::OGate *> ogates = module->ogates();
@@ -79,7 +78,7 @@ void ModuleGraph::CleanTaskGraph() {
   for (auto const &task : tasks_) {
     auto it = all_modules_.find(task);
     if (it != all_modules_.end()) {
-      it->second->parent_tasks_.clear();
+      it->second->ClearParentTasks();
     }
   }
 }
@@ -140,30 +139,8 @@ Module *ModuleGraph::CreateModule(const ModuleBuilder &builder,
   return m;
 }
 
-int ModuleGraph::DestroyModule(Module *m, bool erase) {
-  int ret;
-  m->DeInit();
-
-  // disconnect from upstream modules.
-  for (size_t i = 0; i < m->igates_.size(); i++) {
-    ret = m->DisconnectModulesUpstream(i);
-    if (ret) {
-      delete m;
-      return ret;
-    }
-  }
-
-  // disconnect downstream modules
-  for (size_t i = 0; i < m->ogates_.size(); i++) {
-    ret = m->DisconnectModules(i);
-    if (ret) {
-      delete m;
-      return ret;
-    }
-  }
-
-  m->DestroyAllTasks();
-  m->DeregisterAllAttributes();
+void ModuleGraph::DestroyModule(Module *m, bool erase) {
+  m->Destroy();
 
   if (erase) {
     all_modules_.erase(m->name());
@@ -174,20 +151,13 @@ int ModuleGraph::DestroyModule(Module *m, bool erase) {
   }
 
   delete m;
-  return 0;
 }
 
 void ModuleGraph::DestroyAllModules() {
-  int ret;
   for (auto it = all_modules_.begin(); it != all_modules_.end();) {
     auto it_next = std::next(it);
-    ret = DestroyModule(it->second, false);
-    if (ret) {
-      LOG(ERROR) << "Error destroying module '" << it->first
-                 << "' (errno = " << ret << ")";
-    } else {
-      all_modules_.erase(it);
-    }
+    DestroyModule(it->second, false);
+    all_modules_.erase(it);
     it = it_next;
   }
 }
@@ -223,8 +193,8 @@ std::string ModuleGraph::GenerateDefaultName(
   promise_unreachable();
 }
 
-void propagate_active_worker() {
-  for (auto &pair : ModuleGraph::GetAllModules()) {
+void ModuleGraph::PropagateActiveWorker() {
+  for (auto &pair : all_modules_) {
     Module *m = pair.second;
     m->ResetActiveWorkerSet();
   }

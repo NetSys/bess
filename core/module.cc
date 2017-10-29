@@ -163,28 +163,6 @@ task_id_t Module::RegisterTask(void *arg) {
   return tasks_.size() - 1;
 }
 
-void Module::DestroyAllTasks() {
-  for (auto task : tasks_) {
-    auto c = task->GetTC();
-
-    int wid = c->WorkerId();
-    if (wid >= 0) {
-      bess::Scheduler *s = workers[wid]->scheduler();
-      s->wakeup_queue().Remove(c);
-    }
-
-    CHECK(detach_tc(c));
-    delete c;
-  }
-  tasks_.clear();
-}
-
-void Module::DeregisterAllAttributes() {
-  for (const auto &it : attrs_) {
-    pipeline_->DeregisterAttribute(it.name);
-  }
-}
-
 placement_constraint Module::ComputePlacementConstraints(
     std::unordered_set<const Module *> *visited) const {
   // Take the constraints we have.
@@ -350,7 +328,7 @@ int Module::ConnectModules(gate_idx_t ogate_idx, Module *m_next,
   return 0;
 }
 
-int Module::DisconnectModules(gate_idx_t ogate_idx) {
+int Module::DisconnectModule(gate_idx_t ogate_idx) {
   bess::OGate *ogate;
   bess::IGate *igate;
 
@@ -364,7 +342,7 @@ int Module::DisconnectModules(gate_idx_t ogate_idx) {
   }
 
   ogate = ogates_[ogate_idx];
-  if (!ogate) {
+  if (ogate == nullptr) {
     return 0;
   }
 
@@ -382,38 +360,6 @@ int Module::DisconnectModules(gate_idx_t ogate_idx) {
   ogates_[ogate_idx] = nullptr;
   ogate->ClearHooks();
   delete ogate;
-
-  return 0;
-}
-
-int Module::DisconnectModulesUpstream(gate_idx_t igate_idx) {
-  bess::IGate *igate;
-
-  if (igate_idx >= module_builder_->NumIGates()) {
-    return -EINVAL;
-  }
-
-  /* no error even if the igate is unconnected already */
-  if (!is_active_gate<bess::IGate>(igates_, igate_idx)) {
-    return 0;
-  }
-
-  igate = igates_[igate_idx];
-  if (!igate) {
-    return 0;
-  }
-
-  for (const auto &ogate : igate->ogates_upstream()) {
-    Module *m_prev = ogate->module();
-    m_prev->ogates_[ogate->gate_idx()] = nullptr;
-    ogate->ClearHooks();
-
-    delete ogate;
-  }
-
-  igates_[igate_idx] = nullptr;
-  igate->ClearHooks();
-  delete igate;
 
   return 0;
 }
@@ -457,6 +403,76 @@ void Module::RunSplit(const gate_idx_t *out_gates,
   // phase 3: fire
   for (int i = 0; i < num_pending; i++)
     RunChooseModule(pending[i], &batches[i]);
+}
+
+void Module::Destroy() {
+  // Per-module de-initialization
+  DeInit();
+
+  // disconnect from upstream modules.
+  for (size_t i = 0; i < igates_.size(); i++) {
+    DisconnectModulesUpstream(i);
+  }
+
+  // disconnect downstream modules
+  for (size_t i = 0; i < ogates_.size(); i++) {
+    int ret = DisconnectModule(i);
+    CHECK_EQ(ret, 0);
+  }
+
+  DestroyAllTasks();
+  DeregisterAllAttributes();
+}
+
+void Module::DisconnectModulesUpstream(gate_idx_t igate_idx) {
+  bess::IGate *igate;
+
+  CHECK_LT(igate_idx, module_builder_->NumIGates());
+
+  /* no error even if the igate is unconnected already */
+  if (!is_active_gate<bess::IGate>(igates_, igate_idx)) {
+    return;
+  }
+
+  igate = igates_[igate_idx];
+  if (igate == nullptr) {
+    return;
+  }
+
+  for (const auto &ogate : igate->ogates_upstream()) {
+    Module *m_prev = ogate->module();
+    m_prev->ogates_[ogate->gate_idx()] = nullptr;
+    ogate->ClearHooks();
+
+    delete ogate;
+  }
+
+  igates_[igate_idx] = nullptr;
+  igate->ClearHooks();
+  delete igate;
+
+  return;
+}
+void Module::DestroyAllTasks() {
+  for (auto task : tasks_) {
+    auto c = task->GetTC();
+
+    int wid = c->WorkerId();
+    if (wid >= 0) {
+      bess::Scheduler *s = workers[wid]->scheduler();
+      s->wakeup_queue().Remove(c);
+    }
+
+    CHECK(detach_tc(c));
+    delete c;
+  }
+  tasks_.clear();
+}
+
+void Module::DeregisterAllAttributes() {
+  for (const auto &it : attrs_) {
+    pipeline_->DeregisterAttribute(it.name);
+  }
 }
 
 #if SN_TRACE_MODULES

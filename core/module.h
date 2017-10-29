@@ -129,7 +129,7 @@ class ModuleBuilder {
       bool reset = false);
   static const std::map<std::string, ModuleBuilder> &all_module_builders();
 
-  /* returns a pointer to the created module */
+  // returns a pointer to the created module
   Module *CreateModule(const std::string &name,
                        bess::metadata::Pipeline *pipeline) const;
 
@@ -167,10 +167,8 @@ class ModuleBuilder {
 
 class Task;
 
-/*!
- * Results from checking for constraints. Failing constraints can indicate
- * whether the failure is fatal or not.
- */
+// Results from checking for constraints. Failing constraints can indicate
+// whether the failure is fatal or not.
 enum CheckConstraintResult {
   CHECK_OK = 0,
   CHECK_NONFATAL_ERROR = 1,
@@ -215,12 +213,10 @@ class alignas(64) Module {
   virtual struct task_result RunTask(void *arg);
   virtual void ProcessBatch(bess::PacketBatch *batch);
 
-  /*
-   * If a derived Module overrides OnEvent and doesn't return  -ENOTSUP for a
-   * particular Event `e` it will be invoked for each instance of the derived
-   * Module whenever `e` occours. See `event.h` for details about the various
-   * event types and their semantics/requirements when it comes to modules.
-   */
+  // If a derived Module overrides OnEvent and doesn't return  -ENOTSUP for a
+  // particular Event `e` it will be invoked for each instance of the derived
+  // Module whenever `e` occours. See `event.h` for details about the various
+  // event types and their semantics/requirements when it comes to modules.
   virtual int OnEvent(bess::Event) { return -ENOTSUP; }
 
   virtual std::string GetDesc() const { return ""; }
@@ -234,7 +230,6 @@ class alignas(64) Module {
 
  public:
   friend class ModuleBuilder;
-  friend class ModuleGraph;
 
   CommandResponse InitWithGenericArg(const google::protobuf::Any &arg);
 
@@ -244,37 +239,41 @@ class alignas(64) Module {
 
   const std::string &name() const { return name_; }
 
-  /* Pass packets to the next module.
-   * Packet deallocation is callee's responsibility. */
+  // Destroy a module and cleaning up including
+  // calling per-module Deinit() function,
+  // disconnect from/to upstream/downstream modules,
+  // destory all tasks if it is a task module
+  // deregister all metadata attributes if it has
+  void Destroy();
+
+  // Pass packets to the next module.
+  // Packet deallocation is callee's responsibility.
   inline void RunChooseModule(gate_idx_t ogate_idx, bess::PacketBatch *batch);
 
-  /* Wrapper for single-output modules */
+  // Wrapper for single-output modules
   inline void RunNextModule(bess::PacketBatch *batch);
 
-  /*
-   * Split a batch into several, one for each ogate
-   * NOTE:
-   *   1. Order is preserved for packets with the same gate.
-   *   2. No ordering guarantee for packets with different gates.
-   */
+  // Split a batch into several, one for each ogate
+  // NOTE:
+  //   1. Order is preserved for packets with the same gate.
+  //   2. No ordering guarantee for packets with different gates.
   void RunSplit(const gate_idx_t *ogates, bess::PacketBatch *mixed_batch);
 
-  /* returns -errno if fails */
+  // returns -errno if fails
   int ConnectModules(gate_idx_t ogate_idx, Module *m_next,
                      gate_idx_t igate_idx);
-  int DisconnectModulesUpstream(gate_idx_t igate_idx);
-  int DisconnectModules(gate_idx_t ogate_idx);
+  int DisconnectModule(gate_idx_t ogate_idx);
 
   // Register a task.
   task_id_t RegisterTask(void *arg);
 
-  /* Modules should call this function to declare additional metadata
-   * attributes at initialization time.
-   * Static metadata attributes that are defined in module class are
-   * automatically registered, so only attributes specific to a module
-   * 'instance'
-   * need this function.
-   * Returns its allocated ID (>= 0), or a negative number for error */
+  // Modules should call this function to declare additional metadata
+  // attributes at initialization time.
+  // Static metadata attributes that are defined in module class are
+  // automatically registered, so only attributes specific to a module
+  // 'instance'
+  // need this function.
+  // Returns its allocated ID (>= 0), or a negative number for error */
   int AddMetadataAttr(const std::string &name, size_t size,
                       bess::metadata::Attribute::AccessMode mode);
 
@@ -310,16 +309,12 @@ class alignas(64) Module {
 
   const std::vector<bess::OGate *> &ogates() const { return ogates_; }
 
-  /*!
-   * Compute placement constraints based on the current module and all
-   * downstream modules (i.e., modules connected to out ports.
-   */
+  // Compute placement constraints based on the current module and all
+  // downstream modules (i.e., modules connected to out ports.
   placement_constraint ComputePlacementConstraints(
       std::unordered_set<const Module *> *visited) const;
 
-  /*!
-   * Reset the set of active workers.
-   */
+  // Reset the set of active workers.
   void ResetActiveWorkerSet() {
     std::fill(active_workers_.begin(), active_workers_.end(), false);
     visited_tasks_.clear();
@@ -327,25 +322,19 @@ class alignas(64) Module {
 
   const std::vector<bool> &active_workers() const { return active_workers_; }
 
-  /*!
-   * Number of active workers attached to this module.
-   */
+  // Number of active workers attached to this module.
   inline size_t num_active_workers() const {
     return std::count_if(active_workers_.begin(), active_workers_.end(),
                          [](bool b) { return b; });
   }
 
-  /*!
-   * Check if we have already seen a task
-   */
+  // Check if we have already seen a task
   inline bool HaveVisitedWorker(const Task *task) const {
     return std::find(visited_tasks_.begin(), visited_tasks_.end(), task) !=
            visited_tasks_.end();
   }
 
-  /*!
-   * Number of tasks that access this module
-   */
+  // Number of tasks that access this module
   inline size_t num_active_tasks() const { return visited_tasks_.size(); }
 
   virtual void AddActiveWorker(int wid, const Task *task);
@@ -356,7 +345,8 @@ class alignas(64) Module {
   int children_overload() const { return children_overload_; };
   const std::vector<Module *> &parent_tasks() const { return parent_tasks_; };
 
-  void add_parent_task(Module *task) { parent_tasks_.push_back(task); }
+  void AddParentTask(Module *task) { parent_tasks_.push_back(task); }
+  void ClearParentTasks() { parent_tasks_.clear(); }
 
   // Signals to parent task(s) that module is overloaded.
   // TODO: SignalOverload and SignalUnderload are only safe if the module is not
@@ -387,6 +377,7 @@ class alignas(64) Module {
   }
 
  private:
+  void DisconnectModulesUpstream(gate_idx_t igate_idx);
   void DestroyAllTasks();
   void DeregisterAllAttributes();
 
@@ -490,7 +481,7 @@ inline void Module::RunNextModule(bess::PacketBatch *batch) {
   RunChooseModule(0, batch);
 }
 
-/* run all per-thread initializers */
+// run all per-thread initializers
 void init_module_worker(void);
 
 #if SN_TRACE_MODULES

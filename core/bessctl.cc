@@ -665,7 +665,7 @@ class BESSControlImpl final : public BESSControl::Service {
       // is no point in attaching orphans.
       attach_orphans();
     }
-    propagate_active_worker();
+    ModuleGraph::PropagateActiveWorker();
     LOG(INFO) << "Checking scheduling constraints";
     // Check constraints around chains run by each worker. This checks that
     // global constraints are met.
@@ -1224,7 +1224,7 @@ class BESSControlImpl final : public BESSControl::Service {
     m2 = it2->second;
 
     if (is_any_worker_running()) {
-      propagate_active_worker();
+      ModuleGraph::PropagateActiveWorker();
       if (m1->num_active_workers() || m2->num_active_workers()) {
         WorkerPauser wp;  // Only pause when absolutely required
         ret = m1->ConnectModules(ogate, m2, igate);
@@ -1262,7 +1262,7 @@ class BESSControlImpl final : public BESSControl::Service {
     }
     Module* m = it->second;
 
-    ret = m->DisconnectModules(ogate);
+    ret = m->DisconnectModule(ogate);
     if (ret < 0)
       return return_with_error(response, -ret, "Disconnection %s:%d failed",
                                m_name, ogate);

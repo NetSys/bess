@@ -42,7 +42,6 @@
 
 class Module;
 class ModuleBuilder;
-class Node;
 
 // Manages a global graph of modules
 class ModuleGraph {
@@ -58,7 +57,7 @@ class ModuleGraph {
 
   // Removes a module. Returns 0 on success, -errno
   // otherwise.
-  static int DestroyModule(Module *m, bool erase = true);
+  static void DestroyModule(Module *m, bool erase = true);
   static void DestroyAllModules();
 
   static const std::map<std::string, Module *> &GetAllModules();
@@ -72,23 +71,15 @@ class ModuleGraph {
   // Cleans the parents of modules
   static void CleanTaskGraph();
 
- private:
-  // Finds the next module that implements a task along the pipeline.
-  // If if find any, then the current task becomes the parent of the next task.
-  static bool FindNextTask(const std::string &node_name,
-                           const std::string &parent_name,
-                           std::unordered_set<std::string> *visited);
+  // Update information about what workers are accessing what module
+  static void PropagateActiveWorker();
 
+ private:
   // All modules that are tasks in the current pipeline.
   static std::unordered_set<std::string> tasks_;
 
   // All modules
   static std::map<std::string, Module *> all_modules_;
 };
-
-/*!
- * Update information about what workers are accessing what module.
- */
-void propagate_active_worker();
 
 #endif
