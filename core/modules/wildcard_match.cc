@@ -56,13 +56,17 @@ static inline int is_valid_gate(gate_idx_t gate) {
 }
 
 const Commands WildcardMatch::cmds = {
+    {"get_initial_arg", "EmptyArg",
+     MODULE_CMD_FUNC(&WildcardMatch::GetInitialArg), Command::THREAD_SAFE},
+    {"get_runtime_config", "EmptyArg",
+     MODULE_CMD_FUNC(&WildcardMatch::GetRuntimeConfig), Command::THREAD_SAFE},
+    {"set_runtime_config", "WildcardMatchConfig",
+     MODULE_CMD_FUNC(&WildcardMatch::SetRuntimeConfig), Command::THREAD_UNSAFE},
     {"add", "WildcardMatchCommandAddArg",
      MODULE_CMD_FUNC(&WildcardMatch::CommandAdd), Command::THREAD_UNSAFE},
     {"delete", "WildcardMatchCommandDeleteArg",
      MODULE_CMD_FUNC(&WildcardMatch::CommandDelete), Command::THREAD_UNSAFE},
     {"clear", "EmptyArg", MODULE_CMD_FUNC(&WildcardMatch::CommandClear),
-     Command::THREAD_UNSAFE},
-    {"get_rules", "EmptyArg", MODULE_CMD_FUNC(&WildcardMatch::CommandGetRules),
      Command::THREAD_UNSAFE},
     {"set_default_gate", "WildcardMatchCommandSetDefaultGateArg",
      MODULE_CMD_FUNC(&WildcardMatch::CommandSetDefaultGate),
@@ -375,19 +379,19 @@ CommandResponse WildcardMatch::CommandDelete(
 }
 
 CommandResponse WildcardMatch::CommandClear(const bess::pb::EmptyArg &) {
-  for (auto &tuple : tuples_) {
-    tuple.ht.Clear();
-  }
-
-  CommandResponse response;
-
+  WildcardMatch::Clear();
   return CommandSuccess();
 }
 
-CommandResponse WildcardMatch::CommandGetRules(const bess::pb::EmptyArg &) {
-  bess::pb::WildcardMatchCommandGetRulesResponse resp;
-  resp.set_default_gate(default_gate_);
+void WildcardMatch::Clear() {
+  for (auto &tuple : tuples_) {
+    tuple.ht.Clear();
+  }
+}
 
+// Retrieves a WildcardMatchArg that would reconstruct this module.
+CommandResponse WildcardMatch::GetInitialArg(const bess::pb::EmptyArg &) {
+  bess::pb::WildcardMatchArg resp;
   for (auto &field : fields_) {
     bess::pb::Field *f = resp.add_fields();
     if (field.attr_id >= 0) {
@@ -397,35 +401,84 @@ CommandResponse WildcardMatch::CommandGetRules(const bess::pb::EmptyArg &) {
     }
     f->set_num_bytes(field.size);
   }
+  return CommandSuccess(resp);
+}
 
+// Retrieves a WildcardMatchConfig that would restore this module's
+// runtime configuration.
+CommandResponse WildcardMatch::GetRuntimeConfig(const bess::pb::EmptyArg &) {
+  bess::pb::WildcardMatchConfig resp;
+  using rule_t = bess::pb::WildcardMatchCommandAddArg;
+
+  resp.set_default_gate(default_gate_);
+
+  // Each tuple provides a single mask, which may have many data-matches.
   for (auto &tuple : tuples_) {
     wm_hkey_t mask = tuple.mask;
+    // Each entry in the hash table has priority, ogate, and the data
+    // (one datum per field, under the mask for this field).
     for (auto &entry : tuple.ht) {
-      bess::pb::WildcardMatchRule *rule = resp.add_rules();
+      // Create the rule instance
+      rule_t *rule = resp.add_rules();
       rule->set_priority(entry.second.priority);
       rule->set_gate(entry.second.ogate);
 
       uint8_t *entry_data = reinterpret_cast<uint8_t *>(entry.first.u64_arr);
       uint8_t *entry_mask = reinterpret_cast<uint8_t *>(mask.u64_arr);
+      // Then fill in each field
       for (auto &field : fields_) {
-        uint64_t data = 0;
-        bess::utils::bin_to_uint64(&data, entry_data + field.pos, field.size,
-                                   true);
-        rule->add_values(data);
-        uint64_t mask_data = 0;
-        bess::utils::bin_to_uint64(&mask_data, entry_mask + field.pos,
-                                   field.size, true);
-        rule->add_masks(mask_data);
+        bess::pb::FieldData *valuedata = rule->add_values();
+        valuedata->set_value_bin(entry_data + field.pos, field.size);
+        bess::pb::FieldData *maskdata = rule->add_masks();
+        maskdata->set_value_bin(entry_mask + field.pos, field.size);
       }
     }
   }
-
+  // Sort the results so that they're always predictable.
+  std::sort(resp.mutable_rules()->begin(), resp.mutable_rules()->end(),
+            [this](const rule_t &a, const rule_t &b) {
+              // Sort is by priority, then gate, then masks, then values.
+              // The precise order is not as important as consistency.
+              if (a.priority() != b.priority()) {
+                return a.priority() < b.priority();
+              }
+              if (a.gate() != b.gate()) {
+                return a.gate() < b.gate();
+              }
+              for (size_t i = 0; i < fields_.size(); i++) {
+                if (a.masks(i).value_bin() != b.masks(i).value_bin()) {
+                  return a.masks(i).value_bin() < b.masks(i).value_bin();
+                }
+              }
+              for (size_t i = 0; i < fields_.size(); i++) {
+                if (a.values(i).value_bin() != b.values(i).value_bin()) {
+                  return a.values(i).value_bin() < b.values(i).value_bin();
+                }
+              }
+              return false;
+            });
   return CommandSuccess(resp);
 }
 
 CommandResponse WildcardMatch::CommandSetDefaultGate(
     const bess::pb::WildcardMatchCommandSetDefaultGateArg &arg) {
   default_gate_ = arg.gate();
+  return CommandSuccess();
+}
+
+// Uses a WildcardMatchConfig to restore this module's runtime config.
+// If this returns with an error, the state may be partially restored.
+// TODO(torek): consider vetting the entire argument before clobbering state.
+CommandResponse WildcardMatch::SetRuntimeConfig(
+    const bess::pb::WildcardMatchConfig &arg) {
+  WildcardMatch::Clear();
+  default_gate_ = arg.default_gate();
+  for (int i = 0; i < arg.rules_size(); i++) {
+    CommandResponse err = WildcardMatch::CommandAdd(arg.rules(i));
+    if (err.error().code() != 0) {
+      return err;
+    }
+  }
   return CommandSuccess();
 }
 
