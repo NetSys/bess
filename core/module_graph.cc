@@ -31,13 +31,17 @@
 #include "module_graph.h"
 
 #include <glog/logging.h>
+#include <set>
 
 #include "module.h"
 
 std::map<std::string, Module *> ModuleGraph::all_modules_;
 std::unordered_set<std::string> ModuleGraph::tasks_;
 
-static void UpdateParentsAs(Module *parent_task, Module *module) {
+static void UpdateParentsAs(Module *parent_task, Module *module,
+                            std::unordered_set<Module *> &visited_modules) {
+  visited_modules.insert(module);
+
   if (module->is_task()) {
     module->AddParentTask(parent_task);
     return;
@@ -48,12 +52,18 @@ static void UpdateParentsAs(Module *parent_task, Module *module) {
         break;
       }
       Module *child = ogates[i]->igate()->module();
-      UpdateParentsAs(parent_task, child);
+      if (visited_modules.count(child) != 0) {
+        continue;
+      }
+      UpdateParentsAs(parent_task, child, visited_modules);
     }
   }
 }
 
 static void UpdateSingleTask(Module *module) {
+  std::unordered_set<Module *> visited_modules;
+  visited_modules.insert(module);
+
   std::vector<bess::OGate *> ogates = module->ogates();
   for (size_t i = 0; i < ogates.size(); i++) {
     if (!ogates[i]) {
@@ -61,7 +71,11 @@ static void UpdateSingleTask(Module *module) {
     }
 
     Module *child = ogates[i]->igate()->module();
-    UpdateParentsAs(module, child);
+    if (visited_modules.count(child) != 0) {
+      continue;
+    }
+
+    UpdateParentsAs(module, child, visited_modules);
   }
 }
 
