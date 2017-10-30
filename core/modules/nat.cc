@@ -54,14 +54,29 @@ using bess::utils::UpdateChecksumWithIncrement;
 using bess::utils::UpdateChecksum16;
 
 CommandResponse NAT::Init(const bess::pb::NATArg &arg) {
-  for (const std::string &ext_addr : arg.ext_addrs()) {
+  for (const auto &address_range : arg.ext_addrs()) {
+    auto ext_addr = address_range.ext_addr();
     be32_t addr;
+
     bool ret = bess::utils::ParseIpv4Address(ext_addr, &addr);
     if (!ret) {
       return CommandFailure(EINVAL, "invalid IP address %s", ext_addr.c_str());
     }
 
     ext_addrs_.push_back(addr);
+    // Add a port range list
+    std::list<PortRange> port_list;
+    for (const auto &range : address_range.port_ranges()) {
+      port_list.emplace_back(PortRange{
+        begin : be16_t((uint16_t)range.begin()),
+        end : be16_t((uint16_t)range.end()),
+        // Range is not in use when first added.
+        in_use : false,
+        // Control plane gets to decide if it is usable.
+        usable : range.usable()
+      });
+    }
+    port_ranges_.push_back(port_list);
   }
 
   if (ext_addrs_.empty()) {

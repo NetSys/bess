@@ -660,7 +660,16 @@ message MetadataTestArg {
  * __Output Gates__: 2
  */
 message NATArg {
-  repeated string ext_addrs = 1; /// list of external IP addresses
+  message PortRange {
+    uint32 begin = 1;
+    uint32 end = 2;
+    bool usable = 3;
+  }
+  message ExternalAddress {
+    string ext_addr = 1;
+    repeated PortRange port_ranges = 2;
+  }
+  repeated ExternalAddress ext_addrs = 1; /// list of external IP addresses
 }
 
 /**
