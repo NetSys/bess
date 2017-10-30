@@ -145,13 +145,15 @@ class WildcardMatch final : public Module {
 
   std::string GetDesc() const override;
 
+  CommandResponse GetInitialArg(const bess::pb::EmptyArg &arg);
+  CommandResponse GetRuntimeConfig(const bess::pb::EmptyArg &arg);
+  CommandResponse SetRuntimeConfig(const bess::pb::WildcardMatchConfig &arg);
   CommandResponse CommandAdd(const bess::pb::WildcardMatchCommandAddArg &arg);
   CommandResponse CommandDelete(
       const bess::pb::WildcardMatchCommandDeleteArg &arg);
   CommandResponse CommandClear(const bess::pb::EmptyArg &arg);
   CommandResponse CommandSetDefaultGate(
       const bess::pb::WildcardMatchCommandSetDefaultGateArg &arg);
-  CommandResponse CommandGetRules(const bess::pb::EmptyArg &);
 
  private:
   struct WmTuple {
@@ -169,6 +171,8 @@ class WildcardMatch final : public Module {
   int FindTuple(wm_hkey_t *mask);
   int AddTuple(wm_hkey_t *mask);
   int DelEntry(int idx, wm_hkey_t *key);
+
+  void Clear();
 
   gate_idx_t default_gate_;
 

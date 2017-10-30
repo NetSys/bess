@@ -173,10 +173,6 @@ static_assert(sizeof(be64_t) == 8, "be64_t is not 8 bytes");
 // Copy data from val to *ptr. Set "big_endian" to store in big endian
 bool uint64_to_bin(void *ptr, uint64_t val, size_t size, bool big_endian);
 
-// Copy data from *ptr to *pval. Set "big_endian" if *ptr has big endian data
-bool bin_to_uint64(uint64_t *pval, const void *ptr, size_t size,
-                   bool big_endian);
-
 // this is to make sure BigEndian has constexpr constructor and value()
 static_assert(be32_t(0x1234).value() == 0x1234, "Something is wrong");
 
