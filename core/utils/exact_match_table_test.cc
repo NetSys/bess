@@ -111,6 +111,25 @@ TEST(EmTableTest, LookupTwoFieldsTwoRules) {
   EXPECT_EQ(0xDEAD, em.Find(keys[2], 0xDEAD));
 }
 
+// This test is for a specific bug introduced at one point
+// where the MakeKeys function didn't clear out any random
+// crud that might be on the stack.
+TEST(EmTableTest, IgnoreBytesPastEnd) {
+  ExactMatchTable<uint16_t> em;
+  ASSERT_EQ(0, em.AddField(6, 1, 0, 0).first);
+  ASSERT_EQ(0, em.AddField(7, 8, 0, 1).first);
+  uint64_t buf[2] = {0x0102030405060708, 0x1112131415161718};
+  const void *bufs[1] = {&buf};
+  ExactMatchRuleFields rule = {
+      {0x02}, {0x01, 0x18, 0x17, 0x16, 0x15, 0x14, 0x13, 0x12}};
+  ExactMatchKey keys[1];
+  memset(keys, 0x55, sizeof(keys));
+  em.MakeKeys(bufs, keys, 1);
+  ASSERT_EQ(0, em.AddRule(0x600d, rule).first);
+  uint16_t ret = em.Find(keys[0], 0xDEAD);
+  ASSERT_EQ(0x600d, ret);
+}
+
 TEST(EmTableTest, FindMakeKeysPktBatch) {
   const size_t n = 2;
   ExactMatchTable<uint16_t> em;
