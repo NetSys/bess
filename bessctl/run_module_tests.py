@@ -31,6 +31,7 @@
 
 from __future__ import print_function
 
+import argparse
 import fnmatch
 import glob
 import os
@@ -41,7 +42,7 @@ import unittest
 
 this_dir = os.path.dirname(os.path.realpath(__file__))
 bessctl = os.path.join(this_dir, 'bessctl')
-test_dir = os.path.join(this_dir, 'module_tests')
+default_test_dir = os.path.join(this_dir, 'module_tests')
 
 
 class CommandError(subprocess.CalledProcessError):
@@ -61,6 +62,14 @@ def run_cmd(cmd):
 
 
 def main():
+
+    arg_parser = argparse.ArgumentParser(description='Run per-module unit tests')
+    arg_parser.add_argument('--test_name', type=str, default='*',
+                            help='Name of a specific test to run.')
+    arg_parser.add_argument('--test_dir', type=str, default=default_test_dir,
+                            help='Path to the directory to serach for tests.')
+    args = arg_parser.parse_args()
+
     any_failure = 0
 
     try:
@@ -68,8 +77,8 @@ def main():
     except CommandError:
         raise Exception('bess daemon could not start')
 
-    for file_name in glob.glob(os.path.join(test_dir, "*.py")):
-        path = os.path.join(test_dir, file_name)
+    for file_name in glob.glob(os.path.join(args.test_dir, "{}.py".format(args.test_name))):
+        path = os.path.join(args.test_dir, file_name)
         print('Running test %s' % file_name)
 
         try:
