@@ -37,6 +37,7 @@
 
 std::map<std::string, Module *> ModuleGraph::all_modules_;
 std::unordered_set<std::string> ModuleGraph::tasks_;
+bool ModuleGraph::changes_made_ = false;
 
 void ModuleGraph::UpdateParentsAs(
     Module *parent_task, Module *module,
@@ -81,12 +82,19 @@ void ModuleGraph::UpdateSingleTask(Module *module) {
 }
 
 void ModuleGraph::UpdateTaskGraph() {
+  if (!changes_made_)
+    return;
+
+  CleanTaskGraph();
+
   for (auto const &task : tasks_) {
     auto it = all_modules_.find(task);
     if (it != all_modules_.end()) {
       UpdateSingleTask(it->second);
     }
   }
+
+  changes_made_ = false;
 }
 
 void ModuleGraph::CleanTaskGraph() {
@@ -155,6 +163,8 @@ Module *ModuleGraph::CreateModule(const ModuleBuilder &builder,
 }
 
 void ModuleGraph::DestroyModule(Module *m, bool erase) {
+  changes_made_ = true;
+
   m->Destroy();
 
   if (erase) {
@@ -169,6 +179,8 @@ void ModuleGraph::DestroyModule(Module *m, bool erase) {
 }
 
 void ModuleGraph::DestroyAllModules() {
+  changes_made_ = true;
+
   for (auto it = all_modules_.begin(); it != all_modules_.end();) {
     auto it_next = std::next(it);
     DestroyModule(it->second, false);
@@ -189,6 +201,8 @@ int ModuleGraph::ConnectModules(Module *module, gate_idx_t ogate_idx,
     return -EINVAL;
   }
 
+  changes_made_ = true;
+
   int ret = module->ConnectGate(ogate_idx, m_next, igate_idx);
   if (ret != 0)
     return ret;
@@ -203,6 +217,8 @@ int ModuleGraph::DisconnectModule(Module *module, gate_idx_t ogate_idx) {
   if (ogate_idx >= module->module_builder()->NumOGates()) {
     return -EINVAL;
   }
+
+  changes_made_ = true;
 
   module->DisconnectGate(ogate_idx);
 

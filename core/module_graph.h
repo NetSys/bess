@@ -91,6 +91,9 @@ class ModuleGraph {
 
   // All modules
   static std::map<std::string, Module *> all_modules_;
+
+  // Check if any changes on module graphs
+  static bool changes_made_;
 };
 
 #endif
