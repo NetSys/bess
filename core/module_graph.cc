@@ -31,15 +31,16 @@
 #include "module_graph.h"
 
 #include <glog/logging.h>
-#include <set>
 
+#include "gate_hooks/track.h"
 #include "module.h"
 
 std::map<std::string, Module *> ModuleGraph::all_modules_;
 std::unordered_set<std::string> ModuleGraph::tasks_;
 
-static void UpdateParentsAs(Module *parent_task, Module *module,
-                            std::unordered_set<Module *> &visited_modules) {
+void ModuleGraph::UpdateParentsAs(
+    Module *parent_task, Module *module,
+    std::unordered_set<Module *> &visited_modules) {
   visited_modules.insert(module);
 
   if (module->is_task()) {
@@ -60,7 +61,7 @@ static void UpdateParentsAs(Module *parent_task, Module *module,
   }
 }
 
-static void UpdateSingleTask(Module *module) {
+void ModuleGraph::UpdateSingleTask(Module *module) {
   std::unordered_set<Module *> visited_modules;
   visited_modules.insert(module);
 
@@ -174,6 +175,38 @@ void ModuleGraph::DestroyAllModules() {
     all_modules_.erase(it);
     it = it_next;
   }
+}
+
+int ModuleGraph::ConnectModules(Module *module, gate_idx_t ogate_idx,
+                                Module *m_next, gate_idx_t igate_idx) {
+  if (ogate_idx >= module->module_builder()->NumOGates() ||
+      ogate_idx >= MAX_GATES) {
+    return -EINVAL;
+  }
+
+  if (igate_idx >= m_next->module_builder()->NumIGates() ||
+      igate_idx >= MAX_GATES) {
+    return -EINVAL;
+  }
+
+  int ret = module->ConnectGate(ogate_idx, m_next, igate_idx);
+  if (ret != 0)
+    return ret;
+
+  // Gate tracking is enabled by default
+  module->ogates()[ogate_idx]->AddHook(new Track());
+
+  return 0;
+}
+
+int ModuleGraph::DisconnectModule(Module *module, gate_idx_t ogate_idx) {
+  if (ogate_idx >= module->module_builder()->NumOGates()) {
+    return -EINVAL;
+  }
+
+  module->DisconnectGate(ogate_idx);
+
+  return 0;
 }
 
 std::string ModuleGraph::GenerateDefaultName(

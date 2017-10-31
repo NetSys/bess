@@ -1,3 +1,4 @@
+// Copyright (c) 2017, The Regents of the University of California.
 // Copyright (c) 2016-2017, Nefeli Networks, Inc.
 // Copyright (c) 2017, Cloudigo.
 // All rights reserved.
@@ -1227,11 +1228,11 @@ class BESSControlImpl final : public BESSControl::Service {
       ModuleGraph::PropagateActiveWorker();
       if (m1->num_active_workers() || m2->num_active_workers()) {
         WorkerPauser wp;  // Only pause when absolutely required
-        ret = m1->ConnectModules(ogate, m2, igate);
+        ret = ModuleGraph::ConnectModules(m1, ogate, m2, igate);
         goto done;
       }
     }
-    ret = m1->ConnectModules(ogate, m2, igate);
+    ret = ModuleGraph::ConnectModules(m1, ogate, m2, igate);
   done:
     if (ret < 0)
       return return_with_error(response, -ret, "Connection %s:%d->%d:%s failed",
@@ -1262,7 +1263,7 @@ class BESSControlImpl final : public BESSControl::Service {
     }
     Module* m = it->second;
 
-    ret = m->DisconnectModule(ogate);
+    ret = ModuleGraph::DisconnectModule(m, ogate);
     if (ret < 0)
       return return_with_error(response, -ret, "Disconnection %s:%d failed",
                                m_name, ogate);

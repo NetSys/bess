@@ -36,9 +36,12 @@
 #include <unordered_map>
 #include <unordered_set>
 
+#include "gate.h"
 #include "message.h"
 #include "metadata.h"
 #include "utils/common.h"
+
+using bess::gate_idx_t;
 
 class Module;
 class ModuleBuilder;
@@ -60,6 +63,10 @@ class ModuleGraph {
   static void DestroyModule(Module *m, bool erase = true);
   static void DestroyAllModules();
 
+  static int ConnectModules(Module *module, gate_idx_t ogate_idx,
+                            Module *m_next, gate_idx_t igate_idx);
+  static int DisconnectModule(Module *module, gate_idx_t ogate_idx);
+
   static const std::map<std::string, Module *> &GetAllModules();
 
   static std::string GenerateDefaultName(const std::string &class_name,
@@ -75,6 +82,10 @@ class ModuleGraph {
   static void PropagateActiveWorker();
 
  private:
+  static void UpdateParentsAs(Module *parent_task, Module *module,
+                              std::unordered_set<Module *> &visited_modules);
+  static void UpdateSingleTask(Module *module);
+
   // All modules that are tasks in the current pipeline.
   static std::unordered_set<std::string> tasks_;
 

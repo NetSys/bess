@@ -36,8 +36,6 @@
 #include <sstream>
 
 #include "gate.h"
-#include "gate_hooks/tcpdump.h"
-#include "gate_hooks/track.h"
 #include "mem_alloc.h"
 #include "module_graph.h"
 #include "scheduler.h"
@@ -277,22 +275,8 @@ int Module::AddMetadataAttr(const std::string &name, size_t size,
   return attrs_.size() - 1;
 }
 
-/* returns -errno if fails */
-int Module::ConnectModules(gate_idx_t ogate_idx, Module *m_next,
-                           gate_idx_t igate_idx) {
-  bess::OGate *ogate;
-  bess::IGate *igate;
-
-  if (ogate_idx >= module_builder_->NumOGates() || ogate_idx >= MAX_GATES) {
-    return -EINVAL;
-  }
-
-  if (igate_idx >= m_next->module_builder()->NumIGates() ||
-      igate_idx >= MAX_GATES) {
-    return -EINVAL;
-  }
-
-  /* already being used? */
+int Module::ConnectGate(gate_idx_t ogate_idx, Module *m_next,
+                        gate_idx_t igate_idx) {
   if (is_active_gate<bess::OGate>(ogates_, ogate_idx)) {
     return -EBUSY;
   }
@@ -301,54 +285,46 @@ int Module::ConnectModules(gate_idx_t ogate_idx, Module *m_next,
     ogates_.resize(ogate_idx + 1, nullptr);
   }
 
-  ogate = new bess::OGate(this, ogate_idx, m_next);
-  if (!ogate) {
-    return -ENOMEM;
-  }
-  ogates_[ogate_idx] = ogate;
-
   if (igate_idx >= m_next->igates_.size()) {
     m_next->igates_.resize(igate_idx + 1, nullptr);
   }
 
+  bess::OGate *ogate = new bess::OGate(this, ogate_idx, m_next);
+  if (!ogate) {
+    return -ENOMEM;
+  }
+
+  bess::IGate *igate;
   if (m_next->igates_[igate_idx] == nullptr) {
     igate = new bess::IGate(m_next, igate_idx);
+    if (igate == nullptr) {
+      return -ENOMEM;
+    }
     m_next->igates_[igate_idx] = igate;
   } else {
     igate = m_next->igates_[igate_idx];
   }
 
-  ogate->set_igate(igate);
-  ogate->set_igate_idx(igate_idx);
+  ogates_[ogate_idx] = ogate;
 
-  // Gate tracking is enabled by default
-  ogate->AddHook(new Track());
-  igate->PushOgate(ogate);
+  ogate->SetIgate(igate);  // an ogate allowed to be connected to a single igate
+  igate->PushOgate(ogate);  // an igate can connected to multiple ogates
 
   return 0;
 }
 
-int Module::DisconnectModule(gate_idx_t ogate_idx) {
-  bess::OGate *ogate;
-  bess::IGate *igate;
-
-  if (ogate_idx >= module_builder_->NumOGates()) {
-    return -EINVAL;
-  }
-
-  /* no error even if the ogate is unconnected already */
+int Module::DisconnectGate(gate_idx_t ogate_idx) {
   if (!is_active_gate<bess::OGate>(ogates_, ogate_idx)) {
     return 0;
   }
 
-  ogate = ogates_[ogate_idx];
+  bess::OGate *ogate = ogates_[ogate_idx];
   if (ogate == nullptr) {
     return 0;
   }
 
-  igate = ogate->igate();
+  bess::IGate *igate = ogate->igate();
 
-  /* Does the igate become inactive as well? */
   igate->RemoveOgate(ogate);
   if (igate->ogates_upstream().empty()) {
     Module *m_next = igate->module();
@@ -416,7 +392,7 @@ void Module::Destroy() {
 
   // disconnect downstream modules
   for (size_t i = 0; i < ogates_.size(); i++) {
-    int ret = DisconnectModule(i);
+    int ret = DisconnectGate(i);
     CHECK_EQ(ret, 0);
   }
 

@@ -165,29 +165,7 @@ class Gate {
   DISALLOW_COPY_AND_ASSIGN(Gate);
 };
 
-class IGate;
-
-// A class for output gate. It connects to an input gate of the next module.
-class OGate : public Gate {
- public:
-  OGate(Module *m, gate_idx_t idx, Module *next)
-      : Gate(m, idx), next_(next), igate_(), igate_idx_() {}
-
-  void set_igate(IGate *ig) { igate_ = ig; }
-
-  IGate *igate() const { return igate_; }
-  Module *next() const { return next_; }
-
-  void set_igate_idx(gate_idx_t idx) { igate_idx_ = idx; }
-  gate_idx_t igate_idx() const { return igate_idx_; }
-
- private:
-  Module *next_;          // next module connected with
-  IGate *igate_;          // next igate connected with
-  gate_idx_t igate_idx_;  // cache for igate->gate_idx
-
-  DISALLOW_COPY_AND_ASSIGN(OGate);
-};
+class OGate;
 
 // A class for input gate
 class IGate : public Gate {
@@ -206,6 +184,29 @@ class IGate : public Gate {
   std::vector<OGate *> ogates_upstream_;  // previous ogates connected with
 };
 
+// A class for output gate. It connects to an input gate of the next module.
+class OGate : public Gate {
+ public:
+  OGate(Module *m, gate_idx_t idx, Module *next)
+      : Gate(m, idx), next_(next), igate_(), igate_idx_() {}
+
+  void SetIgate(IGate *ig) {
+    igate_ = ig;
+    igate_idx_ = ig->gate_idx();
+  }
+
+  IGate *igate() const { return igate_; }
+  Module *next() const { return next_; }
+
+  gate_idx_t igate_idx() const { return igate_idx_; }
+
+ private:
+  Module *next_;          // next module connected with
+  IGate *igate_;          // next igate connected with
+  gate_idx_t igate_idx_;  // cache for igate->gate_idx
+
+  DISALLOW_COPY_AND_ASSIGN(OGate);
+};
 }  // namespace bess
 
 template <typename H, typename A>

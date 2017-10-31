@@ -230,21 +230,9 @@ class alignas(64) Module {
 
  public:
   friend class ModuleBuilder;
+  friend class ModuleGraph;
 
   CommandResponse InitWithGenericArg(const google::protobuf::Any &arg);
-
-  const ModuleBuilder *module_builder() const { return module_builder_; }
-
-  bess::metadata::Pipeline *pipeline() const { return pipeline_; }
-
-  const std::string &name() const { return name_; }
-
-  // Destroy a module and cleaning up including
-  // calling per-module Deinit() function,
-  // disconnect from/to upstream/downstream modules,
-  // destory all tasks if it is a task module
-  // deregister all metadata attributes if it has
-  void Destroy();
 
   // Pass packets to the next module.
   // Packet deallocation is callee's responsibility.
@@ -258,11 +246,6 @@ class alignas(64) Module {
   //   1. Order is preserved for packets with the same gate.
   //   2. No ordering guarantee for packets with different gates.
   void RunSplit(const gate_idx_t *ogates, bess::PacketBatch *mixed_batch);
-
-  // returns -errno if fails
-  int ConnectModules(gate_idx_t ogate_idx, Module *m_next,
-                     gate_idx_t igate_idx);
-  int DisconnectModule(gate_idx_t ogate_idx);
 
   // Register a task.
   task_id_t RegisterTask(void *arg);
@@ -281,6 +264,12 @@ class alignas(64) Module {
                              const google::protobuf::Any &arg) {
     return module_builder_->RunCommand(this, cmd, arg);
   }
+
+  const ModuleBuilder *module_builder() const { return module_builder_; }
+
+  bess::metadata::Pipeline *pipeline() const { return pipeline_; }
+
+  const std::string &name() const { return name_; }
 
   const std::vector<bess::metadata::Attribute> &all_attrs() const {
     return attrs_;
@@ -337,16 +326,14 @@ class alignas(64) Module {
   // Number of tasks that access this module
   inline size_t num_active_tasks() const { return visited_tasks_.size(); }
 
+  const std::vector<Module *> &parent_tasks() const { return parent_tasks_; };
+
   virtual void AddActiveWorker(int wid, const Task *task);
 
   virtual CheckConstraintResult CheckModuleConstraints() const;
 
   // For testing.
   int children_overload() const { return children_overload_; };
-  const std::vector<Module *> &parent_tasks() const { return parent_tasks_; };
-
-  void AddParentTask(Module *task) { parent_tasks_.push_back(task); }
-  void ClearParentTasks() { parent_tasks_.clear(); }
 
   // Signals to parent task(s) that module is overloaded.
   // TODO: SignalOverload and SignalUnderload are only safe if the module is not
@@ -377,9 +364,22 @@ class alignas(64) Module {
   }
 
  private:
+  // Module Destory, connect, task managements are only available with
+  // ModuleGraph class
+  int ConnectGate(gate_idx_t ogate_idx, Module *m_next, gate_idx_t igate_idx);
+  int DisconnectGate(gate_idx_t ogate_idx);
   void DisconnectModulesUpstream(gate_idx_t igate_idx);
   void DestroyAllTasks();
   void DeregisterAllAttributes();
+  void AddParentTask(Module *task) { parent_tasks_.push_back(task); }
+  void ClearParentTasks() { parent_tasks_.clear(); }
+
+  // Destroy a module and cleaning up including
+  // calling per-module Deinit() function,
+  // disconnect from/to upstream/downstream modules,
+  // destory all tasks if it is a task module
+  // deregister all metadata attributes if it has
+  void Destroy();
 
   void set_name(const std::string &name) { name_ = name; }
   void set_module_builder(const ModuleBuilder *builder) {
