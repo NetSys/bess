@@ -40,12 +40,12 @@ std::unordered_set<std::string> ModuleGraph::tasks_;
 bool ModuleGraph::changes_made_ = false;
 
 void ModuleGraph::UpdateParentsAs(
-    Module *parent_task, Module *module,
+    Module *task, Module *module,
     std::unordered_set<Module *> &visited_modules) {
   visited_modules.insert(module);
 
   if (module->is_task()) {
-    module->AddParentTask(parent_task);
+    module->AddParentTask(task);
     return;
   } else {
     std::vector<bess::OGate *> ogates = module->ogates();
@@ -57,16 +57,16 @@ void ModuleGraph::UpdateParentsAs(
       if (visited_modules.count(child) != 0) {
         continue;
       }
-      UpdateParentsAs(parent_task, child, visited_modules);
+      UpdateParentsAs(task, child, visited_modules);
     }
   }
 }
 
-void ModuleGraph::UpdateSingleTask(Module *module) {
+void ModuleGraph::UpdateSingleTaskGraph(Module *task_module) {
   std::unordered_set<Module *> visited_modules;
-  visited_modules.insert(module);
+  visited_modules.insert(task_module);
 
-  std::vector<bess::OGate *> ogates = module->ogates();
+  std::vector<bess::OGate *> ogates = task_module->ogates();
   for (size_t i = 0; i < ogates.size(); i++) {
     if (!ogates[i]) {
       break;
@@ -77,7 +77,7 @@ void ModuleGraph::UpdateSingleTask(Module *module) {
       continue;
     }
 
-    UpdateParentsAs(module, child, visited_modules);
+    UpdateParentsAs(task_module, child, visited_modules);
   }
 }
 
@@ -90,7 +90,7 @@ void ModuleGraph::UpdateTaskGraph() {
   for (auto const &task : tasks_) {
     auto it = all_modules_.find(task);
     if (it != all_modules_.end()) {
-      UpdateSingleTask(it->second);
+      UpdateSingleTaskGraph(it->second);
     }
   }
 

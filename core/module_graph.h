@@ -84,7 +84,7 @@ class ModuleGraph {
  private:
   static void UpdateParentsAs(Module *parent_task, Module *module,
                               std::unordered_set<Module *> &visited_modules);
-  static void UpdateSingleTask(Module *module);
+  static void UpdateSingleTaskGraph(Module *module);
 
   // All modules that are tasks in the current pipeline.
   static std::unordered_set<std::string> tasks_;
