@@ -450,12 +450,17 @@ message BufferArg {
 }
 
 /**
- * The Bypass module forwards packets without any processing. It requires no parameters to initialize. Bypass is useful primarily for testing and performance evaluation.
+ * The Bypass module forwards packets by emulating pre-defined packet processing overhead.
+ * It burns cpu cycles per_batch, per_packet, and per-bytes.
+ * Bypass is useful primarily for testing and performance evaluation.
  *
  * __Input Gates__: 1
  * __Output Gates__: 1
  */
 message BypassArg {
+  uint32 cycles_per_batch = 1;
+  uint32 cycles_per_packet = 2;
+  double cycles_per_byte = 3;
 }
 
 /**
@@ -527,11 +532,11 @@ message FlowGenArg {
 }
 
 /**
-* The GenericDecap module strips off the first few bytes of data from a packet.
-*
-* __Input Gates__: 1
-* __Ouptut Gates__: 1
-*/
+ * The GenericDecap module strips off the first few bytes of data from a packet.
+ *
+ * __Input Gates__: 1
+ * __Ouptut Gates__: 1
+ */
 message GenericDecapArg {
   uint64 bytes = 1; /// The number of bytes to strip off.
 }
@@ -540,8 +545,8 @@ message GenericDecapArg {
  * The GenericEncap module adds a header to packets passing through it.
  * Takes a list of fields. Each field is either:
  *
- *  1. {'size': X, 'value': Y}		(for constant values)
- *  2. {'size': X, 'attribute': Y}	(for metadata attributes)
+ *  1. {'size': X, 'value': Y}          (for constant values)
+ *  2. {'size': X, 'attribute': Y}      (for metadata attributes)
  *
  * e.g.: GenericEncap([{'size': 4, 'value': 0xdeadbeef},
  *                     {'size': 2, 'attribute': 'foo'},
@@ -1059,8 +1064,8 @@ message ArpResponderArg {
   /**
    * One ARP IP-MAC mapping
    */
-   string ip = 1; // The IP
-   string mac_addr = 2; /// The MAC address
+  string ip = 1; // The IP
+  string mac_addr = 2; /// The MAC address
 }
 
 /**
@@ -1070,8 +1075,8 @@ message ArpResponderArg {
  * __Output Gates__: 2
  */
 message MplsPopArg {
-   bool remove_eth_header = 1; // Remove ETH header with the pop
-   uint32 next_eth_type = 2; /// The next ETH type to set
+  bool remove_eth_header = 1; // Remove ETH header with the pop
+  uint32 next_eth_type = 2; /// The next ETH type to set
 }
 
 /**
