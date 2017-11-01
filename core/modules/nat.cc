@@ -53,6 +53,15 @@ using bess::utils::ChecksumIncrement32;
 using bess::utils::UpdateChecksumWithIncrement;
 using bess::utils::UpdateChecksum16;
 
+const Commands NAT::cmds = {
+    {"get_initial_arg", "EmptyArg", MODULE_CMD_FUNC(&NAT::GetInitialArg),
+     Command::THREAD_SAFE},
+    {"get_runtime_config", "EmptyArg", MODULE_CMD_FUNC(&NAT::GetRuntimeConfig),
+     Command::THREAD_SAFE},
+    {"set_runtime_config", "EmptyArg", MODULE_CMD_FUNC(&NAT::SetRuntimeConfig),
+     Command::THREAD_SAFE}};
+
+// TODO(torek): move this to set/get runtime config
 CommandResponse NAT::Init(const bess::pb::NATArg &arg) {
   for (const std::string &ext_addr : arg.ext_addrs()) {
     be32_t addr;
@@ -69,6 +78,25 @@ CommandResponse NAT::Init(const bess::pb::NATArg &arg) {
                           "at least one external IP address must be specified");
   }
 
+  // Sort so that GetInitialArg is predictable and consistent.
+  std::sort(ext_addrs_.begin(), ext_addrs_.end());
+
+  return CommandSuccess();
+}
+
+CommandResponse NAT::GetInitialArg(const bess::pb::EmptyArg &) {
+  bess::pb::NATArg resp;
+  for (auto addr : ext_addrs_) {
+    resp.add_ext_addrs(ToIpv4Address(addr));
+  }
+  return CommandSuccess(resp);
+}
+
+CommandResponse NAT::GetRuntimeConfig(const bess::pb::EmptyArg &) {
+  return CommandSuccess();
+}
+
+CommandResponse NAT::SetRuntimeConfig(const bess::pb::EmptyArg &) {
   return CommandSuccess();
 }
 
