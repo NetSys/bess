@@ -193,53 +193,58 @@ class Gate {
   DISALLOW_COPY_AND_ASSIGN(Gate);
 };
 
-class IGate;
-
-// A class for output gate. It connects to an input gate of the next module.
-class OGate : public Gate {
- public:
-  OGate(Module *m, gate_idx_t idx, Module *next)
-      : Gate(m, idx), next_(next), igate_(), igate_idx_() {}
-
-  void SetIgate(IGate *ig);
-
-  IGate *igate() const { return igate_; }
-  Module *next() const { return next_; }
-
-  gate_idx_t igate_idx() const { return igate_idx_; }
-
-  void AddTrackHook();
-
- private:
-  Module *next_;          // next module connected with
-  IGate *igate_;          // next igate connected with
-  gate_idx_t igate_idx_;  // cache for igate->gate_idx
-
-  DISALLOW_COPY_AND_ASSIGN(OGate);
-};
+class OGate;
 
 // A class for input gate
 class IGate : public Gate {
  public:
-  IGate(Module *m, gate_idx_t idx) : Gate(m, idx), ogates_upstream_() {
-    input_ = nullptr;
-  }
+  IGate(Module *m, gate_idx_t idx)
+      : Gate(m, idx), ogates_upstream_(), pkt_batch_(), priority_() {}
 
   const std::vector<OGate *> &ogates_upstream() const {
     return ogates_upstream_;
   }
 
-  void AddInput(PacketBatch *batch);
-  void ClearInput() { input_ = nullptr; }
+  void AddPacketBatch(PacketBatch *batch);
+  void ClearPacketBatch() { pkt_batch_ = nullptr; }
+  void SetPriority(uint32_t priority) { priority_ = priority; }
 
-  PacketBatch *input() const { return input_; }
+  PacketBatch *pkt_batch() const { return pkt_batch_; }
+  uint32_t priority() const { return priority_; }
 
   void PushOgate(OGate *og);
   void RemoveOgate(const OGate *og);
 
  private:
   std::vector<OGate *> ogates_upstream_;  // previous ogates connected with
-  PacketBatch *input_;                    // a batch of input packets
+  PacketBatch *pkt_batch_;                // a batch of input packets
+  uint32_t priority_;
+  ;
+};
+
+// A class for output gate. It connects to an input gate of the next module.
+class OGate : public Gate {
+ public:
+  OGate(Module *m, gate_idx_t idx, Module *next)
+      : Gate(m, idx), next_(next), igate_(), igate_idx_(), pkt_batch_() {}
+
+  void SetIgate(IGate *ig);
+
+  void SetPacketBatch(PacketBatch *batch) { pkt_batch_ = batch; }
+  void ClearPacketBatch() { pkt_batch_ = nullptr; }
+
+  Module *next() const { return next_; }
+  IGate *igate() const { return igate_; }
+  gate_idx_t igate_idx() const { return igate_idx_; }
+  PacketBatch *pkt_batch() const { return pkt_batch_; }
+
+ private:
+  Module *next_;            // next module connected with
+  IGate *igate_;            // next igate connected with
+  gate_idx_t igate_idx_;    // cache for igate->gate_idx
+  PacketBatch *pkt_batch_;  // a batch of input packets
+
+  DISALLOW_COPY_AND_ASSIGN(OGate);
 };
 
 }  // namespace bess

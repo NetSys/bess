@@ -471,8 +471,8 @@ inline void Module::RunChooseModule(const Task *task, gate_idx_t ogate_idx,
     hook->ProcessBatch(batch);
   }
 
-  ogate->igate()->AddInput(batch);
-  task->subtasks_.push(ogate->igate());
+  ogate->igate()->AddPacketBatch(batch);
+  task->AddToRun(ogate->igate());
 }
 
 inline void Module::RunNextModule(const Task *task, bess::PacketBatch *batch) {

@@ -362,16 +362,18 @@ void Module::RunSplit(const Task *task, const gate_idx_t *out_gates,
   // batches, using splits to remember the association between an ogate and a
   // local batch
   for (int i = 0; i < pkt_cnt; i++) {
-    gate_idx_t ogate = out_gates[i];
-    bess::PacketBatch *batch = splits[ogate];
+    gate_idx_t ogate_idx = out_gates[i];
+    bess::OGate *ogate = ogates_[ogate_idx];
+    bess::PacketBatch *batch = ogate->pkt_batch();
     if (!batch) {
-      if (unlikely(gate_cnt <= ogate) || unlikely(!ogates_[ogate])) {
-        batch = splits[ogate] = task->dead_batch();
+      if (unlikely(gate_cnt <= ogate_idx) || unlikely(!ogate)) {
+        ogate->SetPacketBatch(task->dead_batch());
       } else {
         batch = splits[ogate] = batches[num_pending] = ctx.alloc_batch();
         pending[num_pending] = ogate;
         num_pending++;
       }
+      batch = ogate->pkt_batch();
     }
     batch->add(*(p_pkt++));
   }
@@ -387,10 +389,11 @@ void Module::RunSplit(const Task *task, const gate_idx_t *out_gates,
   for (int i = 0; i < num_pending; i++) {
     bess::OGate *ogate = ogates_[pending[i]];  // should not be null
     for (auto &hook : ogate->hooks()) {
-      hook->ProcessBatch(batches[i]);
+      hook->ProcessBatch(ogate->pkt_batch());
     }
-    ogate->igate()->AddInput(batches[i]);
-    task->subtasks_.push(ogate->igate());
+    ogate->igate()->AddPacketBatch(ogate->pkt_batch());
+    task->AddToRun(ogate->igate());
+    ogate->ClearPacketBatch();
   }
 }
 

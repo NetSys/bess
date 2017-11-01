@@ -55,12 +55,14 @@ struct task_result Task::operator()(void) const {
   }
 
   while (!subtasks_.empty()) {
-    bess::IGate *igate = subtasks_.front();
+    bess::IGate *igate = subtasks_.top();
     subtasks_.pop();
 
-    bess::PacketBatch *batch = igate->input();
+    // Process packets for new igate
+    bess::PacketBatch *batch = igate->pkt_batch();
     if (!batch)
       continue;
+    igate->ClearPacketBatch();
 
     ctx.set_current_igate(igate->gate_idx());
 

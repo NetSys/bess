@@ -32,6 +32,8 @@
 
 #include <glog/logging.h>
 
+#include "gate.h"
+#include "gate_hooks/track.h"
 #include "module.h"
 
 std::map<std::string, Module *> ModuleGraph::all_modules_;
@@ -80,6 +82,59 @@ void ModuleGraph::UpdateSingleTaskGraph(Module *task_module) {
   }
 }
 
+void ModuleGraph::PropagateIGatePriority(
+    bess::IGate *igate, std::unordered_set<bess::IGate *> &visited_igates,
+    uint32_t priority) {
+  if (igate->module()->is_task()) {
+    return;
+  } else {
+    std::vector<bess::OGate *> ogates = igate->module()->ogates();
+    for (size_t i = 0; i < ogates.size(); i++) {
+      if (!ogates[i]) {
+        break;
+      }
+
+      bess::IGate *next_igate = ogates[i]->igate();
+      if (visited_igates.count(next_igate) != 0 ||  // This is a loop or
+          next_igate->priority() >= priority) {     // visited by longer path
+        continue;
+      }
+
+      visited_igates.insert(next_igate);
+      next_igate->SetPriority(priority);
+      priority++;
+      PropagateIGatePriority(next_igate, visited_igates, priority);
+      priority--;
+      visited_igates.erase(next_igate);
+    }
+  }
+}
+
+void ModuleGraph::SetIGatePriority(Module *task_module) {
+  uint32_t priority = 1;
+  std::unordered_set<bess::IGate *> visited_igates;
+
+  std::vector<bess::OGate *> ogates = task_module->ogates();
+  for (size_t i = 0; i < ogates.size(); i++) {
+    if (!ogates[i]) {
+      break;
+    }
+
+    bess::IGate *igate = ogates[i]->igate();
+    if (visited_igates.count(igate) != 0 ||  // This is a loop or
+        igate->priority() >= priority) {     // visited by longer path
+      continue;
+    }
+
+    visited_igates.insert(igate);
+    igate->SetPriority(priority);
+    priority++;
+    PropagateIGatePriority(igate, visited_igates, priority);
+    priority--;
+    visited_igates.erase(igate);
+  }
+}
+
 void ModuleGraph::UpdateTaskGraph() {
   if (!changes_made_)
     return;
@@ -90,6 +145,7 @@ void ModuleGraph::UpdateTaskGraph() {
     auto it = all_modules_.find(task);
     if (it != all_modules_.end()) {
       UpdateSingleTaskGraph(it->second);
+      SetIGatePriority(it->second);
     }
   }
 
