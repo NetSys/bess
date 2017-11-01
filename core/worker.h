@@ -134,8 +134,6 @@ class Worker {
   gate_idx_t current_igate() const { return current_igate_; }
   void set_current_igate(gate_idx_t idx) { current_igate_ = idx; }
 
-  bess::PacketBatch **splits() { return splits_; }
-
   Random *rand() const { return rand_; }
 
  private:
@@ -164,12 +162,6 @@ class Worker {
   // packet batches for storing packets
   int pbatch_idx_;
   bess::PacketBatch *pbatch_;
-
-  // For each possible output gate contains a pointer to a batch, or nullptr,
-  // if no batch has been associated with the output gate yet.
-  //
-  // This should be the last field, since it's huge.
-  bess::PacketBatch *splits_[MAX_GATES + 1];
 };
 
 // NOTE: Do not use "thread_local" here. It requires a function call every time

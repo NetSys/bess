@@ -69,7 +69,7 @@ class AcmeModuleWithTask : public Module {
   AcmeModuleWithTask() : Module() { is_task_ = true; }
 
   static const gate_idx_t kNumIGates = 1;
-  static const gate_idx_t kNumOGates = 2;
+  static const gate_idx_t kNumOGates = 3;
 
   CommandResponse Init(const bess::pb::EmptyArg &) { return CommandResponse(); }
 
@@ -187,7 +187,7 @@ TEST(ModuleBuilderTest, RegisterModuleClass) {
   EXPECT_EQ("acme_module_with_task", builder2.name_template());
   EXPECT_EQ("foo bar", builder2.help_text());
   EXPECT_EQ(1, builder2.NumIGates());
-  EXPECT_EQ(2, builder2.NumOGates());
+  EXPECT_EQ(3, builder2.NumOGates());
   EXPECT_EQ(0, builder2.cmds().size());
 }
 
@@ -332,5 +332,54 @@ TEST_F(ModuleTester, GenerateTCGraph) {
   EXPECT_EQ(0, t2->parent_tasks().size());
   EXPECT_EQ(0, t3->parent_tasks().size());
   EXPECT_EQ(0, t4->parent_tasks().size());
+}
+
+TEST_F(ModuleTester, SetIGatePriority) {
+  pb_error_t perr;
+  Module *t1, *m1, *m2, *m3, *m4, *m5, *m6, *m7, *m8;
+
+  /* Test Topology
+   *        m7
+   *      /   \     (backward from m6 -> m4)
+   *    m1     \   ----------
+   *   /        \ /          |
+   * t1 -- m3 -- m4 -- m5 -- m6
+   *   \  /                  /
+   *    m2     -------------/
+   *      \   /
+   *       m8
+   */
+  ASSERT_NE(nullptr, t1 = create_acme_with_task("t1", &perr));
+  ASSERT_NE(nullptr, m1 = create_acme("m1", &perr));
+  ASSERT_NE(nullptr, m2 = create_acme("m2", &perr));
+  ASSERT_NE(nullptr, m3 = create_acme("m3", &perr));
+  ASSERT_NE(nullptr, m4 = create_acme("m4", &perr));
+  ASSERT_NE(nullptr, m5 = create_acme("m5", &perr));
+  ASSERT_NE(nullptr, m6 = create_acme("m6", &perr));
+  ASSERT_NE(nullptr, m7 = create_acme("m7", &perr));
+  ASSERT_NE(nullptr, m8 = create_acme("m8", &perr));
+  EXPECT_EQ(0, ModuleGraph::ConnectModules(t1, 0, m1, 0));
+  EXPECT_EQ(0, ModuleGraph::ConnectModules(t1, 1, m2, 0));
+  EXPECT_EQ(0, ModuleGraph::ConnectModules(t1, 2, m3, 0));
+  EXPECT_EQ(0, ModuleGraph::ConnectModules(m3, 0, m4, 0));
+  EXPECT_EQ(0, ModuleGraph::ConnectModules(m4, 0, m5, 0));
+  EXPECT_EQ(0, ModuleGraph::ConnectModules(m5, 0, m6, 0));
+  EXPECT_EQ(0, ModuleGraph::ConnectModules(m1, 0, m7, 0));
+  EXPECT_EQ(0, ModuleGraph::ConnectModules(m7, 0, m4, 0));  // merge
+  EXPECT_EQ(0, ModuleGraph::ConnectModules(m2, 0, m3, 0));  // merge
+  EXPECT_EQ(0, ModuleGraph::ConnectModules(m2, 1, m8, 0));  // split
+  EXPECT_EQ(0, ModuleGraph::ConnectModules(m8, 0, m6, 0));  // merge
+  EXPECT_EQ(0, ModuleGraph::ConnectModules(m6, 0, m4, 0));  // loop
+
+  ModuleGraph::UpdateTaskGraph();
+
+  EXPECT_EQ(1, m1->igates()[0]->priority());
+  EXPECT_EQ(1, m2->igates()[0]->priority());
+  EXPECT_EQ(2, m3->igates()[0]->priority());  // takes the longest visit path
+  EXPECT_EQ(3, m4->igates()[0]->priority());  // loop does not increase counts
+  EXPECT_EQ(4, m5->igates()[0]->priority());
+  EXPECT_EQ(5, m6->igates()[0]->priority());
+  EXPECT_EQ(2, m7->igates()[0]->priority());
+  EXPECT_EQ(2, m8->igates()[0]->priority());
 }
 }  // namespace

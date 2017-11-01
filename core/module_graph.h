@@ -87,6 +87,12 @@ class ModuleGraph {
                               std::unordered_set<Module *> &visited_modules);
   static void UpdateSingleTaskGraph(Module *module);
 
+  static void PropagateIGatePriority(
+      bess::IGate *igate, std::unordered_set<bess::IGate *> &visited_igate,
+      uint32_t priority);
+
+  static void SetIGatePriority(Module *task_module);
+
   // All modules that are tasks in the current pipeline.
   static std::unordered_set<std::string> tasks_;
 

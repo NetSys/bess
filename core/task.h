@@ -34,7 +34,9 @@
 #include <queue>
 #include <string>
 
+#include "gate.h"
 #include "pktbatch.h"
+#include "utils/extended_priority_queue.h"
 
 struct task_result {
   bool block;
@@ -49,12 +51,29 @@ class Module;
 
 namespace bess {
 class LeafTrafficClass;
-class IGate;
 class PacketBatch;
 }  // namespace bess
 
 // Functor used by a leaf in a Worker's Scheduler to run a task in a module.
 class Task {
+ private:
+  // Used by operator().
+  Module *module_;
+  void *arg_;                  // Auxiliary value passed to Module::RunTask().
+  bess::LeafTrafficClass *c_;  // Leaf TC associated with this task.
+
+  mutable bess::PacketBatch
+      dead_batch_;  // A packet batch for storing packets to free
+
+  struct IGateGreater {
+    bool operator()(const bess::IGate *left, const bess::IGate *right) const {
+      return left->priority() > right->priority();
+    }
+  };
+
+  mutable bess::utils::extended_priority_queue<bess::IGate *, IGateGreater>
+      subtasks_;  // Subtasks to run
+
  public:
   // When this task is scheduled it will execute 'm' with 'arg'.  When the
   // associated leaf is created/destroyed, 'module_task' will be updated.
@@ -67,6 +86,8 @@ class Task {
 
   // Called when the leaf that owns this task is created.
   void Attach(bess::LeafTrafficClass *c);
+
+  void AddToRun(bess::IGate *ig) const { subtasks_.push(ig); }
 
   Module *module() const { return module_; }
 
@@ -81,17 +102,6 @@ class Task {
 
   // Add a worker to the set of workers that call this task.
   void AddActiveWorker(int wid) const;
-
-  mutable std::queue<bess::IGate *> subtasks_;  // Subtasks to run
-
- private:
-  // Used by operator().
-  Module *module_;
-  void *arg_;                  // Auxiliary value passed to Module::RunTask().
-  bess::LeafTrafficClass *c_;  // Leaf TC associated with this task.
-
-  mutable bess::PacketBatch
-      dead_batch_;  // A packet batch for storing packets to free
 };
 
 #endif  // BESS_TASK_H_
