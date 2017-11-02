@@ -33,11 +33,7 @@
 CommandResponse Bypass::Init(const bess::pb::BypassArg &arg) {
   cycles_per_batch_ = arg.cycles_per_batch();
   cycles_per_packet_ = arg.cycles_per_packet();
-
   cycles_per_byte_ = arg.cycles_per_byte();
-  if (cycles_per_byte_ < 0) {
-    return CommandFailure(EINVAL, "Cycles must be equals to/greater than zero");
-  }
 
   return CommandSuccess();
 }

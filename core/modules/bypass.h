@@ -50,7 +50,7 @@ class Bypass final : public Module {
  private:
   uint32_t cycles_per_batch_;
   uint32_t cycles_per_packet_;
-  double cycles_per_byte_;
+  uint32_t cycles_per_byte_;
 };
 
 #endif  // BESS_MODULES_BYPASS_H_

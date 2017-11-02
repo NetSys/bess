@@ -460,7 +460,7 @@ message BufferArg {
 message BypassArg {
   uint32 cycles_per_batch = 1;
   uint32 cycles_per_packet = 2;
-  double cycles_per_byte = 3;
+  uint32 cycles_per_byte = 3;
 }
 
 /**
