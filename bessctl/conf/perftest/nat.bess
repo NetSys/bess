@@ -41,11 +41,15 @@ ip = scapy.IP(src='10.0.0.1', dst='192.168.1.1')
 udp = scapy.UDP(sport=10001, dport=10002)
 payload = 'helloworld'
 pkt_bytes = bytes(eth/ip/udp/payload)
+nat_config = [{'ext_addr': '1.1.1.1', \
+    'port_ranges': [{'begin': 0, 'end': 65535, 'usable': True}]}, \
+    {'ext_addr': '1.1.1.2', \
+    'port_ranges': [{'begin': 0, 'end': 65535, 'usable': True}]}]
 
 Source() \
     -> Rewrite(templates=[pkt_bytes]) \
     -> RandomUpdate(fields=[{'offset': 26, 'size': 4, 'min': 0x0a000001, 'max': 0x0a000001 + num_flows - 1}]) \
-    -> nat::NAT(ext_addrs=['1.1.1.1', '1.1.1.2'])
+    -> nat::NAT(ext_addrs=nat_config)
 
 if bidirectional:
     nat -> MACSwap() -> IPSwap() -> 1:nat:1 -> Sink()

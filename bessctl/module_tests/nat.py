@@ -86,21 +86,30 @@ class BessNatTest(BessModuleTestCase):
                                pkt_outs[1][0])
 
     def test_nat_udp(self):
-        nat = NAT(ext_addrs=['192.168.1.1'])
+        nat_config = [{'ext_addr': '192.168.1.1',
+                       'port_ranges': [{'begin': 0, 'end': 65535, 'usable': True}]}]
+        nat = NAT(ext_addrs=nat_config)
         self._test_l4(nat, scapy.UDP(sport=56797, dport=53), '192.168.1.1')
 
     def test_nat_udp_with_cksum(self):
-        nat = NAT(ext_addrs=['192.168.1.1'])
+        nat_config = [{'ext_addr': '192.168.1.1',
+                       'port_ranges': [{'begin': 0, 'end': 65535, 'usable': True}]}]
+        nat = NAT(ext_addrs=nat_config)
         self._test_l4(
             nat, scapy.UDP(sport=56797, dport=53, chksum=0), '192.168.1.1')
 
     def test_nat_tcp(self):
-        nat = NAT(ext_addrs=['192.168.1.1'])
+        nat_config = [{'ext_addr': '192.168.1.1',
+                       'port_ranges': [{'begin': 0, 'end': 65535, 'usable': True}]}]
+        nat = NAT(ext_addrs=nat_config)
         self._test_l4(nat, scapy.TCP(sport=52428, dport=80), '192.168.1.1')
 
     def test_nat_icmp(self):
-        nat = NAT(ext_addrs=['192.168.1.1'])
+        nat_config = [{'ext_addr': '192.168.1.1',
+                       'port_ranges': [{'begin': 0, 'end': 65535, 'usable': True}]}]
+        nat = NAT(ext_addrs=nat_config)
         self._test_l4(nat, scapy.ICMP(), '192.168.1.1')
+
 
 suite = unittest.TestLoader().loadTestsFromTestCase(BessNatTest)
 results = unittest.TextTestRunner(verbosity=2).run(suite)
