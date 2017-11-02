@@ -1,4 +1,4 @@
-// Copyright (c) 2014-2016, The Regents of the University of California.
+// Copyright (c) 2014-2017, The Regents of the University of California.
 // Copyright (c) 2016-2017, Nefeli Networks, Inc.
 // All rights reserved.
 //
@@ -30,7 +30,33 @@
 
 #include "bypass.h"
 
+CommandResponse Bypass::Init(const bess::pb::BypassArg &arg) {
+  cycles_per_batch_ = arg.cycles_per_batch();
+  cycles_per_packet_ = arg.cycles_per_packet();
+  cycles_per_byte_ = arg.cycles_per_byte();
+
+  return CommandSuccess();
+}
+
 void Bypass::ProcessBatch(bess::PacketBatch *batch) {
+  uint32_t cur_tsc = ctx.current_tsc();
+  uint32_t cycles = cycles_per_batch_ + cycles_per_packet_ * batch->cnt();
+
+  if (cycles_per_byte_) {
+    uint64_t total_bytes = 0;
+    for (int i = 0; i < batch->cnt(); i++) {
+      total_bytes = batch->pkts()[i]->total_len();
+    }
+    cycles += cycles_per_byte_ * total_bytes;
+  }
+
+  if (cycles) {
+    uint64_t target_tsc = cur_tsc + cycles;
+    // burn cycles until it comsumes target cycles
+    while (rdtsc() < target_tsc) {
+      _mm_pause();
+    }
+  }
   RunChooseModule(get_igate(), batch);
 }
 

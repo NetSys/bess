@@ -1,4 +1,4 @@
-// Copyright (c) 2014-2016, The Regents of the University of California.
+// Copyright (c) 2014-2017, The Regents of the University of California.
 // Copyright (c) 2016-2017, Nefeli Networks, Inc.
 // All rights reserved.
 //
@@ -42,7 +42,15 @@ class Bypass final : public Module {
   static const gate_idx_t kNumOGates = MAX_GATES;
 
   Bypass() { max_allowed_workers_ = Worker::kMaxWorkers; }
+
+  CommandResponse Init(const bess::pb::BypassArg &arg);
+
   void ProcessBatch(bess::PacketBatch *batch) override;
+
+ private:
+  uint32_t cycles_per_batch_;
+  uint32_t cycles_per_packet_;
+  uint32_t cycles_per_byte_;
 };
 
 #endif  // BESS_MODULES_BYPASS_H_
