@@ -67,14 +67,13 @@ CommandResponse NAT::Init(const bess::pb::NATArg &arg) {
     // Add a port range list
     std::list<PortRange> port_list;
     for (const auto &range : address_range.port_ranges()) {
-      port_list.emplace_back(PortRange{
-        begin : (uint16_t)range.begin(),
-        end : (uint16_t)range.end(),
-        // Range is not in use when first added.
-        in_use : false,
-        // Control plane gets to decide if it is usable.
-        usable : range.usable()
-      });
+      port_list.emplace_back(
+          PortRange{.begin = (uint16_t)range.begin(),
+                    .end = (uint16_t)range.end(),
+                    // Range is not in use when first added.
+                    .in_use = false,
+                    // Control plane gets to decide if it is usable.
+                    .usable = range.usable()});
     }
     port_ranges_.push_back(port_list);
   }
