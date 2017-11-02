@@ -176,8 +176,7 @@ class IGate : public Gate {
     return ogates_upstream_;
   }
 
-  void PushOgate(OGate *og) { ogates_upstream_.push_back(og); }
-
+  void PushOgate(OGate *og);
   void RemoveOgate(const OGate *og);
 
  private:
@@ -190,10 +189,7 @@ class OGate : public Gate {
   OGate(Module *m, gate_idx_t idx, Module *next)
       : Gate(m, idx), next_(next), igate_(), igate_idx_() {}
 
-  void SetIgate(IGate *ig) {
-    igate_ = ig;
-    igate_idx_ = ig->gate_idx();
-  }
+  void SetIgate(IGate *ig);
 
   IGate *igate() const { return igate_; }
   Module *next() const { return next_; }
