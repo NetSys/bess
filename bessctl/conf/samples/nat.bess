@@ -53,7 +53,7 @@ nat_config = [{'ext_addr': '192.168.0.1', \
     {'ext_addr': '192.168.0.2', \
     'port_ranges': [{'begin': 0, 'end': 65535, 'usable': True}]}]
 
-nat::NAT(ext_addrs=['192.168.0.1', '192.168.0.2'])
+nat::NAT(ext_addrs=nat_config)
 
 # Swap src/dst MAC
 mac::MACSwap()
