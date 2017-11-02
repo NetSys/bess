@@ -121,9 +121,9 @@ struct NatEntry {
 // Port ranges are used to scale out the NAT.
 struct PortRange {
   // Start of port range.
-  be16_t begin;
+  uint16_t begin;
   // End of port range.
-  be16_t end;
+  uint16_t end;
   // Is range actively in use, i.e., have we given out ports in this range.
   bool in_use;
   // Is range usable, i.e., can we safely give out ports.

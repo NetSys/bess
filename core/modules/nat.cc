@@ -68,8 +68,8 @@ CommandResponse NAT::Init(const bess::pb::NATArg &arg) {
     std::list<PortRange> port_list;
     for (const auto &range : address_range.port_ranges()) {
       port_list.emplace_back(PortRange{
-        begin : be16_t((uint16_t)range.begin()),
-        end : be16_t((uint16_t)range.end()),
+        begin : (uint16_t)range.begin(),
+        end : (uint16_t)range.end(),
         // Range is not in use when first added.
         in_use : false,
         // Control plane gets to decide if it is usable.
@@ -137,74 +137,88 @@ NAT::HashTable::Entry *NAT::CreateNewEntry(const Endpoint &src_internal,
   // An internal IP address is always mapped to the same external IP address,
   // in an deterministic manner (rfc4787 REQ-2)
   size_t hashed = rte_hash_crc(&src_internal.addr, sizeof(be32_t), 0);
-  src_external.addr = ext_addrs_[hashed % ext_addrs_.size()];
+  size_t ext_addr_index = hashed % ext_addrs_.size();
+  src_external.addr = ext_addrs_[ext_addr_index];
   src_external.protocol = src_internal.protocol;
 
-  uint16_t min;
-  uint16_t range;  // consider [min, min + range) port range
-
-  if (src_internal.protocol == IpProto::kIcmp) {
-    min = 0;
-    range = 65535;  // identifier 65535 won't be used, but who cares?
-  } else {
-    if (src_internal.port == be16_t(0)) {
-      // ignore port number 0
-      return nullptr;
-    } else if (src_internal.port & ~be16_t(1023)) {
-      min = 1024;
-      range = 65535 - min + 1;
-    } else {
-      // Privileged ports are mapped to privileged ports (rfc4787 REQ-5-a)
-      min = 1;
-      range = 1023;
+  for (auto port_range : port_ranges_[ext_addr_index]) {
+    uint16_t min;
+    uint16_t range;  // consider [min, min + range) port range
+    // Avoid allocation from an unusable range. We do this even when a range is
+    // already in use since we might want to reclaim it once flows die out.
+    if (!port_range.usable) {
+      continue;
     }
-  }
 
-  // Start from a random port, then do linear probing
-  uint16_t start_port = min + rng_.GetRange(range);
-  uint16_t port = start_port;
-  int trials = 0;
-
-  do {
-    src_external.port = be16_t(port);
-    auto *hash_reverse = map_.Find(src_external);
-    if (hash_reverse == nullptr) {
-    found:
-      // Found an available src_internal <-> src_external mapping
-      NatEntry forward_entry;
-      NatEntry reverse_entry;
-
-      reverse_entry.endpoint = src_internal;
-      map_.Insert(src_external, reverse_entry);
-
-      forward_entry.endpoint = src_external;
-      return map_.Insert(src_internal, forward_entry);
+    if (src_internal.protocol == IpProto::kIcmp) {
+      min = port_range.begin;
+      range = port_range.end - port_range.begin;
     } else {
-      // A':a' is not free, but it might have been expired.
-      // Check with the forward hash entry since timestamp refreshes only for
-      // forward direction.
-      auto *hash_forward = map_.Find(hash_reverse->second.endpoint);
-
-      // Forward and reverse entries must share the same lifespan.
-      DCHECK(hash_forward != nullptr);
-
-      if (now - hash_forward->second.last_refresh > kTimeOutNs) {
-        // Found an expired mapping. Remove A':a' <-> A'':a''...
-        map_.Remove(hash_forward->first);
-        map_.Remove(hash_reverse->first);
-        goto found;  // and go install A:a <-> A':a'
+      if (src_internal.port == be16_t(0)) {
+        // ignore port number 0
+        return nullptr;
+      } else if (src_internal.port & ~be16_t(1023)) {
+        if (port_range.end <= 1024u) {
+          continue;
+        }
+        min = std::max((uint16_t)1024, port_range.begin);
+        range = port_range.end - min + 1;
+      } else {
+        // Privileged ports are mapped to privileged ports (rfc4787 REQ-5-a)
+        if (port_range.begin >= 1023u) {
+          continue;
+        }
+        min = port_range.begin;
+        range = std::min((uint16_t)1023, port_range.end) - min;
       }
     }
 
-    port++;
-    trials++;
+    // Start from a random port, then do linear probing
+    uint16_t start_port = min + rng_.GetRange(range);
+    uint16_t port = start_port;
+    int trials = 0;
 
-    // Out of range? Also check if zero due to uint16_t overflow
-    if (port == 0 || port >= min + range) {
-      port = min;
-    }
-  } while (port != start_port && trials < kMaxTrials);
+    do {
+      src_external.port = be16_t(port);
+      auto *hash_reverse = map_.Find(src_external);
+      if (hash_reverse == nullptr) {
+      found:
+        // Found an available src_internal <-> src_external mapping
+        NatEntry forward_entry;
+        NatEntry reverse_entry;
 
+        reverse_entry.endpoint = src_internal;
+        map_.Insert(src_external, reverse_entry);
+
+        forward_entry.endpoint = src_external;
+        return map_.Insert(src_internal, forward_entry);
+      } else {
+        // A':a' is not free, but it might have been expired.
+        // Check with the forward hash entry since timestamp refreshes only for
+        // forward direction.
+        auto *hash_forward = map_.Find(hash_reverse->second.endpoint);
+
+        // Forward and reverse entries must share the same lifespan.
+        DCHECK(hash_forward != nullptr);
+
+        if (now - hash_forward->second.last_refresh > kTimeOutNs) {
+          // Found an expired mapping. Remove A':a' <-> A'':a''...
+          map_.Remove(hash_forward->first);
+          map_.Remove(hash_reverse->first);
+          goto found;  // and go install A:a <-> A':a'
+        }
+      }
+
+      port++;
+      trials++;
+
+      // Out of range? Also check if zero due to uint16_t overflow
+      if (port == 0 || port >= min + range) {
+        port = min;
+      }
+      // FIXME: Should not try for kMaxTrials.
+    } while (port != start_port && trials < kMaxTrials);
+  }
   return nullptr;
 }
 
