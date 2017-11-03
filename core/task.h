@@ -31,7 +31,6 @@
 #ifndef BESS_TASK_H_
 #define BESS_TASK_H_
 
-#include <queue>
 #include <string>
 
 #include "gate.h"
@@ -72,12 +71,23 @@ class Task {
   };
 
   mutable bess::utils::extended_priority_queue<bess::IGate *, IGateGreater>
-      subtasks_;  // Subtasks to run
+      igates_to_run_;               // A queue for IGates to run
+  mutable bess::IGate *next_gate_;  // Cache next module to run without merging
+                                    // Optimization for chain
+  mutable bess::PacketBatch
+      *next_batch_;  // cache to run next batch with next module
+
 
  public:
   // When this task is scheduled it will execute 'm' with 'arg'.  When the
   // associated leaf is created/destroyed, 'module_task' will be updated.
-  Task(Module *m, void *arg) : module_(m), arg_(arg), c_(nullptr) {
+  Task(Module *m, void *arg)
+      : module_(m),
+        arg_(arg),
+        c_(nullptr),
+        igates_to_run_(),
+        next_gate_(),
+        next_batch_() {
     dead_batch_.clear();
   }
 
@@ -87,7 +97,7 @@ class Task {
   // Called when the leaf that owns this task is created.
   void Attach(bess::LeafTrafficClass *c);
 
-  void AddToRun(bess::IGate *ig) const { subtasks_.push(ig); }
+  void AddToRun(bess::IGate *ig) const;
 
   Module *module() const { return module_; }
 
