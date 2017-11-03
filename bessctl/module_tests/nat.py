@@ -102,6 +102,18 @@ class BessNatTest(BessModuleTestCase):
         nat = NAT(ext_addrs=['192.168.1.1'])
         self._test_l4(nat, scapy.ICMP(), '192.168.1.1')
 
+    def test_nat_selfconfig(self):
+        # Send initial conf unsorted, see that it comes back sorted
+        # (note that this is a bit different from other modules
+        # where argument order often matters).
+        iconf = {'ext_addrs': ['0.1.2.3', '192.168.1.1', '3.2.1.0']}
+        nat = NAT(**iconf)
+        iconf['ext_addrs'].sort(key=lambda s: socket.inet_aton(s))
+        arg = pb_conv.protobuf_to_dict(nat.get_initial_arg())
+        expect_config = {}
+        cur_config = pb_conv.protobuf_to_dict(nat.get_runtime_config())
+        assert arg == iconf and cur_config == expect_config
+
 suite = unittest.TestLoader().loadTestsFromTestCase(BessNatTest)
 results = unittest.TextTestRunner(verbosity=2).run(suite)
 
