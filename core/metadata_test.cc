@@ -142,7 +142,7 @@ TEST_F(MetadataTest, DisconnectedFails) {
 TEST_F(MetadataTest, SingleAttrSimplePipe) {
   ASSERT_EQ(0, m0->AddMetadataAttr("a", 1, Attribute::AccessMode::kWrite));
   ASSERT_EQ(0, m1->AddMetadataAttr("a", 1, Attribute::AccessMode::kRead));
-  m0->ConnectModules(0, m1, 0);
+  ModuleGraph::ConnectModules(m0, 0, m1, 0);
 
   ASSERT_EQ(0, default_pipeline.ComputeMetadataOffsets());
 
@@ -158,7 +158,7 @@ TEST_F(MetadataTest, SingleAttrSimplePipeBackwardsFails) {
   ASSERT_EQ(0, m0->AddMetadataAttr("a", 1, Attribute::AccessMode::kRead));
   ASSERT_EQ(0, m1->AddMetadataAttr("a", 1, Attribute::AccessMode::kWrite));
 
-  m0->ConnectModules(0, m1, 0);
+  ModuleGraph::ConnectModules(m0, 0, m1, 0);
 
   ASSERT_EQ(0, default_pipeline.ComputeMetadataOffsets());
 
@@ -175,7 +175,7 @@ TEST_F(MetadataTest, MultipleAttrSimplePipeNoSpaceFails) {
     ASSERT_EQ(i, m0->AddMetadataAttr(s, sz, Attribute::AccessMode::kWrite));
     ASSERT_EQ(i, m1->AddMetadataAttr(s, sz, Attribute::AccessMode::kRead));
   }
-  m0->ConnectModules(0, m1, 0);
+  ModuleGraph::ConnectModules(m0, 0, m1, 0);
 
   ASSERT_EQ(0, default_pipeline.ComputeMetadataOffsets());
 
@@ -193,7 +193,7 @@ TEST_F(MetadataTest, MultipeAttrSimplePipe) {
   ASSERT_EQ(1, m1->AddMetadataAttr("b", 3, Attribute::AccessMode::kRead));
   ASSERT_EQ(2, m1->AddMetadataAttr("c", 5, Attribute::AccessMode::kRead));
   ASSERT_EQ(3, m1->AddMetadataAttr("d", 8, Attribute::AccessMode::kRead));
-  m0->ConnectModules(0, m1, 0);
+  ModuleGraph::ConnectModules(m0, 0, m1, 0);
 
   ASSERT_EQ(0, default_pipeline.ComputeMetadataOffsets());
 
@@ -236,16 +236,16 @@ TEST_F(MetadataTest, MultipeAttrComplexPipe) {
   mods[9]->AddMetadataAttr("foo", 2, Attribute::AccessMode::kRead);
   mods[9]->AddMetadataAttr("bar", 2, Attribute::AccessMode::kRead);
 
-  mods[0]->ConnectModules(0, mods[1], 0);
-  mods[1]->ConnectModules(0, mods[2], 0);
-  mods[1]->ConnectModules(1, mods[4], 0);
-  mods[0]->ConnectModules(1, mods[4], 0);
-  mods[3]->ConnectModules(0, mods[4], 0);
-  mods[4]->ConnectModules(0, mods[5], 0);
-  mods[5]->ConnectModules(0, mods[6], 0);
-  mods[7]->ConnectModules(0, mods[6], 0);
-  mods[7]->ConnectModules(1, mods[8], 0);
-  mods[8]->ConnectModules(0, mods[9], 0);
+  ModuleGraph::ConnectModules(mods[0], 0, mods[1], 0);
+  ModuleGraph::ConnectModules(mods[1], 0, mods[2], 0);
+  ModuleGraph::ConnectModules(mods[1], 1, mods[4], 0);
+  ModuleGraph::ConnectModules(mods[0], 1, mods[4], 0);
+  ModuleGraph::ConnectModules(mods[3], 0, mods[4], 0);
+  ModuleGraph::ConnectModules(mods[4], 0, mods[5], 0);
+  ModuleGraph::ConnectModules(mods[5], 0, mods[6], 0);
+  ModuleGraph::ConnectModules(mods[7], 0, mods[6], 0);
+  ModuleGraph::ConnectModules(mods[7], 1, mods[8], 0);
+  ModuleGraph::ConnectModules(mods[8], 0, mods[9], 0);
 
   ASSERT_EQ(0, default_pipeline.ComputeMetadataOffsets());
 
@@ -312,12 +312,12 @@ TEST_F(MetadataTest, ScopeComponentDegreeOrder) {
   m0->AddMetadataAttr("a", 4, Attribute::AccessMode::kWrite);
   m0->AddMetadataAttr("b", 4, Attribute::AccessMode::kWrite);
   m0->AddMetadataAttr("c", 4, Attribute::AccessMode::kWrite);
-  m0->ConnectModules(0, m1, 0);
+  ModuleGraph::ConnectModules(m0, 0, m1, 0);
 
   m1->AddMetadataAttr("a", 4, Attribute::AccessMode::kWrite);
   m1->AddMetadataAttr("b", 4, Attribute::AccessMode::kWrite);
   m1->AddMetadataAttr("c", 4, Attribute::AccessMode::kWrite);
-  m1->ConnectModules(0, m2, 0);
+  ModuleGraph::ConnectModules(m1, 0, m2, 0);
 
   m2->AddMetadataAttr("a", 4, Attribute::AccessMode::kRead);
   m2->AddMetadataAttr("b", 4, Attribute::AccessMode::kRead);
@@ -325,18 +325,18 @@ TEST_F(MetadataTest, ScopeComponentDegreeOrder) {
   m2->AddMetadataAttr("d", 4, Attribute::AccessMode::kWrite);
   m2->AddMetadataAttr("e", 4, Attribute::AccessMode::kWrite);
   m2->AddMetadataAttr("f", 1, Attribute::AccessMode::kWrite);
-  m2->ConnectModules(0, m3, 0);
+  ModuleGraph::ConnectModules(m2, 0, m3, 0);
 
   m3->AddMetadataAttr("d", 4, Attribute::AccessMode::kRead);
   m3->AddMetadataAttr("e", 4, Attribute::AccessMode::kRead);
   m3->AddMetadataAttr("f", 1, Attribute::AccessMode::kRead);
   m3->AddMetadataAttr("g", 4, Attribute::AccessMode::kWrite);
   m3->AddMetadataAttr("h", 2, Attribute::AccessMode::kWrite);
-  m3->ConnectModules(0, m4, 0);
+  ModuleGraph::ConnectModules(m3, 0, m4, 0);
 
   m4->AddMetadataAttr("i", 6, Attribute::AccessMode::kWrite);
   m4->AddMetadataAttr("j", 6, Attribute::AccessMode::kWrite);
-  m4->ConnectModules(0, m5, 0);
+  ModuleGraph::ConnectModules(m4, 0, m5, 0);
 
   m5->AddMetadataAttr("i", 6, Attribute::AccessMode::kRead);
   m5->AddMetadataAttr("j", 6, Attribute::AccessMode::kRead);

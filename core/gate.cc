@@ -108,6 +108,10 @@ void Gate::ClearHooks() {
   hooks_.clear();
 }
 
+void IGate::PushOgate(OGate *og) {
+  ogates_upstream_.push_back(og);
+}
+
 void IGate::RemoveOgate(const OGate *og) {
   for (auto it = ogates_upstream_.begin(); it != ogates_upstream_.end(); ++it) {
     if (*it == og) {
@@ -116,4 +120,10 @@ void IGate::RemoveOgate(const OGate *og) {
     }
   }
 }
+
+void OGate::SetIgate(IGate *ig) {
+  igate_ = ig;
+  igate_idx_ = ig->gate_idx();
+}
+
 }  // namespace bess

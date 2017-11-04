@@ -241,7 +241,7 @@ TEST_F(ModuleTester, ConnectModules) {
   ASSERT_NE(nullptr, m1 = create_acme("m1", &perr));
   ASSERT_NE(nullptr, m2 = create_acme("m2", &perr));
 
-  EXPECT_EQ(0, m1->ConnectModules(0, m2, 0));
+  EXPECT_EQ(0, ModuleGraph::ConnectModules(m1, 0, m2, 0));
   EXPECT_EQ(1, m1->ogates().size());
   EXPECT_EQ(m2, m1->ogates()[0]->igate()->module());
   EXPECT_EQ(1, m2->igates().size());
@@ -299,12 +299,14 @@ TEST_F(ModuleTester, GenerateTCGraph) {
   ASSERT_NE(nullptr, t2 = create_acme_with_task("t2", &perr));
   ASSERT_NE(nullptr, t3 = create_acme_with_task("t3", &perr));
   ASSERT_NE(nullptr, t4 = create_acme_with_task("t4", &perr));
-  EXPECT_EQ(0, t1->ConnectModules(0, m1, 0));
-  EXPECT_EQ(0, t1->ConnectModules(1, m2, 0));
-  EXPECT_EQ(0, m1->ConnectModules(0, t2, 0));
-  EXPECT_EQ(0, m2->ConnectModules(0, t3, 0));
-  EXPECT_EQ(0, m2->ConnectModules(1, m3, 0));
-  EXPECT_EQ(0, m3->ConnectModules(0, t4, 0));
+  EXPECT_EQ(0, ModuleGraph::ConnectModules(t1, 0, m1, 0));
+  EXPECT_EQ(0, ModuleGraph::ConnectModules(t1, 1, m2, 0));
+  EXPECT_EQ(0, ModuleGraph::ConnectModules(m1, 0, t2, 0));
+  EXPECT_EQ(0, ModuleGraph::ConnectModules(m2, 0, t3, 0));
+  EXPECT_EQ(0, ModuleGraph::ConnectModules(m2, 1, m3, 0));
+  EXPECT_EQ(0, ModuleGraph::ConnectModules(m3, 0, t4, 0));
+
+  ModuleGraph::UpdateTaskGraph();
 
   EXPECT_EQ(0, t1->parent_tasks().size());
   EXPECT_EQ(1, t2->parent_tasks().size());
@@ -323,6 +325,9 @@ TEST_F(ModuleTester, GenerateTCGraph) {
   ASSERT_EQ(0, t1->children_overload());
 
   ModuleGraph::DestroyModule(t1, true);
+  ModuleGraph::CleanTaskGraph();
+  ModuleGraph::UpdateTaskGraph();
+
   EXPECT_EQ(0, t2->parent_tasks().size());
   EXPECT_EQ(0, t3->parent_tasks().size());
   EXPECT_EQ(0, t4->parent_tasks().size());

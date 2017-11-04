@@ -36,8 +36,6 @@
 #include <sstream>
 
 #include "gate.h"
-#include "gate_hooks/tcpdump.h"
-#include "gate_hooks/track.h"
 #include "mem_alloc.h"
 #include "module_graph.h"
 #include "scheduler.h"
@@ -164,28 +162,6 @@ task_id_t Module::RegisterTask(void *arg) {
   return tasks_.size() - 1;
 }
 
-void Module::DestroyAllTasks() {
-  for (auto task : tasks_) {
-    auto c = task->GetTC();
-
-    int wid = c->WorkerId();
-    if (wid >= 0) {
-      bess::Scheduler *s = workers[wid]->scheduler();
-      s->wakeup_queue().Remove(c);
-    }
-
-    CHECK(detach_tc(c));
-    delete c;
-  }
-  tasks_.clear();
-}
-
-void Module::DeregisterAllAttributes() {
-  for (const auto &it : attrs_) {
-    pipeline_->DeregisterAttribute(it.name);
-  }
-}
-
 placement_constraint Module::ComputePlacementConstraints(
     std::unordered_set<const Module *> *visited) const {
   // Take the constraints we have.
@@ -300,22 +276,8 @@ int Module::AddMetadataAttr(const std::string &name, size_t size,
   return attrs_.size() - 1;
 }
 
-/* returns -errno if fails */
-int Module::ConnectModules(gate_idx_t ogate_idx, Module *m_next,
-                           gate_idx_t igate_idx) {
-  bess::OGate *ogate;
-  bess::IGate *igate;
-
-  if (ogate_idx >= module_builder_->NumOGates() || ogate_idx >= MAX_GATES) {
-    return -EINVAL;
-  }
-
-  if (igate_idx >= m_next->module_builder()->NumIGates() ||
-      igate_idx >= MAX_GATES) {
-    return -EINVAL;
-  }
-
-  /* already being used? */
+int Module::ConnectGate(gate_idx_t ogate_idx, Module *m_next,
+                        gate_idx_t igate_idx) {
   if (is_active_gate<bess::OGate>(ogates_, ogate_idx)) {
     return -EBUSY;
   }
@@ -324,60 +286,46 @@ int Module::ConnectModules(gate_idx_t ogate_idx, Module *m_next,
     ogates_.resize(ogate_idx + 1, nullptr);
   }
 
-  ogate = new bess::OGate(this, ogate_idx, m_next);
-  if (!ogate) {
-    return -ENOMEM;
-  }
-  ogates_[ogate_idx] = ogate;
-
   if (igate_idx >= m_next->igates_.size()) {
     m_next->igates_.resize(igate_idx + 1, nullptr);
   }
 
+  bess::OGate *ogate = new bess::OGate(this, ogate_idx, m_next);
+  if (!ogate) {
+    return -ENOMEM;
+  }
+
+  bess::IGate *igate;
   if (m_next->igates_[igate_idx] == nullptr) {
     igate = new bess::IGate(m_next, igate_idx);
+    if (igate == nullptr) {
+      return -ENOMEM;
+    }
     m_next->igates_[igate_idx] = igate;
   } else {
     igate = m_next->igates_[igate_idx];
   }
 
-  ogate->set_igate(igate);
-  ogate->set_igate_idx(igate_idx);
+  ogates_[ogate_idx] = ogate;
 
-  // Gate tracking is enabled by default
-  ogate->AddHook(new Track());
-  igate->PushOgate(ogate);
+  ogate->SetIgate(igate);  // an ogate allowed to be connected to a single igate
+  igate->PushOgate(ogate);  // an igate can connected to multiple ogates
 
-  // Update graph
-  return !ModuleGraph::AddEdge(name_, m_next->name_);
+  return 0;
 }
 
-int Module::DisconnectModules(gate_idx_t ogate_idx) {
-  bess::OGate *ogate;
-  bess::IGate *igate;
-
-  if (ogate_idx >= module_builder_->NumOGates()) {
-    return -EINVAL;
-  }
-
-  /* no error even if the ogate is unconnected already */
+int Module::DisconnectGate(gate_idx_t ogate_idx) {
   if (!is_active_gate<bess::OGate>(ogates_, ogate_idx)) {
     return 0;
   }
 
-  ogate = ogates_[ogate_idx];
-  if (!ogate) {
+  bess::OGate *ogate = ogates_[ogate_idx];
+  if (ogate == nullptr) {
     return 0;
   }
 
-  igate = ogate->igate();
+  bess::IGate *igate = ogate->igate();
 
-  // Remove edge in module graph.
-  if (!ModuleGraph::RemoveEdge(name_, igate->module()->name_)) {
-    return 1;
-  }
-
-  /* Does the igate become inactive as well? */
   igate->RemoveOgate(ogate);
   if (igate->ogates_upstream().empty()) {
     Module *m_next = igate->module();
@@ -389,43 +337,6 @@ int Module::DisconnectModules(gate_idx_t ogate_idx) {
   ogates_[ogate_idx] = nullptr;
   ogate->ClearHooks();
   delete ogate;
-
-  return 0;
-}
-
-int Module::DisconnectModulesUpstream(gate_idx_t igate_idx) {
-  bess::IGate *igate;
-
-  if (igate_idx >= module_builder_->NumIGates()) {
-    return -EINVAL;
-  }
-
-  /* no error even if the igate is unconnected already */
-  if (!is_active_gate<bess::IGate>(igates_, igate_idx)) {
-    return 0;
-  }
-
-  igate = igates_[igate_idx];
-  if (!igate) {
-    return 0;
-  }
-
-  for (const auto &ogate : igate->ogates_upstream()) {
-    Module *m_prev = ogate->module();
-    m_prev->ogates_[ogate->gate_idx()] = nullptr;
-    ogate->ClearHooks();
-
-    // Remove edge in module graph
-    if (!ModuleGraph::RemoveEdge(ogate->module()->name_, name_)) {
-      return 1;
-    }
-
-    delete ogate;
-  }
-
-  igates_[igate_idx] = nullptr;
-  igate->ClearHooks();
-  delete igate;
 
   return 0;
 }
@@ -469,6 +380,76 @@ void Module::RunSplit(const gate_idx_t *out_gates,
   // phase 3: fire
   for (int i = 0; i < num_pending; i++)
     RunChooseModule(pending[i], &batches[i]);
+}
+
+void Module::Destroy() {
+  // Per-module de-initialization
+  DeInit();
+
+  // disconnect from upstream modules.
+  for (size_t i = 0; i < igates_.size(); i++) {
+    DisconnectModulesUpstream(i);
+  }
+
+  // disconnect downstream modules
+  for (size_t i = 0; i < ogates_.size(); i++) {
+    int ret = DisconnectGate(i);
+    CHECK_EQ(ret, 0);
+  }
+
+  DestroyAllTasks();
+  DeregisterAllAttributes();
+}
+
+void Module::DisconnectModulesUpstream(gate_idx_t igate_idx) {
+  bess::IGate *igate;
+
+  CHECK_LT(igate_idx, module_builder_->NumIGates());
+
+  /* no error even if the igate is unconnected already */
+  if (!is_active_gate<bess::IGate>(igates_, igate_idx)) {
+    return;
+  }
+
+  igate = igates_[igate_idx];
+  if (igate == nullptr) {
+    return;
+  }
+
+  for (const auto &ogate : igate->ogates_upstream()) {
+    Module *m_prev = ogate->module();
+    m_prev->ogates_[ogate->gate_idx()] = nullptr;
+    ogate->ClearHooks();
+
+    delete ogate;
+  }
+
+  igates_[igate_idx] = nullptr;
+  igate->ClearHooks();
+  delete igate;
+
+  return;
+}
+void Module::DestroyAllTasks() {
+  for (auto task : tasks_) {
+    auto c = task->GetTC();
+
+    int wid = c->WorkerId();
+    if (wid >= 0) {
+      bess::Scheduler *s = workers[wid]->scheduler();
+      s->wakeup_queue().Remove(c);
+    }
+
+    CHECK(detach_tc(c));
+    delete c;
+  }
+  tasks_.clear();
+}
+
+void Module::DeregisterAllAttributes() {
+  for (const auto &it : attrs_) {
+    pipeline_->DeregisterAttribute(it.name);
+  }
 }
 
 #if SN_TRACE_MODULES

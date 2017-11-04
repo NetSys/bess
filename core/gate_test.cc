@@ -104,8 +104,7 @@ TEST(HookTest, Track) {
 }
 
 TEST_F(IOGateTest, OGate) {
-  og->set_igate(ig);
-  og->set_igate_idx(0);
+  og->SetIgate(ig);
   ASSERT_EQ(ig, og->igate());
   ASSERT_EQ(0, og->igate_idx());
 }

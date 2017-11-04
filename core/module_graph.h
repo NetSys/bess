@@ -36,39 +36,15 @@
 #include <unordered_map>
 #include <unordered_set>
 
+#include "gate.h"
 #include "message.h"
 #include "metadata.h"
 #include "utils/common.h"
 
+using bess::gate_idx_t;
+
 class Module;
 class ModuleBuilder;
-
-// Represents a node in `module_graph_`.
-class Node {
- public:
-  // Creates a new Node that represents `module_`.
-  Node(Module *module) : module_(module), children_() {}
-
-  // Add a child to the node.
-  bool AddChild(const std::string &child) {
-    return children_.insert(child).second;
-  }
-
-  // Remove a child from the node.
-  void RemoveChild(const std::string &child) { children_.erase(child); }
-
-  const Module *module() const { return module_; }
-  const std::unordered_set<std::string> &children() const { return children_; }
-
- private:
-  // Module that this Node represents.
-  Module *module_;
-
-  // Children of `module_` in the pipeline.
-  std::unordered_set<std::string> children_;
-
-  DISALLOW_COPY_AND_ASSIGN(Node);
-};
 
 // Manages a global graph of modules
 class ModuleGraph {
@@ -76,52 +52,48 @@ class ModuleGraph {
   // Return true if any module from the builder exists
   static bool HasModuleOfClass(const ModuleBuilder *);
 
-  // Creates a module to the graph.
+  // Creates a module.
   static Module *CreateModule(const ModuleBuilder &builder,
                               const std::string &module_name,
                               const google::protobuf::Any &arg,
                               pb_error_t *perr);
 
-  // Removes a module to the graph. Returns 0 on success, -errno
+  // Removes a module. Returns 0 on success, -errno
   // otherwise.
-  static int DestroyModule(Module *m, bool erase = true);
+  static void DestroyModule(Module *m, bool erase = true);
   static void DestroyAllModules();
+
+  static int ConnectModules(Module *module, gate_idx_t ogate_idx,
+                            Module *m_next, gate_idx_t igate_idx);
+  static int DisconnectModule(Module *module, gate_idx_t ogate_idx);
 
   static const std::map<std::string, Module *> &GetAllModules();
 
   static std::string GenerateDefaultName(const std::string &class_name,
                                          const std::string &default_template);
 
-  // Connects two modules (`to` and `from`) together in `module_graph_`.
-  static bool AddEdge(const std::string &from, const std::string &to);
+  // Updates the parents of tasks
+  static void UpdateTaskGraph();
 
-  // Disconnects two modules (`to` and `from`) together in `module_graph_`.
-  static bool RemoveEdge(const std::string &from, const std::string &to);
+  // Cleans the parents of modules
+  static void CleanTaskGraph();
+
+  // Update information about what workers are accessing what module
+  static void PropagateActiveWorker();
 
  private:
-  // Updates the parents of modules with tasks by traversing `module_graph_` and
-  // ignoring all modules that are not tasks.
-  static bool UpdateTaskGraph();
-
-  // Finds the next module that implements a task along the pipeline.
-  // If if find any, then the current task becomes the parent of the next task.
-  static bool FindNextTask(const std::string &node_name,
-                           const std::string &parent_name,
-                           std::unordered_set<std::string> *visited);
-
-  // A graph of all the modules in the current pipeline.
-  static std::unordered_map<std::string, Node> module_graph_;
+  static void UpdateParentsAs(Module *parent_task, Module *module,
+                              std::unordered_set<Module *> &visited_modules);
+  static void UpdateSingleTaskGraph(Module *module);
 
   // All modules that are tasks in the current pipeline.
   static std::unordered_set<std::string> tasks_;
 
   // All modules
   static std::map<std::string, Module *> all_modules_;
-};
 
-/*!
- * Update information about what workers are accessing what module.
- */
-void propagate_active_worker();
+  // Check if any changes on module graphs
+  static bool changes_made_;
+};
 
 #endif

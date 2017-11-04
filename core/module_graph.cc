@@ -32,60 +32,78 @@
 
 #include <glog/logging.h>
 
+#include "gate_hooks/track.h"
 #include "module.h"
 
 std::map<std::string, Module *> ModuleGraph::all_modules_;
-std::unordered_map<std::string, Node> ModuleGraph::module_graph_;
 std::unordered_set<std::string> ModuleGraph::tasks_;
+bool ModuleGraph::changes_made_ = false;
 
-bool ModuleGraph::FindNextTask(const std::string &node_name,
-                               const std::string &parent_name,
-                               std::unordered_set<std::string> *visited) {
-  visited->insert(node_name);
-  // While traversing the module graph, if `node` is in the task graph and is
-  // not `parent`, then it must be  the child of `parent`.
-  if (node_name != parent_name && tasks_.find(node_name) != tasks_.end()) {
-    auto parent_it = all_modules_.find(parent_name);
-    auto node_it = all_modules_.find(node_name);
-    if (parent_it == all_modules_.end() || node_it == all_modules_.end()) {
-      return false;
-    }
+void ModuleGraph::UpdateParentsAs(
+    Module *task, Module *module,
+    std::unordered_set<Module *> &visited_modules) {
+  visited_modules.insert(module);
 
-    Module *node = node_it->second;
-    Module *parent = parent_it->second;
-    for (Module *it : node->parent_tasks_) {
-      if (it == parent) {
-        return true;
+  if (module->is_task()) {
+    module->AddParentTask(task);
+    return;
+  } else {
+    std::vector<bess::OGate *> ogates = module->ogates();
+    for (size_t i = 0; i < ogates.size(); i++) {
+      if (!ogates[i]) {
+        break;
       }
-    }
-    node->parent_tasks_.push_back(parent);
-    return true;
-  }
-
-  auto node_it = module_graph_.find(node_name);
-  if (node_it == module_graph_.end()) {
-    return false;
-  }
-
-  for (auto &child_name : node_it->second.children()) {
-    if (visited->count(child_name) > 0) {
-      continue;
-    }
-    if (!FindNextTask(child_name, parent_name, visited)) {
-      return false;
+      Module *child = ogates[i]->igate()->module();
+      if (visited_modules.count(child) != 0) {
+        continue;
+      }
+      UpdateParentsAs(task, child, visited_modules);
     }
   }
-  return true;
 }
 
-bool ModuleGraph::UpdateTaskGraph() {
+void ModuleGraph::UpdateSingleTaskGraph(Module *task_module) {
+  std::unordered_set<Module *> visited_modules;
+  visited_modules.insert(task_module);
+
+  std::vector<bess::OGate *> ogates = task_module->ogates();
+  for (size_t i = 0; i < ogates.size(); i++) {
+    if (!ogates[i]) {
+      break;
+    }
+
+    Module *child = ogates[i]->igate()->module();
+    if (visited_modules.count(child) != 0) {
+      continue;
+    }
+
+    UpdateParentsAs(task_module, child, visited_modules);
+  }
+}
+
+void ModuleGraph::UpdateTaskGraph() {
+  if (!changes_made_)
+    return;
+
+  CleanTaskGraph();
+
   for (auto const &task : tasks_) {
-    std::unordered_set<std::string> visited;
-    if (!FindNextTask(task, task, &visited)) {
-      return false;
+    auto it = all_modules_.find(task);
+    if (it != all_modules_.end()) {
+      UpdateSingleTaskGraph(it->second);
     }
   }
-  return true;
+
+  changes_made_ = false;
+}
+
+void ModuleGraph::CleanTaskGraph() {
+  for (auto const &task : tasks_) {
+    auto it = all_modules_.find(task);
+    if (it != all_modules_.end()) {
+      it->second->ClearParentTasks();
+    }
+  }
 }
 
 const std::map<std::string, Module *> &ModuleGraph::GetAllModules() {
@@ -99,33 +117,6 @@ bool ModuleGraph::HasModuleOfClass(const ModuleBuilder *builder) {
     }
   }
   return false;
-}
-
-bool ModuleGraph::AddEdge(const std::string &from, const std::string &to) {
-  auto from_it = module_graph_.find(from);
-  if (from_it == module_graph_.end() || module_graph_.count(to) == 0) {
-    return false;
-  }
-  from_it->second.AddChild(to);
-  return UpdateTaskGraph();
-}
-
-bool ModuleGraph::RemoveEdge(const std::string &from, const std::string &to) {
-  auto from_node = module_graph_.find(from);
-  if (from_node == module_graph_.end() || module_graph_.count(to) == 0) {
-    return false;
-  }
-
-  from_node->second.RemoveChild(to);
-
-  // We need to regenerate the task graph.
-  for (auto const &task : tasks_) {
-    auto it = all_modules_.find(task);
-    if (it != all_modules_.end()) {
-      it->second->parent_tasks_.clear();
-    }
-  }
-  return UpdateTaskGraph();
 }
 
 // Creates a module to the graph.
@@ -153,7 +144,7 @@ Module *ModuleGraph::CreateModule(const ModuleBuilder &builder,
     return nullptr;
   }
 
-  if (m->is_task_) {
+  if (m->is_task()) {
     if (!tasks_.insert(m->name()).second) {
       *perr = pb_errno(ENOMEM);
       delete m;
@@ -168,71 +159,70 @@ Module *ModuleGraph::CreateModule(const ModuleBuilder &builder,
     return nullptr;
   }
 
-  module_added =
-      module_graph_
-          .emplace(std::piecewise_construct, std::forward_as_tuple(m->name()),
-                   std::forward_as_tuple(m))
-          .second;
-  if (!module_added) {
-    *perr = pb_errno(ENOMEM);
-    delete m;
-    return nullptr;
-  }
-
   return m;
 }
 
-int ModuleGraph::DestroyModule(Module *m, bool erase) {
-  int ret;
-  m->DeInit();
+void ModuleGraph::DestroyModule(Module *m, bool erase) {
+  changes_made_ = true;
 
-  // disconnect from upstream modules.
-  for (size_t i = 0; i < m->igates_.size(); i++) {
-    ret = m->DisconnectModulesUpstream(i);
-    if (ret) {
-      delete m;
-      return ret;
-    }
-  }
-
-  // disconnect downstream modules
-  for (size_t i = 0; i < m->ogates_.size(); i++) {
-    ret = m->DisconnectModules(i);
-    if (ret) {
-      delete m;
-      return ret;
-    }
-  }
-
-  m->DestroyAllTasks();
-  m->DeregisterAllAttributes();
+  m->Destroy();
 
   if (erase) {
     all_modules_.erase(m->name());
   }
 
-  module_graph_.erase(m->name());
-  if (m->is_task_) {
+  if (m->is_task()) {
     tasks_.erase(m->name());
   }
 
   delete m;
-  return 0;
 }
 
 void ModuleGraph::DestroyAllModules() {
-  int ret;
+  changes_made_ = true;
+
   for (auto it = all_modules_.begin(); it != all_modules_.end();) {
     auto it_next = std::next(it);
-    ret = DestroyModule(it->second, false);
-    if (ret) {
-      LOG(ERROR) << "Error destroying module '" << it->first
-                 << "' (errno = " << ret << ")";
-    } else {
-      all_modules_.erase(it);
-    }
+    DestroyModule(it->second, false);
+    all_modules_.erase(it);
     it = it_next;
   }
+}
+
+int ModuleGraph::ConnectModules(Module *module, gate_idx_t ogate_idx,
+                                Module *m_next, gate_idx_t igate_idx) {
+  if (ogate_idx >= module->module_builder()->NumOGates() ||
+      ogate_idx >= MAX_GATES) {
+    return -EINVAL;
+  }
+
+  if (igate_idx >= m_next->module_builder()->NumIGates() ||
+      igate_idx >= MAX_GATES) {
+    return -EINVAL;
+  }
+
+  changes_made_ = true;
+
+  int ret = module->ConnectGate(ogate_idx, m_next, igate_idx);
+  if (ret != 0)
+    return ret;
+
+  // Gate tracking is enabled by default
+  module->ogates()[ogate_idx]->AddHook(new Track());
+
+  return 0;
+}
+
+int ModuleGraph::DisconnectModule(Module *module, gate_idx_t ogate_idx) {
+  if (ogate_idx >= module->module_builder()->NumOGates()) {
+    return -EINVAL;
+  }
+
+  changes_made_ = true;
+
+  module->DisconnectGate(ogate_idx);
+
+  return 0;
 }
 
 std::string ModuleGraph::GenerateDefaultName(
@@ -266,8 +256,8 @@ std::string ModuleGraph::GenerateDefaultName(
   promise_unreachable();
 }
 
-void propagate_active_worker() {
-  for (auto &pair : ModuleGraph::GetAllModules()) {
+void ModuleGraph::PropagateActiveWorker() {
+  for (auto &pair : all_modules_) {
     Module *m = pair.second;
     m->ResetActiveWorkerSet();
   }
