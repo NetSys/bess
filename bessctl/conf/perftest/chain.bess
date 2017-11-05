@@ -34,11 +34,17 @@ from test_utils import *
 psize = int($BESS_PKT_SIZE!'60')
 print('Using packet size %d (envvar "BESS_PKT_SIZE")' % psize)
 
+c_batch = int($C_BATCH!'1000')
+c_packet = int($C_PACKET!'50')
+c_byte = int($C_BYTE!'0')
+
 def create_pipeline(chain_len):
     last = Source(pkt_size=psize)
 
     for i in range(chain_len):
-        now = Bypass()
+        now = Bypass(cycles_per_batch=c_batch,
+                     cycles_per_packet=c_packet,
+                     cycles_per_byte=c_byte)
         last -> now
         last = now
 
@@ -48,7 +54,8 @@ def create_pipeline(chain_len):
 for chain_len in [1, 2, 4, 8, 16, 32]:
     create_pipeline(chain_len)
     sys.stdout.write("Chain/%2d " % chain_len)
+    bess.track_module('', False)
     bess.resume_all()
-    measure_tc_perf(bess, 5)
+    measure_tc_perf(bess, 3)
     bess.pause_all()
     bess.reset_all()
