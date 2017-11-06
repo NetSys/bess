@@ -79,7 +79,7 @@ class TCWeightedFair : public benchmark::Fixture {
       std::string name("class_" + std::to_string(i));
       LeafTrafficClass *c =
           TrafficClassBuilder::CreateTrafficClass<LeafTrafficClass>(
-              name, Task(dummy_, nullptr));
+              name, new Task(dummy_, nullptr));
 
       resource_share_t share = 1;
       CHECK(weighted->AddChild(c, share));
@@ -178,7 +178,7 @@ class TCRoundRobin : public benchmark::Fixture {
       std::string name("class_" + std::to_string(i));
       LeafTrafficClass *c =
           TrafficClassBuilder::CreateTrafficClass<LeafTrafficClass>(
-              name, Task(dummy_, nullptr));
+              name, new Task(dummy_, nullptr));
 
       CHECK(rr->AddChild(c));
     }

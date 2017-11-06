@@ -53,6 +53,15 @@ using bess::utils::ChecksumIncrement32;
 using bess::utils::UpdateChecksumWithIncrement;
 using bess::utils::UpdateChecksum16;
 
+const Commands NAT::cmds = {
+    {"get_initial_arg", "EmptyArg", MODULE_CMD_FUNC(&NAT::GetInitialArg),
+     Command::THREAD_SAFE},
+    {"get_runtime_config", "EmptyArg", MODULE_CMD_FUNC(&NAT::GetRuntimeConfig),
+     Command::THREAD_SAFE},
+    {"set_runtime_config", "EmptyArg", MODULE_CMD_FUNC(&NAT::SetRuntimeConfig),
+     Command::THREAD_SAFE}};
+
+// TODO(torek): move this to set/get runtime config
 CommandResponse NAT::Init(const bess::pb::NATArg &arg) {
   for (const auto &address_range : arg.ext_addrs()) {
     auto ext_addr = address_range.ext_addr();
@@ -83,6 +92,32 @@ CommandResponse NAT::Init(const bess::pb::NATArg &arg) {
                           "at least one external IP address must be specified");
   }
 
+  // Sort so that GetInitialArg is predictable and consistent.
+  std::sort(ext_addrs_.begin(), ext_addrs_.end());
+
+  return CommandSuccess();
+}
+
+CommandResponse NAT::GetInitialArg(const bess::pb::EmptyArg &) {
+  bess::pb::NATArg resp;
+  for (size_t i = 0; i < ext_addrs_.size(); i++) {
+     auto ext = resp.add_ext_addrs();
+     ext->set_ext_addr(ToIpv4Address(ext_addrs_[i]));
+     for (auto irange : port_ranges_[i]) {
+         auto erange = ext->add_port_ranges();
+         erange->set_begin((uint32_t)irange.begin);
+         erange->set_end((uint32_t)irange.end);
+         erange->set_usable(irange.usable);
+     }
+  }
+  return CommandSuccess(resp);
+}
+
+CommandResponse NAT::GetRuntimeConfig(const bess::pb::EmptyArg &) {
+  return CommandSuccess();
+}
+
+CommandResponse NAT::SetRuntimeConfig(const bess::pb::EmptyArg &) {
   return CommandSuccess();
 }
 
