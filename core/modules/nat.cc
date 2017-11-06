@@ -101,14 +101,14 @@ CommandResponse NAT::Init(const bess::pb::NATArg &arg) {
 CommandResponse NAT::GetInitialArg(const bess::pb::EmptyArg &) {
   bess::pb::NATArg resp;
   for (size_t i = 0; i < ext_addrs_.size(); i++) {
-     auto ext = resp.add_ext_addrs();
-     ext->set_ext_addr(ToIpv4Address(ext_addrs_[i]));
-     for (auto irange : port_ranges_[i]) {
-         auto erange = ext->add_port_ranges();
-         erange->set_begin((uint32_t)irange.begin);
-         erange->set_end((uint32_t)irange.end);
-         erange->set_usable(irange.usable);
-     }
+    auto ext = resp.add_ext_addrs();
+    ext->set_ext_addr(ToIpv4Address(ext_addrs_[i]));
+    for (auto irange : port_ranges_[i]) {
+      auto erange = ext->add_port_ranges();
+      erange->set_begin((uint32_t)irange.begin);
+      erange->set_end((uint32_t)irange.end);
+      erange->set_usable(irange.usable);
+    }
   }
   return CommandSuccess(resp);
 }
