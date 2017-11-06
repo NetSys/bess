@@ -663,7 +663,7 @@ message NATArg {
   message PortRange {
     uint32 begin = 1;
     uint32 end = 2;
-    bool usable = 3;
+    bool suspended = 3;
   }
   message ExternalAddress {
     string ext_addr = 1;

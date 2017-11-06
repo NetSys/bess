@@ -122,12 +122,10 @@ struct NatEntry {
 struct PortRange {
   // Start of port range.
   uint16_t begin;
-  // End of port range.
+  // End of port range (exclusive).
   uint16_t end;
-  // Is range actively in use, i.e., have we given out ports in this range.
-  bool in_use;
   // Is range usable, i.e., can we safely give out ports.
-  bool usable;
+  bool suspended;
 };
 
 // NAT module. 2 igates and 2 ogates
@@ -174,7 +172,7 @@ class NAT final : public Module {
 
   // Port ranges available for each address. The first index is the same as the
   // ext_addrs_ range.
-  std::vector<std::list<PortRange>> port_ranges_;
+  std::vector<std::vector<PortRange>> port_ranges_;
 
   HashTable map_;
   Random rng_;

@@ -63,6 +63,17 @@ const Commands NAT::cmds = {
 
 // TODO(torek): move this to set/get runtime config
 CommandResponse NAT::Init(const bess::pb::NATArg &arg) {
+  // Check before committing any changes.
+  for (const auto &address_range : arg.ext_addrs()) {
+    for (const auto &range : address_range.port_ranges()) {
+      if (range.begin() >= range.end() || range.begin() > UINT16_MAX ||
+          range.end() > UINT16_MAX) {
+        return CommandFailure(EINVAL, "Port range for address %s is malformed",
+                              address_range.ext_addr().c_str());
+      }
+    }
+  }
+
   for (const auto &address_range : arg.ext_addrs()) {
     auto ext_addr = address_range.ext_addr();
     be32_t addr;
@@ -74,15 +85,18 @@ CommandResponse NAT::Init(const bess::pb::NATArg &arg) {
 
     ext_addrs_.push_back(addr);
     // Add a port range list
-    std::list<PortRange> port_list;
+    std::vector<PortRange> port_list;
+    if (address_range.port_ranges().size() == 0) {
+      port_list.emplace_back(PortRange{
+          .begin = 0u, .end = 65535u, .suspended = false,
+      });
+    }
     for (const auto &range : address_range.port_ranges()) {
-      port_list.emplace_back(
-          PortRange{.begin = (uint16_t)range.begin(),
-                    .end = (uint16_t)range.end(),
-                    // Range is not in use when first added.
-                    .in_use = false,
-                    // Control plane gets to decide if it is usable.
-                    .usable = range.usable()});
+      port_list.emplace_back(PortRange{
+          .begin = (uint16_t)range.begin(),
+          .end = (uint16_t)range.end(),
+          // Control plane gets to decide if the port range can be used.
+          .suspended = range.suspended()});
     }
     port_ranges_.push_back(port_list);
   }
@@ -107,7 +121,7 @@ CommandResponse NAT::GetInitialArg(const bess::pb::EmptyArg &) {
       auto erange = ext->add_port_ranges();
       erange->set_begin((uint32_t)irange.begin);
       erange->set_end((uint32_t)irange.end);
-      erange->set_usable(irange.usable);
+      erange->set_suspended(irange.suspended);
     }
   }
   return CommandSuccess(resp);
@@ -175,12 +189,12 @@ NAT::HashTable::Entry *NAT::CreateNewEntry(const Endpoint &src_internal,
   src_external.addr = ext_addrs_[ext_addr_index];
   src_external.protocol = src_internal.protocol;
 
-  for (auto port_range : port_ranges_[ext_addr_index]) {
+  for (const auto &port_range : port_ranges_[ext_addr_index]) {
     uint16_t min;
     uint16_t range;  // consider [min, min + range) port range
     // Avoid allocation from an unusable range. We do this even when a range is
     // already in use since we might want to reclaim it once flows die out.
-    if (!port_range.usable) {
+    if (port_range.suspended) {
       continue;
     }
 
