@@ -41,10 +41,7 @@ ip = scapy.IP(src='10.0.0.1', dst='192.168.1.1')
 udp = scapy.UDP(sport=10001, dport=10002)
 payload = 'helloworld'
 pkt_bytes = bytes(eth/ip/udp/payload)
-nat_config = [{'ext_addr': '1.1.1.1', \
-    'port_ranges': [{'begin': 0, 'end': 65535, 'suspended': False}]}, \
-    {'ext_addr': '1.1.1.2', \
-    'port_ranges': [{'begin': 0, 'end': 65535, 'suspended': False}]}]
+nat_config = [{'ext_addr': '1.1.1.1'}, {'ext_addr': '1.1.1.2'}]
 
 Source() \
     -> Rewrite(templates=[pkt_bytes]) \

@@ -51,8 +51,7 @@ class BessModuleConstraintTest(BessModuleTestCase):
         self.assertFalse(bess.check_constraints())
 
     def test_nat(self):
-        nat_config = [{'ext_addr': '192.168.1.1',
-                       'port_ranges': [{'begin': 0, 'end': 65535, 'suspended': False}]}]
+        nat_config = [{'ext_addr': '192.168.1.1'}]
         # From nat.bess -- check that revisiting the same module works
         # correctly.
         nat = NAT(ext_addrs=nat_config)
@@ -68,8 +67,7 @@ class BessModuleConstraintTest(BessModuleTestCase):
         self.assertFalse(bess.check_constraints())
 
     def test_nat_queue(self):
-        nat_config = [{'ext_addr': '192.168.1.1',
-                       'port_ranges': [{'begin': 0, 'end': 65535, 'suspended': False}]}]
+        nat_config = [{'ext_addr': '192.168.1.1'}]
         # Check a combination.
         nat = NAT(ext_addrs=nat_config)
 
@@ -81,8 +79,7 @@ class BessModuleConstraintTest(BessModuleTestCase):
         self.assertFalse(bess.check_constraints())
 
     def test_nat_negative(self):
-        nat_config = [{'ext_addr': '192.168.1.1',
-                       'port_ranges': [{'begin': 0, 'end': 65535, 'suspended': False}]}]
+        nat_config = [{'ext_addr': '192.168.1.1'}]
         src0 = Source()
         src1 = Source()
         bess.add_worker(0, 0)
