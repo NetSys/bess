@@ -118,6 +118,16 @@ struct NatEntry {
   uint64_t last_refresh;  // in nanoseconds (ctx.current_ns)
 };
 
+// Port ranges are used to scale out the NAT.
+struct PortRange {
+  // Start of port range.
+  uint16_t begin;
+  // End of port range (exclusive).
+  uint16_t end;
+  // Is range usable, i.e., can we safely give out ports.
+  bool suspended;
+};
+
 // NAT module. 2 igates and 2 ogates
 // igate/ogate 0: forward dir
 // igate/ogate 1: reverse dir
@@ -159,6 +169,10 @@ class NAT final : public Module {
   void DoProcessBatch(bess::PacketBatch *batch);
 
   std::vector<be32_t> ext_addrs_;
+
+  // Port ranges available for each address. The first index is the same as the
+  // ext_addrs_ range.
+  std::vector<std::vector<PortRange>> port_ranges_;
 
   HashTable map_;
   Random rng_;

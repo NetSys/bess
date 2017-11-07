@@ -30,6 +30,7 @@
 
 from test_utils import *
 
+
 class BessModuleConstraintTest(BessModuleTestCase):
 
     def test_queue(self):
@@ -50,8 +51,10 @@ class BessModuleConstraintTest(BessModuleTestCase):
         self.assertFalse(bess.check_constraints())
 
     def test_nat(self):
-        # From nat.bess -- check that revisiting the same module works correctly.
-        nat = NAT(ext_addrs=['192.168.1.1'])
+        nat_config = [{'ext_addr': '192.168.1.1'}]
+        # From nat.bess -- check that revisiting the same module works
+        # correctly.
+        nat = NAT(ext_addrs=nat_config)
 
         # Swap src/dst MAC
         mac = MACSwap()
@@ -60,35 +63,36 @@ class BessModuleConstraintTest(BessModuleTestCase):
         ip = IPSwap()
 
         Source() -> 0:nat:0 -> mac -> ip -> 1:nat:1 -> Sink()
-        
+
         self.assertFalse(bess.check_constraints())
 
-
     def test_nat_queue(self):
+        nat_config = [{'ext_addr': '192.168.1.1'}]
         # Check a combination.
-        nat = NAT(ext_addrs=['192.168.1.1'])
+        nat = NAT(ext_addrs=nat_config)
 
         # Swap src/dst IP addresses / ports
         ip = IPSwap()
 
         Source() -> 0:nat:0 -> Queue() -> ip -> 1:nat:1 -> Sink()
-        
+
         self.assertFalse(bess.check_constraints())
 
-
     def test_nat_negative(self):
+        nat_config = [{'ext_addr': '192.168.1.1'}]
         src0 = Source()
         src1 = Source()
         bess.add_worker(0, 0)
         bess.add_worker(1, 1)
-        nat = NAT(ext_addrs=['192.168.1.1'])
-        src0 -> 0:nat:0 -> Sink()
-        src1 -> 1:nat:1 -> Sink()
+        nat = NAT(ext_addrs=nat_config)
+        src0 -> 0: nat: 0 -> Sink()
+        src1 -> 1: nat: 1 -> Sink()
         src0.attach_task(wid=0)
         src1.attach_task(wid=1)
 
         with self.assertRaises(bess.ConstraintError):
             bess.check_constraints()
+
 
 suite = unittest.TestLoader().loadTestsFromTestCase(BessModuleConstraintTest)
 results = unittest.TextTestRunner(verbosity=2).run(suite)
