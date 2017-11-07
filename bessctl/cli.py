@@ -85,7 +85,7 @@ class CLI(object):
 
         # Colorize output to standard error
         if ferr is None:
-            if sys.stderr.isatty():
+            if os.environ.get('TERM') != 'dumb' and sys.stderr.isatty():
                 self.ferr = ColorizedOutput(sys.stderr, '\033[31m')  # dark red
             else:
                 self.ferr = sys.stderr
