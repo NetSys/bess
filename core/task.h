@@ -77,7 +77,6 @@ class Task {
   mutable bess::PacketBatch
       *next_batch_;  // cache to run next batch with next module
 
-
  public:
   // When this task is scheduled it will execute 'm' with 'arg'.  When the
   // associated leaf is created/destroyed, 'module_task' will be updated.
@@ -98,6 +97,7 @@ class Task {
   void Attach(bess::LeafTrafficClass *c);
 
   void AddToRun(bess::IGate *ig) const;
+  void AddToRun(bess::IGate *ig, bess::PacketBatch *batch) const;
 
   Module *module() const { return module_; }
 
