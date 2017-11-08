@@ -967,8 +967,11 @@ message UpdateArg {
  * The URLFilter performs TCP reconstruction over a flow and blocks
  * connections which mention a banned URL.
  *
- * __Input Gates__: 1
+ * __Input Gates__: 2
  * __Output Gates__: 2
+ *
+ * Note that the add() command takes this same argument, and the
+ * clear() command takes an empty argument.
  */
 message UrlFilterArg {
   /**
@@ -979,6 +982,16 @@ message UrlFilterArg {
     string path = 2;  /// Path prefix, e.g. "/"
   }
   repeated Url blacklist = 1; /// A list of Urls to block.
+}
+
+/**
+ * The runtime configuration of a URLFilter is the current
+ * blacklist.  This means that getting the Arg gets an *empty*
+ * list: we assume anyone using get_initial_arg is also using
+ * get_runtime_config.
+ */
+message UrlFilterConfig {
+  repeated UrlFilterArg.Url blacklist = 1;
 }
 
 /**
