@@ -443,7 +443,7 @@ class alignas(64) Module {
 static inline void deadend(bess::PacketBatch *batch) {
   ctx.incr_silent_drops(batch->cnt());
   bess::Packet::Free(batch);
-  ctx.free_batch(batch);
+  // ctx.free_batch(batch);
 }
 
 inline void Module::RunChooseModule(const Task *task, gate_idx_t ogate_idx,
@@ -451,7 +451,7 @@ inline void Module::RunChooseModule(const Task *task, gate_idx_t ogate_idx,
   bess::OGate *ogate;
 
   if (unlikely(batch->cnt() <= 0)) {
-    ctx.free_batch(batch);
+    // ctx.free_batch(batch);
     return;
   }
 
@@ -471,8 +471,7 @@ inline void Module::RunChooseModule(const Task *task, gate_idx_t ogate_idx,
     hook->ProcessBatch(batch);
   }
 
-  ogate->igate()->AddPacketBatch(batch);
-  task->AddToRun(ogate->igate());
+  task->AddToRun(ogate->igate(), batch);
 }
 
 inline void Module::RunNextModule(const Task *task, bess::PacketBatch *batch) {
