@@ -91,8 +91,8 @@ struct[[gnu::packed]] PacketTemplate {
   }
 };
 
-static const char *HTTP_HEADER_HOST = "Host";
-static const char *HTTP_403_BODY =
+static const char HTTP_HEADER_HOST[] = "Host";
+static const char HTTP_403_BODY[] =
     "HTTP/1.1 403 Bad Forbidden\r\nConnection: Closed\r\n\r\n";
 
 static PacketTemplate rst_template;
@@ -107,12 +107,12 @@ inline static bess::Packet *Generate403Packet(const Ethernet::Address &src_eth,
   char *ptr = static_cast<char *>(pkt->buffer()) + SNBUF_HEADROOM;
   pkt->set_data_off(SNBUF_HEADROOM);
 
-  size_t len = strlen(HTTP_403_BODY);
+  constexpr size_t len = sizeof(HTTP_403_BODY) - 1;
   pkt->set_total_len(sizeof(rst_template) + len);
   pkt->set_data_len(sizeof(rst_template) + len);
 
   bess::utils::Copy(ptr, &rst_template, sizeof(rst_template));
-  bess::utils::Copy(ptr + sizeof(rst_template), HTTP_403_BODY, len, true);
+  bess::utils::Copy(ptr + sizeof(rst_template), HTTP_403_BODY, len);
 
   Ethernet *eth = reinterpret_cast<Ethernet *>(ptr);
   Ipv4 *ip = reinterpret_cast<Ipv4 *>(eth + 1);
@@ -149,7 +149,7 @@ inline static bess::Packet *GenerateResetPacket(
   pkt->set_total_len(sizeof(rst_template));
   pkt->set_data_len(sizeof(rst_template));
 
-  bess::utils::Copy(ptr, &rst_template, sizeof(rst_template), true);
+  bess::utils::Copy(ptr, &rst_template, sizeof(rst_template));
 
   Ethernet *eth = reinterpret_cast<Ethernet *>(ptr);
   Ipv4 *ip = reinterpret_cast<Ipv4 *>(eth + 1);
