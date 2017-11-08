@@ -318,8 +318,11 @@ message QueueCommandGetStatusArg {}
  * size.
  */
 message QueueCommandGetStatusResponse {
-  uint64 count = 1; /// The number of packets currently in the queue.
-  uint64 size = 2;  /// The maximum number of packets the queue can contain.
+  uint64 count = 1;    /// The number of packets currently in the queue.
+  uint64 size = 2;     /// The maximum number of packets the queue can contain.
+  uint64 enqueued = 3; /// total enqueued
+  uint64 dequeued = 4; /// total dequeued
+  uint64 dropped = 5;  /// total dropped
 }
 
 /**

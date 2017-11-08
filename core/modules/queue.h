@@ -47,7 +47,8 @@ class Queue : public Module {
         burst_(),
         size_(),
         high_water_(),
-        low_water_() {
+        low_water_(),
+        stats_() {
     is_task_ = true;
     propagate_workers_ = false;
     max_allowed_workers_ = Worker::kMaxWorkers;
@@ -96,6 +97,13 @@ class Queue : public Module {
 
   // Low water occupancy
   uint64_t low_water_;
+
+  // Accumulated statistics counters
+  struct {
+    uint64_t enqueued;
+    uint64_t dequeued;
+    uint64_t dropped;
+  } stats_;
 };
 
 #endif  // BESS_MODULES_QUEUE_H_
