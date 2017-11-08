@@ -97,7 +97,7 @@ CommandResponse Queue::Init(const bess::pb::QueueArg &arg) {
   burst_ = bess::PacketBatch::kMaxBurst;
 
   if (arg.backpressure()) {
-    LOG(INFO) << "Backpressure enabled";
+    VLOG(1) << "Backpressure enabled for " << name() << "::Queue";
     backpressure_ = true;
   }
 
@@ -146,8 +146,12 @@ void Queue::ProcessBatch(bess::PacketBatch *batch) {
     SignalOverload();
   }
 
+  stats_.enqueued += queued;
+
   if (queued < batch->cnt()) {
-    bess::Packet::Free(batch->pkts() + queued, batch->cnt() - queued);
+    int to_drop = batch->cnt() - queued;
+    stats_.dropped += to_drop;
+    bess::Packet::Free(batch->pkts() + queued, to_drop);
   }
 }
 
@@ -172,6 +176,7 @@ struct task_result Queue::RunTask(void *) {
     return {.block = true, .packets = 0, .bits = 0};
   }
 
+  stats_.dequeued += cnt;
   batch.set_cnt(cnt);
 
   if (prefetch_) {
@@ -237,6 +242,9 @@ CommandResponse Queue::CommandGetStatus(
   bess::pb::QueueCommandGetStatusResponse resp;
   resp.set_count(llring_count(queue_));
   resp.set_size(size_);
+  resp.set_enqueued(stats_.enqueued);
+  resp.set_dequeued(stats_.dequeued);
+  resp.set_dropped(stats_.dropped);
   return CommandSuccess(resp);
 }
 
