@@ -38,6 +38,10 @@ c_batch = int($C_BATCH!'1000')
 c_packet = int($C_PACKET!'50')
 c_byte = int($C_BYTE!'0')
 
+cycle_conf = {'cycles_per_batch': c_batch,
+        'cycles_per_packet': c_packet,
+        'cycles_per_byte': c_byte}
+
 def create_pipeline(child_cnt, tree_depth):
     splits = []
     src = Source(pkt_size=psize)
@@ -59,9 +63,7 @@ def create_pipeline(child_cnt, tree_depth):
     for p in range(pow(child_cnt, tree_depth-1)): # number of parents at depth d
         for c in range(child_cnt): # for each parent connect child
             splits[pidx]:c \
-                    -> Bypass(cycles_per_batch=c_batch,
-                              cycles_per_packet=c_packet,
-                              cycles_per_byte=c_byte) \
+                    -> Bypass(**cycle_conf) \
                     -> Sink()
             cidx += 1
         pidx += 1

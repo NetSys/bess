@@ -38,13 +38,15 @@ c_batch = int($C_BATCH!'1000')
 c_packet = int($C_PACKET!'50')
 c_byte = int($C_BYTE!'0')
 
+cycle_conf = {'cycles_per_batch': c_batch,
+        'cycles_per_packet': c_packet,
+        'cycles_per_byte': c_byte}
+
 def create_pipeline(chain_len):
     last = Source(pkt_size=psize)
 
     for i in range(chain_len):
-        now = Bypass(cycles_per_batch=c_batch,
-                     cycles_per_packet=c_packet,
-                     cycles_per_byte=c_byte)
+        now = Bypass(**cycle_conf)
         last -> now
         last = now
 
