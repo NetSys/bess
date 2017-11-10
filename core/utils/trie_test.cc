@@ -216,4 +216,27 @@ TEST(TrieTest, Copy) {
   EXPECT_EQ(trie2.Lookup("Hello World").second, 2);
 }
 
+// Test the Dump() operation
+TEST(TrieTest, Dump) {
+  Trie<int32_t> trie;
+
+  // Dump order is raw-key sorted (ASCII sort, shorter before longer).
+  std::vector<Trie<int32_t>::DumpedEntry> expected_results = {
+      std::make_tuple("", 1, true),
+      std::make_tuple("12", 4, false),
+      std::make_tuple("Hel", 2, false),
+      std::make_tuple("Hello", 3, true),
+      std::make_tuple("Hello World", 5, true),
+  };
+
+  // Dump order should not depend on insert order.
+  trie.Insert("Hello World", 5, true);
+  trie.Insert("12", 4, false);
+  trie.Insert("", 1, true);
+  trie.Insert("Hel", 2, false);
+  trie.Insert("Hello", 3, true);
+
+  EXPECT_EQ(expected_results, trie.Dump());
+}
+
 }  // namespace (unnamed)

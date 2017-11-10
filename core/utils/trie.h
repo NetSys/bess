@@ -34,6 +34,7 @@
 #include <memory>
 #include <string>
 #include <utility>
+#include <vector>
 
 namespace bess {
 namespace utils {
@@ -100,8 +101,29 @@ class Trie {
   // Returns a pair whose first element is false if the key is not found.
   std::pair<bool, T> Lookup(const std::string& key);
 
+  // Return entire contents of trie as <key,value,prefix_flag> tuples.
+  // This is a sort of poor man's iterator; iterating on a trie takes
+  // a lot of stack space or a lot of time, so we just turn this into
+  // a complete list of all entries.
+  //
+  // Note that we include an instance of T, not a ref to the one stored
+  // in each Node (which itself is a copy of the one passed by reference
+  // originally).  This whole data structure could probably stand some
+  // improvement.
+  using DumpedEntry = std::tuple<const std::string, T, bool>;
+
+  std::vector<DumpedEntry> Dump() const {
+    std::vector<DumpedEntry> ret;
+    std::string prelude;
+    RecursiveDump(&root_, &prelude, &ret);
+    return ret;
+  }
+
  private:
   Node root_;
+
+  void RecursiveDump(const Node* node, std::string* prelude,
+                     std::vector<DumpedEntry>* ret) const;
 };
 
 template <typename T>
@@ -191,6 +213,26 @@ inline std::pair<bool, T> Trie<T>::Lookup(const std::string& key) {
     return {true, prefix_match->val};
   } else {
     return {false, T()};
+  }
+}
+
+// Handle this level of the trie.  If we're a prefix or leaf, we
+// include ourselves.  Then we look at all children (the
+// existence of children implies that we're an interior node for
+// some longer string; prefix||leaf implies exterior node as well;
+// this is kind of an odd data structure).
+template <typename T>
+void Trie<T>::RecursiveDump(const Node* node, std::string* prelude,
+                            std::vector<DumpedEntry>* ret) const {
+  if (node->leaf || node->prefix) {
+    ret->push_back(std::make_tuple(*prelude, node->val, node->prefix));
+  }
+  for (int i = 0; i < 256; i++) {
+    if (node->children[i]) {
+      prelude->push_back(i);
+      RecursiveDump(node->children[i].get(), prelude, ret);
+      prelude->pop_back();
+    }
   }
 }
 

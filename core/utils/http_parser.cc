@@ -68,12 +68,13 @@
     return NULL;        \
   }
 
+#define RANGES2_LENGTH (2 * 2) /* 2 pairs of start <= byte <= end */
 #define ADVANCE_TOKEN(tok, toklen)                                            \
   do {                                                                        \
     const char *tok_start = buf;                                              \
-    static const char ALIGNED(16) ranges2[] = "\000\040\177\177";             \
+    static const char ALIGNED(16) ranges2[16] = "\000\040\177\177";           \
     int found2;                                                               \
-    buf = findchar_fast(buf, buf_end, ranges2, sizeof(ranges2) - 1, &found2); \
+    buf = findchar_fast(buf, buf_end, ranges2, RANGES2_LENGTH, &found2);      \
     if (!found2) {                                                            \
       CHECK_EOF();                                                            \
     }                                                                         \
@@ -103,6 +104,8 @@ static const char *token_char_map =
     "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"
     "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0";
 
+// Note: SSE version of findchar_fast always reads 16 bytes
+// out of ranges, and ranges_size must be even and between 2 and 16.
 static const char *findchar_fast(const char *buf, const char *buf_end,
                                  const char *ranges, size_t ranges_size,
                                  int *found) {
@@ -141,7 +144,8 @@ static const char *get_token_to_eol(const char *buf, const char *buf_end,
   const char *token_start = buf;
 
 #ifdef __SSE4_2__
-  static const char ranges1[] =
+#define RANGES1_LENGTH (3 * 2) /* 3 pairs of start <= byte <= end */
+  static const char ALIGNED(16) ranges1[16] =
       "\0\010"
       /* allow HT */
       "\012\037"
@@ -150,7 +154,7 @@ static const char *get_token_to_eol(const char *buf, const char *buf_end,
       /* allow chars w. MSB set */
       ;
   int found;
-  buf = findchar_fast(buf, buf_end, ranges1, sizeof(ranges1) - 1, &found);
+  buf = findchar_fast(buf, buf_end, ranges1, RANGES1_LENGTH, &found);
   if (found)
     goto FOUND_CTL;
 #else
@@ -293,7 +297,7 @@ static const char *parse_headers(const char *buf, const char *buf_end,
       /* parsing name, but do not discard SP before colon, see
        * http://www.mozilla.org/security/announce/2006/mfsa2006-33.html */
       headers[*num_headers].name = buf;
-      static const char ranges1[] __attribute__((aligned(16))) =
+      static const char ranges1[] ALIGNED(16) =
           "\x00 "  /* control chars and up to SP */
           "\"\""   /* 0x22 */
           "()"     /* 0x28,0x29 */
@@ -303,7 +307,7 @@ static const char *parse_headers(const char *buf, const char *buf_end,
           "[]"     /* 0x5b-0x5d */
           "{\377"; /* 0x7b-0xff */
       int found;
-      buf = findchar_fast(buf, buf_end, ranges1, sizeof(ranges1) - 1, &found);
+      buf = findchar_fast(buf, buf_end, ranges1, sizeof ranges1 - 1, &found);
       if (!found) {
         CHECK_EOF();
       }

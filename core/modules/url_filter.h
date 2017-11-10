@@ -91,13 +91,16 @@ struct FlowHash {
 
 class FlowRecord {
  public:
-  FlowRecord() : buffer_(128), expiry_time_(0) {}
+  FlowRecord() : done_analyzing_(false), buffer_(128), expiry_time_(0) {}
 
+  bool IsAnalyzed() { return done_analyzing_; }
+  void SetAnalyzed() { done_analyzing_ = true; }
   TcpFlowReconstruct &GetBuffer() { return buffer_; }
   uint64_t ExpiryTime() { return expiry_time_; }
   void SetExpiryTime(uint64_t time) { expiry_time_ = time; }
 
  private:
+  bool done_analyzing_;
   TcpFlowReconstruct buffer_;
   uint64_t expiry_time_;
 };
@@ -118,8 +121,13 @@ class UrlFilter final : public Module {
 
   void ProcessBatch(bess::PacketBatch *batch) override;
 
+  std::string GetDesc() const override;
+
   CommandResponse CommandAdd(const bess::pb::UrlFilterArg &arg);
   CommandResponse CommandClear(const bess::pb::EmptyArg &arg);
+  CommandResponse GetInitialArg(const bess::pb::EmptyArg &arg);
+  CommandResponse GetRuntimeConfig(const bess::pb::EmptyArg &arg);
+  CommandResponse SetRuntimeConfig(const bess::pb::UrlFilterConfig &arg);
 
  private:
   std::unordered_map<std::string, Trie<std::tuple<>>> blacklist_;

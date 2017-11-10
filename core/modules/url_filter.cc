@@ -34,6 +34,7 @@
 
 #include "../utils/checksum.h"
 #include "../utils/ether.h"
+#include "../utils/format.h"
 #include "../utils/http_parser.h"
 #include "../utils/ip.h"
 
@@ -45,6 +46,12 @@ using bess::utils::be16_t;
 const uint64_t TIME_OUT_NS = 10ull * 1000 * 1000 * 1000;  // 10 seconds
 
 const Commands UrlFilter::cmds = {
+    {"get_initial_arg", "EmptyArg", MODULE_CMD_FUNC(&UrlFilter::GetInitialArg),
+     Command::THREAD_SAFE},
+    {"get_runtime_config", "EmptyArg",
+     MODULE_CMD_FUNC(&UrlFilter::GetRuntimeConfig), Command::THREAD_SAFE},
+    {"set_runtime_config", "UrlFilterConfig",
+     MODULE_CMD_FUNC(&UrlFilter::SetRuntimeConfig), Command::THREAD_UNSAFE},
     {"add", "UrlFilterArg", MODULE_CMD_FUNC(&UrlFilter::CommandAdd),
      Command::THREAD_UNSAFE},
     {"clear", "EmptyArg", MODULE_CMD_FUNC(&UrlFilter::CommandClear),
@@ -64,7 +71,7 @@ struct[[gnu::packed]] PacketTemplate {
     ip.header_length = 5;
     ip.type_of_service = 0;
     ip.length = be16_t(40);
-    ip.id = be16_t(0);
+    ip.id = be16_t(0);  // To fill in
     ip.fragment_offset = be16_t(0);
     ip.ttl = 0x40;
     ip.protocol = Ipv4::Proto::kTcp;
@@ -84,8 +91,8 @@ struct[[gnu::packed]] PacketTemplate {
   }
 };
 
-static const char *HTTP_HEADER_HOST = "Host";
-static const char *HTTP_403_BODY =
+static const char HTTP_HEADER_HOST[] = "Host";
+static const char HTTP_403_BODY[] =
     "HTTP/1.1 403 Bad Forbidden\r\nConnection: Closed\r\n\r\n";
 
 static PacketTemplate rst_template;
@@ -100,12 +107,12 @@ inline static bess::Packet *Generate403Packet(const Ethernet::Address &src_eth,
   char *ptr = static_cast<char *>(pkt->buffer()) + SNBUF_HEADROOM;
   pkt->set_data_off(SNBUF_HEADROOM);
 
-  size_t len = strlen(HTTP_403_BODY);
+  constexpr size_t len = sizeof(HTTP_403_BODY) - 1;
   pkt->set_total_len(sizeof(rst_template) + len);
   pkt->set_data_len(sizeof(rst_template) + len);
 
   bess::utils::Copy(ptr, &rst_template, sizeof(rst_template));
-  bess::utils::Copy(ptr + sizeof(rst_template), HTTP_403_BODY, len, true);
+  bess::utils::Copy(ptr + sizeof(rst_template), HTTP_403_BODY, len);
 
   Ethernet *eth = reinterpret_cast<Ethernet *>(ptr);
   Ipv4 *ip = reinterpret_cast<Ipv4 *>(eth + 1);
@@ -114,6 +121,7 @@ inline static bess::Packet *Generate403Packet(const Ethernet::Address &src_eth,
 
   eth->dst_addr = dst_eth;
   eth->src_addr = src_eth;
+  ip->id = be16_t(1);  // assumes the SYN packet used ID 0
   ip->src = src_ip;
   ip->dst = dst_ip;
   ip->length = be16_t(40 + len);
@@ -141,7 +149,7 @@ inline static bess::Packet *GenerateResetPacket(
   pkt->set_total_len(sizeof(rst_template));
   pkt->set_data_len(sizeof(rst_template));
 
-  bess::utils::Copy(ptr, &rst_template, sizeof(rst_template), true);
+  bess::utils::Copy(ptr, &rst_template, sizeof(rst_template));
 
   Ethernet *eth = reinterpret_cast<Ethernet *>(ptr);
   Ipv4 *ip = reinterpret_cast<Ipv4 *>(eth + 1);
@@ -150,6 +158,7 @@ inline static bess::Packet *GenerateResetPacket(
 
   eth->dst_addr = dst_eth;
   eth->src_addr = src_eth;
+  ip->id = be16_t(2);  // assumes the 403 used ID 1
   ip->src = src_ip;
   ip->dst = dst_ip;
   tcp->src_port = src_port;
@@ -166,11 +175,6 @@ inline static bess::Packet *GenerateResetPacket(
 
 CommandResponse UrlFilter::Init(const bess::pb::UrlFilterArg &arg) {
   for (const auto &url : arg.blacklist()) {
-    if (blacklist_.find(url.host()) == blacklist_.end()) {
-      blacklist_.emplace(std::piecewise_construct,
-                         std::forward_as_tuple(url.host()),
-                         std::forward_as_tuple());
-    }
     blacklist_[url.host()].Insert(url.path(), {});
   }
   return CommandSuccess();
@@ -183,7 +187,50 @@ CommandResponse UrlFilter::CommandAdd(const bess::pb::UrlFilterArg &arg) {
 
 CommandResponse UrlFilter::CommandClear(const bess::pb::EmptyArg &) {
   blacklist_.clear();
-  return CommandResponse();
+  return CommandSuccess();
+}
+
+// Retrieves an argument that would re-create this module in
+// such a way that SetRuntimeConfig would build the same one.
+CommandResponse UrlFilter::GetInitialArg(const bess::pb::EmptyArg &) {
+  bess::pb::UrlFilterArg resp;
+  // Our return value is empty since we return
+  // the current blacklist as the runtime config.
+  return CommandSuccess(resp);
+}
+
+// Retrieves a configuration that will restore this module.
+CommandResponse UrlFilter::GetRuntimeConfig(const bess::pb::EmptyArg &) {
+  bess::pb::UrlFilterConfig resp;
+  using rule_t = bess::pb::UrlFilterArg_Url;
+  for (const auto &it : blacklist_) {
+    auto entries = it.second.Dump();
+    for (auto entry : entries) {
+      rule_t *hp = resp.add_blacklist();
+      hp->set_host(it.first);
+      hp->set_path(std::get<0>(entry));
+      // For now, ignore get<1> and get<2>, which are
+      // the tuple and the prefix boolean, respectively.
+      // The tuple is (currently) always empty and the boolean
+      // is (currently) always false -- see the .Insert() above.
+    }
+  }
+  // Dump() is sorted, but blacklist_ is not: we use a
+  // stable sort to just sort by the host as the outer key.
+  std::stable_sort(
+      resp.mutable_blacklist()->begin(), resp.mutable_blacklist()->end(),
+      [](const rule_t &a, const rule_t &b) { return a.host() < b.host(); });
+  return CommandSuccess(resp);
+}
+
+// Restores the module's configuration.
+CommandResponse UrlFilter::SetRuntimeConfig(
+    const bess::pb::UrlFilterConfig &arg) {
+  blacklist_.clear();
+  for (const auto &url : arg.blacklist()) {
+    blacklist_[url.host()].Insert(url.path(), {});
+  }
+  return CommandSuccess();
 }
 
 void UrlFilter::ProcessBatch(bess::PacketBatch *batch) {
@@ -234,34 +281,58 @@ void UrlFilter::ProcessBatch(bess::PacketBatch *batch) {
 
     uint64_t now = ctx.current_ns();
 
-    // Check if the flow is already blocked
+    // Find existing flow, if we have one.
     std::unordered_map<Flow, FlowRecord, FlowHash>::iterator it =
         flow_cache_.find(flow);
 
     if (it != flow_cache_.end()) {
-      if (now < it->second.ExpiryTime()) {
+      if (now >= it->second.ExpiryTime()) {
+        // Discard old flow and start over.
+        flow_cache_.erase(it);
+        it = flow_cache_.end();
+      } else if (it->second.IsAnalyzed()) {
+        // Once we're finished analyzing, we only record *blocked* flows.
+        // Continue blocking this flow for TIME_OUT_NS more ns.
+        it->second.SetExpiryTime(now + TIME_OUT_NS);
         free_batch.add(pkt);
         continue;
-      } else {
-        flow_cache_.erase(it);
       }
     }
 
-    std::tie(it, std::ignore) = flow_cache_.emplace(
-        std::piecewise_construct, std::make_tuple(flow), std::make_tuple());
+    if (it == flow_cache_.end()) {
+      // Don't have a flow, or threw an aged one out.  If there's no
+      // SYN in this packet the reconstruct code will fail.  This is
+      // a common case (for any flow that got analyzed and allowed);
+      // skip a pointless emplace/erase pair for such packets.
+      if (tcp->flags & Tcp::Flag::kSyn) {
+        std::tie(it, std::ignore) = flow_cache_.emplace(
+            std::piecewise_construct, std::make_tuple(flow), std::make_tuple());
+      } else {
+        out_batches[0].add(pkt);
+        continue;
+      }
+    }
 
     FlowRecord &record = it->second;
     TcpFlowReconstruct &buffer = record.GetBuffer();
 
-    // If the reconstruct code indicates failure, treat it as a flow to pass.
-    // No need to parse the headers if the reconstruct code tells us it failed.
+    // If the reconstruct code indicates failure, treat this
+    // as a flow to pass.  Note: we only get failure if there is
+    // something seriously wrong; we get success if there are holes
+    // in the data (in which case the contiguous_len() below is short).
     bool success = buffer.InsertPacket(pkt);
     if (!success) {
       VLOG(1) << "Reconstruction failure";
+      flow_cache_.erase(it);
       out_batches[0].add(pkt);
       continue;
     }
 
+    // Have something on this flow; keep it alive for a while longer.
+    record.SetExpiryTime(now + TIME_OUT_NS);
+
+    // We are by definition still analyzing.  See if we can determine
+    // the final disposition of this flow.
     bool matched = false;
     struct phr_header headers[16];
     size_t num_headers = 16, method_len, path_len;
@@ -290,15 +361,17 @@ void UrlFilter::ProcessBatch(bess::PacketBatch *batch) {
     if (!matched) {
       out_batches[0].add(pkt);
 
-      // If FIN is observed, no need to reconstruct this flow
+      // Once FIN is observed, or we've seen all the headers and decided
+      // to pass the flow, there is no more need to reconstruct the flow.
       // NOTE: if FIN is lost on its way to destination, this will simply pass
-      // the retransmitted packet
-      if (tcp->flags & Tcp::Flag::kFin) {
+      // the retransmitted packet.
+      if (parse_result != -2 || (tcp->flags & Tcp::Flag::kFin)) {
         flow_cache_.erase(it);
       }
     } else {
-      // Block this flow for TIME_OUT_NS nanoseconds
-      record.SetExpiryTime(now + TIME_OUT_NS);
+      // No need to keep reconstructing, just mark it as analyzed
+      // (and hence blocked).
+      it->second.SetAnalyzed();
 
       // Inject RST to destination
       out_batches[1].add(GenerateResetPacket(
@@ -327,6 +400,10 @@ void UrlFilter::ProcessBatch(bess::PacketBatch *batch) {
   RunChooseModule(0, &out_batches[1]);
   RunChooseModule(1, &out_batches[2]);
   RunChooseModule(1, &out_batches[3]);
+}
+
+std::string UrlFilter::GetDesc() const {
+  return bess::utils::Format("%zu hosts", blacklist_.size());
 }
 
 ADD_MODULE(UrlFilter, "url-filter", "Filter HTTP connection")
