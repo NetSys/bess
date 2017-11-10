@@ -39,8 +39,8 @@ CommandResponse Bypass::Init(const bess::pb::BypassArg &arg) {
 }
 
 void Bypass::ProcessBatch(bess::PacketBatch *batch) {
-  uint32_t cur_tsc = ctx.current_tsc();
-  uint32_t cycles = cycles_per_batch_ + cycles_per_packet_ * batch->cnt();
+  uint64_t start_tsc = rdtsc();
+  uint64_t cycles = cycles_per_batch_ + cycles_per_packet_ * batch->cnt();
 
   if (cycles_per_byte_) {
     uint64_t total_bytes = 0;
@@ -51,7 +51,7 @@ void Bypass::ProcessBatch(bess::PacketBatch *batch) {
   }
 
   if (cycles) {
-    uint64_t target_tsc = cur_tsc + cycles;
+    uint64_t target_tsc = start_tsc + cycles;
     // burn cycles until it comsumes target cycles
     while (rdtsc() < target_tsc) {
       _mm_pause();
