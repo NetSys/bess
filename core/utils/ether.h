@@ -65,6 +65,15 @@ struct[[gnu::packed]] Ethernet {
              bytes[3] == 0xff && bytes[4] == 0xff && bytes[5] == 0xff;
     }
 
+    bool operator<(const Address &o) const {
+      for (size_t i = 0; i < kSize; i++) {
+        if (bytes[i] < o.bytes[i]) {
+          return true;
+        }
+      }
+      return false;
+    }
+
     bool operator==(const Address &o) const {
       for (size_t i = 0; i < kSize; i++) {
         if (bytes[i] != o.bytes[i]) {
