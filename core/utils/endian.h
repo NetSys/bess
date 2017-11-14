@@ -35,6 +35,7 @@
 #include <cstdint>
 #include <iomanip>
 #include <iostream>
+#include <vector>
 
 namespace bess {
 namespace utils {
@@ -150,6 +151,15 @@ class[[gnu::packed]] BigEndian final : public EndianBase<T> {
     os << "0x" << std::hex << std::setw(sizeof(be) * 2) << std::setfill('0')
        << be.value() << std::setfill(' ') << std::dec;
     return os;
+  }
+
+  const std::vector<uint8_t> ToByteVector() const {
+    union {
+      T data;
+      uint8_t bytes[sizeof(T)];
+    } t = {data_};
+
+    return std::vector<uint8_t>(&t.bytes[0], &t.bytes[sizeof(T)]);
   }
 
  protected:
