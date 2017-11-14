@@ -108,7 +108,6 @@ class Task {
   // Called when the leaf that owns this task is created.
   void Attach(bess::LeafTrafficClass *c);
 
-  void AddToRun(bess::IGate *ig) const;
   void AddToRun(bess::IGate *ig, bess::PacketBatch *batch) const;
 
   // Do not track used/unsued for efficiency

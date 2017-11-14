@@ -164,15 +164,15 @@ void Gate::ClearHooks() {
   hooks_.clear();
 }
 
+void IGate::SetPacketBatch(PacketBatch *batch) {
+  pkt_batch_ = batch;
+}
+
 void IGate::AddPacketBatch(PacketBatch *batch) {
-  if (pkt_batch_ == nullptr) {
-    pkt_batch_ = batch;
-  } else {
-    // FIXME check whether it exceeds bounds
-    // merge two batch
-    pkt_batch_->add(batch);
-    batch->clear();
-  }
+  // FIXME check whether it exceeds bounds
+  // merge two batch
+  pkt_batch_->add(batch);
+  batch->clear();
 }
 
 void IGate::PushOgate(OGate *og) {
