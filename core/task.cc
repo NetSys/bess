@@ -45,17 +45,17 @@ void Task::Attach(bess::LeafTrafficClass *c) {
   c_ = c;
 }
 
-void Task::AddToRun(bess::IGate *ig) const {
-  igates_to_run_.push(ig);
-}
-
 void Task::AddToRun(bess::IGate *ig, bess::PacketBatch *batch) const {
   if (next_gate_ == nullptr && !ig->mergeable()) {  // chained
     next_gate_ = ig;
     next_batch_ = batch;
   } else {
-    ig->AddPacketBatch(batch);
-    igates_to_run_.push(ig);
+    if (ig->pkt_batch())
+      ig->AddPacketBatch(batch);
+    else {
+      ig->SetPacketBatch(batch);
+      igates_to_run_.push(ig);
+    }
   }
 }
 
@@ -79,18 +79,20 @@ struct task_result Task::operator()(void) const {
       next_gate_ = nullptr;
       next_batch_ = nullptr;
     } else {
-      if (igates_to_run_.empty())
+      if (igates_to_run_.empty()) {
         break;
+      }
 
       igate = igates_to_run_.top();
       igates_to_run_.pop();
 
       batch = igate->pkt_batch();
-      igate->ClearPacketBatch();
-    }
 
-    if (batch == nullptr) {
-      continue;
+      if (batch == nullptr) {
+        continue;
+      }
+
+      igate->ClearPacketBatch();
     }
 
     ctx.set_current_igate(igate->gate_idx());
