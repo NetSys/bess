@@ -37,12 +37,15 @@
 
 #include "endian.h"
 
+#include "copy.h"
+
 namespace bess {
 namespace utils {
 
 struct[[gnu::packed]] Ethernet {
   struct[[gnu::packed]] Address {
     Address() = default;
+    Address(uint8_t *addr) { bess::utils::Copy(bytes, addr, kSize); }
     Address(const std::string &str);
 
     static const size_t kSize = 6;
