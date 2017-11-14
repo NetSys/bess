@@ -60,6 +60,11 @@ struct[[gnu::packed]] Ethernet {
 
     void Randomize();
 
+    bool IsBroadcast() const {
+      return bytes[0] == 0xff && bytes[1] == 0xff && bytes[2] == 0xff &&
+             bytes[3] == 0xff && bytes[4] == 0xff && bytes[5] == 0xff;
+    }
+
     bool operator==(const Address &o) const {
       for (size_t i = 0; i < kSize; i++) {
         if (bytes[i] != o.bytes[i]) {
@@ -78,7 +83,7 @@ struct[[gnu::packed]] Ethernet {
       return false;
     }
 
-    char bytes[kSize];
+    uint8_t bytes[kSize];
   };
 
   enum Type : uint16_t {
