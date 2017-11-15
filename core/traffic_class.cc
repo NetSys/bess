@@ -187,21 +187,12 @@ std::vector<TrafficClass *> WeightedFairTrafficClass::Children() const {
 
 bool WeightedFairTrafficClass::AddChild(TrafficClass *child,
                                         resource_share_t share) {
-  if (child->parent_) {
-    return false;
-  }
-
-  int64_t pass = 0;
-  if (!runnable_children_.empty()) {
-    pass = runnable_children_.top().pass_;
-  }
-
-  if (!share) {
+  if (child->parent_ || share == 0) {
     return false;
   }
 
   child->parent_ = this;
-  WeightedFairTrafficClass::ChildData child_data{STRIDE1 / share, pass, child};
+  ChildData child_data{STRIDE1 / share, NextPass(), child};
   if (child->blocked_) {
     blocked_children_.push_back(child_data);
   } else {
@@ -254,7 +245,7 @@ void WeightedFairTrafficClass::UnblockTowardsRoot(uint64_t tsc) {
   // TODO(barath): Optimize this unblocking behavior.
   for (auto it = blocked_children_.begin(); it != blocked_children_.end();) {
     if (!it->c_->blocked_) {
-      it->pass_ = 0;
+      it->pass_ = NextPass();
       runnable_children_.push(*it);
       blocked_children_.erase(it++);
     } else {
