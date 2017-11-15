@@ -1744,6 +1744,8 @@ TcCounterRate = collections.namedtuple('TcCounterRate',
 
 
 def _monitor_tcs(cli, *tcs):
+    GUTTER_WIDTH = 5
+
     def get_delta(old, new):
         sec_diff = new.timestamp - old.timestamp
         delta = TcCounterRate(count=(new.count - old.count) / sec_diff,
@@ -1752,19 +1754,20 @@ def _monitor_tcs(cli, *tcs):
                               packets=(new.packets - old.packets) / sec_diff)
         return delta
 
-    def print_header(timestamp):
+    def print_header(timestamp, name_len):
         cli.fout.write('\n')
-        cli.fout.write('%-20s%12s%12s%12s%12s%12s%12s\n' %
+        fmt = '%-{}s%12s%12s%12s%12s%12s%12s\n'.format(name_len)
+        cli.fout.write(fmt %
                        (time.strftime('%X') + str(timestamp % 1)[1:8],
                         'CPU MHz', 'scheduled', 'Mpps', 'Mbps',
                         'pkts/sched', 'cycles/p'))
 
-        cli.fout.write('%s\n' % ('-' * 92))
+        cli.fout.write('%s\n' % ('-' * (72 + name_len)))
 
-    def print_footer():
-        cli.fout.write('%s\n' % ('-' * 92))
+    def print_footer(name_len):
+        cli.fout.write('%s\n' % ('-' * (72 + name_len)))
 
-    def print_delta(tc, delta):
+    def print_delta(tc, delta, name_len):
         if delta.count >= 1:
             ppb = delta.packets / delta.count
         else:
@@ -1775,7 +1778,8 @@ def _monitor_tcs(cli, *tcs):
         else:
             cpp = 0
 
-        cli.fout.write('%-20s%12.3f%12d%12.3f%12.3f%12.3f%12.3f\n' %
+        fmt = '%-{}s%12.3f%12d%12.3f%12.3f%12.3f%12.3f\n'.format(name_len)
+        cli.fout.write(fmt %
                        (tc,
                         delta.cycles / 1e6,
                         delta.count,
@@ -1786,9 +1790,12 @@ def _monitor_tcs(cli, *tcs):
 
     all_tcs = cli.bess.list_tcs().classes_status
     wids = {}
+    max_len = 0
     for tc in all_tcs:
         class_ = getattr(tc, 'class')
+        max_len = max(len(class_.name), max_len)
         wids[class_.name] = class_.wid
+    max_len += GUTTER_WIDTH
 
     if not tcs:
         tcs = [getattr(tc, 'class').name for tc in all_tcs]
@@ -1810,13 +1817,13 @@ def _monitor_tcs(cli, *tcs):
             for tc in tcs:
                 now[tc] = cli.bess.get_tc_stats(tc)
 
-            print_header(now[tc].timestamp)
+            print_header(now[tc].timestamp, max_len)
 
             for tc in tcs:
                 print_delta('W%d %s' % (wids[tc], tc),
-                            get_delta(last[tc], now[tc]))
+                            get_delta(last[tc], now[tc]), max_len)
 
-            print_footer()
+            print_footer(max_len)
 
             for tc in tcs:
                 last[tc] = now[tc]
