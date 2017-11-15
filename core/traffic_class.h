@@ -332,13 +332,13 @@ class WeightedFairTrafficClass final : public TrafficClass {
   struct ChildData {
     bool operator<(const ChildData &right) const {
       // Reversed so that priority_queue is a min priority queue.
-      return right.pass_ < pass_;
+      return right.pass < pass;
     }
 
-    int64_t stride_;
-    int64_t pass_;
+    int64_t stride;
+    int64_t pass;
 
-    TrafficClass *c_;
+    TrafficClass *c;
   };
 
   WeightedFairTrafficClass(const std::string &name, resource_t resource)
@@ -391,7 +391,7 @@ class WeightedFairTrafficClass final : public TrafficClass {
     if (runnable_children_.empty()) {
       return 0;
     } else {
-      return runnable_children_.top().pass_;
+      return runnable_children_.top().pass;
     }
   }
 

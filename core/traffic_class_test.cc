@@ -126,7 +126,7 @@ TEST(CreateTree, WeightedFairRootAndLeaf) {
   ASSERT_EQ(0, c->blocked_children().size());
 
   LeafTrafficClass *leaf = static_cast<LeafTrafficClass *>(
-      c->runnable_children().container().front().c_);
+      c->runnable_children().container().front().c);
   ASSERT_NE(nullptr, leaf);
   EXPECT_EQ(leaf->parent(), c);
 
@@ -245,7 +245,7 @@ TEST(DefaultSchedulerNext, BasicTreeWeightedFair) {
   ASSERT_EQ(0, c->blocked_children().size());
 
   LeafTrafficClass *leaf = static_cast<LeafTrafficClass *>(
-      c->runnable_children().container().front().c_);
+      c->runnable_children().container().front().c);
   ASSERT_NE(nullptr, leaf);
   EXPECT_EQ(leaf->parent(), c);
 
