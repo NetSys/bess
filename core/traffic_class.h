@@ -385,6 +385,16 @@ class WeightedFairTrafficClass final : public TrafficClass {
   }
 
  private:
+  // Returns the pass value of the first child to be scheduled next,
+  // or 0 if there is no runnable child (i.e., the priority queue is empty)
+  int64_t NextPass() const {
+    if (runnable_children_.empty()) {
+      return 0;
+    } else {
+      return runnable_children_.top().pass_;
+    }
+  }
+
   // The resource that we are sharing.
   resource_t resource_;
 
