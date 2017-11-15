@@ -168,11 +168,11 @@ void PriorityTrafficClass::FinishAndAccountTowardsRoot(
 
 WeightedFairTrafficClass::~WeightedFairTrafficClass() {
   while (!runnable_children_.empty()) {
-    delete runnable_children_.top().c_;
+    delete runnable_children_.top().c;
     runnable_children_.pop();
   }
   for (auto &c : blocked_children_) {
-    delete c.c_;
+    delete c.c;
   }
   TrafficClassBuilder::Clear(this);
 }
@@ -192,7 +192,8 @@ bool WeightedFairTrafficClass::AddChild(TrafficClass *child,
   }
 
   child->parent_ = this;
-  ChildData child_data{STRIDE1 / share, NextPass(), child};
+  ChildData child_data{
+      .stride = STRIDE1 / share, .pass = NextPass(), .c = child};
   if (child->blocked_) {
     blocked_children_.push_back(child_data);
   } else {
@@ -219,7 +220,7 @@ bool WeightedFairTrafficClass::RemoveChild(TrafficClass *child) {
 
   for (auto it = blocked_children_.begin(); it != blocked_children_.end();
        it++) {
-    if (it->c_ == child) {
+    if (it->c == child) {
       blocked_children_.erase(it);
       child->parent_ = nullptr;
       return true;
@@ -227,7 +228,7 @@ bool WeightedFairTrafficClass::RemoveChild(TrafficClass *child) {
   }
 
   bool ret = runnable_children_.delete_single_element(
-      [=](const ChildData &x) { return x.c_ == child; });
+      [=](const ChildData &x) { return x.c == child; });
   if (ret) {
     child->parent_ = nullptr;
     BlockTowardsRoot();
@@ -238,14 +239,14 @@ bool WeightedFairTrafficClass::RemoveChild(TrafficClass *child) {
 }
 
 TrafficClass *WeightedFairTrafficClass::PickNextChild() {
-  return runnable_children_.top().c_;
+  return runnable_children_.top().c;
 }
 
 void WeightedFairTrafficClass::UnblockTowardsRoot(uint64_t tsc) {
   // TODO(barath): Optimize this unblocking behavior.
   for (auto it = blocked_children_.begin(); it != blocked_children_.end();) {
-    if (!it->c_->blocked_) {
-      it->pass_ = NextPass();
+    if (!it->c->blocked_) {
+      it->pass = NextPass();
       runnable_children_.push(*it);
       blocked_children_.erase(it++);
     } else {
@@ -258,7 +259,7 @@ void WeightedFairTrafficClass::UnblockTowardsRoot(uint64_t tsc) {
 
 void WeightedFairTrafficClass::BlockTowardsRoot() {
   runnable_children_.delete_single_element([&](const ChildData &x) {
-    if (x.c_->blocked_) {
+    if (x.c->blocked_) {
       blocked_children_.push_back(x);
       return true;
     }
@@ -273,7 +274,7 @@ void WeightedFairTrafficClass::FinishAndAccountTowardsRoot(
     uint64_t tsc) {
   ACCUMULATE(stats_.usage, usage);
 
-  // DCHECK_EQ(item.c_, child) << "Child that we picked should be at the front
+  // DCHECK_EQ(item.c, child) << "Child that we picked should be at the front
   // of priority queue.";
   if (child->blocked_) {
     auto item = runnable_children_.top();
@@ -283,7 +284,7 @@ void WeightedFairTrafficClass::FinishAndAccountTowardsRoot(
   } else {
     auto &item = runnable_children_.mutable_top();
     uint64_t consumed = usage[resource_];
-    item.pass_ += item.stride_ * consumed / QUANTUM;
+    item.pass += item.stride * consumed / QUANTUM;
     runnable_children_.decrease_key_top();
   }
 
