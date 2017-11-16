@@ -336,7 +336,15 @@ class WeightedFairTrafficClass final : public TrafficClass {
     }
 
     int64_t stride;
-    int64_t pass;
+
+    // NOTE: while in the code example in the original Stride Scheduler
+    // [Waldspurgger95] maintains "pass" and "remain" (penalty) separately,
+    // we can safely multiplex these variables in a union since they are never
+    // used at the same time.
+    union {
+      int64_t pass;
+      int64_t remain;
+    };
 
     TrafficClass *c;
   };
