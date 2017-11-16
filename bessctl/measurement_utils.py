@@ -89,7 +89,7 @@ class PortStats(object):
         Otherwise returns the `percentile`th percentile RTT.
         """
         if self.rtt is None or percentile is None:
-            self.rtt
+            return self.rtt
         return self.rtt[percentile]
 
     def jitter(self, percentile=None):
@@ -98,7 +98,7 @@ class PortStats(object):
         Otherwise returns the `percentile`th percentile jitter.
         """
         if self.jitter is None or percentile is None:
-            self.jitter
+            return self.jitter
         return self.jitter[percentile]
 
     def __str__(self):
