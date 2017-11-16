@@ -88,10 +88,8 @@ class PortStats(object):
         Returns the dictionary of all RTT value if `percentile` is none.
         Otherwise returns the `percentile`th percentile RTT.
         """
-        if self.rtt is None:
-            return None
-        if percentile is None:
-            return self.rtt
+        if self.rtt is None or percentile is None:
+            self.rtt
         return self.rtt[percentile]
 
     def jitter(self, percentile=None):
@@ -99,27 +97,22 @@ class PortStats(object):
         Returns the dictionary of all jitter value if `percentile` is none.
         Otherwise returns the `percentile`th percentile jitter.
         """
-        if jitter is None:
-            return None
-        if percentile is None:
-            return self.jitter
+        if self.jitter is None or percentile is None:
+            self.jitter
         return self.jitter[percentile]
 
     def __str__(self):
+        def format_data(prefix, data, dst):
+            keys = sorted(data.keys())
+            for k in keys:
+                dst.append(data[k] / 1e3)
+            return ', '.join(['{}{}: {{:.3f}} us'.format(prefix, k) for k in keys])
+
         fmt = '[in / out] pkts: {:.3f}M / {:.3f}M, drops: {:.3f}M / {:.3f}M, bytes: {} / {}'
         rtt_data = []
         if self.rtt is not None:
-            fmt += '\n'
-            fmt += ', '.join(['rtt_{}: {{:.3f}} us'.format(k)
-                             for k in sorted(self.rtt.keys())])
-            for k in sorted(self.rtt.keys()):
-                rtt_data.append(self.rtt[k] / 1e3)
-
-            fmt += '\n'
-            fmt += ', '.join(['jit_{}: {{:.3f}} us'.format(k)
-                             for k in sorted(self.jitter.keys())])
-            for k in sorted(self.jitter.keys()):
-                rtt_data.append(self.jitter[k] / 1e3)
+            fmt += '\n' + format_data('rtt', self.rtt, rtt_data)
+            fmt += '\n' + format_data('jitter', self.jitter, rtt_data)
 
         return fmt.format(
             self.pkts_in() / 1e6, self.pkts_out() / 1e6,
@@ -179,11 +172,8 @@ class PortStatsGenerator(object):
     @staticmethod
     def aggregate_rtt(old, new):
         if old is None:
-            return copy.copy(new)
-        agg = dict()
-        for k in old:
-            agg[k] = (old[k] + new[k]) / 2
-        return agg
+            return new.copy()
+        return {k: (old[k] + new[k]) / 2 for k in old}
 
     def next(self):
         throughput = self.bess.get_port_stats(self.tx_port)
@@ -247,8 +237,8 @@ class PortConfig(object):
         set, no PortInc will be created. If `bess` is None, will attempt to
         create all ports and modules on bessd running on localhost.
         """
-        if sum(map(int, [pci is not None, port_id is not None, vdev is not None])) != 1:
-            raise Exception(
+        if [pci, port_id, vdev].count(None) != 2:
+            raise TypeError(
                 'exactly one of `pci`, `port_id` or `vdev` must be specified')
 
         self.name = name
@@ -276,7 +266,7 @@ class Port(object):
 
         if conf.pci is not None:
             self.pmd = bess.create_port('PMDPort', conf.name,
-                                        {'pci': pci, 'num_inc_q':
+                                        {'pci': conf.pci, 'num_inc_q':
                                             conf.num_queues, 'num_out_q': conf.num_queues})
         elif conf.port_id is not None:
             self.pmd = bess.create_port('PMDPort', conf.name,
