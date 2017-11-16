@@ -192,8 +192,7 @@ bool WeightedFairTrafficClass::AddChild(TrafficClass *child,
   }
 
   child->parent_ = this;
-  ChildData child_data{
-      .stride = STRIDE1 / share, .pass = NextPass(), .c = child};
+  ChildData child_data{STRIDE1 / share, {NextPass()}, child};
   if (child->blocked_) {
     blocked_children_.push_back(child_data);
   } else {
@@ -246,7 +245,7 @@ void WeightedFairTrafficClass::UnblockTowardsRoot(uint64_t tsc) {
   // TODO(barath): Optimize this unblocking behavior.
   for (auto it = blocked_children_.begin(); it != blocked_children_.end();) {
     if (!it->c->blocked_) {
-      it->pass = NextPass();
+      it->pass = NextPass() + it->remain;
       runnable_children_.push(*it);
       blocked_children_.erase(it++);
     } else {
@@ -274,17 +273,21 @@ void WeightedFairTrafficClass::FinishAndAccountTowardsRoot(
     uint64_t tsc) {
   ACCUMULATE(stats_.usage, usage);
 
+  auto &item = runnable_children_.mutable_top();
+  uint64_t consumed = usage[resource_];
+  uint64_t pass_delta = item.stride * consumed / QUANTUM;
+
   // DCHECK_EQ(item.c, child) << "Child that we picked should be at the front
   // of priority queue.";
   if (child->blocked_) {
-    auto item = runnable_children_.top();
-    runnable_children_.pop();
+    // The blocked child will be penalized when unblocked, by the amount of the
+    // resource usage (pass_delta) not accounted for this round.
+    item.remain = pass_delta;
     blocked_children_.emplace_back(std::move(item));
+    runnable_children_.pop();
     blocked_ = runnable_children_.empty();
   } else {
-    auto &item = runnable_children_.mutable_top();
-    uint64_t consumed = usage[resource_];
-    item.pass += item.stride * consumed / QUANTUM;
+    item.pass += pass_delta;
     runnable_children_.decrease_key_top();
   }
 
