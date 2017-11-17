@@ -149,6 +149,7 @@ TEST(EmTableTest, FindMakeKeysPktBatch) {
     // all fake packets share this one data buffer
     pkt->set_buffer(databuf);
     pkt->set_data_len(sizeof(databuf));
+    pkt->set_data_off(0);
 
     // this fake packet must not be freed
     pkt->set_refcnt(2);
