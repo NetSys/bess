@@ -82,7 +82,7 @@ struct alignas(8) Endpoint {
 
   struct Hash {
     std::size_t operator()(const Endpoint &e) const {
-#if __SSE4_2__ && __x86_64
+#if __x86_64
       return crc32c_sse42_u64(
           (static_cast<uint64_t>(e.addr.raw_value()) << 32) |
               (static_cast<uint64_t>(e.port.raw_value()) << 16) |

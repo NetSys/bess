@@ -104,7 +104,7 @@ class ExactMatchKeyHash {
     promise(len_ >= sizeof(uint64_t));
     promise(len_ <= sizeof(ExactMatchKey));
 
-#if __SSE4_2__ && __x86_64
+#if __x86_64
     for (size_t i = 0; i < len_ / 8; i++) {
       init_val = crc32c_sse42_u64(key.u64_arr[i], init_val);
     }

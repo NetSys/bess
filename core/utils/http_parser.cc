@@ -29,12 +29,10 @@
 #include <assert.h>
 #include <stddef.h>
 #include <string.h>
-#ifdef __SSE4_2__
 #ifdef _MSC_VER
 #include <nmmintrin.h>
 #else
 #include <x86intrin.h>
-#endif
 #endif
 
 /* $Id$ */
@@ -69,29 +67,29 @@
   }
 
 #define RANGES2_LENGTH (2 * 2) /* 2 pairs of start <= byte <= end */
-#define ADVANCE_TOKEN(tok, toklen)                                            \
-  do {                                                                        \
-    const char *tok_start = buf;                                              \
-    static const char ALIGNED(16) ranges2[16] = "\000\040\177\177";           \
-    int found2;                                                               \
-    buf = findchar_fast(buf, buf_end, ranges2, RANGES2_LENGTH, &found2);      \
-    if (!found2) {                                                            \
-      CHECK_EOF();                                                            \
-    }                                                                         \
-    while (1) {                                                               \
-      if (*buf == ' ') {                                                      \
-        break;                                                                \
-      } else if (unlikely(!IS_PRINTABLE_ASCII(*buf))) {                       \
-        if ((unsigned char)*buf < '\040' || *buf == '\177') {                 \
-          *ret = -1;                                                          \
-          return NULL;                                                        \
-        }                                                                     \
-      }                                                                       \
-      ++buf;                                                                  \
-      CHECK_EOF();                                                            \
-    }                                                                         \
-    tok = tok_start;                                                          \
-    toklen = buf - tok_start;                                                 \
+#define ADVANCE_TOKEN(tok, toklen)                                       \
+  do {                                                                   \
+    const char *tok_start = buf;                                         \
+    static const char ALIGNED(16) ranges2[16] = "\000\040\177\177";      \
+    int found2;                                                          \
+    buf = findchar_fast(buf, buf_end, ranges2, RANGES2_LENGTH, &found2); \
+    if (!found2) {                                                       \
+      CHECK_EOF();                                                       \
+    }                                                                    \
+    while (1) {                                                          \
+      if (*buf == ' ') {                                                 \
+        break;                                                           \
+      } else if (unlikely(!IS_PRINTABLE_ASCII(*buf))) {                  \
+        if ((unsigned char)*buf < '\040' || *buf == '\177') {            \
+          *ret = -1;                                                     \
+          return NULL;                                                   \
+        }                                                                \
+      }                                                                  \
+      ++buf;                                                             \
+      CHECK_EOF();                                                       \
+    }                                                                    \
+    tok = tok_start;                                                     \
+    toklen = buf - tok_start;                                            \
   } while (0)
 
 static const char *token_char_map =
@@ -110,7 +108,6 @@ static const char *findchar_fast(const char *buf, const char *buf_end,
                                  const char *ranges, size_t ranges_size,
                                  int *found) {
   *found = 0;
-#if __SSE4_2__
   if (likely(buf_end - buf >= 16)) {
     __m128i ranges16 = _mm_loadu_si128((const __m128i *)((const void *)ranges));
 
@@ -129,12 +126,6 @@ static const char *findchar_fast(const char *buf, const char *buf_end,
       left -= 16;
     } while (likely(left != 0));
   }
-#else
-  /* suppress unused parameter warning */
-  (void)buf_end;
-  (void)ranges;
-  (void)ranges_size;
-#endif
   return buf;
 }
 
@@ -143,7 +134,6 @@ static const char *get_token_to_eol(const char *buf, const char *buf_end,
                                     int *ret) {
   const char *token_start = buf;
 
-#ifdef __SSE4_2__
 #define RANGES1_LENGTH (3 * 2) /* 3 pairs of start <= byte <= end */
   static const char ALIGNED(16) ranges1[16] =
       "\0\010"
@@ -157,34 +147,7 @@ static const char *get_token_to_eol(const char *buf, const char *buf_end,
   buf = findchar_fast(buf, buf_end, ranges1, RANGES1_LENGTH, &found);
   if (found)
     goto FOUND_CTL;
-#else
-  /* find non-printable char within the next 8 bytes, this is the hottest code;
-   * manually inlined */
-  while (likely(buf_end - buf >= 8)) {
-#define DOIT()                               \
-  do {                                       \
-    if (unlikely(!IS_PRINTABLE_ASCII(*buf))) \
-      goto NonPrintable;                     \
-    ++buf;                                   \
-  } while (0)
-    DOIT();
-    DOIT();
-    DOIT();
-    DOIT();
-    DOIT();
-    DOIT();
-    DOIT();
-    DOIT();
-#undef DOIT
-    continue;
-  NonPrintable:
-    if ((likely((unsigned char)*buf < '\040') && likely(*buf != '\011')) ||
-        unlikely(*buf == '\177')) {
-      goto FOUND_CTL;
-    }
-    ++buf;
-  }
-#endif
+
   for (;; ++buf) {
     CHECK_EOF();
     if (unlikely(!IS_PRINTABLE_ASCII(*buf))) {

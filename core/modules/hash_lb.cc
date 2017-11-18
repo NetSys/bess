@@ -34,7 +34,7 @@
 #include <vector>
 
 static inline uint32_t hash_64(uint64_t val, uint32_t init_val) {
-#if __SSE4_2__ && __x86_64
+#if __x86_64
   return crc32c_sse42_u64(val, init_val);
 #else
   return crc32c_2words(val, init_val);

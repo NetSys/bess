@@ -41,8 +41,8 @@
 #define __ymm_aligned __attribute__((aligned(32)))
 #define __zmm_aligned __attribute__((aligned(64)))
 
-#if !__SSSE3__
-#error CPU must be at least Core 2 or equivalent (SSSE3 required)
+#if !__SSE4_2__
+#error CPU must be at least corei5 or equivalent (SSE4.2 required)
 #endif
 
 std::string m128i_to_str(__m128i a);

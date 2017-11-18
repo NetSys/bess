@@ -73,7 +73,7 @@ struct FlowHash {
   std::size_t operator()(const Flow &f) const {
     uint32_t init_val = 0;
 
-#if __SSE4_2__ && __x86_64
+#if __x86_64
     const union {
       Flow flow;
       uint64_t u64[2];
