@@ -34,13 +34,21 @@
 #include "../message.h"
 #include "../module.h"
 
+#include "../utils/fifo_opener.h"
+
+class PcapngOpener final : public bess::utils::FifoOpener {
+ public:
+  PcapngOpener() : FifoOpener() {}
+  bool InitFifo(int fd) override;
+};
+
 // Pcapng dumps copies of the packets seen by a gate (data + metadata) in
 // pcapng format.  Useful for debugging.
 class Pcapng final : public bess::GateHook {
  public:
   Pcapng();
 
-  virtual ~Pcapng();
+  virtual ~Pcapng(){};
 
   CommandResponse Init(const bess::Gate *, const bess::pb::PcapngArg &);
 
@@ -59,8 +67,9 @@ class Pcapng final : public bess::GateHook {
     size_t tmpl_offset;
   };
 
-  // The file descripton where to output the pcapng stream.
-  int fifo_fd_;
+  // The opener instance for the FIFO for the captured packets.
+  PcapngOpener opener_;
+
   // List of attributes to dump.
   std::vector<Attr> attrs_;
   // Preallocated string with attribute names and values.  For each packet,

@@ -88,21 +88,47 @@ const std::string Pcapng::kName = "pcapng";
 
 Pcapng::Pcapng()
     : bess::GateHook(Pcapng::kName, Pcapng::kPriority),
-      fifo_fd_(-1),
+      opener_(),
       attrs_(),
       attr_template_() {}
 
-Pcapng::~Pcapng() {
-  if (fifo_fd_ >= 0) {
-    close(fifo_fd_);
-  }
+// Send the initialization data on the FIFO, once it's open.
+bool PcapngOpener::InitFifo(int fd) {
+  SectionHeaderBlock shb = {
+      .type = SectionHeaderBlock::kType,
+      .tot_len = sizeof(shb) + sizeof(uint32_t),
+      .bom = SectionHeaderBlock::kBom,
+      .maj_ver = SectionHeaderBlock::kMajVer,
+      .min_ver = SectionHeaderBlock::kMinVer,
+      .sec_len = -1,
+  };
+
+  uint32_t shb_tot_len = shb.tot_len;
+
+  InterfaceDescriptionBlock idb = {
+      .type = InterfaceDescriptionBlock::kType,
+      .tot_len = sizeof(idb) + sizeof(uint32_t),
+      .link_type = InterfaceDescriptionBlock::kEthernet,
+      .reserved = 0,
+      .snap_len = 1518,
+  };
+
+  uint32_t idb_tot_len = idb.tot_len;
+
+  struct iovec vec[4] = {{&shb, sizeof(shb)},
+                         {&shb_tot_len, sizeof(shb_tot_len)},
+                         {&idb, sizeof(idb)},
+                         {&idb_tot_len, sizeof(idb_tot_len)}};
+
+  // Ideally should check that writev returns the total size,
+  // but this suffices.
+  return writev(fd, vec, 4) > 0;
 }
 
 CommandResponse Pcapng::Init(const bess::Gate *gate,
                              const bess::pb::PcapngArg &arg) {
   Module *m = gate->module();
   std::string tmpl;
-  int ret;
 
   size_t i = 0;
   for (const auto &it : m->all_attrs()) {
@@ -133,56 +159,27 @@ CommandResponse Pcapng::Init(const bess::Gate *gate,
 
   attr_template_ = std::vector<char>(tmpl.begin(), tmpl.end());
 
-  fifo_fd_ = open(arg.fifo().c_str(), O_WRONLY | O_NONBLOCK);
-  if (fifo_fd_ < 0) {
+  int ret = opener_.Init(arg.fifo(), false);
+  if (ret < 0) {
+    return CommandFailure(-errno, "inappropriate reinitialization");
+  }
+  ret = opener_.OpenNow();
+  if (ret < 0) {
     return CommandFailure(-errno, "Failed to open FIFO");
-  }
-
-  ret = fcntl(fifo_fd_, F_SETFL, fcntl(fifo_fd_, F_GETFL) | O_NONBLOCK);
-  if (ret < 0) {
-    close(fifo_fd_);
-    return CommandFailure(-errno, "fnctl() on FIFO failed");
-  }
-
-  SectionHeaderBlock shb = {
-      .type = SectionHeaderBlock::kType,
-      .tot_len = sizeof(shb) + sizeof(uint32_t),
-      .bom = SectionHeaderBlock::kBom,
-      .maj_ver = SectionHeaderBlock::kMajVer,
-      .min_ver = SectionHeaderBlock::kMinVer,
-      .sec_len = -1,
-  };
-
-  uint32_t shb_tot_len = shb.tot_len;
-
-  InterfaceDescriptionBlock idb = {
-      .type = InterfaceDescriptionBlock::kType,
-      .tot_len = sizeof(idb) + sizeof(uint32_t),
-      .link_type = InterfaceDescriptionBlock::kEthernet,
-      .reserved = 0,
-      .snap_len = 1518,
-  };
-
-  uint32_t idb_tot_len = idb.tot_len;
-
-  struct iovec vec[4] = {{&shb, sizeof(shb)},
-                         {&shb_tot_len, sizeof(shb_tot_len)},
-                         {&idb, sizeof(idb)},
-                         {&idb_tot_len, sizeof(idb_tot_len)}};
-
-  ret = writev(fifo_fd_, vec, 4);
-  if (ret < 0) {
-    close(fifo_fd_);
-    return CommandFailure(-errno, "Failed to write PCAP header");
   }
 
   return CommandSuccess();
 }
 
 void Pcapng::ProcessBatch(const bess::PacketBatch *batch) {
-  struct timeval tv;
+  int fd;
+  uint32_t gen;
+  std::tie(fd, gen) = opener_.GetCurrentFd();
+  if (!opener_.IsValidFd(fd)) {
+    return;
+  }
 
-  int ret = 0;
+  struct timeval tv;
 
   gettimeofday(&tv, nullptr);
 
@@ -239,12 +236,11 @@ void Pcapng::ProcessBatch(const bess::PacketBatch *batch) {
 
         {&epb_tot_len, sizeof(epb_tot_len)}};
 
-    ret = writev(fifo_fd_, vec, 8);
+    int ret = writev(fd, vec, 8);
     if (ret < 0) {
       if (errno == EPIPE) {
         DLOG(WARNING) << "Broken pipe: stopping pcapng";
-        close(fifo_fd_);
-        fifo_fd_ = -1;
+        opener_.MarkDead(fd, gen);
       }
       return;
     }
