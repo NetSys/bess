@@ -1148,12 +1148,12 @@ class BESSControlImpl final : public BESSControl::Service {
     }
     m = it->second;
 
-    ModuleGraph::DestroyModule(m);
-
     auto& resume_modules = bess::event_modules[bess::Event::PreResume];
     if (resume_modules.erase(m) > 0) {
       VLOG(1) << "Cleared pre-resume hook for module '" << m->name() << "'";
     }
+
+    ModuleGraph::DestroyModule(m);
 
     return Status::OK;
   }
