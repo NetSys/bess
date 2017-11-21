@@ -33,15 +33,12 @@
 
 #include "../module.h"
 #include "../pb/module_msg.pb.h"
+#include "../utils/exact_match_table.h"
 
-#define MAX_HLB_GATES 16384
-
-/* TODO: add symmetric mode (e.g., LB_L4_SYM), v6 mode, etc. */
-enum LbMode {
-  LB_L2, /* dst MAC + src MAC */
-  LB_L3, /* src IP + dst IP */
-  LB_L4  /* L4 proto + src IP + dst IP + src port + dst port */
-};
+using bess::utils::ExactMatchField;
+using bess::utils::ExactMatchTable;
+using bess::utils::ExactMatchKey;
+using bess::utils::ExactMatchKeyHash;
 
 class HashLB final : public Module {
  public:
@@ -49,11 +46,13 @@ class HashLB final : public Module {
 
   static const Commands cmds;
 
-  HashLB() : Module(), gates_(), num_gates_(), mode_() {
+  HashLB() : Module(), gates_(), num_gates_(), fields_table_(), hasher_(0) {
     max_allowed_workers_ = Worker::kMaxWorkers;
   }
 
   CommandResponse Init(const bess::pb::HashLBArg &arg);
+
+  std::string GetDesc() const override;
 
   void ProcessBatch(bess::PacketBatch *batch) override;
 
@@ -62,13 +61,14 @@ class HashLB final : public Module {
       const bess::pb::HashLBCommandSetGatesArg &arg);
 
  private:
-  void LbL2(bess::PacketBatch *batch, gate_idx_t *ogates);
-  void LbL3(bess::PacketBatch *batch, gate_idx_t *ogates);
-  void LbL4(bess::PacketBatch *batch, gate_idx_t *ogates);
+  static constexpr size_t kMaxGates = 16384;
 
-  gate_idx_t gates_[MAX_HLB_GATES];
-  int num_gates_;
-  enum LbMode mode_;
+  gate_idx_t gates_[kMaxGates];
+  size_t num_gates_;
+
+  // No rules are ever added to this table, we just use it for MakeKeys().
+  ExactMatchTable<int> fields_table_;
+  ExactMatchKeyHash hasher_;
 };
 
 #endif  // BESS_MODULES_HASHLB_H_

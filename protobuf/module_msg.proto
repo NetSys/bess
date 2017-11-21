@@ -105,13 +105,17 @@ message FlowGenCommandSetBurstArg {
 }
 
 /**
- * The HashLB module has a command `set_mode(...)` which takes one parameter.
- * The mode specifies whether the load balancer will hash over the src/dest ethernet header (l2),
- * over the src/dest IP addresses (l3), or over the flow 5-tuple (l4).
+ * The HashLB module has a command `set_mode(...)` which takes two parameters.
+ * The `mode` parameter specifies whether the load balancer will hash over the
+ * src/dest ethernet header (l2), over the src/dest IP addresses (l3), or over
+ * the flow 5-tuple (l4).  Alternatively, if the `fields` parameter is set, the
+ * load balancer will hash over the N-tuple with the specified offsets and
+ * sizes.
  * Example use in bessctl: `lb.set_mode('l2')`
  */
 message HashLBCommandSetModeArg {
-  string mode = 1; /// What fields to hash over, l1, l2, or l3 are only valid values.
+  string mode = 1; /// What fields to hash over, l2, l3, l4 custom are only valid values.
+  repeated Field fields = 2; /// A list of fields that define a custom tuple.
 }
 
 /**
@@ -559,7 +563,8 @@ message GenericEncapArg {
 
 /**
  * The HashLB module partitions packets between output gates according to either
- * a hash over their MAC src/dst (mode=l2), their IP src/dst (mode=l3), or the full IP/TCP 5-tuple (mode=l4).
+ * a hash over their MAC src/dst (mode=l2), their IP src/dst (mode=l3), the full
+ * IP/TCP 5-tuple (mode=l4), or the N-tuple defined by `fields`.
  *
  * __Input Gates__: 1
  * __Output Gates__: many (configurable)
@@ -567,6 +572,7 @@ message GenericEncapArg {
 message HashLBArg {
   repeated int64 gates = 1; /// A list of gate numbers over which to partition packets
   string mode = 2; /// The mode (l2, l3, or l4) for the hash function.
+  repeated Field fields = 3; /// A list of fields that define a custom tuple.
 }
 
 /**
