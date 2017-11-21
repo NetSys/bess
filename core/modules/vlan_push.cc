@@ -56,7 +56,7 @@ CommandResponse VLANPush::CommandSetTci(const bess::pb::VLANPushArg &arg) {
   return CommandSuccess();
 }
 
-/* the behavior is undefined if a packet is already double tagged */
+// the behavior is undefined if a packet is already double tagged
 void VLANPush::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
   int cnt = batch->cnt();
 

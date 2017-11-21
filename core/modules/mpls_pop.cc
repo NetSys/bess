@@ -61,7 +61,6 @@ void MPLSPop::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
       EmitPacket(task, pkt, 1);
       continue;
     }
-    EmitPacket(task, pkt, 0);
 
     // TODO(gsagie) save the MPLS label as metadata
     // Mpls *mpls = reinterpret_cast<Mpls *>(eth_header + 1);
@@ -79,6 +78,7 @@ void MPLSPop::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
       eth_new->dst_addr = dst_addr;
       eth_new->ether_type = next_ether_type_;
     }
+    EmitPacket(task, pkt, 0);
   }
 }
 
