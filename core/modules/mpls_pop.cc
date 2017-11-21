@@ -48,7 +48,7 @@ MPLSPop::MPLSPop()
   max_allowed_workers_ = Worker::kMaxWorkers;
 }
 
-void MPLSPop::ProcessBatch(bess::PacketBatch *batch) {
+void MPLSPop::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
   gate_idx_t out_gates[bess::PacketBatch::kMaxBurst];
   int cnt = batch->cnt();
 
@@ -82,7 +82,7 @@ void MPLSPop::ProcessBatch(bess::PacketBatch *batch) {
     }
   }
 
-  RunSplit(out_gates, batch);
+  RunSplit(task, out_gates, batch);
 }
 
 CommandResponse MPLSPop::CommandSet(const bess::pb::MplsPopArg &arg) {

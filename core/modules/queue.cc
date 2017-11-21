@@ -139,7 +139,7 @@ std::string Queue::GetDesc() const {
 }
 
 /* from upstream */
-void Queue::ProcessBatch(bess::PacketBatch *batch) {
+void Queue::ProcessBatch(const Task *, bess::PacketBatch *batch) {
   int queued =
       llring_mp_enqueue_burst(queue_, (void **)batch->pkts(), batch->cnt());
   if (backpressure_ && llring_count(queue_) > high_water_) {
@@ -156,41 +156,40 @@ void Queue::ProcessBatch(bess::PacketBatch *batch) {
 }
 
 /* to downstream */
-struct task_result Queue::RunTask(void *) {
+struct task_result Queue::RunTask(const Task *task, bess::PacketBatch *batch,
+                                  void *) {
   if (children_overload_ > 0) {
     return {
         .block = true, .packets = 0, .bits = 0,
     };
   }
 
-  bess::PacketBatch batch;
-
   const int burst = ACCESS_ONCE(burst_);
   const int pkt_overhead = 24;
 
   uint64_t total_bytes = 0;
 
-  uint32_t cnt = llring_sc_dequeue_burst(queue_, (void **)batch.pkts(), burst);
+  uint32_t cnt = llring_sc_dequeue_burst(queue_, (void **)batch->pkts(), burst);
 
   if (cnt == 0) {
     return {.block = true, .packets = 0, .bits = 0};
   }
 
   stats_.dequeued += cnt;
-  batch.set_cnt(cnt);
+  batch->set_cnt(cnt);
 
   if (prefetch_) {
     for (uint32_t i = 0; i < cnt; i++) {
-      total_bytes += batch.pkts()[i]->total_len();
-      rte_prefetch0(batch.pkts()[i]->head_data());
+      total_bytes += batch->pkts()[i]->total_len();
+      rte_prefetch0(batch->pkts()[i]->head_data());
     }
   } else {
     for (uint32_t i = 0; i < cnt; i++) {
-      total_bytes += batch.pkts()[i]->total_len();
+      total_bytes += batch->pkts()[i]->total_len();
     }
   }
 
-  RunNextModule(&batch);
+  RunNextModule(task, batch);
 
   if (backpressure_ && llring_count(queue_) < low_water_) {
     SignalUnderload();

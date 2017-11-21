@@ -58,8 +58,9 @@ class Queue : public Module {
 
   void DeInit() override;
 
-  struct task_result RunTask(void *arg) override;
-  void ProcessBatch(bess::PacketBatch *batch) override;
+  struct task_result RunTask(const Task *task, bess::PacketBatch *batch,
+                             void *arg) override;
+  void ProcessBatch(const Task *task, bess::PacketBatch *batch) override;
 
   std::string GetDesc() const override;
 

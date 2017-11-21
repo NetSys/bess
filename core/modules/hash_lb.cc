@@ -213,7 +213,7 @@ inline void HashLB::DoProcessBatch<HashLB::Mode::kL4>(
   }
 }
 
-void HashLB::ProcessBatch(bess::PacketBatch *batch) {
+void HashLB::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
   gate_idx_t out_gates[bess::PacketBatch::kMaxBurst];
   switch (mode_) {
     case Mode::kL2:
@@ -231,7 +231,8 @@ void HashLB::ProcessBatch(bess::PacketBatch *batch) {
     default:
       DCHECK(0);
   }
-  RunSplit(out_gates, batch);
+
+  RunSplit(task, out_gates, batch);
 }
 
 ADD_MODULE(HashLB, "hash_lb",

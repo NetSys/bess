@@ -55,7 +55,7 @@ class HashLB final : public Module {
 
   std::string GetDesc() const override;
 
-  void ProcessBatch(bess::PacketBatch *batch) override;
+  void ProcessBatch(const Task *task, bess::PacketBatch *batch) override;
 
   CommandResponse CommandSetMode(const bess::pb::HashLBCommandSetModeArg &arg);
   CommandResponse CommandSetGates(

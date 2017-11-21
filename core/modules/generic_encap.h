@@ -52,7 +52,7 @@ class GenericEncap final : public Module {
 
   CommandResponse Init(const bess::pb::GenericEncapArg &arg);
 
-  void ProcessBatch(bess::PacketBatch *batch);
+  void ProcessBatch(const Task *task, bess::PacketBatch *batch) override;
 
  private:
   CommandResponse AddFieldOne(const bess::pb::GenericEncapArg_EncapField &field,

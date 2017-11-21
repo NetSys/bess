@@ -39,7 +39,7 @@ class IPChecksum final : public Module {
  public:
   IPChecksum() : Module() { max_allowed_workers_ = Worker::kMaxWorkers; }
 
-  void ProcessBatch(bess::PacketBatch *batch) override;
+  void ProcessBatch(const Task* task, bess::PacketBatch* batch) override;
 };
 
 #endif  // BESS_MODULES_IP_CHECKSUM_H_

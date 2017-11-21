@@ -51,7 +51,7 @@ CommandResponse EtherEncap::Init(
   return CommandSuccess();
 };
 
-void EtherEncap::ProcessBatch(bess::PacketBatch *batch) {
+void EtherEncap::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
   int cnt = batch->cnt();
 
   for (int i = 0; i < cnt; i++) {
@@ -77,7 +77,7 @@ void EtherEncap::ProcessBatch(bess::PacketBatch *batch) {
     eth->ether_type = ether_type;
   }
 
-  RunNextModule(batch);
+  RunNextModule(task, batch);
 }
 
 ADD_MODULE(EtherEncap, "ether_encap",

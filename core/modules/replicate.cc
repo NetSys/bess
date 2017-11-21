@@ -64,7 +64,8 @@ CommandResponse Replicate::CommandSetGates(
   return CommandSuccess();
 }
 
-void Replicate::ProcessBatch(bess::PacketBatch *batch) {
+void Replicate::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
+  // FIXME: Remove packetbatch in stack
   bess::PacketBatch out_gates[ngates_];
   for (int i = 0; i < ngates_; i++) {
     out_gates[i].clear();
@@ -82,7 +83,7 @@ void Replicate::ProcessBatch(bess::PacketBatch *batch) {
   }
 
   for (int j = 0; j < ngates_; j++) {
-    RunChooseModule(gates_[j], &(out_gates[j]));
+    RunChooseModule(task, gates_[j], &(out_gates[j]));
   }
 }
 

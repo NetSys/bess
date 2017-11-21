@@ -32,7 +32,7 @@
 
 #include "../utils/ether.h"
 
-void VLANPop::ProcessBatch(bess::PacketBatch *batch) {
+void VLANPop::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
   using bess::utils::be16_t;
   using bess::utils::Ethernet;
 
@@ -54,7 +54,7 @@ void VLANPop::ProcessBatch(bess::PacketBatch *batch) {
     }
   }
 
-  RunNextModule(batch);
+  RunNextModule(task, batch);
 }
 
 ADD_MODULE(VLANPop, "vlan_pop", "removes 802.1Q/802.11ad VLAN tag")

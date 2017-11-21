@@ -34,7 +34,7 @@
 #include "../utils/ether.h"
 #include "../utils/ip.h"
 
-void IPChecksum::ProcessBatch(bess::PacketBatch *batch) {
+void IPChecksum::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
   using bess::utils::Ethernet;
   using bess::utils::Ipv4;
   using bess::utils::Vlan;
@@ -73,7 +73,7 @@ void IPChecksum::ProcessBatch(bess::PacketBatch *batch) {
     ip->checksum = CalculateIpv4Checksum(*ip);
   }
 
-  RunNextModule(batch);
+  RunNextModule(task, batch);
 }
 
 ADD_MODULE(IPChecksum, "ip_checksum", "recomputes the IPv4 checksum")

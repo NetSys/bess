@@ -46,7 +46,7 @@ class Replicate final : public Module {
 
   CommandResponse Init(const bess::pb::ReplicateArg &arg);
 
-  void ProcessBatch(bess::PacketBatch *batch) override;
+  void ProcessBatch(const Task *task, bess::PacketBatch *batch) override;
 
   /*!
    * Sets the number of output gates.

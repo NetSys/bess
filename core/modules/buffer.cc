@@ -35,7 +35,7 @@ void Buffer::DeInit() {
   bess::Packet::Free(buf);
 }
 
-void Buffer::ProcessBatch(bess::PacketBatch *batch) {
+void Buffer::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
   bess::PacketBatch *buf = &buf_;
 
   int free_slots = bess::PacketBatch::kMaxBurst - buf->cnt();
@@ -53,7 +53,7 @@ void Buffer::ProcessBatch(bess::PacketBatch *batch) {
     p_batch += free_slots;
     left -= free_slots;
 
-    RunNextModule(buf);
+    RunNextModule(task, buf);
     buf->clear();
   }
 

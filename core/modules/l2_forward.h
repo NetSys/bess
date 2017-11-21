@@ -71,7 +71,7 @@ class L2Forward final : public Module {
 
   void DeInit() override;
 
-  void ProcessBatch(bess::PacketBatch *batch) override;
+  void ProcessBatch(const Task *task, bess::PacketBatch *batch) override;
 
   CommandResponse CommandAdd(const bess::pb::L2ForwardCommandAddArg &arg);
   CommandResponse CommandDelete(const bess::pb::L2ForwardCommandDeleteArg &arg);

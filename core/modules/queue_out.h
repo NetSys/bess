@@ -45,7 +45,7 @@ class QueueOut final : public Module {
 
   void DeInit() override;
 
-  void ProcessBatch(bess::PacketBatch *batch) override;
+  void ProcessBatch(const Task *task, bess::PacketBatch *batch) override;
 
   std::string GetDesc() const override;
 

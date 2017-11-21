@@ -161,9 +161,10 @@ class DRR final : public Module {
 
   CommandResponse Init(const bess::pb::DRRArg& arg);
 
-  void ProcessBatch(bess::PacketBatch* batch) override;
+  void ProcessBatch(const Task* task, bess::PacketBatch* batch) override;
 
-  struct task_result RunTask(void*) override;
+  struct task_result RunTask(const Task* task, bess::PacketBatch* batch,
+                             void* arg) override;
 
   CommandResponse CommandQuantumSize(const bess::pb::DRRQuantumArg& arg);
   CommandResponse CommandMaxFlowQueueSize(

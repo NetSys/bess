@@ -37,7 +37,7 @@ class MACSwap final : public Module {
  public:
   MACSwap() : Module() { max_allowed_workers_ = Worker::kMaxWorkers; }
 
-  void ProcessBatch(bess::PacketBatch *batch) override;
+  void ProcessBatch(const Task* task, bess::PacketBatch* batch) override;
 };
 
 #endif  // BESS_MODULES_MACSWAP_H_

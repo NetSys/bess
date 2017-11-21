@@ -62,7 +62,7 @@ CommandResponse ACL::CommandClear(const bess::pb::EmptyArg &) {
   return CommandSuccess();
 }
 
-void ACL::ProcessBatch(bess::PacketBatch *batch) {
+void ACL::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
   using bess::utils::Ethernet;
   using bess::utils::Ipv4;
   using bess::utils::Udp;
@@ -91,7 +91,7 @@ void ACL::ProcessBatch(bess::PacketBatch *batch) {
       }
     }
   }
-  RunSplit(out_gates, batch);
+  RunSplit(task, out_gates, batch);
 }
 
 ADD_MODULE(ACL, "acl", "ACL module from NetBricks")

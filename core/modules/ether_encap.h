@@ -40,7 +40,7 @@ class EtherEncap final : public Module {
 
   CommandResponse Init(const bess::pb::EtherEncapArg &arg);
 
-  void ProcessBatch(bess::PacketBatch *batch);
+  void ProcessBatch(const Task *task, bess::PacketBatch *batch) override;
 };
 
 #endif  // BESS_MODULES_ETHERENCAP_H_

@@ -51,7 +51,7 @@ class BPF final : public Module {
   CommandResponse Init(const bess::pb::BPFArg &arg);
   void DeInit() override;
 
-  void ProcessBatch(bess::PacketBatch *batch) override;
+  void ProcessBatch(const Task *task, bess::PacketBatch *batch) override;
 
   CommandResponse CommandAdd(const bess::pb::BPFArg &arg);
   CommandResponse CommandClear(const bess::pb::EmptyArg &arg);
@@ -71,7 +71,7 @@ class BPF final : public Module {
 
   static bool Match(const Filter &, u_char *, u_int, u_int);
 
-  void ProcessBatch1Filter(bess::PacketBatch *batch);
+  void ProcessBatch1Filter(const Task *task, bess::PacketBatch *batch);
 
   std::vector<Filter> filters_;
 };

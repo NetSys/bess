@@ -77,7 +77,7 @@ void IPLookup::DeInit() {
   }
 }
 
-void IPLookup::ProcessBatch(bess::PacketBatch *batch) {
+void IPLookup::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
   using bess::utils::Ethernet;
   using bess::utils::Ipv4;
 
@@ -150,7 +150,7 @@ void IPLookup::ProcessBatch(bess::PacketBatch *batch) {
     }
   }
 
-  RunSplit(out_gates, batch);
+  RunSplit(task, out_gates, batch);
 }
 
 ParsedPrefix IPLookup::ParseIpv4Prefix(

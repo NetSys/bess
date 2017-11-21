@@ -60,7 +60,7 @@ CommandResponse ArpResponder::CommandAdd(const bess::pb::ArpResponderArg &arg) {
   return CommandSuccess();
 }
 
-void ArpResponder::ProcessBatch(bess::PacketBatch *batch) {
+void ArpResponder::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
   gate_idx_t out_gates[bess::PacketBatch::kMaxBurst];
 
   int cnt = batch->cnt();
@@ -108,7 +108,7 @@ void ArpResponder::ProcessBatch(bess::PacketBatch *batch) {
     }
   }
 
-  RunSplit(out_gates, batch);
+  RunSplit(task, out_gates, batch);
 }
 
 ADD_MODULE(ArpResponder, "arp_responder",

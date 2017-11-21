@@ -45,7 +45,7 @@ class WorkerSplit final : public Module {
 
   CommandResponse CommandReset(const bess::pb::WorkerSplitArg &);
 
-  void ProcessBatch(bess::PacketBatch *batch) override;
+  void ProcessBatch(const Task *task, bess::PacketBatch *batch) override;
 
   void AddActiveWorker(int wid, const Task *task) override;
 

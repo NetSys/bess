@@ -70,7 +70,7 @@ CommandResponse Timestamp::Init(const bess::pb::TimestampArg &arg) {
   return CommandSuccess();
 }
 
-void Timestamp::ProcessBatch(bess::PacketBatch *batch) {
+void Timestamp::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
   // We don't use ctx->current_ns here for better accuracy
   uint64_t now_ns = tsc_to_ns(rdtsc());
   size_t offset = offset_;
@@ -79,7 +79,7 @@ void Timestamp::ProcessBatch(bess::PacketBatch *batch) {
     timestamp_packet(batch->pkts()[i], offset, now_ns);
   }
 
-  RunNextModule(batch);
+  RunNextModule(task, batch);
 }
 
 ADD_MODULE(Timestamp, "timestamp",
