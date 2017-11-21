@@ -123,14 +123,14 @@ inline void Rewrite::DoRewrite(bess::PacketBatch *batch) {
   next_turn_ = jump_[start + cnt];
 }
 
-void Rewrite::ProcessBatch(bess::PacketBatch *batch) {
+void Rewrite::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
   if (num_templates_ == 1) {
     DoRewriteSingle(batch);
   } else if (num_templates_ > 1) {
     DoRewrite(batch);
   }
 
-  RunNextModule(batch);
+  RunNextModule(task, batch);
 }
 
 ADD_MODULE(Rewrite, "rewrite", "replaces entire packet data")

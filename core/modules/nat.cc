@@ -323,7 +323,8 @@ inline void Stamp(Ipv4 *ip, void *l4, const Endpoint &before,
 }
 
 template <NAT::Direction dir>
-inline void NAT::DoProcessBatch(bess::PacketBatch *batch) {
+inline void NAT::DoProcessBatch(const Task *task, bess::PacketBatch *batch) {
+  // FIXME: Remove packetbatch in stack
   bess::PacketBatch out_batch;
   bess::PacketBatch free_batch;
   out_batch.clear();
@@ -370,16 +371,16 @@ inline void NAT::DoProcessBatch(bess::PacketBatch *batch) {
 
   bess::Packet::Free(&free_batch);
 
-  RunChooseModule(static_cast<gate_idx_t>(dir), &out_batch);
+  RunChooseModule(task, static_cast<gate_idx_t>(dir), &out_batch);
 }
 
-void NAT::ProcessBatch(bess::PacketBatch *batch) {
+void NAT::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
   gate_idx_t incoming_gate = get_igate();
 
   if (incoming_gate == 0) {
-    DoProcessBatch<kForward>(batch);
+    DoProcessBatch<kForward>(task, batch);
   } else {
-    DoProcessBatch<kReverse>(batch);
+    DoProcessBatch<kReverse>(task, batch);
   }
 }
 

@@ -49,7 +49,7 @@ class RandomUpdate final : public Module {
 
   CommandResponse Init(const bess::pb::RandomUpdateArg &arg);
 
-  void ProcessBatch(bess::PacketBatch *batch) override;
+  void ProcessBatch(const Task *task, bess::PacketBatch *batch) override;
 
   CommandResponse CommandAdd(const bess::pb::RandomUpdateArg &arg);
   CommandResponse CommandClear(const bess::pb::EmptyArg &arg);

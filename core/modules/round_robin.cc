@@ -98,7 +98,7 @@ CommandResponse RoundRobin::CommandSetGates(
   return CommandSuccess();
 }
 
-void RoundRobin::ProcessBatch(bess::PacketBatch *batch) {
+void RoundRobin::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
   gate_idx_t out_gates[bess::PacketBatch::kMaxBurst];
 
   if (ngates_ <= 0) {
@@ -113,13 +113,13 @@ void RoundRobin::ProcessBatch(bess::PacketBatch *batch) {
         current_gate_ = 0;
       }
     }
-    RunSplit(out_gates, batch);
+    RunSplit(task, out_gates, batch);
   } else {
     gate_idx_t gate = gates_[current_gate_];
     if (++current_gate_ >= ngates_) {
       current_gate_ = 0;
     }
-    RunChooseModule(gate, batch);
+    RunChooseModule(task, gate, batch);
   }
 }
 

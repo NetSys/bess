@@ -587,7 +587,7 @@ void L2Forward::DeInit() {
   l2_deinit(&l2_table_);
 }
 
-void L2Forward::ProcessBatch(bess::PacketBatch *batch) {
+void L2Forward::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
   gate_idx_t default_gate = ACCESS_ONCE(default_gate_);
   gate_idx_t out_gates[bess::PacketBatch::kMaxBurst];
 
@@ -602,7 +602,7 @@ void L2Forward::ProcessBatch(bess::PacketBatch *batch) {
             &out_gates[i]);
   }
 
-  RunSplit(out_gates, batch);
+  RunSplit(task, out_gates, batch);
 }
 
 CommandResponse L2Forward::CommandAdd(

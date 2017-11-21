@@ -38,7 +38,7 @@ class IPSwap final : public Module {
  public:
   IPSwap() : Module() { max_allowed_workers_ = Worker::kMaxWorkers; }
 
-  void ProcessBatch(bess::PacketBatch *batch) override;
+  void ProcessBatch(const Task* task, bess::PacketBatch* batch) override;
 };
 
 #endif  // BESS_MODULES_IPSWAP_H_

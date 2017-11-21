@@ -32,7 +32,7 @@
 
 #include "../utils/ether.h"
 
-void VLANSplit::ProcessBatch(bess::PacketBatch *batch) {
+void VLANSplit::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
   using bess::utils::be16_t;
   using bess::utils::Ethernet;
 
@@ -60,7 +60,7 @@ void VLANSplit::ProcessBatch(bess::PacketBatch *batch) {
     }
   }
 
-  RunSplit(vid, batch);
+  RunSplit(task, vid, batch);
 }
 
 ADD_MODULE(VLANSplit, "vlan_split", "split packets depending on their VID")

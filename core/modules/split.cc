@@ -67,7 +67,7 @@ CommandResponse Split::Init(const bess::pb::SplitArg &arg) {
   return CommandSuccess();
 }
 
-void Split::ProcessBatch(bess::PacketBatch *batch) {
+void Split::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
   using bess::utils::be64_t;
 
   gate_idx_t ogate[bess::PacketBatch::kMaxBurst];
@@ -90,7 +90,7 @@ void Split::ProcessBatch(bess::PacketBatch *batch) {
     }
   }
 
-  RunSplit(ogate, batch);
+  RunSplit(task, ogate, batch);
 }
 
 ADD_MODULE(Split, "split",

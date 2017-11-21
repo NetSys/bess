@@ -42,7 +42,7 @@ class GenericDecap final : public Module {
 
   CommandResponse Init(const bess::pb::GenericDecapArg &arg);
 
-  void ProcessBatch(bess::PacketBatch *batch) override;
+  void ProcessBatch(const Task *task, bess::PacketBatch *batch) override;
 
  private:
   int decap_size_;

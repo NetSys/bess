@@ -43,7 +43,7 @@ class Timestamp final : public Module {
 
   CommandResponse Init(const bess::pb::TimestampArg &arg);
 
-  void ProcessBatch(bess::PacketBatch *batch) override;
+  void ProcessBatch(const Task *task, bess::PacketBatch *batch) override;
 
  private:
   size_t offset_;

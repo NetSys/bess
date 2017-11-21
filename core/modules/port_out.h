@@ -47,7 +47,7 @@ class PortOut final : public Module {
 
   void DeInit() override;
 
-  void ProcessBatch(bess::PacketBatch *batch) override;
+  void ProcessBatch(const Task *task, bess::PacketBatch *batch) override;
 
   int OnEvent(bess::Event e) override;
 

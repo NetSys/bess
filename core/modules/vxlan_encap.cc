@@ -76,7 +76,7 @@ CommandResponse VXLANEncap::Init(const bess::pb::VXLANEncapArg &arg) {
   return CommandSuccess();
 }
 
-void VXLANEncap::ProcessBatch(bess::PacketBatch *batch) {
+void VXLANEncap::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
   using bess::utils::Ethernet;
   using bess::utils::Ipv4;
   using bess::utils::Udp;
@@ -119,7 +119,7 @@ void VXLANEncap::ProcessBatch(bess::PacketBatch *batch) {
     set_attr<uint8_t>(this, ATTR_W_IP_PROTO, pkt, Ipv4::Proto::kUdp);
   }
 
-  RunNextModule(batch);
+  RunNextModule(task, batch);
 }
 
 ADD_MODULE(VXLANEncap, "vxlan_encap",

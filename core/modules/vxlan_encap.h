@@ -46,7 +46,7 @@ class VXLANEncap final : public Module {
 
   CommandResponse Init(const bess::pb::VXLANEncapArg &arg);
 
-  void ProcessBatch(bess::PacketBatch *batch) override;
+  void ProcessBatch(const Task *task, bess::PacketBatch *batch) override;
 
  private:
   bess::utils::be16_t dstport_;

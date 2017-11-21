@@ -72,7 +72,7 @@ class RoundRobin final : public Module {
 
   CommandResponse Init(const bess::pb::RoundRobinArg &arg);
 
-  void ProcessBatch(bess::PacketBatch *batch) override;
+  void ProcessBatch(const Task *task, bess::PacketBatch *batch) override;
 
   /*!
    * Switches the RoundRobin module between "batch" vs "packet" scheduling.

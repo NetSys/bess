@@ -120,7 +120,7 @@ CommandResponse DRR::CommandMaxFlowQueueSize(
   return SetMaxFlowQueueSize(arg.max_queue_size());
 }
 
-void DRR::ProcessBatch(bess::PacketBatch* batch) {
+void DRR::ProcessBatch(const Task*, bess::PacketBatch* batch) {
   int err = 0;
 
   // insert packets in the batch into their corresponding flows
@@ -147,28 +147,28 @@ void DRR::ProcessBatch(bess::PacketBatch* batch) {
   }
 }
 
-struct task_result DRR::RunTask(void*) {
+struct task_result DRR::RunTask(const Task* task, bess::PacketBatch* batch,
+                                void*) {
   if (children_overload_ > 0) {
     return {
         .block = true, .packets = 0, .bits = 0,
     };
   }
 
-  bess::PacketBatch batch;
   int err = 0;
-  batch.clear();
+  batch->clear();
   uint32_t total_bytes = 0;
   if (flow_ring_ != NULL) {
-    total_bytes = GetNextBatch(&batch, &err);
+    total_bytes = GetNextBatch(batch, &err);
   }
   assert(err >= 0);  // TODO(joshua) do proper error checking
 
   if (total_bytes > 0) {
-    RunNextModule(&batch);
+    RunNextModule(task, batch);
   }
 
   // the number of bits inserted into the packet batch
-  uint32_t cnt = batch.cnt();
+  uint32_t cnt = batch->cnt();
   uint64_t bits_retrieved = (total_bytes + cnt * kPacketOverhead) * 8;
   return {.block = (cnt == 0), .packets = cnt, .bits = bits_retrieved};
 }

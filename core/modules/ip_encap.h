@@ -40,7 +40,7 @@ class IPEncap final : public Module {
 
   CommandResponse Init(const bess::pb::IPEncapArg &arg);
 
-  void ProcessBatch(bess::PacketBatch *batch) override;
+  void ProcessBatch(const Task *task, bess::PacketBatch *batch) override;
 };
 
 #endif  // BESS_MODULES_IPENCAP_H_

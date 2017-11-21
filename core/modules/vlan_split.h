@@ -35,13 +35,11 @@
 
 class VLANSplit final : public Module {
  public:
-  VLANSplit() : Module() {
-    max_allowed_workers_ = Worker::kMaxWorkers;
-  }
+  VLANSplit() : Module() { max_allowed_workers_ = Worker::kMaxWorkers; }
 
   static const gate_idx_t kNumOGates = 4096;
 
-  void ProcessBatch(bess::PacketBatch *batch) override;
+  void ProcessBatch(const Task* task, bess::PacketBatch* batch) override;
 };
 
 #endif  // BESS_MODULES_VLANSPLIT_H_

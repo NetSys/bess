@@ -34,7 +34,7 @@
 #include "utils/ip.h"
 #include "utils/udp.h"
 
-void IPSwap::ProcessBatch(bess::PacketBatch *batch) {
+void IPSwap::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
   using bess::utils::Ethernet;
   using bess::utils::Ipv4;
   using bess::utils::Udp;
@@ -71,7 +71,7 @@ void IPSwap::ProcessBatch(bess::PacketBatch *batch) {
     }
   }
 
-  RunNextModule(batch);
+  RunNextModule(task, batch);
 }
 
 ADD_MODULE(IPSwap, "ipswap",

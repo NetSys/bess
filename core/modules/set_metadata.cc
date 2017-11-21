@@ -215,7 +215,7 @@ inline void SetMetadata::DoProcessBatch(bess::PacketBatch *batch,
   }
 }
 
-void SetMetadata::ProcessBatch(bess::PacketBatch *batch) {
+void SetMetadata::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
   for (size_t i = 0; i < attrs_.size(); i++) {
     const struct Attr *attr = &attrs_[i];
     mt_offset_t mt_offset = attr_offset(i);
@@ -231,7 +231,7 @@ void SetMetadata::ProcessBatch(bess::PacketBatch *batch) {
     }
   }
 
-  RunNextModule(batch);
+  RunNextModule(task, batch);
 }
 
 ADD_MODULE(SetMetadata, "setattr", "Set metadata attributes to packets")

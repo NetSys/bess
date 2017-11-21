@@ -37,7 +37,8 @@
 using bess::utils::Ethernet;
 using bess::utils::Ipv4;
 
-void UpdateTTL::ProcessBatch(bess::PacketBatch *batch) {
+void UpdateTTL::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
+  // FIXME: Remove packetbatch in stack
   bess::PacketBatch out_batch;
   bess::PacketBatch drop_batch;
   out_batch.clear();
@@ -62,8 +63,8 @@ void UpdateTTL::ProcessBatch(bess::PacketBatch *batch) {
     }
   }
 
-  RunChooseModule(0, &out_batch);
-  RunChooseModule(1, &drop_batch);
+  RunChooseModule(task, 0, &out_batch);
+  RunChooseModule(task, 1, &drop_batch);
 }
 
 ADD_MODULE(UpdateTTL, "update_ttl", "decreases the IP TTL field by 1")

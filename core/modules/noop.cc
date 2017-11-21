@@ -40,7 +40,7 @@ CommandResponse NoOP::Init(const bess::pb::EmptyArg &) {
   return CommandSuccess();
 }
 
-struct task_result NoOP::RunTask(void *) {
+struct task_result NoOP::RunTask(const Task *, bess::PacketBatch *, void *) {
   return {.block = false, .packets = 0, .bits = 0};
 }
 

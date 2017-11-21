@@ -99,7 +99,7 @@ CommandResponse Measure::Init(const bess::pb::MeasureArg &arg) {
   return CommandSuccess();
 }
 
-void Measure::ProcessBatch(bess::PacketBatch *batch) {
+void Measure::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
   // We don't use ctx->current_ns here for better accuracy
   uint64_t now_ns = tsc_to_ns(rdtsc());
   size_t offset = offset_;
@@ -138,7 +138,7 @@ void Measure::ProcessBatch(bess::PacketBatch *batch) {
 
   mcs_unlock(&lock_, &mynode);
 
-  RunNextModule(batch);
+  RunNextModule(task, batch);
 }
 
 template <typename T>

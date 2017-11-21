@@ -55,7 +55,7 @@ class ExactMatch final : public Module {
     max_allowed_workers_ = Worker::kMaxWorkers;
   }
 
-  void ProcessBatch(bess::PacketBatch *batch) override;
+  void ProcessBatch(const Task *task, bess::PacketBatch *batch) override;
 
   std::string GetDesc() const override;
 
@@ -78,7 +78,7 @@ class ExactMatch final : public Module {
   Error AddRule(const bess::pb::ExactMatchCommandAddArg &arg);
 
   gate_idx_t default_gate_;
-  bool empty_masks_;		// mainly for GetInitialArg
+  bool empty_masks_;  // mainly for GetInitialArg
 
   ExactMatchTable<gate_idx_t> table_;
 };

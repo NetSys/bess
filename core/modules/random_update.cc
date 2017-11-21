@@ -113,7 +113,7 @@ CommandResponse RandomUpdate::CommandClear(const bess::pb::EmptyArg &) {
   return CommandSuccess();
 }
 
-void RandomUpdate::ProcessBatch(bess::PacketBatch *batch) {
+void RandomUpdate::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
   int cnt = batch->cnt();
 
   for (size_t i = 0; i < num_vars_; i++) {
@@ -132,7 +132,7 @@ void RandomUpdate::ProcessBatch(bess::PacketBatch *batch) {
     }
   }
 
-  RunNextModule(batch);
+  RunNextModule(task, batch);
 }
 
 ADD_MODULE(RandomUpdate, "rupdate", "updates packet data with random values")

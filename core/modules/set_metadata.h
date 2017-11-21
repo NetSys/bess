@@ -58,7 +58,7 @@ class SetMetadata final : public Module {
 
   CommandResponse Init(const bess::pb::SetMetadataArg &arg);
 
-  void ProcessBatch(bess::PacketBatch *batch);
+  void ProcessBatch(const Task *task, bess::PacketBatch *batch) override;
 
  private:
   enum class Mode { FromPacket, FromValue };

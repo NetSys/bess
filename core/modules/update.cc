@@ -43,7 +43,7 @@ CommandResponse Update::Init(const bess::pb::UpdateArg &arg) {
   return CommandAdd(arg);
 }
 
-void Update::ProcessBatch(bess::PacketBatch *batch) {
+void Update::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
   int cnt = batch->cnt();
 
   for (size_t i = 0; i < num_fields_; i++) {
@@ -62,7 +62,7 @@ void Update::ProcessBatch(bess::PacketBatch *batch) {
     }
   }
 
-  RunNextModule(batch);
+  RunNextModule(task, batch);
 }
 
 CommandResponse Update::CommandAdd(const bess::pb::UpdateArg &arg) {

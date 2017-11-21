@@ -86,10 +86,10 @@ CommandResponse MetadataTest::Init(const bess::pb::MetadataTestArg &arg) {
   return CommandSuccess();
 }
 
-void MetadataTest::ProcessBatch(bess::PacketBatch *batch) {
+void MetadataTest::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
   /* This module simply passes packets from input gate X down
    * to output gate X (the same gate index) */
-  RunChooseModule(get_igate(), batch);
+  RunChooseModule(task, get_igate(), batch);
 }
 
 ADD_MODULE(MetadataTest, "mt_test", "Dynamic metadata test module")

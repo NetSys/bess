@@ -38,7 +38,7 @@ class Dump final : public Module {
  public:
   CommandResponse Init(const bess::pb::DumpArg &arg);
 
-  void ProcessBatch(bess::PacketBatch *batch) override;
+  void ProcessBatch(const Task *task, bess::PacketBatch *batch) override;
 
   CommandResponse CommandSetInterval(const bess::pb::DumpArg &arg);
 

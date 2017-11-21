@@ -84,7 +84,8 @@ std::string QueueInc::GetDesc() const {
                              port_->port_builder()->class_name().c_str());
 }
 
-struct task_result QueueInc::RunTask(void *arg) {
+struct task_result QueueInc::RunTask(const Task *task, bess::PacketBatch *batch,
+                                     void *arg) {
   Port *p = port_;
 
   if (!p->conf().admin_up) {
@@ -93,15 +94,13 @@ struct task_result QueueInc::RunTask(void *arg) {
 
   const queue_t qid = (queue_t)(uintptr_t)arg;
 
-  bess::PacketBatch batch;
-
   uint64_t received_bytes = 0;
 
   const int burst = ACCESS_ONCE(burst_);
   const int pkt_overhead = 24;
 
-  batch.set_cnt(p->RecvPackets(qid, batch.pkts(), burst));
-  uint32_t cnt = batch.cnt();
+  batch->set_cnt(p->RecvPackets(qid, batch->pkts(), burst));
+  uint32_t cnt = batch->cnt();
 
   if (cnt == 0) {
     return {.block = true, .packets = 0, .bits = 0};
@@ -110,12 +109,12 @@ struct task_result QueueInc::RunTask(void *arg) {
   // NOTE: we cannot skip this step since it might be used by scheduler.
   if (prefetch_) {
     for (uint32_t i = 0; i < cnt; i++) {
-      received_bytes += batch.pkts()[i]->total_len();
-      rte_prefetch0(batch.pkts()[i]->head_data());
+      received_bytes += batch->pkts()[i]->total_len();
+      rte_prefetch0(batch->pkts()[i]->head_data());
     }
   } else {
     for (uint32_t i = 0; i < cnt; i++) {
-      received_bytes += batch.pkts()[i]->total_len();
+      received_bytes += batch->pkts()[i]->total_len();
     }
   }
 
@@ -124,7 +123,7 @@ struct task_result QueueInc::RunTask(void *arg) {
     p->queue_stats[PACKET_DIR_INC][qid].bytes += received_bytes;
   }
 
-  RunNextModule(&batch);
+  RunNextModule(task, batch);
 
   return {.block = false,
           .packets = cnt,

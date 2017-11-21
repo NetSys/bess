@@ -141,7 +141,7 @@ class WildcardMatch final : public Module {
 
   CommandResponse Init(const bess::pb::WildcardMatchArg &arg);
 
-  void ProcessBatch(bess::PacketBatch *batch) override;
+  void ProcessBatch(const Task *task, bess::PacketBatch *batch) override;
 
   std::string GetDesc() const override;
 

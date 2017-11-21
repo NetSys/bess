@@ -233,12 +233,12 @@ CommandResponse UrlFilter::SetRuntimeConfig(
   return CommandSuccess();
 }
 
-void UrlFilter::ProcessBatch(bess::PacketBatch *batch) {
+void UrlFilter::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
   gate_idx_t igate = get_igate();
 
   // Pass reverse traffic
   if (igate == 1) {
-    RunChooseModule(1, batch);
+    RunChooseModule(task, 1, batch);
     return;
   }
 
@@ -246,6 +246,7 @@ void UrlFilter::ProcessBatch(bess::PacketBatch *batch) {
   bess::PacketBatch free_batch;
   free_batch.clear();
 
+  // FIXME: Remove packetbatch in stack
   bess::PacketBatch out_batches[4];
   // Data to destination
   out_batches[0].clear();
@@ -396,10 +397,10 @@ void UrlFilter::ProcessBatch(bess::PacketBatch *batch) {
 
   bess::Packet::Free(&free_batch);
 
-  RunChooseModule(0, &out_batches[0]);
-  RunChooseModule(0, &out_batches[1]);
-  RunChooseModule(1, &out_batches[2]);
-  RunChooseModule(1, &out_batches[3]);
+  RunChooseModule(task, 0, &out_batches[0]);
+  RunChooseModule(task, 0, &out_batches[1]);
+  RunChooseModule(task, 1, &out_batches[2]);
+  RunChooseModule(task, 1, &out_batches[3]);
 }
 
 std::string UrlFilter::GetDesc() const {

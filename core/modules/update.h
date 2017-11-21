@@ -48,7 +48,7 @@ class Update final : public Module {
 
   CommandResponse Init(const bess::pb::UpdateArg &arg);
 
-  void ProcessBatch(bess::PacketBatch *batch) override;
+  void ProcessBatch(const Task *task, bess::PacketBatch *batch) override;
 
   CommandResponse CommandAdd(const bess::pb::UpdateArg &arg);
   CommandResponse CommandClear(const bess::pb::EmptyArg &arg);
