@@ -114,7 +114,7 @@ message FlowGenCommandSetBurstArg {
  * Example use in bessctl: `lb.set_mode('l2')`
  */
 message HashLBCommandSetModeArg {
-  string mode = 1; /// What fields to hash over, l2, l3, l4 custom are only valid values.
+  string mode = 1; /// What fields to hash over, l2, l3, and l4 are only valid values.
   repeated Field fields = 2; /// A list of fields that define a custom tuple.
 }
 
