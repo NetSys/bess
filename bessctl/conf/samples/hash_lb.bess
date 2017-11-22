@@ -32,8 +32,8 @@ import scapy.all as scapy
 
 mode = $MODE!'l4'
 
-if mode not in ['l2', 'l3', 'l4', 'vlan']:
-  raise TypeError('MODE must be one of l2, l3, l4, or vlan')
+if mode not in ['l4', 'vlan']:
+  raise TypeError('MODE must be l4 or vlan')
 
 eth = scapy.Ether(src='02:1e:67:9f:4d:ac', dst='06:16:3e:1b:72:32')
 ip = scapy.IP(src='192.168.1.1', dst='10.0.0.1')

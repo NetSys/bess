@@ -33,6 +33,14 @@
 #include <utility>
 #include <vector>
 
+static inline uint32_t hash_64(uint64_t val, uint32_t init_val) {
+#if __SSE4_2__ && __x86_64
+  return crc32c_sse42_u64(val, init_val);
+#else
+  return crc32c_2words(val, init_val);
+#endif
+}
+
 /* Returns a value in [0, range) as a function of an opaque number.
  * Also see utils/random.h */
 static inline uint16_t hash_range(uint32_t hashval, uint16_t range) {
@@ -64,34 +72,27 @@ const Commands HashLB::cmds = {
 
 CommandResponse HashLB::CommandSetMode(
     const bess::pb::HashLBCommandSetModeArg &arg) {
-  std::vector<std::pair<int, int>> fields;
   if (arg.fields_size()) {
-    for (const auto &f : arg.fields()) {
-      fields.emplace_back(f.offset(), f.num_bytes());
+    mode_ = Mode::kOther;
+    fields_table_ = ExactMatchTable<int>();
+    for (int i = 0; i < arg.fields_size(); i++) {
+      const auto &f = arg.fields(i);
+      const auto err = fields_table_.AddField(f.offset(), f.num_bytes(), 0, i);
+      if (err.first) {
+        return CommandFailure(-err.first, "Error adding field %d: %s", i,
+                              err.second.c_str());
+      }
     }
+    hasher_ = ExactMatchKeyHash(fields_table_.total_key_size());
   } else if (arg.mode() == "l2") {
-    fields.emplace_back(0, 6);  // dst mac
-    fields.emplace_back(6, 6);  // src mac
+    mode_ = Mode::kL2;
   } else if (arg.mode() == "l3") {
-    fields.emplace_back(26, 8);  // src + dst ip
+    mode_ = Mode::kL3;
   } else if (arg.mode() == "l4") {
-    fields.emplace_back(26, 8);  // src + dst ip
-    fields.emplace_back(23, 1);  // ip proto
-    fields.emplace_back(34, 4);  // l4 ports
+    mode_ = Mode::kL4;
   } else {
     return CommandFailure(EINVAL, "available LB modes: l2, l3, l4");
   }
-
-  fields_table_ = ExactMatchTable<int>();
-  for (size_t i = 0; i < fields.size(); i++) {
-    const auto &f = fields[i];
-    const auto err = fields_table_.AddField(f.first, f.second, 0, i);
-    if (err.first) {
-      return CommandFailure(-err.first, "Error adding field %zu: %s", i,
-                            err.second.c_str());
-    }
-  }
-  hasher_ = ExactMatchKeyHash(fields_table_.total_key_size());
 
   return CommandSuccess();
 }
@@ -122,6 +123,10 @@ CommandResponse HashLB::Init(const bess::pb::HashLBArg &arg) {
     return ret;
   }
 
+  if (!arg.mode().size() && !arg.fields_size()) {
+    mode_ = kDefaultMode;
+    return CommandSuccess();
+  }
   bess::pb::HashLBCommandSetModeArg mode_arg;
   mode_arg.set_mode(arg.mode());
   *mode_arg.mutable_fields() = arg.fields();
@@ -132,8 +137,9 @@ std::string HashLB::GetDesc() const {
   return bess::utils::Format("%zu fields", fields_table_.num_fields());
 }
 
-void HashLB::ProcessBatch(bess::PacketBatch *batch) {
-  gate_idx_t out_gates[bess::PacketBatch::kMaxBurst];
+template <>
+inline void HashLB::DoProcessBatch<HashLB::Mode::kOther>(
+    bess::PacketBatch *batch, gate_idx_t *out_gates) const {
   void *bufs[bess::PacketBatch::kMaxBurst];
   ExactMatchKey keys[bess::PacketBatch::kMaxBurst];
 
@@ -147,7 +153,84 @@ void HashLB::ProcessBatch(bess::PacketBatch *batch) {
   for (size_t i = 0; i < cnt; i++) {
     out_gates[i] = gates_[hash_range(hasher_(keys[i]), num_gates_)];
   }
+}
 
+template <>
+inline void HashLB::DoProcessBatch<HashLB::Mode::kL2>(
+    bess::PacketBatch *batch, gate_idx_t *out_gates) const {
+  for (int i = 0; i < batch->cnt(); i++) {
+    bess::Packet *snb = batch->pkts()[i];
+    char *head = snb->head_data<char *>();
+
+    uint64_t v0 = *(reinterpret_cast<uint64_t *>(head));
+    uint32_t v1 = *(reinterpret_cast<uint32_t *>(head + 8));
+
+    uint32_t hash_val = hash_64(v0, v1);
+
+    out_gates[i] = gates_[hash_range(hash_val, num_gates_)];
+  }
+}
+
+template <>
+inline void HashLB::DoProcessBatch<HashLB::Mode::kL3>(
+    bess::PacketBatch *batch, gate_idx_t *out_gates) const {
+  /* assumes untagged packets */
+  const int ip_offset = 14;
+
+  for (int i = 0; i < batch->cnt(); i++) {
+    bess::Packet *snb = batch->pkts()[i];
+    char *head = snb->head_data<char *>();
+
+    uint32_t hash_val;
+    uint64_t v = *(reinterpret_cast<uint64_t *>(head + ip_offset + 12));
+
+    hash_val = hash_64(v, 0);
+
+    out_gates[i] = gates_[hash_range(hash_val, num_gates_)];
+  }
+}
+
+template <>
+inline void HashLB::DoProcessBatch<HashLB::Mode::kL4>(
+    bess::PacketBatch *batch, gate_idx_t *out_gates) const {
+  /* assumes untagged packets without IP options */
+  const int ip_offset = 14;
+  const int l4_offset = ip_offset + 20;
+
+  for (int i = 0; i < batch->cnt(); i++) {
+    bess::Packet *snb = batch->pkts()[i];
+    char *head = snb->head_data<char *>();
+
+    uint32_t hash_val;
+    uint64_t v0 = *(reinterpret_cast<uint64_t *>(head + ip_offset + 12));
+    uint32_t v1 = *(reinterpret_cast<uint64_t *>(head + l4_offset)); /* ports */
+
+    v1 ^= *(reinterpret_cast<uint32_t *>(head + ip_offset + 9)); /* ip_proto */
+
+    hash_val = hash_64(v0, v1);
+
+    out_gates[i] = gates_[hash_range(hash_val, num_gates_)];
+  }
+}
+
+void HashLB::ProcessBatch(bess::PacketBatch *batch) {
+  gate_idx_t out_gates[bess::PacketBatch::kMaxBurst];
+  switch (mode_) {
+    case Mode::kL2:
+      DoProcessBatch<Mode::kL2>(batch, out_gates);
+      break;
+    case Mode::kL3:
+      DoProcessBatch<Mode::kL3>(batch, out_gates);
+      break;
+    case Mode::kL4:
+      DoProcessBatch<Mode::kL4>(batch, out_gates);
+      break;
+    case Mode::kOther:
+      DoProcessBatch<Mode::kOther>(batch, out_gates);
+      break;
+    default:
+      DCHECK(0);
+  }
   RunSplit(out_gates, batch);
 }
 

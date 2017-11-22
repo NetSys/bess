@@ -46,7 +46,8 @@ class HashLB final : public Module {
 
   static const Commands cmds;
 
-  HashLB() : Module(), gates_(), num_gates_(), fields_table_(), hasher_(0) {
+  HashLB()
+      : Module(), gates_(), num_gates_(), mode_(), fields_table_(), hasher_(0) {
     max_allowed_workers_ = Worker::kMaxWorkers;
   }
 
@@ -61,10 +62,18 @@ class HashLB final : public Module {
       const bess::pb::HashLBCommandSetGatesArg &arg);
 
  private:
+  enum class Mode { kL2, kL3, kL4, kOther };
+  static constexpr Mode kDefaultMode = Mode::kL4;
+
+  template <Mode mode>
+  inline void DoProcessBatch(bess::PacketBatch *batch,
+                             gate_idx_t *out_gates) const;
+
   static constexpr size_t kMaxGates = 16384;
 
   gate_idx_t gates_[kMaxGates];
   size_t num_gates_;
+  Mode mode_;
 
   // No rules are ever added to this table, we just use it for MakeKeys().
   ExactMatchTable<int> fields_table_;
