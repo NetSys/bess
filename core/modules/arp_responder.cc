@@ -61,18 +61,14 @@ CommandResponse ArpResponder::CommandAdd(const bess::pb::ArpResponderArg &arg) {
 }
 
 void ArpResponder::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
-  gate_idx_t out_gates[bess::PacketBatch::kMaxBurst];
-
   int cnt = batch->cnt();
   for (int i = 0; i < cnt; i++) {
     bess::Packet *pkt = batch->pkts()[i];
 
-    out_gates[i] = 0;
-
     Ethernet *eth = pkt->head_data<Ethernet *>();
     if (eth->ether_type != be16_t(Ethernet::Type::kArp)) {
       // Currently drop all non ARP packets, but can also just continue
-      out_gates[i] = DROP_GATE;
+      DropPacket(task, pkt);
       continue;
     }
 
@@ -94,21 +90,20 @@ void ArpResponder::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
 
         arp->target_ip_addr = arp->sender_ip_addr;
         arp->sender_ip_addr = entry.ip_addr;
+        EmitPacket(task, pkt, 0);
       } else {
         // Did not find an ARP entry in cache, drop packet
         // TODO(galsagie) Optinally continue packet to next module here
-        out_gates[i] = DROP_GATE;
+        DropPacket(task, pkt);
       }
     } else if (arp->opcode == be16_t(Arp::Opcode::kReply)) {
       // TODO(galsagie) When learn is added, learn SRC MAC here
-      out_gates[i] = DROP_GATE;
+      DropPacket(task, pkt);
     } else {
       // TODO(galsagie) Other opcodes are not handled yet.
-      out_gates[i] = DROP_GATE;
+      DropPacket(task, pkt);
     }
   }
-
-  RunSplit(task, out_gates, batch);
 }
 
 ADD_MODULE(ArpResponder, "arp_responder",

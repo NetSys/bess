@@ -38,12 +38,6 @@ using bess::utils::Ethernet;
 using bess::utils::Ipv4;
 
 void UpdateTTL::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
-  // FIXME: Remove packetbatch in stack
-  bess::PacketBatch out_batch;
-  bess::PacketBatch drop_batch;
-  out_batch.clear();
-  drop_batch.clear();
-
   int cnt = batch->cnt();
 
   for (int i = 0; i < cnt; i++) {
@@ -57,14 +51,11 @@ void UpdateTTL::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
       // We use constant numbers here for efficiency.
       ip->checksum = bess::utils::UpdateChecksum16(ip->checksum, 2, 1);
       ip->ttl -= 1;
-      out_batch.add(pkt);
+      EmitPacket(task, pkt);
     } else {
-      drop_batch.add(pkt);  // drop the packet since it's TTL is 1 or 0
+      DropPacket(task, pkt);
     }
   }
-
-  RunChooseModule(task, 0, &out_batch);
-  RunChooseModule(task, 1, &drop_batch);
 }
 
 ADD_MODULE(UpdateTTL, "update_ttl", "decreases the IP TTL field by 1")

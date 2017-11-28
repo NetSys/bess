@@ -33,12 +33,6 @@
 #include "../utils/bits.h"
 #include "../utils/endian.h"
 
-// XXX: this is repeated in many modules. get rid of them when converting .h to
-// .hh, etc... it's in defined in some old header
-static inline bool is_valid_gate(gate_idx_t gate) {
-  return (gate < MAX_GATES || gate == DROP_GATE);
-}
-
 CommandResponse Split::Init(const bess::pb::SplitArg &arg) {
   size_ = arg.size();
   if (size_ < 1 || size_ > sizeof(uint64_t)) {
@@ -70,27 +64,24 @@ CommandResponse Split::Init(const bess::pb::SplitArg &arg) {
 void Split::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
   using bess::utils::be64_t;
 
-  gate_idx_t ogate[bess::PacketBatch::kMaxBurst];
   int cnt = batch->cnt();
 
   if (attr_id_ >= 0) {
     bess::metadata::mt_offset_t offset = attr_offset(attr_id_);
     for (int i = 0; i < cnt; i++) {
-      const bess::Packet *pkt = batch->pkts()[i];
+      bess::Packet *pkt = batch->pkts()[i];
       uint64_t val = get_attr_with_offset<be64_t>(offset, pkt).value();
       val = (val >> shift_) & mask_;
-      ogate[i] = is_valid_gate(val) ? val : DROP_GATE;
+      EmitPacket(task, pkt, val);
     }
   } else {
     for (int i = 0; i < cnt; i++) {
-      const bess::Packet *pkt = batch->pkts()[i];
+      bess::Packet *pkt = batch->pkts()[i];
       uint64_t val = (pkt->head_data<be64_t *>(offset_))->value();
       val = (val >> shift_) & mask_;
-      ogate[i] = is_valid_gate(val) ? val : DROP_GATE;
+      EmitPacket(task, pkt, val);
     }
   }
-
-  RunSplit(task, ogate, batch);
 }
 
 ADD_MODULE(Split, "split",

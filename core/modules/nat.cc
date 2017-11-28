@@ -324,12 +324,7 @@ inline void Stamp(Ipv4 *ip, void *l4, const Endpoint &before,
 
 template <NAT::Direction dir>
 inline void NAT::DoProcessBatch(const Task *task, bess::PacketBatch *batch) {
-  // FIXME: Remove packetbatch in stack
-  bess::PacketBatch out_batch;
-  bess::PacketBatch free_batch;
-  out_batch.clear();
-  free_batch.clear();
-
+  static gate_idx_t ogate_idx = static_cast<gate_idx_t>(dir);
   int cnt = batch->cnt();
   uint64_t now = ctx.current_ns();
 
@@ -346,7 +341,7 @@ inline void NAT::DoProcessBatch(const Task *task, bess::PacketBatch *batch) {
     std::tie(valid_protocol, before) = ExtractEndpoint(ip, l4, dir);
 
     if (!valid_protocol) {
-      free_batch.add(pkt);
+      DropPacket(task, pkt);
       continue;
     }
 
@@ -354,7 +349,7 @@ inline void NAT::DoProcessBatch(const Task *task, bess::PacketBatch *batch) {
 
     if (hash_item == nullptr) {
       if (dir != kForward || !(hash_item = CreateNewEntry(before, now))) {
-        free_batch.add(pkt);
+        DropPacket(task, pkt);
         continue;
       }
     }
@@ -365,13 +360,8 @@ inline void NAT::DoProcessBatch(const Task *task, bess::PacketBatch *batch) {
     }
 
     Stamp<dir>(ip, l4, before, hash_item->second.endpoint);
-
-    out_batch.add(pkt);
+    EmitPacket(task, pkt, ogate_idx);
   }
-
-  bess::Packet::Free(&free_batch);
-
-  RunChooseModule(task, static_cast<gate_idx_t>(dir), &out_batch);
 }
 
 void NAT::ProcessBatch(const Task *task, bess::PacketBatch *batch) {

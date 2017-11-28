@@ -99,8 +99,6 @@ CommandResponse RoundRobin::CommandSetGates(
 }
 
 void RoundRobin::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
-  gate_idx_t out_gates[bess::PacketBatch::kMaxBurst];
-
   if (ngates_ <= 0) {
     bess::Packet::Free(batch);
     return;
@@ -108,12 +106,12 @@ void RoundRobin::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
 
   if (per_packet_) {
     for (int i = 0; i < batch->cnt(); i++) {
-      out_gates[i] = gates_[current_gate_];
+      bess::Packet *pkt = batch->pkts()[i];
+      EmitPacket(task, pkt, gates_[current_gate_]);
       if (++current_gate_ >= ngates_) {
         current_gate_ = 0;
       }
     }
-    RunSplit(task, out_gates, batch);
   } else {
     gate_idx_t gate = gates_[current_gate_];
     if (++current_gate_ >= ngates_) {

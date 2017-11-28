@@ -211,6 +211,12 @@ class alignas(64) Module {
 
   static const Commands cmds;
 
+  int gate_with_hook_cnt = 0;
+  gate_idx_t gate_with_hook[bess::PacketBatch::kMaxBurst];
+
+  int gate_without_hook_cnt = 0;
+  gate_idx_t gate_without_hook[bess::PacketBatch::kMaxBurst];
+
   // -------------------------------------------------------------------------
 
  public:
@@ -227,12 +233,22 @@ class alignas(64) Module {
   /* Wrapper for single-output modules */
   inline void RunNextModule(const Task *task, bess::PacketBatch *batch);
 
+  inline void DropPacket(const Task *task, bess::Packet *pkt);
+  inline void EmitPacket(const Task *task, bess::Packet *pkt,
+                         gate_idx_t ogate = 0);
+  inline void ProcessOGates(const Task *task);
+
   /*
    * Split a batch into several, one for each ogate
    * NOTE:
    *   1. Order is preserved for packets with the same gate.
    *   2. No ordering guarantee for packets with different gates.
-   */
+   *
+   * Update on 11/27/2017, by Shinae Woo
+   * This interface will become DEPRECATED.
+   * Consider using new interfafces supporting faster data-plane support
+   * DropPacket()/EmitPacket()
+   * */
   inline void RunSplit(const Task *task, const gate_idx_t *ogates,
                        bess::PacketBatch *mixed_batch);
 
@@ -477,6 +493,65 @@ inline void Module::RunNextModule(const Task *task, bess::PacketBatch *batch) {
   RunChooseModule(task, 0, batch);
 }
 
+inline void Module::DropPacket(const Task *task, bess::Packet *pkt) {
+  task->dead_batch()->add(pkt);
+}
+
+inline void Module::EmitPacket(const Task *task, bess::Packet *pkt,
+                               gate_idx_t ogate_idx) {
+  // Check if valid ogate is set
+  if (unlikely(ogates_.size() <= ogate_idx) || unlikely(!ogates_[ogate_idx])) {
+    task->dead_batch()->add(pkt);
+    return;
+  }
+
+  // Put a packet into the ogate
+  bess::OGate *ogate = ogates_[ogate_idx];
+  bess::PacketBatch *batch = ogate->pkt_batch();
+  if (!batch) {
+    if (ogate->hooks().size()) {
+      // Having seperate batch to run ogate hooks
+      ogate->batch()->clear();
+      ogate->SetPacketBatch(ogate->batch());
+      gate_with_hook[gate_with_hook_cnt++] = ogate_idx;
+    } else {
+      // If no ogate hooks, just use next igate batch
+      if (ogate->igate()->pkt_batch() == nullptr) {
+        bess::PacketBatch *tmp = task->AllocPacketBatch();
+        task->AddToRun(ogate->igate(), tmp);
+        ogate->SetPacketBatch(tmp);
+      } else {
+        ogate->SetPacketBatch(ogate->igate()->pkt_batch());
+      }
+      gate_without_hook[gate_without_hook_cnt++] = ogate_idx;
+    }
+    batch = ogate->pkt_batch();
+  }
+  batch->add(pkt);
+}
+
+inline void Module::ProcessOGates(const Task *task) {
+  // Running ogate hooks, then add next igate to be scheduled
+  for (int i = 0; i < gate_with_hook_cnt; i++) {
+    bess::OGate *ogate = ogates_[gate_with_hook[i]];  // should not be null
+
+    for (auto &hook : ogate->hooks()) {
+      hook->ProcessBatch(ogate->pkt_batch());
+    }
+    task->AddToRun(ogate->igate(), ogate->pkt_batch());
+    ogate->ClearPacketBatch();
+  }
+
+  // Clear packet batch for ogates without hook
+  for (int i = 0; i < gate_without_hook_cnt; i++) {
+    bess::OGate *ogate = ogates_[gate_without_hook[i]];  // should not be null
+    ogate->ClearPacketBatch();
+  }
+
+  gate_with_hook_cnt = 0;
+  gate_without_hook_cnt = 0;
+}
+
 inline void Module::RunSplit(const Task *task, const gate_idx_t *out_gates,
                              bess::PacketBatch *mixed_batch) {
   int pkt_cnt = mixed_batch->cnt();
@@ -489,12 +564,6 @@ inline void Module::RunSplit(const Task *task, const gate_idx_t *out_gates,
     deadend(mixed_batch);
     return;
   }
-
-  int gate_with_hook_cnt = 0;
-  gate_idx_t gate_with_hook[bess::PacketBatch::kMaxBurst];
-
-  int gate_without_hook_cnt = 0;
-  gate_idx_t gate_without_hook[bess::PacketBatch::kMaxBurst];
 
   for (int i = 0; i < pkt_cnt; i++) {
     gate_idx_t ogate_idx = out_gates[i];
@@ -530,20 +599,7 @@ inline void Module::RunSplit(const Task *task, const gate_idx_t *out_gates,
 
   mixed_batch->clear();
 
-  for (int i = 0; i < gate_with_hook_cnt; i++) {
-    bess::OGate *ogate = ogates_[gate_with_hook[i]];  // should not be null
-
-    for (auto &hook : ogate->hooks()) {
-      hook->ProcessBatch(ogate->pkt_batch());
-    }
-    task->AddToRun(ogate->igate(), ogate->pkt_batch());
-    ogate->ClearPacketBatch();
-  }
-
-  for (int i = 0; i < gate_without_hook_cnt; i++) {
-    bess::OGate *ogate = ogates_[gate_without_hook[i]];  // should not be null
-    ogate->ClearPacketBatch();
-  }
+  ProcessOGates(task);
 }
 
 // run all per-thread initializers

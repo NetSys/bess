@@ -36,7 +36,6 @@ void VLANSplit::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
   using bess::utils::be16_t;
   using bess::utils::Ethernet;
 
-  gate_idx_t vid[bess::PacketBatch::kMaxBurst];
   int cnt = batch->cnt();
 
   for (int i = 0; i < cnt; i++) {
@@ -54,13 +53,11 @@ void VLANSplit::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
       be16_t tci(be16_t::swap(_mm_extract_epi16(eth, 7)));
       eth = _mm_slli_si128(eth, 4);
       _mm_storeu_si128(reinterpret_cast<__m128i *>(old_head), eth);
-      vid[i] = tci.value() & 0x0fff;
+      EmitPacket(task, pkt, tci.value() & 0x0fff);
     } else {
-      vid[i] = 0; /* untagged packets go to gate 0 */
+      EmitPacket(task, pkt, 0); /* untagged packets go to gate 0 */
     }
   }
-
-  RunSplit(task, vid, batch);
 }
 
 ADD_MODULE(VLANSplit, "vlan_split", "split packets depending on their VID")

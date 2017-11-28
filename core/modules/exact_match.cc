@@ -223,10 +223,7 @@ CommandResponse ExactMatch::SetRuntimeConfig(
 
 void ExactMatch::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
   gate_idx_t default_gate;
-  gate_idx_t out_gates[bess::PacketBatch::kMaxBurst];
   ExactMatchKey keys[bess::PacketBatch::kMaxBurst] __ymm_aligned;
-
-  int cnt = batch->cnt();
 
   default_gate = ACCESS_ONCE(default_gate_);
 
@@ -238,9 +235,11 @@ void ExactMatch::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
     return pkt->head_data<uint8_t *>() + f.offset;
   };
   table_.MakeKeys(batch, buffer_fn, keys);
-  table_.Find(keys, out_gates, cnt, default_gate);
 
-  RunSplit(task, out_gates, batch);
+  for (int i = 0; i < batch->cnt(); i++) {
+    bess::Packet *pkt = batch->pkts()[i];
+    EmitPacket(task, pkt, table_.Find(keys[i], default_gate));
+  }
 }
 
 std::string ExactMatch::GetDesc() const {

@@ -65,25 +65,15 @@ CommandResponse Replicate::CommandSetGates(
 }
 
 void Replicate::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
-  // FIXME: Remove packetbatch in stack
-  bess::PacketBatch out_gates[ngates_];
-  for (int i = 0; i < ngates_; i++) {
-    out_gates[i].clear();
-  }
-
   for (int i = 0; i < batch->cnt(); i++) {
     bess::Packet *tocopy = batch->pkts()[i];
-    out_gates[0].add(tocopy);
+    EmitPacket(task, tocopy, 0);
     for (int j = 1; j < ngates_; j++) {
       bess::Packet *newpkt = bess::Packet::copy(tocopy);
       if (newpkt) {
-        out_gates[j].add(newpkt);
+        EmitPacket(task, newpkt, gates_[j]);
       }
     }
-  }
-
-  for (int j = 0; j < ngates_; j++) {
-    RunChooseModule(task, gates_[j], &(out_gates[j]));
   }
 }
 

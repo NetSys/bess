@@ -73,6 +73,7 @@ struct task_result Task::operator()(void) const {
     bess::IGate *igate;
     bess::PacketBatch *batch;
 
+    // choose igate and batch to run next
     if (next_gate_) {
       igate = next_gate_;
       batch = next_batch_;
@@ -101,7 +102,11 @@ struct task_result Task::operator()(void) const {
       hook->ProcessBatch(batch);
     }
 
+    // process module
     igate->module()->ProcessBatch(this, batch);
+
+    // process ogates
+    igate->module()->ProcessOGates(this);
   }
 
   bess::Packet::Free(&dead_batch_);
