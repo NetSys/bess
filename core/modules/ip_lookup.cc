@@ -81,7 +81,6 @@ void IPLookup::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
   using bess::utils::Ethernet;
   using bess::utils::Ipv4;
 
-  gate_idx_t out_gates[bess::PacketBatch::kMaxBurst];
   gate_idx_t default_gate = default_gate_;
 
   int cnt = batch->cnt();
@@ -123,10 +122,10 @@ void IPLookup::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
 
     rte_lpm_lookupx4(lpm_, ip_addr, next_hops, default_gate);
 
-    out_gates[i + 0] = next_hops[0];
-    out_gates[i + 1] = next_hops[1];
-    out_gates[i + 2] = next_hops[2];
-    out_gates[i + 3] = next_hops[3];
+    EmitPacket(task, batch->pkts()[i], next_hops[0]);
+    EmitPacket(task, batch->pkts()[i + 1], next_hops[1]);
+    EmitPacket(task, batch->pkts()[i + 2], next_hops[2]);
+    EmitPacket(task, batch->pkts()[i + 3], next_hops[3]);
   }
 #endif
 
@@ -144,13 +143,11 @@ void IPLookup::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
     ret = rte_lpm_lookup(lpm_, ip->dst.value(), &next_hop);
 
     if (ret == 0) {
-      out_gates[i] = next_hop;
+      EmitPacket(task, batch->pkts()[i], next_hop);
     } else {
-      out_gates[i] = default_gate;
+      EmitPacket(task, batch->pkts()[i], default_gate);
     }
   }
-
-  RunSplit(task, out_gates, batch);
 }
 
 ParsedPrefix IPLookup::ParseIpv4Prefix(

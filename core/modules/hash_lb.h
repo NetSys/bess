@@ -66,8 +66,7 @@ class HashLB final : public Module {
   static constexpr Mode kDefaultMode = Mode::kL4;
 
   template <Mode mode>
-  inline void DoProcessBatch(bess::PacketBatch *batch,
-                             gate_idx_t *out_gates) const;
+  inline void DoProcessBatch(const Task *task, bess::PacketBatch *batch);
 
   static constexpr size_t kMaxGates = 16384;
 

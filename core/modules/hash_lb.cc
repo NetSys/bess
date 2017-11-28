@@ -139,7 +139,7 @@ std::string HashLB::GetDesc() const {
 
 template <>
 inline void HashLB::DoProcessBatch<HashLB::Mode::kOther>(
-    bess::PacketBatch *batch, gate_idx_t *out_gates) const {
+    const Task *task, bess::PacketBatch *batch) {
   void *bufs[bess::PacketBatch::kMaxBurst];
   ExactMatchKey keys[bess::PacketBatch::kMaxBurst];
 
@@ -151,13 +151,14 @@ inline void HashLB::DoProcessBatch<HashLB::Mode::kOther>(
   fields_table_.MakeKeys((const void **)bufs, keys, cnt);
 
   for (size_t i = 0; i < cnt; i++) {
-    out_gates[i] = gates_[hash_range(hasher_(keys[i]), num_gates_)];
+    EmitPacket(task, batch->pkts()[i],
+        gates_[hash_range(hasher_(keys[i]), num_gates_)]);
   }
 }
 
 template <>
 inline void HashLB::DoProcessBatch<HashLB::Mode::kL2>(
-    bess::PacketBatch *batch, gate_idx_t *out_gates) const {
+    const Task *task, bess::PacketBatch *batch)  {
   for (int i = 0; i < batch->cnt(); i++) {
     bess::Packet *snb = batch->pkts()[i];
     char *head = snb->head_data<char *>();
@@ -167,13 +168,13 @@ inline void HashLB::DoProcessBatch<HashLB::Mode::kL2>(
 
     uint32_t hash_val = hash_64(v0, v1);
 
-    out_gates[i] = gates_[hash_range(hash_val, num_gates_)];
+    EmitPacket(task, snb, gates_[hash_range(hash_val, num_gates_)]);
   }
 }
 
 template <>
 inline void HashLB::DoProcessBatch<HashLB::Mode::kL3>(
-    bess::PacketBatch *batch, gate_idx_t *out_gates) const {
+    const Task *task, bess::PacketBatch *batch) {
   /* assumes untagged packets */
   const int ip_offset = 14;
 
@@ -186,13 +187,13 @@ inline void HashLB::DoProcessBatch<HashLB::Mode::kL3>(
 
     hash_val = hash_64(v, 0);
 
-    out_gates[i] = gates_[hash_range(hash_val, num_gates_)];
+    EmitPacket(task, snb, gates_[hash_range(hash_val, num_gates_)]);
   }
 }
 
 template <>
 inline void HashLB::DoProcessBatch<HashLB::Mode::kL4>(
-    bess::PacketBatch *batch, gate_idx_t *out_gates) const {
+    const Task *task, bess::PacketBatch *batch) {
   /* assumes untagged packets without IP options */
   const int ip_offset = 14;
   const int l4_offset = ip_offset + 20;
@@ -209,30 +210,27 @@ inline void HashLB::DoProcessBatch<HashLB::Mode::kL4>(
 
     hash_val = hash_64(v0, v1);
 
-    out_gates[i] = gates_[hash_range(hash_val, num_gates_)];
+    EmitPacket(task, snb, gates_[hash_range(hash_val, num_gates_)]);
   }
 }
 
 void HashLB::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
-  gate_idx_t out_gates[bess::PacketBatch::kMaxBurst];
   switch (mode_) {
     case Mode::kL2:
-      DoProcessBatch<Mode::kL2>(batch, out_gates);
+      DoProcessBatch<Mode::kL2>(task, batch);
       break;
     case Mode::kL3:
-      DoProcessBatch<Mode::kL3>(batch, out_gates);
+      DoProcessBatch<Mode::kL3>(task, batch);
       break;
     case Mode::kL4:
-      DoProcessBatch<Mode::kL4>(batch, out_gates);
+      DoProcessBatch<Mode::kL4>(task, batch);
       break;
     case Mode::kOther:
-      DoProcessBatch<Mode::kOther>(batch, out_gates);
+      DoProcessBatch<Mode::kOther>(task, batch);
       break;
     default:
       DCHECK(0);
   }
-
-  RunSplit(task, out_gates, batch);
 }
 
 ADD_MODULE(HashLB, "hash_lb",

@@ -100,22 +100,19 @@ CommandResponse RandomSplit::CommandSetGates(
 }
 
 void RandomSplit::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
-  gate_idx_t ogates[bess::PacketBatch::kMaxBurst];
-
   if (ngates_ <= 0) {
     bess::Packet::Free(batch);
     return;
   }
 
   for (int i = 0; i < batch->cnt(); i++) {
+    bess::Packet *pkt = batch->pkts()[i];
     if (rng_.GetReal() > drop_rate_) {
-      ogates[i] = gates_[rng_.GetRange(ngates_)];
+      EmitPacket(task, pkt, gates_[rng_.GetRange(ngates_)]);
     } else {
-      ogates[i] = DROP_GATE;
+      DropPacket(task, pkt);
     }
   }
-
-  RunSplit(task, ogates, batch);
 }
 
 ADD_MODULE(RandomSplit, "random_split", "randomly splits/drops packets")

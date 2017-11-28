@@ -53,8 +53,10 @@ void Buffer::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
     p_batch += free_slots;
     left -= free_slots;
 
-    RunNextModule(task, buf);
+    bess::PacketBatch *new_batch = task->AllocPacketBatch();
+    new_batch->Copy(buf);
     buf->clear();
+    RunNextModule(task, new_batch);
   }
 
   buf->incr_cnt(left);

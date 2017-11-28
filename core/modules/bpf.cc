@@ -1180,13 +1180,6 @@ inline bool BPF::Match(const Filter &filter, u_char *pkt, u_int wirelen,
 void BPF::ProcessBatch1Filter(const Task *task, bess::PacketBatch *batch) {
   const Filter &filter = filters_[0];
 
-  // FIXME: Remove packetbatch in stack
-  bess::PacketBatch out_batches[2];
-  bess::Packet **ptrs[2];
-
-  ptrs[0] = out_batches[0].pkts();
-  ptrs[1] = out_batches[1].pkts();
-
   int cnt = batch->cnt();
 
   for (int i = 0; i < cnt; i++) {
@@ -1194,21 +1187,14 @@ void BPF::ProcessBatch1Filter(const Task *task, bess::PacketBatch *batch) {
 
     if (Match(filter, pkt->head_data<u_char *>(), pkt->total_len(),
               pkt->head_len())) {
-      *(ptrs[1]++) = pkt;
+      EmitPacket(task, pkt, filter.gate);
     } else {
-      *(ptrs[0]++) = pkt;
+      EmitPacket(task, pkt);
     }
   }
-
-  out_batches[0].set_cnt(ptrs[0] - out_batches[0].pkts());
-  out_batches[1].set_cnt(ptrs[1] - out_batches[1].pkts());
-
-  RunChooseModule(task, 0, &out_batches[0]);
-  RunChooseModule(task, filter.gate, &out_batches[1]);  // matched packets
 }
 
 void BPF::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
-  gate_idx_t out_gates[bess::PacketBatch::kMaxBurst];
   int n_filters = filters_.size();
 
   if (n_filters == 0) {
@@ -1232,10 +1218,8 @@ void BPF::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
         break;
       }
     }
-    out_gates[i] = gate;
+    EmitPacket(task, pkt, gate);
   }
-
-  RunSplit(task, out_gates, batch);
 }
 
 ADD_MODULE(BPF, "bpf", "classifies packets with pcap-filter(7) syntax")

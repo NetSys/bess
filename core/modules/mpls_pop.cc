@@ -49,7 +49,6 @@ MPLSPop::MPLSPop()
 }
 
 void MPLSPop::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
-  gate_idx_t out_gates[bess::PacketBatch::kMaxBurst];
   int cnt = batch->cnt();
 
   for (int i = 0; i < cnt; i++) {
@@ -59,10 +58,10 @@ void MPLSPop::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
 
     if (eth->ether_type != be16_t(Ethernet::Type::kMpls)) {
       // non MPLS packets are sent to different output gate
-      out_gates[i] = 1;
+      EmitPacket(task, pkt, 1);
       continue;
     }
-    out_gates[i] = 0;
+    EmitPacket(task, pkt, 0);
 
     // TODO(gsagie) save the MPLS label as metadata
     // Mpls *mpls = reinterpret_cast<Mpls *>(eth_header + 1);
@@ -81,8 +80,6 @@ void MPLSPop::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
       eth_new->ether_type = next_ether_type_;
     }
   }
-
-  RunSplit(task, out_gates, batch);
 }
 
 CommandResponse MPLSPop::CommandSet(const bess::pb::MplsPopArg &arg) {

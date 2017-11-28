@@ -242,21 +242,6 @@ void UrlFilter::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
     return;
   }
 
-  // Otherwise
-  bess::PacketBatch free_batch;
-  free_batch.clear();
-
-  // FIXME: Remove packetbatch in stack
-  bess::PacketBatch out_batches[4];
-  // Data to destination
-  out_batches[0].clear();
-  // RST to destination
-  out_batches[1].clear();
-  // HTTP 403 to source
-  out_batches[2].clear();
-  // RST to source
-  out_batches[3].clear();
-
   int cnt = batch->cnt();
 
   for (int i = 0; i < cnt; i++) {
@@ -266,7 +251,7 @@ void UrlFilter::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
     Ipv4 *ip = reinterpret_cast<Ipv4 *>(eth + 1);
 
     if (ip->protocol != Ipv4::Proto::kTcp) {
-      out_batches[0].add(pkt);
+      EmitPacket(task, pkt, 0);
       continue;
     }
 
@@ -295,7 +280,7 @@ void UrlFilter::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
         // Once we're finished analyzing, we only record *blocked* flows.
         // Continue blocking this flow for TIME_OUT_NS more ns.
         it->second.SetExpiryTime(now + TIME_OUT_NS);
-        free_batch.add(pkt);
+        DropPacket(task, pkt);
         continue;
       }
     }
@@ -309,7 +294,7 @@ void UrlFilter::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
         std::tie(it, std::ignore) = flow_cache_.emplace(
             std::piecewise_construct, std::make_tuple(flow), std::make_tuple());
       } else {
-        out_batches[0].add(pkt);
+        EmitPacket(task, pkt, 0);
         continue;
       }
     }
@@ -325,7 +310,7 @@ void UrlFilter::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
     if (!success) {
       VLOG(1) << "Reconstruction failure";
       flow_cache_.erase(it);
-      out_batches[0].add(pkt);
+      EmitPacket(task, pkt, 0);
       continue;
     }
 
@@ -360,7 +345,7 @@ void UrlFilter::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
     }
 
     if (!matched) {
-      out_batches[0].add(pkt);
+      EmitPacket(task, pkt, 0);
 
       // Once FIN is observed, or we've seen all the headers and decided
       // to pass the flow, there is no more need to reconstruct the flow.
@@ -375,32 +360,30 @@ void UrlFilter::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
       it->second.SetAnalyzed();
 
       // Inject RST to destination
-      out_batches[1].add(GenerateResetPacket(
-          eth->src_addr, eth->dst_addr, ip->src, ip->dst, tcp->src_port,
-          tcp->dst_port, tcp->seq_num, tcp->ack_num));
+      EmitPacket(task,
+                 GenerateResetPacket(eth->src_addr, eth->dst_addr, ip->src,
+                                     ip->dst, tcp->src_port, tcp->dst_port,
+                                     tcp->seq_num, tcp->ack_num),
+                 0);
 
       // Inject 403 to source. 403 should arrive earlier than RST.
-      out_batches[2].add(Generate403Packet(
-          eth->dst_addr, eth->src_addr, ip->dst, ip->src, tcp->dst_port,
-          tcp->src_port, tcp->ack_num, tcp->seq_num));
+      EmitPacket(task, Generate403Packet(eth->dst_addr, eth->src_addr, ip->dst,
+                                         ip->src, tcp->dst_port, tcp->src_port,
+                                         tcp->ack_num, tcp->seq_num),
+                 1);
 
       // Inject RST to source
-      out_batches[3].add(GenerateResetPacket(
-          eth->dst_addr, eth->src_addr, ip->dst, ip->src, tcp->dst_port,
-          tcp->src_port, be32_t(tcp->ack_num.value() + strlen(HTTP_403_BODY)),
-          tcp->seq_num));
+      EmitPacket(task, GenerateResetPacket(
+                           eth->dst_addr, eth->src_addr, ip->dst, ip->src,
+                           tcp->dst_port, tcp->src_port,
+                           be32_t(tcp->ack_num.value() + strlen(HTTP_403_BODY)),
+                           tcp->seq_num),
+                 1);
 
       // Drop the data packet
-      free_batch.add(pkt);
+      DropPacket(task, pkt);
     }
   }
-
-  bess::Packet::Free(&free_batch);
-
-  RunChooseModule(task, 0, &out_batches[0]);
-  RunChooseModule(task, 0, &out_batches[1]);
-  RunChooseModule(task, 1, &out_batches[2]);
-  RunChooseModule(task, 1, &out_batches[3]);
 }
 
 std::string UrlFilter::GetDesc() const {

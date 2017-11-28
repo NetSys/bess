@@ -67,7 +67,6 @@ void ACL::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
   using bess::utils::Ipv4;
   using bess::utils::Udp;
 
-  gate_idx_t out_gates[bess::PacketBatch::kMaxBurst];
   gate_idx_t incoming_gate = get_igate();
 
   int cnt = batch->cnt();
@@ -80,18 +79,21 @@ void ACL::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
     Udp *udp =
         reinterpret_cast<Udp *>(reinterpret_cast<uint8_t *>(ip) + ip_bytes);
 
-    out_gates[i] = DROP_GATE;  // By default, drop unmatched packets
-
+    bool emitted = false;
     for (const auto &rule : rules_) {
       if (rule.Match(ip->src, ip->dst, udp->src_port, udp->dst_port)) {
         if (!rule.drop) {
-          out_gates[i] = incoming_gate;
+          emitted = true;
+          EmitPacket(task, pkt, incoming_gate);
         }
         break;  // Stop matching other rules
       }
     }
+
+    if (!emitted) {
+      DropPacket(task, pkt);
+    }
   }
-  RunSplit(task, out_gates, batch);
 }
 
 ADD_MODULE(ACL, "acl", "ACL module from NetBricks")
