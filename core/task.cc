@@ -61,6 +61,7 @@ void Task::AddToRun(bess::IGate *ig, bess::PacketBatch *batch) const {
 
 struct task_result Task::operator()(void) const {
   bess::PacketBatch init_batch;
+  ClearPacketBatch();
 
   // Start from the first module (task module)
   struct task_result result = module_->RunTask(this, &init_batch, arg_);
