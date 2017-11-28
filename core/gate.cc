@@ -171,7 +171,7 @@ void IGate::AddPacketBatch(PacketBatch *batch) {
     // FIXME check whether it exceeds bounds
     // merge two batch
     pkt_batch_->add(batch);
-    ctx.free_batch(batch);
+    batch->clear();
   }
 }
 
