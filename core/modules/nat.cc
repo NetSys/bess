@@ -365,7 +365,7 @@ inline void NAT::DoProcessBatch(const Task *task, bess::PacketBatch *batch) {
 }
 
 void NAT::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
-  gate_idx_t incoming_gate = get_igate();
+  gate_idx_t incoming_gate = task->get_igate();
 
   if (incoming_gate == 0) {
     DoProcessBatch<kForward>(task, batch);

@@ -201,22 +201,19 @@ class IGate : public Gate {
   IGate(Module *m, gate_idx_t idx)
       : Gate(m, idx),
         ogates_upstream_(),
-        pkt_batch_(),
         priority_(),
+        g_idx_(),
         mergeable_(false) {}
 
   const std::vector<OGate *> &ogates_upstream() const {
     return ogates_upstream_;
   }
 
-  void SetPacketBatch(PacketBatch *batch);
-  void AddPacketBatch(PacketBatch *batch);
-  void ClearPacketBatch() { pkt_batch_ = nullptr; }
   void SetPriority(uint32_t priority) { priority_ = priority; }
-
-  PacketBatch *pkt_batch() const { return pkt_batch_; }
+  void SetUniqueIdx(uint32_t g_idx) { g_idx_ = g_idx; }
 
   uint32_t priority() const { return priority_; }
+  uint32_t g_idx() const { return g_idx_; }
   bool mergeable() const { return mergeable_; }
 
   void PushOgate(OGate *og);
@@ -224,35 +221,35 @@ class IGate : public Gate {
 
  private:
   std::vector<OGate *> ogates_upstream_;  // previous ogates connected with
-  PacketBatch *pkt_batch_;                // a batch of input packets
   uint32_t priority_;
+  uint32_t g_idx_;  // a globally unique igate index
   bool mergeable_;
-  ;
+
+  DISALLOW_COPY_AND_ASSIGN(IGate);
 };
 
 // A class for output gate. It connects to an input gate of the next module.
 class OGate : public Gate {
  public:
   OGate(Module *m, gate_idx_t idx, Module *next)
-      : Gate(m, idx), next_(next), igate_(), igate_idx_(), pkt_batch_() {}
+      : Gate(m, idx), next_(next), igate_(), igate_idx_() {}
 
   void SetIgate(IGate *ig);
 
-  void SetPacketBatch(PacketBatch *batch) { pkt_batch_ = batch; }
-  void ClearPacketBatch() { pkt_batch_ = nullptr; }
+  void SetUniqueIdx(uint32_t g_idx) { g_idx_ = g_idx; }
 
   Module *next() const { return next_; }
   IGate *igate() const { return igate_; }
   gate_idx_t igate_idx() const { return igate_idx_; }
-  PacketBatch *pkt_batch() const { return pkt_batch_; }
-  PacketBatch *batch() { return &batch_; }
+  uint32_t g_idx() const { return g_idx_; }
+
+  void AddTrackHook();
 
  private:
-  Module *next_;            // next module connected with
-  IGate *igate_;            // next igate connected with
-  gate_idx_t igate_idx_;    // cache for igate->gate_idx
-  PacketBatch *pkt_batch_;  // a batch of input packets
-  PacketBatch batch_;       // a batch of input packets
+  Module *next_;          // next module connected with
+  IGate *igate_;          // next igate connected with
+  gate_idx_t igate_idx_;  // cache for igate->gate_idx
+  uint32_t g_idx_;        // a globally unique igate index
 
   DISALLOW_COPY_AND_ASSIGN(OGate);
 };
@@ -269,6 +266,12 @@ static inline gate_hook_cmd_func_t GATE_HOOK_CMD_FUNC(
     return base_fn(static_cast<H *>(h), arg_);
   };
 }
+
+struct IGateGreater {
+  bool operator()(const bess::IGate *left, const bess::IGate *right) const {
+    return left->priority() > right->priority();
+  }
+};
 
 template <typename H, typename A>
 static inline bess::GateHook::init_func_t InitGateHookWithGenericArg(

@@ -43,6 +43,7 @@ struct task_result {
   uint64_t bits;
 };
 
+typedef uint16_t gate_idx_t;
 typedef uint16_t task_id_t;
 typedef uint64_t placement_constraint;
 
@@ -63,25 +64,35 @@ class Task {
   void *arg_;                  // Auxiliary value passed to Module::RunTask().
   bess::LeafTrafficClass *c_;  // Leaf TC associated with this task.
 
-  mutable bess::PacketBatch
-      dead_batch_;  // A packet batch for storing packets to free
-
-  struct IGateGreater {
-    bool operator()(const bess::IGate *left, const bess::IGate *right) const {
-      return left->priority() > right->priority();
+  struct GateBatchGreater {
+    bool operator()(std::pair<bess::IGate *, bess::PacketBatch *> left,
+                    std::pair<bess::IGate *, bess::PacketBatch *> right) const {
+      return left.first->priority() > right.first->priority();
     }
   };
 
-  mutable bess::utils::extended_priority_queue<bess::IGate *, IGateGreater>
-      igates_to_run_;               // A queue for IGates to run
+  mutable bess::utils::extended_priority_queue<
+      std::pair<bess::IGate *, bess::PacketBatch *>, GateBatchGreater>
+      igates_to_run_;  // A queue for IGates to run
+
   mutable bess::IGate *next_gate_;  // Cache next module to run without merging
                                     // Optimization for chain
   mutable bess::PacketBatch
-      *next_batch_;  // cache to run next batch with next module
+      *next_batch_;  // Cache to run next batch with next module
+
+  mutable bess::PacketBatch
+      dead_batch_;  // A packet batch for storing packets to free
 
   // Simple packet batch pool
   mutable int pbatch_idx_;
   mutable bess::PacketBatch *pbatch_;
+
+  mutable std::vector<bess::PacketBatch *> ogate_batch_;
+  mutable std::vector<bess::PacketBatch *> igate_batch_;
+
+  /* The current input gate index is not given as a function parameter.
+   * Modules should use get_igate() for access */
+  mutable gate_idx_t current_igate_;
 
  public:
   // When this task is scheduled it will execute 'm' with 'arg'.  When the
@@ -92,12 +103,14 @@ class Task {
         c_(nullptr),
         igates_to_run_(),
         next_gate_(),
-        next_batch_() {
+        next_batch_(),
+        pbatch_idx_() {
     dead_batch_.clear();
-
     // XXX Need to adjust size
-    pbatch_idx_ = 0;
     pbatch_ = new bess::PacketBatch[MAX_PBATCH_CNT];
+
+    ogate_batch_ = std::vector<bess::PacketBatch *>(64, 0);
+    igate_batch_ = std::vector<bess::PacketBatch *>(64, 0);
   }
 
   ~Task() { delete[] pbatch_; }
@@ -118,11 +131,40 @@ class Task {
     return batch;
   }
 
+  void SetGateCnt(uint32_t igate_cnt, uint32_t ogate_cnt) const {
+    if (igate_batch_.capacity() < igate_cnt) {
+      igate_batch_.resize(igate_cnt, 0);
+    }
+
+    if (ogate_batch_.capacity() < ogate_cnt) {
+      ogate_batch_.resize(ogate_cnt, 0);
+    }
+  }
+
   void ClearPacketBatch() const { pbatch_idx_ = 0; }
 
   Module *module() const { return module_; }
 
+  gate_idx_t get_igate() const { return current_igate_; }
+  void set_current_igate(gate_idx_t idx) const { current_igate_ = idx; }
+
   bess::PacketBatch *dead_batch() const { return &dead_batch_; }
+
+  bess::PacketBatch *get_obatch(bess::OGate *ogate) const {
+    return ogate_batch_[ogate->g_idx()];
+  }
+
+  void set_obatch(bess::OGate *ogate, bess::PacketBatch *batch) const {
+    ogate_batch_[ogate->g_idx()] = batch;
+  }
+
+  bess::PacketBatch *get_ibatch(bess::IGate *igate) const {
+    return igate_batch_[igate->g_idx()];
+  }
+
+  void set_ibatch(bess::IGate *igate, bess::PacketBatch *batch) const {
+    igate_batch_[igate->g_idx()] = batch;
+  }
 
   bess::LeafTrafficClass *GetTC() const { return c_; }
 

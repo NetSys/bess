@@ -234,7 +234,7 @@ CommandResponse UrlFilter::SetRuntimeConfig(
 }
 
 void UrlFilter::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
-  gate_idx_t igate = get_igate();
+  gate_idx_t igate = task->get_igate();
 
   // Pass reverse traffic
   if (igate == 1) {
