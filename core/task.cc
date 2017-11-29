@@ -50,11 +50,12 @@ void Task::AddToRun(bess::IGate *ig, bess::PacketBatch *batch) const {
     next_gate_ = ig;
     next_batch_ = batch;
   } else {
-    if (ig->pkt_batch())
-      ig->AddPacketBatch(batch);
-    else {
-      ig->SetPacketBatch(batch);
-      igates_to_run_.push(ig);
+    if (get_ibatch(ig)) {
+      // FIXME check whether it will exceeds bounds
+      get_ibatch(ig)->add(batch);
+    } else {
+      set_ibatch(ig, batch);
+      igates_to_run_.push(std::make_pair(ig, batch));
     }
   }
 }
@@ -84,19 +85,16 @@ struct task_result Task::operator()(void) const {
         break;
       }
 
-      igate = igates_to_run_.top();
+      auto item = igates_to_run_.top();
       igates_to_run_.pop();
 
-      batch = igate->pkt_batch();
+      igate = item.first;
+      batch = item.second;
 
-      if (batch == nullptr) {
-        continue;
-      }
-
-      igate->ClearPacketBatch();
+      set_ibatch(igate, nullptr);
     }
 
-    ctx.set_current_igate(igate->gate_idx());
+    set_current_igate(igate->gate_idx());
 
     for (auto &hook : igate->hooks()) {
       hook->ProcessBatch(batch);
@@ -107,10 +105,10 @@ struct task_result Task::operator()(void) const {
 
     // process ogates
     igate->module()->ProcessOGates(this);
-  }
 
-  bess::Packet::Free(&dead_batch_);
-  dead_batch_.clear();
+    bess::Packet::Free(&dead_batch_);
+    dead_batch_.clear();
+  }
 
   return result;
 }

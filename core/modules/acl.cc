@@ -67,7 +67,7 @@ void ACL::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
   using bess::utils::Ipv4;
   using bess::utils::Udp;
 
-  gate_idx_t incoming_gate = get_igate();
+  gate_idx_t incoming_gate = task->get_igate();
 
   int cnt = batch->cnt();
   for (int i = 0; i < cnt; i++) {

@@ -44,8 +44,6 @@
 #include "utils/common.h"
 #include "utils/random.h"
 
-// XXX
-typedef uint16_t gate_idx_t;
 #define MAX_GATES 8192
 
 /*  TODO: worker threads doesn't necessarily be pinned to 1 core
@@ -119,9 +117,6 @@ class Worker {
   uint64_t current_ns() const { return current_ns_; }
   void set_current_ns(uint64_t ns) { current_ns_ = ns; }
 
-  gate_idx_t current_igate() const { return current_igate_; }
-  void set_current_igate(gate_idx_t idx) { current_igate_ = idx; }
-
   Random *rand() const { return rand_; }
 
  private:
@@ -140,10 +135,6 @@ class Worker {
 
   uint64_t current_tsc_;
   uint64_t current_ns_;
-
-  /* The current input gate index is not given as a function parameter.
-   * Modules should use get_igate() for access */
-  gate_idx_t current_igate_;
 
   Random *rand_;
 };

@@ -92,6 +92,9 @@ class ModuleGraph {
       uint32_t priority);
 
   static void SetIGatePriority(Module *task_module);
+  static void SetUniqueIGateIdx();
+  static void SetUniqueOGateIdx();
+  static void ConfigureTasks();
 
   // All modules that are tasks in the current pipeline.
   static std::unordered_set<std::string> tasks_;
@@ -99,6 +102,8 @@ class ModuleGraph {
   // All modules
   static std::map<std::string, Module *> all_modules_;
 
+  static uint32_t igate_cnt_;
+  static uint32_t ogate_cnt_;
   // Check if any changes on module graphs
   static bool changes_made_;
 };

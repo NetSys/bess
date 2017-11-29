@@ -62,7 +62,7 @@ void Dump::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
     next_ns_ = ctx.current_ns() + min_interval_ns_;
   }
 
-  RunChooseModule(task, get_igate(), batch);
+  RunChooseModule(task, task->get_igate(), batch);
 }
 
 CommandResponse Dump::CommandSetInterval(const bess::pb::DumpArg &arg) {

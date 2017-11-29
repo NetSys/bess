@@ -57,7 +57,7 @@ void Bypass::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
       _mm_pause();
     }
   }
-  RunChooseModule(task, get_igate(), batch);
+  RunChooseModule(task, task->get_igate(), batch);
 }
 
 ADD_MODULE(Bypass, "bypass", "bypasses packets without any processing")
