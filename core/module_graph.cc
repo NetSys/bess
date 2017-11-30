@@ -200,7 +200,7 @@ void ModuleGraph::ConfigureTasks() {
         bess::TrafficClass *c = tc_pair.second;
         if (c->policy() == bess::POLICY_LEAF && c->Root() == root) {
           auto leaf = static_cast<bess::LeafTrafficClass *>(c);
-          leaf->task()->SetGateCnt(igate_cnt_, ogate_cnt_);
+          leaf->task()->UpdatePerGateBatch(igate_cnt_, ogate_cnt_);
         }
       }
     }

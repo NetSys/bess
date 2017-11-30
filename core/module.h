@@ -495,13 +495,16 @@ inline void Module::RunNextModule(const Task *task, bess::PacketBatch *batch) {
 
 inline void Module::DropPacket(const Task *task, bess::Packet *pkt) {
   task->dead_batch()->add(pkt);
+  if (static_cast<size_t>(task->dead_batch()->cnt()) >=
+      bess::PacketBatch::kMaxBurst)
+    deadend(task->dead_batch());
 }
 
 inline void Module::EmitPacket(const Task *task, bess::Packet *pkt,
                                gate_idx_t ogate_idx) {
   // Check if valid ogate is set
   if (unlikely(ogates_.size() <= ogate_idx) || unlikely(!ogates_[ogate_idx])) {
-    task->dead_batch()->add(pkt);
+    DropPacket(task, pkt);
     return;
   }
 
@@ -527,6 +530,21 @@ inline void Module::EmitPacket(const Task *task, bess::Packet *pkt,
     batch = task->get_obatch(ogate);
   }
 
+  if (static_cast<size_t>(batch->cnt()) >= bess::PacketBatch::kMaxBurst) {
+    if (ogate->hooks().size()) {
+      for (auto &hook : ogate->hooks()) {
+        hook->ProcessBatch(task->get_obatch(ogate));
+      }
+      task->AddToRun(ogate->igate(), task->get_obatch(ogate));
+      task->set_obatch(ogate, task->AllocPacketBatch());
+    } else {
+      // allocate a new batch and push
+      batch = task->AllocPacketBatch();
+      task->set_obatch(ogate, batch);
+      task->AddToRun(ogate->igate(), batch);
+    }
+  }
+
   batch->add(pkt);
 }
 
@@ -534,7 +552,6 @@ inline void Module::ProcessOGates(const Task *task) {
   // Running ogate hooks, then add next igate to be scheduled
   for (int i = 0; i < gate_with_hook_cnt; i++) {
     bess::OGate *ogate = ogates_[gate_with_hook[i]];  // should not be null
-
     for (auto &hook : ogate->hooks()) {
       hook->ProcessBatch(task->get_obatch(ogate));
     }
@@ -570,8 +587,6 @@ inline void Module::RunSplit(const Task *task, const gate_idx_t *out_gates,
   }
 
   mixed_batch->clear();
-
-  ProcessOGates(task);
 }
 
 // run all per-thread initializers

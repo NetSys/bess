@@ -46,17 +46,19 @@ void Task::Attach(bess::LeafTrafficClass *c) {
 }
 
 void Task::AddToRun(bess::IGate *ig, bess::PacketBatch *batch) const {
-  if (next_gate_ == nullptr && !ig->mergeable()) {  // chained
+  if (next_gate_ == nullptr && !ig->mergeable()) {  // optimization for chained
     next_gate_ = ig;
     next_batch_ = batch;
   } else {
-    if (get_ibatch(ig)) {
-      // FIXME check whether it will exceeds bounds
+    bess::PacketBatch *ibatch = get_ibatch(ig);
+    if (ibatch && (static_cast<size_t>(ibatch->cnt() + batch->cnt()) <
+                   bess::PacketBatch::kMaxBurst)) {
+      // merge two batches
       get_ibatch(ig)->add(batch);
-    } else {
-      set_ibatch(ig, batch);
-      igates_to_run_.push(std::make_pair(ig, batch));
     }
+    // set the input as new batch
+    set_ibatch(ig, batch);
+    igates_to_run_.push(std::make_pair(ig, batch));
   }
 }
 
@@ -105,10 +107,9 @@ struct task_result Task::operator()(void) const {
 
     // process ogates
     igate->module()->ProcessOGates(this);
-
-    bess::Packet::Free(&dead_batch_);
-    dead_batch_.clear();
   }
+
+  deadend(&dead_batch_);
 
   return result;
 }
