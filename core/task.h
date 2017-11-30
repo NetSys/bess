@@ -71,6 +71,7 @@ class Task {
     }
   };
 
+  // XXX Tasks needs to be non-const in workers/modules
   mutable bess::utils::extended_priority_queue<
       std::pair<bess::IGate *, bess::PacketBatch *>, GateBatchGreater>
       igates_to_run_;  // A queue for IGates to run
@@ -131,7 +132,7 @@ class Task {
     return batch;
   }
 
-  void SetGateCnt(uint32_t igate_cnt, uint32_t ogate_cnt) const {
+  void UpdatePerGateBatch(uint32_t igate_cnt, uint32_t ogate_cnt) const {
     if (igate_batch_.capacity() < igate_cnt) {
       igate_batch_.resize(igate_cnt, 0);
     }
