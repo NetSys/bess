@@ -41,7 +41,8 @@ Track::Track()
     : bess::GateHook(Track::kName, Track::kPriority),
       track_bytes_(),
       cnt_(),
-      pkts_() {}
+      pkts_(),
+      bytes_() {}
 
 CommandResponse Track::Init(const bess::Gate *, const bess::pb::TrackArg &arg) {
   track_bytes_ = arg.bits();
