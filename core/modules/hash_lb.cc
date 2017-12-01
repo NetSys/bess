@@ -30,9 +30,8 @@
 
 #include "hash_lb.h"
 
-#include <rte_hash_crc.h>
-
-const enum LbMode DEFAULT_MODE = LB_L4;
+#include <utility>
+#include <vector>
 
 static inline uint32_t hash_64(uint64_t val, uint32_t init_val) {
 #if __SSE4_2__ && __x86_64
@@ -73,12 +72,24 @@ const Commands HashLB::cmds = {
 
 CommandResponse HashLB::CommandSetMode(
     const bess::pb::HashLBCommandSetModeArg &arg) {
-  if (arg.mode() == "l2") {
-    mode_ = LB_L2;
+  if (arg.fields_size()) {
+    mode_ = Mode::kOther;
+    fields_table_ = ExactMatchTable<int>();
+    for (int i = 0; i < arg.fields_size(); i++) {
+      const auto &f = arg.fields(i);
+      const auto err = fields_table_.AddField(f.offset(), f.num_bytes(), 0, i);
+      if (err.first) {
+        return CommandFailure(-err.first, "Error adding field %d: %s", i,
+                              err.second.c_str());
+      }
+    }
+    hasher_ = ExactMatchKeyHash(fields_table_.total_key_size());
+  } else if (arg.mode() == "l2") {
+    mode_ = Mode::kL2;
   } else if (arg.mode() == "l3") {
-    mode_ = LB_L3;
+    mode_ = Mode::kL3;
   } else if (arg.mode() == "l4") {
-    mode_ = LB_L4;
+    mode_ = Mode::kL4;
   } else {
     return CommandFailure(EINVAL, "available LB modes: l2, l3, l4");
   }
@@ -88,14 +99,15 @@ CommandResponse HashLB::CommandSetMode(
 
 CommandResponse HashLB::CommandSetGates(
     const bess::pb::HashLBCommandSetGatesArg &arg) {
-  if (arg.gates_size() > MAX_HLB_GATES) {
-    return CommandFailure(EINVAL, "no more than %d gates", MAX_HLB_GATES);
+  if (static_cast<size_t>(arg.gates_size()) > kMaxGates) {
+    return CommandFailure(EINVAL, "HashLB can have at most %zu ogates",
+                          kMaxGates);
   }
 
   for (int i = 0; i < arg.gates_size(); i++) {
     gates_[i] = arg.gates(i);
     if (!is_valid_gate(gates_[i])) {
-      return CommandFailure(EINVAL, "invalid gate %d", gates_[i]);
+      return CommandFailure(EINVAL, "Invalid ogate %d", gates_[i]);
     }
   }
 
@@ -104,35 +116,48 @@ CommandResponse HashLB::CommandSetGates(
 }
 
 CommandResponse HashLB::Init(const bess::pb::HashLBArg &arg) {
-  mode_ = DEFAULT_MODE;
-
-  if (arg.gates_size() > MAX_HLB_GATES) {
-    return CommandFailure(EINVAL, "no more than %d gates", MAX_HLB_GATES);
+  bess::pb::HashLBCommandSetGatesArg gates_arg;
+  *gates_arg.mutable_gates() = arg.gates();
+  CommandResponse ret = CommandSetGates(gates_arg);
+  if (ret.has_error()) {
+    return ret;
   }
 
-  for (int i = 0; i < arg.gates_size(); i++) {
-    gates_[i] = arg.gates(i);
-    if (!is_valid_gate(gates_[i])) {
-      return CommandFailure(EINVAL, "invalid gate %d", gates_[i]);
-    }
+  if (!arg.mode().size() && !arg.fields_size()) {
+    mode_ = kDefaultMode;
+    return CommandSuccess();
   }
-
-  num_gates_ = arg.gates_size();
-
-  if (arg.mode() == "l2") {
-    mode_ = LB_L2;
-  } else if (arg.mode() == "l3") {
-    mode_ = LB_L3;
-  } else if (arg.mode() == "l4") {
-    mode_ = LB_L4;
-  } else {
-    return CommandFailure(EINVAL, "available LB modes: l2, l3, l4");
-  }
-
-  return CommandSuccess();
+  bess::pb::HashLBCommandSetModeArg mode_arg;
+  mode_arg.set_mode(arg.mode());
+  *mode_arg.mutable_fields() = arg.fields();
+  return CommandSetMode(mode_arg);
 }
 
-void HashLB::LbL2(bess::PacketBatch *batch, gate_idx_t *out_gates) {
+std::string HashLB::GetDesc() const {
+  return bess::utils::Format("%zu fields", fields_table_.num_fields());
+}
+
+template <>
+inline void HashLB::DoProcessBatch<HashLB::Mode::kOther>(
+    bess::PacketBatch *batch, gate_idx_t *out_gates) const {
+  void *bufs[bess::PacketBatch::kMaxBurst];
+  ExactMatchKey keys[bess::PacketBatch::kMaxBurst];
+
+  size_t cnt = batch->cnt();
+  for (size_t i = 0; i < cnt; i++) {
+    bufs[i] = batch->pkts()[i]->head_data<void *>();
+  }
+
+  fields_table_.MakeKeys((const void **)bufs, keys, cnt);
+
+  for (size_t i = 0; i < cnt; i++) {
+    out_gates[i] = gates_[hash_range(hasher_(keys[i]), num_gates_)];
+  }
+}
+
+template <>
+inline void HashLB::DoProcessBatch<HashLB::Mode::kL2>(
+    bess::PacketBatch *batch, gate_idx_t *out_gates) const {
   for (int i = 0; i < batch->cnt(); i++) {
     bess::Packet *snb = batch->pkts()[i];
     char *head = snb->head_data<char *>();
@@ -146,7 +171,9 @@ void HashLB::LbL2(bess::PacketBatch *batch, gate_idx_t *out_gates) {
   }
 }
 
-void HashLB::LbL3(bess::PacketBatch *batch, gate_idx_t *out_gates) {
+template <>
+inline void HashLB::DoProcessBatch<HashLB::Mode::kL3>(
+    bess::PacketBatch *batch, gate_idx_t *out_gates) const {
   /* assumes untagged packets */
   const int ip_offset = 14;
 
@@ -163,7 +190,9 @@ void HashLB::LbL3(bess::PacketBatch *batch, gate_idx_t *out_gates) {
   }
 }
 
-void HashLB::LbL4(bess::PacketBatch *batch, gate_idx_t *out_gates) {
+template <>
+inline void HashLB::DoProcessBatch<HashLB::Mode::kL4>(
+    bess::PacketBatch *batch, gate_idx_t *out_gates) const {
   /* assumes untagged packets without IP options */
   const int ip_offset = 14;
   const int l4_offset = ip_offset + 20;
@@ -186,24 +215,22 @@ void HashLB::LbL4(bess::PacketBatch *batch, gate_idx_t *out_gates) {
 
 void HashLB::ProcessBatch(bess::PacketBatch *batch) {
   gate_idx_t out_gates[bess::PacketBatch::kMaxBurst];
-
   switch (mode_) {
-    case LB_L2:
-      LbL2(batch, out_gates);
+    case Mode::kL2:
+      DoProcessBatch<Mode::kL2>(batch, out_gates);
       break;
-
-    case LB_L3:
-      LbL3(batch, out_gates);
+    case Mode::kL3:
+      DoProcessBatch<Mode::kL3>(batch, out_gates);
       break;
-
-    case LB_L4:
-      LbL4(batch, out_gates);
+    case Mode::kL4:
+      DoProcessBatch<Mode::kL4>(batch, out_gates);
       break;
-
+    case Mode::kOther:
+      DoProcessBatch<Mode::kOther>(batch, out_gates);
+      break;
     default:
       DCHECK(0);
   }
-
   RunSplit(out_gates, batch);
 }
 

@@ -30,17 +30,34 @@
 
 import scapy.all as scapy
 
+mode = $MODE!'l4'
+
+if mode not in ['l4', 'vlan']:
+  raise TypeError('MODE must be l4 or vlan')
+
 eth = scapy.Ether(src='02:1e:67:9f:4d:ac', dst='06:16:3e:1b:72:32')
 ip = scapy.IP(src='192.168.1.1', dst='10.0.0.1')
 udp = scapy.UDP(sport=10001, dport=10002)
 payload = 'helloworld'
-pkt_bytes = bytes(eth/ip/udp/payload)
+
+if mode == 'vlan':
+  vlan = scapy.Dot1Q(vlan=1)
+  pkt_bytes = bytes(eth/vlan/ip/udp/payload)
+else:
+  pkt_bytes = bytes(eth/ip/udp/payload)
 
 # randomize destination port
 Source() \
-    -> Rewrite(templates=[pkt_bytes]) \
-    -> RandomUpdate(fields=[{'offset': 34, 'size': 2, 'min': 1, 'max': 1023}]) \
-    -> hlb::HashLB(gates=[0, 1, 2], mode='l4')
+    -> rewrite::Rewrite(templates=[pkt_bytes]) \
+
+if mode == 'vlan':
+    rewrite \
+      -> RandomUpdate(fields=[{'offset': 14, 'size': 2, 'min': 1, 'max': 256}]) \
+      -> hlb::HashLB(gates=[0, 1, 2], fields=[{'offset': 14, 'num_bytes': 2}])
+else:
+    rewrite \
+      -> RandomUpdate(fields=[{'offset': 34, 'size': 2, 'min': 1, 'max': 1023}]) \
+      -> hlb::HashLB(gates=[0, 1, 2], mode=mode)
 
 hlb:0 -> Sink()
 hlb:1 -> Sink()
