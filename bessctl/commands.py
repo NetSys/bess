@@ -287,6 +287,10 @@ def get_var_attrs(cli, var_token, partial_word):
             var_type = 'name'
             var_desc = 'module command to run (see "show mclass")'
 
+        elif var_token == 'FIFO':
+            var_type = 'fifo'
+            var_desc = 'path to fifo'
+
         elif var_token == 'ARG_TYPE':
             var_type = 'name'
             var_desc = 'type of argument (see "show mclass")'
@@ -430,7 +434,7 @@ def get_var_attrs(cli, var_token, partial_word):
 def split_var(cli, var_type, line):
     if var_type in [
         'host', 'name', 'optional_name', 'gate', 'confname', 'filename',
-                    'endis', 'int', 'socket', 'pause_workers', 'dir']:
+            'endis', 'int', 'socket', 'pause_workers', 'dir', 'fifo']:
         pos = line.find(' ')
         if pos == -1:
             head = line
@@ -501,6 +505,9 @@ def bind_var(cli, var_type, line):
     elif var_type == 'optional_name':
         if re.match(r'^(\*|[_a-zA-Z][\w]*)$', val) is None:
             raise cli.BindError('"name" must be "*" or [_a-zA-Z][_a-zA-Z0-9]*')
+
+    elif var_type == 'fifo':
+        pass
 
     elif var_type == 'gate':
         if head.isdigit():
@@ -1841,6 +1848,30 @@ def monitor_tc_all(cli, tcs):
     _monitor_tcs(cli, *tcs)
 
 
+def _capture_request_module(cli, module_name, direction, gate, opts, program,
+                            hook_fn, fifo):
+    if gate is None:
+        gate = 0
+
+    if opts is None:
+        opts = []
+
+    if direction is None:
+        direction = 'out'
+
+    hook_fn(True, module_name, direction, gate, fifo)
+
+    try:
+        # This is python2 only
+        raw_input("press Return to stop")
+    except KeyboardInterrupt:
+        # Noop
+        pass
+
+    print("")
+    hook_fn(False, module_name, direction, gate)
+
+
 def _capture_module(cli, module_name, direction, gate, opts, program, hook_fn):
     if gate is None:
         gate = 0
@@ -1897,6 +1928,16 @@ def _capture_module(cli, module_name, direction, gate, opts, program, hook_fn):
 def tcpdump_module(cli, module_name, direction, gate, opts):
     _capture_module(cli, module_name, direction,
                     gate, opts, 'tcpdump', cli.bess.tcpdump)
+
+
+@cmd('tcpdump_request MODULE FIFO [DIRECTION] [GATE] [TCPDUMP_OPTS...]',
+     'Request packet capture on a gate')
+def tcpdump_request_module(cli, module_name, fifo, direction, gate, opts):
+    # TODO(nlsun) It may be better to implement this as a flag in the `tcpdump`
+    # command, but there doesn't seem to be a mechanism for adding flags at
+    # this time.
+    _capture_request_module(cli, module_name, direction,
+                            gate, opts, 'tcpdump', cli.bess.tcpdump, fifo)
 
 
 @cmd('tshark MODULE [DIRECTION] [GATE] [TSHARK_OPTS...]',
