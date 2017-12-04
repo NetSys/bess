@@ -246,7 +246,10 @@ BENCH_EXEC := $(BENCH_OBJS:%.o=%)
 MODULE_SRCS := $(filter-out $(TEST_SRCS) $(BENCH_SRCS), $(MODULES))
 MODULE_OBJS := $(addprefix modules/,$(patsubst %.cc,%.o, \
 		 $(notdir $(MODULE_SRCS))))
-MODULE_LIBS := $(MODULE_OBJS:.o=.so)
+
+ifdef MODULE_LINK_DYNAMIC
+	MODULE_LIBS := $(MODULE_OBJS:.o=.so)
+endif
 
 # We don't (yet?) make shared objects for drivers.
 DRIVER_SRCS := $(filter-out $(TEST_SRCS) $(BENCH_SRCS), $(DRIVERS))
@@ -260,6 +263,10 @@ SRCS := $(filter-out $(TEST_SRCS) $(BENCH_SRCS) $(MODULE_SRCS) $(DRIVER_SRCS) $(
 # ? why doesn't HEADERS include module headers?
 HEADERS := $(wildcard *.h utils/*.h $(DRIVER_H) gate_hooks/*.h resume_hooks/*.h)
 OBJS := $(SRCS:.cc=.o) $(DRIVER_OBJS) $(UTIL_OBJS)
+
+ifndef MODULE_LINK_DYNAMIC
+	OBJS += $(MODULE_OBJS)
+endif
 
 EXEC := bessd
 
@@ -288,8 +295,6 @@ tests: $(TEST_OBJS) $(TEST_EXEC) $(TEST_ALL_EXEC)
 benchmarks: $(BENCH_OBJS) $(BENCH_EXEC)
 
 protobuf: $(PROTO_SRCS)
-
-drivers: protobuf $(DRIVER_OBJS)
 
 modules: protobuf $(MODULE_OBJS) $(MODULE_LIBS)
 
