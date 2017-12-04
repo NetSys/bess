@@ -112,7 +112,7 @@ endif
 # -MMD dependency recording (should we use -MD?).
 COREDIR := $(abspath .)
 CXXARCHFLAGS ?= -march=native
-CXXFLAGS += -std=c++11 -g3 -ggdb3 $(CXXARCHFLAGS) \
+CXXFLAGS += -std=c++14 -g3 -ggdb3 $(CXXARCHFLAGS) \
 	    -isystem $(DPDK_INC_DIR) -isystem $(COREDIR) \
 	    -isystem $(dir $<).. -isystem $(COREDIR)/modules \
 	    -D_GNU_SOURCE \
