@@ -511,37 +511,37 @@ inline void Module::EmitPacket(const Task *task, bess::Packet *pkt,
 
   // Put a packet into the ogate
   bess::OGate *ogate = ogates_[ogate_idx];
-  bess::PacketBatch *batch = task->get_obatch(ogate);
+  bess::PacketBatch *batch = task->get_gate_batch(ogate);
   if (!batch) {
     if (ogate->hooks().size()) {
       // Having seperate batch to run ogate hooks
-      task->set_obatch(ogate, task->AllocPacketBatch());
+      task->set_gate_batch(ogate, task->AllocPacketBatch());
       gate_with_hook[gate_with_hook_cnt++] = ogate_idx;
     } else {
       // If no ogate hooks, just use next igate batch
-      if (task->get_ibatch(ogate->igate()) == nullptr) {
+      if (task->get_gate_batch(ogate->igate()) == nullptr) {
         bess::PacketBatch *tmp = task->AllocPacketBatch();
         task->AddToRun(ogate->igate(), tmp);
-        task->set_obatch(ogate, tmp);
+        task->set_gate_batch(ogate, tmp);
       } else {
-        task->set_obatch(ogate, task->get_ibatch(ogate->igate()));
+        task->set_gate_batch(ogate, task->get_gate_batch(ogate->igate()));
       }
       gate_without_hook[gate_without_hook_cnt++] = ogate_idx;
     }
-    batch = task->get_obatch(ogate);
+    batch = task->get_gate_batch(ogate);
   }
 
   if (static_cast<size_t>(batch->cnt()) >= bess::PacketBatch::kMaxBurst) {
     if (ogate->hooks().size()) {
       for (auto &hook : ogate->hooks()) {
-        hook->ProcessBatch(task->get_obatch(ogate));
+        hook->ProcessBatch(task->get_gate_batch(ogate));
       }
-      task->AddToRun(ogate->igate(), task->get_obatch(ogate));
-      task->set_obatch(ogate, task->AllocPacketBatch());
+      task->AddToRun(ogate->igate(), task->get_gate_batch(ogate));
+      task->set_gate_batch(ogate, task->AllocPacketBatch());
     } else {
       // allocate a new batch and push
       batch = task->AllocPacketBatch();
-      task->set_obatch(ogate, batch);
+      task->set_gate_batch(ogate, batch);
       task->AddToRun(ogate->igate(), batch);
     }
   }
@@ -554,16 +554,16 @@ inline void Module::ProcessOGates(const Task *task) {
   for (int i = 0; i < gate_with_hook_cnt; i++) {
     bess::OGate *ogate = ogates_[gate_with_hook[i]];  // should not be null
     for (auto &hook : ogate->hooks()) {
-      hook->ProcessBatch(task->get_obatch(ogate));
+      hook->ProcessBatch(task->get_gate_batch(ogate));
     }
-    task->AddToRun(ogate->igate(), task->get_obatch(ogate));
-    task->set_obatch(ogate, nullptr);
+    task->AddToRun(ogate->igate(), task->get_gate_batch(ogate));
+    task->set_gate_batch(ogate, nullptr);
   }
 
   // Clear packet batch for ogates without hook
   for (int i = 0; i < gate_without_hook_cnt; i++) {
     bess::OGate *ogate = ogates_[gate_without_hook[i]];  // should not be null
-    task->set_obatch(ogate, nullptr);
+    task->set_gate_batch(ogate, nullptr);
   }
 
   gate_with_hook_cnt = 0;

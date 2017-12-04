@@ -88,8 +88,7 @@ class Task {
   mutable int pbatch_idx_;
   mutable bess::PacketBatch *pbatch_;
 
-  mutable std::vector<bess::PacketBatch *> ogate_batch_;
-  mutable std::vector<bess::PacketBatch *> igate_batch_;
+  mutable std::vector<bess::PacketBatch *> gate_batch_;
 
   /* The current input gate index is not given as a function parameter.
    * Modules should use get_igate() for access */
@@ -108,8 +107,7 @@ class Task {
         pbatch_idx_(),
         pbatch_(
             new bess::PacketBatch[MAX_PBATCH_CNT]),  // XXX Need to adjust size
-        ogate_batch_(std::vector<bess::PacketBatch *>(64, 0)),
-        igate_batch_(std::vector<bess::PacketBatch *>(64, 0)) {
+        gate_batch_(std::vector<bess::PacketBatch *>(64, 0)) {
     dead_batch_.clear();
   }
 
@@ -127,14 +125,14 @@ class Task {
       next_gate_ = ig;
       next_batch_ = batch;
     } else {
-      bess::PacketBatch *ibatch = get_ibatch(ig);
+      bess::PacketBatch *ibatch = get_gate_batch(ig);
       if (ibatch && (static_cast<size_t>(ibatch->cnt() + batch->cnt()) <
                      bess::PacketBatch::kMaxBurst)) {
         // merge two batches
-        get_ibatch(ig)->add(batch);
+        get_gate_batch(ig)->add(batch);
       }
       // set the input as new batch
-      set_ibatch(ig, batch);
+      set_gate_batch(ig, batch);
       igates_to_run_.push(std::make_pair(ig, batch));
     }
   }
@@ -147,13 +145,9 @@ class Task {
     return batch;
   }
 
-  void UpdatePerGateBatch(uint32_t igate_cnt, uint32_t ogate_cnt) const {
-    if (igate_batch_.capacity() < igate_cnt) {
-      igate_batch_.resize(igate_cnt, nullptr);
-    }
-
-    if (ogate_batch_.capacity() < ogate_cnt) {
-      ogate_batch_.resize(ogate_cnt, nullptr);
+  void UpdatePerGateBatch(uint32_t gate_cnt) const {
+    if (gate_batch_.capacity() < gate_cnt) {
+      gate_batch_.resize(gate_cnt, nullptr);
     }
   }
 
@@ -166,20 +160,12 @@ class Task {
 
   bess::PacketBatch *dead_batch() const { return &dead_batch_; }
 
-  bess::PacketBatch *get_obatch(bess::OGate *ogate) const {
-    return ogate_batch_[ogate->global_gate_index()];
+  bess::PacketBatch *get_gate_batch(bess::Gate *gate) const {
+    return gate_batch_[gate->global_gate_index()];
   }
 
-  void set_obatch(bess::OGate *ogate, bess::PacketBatch *batch) const {
-    ogate_batch_[ogate->global_gate_index()] = batch;
-  }
-
-  bess::PacketBatch *get_ibatch(bess::IGate *igate) const {
-    return igate_batch_[igate->global_gate_index()];
-  }
-
-  void set_ibatch(bess::IGate *igate, bess::PacketBatch *batch) const {
-    igate_batch_[igate->global_gate_index()] = batch;
+  void set_gate_batch(bess::Gate *gate, bess::PacketBatch *batch) const {
+    gate_batch_[gate->global_gate_index()] = batch;
   }
 
   bess::LeafTrafficClass *GetTC() const { return c_; }

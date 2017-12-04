@@ -76,7 +76,7 @@ struct task_result Task::operator()(void) const {
       igate = item.first;
       batch = item.second;
 
-      set_ibatch(igate, nullptr);
+      set_gate_batch(igate, nullptr);
     }
 
     set_current_igate(igate->gate_idx());
