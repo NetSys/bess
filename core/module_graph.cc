@@ -40,8 +40,7 @@
 std::map<std::string, Module *> ModuleGraph::all_modules_;
 std::unordered_set<std::string> ModuleGraph::tasks_;
 bool ModuleGraph::changes_made_ = false;
-uint32_t ModuleGraph::igate_cnt_;
-uint32_t ModuleGraph::ogate_cnt_;
+uint32_t ModuleGraph::gate_cnt_;
 
 void ModuleGraph::UpdateParentsAs(
     Module *task, Module *module,
@@ -138,7 +137,8 @@ void ModuleGraph::SetIGatePriority(Module *task_module) {
   }
 }
 
-void ModuleGraph::SetUniqueIGateIdx() {
+void ModuleGraph::SetUniqueGateIdx() {
+  bess::utils::extended_priority_queue<bess::OGate *> ogates_queue;
   bess::utils::extended_priority_queue<bess::IGate *, IGateGreater>
       igates_queue;
   std::unordered_set<bess::IGate *> igates_pushed;
@@ -149,6 +149,8 @@ void ModuleGraph::SetUniqueIGateIdx() {
       if (!ogates[i])
         continue;
 
+      ogates_queue.push(ogates[i]);
+
       bess::IGate *igate = ogates[i]->igate();
       if (igates_pushed.count(igate) != 0)
         continue;
@@ -158,34 +160,19 @@ void ModuleGraph::SetUniqueIGateIdx() {
     }
   }
 
-  igate_cnt_ = 0;
+  gate_cnt_ = 0;
   while (!igates_queue.empty()) {
     bess::IGate *igate = igates_queue.top();
     igates_queue.pop();
 
-    igate->SetUniqueIdx(igate_cnt_++);
-  }
-}
-
-void ModuleGraph::SetUniqueOGateIdx() {
-  bess::utils::extended_priority_queue<bess::OGate *> ogates_queue;
-
-  for (auto const &e : all_modules_) {
-    std::vector<bess::OGate *> ogates = e.second->ogates();
-    for (size_t i = 0; i < ogates.size(); i++) {
-      if (!ogates[i])
-        continue;
-
-      ogates_queue.push(ogates[i]);
-    }
+    igate->SetUniqueIdx(gate_cnt_++);
   }
 
-  ogate_cnt_ = 0;
   while (!ogates_queue.empty()) {
     bess::OGate *ogate = ogates_queue.top();
     ogates_queue.pop();
 
-    ogate->SetUniqueIdx(ogate_cnt_++);
+    ogate->SetUniqueIdx(gate_cnt_++);
   }
 }
 
@@ -199,7 +186,7 @@ void ModuleGraph::ConfigureTasks() {
       bess::TrafficClass *c = tc_pair.second;
       if (c->policy() == bess::POLICY_LEAF) {
         auto leaf = static_cast<bess::LeafTrafficClass *>(c);
-        leaf->task()->UpdatePerGateBatch(igate_cnt_, ogate_cnt_);
+        leaf->task()->UpdatePerGateBatch(gate_cnt_);
       }
     }
   }
@@ -221,8 +208,7 @@ void ModuleGraph::UpdateTaskGraph() {
     }
   }
 
-  SetUniqueIGateIdx();
-  SetUniqueOGateIdx();
+  SetUniqueGateIdx();
   ConfigureTasks();
 
   changes_made_ = false;
