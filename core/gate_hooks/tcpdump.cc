@@ -58,11 +58,11 @@ bool TcpdumpOpener::InitFifo(int fd) {
 
 CommandResponse Tcpdump::Init(const bess::Gate *,
                               const bess::pb::TcpdumpArg &arg) {
-  int ret = opener_.Init(arg.fifo(), false);
+  int ret = opener_.Init(arg.fifo(), arg.reconnect());
   if (ret < 0) {
     return CommandFailure(-errno, "inappropriate reinitialization");
   }
-  ret = opener_.OpenNow();
+  ret = arg.defer() ? opener_.OpenInThread() : opener_.OpenNow();
   if (ret < 0) {
     return CommandFailure(-errno, "Failed to open FIFO");
   }
