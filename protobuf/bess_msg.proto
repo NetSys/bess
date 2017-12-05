@@ -505,6 +505,19 @@ message ConfigureGateHookRequest {
   google.protobuf.Any arg = 6;  /// Hook-specific arguments
 }
 
+message ListGateHooksResponse {
+  message GateHookInfo { // same as ConfigureGateHookRequest
+    string hook_name = 1;
+    string module_name = 2;
+    oneof gate {
+      int64 igate = 3;
+      int64 ogate = 4;
+    }
+  }
+  Error error = 1;
+  repeated GateHookInfo hooks = 2;
+}
+
 //  -------------------------------------------------------------------------
 //  Resume hooks
 //  -------------------------------------------------------------------------

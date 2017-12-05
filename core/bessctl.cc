@@ -1302,6 +1302,30 @@ class BESSControlImpl final : public BESSControl::Service {
     return Status::OK;
   }
 
+  Status ListGateHooks(ServerContext*, const EmptyRequest*,
+                       ListGateHooksResponse* response) override {
+    for (const auto& pair : ModuleGraph::GetAllModules()) {
+      const Module* m = pair.second;
+      for (auto& gate : m->igates()) {
+        for (auto& hook : gate->hooks()) {
+          ListGateHooksResponse_GateHookInfo* info = response->add_hooks();
+          info->set_hook_name(hook->name());
+          info->set_module_name(m->name());
+          info->set_igate(gate->gate_idx());
+        }
+      }
+      for (auto& gate : m->ogates()) {
+        for (auto& hook : gate->hooks()) {
+          ListGateHooksResponse_GateHookInfo* info = response->add_hooks();
+          info->set_hook_name(hook->name());
+          info->set_module_name(m->name());
+          info->set_ogate(gate->gate_idx());
+        }
+      }
+    }
+    return Status::OK;
+  }
+
   Status ConfigureGateHook(ServerContext*,
                            const ConfigureGateHookRequest* request,
                            CommandResponse* response) override {
