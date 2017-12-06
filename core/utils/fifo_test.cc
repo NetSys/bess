@@ -48,9 +48,9 @@ namespace {
 
 // short_sleep gives other processes a chance to run, and
 // means that if we wait about 10 of these that's about .2
-// seconds, which should be plenty.
-static constexpr std::chrono::milliseconds short_sleep =
-    std::chrono::milliseconds(20);
+// seconds, which should be plenty.  However, we let the
+// environment set it (needed under Travis, which is dog slow).
+static std::chrono::milliseconds short_sleep = std::chrono::milliseconds(20);
 
 // A real FIFO opener would write some data down the FIFO;
 // we just make sure we get called.
@@ -370,6 +370,11 @@ class FifoTestFixture : public ::testing::Test {
     unlink(fifocstr());
     ASSERT_EQ(0, mkfifo(fifocstr(), 0666));
     nfifos_ = 1;
+    // allow travis setup to extend the sleeps
+    char *p = std::getenv("FIFO_TEST_TIMEOUT");
+    if (p != nullptr) {
+      short_sleep = std::chrono::milliseconds(std::stoi(p));
+    }
   }
   void TearDown() {
     for (int i = nfifos_; --i >= 0;) {
