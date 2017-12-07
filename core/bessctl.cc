@@ -1308,18 +1308,20 @@ class BESSControlImpl final : public BESSControl::Service {
       const Module* m = pair.second;
       for (auto& gate : m->igates()) {
         for (auto& hook : gate->hooks()) {
-          ListGateHooksResponse_GateHookInfo* info = response->add_hooks();
+          GateHookInfo* info = response->add_hooks();
           info->set_hook_name(hook->name());
           info->set_module_name(m->name());
           info->set_igate(gate->gate_idx());
+          *(info->mutable_arg()) = hook->arg();
         }
       }
       for (auto& gate : m->ogates()) {
         for (auto& hook : gate->hooks()) {
-          ListGateHooksResponse_GateHookInfo* info = response->add_hooks();
+          GateHookInfo* info = response->add_hooks();
           info->set_hook_name(hook->name());
           info->set_module_name(m->name());
           info->set_ogate(gate->gate_idx());
+          *(info->mutable_arg()) = hook->arg();
         }
       }
     }
@@ -1333,33 +1335,34 @@ class BESSControlImpl final : public BESSControl::Service {
     bool use_gate = true;
     gate_idx_t gate_idx = 0;
     bool is_igate =
-        request->gate_case() == bess::pb::ConfigureGateHookRequest::kIgate;
+        request->hook().gate_case() == bess::pb::GateHookInfo::kIgate;
 
     if (is_igate) {
-      gate_idx = request->igate();
-      use_gate = request->igate() >= 0;
+      gate_idx = request->hook().igate();
+      use_gate = request->hook().igate() >= 0;
     } else {
-      gate_idx = request->ogate();
-      use_gate = request->ogate() >= 0;
+      gate_idx = request->hook().ogate();
+      use_gate = request->hook().ogate() >= 0;
     }
 
     const auto factory = bess::GateHookFactory::all_gate_hook_factories().find(
-        request->hook_name());
+        request->hook().hook_name());
     if (factory == bess::GateHookFactory::all_gate_hook_factories().end()) {
       return return_with_error(response, ENOENT, "No such gate hook: %s",
-                               request->hook_name().c_str());
+                               request->hook().hook_name().c_str());
     }
 
-    if (request->module_name().length() == 0) {
+    if (request->hook().module_name().length() == 0) {
       // Install this hook on all modules
       for (const auto& it : ModuleGraph::GetAllModules()) {
         if (request->enable()) {
           *response =
               enable_hook_for_module(it.second, gate_idx, is_igate, use_gate,
-                                     factory->second, request->arg());
+                                     factory->second, request->hook().arg());
         } else {
-          *response = disable_hook_for_module(it.second, gate_idx, is_igate,
-                                              use_gate, request->hook_name());
+          *response =
+              disable_hook_for_module(it.second, gate_idx, is_igate, use_gate,
+                                      request->hook().hook_name());
         }
         if (response->error().code() != 0) {
           return Status::OK;
@@ -1369,18 +1372,20 @@ class BESSControlImpl final : public BESSControl::Service {
     }
 
     // Install this hook on the specified module
-    const auto& it = ModuleGraph::GetAllModules().find(request->module_name());
+    const auto& it =
+        ModuleGraph::GetAllModules().find(request->hook().module_name());
     if (it == ModuleGraph::GetAllModules().end()) {
       return return_with_error(response, ENOENT, "No module '%s' found",
-                               request->module_name().c_str());
+                               request->hook().module_name().c_str());
     }
     if (request->enable()) {
       *response =
           enable_hook_for_module(it->second, gate_idx, is_igate, use_gate,
-                                 factory->second, request->arg());
+                                 factory->second, request->hook().arg());
     } else {
-      *response = disable_hook_for_module(it->second, gate_idx, is_igate,
-                                          use_gate, request->hook_name());
+      *response =
+          disable_hook_for_module(it->second, gate_idx, is_igate, use_gate,
+                                  request->hook().hook_name());
     }
 
     return Status::OK;

@@ -494,26 +494,23 @@ message PcapngArg {
   bool reconnect = 7; /// If set, we'll reconnect after failure.
 }
 
-message ConfigureGateHookRequest {
+
+message GateHookInfo {
   string hook_name = 1;         /// Name of the hook
   string module_name = 2;       /// Name of module
-  bool enable = 3;              /// Installs the hook if True, else uninstalls
   oneof gate {
-    int64 igate = 4;            /// Input gate index. All input gates if -1
-    int64 ogate = 5;            /// Output gate index. All output gates if -1
+    int64 igate = 3;            /// Input gate index. All input gates if -1
+    int64 ogate = 4;            /// Output gate index. All output gates if -1
   }
-  google.protobuf.Any arg = 6;  /// Hook-specific arguments
+  google.protobuf.Any arg = 5;  /// Hook-specific arguments
+}
+
+message ConfigureGateHookRequest {
+  GateHookInfo hook = 1;
+  bool enable = 2;
 }
 
 message ListGateHooksResponse {
-  message GateHookInfo { // same as ConfigureGateHookRequest
-    string hook_name = 1;
-    string module_name = 2;
-    oneof gate {
-      int64 igate = 3;
-      int64 ogate = 4;
-    }
-  }
   Error error = 1;
   repeated GateHookInfo hooks = 2;
 }
@@ -525,8 +522,8 @@ message ListGateHooksResponse {
 // Enable/Disable a global ResumeHook.
 message ConfigureResumeHookRequest {
   string hook_name = 1;         /// Name of the hook
-  bool enable = 2;              /// Installs the hook if True, else uninstalls
-  google.protobuf.Any arg = 3;  /// Hook-specific arguments
+  bool enable = 5;              /// Installs the hook if True, else uninstalls
+  google.protobuf.Any arg = 6;  /// Hook-specific arguments
 }
 
 //  -------------------------------------------------------------------------

@@ -490,13 +490,13 @@ class BESS(object):
         if enable is None:
             enable = False
         request = bess_msg.ConfigureGateHookRequest()
-        request.hook_name = hook
-        request.module_name = module
+        request.hook.hook_name = hook
+        request.hook.module_name = module
         request.enable = enable
         if direction == 'in':
-            request.igate = gate
+            request.hook.igate = gate
         elif direction == 'out':
-            request.ogate = gate
+            request.hook.ogate = gate
         else:
             raise self.APIError('direction must be either "out" or "in"')
         request.arg.Pack(arg)
