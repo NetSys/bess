@@ -362,6 +362,9 @@ class BESS(object):
         request.size_inc_q = arg.pop('size_inc_q', 0)
         request.size_out_q = arg.pop('size_out_q', 0)
         request.mac_addr = arg.pop('mac_addr', '')
+        request.mtu = arg.pop('mtu', 0);
+        request.vlan_offload = arg.pop('vlan_offload', 0);
+        request.admin_status = arg.pop('admin_status', 0);
 
         message_type = getattr(port_msg, driver + 'Arg', module_msg.EmptyArg)
         arg_msg = pb_conv.dict_to_protobuf(message_type, arg)

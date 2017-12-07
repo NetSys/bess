@@ -34,6 +34,7 @@
 
 #include "../utils/ether.h"
 #include "../utils/format.h"
+#include "../worker.h"
 
 /*!
  * The following are deprecated. Ignore us.
@@ -242,6 +243,8 @@ CommandResponse PMDPort::Init(const bess::pb::PMDPortArg &arg) {
 
   /* Use defaut rx/tx configuration as provided by PMD drivers,
    * with minor tweaks */
+  WorkerPauser wp;
+  rte_eth_dev_stop(ret_port_id);
   rte_eth_dev_info_get(ret_port_id, &dev_info);
 
   if (dev_info.driver_name) {
@@ -294,9 +297,32 @@ CommandResponse PMDPort::Init(const bess::pb::PMDPortArg &arg) {
     }
   }
 
-  ret = rte_eth_dev_start(ret_port_id);
+  if (vlan_offload) {
+    ret = rte_eth_dev_set_vlan_offload(ret_port_id, vlan_offload);
+    if (ret != 0) {
+      LOG(WARNING) << "rte_eth_dev_set_vlan_offload() failed: " << rte_strerror(-ret);
+    }
+  }
+
+  if (mtu) {
+    ret = rte_eth_dev_set_mtu(ret_port_id, mtu);
+    if (ret != 0) {
+      LOG(WARNING) << "rte_eth_dev_set_mtu() failed: " << rte_strerror(-ret);
+    }
+  }
+
+  ret = rte_eth_dev_default_mac_addr_set(ret_port_id,
+                                         reinterpret_cast<ether_addr *>(&mac_addr));
   if (ret != 0) {
-    return CommandFailure(-ret, "rte_eth_dev_start() failed");
+    LOG(WARNING) << "rte_eth_dev_default_mac_addr_set failed: "
+                 << rte_strerror(-ret);
+  }
+
+  if (admin_status_up) {
+     ret = rte_eth_dev_start(ret_port_id);
+     if (ret != 0) {
+       return CommandFailure(-ret, "rte_eth_dev_start() failed");
+     }
   }
 
   dpdk_port_id_ = ret_port_id;
@@ -384,16 +410,20 @@ void PMDPort::CollectStats(bool reset) {
 }
 
 int PMDPort::RecvPackets(queue_t qid, bess::Packet **pkts, int cnt) {
-  return rte_eth_rx_burst(dpdk_port_id_, qid, (struct rte_mbuf **)pkts, cnt);
+  if (likely(admin_status_up)) {
+    return rte_eth_rx_burst(dpdk_port_id_, qid, (struct rte_mbuf **)pkts, cnt);
+  }
+  return 0;
 }
 
 int PMDPort::SendPackets(queue_t qid, bess::Packet **pkts, int cnt) {
-  int sent =
-      rte_eth_tx_burst(dpdk_port_id_, qid, (struct rte_mbuf **)pkts, cnt);
-
-  queue_stats[PACKET_DIR_OUT][qid].dropped += (cnt - sent);
-
-  return sent;
+  if (likely(admin_status_up)) {
+    int sent;
+    sent = rte_eth_tx_burst(dpdk_port_id_, qid, (struct rte_mbuf **)pkts, cnt);
+    queue_stats[PACKET_DIR_OUT][qid].dropped += (cnt - sent);
+    return sent;
+  }
+  return 0;
 }
 
 Port::LinkStatus PMDPort::GetLinkStatus() {

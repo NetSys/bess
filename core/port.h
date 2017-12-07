@@ -282,6 +282,9 @@ class Port {
   size_t queue_size[PACKET_DIRS];
 
   char mac_addr[ETH_ALEN];
+  uint32_t vlan_offload;
+  uint32_t mtu;
+  bool admin_status_up;
 
   /* which modules are using this port?
    * TODO: more robust gate keeping */

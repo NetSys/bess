@@ -250,8 +250,23 @@ message CreatePortRequest {
   /// MAC address for the new port. Should be "xx:xx:xx:xx:xx:xx" format.
   string mac_addr = 7;
 
+  /// vlan offload mask, see ETH_VLAN_STRIP_OFFLOAD, ETH_VLAN_FILTER_OFFLOAD, and
+  /// ETH_VLAN_EXTEND_OFFLOAD for values that may be mixed with "OR".
+  /// Set to 0 for no offload.
+  uint64 vlan_offload = 8;
+
+  /// Port MTU. Set to 0 to accept the default port MTU
+  uint64 mtu = 9;
+
+  enum AdminStatus {
+    UP = 0;
+    DOWN = 1;
+  }
+  /// Port administrative status. Default is UP
+  AdminStatus admin_status = 10;
+
   /// Driver specific argument for port initialization. See port_msg.proto
-  google.protobuf.Any arg = 8;
+  google.protobuf.Any arg = 11;
 }
 
 message CreatePortResponse {

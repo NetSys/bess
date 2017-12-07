@@ -256,7 +256,9 @@ static int collect_metadata(Module* m, GetModuleInfoResponse* response) {
 static ::Port* create_port(const std::string& name, const PortBuilder& driver,
                            queue_t num_inc_q, queue_t num_out_q,
                            size_t size_inc_q, size_t size_out_q,
-                           const std::string& mac_addr_str,
+                           const std::string& mac_addr_str, uint32_t vlan_offload,
+                           uint32_t mtu,
+			   bess::pb::CreatePortRequest_AdminStatus admin_status,
                            const google::protobuf::Any& arg, pb_error_t* perr) {
   std::unique_ptr<::Port> p;
 
@@ -299,10 +301,7 @@ static ::Port* create_port(const std::string& name, const PortBuilder& driver,
 
   if (name.length() > 0) {
     if (PortBuilder::all_ports().count(name)) {
-      perr->set_code(EEXIST);
-      perr->set_errmsg(
-          bess::utils::Format("Port '%s' already exists", name.c_str()));
-      return nullptr;
+      p.reset(PortBuilder::all_ports().at(name));
     }
     port_name = name;
   } else {
@@ -311,7 +310,11 @@ static ::Port* create_port(const std::string& name, const PortBuilder& driver,
   }
 
   // Try to create and initialize the port.
-  p.reset(driver.CreatePort(port_name));
+  bool new_port = false;
+  if (!p) {
+    new_port = true;
+    p.reset(driver.CreatePort(port_name));
+  }
 
   if (size_inc_q == 0) {
     size_inc_q = p->DefaultIncQueueSize();
@@ -326,6 +329,13 @@ static ::Port* create_port(const std::string& name, const PortBuilder& driver,
   p->num_queues[PACKET_DIR_OUT] = num_out_q;
   p->queue_size[PACKET_DIR_INC] = size_inc_q;
   p->queue_size[PACKET_DIR_OUT] = size_out_q;
+  p->vlan_offload = vlan_offload;
+  p->mtu = mtu;
+  if ( admin_status == bess::pb::CreatePortRequest_AdminStatus_UP ) {
+    p->admin_status_up = true;
+  } else {
+    p->admin_status_up = false;
+  }
 
   // DPDK functions may be called, so be prepared
   ctx.SetNonWorker();
@@ -347,7 +357,7 @@ static ::Port* create_port(const std::string& name, const PortBuilder& driver,
     return nullptr;
   }
 
-  if (!PortBuilder::AddPort(p.get())) {
+  if (new_port && !PortBuilder::AddPort(p.get())) {
     return nullptr;
   }
 
@@ -941,7 +951,8 @@ class BESSControlImpl final : public BESSControl::Service {
     port = create_port(request->name(), builder, request->num_inc_q(),
                        request->num_out_q(), request->size_inc_q(),
                        request->size_out_q(), request->mac_addr(),
-                       request->arg(), error);
+                       request->vlan_offload(), request->mtu(),
+                       request->admin_status(), request->arg(), error);
 
     if (!port)
       return Status::OK;
