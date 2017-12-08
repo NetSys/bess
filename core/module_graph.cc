@@ -190,7 +190,8 @@ void ModuleGraph::DestroyAllModules() {
 }
 
 int ModuleGraph::ConnectModules(Module *module, gate_idx_t ogate_idx,
-                                Module *m_next, gate_idx_t igate_idx) {
+                                Module *m_next, gate_idx_t igate_idx,
+                                bool skip_default_hooks) {
   if (ogate_idx >= module->module_builder()->NumOGates() ||
       ogate_idx >= MAX_GATES) {
     return -EINVAL;
@@ -207,8 +208,10 @@ int ModuleGraph::ConnectModules(Module *module, gate_idx_t ogate_idx,
   if (ret != 0)
     return ret;
 
-  // Gate tracking is enabled by default
-  module->ogates()[ogate_idx]->AddHook(new Track());
+  if (!skip_default_hooks) {
+    // Gate tracking is enabled by default
+    module->ogates()[ogate_idx]->AddHook(new Track());
+  }
 
   return 0;
 }

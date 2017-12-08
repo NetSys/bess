@@ -64,7 +64,8 @@ class ModuleGraph {
   static void DestroyAllModules();
 
   static int ConnectModules(Module *module, gate_idx_t ogate_idx,
-                            Module *m_next, gate_idx_t igate_idx);
+                            Module *m_next, gate_idx_t igate_idx,
+                            bool skip_default_hooks = false);
   static int DisconnectModule(Module *module, gate_idx_t ogate_idx);
 
   static const std::map<std::string, Module *> &GetAllModules();
