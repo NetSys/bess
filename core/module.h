@@ -496,8 +496,9 @@ inline void Module::RunNextModule(const Task *task, bess::PacketBatch *batch) {
 inline void Module::DropPacket(const Task *task, bess::Packet *pkt) {
   task->dead_batch()->add(pkt);
   if (static_cast<size_t>(task->dead_batch()->cnt()) >=
-      bess::PacketBatch::kMaxBurst)
+      bess::PacketBatch::kMaxBurst) {
     deadend(task->dead_batch());
+  }
 }
 
 inline void Module::EmitPacket(const Task *task, bess::Packet *pkt,

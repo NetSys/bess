@@ -77,7 +77,7 @@ class Task {
       igates_to_run_;  // A queue for IGates to run
 
   mutable bess::IGate *next_gate_;  // Cache next module to run without merging
-                                    // Optimization for chain
+  // Optimization for chain
   mutable bess::PacketBatch
       *next_batch_;  // Cache to run next batch with next module
 
@@ -105,13 +105,12 @@ class Task {
         igates_to_run_(),
         next_gate_(),
         next_batch_(),
-        pbatch_idx_() {
+        pbatch_idx_(),
+        pbatch_(
+            new bess::PacketBatch[MAX_PBATCH_CNT]),  // XXX Need to adjust size
+        ogate_batch_(std::vector<bess::PacketBatch *>(64, 0)),
+        igate_batch_(std::vector<bess::PacketBatch *>(64, 0)) {
     dead_batch_.clear();
-    // XXX Need to adjust size
-    pbatch_ = new bess::PacketBatch[MAX_PBATCH_CNT];
-
-    ogate_batch_ = std::vector<bess::PacketBatch *>(64, 0);
-    igate_batch_ = std::vector<bess::PacketBatch *>(64, 0);
   }
 
   ~Task() { delete[] pbatch_; }
@@ -122,11 +121,27 @@ class Task {
   // Called when the leaf that owns this task is created.
   void Attach(bess::LeafTrafficClass *c);
 
-  void AddToRun(bess::IGate *ig, bess::PacketBatch *batch) const;
+  inline void AddToRun(bess::IGate *ig, bess::PacketBatch *batch) const {
+    if (next_gate_ == nullptr &&
+        !ig->mergeable()) {  // optimization for chained
+      next_gate_ = ig;
+      next_batch_ = batch;
+    } else {
+      bess::PacketBatch *ibatch = get_ibatch(ig);
+      if (ibatch && (static_cast<size_t>(ibatch->cnt() + batch->cnt()) <
+                     bess::PacketBatch::kMaxBurst)) {
+        // merge two batches
+        get_ibatch(ig)->add(batch);
+      }
+      // set the input as new batch
+      set_ibatch(ig, batch);
+      igates_to_run_.push(std::make_pair(ig, batch));
+    }
+  }
 
   // Do not track used/unsued for efficiency
   bess::PacketBatch *AllocPacketBatch() const {
-    CHECK_LT(pbatch_idx_, MAX_PBATCH_CNT);
+    DCHECK_LT(pbatch_idx_, MAX_PBATCH_CNT);
     bess::PacketBatch *batch = &pbatch_[pbatch_idx_++];
     batch->clear();
     return batch;
@@ -134,11 +149,11 @@ class Task {
 
   void UpdatePerGateBatch(uint32_t igate_cnt, uint32_t ogate_cnt) const {
     if (igate_batch_.capacity() < igate_cnt) {
-      igate_batch_.resize(igate_cnt, 0);
+      igate_batch_.resize(igate_cnt, nullptr);
     }
 
     if (ogate_batch_.capacity() < ogate_cnt) {
-      ogate_batch_.resize(ogate_cnt, 0);
+      ogate_batch_.resize(ogate_cnt, nullptr);
     }
   }
 
@@ -152,19 +167,19 @@ class Task {
   bess::PacketBatch *dead_batch() const { return &dead_batch_; }
 
   bess::PacketBatch *get_obatch(bess::OGate *ogate) const {
-    return ogate_batch_[ogate->g_idx()];
+    return ogate_batch_[ogate->global_gate_index()];
   }
 
   void set_obatch(bess::OGate *ogate, bess::PacketBatch *batch) const {
-    ogate_batch_[ogate->g_idx()] = batch;
+    ogate_batch_[ogate->global_gate_index()] = batch;
   }
 
   bess::PacketBatch *get_ibatch(bess::IGate *igate) const {
-    return igate_batch_[igate->g_idx()];
+    return igate_batch_[igate->global_gate_index()];
   }
 
   void set_ibatch(bess::IGate *igate, bess::PacketBatch *batch) const {
-    igate_batch_[igate->g_idx()] = batch;
+    igate_batch_[igate->global_gate_index()] = batch;
   }
 
   bess::LeafTrafficClass *GetTC() const { return c_; }
