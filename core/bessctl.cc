@@ -67,12 +67,10 @@
 #include <rte_mempool.h>
 #include <rte_ring.h>
 
-using grpc::Status;
 using grpc::ServerContext;
+using grpc::Status;
 
 using bess::TrafficClassBuilder;
-using bess::ResumeHook;
-using bess::ResumeHookFactory;
 using namespace bess::pb;
 
 template <typename T>
@@ -583,7 +581,7 @@ class BESSControlImpl final : public BESSControl::Service {
 
     bess::TrafficClass* root = workers[wid]->scheduler()->root();
     if (root) {
-      for (const auto& it : bess::TrafficClassBuilder::all_tcs()) {
+      for (const auto& it : TrafficClassBuilder::all_tcs()) {
         bess::TrafficClass* c = it.second;
         if (c->policy() == bess::POLICY_LEAF && c->Root() == root) {
           return return_with_error(response, EBUSY,
@@ -618,7 +616,7 @@ class BESSControlImpl final : public BESSControl::Service {
       wid_filter = Worker::kAnyWorker;
     }
 
-    for (const auto& tc_pair : bess::TrafficClassBuilder::all_tcs()) {
+    for (const auto& tc_pair : TrafficClassBuilder::all_tcs()) {
       bess::TrafficClass* c = tc_pair.second;
       int wid = c->WorkerId();
       if (wid_filter == Worker::kAnyWorker || wid_filter == wid) {
@@ -678,7 +676,7 @@ class BESSControlImpl final : public BESSControl::Service {
       int core = workers[i]->core();
       bess::TrafficClass* root = workers[i]->scheduler()->root();
 
-      for (const auto& tc_pair : bess::TrafficClassBuilder::all_tcs()) {
+      for (const auto& tc_pair : TrafficClassBuilder::all_tcs()) {
         bess::TrafficClass* c = tc_pair.second;
         if (c->policy() == bess::POLICY_LEAF && root == c->Root()) {
           auto leaf = static_cast<bess::LeafTrafficClass*>(c);
@@ -1389,9 +1387,10 @@ class BESSControlImpl final : public BESSControl::Service {
                                request->hook_name().c_str());
     }
 
-    const auto factory = ResumeHookFactory::all_resume_hook_factories().find(
-        request->hook_name());
-    if (factory == ResumeHookFactory::all_resume_hook_factories().end()) {
+    const auto factory =
+        bess::ResumeHookFactory::all_resume_hook_factories().find(
+            request->hook_name());
+    if (factory == bess::ResumeHookFactory::all_resume_hook_factories().end()) {
       return return_with_error(response, ENOENT, "No such resume hook '%s'",
                                request->hook_name().c_str());
     }
