@@ -45,23 +45,6 @@ void Task::Attach(bess::LeafTrafficClass *c) {
   c_ = c;
 }
 
-void Task::AddToRun(bess::IGate *ig, bess::PacketBatch *batch) const {
-  if (next_gate_ == nullptr && !ig->mergeable()) {  // optimization for chained
-    next_gate_ = ig;
-    next_batch_ = batch;
-  } else {
-    bess::PacketBatch *ibatch = get_ibatch(ig);
-    if (ibatch && (static_cast<size_t>(ibatch->cnt() + batch->cnt()) <
-                   bess::PacketBatch::kMaxBurst)) {
-      // merge two batches
-      get_ibatch(ig)->add(batch);
-    }
-    // set the input as new batch
-    set_ibatch(ig, batch);
-    igates_to_run_.push(std::make_pair(ig, batch));
-  }
-}
-
 struct task_result Task::operator()(void) const {
   bess::PacketBatch init_batch;
   ClearPacketBatch();
@@ -72,7 +55,7 @@ struct task_result Task::operator()(void) const {
   // next_gate_: Continuously run if modules are chainned
   // igates_to_run_ : If next module connection is not chained (merged),
   // check priority to choose which module run next
-  while (1) {
+  while (true) {
     bess::IGate *igate;
     bess::PacketBatch *batch;
 

@@ -195,13 +195,11 @@ void ModuleGraph::ConfigureTasks() {
       continue;
     }
 
-    if (bess::TrafficClass *root = workers[i]->scheduler()->root()) {
-      for (const auto &tc_pair : bess::TrafficClassBuilder::all_tcs()) {
-        bess::TrafficClass *c = tc_pair.second;
-        if (c->policy() == bess::POLICY_LEAF && c->Root() == root) {
-          auto leaf = static_cast<bess::LeafTrafficClass *>(c);
-          leaf->task()->UpdatePerGateBatch(igate_cnt_, ogate_cnt_);
-        }
+    for (const auto &tc_pair : bess::TrafficClassBuilder::all_tcs()) {
+      bess::TrafficClass *c = tc_pair.second;
+      if (c->policy() == bess::POLICY_LEAF) {
+        auto leaf = static_cast<bess::LeafTrafficClass *>(c);
+        leaf->task()->UpdatePerGateBatch(igate_cnt_, ogate_cnt_);
       }
     }
   }

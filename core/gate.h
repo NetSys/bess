@@ -156,13 +156,19 @@ inline CommandResponse GateHook::RunCommand(const std::string &cmd,
 // A class for gate, will be inherited for input gates and output gates
 class Gate {
  public:
-  Gate(Module *m, gate_idx_t idx) : module_(m), gate_idx_(idx), hooks_() {}
+  Gate(Module *m, gate_idx_t idx)
+      : module_(m), gate_idx_(idx), global_gate_index_(), hooks_() {}
 
   virtual ~Gate() { ClearHooks(); }
 
   Module *module() const { return module_; }
 
   gate_idx_t gate_idx() const { return gate_idx_; }
+
+  uint32_t global_gate_index() const { return global_gate_index_; }
+  void SetUniqueIdx(uint32_t global_gate_index) {
+    global_gate_index_ = global_gate_index;
+  }
 
   const std::vector<GateHook *> &hooks() const { return hooks_; }
 
@@ -182,8 +188,9 @@ class Gate {
   // Inserts hook in priority order and returns 0 on success.
   int AddHook(GateHook *hook);
 
-  Module *module_;       // the module this gate belongs to
-  gate_idx_t gate_idx_;  // input/output gate index of itself
+  Module *module_;              // the module this gate belongs to
+  gate_idx_t gate_idx_;         // input/output gate index of itself
+  uint32_t global_gate_index_;  // a globally unique igate index
 
   // TODO(melvin): Consider using a map here instead. It gets rid of the need to
   // scan to find modules for queries. Not sure how priority would work in a
@@ -199,21 +206,15 @@ class OGate;
 class IGate : public Gate {
  public:
   IGate(Module *m, gate_idx_t idx)
-      : Gate(m, idx),
-        ogates_upstream_(),
-        priority_(),
-        g_idx_(),
-        mergeable_(false) {}
+      : Gate(m, idx), ogates_upstream_(), priority_(), mergeable_(false) {}
 
   const std::vector<OGate *> &ogates_upstream() const {
     return ogates_upstream_;
   }
 
   void SetPriority(uint32_t priority) { priority_ = priority; }
-  void SetUniqueIdx(uint32_t g_idx) { g_idx_ = g_idx; }
 
   uint32_t priority() const { return priority_; }
-  uint32_t g_idx() const { return g_idx_; }
   bool mergeable() const { return mergeable_; }
 
   void PushOgate(OGate *og);
@@ -221,8 +222,8 @@ class IGate : public Gate {
 
  private:
   std::vector<OGate *> ogates_upstream_;  // previous ogates connected with
-  uint32_t priority_;
-  uint32_t g_idx_;  // a globally unique igate index
+  uint32_t priority_;  // priority to be scheduled with a task.
+  // lower number meaming higher priority.
   bool mergeable_;
 
   DISALLOW_COPY_AND_ASSIGN(IGate);
@@ -236,12 +237,9 @@ class OGate : public Gate {
 
   void SetIgate(IGate *ig);
 
-  void SetUniqueIdx(uint32_t g_idx) { g_idx_ = g_idx; }
-
   Module *next() const { return next_; }
   IGate *igate() const { return igate_; }
   gate_idx_t igate_idx() const { return igate_idx_; }
-  uint32_t g_idx() const { return g_idx_; }
 
   void AddTrackHook();
 
@@ -249,7 +247,6 @@ class OGate : public Gate {
   Module *next_;          // next module connected with
   IGate *igate_;          // next igate connected with
   gate_idx_t igate_idx_;  // cache for igate->gate_idx
-  uint32_t g_idx_;        // a globally unique igate index
 
   DISALLOW_COPY_AND_ASSIGN(OGate);
 };
