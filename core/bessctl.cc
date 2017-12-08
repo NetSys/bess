@@ -1228,11 +1228,13 @@ class BESSControlImpl final : public BESSControl::Service {
       ModuleGraph::PropagateActiveWorker();
       if (m1->num_active_workers() || m2->num_active_workers()) {
         WorkerPauser wp;  // Only pause when absolutely required
-        ret = ModuleGraph::ConnectModules(m1, ogate, m2, igate);
+        ret = ModuleGraph::ConnectModules(m1, ogate, m2, igate,
+                                          request->skip_default_hooks());
         goto done;
       }
     }
-    ret = ModuleGraph::ConnectModules(m1, ogate, m2, igate);
+    ret = ModuleGraph::ConnectModules(m1, ogate, m2, igate,
+                                      request->skip_default_hooks());
   done:
     if (ret < 0)
       return return_with_error(response, -ret, "Connection %s:%d->%d:%s failed",

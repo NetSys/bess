@@ -404,6 +404,9 @@ message ConnectModulesRequest {
   string m2 = 2;      /// name of "next" module name
   uint64 ogate = 3;   /// m1's output gate ID
   uint64 igate = 4;   /// m2's input gate ID
+  /// If true do not attach default hooks at the input/output gate.
+  /// (Currently, the only default hook is the "track" hook at the ogate)
+  bool skip_default_hooks = 5;
 }
 
 message DisconnectModulesRequest {
