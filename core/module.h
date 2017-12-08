@@ -249,8 +249,10 @@ class alignas(64) Module {
    * Consider using new interfafces supporting faster data-plane support
    * DropPacket()/EmitPacket()
    * */
-  inline void RunSplit(const Task *task, const gate_idx_t *ogates,
-                       bess::PacketBatch *mixed_batch);
+  [[deprecated(
+      "use the new API EmitPacket()/DropPacket() instead")]] inline void
+  RunSplit(const Task *task, const gate_idx_t *ogates,
+           bess::PacketBatch *mixed_batch);
 
   // Register a task.
   task_id_t RegisterTask(void *arg);
