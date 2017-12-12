@@ -509,7 +509,7 @@ CommandResponse VPort::Init(const bess::pb::VPortArg &arg) {
   rxq_opts.loopback = arg.loopback();
 
   bar_ = AllocBar(&txq_opts, &rxq_opts);
-  phy_addr = rte_malloc_virt2phy(bar_);
+  phy_addr = rte_malloc_virt2iova(bar_);
 
   VLOG(1) << "virt: " << bar_ << ", phys: " << phy_addr;
 

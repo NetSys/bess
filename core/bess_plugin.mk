@@ -42,7 +42,7 @@ $(error g++ 5 or higher is required. Use container_build.py if newer g++ is not 
 endif
 endif
 
-RTE_SDK ?= $(BESS_HOME)/deps/dpdk-17.05
+RTE_SDK ?= $(BESS_HOME)/deps/dpdk-17.11
 RTE_TARGET ?= $(shell uname -m)-native-linuxapp-gcc
 DPDK_LIB ?= dpdk
 

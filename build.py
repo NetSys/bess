@@ -47,9 +47,9 @@ DEPS_DIR = '%s/deps' % BESS_DIR
 # It's best to use a release tag if possible -- see comments in
 # download_dpdk
 DPDK_REPO = 'http://dpdk.org/git/dpdk'
-DPDK_TAG = 'v17.05'
+DPDK_TAG = 'v17.11'
 
-DPDK_VER = 'dpdk-17.05'
+DPDK_VER = 'dpdk-17.11'
 
 # In some 32-bit container images "uname -m" incorrectly(?) reports "x86_64".
 # To work around this issue, we use "gcc -dumpmachine" to detect target architecture.
@@ -188,6 +188,7 @@ def check_essential():
         print('Error - "make" is not available', file=sys.stderr)
         sys.exit(1)
 
+    required('numa.h', 'libnuma-dev', 'gcc')
     required('pcap/pcap.h', 'libpcap-dev', 'gcc')
     required('zlib.h', 'zlib1g-dev', 'gcc')
     required('glog/logging.h', 'libgoogle-glog-dev', 'g++')
