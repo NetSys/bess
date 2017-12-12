@@ -78,7 +78,7 @@ void PMDPort::InitDriver() {
 
     if (dev_info.pci_dev) {
       pci_info = bess::utils::Format(
-          "%04hx:%02hhx:%02hhx.%02hhx %04hx:%04hx  ",
+          "%08x:%02hhx:%02hhx.%02hhx %04hx:%04hx  ",
           dev_info.pci_dev->addr.domain, dev_info.pci_dev->addr.bus,
           dev_info.pci_dev->addr.devid, dev_info.pci_dev->addr.function,
           dev_info.pci_dev->id.vendor_id, dev_info.pci_dev->id.device_id);
@@ -150,7 +150,7 @@ static CommandResponse find_dpdk_port_by_pci_addr(const std::string &pci,
   if (port_id == DPDK_PORT_UNKNOWN) {
     int ret;
     char name[RTE_ETH_NAME_MAX_LEN];
-    snprintf(name, RTE_ETH_NAME_MAX_LEN, "%04x:%02x:%02x.%02x", addr.domain,
+    snprintf(name, RTE_ETH_NAME_MAX_LEN, "%08x:%02x:%02x.%02x", addr.domain,
              addr.bus, addr.devid, addr.function);
 
     ret = rte_eth_dev_attach(name, &port_id);
