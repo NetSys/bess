@@ -203,8 +203,6 @@ void ModuleGraph::UpdateTaskGraph() {
 
   // Do not change order here
 
-  // Do not change order here
-
   CleanTaskGraph();
 
   for (auto const &task : tasks_) {
