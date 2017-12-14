@@ -67,13 +67,13 @@ CommandResponse Replicate::CommandSetGates(
 void Replicate::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
   for (int i = 0; i < batch->cnt(); i++) {
     bess::Packet *tocopy = batch->pkts()[i];
-    EmitPacket(task, tocopy, 0);
     for (int j = 1; j < ngates_; j++) {
       bess::Packet *newpkt = bess::Packet::copy(tocopy);
       if (newpkt) {
         EmitPacket(task, newpkt, gates_[j]);
       }
     }
+    EmitPacket(task, tocopy, 0);
   }
 }
 

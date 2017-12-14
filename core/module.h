@@ -194,8 +194,17 @@ class alignas(64) Module {
   // NOTE: this function will be called even if Init() has failed.
   virtual void DeInit();
 
+  // Initiates a new 'task', generating a new workload (a set of packets in
+  // 'batch') and forward the workloads to be processed and forward the workload
+  // to next modules. It can also get per-module specific 'arg' as input.
+  // 'batch' is pre-allocated for efficiency.
+  // It returns info about generated workloads, 'task_result'.
   virtual struct task_result RunTask(const Task *task, bess::PacketBatch *batch,
                                      void *arg);
+
+  // Process a set of packets in packet batch with the contexts of 'task'.
+  // A module should handle all packets in a batch properly - 1) forwards to the
+  // next modules, or 2) free
   virtual void ProcessBatch(const Task *task, bess::PacketBatch *batch);
 
   // If a derived Module overrides OnEvent and doesn't return  -ENOTSUP for a
@@ -211,11 +220,11 @@ class alignas(64) Module {
 
   static const Commands cmds;
 
-  int gate_with_hook_cnt = 0;
-  gate_idx_t gate_with_hook[bess::PacketBatch::kMaxBurst];
+  int gate_with_hook_cnt_ = 0;
+  gate_idx_t gate_with_hook_[bess::PacketBatch::kMaxBurst];
 
-  int gate_without_hook_cnt = 0;
-  gate_idx_t gate_without_hook[bess::PacketBatch::kMaxBurst];
+  int gate_without_hook_cnt_ = 0;
+  gate_idx_t gate_without_hook_[bess::PacketBatch::kMaxBurst];
 
   // -------------------------------------------------------------------------
 
@@ -225,17 +234,24 @@ class alignas(64) Module {
 
   CommandResponse InitWithGenericArg(const google::protobuf::Any &arg);
 
-  /* Pass packets to the next module.
-   * Packet deallocation is callee's responsibility. */
+  // With the contexts of 'task', pass packet batch ('batch') to the next module
+  // connected with 'ogate_idx'
   inline void RunChooseModule(const Task *task, gate_idx_t ogate_idx,
                               bess::PacketBatch *batch);
 
-  /* Wrapper for single-output modules */
+  // With the contexts of 'task', pass packet batch ('batch') to the default
+  // next module ('ogate_idx' == 0)
   inline void RunNextModule(const Task *task, bess::PacketBatch *batch);
 
+  // With the contexts of 'task', drop a packet. Dropped packets will be freed.
   inline void DropPacket(const Task *task, bess::Packet *pkt);
+
+  // With the contexts of 'task', emit (forward) a packet ('pkt') to the next
+  // module connected with 'ogate'
   inline void EmitPacket(const Task *task, bess::Packet *pkt,
-                         gate_idx_t ogate = 0);
+                         gate_idx_t ogate_idx = 0);
+
+  // Process OGate hooks and forward packet batches into next modules.
   inline void ProcessOGates(const Task *task);
 
   /*
@@ -506,7 +522,7 @@ inline void Module::DropPacket(const Task *task, bess::Packet *pkt) {
 inline void Module::EmitPacket(const Task *task, bess::Packet *pkt,
                                gate_idx_t ogate_idx) {
   // Check if valid ogate is set
-  if (unlikely(ogates_.size() <= ogate_idx) || unlikely(!ogates_[ogate_idx])) {
+  if (unlikely((ogates_.size() <= ogate_idx) || (!ogates_[ogate_idx]))) {
     DropPacket(task, pkt);
     return;
   }
@@ -515,10 +531,10 @@ inline void Module::EmitPacket(const Task *task, bess::Packet *pkt,
   bess::OGate *ogate = ogates_[ogate_idx];
   bess::PacketBatch *batch = task->get_gate_batch(ogate);
   if (!batch) {
-    if (ogate->hooks().size()) {
-      // Having seperate batch to run ogate hooks
+    if (!ogate->hooks().empty()) {
+      // Having separate batch to run ogate hooks
       task->set_gate_batch(ogate, task->AllocPacketBatch());
-      gate_with_hook[gate_with_hook_cnt++] = ogate_idx;
+      gate_with_hook_[gate_with_hook_cnt_++] = ogate_idx;
     } else {
       // If no ogate hooks, just use next igate batch
       if (task->get_gate_batch(ogate->igate()) == nullptr) {
@@ -528,13 +544,13 @@ inline void Module::EmitPacket(const Task *task, bess::Packet *pkt,
       } else {
         task->set_gate_batch(ogate, task->get_gate_batch(ogate->igate()));
       }
-      gate_without_hook[gate_without_hook_cnt++] = ogate_idx;
+      gate_without_hook_[gate_without_hook_cnt_++] = ogate_idx;
     }
     batch = task->get_gate_batch(ogate);
   }
 
   if (static_cast<size_t>(batch->cnt()) >= bess::PacketBatch::kMaxBurst) {
-    if (ogate->hooks().size()) {
+    if (!ogate->hooks().empty()) {
       for (auto &hook : ogate->hooks()) {
         hook->ProcessBatch(task->get_gate_batch(ogate));
       }
@@ -553,8 +569,8 @@ inline void Module::EmitPacket(const Task *task, bess::Packet *pkt,
 
 inline void Module::ProcessOGates(const Task *task) {
   // Running ogate hooks, then add next igate to be scheduled
-  for (int i = 0; i < gate_with_hook_cnt; i++) {
-    bess::OGate *ogate = ogates_[gate_with_hook[i]];  // should not be null
+  for (int i = 0; i < gate_with_hook_cnt_; i++) {
+    bess::OGate *ogate = ogates_[gate_with_hook_[i]];  // should not be null
     for (auto &hook : ogate->hooks()) {
       hook->ProcessBatch(task->get_gate_batch(ogate));
     }
@@ -563,13 +579,13 @@ inline void Module::ProcessOGates(const Task *task) {
   }
 
   // Clear packet batch for ogates without hook
-  for (int i = 0; i < gate_without_hook_cnt; i++) {
-    bess::OGate *ogate = ogates_[gate_without_hook[i]];  // should not be null
+  for (int i = 0; i < gate_without_hook_cnt_; i++) {
+    bess::OGate *ogate = ogates_[gate_without_hook_[i]];  // should not be null
     task->set_gate_batch(ogate, nullptr);
   }
 
-  gate_with_hook_cnt = 0;
-  gate_without_hook_cnt = 0;
+  gate_with_hook_cnt_ = 0;
+  gate_without_hook_cnt_ = 0;
 }
 
 inline void Module::RunSplit(const Task *task, const gate_idx_t *out_gates,

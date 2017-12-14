@@ -52,7 +52,7 @@ struct task_result Task::operator()(void) const {
   // Start from the first module (task module)
   struct task_result result = module_->RunTask(this, &init_batch, arg_);
 
-  // next_gate_: Continuously run if modules are chainned
+  // next_gate_: Continuously run if modules are chained
   // igates_to_run_ : If next module connection is not chained (merged),
   // check priority to choose which module run next
   while (true) {
