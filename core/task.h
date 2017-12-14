@@ -65,8 +65,9 @@ class Task {
   bess::LeafTrafficClass *c_;  // Leaf TC associated with this task.
 
   struct GateBatchGreater {
-    bool operator()(std::pair<bess::IGate *, bess::PacketBatch *> left,
-                    std::pair<bess::IGate *, bess::PacketBatch *> right) const {
+    bool operator()(
+        const std::pair<bess::IGate *, bess::PacketBatch *> &left,
+        const std::pair<bess::IGate *, bess::PacketBatch *> &right) const {
       return left.first->priority() > right.first->priority();
     }
   };
@@ -100,14 +101,15 @@ class Task {
   Task(Module *m, void *arg)
       : module_(m),
         arg_(arg),
-        c_(nullptr),
+        c_(),
         igates_to_run_(),
         next_gate_(),
         next_batch_(),
         pbatch_idx_(),
         pbatch_(
             new bess::PacketBatch[MAX_PBATCH_CNT]),  // XXX Need to adjust size
-        gate_batch_(std::vector<bess::PacketBatch *>(64, 0)) {
+        gate_batch_(std::vector<bess::PacketBatch *>(64, 0)),
+        current_igate_() {
     dead_batch_.clear();
   }
 
@@ -133,7 +135,7 @@ class Task {
       }
       // set the input as new batch
       set_gate_batch(ig, batch);
-      igates_to_run_.push(std::make_pair(ig, batch));
+      igates_to_run_.emplace(ig, batch);
     }
   }
 
@@ -146,7 +148,7 @@ class Task {
   }
 
   void UpdatePerGateBatch(uint32_t gate_cnt) const {
-    if (gate_batch_.capacity() < gate_cnt) {
+    if (gate_batch_.size() < gate_cnt) {
       gate_batch_.resize(gate_cnt, nullptr);
     }
   }

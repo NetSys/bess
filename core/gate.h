@@ -222,9 +222,10 @@ class IGate : public Gate {
 
  private:
   std::vector<OGate *> ogates_upstream_;  // previous ogates connected with
-  uint32_t priority_;  // priority to be scheduled with a task.
-  // lower number meaming higher priority.
-  bool mergeable_;
+  uint32_t priority_;  // priority to be scheduled with a task. lower number
+                       // meaning higher priority.
+  bool mergeable_;  // set to be true, if it is connected with multiple ogates
+                    // so that the inputs can be merged and processed once
 
   DISALLOW_COPY_AND_ASSIGN(IGate);
 };
@@ -263,12 +264,6 @@ static inline gate_hook_cmd_func_t GATE_HOOK_CMD_FUNC(
     return base_fn(static_cast<H *>(h), arg_);
   };
 }
-
-struct IGateGreater {
-  bool operator()(const bess::IGate *left, const bess::IGate *right) const {
-    return left->priority() > right->priority();
-  }
-};
 
 template <typename H, typename A>
 static inline bess::GateHook::init_func_t InitGateHookWithGenericArg(
