@@ -56,7 +56,7 @@ CommandResponse VLANPush::CommandSetTci(const bess::pb::VLANPushArg &arg) {
   return CommandSuccess();
 }
 
-/* the behavior is undefined if a packet is already double tagged */
+// the behavior is undefined if a packet is already double tagged
 void VLANPush::ProcessBatch(bess::PacketBatch *batch) {
   int cnt = batch->cnt();
 
@@ -68,8 +68,7 @@ void VLANPush::ProcessBatch(bess::PacketBatch *batch) {
     char *new_head;
 
     if ((new_head = static_cast<char *>(pkt->prepend(4))) != nullptr) {
-/* shift 12 bytes to the left by 4 bytes */
-#if __SSE4_1__
+      // shift 12 bytes to the left by 4 bytes
       __m128i ethh;
 
       ethh = _mm_loadu_si128(reinterpret_cast<__m128i *>(new_head + 4));
@@ -81,13 +80,6 @@ void VLANPush::ProcessBatch(bess::PacketBatch *batch) {
                               3);
 
       _mm_storeu_si128(reinterpret_cast<__m128i *>(new_head), ethh);
-#else
-      be16_t tpid(*(uint16_t *)(new_head + 16));
-      memmove(new_head, new_head + 4, 12);
-
-      *(be32_t *)(new_head + 12) =
-          (tpid.value() == Ethernet::Type::kVlan) ? qinq_tag : vlan_tag;
-#endif
     }
   }
 
