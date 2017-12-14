@@ -215,17 +215,19 @@ PROTOC_CXX := $(shell which grpc_cpp_plugin)
 PROTOCFLAGS += --cpp_out=./pb --grpc_out=./pb --plugin=protoc-gen-grpc=$(PROTOC_CXX)
 
 # NB: MODULES as defined here may include test and/or benchmark
-# sources -- it's just all the files in all modules/ including
-# any plugin modules.  Use MODULE_SRCS below, which filters them
-# out, when that's important.
+# sources -- it's just all the files in all modules/.
+# Use MODULE_SRCS below, which filters them out, when that's important.
 DRIVERS := $(foreach dir,drivers $(DRIVER_PLUGINS),$(wildcard $(dir)/*.cc))
-MODULES := $(foreach dir,modules $(MODULE_PLUGINS),$(wildcard $(dir)/*.cc))
+MODULES := $(foreach dir,modules,$(wildcard $(dir)/*.cc))
 UTILS := $(foreach dir,utils $(UTIL_PLUGINS),$(wildcard $(dir)/*.cc))
 GATE_HOOKS := $(foreach dir,gate_hooks $(GATE_HOOK_PLUGINS),$(wildcard $(dir)/*.cc))
 RESUME_HOOKS := $(foreach dir,resume_hooks $(RESUME_HOOK_PLUGINS),$(wildcard $(dir)/*.cc))
 DRIVER_H := $(foreach dir,drivers $(DRIVER_PLUGINS),$(wildcard $(dir)/*.h))
-MODULE_H := $(foreach dir,drivers $(MODULE_PLUGINS),$(wildcard $(dir)/*.h))
+MODULE_H := $(foreach dir,drivers,$(wildcard $(dir)/*.h))
 UTIL_H := $(foreach dir,utils $(UTIL_PLUGINS),$(wildcard $(dir)/*.h))
+PLUGIN_MODULES := $(foreach dir,$(MODULE_PLUGINS),$(wildcard $(dir)/*.cc))
+PLUGIN_MODULE_H := $(foreach dir,$(MODULE_PLUGINS),$(wildcard $(dir)/*.h))
+
 vpath %.cc drivers $(DRIVER_PLUGINS)
 vpath %.cc modules $(MODULE_PLUGINS)
 vpath %.cc utils $(UTIL_PLUGINS)
@@ -246,7 +248,14 @@ BENCH_EXEC := $(BENCH_OBJS:%.o=%)
 MODULE_SRCS := $(filter-out $(TEST_SRCS) $(BENCH_SRCS), $(MODULES))
 MODULE_OBJS := $(addprefix modules/,$(patsubst %.cc,%.o, \
 		 $(notdir $(MODULE_SRCS))))
-MODULE_LIBS := $(MODULE_OBJS:.o=.so)
+
+PLUGIN_MODULE_OBJS := $(addprefix modules/,$(patsubst %.cc,%.o, \
+		 $(notdir $(PLUGIN_MODULES))))
+MODULE_LIBS := $(PLUGIN_MODULE_OBJS:.o=.so)
+
+ifdef MODULE_LINK_DYNAMIC
+	MODULE_LIBS += $(MODULE_OBJS:.o=.so)
+endif
 
 # We don't (yet?) make shared objects for drivers.
 DRIVER_SRCS := $(filter-out $(TEST_SRCS) $(BENCH_SRCS), $(DRIVERS))
@@ -260,6 +269,10 @@ SRCS := $(filter-out $(TEST_SRCS) $(BENCH_SRCS) $(MODULE_SRCS) $(DRIVER_SRCS) $(
 # ? why doesn't HEADERS include module headers?
 HEADERS := $(wildcard *.h utils/*.h $(DRIVER_H) gate_hooks/*.h resume_hooks/*.h)
 OBJS := $(SRCS:.cc=.o) $(DRIVER_OBJS) $(UTIL_OBJS)
+
+ifndef MODULE_LINK_DYNAMIC
+	OBJS += $(MODULE_OBJS)
+endif
 
 EXEC := bessd
 
@@ -288,8 +301,6 @@ tests: $(TEST_OBJS) $(TEST_EXEC) $(TEST_ALL_EXEC)
 benchmarks: $(BENCH_OBJS) $(BENCH_EXEC)
 
 protobuf: $(PROTO_SRCS)
-
-drivers: protobuf $(DRIVER_OBJS)
 
 modules: protobuf $(MODULE_OBJS) $(MODULE_LIBS)
 
