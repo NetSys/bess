@@ -149,6 +149,8 @@ static inline int is_valid_gate(gate_idx_t gate) {
 const Commands IPLookup::cmds = {
     {"add", "IPLookupCommandAddArg", MODULE_CMD_FUNC(&IPLookup::CommandAdd),
      Command::THREAD_UNSAFE},
+    {"delete", "IPLookupCommandDeleteArg", MODULE_CMD_FUNC(&IPLookup::CommandDelete),
+     Command::THREAD_UNSAFE},
     {"clear", "EmptyArg", MODULE_CMD_FUNC(&IPLookup::CommandClear),
      Command::THREAD_UNSAFE}};
 
@@ -296,6 +298,47 @@ CommandResponse IPLookup::CommandAdd(
     int ret = rte_lpm_add(lpm_, net_addr.value(), prefix_len, gate);
     if (ret) {
       return CommandFailure(-ret, "rpm_lpm_add() failed");
+    }
+  }
+
+  return CommandSuccess();
+}
+
+CommandResponse IPLookup::CommandDelete(
+    const bess::pb::IPLookupCommandDeleteArg &arg) {
+  using bess::utils::be32_t;
+
+  be32_t net_addr;
+  be32_t net_mask;
+
+  if (!arg.prefix().length()) {
+    return CommandFailure(EINVAL, "prefix' is missing");
+  }
+  if (!bess::utils::ParseIpv4Address(arg.prefix(), &net_addr)) {
+    return CommandFailure(EINVAL, "Invalid IP prefix: %s",
+                          arg.prefix().c_str());
+  }
+
+  uint64_t prefix_len = arg.prefix_len();
+  if (prefix_len > 32) {
+    return CommandFailure(EINVAL, "Invalid prefix length: %" PRIu64,
+                          prefix_len);
+  }
+
+  net_mask = be32_t(~((1ull << (32 - prefix_len)) - 1));
+
+  if ((net_addr & ~net_mask).value()) {
+    return CommandFailure(EINVAL, "Invalid IP prefix %s/%" PRIu64 " %x %x",
+                          arg.prefix().c_str(), prefix_len, net_addr.value(),
+                          net_mask.value());
+  }
+
+  if (prefix_len == 0) {
+    default_gate_ = DROP_GATE;
+  } else {
+    int ret = rte_lpm_delete(lpm_, net_addr.value(), prefix_len);
+    if (ret) {
+      return CommandFailure(-ret, "rpm_lpm_delete() failed");
     }
   }
 

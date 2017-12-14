@@ -51,6 +51,7 @@ class IPLookup final : public Module {
   void ProcessBatch(bess::PacketBatch *batch) override;
 
   CommandResponse CommandAdd(const bess::pb::IPLookupCommandAddArg &arg);
+  CommandResponse CommandDelete(const bess::pb::IPLookupCommandDeleteArg &arg);
   CommandResponse CommandClear(const bess::pb::EmptyArg &arg);
 
  private:
