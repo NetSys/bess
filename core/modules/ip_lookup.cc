@@ -34,7 +34,9 @@
 #include <rte_errno.h>
 #include <rte_lpm.h>
 
+#include "../utils/bits.h"
 #include "../utils/ether.h"
+#include "../utils/format.h"
 #include "../utils/ip.h"
 
 #define VECTOR_OPTIMIZATION 1
@@ -258,34 +260,47 @@ void IPLookup::ProcessBatch(bess::PacketBatch *batch) {
   RunSplit(out_gates, batch);
 }
 
-CommandResponse IPLookup::CommandAdd(
-    const bess::pb::IPLookupCommandAddArg &arg) {
-  using bess::utils::be32_t;
-
+ParsedPrefix IPLookup::ParseIpv4Prefix(
+    const std::string &prefix, uint64_t prefix_len) {
+  using bess::utils::Format;
   be32_t net_addr;
   be32_t net_mask;
-  gate_idx_t gate = arg.gate();
 
-  if (!arg.prefix().length()) {
-    return CommandFailure(EINVAL, "prefix' is missing");
+  if (!prefix.length()) {
+    return std::make_tuple(EINVAL, "prefix' is missing", be32_t(0));
   }
-  if (!bess::utils::ParseIpv4Address(arg.prefix(), &net_addr)) {
-    return CommandFailure(EINVAL, "Invalid IP prefix: %s",
-                          arg.prefix().c_str());
+  if (!bess::utils::ParseIpv4Address(prefix, &net_addr)) {
+    return std::make_tuple(EINVAL,
+			   Format("Invalid IP prefix: %s", prefix.c_str()),
+			   be32_t(0));
   }
 
-  uint64_t prefix_len = arg.prefix_len();
   if (prefix_len > 32) {
-    return CommandFailure(EINVAL, "Invalid prefix length: %" PRIu64,
-                          prefix_len);
+    return std::make_tuple(EINVAL,
+			   Format("Invalid prefix length: %" PRIu64,
+				  prefix_len),
+			   be32_t(0));
   }
 
-  net_mask = be32_t(~((1ull << (32 - prefix_len)) - 1));
-
+  net_mask = be32_t(bess::utils::SetBitsLow<uint32_t>(prefix_len));
   if ((net_addr & ~net_mask).value()) {
-    return CommandFailure(EINVAL, "Invalid IP prefix %s/%" PRIu64 " %x %x",
-                          arg.prefix().c_str(), prefix_len, net_addr.value(),
-                          net_mask.value());
+    return std::make_tuple(EINVAL,
+			   Format("Invalid IP prefix %s/%" PRIu64 " %x %x",
+				  prefix.c_str(), prefix_len, net_addr.value(),
+				  net_mask.value()),
+			   be32_t(0));
+  }
+  return std::make_tuple(0, "", net_addr);
+}
+
+CommandResponse IPLookup::CommandAdd(
+    const bess::pb::IPLookupCommandAddArg &arg) {
+  gate_idx_t gate = arg.gate();
+  uint64_t prefix_len = arg.prefix_len();
+  ParsedPrefix prefix = ParseIpv4Prefix(arg.prefix(), prefix_len);
+  if (std::get<0>(prefix)) {
+    return CommandFailure(std::get<0>(prefix), "%s",
+			  std::get<1>(prefix).c_str());
   }
 
   if (!is_valid_gate(gate)) {
@@ -295,6 +310,7 @@ CommandResponse IPLookup::CommandAdd(
   if (prefix_len == 0) {
     default_gate_ = gate;
   } else {
+    be32_t net_addr = std::get<2>(prefix);
     int ret = rte_lpm_add(lpm_, net_addr.value(), prefix_len, gate);
     if (ret) {
       return CommandFailure(-ret, "rpm_lpm_add() failed");
@@ -306,36 +322,17 @@ CommandResponse IPLookup::CommandAdd(
 
 CommandResponse IPLookup::CommandDelete(
     const bess::pb::IPLookupCommandDeleteArg &arg) {
-  using bess::utils::be32_t;
-
-  be32_t net_addr;
-  be32_t net_mask;
-
-  if (!arg.prefix().length()) {
-    return CommandFailure(EINVAL, "prefix' is missing");
-  }
-  if (!bess::utils::ParseIpv4Address(arg.prefix(), &net_addr)) {
-    return CommandFailure(EINVAL, "Invalid IP prefix: %s",
-                          arg.prefix().c_str());
-  }
-
   uint64_t prefix_len = arg.prefix_len();
-  if (prefix_len > 32) {
-    return CommandFailure(EINVAL, "Invalid prefix length: %" PRIu64,
-                          prefix_len);
-  }
-
-  net_mask = be32_t(~((1ull << (32 - prefix_len)) - 1));
-
-  if ((net_addr & ~net_mask).value()) {
-    return CommandFailure(EINVAL, "Invalid IP prefix %s/%" PRIu64 " %x %x",
-                          arg.prefix().c_str(), prefix_len, net_addr.value(),
-                          net_mask.value());
+  ParsedPrefix prefix = ParseIpv4Prefix(arg.prefix(), prefix_len);
+  if (std::get<0>(prefix)) {
+    return CommandFailure(std::get<0>(prefix), "%s",
+			  std::get<1>(prefix).c_str());
   }
 
   if (prefix_len == 0) {
     default_gate_ = DROP_GATE;
   } else {
+    be32_t net_addr = std::get<2>(prefix);
     int ret = rte_lpm_delete(lpm_, net_addr.value(), prefix_len);
     if (ret) {
       return CommandFailure(-ret, "rpm_lpm_delete() failed");

@@ -43,12 +43,20 @@ class BessIPLookupTest(BessModuleTestCase):
         ipl.add(prefix='42.22.22.0', prefix_len=24, gate=1)
 
         ipl.delete(prefix='42.22.22.0', prefix_len=24)
+        with self.assertRaises(bess.Error):
+            ipl.delete(prefix='52.22.22.0', prefix_len=24)
 
         pkt_outs = self.run_module(ipl, 0, pkts, [0, 1])
         self.assertEquals(len(pkt_outs[0]), 1)
         self.assertEquals(len(pkt_outs[1]), 1)
         self.assertSamePackets(pkt_outs[0][0], pkts[0])
         self.assertSamePackets(pkt_outs[1][0], pkts[1])
+
+    def test_prefix(self):
+        ipl = IPLookup()
+        with self.assertRaises(bess.Error):
+            ipl.add(prefix='22.22.22.0', prefix_len=16, gate=0)
+
 
 suite = unittest.TestLoader().loadTestsFromTestCase(BessIPLookupTest)
 results = unittest.TextTestRunner(verbosity=2).run(suite)
