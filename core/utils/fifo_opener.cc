@@ -150,10 +150,8 @@ void FifoOpenerThread::Run() {
     fd = open(fifopath_, O_WRONLY);
   } while (fd < 0 && !IsExitRequested());
 
-  // It's open, so we're almost done.  Defer exit requests so
-  // we can make system calls without getting interrupted by
-  // a knock thread if there is one (or one starts here).
-  PushDefer();
+  // It's open, so we're irrevocably on the way out.
+  BeginExiting();
 
   // Set up the file descriptor: it should be non-blocking.
   // It also needs additional setup, which is something our

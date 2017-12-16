@@ -84,9 +84,9 @@ bool CatchExitSignal();
  * not get called at all, in an extreme race case.)
  *
  * Optionally (for performance / avoiding more signals), you may
- * call BeginExiting() once you are on the way out, but have not
- * actually finished.  This tells the knock thread (see below) that
- * its job is done.
+ * call BeginExiting() once you are irrevocably on the way to
+ * returning.  This tells the knock thread (see below) that
+ * its job is done, avoiding further signals.
  *
  * Once your Run() returns (the thread has exited), var.thread.Done()
  * will return True.
@@ -127,6 +127,8 @@ bool CatchExitSignal();
  * should call PushDefer() first.  Knock-thread signals will be
  * deferred until all pushed defers are popped.
  *
+ * Note that BeginExiting() pushes a defer.
+ *
  * MAYBE-to-do(torek): allow detaching (move the state variables
  * into a sub-object that is given to the thread, so that we can
  * use thread_.detach() and knock_thread_.detach()).  If we do this
@@ -152,7 +154,6 @@ class SyscallThread {
   virtual ~SyscallThread() = default;
 
   bool IsExitRequested() const { return exit_requested_; }
-  void BeginExiting() { state_ = ThreadState::kExiting; }
   bool Done() const { return state_ == ThreadState::kDone; }
 
   /*!
@@ -280,6 +281,9 @@ class SyscallThread {
     return true;
   }
 
+  // Marks thread as exiting.
+  void InternalBeginExiting() { state_ = ThreadState::kExiting; }
+
   // Detect whether thread is marked "exiting" or "exited".
   bool ExitingOrExited() const { return state_ >= ThreadState::kExiting; }
 
@@ -318,6 +322,11 @@ class SyscallThreadPfuncs : public SyscallThread {
    * did the reset.
    */
   bool Reset() { return InternalReset(); }
+
+  /*
+   * Indicates that we're on our way out of Run().
+   */
+  void BeginExiting() { InternalBeginExiting(); }
 
   /*!
    * Get the mask to pass as the sigmask argument to pselect/ppoll.
@@ -376,6 +385,14 @@ class SyscallThreadAny : public SyscallThread {
     if (--defer_count_ == 0) {
       BlockSignals(false);
     }
+  }
+
+  /*
+   * Indicates that we're on our way out of Run().
+   */
+  void BeginExiting() {
+    PushDefer();
+    InternalBeginExiting();
   }
 
  private:
