@@ -140,6 +140,16 @@ message IPLookupCommandAddArg {
 }
 
 /**
+ * The IPLookup module has a command `delete(...)` which takes two paramters.
+ * This function accepts the routing rules -- CIDR prefix, CIDR prefix length,
+ * Example use in bessctl: `table.delete(prefix='10.0.0.0', prefix_len=8)`
+ */
+message IPLookupCommandDeleteArg {
+  string prefix = 1; /// The CIDR IP part of the prefix to match
+  uint64 prefix_len = 2; /// The prefix length
+}
+
+/**
  * The IPLookup module has a command `clear()` which takes no parameters.
  * This function removes all rules in the IPLookup table.
  * Example use in bessctl: `myiplookuptable.clear()`

@@ -33,6 +33,10 @@
 
 #include "../module.h"
 #include "../pb/module_msg.pb.h"
+#include "../utils/endian.h"
+
+using bess::utils::be32_t;
+using ParsedPrefix = std::tuple<int, std::string, be32_t>;
 
 class IPLookup final : public Module {
  public:
@@ -51,11 +55,13 @@ class IPLookup final : public Module {
   void ProcessBatch(bess::PacketBatch *batch) override;
 
   CommandResponse CommandAdd(const bess::pb::IPLookupCommandAddArg &arg);
+  CommandResponse CommandDelete(const bess::pb::IPLookupCommandDeleteArg &arg);
   CommandResponse CommandClear(const bess::pb::EmptyArg &arg);
 
  private:
   struct rte_lpm *lpm_;
   gate_idx_t default_gate_;
+  ParsedPrefix ParseIpv4Prefix(const std::string &prefix, uint64_t prefix_len);
 };
 
 #endif  // BESS_MODULES_IPLOOKUP_H_
