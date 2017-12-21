@@ -30,6 +30,8 @@
 
 #include "pmd.h"
 
+#include <rte_ethdev_pci.h>
+
 #include "../utils/ether.h"
 #include "../utils/format.h"
 
@@ -45,20 +47,10 @@ static const struct rte_eth_conf default_eth_conf() {
 
   ret.link_speeds = ETH_LINK_SPEED_AUTONEG;
 
-  ret.rxmode = {
-      .mq_mode = ETH_MQ_RX_RSS,       /* doesn't matter for 1-queue */
-      .max_rx_pkt_len = 0,            /* valid only if jumbo is on */
-      .split_hdr_size = 0,            /* valid only if HS is on */
-      .header_split = 0,              /* Header Split */
-      .hw_ip_checksum = SN_HW_RXCSUM, /* IP checksum offload */
-      .hw_vlan_filter = 0,            /* VLAN filtering */
-      .hw_vlan_strip = 0,             /* VLAN strip */
-      .hw_vlan_extend = 0,            /* Extended VLAN */
-      .jumbo_frame = 0,               /* Jumbo Frame support */
-      .hw_strip_crc = 1,              /* CRC stripped by hardware */
-      .enable_scatter = 0,            /* no scattered RX */
-      .enable_lro = 0,                /* no large receive offload */
-  };
+  ret.rxmode.mq_mode = ETH_MQ_RX_RSS;
+  ret.rxmode.ignore_offload_bitfield = 1;
+  ret.rxmode.offloads |= DEV_RX_OFFLOAD_CRC_STRIP;
+  ret.rxmode.offloads |= (SN_HW_RXCSUM ? DEV_RX_OFFLOAD_CHECKSUM : 0x0);
 
   ret.rx_adv_conf.rss_conf = {
       .rss_key = nullptr,
@@ -86,7 +78,7 @@ void PMDPort::InitDriver() {
 
     if (dev_info.pci_dev) {
       pci_info = bess::utils::Format(
-          "%04hx:%02hhx:%02hhx.%02hhx %04hx:%04hx  ",
+          "%08x:%02hhx:%02hhx.%02hhx %04hx:%04hx  ",
           dev_info.pci_dev->addr.domain, dev_info.pci_dev->addr.bus,
           dev_info.pci_dev->addr.devid, dev_info.pci_dev->addr.function,
           dev_info.pci_dev->id.vendor_id, dev_info.pci_dev->id.device_id);
@@ -158,7 +150,7 @@ static CommandResponse find_dpdk_port_by_pci_addr(const std::string &pci,
   if (port_id == DPDK_PORT_UNKNOWN) {
     int ret;
     char name[RTE_ETH_NAME_MAX_LEN];
-    snprintf(name, RTE_ETH_NAME_MAX_LEN, "%04x:%02x:%02x.%02x", addr.domain,
+    snprintf(name, RTE_ETH_NAME_MAX_LEN, "%08x:%02x:%02x.%02x", addr.domain,
              addr.bus, addr.devid, addr.function);
 
     ret = rte_eth_dev_attach(name, &port_id);

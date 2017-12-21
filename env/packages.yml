@@ -37,6 +37,7 @@
         - zlib1g-dev
         - libpcap-dev
         - libssl-dev
+        - libnuma-dev
         - curl
         - git
         - python

@@ -60,7 +60,7 @@ static void packet_init(struct rte_mempool *mp, void *opaque_arg, void *_m,
   memset(pkt->reserve(), 0, SNBUF_RESERVE);
 
   pkt->set_vaddr(pkt);
-  pkt->set_paddr(rte_mempool_virt2phy(mp, pkt));
+  pkt->set_paddr(rte_mempool_virt2iova(pkt));
   pkt->set_sid(reinterpret_cast<uintptr_t>(opaque_arg));
   pkt->set_index(i);
 }

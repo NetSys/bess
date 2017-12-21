@@ -40,7 +40,7 @@
 #include "../module.h"
 #include "../port.h"
 
-typedef uint8_t dpdk_port_t;
+typedef uint16_t dpdk_port_t;
 
 #define DPDK_PORT_UNKNOWN RTE_MAX_ETHPORTS
 /*!
