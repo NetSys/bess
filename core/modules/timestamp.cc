@@ -75,7 +75,8 @@ void Timestamp::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
   uint64_t now_ns = tsc_to_ns(rdtsc());
   size_t offset = offset_;
 
-  for (int i = 0; i < batch->cnt(); i++) {
+  int cnt = batch->cnt();
+  for (int i = 0; i < cnt; i++) {
     timestamp_packet(batch->pkts()[i], offset, now_ns);
   }
 

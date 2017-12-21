@@ -590,7 +590,8 @@ void L2Forward::DeInit() {
 void L2Forward::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
   gate_idx_t default_gate = ACCESS_ONCE(default_gate_);
 
-  for (int i = 0; i < batch->cnt(); i++) {
+  int cnt = batch->cnt();
+  for (int i = 0; i < cnt; i++) {
     bess::Packet *snb = batch->pkts()[i];
 
     gate_idx_t out_gate;
