@@ -152,14 +152,15 @@ inline void HashLB::DoProcessBatch<HashLB::Mode::kOther>(
 
   for (size_t i = 0; i < cnt; i++) {
     EmitPacket(task, batch->pkts()[i],
-        gates_[hash_range(hasher_(keys[i]), num_gates_)]);
+               gates_[hash_range(hasher_(keys[i]), num_gates_)]);
   }
 }
 
 template <>
 inline void HashLB::DoProcessBatch<HashLB::Mode::kL2>(
-    const Task *task, bess::PacketBatch *batch)  {
-  for (int i = 0; i < batch->cnt(); i++) {
+    const Task *task, bess::PacketBatch *batch) {
+  int cnt = batch->cnt();
+  for (int i = 0; i < cnt; i++) {
     bess::Packet *snb = batch->pkts()[i];
     char *head = snb->head_data<char *>();
 
@@ -178,7 +179,8 @@ inline void HashLB::DoProcessBatch<HashLB::Mode::kL3>(
   /* assumes untagged packets */
   const int ip_offset = 14;
 
-  for (int i = 0; i < batch->cnt(); i++) {
+  int cnt = batch->cnt();
+  for (int i = 0; i < cnt; i++) {
     bess::Packet *snb = batch->pkts()[i];
     char *head = snb->head_data<char *>();
 
@@ -198,7 +200,8 @@ inline void HashLB::DoProcessBatch<HashLB::Mode::kL4>(
   const int ip_offset = 14;
   const int l4_offset = ip_offset + 20;
 
-  for (int i = 0; i < batch->cnt(); i++) {
+  int cnt = batch->cnt();
+  for (int i = 0; i < cnt; i++) {
     bess::Packet *snb = batch->pkts()[i];
     char *head = snb->head_data<char *>();
 

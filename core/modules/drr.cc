@@ -124,7 +124,8 @@ void DRR::ProcessBatch(const Task*, bess::PacketBatch* batch) {
   int err = 0;
 
   // insert packets in the batch into their corresponding flows
-  for (int i = 0; i < batch->cnt(); i++) {
+  int cnt = batch->cnt();
+  for (int i = 0; i < cnt; i++) {
     bess::Packet* pkt = batch->pkts()[i];
 
     // TODO(joshua): Add support for fragmented packets.

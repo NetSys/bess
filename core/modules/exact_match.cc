@@ -236,7 +236,8 @@ void ExactMatch::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
   };
   table_.MakeKeys(batch, buffer_fn, keys);
 
-  for (int i = 0; i < batch->cnt(); i++) {
+  int cnt = batch->cnt();
+  for (int i = 0; i < cnt; i++) {
     bess::Packet *pkt = batch->pkts()[i];
     EmitPacket(task, pkt, table_.Find(keys[i], default_gate));
   }

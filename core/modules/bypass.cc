@@ -44,7 +44,8 @@ void Bypass::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
 
   if (cycles_per_byte_) {
     uint64_t total_bytes = 0;
-    for (int i = 0; i < batch->cnt(); i++) {
+    int cnt = batch->cnt();
+    for (int i = 0; i < cnt; i++) {
       total_bytes = batch->pkts()[i]->total_len();
     }
     cycles += cycles_per_byte_ * total_bytes;

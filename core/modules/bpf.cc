@@ -1206,7 +1206,9 @@ void BPF::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
   }
 
   // slow version for general cases
-  for (int i = 0; i < batch->cnt(); i++) {
+  int cnt = batch->cnt();
+
+  for (int i = 0; i < cnt; i++) {
     gate_idx_t gate = 0;  // default gate for unmatched pkts
     bess::Packet *pkt = batch->pkts()[i];
 

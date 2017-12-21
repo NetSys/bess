@@ -109,7 +109,8 @@ void Measure::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
 
   pkt_cnt_ += batch->cnt();
 
-  for (int i = 0; i < batch->cnt(); i++) {
+  int cnt = batch->cnt();
+  for (int i = 0; i < cnt; i++) {
     uint64_t pkt_time;
     if (IsTimestamped(batch->pkts()[i], offset, &pkt_time)) {
       uint64_t diff;
