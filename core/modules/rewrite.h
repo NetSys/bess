@@ -61,10 +61,9 @@ class Rewrite final : public Module {
   inline void DoRewrite(bess::PacketBatch *batch);
   inline void DoRewriteSingle(bess::PacketBatch *batch);
 
-  // For fair round robin we remember the next index for later.
-  // Note its value can be [0, kMaxBurst - 1], not [0, num_templates_],
-  // to avoid interger modulo operations.
+  // For fair round robin we remember the next index in [0, num_templates_).
   size_t next_turn_;
+  size_t jump_[kNumSlots];  // precalculated "index % num_templates_"
 
   size_t num_templates_;
   uint16_t template_size_[kNumSlots];
