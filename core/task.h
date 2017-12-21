@@ -129,14 +129,15 @@ class Task {
       next_batch_ = batch;
     } else {
       bess::PacketBatch *ibatch = get_gate_batch(ig);
-      if (ibatch && (static_cast<size_t>(ibatch->cnt() + batch->cnt()) <
+      if (ibatch && (static_cast<size_t>(ibatch->cnt() + batch->cnt()) <=
                      bess::PacketBatch::kMaxBurst)) {
         // merge two batches
-        get_gate_batch(ig)->add(batch);
+        ibatch->add(batch);
+      } else {
+        // set the input as new batch
+        set_gate_batch(ig, batch);
+        igates_to_run_.emplace(ig, batch);
       }
-      // set the input as new batch
-      set_gate_batch(ig, batch);
-      igates_to_run_.emplace(ig, batch);
     }
   }
 

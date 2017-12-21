@@ -529,24 +529,26 @@ inline void Module::EmitPacket(const Task *task, bess::Packet *pkt,
 
   // Put a packet into the ogate
   bess::OGate *ogate = ogates_[ogate_idx];
+  bess::IGate *igate = ogate->igate();
   bess::PacketBatch *batch = task->get_gate_batch(ogate);
   if (!batch) {
     if (!ogate->hooks().empty()) {
       // Having separate batch to run ogate hooks
-      task->set_gate_batch(ogate, task->AllocPacketBatch());
+      batch = task->AllocPacketBatch();
+      task->set_gate_batch(ogate, batch);
       gate_with_hook_[gate_with_hook_cnt_++] = ogate_idx;
     } else {
       // If no ogate hooks, just use next igate batch
-      if (task->get_gate_batch(ogate->igate()) == nullptr) {
-        bess::PacketBatch *tmp = task->AllocPacketBatch();
-        task->AddToRun(ogate->igate(), tmp);
-        task->set_gate_batch(ogate, tmp);
+      batch = task->get_gate_batch(igate);
+      if (batch == nullptr) {
+        batch = task->AllocPacketBatch();
+        task->AddToRun(igate, batch);
+        task->set_gate_batch(ogate, batch);
       } else {
-        task->set_gate_batch(ogate, task->get_gate_batch(ogate->igate()));
+        task->set_gate_batch(ogate, task->get_gate_batch(igate));
       }
       gate_without_hook_[gate_without_hook_cnt_++] = ogate_idx;
     }
-    batch = task->get_gate_batch(ogate);
   }
 
   if (static_cast<size_t>(batch->cnt()) >= bess::PacketBatch::kMaxBurst) {
@@ -554,13 +556,13 @@ inline void Module::EmitPacket(const Task *task, bess::Packet *pkt,
       for (auto &hook : ogate->hooks()) {
         hook->ProcessBatch(task->get_gate_batch(ogate));
       }
-      task->AddToRun(ogate->igate(), task->get_gate_batch(ogate));
+      task->AddToRun(igate, task->get_gate_batch(ogate));
       task->set_gate_batch(ogate, task->AllocPacketBatch());
     } else {
       // allocate a new batch and push
       batch = task->AllocPacketBatch();
       task->set_gate_batch(ogate, batch);
-      task->AddToRun(ogate->igate(), batch);
+      task->AddToRun(igate, batch);
     }
   }
 

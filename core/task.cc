@@ -55,7 +55,7 @@ struct task_result Task::operator()(void) const {
   // next_gate_: Continuously run if modules are chained
   // igates_to_run_ : If next module connection is not chained (merged),
   // check priority to choose which module run next
-  while (true) {
+  while (next_gate_ || !igates_to_run_.empty()) {
     bess::IGate *igate;
     bess::PacketBatch *batch;
 
@@ -66,10 +66,6 @@ struct task_result Task::operator()(void) const {
       next_gate_ = nullptr;
       next_batch_ = nullptr;
     } else {
-      if (igates_to_run_.empty()) {
-        break;
-      }
-
       auto item = igates_to_run_.top();
       igates_to_run_.pop();
 
@@ -85,11 +81,9 @@ struct task_result Task::operator()(void) const {
       hook->ProcessBatch(batch);
     }
 
-    // process module
-    igate->module()->ProcessBatch(this, batch);
-
-    // process ogates
-    igate->module()->ProcessOGates(this);
+    Module *m = igate->module();
+    m->ProcessBatch(this, batch);  // process module
+    m->ProcessOGates(this);        // process ogates
   }
 
   deadend(&dead_batch_);
