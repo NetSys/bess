@@ -33,18 +33,21 @@
 
 #include <cstdint>
 #include <cstdlib>
+#include <cstring>
 #include <limits>
 #include <vector>
 
 #include <glog/logging.h>
 
-// Class for general purpose histogram. T must be an integral type.
+// Class for general purpose histogram. T generally should be an
+// integral type, though floating point types will also work.
 // A bin b_i corresponds for the range [i * width, (i + 1) * width)
 // (note that it's left-closed and right-open), and (i * width) is used for its
 // representative value.
 template <typename T = uint64_t>
 class Histogram {
  public:
+  static_assert(std::is_arithmetic<T>::value, "Arithmetic type required.");
   struct Summary {
     size_t count;        // # of all samples. If 0, min, max and avg are also 0
     size_t above_range;  // # of samples beyond the histogram range
@@ -131,9 +134,11 @@ class Histogram {
     return ret;
   }
 
+  // Resets all counters, and the count of such counters.
+  // Note that the number of buckets remains unchanged.
   void Reset() {
     count_ = 0;
-    buckets_ = std::vector<size_t>(buckets_.size());
+    std::fill(buckets_.begin(), buckets_.end(), T());
   }
 
  private:
