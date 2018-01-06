@@ -317,6 +317,16 @@ class alignas(64) Module {
                          [](bool b) { return b; });
   }
 
+  // True if any worker attached to this module is running.
+  inline bool HasRunningWorker() const {
+    for (int wid = 0; wid < Worker::kMaxWorkers; wid++) {
+      if (active_workers_[wid] && is_worker_running(wid)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   // Check if we have already seen a task
   inline bool HaveVisitedWorker(const Task *task) const {
     return std::find(visited_tasks_.begin(), visited_tasks_.end(), task) !=
