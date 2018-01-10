@@ -394,15 +394,13 @@ static bool SkipSymbol(char *symbol) {
 // TODO: Only use async-signal-safe operations in the signal handler.
 static void TrapHandler(int sig_num, siginfo_t *info, void *ucontext) {
   std::ostringstream oops;
-  struct ucontext *uc;
+  auto *uc = static_cast<ucontext_t *>(ucontext);
   bool is_fatal = (sig_num != SIGUSR1);
   static volatile bool already_trapped = false;
 
   // avoid recursive traps
   if (is_fatal && !__sync_bool_compare_and_swap(&already_trapped, false, true))
     return;
-
-  uc = (struct ucontext *)ucontext;
 
 #if __i386
   trap_ip = reinterpret_cast<void *>(uc->uc_mcontext.gregs[REG_EIP]);
