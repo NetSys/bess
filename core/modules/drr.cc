@@ -120,7 +120,7 @@ CommandResponse DRR::CommandMaxFlowQueueSize(
   return SetMaxFlowQueueSize(arg.max_queue_size());
 }
 
-void DRR::ProcessBatch(const Task*, bess::PacketBatch* batch) {
+void DRR::ProcessBatch(Context *, bess::PacketBatch *batch) {
   int err = 0;
 
   // insert packets in the batch into their corresponding flows
@@ -148,8 +148,7 @@ void DRR::ProcessBatch(const Task*, bess::PacketBatch* batch) {
   }
 }
 
-struct task_result DRR::RunTask(const Task* task, bess::PacketBatch* batch,
-                                void*) {
+struct task_result DRR::RunTask(Context* ctx, bess::PacketBatch* batch, void*) {
   if (children_overload_ > 0) {
     return {
         .block = true, .packets = 0, .bits = 0,
@@ -165,7 +164,7 @@ struct task_result DRR::RunTask(const Task* task, bess::PacketBatch* batch,
   assert(err >= 0);  // TODO(joshua) do proper error checking
 
   if (total_bytes > 0) {
-    RunNextModule(task, batch);
+    RunNextModule(ctx, batch);
   }
 
   // the number of bits inserted into the packet batch

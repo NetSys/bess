@@ -32,7 +32,7 @@
 
 #include "../utils/ether.h"
 
-void VLANSplit::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
+void VLANSplit::ProcessBatch(Context *ctx, bess::PacketBatch *batch) {
   using bess::utils::be16_t;
   using bess::utils::Ethernet;
 
@@ -53,9 +53,9 @@ void VLANSplit::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
       be16_t tci(be16_t::swap(_mm_extract_epi16(eth, 7)));
       eth = _mm_slli_si128(eth, 4);
       _mm_storeu_si128(reinterpret_cast<__m128i *>(old_head), eth);
-      EmitPacket(task, pkt, tci.value() & 0x0fff);
+      EmitPacket(ctx, pkt, tci.value() & 0x0fff);
     } else {
-      EmitPacket(task, pkt, 0); /* untagged packets go to gate 0 */
+      EmitPacket(ctx, pkt, 0); /* untagged packets go to gate 0 */
     }
   }
 }

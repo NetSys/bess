@@ -30,8 +30,8 @@
 
 #include "merge.h"
 
-void Merge::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
-  RunNextModule(task, batch);
+void Merge::ProcessBatch(Context *ctx, bess::PacketBatch *batch) {
+  RunNextModule(ctx, batch);
 }
 
 ADD_MODULE(Merge, "merge", "All input gates go out of a single output gate")

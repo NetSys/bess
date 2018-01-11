@@ -98,7 +98,7 @@ CommandResponse RoundRobin::CommandSetGates(
   return CommandSuccess();
 }
 
-void RoundRobin::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
+void RoundRobin::ProcessBatch(Context *ctx, bess::PacketBatch *batch) {
   if (ngates_ <= 0) {
     bess::Packet::Free(batch);
     return;
@@ -108,7 +108,7 @@ void RoundRobin::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
     int cnt = batch->cnt();
     for (int i = 0; i < cnt; i++) {
       bess::Packet *pkt = batch->pkts()[i];
-      EmitPacket(task, pkt, gates_[current_gate_]);
+      EmitPacket(ctx, pkt, gates_[current_gate_]);
       if (++current_gate_ >= ngates_) {
         current_gate_ = 0;
       }
@@ -118,7 +118,7 @@ void RoundRobin::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
     if (++current_gate_ >= ngates_) {
       current_gate_ = 0;
     }
-    RunChooseModule(task, gate, batch);
+    RunChooseModule(ctx, gate, batch);
   }
 }
 

@@ -41,7 +41,7 @@ CommandResponse GenericDecap::Init(const bess::pb::GenericDecapArg &arg) {
   return CommandSuccess();
 }
 
-void GenericDecap::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
+void GenericDecap::ProcessBatch(Context *ctx, bess::PacketBatch *batch) {
   int cnt = batch->cnt();
 
   int decap_size = decap_size_;
@@ -50,7 +50,7 @@ void GenericDecap::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
     batch->pkts()[i]->adj(decap_size);
   }
 
-  RunNextModule(task, batch);
+  RunNextModule(ctx, batch);
 }
 
 ADD_MODULE(GenericDecap, "generic_decap",

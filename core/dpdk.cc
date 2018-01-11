@@ -216,7 +216,7 @@ void init_dpdk(const ::std::string &prog_name, int mb_per_socket,
   // FIXME: This is a temporary fix. If a new worker thread is allocated on the
   //        same core, background threads should migrate to another core.
   int default_core = determine_default_core();
-  ctx.SetNonWorker();
+  current_worker.SetNonWorker();
 
   init_eal(prog_name.c_str(), mb_per_socket, multi_instance, no_huge,
            default_core);

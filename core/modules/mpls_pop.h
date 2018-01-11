@@ -46,7 +46,7 @@ class MPLSPop final : public Module {
 
   MPLSPop();  // constructor
 
-  void ProcessBatch(const Task *task, bess::PacketBatch *batch) override;
+  void ProcessBatch(Context *ctx, bess::PacketBatch *batch) override;
 
   CommandResponse CommandSet(const bess::pb::MplsPopArg &arg);
 

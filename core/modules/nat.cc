@@ -323,10 +323,10 @@ inline void Stamp(Ipv4 *ip, void *l4, const Endpoint &before,
 }
 
 template <NAT::Direction dir>
-inline void NAT::DoProcessBatch(const Task *task, bess::PacketBatch *batch) {
+inline void NAT::DoProcessBatch(Context *ctx, bess::PacketBatch *batch) {
   static gate_idx_t ogate_idx = static_cast<gate_idx_t>(dir);
   int cnt = batch->cnt();
-  uint64_t now = ctx.current_ns();
+  uint64_t now = ctx->current_ns;
 
   for (int i = 0; i < cnt; i++) {
     bess::Packet *pkt = batch->pkts()[i];
@@ -341,7 +341,7 @@ inline void NAT::DoProcessBatch(const Task *task, bess::PacketBatch *batch) {
     std::tie(valid_protocol, before) = ExtractEndpoint(ip, l4, dir);
 
     if (!valid_protocol) {
-      DropPacket(task, pkt);
+      DropPacket(ctx, pkt);
       continue;
     }
 
@@ -349,7 +349,7 @@ inline void NAT::DoProcessBatch(const Task *task, bess::PacketBatch *batch) {
 
     if (hash_item == nullptr) {
       if (dir != kForward || !(hash_item = CreateNewEntry(before, now))) {
-        DropPacket(task, pkt);
+        DropPacket(ctx, pkt);
         continue;
       }
     }
@@ -360,17 +360,17 @@ inline void NAT::DoProcessBatch(const Task *task, bess::PacketBatch *batch) {
     }
 
     Stamp<dir>(ip, l4, before, hash_item->second.endpoint);
-    EmitPacket(task, pkt, ogate_idx);
+    EmitPacket(ctx, pkt, ogate_idx);
   }
 }
 
-void NAT::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
-  gate_idx_t incoming_gate = task->get_igate();
+void NAT::ProcessBatch(Context *ctx, bess::PacketBatch *batch) {
+  gate_idx_t incoming_gate = ctx->current_igate;
 
   if (incoming_gate == 0) {
-    DoProcessBatch<kForward>(task, batch);
+    DoProcessBatch<kForward>(ctx, batch);
   } else {
-    DoProcessBatch<kReverse>(task, batch);
+    DoProcessBatch<kReverse>(ctx, batch);
   }
 }
 

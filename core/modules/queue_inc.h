@@ -46,7 +46,7 @@ class QueueInc final : public Module {
   CommandResponse Init(const bess::pb::QueueIncArg &arg);
   void DeInit() override;
 
-  struct task_result RunTask(const Task *task, bess::PacketBatch *batch,
+  struct task_result RunTask(Context *ctx, bess::PacketBatch *batch,
                              void *arg) override;
 
   std::string GetDesc() const override;

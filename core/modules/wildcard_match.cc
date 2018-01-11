@@ -156,7 +156,7 @@ inline gate_idx_t WildcardMatch::LookupEntry(const wm_hkey_t &key,
   return result.ogate;
 }
 
-void WildcardMatch::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
+void WildcardMatch::ProcessBatch(Context *ctx, bess::PacketBatch *batch) {
   gate_idx_t default_gate;
 
   wm_hkey_t keys[bess::PacketBatch::kMaxBurst] __ymm_aligned;
@@ -198,7 +198,7 @@ void WildcardMatch::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
 
   for (int i = 0; i < cnt; i++) {
     bess::Packet *pkt = batch->pkts()[i];
-    EmitPacket(task, pkt, LookupEntry(keys[i], default_gate));
+    EmitPacket(ctx, pkt, LookupEntry(keys[i], default_gate));
   }
 }
 

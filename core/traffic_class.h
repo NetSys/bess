@@ -603,7 +603,7 @@ class LeafTrafficClass final : public TrafficClass {
     TrafficClass::UnblockTowardsRootSetBlocked(tsc, false);
   }
 
-  const Task *task() const { return task_; }
+  Task *task() const { return task_; }
 
   void FinishAndAccountTowardsRoot(SchedWakeupQueue *wakeup_queue,
                                    [[maybe_unused]] TrafficClass *child,

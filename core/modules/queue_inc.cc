@@ -61,7 +61,7 @@ CommandResponse QueueInc::Init(const bess::pb::QueueIncArg &arg) {
   node_constraints_ = port_->GetNodePlacementConstraint();
   tid = RegisterTask((void *)(uintptr_t)qid_);
   if (tid == INVALID_TASK_ID)
-    return CommandFailure(ENOMEM, "Task creation failed");
+    return CommandFailure(ENOMEM, "Context creation failed");
 
   int ret = port_->AcquireQueues(reinterpret_cast<const module *>(this),
                                  PACKET_DIR_INC, &qid_, 1);
@@ -84,7 +84,7 @@ std::string QueueInc::GetDesc() const {
                              port_->port_builder()->class_name().c_str());
 }
 
-struct task_result QueueInc::RunTask(const Task *task, bess::PacketBatch *batch,
+struct task_result QueueInc::RunTask(Context *ctx, bess::PacketBatch *batch,
                                      void *arg) {
   Port *p = port_;
 
@@ -123,7 +123,7 @@ struct task_result QueueInc::RunTask(const Task *task, bess::PacketBatch *batch,
     p->queue_stats[PACKET_DIR_INC][qid].bytes += received_bytes;
   }
 
-  RunNextModule(task, batch);
+  RunNextModule(ctx, batch);
 
   return {.block = false,
           .packets = cnt,

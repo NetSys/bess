@@ -62,12 +62,12 @@ CommandResponse ACL::CommandClear(const bess::pb::EmptyArg &) {
   return CommandSuccess();
 }
 
-void ACL::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
+void ACL::ProcessBatch(Context *ctx, bess::PacketBatch *batch) {
   using bess::utils::Ethernet;
   using bess::utils::Ipv4;
   using bess::utils::Udp;
 
-  gate_idx_t incoming_gate = task->get_igate();
+  gate_idx_t incoming_gate = ctx->current_igate;
 
   int cnt = batch->cnt();
   for (int i = 0; i < cnt; i++) {
@@ -84,14 +84,14 @@ void ACL::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
       if (rule.Match(ip->src, ip->dst, udp->src_port, udp->dst_port)) {
         if (!rule.drop) {
           emitted = true;
-          EmitPacket(task, pkt, incoming_gate);
+          EmitPacket(ctx, pkt, incoming_gate);
         }
         break;  // Stop matching other rules
       }
     }
 
     if (!emitted) {
-      DropPacket(task, pkt);
+      DropPacket(ctx, pkt);
     }
   }
 }

@@ -139,7 +139,7 @@ std::string Queue::GetDesc() const {
 }
 
 /* from upstream */
-void Queue::ProcessBatch(const Task *, bess::PacketBatch *batch) {
+void Queue::ProcessBatch(Context *, bess::PacketBatch *batch) {
   int queued =
       llring_mp_enqueue_burst(queue_, (void **)batch->pkts(), batch->cnt());
   if (backpressure_ && llring_count(queue_) > high_water_) {
@@ -156,7 +156,7 @@ void Queue::ProcessBatch(const Task *, bess::PacketBatch *batch) {
 }
 
 /* to downstream */
-struct task_result Queue::RunTask(const Task *task, bess::PacketBatch *batch,
+struct task_result Queue::RunTask(Context *ctx, bess::PacketBatch *batch,
                                   void *) {
   if (children_overload_ > 0) {
     return {
@@ -189,7 +189,7 @@ struct task_result Queue::RunTask(const Task *task, bess::PacketBatch *batch,
     }
   }
 
-  RunNextModule(task, batch);
+  RunNextModule(ctx, batch);
 
   if (backpressure_ && llring_count(queue_) < low_water_) {
     SignalUnderload();

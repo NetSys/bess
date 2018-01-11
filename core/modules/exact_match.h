@@ -55,7 +55,7 @@ class ExactMatch final : public Module {
     max_allowed_workers_ = Worker::kMaxWorkers;
   }
 
-  void ProcessBatch(const Task *task, bess::PacketBatch *batch) override;
+  void ProcessBatch(Context *ctx, bess::PacketBatch *batch) override;
 
   std::string GetDesc() const override;
 

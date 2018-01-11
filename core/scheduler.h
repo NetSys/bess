@@ -36,6 +36,7 @@
 #include <string>
 #include <vector>
 
+#include "module.h"
 #include "traffic_class.h"
 #include "utils/extended_priority_queue.h"
 #include "worker.h"
@@ -232,23 +233,26 @@ class DefaultScheduler : public Scheduler {
 
     this->checkpoint_ = now = rdtsc();
 
+    Context ctx = {};
+    ctx.wid = current_worker.wid();
+
     // The main scheduling, running, accounting loop.
     for (uint64_t round = 0;; ++round) {
       // Periodic check, to mitigate expensive operations.
       if ((round & accounting_mask) == 0) {
-        if (ctx.is_pause_requested()) {
-          if (ctx.BlockWorker()) {
+        if (current_worker.is_pause_requested()) {
+          if (current_worker.BlockWorker()) {
             break;
           }
         }
       }
 
-      ScheduleOnce();
+      ScheduleOnce(&ctx);
     }
   }
 
   // Runs the scheduler once.
-  void ScheduleOnce() {
+  void ScheduleOnce(Context *ctx) {
     resource_arr_t usage;
 
     // Schedule.
@@ -256,11 +260,15 @@ class DefaultScheduler : public Scheduler {
 
     uint64_t now;
     if (leaf) {
-      ctx.set_current_tsc(this->checkpoint_);  // Tasks see updated tsc.
-      ctx.set_current_ns(this->checkpoint_ * this->ns_per_cycle_);
+      ctx->current_tsc = this->checkpoint_;  // Tasks see updated tsc.
+      ctx->current_ns = this->checkpoint_ * this->ns_per_cycle_;
+      current_worker.set_current_tsc(ctx->current_tsc);
+      current_worker.set_current_ns(ctx->current_ns);
+
+      ctx->task = leaf->task();
 
       // Run.
-      auto ret = (*leaf->task())();
+      auto ret = (*ctx->task)(ctx);
 
       now = rdtsc();
 
@@ -270,6 +278,7 @@ class DefaultScheduler : public Scheduler {
       usage[RESOURCE_PACKET] = ret.packets;
       usage[RESOURCE_BIT] = ret.bits;
 
+      current_worker.incr_silent_drops(ctx->silent_drops);
       // TODO(barath): Re-enable scheduler-wide stats accumulation.
       // accumulate(stats_.usage, usage);
 
@@ -310,23 +319,26 @@ class ExperimentalScheduler : public Scheduler {
 
     this->checkpoint_ = now = rdtsc();
 
+    Context ctx = {};
+    ctx.wid = current_worker.wid();
+
     // The main scheduling, running, accounting loop.
     for (uint64_t round = 0;; ++round) {
       // Periodic check, to mitigate expensive operations.
       if ((round & accounting_mask) == 0) {
-        if (ctx.is_pause_requested()) {
-          if (ctx.BlockWorker()) {
+        if (current_worker.is_pause_requested()) {
+          if (current_worker.BlockWorker()) {
             break;
           }
         }
       }
 
-      ScheduleOnce();
+      ScheduleOnce(&ctx);
     }
   }
 
   // Runs the scheduler once.
-  void ScheduleOnce() {
+  void ScheduleOnce(Context *ctx) {
     resource_arr_t usage;
 
     // Schedule.
@@ -334,11 +346,15 @@ class ExperimentalScheduler : public Scheduler {
 
     uint64_t now;
     if (leaf) {
-      ctx.set_current_tsc(this->checkpoint_);  // Tasks see updated tsc.
-      ctx.set_current_ns(this->checkpoint_ * this->ns_per_cycle_);
+      ctx->current_tsc = this->checkpoint_;  // Tasks see updated tsc.
+      ctx->current_ns = this->checkpoint_ * this->ns_per_cycle_;
+      current_worker.set_current_tsc(ctx->current_tsc);
+      current_worker.set_current_ns(ctx->current_ns);
+
+      ctx->task = leaf->task();
 
       // Run.
-      auto ret = (*leaf->task())();
+      auto ret = (*ctx->task)(ctx);
       now = rdtsc();
 
       if (ret.packets == 0 && ret.block) {

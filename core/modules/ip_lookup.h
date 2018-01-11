@@ -52,7 +52,7 @@ class IPLookup final : public Module {
 
   void DeInit() override;
 
-  void ProcessBatch(const Task *task, bess::PacketBatch *batch) override;
+  void ProcessBatch(Context *ctx, bess::PacketBatch *batch) override;
 
   CommandResponse CommandAdd(const bess::pb::IPLookupCommandAddArg &arg);
   CommandResponse CommandDelete(const bess::pb::IPLookupCommandDeleteArg &arg);

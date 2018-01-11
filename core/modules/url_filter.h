@@ -119,7 +119,7 @@ class UrlFilter final : public Module {
 
   CommandResponse Init(const bess::pb::UrlFilterArg &arg);
 
-  void ProcessBatch(const Task *task, bess::PacketBatch *batch) override;
+  void ProcessBatch(Context *ctx, bess::PacketBatch *batch) override;
 
   std::string GetDesc() const override;
 

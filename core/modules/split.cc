@@ -61,7 +61,7 @@ CommandResponse Split::Init(const bess::pb::SplitArg &arg) {
   return CommandSuccess();
 }
 
-void Split::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
+void Split::ProcessBatch(Context *ctx, bess::PacketBatch *batch) {
   using bess::utils::be64_t;
 
   int cnt = batch->cnt();
@@ -72,14 +72,14 @@ void Split::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
       bess::Packet *pkt = batch->pkts()[i];
       uint64_t val = get_attr_with_offset<be64_t>(offset, pkt).value();
       val = (val >> shift_) & mask_;
-      EmitPacket(task, pkt, val);
+      EmitPacket(ctx, pkt, val);
     }
   } else {
     for (int i = 0; i < cnt; i++) {
       bess::Packet *pkt = batch->pkts()[i];
       uint64_t val = (pkt->head_data<be64_t *>(offset_))->value();
       val = (val >> shift_) & mask_;
-      EmitPacket(task, pkt, val);
+      EmitPacket(ctx, pkt, val);
     }
   }
 }

@@ -45,13 +45,12 @@ void Task::Attach(bess::LeafTrafficClass *c) {
   c_ = c;
 }
 
-struct task_result Task::operator()(void) const {
+struct task_result Task::operator()(Context *ctx) const {
   bess::PacketBatch init_batch;
   ClearPacketBatch();
 
   // Start from the first module (task module)
-  struct task_result result = module_->RunTask(this, &init_batch, arg_);
-
+  struct task_result result = module_->RunTask(ctx, &init_batch, arg_);
   // next_gate_: Continuously run if modules are chained
   // igates_to_run_ : If next module connection is not chained (merged),
   // check priority to choose which module run next
@@ -75,18 +74,18 @@ struct task_result Task::operator()(void) const {
       set_gate_batch(igate, nullptr);
     }
 
-    set_current_igate(igate->gate_idx());
+    ctx->current_igate = igate->gate_idx();
 
     for (auto &hook : igate->hooks()) {
       hook->ProcessBatch(batch);
     }
 
     Module *m = igate->module();
-    m->ProcessBatch(this, batch);  // process module
-    m->ProcessOGates(this);        // process ogates
+    m->ProcessBatch(ctx, batch);  // process module
+    m->ProcessOGates(ctx);        // process ogates
   }
 
-  deadend(&dead_batch_);
+  deadend(ctx, &dead_batch_);
 
   return result;
 }

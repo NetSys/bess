@@ -142,7 +142,7 @@ class Worker {
 // NOTE: Do not use "thread_local" here. It requires a function call every time
 // it is accessed. Use __thread instead, which incurs minimal runtime overhead.
 // For this, g++ requires Worker to have a trivial constructor and destructor.
-extern __thread Worker ctx;
+extern __thread Worker current_worker;
 
 // the following traits are not supported in g++ 4.x
 #if __GNUC__ >= 5

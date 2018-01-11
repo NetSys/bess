@@ -35,12 +35,12 @@ CommandResponse NoOP::Init(const bess::pb::EmptyArg &) {
 
   tid = RegisterTask(nullptr);
   if (tid == INVALID_TASK_ID)
-    return CommandFailure(ENOMEM, "Task creation failed");
+    return CommandFailure(ENOMEM, "Context creation failed");
 
   return CommandSuccess();
 }
 
-struct task_result NoOP::RunTask(const Task *, bess::PacketBatch *, void *) {
+struct task_result NoOP::RunTask(Context *, bess::PacketBatch *, void *) {
   return {.block = false, .packets = 0, .bits = 0};
 }
 

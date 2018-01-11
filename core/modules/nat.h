@@ -148,7 +148,7 @@ class NAT final : public Module {
   CommandResponse GetRuntimeConfig(const bess::pb::EmptyArg &arg);
   CommandResponse SetRuntimeConfig(const bess::pb::EmptyArg &arg);
 
-  void ProcessBatch(const Task *task, bess::PacketBatch *batch) override;
+  void ProcessBatch(Context *ctx, bess::PacketBatch *batch) override;
 
   // returns the number of active NAT entries (flows)
   std::string GetDesc() const override;
@@ -166,7 +166,7 @@ class NAT final : public Module {
   HashTable::Entry *CreateNewEntry(const Endpoint &internal, uint64_t now);
 
   template <Direction dir>
-  void DoProcessBatch(const Task *task, bess::PacketBatch *batch);
+  void DoProcessBatch(Context *ctx, bess::PacketBatch *batch);
 
   std::vector<be32_t> ext_addrs_;
 
