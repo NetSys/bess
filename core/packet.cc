@@ -128,10 +128,6 @@ void close_mempool(void) {
   /* Do nothing. Surprisingly, there is no destructor for mempools */
 }
 
-struct rte_mempool *get_pframe_pool() {
-  return pframe_pool[ctx.socket()];
-}
-
 struct rte_mempool *get_pframe_pool_socket(int socket) {
   return pframe_pool[socket];
 }
@@ -153,10 +149,11 @@ static Packet *paddr_to_snb_memchunk(struct rte_mempool_memhdr *chunk,
   return nullptr;
 }
 
-#define check_offset(field)                                                                                                                                                                                                                                                                                                  \
-  do {                                                                                                                                                                                                                                                                                                                \
-    static_assert(offsetof(Packet, field##_) == offsetof(rte_mbuf, field), \
-      "Incompatibility detected between class Packet and struct rte_mbuf"); \
+#define check_offset(field)                                                   \
+  do {                                                                        \
+    static_assert(                                                            \
+        offsetof(Packet, field##_) == offsetof(rte_mbuf, field),              \
+        "Incompatibility detected between class Packet and struct rte_mbuf"); \
   } while (0)
 
 Packet::Packet() {

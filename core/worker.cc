@@ -300,7 +300,7 @@ void *Worker::Run(void *_arg) {
 
   current_tsc_ = rdtsc();
 
-  pframe_pool_ = bess::get_pframe_pool();
+  pframe_pool_ = bess::get_pframe_pool_socket(socket_);
   DCHECK(pframe_pool_);
 
   status_ = WORKER_PAUSING;
