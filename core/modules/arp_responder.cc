@@ -60,7 +60,7 @@ CommandResponse ArpResponder::CommandAdd(const bess::pb::ArpResponderArg &arg) {
   return CommandSuccess();
 }
 
-void ArpResponder::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
+void ArpResponder::ProcessBatch(Context *ctx, bess::PacketBatch *batch) {
   int cnt = batch->cnt();
   for (int i = 0; i < cnt; i++) {
     // we should drop-or-emit each packet
@@ -69,7 +69,7 @@ void ArpResponder::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
     Ethernet *eth = pkt->head_data<Ethernet *>();
     if (eth->ether_type != be16_t(Ethernet::Type::kArp)) {
       // Currently drop all non ARP packets
-      DropPacket(task, pkt);
+      DropPacket(ctx, pkt);
       continue;
     }
 
@@ -91,18 +91,18 @@ void ArpResponder::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
 
         arp->target_ip_addr = arp->sender_ip_addr;
         arp->sender_ip_addr = entry.ip_addr;
-        EmitPacket(task, pkt, 0);
+        EmitPacket(ctx, pkt, 0);
       } else {
         // Did not find an ARP entry in cache, drop packet
         // TODO(galsagie) Optinally emit packet to next module here
-        DropPacket(task, pkt);
+        DropPacket(ctx, pkt);
       }
     } else if (arp->opcode == be16_t(Arp::Opcode::kReply)) {
       // TODO(galsagie) When learn is added, learn SRC MAC here
-      DropPacket(task, pkt);
+      DropPacket(ctx, pkt);
     } else {
       // TODO(galsagie) Other opcodes are not handled yet.
-      DropPacket(task, pkt);
+      DropPacket(ctx, pkt);
     }
   }
 }

@@ -125,7 +125,7 @@ CommandResponse GenericEncap::Init(const bess::pb::GenericEncapArg &arg) {
   return CommandSuccess();
 }
 
-void GenericEncap::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
+void GenericEncap::ProcessBatch(Context *ctx, bess::PacketBatch *batch) {
   int cnt = batch->cnt();
 
   int encap_size = encap_size_;
@@ -159,7 +159,7 @@ void GenericEncap::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
     bess::utils::CopyInlined(p, headers[i], encap_size);
   }
 
-  RunNextModule(task, batch);
+  RunNextModule(ctx, batch);
 }
 
 ADD_MODULE(GenericEncap, "generic_encap",

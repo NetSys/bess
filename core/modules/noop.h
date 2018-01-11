@@ -39,7 +39,7 @@ class NoOP final : public Module {
   NoOP() : Module() { is_task_ = true; };
   CommandResponse Init(const bess::pb::EmptyArg &arg);
 
-  struct task_result RunTask(const Task *task, bess::PacketBatch *batch,
+  struct task_result RunTask(Context *ctx, bess::PacketBatch *batch,
                              void *arg) override;
 
   static const gate_idx_t kNumIGates = 0;

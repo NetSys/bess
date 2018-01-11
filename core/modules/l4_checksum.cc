@@ -36,7 +36,7 @@
 #include "../utils/tcp.h"
 #include "../utils/udp.h"
 
-void L4Checksum::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
+void L4Checksum::ProcessBatch(Context *ctx, bess::PacketBatch *batch) {
   using bess::utils::Ethernet;
   using bess::utils::Ipv4;
   using bess::utils::Tcp;
@@ -69,7 +69,7 @@ void L4Checksum::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
     continue;
   }
 
-  RunNextModule(task, batch);
+  RunNextModule(ctx, batch);
 }
 
 ADD_MODULE(L4Checksum, "l4_checksum",

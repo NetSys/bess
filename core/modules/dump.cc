@@ -45,13 +45,14 @@ const Commands Dump::cmds = {
 };
 
 CommandResponse Dump::Init(const bess::pb::DumpArg &arg) {
+  // cannot get a context-based current nanoseconds
   min_interval_ns_ = DEFAULT_INTERVAL_NS;
-  next_ns_ = ctx.current_tsc();
+  next_ns_ = tsc_to_ns(rdtsc());
   return CommandSetInterval(arg);
 }
 
-void Dump::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
-  if (unlikely(ctx.current_ns() >= next_ns_)) {
+void Dump::ProcessBatch(Context *ctx, bess::PacketBatch *batch) {
+  if (unlikely(ctx->current_ns >= next_ns_)) {
     bess::Packet *pkt = batch->pkts()[0];
 
     printf("----------------------------------------\n");
@@ -59,10 +60,10 @@ void Dump::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
     std::cout << pkt->Dump();
     rte_hexdump(stdout, "Metadata buffer", pkt->metadata<const char *>(),
                 SNBUF_METADATA);
-    next_ns_ = ctx.current_ns() + min_interval_ns_;
+    next_ns_ = ctx->current_ns + min_interval_ns_;
   }
 
-  RunChooseModule(task, task->get_igate(), batch);
+  RunChooseModule(ctx, ctx->current_igate, batch);
 }
 
 CommandResponse Dump::CommandSetInterval(const bess::pb::DumpArg &arg) {

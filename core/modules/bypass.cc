@@ -38,7 +38,7 @@ CommandResponse Bypass::Init(const bess::pb::BypassArg &arg) {
   return CommandSuccess();
 }
 
-void Bypass::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
+void Bypass::ProcessBatch(Context *ctx, bess::PacketBatch *batch) {
   uint64_t start_tsc = rdtsc();
   uint64_t cycles = cycles_per_batch_ + cycles_per_packet_ * batch->cnt();
 
@@ -58,7 +58,7 @@ void Bypass::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
       _mm_pause();
     }
   }
-  RunChooseModule(task, task->get_igate(), batch);
+  RunChooseModule(ctx, ctx->current_igate, batch);
 }
 
 ADD_MODULE(Bypass, "bypass", "bypasses packets without any processing")

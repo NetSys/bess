@@ -221,7 +221,7 @@ CommandResponse ExactMatch::SetRuntimeConfig(
   return CommandSuccess();
 }
 
-void ExactMatch::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
+void ExactMatch::ProcessBatch(Context *ctx, bess::PacketBatch *batch) {
   gate_idx_t default_gate;
   ExactMatchKey keys[bess::PacketBatch::kMaxBurst] __ymm_aligned;
 
@@ -239,7 +239,7 @@ void ExactMatch::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
   int cnt = batch->cnt();
   for (int i = 0; i < cnt; i++) {
     bess::Packet *pkt = batch->pkts()[i];
-    EmitPacket(task, pkt, table_.Find(keys[i], default_gate));
+    EmitPacket(ctx, pkt, table_.Find(keys[i], default_gate));
   }
 }
 

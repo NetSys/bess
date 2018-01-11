@@ -39,7 +39,7 @@ class VLANSplit final : public Module {
 
   static const gate_idx_t kNumOGates = 4096;
 
-  void ProcessBatch(const Task *task, bess::PacketBatch *batch) override;
+  void ProcessBatch(Context *ctx, bess::PacketBatch *batch) override;
 };
 
 #endif  // BESS_MODULES_VLANSPLIT_H_

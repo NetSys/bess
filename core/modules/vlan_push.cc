@@ -57,7 +57,7 @@ CommandResponse VLANPush::CommandSetTci(const bess::pb::VLANPushArg &arg) {
 }
 
 // the behavior is undefined if a packet is already double tagged
-void VLANPush::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
+void VLANPush::ProcessBatch(Context *ctx, bess::PacketBatch *batch) {
   int cnt = batch->cnt();
 
   be32_t vlan_tag = vlan_tag_;
@@ -83,7 +83,7 @@ void VLANPush::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
     }
   }
 
-  RunNextModule(task, batch);
+  RunNextModule(ctx, batch);
 }
 
 std::string VLANPush::GetDesc() const {

@@ -59,7 +59,7 @@ CommandResponse IPEncap::Init(const bess::pb::IPEncapArg &arg[[maybe_unused]]) {
   return CommandSuccess();
 }
 
-void IPEncap::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
+void IPEncap::ProcessBatch(Context *ctx, bess::PacketBatch *batch) {
   int cnt = batch->cnt();
 
   for (int i = 0; i < cnt; i++) {
@@ -96,7 +96,7 @@ void IPEncap::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
                      be16_t(Ethernet::Type::kIpv4));
   }
 
-  RunNextModule(task, batch);
+  RunNextModule(ctx, batch);
 }
 
 ADD_MODULE(IPEncap, "ip_encap", "encapsulates packets with an IPv4 header")

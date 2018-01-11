@@ -85,10 +85,10 @@ std::string PortOut::GetDesc() const {
                              port_->port_builder()->class_name().c_str());
 }
 
-void PortOut::ProcessBatch(const Task *, bess::PacketBatch *batch) {
+void PortOut::ProcessBatch(Context *ctx, bess::PacketBatch *batch) {
   Port *p = port_;
 
-  const queue_t qid = worker_queues_[ctx.wid()];
+  const queue_t qid = worker_queues_[ctx->wid];
 
   uint64_t sent_bytes = 0;
   int sent_pkts = 0;

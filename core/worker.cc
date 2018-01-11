@@ -69,7 +69,7 @@ using bess::ResumeHookFactory;
 std::list<std::pair<int, bess::TrafficClass *>> orphan_tcs;
 
 // See worker.h
-__thread Worker ctx;
+__thread Worker current_worker;
 
 struct thread_arg {
   int wid;
@@ -327,8 +327,8 @@ void *Worker::Run(void *_arg) {
 }
 
 void *run_worker(void *_arg) {
-  CHECK_EQ(memcmp(&ctx, new Worker(), sizeof(Worker)), 0);
-  return ctx.Run(_arg);
+  CHECK_EQ(memcmp(&current_worker, new Worker(), sizeof(Worker)), 0);
+  return current_worker.Run(_arg);
 }
 
 void launch_worker(int wid, int core,

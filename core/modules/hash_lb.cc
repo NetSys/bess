@@ -139,7 +139,7 @@ std::string HashLB::GetDesc() const {
 
 template <>
 inline void HashLB::DoProcessBatch<HashLB::Mode::kOther>(
-    const Task *task, bess::PacketBatch *batch) {
+    Context *ctx, bess::PacketBatch *batch) {
   void *bufs[bess::PacketBatch::kMaxBurst];
   ExactMatchKey keys[bess::PacketBatch::kMaxBurst];
 
@@ -151,14 +151,14 @@ inline void HashLB::DoProcessBatch<HashLB::Mode::kOther>(
   fields_table_.MakeKeys((const void **)bufs, keys, cnt);
 
   for (size_t i = 0; i < cnt; i++) {
-    EmitPacket(task, batch->pkts()[i],
+    EmitPacket(ctx, batch->pkts()[i],
                gates_[hash_range(hasher_(keys[i]), num_gates_)]);
   }
 }
 
 template <>
 inline void HashLB::DoProcessBatch<HashLB::Mode::kL2>(
-    const Task *task, bess::PacketBatch *batch) {
+    Context *ctx, bess::PacketBatch *batch) {
   int cnt = batch->cnt();
   for (int i = 0; i < cnt; i++) {
     bess::Packet *snb = batch->pkts()[i];
@@ -169,13 +169,13 @@ inline void HashLB::DoProcessBatch<HashLB::Mode::kL2>(
 
     uint32_t hash_val = hash_64(v0, v1);
 
-    EmitPacket(task, snb, gates_[hash_range(hash_val, num_gates_)]);
+    EmitPacket(ctx, snb, gates_[hash_range(hash_val, num_gates_)]);
   }
 }
 
 template <>
 inline void HashLB::DoProcessBatch<HashLB::Mode::kL3>(
-    const Task *task, bess::PacketBatch *batch) {
+    Context *ctx, bess::PacketBatch *batch) {
   /* assumes untagged packets */
   const int ip_offset = 14;
 
@@ -189,13 +189,13 @@ inline void HashLB::DoProcessBatch<HashLB::Mode::kL3>(
 
     hash_val = hash_64(v, 0);
 
-    EmitPacket(task, snb, gates_[hash_range(hash_val, num_gates_)]);
+    EmitPacket(ctx, snb, gates_[hash_range(hash_val, num_gates_)]);
   }
 }
 
 template <>
 inline void HashLB::DoProcessBatch<HashLB::Mode::kL4>(
-    const Task *task, bess::PacketBatch *batch) {
+    Context *ctx, bess::PacketBatch *batch) {
   /* assumes untagged packets without IP options */
   const int ip_offset = 14;
   const int l4_offset = ip_offset + 20;
@@ -213,23 +213,23 @@ inline void HashLB::DoProcessBatch<HashLB::Mode::kL4>(
 
     hash_val = hash_64(v0, v1);
 
-    EmitPacket(task, snb, gates_[hash_range(hash_val, num_gates_)]);
+    EmitPacket(ctx, snb, gates_[hash_range(hash_val, num_gates_)]);
   }
 }
 
-void HashLB::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
+void HashLB::ProcessBatch(Context *ctx, bess::PacketBatch *batch) {
   switch (mode_) {
     case Mode::kL2:
-      DoProcessBatch<Mode::kL2>(task, batch);
+      DoProcessBatch<Mode::kL2>(ctx, batch);
       break;
     case Mode::kL3:
-      DoProcessBatch<Mode::kL3>(task, batch);
+      DoProcessBatch<Mode::kL3>(ctx, batch);
       break;
     case Mode::kL4:
-      DoProcessBatch<Mode::kL4>(task, batch);
+      DoProcessBatch<Mode::kL4>(ctx, batch);
       break;
     case Mode::kOther:
-      DoProcessBatch<Mode::kOther>(task, batch);
+      DoProcessBatch<Mode::kOther>(ctx, batch);
       break;
     default:
       DCHECK(0);

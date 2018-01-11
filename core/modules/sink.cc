@@ -30,7 +30,7 @@
 
 #include "sink.h"
 
-void Sink::ProcessBatch(const Task *, bess::PacketBatch *batch) {
+void Sink::ProcessBatch(Context *, bess::PacketBatch *batch) {
   bess::Packet::Free(batch);
 }
 

@@ -44,7 +44,7 @@ class Source final : public Module {
 
   CommandResponse Init(const bess::pb::SourceArg &arg);
 
-  struct task_result RunTask(const Task *task, bess::PacketBatch *batch,
+  struct task_result RunTask(Context *ctx, bess::PacketBatch *batch,
                              void *arg) override;
 
   CommandResponse CommandSetBurst(

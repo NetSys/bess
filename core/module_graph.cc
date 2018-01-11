@@ -35,6 +35,7 @@
 #include "gate.h"
 #include "gate_hooks/track.h"
 #include "module.h"
+#include "scheduler.h"
 #include "utils/extended_priority_queue.h"
 
 std::map<std::string, Module *> ModuleGraph::all_modules_;

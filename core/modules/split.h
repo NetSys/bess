@@ -44,7 +44,7 @@ class Split final : public Module {
 
   CommandResponse Init(const bess::pb::SplitArg &arg);
 
-  void ProcessBatch(const Task *task, bess::PacketBatch *batch) override;
+  void ProcessBatch(Context *ctx, bess::PacketBatch *batch) override;
 
  private:
   uint64_t mask_;

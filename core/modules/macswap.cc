@@ -32,7 +32,7 @@
 
 #include "../utils/ether.h"
 
-void MACSwap::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
+void MACSwap::ProcessBatch(Context *ctx, bess::PacketBatch *batch) {
   using bess::utils::Ethernet;
 
   int cnt = batch->cnt();
@@ -46,7 +46,7 @@ void MACSwap::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
     eth->src_addr = tmp;
   }
 
-  RunNextModule(task, batch);
+  RunNextModule(ctx, batch);
 }
 
 ADD_MODULE(MACSwap, "macswap", "swaps source/destination MAC addresses")

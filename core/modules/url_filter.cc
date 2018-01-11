@@ -233,12 +233,12 @@ CommandResponse UrlFilter::SetRuntimeConfig(
   return CommandSuccess();
 }
 
-void UrlFilter::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
-  gate_idx_t igate = task->get_igate();
+void UrlFilter::ProcessBatch(Context *ctx, bess::PacketBatch *batch) {
+  gate_idx_t igate = ctx->current_igate;
 
   // Pass reverse traffic
   if (igate == 1) {
-    RunChooseModule(task, 1, batch);
+    RunChooseModule(ctx, 1, batch);
     return;
   }
 
@@ -251,7 +251,7 @@ void UrlFilter::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
     Ipv4 *ip = reinterpret_cast<Ipv4 *>(eth + 1);
 
     if (ip->protocol != Ipv4::Proto::kTcp) {
-      EmitPacket(task, pkt, 0);
+      EmitPacket(ctx, pkt, 0);
       continue;
     }
 
@@ -265,7 +265,7 @@ void UrlFilter::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
     flow.src_port = tcp->src_port;
     flow.dst_port = tcp->dst_port;
 
-    uint64_t now = ctx.current_ns();
+    uint64_t now = ctx->current_ns;
 
     // Find existing flow, if we have one.
     std::unordered_map<Flow, FlowRecord, FlowHash>::iterator it =
@@ -280,7 +280,7 @@ void UrlFilter::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
         // Once we're finished analyzing, we only record *blocked* flows.
         // Continue blocking this flow for TIME_OUT_NS more ns.
         it->second.SetExpiryTime(now + TIME_OUT_NS);
-        DropPacket(task, pkt);
+        DropPacket(ctx, pkt);
         continue;
       }
     }
@@ -294,7 +294,7 @@ void UrlFilter::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
         std::tie(it, std::ignore) = flow_cache_.emplace(
             std::piecewise_construct, std::make_tuple(flow), std::make_tuple());
       } else {
-        EmitPacket(task, pkt, 0);
+        EmitPacket(ctx, pkt, 0);
         continue;
       }
     }
@@ -310,7 +310,7 @@ void UrlFilter::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
     if (!success) {
       VLOG(1) << "Reconstruction failure";
       flow_cache_.erase(it);
-      EmitPacket(task, pkt, 0);
+      EmitPacket(ctx, pkt, 0);
       continue;
     }
 
@@ -345,7 +345,7 @@ void UrlFilter::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
     }
 
     if (!matched) {
-      EmitPacket(task, pkt, 0);
+      EmitPacket(ctx, pkt, 0);
 
       // Once FIN is observed, or we've seen all the headers and decided
       // to pass the flow, there is no more need to reconstruct the flow.
@@ -360,28 +360,27 @@ void UrlFilter::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
       it->second.SetAnalyzed();
 
       // Inject RST to destination
-      EmitPacket(task,
-                 GenerateResetPacket(eth->src_addr, eth->dst_addr, ip->src,
-                                     ip->dst, tcp->src_port, tcp->dst_port,
-                                     tcp->seq_num, tcp->ack_num),
+      EmitPacket(ctx, GenerateResetPacket(eth->src_addr, eth->dst_addr, ip->src,
+                                          ip->dst, tcp->src_port, tcp->dst_port,
+                                          tcp->seq_num, tcp->ack_num),
                  0);
 
       // Inject 403 to source. 403 should arrive earlier than RST.
-      EmitPacket(task, Generate403Packet(eth->dst_addr, eth->src_addr, ip->dst,
-                                         ip->src, tcp->dst_port, tcp->src_port,
-                                         tcp->ack_num, tcp->seq_num),
+      EmitPacket(ctx, Generate403Packet(eth->dst_addr, eth->src_addr, ip->dst,
+                                        ip->src, tcp->dst_port, tcp->src_port,
+                                        tcp->ack_num, tcp->seq_num),
                  1);
 
       // Inject RST to source
-      EmitPacket(task, GenerateResetPacket(
-                           eth->dst_addr, eth->src_addr, ip->dst, ip->src,
-                           tcp->dst_port, tcp->src_port,
-                           be32_t(tcp->ack_num.value() + strlen(HTTP_403_BODY)),
-                           tcp->seq_num),
+      EmitPacket(ctx, GenerateResetPacket(
+                          eth->dst_addr, eth->src_addr, ip->dst, ip->src,
+                          tcp->dst_port, tcp->src_port,
+                          be32_t(tcp->ack_num.value() + strlen(HTTP_403_BODY)),
+                          tcp->seq_num),
                  1);
 
       // Drop the data packet
-      DropPacket(task, pkt);
+      DropPacket(ctx, pkt);
     }
   }
 }

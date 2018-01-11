@@ -55,7 +55,7 @@ CommandResponse VXLANDecap::Init(
   return CommandSuccess();
 }
 
-void VXLANDecap::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
+void VXLANDecap::ProcessBatch(Context *ctx, bess::PacketBatch *batch) {
   using bess::utils::be32_t;
   using bess::utils::Ethernet;
   using bess::utils::Ipv4;
@@ -80,7 +80,7 @@ void VXLANDecap::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
     pkt->adj(sizeof(*eth) + ip_bytes + sizeof(*udp) + sizeof(*vh));
   }
 
-  RunNextModule(task, batch);
+  RunNextModule(ctx, batch);
 }
 
 ADD_MODULE(VXLANDecap, "vxlan_decap",

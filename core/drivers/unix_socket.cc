@@ -183,7 +183,7 @@ int UnixSocketPort::RecvPackets(queue_t qid, bess::Packet **pkts, int cnt) {
     return 0;
   }
 
-  uint64_t now_ns = ctx.current_ns();
+  uint64_t now_ns = current_worker.current_tsc();
   if (now_ns - last_idle_ns_ < min_rx_interval_ns_) {
     return 0;
   }

@@ -1177,7 +1177,7 @@ inline bool BPF::Match(const Filter &filter, u_char *pkt, u_int wirelen,
   return ret != 0;
 }
 
-void BPF::ProcessBatch1Filter(const Task *task, bess::PacketBatch *batch) {
+void BPF::ProcessBatch1Filter(Context *ctx, bess::PacketBatch *batch) {
   const Filter &filter = filters_[0];
 
   int cnt = batch->cnt();
@@ -1187,21 +1187,21 @@ void BPF::ProcessBatch1Filter(const Task *task, bess::PacketBatch *batch) {
 
     if (Match(filter, pkt->head_data<u_char *>(), pkt->total_len(),
               pkt->head_len())) {
-      EmitPacket(task, pkt, filter.gate);
+      EmitPacket(ctx, pkt, filter.gate);
     } else {
-      EmitPacket(task, pkt);
+      EmitPacket(ctx, pkt);
     }
   }
 }
 
-void BPF::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
+void BPF::ProcessBatch(Context *ctx, bess::PacketBatch *batch) {
   int n_filters = filters_.size();
 
   if (n_filters == 0) {
-    RunNextModule(task, batch);
+    RunNextModule(ctx, batch);
     return;
   } else if (n_filters == 1) {
-    ProcessBatch1Filter(task, batch);
+    ProcessBatch1Filter(ctx, batch);
     return;
   }
 
@@ -1220,7 +1220,7 @@ void BPF::ProcessBatch(const Task *task, bess::PacketBatch *batch) {
         break;
       }
     }
-    EmitPacket(task, pkt, gate);
+    EmitPacket(ctx, pkt, gate);
   }
 }
 
