@@ -474,6 +474,8 @@ message TrackArg {
 /// NOTE: There should be no running worker to run this command.
 message TcpdumpArg {
   string fifo = 5;    /// Path to the FIFO file.
+  bool defer = 6;     /// If set, we'll defer opening the FIFO.
+  bool reconnect = 7; /// If set, we'll reconnect after failure.
 }
 
 /// Enable/Disable pcapng tapping at an input/output gate.
@@ -488,6 +490,8 @@ message TcpdumpArg {
 /// NOTE: There should be no running worker to run this command.
 message PcapngArg {
   string fifo = 5;    /// Path to the FIFO file.
+  bool defer = 6;     /// If set, we'll defer opening the FIFO.
+  bool reconnect = 7; /// If set, we'll reconnect after failure.
 }
 
 message ConfigureGateHookRequest {

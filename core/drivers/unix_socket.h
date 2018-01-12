@@ -41,6 +41,28 @@
 #include "../message.h"
 #include "../port.h"
 
+#include "../utils/syscallthread.h"
+
+class UnixSocketPort;
+
+// We promise to block only in ppoll(),
+// and check IsExitRequested() afterward.
+// We must use the Sigmask() result
+// as the signal mask in this ppoll().
+class UnixSocketAcceptThread final : public bess::utils::SyscallThreadPfuncs {
+ public:
+  UnixSocketAcceptThread(UnixSocketPort *owner) : owner_(owner) {}
+  void Run() override;
+
+ private:
+  /*!
+   * Reaches up to the owning instance of the accept thread.  This
+   * lets us access the listen and client descriptors and the control
+   * flag for whether to send confirmation on connects.
+   */
+  UnixSocketPort *owner_;
+};
+
 /*!
  * This driver binds a port to a UNIX socket to communicate with a local
  * process. Only one client can be connected at the same time.
@@ -51,7 +73,8 @@ class UnixSocketPort final : public Port {
       : Port(),
         min_rx_interval_ns_(),
         last_idle_ns_(),
-        accept_thread_stop_req_(false),
+        confirm_connect_(false),
+        accept_thread_(this),
         listen_fd_(kNotConnectedFd),
         addr_(),
         client_fd_(kNotConnectedFd) {}
@@ -76,6 +99,7 @@ class UnixSocketPort final : public Port {
  private:
   // Value for a disconnected socket.
   static const int kNotConnectedFd = -1;
+  friend class UnixSocketAcceptThread;
 
   static const uint64_t kDefaultMinRxInterval = 50000;  // 50 microsec
 
@@ -96,17 +120,7 @@ class UnixSocketPort final : public Port {
   /*!
    * Function for the thread accepting and monitoring clients (accept thread).
    */
-  void AcceptThread();
-
-  /*!
-   * Accept thread handle.
-   */
-  std::thread accept_thread_;
-
-  /*!
-   * Sent stop request to accept thread.
-   */
-  std::atomic<bool> accept_thread_stop_req_;
+  UnixSocketAcceptThread accept_thread_;
 
   /*!
    * The listener fd -- listen for new connections here.

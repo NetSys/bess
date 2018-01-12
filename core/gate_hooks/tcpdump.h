@@ -34,12 +34,20 @@
 #include "../message.h"
 #include "../module.h"
 
+#include "../utils/fifo_opener.h"
+
+class TcpdumpOpener final : public bess::utils::FifoOpener {
+ public:
+  TcpdumpOpener() : FifoOpener() {}
+  bool InitFifo(int fd) override;
+};
+
 // Tcpdump dumps copies of the packets seen by a gate. Useful for debugging.
 class Tcpdump final : public bess::GateHook {
  public:
-  Tcpdump();
+  Tcpdump() : bess::GateHook(Tcpdump::kName, Tcpdump::kPriority), opener_() {}
 
-  virtual ~Tcpdump();
+  virtual ~Tcpdump() {}
 
   CommandResponse Init(const bess::Gate *, const bess::pb::TcpdumpArg &);
 
@@ -49,7 +57,7 @@ class Tcpdump final : public bess::GateHook {
   static const std::string kName;
 
  private:
-  int fifo_fd_;
+  TcpdumpOpener opener_;
 };
 
 #endif  // BESS_GATE_HOOKS_TCPDUMP_

@@ -19,6 +19,7 @@ env:
     - UBSAN_OPTIONS=suppressions=$TRAVIS_BUILD_DIR/core/ubsan.suppress,print_stacktrace=1
     - GCOV_PREFIX_STRIP=2                       # /build/bess in the container
     - GCOV_PREFIX=$TRAVIS_BUILD_DIR             # /build/bess/core/xx becomes $TRAVIS_BUILD_DIR/core/xx
+    - FIFO_TEST_TIMEOUT=200  # milliseconds per loop - vs default of 20
   matrix:
     - VER_CXX=clang++-3.8 SANITIZE=1
     - VER_CXX=g++-5

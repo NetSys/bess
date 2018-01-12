@@ -37,25 +37,25 @@
 
 #include "unix_socket.h"
 
-#define SIG_THREAD_EXIT SIGUSR2
-
-void UnixSocketPort::AcceptThread() {
-  sigset_t sigset;
-  sigfillset(&sigset);
-  sigdelset(&sigset, SIG_THREAD_EXIT);
-
+/*
+ * Loop runner for accept calls.
+ *
+ * Note that all socket operations are run non-blocking, so that
+ * the only place we block is in the ppoll() system call.
+ */
+void UnixSocketAcceptThread::Run() {
   struct pollfd fds[2];
   memset(fds, 0, sizeof(fds));
-  fds[0].fd = listen_fd_;
+  fds[0].fd = owner_->listen_fd_;
   fds[0].events = POLLIN;
   fds[1].events = POLLRDHUP;
 
   while (true) {
     // negative FDs are ignored by ppoll()
-    fds[1].fd = client_fd_;
-    int res = ppoll(fds, 2, nullptr, &sigset);
+    fds[1].fd = owner_->client_fd_;
+    int res = ppoll(fds, 2, nullptr, Sigmask());
 
-    if (accept_thread_stop_req_) {
+    if (IsExitRequested()) {
       return;
 
     } else if (res < 0) {
@@ -69,19 +69,19 @@ void UnixSocketPort::AcceptThread() {
       // new client connected
       int fd;
       while (true) {
-        fd = accept4(listen_fd_, nullptr, nullptr, SOCK_NONBLOCK);
+        fd = accept4(owner_->listen_fd_, nullptr, nullptr, SOCK_NONBLOCK);
         if (fd >= 0 || errno != EINTR) {
           break;
         }
       }
       if (fd < 0) {
         PLOG(ERROR) << "accept4()";
-      } else if (client_fd_ != kNotConnectedFd) {
+      } else if (owner_->client_fd_ != UnixSocketPort::kNotConnectedFd) {
         LOG(WARNING) << "Ignoring additional client\n";
         close(fd);
       } else {
-        client_fd_ = fd;
-        if (confirm_connect_) {
+        owner_->client_fd_ = fd;
+        if (owner_->confirm_connect_) {
           // Send confirmation that we've accepted their connect().
           send(fd, "yes", 4, 0);
         }
@@ -89,15 +89,11 @@ void UnixSocketPort::AcceptThread() {
 
     } else if (fds[1].revents & (POLLRDHUP | POLLHUP)) {
       // connection dropped by client
-      int fd = client_fd_;
-      client_fd_ = kNotConnectedFd;
+      int fd = owner_->client_fd_;
+      owner_->client_fd_ = UnixSocketPort::kNotConnectedFd;
       close(fd);
     }
   }
-}
-
-static void AcceptThreadHandler(int) {
-  // empty handler, we only care about blocking syscalls being interrupted
 }
 
 CommandResponse UnixSocketPort::Init(const bess::pb::UnixSocketPortArg &arg) {
@@ -157,25 +153,17 @@ CommandResponse UnixSocketPort::Init(const bess::pb::UnixSocketPortArg &arg) {
     return CommandFailure(errno, "listen() failed");
   }
 
-  struct sigaction sa;
-  memset(&sa, 0, sizeof(sa));
-  sa.sa_handler = AcceptThreadHandler;
-  if (sigaction(SIG_THREAD_EXIT, &sa, NULL) < 0) {
+  if (!accept_thread_.Start()) {
     DeInit();
-    return CommandFailure(errno, "sigaction(SIG_THREAD_EXIT) failed");
+    return CommandFailure(errno, "unable to start accept thread");
   }
-
-  accept_thread_ = std::thread([this]() { this->AcceptThread(); });
 
   return CommandSuccess();
 }
 
 void UnixSocketPort::DeInit() {
-  if (accept_thread_.joinable()) {
-    accept_thread_stop_req_ = true;
-    pthread_kill(accept_thread_.native_handle(), SIG_THREAD_EXIT);
-    accept_thread_.join();
-  }
+  // End thread and wait for it (no-op if never started).
+  accept_thread_.Terminate();
 
   if (listen_fd_ != kNotConnectedFd) {
     close(listen_fd_);
