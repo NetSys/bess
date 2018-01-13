@@ -79,7 +79,11 @@ class GateHook {
 
   const Gate *gate() const { return gate_; }
 
+  const google::protobuf::Any &arg() const { return arg_; }
+
   void set_gate(Gate *gate) { gate_ = gate; }
+
+  void set_arg(const google::protobuf::Any &arg) { arg_ = arg; }
 
   uint16_t priority() const { return priority_; }
 
@@ -95,6 +99,7 @@ class GateHook {
  private:
   const std::string &name_;
   const uint16_t priority_;
+  google::protobuf::Any arg_;
 
   DISALLOW_COPY_AND_ASSIGN(GateHook);
 };
@@ -122,6 +127,7 @@ class GateHookFactory {
 
   CommandResponse InitGateHook(GateHook *h, const Gate *g,
                                const google::protobuf::Any &arg) const {
+    h->set_arg(arg);
     return hook_init_func_(h, g, arg);
   }
 

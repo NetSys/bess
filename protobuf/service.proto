@@ -290,6 +290,9 @@ service BESSControl {
   /// Enable/Disable a gate hook.
   rpc ConfigureGateHook (ConfigureGateHookRequest) returns (CommandResponse) {}
 
+  /// Enable/Disable a gate hook.
+  rpc ListGateHooks (EmptyRequest) returns (ListGateHooksResponse) {}
+
   //  -------------------------------------------------------------------------
   //  Resume hooks
   //  -------------------------------------------------------------------------
