@@ -91,46 +91,41 @@ static inline Status return_with_errno(T* response, int code) {
   return Status::OK;
 }
 
+static inline bess::Gate* module_gate(const Module* m, bool is_igate,
+                                      gate_idx_t gate_idx) {
+  if (is_igate) {
+    if (is_active_gate(m->igates(), gate_idx)) {
+      return m->igates()[gate_idx];
+    }
+  } else {
+    if (is_active_gate(m->ogates(), gate_idx)) {
+      return m->ogates()[gate_idx];
+    }
+  }
+  return nullptr;
+}
+
 static CommandResponse enable_hook_for_module(
     const Module* m, gate_idx_t gate_idx, bool is_igate, bool use_gate,
     const bess::GateHookFactory& factory, const google::protobuf::Any& arg) {
   int ret;
 
   if (use_gate) {
-    bess::Gate* gate = nullptr;
-    if (is_igate) {
-      if (!is_active_gate(m->igates(), gate_idx)) {
-        return CommandFailure(EINVAL, "Input gate '%hu' does not exist",
-                              gate_idx);
-      }
-      gate = m->igates()[gate_idx];
-      bess::GateHook* hook = factory.CreateGateHook();
-      CommandResponse init_ret = factory.InitGateHook(hook, gate, arg);
-      if (init_ret.error().code() != 0) {
-        delete hook;
-        return init_ret;
-      }
-      if ((ret = gate->AddHook(hook))) {
-        return CommandFailure(ret, "Failed to track input gate '%hu'",
-                              gate_idx);
-      }
-    } else {
-      if (!is_active_gate(m->ogates(), gate_idx)) {
-        return CommandFailure(EINVAL, "Output gate '%hu' does not exist",
-                              gate_idx);
-      }
-      gate = m->ogates()[gate_idx];
-      bess::GateHook* hook = factory.CreateGateHook();
-      CommandResponse init_ret = factory.InitGateHook(hook, gate, arg);
-      if (init_ret.error().code() != 0) {
-        delete hook;
-        return init_ret;
-      }
-      if ((ret = gate->AddHook(hook))) {
-        delete hook;
-        return CommandFailure(ret, "Failed to track output gate '%hu'",
-                              gate_idx);
-      }
+    bess::Gate* gate = module_gate(m, is_igate, gate_idx);
+    if (gate == nullptr) {
+      return CommandFailure(EINVAL, "'%s': %cgate '%hu' does not exist",
+                            m->name().c_str(), is_igate ? 'i' : 'o', gate_idx);
+    }
+    bess::GateHook* hook = factory.CreateGateHook();
+    CommandResponse init_ret = factory.InitGateHook(hook, gate, arg);
+    if (init_ret.error().code() != 0) {
+      delete hook;
+      return init_ret;
+    }
+    if ((ret = gate->AddHook(hook))) {
+      delete hook;
+      return CommandFailure(ret, "Failed to add %cgate '%hu'",
+                            is_igate ? 'i' : 'o', gate_idx);
     }
     return CommandSuccess();
   }
@@ -178,22 +173,12 @@ static CommandResponse disable_hook_for_module(const Module* m,
                                                bool is_igate, bool use_gate,
                                                const std::string& hook) {
   if (use_gate) {
-    if (!is_igate && !is_active_gate(m->ogates(), gate_idx)) {
-      return CommandFailure(EINVAL, "Output gate '%hu' does not exist",
-                            gate_idx);
+    bess::Gate* gate = module_gate(m, is_igate, gate_idx);
+    if (gate == nullptr) {
+      return CommandFailure(EINVAL, "'%s': %cgate '%hu' does not exist",
+                            m->name().c_str(), is_igate ? 'i' : 'o', gate_idx);
     }
-
-    if (is_igate && !is_active_gate(m->igates(), gate_idx)) {
-      return CommandFailure(EINVAL, "Input gate '%hu' does not exist",
-                            gate_idx);
-    }
-
-    if (is_igate) {
-      m->igates()[gate_idx]->RemoveHook(hook);
-      return CommandSuccess();
-    }
-
-    m->ogates()[gate_idx]->RemoveHook(hook);
+    gate->RemoveHook(hook);
     return CommandSuccess();
   }
 
