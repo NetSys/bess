@@ -202,6 +202,8 @@ class OGate : public Gate {
 
   gate_idx_t igate_idx() const { return igate_idx_; }
 
+  void AddTrackHook();
+
  private:
   Module *next_;          // next module connected with
   IGate *igate_;          // next igate connected with

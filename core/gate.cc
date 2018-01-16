@@ -29,6 +29,7 @@
 // POSSIBILITY OF SUCH DAMAGE.
 
 #include "gate.h"
+#include "gate_hooks/track.h"
 
 #include <algorithm>
 #include <map>
@@ -119,6 +120,11 @@ void IGate::RemoveOgate(const OGate *og) {
       return;
     }
   }
+}
+
+// Add internally-generated Track() hook to this ogate.
+void OGate::AddTrackHook() {
+  this->AddHook(new Track());
 }
 
 void OGate::SetIgate(IGate *ig) {
