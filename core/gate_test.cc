@@ -48,6 +48,8 @@ class GateTest : public ::testing::Test {
 
   virtual void TearDown() { delete g; }
 
+  int AddHook(GateHook *hook) { return g->AddHook(hook); }
+
   Gate *g;
 };
 
@@ -70,26 +72,26 @@ class IOGateTest : public ::testing::Test {
 };
 
 TEST_F(GateTest, AddExistingHookFails) {
-  ASSERT_EQ(0, g->AddHook(new Track()));
+  ASSERT_EQ(0, AddHook(new Track()));
   GateHook *hook = new Track();
-  ASSERT_EQ(EEXIST, g->AddHook(hook));
+  ASSERT_EQ(EEXIST, AddHook(hook));
   delete hook;
 }
 
 TEST_F(GateTest, HookPriority) {
-  ASSERT_EQ(0, g->AddHook(new Track()));
-  ASSERT_EQ(0, g->AddHook(new Tcpdump()));
+  ASSERT_EQ(0, AddHook(new Track()));
+  ASSERT_EQ(0, AddHook(new Tcpdump()));
   ASSERT_EQ(Track::kName, g->hooks()[0]->name());
 }
 
 TEST_F(GateTest, FindHook) {
   ASSERT_EQ(nullptr, g->FindHook(Track::kName));
-  ASSERT_EQ(0, g->AddHook(new Track()));
+  ASSERT_EQ(0, AddHook(new Track()));
   ASSERT_NE(nullptr, g->FindHook(Track::kName));
 }
 
 TEST_F(GateTest, RemoveHook) {
-  ASSERT_EQ(0, g->AddHook(new Track()));
+  ASSERT_EQ(0, AddHook(new Track()));
   g->RemoveHook(Track::kName);
   ASSERT_EQ(nullptr, g->FindHook(Track::kName));
 }

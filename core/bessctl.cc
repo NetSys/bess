@@ -108,26 +108,13 @@ static inline bess::Gate* module_gate(const Module* m, bool is_igate,
 static CommandResponse enable_hook_for_module(
     const Module* m, gate_idx_t gate_idx, bool is_igate, bool use_gate,
     const bess::GateHookFactory& factory, const google::protobuf::Any& arg) {
-  int ret;
-
   if (use_gate) {
     bess::Gate* gate = module_gate(m, is_igate, gate_idx);
     if (gate == nullptr) {
       return CommandFailure(EINVAL, "'%s': %cgate '%hu' does not exist",
                             m->name().c_str(), is_igate ? 'i' : 'o', gate_idx);
     }
-    bess::GateHook* hook = factory.CreateGateHook();
-    CommandResponse init_ret = factory.InitGateHook(hook, gate, arg);
-    if (init_ret.error().code() != 0) {
-      delete hook;
-      return init_ret;
-    }
-    if ((ret = gate->AddHook(hook))) {
-      delete hook;
-      return CommandFailure(ret, "Failed to add %cgate '%hu'",
-                            is_igate ? 'i' : 'o', gate_idx);
-    }
-    return CommandSuccess();
+    return gate->NewGateHook(&factory, gate, is_igate, arg);
   }
 
   if (is_igate) {
@@ -135,16 +122,9 @@ static CommandResponse enable_hook_for_module(
       if (!gate) {
         continue;
       }
-      bess::GateHook* hook = factory.CreateGateHook();
-      CommandResponse init_ret = factory.InitGateHook(hook, gate, arg);
-      if (init_ret.error().code() != 0) {
-        delete hook;
-        return init_ret;
-      }
-      if ((ret = gate->AddHook(hook))) {
-        delete hook;
-        return CommandFailure(ret, "Failed to track input gate '%hu'",
-                              gate->gate_idx());
+      CommandResponse ret = gate->NewGateHook(&factory, gate, is_igate, arg);
+      if (ret.error().code() != 0) {
+        return ret;
       }
     }
   } else {
@@ -152,16 +132,9 @@ static CommandResponse enable_hook_for_module(
       if (!gate) {
         continue;
       }
-      bess::GateHook* hook = factory.CreateGateHook();
-      CommandResponse init_ret = factory.InitGateHook(hook, gate, arg);
-      if (init_ret.error().code() != 0) {
-        delete hook;
-        return init_ret;
-      }
-      if ((ret = gate->AddHook(hook))) {
-        delete hook;
-        return CommandFailure(ret, "Failed to track output gate '%hu'",
-                              gate->gate_idx());
+      CommandResponse ret = gate->NewGateHook(&factory, gate, is_igate, arg);
+      if (ret.error().code() != 0) {
+        return ret;
       }
     }
   }

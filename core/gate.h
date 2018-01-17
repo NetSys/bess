@@ -123,15 +123,9 @@ class GateHookFactory {
   static const std::map<std::string, GateHookFactory>
       &all_gate_hook_factories();
 
-  GateHook *CreateGateHook() const { return hook_constructor_(); }
-
-  CommandResponse InitGateHook(GateHook *h, const Gate *g,
-                               const google::protobuf::Any &arg) const {
-    h->set_arg(arg);
-    return hook_init_func_(h, g, arg);
-  }
-
  private:
+  friend class Gate;
+
   GateHook::constructor_t hook_constructor_;
   GateHook::init_func_t hook_init_func_;
   std::string hook_name_;
@@ -150,8 +144,9 @@ class Gate {
 
   const std::vector<GateHook *> &hooks() const { return hooks_; }
 
-  // Inserts hook in priority order and returns 0 on success.
-  int AddHook(GateHook *hook);
+  // Creates, initializes, and then inserts gate hook in priority order.
+  CommandResponse NewGateHook(const GateHookFactory *factory, Gate *gate,
+                              bool is_igate, const google::protobuf::Any &arg);
 
   GateHook *FindHook(const std::string &name);
 
@@ -160,6 +155,11 @@ class Gate {
   void ClearHooks();
 
  private:
+  friend class GateTest;
+
+  // Inserts hook in priority order and returns 0 on success.
+  int AddHook(GateHook *hook);
+
   Module *module_;       // the module this gate belongs to
   gate_idx_t gate_idx_;  // input/output gate index of itself
 

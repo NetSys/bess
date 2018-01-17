@@ -65,6 +65,31 @@ const std::map<std::string, GateHookFactory>
   return all_gate_hook_factories_holder();
 }
 
+// Creates new gate hook from the given factory, initializes it,
+// and adds it to the given gate.  If any of these steps go wrong
+// the gatehook instance is destroyed and we return a failed
+// CommandResponse, otherwise we return a successful one.
+CommandResponse Gate::NewGateHook(const GateHookFactory *factory, Gate *gate,
+                                  bool is_igate,
+                                  const google::protobuf::Any &arg) {
+  bess::GateHook *hook = factory->hook_constructor_();
+  CommandResponse init_ret = factory->hook_init_func_(hook, gate, arg);
+  if (init_ret.error().code() != 0) {
+    delete hook;
+    return init_ret;
+  }
+  hook->set_arg(arg);
+  int ret = gate->AddHook(hook);
+  if (ret != 0) {
+    delete hook;
+    return CommandFailure(ret, "Unable to add hook '%s' to '%s' %cgate '%hu'",
+                          factory->hook_name_.c_str(),
+                          gate->module()->name().c_str(), is_igate ? 'i' : 'o',
+                          gate->gate_idx());
+  }
+  return CommandSuccess();
+}
+
 int Gate::AddHook(GateHook *hook) {
   for (const auto &h : hooks_) {
     if (h->name() == hook->name()) {
@@ -143,9 +168,7 @@ void OGate::AddTrackHook() {
     track_arg.set_bits(false);
     arg.PackFrom(track_arg);
   }
-  bess::GateHook *hook = track_factory->CreateGateHook();
-  track_factory->InitGateHook(hook, this, arg);
-  this->AddHook(hook);
+  this->NewGateHook(track_factory, this, false, arg);
 }
 
 void OGate::SetIgate(IGate *ig) {
