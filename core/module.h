@@ -39,6 +39,7 @@
 #include <utility>
 #include <vector>
 
+#include "commands.h"
 #include "event.h"
 #include "gate.h"
 #include "message.h"
@@ -53,8 +54,6 @@ using bess::gate_idx_t;
 #define MAX_TASKS_PER_MODULE 32
 #define UNCONSTRAINED_SOCKET ((0x1ull << MAX_NUMA_NODE) - 1)
 
-using module_cmd_func_t =
-    pb_func_t<CommandResponse, Module, google::protobuf::Any>;
 using module_init_func_t =
     pb_func_t<CommandResponse, Module, google::protobuf::Any>;
 
@@ -81,21 +80,6 @@ static inline module_init_func_t MODULE_INIT_FUNC(
 }
 
 class Module;
-
-// Describes a single command that can be issued to a module.
-struct Command {
-  enum ThreadSafety { THREAD_UNSAFE = 0, THREAD_SAFE = 1 };
-
-  std::string cmd;
-  std::string arg_type;
-  module_cmd_func_t func;
-
-  // If set to THREAD_SAFE, workers don't need to be paused in order to run
-  // this command.
-  ThreadSafety mt_safe;
-};
-
-using Commands = std::vector<struct Command>;
 
 // A class for managing modules of 'a particular type'.
 // Creates new modules and forwards module-specific commands.

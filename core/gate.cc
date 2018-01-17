@@ -38,12 +38,15 @@
 
 namespace bess {
 
+const GateHookCommands GateHook::cmds;
+
 bool GateHookFactory::RegisterGateHook(GateHook::constructor_t constructor,
+                                       const GateHookCommands &cmds,
                                        GateHook::init_func_t init_func,
                                        const std::string &hook_name) {
   return all_gate_hook_factories_holder()
       .emplace(std::piecewise_construct, std::forward_as_tuple(hook_name),
-               std::forward_as_tuple(constructor, init_func, hook_name))
+               std::forward_as_tuple(constructor, cmds, init_func, hook_name))
       .second;
 }
 
@@ -78,6 +81,7 @@ CommandResponse Gate::NewGateHook(const GateHookFactory *factory, Gate *gate,
     delete hook;
     return init_ret;
   }
+  hook->set_factory(factory);
   hook->set_arg(arg);
   hook->set_gate(gate);
   int ret = gate->AddHook(hook);
@@ -126,6 +130,29 @@ void Gate::RemoveHook(const std::string &name) {
       return;
     }
   }
+}
+
+// TODO(torek): combine (template) with ModuleBuilder::RunCommand
+CommandResponse GateHookFactory::RunCommand(
+    GateHook *hook, const std::string &user_cmd,
+    const google::protobuf::Any &arg) const {
+  Module *mod = hook->gate()->module();
+  for (auto &cmd : cmds_) {
+    if (user_cmd == cmd.cmd) {
+      if (cmd.mt_safe != GateHookCommand::THREAD_SAFE &&
+          mod->HasRunningWorker()) {
+        return CommandFailure(EBUSY,
+                              "There is a running worker and command "
+                              "'%s' is not MT safe",
+                              cmd.cmd.c_str());
+      }
+
+      return cmd.func(hook, arg);
+    }
+  }
+
+  return CommandFailure(ENOTSUP, "'%s' does not support command '%s'",
+                        hook_name_.c_str(), user_cmd.c_str());
 }
 
 void Gate::ClearHooks() {

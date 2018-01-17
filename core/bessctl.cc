@@ -1349,6 +1349,43 @@ class BESSControlImpl final : public BESSControl::Service {
     return Status::OK;
   }
 
+  Status GateHookCommand(ServerContext*, const GateHookCommandRequest* request,
+                         CommandResponse* response) override {
+    // No need to look up the hook factory: the gate either
+    // has a hook instance with the right name, or doesn't.
+    const bess::pb::GateHookInfo& rh = request->hook();
+    const auto& it = ModuleGraph::GetAllModules().find(rh.module_name());
+    if (it == ModuleGraph::GetAllModules().end()) {
+      return return_with_error(response, ENOENT, "No module '%s' found",
+                               rh.module_name().c_str());
+    }
+    Module* m = it->second;
+    bool is_igate = rh.gate_case() == bess::pb::GateHookInfo::kIgate;
+    gate_idx_t gate_idx = is_igate ? rh.igate() : rh.ogate();
+    bess::Gate* g = module_gate(m, is_igate, gate_idx);
+    if (m == nullptr) {
+      return return_with_error(
+          response, EINVAL, "%s: %cgate '%hu' does not exist",
+          m->name().c_str(), is_igate ? 'i' : 'o', gate_idx);
+    }
+
+    bess::GateHook* hook = g->FindHook(rh.hook_name());
+    if (hook == nullptr) {
+      return return_with_error(response, ENOENT,
+                               "%s: %cgate '%hu' has no hook named '%s'",
+                               m->name().c_str(), is_igate ? 'i' : 'o',
+                               gate_idx, rh.hook_name().c_str());
+    }
+
+    WorkerPauser wp;
+
+    // DPDK functions may be called, so be prepared
+    ctx.SetNonWorker();
+
+    *response = hook->RunCommand(request->cmd(), rh.arg());
+    return Status::OK;
+  }
+
   Status ConfigureResumeHook(ServerContext*,
                              const ConfigureResumeHookRequest* request,
                              CommandResponse* response) override {

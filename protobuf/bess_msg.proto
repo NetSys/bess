@@ -515,6 +515,11 @@ message ListGateHooksResponse {
   repeated GateHookInfo hooks = 2;
 }
 
+message GateHookCommandRequest {
+  GateHookInfo hook = 1;  // N.B.: this includes the command argument
+  string cmd = 2;
+}
+
 //  -------------------------------------------------------------------------
 //  Resume hooks
 //  -------------------------------------------------------------------------
