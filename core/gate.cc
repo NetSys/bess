@@ -124,7 +124,28 @@ void IGate::RemoveOgate(const OGate *og) {
 
 // Add internally-generated Track() hook to this ogate.
 void OGate::AddTrackHook() {
-  this->AddHook(new Track());
+  static const GateHookFactory *track_factory;
+  static google::protobuf::Any arg;
+
+  // If we haven't located the track hook factory yet, do that first.
+  if (track_factory == nullptr) {
+    const auto it =
+        bess::GateHookFactory::all_gate_hook_factories().find(Track::kName);
+    // Would like to use CHECK_NE here, but cannot because
+    // operator<< is not defined on the arguments.
+    if (it == bess::GateHookFactory::all_gate_hook_factories().end()) {
+      CHECK(0) << "track gate hook factory is missing";
+    }
+    track_factory = &it->second;
+
+    // A new Track() instance takes an argument that has a "bits" flag.
+    static bess::pb::TrackArg track_arg;
+    track_arg.set_bits(false);
+    arg.PackFrom(track_arg);
+  }
+  bess::GateHook *hook = track_factory->CreateGateHook();
+  track_factory->InitGateHook(hook, this, arg);
+  this->AddHook(hook);
 }
 
 void OGate::SetIgate(IGate *ig) {
