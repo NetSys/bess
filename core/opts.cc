@@ -52,6 +52,7 @@ DEFINE_bool(a, false, "Allow multiple instances");
 DEFINE_bool(no_huge, false, "Disable hugepages");
 DEFINE_string(modules, bess::bessd::GetCurrentDirectory() + "modules",
               "Load modules from the specified directory");
+DEFINE_bool(core_dump, false, "Generate a core dump on fatal faults");
 
 static bool ValidateCoreID(const char *, int32_t value) {
   if (!is_cpu_present(value)) {

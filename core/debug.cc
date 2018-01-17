@@ -56,6 +56,7 @@
 #include "packet.h"
 #include "scheduler.h"
 #include "traffic_class.h"
+#include "opts.h"
 #include "utils/format.h"
 
 namespace bess {
@@ -371,6 +372,10 @@ static bool SkipSymbol(char *symbol) {
   _exit(EXIT_FAILURE);
 }
 
+[[noreturn]] static void abort_failure() {
+  abort();
+}
+
 [[ gnu::noinline, noreturn ]] void GoPanic() {
   if (oops_msg == "")
     oops_msg = DumpStack();
@@ -384,8 +389,18 @@ static bool SkipSymbol(char *symbol) {
     // Ignore any errors.
   }
 
-  // The default failure function of glog calls abort(), which causes SIGABRT
-  google::InstallFailureFunction(exit_failure);
+  // Set SIGABRT back to the default to avoid catching the abort used to
+  // generate the core file.
+  struct sigaction sa;
+  memset(&sa, 0, sizeof(sa));
+  sa.sa_handler = SIG_DFL;
+  sigaction(SIGABRT, &sa, 0);
+
+  if (FLAGS_core_dump) {
+    google::InstallFailureFunction(abort_failure);
+  } else {
+    google::InstallFailureFunction(exit_failure);
+  }
   LOG(FATAL) << oops_msg;
 }
 
