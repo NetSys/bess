@@ -37,6 +37,10 @@ static const size_t kEthernetOverhead = 24;
 
 const std::string Track::kName = "track";
 
+const GateHookCommands Track::cmds = {{"reset", "EmptyArg",
+                                       GATE_HOOK_CMD_FUNC(&Track::CommandReset),
+                                       GateHookCommand::THREAD_UNSAFE}};
+
 Track::Track()
     : bess::GateHook(Track::kName, Track::kPriority),
       track_bytes_(),
@@ -46,6 +50,13 @@ Track::Track()
 
 CommandResponse Track::Init(const bess::Gate *, const bess::pb::TrackArg &arg) {
   track_bytes_ = arg.bits();
+  return CommandSuccess();
+}
+
+CommandResponse Track::CommandReset(const bess::pb::EmptyArg &) {
+  cnt_ = 0;
+  pkts_ = 0;
+  bytes_ = 0;
   return CommandSuccess();
 }
 
