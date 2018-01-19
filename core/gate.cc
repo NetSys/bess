@@ -79,6 +79,7 @@ CommandResponse Gate::NewGateHook(const GateHookFactory *factory, Gate *gate,
     return init_ret;
   }
   hook->set_arg(arg);
+  hook->set_gate(gate);
   int ret = gate->AddHook(hook);
   if (ret != 0) {
     delete hook;
