@@ -499,7 +499,7 @@ class BESS(object):
             request.hook.ogate = gate
         else:
             raise self.APIError('direction must be either "out" or "in"')
-        request.arg.Pack(arg)
+        request.hook.arg.Pack(arg)
         return self._request('ConfigureGateHook', request)
 
     def configure_resume_hook(self, hook, arg, enable=True):
