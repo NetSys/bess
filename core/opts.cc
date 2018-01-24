@@ -93,3 +93,19 @@ static bool ValidateMegabytesPerSocket(const char *, int32_t value) {
 DEFINE_int32(m, 1024, "Specifies how many megabytes to use per socket");
 static const bool _m_dummy[[maybe_unused]] =
     google::RegisterFlagValidator(&FLAGS_m, &ValidateMegabytesPerSocket);
+
+static bool ValidateBuffersPerSocket(const char *, int32_t value) {
+  if (value <= 0) {
+    LOG(ERROR) << "Invalid buffer count: " << value;
+    return false;
+  }
+  if (value % 512 != 0) {
+    LOG(ERROR) << "Number of buffers must be a multiple of 512: " << value;
+    return false;
+  }
+  return true;
+}
+DEFINE_int32(buffers, 262144, "Specifies how many buffers to allocate per socket,"
+	     " must be a multiple of 512");
+static const bool _buffers_dummy[[maybe_unused]] =
+    google::RegisterFlagValidator(&FLAGS_buffers, &ValidateBuffersPerSocket);

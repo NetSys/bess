@@ -68,11 +68,10 @@ static void packet_init(struct rte_mempool *mp, void *opaque_arg, void *_m,
 static void init_mempool_socket(int sid) {
   struct rte_pktmbuf_pool_private pool_priv;
   char name[256];
+  int current_try = FLAGS_buffers;
 
   const int num_mempool_cache = 512;
-  const int initial_try = 262144;
   const int minimum_try = 16384;
-  int current_try = initial_try;
 
   pool_priv.mbuf_data_room_size = SNBUF_HEADROOM + SNBUF_DATA;
   pool_priv.mbuf_priv_size = SNBUF_RESERVE;

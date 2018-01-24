@@ -135,7 +135,7 @@ static void init_eal(const char *prog_name, int mb_per_socket,
 
   if (no_huge) {
     rte_args.Append({"--no-huge"});
-    rte_args.Append({"-m", std::to_string(mb_per_socket)});
+    rte_args.Append({"-m", std::to_string(mb_per_socket * numa_count)});
   } else {
     std::string opt_socket_mem = std::to_string(mb_per_socket);
     for (int i = 1; i < numa_count; i++) {
