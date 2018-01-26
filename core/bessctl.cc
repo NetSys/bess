@@ -60,7 +60,6 @@
 #include "shared_obj.h"
 #include "traffic_class.h"
 #include "utils/ether.h"
-#include "utils/format.h"
 #include "utils/time.h"
 #include "worker.h"
 
@@ -1674,12 +1673,11 @@ class BESSControlImpl final : public BESSControl::Service {
 
 bool ApiServer::grpc_cb_set_ = false;
 
-void ApiServer::Listen(const std::string& host, int port) {
+void ApiServer::Listen(const std::string& addr) {
   if (!builder_) {
     builder_ = new grpc::ServerBuilder();
   }
 
-  std::string addr = bess::utils::Format("%s:%d", host.c_str(), port);
   LOG(INFO) << "Server listening on " << addr;
 
   builder_->AddListeningPort(addr, grpc::InsecureServerCredentials());

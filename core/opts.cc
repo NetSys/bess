@@ -75,12 +75,17 @@ static bool ValidateTCPPort(const char *, int32_t value) {
 
   return true;
 }
+DEFINE_string(grpc_url, "",
+              "Specifies the URL where the BESS gRPC server should listen. "
+              "If non empty, overrides -b and -p options.");
 DEFINE_string(b, kDefaultBindAddr,
               "Specifies the IP address of the interface the BESS gRPC server "
-              "should bind to");
+              "should bind to, if --grpc_url is empty. Deprecated, please use"
+              "--grpc_url instead");
 DEFINE_int32(
     p, kDefaultPort,
-    "Specifies the TCP port on which BESS listens for controller connections");
+    "Specifies the TCP port on which BESS listens for controller connections, "
+    "if --grpc_url is empty. Deprecated, please use --grpc_url instead");
 static const bool _p_dummy[[maybe_unused]] =
     google::RegisterFlagValidator(&FLAGS_p, &ValidateTCPPort);
 
