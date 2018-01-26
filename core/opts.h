@@ -44,6 +44,7 @@ DECLARE_string(b);
 DECLARE_int32(p);
 DECLARE_int32(m);
 DECLARE_bool(no_huge);
+DECLARE_bool(skip_root_check);
 DECLARE_string(modules);
 
 #endif  // BESS_OPTS_H_

@@ -50,6 +50,8 @@ DEFINE_bool(s, false, "Show TC statistics every second");
 DEFINE_bool(d, false, "Run BESS in debug mode (with debug log messages)");
 DEFINE_bool(a, false, "Allow multiple instances");
 DEFINE_bool(no_huge, false, "Disable hugepages");
+DEFINE_bool(skip_root_check, false,
+            "Skip checking that the process is running as root.");
 DEFINE_string(modules, bess::bessd::GetCurrentDirectory() + "modules",
               "Load modules from the specified directory");
 
