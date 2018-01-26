@@ -37,6 +37,7 @@
 #include <grpc++/server.h>
 #include <grpc/grpc.h>
 
+#include "commands.h"
 #include "message.h"
 #include "pktbatch.h"
 #include "utils/common.h"
@@ -59,6 +60,7 @@ static_assert(MAX_GATES < INVALID_GATE, "invalid macro value");
 static_assert(DROP_GATE <= MAX_GATES, "invalid macro value");
 
 class Gate;
+class GateHookFactory;
 
 // Gate hooks allow you to run arbitrary code on the packets flowing through a
 // gate before they get delievered to the upstream module.
@@ -71,7 +73,7 @@ class GateHook {
 
   explicit GateHook(const std::string &name, uint16_t priority = 0,
                     Gate *gate = nullptr)
-      : gate_(gate), name_(name), priority_(priority) {}
+      : gate_(gate), name_(name), priority_(priority), factory_() {}
 
   virtual ~GateHook() {}
 
@@ -89,9 +91,16 @@ class GateHook {
 
   virtual void ProcessBatch(const bess::PacketBatch *) {}
 
+  CommandResponse RunCommand(const std::string &cmd,
+                             const google::protobuf::Any &arg);
+
+  void set_factory(const GateHookFactory *factory) { factory_ = factory; }
+
   bool operator<(const GateHook &rhs) const {
     return std::tie(priority_, name_) < std::tie(rhs.priority_, rhs.name_);
   }
+
+  static const GateHookCommands cmds;
 
  protected:
   Gate *gate_;
@@ -99,6 +108,7 @@ class GateHook {
  private:
   const std::string &name_;
   const uint16_t priority_;
+  const GateHookFactory *factory_;
   google::protobuf::Any arg_;
 
   DISALLOW_COPY_AND_ASSIGN(GateHook);
@@ -108,12 +118,15 @@ class GateHook {
 class GateHookFactory {
  public:
   GateHookFactory(GateHook::constructor_t constructor,
-                  GateHook::init_func_t init_func, const std::string &hook_name)
+                  const GateHookCommands &cmds, GateHook::init_func_t init_func,
+                  const std::string &hook_name)
       : hook_constructor_(constructor),
+        cmds_(cmds),
         hook_init_func_(init_func),
         hook_name_(hook_name) {}
 
   static bool RegisterGateHook(GateHook::constructor_t constructor,
+                               const GateHookCommands &cmds,
                                GateHook::init_func_t init_func,
                                const std::string &hook_name);
 
@@ -123,19 +136,22 @@ class GateHookFactory {
   static const std::map<std::string, GateHookFactory>
       &all_gate_hook_factories();
 
-  GateHook *CreateGateHook() const { return hook_constructor_(); }
-
-  CommandResponse InitGateHook(GateHook *h, const Gate *g,
-                               const google::protobuf::Any &arg) const {
-    h->set_arg(arg);
-    return hook_init_func_(h, g, arg);
-  }
+  CommandResponse RunCommand(GateHook *hook, const std::string &user_cmd,
+                             const google::protobuf::Any &arg) const;
 
  private:
+  friend class Gate;
+
   GateHook::constructor_t hook_constructor_;
+  const GateHookCommands cmds_;
   GateHook::init_func_t hook_init_func_;
   std::string hook_name_;
 };
+
+inline CommandResponse GateHook::RunCommand(const std::string &cmd,
+                                            const google::protobuf::Any &arg) {
+  return factory_->RunCommand(this, cmd, arg);
+}
 
 // A class for gate, will be inherited for input gates and output gates
 class Gate {
@@ -150,8 +166,9 @@ class Gate {
 
   const std::vector<GateHook *> &hooks() const { return hooks_; }
 
-  // Inserts hook in priority order and returns 0 on success.
-  int AddHook(GateHook *hook);
+  // Creates, initializes, and then inserts gate hook in priority order.
+  CommandResponse NewGateHook(const GateHookFactory *factory, Gate *gate,
+                              bool is_igate, const google::protobuf::Any &arg);
 
   GateHook *FindHook(const std::string &name);
 
@@ -160,6 +177,11 @@ class Gate {
   void ClearHooks();
 
  private:
+  friend class GateTest;
+
+  // Inserts hook in priority order and returns 0 on success.
+  int AddHook(GateHook *hook);
+
   Module *module_;       // the module this gate belongs to
   gate_idx_t gate_idx_;  // input/output gate index of itself
 
@@ -202,6 +224,8 @@ class OGate : public Gate {
 
   gate_idx_t igate_idx() const { return igate_idx_; }
 
+  void AddTrackHook();
+
  private:
   Module *next_;          // next module connected with
   IGate *igate_;          // next igate connected with
@@ -210,6 +234,17 @@ class OGate : public Gate {
   DISALLOW_COPY_AND_ASSIGN(OGate);
 };
 }  // namespace bess
+
+template <typename T, typename H>
+static inline gate_hook_cmd_func_t GATE_HOOK_CMD_FUNC(
+    CommandResponse (H::*fn)(const T &)) {
+  return [fn](bess::GateHook *h, const google::protobuf::Any &arg) {
+    T arg_;
+    arg.UnpackTo(&arg_);
+    auto base_fn = std::mem_fn(fn);
+    return base_fn(static_cast<H *>(h), arg_);
+  };
+}
 
 template <typename H, typename A>
 static inline bess::GateHook::init_func_t InitGateHookWithGenericArg(
@@ -226,6 +261,6 @@ static inline bess::GateHook::init_func_t InitGateHookWithGenericArg(
 #define ADD_GATE_HOOK(_HOOK)                                           \
   bool __gate_hook__##_HOOK = bess::GateHookFactory::RegisterGateHook( \
       std::function<bess::GateHook *()>([]() { return new _HOOK(); }), \
-      InitGateHookWithGenericArg(&_HOOK::Init), _HOOK::kName);
+      _HOOK::cmds, InitGateHookWithGenericArg(&_HOOK::Init), _HOOK::kName);
 
 #endif  // BESS_GATE_H_

@@ -481,6 +481,49 @@ class BESS(object):
         else:
             return response
 
+    # It might be nice if we could name hook instances directly,
+    # rather than using <hook, module, direction, gate> tuples...
+    def run_gate_command(self, hook, mod, direction, gate, cmd, arg_type, arg):
+        request = bess_msg.GateHookCommandRequest()
+        request.hook.hook_name = hook
+        request.hook.module_name = mod
+        if direction == 'in':
+            request.hook.ogate = gate
+        elif direction == 'out' or direction is None:
+            request.hook.ogate = gate
+        else:
+            raise self.APIError('direction must be either "out" or "in"')
+        request.cmd = cmd
+
+        try:
+            message_type = getattr(module_pb, arg_type)
+        except AttributeError as e:
+            raise self.APIError('Unknown arg "%s"' % arg_type)
+
+        try:
+            arg_msg = pb_conv.dict_to_protobuf(message_type, arg)
+        except (KeyError, ValueError) as e:
+            raise self.APIError(e)
+
+        request.hook.arg.Pack(arg_msg)
+
+        try:
+            response = self._request('GateHookCommand', request)
+        except self.Error as e:
+            e.info.update(hook_name=hook, module_name=mod, direction=direction,
+                          gate=gate, command=cmd, command_arg=arg)
+            raise
+
+        if response.HasField('data'):
+            response_type_str = response.data.type_url.split('.')[-1]
+            response_type = getattr(module_pb, response_type_str,
+                                    module_msg.EmptyArg)
+            result = response_type()
+            response.data.Unpack(result)
+            return result
+        else:
+            return response
+
     def _configure_gate_hook(self, hook, module,
                              arg, enable=None, direction=None, gate=None):
         if gate is None:

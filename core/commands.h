@@ -1,5 +1,5 @@
 // Copyright (c) 2014-2016, The Regents of the University of California.
-// Copyright (c) 2016-2017, Nefeli Networks, Inc.
+// Copyright (c) 2016-2018, Nefeli Networks, Inc.
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -28,41 +28,50 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef BESS_GATE_HOOKS_TRACK_
-#define BESS_GATE_HOOKS_TRACK_
+#ifndef BESS_COMMANDS_H_
+#define BESS_COMMANDS_H_
 
-#include "../message.h"
-#include "../module.h"
+#include <vector>
 
-// TrackGate counts the number of packets, batches and bytes seen by a gate.
-class Track final : public bess::GateHook {
- public:
-  Track();
+#include "message.h"
 
-  static const GateHookCommands cmds;
+// TODO(torek): refactor; instead of "module command" and "gate command"
+// we should just have "command".  The constraint right now is that the
+// commands to a module or gate-hook instance are redirected through
+// the underlying builder (module) or factory (gate-hook), which
+// get in the way here.
 
-  CommandResponse Init(const bess::Gate *, const bess::pb::TrackArg &);
+class Module;
+namespace bess {
+class GateHook;
+};  // namespace bess
 
-  uint64_t cnt() const { return cnt_; }
+using module_cmd_func_t =
+    pb_func_t<CommandResponse, Module, google::protobuf::Any>;
+using gate_hook_cmd_func_t =
+    pb_func_t<CommandResponse, bess::GateHook, google::protobuf::Any>;
 
-  uint64_t pkts() const { return pkts_; }
+// Describes a single command that can be issued to a module
+// or gate hook (according to cmd_func_t).
+template <typename cmd_func_t>
+struct GenericCommand {
+  enum ThreadSafety { THREAD_UNSAFE = 0, THREAD_SAFE = 1 };
 
-  uint64_t bytes() const { return bytes_; }
+  std::string cmd;
+  std::string arg_type;
+  cmd_func_t func;
 
-  void set_track_bytes(bool track) { track_bytes_ = track; }
-
-  void ProcessBatch(const bess::PacketBatch *batch);
-
-  CommandResponse CommandReset(const bess::pb::EmptyArg &);
-
-  static constexpr uint16_t kPriority = 0;
-  static const std::string kName;
-
- private:
-  bool track_bytes_;
-  uint64_t cnt_;
-  uint64_t pkts_;
-  uint64_t bytes_;
+  // If set to THREAD_SAFE, workers don't need to be paused in order to run
+  // this command.
+  ThreadSafety mt_safe;
 };
 
-#endif  // BESS_GATE_HOOKS_TRACK_
+// Command and Commands are specifically *module* commands - these should
+// be ModuleCommand and ModuleCommands, but they got there first.
+using Command = GenericCommand<module_cmd_func_t>;
+using Commands = std::vector<Command>;
+
+using GateHookCommand = GenericCommand<gate_hook_cmd_func_t>;
+using GateHookCommands = std::vector<GateHookCommand>;
+
+#endif  // BESS_COMMANDS_H_

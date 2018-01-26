@@ -343,12 +343,12 @@ def get_var_attrs(cli, var_token, partial_word):
             var_candidates = complete_filename(partial_word, suffix='.so',
                                                skip_suffix=True)
 
-        elif var_token == '[DIRECTION]':
+        elif var_token in ('[DIRECTION]', 'DIRECTION'):
             var_type = 'dir'
             var_desc = 'gate direction discriminator (default "out")'
             var_candidates = ['in', 'out']
 
-        elif var_token == '[GATE]':
+        elif var_token in ('[GATE]', 'GATE'):
             var_type = 'gate'
             var_desc = 'gate index of a module'
 
@@ -1936,6 +1936,16 @@ def track_module(cli, flag, module_name, direction, gate):
      'Count the packets, batches, and bits on specified or all gates')
 def track_module_bits(cli, flag, module_name, direction, gate):
     _track_module(cli, True, flag, module_name, direction, gate)
+
+# really should support "all gates" but that requires that we
+# iterate over all gates
+
+
+@cmd('track reset MODULE DIRECTION GATE',
+     'Reset counts of packets, batches, and bits on specified gate')
+def track_reset(cli, module_name, direction, gate):
+    cli.bess.run_gate_command('track', module_name, direction, gate, 'reset',
+                              'EmptyArg', {})
 
 
 @cmd('interactive', 'Switch to interactive mode')

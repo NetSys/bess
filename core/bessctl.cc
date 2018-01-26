@@ -91,48 +91,30 @@ static inline Status return_with_errno(T* response, int code) {
   return Status::OK;
 }
 
+static inline bess::Gate* module_gate(const Module* m, bool is_igate,
+                                      gate_idx_t gate_idx) {
+  if (is_igate) {
+    if (is_active_gate(m->igates(), gate_idx)) {
+      return m->igates()[gate_idx];
+    }
+  } else {
+    if (is_active_gate(m->ogates(), gate_idx)) {
+      return m->ogates()[gate_idx];
+    }
+  }
+  return nullptr;
+}
+
 static CommandResponse enable_hook_for_module(
     const Module* m, gate_idx_t gate_idx, bool is_igate, bool use_gate,
     const bess::GateHookFactory& factory, const google::protobuf::Any& arg) {
-  int ret;
-
   if (use_gate) {
-    bess::Gate* gate = nullptr;
-    if (is_igate) {
-      if (!is_active_gate(m->igates(), gate_idx)) {
-        return CommandFailure(EINVAL, "Input gate '%hu' does not exist",
-                              gate_idx);
-      }
-      gate = m->igates()[gate_idx];
-      bess::GateHook* hook = factory.CreateGateHook();
-      CommandResponse init_ret = factory.InitGateHook(hook, gate, arg);
-      if (init_ret.error().code() != 0) {
-        delete hook;
-        return init_ret;
-      }
-      if ((ret = gate->AddHook(hook))) {
-        return CommandFailure(ret, "Failed to track input gate '%hu'",
-                              gate_idx);
-      }
-    } else {
-      if (!is_active_gate(m->ogates(), gate_idx)) {
-        return CommandFailure(EINVAL, "Output gate '%hu' does not exist",
-                              gate_idx);
-      }
-      gate = m->ogates()[gate_idx];
-      bess::GateHook* hook = factory.CreateGateHook();
-      CommandResponse init_ret = factory.InitGateHook(hook, gate, arg);
-      if (init_ret.error().code() != 0) {
-        delete hook;
-        return init_ret;
-      }
-      if ((ret = gate->AddHook(hook))) {
-        delete hook;
-        return CommandFailure(ret, "Failed to track output gate '%hu'",
-                              gate_idx);
-      }
+    bess::Gate* gate = module_gate(m, is_igate, gate_idx);
+    if (gate == nullptr) {
+      return CommandFailure(EINVAL, "'%s': %cgate '%hu' does not exist",
+                            m->name().c_str(), is_igate ? 'i' : 'o', gate_idx);
     }
-    return CommandSuccess();
+    return gate->NewGateHook(&factory, gate, is_igate, arg);
   }
 
   if (is_igate) {
@@ -140,16 +122,9 @@ static CommandResponse enable_hook_for_module(
       if (!gate) {
         continue;
       }
-      bess::GateHook* hook = factory.CreateGateHook();
-      CommandResponse init_ret = factory.InitGateHook(hook, gate, arg);
-      if (init_ret.error().code() != 0) {
-        delete hook;
-        return init_ret;
-      }
-      if ((ret = gate->AddHook(hook))) {
-        delete hook;
-        return CommandFailure(ret, "Failed to track input gate '%hu'",
-                              gate->gate_idx());
+      CommandResponse ret = gate->NewGateHook(&factory, gate, is_igate, arg);
+      if (ret.error().code() != 0) {
+        return ret;
       }
     }
   } else {
@@ -157,16 +132,9 @@ static CommandResponse enable_hook_for_module(
       if (!gate) {
         continue;
       }
-      bess::GateHook* hook = factory.CreateGateHook();
-      CommandResponse init_ret = factory.InitGateHook(hook, gate, arg);
-      if (init_ret.error().code() != 0) {
-        delete hook;
-        return init_ret;
-      }
-      if ((ret = gate->AddHook(hook))) {
-        delete hook;
-        return CommandFailure(ret, "Failed to track output gate '%hu'",
-                              gate->gate_idx());
+      CommandResponse ret = gate->NewGateHook(&factory, gate, is_igate, arg);
+      if (ret.error().code() != 0) {
+        return ret;
       }
     }
   }
@@ -178,22 +146,12 @@ static CommandResponse disable_hook_for_module(const Module* m,
                                                bool is_igate, bool use_gate,
                                                const std::string& hook) {
   if (use_gate) {
-    if (!is_igate && !is_active_gate(m->ogates(), gate_idx)) {
-      return CommandFailure(EINVAL, "Output gate '%hu' does not exist",
-                            gate_idx);
+    bess::Gate* gate = module_gate(m, is_igate, gate_idx);
+    if (gate == nullptr) {
+      return CommandFailure(EINVAL, "'%s': %cgate '%hu' does not exist",
+                            m->name().c_str(), is_igate ? 'i' : 'o', gate_idx);
     }
-
-    if (is_igate && !is_active_gate(m->igates(), gate_idx)) {
-      return CommandFailure(EINVAL, "Input gate '%hu' does not exist",
-                            gate_idx);
-    }
-
-    if (is_igate) {
-      m->igates()[gate_idx]->RemoveHook(hook);
-      return CommandSuccess();
-    }
-
-    m->ogates()[gate_idx]->RemoveHook(hook);
+    gate->RemoveHook(hook);
     return CommandSuccess();
   }
 
@@ -1388,6 +1346,43 @@ class BESSControlImpl final : public BESSControl::Service {
                                   request->hook().hook_name());
     }
 
+    return Status::OK;
+  }
+
+  Status GateHookCommand(ServerContext*, const GateHookCommandRequest* request,
+                         CommandResponse* response) override {
+    // No need to look up the hook factory: the gate either
+    // has a hook instance with the right name, or doesn't.
+    const bess::pb::GateHookInfo& rh = request->hook();
+    const auto& it = ModuleGraph::GetAllModules().find(rh.module_name());
+    if (it == ModuleGraph::GetAllModules().end()) {
+      return return_with_error(response, ENOENT, "No module '%s' found",
+                               rh.module_name().c_str());
+    }
+    Module* m = it->second;
+    bool is_igate = rh.gate_case() == bess::pb::GateHookInfo::kIgate;
+    gate_idx_t gate_idx = is_igate ? rh.igate() : rh.ogate();
+    bess::Gate* g = module_gate(m, is_igate, gate_idx);
+    if (m == nullptr) {
+      return return_with_error(
+          response, EINVAL, "%s: %cgate '%hu' does not exist",
+          m->name().c_str(), is_igate ? 'i' : 'o', gate_idx);
+    }
+
+    bess::GateHook* hook = g->FindHook(rh.hook_name());
+    if (hook == nullptr) {
+      return return_with_error(response, ENOENT,
+                               "%s: %cgate '%hu' has no hook named '%s'",
+                               m->name().c_str(), is_igate ? 'i' : 'o',
+                               gate_idx, rh.hook_name().c_str());
+    }
+
+    WorkerPauser wp;
+
+    // DPDK functions may be called, so be prepared
+    ctx.SetNonWorker();
+
+    *response = hook->RunCommand(request->cmd(), rh.arg());
     return Status::OK;
   }
 
