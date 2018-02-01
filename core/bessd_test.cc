@@ -233,6 +233,7 @@ TEST(TryAcquirePidfileLock, AlreadyHeld) {
 // Checks that file locking dies when another process is holding the lock but
 // we're not able to read the pid.
 TEST(TryAcquirePidfileLock, AlreadyHeldPidReadFails) {
+  ::testing::FLAGS_gtest_death_test_style = "fast";
   DO_MULTI_PROCESS_TEST(
       {
         int fd = open(kTestLockFilePath, O_RDWR | O_CREAT, 0644);
@@ -264,6 +265,7 @@ TEST(CheckUniqueInstance, BadPidfilePath) {
 // Checks that the combined routine to check for a unique instance works when
 // the lock isn't held.
 TEST(CheckUniqueInstance, NotHeld) {
+  ::testing::FLAGS_gtest_death_test_style = "fast";
   ASSERT_NO_FATAL_FAILURE(CheckUniqueInstance(kTestLockFilePath));
 
   // Release lock for later tests.
@@ -277,6 +279,7 @@ TEST(CheckUniqueInstance, NotHeld) {
 // properly when the lock is already held.
 TEST(CheckUniqueInstance, Held) {
   DO_MULTI_PROCESS_TEST({ CheckUniqueInstance(kTestLockFilePath); },
+  ::testing::FLAGS_gtest_death_test_style = "fast";
                         {
                           EXPECT_DEATH(CheckUniqueInstance(kTestLockFilePath),
                                        "");
@@ -288,6 +291,7 @@ TEST(CheckUniqueInstance, Held) {
 // Checks that the combined routine to check for a unique instance attempts to
 // kill the child process if -k is set.
 TEST(CheckUniqueInstance, HeldKillCurrentHolder) {
+  ::testing::FLAGS_gtest_death_test_style = "fast";
   // Set the command-line arg for -k.
   FLAGS_k = true;
 
