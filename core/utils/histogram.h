@@ -31,6 +31,7 @@
 #ifndef BESS_UTILS_HISTOGRAM_H_
 #define BESS_UTILS_HISTOGRAM_H_
 
+#include <algorithm>
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
@@ -134,11 +135,29 @@ class Histogram {
     return ret;
   }
 
+  size_t num_buckets() const { return buckets_.size(); }
+  T bucket_width() const { return bucket_width_; }
+
+  size_t max_num_buckets() const {
+    // This constant is mainly to keep resets to a reasonable speed.
+    const size_t max_buckets = 10'000'000;
+    return std::min(max_buckets, buckets_.max_size());
+  }
+
   // Resets all counters, and the count of such counters.
   // Note that the number of buckets remains unchanged.
   void Reset() {
     count_ = 0;
     std::fill(buckets_.begin(), buckets_.end(), T());
+  }
+
+  // Resize the histogram.  Note that this resets it (i.e., this
+  // does not attempt to redistribute existing counts).
+  void Resize(size_t num_buckets, T bucket_width) {
+    buckets_.clear();
+    buckets_.resize(num_buckets + 1);
+    bucket_width_ = bucket_width;
+    count_ = 0;
   }
 
  private:

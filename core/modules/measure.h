@@ -39,10 +39,10 @@
 
 class Measure final : public Module {
  public:
-  Measure()
+  Measure(uint64_t ns_per_bucket = 1, uint64_t max_ns = 0)
       : Module(),
-        rtt_hist_(kBuckets, kBucketWidth),
-        jitter_hist_(kBuckets, kBucketWidth),
+        rtt_hist_(max_ns / ns_per_bucket, ns_per_bucket),
+        jitter_hist_(max_ns / ns_per_bucket, ns_per_bucket),
         rand_(),
         jitter_sample_prob_(),
         last_rtt_ns_(),
@@ -63,8 +63,8 @@ class Measure final : public Module {
   static const Commands cmds;
 
  private:
-  static const uint64_t kBucketWidth = 100;  // Measure in 100 ns units
-  static const uint64_t kBuckets = 1000000;
+  static const uint64_t kDefaultNsPerBucket = 100;
+  static const uint64_t kDefaultMaxNs = 100'000'000;  // 100 ms
   static constexpr double kDefaultIpDvSampleProb = 0.05;
 
   void Clear();
