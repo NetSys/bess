@@ -1265,6 +1265,9 @@ class BESSControlImpl final : public BESSControl::Service {
     for (const auto& pair : ModuleGraph::GetAllModules()) {
       const Module* m = pair.second;
       for (auto& gate : m->igates()) {
+        if (!gate) {
+          continue;
+        }
         for (auto& hook : gate->hooks()) {
           GateHookInfo* info = response->add_hooks();
           info->set_hook_name(hook->name());
@@ -1274,6 +1277,9 @@ class BESSControlImpl final : public BESSControl::Service {
         }
       }
       for (auto& gate : m->ogates()) {
+        if (!gate) {
+          continue;
+        }
         for (auto& hook : gate->hooks()) {
           GateHookInfo* info = response->add_hooks();
           info->set_hook_name(hook->name());
