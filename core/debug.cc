@@ -380,13 +380,15 @@ static bool SkipSymbol(char *symbol) {
   if (oops_msg == "")
     oops_msg = DumpStack();
 
-  // Create a crash log file
-  try {
-    std::ofstream fp(P_tmpdir "/bessd_crash.log");
-    fp << oops_msg;
-    fp.close();
-  } catch (...) {
-    // Ignore any errors.
+  // Create a crash log file if we are not dropping a core file.
+  if (!FLAGS_core_dump) {
+    try {
+      std::ofstream fp(P_tmpdir "/bessd_crash.log");
+      fp << oops_msg;
+      fp.close();
+    } catch (...) {
+      // Ignore any errors.
+    }
   }
 
   // Set SIGABRT back to the default to avoid catching the abort used to
