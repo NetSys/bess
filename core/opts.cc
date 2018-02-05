@@ -35,6 +35,7 @@
 
 #include "bessd.h"
 #include "worker.h"
+#include "packet.h"
 
 // Port this BESS instance listens on.
 // Panda came up with this default number
@@ -95,17 +96,22 @@ static const bool _m_dummy[[maybe_unused]] =
     google::RegisterFlagValidator(&FLAGS_m, &ValidateMegabytesPerSocket);
 
 static bool ValidateBuffersPerSocket(const char *, int32_t value) {
-  if (value <= 0) {
-    LOG(ERROR) << "Invalid buffer count: " << value;
+  if (value < bess::minimum_try) {
+    LOG(ERROR) << "Invalid buffer count: " << value <<
+      " must be >= " << bess::minimum_try;
     return false;
   }
-  if (value % 512 != 0) {
-    LOG(ERROR) << "Number of buffers must be a multiple of 512: " << value;
-    return false;
+  int32_t check = value;
+  while (check != 1) {
+    if (check % 2 != 0) {
+      LOG(ERROR) << "Number of buffers must be a power of 2: " << value;
+      return false;
+    }
+    check = check / 2;
   }
   return true;
 }
 DEFINE_int32(buffers, 262144, "Specifies how many buffers to allocate per socket,"
-	     " must be a multiple of 512");
+	     " must be a power of 2.");
 static const bool _buffers_dummy[[maybe_unused]] =
     google::RegisterFlagValidator(&FLAGS_buffers, &ValidateBuffersPerSocket);

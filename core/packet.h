@@ -60,6 +60,8 @@ static_assert(SNBUF_SCRATCHPAD_OFF == 320,
 
 namespace bess {
 
+const int minimum_try = 16384; // For packet buffer allocation.
+
 class Packet;
 
 static inline Packet *__packet_alloc_pool(struct rte_mempool *pool) {
