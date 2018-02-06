@@ -38,8 +38,8 @@ class ServerBuilder;
 
 // gRPC server encapsulation. Usage:
 //   ApiServer server;
-//   server.Listen('0.0.0.0', 777);
-//   server.Listen('127.0.0.1', 888);
+//   server.Listen('0.0.0.0:777');
+//   server.Listen('127.0.0.1:888');
 //   server.run();
 class ApiServer {
  public:
@@ -49,8 +49,8 @@ class ApiServer {
   ApiServer(const ApiServer &) = delete;
   ApiServer &operator=(const ApiServer &) = delete;
 
-  // Adds a host:port pair. host can be an ipv6 address.
-  void Listen(const std::string &host, int port);
+  // `addr` is a gRPC url.
+  void Listen(const std::string &addr);
 
   // Runs the API server until it is shutdown by KillBess RPC.
   void Run();

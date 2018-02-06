@@ -50,6 +50,8 @@ DEFINE_bool(s, false, "Show TC statistics every second");
 DEFINE_bool(d, false, "Run BESS in debug mode (with debug log messages)");
 DEFINE_bool(a, false, "Allow multiple instances");
 DEFINE_bool(no_huge, false, "Disable hugepages");
+DEFINE_bool(skip_root_check, false,
+            "Skip checking that the process is running as root.");
 DEFINE_string(modules, bess::bessd::GetCurrentDirectory() + "modules",
               "Load modules from the specified directory");
 
@@ -73,12 +75,17 @@ static bool ValidateTCPPort(const char *, int32_t value) {
 
   return true;
 }
+DEFINE_string(grpc_url, "",
+              "Specifies the URL where the BESS gRPC server should listen. "
+              "If non empty, overrides -b and -p options.");
 DEFINE_string(b, kDefaultBindAddr,
               "Specifies the IP address of the interface the BESS gRPC server "
-              "should bind to");
+              "should bind to, if --grpc_url is empty. Deprecated, please use"
+              "--grpc_url instead");
 DEFINE_int32(
     p, kDefaultPort,
-    "Specifies the TCP port on which BESS listens for controller connections");
+    "Specifies the TCP port on which BESS listens for controller connections, "
+    "if --grpc_url is empty. Deprecated, please use --grpc_url instead");
 static const bool _p_dummy[[maybe_unused]] =
     google::RegisterFlagValidator(&FLAGS_p, &ValidateTCPPort);
 

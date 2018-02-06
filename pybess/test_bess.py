@@ -65,6 +65,7 @@ class TestBESS(unittest.TestCase):
     # Do not use BESS.DEF_PORT (== 10514), as it might be being used by
     # a real bessd process.
     PORT = 19876
+    GRPC_URL = 'localhost:' + str(PORT)
 
     @classmethod
     def setUpClass(cls):
@@ -83,7 +84,7 @@ class TestBESS(unittest.TestCase):
 
     def test_connect(self):
         client = bess.BESS()
-        client.connect(port=self.PORT)
+        client.connect(grpc_url=self.GRPC_URL)
         time.sleep(0.1)
         self.assertEqual(True, client.is_connected())
 
@@ -93,21 +94,21 @@ class TestBESS(unittest.TestCase):
 
     def test_kill(self):
         client = bess.BESS()
-        client.connect(port=self.PORT)
+        client.connect(grpc_url=self.GRPC_URL)
 
         response = client.kill(block=False)
         self.assertEqual(0, response.error.code)
 
     def test_list_modules(self):
         client = bess.BESS()
-        client.connect(port=self.PORT)
+        client.connect(grpc_url=self.GRPC_URL)
 
         response = client.list_modules()
         self.assertEqual(0, response.error.code)
 
     def test_create_port(self):
         client = bess.BESS()
-        client.connect(port=self.PORT)
+        client.connect(grpc_url=self.GRPC_URL)
 
         response = client.create_port('PCAPPort', 'p0', {'dev': 'rnd'})
         self.assertEqual(0, response.error.code)
@@ -139,7 +140,7 @@ class TestBESS(unittest.TestCase):
 
     def test_run_module_command(self):
         client = bess.BESS()
-        client.connect(port=self.PORT)
+        client.connect(grpc_url=self.GRPC_URL)
 
         response = client.run_module_command('m1',
                                              'add',
