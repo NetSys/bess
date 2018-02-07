@@ -47,6 +47,8 @@ DECLARE_int32(m);
 DECLARE_bool(no_huge);
 DECLARE_bool(skip_root_check);
 DECLARE_string(modules);
+DECLARE_bool(core_dump);
+DECLARE_bool(no_crashlog);
 DECLARE_int32(buffers);
 
 #endif  // BESS_OPTS_H_
