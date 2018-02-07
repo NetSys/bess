@@ -152,6 +152,7 @@ class BESS(object):
         pass
 
     DEF_PORT = 10514
+    DEF_GRPC_URL = "localhost:" + str(DEF_PORT)
     BROKEN_CHANNEL = "AbnormalDisconnection"
 
     def __init__(self):
@@ -182,16 +183,16 @@ class BESS(object):
         else:
             self.status = connectivity
 
-    def connect(self, host='localhost', port=DEF_PORT):
+    def connect(self, grpc_url=DEF_GRPC_URL):
         if self.debug:
-            print('Connecting to %s:%d' % (host, port))
+            print('Connecting to ' + grpc_url)
 
         if self.is_connected():
             raise self.APIError('Already connected')
 
         self.status = None
-        self.peer = (host, port)
-        self.channel = grpc.insecure_channel('%s:%d' % (host, port))
+        self.peer = grpc_url
+        self.channel = grpc.insecure_channel(grpc_url)
         self.channel.subscribe(self._update_status, try_to_connect=True)
         self.stub = service_pb2.BESSControlStub(self.channel)
 
@@ -201,7 +202,7 @@ class BESS(object):
                                self.BROKEN_CHANNEL]:
                 self.disconnect()
                 raise self.APIError(
-                    'Connection to %s:%d failed' % (host, port))
+                    'Connection to {} failed'.format(grpc_url))
             time.sleep(0.1)
 
     # returns no error if already disconnected

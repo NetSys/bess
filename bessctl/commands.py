@@ -395,13 +395,9 @@ def get_var_attrs(cli, var_token, partial_word):
             var_type = 'opts'
             var_desc = 'bess daemon command-line options (see "bessd -h")'
 
-        elif var_token == '[HOST]':
-            var_type = 'host'
-            var_desc = 'host address'
-
-        elif var_token == '[TCP_PORT]':
-            var_type = 'int'
-            var_desc = 'TCP port'
+        elif var_token == '[GRPC_URL]':
+            var_type = 'filename'
+            var_desc = 'gRPC url'
 
         elif var_token == '[PAUSE_WORKERS]':
             var_type = 'pause_workers'
@@ -595,15 +591,12 @@ def debug(cli, flag):
     cli.bess.set_debug(flag == 'enable')
 
 
-@cmd('daemon connect [HOST] [TCP_PORT]', 'Connect to BESS daemon')
-def daemon_connect(cli, host, port):
+@cmd('daemon connect [GRPC_URL]', 'Connect to BESS daemon')
+def daemon_connect(cli, grpc_url):
     kwargs = {}
 
-    if host:
-        kwargs['host'] = host
-
-    if port:
-        kwargs['port'] = port
+    if grpc_url:
+        kwargs['grpc_url'] = grpc_url
 
     cli.bess.connect(**kwargs)
 

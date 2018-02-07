@@ -85,8 +85,8 @@ class BESSCLI(cli.CLI):
         return [self]
 
     def _handle_broken_connection(self):
-        host = self.bess.peer[0]
-        if host == 'localhost' or self.bess.peer[0].startswith('127.'):
+        peer = self.bess.peer
+        if peer.startswith('localhost') or peer.startswith('127.'):
             self._print_crashlog()
         self.bess.disconnect()
 
@@ -99,8 +99,8 @@ class BESSCLI(cli.CLI):
             raise self.HandledError()
 
         except self.bess.RPCError as e:
-            self.err('RPC failed to {}:{} - {}'.format(
-                self.bess.peer[0], self.bess.peer[1], str(e)))
+            self.err('RPC failed to  - {}'.format(
+                self.bess.peer, str(e)))
 
             self._handle_broken_connection()
             raise self.HandledError()
@@ -136,7 +136,7 @@ class BESSCLI(cli.CLI):
 
     def get_prompt(self):
         if self.bess.is_connected():
-            return '%s:%d $ ' % self.bess.peer
+            return '{} $ '.format(self.bess.peer)
 
         if self.bess.is_connection_broken():
             self._handle_broken_connection()

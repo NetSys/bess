@@ -45,7 +45,32 @@
 namespace bess {
 namespace bessd {
 
-static const char *kTestLockFilePath = "/tmp/tryacquirepidfilelocktest.log";
+// Create a unique temporary filename without creating the file.
+// This is accomplished by creating a temporary directory.
+class TmpFileName final {
+ public:
+  TmpFileName() {
+    char dir[] = "/tmp/testbessdXXXXXX";
+    char *res = mkdtemp(dir);
+    CHECK_NOTNULL(res);
+    directory_ = res;
+    filename_ = directory_ + "/tryacquirepidfilelocktest.log";
+  }
+
+  ~TmpFileName() { rmdir(directory_.c_str()); }
+
+  TmpFileName(const TmpFileName &) = delete;
+
+  // The user is responsible for creating and eventually deleting the file.
+  const char *filename() const { return filename_.c_str(); }
+
+ private:
+  // Temporary directory that contains the temporary file. This is created
+  // by this class and will be removed by this class on exit.
+  std::string directory_;
+  // Temporary unique file name
+  std::string filename_;
+};
 
 // Executes CHILD before PARENT, then once PARENT completes, signals
 // the child and waits for its exit code, which we expect to be SIGNAL.
@@ -134,17 +159,18 @@ TEST(CheckRunningAsRoot, NonRoot) {
 // Checks that we can write out and read in a pid value to/from a good file.
 TEST(WriteAndReadPidFile, GoodFile) {
   pid_t pid = getpid();
+  TmpFileName t;
 
   // Write to the file.
   {
-    unique_fd fd(open(kTestLockFilePath, O_RDWR | O_CREAT, 0644));
+    unique_fd fd(open(t.filename(), O_RDWR | O_CREAT, 0644));
 
     WritePidfile(fd.get(), pid);
   }
 
   // Read from the file.
   {
-    unique_fd fd(open(kTestLockFilePath, O_RDONLY));
+    unique_fd fd(open(t.filename(), O_RDONLY));
 
     bool success;
     pid_t readpid;
@@ -153,7 +179,7 @@ TEST(WriteAndReadPidFile, GoodFile) {
     EXPECT_EQ(pid, readpid);
   }
 
-  unlink(kTestLockFilePath);
+  unlink(t.filename());
 }
 
 // Checks that we fail to write a pid value to a bad file.
@@ -190,33 +216,35 @@ TEST(TryAcquirePidfileLock, BadFd) {
 
 // Checks that trying to acquire a pidfile lock on a new temporary file is fine.
 TEST(TryAcquirePidfileLock, GoodFd) {
-  unique_fd fd(open(kTestLockFilePath, O_RDWR | O_CREAT, 0644));
+  TmpFileName t;
+  unique_fd fd(open(t.filename(), O_RDWR | O_CREAT, 0644));
 
   bool lockacquired;
   pid_t pid;
   std::tie(lockacquired, pid) = TryAcquirePidfileLock(fd.get());
   EXPECT_TRUE(lockacquired) << "Lock already held by pid " << pid;
 
-  unlink(kTestLockFilePath);
+  unlink(t.filename());
 }
 
 // Checks that file locking fails when another process is holding the lock.
 TEST(TryAcquirePidfileLock, AlreadyHeld) {
+  TmpFileName t;
   DO_MULTI_PROCESS_TEST(
       {
         {
           pid_t pid = getpid();
-          unique_fd fd(open(kTestLockFilePath, O_RDWR | O_CREAT, 0644));
+          unique_fd fd(open(t.filename(), O_RDWR | O_CREAT, 0644));
 
           WritePidfile(fd.get(), pid);
         }
 
-        int fd = open(kTestLockFilePath, O_RDWR | O_CREAT, 0644);
+        int fd = open(t.filename(), O_RDWR | O_CREAT, 0644);
         ASSERT_EQ(0, flock(fd, LOCK_EX | LOCK_NB))
             << "Couldn't acquire file lock for test.";
       },
       {
-        unique_fd fd(open(kTestLockFilePath, O_RDWR | O_CREAT, 0644));
+        unique_fd fd(open(t.filename(), O_RDWR | O_CREAT, 0644));
 
         bool lockacquired;
         pid_t pid;
@@ -225,7 +253,7 @@ TEST(TryAcquirePidfileLock, AlreadyHeld) {
         EXPECT_FALSE(lockacquired);
         EXPECT_EQ(childpid, pid);
 
-        unlink(kTestLockFilePath);
+        unlink(t.filename());
       },
       0);
 }
@@ -233,20 +261,22 @@ TEST(TryAcquirePidfileLock, AlreadyHeld) {
 // Checks that file locking dies when another process is holding the lock but
 // we're not able to read the pid.
 TEST(TryAcquirePidfileLock, AlreadyHeldPidReadFails) {
+  ::testing::FLAGS_gtest_death_test_style = "fast";
+  TmpFileName t;
   DO_MULTI_PROCESS_TEST(
       {
-        int fd = open(kTestLockFilePath, O_RDWR | O_CREAT, 0644);
+        int fd = open(t.filename(), O_RDWR | O_CREAT, 0644);
         ASSERT_EQ(0, flock(fd, LOCK_EX | LOCK_NB))
             << "Couldn't acquire file lock for test.";
       },
       {
-        unique_fd fd(open(kTestLockFilePath, O_RDWR | O_CREAT, 0644));
+        unique_fd fd(open(t.filename(), O_RDWR | O_CREAT, 0644));
 
         bool lockacquired;
         pid_t pid;
         EXPECT_DEATH(
             std::tie(lockacquired, pid) = TryAcquirePidfileLock(fd.get()), "");
-        unlink(kTestLockFilePath);
+        unlink(t.filename());
       },
       0);
 }
@@ -264,23 +294,26 @@ TEST(CheckUniqueInstance, BadPidfilePath) {
 // Checks that the combined routine to check for a unique instance works when
 // the lock isn't held.
 TEST(CheckUniqueInstance, NotHeld) {
-  ASSERT_NO_FATAL_FAILURE(CheckUniqueInstance(kTestLockFilePath));
+  ::testing::FLAGS_gtest_death_test_style = "fast";
+  TmpFileName t;
+  ASSERT_NO_FATAL_FAILURE(CheckUniqueInstance(t.filename()));
 
   // Release lock for later tests.
-  int fd = open(kTestLockFilePath, O_RDWR | O_CREAT, 0644);
+  int fd = open(t.filename(), O_RDWR | O_CREAT, 0644);
   flock(fd, LOCK_UN);
   close(fd);
-  unlink(kTestLockFilePath);
+  unlink(t.filename());
 }
 
 // Checks that the combined routine to check for a unique instance fails
 // properly when the lock is already held.
 TEST(CheckUniqueInstance, Held) {
-  DO_MULTI_PROCESS_TEST({ CheckUniqueInstance(kTestLockFilePath); },
+  ::testing::FLAGS_gtest_death_test_style = "fast";
+  TmpFileName t;
+  DO_MULTI_PROCESS_TEST({ CheckUniqueInstance(t.filename()); },
                         {
-                          EXPECT_DEATH(CheckUniqueInstance(kTestLockFilePath),
-                                       "");
-                          unlink(kTestLockFilePath);
+                          EXPECT_DEATH(CheckUniqueInstance(t.filename()), "");
+                          unlink(t.filename());
                         },
                         0);
 }
@@ -288,6 +321,8 @@ TEST(CheckUniqueInstance, Held) {
 // Checks that the combined routine to check for a unique instance attempts to
 // kill the child process if -k is set.
 TEST(CheckUniqueInstance, HeldKillCurrentHolder) {
+  ::testing::FLAGS_gtest_death_test_style = "fast";
+  TmpFileName t;
   // Set the command-line arg for -k.
   FLAGS_k = true;
 
@@ -297,12 +332,12 @@ TEST(CheckUniqueInstance, HeldKillCurrentHolder) {
         signal(SIGTERM, SIG_IGN);
 
         // Child process.
-        int pidfile_fd = CheckUniqueInstance(kTestLockFilePath);
+        int pidfile_fd = CheckUniqueInstance(t.filename());
         WritePidfile(pidfile_fd, getpid());
       },
       {
-        ASSERT_NO_FATAL_FAILURE(CheckUniqueInstance(kTestLockFilePath));
-        unlink(kTestLockFilePath);
+        ASSERT_NO_FATAL_FAILURE(CheckUniqueInstance(t.filename()));
+        unlink(t.filename());
       },
       SIGKILL);
 }

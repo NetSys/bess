@@ -147,10 +147,12 @@ void ProcessCommandLineArgs() {
 }
 
 void CheckRunningAsRoot() {
-  uid_t euid = geteuid();
-  if (euid != 0) {
-    LOG(ERROR) << "You need root privilege to run the BESS daemon";
-    exit(EXIT_FAILURE);
+  if (!FLAGS_skip_root_check) {
+    uid_t euid = geteuid();
+    if (euid != 0) {
+      LOG(ERROR) << "You need root privilege to run the BESS daemon";
+      exit(EXIT_FAILURE);
+    }
   }
 
   // Great power comes with great responsibility.
