@@ -53,6 +53,7 @@ DEFINE_bool(no_huge, false, "Disable hugepages");
 DEFINE_string(modules, bess::bessd::GetCurrentDirectory() + "modules",
               "Load modules from the specified directory");
 DEFINE_bool(core_dump, false, "Generate a core dump on fatal faults");
+DEFINE_bool(no_crashlog, false, "Disable the generation of a crash log file");
 
 static bool ValidateCoreID(const char *, int32_t value) {
   if (!is_cpu_present(value)) {

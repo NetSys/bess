@@ -380,8 +380,8 @@ static bool SkipSymbol(char *symbol) {
   if (oops_msg == "")
     oops_msg = DumpStack();
 
-  // Create a crash log file if we are not dropping a core file.
-  if (!FLAGS_core_dump) {
+  // Create a crash log file if not disabled.
+  if (!FLAGS_no_crashlog) {
     try {
       std::ofstream fp(P_tmpdir "/bessd_crash.log");
       fp << oops_msg;
@@ -391,14 +391,13 @@ static bool SkipSymbol(char *symbol) {
     }
   }
 
-  // Set SIGABRT back to the default to avoid catching the abort used to
-  // generate the core file.
-  struct sigaction sa;
-  memset(&sa, 0, sizeof(sa));
-  sa.sa_handler = SIG_DFL;
-  sigaction(SIGABRT, &sa, 0);
-
   if (FLAGS_core_dump) {
+    // Set SIGABRT back to the default to avoid catching the abort used to
+    // generate the core file.
+    struct sigaction sa;
+    memset(&sa, 0, sizeof(sa));
+    sa.sa_handler = SIG_DFL;
+    sigaction(SIGABRT, &sa, 0);
     google::InstallFailureFunction(abort_failure);
   } else {
     google::InstallFailureFunction(exit_failure);

@@ -46,5 +46,6 @@ DECLARE_int32(m);
 DECLARE_bool(no_huge);
 DECLARE_string(modules);
 DECLARE_bool(core_dump);
+DECLARE_bool(no_crashlog);
 
 #endif  // BESS_OPTS_H_
