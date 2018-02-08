@@ -72,16 +72,14 @@ void run_global_resume_hooks(bool run_modules) {
   }
 
   if (run_modules) {
-    std::set<Module *> erase_modules; // Erase modules after completing iteration
     auto &resume_modules = event_modules[Event::PreResume];
-    for (Module *m : resume_modules) {
-      int ret = m->OnEvent(Event::PreResume);
+    for (auto it = resume_modules.begin(); it != resume_modules.end(); ) {
+      int ret = (*it)->OnEvent(Event::PreResume);
       if (ret == -ENOTSUP) {
-        erase_modules.insert(m);
+	it = resume_modules.erase(it);
+      } else {
+	it++;
       }
-    }
-    for (Module *m : erase_modules) {
-      resume_modules.erase(m);
     }
   }
 }

@@ -433,19 +433,20 @@ WorkerPauser::~WorkerPauser() {
 
   std::set<Module *> modules_run;
   for (int wid : workers_paused_) {
-    std::set<Module *> erase_modules; // Erase modules after completing iteration
     auto &resume_modules = bess::event_modules[bess::Event::PreResume];
-    for (Module *m : resume_modules) {
+    for (auto it = resume_modules.begin(); it != resume_modules.end();) {
+      Module *m = *it;
       if (!modules_run.count(m) && m->active_workers()[wid]) {
         int ret = m->OnEvent(bess::Event::PreResume);
         modules_run.insert(m);
         if (ret == -ENOTSUP) {
-	  erase_modules.insert(m);
-        }
+	  it = resume_modules.erase(it);
+        } else {
+	  it++;
+	}
+      } else {
+	it++;
       }
-    }
-    for (Module *m : erase_modules) {
-      resume_modules.erase(m);
     }
     resume_worker(wid);
     VLOG(1) << "*** Worker " << wid << " Resumed ***";
