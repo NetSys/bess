@@ -236,12 +236,18 @@ message MeasureCommandGetSummaryArg {
 
 /**
  * The Measure module function `get_summary()` returns the following values.
+ * Note that the resolution value tells you how grainy the samples are,
+ * e.g., 100 means that anything from 0-99 ns counts as "0",
+ * anything from 100-199 counts as "100", and so on.  The average
+ * is of samples using this graininess, but (being a result of division)
+ * may not be a multiple of the resolution.
  */
 message MeasureCommandGetSummaryResponse {
   message Histogram {
     uint64 count = 1; /// Total # of measured data points, including above_range
     uint64 above_range = 2; /// # of data points for the "too large value" bucket
-    uint64 min_ns = 3;;
+    uint64 resolution_ns = 8; /// resolution of measured data
+    uint64 min_ns = 3;
     uint64 avg_ns = 4;
     uint64 max_ns = 5;
     uint64 total_ns = 6;
@@ -637,15 +643,18 @@ message MACSwapArg {
  * The measure module tracks latencies, packets per second, and other statistics.
  * It should be paired with a Timestamp module, which attaches a timestamp to packets.
  * The measure module will log how long (in nanoseconds) it has been for each packet it received since it was timsestamped.
- * An example of the Measure module in use is in [`bess/bessctl/conf/perftest/latency/bess`](https://github.com/NetSys/bess/blob/master/bessctl/conf/samples/latency.bess).
+ * This module is somewhat experimental and undergoing various changes.
+ * There is a test for the the Measure module in [`bessctl/module_tests/timestamp.py`](https://github.com/NetSys/bess/blob/master/bessctl/module_tests/timestamp.py).
  *
  * __Input Gates__: 1
  * __Output Gates__: 1
  */
 message MeasureArg {
-  int64 warmup = 1; /// How long to wait, in seconds, between starting the module and taking measurements.
+  // int64 warmup = 1; /// removed: instead of warmup delay, user should Clear()
   uint64 offset = 2; /// Where to store the current time within the packet, offset in bytes.
   double jitter_sample_prob = 3; /// How often the module should sample packets for inter-packet arrival measurements (to measure jitter).
+  uint64 latency_ns_max = 4; /// maximum latency expected, in ns (default 0.1 s)
+  uint32 latency_ns_resolution = 5; /// resolution, in ns (default 100)
 }
 
 /**
@@ -953,9 +962,10 @@ message SplitArg {
 }
 
 /**
- * The timestamp module takes no parameters. It inserts the current
+ * The timestamp module takes an offset parameter. It inserts the current
  * time in nanoseconds into the packet, to be used for latency measurements
- * alongside the Measure module.
+ * alongside the Measure module.  The default offset is after an IPv4 UDP
+ * header.
  *
  * __Input Gates__: 1
  * __Output Gates__: 1

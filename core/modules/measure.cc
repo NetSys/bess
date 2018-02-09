@@ -61,7 +61,27 @@ const Commands Measure::cmds = {
 };
 
 CommandResponse Measure::Init(const bess::pb::MeasureArg &arg) {
-  // seconds from nanoseconds
+  uint64_t latency_ns_max = arg.latency_ns_max();
+  uint64_t latency_ns_resolution = arg.latency_ns_resolution();
+  if (latency_ns_max == 0) {
+    latency_ns_max = kDefaultMaxNs;
+  }
+  if (latency_ns_resolution == 0) {
+    latency_ns_resolution = kDefaultNsPerBucket;
+  }
+  uint64_t quotient = latency_ns_max / latency_ns_resolution;
+  if ((latency_ns_max % latency_ns_resolution) != 0) {
+    quotient += 1;  // absorb any remainder
+  }
+  if (quotient > rtt_hist_.max_num_buckets() / 2) {
+    return CommandFailure(E2BIG,
+                          "excessive latency_ns_max / latency_ns_resolution");
+  }
+
+  size_t num_buckets = quotient;
+  rtt_hist_.Resize(num_buckets, latency_ns_resolution);
+  jitter_hist_.Resize(num_buckets, latency_ns_resolution);
+
   if (arg.offset()) {
     offset_ = arg.offset();
   } else {
@@ -123,9 +143,11 @@ void Measure::ProcessBatch(bess::PacketBatch *batch) {
 
 template <typename T>
 static void SetHistogram(
-    bess::pb::MeasureCommandGetSummaryResponse::Histogram *r, const T &hist) {
+    bess::pb::MeasureCommandGetSummaryResponse::Histogram *r, const T &hist,
+    uint64_t bucket_width) {
   r->set_count(hist.count);
   r->set_above_range(hist.above_range);
+  r->set_resolution_ns(bucket_width);
   r->set_min_ns(hist.min);
   r->set_max_ns(hist.max);
   r->set_avg_ns(hist.avg);
@@ -137,8 +159,10 @@ static void SetHistogram(
 
 void Measure::Clear() {
   // vector initialization is expensive thus should be out of critical section
-  decltype(rtt_hist_) new_rtt_hist(kBuckets, kBucketWidth);
-  decltype(jitter_hist_) new_jitter_hist(kBuckets, kBucketWidth);
+  decltype(rtt_hist_) new_rtt_hist(rtt_hist_.num_buckets(),
+                                   rtt_hist_.bucket_width());
+  decltype(jitter_hist_) new_jitter_hist(jitter_hist_.num_buckets(),
+                                         jitter_hist_.bucket_width());
 
   // Use move semantics to minimize critical section
   mcslock_node_t mynode;
@@ -186,8 +210,8 @@ CommandResponse Measure::CommandGetSummary(
   const auto &rtt = rtt_hist_.Summarize(latency_percentiles);
   const auto &jitter = jitter_hist_.Summarize(jitter_percentiles);
 
-  SetHistogram(r.mutable_latency(), rtt);
-  SetHistogram(r.mutable_jitter(), jitter);
+  SetHistogram(r.mutable_latency(), rtt, rtt_hist_.bucket_width());
+  SetHistogram(r.mutable_jitter(), jitter, jitter_hist_.bucket_width());
 
   if (arg.clear()) {
     // Note that some samples might be lost due to the small gap between
