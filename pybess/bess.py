@@ -489,7 +489,7 @@ class BESS(object):
         request.hook.hook_name = hook
         request.hook.module_name = mod
         if direction == 'in':
-            request.hook.ogate = gate
+            request.hook.igate = gate
         elif direction == 'out' or direction is None:
             request.hook.ogate = gate
         else:
