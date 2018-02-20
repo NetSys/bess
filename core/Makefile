@@ -220,21 +220,41 @@ PROTOCFLAGS += --cpp_out=./pb --grpc_out=./pb --plugin=protoc-gen-grpc=$(PROTOC_
 DRIVERS := $(foreach dir,drivers $(DRIVER_PLUGINS),$(wildcard $(dir)/*.cc))
 MODULES := $(foreach dir,modules,$(wildcard $(dir)/*.cc))
 UTILS := $(foreach dir,utils $(UTIL_PLUGINS),$(wildcard $(dir)/*.cc))
-GATE_HOOKS := $(foreach dir,gate_hooks $(GATE_HOOK_PLUGINS),$(wildcard $(dir)/*.cc))
-RESUME_HOOKS := $(foreach dir,resume_hooks $(RESUME_HOOK_PLUGINS),$(wildcard $(dir)/*.cc))
+GATE_HOOK_SRCS := $(foreach dir,gate_hooks $(GATE_HOOK_PLUGINS),$(wildcard $(dir)/*.cc))
+GATE_HOOKS_H := $(foreach dir,gate_hooks $(GATE_HOOK_PLUGINS),$(wildcard $(dir)/*.h))
+RESUME_HOOK_SRCS := $(foreach dir,resume_hooks $(RESUME_HOOK_PLUGINS),$(wildcard $(dir)/*.cc))
+RESUME_HOOKS_H := $(foreach dir,resume_hooks $(RESUME_HOOK_PLUGINS),$(wildcard $(dir)/*.h))
 DRIVER_H := $(foreach dir,drivers $(DRIVER_PLUGINS),$(wildcard $(dir)/*.h))
 MODULE_H := $(foreach dir,drivers,$(wildcard $(dir)/*.h))
 UTIL_H := $(foreach dir,utils $(UTIL_PLUGINS),$(wildcard $(dir)/*.h))
 PLUGIN_MODULES := $(foreach dir,$(MODULE_PLUGINS),$(wildcard $(dir)/*.cc))
 PLUGIN_MODULE_H := $(foreach dir,$(MODULE_PLUGINS),$(wildcard $(dir)/*.h))
 
+# NB: the first vpath is for most files, including objects for drivers,
+# modules, utils, gate_hooks, and resume_hooks since those compile to
+# "{drivers,modules,utils,gate_hooks,resume_hooks}/%.o".  That is,
+# we just need make to search ./<path> and $(PLUGINS)/<path>.
+#
+# We need to keep the various names separate since, e.g., we have:
+#     resume_hooks/metadata.o: resume_hooks/metadata.cc
+# and yet:
+#     metadata.o: metadata.cc
+# (which are very different files).  We don't want to require that
+# all source and object file names be unique across everything, so
+# we use GNU make's "best (longest) match" feature to build the
+# .o file from the appropriate source.
+vpath %.cc $(PLUGINS)
+# These vpaths, however, are for tests that compile to %_test.o,
+# in the current directory.  There are no such tests at the moment
+# for gate hooks and resume hooks, but there are some for drivers,
+# modules, and utils.
 vpath %.cc drivers $(DRIVER_PLUGINS)
 vpath %.cc modules $(MODULE_PLUGINS)
 vpath %.cc utils $(UTIL_PLUGINS)
 vpath %.cc gate_hooks $(GATE_HOOK_PLUGINS)
 vpath %.cc resume_hooks $(RESUME_HOOK_PLUGINS)
 
-ALL_SRCS := $(wildcard *.cc gate_hooks/*.cc resume_hooks/*.cc) $(MODULES) $(DRIVERS) $(UTILS)
+ALL_SRCS := $(wildcard *.cc) $(GATE_HOOKS) $(RESUME_HOOKS) $(MODULES) $(DRIVERS) $(UTILS)
 
 TEST_SRCS := $(filter %_test.cc gtest_main.cc, $(ALL_SRCS))
 TEST_OBJS := $(patsubst %.cc,%.o,$(notdir $(TEST_SRCS)))
@@ -257,6 +277,11 @@ ifdef MODULE_LINK_DYNAMIC
 	MODULE_LIBS += $(MODULE_OBJS:.o=.so)
 endif
 
+GATE_HOOK_OBJS := $(addprefix gate_hooks/,$(patsubst %.cc,%.o, \
+		    $(notdir $(GATE_HOOK_SRCS))))
+RESUME_HOOK_OBJS := $(addprefix resume_hooks/,$(patsubst %.cc,%.o, \
+		      $(notdir $(RESUME_HOOK_SRCS))))
+
 # We don't (yet?) make shared objects for drivers.
 DRIVER_SRCS := $(filter-out $(TEST_SRCS) $(BENCH_SRCS), $(DRIVERS))
 DRIVER_OBJS := $(addprefix drivers/,$(patsubst %.cc,%.o, \
@@ -265,10 +290,10 @@ DRIVER_OBJS := $(addprefix drivers/,$(patsubst %.cc,%.o, \
 UTIL_SRCS := $(filter-out $(TEST_SRCS) $(BENCH_SRCS), $(UTILS))
 UTIL_OBJS := $(addprefix utils/,$(patsubst %.cc,%.o,$(notdir $(UTIL_SRCS))))
 
-SRCS := $(filter-out $(TEST_SRCS) $(BENCH_SRCS) $(MODULE_SRCS) $(DRIVER_SRCS) $(UTIL_SRCS), $(ALL_SRCS)) $(PROTO_SRCS)
+SRCS := $(filter-out $(TEST_SRCS) $(BENCH_SRCS) $(MODULE_SRCS) $(DRIVER_SRCS) $(UTIL_SRCS) $(GATE_HOOK_SRCS) $(RESUME_HOOK_SRCS), $(ALL_SRCS)) $(PROTO_SRCS)
 # ? why doesn't HEADERS include module headers?
-HEADERS := $(wildcard *.h utils/*.h $(DRIVER_H) gate_hooks/*.h resume_hooks/*.h)
-OBJS := $(SRCS:.cc=.o) $(DRIVER_OBJS) $(UTIL_OBJS)
+HEADERS := $(wildcard *.h utils/*.h) $(DRIVER_H) $(GATE_HOOKS_H) $(RESUME_HOOKS_H)
+OBJS := $(SRCS:.cc=.o) $(DRIVER_OBJS) $(UTIL_OBJS) $(GATE_HOOK_OBJS) $(RESUME_HOOK_OBJS)
 
 ifndef MODULE_LINK_DYNAMIC
 	OBJS += $(MODULE_OBJS)
@@ -360,19 +385,31 @@ $(eval $(call BUILD, \
 $(eval $(call BUILD, \
 	DRIVER_CXX, \
 	drivers/%.o, \
-	%.cc, \
+	drivers/%.cc, \
 	$(CXX) -o $$@ -c $$< $$(CXXFLAGS) $$(DEPFLAGS)))
 
 $(eval $(call BUILD, \
 	MODULE_CXX, \
 	modules/%.o, \
-	%.cc, \
+	modules/%.cc, \
 	$(CXX) -o $$@ -c $$< $$(CXXFLAGS) $$(DEPFLAGS) -fPIC))
 
 $(eval $(call BUILD, \
-	CXX, \
+	UTILS_CXX, \
 	utils/%.o, \
-	%.cc, \
+	utils/%.cc, \
+	$(CXX) -o $$@ -c $$< $$(CXXFLAGS) $$(DEPFLAGS)))
+
+$(eval $(call BUILD, \
+	GATEHOOK_CXX, \
+	gate_hooks/%.o, \
+	gate_hooks/%.cc, \
+	$(CXX) -o $$@ -c $$< $$(CXXFLAGS) $$(DEPFLAGS)))
+
+$(eval $(call BUILD, \
+	RESUMEHOOK_CXX, \
+	resume_hooks/%.o, \
+	resume_hooks/%.cc, \
 	$(CXX) -o $$@ -c $$< $$(CXXFLAGS) $$(DEPFLAGS)))
 
 $(eval $(call BUILD, \
