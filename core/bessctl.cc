@@ -1368,7 +1368,7 @@ class BESSControlImpl final : public BESSControl::Service {
     bool is_igate = rh.gate_case() == bess::pb::GateHookInfo::kIgate;
     gate_idx_t gate_idx = is_igate ? rh.igate() : rh.ogate();
     bess::Gate* g = module_gate(m, is_igate, gate_idx);
-    if (m == nullptr) {
+    if (g == nullptr) {
       return return_with_error(
           response, EINVAL, "%s: %cgate '%hu' does not exist",
           m->name().c_str(), is_igate ? 'i' : 'o', gate_idx);
