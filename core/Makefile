@@ -168,9 +168,11 @@ ifdef SANITIZE
 	LDFLAGS += -fsanitize=address -fsanitize=undefined
 endif
 
-ifdef DEBUG
+ifdef COVERAGE
 	CXXFLAGS += --coverage -O0
 	LDFLAGS += --coverage
+else ifdef DEBUG
+	CXXFLAGS += -O0
 else
 	CXXFLAGS += -Ofast -DNDEBUG
 endif
