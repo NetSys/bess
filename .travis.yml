@@ -23,7 +23,7 @@ env:
   matrix:
     - VER_CXX=clang++-3.8 SANITIZE=1
     - VER_CXX=g++-5
-    - VER_CXX=g++-5 DEBUG=1
+    - VER_CXX=g++-5 COVERAGE=1
     - VER_CXX=g++-5 TAG_SUFFIX=_32              # 32bit build
     - VER_CXX=g++-6
     - VER_CXX=g++-7
@@ -41,7 +41,7 @@ install:
   - sudo gem install ffi fpm
   - pip2 install --user grpcio scapy codecov
   - pip3 install --user grpcio scapy-python3 coverage
-  - "[[ ${DEBUG:-0} == 0 ]] || sudo apt-get install -y g++-5"  # install gcov-5
+  - "[[ ${COVERAGE:-0} == 0 ]] || sudo apt-get install -y g++-5"  # install gcov-5
   - "[[ ${SANITIZE:-0} == 0 ]] || sudo apt-get install -y llvm-3.8"
   - "[[ $TAG_SUFFIX != _32 ]] || sudo apt-get install -y lib32gcc1"
   # HOTFIX: do not use prebuilt DPDK binary, in case Travis VM runs on an old processor
@@ -60,13 +60,13 @@ script:
   - ./container_build.py kmod_buildtest
   - (cd core && ./all_test --gtest_shuffle)  # TcpFlowReconstructTest requires working directory to be `core/`
   - coverage2 run -m unittest discover -v
-  - "[[ ${DEBUG:-0} == 0 ]] || coverage3 run -m unittest discover -v"
+  - "[[ ${COVERAGE:-0} == 0 ]] || coverage3 run -m unittest discover -v"
   - python2 bessctl/run_module_tests.py
-  - "[[ ${DEBUG:-0} == 0 ]] || python3 bessctl/run_module_tests.py"
+  - "[[ ${COVERAGE:-0} == 0 ]] || python3 bessctl/run_module_tests.py"
 
 after_success:
   - bessctl/bessctl daemon stop # flush out the coverage data
-  - "[[ ${DEBUG:-0} == 0 ]] || { sleep 3; codecov --gcov-exec gcov-5; }"
+  - "[[ ${COVERAGE:-0} == 0 ]] || { sleep 3; codecov --gcov-exec gcov-5; }"
 
 after_failure:
   - more /tmp/bessd.*.INFO.* | cat      # dump all bessd log files
