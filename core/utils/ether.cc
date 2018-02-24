@@ -67,7 +67,7 @@ void Address::Randomize() {
   }
 
   bytes[0] &= 0xfe;  // not broadcast/multicast
-  bytes[1] |= 0x02;  // locally administered
+  bytes[0] |= 0x02;  // locally administered
 }
 
 }  // namespace utils
