@@ -203,12 +203,17 @@ class Port {
   // overide this section to create a new driver -----------------------------
   Port()
       : port_stats_(),
+        conf_(),
         name_(),
         port_builder_(),
         num_queues(),
         queue_size(),
         users(),
-        queue_stats() {}
+        queue_stats() {
+    conf_.mac_addr.Randomize();
+    conf_.mtu = kDefaultMtu;
+    conf_.admin_up = true;
+  }
 
   virtual ~Port() {}
 
