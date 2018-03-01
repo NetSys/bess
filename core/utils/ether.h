@@ -42,10 +42,10 @@
 namespace bess {
 namespace utils {
 
-struct[[gnu::packed]] Ethernet {
-  struct[[gnu::packed]] Address {
+struct [[gnu::packed]] Ethernet {
+  struct [[gnu::packed]] Address {
     Address() = default;
-    Address(uint8_t *addr) { bess::utils::Copy(bytes, addr, kSize); }
+    Address(const uint8_t *addr) { bess::utils::Copy(bytes, addr, kSize); }
     Address(const std::string &str);
 
     static const size_t kSize = 6;
@@ -63,6 +63,11 @@ struct[[gnu::packed]] Ethernet {
     bool IsBroadcast() const {
       return bytes[0] == 0xff && bytes[1] == 0xff && bytes[2] == 0xff &&
              bytes[3] == 0xff && bytes[4] == 0xff && bytes[5] == 0xff;
+    }
+
+    bool IsZero() const {
+      return bytes[0] == 0x00 && bytes[1] == 0x00 && bytes[2] == 0x00 &&
+             bytes[3] == 0x00 && bytes[4] == 0x00 && bytes[5] == 0x00;
     }
 
     bool operator<(const Address &o) const {
@@ -109,7 +114,7 @@ struct[[gnu::packed]] Ethernet {
   be16_t ether_type;
 };
 
-struct[[gnu::packed]] Vlan {
+struct [[gnu::packed]] Vlan {
   be16_t tci;
   be16_t ether_type;
 };
