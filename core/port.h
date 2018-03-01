@@ -45,6 +45,7 @@
 #include "packet.h"
 #include "pb/port_msg.pb.h"
 #include "utils/common.h"
+#include "utils/ether.h"
 
 typedef uint8_t queue_t;
 
@@ -188,6 +189,12 @@ class Port {
     bool link_up;      // link up?
   };
 
+  struct Conf {
+    bess::utils::Ethernet::Address mac_addr;
+    uint32_t mtu;
+    bool admin_up;
+  };
+
   struct PortStats {
     QueueStats inc;
     QueueStats out;
@@ -231,14 +238,14 @@ class Port {
 
   virtual LinkStatus GetLinkStatus() {
     return LinkStatus{
-        .speed = 0, .full_duplex = true, .autoneg = true, .link_up = true,
+        .speed = 0,
+        .full_duplex = true,
+        .autoneg = true,
+        .link_up = true,
     };
   }
 
-  // -------------------------------------------------------------------------
-
- public:
-  friend class PortBuilder;
+  virtual int UpdateConf(const Conf &) { return -ENOTSUP; }
 
   CommandResponse InitWithGenericArg(const google::protobuf::Any &arg);
 
@@ -252,16 +259,24 @@ class Port {
                      const queue_t *queues, int num);
 
   const std::string &name() const { return name_; }
+  Conf conf() const { return conf_; }
 
   const PortBuilder *port_builder() const { return port_builder_; }
 
  protected:
+  friend class PortBuilder;
+
   /* for stats that do NOT belong to any queues */
   PortStats port_stats_;
+
+  // Current configuration
+  Conf conf_;
 
  private:
   static const size_t kDefaultIncQueueSize = 256;
   static const size_t kDefaultOutQueueSize = 256;
+
+  static const uint32_t kDefaultMtu = 1500;
 
   // Private methods, for use by PortBuilder.
   void set_name(const std::string &name) { name_ = name; }
@@ -280,11 +295,6 @@ class Port {
  public:
   queue_t num_queues[PACKET_DIRS];
   size_t queue_size[PACKET_DIRS];
-
-  char mac_addr[ETH_ALEN];
-  uint32_t vlan_offload;
-  uint32_t mtu;
-  bool admin_status_up;
 
   /* which modules are using this port?
    * TODO: more robust gate keeping */

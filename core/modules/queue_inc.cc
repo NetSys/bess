@@ -87,6 +87,10 @@ std::string QueueInc::GetDesc() const {
 struct task_result QueueInc::RunTask(void *arg) {
   Port *p = port_;
 
+  if (!p->conf().admin_up) {
+    return {.block = true, .packets = 0, .bits = 0};
+  }
+
   const queue_t qid = (queue_t)(uintptr_t)arg;
 
   bess::PacketBatch batch;
