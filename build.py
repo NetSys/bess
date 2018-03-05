@@ -46,8 +46,8 @@ DEPS_DIR = '%s/deps' % BESS_DIR
 
 # It's best to use a release tag if possible -- see comments in
 # download_dpdk
-DPDK_REPO = 'http://dpdk.org/git/dpdk'
-DPDK_TAG = 'v17.11'
+DPDK_REPO = os.getenv('DPDK_REPO', 'http://dpdk.org/git/dpdk')
+DPDK_TAG = os.getenv('DPDK_TAG', 'v17.11')
 
 DPDK_VER = 'dpdk-17.11'
 
