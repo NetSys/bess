@@ -256,9 +256,6 @@ static int collect_metadata(Module* m, GetModuleInfoResponse* response) {
 static ::Port* create_port(const std::string& name, const PortBuilder& driver,
                            queue_t num_inc_q, queue_t num_out_q,
                            size_t size_inc_q, size_t size_out_q,
-                           const std::string& mac_addr_str, uint32_t vlan_offload,
-                           uint32_t mtu,
-			   bess::pb::CreatePortRequest_AdminStatus admin_status,
                            const google::protobuf::Any& arg, pb_error_t* perr) {
   std::unique_ptr<::Port> p;
 
@@ -268,21 +265,6 @@ static ::Port* create_port(const std::string& name, const PortBuilder& driver,
 
   if (num_out_q == 0) {
     num_out_q = 1;
-  }
-
-  bess::utils::Ethernet::Address mac_addr;
-
-  if (mac_addr_str.length() > 0) {
-    if (!mac_addr.FromString(mac_addr_str)) {
-      perr->set_code(EINVAL);
-      perr->set_errmsg(
-          "MAC address should be "
-          "formatted as a string "
-          "xx:xx:xx:xx:xx:xx");
-      return nullptr;
-    }
-  } else {
-    mac_addr.Randomize();
   }
 
   if (num_inc_q > MAX_QUEUES_PER_DIR || num_out_q > MAX_QUEUES_PER_DIR) {
@@ -310,11 +292,7 @@ static ::Port* create_port(const std::string& name, const PortBuilder& driver,
   }
 
   // Try to create and initialize the port.
-  bool new_port = false;
-  if (!p) {
-    new_port = true;
-    p.reset(driver.CreatePort(port_name));
-  }
+  p.reset(driver.CreatePort(port_name));
 
   if (size_inc_q == 0) {
     size_inc_q = p->DefaultIncQueueSize();
@@ -324,18 +302,10 @@ static ::Port* create_port(const std::string& name, const PortBuilder& driver,
     size_out_q = p->DefaultOutQueueSize();
   }
 
-  bess::utils::Copy(p->mac_addr, mac_addr.bytes, ETH_ALEN);
   p->num_queues[PACKET_DIR_INC] = num_inc_q;
   p->num_queues[PACKET_DIR_OUT] = num_out_q;
   p->queue_size[PACKET_DIR_INC] = size_inc_q;
   p->queue_size[PACKET_DIR_OUT] = size_out_q;
-  p->vlan_offload = vlan_offload;
-  p->mtu = mtu;
-  if ( admin_status == bess::pb::CreatePortRequest_AdminStatus_UP ) {
-    p->admin_status_up = true;
-  } else {
-    p->admin_status_up = false;
-  }
 
   // DPDK functions may be called, so be prepared
   ctx.SetNonWorker();
@@ -357,7 +327,7 @@ static ::Port* create_port(const std::string& name, const PortBuilder& driver,
     return nullptr;
   }
 
-  if (new_port && !PortBuilder::AddPort(p.get())) {
+  if (!PortBuilder::AddPort(p.get())) {
     return nullptr;
   }
 
@@ -917,10 +887,7 @@ class BESSControlImpl final : public BESSControl::Service {
 
       port->set_name(p->name());
       port->set_driver(p->port_builder()->class_name());
-
-      bess::utils::Ethernet::Address mac_addr;
-      bess::utils::Copy(mac_addr.bytes, p->mac_addr, ETH_ALEN);
-      port->set_mac_addr(mac_addr.ToString());
+      port->set_mac_addr(p->conf().mac_addr.ToString());
     }
 
     return Status::OK;
@@ -950,18 +917,66 @@ class BESSControlImpl final : public BESSControl::Service {
 
     port = create_port(request->name(), builder, request->num_inc_q(),
                        request->num_out_q(), request->size_inc_q(),
-                       request->size_out_q(), request->mac_addr(),
-                       request->vlan_offload(), request->mtu(),
-                       request->admin_status(), request->arg(), error);
+                       request->size_out_q(), request->arg(), error);
 
     if (!port)
       return Status::OK;
 
     response->set_name(port->name());
+    response->set_mac_addr(port->conf().mac_addr.ToString());
 
-    bess::utils::Ethernet::Address mac_addr;
-    bess::utils::Copy(mac_addr.bytes, port->mac_addr, ETH_ALEN);
-    response->set_mac_addr(mac_addr.ToString());
+    return Status::OK;
+  }
+
+  Status SetPortConf(ServerContext*, const SetPortConfRequest* request,
+                     EmptyResponse* response) override {
+    if (!request->name().length()) {
+      return return_with_error(response, EINVAL, "Port name is not given");
+    }
+
+    const char* port_name = request->name().c_str();
+    const auto& it = PortBuilder::all_ports().find(port_name);
+    if (it == PortBuilder::all_ports().end()) {
+      return return_with_error(response, ENOENT, "No port `%s' found",
+                               port_name);
+    }
+
+    const bess::pb::PortConf& pb_conf = request->conf();
+    Port::Conf conf;
+
+    conf.mtu = pb_conf.mtu();
+    conf.admin_up = pb_conf.admin_up();
+
+    if (!conf.mac_addr.FromString(pb_conf.mac_addr())) {
+      return return_with_error(
+          response, EINVAL,
+          "MAC address should be formatted xx:xx:xx:xx:xx:xx");
+    }
+
+    WorkerPauser wp;
+    it->second->UpdateConf(conf);
+    return Status::OK;
+  }
+
+  Status GetPortConf(ServerContext*, const GetPortConfRequest* request,
+                     GetPortConfResponse* response) override {
+    if (!request->name().length()) {
+      return return_with_error(response, EINVAL, "Port name is not given");
+    }
+
+    const char* port_name = request->name().c_str();
+    const auto& it = PortBuilder::all_ports().find(port_name);
+    if (it == PortBuilder::all_ports().end()) {
+      return return_with_error(response, ENOENT, "No port `%s' found",
+                               port_name);
+    }
+
+    Port::Conf conf = it->second->conf();
+    bess::pb::PortConf* pb_conf = response->mutable_conf();
+
+    pb_conf->set_mac_addr(conf.mac_addr.ToString());
+    pb_conf->set_mtu(conf.mtu);
+    pb_conf->set_admin_up(conf.admin_up);
 
     return Status::OK;
   }

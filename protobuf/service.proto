@@ -203,6 +203,10 @@ service BESSControl {
   /// (e.g., PortInc, PortOut, QueueInc, QueueOut)
   rpc DestroyPort (DestroyPortRequest) returns (EmptyResponse) {}
 
+  /// Runtime-updatable configuration
+  rpc SetPortConf (SetPortConfRequest) returns (EmptyResponse) {}
+  rpc GetPortConf (GetPortConfRequest) returns (GetPortConfResponse) {}
+
   /// Collect port statistics
   ///
   /// At the moment, per-queue stats are not supported.
