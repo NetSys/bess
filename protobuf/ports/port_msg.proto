@@ -42,6 +42,11 @@ message PMDPortArg {
     string pci = 3;
     string vdev = 4;
   }
+
+  // See http://dpdk.org/doc/dts/test_plans/dual_vlan_test_plan.html
+  bool vlan_offload_rx_strip = 5;
+  bool vlan_offload_rx_filter = 6;
+  bool vlan_offload_rx_qinq = 7;
 }
 
 message UnixSocketPortArg {

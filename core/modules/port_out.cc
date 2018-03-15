@@ -88,18 +88,12 @@ std::string PortOut::GetDesc() const {
 void PortOut::ProcessBatch(bess::PacketBatch *batch) {
   Port *p = port_;
 
-  if (unlikely(worker_queues_[ctx.wid()] < 0)) {
-    // If CheckSchedulingConstratins() is called before resuming, which is the
-    // default now, this should never happen. Including this for users that
-    // enjoy living on the edge.
-    return;
-  }
   const queue_t qid = worker_queues_[ctx.wid()];
 
   uint64_t sent_bytes = 0;
   int sent_pkts = 0;
 
-  if (likely(qid < port_->num_queues[PACKET_DIR_OUT])) {
+  if (likely(qid < port_->num_queues[PACKET_DIR_OUT]) && p->conf().admin_up) {
     sent_pkts = p->SendPackets(qid, batch->pkts(), batch->cnt());
   }
 
@@ -141,7 +135,7 @@ int PortOut::OnEvent(bess::Event e) {
   // Assign remaining queues to any newly attached workers.
   for (size_t i = 0; i < Worker::kMaxWorkers; i++) {
     if (actives[i] && worker_queues_[i] < 0) {
-      CHECK(!available_queues_.empty()); // Should not be tripped.
+      CHECK(!available_queues_.empty());  // Should not be tripped.
       worker_queues_[i] = available_queues_.back();
       available_queues_.pop_back();
     }

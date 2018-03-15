@@ -247,11 +247,36 @@ message CreatePortRequest {
   /// If not set (0), a driver-specific default value will be used.
   uint64 size_out_q = 6;
 
-  /// MAC address for the new port. Should be "xx:xx:xx:xx:xx:xx" format.
-  string mac_addr = 7;
-
   /// Driver specific argument for port initialization. See port_msg.proto
-  google.protobuf.Any arg = 8;
+  google.protobuf.Any arg = 7;
+}
+
+/// All configuration parameters updatable at runtime
+message PortConf {
+  /// MAC address for the new port. Should be "xx:xx:xx:xx:xx:xx" format.
+  /// Set to '00:00:00:00:00:00' to use the default/current MAC address
+  string mac_addr = 1;
+
+  /// Port MTU. Set to 0 to accept the default port MTU
+  uint32 mtu = 2;
+
+  /// Enable or disable the port.
+  /// Both admin and link (operational) states must be up to function
+  bool admin_up = 3;
+}
+
+message SetPortConfRequest {
+  string name = 1;  /// Name of port
+  PortConf conf = 2;
+}
+
+message GetPortConfRequest {
+  string name = 1;  /// Name of port
+}
+
+message GetPortConfResponse {
+  Error error = 1;
+  PortConf conf = 2;
 }
 
 message CreatePortResponse {

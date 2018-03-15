@@ -362,7 +362,6 @@ class BESS(object):
         request.num_out_q = arg.pop('num_out_q', 0)
         request.size_inc_q = arg.pop('size_inc_q', 0)
         request.size_out_q = arg.pop('size_out_q', 0)
-        request.mac_addr = arg.pop('mac_addr', '')
 
         message_type = getattr(port_msg, driver + 'Arg', module_msg.EmptyArg)
         arg_msg = pb_conv.dict_to_protobuf(message_type, arg)

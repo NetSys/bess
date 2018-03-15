@@ -294,23 +294,74 @@ CommandResponse PMDPort::Init(const bess::pb::PMDPortArg &arg) {
     }
   }
 
+  int offload_mask = 0;
+  offload_mask |= arg.vlan_offload_rx_strip() ? ETH_VLAN_STRIP_OFFLOAD : 0;
+  offload_mask |= arg.vlan_offload_rx_filter() ? ETH_VLAN_FILTER_OFFLOAD : 0;
+  offload_mask |= arg.vlan_offload_rx_qinq() ? ETH_VLAN_EXTEND_OFFLOAD : 0;
+  if (offload_mask) {
+    ret = rte_eth_dev_set_vlan_offload(ret_port_id, offload_mask);
+    if (ret != 0) {
+      return CommandFailure(-ret, "rte_eth_dev_set_vlan_offload() failed");
+    }
+  }
+
   ret = rte_eth_dev_start(ret_port_id);
   if (ret != 0) {
     return CommandFailure(-ret, "rte_eth_dev_start() failed");
   }
-
   dpdk_port_id_ = ret_port_id;
 
   numa_node = rte_eth_dev_socket_id(static_cast<int>(ret_port_id));
   node_placement_ =
       numa_node == -1 ? UNCONSTRAINED_SOCKET : (1ull << numa_node);
 
-  rte_eth_macaddr_get(dpdk_port_id_, reinterpret_cast<ether_addr *>(&mac_addr));
+  rte_eth_macaddr_get(dpdk_port_id_,
+                      reinterpret_cast<ether_addr *>(conf_.mac_addr.bytes));
 
   // Reset hardware stat counters, as they may still contain previous data
   CollectStats(true);
 
   return CommandSuccess();
+}
+
+int PMDPort::UpdateConf(const Conf &conf) {
+  rte_eth_dev_stop(dpdk_port_id_);
+
+  if (conf_.mtu != conf.mtu && conf.mtu != 0) {
+    int ret = rte_eth_dev_set_mtu(dpdk_port_id_, conf.mtu);
+    if (ret == 0) {
+      conf_.mtu = conf_.mtu;
+    } else {
+      LOG(WARNING) << "rte_eth_dev_set_mtu() failed: " << rte_strerror(-ret);
+      return ret;
+    }
+  }
+
+  if (conf_.mac_addr != conf.mac_addr && !conf.mac_addr.IsZero()) {
+    ether_addr tmp;
+    ether_addr_copy(reinterpret_cast<const ether_addr *>(&conf.mac_addr.bytes),
+                    &tmp);
+    int ret = rte_eth_dev_default_mac_addr_set(dpdk_port_id_, &tmp);
+    if (ret == 0) {
+      conf_.mac_addr = conf.mac_addr;
+    } else {
+      LOG(WARNING) << "rte_eth_dev_default_mac_addr_set() failed: "
+                   << rte_strerror(-ret);
+      return ret;
+    }
+  }
+
+  if (conf.admin_up) {
+    int ret = rte_eth_dev_start(dpdk_port_id_);
+    if (ret == 0) {
+      conf_.admin_up = true;
+    } else {
+      LOG(WARNING) << "rte_eth_dev_start() failed: " << rte_strerror(-ret);
+      return ret;
+    }
+  }
+
+  return 0;
 }
 
 void PMDPort::DeInit() {
@@ -388,11 +439,9 @@ int PMDPort::RecvPackets(queue_t qid, bess::Packet **pkts, int cnt) {
 }
 
 int PMDPort::SendPackets(queue_t qid, bess::Packet **pkts, int cnt) {
-  int sent =
-      rte_eth_tx_burst(dpdk_port_id_, qid, (struct rte_mbuf **)pkts, cnt);
-
+  int sent = rte_eth_tx_burst(dpdk_port_id_, qid,
+                              reinterpret_cast<struct rte_mbuf **>(pkts), cnt);
   queue_stats[PACKET_DIR_OUT][qid].dropped += (cnt - sent);
-
   return sent;
 }
 

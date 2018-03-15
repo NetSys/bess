@@ -79,9 +79,11 @@ void QueueOut::ProcessBatch(bess::PacketBatch *batch) {
   const queue_t qid = qid_;
 
   uint64_t sent_bytes = 0;
-  int sent_pkts;
+  int sent_pkts = 0;
 
-  sent_pkts = p->SendPackets(qid, batch->pkts(), batch->cnt());
+  if (p->conf().admin_up) {
+    sent_pkts = p->SendPackets(qid, batch->pkts(), batch->cnt());
+  }
 
   if (!(p->GetFlags() & DRIVER_FLAG_SELF_OUT_STATS)) {
     const packet_dir_t dir = PACKET_DIR_OUT;
