@@ -37,6 +37,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <limits>
+#include <numeric>
 #include <vector>
 
 #include <glog/logging.h>
@@ -63,7 +64,7 @@ class Histogram {
   // Construct a new histogram with "num_buckets" buckets of width
   // "bucket_width".
   Histogram(size_t num_buckets, T bucket_width)
-      : bucket_width_(bucket_width), count_(), buckets_(num_buckets + 1) {}
+      : bucket_width_(bucket_width), buckets_(num_buckets + 1) {}
 
   // Swap operator allows clean summarizing with external lock,
   // when using a histogram on an active data stream.
@@ -74,11 +75,6 @@ class Histogram {
   void swap(Histogram &other) noexcept {
     using std::swap;
     swap(bucket_width_, other.bucket_width_);
-    // atomic count_ field requires manual swap
-    uint64_t our_count = count_.load(std::memory_order_relaxed);
-    uint64_t their_count = other.count_.load(std::memory_order_relaxed);
-    count_.store(their_count, std::memory_order_relaxed);
-    other.count_.store(our_count, std::memory_order_relaxed);
     swap(buckets_, other.buckets_);
   }
 
@@ -86,17 +82,11 @@ class Histogram {
   // histogram -- note that this is very much non-atomic.
   Histogram(Histogram &&other) noexcept {
     bucket_width_ = other.bucket_width_;
-    uint64_t count = other.count_.load(std::memory_order_relaxed);
-    other.count_.store(0, std::memory_order_relaxed);
-    count_.store(count, std::memory_order_relaxed);
     buckets_ = std::move(other.buckets_);
   }
 
   Histogram &operator=(Histogram &&other) noexcept {
     bucket_width_ = other.bucket_width_;
-    uint64_t count = other.count_.load(std::memory_order_relaxed);
-    other.count_.store(0, std::memory_order_relaxed);
-    count_.store(count, std::memory_order_relaxed);
     buckets_ = std::move(other.buckets_);
     return *this;
   }
@@ -107,8 +97,9 @@ class Histogram {
     // The last element of the buckets_ is used to count data points above
     // the upper bound of the histogram range.
     size_t index = x / bucket_width_;
-    nonatomic_inc(&buckets_[std::min(index, buckets_.size() - 1)]);
-    nonatomic_inc(&count_);
+    index = std::min(index, buckets_.size() - 1);
+    buckets_[index].store(1 + buckets_[index].load(std::memory_order_relaxed),
+                          std::memory_order_relaxed);
   }
 
   // Inserts x into the histogram.
@@ -117,8 +108,8 @@ class Histogram {
     // The last element of the buckets_ is used to count data points above
     // the upper bound of the histogram range.
     size_t index = x / bucket_width_;
-    atomic_inc(&buckets_[std::min(index, buckets_.size() - 1)]);
-    atomic_inc(&count_);
+    index = std::min(index, buckets_.size() - 1);
+    buckets_[index].fetch_add(1);
   }
 
   // Returns the summary of the histogram.
@@ -133,7 +124,7 @@ class Histogram {
   // percentile_values
   const Summary Summarize(const std::vector<double> &percentiles = {}) const {
     Summary ret = {};
-    uint64_t count = count_.load(std::memory_order_relaxed);
+    uint64_t count = std::accumulate(buckets_.begin(), buckets_.end(), 0);
     ret.count = count;
     ret.above_range = buckets_.back();
     ret.percentile_values = std::vector<T>(percentiles.size());
@@ -195,28 +186,18 @@ class Histogram {
 
   // Resets all counters, and the count of such counters.
   // Note that the number of buckets remains unchanged.
-  void Reset() {
-    count_.store(0, std::memory_order_relaxed);
-    std::fill(buckets_.begin(), buckets_.end(), T());
-  }
+  void Reset() { std::fill(buckets_.begin(), buckets_.end(), T()); }
 
   // Resize the histogram.  Note that this resets it (i.e., this
   // does not attempt to redistribute existing counts).
   void Resize(size_t num_buckets, T bucket_width) {
     buckets_ = std::move(std::vector<std::atomic<uint64_t>>(num_buckets + 1));
     bucket_width_ = bucket_width;
-    count_.store(0, std::memory_order_relaxed);
   }
 
  private:
-  void nonatomic_inc(std::atomic<uint64_t> *p) {
-    p->store(1 + p->load(std::memory_order_relaxed), std::memory_order_relaxed);
-  }
-  void atomic_inc(std::atomic<uint64_t> *p) { p->fetch_add(1); }
-
   // TODO(melvin): add support for logarithmic binning
   T bucket_width_;
-  std::atomic<uint64_t> count_;
   std::vector<std::atomic<uint64_t>> buckets_;
 };
 
