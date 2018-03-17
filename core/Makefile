@@ -73,10 +73,9 @@ else ifneq ($(wildcard $(RTE_SDK)/build/*),)
 	DPDK_INC_DIR := $(RTE_SDK)/build/include
 	DPDK_LIB_DIR := $(RTE_SDK)/build/lib
 else ifeq ($(words $(MAKECMDGOALS)),1)
-	ifneq ($(MAKECMDGOALS),clean)
-	$(error DPDK is not available. \
-		Make sure $(abspath $(RTE_SDK)) is available and built)
-	endif
+ifneq ($(MAKECMDGOALS),clean)
+$(error DPDK is not available. Make sure $(abspath $(RTE_SDK)) is available and built)
+endif
 endif
 
 # We always want these libraries to be dynamically linked even when the
