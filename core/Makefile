@@ -393,7 +393,7 @@ $(eval $(call BUILD, \
 $(eval $(call BUILD, \
 	MODULE_CXX, \
 	modules/%.o, \
-	modules/%.cc, \
+	modules/%.cc $(PROTO_HEADERS), \
 	$(CXX) -o $$@ -c $$< $$(CXXFLAGS) $$(DEPFLAGS) -fPIC))
 
 $(eval $(call BUILD, \
@@ -447,7 +447,7 @@ $(eval $(call BUILD, \
 $(eval $(call BUILD, \
 	TEST_CXX, \
 	%_test.o, \
-	%_test.cc, \
+	%_test.cc $(PROTO_HEADERS), \
 	$(CXX) -o $$@ -c $$< $$(CXXFLAGS) $$(DEPFLAGS)))
 
 $(eval $(call BUILD, \
