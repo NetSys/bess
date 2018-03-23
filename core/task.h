@@ -93,10 +93,6 @@ class Task {
 
   mutable std::vector<bess::PacketBatch *> gate_batch_;
 
-  /* The current input gate index is not given as a function parameter.
-   * Modules should use get_igate() for access */
-  mutable gate_idx_t current_igate_;
-
  public:
   // When this task is scheduled it will execute 'm' with 'arg'.  When the
   // associated leaf is created/destroyed, 'module_task' will be updated.
@@ -110,8 +106,7 @@ class Task {
         pbatch_idx_(),
         pbatch_(
             new bess::PacketBatch[MAX_PBATCH_CNT]),  // XXX Need to adjust size
-        gate_batch_(std::vector<bess::PacketBatch *>(64, 0)),
-        current_igate_() {
+        gate_batch_(std::vector<bess::PacketBatch *>(64, 0)) {
     dead_batch_.clear();
   }
 
