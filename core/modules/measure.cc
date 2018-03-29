@@ -99,7 +99,7 @@ CommandResponse Measure::Init(const bess::pb::MeasureArg &arg) {
   return CommandSuccess();
 }
 
-void Measure::ProcessBatch(bess::PacketBatch *batch) {
+void Measure::ProcessBatch(Context *ctx, bess::PacketBatch *batch) {
   // We don't use ctx->current_ns here for better accuracy
   uint64_t now_ns = tsc_to_ns(rdtsc());
   size_t offset = offset_;
@@ -109,7 +109,8 @@ void Measure::ProcessBatch(bess::PacketBatch *batch) {
 
   pkt_cnt_ += batch->cnt();
 
-  for (int i = 0; i < batch->cnt(); i++) {
+  int cnt = batch->cnt();
+  for (int i = 0; i < cnt; i++) {
     uint64_t pkt_time;
     if (IsTimestamped(batch->pkts()[i], offset, &pkt_time)) {
       uint64_t diff;
@@ -138,7 +139,7 @@ void Measure::ProcessBatch(bess::PacketBatch *batch) {
 
   mcs_unlock(&lock_, &mynode);
 
-  RunNextModule(batch);
+  RunNextModule(ctx, batch);
 }
 
 template <typename T>

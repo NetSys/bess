@@ -71,10 +71,10 @@ static inline Packet *__packet_alloc_pool(struct rte_mempool *pool) {
 }
 
 static inline Packet *__packet_alloc() {
-  return reinterpret_cast<Packet *>(rte_pktmbuf_alloc(ctx.pframe_pool()));
+  return reinterpret_cast<Packet *>(
+      rte_pktmbuf_alloc(current_worker.pframe_pool()));
 }
 
-struct rte_mempool *get_pframe_pool();
 struct rte_mempool *get_pframe_pool_socket(int socket);
 
 void init_mempool(void);
@@ -396,8 +396,8 @@ inline size_t Packet::Alloc(Packet **pkts, size_t cnt, uint16_t len) {
   DCHECK_LE(cnt, PacketBatch::kMaxBurst);
 
   // rte_mempool_get_bulk() is all (cnt) or nothing (0)
-  if (rte_mempool_get_bulk(ctx.pframe_pool(), reinterpret_cast<void **>(pkts),
-                           cnt) < 0) {
+  if (rte_mempool_get_bulk(current_worker.pframe_pool(),
+                           reinterpret_cast<void **>(pkts), cnt) < 0) {
     return 0;
   }
 

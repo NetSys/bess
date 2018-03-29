@@ -48,11 +48,13 @@ namespace {
 
 class DummyModule : public Module {
  public:
-  struct task_result RunTask(void *arg) override;
+  struct task_result RunTask(Context *, bess::PacketBatch *,
+                             void *arg) override;
 };
 
-[[gnu::noinline]] struct task_result DummyModule::RunTask([
-    [maybe_unused]] void *arg) {
+[[gnu::noinline]] struct task_result DummyModule::RunTask(Context *,
+                                                          bess::PacketBatch *,
+                                                          void *) {
   return {.block = false, .packets = 0, .bits = 0};
 }
 
@@ -107,7 +109,8 @@ class TCWeightedFair : public benchmark::Fixture {
 BENCHMARK_DEFINE_F(TCWeightedFair, TCScheduleOnceCount)
 (benchmark::State &state) {
   while (state.KeepRunning()) {
-    s_->ScheduleOnce();
+    Context ctx = {};
+    s_->ScheduleOnce(&ctx);
   }
   state.SetItemsProcessed(state.iterations());
   state.SetComplexityN(state.range(0));
@@ -117,7 +120,8 @@ BENCHMARK_DEFINE_F(TCWeightedFair, TCScheduleOnceCount)
 BENCHMARK_DEFINE_F(TCWeightedFair, TCScheduleOnceCycle)
 (benchmark::State &state) {
   while (state.KeepRunning()) {
-    s_->ScheduleOnce();
+    Context ctx = {};
+    s_->ScheduleOnce(&ctx);
   }
   state.SetItemsProcessed(state.iterations());
   state.SetComplexityN(state.range(0));
@@ -202,7 +206,8 @@ class TCRoundRobin : public benchmark::Fixture {
 
 BENCHMARK_DEFINE_F(TCRoundRobin, TCScheduleOnce)(benchmark::State &state) {
   while (state.KeepRunning()) {
-    s_->ScheduleOnce();
+    Context ctx = {};
+    s_->ScheduleOnce(&ctx);
   }
   state.SetItemsProcessed(state.iterations());
   state.SetComplexityN(state.range(0));

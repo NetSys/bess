@@ -587,22 +587,25 @@ void L2Forward::DeInit() {
   l2_deinit(&l2_table_);
 }
 
-void L2Forward::ProcessBatch(bess::PacketBatch *batch) {
+void L2Forward::ProcessBatch(Context *ctx, bess::PacketBatch *batch) {
   gate_idx_t default_gate = ACCESS_ONCE(default_gate_);
-  gate_idx_t out_gates[bess::PacketBatch::kMaxBurst];
 
-  for (int i = 0; i < batch->cnt(); i++) {
+  int cnt = batch->cnt();
+  for (int i = 0; i < cnt; i++) {
     bess::Packet *snb = batch->pkts()[i];
 
-    out_gates[i] = default_gate;
-
+    gate_idx_t out_gate;
     // read destination MAC address (first 6 bytes)
     // NOTE: assumes little endian
-    l2_find(&l2_table_, *(snb->head_data<uint64_t *>()) & 0x0000ffffffffffff,
-            &out_gates[i]);
+    int ret = l2_find(&l2_table_,
+                      *(snb->head_data<uint64_t *>()) & 0x0000ffffffffffff,
+                      &out_gate);
+    if (ret != 0) {
+      EmitPacket(ctx, snb, default_gate);
+    } else {
+      EmitPacket(ctx, snb, out_gate);
+    }
   }
-
-  RunSplit(out_gates, batch);
 }
 
 CommandResponse L2Forward::CommandAdd(

@@ -473,8 +473,8 @@ bess::Packet *FlowGen::FillPacket(struct flow *f) {
   return pkt;
 }
 
-void FlowGen::GeneratePackets(bess::PacketBatch *batch) {
-  uint64_t now = ctx.current_ns();
+void FlowGen::GeneratePackets(Context *ctx, bess::PacketBatch *batch) {
+  uint64_t now = ctx->current_ns;
 
   batch->clear();
   const int burst = ACCESS_ONCE(burst_);
@@ -509,22 +509,20 @@ void FlowGen::GeneratePackets(bess::PacketBatch *batch) {
   }
 }
 
-struct task_result FlowGen::RunTask(void *) {
+struct task_result FlowGen::RunTask(Context *ctx, bess::PacketBatch *batch,
+                                    void *) {
   if (children_overload_ > 0) {
     return {
-      .block = true,
-      .packets = 0,
-      .bits = 0,
+        .block = true, .packets = 0, .bits = 0,
     };
   }
 
   const int pkt_overhead = 24;
-  bess::PacketBatch batch;
 
-  GeneratePackets(&batch);
-  RunNextModule(&batch);
+  GeneratePackets(ctx, batch);
+  RunNextModule(ctx, batch);
 
-  uint32_t cnt = batch.cnt();
+  uint32_t cnt = batch->cnt();
   return {.block = (cnt == 0),
           .packets = cnt,
           .bits = ((template_size_ + pkt_overhead) * cnt) * 8};

@@ -62,7 +62,7 @@ class ACL final : public Module {
 
   CommandResponse Init(const bess::pb::ACLArg &arg);
 
-  void ProcessBatch(bess::PacketBatch *batch) override;
+  void ProcessBatch(Context *ctx, bess::PacketBatch *batch) override;
 
   CommandResponse CommandAdd(const bess::pb::ACLArg &arg);
   CommandResponse CommandClear(const bess::pb::EmptyArg &arg);

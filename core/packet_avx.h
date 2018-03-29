@@ -41,8 +41,8 @@
 
 inline size_t Packet::Alloc(Packet **pkts, size_t cnt, uint16_t len) {
   // rte_mempool_get_bulk() is all (cnt) or nothing (0)
-  if (rte_mempool_get_bulk(ctx.pframe_pool(), reinterpret_cast<void **>(pkts),
-                           cnt) < 0) {
+  if (rte_mempool_get_bulk(current_worker.pframe_pool(),
+                           reinterpret_cast<void **>(pkts), cnt) < 0) {
     return 0;
   }
 

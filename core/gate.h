@@ -156,13 +156,19 @@ inline CommandResponse GateHook::RunCommand(const std::string &cmd,
 // A class for gate, will be inherited for input gates and output gates
 class Gate {
  public:
-  Gate(Module *m, gate_idx_t idx) : module_(m), gate_idx_(idx), hooks_() {}
+  Gate(Module *m, gate_idx_t idx)
+      : module_(m), gate_idx_(idx), global_gate_index_(), hooks_() {}
 
   virtual ~Gate() { ClearHooks(); }
 
   Module *module() const { return module_; }
 
   gate_idx_t gate_idx() const { return gate_idx_; }
+
+  uint32_t global_gate_index() const { return global_gate_index_; }
+  void SetUniqueIdx(uint32_t global_gate_index) {
+    global_gate_index_ = global_gate_index;
+  }
 
   const std::vector<GateHook *> &hooks() const { return hooks_; }
 
@@ -176,14 +182,15 @@ class Gate {
 
   void ClearHooks();
 
- private:
+ protected:
   friend class GateTest;
 
   // Inserts hook in priority order and returns 0 on success.
   int AddHook(GateHook *hook);
 
-  Module *module_;       // the module this gate belongs to
-  gate_idx_t gate_idx_;  // input/output gate index of itself
+  Module *module_;              // the module this gate belongs to
+  gate_idx_t gate_idx_;         // input/output gate index of itself
+  uint32_t global_gate_index_;  // a globally unique igate index
 
   // TODO(melvin): Consider using a map here instead. It gets rid of the need to
   // scan to find modules for queries. Not sure how priority would work in a
@@ -198,17 +205,29 @@ class OGate;
 // A class for input gate
 class IGate : public Gate {
  public:
-  IGate(Module *m, gate_idx_t idx) : Gate(m, idx), ogates_upstream_() {}
+  IGate(Module *m, gate_idx_t idx)
+      : Gate(m, idx), ogates_upstream_(), priority_(), mergeable_(false) {}
 
   const std::vector<OGate *> &ogates_upstream() const {
     return ogates_upstream_;
   }
+
+  void SetPriority(uint32_t priority) { priority_ = priority; }
+
+  uint32_t priority() const { return priority_; }
+  bool mergeable() const { return mergeable_; }
 
   void PushOgate(OGate *og);
   void RemoveOgate(const OGate *og);
 
  private:
   std::vector<OGate *> ogates_upstream_;  // previous ogates connected with
+  uint32_t priority_;  // priority to be scheduled with a task. lower number
+                       // meaning higher priority.
+  bool mergeable_;  // set to be true, if it is connected with multiple ogates
+                    // so that the inputs can be merged and processed once
+
+  DISALLOW_COPY_AND_ASSIGN(IGate);
 };
 
 // A class for output gate. It connects to an input gate of the next module.
@@ -219,9 +238,8 @@ class OGate : public Gate {
 
   void SetIgate(IGate *ig);
 
-  IGate *igate() const { return igate_; }
   Module *next() const { return next_; }
-
+  IGate *igate() const { return igate_; }
   gate_idx_t igate_idx() const { return igate_idx_; }
 
   void AddTrackHook();
@@ -233,6 +251,7 @@ class OGate : public Gate {
 
   DISALLOW_COPY_AND_ASSIGN(OGate);
 };
+
 }  // namespace bess
 
 template <typename T, typename H>

@@ -44,7 +44,7 @@ class MetadataTest final : public Module {
 
   CommandResponse Init(const bess::pb::MetadataTestArg &arg);
 
-  void ProcessBatch(bess::PacketBatch *batch);
+  void ProcessBatch(Context *ctx, bess::PacketBatch *batch) override;
 
  private:
   CommandResponse AddAttributes(

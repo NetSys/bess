@@ -46,11 +46,9 @@ const Commands ExactMatch::cmds = {
     {"get_initial_arg", "EmptyArg", MODULE_CMD_FUNC(&ExactMatch::GetInitialArg),
      Command::THREAD_SAFE},
     {"get_runtime_config", "EmptyArg",
-     MODULE_CMD_FUNC(&ExactMatch::GetRuntimeConfig),
-     Command::THREAD_SAFE},
+     MODULE_CMD_FUNC(&ExactMatch::GetRuntimeConfig), Command::THREAD_SAFE},
     {"set_runtime_config", "ExactMatchConfig",
-     MODULE_CMD_FUNC(&ExactMatch::SetRuntimeConfig),
-     Command::THREAD_UNSAFE},
+     MODULE_CMD_FUNC(&ExactMatch::SetRuntimeConfig), Command::THREAD_UNSAFE},
     {"add", "ExactMatchCommandAddArg", MODULE_CMD_FUNC(&ExactMatch::CommandAdd),
      Command::THREAD_UNSAFE},
     {"delete", "ExactMatchCommandDeleteArg",
@@ -170,7 +168,7 @@ CommandResponse ExactMatch::GetRuntimeConfig(const bess::pb::EmptyArg &) {
     }
   }
   std::sort(r.mutable_rules()->begin(), r.mutable_rules()->end(),
-            [this](const rule_t &a, const rule_t &b){
+            [this](const rule_t &a, const rule_t &b) {
               // Primary sort key is gate number.
               if (a.gate() != b.gate()) {
                 return a.gate() < b.gate();
@@ -188,13 +186,12 @@ CommandResponse ExactMatch::GetRuntimeConfig(const bess::pb::EmptyArg &) {
   return CommandSuccess(r);
 }
 
-Error ExactMatch::AddRule(
-    const bess::pb::ExactMatchCommandAddArg &arg) {
+Error ExactMatch::AddRule(const bess::pb::ExactMatchCommandAddArg &arg) {
   gate_idx_t gate = arg.gate();
 
   if (!is_valid_gate(gate)) {
     return std::make_pair(EINVAL,
-        bess::utils::Format("Invalid gate: %hu", gate));
+                          bess::utils::Format("Invalid gate: %hu", gate));
   }
 
   if (arg.fields_size() == 0) {
@@ -224,12 +221,9 @@ CommandResponse ExactMatch::SetRuntimeConfig(
   return CommandSuccess();
 }
 
-void ExactMatch::ProcessBatch(bess::PacketBatch *batch) {
+void ExactMatch::ProcessBatch(Context *ctx, bess::PacketBatch *batch) {
   gate_idx_t default_gate;
-  gate_idx_t out_gates[bess::PacketBatch::kMaxBurst];
   ExactMatchKey keys[bess::PacketBatch::kMaxBurst] __ymm_aligned;
-
-  int cnt = batch->cnt();
 
   default_gate = ACCESS_ONCE(default_gate_);
 
@@ -241,9 +235,12 @@ void ExactMatch::ProcessBatch(bess::PacketBatch *batch) {
     return pkt->head_data<uint8_t *>() + f.offset;
   };
   table_.MakeKeys(batch, buffer_fn, keys);
-  table_.Find(keys, out_gates, cnt, default_gate);
 
-  RunSplit(out_gates, batch);
+  int cnt = batch->cnt();
+  for (int i = 0; i < cnt; i++) {
+    bess::Packet *pkt = batch->pkts()[i];
+    EmitPacket(ctx, pkt, table_.Find(keys[i], default_gate));
+  }
 }
 
 std::string ExactMatch::GetDesc() const {

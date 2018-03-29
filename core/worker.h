@@ -44,8 +44,6 @@
 #include "utils/common.h"
 #include "utils/random.h"
 
-// XXX
-typedef uint16_t gate_idx_t;
 #define MAX_GATES 8192
 
 /*  TODO: worker threads doesn't necessarily be pinned to 1 core
@@ -119,11 +117,6 @@ class Worker {
   uint64_t current_ns() const { return current_ns_; }
   void set_current_ns(uint64_t ns) { current_ns_ = ns; }
 
-  gate_idx_t current_igate() const { return current_igate_; }
-  void set_current_igate(gate_idx_t idx) { current_igate_ = idx; }
-
-  bess::PacketBatch **splits() { return splits_; }
-
   Random *rand() const { return rand_; }
 
  private:
@@ -143,23 +136,13 @@ class Worker {
   uint64_t current_tsc_;
   uint64_t current_ns_;
 
-  /* The current input gate index is not given as a function parameter.
-   * Modules should use get_igate() for access */
-  gate_idx_t current_igate_;
-
   Random *rand_;
-
-  // For each possible output gate contains a pointer to a batch, or nullptr,
-  // if no batch has been associated with the output gate yet.
-  //
-  // This should be the last field, since it's huge.
-  bess::PacketBatch *splits_[MAX_GATES + 1];
 };
 
 // NOTE: Do not use "thread_local" here. It requires a function call every time
 // it is accessed. Use __thread instead, which incurs minimal runtime overhead.
 // For this, g++ requires Worker to have a trivial constructor and destructor.
-extern __thread Worker ctx;
+extern __thread Worker current_worker;
 
 // the following traits are not supported in g++ 4.x
 #if __GNUC__ >= 5

@@ -99,7 +99,8 @@ class FlowGen final : public Module {
 
   void DeInit() override;
 
-  struct task_result RunTask(void *arg) override;
+  struct task_result RunTask(Context *ctx, bess::PacketBatch *batch,
+                             void *arg) override;
 
   std::string GetDesc() const override;
 
@@ -114,7 +115,7 @@ class FlowGen final : public Module {
 
   CommandResponse UpdateBaseAddresses();
   bess::Packet *FillPacket(struct flow *f);
-  void GeneratePackets(bess::PacketBatch *batch);
+  void GeneratePackets(Context *ctx, bess::PacketBatch *batch);
 
   CommandResponse ProcessArguments(const bess::pb::FlowGenArg &arg);
 

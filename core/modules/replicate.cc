@@ -64,25 +64,17 @@ CommandResponse Replicate::CommandSetGates(
   return CommandSuccess();
 }
 
-void Replicate::ProcessBatch(bess::PacketBatch *batch) {
-  bess::PacketBatch out_gates[ngates_];
-  for (int i = 0; i < ngates_; i++) {
-    out_gates[i].clear();
-  }
-
-  for (int i = 0; i < batch->cnt(); i++) {
+void Replicate::ProcessBatch(Context *ctx, bess::PacketBatch *batch) {
+  int cnt = batch->cnt();
+  for (int i = 0; i < cnt; i++) {
     bess::Packet *tocopy = batch->pkts()[i];
-    out_gates[0].add(tocopy);
     for (int j = 1; j < ngates_; j++) {
       bess::Packet *newpkt = bess::Packet::copy(tocopy);
       if (newpkt) {
-        out_gates[j].add(newpkt);
+        EmitPacket(ctx, newpkt, gates_[j]);
       }
     }
-  }
-
-  for (int j = 0; j < ngates_; j++) {
-    RunChooseModule(gates_[j], &(out_gates[j]));
+    EmitPacket(ctx, tocopy, 0);
   }
 }
 

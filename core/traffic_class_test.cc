@@ -47,11 +47,13 @@ namespace bess {
 
 class DummyModule : public Module {
  public:
-  struct task_result RunTask(void *arg) override;
+  struct task_result RunTask(Context *, bess::PacketBatch *,
+                             void *arg) override;
 };
 
-[[gnu::noinline]] struct task_result DummyModule::RunTask(
-    void *arg[[maybe_unused]]) {
+[[gnu::noinline]] struct task_result DummyModule::RunTask(Context *,
+                                                          bess::PacketBatch *,
+                                                          void *) {
   return {.block = false, .packets = 0, .bits = 0};
 }
 
@@ -382,18 +384,20 @@ TEST(DefaultScheduleOnce, TwoLeavesWeightedFair) {
 
   // There's no guarantee which will run first because they will tie, so this is
   // a guess based upon the heap's behavior.
+  Context ctx = {};
+
   ASSERT_EQ(leaf_2, s.Next(rdtsc()));
-  s.ScheduleOnce();
+  s.ScheduleOnce(&ctx);
   ASSERT_EQ(leaf_1, s.Next(rdtsc()));
-  s.ScheduleOnce();
+  s.ScheduleOnce(&ctx);
   ASSERT_EQ(leaf_2, s.Next(rdtsc()));
-  s.ScheduleOnce();
+  s.ScheduleOnce(&ctx);
   ASSERT_EQ(leaf_2, s.Next(rdtsc()));
-  s.ScheduleOnce();
+  s.ScheduleOnce(&ctx);
   ASSERT_EQ(leaf_1, s.Next(rdtsc()));
-  s.ScheduleOnce();
+  s.ScheduleOnce(&ctx);
   ASSERT_EQ(leaf_2, s.Next(rdtsc()));
-  s.ScheduleOnce();
+  s.ScheduleOnce(&ctx);
   ASSERT_EQ(leaf_2, s.Next(rdtsc()));
 
   TrafficClassBuilder::ClearAll();
@@ -425,10 +429,12 @@ TEST(DefaultScheduleOnce, TwoLeavesPriority) {
   rr_2->AddChild(leaf_2);
   ASSERT_FALSE(rr_2->blocked());
 
+  Context ctx = {};
+
   ASSERT_EQ(leaf_2, s.Next(rdtsc()));
-  s.ScheduleOnce();
+  s.ScheduleOnce(&ctx);
   ASSERT_EQ(leaf_2, s.Next(rdtsc()));
-  s.ScheduleOnce();
+  s.ScheduleOnce(&ctx);
   ASSERT_EQ(leaf_2, s.Next(rdtsc()));
 
   // Unblock the first rr, which should now get picked.
@@ -438,9 +444,9 @@ TEST(DefaultScheduleOnce, TwoLeavesPriority) {
   ASSERT_FALSE(rr_1->blocked());
 
   ASSERT_EQ(leaf_1, s.Next(rdtsc()));
-  s.ScheduleOnce();
+  s.ScheduleOnce(&ctx);
   ASSERT_EQ(leaf_1, s.Next(rdtsc()));
-  s.ScheduleOnce();
+  s.ScheduleOnce(&ctx);
   ASSERT_EQ(leaf_1, s.Next(rdtsc()));
 
   TrafficClassBuilder::ClearAll();
@@ -469,14 +475,17 @@ TEST(DefaultScheduleOnce, TwoLeavesRoundRobin) {
       static_cast<RoundRobinTrafficClass *>(s.root());
   ASSERT_EQ(2, root->runnable_children().size());
 
+  Context ctx = {};
+
   ASSERT_EQ(leaf_1, s.Next(rdtsc()));
-  s.ScheduleOnce();
+
+  s.ScheduleOnce(&ctx);
   ASSERT_EQ(leaf_2, s.Next(rdtsc()));
-  s.ScheduleOnce();
+  s.ScheduleOnce(&ctx);
   ASSERT_EQ(leaf_1, s.Next(rdtsc()));
-  s.ScheduleOnce();
+  s.ScheduleOnce(&ctx);
   ASSERT_EQ(leaf_2, s.Next(rdtsc()));
-  s.ScheduleOnce();
+  s.ScheduleOnce(&ctx);
   ASSERT_EQ(leaf_1, s.Next(rdtsc()));
 
   TrafficClassBuilder::ClearAll();
@@ -519,20 +528,22 @@ TEST(DefaultScheduleOnce, LeavesWeightedFairAndRoundRobin) {
       static_cast<RoundRobinTrafficClass *>(TrafficClassBuilder::Find("rr_2"));
   ASSERT_EQ(2, rr_2->runnable_children().size());
 
+  Context ctx = {};
+
   // There's no guarantee which will run first because they will tie, so this is
   // a guess based upon the heap's behavior.
   ASSERT_EQ(leaves["leaf_1a"], s.Next(rdtsc()));
-  s.ScheduleOnce();
+  s.ScheduleOnce(&ctx);
   ASSERT_EQ(leaves["leaf_2a"], s.Next(rdtsc()));
-  s.ScheduleOnce();
+  s.ScheduleOnce(&ctx);
   ASSERT_EQ(leaves["leaf_2b"], s.Next(rdtsc()));
-  s.ScheduleOnce();
+  s.ScheduleOnce(&ctx);
   ASSERT_EQ(leaves["leaf_2a"], s.Next(rdtsc()));
-  s.ScheduleOnce();
+  s.ScheduleOnce(&ctx);
   ASSERT_EQ(leaves["leaf_1b"], s.Next(rdtsc()));
-  s.ScheduleOnce();
+  s.ScheduleOnce(&ctx);
   ASSERT_EQ(leaves["leaf_2b"], s.Next(rdtsc()));
-  s.ScheduleOnce();
+  s.ScheduleOnce(&ctx);
   ASSERT_EQ(leaves["leaf_2a"], s.Next(rdtsc()));
 
   TrafficClassBuilder::ClearAll();

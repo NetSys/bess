@@ -113,8 +113,8 @@ CXXFLAGS += -std=c++14 -g3 -ggdb3 $(CXXARCHFLAGS) \
             -isystem $(DPDK_INC_DIR) -isystem $(COREDIR) \
             -isystem $(dir $<).. -isystem $(COREDIR)/modules \
             -D_GNU_SOURCE \
-            -Werror \
-            -Wall -Wextra -Wcast-align $(PKG_CFLAGS)
+            -Werror -Wall -Wextra -Wcast-align -Wno-error=deprecated-declarations \
+            $(PKG_CFLAGS)
 
 PERMISSIVE := -Wno-unused-parameter -Wno-missing-field-initializers \
               -Wno-unused-private-field

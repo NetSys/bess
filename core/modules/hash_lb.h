@@ -55,7 +55,7 @@ class HashLB final : public Module {
 
   std::string GetDesc() const override;
 
-  void ProcessBatch(bess::PacketBatch *batch) override;
+  void ProcessBatch(Context *ctx, bess::PacketBatch *batch) override;
 
   CommandResponse CommandSetMode(const bess::pb::HashLBCommandSetModeArg &arg);
   CommandResponse CommandSetGates(
@@ -66,8 +66,7 @@ class HashLB final : public Module {
   static constexpr Mode kDefaultMode = Mode::kL4;
 
   template <Mode mode>
-  inline void DoProcessBatch(bess::PacketBatch *batch,
-                             gate_idx_t *out_gates) const;
+  inline void DoProcessBatch(Context *ctx, bess::PacketBatch *batch);
 
   static constexpr size_t kMaxGates = 16384;
 

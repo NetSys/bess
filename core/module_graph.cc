@@ -32,11 +32,22 @@
 
 #include <glog/logging.h>
 
+#include "gate.h"
+#include "gate_hooks/track.h"
 #include "module.h"
+#include "scheduler.h"
+#include "utils/extended_priority_queue.h"
 
 std::map<std::string, Module *> ModuleGraph::all_modules_;
 std::unordered_set<std::string> ModuleGraph::tasks_;
 bool ModuleGraph::changes_made_ = false;
+uint32_t ModuleGraph::gate_cnt_;
+
+struct IGateGreater {
+  bool operator()(const bess::IGate *left, const bess::IGate *right) const {
+    return left->priority() > right->priority();
+  }
+};
 
 void ModuleGraph::UpdateParentsAs(
     Module *task, Module *module,
@@ -50,7 +61,7 @@ void ModuleGraph::UpdateParentsAs(
     std::vector<bess::OGate *> ogates = module->ogates();
     for (size_t i = 0; i < ogates.size(); i++) {
       if (!ogates[i]) {
-        break;
+        continue;
       }
       Module *child = ogates[i]->igate()->module();
       if (visited_modules.count(child) != 0) {
@@ -68,7 +79,7 @@ void ModuleGraph::UpdateSingleTaskGraph(Module *task_module) {
   std::vector<bess::OGate *> ogates = task_module->ogates();
   for (size_t i = 0; i < ogates.size(); i++) {
     if (!ogates[i]) {
-      break;
+      continue;
     }
 
     Module *child = ogates[i]->igate()->module();
@@ -80,9 +91,118 @@ void ModuleGraph::UpdateSingleTaskGraph(Module *task_module) {
   }
 }
 
-void ModuleGraph::UpdateTaskGraph() {
-  if (!changes_made_)
+void ModuleGraph::PropagateIGatePriority(
+    bess::IGate *igate, std::unordered_set<bess::IGate *> &visited_igates,
+    uint32_t priority) {
+  if (igate->module()->is_task()) {
     return;
+  } else {
+    std::vector<bess::OGate *> ogates = igate->module()->ogates();
+    for (size_t i = 0; i < ogates.size(); i++) {
+      if (!ogates[i]) {
+        continue;
+      }
+
+      bess::IGate *next_igate = ogates[i]->igate();
+      if (visited_igates.count(next_igate) != 0 ||  // This is a loop or
+          next_igate->priority() >= priority) {     // visited by longer path
+        continue;
+      }
+
+      visited_igates.insert(next_igate);
+      next_igate->SetPriority(priority);
+      PropagateIGatePriority(next_igate, visited_igates, priority + 1);
+      visited_igates.erase(next_igate);
+    }
+  }
+}
+
+void ModuleGraph::SetIGatePriority(Module *task_module) {
+  uint32_t priority = 1;
+  std::unordered_set<bess::IGate *> visited_igates;
+
+  std::vector<bess::OGate *> ogates = task_module->ogates();
+  for (size_t i = 0; i < ogates.size(); i++) {
+    if (!ogates[i]) {
+      continue;
+    }
+
+    bess::IGate *igate = ogates[i]->igate();
+    if (visited_igates.count(igate) != 0 ||  // This is a loop or
+        igate->priority() >= priority) {     // visited by longer path
+      continue;
+    }
+
+    visited_igates.insert(igate);
+    igate->SetPriority(priority);
+    PropagateIGatePriority(igate, visited_igates, priority + 1);
+    visited_igates.erase(igate);
+  }
+}
+
+void ModuleGraph::SetUniqueGateIdx() {
+  bess::utils::extended_priority_queue<bess::OGate *> ogates_queue;
+  bess::utils::extended_priority_queue<bess::IGate *, IGateGreater>
+      igates_queue;
+  std::unordered_set<bess::IGate *> igates_pushed;
+
+  for (auto const &e : all_modules_) {
+    std::vector<bess::OGate *> ogates = e.second->ogates();
+    for (size_t i = 0; i < ogates.size(); i++) {
+      if (!ogates[i]) {
+        continue;
+      }
+
+      ogates_queue.push(ogates[i]);
+
+      bess::IGate *igate = ogates[i]->igate();
+      if (igates_pushed.count(igate) != 0) {
+        continue;
+      }
+
+      igates_pushed.insert(igate);
+      igates_queue.push(igate);
+    }
+  }
+
+  gate_cnt_ = 0;
+  while (!igates_queue.empty()) {
+    bess::IGate *igate = igates_queue.top();
+    igates_queue.pop();
+
+    igate->SetUniqueIdx(gate_cnt_++);
+  }
+
+  while (!ogates_queue.empty()) {
+    bess::OGate *ogate = ogates_queue.top();
+    ogates_queue.pop();
+
+    ogate->SetUniqueIdx(gate_cnt_++);
+  }
+}
+
+void ModuleGraph::ConfigureTasks() {
+  for (int i = 0; i < Worker::kMaxWorkers; i++) {
+    if (workers[i] == nullptr) {
+      continue;
+    }
+
+    for (const auto &tc_pair : bess::TrafficClassBuilder::all_tcs()) {
+      bess::TrafficClass *c = tc_pair.second;
+      if (c->policy() == bess::POLICY_LEAF) {
+        auto leaf = static_cast<bess::LeafTrafficClass *>(c);
+        leaf->task()->UpdatePerGateBatch(gate_cnt_);
+      }
+    }
+  }
+}
+
+void ModuleGraph::UpdateTaskGraph() {
+  if (!changes_made_) {
+    return;
+  }
+
+  // Do not change order here
 
   CleanTaskGraph();
 
@@ -90,8 +210,12 @@ void ModuleGraph::UpdateTaskGraph() {
     auto it = all_modules_.find(task);
     if (it != all_modules_.end()) {
       UpdateSingleTaskGraph(it->second);
+      SetIGatePriority(it->second);
     }
   }
+
+  SetUniqueGateIdx();
+  ConfigureTasks();
 
   changes_made_ = false;
 }

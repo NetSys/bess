@@ -46,7 +46,7 @@ class VLANPush final : public Module {
 
   CommandResponse Init(const bess::pb::VLANPushArg &arg);
 
-  void ProcessBatch(bess::PacketBatch *batch) override;
+  void ProcessBatch(Context *ctx, bess::PacketBatch *batch) override;
 
   std::string GetDesc() const override;
 

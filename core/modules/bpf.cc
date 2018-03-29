@@ -40,9 +40,9 @@
 #include <cstring>
 
 #ifdef __x86_64  // JIT compilation code only works in 64-bit
-/*
- * Registers
- */
+                 /*
+                  * Registers
+                  */
 #define RAX 0
 #define RCX 1
 #define RDX 2
@@ -1109,7 +1109,7 @@ CommandResponse BPF::Init(const bess::pb::BPFArg &arg) {
 }
 
 void BPF::DeInit() {
-  for (auto &filter: filters_) {
+  for (auto &filter : filters_) {
 #ifdef __x86_64
     munmap(reinterpret_cast<void *>(filter.func), filter.mmap_size);
 #else
@@ -1167,7 +1167,7 @@ CommandResponse BPF::CommandClear(const bess::pb::EmptyArg &) {
 }
 
 inline bool BPF::Match(const Filter &filter, u_char *pkt, u_int wirelen,
-                  u_int buflen) {
+                       u_int buflen) {
 #ifdef __x86_64
   int ret = filter.func(pkt, wirelen, buflen);
 #else
@@ -1177,14 +1177,8 @@ inline bool BPF::Match(const Filter &filter, u_char *pkt, u_int wirelen,
   return ret != 0;
 }
 
-void BPF::ProcessBatch1Filter(bess::PacketBatch *batch) {
+void BPF::ProcessBatch1Filter(Context *ctx, bess::PacketBatch *batch) {
   const Filter &filter = filters_[0];
-
-  bess::PacketBatch out_batches[2];
-  bess::Packet **ptrs[2];
-
-  ptrs[0] = out_batches[0].pkts();
-  ptrs[1] = out_batches[1].pkts();
 
   int cnt = batch->cnt();
 
@@ -1193,33 +1187,28 @@ void BPF::ProcessBatch1Filter(bess::PacketBatch *batch) {
 
     if (Match(filter, pkt->head_data<u_char *>(), pkt->total_len(),
               pkt->head_len())) {
-      *(ptrs[1]++) = pkt;
+      EmitPacket(ctx, pkt, filter.gate);
     } else {
-      *(ptrs[0]++) = pkt;
+      EmitPacket(ctx, pkt);
     }
   }
-
-  out_batches[0].set_cnt(ptrs[0] - out_batches[0].pkts());
-  out_batches[1].set_cnt(ptrs[1] - out_batches[1].pkts());
-
-  RunChooseModule(0, &out_batches[0]);
-  RunChooseModule(filter.gate, &out_batches[1]);  // matched packets
 }
 
-void BPF::ProcessBatch(bess::PacketBatch *batch) {
-  gate_idx_t out_gates[bess::PacketBatch::kMaxBurst];
+void BPF::ProcessBatch(Context *ctx, bess::PacketBatch *batch) {
   int n_filters = filters_.size();
 
   if (n_filters == 0) {
-    RunNextModule(batch);
+    RunNextModule(ctx, batch);
     return;
   } else if (n_filters == 1) {
-    ProcessBatch1Filter(batch);
+    ProcessBatch1Filter(ctx, batch);
     return;
   }
 
   // slow version for general cases
-  for (int i = 0; i < batch->cnt(); i++) {
+  int cnt = batch->cnt();
+
+  for (int i = 0; i < cnt; i++) {
     gate_idx_t gate = 0;  // default gate for unmatched pkts
     bess::Packet *pkt = batch->pkts()[i];
 
@@ -1231,10 +1220,8 @@ void BPF::ProcessBatch(bess::PacketBatch *batch) {
         break;
       }
     }
-    out_gates[i] = gate;
+    EmitPacket(ctx, pkt, gate);
   }
-
-  RunSplit(out_gates, batch);
 }
 
 ADD_MODULE(BPF, "bpf", "classifies packets with pcap-filter(7) syntax")

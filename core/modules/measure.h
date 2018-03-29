@@ -54,7 +54,7 @@ class Measure final : public Module {
 
   CommandResponse Init(const bess::pb::MeasureArg &arg);
 
-  void ProcessBatch(bess::PacketBatch *batch) override;
+  void ProcessBatch(Context *ctx, bess::PacketBatch *batch) override;
 
   CommandResponse CommandGetSummary(
       const bess::pb::MeasureCommandGetSummaryArg &arg);

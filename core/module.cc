@@ -41,7 +41,6 @@
 #include "scheduler.h"
 #include "task.h"
 #include "utils/pcap.h"
-#include "worker.h"
 
 const Commands Module::cmds;
 
@@ -136,12 +135,12 @@ CommandResponse Module::Init(const bess::pb::EmptyArg &) {
 
 void Module::DeInit() {}
 
-struct task_result Module::RunTask(void *) {
+struct task_result Module::RunTask(Context *, bess::PacketBatch *, void *) {
   CHECK(0);  // You must override this function
   return task_result();
 }
 
-void Module::ProcessBatch(bess::PacketBatch *) {
+void Module::ProcessBatch(Context *, bess::PacketBatch *) {
   CHECK(0);  // You must override this function
 }
 
@@ -335,47 +334,6 @@ int Module::DisconnectGate(gate_idx_t ogate_idx) {
   delete ogate;
 
   return 0;
-}
-
-void Module::RunSplit(const gate_idx_t *out_gates,
-                      bess::PacketBatch *mixed_batch) {
-  int cnt = mixed_batch->cnt();
-  int num_pending = 0;
-
-  bess::Packet **p_pkt = &mixed_batch->pkts()[0];
-
-  gate_idx_t pending[bess::PacketBatch::kMaxBurst];
-  bess::PacketBatch batches[bess::PacketBatch::kMaxBurst];
-
-  bess::PacketBatch **splits = ctx.splits();
-
-  // phase 1: collect unique ogates into pending[] and add packets to local
-  // batches, using splits to remember the association between an ogate and a
-  // local batch
-  for (int i = 0; i < cnt; i++) {
-    bess::PacketBatch *batch;
-    gate_idx_t ogate;
-
-    ogate = out_gates[i];
-    batch = splits[ogate];
-    if (!batch) {
-      batch = splits[ogate] = &batches[num_pending];
-      batch->clear();
-      pending[num_pending] = ogate;
-      num_pending++;
-    }
-
-    batch->add(*(p_pkt++));
-  }
-
-  // phase 2: clear splits, since it may be reentrant.
-  for (int i = 0; i < num_pending; i++) {
-    splits[pending[i]] = nullptr;
-  }
-
-  // phase 3: fire
-  for (int i = 0; i < num_pending; i++)
-    RunChooseModule(pending[i], &batches[i]);
 }
 
 void Module::Destroy() {

@@ -36,6 +36,8 @@
 #include <string>
 #include <utility>
 
+#include "worker.h"
+
 namespace bess {
 
 const GateHookCommands GateHook::cmds;
@@ -164,6 +166,7 @@ void Gate::ClearHooks() {
 
 void IGate::PushOgate(OGate *og) {
   ogates_upstream_.push_back(og);
+  mergeable_ = (ogates_upstream_.size() > 1);
 }
 
 void IGate::RemoveOgate(const OGate *og) {
@@ -173,6 +176,7 @@ void IGate::RemoveOgate(const OGate *og) {
       return;
     }
   }
+  mergeable_ = (ogates_upstream_.size() > 1);
 }
 
 // Add internally-generated Track() hook to this ogate.

@@ -69,7 +69,7 @@ using bess::ResumeHookFactory;
 std::list<std::pair<int, bess::TrafficClass *>> orphan_tcs;
 
 // See worker.h
-__thread Worker ctx;
+__thread Worker current_worker;
 
 struct thread_arg {
   int wid;
@@ -300,7 +300,7 @@ void *Worker::Run(void *_arg) {
 
   current_tsc_ = rdtsc();
 
-  pframe_pool_ = bess::get_pframe_pool();
+  pframe_pool_ = bess::get_pframe_pool_socket(socket_);
   DCHECK(pframe_pool_);
 
   status_ = WORKER_PAUSING;
@@ -327,8 +327,8 @@ void *Worker::Run(void *_arg) {
 }
 
 void *run_worker(void *_arg) {
-  CHECK_EQ(memcmp(&ctx, new Worker(), sizeof(Worker)), 0);
-  return ctx.Run(_arg);
+  CHECK_EQ(memcmp(&current_worker, new Worker(), sizeof(Worker)), 0);
+  return current_worker.Run(_arg);
 }
 
 void launch_worker(int wid, int core,
@@ -425,7 +425,7 @@ WorkerPauser::WorkerPauser() {
 }
 
 WorkerPauser::~WorkerPauser() {
-  attach_orphans(); // All workers should be paused at this point.
+  attach_orphans();  // All workers should be paused at this point.
 
   if (!workers_paused_.empty()) {
     bess::run_global_resume_hooks(false);
