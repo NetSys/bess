@@ -31,14 +31,56 @@
 # POSSIBILITY OF SUCH DAMAGE.
 
 from __future__ import print_function
+
 import glob
 import sys
 import os
 import os.path
 import re
+import shlex
 import subprocess
 import textwrap
 import argparse
+
+
+def cmd(cmd, quiet=False, shell=False):
+    """
+    Run a command.  If quiet is True, or if V is not set in the
+    environment, eat its stdout and stderr by default (we'll print
+    both to stderr on any failure though).
+
+    If V is set and we're not forced to be quiet, just let stdout
+    and stderr flow through as usual.  The name V is from the
+    standard Linux kernel build ("V=1 make" => print everything).
+
+    (We use quiet=True for build environment test cleanup steps;
+    the tests themselves use use cmd_success() to check for failures.)
+    """
+    if not quiet:
+        quiet = os.getenv('V') is None
+
+    kwargs = {'universal_newlines': True}
+    if quiet:
+        kwargs['stdout'] = subprocess.PIPE
+        kwargs['stderr'] = subprocess.STDOUT
+    if shell:
+        proc = subprocess.Popen(cmd, shell=True, **kwargs)
+    else:
+        proc = subprocess.Popen(shlex.split(cmd), **kwargs)
+
+    # There is never any stderr output here - either it went straight
+    # to os.STDERR_FILENO, or it went to the pipe for stdout.
+    out, _ = proc.communicate()
+
+    if proc.returncode:
+        # We only have output if we ran in quiet mode.
+        if quiet:
+            print('Log:\n', out, file=sys.stderr)
+        print('Error has occured running command: %s' % cmd, file=sys.stderr)
+        sys.exit(proc.returncode)
+
+    return out
+
 
 BESS_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -54,7 +96,7 @@ DPDK_VER = 'dpdk-17.11'
 # In some 32-bit container images "uname -m" incorrectly(?) reports "x86_64".
 # To work around this issue, we use "gcc -dumpmachine" to detect target architecture.
 # The output looks like "i686-linux-gnu".
-arch = subprocess.check_output(['gcc', '-dumpmachine']).split('-')[0]
+arch = cmd('gcc -dumpmachine', quiet=True).split('-')[0]
 if arch == 'x86_64':
     DPDK_TARGET = 'x86_64-native-linuxapp-gcc'
 elif arch == 'i686':
@@ -62,7 +104,7 @@ elif arch == 'i686':
 else:
     assert False, 'Unsupported arch %s' % arch
 
-kernel_release = subprocess.check_output(['uname', '-r']).strip()
+kernel_release = cmd('uname -r', quiet=True).strip()
 
 DPDK_DIR = '%s/%s' % (DEPS_DIR, DPDK_VER)
 DPDK_CFLAGS = '"-g -w -fPIC"'
@@ -74,39 +116,6 @@ extra_libs = set()
 cxx_flags = []
 ld_flags = []
 plugins = []
-
-
-def cmd(cmd, quiet=False):
-    """
-    Run a command.  If quiet is True, or if V is not set in the
-    environment, eat its stdout and stderr by default (we'll print
-    both to stderr on any failure though).
-
-    If V is set and we're not forced to be quiet, just let stdout
-    and stderr flow through as usual.  The name V is from the
-    standard Linux kernel build ("V=1 make" => print everything).
-
-    (We use quiet=True for build environment test cleanup steps;
-    the tests themselves use use cmd_success() to check for failures.)
-    """
-    if not quiet:
-        quiet = os.getenv('V') is None
-    if quiet:
-        proc = subprocess.Popen(
-            cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True)
-    else:
-        proc = subprocess.Popen(cmd, shell=True)
-
-    # There is never any stderr output here - either it went straight
-    # to os.STDERR_FILENO, or it went to the pipe for stdout.
-    out, _ = proc.communicate()
-
-    if proc.returncode:
-        # We only have output if we ran in quiet mode.
-        if quiet:
-            print('Log:\n', out, file=sys.stderr)
-        print('Error has occured running command: %s' % cmd, file=sys.stderr)
-        sys.exit(proc.returncode)
 
 
 def cmd_success(cmd):
@@ -337,13 +346,12 @@ def build_dpdk():
         configure_dpdk()
 
     print('Building DPDK...')
-    nproc = int(subprocess.check_output('nproc'))
+    nproc = int(cmd('nproc', quiet=True))
     cmd('make -j%d -C %s EXTRA_CFLAGS=%s' % (nproc, DPDK_DIR, DPDK_CFLAGS))
 
 
 def generate_protobuf_files():
-    grpc = subprocess.check_output('which grpc_python_plugin', shell=True)
-    grpc = grpc.rstrip()
+    grpc = cmd('which grpc_python_plugin', quiet=True).strip()
 
     def gen_one_set_of_files(srcdir, outdir):
         "run protoc on *.proto in srcdir, with python output to outdir"
@@ -394,9 +402,10 @@ def build_bess():
     generate_protobuf_files()
 
     print('Building BESS daemon...')
-    cmd('bin/bessctl daemon stop 2> /dev/null || true')
+    cmd('bin/bessctl daemon stop 2> /dev/null || true', shell=True)
     cmd('rm -f core/bessd')  # force relink as DPDK might have been rebuilt
-    cmd('make -C core -j`nproc`')
+    nproc = int(cmd('nproc', quiet=True))
+    cmd('make -C core -j%d' % nproc)
     cmd('ln -f -s ../core/bessd bin/bessd')
 
 
@@ -413,7 +422,7 @@ def build_kmod():
             print('"kernel-headers-%s" is not available. Build may fail.' %
                   kernel_release)
 
-    cmd('sudo -n rmmod bess 2> /dev/null || true')
+    cmd('sudo -n rmmod bess 2> /dev/null || true', shell=True)
     try:
         cmd('make -C core/kmod')
     except SystemExit:
@@ -492,7 +501,7 @@ def main():
         'show_plugins': show_plugins,
     }
     # if foo_bar is a command allow foo-bar too
-    for name in cmds.keys():
+    for name in list(cmds.keys()):
         if '_' in name:
             cmds[name.replace('_', '-')] = cmds[name]
     cmdlist = sorted(cmds.keys())
