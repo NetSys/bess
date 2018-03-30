@@ -82,7 +82,6 @@ class Codel final: public Queue<T> {
 
   // deconstructor that drops all objects still left in the internal queue.
   virtual ~Codel() {
-    Wrapper w;
     while (!queue_.empty()) {
       Drop(queue_.front());
       queue_.pop_front();
