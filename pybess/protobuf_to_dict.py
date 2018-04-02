@@ -30,6 +30,9 @@
 
 # Copied from https://github.com/benhodgson/protobuf-to-dict (cd98280)
 # written by Ben Hodgson, with additional fixes
+
+import sys
+
 from google.protobuf.message import Message
 from google.protobuf.descriptor import FieldDescriptor
 
@@ -182,6 +185,11 @@ def _get_field_mapping(pb, dict_value, strict):
 def _dict_to_protobuf(pb, value, type_callable_map, strict):
     fields = _get_field_mapping(pb, value, strict)
 
+    if sys.version_info[0] == 2:
+        basestr = basestring
+    else:
+        basestr = str
+
     for field, input_value, pb_value in fields:
         if field.label == FieldDescriptor.LABEL_REPEATED:
             if field.message_type and field.message_type.has_options and \
@@ -198,7 +206,7 @@ def _dict_to_protobuf(pb, value, type_callable_map, strict):
                 if field.type == FieldDescriptor.TYPE_MESSAGE:
                     m = pb_value.add()
                     _dict_to_protobuf(m, item, type_callable_map, strict)
-                elif field.type == FieldDescriptor.TYPE_ENUM and isinstance(item, basestring):
+                elif field.type == FieldDescriptor.TYPE_ENUM and isinstance(item, basestr):
                     pb_value.append(_string_to_enum(field, item))
                 else:
                     pb_value.append(item)
@@ -214,7 +222,7 @@ def _dict_to_protobuf(pb, value, type_callable_map, strict):
             pb.Extensions[field] = input_value
             continue
 
-        if field.type == FieldDescriptor.TYPE_ENUM and isinstance(input_value, basestring):
+        if field.type == FieldDescriptor.TYPE_ENUM and isinstance(input_value, basestr):
             input_value = _string_to_enum(field, input_value)
 
         setattr(pb, field.name, input_value)
