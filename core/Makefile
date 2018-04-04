@@ -391,7 +391,7 @@ $(eval $(call BUILD, \
 $(eval $(call BUILD, \
         DRIVER_CXX, \
         drivers/%.o, \
-        drivers/%.cc, \
+        drivers/%.cc $(PROTO_HEADERS), \
         $(CXX) -o $$@ -c $$< $$(CXXFLAGS) $$(DEPFLAGS)))
 
 $(eval $(call BUILD, \
@@ -409,13 +409,13 @@ $(eval $(call BUILD, \
 $(eval $(call BUILD, \
         GATEHOOK_CXX, \
         gate_hooks/%.o, \
-        gate_hooks/%.cc, \
+        gate_hooks/%.cc $(PROTO_HEADERS), \
         $(CXX) -o $$@ -c $$< $$(CXXFLAGS) $$(DEPFLAGS)))
 
 $(eval $(call BUILD, \
         RESUMEHOOK_CXX, \
         resume_hooks/%.o, \
-        resume_hooks/%.cc, \
+        resume_hooks/%.cc $(PROTO_HEADERS), \
         $(CXX) -o $$@ -c $$< $$(CXXFLAGS) $$(DEPFLAGS)))
 
 $(eval $(call BUILD, \
@@ -475,7 +475,7 @@ $(eval $(call BUILD, \
 $(eval $(call BUILD, \
         BENCH_CXX, \
         %_bench.o, \
-        %_bench.cc, \
+        %_bench.cc $(PROTO_HEADERS), \
         $(CXX) -o $$@ -c $$< $$(CXXFLAGS) $$(DEPFLAGS)))
 
 $(eval $(call BUILD, \
