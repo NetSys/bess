@@ -47,15 +47,17 @@ packets = [gen_packet(scapy.UDP, '172.16.100.1', '10.0.0.1'),
            gen_packet(scapy.UDP, '172.16.100.1', '12.34.56.78'),
            gen_packet(scapy.TCP, '172.12.55.99', '12.34.56.78'),
            gen_packet(scapy.UDP, '192.168.1.123', '12.34.56.78'),
-          ]
-nat_config = [{'ext_addr': '192.168.0.1'}, {'ext_addr': '192.168.0.2'}]
+           ]
 
-nat::NAT(ext_addrs=nat_config)
+# dynamic NAT configuration
+nat::NAT(ext_addrs=[{'ext_addr': '192.168.0.1'}, {'ext_addr': '192.168.0.2'}])
+Source() -> Rewrite(templates=packets) -> 0:nat:0 -> MACSwap() -> IPSwap() -> 1:nat:1 -> Sink()
 
-# Swap src/dst MAC
-mac::MACSwap()
-
-# Swap src/dst IP addresses / ports
-ip::IPSwap()
-
-Source() -> Rewrite(templates=packets) -> 0:nat:0 -> mac -> ip -> 1:nat:1 -> Sink()
+# static NAT configuration
+static_nat::StaticNAT(pairs=[
+    {'int_range': {'start': '172.16.0.0', 'end': '172.31.255.255'},
+     'ext_range': {'start': '55.1.0.0', 'end': '55.16.255.255'}},
+    {'int_range': {'start': '192.168.0.0', 'end': '192.168.255.255'},
+     'ext_range': {'start': '66.77.0.0', 'end': '66.77.255.255'}},
+])
+Source() -> Rewrite(templates=packets) -> 0:static_nat:0 -> MACSwap() -> IPSwap() -> 1:static_nat:1 -> Sink()
