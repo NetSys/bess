@@ -324,7 +324,7 @@ inline void Stamp(Ipv4 *ip, void *l4, const Endpoint &before,
 
 template <NAT::Direction dir>
 inline void NAT::DoProcessBatch(Context *ctx, bess::PacketBatch *batch) {
-  static gate_idx_t ogate_idx = static_cast<gate_idx_t>(dir);
+  gate_idx_t ogate_idx = static_cast<gate_idx_t>(dir);
   int cnt = batch->cnt();
   uint64_t now = ctx->current_ns;
 
@@ -379,4 +379,4 @@ std::string NAT::GetDesc() const {
   return bess::utils::Format("%zu entries", map_.Count() / 2);
 }
 
-ADD_MODULE(NAT, "nat", "Network address translator")
+ADD_MODULE(NAT, "nat", "Dynamic Network address/port translator")
