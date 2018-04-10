@@ -677,15 +677,18 @@ message MetadataTestArg {
 }
 
 /**
- * The NAT module implements IPv4 address/port translation, rewriting packet
- * source addresses with external addresses as specified. Currently only
- * supports TCP/UDP/ICMP. Note that address/port in packet payload
- * (e.g., FTP, SIP, RTSP, etc.) are NOT translated.
+ * The NAT module implements Dynamic IPv4 address/port translation,
+ * rewriting packet source addresses with external addresses as specified,
+ * and destination addresses for packets on the reverse direction.
+ * L3/L4 checksums are updated correspondingly.
  * To see an example of NAT in use, see:
  * [`bess/bessctl/conf/samples/nat.bess`](https://github.com/NetSys/bess/blob/master/bessctl/conf/samples/nat.bess)
  *
- * __Input Gates__: 2
- * __Output Gates__: 2
+ * Currently only supports TCP/UDP/ICMP.
+ * Note that address/port in packet payload (e.g., FTP) are NOT translated.
+ *
+ * __Input Gates__: 2 (0 for internal->external, and 1 for external->internal direction)
+ * __Output Gates__: 2 (same as the input gate)
  */
 message NATArg {
   message PortRange {
@@ -698,6 +701,39 @@ message NATArg {
     repeated PortRange port_ranges = 2;
   }
   repeated ExternalAddress ext_addrs = 1; /// list of external IP addresses
+}
+
+/**
+ * Static NAT module implements one-to-one translation of source/destination
+ * IPv4 addresses. No port number is translated.
+ * L3/L4 checksums are updated correspondingly.
+ * To see an example of NAT in use, see:
+ * [`bess/bessctl/conf/samples/nat.bess`](https://github.com/NetSys/bess/blob/master/bessctl/conf/samples/nat.bess)
+ *
+ * Forward direction (from input gate 0 to output gate 0):
+ *  - Source IP address is updated, from internal to external address.
+ * Reverse direction (from input gate 1 to output gate 1):
+ *  - Destination IP address is updated, from external to internal address.
+ * If the original address is outside any of the ranges, packets are forwarded
+ * without NAT.
+ *
+ * Note that address in packet payload (e.g., FTP) are NOT translated.
+ *
+ * __Input Gates__: 2 (0 for internal->external, and 1 for external->internal direction)
+ * __Output Gates__: 2 (same as the input gate)
+ */
+message StaticNATArg {
+  message AddressRange {
+    string start = 1; /// first IP address to use
+    string end = 2; /// last IP address to use
+  }
+
+  message AddressRangePair {
+    AddressRange int_range = 1;
+    AddressRange ext_range = 2; /// should be the same size as int_range
+  }
+
+  repeated AddressRangePair pairs = 1;
 }
 
 /**
