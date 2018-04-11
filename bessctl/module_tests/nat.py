@@ -90,7 +90,7 @@ class BessNatTest(BessModuleTestCase):
         nat = NAT(ext_addrs=nat_config)
         self._test_l4(nat, scapy.UDP(sport=56797, dport=53), '192.168.1.1')
 
-    def test_nat_udp_with_cksum(self):
+    def test_nat_udp_with_zero_cksum(self):
         nat_config = [{'ext_addr': '192.168.1.1'}]
         nat = NAT(ext_addrs=nat_config)
         self._test_l4(
