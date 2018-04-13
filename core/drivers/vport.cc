@@ -35,7 +35,10 @@
 #include <sched.h>
 #include <unistd.h>
 
+#include <arpa/inet.h>
+#include <netinet/in.h>
 #include <sys/ioctl.h>
+#include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
 
@@ -329,6 +332,20 @@ void VPort::InitDriver() {
   }
 }
 
+static inline bool is_ipv6_prefix(const std::string &prefix) {
+  size_t delim_pos = prefix.find('/');
+  if (delim_pos == std::string::npos) {
+    return false;
+  }
+  int prefix_len = std::stoi(prefix.substr(delim_pos + 1));
+  if (prefix_len <= 0 || prefix_len > 128) {
+    return false;
+  }
+  struct sockaddr_in6 sa;
+  return inet_pton(AF_INET6, prefix.substr(0, delim_pos).c_str(),
+                   &(sa.sin6_addr)) != 0;
+}
+
 int VPort::SetIPAddrSingle(const std::string &ip_addr) {
   FILE *fp;
 
@@ -337,19 +354,29 @@ int VPort::SetIPAddrSingle(const std::string &ip_addr) {
   int ret;
   int exit_code;
 
-  ret = snprintf(buf, sizeof(buf), "ip addr add %s dev %s 2>&1",
-                 ip_addr.c_str(), ifname_);
+  const char *cmd = is_ipv6_prefix(ip_addr) ? "ip -6 addr add %s dev %s 2>&1"
+                                            : "ip addr add %s dev %s 2>&1";
+  ret = snprintf(buf, sizeof(buf), cmd, ip_addr.c_str(), ifname_);
+
   if (ret >= static_cast<int>(sizeof(buf)))
     return -EINVAL;
 
   fp = popen(buf, "r");
-  if (!fp)
+  if (!fp) {
+    PLOG(ERROR) << "popen()";
     return -errno;
+  }
+
+  while (fgets(buf, sizeof(buf), fp) != NULL) {
+    PLOG(INFO) << buf;
+  }
 
   ret = pclose(fp);
   exit_code = WEXITSTATUS(ret);
-  if (exit_code)
+  if (exit_code) {
+    PLOG(ERROR) << "pclose(). Exit status: " << exit_code;
     return -EINVAL;
+  }
 
   return 0;
 }
@@ -380,8 +407,9 @@ CommandResponse VPort::SetIPAddr(const bess::pb::VPortArg &arg) {
           PLOG(ERROR) << "open(/proc/pid/ns/net)";
           _exit(errno <= 255 ? errno : ENOMSG);
         }
-      } else
+      } else {
         fd = netns_fd_;
+      }
 
       ret = setns(fd, 0);
       if (ret < 0) {
@@ -395,15 +423,15 @@ CommandResponse VPort::SetIPAddr(const bess::pb::VPortArg &arg) {
 
   if (arg.ip_addrs_size() > 0) {
     for (int i = 0; i < arg.ip_addrs_size(); ++i) {
-      const char *addr = arg.ip_addrs(i).c_str();
-      ret = SetIPAddrSingle(addr);
+      ret = SetIPAddrSingle(arg.ip_addrs(i));
       if (ret < 0) {
         if (nspace) {
           /* it must be the child */
           DCHECK_EQ(child_pid, 0);
           _exit(errno <= 255 ? errno : ENOMSG);
-        } else
+        } else {
           break;
+        }
       }
     }
   } else {
@@ -415,8 +443,9 @@ CommandResponse VPort::SetIPAddr(const bess::pb::VPortArg &arg) {
       if (ret < 0) {
         ret = -ret;
         _exit(ret <= 255 ? ret : ENOMSG);
-      } else
+      } else {
         _exit(0);
+      }
     } else {
       int exit_status;
 
@@ -426,8 +455,9 @@ CommandResponse VPort::SetIPAddr(const bess::pb::VPortArg &arg) {
       if (ret >= 0) {
         DCHECK_EQ(ret, child_pid);
         ret = -WEXITSTATUS(exit_status);
-      } else
+      } else {
         PLOG(ERROR) << "waitpid()";
+      }
     }
   }
 
