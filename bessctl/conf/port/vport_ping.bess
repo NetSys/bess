@@ -31,11 +31,11 @@
 import os
 
 os.system('docker pull ubuntu > /dev/null')
-os.system('docker run -i -d --net=none --name=vport_test ubuntu /bin/bash > /dev/null')
+os.system('docker run -i -d --sysctl net.ipv6.conf.all.disable_ipv6=0 --net=none --name=vport_test ubuntu /bin/bash > /dev/null')
 
 # Alice lives outside the container, wanting to talk to Bob in the container
-v_bob = VPort(ifname='eth_bob', docker='vport_test', ip_addrs=['10.255.99.2/24'])
-v_alice = VPort(ifname='eth_alice', ip_addrs=['10.255.99.1/24'])
+v_bob = VPort(ifname='eth_bob', docker='vport_test', ip_addrs=['10.255.99.2/24', 'fdd4:955b:82c1:0cb7::1/64'])
+v_alice = VPort(ifname='eth_alice', ip_addrs=['10.255.99.1/24', 'fdd4:955b:82c1:0cb7::2/64'])
 
 PortInc(port=v_alice) -> PortOut(port=v_bob)
 PortInc(port=v_bob) -> PortOut(port=v_alice)
@@ -43,6 +43,7 @@ PortInc(port=v_bob) -> PortOut(port=v_alice)
 bess.resume_all()
 
 os.system('ping -W 1.0 -c 64 -i 0.2 10.255.99.2')
+os.system('ping6 -W 1.0 -c 64 -i 0.2 fdd4:955b:82c1:0cb7::1')
 
 bess.pause_all()
 
