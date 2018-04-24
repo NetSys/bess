@@ -31,13 +31,14 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "bpf.h"
-
 #include <sys/mman.h>
 
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
+
+#include "../utils/bpf.h"
+#include "bpf.h"
 
 /* -------------------------------------------------------------------------
  * Module code begins from here

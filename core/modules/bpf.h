@@ -38,7 +38,6 @@
 #include "../module.h"
 #include "../pb/module_msg.pb.h"
 #include "../utils/bpf.h"
-#include "pb/bpf_hook_msg.pb.h"
 
 class BPF final : public Module {
  public:
@@ -57,11 +56,11 @@ class BPF final : public Module {
   CommandResponse CommandClear(const bess::pb::EmptyArg &arg);
 
  private:
-   static bool Match(const bess::utils::Filter &, u_char *, u_int, u_int);
+  static bool Match(const bess::utils::Filter &, u_char *, u_int, u_int);
 
-   void ProcessBatch1Filter(Context *ctx, bess::PacketBatch *batch);
+  void ProcessBatch1Filter(Context *ctx, bess::PacketBatch *batch);
 
-   std::vector<bess::utils::Filter> filters_;
+  std::vector<bess::utils::Filter> filters_;
 };
 
 #endif  // BESS_MODULES_BPF_H_
