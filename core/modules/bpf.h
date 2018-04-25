@@ -37,8 +37,7 @@
 
 #include "../module.h"
 #include "../pb/module_msg.pb.h"
-
-using bpf_filter_func_t = u_int (*)(u_char *, u_int, u_int);
+#include "../utils/bpf.h"
 
 class BPF final : public Module {
  public:
@@ -57,23 +56,11 @@ class BPF final : public Module {
   CommandResponse CommandClear(const bess::pb::EmptyArg &arg);
 
  private:
-  struct Filter {
-#ifdef __x86_64
-    bpf_filter_func_t func;
-    size_t mmap_size;  // needed for munmap()
-#else
-    bpf_program il_code;
-#endif
-    int gate;
-    int priority;     // higher number == higher priority
-    std::string exp;  // original filter expression string
-  };
-
-  static bool Match(const Filter &, u_char *, u_int, u_int);
+  static bool Match(const bess::utils::Filter &, u_char *, u_int, u_int);
 
   void ProcessBatch1Filter(Context *ctx, bess::PacketBatch *batch);
 
-  std::vector<Filter> filters_;
+  std::vector<bess::utils::Filter> filters_;
 };
 
 #endif  // BESS_MODULES_BPF_H_
