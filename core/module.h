@@ -571,7 +571,8 @@ inline void Module::EmitPacket(Context *ctx, bess::Packet *pkt,
         hook->ProcessBatch(task->get_gate_batch(ogate));
       }
       task->AddToRun(igate, task->get_gate_batch(ogate));
-      task->set_gate_batch(ogate, task->AllocPacketBatch());
+      batch = task->AllocPacketBatch();
+      task->set_gate_batch(ogate, batch);
     } else {
       // allocate a new batch and push
       batch = task->AllocPacketBatch();
