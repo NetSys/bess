@@ -382,12 +382,16 @@ class BESSControlImpl final : public BESSControl::Service {
 
   Status GetVersion(ServerContext*, const EmptyRequest*,
                     VersionResponse* response) override {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
+
     response->set_version(google::VersionString());
     return Status::OK;
   }
 
   Status ResetAll(ServerContext* context, const EmptyRequest* request,
                   EmptyResponse* response) override {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
+
     Status status;
     WorkerPauser wp;
 
@@ -418,6 +422,8 @@ class BESSControlImpl final : public BESSControl::Service {
 
   Status PauseAll(ServerContext*, const EmptyRequest*,
                   EmptyResponse*) override {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
+
     pause_all_workers();
     LOG(INFO) << "*** All workers have been paused ***";
     return Status::OK;
@@ -425,6 +431,8 @@ class BESSControlImpl final : public BESSControl::Service {
 
   Status PauseWorker(ServerContext*, const PauseWorkerRequest* req,
                      EmptyResponse*) override {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
+
     int wid = req->wid();
     // TODO: It should be made harder to wreak havoc on the rest of the daemon
     // when using PauseWorker(). For now a warning and suggestion that this is
@@ -438,6 +446,8 @@ class BESSControlImpl final : public BESSControl::Service {
 
   Status ResumeAll(ServerContext*, const EmptyRequest*,
                    EmptyResponse*) override {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
+
     if (!is_any_worker_running()) {
       attach_orphans();
     }
@@ -451,6 +461,8 @@ class BESSControlImpl final : public BESSControl::Service {
 
   Status ResumeWorker(ServerContext*, const ResumeWorkerRequest* req,
                       EmptyResponse*) override {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
+
     int wid = req->wid();
     LOG(INFO) << "*** Resuming worker " << wid << " ***";
     resume_worker(wid);
@@ -459,6 +471,8 @@ class BESSControlImpl final : public BESSControl::Service {
 
   Status ResetWorkers(ServerContext*, const EmptyRequest*,
                       EmptyResponse*) override {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
+
     WorkerPauser wp;
     destroy_all_workers();
     LOG(INFO) << "*** All workers have been destroyed ***";
@@ -467,6 +481,8 @@ class BESSControlImpl final : public BESSControl::Service {
 
   Status ListWorkers(ServerContext*, const EmptyRequest*,
                      ListWorkersResponse* response) override {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
+
     for (int wid = 0; wid < Worker::kMaxWorkers; wid++) {
       if (!is_worker_active(wid))
         continue;
@@ -482,6 +498,8 @@ class BESSControlImpl final : public BESSControl::Service {
 
   Status AddWorker(ServerContext*, const AddWorkerRequest* request,
                    EmptyResponse* response) override {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
+
     uint64_t wid = request->wid();
     if (wid >= Worker::kMaxWorkers) {
       return return_with_error(response, EINVAL, "Invalid worker id");
@@ -506,6 +524,8 @@ class BESSControlImpl final : public BESSControl::Service {
 
   Status DestroyWorker(ServerContext*, const DestroyWorkerRequest* request,
                        EmptyResponse* response) override {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
+
     uint64_t wid = request->wid();
     if (wid >= Worker::kMaxWorkers) {
       return return_with_error(response, EINVAL, "Invalid worker id");
@@ -533,6 +553,8 @@ class BESSControlImpl final : public BESSControl::Service {
 
   Status ResetTcs(ServerContext*, const EmptyRequest*,
                   EmptyResponse* response) override {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
+
     WorkerPauser wp;
 
     if (!TrafficClassBuilder::ClearAll()) {
@@ -544,6 +566,8 @@ class BESSControlImpl final : public BESSControl::Service {
 
   Status ListTcs(ServerContext*, const ListTcsRequest* request,
                  ListTcsResponse* response) override {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
+
     int wid_filter = request->wid();
     if (wid_filter >= Worker::kMaxWorkers) {
       return return_with_error(response, EINVAL,
@@ -594,6 +618,8 @@ class BESSControlImpl final : public BESSControl::Service {
   Status CheckSchedulingConstraints(
       ServerContext*, const EmptyRequest*,
       CheckSchedulingConstraintsResponse* response) override {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
+
     // Start by attaching orphans -- this is essential to make sure we visit
     // every TC.
     if (!is_any_worker_running()) {
@@ -651,6 +677,8 @@ class BESSControlImpl final : public BESSControl::Service {
 
   Status AddTc(ServerContext*, const AddTcRequest* request,
                EmptyResponse* response) override {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
+
     WorkerPauser wp;
 
     const char* tc_name = request->class_().name().c_str();
@@ -721,6 +749,8 @@ class BESSControlImpl final : public BESSControl::Service {
 
   Status UpdateTcParams(ServerContext*, const UpdateTcParamsRequest* request,
                         EmptyResponse* response) override {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
+
     WorkerPauser wp;
 
     bess::TrafficClass* c = FindTc(request->class_(), response);
@@ -763,6 +793,8 @@ class BESSControlImpl final : public BESSControl::Service {
 
   Status UpdateTcParent(ServerContext*, const UpdateTcParentRequest* request,
                         EmptyResponse* response) override {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
+
     WorkerPauser wp;
 
     bess::TrafficClass* c = FindTc(request->class_(), response);
@@ -796,6 +828,8 @@ class BESSControlImpl final : public BESSControl::Service {
 
   Status GetTcStats(ServerContext*, const GetTcStatsRequest* request,
                     GetTcStatsResponse* response) override {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
+
     const char* tc_name = request->name().c_str();
 
     bess::TrafficClass* c;
@@ -823,6 +857,8 @@ class BESSControlImpl final : public BESSControl::Service {
 
   Status ListDrivers(ServerContext*, const EmptyRequest*,
                      ListDriversResponse* response) override {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
+
     for (const auto& pair : PortBuilder::all_port_builders()) {
       const PortBuilder& builder = pair.second;
       response->add_driver_names(builder.class_name());
@@ -833,6 +869,8 @@ class BESSControlImpl final : public BESSControl::Service {
 
   Status GetDriverInfo(ServerContext*, const GetDriverInfoRequest* request,
                        GetDriverInfoResponse* response) override {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
+
     if (request->driver_name().length() == 0) {
       return return_with_error(response, EINVAL,
                                "Argument must be a name in str");
@@ -860,6 +898,8 @@ class BESSControlImpl final : public BESSControl::Service {
 
   Status ResetPorts(ServerContext*, const EmptyRequest*,
                     EmptyResponse* response) override {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
+
     WorkerPauser wp;
 
     for (auto it = PortBuilder::all_ports().cbegin();
@@ -880,6 +920,8 @@ class BESSControlImpl final : public BESSControl::Service {
 
   Status ListPorts(ServerContext*, const EmptyRequest*,
                    ListPortsResponse* response) override {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
+
     for (const auto& pair : PortBuilder::all_ports()) {
       const ::Port* p = pair.second;
       bess::pb::ListPortsResponse::Port* port = response->add_ports();
@@ -894,6 +936,8 @@ class BESSControlImpl final : public BESSControl::Service {
 
   Status CreatePort(ServerContext*, const CreatePortRequest* request,
                     CreatePortResponse* response) override {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
+
     const char* driver_name;
     ::Port* port = nullptr;
 
@@ -929,6 +973,8 @@ class BESSControlImpl final : public BESSControl::Service {
 
   Status SetPortConf(ServerContext*, const SetPortConfRequest* request,
                      EmptyResponse* response) override {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
+
     if (!request->name().length()) {
       return return_with_error(response, EINVAL, "Port name is not given");
     }
@@ -959,6 +1005,8 @@ class BESSControlImpl final : public BESSControl::Service {
 
   Status GetPortConf(ServerContext*, const GetPortConfRequest* request,
                      GetPortConfResponse* response) override {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
+
     if (!request->name().length()) {
       return return_with_error(response, EINVAL, "Port name is not given");
     }
@@ -982,6 +1030,8 @@ class BESSControlImpl final : public BESSControl::Service {
 
   Status DestroyPort(ServerContext*, const DestroyPortRequest* request,
                      EmptyResponse* response) override {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
+
     const char* port_name;
     int ret;
 
@@ -1005,6 +1055,8 @@ class BESSControlImpl final : public BESSControl::Service {
 
   Status GetPortStats(ServerContext*, const GetPortStatsRequest* request,
                       GetPortStatsResponse* response) override {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
+
     const auto& it = PortBuilder::all_ports().find(request->name());
     if (it == PortBuilder::all_ports().end()) {
       return return_with_error(response, ENOENT, "No port '%s' found",
@@ -1040,6 +1092,8 @@ class BESSControlImpl final : public BESSControl::Service {
 
   Status GetLinkStatus(ServerContext*, const GetLinkStatusRequest* request,
                        GetLinkStatusResponse* response) override {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
+
     const auto& it = PortBuilder::all_ports().find(request->name());
     if (it == PortBuilder::all_ports().end()) {
       return return_with_error(response, ENOENT, "No port '%s' found",
@@ -1058,6 +1112,8 @@ class BESSControlImpl final : public BESSControl::Service {
 
   Status ResetModules(ServerContext*, const EmptyRequest*,
                       EmptyResponse*) override {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
+
     WorkerPauser wp;
 
     ModuleGraph::DestroyAllModules();
@@ -1068,6 +1124,8 @@ class BESSControlImpl final : public BESSControl::Service {
 
   Status ListModules(ServerContext*, const EmptyRequest*,
                      ListModulesResponse* response) override {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
+
     for (const auto& pair : ModuleGraph::GetAllModules()) {
       const Module* m = pair.second;
       ListModulesResponse_Module* module = response->add_modules();
@@ -1081,6 +1139,8 @@ class BESSControlImpl final : public BESSControl::Service {
 
   Status CreateModule(ServerContext*, const CreateModuleRequest* request,
                       CreateModuleResponse* response) override {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
+
     VLOG(1) << "CreateModuleRequest from client:" << std::endl
             << request->DebugString();
 
@@ -1125,6 +1185,8 @@ class BESSControlImpl final : public BESSControl::Service {
 
   Status DestroyModule(ServerContext*, const DestroyModuleRequest* request,
                        EmptyResponse* response) override {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
+
     WorkerPauser wp;
     const char* m_name;
     Module* m;
@@ -1153,6 +1215,8 @@ class BESSControlImpl final : public BESSControl::Service {
 
   Status GetModuleInfo(ServerContext*, const GetModuleInfoRequest* request,
                        GetModuleInfoResponse* response) override {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
+
     const char* m_name;
     Module* m;
 
@@ -1181,6 +1245,8 @@ class BESSControlImpl final : public BESSControl::Service {
 
   Status ConnectModules(ServerContext*, const ConnectModulesRequest* request,
                         EmptyResponse* response) override {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
+
     VLOG(1) << "ConnectModulesRequest from client:" << std::endl
             << request->DebugString();
 
@@ -1239,6 +1305,8 @@ class BESSControlImpl final : public BESSControl::Service {
   Status DisconnectModules(ServerContext*,
                            const DisconnectModulesRequest* request,
                            EmptyResponse* response) override {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
+
     WorkerPauser wp;
     const char* m_name;
     gate_idx_t ogate;
@@ -1268,6 +1336,8 @@ class BESSControlImpl final : public BESSControl::Service {
 
   Status DumpMempool(ServerContext*, const DumpMempoolRequest* request,
                      DumpMempoolResponse* response) override {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
+
     int socket_filter = request->socket();
     socket_filter =
         (socket_filter == -1) ? (RTE_MAX_NUMA_NODES - 1) : socket_filter;
@@ -1299,6 +1369,8 @@ class BESSControlImpl final : public BESSControl::Service {
 
   Status ListGateHooks(ServerContext*, const EmptyRequest*,
                        ListGateHooksResponse* response) override {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
+
     for (const auto& pair : ModuleGraph::GetAllModules()) {
       const Module* m = pair.second;
       for (auto& gate : m->igates()) {
@@ -1332,6 +1404,8 @@ class BESSControlImpl final : public BESSControl::Service {
   Status ConfigureGateHook(ServerContext*,
                            const ConfigureGateHookRequest* request,
                            CommandResponse* response) override {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
+
     WorkerPauser wp;
     bool use_gate = true;
     gate_idx_t gate_idx = 0;
@@ -1394,6 +1468,8 @@ class BESSControlImpl final : public BESSControl::Service {
 
   Status GateHookCommand(ServerContext*, const GateHookCommandRequest* request,
                          CommandResponse* response) override {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
+
     // No need to look up the hook factory: the gate either
     // has a hook instance with the right name, or doesn't.
     const bess::pb::GateHookInfo& rh = request->hook();
@@ -1430,6 +1506,8 @@ class BESSControlImpl final : public BESSControl::Service {
   Status ConfigureResumeHook(ServerContext*,
                              const ConfigureResumeHookRequest* request,
                              CommandResponse* response) override {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
+
     auto& hooks = bess::global_resume_hooks;
     auto hook_it = hooks.end();
     for (auto it = hooks.begin(); it != hooks.end(); ++it) {
@@ -1471,6 +1549,8 @@ class BESSControlImpl final : public BESSControl::Service {
 
   Status KillBess(ServerContext*, const EmptyRequest*,
                   EmptyResponse*) override {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
+
     WorkerPauser wp;
     LOG(WARNING) << "Halt requested by a client\n";
 
@@ -1488,6 +1568,8 @@ class BESSControlImpl final : public BESSControl::Service {
 
   Status ImportPlugin(ServerContext*, const ImportPluginRequest* request,
                       EmptyResponse* response) override {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
+
     WorkerPauser wp;
     VLOG(1) << "Loading plugin: " << request->path();
     if (!bess::bessd::LoadPlugin(request->path())) {
@@ -1499,6 +1581,8 @@ class BESSControlImpl final : public BESSControl::Service {
 
   Status UnloadPlugin(ServerContext*, const UnloadPluginRequest* request,
                       EmptyResponse* response) override {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
+
     WorkerPauser wp;
 
     VLOG(1) << "Unloading plugin: " << request->path();
@@ -1511,6 +1595,8 @@ class BESSControlImpl final : public BESSControl::Service {
 
   Status ListPlugins(ServerContext*, const EmptyRequest*,
                      ListPluginsResponse* response) override {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
+
     auto list = bess::bessd::ListPlugins();
     for (auto& path : list) {
       response->add_paths(path);
@@ -1520,6 +1606,8 @@ class BESSControlImpl final : public BESSControl::Service {
 
   Status ListMclass(ServerContext*, const EmptyRequest*,
                     ListMclassResponse* response) override {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
+
     for (const auto& pair : ModuleBuilder::all_module_builders()) {
       const ModuleBuilder& builder = pair.second;
       response->add_names(builder.class_name());
@@ -1529,6 +1617,8 @@ class BESSControlImpl final : public BESSControl::Service {
 
   Status GetMclassInfo(ServerContext*, const GetMclassInfoRequest* request,
                        GetMclassInfoResponse* response) override {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
+
     VLOG(1) << "GetMclassInfo from client:" << std::endl
             << request->DebugString();
     if (!request->name().length()) {
@@ -1555,6 +1645,8 @@ class BESSControlImpl final : public BESSControl::Service {
 
   Status ModuleCommand(ServerContext*, const CommandRequest* request,
                        CommandResponse* response) override {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
+
     if (!request->name().length()) {
       return return_with_error(response, EINVAL,
                                "Missing module name field 'name'");
@@ -1711,9 +1803,11 @@ class BESSControlImpl final : public BESSControl::Service {
 
   // function to call to close this gRPC service.
   std::function<void()> shutdown_func_;
-};
 
-bool ApiServer::grpc_cb_set_ = false;
+  // gRPC service handlers are not thread-safe; we serialize them with a lock.
+  // A recursive mutex is required since handlers may call each other.
+  std::recursive_mutex mutex_;
+};
 
 void ApiServer::Listen(const std::string& addr) {
   if (!builder_) {
@@ -1726,27 +1820,9 @@ void ApiServer::Listen(const std::string& addr) {
 }
 
 void ApiServer::Run() {
-  class ServerCallbacks : public grpc::Server::GlobalCallbacks {
-   public:
-    ServerCallbacks() {}
-    void PreSynchronousRequest(ServerContext*) { mutex_.lock(); }
-    void PostSynchronousRequest(ServerContext*) { mutex_.unlock(); }
-
-   private:
-    std::mutex mutex_;
-  };
-
   if (!builder_) {
     // We are not listening on any sockets. There is nothing to do.
     return;
-  }
-
-  if (!grpc_cb_set_) {
-    // SetGlobalCallbacks() must be invoked only once.
-    grpc_cb_set_ = true;
-    // NOTE: Despite its documentation, SetGlobalCallbacks() does take the
-    // ownership of the object pointer. So we just "new" and forget about it.
-    grpc::Server::SetGlobalCallbacks(new ServerCallbacks());
   }
 
   BESSControlImpl service;
