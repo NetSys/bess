@@ -57,7 +57,6 @@ class ApiServer {
 
  private:
   grpc::ServerBuilder *builder_;
-  static bool grpc_cb_set_;
 };
 
 #endif  // BESS_BESSCTL_H_
