@@ -44,6 +44,7 @@
 #include "module.h"
 #include "packet.h"
 #include "pb/port_msg.pb.h"
+#include "pktbatch.h"
 #include "utils/common.h"
 #include "utils/ether.h"
 
@@ -174,10 +175,23 @@ class PortBuilder {
                       // InitPortClass()?
 };
 
+struct BatchHistogram
+    : public std::array<uint64_t, bess::PacketBatch::kMaxBurst + 1> {
+  BatchHistogram &operator+=(const BatchHistogram &rhs) {
+    for (size_t i = 0; i < size(); i++) {
+      (*this)[i] += rhs[i];
+    }
+    return *this;
+  }
+};
+
 struct QueueStats {
   uint64_t packets;
   uint64_t dropped;  // Not all drivers support this for INC direction
   uint64_t bytes;    // It doesn't include Ethernet overhead
+  BatchHistogram requested_hist;
+  BatchHistogram actual_hist;
+  BatchHistogram diff_hist;
 };
 
 class Port {
