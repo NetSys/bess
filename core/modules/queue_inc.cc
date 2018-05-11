@@ -101,7 +101,9 @@ struct task_result QueueInc::RunTask(Context *ctx, bess::PacketBatch *batch,
 
   batch->set_cnt(p->RecvPackets(qid, batch->pkts(), burst));
   uint32_t cnt = batch->cnt();
-
+  p->queue_stats[PACKET_DIR_INC][qid].requested_hist[burst]++;
+  p->queue_stats[PACKET_DIR_INC][qid].actual_hist[cnt]++;
+  p->queue_stats[PACKET_DIR_INC][qid].diff_hist[burst - cnt]++;
   if (cnt == 0) {
     return {.block = true, .packets = 0, .bits = 0};
   }

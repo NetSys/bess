@@ -441,7 +441,11 @@ int PMDPort::RecvPackets(queue_t qid, bess::Packet **pkts, int cnt) {
 int PMDPort::SendPackets(queue_t qid, bess::Packet **pkts, int cnt) {
   int sent = rte_eth_tx_burst(dpdk_port_id_, qid,
                               reinterpret_cast<struct rte_mbuf **>(pkts), cnt);
-  queue_stats[PACKET_DIR_OUT][qid].dropped += (cnt - sent);
+  int dropped = cnt - sent;
+  queue_stats[PACKET_DIR_OUT][qid].dropped += dropped;
+  queue_stats[PACKET_DIR_OUT][qid].requested_hist[cnt]++;
+  queue_stats[PACKET_DIR_OUT][qid].actual_hist[sent]++;
+  queue_stats[PACKET_DIR_OUT][qid].diff_hist[dropped]++;
   return sent;
 }
 
