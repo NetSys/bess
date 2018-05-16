@@ -1420,8 +1420,6 @@ class BESSControlImpl final : public BESSControl::Service {
                                gate_idx, rh.hook_name().c_str());
     }
 
-    WorkerPauser wp;
-
     // DPDK functions may be called, so be prepared
     current_worker.SetNonWorker();
 
