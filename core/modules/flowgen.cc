@@ -124,7 +124,7 @@ inline flow *FlowGen::ScheduleFlow(uint64_t time_ns) {
   f->src_ip = be32_t(ip_src_base_ + rng_.GetRange(ip_src_range_));
   f->dst_ip = be32_t(ip_dst_base_ + rng_.GetRange(ip_dst_range_));
   f->src_port = be16_t(port_src_base_ + rng_.GetRange(port_src_range_));
-  f->dst_port = be16_t(port_src_base_ + rng_.GetRange(port_dst_range_));
+  f->dst_port = be16_t(port_dst_base_ + rng_.GetRange(port_dst_range_));
 
   /* compensate the fraction part by adding [0.0, 1.0) */
   f->packets_left = NewFlowPkts() + rng_.GetReal();
