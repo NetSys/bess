@@ -278,7 +278,7 @@ class Port {
                      const queue_t *queues, int num);
 
   const std::string &name() const { return name_; }
-  Conf conf() const { return conf_; }
+  const Conf &conf() const { return conf_; }
 
   const PortBuilder *port_builder() const { return port_builder_; }
 
