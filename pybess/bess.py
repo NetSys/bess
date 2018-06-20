@@ -45,14 +45,14 @@ from . import protobuf_to_dict as pb_conv
 # pseudo-module multi-importer, used to build module message types
 from . import pm_import as _pm
 
-# Ugh: builtin_pb must be on path, as protoc generates python code
-# that assumes it can import files in that directory.  With our
-# split of builtin and plugin pb files we do not want 'from . import'
-# either, so just add 'builtin_pb' to sys.path.
-bipath = os.path.abspath(os.path.join(__file__, '..', 'builtin_pb'))
-if bipath not in sys.path:
-    sys.path.insert(1, bipath)
-del bipath
+# Ugh: builtin_pb and plugin_pb must be on path, as protoc generates python code
+# that assumes it can import files in that directory.
+old_path = list(sys.path)
+for extra in ('builtin_pb', 'plugin_pb'):
+    p = os.path.abspath(os.path.join(__file__, '..', extra))
+    if p not in sys.path:
+        sys.path.insert(1, p)
+del extra, p
 
 from .builtin_pb import service_pb2
 from .builtin_pb import bess_msg_pb2 as bess_msg
@@ -107,6 +107,8 @@ def _import_modules(name, subdir):
 
 module_pb = _import_modules('module_pb', None)
 port_msg = _import_modules('port_msg', 'ports')
+sys.path = old_path
+del old_path
 
 
 def _constraints_to_list(constraint):
