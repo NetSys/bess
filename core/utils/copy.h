@@ -107,7 +107,7 @@ static inline void CopySmall(void *__restrict__ dst,
       break;
     case 9:
       memcpy(d + 8, s + 8, 1);
-      FALLTHROUGH;
+      [[fallthrough]];
     case 8:
       memcpy(d, s, 8);
       break;
@@ -120,13 +120,13 @@ static inline void CopySmall(void *__restrict__ dst,
       break;
     case 5:
       memcpy(d + 4, s + 4, 1);
-      FALLTHROUGH;
+      [[fallthrough]];
     case 4:
       memcpy(d, s, 4);
       break;
     case 3:
       memcpy(d + 2, s + 2, 1);
-      FALLTHROUGH;
+      [[fallthrough]];
     case 2:
       memcpy(d, s, 2);
       break;
@@ -200,22 +200,22 @@ static inline void CopyInlined(void *__restrict__ dst,
   switch (leftover_blocks) {
     case 7:
       copy_block(d + 6, s + 6);
-      FALLTHROUGH;
+      [[fallthrough]];
     case 6:
       copy_block(d + 5, s + 5);
-      FALLTHROUGH;
+      [[fallthrough]];
     case 5:
       copy_block(d + 4, s + 4);
-      FALLTHROUGH;
+      [[fallthrough]];
     case 4:
       copy_block(d + 3, s + 3);
-      FALLTHROUGH;
+      [[fallthrough]];
     case 3:
       copy_block(d + 2, s + 2);
-      FALLTHROUGH;
+      [[fallthrough]];
     case 2:
       copy_block(d + 1, s + 1);
-      FALLTHROUGH;
+      [[fallthrough]];
     case 1:
       copy_block(d + 0, s + 0);
   }

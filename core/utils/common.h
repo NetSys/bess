@@ -43,16 +43,6 @@
 #error Must be built with C++17
 #endif
 
-#if !defined(__cplusplus)  // C
-#define FALLTHROUGH __attribute__((fallthrough))
-#elif __cplusplus <= 201402L && defined(__clang__)  // C++14 or older, Clang
-#define FALLTHROUGH [[clang::fallthrough]]
-#elif __cplusplus <= 201402L && __GNUC__ < 7  // C++14 or older, pre-GCC 7
-#define FALLTHROUGH
-#else
-#define FALLTHROUGH [[fallthrough]]
-#endif
-
 /* Hint for performance optimization. Same as _nDCHECK() of TI compilers */
 #define promise(cond)          \
   ({                           \
