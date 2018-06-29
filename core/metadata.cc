@@ -36,7 +36,6 @@
 #include <functional>
 #include <queue>
 
-#include "mem_alloc.h"
 #include "module.h"
 #include "module_graph.h"
 
@@ -131,9 +130,7 @@ int Pipeline::PrepareMetadataComputation() {
     }
 
     if (!module_components_.count(m)) {
-      module_components_.emplace(
-          m, reinterpret_cast<scope_id_t *>(
-                 mem_alloc(sizeof(scope_id_t) * kMetadataTotalSize)));
+      module_components_.emplace(m, new scope_id_t[kMetadataTotalSize]);
     }
 
     if (module_components_[m] == nullptr) {
@@ -152,7 +149,7 @@ int Pipeline::PrepareMetadataComputation() {
 
 void Pipeline::CleanupMetadataComputation() {
   for (const auto &it : module_components_) {
-    mem_free(module_components_[it.first]);
+    delete[] module_components_[it.first];
   }
   module_components_.clear();
   module_scopes_.clear();

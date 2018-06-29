@@ -146,17 +146,7 @@ TEST(EmTableTest, FindMakeKeysPktBatch) {
   for (size_t i = 0; i < n; i++) {
     bess::Packet *pkt = &pkts[i];
 
-    // all fake packets share this one data buffer
-    pkt->set_buffer(databuf);
-    pkt->set_data_len(sizeof(databuf));
-    pkt->set_data_off(0);
-
-    // this fake packet must not be freed
-    pkt->set_refcnt(2);
-
-    // not chained
-    pkt->set_next(nullptr);
-
+    bess::utils::Copy(pkt->append(sizeof(databuf)), databuf, sizeof(databuf));
     batch.add(pkt);
   }
 
@@ -168,6 +158,4 @@ TEST(EmTableTest, FindMakeKeysPktBatch) {
     // Packets are bogus, shouldn't match anything.
     ASSERT_EQ(0xDEAD, em.Find(keys[i], 0xDEAD));
   }
-
-  bess::Packet::Free(&batch);
 }

@@ -36,7 +36,6 @@
 #include <sstream>
 
 #include "gate.h"
-#include "mem_alloc.h"
 #include "module_graph.h"
 #include "scheduler.h"
 #include "task.h"

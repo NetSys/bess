@@ -39,8 +39,6 @@
 #include <cassert>
 #include <string>
 #include <type_traits>
-
-#include "mem_alloc.h"
 #include "metadata.h"
 #include "snbuf_layout.h"
 #include "worker.h"
@@ -84,14 +82,6 @@ void close_mempool(void);
 class alignas(64) Packet {
  public:
   Packet();
-
-  // The default new operator does not honor the 64B alignment requirement of
-  // this class, since it is larger than max_align_t (16B)
-  static void *operator new(size_t size) {
-    return mem_alloc_ex(size, alignof(Packet), 0);
-  }
-
-  static void operator delete(void *ptr) { mem_free(ptr); }
 
   struct rte_mbuf &as_rte_mbuf() {
     return *reinterpret_cast<struct rte_mbuf *>(this);
@@ -149,7 +139,6 @@ class alignas(64) Packet {
   T buffer() {
     return reinterpret_cast<T>(buf_addr_);
   }
-  void set_buffer(void *addr) { buf_addr_ = addr; }
 
   int nb_segs() const { return nb_segs_; }
   void set_nb_segs(int n) { nb_segs_ = n; }
