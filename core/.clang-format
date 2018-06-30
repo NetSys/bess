@@ -25,7 +25,6 @@ BraceWrapping:
   AfterEnum:       false
   AfterFunction:   false
   AfterNamespace:  false
-  AfterObjCDeclaration: false
   AfterStruct:     false
   AfterUnion:      false
   AfterExternBlock: false
@@ -78,10 +77,6 @@ MacroBlockBegin: ''
 MacroBlockEnd:   ''
 MaxEmptyLinesToKeep: 1
 NamespaceIndentation: None
-ObjCBinPackProtocolList: Auto
-ObjCBlockIndentWidth: 2
-ObjCSpaceAfterProperty: false
-ObjCSpaceBeforeProtocolList: false
 PenaltyBreakAssignment: 2
 PenaltyBreakBeforeFirstCallParameter: 1
 PenaltyBreakComment: 300
