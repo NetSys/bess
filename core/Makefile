@@ -171,7 +171,7 @@ ifdef COVERAGE
 else ifdef DEBUG
   CXXFLAGS += -O0
 else
-  CXXFLAGS += -Ofast -DNDEBUG
+  CXXFLAGS += -O3 -DNDEBUG
 endif
 
 -include extra*.mk
