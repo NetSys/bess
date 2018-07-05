@@ -1,0 +1,11 @@
+- hosts: all
+  tags: kmod
+  tasks:
+    - name: Install list of packages (this step may take a long time)
+      apt: name={{item}} state=latest update_cache=yes
+      become: true
+      with_items:
+        - apt-transport-https
+        - ca-certificates
+        - build-essential
+        - linux-generic

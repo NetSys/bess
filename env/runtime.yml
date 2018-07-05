@@ -1,0 +1,41 @@
+- hosts: all
+  tags: runtime
+  tasks:
+    - name: Install prerequisite packages
+      apt: name={{item}} update_cache=yes
+      become: true
+      with_items:
+        - apt-transport-https
+        - ca-certificates
+        - python
+        - python-pip
+        - libgraph-easy-perl
+        - tcpdump
+
+    - name: Install list of Python packages
+      pip:
+        name:
+          - grpcio
+          - scapy
+        state: latest
+      become: true
+
+    - shell: ls -d /sys/devices/system/node/node* | wc -l
+      register: num_nodes
+
+    - shell: cat /proc/meminfo | grep Hugepagesize
+      register: def_hugepage_size
+
+    - name: Enable huge pages
+      sysctl: name=vm.nr_hugepages value={{ num_nodes.stdout|int * 512 }} sysctl_set=yes
+      when: "{{ def_hugepage_size.stdout.find('2048 kB') != -1 }}"
+      become: true
+
+    - shell: mount | grep 'type hugetlbfs'
+      register: hugetlbfs_mounted
+      failed_when: hugetlbfs_mounted.rc == 2
+
+    - name: Mount up /mnt/huge
+      mount: name=/mnt/huge fstype=hugetlbfs src=none state=mounted
+      when: hugetlbfs_mounted.rc == 1
+      become: true
