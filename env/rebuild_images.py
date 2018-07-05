@@ -39,10 +39,13 @@ import time
 
 TARGET_REPO = 'nefelinetworks/bess_build'
 
-imgs = {'trusty64': {'arch': 'x86_64', 'base': 'ubuntu:trusty',
-                     'tag_suffix': ''},
-        'trusty32': {'arch': 'i386', 'base': 'i386/ubuntu:trusty',
-                     'tag_suffix': '_32'}, }
+imgs = {
+    'bionic64': {'arch': 'x86_64', 'base': 'ubuntu:bionic',
+                 'tag_suffix': ''},
+    # i386 is not supported any longer
+    # 'trusty32': {'arch': 'i386', 'base': 'i386/ubuntu:trusty',
+    #             'tag_suffix': '_32'},
+}
 
 
 def print_usage(prog):
