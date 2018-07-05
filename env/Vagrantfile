@@ -1,15 +1,13 @@
 # -*- mode: ruby -*-
 # vi: set ft=ruby :
+[
+  { :name => "vagrant-reload", :version => ">= 0.0.1" },
+  { :name => "vagrant-cachier", :version => ">= 1.2.1"}
+].each do |plugin|
 
-required_plugins = %w(vagrant-cachier vagrant-reload)
-
-plugins_to_install = required_plugins.select { |plugin| not Vagrant.has_plugin? plugin }
-if not plugins_to_install.empty?
-  puts "Installing plugins: #{plugins_to_install.join(' ')}"
-  if system "vagrant plugin install #{plugins_to_install.join(' ')}"
-    exec "vagrant #{ARGV.join(' ')}"
-  else
-    abort "Installation of one or more plugins has failed. Aborting."
+  if not Vagrant.has_plugin?(plugin[:name], plugin[:version])
+    raise "#{plugin[:name]} #{plugin[:version]} is required. " \
+          "Please run `vagrant plugin install #{plugin[:name]}`"
   end
 end
 
