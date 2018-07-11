@@ -30,7 +30,6 @@
 
 #include "queue.h"
 
-#include "../mem_alloc.h"
 #include "../utils/format.h"
 
 #define DEFAULT_QUEUE_SIZE 1024
@@ -49,16 +48,15 @@ int Queue::Resize(int slots) {
 
   int bytes = llring_bytes_with_slots(slots);
 
-  int ret;
-
-  new_queue = static_cast<llring *>(mem_alloc_ex(bytes, alignof(llring), 0));
+  new_queue =
+      reinterpret_cast<llring *>(std::aligned_alloc(alignof(llring), bytes));
   if (!new_queue) {
     return -ENOMEM;
   }
 
-  ret = llring_init(new_queue, slots, 0, 1);
+  int ret = llring_init(new_queue, slots, 0, 1);
   if (ret) {
-    mem_free(new_queue);
+    std::free(new_queue);
     return -EINVAL;
   }
 
@@ -73,7 +71,7 @@ int Queue::Resize(int slots) {
       }
     }
 
-    mem_free(old_queue);
+    std::free(old_queue);
   }
 
   queue_ = new_queue;
@@ -128,7 +126,7 @@ void Queue::DeInit() {
     while (llring_sc_dequeue(queue_, (void **)&pkt) == 0) {
       bess::Packet::Free(pkt);
     }
-    mem_free(queue_);
+    std::free(queue_);
   }
 }
 

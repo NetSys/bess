@@ -39,10 +39,13 @@ import time
 
 TARGET_REPO = 'nefelinetworks/bess_build'
 
-imgs = {'trusty64': {'arch': 'x86_64', 'base': 'ubuntu:trusty',
-                     'tag_suffix': ''},
-        'trusty32': {'arch': 'i386', 'base': 'i386/ubuntu:trusty',
-                     'tag_suffix': '_32'}, }
+imgs = {
+    'bionic64': {'arch': 'x86_64', 'base': 'ubuntu:bionic',
+                 'tag_suffix': ''},
+    # i386 is not supported any longer
+    # 'trusty32': {'arch': 'i386', 'base': 'i386/ubuntu:trusty',
+    #             'tag_suffix': '_32'},
+}
 
 
 def print_usage(prog):
@@ -63,13 +66,13 @@ def build(env):
     bess_dpdk_branch = os.getenv('BESS_DPDK_BRANCH', 'master')
     version = time.strftime('%y%m%d')
 
-    run_cmd('m4 -DBASE_IMAGE={} Dockerfile.m4 > Dockerfile'.format(base),
-            shell=True)
-    run_cmd('docker build --build-arg BESS_DPDK_BRANCH={branch} '
+    run_cmd('docker build '
+            '--build-arg BASE_IMAGE={base} '
+            '--build-arg BESS_DPDK_BRANCH={branch} '
             '--build-arg DPDK_ARCH={arch} '
             '-t {target}:latest{suffix} -t {target}:{version}{suffix} '
-            '.'.format(branch=bess_dpdk_branch, arch=arch, target=TARGET_REPO,
-                       version=version, suffix=tag_suffix))
+            '.'.format(base=base, branch=bess_dpdk_branch, arch=arch,
+                       target=TARGET_REPO, version=version, suffix=tag_suffix))
 
     print('Build succeeded: {}:{}{}'.format(TARGET_REPO, version, tag_suffix))
     print('Build succeeded: {}:latest{}'.format(TARGET_REPO, tag_suffix))

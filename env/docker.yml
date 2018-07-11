@@ -1,4 +1,5 @@
-# Docker is an optional package, so not included in packages.yml
+# Docker is an optional package.
+# Some BESS examples make uee of Docker to demonstrate container networking.
 - hosts: all
   tags: docker
   tasks:

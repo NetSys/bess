@@ -32,7 +32,6 @@
 
 #include <rte_hash_crc.h>
 
-#include "../mem_alloc.h"
 #include "../utils/endian.h"
 #include "../utils/simd.h"
 
@@ -70,8 +69,8 @@ static int l2_init(struct l2_table *l2tbl, int size, int bucket) {
     return -EINVAL;
   }
 
-  l2tbl->table = static_cast<l2_entry *>(mem_alloc_ex(
-      sizeof(struct l2_entry) * size * bucket, alignof(struct l2_entry), 0));
+  l2tbl->table = new(std::nothrow) l2_entry[size * bucket]{};
+
   if (l2tbl->table == nullptr) {
     return -ENOMEM;
   }
@@ -95,10 +94,8 @@ static int l2_deinit(struct l2_table *l2tbl) {
     return -EINVAL;
   }
 
-  mem_free(l2tbl->table);
-
-  memset(l2tbl, 0, sizeof(struct l2_table));
-
+  delete[] l2tbl->table;
+  *l2tbl = {};
   return 0;
 }
 

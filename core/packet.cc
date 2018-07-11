@@ -171,6 +171,14 @@ Packet::Packet() {
   check_offset(pool);
   check_offset(next);
 
+  // These fields are assumed to be pre-initialized and not updated by 
+  // rte_pktmbuf_reset().
+  mbuf_.buf_addr = headroom_;
+  mbuf_.buf_physaddr = 0;
+  mbuf_.buf_len = SNBUF_HEADROOM + SNBUF_DATA;
+  mbuf_.refcnt = 1;
+  mbuf_.pool = nullptr;
+
   rte_pktmbuf_reset(&mbuf_);
 }
 

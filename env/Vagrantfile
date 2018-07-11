@@ -1,20 +1,18 @@
 # -*- mode: ruby -*-
 # vi: set ft=ruby :
+[
+  { :name => "vagrant-reload", :version => ">= 0.0.1" },
+  { :name => "vagrant-cachier", :version => ">= 1.2.1"}
+].each do |plugin|
 
-required_plugins = %w(vagrant-cachier vagrant-reload)
-
-plugins_to_install = required_plugins.select { |plugin| not Vagrant.has_plugin? plugin }
-if not plugins_to_install.empty?
-  puts "Installing plugins: #{plugins_to_install.join(' ')}"
-  if system "vagrant plugin install #{plugins_to_install.join(' ')}"
-    exec "vagrant #{ARGV.join(' ')}"
-  else
-    abort "Installation of one or more plugins has failed. Aborting."
+  if not Vagrant.has_plugin?(plugin[:name], plugin[:version])
+    raise "#{plugin[:name]} #{plugin[:version]} is required. " \
+          "Please run `vagrant plugin install #{plugin[:name]}`"
   end
 end
 
 Vagrant.configure("2") do |config|
-  config.vm.box = "bento/ubuntu-16.04"
+  config.vm.box = "bento/ubuntu-18.04"
   config.vm.hostname = "bessvm"
   config.vm.synced_folder "..", "/opt/bess"
 
@@ -38,7 +36,7 @@ Vagrant.configure("2") do |config|
 
     # Customize below. At least two or more vCPUs are recommended.
     vb.cpus = 2
-    vb.memory = 5120
+    vb.memory = 4096
 
     vb.customize ["modifyvm", :id, "--nic1", "nat"]
     vb.customize ["modifyvm", :id, "--nictype1", "virtio"]
