@@ -7,10 +7,7 @@
     - apt_key: url='http://apt.llvm.org/llvm-snapshot.gpg.key'
       become: true
 
-    - apt_repository: repo='deb http://apt.llvm.org/{{ ansible_distribution_release }}/ llvm-toolchain-{{ ansible_distribution_release }}-4.0 main'
-      become: true
-
-    - apt_repository: repo='deb http://apt.llvm.org/{{ ansible_distribution_release }}/ llvm-toolchain-{{ ansible_distribution_release }}-5.0 main'
+    - apt_repository: repo='deb http://apt.llvm.org/{{ ansible_distribution_release }}/ llvm-toolchain-{{ ansible_distribution_release }}-6.0 main'
       become: true
 
     - name: Install list of packages (this step may take a long time)
@@ -20,11 +17,9 @@
         - apt-transport-https
         - ca-certificates
         - build-essential
-        - g++-5
-        - g++-6
         - g++-7
-        - clang-3.8
-        - clang-4.0
+        - g++-8
+        - clang-6.0
         - autoconf
         - automake
         - libtool
@@ -36,7 +31,7 @@
         - liblzma-dev
         - zlib1g-dev
         - libpcap-dev
-        - libssl-dev
+        - libssl1.0-dev  # grpc is not happy with openssl 1.1
         - libnuma-dev
         - curl
         - git
@@ -55,20 +50,6 @@
         - lcov
         - python-autopep8
 
-    # The server doesn't seem to have 32-bit binaries for clang-5.0 package.
-    # Remove "when" once it's fixed.
-    - name: Install clang-5.0 on x86_64
-      apt: name=clang-5.0
-      become: true
-      when: ansible_machine != 'i386'
-
-    - name: Set default gcc and g++ version
-      alternatives: name={{item}} link=/usr/bin/{{item}} path=/usr/bin/{{item}}-5
-      become: true
-      with_items:
-        - gcc
-        - g++
-
     - name: Install release-specific packages
       apt: name={{item}} state=latest update_cache=yes
       become: true
@@ -79,17 +60,15 @@
     - name: Install Linux headers of current running kernel
       apt: name=linux-headers-{{ ansible_kernel }} state=latest update_cache=yes
       become: true
-      when: ansible_kernel | match(".*-generic")
+      when: ansible_kernel is match(".*-generic")
 
     - name: Install list of Python packages
       pip:
         name:
           - grpcio
-          # The latest release, 2.3.3 from Oct 2016, has a inet_ntop bug
-          # that was fixed in a Jan 2017 commit.
-          # TODO: Once v2.3.4 is released, install from pypi rather than git repo.
-          - git+https://github.com/secdev/scapy
+          - scapy
         editable: false
+        state: latest
       become: true
 
     - name: Wipe prior protobuf installs to avoid conflicts
@@ -104,7 +83,7 @@
       git: repo=https://github.com/google/grpc dest=/tmp/grpc accept_hostkey=yes version=v1.3.2
 
     - name: Compile gRPC and its dependencies
-      shell: make -j{{ ansible_processor_vcpus }} HAS_SYSTEM_PROTOBUF=false chdir=/tmp/grpc
+      shell: make -j`nproc` EXTRA_CFLAGS='-Wno-error' HAS_SYSTEM_PROTOBUF=false chdir=/tmp/grpc
 
     - name: Install gRPC
       shell: make install chdir=/tmp/grpc

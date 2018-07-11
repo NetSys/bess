@@ -33,7 +33,6 @@
 #include <cmath>
 #include <functional>
 
-#include "../mem_alloc.h"
 #include "../utils/ether.h"
 #include "../utils/format.h"
 #include "../utils/ip.h"

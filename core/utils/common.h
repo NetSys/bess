@@ -39,24 +39,8 @@
 #include <cstdint>
 #include <string>
 
-#if __cplusplus < 201103L  // pre-C++11?
-#error The compiler does not support C++11
-#endif
-
-// [[maybe_unused]] is a c++17 feature,
-// but g++ (>= 4.8) has its own [[gnu::unused]]
-#if __cplusplus <= 201402L  // C++14 or older?
-#define maybe_unused gnu::unused
-#endif
-
-#if !defined(__cplusplus)  // C
-#define FALLTHROUGH __attribute__((fallthrough))
-#elif __cplusplus <= 201402L && defined(__clang__)  // C++14 or older, Clang
-#define FALLTHROUGH [[clang::fallthrough]]
-#elif __cplusplus <= 201402L && __GNUC__ < 7  // C++14 or older, pre-GCC 7
-#define FALLTHROUGH
-#else
-#define FALLTHROUGH [[fallthrough]]
+#if __cplusplus < 201703L  // pre-C++17?
+#error Must be built with C++17
 #endif
 
 /* Hint for performance optimization. Same as _nDCHECK() of TI compilers */

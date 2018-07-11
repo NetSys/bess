@@ -266,10 +266,10 @@ CommandResponse WildcardMatch::ExtractKeyMask(const T &arg, wm_hkey_t *key,
                             i, field_size * 2, v, field_size * 2, m);
     }
 
-    bess::utils::Copy(reinterpret_cast<uint8_t *>(key) + field_pos, &v,
-                      field_size);
-    bess::utils::Copy(reinterpret_cast<uint8_t *>(mask) + field_pos, &m,
-                      field_size);
+    // Use memcpy, not utils::Copy, to workaround the false positive warning
+    // in g++-8
+    memcpy(reinterpret_cast<uint8_t *>(key) + field_pos, &v, field_size);
+    memcpy(reinterpret_cast<uint8_t *>(mask) + field_pos, &m, field_size);
   }
 
   return CommandSuccess();

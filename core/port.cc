@@ -41,7 +41,6 @@
 #include <sstream>
 #include <string>
 
-#include "mem_alloc.h"
 #include "message.h"
 
 std::map<std::string, Port *> PortBuilder::all_ports_;

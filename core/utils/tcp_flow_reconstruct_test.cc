@@ -60,10 +60,8 @@ class TcpFlowReconstructTest : public ::testing::TestWithParam<const char *> {
       ASSERT_EQ(pcap_hdr.caplen, pcap_hdr.len)
           << "Didn't capture the full packet.";
       Packet *p = new Packet();
-      p->set_buffer(p->data());
-      bess::utils::Copy(p->data(), pcap_pkt, pcap_hdr.caplen);
-      p->set_data_len(pcap_hdr.caplen);
-      p->set_total_len(pcap_hdr.caplen);
+      p->append(pcap_hdr.caplen);
+      bess::utils::Copy(p->head_data(), pcap_pkt, pcap_hdr.caplen);
       pkts_.push_back(p);
     }
 

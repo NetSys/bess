@@ -93,11 +93,6 @@ int PCAPPort::RecvPackets(queue_t qid, bess::Packet** pkts, int cnt) {
       m = m->next();
       nb_segs++;
 
-      // no headroom needed in chained mbufs
-      m->prepend(m->headroom());
-      m->set_data_len(0);
-      m->set_buffer(0);
-
       copy_len = std::min(caplen, static_cast<int>(m->tailroom()));
       bess::utils::Copy(m->append(copy_len), packet, copy_len, true);
 
