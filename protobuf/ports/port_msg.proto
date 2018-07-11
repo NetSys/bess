@@ -65,10 +65,6 @@ message UnixSocketPortArg {
   bool confirm_connect = 3;
 }
 
-message ZeroCopyVPortArg {
-
-}
-
 message VPortArg {
   string ifname = 1;
   oneof cpid {
