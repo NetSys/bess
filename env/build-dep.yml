@@ -70,3 +70,7 @@
           shell: ldconfig
       become: true
       when: ansible_distribution == 'Ubuntu' and ansible_lsb.major_release|int < 18
+
+    - name: BESS build dependencies installed
+      debug:
+        msg: "You are now ready to build BESS using build.py"

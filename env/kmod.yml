@@ -9,3 +9,4 @@
         - ca-certificates
         - build-essential
         - linux-generic
+        - linux-headers-{{ansible_kernel}}
