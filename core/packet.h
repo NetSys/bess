@@ -31,14 +31,15 @@
 #ifndef BESS_PACKET_H_
 #define BESS_PACKET_H_
 
-#include <rte_atomic.h>
-#include <rte_config.h>
-#include <rte_mbuf.h>
-
 #include <algorithm>
 #include <cassert>
 #include <string>
 #include <type_traits>
+
+#include <rte_atomic.h>
+#include <rte_config.h>
+#include <rte_mbuf.h>
+
 #include "metadata.h"
 #include "snbuf_layout.h"
 #include "worker.h"
@@ -58,38 +59,10 @@ static_assert(SNBUF_SCRATCHPAD_OFF == 320,
 
 namespace bess {
 
-class Packet;
-
-static inline Packet *__packet_alloc_pool(struct rte_mempool *pool) {
-  struct rte_mbuf *mbuf;
-
-  mbuf = rte_pktmbuf_alloc(pool);
-
-  return reinterpret_cast<Packet *>(mbuf);
-}
-
-static inline Packet *__packet_alloc() {
-  return reinterpret_cast<Packet *>(
-      rte_pktmbuf_alloc(current_worker.pframe_pool()));
-}
-
-struct rte_mempool *get_pframe_pool_socket(int socket);
-
-void init_mempool(void);
-void close_mempool(void);
-
 // For the layout of snbuf, see snbuf_layout.h
 class alignas(64) Packet {
  public:
-  Packet();
-
-  struct rte_mbuf &as_rte_mbuf() {
-    return *reinterpret_cast<struct rte_mbuf *>(this);
-  }
-
-  const struct rte_mbuf &as_rte_mbuf() const {
-    return *reinterpret_cast<const struct rte_mbuf *>(this);
-  }
+  Packet() = delete;  // Packet must be allocated from PacketPool
 
   Packet *vaddr() const { return vaddr_; }
   void set_vaddr(Packet *addr) { vaddr_ = addr; }
@@ -157,28 +130,17 @@ class alignas(64) Packet {
   int total_len() const { return pkt_len_; }
   void set_total_len(uint32_t len) { pkt_len_ = len; }
 
-  uint16_t refcnt() const { return rte_mbuf_refcnt_read(&as_rte_mbuf()); }
+  uint16_t headroom() const { return rte_pktmbuf_headroom(&mbuf_); }
 
-  void set_refcnt(uint16_t cnt) { rte_mbuf_refcnt_set(&as_rte_mbuf(), cnt); }
-
-  // add cnt to refcnt
-  void update_refcnt(uint16_t cnt) {
-    rte_mbuf_refcnt_update(&as_rte_mbuf(), cnt);
-  }
-
-  uint16_t headroom() const { return rte_pktmbuf_headroom(&as_rte_mbuf()); }
-
-  uint16_t tailroom() const { return rte_pktmbuf_tailroom(&as_rte_mbuf()); }
+  uint16_t tailroom() const { return rte_pktmbuf_tailroom(&mbuf_); }
 
   // single segment?
-  int is_linear() const { return rte_pktmbuf_is_contiguous(&as_rte_mbuf()); }
+  int is_linear() const { return rte_pktmbuf_is_contiguous(&mbuf_); }
 
   // single segment and direct?
-  int is_simple() const {
-    return is_linear() && RTE_MBUF_DIRECT(&as_rte_mbuf());
-  }
+  int is_simple() const { return is_linear() && RTE_MBUF_DIRECT(&mbuf_); }
 
-  void reset() { rte_pktmbuf_reset(&as_rte_mbuf()); }
+  void reset() { rte_pktmbuf_reset(&mbuf_); }
 
   void *prepend(uint16_t len) {
     if (unlikely(data_off_ < len))
@@ -204,47 +166,31 @@ class alignas(64) Packet {
   }
 
   // add bytes to the end
-  void *append(uint16_t len) { return rte_pktmbuf_append(&as_rte_mbuf(), len); }
+  void *append(uint16_t len) { return rte_pktmbuf_append(&mbuf_, len); }
 
   // remove bytes from the end
   void trim(uint16_t to_remove) {
     int ret;
 
-    ret = rte_pktmbuf_trim(&as_rte_mbuf(), to_remove);
+    ret = rte_pktmbuf_trim(&mbuf_, to_remove);
     DCHECK_EQ(ret, 0);
   }
 
-  // returns nullptr if memory allocation failed
-  static Packet *copy(const Packet *src) {
-    Packet *dst;
-
-    DCHECK(src->is_linear());
-
-    dst = __packet_alloc_pool(src->pool_);
-    if (!dst) {
-      return nullptr;  // FAIL.
-    }
-
-    bess::utils::CopyInlined(dst->append(src->total_len()), src->head_data(),
-                             src->total_len(), true);
-
-    return dst;
-  }
+  // Duplicate a new Packet object, allocated from the same PacketPool as src.
+  // Returns nullptr if memory allocation failed
+  static Packet *copy(const Packet *src);
 
   phys_addr_t dma_addr() { return buf_physaddr_ + data_off_; }
 
   std::string Dump();
+
+  void CheckSanity();
 
   static Packet *from_paddr(phys_addr_t paddr);
 
   static int mt_offset_to_databuf_offset(bess::metadata::mt_offset_t offset) {
     return offset + offsetof(Packet, metadata_) - offsetof(Packet, headroom_);
   }
-
-  static Packet *Alloc() { return __packet_alloc(); }
-
-  // cnt must be [0, PacketBatch::kMaxBurst]
-  static inline size_t Alloc(Packet **pkts, size_t cnt, uint16_t len);
 
   // pkt may be nullptr
   static void Free(Packet *pkt) {
@@ -373,6 +319,8 @@ class alignas(64) Packet {
 
   char headroom_[SNBUF_HEADROOM];
   char data_[SNBUF_DATA];
+
+  friend class PacketPool;
 };
 
 static_assert(std::is_standard_layout<Packet>::value, "Incorrect class Packet");
@@ -381,26 +329,6 @@ static_assert(sizeof(Packet) == SNBUF_SIZE, "Incorrect class Packet");
 #if __AVX__
 #include "packet_avx.h"
 #else
-inline size_t Packet::Alloc(Packet **pkts, size_t cnt, uint16_t len) {
-  DCHECK_LE(cnt, PacketBatch::kMaxBurst);
-
-  // rte_mempool_get_bulk() is all (cnt) or nothing (0)
-  if (rte_mempool_get_bulk(current_worker.pframe_pool(),
-                           reinterpret_cast<void **>(pkts), cnt) < 0) {
-    return 0;
-  }
-
-  for (size_t i = 0; i < cnt; i++) {
-    Packet *pkt = pkts[i];
-
-    pkt->set_refcnt(1);
-    pkt->reset();
-    pkt->pkt_len_ = pkt->data_len_ = len;
-  }
-
-  return cnt;
-}
-
 inline void Packet::Free(Packet **pkts, size_t cnt) {
   DCHECK_LE(cnt, PacketBatch::kMaxBurst);
 

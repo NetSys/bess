@@ -47,7 +47,7 @@
 #include "metadata.h"
 #include "module.h"
 #include "opts.h"
-#include "packet.h"
+#include "packet_pool.h"
 #include "resume_hook.h"
 #include "resume_hooks/metadata.h"
 #include "scheduler.h"
@@ -230,8 +230,6 @@ bool is_any_worker_running() {
 }
 
 void Worker::SetNonWorker() {
-  int socket;
-
   // These TLS variables should not be accessed by non-worker threads.
   // Assign INT_MIN to the variables so that the program can crash
   // when accessed as an index of an array.
@@ -240,13 +238,14 @@ void Worker::SetNonWorker() {
   socket_ = INT_MIN;
   fd_event_ = INT_MIN;
 
-  // Packet pools should be available to non-worker threads.
-  // (doesn't need to be NUMA-aware, so pick any)
-  for (socket = 0; socket < RTE_MAX_NUMA_NODES; socket++) {
-    struct rte_mempool *pool = bess::get_pframe_pool_socket(socket);
-    if (pool) {
-      pframe_pool_ = pool;
-      break;
+  if (!packet_pool_) {
+    // Packet pools should be available to non-worker threads.
+    // (doesn't need to be NUMA-aware, so pick any)
+    for (int socket = 0; socket < RTE_MAX_NUMA_NODES; socket++) {
+      if (bess::PacketPool *pool = bess::PacketPool::GetDefaultPool(socket)) {
+        packet_pool_ = pool;
+        break;
+      }
     }
   }
 }
@@ -292,7 +291,7 @@ void *Worker::Run(void *_arg) {
   wid_ = arg->wid;
   core_ = arg->core;
   socket_ = rte_socket_id();
-  DCHECK_GE(socket_, 0); /* shouldn't be SOCKET_ID_ANY (-1) */
+  DCHECK_GE(socket_, 0);  // shouldn't be SOCKET_ID_ANY (-1)
   fd_event_ = eventfd(0, 0);
   DCHECK_GE(fd_event_, 0);
 
@@ -300,8 +299,8 @@ void *Worker::Run(void *_arg) {
 
   current_tsc_ = rdtsc();
 
-  pframe_pool_ = bess::get_pframe_pool_socket(socket_);
-  DCHECK(pframe_pool_);
+  packet_pool_ = bess::PacketPool::GetDefaultPool(socket_);
+  DCHECK_NOTNULL(packet_pool_);
 
   status_ = WORKER_PAUSING;
 

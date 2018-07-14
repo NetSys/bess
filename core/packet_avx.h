@@ -39,84 +39,11 @@
 
 #include "utils/simd.h"
 
-inline size_t Packet::Alloc(Packet **pkts, size_t cnt, uint16_t len) {
-  // rte_mempool_get_bulk() is all (cnt) or nothing (0)
-  if (rte_mempool_get_bulk(current_worker.pframe_pool(),
-                           reinterpret_cast<void **>(pkts), cnt) < 0) {
-    return 0;
-  }
-
-  // We must make sure that the following 12 fields are initialized
-  // as done in rte_pktmbuf_reset(). We group them into two 16-byte stores.
-  //
-  // - 1st store: mbuf.rearm_data
-  //   2B data_off == RTE_PKTMBUF_HEADROOM (SNBUF_HEADROOM)
-  //   2B refcnt == 1
-  //   2B nb_segs == 1
-  //   2B port == 0xffff (as of 17.05 0xff is set, but 0xffff makes more sense)
-  //   8B ol_flags == 0
-  //
-  // - 2nd store: mbuf.rx_descriptor_fields1
-  //   4B packet_type == 0
-  //   4B pkt_len == len
-  //   2B data_len == len
-  //   2B vlan_tci == 0
-  //   4B (rss == 0)       (not initialized by rte_pktmbuf_reset)
-  //
-  // We can ignore these fields:
-  //   vlan_tci_outer == 0 (not required if ol_flags == 0)
-  //   tx_offload == 0     (not required if ol_flags == 0)
-  //   next == nullptr     (all packets in a mempool must already be nullptr)
-
-  __m128i rearm = _mm_setr_epi16(SNBUF_HEADROOM, 1, 1, 0xffff, 0, 0, 0, 0);
-  __m128i rxdesc = _mm_setr_epi32(0, len, len, 0);
-
-  size_t i;
-
-  /* 4 at a time didn't help */
-  for (i = 0; i < (cnt & (~0x1)); i += 2) {
-    /* since the data is likely to be in the store buffer
-     * as 64-bit writes, 128-bit read will cause stalls */
-    Packet *pkt0 = pkts[i];
-    Packet *pkt1 = pkts[i + 1];
-
-    _mm_store_si128(&pkt0->rearm_data_, rearm);
-    _mm_store_si128(&pkt0->rx_descriptor_fields1_, rxdesc);
-    _mm_store_si128(&pkt1->rearm_data_, rearm);
-    _mm_store_si128(&pkt1->rx_descriptor_fields1_, rxdesc);
-  }
-
-  if (cnt & 0x1) {
-    Packet *pkt = pkts[i];
-
-    _mm_store_si128(&pkt->rearm_data_, rearm);
-    _mm_store_si128(&pkt->rx_descriptor_fields1_, rxdesc);
-  }
-
-  for (i = 0; i < cnt; i++) {
-    bess::Packet *pkt = pkts[i];
-    DCHECK_EQ(pkt->mbuf_.data_off, RTE_PKTMBUF_HEADROOM);
-    DCHECK_EQ(pkt->mbuf_.refcnt, 1);
-    DCHECK_EQ(pkt->mbuf_.nb_segs, 1);
-    DCHECK_EQ(pkt->mbuf_.port, 0xffff);
-    DCHECK_EQ(pkt->mbuf_.ol_flags, 0);
-
-    DCHECK_EQ(pkt->mbuf_.packet_type, 0);
-    DCHECK_EQ(pkt->mbuf_.pkt_len, len);
-    DCHECK_EQ(pkt->mbuf_.data_len, len);
-    DCHECK_EQ(pkt->mbuf_.vlan_tci, 0);
-  }
-
-  return cnt;
-}
-
-/* for packets to be processed in the fast path, all packets must:
- * 1. share the same mempool
- * 2. single segment
- * 3. reference counter == 1
- * 4. the data buffer is embedded in the mbuf
- *    (Do not use RTE_MBUF_(IN)DIRECT, since there is a difference
- *     between DPDK 1.8 and 2.0) */
+// for packets to be processed in the fast path, all packets must:
+// 1. share the same mempool
+// 2. single segment
+// 3. reference counter == 1
+// 4. the data buffer is embedded in the mbuf
 inline void Packet::Free(Packet **pkts, size_t cnt) {
   DCHECK(cnt <= PacketBatch::kMaxBurst);
 

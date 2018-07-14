@@ -44,7 +44,7 @@
 #include "gate.h"
 #include "message.h"
 #include "metadata.h"
-#include "packet.h"
+#include "packet_pool.h"
 
 using bess::gate_idx_t;
 

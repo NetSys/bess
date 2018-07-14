@@ -53,7 +53,7 @@
 #include "module.h"
 #include "module_graph.h"
 #include "opts.h"
-#include "packet.h"
+#include "packet_pool.h"
 #include "port.h"
 #include "resume_hook.h"
 #include "scheduler.h"
@@ -1402,7 +1402,7 @@ class BESSControlImpl final : public BESSControl::Service {
         (socket_filter == -1) ? (RTE_MAX_NUMA_NODES - 1) : socket_filter;
     int socket = (request->socket() == -1) ? 0 : socket_filter;
     for (; socket <= socket_filter; socket++) {
-      struct rte_mempool* mempool = bess::get_pframe_pool_socket(socket);
+      rte_mempool* mempool = bess::PacketPool::GetDefaultPool(socket)->pool();
       MempoolDump* dump = response->add_dumps();
       dump->set_socket(socket);
       dump->set_initialized(mempool != nullptr);

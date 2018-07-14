@@ -286,9 +286,9 @@ CommandResponse PMDPort::Init(const bess::pb::PMDPortArg &arg) {
       sid = 0;
     }
 
-    ret =
-        rte_eth_rx_queue_setup(ret_port_id, i, queue_size[PACKET_DIR_INC], sid,
-                               &eth_rxconf, bess::get_pframe_pool_socket(sid));
+    ret = rte_eth_rx_queue_setup(ret_port_id, i, queue_size[PACKET_DIR_INC],
+                                 sid, &eth_rxconf,
+                                 bess::PacketPool::GetDefaultPool(sid)->pool());
     if (ret != 0) {
       return CommandFailure(-ret, "rte_eth_rx_queue_setup() failed");
     }

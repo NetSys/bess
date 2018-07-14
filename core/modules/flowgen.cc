@@ -429,7 +429,7 @@ bess::Packet *FlowGen::FillPacket(struct flow *f) {
 
   int size = template_size_;
 
-  if (!(pkt = bess::Packet::Alloc())) {
+  if (!(pkt = current_worker.packet_pool()->Alloc())) {
     return nullptr;
   }
 
