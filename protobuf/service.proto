@@ -291,10 +291,16 @@ service BESSControl {
   //  Gate hooks
   //  -------------------------------------------------------------------------
 
+  /// Enumerate all gatehook types available
+  rpc ListGateHookClass (EmptyRequest) returns (ListGateHookClassResponse) {}
+
+  /// Query detailed information of a gatehook type
+  rpc GetGateHookClassInfo (GetGateHookClassInfoRequest) returns (GetGateHookClassInfoResponse) {}
+
   /// Enable/Disable a gate hook.
   rpc ConfigureGateHook (ConfigureGateHookRequest) returns (CommandResponse) {}
 
-  /// Enable/Disable a gate hook.
+  /// Enumerate all gatehook installed
   rpc ListGateHooks (EmptyRequest) returns (ListGateHooksResponse) {}
 
   /// Send command to gate hook instance.

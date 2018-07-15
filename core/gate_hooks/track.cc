@@ -35,7 +35,7 @@
 // Ethernet overhead in bytes
 static const size_t kEthernetOverhead = 24;
 
-const std::string Track::kName = "track";
+const std::string Track::kName = "Track";
 
 const GateHookCommands Track::cmds = {{"reset", "EmptyArg",
                                        GATE_HOOK_CMD_FUNC(&Track::CommandReset),
@@ -74,4 +74,4 @@ void Track::ProcessBatch(const bess::PacketBatch *batch) {
   }
 }
 
-ADD_GATE_HOOK(Track)
+ADD_GATE_HOOK(Track, "count the packets and batches")

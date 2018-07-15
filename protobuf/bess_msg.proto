@@ -442,7 +442,7 @@ message ConnectModulesRequest {
   uint64 ogate = 3;   /// m1's output gate ID
   uint64 igate = 4;   /// m2's input gate ID
   /// If true do not attach default hooks at the input/output gate.
-  /// (Currently, the only default hook is the "track" hook at the ogate)
+  /// (Currently, the only default hook is the "Track" hook at the ogate)
   bool skip_default_hooks = 5;
 }
 
@@ -490,9 +490,26 @@ message CommandResponse {
 //  Gate hooks
 //  -------------------------------------------------------------------------
 
-/// Enable/Disable the "track" hook on a gate (or all gates)
+message ListGateHookClassResponse {
+  Error error = 1;
+  repeated string names = 2;  /// List of gatehook types
+}
+
+message GetGateHookClassInfoRequest {
+  string name = 1;  /// Name of gatehook type
+}
+
+message GetGateHookClassInfoResponse {
+  Error error = 1;
+  string name = 2;               /// Name of gatehook type
+  string help = 3;               /// 1=line description of the gatehook type
+  repeated string cmds = 4;      /// List of commands supported by the gatehook
+  repeated string cmd_args = 5;  /// Corresponding Protobuf message types
+}
+
+/// Enable/Disable the "Track" hook on a gate (or all gates)
 ///
-/// "track" hook accumulates the number of total packets, batches and bits
+/// "Track" hook accumulates the number of total packets, batches and bits
 ///  passing through a gate. This incurs some amount of CPU overheads. While
 ///  the cost is very small, remember that the delay adds up at every gate.
 ///

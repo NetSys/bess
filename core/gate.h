@@ -119,22 +119,34 @@ class GateHookFactory {
  public:
   GateHookFactory(GateHook::constructor_t constructor,
                   const GateHookCommands &cmds, GateHook::init_func_t init_func,
-                  const std::string &hook_name)
+                  const std::string &hook_name, const std::string &help_text)
       : hook_constructor_(constructor),
         cmds_(cmds),
         hook_init_func_(init_func),
-        hook_name_(hook_name) {}
+        hook_name_(hook_name),
+        help_text_(help_text){}
 
   static bool RegisterGateHook(GateHook::constructor_t constructor,
                                const GateHookCommands &cmds,
                                GateHook::init_func_t init_func,
-                               const std::string &hook_name);
+                               const std::string &hook_name,
+                               const std::string &help_text);
 
   static std::map<std::string, GateHookFactory> &all_gate_hook_factories_holder(
       bool reset = false);
 
   static const std::map<std::string, GateHookFactory>
       &all_gate_hook_factories();
+
+  const std::string &hook_name() const { return hook_name_; }
+  const std::string &help_text() const { return help_text_; }
+
+  const std::vector<std::pair<std::string, std::string>> cmds() const {
+    std::vector<std::pair<std::string, std::string>> ret;
+    for (auto &cmd : cmds_)
+      ret.push_back(std::make_pair(cmd.cmd, cmd.arg_type));
+    return ret;
+  }
 
   CommandResponse RunCommand(GateHook *hook, const std::string &user_cmd,
                              const google::protobuf::Any &arg) const;
@@ -146,6 +158,7 @@ class GateHookFactory {
   const GateHookCommands cmds_;
   GateHook::init_func_t hook_init_func_;
   std::string hook_name_;
+  std::string help_text_;
 };
 
 inline CommandResponse GateHook::RunCommand(const std::string &cmd,
@@ -277,9 +290,10 @@ static inline bess::GateHook::init_func_t InitGateHookWithGenericArg(
   };
 }
 
-#define ADD_GATE_HOOK(_HOOK)                                           \
+#define ADD_GATE_HOOK(_HOOK, _HELP)                   \
   bool __gate_hook__##_HOOK = bess::GateHookFactory::RegisterGateHook( \
       std::function<bess::GateHook *()>([]() { return new _HOOK(); }), \
-      _HOOK::cmds, InitGateHookWithGenericArg(&_HOOK::Init), _HOOK::kName);
+      _HOOK::cmds, InitGateHookWithGenericArg(&_HOOK::Init), _HOOK::kName, \
+      _HELP);
 
 #endif  // BESS_GATE_H_

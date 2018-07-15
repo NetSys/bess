@@ -41,7 +41,7 @@
 #include "../utils/pcap.h"
 #include "../utils/time.h"
 
-const std::string Tcpdump::kName = "tcpdump";
+const std::string Tcpdump::kName = "TcpDump";
 
 bool TcpdumpOpener::InitFifo(int fd) {
   static const struct pcap_hdr hdr = {
@@ -104,4 +104,4 @@ void Tcpdump::ProcessBatch(const bess::PacketBatch *batch) {
   }
 }
 
-ADD_GATE_HOOK(Tcpdump)
+ADD_GATE_HOOK(Tcpdump, "dump traffic on a network")
