@@ -307,6 +307,7 @@ class CLI(object):
             self.fout.write('\n')
             self.fout.write(''.join(buf))
             self.fout.write('%s%s' % (self.get_prompt(), line))
+            self.fout.flush()
 
         return []
 
