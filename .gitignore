@@ -8,6 +8,8 @@ core/extra.mk
 core/extra.dpdk.mk
 core/kmod/.cache.mk
 *.retry
+.mypy_cache
+*.cache.mk
 
 # Vagrant stores temporary files in env/.vagrant
 env/.vagrant
