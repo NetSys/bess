@@ -345,6 +345,10 @@ class CLI(object):
             return matched[0]
 
         elif len(matched) >= 2:
+            for m in  matched: # return if exact match exists
+                if line.strip() == m[0]:
+                    return m
+
             self.err('Ambiguous command "%s". Candidates:' % line.strip())
             for cmd, desc, _ in matched + matched_low:
                 self.ferr.write('  %-50s%s\n' % (cmd, desc))
