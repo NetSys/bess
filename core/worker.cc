@@ -132,7 +132,7 @@ void resume_worker(int wid) {
     worker_signal sig = worker_signal::unblock;
 
     ret = write(workers[wid]->fd_event(), &sig, sizeof(sig));
-    DCHECK_EQ(ret, sizeof(uint64_t));
+    CHECK_EQ(ret, sizeof(uint64_t));
 
     while (workers[wid]->status() == WORKER_PAUSED) {
     } /* spin */
@@ -187,7 +187,7 @@ void destroy_worker(int wid) {
     worker_signal sig = worker_signal::quit;
 
     ret = write(workers[wid]->fd_event(), &sig, sizeof(sig));
-    DCHECK_EQ(ret, sizeof(uint64_t));
+    CHECK_EQ(ret, sizeof(uint64_t));
 
     while (workers[wid]->status() == WORKER_PAUSED) {
     } /* spin */
@@ -257,7 +257,7 @@ int Worker::BlockWorker() {
   status_ = WORKER_PAUSED;
 
   ret = read(fd_event_, &t, sizeof(t));
-  DCHECK_EQ(ret, sizeof(t));
+  CHECK_EQ(ret, sizeof(t));
 
   if (t == worker_signal::unblock) {
     status_ = WORKER_RUNNING;
@@ -291,16 +291,16 @@ void *Worker::Run(void *_arg) {
   wid_ = arg->wid;
   core_ = arg->core;
   socket_ = rte_socket_id();
-  DCHECK_GE(socket_, 0);  // shouldn't be SOCKET_ID_ANY (-1)
+  CHECK_GE(socket_, 0);  // shouldn't be SOCKET_ID_ANY (-1)
   fd_event_ = eventfd(0, 0);
-  DCHECK_GE(fd_event_, 0);
+  CHECK_GE(fd_event_, 0);
 
   scheduler_ = arg->scheduler;
 
   current_tsc_ = rdtsc();
 
   packet_pool_ = bess::PacketPool::GetDefaultPool(socket_);
-  DCHECK_NOTNULL(packet_pool_);
+  CHECK_NOTNULL(packet_pool_);
 
   status_ = WORKER_PAUSING;
 
