@@ -341,27 +341,28 @@ class CLI(object):
 
     def find_cmd(self, line):
         matched, matched_low = self.list_matched(line, ['full'])
+        line_stripped = line.strip()
 
         if len(matched) == 1:
             return matched[0]
 
         elif len(matched) >= 2:
-            for m in  matched: # return if exact match exists
-                if line.strip() == m[0]:
+            for m in matched: # return if exact match exists
+                if line_stripped == m[0]:
                     return m
 
-            self.err('Ambiguous command "%s". Candidates:' % line.strip())
+            self.err('Ambiguous command "%s". Candidates:' % line_stripped)
             for cmd, desc, _ in matched + matched_low:
                 self.ferr.write('  %-50s%s\n' % (cmd, desc))
 
         elif len(matched) == 0:
             matched, matched_low = self.list_matched(line, ['partial'])
             if len(matched) > 0:
-                self.err('Incomplete command "%s". Candidates:' % line.strip())
+                self.err('Incomplete command "%s". Candidates:' % line_stripped)
                 for cmd, desc, _ in matched + matched_low:
                     self.ferr.write('  %-50s%s\n' % (cmd, desc))
             else:
-                self.err('Unknown command "%s".' % line.strip())
+                self.err('Unknown command "%s".' % line_stripped)
 
         raise self.InvalidCommandError()
 
