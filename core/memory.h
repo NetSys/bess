@@ -73,6 +73,9 @@ class DmaMemoryPool {
   // Return true if fully initialized. false if constructor failed
   bool Initialized() const { return initialized_; }
 
+  // The socket ID this mempool is associated with. -1 means unknown.
+  int SocketId() const { return socket_id_; }
+
   // Returns a contiguous memory block from the pool, or nullptr if failed.
   // All returned addresses are 4K-aligned.
   void *Alloc(size_t size);
