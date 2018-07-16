@@ -25,10 +25,8 @@ BraceWrapping:
   AfterEnum:       false
   AfterFunction:   false
   AfterNamespace:  false
-  AfterObjCDeclaration: false
   AfterStruct:     false
   AfterUnion:      false
-  AfterExternBlock: false
   BeforeCatch:     false
   BeforeElse:      false
   IndentBraces:    false
@@ -58,7 +56,6 @@ ForEachMacros:
   - foreach
   - Q_FOREACH
   - BOOST_FOREACH
-IncludeBlocks:   Preserve
 IncludeCategories:
   - Regex:           '^"(llvm|llvm-c|clang|clang-c)/'
     Priority:        2
@@ -68,7 +65,6 @@ IncludeCategories:
     Priority:        1
 IncludeIsMainRegex: '(Test)?$'
 IndentCaseLabels: true
-IndentPPDirectives: None
 IndentWidth:     2
 IndentWrappedFunctionNames: false
 JavaScriptQuotes: Leave
@@ -78,10 +74,6 @@ MacroBlockBegin: ''
 MacroBlockEnd:   ''
 MaxEmptyLinesToKeep: 1
 NamespaceIndentation: None
-ObjCBinPackProtocolList: Auto
-ObjCBlockIndentWidth: 2
-ObjCSpaceAfterProperty: false
-ObjCSpaceBeforeProtocolList: false
 PenaltyBreakAssignment: 2
 PenaltyBreakBeforeFirstCallParameter: 1
 PenaltyBreakComment: 300
