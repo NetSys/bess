@@ -100,8 +100,6 @@ static void *DoAllocHugepage(HugepageSize page_size) {
     return nullptr;
   }
 
-  LOG(INFO) << ptr_remapped;
-
   return ptr_remapped;
 }
 
