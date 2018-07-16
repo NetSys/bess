@@ -408,6 +408,9 @@ class BESS(object):
     def list_gatehook_classes(self):
         return self._request('ListGateHookClass')
 
+    def list_gatehooks(self):
+        return self._request('ListGateHooks')
+
     def get_gatehook_class_info(self, name):
         request = bess_msg.GetGateHookClassInfoRequest()
         request.name = name

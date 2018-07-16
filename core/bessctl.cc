@@ -195,6 +195,10 @@ static int collect_igates(Module* m, GetModuleInfoResponse* response) {
       ogate->set_ogate(og->gate_idx());
       ogate->set_name(og->module()->name());
     }
+
+    for (const auto& hook : g->hooks()) {
+      igate->add_hook_name(hook->name());
+    }
   }
 
   return 0;
@@ -218,6 +222,10 @@ static int collect_ogates(Module* m, GetModuleInfoResponse* response) {
     }
     ogate->set_name(g->igate()->module()->name());
     ogate->set_igate(g->igate()->gate_idx());
+
+    for (const auto& hook : g->hooks()) {
+      ogate->add_hook_name(hook->name());
+    }
   }
 
   return 0;

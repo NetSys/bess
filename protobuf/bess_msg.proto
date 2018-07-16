@@ -411,6 +411,7 @@ message GetModuleInfoResponse {
     uint64 pkts = 4;            /// # of packets seen
     uint64 bytes = 5;            /// # of bytes seen
     double timestamp = 6;       /// The time that cnt/pkts counters were read
+    repeated string hook_name = 7;         /// List of hooks per gate
   }
   message OGate {
     uint64 ogate = 1;      /// Output gate ID
@@ -420,6 +421,7 @@ message GetModuleInfoResponse {
     double timestamp = 5;  /// The time thatcnt/pkts counters were read
     string name = 6;       /// Name of the "next" module it connects to
     uint64 igate = 7;      /// Input gate ID of the "next" module
+    repeated string hook_name = 8;         /// List of hooks per gate
   }
   message Attribute {
     string name = 1;   /// Name of per-packet metadata attribute
