@@ -30,6 +30,8 @@
 
 #include "queue.h"
 
+#include <cstdlib>
+
 #include "../utils/format.h"
 
 #define DEFAULT_QUEUE_SIZE 1024
