@@ -356,7 +356,6 @@ static int sn_poll_action_batch(struct sn_queue *rx_queue, int budget)
 
 		for (i = 0; i < cnt; i++) {
 			struct sk_buff *skb = skbs[i];
-			int ret;
 
 			if (unlikely(!skb))
 				continue;
@@ -399,7 +398,6 @@ static int sn_poll_action_single(struct sn_queue *rx_queue, int budget)
 	while (poll_cnt < budget) {
 		struct sk_buff *skb;
 		struct sn_rx_metadata rx_meta;
-		int ret;
 
 		skb = rx_queue->dev->ops->do_rx(rx_queue, &rx_meta);
 		if (!skb)

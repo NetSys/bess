@@ -6,6 +6,7 @@ cscope.*
 core/.deps
 core/extra.mk
 core/extra.dpdk.mk
+core/kmod/.cache.mk
 *.retry
 
 # Vagrant stores temporary files in env/.vagrant
