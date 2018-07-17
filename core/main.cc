@@ -76,7 +76,7 @@ int main(int argc, char *argv[]) {
                   << FLAGS_modules;
   }
 
-  bess::PacketPool::CreateDefaultPools();
+  bess::PacketPool::CreateDefaultPools(FLAGS_buffers);
 
   PortBuilder::InitDrivers();
 

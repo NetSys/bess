@@ -54,6 +54,7 @@ DEFINE_string(modules, bess::bessd::GetCurrentDirectory() + "modules",
               "Load modules from the specified directory");
 DEFINE_bool(core_dump, false, "Generate a core dump on fatal faults");
 DEFINE_bool(no_crashlog, false, "Disable the generation of a crash log file");
+DEFINE_bool(dpdk, false, "Let DPDK manage hugepages");
 
 static bool ValidateCoreID(const char *, int32_t value) {
   if (!is_cpu_present(value)) {
@@ -98,9 +99,8 @@ static bool ValidateMegabytesPerSocket(const char *, int32_t value) {
   return true;
 }
 DEFINE_int32(m, 1024,
-             "Specifies per-socket size of DPDK-managed hugepages (in MBs). "
-             "If set to 0, BESS will manage hugepages automatically without "
-             "relying on DPDK.");
+             "Specifies per-socket hugepages to allocate (in MBs). "
+             "If set to 0, no hugepage is used");
 static const bool _m_dummy[[maybe_unused]] =
     google::RegisterFlagValidator(&FLAGS_m, &ValidateMegabytesPerSocket);
 

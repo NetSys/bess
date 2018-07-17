@@ -202,8 +202,9 @@ void *AllocHugepage(HugepageSize page_size) {
     return ret;
   }
 
+  // Reserve more hugepages and try again
   std::string dir = "/sys/kernel/mm/hugepages/hugepages-2048kB";
-  size_t pages_to_add = 512;
+  size_t pages_to_add = 128;  // add 256MB at once, to minimize fragmentation
 
   if (page_size == HugepageSize::k1GB) {
     dir = "/sys/kernel/mm/hugepages/hugepages-1048576kB";

@@ -36,19 +36,26 @@ void DoMunmap(rte_mempool_memhdr *memhdr, void *) {
 PacketPool *PacketPool::default_pools_[RTE_MAX_NUMA_NODES];
 
 void PacketPool::CreateDefaultPools(size_t capacity) {
-  InitDpdk(FLAGS_m);
+  InitDpdk(FLAGS_dpdk ? FLAGS_m : 0);
 
   rte_dump_physmem_layout(stdout);
 
-  for (int i = 0; i < RTE_MAX_LCORE; i++) {
-    int sid = rte_lcore_to_socket_id(i);
-
-    if (!default_pools_[sid]) {
-      PacketPool *pool;
-
-      pool = new DpdkPacketPool(capacity, sid);
-      default_pools_[sid] = pool;
+  for (int sid = 0; sid < NumNumaNodes(); sid++) {
+    if (FLAGS_m == 0) {
+      LOG(WARNING) << "Hugepage is disabled! Creating PlainPacketPool for "
+                   << capacity << " packets on node " << sid;
+      default_pools_[sid] = new PlainPacketPool(capacity, sid);
+    } else if (FLAGS_dpdk) {
+      LOG(INFO) << "Creating DpdkPacketPool for " << capacity
+                << " packets on node " << sid;
+      default_pools_[sid] = new DpdkPacketPool(capacity, sid);
+    } else {
+      LOG(INFO) << "Creating BessPacketPool for " << capacity
+                << " packets on node " << sid;
+      default_pools_[sid] = new BessPacketPool(capacity, sid);
     }
+    CHECK(default_pools_[sid])
+        << "Packet pool allocation on node " << sid << " failed!";
   }
 }
 
@@ -188,7 +195,7 @@ PlainPacketPool::PlainPacketPool(size_t capacity, int socket_id)
 }
 
 BessPacketPool::BessPacketPool(size_t capacity, int socket_id)
-    : PacketPool(capacity, socket_id), mem_(512 * 1024 * 1024, socket_id) {
+    : PacketPool(capacity, socket_id), mem_(FLAGS_m * 1024 * 1024, socket_id) {
   size_t page_shift = __builtin_ffs(getpagesize());
   size_t element_size =
       pool_->header_size + pool_->elt_size + pool_->trailer_size;
