@@ -51,32 +51,6 @@
 namespace bess {
 namespace {
 
-int get_numa_count() {
-  FILE *fp;
-
-  int matched;
-  int cnt;
-
-  fp = fopen("/sys/devices/system/node/possible", "r");
-  if (!fp) {
-    goto fail;
-  }
-
-  matched = fscanf(fp, "0-%d", &cnt);
-  if (matched == 1) {
-    return cnt + 1;
-  }
-
-fail:
-  if (fp) {
-    fclose(fp);
-  }
-
-  LOG(INFO) << "/sys/devices/system/node/possible not available. "
-            << "Assuming a single-node system...";
-  return 1;
-}
-
 void disable_syslog() {
   setlogmask(0x01);
 }
@@ -125,8 +99,6 @@ class CmdLineOpts {
 };
 
 void init_eal(int dpdk_mb_per_socket, int default_core) {
-  int numa_count = get_numa_count();
-
   CmdLineOpts rte_args{
       "bessd",
       "--master-lcore",
@@ -142,7 +114,7 @@ void init_eal(int dpdk_mb_per_socket, int default_core) {
     rte_args.Append({"--no-huge"});
   } else {
     std::string opt_socket_mem = std::to_string(dpdk_mb_per_socket);
-    for (int i = 1; i < numa_count; i++) {
+    for (int i = 1; i < NumNumaNodes(); i++) {
       opt_socket_mem += "," + std::to_string(dpdk_mb_per_socket);
     }
 
