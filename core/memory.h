@@ -79,6 +79,11 @@ class DmaMemoryPool {
   // Returns a contiguous memory block from the pool, or nullptr if failed.
   // All returned addresses are 4K-aligned.
   void *Alloc(size_t size);
+
+  // Same as Alloc(), but it may allocate memory block smaller than specified
+  // if no such free space is available. 0 <= returned_size <= size.
+  std::pair<void *, size_t> AllocUpto(size_t size);
+
   void Free(void *ptr);
 
   size_t TotalFreeBytes() const { return total_free_bytes_; }

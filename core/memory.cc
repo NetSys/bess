@@ -7,9 +7,11 @@
 #include <syscall.h>
 #include <unistd.h>
 
+#include <algorithm>
 #include <fstream>
 #include <iostream>
 #include <set>
+#include <utility>
 
 #include "utils/common.h"
 #include "utils/format.h"
@@ -317,8 +319,9 @@ void *DmaMemoryPool::Alloc(size_t size) {
   size = align_ceil(size, 4096);
   void *ret = nullptr;
 
+  // Perform first fit allocation.
+  // TODO(sangjin): best fit should be better.
   for (const auto &region : regions_) {
-    // first fit
     if (region.size >= size) {
       ret = reinterpret_cast<void *>(region.addr);
       alloced_.emplace(ret, size);
@@ -335,6 +338,30 @@ void *DmaMemoryPool::Alloc(size_t size) {
     }
   }
 
+  return ret;
+}
+
+std::pair<void *, size_t> DmaMemoryPool::AllocUpto(size_t size) {
+  CHECK_GT(size, 0);
+  size_t aligned_size = align_ceil(size, 4096);
+  if (void *ret = Alloc(aligned_size)) {
+    return {ret, size};
+  }
+
+  // find the largest free region
+  const auto it = std::max_element(
+      regions_.begin(), regions_.end(),
+      [](const auto &a, const auto &b) { return a.size < b.size; });
+
+  if (it == regions_.end()) {
+    return {nullptr, 0};
+  }
+
+  CHECK_LE(it->size, aligned_size);
+  auto ret = std::pair{reinterpret_cast<void *>(it->addr), it->size};
+  alloced_.insert(ret);
+  regions_.erase(it);
+  total_free_bytes_ -= it->size;
   return ret;
 }
 
