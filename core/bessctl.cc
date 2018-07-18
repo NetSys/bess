@@ -113,7 +113,7 @@ static CommandResponse enable_hook_for_module(
       return CommandFailure(EINVAL, "'%s': %cgate '%hu' does not exist",
                             m->name().c_str(), is_igate ? 'i' : 'o', gate_idx);
     }
-    return gate->NewGateHook(&factory, gate, is_igate, arg);
+    return gate->NewGateHook(&factory, gate, is_igate, "noname", arg);
   }
 
   if (is_igate) {
@@ -121,7 +121,7 @@ static CommandResponse enable_hook_for_module(
       if (!gate) {
         continue;
       }
-      CommandResponse ret = gate->NewGateHook(&factory, gate, is_igate, arg);
+      CommandResponse ret = gate->NewGateHook(&factory, gate, is_igate, "noname", arg);
       if (ret.error().code() != 0) {
         return ret;
       }
@@ -131,7 +131,7 @@ static CommandResponse enable_hook_for_module(
       if (!gate) {
         continue;
       }
-      CommandResponse ret = gate->NewGateHook(&factory, gate, is_igate, arg);
+      CommandResponse ret = gate->NewGateHook(&factory, gate, is_igate, "noname", arg);
       if (ret.error().code() != 0) {
         return ret;
       }
@@ -197,8 +197,11 @@ static int collect_igates(Module* m, GetModuleInfoResponse* response) {
     }
 
     for (const auto& hook : g->hooks()) {
-      igate->add_hook_name(hook->name());
+      GetModuleInfoResponse_GateHook *hook_info = igate->add_gatehooks();
+      hook_info->set_class_name(hook->class_name());
+      hook_info->set_hook_name(hook->name());
     }
+
   }
 
   return 0;
@@ -224,8 +227,11 @@ static int collect_ogates(Module* m, GetModuleInfoResponse* response) {
     ogate->set_igate(g->igate()->gate_idx());
 
     for (const auto& hook : g->hooks()) {
-      ogate->add_hook_name(hook->name());
+      GetModuleInfoResponse_GateHook *hook_info = ogate->add_gatehooks();
+      hook_info->set_class_name(hook->class_name());
+      hook_info->set_hook_name(hook->name());
     }
+
   }
 
   return 0;
@@ -1381,7 +1387,7 @@ class BESSControlImpl final : public BESSControl::Service {
 
     for (const auto& pair : bess::GateHookFactory::all_gate_hook_factories()) {
       const auto& factory = pair.second;
-      response->add_names(factory.hook_name());
+      response->add_names(factory.class_name());
     }
     return Status::OK;
   }
@@ -1406,7 +1412,7 @@ class BESSControlImpl final : public BESSControl::Service {
     }
     const bess::GateHookFactory* cls = &it->second;
 
-    response->set_name(cls->hook_name());
+    response->set_name(cls->class_name());
     response->set_help(cls->help_text());
     for (const auto& cmd : cls->cmds()) {
       response->add_cmds(cmd.first);
@@ -1427,6 +1433,7 @@ class BESSControlImpl final : public BESSControl::Service {
         }
         for (auto& hook : gate->hooks()) {
           GateHookInfo* info = response->add_hooks();
+          info->set_class_name(hook->class_name());
           info->set_hook_name(hook->name());
           info->set_module_name(m->name());
           info->set_igate(gate->gate_idx());
@@ -1439,6 +1446,7 @@ class BESSControlImpl final : public BESSControl::Service {
         }
         for (auto& hook : gate->hooks()) {
           GateHookInfo* info = response->add_hooks();
+          info->set_class_name(hook->class_name());
           info->set_hook_name(hook->name());
           info->set_module_name(m->name());
           info->set_ogate(gate->gate_idx());
@@ -1469,10 +1477,10 @@ class BESSControlImpl final : public BESSControl::Service {
     }
 
     const auto factory = bess::GateHookFactory::all_gate_hook_factories().find(
-        request->hook().hook_name());
+        request->hook().class_name());
     if (factory == bess::GateHookFactory::all_gate_hook_factories().end()) {
       return return_with_error(response, ENOENT, "No such gate hook: %s",
-                               request->hook().hook_name().c_str());
+                               request->hook().class_name().c_str());
     }
 
     if (request->hook().module_name().length() == 0) {

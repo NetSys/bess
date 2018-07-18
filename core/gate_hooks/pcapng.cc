@@ -87,7 +87,7 @@ void BytesToHexDump(const void *src, size_t len, char *dst) {
 const std::string Pcapng::kName = "PcapNg";
 
 Pcapng::Pcapng()
-    : bess::GateHook(Pcapng::kName, Pcapng::kPriority),
+    : bess::GateHook(Pcapng::kName, "pcapng", Pcapng::kPriority),
       opener_(),
       attrs_(),
       attr_template_() {}
@@ -247,4 +247,4 @@ void Pcapng::ProcessBatch(const bess::PacketBatch *batch) {
   }
 }
 
-ADD_GATE_HOOK(Pcapng, "metadata-dump-able packet dump")
+ADD_GATE_HOOK(Pcapng, "pcapng", "metadata-dump-able packet dump")

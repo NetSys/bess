@@ -43,14 +43,15 @@ namespace bess {
 const GateHookCommands GateHook::cmds;
 
 bool GateHookFactory::RegisterGateHook(GateHook::constructor_t constructor,
+                                       const std::string &class_name,
+                                       const std::string &name_template,
+                                       const std::string &help_text,
                                        const GateHookCommands &cmds,
-                                       GateHook::init_func_t init_func,
-                                       const std::string &hook_name,
-                                       const std::string &help_text) {
+                                       GateHook::init_func_t init_func) {
   return all_gate_hook_factories_holder()
-      .emplace(std::piecewise_construct, std::forward_as_tuple(hook_name),
-               std::forward_as_tuple(constructor, cmds, init_func, hook_name,
-                 help_text))
+      .emplace(std::piecewise_construct, std::forward_as_tuple(class_name),
+               std::forward_as_tuple(constructor, class_name, name_template,
+                 help_text, cmds, init_func))
       .second;
 }
 
@@ -77,7 +78,7 @@ const std::map<std::string, GateHookFactory>
 // the gatehook instance is destroyed and we return a failed
 // CommandResponse, otherwise we return a successful one.
 CommandResponse Gate::NewGateHook(const GateHookFactory *factory, Gate *gate,
-                                  bool is_igate,
+                                  bool is_igate, const std::string &name,
                                   const google::protobuf::Any &arg) {
   bess::GateHook *hook = factory->hook_constructor_();
   CommandResponse init_ret = factory->hook_init_func_(hook, gate, arg);
@@ -85,14 +86,16 @@ CommandResponse Gate::NewGateHook(const GateHookFactory *factory, Gate *gate,
     delete hook;
     return init_ret;
   }
+  hook->set_class_name(factory->class_name());
+  hook->set_name(name);
   hook->set_factory(factory);
   hook->set_arg(arg);
   hook->set_gate(gate);
   int ret = gate->AddHook(hook);
   if (ret != 0) {
     delete hook;
-    return CommandFailure(ret, "Unable to add hook '%s' to '%s' %cgate '%hu'",
-                          factory->hook_name_.c_str(),
+    return CommandFailure(ret, "Unable to add hook '%s::%s' to '%s' %cgate '%hu'",
+                          factory->class_name_.c_str(), name.c_str(),
                           gate->module()->name().c_str(), is_igate ? 'i' : 'o',
                           gate->gate_idx());
   }
@@ -156,7 +159,7 @@ CommandResponse GateHookFactory::RunCommand(
   }
 
   return CommandFailure(ENOTSUP, "'%s' does not support command '%s'",
-                        hook_name_.c_str(), user_cmd.c_str());
+                        class_name_.c_str(), user_cmd.c_str());
 }
 
 void Gate::ClearHooks() {
@@ -193,7 +196,7 @@ void OGate::AddTrackHook() {
     // Would like to use CHECK_NE here, but cannot because
     // operator<< is not defined on the arguments.
     if (it == bess::GateHookFactory::all_gate_hook_factories().end()) {
-      CHECK(0) << "track gate hook factory is missing";
+      CHECK(0) << "Track gate hook factory is missing";
     }
     track_factory = &it->second;
 
@@ -202,7 +205,7 @@ void OGate::AddTrackHook() {
     track_arg.set_bits(false);
     arg.PackFrom(track_arg);
   }
-  this->NewGateHook(track_factory, this, false, arg);
+  this->NewGateHook(track_factory, this, false, "track", arg);
 }
 
 void OGate::SetIgate(IGate *ig) {

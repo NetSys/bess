@@ -104,4 +104,4 @@ void Tcpdump::ProcessBatch(const bess::PacketBatch *batch) {
   }
 }
 
-ADD_GATE_HOOK(Tcpdump, "dump traffic on a network")
+ADD_GATE_HOOK(Tcpdump, "tcpdump", "dump traffic on a network")

@@ -71,17 +71,23 @@ class GateHook {
   using init_func_t = std::function<CommandResponse(
       GateHook *, const Gate *, const google::protobuf::Any &)>;
 
-  explicit GateHook(const std::string &name, uint16_t priority = 0,
-                    Gate *gate = nullptr)
-      : gate_(gate), name_(name), priority_(priority), factory_() {}
+  explicit GateHook(const std::string &class_name, const std::string &name,
+                    uint16_t priority = 0, Gate *gate = nullptr)
+      : gate_(gate), class_name_(class_name), name_(name), priority_(priority), factory_() {}
 
   virtual ~GateHook() {}
+
+  const std::string &class_name() const { return class_name_; }
 
   const std::string &name() const { return name_; }
 
   const Gate *gate() const { return gate_; }
 
   const google::protobuf::Any &arg() const { return arg_; }
+
+  void set_class_name(const std::string& name) { class_name_ = name; }
+
+  void set_name(const std::string &name) { name_ = name; }
 
   void set_gate(Gate *gate) { gate_ = gate; }
 
@@ -106,7 +112,8 @@ class GateHook {
   Gate *gate_;
 
  private:
-  const std::string &name_;
+  std::string class_name_;
+  std::string name_;
   const uint16_t priority_;
   const GateHookFactory *factory_;
   google::protobuf::Any arg_;
@@ -118,19 +125,24 @@ class GateHook {
 class GateHookFactory {
  public:
   GateHookFactory(GateHook::constructor_t constructor,
-                  const GateHookCommands &cmds, GateHook::init_func_t init_func,
-                  const std::string &hook_name, const std::string &help_text)
+                  const std::string &class_name,
+                  const std::string &name_template,
+                  const std::string &help_text,
+                  const GateHookCommands &cmds,
+                  GateHook::init_func_t init_func)
       : hook_constructor_(constructor),
+        class_name_(class_name),
+        name_template_(name_template),
+        help_text_(help_text),
         cmds_(cmds),
-        hook_init_func_(init_func),
-        hook_name_(hook_name),
-        help_text_(help_text){}
+        hook_init_func_(init_func) {}
 
   static bool RegisterGateHook(GateHook::constructor_t constructor,
+                               const std::string &class_name,
+                               const std::string &name_template,
+                               const std::string &help_text,
                                const GateHookCommands &cmds,
-                               GateHook::init_func_t init_func,
-                               const std::string &hook_name,
-                               const std::string &help_text);
+                               GateHook::init_func_t init_func);
 
   static std::map<std::string, GateHookFactory> &all_gate_hook_factories_holder(
       bool reset = false);
@@ -138,7 +150,8 @@ class GateHookFactory {
   static const std::map<std::string, GateHookFactory>
       &all_gate_hook_factories();
 
-  const std::string &hook_name() const { return hook_name_; }
+  const std::string &class_name() const { return class_name_; }
+  const std::string &name_template() const { return name_template_; }
   const std::string &help_text() const { return help_text_; }
 
   const std::vector<std::pair<std::string, std::string>> cmds() const {
@@ -155,10 +168,11 @@ class GateHookFactory {
   friend class Gate;
 
   GateHook::constructor_t hook_constructor_;
+  std::string class_name_;
+  std::string name_template_;
+  std::string help_text_;
   const GateHookCommands cmds_;
   GateHook::init_func_t hook_init_func_;
-  std::string hook_name_;
-  std::string help_text_;
 };
 
 inline CommandResponse GateHook::RunCommand(const std::string &cmd,
@@ -187,7 +201,8 @@ class Gate {
 
   // Creates, initializes, and then inserts gate hook in priority order.
   CommandResponse NewGateHook(const GateHookFactory *factory, Gate *gate,
-                              bool is_igate, const google::protobuf::Any &arg);
+                              bool is_gate, const std::string &name,
+                              const google::protobuf::Any &arg);
 
   GateHook *FindHook(const std::string &name);
 
@@ -290,10 +305,10 @@ static inline bess::GateHook::init_func_t InitGateHookWithGenericArg(
   };
 }
 
-#define ADD_GATE_HOOK(_HOOK, _HELP)                   \
+#define ADD_GATE_HOOK(_HOOK, _NAME_TEMPLATE, _HELP)                   \
   bool __gate_hook__##_HOOK = bess::GateHookFactory::RegisterGateHook( \
       std::function<bess::GateHook *()>([]() { return new _HOOK(); }), \
-      _HOOK::cmds, InitGateHookWithGenericArg(&_HOOK::Init), _HOOK::kName, \
-      _HELP);
+      _HOOK::kName, _NAME_TEMPLATE, _HELP, _HOOK::cmds, \
+      InitGateHookWithGenericArg(&_HOOK::Init));
 
 #endif  // BESS_GATE_H_

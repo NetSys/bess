@@ -42,7 +42,7 @@ const GateHookCommands Track::cmds = {{"reset", "EmptyArg",
                                        GateHookCommand::THREAD_UNSAFE}};
 
 Track::Track()
-    : bess::GateHook(Track::kName, Track::kPriority),
+    : bess::GateHook(Track::kName, "track", Track::kPriority),
       track_bytes_(),
       cnt_(),
       pkts_(),
@@ -74,4 +74,4 @@ void Track::ProcessBatch(const bess::PacketBatch *batch) {
   }
 }
 
-ADD_GATE_HOOK(Track, "count the packets and batches")
+ADD_GATE_HOOK(Track, "track", "count the packets and batches")

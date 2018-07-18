@@ -1471,7 +1471,8 @@ def _show_module(cli, module_name):
                            (gate.igate, track_str,
                             ', '.join('%s:%d ->' % (g.name, g.ogate)
                                       for g in gate.ogates),
-                            ', '.join(gate.hook_name)))
+                            ', '.join('%s::%s' % (h.class_name, h.hook_name)
+                                      for h in gate.gatehooks)))
 
     if len(info.ogates) > 0:
         cli.fout.write('    Output gates:\n')
@@ -1485,7 +1486,8 @@ def _show_module(cli, module_name):
             cli.fout.write(
                 '      %3d: %s -> %d:%s\t%s\n' %
                 (gate.ogate, track_str, gate.igate, gate.name,
-                 ', '.join(gate.hook_name)))
+                 ', '.join("%s::%s" % (h.class_name, h.hook_name)
+                           for h in gate.gatehooks)))
 
     if hasattr(info, 'dump'):
         dump_str = pprint.pformat(info.dump, width=74)
@@ -1545,14 +1547,17 @@ def show_gatehook_all(cli):
 
     if not gatehooks:
         raise cli.CommandError('There is no active gatehook to show.')
-
     for gatehook in gatehooks:
         if gatehook.HasField('igate'):
-            cli.fout.write('%-16s %d:%s\n' % (gatehook.hook_name, gatehook.igate,
+            cli.fout.write('%-16s %d:%s\n' % ('%s::%s' % (gatehook.class_name,
+                                              gatehook.hook_name),
+                                              gatehook.igate,
                                               gatehook.module_name))
         else:
-            cli.fout.write('%-16s %s:%d\n' % (gatehook.hook_name,
-                                    gatehook.module_name, gatehook.ogate))
+            cli.fout.write('%-16s %s:%d\n' % ('%s::%s' % (gatehook.class_name,
+                                              gatehook.hook_name),
+                                              gatehook.module_name,
+                                              gatehook.ogate))
 
 
 def _show_gatehook_class(cli, cls_name, detail):
