@@ -112,6 +112,11 @@ void init_eal(int dpdk_mb_per_socket, int default_core) {
 
   if (dpdk_mb_per_socket <= 0) {
     rte_args.Append({"--no-huge"});
+
+    // even if we opt out of using hugepages, many DPDK libraries still rely on
+    // rte_malloc (e.g., rte_lpm), so we need to reserve some (normal page)
+    // memory in advance. We allocate 512MB (this is shared among nodes).
+    rte_args.Append({"-m", "512"});
   } else {
     std::string opt_socket_mem = std::to_string(dpdk_mb_per_socket);
     for (int i = 1; i < NumNumaNodes(); i++) {
