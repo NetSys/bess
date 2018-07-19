@@ -89,9 +89,9 @@ class ResumeHook {
   const bool is_default_;
 };
 
-class ResumeHookFactory {
+class ResumeHookBuilder {
  public:
-  ResumeHookFactory(typename ResumeHook::constructor_t constructor,
+  ResumeHookBuilder(typename ResumeHook::constructor_t constructor,
                     typename ResumeHook::init_func_t init_func,
                     const std::string &hook_name)
       : hook_constructor_(constructor),
@@ -104,11 +104,11 @@ class ResumeHookFactory {
 
   const std::string &hook_name() const { return hook_name_; }
 
-  static std::map<std::string, ResumeHookFactory>
-      &all_resume_hook_factories_holder();
+  static std::map<std::string, ResumeHookBuilder>
+      &all_resume_hook_builders_holder();
 
-  static const std::map<std::string, ResumeHookFactory>
-      &all_resume_hook_factories();
+  static const std::map<std::string, ResumeHookBuilder>
+      &all_resume_hook_builders();
 
   std::unique_ptr<ResumeHook> CreateResumeHook() const {
     return std::unique_ptr<ResumeHook>(hook_constructor_());
@@ -144,7 +144,7 @@ InitResumeHookWithGenericArg(CommandResponse (H::*fn)(const A &)) {
 }
 
 #define ADD_RESUME_HOOK(_HOOK)                                               \
-  bool __resume_hook__##_HOOK = bess::ResumeHookFactory::RegisterResumeHook( \
+  bool __resume_hook__##_HOOK = bess::ResumeHookBuilder::RegisterResumeHook( \
       std::function<bess::ResumeHook *()>([]() { return new _HOOK(); }),     \
       InitResumeHookWithGenericArg(&_HOOK::Init), _HOOK::kName);
 

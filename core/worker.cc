@@ -64,7 +64,7 @@ Worker *volatile workers[Worker::kMaxWorkers];
 
 using bess::TrafficClassBuilder;
 using namespace bess::traffic_class_initializer_types;
-using bess::ResumeHookFactory;
+using bess::ResumeHookBuilder;
 
 std::list<std::pair<int, bess::TrafficClass *>> orphan_tcs;
 

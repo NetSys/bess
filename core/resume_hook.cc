@@ -40,24 +40,24 @@ namespace bess {
 std::set<std::unique_ptr<ResumeHook>, ResumeHook::UniquePtrLess>
     global_resume_hooks;
 
-std::map<std::string, ResumeHookFactory>
-    &ResumeHookFactory::all_resume_hook_factories_holder() {
-  // Maps from hook names to hook factories. Tracks all hooks (via their
-  // ResumeHookFactorys).
-  static std::map<std::string, ResumeHookFactory> all_resume_hook_factories;
+std::map<std::string, ResumeHookBuilder>
+    &ResumeHookBuilder::all_resume_hook_builders_holder() {
+  // Maps from hook names to hook builders. Tracks all hooks (via their
+  // ResumeHookBuilders).
+  static std::map<std::string, ResumeHookBuilder> all_resume_hook_builders;
 
-  return all_resume_hook_factories;
+  return all_resume_hook_builders;
 }
 
-const std::map<std::string, ResumeHookFactory>
-    &ResumeHookFactory::all_resume_hook_factories() {
-  return all_resume_hook_factories_holder();
+const std::map<std::string, ResumeHookBuilder>
+    &ResumeHookBuilder::all_resume_hook_builders() {
+  return all_resume_hook_builders_holder();
 }
 
-bool ResumeHookFactory::RegisterResumeHook(
+bool ResumeHookBuilder::RegisterResumeHook(
     ResumeHook::constructor_t constructor, ResumeHook::init_func_t init_func,
     const std::string &hook_name) {
-  return all_resume_hook_factories_holder()
+  return all_resume_hook_builders_holder()
       .emplace(std::piecewise_construct, std::forward_as_tuple(hook_name),
                std::forward_as_tuple(constructor, init_func, hook_name))
       .second;
