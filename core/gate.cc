@@ -45,10 +45,12 @@ const GateHookCommands GateHook::cmds;
 bool GateHookFactory::RegisterGateHook(GateHook::constructor_t constructor,
                                        const GateHookCommands &cmds,
                                        GateHook::init_func_t init_func,
-                                       const std::string &hook_name) {
+                                       const std::string &hook_name,
+                                       const std::string &help_text) {
   return all_gate_hook_factories_holder()
       .emplace(std::piecewise_construct, std::forward_as_tuple(hook_name),
-               std::forward_as_tuple(constructor, cmds, init_func, hook_name))
+               std::forward_as_tuple(constructor, cmds, init_func, hook_name,
+                 help_text))
       .second;
 }
 

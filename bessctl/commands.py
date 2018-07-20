@@ -360,6 +360,22 @@ def get_var_attrs(cli, var_token, partial_word):
             var_type = 'gate'
             var_desc = 'input gate of a module (default 0)'
 
+        elif var_token == 'GATEHOOKCLASS':
+            var_type = 'name'
+            var_desc = 'name of a gatehook class'
+            try:
+                var_candidates = cli.bess.list_gatehook_classes().names
+            except:
+                pass
+
+        elif var_token == 'GATEHOOKCLASS...':
+            var_type = 'name+'
+            var_desc = 'one or more gatehook class names'
+            try:
+                var_candidates = cli.bess.list_gatehook_classes().names
+            except:
+                pass
+
         elif var_token == '[ENV_VARS...]':
             var_type = 'map'
             var_desc = 'Environmental variables for configuration'
@@ -1447,27 +1463,29 @@ def _show_module(cli, module_name):
         for gate in info.igates:
             track_str = 'batches N/A packets N/A'
             try:
-                track_str = 'batches %-16d packets %-16d' % (gate.cnt,
+                track_str = 'batches %-11d packets %-12d' % (gate.cnt,
                                                              gate.pkts)
             except:
                 pass
-            cli.fout.write('      %5d: %s %s\n' %
+            cli.fout.write('      %3d: %s %s\t%s\n' %
                            (gate.igate, track_str,
                             ', '.join('%s:%d ->' % (g.name, g.ogate)
-                                      for g in gate.ogates)))
+                                      for g in gate.ogates),
+                            ', '.join(gate.hook_name)))
 
     if len(info.ogates) > 0:
         cli.fout.write('    Output gates:\n')
         for gate in info.ogates:
             track_str = 'batches N/A packets N/A'
             try:
-                track_str = 'batches %-16d packets %-16d' % (gate.cnt,
+                track_str = 'batches %-11d packets %-12d' % (gate.cnt,
                                                              gate.pkts)
             except:
                 pass
             cli.fout.write(
-                '      %5d: %s -> %d:%s\n' %
-                (gate.ogate, track_str, gate.igate, gate.name))
+                '      %3d: %s -> %d:%s\t%s\n' %
+                (gate.ogate, track_str, gate.igate, gate.name,
+                 ', '.join(gate.hook_name)))
 
     if hasattr(info, 'dump'):
         dump_str = pprint.pformat(info.dump, width=74)
@@ -1519,6 +1537,51 @@ def show_mclass_all(cli):
 def show_mclass_list(cli, cls_names):
     for cls_name in cls_names:
         _show_mclass(cli, cls_name, True)
+
+
+@cmd('show gatehook', 'Show the status of all gatehook')
+def show_gatehook_all(cli):
+    gatehooks = cli.bess.list_gatehooks().hooks
+
+    if not gatehooks:
+        raise cli.CommandError('There is no active gatehook to show.')
+
+    for gatehook in gatehooks:
+        if gatehook.HasField('igate'):
+            cli.fout.write('%-16s %d:%s\n' % (gatehook.hook_name, gatehook.igate,
+                                              gatehook.module_name))
+        else:
+            cli.fout.write('%-16s %s:%d\n' % (gatehook.hook_name,
+                                    gatehook.module_name, gatehook.ogate))
+
+
+def _show_gatehook_class(cli, cls_name, detail):
+    info = cli.bess.get_gatehook_class_info(cls_name)
+    cli.fout.write('%-16s %s\n' % (info.name, info.help))
+
+    if detail:
+        if len(info.cmds) > 0:
+            cli.fout.write('\t\t commands: %s\n' %
+                           (', '.join(map(lambda cmd, msg: "%s(%s)"
+                                          % (cmd, msg),
+                                          info.cmds,
+                                          info.cmd_args))))
+        else:
+            cli.fout.write('\t\t (no commands)\n')
+
+
+@cmd('show gatehookclass', 'Show all gatehook classes')
+def show_gatahook_class_all(cli):
+    gatehook_classes = cli.bess.list_gatehook_classes().names
+    for cls_name in gatehook_classes:
+        _show_gatehook_class(cli, cls_name, False)
+
+
+@cmd('show gatehookclass GATEHOOKCLASS...',
+     'Show the details of specified gate classes')
+def show_gatehook_class_list(cli, cls_names):
+    for cls_name in cls_names:
+        _show_gatehook_class(cli, cls_name, True)
 
 
 @cmd('import plugin PLUGIN_FILE', 'Import the specified plugin (*.so)')
@@ -1937,7 +2000,7 @@ def track_module_bits(cli, flag, module_name, direction, gate):
 @cmd('track reset MODULE DIRECTION GATE',
      'Reset counts of packets, batches, and bits on specified gate')
 def track_reset(cli, module_name, direction, gate):
-    cli.bess.run_gate_command('track', module_name, direction, gate, 'reset',
+    cli.bess.run_gate_command('Track', module_name, direction, gate, 'reset',
                               'EmptyArg', {})
 
 

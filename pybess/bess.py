@@ -405,6 +405,17 @@ class BESS(object):
     def list_modules(self):
         return self._request('ListModules')
 
+    def list_gatehook_classes(self):
+        return self._request('ListGateHookClass')
+
+    def list_gatehooks(self):
+        return self._request('ListGateHooks')
+
+    def get_gatehook_class_info(self, name):
+        request = bess_msg.GetGateHookClassInfoRequest()
+        request.name = name
+        return self._request('GetGateHookClassInfo', request)
+
     def get_mclass_info(self, name):
         request = bess_msg.GetMclassInfoRequest()
         request.name = name
@@ -560,20 +571,20 @@ class BESS(object):
         arg = bess_msg.TcpdumpArg()
         if fifo is not None:
             arg.fifo = fifo
-        return self._configure_gate_hook('tcpdump', m, arg, enable, direction,
+        return self._configure_gate_hook('TcpDump', m, arg, enable, direction,
                                          gate)
 
     def track_module(self, m, enable, bits=False, direction='out', gate=-1):
         arg = bess_msg.TrackArg()
         arg.bits = bits
-        return self._configure_gate_hook('track', m, arg, enable, direction,
+        return self._configure_gate_hook('Track', m, arg, enable, direction,
                                          gate)
 
     def pcapng(self, enable, m, direction='out', gate=0, fifo=None):
         arg = bess_msg.PcapngArg()
         if fifo is not None:
             arg.fifo = fifo
-        return self._configure_gate_hook('pcapng', m, arg, enable, direction,
+        return self._configure_gate_hook('PcapNg', m, arg, enable, direction,
                                          gate)
 
     def list_workers(self):

@@ -195,6 +195,10 @@ static int collect_igates(Module* m, GetModuleInfoResponse* response) {
       ogate->set_ogate(og->gate_idx());
       ogate->set_name(og->module()->name());
     }
+
+    for (const auto& hook : g->hooks()) {
+      igate->add_hook_name(hook->name());
+    }
   }
 
   return 0;
@@ -218,6 +222,10 @@ static int collect_ogates(Module* m, GetModuleInfoResponse* response) {
     }
     ogate->set_name(g->igate()->module()->name());
     ogate->set_igate(g->igate()->gate_idx());
+
+    for (const auto& hook : g->hooks()) {
+      ogate->add_hook_name(hook->name());
+    }
   }
 
   return 0;
@@ -1363,6 +1371,46 @@ class BESSControlImpl final : public BESSControl::Service {
       dump->set_ring_count(ring_count);
       dump->set_ring_free_count(ring_free_count);
       dump->set_ring_bytes(rte_ring_get_memsize(ring_count + ring_free_count));
+    }
+    return Status::OK;
+  }
+
+  Status ListGateHookClass(ServerContext*, const EmptyRequest*,
+                    ListGateHookClassResponse* response) override {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
+
+    for (const auto& pair : bess::GateHookFactory::all_gate_hook_factories()) {
+      const auto& factory = pair.second;
+      response->add_names(factory.hook_name());
+    }
+    return Status::OK;
+  }
+
+  Status GetGateHookClassInfo(ServerContext*,
+                      const GetGateHookClassInfoRequest* request,
+                      GetGateHookClassInfoResponse* response) override {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
+
+    VLOG(1) << "GetGateHookClassInfo from client:" << std::endl
+            << request->DebugString();
+    if (!request->name().length()) {
+      return return_with_error(response, EINVAL,
+                               "Argument must be a name in str");
+    }
+
+    const std::string& cls_name = request->name();
+    const auto& it = bess::GateHookFactory::all_gate_hook_factories().find(cls_name);
+    if (it == bess::GateHookFactory::all_gate_hook_factories().end()) {
+      return return_with_error(response, ENOENT, "No gatehook class '%s' found",
+                               cls_name.c_str());
+    }
+    const bess::GateHookFactory* cls = &it->second;
+
+    response->set_name(cls->hook_name());
+    response->set_help(cls->help_text());
+    for (const auto& cmd : cls->cmds()) {
+      response->add_cmds(cmd.first);
+      response->add_cmd_args(cmd.second);
     }
     return Status::OK;
   }
