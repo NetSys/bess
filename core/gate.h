@@ -210,9 +210,10 @@ class Gate {
   const std::vector<GateHook *> &hooks() const { return hooks_; }
 
   // Creates, initializes, and then inserts gate hook in priority order.
-  CommandResponse CreateGateHook(const GateHookBuilder *builder, Gate *gate,
-                              bool is_gate, const std::string &name,
-                              const google::protobuf::Any &arg);
+  GateHook *CreateGateHook(const GateHookBuilder *builder, Gate *gate,
+                              const std::string &name,
+                              const google::protobuf::Any &arg,
+                              pb_error_t *error);
 
   GateHook *FindHook(const std::string &name);
 
@@ -224,7 +225,7 @@ class Gate {
   friend class GateTest;
 
   // Inserts hook in priority order and returns 0 on success.
-  int AddHook(GateHook *hook);
+  int AddHook(GateHook *hook, pb_error_t *error);
 
   Module *module_;              // the module this gate belongs to
   gate_idx_t gate_idx_;         // input/output gate index of itself

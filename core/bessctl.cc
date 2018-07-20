@@ -104,27 +104,39 @@ static inline bess::Gate* module_gate(const Module* m, bool is_igate,
   return nullptr;
 }
 
-static CommandResponse enable_hook_for_module(
-    const Module* m, gate_idx_t gate_idx, bool is_igate, bool use_gate,
-    const bess::GateHookBuilder& builder, const google::protobuf::Any& arg) {
+static Status enable_hook_for_module(ConfigureGateHookResponse* response,
+                                     const std::string hook_name,
+                                     const Module* m, gate_idx_t gate_idx,
+                                     bool is_igate, bool use_gate,
+                                     const bess::GateHookBuilder& builder,
+                                     const google::protobuf::Any& arg) {
+  pb_error_t* error = response->mutable_error();
   if (use_gate) {
     bess::Gate* gate = module_gate(m, is_igate, gate_idx);
     if (gate == nullptr) {
-      return CommandFailure(EINVAL, "'%s': %cgate '%hu' does not exist",
-                            m->name().c_str(), is_igate ? 'i' : 'o', gate_idx);
+      return return_with_error(
+          response, ENOENT, "'%s': %cgate '%hu' does not exist",
+          m->name().c_str(), is_igate ? 'i' : 'o', gate_idx);
     }
-    return gate->CreateGateHook(&builder, gate, is_igate, "", arg);
+
+    bess::GateHook* hook =
+        gate->CreateGateHook(&builder, gate, hook_name, arg, error);
+    if (hook) {
+      response->set_name(hook->name());
+    }
+    return Status::OK;
   }
 
+  //FIXME This operation is not all or nothing
   if (is_igate) {
     for (auto& gate : m->igates()) {
       if (!gate) {
         continue;
       }
-      CommandResponse ret = gate->CreateGateHook(&builder, gate, is_igate,
-          "", arg);
-      if (ret.error().code() != 0) {
-        return ret;
+      bess::GateHook* hook =
+          gate->CreateGateHook(&builder, gate, hook_name, arg, error);
+      if (error->code() != 0 || !hook) {
+        return Status::OK;
       }
     }
   } else {
@@ -132,28 +144,29 @@ static CommandResponse enable_hook_for_module(
       if (!gate) {
         continue;
       }
-      CommandResponse ret = gate->CreateGateHook(&builder, gate, is_igate,
-          "", arg);
-      if (ret.error().code() != 0) {
-        return ret;
+      bess::GateHook* hook =
+          gate->CreateGateHook(&builder, gate, hook_name, arg, error);
+      if (error->code() != 0 || !hook) {
+        return Status::OK;
       }
     }
   }
-  return CommandSuccess();
+  return Status::OK;
 }
 
-static CommandResponse disable_hook_for_module(const Module* m,
-                                               gate_idx_t gate_idx,
-                                               bool is_igate, bool use_gate,
-                                               const std::string& hook) {
+static Status disable_hook_for_module(ConfigureGateHookResponse* response,
+                                      const std::string& hook_name,
+                                      const Module* m, gate_idx_t gate_idx,
+                                      bool is_igate, bool use_gate) {
   if (use_gate) {
     bess::Gate* gate = module_gate(m, is_igate, gate_idx);
     if (gate == nullptr) {
-      return CommandFailure(EINVAL, "'%s': %cgate '%hu' does not exist",
-                            m->name().c_str(), is_igate ? 'i' : 'o', gate_idx);
+      return return_with_error(
+          response, EINVAL, "'%s': %cgate '%hu' does not exist",
+          m->name().c_str(), is_igate ? 'i' : 'o', gate_idx);
     }
-    gate->RemoveHook(hook);
-    return CommandSuccess();
+    gate->RemoveHook(hook_name);
+    return Status::OK;
   }
 
   if (is_igate) {
@@ -161,17 +174,17 @@ static CommandResponse disable_hook_for_module(const Module* m,
       if (!gate) {
         continue;
       }
-      gate->RemoveHook(hook);
+      gate->RemoveHook(hook_name);
     }
   } else {
     for (auto& gate : m->ogates()) {
       if (!gate) {
         continue;
       }
-      gate->RemoveHook(hook);
+      gate->RemoveHook(hook_name);
     }
   }
-  return CommandSuccess();
+  return Status::OK;
 }
 
 static int collect_igates(Module* m, GetModuleInfoResponse* response) {
@@ -1461,7 +1474,7 @@ class BESSControlImpl final : public BESSControl::Service {
 
   Status ConfigureGateHook(ServerContext*,
                            const ConfigureGateHookRequest* request,
-                           CommandResponse* response) override {
+                           ConfigureGateHookResponse *response) override {
     std::lock_guard<std::recursive_mutex> lock(mutex_);
 
     WorkerPauser wp;
@@ -1485,17 +1498,17 @@ class BESSControlImpl final : public BESSControl::Service {
                                request->hook().class_name().c_str());
     }
 
+    //XXX this codes isf not all or nothing if a gatehook command are failed
     if (request->hook().module_name().length() == 0) {
       // Install this hook on all modules
       for (const auto& it : ModuleGraph::GetAllModules()) {
         if (request->enable()) {
-          *response =
-              enable_hook_for_module(it.second, gate_idx, is_igate, use_gate,
-                                     builder->second, request->hook().arg());
+          enable_hook_for_module(response, request->hook().hook_name(), it.second,
+                                 gate_idx, is_igate, use_gate, builder->second,
+                                 request->hook().arg());
         } else {
-          *response =
-              disable_hook_for_module(it.second, gate_idx, is_igate, use_gate,
-                                      request->hook().hook_name());
+          disable_hook_for_module(response, request->hook().hook_name(), it.second,
+                                  gate_idx, is_igate, use_gate);
         }
         if (response->error().code() != 0) {
           return Status::OK;
@@ -1512,13 +1525,12 @@ class BESSControlImpl final : public BESSControl::Service {
                                request->hook().module_name().c_str());
     }
     if (request->enable()) {
-      *response =
-          enable_hook_for_module(it->second, gate_idx, is_igate, use_gate,
-                                 builder->second, request->hook().arg());
+      enable_hook_for_module(response, request->hook().hook_name(), it->second,
+                             gate_idx, is_igate, use_gate, builder->second,
+                             request->hook().arg());
     } else {
-      *response =
-          disable_hook_for_module(it->second, gate_idx, is_igate, use_gate,
-                                  request->hook().hook_name());
+      disable_hook_for_module(response, request->hook().hook_name(), it->second,
+                              gate_idx, is_igate, use_gate);
     }
 
     return Status::OK;

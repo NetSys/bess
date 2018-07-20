@@ -92,14 +92,16 @@ const std::string Gate::GenerateDefaultName(const GateHookBuilder *builder,
 // and adds it to the given gate.  If any of these steps go wrong
 // the gatehook instance is destroyed and we return a failed
 // CommandResponse, otherwise we return a successful one.
-CommandResponse Gate::CreateGateHook(const GateHookBuilder *builder, Gate *gate,
-                                  bool is_igate, const std::string &name,
-                                  const google::protobuf::Any &arg) {
+GateHook *Gate::CreateGateHook(const GateHookBuilder *builder, Gate *gate,
+                               const std::string &name,
+                               const google::protobuf::Any &arg,
+                               pb_error_t *error) {
   bess::GateHook *hook = builder->hook_constructor_();
   CommandResponse init_ret = builder->hook_init_func_(hook, gate, arg);
   if (init_ret.error().code() != 0) {
     delete hook;
-    return init_ret;
+    *error = init_ret.error();
+    return nullptr;
   }
 
   std::string hook_name = name;
@@ -112,22 +114,20 @@ CommandResponse Gate::CreateGateHook(const GateHookBuilder *builder, Gate *gate,
   hook->set_builder(builder);
   hook->set_arg(arg);
   hook->set_gate(gate);
-  int ret = gate->AddHook(hook);
+  int ret = gate->AddHook(hook, error);
   if (ret != 0) {
     delete hook;
-    return CommandFailure(ret, "Unable to add hook '%s::%s' to '%s' %cgate '%hu'",
-                          builder->class_name_.c_str(), name.c_str(),
-                          gate->module()->name().c_str(), is_igate ? 'i' : 'o',
-                          gate->gate_idx());
+    return nullptr;
   }
-  return CommandSuccess();
+  return hook;
 }
 
-int Gate::AddHook(GateHook *hook) {
+int Gate::AddHook(GateHook *hook, pb_error_t *error) {
   for (const auto &h : hooks_) {
     if (h->name() == hook->name()) {
-      return EEXIST;
+      *error = pb_errno(EEXIST);
     }
+    return -1;
   }
 
   hooks_.push_back(hook);
@@ -226,7 +226,8 @@ void OGate::AddTrackHook() {
     track_arg.set_bits(false);
     arg.PackFrom(track_arg);
   }
-  this->CreateGateHook(track_builder, this, false, "", arg);
+  pb_error_t error;
+  this->CreateGateHook(track_builder, this, "", arg, &error);
 }
 
 void OGate::SetIgate(IGate *ig) {

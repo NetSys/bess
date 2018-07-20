@@ -1927,7 +1927,7 @@ def _capture_gate(cli, module_name, direction, gate, opts, program, hook_fn):
 
     unhook = True
     try:
-        hook_fn(True, '', module_name, direction, gate, fifo)
+        ret = hook_fn(True, '', module_name, direction, gate, fifo)
         proc.wait()
     except KeyboardInterrupt:
         # kill all descendants in the process group
@@ -1941,7 +1941,7 @@ def _capture_gate(cli, module_name, direction, gate, opts, program, hook_fn):
         proc.wait()
         try:
             if unhook:
-                hook_fn(False, '', module_name, direction, gate)
+                hook_fn(False, ret.name, module_name, direction, gate)
         finally:
             try:
                 os.close(fd)

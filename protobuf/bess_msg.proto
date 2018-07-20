@@ -571,6 +571,11 @@ message ConfigureGateHookRequest {
   bool enable = 2;
 }
 
+message ConfigureGateHookResponse {
+  Error error = 1;
+  string name = 2;  /// Name of the created gatehook (specified or default one)
+}
+
 message ListGateHooksResponse {
   Error error = 1;
   repeated GateHookInfo hooks = 2;
