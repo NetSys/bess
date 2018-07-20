@@ -73,6 +73,21 @@ const std::map<std::string, GateHookBuilder>
   return all_gate_hook_builders_holder();
 }
 
+const std::string Gate::GenerateDefaultName(const GateHookBuilder *builder,
+    Gate *gate) {
+  const std::string &name_template = builder->name_template();
+
+  for (int i = 0;; i++) {
+    const std::vector<GateHook *> hooks = gate->hooks();
+    std::string name = name_template + std::to_string(i);
+    auto it = std::find_if(hooks.begin(), hooks.end(),
+        CompareGatehookName(name));
+    if (it != hooks.end())
+      continue;
+    return name;
+  }
+}
+
 // Creates new gate hook from the given builder, initializes it,
 // and adds it to the given gate.  If any of these steps go wrong
 // the gatehook instance is destroyed and we return a failed
@@ -86,8 +101,14 @@ CommandResponse Gate::CreateGateHook(const GateHookBuilder *builder, Gate *gate,
     delete hook;
     return init_ret;
   }
+
+  std::string hook_name = name;
+  if (hook_name == "") {
+    hook_name = GenerateDefaultName(builder, gate);
+  }
+
   hook->set_class_name(builder->class_name());
-  hook->set_name(name);
+  hook->set_name(hook_name);
   hook->set_builder(builder);
   hook->set_arg(arg);
   hook->set_gate(gate);
@@ -205,7 +226,7 @@ void OGate::AddTrackHook() {
     track_arg.set_bits(false);
     arg.PackFrom(track_arg);
   }
-  this->CreateGateHook(track_builder, this, false, "track", arg);
+  this->CreateGateHook(track_builder, this, false, "", arg);
 }
 
 void OGate::SetIgate(IGate *ig) {

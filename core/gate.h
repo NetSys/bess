@@ -122,6 +122,15 @@ class GateHook {
   DISALLOW_COPY_AND_ASSIGN(GateHook);
 };
 
+struct CompareGatehookName : public std::unary_function<GateHook, GateHook>
+{
+  explicit CompareGatehookName(const std::string &name) : name_(name) {}
+  bool operator() (const GateHook *gatehook) {
+    return name_ == gatehook->name();
+  }
+  std::string name_;
+};
+
 // A class for creating new 'gate hook's
 class GateHookBuilder {
  public:
@@ -221,10 +230,11 @@ class Gate {
   gate_idx_t gate_idx_;         // input/output gate index of itself
   uint32_t global_gate_index_;  // a globally unique igate index
 
-  // TODO(melvin): Consider using a map here instead. It gets rid of the need to
-  // scan to find modules for queries. Not sure how priority would work in a
-  // map, though.
   std::vector<GateHook *> hooks_;
+
+ private:
+  const std::string GenerateDefaultName(const GateHookBuilder *builder,
+      Gate *gate);
 
   DISALLOW_COPY_AND_ASSIGN(Gate);
 };

@@ -113,7 +113,7 @@ static CommandResponse enable_hook_for_module(
       return CommandFailure(EINVAL, "'%s': %cgate '%hu' does not exist",
                             m->name().c_str(), is_igate ? 'i' : 'o', gate_idx);
     }
-    return gate->CreateGateHook(&builder, gate, is_igate, "noname", arg);
+    return gate->CreateGateHook(&builder, gate, is_igate, "", arg);
   }
 
   if (is_igate) {
@@ -121,7 +121,8 @@ static CommandResponse enable_hook_for_module(
       if (!gate) {
         continue;
       }
-      CommandResponse ret = gate->CreateGateHook(&builder, gate, is_igate, "noname", arg);
+      CommandResponse ret = gate->CreateGateHook(&builder, gate, is_igate,
+          "", arg);
       if (ret.error().code() != 0) {
         return ret;
       }
@@ -131,7 +132,8 @@ static CommandResponse enable_hook_for_module(
       if (!gate) {
         continue;
       }
-      CommandResponse ret = gate->CreateGateHook(&builder, gate, is_igate, "noname", arg);
+      CommandResponse ret = gate->CreateGateHook(&builder, gate, is_igate,
+          "", arg);
       if (ret.error().code() != 0) {
         return ret;
       }
