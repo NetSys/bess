@@ -30,6 +30,7 @@
 
 import sys
 import os
+from operator import itemgetter
 
 
 class ColorizedOutput(object):  # for pretty printing
@@ -144,10 +145,12 @@ class CLI(object):
     # candidates is a list of suggested strings to be added as the last token.
     # syntax_token is where the user input is currently on, if any.
     # score is the number of matched keywords
+    # exact_score is the number of "exactly" matched keywords
     def match(self, syntax, line):
         candidates = []
         remainder = line
         score = 0
+        exact_score = 0
 
         new_token = (line != '' and line[-1] == ' ')
 
@@ -176,11 +179,13 @@ class CLI(object):
                         candidates.append(syntax_token)
 
                     if syntax_token[0] == '[':  # skippable?
-                        return 'full', candidates, syntax_token, score
-                    return 'partial', candidates, syntax_token, score
+                        return 'full', candidates, syntax_token, score, \
+                            exact_score
+                    return 'partial', candidates, syntax_token, score, \
+                        exact_score
 
                 return 'partial', candidates, \
-                    syntax_tokens[max(0, i - 1)], score
+                    syntax_tokens[max(0, i - 1)], score, exact_score
 
             token, remainder = self.split_var(var_type, remainder)
             remainder = remainder.lstrip()
@@ -193,9 +198,11 @@ class CLI(object):
                         candidates = [syntax_token]
                 else:
                     if not syntax_token.startswith(token):
-                        return 'nonmatch', [], '', score
+                        return 'nonmatch', [], '', score, exact_score
                     candidates = [syntax_token]
                 score += 1
+                if syntax_token.strip() == token:
+                    exact_score += 1
             else:
                 if new_token:
                     candidates = var_candidates
@@ -207,35 +214,38 @@ class CLI(object):
 
         if remainder.strip() == '':
             if '...' in syntax_token:
-                return 'full', candidates, syntax_token, score
+                return 'full', candidates, syntax_token, score, exact_score
             if new_token:
-                return 'full', ['\n'], '', score
-            return 'full', candidates, syntax_token, score
-        return 'nonmatch', [], '', score
+                return 'full', ['\n'], '', score, exact_score
+            return 'full', candidates, syntax_token, score, exact_score
+        return 'nonmatch', [], '', score, exact_score
 
-    # filters is a list of 'full', 'partial', 'nonmatch'
-    def list_matched(self, line, filters):
+    # filter is one of 'full', 'partial', 'nonmatch'
+    def list_matched(self, line, filter):
         matched_list = []
 
         for cmd in self.cmdlist:
             syntax = cmd[0]
-            match_type, _, _, score = self.match(syntax, line)
+            match_type, _, _, score, exact_score = self.match(syntax, line)
 
-            if match_type in filters:
-                matched_list.append((cmd, score))
+            if match_type == filter:
+                matched_list.append((cmd, score, exact_score))
 
         if len(matched_list) == 0:
             return [], []
 
         max_score = max([x[1] for x in matched_list])
 
-        ret = []
-        ret_low = []
-        for cmd, score in matched_list:
-            if score == max_score:
-                ret.append(cmd)
-            else:
-                ret_low.append(cmd)
+        ret = [m[0] for m in matched_list if m[1] == max_score]
+        ret_low = [m[0] for m in matched_list if m[1] != max_score]
+
+        # Find exact matches without ambiguity
+        if filter == 'full' and len(ret) > 1:
+            full_matches = [m for m in matched_list if m[1] == max_score]
+            # sorted by exact score
+            full_matches.sort(key=itemgetter(2), reverse=True)
+            if full_matches[0][2] != full_matches[1][2]:
+                return [full_matches[0][0]], []
 
         return ret, ret_low
 
@@ -247,7 +257,7 @@ class CLI(object):
         for cmd in self.cmdlist:
             syntax = cmd[0]
             match_type, sub_candidates, \
-                syntax_token, score = self.match(syntax, line)
+                syntax_token, _, _ = self.match(syntax, line)
 
             if match_type in ['full', 'partial']:
                 possible_cmds.append((cmd, match_type, syntax_token))
@@ -307,6 +317,7 @@ class CLI(object):
             self.fout.write('\n')
             self.fout.write(''.join(buf))
             self.fout.write('%s%s' % (self.get_prompt(), line))
+            self.fout.flush()
 
         return []
 
@@ -339,24 +350,27 @@ class CLI(object):
         return '> '
 
     def find_cmd(self, line):
-        matched, matched_low = self.list_matched(line, ['full'])
+        # return commands being matched with every token
+        matched, matched_low = self.list_matched(line, 'full')
+        line_stripped = line.strip()
 
         if len(matched) == 1:
             return matched[0]
 
         elif len(matched) >= 2:
-            self.err('Ambiguous command "%s". Candidates:' % line.strip())
+            self.err('Ambiguous command "%s". Candidates:' % line_stripped)
             for cmd, desc, _ in matched + matched_low:
                 self.ferr.write('  %-50s%s\n' % (cmd, desc))
 
         elif len(matched) == 0:
-            matched, matched_low = self.list_matched(line, ['partial'])
+            matched, matched_low = self.list_matched(line, 'partial')
             if len(matched) > 0:
-                self.err('Incomplete command "%s". Candidates:' % line.strip())
+                self.err('Incomplete command "%s". Candidates:' %
+                         line_stripped)
                 for cmd, desc, _ in matched + matched_low:
                     self.ferr.write('  %-50s%s\n' % (cmd, desc))
             else:
-                self.err('Unknown command "%s".' % line.strip())
+                self.err('Unknown command "%s".' % line_stripped)
 
         raise self.InvalidCommandError()
 
