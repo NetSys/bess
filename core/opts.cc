@@ -54,7 +54,10 @@ DEFINE_string(modules, bess::bessd::GetCurrentDirectory() + "modules",
               "Load modules from the specified directory");
 DEFINE_bool(core_dump, false, "Generate a core dump on fatal faults");
 DEFINE_bool(no_crashlog, false, "Disable the generation of a crash log file");
-DEFINE_bool(dpdk, false, "Let DPDK manage hugepages");
+
+// Note: currently BESS-managed hugepages do not support VFIO driver,
+//       so DPDK is default for now.
+DEFINE_bool(dpdk, true, "Let DPDK manage hugepages");
 
 static bool ValidateCoreID(const char *, int32_t value) {
   if (!is_cpu_present(value)) {
