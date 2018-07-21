@@ -195,7 +195,8 @@ PlainPacketPool::PlainPacketPool(size_t capacity, int socket_id)
 }
 
 BessPacketPool::BessPacketPool(size_t capacity, int socket_id)
-    : PacketPool(capacity, socket_id), mem_(FLAGS_m * 1024 * 1024, socket_id) {
+    : PacketPool(capacity, socket_id),
+      mem_(static_cast<size_t>(FLAGS_m) * 1024 * 1024, socket_id) {
   size_t page_shift = __builtin_ffs(getpagesize());
   size_t element_size =
       pool_->header_size + pool_->elt_size + pool_->trailer_size;
