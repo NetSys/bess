@@ -184,7 +184,7 @@ PlainPacketPool::PlainPacketPool(size_t capacity, int socket_id)
   pinned_ = (ret == 0);  // may fail as non-root users have mlock limit
 
   ret = rte_mempool_populate_iova(pool_, static_cast<char *>(addr),
-                                  RTE_BAD_IOVA, size, nullptr, nullptr);
+                                  RTE_BAD_IOVA, size, DoMunmap, nullptr);
   if (ret < static_cast<ssize_t>(pool_->size)) {
     LOG(WARNING) << "rte_mempool_populate_iova() returned " << ret
                  << " (rte_errno=" << rte_errno << ", "
@@ -199,19 +199,30 @@ BessPacketPool::BessPacketPool(size_t capacity, int socket_id)
   size_t page_shift = __builtin_ffs(getpagesize());
   size_t element_size =
       pool_->header_size + pool_->elt_size + pool_->trailer_size;
-  size_t size = rte_mempool_xmem_size(pool_->size, element_size, page_shift,
-                                      pool_->flags);
 
-  int ret = 0;
-  if (void *addr = mem_.Alloc(size)) {
-    ret = rte_mempool_populate_iova(pool_, static_cast<char *>(addr),
-                                    RTE_BAD_IOVA, size, DoMunmap, nullptr);
-  }
+  while (pool_->populated_size < pool_->size) {
+    size_t deficit = pool_->size - pool_->populated_size;
+    size_t bytes =
+        rte_mempool_xmem_size(deficit, element_size, page_shift, pool_->flags);
 
-  if (ret < static_cast<ssize_t>(pool_->size)) {
-    LOG(WARNING) << "rte_mempool_populate_iova() returned " << ret
-                 << " (rte_errno=" << rte_errno << ", "
-                 << rte_strerror(rte_errno) << ")";
+    auto [addr, alloced_bytes] = mem_.AllocUpto(bytes);
+    if (addr == nullptr) {
+      LOG(WARNING) << "Node " << socket_id << ": " << capacity
+                   << " packets requested, but only " << pool_->populated_size
+                   << " allocated in total";
+      break;
+    }
+
+    int ret = rte_mempool_populate_iova(pool_, static_cast<char *>(addr),
+                                        Virt2Phy(addr), alloced_bytes, nullptr,
+                                        nullptr);
+    if (ret < 0) {
+      LOG(WARNING) << "Node " << socket_id
+                   << ": rte_mempool_populate_iova() returned " << ret;
+    } else {
+      LOG(INFO) << "Node " << socket_id << ": " << ret << " packets added from "
+                << alloced_bytes << " bytes";
+    }
   }
 
   PostPopulate();
