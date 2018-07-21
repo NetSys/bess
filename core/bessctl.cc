@@ -1402,7 +1402,12 @@ class BESSControlImpl final : public BESSControl::Service {
         (socket_filter == -1) ? (RTE_MAX_NUMA_NODES - 1) : socket_filter;
     int socket = (request->socket() == -1) ? 0 : socket_filter;
     for (; socket <= socket_filter; socket++) {
-      rte_mempool* mempool = bess::PacketPool::GetDefaultPool(socket)->pool();
+      bess::PacketPool* pool = bess::PacketPool::GetDefaultPool(socket);
+      if (!pool) {
+        continue;
+      }
+
+      rte_mempool* mempool = pool->pool();
       MempoolDump* dump = response->add_dumps();
       dump->set_socket(socket);
       dump->set_initialized(mempool != nullptr);
