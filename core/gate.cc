@@ -30,6 +30,7 @@
 
 #include "gate.h"
 #include "gate_hooks/track.h"
+#include "utils/format.h"
 
 #include <algorithm>
 #include <map>
@@ -125,9 +126,10 @@ GateHook *Gate::CreateGateHook(const GateHookBuilder *builder, Gate *gate,
 int Gate::AddHook(GateHook *hook, pb_error_t *error) {
   for (const auto &h : hooks_) {
     if (h->name() == hook->name()) {
-      *error = pb_errno(EEXIST);
+      error->set_code(EEXIST);
+      error->set_errmsg("Fail to Add Hook");
+      return -1;
     }
-    return -1;
   }
 
   hooks_.push_back(hook);
@@ -159,6 +161,27 @@ void Gate::RemoveHook(const std::string &name) {
     }
   }
 }
+
+GateHook *Gate::FindHookByClass(const std::string &class_name) {
+  for (const auto &hook : hooks_) {
+    if (hook->class_name() == class_name) {
+      return hook;
+    }
+  }
+  return nullptr;
+}
+
+void Gate::RemoveHookByClass(const std::string &class_name) {
+  for (auto it = hooks_.begin(); it != hooks_.end(); ++it) {
+    GateHook *hook = *it;
+    if (hook->class_name() == class_name) {
+      delete hook;
+      hooks_.erase(it);
+      return;
+    }
+  }
+}
+
 
 // TODO(torek): combine (template) with ModuleBuilder::RunCommand
 CommandResponse GateHookBuilder::RunCommand(

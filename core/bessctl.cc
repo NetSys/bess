@@ -127,7 +127,7 @@ static Status enable_hook_for_module(ConfigureGateHookResponse* response,
     return Status::OK;
   }
 
-  //FIXME This operation is not all or nothing
+  //XXX this codes is not all or nothing if a gatehook command are failed
   if (is_igate) {
     for (auto& gate : m->igates()) {
       if (!gate) {
@@ -195,7 +195,7 @@ static int collect_igates(Module* m, GetModuleInfoResponse* response) {
 
     GetModuleInfoResponse_IGate* igate = response->add_igates();
 
-    Track* t = reinterpret_cast<Track*>(g->FindHook(Track::kName));
+    Track* t = reinterpret_cast<Track*>(g->FindHookByClass(Track::kName));
 
     if (t) {
       igate->set_cnt(t->cnt());
@@ -231,7 +231,7 @@ static int collect_ogates(Module* m, GetModuleInfoResponse* response) {
     GetModuleInfoResponse_OGate* ogate = response->add_ogates();
 
     ogate->set_ogate(g->gate_idx());
-    Track* t = reinterpret_cast<Track*>(g->FindHook(Track::kName));
+    Track* t = reinterpret_cast<Track*>(g->FindHookByClass(Track::kName));
     if (t) {
       ogate->set_cnt(t->cnt());
       ogate->set_pkts(t->pkts());
@@ -1498,7 +1498,6 @@ class BESSControlImpl final : public BESSControl::Service {
                                request->hook().class_name().c_str());
     }
 
-    //XXX this codes isf not all or nothing if a gatehook command are failed
     if (request->hook().module_name().length() == 0) {
       // Install this hook on all modules
       for (const auto& it : ModuleGraph::GetAllModules()) {

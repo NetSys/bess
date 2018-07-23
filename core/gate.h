@@ -219,6 +219,10 @@ class Gate {
 
   void RemoveHook(const std::string &name);
 
+  GateHook *FindHookByClass(const std::string &name);
+
+  void RemoveHookByClass(const std::string &name);
+
   void ClearHooks();
 
  protected:
