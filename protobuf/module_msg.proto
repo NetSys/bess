@@ -61,7 +61,7 @@ message BPFCommandClearArg {
  * The ExactMatch module has a command `add(...)` that takes two parameters.
  * The ExactMatch initializer specifies what fields in a packet to inspect; add() specifies
  * which values to check for over these fields.
- * add() inserts a new rule into the ExactMatch module such that traffic matching i
+ * add() inserts a new rule into the ExactMatch module such that traffic matching
  * that bytestring will be forwarded
  * out a specified gate.
  * Example use: `add(fields=[aton('12.3.4.5'), aton('5.4.3.2')], gate=2)`
@@ -107,14 +107,14 @@ message FlowGenCommandSetBurstArg {
 /**
  * The HashLB module has a command `set_mode(...)` which takes two parameters.
  * The `mode` parameter specifies whether the load balancer will hash over the
- * src/dest ethernet header (l2), over the src/dest IP addresses (l3), or over
- * the flow 5-tuple (l4).  Alternatively, if the `fields` parameter is set, the
+ * src/dest ethernet header (`'l2'`), over the src/dest IP addresses (`'l3'`), or over
+ * the flow 5-tuple (`'l4'`).  Alternatively, if the `fields` parameter is set, the
  * load balancer will hash over the N-tuple with the specified offsets and
  * sizes.
  * Example use in bessctl: `lb.set_mode('l2')`
  */
 message HashLBCommandSetModeArg {
-  string mode = 1; /// What fields to hash over, l2, l3, and l4 are only valid values.
+  string mode = 1; /// What fields to hash over, `'l2'`, `'l3'`, and `'l4'` are only valid values.
   repeated Field fields = 2; /// A list of fields that define a custom tuple.
 }
 
@@ -266,6 +266,7 @@ message MeasureCommandGetSummaryResponse {
  * The Module DRR provides fair scheduling of flows based on a quantum which is
  * number of bytes allocated to each flow on each round of going through all flows.
  * Examples can be found [./bessctl/conf/samples/drr.bess]
+ *
  * __Input_Gates__: 1
  * __Output_Gates__:  1
  */
@@ -310,7 +311,7 @@ message QueueIncCommandSetBurstArg {
 }
 
 /**
- * The module QueueInc has a function `set_burst(...)` that allows you to specify
+ * The module Queue has a function `set_burst(...)` that allows you to specify
  * the maximum number of packets to be stored in a single PacketBatch released
  * by the module.
  */
@@ -319,7 +320,7 @@ message QueueCommandSetBurstArg {
 }
 
 /**
- * The module QueueInc has a function `set_size(...)` that allows specifying the
+ * The module Queue has a function `set_size(...)` that allows specifying the
  * size of the queue in total number of packets.
  */
 message QueueCommandSetSizeArg {
@@ -374,8 +375,8 @@ message UpdateCommandClearArg {
 message WildcardMatchCommandAddArg {
   uint64 gate = 1; /// Traffic matching this new rule will be sent to this gate.
   int64 priority = 2; ///If a packet matches multiple rules, the rule with higher priority will be applied. If priorities are equal behavior is undefined.
-  repeated FieldData values = 3; /// The values to check for in each fieild.
-  repeated FieldData masks = 4; /// The bitmask for each field -- set 0x0 to ignore the field altogether.
+  repeated FieldData values = 3; /// The values to check for in each field.
+  repeated FieldData masks = 4; /// The bitmask for each field -- set `0x0` to ignore the field altogether.
 }
 
 /**
@@ -443,7 +444,7 @@ message BPFArg {
 
 /**
  * The Buffer module takes no parameters to initialize (ie, `Buffer()` is sufficient to create one).
- * Buffer accepts packets and stores them; it may forard them to the next module only after it has
+ * Buffer accepts packets and stores them; it may forward them to the next module only after it has
  * received enough packets to fill an entire PacketBatch.
  *
  * __Input Gates__: 1
@@ -551,12 +552,12 @@ message GenericDecapArg {
  *  1. {'size': X, 'value': Y}          (for constant values)
  *  2. {'size': X, 'attribute': Y}      (for metadata attributes)
  *
- * e.g.: GenericEncap([{'size': 4, 'value': 0xdeadbeef},
- *                     {'size': 2, 'attribute': 'foo'},
- *                     {'size': 2, 'value': 0x1234}])
+ * e.g.: `GenericEncap([{'size': 4, 'value': 0xdeadbeef},
+ *                      {'size': 2, 'attribute': 'foo'},
+ *                      {'size': 2, 'value': 0x1234}])`
  * will prepend a 8-byte header:
- *    de ad be ef <xx> <xx> 12 34
- * where the 2-byte <xx> <xx> comes from the value of metadata attribute 'foo'
+ *    `de ad be ef <xx> <xx> 12 34`
+ * where the 2-byte `<xx> <xx>` comes from the value of metadata attribute `'foo'`
  * for each packet.
  * An example script using GenericEncap is in [`bess/bessctl/conf/samples/generic_encap.bess`](https://github.com/NetSys/bess/blob/master/bessctl/conf/samples/generic_encap.bess).
  *
@@ -579,15 +580,15 @@ message GenericEncapArg {
 
 /**
  * The HashLB module partitions packets between output gates according to either
- * a hash over their MAC src/dst (mode=l2), their IP src/dst (mode=l3), the full
- * IP/TCP 5-tuple (mode=l4), or the N-tuple defined by `fields`.
+ * a hash over their MAC src/dst (`mode='l2'`), their IP src/dst (`mode='l3'`), the full
+ * IP/TCP 5-tuple (`mode='l4'`), or the N-tuple defined by `fields`.
  *
  * __Input Gates__: 1
  * __Output Gates__: many (configurable)
  */
 message HashLBArg {
   repeated int64 gates = 1; /// A list of gate numbers over which to partition packets
-  string mode = 2; /// The mode (l2, l3, or l4) for the hash function.
+  string mode = 2; /// The mode (`'l2'`, `'l3'`, or `'l4'`) for the hash function.
   repeated Field fields = 3; /// A list of fields that define a custom tuple.
 }
 
@@ -642,7 +643,7 @@ message MACSwapArg {
 /**
  * The measure module tracks latencies, packets per second, and other statistics.
  * It should be paired with a Timestamp module, which attaches a timestamp to packets.
- * The measure module will log how long (in nanoseconds) it has been for each packet it received since it was timsestamped.
+ * The measure module will log how long (in nanoseconds) it has been for each packet it received since it was timestamped.
  * This module is somewhat experimental and undergoing various changes.
  * There is a test for the the Measure module in [`bessctl/module_tests/timestamp.py`](https://github.com/NetSys/bess/blob/master/bessctl/module_tests/timestamp.py).
  *
@@ -769,7 +770,7 @@ message PortOutArg {
 }
 
 /**
- * The QueueInc produces input packets from a physical or virtual port.
+ * The module QueueInc produces input packets from a physical or virtual port.
  * Unlike PortInc, it supports multiqueue ports.
  * For details on how to configure QueueInc with DPDK, virtualports,
  * libpcap, etc, see the sidebar in the wiki.
@@ -849,7 +850,7 @@ message RandomUpdateArg {
    * in each packet processed.
    */
   message Field {
-    int64 offset = 1; /// Offset in bytes for where to rewrite.
+    int64 offset = 1; /// Offset in bytes of where to rewrite.
     uint64 size = 2; /// The number of bytes to write.
     uint64 min = 3; /// The minimum value to insert into the packet.
     uint64 max = 4; /// The maximum value to insert into the packet.
@@ -882,7 +883,7 @@ message RoundRobinCommandSetGatesArg {
  * to balance traffic across gates per-packet or per-batch.
  */
 message RoundRobinCommandSetModeArg {
-  string mode = 1; /// whether to perform 'packet' or 'batch' round robin partitioning.
+  string mode = 1; /// whether to perform `'packet'` or `'batch'` round robin partitioning.
 }
 
 /**
@@ -894,7 +895,7 @@ message RoundRobinCommandSetModeArg {
  */
 message RoundRobinArg {
   repeated int64 gates = 1; /// A list of gate numbers to split packets across.
-  string mode = 2; /// Whether to split across gate with every 'packet' or every 'batch'.
+  string mode = 2; /// Whether to split across gate with every `'packet'` or every `'batch'`.
 }
 
 /**
@@ -939,7 +940,7 @@ message SetMetadataArg {
       bytes value_bin = 4; /// A binary value to store in the packet (host-order).
     }
     int32 offset = 5; /// An index in the packet data to store copy into the metadata attribute.
-    bytes mask = 6; /// An array of bit masks to apply to each of the bytes copied starting from `offset`. If empty, the mask [0xFF,....,0xFF] will be used.
+    bytes mask = 6; /// An array of bit masks to apply to each of the bytes copied starting from `offset`. If empty, the mask `[0xFF,....,0xFF]` will be used.
     int32 rshift_bits = 7; /// The number of bits to shift the value at `offset` by before masking. Must be a multiple of 8. Positive and negative values represent right and left shifts respectively.
   }
   repeated Attribute attrs = 1; /// A list of attributes to attach to the packet.
@@ -958,9 +959,6 @@ message SinkArg {
  * The Source module has a function `set_burst(...)` which
  * specifies the maximum number of packets to release in a single packetbatch
  * from the module.
- *
- * __Input Gates__: 0
- * __Output Gates__: 1
  */
 message SourceCommandSetBurstArg {
   uint64 burst = 1; /// The maximum number of packets to release in a packetbatch from the module.
@@ -976,6 +974,9 @@ message SourceCommandSetPktSizeArg {
 
 /**
  * The Source module generates packets with no payload contents.
+ *
+ * __Input Gates__: 0
+ * __Output Gates__: 1
  */
 message SourceArg {
   uint64 pkt_size = 1; /// The size (in bytes) of packet data to produce.
@@ -1079,7 +1080,7 @@ message VLANPushArg {
 }
 
 /**
- * Splits packets across output gates according to VLAN id (e.g., id 3 goes out gate 3.
+ * Splits packets across output gates according to VLAN id (e.g., id 3 goes out gate 3).
  *
  * __Input Gates__: 1
  * __Output Gates__: many
@@ -1108,8 +1109,8 @@ message VXLANEncapArg {
 
 /**
  * The WildcardMatch module matches over multiple fields in a packet and
- * pushes packets that do match out specified gate, and those that don't out a default
- * gate. WildcardMatch is initialized wtih the fields it should inspect over,
+ * pushes packets that do match out a specified gate, and those that don't out a default
+ * gate. WildcardMatch is initialized with the fields it should inspect over,
  * rules are added via the `add(...)` function.
  * An example of WildcardMatch is in [`bess/bessctl/conf/samples/wildcardmatch.bess`](https://github.com/NetSys/bess/blob/master/bessctl/conf/samples/wildcardmatch.bess)
  *
