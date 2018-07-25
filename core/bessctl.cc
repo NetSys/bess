@@ -127,7 +127,8 @@ static Status enable_hook_for_module(ConfigureGateHookResponse* response,
     return Status::OK;
   }
 
-  //XXX this codes is not all or nothing if a gatehook command are failed
+  std::vector<std::string> created_hook_names;
+
   if (is_igate) {
     for (auto& gate : m->igates()) {
       if (!gate) {
@@ -136,7 +137,16 @@ static Status enable_hook_for_module(ConfigureGateHookResponse* response,
       bess::GateHook* hook =
           gate->CreateGateHook(&builder, gate, hook_name, arg, error);
       if (error->code() != 0 || !hook) {
+        // in case of failed creating gate hook, remove previously created
+        // before return
+        auto it = created_hook_names.begin();
+        while ( it != created_hook_names.end()){
+          gate->RemoveHook(*it);
+          it = created_hook_names.erase(it);
+        }
         return Status::OK;
+      } else {
+        created_hook_names.push_back(hook->name());
       }
     }
   } else {
@@ -147,7 +157,16 @@ static Status enable_hook_for_module(ConfigureGateHookResponse* response,
       bess::GateHook* hook =
           gate->CreateGateHook(&builder, gate, hook_name, arg, error);
       if (error->code() != 0 || !hook) {
+        // in case of failed creating gate hook, remove previously created
+        // before return
+        auto it = created_hook_names.begin();
+        while ( it != created_hook_names.end()){
+          gate->RemoveHook(*it);
+          it = created_hook_names.erase(it);
+        }
         return Status::OK;
+      } else {
+        created_hook_names.push_back(hook->name());
       }
     }
   }
