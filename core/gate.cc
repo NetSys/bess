@@ -75,17 +75,15 @@ const std::map<std::string, GateHookBuilder>
 }
 
 const std::string Gate::GenerateDefaultName(const GateHookBuilder *builder,
-    Gate *gate) {
+                                            Gate *gate) {
   const std::string &name_template = builder->name_template();
-
+  const std::vector<GateHook *> hooks = gate->hooks();
   for (int i = 0;; i++) {
-    const std::vector<GateHook *> hooks = gate->hooks();
     std::string name = name_template + std::to_string(i);
-    auto it = std::find_if(hooks.begin(), hooks.end(),
-        CompareGatehookName(name));
-    if (it != hooks.end())
-      continue;
-    return name;
+    if (std::none_of(hooks.begin(), hooks.end(), [&](const GateHook *hook){
+      return name == hook->name(); })) {
+      return name;
+    }
   }
 }
 
@@ -115,20 +113,20 @@ GateHook *Gate::CreateGateHook(const GateHookBuilder *builder, Gate *gate,
   hook->set_builder(builder);
   hook->set_arg(arg);
   hook->set_gate(gate);
-  int ret = gate->AddHook(hook, error);
+  int ret = gate->AddHook(hook);
   if (ret != 0) {
+    error->set_code(ret);
+    error->set_errmsg("Fail to Add Hook");
     delete hook;
     return nullptr;
   }
   return hook;
 }
 
-int Gate::AddHook(GateHook *hook, pb_error_t *error) {
+int Gate::AddHook(GateHook *hook) {
   for (const auto &h : hooks_) {
     if (h->name() == hook->name()) {
-      error->set_code(EEXIST);
-      error->set_errmsg("Fail to Add Hook");
-      return -1;
+      return EEXIST;
     }
   }
 
@@ -182,11 +180,10 @@ void Gate::RemoveHookByClass(const std::string &class_name) {
   }
 }
 
-
 // TODO(torek): combine (template) with ModuleBuilder::RunCommand
-CommandResponse GateHookBuilder::RunCommand(
-    GateHook *hook, const std::string &user_cmd,
-    const google::protobuf::Any &arg) const {
+CommandResponse
+    GateHookBuilder::RunCommand(GateHook *hook, const std::string &user_cmd,
+                                const google::protobuf::Any &arg) const {
   Module *mod = hook->gate()->module();
   for (auto &cmd : cmds_) {
     if (user_cmd == cmd.cmd) {
