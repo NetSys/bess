@@ -105,6 +105,7 @@ def _import_modules(name, subdir):
         raise SystemExit(1)
     return mod
 
+
 module_pb = _import_modules('module_pb', None)
 port_msg = _import_modules('port_msg', 'ports')
 sys.path = old_path
@@ -156,6 +157,7 @@ class BESS(object):
     DEF_PORT = 10514
     DEF_GRPC_URL = "localhost:" + str(DEF_PORT)
     BROKEN_CHANNEL = "AbnormalDisconnection"
+    CLOSING_CHANNEL = "ConnectionClosing"
 
     def __init__(self):
         self.debug = False
@@ -182,6 +184,11 @@ class BESS(object):
         if self.status == grpc.ChannelConnectivity.READY and \
                 connectivity == grpc.ChannelConnectivity.TRANSIENT_FAILURE:
             self.status = self.BROKEN_CHANNEL
+        elif self.status == grpc.ChannelConnectivity.READY and \
+                connectivity == grpc.ChannelConnectivity.IDLE:
+            # HTTP2 GOAWAY causes premature disconnection. Try to reconnect.
+            # This sometimes happens when BESS daemon is launching.
+            self.status = self.CLOSING_CHANNEL
         else:
             self.status = connectivity
 
@@ -192,16 +199,20 @@ class BESS(object):
         if self.is_connected():
             raise self.APIError('Already connected')
 
-        self.status = None
-        self.peer = grpc_url
-        self.channel = grpc.insecure_channel(grpc_url)
-        self.channel.subscribe(self._update_status, try_to_connect=True)
-        self.stub = service_pb2.BESSControlStub(self.channel)
-
         while not self.is_connected():
-            if self.status in [grpc.ChannelConnectivity.TRANSIENT_FAILURE,
-                               grpc.ChannelConnectivity.SHUTDOWN,
-                               self.BROKEN_CHANNEL]:
+            if self.channel is None:
+                self.status = None
+                self.peer = grpc_url
+                self.channel = grpc.insecure_channel(grpc_url)
+                self.channel.subscribe(self._update_status, try_to_connect=True)
+                self.stub = service_pb2.BESSControlStub(self.channel)
+
+            elif self.status == self.CLOSING_CHANNEL:
+                self.disconnect()
+
+            elif self.status in [grpc.ChannelConnectivity.TRANSIENT_FAILURE,
+                                   grpc.ChannelConnectivity.SHUTDOWN,
+                                   self.BROKEN_CHANNEL]:
                 self.disconnect()
                 raise self.APIError(
                     'Connection to {} failed'.format(grpc_url))
