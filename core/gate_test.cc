@@ -49,8 +49,7 @@ class GateTest : public ::testing::Test {
   virtual void TearDown() { delete g; }
 
   int AddHook(GateHook *hook) {
-    pb_error_t error;
-    return g->AddHook(hook, &error);
+    return g->AddHook(hook);
   }
 
   Gate *g;
@@ -74,23 +73,35 @@ class IOGateTest : public ::testing::Test {
   IGate *ig;
 };
 
-TEST_F(GateTest, AddExistingHookFails) {
-  ASSERT_EQ(0, AddHook(new Track()));
-  GateHook *hook = new Track();
-  ASSERT_EQ(EEXIST, AddHook(hook));
-  delete hook;
+TEST_F(GateTest, AllowMultipleHook) {
+  GateHook *track0 = new Track();
+  track0->set_name("track0");
+  ASSERT_EQ(0, AddHook(track0));
+  GateHook *track1 = new Track();
+  track1->set_name("track1");
+  ASSERT_EQ(0, AddHook(track1));
+}
+
+TEST_F(GateTest, MultipleHookSameNameFail) {
+  GateHook *track0 = new Track();
+  track0->set_name("track0");
+  ASSERT_EQ(0, AddHook(track0));
+  GateHook *track1 = new Track();
+  track1->set_name("track0");
+  ASSERT_EQ(EEXIST, AddHook(track1));
+  delete track1;
 }
 
 TEST_F(GateTest, HookPriority) {
   ASSERT_EQ(0, AddHook(new Track()));
   ASSERT_EQ(0, AddHook(new Tcpdump()));
-  ASSERT_EQ(Track::kName, g->hooks()[0]->name());
+  ASSERT_EQ(Track::kName, g->hooks()[0]->class_name());
 }
 
 TEST_F(GateTest, FindHook) {
-  ASSERT_EQ(nullptr, g->FindHook(Track::kName));
+  ASSERT_EQ(nullptr, g->FindHookByClass(Track::kName));
   ASSERT_EQ(0, AddHook(new Track()));
-  ASSERT_NE(nullptr, g->FindHook(Track::kName));
+  ASSERT_NE(nullptr, g->FindHookByClass(Track::kName));
 }
 
 TEST_F(GateTest, RemoveHook) {
