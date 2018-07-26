@@ -68,9 +68,11 @@ void Track::ProcessBatch(const bess::PacketBatch *batch) {
     return;
   }
 
+  uint64_t bytes = 0;
   for (size_t i = 0; i < cnt; i++) {
-    stat->bytes += batch->pkts()[i]->data_len() + kEthernetOverhead;
+    bytes += batch->pkts()[i]->data_len() + kEthernetOverhead;
   }
+  stat->bytes += bytes;
 }
 
 ADD_GATE_HOOK(Track, "count the packets and batches")
