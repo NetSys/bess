@@ -43,11 +43,29 @@ class Track final : public bess::GateHook {
 
   CommandResponse Init(const bess::Gate *, const bess::pb::TrackArg &);
 
-  uint64_t cnt() const { return cnt_; }
+  uint64_t cnt() const {
+    uint64_t cnt = 0;
+    for (int i = 0; i < Worker::kMaxWorkers; i++) {
+      cnt += worker_stats_[i].cnt;
+    }
+    return cnt;
+  }
 
-  uint64_t pkts() const { return pkts_; }
+  uint64_t pkts() const {
+    uint64_t pkts = 0;
+    for (int i = 0; i < Worker::kMaxWorkers; i++) {
+      pkts += worker_stats_[i].pkts;
+    }
+    return pkts;
+  }
 
-  uint64_t bytes() const { return bytes_; }
+  uint64_t bytes() const {
+    uint64_t bytes = 0;
+    for (int i = 0; i < Worker::kMaxWorkers; i++) {
+      bytes += worker_stats_[i].bytes;
+    }
+    return bytes;
+  }
 
   void set_track_bytes(bool track) { track_bytes_ = track; }
 
@@ -60,9 +78,13 @@ class Track final : public bess::GateHook {
 
  private:
   bool track_bytes_;
-  uint64_t cnt_;
-  uint64_t pkts_;
-  uint64_t bytes_;
+  struct alignas(64) TrackStats {
+    uint64_t cnt;
+    uint64_t pkts;
+    uint64_t bytes;
+  };
+
+  std::array<TrackStats, Worker::kMaxWorkers> worker_stats_;
 };
 
 #endif  // BESS_GATE_HOOKS_TRACK_

@@ -44,9 +44,7 @@ const GateHookCommands Track::cmds = {{"reset", "EmptyArg",
 Track::Track()
     : bess::GateHook(Track::kName, Track::kPriority),
       track_bytes_(),
-      cnt_(),
-      pkts_(),
-      bytes_() {}
+      worker_stats_() {}
 
 CommandResponse Track::Init(const bess::Gate *, const bess::pb::TrackArg &arg) {
   track_bytes_ = arg.bits();
@@ -54,24 +52,27 @@ CommandResponse Track::Init(const bess::Gate *, const bess::pb::TrackArg &arg) {
 }
 
 CommandResponse Track::CommandReset(const bess::pb::EmptyArg &) {
-  cnt_ = 0;
-  pkts_ = 0;
-  bytes_ = 0;
+  worker_stats_ = {};
   return CommandSuccess();
 }
 
 void Track::ProcessBatch(const bess::PacketBatch *batch) {
+
+  TrackStats *stat = &worker_stats_[current_worker.wid()];
+
   size_t cnt = batch->cnt();
-  cnt_ += 1;
-  pkts_ += cnt;
+  stat->cnt += 1;
+  stat->pkts += cnt;
 
   if (!track_bytes_) {
     return;
   }
 
+  uint64_t bytes = 0;
   for (size_t i = 0; i < cnt; i++) {
-    bytes_ += batch->pkts()[i]->data_len() + kEthernetOverhead;
+    bytes += batch->pkts()[i]->data_len() + kEthernetOverhead;
   }
+  stat->bytes += bytes;
 }
 
 ADD_GATE_HOOK(Track, "count the packets and batches")
