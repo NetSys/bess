@@ -45,8 +45,6 @@
 
 namespace bess {
 
-const size_t PacketBatch::kMaxBurst;
-
 static struct rte_mempool *pframe_pool[RTE_MAX_NUMA_NODES];
 
 static void packet_init(struct rte_mempool *mp, void *opaque_arg, void *_m,

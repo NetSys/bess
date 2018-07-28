@@ -67,7 +67,7 @@ class PacketBatch {
     bess::utils::CopyInlined(pkts_, src->pkts_, cnt_ * sizeof(Packet *));
   }
 
-  static const size_t kMaxBurst = 32;
+  static constexpr size_t kMaxBurst = 32;
 
  private:
   int cnt_;
