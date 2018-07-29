@@ -58,6 +58,8 @@ struct[[gnu::packed]] Ipv4 {
     kUdp = 17,
     kIpv6 = 41,  // IPv6-in-IPv4
     kGre = 47,
+    kEsp = 50,  // IPsec ESP (Encapsulating Security Payload)
+    kAh = 51,   // IPsec AH (Authentication Header)
     kSctp = 132,
     kUdpLite = 136,
     kMpls = 137,  // MPLS-in-IPv4
