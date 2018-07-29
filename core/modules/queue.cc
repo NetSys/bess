@@ -176,7 +176,7 @@ struct task_result Queue::RunTask(Context *ctx, bess::PacketBatch *batch,
   }
 
   stats_.dequeued += cnt;
-  batch->set_cnt(cnt);
+  batch->resize(cnt);
 
   if (prefetch_) {
     for (uint32_t i = 0; i < cnt; i++) {

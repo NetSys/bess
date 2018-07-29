@@ -284,7 +284,7 @@ uint32_t DRR::GetNextPackets(bess::PacketBatch *batch, Flow *f, int *err) {
 
     f->deficit -= pkt->total_len();
     total_bytes += pkt->total_len();
-    batch->add(pkt);
+    batch->push_back(pkt);
   }
 
   return total_bytes;

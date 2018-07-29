@@ -31,50 +31,31 @@
 #ifndef BESS_PKTBATCH_H_
 #define BESS_PKTBATCH_H_
 
-#include "utils/copy.h"
+#include <vector>
+
+#include "utils/common.h"
 
 namespace bess {
 
 class Packet;
 
-class PacketBatch {
+using PacketBatchBase = std::vector<Packet *, DefaultInitAllocator<Packet *>>;
+
+class PacketBatch final : public PacketBatchBase {
  public:
-  int cnt() const { return cnt_; }
-  void set_cnt(int cnt) { cnt_ = cnt; }
-  void incr_cnt(int n = 1) { cnt_ += n; }
+  PacketBatch() : PacketBatchBase() {
+    // Add some margin (8 packets) to prevent frequent reallocation
+    reserve(kMaxBurst + 8);
+  };
 
-  Packet *const *pkts() const { return pkts_; }
-  Packet **pkts() { return pkts_; }
+  Packet **pkts() { return data(); }
+  Packet *const *pkts() const { return data(); }
 
-  void clear() { cnt_ = 0; }
-
-  // WARNING: this function has no bounds checks and so it's possible to
-  // overrun the buffer by calling this. We are not adding bounds check because
-  // we want maximum GOFAST.
-  void add(Packet *pkt) { pkts_[cnt_++] = pkt; }
-  void add(PacketBatch *batch) {
-    bess::utils::CopyInlined(pkts_ + cnt_, batch->pkts(),
-                             batch->cnt() * sizeof(Packet *));
-    cnt_ += batch->cnt();
-  }
-
-  bool empty() { return (cnt_ == 0); }
-
-  bool full() { return (cnt_ == kMaxBurst); }
-
-  void Copy(const PacketBatch *src) {
-    cnt_ = src->cnt_;
-    bess::utils::CopyInlined(pkts_, src->pkts_, cnt_ * sizeof(Packet *));
-  }
+  int cnt() const { return size(); }
+  bool full() const { return size() >= kMaxBurst; }
 
   static constexpr size_t kMaxBurst = 32;
-
- private:
-  int cnt_;
-  Packet *pkts_[kMaxBurst];
 };
-
-static_assert(std::is_pod<PacketBatch>::value, "PacketBatch is not a POD Type");
 
 }  // namespace bess
 

@@ -93,7 +93,7 @@ struct task_result Source::RunTask(Context *ctx, bess::PacketBatch *batch,
   const int burst = ACCESS_ONCE(burst_);
 
   uint32_t cnt = bess::Packet::Alloc(batch->pkts(), burst, pkt_size);
-  batch->set_cnt(cnt);
+  batch->resize(cnt);
   RunNextModule(ctx, batch);  // it's fine to call this function with cnt==0
 
   return {.block = (cnt == 0),

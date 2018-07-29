@@ -125,10 +125,10 @@ class Task {
       next_batch_ = batch;
     } else {
       bess::PacketBatch *ibatch = get_gate_batch(ig);
-      if (ibatch && (static_cast<size_t>(ibatch->cnt() + batch->cnt()) <=
+      if (ibatch && (static_cast<size_t>(ibatch->size() + batch->size()) <=
                      bess::PacketBatch::kMaxBurst)) {
         // merge two batches
-        ibatch->add(batch);
+        ibatch->insert(ibatch->end(), batch->begin(), batch->end());
       } else {
         // set the input as new batch
         set_gate_batch(ig, batch);

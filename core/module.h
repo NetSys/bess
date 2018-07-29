@@ -518,7 +518,7 @@ inline void Module::RunNextModule(Context *ctx, bess::PacketBatch *batch) {
 }
 
 inline void Module::DropPacket(Context *ctx, bess::Packet *pkt) {
-  ctx->task->dead_batch()->add(pkt);
+  ctx->task->dead_batch()->push_back(pkt);
   if (static_cast<size_t>(ctx->task->dead_batch()->cnt()) >=
       bess::PacketBatch::kMaxBurst) {
     deadend(ctx, ctx->task->dead_batch());
@@ -575,7 +575,7 @@ inline void Module::EmitPacket(Context *ctx, bess::Packet *pkt,
     }
   }
 
-  batch->add(pkt);
+  batch->push_back(pkt);
 }
 
 inline void Module::ProcessOGates(Context *ctx) {

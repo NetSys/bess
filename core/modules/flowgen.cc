@@ -494,7 +494,7 @@ void FlowGen::GeneratePackets(Context *ctx, bess::PacketBatch *batch) {
 
     bess::Packet *pkt = FillPacket(f);
     if (pkt) {
-      batch->add(pkt);
+      batch->push_back(pkt);
     }
 
     if (f->first_pkt) {

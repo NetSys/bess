@@ -99,7 +99,7 @@ struct task_result QueueInc::RunTask(Context *ctx, bess::PacketBatch *batch,
   const int burst = ACCESS_ONCE(burst_);
   const int pkt_overhead = 24;
 
-  batch->set_cnt(p->RecvPackets(qid, batch->pkts(), burst));
+  batch->resize(p->RecvPackets(qid, batch->pkts(), burst));
   uint32_t cnt = batch->cnt();
   p->queue_stats[PACKET_DIR_INC][qid].requested_hist[burst]++;
   p->queue_stats[PACKET_DIR_INC][qid].actual_hist[cnt]++;

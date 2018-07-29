@@ -147,7 +147,7 @@ TEST(EmTableTest, FindMakeKeysPktBatch) {
     bess::Packet *pkt = &pkts[i];
 
     bess::utils::Copy(pkt->append(sizeof(databuf)), databuf, sizeof(databuf));
-    batch.add(pkt);
+    batch.push_back(pkt);
   }
 
   const auto buffer_fn = [](const bess::Packet *pkt, const ExactMatchField &) {

@@ -111,7 +111,7 @@ TEST_F(GateTest, RemoveHook) {
 TEST(HookTest, Track) {
   Track t;
   bess::PacketBatch b;
-  b.set_cnt(32);
+  b.resize(32);
   t.ProcessBatch(&b);
   ASSERT_EQ(1, t.cnt());
   ASSERT_EQ(b.cnt(), t.pkts());

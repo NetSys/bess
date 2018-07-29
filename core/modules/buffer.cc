@@ -31,8 +31,7 @@
 #include "buffer.h"
 
 void Buffer::DeInit() {
-  bess::PacketBatch *buf = &buf_;
-  bess::Packet::Free(buf);
+  bess::Packet::Free(&buf_);
 }
 
 void Buffer::ProcessBatch(Context *ctx, bess::PacketBatch *batch) {
@@ -45,7 +44,7 @@ void Buffer::ProcessBatch(Context *ctx, bess::PacketBatch *batch) {
   bess::Packet **p_batch = &batch->pkts()[0];
 
   if (left >= free_slots) {
-    buf->set_cnt(bess::PacketBatch::kMaxBurst);
+    buf->resize(bess::PacketBatch::kMaxBurst);
     bess::utils::CopyInlined(p_buf, p_batch,
                              free_slots * sizeof(bess::Packet *));
 
@@ -54,12 +53,12 @@ void Buffer::ProcessBatch(Context *ctx, bess::PacketBatch *batch) {
     left -= free_slots;
 
     bess::PacketBatch *new_batch = ctx->task->AllocPacketBatch();
-    new_batch->Copy(buf);
+    new_batch = std::move(buf);
     buf->clear();
     RunNextModule(ctx, new_batch);
   }
 
-  buf->incr_cnt(left);
+  buf->resize(buf->size() + left);
   bess::utils::CopyInlined(p_buf, p_batch, left * sizeof(bess::Packet *));
 }
 
