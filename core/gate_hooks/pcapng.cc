@@ -190,7 +190,8 @@ void Pcapng::ProcessBatch(const bess::PacketBatch *batch) {
     bess::Packet *pkt = batch->pkts()[i];
 
     Option opt_comment = {
-        .code = Option::kComment, .len = comment_size,
+        .code = Option::kComment,
+        .len = comment_size,
     };
 
     for (const Attr &attr : attrs_) {
@@ -204,7 +205,8 @@ void Pcapng::ProcessBatch(const bess::PacketBatch *batch) {
     }
 
     Option opt_end = {
-        .code = Option::kEndOfOpts, .len = 0,
+        .code = Option::kEndOfOpts,
+        .len = 0,
     };
 
     EnhancedPacketBlock epb = {

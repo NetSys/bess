@@ -73,8 +73,11 @@ class GateHook {
 
   explicit GateHook(const std::string &class_name, const std::string &name,
                     uint16_t priority = 0, Gate *gate = nullptr)
-      : gate_(gate), class_name_(class_name), name_(name), priority_(priority),
-      builder_() {}
+      : gate_(gate),
+        class_name_(class_name),
+        name_(name),
+        priority_(priority),
+        builder_() {}
 
   virtual ~GateHook() {}
 
@@ -86,7 +89,7 @@ class GateHook {
 
   const google::protobuf::Any &arg() const { return arg_; }
 
-  void set_class_name(const std::string& name) { class_name_ = name; }
+  void set_class_name(const std::string &name) { class_name_ = name; }
 
   void set_name(const std::string &name) { name_ = name; }
 
@@ -122,10 +125,9 @@ class GateHook {
   DISALLOW_COPY_AND_ASSIGN(GateHook);
 };
 
-struct CompareGatehookName : public std::unary_function<GateHook, GateHook>
-{
+struct CompareGatehookName : public std::unary_function<GateHook, GateHook> {
   explicit CompareGatehookName(const std::string &name) : name_(name) {}
-  bool operator() (const GateHook *gatehook) {
+  bool operator()(const GateHook *gatehook) {
     return name_ == gatehook->name();
   }
   std::string name_;
@@ -137,8 +139,7 @@ class GateHookBuilder {
   GateHookBuilder(GateHook::constructor_t constructor,
                   const std::string &class_name,
                   const std::string &name_template,
-                  const std::string &help_text,
-                  const GateHookCommands &cmds,
+                  const std::string &help_text, const GateHookCommands &cmds,
                   GateHook::init_func_t init_func)
       : hook_constructor_(constructor),
         class_name_(class_name),
@@ -157,8 +158,7 @@ class GateHookBuilder {
   static std::map<std::string, GateHookBuilder> &all_gate_hook_builders_holder(
       bool reset = false);
 
-  static const std::map<std::string, GateHookBuilder>
-      &all_gate_hook_builders();
+  static const std::map<std::string, GateHookBuilder> &all_gate_hook_builders();
 
   const std::string &class_name() const { return class_name_; }
   const std::string &name_template() const { return name_template_; }
@@ -238,7 +238,7 @@ class Gate {
 
  private:
   const std::string GenerateDefaultName(const GateHookBuilder *builder,
-      Gate *gate);
+                                        Gate *gate);
 
   DISALLOW_COPY_AND_ASSIGN(Gate);
 };
@@ -320,10 +320,10 @@ static inline bess::GateHook::init_func_t InitGateHookWithGenericArg(
   };
 }
 
-#define ADD_GATE_HOOK(_HOOK, _NAME_TEMPLATE, _HELP)                   \
+#define ADD_GATE_HOOK(_HOOK, _NAME_TEMPLATE, _HELP)                    \
   bool __gate_hook__##_HOOK = bess::GateHookBuilder::RegisterGateHook( \
       std::function<bess::GateHook *()>([]() { return new _HOOK(); }), \
-      _HOOK::kName, _NAME_TEMPLATE, _HELP, _HOOK::cmds, \
+      _HOOK::kName, _NAME_TEMPLATE, _HELP, _HOOK::cmds,                \
       InitGateHookWithGenericArg(&_HOOK::Init));
 
 #endif  // BESS_GATE_H_

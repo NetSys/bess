@@ -48,9 +48,7 @@ class GateTest : public ::testing::Test {
 
   virtual void TearDown() { delete g; }
 
-  int AddHook(GateHook *hook) {
-    return g->AddHook(hook);
-  }
+  int AddHook(GateHook *hook) { return g->AddHook(hook); }
 
   Gate *g;
 };

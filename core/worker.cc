@@ -54,9 +54,9 @@
 #include "utils/random.h"
 #include "utils/time.h"
 
-using bess::Scheduler;
 using bess::DefaultScheduler;
 using bess::ExperimentalScheduler;
+using bess::Scheduler;
 
 int num_workers = 0;
 std::thread worker_threads[Worker::kMaxWorkers];
@@ -440,12 +440,12 @@ WorkerPauser::~WorkerPauser() {
         int ret = m->OnEvent(bess::Event::PreResume);
         modules_run.insert(m);
         if (ret == -ENOTSUP) {
-	  it = resume_modules.erase(it);
+          it = resume_modules.erase(it);
         } else {
-	  it++;
-	}
+          it++;
+        }
       } else {
-	it++;
+        it++;
       }
     }
     resume_worker(wid);

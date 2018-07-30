@@ -52,7 +52,7 @@ bool GateHookBuilder::RegisterGateHook(GateHook::constructor_t constructor,
   return all_gate_hook_builders_holder()
       .emplace(std::piecewise_construct, std::forward_as_tuple(class_name),
                std::forward_as_tuple(constructor, class_name, name_template,
-                 help_text, cmds, init_func))
+                                     help_text, cmds, init_func))
       .second;
 }
 
@@ -80,8 +80,9 @@ const std::string Gate::GenerateDefaultName(const GateHookBuilder *builder,
   const std::vector<GateHook *> hooks = gate->hooks();
   for (int i = 0;; i++) {
     std::string name = name_template + std::to_string(i);
-    if (std::none_of(hooks.begin(), hooks.end(), [&](const GateHook *hook){
-      return name == hook->name(); })) {
+    if (std::none_of(hooks.begin(), hooks.end(), [&](const GateHook *hook) {
+          return name == hook->name();
+        })) {
       return name;
     }
   }
@@ -181,9 +182,9 @@ void Gate::RemoveHookByClass(const std::string &class_name) {
 }
 
 // TODO(torek): combine (template) with ModuleBuilder::RunCommand
-CommandResponse
-    GateHookBuilder::RunCommand(GateHook *hook, const std::string &user_cmd,
-                                const google::protobuf::Any &arg) const {
+CommandResponse GateHookBuilder::RunCommand(
+    GateHook *hook, const std::string &user_cmd,
+    const google::protobuf::Any &arg) const {
   Module *mod = hook->gate()->module();
   for (auto &cmd : cmds_) {
     if (user_cmd == cmd.cmd) {
