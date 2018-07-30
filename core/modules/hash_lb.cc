@@ -140,12 +140,13 @@ std::string HashLB::GetDesc() const {
 template <>
 inline void HashLB::DoProcessBatch<HashLB::Mode::kOther>(
     Context *ctx, bess::PacketBatch *batch) {
-  void *bufs[bess::PacketBatch::kMaxBurst];
-  ExactMatchKey keys[bess::PacketBatch::kMaxBurst];
+  size_t cnt = batch->size();
+  void *bufs[cnt];
+  ExactMatchKey keys[cnt];
 
-  size_t cnt = batch->cnt();
-  for (size_t i = 0; i < cnt; i++) {
-    bufs[i] = batch->pkts()[i]->head_data<void *>();
+  int i = 0;
+  for (bess::Packet *pkt : *batch) {
+    bufs[i++] = pkt->head_data<void *>();
   }
 
   fields_table_.MakeKeys((const void **)bufs, keys, cnt);
@@ -159,17 +160,15 @@ inline void HashLB::DoProcessBatch<HashLB::Mode::kOther>(
 template <>
 inline void HashLB::DoProcessBatch<HashLB::Mode::kL2>(
     Context *ctx, bess::PacketBatch *batch) {
-  int cnt = batch->cnt();
-  for (int i = 0; i < cnt; i++) {
-    bess::Packet *snb = batch->pkts()[i];
-    char *head = snb->head_data<char *>();
+  for (bess::Packet *pkt : *batch) {
+    char *head = pkt->head_data<char *>();
 
     uint64_t v0 = *(reinterpret_cast<uint64_t *>(head));
     uint32_t v1 = *(reinterpret_cast<uint32_t *>(head + 8));
 
     uint32_t hash_val = hash_64(v0, v1);
 
-    EmitPacket(ctx, snb, gates_[hash_range(hash_val, num_gates_)]);
+    EmitPacket(ctx, pkt, gates_[hash_range(hash_val, num_gates_)]);
   }
 }
 
@@ -179,17 +178,15 @@ inline void HashLB::DoProcessBatch<HashLB::Mode::kL3>(
   /* assumes untagged packets */
   const int ip_offset = 14;
 
-  int cnt = batch->cnt();
-  for (int i = 0; i < cnt; i++) {
-    bess::Packet *snb = batch->pkts()[i];
-    char *head = snb->head_data<char *>();
+  for (bess::Packet *pkt : *batch) {
+    char *head = pkt->head_data<char *>();
 
     uint32_t hash_val;
     uint64_t v = *(reinterpret_cast<uint64_t *>(head + ip_offset + 12));
 
     hash_val = hash_64(v, 0);
 
-    EmitPacket(ctx, snb, gates_[hash_range(hash_val, num_gates_)]);
+    EmitPacket(ctx, pkt, gates_[hash_range(hash_val, num_gates_)]);
   }
 }
 
@@ -200,20 +197,18 @@ inline void HashLB::DoProcessBatch<HashLB::Mode::kL4>(
   const int ip_offset = 14;
   const int l4_offset = ip_offset + 20;
 
-  int cnt = batch->cnt();
-  for (int i = 0; i < cnt; i++) {
-    bess::Packet *snb = batch->pkts()[i];
-    char *head = snb->head_data<char *>();
+  for (bess::Packet *pkt : *batch) {
+    char *head = pkt->head_data<char *>();
 
     uint32_t hash_val;
     uint64_t v0 = *(reinterpret_cast<uint64_t *>(head + ip_offset + 12));
-    uint32_t v1 = *(reinterpret_cast<uint64_t *>(head + l4_offset)); /* ports */
+    uint32_t v1 = *(reinterpret_cast<uint64_t *>(head + l4_offset));  // port
 
-    v1 ^= *(reinterpret_cast<uint32_t *>(head + ip_offset + 9)); /* ip_proto */
+    v1 ^= *(reinterpret_cast<uint32_t *>(head + ip_offset + 9));  // ip_proto
 
     hash_val = hash_64(v0, v1);
 
-    EmitPacket(ctx, snb, gates_[hash_range(hash_val, num_gates_)]);
+    EmitPacket(ctx, pkt, gates_[hash_range(hash_val, num_gates_)]);
   }
 }
 

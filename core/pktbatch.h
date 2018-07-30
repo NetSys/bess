@@ -51,8 +51,12 @@ class PacketBatch final : public PacketBatchBase {
   Packet **pkts() { return data(); }
   Packet *const *pkts() const { return data(); }
 
-  int cnt() const { return size(); }
-  bool full() const { return size() >= kMaxBurst; }
+  // Use size() instead
+  [[deprecated]] int cnt() const { return size(); }
+
+  bool full() const {
+    return size() >= kMaxBurst;
+  }
 
   static constexpr size_t kMaxBurst = 32;
 };

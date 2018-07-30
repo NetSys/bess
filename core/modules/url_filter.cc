@@ -242,11 +242,7 @@ void UrlFilter::ProcessBatch(Context *ctx, bess::PacketBatch *batch) {
     return;
   }
 
-  int cnt = batch->cnt();
-
-  for (int i = 0; i < cnt; i++) {
-    bess::Packet *pkt = batch->pkts()[i];
-
+  for (bess::Packet *pkt : *batch) {
     Ethernet *eth = pkt->head_data<Ethernet *>();
     Ipv4 *ip = reinterpret_cast<Ipv4 *>(eth + 1);
 

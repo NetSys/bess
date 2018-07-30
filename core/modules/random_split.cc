@@ -105,9 +105,7 @@ void RandomSplit::ProcessBatch(Context *ctx, bess::PacketBatch *batch) {
     return;
   }
 
-  int cnt = batch->cnt();
-  for (int i = 0; i < cnt; i++) {
-    bess::Packet *pkt = batch->pkts()[i];
+  for (bess::Packet *pkt : *batch) {
     if (rng_.GetReal() > drop_rate_) {
       EmitPacket(ctx, pkt, gates_[rng_.GetRange(ngates_)]);
     } else {

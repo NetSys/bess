@@ -83,7 +83,7 @@ void IPLookup::ProcessBatch(Context *ctx, bess::PacketBatch *batch) {
 
   gate_idx_t default_gate = default_gate_;
 
-  int cnt = batch->cnt();
+  int cnt = batch->size();
   int i;
 
 #if VECTOR_OPTIMIZATION

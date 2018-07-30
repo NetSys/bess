@@ -140,16 +140,16 @@ std::string Queue::GetDesc() const {
 
 /* from upstream */
 void Queue::ProcessBatch(Context *, bess::PacketBatch *batch) {
-  int queued =
-      llring_mp_enqueue_burst(queue_, (void **)batch->pkts(), batch->cnt());
+  size_t queued =
+      llring_mp_enqueue_burst(queue_, (void **)batch->pkts(), batch->size());
   if (backpressure_ && llring_count(queue_) > high_water_) {
     SignalOverload();
   }
 
   stats_.enqueued += queued;
 
-  if (queued < batch->cnt()) {
-    int to_drop = batch->cnt() - queued;
+  if (queued < batch->size()) {
+    int to_drop = batch->size() - queued;
     stats_.dropped += to_drop;
     bess::Packet::Free(batch->pkts() + queued, to_drop);
   }

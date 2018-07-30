@@ -146,10 +146,8 @@ static inline void UpdateChecksum(bess::utils::Ipv4 *ip, uint32_t incr) {
 template <StaticNAT::Direction dir>
 inline void StaticNAT::DoProcessBatch(Context *ctx, bess::PacketBatch *batch) {
   gate_idx_t ogate_idx = static_cast<gate_idx_t>(dir);
-  int cnt = batch->cnt();
 
-  for (int i = 0; i < cnt; i++) {
-    bess::Packet *pkt = batch->pkts()[i];
+  for (bess::Packet *pkt : *batch) {
     auto *eth = pkt->head_data<bess::utils::Ethernet *>();
     auto *ip = reinterpret_cast<bess::utils::Ipv4 *>(eth + 1);
 

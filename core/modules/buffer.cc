@@ -35,31 +35,15 @@ void Buffer::DeInit() {
 }
 
 void Buffer::ProcessBatch(Context *ctx, bess::PacketBatch *batch) {
-  bess::PacketBatch *buf = &buf_;
-
-  int free_slots = bess::PacketBatch::kMaxBurst - buf->cnt();
-  int left = batch->cnt();
-
-  bess::Packet **p_buf = &buf->pkts()[buf->cnt()];
-  bess::Packet **p_batch = &batch->pkts()[0];
-
-  if (left >= free_slots) {
-    buf->resize(bess::PacketBatch::kMaxBurst);
-    bess::utils::CopyInlined(p_buf, p_batch,
-                             free_slots * sizeof(bess::Packet *));
-
-    p_buf = &buf->pkts()[0];
-    p_batch += free_slots;
-    left -= free_slots;
-
-    bess::PacketBatch *new_batch = ctx->task->AllocPacketBatch();
-    new_batch = std::move(buf);
-    buf->clear();
-    RunNextModule(ctx, new_batch);
+  for (bess::Packet *pkt : *batch) {
+    buf_.push_back(pkt);
+    if (buf_.full()) {
+      bess::PacketBatch *new_batch = ctx->task->AllocPacketBatch();
+      *new_batch = buf_;
+      buf_.clear();
+      RunNextModule(ctx, new_batch);
+    }
   }
-
-  buf->resize(buf->size() + left);
-  bess::utils::CopyInlined(p_buf, p_batch, left * sizeof(bess::Packet *));
 }
 
 ADD_MODULE(Buffer, "buffer", "buffers packets into larger batches")

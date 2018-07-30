@@ -33,6 +33,7 @@
 #include <cstdio>
 
 #include "../utils/copy.h"
+#include "../utils/enumerate.h"
 
 const Commands Rewrite::cmds = {
     {"add", "RewriteArg", MODULE_CMD_FUNC(&Rewrite::CommandAdd),
@@ -88,12 +89,10 @@ CommandResponse Rewrite::CommandClear(const bess::pb::EmptyArg &) {
 }
 
 inline void Rewrite::DoRewriteSingle(bess::PacketBatch *batch) {
-  const int cnt = batch->cnt();
   uint16_t size = template_size_[0];
   const void *templ = templates_[0];
 
-  for (int i = 0; i < cnt; i++) {
-    bess::Packet *pkt = batch->pkts()[i];
+  for (bess::Packet *pkt : *batch) {
     char *ptr = pkt->buffer<char *>() + SNBUF_HEADROOM;
 
     pkt->set_data_off(SNBUF_HEADROOM);
@@ -106,11 +105,9 @@ inline void Rewrite::DoRewriteSingle(bess::PacketBatch *batch) {
 
 inline void Rewrite::DoRewrite(bess::PacketBatch *batch) {
   size_t start = next_turn_;
-  const size_t cnt = batch->cnt();
 
-  for (size_t i = 0; i < cnt; i++) {
+  for (auto [i, pkt] : bess::utils::Enumerate(*batch)) {
     uint16_t size = template_size_[start + i];
-    bess::Packet *pkt = batch->pkts()[i];
     char *ptr = pkt->buffer<char *>() + SNBUF_HEADROOM;
 
     pkt->set_data_off(SNBUF_HEADROOM);
@@ -120,7 +117,7 @@ inline void Rewrite::DoRewrite(bess::PacketBatch *batch) {
     bess::utils::CopyInlined(ptr, templates_[start + i], size, true);
   }
 
-  next_turn_ = jump_[start + cnt];
+  next_turn_ = jump_[start + batch->size()];
 }
 
 void Rewrite::ProcessBatch(Context *ctx, bess::PacketBatch *batch) {

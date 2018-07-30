@@ -60,19 +60,16 @@ void Track::ProcessBatch(const bess::PacketBatch *batch) {
 
   TrackStats *stat = &worker_stats_[current_worker.wid()];
 
-  size_t cnt = batch->cnt();
   stat->cnt += 1;
-  stat->pkts += cnt;
+  stat->pkts += batch->size();
 
-  if (!track_bytes_) {
-    return;
+  if (track_bytes_) {
+    uint64_t bytes = 0;
+    for (bess::Packet *pkt : *batch) {
+      bytes += pkt->total_len();
+    }
+    stat->bytes += bytes + (batch->size() * kEthernetOverhead);
   }
-
-  uint64_t bytes = 0;
-  for (size_t i = 0; i < cnt; i++) {
-    bytes += batch->pkts()[i]->data_len() + kEthernetOverhead;
-  }
-  stat->bytes += bytes;
 }
 
 ADD_GATE_HOOK(Track, "track", "count the packets and batches")

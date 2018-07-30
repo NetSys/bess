@@ -481,7 +481,7 @@ class alignas(64) Module {
 };
 
 static inline void deadend(Context *ctx, bess::PacketBatch *batch) {
-  ctx->silent_drops += batch->cnt();
+  ctx->silent_drops += batch->size();
   bess::Packet::Free(batch);
   batch->clear();
 }
@@ -490,7 +490,7 @@ inline void Module::RunChooseModule(Context *ctx, gate_idx_t ogate_idx,
                                     bess::PacketBatch *batch) {
   bess::OGate *ogate;
 
-  if (unlikely(batch->cnt() <= 0)) {
+  if (unlikely(batch->empty())) {
     return;
   }
 
@@ -519,8 +519,7 @@ inline void Module::RunNextModule(Context *ctx, bess::PacketBatch *batch) {
 
 inline void Module::DropPacket(Context *ctx, bess::Packet *pkt) {
   ctx->task->dead_batch()->push_back(pkt);
-  if (static_cast<size_t>(ctx->task->dead_batch()->cnt()) >=
-      bess::PacketBatch::kMaxBurst) {
+  if (ctx->task->dead_batch()->full()) {
     deadend(ctx, ctx->task->dead_batch());
   }
 }
@@ -559,7 +558,7 @@ inline void Module::EmitPacket(Context *ctx, bess::Packet *pkt,
     }
   }
 
-  if (static_cast<size_t>(batch->cnt()) >= bess::PacketBatch::kMaxBurst) {
+  if (batch->full()) {
     if (!ogate->hooks().empty()) {
       for (auto &hook : ogate->hooks()) {
         hook->ProcessBatch(task->get_gate_batch(ogate));
@@ -604,19 +603,10 @@ inline void Module::ProcessOGates(Context *ctx) {
 
 inline void Module::RunSplit(Context *ctx, const gate_idx_t *out_gates,
                              bess::PacketBatch *mixed_batch) {
-  int pkt_cnt = mixed_batch->cnt();
-  if (unlikely(pkt_cnt <= 0)) {
-    return;
-  }
-
-  int gate_cnt = ogates_.size();
-  if (unlikely(gate_cnt <= 0)) {
-    deadend(ctx, mixed_batch);
-    return;
-  }
-
-  for (int i = 0; i < pkt_cnt; i++) {
-    EmitPacket(ctx, mixed_batch->pkts()[i], out_gates[i]);
+  int i = 0;
+  for (bess::Packet *pkt : *mixed_batch) {
+    EmitPacket(ctx, pkt, out_gates[i]);
+    i++;
   }
 
   mixed_batch->clear();

@@ -40,10 +40,8 @@ void IPChecksum::ProcessBatch(Context *ctx, bess::PacketBatch *batch) {
   using bess::utils::Vlan;
   using bess::utils::be16_t;
 
-  int cnt = batch->cnt();
-
-  for (int i = 0; i < cnt; i++) {
-    Ethernet *eth = batch->pkts()[i]->head_data<Ethernet *>();
+  for (bess::Packet *pkt : *batch) {
+    Ethernet *eth = pkt->head_data<Ethernet *>();
     void *data = eth + 1;
     Ipv4 *ip;
 

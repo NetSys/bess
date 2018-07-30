@@ -36,10 +36,7 @@ void VLANSplit::ProcessBatch(Context *ctx, bess::PacketBatch *batch) {
   using bess::utils::be16_t;
   using bess::utils::Ethernet;
 
-  int cnt = batch->cnt();
-
-  for (int i = 0; i < cnt; i++) {
-    bess::Packet *pkt = batch->pkts()[i];
+  for (bess::Packet *pkt : *batch) {
     char *old_head = pkt->head_data<char *>();
     __m128i eth;
 

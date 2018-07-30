@@ -258,7 +258,7 @@ class alignas(64) Packet {
   static inline void Free(Packet **pkts, size_t cnt);
 
   // batch must not be nullptr
-  static void Free(PacketBatch *batch) { Free(batch->pkts(), batch->cnt()); }
+  static void Free(PacketBatch *batch) { Free(batch->pkts(), batch->size()); }
 
  private:
   union {

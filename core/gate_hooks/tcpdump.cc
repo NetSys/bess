@@ -81,8 +81,7 @@ void Tcpdump::ProcessBatch(const bess::PacketBatch *batch) {
   struct timeval tv;
   gettimeofday(&tv, nullptr);
 
-  for (int i = 0; i < batch->cnt(); i++) {
-    bess::Packet *pkt = batch->pkts()[i];
+  for (bess::Packet *pkt : *batch) {
     struct pcap_rec_hdr rec = {
         .ts_sec = (uint32_t)tv.tv_sec,
         .ts_usec = (uint32_t)tv.tv_usec,

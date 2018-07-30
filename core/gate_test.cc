@@ -114,7 +114,7 @@ TEST(HookTest, Track) {
   b.resize(32);
   t.ProcessBatch(&b);
   ASSERT_EQ(1, t.cnt());
-  ASSERT_EQ(b.cnt(), t.pkts());
+  ASSERT_EQ(b.size(), t.pkts());
 }
 
 TEST_F(IOGateTest, OGate) {

@@ -124,10 +124,7 @@ void DRR::ProcessBatch(Context *, bess::PacketBatch *batch) {
   int err = 0;
 
   // insert packets in the batch into their corresponding flows
-  int cnt = batch->cnt();
-  for (int i = 0; i < cnt; i++) {
-    bess::Packet *pkt = batch->pkts()[i];
-
+  for (bess::Packet *pkt : *batch) {
     // TODO(joshua): Add support for fragmented packets.
     FlowId id = GetId(pkt);
     auto it = flows_.Find(id);
@@ -169,7 +166,7 @@ struct task_result DRR::RunTask(Context *ctx, bess::PacketBatch *batch,
   }
 
   // the number of bits inserted into the packet batch
-  uint32_t cnt = batch->cnt();
+  uint32_t cnt = batch->size();
   uint64_t bits_retrieved = (total_bytes + cnt * kPacketOverhead) * 8;
   return {.block = (cnt == 0), .packets = cnt, .bits = bits_retrieved};
 }
@@ -181,7 +178,7 @@ uint32_t DRR::GetNextBatch(bess::PacketBatch *batch, int *err) {
   if (current_flow_) {
     count++;
   }
-  int batch_size = batch->cnt();
+  size_t batch_size = batch->size();
 
   // iterate through flows in round robin fashion until batch is full
   while (!batch->full()) {
@@ -189,11 +186,11 @@ uint32_t DRR::GetNextBatch(bess::PacketBatch *batch, int *err) {
     // ensures that if every flow is empty or if there are no flows
     // that will terminate with a non-full batch.
     if (count == 0) {
-      if (batch_size == batch->cnt()) {
+      if (batch_size == batch->size()) {
         break;
       } else {
         count = llring_count(flow_ring_);
-        batch_size = batch->cnt();
+        batch_size = batch->size();
       }
     }
     count--;

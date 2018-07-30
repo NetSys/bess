@@ -34,6 +34,7 @@
 #include <vector>
 
 #include "../utils/endian.h"
+#include "../utils/enumerate.h"
 #include "../utils/format.h"
 
 // XXX: this is repeated in many modules. get rid of them when converting .h to
@@ -236,9 +237,7 @@ void ExactMatch::ProcessBatch(Context *ctx, bess::PacketBatch *batch) {
   };
   table_.MakeKeys(batch, buffer_fn, keys);
 
-  int cnt = batch->cnt();
-  for (int i = 0; i < cnt; i++) {
-    bess::Packet *pkt = batch->pkts()[i];
+  for (auto [i, pkt] : bess::utils::Enumerate(*batch)) {
     EmitPacket(ctx, pkt, table_.Find(keys[i], default_gate));
   }
 }

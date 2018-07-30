@@ -325,12 +325,9 @@ inline void Stamp(Ipv4 *ip, void *l4, const Endpoint &before,
 template <NAT::Direction dir>
 inline void NAT::DoProcessBatch(Context *ctx, bess::PacketBatch *batch) {
   gate_idx_t ogate_idx = static_cast<gate_idx_t>(dir);
-  int cnt = batch->cnt();
   uint64_t now = ctx->current_ns;
 
-  for (int i = 0; i < cnt; i++) {
-    bess::Packet *pkt = batch->pkts()[i];
-
+  for (bess::Packet *pkt : *batch) {
     Ethernet *eth = pkt->head_data<Ethernet *>();
     Ipv4 *ip = reinterpret_cast<Ipv4 *>(eth + 1);
     size_t ip_bytes = (ip->header_length) << 2;

@@ -40,13 +40,12 @@ CommandResponse Bypass::Init(const bess::pb::BypassArg &arg) {
 
 void Bypass::ProcessBatch(Context *ctx, bess::PacketBatch *batch) {
   uint64_t start_tsc = rdtsc();
-  uint64_t cycles = cycles_per_batch_ + cycles_per_packet_ * batch->cnt();
+  uint64_t cycles = cycles_per_batch_ + cycles_per_packet_ * batch->size();
 
   if (cycles_per_byte_) {
     uint64_t total_bytes = 0;
-    int cnt = batch->cnt();
-    for (int i = 0; i < cnt; i++) {
-      total_bytes = batch->pkts()[i]->total_len();
+    for (bess::Packet *pkt : *batch) {
+      total_bytes = pkt->total_len();
     }
     cycles += cycles_per_byte_ * total_bytes;
   }

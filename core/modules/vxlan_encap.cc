@@ -82,11 +82,7 @@ void VXLANEncap::ProcessBatch(Context *ctx, bess::PacketBatch *batch) {
   using bess::utils::Udp;
   using bess::utils::Vxlan;
 
-  int cnt = batch->cnt();
-
-  for (int i = 0; i < cnt; i++) {
-    bess::Packet *pkt = batch->pkts()[i];
-
+  for (bess::Packet *pkt : *batch) {
     be32_t ip_src = get_attr<be32_t>(this, ATTR_R_TUN_IP_SRC, pkt);
     be32_t ip_dst = get_attr<be32_t>(this, ATTR_R_TUN_IP_DST, pkt);
     be32_t vni = get_attr<be32_t>(this, ATTR_R_TUN_ID, pkt);

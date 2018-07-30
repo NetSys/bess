@@ -60,11 +60,7 @@ CommandResponse IPEncap::Init(const bess::pb::IPEncapArg &arg[[maybe_unused]]) {
 }
 
 void IPEncap::ProcessBatch(Context *ctx, bess::PacketBatch *batch) {
-  int cnt = batch->cnt();
-
-  for (int i = 0; i < cnt; i++) {
-    bess::Packet *pkt = batch->pkts()[i];
-
+  for (bess::Packet *pkt : *batch) {
     be32_t ip_src = get_attr<be32_t>(this, ATTR_R_IP_SRC, pkt);
     be32_t ip_dst = get_attr<be32_t>(this, ATTR_R_IP_DST, pkt);
     uint8_t ip_proto = get_attr<uint8_t>(this, ATTR_R_IP_PROTO, pkt);

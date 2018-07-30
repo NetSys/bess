@@ -69,10 +69,7 @@ void ACL::ProcessBatch(Context *ctx, bess::PacketBatch *batch) {
 
   gate_idx_t incoming_gate = ctx->current_igate;
 
-  int cnt = batch->cnt();
-  for (int i = 0; i < cnt; i++) {
-    bess::Packet *pkt = batch->pkts()[i];
-
+  for (bess::Packet *pkt : *batch) {
     Ethernet *eth = pkt->head_data<Ethernet *>();
     Ipv4 *ip = reinterpret_cast<Ipv4 *>(eth + 1);
     size_t ip_bytes = ip->header_length << 2;

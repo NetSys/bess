@@ -42,13 +42,11 @@ using bess::metadata::mt_offset_t;
 template <bool do_shift = false, bool do_mask = false>
 static void CopyFromPacket(bess::PacketBatch *batch, const struct Attr *attr,
                            mt_offset_t mt_off) {
-  int cnt = batch->cnt();
   int size = attr->size;
   int shift = attr->shift;
   int pkt_off = attr->offset;
 
-  for (int i = 0; i < cnt; i++) {
-    bess::Packet *pkt = batch->pkts()[i];
+  for (bess::Packet *pkt : *batch) {
     uint8_t *head = pkt->head_data<uint8_t *>(pkt_off);
     uint8_t *mt_ptr = _ptr_attr_with_offset<uint8_t>(mt_off, pkt);
     bess::utils::CopySmall(mt_ptr, head, size);
@@ -67,16 +65,11 @@ static void CopyFromPacket(bess::PacketBatch *batch, const struct Attr *attr,
 
 static void CopyFromValue(bess::PacketBatch *batch, const struct Attr *attr,
                           mt_offset_t mt_off) {
-  int cnt = batch->cnt();
   int size = attr->size;
-
   const void *val_ptr = &attr->value;
 
-  for (int i = 0; i < cnt; i++) {
-    bess::Packet *pkt = batch->pkts()[i];
-    void *mt_ptr;
-
-    mt_ptr = _ptr_attr_with_offset<value_t>(mt_off, pkt);
+  for (bess::Packet *pkt : *batch) {
+    void *mt_ptr = _ptr_attr_with_offset<value_t>(mt_off, pkt);
     bess::utils::CopySmall(mt_ptr, val_ptr, size);
   }
 }

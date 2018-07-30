@@ -52,11 +52,7 @@ CommandResponse EtherEncap::Init(
 };
 
 void EtherEncap::ProcessBatch(Context *ctx, bess::PacketBatch *batch) {
-  int cnt = batch->cnt();
-
-  for (int i = 0; i < cnt; i++) {
-    bess::Packet *pkt = batch->pkts()[i];
-
+  for (bess::Packet *pkt : *batch) {
     Ethernet::Address ether_src;
     Ethernet::Address ether_dst;
     bess::utils::be16_t ether_type;

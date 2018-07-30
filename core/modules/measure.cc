@@ -107,12 +107,11 @@ void Measure::ProcessBatch(Context *ctx, bess::PacketBatch *batch) {
   mcslock_node_t mynode;
   mcs_lock(&lock_, &mynode);
 
-  pkt_cnt_ += batch->cnt();
+  pkt_cnt_ += batch->size();
 
-  int cnt = batch->cnt();
-  for (int i = 0; i < cnt; i++) {
+  for (bess::Packet *pkt : *batch) {
     uint64_t pkt_time;
-    if (IsTimestamped(batch->pkts()[i], offset, &pkt_time)) {
+    if (IsTimestamped(pkt, offset, &pkt_time)) {
       uint64_t diff;
 
       if (now_ns >= pkt_time) {
@@ -122,7 +121,7 @@ void Measure::ProcessBatch(Context *ctx, bess::PacketBatch *batch) {
         continue;
       }
 
-      bytes_cnt_ += batch->pkts()[i]->total_len();
+      bytes_cnt_ += pkt->total_len();
 
       rtt_hist_.Insert(diff);
       if (rand_.GetRealNonzero() <= jitter_sample_prob_) {

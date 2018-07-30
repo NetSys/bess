@@ -587,21 +587,14 @@ void L2Forward::DeInit() {
 void L2Forward::ProcessBatch(Context *ctx, bess::PacketBatch *batch) {
   gate_idx_t default_gate = ACCESS_ONCE(default_gate_);
 
-  int cnt = batch->cnt();
-  for (int i = 0; i < cnt; i++) {
-    bess::Packet *snb = batch->pkts()[i];
-
+  for (bess::Packet *pkt : *batch) {
     gate_idx_t out_gate;
     // read destination MAC address (first 6 bytes)
     // NOTE: assumes little endian
     int ret = l2_find(&l2_table_,
-                      *(snb->head_data<uint64_t *>()) & 0x0000ffffffffffff,
+                      *(pkt->head_data<uint64_t *>()) & 0x0000ffffffffffff,
                       &out_gate);
-    if (ret != 0) {
-      EmitPacket(ctx, snb, default_gate);
-    } else {
-      EmitPacket(ctx, snb, out_gate);
-    }
+    EmitPacket(ctx, pkt, ret == 0 ? out_gate : default_gate);
   }
 }
 

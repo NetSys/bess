@@ -61,11 +61,7 @@ CommandResponse ArpResponder::CommandAdd(const bess::pb::ArpResponderArg &arg) {
 }
 
 void ArpResponder::ProcessBatch(Context *ctx, bess::PacketBatch *batch) {
-  int cnt = batch->cnt();
-  for (int i = 0; i < cnt; i++) {
-    // we should drop-or-emit each packet
-    bess::Packet *pkt = batch->pkts()[i];
-
+  for (bess::Packet *pkt : *batch) {
     Ethernet *eth = pkt->head_data<Ethernet *>();
     if (eth->ether_type != be16_t(Ethernet::Type::kArp)) {
       // Currently drop all non ARP packets

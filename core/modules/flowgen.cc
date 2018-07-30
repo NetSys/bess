@@ -476,9 +476,9 @@ void FlowGen::GeneratePackets(Context *ctx, bess::PacketBatch *batch) {
   uint64_t now = ctx->current_ns;
 
   batch->clear();
-  const int burst = ACCESS_ONCE(burst_);
+  const size_t burst = ACCESS_ONCE(burst_);
 
-  while (batch->cnt() < burst && !events_.empty()) {
+  while (batch->size() < burst && !events_.empty()) {
     uint64_t t = events_.top().first;
     struct flow *f = events_.top().second;
     if (!f || now < t)
@@ -521,7 +521,7 @@ struct task_result FlowGen::RunTask(Context *ctx, bess::PacketBatch *batch,
   GeneratePackets(ctx, batch);
   RunNextModule(ctx, batch);
 
-  uint32_t cnt = batch->cnt();
+  uint32_t cnt = batch->size();
   return {.block = (cnt == 0),
           .packets = cnt,
           .bits = ((template_size_ + pkt_overhead) * cnt) * 8};

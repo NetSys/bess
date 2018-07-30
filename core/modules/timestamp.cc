@@ -73,11 +73,9 @@ CommandResponse Timestamp::Init(const bess::pb::TimestampArg &arg) {
 void Timestamp::ProcessBatch(Context *ctx, bess::PacketBatch *batch) {
   // We don't use ctx->current_ns here for better accuracy
   uint64_t now_ns = tsc_to_ns(rdtsc());
-  size_t offset = offset_;
 
-  int cnt = batch->cnt();
-  for (int i = 0; i < cnt; i++) {
-    timestamp_packet(batch->pkts()[i], offset, now_ns);
+  for (bess::Packet *pkt : *batch) {
+    timestamp_packet(pkt, offset_, now_ns);
   }
 
   RunNextModule(ctx, batch);

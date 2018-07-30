@@ -34,6 +34,7 @@
 #include <vector>
 
 #include "../utils/endian.h"
+#include "../utils/enumerate.h"
 #include "../utils/format.h"
 
 using bess::metadata::Attribute;
@@ -157,18 +158,15 @@ inline gate_idx_t WildcardMatch::LookupEntry(const wm_hkey_t &key,
 }
 
 void WildcardMatch::ProcessBatch(Context *ctx, bess::PacketBatch *batch) {
-  gate_idx_t default_gate;
-
-  wm_hkey_t keys[bess::PacketBatch::kMaxBurst] __ymm_aligned;
-
-  int cnt = batch->cnt();
+  size_t cnt = batch->size();
+  wm_hkey_t keys[cnt] __ymm_aligned;
 
   // Initialize the padding with zero
-  for (int i = 0; i < cnt; i++) {
+  for (size_t i = 0; i < cnt; i++) {
     keys[i].u64_arr[(total_key_size_ - 1) / 8] = 0;
   }
 
-  default_gate = ACCESS_ONCE(default_gate_);
+  gate_idx_t default_gate = ACCESS_ONCE(default_gate_);
 
   for (const auto &field : fields_) {
     int offset;
@@ -181,23 +179,22 @@ void WildcardMatch::ProcessBatch(Context *ctx, bess::PacketBatch *batch) {
       offset = bess::Packet::mt_offset_to_databuf_offset(attr_offset(attr_id));
     }
 
-    for (int j = 0; j < cnt; j++) {
-      char *buf_addr = batch->pkts()[j]->buffer<char *>();
+    for (auto [i, pkt] : bess::utils::Enumerate(*batch)) {
+      char *buf_addr = pkt->buffer<char *>();
 
       /* for offset-based attrs we use relative offset */
       if (attr_id < 0) {
-        buf_addr += batch->pkts()[j]->data_off();
+        buf_addr += pkt->data_off();
       }
 
-      char *key = reinterpret_cast<char *>(keys[j].u64_arr) + pos;
+      char *key = reinterpret_cast<char *>(keys[i].u64_arr) + pos;
 
       *(reinterpret_cast<uint64_t *>(key)) =
           *(reinterpret_cast<uint64_t *>(buf_addr + offset));
     }
   }
 
-  for (int i = 0; i < cnt; i++) {
-    bess::Packet *pkt = batch->pkts()[i];
+  for (auto [i, pkt] : bess::utils::Enumerate(*batch)) {
     EmitPacket(ctx, pkt, LookupEntry(keys[i], default_gate));
   }
 }

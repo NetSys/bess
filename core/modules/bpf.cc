@@ -131,11 +131,7 @@ inline bool BPF::Match(const bess::utils::Filter &filter, u_char *pkt,
 void BPF::ProcessBatch1Filter(Context *ctx, bess::PacketBatch *batch) {
   const bess::utils::Filter &filter = filters_[0];
 
-  int cnt = batch->cnt();
-
-  for (int i = 0; i < cnt; i++) {
-    bess::Packet *pkt = batch->pkts()[i];
-
+  for (bess::Packet *pkt : *batch) {
     if (Match(filter, pkt->head_data<u_char *>(), pkt->total_len(),
               pkt->head_len())) {
       EmitPacket(ctx, pkt, filter.gate);
@@ -157,11 +153,8 @@ void BPF::ProcessBatch(Context *ctx, bess::PacketBatch *batch) {
   }
 
   // slow version for general cases
-  int cnt = batch->cnt();
-
-  for (int i = 0; i < cnt; i++) {
+  for (bess::Packet *pkt : *batch) {
     gate_idx_t gate = 0;  // default gate for unmatched pkts
-    bess::Packet *pkt = batch->pkts()[i];
 
     // high priority filters are checked first
     for (const bess::utils::Filter &filter : filters_) {

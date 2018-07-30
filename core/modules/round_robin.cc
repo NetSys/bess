@@ -105,9 +105,7 @@ void RoundRobin::ProcessBatch(Context *ctx, bess::PacketBatch *batch) {
   }
 
   if (per_packet_) {
-    int cnt = batch->cnt();
-    for (int i = 0; i < cnt; i++) {
-      bess::Packet *pkt = batch->pkts()[i];
+    for (bess::Packet *pkt : *batch) {
       EmitPacket(ctx, pkt, gates_[current_gate_]);
       if (++current_gate_ >= ngates_) {
         current_gate_ = 0;

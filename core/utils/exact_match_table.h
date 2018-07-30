@@ -239,7 +239,7 @@ class ExactMatchTable {
   template <typename BufferFunc>
   void MakeKeys(const PacketBatch *batch, const BufferFunc &buffer_fn,
                 ExactMatchKey *keys) const {
-    size_t n = batch->cnt();
+    size_t n = batch->size();
     // Initialize the padding with zero.  NB: if total_key_size_ is 0,
     // this is (-1 / 8) which since C++11 is defined to be 0.  If
     // total_key_size_ == raw_key_size_, this is unnecessary, but
