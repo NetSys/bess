@@ -208,4 +208,35 @@ struct PairHasher {
   }
 };
 
+// The default allocator used by vector may perform value initialization during
+// resize(), which is unnecessary performance overhead for us.
+// See http://stackoverflow.com/a/21028912/273767
+// Used by PacketBatch class
+//
+// Allocator adaptor that interposes construct() calls to
+// convert value initialization into default initialization.
+template <typename T, typename A = std::allocator<T>>
+class DefaultInitAllocator: public A {
+  typedef std::allocator_traits<A> a_t;
+
+ public:
+  template <typename U>
+  struct rebind {
+    using other =
+        DefaultInitAllocator<U, typename a_t::template rebind_alloc<U>>;
+  };
+
+  using A::A;
+
+  template <typename U>
+  void construct(U *ptr) noexcept(
+      std::is_nothrow_default_constructible<U>::value) {
+    ::new (static_cast<void *>(ptr)) U;
+  }
+  template <typename U, typename... Args>
+  void construct(U *ptr, Args &&... args) {
+    a_t::construct(static_cast<A &>(*this), ptr, std::forward<Args>(args)...);
+  }
+};
+
 #endif  // BESS_UTILS_COMMON_H_
