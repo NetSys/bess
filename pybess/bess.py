@@ -507,9 +507,10 @@ class BESS(object):
 
     # It might be nice if we could name hook instances directly,
     # rather than using <hook, module, direction, gate> tuples...
-    def run_gate_command(self, hook, mod, direction, gate, cmd, arg_type, arg):
+    def run_gatehook_command(self, name, mod, direction, gate, cmd,
+                             arg_type, arg):
         request = bess_msg.GateHookCommandRequest()
-        request.hook.hook_name = hook
+        request.hook.hook_name = name
         request.hook.module_name = mod
         if direction == 'in':
             request.hook.igate = gate
@@ -534,7 +535,7 @@ class BESS(object):
         try:
             response = self._request('GateHookCommand', request)
         except self.Error as e:
-            e.info.update(hook_name=hook, module_name=mod, direction=direction,
+            e.info.update(hook_name=name, module_name=mod, direction=direction,
                           gate=gate, command=cmd, command_arg=arg)
             raise
 
@@ -548,8 +549,8 @@ class BESS(object):
         else:
             return response
 
-    def _configure_gate_hook(self, hook, module,
-                             arg, enable=None, direction=None, gate=None):
+    def _configure_gate_hook(self, hook_class, hook_name, module, arg,
+                             enable=None, direction=None, gate=None):
         if gate is None:
             gate = -1
         if direction is None:
@@ -557,7 +558,8 @@ class BESS(object):
         if enable is None:
             enable = False
         request = bess_msg.ConfigureGateHookRequest()
-        request.hook.hook_name = hook
+        request.hook.class_name = hook_class
+        request.hook.hook_name = hook_name
         request.hook.module_name = module
         request.enable = enable
         if direction == 'in':
@@ -569,34 +571,35 @@ class BESS(object):
         request.hook.arg.Pack(arg)
         return self._request('ConfigureGateHook', request)
 
-    def configure_resume_hook(self, hook, arg, enable=True):
+    def configure_resume_hook(self, name, arg, enable=True):
         if enable is None:
             enable = True
         request = bess_msg.ConfigureResumeHookRequest()
-        request.hook_name = hook
+        request.hook_name = name
         request.enable = enable
         request.arg.Pack(arg)
         return self._request('ConfigureResumeHook', request)
 
-    def tcpdump(self, enable, m, direction='out', gate=0, fifo=None):
+    def tcpdump_gate(self, enable, name, m, direction='out', gate=0, fifo=None):
         arg = bess_msg.TcpdumpArg()
         if fifo is not None:
             arg.fifo = fifo
-        return self._configure_gate_hook('TcpDump', m, arg, enable, direction,
-                                         gate)
+        return self._configure_gate_hook('TcpDump', name, m, arg, enable,
+                                         direction, gate)
 
-    def track_module(self, m, enable, bits=False, direction='out', gate=-1):
+    def track_gate(self, enable, name, m, bits=False, direction='out',
+                     gate=-1):
         arg = bess_msg.TrackArg()
         arg.bits = bits
-        return self._configure_gate_hook('Track', m, arg, enable, direction,
-                                         gate)
+        return self._configure_gate_hook('Track', name, m, arg, enable,
+                                         direction, gate)
 
-    def pcapng(self, enable, m, direction='out', gate=0, fifo=None):
+    def pcapng_gate(self, enable, name, m, direction='out', gate=0, fifo=None):
         arg = bess_msg.PcapngArg()
         if fifo is not None:
             arg.fifo = fifo
-        return self._configure_gate_hook('PcapNg', m, arg, enable, direction,
-                                         gate)
+        return self._configure_gate_hook('PcapNg', name, m, arg, enable,
+                                         direction, gate)
 
     def list_workers(self):
         return self._request('ListWorkers')

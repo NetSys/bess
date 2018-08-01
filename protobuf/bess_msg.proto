@@ -400,18 +400,23 @@ message GetModuleInfoRequest {
 }
 
 message GetModuleInfoResponse {
+  message GateHook {
+    string class_name = 1;         /// gate hook class_name and
+    string hook_name = 2;          /// gate hook name
+  }
   message IGate {
     message OGate {
       uint64 ogate = 1;  /// Output gate of "previous" module
       string name = 2;   /// Name of "previous" module
     }
-    uint64 igate = 1;           /// Input gate ID
-    repeated OGate ogates = 2;  /// The list of upstream output gates
-    uint64 cnt = 3;             /// # of packet batches seen
-    uint64 pkts = 4;            /// # of packets seen
-    uint64 bytes = 5;            /// # of bytes seen
-    double timestamp = 6;       /// The time that cnt/pkts counters were read
-    repeated string hook_name = 7;         /// List of hooks per gate
+    uint64 igate = 1;                /// Input gate ID
+    repeated OGate ogates = 2;       /// The list of upstream output gates
+    uint64 cnt = 3;                  /// # of packet batches seen
+    uint64 pkts = 4;                 /// # of packets seen
+    uint64 bytes = 5;                /// # of bytes seen
+    double timestamp = 6;            /// The time that cnt/pkts counters were read
+    reserved 7; // repeated string hook_name = 7;
+    repeated GateHook gatehooks = 8;  /// List of gate hook
   }
   message OGate {
     uint64 ogate = 1;      /// Output gate ID
@@ -421,7 +426,8 @@ message GetModuleInfoResponse {
     double timestamp = 5;  /// The time thatcnt/pkts counters were read
     string name = 6;       /// Name of the "next" module it connects to
     uint64 igate = 7;      /// Input gate ID of the "next" module
-    repeated string hook_name = 8;         /// List of hooks per gate
+    reserved 8; // repeated string hook_name = 7;
+    repeated GateHook gatehooks = 9; /// List of gate hook
   }
   message Attribute {
     string name = 1;   /// Name of per-packet metadata attribute
@@ -552,18 +558,24 @@ message PcapngArg {
 
 
 message GateHookInfo {
-  string hook_name = 1;         /// Name of the hook
-  string module_name = 2;       /// Name of module
+  string class_name = 1;        /// Name of the hook class
+  string hook_name = 2;         /// Name of the hook
+  string module_name = 3;       /// Name of module
   oneof gate {
-    int64 igate = 3;            /// Input gate index. All input gates if -1
-    int64 ogate = 4;            /// Output gate index. All output gates if -1
+    int64 igate = 4;            /// Input gate index. All input gates if -1
+    int64 ogate = 5;            /// Output gate index. All output gates if -1
   }
-  google.protobuf.Any arg = 5;  /// Hook-specific arguments
+  google.protobuf.Any arg = 6;  /// Hook-specific arguments
 }
 
 message ConfigureGateHookRequest {
   GateHookInfo hook = 1;
   bool enable = 2;
+}
+
+message ConfigureGateHookResponse {
+  Error error = 1;
+  string name = 2;  /// Name of the created gatehook (specified or default one)
 }
 
 message ListGateHooksResponse {

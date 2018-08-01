@@ -30,6 +30,7 @@
 
 #include "gate.h"
 #include "gate_hooks/track.h"
+#include "utils/format.h"
 
 #include <algorithm>
 #include <map>
@@ -42,61 +43,85 @@ namespace bess {
 
 const GateHookCommands GateHook::cmds;
 
-bool GateHookFactory::RegisterGateHook(GateHook::constructor_t constructor,
+bool GateHookBuilder::RegisterGateHook(GateHook::constructor_t constructor,
+                                       const std::string &class_name,
+                                       const std::string &name_template,
+                                       const std::string &help_text,
                                        const GateHookCommands &cmds,
-                                       GateHook::init_func_t init_func,
-                                       const std::string &hook_name,
-                                       const std::string &help_text) {
-  return all_gate_hook_factories_holder()
-      .emplace(std::piecewise_construct, std::forward_as_tuple(hook_name),
-               std::forward_as_tuple(constructor, cmds, init_func, hook_name,
-                 help_text))
+                                       GateHook::init_func_t init_func) {
+  return all_gate_hook_builders_holder()
+      .emplace(std::piecewise_construct, std::forward_as_tuple(class_name),
+               std::forward_as_tuple(constructor, class_name, name_template,
+                                     help_text, cmds, init_func))
       .second;
 }
 
-std::map<std::string, GateHookFactory>
-    &GateHookFactory::all_gate_hook_factories_holder(bool reset) {
-  // Maps from hook names to hook factories. Tracks all hooks (via their
-  // GateHookFactorys).
-  static std::map<std::string, GateHookFactory> all_gate_hook_factories;
+std::map<std::string, GateHookBuilder>
+    &GateHookBuilder::all_gate_hook_builders_holder(bool reset) {
+  // Maps from hook names to hook builders. Tracks all hooks (via their
+  // GateHookBuilders).
+  static std::map<std::string, GateHookBuilder> all_gate_hook_builders;
 
   if (reset) {
-    all_gate_hook_factories.clear();
+    all_gate_hook_builders.clear();
   }
 
-  return all_gate_hook_factories;
+  return all_gate_hook_builders;
 }
 
-const std::map<std::string, GateHookFactory>
-    &GateHookFactory::all_gate_hook_factories() {
-  return all_gate_hook_factories_holder();
+const std::map<std::string, GateHookBuilder>
+    &GateHookBuilder::all_gate_hook_builders() {
+  return all_gate_hook_builders_holder();
 }
 
-// Creates new gate hook from the given factory, initializes it,
+const std::string Gate::GenerateDefaultName(const GateHookBuilder *builder,
+                                            Gate *gate) {
+  const std::string &name_template = builder->name_template();
+  const std::vector<GateHook *> hooks = gate->hooks();
+  for (int i = 0;; i++) {
+    std::string name = name_template + std::to_string(i);
+    if (std::none_of(hooks.begin(), hooks.end(), [&](const GateHook *hook) {
+          return name == hook->name();
+        })) {
+      return name;
+    }
+  }
+}
+
+// Creates new gate hook from the given builder, initializes it,
 // and adds it to the given gate.  If any of these steps go wrong
 // the gatehook instance is destroyed and we return a failed
 // CommandResponse, otherwise we return a successful one.
-CommandResponse Gate::NewGateHook(const GateHookFactory *factory, Gate *gate,
-                                  bool is_igate,
-                                  const google::protobuf::Any &arg) {
-  bess::GateHook *hook = factory->hook_constructor_();
-  CommandResponse init_ret = factory->hook_init_func_(hook, gate, arg);
+GateHook *Gate::CreateGateHook(const GateHookBuilder *builder, Gate *gate,
+                               const std::string &name,
+                               const google::protobuf::Any &arg,
+                               pb_error_t *error) {
+  bess::GateHook *hook = builder->hook_constructor_();
+  CommandResponse init_ret = builder->hook_init_func_(hook, gate, arg);
   if (init_ret.error().code() != 0) {
     delete hook;
-    return init_ret;
+    *error = init_ret.error();
+    return nullptr;
   }
-  hook->set_factory(factory);
+
+  std::string hook_name = name;
+  if (hook_name == "") {
+    hook_name = GenerateDefaultName(builder, gate);
+  }
+
+  hook->set_class_name(builder->class_name());
+  hook->set_name(hook_name);
+  hook->set_builder(builder);
   hook->set_arg(arg);
   hook->set_gate(gate);
   int ret = gate->AddHook(hook);
   if (ret != 0) {
+    error->set_code(ret);
+    error->set_errmsg("Fail to Add Hook");
     delete hook;
-    return CommandFailure(ret, "Unable to add hook '%s' to '%s' %cgate '%hu'",
-                          factory->hook_name_.c_str(),
-                          gate->module()->name().c_str(), is_igate ? 'i' : 'o',
-                          gate->gate_idx());
+    return nullptr;
   }
-  return CommandSuccess();
+  return hook;
 }
 
 int Gate::AddHook(GateHook *hook) {
@@ -136,8 +161,28 @@ void Gate::RemoveHook(const std::string &name) {
   }
 }
 
+GateHook *Gate::FindHookByClass(const std::string &class_name) {
+  for (const auto &hook : hooks_) {
+    if (hook->class_name() == class_name) {
+      return hook;
+    }
+  }
+  return nullptr;
+}
+
+void Gate::RemoveHookByClass(const std::string &class_name) {
+  for (auto it = hooks_.begin(); it != hooks_.end(); ++it) {
+    GateHook *hook = *it;
+    if (hook->class_name() == class_name) {
+      delete hook;
+      hooks_.erase(it);
+      return;
+    }
+  }
+}
+
 // TODO(torek): combine (template) with ModuleBuilder::RunCommand
-CommandResponse GateHookFactory::RunCommand(
+CommandResponse GateHookBuilder::RunCommand(
     GateHook *hook, const std::string &user_cmd,
     const google::protobuf::Any &arg) const {
   Module *mod = hook->gate()->module();
@@ -156,7 +201,7 @@ CommandResponse GateHookFactory::RunCommand(
   }
 
   return CommandFailure(ENOTSUP, "'%s' does not support command '%s'",
-                        hook_name_.c_str(), user_cmd.c_str());
+                        class_name_.c_str(), user_cmd.c_str());
 }
 
 void Gate::ClearHooks() {
@@ -183,26 +228,27 @@ void IGate::RemoveOgate(const OGate *og) {
 
 // Add internally-generated Track() hook to this ogate.
 void OGate::AddTrackHook() {
-  static const GateHookFactory *track_factory;
+  static const GateHookBuilder *track_builder;
   static google::protobuf::Any arg;
 
-  // If we haven't located the track hook factory yet, do that first.
-  if (track_factory == nullptr) {
+  // If we haven't located the track hook builder yet, do that first.
+  if (track_builder == nullptr) {
     const auto it =
-        bess::GateHookFactory::all_gate_hook_factories().find(Track::kName);
+        bess::GateHookBuilder::all_gate_hook_builders().find(Track::kName);
     // Would like to use CHECK_NE here, but cannot because
     // operator<< is not defined on the arguments.
-    if (it == bess::GateHookFactory::all_gate_hook_factories().end()) {
-      CHECK(0) << "track gate hook factory is missing";
+    if (it == bess::GateHookBuilder::all_gate_hook_builders().end()) {
+      CHECK(0) << "Track gate hook builder is missing";
     }
-    track_factory = &it->second;
+    track_builder = &it->second;
 
     // A new Track() instance takes an argument that has a "bits" flag.
     static bess::pb::TrackArg track_arg;
     track_arg.set_bits(false);
     arg.PackFrom(track_arg);
   }
-  this->NewGateHook(track_factory, this, false, arg);
+  pb_error_t error;
+  this->CreateGateHook(track_builder, this, "", arg, &error);
 }
 
 void OGate::SetIgate(IGate *ig) {

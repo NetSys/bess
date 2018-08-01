@@ -1471,7 +1471,8 @@ def _show_module(cli, module_name):
                            (gate.igate, track_str,
                             ', '.join('%s:%d ->' % (g.name, g.ogate)
                                       for g in gate.ogates),
-                            ', '.join(gate.hook_name)))
+                            ', '.join('%s::%s' % (h.class_name, h.hook_name)
+                                      for h in gate.gatehooks)))
 
     if len(info.ogates) > 0:
         cli.fout.write('    Output gates:\n')
@@ -1485,7 +1486,8 @@ def _show_module(cli, module_name):
             cli.fout.write(
                 '      %3d: %s -> %d:%s\t%s\n' %
                 (gate.ogate, track_str, gate.igate, gate.name,
-                 ', '.join(gate.hook_name)))
+                 ', '.join("%s::%s" % (h.class_name, h.hook_name)
+                           for h in gate.gatehooks)))
 
     if hasattr(info, 'dump'):
         dump_str = pprint.pformat(info.dump, width=74)
@@ -1545,14 +1547,17 @@ def show_gatehook_all(cli):
 
     if not gatehooks:
         raise cli.CommandError('There is no active gatehook to show.')
-
     for gatehook in gatehooks:
         if gatehook.HasField('igate'):
-            cli.fout.write('%-16s %d:%s\n' % (gatehook.hook_name, gatehook.igate,
+            cli.fout.write('%-16s %d:%s\n' % ('%s::%s' % (gatehook.class_name,
+                                              gatehook.hook_name),
+                                              gatehook.igate,
                                               gatehook.module_name))
         else:
-            cli.fout.write('%-16s %s:%d\n' % (gatehook.hook_name,
-                                    gatehook.module_name, gatehook.ogate))
+            cli.fout.write('%-16s %s:%d\n' % ('%s::%s' % (gatehook.class_name,
+                                              gatehook.hook_name),
+                                              gatehook.module_name,
+                                              gatehook.ogate))
 
 
 def _show_gatehook_class(cli, cls_name, detail):
@@ -1897,7 +1902,7 @@ def monitor_tc_all(cli, tcs):
     _monitor_tcs(cli, *tcs)
 
 
-def _capture_module(cli, module_name, direction, gate, opts, program, hook_fn):
+def _capture_gate(cli, module_name, direction, gate, opts, program, hook_fn):
     if gate is None:
         gate = 0
 
@@ -1912,17 +1917,17 @@ def _capture_module(cli, module_name, direction, gate, opts, program, hook_fn):
 
     fd = os.open(fifo, os.O_RDWR)
 
-    tcpdump_cmd = [program]
-    tcpdump_cmd.extend(['-r', fifo])
-    tcpdump_cmd.extend(opts)
-    tcpdump_cmd = ' '.join(tcpdump_cmd)
+    capture_cmd = [program]
+    capture_cmd.extend(['-r', fifo])
+    capture_cmd.extend(opts)
+    capture_cmd = ' '.join(capture_cmd)
 
-    cli.fout.write('  Running: %s\n' % tcpdump_cmd)
-    proc = subprocess.Popen(tcpdump_cmd, shell=True, preexec_fn=os.setsid)
+    cli.fout.write('  Running: %s\n' % capture_cmd)
+    proc = subprocess.Popen(capture_cmd, shell=True, preexec_fn=os.setsid)
 
     unhook = True
     try:
-        hook_fn(True, module_name, direction, gate, fifo)
+        ret = hook_fn(True, '', module_name, direction, gate, fifo)
         proc.wait()
     except KeyboardInterrupt:
         # kill all descendants in the process group
@@ -1936,7 +1941,7 @@ def _capture_module(cli, module_name, direction, gate, opts, program, hook_fn):
         proc.wait()
         try:
             if unhook:
-                hook_fn(False, module_name, direction, gate)
+                hook_fn(False, ret.name, module_name, direction, gate)
         finally:
             try:
                 os.close(fd)
@@ -1950,21 +1955,21 @@ def _capture_module(cli, module_name, direction, gate, opts, program, hook_fn):
 
 @cmd('tcpdump MODULE [DIRECTION] [GATE] [TCPDUMP_OPTS...]',
      'Capture packets on a gate')
-def tcpdump_module(cli, module_name, direction, gate, opts):
-    _capture_module(cli, module_name, direction,
-                    gate, opts, 'tcpdump', cli.bess.tcpdump)
+def tcpdump_gate(cli, module_name, direction, gate, opts):
+    _capture_gate(cli, module_name, direction,
+                    gate, opts, 'tcpdump', cli.bess.tcpdump_gate)
 
 
 @cmd('tshark MODULE [DIRECTION] [GATE] [TSHARK_OPTS...]',
      'Capture packets on a gate with metadata')
-def tshark_module(cli, module_name, direction, gate, opts):
+def tshark_gate(cli, module_name, direction, gate, opts):
     if opts is None:
         opts = ['-z', 'proto,colinfo,frame.comment,frame.comment']
-    _capture_module(cli, module_name, direction,
-                    gate, opts, 'tshark', cli.bess.pcapng)
+    _capture_gate(cli, module_name, direction,
+                    gate, opts, 'tshark', cli.bess.pcapng_gate)
 
 
-def _track_module(cli, bits, flag, module_name, direction, gate):
+def _track_gate(cli, bits, flag, module_name, direction, gate):
     if direction is None:
         direction = 'out'
     if module_name in [None, '*']:
@@ -1975,23 +1980,23 @@ def _track_module(cli, bits, flag, module_name, direction, gate):
     cli.bess.pause_all()
     try:
         if flag == 'enable':
-            cli.bess.track_module(module_name, True, bits, direction, gate)
+            cli.bess.track_gate(True, '', module_name, bits, direction, gate)
         else:
-            cli.bess.track_module(module_name, False, bits, direction, gate)
+            cli.bess.track_gate(False, '', module_name, bits, direction, gate)
     finally:
         cli.bess.resume_all()
 
 
 @cmd('track ENABLE_DISABLE [MODULE] [DIRECTION] [GATE]',
      'Count the packets and batches on specified or all gates')
-def track_module(cli, flag, module_name, direction, gate):
-    _track_module(cli, False, flag, module_name, direction, gate)
+def track_gate(cli, flag, module_name, direction, gate):
+    _track_gate(cli, False, flag, module_name, direction, gate)
 
 
 @cmd('track bit ENABLE_DISABLE [MODULE] [DIRECTION] [GATE]',
      'Count the packets, batches, and bits on specified or all gates')
-def track_module_bits(cli, flag, module_name, direction, gate):
-    _track_module(cli, True, flag, module_name, direction, gate)
+def track_gate_bits(cli, flag, module_name, direction, gate):
+    _track_gate(cli, True, flag, module_name, direction, gate)
 
 # really should support "all gates" but that requires that we
 # iterate over all gates

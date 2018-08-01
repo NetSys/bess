@@ -45,7 +45,9 @@ class TcpdumpOpener final : public bess::utils::FifoOpener {
 // Tcpdump dumps copies of the packets seen by a gate. Useful for debugging.
 class Tcpdump final : public bess::GateHook {
  public:
-  Tcpdump() : bess::GateHook(Tcpdump::kName, Tcpdump::kPriority), opener_() {}
+  Tcpdump()
+      : bess::GateHook(Tcpdump::kName, "tcpdump", Tcpdump::kPriority),
+        opener_() {}
 
   virtual ~Tcpdump() {}
 
