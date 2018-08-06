@@ -237,7 +237,7 @@ class BessModuleTestCase(unittest.TestCase):
         self.bess.pause_all()
 
     def run_pipeline(self, src_module, dst_module, igate, input_pkts,
-                     ogates, time_out=3):
+                     ogates, time_out=3, proto=scapy.Ether):
         """
         Runs a pipeline that injects data (input_pkts) at module
         src_module on input gate igate and collects it at module
@@ -312,13 +312,13 @@ class BessModuleTestCase(unittest.TestCase):
             time.sleep(0.1)
             duration += 0.1
 
-        out_pkts = self._collect_output(ogates)
+        out_pkts = self._collect_output(ogates, proto)
 
         self.bess.pause_all()
 
         return out_pkts
 
-    def _collect_output(self, ogates):
+    def _collect_output(self, ogates, proto):
         """
         Collects output on self.sockets[] per ogates.  Returns a
         dictionary indexed by ogate with a list of each packet
@@ -334,7 +334,7 @@ class BessModuleTestCase(unittest.TestCase):
             while True:
                 try:
                     received_data = sock.recv(2048)
-                    ret.append(scapy.Ether(received_data))
+                    ret.append(proto(received_data))
                 # NB: sock.settimeout(0.0) logically should
                 # produce a socket.timeout, not a socket.error
                 # with EAGAIN, but in fact we get the latter.
@@ -357,5 +357,7 @@ class BessModuleTestCase(unittest.TestCase):
             for ogate in ogates:
                 self.sockets[ogate].settimeout(timeout[ogate])
 
-    def run_module(self, module, igate, input_pkts, ogates=range(16), time_out=3):
-        return self.run_pipeline(module, module, igate, input_pkts, ogates, time_out)
+    def run_module(self, module, igate, input_pkts, ogates=range(16),
+                   time_out=3, proto=scapy.Ether):
+        return self.run_pipeline(module, module, igate, input_pkts, ogates,
+                                 time_out=time_out, proto=proto)
