@@ -174,6 +174,7 @@ static Status enable_hook_for_module(ConfigureGateHookResponse* response,
 }
 
 static Status disable_hook_for_module(ConfigureGateHookResponse* response,
+                                      const std::string& class_name,
                                       const std::string& hook_name,
                                       const Module* m, gate_idx_t gate_idx,
                                       bool is_igate, bool use_gate) {
@@ -184,7 +185,11 @@ static Status disable_hook_for_module(ConfigureGateHookResponse* response,
           response, EINVAL, "'%s': %cgate '%hu' does not exist",
           m->name().c_str(), is_igate ? 'i' : 'o', gate_idx);
     }
-    gate->RemoveHook(hook_name);
+    if (hook_name != "") {
+      gate->RemoveHook(hook_name);
+    } else {
+      gate->RemoveHookByClass(class_name);
+    }
     return Status::OK;
   }
 
@@ -193,14 +198,22 @@ static Status disable_hook_for_module(ConfigureGateHookResponse* response,
       if (!gate) {
         continue;
       }
-      gate->RemoveHook(hook_name);
+      if (hook_name != "") {
+        gate->RemoveHook(hook_name);
+      } else {
+        gate->RemoveHookByClass(class_name);
+      }
     }
   } else {
     for (auto& gate : m->ogates()) {
       if (!gate) {
         continue;
       }
-      gate->RemoveHook(hook_name);
+      if (hook_name != "") {
+        gate->RemoveHook(hook_name);
+      } else {
+        gate->RemoveHookByClass(class_name);
+      }
     }
   }
   return Status::OK;
@@ -1524,8 +1537,9 @@ class BESSControlImpl final : public BESSControl::Service {
                                  it.second, gate_idx, is_igate, use_gate,
                                  builder->second, request->hook().arg());
         } else {
-          disable_hook_for_module(response, request->hook().hook_name(),
-                                  it.second, gate_idx, is_igate, use_gate);
+          disable_hook_for_module(response, request->hook().class_name(),
+                                  request->hook().hook_name(), it.second,
+                                  gate_idx, is_igate, use_gate);
         }
         if (response->error().code() != 0) {
           return Status::OK;
@@ -1546,8 +1560,9 @@ class BESSControlImpl final : public BESSControl::Service {
                              gate_idx, is_igate, use_gate, builder->second,
                              request->hook().arg());
     } else {
-      disable_hook_for_module(response, request->hook().hook_name(), it->second,
-                              gate_idx, is_igate, use_gate);
+      disable_hook_for_module(response, request->hook().class_name(),
+                              request->hook().hook_name(), it->second, gate_idx,
+                              is_igate, use_gate);
     }
 
     return Status::OK;
