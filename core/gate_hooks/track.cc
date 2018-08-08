@@ -57,7 +57,7 @@ CommandResponse Track::CommandReset(const bess::pb::EmptyArg &) {
 }
 
 void Track::ProcessBatch(const bess::PacketBatch *batch) {
-
+  LOG(ERROR) << current_worker.wid();
   TrackStats *stat = &worker_stats_[current_worker.wid()];
 
   size_t cnt = batch->cnt();
