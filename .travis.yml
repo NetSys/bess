@@ -2,6 +2,9 @@ sudo: required
 dist: xenial
 language: cpp
 
+cache:
+  - ccache
+
 services:
   - docker
 
@@ -47,8 +50,8 @@ install:
 before_script:
   - sudo mkdir -p /mnt/huge
   - sudo mount -t hugetlbfs nodev /mnt/huge
-  - export CXX=$VER_CXX
-  - export CC=$VER_CC
+  - export CXX="ccache $VER_CXX"
+  - ccache -s
 
 script:
   # travis_wait extends the 10-min timeout to 20mins.
@@ -67,6 +70,9 @@ after_success:
 after_failure:
   - more /tmp/bessd.*.INFO.* | cat      # dump all bessd log files
   - sudo more /tmp/sanitizer* | cat          # dump all sanitizer results
+
+after_script:
+  - ccache -s
 
 before_deploy:
   - for arch in core2 sandybridge haswell; do

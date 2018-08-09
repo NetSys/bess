@@ -19,12 +19,13 @@ RUN mkdir -p /build
 
 # Pre-build DPDK from the specified BESS branch
 ARG BESS_DPDK_BRANCH=master
-ARG DPDK_ARCH=x86_64
 RUN cd /build && \
 	git clone -b ${BESS_DPDK_BRANCH} https://github.com/netsys/bess && \
 	cd /build/bess && \
-	setarch ${DPDK_ARCH} ./build.py dpdk && \
+	./build.py dpdk && \
 	mv /build/bess/deps/dpdk-17.11 /build/dpdk-17.11 && \
 	rm -rf /build/bess
+
+ENV CCACHE_DIR=/tmp/ccache
 
 WORKDIR /build/bess
