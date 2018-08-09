@@ -323,6 +323,8 @@ def download_dpdk(quiet=False):
 def configure_dpdk():
     try:
         print('Configuring DPDK...')
+        # override RTE_MACHINE with the one in DPDK_BASE_CONFIG
+        cmd("sed -i '/CONFIG_RTE_MACHINE/s/^/#/g' %s/config/defconfig_x86_64-native-linuxapp-gcc" % DPDK_DIR)
         cmd('cp -f %s %s' % (DPDK_BASE_CONFIG, DPDK_FINAL_CONFIG))
 
         check_kernel_headers()
