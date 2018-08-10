@@ -64,7 +64,6 @@ int PCAPPort::RecvPackets(queue_t qid, bess::Packet** pkts, int cnt) {
   }
 
   int recv_cnt = 0;
-  bess::Packet* sbuf;
 
   DCHECK_EQ(qid, 0);
 
@@ -75,21 +74,21 @@ int PCAPPort::RecvPackets(queue_t qid, bess::Packet** pkts, int cnt) {
       break;
     }
 
-    sbuf = bess::Packet::Alloc();
-    if (!sbuf) {
+    bess::Packet* pkt = current_worker.packet_pool()->Alloc();
+    if (!pkt) {
       break;
     }
 
-    int copy_len = std::min(caplen, static_cast<int>(sbuf->tailroom()));
-    bess::utils::CopyInlined(sbuf->append(copy_len), packet, copy_len, true);
+    int copy_len = std::min(caplen, static_cast<int>(pkt->tailroom()));
+    bess::utils::CopyInlined(pkt->append(copy_len), packet, copy_len, true);
 
     packet += copy_len;
     caplen -= copy_len;
-    bess::Packet* m = sbuf;
+    bess::Packet* m = pkt;
 
     int nb_segs = 1;
     while (caplen > 0) {
-      m->set_next(bess::Packet::Alloc());
+      m->set_next(current_worker.packet_pool()->Alloc());
       m = m->next();
       nb_segs++;
 
@@ -99,8 +98,8 @@ int PCAPPort::RecvPackets(queue_t qid, bess::Packet** pkts, int cnt) {
       packet += copy_len;
       caplen -= copy_len;
     }
-    sbuf->set_nb_segs(nb_segs);
-    pkts[recv_cnt] = sbuf;
+    pkt->set_nb_segs(nb_segs);
+    pkts[recv_cnt] = pkt;
     recv_cnt++;
   }
 

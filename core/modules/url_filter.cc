@@ -103,7 +103,7 @@ inline static bess::Packet *Generate403Packet(const Ethernet::Address &src_eth,
                                               be32_t src_ip, be32_t dst_ip,
                                               be16_t src_port, be16_t dst_port,
                                               be32_t seq, be32_t ack) {
-  bess::Packet *pkt = bess::Packet::Alloc();
+  bess::Packet *pkt = current_worker.packet_pool()->Alloc();
   char *ptr = static_cast<char *>(pkt->buffer()) + SNBUF_HEADROOM;
   pkt->set_data_off(SNBUF_HEADROOM);
 
@@ -143,7 +143,7 @@ inline static bess::Packet *GenerateResetPacket(
     const Ethernet::Address &src_eth, const Ethernet::Address &dst_eth,
     be32_t src_ip, be32_t dst_ip, be16_t src_port, be16_t dst_port, be32_t seq,
     be32_t ack) {
-  bess::Packet *pkt = bess::Packet::Alloc();
+  bess::Packet *pkt = current_worker.packet_pool()->Alloc();
   char *ptr = static_cast<char *>(pkt->buffer()) + SNBUF_HEADROOM;
   pkt->set_data_off(SNBUF_HEADROOM);
   pkt->set_total_len(sizeof(rst_template));

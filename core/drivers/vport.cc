@@ -87,14 +87,15 @@ static void refill_tx_bufs(struct llring *r) {
 
   deficit = REFILL_HIGH - curr_cnt;
 
-  ret = bess::Packet::Alloc((bess::Packet **)pkts, deficit, 0);
-  if (ret == 0)
+  if (!current_worker.packet_pool()->AllocBulk(pkts, deficit, 0)) {
     return;
+  }
 
-  for (int i = 0; i < ret; i++)
+  for (int i = 0; i < deficit; i++) {
     objs[i] = pkts[i]->paddr();
+  }
 
-  ret = llring_mp_enqueue_bulk(r, objs, ret);
+  ret = llring_mp_enqueue_bulk(r, objs, deficit);
   DCHECK_EQ(ret, 0);
 }
 

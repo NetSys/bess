@@ -108,15 +108,6 @@ TEST_F(GateTest, RemoveHook) {
   ASSERT_EQ(nullptr, g->FindHook(Track::kName));
 }
 
-TEST(HookTest, Track) {
-  Track t;
-  bess::PacketBatch b;
-  b.set_cnt(32);
-  t.ProcessBatch(&b);
-  ASSERT_EQ(1, t.cnt());
-  ASSERT_EQ(b.cnt(), t.pkts());
-}
-
 TEST_F(IOGateTest, OGate) {
   og->SetIgate(ig);
   ASSERT_EQ(ig, og->igate());

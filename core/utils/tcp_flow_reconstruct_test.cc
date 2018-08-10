@@ -35,6 +35,8 @@
 #include <gtest/gtest.h>
 #include <pcap/pcap.h>
 
+#include "packet_pool.h"
+
 namespace bess {
 namespace utils {
 namespace {
@@ -50,8 +52,7 @@ class TcpFlowReconstructTest : public ::testing::TestWithParam<const char *> {
     std::string tracefile_prefix = "testdata/test-pktcaptures/tcpflow-http-3";
 
     char errbuf[PCAP_ERRBUF_SIZE];
-    handle_ =
-        pcap_open_offline((tracefile_prefix + ".pcap").c_str(), errbuf);
+    handle_ = pcap_open_offline((tracefile_prefix + ".pcap").c_str(), errbuf);
     ASSERT_TRUE(handle_ != nullptr);
 
     const u_char *pcap_pkt;
@@ -59,8 +60,7 @@ class TcpFlowReconstructTest : public ::testing::TestWithParam<const char *> {
     while ((pcap_pkt = pcap_next(handle_, &pcap_hdr)) != nullptr) {
       ASSERT_EQ(pcap_hdr.caplen, pcap_hdr.len)
           << "Didn't capture the full packet.";
-      Packet *p = new Packet();
-      p->append(pcap_hdr.caplen);
+      Packet *p = pool_.Alloc(pcap_hdr.caplen);
       bess::utils::Copy(p->head_data(), pcap_pkt, pcap_hdr.caplen);
       pkts_.push_back(p);
     }
@@ -76,12 +76,14 @@ class TcpFlowReconstructTest : public ::testing::TestWithParam<const char *> {
 
   virtual void TearDown() {
     for (Packet *p : pkts_) {
-      delete p;
+      bess::Packet::Free(p);
     }
     if (handle_) {
       pcap_close(handle_);
     }
   }
+
+  PlainPacketPool pool_;
 
   // The packets of the pcap trace file.
   std::vector<Packet *> pkts_;

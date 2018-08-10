@@ -30,14 +30,15 @@
 
 #include "packet.h"
 
-#include <glog/logging.h>
-#include <rte_errno.h>
-
 #include <cassert>
 #include <cstdio>
 #include <iomanip>
 #include <sstream>
 #include <string>
+
+#include <glog/logging.h>
+
+#include <rte_errno.h>
 
 #include "dpdk.h"
 #include "opts.h"
@@ -45,97 +46,11 @@
 
 namespace bess {
 
-const size_t PacketBatch::kMaxBurst;
-
 static struct rte_mempool *pframe_pool[RTE_MAX_NUMA_NODES];
 
-static void packet_init(struct rte_mempool *mp, void *opaque_arg, void *_m,
-                        unsigned i) {
-  Packet *pkt;
-
-  pkt = reinterpret_cast<Packet *>(_m);
-
-  rte_pktmbuf_init(mp, nullptr, _m, i);
-
-  memset(pkt->reserve(), 0, SNBUF_RESERVE);
-
-  pkt->set_vaddr(pkt);
-  pkt->set_paddr(rte_mempool_virt2iova(pkt));
-  pkt->set_sid(reinterpret_cast<uintptr_t>(opaque_arg));
-  pkt->set_index(i);
-}
-
-static void init_mempool_socket(int sid) {
-  struct rte_pktmbuf_pool_private pool_priv;
-  char name[256];
-  int current_try = FLAGS_buffers;
-
-  const int num_mempool_cache = 512;
-  const int minimum_try = 16384;
-
-  pool_priv.mbuf_data_room_size = SNBUF_HEADROOM + SNBUF_DATA;
-  pool_priv.mbuf_priv_size = SNBUF_RESERVE;
-
-again:
-  snprintf(name, sizeof(name), "pframe%d_%dk", sid, (current_try + 1) / 1024);
-
-  /* 2^n - 1 is optimal according to the DPDK manual */
-  pframe_pool[sid] = rte_mempool_create(
-      name, current_try - 1, sizeof(Packet), num_mempool_cache,
-      sizeof(struct rte_pktmbuf_pool_private), rte_pktmbuf_pool_init,
-      &pool_priv, packet_init, reinterpret_cast<void *>((uintptr_t)sid), sid,
-      0);
-
-  if (!pframe_pool[sid]) {
-    LOG(WARNING) << "Allocating " << current_try - 1 << " buffers on socket "
-                 << sid << ": Failed (" << rte_strerror(rte_errno) << ")";
-    if (current_try > minimum_try) {
-      current_try /= 2;
-      goto again;
-    }
-
-    LOG(FATAL) << "Packet buffer allocation failed on socket " << sid;
-  }
-
-  LOG(INFO) << "Allocating " << current_try - 1 << " buffers on socket " << sid
-            << ": OK";
-}
-
-void init_mempool(void) {
-  int initialized[RTE_MAX_NUMA_NODES];
-
-  int i;
-
-  if (FLAGS_d) {
-    rte_dump_physmem_layout(stdout);
-  }
-
-  for (i = 0; i < RTE_MAX_NUMA_NODES; i++) {
-    initialized[i] = 0;
-  }
-
-  for (i = 0; i < RTE_MAX_LCORE; i++) {
-    int sid = rte_lcore_to_socket_id(i);
-
-    if (!initialized[sid]) {
-      init_mempool_socket(sid);
-      initialized[sid] = 1;
-    }
-  }
-}
-
-void close_mempool(void) {
-  /* Do nothing. Surprisingly, there is no destructor for mempools */
-}
-
-struct rte_mempool *get_pframe_pool_socket(int socket) {
-  return pframe_pool[socket];
-}
-
-#if DPDK_VER >= DPDK_VER_NUM(16, 7, 0)
 static Packet *paddr_to_snb_memchunk(struct rte_mempool_memhdr *chunk,
                                      phys_addr_t paddr) {
-  if (chunk->phys_addr == RTE_BAD_PHYS_ADDR) {
+  if (chunk->phys_addr == RTE_BAD_IOVA) {
     return nullptr;
   }
 
@@ -148,41 +63,6 @@ static Packet *paddr_to_snb_memchunk(struct rte_mempool_memhdr *chunk,
 
   return nullptr;
 }
-
-#define check_offset(field)                                                   \
-  do {                                                                        \
-    static_assert(                                                            \
-        offsetof(Packet, field##_) == offsetof(rte_mbuf, field),              \
-        "Incompatibility detected between class Packet and struct rte_mbuf"); \
-  } while (0)
-
-Packet::Packet() {
-  // static assertions for rte_mbuf layout compatibility
-  static_assert(offsetof(Packet, mbuf_) == 0, "mbuf_ must be at offset 0");
-  check_offset(buf_addr);
-  check_offset(rearm_data);
-  check_offset(data_off);
-  check_offset(refcnt);
-  check_offset(nb_segs);
-  check_offset(rx_descriptor_fields1);
-  check_offset(pkt_len);
-  check_offset(data_len);
-  check_offset(buf_len);
-  check_offset(pool);
-  check_offset(next);
-
-  // These fields are assumed to be pre-initialized and not updated by 
-  // rte_pktmbuf_reset().
-  mbuf_.buf_addr = headroom_;
-  mbuf_.buf_physaddr = 0;
-  mbuf_.buf_len = SNBUF_HEADROOM + SNBUF_DATA;
-  mbuf_.refcnt = 1;
-  mbuf_.pool = nullptr;
-
-  rte_pktmbuf_reset(&mbuf_);
-}
-
-#undef check_offset
 
 Packet *Packet::from_paddr(phys_addr_t paddr) {
   for (int i = 0; i < RTE_MAX_NUMA_NODES; i++) {
@@ -213,47 +93,20 @@ Packet *Packet::from_paddr(phys_addr_t paddr) {
 
   return nullptr;
 }
-#else
-Packet *Packet::from_paddr(phys_addr_t paddr) {
-  Packet *ret = nullptr;
 
-  for (int i = 0; i < RTE_MAX_NUMA_NODES; i++) {
-    struct rte_mempool *pool;
+Packet *Packet::copy(const Packet *src) {
+  DCHECK(src->is_linear());
 
-    phys_addr_t pg_start;
-    phys_addr_t pg_end;
-    uintptr_t size;
-
-    pool = pframe_pool[i];
-    if (!pool) {
-      continue;
-    }
-
-    DCHECK_EQ(pool->pg_num, 1);
-
-    pg_start = pool->elt_pa[0];
-    size = pool->elt_va_end - pool->elt_va_start;
-    pg_end = pg_start + size;
-
-    if (pg_start <= paddr && paddr < pg_end) {
-      uintptr_t offset;
-
-      offset = paddr - pg_start;
-      ret = reinterpret_cast<Packet *>(pool->elt_va_start + offset);
-
-      if (ret->paddr() != paddr) {
-        log_err(
-            "snb->immutable.paddr "
-            "corruption detected\n");
-      }
-
-      break;
-    }
+  Packet *dst = reinterpret_cast<Packet *>(rte_pktmbuf_alloc(src->pool_));
+  if (!dst) {
+    return nullptr;  // FAIL.
   }
 
-  return ret;
+  bess::utils::CopyInlined(dst->append(src->total_len()), src->head_data(),
+                           src->total_len(), true);
+
+  return dst;
 }
-#endif
 
 // basically rte_hexdump() from eal_common_hexdump.c
 static std::string HexDump(const void *buffer, size_t len) {
@@ -321,7 +174,7 @@ std::string Packet::Dump() {
   nb_segs = nb_segs_;
   pkt = this;
   while (pkt && nb_segs != 0) {
-    __rte_mbuf_sanity_check(&pkt->as_rte_mbuf(), 0);
+    __rte_mbuf_sanity_check(&pkt->mbuf_, 0);
 
     dump << "  segment at " << pkt << ", data=" << pkt->head_data()
          << ", data_len=" << std::dec << unsigned{data_len_} << std::endl;
@@ -342,5 +195,29 @@ std::string Packet::Dump() {
 
   return dump.str();
 }
+
+#define check_offset(field)                                    \
+  static_assert(                                               \
+      offsetof(Packet, field##_) == offsetof(rte_mbuf, field), \
+      "Incompatibility detected between class Packet and struct rte_mbuf");
+
+void Packet::CheckSanity() {
+  static_assert(offsetof(Packet, mbuf_) == 0, "mbuf_ must be at offset 0");
+  check_offset(buf_addr);
+  check_offset(rearm_data);
+  check_offset(data_off);
+  check_offset(refcnt);
+  check_offset(nb_segs);
+  check_offset(rx_descriptor_fields1);
+  check_offset(pkt_len);
+  check_offset(data_len);
+  check_offset(buf_len);
+  check_offset(pool);
+  check_offset(next);
+
+  // TODO: check runtime properties
+}
+
+#undef check_offset
 
 }  // namespace bess

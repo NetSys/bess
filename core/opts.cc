@@ -48,14 +48,16 @@ DEFINE_bool(f, false, "Run BESS in foreground mode (for developers)");
 DEFINE_bool(k, false, "Kill existing BESS instance, if any");
 DEFINE_bool(s, false, "Show TC statistics every second");
 DEFINE_bool(d, false, "Run BESS in debug mode (with debug log messages)");
-DEFINE_bool(a, false, "Allow multiple instances");
-DEFINE_bool(no_huge, false, "Disable hugepages");
 DEFINE_bool(skip_root_check, false,
             "Skip checking that the process is running as root.");
 DEFINE_string(modules, bess::bessd::GetCurrentDirectory() + "modules",
               "Load modules from the specified directory");
 DEFINE_bool(core_dump, false, "Generate a core dump on fatal faults");
 DEFINE_bool(no_crashlog, false, "Disable the generation of a crash log file");
+
+// Note: currently BESS-managed hugepages do not support VFIO driver,
+//       so DPDK is default for now.
+DEFINE_bool(dpdk, true, "Let DPDK manage hugepages");
 
 static bool ValidateCoreID(const char *, int32_t value) {
   if (!is_cpu_present(value)) {
@@ -92,14 +94,16 @@ static const bool _p_dummy[[maybe_unused]] =
     google::RegisterFlagValidator(&FLAGS_p, &ValidateTCPPort);
 
 static bool ValidateMegabytesPerSocket(const char *, int32_t value) {
-  if (value <= 0) {
+  if (value < 0) {
     LOG(ERROR) << "Invalid memory size: " << value;
     return false;
   }
 
   return true;
 }
-DEFINE_int32(m, 1024, "Specifies how many megabytes to use per socket");
+DEFINE_int32(m, 1024,
+             "Specifies per-socket hugepages to allocate (in MBs). "
+             "If set to 0, no hugepage is used");
 static const bool _m_dummy[[maybe_unused]] =
     google::RegisterFlagValidator(&FLAGS_m, &ValidateMegabytesPerSocket);
 
@@ -114,7 +118,8 @@ static bool ValidateBuffersPerSocket(const char *, int32_t value) {
   }
   return true;
 }
-DEFINE_int32(buffers, 262144, "Specifies how many packet buffers to allocate per socket,"
-	     " must be a power of 2.");
+DEFINE_int32(buffers, 262144,
+             "Specifies how many packet buffers to allocate per socket,"
+             " must be a power of 2.");
 static const bool _buffers_dummy[[maybe_unused]] =
     google::RegisterFlagValidator(&FLAGS_buffers, &ValidateBuffersPerSocket);
