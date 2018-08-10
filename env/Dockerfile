@@ -27,5 +27,6 @@ RUN cd /build && \
 	rm -rf /build/bess
 
 ENV CCACHE_DIR=/tmp/ccache
+ENV CCACHE_COMPRESS=true
 
 WORKDIR /build/bess
