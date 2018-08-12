@@ -1,5 +1,7 @@
 # vim: syntax=dockerfile
 
+# Bionic Beaver (18.04) does not require ppa repositories for any packages
+# we need, such as g++-7, clang-6.0, ansible, grpc, etc.
 ARG BASE_IMAGE=ubuntu:bionic
 FROM ${BASE_IMAGE}
 
