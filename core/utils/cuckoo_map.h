@@ -76,6 +76,7 @@ template <typename K, typename V, typename H = std::hash<K>,
 class CuckooMap {
  public:
   typedef std::pair<K, V> Entry;
+
   class iterator {
    public:
     using difference_type = std::ptrdiff_t;
@@ -173,17 +174,15 @@ class CuckooMap {
   iterator begin() { return iterator(*this, 0, 0); }
   iterator end() { return iterator(*this, buckets_.size(), 0); }
 
-  // Insert/update a key value pair
-  // Return the pointer to the inserted entry
-  Entry* Insert(const K& key, const V& value, const H& hasher = H(),
-                const E& eq = E()) {
+  template <typename... Args>
+  Entry* DoEmplace(const K& key, const H& hasher, const E& eq, Args&&... args) {
     Entry* entry;
     HashResult primary = Hash(key, hasher);
 
     EntryIndex idx = FindWithHash(primary, key, eq);
     if (idx != kInvalidEntryIdx) {
       entry = &entries_[idx];
-      entry->second = value;
+      new (&entry->second) V(std::forward<Args>(args)...);
       return entry;
     }
 
@@ -191,8 +190,8 @@ class CuckooMap {
 
     int trials = 0;
 
-    while ((entry = AddEntry(primary, secondary, key, value, hasher)) ==
-           nullptr) {
+    while ((entry = EmplaceEntry(primary, secondary, key, hasher,
+                                 std::forward<Args>(args)...)) == nullptr) {
       if (++trials >= 3) {
         LOG_FIRST_N(WARNING, 1)
             << "CuckooMap: Excessive hash colision detected:\n"
@@ -201,9 +200,29 @@ class CuckooMap {
       }
 
       // expand the table as the last resort
-      ExpandBuckets(hasher, eq);
+      ExpandBuckets<std::conditional_t<std::is_move_constructible<V>::value,
+                                       V&&, const V&>>(hasher, eq);
     }
     return entry;
+  }
+
+  // Insert/update a key value pair
+  // On success returns a pointer to the inserted entry, nullptr otherwise.
+  // NOTE: when Insert() returns nullptr, the copy/move constructor of `V` may
+  // not be called.
+  template <typename VV>
+  Entry* Insert(const K& key, VV&& value, const H& hasher = H(),
+                const E& eq = E()) {
+    return DoEmplace(key, hasher, eq, std::forward<VV>(value));
+  }
+
+  // Emplace/update-in-place a key value pair
+  // On success returns a pointer to the inserted entry, nullptr otherwise.
+  // NOTE: when Emplace() returns nullptr, the constructor of `V` may not be
+  // called.
+  template <typename... Args>
+  Entry* Emplace(const K& key, Args&&... args) {
+    return DoEmplace(key, H(), E(), args...);
   }
 
   // Find the pointer to the stored value by the key.
@@ -303,8 +322,9 @@ class CuckooMap {
 
   // Try to add (key, value) to the bucket indexed by bucket_idx
   // Return the pointer to the entry if success. Otherwise return nullptr.
-  Entry* AddToBucket(HashResult bucket_idx, const K& key, const V& value,
-                     const H& hasher) {
+  template <typename... Args>
+  Entry* EmplaceInBucket(HashResult bucket_idx, const K& key, const H& hasher,
+                         Args&&... args) {
     Bucket& bucket = buckets_[bucket_idx];
     int slot_idx = FindEmptySlot(bucket);
     if (slot_idx == -1) {
@@ -318,7 +338,7 @@ class CuckooMap {
 
     Entry& entry = entries_[free_idx];
     entry.first = key;
-    entry.second = value;
+    new (&entry.second) V(std::forward<Args>(args)...);
 
     num_entries_++;
     return &entry;
@@ -364,20 +384,21 @@ class CuckooMap {
 
   // Try to add the entry (key, value)
   // Return the pointer to the entry if success. Otherwise return nullptr.
-  Entry* AddEntry(HashResult primary, HashResult secondary, const K& key,
-                  const V& value, const H& hasher) {
+  template <typename... Args>
+  Entry* EmplaceEntry(HashResult primary, HashResult secondary, const K& key,
+                      const H& hasher, Args&&... args) {
     HashResult primary_bucket_index, secondary_bucket_index;
     Entry* entry = nullptr;
   again:
     primary_bucket_index = primary & bucket_mask_;
-    if ((entry = AddToBucket(primary_bucket_index, key, value, hasher)) !=
-        nullptr) {
+    if ((entry = EmplaceInBucket(primary_bucket_index, key, hasher,
+                                 std::forward<Args>(args)...)) != nullptr) {
       return entry;
     }
 
     secondary_bucket_index = secondary & bucket_mask_;
-    if ((entry = AddToBucket(secondary_bucket_index, key, value, hasher)) !=
-        nullptr) {
+    if ((entry = EmplaceInBucket(secondary_bucket_index, key, hasher,
+                                 std::forward<Args>(args)...)) != nullptr) {
       return entry;
     }
 
@@ -501,12 +522,14 @@ class CuckooMap {
   }
 
   // Resize the space of buckets, and rehash existing entries
+  template <typename VV>
   void ExpandBuckets(const H& hasher, const E& eq) {
     CuckooMap<K, V, H, E> bigger(buckets_.size() * 2, entries_.size());
 
-    for (const auto& e : *this) {
-      // While very unlikely, this insert() may cause recursive expansion
-      bool ret = bigger.Insert(e.first, e.second, hasher, eq);
+    for (auto& e : *this) {
+      // While very unlikely, this DoEmplace() may cause recursive expansion
+      Entry* ret =
+          bigger.DoEmplace(e.first, hasher, eq, std::forward<VV>(e.second));
       if (!ret) {
         return;
       }

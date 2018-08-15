@@ -45,6 +45,67 @@ TEST(CuckooMapTest, Insert) {
   EXPECT_EQ(cuckoo.Insert(1, 1)->second, 1);
 }
 
+// Only default and move constructible
+struct Foo {
+  Foo() : a(), b(), c() {}
+  Foo(Foo &&other) : a(other.a), b(other.b), c(other.c) {}
+  Foo(const Foo &) = delete;
+
+  explicit Foo(int aa, int bb, int cc) : a(aa), b(bb), c(cc) {}
+
+  int a;
+  int b;
+  int c;
+};
+
+// Only default and copy constructible
+struct Bar {
+  Bar() : a(), b(), c() {}
+  Bar(const Bar &other) : a(other.a), b(other.b), c(other.c) {}
+  Bar(Bar &&other) = delete;
+
+  explicit Bar(int aa, int bb, int cc) : a(aa), b(bb), c(cc) {}
+
+  int a;
+  int b;
+  int c;
+};
+
+// Test insertion with move
+TEST(CuckooMapTest, MoveInsert) {
+  CuckooMap<uint32_t, Foo> cuckoo;
+  Foo expected = Foo(1, 2, 3);
+  auto *entry = cuckoo.Insert(1, std::move(expected));
+  ASSERT_NE(nullptr, entry);
+  const Foo &x = entry->second;
+  EXPECT_EQ(1, x.a);
+  EXPECT_EQ(2, x.b);
+  EXPECT_EQ(3, x.c);
+}
+
+// Test insertion with copy
+TEST(CuckooMapTest, CopyInsert) {
+  CuckooMap<uint32_t, Bar> cuckoo;
+  Bar expected = Bar(1, 2, 3);
+  auto *entry = cuckoo.Insert(1, expected);
+  ASSERT_NE(nullptr, entry);
+  const Bar &x = entry->second;
+  EXPECT_EQ(1, x.a);
+  EXPECT_EQ(2, x.b);
+  EXPECT_EQ(3, x.c);
+}
+
+// Test Emplace function
+TEST(CuckooMapTest, Emplace) {
+  CuckooMap<uint32_t, Foo> cuckoo;
+  auto *entry = cuckoo.Emplace(1, 1, 2, 3);
+  ASSERT_NE(nullptr, entry);
+  const Foo &x = entry->second;
+  EXPECT_EQ(1, x.a);
+  EXPECT_EQ(2, x.b);
+  EXPECT_EQ(3, x.c);
+}
+
 // Test Find function
 TEST(CuckooMapTest, Find) {
   CuckooMap<uint32_t, uint16_t> cuckoo;
@@ -138,9 +199,7 @@ TEST(CuckooMapTest, Iterator) {
 TEST(CuckooMapTest, CollisionTest) {
   class BrokenHash {
    public:
-    bess::utils::HashResult operator()(const uint32_t) const {
-      return 9999999;
-    }
+    bess::utils::HashResult operator()(const uint32_t) const { return 9999999; }
   };
 
   CuckooMap<int, int, BrokenHash> cuckoo;
@@ -182,7 +241,6 @@ TEST(CuckooMapTest, RandomTest) {
   // check if the initial population succeeded
   for (size_t i = 0; i < array_size; i++) {
     auto ret = cuckoo.Find(i);
-    //std::cout << i << ' ' << idx << ' ' << truth[idx] << std::endl;
     if (truth[i] == 0) {
       EXPECT_EQ(nullptr, ret);
     } else {
@@ -209,7 +267,6 @@ TEST(CuckooMapTest, RandomTest) {
     } else {
       // 80% lookup
       auto ret = cuckoo.Find(idx);
-      //std::cout << i << ' ' << idx << ' ' << truth[idx] << std::endl;
       if (truth[idx] == 0) {
         EXPECT_EQ(nullptr, ret);
       } else {
@@ -220,4 +277,4 @@ TEST(CuckooMapTest, RandomTest) {
   }
 }
 
-}  // namespace (unnamed)
+}  // namespace
