@@ -40,11 +40,7 @@ import time
 TARGET_REPO = 'nefelinetworks/bess_build'
 
 imgs = {
-    'bionic64': {'arch': 'x86_64', 'base': 'ubuntu:bionic',
-                 'tag_suffix': ''},
-    # i386 is not supported any longer
-    # 'trusty32': {'arch': 'i386', 'base': 'i386/ubuntu:trusty',
-    #             'tag_suffix': '_32'},
+    'bionic64': {'base': 'ubuntu:bionic', 'tag_suffix': ''},
 }
 
 
@@ -60,7 +56,6 @@ def run_cmd(cmd, shell=False):
 
 
 def build(env):
-    arch = imgs[env]['arch']
     base = imgs[env]['base']
     tag_suffix = imgs[env]['tag_suffix']
     bess_dpdk_branch = os.getenv('BESS_DPDK_BRANCH', 'master')
@@ -69,10 +64,9 @@ def build(env):
     run_cmd('docker build '
             '--build-arg BASE_IMAGE={base} '
             '--build-arg BESS_DPDK_BRANCH={branch} '
-            '--build-arg DPDK_ARCH={arch} '
             '-t {target}:latest{suffix} -t {target}:{version}{suffix} '
-            '.'.format(base=base, branch=bess_dpdk_branch, arch=arch,
-                       target=TARGET_REPO, version=version, suffix=tag_suffix))
+            '.'.format(base=base, branch=bess_dpdk_branch, target=TARGET_REPO,
+                       version=version, suffix=tag_suffix))
 
     print('Build succeeded: {}:{}{}'.format(TARGET_REPO, version, tag_suffix))
     print('Build succeeded: {}:latest{}'.format(TARGET_REPO, tag_suffix))

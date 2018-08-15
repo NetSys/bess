@@ -25,3 +25,4 @@
         - ca-certificates
         - g++-8
         - clang-6.0
+        - ccache
