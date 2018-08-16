@@ -22,7 +22,7 @@ env/.vagrant
 *.symvers
 *.mod.c
 modules.order
-*.o.ur-safe
+*.o.ur-*
 
 # Libraries
 *.lib
