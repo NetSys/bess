@@ -42,7 +42,7 @@ install:
   - sudo gem install ffi fpm
   - pip2 install --user grpcio==1.10 scapy codecov
   - pip3 install --user grpcio==1.10 scapy coverage
-  - "[[ ${COVERAGE:-0} == 0 ]] || sudo apt-get install -y g++-7"  # install gcov-7
+  - "[[ ${COVERAGE:-0} == 0 ]] || sudo apt-get install -y gcc-7"  # install gcov-7
   - "[[ ${SANITIZE:-0} == 0 ]] || sudo apt-get install -y llvm-3.8"
   - ln -s /build/dpdk-17.11 deps
   - "docker pull nefelinetworks/bess_build:latest${TAG_SUFFIX} | cat"  # cat suppresses progress bars

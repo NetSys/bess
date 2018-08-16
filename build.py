@@ -86,23 +86,9 @@ BESS_DIR = os.path.dirname(os.path.abspath(__file__))
 
 DEPS_DIR = '%s/deps' % BESS_DIR
 
-# It's best to use a release tag if possible -- see comments in
-# download_dpdk
-DPDK_REPO = os.getenv('DPDK_REPO', 'http://dpdk.org/git/dpdk')
-DPDK_TAG = os.getenv('DPDK_TAG', 'v17.11')
-
+DPDK_URL = 'https://fast.dpdk.org/rel'
 DPDK_VER = 'dpdk-17.11'
-
-# In some 32-bit container images "uname -m" incorrectly(?) reports "x86_64".
-# To work around this issue, we use "gcc -dumpmachine" to detect target architecture.
-# The output looks like "i686-linux-gnu".
-arch = cmd('gcc -dumpmachine', quiet=True).split('-')[0]
-if arch == 'x86_64':
-    DPDK_TARGET = 'x86_64-native-linuxapp-gcc'
-elif arch == 'i686':
-    DPDK_TARGET = 'i686-native-linuxapp-gcc'
-else:
-    assert False, 'Unsupported arch %s' % arch
+DPDK_TARGET = 'x86_64-native-linuxapp-gcc'
 
 kernel_release = cmd('uname -r', quiet=True).strip()
 
@@ -289,33 +275,12 @@ def download_dpdk(quiet=False):
             print('already downloaded to %s' % DPDK_DIR)
         return
     try:
-        print('Downloading %s ...  ' % DPDK_REPO)
-        # Using --depth 1 speeds download, but leaves some traps.
-        # We'll fix the trickiest one here.
-        #
-        # Because the -b arg is a tag, we will be on a detached HEAD.
-        #
-        # If you need a branch instead of a tag, or need to check
-        # out a commit by raw hash ID, run "git fetch unshallow" before
-        # your "git checkout", or remove the "--depth 1" here and
-        # remove the subsequent "git ... config remote.origin.fetch"
-        # command.
-        #
-        # If the base git is pre-2.7.4 and there is no configured
-        # user.name and user.email, "git clone" can fail when run
-        # with no (or not enough) of a user database, e.g., in a
-        # container.  To work around this, we supply a dummy
-        # user.name and user.email (which are otherwise ignored --
-        # they do not wind up in the new config file).
-        cmd('git -c user.name=git-bug-workaround -c user.email=not@used.com '
-            'clone --depth 1 -b %s %s %s' % (DPDK_TAG, DPDK_REPO, DPDK_DIR))
-        cmd("git -C %s config "
-            "remote.origin.fetch '+refs/heads/*:refs/remotes/origin/*'" %
-            DPDK_DIR)
-
+        cmd('mkdir -p %s' % DPDK_DIR)
+        url = '%s/%s.tar.gz' % (DPDK_URL, DPDK_VER)
+        print('Downloading %s ...  ' % url)
+        cmd('curl -s -L %s | tar zx -C %s --strip-components 1' %
+            (url, DPDK_DIR), shell=True)
     except:
-        # git removes the clone on interrupt, but let's do it here
-        # in case we did not finish reconfiguring.
         cmd('rm -rf %s' % (DPDK_DIR))
         raise
 

@@ -1,8 +1,9 @@
 - hosts: all
   tags: build-dep
   tasks:
-    - apt_repository: repo='ppa:ubuntu-toolchain-r/test/ubuntu'
+    - apt_repository: repo='ppa:ubuntu-toolchain-r/test' codename={{ ansible_distribution_release }}
       become: true
+      when: ansible_distribution == 'Ubuntu' and ansible_lsb.major_release|int < 18
 
     - name: Install prerequisite packages
       apt: name={{item}} update_cache=yes

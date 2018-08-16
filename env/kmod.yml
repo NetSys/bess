@@ -8,5 +8,5 @@
         - apt-transport-https
         - ca-certificates
         - build-essential
-        - linux-generic
+        - linux-headers-generic
         - linux-headers-{{ansible_kernel}}

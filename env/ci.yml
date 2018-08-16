@@ -11,18 +11,10 @@
 - hosts: all
   tags: ci
   tasks:
-    - apt_key: url='http://apt.llvm.org/llvm-snapshot.gpg.key'
-      become: true
-
-    - apt_repository: repo='deb http://apt.llvm.org/{{ ansible_distribution_release }}/ llvm-toolchain-{{ ansible_distribution_release }}-6.0 main'
-      become: true
-
     - name: Install additional compilers for the build container
       apt: name={{item}} update_cache=yes
       become: true
       with_items:
-        - apt-transport-https
-        - ca-certificates
         - g++-8
         - clang-6.0
         - ccache
