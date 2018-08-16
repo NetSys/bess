@@ -441,7 +441,6 @@ def build_all():
 def do_clean():
     print('Cleaning up...')
     cmd('make -C core clean')
-    cmd('rm -f bin/bessd')
     cmd('make -C core/kmod clean')
     for path in ('pybess/builtin_pb', 'pybess/plugin_pb'):
         cmd('rm -rf '
