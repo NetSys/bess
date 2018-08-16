@@ -174,6 +174,10 @@ else
   CXXFLAGS += -O3 -DNDEBUG
 endif
 
+# Unless we explicitly specify a default goal, the first target in the
+# included .mk file below will become the default goal by surprise.
+.DEFAULT_GOAL := all
+
 -include extra*.mk
 
 # Given PLUGINS (set in extra.mk), set up PROTO_PLUGINS,
