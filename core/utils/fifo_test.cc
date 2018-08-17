@@ -50,7 +50,11 @@ namespace {
 // means that if we wait about 10 of these that's about .2
 // seconds, which should be plenty.  However, we let the
 // environment set it (needed under Travis, which is dog slow).
-static std::chrono::milliseconds short_sleep = std::chrono::milliseconds(20);
+//
+// In 18.04 with lowlatency kernel, 20 ms is not enough.  Tests
+// shows it still fails at 50 and 60 ms, but succeeds at 70.  Let's
+// use 100 ms (half the Travis setting) as a new default.
+static std::chrono::milliseconds short_sleep = std::chrono::milliseconds(100);
 
 // A real FIFO opener would write some data down the FIFO;
 // we just make sure we get called.
