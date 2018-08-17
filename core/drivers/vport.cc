@@ -494,7 +494,9 @@ CommandResponse VPort::Init(const bess::pb::VPortArg &arg) {
   netns_fd_ = -1;
   container_pid_ = 0;
 
-  if (arg.ifname().length() >= IFNAMSIZ) {
+  const std::string &ifname = !arg.ifname().empty() ? arg.ifname() : name();
+
+  if (ifname.length() >= IFNAMSIZ) {
     err = CommandFailure(EINVAL,
                          "Linux interface name should be "
                          "shorter than %d characters",
@@ -502,11 +504,9 @@ CommandResponse VPort::Init(const bess::pb::VPortArg &arg) {
     goto fail;
   }
 
-  if (arg.ifname().length()) {
-    strncpy(ifname_, arg.ifname().c_str(), IFNAMSIZ);
-  } else {
-    strncpy(ifname_, name().c_str(), IFNAMSIZ);
-  }
+  static_assert(sizeof(ifname_) == IFNAMSIZ);
+  strncpy(ifname_, ifname.c_str(), IFNAMSIZ - 1);
+  ifname_[IFNAMSIZ - 1] = '\0';
 
   if (arg.cpid_case() == bess::pb::VPortArg::kDocker) {
     err = docker_container_pid(arg.docker(), &container_pid_);
