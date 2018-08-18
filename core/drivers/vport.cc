@@ -502,11 +502,14 @@ CommandResponse VPort::Init(const bess::pb::VPortArg &arg) {
     goto fail;
   }
 
+  const char *ifname_src;
   if (arg.ifname().length()) {
-    strncpy(ifname_, arg.ifname().c_str(), IFNAMSIZ);
+    ifname_src = arg.ifname().c_str();
   } else {
-    strncpy(ifname_, name().c_str(), IFNAMSIZ);
+    ifname_src = name().c_str();
   }
+  strncpy(ifname_, ifname_src, IFNAMSIZ - 1);
+  ifname_[IFNAMSIZ - 1] = '\0';
 
   if (arg.cpid_case() == bess::pb::VPortArg::kDocker) {
     err = docker_container_pid(arg.docker(), &container_pid_);
