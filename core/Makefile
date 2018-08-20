@@ -180,6 +180,9 @@ endif
 
 -include extra*.mk
 
+# Each plugin may have their own extra Makefile snippets
+-include $(addsuffix /extra*.mk,$(PLUGINS))
+
 # Given PLUGINS (set in extra.mk), set up PROTO_PLUGINS,
 # DRIVER_PLUGINS, MODULE_PLUGINS, and UTIL_PLUGINS.  Note
 # that paths in extra.mk are already absolute.  Use
