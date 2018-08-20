@@ -33,6 +33,52 @@
 
 #include "random.h"
 
+struct CopyConstructorOnly {
+  // FIXME: CuckooMap should work without this default constructor
+  CopyConstructorOnly() = default;
+  CopyConstructorOnly(CopyConstructorOnly &&other) = delete;
+
+  CopyConstructorOnly(int aa, int bb): a(aa), b(bb) {}
+  CopyConstructorOnly(const CopyConstructorOnly &other)
+      : a(other.a), b(other.b) {}
+
+  int a;
+  int b;
+};
+
+struct MoveConstructorOnly {
+  // FIXME: CuckooMap should work without this default constructor
+  MoveConstructorOnly() = default;
+  MoveConstructorOnly(const MoveConstructorOnly &other) = delete;
+
+  MoveConstructorOnly(int aa, int bb): a(aa), b(bb) {}
+  MoveConstructorOnly(MoveConstructorOnly &&other) noexcept
+      : a(other.a), b(other.b) {
+    other.a = 0;
+    other.b = 0;
+  }
+
+  int a;
+  int b;
+};
+
+// C++ has no clean way to specialize templates for derived typess...
+// so we just define a hash functor for each.
+
+template <>
+struct std::hash<CopyConstructorOnly> {
+  std::size_t operator()(const CopyConstructorOnly &t) const noexcept {
+    return std::hash<int>()(t.a + t.b);  // doesn't need to be a good one...
+  }
+};
+
+template <>
+struct std::hash<MoveConstructorOnly> {
+  std::size_t operator()(const MoveConstructorOnly &t) const noexcept {
+    return std::hash<int>()(t.a * t.b);  // doesn't need to be a good one...
+  }
+};
+
 namespace {
 
 using bess::utils::CuckooMap;
@@ -45,65 +91,61 @@ TEST(CuckooMapTest, Insert) {
   EXPECT_EQ(cuckoo.Insert(1, 1)->second, 1);
 }
 
-// Only default and move constructible
-struct Foo {
-  Foo() : a(), b(), c() {}
-  Foo(Foo &&other) : a(other.a), b(other.b), c(other.c) {}
-  Foo(const Foo &) = delete;
+template<typename T>
+void CompileTimeInstantiation() {
+  std::map<int, T> m1;
+  std::map<T, int> m2;
+  std::map<T, T> m3;
+  std::unordered_map<int, T> u1;
+  std::unordered_map<T, int> u2;
+  std::unordered_map<T, T> u3;
+  std::vector<T> v1;
 
-  explicit Foo(int aa, int bb, int cc) : a(aa), b(bb), c(cc) {}
+  // FIXME: currently, CuckooMap does not support types without a default
+  // constructor. The following will fail with the current code.
+  // CuckooMap<int, T> c1;
+  // CuckooMap<T, int> c2;
+  // CuckooMap<T, T> c3;
+}
 
-  int a;
-  int b;
-  int c;
-};
-
-// Only default and copy constructible
-struct Bar {
-  Bar() : a(), b(), c() {}
-  Bar(const Bar &other) : a(other.a), b(other.b), c(other.c) {}
-  Bar(Bar &&other) = delete;
-
-  explicit Bar(int aa, int bb, int cc) : a(aa), b(bb), c(cc) {}
-
-  int a;
-  int b;
-  int c;
-};
-
-// Test insertion with move
-TEST(CuckooMapTest, MoveInsert) {
-  CuckooMap<uint32_t, Foo> cuckoo;
-  Foo expected = Foo(1, 2, 3);
-  auto *entry = cuckoo.Insert(1, std::move(expected));
-  ASSERT_NE(nullptr, entry);
-  const Foo &x = entry->second;
-  EXPECT_EQ(1, x.a);
-  EXPECT_EQ(2, x.b);
-  EXPECT_EQ(3, x.c);
+TEST(CuckooMap, TypeSupport) {
+  // Standard containers, such as std::map and std::vector, should be able to
+  // contain types with various constructor and assignment restrictions.
+  // The below will check this ability at compile time.
+  CompileTimeInstantiation<CopyConstructorOnly>();
+  CompileTimeInstantiation<MoveConstructorOnly>();
 }
 
 // Test insertion with copy
 TEST(CuckooMapTest, CopyInsert) {
-  CuckooMap<uint32_t, Bar> cuckoo;
-  Bar expected = Bar(1, 2, 3);
-  auto *entry = cuckoo.Insert(1, expected);
+  CuckooMap<uint32_t, CopyConstructorOnly> cuckoo;
+  auto expected = CopyConstructorOnly(1, 2);
+  auto *entry = cuckoo.Insert(10, expected);
   ASSERT_NE(nullptr, entry);
-  const Bar &x = entry->second;
+  const auto &x = entry->second;
   EXPECT_EQ(1, x.a);
   EXPECT_EQ(2, x.b);
-  EXPECT_EQ(3, x.c);
+}
+
+// Test insertion with move
+TEST(CuckooMapTest, MoveInsert) {
+  CuckooMap<uint32_t, MoveConstructorOnly> cuckoo;
+  auto expected = MoveConstructorOnly(3, 4);
+  auto *entry = cuckoo.Insert(11, std::move(expected));
+  ASSERT_NE(nullptr, entry);
+  const auto &x = entry->second;
+  EXPECT_EQ(3, x.a);
+  EXPECT_EQ(4, x.b);
 }
 
 // Test Emplace function
 TEST(CuckooMapTest, Emplace) {
-  CuckooMap<uint32_t, Foo> cuckoo;
-  auto *entry = cuckoo.Emplace(1, 1, 2, 3);
+  CuckooMap<uint32_t, CopyConstructorOnly> cuckoo;
+  auto *entry = cuckoo.Emplace(12, 5, 6);
   ASSERT_NE(nullptr, entry);
-  const Foo &x = entry->second;
-  EXPECT_EQ(1, x.a);
-  EXPECT_EQ(2, x.b);
-  EXPECT_EQ(3, x.c);
+  const auto &x = entry->second;
+  EXPECT_EQ(5, x.a);
+  EXPECT_EQ(6, x.b);
 }
 
 // Test Find function
