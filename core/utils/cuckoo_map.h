@@ -222,7 +222,7 @@ class CuckooMap {
   // called.
   template <typename... Args>
   Entry* Emplace(const K& key, Args&&... args) {
-    return DoEmplace(key, H(), E(), args...);
+    return DoEmplace(key, H(), E(), std::forward<Args>(args)...);
   }
 
   // Find the pointer to the stored value by the key.
