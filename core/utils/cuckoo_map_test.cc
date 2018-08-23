@@ -33,6 +33,52 @@
 
 #include "random.h"
 
+struct CopyConstructorOnly {
+  // FIXME: CuckooMap should work without this default constructor
+  CopyConstructorOnly() = default;
+  CopyConstructorOnly(CopyConstructorOnly &&other) = delete;
+
+  CopyConstructorOnly(int aa, int bb): a(aa), b(bb) {}
+  CopyConstructorOnly(const CopyConstructorOnly &other)
+      : a(other.a), b(other.b) {}
+
+  int a;
+  int b;
+};
+
+struct MoveConstructorOnly {
+  // FIXME: CuckooMap should work without this default constructor
+  MoveConstructorOnly() = default;
+  MoveConstructorOnly(const MoveConstructorOnly &other) = delete;
+
+  MoveConstructorOnly(int aa, int bb): a(aa), b(bb) {}
+  MoveConstructorOnly(MoveConstructorOnly &&other) noexcept
+      : a(other.a), b(other.b) {
+    other.a = 0;
+    other.b = 0;
+  }
+
+  int a;
+  int b;
+};
+
+// C++ has no clean way to specialize templates for derived typess...
+// so we just define a hash functor for each.
+
+template <>
+struct std::hash<CopyConstructorOnly> {
+  std::size_t operator()(const CopyConstructorOnly &t) const noexcept {
+    return std::hash<int>()(t.a + t.b);  // doesn't need to be a good one...
+  }
+};
+
+template <>
+struct std::hash<MoveConstructorOnly> {
+  std::size_t operator()(const MoveConstructorOnly &t) const noexcept {
+    return std::hash<int>()(t.a * t.b);  // doesn't need to be a good one...
+  }
+};
+
 namespace {
 
 using bess::utils::CuckooMap;
@@ -43,6 +89,63 @@ TEST(CuckooMapTest, Insert) {
   EXPECT_EQ(cuckoo.Insert(1, 99)->second, 99);
   EXPECT_EQ(cuckoo.Insert(2, 98)->second, 98);
   EXPECT_EQ(cuckoo.Insert(1, 1)->second, 1);
+}
+
+template<typename T>
+void CompileTimeInstantiation() {
+  std::map<int, T> m1;
+  std::map<T, int> m2;
+  std::map<T, T> m3;
+  std::unordered_map<int, T> u1;
+  std::unordered_map<T, int> u2;
+  std::unordered_map<T, T> u3;
+  std::vector<T> v1;
+
+  // FIXME: currently, CuckooMap does not support types without a default
+  // constructor. The following will fail with the current code.
+  // CuckooMap<int, T> c1;
+  // CuckooMap<T, int> c2;
+  // CuckooMap<T, T> c3;
+}
+
+TEST(CuckooMap, TypeSupport) {
+  // Standard containers, such as std::map and std::vector, should be able to
+  // contain types with various constructor and assignment restrictions.
+  // The below will check this ability at compile time.
+  CompileTimeInstantiation<CopyConstructorOnly>();
+  CompileTimeInstantiation<MoveConstructorOnly>();
+}
+
+// Test insertion with copy
+TEST(CuckooMapTest, CopyInsert) {
+  CuckooMap<uint32_t, CopyConstructorOnly> cuckoo;
+  auto expected = CopyConstructorOnly(1, 2);
+  auto *entry = cuckoo.Insert(10, expected);
+  ASSERT_NE(nullptr, entry);
+  const auto &x = entry->second;
+  EXPECT_EQ(1, x.a);
+  EXPECT_EQ(2, x.b);
+}
+
+// Test insertion with move
+TEST(CuckooMapTest, MoveInsert) {
+  CuckooMap<uint32_t, MoveConstructorOnly> cuckoo;
+  auto expected = MoveConstructorOnly(3, 4);
+  auto *entry = cuckoo.Insert(11, std::move(expected));
+  ASSERT_NE(nullptr, entry);
+  const auto &x = entry->second;
+  EXPECT_EQ(3, x.a);
+  EXPECT_EQ(4, x.b);
+}
+
+// Test Emplace function
+TEST(CuckooMapTest, Emplace) {
+  CuckooMap<uint32_t, CopyConstructorOnly> cuckoo;
+  auto *entry = cuckoo.Emplace(12, 5, 6);
+  ASSERT_NE(nullptr, entry);
+  const auto &x = entry->second;
+  EXPECT_EQ(5, x.a);
+  EXPECT_EQ(6, x.b);
 }
 
 // Test Find function
@@ -138,9 +241,7 @@ TEST(CuckooMapTest, Iterator) {
 TEST(CuckooMapTest, CollisionTest) {
   class BrokenHash {
    public:
-    bess::utils::HashResult operator()(const uint32_t) const {
-      return 9999999;
-    }
+    bess::utils::HashResult operator()(const uint32_t) const { return 9999999; }
   };
 
   CuckooMap<int, int, BrokenHash> cuckoo;
@@ -182,7 +283,6 @@ TEST(CuckooMapTest, RandomTest) {
   // check if the initial population succeeded
   for (size_t i = 0; i < array_size; i++) {
     auto ret = cuckoo.Find(i);
-    //std::cout << i << ' ' << idx << ' ' << truth[idx] << std::endl;
     if (truth[i] == 0) {
       EXPECT_EQ(nullptr, ret);
     } else {
@@ -209,7 +309,6 @@ TEST(CuckooMapTest, RandomTest) {
     } else {
       // 80% lookup
       auto ret = cuckoo.Find(idx);
-      //std::cout << i << ' ' << idx << ' ' << truth[idx] << std::endl;
       if (truth[idx] == 0) {
         EXPECT_EQ(nullptr, ret);
       } else {
@@ -220,4 +319,4 @@ TEST(CuckooMapTest, RandomTest) {
   }
 }
 
-}  // namespace (unnamed)
+}  // namespace
