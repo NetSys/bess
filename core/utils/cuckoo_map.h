@@ -210,10 +210,14 @@ class CuckooMap {
   // On success returns a pointer to the inserted entry, nullptr otherwise.
   // NOTE: when Insert() returns nullptr, the copy/move constructor of `V` may
   // not be called.
-  template <typename VV>
-  Entry* Insert(const K& key, VV&& value, const H& hasher = H(),
+  Entry* Insert(const K& key, const V& value, const H& hasher = H(),
                 const E& eq = E()) {
-    return DoEmplace(key, hasher, eq, std::forward<VV>(value));
+    return DoEmplace(key, hasher, eq, value);
+  }
+
+  Entry* Insert(const K& key, V&& value, const H& hasher = H(),
+                const E& eq = E()) {
+    return DoEmplace(key, hasher, eq, std::move(value));
   }
 
   // Emplace/update-in-place a key value pair
