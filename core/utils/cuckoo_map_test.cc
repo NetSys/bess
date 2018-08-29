@@ -29,6 +29,10 @@
 
 #include "cuckoo_map.h"
 
+#include <map>
+#include <unordered_map>
+#include <vector>
+
 #include <gtest/gtest.h>
 
 #include "random.h"
