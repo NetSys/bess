@@ -73,7 +73,7 @@ class FlowGen final : public Module {
         generated_flows_(),
         flows_free_(),
         events_(),
-        templ_(),
+        tmpl_(),
         template_size_(),
         rng_(),
         arrival_(),
@@ -114,7 +114,8 @@ class FlowGen final : public Module {
   void PopulateInitialFlows();
 
   CommandResponse UpdateBaseAddresses();
-  bess::Packet *FillPacket(struct flow *f);
+  bess::Packet *FillUDPPacket(struct flow *f);
+  bess::Packet *FillTCPPacket(struct flow *f);
   void GeneratePackets(Context *ctx, bess::PacketBatch *batch);
 
   CommandResponse ProcessArguments(const bess::pb::FlowGenArg &arg);
@@ -129,8 +130,9 @@ class FlowGen final : public Module {
   // Priority queue of future events
   EventQueue events_;
 
-  char *templ_;
+  char *tmpl_;
   int template_size_;
+  uint16_t l4_proto_;
 
   Random rng_;
 
