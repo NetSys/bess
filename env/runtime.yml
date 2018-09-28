@@ -15,6 +15,7 @@
     - name: Install list of Python packages
       pip:
         name:
+          - protobuf
           - grpcio
           - scapy
         state: latest
