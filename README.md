@@ -17,7 +17,7 @@ If you are new to BESS, we recommend you start here:
 To install BESS on Linux quickly, you can download the binary from [Release](https://github.com/NetSys/bess/releases/latest). Please refer to [GCC x86 Options](https://gcc.gnu.org/onlinedocs/gcc/x86-Options.html) to determine which tarball to use. Suppose `bess-core2-linux.tar.gz` is downloaded:
 
     sudo apt-get install -y python python-pip libgraph-easy-perl
-    pip install grpcio scapy
+    pip install --user protobuf grpcio scapy
     sudo sysctl vm.nr_hugepages=1024  # For single NUMA node systems
     tar -xf bess-core2-linux.tar.gz
     cd bess/
