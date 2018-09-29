@@ -436,16 +436,10 @@ CommandResponse FlowGen::UpdateBaseAddresses() {
   ip_dst_base_ = ip->dst.value();
   size_t ip_bytes = (ip->header_length) << 2;
 
-  if (l4_proto_ == Ipv4::Proto::kUdp) {
-    Udp *udpheader = reinterpret_cast<Udp *>(p + sizeof(Ethernet) + sizeof(Ipv4));
-    port_src_base_ = udpheader->src_port.value();
-    port_dst_base_ = udpheader->dst_port.value();
-
-  } else if (l4_proto_ == Ipv4::Proto::kTcp) {
-    Tcp *tcpheader = reinterpret_cast<Tcp *>(p + sizeof(Ethernet) + sizeof(Ipv4));
-    port_src_base_ = tcpheader->src_port.value();
-    port_dst_base_ = tcpheader->dst_port.value();
-  }
+  /* UDP and TCP can share the same header only for  port' contexts */
+  Udp *l4 = reinterpret_cast<Udp *>(tmpl_ + sizeof(Ethernet) + ip_bytes);
+  port_src_base_ = l4->src_port.value();
+  port_dst_base_ = l4->dst_port.value();
 
   return CommandSuccess();
 }
@@ -463,7 +457,6 @@ bess::Packet *FlowGen::FillUdpPacket(struct flow *f) {
 
   Ethernet *eth = reinterpret_cast<Ethernet *>(p);
   Ipv4 *ip = reinterpret_cast<Ipv4 *>(eth + 1);
-  Udp *udp = reinterpret_cast<Udp *>(ip + 1);
 
   pkt->set_data_off(SNBUF_HEADROOM);
   pkt->set_total_len(size);
@@ -473,6 +466,9 @@ bess::Packet *FlowGen::FillUdpPacket(struct flow *f) {
 
   ip->src = f->src_ip;
   ip->dst = f->dst_ip;
+
+  size_t ip_bytes = (ip->header_length) << 2;
+  Udp *udp = reinterpret_cast<Udp *>(reinterpret_cast<char *>(ip) + ip_bytes);
   udp->src_port = f->src_port;
   udp->dst_port = f->dst_port;
 
@@ -496,7 +492,6 @@ bess::Packet *FlowGen::FillTcpPacket(struct flow *f) {
 
   Ethernet *eth = reinterpret_cast<Ethernet *>(p);
   Ipv4 *ip = reinterpret_cast<Ipv4 *>(eth + 1);
-  Tcp *tcp = reinterpret_cast<Tcp *>(ip + 1);
 
   bess::utils::Copy(p, tmpl_, size, true);
 
@@ -519,6 +514,9 @@ bess::Packet *FlowGen::FillTcpPacket(struct flow *f) {
 
   ip->src = f->src_ip;
   ip->dst = f->dst_ip;
+
+  size_t ip_bytes = (ip->header_length) << 2;
+  Tcp *tcp = reinterpret_cast<Tcp *>(reinterpret_cast<char *>(ip) + ip_bytes);
   tcp->src_port = f->src_port;
   tcp->dst_port = f->dst_port;
 
