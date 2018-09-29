@@ -49,8 +49,6 @@ using bess::utils::Udp;
 using bess::utils::be16_t;
 using bess::utils::be32_t;
 
-#define MAX_TEMPLATE_SIZE 1536
-
 /* we ignore the last 1% tail to make the variance finite */
 const double PARETO_TAIL_LIMIT = 0.99;
 
@@ -207,7 +205,7 @@ CommandResponse FlowGen::ProcessArguments(const bess::pb::FlowGenArg &arg) {
   template_size_ = arg.template_().length();
 
   memset(tmpl_, 0, MAX_TEMPLATE_SIZE);
-  bess::utils::Copy(tmpl_, arg.template_().c_str(), template_size_);
+  bess::utils::Copy(tmpl_, tmpl, template_size_);
   CommandResponse err = UpdateBaseAddresses();
   if (err.error().code() != 0) {
     return err;
@@ -313,7 +311,7 @@ CommandResponse FlowGen::CommandUpdate(const bess::pb::FlowGenArg &arg) {
     }
 
     memset(tmpl_, 0, MAX_TEMPLATE_SIZE);
-    bess::utils::Copy(tmpl_, arg.template_().c_str(), template_size_);
+    bess::utils::Copy(tmpl_, tmpl, template_size_);
   }
 
   double prev_pps = 0;
@@ -404,16 +402,12 @@ CommandResponse FlowGen::Init(const bess::pb::FlowGenArg &arg) {
   duration_ = Duration::kUniform;
   pareto_.alpha = 1.3;
   burst_ = bess::PacketBatch::kMaxBurst;
+  l4_proto_ = 0;
 
   /* register task */
   tid = RegisterTask(nullptr);
   if (tid == INVALID_TASK_ID) {
     return CommandFailure(ENOMEM, "task creation failed");
-  }
-
-  tmpl_ = new char[MAX_TEMPLATE_SIZE];
-  if (tmpl_ == nullptr) {
-    return CommandFailure(ENOMEM, "unable to allocate template");
   }
 
   err = ProcessArguments(arg);
@@ -434,19 +428,13 @@ void FlowGen::DeInit() {
     delete flows_free_.top();
     flows_free_.pop();
   }
-
-  delete[] tmpl_;
 }
 
 CommandResponse FlowGen::UpdateBaseAddresses() {
-  char *p = reinterpret_cast<char *>(tmpl_);
-  if (!p) {
-    return CommandFailure(EINVAL, "must specify 'template'");
-  }
-
-  Ipv4 *ipheader = reinterpret_cast<Ipv4 *>(p + sizeof(Ethernet));
-  ip_src_base_ = ipheader->src.value();
-  ip_dst_base_ = ipheader->dst.value();
+  Ipv4 *ip = reinterpret_cast<Ipv4 *>(tmpl_ + sizeof(Ethernet));
+  ip_src_base_ = ip->src.value();
+  ip_dst_base_ = ip->dst.value();
+  size_t ip_bytes = (ip->header_length) << 2;
 
   if (l4_proto_ == Ipv4::Proto::kUdp) {
     Udp *udpheader = reinterpret_cast<Udp *>(p + sizeof(Ethernet) + sizeof(Ipv4));
@@ -462,7 +450,7 @@ CommandResponse FlowGen::UpdateBaseAddresses() {
   return CommandSuccess();
 }
 
-bess::Packet *FlowGen::FillUDPPacket(struct flow *f) {
+bess::Packet *FlowGen::FillUdpPacket(struct flow *f) {
   bess::Packet *pkt;
 
   int size = template_size_;
@@ -495,7 +483,7 @@ bess::Packet *FlowGen::FillUDPPacket(struct flow *f) {
 }
 
 
-bess::Packet *FlowGen::FillTCPPacket(struct flow *f) {
+bess::Packet *FlowGen::FillTcpPacket(struct flow *f) {
   bess::Packet *pkt;
 
   int size = template_size_;
@@ -510,6 +498,8 @@ bess::Packet *FlowGen::FillTCPPacket(struct flow *f) {
   Ipv4 *ip = reinterpret_cast<Ipv4 *>(eth + 1);
   Tcp *tcp = reinterpret_cast<Tcp *>(ip + 1);
 
+  bess::utils::Copy(p, tmpl_, size, true);
+
   // SYN or FIN?
   if (f->first_pkt || f->packets_left <= 1) {
     pkt->set_total_len(60);  // eth + ip + tcp
@@ -519,8 +509,6 @@ bess::Packet *FlowGen::FillTCPPacket(struct flow *f) {
     pkt->set_data_off(SNBUF_HEADROOM);
     pkt->set_total_len(size);
     pkt->set_data_len(size);
-
-    bess::utils::Copy(p, tmpl_, size, true);
   }
 
   uint8_t tcp_flags = f->first_pkt ? /* SYN */ 0x02 : /* ACK */ 0x10;
@@ -567,9 +555,9 @@ void FlowGen::GeneratePackets(Context *ctx, bess::PacketBatch *batch) {
 
     bess::Packet *pkt = nullptr;
     if (l4_proto_ == Ipv4::Proto::kUdp) {
-      pkt = FillUDPPacket(f);
+      pkt = FillUdpPacket(f);
     } else if (l4_proto_ == Ipv4::Proto::kTcp) {
-      pkt = FillTCPPacket(f);
+      pkt = FillTcpPacket(f);
     }
     if (pkt) {
       batch->add(pkt);

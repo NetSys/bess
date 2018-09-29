@@ -40,6 +40,8 @@
 #include "../utils/endian.h"
 #include "../utils/random.h"
 
+#define MAX_TEMPLATE_SIZE 1536
+
 typedef std::pair<uint64_t, struct flow *> Event;
 typedef std::priority_queue<Event, std::vector<Event>, std::greater<Event>>
     EventQueue;
@@ -114,8 +116,8 @@ class FlowGen final : public Module {
   void PopulateInitialFlows();
 
   CommandResponse UpdateBaseAddresses();
-  bess::Packet *FillUDPPacket(struct flow *f);
-  bess::Packet *FillTCPPacket(struct flow *f);
+  bess::Packet *FillUdpPacket(struct flow *f);
+  bess::Packet *FillTcpPacket(struct flow *f);
   void GeneratePackets(Context *ctx, bess::PacketBatch *batch);
 
   CommandResponse ProcessArguments(const bess::pb::FlowGenArg &arg);
@@ -130,9 +132,9 @@ class FlowGen final : public Module {
   // Priority queue of future events
   EventQueue events_;
 
-  char *tmpl_;
+  unsigned char tmpl_[MAX_TEMPLATE_SIZE] = {};
   int template_size_;
-  uint16_t l4_proto_;
+  uint8_t l4_proto_;
 
   Random rng_;
 
