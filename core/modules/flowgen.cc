@@ -181,49 +181,69 @@ void FlowGen::PopulateInitialFlows() {
   }
 }
 
-CommandResponse FlowGen::ProcessArguments(const bess::pb::FlowGenArg &arg) {
+CommandResponse FlowGen::ProcessUpdatableArguments(const bess::pb::FlowGenArg &arg) {
+
   if (arg.template_().length() == 0) {
-    return CommandFailure(EINVAL, "must specify 'template'");
+    if (strnlen(reinterpret_cast<const char*>(tmpl_), MAX_TEMPLATE_SIZE) == 0) {
+      return CommandFailure(EINVAL, "must specify 'template'");
+    }
+  } else {
+    // update template
+    if (arg.template_().length() > MAX_TEMPLATE_SIZE) {
+      return CommandFailure(EINVAL, "'template' is too big");
+    }
+
+    const char *tmpl = arg.template_().c_str();
+    const Ethernet *eth = reinterpret_cast<const Ethernet *>(tmpl);
+    if (eth->ether_type != be16_t(Ethernet::Type::kIpv4)) {
+      return CommandFailure(EINVAL, "'template' is not IPv4");
+    }
+
+    const Ipv4 *ip = reinterpret_cast<const Ipv4 *>(eth + 1);
+    if (ip->protocol != Ipv4::Proto::kUdp &&
+        ip->protocol != Ipv4::Proto::kTcp) {
+      return CommandFailure(EINVAL, "'template' is not UDP or TCP");
+    }
+
+    if (l4_proto_ == 0) {
+      l4_proto_ = ip->protocol;
+    } else if (l4_proto_ != ip->protocol) {
+      return CommandFailure(EINVAL, "'template' can not be updated");
+    }
+
+    template_size_ = arg.template_().length();
+
+    memset(tmpl_, 0, MAX_TEMPLATE_SIZE);
+    bess::utils::Copy(tmpl_, tmpl, template_size_);
+    CommandResponse err = UpdateBaseAddresses();
+    if (err.error().code() != 0) {
+      return err;
+    }
   }
 
-  if (arg.template_().length() > MAX_TEMPLATE_SIZE) {
-    return CommandFailure(EINVAL, "'template' is too big");
+  if (arg.pps() != 0) {
+    if (std::isnan(arg.pps()) || arg.pps() < 0.0) {
+      return CommandFailure(EINVAL, "invalid 'pps'");
+    }
+    total_pps_ = arg.pps();
   }
 
-  const char *tmpl = arg.template_().c_str();
-  const Ethernet *eth = reinterpret_cast<const Ethernet *>(tmpl);
-  if (eth->ether_type != be16_t(Ethernet::Type::kIpv4)) {
-    return CommandFailure(EINVAL, "'template' is not IPv4");
+  if (arg.flow_rate() != 0) {
+    if (std::isnan(arg.flow_rate()) || arg.flow_rate() < 0.0) {
+      return CommandFailure(EINVAL, "invalid 'flow_rate'");
+    }
+    flow_rate_ = arg.flow_rate();
   }
 
-  const Ipv4 *ip = reinterpret_cast<const Ipv4 *>(eth + 1);
-  if (ip->protocol != Ipv4::Proto::kUdp and ip->protocol != Ipv4::Proto::kTcp) {
-    return CommandFailure(EINVAL, "'template' is not UDP or TCP");
-  }
-  l4_proto_ = ip->protocol;
-
-  template_size_ = arg.template_().length();
-
-  memset(tmpl_, 0, MAX_TEMPLATE_SIZE);
-  bess::utils::Copy(tmpl_, tmpl, template_size_);
-  CommandResponse err = UpdateBaseAddresses();
-  if (err.error().code() != 0) {
-    return err;
+  if (flow_rate_ > total_pps_) {
+    return CommandFailure(EINVAL, "flow rate cannot be more than pps");
   }
 
-  total_pps_ = arg.pps();
-  if (std::isnan(total_pps_) || total_pps_ < 0.0) {
-    return CommandFailure(EINVAL, "invalid 'pps'");
-  }
-
-  flow_rate_ = arg.flow_rate();
-  if (std::isnan(flow_rate_) || flow_rate_ < 0.0) {
-    return CommandFailure(EINVAL, "invalid 'flow_rate'");
-  }
-
-  flow_duration_ = arg.flow_duration();
-  if (std::isnan(flow_duration_) || flow_duration_ < 0.0) {
-    return CommandFailure(EINVAL, "invalid 'flow_duration'");
+  if (arg.flow_duration() != 0) {
+    if (std::isnan(arg.flow_duration()) || arg.flow_duration() < 0.0) {
+      return CommandFailure(EINVAL, "invalid 'flow_duration'");
+    }
+    flow_duration_ = arg.flow_duration();
   }
 
   if (arg.arrival() == "uniform") {
@@ -231,8 +251,10 @@ CommandResponse FlowGen::ProcessArguments(const bess::pb::FlowGenArg &arg) {
   } else if (arg.arrival() == "exponential") {
     arrival_ = Arrival::kExponential;
   } else {
-    return CommandFailure(
-        EINVAL, "'arrival' must be either 'uniform' or 'exponential'");
+    if (arg.arrival() != "") {
+      return CommandFailure(
+          EINVAL, "'arrival' must be either 'uniform' or 'exponential'");
+    }
   }
 
   if (arg.duration() == "uniform") {
@@ -240,10 +262,16 @@ CommandResponse FlowGen::ProcessArguments(const bess::pb::FlowGenArg &arg) {
   } else if (arg.duration() == "pareto") {
     duration_ = Duration::kPareto;
   } else {
-    return CommandFailure(EINVAL,
-                          "'duration' must be either 'uniform' or 'pareto'");
+    if (arg.duration() != "") {
+      return CommandFailure(EINVAL,
+                            "'duration' must be either 'uniform' or 'pareto'");
+    }
   }
 
+  return CommandSuccess();
+}
+
+CommandResponse FlowGen::ProcessArguments(const bess::pb::FlowGenArg &arg) {
   if (arg.quick_rampup()) {
     quick_rampup_ = 1;
   }
@@ -288,85 +316,10 @@ void FlowGen::UpdateDerivedParameters() {
 }
 
 CommandResponse FlowGen::CommandUpdate(const bess::pb::FlowGenArg &arg) {
-  if (arg.template_().length() > 0) {
-    LOG(INFO) << "Updating FlowGen template";
-    if (arg.template_().length() > MAX_TEMPLATE_SIZE) {
-      return CommandFailure(EINVAL, "'template' is too big");
-    }
-    template_size_ = arg.template_().length();
-
-    const char *tmpl = arg.template_().c_str();
-    const Ethernet *eth = reinterpret_cast<const Ethernet *>(tmpl);
-    if (eth->ether_type != be16_t(Ethernet::Type::kIpv4)) {
-      return CommandFailure(EINVAL, "'template' is not IPv4");
-    }
-
-    const Ipv4 *ip = reinterpret_cast<const Ipv4 *>(eth + 1);
-    if (ip->protocol != Ipv4::Proto::kUdp and ip->protocol != Ipv4::Proto::kTcp) {
-      return CommandFailure(EINVAL, "'template' is not UDP or TCP");
-    }
-
-    if (l4_proto_ != ip->protocol) {
-      return CommandFailure(EINVAL, "'template' can not be updated");
-    }
-
-    memset(tmpl_, 0, MAX_TEMPLATE_SIZE);
-    bess::utils::Copy(tmpl_, tmpl, template_size_);
-  }
-
-  double prev_pps = 0;
-  if (!(std::isnan(arg.pps()) || arg.pps() == 0.0)) {
-    if (arg.pps() < 0) {
-      return CommandFailure(EINVAL, "pps cannot be negative");
-    }
-
-    LOG(INFO) << "Updating FlowGen pps" << arg.pps();
-    prev_pps = total_pps_;
-    total_pps_ = arg.pps();
-  }
-
-  double prev_flowrate = 0;
-  if (!(std::isnan(arg.flow_rate()) || arg.flow_rate() == 0.0)) {
-    if (arg.flow_rate() < 0) {
-      return CommandFailure(EINVAL, "flow rate cannot be negative");
-    }
-
-    LOG(INFO) << "Updating FlowGen flow rate" << arg.flow_rate();
-
-    prev_flowrate = flow_rate_;
-    flow_rate_ = arg.flow_rate();
-  }
-
-  if (flow_rate_ > total_pps_) {
-    flow_rate_ = prev_flowrate;
-    total_pps_ = prev_pps;
-    return CommandFailure(EINVAL, "flow rate cannot be more than pps");
-  }
-
-  if (!(std::isnan(arg.flow_duration()) || arg.flow_duration() == 0.0)) {
-    if (arg.flow_duration() < 0) {
-      return CommandFailure(EINVAL, "flow duration cannot be negative");
-    }
-
-    LOG(INFO) << "Updating FlowGen flow duration" << arg.flow_duration();
-    flow_duration_ = arg.flow_duration();
-  }
-
-  if (arg.arrival() == "uniform") {
-    arrival_ = Arrival::kUniform;
-  } else if (arg.arrival() == "exponential") {
-    arrival_ = Arrival::kExponential;
-  } else if (arg.arrival() != "") {
-    return CommandFailure(EINVAL, "arrival must be 'uniform' or 'exponential'");
-  }
-
-  if (arg.duration() == "uniform") {
-    duration_ = Duration::kUniform;
-  } else if (arg.duration() == "pareto") {
-    duration_ = Duration::kPareto;
-  } else if (arg.duration() != "") {
-    return CommandFailure(EINVAL, "duration must be 'uniform' or 'pareto' {%s}",
-                          arg.duration().c_str());
+  CommandResponse err;
+  err = ProcessUpdatableArguments(arg);
+  if (err.error().code() != 0) {
+    return err;
   }
 
   UpdateDerivedParameters();
@@ -415,6 +368,11 @@ CommandResponse FlowGen::Init(const bess::pb::FlowGenArg &arg) {
     return err;
   }
 
+  err = ProcessUpdatableArguments(arg);
+  if (err.error().code() != 0) {
+    return err;
+  }
+
   UpdateDerivedParameters();
 
   /* add a seed flow (and background flows if necessary) */
@@ -454,14 +412,12 @@ bess::Packet *FlowGen::FillUdpPacket(struct flow *f) {
   }
 
   char *p = pkt->buffer<char *>() + SNBUF_HEADROOM;
-
   Ethernet *eth = reinterpret_cast<Ethernet *>(p);
   Ipv4 *ip = reinterpret_cast<Ipv4 *>(eth + 1);
 
   pkt->set_data_off(SNBUF_HEADROOM);
   pkt->set_total_len(size);
   pkt->set_data_len(size);
-
   bess::utils::Copy(p, tmpl_, size, true);
 
   ip->src = f->src_ip;

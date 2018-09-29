@@ -121,6 +121,7 @@ class FlowGen final : public Module {
   void GeneratePackets(Context *ctx, bess::PacketBatch *batch);
 
   CommandResponse ProcessArguments(const bess::pb::FlowGenArg &arg);
+  CommandResponse ProcessUpdatableArguments(const bess::pb::FlowGenArg &arg);
 
   // the number of concurrent flows
   int active_flows_;
