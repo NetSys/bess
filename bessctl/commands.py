@@ -449,7 +449,7 @@ def get_var_attrs(cli, var_token, partial_word):
 def split_var(cli, var_type, line):
     if var_type in [
         'host', 'name', 'optional_name', 'gate', 'confname', 'filename',
-                    'endis', 'int', 'socket', 'pause_workers', 'dir']:
+            'endis', 'int', 'socket', 'pause_workers', 'dir']:
         pos = line.find(' ')
         if pos == -1:
             head = line
@@ -1557,12 +1557,12 @@ def show_gatehook_all(cli):
     for gatehook in gatehooks:
         if gatehook.HasField('igate'):
             cli.fout.write('%-16s %d:%s\n' % ('%s::%s' % (gatehook.class_name,
-                                              gatehook.hook_name),
+                                                          gatehook.hook_name),
                                               gatehook.igate,
                                               gatehook.module_name))
         else:
             cli.fout.write('%-16s %s:%d\n' % ('%s::%s' % (gatehook.class_name,
-                                              gatehook.hook_name),
+                                                          gatehook.hook_name),
                                               gatehook.module_name,
                                               gatehook.ogate))
 
@@ -1973,7 +1973,7 @@ def _capture_gate(cli, module_name, direction, gate, opts, program, hook_fn):
      'Capture packets on a gate')
 def tcpdump_gate(cli, module_name, direction, gate, opts):
     _capture_gate(cli, module_name, direction,
-                    gate, opts, 'tcpdump', cli.bess.tcpdump_gate)
+                  gate, opts, 'tcpdump', cli.bess.tcpdump_gate)
 
 
 @cmd('tshark MODULE [DIRECTION] [GATE] [TSHARK_OPTS...]',
@@ -1982,7 +1982,7 @@ def tshark_gate(cli, module_name, direction, gate, opts):
     if opts is None:
         opts = ['-z', 'proto,colinfo,frame.comment,frame.comment']
     _capture_gate(cli, module_name, direction,
-                    gate, opts, 'tshark', cli.bess.pcapng_gate)
+                  gate, opts, 'tshark', cli.bess.pcapng_gate)
 
 
 def _track_gate(cli, bits, flag, module_name, direction, gate):
