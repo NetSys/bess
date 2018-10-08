@@ -48,6 +48,7 @@ import traceback
 import tempfile
 import signal
 import collections
+import contextlib
 import sugar
 
 try:
@@ -67,6 +68,12 @@ CONF_EXT = 'bess'
 # errors in configuration file
 class ConfError(Exception):
     pass
+
+
+# useful for creating dummy file objects for use with `with`
+@contextlib.contextmanager
+def noop():
+    yield None
 
 
 @staticmethod
@@ -1806,6 +1813,7 @@ TcCounterRate = collections.namedtuple('TcCounterRate',
 
 def _monitor_tcs(cli, *tcs):
     GUTTER_WIDTH = 5
+    FIELDS = ('CPU MHz', 'scheduled', 'Mpps', 'Mbps', 'pkts/sched', 'cycles/p')
 
     def get_delta(old, new):
         sec_diff = new.timestamp - old.timestamp
@@ -1817,37 +1825,48 @@ def _monitor_tcs(cli, *tcs):
 
     def print_header(timestamp, name_len):
         cli.fout.write('\n')
-        fmt = '%-{}s%12s%12s%12s%12s%12s%12s\n'.format(name_len)
-        cli.fout.write(fmt %
-                       (time.strftime('%X') + str(timestamp % 1)[1:8],
-                        'CPU MHz', 'scheduled', 'Mpps', 'Mbps',
-                        'pkts/sched', 'cycles/p'))
+        fmt = '{:<%d}{:>12}{:>12}{:>12}{:>12}{:>12}{:>12}\n' % (name_len,)
+        cli.fout.write(fmt.format(time.strftime('%X') + str(timestamp % 1)[1:8], *FIELDS))
 
-        cli.fout.write('%s\n' % ('-' * (72 + name_len)))
+        cli.fout.write('{}\n'.format(('-' * (72 + name_len))))
 
     def print_footer(name_len):
-        cli.fout.write('%s\n' % ('-' * (72 + name_len)))
+        cli.fout.write('{}\n'.format('-' * (72 + name_len)))
 
-    def print_delta(tc, delta, name_len):
+    def print_delta(timestamp, tc, delta, name_len, csv_f=None):
         if delta.count >= 1:
             ppb = delta.packets / delta.count
         else:
-            ppb = 0
+            ppb = 0.
 
         if delta.packets >= 1:
             cpp = delta.cycles / delta.packets
         else:
-            cpp = 0
+            cpp = 0.
 
-        fmt = '%-{}s%12.3f%12d%12.3f%12.3f%12.3f%12.3f\n'.format(name_len)
-        cli.fout.write(fmt %
-                       (tc,
-                        delta.cycles / 1e6,
-                        delta.count,
-                        delta.packets / 1e6,
-                        delta.bits / 1e6,
-                        ppb,
-                        cpp))
+        data = (delta.cycles / 1e6, long(delta.count), delta.packets / 1e6, delta.bits / 1e6, ppb, cpp)
+        fmt = '{:<%d}{:>12.3f}{:>12d}{:>12.3f}{:>12.3f}{:>12.3f}{:>12.3f}\n' % (name_len,)
+        cli.fout.write(fmt.format(tc, *data))
+        if csv_f is not None:
+            csv_f.write('{},{},{}\n'.format(time.strftime('%X'), tc, ','.join(map(lambda x: '{:.3f}'.format(x), data))))
+
+    def print_loop(csv=None):
+        while True:
+            time.sleep(1)
+
+            for tc in tcs:
+                now[tc] = cli.bess.get_tc_stats(tc)
+
+            print_header(now[tc].timestamp, max_len)
+
+            for tc in tcs:
+                print_delta(now[tc].timestamp, 'W{} {}'.format(wids[tc], tc),
+                            get_delta(last[tc], now[tc]), max_len, csv)
+
+            print_footer(max_len)
+
+            for tc in tcs:
+                last[tc] = now[tc]
 
     all_tcs = cli.bess.list_tcs().classes_status
     wids = {}
@@ -1863,7 +1882,7 @@ def _monitor_tcs(cli, *tcs):
         if not tcs:
             raise cli.CommandError('No traffic class to monitor')
 
-    cli.fout.write('Monitoring traffic classes: %s\n' % ', '.join(tcs))
+    cli.fout.write('Monitoring traffic classes: {}\n'.format(', '.join(tcs)))
 
     last = {}
     now = {}
@@ -1872,22 +1891,11 @@ def _monitor_tcs(cli, *tcs):
         last[tc] = cli.bess.get_tc_stats(tc)
 
     try:
-        while True:
-            time.sleep(1)
-
-            for tc in tcs:
-                now[tc] = cli.bess.get_tc_stats(tc)
-
-            print_header(now[tc].timestamp, max_len)
-
-            for tc in tcs:
-                print_delta('W%d %s' % (wids[tc], tc),
-                            get_delta(last[tc], now[tc]), max_len)
-
-            print_footer(max_len)
-
-            for tc in tcs:
-                last[tc] = now[tc]
+        csv_path = os.getenv('CSV', None)
+        with open(csv_path, 'w') if csv_path is not None else noop() as csv_f:
+            if csv_f is not None:
+                csv_f.write('{}\n'.format(','.join(('Timestamp',) + FIELDS)))
+            print_loop(csv_f)
     except KeyboardInterrupt:
         pass
 
