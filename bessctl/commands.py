@@ -1713,34 +1713,34 @@ def _monitor_ports(cli, *ports):
 
     def print_header(timestamp):
         cli.fout.write('\n')
-        cli.fout.write('%-20s%14s%10s%10s        %14s%10s%10s\n' %
-                       (time.strftime('%X') + str(timestamp % 1)[1:8],
-                        'INC     Mbps', 'Mpps', 'dropped',
-                        'OUT     Mbps', 'Mpps', 'dropped'))
+        cli.fout.write('{:<20}{:>14}{:>10}{:>10}        {:>14}{:>10}{:>10}\n'.format(
+                       time.strftime('%X') + str(timestamp % 1)[1:8],
+                       'INC     Mbps', 'Mpps', 'dropped', 'OUT     Mbps', 'Mpps', 'Dropped'))
 
-        cli.fout.write('%s\n' % ('-' * 96))
+        cli.fout.write('{}\n'.format('-' * 96))
 
     def print_footer():
-        cli.fout.write('%s\n' % ('-' * 96))
+        cli.fout.write('{}\n'.format('-' * 96))
 
-    def print_delta(port, delta):
+    def print_delta(timestamp, port, delta, csv_f=None):
         # If inc/out_bytes == 0 and inc_packets != 0, it means the
         # driver does not account packet bytes.
         # Use 0 rather than inaccurate numbers from Ethernet overheads.
         if delta.inc_bytes:
             inc_mbps = (delta.inc_bytes + delta.inc_packets * 24) * 8 / 1e6
         else:
-            inc_mbps = 0
+            inc_mbps = 0.
 
         if delta.out_bytes:
             out_mbps = (delta.out_bytes + delta.out_packets * 24) * 8 / 1e6
         else:
-            out_mbps = 0
+            out_mbps = 0.
 
-        cli.fout.write('%-20s%14.1f%10.3f%10d        %14.1f%10.3f%10d\n' %
-                       (port,
-                        inc_mbps, delta.inc_packets / 1e6, delta.inc_dropped,
-                        out_mbps, delta.out_packets / 1e6, delta.out_dropped))
+        data = (inc_mbps, delta.inc_packets / 1e6, long(delta.inc_dropped), out_mbps, delta.out_packets / 1e6,
+                long(delta.out_dropped))
+        cli.fout.write('{:<20}{:>14.1f}{:>10.3f}{:>10d}        {:>14.1f}{:>10.3f}{:>10d}\n'.format(port, *data))
+        if csv_f is not None:
+            csv_f.write('{},{},{}\n'.format(time.strftime('%X'), port, ','.join(map(lambda x: '{:.3f}'.format(x), data))))
 
     def get_total(arr):
         total = copy.deepcopy(arr[0])
@@ -1753,6 +1753,29 @@ def _monitor_ports(cli, *ports):
             total.out.bytes += stat.out.bytes
         return total
 
+    def print_loop(csv_f=None):
+        while True:
+            time.sleep(1)
+
+            for port in ports:
+                now[port] = cli.bess.get_port_stats(port)
+
+            print_header(now[port].timestamp)
+
+            for port in ports:
+                print_delta(now[port].timestamp, '{}{}'.format(port, drivers[port]),
+                            get_delta(last[port], now[port]), csv_f)
+
+            print_footer()
+
+            if len(ports) > 1:
+                print_delta(now[port].timestamp, 'Total', get_delta(
+                    get_total(list(last.values())),
+                    get_total(list(now.values()))), csv_f)
+
+            for port in ports:
+                last[port] = now[port]
+
     all_ports = sorted(cli.bess.list_ports().ports, key=lambda x: x.name)
     drivers = {}
     for port in all_ports:
@@ -1763,7 +1786,7 @@ def _monitor_ports(cli, *ports):
         if not ports:
             raise cli.CommandError('No port to monitor')
 
-    cli.fout.write('Monitoring ports: %s\n' % ', '.join(ports))
+    cli.fout.write('Monitoring ports: {}\n'.format(', '.join(ports)))
 
     last = {}
     now = {}
@@ -1772,27 +1795,12 @@ def _monitor_ports(cli, *ports):
         last[port] = cli.bess.get_port_stats(port)
 
     try:
-        while True:
-            time.sleep(1)
-
-            for port in ports:
-                now[port] = cli.bess.get_port_stats(port)
-
-            print_header(now[port].timestamp)
-
-            for port in ports:
-                print_delta('%s/%s' % (port, drivers[port]),
-                            get_delta(last[port], now[port]))
-
-            print_footer()
-
-            if len(ports) > 1:
-                print_delta('Total', get_delta(
-                    get_total(list(last.values())),
-                    get_total(list(now.values()))))
-
-            for port in ports:
-                last[port] = now[port]
+        csv_path = os.getenv('CSV', None)
+        with open(csv_path, 'w') if csv_path is not None else noop() as csv_f:
+            if csv_f is not None:
+                csv_f.write('{}\n'.format(','.join(
+                    ('Timestamp', 'Port', 'Mbps In', 'Mpps In', 'Dropped In', 'Mbps Out', 'Mpps Out', 'Dropped Out'))))
+            print_loop(csv_f)
     except KeyboardInterrupt:
         pass
 
