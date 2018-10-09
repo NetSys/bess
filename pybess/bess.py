@@ -54,7 +54,7 @@ for extra in ('builtin_pb', 'plugin_pb'):
         sys.path.insert(1, p)
 del extra, p
 
-from .builtin_pb import service_pb2
+from .builtin_pb import service_pb2_grpc
 from .builtin_pb import bess_msg_pb2 as bess_msg
 from .builtin_pb import module_msg_pb2 as module_msg
 
@@ -205,7 +205,7 @@ class BESS(object):
                 self.peer = grpc_url
                 self.channel = grpc.insecure_channel(grpc_url)
                 self.channel.subscribe(self._update_status, try_to_connect=True)
-                self.stub = service_pb2.BESSControlStub(self.channel)
+                self.stub = service_pb2_grpc.BESSControlStub(self.channel)
 
             elif self.status == self.CLOSING_CHANNEL:
                 self.disconnect()
