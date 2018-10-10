@@ -48,6 +48,7 @@ import traceback
 import tempfile
 import signal
 import collections
+import contextlib
 import sugar
 
 try:
@@ -67,6 +68,12 @@ CONF_EXT = 'bess'
 # errors in configuration file
 class ConfError(Exception):
     pass
+
+
+# useful for creating dummy file objects for use with `with`
+@contextlib.contextmanager
+def noop():
+    yield None
 
 
 @staticmethod
@@ -442,7 +449,7 @@ def get_var_attrs(cli, var_token, partial_word):
 def split_var(cli, var_type, line):
     if var_type in [
         'host', 'name', 'optional_name', 'gate', 'confname', 'filename',
-                    'endis', 'int', 'socket', 'pause_workers', 'dir']:
+            'endis', 'int', 'socket', 'pause_workers', 'dir']:
         pos = line.find(' ')
         if pos == -1:
             head = line
@@ -1550,12 +1557,12 @@ def show_gatehook_all(cli):
     for gatehook in gatehooks:
         if gatehook.HasField('igate'):
             cli.fout.write('%-16s %d:%s\n' % ('%s::%s' % (gatehook.class_name,
-                                              gatehook.hook_name),
+                                                          gatehook.hook_name),
                                               gatehook.igate,
                                               gatehook.module_name))
         else:
             cli.fout.write('%-16s %s:%d\n' % ('%s::%s' % (gatehook.class_name,
-                                              gatehook.hook_name),
+                                                          gatehook.hook_name),
                                               gatehook.module_name,
                                               gatehook.ogate))
 
@@ -1706,34 +1713,34 @@ def _monitor_ports(cli, *ports):
 
     def print_header(timestamp):
         cli.fout.write('\n')
-        cli.fout.write('%-20s%14s%10s%10s        %14s%10s%10s\n' %
-                       (time.strftime('%X') + str(timestamp % 1)[1:8],
-                        'INC     Mbps', 'Mpps', 'dropped',
-                        'OUT     Mbps', 'Mpps', 'dropped'))
+        cli.fout.write('{:<20}{:>14}{:>10}{:>10}        {:>14}{:>10}{:>10}\n'.format(
+                       time.strftime('%X') + str(timestamp % 1)[1:8],
+                       'INC     Mbps', 'Mpps', 'dropped', 'OUT     Mbps', 'Mpps', 'Dropped'))
 
-        cli.fout.write('%s\n' % ('-' * 96))
+        cli.fout.write('{}\n'.format('-' * 96))
 
     def print_footer():
-        cli.fout.write('%s\n' % ('-' * 96))
+        cli.fout.write('{}\n'.format('-' * 96))
 
-    def print_delta(port, delta):
+    def print_delta(timestamp, port, delta, csv_f=None):
         # If inc/out_bytes == 0 and inc_packets != 0, it means the
         # driver does not account packet bytes.
         # Use 0 rather than inaccurate numbers from Ethernet overheads.
         if delta.inc_bytes:
             inc_mbps = (delta.inc_bytes + delta.inc_packets * 24) * 8 / 1e6
         else:
-            inc_mbps = 0
+            inc_mbps = 0.
 
         if delta.out_bytes:
             out_mbps = (delta.out_bytes + delta.out_packets * 24) * 8 / 1e6
         else:
-            out_mbps = 0
+            out_mbps = 0.
 
-        cli.fout.write('%-20s%14.1f%10.3f%10d        %14.1f%10.3f%10d\n' %
-                       (port,
-                        inc_mbps, delta.inc_packets / 1e6, delta.inc_dropped,
-                        out_mbps, delta.out_packets / 1e6, delta.out_dropped))
+        data = (inc_mbps, delta.inc_packets / 1e6, long(delta.inc_dropped), out_mbps, delta.out_packets / 1e6,
+                long(delta.out_dropped))
+        cli.fout.write('{:<20}{:>14.1f}{:>10.3f}{:>10d}        {:>14.1f}{:>10.3f}{:>10d}\n'.format(port, *data))
+        if csv_f is not None:
+            csv_f.write('{},{},{}\n'.format(time.strftime('%X'), port, ','.join(map(lambda x: '{:.3f}'.format(x), data))))
 
     def get_total(arr):
         total = copy.deepcopy(arr[0])
@@ -1746,6 +1753,29 @@ def _monitor_ports(cli, *ports):
             total.out.bytes += stat.out.bytes
         return total
 
+    def print_loop(csv_f=None):
+        while True:
+            time.sleep(1)
+
+            for port in ports:
+                now[port] = cli.bess.get_port_stats(port)
+
+            print_header(now[port].timestamp)
+
+            for port in ports:
+                print_delta(now[port].timestamp, '{}{}'.format(port, drivers[port]),
+                            get_delta(last[port], now[port]), csv_f)
+
+            print_footer()
+
+            if len(ports) > 1:
+                print_delta(now[port].timestamp, 'Total', get_delta(
+                    get_total(list(last.values())),
+                    get_total(list(now.values()))), csv_f)
+
+            for port in ports:
+                last[port] = now[port]
+
     all_ports = sorted(cli.bess.list_ports().ports, key=lambda x: x.name)
     drivers = {}
     for port in all_ports:
@@ -1756,7 +1786,7 @@ def _monitor_ports(cli, *ports):
         if not ports:
             raise cli.CommandError('No port to monitor')
 
-    cli.fout.write('Monitoring ports: %s\n' % ', '.join(ports))
+    cli.fout.write('Monitoring ports: {}\n'.format(', '.join(ports)))
 
     last = {}
     now = {}
@@ -1765,27 +1795,12 @@ def _monitor_ports(cli, *ports):
         last[port] = cli.bess.get_port_stats(port)
 
     try:
-        while True:
-            time.sleep(1)
-
-            for port in ports:
-                now[port] = cli.bess.get_port_stats(port)
-
-            print_header(now[port].timestamp)
-
-            for port in ports:
-                print_delta('%s/%s' % (port, drivers[port]),
-                            get_delta(last[port], now[port]))
-
-            print_footer()
-
-            if len(ports) > 1:
-                print_delta('Total', get_delta(
-                    get_total(list(last.values())),
-                    get_total(list(now.values()))))
-
-            for port in ports:
-                last[port] = now[port]
+        csv_path = os.getenv('CSV', None)
+        with open(csv_path, 'w') if csv_path is not None else noop() as csv_f:
+            if csv_f is not None:
+                csv_f.write('{}\n'.format(','.join(
+                    ('Timestamp', 'Port', 'Mbps In', 'Mpps In', 'Dropped In', 'Mbps Out', 'Mpps Out', 'Dropped Out'))))
+            print_loop(csv_f)
     except KeyboardInterrupt:
         pass
 
@@ -1806,6 +1821,7 @@ TcCounterRate = collections.namedtuple('TcCounterRate',
 
 def _monitor_tcs(cli, *tcs):
     GUTTER_WIDTH = 5
+    FIELDS = ('CPU MHz', 'scheduled', 'Mpps', 'Mbps', 'pkts/sched', 'cycles/p')
 
     def get_delta(old, new):
         sec_diff = new.timestamp - old.timestamp
@@ -1817,37 +1833,48 @@ def _monitor_tcs(cli, *tcs):
 
     def print_header(timestamp, name_len):
         cli.fout.write('\n')
-        fmt = '%-{}s%12s%12s%12s%12s%12s%12s\n'.format(name_len)
-        cli.fout.write(fmt %
-                       (time.strftime('%X') + str(timestamp % 1)[1:8],
-                        'CPU MHz', 'scheduled', 'Mpps', 'Mbps',
-                        'pkts/sched', 'cycles/p'))
+        fmt = '{:<%d}{:>12}{:>12}{:>12}{:>12}{:>12}{:>12}\n' % (name_len,)
+        cli.fout.write(fmt.format(time.strftime('%X') + str(timestamp % 1)[1:8], *FIELDS))
 
-        cli.fout.write('%s\n' % ('-' * (72 + name_len)))
+        cli.fout.write('{}\n'.format(('-' * (72 + name_len))))
 
     def print_footer(name_len):
-        cli.fout.write('%s\n' % ('-' * (72 + name_len)))
+        cli.fout.write('{}\n'.format('-' * (72 + name_len)))
 
-    def print_delta(tc, delta, name_len):
+    def print_delta(timestamp, tc, delta, name_len, csv_f=None):
         if delta.count >= 1:
             ppb = delta.packets / delta.count
         else:
-            ppb = 0
+            ppb = 0.
 
         if delta.packets >= 1:
             cpp = delta.cycles / delta.packets
         else:
-            cpp = 0
+            cpp = 0.
 
-        fmt = '%-{}s%12.3f%12d%12.3f%12.3f%12.3f%12.3f\n'.format(name_len)
-        cli.fout.write(fmt %
-                       (tc,
-                        delta.cycles / 1e6,
-                        delta.count,
-                        delta.packets / 1e6,
-                        delta.bits / 1e6,
-                        ppb,
-                        cpp))
+        data = (delta.cycles / 1e6, long(delta.count), delta.packets / 1e6, delta.bits / 1e6, ppb, cpp)
+        fmt = '{:<%d}{:>12.3f}{:>12d}{:>12.3f}{:>12.3f}{:>12.3f}{:>12.3f}\n' % (name_len,)
+        cli.fout.write(fmt.format(tc, *data))
+        if csv_f is not None:
+            csv_f.write('{},{},{}\n'.format(time.strftime('%X'), tc, ','.join(map(lambda x: '{:.3f}'.format(x), data))))
+
+    def print_loop(csv=None):
+        while True:
+            time.sleep(1)
+
+            for tc in tcs:
+                now[tc] = cli.bess.get_tc_stats(tc)
+
+            print_header(now[tc].timestamp, max_len)
+
+            for tc in tcs:
+                print_delta(now[tc].timestamp, 'W{} {}'.format(wids[tc], tc),
+                            get_delta(last[tc], now[tc]), max_len, csv)
+
+            print_footer(max_len)
+
+            for tc in tcs:
+                last[tc] = now[tc]
 
     all_tcs = cli.bess.list_tcs().classes_status
     wids = {}
@@ -1863,7 +1890,7 @@ def _monitor_tcs(cli, *tcs):
         if not tcs:
             raise cli.CommandError('No traffic class to monitor')
 
-    cli.fout.write('Monitoring traffic classes: %s\n' % ', '.join(tcs))
+    cli.fout.write('Monitoring traffic classes: {}\n'.format(', '.join(tcs)))
 
     last = {}
     now = {}
@@ -1872,22 +1899,11 @@ def _monitor_tcs(cli, *tcs):
         last[tc] = cli.bess.get_tc_stats(tc)
 
     try:
-        while True:
-            time.sleep(1)
-
-            for tc in tcs:
-                now[tc] = cli.bess.get_tc_stats(tc)
-
-            print_header(now[tc].timestamp, max_len)
-
-            for tc in tcs:
-                print_delta('W%d %s' % (wids[tc], tc),
-                            get_delta(last[tc], now[tc]), max_len)
-
-            print_footer(max_len)
-
-            for tc in tcs:
-                last[tc] = now[tc]
+        csv_path = os.getenv('CSV', None)
+        with open(csv_path, 'w') if csv_path is not None else noop() as csv_f:
+            if csv_f is not None:
+                csv_f.write('{}\n'.format(','.join(('Timestamp',) + FIELDS)))
+            print_loop(csv_f)
     except KeyboardInterrupt:
         pass
 
@@ -1957,7 +1973,7 @@ def _capture_gate(cli, module_name, direction, gate, opts, program, hook_fn):
      'Capture packets on a gate')
 def tcpdump_gate(cli, module_name, direction, gate, opts):
     _capture_gate(cli, module_name, direction,
-                    gate, opts, 'tcpdump', cli.bess.tcpdump_gate)
+                  gate, opts, 'tcpdump', cli.bess.tcpdump_gate)
 
 
 @cmd('tshark MODULE [DIRECTION] [GATE] [TSHARK_OPTS...]',
@@ -1966,7 +1982,7 @@ def tshark_gate(cli, module_name, direction, gate, opts):
     if opts is None:
         opts = ['-z', 'proto,colinfo,frame.comment,frame.comment']
     _capture_gate(cli, module_name, direction,
-                    gate, opts, 'tshark', cli.bess.pcapng_gate)
+                  gate, opts, 'tshark', cli.bess.pcapng_gate)
 
 
 def _track_gate(cli, bits, flag, module_name, direction, gate):
