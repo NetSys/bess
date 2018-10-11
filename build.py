@@ -227,9 +227,11 @@ def check_bnx():
 
 
 def check_mlx():
-    if check_header('infiniband/verbs_exp.h', 'gcc'):
+    if check_header('infiniband/ib.h', 'gcc') and check_c_lib('mlx4') and \
+            check_c_lib('mlx5'):
         extra_libs.add('ibverbs')
-        # extra_libs.add('mlx5')
+        extra_libs.add('mlx4')
+        extra_libs.add('mlx5')
     else:
         print(' - "Mellanox OFED" is not available. '
               'Disabling MLX4 and MLX5 PMDs...')
