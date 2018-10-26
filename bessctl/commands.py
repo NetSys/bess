@@ -383,6 +383,14 @@ def get_var_attrs(cli, var_token, partial_word):
             except:
                 pass
 
+        elif var_token == 'GATEHOOK':
+            var_type = 'name'
+            var_desc = 'name of an existing gatehook instance'
+
+        elif var_token == 'GATEHOOK_CMD':
+            var_type = 'name'
+            var_desc = 'module command to run (see "show gatehookclass")'
+
         elif var_token == '[ENV_VARS...]':
             var_type = 'map'
             var_desc = 'Environmental variables for configuration'
@@ -397,7 +405,7 @@ def get_var_attrs(cli, var_token, partial_word):
 
         elif var_token == '[CMD_ARGS...]':
             var_type = 'pyobj'
-            var_desc = 'arguments for module command'
+            var_desc = 'arguments for module/gatehook command'
 
         elif var_token == '[TCPDUMP_OPTS...]':
             var_type = 'opts'
@@ -987,6 +995,21 @@ def command_module(cli, module, cmd, arg_type, args):
     cli.bess.pause_all()
     try:
         ret = cli.bess.run_module_command(module, cmd, arg_type, args)
+        cli.fout.write('response: %s\n' % repr(ret))
+    finally:
+        cli.bess.resume_all()
+
+
+@cmd('command gatehook GATEHOOK MODULE DIRECTION GATE GATEHOOK_CMD ARG_TYPE [CMD_ARGS...]',
+     'Send a command to a gatehook')
+def command_gatehook(cli, name, module, direction, gate, cmd, arg_type, args):
+    if args is None:
+        args = {}
+
+    cli.bess.pause_all()
+    try:
+        ret = cli.bess.run_gatehook_command(name, module, direction, gate, cmd,
+                                            arg_type, args)
         cli.fout.write('response: %s\n' % repr(ret))
     finally:
         cli.bess.resume_all()
