@@ -844,6 +844,7 @@ def _do_run_file(cli, conf_file):
 
     new_globals = {
         '__builtins__': __builtins__,
+        '__file__': conf_file,
         'bess': cli.bess,
         'ConfError': ConfError,
         '__bess_env__': __bess_env__,
