@@ -44,10 +44,10 @@ bess.add_tc('w1root', policy='round_robin', wid=0)
 bess.add_tc('slow', parent='w1root', policy='rate_limit', resource='packet', limit={'packet': 100})
 src1.attach_task(parent='slow')
 
-# Set up worker 2's TC tree with a Priority (root) and Queue with priority 0
-# and Rate Limit--Source 2 with priority 1
+# Set up worker 2's TC tree with a Priority (root) and Queue with priority 1
+# and Rate Limit--Source 2 with priority 0 (highest priority)
 bess.add_tc('w2root', policy='priority', wid=1)
-bess.add_tc('queue_rr', parent='w2root', policy='round_robin', priority=0)
+bess.add_tc('queue_rr', parent='w2root', policy='round_robin', priority=1)
 queue.attach_task(parent='queue_rr')
-bess.add_tc('fast', parent='w2root', priority=1, policy='rate_limit', resource='packet', limit={'packet': 100000})
+bess.add_tc('fast', parent='w2root', priority=0, policy='rate_limit', resource='packet', limit={'packet': 100000})
 src2.attach_task(parent='fast')
