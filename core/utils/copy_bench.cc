@@ -173,4 +173,4 @@ BENCHMARK_REGISTER_F(CopyFixture, CopySloppy)->Apply(SetArguments);
 BENCHMARK_REGISTER_F(CopyFixture, RteMemcpy)->Apply(SetArguments);
 BENCHMARK_REGISTER_F(CopyFixture, Memcpy)->Apply(SetArguments);
 
-BENCHMARK_MAIN()
+BENCHMARK_MAIN();
