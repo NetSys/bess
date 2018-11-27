@@ -266,6 +266,7 @@ class DefaultScheduler : public Scheduler {
       current_worker.set_current_ns(ctx->current_ns);
 
       ctx->task = leaf->task();
+      ctx->silent_drops = 0;
 
       // Run.
       auto ret = (*ctx->task)(ctx);
