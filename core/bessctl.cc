@@ -601,7 +601,8 @@ class BESSControlImpl final : public BESSControl::Service {
         bess::TrafficClass* c = it.second;
         if (c->policy() == bess::POLICY_LEAF && c->Root() == root) {
           return return_with_error(response, EBUSY,
-                                   "Worker %d has active tasks ", wid);
+                                   "Worker %d has active tasks: %s", wid,
+                                   c->name().c_str());
         }
       }
     }
