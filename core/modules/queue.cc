@@ -77,6 +77,7 @@ int Queue::Resize(int slots) {
   }
 
   queue_ = new_queue;
+  size_ = slots;
 
   if (backpressure_) {
     AdjustWaterLevels();
@@ -107,7 +108,6 @@ CommandResponse Queue::Init(const bess::pb::QueueArg &arg) {
       return err;
     }
   } else {
-    size_ = DEFAULT_QUEUE_SIZE;
     int ret = Resize(DEFAULT_QUEUE_SIZE);
     if (ret) {
       return CommandFailure(-ret);
@@ -226,7 +226,6 @@ CommandResponse Queue::SetSize(uint64_t size) {
   if (ret) {
     return CommandFailure(-ret);
   }
-  size_ = size;
 
   return CommandSuccess();
 }
