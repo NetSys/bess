@@ -73,7 +73,7 @@ def main():
     any_failure = 0
 
     try:
-        run_cmd('%s daemon start' % bessctl)
+        run_cmd('%s daemon start -k' % bessctl)
     except CommandError:
         raise Exception('bess daemon could not start')
 
