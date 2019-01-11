@@ -694,11 +694,18 @@ def _do_start(cli, opts):
     except subprocess.CalledProcessError:
         try:
             cli.bess.connect()  # reconnect to the old instance, if any
-        except:
+        except cli.bess.APIError:
             pass
         raise cli.CommandError('Cannot start BESS daemon')
     else:
-        cli.bess.connect()
+        start = time.time()
+        while time.time() - start < 3:
+            try:
+                cli.bess.connect()
+                break
+            except cli.bess.APIError:
+                # bessd is on, but its gRPC server may be not yet. Retry.
+                time.sleep(0.1)
 
     if cli.interactive:
         cli.fout.write('Done.\n')
