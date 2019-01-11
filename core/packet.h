@@ -343,7 +343,7 @@ inline void Packet::Free(Packet **pkts, size_t cnt) {
     const Packet *pkt = pkts[i];
 
     if (unlikely(pkt->pool_ != pool || !pkt->is_simple() ||
-                 pkt->refcnt() != 1)) {
+                 pkt->refcnt_ != 1)) {
       goto slow_path;
     }
   }
