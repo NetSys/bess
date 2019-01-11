@@ -68,8 +68,8 @@ class BessWildcardMatchTest(BessModuleTestCase):
         wm = WildcardMatch(fields=[{'offset': 26, 'num_bytes': 4},
                                    {'offset': 30, 'num_bytes': 4}])
         ip_ip = vstring([0xff, 0xff, 0xff, 0xff], [0xff, 0xff, 0xff, 0xff])
-        sip1 = '65.43.21.00'
-        sip2 = '00.12.34.56'
+        sip1 = '65.43.21.0'
+        sip2 = '0.12.34.56'
         dip = '12.34.56.78'
         s1d_pair = [{'value_bin': socket.inet_aton(sip1)},
                     {'value_bin': socket.inet_aton(dip)}]
@@ -81,9 +81,9 @@ class BessWildcardMatchTest(BessModuleTestCase):
         wm.add(gate=2, priority=1, masks=ip_ip, values=s2d_pair)
         wm.set_default_gate(gate=3)
 
-        pkt1 = get_tcp_packet(sip='65.43.21.00', dip='12.34.56.78')
-        pkt2 = get_tcp_packet(sip='00.12.34.56', dip='12.34.56.78')
-        pkt_nomatch = get_tcp_packet(sip='00.12.33.56', dip='12.34.56.78')
+        pkt1 = get_tcp_packet(sip='65.43.21.0', dip='12.34.56.78')
+        pkt2 = get_tcp_packet(sip='0.12.34.56', dip='12.34.56.78')
+        pkt_nomatch = get_tcp_packet(sip='0.12.33.56', dip='12.34.56.78')
 
         pkt_outs = self.run_module(wm, 0, [], range(4))
         for i in range(4):

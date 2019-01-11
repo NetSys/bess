@@ -60,15 +60,15 @@ class BessExactMatchTest(BessModuleTestCase):
         # exact match for ip src and dst
         em = ExactMatch(fields=[{'offset': 26, 'num_bytes': 4},
                                 {'offset': 30, 'num_bytes': 4}])
-        em.add(fields=[{'value_bin': socket.inet_aton('65.43.21.00')},
+        em.add(fields=[{'value_bin': socket.inet_aton('65.43.21.0')},
                        {'value_bin': socket.inet_aton('12.34.56.78')}], gate=1)
-        em.add(fields=[{'value_bin': socket.inet_aton('00.12.34.56')},
+        em.add(fields=[{'value_bin': socket.inet_aton('0.12.34.56')},
                        {'value_bin': socket.inet_aton('12.34.56.78')}], gate=2)
         em.set_default_gate(gate=3)
 
-        pkt1 = get_tcp_packet(sip='65.43.21.00', dip='12.34.56.78')
-        pkt2 = get_tcp_packet(sip='00.12.34.56', dip='12.34.56.78')
-        pkt_nomatch = get_tcp_packet(sip='00.12.33.56', dip='12.34.56.78')
+        pkt1 = get_tcp_packet(sip='65.43.21.0', dip='12.34.56.78')
+        pkt2 = get_tcp_packet(sip='0.12.34.56', dip='12.34.56.78')
+        pkt_nomatch = get_tcp_packet(sip='0.12.33.56', dip='12.34.56.78')
 
         pkt_outs = self.run_module(em, 0, [], [0])
         self.assertEquals(len(pkt_outs[0]), 0)
