@@ -150,7 +150,7 @@ def run_cli(instream=sys.stdin):
 
     try:
         s.connect()
-    except BESS.APIError as e:
+    except BESS.RPCError as e:
         if cli.interactive:
             cli.ferr.write(str(e) + '\n')
             cli.ferr.write('Perhaps bessd daemon is not running locally? '

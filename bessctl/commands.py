@@ -441,7 +441,8 @@ def get_var_attrs(cli, var_token, partial_word):
         else:
             raise
 
-    except cli.bess.APIError:
+    except (cli.bess.Error, cli.bess.APIError, cli.bess.RPCError):
+        # ignore errors, this is just auto completion
         pass
 
     if var_type is None:
@@ -692,10 +693,6 @@ def _do_start(cli, opts):
                            '\n')
         subprocess.check_call(cmd, shell='True')
     except subprocess.CalledProcessError:
-        try:
-            cli.bess.connect()  # reconnect to the old instance, if any
-        except cli.bess.APIError:
-            pass
         raise cli.CommandError('Cannot start BESS daemon')
     else:
         start = time.time()
@@ -703,9 +700,11 @@ def _do_start(cli, opts):
             try:
                 cli.bess.connect()
                 break
-            except cli.bess.APIError:
+            except cli.bess.RPCError:
                 # bessd is on, but its gRPC server may be not yet. Retry.
                 time.sleep(0.1)
+        else:
+            raise cli.CommandError('Connection timed out')
 
     if cli.interactive:
         cli.fout.write('Done.\n')
