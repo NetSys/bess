@@ -48,7 +48,7 @@ def get_local_bess_handle():
     bess = BESS()
     try:
         bess.connect()
-    except BESS.APIError:
+    except BESS.RPCError:
         raise Exception('BESS is not running')
     return bess
 

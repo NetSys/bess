@@ -146,7 +146,7 @@ class BESS(object):
     class RPCError(Exception):
         pass
 
-    # errors from this class itself
+    # errors from this class itself or misuse of this class
     class APIError(Exception):
         pass
 
@@ -214,7 +214,7 @@ class BESS(object):
                                    grpc.ChannelConnectivity.SHUTDOWN,
                                    self.BROKEN_CHANNEL]:
                 self.disconnect()
-                raise self.APIError(
+                raise self.RPCError(
                     'Connection to {} failed'.format(grpc_url))
             time.sleep(0.1)
 
