@@ -173,7 +173,7 @@ TEST(DmaMemoryPoolTest, Dump) {
     return;
   }
 
-  DmaMemoryPool pool(128 * 1024 * 1024, 0);
+  DmaMemoryPool pool(128 * 1024 * 1024, -1);
   ASSERT_TRUE(pool.Initialized());
 
   std::cout << pool.Dump();
@@ -185,7 +185,7 @@ TEST(DmaMemoryPoolTest, AlignedAlloc) {
     return;
   }
 
-  DmaMemoryPool pool(128 * 1024 * 1024, 0);
+  DmaMemoryPool pool(128 * 1024 * 1024, -1);
   ASSERT_TRUE(pool.Initialized());
 
   // should be able to alloc 128 * 1MB blocks...
@@ -216,7 +216,7 @@ TEST(DmaMemoryPoolTest, UnalignedAlloc) {
     return;
   }
 
-  DmaMemoryPool pool(128 * 1024 * 1024, 0);
+  DmaMemoryPool pool(128 * 1024 * 1024, -1);
   size_t initial_free_bytes = pool.TotalFreeBytes();
   ASSERT_TRUE(pool.Initialized());
 
