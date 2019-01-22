@@ -130,7 +130,7 @@ class StreambufLogger : public std::streambuf {
   google::LogSeverity log_level_;
 };
 
-}  // namespace (unnamed)
+}  // namespace
 
 namespace bess {
 namespace bessd {
@@ -225,51 +225,47 @@ std::tuple<bool, pid_t> TryAcquirePidfileLock(int fd) {
 }
 
 int CheckUniqueInstance(const std::string &pidfile_path) {
-  static const int kMaxPidfileLockTrials = 5;
+  const int kMaxPidfileLockTrials = 5;
 
   int fd = open(pidfile_path.c_str(), O_RDWR | O_CREAT, 0644);
   if (fd == -1) {
     PLOG(FATAL) << "open(pidfile=" << FLAGS_i << ")";
   }
 
-  bool lockacquired;
-  pid_t pid;
-  int trials;
-  for (trials = 0; trials < kMaxPidfileLockTrials; trials++) {
-    std::tie(lockacquired, pid) = TryAcquirePidfileLock(fd);
-    if (lockacquired) {
-      break;
-    }
+  int trials = 0;
+  int delay_us = 100000;
+  auto [lock_acquired, pid] = TryAcquirePidfileLock(fd);
 
+  if (!lock_acquired) {
     if (!FLAGS_k) {
       LOG(ERROR) << "You cannot run more than one BESS instance at a time "
                  << "(add -k option?)";
       exit(EXIT_FAILURE);
     }
+    LOG(INFO) << "There is another BESS daemon running (PID=" << pid << ")";
 
-    if (trials == 0) {
-      LOG(INFO) << "There is another BESS daemon running (PID=" << pid << ")";
+    while (!lock_acquired) {
+      trials++;
+
+      if (trials <= 3) {
+        LOG(INFO) << "Sending SIGTERM signal...";
+        if (kill(pid, SIGTERM) < 0) {
+          PLOG(FATAL) << "kill(pid, SIGTERM)";
+        }
+      } else if (trials <= kMaxPidfileLockTrials) {
+        LOG(INFO) << "Sending SIGKILL signal...";
+        if (kill(pid, SIGKILL) < 0) {
+          PLOG(FATAL) << "kill(pid, SIGKILL)";
+        }
+      } else {
+        LOG(FATAL) << "ERROR: Cannot kill the process";
+      }
+
+      usleep(delay_us);
+      std::tie(lock_acquired, pid) = TryAcquirePidfileLock(fd);
+      delay_us *= 2;
     }
 
-    if (trials < 3) {
-      LOG(INFO) << "Sending SIGTERM signal...";
-      if (kill(pid, SIGTERM) < 0) {
-        PLOG(FATAL) << "kill(pid, SIGTERM)";
-      }
-    } else if (trials < 5) {
-      LOG(INFO) << "Sending SIGKILL signal...";
-      if (kill(pid, SIGKILL) < 0) {
-        PLOG(FATAL) << "kill(pid, SIGKILL)";
-      }
-    } else {
-      LOG(FATAL) << "ERROR: Cannot kill the process";
-    }
-
-    usleep((trials + 1) * 100000);
-  }
-
-  // We now have the pidfile lock.
-  if (trials > 0) {
     LOG(INFO) << "Old instance has been successfully terminated.";
   }
 
