@@ -63,7 +63,8 @@ def run_cmd(cmd):
 
 def main():
 
-    arg_parser = argparse.ArgumentParser(description='Run per-module unit tests')
+    arg_parser = argparse.ArgumentParser(
+        description='Run per-module unit tests')
     arg_parser.add_argument('--test_name', type=str, default='*',
                             help='Name of a specific test to run.')
     arg_parser.add_argument('--test_dir', type=str, default=default_test_dir,
@@ -73,7 +74,7 @@ def main():
     any_failure = 0
 
     try:
-        run_cmd('%s daemon start' % bessctl)
+        run_cmd('%s daemon start -m 0' % bessctl)
     except CommandError:
         raise Exception('bess daemon could not start')
 
@@ -85,9 +86,10 @@ def main():
             run_cmd('%s daemon reset -- run file %s' % (bessctl, path))
         except CommandError:
             any_failure = 1
-            run_cmd('%s daemon start' % bessctl)
+            run_cmd('%s daemon start -m 0' % bessctl)
 
     sys.exit(any_failure)
+
 
 if __name__ == '__main__':
     main()
