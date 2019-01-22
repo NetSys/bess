@@ -77,7 +77,7 @@ class TmpFileName final {
 // This ended up having to be a macro because gtest DEATH tests did not work
 // with lambda expressions.
 #define DO_MULTI_PROCESS_TEST(CHILD, PARENT, SIGNAL)                          \
-  const int kSelectTimeoutInSecs = 2;                                         \
+  const int kSelectTimeoutInSecs = 10;                                        \
   const char *kSignalText = "foo";                                            \
   const int kSignalTextLen = 4;                                               \
                                                                               \
