@@ -316,7 +316,10 @@ def build_dpdk():
 
     print('Building DPDK...')
     nproc = int(cmd('nproc', quiet=True))
-    cmd('make -j%d -C %s EXTRA_CFLAGS=%s' % (nproc, DPDK_DIR, DPDK_CFLAGS))
+    cmd('make %s -C %s EXTRA_CFLAGS=%s' % (os.getenv('MAKEFLAGS',
+                                                     '-j%d' % nproc),
+                                           DPDK_DIR,
+                                           DPDK_CFLAGS))
 
 
 def generate_protobuf_files():
@@ -374,7 +377,7 @@ def build_bess():
     cmd('bin/bessctl daemon stop 2> /dev/null || true', shell=True)
     cmd('rm -f core/bessd')  # force relink as DPDK might have been rebuilt
     nproc = int(cmd('nproc', quiet=True))
-    cmd('make -C core -j%d' % nproc)
+    cmd('make %s -C core' % os.getenv('MAKEFLAGS', '-j%d' % nproc))
 
 
 def build_kmod():
