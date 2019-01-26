@@ -748,7 +748,9 @@ static void sn_netdev_destructor(struct net_device *netdev)
 	struct sn_device *dev = netdev_priv(netdev);
 	sn_free_queues(dev);
 	log_info("%s: releasing netdev...\n", netdev->name);
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(4,11,9))
 	free_netdev(netdev);
+#endif
 }
 
 /* bar must be a virtual address that kernel has direct access */
@@ -813,6 +815,7 @@ int sn_create_netdev(void *bar, struct sn_device **dev_ret)
 	netdev->destructor = sn_netdev_destructor;
 #else
 	netdev->priv_destructor = sn_netdev_destructor;
+	netdev->needs_free_netdev = true;
 #endif
 
 	sn_set_offloads(netdev);
