@@ -306,6 +306,30 @@ def configure_dpdk():
         cmd('rm -f %s' % DPDK_FINAL_CONFIG)
 
 
+def makeflags():
+    """
+    Return flags to pass to (gnu) Make.  We want to send $MAKEFLAGS
+    through if it's set, but annoyingly, we may have to put '-' in
+    front: both "make -n" and "make -w" (aka "make --print-directory")
+    leave $MAKEFLAGS starting without a hyphen.
+
+    If $MAKEFLAGS is not already set, use "-j" with the number of
+    cpus printed by nproc.
+    """
+    # reuse cached value if we have one
+    result = getattr(makeflags, 'result', None)
+    if result is not None:
+        return result
+    # figure out correct value, then cache it
+    result = os.getenv('MAKEFLAGS')
+    if result is None:
+        result = '-j%d' % int(cmd('nproc', quiet=True))
+    elif result != "" and not result.startswith('-'):
+        result = '-%s' % result
+    makeflags.result = result
+    return result
+
+
 def build_dpdk():
     check_essential()
     download_dpdk(quiet=True)
@@ -316,8 +340,7 @@ def build_dpdk():
 
     print('Building DPDK...')
     nproc = int(cmd('nproc', quiet=True))
-    cmd('make %s -C %s EXTRA_CFLAGS=%s' % (os.getenv('MAKEFLAGS',
-                                                     '-j%d' % nproc),
+    cmd('make %s -C %s EXTRA_CFLAGS=%s' % (makeflags(),
                                            DPDK_DIR,
                                            DPDK_CFLAGS))
 
@@ -377,7 +400,7 @@ def build_bess():
     cmd('bin/bessctl daemon stop 2> /dev/null || true', shell=True)
     cmd('rm -f core/bessd')  # force relink as DPDK might have been rebuilt
     nproc = int(cmd('nproc', quiet=True))
-    cmd('make %s -C core' % os.getenv('MAKEFLAGS', '-j%d' % nproc))
+    cmd('make %s -C core' % makeflags())
 
 
 def build_kmod():
