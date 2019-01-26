@@ -59,7 +59,9 @@ def cmd(cmd, quiet=False, shell=False):
     if not quiet:
         quiet = os.getenv('V') is None
 
-    kwargs = {'universal_newlines': True}
+    kwargs = {'universal_newlines': True,
+              'close_fds': False}  # For Python >3.2, default is True
+
     if quiet:
         kwargs['stdout'] = subprocess.PIPE
         kwargs['stderr'] = subprocess.STDOUT
