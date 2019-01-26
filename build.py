@@ -397,6 +397,7 @@ def build_bess():
     generate_protobuf_files()
 
     print('Building BESS daemon...')
+    sys.stdout.flush()
     cmd('bin/bessctl daemon stop 2> /dev/null || true', shell=True)
     cmd('rm -f core/bessd')  # force relink as DPDK might have been rebuilt
     nproc = int(cmd('nproc', quiet=True))
@@ -415,7 +416,7 @@ def build_kmod():
         if not is_kernel_header_installed():
             print('"kernel-headers-%s" is not available. Build may fail.' %
                   kernel_release)
-
+    sys.stdout.flush()
     cmd('sudo -n rmmod bess 2> /dev/null || true', shell=True)
     try:
         cmd('make -C core/kmod')
