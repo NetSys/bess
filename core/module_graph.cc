@@ -263,6 +263,12 @@ Module *ModuleGraph::CreateModule(const ModuleBuilder &builder,
 
   if (ret.error().code() != 0) {
     *perr = ret.error();
+    // Ideally these would be in the module destructors,
+    // but there are many modules (find RegisterTask calls
+    // in core/modules/*) that create tasks for themselves
+    // and do not have their own destructors.  For now,
+    // just call the teardown code here on failure.
+    m->Destroy();
     delete m;
     return nullptr;
   }
@@ -270,6 +276,7 @@ Module *ModuleGraph::CreateModule(const ModuleBuilder &builder,
   if (m->is_task()) {
     if (!tasks_.insert(m->name()).second) {
       *perr = pb_errno(ENOMEM);
+      m->Destroy();
       delete m;
       return nullptr;
     }
@@ -278,6 +285,7 @@ Module *ModuleGraph::CreateModule(const ModuleBuilder &builder,
   bool module_added = all_modules_.insert({m->name(), m}).second;
   if (!module_added) {
     *perr = pb_errno(ENOMEM);
+    m->Destroy();
     delete m;
     return nullptr;
   }
