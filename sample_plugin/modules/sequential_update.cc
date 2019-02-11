@@ -116,7 +116,7 @@ CommandResponse SequentialUpdate::CommandClear(const bess::pb::EmptyArg &) {
   return CommandSuccess();
 }
 
-void SequentialUpdate::ProcessBatch(bess::PacketBatch *batch) {
+void SequentialUpdate::ProcessBatch(Context *ctx, bess::PacketBatch *batch) {
   int cnt = batch->cnt();
 
   for (size_t i = 0; i < num_vars_; i++) {
@@ -143,7 +143,7 @@ void SequentialUpdate::ProcessBatch(bess::PacketBatch *batch) {
     var->cur = cur;
   }
 
-  RunNextModule(batch);
+  RunNextModule(ctx, batch);
 }
 
 ADD_MODULE(SequentialUpdate, "supdate",

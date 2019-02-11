@@ -46,7 +46,7 @@ public:
 
   CommandResponse Init(const sample::supdate::pb::SequentialUpdateArg &arg);
 
-  void ProcessBatch(bess::PacketBatch *batch) override;
+  void ProcessBatch(Context *ctx, bess::PacketBatch *batch) override;
 
   CommandResponse
   CommandAdd(const sample::supdate::pb::SequentialUpdateArg &arg);
