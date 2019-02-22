@@ -225,7 +225,7 @@ TEST(DmaMemoryPoolTest, UnalignedAlloc) {
 
   for (int k = 0; k < 5; k++) {
     while (true) {
-      size_t size_to_alloc = rng.GetRange(1024 * 1024);
+      size_t size_to_alloc = rng.GetRange(1024 * 1024) + 1;
       void *ptr = pool.Alloc(size_to_alloc);
 
       if (ptr == nullptr) {
