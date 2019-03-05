@@ -110,7 +110,7 @@ static void drain_sn_to_drv_q(struct llring *q) {
     if (ret)
       break;
 
-    snb = bess::Packet::from_paddr(paddr);
+    snb = bess::PacketPool::from_paddr(paddr);
     if (!snb) {
       LOG(ERROR) << "from_paddr(" << paddr << ") failed";
       continue;
@@ -130,7 +130,7 @@ static void drain_drv_to_sn_q(struct llring *q) {
     if (ret)
       break;
 
-    bess::Packet::Free(bess::Packet::from_paddr(paddr));
+    bess::Packet::Free(bess::PacketPool::from_paddr(paddr));
   }
 }
 
@@ -144,7 +144,7 @@ static void reclaim_packets(struct llring *ring) {
     if (ret == 0)
       break;
     for (int i = 0; i < ret; i++) {
-      pkts[i] = bess::Packet::from_paddr(objs[i]);
+      pkts[i] = bess::PacketPool::from_paddr(objs[i]);
     }
     bess::Packet::Free(pkts, ret);
   }
@@ -614,7 +614,7 @@ int VPort::RecvPackets(queue_t qid, bess::Packet **pkts, int max_cnt) {
     struct sn_tx_desc *tx_desc;
     uint16_t len;
 
-    pkt = pkts[i] = bess::Packet::from_paddr(paddr[i]);
+    pkt = pkts[i] = bess::PacketPool::from_paddr(paddr[i]);
 
     tx_desc = pkt->scratchpad<struct sn_tx_desc *>();
     len = tx_desc->total_len;

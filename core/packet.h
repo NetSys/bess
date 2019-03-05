@@ -186,8 +186,6 @@ class alignas(64) Packet {
 
   void CheckSanity();
 
-  static Packet *from_paddr(phys_addr_t paddr);
-
   static int mt_offset_to_databuf_offset(bess::metadata::mt_offset_t offset) {
     return offset + offsetof(Packet, metadata_) - offsetof(Packet, headroom_);
   }

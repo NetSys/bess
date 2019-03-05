@@ -66,6 +66,8 @@ class PacketPool {
   // Note: It would be ideal to not expose this
   rte_mempool *pool() { return pool_; }
 
+  static Packet *from_paddr(phys_addr_t paddr);
+
   virtual bool IsVirtuallyContiguous() = 0;
   virtual bool IsPhysicallyContiguous() = 0;
   virtual bool IsPinned() = 0;
