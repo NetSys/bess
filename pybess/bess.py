@@ -163,7 +163,7 @@ class BESS(object):
         self.debug = False
         self.stub = None
         self.channel = None
-        self.peer = None
+        self.peer = self.DEF_GRPC_URL
 
         self.status = None
 
@@ -204,15 +204,16 @@ class BESS(object):
                 self.status = None
                 self.peer = grpc_url
                 self.channel = grpc.insecure_channel(grpc_url)
-                self.channel.subscribe(self._update_status, try_to_connect=True)
+                self.channel.subscribe(self._update_status,
+                                       try_to_connect=True)
                 self.stub = service_pb2_grpc.BESSControlStub(self.channel)
 
             elif self.status == self.CLOSING_CHANNEL:
                 self.disconnect()
 
             elif self.status in [grpc.ChannelConnectivity.TRANSIENT_FAILURE,
-                                   grpc.ChannelConnectivity.SHUTDOWN,
-                                   self.BROKEN_CHANNEL]:
+                                 grpc.ChannelConnectivity.SHUTDOWN,
+                                 self.BROKEN_CHANNEL]:
                 self.disconnect()
                 raise self.RPCError(
                     'Connection to {} failed'.format(grpc_url))
@@ -221,7 +222,7 @@ class BESS(object):
     # returns no error if already disconnected
     def disconnect(self):
         try:
-            if self.is_connected():
+            if self.channel is not None:
                 if self.debug:
                     print('Disconnecting')
                 self.channel.unsubscribe(self._update_status)
@@ -229,7 +230,6 @@ class BESS(object):
             self.status = None
             self.stub = None
             self.channel = None
-            self.peer = None
 
     def set_debug(self, flag):
         self.debug = flag
@@ -588,7 +588,7 @@ class BESS(object):
                                          direction, gate)
 
     def track_gate(self, enable, name, m, bits=False, direction='out',
-                     gate=-1):
+                   gate=-1):
         arg = bess_msg.TrackArg()
         arg.bits = bits
         return self._configure_gate_hook('Track', name, m, arg, enable,
