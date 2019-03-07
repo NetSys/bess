@@ -18,6 +18,7 @@
           - protobuf
           - grpcio
           - scapy
+          - flask
         state: latest
       become: true
 
