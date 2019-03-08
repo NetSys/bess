@@ -48,52 +48,6 @@ namespace bess {
 
 static struct rte_mempool *pframe_pool[RTE_MAX_NUMA_NODES];
 
-static Packet *paddr_to_snb_memchunk(struct rte_mempool_memhdr *chunk,
-                                     phys_addr_t paddr) {
-  if (chunk->phys_addr == RTE_BAD_IOVA) {
-    return nullptr;
-  }
-
-  if (chunk->phys_addr <= paddr && paddr < chunk->phys_addr + chunk->len) {
-    uintptr_t vaddr;
-
-    vaddr = (uintptr_t)chunk->addr + paddr - chunk->phys_addr;
-    return reinterpret_cast<Packet *>(vaddr);
-  }
-
-  return nullptr;
-}
-
-Packet *Packet::from_paddr(phys_addr_t paddr) {
-  for (int i = 0; i < RTE_MAX_NUMA_NODES; i++) {
-    struct rte_mempool *pool;
-    struct rte_mempool_memhdr *chunk;
-
-    pool = pframe_pool[i];
-    if (!pool) {
-      continue;
-    }
-
-    STAILQ_FOREACH(chunk, &pool->mem_list, next) {
-      Packet *pkt = paddr_to_snb_memchunk(chunk, paddr);
-      if (!pkt) {
-        continue;
-      }
-
-      if (pkt->paddr() != paddr) {
-        LOG(ERROR) << "pkt->immutable.paddr corruption: pkt=" << pkt
-                   << ", pkt->immutable.paddr=" << pkt->paddr()
-                   << " (!= " << paddr << ")";
-        return nullptr;
-      }
-
-      return pkt;
-    }
-  }
-
-  return nullptr;
-}
-
 Packet *Packet::copy(const Packet *src) {
   DCHECK(src->is_linear());
 
