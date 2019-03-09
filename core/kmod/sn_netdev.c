@@ -193,10 +193,6 @@ static void sn_free_queues(struct sn_device *dev)
 #endif
 		netif_napi_del(&dev->rx_queues[i]->rx.napi);
 	}
-
-	/* Queues are allocated in batch,
-	 * and the tx_queues[0] is its address */
-	kfree(dev->tx_queues[0]);
 }
 
 /* Interface up */
@@ -748,9 +744,6 @@ static void sn_netdev_destructor(struct net_device *netdev)
 	struct sn_device *dev = netdev_priv(netdev);
 	sn_free_queues(dev);
 	log_info("%s: releasing netdev...\n", netdev->name);
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(4,11,9))
-	free_netdev(netdev);
-#endif
 }
 
 /* bar must be a virtual address that kernel has direct access */
@@ -815,7 +808,6 @@ int sn_create_netdev(void *bar, struct sn_device **dev_ret)
 	netdev->destructor = sn_netdev_destructor;
 #else
 	netdev->priv_destructor = sn_netdev_destructor;
-	netdev->needs_free_netdev = true;
 #endif
 
 	sn_set_offloads(netdev);
@@ -913,10 +905,16 @@ void sn_release_netdev(struct sn_device *dev)
 	rtnl_lock();
 
 	/* it is possible that the netdev has already been unregistered */
-	if (dev && dev->netdev && dev->netdev->reg_state == NETREG_REGISTERED)
+	if (dev->netdev && dev->netdev->reg_state == NETREG_REGISTERED)
 		unregister_netdevice(dev->netdev);
 
+	/* sn_netdev_destructor will be called right after unlocking */
 	rtnl_unlock();
+
+	/* Queues are allocated in batch,
+	 * and the tx_queues[0] is its address */
+	kfree(dev->tx_queues[0]);
+	free_netdev(dev->netdev);
 }
 
 /* This function is called in IRQ context on a remote core.
