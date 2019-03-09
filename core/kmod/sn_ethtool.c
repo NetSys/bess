@@ -141,4 +141,5 @@ const struct ethtool_ops sn_ethtool_ops = {
 	.get_strings 		= sn_ethtool_get_strings,
 	.get_ethtool_stats 	= sn_ethtool_get_ethtool_stats,
 	.get_drvinfo		= sn_ethtool_get_drvinfo,
+	.get_link		= ethtool_op_get_link,
 };
