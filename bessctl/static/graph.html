@@ -5,14 +5,14 @@
     <title>BESS Pipeline</title>
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css">
   </head>
-  <body>
+  <body class="d-flex flex-column vh-100">
     <script src="https://code.jquery.com/jquery-3.3.1.min.js"></script>
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.bundle.min.js"></script>
 
     <script src="https://d3js.org/d3.v4.min.js"></script>
     <script src="https://d3js.org/d3-fetch.v1.min.js"></script>
-    <script src="https://unpkg.com/viz.js@1.8.0/viz.js" type="javascript/worker"></script>
-    <script src="https://unpkg.com/d3-graphviz@1.4.0/build/d3-graphviz.min.js"></script>
+    <script src="https://unpkg.com/viz.js@1.8.2/viz.js" type="javascript/worker"></script>
+    <script src="https://unpkg.com/d3-graphviz@2.6.1/build/d3-graphviz.min.js"></script>
 
     <script src="/static/pipeline.js"></script>
 
@@ -34,9 +34,9 @@
       </div>
     </nav>
 
-    <div class="container-fluid" id="main">
-      <div class="row py-3">
-        <div class="col-12 col-md-3 col-lg-2">
+    <div class="container-fluid py-3 d-flex flex-grow-1">
+      <div class="row d-flex flex-grow-1 mr-0">
+        <div class="col-12 col-sm-4 col-lg-3 col-xl-2">
           <div class="border rounded bg-light p-3">
             <div class="form-group">
               <label class="form-label"> Options </label>
@@ -106,8 +106,8 @@
           </div>
         </div>  <!-- col-2 -->
 
-        <div class="col-12 col-md-9 col-lg-10 d-flex justify-content-center" id="graph">
-          <div id="toasts" style="position: absolute; top: 0; right: 1em;">
+        <div class="col-12 col-sm-8 col-lg-9 col-xl-10 border align-self-stretch" id="graph">
+          <div id="toasts" style="position: absolute; top: 1em; right: 1em;">
             <div class="toast" id="toast_disconnected" data-autohide="false">
               <div class="toast-header text-white bg-danger">
                 <strong>Error</strong>
@@ -127,7 +127,7 @@
               </div>
             </div>
           </div>
-        </div>
+        </div>  <!-- col-10 -->
       </div>
     </div>
 
@@ -150,6 +150,10 @@
       function refresh() {
         // remove previous (but not-yet-fired) timer
         clearTimeout(timer);
+
+        graphviz.width($('#graph').width());
+        graphviz.height($('#graph').height());
+
         d3.json('pipeline').then(function(modules) {
           update_toast('#toast_disconnected', false);
           update_toast('#toast_emptypipeline', jQuery.isEmptyObject(modules));
@@ -171,7 +175,7 @@
       }
 
       var t = d3.transition().duration(500).ease(d3.easeLinear);
-      var graphviz = d3.select("#graph").graphviz()
+      var graphviz = d3.select("#graph").graphviz({zoomScaleExtent: [0.3, 2.0]});
     </script>
   </body>
 </html>
