@@ -902,6 +902,11 @@ fail_free:
 
 void sn_release_netdev(struct sn_device *dev)
 {
+	if (!dev) {
+		log_err("called with a null pointer");
+		return;
+	}
+
 	rtnl_lock();
 
 	/* it is possible that the netdev has already been unregistered */
