@@ -135,7 +135,7 @@
       var timer = setTimeout(refresh, 1000);
 
       function update_toast(selector, show_if) {
-        elem = $(selector)
+        var elem = $(selector)
         if (show_if) {
           if (!elem.hasClass('show')) {
             elem.prependTo('#toasts').toast('show');

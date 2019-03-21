@@ -10,12 +10,13 @@ var stats = {};
 
 var opt_field;
 var opt_mode;
+var opt_humanreadable;
 
 function gates_to_str(gates, gate_type) {
     var ret = '';
 
-    for (i = 0; i < gates.length; i++) {
-        gate_num = gates[i][gate_type]
+    for (var i = 0; i < gates.length; i++) {
+        var gate_num = gates[i][gate_type]
         if (gate_type == 'igate') {
             color = '#437f97'
         } else {
@@ -40,8 +41,8 @@ function gates_to_str(gates, gate_type) {
 function add_datapoints(stats, module_name, gates, gate_type) {
     for (var i = 0; i < gates.length; i++) {
         var gate = gates[i];
-        key = [module_name, gate_type, gate[gate_type]];
-        value = {timestamp: gate.timestamp,
+        var key = [module_name, gate_type, gate[gate_type]];
+        var value = {timestamp: gate.timestamp,
                  bits: Number(gate.bytes * 8),
                  pkts: Number(gate.pkts),
                  cnt: Number(gate.cnt),
@@ -66,14 +67,14 @@ function get_edge_label(stats) {
                 break;
             case 'rate':
                 if (num_stats >= 2) {
-                    last = stats[num_stats - 2];
-                    time_diff = value.timestamp - last.timestamp;
+                    var last = stats[num_stats - 2];
+                    var time_diff = value.timestamp - last.timestamp;
                     if (opt_field == 'batchsize') {
-                        packets = value.pkts - last.pkts;
-                        batches = value.cnt - last.cnt;
+                        var packets = value.pkts - last.pkts;
+                        var batches = value.cnt - last.cnt;
                         label = batches ? packets / batches : 'N/A';
                     } else {
-                        value_diff = value[opt_field] - last[opt_field];
+                        var value_diff = value[opt_field] - last[opt_field];
                         label = Math.round(value_diff / time_diff);
                     }
                 }
@@ -116,9 +117,10 @@ function graph_to_dot(modules) {
     opt_mode = document.querySelector('input[name="mode"]:checked').value;
     opt_humanreadable = document.querySelector('input[name="humanreadable"]').checked;
 
-    var nodes = ''
+    var nodes = '';
     for (var module_name in modules) {
-        module = modules[module_name];
+	var module = modules[module_name];
+	// no need to collect igate data since we don't show them yet.
         // add_datapoints(stats, module_name, module.igates, 'igate')
         add_datapoints(stats, module_name, module.ogates, 'ogate')
 
@@ -147,9 +149,9 @@ function graph_to_dot(modules) {
 `;
     }
 
-    var edges = ''
+    var edges = '';
     for (module_name in modules) {
-        module = modules[module_name];
+        var module = modules[module_name];
         for (var i = 0; i < module.ogates.length; i++) {
             var gate = module.ogates[i];
             var dst_module = modules[gate.name];
@@ -165,7 +167,7 @@ function graph_to_dot(modules) {
         }
     }
 
-    ret = `digraph G {
+    return `digraph G {
   graph [ rankdir=TB ];
   node [ fontsize=12 ];
   edge [ fontsize=9, color="#ffb30f", arrowsize=0.5, labeldistance=1.2 ];
@@ -173,5 +175,4 @@ ${nodes}
 ${edges}
 }
 `
-    return ret
 }
