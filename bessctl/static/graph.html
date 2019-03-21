@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>BESS Pipeline</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css">
+  </head>
+  <body class="d-flex flex-column vh-100">
+    <script src="https://code.jquery.com/jquery-3.3.1.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.bundle.min.js"></script>
+
+    <script src="https://d3js.org/d3.v4.min.js"></script>
+    <script src="https://d3js.org/d3-fetch.v1.min.js"></script>
+    <script src="https://unpkg.com/viz.js@1.8.2/viz.js" type="javascript/worker"></script>
+    <script src="https://unpkg.com/d3-graphviz@2.6.1/build/d3-graphviz.min.js"></script>
+
+    <script src="/static/pipeline.js"></script>
+
+    <nav class="navbar navbar-expand-md navbar-dark bg-primary sticky-top">
+      <a class="navbar-brand" href="#">BESS</a>
+      <div class="collapse navbar-collapse">
+        <ul class="navbar-nav mr-auto">
+          <li class="nav-item active">
+            <a class="nav-link" href="#"> Pipeline </a>
+          </li>
+          <li class="nav-item disabled">
+            <a class="nav-link" href="#"> Port </a>
+          </li>
+          <li class="nav-item disabled">
+            <a class="nav-link" href="#"> TC </a>
+          </li>
+        </ul>
+        <button type="button" class="btn btn-light" onclick="refresh()">Refresh now</button>
+      </div>
+    </nav>
+
+    <div class="container-fluid py-3 d-flex flex-grow-1">
+      <div class="row d-flex flex-grow-1 mr-0">
+        <div class="col-12 col-sm-4 col-lg-3 col-xl-2">
+          <div class="border rounded bg-light p-3">
+            <div class="form-group">
+              <label class="form-label"> Options </label>
+              <div class="form-check">
+                <label class="form-check-label">
+                  <input type="checkbox" class="form-check-input" name="autorefresh" checked>
+                  Auto refresh
+                </label>
+              </div>
+              <div class="form-check">
+                <label class="form-check-label">
+                  <input type="checkbox" class="form-check-input" name="humanreadable" checked>
+                  Human readable
+                </label>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label"> Mode </label>
+              <div class="form-check">
+                <label class="form-check-label">
+                  <input type="radio" class="form-check-input" name="mode" value="rate" checked>
+                  Current rate
+                </label>
+              </div>
+              <div class="form-check">
+                <label class="form-check-label">
+                  <input type="radio" class="form-check-input" name="mode" value="total">
+                  Total
+                </label>
+              </div>
+              <div class="form-check">
+                <label class="form-check-label">
+                  <input type="radio" class="form-check-input" name="mode" value="none">
+                  None
+                </label>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label"> Metric </label>
+              <div class="form-check">
+                <label class="form-check-label">
+                  <input type="radio" class="form-check-input" name="metric" value="pkts" checked>
+                  Packets
+                </label>
+              </div>
+              <div class="form-check">
+                <label class="form-check-label">
+                  <input type="radio" class="form-check-input" name="metric" value="bits">
+                  Bits
+                </label>
+              </div>
+              <div class="form-check">
+                <label class="form-check-label">
+                  <input type="radio" class="form-check-input" name="metric" value="cnt">
+                  Batches
+                </label>
+              </div>
+              <div class="form-check">
+                <label class="form-check-label">
+                  <input type="radio" class="form-check-input" name="metric" value="batchsize">
+                  Packets/batch
+                </label>
+              </div>
+            </div>
+          </div>
+        </div>  <!-- col-2 -->
+
+        <div class="col-12 col-sm-8 col-lg-9 col-xl-10 border align-self-stretch" id="graph">
+          <div id="toasts" style="position: absolute; top: 1em; right: 1em;">
+            <div class="toast" id="toast_disconnected" data-autohide="false">
+              <div class="toast-header text-white bg-danger">
+                <strong>Error</strong>
+                <span class="spinner-border spinner-border-sm ml-auto" role="status"></span>
+              </div>
+              <div class="toast-body">
+                Disconnected from the BESS daemon. Reconnecting...
+              </div>
+            </div>
+            <div class="toast" id="toast_emptypipeline" data-autohide="false">
+              <div class="toast-header text-white bg-info">
+                <strong>Warning</strong>
+                <span class="spinner-grow spinner-grow-sm ml-auto" role="status"></span>
+              </div>
+              <div class="toast-body">
+                Pipeline is empty. No module is found.
+              </div>
+            </div>
+          </div>
+        </div>  <!-- col-10 -->
+      </div>
+    </div>
+
+    <script>
+      var timer = setTimeout(refresh, 1000);
+
+      function update_toast(selector, show_if) {
+        var elem = $(selector)
+        if (show_if) {
+          if (!elem.hasClass('show')) {
+            elem.prependTo('#toasts').toast('show');
+          }
+        } else {
+          if (elem.hasClass('show')) {
+            elem.toast('hide');
+          }
+        }
+      }
+
+      function refresh() {
+        // remove previous (but not-yet-fired) timer
+        clearTimeout(timer);
+
+        graphviz.width($('#graph').width());
+        graphviz.height($('#graph').height());
+
+        d3.json('pipeline').then(function(modules) {
+          update_toast('#toast_disconnected', false);
+          update_toast('#toast_emptypipeline', jQuery.isEmptyObject(modules));
+          dot_str = graph_to_dot(modules);
+          graphviz.transition(t).renderDot(dot_str);
+          if ($('input[name="autorefresh"]').is(':checked')) {
+            timer = setTimeout(refresh, 1000);
+          }
+        }).catch(function(error) {
+          update_toast('#toast_disconnected', true);
+          update_toast('#toast_emptypipeline', false);
+          timer = setTimeout(refresh, 3000);
+        });
+      }
+
+      var knobs = document.querySelectorAll('.form-check-input');
+      for (var i = 0; i < knobs.length; i++) {
+        knobs[i].addEventListener('click', refresh);
+      }
+
+      var t = d3.transition().duration(500).ease(d3.easeLinear);
+      var graphviz = d3.select("#graph").graphviz({zoomScaleExtent: [0.3, 2.0]});
+    </script>
+  </body>
+</html>

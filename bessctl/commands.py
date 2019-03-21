@@ -435,6 +435,15 @@ def get_var_attrs(cli, var_token, partial_word):
             var_desc = 'determines whether to pause workers for the operation (default: "pause")'
             var_candidates = ['pause', 'no_pause']
 
+        elif var_token == '[HOST]':
+            var_type = 'host'
+            var_desc = 'HTTP server address to listen on (default: "localhost")'
+
+        elif var_token == '[PORT_NUMBER]':
+            var_type = 'int'
+            var_desc = 'HTTP server address to listen on (default: 5000)'
+
+
     except socket.error as e:
         if e.errno in [errno.ECONNRESET, errno.EPIPE]:
             cli.bess.disconnect()
@@ -2095,3 +2104,18 @@ def show_system_packets(cli, socket):
         cli.fout.write('\tring_count: {}\n'.format(dump.ring_count))
         cli.fout.write('\tring_free_count: {}\n'.format(dump.ring_free_count))
         cli.fout.write('\tring_bytes: {}\n'.format(dump.ring_bytes))
+
+
+@cmd('http [HOST] [PORT_NUMBER]', 'Run an HTTP server')
+def http(cli, host, port):
+    host = host or 'localhost'
+    port = port or 5000
+
+    try:
+        import server
+    except ImportError:
+        raise cli.CommandError('Failed to load server ("pip install flask"?)')
+
+    server.app.env = 'development'
+    server.app.bess = cli.bess
+    server.app.run(host=host, port=int(port))
