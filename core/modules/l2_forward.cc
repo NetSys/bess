@@ -558,6 +558,9 @@ CommandResponse L2Forward::Init(const bess::pb::L2ForwardArg &arg) {
   int ret = 0;
   int size = arg.size();
   int bucket = arg.bucket();
+  if (arg.learn()) {
+    learn_ = 1;
+  }
 
   default_gate_ = DROP_GATE;
 
@@ -597,6 +600,13 @@ void L2Forward::ProcessBatch(Context *ctx, bess::PacketBatch *batch) {
     int ret = l2_find(&l2_table_,
                       *(snb->head_data<uint64_t *>()) & 0x0000ffffffffffff,
                       &out_gate);
+    if (learn_) {
+        // when learning mode is enabled, add source entry to table
+        // output gate == input gate mapping is assumed
+        l2_add_entry(&l2_table_,
+                     *(snb->head_data<uint64_t *>(6)) & 0x0000ffffffffffff,
+                     ctx->current_igate);
+    }
     if (ret != 0) {
       EmitPacket(ctx, snb, default_gate);
     } else {
