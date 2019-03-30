@@ -31,7 +31,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 
 # We download a Vagrant box and convert into a qcow2 image...
-BOX_URL=https://atlas.hashicorp.com/bento/boxes/ubuntu-14.04/versions/2.3.5/providers/virtualbox.box
+BOX_URL=https://vagrantcloud.com/bento/boxes/ubuntu-14.04/versions/2.3.5/providers/virtualbox.box
 curl -L $BOX_URL | tar zx ubuntu-14.04-amd64-disk001.vmdk
 
 echo Converting image...
