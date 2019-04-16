@@ -63,8 +63,8 @@ class BessNatTest(BessModuleTestCase):
         pkt_orig = eth / ip_orig / l4_orig / l7
 
         pkt_outs = self.run_module(module, 0, [pkt_orig], [0, 1])
-        self.assertEquals(len(pkt_outs[0]), 1)
-        pkt_natted = pkt_outs[0][0]
+        self.assertEquals(len(pkt_outs[1]), 1)
+        pkt_natted = pkt_outs[1][0]
 
         # The NAT module can choose an arbitrary source port/id.
         # We cannot test it, we have to read from the output.
@@ -81,9 +81,9 @@ class BessNatTest(BessModuleTestCase):
         pkt_reply = eth / ip_reply / l4_reply / l7
 
         pkt_outs = self.run_module(module, 1, [pkt_reply], [0, 1])
-        self.assertEquals(len(pkt_outs[1]), 1)
+        self.assertEquals(len(pkt_outs[0]), 1)
         self.assertSamePackets(eth / ip_unnatted / _swap_l4(l4_orig) / l7,
-                               pkt_outs[1][0])
+                               pkt_outs[0][0])
 
     def test_nat_udp(self):
         nat_config = [{'ext_addr': '192.168.1.1'}]

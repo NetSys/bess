@@ -145,7 +145,7 @@ static inline void UpdateChecksum(bess::utils::Ipv4 *ip, uint32_t incr) {
 
 template <StaticNAT::Direction dir>
 inline void StaticNAT::DoProcessBatch(Context *ctx, bess::PacketBatch *batch) {
-  gate_idx_t ogate_idx = static_cast<gate_idx_t>(dir);
+  gate_idx_t ogate_idx = dir == kForward ? 1 : 0;
   int cnt = batch->cnt();
 
   for (int i = 0; i < cnt; i++) {

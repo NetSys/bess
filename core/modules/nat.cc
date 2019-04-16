@@ -324,7 +324,7 @@ inline void Stamp(Ipv4 *ip, void *l4, const Endpoint &before,
 
 template <NAT::Direction dir>
 inline void NAT::DoProcessBatch(Context *ctx, bess::PacketBatch *batch) {
-  gate_idx_t ogate_idx = static_cast<gate_idx_t>(dir);
+  gate_idx_t ogate_idx = dir == kForward ? 1 : 0;
   int cnt = batch->cnt();
   uint64_t now = ctx->current_ns;
 

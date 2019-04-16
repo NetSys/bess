@@ -62,7 +62,7 @@ class BessModuleConstraintTest(BessModuleTestCase):
         # Swap src/dst IP addresses / ports
         ip = IPSwap()
 
-        Source() -> 0:nat:0 -> mac -> ip -> 1:nat:1 -> Sink()
+        Source() -> 0:nat:1 -> mac -> ip -> 1:nat:0 -> Sink()
 
         self.assertFalse(bess.check_constraints())
 
@@ -74,7 +74,7 @@ class BessModuleConstraintTest(BessModuleTestCase):
         # Swap src/dst IP addresses / ports
         ip = IPSwap()
 
-        Source() -> 0:nat:0 -> Queue() -> ip -> 1:nat:1 -> Sink()
+        Source() -> 0:nat:1 -> Queue() -> ip -> 1:nat:0 -> Sink()
 
         self.assertFalse(bess.check_constraints())
 
@@ -85,8 +85,8 @@ class BessModuleConstraintTest(BessModuleTestCase):
         bess.add_worker(0, 0)
         bess.add_worker(1, 1)
         nat = NAT(ext_addrs=nat_config)
-        src0 -> 0: nat: 0 -> Sink()
-        src1 -> 1: nat: 1 -> Sink()
+        src0 -> 0: nat: 1 -> Sink()
+        src1 -> 1: nat: 0 -> Sink()
         src0.attach_task(wid=0)
         src1.attach_task(wid=1)
 
