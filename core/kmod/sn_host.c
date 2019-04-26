@@ -267,8 +267,10 @@ again:
 	buf_queue = NULL;
 
 	for (i = 0; i < buf->tx_queue_cnt; i++)
-		if (buf->queue_arr[i].queue == queue)
+		if (buf->queue_arr[i].queue == queue) {
 			buf_queue = &buf->queue_arr[i];
+			break;
+		}
 
 	if (!buf_queue) {
 		if (buf->tx_queue_cnt == MAX_TX_BUFFER_QUEUE_CNT) {
