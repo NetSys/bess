@@ -49,6 +49,6 @@ Source() \
     -> nat::NAT(ext_addrs=nat_config)
 
 if bidirectional:
-    nat -> MACSwap() -> IPSwap() -> 1:nat:1 -> Sink()
+    nat:1 -> MACSwap() -> IPSwap() -> 1:nat:0 -> Sink()
 else:
-    nat -> Sink()
+    nat:1 -> Sink()
