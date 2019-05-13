@@ -785,6 +785,8 @@ int sn_create_netdev(void *bar, struct sn_device **dev_ret)
 		return -ENOMEM;
 	}
 
+	netdev->priv_flags |= IFF_NO_QUEUE;
+
 	if (strcmp(conf->ifname, "") == 0)
 		name = "sn%d";
 	else
