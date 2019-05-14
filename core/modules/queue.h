@@ -34,6 +34,10 @@
 #include "../kmod/llring.h"
 #include "../module.h"
 #include "../pb/module_msg.pb.h"
+#include "../utils/histogram.h"
+#include "../utils/mcslock.h"
+
+#define DEFAULT_QUEUE_SIZE 1024
 
 class Queue : public Module {
  public:
@@ -48,7 +52,9 @@ class Queue : public Module {
         size_(),
         high_water_(),
         low_water_(),
-        stats_() {
+        stats_(),
+        track_occupancy_(),
+        occupancy_hist_(kDefaultBuckets, kDefaultBucketWidth) {
     is_task_ = true;
     propagate_workers_ = false;
     max_allowed_workers_ = Worker::kMaxWorkers;
@@ -76,6 +82,8 @@ class Queue : public Module {
   const double kLowWaterRatio = 0.15;
 
   int Resize(int slots);
+
+  void ClearOccupancyHist();
 
   // Readjusts the water level according to `size_`.
   void AdjustWaterLevels();
@@ -105,6 +113,14 @@ class Queue : public Module {
     uint64_t dequeued;
     uint64_t dropped;
   } stats_;
+
+  // Queue occupancy statistics
+  const uint64_t kDefaultBuckets = 32;
+  const uint64_t kDefaultBucketWidth = DEFAULT_QUEUE_SIZE / kDefaultBuckets;
+  bool track_occupancy_;
+  uint64_t occupancy_buckets_;
+  Histogram<uint64_t> occupancy_hist_;
+  mcslock lock_;
 };
 
 #endif  // BESS_MODULES_QUEUE_H_

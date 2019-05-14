@@ -333,7 +333,10 @@ message QueueCommandSetSizeArg {
  * Modules that are queues or contain queues may contain functions
  * `get_status()` that return QueueCommandGetStatusResponse.
  */
-message QueueCommandGetStatusArg {}
+message QueueCommandGetStatusArg {
+  bool clear_hist = 1; /// if true, occupancy histogram will be all cleared after read
+  repeated double occupancy_percentiles = 2; /// ascending list of real numbers in [0.0, 100.0]
+}
 
 /**
  * Modules that are queues or contain queues may contain functions
@@ -346,6 +349,7 @@ message QueueCommandGetStatusResponse {
   uint64 enqueued = 3; /// total enqueued
   uint64 dequeued = 4; /// total dequeued
   uint64 dropped = 5;  /// total dropped
+  HistogramSummary occupancy_summary = 6; /// Valid only if queue created with track_occupancy
 }
 
 /**
@@ -810,6 +814,8 @@ message QueueArg {
   uint64 size = 1; /// The maximum number of packets to store in the queue.
   bool prefetch = 2; /// When prefetch is enabled, the module will perform CPU prefetch on the first 64B of each packet onto CPU L1 cache. Default value is false.
   bool backpressure = 3; // When backpressure is enabled, the module will notify upstream if it is overloaded.
+  bool track_occupancy = 4; // When occupancy tracking is enabled, the module will keep a histogram of queue occupancies (observations recorded after each dequeue).
+  uint64 occupancy_hist_buckets = 5; // The number of buckets to use in the histogram when occupancy tracking is enabled.
 }
 
 /**
