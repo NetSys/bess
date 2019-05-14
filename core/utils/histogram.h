@@ -175,7 +175,7 @@ class Histogram {
     return ret;
   }
 
-  size_t num_buckets() const { return buckets_.size(); }
+  size_t num_buckets() const { return buckets_.size() - 1; }
   T bucket_width() const { return bucket_width_; }
 
   size_t max_num_buckets() const {
