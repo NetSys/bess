@@ -257,8 +257,10 @@ message MeasureCommandGetSummaryResponse {
   double timestamp = 1; /// Seconds since boot.
   uint64 packets = 2; /// Total # of packets seen by this module.
   uint64 bits = 3; /// Total # of bits seen by this module.
-  Histogram latency = 4;
-  Histogram jitter = 5;
+  Histogram latency = 4; /// DEPRECATED. Use latency_ns instead.
+  Histogram jitter = 5; /// DEPRECATED. Use jitter_ns instead.
+  HistogramSummary latency_ns = 6; /// Summary of packet latency histogram.
+  HistogramSummary jitter_ns = 7; /// Summary of packet jitter histogram.
 }
 
 

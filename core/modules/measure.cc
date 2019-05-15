@@ -175,16 +175,6 @@ void Measure::Clear() {
   mcs_unlock(&lock_, &mynode);
 }
 
-static bool IsValidPercentiles(const std::vector<double> &percentiles) {
-  if (percentiles.empty()) {
-    return true;
-  }
-
-  return std::is_sorted(percentiles.cbegin(), percentiles.cend()) &&
-         *std::min_element(percentiles.cbegin(), percentiles.cend()) >= 0.0 &&
-         *std::max_element(percentiles.cbegin(), percentiles.cend()) <= 100.0;
-}
-
 CommandResponse Measure::CommandGetSummary(
     const bess::pb::MeasureCommandGetSummaryArg &arg) {
   bess::pb::MeasureCommandGetSummaryResponse r;
@@ -211,8 +201,13 @@ CommandResponse Measure::CommandGetSummary(
   const auto &rtt = rtt_hist_.Summarize(latency_percentiles);
   const auto &jitter = jitter_hist_.Summarize(jitter_percentiles);
 
+  // TODO(dnaylor): latency and jitter are deprecated in favor of latency_ns
+  // and jitter_ns; remove these eventually.
   SetHistogram(r.mutable_latency(), rtt, rtt_hist_.bucket_width());
   SetHistogram(r.mutable_jitter(), jitter, jitter_hist_.bucket_width());
+
+  SetSummary(r.mutable_latency_ns(), rtt);
+  SetSummary(r.mutable_jitter_ns(), jitter);
 
   if (arg.clear()) {
     // Note that some samples might be lost due to the small gap between
