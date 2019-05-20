@@ -470,7 +470,7 @@ $(eval $(call BUILD, \
         TEST_CXX, \
         gtest-all.o, \
         $(GTEST_DIR)/src/gtest-all.cc, \
-        $(CXX) -o $$@ -c $$< -isystem $(GTEST_DIR) $$(CXXFLAGS) $$(DEPFLAGS)))
+        $(CXX) -o $$@ -c $$< -isystem $(GTEST_DIR)/include $$(CXXFLAGS) $$(DEPFLAGS)))
 
 $(eval $(call BUILD, \
         BENCH_CXX, \
