@@ -884,7 +884,11 @@ int sn_register_netdev(void *bar, struct sn_device *dev)
 	}
 
 	/* interface "UP" by default */
-	dev_open(dev->netdev);
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5,0,0))
+    dev_open(dev->netdev);
+#else
+    dev_open(dev->netdev, NULL);
+#endif
 
 	strcpy(conf->ifname, dev->netdev->name);
 
