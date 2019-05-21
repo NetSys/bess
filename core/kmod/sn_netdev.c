@@ -785,8 +785,6 @@ int sn_create_netdev(void *bar, struct sn_device **dev_ret)
 		return -ENOMEM;
 	}
 
-	netdev->priv_flags |= IFF_NO_QUEUE;
-
 	if (strcmp(conf->ifname, "") == 0)
 		name = "sn%d";
 	else
@@ -806,10 +804,18 @@ int sn_create_netdev(void *bar, struct sn_device **dev_ret)
 
 	sn_set_default_queue_mapping(dev);
 
-	/* This will disable the default qdisc (mq or pfifo_fast) on the
-	 * interface. We don't need qdisc since BESS already has its own.
-	 * Also see attach_default_qdiscs() in sch_generic.c */
-	netdev->tx_queue_len = 0;
+        /* This will disable the default qdisc (mq or pfifo_fast) on the
+        * interface in older kernels. We don't need qdisc since BESS
+        * already has its own. Also see attach_default_qdiscs() in
+        * sch_generic.c */
+        netdev->tx_queue_len = 0;
+#ifdef IFF_NO_QUEUE
+       /* The introduction of anti-buffer-bloat and dynamic qdisc queue
+        * length management in newer kernels changes the semantics of
+        * asking for "no qdisc". It is now necessary to ask for it
+        * explicitly by specifying the IFF_NO_QUEUE flag. */
+       netdev->priv_flags |= IFF_NO_QUEUE;
+#endif
 
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(4,11,9))
 	netdev->destructor = sn_netdev_destructor;
