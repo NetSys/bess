@@ -551,7 +551,7 @@ const Commands L2Forward::cmds = {
     {"lookup", "L2ForwardCommandLookupArg",
      MODULE_CMD_FUNC(&L2Forward::CommandLookup), Command::THREAD_SAFE},
     {"populate", "L2ForwardCommandPopulateArg",
-     MODULE_CMD_FUNC(&L2Forward::CommandPopulate), Command::THREAD_SAFE},
+     MODULE_CMD_FUNC(&L2Forward::CommandPopulate), Command::THREAD_UNSAFE},
 };
 
 struct l2_table *L2Forward::ActiveTable(void) {
@@ -633,14 +633,15 @@ void L2Forward::ProcessBatch(Context *ctx, bess::PacketBatch *batch) {
   }
 }
 
-CommandResponse L2Forward::CommandAdd(
+
+
+int L2Forward::DoAdd(
     const bess::pb::L2ForwardCommandAddArg &arg) {
   for (int i = 0; i < arg.entries_size(); i++) {
     const auto &entry = arg.entries(i);
 
     if (!entry.addr().length()) {
-      return CommandFailure(EINVAL,
-                            "add list item map must contain addr as a string");
+      return -EINVAL;
     }
 
     const char *str_addr = entry.addr().c_str();
@@ -648,53 +649,97 @@ CommandResponse L2Forward::CommandAdd(
     char addr[6];
 
     if (parse_mac_addr(str_addr, addr) != 0) {
-      return CommandFailure(EINVAL, "%s is not a proper mac address", str_addr);
+      return -EINVAL;
     }
 
     int r = l2_add_entry(L2Forward::BackupTable(), l2_addr_to_u64(addr), gate);
 
+    if (r != 0)
+        return r;
+
+  }
+  return 0;
+}
+
+CommandResponse L2Forward::CommandAdd(
+    const bess::pb::L2ForwardCommandAddArg &arg) {
+    
+    int r;
+    r = L2Forward::DoAdd(arg);
+
     if (r == -EEXIST) {
-      return CommandFailure(EEXIST, "MAC address '%s' already exist", str_addr);
+      return CommandFailure(EEXIST, "MAC address already exist in backup table");
+    } else if (r == -ENOMEM) {
+      return CommandFailure(ENOMEM, "Not enough space");
+    } else if (r == -EINVAL) {
+      return CommandFailure(ENOMEM, "Parsing Error");
+    } else if (r != 0) {
+      return CommandFailure(-r);
+    }
+
+    L2Forward::SwapTables();
+
+    r = L2Forward::DoAdd(arg);
+
+    if (r == -EEXIST) {
+      return CommandFailure(EEXIST, "MAC address already existed in active table");
     } else if (r == -ENOMEM) {
       return CommandFailure(ENOMEM, "Not enough space");
     } else if (r != 0) {
       return CommandFailure(-r);
     }
-  }
-
-  L2Forward::SwapTables();
-
-  return CommandSuccess();
+    
+    return CommandSuccess();
 }
 
-CommandResponse L2Forward::CommandDelete(
+int L2Forward::DoDelete(
     const bess::pb::L2ForwardCommandDeleteArg &arg) {
   for (int i = 0; i < arg.addrs_size(); i++) {
     const auto &_addr = arg.addrs(i);
 
     if (!_addr.length()) {
-      return CommandFailure(EINVAL, "lookup must be list of string");
+      return -EINVAL;
     }
 
     const char *str_addr = _addr.c_str();
     char addr[6];
 
     if (parse_mac_addr(str_addr, addr) != 0) {
-      return CommandFailure(EINVAL, "%s is not a proper mac address", str_addr);
+      return -EINVAL;
     }
 
     int r = l2_del_entry(L2Forward::BackupTable(), l2_addr_to_u64(addr));
+    if (r != 0)
+        return r;
 
-    if (r == -ENOENT) {
-      return CommandFailure(ENOENT, "MAC address '%s' does not exist",
-                            str_addr);
-    } else if (r != 0) {
-      return CommandFailure(EINVAL, "Unknown Error: %d\n", r);
-    }
   }
 
-  L2Forward::SwapTables();
-  return CommandSuccess();
+  return 0;
+
+}
+
+CommandResponse L2Forward::CommandDelete(
+    const bess::pb::L2ForwardCommandDeleteArg &arg) {
+    int r;
+
+    r = L2Forward::DoDelete(arg);
+
+    if (r == -ENOENT) {
+      return CommandFailure(ENOENT, "MAC address does not exist in backup table");
+    } else if (r != 0) {
+      return CommandFailure(EINVAL, "Parsing Error");
+    }
+
+    L2Forward::SwapTables();
+
+    r = L2Forward::DoDelete(arg);
+
+    if (r == -ENOENT) {
+      return CommandFailure(ENOENT, "MAC address did not exist in active table");
+    } else if (r != 0) {
+      return CommandFailure(EINVAL, "Parsing Error");
+    }
+    return CommandSuccess();
 }
 
 CommandResponse L2Forward::CommandSetDefaultGate(
