@@ -543,16 +543,34 @@ static int parse_mac_addr(const char *str, char *addr) {
 
 const Commands L2Forward::cmds = {
     {"add", "L2ForwardCommandAddArg", MODULE_CMD_FUNC(&L2Forward::CommandAdd),
-     Command::THREAD_UNSAFE},
+     Command::THREAD_SAFE},
     {"delete", "L2ForwardCommandDeleteArg",
-     MODULE_CMD_FUNC(&L2Forward::CommandDelete), Command::THREAD_UNSAFE},
+     MODULE_CMD_FUNC(&L2Forward::CommandDelete), Command::THREAD_SAFE},
     {"set_default_gate", "L2ForwardCommandSetDefaultGateArg",
      MODULE_CMD_FUNC(&L2Forward::CommandSetDefaultGate), Command::THREAD_SAFE},
     {"lookup", "L2ForwardCommandLookupArg",
      MODULE_CMD_FUNC(&L2Forward::CommandLookup), Command::THREAD_SAFE},
     {"populate", "L2ForwardCommandPopulateArg",
-     MODULE_CMD_FUNC(&L2Forward::CommandPopulate), Command::THREAD_UNSAFE},
+     MODULE_CMD_FUNC(&L2Forward::CommandPopulate), Command::THREAD_SAFE},
 };
+
+struct l2_table *L2Forward::ActiveTable(void) {
+    return &l2_table_[active_table];
+}
+
+struct l2_table *L2Forward::BackupTable(void) {
+    /* This is used only in control plane which has locks so there should be
+     * no concurrent access to this accessor */
+    return &l2_table_[(active_table + 1) % 2];
+}
+
+void L2Forward::SwapTables(void) {
+    if (active_table == 0) {
+        active_table = 1;
+    } else {
+        active_table = 0;
+    }
+}
 
 CommandResponse L2Forward::Init(const bess::pb::L2ForwardArg &arg) {
   int ret = 0;
@@ -560,6 +578,7 @@ CommandResponse L2Forward::Init(const bess::pb::L2ForwardArg &arg) {
   int bucket = arg.bucket();
 
   default_gate_ = DROP_GATE;
+  active_table = 0;
 
   if (size == 0) {
     size = DEFAULT_TABLE_SIZE;
@@ -568,11 +587,19 @@ CommandResponse L2Forward::Init(const bess::pb::L2ForwardArg &arg) {
     bucket = MAX_BUCKET_SIZE;
   }
 
-  ret = l2_init(&l2_table_, size, bucket);
+  ret = l2_init(L2Forward::ActiveTable(), size, bucket);
 
   if (ret != 0) {
     return CommandFailure(-ret,
-                          "initialization failed with argument "
+                          "initialization active table failed with argument "
+                          "size: '%d' bucket: '%d'",
+                          size, bucket);
+  }
+
+  ret = l2_init(L2Forward::BackupTable(), size, bucket);
+  if (ret != 0) {
+    return CommandFailure(-ret,
+                          "initialization of backup table failed with argument "
                           "size: '%d' bucket: '%d'",
                           size, bucket);
   }
@@ -581,7 +608,8 @@ CommandResponse L2Forward::Init(const bess::pb::L2ForwardArg &arg) {
 }
 
 void L2Forward::DeInit() {
-  l2_deinit(&l2_table_);
+  l2_deinit(L2Forward::ActiveTable());
+  l2_deinit(L2Forward::BackupTable());
 }
 
 void L2Forward::ProcessBatch(Context *ctx, bess::PacketBatch *batch) {
@@ -594,7 +622,7 @@ void L2Forward::ProcessBatch(Context *ctx, bess::PacketBatch *batch) {
     gate_idx_t out_gate;
     // read destination MAC address (first 6 bytes)
     // NOTE: assumes little endian
-    int ret = l2_find(&l2_table_,
+    int ret = l2_find(L2Forward::ActiveTable(),
                       *(snb->head_data<uint64_t *>()) & 0x0000ffffffffffff,
                       &out_gate);
     if (ret != 0) {
@@ -623,7 +651,7 @@ CommandResponse L2Forward::CommandAdd(
       return CommandFailure(EINVAL, "%s is not a proper mac address", str_addr);
     }
 
-    int r = l2_add_entry(&l2_table_, l2_addr_to_u64(addr), gate);
+    int r = l2_add_entry(L2Forward::BackupTable(), l2_addr_to_u64(addr), gate);
 
     if (r == -EEXIST) {
       return CommandFailure(EEXIST, "MAC address '%s' already exist", str_addr);
@@ -633,6 +661,8 @@ CommandResponse L2Forward::CommandAdd(
       return CommandFailure(-r);
     }
   }
+
+  L2Forward::SwapTables();
 
   return CommandSuccess();
 }
@@ -653,7 +683,7 @@ CommandResponse L2Forward::CommandDelete(
       return CommandFailure(EINVAL, "%s is not a proper mac address", str_addr);
     }
 
-    int r = l2_del_entry(&l2_table_, l2_addr_to_u64(addr));
+    int r = l2_del_entry(L2Forward::BackupTable(), l2_addr_to_u64(addr));
 
     if (r == -ENOENT) {
       return CommandFailure(ENOENT, "MAC address '%s' does not exist",
@@ -663,6 +693,7 @@ CommandResponse L2Forward::CommandDelete(
     }
   }
 
+  L2Forward::SwapTables();
   return CommandSuccess();
 }
 
@@ -690,7 +721,7 @@ CommandResponse L2Forward::CommandLookup(
     }
 
     gate_idx_t gate;
-    int r = l2_find(&l2_table_, l2_addr_to_u64(addr), &gate);
+    int r = l2_find(L2Forward::ActiveTable(), l2_addr_to_u64(addr), &gate);
 
     if (r == -ENOENT) {
       return CommandFailure(ENOENT, "MAC address '%s' does not exist",
@@ -729,12 +760,13 @@ CommandResponse L2Forward::CommandPopulate(
   base_u64 = base_u64 >> 16;
 
   for (int i = 0; i < cnt; i++) {
-    l2_add_entry(&l2_table_, bess::utils::be64_t::swap(base_u64 << 16),
+    l2_add_entry(L2Forward::BackupTable(), bess::utils::be64_t::swap(base_u64 << 16),
                  i % gate_cnt);
 
     base_u64++;
   }
 
+  L2Forward::SwapTables();
   return CommandSuccess();
 }
 
