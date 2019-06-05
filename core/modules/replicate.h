@@ -32,6 +32,7 @@
 
 #include "../module.h"
 #include "../pb/module_msg.pb.h"
+#include <atomic>
 
 class Replicate final : public Module {
  public:
@@ -55,9 +56,10 @@ class Replicate final : public Module {
       const bess::pb::ReplicateCommandSetGatesArg &arg);
 
  private:
-  // ID number for each egress gate.
-  gate_idx_t gates_[kMaxGates];
+  // ID number for each egress gate - twice.
+  gate_idx_t gates_[kMaxGates * 2];
   // The total number of output gates
+  std::atomic_int active_gates;
   int ngates_;
 };
 

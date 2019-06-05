@@ -31,7 +31,7 @@
 
 const Commands Replicate::cmds = {
     {"set_gates", "ReplicateCommandSetGatesArg",
-     MODULE_CMD_FUNC(&Replicate::CommandSetGates), Command::THREAD_UNSAFE},
+     MODULE_CMD_FUNC(&Replicate::CommandSetGates), Command::THREAD_SAFE},
 };
 
 CommandResponse Replicate::Init(const bess::pb::ReplicateArg &arg) {
@@ -44,20 +44,31 @@ CommandResponse Replicate::Init(const bess::pb::ReplicateArg &arg) {
   for (int i = 0; i < arg.gates_size(); i++) {
     int elem = arg.gates(i);
     gates_[i] = elem;
+    gates_[i + kMaxGates] = elem; // Initialize the "backup" array
   }
   ngates_ = arg.gates_size();
+  active_gates = 0;
 
   return CommandSuccess();
 }
 
 CommandResponse Replicate::CommandSetGates(
     const bess::pb::ReplicateCommandSetGatesArg &arg) {
+
   if (arg.gates_size() > kMaxGates) {
     return CommandFailure(EINVAL, "no more than %d gates", kMaxGates);
   }
 
   for (int i = 0; i < arg.gates_size(); i++) {
-    gates_[i] = arg.gates(i);
+    gates_[i + active_gates * kMaxGates] = arg.gates(i);
+  }
+
+  //swap active and backup gates portions of the vector
+
+  active_gates = (active_gates + 1) % 2;
+
+  for (int i = 0; i < arg.gates_size(); i++) {
+    gates_[i + active_gates * kMaxGates] = arg.gates(i);
   }
 
   ngates_ = arg.gates_size();
@@ -71,7 +82,7 @@ void Replicate::ProcessBatch(Context *ctx, bess::PacketBatch *batch) {
     for (int j = 1; j < ngates_; j++) {
       bess::Packet *newpkt = bess::Packet::copy(tocopy);
       if (newpkt) {
-        EmitPacket(ctx, newpkt, gates_[j]);
+        EmitPacket(ctx, newpkt, gates_[j + active_gates * kMaxGates]);
       }
     }
     EmitPacket(ctx, tocopy, 0);
