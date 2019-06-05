@@ -89,6 +89,9 @@ class L2Forward final : public Module {
 
   struct l2_table *ActiveTable(void);
   struct l2_table *BackupTable(void);
+
+  bool source_check;
+
   void SwapTables(void);
   int DoAdd(const bess::pb::L2ForwardCommandAddArg &arg);
   int DoDelete(const bess::pb::L2ForwardCommandDeleteArg &arg);

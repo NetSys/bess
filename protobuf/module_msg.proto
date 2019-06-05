@@ -628,6 +628,7 @@ message IPLookupArg {
 message L2ForwardArg {
   int64 size = 1; /// Configures the forwarding hash table -- total number of hash table entries.
   int64 bucket = 2; /// Configures the forwarding hash table -- total number of slots per hash value.
+  bool source_check = 3; /// Configures the rpf check, if true, "unexpected" packets are dropped to default gate
 }
 
 /**

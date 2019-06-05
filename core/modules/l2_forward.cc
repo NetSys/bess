@@ -579,6 +579,7 @@ CommandResponse L2Forward::Init(const bess::pb::L2ForwardArg &arg) {
 
   default_gate_ = DROP_GATE;
   active_table = 0;
+  source_check = arg.source_check();
 
   if (size == 0) {
     size = DEFAULT_TABLE_SIZE;
@@ -620,6 +621,22 @@ void L2Forward::ProcessBatch(Context *ctx, bess::PacketBatch *batch) {
     bess::Packet *snb = batch->pkts()[i];
 
     gate_idx_t out_gate;
+
+
+    // read source MAC address (second 6 bytes) and check if we have
+    // a routing entry for it. If we do, that is abnormal - we should
+    // not be getting this packet on this port
+    // NOTE: assumes little endian
+    if (source_check) {
+
+        int ret = l2_find(L2Forward::ActiveTable(),
+                          *(snb->head_data<uint64_t *>(6)) & 0x0000ffffffffffff,
+                          &out_gate);
+        if (ret == 0) {
+            EmitPacket(ctx, snb, default_gate);
+        }
+    }
+
     // read destination MAC address (first 6 bytes)
     // NOTE: assumes little endian
     int ret = l2_find(L2Forward::ActiveTable(),
