@@ -599,6 +599,7 @@ CommandResponse L2Forward::Init(const bess::pb::L2ForwardArg &arg) {
 
   ret = l2_init(L2Forward::BackupTable(), size, bucket);
   if (ret != 0) {
+    l2_deinit(L2Forward::ActiveTable());
     return CommandFailure(-ret,
                           "initialization of backup table failed with argument "
                           "size: '%d' bucket: '%d'",
