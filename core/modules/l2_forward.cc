@@ -360,6 +360,11 @@ static uint64_t l2_addr_to_u64(char *addr) {
   return a | (b << 32);
 }
 
+static void copy_l2table(struct l2_table *backup, struct l2_table *active) {
+    backup->count = active->count;
+    memcpy(backup->table, active->table, sizeof(struct l2_entry) * backup->size * backup->bucket);
+}
+
 /******************************************************************************/
 // TODO(barath): Move this test code elsewhere.
 
@@ -572,6 +577,12 @@ void L2Forward::SwapTables(void) {
     }
 }
 
+void L2Forward::RollBack(void) {
+    copy_l2table(BackupTable(), ActiveTable());
+
+}
+
+
 CommandResponse L2Forward::Init(const bess::pb::L2ForwardArg &arg) {
   int ret = 0;
   int size = arg.size();
@@ -681,17 +692,21 @@ int L2Forward::DoAdd(
 
 CommandResponse L2Forward::CommandAdd(
     const bess::pb::L2ForwardCommandAddArg &arg) {
-    
+
     int r;
     r = L2Forward::DoAdd(arg);
 
     if (r == -EEXIST) {
+      L2Forward::RollBack();
       return CommandFailure(EEXIST, "MAC address already exist in backup table");
     } else if (r == -ENOMEM) {
+      L2Forward::RollBack();
       return CommandFailure(ENOMEM, "Not enough space");
     } else if (r == -EINVAL) {
+      L2Forward::RollBack();
       return CommandFailure(ENOMEM, "Parsing Error");
     } else if (r != 0) {
+      L2Forward::RollBack();
       return CommandFailure(-r);
     }
 
@@ -700,13 +715,16 @@ CommandResponse L2Forward::CommandAdd(
     r = L2Forward::DoAdd(arg);
 
     if (r == -EEXIST) {
+      L2Forward::RollBack();
       return CommandFailure(EEXIST, "MAC address already existed in active table");
     } else if (r == -ENOMEM) {
+      L2Forward::RollBack();
       return CommandFailure(ENOMEM, "Not enough space");
     } else if (r != 0) {
+      L2Forward::RollBack();
       return CommandFailure(-r);
     }
-    
+
     return CommandSuccess();
 }
 
@@ -743,8 +761,10 @@ CommandResponse L2Forward::CommandDelete(
     r = L2Forward::DoDelete(arg);
 
     if (r == -ENOENT) {
+      L2Forward::RollBack();
       return CommandFailure(ENOENT, "MAC address does not exist in backup table");
     } else if (r != 0) {
+      L2Forward::RollBack();
       return CommandFailure(EINVAL, "Parsing Error");
     }
 
@@ -753,8 +773,10 @@ CommandResponse L2Forward::CommandDelete(
     r = L2Forward::DoDelete(arg);
 
     if (r == -ENOENT) {
+      L2Forward::RollBack();
       return CommandFailure(ENOENT, "MAC address did not exist in active table");
     } else if (r != 0) {
+      L2Forward::RollBack();
       return CommandFailure(EINVAL, "Parsing Error");
     }
     return CommandSuccess();
@@ -830,6 +852,13 @@ CommandResponse L2Forward::CommandPopulate(
   }
 
   L2Forward::SwapTables();
+
+  for (int i = 0; i < cnt; i++) {
+    l2_add_entry(L2Forward::BackupTable(), bess::utils::be64_t::swap(base_u64 << 16),
+                 i % gate_cnt);
+
+    base_u64++;
+  }
   return CommandSuccess();
 }
 

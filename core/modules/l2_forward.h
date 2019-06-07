@@ -93,6 +93,7 @@ class L2Forward final : public Module {
   bool source_check;
 
   void SwapTables(void);
+  void RollBack(void);
   int DoAdd(const bess::pb::L2ForwardCommandAddArg &arg);
   int DoDelete(const bess::pb::L2ForwardCommandDeleteArg &arg);
 };
