@@ -220,6 +220,12 @@ message L2ForwardCommandPopulateArg {
 }
 
 /**
+ * This message type clears the L2 Table
+ */
+message L2ForwardCommandClearArg {
+}
+
+/**
  * The Measure module measures and collects latency/jitter data for packets
  * annotated by a Timestamp module. Note that Timestamp and Measure module must reside
  * on the server for accurate measurement (as a result, the most typical use case is

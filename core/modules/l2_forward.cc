@@ -350,6 +350,8 @@ static int l2_flush(struct l2_table *l2tbl) {
   memset(l2tbl->table, 0,
          sizeof(struct l2_entry) * l2tbl->size * l2tbl->bucket);
 
+  l2tbl->count = 0;
+
   return 0;
 }
 
@@ -557,6 +559,8 @@ const Commands L2Forward::cmds = {
      MODULE_CMD_FUNC(&L2Forward::CommandLookup), Command::THREAD_SAFE},
     {"populate", "L2ForwardCommandPopulateArg",
      MODULE_CMD_FUNC(&L2Forward::CommandPopulate), Command::THREAD_UNSAFE},
+    {"clear", "EmptyArg",
+     MODULE_CMD_FUNC(&L2Forward::CommandClear), Command::THREAD_SAFE},
 };
 
 struct l2_table *L2Forward::ActiveTable(void) {
@@ -785,6 +789,16 @@ CommandResponse L2Forward::CommandDelete(
 CommandResponse L2Forward::CommandSetDefaultGate(
     const bess::pb::L2ForwardCommandSetDefaultGateArg &arg) {
   default_gate_ = arg.gate();
+  return CommandSuccess();
+}
+
+CommandResponse L2Forward::CommandClear(
+    const bess::pb::EmptyArg &) {
+
+  
+  l2_flush(L2Forward::BackupTable());
+  L2Forward::SwapTables();
+  l2_flush(L2Forward::BackupTable());
   return CommandSuccess();
 }
 

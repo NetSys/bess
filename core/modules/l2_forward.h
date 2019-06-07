@@ -81,6 +81,8 @@ class L2Forward final : public Module {
   CommandResponse CommandLookup(const bess::pb::L2ForwardCommandLookupArg &arg);
   CommandResponse CommandPopulate(
       const bess::pb::L2ForwardCommandPopulateArg &arg);
+  CommandResponse CommandClear(
+      const bess::pb::EmptyArg &);
 
  private:
   struct l2_table l2_table_[2];
