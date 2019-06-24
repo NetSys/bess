@@ -85,7 +85,7 @@ void Replicate::ProcessBatch(Context *ctx, bess::PacketBatch *batch) {
         EmitPacket(ctx, newpkt, gates_[j + active_gates * kMaxGates]);
       }
     }
-    EmitPacket(ctx, tocopy, 0);
+    EmitPacket(ctx, tocopy, gates_[active_gates * kMaxGates]);
   }
 }
 
