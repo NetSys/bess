@@ -52,6 +52,7 @@ class BPF final : public Module {
 
   void ProcessBatch(Context *ctx, bess::PacketBatch *batch) override;
 
+  CommandResponse GetInitialArg(const bess::pb::EmptyArg &);
   CommandResponse CommandAdd(const bess::pb::BPFArg &arg);
   CommandResponse CommandClear(const bess::pb::EmptyArg &arg);
 
