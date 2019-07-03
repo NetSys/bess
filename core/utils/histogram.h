@@ -1,5 +1,5 @@
 // Copyright (c) 2014-2016, The Regents of the University of California.
-// Copyright (c) 2016-2017, Nefeli Networks, Inc.
+// Copyright (c) 2016-2019, Nefeli Networks, Inc.
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -42,6 +42,8 @@
 
 #include <glog/logging.h>
 
+#include "../pb/util_msg.pb.h"
+
 // Class for general purpose histogram. T generally should be an
 // integral type, though floating point types will also work.
 // A bin b_i corresponds for the range [i * width, (i + 1) * width)
@@ -52,7 +54,9 @@ class Histogram {
  public:
   static_assert(std::is_arithmetic<T>::value, "Arithmetic type required.");
   struct Summary {
-    size_t count;        // # of all samples. If 0, min, max and avg are also 0
+    size_t num_buckets;  // Number of buckets in the histogram
+    size_t bucket_width; // Resolution of the measured data
+    size_t count;        // # of samples (including above_range). If 0, min, max and avg are also 0
     size_t above_range;  // # of samples beyond the histogram range
     T min;               // Min value
     T max;               // Max value. May be underestimated if above_range > 0
@@ -124,6 +128,8 @@ class Histogram {
   // percentile_values
   const Summary Summarize(const std::vector<double> &percentiles = {}) const {
     Summary ret = {};
+    ret.num_buckets = num_buckets();
+    ret.bucket_width = bucket_width_;
     uint64_t count = std::accumulate(buckets_.begin(), buckets_.end(), 0);
     ret.count = count;
     ret.above_range = buckets_.back();
@@ -175,7 +181,7 @@ class Histogram {
     return ret;
   }
 
-  size_t num_buckets() const { return buckets_.size(); }
+  size_t num_buckets() const { return buckets_.size() - 1; }
   T bucket_width() const { return bucket_width_; }
 
   size_t max_num_buckets() const {
@@ -200,5 +206,22 @@ class Histogram {
   T bucket_width_;
   std::vector<std::atomic<uint64_t>> buckets_;
 };
+
+bool IsValidPercentiles(const std::vector<double> &percentiles);
+
+template <typename T>
+void SetSummary(bess::pb::HistogramSummary *r, const T &summary) {
+  r->set_num_buckets(summary.num_buckets);
+  r->set_bucket_width(summary.bucket_width);
+  r->set_count(summary.count);
+  r->set_above_range(summary.above_range);
+  r->set_min(summary.min);
+  r->set_max(summary.max);
+  r->set_avg(summary.avg);
+  r->set_total(summary.total);
+  for (const auto &val : summary.percentile_values) {
+    r->add_percentile_values(val);
+  }
+}
 
 #endif  // BESS_UTILS_HISTOGRAM_H_

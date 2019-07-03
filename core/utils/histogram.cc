@@ -1,4 +1,4 @@
-// Copyright (c) 2016-2017, Nefeli Networks, Inc.
+// Copyright (c) 2016-2019, Nefeli Networks, Inc.
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -27,37 +27,14 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-syntax="proto3";
-/// This file contains some standard "types" for messages to/from BESS
+#include "histogram.h"
 
-package bess.pb;
-
-/// The Field message represents one field in a packet -- either stored in metadata or in the packet body.
-message Field {
-  oneof position {
-    string attr_name = 1; /// The metadata attribute assigned to store the data
-    uint32 offset = 2; /// The offset in bytes to store the data into
+bool IsValidPercentiles(const std::vector<double> &percentiles) {
+  if (percentiles.empty()) {
+    return true;
   }
-  uint32 num_bytes = 3; /// The size of the data in bytes
-}
 
-/// The FieldData message encodes a value to insert into a packet; the value can be supplied as either an int or a bytestring.
-message FieldData {
-  oneof encoding {
-    bytes value_bin = 1; /// The value as a bytestring
-    uint64 value_int = 2; /// The value in integer format
-  }
-}
-
-/// The HistogramSummary message carries summary statistics about a histogram.
-message HistogramSummary {
-  uint64 num_buckets = 1;  /// Number of buckets in the histogram
-  uint64 bucket_width = 2; /// Resolution of the measured data
-  uint64 count = 3;        /// # of samples (including above_range). If 0, min, max and avg are also 0
-  uint64 above_range = 4;  /// # of samples beyond the histogram range
-  uint64 min = 5;          /// Min value
-  uint64 max = 6;          /// Max value. May be underestimated if above_range > 0
-  uint64 avg = 7;          /// Average of all samples (== total / count)
-  uint64 total = 8;        /// Total sum of all samples
-  repeated uint64 percentile_values = 9;
+  return std::is_sorted(percentiles.cbegin(), percentiles.cend()) &&
+         *std::min_element(percentiles.cbegin(), percentiles.cend()) >= 0.0 &&
+         *std::max_element(percentiles.cbegin(), percentiles.cend()) <= 100.0;
 }

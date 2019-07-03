@@ -34,8 +34,6 @@
 
 #include "../utils/format.h"
 
-#define DEFAULT_QUEUE_SIZE 1024
-
 const Commands Queue::cmds = {
     {"set_burst", "QueueCommandSetBurstArg",
      MODULE_CMD_FUNC(&Queue::CommandSetBurst), Command::THREAD_SAFE},
@@ -79,6 +77,10 @@ int Queue::Resize(int slots) {
   queue_ = new_queue;
   size_ = slots;
 
+  if (track_occupancy_) {
+    occupancy_hist_.Resize(occupancy_buckets_, slots / occupancy_buckets_);
+  }
+
   if (backpressure_) {
     AdjustWaterLevels();
   }
@@ -96,6 +98,15 @@ CommandResponse Queue::Init(const bess::pb::QueueArg &arg) {
   }
 
   burst_ = bess::PacketBatch::kMaxBurst;
+
+  if (arg.track_occupancy()) {
+    track_occupancy_ = true;
+    occupancy_buckets_ = kDefaultBuckets;
+    if (arg.occupancy_hist_buckets() != 0) {
+      occupancy_buckets_ = arg.occupancy_hist_buckets();
+    }
+    VLOG(1) << "Occupancy tracking enabled for " << name() << "::Queue (" << occupancy_buckets_ << " buckets)";
+  }
 
   if (arg.backpressure()) {
     VLOG(1) << "Backpressure enabled for " << name() << "::Queue";
@@ -191,7 +202,19 @@ struct task_result Queue::RunTask(Context *ctx, bess::PacketBatch *batch,
 
   RunNextModule(ctx, batch);
 
-  if (backpressure_ && llring_count(queue_) < low_water_) {
+  uint32_t occupancy;
+  if (track_occupancy_ || backpressure_) {
+      occupancy = llring_count(queue_);
+  }
+
+  if (track_occupancy_) {
+    mcslock_node_t mynode;
+    mcs_lock(&lock_, &mynode);
+    occupancy_hist_.Insert(occupancy);
+    mcs_unlock(&lock_, &mynode);
+  }
+
+  if (backpressure_ && occupancy < low_water_) {
     SignalUnderload();
   }
 
@@ -236,14 +259,44 @@ CommandResponse Queue::CommandSetSize(
 }
 
 CommandResponse Queue::CommandGetStatus(
-    const bess::pb::QueueCommandGetStatusArg &) {
+    const bess::pb::QueueCommandGetStatusArg &arg) {
   bess::pb::QueueCommandGetStatusResponse resp;
+
+  std::vector<double> occupancy_percentiles;
+  std::copy(arg.occupancy_percentiles().begin(), arg.occupancy_percentiles().end(),
+            back_inserter(occupancy_percentiles));
+  if (!IsValidPercentiles(occupancy_percentiles)) {
+    return CommandFailure(EINVAL, "invalid 'occupancy_percentiles'");
+  }
+  const auto &occupancy_summary = occupancy_hist_.Summarize(occupancy_percentiles);
+
   resp.set_count(llring_count(queue_));
   resp.set_size(size_);
   resp.set_enqueued(stats_.enqueued);
   resp.set_dequeued(stats_.dequeued);
   resp.set_dropped(stats_.dropped);
+  SetSummary(resp.mutable_occupancy_summary(), occupancy_summary);
+
+  if (arg.clear_hist()) {
+    // Note that some samples might be lost due to the small gap between
+    // Summarize() and the next mcs_lock... but we posit that smaller
+    // critical section is more important.
+    ClearOccupancyHist();
+  }
+
   return CommandSuccess(resp);
+}
+
+void Queue::ClearOccupancyHist() {
+  // vector initialization is expensive thus should be out of critical section
+  decltype(occupancy_hist_) new_occupancy_hist(occupancy_hist_.num_buckets(),
+                                   occupancy_hist_.bucket_width());
+
+  // Use move semantics to minimize critical section
+  mcslock_node_t mynode;
+  mcs_lock(&lock_, &mynode);
+  occupancy_hist_ = std::move(new_occupancy_hist);
+  mcs_unlock(&lock_, &mynode);
 }
 
 void Queue::AdjustWaterLevels() {
