@@ -46,7 +46,6 @@ DEFINE_bool(t, false, "Dump the size of internal data structures");
 DEFINE_string(i, "/var/run/bessd.pid", "Specifies where to write the pidfile");
 DEFINE_bool(f, false, "Run BESS in foreground mode (for developers)");
 DEFINE_bool(k, false, "Kill existing BESS instance, if any");
-DEFINE_bool(s, false, "Show TC statistics every second");
 DEFINE_bool(d, false, "Run BESS in debug mode (with debug log messages)");
 DEFINE_bool(skip_root_check, false,
             "Skip checking that the process is running as root.");
