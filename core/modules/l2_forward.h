@@ -60,10 +60,11 @@ struct l2_table {
 class L2Forward final : public Module {
  public:
   static const gate_idx_t kNumOGates = MAX_GATES;
+  static const gate_idx_t kNumIGates = MAX_GATES;
 
   static const Commands cmds;
 
-  L2Forward() : Module(), l2_table_(), default_gate_() {
+  L2Forward() : Module(), l2_table_(), default_gate_(), learn_() {
     max_allowed_workers_ = Worker::kMaxWorkers;
   }
 
@@ -84,6 +85,7 @@ class L2Forward final : public Module {
  private:
   struct l2_table l2_table_;
   gate_idx_t default_gate_;
+  int learn_;
 };
 
 #endif  // BESS_MODULES_L2FORWARD_H_
