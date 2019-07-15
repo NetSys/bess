@@ -158,6 +158,18 @@ CommandResponse UnixSocketPort::Init(const bess::pb::UnixSocketPortArg &arg) {
     return CommandFailure(errno, "unable to start accept thread");
   }
 
+  send_vector = new(std::nothrow) mmsghdr[VECTOR_QUANTUM]{};
+  send_iovecs = new(std::nothrow) iovec[VECTOR_QUANTUM * MAX_SEGS_IN_VECTOR]{};
+
+  if ((send_vector == nullptr) || (send_iovecs == nullptr)) {
+    DeInit();
+    return CommandFailure(errno, "failed to allocate vector buffers");
+  }
+
+  for (int i=0; i<VECTOR_QUANTUM; i++) {
+    send_vector[i].msg_hdr.msg_iov = &send_iovecs[i * MAX_SEGS_IN_VECTOR];
+  }
+
   return CommandSuccess();
 }
 
@@ -171,6 +183,10 @@ void UnixSocketPort::DeInit() {
   if (client_fd_ != kNotConnectedFd) {
     close(client_fd_);
   }
+  if (send_vector != nullptr)
+        delete[] send_vector;
+  if (send_iovecs != nullptr)
+        delete[] send_iovecs;
 }
 
 int UnixSocketPort::RecvPackets(queue_t qid, bess::Packet **pkts, int cnt) {
@@ -226,8 +242,16 @@ int UnixSocketPort::RecvPackets(queue_t qid, bess::Packet **pkts, int cnt) {
   return received;
 }
 
+static void enqueuePacket(struct iovec *iov,  bess::Packet *pkt, int nb_segs) {
+    for (int j = 0; j < nb_segs; j++) {
+      iov[j].iov_base = pkt->head_data();
+      iov[j].iov_len = pkt->head_len();
+      pkt = pkt->next();
+    }
+}
+
 int UnixSocketPort::SendPackets(queue_t qid, bess::Packet **pkts, int cnt) {
-  int sent = 0;
+  int sent = 0, vecindex = 0;
   int client_fd = client_fd_;
 
   DCHECK_EQ(qid, 0);
@@ -240,28 +264,50 @@ int UnixSocketPort::SendPackets(queue_t qid, bess::Packet **pkts, int cnt) {
     bess::Packet *pkt = pkts[i];
 
     int nb_segs = pkt->nb_segs();
-    struct iovec iov[nb_segs];
+    if ((nb_segs <= MAX_SEGS_IN_VECTOR) || (vecindex > VECTOR_QUANTUM)) {
+        enqueuePacket(send_vector[vecindex].msg_hdr.msg_iov, pkt, nb_segs);
+        send_vector[vecindex].msg_hdr.msg_iovlen = nb_segs;
+        vecindex++;
+    } else {
+        if (vecindex > 0) {
+            int vecret;
+            vecret = sendmmsg(client_fd, send_vector, vecindex, 0);
+            vecindex = 0;
+            if (vecret < 0)
+                break;
+            sent += vecret;
+            if (vecret < vecindex)
+                break;
+        }
+        if (nb_segs > MAX_SEGS_IN_VECTOR) {
+            struct iovec iov[nb_segs];
 
-    struct msghdr msg = msghdr();
-    msg.msg_iov = iov;
-    msg.msg_iovlen = nb_segs;
+            struct msghdr msg = msghdr();
+            msg.msg_iov = iov;
+            msg.msg_iovlen = nb_segs;
 
-    ssize_t ret;
+            enqueuePacket(iov, pkt, nb_segs);
 
-    for (int j = 0; j < nb_segs; j++) {
-      iov[j].iov_base = pkt->head_data();
-      iov[j].iov_len = pkt->head_len();
-      pkt = pkt->next();
-    }
+            ssize_t ret;
+        
+            ret = sendmsg(client_fd, &msg, 0);
+            if (ret < 0) {
+              break;
+            }
 
-    ret = sendmsg(client_fd, &msg, 0);
-    if (ret < 0) {
-      break;
-    }
-
-    sent++;
+            sent++;
+        }
+     }
   }
 
+  /* Final flush if there is an outstanding vector */
+
+  if (vecindex > 0) {
+     int vecret;
+     vecret = sendmmsg(client_fd, send_vector, vecindex, 0);
+     if (vecret > 0)
+         sent += vecret;
+  }
   if (sent) {
     bess::Packet::Free(pkts, sent);
   }
