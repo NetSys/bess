@@ -96,6 +96,19 @@ void UnixSocketAcceptThread::Run() {
   }
 }
 
+static void replenishVector(struct iovec *iovecs, bess::Packet **pktvec, int cnt) {
+    for (int i=0; i < cnt; i++) {
+        pktvec[i] = current_worker.packet_pool()->Alloc();
+        if (pktvec[i]) {
+            iovecs[i].iov_base = pktvec[i]->data();
+            iovecs[i].iov_len = SNBUF_DATA;
+        } else {
+            iovecs[i].iov_base = NULL; /* vectors can have holes, it will just drop the packet */
+            iovecs[i].iov_len = 0;
+        }
+    }
+}
+
 CommandResponse UnixSocketPort::Init(const bess::pb::UnixSocketPortArg &arg) {
   const std::string path = arg.path();
   int num_txq = num_queues[PACKET_DIR_OUT];
@@ -161,7 +174,26 @@ CommandResponse UnixSocketPort::Init(const bess::pb::UnixSocketPortArg &arg) {
   send_vector = new(std::nothrow) mmsghdr[VECTOR_QUANTUM]{};
   send_iovecs = new(std::nothrow) iovec[VECTOR_QUANTUM * MAX_SEGS_IN_VECTOR]{};
 
-  if ((send_vector == nullptr) || (send_iovecs == nullptr)) {
+  recv_vector = new(std::nothrow) mmsghdr[VECTOR_QUANTUM]{};
+  recv_iovecs = new(std::nothrow) iovec[VECTOR_QUANTUM]{};
+  pkt_recv_vector = new(std::nothrow) bess::Packet*[VECTOR_QUANTUM];
+
+  for (int i=0; i < VECTOR_QUANTUM; i++) {
+    pkt_recv_vector[i] = nullptr;
+    recv_iovecs[i].iov_base = NULL;
+    recv_iovecs[i].iov_len = 0;
+    recv_vector[i].msg_hdr.msg_iov = &recv_iovecs[i];
+    recv_vector[i].msg_hdr.msg_iovlen = 1;
+    recv_vector[i].msg_hdr.msg_name = NULL;
+    recv_vector[i].msg_hdr.msg_namelen = 0;
+    recv_vector[i].msg_hdr.msg_control = NULL;
+    recv_vector[i].msg_hdr.msg_controllen = 0;
+    recv_vector[i].msg_hdr.msg_flags = 0;
+  }
+
+  replenishVector(recv_iovecs, pkt_recv_vector, VECTOR_QUANTUM);
+
+  if ((send_vector == nullptr) || (send_iovecs == nullptr) || (recv_iovecs == nullptr) || (recv_vector == nullptr) || (pkt_recv_vector == nullptr)) {
     DeInit();
     return CommandFailure(errno, "failed to allocate vector buffers");
   }
@@ -187,6 +219,18 @@ void UnixSocketPort::DeInit() {
         delete[] send_vector;
   if (send_iovecs != nullptr)
         delete[] send_iovecs;
+  if (recv_vector != nullptr)
+        delete[] recv_vector;
+  if (recv_iovecs != nullptr)
+        delete[] recv_iovecs;
+  if (pkt_recv_vector != nullptr) {
+        for (int i = 0; i < VECTOR_QUANTUM ; i++) {
+            if (pkt_recv_vector[i]) {
+                bess::Packet::Free(pkt_recv_vector[i]);
+            }
+        }
+        delete[] pkt_recv_vector;
+  }
 }
 
 int UnixSocketPort::RecvPackets(queue_t qid, bess::Packet **pkts, int cnt) {
@@ -205,36 +249,21 @@ int UnixSocketPort::RecvPackets(queue_t qid, bess::Packet **pkts, int cnt) {
   }
 
   int received = 0;
+
   while (received < cnt) {
-    bess::Packet *pkt = current_worker.packet_pool()->Alloc();
+      int ret = recvmmsg(client_fd, recv_vector, std::min(cnt - received, VECTOR_QUANTUM), 0, NULL);
 
-    if (!pkt) {
-      break;
-    }
-
-    // Datagrams larger than 2KB will be truncated.
-    int ret = recv(client_fd, pkt->data(), SNBUF_DATA, 0);
-
-    if (ret > 0) {
-      pkt->append(ret);
-      pkts[received++] = pkt;
-      continue;
-    }
-
-    bess::Packet::Free(pkt);
-
-    if (ret < 0) {
-      if (errno == EAGAIN || errno == EWOULDBLOCK || errno == EBADF) {
-        break;
+      if (ret > 0) {
+            for (int i=0; i<ret; i++) {
+                if ((recv_iovecs[i].iov_base != NULL) && (recv_vector[i].msg_len > 0)) {
+                    pkt_recv_vector[i]->append(recv_vector[i].msg_len);
+                    pkts[received++] = pkt_recv_vector[i];
+                }
+            }
+            replenishVector(recv_iovecs, pkt_recv_vector, ret);
+      } else {
+            break;
       }
-
-      if (errno == EINTR) {
-        continue;
-      }
-    }
-
-    // Connection closed.
-    break;
   }
 
   last_idle_ns_ = (received == 0) ? now_ns : 0;

@@ -105,8 +105,9 @@ class UnixSocketPort final : public Port {
  private:
 
   // These rely on there beeing no multiqueue support !!!
-  struct mmsghdr *send_vector;
-  struct iovec *send_iovecs;
+  struct mmsghdr *send_vector, *recv_vector;
+  bess::Packet **pkt_recv_vector;
+  struct iovec *send_iovecs, *recv_iovecs;
 
   // Value for a disconnected socket.
   static const int kNotConnectedFd = -1;
