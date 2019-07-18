@@ -168,10 +168,18 @@ PlainPacketPool::PlainPacketPool(size_t capacity, int socket_id)
   pool_->flags |= MEMPOOL_F_NO_PHYS_CONTIG;
 
   size_t page_shift = __builtin_ffs(getpagesize());
-  size_t element_size =
+  size_t min_chunk_size =  0;
+  size_t align = 0;
+  /* UPGRADE: rte_mempool_xmem_size is deprectaed, mem_size can be calculated
+   * by custom function call using function pointer `calc_size`. 
+   * Here rte_mempool_op_calc_mem_size_default is default function provided by 
+   * DPDK*/
+  /*size_t element_size =
       pool_->header_size + pool_->elt_size + pool_->trailer_size;
   size_t size = rte_mempool_xmem_size(pool_->size, element_size, page_shift,
-                                      pool_->flags);
+                                      pool_->flags);*/
+  size_t size = rte_mempool_op_calc_mem_size_default(pool_, pool_->size,
+      page_shift, &min_chunk_size, &align);
 
   void *addr = mmap(nullptr, size, PROT_READ | PROT_WRITE,
                     MAP_SHARED | MAP_ANONYMOUS, -1, 0);
@@ -198,13 +206,22 @@ BessPacketPool::BessPacketPool(size_t capacity, int socket_id)
     : PacketPool(capacity, socket_id),
       mem_(static_cast<size_t>(FLAGS_m) * 1024 * 1024, socket_id) {
   size_t page_shift = __builtin_ffs(getpagesize());
-  size_t element_size =
-      pool_->header_size + pool_->elt_size + pool_->trailer_size;
+  /* UPGRADE: Not required.*/
+  /*size_t element_size =
+      pool_->header_size + pool_->elt_size + pool_->trailer_size;*/
+  size_t min_chunk_size =  0;
+  size_t align = 0;
 
   while (pool_->populated_size < pool_->size) {
     size_t deficit = pool_->size - pool_->populated_size;
-    size_t bytes =
-        rte_mempool_xmem_size(deficit, element_size, page_shift, pool_->flags);
+   /* UPGRADE: rte_mempool_xmem_size is deprectaed, mem_size can be calculated
+    * by custom function call using function pointer `calc_size`. 
+    * Here rte_mempool_op_calc_mem_size_default is default function provided by 
+    * DPDK*/
+    /*size_t bytes =
+        rte_mempool_xmem_size(deficit, element_size, page_shift, pool_->flags);*/
+    size_t bytes = rte_mempool_op_calc_mem_size_default(pool_, deficit,
+      page_shift, &min_chunk_size, &align);
 
     auto [addr, alloced_bytes] = mem_.AllocUpto(bytes);
     if (addr == nullptr) {
