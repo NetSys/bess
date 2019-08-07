@@ -60,7 +60,7 @@ class Replicate final : public Module {
   gate_idx_t gates_[kMaxGates * 2];
   // The total number of output gates
   std::atomic_int active_gates;
-  int ngates_;
+  int ngates_[2];
 };
 
 #endif  // BESS_MODULES_RELICATE_H_

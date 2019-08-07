@@ -46,32 +46,62 @@ CommandResponse Replicate::Init(const bess::pb::ReplicateArg &arg) {
     gates_[i] = elem;
     gates_[i + kMaxGates] = elem; // Initialize the "backup" array
   }
-  ngates_ = arg.gates_size();
+  for (int i = arg.gates_size(); i <= kMaxGates; i++) {
+    gates_[i] = DROP_GATE;
+    gates_[i + kMaxGates] = DROP_GATE; // Initialize the "backup" array
+  }
+  ngates_[0] = arg.gates_size();
+  ngates_[1] = arg.gates_size();
   active_gates = 0;
 
   return CommandSuccess();
 }
 
+// The mechanics for thread-safe change here are rather dumb. In theory
+// we can get packet duplicates if the configuration change is so fast
+// that the packet processing is still using the (now)backup table while
+// it is being written to.
+// It is possible to guard against that in here, but it will be rather
+// expensive, easier to do that in the control plane by doing the following:
+// 1. Do not reorder the gate vector. Stop packet processing if doing so.
+// 2. Do not delete a gate when making a change without stopping packet 
+// processing - replace it with DROP_GATE instead to keep the vector in same
+// order
+// 3. Add new gates at the back.
+
 CommandResponse Replicate::CommandSetGates(
     const bess::pb::ReplicateCommandSetGatesArg &arg) {
+
+  int backup_gates = (active_gates + 1) % 2;
 
   if (arg.gates_size() > kMaxGates) {
     return CommandFailure(EINVAL, "no more than %d gates", kMaxGates);
   }
 
   for (int i = 0; i < arg.gates_size(); i++) {
-    gates_[i + active_gates * kMaxGates] = arg.gates(i);
+    gates_[i + backup_gates * kMaxGates] = arg.gates(i);
+  }
+  for (int i = arg.gates_size(); i <= kMaxGates; i++) {
+    gates_[i + backup_gates * kMaxGates] = DROP_GATE;
   }
 
   //swap active and backup gates portions of the vector
+  ngates_[backup_gates] = arg.gates_size();
 
-  active_gates = (active_gates + 1) % 2;
+  STORE_BARRIER();
+
+  active_gates = backup_gates;
+  backup_gates = (active_gates + 1) % 2;
 
   for (int i = 0; i < arg.gates_size(); i++) {
-    gates_[i + active_gates * kMaxGates] = arg.gates(i);
+    gates_[i + backup_gates * kMaxGates] = arg.gates(i);
+  }
+  for (int i = arg.gates_size(); i <= kMaxGates; i++) {
+    gates_[i + backup_gates * kMaxGates] = DROP_GATE;
   }
 
-  ngates_ = arg.gates_size();
+  ngates_[backup_gates] = arg.gates_size();
+
   return CommandSuccess();
 }
 
@@ -79,7 +109,7 @@ void Replicate::ProcessBatch(Context *ctx, bess::PacketBatch *batch) {
   int cnt = batch->cnt();
   for (int i = 0; i < cnt; i++) {
     bess::Packet *tocopy = batch->pkts()[i];
-    for (int j = 1; j < ngates_; j++) {
+    for (int j = 1; j < ngates_[active_gates]; j++) {
       bess::Packet *newpkt = bess::Packet::copy(tocopy);
       if (newpkt) {
         EmitPacket(ctx, newpkt, gates_[j + active_gates * kMaxGates]);
