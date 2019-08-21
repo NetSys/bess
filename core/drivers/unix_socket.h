@@ -30,9 +30,7 @@
 
 #ifndef BESS_DRIVERS_UNIXSOCKET_H_
 #define BESS_DRIVERS_UNIXSOCKET_H_
-#ifndef _GNU_SOURCE
-#define _GNU_SOURCE
-#endif
+
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/un.h>

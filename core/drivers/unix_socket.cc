@@ -318,7 +318,7 @@ int UnixSocketPort::SendPackets(queue_t qid, bess::Packet **pkts, int cnt) {
             enqueuePacket(iov, pkt, nb_segs);
 
             ssize_t ret;
-        
+
             ret = sendmsg(client_fd, &msg, 0);
             if (ret < 0) {
               break;
