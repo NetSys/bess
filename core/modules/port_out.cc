@@ -56,14 +56,8 @@ CommandResponse PortOut::Init(const bess::pb::PortOutArg &arg) {
 
   node_constraints_ = port_->GetNodePlacementConstraint();
 
-  max_allowed_workers_ = port_->num_queues[PACKET_DIR_OUT];
-
-  for (queue_t i = 0; i < max_allowed_workers_; i++) {
-    available_queues_.push_back(i);
-  }
-
-  for (size_t i = 0; i < Worker::kMaxWorkers; i++) {
-    worker_queues_[i] = -1;
+  for (size_t i = 0; i < MAX_QUEUES_PER_DIR; i++) {
+    mcs_lock_init(&queue_locks_[i]);
   }
 
   if (ret < 0) {
@@ -85,15 +79,11 @@ std::string PortOut::GetDesc() const {
                              port_->port_builder()->class_name().c_str());
 }
 
-void PortOut::ProcessBatch(Context *ctx, bess::PacketBatch *batch) {
-  Port *p = port_;
-
-  const queue_t qid = worker_queues_[ctx->wid];
-
+static inline int SendBatch(bess::PacketBatch *batch, Port *p, queue_t qid) {
   uint64_t sent_bytes = 0;
   int sent_pkts = 0;
 
-  if (likely(qid < port_->num_queues[PACKET_DIR_OUT]) && p->conf().admin_up) {
+  if (p->conf().admin_up) {
     sent_pkts = p->SendPackets(qid, batch->pkts(), batch->cnt());
   }
 
@@ -109,6 +99,25 @@ void PortOut::ProcessBatch(Context *ctx, bess::PacketBatch *batch) {
     p->queue_stats[dir][qid].bytes += sent_bytes;
   }
 
+  return sent_pkts;
+}
+
+void PortOut::ProcessBatch(Context *ctx, bess::PacketBatch *batch) {
+  Port *p = port_;
+
+  CHECK(worker_queues_[ctx->wid] >= 0);
+  queue_t qid = worker_queues_[ctx->wid];
+  int sent_pkts = 0;
+
+  if (queue_users_[qid] == 1) {
+    sent_pkts = SendBatch(batch, p, qid);
+  } else {
+    mcslock_node_t me;
+    mcs_lock(&queue_locks_[qid], &me);
+    sent_pkts = SendBatch(batch, p, qid);
+    mcs_unlock(&queue_locks_[qid], &me);
+  }
+
   if (sent_pkts < batch->cnt()) {
     bess::Packet::Free(batch->pkts() + sent_pkts, batch->cnt() - sent_pkts);
   }
@@ -120,24 +129,19 @@ int PortOut::OnEvent(bess::Event e) {
   }
 
   const std::vector<bool> &actives = active_workers();
+  int num_queues = port_->num_queues[PACKET_DIR_OUT];
+  int next_queue = 0;
 
-  // Reclaim queues from workers that have been detached from this PortOut since
-  // the last resume.
-  for (size_t i = 0; i < Worker::kMaxWorkers; i++) {
-    if (!actives[i]) {
-      if (worker_queues_[i] >= 0) {
-        available_queues_.push_back(worker_queues_[i]);
-      }
-      worker_queues_[i] = -1;
-    }
+  for (int i = 0; i < MAX_QUEUES_PER_DIR; i++) {
+    queue_users_[i] = 0;
   }
 
-  // Assign remaining queues to any newly attached workers.
   for (size_t i = 0; i < Worker::kMaxWorkers; i++) {
-    if (actives[i] && worker_queues_[i] < 0) {
-      CHECK(!available_queues_.empty());  // Should not be tripped.
-      worker_queues_[i] = available_queues_.back();
-      available_queues_.pop_back();
+    worker_queues_[i] = -1;
+    if (actives[i]) {
+      worker_queues_[i] = next_queue;
+      queue_users_[next_queue]++;
+      next_queue = (next_queue + 1) % num_queues;
     }
   }
 
