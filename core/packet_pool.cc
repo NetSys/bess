@@ -170,7 +170,7 @@ PlainPacketPool::PlainPacketPool(size_t capacity, int socket_id)
   size_t page_shift = __builtin_ffs(getpagesize());
   size_t min_chunk_size =  0;
   size_t align = 0;
-  /* UPGRADE: rte_mempool_xmem_size is deprectaed, mem_size can be calculated
+  /* UPGRADE: rte_mempool_xmem_size is deprecated, mem_size can be calculated
    * by custom function call using function pointer `calc_size`. 
    * Here rte_mempool_op_calc_mem_size_default is default function provided by 
    * DPDK*/
@@ -214,7 +214,7 @@ BessPacketPool::BessPacketPool(size_t capacity, int socket_id)
 
   while (pool_->populated_size < pool_->size) {
     size_t deficit = pool_->size - pool_->populated_size;
-   /* UPGRADE: rte_mempool_xmem_size is deprectaed, mem_size can be calculated
+   /* UPGRADE: rte_mempool_xmem_size is deprecated, mem_size can be calculated
     * by custom function call using function pointer `calc_size`. 
     * Here rte_mempool_op_calc_mem_size_default is default function provided by 
     * DPDK*/

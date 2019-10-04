@@ -73,6 +73,7 @@ void PMDPort::InitDriver() {
 
   for (dpdk_port_t i = 0; i < num_dpdk_ports; i++) {
     struct rte_eth_dev_info dev_info;
+    struct rte_pci_device *pdev;
     std::string pci_info;
     int numa_node = -1;
     bess::utils::Ethernet::Address lladdr;
@@ -80,15 +81,14 @@ void PMDPort::InitDriver() {
     rte_eth_dev_info_get(i, &dev_info);
 
     if (dev_info.device) {
-      /* UPGRADE: structure pci_device is replaced by more generic structure 
-       * device.
+      /* UPGRADE: structure pci_device in struct rte_eth_dev_info is replaced
+       *  by more generic structure device.*/
+      pdev = RTE_DEV_TO_PCI(*(struct rte_device **)(void *)&dev_info.device);
       pci_info = bess::utils::Format(
           "%08x:%02hhx:%02hhx.%02hhx %04hx:%04hx  ",
-          dev_info.device->addr.domain, dev_info.device->addr.bus,
-          dev_info.device->addr.devid, dev_info.device->addr.function,
-          dev_info.device->id.vendor_id, dev_info.device->id.device_id);
-      */
-      pci_info = bess::utils::Format("%s",dev_info.device->name);
+          pdev->addr.domain, pdev->addr.bus,
+          pdev->addr.devid, pdev->addr.function,
+          pdev->id.vendor_id, pdev->id.device_id);
     }
 
     numa_node = rte_eth_dev_socket_id(static_cast<int>(i));
@@ -128,6 +128,7 @@ static CommandResponse find_dpdk_port_by_pci_addr(const std::string &pci,
                                                   bool *ret_hot_plugged) {
   dpdk_port_t port_id = DPDK_PORT_UNKNOWN;
   struct rte_pci_addr addr;
+  struct rte_pci_device *pdev;
 
   if (pci.length() == 0) {
     return CommandFailure(EINVAL, "No PCI address specified");
@@ -146,9 +147,8 @@ static CommandResponse find_dpdk_port_by_pci_addr(const std::string &pci,
     rte_eth_dev_info_get(i, &dev_info);
 
     if (dev_info.device) {
-      /*FIXME: UPGRADE: need to change the second arg of function. Instead of comparing 
-       * pci addr type object strcmp device name will suffice.*/
-      if (0)/*rte_eal_compare_pci_addr(&addr, &dev_info.device->addr) == 0)*/ {
+      pdev = RTE_DEV_TO_PCI(*(struct rte_device **)(void *)&dev_info.device);
+      if (rte_eal_compare_pci_addr(&addr, &pdev->addr) == 0) {
         port_id = i;
         break;
       }
@@ -159,19 +159,22 @@ static CommandResponse find_dpdk_port_by_pci_addr(const std::string &pci,
   if (port_id == DPDK_PORT_UNKNOWN) {
     int ret;
     char name[RTE_ETH_NAME_MAX_LEN];
+    struct rte_dev_iterator iterator;
+
     snprintf(name, RTE_ETH_NAME_MAX_LEN, "%08x:%02x:%02x.%02x", addr.domain,
              addr.bus, addr.devid, addr.function);
 
     /*UPGRADE: accepts only device to be attached to dpdk, doesnot returns 
-     * port id. similiar funcition is rte_eal_hotplug_add*/
+     * port id. similiar function is rte_eal_hotplug_add*/
     ret = rte_dev_probe(name);
 
 
     if (ret < 0) {
       return CommandFailure(ENODEV, "Cannot attach PCI device %s", name);
     }
-    /*FIXME: UPGRADE: ret is not port id this needs to be fixed.*/
-    port_id = ret;
+    /* Get port id using dev interator. */
+    RTE_ETH_FOREACH_MATCHING_DEV(port_id, name, &iterator) {
+    }
 
     *ret_hot_plugged = true;
   }
@@ -189,6 +192,7 @@ static CommandResponse find_dpdk_vdev(const std::string &vdev,
                                       dpdk_port_t *ret_port_id,
                                       bool *ret_hot_plugged) {
   dpdk_port_t port_id = DPDK_PORT_UNKNOWN;
+  struct rte_dev_iterator iterator;
 
   if (vdev.length() == 0) {
     return CommandFailure(EINVAL, "No vdev specified");
@@ -196,11 +200,15 @@ static CommandResponse find_dpdk_vdev(const std::string &vdev,
 
   const char *name = vdev.c_str();
   /*UPGRADE: accepts only device to be attached to dpdk, doesnot returns 
-   * port id. similiar funcition is rte_eal_hotplug_add*/
+   * port id. similiar function is rte_eal_hotplug_add*/
   int ret = rte_dev_probe(name);
 
   if (ret < 0) {
     return CommandFailure(ENODEV, "Cannot attach vdev %s", name);
+  }
+
+  /* Update port id using dev iterator */
+  RTE_ETH_FOREACH_MATCHING_DEV(port_id, name, &iterator) {
   }
 
   *ret_hot_plugged = true;
@@ -386,16 +394,23 @@ void PMDPort::DeInit() {
 
   if (hot_plugged_) {
     //char name[RTE_ETH_NAME_MAX_LEN];
-    //int ret;
+    int ret;
+    struct rte_device *dev;
 
     rte_eth_dev_close(dpdk_port_id_);
-    /*UPGRADE: rte_eth_dev_detach is rplaced by rte_dev_remove accepting pci 
+
+    /*UPGRADE: rte_eth_dev_detach is replaced by rte_dev_remove accepting pci
      * name as argument. Need to retrieve name from port_id.*/
-    /*ret = rte_dev_remove();
+    dev = rte_eth_devices[dpdk_port_id_].device;
+    if (dev == NULL) {
+      LOG(ERROR) << "Port already removed. ";
+      return;
+    }
+    ret = rte_dev_remove(dev);
     if (ret < 0) {
       LOG(WARNING) << "rte_dev_remove(" << static_cast<int>(dpdk_port_id_)
                    << ") failed: " << rte_strerror(-ret);
-    }*/
+    }
   }
 }
 
