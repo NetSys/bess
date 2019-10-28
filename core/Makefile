@@ -61,13 +61,13 @@ endif
 
 HAS_PKG_CONFIG := $(shell command -v $(PKG_CONFIG) 2>&1 >/dev/null && echo yes || echo no)
 
-RTE_SDK ?= $(abspath ../deps/dpdk-17.11)
+RTE_SDK ?= $(abspath ../deps/dpdk-19.08)
 RTE_TARGET ?= $(shell uname -m)-native-linuxapp-gcc
 DPDK_LIB ?= dpdk
 
 ifneq ($(wildcard $(RTE_SDK)/$(RTE_TARGET)/*),)
   DPDK_INC_DIR := $(RTE_SDK)/$(RTE_TARGET)/include
-  DPDK_LIB_DIR := $(RTE_SDK)/$(RTE_TARGET)/lib
+  DPDK_LIB_DIR := $(RTE_SDK)/$(RTE_TARGET)/build/lib
 else ifneq ($(wildcard $(RTE_SDK)/build/*),)
   # if the user didn't do "make install" for DPDK
   DPDK_INC_DIR := $(RTE_SDK)/build/include
@@ -114,10 +114,14 @@ CXXFLAGS += -std=c++17 -g3 -ggdb3 $(CXXARCHFLAGS) \
             -isystem $(dir $<).. -isystem $(COREDIR)/modules \
             -D_GNU_SOURCE \
             -Werror -Wall -Wextra -Wcast-align -Wno-error=deprecated-declarations \
+            -Wno-error=array-bounds \
             $(PKG_CFLAGS)
 
-PERMISSIVE := -Wno-unused-parameter -Wno-missing-field-initializers \
-              -Wno-unused-private-field
+ifeq "$(shell test $(CXXVERSION) -ge 9; echo $$?)" "0"
+  CXXFLAGS += -Wno-error=address-of-packed-member
+endif
+
+PERMISSIVE := -Wno-unused-parameter -Wno-missing-field-initializers
 
 # -Wshadow should not be used for g++ 4.x, as it has too many false positives
 ifeq "$(shell expr $(CXXCOMPILER) = g++ \& $(CXXVERSION) \< 50000)" "0"

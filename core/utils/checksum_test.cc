@@ -97,7 +97,7 @@ TEST(ChecksumTest, Ipv4NoOptChecksum) {
   ip->src = be32_t(0x12345678);
   ip->dst = be32_t(0x12347890);
 
-  uint16_t cksum_dpdk = rte_ipv4_cksum(reinterpret_cast<const ipv4_hdr *>(ip));
+  uint16_t cksum_dpdk = rte_ipv4_cksum(reinterpret_cast<const rte_ipv4_hdr *>(ip));
   uint16_t cksum_bess = CalculateIpv4NoOptChecksum(*ip);
   EXPECT_EQ(cksum_dpdk, cksum_bess);
 
@@ -115,7 +115,7 @@ TEST(ChecksumTest, Ipv4NoOptChecksum) {
     ip->src = be32_t(rd.Get());
     ip->dst = be32_t(rd.Get());
 
-    cksum_dpdk = rte_ipv4_cksum(reinterpret_cast<const ipv4_hdr *>(ip));
+    cksum_dpdk = rte_ipv4_cksum(reinterpret_cast<const rte_ipv4_hdr *>(ip));
     cksum_bess = CalculateIpv4NoOptChecksum(*ip);
 
     if (cksum_dpdk == 0xffff) {
@@ -212,7 +212,7 @@ TEST(ChecksumTest, UdpChecksum) {
   udp->length = be16_t(8);
 
   uint16_t cksum_dpdk =
-      rte_ipv4_udptcp_cksum(reinterpret_cast<const ipv4_hdr *>(ip), udp);
+      rte_ipv4_udptcp_cksum(reinterpret_cast<const rte_ipv4_hdr *>(ip), udp);
   uint16_t cksum_bess = CalculateIpv4UdpChecksum(*ip, *udp);
   EXPECT_EQ(cksum_dpdk, cksum_bess);
 
@@ -243,7 +243,7 @@ TEST(ChecksumTest, UdpChecksum) {
     ip->checksum = 0x0000;   // for dpdk
     udp->checksum = 0x0000;  // for dpdk
 
-    cksum_dpdk = rte_ipv4_cksum(reinterpret_cast<const ipv4_hdr *>(ip));
+    cksum_dpdk = rte_ipv4_cksum(reinterpret_cast<const rte_ipv4_hdr *>(ip));
     cksum_bess = CalculateIpv4NoOptChecksum(*ip);
 
     if (cksum_dpdk == 0xffff) {
@@ -257,7 +257,7 @@ TEST(ChecksumTest, UdpChecksum) {
     ip->checksum = cksum_bess;
 
     cksum_dpdk =
-        rte_ipv4_udptcp_cksum(reinterpret_cast<const ipv4_hdr *>(ip), udp);
+        rte_ipv4_udptcp_cksum(reinterpret_cast<const rte_ipv4_hdr *>(ip), udp);
     cksum_bess = CalculateIpv4UdpChecksum(*ip, *udp);
 
     EXPECT_EQ(cksum_dpdk, cksum_bess);
@@ -290,7 +290,7 @@ TEST(ChecksumTest, TcpChecksum) {
   tcp->ack_num = be32_t(0x98461732);
 
   uint16_t cksum_dpdk =
-      rte_ipv4_udptcp_cksum(reinterpret_cast<const ipv4_hdr *>(ip), tcp);
+      rte_ipv4_udptcp_cksum(reinterpret_cast<const rte_ipv4_hdr *>(ip), tcp);
   uint16_t cksum_bess = CalculateIpv4TcpChecksum(*ip, *tcp);
   EXPECT_EQ(cksum_dpdk, cksum_bess);
 
@@ -320,7 +320,7 @@ TEST(ChecksumTest, TcpChecksum) {
     ip->checksum = 0x0000;   // for dpdk
     tcp->checksum = 0x0000;  // for dpdk
 
-    cksum_dpdk = rte_ipv4_cksum(reinterpret_cast<const ipv4_hdr *>(ip));
+    cksum_dpdk = rte_ipv4_cksum(reinterpret_cast<const rte_ipv4_hdr *>(ip));
     cksum_bess = CalculateIpv4NoOptChecksum(*ip);
 
     if (cksum_dpdk == 0xffff) {
@@ -334,7 +334,7 @@ TEST(ChecksumTest, TcpChecksum) {
     ip->checksum = cksum_bess;
 
     cksum_dpdk =
-        rte_ipv4_udptcp_cksum(reinterpret_cast<const ipv4_hdr *>(ip), tcp);
+        rte_ipv4_udptcp_cksum(reinterpret_cast<const rte_ipv4_hdr *>(ip), tcp);
     cksum_bess = CalculateIpv4TcpChecksum(*ip, *tcp);
 
     if (cksum_dpdk == 0xffff) {
