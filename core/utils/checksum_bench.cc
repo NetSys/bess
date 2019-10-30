@@ -126,7 +126,7 @@ BENCHMARK_DEFINE_F(ChecksumFixture, BmIpv4NoOptChecksumDpdk)
     ip->dst = be32_t(GetRandom());
 
     benchmark::DoNotOptimize(
-        rte_ipv4_cksum(reinterpret_cast<const ipv4_hdr *>(ip)));
+        rte_ipv4_cksum(reinterpret_cast<const rte_ipv4_hdr *>(ip)));
   }
 
   state.SetItemsProcessed(state.iterations());
@@ -207,7 +207,7 @@ BENCHMARK_DEFINE_F(ChecksumFixture, BmUdpChecksumDpdk)
     udp->checksum = 0x0000;  // for dpdk
 
     benchmark::DoNotOptimize(
-        rte_ipv4_udptcp_cksum(reinterpret_cast<const ipv4_hdr *>(ip), udp));
+        rte_ipv4_udptcp_cksum(reinterpret_cast<const rte_ipv4_hdr *>(ip), udp));
   }
 
   state.SetItemsProcessed(state.iterations());
@@ -267,7 +267,7 @@ BENCHMARK_DEFINE_F(ChecksumFixture, BmTcpChecksumDpdk)
     tcp->checksum = 0x0000;  // for dpdk
 
     benchmark::DoNotOptimize(
-        rte_ipv4_udptcp_cksum(reinterpret_cast<const ipv4_hdr *>(ip), tcp));
+        rte_ipv4_udptcp_cksum(reinterpret_cast<const rte_ipv4_hdr *>(ip), tcp));
   }
 
   state.SetItemsProcessed(state.iterations());
@@ -391,9 +391,9 @@ BENCHMARK_DEFINE_F(ChecksumFixture, BmSrcIpPortUpdateDpdk)
     // NAT simulation
     // - one update for ip checksum recalcuation
     // - two for tcp checksum
-    ip->checksum = rte_ipv4_cksum(reinterpret_cast<const ipv4_hdr *>(ip));
+    ip->checksum = rte_ipv4_cksum(reinterpret_cast<const rte_ipv4_hdr *>(ip));
     tcp->checksum =
-        rte_ipv4_udptcp_cksum(reinterpret_cast<const ipv4_hdr *>(ip), tcp);
+        rte_ipv4_udptcp_cksum(reinterpret_cast<const rte_ipv4_hdr *>(ip), tcp);
   }
 
   state.SetItemsProcessed(state.iterations());
