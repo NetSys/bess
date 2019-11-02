@@ -588,12 +588,6 @@ static int sn_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 		return NET_XMIT_DROP;
 	}
 
-	if (unlikely(skb_shinfo(skb)->frag_list)) {
-		log_err("frag_list is not NULL!\n");
-		dev_kfree_skb(skb);
-		return NET_XMIT_DROP;
-	}
-
 	if (unlikely(txq >= dev->num_txq)) {
 		log_err("invalid txq=%u\n", txq);
 		dev_kfree_skb(skb);
@@ -688,9 +682,8 @@ extern const struct ethtool_ops sn_ethtool_ops;
 
 static void sn_set_offloads(struct net_device *netdev)
 {
-	netif_set_gso_max_size(netdev, SNBUF_DATA);
-
 #if 0
+	netif_set_gso_max_size(netdev, SNBUF_DATA);
 	netdev->hw_features = NETIF_F_SG |
 			      NETIF_F_IP_CSUM |
 			      NETIF_F_RXCSUM |
@@ -699,8 +692,8 @@ static void sn_set_offloads(struct net_device *netdev)
 			      NETIF_F_LRO |
 			      NETIF_F_GSO_UDP_TUNNEL;
 #else
-	/* Disable all offloading features for now */
-	netdev->hw_features = 0;
+	/* We can safely enable SG, the rest needs work */
+	netdev->hw_features = (NETIF_F_SG | NETIF_F_FRAGLIST);
 #endif
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,8,0))
