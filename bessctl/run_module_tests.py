@@ -79,11 +79,10 @@ def main():
         raise Exception('bess daemon could not start')
 
     for file_name in glob.glob(os.path.join(args.test_dir, "{}.py".format(args.test_name))):
-        path = os.path.join(args.test_dir, file_name)
         print('Running test %s' % file_name)
 
         try:
-            run_cmd('%s daemon reset -- run file %s' % (bessctl, path))
+            run_cmd('%s daemon reset -- run file %s' % (bessctl, file_name))
         except CommandError:
             any_failure = 1
             run_cmd('%s daemon start -m 0' % bessctl)
