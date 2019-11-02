@@ -55,6 +55,8 @@ class Queue : public Module {
   }
 
   CommandResponse Init(const bess::pb::QueueArg &arg);
+  CommandResponse GetRuntimeConfig(const bess::pb::EmptyArg &arg);
+  CommandResponse SetRuntimeConfig(const bess::pb::QueueArg &arg);
 
   void DeInit() override;
 
