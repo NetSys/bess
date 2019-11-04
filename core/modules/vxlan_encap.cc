@@ -107,9 +107,22 @@ void VXLANEncap::ProcessBatch(Context *ctx, bess::PacketBatch *batch) {
     vh->vx_flags = be32_t(0x08000000);
     vh->vx_vni = vni << 8;
 
-    udp->src_port = be16_t(
-        rte_hash_crc(inner_eth, sizeof(Ethernet::Address) * 2, UINT32_MAX) |
-        0xf000);
+    uint32_t h = 0;
+    if (inner_eth->ether_type.value() != Ethernet::Type::kIpv4) {
+      h = rte_hash_crc(inner_eth, sizeof(Ethernet::Address) * 2, UINT32_MAX);
+    } else {
+      Ipv4 *inner_ip = reinterpret_cast<Ipv4 *>(inner_eth + 1);
+      size_t ip_len = inner_ip->header_length;
+      h = inner_ip->protocol;
+      if (inner_ip->protocol == Ipv4::Proto::kTcp ||
+          inner_ip->protocol == Ipv4::Proto::kUdp) {
+        Udp *inner_l4 = reinterpret_cast<Udp *>(
+            reinterpret_cast<uint8_t *>(inner_ip) + ip_len);
+        h = rte_hash_crc(&inner_l4->src_port, sizeof(be32_t), h);
+      }
+      h = rte_hash_crc(&inner_ip->src, sizeof(be32_t) * 2, h);
+    }
+    udp->src_port = be16_t(h | 0xc000);  // Force into private range (RFC6335)
     udp->dst_port = dstport_;
     udp->length = be16_t(sizeof(*udp) + inner_frame_len);
     udp->checksum = 0;

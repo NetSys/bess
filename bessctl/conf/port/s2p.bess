@@ -29,8 +29,17 @@
 # POSSIBILITY OF SUCH DAMAGE.
 
 dpdk_ports = int($BESS_PORTS!'1')
+num_queues = int($BESS_QUEUES!'1')
+num_workers = int($BESS_WORKERS!'1')
 print('Using %d DPDK ports... (envvar "BESS_PORTS")' % dpdk_ports)
 
+for i in range(num_workers):
+	bess.add_worker(wid=i, core=i)
+
+sources = [Source() for _ in range(num_workers)]
+
 for i in range(dpdk_ports):
-    p = PMDPort(port_id=i)
-    Source() -> PortOut(port=p.name)
+    p = PMDPort(port_id=i, num_inc_q=num_queues, num_out_q=num_queues)
+    pout = PortOut(port=p.name)
+    for src in sources:
+        src -> pout

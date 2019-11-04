@@ -385,7 +385,7 @@ $(eval $(call BUILD, \
 $(eval $(call BUILD, \
         CXX, \
         pb/%.pb.o, \
-        pb/%.pb.cc, \
+        pb/%.pb.cc $(PROTO_HEADERS), \
         $(CXX) -o $$@ -c $$< $$(CXXFLAGS) $(PERMISSIVE) $$(DEPFLAGS)))
 
 $(eval $(call BUILD, \
@@ -403,7 +403,7 @@ $(eval $(call BUILD, \
 $(eval $(call BUILD, \
         UTILS_CXX, \
         utils/%.o, \
-        utils/%.cc, \
+        utils/%.cc $(PROTO_HEADERS), \
         $(CXX) -o $$@ -c $$< $$(CXXFLAGS) $$(DEPFLAGS)))
 
 $(eval $(call BUILD, \
