@@ -98,13 +98,13 @@ class CmdLineOpts {
   std::vector<char *> argv_;
 };
 
-void init_eal(int dpdk_mb_per_socket, int default_core) {
+void init_eal(int dpdk_mb_per_socket, std::string nonworker_corelist) {
   CmdLineOpts rte_args{
       "bessd",
       "--master-lcore",
       std::to_string(RTE_MAX_LCORE - 1),
       "--lcore",
-      std::to_string(RTE_MAX_LCORE - 1) + "@" + std::to_string(default_core),
+      std::to_string(RTE_MAX_LCORE - 1) + "@" + nonworker_corelist,
       // Do not bother with /var/run/.rte_config and .rte_hugepage_info,
       // since we don't want to interfere with other DPDK applications.
       "--no-shconf",
@@ -162,10 +162,10 @@ void init_eal(int dpdk_mb_per_socket, int default_core) {
   rte_openlog_stream(fopencookie(nullptr, "w", dpdk_log_funcs));
 }
 
-// Returns the last core ID of all cores, as the default core all threads will
-// run on. If the process was run with a limited set of cores (by `taskset`),
-// the last one among them will be picked.
-int determine_default_core() {
+// Returns the current affinity set of the process as a string,
+// in the "corelist" format (e.g., "0-12,16-28")
+std::string GetNonWorkerCoreList() {
+  std::string corelist;
   cpu_set_t set;
 
   int ret = pthread_getaffinity_np(pthread_self(), sizeof(set), &set);
@@ -175,15 +175,34 @@ int determine_default_core() {
   }
 
   // Choose the last core available
-  for (int i = CPU_SETSIZE; i >= 0; i--) {
+  for (int i = 0; i < CPU_SETSIZE; i++) {
     if (CPU_ISSET(i, &set)) {
-      return i;
+      int start = i;
+      while (i < CPU_SETSIZE && CPU_ISSET(i, &set)) {
+        i++;
+      }
+      int end = i - 1;
+
+      std::string group = std::to_string(start);
+      if (start < end) {
+        group += "-" + std::to_string(end);
+      }
+
+      if (corelist == "") {
+        corelist += group;
+      } else {
+        corelist += "," + group;
+      }
     }
   }
 
-  // This will never happen, but just in case.
-  PLOG(WARNING) << "No core is allowed for the process?";
-  return 0;
+  if (corelist == "") {
+    // This should never happen, but just in case...
+    PLOG(WARNING) << "No core is allowed for the process?";
+    corelist = "0";
+  }
+
+  return corelist;
 }
 
 bool is_initialized = false;
@@ -200,7 +219,7 @@ void InitDpdk(int dpdk_mb_per_socket) {
   if (!is_initialized) {
     is_initialized = true;
     LOG(INFO) << "Initializing DPDK";
-    init_eal(dpdk_mb_per_socket, determine_default_core());
+    init_eal(dpdk_mb_per_socket, GetNonWorkerCoreList());
   }
 }
 

@@ -52,6 +52,8 @@ const Commands BPF::cmds = {
     {"add", "BPFArg", MODULE_CMD_FUNC(&BPF::CommandAdd),
      Command::THREAD_UNSAFE},
     {"clear", "EmptyArg", MODULE_CMD_FUNC(&BPF::CommandClear),
+     Command::THREAD_UNSAFE},
+    {"get_initial_arg", "EmptyArg", MODULE_CMD_FUNC(&BPF::GetInitialArg),
      Command::THREAD_UNSAFE}};
 
 CommandResponse BPF::Init(const bess::pb::BPFArg &arg) {
@@ -68,6 +70,17 @@ void BPF::DeInit() {
   }
 
   filters_.clear();
+}
+
+CommandResponse BPF::GetInitialArg(const bess::pb::EmptyArg &) {
+  bess::pb::BPFArg r;
+  for (auto f : filters_) {
+    auto *f_pb = r.add_filters();
+    f_pb->set_priority(f.priority);
+    f_pb->set_filter(f.exp);
+    f_pb->set_gate(f.gate);
+  }
+  return CommandSuccess(r);
 }
 
 CommandResponse BPF::CommandAdd(const bess::pb::BPFArg &arg) {
