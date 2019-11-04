@@ -30,7 +30,10 @@
 
 #ifndef BESS_DRIVERS_UNIXSOCKET_H_
 #define BESS_DRIVERS_UNIXSOCKET_H_
-
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE
+#endif
+#include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <unistd.h>
@@ -42,6 +45,9 @@
 #include "../port.h"
 
 #include "../utils/syscallthread.h"
+
+#define MAX_SEGS_IN_VECTOR 8
+#define VECTOR_QUANTUM 64
 
 class UnixSocketPort;
 
@@ -97,6 +103,12 @@ class UnixSocketPort final : public Port {
   int SendPackets(queue_t qid, bess::Packet **pkts, int cnt) override;
 
  private:
+
+  // These rely on there beeing no multiqueue support !!!
+  struct mmsghdr *send_vector, *recv_vector;
+  bess::Packet **pkt_recv_vector;
+  struct iovec *send_iovecs, *recv_iovecs;
+
   // Value for a disconnected socket.
   static const int kNotConnectedFd = -1;
   friend class UnixSocketAcceptThread;
