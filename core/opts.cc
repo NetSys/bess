@@ -35,6 +35,7 @@
 
 #include "bessd.h"
 #include "worker.h"
+#include "memory.h"
 
 // Port this BESS instance listens on.
 // Panda came up with this default number
@@ -105,6 +106,18 @@ DEFINE_int32(m, 1024,
              "If set to 0, no hugepage is used");
 static const bool _m_dummy[[maybe_unused]] =
     google::RegisterFlagValidator(&FLAGS_m, &ValidateMegabytesPerSocket);
+
+static bool ValidateNumaNode(const char *, int32_t value) {
+  if (value < 0 || value >= bess::NumNumaNodes()) {
+    LOG(ERROR) << "Invalid Numa node: " << value;
+    return false;
+  }
+  return true;
+}
+DEFINE_int32(n, 0,
+    "Specifies which numa node to run BESS on");
+static const bool _n_dummy[[maybe_unused]] =
+    google::RegisterFlagValidator(&FLAGS_n, &ValidateNumaNode);
 
 static bool ValidateBuffersPerSocket(const char *, int32_t value) {
   if (value <= 0) {

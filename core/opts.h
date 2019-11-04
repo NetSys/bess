@@ -44,6 +44,7 @@ DECLARE_string(b);
 DECLARE_int32(p);
 DECLARE_string(grpc_url);
 DECLARE_int32(m);
+DECLARE_int32(n);
 DECLARE_bool(skip_root_check);
 DECLARE_string(modules);
 DECLARE_bool(core_dump);

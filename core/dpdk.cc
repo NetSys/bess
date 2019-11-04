@@ -98,7 +98,7 @@ class CmdLineOpts {
   std::vector<char *> argv_;
 };
 
-void init_eal(int dpdk_mb_per_socket, std::string nonworker_corelist) {
+void init_eal(int dpdk_mb_per_socket, int socket, std::string nonworker_corelist) {
   CmdLineOpts rte_args{
       "bessd",
       "--master-lcore",
@@ -118,11 +118,18 @@ void init_eal(int dpdk_mb_per_socket, std::string nonworker_corelist) {
     // memory in advance. We allocate 512MB (this is shared among nodes).
     rte_args.Append({"-m", "512"});
   } else {
-    std::string opt_socket_mem = std::to_string(dpdk_mb_per_socket);
-    for (int i = 1; i < NumNumaNodes(); i++) {
-      opt_socket_mem += "," + std::to_string(dpdk_mb_per_socket);
+    std::string opt_socket_mem;
+    for (int i = 0; i < NumNumaNodes(); i++) {
+      if (i ==  socket) {
+        opt_socket_mem += std::to_string(dpdk_mb_per_socket);
+      } else {
+        opt_socket_mem += "0";
+      }
+      if (i+1 != NumNumaNodes()) {
+        opt_socket_mem += ",";
+      }
     }
-
+    LOG(INFO) << "socket mem set as: " << opt_socket_mem;
     rte_args.Append({"--socket-mem", opt_socket_mem});
 
     // Unlink mapped hugepage files so that memory can be reclaimed as soon as
@@ -213,13 +220,13 @@ bool IsDpdkInitialized() {
   return is_initialized;
 }
 
-void InitDpdk(int dpdk_mb_per_socket) {
+void InitDpdk(int dpdk_mb_per_socket, int socket) {
   current_worker.SetNonWorker();
 
   if (!is_initialized) {
     is_initialized = true;
     LOG(INFO) << "Initializing DPDK";
-    init_eal(dpdk_mb_per_socket, GetNonWorkerCoreList());
+    init_eal(dpdk_mb_per_socket, socket, GetNonWorkerCoreList());
   }
 }
 
