@@ -610,6 +610,10 @@ static u16 sn_select_queue(struct net_device *netdev,
 			   struct sk_buff *skb,
 			   void *accel_priv,
 			   select_queue_fallback_t fallback)
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(5,2,0)
+static u16 sn_select_queue(struct net_device *netdev,
+			   struct sk_buff *skb,
+			   struct net_device *sb_dev)
 #else
 static u16 sn_select_queue(struct net_device *netdev,
 			   struct sk_buff *skb,
