@@ -47,7 +47,7 @@ static const struct rte_eth_conf default_eth_conf(struct rte_eth_dev_info dev_in
   struct rte_eth_conf ret = rte_eth_conf();
   uint64_t rss_hf = ETH_RSS_IP | ETH_RSS_UDP | ETH_RSS_TCP | ETH_RSS_SCTP;
 
-  if (num_rxq < 1) {
+  if (num_rxq <= 1) {
     rss_hf = 0;
   } else if (dev_info.flow_type_rss_offloads) {
     rss_hf = dev_info.flow_type_rss_offloads;
@@ -178,7 +178,10 @@ static CommandResponse find_dpdk_port_by_pci_addr(const std::string &pci,
     if (ret < 0) {
       return CommandFailure(ENODEV, "Cannot attach PCI device %s", name);
     }
-
+    ret = rte_eth_dev_get_port_by_name(name, &port_id);
+    if (ret< 0) {
+      return CommandFailure(ENODEV, "Cannot find port id for PCI device %s", name);
+    }
     *ret_hot_plugged = true;
   }
 
@@ -200,12 +203,16 @@ static CommandResponse find_dpdk_vdev(const std::string &vdev,
     return CommandFailure(EINVAL, "No vdev specified");
   }
 
-  const char *name = vdev.c_str();
-  char vdev_args[64];
-  int ret = rte_eal_hotplug_add("vdev", name, vdev_args);
-
+  int ret = rte_dev_probe(vdev.c_str());
   if (ret < 0) {
     return CommandFailure(ENODEV, "Cannot attach vdev %s", name);
+  }
+
+  struct rte_dev_iterator iterator;
+  RTE_ETH_FOREACH_MATCHING_DEV(port_id, vdev.c_str(), &iterator) {
+    LOG(INFO) << "port id: " << port_id << "matches vdev: " << vdev;
+    rte_eth_iterator_cleanup(&iterator);
+    break;
   }
 
   *ret_hot_plugged = true;
