@@ -34,6 +34,7 @@
 
 #include "../utils/ether.h"
 #include "../utils/format.h"
+#include "../opts.h"
 
 /*!
  * The following are deprecated. Ignore us.
@@ -266,11 +267,19 @@ CommandResponse PMDPort::Init(const bess::pb::PMDPortArg &arg) {
   }
   rte_eth_promiscuous_enable(ret_port_id);
 
+  int sid = rte_eth_dev_socket_id(ret_port_id);
+
+  /* if socket_id is invalid, set to arg */
+  if (sid < 0 || sid > RTE_MAX_NUMA_NODES) {
+    sid = FLAGS_n;
+    LOG(WARNING) << "Unable to detect socket ID, defaulting to: " << sid;
+  } else {
+    LOG(INFO) << "socket ID in pmd is: " <<sid;
+  }
+
   // NOTE: As of DPDK 17.02, TX queues should be initialized first.
   // Otherwise the DPDK virtio PMD will crash in rte_eth_rx_burst() later.
   for (i = 0; i < num_txq; i++) {
-    int sid = 0; /* XXX */
-
     ret = rte_eth_tx_queue_setup(ret_port_id, i, queue_size[PACKET_DIR_OUT],
                                  sid, &eth_txconf);
     if (ret != 0) {
@@ -279,13 +288,6 @@ CommandResponse PMDPort::Init(const bess::pb::PMDPortArg &arg) {
   }
 
   for (i = 0; i < num_rxq; i++) {
-    int sid = rte_eth_dev_socket_id(ret_port_id);
-
-    /* if socket_id is invalid, set to 0 */
-    if (sid < 0 || sid > RTE_MAX_NUMA_NODES) {
-      sid = 0;
-    }
-
     ret = rte_eth_rx_queue_setup(ret_port_id, i, queue_size[PACKET_DIR_INC],
                                  sid, &eth_rxconf,
                                  bess::PacketPool::GetDefaultPool(sid)->pool());
