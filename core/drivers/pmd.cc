@@ -205,7 +205,7 @@ static CommandResponse find_dpdk_vdev(const std::string &vdev,
 
   int ret = rte_dev_probe(vdev.c_str());
   if (ret < 0) {
-    return CommandFailure(ENODEV, "Cannot attach vdev %s", name);
+    return CommandFailure(ENODEV, "Cannot attach vdev %s", vdev.c_str());
   }
 
   struct rte_dev_iterator iterator;
