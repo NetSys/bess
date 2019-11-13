@@ -52,7 +52,7 @@ typedef uint64_t phys_addr_t;
 #define __LLRING_USE_PHYS_ADDR__
 #include "llring.h"
 
-#define SN_MAX_CPU 64
+#define SN_MAX_CPU 128
 
 #define SN_MAX_TXQ 32
 #define SN_MAX_RXQ 32
