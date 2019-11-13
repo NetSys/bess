@@ -1,0 +1,41 @@
+diff --git a/lib/librte_bpf/bpf_impl.h b/lib/librte_bpf/bpf_impl.h
+index b577e2c..f1d6f9a 100644
+--- a/lib/librte_bpf/bpf_impl.h
++++ b/lib/librte_bpf/bpf_impl.h
+@@ -21,7 +21,7 @@ struct rte_bpf {
+ 	uint32_t stack_sz;
+ };
+ 
+-extern int bpf_validate(struct rte_bpf *bpf);
++extern int rte_bpf_validate(struct rte_bpf *bpf);
+ 
+ extern int bpf_jit(struct rte_bpf *bpf);
+ 
+diff --git a/lib/librte_bpf/bpf_load.c b/lib/librte_bpf/bpf_load.c
+index d9d163b..bd9eebf 100644
+--- a/lib/librte_bpf/bpf_load.c
++++ b/lib/librte_bpf/bpf_load.c
+@@ -115,7 +115,7 @@
+ 		return NULL;
+ 	}
+ 
+-	rc = bpf_validate(bpf);
++	rc = rte_bpf_validate(bpf);
+ 	if (rc == 0) {
+ 		bpf_jit(bpf);
+ 		if (mprotect(bpf, bpf->sz, PROT_READ) != 0)
+diff --git a/lib/librte_bpf/bpf_validate.c b/lib/librte_bpf/bpf_validate.c
+index 83983ef..12c34f0 100644
+--- a/lib/librte_bpf/bpf_validate.c
++++ b/lib/librte_bpf/bpf_validate.c
+@@ -2209,7 +2209,7 @@ struct bpf_ins_check {
+ }
+ 
+ int
+-bpf_validate(struct rte_bpf *bpf)
++rte_bpf_validate(struct rte_bpf *bpf)
+ {
+ 	int32_t rc;
+ 	struct bpf_verifier bvf;
+-- 
+

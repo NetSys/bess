@@ -89,16 +89,14 @@ BESS_DIR = os.path.dirname(os.path.abspath(__file__))
 DEPS_DIR = '%s/deps' % BESS_DIR
 
 DPDK_URL = 'https://fast.dpdk.org/rel'
-DPDK_VER = 'dpdk-17.11'
+DPDK_VER = 'dpdk-19.08'
 DPDK_TARGET = 'x86_64-native-linuxapp-gcc'
 
 kernel_release = cmd('uname -r', quiet=True).strip()
 
 DPDK_DIR = '%s/%s' % (DEPS_DIR, DPDK_VER)
 DPDK_CFLAGS = '"-g -w -fPIC"'
-DPDK_ORIG_CONFIG = '%s/config/common_linuxapp' % DPDK_DIR
-DPDK_BASE_CONFIG = '%s/%s_common_linuxapp' % (DEPS_DIR, DPDK_VER)
-DPDK_FINAL_CONFIG = '%s/%s_common_linuxapp_final' % (DEPS_DIR, DPDK_VER)
+DPDK_ORIG_CONFIG = '%s/config/common_linux' % DPDK_DIR
 
 extra_libs = set()
 cxx_flags = []
@@ -214,10 +212,10 @@ def check_kernel_headers():
     # If kernel header is not available, do not attempt to build
     # any components that require kernel.
     if not is_kernel_header_installed():
-        set_config(DPDK_FINAL_CONFIG, 'CONFIG_RTE_EAL_IGB_UIO', 'n')
-        set_config(DPDK_FINAL_CONFIG, 'CONFIG_RTE_KNI_KMOD', 'n')
-        set_config(DPDK_FINAL_CONFIG, 'CONFIG_RTE_LIBRTE_KNI', 'n')
-        set_config(DPDK_FINAL_CONFIG, 'CONFIG_RTE_LIBRTE_PMD_KNI', 'n')
+        set_config(DPDK_ORIG_CONFIG, 'CONFIG_RTE_EAL_IGB_UIO', 'n')
+        set_config(DPDK_ORIG_CONFIG, 'CONFIG_RTE_KNI_KMOD', 'n')
+        set_config(DPDK_ORIG_CONFIG, 'CONFIG_RTE_LIBRTE_KNI', 'n')
+        set_config(DPDK_ORIG_CONFIG, 'CONFIG_RTE_LIBRTE_PMD_KNI', 'n')
 
 
 def check_bnx():
@@ -225,7 +223,7 @@ def check_bnx():
         extra_libs.add('z')
     else:
         print(' - "zlib1g-dev" is not available. Disabling BNX2X PMD...')
-        set_config(DPDK_FINAL_CONFIG, 'CONFIG_RTE_LIBRTE_BNX2X_PMD', 'n')
+        set_config(DPDK_ORIG_CONFIG, 'CONFIG_RTE_LIBRTE_BNX2X_PMD', 'n')
 
 
 def check_mlx():
@@ -241,8 +239,8 @@ def check_mlx():
             print('   NOTE: "libibverbs-dev" does exist, but it does not '
                   'work with MLX PMDs. Instead download OFED from '
                   'http://www.melloanox.com')
-        set_config(DPDK_FINAL_CONFIG, 'CONFIG_RTE_LIBRTE_MLX4_PMD', 'n')
-        set_config(DPDK_FINAL_CONFIG, 'CONFIG_RTE_LIBRTE_MLX5_PMD', 'n')
+        set_config(DPDK_ORIG_CONFIG, 'CONFIG_RTE_LIBRTE_MLX4_PMD', 'n')
+        set_config(DPDK_ORIG_CONFIG, 'CONFIG_RTE_LIBRTE_MLX5_PMD', 'n')
 
 
 def generate_dpdk_extra_mk():
@@ -290,22 +288,15 @@ def download_dpdk(quiet=False):
 
 
 def configure_dpdk():
-    try:
-        print('Configuring DPDK...')
-        # override RTE_MACHINE with the one in DPDK_BASE_CONFIG
-        cmd("sed -i '/CONFIG_RTE_MACHINE/s/^/#/g' %s/config/defconfig_x86_64-native-linuxapp-gcc" % DPDK_DIR)
-        cmd('cp -f %s %s' % (DPDK_BASE_CONFIG, DPDK_FINAL_CONFIG))
+    print('Configuring DPDK...')
 
-        check_kernel_headers()
+    check_kernel_headers()
 
-        check_mlx()
+    check_mlx()
 
-        generate_dpdk_extra_mk()
+    generate_dpdk_extra_mk()
 
-        cmd('cp -f %s %s' % (DPDK_FINAL_CONFIG, DPDK_ORIG_CONFIG))
-        cmd('make -C %s config T=%s' % (DPDK_DIR, DPDK_TARGET))
-    finally:
-        cmd('rm -f %s' % DPDK_FINAL_CONFIG)
+    cmd('make -C %s config T=%s' % (DPDK_DIR, DPDK_TARGET))
 
 
 def makeflags():
@@ -339,6 +330,10 @@ def build_dpdk():
     # not configured yet?
     if not os.path.exists('%s/build' % DPDK_DIR):
         configure_dpdk()
+
+    # patch bpf_validate as it conflicts with libpcap
+    cmd('patch -d %s -p1 < %s/bpf_validate.patch' % (DPDK_DIR, DEPS_DIR),
+        shell=True)
 
     print('Building DPDK...')
     nproc = int(cmd('nproc', quiet=True))
@@ -538,6 +533,8 @@ def main():
 
     if args.benchmark_path:
         update_benchmark_path(args.benchmark_path[0])
+    if not os.path.exists(DEPS_DIR):
+        os.makedirs(DEPS_DIR)
 
     # TODO(torek): only update if needed
     generate_extra_mk()
