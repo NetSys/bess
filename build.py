@@ -332,7 +332,7 @@ def build_dpdk():
         configure_dpdk()
 
     # patch bpf_validate as it conflicts with libpcap
-    cmd('patch -d %s -p1 < %s/bpf_validate.patch' % (DPDK_DIR, DEPS_DIR),
+    cmd('patch -d %s -N -p1 < %s/bpf_validate.patch || true' % (DPDK_DIR, DEPS_DIR),
         shell=True)
 
     print('Building DPDK...')
