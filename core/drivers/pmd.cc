@@ -367,6 +367,10 @@ int PMDPort::UpdateConf(const Conf &conf) {
 void PMDPort::DeInit() {
   rte_eth_dev_stop(dpdk_port_id_);
 
+  if (driver_ == "net_ena") {
+    rte_eth_dev_reset(dpdk_port_id_);
+  }
+
   if (hot_plugged_) {
     char name[RTE_ETH_NAME_MAX_LEN];
     int ret;
@@ -412,7 +416,7 @@ void PMDPort::CollectStats(bool reset) {
   // per-queue stats
   if (driver_ == "net_i40e" || driver_ == "net_i40e_vf" ||
       driver_ == "net_ixgbe_vf" || driver_ == "net_bonding" ||
-      driver_ == "net_e1000_igb") {
+      driver_ == "net_e1000_igb" || driver_ == "net_ena") {
     // NOTE:
     // - if link is down, tx bytes won't increase
     // - if destination MAC address is incorrect, rx pkts won't increase
