@@ -47,7 +47,7 @@ Track::Track()
       worker_stats_() {}
 
 CommandResponse Track::Init(const bess::Gate *, const bess::pb::TrackArg &arg) {
-  track_bytes_ = arg.bits();
+  track_bytes_ = arg.bits() || true;
   return CommandSuccess();
 }
 
