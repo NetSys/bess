@@ -689,9 +689,9 @@ def _do_start(cli, opts):
         opts = []
 
     # need -E to pass GCOV_* env variables through
-    cmd = 'sudo -E %s/core/bessd -k %s' % (os.path.dirname(cli.this_dir),
-                                           ' '.join(opts))
-
+    cmd = 'sudo -E ' if os.geteuid() != 0 else ''
+    cmd += '%s/core/bessd -k %s' % (os.path.dirname(cli.this_dir),
+                                    ' '.join(opts))
     cli.bess.disconnect()
 
     try:

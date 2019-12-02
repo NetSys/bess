@@ -69,12 +69,14 @@ def main():
                             help='Name of a specific test to run.')
     arg_parser.add_argument('--test_dir', type=str, default=default_test_dir,
                             help='Path to the directory to serach for tests.')
+    arg_parser.add_argument('--bessd_opts', type=str, default='',
+                            help='Options to pass to bessd.')
     args = arg_parser.parse_args()
 
     any_failure = 0
 
     try:
-        run_cmd('%s daemon start -m 0' % bessctl)
+        run_cmd('%s daemon start -m 0 %s' % (bessctl, args.bessd_opts))
     except CommandError:
         raise Exception('bess daemon could not start')
 
@@ -85,7 +87,7 @@ def main():
             run_cmd('%s daemon reset -- run file %s' % (bessctl, file_name))
         except CommandError:
             any_failure = 1
-            run_cmd('%s daemon start -m 0' % bessctl)
+            run_cmd('%s daemon start -m 0 %s' % (bessctl, args.bessd_opts))
 
     sys.exit(any_failure)
 
