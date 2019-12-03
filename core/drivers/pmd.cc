@@ -139,8 +139,7 @@ static CommandResponse find_dpdk_port_by_pci_addr(const std::string &pci,
     return CommandFailure(EINVAL, "No PCI address specified");
   }
 
-  if (eal_parse_pci_DomBDF(pci.c_str(), &addr) != 0 &&
-      eal_parse_pci_BDF(pci.c_str(), &addr) != 0) {
+  if (rte_pci_addr_parse(pci.c_str(), &addr) != 0) {
     return CommandFailure(EINVAL,
                           "PCI address must be like "
                           "dddd:bb:dd.ff or bb:dd.ff");
@@ -155,7 +154,7 @@ static CommandResponse find_dpdk_port_by_pci_addr(const std::string &pci,
       bus = rte_bus_find_by_device(dev_info.device);
       if (bus && !strcmp(bus->name, "pci")) {
         pci_dev = RTE_DEV_TO_PCI(dev_info.device);
-        if (rte_eal_compare_pci_addr(&addr, &pci_dev->addr) == 0) {
+        if (rte_pci_addr_cmp(&addr, &pci_dev->addr) == 0) {
           port_id = i;
           break;
         }
