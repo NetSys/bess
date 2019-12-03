@@ -147,7 +147,8 @@ bool PacketPool::AllocBulk(Packet **pkts, size_t count, size_t len) {
 void PacketPool::PostPopulate() {
   PoolPrivate priv = {
       .dpdk_priv = {.mbuf_data_room_size = SNBUF_HEADROOM + SNBUF_DATA,
-                    .mbuf_priv_size = SNBUF_RESERVE},
+                    .mbuf_priv_size = SNBUF_RESERVE,
+                    .flags = 0},
       .owner = this};
 
   rte_pktmbuf_pool_init(pool_, &priv.dpdk_priv);
