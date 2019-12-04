@@ -1031,6 +1031,17 @@ def command_gatehook(cli, name, module, direction, gate, cmd, arg_type, args):
         cli.bess.resume_all()
 
 
+# Please do not rely on this API. This API may be replaced with `command port PORT`
+# in the same way with gatehook and module
+@cmd('configure port PORT [PORT_ARGS...]', '[Experimental] Update a port configuration')
+def conigure_port(cli, name, args):
+    cli.bess.pause_all()
+    try:
+        cli.bess.ser_port_config(name, args or {})
+    finally:
+        cli.bess.resume_all()
+
+
 @cmd('delete worker WORKER_ID...', 'Delete a worker')
 def delete_worker(cli, wids):
     wids = sorted(list(set(wids)))
@@ -1440,8 +1451,10 @@ def _show_port(cli, port):
     else:
         autoneg = 'OFF'
 
-    cli.fout.write('  %-12s Driver %-10s HWaddr %s\n' %
-                   (port.name, port.driver, port.mac_addr))
+    port_config = cli.bess.get_port_config(port.name)
+
+    cli.fout.write('  %-12s Driver %-10s HWaddr %-18s MTU %-6d\n' %
+                   (port.name, port.driver, port.mac_addr, port_config.conf.mtu))
     cli.fout.write('  %-12s Speed %-11s Link %-5s Duplex %-5s Autoneg %-5s\n' %
                    ('', speed, link, duplex, autoneg))
     stats = cli.bess.get_port_stats(port.name)

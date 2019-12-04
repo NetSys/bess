@@ -393,6 +393,20 @@ class BESS(object):
         request.name = name
         return self._request('DestroyPort', request)
 
+    def set_port_config(self, name, arg):
+        request = bess_msg.SetPortConfRequest()
+        request.name = name
+        # no update is done if mac_addr or mtu is not specified
+        request.conf.mac_addr = arg.pop('mac_addr', '00:00:00:00:00:00')
+        request.conf.mtu = arg.pop('mtu', 0)
+        request.conf.admin_up = arg.pop('admin_up', True)
+        return self._request('SetPortConf', request)
+
+    def get_port_config(self, name):
+        request = bess_msg.GetPortConfRequest()
+        request.name = name
+        return self._request('GetPortConf', request)
+
     def get_port_stats(self, name):
         request = bess_msg.GetPortStatsRequest()
         request.name = name

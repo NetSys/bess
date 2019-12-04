@@ -52,3 +52,10 @@ class Port(object):
 
     def get_link_status(self):
         return self.bess.get_link_status(self.name)
+
+    def set_port_config(self, **kwargs):
+        return self.bess.set_port_config(self.name,
+                                         self.choose_arg(None, kwargs))
+
+    def get_port_config(self):
+        return self.bess.get_port_config(self.name)
