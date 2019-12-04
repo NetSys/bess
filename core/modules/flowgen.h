@@ -40,7 +40,7 @@
 #include "../utils/endian.h"
 #include "../utils/random.h"
 
-#define MAX_TEMPLATE_SIZE 1536
+#define MAX_TEMPLATE_SIZE (SNBUF_DATA - 512)
 
 typedef std::pair<uint64_t, struct flow *> Event;
 typedef std::priority_queue<Event, std::vector<Event>, std::greater<Event>>

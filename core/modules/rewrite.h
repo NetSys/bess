@@ -37,7 +37,7 @@
 class Rewrite final : public Module {
  public:
   static const size_t kNumSlots = bess::PacketBatch::kMaxBurst * 2 - 1;
-  static const size_t kMaxTemplateSize = 1536;
+  static const size_t kMaxTemplateSize = (SNBUF_DATA - 512);
 
   static const Commands cmds;
 
