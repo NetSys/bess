@@ -83,15 +83,17 @@ void Tcpdump::ProcessBatch(const bess::PacketBatch *batch) {
 
   for (int i = 0; i < batch->cnt(); i++) {
     bess::Packet *pkt = batch->pkts()[i];
+    size_t snaplen = std::min(pkt->head_len(), 2048);
+
     struct pcap_rec_hdr rec = {
         .ts_sec = (uint32_t)tv.tv_sec,
         .ts_usec = (uint32_t)tv.tv_usec,
-        .incl_len = (uint32_t)pkt->head_len(),
+        .incl_len = (uint32_t)snaplen,
         .orig_len = (uint32_t)pkt->total_len(),
     };
 
     struct iovec vec[2] = {{&rec, sizeof(rec)},
-                           {pkt->head_data(), (size_t)pkt->head_len()}};
+                           {pkt->head_data(), snaplen}};
 
     int ret = writev(fd, vec, 2);
     if (ret < 0) {
