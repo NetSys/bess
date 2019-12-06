@@ -31,8 +31,10 @@
 #ifndef BESS_MODULE_H_
 #define BESS_MODULE_H_
 
+#include <array>
 #include <atomic>
 #include <map>
+#include <numeric>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
@@ -45,6 +47,7 @@
 #include "message.h"
 #include "metadata.h"
 #include "packet_pool.h"
+#include "worker.h"
 
 using bess::gate_idx_t;
 
@@ -190,6 +193,7 @@ class alignas(64) Module {
         tasks_(),
         igates_(),
         ogates_(),
+        deadends_(),
         active_workers_(Worker::kMaxWorkers, false),
         visited_tasks_(),
         is_task_(false),
@@ -327,6 +331,10 @@ class alignas(64) Module {
 
   const std::vector<bess::OGate *> &ogates() const { return ogates_; }
 
+  uint64_t deadends() const {
+    return std::accumulate(deadends_.begin(), deadends_.end(), 0);
+  }
+
   // Compute placement constraints based on the current module and all
   // downstream modules (i.e., modules connected to out ports.
   placement_constraint ComputePlacementConstraints(
@@ -336,6 +344,7 @@ class alignas(64) Module {
   void ResetActiveWorkerSet() {
     std::fill(active_workers_.begin(), active_workers_.end(), false);
     visited_tasks_.clear();
+    deadends_.fill(0);
   }
 
   const std::vector<bool> &active_workers() const { return active_workers_; }
@@ -441,6 +450,7 @@ class alignas(64) Module {
 
   std::vector<bess::IGate *> igates_;
   std::vector<bess::OGate *> ogates_;
+  std::array<uint64_t, Worker::kMaxWorkers> deadends_;
 
  protected:
   // Set of active workers accessing this module.
@@ -495,6 +505,7 @@ inline void Module::RunChooseModule(Context *ctx, gate_idx_t ogate_idx,
   }
 
   if (unlikely(ogate_idx >= ogates_.size())) {
+    deadends_[ctx->wid] += batch->cnt();
     deadend(ctx, batch);
     return;
   }
@@ -502,6 +513,7 @@ inline void Module::RunChooseModule(Context *ctx, gate_idx_t ogate_idx,
   ogate = ogates_[ogate_idx];
 
   if (unlikely(!ogate)) {
+    deadends_[ctx->wid] += batch->cnt();
     deadend(ctx, batch);
     return;
   }
@@ -519,6 +531,7 @@ inline void Module::RunNextModule(Context *ctx, bess::PacketBatch *batch) {
 
 inline void Module::DropPacket(Context *ctx, bess::Packet *pkt) {
   ctx->task->dead_batch()->add(pkt);
+  deadends_[ctx->wid]++;
   if (static_cast<size_t>(ctx->task->dead_batch()->cnt()) >=
       bess::PacketBatch::kMaxBurst) {
     deadend(ctx, ctx->task->dead_batch());
@@ -611,6 +624,7 @@ inline void Module::RunSplit(Context *ctx, const gate_idx_t *out_gates,
 
   int gate_cnt = ogates_.size();
   if (unlikely(gate_cnt <= 0)) {
+    deadends_[ctx->wid] += mixed_batch->cnt();
     deadend(ctx, mixed_batch);
     return;
   }
