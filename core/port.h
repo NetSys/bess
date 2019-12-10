@@ -50,7 +50,7 @@
 
 typedef uint8_t queue_t;
 
-#define MAX_QUEUES_PER_DIR 32 /* [0, 31] (for each RX/TX) */
+#define MAX_QUEUES_PER_DIR 128 /* [0, 31] (for each RX/TX) */
 
 #define DRIVER_FLAG_SELF_INC_STATS 0x0001
 #define DRIVER_FLAG_SELF_OUT_STATS 0x0002
