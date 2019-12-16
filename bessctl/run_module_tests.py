@@ -40,7 +40,7 @@ import subprocess
 import sys
 import unittest
 
-this_dir = os.path.dirname(os.path.realpath(__file__))
+this_dir = os.path.dirname(os.path.abspath(__file__))
 bessctl = os.path.join(this_dir, 'bessctl')
 default_test_dir = os.path.join(this_dir, 'module_tests')
 

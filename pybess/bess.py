@@ -48,15 +48,18 @@ from . import pm_import as _pm
 # Ugh: builtin_pb and plugin_pb must be on path, as protoc generates python code
 # that assumes it can import files in that directory.
 old_path = list(sys.path)
+p = os.path.abspath(os.path.dirname(__file__))
+if p not in sys.path:
+    sys.path.append(p)
 for extra in ('builtin_pb', 'plugin_pb'):
     p = os.path.abspath(os.path.join(__file__, '..', extra))
     if p not in sys.path:
-        sys.path.insert(1, p)
+        sys.path.append(p)
 del extra, p
 
-from .builtin_pb import service_pb2_grpc
-from .builtin_pb import bess_msg_pb2 as bess_msg
-from .builtin_pb import module_msg_pb2 as module_msg
+from builtin_pb import service_pb2_grpc
+from builtin_pb import bess_msg_pb2 as bess_msg
+from builtin_pb import module_msg_pb2 as module_msg
 
 
 def _import_modules(name, subdir):
@@ -70,20 +73,23 @@ def _import_modules(name, subdir):
     error here."""
     def protobufs(subdir):
         "Yield modules (subdir=None) or port drivers (subdir='ports')."
-        self_path = os.path.dirname(os.path.relpath(__file__))
-        for directory in ('builtin_pb', 'plugin_pb'):
-            if subdir:
-                dirpath = os.path.join(self_path, directory, subdir)
-                prefix = '..{}.{}'.format(directory, subdir)
-            else:
-                dirpath = os.path.join(self_path, directory)
-                prefix = '..{}'.format(directory)
-            for filename in os.listdir(dirpath):
-                if not filename.endswith('_msg_pb2.py'):
-                    continue
-                import_name = '{}.{}'.format(prefix, filename[:-3])
-                if import_name != '..builtin_pb.bess_msg_pb2':
-                    yield import_name
+        for path in sys.path:
+            if not os.path.exists(os.path.join(path, 'builtin_pb')) or \
+               not os.path.exists(os.path.join(path, 'plugin_pb')):
+                continue
+            for directory in ('builtin_pb', 'plugin_pb'):
+                if subdir:
+                    dirpath = os.path.join(path, directory, subdir)
+                    prefix = '{}.{}'.format(directory, subdir)
+                else:
+                    dirpath = os.path.join(path, directory)
+                    prefix = '{}'.format(directory)
+                for filename in os.listdir(dirpath):
+                    if not filename.endswith('_msg_pb2.py'):
+                        continue
+                    import_name = '{}.{}'.format(prefix, filename[:-3])
+                    if import_name != 'builtin_pb.bess_msg_pb2':
+                        yield import_name
 
     def keep_name(name):
         """
