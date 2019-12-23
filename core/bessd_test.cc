@@ -141,13 +141,6 @@ class TmpFileName final {
     }                                                                         \
   }
 
-// Checks that FLAGS_t causes types to dump.
-TEST(ProcessCommandLineArgs, DumpTypes) {
-  FLAGS_t = true;
-  EXPECT_EXIT(ProcessCommandLineArgs(), ::testing::ExitedWithCode(EXIT_SUCCESS),
-              "");
-}
-
 // Checks that running as non-root causes termination.
 TEST(CheckRunningAsRoot, NonRoot) {
   // Only do the test if we're not root.
