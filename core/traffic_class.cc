@@ -192,7 +192,7 @@ bool WeightedFairTrafficClass::AddChild(TrafficClass *child,
   }
 
   child->parent_ = this;
-  ChildData child_data{STRIDE1 / share, {NextPass()}, child};
+  ChildData child_data{STRIDE1 / (double)share, {NextPass()}, child};
   if (child->blocked_) {
     blocked_children_.push_back(child_data);
   } else {
@@ -275,7 +275,7 @@ void WeightedFairTrafficClass::FinishAndAccountTowardsRoot(
 
   auto &item = runnable_children_.mutable_top();
   uint64_t consumed = usage[resource_];
-  uint64_t pass_delta = item.stride * consumed / QUANTUM;
+  double pass_delta = item.stride * consumed / QUANTUM;
 
   // DCHECK_EQ(item.c, child) << "Child that we picked should be at the front
   // of priority queue.";

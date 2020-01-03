@@ -335,15 +335,15 @@ class WeightedFairTrafficClass final : public TrafficClass {
       return right.pass < pass;
     }
 
-    int64_t stride;
+    double stride;
 
     // NOTE: while in the code example in the original Stride Scheduler
     // [Waldspurgger95] maintains "pass" and "remain" (penalty) separately,
     // we can safely multiplex these variables in a union since they are never
     // used at the same time.
     union {
-      int64_t pass;
-      int64_t remain;
+      double pass;
+      double remain;
     };
 
     TrafficClass *c;
@@ -395,7 +395,7 @@ class WeightedFairTrafficClass final : public TrafficClass {
  private:
   // Returns the pass value of the first child to be scheduled next,
   // or 0 if there is no runnable child (i.e., the priority queue is empty)
-  int64_t NextPass() const {
+  double NextPass() const {
     if (runnable_children_.empty()) {
       return 0;
     } else {
