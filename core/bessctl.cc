@@ -1299,6 +1299,7 @@ class BESSControlImpl final : public BESSControl::Service {
     collect_igates(m, response);
     collect_ogates(m, response);
     collect_metadata(m, response);
+    response->set_deadends(m->deadends());
 
     return Status::OK;
   }

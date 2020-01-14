@@ -442,6 +442,7 @@ message GetModuleInfoResponse {
   repeated IGate igates = 6;        /// List of connected input gates
   repeated OGate ogates = 7;        /// List of connected output gates
   repeated Attribute metadata = 8;  /// List of metadata used by the module
+  uint64 deadends = 9;  /// Number of packets deadended or explicitly dropped by this module
 }
 
 message ConnectModulesRequest {

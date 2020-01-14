@@ -1534,6 +1534,7 @@ def _show_module(cli, module_name):
                 (gate.ogate, track_str, gate.igate, gate.name,
                  ', '.join("%s::%s" % (h.class_name, h.hook_name)
                            for h in gate.gatehooks)))
+    cli.fout.write('    Deadends: %-12d\n' % (info.deadends,))
 
     if hasattr(info, 'dump'):
         dump_str = pprint.pformat(info.dump, width=74)
