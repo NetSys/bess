@@ -34,11 +34,15 @@
 #include "../module.h"
 #include "../pb/module_msg.pb.h"
 
-using bess::metadata::mt_offset_t;
 using bess::metadata::kMetadataAttrMaxSize;
+using bess::metadata::mt_offset_t;
 
-typedef struct { uint8_t bytes[kMetadataAttrMaxSize]; } value_t;
-typedef struct { uint8_t bytes[kMetadataAttrMaxSize]; } mask_t;
+typedef struct {
+  uint8_t bytes[kMetadataAttrMaxSize];
+} value_t;
+typedef struct {
+  uint8_t bytes[kMetadataAttrMaxSize];
+} mask_t;
 
 struct Attr {
   std::string name;
@@ -52,11 +56,14 @@ struct Attr {
 
 class SetMetadata final : public Module {
  public:
+  static const Commands cmds;
+
   SetMetadata() : Module(), attrs_() {
     max_allowed_workers_ = Worker::kMaxWorkers;
   }
 
   CommandResponse Init(const bess::pb::SetMetadataArg &arg);
+  CommandResponse GetInitialArg(const bess::pb::EmptyArg &);
 
   void ProcessBatch(Context *ctx, bess::PacketBatch *batch) override;
 
@@ -70,6 +77,8 @@ class SetMetadata final : public Module {
   CommandResponse AddAttrOne(const bess::pb::SetMetadataArg_Attribute &attr);
 
   std::vector<struct Attr> attrs_;
+
+  bess::pb::SetMetadataArg init_arg_;
 };
 
 #endif  // BESS_MODULES_SETMETADATA_H_

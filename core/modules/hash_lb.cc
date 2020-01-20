@@ -76,7 +76,9 @@ const Commands HashLB::cmds = {
     {"set_mode", "HashLBCommandSetModeArg",
      MODULE_CMD_FUNC(&HashLB::CommandSetMode), Command::THREAD_UNSAFE},
     {"set_gates", "HashLBCommandSetGatesArg",
-     MODULE_CMD_FUNC(&HashLB::CommandSetGates), Command::THREAD_UNSAFE}};
+     MODULE_CMD_FUNC(&HashLB::CommandSetGates), Command::THREAD_UNSAFE},
+    {"get_initial_arg", "EmptyArg", MODULE_CMD_FUNC(&HashLB::GetInitialArg),
+     Command::THREAD_SAFE}};
 
 CommandResponse HashLB::CommandSetMode(
     const bess::pb::HashLBCommandSetModeArg &arg) {
@@ -138,7 +140,12 @@ CommandResponse HashLB::Init(const bess::pb::HashLBArg &arg) {
   bess::pb::HashLBCommandSetModeArg mode_arg;
   mode_arg.set_mode(arg.mode());
   *mode_arg.mutable_fields() = arg.fields();
+  init_arg_ = arg;
   return CommandSetMode(mode_arg);
+}
+
+CommandResponse HashLB::GetInitialArg(const bess::pb::EmptyArg &) {
+  return CommandSuccess(init_arg_);
 }
 
 std::string HashLB::GetDesc() const {

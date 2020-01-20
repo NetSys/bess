@@ -55,6 +55,7 @@ class Queue : public Module {
   }
 
   CommandResponse Init(const bess::pb::QueueArg &arg);
+  CommandResponse GetInitialArg(const bess::pb::EmptyArg &);
   CommandResponse GetRuntimeConfig(const bess::pb::EmptyArg &arg);
   CommandResponse SetRuntimeConfig(const bess::pb::QueueArg &arg);
 
@@ -107,6 +108,8 @@ class Queue : public Module {
     uint64_t dequeued;
     uint64_t dropped;
   } stats_;
+
+  bess::pb::QueueArg init_arg_;
 };
 
 #endif  // BESS_MODULES_QUEUE_H_

@@ -47,6 +47,7 @@ class PortInc final : public Module {
   }
 
   CommandResponse Init(const bess::pb::PortIncArg &arg);
+  CommandResponse GetInitialArg(const bess::pb::EmptyArg &);
 
   void DeInit() override;
 

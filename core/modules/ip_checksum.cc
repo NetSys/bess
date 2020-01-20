@@ -34,11 +34,20 @@
 #include "../utils/ether.h"
 #include "../utils/ip.h"
 
+const Commands IPChecksum::cmds = {
+    {"get_initial_arg", "EmptyArg", MODULE_CMD_FUNC(&IPChecksum::GetInitialArg),
+     Command::THREAD_SAFE},
+};
+
+CommandResponse IPChecksum::GetInitialArg(const bess::pb::EmptyArg &) {
+  return CommandSuccess();
+}
+
 void IPChecksum::ProcessBatch(Context *ctx, bess::PacketBatch *batch) {
+  using bess::utils::be16_t;
   using bess::utils::Ethernet;
   using bess::utils::Ipv4;
   using bess::utils::Vlan;
-  using bess::utils::be16_t;
 
   int cnt = batch->cnt();
 

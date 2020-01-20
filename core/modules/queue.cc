@@ -43,6 +43,8 @@ const Commands Queue::cmds = {
      MODULE_CMD_FUNC(&Queue::CommandSetSize), Command::THREAD_UNSAFE},
     {"get_status", "QueueCommandGetStatusArg",
      MODULE_CMD_FUNC(&Queue::CommandGetStatus), Command::THREAD_SAFE},
+    {"get_initial_arg", "EmptyArg", MODULE_CMD_FUNC(&Queue::GetInitialArg),
+     Command::THREAD_SAFE},
     {"get_runtime_config", "EmptyArg",
      MODULE_CMD_FUNC(&Queue::GetRuntimeConfig), Command::THREAD_SAFE},
     {"set_runtime_config", "QueueArg",
@@ -122,7 +124,12 @@ CommandResponse Queue::Init(const bess::pb::QueueArg &arg) {
     prefetch_ = true;
   }
 
+  init_arg_ = arg;
   return CommandSuccess();
+}
+
+CommandResponse Queue::GetInitialArg(const bess::pb::EmptyArg &) {
+  return CommandSuccess(init_arg_);
 }
 
 CommandResponse Queue::GetRuntimeConfig(const bess::pb::EmptyArg &) {

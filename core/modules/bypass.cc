@@ -30,12 +30,22 @@
 
 #include "bypass.h"
 
+const Commands Bypass::cmds = {
+    {"get_initial_arg", "EmptyArg", MODULE_CMD_FUNC(&Bypass::GetInitialArg),
+     Command::THREAD_SAFE},
+};
+
 CommandResponse Bypass::Init(const bess::pb::BypassArg &arg) {
   cycles_per_batch_ = arg.cycles_per_batch();
   cycles_per_packet_ = arg.cycles_per_packet();
   cycles_per_byte_ = arg.cycles_per_byte();
+  init_arg_ = arg;
 
   return CommandSuccess();
+}
+
+CommandResponse Bypass::GetInitialArg(const bess::pb::EmptyArg &) {
+  return CommandSuccess(init_arg_);
 }
 
 void Bypass::ProcessBatch(Context *ctx, bess::PacketBatch *batch) {

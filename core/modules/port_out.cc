@@ -31,6 +31,11 @@
 #include "port_out.h"
 #include "../utils/format.h"
 
+const Commands PortOut::cmds = {
+    {"get_initial_arg", "EmptyArg", MODULE_CMD_FUNC(&PortOut::GetInitialArg),
+     Command::THREAD_SAFE},
+};
+
 CommandResponse PortOut::Init(const bess::pb::PortOutArg &arg) {
   const char *port_name;
   int ret;
@@ -65,6 +70,12 @@ CommandResponse PortOut::Init(const bess::pb::PortOutArg &arg) {
   }
 
   return CommandSuccess();
+}
+
+CommandResponse PortOut::GetInitialArg(const bess::pb::EmptyArg &) {
+  bess::pb::PortOutArg arg;
+  arg.set_port(port_->name());
+  return CommandSuccess(arg);
 }
 
 void PortOut::DeInit() {
