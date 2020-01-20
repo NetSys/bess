@@ -36,15 +36,6 @@
 #include "../utils/tcp.h"
 #include "../utils/udp.h"
 
-const Commands L4Checksum::cmds = {
-    {"get_initial_arg", "EmptyArg", MODULE_CMD_FUNC(&L4Checksum::GetInitialArg),
-     Command::THREAD_SAFE},
-};
-
-CommandResponse L4Checksum::GetInitialArg(const bess::pb::EmptyArg &) {
-  return CommandSuccess();
-}
-
 void L4Checksum::ProcessBatch(Context *ctx, bess::PacketBatch *batch) {
   using bess::utils::be16_t;
   using bess::utils::Ethernet;

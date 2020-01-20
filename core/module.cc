@@ -105,13 +105,23 @@ CommandResponse ModuleBuilder::RunCommand(
     }
   }
 
+  if (user_cmd == "get_initial_arg") {
+    CommandResponse ret;
+    *ret.mutable_data() = m->initial_arg_;
+    return ret;
+  }
+
   return CommandFailure(ENOTSUP, "'%s' does not support command '%s'",
                         class_name_.c_str(), user_cmd.c_str());
 }
 
 CommandResponse ModuleBuilder::RunInit(Module *m,
                                        const google::protobuf::Any &arg) const {
-  return init_func_(m, arg);
+  CommandResponse ret = init_func_(m, arg);
+  if (!ret.has_error()) {
+    m->initial_arg_ = arg;
+  }
+  return ret;
 }
 
 Module *ModuleBuilder::CreateModule(const std::string &name,

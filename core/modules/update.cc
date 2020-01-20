@@ -37,20 +37,10 @@ const Commands Update::cmds = {
      Command::THREAD_UNSAFE},
     {"clear", "EmptyArg", MODULE_CMD_FUNC(&Update::CommandClear),
      Command::THREAD_UNSAFE},
-    {"get_initial_arg", "EmptyArg", MODULE_CMD_FUNC(&Update::GetInitialArg),
-     Command::THREAD_SAFE},
 };
 
 CommandResponse Update::Init(const bess::pb::UpdateArg &arg) {
-  CommandResponse ret = CommandAdd(arg);
-  if (!ret.has_error()) {
-    init_arg_ = arg;
-  }
-  return ret;
-}
-
-CommandResponse Update::GetInitialArg(const bess::pb::EmptyArg &) {
-  return CommandSuccess(init_arg_);
+  return CommandAdd(arg);
 }
 
 void Update::ProcessBatch(Context *ctx, bess::PacketBatch *batch) {

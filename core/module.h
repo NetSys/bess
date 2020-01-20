@@ -187,6 +187,7 @@ class alignas(64) Module {
   Module()
       : name_(),
         module_builder_(),
+        initial_arg_(),
         pipeline_(),
         attrs_(),
         attr_offsets_(),
@@ -440,6 +441,7 @@ class alignas(64) Module {
   std::string name_;
 
   const ModuleBuilder *module_builder_;
+  google::protobuf::Any initial_arg_;
 
   bess::metadata::Pipeline *pipeline_;
 

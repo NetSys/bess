@@ -47,7 +47,6 @@ class Update final : public Module {
   }
 
   CommandResponse Init(const bess::pb::UpdateArg &arg);
-  CommandResponse GetInitialArg(const bess::pb::EmptyArg &);
 
   void ProcessBatch(Context *ctx, bess::PacketBatch *batch) override;
 
@@ -64,8 +63,6 @@ class Update final : public Module {
     be64_t value; /* in network order */
     size_t offset;
   } fields_[kMaxFields];
-
-  bess::pb::UpdateArg init_arg_;
 };
 
 #endif  // BESS_MODULES_UPDATE_H_

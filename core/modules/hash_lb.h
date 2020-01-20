@@ -52,7 +52,6 @@ class HashLB final : public Module {
   }
 
   CommandResponse Init(const bess::pb::HashLBArg &arg);
-  CommandResponse GetInitialArg(const bess::pb::EmptyArg &);
 
   std::string GetDesc() const override;
 
@@ -78,8 +77,6 @@ class HashLB final : public Module {
   // No rules are ever added to this table, we just use it for MakeKeys().
   ExactMatchTable<int> fields_table_;
   ExactMatchKeyHash hasher_;
-
-  bess::pb::HashLBArg init_arg_;
 };
 
 #endif  // BESS_MODULES_HASHLB_H_

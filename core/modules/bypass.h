@@ -40,12 +40,10 @@ class Bypass final : public Module {
  public:
   static const gate_idx_t kNumIGates = MAX_GATES;
   static const gate_idx_t kNumOGates = MAX_GATES;
-  static const Commands cmds;
 
   Bypass() { max_allowed_workers_ = Worker::kMaxWorkers; }
 
   CommandResponse Init(const bess::pb::BypassArg &arg);
-  CommandResponse GetInitialArg(const bess::pb::EmptyArg &);
 
   void ProcessBatch(Context *ctx, bess::PacketBatch *batch) override;
 
@@ -53,8 +51,6 @@ class Bypass final : public Module {
   uint32_t cycles_per_batch_;
   uint32_t cycles_per_packet_;
   uint32_t cycles_per_byte_;
-
-  bess::pb::BypassArg init_arg_;
 };
 
 #endif  // BESS_MODULES_BYPASS_H_
