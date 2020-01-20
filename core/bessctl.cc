@@ -989,6 +989,11 @@ class BESSControlImpl final : public BESSControl::Service {
       port->set_name(p->name());
       port->set_driver(p->port_builder()->class_name());
       port->set_mac_addr(p->conf().mac_addr.ToString());
+      port->set_num_inc_q(p->num_rx_queues());
+      port->set_num_out_q(p->num_tx_queues());
+      port->set_size_inc_q(p->rx_queue_size());
+      port->set_size_out_q(p->tx_queue_size());
+      *port->mutable_driver_arg() = p->driver_arg();
     }
 
     return Status::OK;

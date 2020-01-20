@@ -37,6 +37,7 @@
 class L4Checksum final : public Module {
  public:
   L4Checksum() : Module() { max_allowed_workers_ = Worker::kMaxWorkers; }
+
   void ProcessBatch(Context *ctx, bess::PacketBatch *batch) override;
 };
 

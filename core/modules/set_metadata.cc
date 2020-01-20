@@ -39,6 +39,11 @@
 
 using bess::metadata::mt_offset_t;
 
+const Commands SetMetadata::cmds = {
+    {"get_initial_arg", "EmptyArg",
+     MODULE_CMD_FUNC(&SetMetadata::GetInitialArg), Command::THREAD_SAFE},
+};
+
 template <bool do_shift = false, bool do_mask = false>
 static void CopyFromPacket(bess::PacketBatch *batch, const struct Attr *attr,
                            mt_offset_t mt_off) {
@@ -192,7 +197,12 @@ CommandResponse SetMetadata::Init(const bess::pb::SetMetadataArg &arg) {
     }
   }
 
+  init_arg_ = arg;
   return CommandSuccess();
+}
+
+CommandResponse SetMetadata::GetInitialArg(const bess::pb::EmptyArg &) {
+  return CommandSuccess(init_arg_);
 }
 
 template <SetMetadata::Mode mode>

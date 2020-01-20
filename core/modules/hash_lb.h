@@ -36,9 +36,9 @@
 #include "../utils/exact_match_table.h"
 
 using bess::utils::ExactMatchField;
-using bess::utils::ExactMatchTable;
 using bess::utils::ExactMatchKey;
 using bess::utils::ExactMatchKeyHash;
+using bess::utils::ExactMatchTable;
 
 class HashLB final : public Module {
  public:

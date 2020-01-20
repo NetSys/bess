@@ -42,12 +42,15 @@ class PortOut final : public Module {
   static const gate_idx_t kNumIGates = MAX_GATES;
   static const gate_idx_t kNumOGates = 0;
 
+  static const Commands cmds;
+
   PortOut()
       : Module(), port_(), worker_queues_(), queue_users_(), queue_locks_() {
     max_allowed_workers_ = Worker::kMaxWorkers;
   }
 
   CommandResponse Init(const bess::pb::PortOutArg &arg);
+  CommandResponse GetInitialArg(const bess::pb::EmptyArg &);
 
   void DeInit() override;
 

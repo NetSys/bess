@@ -220,6 +220,16 @@ message ListPortsResponse {
     string name = 1;      /// Name of port
     string driver = 2;    /// Name of port driver.
     string mac_addr = 3;  /// MAC address of the port
+    /// Number of incoming/RX queues (Ext -> BESS).
+    uint64 num_inc_q = 4;
+    /// Number of outgoind/TX queues (BESS -> Ext).
+    uint64 num_out_q = 5;
+    /// Size of each incoming queue (# of packets).
+    uint64 size_inc_q = 6;
+    /// Size of each incoming queue (# of packets).
+    uint64 size_out_q = 7;
+    /// Driver specific argument that was used for port initialization. See port_msg.proto
+    google.protobuf.Any driver_arg = 8;
   }
 
   Error error = 1;

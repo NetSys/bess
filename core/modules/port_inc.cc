@@ -34,6 +34,8 @@
 const Commands PortInc::cmds = {
     {"set_burst", "PortIncCommandSetBurstArg",
      MODULE_CMD_FUNC(&PortInc::CommandSetBurst), Command::THREAD_SAFE},
+    {"get_initial_arg", "EmptyArg", MODULE_CMD_FUNC(&PortInc::GetInitialArg),
+     Command::THREAD_SAFE},
 };
 
 CommandResponse PortInc::Init(const bess::pb::PortIncArg &arg) {
@@ -85,6 +87,13 @@ CommandResponse PortInc::Init(const bess::pb::PortIncArg &arg) {
   }
 
   return CommandSuccess();
+}
+
+CommandResponse PortInc::GetInitialArg(const bess::pb::EmptyArg &) {
+  bess::pb::PortIncArg arg;
+  arg.set_port(port_->name());
+  arg.set_prefetch(prefetch_);
+  return CommandSuccess(arg);
 }
 
 void PortInc::DeInit() {

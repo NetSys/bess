@@ -32,6 +32,7 @@
 #define BESS_PORT_H_
 
 #include <glog/logging.h>
+#include <google/protobuf/any.pb.h>
 #include <gtest/gtest_prod.h>
 
 #include <cstdint>
@@ -219,6 +220,7 @@ class Port {
       : port_stats_(),
         conf_(),
         name_(),
+        driver_arg_(),
         port_builder_(),
         num_queues(),
         queue_size(),
@@ -279,6 +281,13 @@ class Port {
 
   const std::string &name() const { return name_; }
   const Conf &conf() const { return conf_; }
+  const google::protobuf::Any &driver_arg() const { return driver_arg_; }
+
+  uint64_t num_rx_queues() const { return num_queues[PACKET_DIR_INC]; }
+  uint64_t num_tx_queues() const { return num_queues[PACKET_DIR_OUT]; }
+
+  uint64_t rx_queue_size() const { return queue_size[PACKET_DIR_INC]; }
+  uint64_t tx_queue_size() const { return queue_size[PACKET_DIR_OUT]; }
 
   const PortBuilder *port_builder() const { return port_builder_; }
 
@@ -303,7 +312,8 @@ class Port {
     port_builder_ = port_builder;
   }
 
-  std::string name_;  // The name of this port instance.
+  std::string name_;                  // The name of this port instance.
+  google::protobuf::Any driver_arg_;  // Driver specific configuration.
 
   // Class-wide spec of this type of port.  Non-owning.
   const PortBuilder *port_builder_;

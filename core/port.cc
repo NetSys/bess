@@ -160,7 +160,11 @@ const std::map<std::string, Port *> &PortBuilder::all_ports() {
 void Port::CollectStats(bool) {}
 
 CommandResponse Port::InitWithGenericArg(const google::protobuf::Any &arg) {
-  return port_builder_->RunInit(this, arg);
+  CommandResponse ret = port_builder_->RunInit(this, arg);
+  if (!ret.has_error()) {
+    driver_arg_ = arg;
+  }
+  return ret;
 }
 
 Port::PortStats Port::GetPortStats() {
