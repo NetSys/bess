@@ -204,7 +204,7 @@ service BESSControl {
   rpc DestroyPort (DestroyPortRequest) returns (EmptyResponse) {}
 
   /// Runtime-updatable configuration
-  rpc SetPortConf (SetPortConfRequest) returns (EmptyResponse) {}
+  rpc SetPortConf (SetPortConfRequest) returns (CommandResponse) {}
   rpc GetPortConf (GetPortConfRequest) returns (GetPortConfResponse) {}
 
   /// Collect port statistics
