@@ -127,7 +127,7 @@ class PMDPort final : public Port {
 
   LinkStatus GetLinkStatus() override;
 
-  int UpdateConf(const Conf &conf) override;
+  CommandResponse UpdateConf(const Conf &conf) override;
 
   /*!
    * Get any placement constraints that need to be met when receiving from this

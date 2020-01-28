@@ -266,7 +266,9 @@ class Port {
     };
   }
 
-  virtual int UpdateConf(const Conf &) { return -ENOTSUP; }
+  virtual CommandResponse UpdateConf(const Conf &) {
+    return CommandFailure(ENOTSUP);
+  }
 
   CommandResponse InitWithGenericArg(const google::protobuf::Any &arg);
 

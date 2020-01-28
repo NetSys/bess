@@ -324,16 +324,20 @@ CommandResponse PMDPort::Init(const bess::pb::PMDPortArg &arg) {
   return CommandSuccess();
 }
 
-int PMDPort::UpdateConf(const Conf &conf) {
+CommandResponse PMDPort::UpdateConf(const Conf &conf) {
   rte_eth_dev_stop(dpdk_port_id_);
 
   if (conf_.mtu != conf.mtu && conf.mtu != 0) {
+    if (conf.mtu > SNBUF_DATA || conf.mtu < ETHER_MIN_MTU) {
+      return CommandFailure(EINVAL, "mtu should be >= %d and <= %d",
+                            ETHER_MIN_MTU, SNBUF_DATA);
+    }
+
     int ret = rte_eth_dev_set_mtu(dpdk_port_id_, conf.mtu);
     if (ret == 0) {
-      conf_.mtu = conf_.mtu;
+      conf_.mtu = conf.mtu;
     } else {
-      LOG(WARNING) << "rte_eth_dev_set_mtu() failed: " << rte_strerror(-ret);
-      return ret;
+      return CommandFailure(-ret, "rte_eth_dev_set_mtu() failed");
     }
   }
 
@@ -345,9 +349,7 @@ int PMDPort::UpdateConf(const Conf &conf) {
     if (ret == 0) {
       conf_.mac_addr = conf.mac_addr;
     } else {
-      LOG(WARNING) << "rte_eth_dev_default_mac_addr_set() failed: "
-                   << rte_strerror(-ret);
-      return ret;
+      return CommandFailure(-ret, "rte_eth_dev_default_mac_addr_set() failed");
     }
   }
 
@@ -356,12 +358,11 @@ int PMDPort::UpdateConf(const Conf &conf) {
     if (ret == 0) {
       conf_.admin_up = true;
     } else {
-      LOG(WARNING) << "rte_eth_dev_start() failed: " << rte_strerror(-ret);
-      return ret;
+      return CommandFailure(-ret, "rte_eth_dev_start() failed");
     }
   }
 
-  return 0;
+  return CommandSuccess();
 }
 
 void PMDPort::DeInit() {

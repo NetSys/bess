@@ -1037,7 +1037,7 @@ class BESSControlImpl final : public BESSControl::Service {
   }
 
   Status SetPortConf(ServerContext*, const SetPortConfRequest* request,
-                     EmptyResponse* response) override {
+                     CommandResponse* response) override {
     std::lock_guard<std::recursive_mutex> lock(mutex_);
 
     if (!request->name().length()) {
@@ -1064,7 +1064,7 @@ class BESSControlImpl final : public BESSControl::Service {
     }
 
     WorkerPauser wp;
-    it->second->UpdateConf(conf);
+    *response = it->second->UpdateConf(conf);
     return Status::OK;
   }
 
