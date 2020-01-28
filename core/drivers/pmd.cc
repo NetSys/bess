@@ -330,7 +330,7 @@ int PMDPort::UpdateConf(const Conf &conf) {
   if (conf_.mtu != conf.mtu && conf.mtu != 0) {
     int ret = rte_eth_dev_set_mtu(dpdk_port_id_, conf.mtu);
     if (ret == 0) {
-      conf_.mtu = conf_.mtu;
+      conf_.mtu = conf.mtu;
     } else {
       LOG(WARNING) << "rte_eth_dev_set_mtu() failed: " << rte_strerror(-ret);
       return ret;
