@@ -209,8 +209,8 @@ message L2ForwardCommandLookupResponse {
  * 'base' MAC address, a count (number of MAC addresses), and a gate_id. The module
  * will route all MAC addresses starting from the base address, up to base+count address
  * round-robin over gate_count total gates.
- * For example, `populate(base='11:22:33:44:00', count = 10, gate_count = 2) would
- * route addresses 11:22:33:44::(00, 02, 04, 06, 08) out a gate 0 and the odd-suffixed
+ * For example, `populate(base='11:22:33:44:00', count = 10, gate_count = 2)` would
+ * route addresses `11:22:33:44::(00, 02, 04, 06, 08)` out a gate 0 and the odd-suffixed
  * addresses out gate 1.
  */
 message L2ForwardCommandPopulateArg {
@@ -1132,17 +1132,16 @@ message WildcardMatchConfig {
 }
 
 /**
- * The ARP Responder module is responding to ARP requests
+ * The ARP Responder module is responding to ARP requests.
+ * It has a function `add(...)` which adds one IP-MAC mapping.
+ *
  * TODO: Dynamic learn new MAC's-IP's mapping
  *
  * __Input Gates__: 1
  * __Output Gates__: 1
  */
 message ArpResponderArg {
-  /**
-   * One ARP IP-MAC mapping
-   */
-  string ip = 1; // The IP
+  string ip = 1; /// The IP
   string mac_addr = 2; /// The MAC address
 }
 
@@ -1153,7 +1152,7 @@ message ArpResponderArg {
  * __Output Gates__: 2
  */
 message MplsPopArg {
-  bool remove_eth_header = 1; // Remove ETH header with the pop
+  bool remove_eth_header = 1; /// Remove ETH header with the pop
   uint32 next_eth_type = 2; /// The next ETH type to set
 }
 
