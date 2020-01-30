@@ -1037,7 +1037,7 @@ def command_gatehook(cli, name, module, direction, gate, cmd, arg_type, args):
 def conigure_port(cli, name, args):
     cli.bess.pause_all()
     try:
-        cli.bess.ser_port_config(name, args or {})
+        cli.bess.set_port_config(name, args or {})
     finally:
         cli.bess.resume_all()
 
