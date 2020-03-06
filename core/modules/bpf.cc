@@ -54,7 +54,7 @@ const Commands BPF::cmds = {
     {"clear", "EmptyArg", MODULE_CMD_FUNC(&BPF::CommandClear),
      Command::THREAD_UNSAFE},
     {"get_initial_arg", "EmptyArg", MODULE_CMD_FUNC(&BPF::GetInitialArg),
-     Command::THREAD_UNSAFE}};
+     Command::THREAD_SAFE}};
 
 CommandResponse BPF::Init(const bess::pb::BPFArg &arg) {
   return CommandAdd(arg);
