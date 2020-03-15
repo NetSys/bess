@@ -290,14 +290,19 @@ void *Worker::Run(void *_arg) {
   /* for workers, wid == rte_lcore_id() */
   wid_ = arg->wid;
   core_ = arg->core;
-  socket_ = rte_socket_id();
+  socket_ = FLAGS_n;
 
-  // For some reason, rte_socket_id() does not return a correct NUMA ID.
-  // Nevertheless, BESS should not crash.
-  if (socket_ == SOCKET_ID_ANY) {
-    LOG(WARNING) << "rte_socket_id() returned -1 for " << arg->core;
-    socket_ = 0;
+  if (rte_lcore_to_socket_id((unsigned int) core_) != (unsigned int) socket_) {
+    LOG(ERROR) << "Core specified: " << core_ << " does not exist on socket: "
+    << socket_ << ". Cannot create worker";
+
+    delete scheduler_;
+    delete rand_;
+
+    return nullptr;
   }
+
+  LOG(INFO) << "Running worker: " << wid_ << " on core " << core_ << " on socket " << socket_;
 
   fd_event_ = eventfd(0, 0);
   CHECK_GE(fd_event_, 0);

@@ -37,7 +37,7 @@ bool IsDpdkInitialized();
 
 // Initialize DPDK, with the specified amount of hugepage memory.
 // Safe to call multiple times.
-void InitDpdk(int dpdk_mb_per_socket = 0);
+void InitDpdk(int dpdk_mb_per_socket = 0, int socket = 0);
 
 }  // namespace bess
 

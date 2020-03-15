@@ -36,27 +36,25 @@ void DoMunmap(rte_mempool_memhdr *memhdr, void *) {
 PacketPool *PacketPool::default_pools_[RTE_MAX_NUMA_NODES];
 
 void PacketPool::CreateDefaultPools(size_t capacity) {
-  InitDpdk(FLAGS_dpdk ? FLAGS_m : 0);
+  InitDpdk(FLAGS_dpdk ? FLAGS_m : 0, FLAGS_n);
 
   rte_dump_physmem_layout(stdout);
 
-  for (int sid = 0; sid < NumNumaNodes(); sid++) {
-    if (FLAGS_m == 0) {
-      LOG(WARNING) << "Hugepage is disabled! Creating PlainPacketPool for "
-                   << capacity << " packets on node " << sid;
-      default_pools_[sid] = new PlainPacketPool(capacity, sid);
-    } else if (FLAGS_dpdk) {
-      LOG(INFO) << "Creating DpdkPacketPool for " << capacity
-                << " packets on node " << sid;
-      default_pools_[sid] = new DpdkPacketPool(capacity, sid);
-    } else {
-      LOG(INFO) << "Creating BessPacketPool for " << capacity
-                << " packets on node " << sid;
-      default_pools_[sid] = new BessPacketPool(capacity, sid);
-    }
-    CHECK(default_pools_[sid])
-        << "Packet pool allocation on node " << sid << " failed!";
+  if (FLAGS_m == 0) {
+    LOG(WARNING) << "Hugepage is disabled! Creating PlainPacketPool for "
+                 << capacity << " packets on node " << FLAGS_n;
+    default_pools_[FLAGS_n] = new PlainPacketPool(capacity, FLAGS_n);
+  } else if (FLAGS_dpdk) {
+    LOG(INFO) << "Creating DpdkPacketPool for " << capacity
+              << " packets on node " << FLAGS_n;
+    default_pools_[FLAGS_n] = new DpdkPacketPool(capacity, FLAGS_n);
+  } else {
+    LOG(INFO) << "Creating BessPacketPool for " << capacity
+              << " packets on node " << FLAGS_n;
+    default_pools_[FLAGS_n] = new BessPacketPool(capacity, FLAGS_n);
   }
+  CHECK(default_pools_[FLAGS_n])
+      << "Packet pool allocation on node " << FLAGS_n << " failed!";
 }
 
 PacketPool::PacketPool(size_t capacity, int socket_id) {

@@ -567,6 +567,12 @@ class BESSControlImpl final : public BESSControl::Service {
     if (!is_cpu_present(core)) {
       return return_with_error(response, EINVAL, "Invalid core %d", core);
     }
+   
+    if (rte_lcore_to_socket_id(core) != (unsigned int) FLAGS_n) {
+      return return_with_error(response, EINVAL, "Invalid core %d not on socket %d",
+      core, FLAGS_n);
+    }
+
     if (is_worker_active(wid)) {
       return return_with_error(response, EEXIST, "worker:%d is already active",
                                wid);
