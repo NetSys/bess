@@ -352,9 +352,9 @@ CommandResponse PMDPort::UpdateConf(const Conf &conf) {
   rte_eth_dev_stop(dpdk_port_id_);
 
   if (conf_.mtu != conf.mtu && conf.mtu != 0) {
-    if (conf.mtu > SNBUF_DATA || conf.mtu < ETHER_MIN_MTU) {
+    if (conf.mtu > SNBUF_DATA || conf.mtu < RTE_ETHER_MIN_MTU) {
       return CommandFailure(EINVAL, "mtu should be >= %d and <= %d",
-                            ETHER_MIN_MTU, SNBUF_DATA);
+                            RTE_ETHER_MIN_MTU, SNBUF_DATA);
     }
 
     int ret = rte_eth_dev_set_mtu(dpdk_port_id_, conf.mtu);
