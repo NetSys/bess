@@ -306,7 +306,7 @@ def makeflags():
     front: both "make -n" and "make -w" (aka "make --print-directory")
     leave $MAKEFLAGS starting without a hyphen.
 
-    If $MAKEFLAGS is not already set, use "-j" with the number of
+    If $MAKEFLAGS is not already set, use "-j" and "-l" with the number of
     cpus printed by nproc.
     """
     # reuse cached value if we have one
@@ -397,8 +397,7 @@ def build_bess():
     sys.stdout.flush()
     cmd('bin/bessctl daemon stop 2> /dev/null || true', shell=True)
     cmd('rm -f core/bessd')  # force relink as DPDK might have been rebuilt
-    nproc = int(cmd('nproc', quiet=True))
-    cmd('make -C core %s' % makeflags())
+    cmd('make -C core bessd all_test %s' % makeflags())
 
 
 def build_kmod():
