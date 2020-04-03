@@ -1,5 +1,5 @@
 sudo: required
-dist: xenial
+dist: bionic
 language: cpp
 
 cache:
@@ -16,7 +16,7 @@ branches:
 
 env:
   global:
-    - ASAN_SYMBOLIZER_PATH=/usr/lib/llvm-3.8/bin/llvm-symbolizer
+    - ASAN_SYMBOLIZER_PATH=/usr/lib/llvm-3.9/bin/llvm-symbolizer
     - ASAN_OPTIONS=log_path=/tmp/sanitizer,log_exe_name=1
     - LSAN_OPTIONS=suppressions=$TRAVIS_BUILD_DIR/core/lsan.suppress
     - UBSAN_OPTIONS=suppressions=$TRAVIS_BUILD_DIR/core/ubsan.suppress,print_stacktrace=1
@@ -36,15 +36,12 @@ before_install:
   - sudo apt-get -q update
 
 install:
-  # note that if you are building a slightly different dpdk you will
-  # want to avoid the "ln -s /build/dpdk-17.11 deps" step below
   - sudo apt-get install -y python2.7 python3 python3-pip python3-setuptools ruby-dev
   - sudo gem install ffi fpm
   - pip2 install --user grpcio==1.10 scapy codecov
   - pip3 install --user grpcio==1.10 scapy coverage
   - "[[ ${COVERAGE:-0} == 0 ]] || sudo apt-get install -y gcc-7"  # install gcov-7
-  - "[[ ${SANITIZE:-0} == 0 ]] || sudo apt-get install -y llvm-3.8"
-  - ln -s /build/dpdk-17.11 deps
+  - "[[ ${SANITIZE:-0} == 0 ]] || sudo apt-get install -y llvm-3.9"
   - "docker pull nefelinetworks/bess_build:latest${TAG_SUFFIX} | cat"  # cat suppresses progress bars
 
 before_script:
@@ -54,8 +51,8 @@ before_script:
   - ccache -s
 
 script:
-  # travis_wait extends the 10-min timeout to 20mins.
-  - travis_wait ./container_build.py bess
+  # travis_wait extends the 10-min timeout to 30mins.
+  - travis_wait 30 ./container_build.py bess
   - ./container_build.py kmod_buildtest
   - (cd core && ./all_test --gtest_shuffle)  # TcpFlowReconstructTest requires working directory to be `core/`
   - coverage2 run -m unittest discover -v
