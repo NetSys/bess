@@ -91,6 +91,16 @@ class CmdLineOpts {
 
   int Argc() const { return args_.size(); }
 
+  std::string Dump() {
+    std::ostringstream os;
+    os << "[";
+    for (size_t i = 0; i < args_.size(); i++) {
+      os << (i == 0 ? "" : ", ") << '"' << args_[i].data() << '"';
+    }
+    os << "]";
+    return os.str();
+  }
+
  private:
   // Contains a copy of each argument.
   std::vector<std::vector<char>> args_;
@@ -148,6 +158,7 @@ void init_eal(int dpdk_mb_per_socket, std::string nonworker_corelist) {
   stdout = fopencookie(nullptr, "w", dpdk_log_init_funcs);
 
   disable_syslog();
+  LOG(INFO) << "Initializing DPDK EAL with options: " << rte_args.Dump();
   int ret = rte_eal_init(rte_args.Argc(), rte_args.Argv());
   if (ret < 0) {
     LOG(FATAL) << "rte_eal_init() failed: ret = " << ret
@@ -218,7 +229,6 @@ void InitDpdk(int dpdk_mb_per_socket) {
 
   if (!is_initialized) {
     is_initialized = true;
-    LOG(INFO) << "Initializing DPDK";
     init_eal(dpdk_mb_per_socket, GetNonWorkerCoreList());
   }
 }
