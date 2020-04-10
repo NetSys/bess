@@ -43,14 +43,14 @@
 #define SN_HW_RXCSUM 0
 #define SN_HW_TXCSUM 0
 
-static const struct rte_eth_conf default_eth_conf(struct rte_eth_dev_info dev_info, int num_rxq) {
+static const struct rte_eth_conf default_eth_conf(struct rte_eth_dev_info dev_info) {
   struct rte_eth_conf ret = rte_eth_conf();
   uint64_t rss_hf = ETH_RSS_IP | ETH_RSS_UDP | ETH_RSS_TCP | ETH_RSS_SCTP;
 
-  if (num_rxq <= 1) {
-    rss_hf = 0;
-  } else if (dev_info.flow_type_rss_offloads) {
+  if (dev_info.flow_type_rss_offloads) {
     rss_hf = dev_info.flow_type_rss_offloads;
+  } else {
+    rss_hf = 0;
   }
 
   ret.link_speeds = ETH_LINK_SPEED_AUTONEG;
@@ -266,7 +266,7 @@ CommandResponse PMDPort::Init(const bess::pb::PMDPortArg &arg) {
    * with minor tweaks */
   rte_eth_dev_info_get(ret_port_id, &dev_info);
 
-  eth_conf = default_eth_conf(dev_info, num_rxq);
+  eth_conf = default_eth_conf(dev_info);
   if (arg.loopback()) {
     eth_conf.lpbk_mode = 1;
   }
