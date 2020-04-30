@@ -43,8 +43,7 @@ vport sockets. Otherwise you will see an error like this:
 ### launch\_container.py
 
 Same as launch\_vm.py, except it launches containers, not VMs (thus much faster
-to launch). No root permissions are required to run this script, but make sure
-that your account belongs to the "docker" group.
+to launch). Make sure that your account belongs to the "docker" group.
 
 
 ### Environment variables

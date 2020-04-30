@@ -50,7 +50,7 @@ FWD_MODE = os.getenv('FWD_MODE', 'macswap retry')
 
 # per container configuration
 # NUM_CPUS cores are used for forwarding
-NUM_VCPUS = int(os.getenv('VM_VCPUS', '2'))
+NUM_VCPUS = int(os.getenv('VM_VCPUS', '1'))
 NUM_VPORTS = int(os.getenv('BESS_PORTS', '2'))
 NUM_QUEUES = int(os.getenv('BESS_QUEUES', '1'))
 
@@ -65,15 +65,16 @@ def launch(cid):
     print('Running container {} as a forwarder'.format(cid))
     first_cpu = VM_START_CPU + cid * NUM_VCPUS
     last_cpu = first_cpu + NUM_VCPUS - 1
-    eal_opts = '--file-prefix=vnf{} --no-pci -m 256 -l 0,{}-{}'.format(
-        cid, first_cpu, last_cpu)
+    eal_opts = '--in-memory --no-pci -m 256 -l 0,{}-{}'.format(
+        first_cpu, last_cpu)
 
     for port_id in range(NUM_VPORTS):
         sockpath = '{}/vhost_user{}_{}.sock'.format(SOCKDIR, cid, port_id)
-        eal_opts += ' --vdev=virtio_user{},path={}'.format(port_id, sockpath)
+        eal_opts += ' --vdev=virtio_user{},path={},queues={}'.format(
+            port_id, sockpath, NUM_QUEUES)
 
-    testpmd_opts = '-i --burst=64 --txd=1024 --rxd=1024 --disable-hw-vlan ' \
-        '--txqflags=0xf01 --txq={q} --rxq={q} --nb-cores={cores}'.format(
+    testpmd_opts = '-i --burst=64 --txd=1024 --rxd=1024 ' \
+        '--txq={q} --rxq={q} --nb-cores={cores}'.format(
             q=NUM_QUEUES, cores=NUM_VCPUS)
 
     if subprocess.check_output(['numactl', '-H']).find(' 1 nodes') >= 0:
@@ -81,10 +82,12 @@ def launch(cid):
     else:
         cmd = 'numactl -m %d ' % VM_MEM_SOCKET
 
-    cmd += 'docker run -i --rm --name {name} -v {huge}:{huge} -v {sock}:{sock} ' \
-           '{image} {cmd} {eal_options} -- {testpmd_options}'.format(
-               name=CONTAINER_NAME + str(cid), huge=HUGEPAGES_PATH, sock=SOCKDIR,
-            image=IMAGE, cmd='/build/dpdk-17.05/build/app/testpmd',
+    cmd += 'docker run --privileged -i --rm --name {name} -v {huge}:{huge} ' \
+           '-v {sock}:{sock} {image} {cmd} {eal_options} ' \
+           '-- {testpmd_options}'.format(
+               name=CONTAINER_NAME + str(cid), huge=HUGEPAGES_PATH,
+               sock=SOCKDIR,
+            image=IMAGE, cmd='/usr/local/bin/testpmd',
             eal_options=eal_opts, testpmd_options=testpmd_opts)
 
     if VERBOSE:
