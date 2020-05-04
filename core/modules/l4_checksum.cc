@@ -36,6 +36,8 @@
 #include "../utils/tcp.h"
 #include "../utils/udp.h"
 
+enum { FORWARD_GATE = 0, FAIL_GATE };
+
 void L4Checksum::ProcessBatch(Context *ctx, bess::PacketBatch *batch) {
   using bess::utils::be16_t;
   using bess::utils::Ethernet;
@@ -49,8 +51,10 @@ void L4Checksum::ProcessBatch(Context *ctx, bess::PacketBatch *batch) {
     Ethernet *eth = batch->pkts()[i]->head_data<Ethernet *>();
 
     // Calculate checksum only for IPv4 packets
-    if (eth->ether_type != be16_t(Ethernet::Type::kIpv4))
+    if (eth->ether_type != be16_t(Ethernet::Type::kIpv4)) {
+      EmitPacket(ctx, batch->pkts()[i], FORWARD_GATE);
       continue;
+    }
 
     Ipv4 *ip = reinterpret_cast<Ipv4 *>(eth + 1);
 
@@ -58,18 +62,29 @@ void L4Checksum::ProcessBatch(Context *ctx, bess::PacketBatch *batch) {
       size_t ip_bytes = (ip->header_length) << 2;
       Udp *udp =
           reinterpret_cast<Udp *>(reinterpret_cast<uint8_t *>(ip) + ip_bytes);
-      udp->checksum = CalculateIpv4UdpChecksum(*ip, *udp);
+      if (verify_) {
+	EmitPacket(ctx, batch->pkts()[i],
+		   (VerifyIpv4UdpChecksum(*ip, *udp)) ? FORWARD_GATE : FAIL_GATE);
+      } else {
+	udp->checksum = CalculateIpv4UdpChecksum(*ip, *udp);
+	EmitPacket(ctx, batch->pkts()[i], FORWARD_GATE);
+      }
     } else if (ip->protocol == Ipv4::Proto::kTcp) {
       size_t ip_bytes = (ip->header_length) << 2;
       Tcp *tcp =
           reinterpret_cast<Tcp *>(reinterpret_cast<uint8_t *>(ip) + ip_bytes);
-      tcp->checksum = CalculateIpv4TcpChecksum(*ip, *tcp);
+      if (verify_)
+	EmitPacket(ctx, batch->pkts()[i],
+		   (VerifyIpv4TcpChecksum(*ip, *tcp)) ? FORWARD_GATE : FAIL_GATE);
+      else
+	tcp->checksum = CalculateIpv4TcpChecksum(*ip, *tcp);
     }
-
-    continue;
   }
+}
 
-  RunNextModule(ctx, batch);
+CommandResponse L4Checksum::Init(const bess::pb::L4ChecksumArg &arg) {
+  verify_ = arg.verify();
+  return CommandSuccess();
 }
 
 ADD_MODULE(L4Checksum, "l4_checksum",

@@ -983,6 +983,32 @@ message SourceArg {
 }
 
 /**
+* The IPChecksum module calculates the IPv4 checksum of packets. If
+* verify is set to true, the module can be used to validate the checksum
+* of the IPv4 packet. All non-IPv4 packets are forwarded without
+* modification. Output gates: (0) Default, (1) Drop.
+*
+* __Input Gates__: 1
+* __Output Gates__: 2
+*/
+message IPChecksumArg {
+ bool verify = 1; /// check checksum
+}
+
+/**
+* The L4Checksum module calculates the UDP/IPv4 checksum of packets. If
+* verify is set to true, the module can be used to validate the checksum
+* of the UDP/IPv4 packet. All non-IPv4 packets are forwarded without
+* modification. Output gates: (0) Default, (1) Drop.
+*
+* __Input Gates__: MAX_GATES
+* __Output Gates__: 2
+*/
+message L4ChecksumArg {
+ bool verify = 1; /// check checksum
+}
+
+/**
  * The Split module is a basic classifier which directs packets out a gate
  * based on data in the packet (e.g., if the read in value is 3, the packet
  * is directed out output gate 3).
