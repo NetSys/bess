@@ -35,16 +35,14 @@ import string
 
 from socket import inet_aton as aton
 
-PKT_SIZE = int($BESS_PKT_SIZE!'60')
 NUM_VMS = int($BESS_VMS!'1')
 NUM_VPORTS = int($BESS_PORTS!'2')
 NUM_QUEUES = int($BESS_QUEUES!'1')
 
 # QEMU 2.8 supports up to 1024, older versions are hardcoded with 256
-QSIZE = int($BESS_QSIZE!'2048')
+QSIZE = int($BESS_QSIZE!'1024')
 
 bess.add_worker(wid=0, core=0)
-bess.add_tc('host_to_nf', policy='round_robin', wid=0)
 bess.add_tc('nf_to_host', policy='round_robin', wid=0)
 
 kwargs = {'num_inc_q': NUM_QUEUES,
@@ -63,28 +61,17 @@ def build_udp(size):
     payload = '0' * (size - len(header))
     return bytes(header/payload)
 
-src::Source() \
-        -> Rewrite(templates=[build_udp(PKT_SIZE)]) \
-        -> rr_vm::RoundRobin(gates=range(NUM_VMS))
-src.attach_task(parent='host_to_nf')
-
-sink::Sink()
-
 for i in range(NUM_VMS):
-    rr_vport = RoundRobin(gates=range(NUM_VPORTS))
-    rr_vm:i -> rr_vport
     for j in range(NUM_VPORTS):
         v = 'v{}_{}'.format(i, j)
         vdev_str = 'eth_vhost_{},iface=/tmp/bessd/vhost_user{}_{}.sock,queues={}' \
                 .format(v, i, j, NUM_QUEUES)
         p = PMDPort(name=v, vdev=vdev_str, num_inc_q=NUM_QUEUES, \
                     num_out_q=NUM_QUEUES, size_inc_q=QSIZE, size_out_q=QSIZE)
-        rr_queue = RoundRobin(gates=range(NUM_QUEUES))
-        rr_vport:j -> rr_queue
         for k in range(NUM_QUEUES):
-            rr_queue:k -> QueueOut(port=p, qid=k)
+            # simply loopback
             qinc = QueueInc(port=p, qid=k)
-            qinc -> sink
+            qinc -> QueueOut(port=p, qid=k)
             qinc.attach_task(parent='nf_to_host')
 
 print('Now you can run either launch_vm.py or launch_container.py')

@@ -53,6 +53,8 @@ FWD_MODE = os.getenv('FWD_MODE', 'macswap retry')
 NUM_VCPUS = int(os.getenv('VM_VCPUS', '1'))
 NUM_VPORTS = int(os.getenv('BESS_PORTS', '2'))
 NUM_QUEUES = int(os.getenv('BESS_QUEUES', '1'))
+QSIZE = int(os.getenv('BESS_QSIZE', '1024'))
+PKT_SIZE = int(os.getenv('BESS_PKT_SIZE', '60'))
 
 VERBOSE = int(os.getenv('VERBOSE', '0'))
 
@@ -73,9 +75,9 @@ def launch(cid):
         eal_opts += ' --vdev=virtio_user{},path={},queues={}'.format(
             port_id, sockpath, NUM_QUEUES)
 
-    testpmd_opts = '-i --burst=64 --txd=1024 --rxd=1024 ' \
-        '--txq={q} --rxq={q} --nb-cores={cores}'.format(
-            q=NUM_QUEUES, cores=NUM_VCPUS)
+    testpmd_opts = '-i --txd={qsize} --rxd={qsize} ' \
+        '--txq={q} --rxq={q} --total-num-mbufs=65536'.format(
+            qsize=QSIZE, q=NUM_QUEUES)
 
     if subprocess.check_output(['numactl', '-H']).find(' 1 nodes') >= 0:
         cmd = ''
@@ -99,7 +101,8 @@ def launch(cid):
     proc = subprocess.Popen(shlex.split(cmd), stdin=subprocess.PIPE,
                             stdout=out, stderr=subprocess.STDOUT)
     proc.stdin.write('set fwd {}\n'.format(FWD_MODE))
-    proc.stdin.write('start\n')
+    proc.stdin.write('set txpkts {}\n'.format(PKT_SIZE))
+    proc.stdin.write('start tx_first {}\n'.format(QSIZE))
     return proc
 
 

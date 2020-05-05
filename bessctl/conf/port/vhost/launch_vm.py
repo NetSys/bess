@@ -48,19 +48,21 @@ HUGEPAGES_PATH = os.getenv('HUGEPAGES_PATH', '/dev/hugepages')
 
 # "io retry" gives better throughput as the VM will not touch the packet
 # payload, but it is somewhat unrealistic...
-FWD_MODE = os.getenv('FWD_MODE', 'macswap retry')
+FWD_MODE = os.getenv('FWD_MODE', 'macswap')
 
 # per VM configuration
 # NUM_VCPUS-1 cores are used for forwarding, leaving 1 core for mgmt purposes
 NUM_VCPUS = int(os.getenv('VM_VCPUS', '3'))
 NUM_VPORTS = int(os.getenv('BESS_PORTS', '2'))
 NUM_QUEUES = int(os.getenv('BESS_QUEUES', '1'))
+QSIZE = int(os.getenv('BESS_QSIZE', '1024'))
+PKT_SIZE = int(os.getenv('BESS_PKT_SIZE', '60'))
 
 VERBOSE = int(os.getenv('VERBOSE', '0'))
 
 qemu_cmd_template = \
-    'kvm -snapshot -enable-kvm -cpu host -smp {cpus} -m 2048 ' \
-        '-object memory-backend-file,id=ram,size=2048M,mem-path=%s,share=on ' \
+    'kvm -snapshot -enable-kvm -cpu host -smp {cpus} -m 1024 ' \
+        '-object memory-backend-file,id=ram,size=1024M,mem-path=%s,share=on ' \
         '-numa node,memdev=ram -mem-prealloc ' \
         '-qmp unix:/tmp/qmp{vm}.sock,server,nowait ' \
         '-device virtio-net-pci,netdev=mgmt,mac=52:54:00:12:34:56 ' \
@@ -160,7 +162,7 @@ def run_forward(vm_id, num_nics):
     print('OK')
 
     print('  Setting up hugepages...')
-    cmd = ssh_cmd(vm_id, 'sudo sysctl vm.nr_hugepages=512')
+    cmd = ssh_cmd(vm_id, 'sudo sysctl vm.nr_hugepages=256')
     subprocess.check_call(shlex.split(cmd), stdout=subprocess.PIPE)
     cmd = ssh_cmd(vm_id, 'sudo mkdir -p /mnt/huge')
     subprocess.check_call(shlex.split(cmd))
@@ -173,21 +175,25 @@ def run_forward(vm_id, num_nics):
         nics += ' 00:1{nic}.0'.format(nic=i)
 
     scp(vm_id, os.path.join(bess_dir, 'bin/dpdk-devbind.py'), '')
-    scp(vm_id, os.path.join(bess_dir, 'deps/dpdk-17.05/build/app/testpmd'), '')
+    scp(vm_id, os.path.join(bess_dir, 'deps/dpdk-19.11.1/build/app/testpmd'), '')
 
     # virtio-pci devices should not be bound to any driver
     cmd = ssh_cmd(vm_id, 'sudo ./dpdk-devbind.py -u %s' % nics)
+    if VERBOSE:
+        print(cmd)
     subprocess.check_call(shlex.split(cmd))
 
     print('  Running testpmd...')
-    eal_opt = '-c 0x{coremask:x} -n 4'.format(coremask=(1 << NUM_VCPUS) - 1)
-    testpmd_opt = '-i --burst=64 --txd=1024 --rxd=1024 --txq={q} --rxq={q} --nb-cores={fwdcores} --disable-hw-vlan --txqflags=0xf01' \
-        .format(fwdcores=NUM_VCPUS - 1, q=NUM_QUEUES)
+    eal_opt = '-c 0x{coremask:x} -m 256'.format(coremask=(1 << NUM_VCPUS) - 1)
+    testpmd_opt = '-i --txd={qsize} --rxd={qsize} --txq={q} --rxq={q} ' \
+        '--total-num-mbufs=65536' \
+        .format(qsize=QSIZE, q=NUM_QUEUES, fwdcores=NUM_VCPUS - 1)
     testpmd_cmd = 'sudo ./testpmd {} -- {}'.format(eal_opt, testpmd_opt)
-    cmd = ssh_cmd(vm_id, '(echo -e "set fwd %s\nstart" && cat) | %s' %
-                  (FWD_MODE, testpmd_cmd))
-    subprocess.Popen(
-        shlex.split(cmd), stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+    cmd = ssh_cmd(vm_id, '(echo -e "set fwd %s\nstart tx_first %d" && cat) | %s'
+                  % (FWD_MODE, QSIZE, testpmd_cmd))
+    if VERBOSE:
+        print(cmd)
+    subprocess.Popen(shlex.split(cmd))
 
 
 def main(argv):
