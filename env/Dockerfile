@@ -24,13 +24,13 @@ RUN apt-get -q update && \
 
 RUN mkdir -p /build/bess
 
-# Pre-build DPDK from the specified BESS branch
+# Build DPDK testpmd (used in bessctl samples)
 ARG BESS_DPDK_BRANCH=master
 RUN cd /build/bess && \
 	curl -s -L https://github.com/NetSys/bess/archive/${BESS_DPDK_BRANCH}.tar.gz | tar zx --strip-components=1 && \
 	./build.py dpdk && \
-	mv /build/bess/deps/dpdk-17.11 /build/dpdk-17.11 && \
-	rm -rf /build/bess /build/dpdk-17.11/build/build /build/dpdk-17.11/build/app
+	cp /build/bess/deps/dpdk-19.11.1/build/app/testpmd /usr/local/bin/ && \
+	rm -rf /build/bess
 
 ENV CCACHE_DIR=/tmp/ccache
 ENV CCACHE_COMPRESS=true

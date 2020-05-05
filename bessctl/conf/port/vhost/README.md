@@ -17,9 +17,11 @@ This example is to demonstrate how to connect BESS to VMs or containers.
 
 This BESS script creates `BESS_VMS` VMs, each of which has `BESS_PORTS` Virtio
 ports. Each port has `BESS_QUEUES` RX/TX queue pairs. The datapath is simple:
-* BESS generates packets and sent them to all RX queues of VMs
-  * The size of packets can be adjusted with `BESS_PKT_SIZE`
-* BESS receives from all TX queues of VMs and discards them.
+* BESS polls each RX queue, and echoes received packets back to its
+  corresponding TX queue.
+* The VM and container are configured to transmit some amount of packets, then
+  forward packets across ports. As a result, the initially transmitted packets
+  recirculate between BESS and VM/container.
 * With `monitor port` you can see the throughput of this datapath.
   * Normally vhost side is the performance bottleneck.
 
@@ -43,8 +45,7 @@ vport sockets. Otherwise you will see an error like this:
 ### launch\_container.py
 
 Same as launch\_vm.py, except it launches containers, not VMs (thus much faster
-to launch). No root permissions are required to run this script, but make sure
-that your account belongs to the "docker" group.
+to launch). Make sure that your account belongs to the "docker" group.
 
 
 ### Environment variables
@@ -64,4 +65,7 @@ The following environment variables are shared for both VM and container.
   * See [DPDK User guide](http://dpdk.org/doc/guides/testpmd_app_ug/index.html)
 * `BESS_PORTS`: # of virtio ports per VM. Default: 2
 * `BESS_QUEUES`: # of RX/TX queue pairs per port. Default: 1
+* `BESS_QSIZE`: the size of each RX/TX queue. Old QEMU versions may have a limit
+    (256 or 1024). Default: 1024
+* `BESS_PKT_SIZE`: The size of dummy packets in bytes. Default: 60
 * `VERBOSE`: Default: 0

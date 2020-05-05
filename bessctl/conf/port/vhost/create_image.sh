@@ -31,12 +31,12 @@
 # POSSIBILITY OF SUCH DAMAGE.
 
 # We download a Vagrant box and convert into a qcow2 image...
-BOX_URL=https://vagrantcloud.com/bento/boxes/ubuntu-14.04/versions/2.3.5/providers/virtualbox.box
-curl -L $BOX_URL | tar zx ubuntu-14.04-amd64-disk001.vmdk
+BOX_URL=https://app.vagrantup.com/bento/boxes/ubuntu-18.04/versions/202003.31.0/providers/virtualbox.box
+curl -L $BOX_URL | tar zx ubuntu-18.04-amd64-disk001.vmdk
 
 echo Converting image...
-qemu-img convert -c -O qcow2 ubuntu-14.04-amd64-disk001.vmdk vm.qcow2
-rm -f ubuntu-14.04-amd64-disk001.vmdk
+qemu-img convert -c -O qcow2 ubuntu-18.04-amd64-disk001.vmdk vm.qcow2
+rm -f ubuntu-18.04-amd64-disk001.vmdk
 
 # The default "insecure" key pair for Vagrant boxes.
 # Do not expose this VM to the wild Internet.
