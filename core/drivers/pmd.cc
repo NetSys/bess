@@ -30,38 +30,24 @@
 
 #include "pmd.h"
 
-#include <rte_ethdev.h>
 #include <rte_bus_pci.h>
+#include <rte_ethdev.h>
 
 #include "../utils/ether.h"
 #include "../utils/format.h"
 
-/*!
- * The following are deprecated. Ignore us.
- */
-#define SN_TSO_SG 0
-#define SN_HW_RXCSUM 0
-#define SN_HW_TXCSUM 0
-
-static const struct rte_eth_conf default_eth_conf(struct rte_eth_dev_info dev_info) {
-  struct rte_eth_conf ret = rte_eth_conf();
-  uint64_t rss_hf = ETH_RSS_IP | ETH_RSS_UDP | ETH_RSS_TCP | ETH_RSS_SCTP;
-
-  if (dev_info.flow_type_rss_offloads) {
-    rss_hf = dev_info.flow_type_rss_offloads;
-  } else {
-    rss_hf = 0;
-  }
+static const rte_eth_conf default_eth_conf(const rte_eth_dev_info &dev_info) {
+  rte_eth_conf ret = {};
 
   ret.link_speeds = ETH_LINK_SPEED_AUTONEG;
-
   ret.rxmode.mq_mode = ETH_MQ_RX_RSS;
-  ret.rxmode.offloads |= (SN_HW_RXCSUM ? DEV_RX_OFFLOAD_CHECKSUM : 0x0);
+  ret.rxmode.offloads = 0;
 
   ret.rx_adv_conf.rss_conf = {
       .rss_key = nullptr,
-      .rss_key_len = 40,
-      .rss_hf = rss_hf,
+      .rss_key_len = 0,
+      .rss_hf = (ETH_RSS_IP | ETH_RSS_UDP | ETH_RSS_TCP | ETH_RSS_SCTP) &
+                dev_info.flow_type_rss_offloads,
   };
 
   return ret;
@@ -74,27 +60,23 @@ void PMDPort::InitDriver() {
             << " DPDK PMD ports have been recognized:";
 
   for (dpdk_port_t i = 0; i < num_dpdk_ports; i++) {
-    struct rte_eth_dev_info dev_info;
-    struct rte_pci_device *pci_dev;
-    struct rte_bus *bus = nullptr;
-    std::string pci_info;
-    int numa_node = -1;
-    bess::utils::Ethernet::Address lladdr;
-
+    rte_eth_dev_info dev_info;
     rte_eth_dev_info_get(i, &dev_info);
 
-    numa_node = rte_eth_dev_socket_id(static_cast<int>(i));
+    bess::utils::Ethernet::Address lladdr;
     rte_eth_macaddr_get(i, reinterpret_cast<rte_ether_addr *>(lladdr.bytes));
 
+    int numa_node = rte_eth_dev_socket_id(static_cast<int>(i));
+
+    std::string pci_info;
     if (dev_info.device) {
-      bus = rte_bus_find_by_device(dev_info.device);
+      rte_bus *bus = rte_bus_find_by_device(dev_info.device);
       if (bus && !strcmp(bus->name, "pci")) {
-        pci_dev = RTE_DEV_TO_PCI(dev_info.device);
+        rte_pci_device *pci_dev = RTE_DEV_TO_PCI(dev_info.device);
         pci_info = bess::utils::Format(
-          "%08x:%02hhx:%02hhx.%02hhx %04hx:%04hx  ",
-          pci_dev->addr.domain, pci_dev->addr.bus,
-          pci_dev->addr.devid, pci_dev->addr.function,
-          pci_dev->id.vendor_id, pci_dev->id.device_id);
+            "%08x:%02hhx:%02hhx.%02hhx %04hx:%04hx  ", pci_dev->addr.domain,
+            pci_dev->addr.bus, pci_dev->addr.devid, pci_dev->addr.function,
+            pci_dev->id.vendor_id, pci_dev->id.device_id);
       }
     }
 
@@ -131,29 +113,29 @@ static CommandResponse find_dpdk_port_by_pci_addr(const std::string &pci,
                                                   dpdk_port_t *ret_port_id,
                                                   bool *ret_hot_plugged) {
   dpdk_port_t port_id = DPDK_PORT_UNKNOWN;
-  struct rte_pci_addr addr;
-  struct rte_bus *bus = nullptr;
-  const struct rte_pci_device *pci_dev;
 
   if (pci.length() == 0) {
     return CommandFailure(EINVAL, "No PCI address specified");
   }
 
+  rte_pci_addr addr;
   if (rte_pci_addr_parse(pci.c_str(), &addr) != 0) {
     return CommandFailure(EINVAL,
                           "PCI address must be like "
                           "dddd:bb:dd.ff or bb:dd.ff");
   }
 
+  const rte_bus *bus = nullptr;
+
   dpdk_port_t num_dpdk_ports = rte_eth_dev_count_avail();
   for (dpdk_port_t i = 0; i < num_dpdk_ports; i++) {
-    struct rte_eth_dev_info dev_info;
+    rte_eth_dev_info dev_info;
     rte_eth_dev_info_get(i, &dev_info);
 
     if (dev_info.device) {
       bus = rte_bus_find_by_device(dev_info.device);
       if (bus && !strcmp(bus->name, "pci")) {
-        pci_dev = RTE_DEV_TO_PCI(dev_info.device);
+        const rte_pci_device *pci_dev = RTE_DEV_TO_PCI(dev_info.device);
         if (rte_pci_addr_cmp(&addr, &pci_dev->addr) == 0) {
           port_id = i;
           break;
@@ -169,17 +151,14 @@ static CommandResponse find_dpdk_port_by_pci_addr(const std::string &pci,
     snprintf(name, RTE_ETH_NAME_MAX_LEN, "%08x:%02x:%02x.%02x", addr.domain,
              addr.bus, addr.devid, addr.function);
 
-    struct rte_devargs da;
-    memset(&da, 0, sizeof(da));
-    da.bus = bus;
-    ret = rte_eal_hotplug_add(bus->name, name, da.args);
-
+    ret = rte_eal_hotplug_add("pci", name, "");
     if (ret < 0) {
       return CommandFailure(ENODEV, "Cannot attach PCI device %s", name);
     }
     ret = rte_eth_dev_get_port_by_name(name, &port_id);
-    if (ret< 0) {
-      return CommandFailure(ENODEV, "Cannot find port id for PCI device %s", name);
+    if (ret < 0) {
+      return CommandFailure(ENODEV, "Cannot find port id for PCI device %s",
+                            name);
     }
     *ret_hot_plugged = true;
   }
@@ -207,7 +186,7 @@ static CommandResponse find_dpdk_vdev(const std::string &vdev,
     return CommandFailure(ENODEV, "Cannot attach vdev %s", vdev.c_str());
   }
 
-  struct rte_dev_iterator iterator;
+  rte_dev_iterator iterator;
   RTE_ETH_FOREACH_MATCHING_DEV(port_id, vdev.c_str(), &iterator) {
     LOG(INFO) << "port id: " << port_id << "matches vdev: " << vdev;
     rte_eth_iterator_cleanup(&iterator);
@@ -222,19 +201,14 @@ static CommandResponse find_dpdk_vdev(const std::string &vdev,
 CommandResponse PMDPort::Init(const bess::pb::PMDPortArg &arg) {
   dpdk_port_t ret_port_id = DPDK_PORT_UNKNOWN;
 
-  struct rte_eth_dev_info dev_info;
-  struct rte_eth_conf eth_conf;
-  struct rte_eth_rxconf eth_rxconf;
-  struct rte_eth_txconf eth_txconf;
+  rte_eth_dev_info dev_info;
+  rte_eth_conf eth_conf;
+  rte_eth_rxconf eth_rxconf;
 
   int num_txq = num_queues[PACKET_DIR_OUT];
   int num_rxq = num_queues[PACKET_DIR_INC];
 
   int ret;
-
-  int i;
-
-  int numa_node = -1;
 
   CommandResponse err;
   switch (arg.port_case()) {
@@ -271,45 +245,19 @@ CommandResponse PMDPort::Init(const bess::pb::PMDPortArg &arg) {
     eth_conf.lpbk_mode = 1;
   }
 
-  if (dev_info.driver_name) {
-    driver_ = dev_info.driver_name;
-  }
-
-  eth_rxconf = dev_info.default_rxconf;
-
-  /* #36: em driver does not allow rx_drop_en enabled */
-  if (driver_ != "net_e1000_em") {
-    eth_rxconf.rx_drop_en = 1;
-  }
-
   ret = rte_eth_dev_configure(ret_port_id, num_rxq, num_txq, &eth_conf);
   if (ret != 0) {
     return CommandFailure(-ret, "rte_eth_dev_configure() failed");
   }
-  rte_eth_promiscuous_enable(ret_port_id);
 
-  eth_txconf = dev_info.default_txconf;
-
-  // NOTE: As of DPDK 17.02, TX queues should be initialized first.
-  // Otherwise the DPDK virtio PMD will crash in rte_eth_rx_burst() later.
-  for (i = 0; i < num_txq; i++) {
-    int sid = 0; /* XXX */
-
-    ret = rte_eth_tx_queue_setup(ret_port_id, i, queue_size[PACKET_DIR_OUT],
-                                 sid, &eth_txconf);
-    if (ret != 0) {
-      return CommandFailure(-ret, "rte_eth_tx_queue_setup() failed");
-    }
+  int sid = rte_eth_dev_socket_id(ret_port_id);
+  if (sid < 0 || sid > RTE_MAX_NUMA_NODES) {
+    sid = 0;  // if socket_id is invalid, set to 0
   }
 
-  for (i = 0; i < num_rxq; i++) {
-    int sid = rte_eth_dev_socket_id(ret_port_id);
-
-    /* if socket_id is invalid, set to 0 */
-    if (sid < 0 || sid > RTE_MAX_NUMA_NODES) {
-      sid = 0;
-    }
-
+  eth_rxconf = dev_info.default_rxconf;
+  eth_rxconf.rx_drop_en = 1;
+  for (int i = 0; i < num_rxq; i++) {
     ret = rte_eth_rx_queue_setup(ret_port_id, i, queue_size[PACKET_DIR_INC],
                                  sid, &eth_rxconf,
                                  bess::PacketPool::GetDefaultPool(sid)->pool());
@@ -317,6 +265,16 @@ CommandResponse PMDPort::Init(const bess::pb::PMDPortArg &arg) {
       return CommandFailure(-ret, "rte_eth_rx_queue_setup() failed");
     }
   }
+
+  for (int i = 0; i < num_txq; i++) {
+    ret = rte_eth_tx_queue_setup(ret_port_id, i, queue_size[PACKET_DIR_OUT],
+                                 sid, nullptr);
+    if (ret != 0) {
+      return CommandFailure(-ret, "rte_eth_tx_queue_setup() failed");
+    }
+  }
+
+  rte_eth_promiscuous_enable(ret_port_id);
 
   int offload_mask = 0;
   offload_mask |= arg.vlan_offload_rx_strip() ? ETH_VLAN_STRIP_OFFLOAD : 0;
@@ -335,7 +293,7 @@ CommandResponse PMDPort::Init(const bess::pb::PMDPortArg &arg) {
   }
   dpdk_port_id_ = ret_port_id;
 
-  numa_node = rte_eth_dev_socket_id(static_cast<int>(ret_port_id));
+  int numa_node = rte_eth_dev_socket_id(static_cast<int>(ret_port_id));
   node_placement_ =
       numa_node == -1 ? UNCONSTRAINED_SOCKET : (1ull << numa_node);
 
@@ -344,6 +302,8 @@ CommandResponse PMDPort::Init(const bess::pb::PMDPortArg &arg) {
 
   // Reset hardware stat counters, as they may still contain previous data
   CollectStats(true);
+
+  driver_ = dev_info.driver_name ?: "unknown";
 
   return CommandSuccess();
 }
@@ -367,8 +327,8 @@ CommandResponse PMDPort::UpdateConf(const Conf &conf) {
 
   if (conf_.mac_addr != conf.mac_addr && !conf.mac_addr.IsZero()) {
     rte_ether_addr tmp;
-    rte_ether_addr_copy(reinterpret_cast<const rte_ether_addr *>(&conf.mac_addr.bytes),
-                    &tmp);
+    rte_ether_addr_copy(
+        reinterpret_cast<const rte_ether_addr *>(&conf.mac_addr.bytes), &tmp);
     int ret = rte_eth_dev_default_mac_addr_set(dpdk_port_id_, &tmp);
     if (ret == 0) {
       conf_.mac_addr = conf.mac_addr;
@@ -393,28 +353,30 @@ void PMDPort::DeInit() {
   rte_eth_dev_stop(dpdk_port_id_);
 
   if (hot_plugged_) {
-    struct rte_eth_dev_info dev_info;
-    struct rte_bus *bus = nullptr;
+    rte_eth_dev_info dev_info;
     rte_eth_dev_info_get(dpdk_port_id_, &dev_info);
 
     char name[RTE_ETH_NAME_MAX_LEN];
     int ret;
-    
+
     if (dev_info.device) {
-      bus = rte_bus_find_by_device(dev_info.device);
+      rte_bus *bus = rte_bus_find_by_device(dev_info.device);
       if (rte_eth_dev_get_name_by_port(dpdk_port_id_, name) == 0) {
         rte_eth_dev_close(dpdk_port_id_);
         ret = rte_eal_hotplug_remove(bus->name, name);
         if (ret < 0) {
-          LOG(WARNING) << "rte_eal_hotplug_remove(" << static_cast<int>(dpdk_port_id_)
+          LOG(WARNING) << "rte_eal_hotplug_remove("
+                       << static_cast<int>(dpdk_port_id_)
                        << ") failed: " << rte_strerror(-ret);
         }
         return;
       } else {
-        LOG(WARNING) << "rte_eth_dev_get_name failed for port" << static_cast<int>(dpdk_port_id_);
+        LOG(WARNING) << "rte_eth_dev_get_name failed for port"
+                     << static_cast<int>(dpdk_port_id_);
       }
     } else {
-        LOG(WARNING) << "rte_eth_def_info_get failed for port" << static_cast<int>(dpdk_port_id_);
+      LOG(WARNING) << "rte_eth_def_info_get failed for port"
+                   << static_cast<int>(dpdk_port_id_);
     }
 
     rte_eth_dev_close(dpdk_port_id_);
@@ -422,9 +384,6 @@ void PMDPort::DeInit() {
 }
 
 void PMDPort::CollectStats(bool reset) {
-  struct rte_eth_stats stats;
-  int ret;
-
   packet_dir_t dir;
   queue_t qid;
 
@@ -433,7 +392,8 @@ void PMDPort::CollectStats(bool reset) {
     return;
   }
 
-  ret = rte_eth_stats_get(dpdk_port_id_, &stats);
+  rte_eth_stats stats;
+  int ret = rte_eth_stats_get(dpdk_port_id_, &stats);
   if (ret < 0) {
     LOG(ERROR) << "rte_eth_stats_get(" << static_cast<int>(dpdk_port_id_)
                << ") failed: " << rte_strerror(-ret);
@@ -478,22 +438,24 @@ void PMDPort::CollectStats(bool reset) {
 }
 
 int PMDPort::RecvPackets(queue_t qid, bess::Packet **pkts, int cnt) {
-  return rte_eth_rx_burst(dpdk_port_id_, qid, (struct rte_mbuf **)pkts, cnt);
+  return rte_eth_rx_burst(dpdk_port_id_, qid,
+                          reinterpret_cast<rte_mbuf **>(pkts), cnt);
 }
 
 int PMDPort::SendPackets(queue_t qid, bess::Packet **pkts, int cnt) {
   int sent = rte_eth_tx_burst(dpdk_port_id_, qid,
-                              reinterpret_cast<struct rte_mbuf **>(pkts), cnt);
+                              reinterpret_cast<rte_mbuf **>(pkts), cnt);
+  auto &stats = queue_stats[PACKET_DIR_OUT][qid];
   int dropped = cnt - sent;
-  queue_stats[PACKET_DIR_OUT][qid].dropped += dropped;
-  queue_stats[PACKET_DIR_OUT][qid].requested_hist[cnt]++;
-  queue_stats[PACKET_DIR_OUT][qid].actual_hist[sent]++;
-  queue_stats[PACKET_DIR_OUT][qid].diff_hist[dropped]++;
+  stats.dropped += dropped;
+  stats.requested_hist[cnt]++;
+  stats.actual_hist[sent]++;
+  stats.diff_hist[dropped]++;
   return sent;
 }
 
 Port::LinkStatus PMDPort::GetLinkStatus() {
-  struct rte_eth_link status;
+  rte_eth_link status;
   // rte_eth_link_get() may block up to 9 seconds, so use _nowait() variant.
   rte_eth_link_get_nowait(dpdk_port_id_, &status);
 
