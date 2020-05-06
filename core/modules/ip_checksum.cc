@@ -34,6 +34,8 @@
 #include "../utils/ether.h"
 #include "../utils/ip.h"
 
+enum { FORWARD_GATE = 0, FAIL_GATE };
+
 void IPChecksum::ProcessBatch(Context *ctx, bess::PacketBatch *batch) {
   using bess::utils::be16_t;
   using bess::utils::Ethernet;
@@ -54,7 +56,8 @@ void IPChecksum::ProcessBatch(Context *ctx, bess::PacketBatch *batch) {
       data = qinq + 1;
       ether_type = qinq->ether_type;
       if (ether_type != be16_t(Ethernet::Type::kVlan)) {
-        continue;
+	EmitPacket(ctx, batch->pkts()[i], FORWARD_GATE);
+	continue;
       }
     }
 
@@ -67,13 +70,22 @@ void IPChecksum::ProcessBatch(Context *ctx, bess::PacketBatch *batch) {
     if (ether_type == be16_t(Ethernet::Type::kIpv4)) {
       ip = reinterpret_cast<Ipv4 *>(data);
     } else {
+      EmitPacket(ctx, batch->pkts()[i], FORWARD_GATE);
       continue;
     }
 
-    ip->checksum = CalculateIpv4Checksum(*ip);
+    if (verify_) {
+      EmitPacket(ctx, batch->pkts()[i], (VerifyIpv4Checksum(*ip)) ? FORWARD_GATE : FAIL_GATE);
+    } else {
+      ip->checksum = CalculateIpv4Checksum(*ip);
+      EmitPacket(ctx, batch->pkts()[i], FORWARD_GATE);
+    }
   }
+}
 
-  RunNextModule(ctx, batch);
+CommandResponse IPChecksum::Init(const bess::pb::IPChecksumArg &arg) {
+  verify_ = arg.verify();
+  return CommandSuccess();
 }
 
 ADD_MODULE(IPChecksum, "ip_checksum", "recomputes the IPv4 checksum")
