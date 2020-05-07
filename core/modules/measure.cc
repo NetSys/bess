@@ -85,7 +85,9 @@ CommandResponse Measure::Init(const bess::pb::MeasureArg &arg) {
   if (arg.offset()) {
     offset_ = arg.offset();
   } else {
-    offset_ = sizeof(Ethernet) + sizeof(Ipv4) + sizeof(Udp);
+    offset_ = INT_MAX;
+    using AccessMode = bess::metadata::Attribute::AccessMode;
+    AddMetadataAttr("timestamp", sizeof(uint64_t), AccessMode::kRead);
   }
 
   if (arg.jitter_sample_prob()) {
@@ -111,8 +113,10 @@ void Measure::ProcessBatch(Context *ctx, bess::PacketBatch *batch) {
 
   int cnt = batch->cnt();
   for (int i = 0; i < cnt; i++) {
-    uint64_t pkt_time;
-    if (IsTimestamped(batch->pkts()[i], offset, &pkt_time)) {
+    uint64_t pkt_time = 0;
+    if (offset == INT_MAX)
+      pkt_time = get_attr<uint64_t>(this, 0, batch->pkts()[i]);
+    if (pkt_time || IsTimestamped(batch->pkts()[i], offset, &pkt_time)) {
       uint64_t diff;
 
       if (now_ns >= pkt_time) {

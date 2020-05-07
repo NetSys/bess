@@ -65,7 +65,9 @@ CommandResponse Timestamp::Init(const bess::pb::TimestampArg &arg) {
   if (arg.offset()) {
     offset_ = arg.offset();
   } else {
-    offset_ = sizeof(Ethernet) + sizeof(Ipv4) + sizeof(Udp);
+    offset_ = INT_MAX;
+    using AccessMode = bess::metadata::Attribute::AccessMode;
+    AddMetadataAttr("timestamp", sizeof(uint64_t), AccessMode::kWrite);
   }
   return CommandSuccess();
 }
@@ -77,7 +79,10 @@ void Timestamp::ProcessBatch(Context *ctx, bess::PacketBatch *batch) {
 
   int cnt = batch->cnt();
   for (int i = 0; i < cnt; i++) {
-    timestamp_packet(batch->pkts()[i], offset, now_ns);
+    if (offset == INT_MAX)
+      set_attr<uint64_t>(this, 0, batch->pkts()[i], now_ns);
+    else
+      timestamp_packet(batch->pkts()[i], offset, now_ns);
   }
 
   RunNextModule(ctx, batch);
