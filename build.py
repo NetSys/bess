@@ -288,14 +288,14 @@ def download_dpdk(quiet=False):
 
 
 def configure_dpdk():
-    print('Configuring DPDK...')
+    arch = os.getenv('CPU', 'native')
+    print('Configuring DPDK... (CONFIG_RTE_MACHINE=%s)' % arch)
 
+    set_config('%s/config/defconfig_%s' % (DPDK_DIR, DPDK_TARGET),
+               "CONFIG_RTE_MACHINE", arch)
     check_kernel_headers()
-
     check_mlx()
-
     generate_dpdk_extra_mk()
-
     cmd('make -C %s config T=%s' % (DPDK_DIR, DPDK_TARGET))
 
 
