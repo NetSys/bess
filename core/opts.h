@@ -50,5 +50,6 @@ DECLARE_bool(core_dump);
 DECLARE_bool(no_crashlog);
 DECLARE_int32(buffers);
 DECLARE_bool(dpdk);
+DECLARE_string(iova);
 
 #endif  // BESS_OPTS_H_
