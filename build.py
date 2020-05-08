@@ -95,7 +95,7 @@ DPDK_TARGET = 'x86_64-native-linuxapp-gcc'
 kernel_release = cmd('uname -r', quiet=True).strip()
 
 DPDK_DIR = '%s/%s' % (DEPS_DIR, DPDK_VER)
-DPDK_CFLAGS = '"-g -w -fPIC"'
+DPDK_CFLAGS = '"-g -w"'
 DPDK_CONFIG = '%s/build/.config' % DPDK_DIR
 
 extra_libs = set()
