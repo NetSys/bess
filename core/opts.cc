@@ -58,6 +58,13 @@ DEFINE_bool(no_crashlog, false, "Disable the generation of a crash log file");
 //       so DPDK is default for now.
 DEFINE_bool(dpdk, true, "Let DPDK manage hugepages");
 
+static bool ValidateIovaMode(const char *, const std::string &value) {
+  return (value == "") || (value == "pa") || (value == "va");
+}
+DEFINE_string(iova, "", "DPDK IOVA mode: pa or va. Set auto if not specified");
+static bool _iova_dummy[[maybe_unused]] =
+    google::RegisterFlagValidator(&FLAGS_iova, &ValidateIovaMode);
+
 static bool ValidateCoreID(const char *, int32_t value) {
   if (!is_cpu_present(value)) {
     LOG(ERROR) << "Invalid core ID: " << value;
