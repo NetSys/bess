@@ -108,8 +108,8 @@ endif
 # these headers.  Should fix the warnings.  Using -isystem also disables
 # -MMD dependency recording (should we use -MD?).
 COREDIR := $(abspath .)
-CXXARCHFLAGS ?= -march=native
-CXXFLAGS += -std=c++17 -g3 -ggdb3 $(CXXARCHFLAGS) \
+CPU ?= native
+CXXFLAGS += -std=c++17 -g3 -ggdb3 -march=$(CPU) \
             -isystem $(DPDK_INC_DIR) -isystem $(COREDIR) \
             -isystem $(dir $<).. -isystem $(COREDIR)/modules \
             -D_GNU_SOURCE \
