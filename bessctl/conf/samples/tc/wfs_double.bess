@@ -1,0 +1,54 @@
+# Test WeightedFairscheduler's accuracy on a simple tree pipeline
+# Works correctly, if internal variables of WFS are represented as
+# doubles. Details: https://github.com/NetSys/bess/pull/955
+
+import time
+
+
+def do_measure(shares):
+    # setup pipeline
+    src = Source()
+    rr = RandomSplit(gates=[0, 1], drop_rate=0.0)
+    q1 = Queue()
+    q2 = Queue()
+    m1 = Measure()
+    m2 = Measure()
+
+    src -> Timestamp() -> rr
+    rr:0 -> q1 -> m1 -> Sink()
+    rr:1 -> q2 -> m2 -> Sink()
+
+    # configure TCs
+    bess.add_tc('root', policy='weighted_fair', resource='count')
+    src.attach_task(parent='root', share=shares['root'])
+    q1.attach_task(parent='root', share=shares['leaf'])
+    q2.attach_task(parent='root', share=shares['leaf'])
+
+    # run pipeline
+    bess.resume_all()
+    time.sleep(2)
+    bess.pause_all()
+
+    # query and print measurement results
+    for i, m in enumerate((m1, m2)):
+        percentiles = [90, 95, 99]
+        res = m.get_summary(latency_percentiles=percentiles)
+        print('FLOW%d:' % i)
+        print('  avg_ns: %.3f' % res.latency.avg_ns)
+        for i, p in enumerate(percentiles):
+            print_args = (p, res.latency.percentile_values_ns[i])
+            print(' %dth_ns: %.3f' % print_args)
+        print()
+    print()
+
+
+# We expect to see a small difference in measured latency when the
+# root share is 170 and 171 (leaf share is 100).
+root_shares = (170, 171)
+
+for root_share in root_shares:
+    print('=' * 20)
+    print('TC SHARES: %d:100' % root_share)
+    print('=' * 20)
+    do_measure({'leaf': 100, 'root': root_share})
+    bess.reset_all()
