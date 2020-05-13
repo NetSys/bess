@@ -36,11 +36,12 @@
 #include "../utils/ether.h"
 #include "../utils/format.h"
 
-static const rte_eth_conf default_eth_conf(const rte_eth_dev_info &dev_info) {
+static const rte_eth_conf default_eth_conf(const rte_eth_dev_info &dev_info,
+                                           int nb_rxq) {
   rte_eth_conf ret = {};
 
   ret.link_speeds = ETH_LINK_SPEED_AUTONEG;
-  ret.rxmode.mq_mode = ETH_MQ_RX_RSS;
+  ret.rxmode.mq_mode = (nb_rxq > 1) ? ETH_MQ_RX_RSS : ETH_MQ_RX_NONE;
   ret.rxmode.offloads = 0;
 
   ret.rx_adv_conf.rss_conf = {
@@ -240,7 +241,7 @@ CommandResponse PMDPort::Init(const bess::pb::PMDPortArg &arg) {
    * with minor tweaks */
   rte_eth_dev_info_get(ret_port_id, &dev_info);
 
-  eth_conf = default_eth_conf(dev_info);
+  eth_conf = default_eth_conf(dev_info, num_rxq);
   if (arg.loopback()) {
     eth_conf.lpbk_mode = 1;
   }
