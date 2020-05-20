@@ -337,9 +337,9 @@ def build_dpdk():
     if not os.path.exists('%s/build' % DPDK_DIR):
         configure_dpdk()
 
-    # patch bpf_validate as it conflicts with libpcap
-    cmd('patch -d %s -N -p1 < %s/bpf_validate.patch || true' % (DPDK_DIR, DEPS_DIR),
-        shell=True)
+    for f in glob.glob('%s/*.patch' % DEPS_DIR):
+        print('Applying patch %s' % f)
+        cmd('patch -d %s -N -p1 < %s || true' % (DPDK_DIR, f), shell=True)
 
     print('Building DPDK...')
     nproc = int(cmd('nproc', quiet=True))
