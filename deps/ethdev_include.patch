@@ -1,0 +1,26 @@
+diff --git a/lib/librte_ethdev/rte_ethdev.h b/lib/librte_ethdev/rte_ethdev.h
+index d1a593ad1..12a892339 100644
+--- a/lib/librte_ethdev/rte_ethdev.h
++++ b/lib/librte_ethdev/rte_ethdev.h
+@@ -4284,7 +4284,7 @@ __rte_experimental
+ int rte_eth_dev_hairpin_capability_get(uint16_t port_id,
+ 				       struct rte_eth_hairpin_cap *cap);
+ 
+-#include <rte_ethdev_core.h>
++#include "rte_ethdev_core.h"
+ 
+ /**
+  *
+diff --git a/lib/librte_ethdev/rte_ethdev_driver.h b/lib/librte_ethdev/rte_ethdev_driver.h
+index 99d4cd6cd..496c77fb5 100644
+--- a/lib/librte_ethdev/rte_ethdev_driver.h
++++ b/lib/librte_ethdev/rte_ethdev_driver.h
+@@ -15,7 +15,7 @@
+  *
+  */
+ 
+-#include <rte_ethdev.h>
++#include "rte_ethdev.h"
+ 
+ #ifdef __cplusplus
+ extern "C" {
