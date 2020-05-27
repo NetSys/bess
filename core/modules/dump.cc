@@ -48,7 +48,9 @@ CommandResponse Dump::Init(const bess::pb::DumpArg &arg) {
   // cannot get a context-based current nanoseconds
   min_interval_ns_ = DEFAULT_INTERVAL_NS;
   next_ns_ = tsc_to_ns(rdtsc());
-  return CommandSetInterval(arg);
+  if (arg.interval())
+    return CommandSetInterval(arg);
+  return CommandSuccess();
 }
 
 void Dump::ProcessBatch(Context *ctx, bess::PacketBatch *batch) {
