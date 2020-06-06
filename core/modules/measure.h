@@ -47,6 +47,7 @@ class Measure final : public Module {
         jitter_sample_prob_(),
         last_rtt_ns_(),
         offset_(),
+        attr_id_(-1),
         pkt_cnt_(),
         bytes_cnt_() {
     max_allowed_workers_ = Worker::kMaxWorkers;
@@ -77,6 +78,7 @@ class Measure final : public Module {
   uint64_t last_rtt_ns_;
 
   size_t offset_;  // in bytes
+  int attr_id_;
 
   uint64_t pkt_cnt_;
   uint64_t bytes_cnt_;
