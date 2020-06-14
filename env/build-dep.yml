@@ -36,7 +36,7 @@
         - libgrpc++-dev
         - libprotobuf-dev
         - protobuf-compiler-grpc
-      when: ansible_distribution == 'Ubuntu' and ansible_lsb.major_release|int >= 18
+      when: ansible_distribution == 'Debian' or (ansible_distribution == 'Ubuntu' and ansible_lsb.major_release|int >= 18)
 
     # for Ubuntu < 18.04, grpc has to be installed manually
     - name: Install gRPC and its requirements (from source)
