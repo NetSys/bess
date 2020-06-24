@@ -119,7 +119,7 @@ def launch(vm_id, num_nics, vhost_opts):
     assert(vm_id < 10)
     assert(num_nics < 10)
 
-    if subprocess.check_output(shlex.split('numactl -H')).find(' 1 nodes') >= 0:
+    if subprocess.check_output(['numactl', '-H'], universal_newlines=True).find(' 1 nodes') >= 0:
         cmd = ''
     else:
         cmd = 'numactl -m %d ' % VM_MEM_SOCKET
@@ -189,8 +189,8 @@ def run_forward(vm_id, num_nics):
         '--total-num-mbufs=65536' \
         .format(qsize=QSIZE, q=NUM_QUEUES, fwdcores=NUM_VCPUS - 1)
     testpmd_cmd = 'sudo ./testpmd {} -- {}'.format(eal_opt, testpmd_opt)
-    cmd = ssh_cmd(vm_id, '(echo -e "set fwd %s\nstart tx_first %d" && cat) | %s'
-                  % (FWD_MODE, QSIZE, testpmd_cmd))
+    cmd = ssh_cmd(vm_id, '(echo -e "set fwd %s\nset txpkts %d\nstart tx_first %d" && cat) | %s'
+                  % (FWD_MODE, PKT_SIZE, QSIZE, testpmd_cmd))
     if VERBOSE:
         print(cmd)
     subprocess.Popen(shlex.split(cmd))

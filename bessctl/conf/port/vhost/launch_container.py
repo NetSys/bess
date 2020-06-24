@@ -79,7 +79,7 @@ def launch(cid):
         '--txq={q} --rxq={q} --total-num-mbufs=65536'.format(
             qsize=QSIZE, q=NUM_QUEUES)
 
-    if subprocess.check_output(['numactl', '-H']).find(' 1 nodes') >= 0:
+    if subprocess.check_output(['numactl', '-H'], universal_newlines=True).find(' 1 nodes') >= 0:
         cmd = ''
     else:
         cmd = 'numactl -m %d ' % VM_MEM_SOCKET
@@ -99,10 +99,11 @@ def launch(cid):
         out = subprocess.PIPE
 
     proc = subprocess.Popen(shlex.split(cmd), stdin=subprocess.PIPE,
-                            stdout=out, stderr=subprocess.STDOUT)
-    proc.stdin.write('set fwd {}\n'.format(FWD_MODE))
-    proc.stdin.write('set txpkts {}\n'.format(PKT_SIZE))
-    proc.stdin.write('start tx_first {}\n'.format(QSIZE))
+                            stdout=out, stderr=subprocess.STDOUT,
+                            universal_newlines=True)
+    print('set fwd {}'.format(FWD_MODE), file=proc.stdin)
+    print('set txpkts {}'.format(PKT_SIZE), file=proc.stdin)
+    print('start tx_first {}'.format(QSIZE), file=proc.stdin, flush=True)
     return proc
 
 
