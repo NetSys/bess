@@ -49,3 +49,5 @@ vm.key
 # JSON Compilation Database
 compile_commands.json
 
+# virtualenv
+venv/

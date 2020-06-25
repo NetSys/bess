@@ -38,8 +38,8 @@ before_install:
 install:
   - sudo apt-get install -y python2.7 python3 python3-pip python3-setuptools ruby-dev
   - sudo gem install ffi fpm
-  - pip2 install --user grpcio==1.10 scapy codecov
-  - pip3 install --user grpcio==1.10 scapy coverage
+  - pip2 install --user -r requirements.txt codecov
+  - pip3 install --user -r requirements.txt coverage
   - "[[ ${COVERAGE:-0} == 0 ]] || sudo apt-get install -y gcc-7"  # install gcov-7
   - "[[ ${SANITIZE:-0} == 0 ]] || sudo apt-get install -y llvm-3.9"
   - "docker pull nefelinetworks/bess_build:latest${TAG_SUFFIX} | cat"  # cat suppresses progress bars
