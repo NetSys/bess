@@ -54,6 +54,7 @@ class BPF final : public Module {
 
   CommandResponse GetInitialArg(const bess::pb::EmptyArg &);
   CommandResponse CommandAdd(const bess::pb::BPFArg &arg);
+  CommandResponse CommandDelete(const bess::pb::BPFArg &arg);
   CommandResponse CommandClear(const bess::pb::EmptyArg &arg);
 
  private:
