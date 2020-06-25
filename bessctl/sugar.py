@@ -292,10 +292,10 @@ def create_module_string(s):
 
 
 def replace_module_assignment(s):
-    target = '(' + NAME + '(, *' + NAME + ')*' + ')::(' + NAME + ')\('
+    target = '(' + NAME + r'(,[ \t]*' + NAME + ')*' + ')::(' + NAME + r')[ \t]*\('
 
     # first group: # leading COMMENT -> skip
-    # second group: single / double /triple quoted strings -> skip
+    # second group: single / double / triple quoted strings -> skip
     # third group: replace target  'NAME::NAME'
     pattern = '(' + COMMENT + ')|(' + STRING_ALL + ')|(' + target + ')'
     regex = re.compile(pattern, re.MULTILINE | re.DOTALL)
