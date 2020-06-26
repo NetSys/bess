@@ -46,7 +46,7 @@ import logging
 logging.getLogger("scapy.runtime").setLevel(logging.ERROR)
 
 try:
-    this_dir = os.path.dirname(os.path.abspath(__file__))
+    this_dir = os.path.dirname(os.path.realpath(__file__))
     sys.path.insert(1, os.path.join(this_dir, '..'))
     from pybess.bess import *
 except ImportError:
