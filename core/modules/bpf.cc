@@ -51,6 +51,8 @@
 const Commands BPF::cmds = {
     {"add", "BPFArg", MODULE_CMD_FUNC(&BPF::CommandAdd),
      Command::THREAD_UNSAFE},
+    {"delete", "BPFArg", MODULE_CMD_FUNC(&BPF::CommandDelete),
+     Command::THREAD_UNSAFE},
     {"clear", "EmptyArg", MODULE_CMD_FUNC(&BPF::CommandClear),
      Command::THREAD_UNSAFE},
     {"get_initial_arg", "EmptyArg", MODULE_CMD_FUNC(&BPF::GetInitialArg),
@@ -121,6 +123,24 @@ CommandResponse BPF::CommandAdd(const bess::pb::BPFArg &arg) {
               // descending order of priority number
               return b.priority < a.priority;
             });
+
+  return CommandSuccess();
+}
+
+CommandResponse BPF::CommandDelete(const bess::pb::BPFArg &arg) {
+  for (const auto &f : arg.filters()) {
+    if (f.gate() < 0 || f.gate() >= MAX_GATES) {
+      return CommandFailure(EINVAL, "Invalid gate");
+    }
+
+    for (auto i = filters_.begin(); i != filters_.end(); ++i) {
+      if (f.priority() == i->priority && f.gate() == i->gate &&
+          f.filter() == i->exp) {
+        filters_.erase(i);
+        break;
+      }
+    }
+  }
 
   return CommandSuccess();
 }
