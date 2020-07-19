@@ -434,7 +434,7 @@ void PMDPort::CollectStats(bool reset) {
     return;
   }
 
-  VLOG(1) << bess::utils::Format(
+  VLOG(2) << bess::utils::Format(
       "PMD port %d: ipackets %" PRIu64 " opackets %" PRIu64 " ibytes %" PRIu64
       " obytes %" PRIu64 " imissed %" PRIu64 " ierrors %" PRIu64
       " oerrors %" PRIu64 " rx_nombuf %" PRIu64,
