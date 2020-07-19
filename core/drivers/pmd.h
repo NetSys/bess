@@ -79,7 +79,7 @@ class PMDPort final : public Port {
   void DeInit() override;
 
   /*!
-   * Copies rte port statistics into queue_stats datastructure (see port.h).
+   * Copies rte port statistics into queue_stats_ datastructure (see port.h).
    *
    * PARAMETERS:
    * * bool reset : if true, reset DPDK local statistics and return (do not

@@ -49,9 +49,9 @@
 #include "utils/common.h"
 #include "utils/ether.h"
 
-typedef uint8_t queue_t;
+using queue_t = uint8_t;
 
-#define MAX_QUEUES_PER_DIR 128 /* [0, 31] (for each RX/TX) */
+#define MAX_QUEUES_PER_DIR 128 /* [0, 127] (for each RX/TX) */
 
 #define DRIVER_FLAG_SELF_INC_STATS 0x0001
 #define DRIVER_FLAG_SELF_OUT_STATS 0x0002
@@ -217,15 +217,15 @@ class Port {
 
   // overide this section to create a new driver -----------------------------
   Port()
-      : port_stats_(),
+      : queue_stats_(),
+        port_stats_(),
         conf_(),
         name_(),
         driver_arg_(),
         port_builder_(),
         num_queues(),
         queue_size(),
-        users(),
-        queue_stats() {
+        users() {
     conf_.mac_addr.Randomize();
     conf_.mtu = kDefaultMtu;
     conf_.admin_up = true;
@@ -293,6 +293,9 @@ class Port {
 
   const PortBuilder *port_builder() const { return port_builder_; }
 
+  // per-queue stat counters
+  QueueStats queue_stats_[PACKET_DIRS][MAX_QUEUES_PER_DIR];
+
  protected:
   friend class PortBuilder;
 
@@ -330,8 +333,6 @@ class Port {
   /* which modules are using this port?
    * TODO: more robust gate keeping */
   const struct module *users[PACKET_DIRS][MAX_QUEUES_PER_DIR];
-
-  struct QueueStats queue_stats[PACKET_DIRS][MAX_QUEUES_PER_DIR];
 };
 
 #define ADD_DRIVER(_DRIVER, _NAME_TEMPLATE, _HELP)                       \

@@ -86,29 +86,28 @@ std::string QueueInc::GetDesc() const {
 
 struct task_result QueueInc::RunTask(Context *ctx, bess::PacketBatch *batch,
                                      void *arg) {
-  Port *p = port_;
-
-  if (!p->conf().admin_up) {
+  if (!port_->conf().admin_up) {
     return {.block = true, .packets = 0, .bits = 0};
   }
 
   const queue_t qid = (queue_t)(uintptr_t)arg;
-
-  uint64_t received_bytes = 0;
+  auto &qstats = port_->queue_stats_[PACKET_DIR_INC][qid];
 
   const int burst = ACCESS_ONCE(burst_);
   const int pkt_overhead = 24;
 
-  batch->set_cnt(p->RecvPackets(qid, batch->pkts(), burst));
-  uint32_t cnt = batch->cnt();
-  p->queue_stats[PACKET_DIR_INC][qid].requested_hist[burst]++;
-  p->queue_stats[PACKET_DIR_INC][qid].actual_hist[cnt]++;
-  p->queue_stats[PACKET_DIR_INC][qid].diff_hist[burst - cnt]++;
+  uint32_t cnt = port_->RecvPackets(qid, batch->pkts(), burst);
+  batch->set_cnt(cnt);
+  qstats.requested_hist[burst]++;
+  qstats.actual_hist[cnt]++;
+  qstats.diff_hist[burst - cnt]++;
+
   if (cnt == 0) {
     return {.block = true, .packets = 0, .bits = 0};
   }
 
   // NOTE: we cannot skip this step since it might be used by scheduler.
+  uint64_t received_bytes = 0;
   if (prefetch_) {
     for (uint32_t i = 0; i < cnt; i++) {
       received_bytes += batch->pkts()[i]->total_len();
@@ -120,9 +119,9 @@ struct task_result QueueInc::RunTask(Context *ctx, bess::PacketBatch *batch,
     }
   }
 
-  if (!(p->GetFlags() & DRIVER_FLAG_SELF_INC_STATS)) {
-    p->queue_stats[PACKET_DIR_INC][qid].packets += cnt;
-    p->queue_stats[PACKET_DIR_INC][qid].bytes += received_bytes;
+  if (!(port_->GetFlags() & DRIVER_FLAG_SELF_INC_STATS)) {
+    qstats.packets += cnt;
+    qstats.bytes += received_bytes;
   }
 
   RunNextModule(ctx, batch);

@@ -458,15 +458,15 @@ void PMDPort::CollectStats(bool reset) {
   } else {
     dir = PACKET_DIR_INC;
     for (qid = 0; qid < num_queues[dir]; qid++) {
-      queue_stats[dir][qid].packets = stats.q_ipackets[qid];
-      queue_stats[dir][qid].bytes = stats.q_ibytes[qid];
-      queue_stats[dir][qid].dropped = stats.q_errors[qid];
+      queue_stats_[dir][qid].packets = stats.q_ipackets[qid];
+      queue_stats_[dir][qid].bytes = stats.q_ibytes[qid];
+      queue_stats_[dir][qid].dropped = stats.q_errors[qid];
     }
 
     dir = PACKET_DIR_OUT;
     for (qid = 0; qid < num_queues[dir]; qid++) {
-      queue_stats[dir][qid].packets = stats.q_opackets[qid];
-      queue_stats[dir][qid].bytes = stats.q_obytes[qid];
+      queue_stats_[dir][qid].packets = stats.q_opackets[qid];
+      queue_stats_[dir][qid].bytes = stats.q_obytes[qid];
     }
   }
 }
@@ -479,7 +479,7 @@ int PMDPort::RecvPackets(queue_t qid, bess::Packet **pkts, int cnt) {
 int PMDPort::SendPackets(queue_t qid, bess::Packet **pkts, int cnt) {
   int sent = rte_eth_tx_burst(dpdk_port_id_, qid,
                               reinterpret_cast<rte_mbuf **>(pkts), cnt);
-  auto &stats = queue_stats[PACKET_DIR_OUT][qid];
+  auto &stats = queue_stats_[PACKET_DIR_OUT][qid];
   int dropped = cnt - sent;
   stats.dropped += dropped;
   stats.requested_hist[cnt]++;
