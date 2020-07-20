@@ -1445,8 +1445,10 @@ def _show_port(cli, port):
 
     port_config = cli.bess.get_port_config(port.name)
 
-    cli.fout.write('  %-12s Driver %-10s HWaddr %-18s MTU %-6d\n' %
-                   (port.name, port.driver, port.mac_addr, port_config.conf.mtu))
+    cli.fout.write('  %-12s Driver %-10s HWaddr %-18s MTU %-5d %s\n' %
+                   (port.name, port.driver,
+                    port_config.conf.mac_addr, port_config.conf.mtu,
+                    'Enabled' if port_config.conf.admin_up else 'Disabled'))
     cli.fout.write('  %-12s Speed %-11s Link %-5s Duplex %-5s Autoneg %-5s\n' %
                    ('', speed, link, duplex, autoneg))
     stats = cli.bess.get_port_stats(port.name)
