@@ -1133,22 +1133,10 @@ class BESSControlImpl final : public BESSControl::Service {
     response->mutable_inc()->set_packets(stats.inc.packets);
     response->mutable_inc()->set_dropped(stats.inc.dropped);
     response->mutable_inc()->set_bytes(stats.inc.bytes);
-    *response->mutable_inc()->mutable_requested_hist() = {
-        stats.inc.requested_hist.begin(), stats.inc.requested_hist.end()};
-    *response->mutable_inc()->mutable_actual_hist() = {
-        stats.inc.actual_hist.begin(), stats.inc.actual_hist.end()};
-    *response->mutable_inc()->mutable_diff_hist() = {
-        stats.inc.diff_hist.begin(), stats.inc.diff_hist.end()};
 
     response->mutable_out()->set_packets(stats.out.packets);
     response->mutable_out()->set_dropped(stats.out.dropped);
     response->mutable_out()->set_bytes(stats.out.bytes);
-    *response->mutable_out()->mutable_requested_hist() = {
-        stats.out.requested_hist.begin(), stats.out.requested_hist.end()};
-    *response->mutable_out()->mutable_actual_hist() = {
-        stats.out.actual_hist.begin(), stats.out.actual_hist.end()};
-    *response->mutable_out()->mutable_diff_hist() = {
-        stats.out.diff_hist.begin(), stats.out.diff_hist.end()};
 
     response->set_timestamp(get_epoch_time());
 

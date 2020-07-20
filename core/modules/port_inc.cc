@@ -123,14 +123,11 @@ struct task_result PortInc::RunTask(Context *ctx, bess::PacketBatch *batch,
   const int pkt_overhead = 24;
 
   uint32_t cnt = port_->RecvPackets(qid, batch->pkts(), burst);
-  batch->set_cnt(cnt);
-  qstats.requested_hist[burst]++;
-  qstats.actual_hist[cnt]++;
-  qstats.diff_hist[burst - cnt]++;
-
   if (cnt == 0) {
     return {.block = true, .packets = 0, .bits = 0};
   }
+
+  batch->set_cnt(cnt);
 
   // NOTE: we cannot skip this step since it might be used by scheduler.
   if (prefetch_) {

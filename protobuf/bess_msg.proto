@@ -321,15 +321,15 @@ message GetPortStatsResponse {
 
     // Histogram of how many times a given number of packets in a batch was
     // requested.
-    repeated uint64 requested_hist = 4;
+    reserved 4;  // repeated uint64 requested_hist = 4;
 
     // Histogram of how many times a given number of packets in a batch were
     // actually processed.
-    repeated uint64 actual_hist = 5;
+    reserved 5;  // repeated uint64 actual_hist = 5;
 
     // Histogram of the difference between the requested batch size and the
     // actual number of packets processed in that batch.
-    repeated uint64 diff_hist = 6;
+    reserved 6;  //repeated uint64 diff_hist = 6;
   }
   Error error = 1;
   Stat inc = 2;          /// Port stats for incoming (Ext -> BESS) direction.
