@@ -86,10 +86,8 @@ void QueueOut::ProcessBatch(Context *, bess::PacketBatch *batch) {
       sent_bytes += batch->pkts()[i]->total_len();
     }
 
-    auto &qstats = port_->queue_stats_[PACKET_DIR_OUT][qid_];
-    qstats.packets += sent_pkts;
-    qstats.dropped += (batch->cnt() - sent_pkts);
-    qstats.bytes += sent_bytes;
+    port_->IncreaseOutQueueCounters(qid_, sent_pkts, batch->cnt() - sent_pkts,
+                                    sent_bytes);
   }
 
   if (sent_pkts < batch->cnt()) {

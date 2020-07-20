@@ -103,10 +103,8 @@ static inline int SendBatch(bess::PacketBatch *batch, Port *p, queue_t qid) {
       sent_bytes += batch->pkts()[i]->total_len();
     }
 
-    auto &qstats = p->queue_stats_[PACKET_DIR_OUT][qid];
-    qstats.packets += sent_pkts;
-    qstats.dropped += (batch->cnt() - sent_pkts);
-    qstats.bytes += sent_bytes;
+    p->IncreaseOutQueueCounters(qid, sent_pkts, batch->cnt() - sent_pkts,
+                                sent_bytes);
   }
 
   return sent_pkts;

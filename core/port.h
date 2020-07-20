@@ -210,8 +210,8 @@ class Port {
 
   // overide this section to create a new driver -----------------------------
   Port()
-      : queue_stats_(),
-        port_stats_(),
+      : port_stats_(),
+        queue_stats_(),
         conf_(),
         name_(),
         driver_arg_(),
@@ -286,14 +286,30 @@ class Port {
 
   const PortBuilder *port_builder() const { return port_builder_; }
 
-  // per-queue stat counters
-  QueueStats queue_stats_[PACKET_DIRS][MAX_QUEUES_PER_DIR];
+  void IncreaseIncQueueCounters(queue_t qid, uint64_t received,
+                                uint64_t dropped, uint64_t received_bytes) {
+    auto &qstats = queue_stats_[PACKET_DIR_INC][qid];
+    qstats.packets += received;
+    qstats.dropped += dropped;
+    qstats.bytes += received_bytes;
+  }
+
+  void IncreaseOutQueueCounters(queue_t qid, uint64_t sent, uint64_t dropped,
+                                uint64_t sent_bytes) {
+    auto &qstats = queue_stats_[PACKET_DIR_OUT][qid];
+    qstats.packets += sent;
+    qstats.dropped += dropped;
+    qstats.bytes += sent_bytes;
+  }
 
  protected:
   friend class PortBuilder;
 
-  // for stats that do NOT belong to any queues
+  // for stats that do NOT counted for any per-queue stats below
   PortStats port_stats_;
+
+  // per-queue stat counters
+  QueueStats queue_stats_[PACKET_DIRS][MAX_QUEUES_PER_DIR];
 
   // Current configuration
   Conf conf_;

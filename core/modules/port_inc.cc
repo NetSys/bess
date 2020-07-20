@@ -115,10 +115,6 @@ struct task_result PortInc::RunTask(Context *ctx, bess::PacketBatch *batch,
   }
 
   const queue_t qid = (queue_t)(uintptr_t)arg;
-  auto &qstats = port_->queue_stats_[PACKET_DIR_INC][qid];
-
-  uint64_t received_bytes = 0;
-
   const int burst = ACCESS_ONCE(burst_);
   const int pkt_overhead = 24;
 
@@ -130,6 +126,7 @@ struct task_result PortInc::RunTask(Context *ctx, bess::PacketBatch *batch,
   batch->set_cnt(cnt);
 
   // NOTE: we cannot skip this step since it might be used by scheduler.
+  uint64_t received_bytes = 0;
   if (prefetch_) {
     for (uint32_t i = 0; i < cnt; i++) {
       received_bytes += batch->pkts()[i]->total_len();
@@ -142,8 +139,7 @@ struct task_result PortInc::RunTask(Context *ctx, bess::PacketBatch *batch,
   }
 
   if (!(port_->GetFeatures().offloadIncStats)) {
-    qstats.packets += cnt;
-    qstats.bytes += received_bytes;
+    port_->IncreaseIncQueueCounters(qid, cnt, 0, received_bytes);
   }
 
   RunNextModule(ctx, batch);

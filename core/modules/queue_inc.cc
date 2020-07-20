@@ -91,8 +91,6 @@ struct task_result QueueInc::RunTask(Context *ctx, bess::PacketBatch *batch,
   }
 
   const queue_t qid = (queue_t)(uintptr_t)arg;
-  auto &qstats = port_->queue_stats_[PACKET_DIR_INC][qid];
-
   const int burst = ACCESS_ONCE(burst_);
   const int pkt_overhead = 24;
 
@@ -117,8 +115,7 @@ struct task_result QueueInc::RunTask(Context *ctx, bess::PacketBatch *batch,
   }
 
   if (!(port_->GetFeatures().offloadIncStats)) {
-    qstats.packets += cnt;
-    qstats.bytes += received_bytes;
+    port_->IncreaseIncQueueCounters(qid, cnt, 0, received_bytes);
   }
 
   RunNextModule(ctx, batch);
