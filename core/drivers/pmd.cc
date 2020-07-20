@@ -189,7 +189,7 @@ static CommandResponse find_dpdk_vdev(const std::string &vdev,
 
   rte_dev_iterator iterator;
   RTE_ETH_FOREACH_MATCHING_DEV(port_id, vdev.c_str(), &iterator) {
-    LOG(INFO) << "port id: " << port_id << "matches vdev: " << vdev;
+    LOG(INFO) << "port id " << port_id << " matches vdev '" << vdev << "'";
     rte_eth_iterator_cleanup(&iterator);
     break;
   }
