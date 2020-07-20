@@ -80,7 +80,7 @@ void QueueOut::ProcessBatch(Context *, bess::PacketBatch *batch) {
     sent_pkts = port_->SendPackets(qid_, batch->pkts(), batch->cnt());
   }
 
-  if (!(port_->GetFlags() & DRIVER_FLAG_SELF_OUT_STATS)) {
+  if (!(port_->GetFeatures().offloadOutStats)) {
     uint64_t sent_bytes = 0;
     for (int i = 0; i < sent_pkts; i++) {
       sent_bytes += batch->pkts()[i]->total_len();

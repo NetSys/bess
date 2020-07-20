@@ -53,17 +53,18 @@ using queue_t = uint8_t;
 
 #define MAX_QUEUES_PER_DIR 128 /* [0, 127] (for each RX/TX) */
 
-#define DRIVER_FLAG_SELF_INC_STATS 0x0001
-#define DRIVER_FLAG_SELF_OUT_STATS 0x0002
-
 #define MAX_QUEUE_SIZE 4096
 
 #define ETH_ALEN 6
 
-/* The term RX/TX could be very confusing for a virtual switch.
- * Instead, we use the "incoming/outgoing" convention:
- * - incoming: outside -> BESS
- * - outgoing: BESS -> outside */
+// The term RX/TX could be very confusing for a virtual switch.
+// Instead, we use the "incoming/outgoing" convention:
+// - incoming: outside -> BESS
+// - outgoing: BESS -> outside
+//
+// NOTE: for new code, avoid using arrays like `Foo bar[PACKET_DIR]`.
+//   The use of array doesn't really make the code more readable.
+//   Instead, follow the `Foo bar_inc; Foo bar_out` style.
 typedef enum {
   PACKET_DIR_INC = 0,
   PACKET_DIR_OUT = 1,
@@ -215,6 +216,11 @@ class Port {
     QueueStats out;
   };
 
+  struct DriverFeatures {
+    bool offloadIncStats;
+    bool offloadOutStats;
+  };
+
   // overide this section to create a new driver -----------------------------
   Port()
       : queue_stats_(),
@@ -247,7 +253,7 @@ class Port {
   virtual size_t DefaultIncQueueSize() const { return kDefaultIncQueueSize; }
   virtual size_t DefaultOutQueueSize() const { return kDefaultOutQueueSize; }
 
-  virtual uint64_t GetFlags() const { return 0; }
+  virtual DriverFeatures GetFeatures() const { return {}; }
 
   /*!
    * Get any placement constraints that need to be met when receiving from this
@@ -299,7 +305,7 @@ class Port {
  protected:
   friend class PortBuilder;
 
-  /* for stats that do NOT belong to any queues */
+  // for stats that do NOT belong to any queues
   PortStats port_stats_;
 
   // Current configuration

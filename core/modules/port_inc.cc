@@ -144,7 +144,7 @@ struct task_result PortInc::RunTask(Context *ctx, bess::PacketBatch *batch,
     }
   }
 
-  if (!(port_->GetFlags() & DRIVER_FLAG_SELF_INC_STATS)) {
+  if (!(port_->GetFeatures().offloadIncStats)) {
     qstats.packets += cnt;
     qstats.bytes += received_bytes;
   }

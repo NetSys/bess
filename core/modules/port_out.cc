@@ -97,7 +97,7 @@ static inline int SendBatch(bess::PacketBatch *batch, Port *p, queue_t qid) {
 
   int sent_pkts = p->SendPackets(qid, batch->pkts(), batch->cnt());
 
-  if (!(p->GetFlags() & DRIVER_FLAG_SELF_OUT_STATS)) {
+  if (!(p->GetFeatures().offloadOutStats)) {
     uint64_t sent_bytes = 0;
     for (int i = 0; i < sent_pkts; i++) {
       sent_bytes += batch->pkts()[i]->total_len();
