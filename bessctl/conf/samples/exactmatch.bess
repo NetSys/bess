@@ -68,7 +68,7 @@ em.add(fields=[{'value_int':6}, {'value_bin':aton('172.12.55.99')}, {'value_bin'
 em.add(fields=[{'value_int':17}, {'value_bin':aton('172.12.55.99')}, {'value_bin':aton('12.34.56.78')}], gate=2)
 
 # delete test
-em.add(fields=[{'value_bin':chr(17)}, {'value_bin':aton('192.168.1.123')}, {'value_bin':aton('12.34.56.78')}], gate=3)
-em.delete(fields=[{'value_bin':chr(17)}, {'value_bin':aton('192.168.1.123')}, {'value_bin':aton('12.34.56.78')}])
+em.add(fields=[{'value_bin':b'\x11'}, {'value_bin':aton('192.168.1.123')}, {'value_bin':aton('12.34.56.78')}], gate=3)
+em.delete(fields=[{'value_bin':b'\x11'}, {'value_bin':aton('192.168.1.123')}, {'value_bin':aton('12.34.56.78')}])
 
 em.set_default_gate(gate=5)

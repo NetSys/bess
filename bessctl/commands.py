@@ -1356,7 +1356,8 @@ def _draw_pipeline(cli, field, units, last_stats=None, graph_args=[]):
         f = subprocess.Popen('graph-easy ' + ' '.join(graph_args), shell=True,
                              stdin=subprocess.PIPE,
                              stdout=subprocess.PIPE,
-                             stderr=subprocess.PIPE)
+                             stderr=subprocess.PIPE,
+                             universal_newlines=True)
 
         for m in modules:
             print('[%s]' % node_labels[m.name], file=f.stdin)
@@ -1781,8 +1782,8 @@ def _monitor_ports(cli, *ports):
         else:
             out_mbps = 0.
 
-        data = (inc_mbps, delta.inc_packets / 1e6, long(delta.inc_dropped), out_mbps, delta.out_packets / 1e6,
-                long(delta.out_dropped))
+        data = (inc_mbps, delta.inc_packets / 1e6, int(delta.inc_dropped), out_mbps, delta.out_packets / 1e6,
+                int(delta.out_dropped))
         cli.fout.write('{:<20}{:>14.1f}{:>10.3f}{:>10d}        {:>14.1f}{:>10.3f}{:>10d}\n'.format(port, *data))
         if csv_f is not None:
             csv_f.write('{},{},{}\n'.format(time.strftime('%X'), port, ','.join(map(lambda x: '{:.3f}'.format(x), data))))
@@ -1897,7 +1898,7 @@ def _monitor_tcs(cli, *tcs):
         else:
             cpp = 0.
 
-        data = (delta.cycles / 1e6, long(delta.count), delta.packets / 1e6, delta.bits / 1e6, ppb, cpp)
+        data = (delta.cycles / 1e6, int(delta.count), delta.packets / 1e6, delta.bits / 1e6, ppb, cpp)
         fmt = '{:<%d}{:>12.3f}{:>12d}{:>12.3f}{:>12.3f}{:>12.3f}{:>12.3f}\n' % (name_len,)
         cli.fout.write(fmt.format(tc, *data))
         if csv_f is not None:
