@@ -91,41 +91,36 @@ std::string PortOut::GetDesc() const {
 }
 
 static inline int SendBatch(bess::PacketBatch *batch, Port *p, queue_t qid) {
-  uint64_t sent_bytes = 0;
-  int sent_pkts = 0;
-
-  if (p->conf().admin_up) {
-    sent_pkts = p->SendPackets(qid, batch->pkts(), batch->cnt());
+  if (!p->conf().admin_up) {
+    return 0;
   }
 
-  if (!(p->GetFlags() & DRIVER_FLAG_SELF_OUT_STATS)) {
-    const packet_dir_t dir = PACKET_DIR_OUT;
+  int sent_pkts = p->SendPackets(qid, batch->pkts(), batch->cnt());
 
+  if (!(p->GetFeatures().offloadOutStats)) {
+    uint64_t sent_bytes = 0;
     for (int i = 0; i < sent_pkts; i++) {
       sent_bytes += batch->pkts()[i]->total_len();
     }
 
-    p->queue_stats[dir][qid].packets += sent_pkts;
-    p->queue_stats[dir][qid].dropped += (batch->cnt() - sent_pkts);
-    p->queue_stats[dir][qid].bytes += sent_bytes;
+    p->IncreaseOutQueueCounters(qid, sent_pkts, batch->cnt() - sent_pkts,
+                                sent_bytes);
   }
 
   return sent_pkts;
 }
 
 void PortOut::ProcessBatch(Context *ctx, bess::PacketBatch *batch) {
-  Port *p = port_;
-
   CHECK(worker_queues_[ctx->wid] >= 0);
   queue_t qid = worker_queues_[ctx->wid];
   int sent_pkts = 0;
 
   if (queue_users_[qid] == 1) {
-    sent_pkts = SendBatch(batch, p, qid);
+    sent_pkts = SendBatch(batch, port_, qid);
   } else {
     mcslock_node_t me;
     mcs_lock(&queue_locks_[qid], &me);
-    sent_pkts = SendBatch(batch, p, qid);
+    sent_pkts = SendBatch(batch, port_, qid);
     mcs_unlock(&queue_locks_[qid], &me);
   }
 

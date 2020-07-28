@@ -49,21 +49,22 @@
 #include "utils/common.h"
 #include "utils/ether.h"
 
-typedef uint8_t queue_t;
+using queue_t = uint8_t;
 
-#define MAX_QUEUES_PER_DIR 128 /* [0, 31] (for each RX/TX) */
-
-#define DRIVER_FLAG_SELF_INC_STATS 0x0001
-#define DRIVER_FLAG_SELF_OUT_STATS 0x0002
+#define MAX_QUEUES_PER_DIR 128 /* [0, 127] (for each RX/TX) */
 
 #define MAX_QUEUE_SIZE 4096
 
 #define ETH_ALEN 6
 
-/* The term RX/TX could be very confusing for a virtual switch.
- * Instead, we use the "incoming/outgoing" convention:
- * - incoming: outside -> BESS
- * - outgoing: BESS -> outside */
+// The term RX/TX could be very confusing for a virtual switch.
+// Instead, we use the "incoming/outgoing" convention:
+// - incoming: outside -> BESS
+// - outgoing: BESS -> outside
+//
+// NOTE: for new code, avoid using arrays like `Foo bar[PACKET_DIR]`.
+//   The use of array doesn't really make the code more readable.
+//   Instead, follow the `Foo bar_inc; Foo bar_out` style.
 typedef enum {
   PACKET_DIR_INC = 0,
   PACKET_DIR_OUT = 1,
@@ -176,25 +177,6 @@ class PortBuilder {
                       // InitPortClass()?
 };
 
-struct BatchHistogram
-    : public std::array<uint64_t, bess::PacketBatch::kMaxBurst + 1> {
-  BatchHistogram &operator+=(const BatchHistogram &rhs) {
-    for (size_t i = 0; i < size(); i++) {
-      (*this)[i] += rhs[i];
-    }
-    return *this;
-  }
-};
-
-struct QueueStats {
-  uint64_t packets;
-  uint64_t dropped;  // Not all drivers support this for INC direction
-  uint64_t bytes;    // It doesn't include Ethernet overhead
-  BatchHistogram requested_hist;
-  BatchHistogram actual_hist;
-  BatchHistogram diff_hist;
-};
-
 class Port {
  public:
   struct LinkStatus {
@@ -210,22 +192,38 @@ class Port {
     bool admin_up;
   };
 
+  struct QueueStats {
+    uint64_t packets;
+    uint64_t dropped;  // Not all drivers support this for INC direction
+    uint64_t bytes;    // It doesn't include Ethernet overhead
+  };
+
   struct PortStats {
     QueueStats inc;
     QueueStats out;
+
+    // Per-queue stat counters. The sum of all queues should match the above `inc`.
+    // Key -1 is used when exact queues are unknown.
+    std::map<int, Port::QueueStats> inc_queues;
+    std::map<int, Port::QueueStats> out_queues;
+  };
+
+  struct DriverFeatures {
+    bool offloadIncStats;
+    bool offloadOutStats;
   };
 
   // overide this section to create a new driver -----------------------------
   Port()
       : port_stats_(),
+        queue_stats_(),
         conf_(),
         name_(),
         driver_arg_(),
         port_builder_(),
         num_queues(),
         queue_size(),
-        users(),
-        queue_stats() {
+        users() {
     conf_.mac_addr.Randomize();
     conf_.mtu = kDefaultMtu;
     conf_.admin_up = true;
@@ -247,7 +245,7 @@ class Port {
   virtual size_t DefaultIncQueueSize() const { return kDefaultIncQueueSize; }
   virtual size_t DefaultOutQueueSize() const { return kDefaultOutQueueSize; }
 
-  virtual uint64_t GetFlags() const { return 0; }
+  virtual DriverFeatures GetFeatures() const { return {}; }
 
   /*!
    * Get any placement constraints that need to be met when receiving from this
@@ -273,6 +271,7 @@ class Port {
   CommandResponse InitWithGenericArg(const google::protobuf::Any &arg);
 
   PortStats GetPortStats();
+  std::map<int, QueueStats> GetQueueStats();
 
   /* queues == nullptr if _all_ queues are being acquired/released */
   int AcquireQueues(const struct module *m, packet_dir_t dir,
@@ -293,11 +292,30 @@ class Port {
 
   const PortBuilder *port_builder() const { return port_builder_; }
 
+  void IncreaseIncQueueCounters(queue_t qid, uint64_t received,
+                                uint64_t dropped, uint64_t received_bytes) {
+    auto &qstats = queue_stats_[PACKET_DIR_INC][qid];
+    qstats.packets += received;
+    qstats.dropped += dropped;
+    qstats.bytes += received_bytes;
+  }
+
+  void IncreaseOutQueueCounters(queue_t qid, uint64_t sent, uint64_t dropped,
+                                uint64_t sent_bytes) {
+    auto &qstats = queue_stats_[PACKET_DIR_OUT][qid];
+    qstats.packets += sent;
+    qstats.dropped += dropped;
+    qstats.bytes += sent_bytes;
+  }
+
  protected:
   friend class PortBuilder;
 
-  /* for stats that do NOT belong to any queues */
+  // for stats that do NOT counted for any per-queue stats below
   PortStats port_stats_;
+
+  // per-queue stat counters
+  QueueStats queue_stats_[PACKET_DIRS][MAX_QUEUES_PER_DIR];
 
   // Current configuration
   Conf conf_;
@@ -330,8 +348,6 @@ class Port {
   /* which modules are using this port?
    * TODO: more robust gate keeping */
   const struct module *users[PACKET_DIRS][MAX_QUEUES_PER_DIR];
-
-  struct QueueStats queue_stats[PACKET_DIRS][MAX_QUEUES_PER_DIR];
 };
 
 #define ADD_DRIVER(_DRIVER, _NAME_TEMPLATE, _HELP)                       \

@@ -189,7 +189,7 @@ static CommandResponse find_dpdk_vdev(const std::string &vdev,
 
   rte_dev_iterator iterator;
   RTE_ETH_FOREACH_MATCHING_DEV(port_id, vdev.c_str(), &iterator) {
-    LOG(INFO) << "port id: " << port_id << "matches vdev: " << vdev;
+    LOG(INFO) << "port id " << port_id << " matches vdev '" << vdev << "'";
     rte_eth_iterator_cleanup(&iterator);
     break;
   }
@@ -418,9 +418,6 @@ void PMDPort::DeInit() {
 }
 
 void PMDPort::CollectStats(bool reset) {
-  packet_dir_t dir;
-  queue_t qid;
-
   if (reset) {
     rte_eth_stats_reset(dpdk_port_id_);
     return;
@@ -434,7 +431,7 @@ void PMDPort::CollectStats(bool reset) {
     return;
   }
 
-  VLOG(1) << bess::utils::Format(
+  VLOG(2) << bess::utils::Format(
       "PMD port %d: ipackets %" PRIu64 " opackets %" PRIu64 " ibytes %" PRIu64
       " obytes %" PRIu64 " imissed %" PRIu64 " ierrors %" PRIu64
       " oerrors %" PRIu64 " rx_nombuf %" PRIu64,
@@ -443,31 +440,35 @@ void PMDPort::CollectStats(bool reset) {
 
   port_stats_.inc.dropped = stats.imissed;
 
-  // i40e/net_e1000_igb PMD drivers, ixgbevf and net_bonding vdevs don't support
-  // per-queue stats
-  if (driver_ == "net_i40e" || driver_ == "net_i40e_vf" ||
-      driver_ == "net_ixgbe_vf" || driver_ == "net_bonding" ||
-      driver_ == "net_e1000_igb") {
-    // NOTE:
-    // - if link is down, tx bytes won't increase
-    // - if destination MAC address is incorrect, rx pkts won't increase
+  // NOTE: depending on DPDK PMD drivers,
+  // - if link is down, tx bytes may not increase
+  // - if destination is zero MAC address, rx pkts may not increase
+
+  uint64_t any = 0;
+
+  for (queue_t qid = 0; qid < num_queues[PACKET_DIR_INC]; qid++) {
+    auto &qstats = queue_stats_[PACKET_DIR_INC][qid];
+    any |= (qstats.packets = stats.q_ipackets[qid]);
+    any |= (qstats.bytes = stats.q_ibytes[qid]);
+    any |= (qstats.dropped = stats.q_errors[qid]);
+  }
+
+  for (queue_t qid = 0; qid < num_queues[PACKET_DIR_OUT]; qid++) {
+    auto &qstats = queue_stats_[PACKET_DIR_OUT][qid];
+    any |= (qstats.packets = stats.q_opackets[qid]);
+    any |= (qstats.bytes = stats.q_obytes[qid]);
+  }
+
+  // Some PMD drivers, such as i40e, ixgbevf and net_bonding, do not support
+  // per-queue stats. There doesn't seem to be a reliable way to detect whether
+  // the driver really supports per-queue stats or not. Instead, if all queue
+  // stats counters are 0, we assume that it only supports per-port stats
+  // Note that this heuristic is safe from potential double counting.
+  if (!any) {
     port_stats_.inc.packets = stats.ipackets;
     port_stats_.inc.bytes = stats.ibytes;
     port_stats_.out.packets = stats.opackets;
     port_stats_.out.bytes = stats.obytes;
-  } else {
-    dir = PACKET_DIR_INC;
-    for (qid = 0; qid < num_queues[dir]; qid++) {
-      queue_stats[dir][qid].packets = stats.q_ipackets[qid];
-      queue_stats[dir][qid].bytes = stats.q_ibytes[qid];
-      queue_stats[dir][qid].dropped = stats.q_errors[qid];
-    }
-
-    dir = PACKET_DIR_OUT;
-    for (qid = 0; qid < num_queues[dir]; qid++) {
-      queue_stats[dir][qid].packets = stats.q_opackets[qid];
-      queue_stats[dir][qid].bytes = stats.q_obytes[qid];
-    }
   }
 }
 
@@ -479,12 +480,7 @@ int PMDPort::RecvPackets(queue_t qid, bess::Packet **pkts, int cnt) {
 int PMDPort::SendPackets(queue_t qid, bess::Packet **pkts, int cnt) {
   int sent = rte_eth_tx_burst(dpdk_port_id_, qid,
                               reinterpret_cast<rte_mbuf **>(pkts), cnt);
-  auto &stats = queue_stats[PACKET_DIR_OUT][qid];
-  int dropped = cnt - sent;
-  stats.dropped += dropped;
-  stats.requested_hist[cnt]++;
-  stats.actual_hist[sent]++;
-  stats.diff_hist[dropped]++;
+  queue_stats_[PACKET_DIR_OUT][qid].dropped += cnt - sent;
   return sent;
 }
 
