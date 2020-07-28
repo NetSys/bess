@@ -62,6 +62,13 @@ int main(int argc, char *argv[]) {
     LOG(INFO) << "Launching BESS daemon in process mode...";
   } else {
     LOG(INFO) << "Launching BESS daemon in background...";
+
+    if (FLAGS_logtostderr == true || FLAGS_alsologtostderr == true) {
+      FLAGS_logtostderr = false;
+      FLAGS_alsologtostderr = false;
+      LOG(WARNING) << "Daemon doesn't get attached to stdio. "
+                      "-logtostderr and -alsologtostderr options are ignored";
+    }
     signal_fd = bess::bessd::Daemonize();
   }
 
