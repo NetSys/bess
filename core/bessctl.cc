@@ -515,6 +515,7 @@ class BESSControlImpl final : public BESSControl::Service {
 
     LOG(INFO) << "*** Resuming ***";
     resume_all_workers();
+    VLOG(1) << "*** Resumed ***";
     return Status::OK;
   }
 
@@ -1130,13 +1131,31 @@ class BESSControlImpl final : public BESSControl::Service {
 
     ::Port::PortStats stats = it->second->GetPortStats();
 
-    response->mutable_inc()->set_packets(stats.inc.packets);
-    response->mutable_inc()->set_dropped(stats.inc.dropped);
-    response->mutable_inc()->set_bytes(stats.inc.bytes);
+    auto *inc = response->mutable_inc();
+    inc->set_packets(stats.inc.packets);
+    inc->set_dropped(stats.inc.dropped);
+    inc->set_bytes(stats.inc.bytes);
 
-    response->mutable_out()->set_packets(stats.out.packets);
-    response->mutable_out()->set_dropped(stats.out.dropped);
-    response->mutable_out()->set_bytes(stats.out.bytes);
+    for (const auto &[qid, v] : stats.inc_queues) {
+      bess::pb::GetPortStatsResponse::Stat inc_queue;
+      inc_queue.set_packets(v.packets);
+      inc_queue.set_dropped(v.dropped);
+      inc_queue.set_bytes(v.bytes);
+      response->mutable_inc_queues()->insert({qid, inc_queue});
+    }
+
+    auto *out = response->mutable_out();
+    out->set_packets(stats.out.packets);
+    out->set_dropped(stats.out.dropped);
+    out->set_bytes(stats.out.bytes);
+
+    for (const auto &[qid, v] : stats.out_queues) {
+      bess::pb::GetPortStatsResponse::Stat out_queue;
+      out_queue.set_packets(v.packets);
+      out_queue.set_dropped(v.dropped);
+      out_queue.set_bytes(v.bytes);
+      response->mutable_out_queues()->insert({qid, out_queue});
+    }
 
     response->set_timestamp(get_epoch_time());
 

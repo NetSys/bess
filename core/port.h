@@ -177,12 +177,6 @@ class PortBuilder {
                       // InitPortClass()?
 };
 
-struct QueueStats {
-  uint64_t packets;
-  uint64_t dropped;  // Not all drivers support this for INC direction
-  uint64_t bytes;    // It doesn't include Ethernet overhead
-};
-
 class Port {
  public:
   struct LinkStatus {
@@ -198,9 +192,20 @@ class Port {
     bool admin_up;
   };
 
+  struct QueueStats {
+    uint64_t packets;
+    uint64_t dropped;  // Not all drivers support this for INC direction
+    uint64_t bytes;    // It doesn't include Ethernet overhead
+  };
+
   struct PortStats {
     QueueStats inc;
     QueueStats out;
+
+    // Per-queue stat counters. The sum of all queues should match the above `inc`.
+    // Key -1 is used when exact queues are unknown.
+    std::map<int, Port::QueueStats> inc_queues;
+    std::map<int, Port::QueueStats> out_queues;
   };
 
   struct DriverFeatures {
@@ -266,6 +271,7 @@ class Port {
   CommandResponse InitWithGenericArg(const google::protobuf::Any &arg);
 
   PortStats GetPortStats();
+  std::map<int, QueueStats> GetQueueStats();
 
   /* queues == nullptr if _all_ queues are being acquired/released */
   int AcquireQueues(const struct module *m, packet_dir_t dir,

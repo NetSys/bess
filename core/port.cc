@@ -172,19 +172,22 @@ Port::PortStats Port::GetPortStats() {
 
   PortStats ret = port_stats_;
 
+  ret.inc_queues[-1] = port_stats_.inc;
   for (queue_t qid = 0; qid < num_queues[PACKET_DIR_INC]; qid++) {
     const QueueStats &inc = queue_stats_[PACKET_DIR_INC][qid];
-
     ret.inc.packets += inc.packets;
     ret.inc.dropped += inc.dropped;
     ret.inc.bytes += inc.bytes;
+    ret.inc_queues[qid] = inc;
   }
 
+  ret.out_queues[-1] = port_stats_.out;
   for (queue_t qid = 0; qid < num_queues[PACKET_DIR_OUT]; qid++) {
     const QueueStats &out = queue_stats_[PACKET_DIR_OUT][qid];
     ret.out.packets += out.packets;
     ret.out.dropped += out.dropped;
     ret.out.bytes += out.bytes;
+    ret.out_queues[qid] = out;
   }
 
   return ret;
