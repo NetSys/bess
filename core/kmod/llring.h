@@ -97,7 +97,11 @@
 #define _LLRING_H_
 
 #if !defined(__cplusplus) // C
+#ifdef fallthrough
+#define FALLTHROUGH __attribute__((__fallthrough__))
+#else
 #define FALLTHROUGH __attribute__((fallthrough))
+#endif
 #elif __cplusplus <= 201402L && defined(__clang__) // C++14 or older, Clang
 #define FALLTHROUGH [[clang::fallthrough]]
 #elif __cplusplus <= 201402L && __GNUC__ < 7 // C++14 or older, pre-GCC 7
