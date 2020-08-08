@@ -286,9 +286,9 @@ TEST_F(PortTest, InitDrivers) {
 // Checks that when we register a portclass, the global table of PortBuilders
 // contains it.
 TEST_F(PortBuilderTest, RegisterPortClassDirectCall) {
-  PortBuilder::RegisterPortClass([]() { return new DummyPort(); }, "DummyPort",
-                                 "dummy_port", "dummy help",
-                                 PORT_INIT_FUNC(&DummyPort::Init));
+  PortBuilder::RegisterPortClass(
+      []() { return new DummyPort(); }, "DummyPort", "dummy_port", "dummy help",
+      PORT_INIT_FUNC(&DummyPort::Init), PORT_INIT_DESC(&DummyPort::Init));
 
   ASSERT_EQ(1, PortBuilder::all_port_builders().size());
   ASSERT_EQ(1, PortBuilder::all_port_builders().count("DummyPort"));

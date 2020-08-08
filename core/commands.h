@@ -31,7 +31,10 @@
 #ifndef BESS_COMMANDS_H_
 #define BESS_COMMANDS_H_
 
+#include <variant>
 #include <vector>
+
+#include <google/protobuf/descriptor.pb.h>
 
 #include "message.h"
 
@@ -50,6 +53,8 @@ using module_cmd_func_t =
     pb_func_t<CommandResponse, Module, google::protobuf::Any>;
 using gate_hook_cmd_func_t =
     pb_func_t<CommandResponse, bess::GateHook, google::protobuf::Any>;
+using CommandArgType =
+    std::variant<std::string, const google::protobuf::Descriptor *>;
 
 // Describes a single command that can be issued to a module
 // or gate hook (according to cmd_func_t).
@@ -58,7 +63,7 @@ struct GenericCommand {
   enum ThreadSafety { THREAD_UNSAFE = 0, THREAD_SAFE = 1 };
 
   std::string cmd;
-  std::string arg_type;
+  CommandArgType arg_type;
   cmd_func_t func;
 
   // If set to THREAD_SAFE, workers don't need to be paused in order to run
