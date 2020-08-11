@@ -1948,7 +1948,7 @@ def _monitor_tcs(cli, *tcs):
         csv_path = os.getenv('CSV', None)
         with open(csv_path, 'w') if csv_path is not None else noop() as csv_f:
             if csv_f is not None:
-                csv_f.write('{}\n'.format(','.join(('Timestamp',) + FIELDS)))
+                csv_f.write('{}\n'.format(','.join(('Timestamp','traffic class',) + FIELDS)))
             print_loop(csv_f)
     except KeyboardInterrupt:
         pass
