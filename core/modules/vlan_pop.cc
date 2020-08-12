@@ -33,8 +33,8 @@
 #include "../utils/ether.h"
 
 void VLANPop::ProcessBatch(Context *ctx, bess::PacketBatch *batch) {
-  using bess::utils::be16_t;
   using bess::utils::Ethernet;
+  using bess::utils::be16_t;
 
   int cnt = batch->cnt();
 

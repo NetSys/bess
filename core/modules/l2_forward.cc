@@ -69,7 +69,7 @@ static int l2_init(struct l2_table *l2tbl, int size, int bucket) {
     return -EINVAL;
   }
 
-  l2tbl->table = new(std::nothrow) l2_entry[size * bucket]{};
+  l2tbl->table = new (std::nothrow) l2_entry[size * bucket]{};
 
   if (l2tbl->table == nullptr) {
     return -ENOMEM;
@@ -360,8 +360,8 @@ static uint64_t l2_addr_to_u64(char *addr) {
   return a | (b << 32);
 }
 
-/******************************************************************************/
-// TODO(barath): Move this test code elsewhere.
+  /******************************************************************************/
+  // TODO(barath): Move this test code elsewhere.
 
 #include <limits.h>
 #include <stdint.h>
@@ -542,15 +542,16 @@ static int parse_mac_addr(const char *str, char *addr) {
 /******************************************************************************/
 
 const Commands L2Forward::cmds = {
-    {"add", "L2ForwardCommandAddArg", MODULE_CMD_FUNC(&L2Forward::CommandAdd),
-     Command::THREAD_UNSAFE},
-    {"delete", "L2ForwardCommandDeleteArg",
+    {"add", bess::pb::L2ForwardCommandAddArg::descriptor(),
+     MODULE_CMD_FUNC(&L2Forward::CommandAdd), Command::THREAD_UNSAFE},
+    {"delete", bess::pb::L2ForwardCommandDeleteArg::descriptor(),
      MODULE_CMD_FUNC(&L2Forward::CommandDelete), Command::THREAD_UNSAFE},
-    {"set_default_gate", "L2ForwardCommandSetDefaultGateArg",
+    {"set_default_gate",
+     bess::pb::L2ForwardCommandSetDefaultGateArg::descriptor(),
      MODULE_CMD_FUNC(&L2Forward::CommandSetDefaultGate), Command::THREAD_SAFE},
-    {"lookup", "L2ForwardCommandLookupArg",
+    {"lookup", bess::pb::L2ForwardCommandLookupArg::descriptor(),
      MODULE_CMD_FUNC(&L2Forward::CommandLookup), Command::THREAD_SAFE},
-    {"populate", "L2ForwardCommandPopulateArg",
+    {"populate", bess::pb::L2ForwardCommandPopulateArg::descriptor(),
      MODULE_CMD_FUNC(&L2Forward::CommandPopulate), Command::THREAD_UNSAFE},
 };
 

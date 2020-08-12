@@ -31,9 +31,9 @@
 #include "round_robin.h"
 
 const Commands RoundRobin::cmds = {
-    {"set_mode", "RoundRobinCommandSetModeArg",
+    {"set_mode", bess::pb::RoundRobinCommandSetModeArg::descriptor(),
      MODULE_CMD_FUNC(&RoundRobin::CommandSetMode), Command::THREAD_UNSAFE},
-    {"set_gates", "RoundRobinCommandSetGatesArg",
+    {"set_gates", bess::pb::RoundRobinCommandSetGatesArg::descriptor(),
      MODULE_CMD_FUNC(&RoundRobin::CommandSetGates), Command::THREAD_UNSAFE},
 };
 

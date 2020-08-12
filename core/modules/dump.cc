@@ -40,8 +40,8 @@
 static const uint64_t DEFAULT_INTERVAL_NS = 1 * NS_PER_SEC; /* 1 sec */
 
 const Commands Dump::cmds = {
-    {"set_interval", "DumpArg", MODULE_CMD_FUNC(&Dump::CommandSetInterval),
-     Command::THREAD_UNSAFE},
+    {"set_interval", bess::pb::DumpArg::descriptor(),
+     MODULE_CMD_FUNC(&Dump::CommandSetInterval), Command::THREAD_UNSAFE},
 };
 
 CommandResponse Dump::Init(const bess::pb::DumpArg &arg) {
