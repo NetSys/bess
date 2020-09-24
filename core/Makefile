@@ -61,7 +61,7 @@ endif
 
 HAS_PKG_CONFIG := $(shell command -v $(PKG_CONFIG) 2>&1 >/dev/null && echo yes || echo no)
 
-RTE_SDK ?= $(abspath ../deps/dpdk-19.11.3)
+RTE_SDK ?= $(abspath ../deps/dpdk-19.11.4)
 RTE_TARGET ?= $(shell uname -m)-native-linuxapp-gcc
 DPDK_LIB ?= dpdk
 
