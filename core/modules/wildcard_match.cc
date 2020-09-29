@@ -56,19 +56,20 @@ static inline int is_valid_gate(gate_idx_t gate) {
 }
 
 const Commands WildcardMatch::cmds = {
-    {"get_initial_arg", "EmptyArg",
+    {"get_initial_arg", bess::pb::EmptyArg::descriptor(),
      MODULE_CMD_FUNC(&WildcardMatch::GetInitialArg), Command::THREAD_SAFE},
-    {"get_runtime_config", "EmptyArg",
+    {"get_runtime_config", bess::pb::EmptyArg::descriptor(),
      MODULE_CMD_FUNC(&WildcardMatch::GetRuntimeConfig), Command::THREAD_SAFE},
-    {"set_runtime_config", "WildcardMatchConfig",
+    {"set_runtime_config", bess::pb::WildcardMatchConfig::descriptor(),
      MODULE_CMD_FUNC(&WildcardMatch::SetRuntimeConfig), Command::THREAD_UNSAFE},
-    {"add", "WildcardMatchCommandAddArg",
+    {"add", bess::pb::WildcardMatchCommandAddArg::descriptor(),
      MODULE_CMD_FUNC(&WildcardMatch::CommandAdd), Command::THREAD_UNSAFE},
-    {"delete", "WildcardMatchCommandDeleteArg",
+    {"delete", bess::pb::WildcardMatchCommandDeleteArg::descriptor(),
      MODULE_CMD_FUNC(&WildcardMatch::CommandDelete), Command::THREAD_UNSAFE},
-    {"clear", "EmptyArg", MODULE_CMD_FUNC(&WildcardMatch::CommandClear),
-     Command::THREAD_UNSAFE},
-    {"set_default_gate", "WildcardMatchCommandSetDefaultGateArg",
+    {"clear", bess::pb::EmptyArg::descriptor(),
+     MODULE_CMD_FUNC(&WildcardMatch::CommandClear), Command::THREAD_UNSAFE},
+    {"set_default_gate",
+     bess::pb::WildcardMatchCommandSetDefaultGateArg::descriptor(),
      MODULE_CMD_FUNC(&WildcardMatch::CommandSetDefaultGate),
      Command::THREAD_SAFE}};
 
@@ -136,7 +137,8 @@ CommandResponse WildcardMatch::Init(const bess::pb::WildcardMatchArg &arg) {
 inline gate_idx_t WildcardMatch::LookupEntry(const wm_hkey_t &key,
                                              gate_idx_t def_gate) {
   struct WmData result = {
-      .priority = INT_MIN, .ogate = def_gate,
+      .priority = INT_MIN,
+      .ogate = def_gate,
   };
 
   for (auto &tuple : tuples_) {

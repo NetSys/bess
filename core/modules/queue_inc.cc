@@ -33,9 +33,9 @@
 #include "../port.h"
 #include "../utils/format.h"
 
-const Commands QueueInc::cmds = {{"set_burst", "QueueIncCommandSetBurstArg",
-                                  MODULE_CMD_FUNC(&QueueInc::CommandSetBurst),
-                                  Command::THREAD_SAFE}};
+const Commands QueueInc::cmds = {
+    {"set_burst", bess::pb::QueueIncCommandSetBurstArg::descriptor(),
+     MODULE_CMD_FUNC(&QueueInc::CommandSetBurst), Command::THREAD_SAFE}};
 
 CommandResponse QueueInc::Init(const bess::pb::QueueIncArg &arg) {
   const char *port_name;

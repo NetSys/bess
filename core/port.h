@@ -41,6 +41,9 @@
 #include <memory>
 #include <string>
 
+#include <google/protobuf/descriptor.pb.h>
+#include <google/protobuf/message.h>
+
 #include "message.h"
 #include "module.h"
 #include "packet.h"
@@ -50,6 +53,8 @@
 #include "utils/ether.h"
 
 typedef uint8_t queue_t;
+
+using google::protobuf::Descriptor;
 
 #define MAX_QUEUES_PER_DIR 128 /* [0, 31] (for each RX/TX) */
 
@@ -87,6 +92,12 @@ static inline port_init_func_t PORT_INIT_FUNC(
   };
 }
 
+template <typename T, typename P>
+static inline const Descriptor *PORT_INIT_DESC(
+    CommandResponse (P::*)(const T &)) {
+  return T::descriptor();
+}
+
 // A class to generate new Port objects of specific types.  Each instance can
 // generate Port objects of a specific class and specification.  Represents a
 // "driver" of that port.
@@ -98,12 +109,14 @@ class PortBuilder {
 
   PortBuilder(std::function<Port *()> port_generator,
               const std::string &class_name, const std::string &name_template,
-              const std::string &help_text, port_init_func_t init_func)
+              const std::string &help_text, port_init_func_t init_func,
+              const Descriptor *init_descriptor)
       : port_generator_(port_generator),
         class_name_(class_name),
         name_template_(name_template),
         help_text_(help_text),
         init_func_(init_func),
+        init_descriptor_(init_descriptor),
         initialized_(false) {}
 
   // Returns a new Port object of the type represented by this PortBuilder
@@ -135,7 +148,8 @@ class PortBuilder {
                                 const std::string &class_name,
                                 const std::string &name_template,
                                 const std::string &help_text,
-                                port_init_func_t init_func);
+                                port_init_func_t init_func,
+                                const Descriptor *init_descriptor);
 
   static const std::map<std::string, PortBuilder> &all_port_builders();
 
@@ -149,6 +163,8 @@ class PortBuilder {
   CommandResponse RunInit(Port *p, const google::protobuf::Any &arg) const {
     return init_func_(p, arg);
   }
+
+  const Descriptor *init_descriptor() const { return init_descriptor_; }
 
  private:
   // To avoid the static initialization ordering problem, this pseudo-getter
@@ -171,6 +187,8 @@ class PortBuilder {
   std::string help_text_;      // Help text about this port type.
 
   port_init_func_t init_func_;  // Initialization function of this Port class
+  const Descriptor
+      *init_descriptor_;  // Descriptor for this Port's initialization arguments
 
   bool initialized_;  // Has this port class been initialized via
                       // InitPortClass()?
@@ -337,6 +355,7 @@ class Port {
 #define ADD_DRIVER(_DRIVER, _NAME_TEMPLATE, _HELP)                       \
   bool __driver__##_DRIVER = PortBuilder::RegisterPortClass(             \
       std::function<Port *()>([]() { return new _DRIVER(); }), #_DRIVER, \
-      _NAME_TEMPLATE, _HELP, PORT_INIT_FUNC(&_DRIVER::Init));
+      _NAME_TEMPLATE, _HELP, PORT_INIT_FUNC(&_DRIVER::Init),             \
+      PORT_INIT_DESC(&_DRIVER::Init));
 
 #endif  // BESS_PORT_H_

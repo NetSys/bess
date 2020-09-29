@@ -37,17 +37,17 @@
 #define DEFAULT_QUEUE_SIZE 1024
 
 const Commands Queue::cmds = {
-    {"set_burst", "QueueCommandSetBurstArg",
+    {"set_burst", bess::pb::QueueCommandSetBurstArg::descriptor(),
      MODULE_CMD_FUNC(&Queue::CommandSetBurst), Command::THREAD_SAFE},
-    {"set_size", "QueueCommandSetSizeArg",
+    {"set_size", bess::pb::QueueCommandSetSizeArg::descriptor(),
      MODULE_CMD_FUNC(&Queue::CommandSetSize), Command::THREAD_UNSAFE},
-    {"get_status", "QueueCommandGetStatusArg",
+    {"get_status", bess::pb::QueueCommandGetStatusArg::descriptor(),
      MODULE_CMD_FUNC(&Queue::CommandGetStatus), Command::THREAD_SAFE},
-    {"get_initial_arg", "EmptyArg", MODULE_CMD_FUNC(&Queue::GetInitialArg),
-     Command::THREAD_SAFE},
-    {"get_runtime_config", "EmptyArg",
+    {"get_initial_arg", bess::pb::EmptyArg::descriptor(),
+     MODULE_CMD_FUNC(&Queue::GetInitialArg), Command::THREAD_SAFE},
+    {"get_runtime_config", bess::pb::EmptyArg::descriptor(),
      MODULE_CMD_FUNC(&Queue::GetRuntimeConfig), Command::THREAD_SAFE},
-    {"set_runtime_config", "QueueArg",
+    {"set_runtime_config", bess::pb::QueueArg::descriptor(),
      MODULE_CMD_FUNC(&Queue::SetRuntimeConfig), Command::THREAD_UNSAFE}};
 
 int Queue::Resize(int slots) {

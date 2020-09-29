@@ -51,9 +51,9 @@ uint32_t RoundToPowerTwo(uint32_t v) {
 }
 
 const Commands DRR::cmds = {
-    {"set_quantum_size", "DRRQuantumArg",
+    {"set_quantum_size", bess::pb::DRRQuantumArg::descriptor(),
      MODULE_CMD_FUNC(&DRR::CommandQuantumSize), Command::THREAD_UNSAFE},
-    {"set_max_flow_queue_size", "DRRMaxFlowQueueSizeArg",
+    {"set_max_flow_queue_size", bess::pb::DRRMaxFlowQueueSizeArg::descriptor(),
      MODULE_CMD_FUNC(&DRR::CommandMaxFlowQueueSize), Command::THREAD_UNSAFE}};
 
 DRR::DRR()
@@ -152,7 +152,9 @@ struct task_result DRR::RunTask(Context *ctx, bess::PacketBatch *batch,
                                 void *) {
   if (children_overload_ > 0) {
     return {
-        .block = true, .packets = 0, .bits = 0,
+        .block = true,
+        .packets = 0,
+        .bits = 0,
     };
   }
 

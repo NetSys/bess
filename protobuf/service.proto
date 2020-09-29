@@ -312,4 +312,9 @@ service BESSControl {
 
   /// Enable/Disable a resume hook.
   rpc ConfigureResumeHook (ConfigureResumeHookRequest) returns (CommandResponse) {}
+
+  //  -------------------------------------------------------------------------
+  //  Introspection
+  //  -------------------------------------------------------------------------
+  rpc DumpDescriptors (EmptyRequest) returns (DumpDescriptorsResponse) {}
 }

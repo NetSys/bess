@@ -447,6 +447,55 @@ class BESSControlImpl final : public BESSControl::Service {
     return Status::OK;
   }
 
+  Status DumpDescriptors(ServerContext*, const EmptyRequest*,
+                         DumpDescriptorsResponse* response) override {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
+
+    auto& module_descs = *response->mutable_modules();
+    for (const auto & [ mclass, builder ] :
+         ModuleBuilder::all_module_builders()) {
+      if (const auto dp = builder.init_descriptor(); dp != nullptr) {
+        google::protobuf::DescriptorProto desc;
+        dp->CopyTo(&desc);
+        desc.set_name(dp->full_name());
+        module_descs[mclass] = desc;
+      }
+    }
+
+    auto& module_cmd_descs = *response->mutable_module_commands();
+    for (const auto & [ mclass, builder ] :
+         ModuleBuilder::all_module_builders()) {
+      auto& cmds = *module_cmd_descs[mclass].mutable_commands();
+      for (const auto & [ cmd, arg_type ] : builder.cmds()) {
+        if (std::holds_alternative<const google::protobuf::Descriptor*>(
+                arg_type)) {
+          const auto dp =
+              std::get<const google::protobuf::Descriptor*>(arg_type);
+          // to be safe
+          if (dp == nullptr) {
+            continue;
+          }
+          google::protobuf::DescriptorProto desc;
+          dp->CopyTo(&desc);
+          desc.set_name(dp->full_name());
+          cmds[cmd] = desc;
+        }
+      }
+    }
+
+    auto& port_descs = *response->mutable_ports();
+    for (const auto & [ driver, builder ] : PortBuilder::all_port_builders()) {
+      if (const auto dp = builder.init_descriptor(); dp != nullptr) {
+        google::protobuf::DescriptorProto desc;
+        dp->CopyTo(&desc);
+        desc.set_name(dp->full_name());
+        port_descs[driver] = desc;
+      }
+    }
+
+    return Status::OK;
+  }
+
   Status ResetAll(ServerContext* context, const EmptyRequest* request,
                   EmptyResponse* response) override {
     std::lock_guard<std::recursive_mutex> lock(mutex_);
@@ -1472,9 +1521,15 @@ class BESSControlImpl final : public BESSControl::Service {
 
     response->set_name(cls->class_name());
     response->set_help(cls->help_text());
-    for (const auto& cmd : cls->cmds()) {
-      response->add_cmds(cmd.first);
-      response->add_cmd_args(cmd.second);
+    for (const auto & [ cmd, arg_type ] : cls->cmds()) {
+      response->add_cmds(cmd);
+      if (std::holds_alternative<std::string>(arg_type)) {
+        response->add_cmd_args(std::get<std::string>(arg_type));
+      } else if (const auto dp =
+                     std::get<const google::protobuf::Descriptor*>(arg_type);
+                 dp != nullptr) {
+        response->add_cmd_args(dp->name());
+      }
     }
     return Status::OK;
   }
@@ -1750,9 +1805,15 @@ class BESSControlImpl final : public BESSControl::Service {
 
     response->set_name(cls->class_name());
     response->set_help(cls->help_text());
-    for (const auto& cmd : cls->cmds()) {
-      response->add_cmds(cmd.first);
-      response->add_cmd_args(cmd.second);
+    for (const auto & [ cmd, arg_type ] : cls->cmds()) {
+      response->add_cmds(cmd);
+      if (std::holds_alternative<std::string>(arg_type)) {
+        response->add_cmd_args(std::get<std::string>(arg_type));
+      } else if (const auto dp =
+                     std::get<const google::protobuf::Descriptor*>(arg_type);
+                 dp != nullptr) {
+        response->add_cmd_args(dp->name());
+      }
     }
     return Status::OK;
   }

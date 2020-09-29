@@ -41,6 +41,9 @@
 #include <utility>
 #include <vector>
 
+#include <google/protobuf/descriptor.pb.h>
+#include <google/protobuf/message.h>
+
 #include "commands.h"
 #include "event.h"
 #include "gate.h"
@@ -50,6 +53,7 @@
 #include "worker.h"
 
 using bess::gate_idx_t;
+using google::protobuf::Descriptor;
 
 #define INVALID_TASK_ID ((task_id_t)-1)
 #define MAX_NUMA_NODE 16
@@ -74,8 +78,6 @@ struct Context {
   gate_idx_t gate_without_hook[bess::PacketBatch::kMaxBurst];
 };
 
-using module_cmd_func_t =
-    pb_func_t<CommandResponse, Module, google::protobuf::Any>;
 using module_init_func_t =
     pb_func_t<CommandResponse, Module, google::protobuf::Any>;
 
@@ -101,6 +103,12 @@ static inline module_init_func_t MODULE_INIT_FUNC(
   };
 }
 
+template <typename T, typename M>
+static inline const Descriptor *MODULE_INIT_DESC(
+    CommandResponse (M::*)(const T &)) {
+  return T::descriptor();
+}
+
 class Module;
 
 // A class for managing modules of 'a particular type'.
@@ -112,7 +120,8 @@ class ModuleBuilder {
       const std::string &name_template, const std::string &help_text,
       const gate_idx_t igates, const gate_idx_t ogates, const Commands &cmds,
       std::function<CommandResponse(Module *, const google::protobuf::Any &)>
-          init_func)
+          init_func,
+      const Descriptor *init_descriptor)
       : module_generator_(module_generator),
         num_igates_(igates),
         num_ogates_(ogates),
@@ -120,15 +129,14 @@ class ModuleBuilder {
         name_template_(name_template),
         help_text_(help_text),
         cmds_(cmds),
-        init_func_(init_func) {}
+        init_func_(init_func),
+        init_descriptor_(init_descriptor) {}
 
-  static bool RegisterModuleClass(std::function<Module *()> module_generator,
-                                  const std::string &class_name,
-                                  const std::string &name_template,
-                                  const std::string &help_text,
-                                  const gate_idx_t igates,
-                                  const gate_idx_t ogates, const Commands &cmds,
-                                  module_init_func_t init_func);
+  static bool RegisterModuleClass(
+      std::function<Module *()> module_generator, const std::string &class_name,
+      const std::string &name_template, const std::string &help_text,
+      const gate_idx_t igates, const gate_idx_t ogates, const Commands &cmds,
+      module_init_func_t init_func, const Descriptor *init_descriptor);
   static bool DeregisterModuleClass(const std::string &class_name);
 
   static std::map<std::string, ModuleBuilder> &all_module_builders_holder(
@@ -146,10 +154,11 @@ class ModuleBuilder {
   const std::string &name_template() const { return name_template_; }
   const std::string &help_text() const { return help_text_; }
 
-  const std::vector<std::pair<std::string, std::string>> cmds() const {
-    std::vector<std::pair<std::string, std::string>> ret;
-    for (auto &cmd : cmds_)
+  const std::vector<std::pair<std::string, CommandArgType>> cmds() const {
+    std::vector<std::pair<std::string, CommandArgType>> ret;
+    for (auto &cmd : cmds_) {
       ret.push_back(std::make_pair(cmd.cmd, cmd.arg_type));
+    }
     return ret;
   }
 
@@ -157,6 +166,8 @@ class ModuleBuilder {
                              const google::protobuf::Any &arg) const;
 
   CommandResponse RunInit(Module *m, const google::protobuf::Any &arg) const;
+
+  const Descriptor *init_descriptor() const { return init_descriptor_; }
 
  private:
   const std::function<Module *()> module_generator_;
@@ -169,6 +180,7 @@ class ModuleBuilder {
   const std::string help_text_;
   const Commands cmds_;
   const module_init_func_t init_func_;
+  const Descriptor *init_descriptor_;
 };
 
 class Task;
@@ -723,7 +735,8 @@ static inline void set_attr(Module *m, int attr_id, bess::Packet *pkt, T val) {
       ModuleBuilder::RegisterModuleClass(                                \
           std::function<Module *()>([]() { return new _MOD(); }), #_MOD, \
           _NAME_TEMPLATE, _HELP, _MOD::kNumIGates, _MOD::kNumOGates,     \
-          _MOD::cmds, MODULE_INIT_FUNC(&_MOD::Init));                    \
+          _MOD::cmds, MODULE_INIT_FUNC(&_MOD::Init),                     \
+          MODULE_INIT_DESC(&_MOD::Init));                                \
     }                                                                    \
     ~_MOD##_class() { ModuleBuilder::DeregisterModuleClass(#_MOD); }     \
   };

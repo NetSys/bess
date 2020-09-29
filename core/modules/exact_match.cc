@@ -43,19 +43,20 @@ static inline int is_valid_gate(gate_idx_t gate) {
 }
 
 const Commands ExactMatch::cmds = {
-    {"get_initial_arg", "EmptyArg", MODULE_CMD_FUNC(&ExactMatch::GetInitialArg),
-     Command::THREAD_SAFE},
-    {"get_runtime_config", "EmptyArg",
+    {"get_initial_arg", bess::pb::EmptyArg::descriptor(),
+     MODULE_CMD_FUNC(&ExactMatch::GetInitialArg), Command::THREAD_SAFE},
+    {"get_runtime_config", bess::pb::EmptyArg::descriptor(),
      MODULE_CMD_FUNC(&ExactMatch::GetRuntimeConfig), Command::THREAD_SAFE},
-    {"set_runtime_config", "ExactMatchConfig",
+    {"set_runtime_config", bess::pb::ExactMatchConfig::descriptor(),
      MODULE_CMD_FUNC(&ExactMatch::SetRuntimeConfig), Command::THREAD_UNSAFE},
-    {"add", "ExactMatchCommandAddArg", MODULE_CMD_FUNC(&ExactMatch::CommandAdd),
-     Command::THREAD_UNSAFE},
-    {"delete", "ExactMatchCommandDeleteArg",
+    {"add", bess::pb::ExactMatchCommandAddArg::descriptor(),
+     MODULE_CMD_FUNC(&ExactMatch::CommandAdd), Command::THREAD_UNSAFE},
+    {"delete", bess::pb::ExactMatchCommandDeleteArg::descriptor(),
      MODULE_CMD_FUNC(&ExactMatch::CommandDelete), Command::THREAD_UNSAFE},
-    {"clear", "EmptyArg", MODULE_CMD_FUNC(&ExactMatch::CommandClear),
-     Command::THREAD_UNSAFE},
-    {"set_default_gate", "ExactMatchCommandSetDefaultGateArg",
+    {"clear", bess::pb::EmptyArg::descriptor(),
+     MODULE_CMD_FUNC(&ExactMatch::CommandClear), Command::THREAD_UNSAFE},
+    {"set_default_gate",
+     bess::pb::ExactMatchCommandSetDefaultGateArg::descriptor(),
      MODULE_CMD_FUNC(&ExactMatch::CommandSetDefaultGate),
      Command::THREAD_SAFE}};
 

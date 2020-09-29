@@ -31,6 +31,7 @@
 syntax = "proto3";
 
 import "google/protobuf/any.proto";
+import "google/protobuf/descriptor.proto";
 import "error.proto";
 
 /// - "timestamp" represents the current time in seconds since the Epoch.
@@ -620,4 +621,18 @@ message PauseWorkerRequest {
 
 message ResumeWorkerRequest {
   int64 wid = 1;    /// ID of the worker to be resumed
+}
+
+//  -------------------------------------------------------------------------
+//  Introspection commands
+//  -------------------------------------------------------------------------
+message DumpDescriptorsResponse {
+  message CommandDescriptors {
+    map<string, google.protobuf.DescriptorProto> commands = 1;
+  }
+
+  Error error = 1;
+	map<string, google.protobuf.DescriptorProto> modules = 2;
+	map<string, CommandDescriptors> module_commands = 3;
+	map<string, google.protobuf.DescriptorProto> ports = 4;
 }

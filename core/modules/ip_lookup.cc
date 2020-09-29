@@ -46,12 +46,12 @@ static inline int is_valid_gate(gate_idx_t gate) {
 }
 
 const Commands IPLookup::cmds = {
-    {"add", "IPLookupCommandAddArg", MODULE_CMD_FUNC(&IPLookup::CommandAdd),
-     Command::THREAD_UNSAFE},
-    {"delete", "IPLookupCommandDeleteArg", MODULE_CMD_FUNC(&IPLookup::CommandDelete),
-     Command::THREAD_UNSAFE},
-    {"clear", "EmptyArg", MODULE_CMD_FUNC(&IPLookup::CommandClear),
-     Command::THREAD_UNSAFE}};
+    {"add", bess::pb::IPLookupCommandAddArg::descriptor(),
+     MODULE_CMD_FUNC(&IPLookup::CommandAdd), Command::THREAD_UNSAFE},
+    {"delete", bess::pb::IPLookupCommandDeleteArg::descriptor(),
+     MODULE_CMD_FUNC(&IPLookup::CommandDelete), Command::THREAD_UNSAFE},
+    {"clear", bess::pb::EmptyArg::descriptor(),
+     MODULE_CMD_FUNC(&IPLookup::CommandClear), Command::THREAD_UNSAFE}};
 
 CommandResponse IPLookup::Init(const bess::pb::IPLookupArg &arg) {
   struct rte_lpm_config conf = {
@@ -150,8 +150,8 @@ void IPLookup::ProcessBatch(Context *ctx, bess::PacketBatch *batch) {
   }
 }
 
-ParsedPrefix IPLookup::ParseIpv4Prefix(
-    const std::string &prefix, uint64_t prefix_len) {
+ParsedPrefix IPLookup::ParseIpv4Prefix(const std::string &prefix,
+                                       uint64_t prefix_len) {
   using bess::utils::Format;
   be32_t net_addr;
   be32_t net_mask;
@@ -160,25 +160,23 @@ ParsedPrefix IPLookup::ParseIpv4Prefix(
     return std::make_tuple(EINVAL, "prefix' is missing", be32_t(0));
   }
   if (!bess::utils::ParseIpv4Address(prefix, &net_addr)) {
-    return std::make_tuple(EINVAL,
-			   Format("Invalid IP prefix: %s", prefix.c_str()),
-			   be32_t(0));
+    return std::make_tuple(
+        EINVAL, Format("Invalid IP prefix: %s", prefix.c_str()), be32_t(0));
   }
 
   if (prefix_len > 32) {
-    return std::make_tuple(EINVAL,
-			   Format("Invalid prefix length: %" PRIu64,
-				  prefix_len),
-			   be32_t(0));
+    return std::make_tuple(
+        EINVAL, Format("Invalid prefix length: %" PRIu64, prefix_len),
+        be32_t(0));
   }
 
   net_mask = be32_t(bess::utils::SetBitsLow<uint32_t>(prefix_len));
   if ((net_addr & ~net_mask).value()) {
-    return std::make_tuple(EINVAL,
-			   Format("Invalid IP prefix %s/%" PRIu64 " %x %x",
-				  prefix.c_str(), prefix_len, net_addr.value(),
-				  net_mask.value()),
-			   be32_t(0));
+    return std::make_tuple(
+        EINVAL,
+        Format("Invalid IP prefix %s/%" PRIu64 " %x %x", prefix.c_str(),
+               prefix_len, net_addr.value(), net_mask.value()),
+        be32_t(0));
   }
   return std::make_tuple(0, "", net_addr);
 }
@@ -190,7 +188,7 @@ CommandResponse IPLookup::CommandAdd(
   ParsedPrefix prefix = ParseIpv4Prefix(arg.prefix(), prefix_len);
   if (std::get<0>(prefix)) {
     return CommandFailure(std::get<0>(prefix), "%s",
-			  std::get<1>(prefix).c_str());
+                          std::get<1>(prefix).c_str());
   }
 
   if (!is_valid_gate(gate)) {
@@ -216,7 +214,7 @@ CommandResponse IPLookup::CommandDelete(
   ParsedPrefix prefix = ParseIpv4Prefix(arg.prefix(), prefix_len);
   if (std::get<0>(prefix)) {
     return CommandFailure(std::get<0>(prefix), "%s",
-			  std::get<1>(prefix).c_str());
+                          std::get<1>(prefix).c_str());
   }
 
   if (prefix_len == 0) {

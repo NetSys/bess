@@ -164,10 +164,11 @@ class GateHookBuilder {
   const std::string &name_template() const { return name_template_; }
   const std::string &help_text() const { return help_text_; }
 
-  const std::vector<std::pair<std::string, std::string>> cmds() const {
-    std::vector<std::pair<std::string, std::string>> ret;
-    for (auto &cmd : cmds_)
+  const std::vector<std::pair<std::string, CommandArgType>> cmds() const {
+    std::vector<std::pair<std::string, CommandArgType>> ret;
+    for (auto &cmd : cmds_) {
       ret.push_back(std::make_pair(cmd.cmd, cmd.arg_type));
+    }
     return ret;
   }
 

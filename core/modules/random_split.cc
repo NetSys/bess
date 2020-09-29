@@ -38,9 +38,9 @@ static inline bool is_valid_gate(gate_idx_t gate) {
 }
 
 const Commands RandomSplit::cmds = {
-    {"set_droprate", "RandomSplitCommandSetDroprateArg",
+    {"set_droprate", bess::pb::RandomSplitCommandSetDroprateArg::descriptor(),
      MODULE_CMD_FUNC(&RandomSplit::CommandSetDroprate), Command::THREAD_UNSAFE},
-    {"set_gates", "RandomSplitCommandSetGatesArg",
+    {"set_gates", bess::pb::RandomSplitCommandSetGatesArg::descriptor(),
      MODULE_CMD_FUNC(&RandomSplit::CommandSetGates), Command::THREAD_UNSAFE}};
 
 CommandResponse RandomSplit::Init(const bess::pb::RandomSplitArg &arg) {

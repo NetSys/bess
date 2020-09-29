@@ -37,10 +37,10 @@
 enum { FORWARD_GATE = 0, FAIL_GATE };
 
 void IPChecksum::ProcessBatch(Context *ctx, bess::PacketBatch *batch) {
-  using bess::utils::be16_t;
   using bess::utils::Ethernet;
   using bess::utils::Ipv4;
   using bess::utils::Vlan;
+  using bess::utils::be16_t;
 
   int cnt = batch->cnt();
 
@@ -56,8 +56,8 @@ void IPChecksum::ProcessBatch(Context *ctx, bess::PacketBatch *batch) {
       data = qinq + 1;
       ether_type = qinq->ether_type;
       if (ether_type != be16_t(Ethernet::Type::kVlan)) {
-	EmitPacket(ctx, batch->pkts()[i], FORWARD_GATE);
-	continue;
+        EmitPacket(ctx, batch->pkts()[i], FORWARD_GATE);
+        continue;
       }
     }
 
@@ -75,7 +75,8 @@ void IPChecksum::ProcessBatch(Context *ctx, bess::PacketBatch *batch) {
     }
 
     if (verify_) {
-      EmitPacket(ctx, batch->pkts()[i], (VerifyIpv4Checksum(*ip)) ? FORWARD_GATE : FAIL_GATE);
+      EmitPacket(ctx, batch->pkts()[i],
+                 (VerifyIpv4Checksum(*ip)) ? FORWARD_GATE : FAIL_GATE);
     } else {
       ip->checksum = CalculateIpv4Checksum(*ip);
       EmitPacket(ctx, batch->pkts()[i], FORWARD_GATE);

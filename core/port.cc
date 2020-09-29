@@ -128,11 +128,12 @@ bool PortBuilder::RegisterPortClass(
     std::function<Port *()> port_generator, const std::string &class_name,
     const std::string &name_template, const std::string &help_text,
     std::function<CommandResponse(Port *, const google::protobuf::Any &)>
-        init_func) {
+        init_func,
+    const Descriptor *init_descriptor) {
   all_port_builders_holder().emplace(
       std::piecewise_construct, std::forward_as_tuple(class_name),
       std::forward_as_tuple(port_generator, class_name, name_template,
-                            help_text, init_func));
+                            help_text, init_func, init_descriptor));
   return true;
 }
 

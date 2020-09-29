@@ -31,8 +31,8 @@
 #include "worker_split.h"
 
 const Commands WorkerSplit::cmds = {
-    {"reset", "WorkerSplitArg", MODULE_CMD_FUNC(&WorkerSplit::CommandReset),
-     Command::THREAD_UNSAFE}};
+    {"reset", bess::pb::WorkerSplitArg::descriptor(),
+     MODULE_CMD_FUNC(&WorkerSplit::CommandReset), Command::THREAD_UNSAFE}};
 
 CommandResponse WorkerSplit::Init(const bess::pb::WorkerSplitArg &arg) {
   return CommandReset(arg);
