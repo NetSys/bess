@@ -232,20 +232,31 @@ def check_bnx():
 
 
 def check_mlx():
-    if check_header('infiniband/ib.h', 'gcc') and check_c_lib('mlx4') and \
-            check_c_lib('mlx5'):
-        extra_libs.add('ibverbs')
-        extra_libs.add('mlx4')
-        extra_libs.add('mlx5')
-    else:
-        print(' - "Mellanox OFED" is not available. '
-              'Disabling MLX4 and MLX5 PMDs...')
-        if check_header('infiniband/verbs.h', 'gcc'):
+    ibverbs_avail = check_header('infiniband/ib.h', 'gcc')
+    mlx4_avail = check_c_lib('mlx4')
+    mlx5_avail = check_c_lib('mlx5')
+
+    if ibverbs_avail:
+        if mlx4_avail:
+            extra_libs.add('mlx4')
+            set_config(DPDK_CONFIG, 'CONFIG_RTE_LIBRTE_MLX4_PMD', 'y')
+        else:
+            print(" - Mellanox OFED: MLX4 PMD not available, disabling...")
+            set_config(DPDK_CONFIG, 'CONFIG_RTE_LIBRTE_MLX4_PMD', 'n')
+
+        if mlx5_avail:
+            extra_libs.add('mlx5')
+            set_config(DPDK_CONFIG, 'CONFIG_RTE_LIBRTE_MLX5_PMD', 'y')
+        else:
+            print(" - Mellanox OFED: MLX5 PMD not available, disabling...")
+            set_config(DPDK_CONFIG, 'CONFIG_RTE_LIBRTE_MLX5_PMD', 'n')
+
+        if mlx5_avail or mlx4_avail:
+            extra_libs.add('ibverbs')
+        else:
             print('   NOTE: "libibverbs-dev" does exist, but it does not '
                   'work with MLX PMDs. Instead download OFED from '
                   'http://www.melloanox.com')
-        set_config(DPDK_CONFIG, 'CONFIG_RTE_LIBRTE_MLX4_PMD', 'n')
-        set_config(DPDK_CONFIG, 'CONFIG_RTE_LIBRTE_MLX5_PMD', 'n')
 
 
 def generate_dpdk_extra_mk():
