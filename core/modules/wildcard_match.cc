@@ -299,11 +299,11 @@ int WildcardMatch::AddTuple(wm_hkey_t *mask) {
   return int(tuples_.size() - 1);
 }
 
-int WildcardMatch::DelEntry(int idx, wm_hkey_t *key) {
+bool WildcardMatch::DelEntry(int idx, wm_hkey_t *key) {
   struct WmTuple &tuple = tuples_[idx];
-  int ret =
+  bool ret =
       tuple.ht.Remove(*key, wm_hash(total_key_size_), wm_eq(total_key_size_));
-  if (ret) {
+  if (ret == false) {
     return ret;
   }
 
@@ -311,7 +311,7 @@ int WildcardMatch::DelEntry(int idx, wm_hkey_t *key) {
     tuples_.erase(tuples_.begin() + idx);
   }
 
-  return 0;
+  return true;
 }
 
 CommandResponse WildcardMatch::CommandAdd(
@@ -368,9 +368,9 @@ CommandResponse WildcardMatch::CommandDelete(
     return CommandFailure(-idx, "failed to delete a rule");
   }
 
-  int ret = DelEntry(idx, &key);
-  if (ret < 0) {
-    return CommandFailure(-ret, "failed to delete a rule");
+  bool ret = DelEntry(idx, &key);
+  if (ret == false) {
+    return CommandFailure(-ENOENT, "failed to delete a rule");
   }
 
   return CommandSuccess();
