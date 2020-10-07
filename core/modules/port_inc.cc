@@ -44,6 +44,9 @@ CommandResponse PortInc::Init(const bess::pb::PortIncArg &arg) {
   int ret;
   CommandResponse err;
   placement_constraint placement;
+  value_t value;
+  mask_t mask = {0};
+  std::string name = "ifName";
 
   burst_ = bess::PacketBatch::kMaxBurst;
 
@@ -85,6 +88,22 @@ CommandResponse PortInc::Init(const bess::pb::PortIncArg &arg) {
   if (ret < 0) {
     return CommandFailure(-ret);
   }
+
+  ret = AddMetadataAttr("ifIndex", sizeof(uint64_t),
+                        bess::metadata::Attribute::AccessMode::kWrite);
+
+  uint64_t port_ifindex = port_->get_ifIndex();
+
+  std::memcpy(&value, &port_ifindex, sizeof(uint64_t));
+
+  /* We may add more "metadata at source" here later */
+  attrs_.push_back({.name = name,
+                    .value = value,
+                    .mask = mask,
+                    .offset = -1,
+                    .size = sizeof(uint64_t),
+                    .do_mask = false,
+                    .shift = 0});
 
   return CommandSuccess();
 }
@@ -136,17 +155,28 @@ struct task_result PortInc::RunTask(Context *ctx, bess::PacketBatch *batch,
     return {.block = true, .packets = 0, .bits = 0};
   }
 
-  // NOTE: we cannot skip this step since it might be used by scheduler.
-  if (prefetch_) {
-    for (uint32_t i = 0; i < cnt; i++) {
-      received_bytes += batch->pkts()[i]->total_len();
-      rte_prefetch0(batch->pkts()[i]->head_data());
+  for (uint32_t i = 0; i < cnt; i++) {
+    received_bytes += batch->pkts()[i]->total_len();
+    if (prefetch_) {
+       rte_prefetch0(batch->pkts()[i]->head_data());
     }
-  } else {
-    for (uint32_t i = 0; i < cnt; i++) {
-      received_bytes += batch->pkts()[i]->total_len();
+    bess::Packet *snb = batch->pkts()[i];
+    for (size_t k = 0; k < attrs_.size(); k++) {
+       const struct Attr *attr = &attrs_[k];
+       mt_offset_t mt_offset = attr_offset(k);
+
+       if (!bess::metadata::IsValidOffset(mt_offset)) {
+          continue;
+       }
+
+       void *mt_ptr = _ptr_attr_with_offset<value_t>(mt_offset, snb);
+       const void *val_ptr = &attr->value;
+
+       bess::utils::CopySmall(mt_ptr, val_ptr, attr->size);
     }
   }
+
+  // NOTE: we cannot skip this step since it might be used by scheduler.
 
   if (!(p->GetFlags() & DRIVER_FLAG_SELF_INC_STATS)) {
     p->queue_stats[PACKET_DIR_INC][qid].packets += cnt;

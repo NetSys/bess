@@ -65,9 +65,19 @@ CommandResponse PortOut::Init(const bess::pb::PortOutArg &arg) {
     mcs_lock_init(&queue_locks_[i]);
   }
 
+  if (arg.rpfcheck()) {
+    rpfcheck_ = 1;
+  } else {
+    rpfcheck_ = 0;
+  }
+
   if (ret < 0) {
     return CommandFailure(-ret);
   }
+
+  std::string attr_name = "ifIndex";
+  using AccessMode = bess::metadata::Attribute::AccessMode;
+  attr_id_ = AddMetadataAttr(attr_name, sizeof(uint64_t), AccessMode::kRead);
 
   return CommandSuccess();
 }
@@ -75,6 +85,7 @@ CommandResponse PortOut::Init(const bess::pb::PortOutArg &arg) {
 CommandResponse PortOut::GetInitialArg(const bess::pb::EmptyArg &) {
   bess::pb::PortOutArg arg;
   arg.set_port(port_->name());
+  arg.set_rpfcheck(rpfcheck_);
   return CommandSuccess(arg);
 }
 
@@ -90,42 +101,76 @@ std::string PortOut::GetDesc() const {
                              port_->port_builder()->class_name().c_str());
 }
 
-static inline int SendBatch(bess::PacketBatch *batch, Port *p, queue_t qid) {
+int PortOut::SendBatch(bess::PacketBatch *batch, queue_t qid) {
   uint64_t sent_bytes = 0;
   int sent_pkts = 0;
+  int dropped = 0;
+  int cnt =  batch->cnt();
 
-  if (p->conf().admin_up) {
-    sent_pkts = p->SendPackets(qid, batch->pkts(), batch->cnt());
+  if (port_->conf().admin_up) {
+    if ((!rpfcheck_) || (attr_id_ == -1)) {
+        /* no RPF check - send everything at once */
+        sent_pkts = port_->SendPackets(qid, batch->pkts(), batch->cnt());
+    } else {
+        bool need_flush = true;
+        for (int i = 0; i < cnt; i++) {
+          uint64_t ifIndex = 0;
+          ifIndex = get_attr<uint64_t>(this, attr_id_, batch->pkts()[i]);
+          if ((ifIndex > 0) && (ifIndex == port_->get_ifIndex())) {
+            /* need a drop - send all packets till now,
+             * free this packet */
+            if (i - sent_pkts > 0) {
+              sent_pkts +=
+                  port_->SendPackets(qid, &batch->pkts()[sent_pkts], i - sent_pkts);
+            }
+            if (sent_pkts == i) {
+              /* send sucessful, drop packet failing rpf check*/
+              bess::Packet::Free(batch->pkts()[i]);
+              /* Add dropped packet to "sent" count. We will subtract it later.
+               */
+              sent_pkts++; 
+              dropped++;
+              /* move to next packet */
+            } else {
+              /* remove from the total the length of packets we failed to send */
+              for (int k = sent_pkts; k < i; k++) {
+                sent_bytes -= batch->pkts()[k]->total_len();
+              }
+              need_flush = false;
+              break;
+            }
+          } else {
+              sent_bytes += batch->pkts()[i]->total_len();
+          }
+        }
+        if (need_flush && (sent_pkts < cnt)) {
+            sent_pkts += port_->SendPackets(qid, &batch->pkts()[sent_pkts], cnt - sent_pkts);
+        }
+     }
   }
 
-  if (!(p->GetFlags() & DRIVER_FLAG_SELF_OUT_STATS)) {
+  if (!(port_->GetFlags() & DRIVER_FLAG_SELF_OUT_STATS)) {
     const packet_dir_t dir = PACKET_DIR_OUT;
-
-    for (int i = 0; i < sent_pkts; i++) {
-      sent_bytes += batch->pkts()[i]->total_len();
-    }
-
-    p->queue_stats[dir][qid].packets += sent_pkts;
-    p->queue_stats[dir][qid].dropped += (batch->cnt() - sent_pkts);
-    p->queue_stats[dir][qid].bytes += sent_bytes;
+    port_->queue_stats[dir][qid].packets += sent_pkts - dropped;
+    port_->queue_stats[dir][qid].dropped += cnt - sent_pkts + dropped;
+    port_->queue_stats[dir][qid].bytes += sent_bytes;
   }
-
   return sent_pkts;
 }
 
 void PortOut::ProcessBatch(Context *ctx, bess::PacketBatch *batch) {
-  Port *p = port_;
 
   CHECK(worker_queues_[ctx->wid] >= 0);
   queue_t qid = worker_queues_[ctx->wid];
   int sent_pkts = 0;
 
+
   if (queue_users_[qid] == 1) {
-    sent_pkts = SendBatch(batch, p, qid);
+    sent_pkts = SendBatch(batch, qid);
   } else {
     mcslock_node_t me;
     mcs_lock(&queue_locks_[qid], &me);
-    sent_pkts = SendBatch(batch, p, qid);
+    sent_pkts = SendBatch(batch, qid);
     mcs_unlock(&queue_locks_[qid], &me);
   }
 

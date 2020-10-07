@@ -45,9 +45,31 @@
 
 std::map<std::string, Port *> PortBuilder::all_ports_;
 
+static uint64_t cur_ifIndex = 1;
+static bool rolled_over = false;
+
 Port *PortBuilder::CreatePort(const std::string &name) const {
   Port *p = port_generator_();
   p->set_name(name);
+  if (rolled_over) {
+    for (p->ifIndex = 1; p->ifIndex < UINT64_MAX; p->ifIndex++) {
+      bool found = false;
+      for (auto const &pi : all_ports_) {
+        if (pi.second->ifIndex == p->ifIndex) {
+            found = true;
+            break;
+        }              
+      }
+      if (!found) {
+            break;
+      }
+    }
+  } else { 
+    p->ifIndex = ++cur_ifIndex;
+    if (cur_ifIndex == UINT64_MAX) {
+        rolled_over = true;
+    }
+  }
   p->set_port_builder(this);
   return p;
 }

@@ -62,6 +62,8 @@ class PortOut final : public Module {
 
  private:
   Port *port_;
+  int attr_id_;
+  bool rpfcheck_;
 
   int worker_queues_[Worker::kMaxWorkers];
 
@@ -69,6 +71,8 @@ class PortOut final : public Module {
   int queue_users_[MAX_QUEUES_PER_DIR];
 
   mcslock_t queue_locks_[MAX_QUEUES_PER_DIR];
+
+  int SendBatch(bess::PacketBatch *batch, queue_t qid);
 };
 
 #endif  // BESS_MODULES_PORTOUT_H_

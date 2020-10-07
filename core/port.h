@@ -293,6 +293,8 @@ class Port {
 
   const PortBuilder *port_builder() const { return port_builder_; }
 
+  uint64_t get_ifIndex() const { return ifIndex; }
+
  protected:
   friend class PortBuilder;
 
@@ -301,6 +303,7 @@ class Port {
 
   // Current configuration
   Conf conf_;
+  uint64_t ifIndex;
 
  private:
   static const size_t kDefaultIncQueueSize = 1024;
