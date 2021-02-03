@@ -261,20 +261,14 @@ class alignas(64) Packet {
       const uint16_t buf_len_;
 
       // offset 56:
-      uint64_t _dummy6_;  // rte_mbuf.timestamp
-
-      // 2nd cacheline - fields only used in slow path or on TX --------------
-      // offset 64:
-      uint64_t _dummy7_;  // rte_mbuf.userdata
-
-      // offset 72:
       struct rte_mempool *pool_;  // Pool from which mbuf was allocated.
 
-      // offset 80:
+      // offset 60:
       Packet *next_;  // Next segment. nullptr if not scattered.
 
       // offset 88:
       uint64_t _dummy8;   // rte_mbuf.tx_offload
+      // TODO: Add struct rte_mbuf_ext_shared_info *shinfo;
       uint16_t _dummy9;   // rte_mbuf.priv_size
       uint16_t _dummy10;  // rte_mbuf.timesync
       uint32_t _dummy11;  // rte_mbuf.seqn

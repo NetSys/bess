@@ -29,7 +29,7 @@ ARG BESS_DPDK_BRANCH=master
 RUN cd /build/bess && \
 	curl -s -L https://github.com/NetSys/bess/archive/${BESS_DPDK_BRANCH}.tar.gz | tar zx --strip-components=1 && \
 	./build.py dpdk && \
-	cp /build/bess/deps/dpdk-19.11.4/build/app/testpmd /usr/local/bin/ && \
+	cp /build/bess/deps/dpdk-20.11/build/app/dpdk-testpmd /usr/local/bin/ && \
 	rm -rf /build/bess
 
 ENV CCACHE_DIR=/tmp/ccache
