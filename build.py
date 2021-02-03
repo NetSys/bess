@@ -89,14 +89,13 @@ BESS_DIR = os.path.dirname(os.path.abspath(__file__))
 DEPS_DIR = '%s/deps' % BESS_DIR
 
 DPDK_URL = 'https://fast.dpdk.org/rel'
-DPDK_VER = 'dpdk-19.11.4'
+DPDK_VER = 'dpdk-20.11'
 DPDK_TARGET = 'x86_64-native-linuxapp-gcc'
 
 kernel_release = cmd('uname -r', quiet=True).strip()
 
 DPDK_DIR = '%s/%s' % (DEPS_DIR, DPDK_VER)
-DPDK_CFLAGS = '"-g -w"'
-DPDK_CONFIG = '%s/build/.config' % DPDK_DIR
+DPDK_BUILD = '%s/build' % DPDK_DIR
 
 extra_libs = set()
 cxx_flags = []
@@ -213,46 +212,6 @@ def is_kernel_header_installed():
     return os.path.isdir("/lib/modules/%s/build" % kernel_release)
 
 
-def check_kernel_headers():
-    # If kernel header is not available, do not attempt to build
-    # any components that require kernel.
-    if not is_kernel_header_installed():
-        set_config(DPDK_CONFIG, 'CONFIG_RTE_EAL_IGB_UIO', 'n')
-        set_config(DPDK_CONFIG, 'CONFIG_RTE_KNI_KMOD', 'n')
-        set_config(DPDK_CONFIG, 'CONFIG_RTE_LIBRTE_KNI', 'n')
-        set_config(DPDK_CONFIG, 'CONFIG_RTE_LIBRTE_PMD_KNI', 'n')
-
-
-def check_bnx():
-    if check_header('zlib.h', 'gcc') and check_c_lib('z'):
-        extra_libs.add('z')
-    else:
-        print(' - "zlib1g-dev" is not available. Disabling BNX2X PMD...')
-        set_config(DPDK_CONFIG, 'CONFIG_RTE_LIBRTE_BNX2X_PMD', 'n')
-
-
-def check_mlx():
-    if check_header('infiniband/ib.h', 'gcc') and check_c_lib('mlx4') and \
-            check_c_lib('mlx5'):
-        extra_libs.add('ibverbs')
-        extra_libs.add('mlx4')
-        extra_libs.add('mlx5')
-    else:
-        print(' - "Mellanox OFED" is not available. '
-              'Disabling MLX4 and MLX5 PMDs...')
-        if check_header('infiniband/verbs.h', 'gcc'):
-            print('   NOTE: "libibverbs-dev" does exist, but it does not '
-                  'work with MLX PMDs. Instead download OFED from '
-                  'http://www.melloanox.com')
-        set_config(DPDK_CONFIG, 'CONFIG_RTE_LIBRTE_MLX4_PMD', 'n')
-        set_config(DPDK_CONFIG, 'CONFIG_RTE_LIBRTE_MLX5_PMD', 'n')
-
-
-def generate_dpdk_extra_mk():
-    with open('core/extra.dpdk.mk', 'w') as fp:
-        fp.write('LIBS += %s\n' % ' '.join(['-l' + lib for lib in extra_libs]))
-
-
 def find_current_plugins():
     "return list of existing plugins"
     result = []
@@ -293,16 +252,14 @@ def download_dpdk(quiet=False):
 
 def configure_dpdk():
     print('Configuring DPDK...')
-    cmd('make -C %s config T=%s' % (DPDK_DIR, DPDK_TARGET))
-
-    check_kernel_headers()
-    check_mlx()
-    generate_dpdk_extra_mk()
+    meson_opts = '--buildtype=debugoptimized'
 
     arch = os.getenv('CPU')
     if arch:
         print(' - Building DPDK with -march=%s' % arch)
-        set_config(DPDK_CONFIG, "CONFIG_RTE_MACHINE", arch)
+        meson_opts += ' -Dmachine=%s' % arch
+
+    cmd('meson %s %s %s' % (meson_opts, DPDK_BUILD, DPDK_DIR))
 
 
 def makeflags():
@@ -342,10 +299,7 @@ def build_dpdk():
         cmd('patch -d %s -N -p1 < %s || true' % (DPDK_DIR, f), shell=True)
 
     print('Building DPDK...')
-    nproc = int(cmd('nproc', quiet=True))
-    cmd('make -C %s EXTRA_CFLAGS=%s %s' % (DPDK_DIR,
-                                           DPDK_CFLAGS,
-                                           makeflags()))
+    cmd('ninja -C %s install' % DPDK_BUILD)
 
 
 def generate_protobuf_files():

@@ -23,8 +23,18 @@
         - libgflags-dev
         - libgoogle-glog-dev
         - libgtest-dev
-        - python
+        - python3
+        - python3-pip
+        - python3-setuptools
         - pkg-config
+
+    - name: Install DPDK build system
+      become: true
+      pip:
+        name:
+          - meson
+          - ninja
+        executable: pip3
 
     # pre-packaged meat for Bionic Beaver or higher
     - name: Install gRPC and its requirements (apt)

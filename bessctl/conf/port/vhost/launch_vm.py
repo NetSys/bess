@@ -175,7 +175,7 @@ def run_forward(vm_id, num_nics):
         nics += ' 00:1{nic}.0'.format(nic=i)
 
     scp(vm_id, os.path.join(bess_dir, 'bin/dpdk-devbind.py'), '')
-    scp(vm_id, os.path.join(bess_dir, 'deps/dpdk-19.11.4/build/app/testpmd'), '')
+    scp(vm_id, os.path.join(bess_dir, 'deps/dpdk-20.11/build/app/dpdk-testpmd'), '')
 
     # virtio-pci devices should not be bound to any driver
     cmd = ssh_cmd(vm_id, 'sudo ./dpdk-devbind.py -u %s' % nics)

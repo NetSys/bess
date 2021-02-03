@@ -61,28 +61,13 @@ endif
 
 HAS_PKG_CONFIG := $(shell command -v $(PKG_CONFIG) 2>&1 >/dev/null && echo yes || echo no)
 
-RTE_SDK ?= $(abspath ../deps/dpdk-19.11.4)
-RTE_TARGET ?= $(shell uname -m)-native-linuxapp-gcc
-DPDK_LIB ?= dpdk
-
-ifneq ($(wildcard $(RTE_SDK)/$(RTE_TARGET)/*),)
-  DPDK_INC_DIR := $(RTE_SDK)/$(RTE_TARGET)/include
-  DPDK_LIB_DIR := $(RTE_SDK)/$(RTE_TARGET)/build/lib
-else ifneq ($(wildcard $(RTE_SDK)/build/*),)
-  # if the user didn't do "make install" for DPDK
-  DPDK_INC_DIR := $(RTE_SDK)/build/include
-  DPDK_LIB_DIR := $(RTE_SDK)/build/lib
-else ifneq ($(MAKECMDGOALS),clean)
-  $(error DPDK is not available. Make sure $(abspath $(RTE_SDK)) is available and built)
-endif
-
 # We always want these libraries to be dynamically linked even when the
 # user requests a static build.
 ALWAYS_DYN_LIBS := -lpthread -ldl
 # These libraries are not supported by pkg-config.
 ALWAYS_LIBS := -lpcap -lgflags -lnuma
 # If pkg-config is available, we just need a list of the dependecies.
-PKG_CONFIG_DEPS := libglog protobuf grpc++ libunwind zlib
+PKG_CONFIG_DEPS := libdpdk libglog protobuf grpc++ libunwind zlib
 # If pkg-config is not available, we need to list the libs we depend on.
 NO_PKG_CONFIG_LIBS := -lglog -lgflags -lprotobuf -lgrpc++ -lunwind -lz
 # If pkg-config is not available and we're static linking, we also need
@@ -110,7 +95,7 @@ endif
 COREDIR := $(abspath .)
 CPU ?= native
 CXXFLAGS += -std=c++17 -g3 -ggdb3 -march=$(CPU) \
-            -isystem $(DPDK_INC_DIR) -isystem $(COREDIR) \
+            -isystem $(COREDIR) \
             -isystem $(dir $<).. -isystem $(COREDIR)/modules \
             -D_GNU_SOURCE \
             -Werror -Wall -Wextra -Wcast-align -Wno-error=deprecated-declarations \
@@ -133,7 +118,7 @@ ifeq "$(shell expr $(CXXCOMPILER) = g++)" "1"
   CXXFLAGS += -fno-gnu-unique
 endif
 
-LDFLAGS += -rdynamic -L$(DPDK_LIB_DIR) -Wl,-rpath=$(DPDK_LIB_DIR) -pthread
+LDFLAGS += -rdynamic
 ifdef BESS_LINK_DYNAMIC
   LIBS_ALL_SHARED = -Wl,-call_shared
   LIBS_DL_SHARED =
@@ -158,7 +143,6 @@ else # Used static libraries
 endif
 
 LIBS += -Wl,-non_shared \
-        -Wl,--whole-archive -l$(DPDK_LIB) -Wl,--no-whole-archive \
         $(LIBS_ALL_SHARED) \
         $(PKG_LIBS) $(ALWAYS_LIBS) \
         $(LIBS_DL_SHARED) \
