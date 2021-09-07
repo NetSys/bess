@@ -89,7 +89,7 @@ BESS_DIR = os.path.dirname(os.path.abspath(__file__))
 DEPS_DIR = '%s/deps' % BESS_DIR
 
 DPDK_URL = 'https://fast.dpdk.org/rel'
-DPDK_VER = 'dpdk-20.11'
+DPDK_VER = 'dpdk-20.11.3'
 DPDK_TARGET = 'x86_64-native-linuxapp-gcc'
 
 kernel_release = cmd('uname -r', quiet=True).strip()
