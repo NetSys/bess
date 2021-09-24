@@ -39,7 +39,7 @@ import os.path
 import re
 import argparse
 
-IMAGE = 'nefelinetworks/bess_build:' + os.getenv('TAG_SUFFIX', 'latest')
+IMAGE = os.getenv('IMAGE', 'nefelinetworks/bess_build') + ':' + os.getenv('TAG_SUFFIX', 'latest')
 BESS_DIR_HOST = os.path.dirname(os.path.abspath(__file__))
 BESS_DIR_CONTAINER = '/build/bess'
 BUILD_SCRIPT = './build.py'
