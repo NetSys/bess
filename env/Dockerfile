@@ -1,8 +1,6 @@
 # vim: syntax=dockerfile
 
-# Bionic Beaver (18.04) does not require ppa repositories for any packages
-# we need, such as g++-7, clang-6.0, ansible, grpc, etc.
-ARG BASE_IMAGE=ubuntu:bionic
+ARG BASE_IMAGE=ubuntu:focal
 FROM ${BASE_IMAGE}
 
 RUN echo "APT::Install-Recommends false;" >> /etc/apt/apt.conf.d/00recommends && \
@@ -21,7 +19,7 @@ RUN apt-get -q update && \
 	apt-get purge -y ansible && \
 	apt-get autoremove -y && \
 	rm -rf /var/lib/apt/lists
-
+RUN update-alternatives --install /usr/local/bin/python python /usr/bin/python3 3
 RUN mkdir -p /build/bess
 
 # Build DPDK testpmd (used in bessctl samples)
