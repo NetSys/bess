@@ -76,8 +76,12 @@ void L4Checksum::ProcessBatch(Context *ctx, bess::PacketBatch *batch) {
       if (verify_)
 	EmitPacket(ctx, batch->pkts()[i],
 		   (VerifyIpv4TcpChecksum(*ip, *tcp)) ? FORWARD_GATE : FAIL_GATE);
-      else
+      else {
 	tcp->checksum = CalculateIpv4TcpChecksum(*ip, *tcp);
+	EmitPacket(ctx, batch->pkts()[i], FORWARD_GATE);
+      }
+    } else { /* fail-safe condition. */
+	EmitPacket(ctx, batch->pkts()[i], FORWARD_GATE);
     }
   }
 }
