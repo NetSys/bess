@@ -35,6 +35,27 @@
 #include "../pb/module_msg.pb.h"
 #include "../port.h"
 
+
+using bess::metadata::kMetadataAttrMaxSize;
+using bess::metadata::mt_offset_t;
+
+typedef struct {
+  uint8_t bytes[kMetadataAttrMaxSize];
+} value_t;
+typedef struct {
+  uint8_t bytes[kMetadataAttrMaxSize];
+} mask_t;
+
+struct Attr {
+  std::string name;
+  value_t value;
+  mask_t mask;
+  int offset;
+  size_t size;
+  bool do_mask;
+  int shift;  // in bytes for now
+};
+
 class PortInc final : public Module {
  public:
   static const gate_idx_t kNumIGates = 0;
@@ -63,6 +84,7 @@ class PortInc final : public Module {
   Port *port_;
   int prefetch_;
   int burst_;
+  std::vector<struct Attr> attrs_;
 };
 
 #endif  // BESS_MODULES_PORTINC_H_

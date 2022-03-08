@@ -770,6 +770,7 @@ message PortIncArg {
  */
 message PortOutArg {
   string port = 1; /// The portname to connect to.
+  bool rpfcheck = 2; /// Allow reflection of packets to source port
 }
 
 /**
