@@ -170,7 +170,7 @@ class WildcardMatch final : public Module {
 
   int FindTuple(wm_hkey_t *mask);
   int AddTuple(wm_hkey_t *mask);
-  int DelEntry(int idx, wm_hkey_t *key);
+  bool DelEntry(int idx, wm_hkey_t *key);
 
   void Clear();
 
