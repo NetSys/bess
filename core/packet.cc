@@ -58,7 +58,9 @@ Packet *Packet::copy(const Packet *src) {
 
   bess::utils::CopyInlined(dst->append(src->total_len()), src->head_data(),
                            src->total_len(), true);
-
+  bess::utils::CopyInlined(&dst->metadata_, &src->metadata_,
+                           SNBUF_METADATA, true);
+  
   return dst;
 }
 
