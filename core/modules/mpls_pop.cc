@@ -36,7 +36,7 @@
 using bess::utils::Ethernet;
 using bess::utils::Mpls;
 
-const Commands MPLSPop::cmds = {{"set", "MplsPopArg",
+const Commands MPLSPop::cmds = {{"set", bess::pb::MplsPopArg::descriptor(),
                                  MODULE_CMD_FUNC(&MPLSPop::CommandSet),
                                  Command::THREAD_UNSAFE}};
 

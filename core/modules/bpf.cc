@@ -49,14 +49,14 @@
 #define SNAPLEN 0xffff
 
 const Commands BPF::cmds = {
-    {"add", "BPFArg", MODULE_CMD_FUNC(&BPF::CommandAdd),
+    {"add", bess::pb::BPFArg::descriptor(), MODULE_CMD_FUNC(&BPF::CommandAdd),
      Command::THREAD_UNSAFE},
-    {"delete", "BPFArg", MODULE_CMD_FUNC(&BPF::CommandDelete),
-     Command::THREAD_UNSAFE},
-    {"clear", "EmptyArg", MODULE_CMD_FUNC(&BPF::CommandClear),
-     Command::THREAD_UNSAFE},
-    {"get_initial_arg", "EmptyArg", MODULE_CMD_FUNC(&BPF::GetInitialArg),
-     Command::THREAD_SAFE}};
+    {"delete", bess::pb::BPFArg::descriptor(),
+     MODULE_CMD_FUNC(&BPF::CommandDelete), Command::THREAD_UNSAFE},
+    {"clear", bess::pb::EmptyArg::descriptor(),
+     MODULE_CMD_FUNC(&BPF::CommandClear), Command::THREAD_UNSAFE},
+    {"get_initial_arg", bess::pb::EmptyArg::descriptor(),
+     MODULE_CMD_FUNC(&BPF::GetInitialArg), Command::THREAD_SAFE}};
 
 CommandResponse BPF::Init(const bess::pb::BPFArg &arg) {
   return CommandAdd(arg);

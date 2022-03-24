@@ -73,9 +73,9 @@ static inline int is_valid_gate(gate_idx_t gate) {
 }
 
 const Commands HashLB::cmds = {
-    {"set_mode", "HashLBCommandSetModeArg",
+    {"set_mode", bess::pb::HashLBCommandSetModeArg::descriptor(),
      MODULE_CMD_FUNC(&HashLB::CommandSetMode), Command::THREAD_UNSAFE},
-    {"set_gates", "HashLBCommandSetGatesArg",
+    {"set_gates", bess::pb::HashLBCommandSetGatesArg::descriptor(),
      MODULE_CMD_FUNC(&HashLB::CommandSetGates), Command::THREAD_UNSAFE}};
 
 CommandResponse HashLB::CommandSetMode(

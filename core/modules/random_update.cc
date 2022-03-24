@@ -33,10 +33,10 @@
 using bess::utils::be32_t;
 
 const Commands RandomUpdate::cmds = {
-    {"add", "RandomUpdateArg", MODULE_CMD_FUNC(&RandomUpdate::CommandAdd),
-     Command::THREAD_UNSAFE},
-    {"clear", "EmptyArg", MODULE_CMD_FUNC(&RandomUpdate::CommandClear),
-     Command::THREAD_UNSAFE},
+    {"add", bess::pb::RandomUpdateArg::descriptor(),
+     MODULE_CMD_FUNC(&RandomUpdate::CommandAdd), Command::THREAD_UNSAFE},
+    {"clear", bess::pb::EmptyArg::descriptor(),
+     MODULE_CMD_FUNC(&RandomUpdate::CommandClear), Command::THREAD_UNSAFE},
 };
 
 CommandResponse RandomUpdate::Init(const bess::pb::RandomUpdateArg &arg) {

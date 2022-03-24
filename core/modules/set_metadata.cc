@@ -40,7 +40,7 @@
 using bess::metadata::mt_offset_t;
 
 const Commands SetMetadata::cmds = {
-    {"get_initial_arg", "EmptyArg",
+    {"get_initial_arg", bess::pb::EmptyArg::descriptor(),
      MODULE_CMD_FUNC(&SetMetadata::GetInitialArg), Command::THREAD_SAFE},
 };
 

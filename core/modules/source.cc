@@ -31,9 +31,9 @@
 #include "source.h"
 
 const Commands Source::cmds = {
-    {"set_pkt_size", "SourceCommandSetPktSizeArg",
+    {"set_pkt_size", bess::pb::SourceCommandSetPktSizeArg::descriptor(),
      MODULE_CMD_FUNC(&Source::CommandSetPktSize), Command::THREAD_SAFE},
-    {"set_burst", "SourceCommandSetBurstArg",
+    {"set_burst", bess::pb::SourceCommandSetBurstArg::descriptor(),
      MODULE_CMD_FUNC(&Source::CommandSetBurst), Command::THREAD_SAFE},
 };
 

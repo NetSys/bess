@@ -30,7 +30,7 @@
 #include "replicate.h"
 
 const Commands Replicate::cmds = {
-    {"set_gates", "ReplicateCommandSetGatesArg",
+    {"set_gates", bess::pb::ReplicateCommandSetGatesArg::descriptor(),
      MODULE_CMD_FUNC(&Replicate::CommandSetGates), Command::THREAD_UNSAFE},
 };
 

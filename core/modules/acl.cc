@@ -34,10 +34,10 @@
 #include "../utils/udp.h"
 
 const Commands ACL::cmds = {
-    {"add", "ACLArg", MODULE_CMD_FUNC(&ACL::CommandAdd),
+    {"add", bess::pb::ACLArg::descriptor(), MODULE_CMD_FUNC(&ACL::CommandAdd),
      Command::THREAD_UNSAFE},
-    {"clear", "EmptyArg", MODULE_CMD_FUNC(&ACL::CommandClear),
-     Command::THREAD_UNSAFE}};
+    {"clear", bess::pb::EmptyArg::descriptor(),
+     MODULE_CMD_FUNC(&ACL::CommandClear), Command::THREAD_UNSAFE}};
 
 CommandResponse ACL::Init(const bess::pb::ACLArg &arg) {
   for (const auto &rule : arg.rules()) {

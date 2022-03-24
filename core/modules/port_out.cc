@@ -32,8 +32,8 @@
 #include "../utils/format.h"
 
 const Commands PortOut::cmds = {
-    {"get_initial_arg", "EmptyArg", MODULE_CMD_FUNC(&PortOut::GetInitialArg),
-     Command::THREAD_SAFE},
+    {"get_initial_arg", bess::pb::EmptyArg::descriptor(),
+     MODULE_CMD_FUNC(&PortOut::GetInitialArg), Command::THREAD_SAFE},
 };
 
 CommandResponse PortOut::Init(const bess::pb::PortOutArg &arg) {

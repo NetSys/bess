@@ -35,10 +35,10 @@
 #include "../utils/copy.h"
 
 const Commands Rewrite::cmds = {
-    {"add", "RewriteArg", MODULE_CMD_FUNC(&Rewrite::CommandAdd),
-     Command::THREAD_UNSAFE},
-    {"clear", "EmptyArg", MODULE_CMD_FUNC(&Rewrite::CommandClear),
-     Command::THREAD_UNSAFE},
+    {"add", bess::pb::RewriteArg::descriptor(),
+     MODULE_CMD_FUNC(&Rewrite::CommandAdd), Command::THREAD_UNSAFE},
+    {"clear", bess::pb::EmptyArg::descriptor(),
+     MODULE_CMD_FUNC(&Rewrite::CommandClear), Command::THREAD_UNSAFE},
 };
 
 CommandResponse Rewrite::Init(const bess::pb::RewriteArg &arg) {
