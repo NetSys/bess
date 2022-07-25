@@ -62,7 +62,7 @@ T PadSize(T a, T b) {
 
 // Return the single hex digit representing `nibble`.  If it cannot be
 // represented, return the char 'X'.
-char NibbleToHD(char nibble) {
+char NibbleToHD(signed char nibble) {
   if (nibble >= 0 && nibble <= 9) {
     return nibble + '0';
   } else if (nibble >= 10 && nibble <= 15) {

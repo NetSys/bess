@@ -41,6 +41,7 @@ import shlex
 import subprocess
 import textwrap
 import argparse
+import platform
 
 
 def cmd(cmd, quiet=False, shell=False):
@@ -90,7 +91,14 @@ DEPS_DIR = '%s/deps' % BESS_DIR
 
 DPDK_URL = 'https://fast.dpdk.org/rel'
 DPDK_VER = 'dpdk-19.11.4'
-DPDK_TARGET = 'x86_64-native-linuxapp-gcc'
+
+if platform.uname().machine == 'x86_64':
+    DPDK_TARGET = 'x86_64-native-linuxapp-gcc'
+elif platform.uname().machine == 'aarch64':
+    DPDK_TARGET = 'arm64-armv8a-linux-gcc'
+else:
+    print("Unsupported platform")
+    sys.exit(1)
 
 kernel_release = cmd('uname -r', quiet=True).strip()
 
@@ -299,10 +307,10 @@ def configure_dpdk():
     check_mlx()
     generate_dpdk_extra_mk()
 
-    arch = os.getenv('CPU')
-    if arch:
-        print(' - Building DPDK with -march=%s' % arch)
-        set_config(DPDK_CONFIG, "CONFIG_RTE_MACHINE", arch)
+    arch = platform.uname().machine
+    if arch == 'aarch64':
+        print(' - Building DPDK with -march=%s' % 'armv8-a')
+        set_config(DPDK_CONFIG, "CONFIG_RTE_MACHINE", 'armv8-a')
 
 
 def makeflags():

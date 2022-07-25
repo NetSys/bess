@@ -31,7 +31,13 @@
 #define BESS_UTILS_BITS_H_
 
 #include <glog/logging.h>
+#if __x86_64
 #include <x86intrin.h>
+#elif __aarch64__
+#include <sse2neon.h>
+#else
+#error Unsupported architecture
+#endif
 
 #include <algorithm>
 

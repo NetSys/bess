@@ -410,7 +410,16 @@ static bool SkipSymbol(char *symbol) {
 // TODO: Only use async-signal-safe operations in the signal handler.
 static void TrapHandler(int sig_num, siginfo_t *info, void *ucontext) {
   std::ostringstream oops;
+
+#if (__i386 || __x86_64)
   auto *uc = static_cast<ucontext_t *>(ucontext);
+#elif __aarch64__
+  // unused parameter
+  (void)ucontext;
+#else
+#error Unsupported architecture
+#endif
+  
   bool is_fatal = (sig_num != SIGUSR1);
   static volatile bool already_trapped = false;
 
@@ -422,8 +431,10 @@ static void TrapHandler(int sig_num, siginfo_t *info, void *ucontext) {
   trap_ip = reinterpret_cast<void *>(uc->uc_mcontext.gregs[REG_EIP]);
 #elif __x86_64
   trap_ip = reinterpret_cast<void *>(uc->uc_mcontext.gregs[REG_RIP]);
+#elif __aarch64__
+  trap_ip = nullptr;
 #else
-#error neither x86 or x86-64
+#error Unsupported architecture
 #endif
 
   if (is_fatal) {

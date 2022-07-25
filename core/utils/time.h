@@ -40,9 +40,19 @@
 extern uint64_t tsc_hz;
 
 static inline uint64_t rdtsc(void) {
+  uint64_t val;
+
+#if (__i386 || __x86_64)
   uint32_t hi, lo;
   __asm__ __volatile__("rdtsc" : "=a"(lo), "=d"(hi));
-  return (uint64_t)lo | ((uint64_t)hi << 32);
+  val = (uint64_t)lo | ((uint64_t)hi << 32);
+#elif __aarch64__
+  __asm__ __volatile__("mrs %0, cntvct_el0" : "=r" (val));
+#else
+#error Unsupported architecture
+#endif
+  
+  return val;
 }
 
 static inline uint64_t tsc_to_ns(uint64_t cycles) {

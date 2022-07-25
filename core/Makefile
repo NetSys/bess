@@ -60,9 +60,18 @@ ifeq "$(CXXCOMPILER)" "g++"
 endif
 
 HAS_PKG_CONFIG := $(shell command -v $(PKG_CONFIG) 2>&1 >/dev/null && echo yes || echo no)
+ARCH := $(shell uname -m)
 
 RTE_SDK ?= $(abspath ../deps/dpdk-19.11.4)
-RTE_TARGET ?= $(shell uname -m)-native-linuxapp-gcc
+
+ifeq ($(ARCH),x86_64)
+  RTE_TARGET ?= $(shell uname -m)-native-linuxapp-gcc
+else ifeq ($(ARCH),aarch64)
+  RTE_TARGET ?= arm64-armv8a-linux-gcc
+else
+  $(error Unsupported architecture)
+endif
+
 DPDK_LIB ?= dpdk
 
 ifneq ($(wildcard $(RTE_SDK)/$(RTE_TARGET)/*),)
@@ -75,6 +84,10 @@ else ifneq ($(wildcard $(RTE_SDK)/build/*),)
 else ifneq ($(MAKECMDGOALS),clean)
   $(error DPDK is not available. Make sure $(abspath $(RTE_SDK)) is available and built)
 endif
+
+# Library for translating Intel SSE intrinsics
+# to ARM64 NEON
+SSE2NEON_DIR ?= $(abspath ../deps/sse2neon)
 
 # We always want these libraries to be dynamically linked even when the
 # user requests a static build.
@@ -108,9 +121,16 @@ endif
 # these headers.  Should fix the warnings.  Using -isystem also disables
 # -MMD dependency recording (should we use -MD?).
 COREDIR := $(abspath .)
-CPU ?= native
+ifeq ($(ARCH),x86_64)
+  CPU ?= native
+else ifeq ($(ARCH),aarch64)
+  CPU ?= armv8-a+fp+simd
+else
+  $(error Unsupported architecture)
+endif
 CXXFLAGS += -std=c++17 -g3 -ggdb3 -march=$(CPU) \
             -isystem $(DPDK_INC_DIR) -isystem $(COREDIR) \
+            -isystem $(SSE2NEON_DIR) \
             -isystem $(dir $<).. -isystem $(COREDIR)/modules \
             -D_GNU_SOURCE \
             -Werror -Wall -Wextra -Wcast-align -Wno-error=deprecated-declarations \
@@ -131,6 +151,10 @@ endif
 # Disable GNU_UNIQUE symbol for g++
 ifeq "$(shell expr $(CXXCOMPILER) = g++)" "1"
   CXXFLAGS += -fno-gnu-unique
+endif
+
+ifeq ($(ARCH),aarch64)
+  CXXFLAGS += -DRTE_FORCE_INTRINSICS
 endif
 
 LDFLAGS += -rdynamic -L$(DPDK_LIB_DIR) -Wl,-rpath=$(DPDK_LIB_DIR) -pthread

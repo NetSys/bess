@@ -35,7 +35,13 @@
 #include <cerrno>
 #include <thread>
 
+#if __x86_64
 #include <nmmintrin.h>
+#elif __aarch64__
+#include <sse2neon.h>
+#else
+#error Unsupported architecture
+#endif
 #include <signal.h>
 
 namespace bess {
