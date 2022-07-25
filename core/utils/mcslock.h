@@ -61,10 +61,22 @@ static inline void mcs_lock(mcslock_t *lock, mcslock_node_t *mynode) {
   /* it's hold by others. queue up and spin on the node of myself */
   pre->next = mynode;
 
+#if (__i386 || __x86_64)
   asm volatile("sfence" ::: "memory");
+#elif __aarch64__
+  asm volatile("dmb " "ishst" ::: "memory");
+#else
+#error Unsupported architecture
+#endif
 
   while (mynode->locked) {
+#if (__i386 || __x86_64)
     __builtin_ia32_pause();
+#elif __aarch64__
+    asm volatile("yield");
+#else
+#error Unsupported architecture
+#endif
   }
 }
 
@@ -73,8 +85,15 @@ static inline void mcs_unlock(mcslock_t *lock, mcslock_node_t *mynode) {
     if (__sync_bool_compare_and_swap(&lock->tail, mynode, nullptr)) return;
 
     while (mynode->next == nullptr) {
+#if (__i386 || __x86_64)
       asm volatile("lfence" ::: "memory");
       __builtin_ia32_pause();
+#elif __aarch64__
+      asm volatile("dmb " "ishld" ::: "memory");
+      asm volatile("yield");
+#else
+#error Unsupported architecture
+#endif
     }
   }
 

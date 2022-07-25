@@ -33,7 +33,13 @@
 
 #include <string>
 
+#if __x86_64
 #include <x86intrin.h>
+#elif __aarch64__
+#include <sse2neon.h>
+#else
+#error Unsupported architecture
+#endif
 
 #include <glog/logging.h>
 
@@ -41,8 +47,10 @@
 #define __ymm_aligned __attribute__((aligned(32)))
 #define __zmm_aligned __attribute__((aligned(64)))
 
+#if __x86_64
 #if !__SSE4_2__
 #error CPU must be at least Intel Nehalem equivalent (SSE4.2 required)
+#endif
 #endif
 
 std::string m128i_to_str(__m128i a);

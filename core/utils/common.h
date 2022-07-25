@@ -91,7 +91,13 @@ static inline uint64_t align_ceil_pow2(uint64_t v) {
 #define INST_BARRIER() asm volatile("" ::: "memory")
 #define LOAD_BARRIER() INST_BARRIER()
 #define STORE_BARRIER() INST_BARRIER()
+#if (__i368 || __x86_64)
 #define FULL_BARRIER() asm volatile("mfence" ::: "memory")
+#elif __aarch64__
+#define FULL_BARRIER() asm volatile("dmb " "ish" ::: "memory")
+#else
+#error Unsupported architecture
+#endif
 
 // Put this in the declarations for a class to be uncopyable.
 #define DISALLOW_COPY(TypeName) TypeName(const TypeName &) = delete

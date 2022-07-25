@@ -34,7 +34,13 @@
 #ifndef BESS_UTILS_CHECKSUM_H_
 #define BESS_UTILS_CHECKSUM_H_
 
+#if __x86_64
 #include <x86intrin.h>
+#elif __aarch64__
+#include <sse2neon.h>
+#else
+#error Unsupported architecture
+#endif
 
 #include "common.h"
 #include "ip.h"
@@ -214,6 +220,7 @@ static inline bool VerifyIpv4NoOptChecksum(const Ipv4 &iph) {
 
   // Calculate internet checksum, the optimized way is
   // 1. get 32-bit one's complement sum including carrys
+#if __x86_64
   asm("addl %[u1], %[sum]   \n\t"
       "adcl %[u2], %[sum]   \n\t"
       "adcl %[u3], %[sum]   \n\t"
@@ -222,6 +229,25 @@ static inline bool VerifyIpv4NoOptChecksum(const Ipv4 &iph) {
       : [sum] "+r"(sum)
       : [u1] "m"(buf32[1]), [u2] "m"(buf32[2]), [u3] "m"(buf32[3]),
         [u4] "m"(buf32[4]));
+#elif __aarch64__
+  uint32_t tmp = 0;
+  
+  asm("ldr %w[tmp], %w[u1]    \n\t"
+      "adds %w[sum], %w[tmp], %w[sum]   \n\t"
+      "ldr %w[tmp], %w[u2]    \n\t"
+      "adcs %w[sum], %w[tmp], %w[sum]   \n\t"
+      "ldr %w[tmp], %w[u3]    \n\t"
+      "adcs %w[sum], %w[tmp], %w[sum]   \n\t"
+      "ldr %w[tmp], %w[u4]    \n\t"
+      "adcs %w[sum], %w[tmp], %w[sum]   \n\t"
+      "mov %w[tmp], #0    \n\t"
+      "adcs %w[sum], %w[tmp], %w[sum]        \n\t"
+      : [sum] "+r"(sum), [tmp] "+r" (tmp)
+      : [u1] "m"(buf32[1]), [u2] "m"(buf32[2]), [u3] "m"(buf32[3]),
+        [u4] "m"(buf32[4]));
+#else
+#error Unsupported architecture
+#endif
 
   // 2. reduce to 16-bit unsigned integer and negate
   return FoldChecksum(sum) == 0;
@@ -236,6 +262,7 @@ static inline uint16_t CalculateIpv4NoOptChecksum(const Ipv4 &iph) {
 
   // Calculate internet checksum, the optimized way is
   // 1. get 32-bit one's complement sum including carrys
+#if __x86_64
   asm("addl %[u1], %[sum]    \n\t"
       "adcl %[u2], %[sum]    \n\t"
       "adcl %[u3], %[sum]    \n\t"
@@ -245,6 +272,27 @@ static inline uint16_t CalculateIpv4NoOptChecksum(const Ipv4 &iph) {
       : [u1] "m"(buf32[1]),
         [u2] "g"(buf32[2] & 0xFFFF),  // skip checksum fields
         [u3] "m"(buf32[3]), [u4] "m"(buf32[4]));
+#elif __aarch64__
+  uint32_t tmp = 0; 
+  uint32_t tmp2 = 0xffff; 
+  
+  asm("ldr %w[tmp], %w[u1]    \n\t"
+      "adds %w[sum], %w[tmp], %w[sum]   \n\t"
+      "ldr %w[tmp], %w[u2]    \n\t"
+      "and %w[tmp], %w[tmp2], %w[tmp]    \n\t"
+      "adcs %w[sum], %w[tmp], %w[sum]   \n\t"
+      "ldr %w[tmp], %w[u3]    \n\t"
+      "adcs %w[sum], %w[tmp], %w[sum]   \n\t"
+      "ldr %w[tmp], %w[u4]    \n\t"
+      "adcs %w[sum], %w[tmp], %w[sum]   \n\t"
+      "mov %w[tmp], #0    \n\t"
+      "adcs %w[sum], %w[tmp], %w[sum]        \n\t"
+      : [sum] "+r"(sum), [tmp] "+r" (tmp)
+      : [u1] "m"(buf32[1]), [u2] "m"(buf32[2]), [u3] "m"(buf32[3]),
+        [u4] "m"(buf32[4]), [tmp2] "r" (tmp2));
+#else
+#error Unsupported architecture
+#endif
 
   // 2. reduce to 16-bit unsigned integer and negate
   return FoldChecksum(sum);
@@ -268,6 +316,7 @@ static inline bool VerifyIpv4Checksum(const Ipv4 &iph) {
 
   // Calculate internet checksum, the optimized way is
   // 1. get 32-bit one's complement sum including carrys
+#if __x86_64
   asm("addl %[u0], %[sum]   \n\t"
       "adcl %[u1], %[sum]   \n\t"
       "adcl %[u2], %[sum]   \n\t"
@@ -277,6 +326,27 @@ static inline bool VerifyIpv4Checksum(const Ipv4 &iph) {
       : [sum] "+r"(sum)
       : [u0] "m"(buf32[0]), [u1] "m"(buf32[1]), [u2] "m"(buf32[2]),
         [u3] "m"(buf32[3]), [u4] "m"(buf32[4]));
+#elif __aarch64__
+  uint32_t tmp = 0;
+  
+  asm("ldr %w[tmp], %w[u0]    \n\t"
+      "adds %w[sum], %w[tmp], %w[sum]   \n\t"
+      "ldr %w[tmp], %w[u1]    \n\t"
+      "adcs %w[sum], %w[tmp], %w[sum]   \n\t"
+      "ldr %w[tmp], %w[u2]    \n\t"
+      "adcs %w[sum], %w[tmp], %w[sum]   \n\t"
+      "ldr %w[tmp], %w[u3]    \n\t"
+      "adcs %w[sum], %w[tmp], %w[sum]   \n\t"
+      "ldr %w[tmp], %w[u4]    \n\t"
+      "adcs %w[sum], %w[tmp], %w[sum]   \n\t"
+      "mov %w[tmp], #0    \n\t"
+      "adcs %w[sum], %w[tmp], %w[sum]        \n\t"
+      : [sum] "+r"(sum), [tmp] "+r" (tmp)
+      : [u0] "m"(buf32[0]), [u1] "m"(buf32[1]), [u2] "m"(buf32[2]),
+        [u3] "m"(buf32[3]), [u4] "m"(buf32[4]));
+#else
+#error Unsupported architecture
+#endif
 
   // 2. reduce to 16-bit unsigned integer and negate
   return FoldChecksum(sum) == 0;
@@ -302,6 +372,7 @@ static inline uint16_t CalculateIpv4Checksum(const Ipv4 &iph) {
 
   // Calculate internet checksum, the optimized way is
   // 1. get 32-bit one's complement sum including carrys
+#if __x86_64
   asm("addl %[u0], %[sum]    \n\t"
       "adcl %[u1], %[sum]    \n\t"
       "adcl %[u2], %[sum]    \n\t"
@@ -312,6 +383,29 @@ static inline uint16_t CalculateIpv4Checksum(const Ipv4 &iph) {
       : [u0] "m"(buf32[0]), [u1] "m"(buf32[1]),
         [u2] "g"(buf32[2] & 0xFFFF),  // skip checksum fields
         [u3] "m"(buf32[3]), [u4] "m"(buf32[4]));
+#elif __aarch64__
+  uint32_t tmp = 0; 
+  uint32_t tmp2 = 0xffff; 
+  
+  asm("ldr %w[tmp], %w[u0]    \n\t"
+      "adds %w[sum], %w[tmp], %w[sum]   \n\t"
+      "ldr %w[tmp], %w[u1]    \n\t"
+      "adcs %w[sum], %w[tmp], %w[sum]   \n\t"
+      "ldr %w[tmp], %w[u2]    \n\t"
+      "and %w[tmp], %w[tmp2], %w[tmp]    \n\t"
+      "adcs %w[sum], %w[tmp], %w[sum]   \n\t"
+      "ldr %w[tmp], %w[u3]    \n\t"
+      "adcs %w[sum], %w[tmp], %w[sum]   \n\t"
+      "ldr %w[tmp], %w[u4]    \n\t"
+      "adcs %w[sum], %w[tmp], %w[sum]   \n\t"
+      "mov %w[tmp], #0    \n\t"
+      "adcs %w[sum], %w[tmp], %w[sum]        \n\t"
+      : [sum] "+r"(sum), [tmp] "+r" (tmp)
+      : [u0] "m"(buf32[0]), [u1] "m"(buf32[1]), [u2] "m"(buf32[2]),
+        [u3] "m"(buf32[3]), [u4] "m"(buf32[4]), [tmp2] "r" (tmp2));
+#else
+#error Unsupported architecture
+#endif
 
   // 2. reduce to 16-bit unsigned integer and negate
   return FoldChecksum(sum);
@@ -336,6 +430,7 @@ static inline bool VerifyIpv4UdpChecksum(const Udp &udph, be32_t src_ip,
   uint32_t len = static_cast<uint32_t>(be16_t::swap(udp_len));
 
   // Calculate the checksum of UDP header and pseudo header
+#if __x86_64
   asm("addl %[u0], %[sum]      \n\t"
       "adcl %[u1], %[sum]      \n\t"
       "adcl %[src], %[sum]     \n\t"
@@ -346,6 +441,26 @@ static inline bool VerifyIpv4UdpChecksum(const Udp &udph, be32_t src_ip,
       : [sum] "+r"(sum)
       : [u0] "m"(buf32[0]), [u1] "m"(buf32[1]), [src] "r"(src_ip.raw_value()),
         [dst] "r"(dst_ip.raw_value()), [len] "r"(len));
+#elif __aarch64__
+  uint32_t tmp = 0;
+  
+  asm("ldr %w[tmp], %w[u0]    \n\t"
+      "adds %w[sum], %w[tmp], %w[sum]   \n\t"
+      "ldr %w[tmp], %w[u1]    \n\t"
+      "adcs %w[sum], %w[tmp], %w[sum]   \n\t"
+      "adcs %w[sum], %w[src], %w[sum]   \n\t"
+      "adcs %w[sum], %w[dst], %w[sum]   \n\t"
+      "adcs %w[sum], %w[len], %w[sum]   \n\t"
+      "mov %w[tmp], #0x1100    \n\t"
+      "adcs %w[sum], %w[tmp], %w[sum]        \n\t"
+      "mov %w[tmp], #0    \n\t"
+      "adcs %w[sum], %w[tmp], %w[sum]        \n\t"
+      : [sum] "+r"(sum), [tmp] "+r" (tmp)
+      : [u0] "m"(buf32[0]), [u1] "m"(buf32[1]), [src] "r"(src_ip.raw_value()),
+        [dst] "r"(dst_ip.raw_value()), [len] "r"(len));
+#else
+#error Unsupported architecture
+#endif
 
   return FoldChecksum(sum) == 0;
 }
@@ -377,6 +492,7 @@ static inline uint16_t CalculateIpv4UdpChecksum(const Udp &udph, be32_t src,
   uint32_t len = static_cast<uint32_t>(be16_t::swap(udp_len));
 
   // Calculate the checksum of UDP header and pseudo header
+#if __x86_64
   asm("addl %[u0], %[sum]      \n\t"
       "adcl %[u1], %[sum]      \n\t"
       "adcl %[src], %[sum]     \n\t"
@@ -387,6 +503,28 @@ static inline uint16_t CalculateIpv4UdpChecksum(const Udp &udph, be32_t src,
       : [sum] "+r"(sum)
       : [u0] "m"(buf32[0]), [u1] "g"(buf32[1] & 0xFFFF),  // skip checksum field
         [src] "r"(src.raw_value()), [dst] "r"(dst.raw_value()), [len] "r"(len));
+#elif __aarch64__
+  uint32_t tmp = 0;
+  uint32_t tmp2 = 0xffff;
+  
+  asm("ldr %w[tmp], %w[u0]    \n\t"
+      "adds %w[sum], %w[tmp], %w[sum]   \n\t"
+      "ldr %w[tmp], %w[u1]    \n\t"
+      "and %w[tmp], %w[tmp2], %w[tmp]    \n\t"
+      "adcs %w[sum], %w[tmp], %w[sum]   \n\t"
+      "adcs %w[sum], %w[src], %w[sum]   \n\t"
+      "adcs %w[sum], %w[dst], %w[sum]   \n\t"
+      "adcs %w[sum], %w[len], %w[sum]   \n\t"
+      "mov %w[tmp], #0x1100    \n\t"
+      "adcs %w[sum], %w[tmp], %w[sum]        \n\t"
+      "mov %w[tmp], #0    \n\t"
+      "adcs %w[sum], %w[tmp], %w[sum]        \n\t"
+      : [sum] "+r"(sum), [tmp] "+r" (tmp)
+      : [u0] "m"(buf32[0]), [u1] "m"(buf32[1]), [tmp2] "r" (tmp2),
+        [src] "r"(src.raw_value()), [dst] "r"(dst.raw_value()), [len] "r"(len));
+#else
+#error Unsupported architecture
+#endif
 
   // If the result of UDP checksum calculation is 0, return all ones (rfc 768)
   return FoldChecksum(sum) ?: 0xFFFF;
@@ -420,6 +558,7 @@ static inline bool VerifyIpv4TcpChecksum(const Tcp &tcph, be32_t src_ip,
   uint32_t len = static_cast<uint32_t>(be16_t::swap(tcp_len));
 
   // Calculate the checksum of TCP header and pseudo header
+#if __x86_64
   asm("addl %[u0], %[sum]      \n\t"
       "adcl %[u1], %[sum]      \n\t"
       "adcl %[u2], %[sum]      \n\t"
@@ -434,6 +573,33 @@ static inline bool VerifyIpv4TcpChecksum(const Tcp &tcph, be32_t src_ip,
       : [u0] "m"(buf32[0]), [u1] "m"(buf32[1]), [u2] "m"(buf32[2]),
         [u3] "m"(buf32[3]), [u4] "m"(buf32[4]), [src] "r"(src_ip.raw_value()),
         [dst] "r"(dst_ip.raw_value()), [len] "r"(len));
+#elif __aarch64__
+  uint32_t tmp = 0;
+  
+  asm("ldr %w[tmp], %w[u0]    \n\t"
+      "adds %w[sum], %w[tmp], %w[sum]   \n\t"
+      "ldr %w[tmp], %w[u1]    \n\t"
+      "adcs %w[sum], %w[tmp], %w[sum]   \n\t"
+      "ldr %w[tmp], %w[u2]    \n\t"
+      "adcs %w[sum], %w[tmp], %w[sum]   \n\t"
+      "ldr %w[tmp], %w[u3]    \n\t"
+      "adcs %w[sum], %w[tmp], %w[sum]   \n\t"
+      "ldr %w[tmp], %w[u4]    \n\t"
+      "adcs %w[sum], %w[tmp], %w[sum]   \n\t"
+      "adcs %w[sum], %w[src], %w[sum]   \n\t"
+      "adcs %w[sum], %w[dst], %w[sum]   \n\t"
+      "adcs %w[sum], %w[len], %w[sum]   \n\t"
+      "mov %w[tmp], #0x0600    \n\t"
+      "adcs %w[sum], %w[tmp], %w[sum]        \n\t"
+      "mov %w[tmp], #0    \n\t"
+      "adcs %w[sum], %w[tmp], %w[sum]        \n\t"
+      : [sum] "+r"(sum), [tmp] "+r" (tmp)
+      : [u0] "m"(buf32[0]), [u1] "m"(buf32[1]), [u2] "m"(buf32[2]),
+        [u3] "m"(buf32[3]), [u4] "m"(buf32[4]), [src] "r"(src_ip.raw_value()),
+        [dst] "r"(dst_ip.raw_value()), [len] "r"(len));
+#else
+#error Unsupported architecture
+#endif
 
   return FoldChecksum(sum) == 0;
 }
@@ -467,6 +633,7 @@ static inline uint16_t CalculateIpv4TcpChecksum(const Tcp &tcph, be32_t src,
   uint32_t len = static_cast<uint32_t>(be16_t::swap(tcp_len));
 
   // Calculate the checksum of TCP header and pseudo header
+#if __x86_64
   asm("addl %[u0], %[sum]      \n\t"
       "adcl %[u1], %[sum]      \n\t"
       "adcl %[u2], %[sum]      \n\t"
@@ -482,6 +649,34 @@ static inline uint16_t CalculateIpv4TcpChecksum(const Tcp &tcph, be32_t src,
         [u3] "m"(buf32[3]),
         [u4] "g"(buf32[4] >> 16),  // skip checksum field
         [src] "r"(src.raw_value()), [dst] "r"(dst.raw_value()), [len] "r"(len));
+#elif __aarch64__
+  uint32_t tmp = 0;
+  
+  asm("ldr %w[tmp], %w[u0]    \n\t"
+      "adds %w[sum], %w[tmp], %w[sum]   \n\t"
+      "ldr %w[tmp], %w[u1]    \n\t"
+      "adcs %w[sum], %w[tmp], %w[sum]   \n\t"
+      "ldr %w[tmp], %w[u2]    \n\t"
+      "adcs %w[sum], %w[tmp], %w[sum]   \n\t"
+      "ldr %w[tmp], %w[u3]    \n\t"
+      "adcs %w[sum], %w[tmp], %w[sum]   \n\t"
+      "ldr %w[tmp], %w[u4]    \n\t"
+      "lsr %w[tmp], %w[tmp], #16    \n\t"    // skip checksum field
+      "adcs %w[sum], %w[tmp], %w[sum]   \n\t"
+      "adcs %w[sum], %w[src], %w[sum]   \n\t"
+      "adcs %w[sum], %w[dst], %w[sum]   \n\t"
+      "adcs %w[sum], %w[len], %w[sum]   \n\t"
+      "mov %w[tmp], #0x0600    \n\t"
+      "adcs %w[sum], %w[tmp], %w[sum]        \n\t"
+      "mov %w[tmp], #0    \n\t"
+      "adcs %w[sum], %w[tmp], %w[sum]        \n\t"
+      : [sum] "+r"(sum), [tmp] "+r" (tmp)
+      : [u0] "m"(buf32[0]), [u1] "m"(buf32[1]), [u2] "m"(buf32[2]),
+        [u3] "m"(buf32[3]), [u4] "m"(buf32[4]),
+        [src] "r"(src.raw_value()), [dst] "r"(dst.raw_value()), [len] "r"(len));
+#else
+#error Unsupported architecture
+#endif
 
   return FoldChecksum(sum);
 }

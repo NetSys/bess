@@ -149,7 +149,13 @@ typedef uint64_t phys_addr_t;
 #define llring_likely(x) __builtin_expect(!!(x), 1)
 #define llring_unlikely(x) __builtin_expect(!!(x), 0)
 
+#if __x86_64
 #include <emmintrin.h>
+#elif __aarch64__
+#include <sse2neon.h>
+#else
+#error Unsupported architecture
+#endif
 
 static inline void llring_pause(void) { _mm_pause(); }
 

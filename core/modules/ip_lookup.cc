@@ -39,7 +39,13 @@
 #include "../utils/format.h"
 #include "../utils/ip.h"
 
+#if __x86_64
 #define VECTOR_OPTIMIZATION 1
+#elif __aarch64__
+#define VECTOR_OPTIMIZATION 0
+#else
+#error Unsupported architecture
+#endif
 
 static inline int is_valid_gate(gate_idx_t gate) {
   return (gate < MAX_GATES || gate == DROP_GATE);
@@ -84,7 +90,7 @@ void IPLookup::ProcessBatch(Context *ctx, bess::PacketBatch *batch) {
   gate_idx_t default_gate = default_gate_;
 
   int cnt = batch->cnt();
-  int i;
+  int i = 0;
 
 #if VECTOR_OPTIMIZATION
   // Convert endianness for four addresses at the same time

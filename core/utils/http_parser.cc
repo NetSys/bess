@@ -32,7 +32,51 @@
 #ifdef _MSC_VER
 #include <nmmintrin.h>
 #else
+#if (__i386 || __x86_64)
 #include <x86intrin.h>
+#elif __aarch64__
+#include <sse2neon.h>
+#else
+#error Unsupported architecture
+#endif
+#endif
+
+#ifdef __aarch64__
+
+#define _SIDD_UBYTE_OPS 0x00
+#define _SIDD_CMP_RANGES 0x04
+#define _SIDD_LEAST_SIGNIFICANT 0x00
+
+typedef union __attribute__((aligned(16))) __oword {
+   int64x2_t m128i;
+   uint8_t m128i_u8[16];
+} __oword;
+
+static inline int _mm_cmpestri(int64x2_t str1, int len1, int64x2_t str2, int len2, int mode) {
+  __oword a, b;
+  a.m128i = str1;
+  b.m128i = str2;
+
+  // mode is unused
+  (void)mode;
+
+  int i,j, result;
+
+  for (i = 0; i < len2; i++) {
+    for (j = 0; j < len1; j+=2) {
+      if (b.m128i_u8[i] >= a.m128i_u8[j] && b.m128i_u8[i] <= a.m128i_u8[j+1]) 
+        break;
+    } 
+  }
+
+  result = i;
+
+  if (result == len2)
+    result = 16;
+
+  return result;
+}
+
 #endif
 
 /* $Id$ */
