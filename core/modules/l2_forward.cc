@@ -370,7 +370,7 @@ static uint64_t l2_addr_to_u64(char *addr) {
 
 static void l2_forward_init_test() {
   int ret;
-  struct l2_table l2tbl;
+  struct l2_table l2tbl = {};
 
   ret = l2_init(&l2tbl, 0, 0);
   DCHECK_LT(ret, 0);
@@ -445,7 +445,7 @@ static void l2_forward_entry_test() {
 
 static void l2_forward_flush_test() {
   int ret;
-  struct l2_table l2tbl;
+  struct l2_table l2tbl = {};
 
   uint64_t addr1 = 0x0123456701234567;
   uint16_t index1 = 0x0123;

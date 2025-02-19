@@ -31,6 +31,7 @@
 #include "sn_common.h"
 #include "sn_kernel.h"
 #include "../snbuf_layout.h"
+#include <linux/ethtool.h>
 
 #define NUM_STATS_PER_TX_QUEUE (sizeof(struct sn_queue_tx_stats) / sizeof(u64))
 #define NUM_STATS_PER_RX_QUEUE (sizeof(struct sn_queue_rx_stats) / sizeof(u64))

@@ -31,7 +31,7 @@
 from __future__ import print_function
 import re
 import tokenize
-import parser
+import ast
 import io
 
 '''
@@ -171,8 +171,8 @@ def is_gate_expr(exp, is_ogate):
         exp_stripped = exp_stripped[:-1].strip()
 
     try:
-        parser.expr('(%s)' % exp_stripped)
-        parser.expr('%s%s%s' % (prefix, exp, postfix))
+        ast.parse('(%s)' % exp_stripped, mode='eval')
+        ast.parse('%s%s%s' % (prefix, exp, postfix), mode='eval')
     except SyntaxError:
         return False
     else:

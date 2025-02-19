@@ -395,6 +395,9 @@ class ExactMatchTable {
       return MakeError(EINVAL,
                        Format("idx %d is not in [0,%d)", idx, MAX_FIELDS));
     }
+    if (m == nullptr) {
+      return MakeError(EINVAL, Format("idx %d: module pointer is null", idx));
+    }
     ExactMatchField *f = &fields_[idx];
     f->size = field.size;
     if (f->size < 1 || f->size > MAX_FIELD_SIZE) {
