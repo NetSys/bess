@@ -463,13 +463,19 @@ class CuckooMap {
       HashResult alt_index;
 
       // this entry is in its primary bucket?
-      if (pri == bucket.hash_values[i]) {
-        alt_index = sec & bucket_mask_;
-      } else if (sec == bucket.hash_values[i]) {
-        alt_index = pri & bucket_mask_;
+      HashResult pri_index = pri & bucket_mask_;
+      HashResult sec_index = sec & bucket_mask_;
+      if (pri_index == index) {
+        alt_index = sec_index;
+      } else if (sec_index == index) {
+        alt_index = pri_index;
       } else {
         return -1;
       }
+      if (alt_index == index) {
+        // Primary and secondary hash map to the exact same bucket; cannot displace
+        continue;
+￼     }
 
       int j = FindEmptySlot(buckets_[alt_index]);
       if (j == -1) {
